@@ -168,8 +168,8 @@ def drive(site, sid, start, steps, viewport, shots):
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
         out, _ = proc.communicate()
-        return [json.loads(line) for line in out.splitlines() if line.startswith("{")] + [{"error": "timed out after 300s"}]
-    return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+        return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')] + [{"error": "timed out after 300s"}]
+    return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')]
 
 
 if __name__ == "__main__":

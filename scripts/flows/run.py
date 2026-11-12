@@ -340,9 +340,11 @@ def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shot
         out, _ = proc.communicate(timeout=900)
     except subprocess.TimeoutExpired:
         os.killpg(proc.pid, signal.SIGKILL)
-        proc.communicate()
-        raise RuntimeError("page steps timed out after 900s")
-    return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+        out, _ = proc.communicate()
+        # 说出卡在哪一步（驱动每步开始前打一行 progress）：只报「超时」查不了根因（11-12）
+        stuck = [json.loads(line).get("progress") for line in (out or "").splitlines() if line.startswith('{"progress"')]
+        raise RuntimeError(f"page steps timed out after 900s{f' in step {stuck[-1]!r}' if stuck else ' before the first step'}")
+    return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')]
 
 
 _VIDEO_LOCK = threading.Lock()  # 并行时两格可能要同一个码的视频：只生成一次

@@ -58,7 +58,7 @@ def drive(sid, steps, timeout=1500):
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {SITE} 127.0.0.1")
     out = subprocess.run(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], capture_output=True, text=True,
                          env=env, timeout=timeout).stdout
-    return [json.loads(line) for line in out.splitlines() if line.startswith("{")]
+    return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')]
 
 
 # 页面里：这段对话 CC 调过哪些工具（按事件里的 agent.custom_tool_use，同对话页取事件的接口）

@@ -23,18 +23,28 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const logs = [];
 let ws, seq = 0;
 const pending = new Map();
-const send = (method, params = {}, sessionId) => {
+// 每个调试调用都有上限：Chrome 卡住或调试连接断开时，挂起的调用不再无限等下去（11-12 满载时整格卡满 run.py 的 900 秒，
+// 杀掉时也看不出卡在哪一步）。超时 / 断开就带着调用名失败，外面按步骤记下、整格停下
+const send = (method, params = {}, sessionId, ms = 60000) => {
   const message = { id: ++seq, method, params, ...(sessionId ? { sessionId } : {}) };
+  if (!ws || ws.readyState !== 1) return Promise.reject(new Error(`debug connection closed before ${method}`));
   ws.send(JSON.stringify(message));
-  return new Promise((resolve, reject) => pending.set(message.id, { resolve, reject }));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { pending.delete(message.id); reject(new Error(`${method} timed out after ${ms / 1000}s`)); }, ms);
+    pending.set(message.id, { resolve: (value) => { clearTimeout(timer); resolve(value); },
+      reject: (error) => { clearTimeout(timer); reject(error); } });
+  });
 };
+const STEP_MS = 300000;  // 一步页面脚本最多跑这么久（最慢的流程步骤约 100 秒）
 try {
   let info;
   for (let i = 0; i < 150 && !info; i++) {
     try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
   }
   ws = new WebSocket(info.webSocketDebuggerUrl);
-  await new Promise((resolve) => ws.addEventListener("open", resolve));
+  await new Promise((resolve, reject) => { ws.addEventListener("open", resolve); setTimeout(() => reject(new Error("debug connection did not open")), 30000); });
+  // 连接断开（Chrome 崩溃 / 被杀）：挂着的调用全部立即失败
+  ws.addEventListener("close", () => { for (const [, call] of pending) call.reject(new Error("debug connection closed")); pending.clear(); });
   ws.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
     if (message.id && pending.has(message.id)) {
@@ -75,6 +85,7 @@ try {
   await sleep(1500);
   for (const [index, step] of (job.steps || []).entries()) {
     logs.length = 0;
+    console.log(JSON.stringify({ progress: step.name }));  // 被外面整格杀掉时，run.py 据此说卡在哪一步
     if (job.mobile && step.height !== undefined) {
       await send("Emulation.setDeviceMetricsOverride", { width: job.width || 390, height: step.height || 844, deviceScaleFactor: 2, mobile: true }, sessionId);
     }
@@ -90,8 +101,8 @@ try {
         document.body.append(box, tag); return true; };
       window.__find = (text, root = document) => [...root.querySelectorAll('a, button, .btn, span, div, li, label')].filter((e) => e.offsetParent
         && (e.innerText || '').trim() === text).sort((a, b) => a.querySelectorAll('*').length - b.querySelectorAll('*').length)[0] || null;`;
-    const result = await send("Runtime.evaluate", { expression: `(async () => { ${helper} const p = window.frappe && frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId)
-      .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } } }));
+    const result = await send("Runtime.evaluate", { expression: `(async () => { ${helper} const p = window.frappe && frappe.pearnly; ${step.js} })()`, awaitPromise: true, returnByValue: true, timeout: 60000 }, sessionId, STEP_MS)
+      .catch((error) => ({ exceptionDetails: { exception: { description: String(error) } }, driverError: /timed out|connection/.test(String(error)) }));
     if (step.wait_ms) await sleep(step.wait_ms);
     if (step.shot && job.shots) {
       // step.full：整张表单截全（弹窗 / 页面比一屏长时把视口临时拉到内容的高度，截完还原）
@@ -125,6 +136,8 @@ try {
     console.log(JSON.stringify({ step: step.name, value: result.result?.value ?? null,
       error: result.exceptionDetails?.exception?.description?.slice(0, 300) || null, page_errors: [...logs],
       field_help: help?.result?.value?.below || [], field_icons: help?.result?.value?.icons || [] }));
+    // 页面脚本本身超时或调试连接断了：后面的步骤都跑不了，整格停下（不再耗到外面的总超时）
+    if (result.driverError) throw new Error(`step "${step.name}": ${result.exceptionDetails.exception.description}`);
   }
 } catch (error) {
   console.log(JSON.stringify({ error: `driver: ${error.message}` }));

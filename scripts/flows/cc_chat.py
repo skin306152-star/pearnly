@@ -26,6 +26,15 @@ WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return tru
         "await until(()=>shown(items()),20);};")
 
 
+# 排队条里的句子；放行挂住的那一轮：另开一段临时对话发 [lab-release]（假智能体收到就放行），发完删掉这段对话
+RELEASE = ("const queuedTexts=()=>[...document.querySelectorAll('[data-slot=\"cc-queue-item\"] .cc-queue-text')].map(e=>e.innerText.trim());"
+           "const release=async k=>{const post=(m,a)=>fetch('/api/method/'+m,{method:'POST',headers:{'X-Frappe-CSRF-Token':window.csrf_token||'',"
+           "'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(a)}).then(r=>r.json()).then(j=>j.message||{});"
+           "const s=await post('pearnly_core.assistant.api.create',{}); if(!s.id) return false;"
+           "await post('pearnly_core.assistant.api.send',{session_id:s.id,text:'[lab-release]'+k+'[/lab-release]'});"
+           "await post('pearnly_core.assistant.api.delete',{session_id:s.id}); return true;};")
+
+
 def prepare(lab, manifest):
     # 判定按中文界面写（按钮、提示）：上一轮 cc.settings 中途被停时管理员语言可能还是英文，先还原
     lab.python(manifest["site"], 'frappe.db.set_value("User", "admin@erp.regression", "language", "zh")\nfrappe.db.commit()\nprint("{}")')
@@ -43,23 +52,28 @@ def steps(params, camera_code=None):
          "return {got, user: roles('user'), assistant: roles('assistant')};"},
         {"name": "第二轮", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); await say({json.dumps(second)}); "
          f"const got=await until(()=>{want(second)}); return {{got, user: roles('user'), assistant: roles('assistant')}};"},
-        # 批 A ⑤（11-09 对照文档第 2 项）：回复中再发一句——先排在输入框上方（发送键、不是停止键），本轮完了自动发出、也得到回复
-        {"name": "回复中排队", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
-         f"await say({json.dumps(tag + ' [lab-slow]4[/lab-slow] 慢一点')}); "
-         "await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),40); await new Promise(r=>setTimeout(r,300)); "
-         f"await say({json.dumps(params['queued'])}); await new Promise(r=>setTimeout(r,400)); "
-         "const queuedShown=[...document.querySelectorAll('[data-slot=\"cc-queue-item\"] .cc-queue-text')].map(e=>e.innerText.trim()); "
+        # 批 A ⑤（11-09 对照文档第 2 项）：回复中再发一句——先排在输入框上方（发送键、不是停止键），本轮完了自动发出、也得到回复。
+        # 11-12：这一轮由假智能体挂住（[lab-hold]），等到「停止」键出现（这一轮确实在进行）→ 打字 → 排队条里出现这一句，
+        # 都看到了才放行；原来是「慢 4 秒」，满载时 4 秒内没打完字就直接发出、偶发判错
+        {"name": "回复中排队", "js": WAIT + RELEASE + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),240); "
+         f"await say({json.dumps(tag + ' [lab-hold]' + tag + '-q[/lab-hold] 慢一点')}); "
+         "const running=await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),240); "
+         f"await say({json.dumps(params['queued'])}); "
+         f"await until(()=>queuedTexts().includes({json.dumps(params['queued'])}),240); "
+         "const queuedShown=queuedTexts(); "
          f"const early=roles('user').includes({json.dumps(params['queued'])}); "
-         f"const got=await until(()=>{want(params['queued'])},120); "
-         "return {shown: queuedShown, early, got, left: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length};"},
+         f"const released=await release({json.dumps(tag + '-q')}); "
+         f"const got=await until(()=>{want(params['queued'])},240); "
+         "return {running, shown: queuedShown, early, released, got, left: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length};"},
         # 批 A ③：刷新前在输入框打一句不发（草稿按对话存本机，稍等它存下）
         # 说停就停（A 线 11-10）：回复进行中只发一个「停」，等于按停止键——这一轮停下，「停」不进排队、不发成一条消息
-        {"name": "回复中说停", "js": WAIT + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),40); "
-         f"await say({json.dumps(tag + ' [lab-slow]8[/lab-slow] 慢慢来')}); "
-         "await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),40); await new Promise(r=>setTimeout(r,300)); "
+        {"name": "回复中说停", "js": WAIT + RELEASE + f"await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),240); "
+         f"await say({json.dumps(tag + ' [lab-hold]' + tag + '-s[/lab-hold] 慢慢来')}); "
+         "const running=await until(()=>!!document.querySelector('button[aria-label=\"停止\"]'),240); "
          "const t0=Date.now(); await say('停'); "
-         "const stopped=await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),16); "
-         "return {stopped, ms: Date.now()-t0, queued: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length, "
+         "const stopped=await until(()=>!document.querySelector('button[aria-label=\"停止\"]'),240); const ms=Date.now()-t0; "
+         f"await release({json.dumps(tag + '-s')}); "
+         "return {running, stopped, ms, queued: document.querySelectorAll('[data-slot=\"cc-queue-item\"]').length, "
          "sentStop: roles('user').some(t=>t.trim()==='停')};"},
         {"name": "刷新", "js": f"const ta=document.querySelector('textarea[aria-label]'); "
          "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta," + json.dumps(params["draft"]) + "); "
@@ -129,7 +143,8 @@ def judge(params, results, camera_code=None):
          "ok": bool(one.get("got")) and first in (back.get("user") or [])},
         {"case": "第二轮收到回复（同一段对话）", "seen": two, "ok": bool(two.get("got")) and len(two.get("assistant") or []) >= 2},
         {"case": "回复中再发一句：先排在输入框上方，本轮完了自动发出并得到回复", "seen": queued,
-         "ok": params["queued"] in (queued.get("shown") or []) and not queued.get("early") and bool(queued.get("got"))
+         "ok": bool(queued.get("running")) and params["queued"] in (queued.get("shown") or []) and not queued.get("early")
+         and bool(queued.get("released")) and bool(queued.get("got"))
          and queued.get("left") == 0},
         {"case": "刷新后直接回到原对话（地址带对话编号）", "seen": reopened,
          "ok": bool(reopened.get("got")) and "c=sesn_" in (reopened.get("search") or "")
@@ -144,7 +159,7 @@ def judge(params, results, camera_code=None):
          "ok": bool(kept.get("marked")) and bool(kept.get("half")) and bool(kept.get("retry")) and not kept.get("end")
          and "已停止" in (kept.get("note") or "") and "重试" in (kept.get("note") or "")},
         {"case": "回复中只说「停」：这一轮停下，不进排队、不发成消息", "seen": halted,
-         "ok": bool(halted.get("stopped")) and halted.get("queued") == 0 and not halted.get("sentStop")},
+         "ok": bool(halted.get("running")) and bool(halted.get("stopped")) and halted.get("queued") == 0 and not halted.get("sentStop")},
         # 长回复超出一屏（overflow 远大于一屏）：电脑停在最底下（gap 近 0）；手机不跟，停在这一轮开头（提问在视口上沿附近、下面还有很多）
         {"case": "长回复：电脑跟到底、手机停在这一轮开头", "seen": long,
          "ok": bool(long.get("got")) and (long.get("overflow") or 0) > 600 and (

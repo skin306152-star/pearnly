@@ -441,5 +441,37 @@ class ChangedFlows(unittest.TestCase):
         self.assertNotIn("any(covers(f, path) for path in files)", source, "两处选流程都走同一个函数")
 
 
+
+class DriveTimeout(unittest.TestCase):
+    """整格卡满 900 秒时说出卡在哪一步（驱动每步开始前打一行 progress），已跑完的步骤输出不再整个丢掉（11-12）。"""
+
+    def drive(self, out):
+        import subprocess as sp
+        from unittest import mock
+
+        class Proc:
+            pid = 0
+            calls = 0
+
+            def communicate(self, timeout=None):
+                Proc.calls += 1
+                if Proc.calls == 1:
+                    raise sp.TimeoutExpired("node", timeout)
+                return out, ""
+
+        with mock.patch.object(run.subprocess, "Popen", return_value=Proc()), mock.patch.object(run.os, "killpg"):
+            run.drive("erp.regression.localhost", "sid", "/desk", [], False, None)
+
+    def test_the_stuck_step_is_named(self):
+        out = '{"progress": "one"}\n{"step": "one", "value": 1}\n{"progress": "two"}\n'
+        with self.assertRaises(RuntimeError) as stopped:
+            self.drive(out)
+        self.assertIn("in step 'two'", str(stopped.exception))
+
+    def test_before_the_first_step(self):
+        with self.assertRaises(RuntimeError) as stopped:
+            self.drive("")
+        self.assertIn("before the first step", str(stopped.exception))
+
 if __name__ == "__main__":
     unittest.main()

@@ -74,5 +74,32 @@ class AskUserScript(unittest.TestCase):
         self.assertFalse(any(e["type"] == "agent.custom_tool_use" for e in events))
 
 
+
+class HoldUntilReleased(unittest.TestCase):
+    """[lab-hold]K[/lab-hold]：这一轮一直挂着（流程在「回复进行中」确定地做事），任一会话收到 [lab-release]K[/lab-release] 才回（11-12）。"""
+
+    def replies(self, state):
+        with lab.LOCK:
+            return [e for e in state["_events"] if e["type"] == "agent.message"]
+
+    def test_the_reply_waits_for_the_release_from_another_session(self):
+        held, other = session(), session()
+        lab.receive(held, [user_message("慢一点 [lab-hold]k1[/lab-hold]")])
+        time.sleep(0.5)
+        self.assertEqual(self.replies(held), [], "放行之前不回")
+        self.assertEqual(held["status"], "running")
+        lab.receive(other, [user_message("[lab-release]k1[/lab-release]")])
+        wait_for(held, lambda es: es[-1]["type"] == "session.status_idle")
+        self.assertEqual(len(self.replies(held)), 1)
+
+    def test_a_stop_ends_the_held_turn_without_a_reply(self):
+        held = session()
+        lab.receive(held, [user_message("慢慢来 [lab-hold]k2[/lab-hold]")])
+        time.sleep(0.3)
+        lab.receive(held, [{"type": "user.interrupt"}])
+        time.sleep(0.5)
+        self.assertEqual(self.replies(held), [])
+        self.assertEqual(held["status"], "idle")
+
 if __name__ == "__main__":
     unittest.main()

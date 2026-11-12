@@ -40,7 +40,9 @@
 - 停在半段（批 A ④，11-09）：原文带 ``[lab-cut]`` 时只推 `event_start` / `event_delta` 预览（``[lab-cut-half]`` 开头），不出正式 `agent.message`，
   等页面点停止（`user.interrupt`）；最多等 60 秒，没人停就照常出正式回复（末尾 ``[lab-cut-end]``）。流程 `cc.chat` 用它量停止后半段还在。
 - 长回复（批 A ①，11-09）：``[lab-long]N[/lab-long]`` 回 N 段文字、末尾 ``[lab-long-end]``，流程 `cc.chat` 用它量回复超出一屏时跟不跟到底。
-- 慢回复（批 A ⑤，11-09）：``[lab-slow]N[/lab-slow]`` 照普通的一句回，只是多等 N 秒，流程 `cc.chat` 用它在回复中再发一句、看排队。
+- 慢回复（批 A ⑤，11-09）：``[lab-slow]N[/lab-slow]`` 照普通的一句回，只是多等 N 秒。
+- 挂住的回复（11-12）：``[lab-hold]K[/lab-hold]`` 一直不回，直到任一会话收到 ``[lab-release]K[/lab-release]``（或被停、最多 120 秒），
+  流程 `cc.chat` 用它在「回复进行中」确定地做完排队、说停，再放行——不靠慢 N 秒赶时间。
 - 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
   ``agent.custom_tool_use``（name ``ask_user``，input 就是中间那段 JSON），再记 ``session.status_idle``（stop_reason
   requires_action，event_ids 是这一条）；之后收到这一条的 ``user.custom_tool_result``，记 running、回一条
@@ -74,6 +76,12 @@ TOOL_OPEN, TOOL_CLOSE = "[lab-tool]", "[/lab-tool]"
 LONG_OPEN, LONG_CLOSE = "[lab-long]", "[/lab-long]"  # 用户原文里这一段 = 回一段 N 段长的文字（流程 cc.chat 量跟随滚动）
 LONG_END = "[lab-long-end]"
 SLOW_OPEN, SLOW_CLOSE = "[lab-slow]", "[/lab-slow]"  # 用户原文里这一段 = 这一条多等 N 秒再回（流程 cc.chat 量回复中排队）
+# 挂住的回复（11-12）：``[lab-hold]K[/lab-hold]`` 这一条一直不回，直到任一会话收到 ``[lab-release]K[/lab-release]``（或被停、
+# 会话删了、最多 HOLD_WAIT 秒）。流程在确定「这一轮正在进行」之后要做的事做完了才放行，不靠「慢 N 秒」赶时间（满载时 N 秒不够就偶发）
+HOLD_OPEN, HOLD_CLOSE = "[lab-hold]", "[/lab-hold]"
+RELEASE_OPEN, RELEASE_CLOSE = "[lab-release]", "[/lab-release]"
+HOLD_WAIT = 120
+RELEASED = set()
 CUT = "[lab-cut]"  # 用户原文里有它 = 这一轮只推逐字预览、等着被停（批 A ④，流程 cc.chat 量停止后半段还在）
 CUT_HALF, CUT_END = "[lab-cut-half]", "[lab-cut-end]"
 CUT_WAIT = 60  # 一直没人停：这么多秒后照常出正式回复（末尾带 CUT_END）
@@ -283,6 +291,13 @@ def _turns(state: dict) -> None:
             head = state["_pending"][0] if state["_pending"] else None
         if isinstance(head, dict) and head.get("slow"):
             time.sleep(head["slow"])
+        if isinstance(head, dict) and head.get("hold"):
+            deadline = time.time() + HOLD_WAIT
+            while time.time() < deadline:
+                with LOCK:
+                    if head["hold"] in RELEASED or state["_deleted"] or not state["_pending"] or state["_pending"][0] is not head:
+                        break
+                time.sleep(0.1)
         with LOCK:
             if state["_deleted"] or not state["_pending"]:
                 state["_worker"] = None
@@ -339,6 +354,12 @@ def _cut_turn(state: dict, text: str) -> None:
             publish(state, {"id": ident, "type": "agent.message", "content": [{"type": "text", "text": f"{text} {CUT_END}"}]})
 
 
+def _between(text: str, opening: str, closing: str) -> str:
+    start = text.find(opening)
+    end = text.find(closing, start + len(opening)) if start >= 0 else -1
+    return text[start + len(opening):end].strip() if start >= 0 and end >= 0 else ""
+
+
 def _asked(text: str):
     """用户原文里有 ``[lab-ask]{…}[/lab-ask]``：这一轮发 ask_user（入参是中间的 JSON）；有 ``[lab-tool]{"name", "input"}[/lab-tool]``：
     发这个工具的调用；有 ``[lab-long]N[/lab-long]``：回 N 段文字（最多 200 段，末尾 ``[lab-long-end]``）；有 ``[lab-slow]N[/lab-slow]``：照普通的一句回，只是多等 N 秒（最多 30）；都没有就是普通的一句。"""
@@ -350,6 +371,9 @@ def _asked(text: str):
         count = min(int(text[start + len(LONG_OPEN):end]), 200)
         return {"say": "\n\n".join(f"{OPTIONS['prefix']} 第 {i} 段：盘点、对账、入库、出库都按顺序记一遍。" for i in range(1, count + 1))
                 + "\n\n" + LONG_END}
+    held = _between(text, HOLD_OPEN, HOLD_CLOSE)
+    if held:
+        return {"say": f"{OPTIONS['prefix']} {text[:REPLY_CHARS]}", "hold": held}
     start = text.find(SLOW_OPEN)
     end = text.find(SLOW_CLOSE, start + len(SLOW_OPEN)) if start >= 0 else -1
     if start >= 0 and end >= 0 and text[start + len(SLOW_OPEN):end].strip().isdigit():
@@ -396,6 +420,9 @@ def receive(state: dict, events: list) -> list:
                 # 直接打字，站点先结束那一轮（user.interrupt）再送这条，流程 `cc.send-unblocked` 量的就是这个顺序）
                 raise bad_request("session is waiting on a tool result; only settle events are accepted")
             elif kind == "user.message":
+                released = _between(_user_text(event), RELEASE_OPEN, RELEASE_CLOSE)
+                if released:
+                    RELEASED.add(released)
                 set_status(state, "running")
                 publish(state, event)
                 state["_pending"].append(_asked(_user_text(event)))

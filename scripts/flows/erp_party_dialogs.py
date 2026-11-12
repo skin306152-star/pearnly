@@ -20,16 +20,22 @@ def prepare(lab, manifest):
 
 
 def _create(route, key, name_field, phone_field, name, phone):
-    return (IDLE + CAPTURE + f"frappe.set_route({json.dumps(route)}); await idle(); await new Promise(r=>setTimeout(r,800));"
-            "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
+    # 11-12：「新建」按钮只在当前这一页里找、等这一页真的显示出来；弹窗等「带名称字段的那个」出现。原来全页找第一个可见的
+    # 「新建」再固定等 800 毫秒：手机宽度从供应商页切到客户页时上一页还没收起，点到的是上一页的「新建」，弹出的是供应商弹窗
+    return (IDLE + CAPTURE + f"frappe.set_route({json.dumps(route)}); "
+            "const until=async(f,n=240)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
+            f"const here=()=>frappe.get_route_str()==={json.dumps(route)}&&frappe.container.page&&frappe.container.page.offsetParent"
+            "&&[...frappe.container.page.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
+            "await until(here); await idle(); const b=here();"
             "if(!b) return {error:'no new button'}; const n=window.__dlgs.length; b.click();"
-            "for(let k=0;k<40&&window.__dlgs.length===n;k++) await new Promise(r=>setTimeout(r,250)); await idle();"
-            "const d=window.__dlgs[window.__dlgs.length-1];"
-            f"if(!d||!d.fields_dict.{name_field}) return {{error:'no {key} dialog'}};"
+            f"const mine=()=>window.__dlgs.slice(n).find(x=>x.fields_dict.{name_field});"
+            "await until(()=>mine()&&mine().$wrapper.is(':visible')); await idle();"
+            "const d=mine();"
+            f"if(!d) return {{error:'no {key} dialog', opened: window.__dlgs.slice(n).map(x=>x.title)}};"
             "const order=d.fields.filter(f=>f.fieldname && f.fieldtype!=='Section Break' && f.fieldtype!=='Column Break').map(f=>f.fieldname);"
             f"await d.set_value({json.dumps(name_field)}, {json.dumps(name)}); await d.set_value({json.dumps(phone_field)}, {json.dumps(phone)});"
             "await new Promise(r=>setTimeout(r,400)); d.get_primary_btn().trigger('click');"
-            "for(let k=0;k<40&&d.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+            "await until(()=>!d.$wrapper.is(':visible')); await idle();"
             "return {order, closed: !d.$wrapper.is(':visible')};")
 
 
