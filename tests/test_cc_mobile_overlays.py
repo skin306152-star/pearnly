@@ -596,7 +596,7 @@ class MenuEdgeTests(unittest.TestCase):
                       "var(--radix-dropdown-menu-content-available-height, var(--cc-menu-max-none))); overflow-y: auto;", css)
         for rel in ("components/period-chip.tsx", "components/assistant-ui/projects.tsx"):
             self.assertNotIn("max-h-80", read(rel), rel)
-        self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]"'), 2)
+        self.assertEqual(read("components/period-chip.tsx").count('className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]"'), 3)  # 月份、分店、新建页账套
         # 方向：按触发按钮（aria-labelledby）上下的空间与内容完整高度选，换子菜单那一页时重选
         self.assertIn('const id = el.getAttribute("aria-labelledby");', menu)
         self.assertIn("el.scrollHeight + borders", menu)
