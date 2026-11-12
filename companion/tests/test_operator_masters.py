@@ -120,6 +120,45 @@ class OperatorMastersTest(unittest.TestCase):
         code = ready.payload["items"][0]["code"]
         self.assertEqual(product_master.find_stock_item_code(self.acct, "ผงชูรส"), code)
 
+    def _guided_tables(self):
+        """单位表（ISTAB 20）里有「ขด」、分类表（ISTAB 22）里有 FG / RAW。"""
+        t = dbf.Table(str(self.acct / "ISTAB.DBF"), codepage=S.CODEPAGE)
+        t.open(dbf.READ_WRITE)
+        try:
+            for tabtyp, code in (("20", "ขด"), ("20", "ลต"), ("22", "FG"), ("22", "RAW")):
+                t.append({"TABTYP": tabtyp, "TYPCOD": code, "TYPDES": code})
+        finally:
+            t.close()
+
+    def test_a_new_stock_item_takes_the_unit_group_category_and_negative_option_of_its_line(self):
+        """载荷 21 的四个行键（11-12 晚，引导式第 1 期）：代录开工前建新物料照这一行给的单位码、科目组、分类、允许负库存建，
+        不再静默取众数；同直写 ``stock_purchase`` 的建法。"""
+        self._seed_stock()
+        self._guided_tables()
+        payload = _purchase(payload_version=21, items=[
+            {"name": "น้ำมันเครื่อง", "qty": "2", "unit_price": "50", "amount": "100.00", "unit": "ถัง", "item_mode": "stock_item",
+             "unit_code": "ขด", "acccod": "ST01", "stkgrp": "RAW", "negallow": "N"}])
+        ready = self._prepare(payload)
+        self.assertTrue(ready.ok, ready.error)
+        code = ready.payload["items"][0]["code"]
+        row = next(r for r in _rows(self.acct, "STMAS") if r["STKCOD"].strip() == code)
+        self.assertEqual((row["QUCOD"].strip(), row["ACCCOD"].strip(), row["STKGRP"].strip(), row["NEGALLOW"].strip()),
+                         ("ขด", "ST01", "RAW", "N"))
+        self.assertEqual(ready.payload["items"][0]["unit"], "ขด")  # 录单也按这个单位码
+
+    def test_a_line_key_naming_something_the_book_does_not_have_is_handed_to_a_person_untouched(self):
+        self._seed_stock()
+        self._guided_tables()
+        before = _digest(self.acct, ("STMAS", "APMAS", "ISACC"))
+        for key, value, code in (("stkgrp", "NOPE", "ITEM_GROUP_NOT_FOUND"), ("unit_code", "ZZ", "UNIT_CODE_NOT_FOUND")):
+            payload = _purchase(payload_version=21, items=[
+                {"name": "น้ำมันเครื่อง", "qty": "2", "unit_price": "50", "amount": "100.00", "item_mode": "stock_item", key: value}])
+            ready = self._prepare(payload)
+            self.assertFalse(ready.ok)
+            self.assertEqual((ready.error_code, ready.outcome), (code, "needs_review"))
+        self.assertEqual(_digest(self.acct, ("STMAS", "APMAS", "ISACC")), before)
+        self.assertEqual(self.closed, [])  # 没去关 Express
+
     def test_an_expense_line_booked_to_an_account_gets_a_service_item_on_that_account(self):
         # 费用单的明细（直接记科目）：Express 界面录明细要商品码，照直写建非库存品的函数按这一行的科目建服务品
         payload = _purchase(items=[{"name": "ค่าโฆษณาออนไลน์", "qty": "1", "unit_price": "3000", "amount": "3000.00",

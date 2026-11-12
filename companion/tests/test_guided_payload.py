@@ -507,3 +507,13 @@ def test_an_operator_task_with_guided_keys_is_refused(acct):
     assert Queue.failures[0][2]["error_code"] == "PAYLOAD_INVALID" and Queue.failures[0][2]["outcome"] == "needs_review"
     assert guided.uses({"supplier": {"payterm": 3}}) and guided.uses({"items": [{"negallow": ""}]}) and guided.uses({"guided": False})
     assert not guided.uses({"items": [{"unit": "ขวด", "factor": "2"}], "supplier": {"code": "S"}})
+
+
+def test_an_operator_task_may_carry_only_the_four_keys_new_items_need():
+    """代录单只带建新物料用的四个行键（单位码、科目组、分类、允许负库存）照录（11-12 晚）；带了表头、对方块或别的行键照旧拒收。"""
+    four = {"payload_version": 21, "items": [{"name": "x", "unit_code": "ขด", "acccod": "ST01", "stkgrp": "FG", "negallow": "N"}]}
+    assert guided.uses(four) and guided.operator_allowed(four)
+    assert guided.operator_allowed({"items": [{"name": "x"}]})
+    for extra in ({"guided": True}, {"due_date_be": "690130"}, {"supplier": {"type": "01"}}):
+        assert not guided.operator_allowed({**four, **extra})
+    assert not guided.operator_allowed({"items": [{"name": "x", "cost_choice": "none"}]})

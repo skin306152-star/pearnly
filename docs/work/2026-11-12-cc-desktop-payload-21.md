@@ -146,6 +146,37 @@ NY 第 7 / 8 期），看起来 NY 段就是第 13–24 位；等实验窗口 a 
 在那之前代录遇到这个框：先按上面的规则核账套（Express 没答完时这张是金额 0 的空单头 → 转人工 + `recheck`，原因如实写「Express 在问
 服务品销项税口径」）。
 
+## 并进载荷 21 的两项（11-12 晚，主会话定；引导式第 1 期要用，不另升版本）
+
+### A. 服务品销项税口径
+
+- **A① 已做、暂不合入**（本地分支 `pearnly/cc21-sales-srv` f69e2e24f，叠在 011c865c5 上；引导式窗口要求与「销项写 `'2'`」同一批进集成分支——
+  先上读回的话服务端就会出题、答了收付实现却写成 1）：客户档读回带 `srv`——这家在本账套 Express 人录赊销单（ARTRN，RECTYP 3、价格类型 1 / 2、没作废、不是 CC 写的）
+  上出现过的 `SRV_VATTYP` 1 / 2 并集，`"0"` = 没有历史；ARTRN 读不了就不带。心跳目录（`catalog_probe.probe_customers`）与按需主档读取
+  （`express_masters`）都带，同供应商的 `srv`。`service_vat.history` 改成按表通用（进项 APTRN 按供应商、销项 ARTRN 按客户），进项结果不变。
+- **A② 待定（没动代码）**：载荷表头 `srv_vattyp` 写进 `ARTRN.SRV_VATTYP`。`'1'` 与现在写的一样；`'2'`（收付实现）进货那侧原生是
+  「税借未到期进项税（ISINFO.ACCNUM28）、开单不写进项税记录」，销项的原生记法（税贷到哪个科目、开单写不写销项税记录）还没取证——
+  只改单头、分录照权责记会让账对不上。已让测试机1 的子代理只读统计 `SRV_VATTYP='2'` 的原生销项单（`srv2sales62.py`），证据回来再写；
+  键名已和引导式窗口定（11-12 晚）：沿用 `srv_vattyp` 同名键、不进 GUIDED_KEYS；销项单带 `'2'` 时服务端单独盖 21（`'1'` 与旧版写法相同、不盖）。
+
+### B. 代录 × 新物料（已做）
+
+- 写账线（`worker._handle_operator_task`）：代录单只带 `OPERATOR_LINE_KEYS` = 单位码 `unit_code`、科目组 `acccod`、分类 `stkgrp`、
+  允许负库存 `negallow` 这四个行键时照录（`guided.operator_allowed`）；带了表头 / 对方块的新键或别的行键（`cost_choice`、`cost`）照旧拒收转人工。
+- 代录开工前建档（`express_operator/masters.prepare`）：先照直写同一套核值（`guided.invalid_values`：单位码在单位表、分类在分类表、科目组合格），
+  不合格整单交人（原因码同直写：`UNIT_CODE_NOT_FOUND`、`ITEM_GROUP_NOT_FOUND`、`STOCK_ACC_GROUP_UNFIT`），账套一个字节不动、不关 Express；
+  再照直写把 `unit_code` 换进 `unit`（建档、录单都按这个码）；新库存品按这一行的科目组（没给用整单的 `stock_acccod`）、分类、允许负库存建
+  （`product_master.ensure_stock_item`，与直写 `stock_purchase` / `stock_sale` 同一个函数）。
+- 测试：`companion/tests/test_operator_masters.py` 两条（逐栏核建出的 QUCOD / ACCCOD / STKGRP / NEGALLOW；值不在账套里交人、主档表不动）、
+  `test_guided_payload.py` 一条（哪些键代录能带）——旧代码下都红；跨边 `tests/test_operator_guided_keys_contract.py`（进开发检查）：
+  服务端 `finalize_payload` 收口的代录载荷盖 21 → CC 放行 → 四个键交到建档（单位码已换进 unit）、带别的新键不放行；`masters.py` 建档传四个键。
+
+**接缝约定（请引导式窗口照抄进接口约定第 8 节，CC 桌面版窗口负责）**：
+1. 代录单（`entry_mode = operator`）只可以带四个行键：`unit_code`、`acccod`、`stkgrp`、`negallow`（取值口径同直写）；服务端照常盖 21、照派，
+   只派给报过支持 21 的电脑。2. 带了其余新键（表头 `guided` / `due_date_be` / `cash_account`，行上 `cost_choice` / `cost`，对方块 `type` / `payterm`）
+   的代录单 CC 拒收（`PAYLOAD_INVALID`，转人工），服务端不该发。3. 值不在账套里：CC 回直写同一组原因码、整单不建不录。
+4. 键名单两边各一份：CC `payload_contract.OPERATOR_LINE_KEYS`；服务端若要常量，命名 `OPERATOR_GUIDED_LINE_KEYS` 并在跨边测试里加一条相等断言。
+
 ## 1.12.21 发布说明草稿（三批合一个版本；先不标发布；11-12 晚接手窗口更新）
 
 给发布记录与部署记录用，发版时照实改日期与 SHA：

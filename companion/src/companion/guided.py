@@ -38,7 +38,7 @@ from .guided_keys import (  # noqa: F401  纯函数与常量原样再导出：�
     CASH_DOCTYPES, COST_GIVEN, COST_NONE, CREDIT_DOCTYPES, ERR_ACCOUNT_NOT_POSTABLE, ERR_CASH_ACCOUNT_CHOICE,
     ERR_COST_BASIS_CHOICE, ERR_INVALID_DUE_DATE, ERR_ITEM_GROUP_NOT_FOUND, ERR_PARTY_TYPE_NOT_FOUND, ERR_PAYLOAD_INVALID,
     ERR_UNIT_CHOICE, ERR_UNIT_CODE_NOT_FOUND, HEADER_KEYS, LINE_KEYS, NEGALLOW_VALUES, PARTY_KEYS, PAYTERM_MAX, STOCK_IN,
-    STOCK_OUT, active, guided, header, items, party, shape_problem, uses,
+    STOCK_OUT, active, guided, header, items, operator_allowed, party, shape_problem, uses,
 )
 
 ITEM_GROUP_TABTYP = "22"  # ISTAB 里物料分类（STMAS.STKGRP）那一段：本机 SINCTEST 6 / 6 个在用的分类都在这一段

@@ -448,8 +448,9 @@ def _handle_operator_task(cfg, qc, task, st):
 
     from . import guided
 
-    if guided.uses(task.payload or {}):
-        # 载荷 21（引导录入）的新键第一批只支持直写：代录的单带了它们不录（服务端本来不派，这里兜底），转人工
+    if guided.uses(task.payload or {}) and not guided.operator_allowed(task.payload or {}):
+        # 载荷 21（引导录入）的新键：代录只收建新物料用的四个行键（单位码、科目组、分类、允许负库存，11-12 晚），
+        # 带了别的新键不录（服务端本来不派，这里兜底），转人工
         qc.ack_failure(task.id, "guided entry keys are not supported for operator entry", error_code="PAYLOAD_INVALID",
                        outcome="needs_review")
         return "needs_review"

@@ -70,6 +70,9 @@ GUIDED_KEYS = {
     "line": ("unit_code", "acccod", "stkgrp", "cost_choice", "cost", "negallow"),
     "party": ("type", "payterm"),
 }
+# 代录（entry_mode = operator）可以带的载荷 21 行键：只有代录开工前建新物料用得上的这四个（单位码、科目组、分类、允许负库存，
+# 11-12 晚主会话定）；带别的新键的代录单照旧拒收。服务端「代录单带这四键时盖 21 照派」由引导式那边对齐（接口约定第 8 节）。
+OPERATOR_LINE_KEYS = ("unit_code", "acccod", "stkgrp", "negallow")
 # 载荷 21 新增的原因码：三个 ``*_CHOICE`` 服务端转成引导卡上的一题，其余直接转人工
 GUIDED_CHOICE_CODES = ("UNIT_CHOICE", "COST_BASIS_CHOICE", "CASH_ACCOUNT_CHOICE")
 GUIDED_REFUSAL_CODES = ("UNIT_CODE_NOT_FOUND", "ITEM_GROUP_NOT_FOUND", "INVALID_DUE_DATE", "PARTY_TYPE_NOT_FOUND")
