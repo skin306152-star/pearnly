@@ -9,6 +9,9 @@
 		const api = "pearnly_erp_portal.collection.api.";
 		const root = "pearnly-my-collections";
 		const status_label = value => (value ? t(`erp.collection.status.${value}`) : "");
+		// 待写入、此刻在等 Express 关闭（服务端读的时候算的只读字段 `express_wait`，`collection.service.mine`）：状态不变，
+		// 列表悬浮说明与点开后的内容是现成那句（11-12）
+		const waiting = row => (row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : "");
 		const money = value => p.money(value);
 		const amount = value => Number(value || 0);
 		let list = null;
@@ -82,7 +85,8 @@
 							format: (value, row) => value || row.customer || ""},
 						{fieldname: "total", width: 100, min_width: 70, label: __("Total"), format: value => money(value)},
 						{fieldname: "docnum", width: 110, min_width: 76, label: __("Express"),
-							format: (value, row) => value || status_label(row.status)},
+							format: (value, row) => value || status_label(row.status),
+							title: (value, row) => waiting(row)},
 					],
 					load: ({start, page_length}) => p.call(api + "api_my_collections", {start, limit: page_length}),
 				});

@@ -807,8 +807,11 @@ def _result_messages(view) -> list:
     head = f"{view.get('customer_name') or ''} · {money(view.get('total'))}"
     if status in (contracts.WRITTEN, contracts.FAILED, contracts.WITHDRAWN):
         return [{"type": "text", "text": _status_text(view) + "\n" + head}]
-    # 还没写成：已记录、待写入；没被电脑领走前可撤回
-    return [{"type": "text", "text": _("Recorded · pending write") + "\n" + head,
+    # 还没写成：已记录、待写入；没被电脑领走前可撤回。这本账套此刻在等 Express 关闭就带上现成那句（只在这条当场的回复里，
+    # 不另推送；当天第一笔放行时电脑还没去试，不知道）
+    waiting = view.get("status") == contracts.QUEUED and _service().express_waiting(view["name"])
+    lines = [_("Recorded · pending write"), *([_("express.error.ACCOUNT_BUSY_LOCKED")] if waiting else []), head]
+    return [{"type": "text", "text": "\n".join(lines),
              "quickReply": {"items": [_button(_("Withdraw"), _data("wd", n=view["name"]))]}}]
 
 
