@@ -154,6 +154,10 @@ class WritePlanTests(unittest.TestCase):
         tasks.read = lambda name: {"company": "CO-1", "period": "2026-10"}
         assistant = types.ModuleType("pearnly_core.assistant")
         assistant.sessions = sessions
+        # 本对话账套（`assistant.ledger`）：``self.book`` 是此刻的（None = 产品没有）
+        self.book = None
+        assistant.ledger = types.SimpleNamespace(of_session=lambda session_id=None: self.book and {
+            "status": "set" if self.book[0] else "needed", "id": self.book[0], "label": self.book[1], "options": []})
         assistant.contracts = types.SimpleNamespace(REALTIME_EVENT="pearnly_assistant")
         express_operator = types.ModuleType("pearnly_core.express_operator")
         express_operator.api, express_operator.tasks = operator_api, tasks
@@ -306,6 +310,38 @@ class WritePlanTests(unittest.TestCase):
         out = self.plan(documents=["D002"])
         self.assertNotIn("retargeted", out)
         self.assertNotIn("list them separately", out["note"])
+
+    # B5（A 线 11-12）：计划记下建计划时的本对话账套；开始 / 放行时它变了（右栏改了、CC 用 pearnly_conversation_ledger 换了）
+    # 就不写，回 ledger_changed，叫模型按新账套重新建计划并复述（复述的是 T.8，不能写进 T.9）
+    def test_an_operator_plan_is_not_started_after_the_account_set_changed(self):
+        self.book = ("EXP1|t8", "T.8")
+        out = self.plan()
+        self.assertEqual(FAKE.db.rows[out["plan"]]["ledger"], "EXP1|t8")
+        self.book = ("EXP1|t9", "T.9")
+        self.turn[0] += 1
+        refused = self.start(out["plan"])
+        self.assertEqual(refused["status"], "ledger_changed")
+        self.assertIn("make a new plan", refused["note"])
+        self.assertIn("T.9", refused["note"])
+        self.assertEqual(self.handed, [])
+        self.assertEqual(FAKE.db.rows[out["plan"]]["status"], "replaced")  # 页面的「录吧」随之消失
+
+    def test_a_started_direct_plan_stops_pushing_after_the_account_set_changed(self):
+        self.conversation(operator_task="")
+        self.book = ("EXP1|t8", "T.8")
+        out = self.plan(documents=["D001", "D002"])
+        self.turn[0] += 1
+        self.assertEqual(self.start(out["plan"])["status"], "started")
+        self.assertEqual(self.plan_module.permit(["D001"]), (["D001"], {}))
+        self.book = ("", "")  # 改成了未定
+        self.assertEqual(self.plan_module.permit(["D001", "D002"]), ([], {"D001": "ledger_changed", "D002": "ledger_changed"}))
+        self.assertIn("ledger_changed", self.plan_module.PERMIT_NOTES)
+
+    def test_a_product_without_a_conversation_account_set_is_not_affected(self):
+        out = self.plan()
+        self.assertEqual(FAKE.db.rows[out["plan"]]["ledger"], "")
+        self.turn[0] += 1
+        self.assertEqual(self.start(out["plan"])["status"], "started")
 
 
 if __name__ == "__main__":
