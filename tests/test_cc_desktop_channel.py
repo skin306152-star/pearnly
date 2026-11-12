@@ -281,6 +281,34 @@ class Queue(Base):
         self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")          # 写成后原因清掉
         self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [later["job"]])
 
+    def test_waiting_for_express_is_readable_per_job_and_per_book_and_expires(self):
+        # 给各产品显示「Express 正在使用此账套…」：读的时候算，不另存；电脑不再回报 90 秒后不再说在等 Express
+        key = contracts.book_key(contracts.book_identity(PATH, "vsn:1234/5"))
+        job = self.enqueue(name="SD-1")
+        other = self.enqueue(name="SD-2")
+        self.assertEqual(jobs.express_wait(job["job"]), {"waiting": False, "since": None})
+        self.assertEqual(jobs.book_express_wait(key), {"waiting": False, "since": None})
+        self.lease(self.office)
+        self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock",
+                 error="[ACCOUNT_BUSY_LOCKED] the account set is open in Express")
+        now = devices.now()
+        state = jobs.express_wait(job["job"], now)
+        self.assertTrue(state["waiting"] and state["since"].endswith("Z"))
+        self.assertEqual(list(jobs.express_wait_many([job["job"], other["job"], "NOPE"], now)), [job["job"]])
+        self.assertTrue(jobs.book_express_wait(key, now)["waiting"])
+        shown = timedelta(seconds=ack_rules.EXPRESS_OPEN_SHOWN_SECONDS)
+        self.assertTrue(jobs.express_wait(job["job"], now + shown - timedelta(seconds=2))["waiting"])
+        self.assertEqual(jobs.express_wait(job["job"], now + shown + timedelta(seconds=1)),
+                         {"waiting": False, "since": None})                    # 过期：回到普通的排队中
+        self.assertFalse(jobs.book_express_wait(key, now + shown + timedelta(seconds=1))["waiting"])
+        fake.STATE.db.table(documents.JOB)[job["job"]]["lease_expires_at"] = devices.now() - timedelta(seconds=1)
+        self.lease(self.office)                                                 # 被领走：不再是排队中
+        self.assertFalse(jobs.express_wait(job["job"])["waiting"])
+        self.ack(self.office, job["job"])
+        self.assertFalse(jobs.book_express_wait(key)["waiting"])                # 写成：清掉
+        self.assertEqual(jobs.express_wait_many([]), {})
+        self.assertEqual(jobs.book_express_wait(""), {"waiting": False, "since": None})
+
     def test_other_waits_keep_no_reason_and_are_handed_out_again_at_once(self):
         job = self.enqueue()
         self.lease(self.office)
