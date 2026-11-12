@@ -1795,7 +1795,7 @@ covers = [
 
 [[flow]]
 id = "cowork.cc.conversation-ledger"
-title = "Cowork CC 本对话账套（R2-5 端到端）：右栏选 T.8 后建计划不问账套、点写入开始，模型在推送里另填同期 T.9 被拒只给 T.8、不填照 T.8 写，库里只有 T.8（A 线 11-12）"
+title = "Cowork CC 本对话账套（R2-5 端到端）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、点写入开始，模型在推送里另填同期 T.9 被拒只给 T.8、不填照 T.8 写，库里只有 T.8（A 线 11-12）"
 module = "scripts/flows/cc_conversation_ledger.py"
 product = "cowork"
 start = "/assistant"
@@ -1807,11 +1807,29 @@ covers = [
   "frontend/assistant/src/lib/conversation-ledger.ts",
   "apps/pearnly_cowork/pearnly_cowork/assistant/write_scope.py",
   "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
+  "frontend/assistant/src/components/period-chip.tsx",
+  "frontend/assistant/src/components/assistant-ui/projects.tsx",
+]
+
+[[flow]]
+id = "cowork.cc.operator-ledger"
+title = "Cowork CC 代录新建页先选账套（测试机1 11-12）：代录新建页选 T.8 再发第一句，代录会话的本对话账套就是 T.8，建计划写进 T.8、不问账套"
+module = "scripts/flows/cc_operator_conversation_ledger.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/ledger.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  "frontend/assistant/src/lib/conversation-ledger.ts",
+  "frontend/assistant/src/components/period-chip.tsx",
 ]
 
 [[flow]]
 id = "erp.cc.conversation-ledger"
-title = "ERP CC 本对话账套（R2-5 端到端）：右栏选 T.8 后建计划不问账套、点写入开始推进 T.8；网页按日期记成同期 T.9 的单在对话里改投 T.8；开始后右栏换 T.9 不建新计划推被拒 ledger_changed，库里没有写向 T.9 的写账件（A 线 11-12）"
+title = "ERP CC 本对话账套（R2-5 端到端）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、点写入开始推进 T.8；网页按日期记成同期 T.9 的单在对话里改投 T.8；开始后右栏换 T.9 不建新计划推被拒 ledger_changed，库里没有写向 T.9 的写账件（A 线 11-12）"
 module = "scripts/flows/erp_cc_conversation_ledger.py"
 start = "/assistant"
 user = "admin"
