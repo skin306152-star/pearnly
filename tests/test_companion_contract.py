@@ -1583,6 +1583,20 @@ class GuidedPayload(unittest.TestCase):
         self.assertEqual(self.common.sanitize_push_meta({"choice": cash})["choice"], cash)
         self.assertEqual(self.common.sanitize_push_meta({"choice": {"code": "SOMETHING_ELSE"}, "shortages": [{"stkcod": "A"}]}), {})
         self.assertEqual(self.common.sanitize_push_meta({"docnum": "IV1"}), {"docnum": "IV1"})  # 不带时与以前相同
+        # 库存不足是因为账套「扣成负库存要批准」（ISINFO.NEGAUTH）：meta.approval，只认 true
+        self.assertIn('m["approval"] = True', worker)
+        self.assertEqual(self.common.APPROVAL_META, "approval")
+        self.assertEqual(self.common.sanitize_push_meta({"approval": True, "shortages": shortages}),
+                         {"approval": True, "shortages": shortages})
+        for junk in (False, "yes", 1, None):
+            self.assertNotIn("approval", self.common.sanitize_push_meta({"approval": junk}))
+        self.assertTrue(quoted((COMPANION / "stock_guard.py").read_text(encoding="utf-8"), "NEGAUTH"))
+
+    def test_a_purchase_without_an_invoice_number_is_not_refused_by_cc(self):
+        """缺供应商发票号不再拒收（覆盖表 D-5）：CC 采购适配层不再回 MISSING_REF_NO；销售的票面号照旧必填。"""
+        purchase = method_source_of(COMPANION / "purchase_adapter.py", "validate_purchase_payload")
+        self.assertNotIn("ERR_MISSING_REF_NO", purchase)
+        self.assertIn("ERR_MISSING_REF_NO", method_source_of(COMPANION / "sales_adapter.py", "validate_sales_payload"))
 
     def test_an_older_payload_reads_none_of_the_new_keys(self):
         """版本 ≤ 20 的载荷（不带 guided 的旧任务）：经 CC 新版适配层取出的明细、表头、对方块新键与没带的完全相同。

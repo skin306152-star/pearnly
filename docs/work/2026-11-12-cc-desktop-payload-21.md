@@ -46,9 +46,12 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 | B2 代录销售单不填「อ้างอิง」 | **没做**：约定要求先在测试机确认这一格在 IV / HS 表单上的位置、长度、能否保存，确认前不改配方 | 测试机清单第三部分 |
 | G-B3（五个码白重试）、G-B4 | 没做：主会话定并入第 1 期（引导式窗口） | — |
 | **G-A15 销售单的销售员**（主会话 11-12 追加，另一个提交） | 已做，所有入口：写 IV / HS 时读客户档 `ARMAS.SLMCOD` 写进单头 `ARTRN.SLMCOD`；客户档没有、没有这一栏、客户是这张单新建的 → 留空。不问、不显示、不加载荷键 | `account_rules.party_salesman`；`dbf_sales._write_all` |
+| **负库存要批准（D-7，并进 G-B6）**（主会话 11-12 追加） | 已做，所有入口（销货、库存单、调拨、作废）：负库存核对同时读 `ISINFO.NEGAUTH`，非空按「不许负库存」核；走 `STOCK_INSUFFICIENT`，回执 `meta.approval = true`（只在「账套允许负库存但要批准」是原因时带；账套本身不许的不带） | `stock_guard.negative_allowed` / `approval_needed` / `refusal`（四条写路共用一个出口，都带 `meta.shortages`）；`write_result.approval`；`worker._push_meta`；服务端 `sanitize_push_meta` 放行 `approval` |
+| **缺供应商发票号不再拒收（D-5）**（主会话 11-12 追加） | 已做，所有入口：去掉采购适配层的 `MISSING_REF_NO`；`ref_no` 为空照写，单头 `APTRN.REFNUM`、进项税记录 `ISVAT.REFNUM`、库存卡 `STCRD.REFNUM` 留空，单号照旧自编（单别 + 佛历日期 + 序号，本来就与发票号无关）。销售单的票面号照旧必填。判重口径与复核卡标出归服务端第 1 期 | `purchase_adapter.validate_purchase_payload` |
 
 行为变化（对所有入口，不看版本）：① 新建库存品「允许负库存」留空、三个换算系数写 1；② 账套不许负库存（或行上 `negallow = N`）时，
-「卖随单新建的物料」的销货从「写成负数」变成整单不写、回 `STOCK_INSUFFICIENT`；③ 客户档有销售员的销售单单头带上销售员（G-A15）。
+「卖随单新建的物料」的销货从「写成负数」变成整单不写、回 `STOCK_INSUFFICIENT`；③ 客户档有销售员的销售单单头带上销售员（G-A15）；
+④ 账套填了「扣成负库存要批准」的，库存不够的销货 / 领用 / 调拨 / 作废从「写成负数」变成整单不写；⑤ 没有供应商发票号的进货单从拒收变成照写。
 其余全部只在版本 21 的载荷上生效。B2 已由主会话改列为 G-B2′（票面号没进账，先在测试机试手填单号再定做法），仍不在本批。
 
 ## 新增文案（14 条，`python3 scripts/check-copy.py --report`：新增 14、改动 0、拦截 0）
@@ -93,6 +96,8 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 | 四个单位同码时系数是 1 | 同上：四个单位同码的 29 件里 28 件三个系数都是 1（另 1 件计数系数 0） | 同上 |
 | 物料分类在代码表 `ISTAB TABTYP = 22` | 同上：在用的 6 个分类 6 / 6 都在 22 段 | 同上；`guided.ITEM_GROUP_TABTYP` |
 | 销售单单头带销售员、取自客户档 | 测试机只读统计（S 盘副本 1033 套）：赊销单 90%、现销单 93.5% 带销售员，客户档 59% 带 | 覆盖表第 9.2 节（`pearnly/cc-guided-entry-51673b` 11301ffec） |
+| `ISINFO.NEGAUTH` = 扣成负库存要哪一级批准 | 界面实看（库存系统设置第 10 项「ตัดสินค้าติดลบ ขออนุมัติระดับ」，测试机 TEST 账套）；原生 22.5% 的账套填了（`5` 占 21.4%、`9` 占 1.1%） | 覆盖表第 9.3、9.5 节 |
+| 进货单可以没有供应商发票号 | 测试机只读统计：原生赊购单 17%、现购单 50% 的发票号是空的 | 覆盖表第 9.2 节 |
 | Express 拦负库存是拒绝不是警告（4224 / 4091） | 服务器测试账套 `70EXP\test` 实录（10-25） | `stock_guard.py` 文件头 |
 
 **没有原生证据的（单列，没有硬写）**
@@ -102,6 +107,11 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
   查清代码表后可放宽（测试机清单第二部分第 4 项）。
 - 四个单位同码时系数为 1、`NEGALLOW` 默认空：只有 1 套；62 套分布与新建物料界面默认值在测试机清单里补。
 - Express 界面上新建物料时这三个系数的默认值：没实测（测试机清单）。
+- 没有发票号的原生进货单，进项税记录 `ISVAT.REFNUM` 是空的还是 Express 填了别的（例如单号）：手上只有「单头发票号为空」的占比，
+  没有这类原生单的逐栏样本（本机一套的进货单都是我们写的、都有发票号）。现在三处都留空——与约定 8.3 一致；测试机清单第二部分第 7 项
+  找原生同类记录逐栏对照，对不上再改。
+- 账套要批准（`NEGAUTH` 非空）而物料自己标了允许负库存（`STMAS.NEGALLOW = Y`）时 Express 还要不要批准：没实测。现在沿用已有规则
+  「物料级盖过账套级」，这种物料不核（测试机清单第一部分第 30 项实看）。
 - 销售员只写了单头 `ARTRN.SLMCOD`。库存卡 `STCRD` 也有 `SLMCOD` 一栏、销售统计 `STSTA` 也有：原生销售单的明细行带不带销售员、
   按销售员的报表读哪张表，手上没有证据（覆盖表第 9 节只统计了单头；本机一套的单据是我们写的、全空），所以没写这两处。
   测试机清单第二部分第 6 项补统计，结果出来再定要不要补明细行。
@@ -110,9 +120,10 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 
 | 版本 | 环境 | 场景 / 命令 | 结果 |
 |---|---|---|---|
-| 工作树（本提交） | 本机 macOS，Python 3.11，dbf 0.99.11 | `companion`：`python -m pytest -q -p no:cacheprovider tests` | 1645 通过、74 跳过、9 失败。9 条失败是本机没装 PySide6（`test_write_dispatch` 8 条、`test_mrerp_login` 1 条），基线同样失败，要等 Windows 的 Companion checks |
+| 工作树（本提交） | 本机 macOS，Python 3.11，dbf 0.99.11 | `companion`：`python -m pytest -q -p no:cacheprovider tests` | 1650 通过、74 跳过、9 失败。9 条失败是本机没装 PySide6（`test_write_dispatch` 8 条、`test_mrerp_login` 1 条），基线同样失败，要等 Windows 的 Companion checks |
 | 同上 | 同上 | 新测试 `companion/tests/test_guided_payload.py` 47 条；改写 `test_stock_guard.py`（+5）、`test_stock_item_defaults.py`（3） | 新代码全过；**旧代码（c63458f5f）上**：`test_guided_payload.py` 整个文件导入失败（没有 `guided`），另 6 条逐条失败 |
 | 同上 | 同上 | G-A15：`companion/tests/test_sales_salesman.py` 4 条 | 新代码全过；实现前 3 条失败（另 1 条是「没有这一栏照旧」） |
+| 同上 | 同上 | 要批准：`test_stock_guard.py` +2、`test_dbf_stock.py` +1；缺发票号：`test_purchase_no_invoice_number.py` 2 条、`test_purchase_adapter.py` 改 1 条 | 新代码全过；实现前这 5 处失败（另 1 条只有表头的进货单随拒收去掉才写得进） |
 | 同上 | 本机 Python 3.12 | `python3 -m unittest tests.test_companion_contract tests.test_express_operator_shared` | 112 通过（新加 `GuidedPayload` 7 条 = 约定 8.5 的六条 + 回执键过服务端净化） |
 | 旧 c63458f5f 对 新工作树 | 本机，三本账套副本 | 离线回放（下节） | 不带新键、不新建物料的 111 张：每一步每个文件逐字节相同 |
 
@@ -138,6 +149,16 @@ Express 拦的不绕过；先服务端后 CC 桌面版，同一次发布。对�
 G-A15（销售员）另加一本账套 **SINCTEST-slm**：同一本真账套副本，只把客户 S001 的客户档销售员填成 `SL01`。序列 A 37 张都写成、
 结果逐张相同，逐字段差异只有 `ARTRN.SLMCOD` 19 处（写成的 20 张销售单里 19 张是这位客户的，另 1 张是当场新建的客户、留空）；
 序列 B 差异是 `ARTRN.SLMCOD` 3 处加新建物料的 `STMAS.NEGALLOW` 4 处。客户档没有销售员的另外三本，加了这项之后重跑，结果与上表完全相同。
+
+**追加三项各自带来的差异（预期只有这三处变化，实际如此）**
+
+| 项 | 回放 | 结果 |
+|---|---|---|
+| G-A15 销售员 | SINCTEST-slm（上段） | 只多 `ARTRN.SLMCOD`；客户档没有销售员的账套零差异 |
+| 负库存要批准 | 新增账套 **synth-approval**：同 synth-allow，只多 `ISINFO.NEGAUTH = 5`。序列 A / B | 旧代码 37 张全写（把库存写成负数）；新代码写 28 张、拒 9 张——**拒的 9 张与 synth-forbid（账套不许负库存）拒的完全相同**，新代码在两本账套上写出的全部表逐字段相同（只差 `ISINFO` 本身）。没填 `NEGAUTH` 的账套零差异 |
+| 缺供应商发票号 | 新增序列 **C**：4 张没有发票号的进货单（RR / HP，只有表头、库存行、服务行）× 5 本 = 20 张 | 旧代码 20 张全部拒收（`PAYLOAD_INVALID`，子码 `MISSING_REF_NO`）；新代码 20 张全部写成。带发票号的单（序列 A / B）零差异；「与带发票号的同一张单只差三处 `REFNUM`」由 `test_purchase_no_invoice_number.py` 守 |
+
+加了这三项后把 A / B 在原来三本账套上重跑：结果与上表逐项相同（A 仍然每一步每个文件逐字节相同）。
 
 B1（系数）在回放里没有差异——三本账套的模板物料系数本来就是 1；它由 `test_a_new_stock_item_does_not_copy_the_pack_factors_of_the_template` 守。
 

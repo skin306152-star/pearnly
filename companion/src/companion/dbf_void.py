@@ -206,7 +206,7 @@ def void_stock_entry(
         return DbfWriteResult(False, error_code=ERR_CHANGED, error=f"{docnum} changed in Express: " + "; ".join(differ[:5]))
     short = _shortages(account_dir, lines, kind)
     if short:
-        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
+        return stock_guard.refusal(account_dir, short)
     has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
     # 行附加说明（按台号码）：原生作废领用 / 调整等给行说明打删除标记，调拨 RL 保留（S 盘副本统计 157 留 : 5 删，11-02）
     remarks = () if transfer or not dbf_remarks.has_line_remarks(account_dir, docnum) else (dbf_remarks.TABLE,)

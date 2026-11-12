@@ -190,10 +190,8 @@ def validate_purchase_payload(
             False, ERR_INVALID_DATE, "docdate_be must be Buddhist YYMMDD"
         )
 
-    if not str(payload.get("ref_no") or "").strip():
-        return PayloadValidationResult(
-            False, ERR_MISSING_REF_NO, "missing supplier ref_no (REFNUM)"
-        )
+    # 供应商发票号不是必填（覆盖表 D-5，主会话 11-12）：Express 不要求——原生赊购单 17%、现购单 50% 没有。缺了照写，发票号栏留空；
+    # 以前这里拒收 MISSING_REF_NO。销售单的票面号是 Express 单号、幂等锚点，那边照旧必填（sales_adapter）。
 
     supplier = payload.get("supplier") or {}
     if not (str(supplier.get("code") or "").strip()

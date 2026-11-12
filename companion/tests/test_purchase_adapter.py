@@ -127,9 +127,14 @@ def test_reject_bad_date():
     assert not r.ok and r.error_code == ERR_INVALID_DATE
 
 
-def test_reject_missing_ref_no():
-    r = _vp(_payload(ref_no="  "))
-    assert not r.ok and r.error_code == ERR_MISSING_REF_NO
+def test_a_purchase_without_an_invoice_number_is_accepted():
+    """Express 不要求供应商发票号（原生赊购单 17%、现购单 50% 没有，覆盖表 D-5，主会话 11-12）：缺了不再拒收，发票号栏留空。
+    销售单的票面号是 Express 单号、幂等锚点，照旧必填（test_sales_adapter）。"""
+    for blank in ("  ", "", None):
+        payload = _payload(ref_no=blank)
+        assert _vp(payload).ok, blank
+        assert build_purchase_entry(payload).ref_no == ""
+    assert ERR_MISSING_REF_NO == "MISSING_REF_NO"  # 码还在：销售那边仍用
 
 
 def test_reject_missing_supplier():
