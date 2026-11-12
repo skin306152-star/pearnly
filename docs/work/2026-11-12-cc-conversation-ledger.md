@@ -199,3 +199,10 @@ R2-5 真实路径（主会话 11-12 生产只读查清，会话 sesn_01XqgMQffeA
   `test_cc_conversation_ledger_erp.py`（代录交单重新准备，守护）。旧代码 7 条红，新代码绿。
 - 文案（新增，未改已有）：`express.reason.choiceNeeded` — en「Choose before writing to Express」/ zh「写入 Express 前需要选择」/
   th「ต้องเลือกก่อนบันทึกเข้า Express」/ ja「Express に書き込む前に選択が必要です」。
+
+### 验证（11-12，本机实验栈 pearnly-aline7-lab，用完 down -v）
+
+- 新流程与改过的两条单跑：`cowork.cc.operator-ledger`、`cowork.cc.conversation-ledger`、`erp.cc.conversation-ledger` 电脑 / 手机 6/6 通过。
+- `run.py --changed --base origin/main --migrate --jobs 3`：23 条 73 格，70/73；3 格「page steps timed out after 900s」（erp.document.express
+  new/mobile、erp.stock-in.units old/mobile、cowork.mrerp-login new/mobile，无断言失败，同已知问题笔记第 42、84、95 条 jobs 3 负载）
+  `--rerun-failed` 单格 11–31 秒通过，合并 73/73。
