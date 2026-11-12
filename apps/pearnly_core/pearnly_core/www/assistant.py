@@ -8,6 +8,7 @@ import frappe
 
 from pearnly_core import login_redirect
 from pearnly_core.account import preferences
+from pearnly_core.assistant import contracts
 from pearnly_core.identity import assistant_entry_url
 from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
@@ -27,4 +28,6 @@ def get_context(context):
     context.csrf_token = frappe.sessions.get_csrf_token()
     # 一份附件最多多大：页面先比、超了当场说（与 Frappe 请求体上限同一个数，`originals.upload_limits`）
     context.upload_max_bytes = UPLOAD_MAX_BYTES
+    # 收哪些类型：页面选中文件时先比，不收的当场拒收、不留失败卡（同服务端校验一个来源，`contracts.upload_name`）
+    context.upload_extensions = sorted(contracts.UPLOAD_EXTENSIONS)
     context.lang = frappe.local.lang = preferences.interface_language()

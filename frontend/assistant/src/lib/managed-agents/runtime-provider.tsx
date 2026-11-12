@@ -34,7 +34,7 @@ import { beginPendingText, clearPending, pendingShownAs } from "./pending-send";
 import { watchList } from "./list-sync";
 import { NewChatSend } from "./new-chat-send";
 import { createSendQueue } from "./send-queue";
-import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, noteUnavailable, sendLanded } from "./send-failure";
+import { attemptSend, attemptStop, clearStopFailure, type ComposerLike, noteRefusedFile, noteUnavailable, sendLanded } from "./send-failure";
 import { registerStop } from "./stop-run";
 import { sessionListAdapter } from "./session-list-adapter";
 import {
@@ -42,7 +42,7 @@ import {
   type ControllerSnapshot,
   type SessionController,
 } from "./session-controller";
-import { initialProjection, isBusy, withNotices } from "./reducer";
+import { holdsSends, initialProjection, isBusy, withNotices } from "./reducer";
 import { loadProfile } from "@/lib/profile";
 import { useListMode, useSessionTask } from "./list-mode";
 import { useProjects } from "./projects";
@@ -116,7 +116,14 @@ function useSessionThreadRuntime() {
     [aui],
   );
 
-  const attachments = useMemo(() => createAttachmentAdapter(ensureSession), [ensureSession]);
+  // 选中的文件当场被拒收（超限、空的、类型不收）：原因写在这段对话输入框上方那一行（send-failure.ts）
+  const threadId = useAuiState((s) => s.threadListItem.id);
+  const threadNow = useRef(threadId);
+  threadNow.current = threadId;
+  const attachments = useMemo(
+    () => createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message)),
+    [ensureSession],
+  );
   // 代录会话（已建的挂着任务；新对话看此刻的模式）：附件同直写（服务端交任务识别），只是新对话要先选好公司、月份
   const task = useSessionTask(sessionId);
   const operatorMode = useListMode((s) => s.mode === "operator");
@@ -132,7 +139,6 @@ function useSessionThreadRuntime() {
   const messages = useMemo(() => withNotices(snapshot.messages, snapshot.notices), [snapshot.messages, snapshot.notices]);
 
   // 发送没成功时原因记在这段对话上，字和附件放回这段对话的输入框（send-failure.ts）
-  const threadId = useAuiState((s) => s.threadListItem.id);
   const composer = useRef<ComposerLike | null>(null);
   // 本站还开不了 CC 对话（没配 CC 等，外壳启动数据 assistant_unavailable）：还没有会话的新对话一打开就把原因写在输入框上方，
   // 同发了第一条被拒时那一行（send-failure.ts）
@@ -162,9 +168,11 @@ function useSessionThreadRuntime() {
     [],
   );
   useSyncExternalStore(sendQueue.subscribe, () => sendQueue.adapter.items);
+  // 只有模型这边有活在走、或新对话还在建会话才排着；卡片挂着等用户时打的话当场发（reducer.holdsSends）
+  const holding = holdsSends(snapshot) || creating;
   useEffect(() => {
-    sendQueue.setBusy(running);
-  }, [sendQueue, running]);
+    sendQueue.setBusy(holding);
+  }, [sendQueue, holding]);
 
   // 发出一条（输入框发送、排队的那句轮到时都走这里，send-queue.ts）
   const onNew = async (message: AppendMessage) => {

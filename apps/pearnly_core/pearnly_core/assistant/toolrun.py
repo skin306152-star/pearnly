@@ -188,12 +188,14 @@ def _refused_before_card(conversation: str, call: dict) -> str | None:
         frappe.local.pearnly_assistant = before
 
 
-def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=None) -> str:
+def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=None, replied: bool = False) -> str:
     """用户在对话里对一次要授权的工具调用点了「允许 / 拒绝」：允许就以本人身份执行，拒绝就告诉智能体没得到同意。
     只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。
 
     通用提问工具 ``ask_user``（`ask`）：「允许」带着 ``answers``（卡片上的作答），不执行工具，答案就是结果；关掉卡片（拒绝）每题算跳过。
-    答案对不上题目抛 `ask.AnswerError`（先核、再抢占，答错不占掉这张卡片）。"""
+    答案对不上题目抛 `ask.AnswerError`（先核、再抢占，答错不占掉这张卡片）。
+
+    ``replied``（只和拒绝一起用，见 :func:`replied`）：卡片挂着时用户直接发了消息。提问卡的结果另写明回答在下一条用户消息里。"""
     # 先结束请求开头的读快照（`sessions.confirm` 此前只读）：同一刻点了停止、刚被作废的这一条，按旧快照还「在等」，
     # 一改就撞 1020（见文件头）
     frappe.db.rollback()
@@ -204,7 +206,8 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
     asked = None
     if frappe.db.get_value(TOOL_RUN, name, "tool") == ask.TOOL:
         tool_input = json.loads(frappe.db.get_value(TOOL_RUN, name, "tool_input") or "{}")
-        asked = ask.result(tool_input, answers) if allow else ask.skipped(tool_input)
+        asked = ask.result(tool_input, answers) if allow else \
+            (ask.replied(tool_input) if replied else ask.skipped(tool_input))
     # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走。只锁这一条、改完马上提交（作废那边锁着时
     # 它是一条一个短事务，等不了多久；它见到这条被锁就跳过，不会反过来等这里）
     # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
@@ -239,6 +242,23 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
         return "denied"
     run = frappe.db.get_value(TOOL_RUN, name, ["tool", "tool_input"], as_dict=True)
     return _finish(conversation, remote, name, use_id, run.tool, json.loads(run.tool_input or "{}"))
+
+
+def replied(conversation: str, remote: str) -> int:
+    """卡片挂着时用户没点卡片、直接在输入框里发了消息（`sessions.send` 在送这条消息之前调）：引擎停在等这些调用的结果时
+    不收用户消息，先把本人这段对话里还在等的都交回——提问卡 ``ask_user`` 每题算没选、写明回答在下一条用户消息里；其余要
+    「允许」的调用一律按拒绝交回。这条路只有拒绝：没点「允许」的调用不执行（11-12 主会话：打字发送任何情况下都不能变成允许）。
+    返回交回了几张。抢占同点卡片（`decide`）：同一刻在卡片上点了的归那边，这里跳过。"""
+    frappe.db.rollback()
+    runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
+                         "AND status='awaiting_approval'", (conversation,), as_dict=True)
+    count = 0
+    for run in runs:
+        if run.user != frappe.session.user:
+            continue
+        if decide(conversation, remote, run.tool_use_id, False, replied=True) != "not_waiting":
+            count += 1
+    return count
 
 
 def cancel_waiting(conversation: str) -> int:

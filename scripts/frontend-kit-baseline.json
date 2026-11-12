@@ -25,7 +25,7 @@
   },
   "components/assistant-ui/thread.tsx": {
     "K1": 5,
-    "K4": 5
+    "K4": 4
   },
   "components/assistant-ui/tooltip-icon-button.tsx": {
     "K1": 1
@@ -127,8 +127,8 @@
     "K4": 2
   },
   "components/tool-uis/operator-start.tsx": {
-    "K1": 5,
-    "K4": 4
+    "K1": 4,
+    "K4": 3
   },
   "components/tool-uis/operator-steps.tsx": {
     "K1": 2

@@ -76,6 +76,14 @@ export function noteUnavailable(thread: string, message: string) {
   emit();
 }
 
+/** 选中 / 拖入 / 粘贴的文件当场被拒收（超限、空的、类型不收，attachments.ts 的 refusalOf）：原因写在输入框上方这一行，
+ *  文件不进输入框。再发送时照常清掉。 */
+export function noteRefusedFile(thread: string, message: string) {
+  if (!message) return;
+  note(thread, "send", message);
+  emit();
+}
+
 /** 发出一条（run 里建会话、发出；真发出去了调 sent()）。没成功：记原因、没发出去的字和附件放回输入框，回 false。
  *  从不抛出：组件库调发送不等也不接错（ExternalStoreThreadRuntimeCore.append 由输入框的 handleSend 直接调用），抛了就是未捕获的错误。
  *  已发出、只是之后的打断没成功：消息已在对话里，只说原因、不放回。 */

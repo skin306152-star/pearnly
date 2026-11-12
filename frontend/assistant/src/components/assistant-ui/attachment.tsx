@@ -16,6 +16,7 @@ import {
   AttachmentPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import { useShallow } from "zustand/shallow";
@@ -35,9 +36,19 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
 import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
-import { localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
+import { ACCEPT, localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
+import { withReport } from "@/lib/caught";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
+import {
+  Attachment,
+  AttachmentAction,
+  AttachmentActions,
+  AttachmentContent,
+  AttachmentDescription,
+  AttachmentMedia,
+  AttachmentTitle,
+} from "@/components/ui/attachment";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -174,6 +185,31 @@ const ComposerAttachment: FC = () => {
       : undefined,
   );
 
+  // 没传上（断网、服务端拒收）：标准附件卡的出错样子（components/ui/attachment），卡上直接看得出是哪份文件、为什么，
+  // 右边 × 移除；不用悬停才看得到（11-12）。识别失败照旧是方块上盖一层。
+  if (uploadState === "error") {
+    return (
+      <AttachmentPrimitive.Root className="aui-attachment-root relative">
+        <Attachment state="error" size="sm">
+          <AttachmentMedia>
+            <AlertCircleIcon />
+          </AttachmentMedia>
+          <AttachmentContent>
+            <AttachmentTitle>{name}</AttachmentTitle>
+            <AttachmentDescription className="aui-attachment-error-message">{errorMessage}</AttachmentDescription>
+          </AttachmentContent>
+          <AttachmentActions>
+            <AttachmentPrimitive.Remove asChild>
+              <AttachmentAction className="aui-attachment-tile-remove" aria-label={t("removeFile")} title={t("removeFile")}>
+                <XIcon />
+              </AttachmentAction>
+            </AttachmentPrimitive.Remove>
+          </AttachmentActions>
+        </Attachment>
+      </AttachmentPrimitive.Root>
+    );
+  }
+
   return (
     <Tooltip>
       <AttachmentPrimitive.Root className="aui-attachment-root relative">
@@ -184,7 +220,7 @@ const ComposerAttachment: FC = () => {
               data-error={isError || undefined}
               role="button"
               tabIndex={0}
-              aria-label={[t("attachment").replace("{0}", name), uploadState === "error" ? t("uploadFailed") : isUploading ? t("uploading") : recognition?.text ?? ""]
+              aria-label={[t("attachment").replace("{0}", name), isUploading ? t("uploading") : recognition?.text ?? ""]
                 .filter(Boolean)
                 .join(" · ")}
             >
@@ -397,12 +433,30 @@ export const ComposerAttachments: FC = () => {
   );
 };
 
+/** 「+」：开系统的选文件框（只列收的类型 ACCEPT，可多选），选回来的每一份交给输入框；收不收由附件适配器判
+ *  （lib/managed-agents/attachments.ts 的 refusalOf：超限、空的、类型不收当场拒收，原因写在输入框上方）。 */
 export const ComposerAddAttachment: FC = () => {
+  const aui = useAui();
+  const disabled = useAuiState((s) => !s.composer.isEditing);
+  const pick = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.hidden = true;
+    input.accept = ACCEPT;
+    document.body.appendChild(input);
+    input.onchange = () => {
+      for (const file of input.files ?? []) {
+        void aui.composer().addAttachment(file).catch(withReport(() => undefined, "attachments"));
+      }
+      input.remove();
+    };
+    input.oncancel = () => input.remove();
+    input.click();
+  };
   return (
-    <ComposerPrimitive.AddAttachment asChild>
-      <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")}>
-        <PlusIcon className="aui-attachment-add-icon stroke-(length:--cc-icon-stroke)" />
-      </button>
-    </ComposerPrimitive.AddAttachment>
+    <button type="button" className="aui-composer-add-attachment cc-attach" aria-label={t("attach")} title={t("attach")} disabled={disabled} onClick={pick}>
+      <PlusIcon className="aui-attachment-add-icon stroke-(length:--cc-icon-stroke)" />
+    </button>
   );
 };

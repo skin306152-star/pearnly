@@ -971,6 +971,9 @@ def send(session_id, text) -> dict:
         company = "\n\n".join(p for p in (company, operator_tasks.thread_note(row.operator_task)) if p)
     # 有调用挂着等后台结论（`waits`，例如识别还没完）：引擎这时只收工具结果，先把它按「还在做」交回，再发这条消息
     waits.quietly("Assistant wait release failed", waits.release, row.session_id)
+    # 提问卡、「允许 / 拒绝」卡挂着时用户直接打字发来（11-11 压测 S8a：这句发不出）：同上，先把卡交回——提问卡写明回答在
+    # 这条消息里，要「允许」的按拒绝、不执行（`toolrun.replied`）——再发这条消息
+    waits.quietly("Assistant card reply failed", toolrun.replied, row.session_id, remote)
     batch = [{"type": "user.message", "content": [{"type": "text", "text": text}]}]
     # 接续的前文、公司说明、还没带过的提醒、界面语言、当地日期时间合成一条系统消息：引擎规定每批最多一条、只能放在最后。
     # 界面语言每条都带（同标题一个来源，`toolrun.interface_language`）：CC 按它回复，不按消息里夹的外文专名猜；

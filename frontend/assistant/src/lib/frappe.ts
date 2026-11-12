@@ -11,6 +11,8 @@ declare global {
     csrf_token?: string;
     /** 一份附件最多多大（字节）：页面由服务端写进来（`www/assistant.py`，共用层 `originals.rules.UPLOAD_MAX_BYTES`）。 */
     pearnly_upload_max_bytes?: number;
+    /** 附件收哪些类型（小写扩展名，带点）：同样由服务端写进来（`assistant.contracts.UPLOAD_EXTENSIONS`）。 */
+    pearnly_upload_extensions?: readonly string[];
   }
 }
 
@@ -25,7 +27,11 @@ export function siteFetch(url: string, init: RequestInit = {}): Promise<Response
 }
 
 /** 本站拒收时（frappe.throw）给的原文：已按用户语言翻译，可以直接给用户看。网络等别的失败是普通 Error。 */
-export class SiteError extends Error {}
+export class SiteError extends Error {
+  // 名字写明：出错回传（lib/caught.ts 交给站点页面的那一处）按名字认出「站点已拒收、页面已提示」，不再记进站点错误日志。
+  // 以前没写（name 是 "Error"），每次带着传不上的附件点发送都往站点错误日志写一条（11-11 发布核查）
+  override name = "SiteError";
+}
 
 /** 站点回了错误码、又没有给人看的原文（服务端原始异常、网关错误）：带上 HTTP 状态，调用方据此分辨是不是一时的。 */
 export class RequestError extends Error {
@@ -132,6 +138,12 @@ export async function upload<T>(method: string, args: Record<string, string>, fi
 export function uploadMaxBytes(): number {
   const max = Number(window.pearnly_upload_max_bytes);
   return Number.isFinite(max) && max > 0 ? max : 0;
+}
+
+/** 附件收哪些类型（小写扩展名，带点）：服务端写进页面的那份；页面没写就是空表，不在页面先拦类型。 */
+export function uploadExtensions(): readonly string[] {
+  const list = window.pearnly_upload_extensions;
+  return Array.isArray(list) ? list.map((ext) => String(ext).toLowerCase()) : [];
 }
 
 /** 超限时给人看的那句（同服务端词条 upload.tooLarge）。 */

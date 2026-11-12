@@ -55,6 +55,7 @@ import { KEYBOARD_CLOSED } from "@/lib/viewport";
 import { useToolLabels } from "@/lib/tool-labels";
 import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   createContext,
@@ -341,9 +342,9 @@ const NoticeMessage: FC = () => {
         {push.state === "off" && (
           <div className="cc-ask-foot">
             {push.failure && (
-              <div role="alert" className={ERROR_BOX}>
-                <p className="line-clamp-(--cc-alert-lines)">{push.failure}</p>
-              </div>
+              <Alert variant="destructive">
+                <AlertDescription className="line-clamp-(--cc-alert-lines)">{push.failure}</AlertDescription>
+              </Alert>
             )}
             <div className="cc-card-actions">
               <button type="button" className="cc-card-btn" onClick={() => void push.enable()}>
@@ -539,15 +540,17 @@ const StopButton: FC<{ onStop?: () => void }> = ({ onStop }) => {
   );
 };
 
-// 对话里出错那一行（回复出错、发送没成功、通知没打开）同一个样子：统一的出错框 .cc-alert（危险浅底、危险线、内边距 12、圆角 8，V12），最多两行
-const ERROR_BOX = "cc-alert";
+// 对话里出错那一行（回复出错、发送没成功、选的文件被拒收、通知没打开）同一个样子：标准组件库的出错提示 Alert
+// （components/ui/alert，危险浅底、危险线、内边距 12、圆角 8，V12），最多两行
 
 // 和回复里别的块一样只用上外边距（.cc-reply 的 --cc-md-block，V32），不另写 mt
 const MessageError: FC = () => {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className={cn("aui-message-error-root", ERROR_BOX)}>
-        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-(--cc-alert-lines)" />
+      <ErrorPrimitive.Root asChild>
+        <Alert variant="destructive" className="aui-message-error-root">
+          <ErrorPrimitive.Message className="aui-message-error-message line-clamp-(--cc-alert-lines)" />
+        </Alert>
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>
   );
@@ -560,9 +563,9 @@ const SendFailure: FC = () => {
   const message = useSendFailure(thread);
   if (!message) return null;
   return (
-    <div role="alert" data-slot="cc-send-failure" className={ERROR_BOX}>
-      <p className="line-clamp-(--cc-alert-lines)">{message}</p>
-    </div>
+    <Alert variant="destructive" data-slot="cc-send-failure">
+      <AlertDescription className="line-clamp-(--cc-alert-lines)">{message}</AlertDescription>
+    </Alert>
   );
 };
 

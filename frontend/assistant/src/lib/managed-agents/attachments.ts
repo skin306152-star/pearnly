@@ -9,9 +9,12 @@ import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@
 import { uploadFile, type UploadedFile } from "./api";
 import { beginPending } from "./pending-send";
 import { stopRecognition, watchRecognition } from "./attachment-recognition";
-import { shownError, tooLargeText, uploadMaxBytes } from "@/lib/frappe";
+import { shownError, tooLargeText, uploadExtensions, uploadMaxBytes } from "@/lib/frappe";
+import { t } from "@/i18n";
 import { reportCaught, withReport } from "../caught";
 
+/** 选文件框里列出的类型（「+」按钮用，components/assistant-ui/attachment.tsx）。选中、拖进、粘贴的文件收不收一律由 refusalOf 判：
+ *  适配器自己的 accept 是 "*"——组件库按 accept 拦下时只抛错、页面没反应，还留一条未接住的错误进站点错误日志。 */
 export const ACCEPT = "image/*,.heic,.heif,.pdf,.xlsx,.xls,.csv,.tsv,.docx,.txt,.md,.json";
 
 /** 已上传附件在沙箱里的位置，按 assistant-ui 的附件编号记，发送时拼进消息。 */
@@ -77,7 +80,22 @@ export function filesToSend(attachments: readonly CompleteAttachment[] | undefin
   return attachedFilesOf(attachments);
 }
 
-export function createAttachmentAdapter(getSessionId: () => Promise<string>): AttachmentAdapter {
+/** 永远传不上的文件为什么不收（给人看的那句）；收就回 ""。超过上限、空文件、服务端不收的类型：大小和名字选中那一刻就知道，
+ *  当场拒收，不进输入框、不留失败卡（主会话 11-12：留着失败卡，发送时重传必败、整条发不出，不删卡就永远发不出）。
+ *  上限与类型清单都是服务端写进页面的那份（lib/frappe.ts），前端不另写。 */
+export function refusalOf(file: File): string {
+  const max = uploadMaxBytes();
+  if (max && file.size > max) return tooLargeText();
+  if (file.size === 0) return t("fileEmpty");
+  const allowed = uploadExtensions();
+  const dot = file.name.lastIndexOf(".");
+  const ext = dot >= 0 ? file.name.slice(dot).toLowerCase() : "";
+  if (allowed.length && !allowed.includes(ext)) return t("fileTypeUnsupported");
+  return "";
+}
+
+/** refused：选中的文件被当场拒收时带上原因（写在输入框上方那一行，send-failure.ts 的 noteRefusedFile）。 */
+export function createAttachmentAdapter(getSessionId: () => Promise<string>, refused?: (message: string) => void): AttachmentAdapter {
   /** 传进会话并记下位置、大小、本地预览（选中文件时、发送时重传都走这里）。 */
   const store = async (id: string, file: File): Promise<UploadedFile> => {
     const stored = await uploadFile(await getSessionId(), file);
@@ -90,18 +108,18 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>): At
   };
 
   return {
-    accept: ACCEPT,
+    accept: "*",
 
     async *add({ file }): AsyncGenerator<PendingAttachment, void> {
+      // 永远传不上的（超限、空的、类型不收）当场拒收：什么都不交给输入框（没有附件卡），也不建会话、不上传
+      const refusal = refusalOf(file);
+      if (refusal) {
+        refused?.(refusal);
+        return;
+      }
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const type = file.type.startsWith("image/") ? ("image" as const) : ("document" as const);
       const base = { id, type, name: file.name, contentType: file.type, file };
-      // 超过上限的不传（传 30 秒再被拒）：当场说多大
-      const max = uploadMaxBytes();
-      if (max && file.size > max) {
-        yield { ...base, status: { type: "incomplete", reason: "error", message: tooLargeText() } };
-        return;
-      }
       const upload = store(id, file);
       uploading.set(id, upload);
       yield { ...base, status: { type: "running", reason: "uploading", progress: 0.3 } };

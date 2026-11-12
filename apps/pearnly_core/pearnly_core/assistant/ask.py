@@ -126,6 +126,17 @@ def skipped(tool_input: Mapping[str, Any]) -> str:
     return result(tool_input, [{"skipped": True} for _ in tool_input.get("questions") or ()])
 
 
+# 卡片挂着时用户没在卡片上作答、直接在输入框里发了消息（`toolrun.replied`）交回模型的说明：只给模型读，不经 _()
+REPLIED_INSTRUCTION = ("The user did not answer on the card. They sent a message instead: read their next message as the "
+                       "reply to these questions. Do not ask the same questions again unless that message leaves them open.")
+
+
+def replied(tool_input: Mapping[str, Any]) -> str:
+    """卡片挂着时用户直接发了消息：每题没选（同关掉卡片，页面照旧读成答过、各题跳过），另写明回答在下一条用户消息里。"""
+    data = json.loads(skipped(tool_input))
+    return json.dumps({**data, "replied_in_message": True, "instruction": REPLIED_INSTRUCTION}, ensure_ascii=False)
+
+
 def picked(result_text) -> List[str]:
     """一张答完的卡片（`result` 的 JSON 文本）里用户选的与在「其他」里打的字，按题目顺序；跳过的题不算。读不出回空表。"""
     try:

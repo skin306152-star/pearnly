@@ -1181,6 +1181,13 @@ export function project(events: Iterable<FeedEvent>, from = initialProjection())
 export const isBusy = (state: Pick<Projection, "isRunning" | "pendingApprovals" | "pendingCustomTools">): boolean =>
   state.isRunning || state.pendingApprovals.length > 0 || state.pendingCustomTools.length > 0;
 
+/** 输入框里再发的一句要不要先排着（send-queue.ts）：只有模型这边有活在走才排——在回复、本站在执行、工具结果还欠着。
+ *  只是卡片挂着等用户（提问卡、「允许 / 拒绝」卡）时这一轮没结束（isBusy，停止键与状态行照旧），但要等的是用户：这时打的话
+ *  当场发出，服务端先把卡交回再收这句（提问卡 = 改用文字回答，要允许的 = 拒绝；pearnly_core toolrun.replied）。以前照 isBusy
+ *  排队，这一轮等不到结束，那句永远发不出（11-11 压测 S8a）。 */
+export const holdsSends = (state: Pick<Projection, "isRunning" | "pendingApprovals" | "pendingCustomTools">): boolean =>
+  state.isRunning || state.pendingCustomTools.length > 0;
+
 /** The user just answered the last open gate: the session is about to
  *  resume server-side. Mark it running now so the composer doesn't briefly
  *  reopen (and accept a message mid-resume) before the real status_running
