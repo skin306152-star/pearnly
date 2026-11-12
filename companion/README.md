@@ -185,7 +185,7 @@
     （心跳、认电脑也不发），托盘照旧显示「连接已失效，请在设置中重新连接」；取任务的 401 也记进 `device_link.REJECTIONS`（同心跳，满 60 秒标成
     密钥不能再用、等对话页重新登记）。网络断、5xx 不按这个退避。原来 401 也每 3 秒领一次（11-08 erpcowork 日志，`docs/work/2026-11-08-cc-blank-window-old-pc.md`）。
 
-- 1.12.20（未发布；**先部署服务端再发**）：
+- 1.12.20（2026-11-11 正式发布，main 6275e4999；服务端同晚先部署、再发 CC）：
   - 授权文件夹取文件上限 30MB → 40MB，同对话附件（`request_contract.MAX_BYTES["folder_fetch"]`，`docs/work/2026-11-10-upload-size-limits.md`）；
     服务端每次请求自带 `max_bytes`，旧版照旧 30MB 停、报 `too_large`。
   - 收款单 RE（载荷 20，`direction = receipt`，`dbf_receipt`；`docs/work/2026-11-11-collection-receipt-assessment.md`）：照 Express 原生写 ISRUN RE 号、
