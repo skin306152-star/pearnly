@@ -20,7 +20,7 @@ from zoneinfo import ZoneInfo
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import direct_push, waits
+from pearnly_core.assistant import direct_push, projects, waits
 from pearnly_cowork.access import scope
 from pearnly_cowork.connections import api as connections_api
 from pearnly_core.mrerp import needs as mrerp_needs
@@ -937,15 +937,30 @@ def _in_conversation() -> bool:
     return bool((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-def _scope_refusal(connection, account_set_key, operator=None, day="") -> dict | None:
+def _scope_refusal(connection, account_set_key, operator=None, day="", whole_company=False) -> dict | None:
     """CC 只写对话选中的公司与账套（`assistant.write_scope`，用户 11-10）：代录按任务的公司、直写按本对话挂的公司核；
+    有本对话账套时只认它（代录按任务会话的，``operator["task"]``；A 线 11-12）；``whole_company``（定时任务保存）照公司判。
     不在 CC 对话里执行（网页由人点的推送）回 None 不限。拒的回给模型的原因（``reason`` / ``note`` / 可写的账套）。"""
     company = str((operator or {}).get("company") or "")
     if not company and not _in_conversation():
         return None
     from pearnly_cowork.assistant import write_scope
 
-    return write_scope.check(connection, account_set_key, company=company or None, day=str(day or "")[:10])
+    return write_scope.check(connection, account_set_key, company=company or None, day=str(day or "")[:10],
+                             task=str((operator or {}).get("task") or ""), whole_company=whole_company)
+
+
+def _aim(doc, connection, account_set_key, operator=None) -> dict | None:
+    """CC 对话 / 代录里这张单写进本对话账套（`write_scope.aim`）：``{"connection", "key"}``，或拒绝（``reason``）；
+    不在对话里、没有本对话账套回 None（照旧）。改投只在这一刻（真推送时）落到票上。"""
+    company = str((operator or {}).get("company") or "")
+    if not company and not _in_conversation():
+        return None
+    from pearnly_cowork.assistant import write_scope
+
+    return write_scope.aim(connection, account_set_key, _field(doc, "push_connection"), _field(doc, "push_account_set"),
+                           company=company or None, task=str((operator or {}).get("task") or ""),
+                           day=str(_field(doc, "invoice_date") or "")[:10])
 
 
 def _submit_one(name, connection, account_set_key, posting_kind, route_device, operator=None) -> dict:
@@ -963,6 +978,13 @@ def _submit_one(name, connection, account_set_key, posting_kind, route_device, o
         if written:
             out["written"] = written
         return out
+    aimed = _aim(doc, connection, account_set_key, operator)
+    if aimed and aimed.get("reason"):
+        # 账套未定 / 模型另填了别的 / 票上是别家公司的去向：不写、不在票上留去向
+        return {"document": name, "status": "failed", **aimed}
+    if aimed:
+        # 对话 / 代录里连接与账套一律是本对话账套（A6：空账套不回落连接默认）
+        connection, account_set_key = aimed["connection"], aimed["key"]
     target = connection or doc.push_connection
     if not target:
         return {"document": name, "status": "failed", "reason": "no_push_target"}
@@ -1209,6 +1231,12 @@ def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
     except (frappe.DoesNotExistError, frappe.PermissionError):
         frappe.clear_messages()
         return {"document": name, "status": "not_found"}
+    aimed = _aim(doc, connection, account_set_key)
+    if aimed and aimed.get("reason"):
+        return {"document": name, "status": "failed", **aimed}
+    if aimed:
+        # 本对话账套：停在「待选账套」的单也直接写进它（候选只有它，不再问哪份）
+        return _push_one(name, aimed["connection"], aimed["key"], posting_kind)
     stop = _stop_target(doc) if connection in (None, _field(doc, "push_connection")) else None
     if not stop:
         return _push_one(name, connection, account_set_key, posting_kind)
@@ -1413,7 +1441,8 @@ ACCOUNT_SET_STOP_NOTE = (
     "date, or none does) has push_target 'account set not chosen yet' and account_set_options (where it can go): it "
     "is not going to any account set yet, so never name one as its account set; ask the user which one, then push it "
     "with that account_set_key. account_set_remembered means the company's remembered account set in use applies "
-    "to it.")
+    "to it. conversation_account_set means it goes into this conversation's account set: do not ask, push it without "
+    "account_set_key.")
 
 
 def _field(doc, key):
@@ -1462,11 +1491,17 @@ def _stop_target(doc, cache=None) -> dict | None:
                 books = kept or write_scope.this_company_options(connection, _field(doc, "invoice_date")) or []
                 if current and not write_scope.keep([{"key": current}], lambda item: connection):
                     current = ""
-        if current:
+            pin = write_scope.pinned()
+            if pin and pin.get("key"):
+                # 本对话账套（A 线 11-12）：这张单写进它，不再问哪份
+                found = {"account_label": pin.get("label") or pin["key"], "push_account_set": pin["key"],
+                         "conversation_account_set": True,
+                         "account_set_options": [{"key": pin["key"], "label": pin.get("label") or pin["key"]}]}
+        if found is None and current:
             label = next((item["label"] for item in books if _account_key(item["key"]) == _account_key(current)), "")
             found = {**({"account_label": label} if label else {}), "push_account_set": current,
                      "account_set_remembered": True, "account_set_options": books}
-        else:
+        elif found is None:
             found = {"push_target": ACCOUNT_SET_UNDECIDED, "account_set_options": books}
     if cache is not None:
         cache[name] = found
@@ -1575,6 +1610,21 @@ def _selectable(choices) -> bool:
     return any(str(row["source_id"]).casefold() == wanted for row in usable)
 
 
+def _default_target(choices) -> None:
+    """识别没带账套时按本对话账套补上推送目标（改 ``choices``）；不在对话里、没有本对话账套或未定（识别不是写入，
+    不拦；写入时由写入闸回 ``ledger_needed``）不改。"""
+    if not _in_conversation():
+        return
+    from pearnly_cowork.assistant import write_scope
+
+    pin = write_scope.pinned()
+    if not pin or not pin.get("key"):
+        return
+    adapter = _adapter_of(pin["connection"])
+    if adapter in ("express", "mrerp"):
+        choices.update(target=adapter, connection=pin["connection"], account_set_key=pin["key"])
+
+
 def recognize_attachments(tool_input) -> str:
     scope.require("intake")
     file_ids = [str(f) for f in (tool_input.get("files") or [])][:RECOGNIZE_MAX]
@@ -1599,6 +1649,8 @@ def recognize_attachments(tool_input) -> str:
                                   for f in file_ids]})
     refused = _scope_refusal(choices.get("connection"), choices.get("account_set_key")) \
         if choices.get("account_set_key") else None
+    if not refused and not choices.get("account_set_key"):
+        _default_target(choices)  # 模型没给账套：对话里缺省本对话账套，抄到票上（同网页先选账套再上传，A 线 11-12 R2-5）
     if refused:
         return _json({"results": [{"file": f, "status": "not_started", "reason": refused["note"],
                                    "allowed_account_sets": refused["allowed_account_sets"]} for f in file_ids]})
@@ -1815,6 +1867,7 @@ def pos_import(tool_input) -> str:
     账套。不识别、不扣费；版式（哪列是日期、票号、金额……）按公司问一次、记住。"""
     scope.require("intake")
     file_ids = [str(f) for f in (tool_input.get("files") or [])][:POS_FILES_MAX]
+    tool_input, _refused = _book_defaults(tool_input)  # 给了别的账套由下面的写入闸照样拒
     connection, account_set = tool_input.get("connection") or "", tool_input.get("account_set_key") or ""
     if not file_ids:
         frappe.throw(_("No attachments were given."))
@@ -1863,6 +1916,9 @@ def pos_layout(tool_input) -> str:
     """回答 POS 导出的认列问题并记在这家公司名下（以后同版式直接用）：对话附件，或文件夹任务里停着等认列的那份
     （`folder_file`，答好后它接着自动录入）。不建票。"""
     scope.require("intake")
+    tool_input, refused = _book_defaults(tool_input)
+    if refused:
+        return _json({"status": "refused", **refused})
     answers = _pos_answers(tool_input)
     folder_file = str(tool_input.get("folder_file") or "")
     if folder_file:
@@ -1964,6 +2020,39 @@ def _still_available(last, targets) -> bool:
     return False
 
 
+INTAKE_LEDGER_NOTE = ("suggested is this conversation's account set (conversation_account_set): everything recognized and "
+                      "written in this conversation goes into it; use it without asking.")
+
+
+def _conversation_pin() -> dict | None:
+    """对话里已定的本对话账套（`write_scope.pinned`）；不在对话里、没有或未定回 None。"""
+    if not _in_conversation():
+        return None
+    from pearnly_cowork.assistant import write_scope
+
+    pin = write_scope.pinned()
+    return pin if pin and pin.get("key") else None
+
+
+def _book_defaults(tool_input, period=False):
+    """按账套读 / 记的工具（回读、增值税草稿、库存科目组、MR.ERP 菜单默认值、POS 认列，C2–C5）在对话里：账套没给就用本对话账套，
+    给了别的过写入闸（`_scope_refusal`）；``period`` 时月份没给用对话的月份。回 (补好的参数副本, 拒绝或 None)；不在对话里原样。"""
+    values = dict(tool_input or {})
+    if not _in_conversation():
+        return values, None
+    pin = _conversation_pin()
+    if values.get("account_set_key"):
+        refused = _scope_refusal(values.get("connection"), values.get("account_set_key"))
+        if refused:
+            return values, refused
+    elif pin:
+        values.update(connection=pin["connection"], account_set_key=pin["key"])
+    if period and not values.get("period"):
+        session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
+        values["period"] = projects.of_session(session)[1] if session else ""
+    return values, None
+
+
 def intake_options(tool_input) -> str:
     from pearnly_cowork.connections import account_search
 
@@ -2017,8 +2106,15 @@ def intake_options(tool_input) -> str:
         targets.append(item)
     targets.append({"target": "none", "state": "ready"})
     extra = {}
-    last = _account_named(last, last.get("connection"), cache=names)
-    if last and not _still_available(last, targets):
+    pin = _conversation_pin()
+    if pin:
+        # 本对话账套（A 线 11-12）：它就是写入目标，推荐它、明说，不按上次用的另推
+        last = {"target": _adapter_of(pin["connection"]), "connection": pin["connection"], "account_set_key": pin["key"],
+                "account_label": pin.get("label") or pin["key"], "conversation_account_set": True}
+        extra["note"] = INTAKE_LEDGER_NOTE
+    else:
+        last = _account_named(last, last.get("connection"), cache=names)
+    if last and not pin and not _still_available(last, targets):
         # 上次用的账套已不在可选清单（删了、改名、不可写或那条连接停了）：不推荐，告诉用户另选
         extra["last_used_unavailable"] = last
         last = {}
@@ -2041,6 +2137,9 @@ def _connection_call(fn, *args):
 def stock_group(tool_input) -> str:
     """Express 记成存货时的存货科目组：每个账套选一次、记住（大家共用，同网页）。"""
     scope.require("intake")
+    tool_input, refused = _book_defaults(tool_input)
+    if refused:
+        return _json({"status": "refused", **refused})
     name, key = str(tool_input.get("connection") or ""), str(tool_input.get("account_set_key") or "")
     if tool_input.get("acccod"):
         result = _connection_call(connections_api.choose_stock_acc_group, name, key, str(tool_input["acccod"]))
@@ -2059,6 +2158,9 @@ def stock_group(tool_input) -> str:
 def mrerp_setup(tool_input) -> str:
     """MR.ERP 推送用的导入菜单与默认值：每个账套每类单据选一次、记住（同网页推送前那一步）。"""
     scope.require("intake")
+    tool_input, refused = _book_defaults(tool_input)
+    if refused:
+        return _json({"status": "refused", **refused})
     name, key = str(tool_input.get("connection") or ""), str(tool_input.get("account_set_key") or "")
     if tool_input.get("read_again"):
         request = _connection_call(connections_api.request_mrerp_menu, name, key)
@@ -2919,6 +3021,9 @@ def _vat_boxes(boxes) -> list:
 def vat_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
+    tool_input, refused = _book_defaults(tool_input, period=True)
+    if refused:
+        return _json({"status": "not_drafted", **refused})
     if _adapter_of(tool_input.get("connection")) == "mrerp":
         # ภ.พ.30 草稿只读 Express 回读（`tax.service.vat_draft`）；MR.ERP 账套没有回读，不让 CC 去请一份读不了的回读
         return _json({"status": "not_applicable", "connection": tool_input.get("connection"),
@@ -2945,9 +3050,28 @@ def vat_draft(tool_input) -> str:
     return _json(_added_to_chat(_filled(out), out["file"]), utc=("read_at",))
 
 
+def _wht_defaults(tool_input) -> dict:
+    """预扣税草稿在公司对话里：税号、分店、月份没给就用本对话的公司、分店、月份（C 线缺省）。"""
+    values = dict(tool_input or {})
+    session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
+    if not session:
+        return values
+    filed, period, branch = projects.of_session(session)
+    if filed and not values.get("company_tax_id"):
+        row = frappe.db.get_value("Cowork Company", filed, ["tax_id", "title"], as_dict=True) or {}
+        if row.get("tax_id"):
+            values["company_tax_id"] = row["tax_id"]
+            values["company_name"] = values.get("company_name") or row.get("title") or ""
+            values["company_branch"] = values.get("company_branch") or branch or ""
+    if filed and not values.get("period"):
+        values["period"] = period
+    return values
+
+
 def wht_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
+    tool_input = _wht_defaults(tool_input)
     summary = _tax_call(tax_service.wht_draft, tool_input.get("company_tax_id"), tool_input.get("period"),
                         tool_input.get("edits") or [], str(tool_input.get("company_name") or ""),
                         str(tool_input.get("company_branch") or ""))
@@ -3614,6 +3738,9 @@ def express_readback(tool_input) -> str:
     """请那台电脑只读读回一本 Express 账套的一个月，出总账、销项 / 进项税报与差异表四份工作簿放进对话。"""
     from pearnly_cowork.readback import service as readback
 
+    tool_input, refused = _book_defaults(tool_input, period=True)
+    if refused:
+        return _json({"status": "not_started", **refused})
     made = _readback_call(readback.request, str(tool_input.get("connection") or ""),
                           str(tool_input.get("account_set_key") or ""), str(tool_input.get("period") or ""),
                           tool_input.get("accounts") or None, failed="not_started")
@@ -3719,7 +3846,7 @@ def _task_mrerp_setup(values) -> dict | None:
 
 def _task_scope(values) -> dict | None:
     """文件夹任务以后自己写账：公司对话里存 / 改的任务只能指向本对话公司的账套（同推送，`assistant.write_scope`）。"""
-    return _scope_refusal(values.get("connection"), values.get("account_set_key"))
+    return _scope_refusal(values.get("connection"), values.get("account_set_key"), whole_company=True)
 
 
 def folder_task_refusal(tool_input) -> str | None:
@@ -4418,8 +4545,9 @@ TOOLS = [
      "description": "Where recognized documents can go, as on the web's New intake and in LINE: each accounting "
                     "program (express, mrerp) with its state and account sets (the last-used one first), recognize only "
                     "(none), and suggested: the choices of the user's previous recognition that went to Express or MR.ERP, from "
-                    "the web, LINE or this chat. Ask once: offer suggested first (say which account set it is by its "
-                    "account_label), and "
+                    "the web, LINE or this chat. In a conversation with its own account set, suggested is that account "
+                    "set (conversation_account_set): use it without asking. Otherwise ask once: offer suggested first "
+                    "(say which account set it is by its account_label), and "
                     "once the user agrees reuse it for the rest of the conversation without asking again. Only ready targets can be chosen. Large lists are cut to 30; pass search (company "
                     "name, tax ID or folder) to narrow them.",
      "input_schema": {"type": "object", "properties": {"search": {"type": "string"}}},
@@ -4650,9 +4778,11 @@ TOOLS = [
                     "account set still needs: choose them with cowork_mrerp_setup instead), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
                     "or already_success / already_pending (already entered or on its way; it is not pushed again and "
-                    "CC cannot change it, see below). connection and account_set_key choose where to push (from "
-                    "cowork_intake_options), e.g. for a recognize-only document; left out, the target chosen at "
-                    "upload is used. " + ACCOUNT_SET_STOP_NOTE + " Pushed with one of account_set_options, it goes "
+                    "CC cannot change it, see below). In a conversation with its own account set leave connection and "
+                    "account_set_key out: every document goes into that account set, and any other is refused "
+                    "(not_this_conversation_book; ledger_needed when it is not decided yet). Elsewhere connection and "
+                    "account_set_key choose where to push (from cowork_intake_options), e.g. for a recognize-only "
+                    "document; left out, the target chosen at upload is used. " + ACCOUNT_SET_STOP_NOTE + " Pushed with one of account_set_options, it goes "
                     "there and, when two of them cover the same dates, that one is remembered as the account set in "
                     "use (as with current_book); then the company's other documents waiting on the same account sets "
                     "continue with it (settled in that result is how many): that result then has same_group (count; "

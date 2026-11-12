@@ -137,6 +137,9 @@ def company_note(data: Mapping[str, Any]) -> str:
     if scope:
         lines.append(f"Work branch: {_branch_name(safe(scope))}. Use only this branch's account sets; a document whose "
                      "printed buyer branch (seller branch for sales) is another branch belongs to that branch.")
+    elif len(numbers) > 1 and data.get("ledger"):
+        lines.append("This company has several branches; this conversation's account set (below) decides which "
+                     "branch's books it writes to.")
     elif len(numbers) > 1:
         lines.append("This company has several branches: use the buyer branch printed on each document (the seller "
                      "branch for sales) to choose the branch's account set; when a document shows no buyer branch "
@@ -147,9 +150,11 @@ def company_note(data: Mapping[str, Any]) -> str:
     sets = list(data.get("account_sets") or [])
     if scope:
         sets = [item for item in sets if item.get("branch") == scope] or sets
-    covering = set(data.get("covering") or ())
+    # 有本对话账套（`data["ledger"]`）：写进哪本由共用层接在后面的那一段定，这里只列出、不标「覆盖这个月」（A 线 11-12 R2-5）
+    covering = set() if data.get("ledger") else set(data.get("covering") or ())
     if sets:
-        lines.append("Account sets (newest first):")
+        lines.append("Account sets (newest first; writes go only into this conversation's account set, named below):"
+                     if data.get("ledger") else "Account sets (newest first):")
         lines += [_set_line(item, period, covering, len(numbers) > 1) for item in sets[:SETS_MAX]]
         if len(sets) > SETS_MAX:
             lines.append(f"{len(sets) - SETS_MAX} older account sets: call cowork_company_profile.")

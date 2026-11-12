@@ -52,7 +52,33 @@ def _party(doc, fields) -> str:
     return str(getattr(doc, "buyer_name" if sales else "seller_name", "") or "")
 
 
-def document(history, posting_kind=None, hint=None) -> dict:
+def _aimed(doc):
+    """CC 对话里判定按「目标 = 本对话账套」算（A 线 11-12，主会话三条）：只在内存里换掉这张单的连接与账套、票不写（改投只在
+    真推送那一刻落到票上，`tools._submit_one`）；原来指着同公司另一本的列进 ``retargeted``（``{from, to}``，带名称），原来是别家
+    公司的不改投（回写入闸的拒绝，列在不能写）。回 (拒绝或 None, retargeted 或 None, 是否已按本对话账套算)。"""
+    local = getattr(frappe, "local", None)
+    if not (getattr(local, "pearnly_assistant", None) or {}).get("session_id"):
+        return None, None, False  # 不在 CC 对话里（页面上的判定卡）：照票上的目标
+    from pearnly_cowork.assistant import write_scope
+
+    aimed = write_scope.aim(None, None, doc.push_connection, doc.push_account_set,
+                            day=str(getattr(doc, "invoice_date", "") or "")[:10])
+    if not aimed:
+        return None, None, False
+    if aimed.get("reason"):
+        return aimed, None, False
+    before = (str(doc.push_connection or ""), str(doc.push_account_set or ""))
+    after = (aimed["connection"], aimed["key"])
+    moved = None
+    if before[1] and (before[0], write_scope.key_of(before[1])) != (after[0], write_scope.key_of(after[1])):
+        moved = {"from": {"connection": before[0], "account_set": before[1],
+                          "label": write_scope.label_of(before[0], before[1])},
+                 "to": {"connection": after[0], "account_set": after[1], "label": aimed.get("label") or after[1]}}
+    doc.push_connection, doc.push_account_set = after
+    return None, moved, True
+
+
+def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
     """一张单的判定：``{"doc_id", "state", "reason"?, "message"?, "record"?, "target"?, "direction"?, "ref", "party",
     "items", "planned"?, "legacy"}``。``hint``：用户在对话里说的费用类别（CC 传，只影响科目建议，`service._suggest`）；``planned``：
     什么都不用定时此刻推出去会怎么写（`push.express.pushed.planned`，与入账后的 written 同一个函数），CC 推前照它说现 / 赊、科目
@@ -71,6 +97,13 @@ def document(history, posting_kind=None, hint=None) -> dict:
     doc = storage.read(history)
     fields = primary_page_fields(json.loads(doc.pages or "[]"))
     base = {"doc_id": doc.name, "ref": str(getattr(doc, "invoice_no", "") or ""), "party": _party(doc, fields), "items": []}
+    refused, moved, pinned = _aimed(doc) if conversation else (None, None, False)
+    if refused:
+        # 账套未定、票上是别家公司的去向：不能写（原因同写入闸），不改投
+        return {**base, "state": card.NOT_WRITABLE, "reason": refused["reason"],
+                "legacy": {"state": "blocked", "message": refused["reason"]}}
+    if moved:
+        base["retargeted"] = moved
     if lifecycle.result_unknown(doc.last_push_status, doc.last_push_reason):
         # 上次领单途中断了、结果不明：先在 Express 里核对（流程锁，防重复入账），不问别的
         legacy = {"state": "blocked", "reason": service.RESULT_UNKNOWN, "record": doc.last_push_record or "",
@@ -110,7 +143,7 @@ def document(history, posting_kind=None, hint=None) -> dict:
     # 同原来的预检：回滚后重新锁上连接再取要选的项（读主档的请求同一时刻只排一个）
     loaded = connections.read_for_push(doc.push_connection, doc.workspace, doc.client, lock=True)
     row = _row(doc)
-    if pending.account_set_stop(row):
+    if not pinned and pending.account_set_stop(row):  # 按本对话账套算的不再问哪份
         items.append(_book_item(pending.account_set_options(row)))
     fixed = service._fixed(doc.name, loaded.doc.name, found["target"].account_set, None)  # 定时任务默认处理
     view, decision, (kind, posting_from, today) = service._choices(doc, loaded, found, posting_kind or None, fixed=fixed,
@@ -474,7 +507,7 @@ def check(company, doc_ids, hint=None) -> dict:
     for name in doc_ids:
         try:
             posting = operator_source._settle(name, memory) or None
-            found = document(name, posting, hint)
+            found = document(name, posting, hint, conversation=True)
         except (frappe.DoesNotExistError, frappe.PermissionError):
             frappe.db.rollback()
             frappe.clear_messages()
