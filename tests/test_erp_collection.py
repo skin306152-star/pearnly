@@ -1137,5 +1137,47 @@ class Explained(unittest.TestCase):
         self.assertEqual(texts.explain(C.CollectionError(C.INVOICES_TOO_MANY)), "At most 50 invoices")
 
 
+class ExpressWaiting(Base):
+    """「我的收款」里在等 Express 关闭的那几笔（约定：`cc_desktop.jobs.express_wait_many` / `book_express_wait`，
+    express-wait-display 11-12；那支未合入前用替身）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.waiting = set()
+        for patch in (mock.patch("pearnly_core.cc_desktop.jobs.express_wait_many", create=True,
+                                 side_effect=lambda names, moment=None: {n: "2026-11-11T05:00:00" for n in names
+                                                                         if n in self.waiting}),
+                      mock.patch("pearnly_core.cc_desktop.jobs.book_express_wait", create=True,
+                                 side_effect=lambda key, moment=None: {"waiting": bool(self.waiting), "since": None})):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def released(self):
+        made = self.draft("100")
+        service.release(made["name"], 1, "line:evt")
+        return made["name"]
+
+    def test_my_list_marks_only_queued_collections_waiting_for_express(self):
+        first, second = self.released(), self.released()
+        self.waiting = {"J-" + first}
+        self.jobs.report("J-" + first, "queued", reason="ACCOUNT_BUSY_LOCKED")
+        self.as_user("a@x")
+        marked = {row["name"]: row["express_wait"] for row in service.mine()["items"]}
+        self.assertEqual(marked, {first: True, second: False})
+        self.assertEqual(S.table("ERP Collection")[first]["reason"], "")  # 原因码不抄到收款记录
+        self.jobs.report("J-" + first, "success", docnum="RE1")
+        self.assertFalse({row["name"]: row["express_wait"] for row in service.mine()["items"]}[first])
+
+    def test_the_opened_record_and_the_release_say_it_too(self):
+        from pearnly_erp_portal.collection import api
+
+        name = self.released()
+        self.waiting = {"J-" + name}
+        self.assertTrue(api.api_my_collection(name)["card"]["express_wait"])
+        self.assertTrue(service.express_waiting(name))
+        self.waiting = set()
+        self.assertFalse(service.express_waiting(name))
+
+
 if __name__ == "__main__":
     unittest.main()
