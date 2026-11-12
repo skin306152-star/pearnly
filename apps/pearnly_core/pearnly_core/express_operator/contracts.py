@@ -85,6 +85,30 @@ def target_of(payload) -> str:
     return str(found or TARGET_EXPRESS)
 
 
+# 引导录入载荷 21（接口约定 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 8 节「代录 × 新物料」，接缝负责人 CC 桌面版窗口）：
+# 代录单只可以带这四个行键（新物料的单位码、存货科目组、分类、允许负库存），带了版本至少 21 照派；其余载荷 21 新键是直写专用，
+# 代录单带了服务端不发（拼载荷时报错），CC 桌面版也回 PAYLOAD_INVALID 兜底。与 CC 桌面版 ``payload_contract.OPERATOR_LINE_KEYS`` 相同、
+# 是 ``express_rules.push.common.GUIDED_KEYS`` 的子集（测试守着）；本文件保持纯契约不导入写账规则，所以在这里列一份
+GUIDED_PAYLOAD_VERSION = 21
+OPERATOR_GUIDED_LINE_KEYS = ("unit_code", "acccod", "stkgrp", "negallow")
+_DIRECT_ONLY_HEADER = ("guided", "due_date_be", "cash_account")
+_DIRECT_ONLY_LINE = ("cost_choice", "cost")
+_DIRECT_ONLY_PARTY = ("type", "payterm")
+
+
+def _operator_guided_floor(payload: dict) -> int:
+    """代录载荷里载荷 21 新键的检查：只带四个行键 → 21；没带 → 0；带了直写专用的新键抛 ValueError（不派）。"""
+    if any(key in payload for key in _DIRECT_ONLY_HEADER):
+        raise ValueError("operator payload carries direct-write keys")
+    for block in ("supplier", "customer"):
+        if isinstance(payload.get(block), dict) and any(key in payload[block] for key in _DIRECT_ONLY_PARTY):
+            raise ValueError("operator payload carries direct-write keys")
+    lines = [item for item in payload.get("items") or [] if isinstance(item, dict)]
+    if any(key in item for item in lines for key in _DIRECT_ONLY_LINE):
+        raise ValueError("operator payload carries direct-write keys")
+    return GUIDED_PAYLOAD_VERSION if any(key in item for item in lines for key in OPERATOR_GUIDED_LINE_KEYS) else 0
+
+
 PAY_ROUTES = ("cash", "transfer")  # ``operator.pay_route`` 的取值（``menu_choice.pay_route``）
 FORM_CHOICE_MAX = 200
 
@@ -110,10 +134,10 @@ def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, targ
     if not info["id"] or info["index"] < 1 or info["total"] < info["index"]:
         raise ValueError("bad operator batch")
     operator = {"batch": info, "vat_included": bool(vat_included)}
-    floor = OPERATOR_PAYLOAD_VERSION
+    floor = max(OPERATOR_PAYLOAD_VERSION, _operator_guided_floor(payload))
     if target != TARGET_EXPRESS:
         operator["target"] = target
-        floor = MRERP_OPERATOR_PAYLOAD_VERSION
+        floor = max(floor, MRERP_OPERATOR_PAYLOAD_VERSION)
     else:
         choice = " ".join(str(form_choice or "").split())[:FORM_CHOICE_MAX]
         route = str(pay_route or "").strip().lower()

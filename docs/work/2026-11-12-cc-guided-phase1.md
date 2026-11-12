@@ -134,3 +134,16 @@ A 类 14 条在哪一批落地：
 
 `SUPPLIER_NOT_IN_APMAS`、`CUSTOMER_NOT_IN_ARMAS`、`ERR_LOCATION`、`STOCK_IN_FAILED`、`ACCOUNT_CODE_IS_STOCK_ITEM` 进 `ack_rules.NEEDS_PERSON_CODES`：
 回执带这些码直接转人工，不再按普通失败重试 3 次。先写 `test_cc_desktop_channel.py` 一条（旧代码红），加码后绿；`test_companion_contract.py` 照过。
+
+## 代录 × 新物料：服务端四个行键照派
+
+主会话 11-12 定：代录新物料的四个行键并进载荷 21，CC 桌面版侧由 CC 桌面版验证窗口做（`pearnly/cc-desktop-verify-7f2d4c` 8662cc14e：代录建主档按行上单位码 /
+科目组 / 分类 / 负库存建，常量 `payload_contract.OPERATOR_LINE_KEYS`），接缝负责人是它，约定正文在它分支 `docs/work/2026-11-12-cc-desktop-payload-21.md`「并进载荷 21 的两项 → B」。
+服务端（本提交）：`express_operator.contracts.OPERATOR_GUIDED_LINE_KEYS = (unit_code, acccod, stkgrp, negallow)`，`for_operator` 见到这四键版本至少 21 照派；
+带其余载荷 21 新键（`guided`、`due_date_be`、`cash_account`、`cost_choice`、`cost`、对方块 `type` / `payterm`）的代录单直接报错不派。
+测试 `tests/test_express_operator_guided_keys.py`（先红：2 失败 1 报错，后绿）。CC 桌面版那边的跨边测试 `tests/test_operator_guided_keys_contract.py` 还没推，
+它进来后在里面加两边常量相等的断言。登记表 `MODE_GAPS` 里「代录 × 新物料」那条：两侧都进同一分支后删（`ModeGapsHonest` 测试届时会要求删）。
+
+销项服务品口径的载荷键（与 CC 桌面版窗口对过）：沿用进货已有的 `srv_vattyp`，**不进 `GUIDED_KEYS`**（进货单本来就带它，放进去会把代录进货单与旧版 CC 一起拦下）；
+销项单带 `srv_vattyp = "2"` 时单独盖 21，`"1"` 与旧写法相同不盖。客户档读回 `srv` 与「销项写 2」须同一批进集成分支，否则题会先出来、答了写不进。
+服务端的销项带键与盖版本等 CC 桌面版「写 2」取证完成后同批做，今晚没做。
