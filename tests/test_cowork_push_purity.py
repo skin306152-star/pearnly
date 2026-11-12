@@ -9,7 +9,7 @@ PURE_ROOT = {"__init__.py", "export_actions.py", "lifecycle.py", "retry.py"}
 # Root modules with explicit framework/IO duties are acknowledged, not scanned
 # for purity. export_facts reads the native ledger through Frappe; choices stores the
 # accountant's per-account-set decisions (the rules are pure: push/express/choices.py).
-NON_PURE_ROOT = {"export_facts.py", "choices.py"}
+NON_PURE_ROOT = {"export_facts.py", "choices.py", "express_wait.py"}  # express_wait：读推送记录与当前时间（11-12）
 
 
 def pure_paths(root):
