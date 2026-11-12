@@ -898,8 +898,8 @@ class Receipts(Base):
     def test_other_failures_and_queue_states(self):
         name, job = self.released()
         self.jobs.report(job, "queued", reason="payload_version_outdated")
-        self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "reason"]),
-                         (C.QUEUED, "payload_version_outdated"))
+        # 排队里的原因不抄到收款记录（11-12 约定：在不在等 Express 关闭读的时候问共用通道，见 ExpressWaiting）
+        self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "reason"]), (C.QUEUED, ""))
         self.jobs.report(job, "manual", reason="[RECEIPT_TYPE_INVALID] BB")
         self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"]),
                          (C.FAILED, "[RECEIPT_TYPE_INVALID] BB", None))
@@ -1167,6 +1167,12 @@ class ExpressWaiting(Base):
         self.assertEqual(S.table("ERP Collection")[first]["reason"], "")  # 原因码不抄到收款记录
         self.jobs.report("J-" + first, "success", docnum="RE1")
         self.assertFalse({row["name"]: row["express_wait"] for row in service.mine()["items"]}[first])
+
+    def test_the_page_shows_the_existing_sentence_for_waiting_rows_only(self):
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js").read_text(encoding="utf-8")
+        self.assertIn('row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : ""', page)
+        self.assertIn("title: (value, row) => waiting(row)", page)  # 列表悬浮说明
+        self.assertIn("status_label(card.status), waiting(card)]", page)  # 手机没有悬浮：点开后的内容里也有
 
     def test_the_opened_record_and_the_release_say_it_too(self):
         from pearnly_erp_portal.collection import api

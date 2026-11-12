@@ -582,19 +582,40 @@ def can_read(doc, user=None) -> bool:
     return doc.collector == user and guard.has(WRITE, user=user)
 
 
+def _waiting_jobs(docs) -> set:
+    """这几笔里待写入、写账件此刻在等 Express 关闭的那几件（共用通道一次查完，上次回报超过 90 秒不算；只读）。"""
+    from pearnly_core.cc_desktop import jobs
+
+    names = [doc.job for doc in docs if doc.status == contracts.QUEUED and doc.job]
+    return set(jobs.express_wait_many(names)) if names else set()
+
+
+def express_waiting(name) -> bool:
+    """这笔待写入的收款此刻是不是在等 Express 关闭（它那本账套有写账件在等，`cc_desktop.jobs.book_express_wait`）。收款员放行后
+    当场的回复用它带上现成那句 ``express.error.ACCOUNT_BUSY_LOCKED``。当天第一笔放行时电脑还没去试过，回 False。"""
+    from pearnly_core.cc_desktop import jobs
+
+    row = frappe.db.get_value(DOCTYPE, name, ["status", "book_key"], as_dict=True) if name else None
+    if not row or row.status != contracts.QUEUED or not row.book_key:
+        return False
+    return bool(jobs.book_express_wait(row.book_key).get("waiting"))
+
+
 def mine(start=0, limit=20) -> dict:
-    """本人最近的收款（新的在前）：``{"items": [view…], "total"}``。"""
+    """本人最近的收款（新的在前）：``{"items": [view… + express_wait], "total"}``；``express_wait``：待写入、此刻在等 Express 关闭。"""
     guard.require(WRITE)
     filters = {"collector": frappe.session.user, "company": ["in", companies.allowed_companies() or [""]]}
     names = frappe.get_all(DOCTYPE, filters=filters, pluck="name", order_by="creation desc",
                            limit_start=max(0, int(start or 0)), limit_page_length=max(1, min(int(limit or 20), MINE_MAX)))
     from pearnly_core.desk import list_filters
 
-    return {"items": [_view(frappe.get_doc(DOCTYPE, name)) for name in names],
+    docs = [frappe.get_doc(DOCTYPE, name) for name in names]
+    waiting = _waiting_jobs(docs)
+    return {"items": [{**_view(doc), "express_wait": bool(doc.job and doc.job in waiting)} for doc in docs],
             "total": list_filters.count(DOCTYPE, filters, ignore_permissions=True)}
 
 
 __all__ = ["book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers",
-           "edit_choices", "methods", "mine",
+           "edit_choices", "express_waiting", "methods", "mine",
            "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",
            "withdraw"]
