@@ -1867,6 +1867,16 @@ group = "cc.tool.pearnly_file_conversation"
 where = "CC 工具 pearnly_file_conversation"
 tests = ["unit:tests/test_assistant.py::test_cc_files_a_recent_conversation_only_under_the_company_the_user_picked"]
 [[row]]
+id = "erp.cc.tool.pearnly_conversation_ledger"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:pearnly_conversation_ledger"
+group = "cc.tool.pearnly_conversation_ledger"
+where = "CC 工具 pearnly_conversation_ledger"
+tests = ["unit:tests/test_cc_conversation_ledger.py::test_cc_sets_only_the_ledger_the_user_picked_on_the_latest_card"]
+[[row]]
 id = "erp.cc.tool.pearnly_precheck"
 product = "ERP"
 channel = "cc-chat"

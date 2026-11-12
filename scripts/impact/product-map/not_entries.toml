@@ -6,6 +6,11 @@
 # 删接口时同一提交删掉这一条；有了调用方闸门会报「该删」。
 
 [[anchor]]
+anchor = "endpoint:pearnly_core.assistant.api.ledgers"
+kind = "compat"
+reason = "11-12 A 线本对话账套：服务端先合（共用层 ledger.view），右栏账套下拉（前端 1.5，lib/companies.ts 现算改读它）由前端施工接上；接上后删这一条"
+
+[[anchor]]
 anchor = "endpoint:pearnly_cowork.assistant.pending_api.mrerp_answer"
 kind = "delete"
 reason = "11-05 CC 待处理里 MR.ERP 要选导入菜单 / 默认值的单改成提问卡（PendingAsk），走共用写账前置判定 write_precheck.check / answer（W4）；后端接口归 W2，随前置判定上线后删"
