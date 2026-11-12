@@ -43,4 +43,3 @@ pearnly_core:DMS booking defaults (JSON): model, colour, branch, team, delivery 
 assistant:OPERATOR.placeholder	R-TALK	这次要处理哪些单据？	实操工作区输入框占位，主会话定稿用词（设计稿 SgtxECheQE4e6gtF1G4WKW，10-27 任务书）
 assistant:OPERATOR.state.attention	R-TALK	需要你处理	实操任务状态，主会话定稿用词（同 Claude 的 Needs you，10-27 任务书）
 assistant:ASK.recommended	R-PAREN	{x} (推荐)	用户 11-05 要求提问卡片 1:1 照 Claude Code 原生卡片，推荐项名后带 (推荐)
-assistant:MESSAGES.recordNow	R-TALK	录吧	用户 11-10 在总表二点名的快捷回复原词；点了等同用户自己打出这句发给 CC，是用户的话不是界面说明，四语同一口吻（泰文 บันทึกเลย 同理）

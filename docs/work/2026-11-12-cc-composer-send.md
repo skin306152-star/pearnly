@@ -69,6 +69,22 @@
 | `cc.operator.thread` | 没测到（实操任务页底部对话要执行电脑） |
 | `shared.login`、`shared.team.members`、`shared.execution` | 没测到（只因 `lib/frappe.ts`、`sessions.py` 是调用方被列入；登录、团队、识别代码没改） |
 
+## 附带：快捷回复按钮「录吧」改「写入」（用户 11-12，主会话转）
+
+用户 11-12 看到按钮「录吧」不满，同日定「文案统一用『写入』」。改已有文案清单（改前 → 改后），键 `assistant:MESSAGES.recordNow`：
+
+| 语言 | 改前 | 改后 | 依据 |
+|---|---|---|---|
+| 中文 | 录吧 | 写入 | 用户原话 |
+| English | Record it | Write | 同界面「Write to … in Express」 |
+| ไทย | บันทึกเลย | บันทึก | 同界面「บันทึกลง Express ของ …」 |
+| 日本語 | 記帳して | 書き込む | 同界面「… の Express に書き込む」 |
+
+- 点了按钮发给 CC 的文字跟着变成这个词。服务端放行开始只看「复述之后用户发过消息」（`write_plan.py` 按 `user_turn` 序号），不比对文字；
+  页面出不出按钮只看写入计划状态。加测试钉住（`tests/test_cc_record_reply.py`）。
+- `scripts/i18n/copy-exempt.tsv` 删掉这条 R-TALK 例外；`scripts/i18n/copy-approved.tsv` 登记 2026-11-12。
+- 流程、压测脚本都按 `data-slot="cc-quick-replies"` 找按钮，不按文字；流程 `cowork.cc.record-reply` 重跑。代码注释与文档里指代这个按钮的「录吧」没有全改。
+
 ## 没验证到的
 
 - 真模型：提问卡被交回后，CC 是否把用户那句话当作回答接着做（实验栈是假智能体，只核到模型收到的结果与顺序）。建议上线后在测试租户用压测 S8a 那一格复测。

@@ -78,14 +78,14 @@ const core = new ExternalStoreThreadRuntimeCore(
   { messages: [], isRunning: false, convertMessage: (m: any) => m, onNew: async () => { throw new Error("goes through the queue"); }, queue: q.adapter } as any,
 );
 const text = t("recordNow");
-assert.equal(text, "录吧");
+assert.equal(text, "写入");
 await core.append({ role: "user", content: [{ type: "text", text }], parentId: null, sourceId: null, runConfig: {}, attachments: [] } as any);
 await g.sleep(5);
-assert.deepEqual(sent, ["录吧"]);
+assert.deepEqual(sent, ["写入"]);
 q.setBusy(true);
 await core.append({ role: "user", content: [{ type: "text", text }], parentId: null, sourceId: null, runConfig: {}, attachments: [] } as any);
 assert.equal(stops, 0);
-assert.deepEqual(q.adapter.items.map((i: any) => i.prompt), ["录吧"]);
+assert.deepEqual(q.adapter.items.map((i: any) => i.prompt), ["写入"]);
 process.stdout.write("HARNESS OK\n", () => process.exit(0));
 """, lang="zh")
 
@@ -108,8 +108,42 @@ class RecordReplySourceTests(unittest.TestCase):
 
     def test_the_words_exist_in_four_languages(self):
         i18n = read("i18n.ts")
-        for words in ('recordNow: "Record it"', 'recordNow: "录吧"', 'recordNow: "บันทึกเลย"', 'recordNow: "記帳して"'):
+        # 用户 11-12：文案统一用「写入」，不用口语祈使（原「录吧 / Record it / บันทึกเลย / 記帳して」）；英泰日照界面里
+        # 「写入 Express」的既有译法（Write / บันทึก / 書き込む）
+        for words in ('recordNow: "Write"', 'recordNow: "写入"', 'recordNow: "บันทึก"', 'recordNow: "書き込む"'):
             self.assertIn(words, i18n)
+        for old in ("录吧", "Record it", "บันทึกเลย", "記帳して"):
+            self.assertNotIn(f'recordNow: "{old}"', i18n)
+
+    def test_starting_does_not_depend_on_the_words_of_the_button(self):
+        # 点了按钮发给 CC 的就是按钮上的字，字会改（11-12「录吧」→「写入」）：服务端放行只看「复述之后用户发过消息」（序号），
+        # 不比对消息文字；页面出不出这个按钮只看写入计划的状态。代码里（注释、文档串除外）不出现这些词
+        import ast
+        import io
+        import tokenize
+
+        def code_of(path):
+            source = path.read_text(encoding="utf-8")
+            docs = set()
+            for node in ast.walk(ast.parse(source)):
+                if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and ast.get_docstring(node):
+                    docs.add(node.body[0].value.lineno)
+            kept = []
+            for token in tokenize.generate_tokens(io.StringIO(source).readline):
+                if token.type == tokenize.COMMENT or (token.type == tokenize.STRING and token.start[0] in docs):
+                    continue
+                kept.append(token.string)
+            return " ".join(kept)
+
+        root = pathlib.Path(__file__).resolve().parents[1]
+        plan = code_of(root / "apps/pearnly_core/pearnly_core/assistant/write_plan.py")
+        for word in ("录吧", "写入", "Record it", "บันทึก", "記帳", "書き込む"):
+            self.assertNotIn(word, plan)
+        self.assertIn("user_turn", plan)
+        reply = read("lib/record-reply.ts")
+        code = "\n".join(line.split("//", 1)[0] for line in reply.splitlines())
+        for word in ("录吧", "写入", "recordNow"):
+            self.assertNotIn(word, code)
 
 
 if __name__ == "__main__":
