@@ -37,6 +37,7 @@ from . import account_rules
 from . import cdx_reindex
 from . import dbf_schema as S
 from . import fiscal_period
+from . import glbal_mark
 from . import master_create
 from . import payment_methods
 from .consistency import account_company_matches
@@ -92,7 +93,7 @@ REFUSALS = (ERR_ALREADY_COLLECTED, ERR_INVOICE_NOT_FOUND, ERR_RECEIPT_TYPE, ERR_
             ERR_NOT_POSTABLE)
 
 WRITE_TABLES = ("ISRUN", "ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNL", "GLJNLIT", "ARBAL")
-BACKUP_TABLES = WRITE_TABLES + ("ARMAS",)
+BACKUP_TABLES = WRITE_TABLES + ("ARMAS", "GLBAL")  # GLBAL：写完分录标待重算（glbal_mark），不重建索引
 REQUIRED_TABLES = ("ISRUN", "ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNL", "GLJNLIT", "ARMAS")
 _VERIFY_TABLES = ("ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNLIT")
 
@@ -584,12 +585,14 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
         journal.close()
     departmental = _department_accounts(account_dir) if plan.department else frozenset()
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
+    written = [_gl_line(docnum, seqit, docdat, acc, descrp, side, amount, plan.department, departmental)
+               for seqit, acc, side, amount in gl_rows]
     try:
-        for seqit, acc, side, amount in gl_rows:
-            S.append_native(entries, _filtered(entries, _gl_line(docnum, seqit, docdat, acc, descrp, side, amount,
-                                                                 plan.department, departmental)))
+        for line in written:
+            S.append_native(entries, _filtered(entries, line))
     finally:
         entries.close()
+    glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
     _bump_run(account_dir, following)
     return docnum, gl_rows
 

@@ -27,6 +27,7 @@ from . import product_master
 from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
+from . import glbal_mark
 from . import guided
 from . import master_create
 from . import pos_journal
@@ -640,13 +641,14 @@ def _write_all(
     gl_rows = revenue_journal(account_dir, _gl_rows(entry), entry.items if write_detail else [], line_modes,
                               entry.items_account) + cogs_rows
     gi = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
+    written = [_gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
+               for seqit, accnum, trntyp, amt in gl_rows]
     try:
-        for seqit, accnum, trntyp, amt in gl_rows:
-            S.append_native(gi, 
-                _gl_line(docnum, seqit, docdat, accnum, descrp, trntyp, amt, depcod, departmental)
-            )
+        for line in written:
+            S.append_native(gi, line)
     finally:
         gi.close()
+    glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
 
     _bump_isrun(account_dir, prefix, jnltyp)
     notes = _update_arbal(account_dir, entry.customer_code, docdat, prefix, total)

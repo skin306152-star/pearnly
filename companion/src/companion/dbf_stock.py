@@ -42,6 +42,7 @@ from . import dbf_detail
 from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
+from . import glbal_mark
 from . import product_master
 from . import stock_guard
 from . import stock_location
@@ -325,7 +326,7 @@ def write_stock_entry(
         return stock_guard.refusal(account_dir, short)
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
-    backup_dir = _backup(account_dir, TABLES + stock_location_tables(locations) + dbf_remarks.tables(items)) \
+    backup_dir = _backup(account_dir, TABLES + (glbal_mark.TABLE,) + stock_location_tables(locations) + dbf_remarks.tables(items)) \
         if make_backup else None
     clock.lap("backup")
     docnum = ""
@@ -534,12 +535,13 @@ def _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, 
     finally:
         journal.close()
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
+    written = [_gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod, departmental) for side, acc, amount in rows]
     try:
-        for side, acc, amount in rows:
-            S.append_native(entries, _filtered(entries, _gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod,
-                                                       departmental)))
+        for line in written:
+            S.append_native(entries, _filtered(entries, line))
     finally:
         entries.close()
+    glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
     return [(side, acc, _q2(amount)) for side, acc, amount in rows]
 
 
