@@ -3053,6 +3053,11 @@ class ListAndRunsTests(unittest.TestCase):
             item = json.loads(tools.push_documents({"documents": ["D1"]}))["results"][0]
         self.assertEqual((item["reason"], "choose" in item), ("account_set_not_chosen", False))
 
+    def test_operator_task_reasons_reach_the_model_in_the_users_words(self):
+        # express_operator_status 交给模型的原因（共用层 products.reason_text）：Cowork 声明的就是列单同一句话
+        hooks = (ROOT / "apps/pearnly_cowork/pearnly_cowork/hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"reason_text": "pearnly_cowork.push.export_facts.reason_text",', hooks)
+
     def test_push_reasons_reach_the_model_in_the_users_words(self):
         # 存的是码或 10-12 前的旧英文原句（里面还是旧称）；交给模型前翻成用户语言，模型就不会照着说旧称
         frappe.rows[0]["last_push_reason"] = "push.companion_account_unreported"
