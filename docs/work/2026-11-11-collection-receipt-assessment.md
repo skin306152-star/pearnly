@@ -353,3 +353,27 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 收款日均 2024-11-12（NLTTEST 年度 2024）。读回与写前备份逐表比对：只变了这 5 张该变的行——ARTRN 新增 5 个单头（RECTYP 9、DOCSTAT M、YOUREF = 收款记录号、现金进 CSHRCV、转账与折扣进 CHQRCV、IVCAMT = NETAMT）、6 张发票 RCVAMT / REMAMT / CMPLAPP / CMPLDAT；ARRCPIT 6 行；ARRCPCQ 5 行（BBRE2403081、BBRE2403082、TBRE2403083、DCRE2403083、TBRE2403084）；GLJNL 5 张（02）、GLJNLIT 12 行（现金 1111-00、BB 1113-01、TB 经银行主档 B1 取 1112-01、DC 4100-04，同科目合并，贷 1130-01）；ARBAL RE11 4 个客户；ARMAS.BALANCE 4 个客户；ISRUN RE 2403080 → 2403085；相关 CDX 都已重建。与原生单的小差异：GLJNL 制单人写 PEARNLY、不写制单日期 / 修改人，GLJNLIT 不写修改时间（不影响金额）。
 - 第 2 张第一次建草稿被拒（`invoice_not_found`）：那位客户的未收清发票还在读、快照里没有，属该拦的情况；读完后重写成功。
 - **性能发现**：CC 写一张 RE 210–235 秒（测试机→accserver：备份 45–62s、写 32–47s、重建索引约 52s、读回核对 46–66s）。LINE「20 秒内回 RE 号」做不到；一天约 150 张同一本账套串行约 9 小时。属共用写入路径问题，已报主会话建议按类提速。
+
+### 写一张 RE 的耗时（原始计时，给主会话另开的按类提速评估）
+
+CC 桌面版日志（测试机 skin3 `companion.log`，`[timing] receipt`），测试机经 SMB 局域网写 `\\accserver\d$\ACCOUNT\69EXP\NLTTEST`：
+
+| RE | 总计 | 检查 | 备份 | 写入 | 重建索引 | 读回核对 | 索引检查 |
+|---|---|---|---|---|---|---|---|
+| RE2403080 | 210.70 | 15.88 | 45.36 | 31.59 | 51.55 | 65.94 | 0.38 |
+| RE2403081 | 234.97 | 27.39 | 61.86 | 47.28 | 52.53 | 45.61 | 0.30 |
+| RE2403082 | 230.52 | 21.80 | 44.17 | 60.86 | 44.28 | 59.03 | 0.36 |
+| RE2403083 | 202.11 | 22.36 | 56.55 | 42.88 | 27.91 | 52.16 | 0.23 |
+| RE2403084 | 213.19 | 23.28 | 56.56 | 48.64 | 39.11 | 45.00 | 0.58 |
+
+涉及的表（`companion/src/companion/dbf_receipt.py`）：备份 `BACKUP_TABLES` = ISRUN、ARTRN、ARRCPIT、ARRCPCQ、GLJNL、GLJNLIT、ARBAL、ARMAS（整表连 CDX 拷贝）；重建索引 `WRITE_TABLES`（上面去掉 ARMAS）；读回 `_VERIFY_TABLES` = ARTRN、ARRCPIT、ARRCPCQ、GLJNLIT。NLTTEST 表大小 / 行数：ARTRN 9.9 MB / 24413（CDX 2.3 MB）、GLJNLIT 15.0 MB / 106336（CDX 4.3 MB）、GLJNL 4.8 MB / 27040（CDX 0.8 MB）、ARBAL 8.9 MB / 9491、ARMAS 5.6 MB / 9477（CDX 0.5 MB）、ARRCPIT 0.2 MB / 4215、ARRCPCQ 0.1 MB / 3022、ISRUN 0.05 MB / 135；备份合计约 53 MB。
+
+对照（只读，测试机上用 Python 同样做「8 表连 CDX 整表拷贝」与「4 张读回表整表读取 / 逐行扫描」，本地用写前备份 `C:\PearnlyStress\_re1112\nlt_before`，即同一份数据）：
+
+| 动作 | 本地 C 盘 | accserver SMB |
+|---|---|---|
+| 8 表整表拷贝（≈53 MB） | 0.08 / 0.09 s | 31.77 / 30.48 s |
+| 4 表整表读取（≈25 MB） | 0.02 / 0.01 s | 11.59 / 13.83 s |
+| 4 表逐行扫描（13.8 万行，python dbf） | 1.48 / 2.49 s | 2.20 / 2.66 s（紧接整表读取，带缓存） |
+
+结论：慢主要在「经 SMB 网络盘整表搬运」（备份、读回、重建索引都是整表读写），不在整表操作本身；本地数字含系统文件缓存。提速方向（交主会话评估）：备份只拷要追加 / 改的部分或改日志式回滚、读回只读追加的尾部、多张收款一把锁连写共用一次备份与重建。
