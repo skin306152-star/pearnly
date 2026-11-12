@@ -426,6 +426,7 @@ Date (BE),วันที่ พ.ศ.
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
 Date must be in ascending order,วันที่ ต้องเรียงลำดับจากน้อยไปมาก
+Date outside the account set period,วันที่อยู่นอกงวดของชุดบัญชี
 Dates,วันที่
 Days later,วันหลังจากนั้น
 Decided At,เวลาดำเนินการ
@@ -2338,6 +2339,7 @@ express.reason.noWriter,ไม่มีเครื่องที่บัน�
 express.reason.offline,เครื่องออฟไลน์
 express.reason.operatorOwned,เอกสารนี้อยู่ระหว่างบันทึกแทนใน Express
 express.reason.periodLocked,งวดบัญชีนี้ปิดแล้วใน Express
+express.reason.periodOutside,วันที่อยู่นอกงวดของชุดบัญชี
 express.reason.posNetNegative,ยอดคืนสินค้าวันนี้มากกว่ายอดขายหลังหักลบ
 express.reason.printedTotalMismatch,ยอดรวมไม่ตรงกับยอดรวมตามเอกสาร
 express.reason.printedTotalMissing,ไม่มียอดรวมตามเอกสาร
