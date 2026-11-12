@@ -568,9 +568,10 @@ def project_scope(value) -> str:
     return text
 
 
-def project_change(op, project=None, name=None, session=None, period=None, scope=None, part=None) -> dict:
+def project_change(op, project=None, name=None, session=None, period=None, scope=None, part=None, ledger=None) -> dict:
     """一条实时事件：`upsert` 带 `project`（{id, title, subtitle}）与可选的 `part`（改了哪一块）；`delete` 带 `id`
-    （`name`）；`move` 带 `session_id`、`project`（"" = 「最近」）、`period` 与 `scope`。"""
+    （`name`）；`move` 带 `session_id`、`project`（"" = 「最近」）、`period` 与 `scope`，产品有本对话账套时另带 `ledger`
+    （`ledger`，空 = 未定；没给不带这个键）。"""
     if op not in PROJECT_OPS:
         raise ContractError("unknown project change")
     event = {"type": PROJECT_CHANGE, "op": op}
@@ -590,6 +591,8 @@ def project_change(op, project=None, name=None, session=None, period=None, scope
         event["project"] = project_ref(project)
         event["period"] = _period(period) if event["project"] else ""
         event["scope"] = project_scope(scope) if event["project"] else ""
+        if ledger is not None:
+            event["ledger"] = str(ledger or "") if event["project"] else ""
     return event
 
 
