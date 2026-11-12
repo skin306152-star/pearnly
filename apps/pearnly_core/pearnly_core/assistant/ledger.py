@@ -8,7 +8,7 @@
   ``ledgers(ref, period, scope, user) -> {"options": [{"id", "label", "covers"}], "default": "<id 或空>"}``：这家（该分店）可选的
   账套，覆盖本月的在前（``covers``）；恰好能定一本才有默认。没声明的产品（DMS）、没挂公司的对话这里一律回 None。
   provider 出错记日志、当作没有：不挡发话。
-- :func:`current`：存的仍在可选里就用存的（用户选过的不被冲掉）；否则按默认补算，``store`` 时存下（不改最后活动时间），
+- :func:`current`（只读版 :func:`resolved`，读接口用）：存的仍在可选里就用存的（用户选过的不被冲掉）；否则按默认补算，``store`` 时存下（不改最后活动时间），
   没有默认就是未定（``needed``）。老对话发话时（`projects.note`）补算一次。
 - :func:`kept`：改月份 / 分店（`sessions.move`）时存什么：给了 ``wanted`` 就要在新的可选里；没给，存的那本仍可选就留，否则重算。
 - :func:`choose`：页面（右栏下拉经 `sessions.move`）与 CC 工具 ``pearnly_conversation_ledger``（:func:`tool_choose`，只认用户在
@@ -80,9 +80,9 @@ def _view(found, chosen) -> dict:
     return {"status": SET if chosen else NEEDED, "id": chosen, "label": label, "options": found["options"]}
 
 
-def current(row, store=True) -> dict | None:
-    """这段对话此刻的账套：``{"status": "set" | "needed", "id", "label", "options"}``；产品没声明、没挂公司回 None。
-    存的失效（账套从目录消失、改了月份）按默认补算；``store`` 时把补算的结果存下（不改最后活动时间）。"""
+def resolved(row) -> dict | None:
+    """这段对话此刻的账套，只读不存（读接口用）：``{"status": "set" | "needed", "id", "label", "options"}``；产品没声明、
+    没挂公司回 None。存的失效（账套从目录消失、改了月份）按默认算。"""
     project = row.get("project") or ""
     found = options_of(project, row.get("period") or "", row.get("project_scope") or "",
                        row.get("user") or frappe.session.user)
@@ -90,10 +90,18 @@ def current(row, store=True) -> dict | None:
         return None
     stored = str(row.get(FIELD) or "")
     chosen = stored if any(item["id"] == stored for item in found["options"]) else found["default"]
-    if store and chosen != stored and row.get("name"):
-        frappe.db.set_value(SESSION, row.get("name"), FIELD, chosen, update_modified=False)
-        row[FIELD] = chosen
     return _view(found, chosen)
+
+
+def current(row, store=True) -> dict | None:
+    """同 :func:`resolved`；``store`` 时把补算的结果存下（不改最后活动时间）。"""
+    found = resolved(row)
+    if found is None:
+        return None
+    if store and found["id"] != str(row.get(FIELD) or "") and row.get("name"):
+        frappe.db.set_value(SESSION, row.get("name"), FIELD, found["id"], update_modified=False)
+        row[FIELD] = found["id"]
+    return found
 
 
 def initial(project, period, scope, user) -> str:
@@ -161,7 +169,7 @@ def view(session_id) -> dict:
     row = _row(session_id)
     if not row:
         frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
-    found = current(row, store=False)
+    found = resolved(row)
     return {"current": found["id"], "options": found["options"]} if found else {"current": "", "options": []}
 
 
@@ -181,7 +189,7 @@ def choose(session_id, ledger_id, by="page") -> dict:
         row = None
     if not row:
         frappe.throw(_("Conversation not found"), frappe.DoesNotExistError)
-    found = current(row, store=False)
+    found = resolved(row)
     if found is None:
         return {"status": "refused", "reason": NOT_AVAILABLE}
     wanted = str(ledger_id or "").strip()
@@ -246,4 +254,4 @@ def note(found) -> str:
 
 
 __all__ = ["FIELD", "NEEDED", "NOT_AN_OPTION", "NOT_AVAILABLE", "NOT_CHOSEN", "SET", "choose", "current", "declared",
-           "initial", "kept", "note", "of_session", "of_task", "options_of", "tool_choose", "view"]
+           "initial", "kept", "note", "of_session", "of_task", "options_of", "resolved", "tool_choose", "view"]
