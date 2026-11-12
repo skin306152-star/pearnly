@@ -640,8 +640,9 @@ def when(value) -> str:
         return text
 
 
-def context_text(company, period="", work_scope="") -> str:
-    """给 CC 的公司说明（`context.company_note`）：文件夹用绑定时记下的显示路径与电脑名，不用会变的上报值。"""
+def context_text(company, period="", work_scope="", ledger=False) -> str:
+    """给 CC 的公司说明（`context.company_note`）：文件夹用绑定时记下的显示路径与电脑名，不用会变的上报值。``ledger``：对话有
+    本对话账套（共用层在说明后接它的那一段）：账套只列出、不标「覆盖这个月」，不叫 CC 按日期 / 分店另选。"""
     row = _company_row(company)
     sets = books(row)
     row = _company_row(company)
@@ -659,7 +660,7 @@ def context_text(company, period="", work_scope="") -> str:
         "id": row.name, "title": row.title, "legal_name": row.legal_name, "tax_id": row.tax_id,
         "combined_vat": bool(row.get("combined_vat")), "period": period, "scope": work_scope,
         "account_sets": sets, "branches": identity.branches(sets), "covering": covering, "folders": folders,
-        "notes": notes.listing(row.name), "rules": rules.context_rows(row.name)})
+        "notes": notes.listing(row.name), "rules": rules.context_rows(row.name), "ledger": bool(ledger)})
 
 
 # ---------------- 文件夹 ----------------
