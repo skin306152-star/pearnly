@@ -426,6 +426,7 @@ Date (BE),Date (BE)
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
 Date must be in ascending order,Date must be in ascending order
+Date outside the account set period,Date outside the account set period
 Dates,Dates
 Days later,Days later
 Decided At,Decided At
@@ -2338,6 +2339,7 @@ express.reason.noWriter,No computer can write this account set
 express.reason.offline,Computer offline
 express.reason.operatorOwned,This document is in an Express operator entry
 express.reason.periodLocked,The accounting period is closed in Express
+express.reason.periodOutside,Date outside the account set period
 express.reason.posNetNegative,Refunds exceed sales for this day after netting
 express.reason.printedTotalMismatch,The total does not match the printed total
 express.reason.printedTotalMissing,The printed total is missing

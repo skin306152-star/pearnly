@@ -426,6 +426,7 @@ Date (BE),日付（仏暦）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
 Date must be in ascending order,「日付」は昇順で指定してください
+Date outside the account set period,日付が会計データの期間外です
 Dates,日付
 Days later,日後
 Decided At,判定日時
@@ -2338,6 +2339,7 @@ express.reason.noWriter,この会計データに書き込めるパソコンが�
 express.reason.offline,パソコンがオフライン
 express.reason.operatorOwned,この書類は Express の代行入力中です
 express.reason.periodLocked,会計期間は Express で締め済みです
+express.reason.periodOutside,日付が会計データの期間外です
 express.reason.posNetNegative,この日は返品が売上を上回っています
 express.reason.printedTotalMismatch,合計が伝票の合計と一致しません
 express.reason.printedTotalMissing,伝票の合計がありません
