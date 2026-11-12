@@ -95,3 +95,7 @@ T7TUCL20 1220-xx）。只看 BKMAS 会把这些判成转账；「同一上级」
   ISRUN / BKMAS / GLACC / ISINFO 只读打包到 `C:\PearnlyStress\_rule1112`，拷回本机分析；没碰 accserver、S 盘、CC 桌面版、实验栈与前台窗口。
 - 判定：明细由本分支的真实代码算出（`companion.payment_methods.types` 读副本 + `collection.contracts.classify`；「现行」= 同一行去掉
   `account_class` 再判）。
+
+## 主会话决定（11-12）
+
+挂在存款分组下的暂记 / 垫款科目那 19 行（如「บัญชีพัก FOOD PANDA」「ADVANCE YING BBL」）**不排除**：它们是客户自己在 Express 里建的收款类型，Express 让选，我们按账套结构判进来就列出来，不再靠名称另筛（按类通用；Express 不拦我们不拦）。随新版 CC 发；老版 CC 不报 `account_class`，照旧按名称判。
