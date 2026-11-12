@@ -3259,6 +3259,32 @@ def _remind_view(row) -> dict:
     return {"remind": remind, "remind_times": row.get("remind_times") if remind else None}
 
 
+def _express_wait_marker():
+    """``任务行 → 结果``：任务还有在路上的票（`results.moving`）、而它写往的 Express 账套此刻在等 Express 关闭（有人开着，
+    `push.express_wait.account`）时，结果的副本另带 `waiting`（现成那句、按用户语言）；别的原样回。读的时候算：任务服务给的
+    结果有 24 小时缓存（`folder_intake.rules.results`），不往里写。同一连接同一账套只问一次；跟随公司当年账套的任务另看
+    它的票实际写往的那几份（`account_sets`）。等 Express 关闭不算「需要处理」，`attention` 不动。"""
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+    from pearnly_cowork.push import express_wait
+
+    asked = {}
+
+    def marked(row):
+        results = row.get("results")
+        if not isinstance(results, dict) or row.get("adapter") != "express" or not int(results.get("moving") or 0):
+            return results
+        connection = str(row.get("connection") or "")
+        for value in [row.get("account_set_key"), *(item.get("account_set_key") for item in results.get("account_sets") or [])]:
+            pair = (connection, normalize_express_account_key(value))
+            if pair not in asked:
+                asked[pair] = bool(express_wait.account(*pair))
+            if asked[pair]:
+                return {**results, "waiting": _reason(express_wait.CODE)}
+        return results
+
+    return marked
+
+
 def folder_tasks(tool_input) -> str:
     company = _company_scope(tool_input or {}, explicit=())
     if company and company.get("failed"):
@@ -3268,11 +3294,11 @@ def folder_tasks(tool_input) -> str:
     keep = ("name", "title", "enabled", "connection_label", "account_label", "direction", "posting_kind", "payment",
             "folder", "root_label", "run_day", "run_time", "defaults", "remind", "remind_times", "include_existing",
             "last_run", "counts", "results", "waiting", "waiting_partial", "agent_fresh", "folder_state", "reader_gone")
-    tasks = []
+    tasks, results = [], _express_wait_marker()
     for row in listing.get("rules") or []:
         if pairs is not None and (str(row.get("connection") or ""), _account_key(row.get("account_set_key"))) not in pairs:
             continue
-        task = {**{k: row.get(k) for k in keep}, **_remind_view(row)}
+        task = {**{k: row.get(k) for k in keep}, **_remind_view(row), "results": results(row)}
         if task["remind_times"] is None:
             task.pop("remind_times")
         tasks.append(task)
@@ -5105,7 +5131,8 @@ TOOLS = [
                     "with their schedule, default handling, reminder, last run and whether CC Desktop on the computer "
                     "that reads the folder is online. waiting is how many files in the folder the task has not processed yet "
                     "(waiting_partial: at least that many; null when not known). results counts invoices entered, "
-                    "invoices needing attention, and files still moving. reader_gone: the computer that read the "
+                    "invoices needing attention, and files still moving. results.waiting, only there while documents "
+                    "of the task are still moving and not counted in attention: " + EXPRESS_WAIT_NOTE + " reader_gone: the computer that read the "
                     "folder was removed, so the task needs another computer's folder (cowork_folder_task_options). "
                     "In a conversation filed under a company it "
                     "lists only that company's tasks (scope names it) unless all_companies is true.",
