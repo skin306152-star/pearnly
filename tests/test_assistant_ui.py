@@ -3205,32 +3205,35 @@ assert.equal(monthOfItems([{ ...item, date: "" }]), "");
 
     def test_scheduled_tasks_group_by_company_and_seed_from_the_company(self):
         self.run_page(r"""
-import { groupTasks, setForPeriod, taskSeedOf } from "@/lib/companies";
+import { groupTasks, taskSeedOf } from "@/lib/companies";
 import { deepLink } from "@/lib/notify";
 const rules = [{ name: "R1" }, { name: "R2" }, { name: "R3" }, { name: "R4" }];
 const tasks = { R1: "comp_b", R2: "comp_a", R3: "comp_b" };
 // 侧栏顺序的公司在前，其余按名称，归不上公司的放最后（""）
 assert.deepEqual(groupTasks(rules, tasks, ["comp_b"], { comp_a: "A", comp_b: "B" }).map(([id, rows]) => [id, rows.map((r) => r.name)]),
   [["comp_b", ["R1", "R3"]], ["comp_a", ["R2"]], ["", ["R4"]]]);
-// 新建从公司里建：覆盖这个月的账套；这台电脑绑了文件夹时连同文件夹（只需再选子文件夹）
+// 新建从公司里建：覆盖详情那个月的账套（服务端标的 covers，页面不按日期现算——A 线 11-12）；这台电脑绑了文件夹时连同文件夹
 const sets = [{ connection: "c1", adapter: "express", key: "70EXP", label: "70", period_start: "2027-01-01", period_end: "2027-12-31" },
-  { connection: "c1", adapter: "express", key: "69EXP", label: "69", period_start: "2026-01-01", period_end: "2026-12-31" }];
+  { connection: "c1", adapter: "express", key: "69EXP", label: "69", period_start: "2026-01-01", period_end: "2026-12-31", covers: true }];
 const detail: any = { company: { id: "comp_a", title: "A", adapter: "express" }, account_sets: sets,
   folders: [{ reader: "rdr1", device: "PC", label: "D:\\A", state: "ok", root_id: "R9", folder: "A" }] };
-assert.equal(setForPeriod(sets, "2026-09")?.key, "69EXP");
 const base = { adapter: "express", connection: "c1", account_set_key: "69EXP", company: "comp_a", company_title: "A", account_label: "69" };
-assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], true), { ...base, folder: "rdr1|R9|A" });
-assert.deepEqual(taskSeedOf(detail, "2026-09", ["rdr1"], false), base);
+assert.deepEqual(taskSeedOf(detail, ["rdr1"], true), { ...base, folder: "rdr1|R9|A" });
+assert.deepEqual(taskSeedOf(detail, ["rdr1"], false), base);
+// 服务端没标覆盖（详情那个月一本都不覆盖）：取最新可写的（服务端给的新年度在前），不在页面按日期另算
+const none = sets.map((set) => ({ ...set, covers: false }));
+assert.equal(taskSeedOf({ ...detail, account_sets: none })?.account_set_key, "70EXP");
+assert.equal(taskSeedOf({ ...detail, account_sets: [{ ...none[0], writable: false }, none[1]] })?.account_set_key, "69EXP");
 // 年度标签与名称不同时带上（MR.ERP 的年度标签就是账套名，不重复写）
-assert.equal(taskSeedOf({ ...detail, account_sets: [{ ...sets[1], label: "ABC 69", year_label: "2569" }] }, "2026-09")?.account_label, "ABC 69 · 2569");
+assert.equal(taskSeedOf({ ...detail, account_sets: [{ ...sets[1], label: "ABC 69", year_label: "2569" }] })?.account_label, "ABC 69 · 2569");
 // 几个分店各有账套：列出各分店覆盖本月的那份，表单只让选分店；只有一个分店不列
 const branches = [{ branch: "00000", label: "", account_sets: [sets[1]] },
   { branch: "00001", label: "Rama 9", account_sets: [{ ...sets[1], key: "69B1", label: "69 B1" }] }];
-assert.deepEqual(taskSeedOf({ ...detail, branches }, "2026-09")?.branches, [
+assert.deepEqual(taskSeedOf({ ...detail, branches })?.branches, [
   { branch: "00000", label: "00000", connection: "c1", account_set_key: "69EXP", account_label: "69" },
   { branch: "00001", label: "Rama 9", connection: "c1", account_set_key: "69B1", account_label: "69 B1" }]);
-assert.equal(taskSeedOf({ ...detail, branches: branches.slice(0, 1) }, "2026-09")?.branches, undefined);
-assert.equal(taskSeedOf({ ...detail, account_sets: [] }, "2026-09"), null);
+assert.equal(taskSeedOf({ ...detail, branches: branches.slice(0, 1) })?.branches, undefined);
+assert.equal(taskSeedOf({ ...detail, account_sets: [] }), null);
 // 提醒点开：同服务端 deep_link（属于某家公司的到主档页）
 assert.equal(deepLink("", "company:abc1234567"), "/assistant?company=abc1234567");
 assert.equal(deepLink("", "pending"), "/assistant?view=pending");
@@ -4351,10 +4354,10 @@ assert.equal(folderIsMine({ ...theirs, mine: true }, [], "ACC-02"), true);
 const detail: any = { company: { id: "c", title: "ABC", adapter: "express" },
   account_sets: [{ connection: "CWEC-1", adapter: "express", key: "k69", label: "ABC 69", period_start: "2026-01-01", period_end: "2026-12-31" }],
   folders: [{ ...theirs, root_id: "r1", folder: "x" }, { ...mine, root_id: "r2", folder: "y" }] };
-assert.deepEqual(folderParts(taskSeedOf(detail, "2026-09", ["CWEC-1"], true, "ACC-02")!.folder!),
+assert.deepEqual(folderParts(taskSeedOf(detail, ["CWEC-1"], true, "ACC-02")!.folder!),
   { reader: "CCD-2|CWEC-1", root_id: "r2", folder: "y" });
 detail.folders[1].reader_gone = true;
-assert.equal(taskSeedOf(detail, "2026-09", ["CWEC-1"], true, "ACC-02")!.folder, undefined);
+assert.equal(taskSeedOf(detail, ["CWEC-1"], true, "ACC-02")!.folder, undefined);
 """)
 
 
@@ -4683,8 +4686,11 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertNotIn("useTaskCompanies", tasks)   # 不再为侧栏每家读一次详情
         self.assertIn("groupTasks(shown, overview.tasks, order, overview.titles)", tasks)
         self.assertIn("co.other", tasks)
-        self.assertIn("taskSeed: taskSeedOf(detail, period, knownReaders(), app && companyFolders, deviceName),",
+        self.assertIn("taskSeed: taskSeedOf(detail, knownReaders(), app && companyFolders, deviceName),",
                       read("components/company-cards.tsx"))
+        # 按上个月读详情，覆盖那个月的账套由服务端标（A 线 11-12），不再拿缓存的无月份详情在页面按日期算
+        self.assertIn('const detail = await loadDetail(company, withPeriod ? lastMonth() : "").catch(withReport(() => null, "scheduled-tasks"));',
+                      tasks)
         # 用户 10-20：选了公司不再让选目标 ERP 与账套——从公司建、跟着公司走的旧任务只摆公司与「目标 · 账套名」，
         # 不读两级账套目录；没记公司的旧任务照旧能选
         self.assertIn("const fromCompany = rule ? Boolean(rule.company) : Boolean(seed?.company);", tasks)
@@ -4710,21 +4716,22 @@ const branches = [{ branch: "00000", label: "", account_sets: [sets[0]] }, { bra
 const span = new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
   .formatRange(new Date(Date.UTC(2025, 9, 15)), new Date(Date.UTC(2026, 8, 15)));
 // 报了会计期间的写本年起止，没报的写年度标签；卡头摘要：账套数
-assert.deepEqual(text(html(SetsSection, { sets, branches, period: "2026-09" })),
+assert.deepEqual(text(html(SetsSection, { sets, branches })),
   ["Account sets", "2 account sets", "Head office", "ABC 69", span, "Rama 9", "ABC 69 B1", "69"]);
-// 10-19 lab：MR.ERP 年度标签就是账套名（不写两遍），刷新读到的起止同 Express 写出来；只高亮真覆盖这个月的那份，
-// 都不覆盖就不高亮（原先退到最新可写的那份也高亮）
-const mrerp = [{ connection: "M", key: "6:1", label: "TEST2019", year_label: "TEST2019", period_start: "2026-01-01", period_end: "2026-12-31" },
+// 10-19 lab：MR.ERP 年度标签就是账套名（不写两遍），刷新读到的起止同 Express 写出来；只高亮覆盖这个月的那份，
+// 都不覆盖就不高亮（原先退到最新可写的那份也高亮）。覆盖不覆盖看服务端标的 covers（A 线 11-12，页面不按日期现算：
+// TEST2020 的起止也含 2026-10，服务端没标就不高亮）
+const mrerp = [{ connection: "M", key: "6:1", label: "TEST2019", year_label: "TEST2019", period_start: "2026-01-01", period_end: "2026-12-31", covers: true },
   { connection: "M", key: "5:1", label: "TEST2020", year_label: "TEST2020", period_start: "2020-01-01", period_end: "2026-12-31" },
   { connection: "M", key: "4:1", label: "TEST2018", year_label: "TEST2018" }];
-const mrerpHtml = html(SetsSection, { sets: mrerp, branches: [], period: "2026-10" });
+const mrerpHtml = html(SetsSection, { sets: mrerp, branches: [] });
 assert.deepEqual(text(mrerpHtml).slice(2), ["TEST2019", new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric",
   timeZone: "UTC" }).formatRange(new Date(Date.UTC(2026, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2020",
   new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
     .formatRange(new Date(Date.UTC(2020, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2018"]);
 assert.equal(mrerpHtml.split("data-covering").length, 2);   // 只有 TEST2019 一行
 assert.ok(mrerpHtml.indexOf("data-covering") < mrerpHtml.indexOf("TEST2019"));
-assert.ok(!html(SetsSection, { sets: mrerp, branches: [], period: "2019-05" }).includes("data-covering"));
+assert.ok(!html(SetsSection, { sets: mrerp.map((set) => ({ ...set, covers: false })), branches: [] }).includes("data-covering"));
 // 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目只写科目码）
 const pay = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment",
   subject_label: "ACME", value: "credit", editable: true, year_label: "69" }, open, onSet() {}, onForget() {} }));
