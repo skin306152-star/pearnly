@@ -3,7 +3,8 @@
 
 Express 保存一张单：对每行分录的「科目 + 部门」那一行，把 ``CALSTA`` 里这一期那一位从 ``'1'`` 改成 ``'0'``，别的字节不动；之后重算只算标了 0 的格。
 我们以前不标 → 写的金额进不了科目余额与试算表。证据见共享笔记「共享写入实验-11-12/GLBAL核实/」。
-没证据的情形不写、记进回执 ``meta.glbal_unmarked``：行不存在、下一年度 / 判不出期间、那一位不是 1 也不是 0。
+那一位是空格（这一期还没算过）照原生不碰、不报；对应行不存在照原生追加一行（并只为此重建 GLBAL 索引）；
+下一年度 / 判不出期间、那一位是别的字符：不写、记进回执 ``meta.glbal_unmarked``。
 """
 
 from __future__ import annotations
@@ -78,20 +79,88 @@ def test_a_sale_and_a_stock_entry_mark_their_accounts_too(acct):
     assert states["11-02-01-00"].rstrip() == "110" + "1" * 21  # 24 位都有值的行：只动第 3 位
 
 
-def test_cells_without_evidence_are_left_alone_and_reported(acct, monkeypatch):
-    """下一年度的单、对应行不存在、那一位是空格：不写，记进回执 meta.glbal_unmarked。"""
-    _glbal(acct, [("11-04-02-00", "1" * 11), (VAT_IN_ACC, DONE12)])  # 存货科目第 12 位空：这一期还没算过
+# 原生 GLBAL 的结构（11-12 测试机2 `70EXP\\test`，只取字段定义）：4 个字符栏 + 75 个 8 字节双精度金额栏
+NATIVE_SPEC = "; ".join(["ACCNUM C(15)", "DEPCOD C(4)", "JOBCOD C(6)", "CALSTA C(24)", "BEGLY B"]
+                        + [f"{side}{i}{seg} B" for side in ("DEBIT", "CREDIT") for seg in ("LY", "", "NY") for i in range(1, 13)]
+                        + ["DEBITCLS B", "CREDITCLS B"])
+
+
+def _native_glbal(acct, rows):
+    table = dbf.Table(str(acct / "GLBAL.DBF"), NATIVE_SPEC, codepage=S.CODEPAGE, dbf_type=S.DBF_TYPE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for acc, calsta in rows:
+            table.append({"ACCNUM": acc, "DEPCOD": "", "CALSTA": calsta, "DEBIT1": 12.5})
+    finally:
+        table.close()
+
+
+def _express_new_row(acc):
+    """Express 原生保存用到 GLBAL 里没有的科目时追加的那一行（11-12 测试机2，原生 RR0000026 的 11-04-02-00）：
+    未删除、科目码左对齐补空格、部门 / 项目 / 计算状态全空格、75 个金额栏全 0。"""
+    return b" " + acc.ljust(15).encode() + b" " * (4 + 6 + 24) + b"\0" * (75 * 8)
+
+
+def test_the_next_fiscal_year_is_still_left_alone_and_reported(acct):
+    """下一年度的单：位置没核准，不写，记进回执 meta.glbal_unmarked（等 62 套统计）。"""
+    _glbal(acct, [("11-04-02-00", DONE12), (VAT_IN_ACC, DONE12)])
     before = _raw(acct)
     with glbal_mark.collecting() as unmarked:
         res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")], docdate="700105"))  # 2027-01-05：下一年度
     assert res.ok and _raw(acct) == before
     assert unmarked and all("period not in this fiscal year" in text for text in unmarked)
+
+
+def test_a_cell_never_calculated_is_left_alone_without_a_report(acct):
+    """那一位是空格（这一期还没算过）：Express 原生保存不碰它（11-12 测试机2 原生 RR0000025，GLBAL 逐字节不变），
+    重算时整期照算，所以我们也不写、也不当成没标上报给云端。"""
+    _glbal(acct, [("11-04-02-00", "1" * 11), (VAT_IN_ACC, DONE12), (AP_ACC, "1" * 11)])  # 第 12 位空：12 月还没算过
+    before = _raw(acct)
     with glbal_mark.collecting() as unmarked:
         res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")], docdate="691215", ref_no="PO-12"))
-    assert res.ok
-    assert any(text.startswith("11-04-02-00") and "calculation state not set" in text for text in unmarked)
-    assert any(text.startswith(AP_ACC) and "no GLBAL row" in text for text in unmarked)
-    assert _calsta(acct)[VAT_IN_ACC].rstrip() == "1" * 11 + "0"
+    assert res.ok, res.error
+    assert unmarked == []
+    after = _raw(acct)
+    states = _calsta(acct)
+    assert states[VAT_IN_ACC].rstrip() == "1" * 11 + "0"
+    assert after[0] == before[0] and after[2] == before[2]  # 空格那两行一个字节不动
+
+
+def test_a_missing_row_is_appended_the_way_express_does_and_indexed(acct, monkeypatch):
+    """用到 GLBAL 里没有的「科目 + 部门」：照 Express 原生追加一行（计算状态全空格、金额全 0），只为这种情形重建 GLBAL 的索引；
+    回执不再报「no GLBAL row」。"""
+    from companion import dbf_writer
+
+    _native_glbal(acct, [(PURCHASE_ACC, DONE12), (VAT_IN_ACC, DONE12), ("11-04-02-00", DONE12)])
+    reindexed = []
+    real = dbf_writer._reindex
+    monkeypatch.setattr(dbf_writer, "_reindex", lambda d, tables=S.WRITE_TABLES: (reindexed.append(tuple(tables)), real(d, tables))[1])
+    before = _raw(acct)
+    with glbal_mark.collecting() as unmarked:
+        res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")]))
+    assert res.ok, res.error
+    assert unmarked == []
+    after = _raw(acct)
+    posted = _journal_accounts(acct, res.docnum)
+    assert AP_ACC in posted
+    assert len(after) == len(before) + 1
+    assert after[-1] == _express_new_row(AP_ACC)
+    assert (glbal_mark.TABLE,) in reindexed
+    for acc, state in _calsta(acct).items():
+        if acc != AP_ACC:
+            assert state.rstrip() == ("0" + "1" * 11 if acc in posted else DONE12), acc
+
+
+def test_nothing_is_reindexed_when_no_row_is_added(acct, monkeypatch):
+    from companion import dbf_writer
+
+    _native_glbal(acct, [(PURCHASE_ACC, DONE12), (VAT_IN_ACC, DONE12), (AP_ACC, DONE12), ("11-04-02-00", DONE12)])
+    reindexed = []
+    real = dbf_writer._reindex
+    monkeypatch.setattr(dbf_writer, "_reindex", lambda d, tables=S.WRITE_TABLES: (reindexed.append(tuple(tables)), real(d, tables))[1])
+    res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")]))
+    assert res.ok, res.error
+    assert all(glbal_mark.TABLE not in tables for tables in reindexed)
 
 
 def test_a_book_without_glbal_is_written_as_before_and_says_so(acct):
