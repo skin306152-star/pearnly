@@ -74,11 +74,19 @@ KIND_GROUPS = {
     "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK, "location": STOCK,
     "service_vat": SERVICE, "posting_kind": SERVICE,
     "payment": PAYMENT, "receipt": PAYMENT,
+    # 引导式录入第 1 期（覆盖表 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 5 节 A 类）：
+    # 现购 / 现销的现金或银行科目（G-A2、G-A13）、票面单位对不上物料单位（G-A5）、新物料的名称 · 单位与收起的科目组 / 分类（G-A10）、
+    # 出库没有成本基础（G-A11）、明细对不上 / 费用票选了走库存（G-A7）
+    "cash_account": PAYMENT,
+    "unit": STOCK, "new_item": STOCK, "cost_basis": STOCK,
+    "detail": BOOK,
 }
-KINDS = frozenset(KIND_GROUPS) | {"party", "account"}
+# party / new_party / account 按方向与归类键分组（见 group_of）；new_party = 新建对方那一题（G-A8：名称、税号、分店，类型与科目收起）
+KINDS = frozenset(KIND_GROUPS) | {"party", "new_party", "account"}
 STOCK_ACCOUNT_PREFIX = "stock:"
 # 只管这一张单的类：改了不记住
-PER_DOCUMENT_KINDS = frozenset({"posting_kind"})
+# 引导式录入：明细对不上怎么录、出库成本、新建对方 / 新物料（建档即定）都只管这一张，不记住（覆盖表 A7、A8、A10、A11）
+PER_DOCUMENT_KINDS = frozenset({"posting_kind", "detail", "cost_basis", "new_party", "new_item"})
 # 能只答给其中一张单的类（答案带 ``doc_id``）：只写那一张自己的、不记住、不合并（主会话 11-05：「按供应商记住照旧是默认，
 # 单张的例外 CC 在对话里也能改」）。产品把这一张自己定的列成单独一项，来源 :data:`DOCUMENT`
 DOCUMENT_ANSWER_KINDS = frozenset({"payment"})
@@ -111,7 +119,7 @@ def item_key(kind: str, subject: str) -> str:
 
 def group_of(kind: str, subject: str = "", direction: str = "") -> str:
     """这一类进哪一组。不认得的类抛 :class:`PrecheckError`（新加一类要同时登记分组）。"""
-    if kind == "party":
+    if kind in ("party", "new_party"):
         return SALES if direction == "sales" else PURCHASE
     if kind == "account":
         if str(subject or "").startswith(STOCK_ACCOUNT_PREFIX):

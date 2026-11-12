@@ -1,0 +1,52 @@
+{
+ "apps/pearnly_core/pearnly_core/express_rules/push/choices.py": {
+  "kind": 2,
+  "payload_version": 1
+ },
+ "apps/pearnly_core/pearnly_core/express_rules/push/mapper.py": {
+  "account_from": 1,
+  "default_doctype": 1,
+  "payment_from": 1
+ },
+ "apps/pearnly_core/pearnly_core/express_rules/push/sales_mapper.py": {
+  "account_from": 1,
+  "payload_version": 3
+ },
+ "companion/src/companion/dbf_detail.py": {
+  "account": 1,
+  "amount": 1,
+  "item_mode": 1,
+  "qty": 1,
+  "unit_price": 1
+ },
+ "companion/src/companion/dbf_fields.py": {
+  "amount": 1
+ },
+ "companion/src/companion/dbf_sales.py": {
+  "JNLTYP": 1,
+  "amount": 1
+ },
+ "companion/src/companion/dbf_writer.py": {
+  "JNLTYP": 1
+ },
+ "companion/src/companion/purchase_adapter.py": {
+  "items_status": 1
+ },
+ "companion/src/companion/sales_adapter.py": {
+  "items_status": 1
+ },
+ "companion/src/companion/stock_purchase.py": {
+  "acccod": 1,
+  "amount": 1,
+  "qty": 1
+ },
+ "companion/src/companion/stock_sale.py": {
+  "acccod": 1,
+  "amount": 1,
+  "cost": 1,
+  "date": 1,
+  "qty": 2,
+  "unit_cost": 1,
+  "unit_price": 1
+ }
+}
