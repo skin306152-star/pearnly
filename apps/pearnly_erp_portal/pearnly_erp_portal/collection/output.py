@@ -12,7 +12,7 @@ HEAD = (("name", "ID"), ("doc_date", "Collection Date"), ("collector_name", "Col
         ("voucher_count", "Attachments"), ("status", "Status"), ("docnum", "Express No."), ("reason", "Reason"),
         ("book_label", "Account Set"))
 INVOICES = (("docnum", "Invoice No"), ("invoice_date", "Invoice Date"), ("remaining", "Outstanding Amount"),
-            ("amount", "Amount"), ("salesman", "Sales Person"))
+            ("amount", "Amount"), ("salesman", "Salesman"))
 PAYMENTS = (("prefix", "Prefix"), ("type_name", "Collection Method"), ("amount", "Amount"))
 
 
