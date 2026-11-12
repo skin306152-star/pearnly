@@ -141,12 +141,10 @@ export const LedgerChip: FC<{ entry: LedgerView | null; onChoose: (id: string) =
   const label = ledgerLabel(entry);
   return (
     <DropdownMenu.Root>
-      <DropdownMenu.Trigger asChild>
-        <button type="button" className={look} data-slot="cc-ledger-chip" aria-label={co.accountSets} title={label || co.accountSets}>
-          <BookOpenIcon />
-          <Marquee className="truncate">{label || co.accountSets}</Marquee>
-          <ChevronDownIcon />
-        </button>
+      <DropdownMenu.Trigger className={look} data-slot="cc-ledger-chip" aria-label={co.accountSets} title={label || co.accountSets}>
+        <BookOpenIcon />
+        <Marquee className="truncate">{label || co.accountSets}</Marquee>
+        <ChevronDownIcon />
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
         <DropdownMenu.Content side={side} align="start" sideOffset={menuOffset()} className="cc-menu min-w-(--cc-menu-w-sm) [--cc-menu-max:var(--cc-menu-max-list)]">
