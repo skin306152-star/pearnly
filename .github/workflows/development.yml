@@ -175,6 +175,8 @@ jobs:
         run: python3 tests/test_flows_coverage.py && python3 tests/test_flows_lab_migrate.py && python3 tests/test_flows_run.py && python3 tests/test_flows_wait_values.py && python3 scripts/flows/coverage.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
+      - name: Every Express field CC desktop writes is registered (auto / guide card / review), and no new silent defaults on the write path (baseline may only shrink)
+        run: python3 tests/test_express_required_coverage.py && python3 scripts/check-express-defaults.py && python3 tests/test_check_express_defaults.py
       - name: Block new code that reads a person's name itself instead of the shared display name (baseline may only shrink)
         run: python3 scripts/check-person-names.py && python3 tests/test_check_person_names.py
       - name: Form columns stay balanced, one kind per column, paired fields on one row (baseline may only shrink)
