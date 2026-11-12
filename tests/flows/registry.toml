@@ -1792,3 +1792,19 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
   "apps/pearnly_core/pearnly_core/assistant/ask.py",
 ]
+
+[[flow]]
+id = "cowork.cc.conversation-ledger"
+title = "Cowork CC 本对话账套（R2-5 端到端）：右栏选 T.8 后建计划不问账套、点录吧开始，模型在推送里另填同期 T.9 被拒只给 T.8、不填照 T.8 写，库里只有 T.8（A 线 11-12）"
+module = "scripts/flows/cc_conversation_ledger.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/ledger.py",
+  "frontend/assistant/src/lib/conversation-ledger.ts",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/write_scope.py",
+  "apps/pearnly_cowork/pearnly_cowork/companies/provider.py",
+]
