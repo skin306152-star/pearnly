@@ -37,7 +37,11 @@ SKIP_GROUP = "moved_to_not_entered"       # 人在卡片上移到了「不入账
 SKIP_ENTERED = "already_entered"          # 同一张票已写进账本（代录预检 written）
 SKIP_UNKNOWN = "last_write_result_unknown"  # 上次写入结果不明：先让人核对已入账 / 没入账
 SKIP_UNDECIDED = "undecided_items"        # 还有没定的项（ask_user 问完、pearnly_precheck_answer 存下后再建计划）
-SKIP_WAITING = "waiting_for_computer"     # 等电脑读账套
+SKIP_WAITING = "waiting_for_computer"     # 等电脑读账套、没有电脑能写（会自己好的）
+# 产品照实给的不能写原因原样进 skipped，常见的：没有账套（这家没有能写这张单的账套，A 线 11-12 A9：不归等电脑，等不到）、
+# 本对话账套未定（问一次、设好再建计划）、不是本公司的账套
+SKIP_NO_BOOK = "no_account_set"
+SKIP_LEDGER_NEEDED = "ledger_needed"
 SKIP_NOT_FOUND = "not_found"              # 不是本人能写的单 / 找不到
 
 PLAN_NOTE = ("Before writing, say back to the user in one sentence: the company, the account set(s), how many documents "
