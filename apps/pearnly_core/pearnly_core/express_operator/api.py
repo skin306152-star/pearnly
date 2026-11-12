@@ -206,7 +206,7 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         groups = {**server_groups, **{key: value for key, value in groups.items() if key in server_groups}}
     batch = {"id": str(task) if task else uuid.uuid4().hex[:12], "total": len(doc_ids), "start_at": float(start_at or 0),
              "again": [str(doc_id) for doc_id in again if str(doc_id) in doc_ids],
-             # 任务号：产品按任务会话的本对话账套写（`pearnly_core.assistant.ledger.of_task`，A 线 11-12）
+             # 任务号：产品按任务会话的本对话账套写（A 线 11-12）
              "task": str(task or "")}
     results = products.submit(company, doc_ids, batch, str(computer or ""), answers)
     if task:
