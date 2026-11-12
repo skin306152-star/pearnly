@@ -88,6 +88,58 @@ def find_by_name(name) -> dict:
     return view(rows[0]) if rows else None
 
 
+# ── 在等 Express 关闭（给各产品显示用，只读；11-12）──────────────────────────────────────────────
+# 电脑回报「Express 开着这本账套」的任务：排队中、原因是 `ack_rules.EXPRESS_OPEN`、租约到期栏记着「上次回报 + 歇的秒数」
+# （:func:`acknowledge`）。读的时候按上次回报到现在多久算（`ack_rules.waiting_for_express`），不另存标志：被领走、写成、
+# 转人工后状态不再是排队中，电脑不再回报则到点过期。查不到的一律当作不在等。
+
+_WAIT_FIELDS = ("name", "book_key", "status", "reason", "lease_expires_at")
+
+
+def _reported_at(row):
+    """这件上次回报「Express 开着」的时刻（没有回 None）。"""
+    until = row.get("lease_expires_at")
+    return until - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS) if until else None
+
+
+def _waits(rows, moment) -> dict:
+    out = {}
+    for row in rows:
+        since = _reported_at(row)
+        if ack_rules.waiting_for_express(row.get("status"), row.get("reason") or "", since, moment):
+            out[row["name"]] = since
+    return out
+
+
+def _wait_view(since) -> dict:
+    return {"waiting": since is not None, "since": since.isoformat() + "Z" if since is not None else None}
+
+
+def express_wait(name, moment=None) -> dict:
+    """这件写账此刻是不是在等 Express 关闭 → ``{"waiting": bool, "since": ISO UTC | None}``。"""
+    return _wait_view(express_wait_many([name], moment).get(name))
+
+
+def express_wait_many(names, moment=None) -> dict:
+    """``{任务名: 上次回报的时刻}``，只含此刻在等 Express 关闭的那几件（列表用：一次查完，不逐笔查）。"""
+    names = sorted({str(name) for name in names or () if name})
+    if not names:
+        return {}
+    rows = frappe.get_all(JOB, filters={"name": ["in", names], "status": "queued", "reason": ack_rules.EXPRESS_OPEN},
+                          fields=list(_WAIT_FIELDS), limit_page_length=len(names))
+    return _waits(rows, moment or _now())
+
+
+def book_express_wait(book_key, moment=None) -> dict:
+    """这本账套此刻有没有任何一件在等 Express 关闭 → ``{"waiting": bool, "since": ISO UTC | None}``（取最近一次回报）。"""
+    if not book_key:
+        return _wait_view(None)
+    rows = frappe.get_all(JOB, filters={"book_key": book_key, "status": "queued", "reason": ack_rules.EXPRESS_OPEN},
+                          fields=list(_WAIT_FIELDS), order_by="lease_expires_at desc", limit_page_length=1)
+    found = _waits(rows, moment or _now())
+    return _wait_view(next(iter(found.values()), None))
+
+
 def of_source(source_doctype, source_name) -> list:
     rows = frappe.get_all(JOB, filters={"source_doctype": source_doctype, "source_name": source_name},
                           fields=list(FIELDS), order_by="creation asc")
