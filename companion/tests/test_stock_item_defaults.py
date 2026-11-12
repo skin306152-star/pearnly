@@ -179,20 +179,22 @@ def test_reused_item_reports_no_guess(acct):
 # ── 负库存开关 ────────────────────────────────────────────────────────────
 
 
-def test_new_item_allows_negative_stock(acct):
-    """我们建的库存品按设计就是要被卖成负的(没档就建 / 没货卖负 / 没成本不结转)。
+def test_new_item_follows_the_book_on_negative_stock(acct):
+    """新建库存品的「允许负库存」留空 = 跟账套设置（覆盖表 G-B6，主会话 11-12 定稿：对所有入口生效）。
 
-    档上写着"不许负"就与我们对它做的事自相矛盾:会计事后在 Express 界面动这个品时,
-    GUI 会拦住 —— 拦的正是我们自己写进去的负库存。
+    以前一律写 Y，盖过了账套设置：账套不许负库存时这件新品照样能卖成负——Express 自己不让写的负数。
+    行上给了 ``negallow``（载荷 21）就照它写。
     """
     made = PM.ensure_stock_item(acct, _NEW, unit="ถัง")
-    assert _row(acct, made.stkcod)["NEGALLOW"] == "Y"
+    assert _row(acct, made.stkcod)["NEGALLOW"].strip() == ""
+    for name, flag in (("ของใหม่ ย", "Y"), ("ของใหม่ น", "N")):
+        assert _row(acct, PM.ensure_stock_item(acct, name, unit="ถัง", negallow=flag).stkcod)["NEGALLOW"] == flag
 
 
-def test_bare_account_new_item_also_allows_negative(bare_acct):
-    """零库存主档的账套走的是"抄服务品档"那条路,同样要允许负 —— 别只在一条路上生效。"""
+def test_bare_account_new_item_also_follows_the_book(bare_acct):
+    """零库存主档的账套走的是"抄服务品档"那条路,同样留空 —— 别只在一条路上生效。"""
     made = PM.ensure_stock_item(bare_acct, _NEW, unit="", acccod="ST01")
-    assert _row(bare_acct, made.stkcod)["NEGALLOW"] == "Y"
+    assert _row(bare_acct, made.stkcod)["NEGALLOW"].strip() == ""
 
 
 def test_existing_item_policy_is_left_alone(acct):
@@ -215,7 +217,7 @@ def test_existing_item_policy_is_left_alone(acct):
     again = PM.ensure_stock_item(acct, _NEW, unit="ถัง")
     assert again.stkcod == first.stkcod and again.created is False
     assert _row(acct, first.stkcod)["NEGALLOW"] == "N", "复用既有档时改了人家的策略"
-    assert before == "Y"
+    assert before.strip() == ""
 
 
 # ── 类别 ──────────────────────────────────────────────────────────────────

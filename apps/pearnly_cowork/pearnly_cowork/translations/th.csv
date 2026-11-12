@@ -278,6 +278,7 @@ Card name (alphabetically),ชื่อการ์ด (ตามตัวอั
 Card restored,กู้คืนแล้ว
 Card templates,เทมเพลตการ์ด
 Cash,เงินสด
+Cash account not set,ยังไม่ได้กำหนดบัญชีเงินสด
 Cash basis,เกณฑ์เงินสด
 Cash purchase,ซื้อเงินสด
 Cash sales,ขายเงินสด
@@ -444,6 +445,7 @@ Copy list,คัดลอกรายการ
 Copy to,คัดลอกไปที่
 Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
+Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
 Could not finish,ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
@@ -656,6 +658,7 @@ Due (e-Filing),กำหนดยื่นทางอินเทอร์เ�
 Due (paper),กำหนดยื่นแบบกระดาษ
 Due Time,เวลาครบกำหนด
 Due date,วันครบกำหนด
+Due date is before the document date,วันครบกำหนดอยู่ก่อนวันที่เอกสาร
 Due later,ครบกำหนดภายหลัง
 Due this week,ครบกำหนดภายใน 7 วัน
 Due time,เวลาครบกำหนด
@@ -1297,6 +1300,7 @@ Product Name,ชื่อสินค้า
 Product code,รหัสสินค้า
 Product codes and barcodes must be stored as text.,รหัสสินค้าและบาร์โค้ดต้องจัดเก็บเป็นข้อความ
 Product group,หมวดสินค้า
+Product group not found in Express,ไม่พบกลุ่มสินค้านี้ใน Express
 Product name,ชื่อสินค้า
 Product not found. Check the code and try again.,ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง
 Professional fees,ค่าวิชาชีพอิสระ
@@ -2100,6 +2104,7 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Type,ประเภท
 Type a few letters of the company or account set name to find it,พิมพ์ชื่อบริษัทหรือชื่อชุดบัญชีบางส่วนเพื่อค้นหา
 Type a word from the inventory account group name to find it,พิมพ์คำในชื่อกลุ่มบัญชีสินค้าคงเหลือเพื่อค้นหา
+Type not found in Express,ไม่พบประเภทนี้ใน Express
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
 "Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
 Type the inventory account group name or account code to find it,พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา
@@ -2108,6 +2113,8 @@ Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ต้องการยกเลิกการเชื่อมต่อ LINE ของ Pearnly Cowork ใช่หรือไม่
 "Under 1,000 baht","ต่ำกว่า 1,000 บาท"
 Unit,หน่วย
+Unit not found in Express,ไม่พบหน่วยนับนี้ใน Express
+Unit not set,ยังไม่ได้กำหนดหน่วยนับ
 Unknown reconciliation type.,ประเภทการกระทบยอดไม่ถูกต้อง
 Unmatched,ไม่พบคู่
 Unmatched Count,จำนวนที่ไม่พบคู่
@@ -3423,7 +3430,9 @@ intake.error.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถ�
 intake.error.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 intake.error.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
+intake.error.CASH_ACCOUNT_CHOICE,ยังไม่ได้กำหนดบัญชีเงินสด
 intake.error.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
+intake.error.COST_BASIS_CHOICE,ยังไม่ได้กำหนดต้นทุนขาย
 intake.error.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 intake.error.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 intake.error.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
@@ -3470,10 +3479,12 @@ intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,ไม่ได้รับผลกา�
 intake.error.ERR_VAT_RATE_ANOMALY,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+intake.error.INVALID_DUE_DATE,วันครบกำหนดอยู่ก่อนวันที่เอกสาร
 intake.error.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 intake.error.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 intake.error.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.ITEM_GROUP_ACCOUNT_MISSING,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
+intake.error.ITEM_GROUP_NOT_FOUND,ไม่พบกลุ่มสินค้านี้ใน Express
 intake.error.JOURNAL_BOOK_NOT_FOUND,ชุดบัญชีนี้ไม่มีสมุดรายวันทั่วไปสำหรับใบสำคัญโอน กรุณาตั้งค่าใน Express แล้วส่งใหม่
 intake.error.MAPPING_MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
 intake.error.MAPPING_MISSING_ITEM,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
@@ -3483,6 +3494,7 @@ intake.error.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำ�
 intake.error.NO_ACCOUNT_SELECTION,CC เดสก์ท็อปในเครื่องนี้ไม่มีชุดบัญชีนี้หรือไม่มีสิทธิ์บันทึก กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
 intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 intake.error.OPERATOR_UNAVAILABLE,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
+intake.error.PARTY_TYPE_NOT_FOUND,ไม่พบประเภทนี้ใน Express
 intake.error.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 intake.error.PERIOD_LOCKED,งวดบัญชีนี้ปิดแล้วใน Express
 intake.error.POS_INVALID,ข้อมูลยอดรวมรายวัน POS อยู่ในรูปแบบที่ไม่ถูกต้อง กรุณานำเข้าไฟล์ส่งออก POS ใหม่
@@ -3503,6 +3515,8 @@ intake.error.STOCK_ITEM_NOT_FOUND,สินค้าคงเหลือที�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 intake.error.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 intake.error.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
+intake.error.UNIT_CHOICE,ยังไม่ได้กำหนดหน่วยนับ
+intake.error.UNIT_CODE_NOT_FOUND,ไม่พบหน่วยนับนี้ใน Express
 intake.error.USER_ABORTED_BUSY,ยกเลิกการส่งแล้วเนื่องจากชุดบัญชีกำลังถูกใช้งาน กรุณาปิด Express แล้วส่งใหม่
 intake.error.VOID_DOCUMENT_CHANGED,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 intake.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้ใน Express

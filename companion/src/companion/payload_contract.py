@@ -53,12 +53,26 @@ from typing import Optional
 # 20：收款单 RE（``direction = receipt``，收款员在 LINE / CC 录的收款，dbf_receipt；评估 docs/work/2026-11-11-collection-receipt-assessment.md）：
 # 勾的发票各收多少、现金与各收款方式（Express 收款类型的前缀）。旧版不认这个方向，会把它当进项写，所以盖 20，旧版诚实拒收、
 # 派单只交给报过支持 20 的电脑。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20})
+# 21：引导录入（CC 对话里过了引导卡的单，评估 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 8 节；``guided``）：表头 ``guided`` /
+# ``due_date_be`` / ``cash_account``、明细行 ``unit_code`` / ``acccod`` / ``stkgrp`` / ``cost_choice`` / ``cost`` / ``negallow``、
+# 对方块 ``type`` / ``payterm``。旧版不认这些键（到期日照对方档、现销一律借现金、新物料取众数），所以带了任一新键的载荷盖 21，
+# 旧版诚实拒收；版本 ≤ 20 的载荷不读这些键，与以前逐字节相同。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17
 MRERP_OPERATOR_PAYLOAD_VERSION = 18
 MIXED_LINES_PAYLOAD_VERSION = 19
 RECEIPT_PAYLOAD_VERSION = 20
+GUIDED_PAYLOAD_VERSION = 21
+# 载荷 21 的新键名单（与服务端 ``express_rules.push.common.GUIDED_KEYS`` 逐个相同，tests/test_companion_contract.py 守着）
+GUIDED_KEYS = {
+    "header": ("guided", "due_date_be", "cash_account"),
+    "line": ("unit_code", "acccod", "stkgrp", "cost_choice", "cost", "negallow"),
+    "party": ("type", "payterm"),
+}
+# 载荷 21 新增的原因码：三个 ``*_CHOICE`` 服务端转成引导卡上的一题，其余直接转人工
+GUIDED_CHOICE_CODES = ("UNIT_CHOICE", "COST_BASIS_CHOICE", "CASH_ACCOUNT_CHOICE")
+GUIDED_REFUSAL_CODES = ("UNIT_CODE_NOT_FOUND", "ITEM_GROUP_NOT_FOUND", "INVALID_DUE_DATE", "PARTY_TYPE_NOT_FOUND")
 ENTRY_OPERATOR = "operator"
 # 这一版 CC 桌面版能代录到哪些目标（心跳 ``operator_targets``，与宿主 ``express_operator.host.ASSEMBLERS`` 一致）。
 # 服务端只把 Express 以外目标的代录单派给报了它的电脑；旧版不报 = 只有 Express。

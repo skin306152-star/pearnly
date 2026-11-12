@@ -27,6 +27,7 @@ from . import product_master
 from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
+from . import guided
 from . import master_create
 from . import pos_journal
 from . import write_verify
@@ -273,10 +274,22 @@ def write_sale(
     if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
-    # 账套不允许负库存(ISINFO.NEGALLOW = N):库存不够就整单不写,转人工(出入库第一期,10-25;stock_guard)
-    short = stock_guard.shortages(account_dir, payload.get("items") or [], locations)
+    # 载荷 21（引导录入，guided）的新键：值不在这本账套里（单位码、分类、科目组、对方类型、现金科目）整单拒收，不回落默认
+    refusal = guided.invalid_values(account_dir, payload, guided.STOCK_OUT, "customer")
+    if refusal:
+        return DbfWriteResult(False, error_code=refusal.code, error=refusal.detail)
+    # 账套不允许负库存(ISINFO.NEGALLOW = N):库存不够就整单不写,转人工(出入库第一期,10-25;stock_guard)。
+    # 要随单新建的物料按结存 0 一起核(覆盖表 G-B6,11-12:对所有入口生效)
+    short = stock_guard.shortages(account_dir, entry.items, locations,
+                                  new_rows=entry.items_status == "ok" and bool(entry.items))
     if short:
-        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
+        return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short),
+                              shortages=short)
+    # 引导模式：原来「缺了就用默认值写」的情形（单位对不上、出库没有成本基础、现金科目不能记账）整单不写，带候选回去出题。
+    # 负库存先核（上面），过了才问单位与成本
+    refusal = guided.choices_needed(account_dir, payload, guided.STOCK_OUT)
+    if refusal:
+        return DbfWriteResult(False, error_code=refusal.code, error=refusal.detail, choice=refusal.choice)
     vatprd = S.be_yymmdd_to_greg(payload.get("vat_period_be") or docdate_be)
     base = Decimal(entry.base_amount)
     vat = Decimal(entry.vat_amount)
@@ -472,7 +485,8 @@ def _write_all(
     payterm = 0
     if cash:
         # 现销:Express 原生借现金(ISINFO.ACCNUM00),完全不碰应收(真实账套 1.4 万张 HS 无一例外;2026-10-08 核对)。
-        cash_acc = account_rules.default_account(account_dir, "ACCNUM00")
+        # 载荷 21:人在引导卡上选了收款科目(``cash_account``,现金或银行,写前已核可记账)就借它
+        cash_acc = entry.cash_account or account_rules.default_account(account_dir, "ACCNUM00")
         if debits and cash_acc and account_rules.postable_account(account_dir, cash_acc):
             debits[0]["acc"] = cash_acc
     else:
@@ -482,6 +496,10 @@ def _write_all(
             )
         payterm = account_rules.party_terms(account_dir, "ARMAS", entry.customer_code)[1]
         duedat = account_rules.due_date(docdat, payterm)
+        if entry.due_date_be:
+            # 载荷 21:复核卡上的到期日(票面写的 / 人改的)盖过客户档账期;账期天数 = 到期日 − 单据日(同原生:到期日 = 单据日 + 账期)
+            duedat = S.be_yymmdd_to_greg(entry.due_date_be)
+            payterm = (duedat - docdat).days
     name = entry.customer_name
     # 凭证表头与销项税记录的分店号 = 这家客户档的分店号(税表分店一栏;真账一致 99%+)。
     orgnum = master_create.party_orgnum(account_dir, "ARMAS", "CUSCOD", entry.customer_code)

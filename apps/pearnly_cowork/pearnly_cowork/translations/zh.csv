@@ -278,6 +278,7 @@ Card name (alphabetically),卡片名称（按字母）
 Card restored,已恢复
 Card templates,卡片模板
 Cash,现金
+Cash account not set,现金科目未定
 Cash basis,收付实现制
 Cash purchase,现购
 Cash sales,现金销售
@@ -444,6 +445,7 @@ Copy list,复制列表
 Copy to,复制到
 Correct entry,修改记录
 Corrected Value,修正值
+Cost of goods sold not set,出库成本未定
 Could not connect to MR.ERP,无法连接 MR.ERP
 Could not finish,失败
 Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
@@ -656,6 +658,7 @@ Due (e-Filing),申报期限（网上）
 Due (paper),申报期限（纸质）
 Due Time,到期时间
 Due date,到期日
+Due date is before the document date,到期日早于单据日期
 Due later,以后到期
 Due this week,7 天内到期
 Due time,到期时间
@@ -1297,6 +1300,7 @@ Product Name,产品名称
 Product code,商品编码
 Product codes and barcodes must be stored as text.,产品编码和条形码必须以文本格式保存。
 Product group,商品分类
+Product group not found in Express,Express 中没有此物料分类
 Product name,商品名称
 Product not found. Check the code and try again.,未找到物料，请核对编码后重试。
 Professional fees,专业服务费
@@ -2100,6 +2104,7 @@ Turn this scheduled task on? Only files added to the folder from now on are proc
 Type,类型
 Type a few letters of the company or account set name to find it,输入公司名称或账套名称的关键字查找账套
 Type a word from the inventory account group name to find it,输入存货科目组名称关键字查找
+Type not found in Express,Express 中没有此类型
 Type of income paid,所得类型
 "Type or scan, then press Enter",输入或扫码后按回车
 Type the inventory account group name or account code to find it,输入存货科目组名称或科目编号查找
@@ -2108,6 +2113,8 @@ Unbind LINE,解绑 LINE
 Unbind Pearnly Cowork LINE?,确定要解绑 Pearnly Cowork LINE 吗？
 "Under 1,000 baht","低于 1,000 泰铢"
 Unit,单位
+Unit not found in Express,Express 中没有此单位
+Unit not set,单位未定
 Unknown reconciliation type.,未知的对账类型。
 Unmatched,未匹配
 Unmatched Count,未匹配笔数
@@ -3423,7 +3430,9 @@ intake.error.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将�
 intake.error.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
 intake.error.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
 intake.error.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
+intake.error.CASH_ACCOUNT_CHOICE,现金科目未定
 intake.error.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
+intake.error.COST_BASIS_CHOICE,出库成本未定
 intake.error.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
 intake.error.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
 intake.error.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
@@ -3470,10 +3479,12 @@ intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,未取得 MR.ERP 导入结果，请在 M
 intake.error.ERR_VAT_RATE_ANOMALY,增值税额与 7% 税率不符，请核对后重新提交
 intake.error.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
 intake.error.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
+intake.error.INVALID_DUE_DATE,到期日早于单据日期
 intake.error.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
 intake.error.INVALID_QUANTITY,明细数量无效，请修改后重新提交
 intake.error.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
 intake.error.ITEM_GROUP_ACCOUNT_MISSING,物料科目组的科目不在 Express 科目表中
+intake.error.ITEM_GROUP_NOT_FOUND,Express 中没有此物料分类
 intake.error.JOURNAL_BOOK_NOT_FOUND,此账套没有可用于转账凭证的普通日记账单据簿，请在 Express 中设置后重新提交
 intake.error.MAPPING_MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
 intake.error.MAPPING_MISSING_ITEM,缺少对应存货，请选择后重新提交
@@ -3483,6 +3494,7 @@ intake.error.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
 intake.error.NO_ACCOUNT_SELECTION,此电脑的 CC 桌面版中没有此账套或无写入权限，请检查 CC 桌面版所选账套
 intake.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
 intake.error.OPERATOR_UNAVAILABLE,此电脑不能代录 Express
+intake.error.PARTY_TYPE_NOT_FOUND,Express 中没有此类型
 intake.error.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
 intake.error.PERIOD_LOCKED,会计期间已在 Express 关账
 intake.error.POS_INVALID,POS 日汇总的数据格式不对，请重新导入 POS 导出
@@ -3503,6 +3515,8 @@ intake.error.STOCK_ITEM_NOT_FOUND,所选的 Express 存货已不存在，请重�
 intake.error.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 intake.error.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 intake.error.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
+intake.error.UNIT_CHOICE,单位未定
+intake.error.UNIT_CODE_NOT_FOUND,Express 中没有此单位
 intake.error.USER_ABORTED_BUSY,账套正被占用，已终止推送，请关闭 Express 后重新推送
 intake.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
 intake.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单

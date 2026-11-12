@@ -53,7 +53,12 @@ NEEDS_PERSON_CODES = frozenset({
     # 收款单 RE（载荷 20，CC 桌面版 dbf_receipt，码照契约小写）：发票余额不够 / 已被收清、发票找不到（不在 / 别的客户 / 作废）、
     # 收款方式没有可用科目、收了现金但账套没设现金科目，整单没写，要人处理
     "already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing",
+    # 引导录入（载荷 21，CC 桌面版 guided）：要人在引导卡上定一题（单位 / 出库成本 / 现金科目，回执 meta.choice 带候选）；
+    # 新键的值不在这本账套里（单位码、物料分类、对方类型）、到期日早于单据日。整单没写，重试结论一样
+    *common.GUIDED_CHOICE_CODES, *common.GUIDED_REFUSAL_CODES,
 })
+# 回执转出题：这些码不是「失败」，是要人在引导卡上答一题（候选在回执 meta.choice），答完带着新键重派
+CHOICE_CODES = frozenset(common.GUIDED_CHOICE_CODES)
 # 码多为大写；收款单的四个码照契约小写（11-11），一并认
 _ERROR_CODE = re.compile(r"^\[([A-Za-z0-9_]+)\]")
 REASON_MAX = 500

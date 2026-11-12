@@ -12,9 +12,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field as df
 from decimal import Decimal
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from . import dbf_schema as S
+from . import guided_keys as guided
 from .purchase_adapter import (
     ALLOWED_ACCOUNT_SETS,
     PayloadValidationResult,
@@ -104,6 +105,11 @@ class SalesEntry:
     refund_against_total: str = ""
     refund_cross_year: bool = False  # 原单在上一年度的账套（这本里没有）：照原生挂「AVGPR」、按平均成本回冲（B3b 实录点 ②）
     refund_against_book: str = ""  # 跨年时原单所在的账套位置：新年度账套没有现金客户档时从这里复制
+    # 载荷 21（引导录入，``guided``）：赊销的到期日（佛历 YYMMDD）、现销借的收款科目、新建客户档的类型码与账期天数；没带都是空
+    due_date_be: str = ""
+    cash_account: str = ""
+    customer_type: str = ""
+    customer_payterm: Optional[int] = None
 
 
 def validate_sales_payload(
@@ -180,6 +186,12 @@ def validate_sales_payload(
         refund_err = _validate_refund(payload, base, vat, total)
         if refund_err is not None:
             return refund_err
+
+    # 载荷 21 的新键（引导录入）：类型与取值不合格整单拒收；版本 ≤ 20 的载荷不看
+    if guided.active(payload):
+        problem = guided.shape_problem(payload, doctype, "customer")
+        if problem is not None:
+            return PayloadValidationResult(False, *problem)
 
     return PayloadValidationResult(True)
 
@@ -324,10 +336,14 @@ def build_sales_entry(payload: Dict[str, Any]) -> SalesEntry:
         vat_amount=format(_q(_d(payload.get("vat_amount")) or Decimal("0")), "f"),
         total_amount=format(_q(_d(payload.get("total_amount")) or Decimal("0")), "f"),
         lines=list(payload.get("lines") or []),
-        items=list(payload.get("items") or []),
+        items=guided.items(payload),
         items_status=str(payload.get("items_status") or "empty").strip(),
         items_account=str(payload.get("items_account") or "").strip(),
         stock_acccod=str(payload.get("stock_acccod") or "").strip(),
+        due_date_be=str(guided.header(payload, "due_date_be") or "").strip(),
+        cash_account=str(guided.header(payload, "cash_account") or "").strip(),
+        customer_type=str(guided.party(payload, "customer", "type") or "").strip(),
+        customer_payterm=guided.party(payload, "customer", "payterm"),
         vat_fields={name: format(_q(_d(value)), "f") for name, value in (payload.get("vat_fields") or {}).items()},
         **_pos_fields(payload.get("pos")),
         **_refund_fields(payload.get("refund")),

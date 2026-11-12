@@ -1469,6 +1469,13 @@ The account set cannot be reached right now. It will be sent automatically once 
 Another computer is writing to this account set. It is sent automatically once it is done	另一台电脑正在写入此账套，完成后将自动推送	เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ	別のパソコンがこの会計データに書き込み中です。完了後に自動で送信します	intake.error.ACCOUNT_WRITER_BUSY
 Choose the inventory account group for this account set first.	请先为此账套选择存货科目组。	กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน	先にこの会計データの在庫勘定グループを選んでください。	intake.error.STOCK_ACC_GROUP_UNFIT
 Service input VAT basis not set	服务品进项税口径未定	ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ	サービスの仮払付加価値税の基準が未設定です	intake.error.SERVICE_VAT_BASIS_CHOICE
+Unit not set	单位未定	ยังไม่ได้กำหนดหน่วยนับ	単位が未設定です	intake.error.UNIT_CHOICE
+Cost of goods sold not set	出库成本未定	ยังไม่ได้กำหนดต้นทุนขาย	売上原価が未設定です	intake.error.COST_BASIS_CHOICE
+Cash account not set	现金科目未定	ยังไม่ได้กำหนดบัญชีเงินสด	現金勘定が未設定です	intake.error.CASH_ACCOUNT_CHOICE
+Unit not found in Express	Express 中没有此单位	ไม่พบหน่วยนับนี้ใน Express	Express にこの単位がありません	intake.error.UNIT_CODE_NOT_FOUND
+Product group not found in Express	Express 中没有此物料分类	ไม่พบกลุ่มสินค้านี้ใน Express	Express にこの商品グループがありません	intake.error.ITEM_GROUP_NOT_FOUND
+Type not found in Express	Express 中没有此类型	ไม่พบประเภทนี้ใน Express	Express にこの種別がありません	intake.error.PARTY_TYPE_NOT_FOUND
+Due date is before the document date	到期日早于单据日期	วันครบกำหนดอยู่ก่อนวันที่เอกสาร	支払期日が伝票日付より前です	intake.error.INVALID_DUE_DATE
 The accounting period is closed in Express	会计期间已在 Express 关账	งวดบัญชีนี้ปิดแล้วใน Express	会計期間は Express で締め済みです	intake.error.PERIOD_LOCKED
 Not enough stock in Express	Express 库存不足	สินค้าคงเหลือใน Express ไม่พอ	Express の在庫が足りません	intake.error.STOCK_INSUFFICIENT
 The account set on this computer is not the registered one. Waiting for another computer.	此电脑上的账套与登记的不一致，等待其他电脑	ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น	このパソコンの会計データは登録されたものではありません。別のパソコンを待っています	intake.error.ERR_ACCOUNT_UID_MISMATCH

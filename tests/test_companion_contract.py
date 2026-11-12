@@ -1474,5 +1474,163 @@ class ReceiptContract(unittest.TestCase):
         imported = {alias.name for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) for alias in node.names}
         self.assertFalse({"account_lock", "account_write_lock", "dbf_writer", "dbf_receipt"} & imported)
 
+
+class GuidedPayload(unittest.TestCase):
+    """载荷 21「引导录入」（约定 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 8 节，8.5 的六条）：版本、新键名单、
+    盖版本的规则、新原因码名单两边一致；版本 ≤ 20 的载荷 CC 一个新键都不读；`cost_choice` 与 `due_date_be` 的取值口径。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib
+
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(ROOT / "companion" / "src"))
+        try:
+            cls.keys = importlib.import_module("companion.guided_keys")  # 纯函数，不依赖 dbf（CI 的 Python 没装 CC 的依赖）
+            cls.client = importlib.import_module("companion.payload_contract")
+        finally:
+            sys.path.remove(str(ROOT / "companion" / "src"))
+        from pearnly_core.cc_desktop.wire import ack_rules
+        from pearnly_core.express_rules.push import common
+
+        cls.common, cls.ack_rules = common, ack_rules
+
+    @staticmethod
+    def _sale(**header):
+        return {"direction": "sales", "doctype": "IV", "docdate_be": "690320", "ref_no": "IV-1",
+                "customer": {"code": "C001", "name": "ร้านป้าแดง"},
+                "items": [{"name": "น้ำแข็ง", "qty": "2", "unit": "ถัง", "amount": "60.00", "item_mode": "stock_sale"}],
+                "items_status": "ok", **header}
+
+    def test_the_version_is_the_same_on_both_sides_and_cc_supports_it(self):
+        self.assertEqual(self.common.GUIDED_PAYLOAD_VERSION, 21)
+        self.assertEqual(self.common.GUIDED_PAYLOAD_VERSION, self.client.GUIDED_PAYLOAD_VERSION)
+        self.assertIn(self.client.GUIDED_PAYLOAD_VERSION, self.client.SUPPORTED_PAYLOAD_VERSIONS)
+        self.assertEqual(self.client.check_payload_version({"payload_version": 21}), None)
+
+    def test_the_new_keys_are_the_same_on_both_sides(self):
+        self.assertEqual(self.common.GUIDED_KEYS, self.client.GUIDED_KEYS)
+        self.assertEqual(self.common.GUIDED_KEYS, {
+            "header": ("guided", "due_date_be", "cash_account"),
+            "line": ("unit_code", "acccod", "stkgrp", "cost_choice", "cost", "negallow"),
+            "party": ("type", "payterm")})
+        self.assertEqual(tuple(self.common.GUIDED_PARTY_BLOCKS), tuple(self.keys.PARTY_BLOCKS))
+        self.assertEqual((self.keys.HEADER_KEYS, self.keys.LINE_KEYS, self.keys.PARTY_KEYS), tuple(self.client.GUIDED_KEYS.values()))
+        # CC 适配层 / 写路读的就是这些键：每个键在 CC 源码里都出现过
+        source = "".join((COMPANION / name).read_text(encoding="utf-8") for name in (
+            "guided_keys.py", "guided.py", "purchase_adapter.py", "sales_adapter.py", "stock_purchase.py", "stock_sale.py",
+            "stock_guard.py"))
+        for group in self.client.GUIDED_KEYS.values():
+            for key in group:
+                self.assertTrue(quoted(source, key), key)
+
+    def test_only_a_payload_with_a_new_key_is_stamped_21(self):
+        plain = self.common.finalize_payload(self._sale())["payload_version"]
+        self.assertLess(plain, 21)
+        for key, value in (("guided", True), ("guided", False), ("due_date_be", "690419"), ("cash_account", "11-01-02-00")):
+            self.assertEqual(self.common.finalize_payload(self._sale(**{key: value}))["payload_version"], 21, key)
+        for key, value in (("unit_code", "ขด"), ("acccod", "ST02"), ("stkgrp", "FG"), ("cost_choice", "none"), ("cost", "4.5"),
+                           ("negallow", "")):
+            payload = self._sale()
+            payload["items"][0][key] = value
+            self.assertEqual(self.common.finalize_payload(payload)["payload_version"], 21, key)
+        for block in ("customer", "supplier"):
+            for key, value in (("type", "07"), ("payterm", 0)):
+                payload = self._sale()
+                payload[block] = {"code": "", "name": "ใหม่", key: value}
+                self.assertEqual(self.common.finalize_payload(payload)["payload_version"], 21, (block, key))
+        # 已有键不受影响：换算率仍盖 7、不到 21
+        payload = self._sale()
+        payload["items"][0]["factor"] = "12"
+        self.assertEqual(self.common.finalize_payload(payload)["payload_version"], self.common.FACTOR_PAYLOAD_VERSION)
+        for payload in (self._sale(), self._sale(guided=True)):
+            self.assertEqual(self.common.guided_keys_used(payload), self.keys.uses(payload))
+
+    def test_the_new_reason_codes_are_the_same_on_both_sides(self):
+        self.assertEqual(tuple(self.common.GUIDED_CHOICE_CODES), tuple(self.client.GUIDED_CHOICE_CODES))
+        self.assertEqual(tuple(self.common.GUIDED_REFUSAL_CODES), tuple(self.client.GUIDED_REFUSAL_CODES))
+        self.assertEqual(set(self.common.GUIDED_CHOICE_CODES), {"UNIT_CHOICE", "COST_BASIS_CHOICE", "CASH_ACCOUNT_CHOICE"})
+        self.assertEqual(set(self.common.GUIDED_REFUSAL_CODES),
+                         {"UNIT_CODE_NOT_FOUND", "ITEM_GROUP_NOT_FOUND", "INVALID_DUE_DATE", "PARTY_TYPE_NOT_FOUND"})
+        # 三个 *_CHOICE 在「回执转出题」名单里；七个码都直接转人工、不重试
+        self.assertEqual(self.ack_rules.CHOICE_CODES, frozenset(self.common.GUIDED_CHOICE_CODES))
+        for code in (*self.common.GUIDED_CHOICE_CODES, *self.common.GUIDED_REFUSAL_CODES):
+            self.assertIn(code, self.ack_rules.NEEDS_PERSON_CODES, code)
+            move = self.ack_rules.acknowledgement(branch="legacy", attempt=1, success=False, error=f"[{code}] x")
+            self.assertEqual((move.status, move.retry), ("manual", False), code)
+        # CC 端每个码都有定义，*_CHOICE 与账套里查不到的三个都报 needs_review
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        for code in (*self.common.GUIDED_CHOICE_CODES, *self.common.GUIDED_REFUSAL_CODES):
+            self.assertEqual(getattr(self.keys, "ERR_" + code), code)
+            if code != "INVALID_DUE_DATE":  # 到期日早于单据日是 PAYLOAD_INVALID 的子码
+                self.assertIn(f'"{code}": "needs_review"', worker, code)
+
+    def test_the_receipt_keys_for_a_choice_and_a_shortage_survive_the_server(self):
+        """回执 meta.choice / meta.shortages（CC `worker._push_meta`）：服务端净化后还在，认不得的码与键丢掉。"""
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        self.assertIn('m["choice"]', worker)
+        self.assertIn('m["shortages"]', worker)
+        self.assertEqual((self.common.CHOICE_META, self.common.SHORTAGES_META), ("choice", "shortages"))
+        line = {"line": 2, "name": "น้ำแข็งบด", "stkcod": "ICE02", "units": [{"code": "ถง", "factor": "1", "role": "stock"}]}
+        choice = {"code": "UNIT_CHOICE", **line, "lines": [line], "unit_table": ["ถง", "กล"]}
+        shortages = [{"stkcod": "ICE01", "loccod": "01", "need": "6", "have": "5"},
+                     {"stkcod": "", "loccod": "01", "need": "2", "have": "0", "name": "น้ำแข็งบด", "new": True}]
+        clean = self.common.sanitize_push_meta({"choice": {**choice, "junk": 1}, "shortages": shortages})
+        self.assertEqual(clean, {"choice": choice, "shortages": shortages})
+        cost = {"code": "COST_BASIS_CHOICE", "line": 3, "name": "ใหม่", "stkcod": "", "balance": "0"}
+        self.assertEqual(self.common.sanitize_push_meta({"choice": cost})["choice"], cost)
+        cash = {"code": "CASH_ACCOUNT_CHOICE", "cash_account": "11-01-00-00"}
+        self.assertEqual(self.common.sanitize_push_meta({"choice": cash})["choice"], cash)
+        self.assertEqual(self.common.sanitize_push_meta({"choice": {"code": "SOMETHING_ELSE"}, "shortages": [{"stkcod": "A"}]}), {})
+        self.assertEqual(self.common.sanitize_push_meta({"docnum": "IV1"}), {"docnum": "IV1"})  # 不带时与以前相同
+
+    def test_an_older_payload_reads_none_of_the_new_keys(self):
+        """版本 ≤ 20 的载荷（不带 guided 的旧任务）：经 CC 新版适配层取出的明细、表头、对方块新键与没带的完全相同。
+        （整张写入计划与写出的表逐字节相同由 companion/tests/test_guided_payload.py 在 Windows 检查里守。）"""
+        stray = {"unit_code": "ขด", "acccod": "X", "stkgrp": "Y", "cost_choice": "given", "cost": "9", "negallow": "N"}
+        for version in (None, 1, 7, 19, 20):
+            plain = self._sale()
+            dirty = self._sale(guided=True, due_date_be="690101", cash_account="X")
+            dirty["items"][0].update(stray)
+            dirty["customer"].update(type="ZZ", payterm=30)
+            if version is not None:
+                plain["payload_version"] = dirty["payload_version"] = version
+            self.assertFalse(self.keys.active(dirty), version)
+            self.assertFalse(self.keys.guided(dirty), version)
+            self.assertEqual(self.keys.items(dirty), plain["items"], version)
+            self.assertIs(self.keys.items(plain)[0], plain["items"][0])  # 没带新键的行是同一个对象
+            for key in self.keys.HEADER_KEYS:
+                self.assertIsNone(self.keys.header(dirty, key), key)
+            for key in self.keys.PARTY_KEYS:
+                self.assertIsNone(self.keys.party(dirty, "customer", key), key)
+        modern = self._sale(guided=True, payload_version=21)
+        self.assertTrue(self.keys.active(modern) and self.keys.guided(modern))
+        self.assertFalse(self.keys.guided(self._sale(payload_version=21)))
+        # 两个适配层都只在版本 ≥ 21 时看新键
+        for name in ("purchase_adapter.py", "sales_adapter.py"):
+            text = (COMPANION / name).read_text(encoding="utf-8")
+            self.assertIn("if guided.active(payload):", text, name)
+            self.assertIn("items=guided.items(payload)", text, name)
+
+    def test_cost_choice_and_due_date_take_only_what_the_contract_allows(self):
+        def problem(doctype="IV", block="customer", line=None, **header):
+            payload = self._sale(doctype=doctype, payload_version=21, **header)
+            payload["items"][0].update(line or {})
+            return self.keys.shape_problem(payload, doctype, block)
+
+        self.assertIsNone(problem(line={"cost_choice": "none"}))
+        self.assertIsNone(problem(line={"cost_choice": "given", "cost": "4.50"}))
+        for line in ({"cost_choice": "yes"}, {"cost_choice": "given"}, {"cost_choice": "given", "cost": "-1"},
+                     {"cost_choice": "given", "cost": 4.5}, {"cost_choice": "none", "item_mode": "direct_account"}):
+            self.assertEqual(problem(line=line)[0], "PAYLOAD_INVALID", line)
+        self.assertIsNone(problem(due_date_be="690320"))
+        self.assertIsNone(problem(doctype="RR", block="supplier", due_date_be="690419"))
+        self.assertEqual(problem(due_date_be="690319")[0], "INVALID_DUE_DATE")
+        for doctype in ("HS", "HP", "SR"):
+            self.assertEqual(problem(doctype=doctype, due_date_be="690419")[0], "PAYLOAD_INVALID", doctype)
+        self.assertIsNone(problem(doctype="HS", cash_account="11-01-02-00"))
+        self.assertEqual(problem(doctype="IV", cash_account="11-01-02-00")[0], "PAYLOAD_INVALID")
+        self.assertEqual(problem(doctype="HS", cash_account="11-01-02-00", pos={})[0], "PAYLOAD_INVALID")
+
 if __name__ == "__main__":
     unittest.main()

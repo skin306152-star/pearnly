@@ -228,6 +228,7 @@ Cash,Cash
 Cash Amount,Cash Amount
 Cash Check,Cash Check
 Cash Difference,Cash Difference
+Cash account not set,Cash account not set
 Cash basis,Cash basis
 Cashier,Cashier
 Cashier (POS),Cashier (POS)
@@ -351,6 +352,7 @@ Correct entry,Correct entry
 Cost,Cost
 Cost Is Set,Cost Is Set
 Cost Known,Cost Known
+Cost of goods sold not set,Cost of goods sold not set
 Could not connect to MR.ERP,Could not connect to MR.ERP
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
@@ -500,6 +502,7 @@ Dropdown,Dropdown
 Due,Due
 Due Date,Due Date
 Due date,Due date
+Due date is before the document date,Due date is before the document date
 Due later,Due later
 Due this week,Due this week
 Due time,Due time
@@ -1071,6 +1074,7 @@ Product Ref,Product Ref
 Product Rows  {0},Product Rows  {0}
 Product Total,Product Total
 Product code,Product code
+Product group not found in Express,Product group not found in Express
 Product is disabled,Product is disabled
 Product name,Product name
 Product not found,Product not found
@@ -1648,6 +1652,7 @@ Type a word from the location name to find it,Type a word from the location name
 Type a word from the supplier name to find it,Type a word from the supplier name to find it
 Type a word from the warehouse name to find it,Type a word from the warehouse name to find it
 Type any warehouse name; a new warehouse is created if that name is new,Type any warehouse name; a new warehouse is created if that name is new
+Type not found in Express,Type not found in Express
 Type the company name or number to find it,Type the company name or number to find it
 Type the customer name or code to find it,Type the customer name or code to find it
 Type the item name or code,Type the item name or code
@@ -1666,6 +1671,8 @@ Unit Cost Entered,Unit Cost Entered
 Unit Price,Unit Price
 Unit barcode,Unit barcode
 Unit not found,Unit not found
+Unit not found in Express,Unit not found in Express
+Unit not set,Unit not set
 Unit number type,Unit number type
 Unit opening registration,Unit opening registration
 Unit {0} is not defined on {1},Unit {0} is not defined on {1}
@@ -2263,7 +2270,9 @@ express.error.ACCOUNT_WRITER_BUSY,Another computer is writing to this account se
 express.error.AMOUNTS_NOT_CONSISTENT,The amounts do not add up. Correct them and submit again
 express.error.BAD_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
 express.error.BAD_SALES_DOCTYPE,This document type cannot be written to Express. Check it and submit again.
+express.error.CASH_ACCOUNT_CHOICE,Cash account not set
 express.error.CDX_REINDEX_FAILED,"Express could not index the invoice, so it was undone. It is retried automatically"
+express.error.COST_BASIS_CHOICE,Cost of goods sold not set
 express.error.CUSTOMER_BRANCH_AMBIGUOUS,Several Express customers have this tax ID. Choose the customer and submit again
 express.error.CUSTOMER_DUP_SUSPECTED,"A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 express.error.CUSTOMER_NOT_IN_ARMAS,This customer is not in Express and could not be created. Check the customer name and tax ID
@@ -2275,10 +2284,12 @@ express.error.ERR_LOCATION,This warehouse is not in the Express account set
 express.error.ERR_PAYLOAD_VERSION,CC Desktop is out of date. Update CC Desktop and submit again
 express.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again
 express.error.INVALID_DOC_DATE,The document date is invalid. Correct it and submit again.
+express.error.INVALID_DUE_DATE,Due date is before the document date
 express.error.INVALID_INVOICE_DATE,The document date is invalid. Correct it and submit again.
 express.error.INVALID_QUANTITY,A line quantity is invalid. Correct it and submit again.
 express.error.ITEMS_INVALID,The lines cannot be written to Express. Check them and submit again.
 express.error.ITEM_GROUP_ACCOUNT_MISSING,An item group's account is not in the Express chart of accounts
+express.error.ITEM_GROUP_NOT_FOUND,Product group not found in Express
 express.error.JOURNAL_BOOK_NOT_FOUND,This account set has no book for this kind of document. Set it up in Express
 express.error.MAPPING_MISSING_CUSTOMER,The customer is missing. Choose the customer and submit again.
 express.error.MAPPING_MISSING_ITEM,The matching stock item is missing. Choose it and submit again.
@@ -2287,6 +2298,7 @@ express.error.MISSING_REF_NO,The invoice number is missing. Add it and submit ag
 express.error.MISSING_SUPPLIER,The supplier is missing. Add it and submit again.
 express.error.OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT,Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express
 express.error.OPERATOR_UNAVAILABLE,This computer cannot enter documents into Express
+express.error.PARTY_TYPE_NOT_FOUND,Type not found in Express
 express.error.PAYLOAD_INVALID,CC Desktop could not read this invoice. Check the fields and submit again
 express.error.POS_INVALID,The POS daily total is not in the expected form. Import the POS export again
 express.error.READBACK_VERIFY_FAILED,"Express did not read back what was written, so it was undone. It is retried automatically"
@@ -2304,6 +2316,8 @@ express.error.STOCK_ITEM_NOT_FOUND,This item is not a stock item in Express. Cho
 express.error.SUPPLIER_BRANCH_AMBIGUOUS,Several Express suppliers have this tax ID. Choose the supplier and submit again
 express.error.SUPPLIER_DUP_SUSPECTED,"A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 express.error.SUPPLIER_NOT_IN_APMAS,This supplier is not in Express and could not be created. Check the supplier name and tax ID
+express.error.UNIT_CHOICE,Unit not set
+express.error.UNIT_CODE_NOT_FOUND,Unit not found in Express
 express.error.VOID_DOCUMENT_CHANGED,This document was changed in Express. Check it in Express
 express.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
 express.kind.account,Expense Account

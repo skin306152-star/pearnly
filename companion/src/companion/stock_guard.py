@@ -4,7 +4,9 @@ Express 自己录单会拦库存不足，CC 照写会把账写成 Express 不允
 （服务端转人工，单据上显示原因）。
 
 - 只核卖出库存品的行（``item_mode = stock_sale``），按写单时同一个找品函数（``stock_sale.find_stock_item``，只读）对到
-  Express 的存货；对不到、要随单新建的物料不核（新建的品按设计标了允许负库存，``product_master``）；
+  Express 的存货；对不到、要随单新建的物料按结存 0 一起核（覆盖表 G-B6，主会话 11-12 定稿，对所有入口生效：新建的档「允许负库存」留空
+  跟账套，账套不许负库存时这张单 Express 自己也写不进；同库存单 11-01 的做法 ``dbf_stock``）。这一行的选项按行键 ``negallow``
+  （载荷 21；没带 = 空 = 跟账套）：``Y`` 不核，``N`` 核，空看账套。回报里这种行没有物料码，带品名与 ``new``；
 - 商品级「ส/คติดลบได้? [Y, N, A]」（``STMAS.NEGALLOW``）盖过账套设置（服务器测试账套 1-戊、第 6 条实录）：``Y`` 不核（Express 只弹 605
   提醒、照存，分仓可以变负）；``N`` 当作这件品「账套不许负库存」——账套允许负库存也核，按账套的 ``CHKNEGLEV`` 决定按仓（1 / 2）还是按全仓（0）；
   空跟账套（账套允许负库存时不核，CHKNEGLEV 对它不起作用）；``A`` 没测过，先跟账套，回报里标 ``item A``（待测）。
@@ -70,12 +72,15 @@ def by_warehouse(account_dir) -> bool:
         return True
 
 
-def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[str]]]) -> List[dict]:
+def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[str]]], *, new_rows: bool = True) -> List[dict]:
     """这张销货里库存不够的行（按品 × 仓合计）：``[{stkcod, loccod, need, have}]``（商品级标 A 的另带 ``"item": "A"``）；
+    要随单新建的物料 ``{stkcod: "", loccod, need, have: "0", name, new: True}``（``new_rows`` = 这张单的明细会写、真会新建时才核）；
     要核的品都不缺时是空。"""
     from .stock_sale import StockItemNotFound, find_stock_item
 
     need: Dict[Tuple[str, str], Decimal] = {}
+    fresh: Dict[Tuple[str, str], Decimal] = {}  # 要随单新建的物料：{(品名, 仓库码或 ALL_LOCATIONS): 库存单位数量}
+    fresh_flags: Dict[str, str] = {}
     for index, item in enumerate(items or []):
         if not isinstance(item, dict) or (item.get("item_mode") or "").strip() != "stock_sale":
             continue
@@ -83,15 +88,49 @@ def shortages(account_dir, items: List[dict], locations: Optional[List[Optional[
             found = find_stock_item(account_dir, str(item.get("name") or ""), str(item.get("code") or ""))
         except StockItemNotFound:
             continue  # 码不在：写单时照旧停下交人重选
-        if not found:
-            continue
         chosen = stock_location.location_at(locations, index)
+        if not found:
+            if not new_rows:
+                continue
+            # 要随单新建的物料：结存是 0。来源自己的换算率照写单时的换法（没有主档：数量 × 换算率）
+            name = str(item.get("name") or "").strip()
+            given = stock_units._dec(item.get("factor"))
+            qty = abs(stock_units._dec(item.get("qty") or "1")) * (given if given > 0 else Decimal(1))
+            key = (name, chosen or ALL_LOCATIONS)
+            fresh[key] = fresh.get(key, Decimal(0)) + qty
+            fresh_flags[name] = str(item.get("negallow") or "").strip().upper()
+            continue
         code = str(found["stkcod"]).strip()
         key = (code, chosen) if chosen else (code, ALL_LOCATIONS)
         # 包装单位按 Express 主档系数换成库存单位再核（与写单同一个换法，stock_units）
         units = stock_units.resolve(account_dir, code, str(item.get("unit") or ""), item.get("qty") or "1", item.get("factor"))
         need[key] = need.get(key, Decimal(0)) + abs(units.base_qty)
-    return short_of(account_dir, need, locations is not None)
+    return short_of(account_dir, need, locations is not None) + _short_of_new(account_dir, fresh, fresh_flags, locations is not None)
+
+
+def _short_of_new(account_dir, fresh: Dict[Tuple[str, str], Decimal], flags: Dict[str, str], located_lines: bool) -> List[dict]:
+    """要随单新建的物料按结存 0 核：``[{stkcod: "", loccod, need, have: "0", name, new: True}]``。选项照 :func:`short_of`：
+    ``Y`` 不核，``N`` 核，其余跟账套；按仓 / 全仓同已有物料的规则。"""
+    if not fresh:
+        return []
+    book_checks = not negative_allowed(account_dir)
+    checked = {name for name, flag in flags.items() if flag == _NO or (flag != _YES and book_checks)}
+    if not checked:
+        return []
+    has_stloc = located_lines and stock_location._file(account_dir, stock_location.TABLE) is not None
+    per_warehouse = has_stloc and by_warehouse(account_dir)
+    main = account_rules.main_location(account_dir) if per_warehouse else ""
+    wanted: Dict[Tuple[str, str], Decimal] = {}
+    for (name, loc), qty in fresh.items():
+        if name not in checked or qty <= 0:
+            continue
+        key = (name, (main if loc == ALL_LOCATIONS else loc) if per_warehouse else ALL_LOCATIONS)
+        wanted[key] = wanted.get(key, Decimal(0)) + qty
+    short = [{"stkcod": "", "loccod": loc, "need": _num(qty), "have": "0", "name": name, "new": True}
+             for (name, loc), qty in sorted(wanted.items())]
+    if short:
+        log.info("随单新建的物料没有库存（不允许负库存），整单不写：%s", short)
+    return short
 
 
 def short_of(account_dir, need: Dict[Tuple[str, str], Decimal], located_lines: bool) -> List[dict]:
@@ -147,9 +186,13 @@ def _num(value: Decimal) -> str:
 
 
 def message(short: List[dict]) -> str:
+    """回报原文：每行「物料@仓 need 要 have 有」（ERP 单据页、待处理按这个格式解析，不能动）。要随单新建的物料没有物料码，物料那一格
+    写品名、行尾加 ``new``（同库存单新建行的写法 ``dbf_stock.new_item_shortages``，排在已有物料后面）；两产品显示这种行用回执里
+    结构化的 ``meta.shortages``（带 ``name`` 与 ``new``）。"""
+    rows = [item for item in short if not item.get("new")] + [item for item in short if item.get("new")]
     return "not enough stock in Express (negative stock not allowed): " + ", ".join(
-        f"{item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}"
-        + (f" item {item['item']}" if item.get("item") else "") for item in short)
+        f"{item.get('name') if item.get('new') else item['stkcod']}@{item['loccod']} need {item['need']} have {item['have']}"
+        + (f" item {item['item']}" if item.get("item") else "") + (" new" if item.get("new") else "") for item in rows)
 
 
 __all__ = ["ALL_LOCATIONS", "ERR_STOCK_INSUFFICIENT", "by_warehouse", "message", "negative_allowed", "short_of", "shortages"]

@@ -38,6 +38,12 @@ class DbfWriteResult:
     # 收款单 RE(载荷 20,``dbf_receipt``)写进去的单号与每张发票收后的余额 ``{docnum, invoices: [{docnum, remaining_after}]}``,
     # 随 ack meta.receipt 回云端;别的单与失败路径恒 None。
     receipt: Optional[dict] = None
+    # 载荷 21（引导录入，``guided``）：整单没写、要人在引导卡上定一题时带回的候选 ``{code, line, name, stkcod, units, unit_table,
+    # balance, cash_account, lines}``（按原因码只带相关项），随 ack meta.choice 回云端；别的失败与成功路径恒 None。
+    choice: Optional[dict] = None
+    # 库存不足（``STOCK_INSUFFICIENT``）的结构化明细 ``[{stkcod, loccod, need, have, name?, new?}]``（``stock_guard``；随单新建的物料
+    # 没有物料码，带品名与 new），随 ack meta.shortages 回云端；原文 ``error`` 的格式不变。别的路径恒 None。
+    shortages: Optional[list] = None
 
     @property
     def written(self) -> bool:

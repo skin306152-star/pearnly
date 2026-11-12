@@ -236,7 +236,31 @@ FACTOR_PAYLOAD_VERSION = 7
 REMARKS_PAYLOAD_VERSION = 17
 # 明细库存行与非库存行同在一张单（混行；ERP 按行选入库 / 只记账，11-06）：旧版 CC 桌面版整单拒收，盖 19 让派单只交给能写的电脑
 MIXED_LINES_PAYLOAD_VERSION = 19
+# 引导录入（人在 CC 对话里过了引导卡的单，约定 docs/work/2026-11-12-cc-guided-entry-express-coverage.md 第 8 节）：带了下面任一新键的
+# 载荷盖 21，旧版 CC 桌面版诚实拒收、派单只交给报过支持 21 的电脑；不带新键的载荷版本不变（与以前逐字节相同）。
+# 键名单与 CC 桌面版 ``companion/payload_contract.GUIDED_KEYS`` 逐个相同（tests/test_companion_contract.py 守着）。
+GUIDED_PAYLOAD_VERSION = 21
+GUIDED_KEYS = {
+    "header": ("guided", "due_date_be", "cash_account"),
+    "line": ("unit_code", "acccod", "stkgrp", "cost_choice", "cost", "negallow"),
+    "party": ("type", "payterm"),
+}
+GUIDED_PARTY_BLOCKS = ("supplier", "customer")
+# CC 桌面版回的新原因码：三个 ``*_CHOICE`` 回执 ``meta.choice`` 带候选，服务端转成引导卡上的一题；其余直接转人工、不重试
+GUIDED_CHOICE_CODES = ("UNIT_CHOICE", "COST_BASIS_CHOICE", "CASH_ACCOUNT_CHOICE")
+GUIDED_REFUSAL_CODES = ("UNIT_CODE_NOT_FOUND", "ITEM_GROUP_NOT_FOUND", "INVALID_DUE_DATE", "PARTY_TYPE_NOT_FOUND")
 _STOCK_MODES = ("stock_item", "stock_sale")
+
+
+def guided_keys_used(payload) -> bool:
+    """载荷里出现了引导录入的任一新键（表头、明细行、对方块）。"""
+    payload = payload if isinstance(payload, dict) else {}
+    if any(key in payload for key in GUIDED_KEYS["header"]):
+        return True
+    if any(isinstance(item, dict) and any(key in item for key in GUIDED_KEYS["line"]) for item in payload.get("items") or []):
+        return True
+    return any(isinstance(payload.get(block), dict) and any(key in payload[block] for key in GUIDED_KEYS["party"])
+               for block in GUIDED_PARTY_BLOCKS)
 
 
 def mixed_lines(items) -> bool:
@@ -262,6 +286,8 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, REMARKS_PAYLOAD_VERSION)  # 旧版不写按台号码：诚实拒收
     if mixed_lines(lines):
         floor = max(floor, MIXED_LINES_PAYLOAD_VERSION)  # 旧版混行整单拒收：只派给能写的电脑
+    if guided_keys_used(payload):
+        floor = max(floor, GUIDED_PAYLOAD_VERSION)  # 旧版不认引导录入的新键（到期日、收款科目、单位码…）：诚实拒收
     # 免税行标记（收银日汇总、混合税率的采购盖 11；整单免税的进货单盖 12）：旧版不认或照无税写，诚实拒收
     floor = max(floor, pos_contract.exempt_payload_version(payload))
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):
@@ -481,6 +507,15 @@ OPERATOR_META = "operator"
 # 读回比分录按它（`push.express.pushed`）。[{acc, amount}]，科目 ≤ 15 字、金额两位小数、≤ 40 条；有一条认不出就整项不留（照载荷比）。
 REVENUE_META = "revenue"
 REVENUE_ACC_MAX = 15
+# 引导录入（载荷 21，CC 桌面版 ``guided``）：要人在引导卡上定一题时回执带的候选 ``meta.choice``——
+# {code, line, name, stkcod, units: [{code, factor, role}], unit_table: [码], balance, cash_account, lines: [{line, name, stkcod, units, balance}]}，
+# 按原因码只带相关项（第一行的各项在顶层，全部要定的行在 lines）。只放行 ``GUIDED_CHOICE_CODES`` 里的码与这些键，限长限量。
+CHOICE_META = "choice"
+# 库存不足（``STOCK_INSUFFICIENT``）的结构化明细 ``meta.shortages``：[{stkcod, loccod, need, have, name?, new?, item?}]；随单新建的物料
+# 没有物料码，带品名与 new（两产品显示「{品名}：新物料，没有库存」）。回报原文的格式不变。
+SHORTAGES_META = "shortages"
+_CHOICE_TEXT = {"name": 200, "stkcod": 40, "balance": 30}
+_CHOICE_UNIT_TABLE_MAX = 400
 OPERATOR_DOC_TYPE_MAX = 10
 OPERATOR_OPTIONS_MAX = 10
 OPERATOR_OPTION_LEN = 120
@@ -522,6 +557,70 @@ def clean_revenue_meta(raw: Any) -> List[Dict[str, str]]:
     return out
 
 
+def _short(value: Any, limit: int) -> str:
+    return str(value).strip()[:limit] if isinstance(value, (str, int)) and not isinstance(value, bool) else ""
+
+
+def _choice_line(raw: Any) -> Dict[str, Any]:
+    out: Dict[str, Any] = {}
+    if type(raw.get("line")) is int and raw["line"] > 0:
+        out["line"] = raw["line"]
+    for key, limit in _CHOICE_TEXT.items():
+        if key in raw and isinstance(raw[key], str):
+            out[key] = raw[key].strip()[:limit]
+    if isinstance(raw.get("units"), list):
+        out["units"] = [{"code": _short(unit.get("code"), 10), "factor": _short(unit.get("factor"), 20),
+                         "role": _short(unit.get("role"), 10)}
+                        for unit in raw["units"][:_META_MAX_LIST] if isinstance(unit, dict) and _short(unit.get("code"), 10)]
+    return out
+
+
+def clean_choice_meta(raw: Any) -> Dict[str, Any]:
+    """``meta.choice`` → 只留认得的码与键（见 :data:`CHOICE_META`）；码不认得回空。"""
+    if not isinstance(raw, dict) or raw.get("code") not in GUIDED_CHOICE_CODES:
+        return {}
+    out: Dict[str, Any] = {"code": raw["code"], **_choice_line(raw)}
+    if isinstance(raw.get("unit_table"), list):
+        out["unit_table"] = [code for code in (_short(item, 10) for item in raw["unit_table"][:_CHOICE_UNIT_TABLE_MAX]) if code]
+    if isinstance(raw.get("cash_account"), str):
+        out["cash_account"] = raw["cash_account"].strip()[:REVENUE_ACC_MAX]
+    if isinstance(raw.get("lines"), list):
+        lines = [line for line in (_choice_line(item) for item in raw["lines"][:_META_MAX_LIST] if isinstance(item, dict)) if line]
+        if lines:
+            out["lines"] = lines
+    return out
+
+
+def clean_shortages_meta(raw: Any) -> List[Dict[str, Any]]:
+    """``meta.shortages`` → [{stkcod, loccod, need, have, name?, new?, item?}]；不是列表或有一条认不出（没有仓、数量不是数）回空列表。"""
+    if not isinstance(raw, list) or not raw or len(raw) > _META_MAX_LIST:
+        return []
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            return []
+        row: Dict[str, Any] = {"stkcod": _short(item.get("stkcod"), 40), "loccod": _short(item.get("loccod"), 10)}
+        for key in ("need", "have"):
+            try:
+                number = Decimal(str(item.get(key)))
+            except (InvalidOperation, ValueError):
+                return []
+            if not number.is_finite():
+                return []
+            row[key] = _short(str(item.get(key)), 30)
+        if not row["loccod"]:
+            return []
+        if item.get("new") is True:
+            row["new"] = True
+            row["name"] = _short(item.get("name"), 200)
+        if isinstance(item.get("item"), str) and item["item"].strip():
+            row["item"] = item["item"].strip()[:5]
+        if not (row["stkcod"] or row.get("name")):
+            return []
+        out.append(row)
+    return out
+
+
 def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
     """净化 Agent 上报的富元数据:只留白名单键、限长限量、布尔归一(防被塞脏 jsonb)。"""
     if not isinstance(raw, dict):
@@ -554,6 +653,12 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
     revenue = clean_revenue_meta(raw.get(REVENUE_META))
     if revenue:
         out[REVENUE_META] = revenue
+    choice = clean_choice_meta(raw.get(CHOICE_META))
+    if choice:
+        out[CHOICE_META] = choice
+    shortages = clean_shortages_meta(raw.get(SHORTAGES_META))
+    if shortages:
+        out[SHORTAGES_META] = shortages
     return out
 
 

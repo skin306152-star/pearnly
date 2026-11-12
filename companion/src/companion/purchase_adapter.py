@@ -22,6 +22,7 @@ from dataclasses import dataclass, field as df
 from decimal import ROUND_HALF_EVEN, Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
+from . import guided_keys as guided
 from . import service_vat
 
 ALLOWED_ACCOUNT_SETS = ()  # fail-safe 默认:无所选账套 → 空 → 任何账套都拒(没选不能瞎写)
@@ -112,6 +113,11 @@ class PurchaseEntry:
     # 会计在复核时选了「新建供应商档」(载荷 supplier.confirmed_new):不再按税号 / 名称找旧档、
     # 不按「疑似重复」拦,照票面新建(同税号几个档里没有这一家时由人拍板 · 2026-09-28 压测)。
     supplier_confirmed_new: bool = False
+    # 载荷 21（引导录入，``guided``）：赊购的到期日（佛历 YYMMDD）、现购贷的现金科目、新建供应商档的类型码与账期天数；没带都是空
+    due_date_be: str = ""
+    cash_account: str = ""
+    supplier_type: str = ""
+    supplier_payterm: Optional[int] = None
 
 
 def _d(v: Any) -> Optional[Decimal]:
@@ -227,6 +233,12 @@ def validate_purchase_payload(
     if "srv_vattyp" in payload and not service_vat.chosen_value(payload.get("srv_vattyp")):
         return PayloadValidationResult(False, ERR_AMOUNTS, "srv_vattyp must be 1 or 2")
 
+    # 载荷 21 的新键（引导录入）：类型与取值不合格整单拒收；版本 ≤ 20 的载荷不看
+    if guided.active(payload):
+        problem = guided.shape_problem(payload, doctype, "supplier")
+        if problem is not None:
+            return PayloadValidationResult(False, *problem)
+
     return PayloadValidationResult(True)
 
 
@@ -311,10 +323,14 @@ def build_purchase_entry(payload: Dict[str, Any]) -> PurchaseEntry:
         vat_amount=format(_q(_d(payload.get("vat_amount")) or Decimal("0")), "f"),
         total_amount=format(_q(_d(payload.get("total_amount")) or Decimal("0")), "f"),
         lines=list(payload.get("lines") or []),
-        items=list(payload.get("items") or []),
+        items=guided.items(payload),
         items_status=str(payload.get("items_status") or "empty").strip(),
         items_account=str(payload.get("items_account") or "").strip(),
         vat_fields={name: format(_q(_d(value)), "f") for name, value in (payload.get("vat_fields") or {}).items()},
+        due_date_be=str(guided.header(payload, "due_date_be") or "").strip(),
+        cash_account=str(guided.header(payload, "cash_account") or "").strip(),
+        supplier_type=str(guided.party(payload, "supplier", "type") or "").strip(),
+        supplier_payterm=guided.party(payload, "supplier", "payterm"),
     )
 
 
