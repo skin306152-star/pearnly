@@ -602,6 +602,7 @@ Express code,Express コード
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express has this account set open. It is sent automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
+Express has this account set open. It is written automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
 Failed,失敗
@@ -2252,7 +2253,7 @@ express.code.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数
 express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
-express.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
+express.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
 express.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください

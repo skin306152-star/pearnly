@@ -764,6 +764,7 @@ Express Root Key,Express プログラムフォルダーキー
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
 Express document,Express 伝票番号
 Express has this account set open. It is sent automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
+Express has this account set open. It is written automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 Express record,Express の取引先
 External Docnum,ERP伝票番号
 Factor to Base,基準単位換算係数
@@ -3413,7 +3414,7 @@ intake.agent.state.needsUpdate,CC デスクトップの更新が必要
 intake.agent.state.noWriter,書き込めるパソコンがありません
 intake.agent.state.offline,パソコンがオフライン
 intake.catalog.reload,再読み込み
-intake.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
+intake.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 intake.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 intake.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
 intake.error.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
