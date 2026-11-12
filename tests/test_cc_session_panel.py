@@ -215,6 +215,21 @@ class PanelStylesSourceTests(unittest.TestCase):
             for gone in ("setsForScope", "setForPeriod", "coveringSet", "setFor("):
                 self.assertNotIn(gone, text, (rel, gone))
 
+    def test_the_new_page_picks_the_account_set_before_the_first_message(self):
+        # 测试机1 11-12：新建页（还没建会话，直写、代录同一个）没有账套行，第一句之前选不了，只能等 CC 问。新建页那一排（电脑在
+        # 输入框下巴、手机在问候下面）公司、月份、分店后接账套胶囊：服务端按公司 + 月份 + 分店给默认与可选，选的随建会话交上
+        projects = read("components/assistant-ui/projects.tsx")
+        chin = projects.split("const DraftChin: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("const ledger = useDraftLedgerOf(draft);", chin)
+        self.assertIn('{draft.project && <LedgerChip look="cc-chin-btn" side={side} entry={ledger} onChoose={(id) => chooseDraftLedger(draft, id)} />}', chin)
+        self.assertIn("<DraftChin side=\"bottom\" />", projects.split("export const WelcomeFiling: FC", 1)[1].split("\n};", 1)[0])
+        chip = read("components/period-chip.tsx").split("export const LedgerChip: FC", 1)[1].split("\n};", 1)[0]
+        self.assertIn("if (!entry?.options.length) return null;", chip)
+        self.assertIn('data-slot="cc-ledger-chip" aria-label={co.accountSets}', chip)   # 沿用已有词条，不加新文案
+        self.assertIn("{label || co.accountSets}", chip)
+        adapter = read("lib/managed-agents/session-list-adapter.ts")
+        self.assertIn("session = await createSession(draft, listMode(), draftLedgerOf(draft));", adapter)
+
     def test_the_panel_pending_card_lists_only_other_months(self):
         # 开发窗口 10-16 定：会话栏「待处理」卡只列对话月份以外的，对话那个月的只在「本月」卡（列全部月份的公司页 11-07 删了）
         panel = read("components/session-panel.tsx")
@@ -310,6 +325,74 @@ served = { current: "", options: [] };
 resetLedgers();
 await loadLedgers("sesn_1", filing);
 assert.equal(row(), "");
+""")
+
+    def test_the_new_page_reads_the_default_lets_it_change_and_sends_it_with_create(self):
+        self.run_page(r"""
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { LedgerChip } from "@/components/period-chip";
+import { chooseDraftLedger, draftLedgerOf, loadDraftLedger, resetLedgers, useDraftLedger } from "@/lib/conversation-ledger";
+import { createSession } from "@/lib/managed-agents/api";
+const g = globalThis as any;
+const ok = (message: any) => ({ ok: true, status: 200, json: async () => ({ message }) });
+const T9 = { id: "c1|T9", label: "T.9", covers: true }, T8 = { id: "c1|T8", label: "T.8", covers: true }, T7 = { id: "c1|T7", label: "T.7", covers: true };
+const urls: string[] = [];
+const fetchBefore = g.fetch;
+g.fetch = async (url: string, init: any = {}) => { urls.push(String(url)); return fetchBefore(url, init); };
+let served: any = { "2026-10": { default: "", options: [T8, T9] }, "2026-09": { default: "c1|T8", options: [T8, T9] }, "2024-05": { default: "c1|T7", options: [T7] } };
+g.respond = async (method: string, body: any) => {
+  if (method === "ledger_options") { const period = new URL(urls.at(-1)!, "https://site.test").searchParams.get("period") || ""; return ok(served[period]); }
+  if (method === "create") return ok({ id: "sesn_9", project: body.project, period: body.period, scope: "", ledger: body.ledger });
+  return ok(null);
+};
+const chip = () => renderToStaticMarkup(createElement(LedgerChip, { entry: useDraftLedger.getState().draft, onChoose() {} }));
+const shown = (markup: string) => markup.replace(/<[^>]+>/g, "\n").split("\n").map((s) => s.trim()).filter(Boolean);
+resetLedgers();
+const october = { project: "comp_t", period: "2026-10", scope: "" };
+// 还没读到：不出胶囊
+assert.equal(chip(), "");
+await loadDraftLedger(october);
+const asked = new URL(urls.at(-1)!, "https://site.test");
+assert.ok(asked.pathname.endsWith("pearnly_core.assistant.api.ledger_options"));
+assert.deepEqual([asked.searchParams.get("project"), asked.searchParams.get("period")], ["comp_t", "2026-10"]);
+// 同期两本、没默认：胶囊在、写「Account sets」，建会话不带账套（服务端照函数算，发话前问一次）
+assert.deepEqual(shown(chip()), ["Account sets"]);
+assert.ok(chip().includes('data-slot="cc-ledger-chip"'));
+assert.equal(draftLedgerOf(october), "");
+// 选 T.8：本页记下，建会话时随 create 交上
+chooseDraftLedger(october, "c1|T8");
+assert.deepEqual(shown(chip()), ["T.8"]);
+assert.equal(draftLedgerOf(october), "c1|T8");
+chooseDraftLedger(october, "c1|T99");  // 不在可选里的不认
+assert.equal(draftLedgerOf(october), "c1|T8");
+await createSession(october, "operator", draftLedgerOf(october));
+assert.deepEqual(g.calls.at(-1), { method: "create", body: { project: "comp_t", period: "2026-10", ledger: "c1|T8", mode: "operator" } });
+await createSession(october, "chat", "");
+assert.deepEqual(g.calls.at(-1), { method: "create", body: { project: "comp_t", period: "2026-10" } });
+// 换月份：选着的 T.8 在新月份仍可选就留着；换到只有 T.7 的月份用新的默认；读的不是这个月的不交
+const september = { ...october, period: "2026-09" };
+assert.equal(draftLedgerOf(september), "");
+await loadDraftLedger(september);
+assert.equal(draftLedgerOf(september), "c1|T8");
+chooseDraftLedger(september, "c1|T9");
+const old = { ...october, period: "2024-05" };
+await loadDraftLedger(old);
+assert.equal(draftLedgerOf(old), "c1|T7");
+// 服务端给默认的：预选默认
+resetLedgers();
+await loadDraftLedger(september);
+assert.deepEqual(shown(chip()), ["T.8"]);
+// 这家没有本对话账套（ERP 不接 Express 的公司等）：不出胶囊，不交
+served = { "2026-09": { default: "", options: [] } };
+resetLedgers();
+await loadDraftLedger(september);
+assert.equal(chip(), "");
+assert.equal(draftLedgerOf(september), "");
+// 没选公司：不读
+const before = urls.length;
+await loadDraftLedger({ project: "", period: "", scope: "" });
+assert.equal(urls.length, before);
 """)
 
     def test_card_order_moves_only_between_visible_cards(self):
