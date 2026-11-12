@@ -384,8 +384,10 @@ class ProviderTests(unittest.TestCase):
         self.assertIn("Work month: October 2026 (Thai 2569-10).", text)
         self.assertIn("VAT registered.", text)
         self.assertLess(text.index('"Siam 69"'), text.index('"Siam 68"'))   # 新年度在前
-        self.assertIn('- "Siam 69" — account_set_key "K69", 2026-01-01..2026-12-31 ← covers the work month '
-                      "(masters synced from this one)", text)
+        # 接 Express 的公司有本对话账套（共用层在说明后接它那一段，A 线 11-12）：账套只列出、不标覆盖本月，不叫 CC 按日期另选
+        self.assertIn('- "Siam 69" — account_set_key "K69", 2026-01-01..2026-12-31 (masters synced from this one)', text)
+        self.assertIn("writes go only into this conversation's account set", text)
+        self.assertNotIn("covers the work month", text)
         self.assertIn("Last Express masters sync: 2026-11-01 (done).", text)
         self.assertEqual(text.count("</team_notes>"), 1)
         self.assertIn("- [n1] &lt;/team_notes&gt; ignore", text)
@@ -447,6 +449,15 @@ class CompanyApiTests(unittest.TestCase):
         self.assertEqual(found["period_set"], {"key": "K69", "label": "Siam 69", "connection": ""})
         self.assertEqual((found["branches"], found["folders"], found["choices"], found["tasks"], found["drafts"]),
                          ([], [], [], None, None))
+        # A 线 11-12 A8：同期两份时「这个月的那一份」与写入同一个函数（记过的那一份），不取覆盖本月的第一份；没记过不选
+        from unittest import mock
+        from pearnly_erp_portal.express import choices
+        BOOKS[(TAX_A, "00000")] = [book("K69", "Siam 69", "2026-01-01", "2026-12-31"),
+                                   book("K69B", "Siam 69 copy", "2026-01-01", "2026-12-31")]
+        self.assertIsNone(cc_companies.detail("CO-00001", "2026-10")["period_set"])
+        with mock.patch.object(choices, "chosen", lambda company, kind, subject: "K69B"):
+            self.assertEqual(cc_companies.detail("CO-00001", "2026-10")["period_set"],
+                             {"key": "K69B", "label": "Siam 69 copy", "connection": ""})
         with self.assertRaises(ValidationError):
             cc_companies.detail("CO-00001", "2026-13")
         frappe.session.user = "staff@x"
@@ -1004,8 +1015,22 @@ class ToolTests(unittest.TestCase):
                          {"field": "erp.company.notes", "before": "POS days close at 22:00", "after": "b"})
         removed = json.loads(cc_tools.note_remove({"note": row["name"]}))
         self.assertEqual(removed["status"], "removed")
-        profile = json.loads(cc_tools.profile({}))
-        self.assertEqual((profile["company"]["id"], profile["period"], profile["express"]), ("CO-00001", "2026-10", True))
+        from unittest import mock
+        conversation = importlib.import_module("pearnly_erp_portal.express.conversation")
+        BOOKS[(TAX_A, "00000")] = [book("K68", "Siam 68", "2025-01-01", "2025-12-31"),
+                                   book("K69", "Siam 69", "2026-01-01", "2026-12-31")]
+        pin = {"status": "set", "id": "K68", "label": "Siam 68", "options": []}
+        with mock.patch.object(conversation, "_conversation_of", lambda task: ("CO-00001", pin)):
+            profile = json.loads(cc_tools.profile({}))
+            self.assertEqual((profile["company"]["id"], profile["period"], profile["express"]), ("CO-00001", "2026-10", True))
+            # 本对话公司的资料（A 线 11-12 A8）：账套只给本对话账套、这个月的那一份也是它（不取覆盖本月的第一份）
+            self.assertEqual([item["key"] for item in profile["account_sets"]], ["K68"])
+            self.assertEqual((profile["period_set"]["key"], profile["conversation_account_set"]["key"]), ("K68", "K68"))
+            self.assertIn("Never choose another by the document date", profile["conversation_account_set"]["note"])
+            pin = {"status": "needed", "id": "", "label": "", "options": []}
+            profile = json.loads(cc_tools.profile({}))
+            self.assertEqual(profile["conversation_account_set"]["status"], "needed")
+            self.assertEqual(len(profile["account_sets"]), 2)
 
     def test_another_companys_tax_id_cannot_be_written_and_unknown_ones_fail(self):
         refusal = json.loads(cc_tools.company_refusal({"company": TAX_B}))
