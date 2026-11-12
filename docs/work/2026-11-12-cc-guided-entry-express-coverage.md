@@ -271,12 +271,40 @@ G-C4 不支持的五种情况表单卡不列、CC 如实说；G-C5 补 5 个原�
 服务端什么时候带这些键：引导卡上对应的题答了就带；`guided` 只在 CC 对话里经写入计划放行的单上带。新建对方的名称、税号、分店、科目不需要新键
 （现有 `supplier` / `customer` 块与分录行已能指定，`C/master_create.py:509-548,585-617`）。
 
-### 8.3 只改 CC 桌面版、不动载荷的三项
+### 8.2a 补充约定（CC 桌面版窗口 local_46601a7b 提出，主会话 11-12 批准）
+
+1. **失败回执带回候选**：`meta.choice = {code, line, name, stkcod, units, unit_table, balance, cash_account}`，按原因码只填相关项。
+   `code` 原因码；`line` 行号；`name` 品名；`stkcod` 物料码；`units` = `[{code, factor, role}]`（这件物料的各单位、系数与角色）；`unit_table` = 账套单位码表 `[码]`；
+   `balance` 结存；`cash_account` 账套现金科目码。
+
+   | 原因码 | 填哪些 |
+   |---|---|
+   | `UNIT_CHOICE` | `line`、`name`、`stkcod`（已有物料）、`units`、`unit_table` |
+   | `COST_BASIS_CHOICE` | `line`、`name`、`stkcod`、`balance` |
+   | `CASH_ACCOUNT_CHOICE` | `cash_account`（只带账套现金科目码；候选科目不由 CC 带，科目表服务端已有） |
+
+2. **显式给的键不回落默认**：带了 `unit_code`、但它不是这件物料的单位、又没有 `factor` 时，**不带 `guided` 也回 `UNIT_CHOICE`**（8.2 表里「引导模式拒收」那一格对这种情形不分模式）。
+3. **`cash_account` 的适用范围**：只用于普通现购 HP、现销 HS。出现在 POS 日汇总或退货单 SR 的载荷上 → `PAYLOAD_INVALID`。
+4. **`STOCK_INSUFFICIENT` 的回执**：文字保持旧格式不变（`物料@仓 need n have m`）；随单新建的行写成 `品名@仓 need n have 0 new`，排在后面。
+   另加结构化的 `meta.shortages = [{stkcod, loccod, need, have, name, new}]`；**两产品显示用结构化的**，不再解析文字（ERP `public/desk/transactions.js:220-223` 现在是正则解析文字，第 1 期改）。
+5. **代录载荷带新键**：服务端不派（8.4），CC 端也拒收 `PAYLOAD_INVALID` 兜底。
+
+**分工（同一处只定义一次）**
+
+| 内容 | 谁做 |
+|---|---|
+| 服务端 `P/common.py` 的 `GUIDED_PAYLOAD_VERSION`、`GUIDED_KEYS`、`finalize_payload` 盖 21；`cc_desktop/wire/ack_rules.py` 名单加新原因码 | CC 桌面版窗口（分支 `pearnly/cc-desktop-payload-3a2e3d`）。第 1 期只引用，不重复定义 |
+| CC 桌面版适配层读新键、不静默模式、G-B1、G-B6、契约测试 8.5 | CC 桌面版窗口 |
+| 成功回执 `line_modes` 里的 `unit_guessed` / `unit_code` / `name` / `created`（现在就有）由服务端读出、记在写入结果上（G-B5） | 第 1 期 |
+| 把三个 `*_CHOICE` 回执与 `meta.choice` 变成引导卡上的题；按 `meta.shortages` 显示库存不足；带各键的时机 | 第 1 期 |
+| G-B2 代录销售单填「อ้างอิง」 | 不在 CC 桌面版窗口本批：先在测试机探明表单（第 7 节补证 ①） |
+
+### 8.3 只改 CC 桌面版、不动载荷的几项
 
 | 缺陷 | 改法 | 兼容 |
 |---|---|---|
 | G-B1 新库存品换算系数照抄模板 | 新建时 `CFACTOR`、`PFACTOR`、`SFACTOR` 写 1（四个单位列同码时系数必须是 1）；`_STOCK_CLONE_FIELDS`（`C/product_master.py:567-570`）去掉这三栏 | 对所有载荷生效（是修错，不是新行为）；已建错的档不回改 |
-| G-B2 代录销售单不填「อ้างอิง」 | 配方 IV、HS 表头加这一格，填现有的 `ref_no` | 要先在测试机确认这一格在两种表单上的位置、长度与能否保存；确认前不改配方 |
+| G-B2 代录销售单不填「อ้างอิง」 | 配方 IV、HS 表头加这一格，填现有的 `ref_no` | 要先在测试机确认这一格在两种表单上的位置、长度与能否保存；确认前不改配方。**不在 CC 桌面版窗口本批**，探明后另排 |
 | G-B6 新建库存品写死允许负库存、销售随单新建的物料不核 | 新建库存品「允许负库存」留空（跟账套）；销货的负库存核对把「随单新建」的行按结存 0 一起核（同库存单 11-01 的做法，`C/dbf_stock.py:380-382`）；停下走已有的 `STOCK_INSUFFICIENT`，回执里新建的行带品名与 `new` 标记 | **主会话 11-12 定稿：对所有入口生效**（LINE、网页、定时、CC；是「Express 拦的我们不绕过」的修正，按类修）。账套不许负库存的公司，「卖新物料」的单从「写成负数」变成「停下并说明原因」。已建成 `Y` 的档不回改 |
 | G-B5 单位是猜的标记没人读 | 引导模式下不再猜（`UNIT_CHOICE`）；非引导模式回执里的 `unit_guessed` 由服务端读出、记在这张单的写入结果上 | 回执键不变 |
 
