@@ -182,6 +182,14 @@ def append_native(table, row: dict) -> None:
 append_stcrd = append_native  # STCRD 明细（以前的名字）
 
 
+def with_salesman(row: dict, slmcod: str, fields) -> dict:
+    """销货明细行带上单头的销售员（``STCRD.SLMCOD``）：S 盘副本 1033 套里单头有销售员的销货单，明细行 1024 万行与单头相同、
+    约 4 千行空（11-12 只读统计）；没给销售员、账套没有这一栏都不动（同以前）。"""
+    if slmcod and "SLMCOD" in fields:
+        row = {**row, "SLMCOD": slmcod}
+    return row
+
+
 def unit_to_tqucod(unit: str) -> str:
     """OCR 单位 → Express TQUCOD(2 字符)。未识别返回 ''(留空,不乱填无效码)。"""
     return _UNIT_MAP.get((unit or "").strip().lower(), "")

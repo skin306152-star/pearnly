@@ -201,8 +201,9 @@ def write_stcrd_detail(
     posopr: str = S.STCRD_POSOPR,
     locations: Optional[List[Optional[str]]] = None,
     seqs: Optional[List[int]] = None,
+    slmcod: str = "",
 ) -> List[dict]:
-    """逐行 OCR 商品写 STCRD,按 item_mode 分发。返回逐行 mode 结果(供状态诚实化)。
+    """逐行 OCR 商品写 STCRD,按 item_mode 分发。``slmcod``:销货单头的销售员,明细行照原生也带(进货不传)。返回逐行 mode 结果(供状态诚实化)。
     ``locations``:载荷 4 的逐行仓库码(None = 主仓);这些行不动库存,不碰 STLOC。
     ``seqs``:这几行在整张单里的行号(混行单分段写时给,见 :func:`runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
     NETVAL 逐行求和已在云端对账闸 ≈ 税前额;此处只忠实落行。
@@ -235,7 +236,7 @@ def write_stcrd_detail(
             # 进货 RR / HP 记税前额(30 万行全是),销货 IV / HS 是 0(10.3 万行全是,售价只在 XSALVAL)——销货照直接科目行写
             costed = created is not None and posopr == S.STCRD_POSOPR_PURCHASE
             builder = S.stcrd_nonstock_row if costed else S.stcrd_detail_row
-            S.append_stcrd(t, dbf_fields.priced_line(
+            S.append_stcrd(t, S.with_salesman(dbf_fields.priced_line(
                 account_rules.localize_stcrd(account_dir, builder(
                     docnum,
                     seq,
@@ -250,7 +251,7 @@ def write_stcrd_detail(
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=posopr,
-                ), unit, stock_location.location_at(locations, seq - 1) or location), it, fields)
+                ), unit, stock_location.location_at(locations, seq - 1) or location), it, fields), slmcod, fields)
             )
             line_modes.append(
                 line_mode(
