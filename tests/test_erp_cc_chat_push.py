@@ -715,6 +715,22 @@ class LedgerGateTests(unittest.TestCase):
             self.assertEqual(call(tools.push_documents, documents=["S:SD-5"])["results"][0]["status"], "queued")
             self.assertEqual(CALLS, [("send", SALES, "SD-5")])
 
+    def test_a_question_left_by_the_web_is_prepared_again_in_the_conversation(self):
+        """网页按单据日期准备时停在要人选（同期两本选哪本，``ledger_needed`` 记着那一问）的单：对话里本对话账套已定，计划按它判过
+        能写，推的时候按本对话账套重新准备（`push.send`），不拿网页那一问回 needs_choice（11-12 流程 erp.cc.conversation-ledger
+        撞出：计划 ready、推回 needs_choice）。真还要人选，`push.send` 会照实再停下。没在对话里、本对话账套未定的照旧。"""
+        asked = [{"kind": "account_set", "subject": "year:2025-01-01",
+                  "options": [{"code": "BK8", "name": "T.8"}, {"code": "BK9", "name": "T.9"}]}]
+        doc(PURCHASE, "PUR-3", reason="choice_needed:account_set", needed=asked)
+        self.pin = {"status": "set", "key": "BK8", "label": "T.8", "options": []}
+        self.assertEqual(call(tools.push_documents, documents=["P:PUR-3"])["results"][0]["status"], "queued")
+        self.assertEqual(CALLS, [("send", PURCHASE, "PUR-3")])
+        CALLS.clear()
+        doc(PURCHASE, "PUR-3", reason="choice_needed:account_set", needed=asked)
+        self.pin = None
+        self.assertEqual(call(tools.push_documents, documents=["P:PUR-3"])["results"][0]["status"], "needs_choice")
+        self.assertEqual(CALLS, [])
+
     def test_the_tool_says_every_document_goes_into_the_conversation_account_set(self):
         push = next(t for t in tools.TOOLS if t["name"] == "erp_push_documents")
         self.assertIn("this conversation's account set, whatever its date", push["description"])
