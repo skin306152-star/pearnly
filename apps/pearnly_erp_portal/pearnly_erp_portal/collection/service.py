@@ -468,7 +468,7 @@ def card(name) -> dict:
 
 
 def release(name, version, consent) -> dict:
-    """放行（LINE【确认】/ 打「ยืนยัน / 确认 / ok」、CC「录吧」共用这一条）：``version`` 是确认卡展示的版本，``consent`` 是那次
+    """放行（LINE【确认】/ 打「ยืนยัน / 确认 / ok」、CC「写入」共用这一条）：``version`` 是确认卡展示的版本，``consent`` 是那次
     明确同意的事件（LINE 回调的事件号、CC 的用户消息序号），存进记录备查。
 
     回 ``{"status": "released", "card"}``；卡片之后改过 ``{"status": "changed", "version"}``（重新出卡）；不是草稿
