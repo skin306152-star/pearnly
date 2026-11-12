@@ -573,6 +573,7 @@ def _write_all(
                     depcod=depcod,
                     userid=userid,
                     acccod=getattr(entry, "stock_acccod", ""),
+                    slmcod=salesman,
                     **_located(locations, moves),
                     **numbered,
                 )
@@ -581,7 +582,7 @@ def _write_all(
             else:
                 line_modes += _write_stcrd_detail(
                     account_dir, docnum, docdat, entry, depcod, userid=userid, items=part, **_located(locations),
-                    **numbered,
+                    slmcod=salesman, **numbered,
                 )
 
     if has_vat:
@@ -660,7 +661,7 @@ def _write_all(
 
 def _write_stcrd_detail(
     account_dir, docnum: str, docdat, entry, depcod: str = "", userid: str = S.PEARNLY_USERID, locations=None,
-    items=None, seqs=None,
+    items=None, seqs=None, slmcod: str = "",
 ):
     """逐行写 STCRD(委托共用 dbf_detail·PEOPLE=客户码)。返回逐行 mode 结果。``items`` 不给用 ``entry.items``;
     ``seqs``:混行单分段写时这几行在整张单里的行号。"""
@@ -673,6 +674,7 @@ def _write_stcrd_detail(
         entry.items_account,
         depcod=depcod,
         userid=userid,
+        slmcod=slmcod,
         **_located(locations),
         **({"seqs": seqs} if seqs is not None else {}),
     )

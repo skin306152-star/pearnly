@@ -253,6 +253,7 @@ def write_stock_lines(
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
     seqs: Optional[List[int]] = None,
+    slmcod: str = "",
 ) -> Tuple[List[Dict], List[Tuple[str, str, str, Decimal]]]:
     """写库存明细行 + 扣 STMAS,返回 (逐行 mode 结果, COGS 分录行)。
     ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
@@ -263,6 +264,7 @@ def write_stock_lines(
     - 账里没这品(None)→ 建 STKTYP=0 档再卖成负,无成本基础(reason=new_item_no_cost_basis)。
     COGS 分录按 (COGS科目, 存货科目) 聚合:借 COGS 总额 / 贷 存货 总额(有成本的行才产生)。
     `acccod`=账套配置的存货科目组,只在账里一条库存品都没有、要建首个库存档时用得上。
+    ``slmcod``:单头的销售员,每行照原生也带。
     载荷 4(``stock_location``):``locations`` 逐行仓库码(None = 主仓),``moves`` 收集 STLOC 变动;都是 None 时同以前。
     """
     line_modes: List[Dict] = []
@@ -305,7 +307,8 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
+                S.append_stcrd(st, S.with_salesman(stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units), slmcod,
+                                                   st_fields))  # 明细行带单头销售员（照原生，11-12）
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 move_stmas(account_dir, item["stkcod"], -base, -cogs)
@@ -355,7 +358,8 @@ def write_stock_lines(
                         unit=units.unit,
                         depcod=depcod,
                     ), units.unit, stock_location.location_at(locations, seq - 1))
-                S.append_stcrd(st, stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units))
+                S.append_stcrd(st, S.with_salesman(stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units), slmcod,
+                                                   st_fields))  # 明细行带单头销售员（照原生，11-12）
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 move_stmas(account_dir, basis.stkcod, -base, -cogs)
