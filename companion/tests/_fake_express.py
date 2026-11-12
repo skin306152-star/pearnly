@@ -410,6 +410,11 @@ class FakeExpress:
             self.inject.pop(f"crash_on_save:{party}")
             self.dialog("smb", "ExpressI", r"Error -70 (90621) Reading File \\ACCSERVER\ACCOUNT\69EXP\TEST\STMAS.CDX")
             return
+        if self.inject.get("odd_mid_save") and not getattr(self, "odd_shown", False):
+            # 11-12 测试机2：服务品赊销单存档途中 Express 问销项税口径（配方没有这一条）：引擎认不出，单停在存档中途
+            self.odd_shown = True
+            self.dialog("odd", "ExpressI", "ภาษีขายของสินค้าบริการในที่นี้เป็นแบบ", buttons=("เกณฑ์สิทธิ", "เกณฑ์เงินสด"))
+            return
         if self.inject.get("basis_on_save") and not getattr(self, "basis_answered", False):
             # 10-29 实机：有服务品的赊购单存档途中问服务品进项税口径，答了才接着存
             self.dialog("basis", "ExpressI", "ภาษีซื้อของสินค้าบริการในที่นี้เป็นแบบ", buttons=("เกณฑ์สิทธิ", "เกณฑ์เงินสด"))
@@ -433,6 +438,8 @@ class FakeExpress:
                                        "AMT01": float(t["net"]), "VAT01": float(t["vat"])})
         self.head[self.docnum_label()] = docnum
         self.editing, self.focus = False, None
+        if self.inject.get("odd_after_save"):  # 存好之后又弹一个配方里没有的框（单已完整入库）
+            self.dialog("odd", "ExpressI", "ข้อความที่ไม่รู้จักหลังบันทึก")
 
     def _void(self) -> None:
         docnum = self.head.get(self.docnum_label(), "")
