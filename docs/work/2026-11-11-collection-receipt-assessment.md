@@ -333,3 +333,23 @@ NLTTEST 的 30 行收款类型（ISRUN DOCTYP=ZR）**没有一行被这条科目
 - 测试：`test_erp_collection_line.py` 29 条、`test_erp_collection.py` 40 条、实验栈 `test_line_intake` 102 条通过；本地同名闸门 222/222；实验栈受影响流程 32/32（含新 `erp.line.collection`、`erp.collections.refused`、导出流程加收款页）；GitHub Development checks 成功。文案 44 条四语，拦截 0、标黄 5。
 - **没测到 / 不通过**：自动冒烟 `erp.line.webhook-sim` 不通过（实验栈站点没配 LINE 凭据，取令牌先失败；同样事件在 `erp.line.collection` 流程里补令牌后全通），部署后在测试租户复跑；盘点 LIFF 相机行（只能真机）上线后补。
 - 部署后要做：重跑一次 `line_menu.publish()`（写 LINE 官方号）收款格才出现；三星真机 9 项。凭证发了又取消，私有凭证文件留着不删。实验栈 `pearnly-colline-lab` 已停、数据卷保留到合入后。
+
+## 第 5 步：NLTTEST 实写（11-12）
+
+用户 11-11 授权「可以，只限 NLTTEST」；主会话 11-12 批第 5 步与两处条件（69EXP 临时给 ERP、ERP-TEST 富菜单可发）。
+
+- 环境：测试机实验栈 erp，镜像 `b3adf474…`（线上），实时源码 `pearnly/collection-cc-chat` `71fe3fb2e`；`PEARNLY_TESTENV_REFRESH=1` 刷新线上 testerp（对生产三件事复用一条 SSH 连接、只握手一次）；实验栈 testerp 定时任务关闭。测试机 CC 1.12.20（进程 13968），配置备份哈希 `7D2EE159`，临时把位置 69EXP 也给 ERP、恢复 testerp 档案（改后哈希 `A5701F7B`）。
+- 隔离：69EXP 只报 7 本（Express 演示 DATAT、NLTTEST、Pearnly 测试 TEST / TEST2 等）；另两本对应的公司 CO-00100、CO-140489（线上早有，未新建任何公司）暂停用；NLTTEST 公司 CO-00146 2024 年度有两本（另一本 `S:\2567\EXP67\NLT67CL` 属离线旧电脑），按「同期多份选一次」选定 NLTTEST（`e8e8d6d7…`）；只对 NLTTEST 一本读主档（收款方式读回：现金、TR / TB / SC / KB / BB、折扣 DC）。驱动脚本每张写前硬核对账套路径以 `\NLTTEST` 结尾。
+- 写前备份：NLTTEST 的 ARTRN / ARRCPIT / ARRCPCQ / GLJNL / GLJNLIT / ARBAL / ARMAS / ISRUN 连 CDX（16 个文件）在测试机 `C:\PearnlyStress\_re1112\nlt_before`；69EXP 文件修改时间快照 3143 个。
+
+| # | 场景 | 收款记录 | RE 号 | 内容 |
+|---|---|---|---|---|
+| 1 | 纯现金 | COL261112-B500 | RE2403080 | 2119230，IV002401105 收 6540，现金 6540 |
+| 2 | 转账带凭证 | COL261112-F985 | RE2403081 | 2100883，IVP42400246 收 9442，BB 9442 |
+| 3 | 现金 + 转账 | COL261112-B7DD | RE2403082 | NLT6303018，IVP62400259 收 1860，现金 860 + BB 1000 |
+| 4 | 转账 + 折扣 | COL261112-F88B | RE2403083 | NLT6303018，IVP62400260 收 1443，TB 1440 + DC 3 |
+| 5 | 部分收款两张 | COL261112-FEC2 | RE2403084 | 2109537，IV002401108 收 834（收清）、IV002401110 收 5000（余 11938），TB 5834 |
+
+收款日均 2024-11-12（NLTTEST 年度 2024）。读回与写前备份逐表比对：只变了这 5 张该变的行——ARTRN 新增 5 个单头（RECTYP 9、DOCSTAT M、YOUREF = 收款记录号、现金进 CSHRCV、转账与折扣进 CHQRCV、IVCAMT = NETAMT）、6 张发票 RCVAMT / REMAMT / CMPLAPP / CMPLDAT；ARRCPIT 6 行；ARRCPCQ 5 行（BBRE2403081、BBRE2403082、TBRE2403083、DCRE2403083、TBRE2403084）；GLJNL 5 张（02）、GLJNLIT 12 行（现金 1111-00、BB 1113-01、TB 经银行主档 B1 取 1112-01、DC 4100-04，同科目合并，贷 1130-01）；ARBAL RE11 4 个客户；ARMAS.BALANCE 4 个客户；ISRUN RE 2403080 → 2403085；相关 CDX 都已重建。与原生单的小差异：GLJNL 制单人写 PEARNLY、不写制单日期 / 修改人，GLJNLIT 不写修改时间（不影响金额）。
+- 第 2 张第一次建草稿被拒（`invoice_not_found`）：那位客户的未收清发票还在读、快照里没有，属该拦的情况；读完后重写成功。
+- **性能发现**：CC 写一张 RE 210–235 秒（测试机→accserver：备份 45–62s、写 32–47s、重建索引约 52s、读回核对 46–66s）。LINE「20 秒内回 RE 号」做不到；一天约 150 张同一本账套串行约 9 小时。属共用写入路径问题，已报主会话建议按类提速。
