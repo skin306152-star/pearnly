@@ -381,7 +381,7 @@ paths = ["frontend/assistant/src/components/ui/alert.tsx", "frontend/assistant/s
 markers = ["@/components/ui/alert\"", "@/components/ui/alert-dialog\"", "@/components/ui/attachment\"", "@/components/ui/avatar\"", "@/components/ui/badge\"", "@/components/ui/bubble\"", "@/components/ui/button\"", "@/components/ui/button-group\"", "@/components/ui/card\"", "@/components/ui/checkbox\"", "@/components/ui/code-block\"", "@/components/ui/collapsible\"", "@/components/ui/dropdown-menu\"", "@/components/ui/empty\"", "@/components/ui/field\"", "@/components/ui/input\"", "@/components/ui/input-group\"", "@/components/ui/item\"", "@/components/ui/kbd\"", "@/components/ui/label\"", "@/components/ui/marker\"", "@/components/ui/message\"", "@/components/ui/native-select\"", "@/components/ui/popover\"", "@/components/ui/progress\"", "@/components/ui/questionnaire\"", "@/components/ui/radio-group\"", "@/components/ui/select\"", "@/components/ui/separator\"", "@/components/ui/sheet\"", "@/components/ui/spinner\"", "@/components/ui/switch\"", "@/components/ui/table\"", "@/components/ui/tabs\"", "@/components/ui/textarea\"", "@/components/ui/toggle\"", "@/components/ui/toggle-group\"", "@/components/ui/trace\""]
 search = ["frontend/assistant/src/**"]
 entries = ["cc.assistant"]
-not_entries = { "frontend/assistant/src/kit/gallery.tsx" = "开发用展示页（kit.html），只在开发服务器与 CC_KIT=1 构建里，不进生产" }
+not_entries = { "frontend/assistant/src/kit/gallery.tsx" = "开发用展示页（kit.html），只在开发服务器与 CC_KIT=1 构建里，不进生产", "frontend/assistant/src/kit/guided.tsx" = "引导式录入的界面预览（kit.html?page=guided），只在开发用展示页里，不进生产；施工时界面落到产品组件并登记入口" }
 
 [[part]]
 id = "cc-composer"

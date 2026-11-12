@@ -45,7 +45,7 @@ function Frame({ name, children }: { name: Frame; children: ReactNode }) {
   );
 }
 
-// 输入框上方的业务菜单：与「录吧」同一行、同一种按钮；选中的一项变实底并带「×」
+// 输入框上方的业务菜单：与「写入」同一行、同一种按钮；选中的一项变实底并带「×」
 function Menu({ chosen }: { chosen?: "purchase" }) {
   if (chosen) {
     return (
