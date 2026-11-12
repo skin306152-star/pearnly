@@ -38,6 +38,8 @@ class _LedgerProvider(base._Provider):
         self.calls.append((ref, period, scope, user))
         if self.broken:
             raise RuntimeError("catalog")
+        if ref in getattr(self, "unused", ()):
+            return None  # 这家不用本对话账套（ERP 不接 Express 的公司）
         options, default = self.books.get((ref, period), ([], ""))
         return {"options": [{"id": key, "label": label, "covers": covers} for key, label, covers in options],
                 "default": default}
@@ -101,8 +103,12 @@ class LedgerTests(unittest.TestCase):
         self.assertIsNone(self.ledger.current(self.row))
         self.assertIn("Assistant ledger options failed", self.logged)
         self.provider.broken = False
+        # 产品声明了、但这家不用本对话账套（ERP 不接 Express 的公司回 None）：当作没有，说明里也不叫 CC 问账套
+        self.provider.unused = {"co_abc1"}
+        self.assertIsNone(self.ledger.current(self.row))
+        self.provider.unused = set()
         plain = base._Provider()
-        sys.modules["fake_company_provider"] = plain  # 没声明 LEDGER（ERP 现在、DMS）
+        sys.modules["fake_company_provider"] = plain  # 没声明 LEDGER（DMS）
         self.assertIsNone(self.ledger.current(self.row))
         self.assertEqual(self._ledger_writes(), [])
 
