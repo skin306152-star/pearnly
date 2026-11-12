@@ -63,3 +63,48 @@
 
 - 工作树 `.claude/worktrees/express-write-speed-20761e` 现在检出的是本分支；评估文档那一支 `pearnly/express-write-speed-20761e` 已在远端 `094f28e29`。
 - 本机临时测试环境在会话临时目录，随会话清。
+
+## 测试机真机实测清单（发版前必须全过；主会话排时间后执行）
+
+只用测试套：`\\accserver\d$\ACCOUNT\70EXP\test`（或 `69EXP\TEST`），下文记作 `<套>`；真客户账套一律不碰。先登记测试机占用表；accserver 21:00 前；测试机上以 skin3 跑脚本用隐藏窗口。
+
+**准备**
+1. 构建：`gh workflow run companion-build.yml --ref pearnly/express-busy-probe`，跑完 `gh run download <运行编号>` 取 `CC-Setup.exe`（版本 1.12.21，产物留 1 天）。先**不装**，第 A 组用现在装着的旧版。
+2. 服务端：`PEARNLY_TESTENV_SRC=<本分支工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start cowork`（ERP 同样起一套），测试租户 testcowork / testerp；确认 `<套>` 在 CC 的可写账套里，且这家公司只对应这一本。
+3. 无人值守的单怎么来：Cowork 定时任务 / 文件夹录入往 `<套>` 推一张（服务端给的 `attended` 为假）；CC 日志里这张单不出现询问框即是。准备 3 张小额采购票备用。
+4. 哈希脚本（前后各跑一次，存两份对比）：
+   ```powershell
+   $d='\\accserver\d$\ACCOUNT\70EXP\test'
+   Get-ChildItem $d -File | Where-Object { $_.Name -ne 'PEARNLY.LCK' } | Get-FileHash -Algorithm SHA256 | Select-Object Hash,@{n='Name';e={Split-Path $_.Path -Leaf}} | Sort-Object Name | Export-Csv C:\PearnlyStress\_open1112\hash_<标签>.csv -NoTypeInformation
+   ```
+   比较：`Compare-Object (Import-Csv hash_a.csv) (Import-Csv hash_b.csv) -Property Name,Hash`，没有输出 = 一个字节没变。
+
+**A 组：旧行为定性（旧版 CC + 旧服务端或新服务端均可；只做一次）**
+- A1 用服务器版 Express 打开 `<套>`，停在主界面。触发一张无人值守的单。看 `companion.log` 的 `[timing]`：应出现 `rolled_back`。
+- A2 在 A1 那一轮进行中（日志出现 backup 之后），在 Express 里保存一张赊购单 X。等 CC 这一轮结束。
+- A3 判定并如实记录三选一：①Express 里 X 还在、且数据完整；②X 不见了（整文件覆盖成功，抹掉了别人的单）；③CC 回滚报错 / 表里留下半张我们的单（覆盖被系统拒绝）。在 Express 里重新打开 X、跑一次应付明细表核对。记下 `companion.log` 对应片段。
+- A 组做完，在 Express 里作废或保留 X 都行（测试套），记单号。
+
+**B 组：新版（装 1.12.21，以 skin3 普通权限重启 CC；服务端为本分支）**
+- B1 Express 开着 `<套>` → 跑哈希 a → 触发无人值守的单 → 等 2 分钟 → 跑哈希 b。**断言**：哈希无差异；`companion.log` 有「the account set is open in Express, nothing touched」、没有 `[timing]`；本机备份目录 `%LOCALAPPDATA%\Pearnly\write-backups` 没有新目录；托盘「正在等待 Express 释放账套…」；日志里这张单约每 30 秒出现一次。
+- B2 B1 等待期间在 Express 里保存一张单 Y → 断言 Y 在、可重新打开；之后 CC 写成的那张也在。
+- B3 关闭 Express → **断言**：60 秒内写进去（记从关闭到 `✓ dbf task` 的秒数），Express 重新打开能看到这张单，读回一致（回执 verify ok）。
+- B4 另一本测试套同时有一张单排着：`<套>` 在等时它照常写进去（不被挡）。
+- B5 有人值守：Express 开着 → 网页手动推一张 → 弹框照旧；关 Express 点「重试」→ 写入（记点击到写成的秒数，最长约 30 秒 + 写入时间）。
+- B6 Express 没开：采购、销售、库存单、调拨、作废、收款各写一张，与以前一致（单号、读回、Express 里打开）。
+- B7 「探测后 Express 才打开」：Express 关着触发一张单，日志出现 backup 后立刻用 Express 打开 `<套>`。如实记录结果（写成 / 等账套并回滚）与文件状态；这是已知未解决的窗口，不作为通过条件，只留证据。
+- B8 探测前提：Express 打开 `<套>` 停在主界面、打开单据窗口、最小化三种状态下，各用 `is_account_busy` 等价的方式试一次（PowerShell：`[IO.File]::Open("$d\ISRUN.DBF",'Open','Read','None')` 应抛共享冲突）。任何一种状态能独占打开 = 探测不可靠，**不发版**并报主会话。
+- B9 ERP 通道重复 B1、B3 各一次（testerp，往 `<套>` 推一张无人值守的单）。
+
+**收尾**：`testenv.sh lab-stop`、flushdns、CC 以 skin3 普通权限重启、释放占用表；记录每张写进去的单号。结果逐条填「通过 / 不通过 / 没测到（原因）」写回本文件。
+
+## 发版顺序与部署记录要写的
+
+1. 合入 main 后先部署服务端（`scripts/production/deploy.sh`，先 `--dry-run`）。部署后旧版 CC 也按 30 秒间隔重试，别的账套不再被挡。
+2. 紧接着从 main 发 CC 桌面版 1.12.21（`companion/README.md`「发布」：先 staging 再推标签 `companion-v1.12.21`）。1.12.20 的内容（收款 RE 等，未发布过）会随这一版一起出去，发之前确认它们的服务端一侧已上线。
+3. 部署记录写明：**旧版 CC 在升级前，Express 开着账套时每 30 秒仍会「备份 → 写 → 回滚」一轮**。发版后回读各租户电脑的 CC 版本（控制面 / 心跳里的 `companion_version`），低于 1.12.21 的逐台列出，直到清零。
+4. 回退：服务端回上一个发布标记；CC 旧版仍可用（接口没变）。
+
+## 给用户的风险说明（大白话）
+
+现在线上，凡是「没人守在电脑前」的写入——定时任务、文件夹自动录入、自动推送，以及录单的人没在那台电脑上登录过 CC 的单——如果正赶上有人开着同一本账套的 Express，CC 会先备份、写入，写到最后一步才发现 Express 占着，于是把刚才备份的整张表盖回去。**如果这几秒到几分钟里，Express 里的人正好保存了一张单，这张单可能被一起盖掉（消失）**，而且以前 CC 会一轮接一轮地重试，Express 开着多久就重复多久。有人守着电脑手动推的单不受影响（会先弹框问）。修复上线前的避开办法：定时任务和自动推送排在没人用 Express 的时段（下班后），或者推送前先关掉这本账套的 Express；白天要推就在装 CC 的那台电脑上手动推。目前没有收到客户丢单的反馈，这是读代码并在模拟账套上复现出来的，真机上的实际表现要等测试机验证。
