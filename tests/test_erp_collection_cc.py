@@ -51,6 +51,7 @@ class Base(T.Base):
         self.turn, self.stopped, self.attached = [0], [None], {}
         self.company = ["CO-1"]
         self.ledger = [self.ledger_of(T.BOOK)]
+        self.express_open = [False]
         frappe.local.pearnly_assistant = {"session_id": SESSION, "may_wait": False}
         sessions = types.ModuleType("pearnly_core.assistant.sessions")
         sessions.user_turn = lambda sid: self.turn[0]
@@ -72,6 +73,9 @@ class Base(T.Base):
             mock.patch.object(cc_tools, "_company", side_effect=lambda: self.company[0]),
             # 本对话账套（共用层 `assistant.ledger`，A 线 11-12）：这段对话此刻的那一本
             mock.patch("pearnly_core.assistant.ledger.of_session", side_effect=lambda sid=None: self.ledger[0]),
+            # 共用通道的「在等 Express 关闭」（express-wait-display 11-12 的约定，未合入前用替身）
+            mock.patch("pearnly_core.cc_desktop.jobs.book_express_wait", create=True,
+                       side_effect=lambda key, moment=None: {"waiting": self.express_open[0], "since": None}),
         ]
         for patch in patches:
             patch.start()
@@ -181,6 +185,7 @@ class Flow(Base):
         pushed = self.call(cc_tools.push, document=made["document"])
         self.assertEqual(pushed["status"], "queued")
         self.assertIn("erp_collection_status", pushed["note"])
+        self.assertNotIn("express_wait", pushed)
         row = self.record(made["name"])
         self.assertEqual((row.status, row.consent_ref), ("queued", f"cc:{SESSION}:1"))
         self.assertEqual(len(self.jobs.rows), 1)
@@ -374,6 +379,16 @@ class ConversationBook(Base, T.TwoBooks):
         planned = self.plan_of(made["document"])
         self.assertEqual(planned["status"], "nothing_to_write")
         self.assertEqual(planned["skipped"][0]["reason"], "collection.book_not_conversation")
+
+
+class ExpressOpen(Base):
+    def test_a_queued_collection_waiting_for_express_tells_cc_why(self):
+        self.express_open[0] = True
+        made = self.make("600")
+        self.agreed(made["document"])
+        pushed = self.call(cc_tools.push, document=made["document"])
+        self.assertEqual((pushed["status"], pushed["express_wait"]), ("queued", True))
+        self.assertIn("written automatically once Express is closed", pushed["note"])
 
 
 if __name__ == "__main__":

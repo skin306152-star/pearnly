@@ -8,6 +8,7 @@
   记录上、改进快照；服务品现金制的发票 CC 也回 ``[INVOICE_NOT_FOUND]``（证据 ``problem="cash_basis_vat"``），照原因记失败；
   这两种都按客户再读一次）；
   撤掉 → 撤回的保持已撤回，其余记失败。
+- 排队中 / 写入中不记原因：在等 Express 关闭由读的时候算（`service.express_waiting`），不另推送说原因。
 - 写成 / 失败后告诉录入的人：LINE 录的经 `integrations.line_collection.notify`（提交之后排的短任务；放行后在后台等结果的那一个
   还在等就由它回复，否则推送给收款员本人）。
 """
@@ -126,7 +127,9 @@ def job_changed(view):
             _refresh(doc)
         _tell(doc)
         return
-    values["reason"] = str(view.get("reason") or "")[:500]  # 排队里的原因（等账套、CC 桌面版要更新……）照实记
+    # 排队中 / 写入中：原因码不抄到收款记录上（排队里的 ``ACCOUNT_BUSY_LOCKED`` 等抄过来，记录就像失败了）。在不在等 Express 关闭
+    # 读的时候问共用通道（`service.express_waiting`，`cc_desktop.jobs.express_wait_many` / `book_express_wait`，11-12）
+    values["reason"] = ""
     _set(name, values)
 
 

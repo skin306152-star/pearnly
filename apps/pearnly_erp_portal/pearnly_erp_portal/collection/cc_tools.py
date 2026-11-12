@@ -44,6 +44,8 @@ NOT_READY_NOTE = ("Not ready to record yet: problem says what is missing (vouche
                   "of the transfer slip in this conversation, then erp_collection_voucher). Tell the user in plain words.")
 CHANGED_NOTE = ("The collection changed after it was said back, so it was not recorded: show it again with "
                 "erp_collection_card, say it back again and wait for the user's reply.")
+EXPRESS_OPEN_NOTE = (" Express has this account set open on the computer that writes it: it is written automatically once "
+                     "Express is closed. Tell the user that.")
 LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not decided yet, so nothing was saved. Ask the "
                       "user once with ask_user which account set to record collections in (one question, each option "
                       "label exactly the label of one of allowed_account_sets), set it with pearnly_conversation_ledger "
@@ -280,6 +282,8 @@ def push(tool_input) -> str:
         out["reason"] = view["reason"]
     elif result == QUEUED:
         out["note"] = QUEUED_NOTE
+        if service.express_waiting(name):  # 这本账套此刻在等 Express 关闭（共用通道读的时候算）
+            out.update(express_wait=True, note=QUEUED_NOTE + EXPRESS_OPEN_NOTE)
     return _json(out)
 
 
