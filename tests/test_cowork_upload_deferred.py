@@ -6,6 +6,7 @@
 """
 import importlib.util
 import pathlib
+import io
 import sys
 import types
 import unittest
@@ -39,7 +40,7 @@ def _load(service_create):
     frappe.db = types.SimpleNamespace(rollback=lambda: calls.__setitem__("rollback", calls["rollback"] + 1))
     content = b"%PDF-1.4 bill"
     frappe.request = types.SimpleNamespace(files={"file": types.SimpleNamespace(
-        filename="bill.pdf", stream=types.SimpleNamespace(read=lambda size: content))})
+        filename="bill.pdf", stream=io.BytesIO(content))})  # 同真的上传流：读到结尾回 b""（11-12 起按块落盘）
     modules = {
         "frappe": frappe,
         "frappe.core": types.ModuleType("frappe.core"),
