@@ -323,6 +323,19 @@ class PlanGateTests(base.PushModule):
         self.assertEqual(conversation._TASK.get(), "")
 
 
+    def test_an_operator_hand_in_prepares_again_a_document_the_web_left_on_a_choice(self):
+        # 测试机1 11-12 按类查全（ERP 代录交单）：网页按日期停在「同期两本选哪本」（held、choice_needed:account_set、没写账件）的单，
+        # 代录交单照样按任务会话的本对话账套重新准备，不因网页那一问停下
+        fake.STATE.db.table("Purchase Document")["PUR-1"].update(
+            ledger_state=E.HELD, ledger_reason="choice_needed:account_set", ledger_job=None, ledger_book=None,
+            ledger_needed='[{"kind": "account_set", "subject": "year:2025-01-01"}]')
+        seen = []
+        with mock.patch.object(self.push, "_prepare_body", lambda doctype, company, body: seen.append(
+                conversation._TASK.get()) or ({"hold": E.READING, "book": {}}, None, None)):
+            frappe.local.pearnly_assistant = None
+            self.push.send("Purchase Document", "PUR-1", operator={"id": "b1", "task": "TK1"})
+        self.assertEqual(seen, ["TK1"])
+
 class PrintedTotalTests(base.Base):
     """B3：对话里改票面合计只改数，不当场推（推送交回计划）；网页照旧当场重新写账。"""
 
