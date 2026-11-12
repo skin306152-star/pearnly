@@ -345,6 +345,18 @@ class CrossComputerTests(_Ledger):
         self._pushed()
         self.assertEqual((self.submitted[0][1], self.submitted[0][5]), ("EXP1", UNC))
 
+    def test_a_document_queued_on_the_picked_place_waits_there_when_that_computer_drops(self):
+        # 挑中的那台（测试机2）领单前掉线：单子留在它那条连接上等，不改派到另一处（另一条连接有自己的写者锁，改派会让同一张单
+        # 在两处排队、可能写两次）；再推回 already_pending，不另交
+        self._pushed()
+        self.assertEqual(self.submitted[0][1], "EXP2")
+        vars(self.doc).update(last_push_status="pending", push_connection="EXP2", push_account_set=MAPPED)
+        self.serving = ("EXP1", UNC)  # 测试机2 掉线、测试机1 在线
+        self.submitted.clear()
+        out = self._pushed()
+        self.assertEqual(out["status"], "already_pending")
+        self.assertEqual(self.submitted, [])
+
     def test_an_old_id_stored_before_still_names_the_book(self):
         self.ledger = {**self.ledger, "id": "EXP2|" + MAPPED}
         pin = write_scope.pinned()
