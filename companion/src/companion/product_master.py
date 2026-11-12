@@ -562,12 +562,11 @@ _STOCK_TYPE = stock_lookup.STOCK_TYPE
 # COGS/收入科目联动键(与非库存不同:非库存自建 ISACC 简单映射,库存直接复用真库存品的 ST 段
 # 映射,拿到正确的存货/成本科目)。品名/编码/余额(全 0)/审计另行覆写。
 # 单位/类别列 **不在**克隆之列:模板只是「挂众数存货科目的那一行」,它的单位/类别是那一行商品
-# 的属性,不是这套账的默认 —— 改从账套众数取(见 stock_defaults)。换算**系数**仍克隆模板。
+# 的属性,不是这套账的默认 —— 改从账套众数取(见 stock_defaults)。
+# 换算系数(CFACTOR / PFACTOR / SFACTOR)也不克隆:新建的档四个单位列是同一个码,系数只能是 1;照抄模板那一行会抄来它的包装系数
+# (例:模板计数单位「箱 = 20」→ 新品四个单位都是「袋」、计数系数却是 20;覆盖表 G-B1,11-12)。见 _NEW_ITEM_FACTORS。
 # NEGALLOW 不在克隆之列 —— 它不是「结构」而是「这个品准不准卖成负」的策略,见下。
 _STOCK_CLONE_FIELDS = (
-    "CFACTOR",
-    "PFACTOR",
-    "SFACTOR",
     "VATCOD",
     "STKLEV",
     "STKCLASS",
@@ -577,12 +576,14 @@ _STOCK_CLONE_FIELDS = (
     "ACCCOD",
 )
 
-# 我们自动建的库存品一律允许负库存(Express 字段 ส/ค ติดลบได้? ∈ {Y,N,A})。
-# 理由:这些品按设计**就是**要被卖成负的(新建品当次销售没有成本基础,规则是"没档就建、
-# 没货卖负、没成本不结转")。档上却写着"不许负",数据状态与商品档策略自相矛盾 —— 会计事后
-# 在 Express 界面上动这个品时会被 GUI 拦住,而拦的正是我们自己写进去的库存。
-# 只作用于**我们新建**的档;客户既有商品的策略一律不碰(那是人家的账,不擅改)。
-_NEG_ALLOW_YES = "Y"
+# 新建库存品的「允许负库存」(Express 字段 ส/ค ติดลบได้? ∈ {Y,N,A},STMAS.NEGALLOW)留空 = 跟账套设置(ISINFO.NEGALLOW),
+# 同 Express 自己新建物料的样子(本机 SINCTEST:库存品 41 件里 34 件是空、7 件 Y、没有 N)。
+# 以前一律写 Y(理由是「新品当次就要卖成负」),等于替账套改了规矩:账套不许负库存时这件新品照样能卖成负——Express 自己不让写的
+# 负数(覆盖表 G-B6,主会话 11-12 定稿:对所有入口生效;销货随单新建的行由 ``stock_guard`` 按结存 0 一起核)。
+# 载荷 21 的行可以带 ``negallow``(空 / Y / N)指定;已建成 Y 的档不回改,客户既有物料的选项一律不碰。
+_NEG_ALLOW_FOLLOW_BOOK = ""
+# 新建库存品四个单位列同码,三个换算系数写 1(本机 SINCTEST:四个单位同码的 29 件库存品里 28 件三个系数都是 1)
+_NEW_ITEM_FACTORS = {"CFACTOR": 1.0, "PFACTOR": 1.0, "SFACTOR": 1.0}
 
 
 def find_stock_item_code(account_dir: Path, name: str, *, exempt: Optional[bool] = None) -> Optional[str]:
@@ -660,8 +661,12 @@ def ensure_stock_item(
     acccod: str = "",
     code: str = "",
     exempt: Optional[bool] = None,
+    stkgrp: str = "",
+    negallow: str = _NEG_ALLOW_FOLLOW_BOOK,
 ) -> StockItem:
     """find-or-create 真库存商品主档(STKTYP=0),返回 StockItem。已在备份-回滚事务内调用。
+
+    ``stkgrp`` / ``negallow``(载荷 21 的行键):新建时写这个分类 / 「允许负库存」(空 = 跟账套);不给 = 分类取账套众数、允许负库存留空。
 
     「选库存」但客户账里没这品时用:建一条 **0 余额** 的真库存目录档(克隆同账套真库存品的结构
     + 库存/成本科目联动),让商品出现在 Express 库存目录、且日后进货可复用/走 V2-b。全新品当次
@@ -709,15 +714,17 @@ def ensure_stock_item(
             "CREDAT": today,
             "CHGDAT": today,
             "STATUS": "",  # 商品 STATUS 一律空白(写 'A' 反被 Express 商品列表过滤掉)
-            "NEGALLOW": _NEG_ALLOW_YES,  # 这个品按设计就是要卖成负的 · 见常量处
+            "NEGALLOW": (negallow or _NEG_ALLOW_FOLLOW_BOOK).strip().upper(),  # 空 = 跟账套 · 见常量处
         }
     )
     # 单位在真账套里是四列联动的:70EXP 162 个库存品 QUCOD==CQUCOD==PQUCOD==SQUCOD 无一例外。
     # 只改 QUCOD 会造出真账里不存在的形状(主档单位 พค、采购/销售单位却是模板那行的 กง),
-    # 正是 unit_code 那条"主档与卡片自相矛盾"的旧伤。换算系数不跟着动,克隆模板的 1.0。
+    # 正是 unit_code 那条"主档与卡片自相矛盾"的旧伤。四列同码,换算系数一律 1(不抄模板的,见 _NEW_ITEM_FACTORS)。
     row.update({f: qucod for f in ("QUCOD", "CQUCOD", "PQUCOD", "SQUCOD")})
-    if defaults.stkgrp:  # 取不到就不写,交 DBF 用列默认(别把 '' 塞进去当"填过了")
-        row["STKGRP"] = defaults.stkgrp
+    row.update(_NEW_ITEM_FACTORS)
+    group = (stkgrp or "").strip() or defaults.stkgrp
+    if group:  # 取不到就不写,交 DBF 用列默认(别把 '' 塞进去当"填过了")
+        row["STKGRP"] = group
     if exempt:  # 免税行要的库存品(10-29 真实语料:生鲜等免税行的库存品主档 VATCOD '0'):建成免税的
         row["VATCOD"] = EXEMPT_VATCOD
     elif exempt is False and row.get("VATCOD") == EXEMPT_VATCOD:

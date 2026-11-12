@@ -319,7 +319,7 @@ def write_stock_entry(
         locations = stock_location.plan(account_dir, payload)
     except stock_location.LocationError as exc:
         return DbfWriteResult(False, error_code=ERR_LOCATION, error=str(exc))
-    short = stock_guard.shortages(account_dir, _guard_items(doctype, items), locations) or new_item_shortages(
+    short = stock_guard.shortages(account_dir, _guard_items(doctype, items), locations, new_rows=False) or new_item_shortages(
         account_dir, items, found, lambda item: kind == ISSUE or _dec(item.get("qty")) < 0, str(payload.get("loccod") or ""))
     if short:
         return DbfWriteResult(False, error_code=stock_guard.ERR_STOCK_INSUFFICIENT, error=stock_guard.message(short))
@@ -379,7 +379,7 @@ def _creatable(item) -> bool:
 def new_item_shortages(account_dir, items, found, reduces, header_loc="") -> List[Dict[str, Any]]:
     """要新建的行（``found`` 里留空）里减少库存的（``reduces(item)``）：账套不许负库存时，新建的存货结存是 0，写下去必成负数，建档前
     就停，原因同结存核对（``stock_guard.message``）；允许负库存的账套照建照写（主会话 11-01：账套设了不许负库存，就不能替它写成负数）。
-    （建档本身照采购 / 销售记 NEGALLOW = Y；商品级标记管的是以后的单，这里按账套的设置判。）"""
+    （建档本身照采购 / 销售「允许负库存」留空 = 跟账套，11-12；这里按账套的设置判。）"""
     pending = [item for item, match in zip(items, found) if match is None and reduces(item)]
     if not pending or stock_guard.negative_allowed(account_dir):
         return []

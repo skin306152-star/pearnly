@@ -56,6 +56,9 @@ ITEM_MODE = "stock_sale"  # 本模块处理的 item_mode(逐行 line_modes 也�
 REASON_STANDARD_COST = "standard_cost"  # 卖成负库存,按 STMAS.STNPR 标准成本结转
 REASON_NO_COST = "no_cost_basis"  # 有档但零/负库存且无标准成本 → 未结转 COGS
 REASON_NEW_ITEM = "new_item_no_cost_basis"  # 本次新建档 + 无成本基础 → 未结转 COGS
+# 载荷 21（引导录入）：这一行没有成本基础，人在引导卡上填了单位成本（行键 cost_choice = given、cost）→ 按它结转，写法同按标准成本结转
+REASON_COST_GIVEN = "cost_given"
+COST_GIVEN = "given"
 NO_COST_REASONS = (REASON_NO_COST, REASON_NEW_ITEM)  # 「当期毛利虚高」的捞回口径
 
 
@@ -195,11 +198,14 @@ def _sale_basis(
     unit: str,
     userid: str,
     acccod: str,
+    line: Optional[Dict] = None,
 ) -> _SaleBasis:
     """② 有档没货 → 读标准成本;③ 账里没这品 → 建档,全新品没有任何成本基础一律 0。
 
     成本只认账里已经有的事实:绝不拿售价倒推、绝不套默认成本 —— 宁可当期不结转,也不编。
+    ``line``:这一行(载荷 21 的行键 acccod / stkgrp / negallow 只在新建档时用;版本 ≤ 20 的行上没有)。
     """
+    line = line or {}
     if item:
         cost = standard_cost(account_dir, item["stkcod"])
         return _SaleBasis(
@@ -212,7 +218,8 @@ def _sale_basis(
             reason=REASON_STANDARD_COST if cost > 0 else REASON_NO_COST,
         )
     made = product_master.ensure_stock_item(
-        account_dir, name, userid=userid, unit=unit, acccod=acccod
+        account_dir, name, userid=userid, unit=unit, acccod=str(line.get("acccod") or acccod),
+        stkgrp=str(line.get("stkgrp") or ""), negallow=str(line.get("negallow") or ""),
     )
     return _SaleBasis(
         made.stkcod,
@@ -225,6 +232,12 @@ def _sale_basis(
         made.unit_guessed,
         made.unit_code,
     )
+
+
+def _acccod_of(account_dir: Path, stkcod: str) -> str:
+    """这件库存品档上挂的科目组(刚随单新建的品:起点结存里没有它,按人填的成本结转时到档上取)。"""
+    rows = stock_lookup.find_rows_by_code(account_dir, stkcod, (stock_lookup.STOCK_TYPE,))
+    return str(rows[0]["acccod"]) if rows else ""
 
 
 def write_stock_lines(
@@ -301,15 +314,25 @@ def write_stock_lines(
                     str(cogs)
                 )
                 line_modes.append(
-                    dbf_detail.line_mode(seq, name, item["stkcod"], mode=ITEM_MODE)
+                    # 有正结存:照移动均价结转,人填的单位成本不用(回执标 cost_ignored)
+                    dbf_detail.line_mode(seq, name, item["stkcod"], mode=ITEM_MODE,
+                                         cost_ignored=it.get("cost_choice") == COST_GIVEN)
                 )
             else:
                 # ②③ 没货可扣:照卖,卖成更负(负结存在真账里是常态)。成本只按账里已有的
                 # 事实结转,没有就不结转 —— 编一个成本出来,毛利就是假的。
                 basis = _sale_basis(
-                    account_dir, item, name, unit=unit, userid=userid, acccod=acccod
+                    account_dir, item, name, unit=unit, userid=userid, acccod=acccod, line=it
                 )
-                cost = basis.unit_cost
+                cost, reason, cost_ignored = basis.unit_cost, basis.reason, False
+                if it.get("cost_choice") == COST_GIVEN:
+                    # 载荷 21:没有成本基础(新建的物料;结存 ≤ 0 且没有标准成本)的行按人填的每库存单位成本结转,写法同标准成本那一支;
+                    # 账里有标准成本的照标准成本,人填的不用
+                    if cost > 0:
+                        cost_ignored = True
+                    else:
+                        cost = float(Decimal(str(it.get("cost") or "0")))
+                        reason = REASON_COST_GIVEN if cost > 0 else reason
                 units = stock_units.resolve(account_dir, basis.stkcod, unit, qty, it.get("factor"))
                 base = float(units.base_qty)
                 cogs = _q2(base * cost) if cost > 0 else 0.0
@@ -337,14 +360,14 @@ def write_stock_lines(
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
                 move_stmas(account_dir, basis.stkcod, -base, -cogs)
                 if cogs:
-                    inv_acc, cogs_acc = stock_accounts(account_dir, basis.acccod)
+                    inv_acc, cogs_acc = stock_accounts(account_dir, basis.acccod or _acccod_of(account_dir, basis.stkcod))
                     key = (cogs_acc, inv_acc)
                     cogs_by_pair[key] = cogs_by_pair.get(key, Decimal("0")) + Decimal(
                         str(cogs)
                     )
                 # 诚实线:绝不静默 —— 未结转成本的行进 warning(会计要能在推送日志里一眼捞出
                 # 当期毛利虚高的单),带标准成本的负库存出货是常态,记 info 即可。
-                write_log = log.warning if basis.reason in NO_COST_REASONS else log.info
+                write_log = log.warning if reason in NO_COST_REASONS else log.info
                 write_log(
                     "负库存出货 %s 行%d「%s」:结存 %s→%s · 单位成本 %s · %s",
                     docnum,
@@ -353,7 +376,7 @@ def write_stock_lines(
                     basis.bal,
                     new_bal,
                     cost,
-                    basis.reason,
+                    reason,
                 )
                 line_modes.append(
                     dbf_detail.line_mode(
@@ -361,10 +384,11 @@ def write_stock_lines(
                         name,
                         basis.stkcod,
                         mode=ITEM_MODE,
-                        reason=basis.reason,
+                        reason=reason,
                         created=basis.created,
                         unit_guessed=basis.unit_guessed,
                         unit_code=basis.unit_code,
+                        cost_ignored=cost_ignored,
                     )
                 )
     finally:

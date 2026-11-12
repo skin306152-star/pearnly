@@ -83,6 +83,7 @@ def line_mode(
     created: bool = False,
     unit_guessed: bool = False,
     unit_code: str = "",
+    cost_ignored: bool = False,
 ) -> dict:
     """逐行回执(`line_modes`)的唯一构造口 —— 非库存/卖库存/进库存三条路共用。
 
@@ -91,7 +92,7 @@ def line_mode(
     三处各拼一份 dict,漏一个键就是推送日志上少一条标注、还不报错 —— 故收成一个函数。
     改键名必须连着改主站那侧,否则字段名对不上=标记静默消失。
     """
-    return {
+    row = {
         "seq": seq,
         "name": name,
         "mode": mode,
@@ -101,6 +102,10 @@ def line_mode(
         "unit_guessed": unit_guessed,
         "unit_code": unit_code,
     }
+    if cost_ignored:
+        # 载荷 21:这一行带了人填的单位成本,但账里有成本基础(正结存的移动均价 / 标准成本),没用它。只在发生时带这个键
+        row["cost_ignored"] = True
+    return row
 
 
 def line_numbers(items: list, seqs: Optional[List[int]] = None) -> List[int]:

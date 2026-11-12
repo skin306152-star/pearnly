@@ -131,8 +131,11 @@ def write_stock_in_lines(
                 name,
                 userid=userid,
                 unit=unit,
-                acccod=acccod,
+                # 载荷 21 的行键（``guided``；版本 ≤ 20 的行上没有）：这一行自己的科目组盖过整单的，分类、允许负库存照行上给的
+                acccod=str(it.get("acccod") or acccod),
                 code=str(it.get("code") or ""),
+                stkgrp=str(it.get("stkgrp") or ""),
+                negallow=str(it.get("negallow") or ""),
             )
             stkcod = made.stkcod
             # 别写回 acccod:那是「建新档用哪个科目组」的入参,逐行循环里覆盖它会让第二行
