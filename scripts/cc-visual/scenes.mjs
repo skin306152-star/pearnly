@@ -243,6 +243,10 @@ export const SCENES = [
   S("company-all-sets", "/assistant?c=sesn_a1", both([["click", '[data-slot="cc-company-all-sets"]', 0], ["wait", 300]],
     [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-all-sets"]', 0], ["wait", 300]]),
     { init: FAKE(COMPANY_PROJECTS) }),
+  // 右栏公司卡「ชุดบัญชี」点开：本对话账套的下拉（手机从胶囊菜单里的公司名打开右栏）
+  S("company-ledger", "/assistant?c=sesn_a1", both([["click", '[data-slot="cc-company-ledger"]', 0], ["wait", 400]],
+    [["click", ".cc-mpill button", 1], ["click", ".cc-menu-item", 0], ["wait", 600], ["click", '[data-slot="cc-company-ledger"]', 0], ["wait", 400]]),
+    { init: FAKE(COMPANY_PROJECTS), expect: MENU }),
   // 侧栏公司组头「···」：上半段这家的改名等，下半段分组和排序（手机长按组头）
   S("group-company-menu", "/assistant", both([["hover", '[data-slot="cc-project"]', 0], ["click", '[data-slot="cc-project"] .cc-group-more', 0], ["wait", 400]],
     [...DRAWER, ["longpress", '[data-slot="cc-project"] .cc-group-toggle', 0], ["wait", 400]]), { init: FAKE(COMPANY_PROJECTS), expect: MENU }),
