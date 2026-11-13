@@ -196,6 +196,14 @@ def run(doctype, name, document):
                                              ensure_ascii=False)
     else:
         values["ledger_needed"] = None
+    if frappe.db.get_value(doctype, name, "status") == "void":
+        # 导入那几十秒里单据在 ERP 作废了（11-13）：导入成的不记成干净的「已写入」，转人工、单号如实留着（同 Express 已领走的）；
+        # 没导入成的清账本栏；结果不明的照旧交人核
+        if values["ledger_state"] == express_contracts.WRITTEN:
+            values.update(ledger_state=express_contracts.HELD, ledger_reason=express_contracts.VOIDED_AFTER_WRITE,
+                          ledger_needed=None)
+        elif not values["ledger_reason"].startswith(contracts.UNKNOWN):
+            values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
     _set(doctype, name, values)
     frappe.db.commit()
 

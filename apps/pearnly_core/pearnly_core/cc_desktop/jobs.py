@@ -35,6 +35,7 @@ FIELDS = ("name", "request_key", "source_doctype", "source_name", "label", "acto
           "status", "route_device", "attempt", "fence", "lease_device", "lease_expires_at", "last_device", "docnum",
           "stage", "reason", "verify_state", "verify_json", "written_by_device", "written_at", "meta_json", "creation", "modified")
 LOST = "cc_desktop.result_unknown"
+VOIDED = "voided"  # 产品说这件不要了（来源单据已作废，`products.still_wanted`），领单前撤掉；同产品作废时撤的原因
 OUTDATED = "payload_version_outdated"
 
 
@@ -349,6 +350,12 @@ def _claim(context, request, moment):
             continue
         if not devices.issuer_valid(doc.actor):
             doc.update({"status": "manual", "reason": "cc_desktop.actor_not_allowed", "stage": "needs_review"})
+            documents.persist(doc)
+            products.job_changed(view(doc.as_dict()))
+            continue
+        if not products.still_wanted(view(doc.as_dict())):
+            # 领单前兜底（11-13）：来源单据排队后作废、撤写账件那一步没接上的路径，也不交给电脑写
+            doc.update({"status": "cancelled", "reason": VOIDED, "route_device": None})
             documents.persist(doc)
             products.job_changed(view(doc.as_dict()))
             continue

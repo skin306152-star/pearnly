@@ -17,6 +17,15 @@ def allowed(user) -> bool:
     return guard.has("sales.write", user=user) or guard.has("purchase.write", user=user)
 
 
+def still_wanted(view) -> bool:
+    """领单前兜底（共用层 ``still_wanted``）：收款记录照旧；单据交给 `push.still_wanted`。"""
+    if view.get("source_doctype") == "ERP Collection":
+        return True
+    from pearnly_erp_portal.express import push
+
+    return push.still_wanted(view)
+
+
 def job_changed(view):
     if view.get("source_doctype") == "ERP Collection":
         from pearnly_erp_portal.collection import push as collection_push

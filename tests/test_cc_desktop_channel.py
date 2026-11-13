@@ -182,6 +182,18 @@ class Queue(Base):
                          ("success", "IV691023-001", "ok"))
         self.assertEqual(self.ack(self.office, job["job"]), {"ok": True, "status": "success", "idempotent": True})
 
+    def test_a_job_the_product_no_longer_wants_is_cancelled_instead_of_leased(self):
+        """领单前兜底（11-13 作废单）：产品声明了 ``still_wanted`` 且说这件不要了（来源单据已作废）——不交给电脑，撤掉、原因 voided，
+        产品收到状态；没声明的站点照旧领。"""
+        fake.STATE.hooks["pearnly_cc_desktop"]["still_wanted"] = ["t.wanted"]
+        fake.STATE.attrs["t.wanted"] = lambda view: view["source_name"] != "SD-VOID"
+        gone = self.enqueue(name="SD-VOID")
+        self.assertEqual(self.lease(self.office)["jobs"], [])
+        self.assertEqual((self.changes[-1]["job"], self.changes[-1]["status"], self.changes[-1]["reason"]),
+                         (gone["job"], "cancelled", "voided"))
+        kept = self.enqueue(name="SD-2")
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [kept["job"]])
+
     def test_the_codes_each_line_used_reach_the_product(self):
         job = self.enqueue()
         self.lease(self.office)

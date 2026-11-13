@@ -277,6 +277,27 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual(payload["histories"][0]["fields"]["posting_payment_manual"], "credit")
         self.assertEqual(payload["histories"][0]["fields"]["posting_item_type_manual"], "goods")
 
+    def test_a_document_voided_while_importing_is_not_recorded_as_a_clean_write(self):
+        """11-13：领单之后、MR.ERP 导入那几十秒里单据在 ERP 作废——导入成功的转人工、原因「作废后写进了」、单号如实留着；
+        没导入成的清账本栏（不再显示排队 / 失败）。"""
+        from pearnly_erp_portal.express import contracts as E
+
+        for outcome, expected in (({"status": "success", "docnum": "PG691113-000001"},
+                                   ("held", E.VOIDED_AFTER_WRITE, "PG691113-000001")),
+                                  ({"status": "failed", "reason": "boom"}, (None, "", None))):
+            reset()
+            doc(ledger_state="queued", ledger_target="mrerp")
+
+            def voided_meanwhile(*args, outcome=outcome):
+                DB.table(PURCHASE)["PUR-1"]["status"] = "void"
+                return {**outcome, "menus": {}, "masters": {}}
+
+            with _Module(outcome):
+                sys.modules["pearnly_core.mrerp.push.execute"].execute = voided_meanwhile
+                push.run(PURCHASE, "PUR-1", document)
+            saved = DB.table(PURCHASE)["PUR-1"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected)
+
     def test_a_cash_purchase_stops_mrerp_only_imports_credit(self):
         doc(ledger_state="queued", ledger_target="mrerp", paid=True)
         with _Module({"status": "success"}):

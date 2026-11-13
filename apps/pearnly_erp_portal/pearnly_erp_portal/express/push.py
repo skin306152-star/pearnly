@@ -639,6 +639,17 @@ def _follow_up(doctype, name, state, values) -> None:
         frappe.log_error(title="Push follow-up failed")
 
 
+def still_wanted(view) -> bool:
+    """电脑领单前问一次（11-13 作废单兜底）：来源单据已在 ERP 作废的写账件不要了（作废时撤写账件那一步没接上的路径也挡住）；
+    「照 Express 原生作废原单」那一件照写。别的（收款、找不到单据）一律要，由原来的回执处理。"""
+    doctype, name = view.get("source_doctype"), view.get("source_name")
+    if doctype not in DIRECTIONS or not name:
+        return True
+    if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
+        return True
+    return frappe.db.get_value(doctype, name, "status") != "void"
+
+
 def job_changed(view):
     """共用写账队列里这张单有了新状态（同一事务里叫）：记回单据；第一次写进去后排一次主档同步（库存按 Express 对齐）。"""
     doctype, name = view.get("source_doctype"), view.get("source_name")
@@ -646,6 +657,10 @@ def job_changed(view):
         return
     if str(view.get("request_key") or "").startswith(stock_entry.VOID_REQUEST):
         _void_changed(view)  # 作废那一件：记在作废栏上，写入时的单号与状态不动
+        return
+    if view.get("status") == "cancelled" and frappe.db.get_value(doctype, name, "status") == "void":
+        # 单据作废后撤掉的那件（作废时撤、或领单前兜底 `still_wanted`）：清账本栏，不记成「失败」（11-13）
+        _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
     before = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_docnum"], as_dict=True)
     before.company = company_of(doctype, name)

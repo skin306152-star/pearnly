@@ -321,6 +321,10 @@ def set_status(name, target, reason=None, receive_stock=None):
         doc.void_reason = reason
         doc.voided_at = now()
     doc.save()
+    if target == contracts.VOID:
+        from pearnly_erp_portal.express import push as express_push
+
+        express_push.void("Purchase Document", doc.name)  # 旧单作废同样撤还没写进 Express 的写账件（同 `entry._cancel`，11-13）
     if target == contracts.SUBMITTED:
         _post_stock(doc, receive_stock=receive_stock)
         from pearnly_erp_portal.express import push as express_push

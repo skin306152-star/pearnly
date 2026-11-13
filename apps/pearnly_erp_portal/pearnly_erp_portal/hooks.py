@@ -373,6 +373,8 @@ pearnly_cc_desktop = {
     "job_changed": "pearnly_erp_portal.express.desktop.job_changed",
     # 电脑报来的账套名单变了：按账套自动建公司、排主档同步（`express.companies`）
     "books_changed": "pearnly_erp_portal.express.companies.books_changed",
+    # 领单前兜底：来源单据已作废的写账件撤掉、不交电脑（11-13）
+    "still_wanted": "pearnly_erp_portal.express.desktop.still_wanted",
     # express_ar_open（11-11 收款）：一本账套的未收清发票（共用层接受这一种由 CC 桌面版那一批加）
     "kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"],
 }

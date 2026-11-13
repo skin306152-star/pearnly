@@ -1167,6 +1167,46 @@ class PurchaseSalesVoid(PushModule):
         self.assertIn('express_push.void("ERP Sales Document"', sales_cancel)
 
 
+class VoidedSourceGuard(PushModule):
+    """领单前兜底（11-13）：来源单据已作废的写账件不再交给电脑（`desktop.still_wanted` → `push.still_wanted`），作废原单那一件照写；
+    旧单（非 v2）在 `service.set_status` 作废也撤写账件。"""
+
+    def test_a_voided_source_is_not_wanted_but_its_void_job_is(self):
+        for doctype in ("Purchase Document", "ERP Sales Document", "ERP Stock Entry"):
+            table = fake.STATE.db.table(doctype)
+            table["D-9"] = {"name": "D-9", "status": "void"}
+            self.assertFalse(self.push.still_wanted({"source_doctype": doctype, "source_name": "D-9",
+                                                     "request_key": "erp:D-9"}), doctype)
+            table["D-9"]["status"] = "submitted"
+            self.assertTrue(self.push.still_wanted({"source_doctype": doctype, "source_name": "D-9",
+                                                    "request_key": "erp:D-9"}), doctype)
+        table = fake.STATE.db.table("ERP Stock Entry")
+        table["D-9"]["status"] = "void"
+        self.assertTrue(self.push.still_wanted({"source_doctype": "ERP Stock Entry", "source_name": "D-9",
+                                                "request_key": self.push.stock_entry.VOID_REQUEST + "D-9"}))
+        self.assertTrue(self.push.still_wanted({"source_doctype": "ERP Collection", "source_name": "C-1"}))
+
+    def test_the_cancel_of_a_voided_source_clears_the_ledger_columns(self):
+        # 领单前撤掉的那件回到产品：单据已作废，账本栏清空（同作废时撤），不记成「失败」
+        table = fake.STATE.db.table("Purchase Document")
+        table["D-8"] = {"name": "D-8", "status": "void", "ledger_state": "queued", "ledger_job": "J8",
+                        "ledger_docnum": "", "ledger_reason": ""}
+        self.push.job_changed({"source_doctype": "Purchase Document", "source_name": "D-8", "status": "cancelled",
+                               "reason": "voided", "job": "J8", "request_key": "erp:D-8"})
+        self.assertEqual((table["D-8"]["ledger_state"], table["D-8"]["ledger_job"], table["D-8"]["ledger_reason"]),
+                         (None, None, ""))
+
+    def test_the_old_status_path_and_the_hook_are_wired(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal/pearnly_erp_portal"
+        service = (root / "purchasing/service.py").read_text(encoding="utf-8")
+        body = service[service.index("def set_status("):service.index("def _post_stock(")]
+        self.assertIn('express_push.void("Purchase Document", doc.name)', body)
+        self.assertLess(body.index("doc.save()"), body.index('express_push.void("Purchase Document"'))
+        hooks = (root / "hooks.py").read_text(encoding="utf-8")
+        self.assertIn('"still_wanted": "pearnly_erp_portal.express.desktop.still_wanted"', hooks)
+
+
 class StockVoid(PushModule):
     """B 段 ①：已写进 Express 的出入库单在 ERP 作废 → 排一件作废原单；回执记在作废栏上，写入时的单号和状态不动。"""
 

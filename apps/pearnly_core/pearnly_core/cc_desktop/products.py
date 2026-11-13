@@ -5,6 +5,7 @@
         "job_changed": "<点路径>",    # (job: dict) -> None：一件写账有了新状态（同一事务里叫，产品把单号 / 原因写回自己的单据）
         "kinds": ["express_masters"], # 这个站点会请电脑做的按需请求种类
         "books_changed": "<点路径>",  # (device) -> None：可选；一台电脑报来的账套名单有了变化（同一事务里叫，产品排后台任务）
+        "still_wanted": "<点路径>",   # (job: dict) -> bool：可选；领单前问一次这件还要不要写（来源单据已作废回 False，撤掉不交电脑）
         # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条，可选；两项都声明才算支持，没声明回 unsupported）：
         "mrerp_login_scope": "<点路径>",    # (user, connection) -> "site" | "local" | ""：管理员 site（写站点 + 存本机）、
                                             # 使用成员 local（只存本机）、别人空串（主会话 11-02 定）
@@ -47,6 +48,12 @@ def job_changed(view: dict) -> None:
     path = _path("job_changed")
     if path:
         frappe.get_attr(path)(view)
+
+
+def still_wanted(view: dict) -> bool:
+    """领单前兜底：产品说这件不要了（如来源单据已作废）回 False；没声明一律要。"""
+    path = _path("still_wanted")
+    return bool(frappe.get_attr(path)(view)) if path else True
 
 
 def books_changed(device: str) -> None:
