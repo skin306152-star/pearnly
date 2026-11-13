@@ -21,6 +21,7 @@
   "period",
   "project_scope",
   "project_ledger",
+  "business",
   "project_noted",
   "operator_task",
   "user_turn",
@@ -133,6 +134,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "business",
+   "fieldtype": "Select",
+   "label": "Business",
+   "options": "\npurchase\nsales\ncollection",
+   "read_only": 1
+  },
+  {
    "fieldname": "project_noted",
    "fieldtype": "Data",
    "label": "Filed Note Digest",
@@ -163,7 +171,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-12 12:00:00.000000",
+ "modified": "2026-11-13 11:30:58.179751",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Session",

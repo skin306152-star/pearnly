@@ -52,6 +52,12 @@ def _translate(built: Dict[str, Any]) -> Dict[str, Any]:
         question["title"] = _text(question["title_key"], params) or str(params.get("label") or "")
         for option in question.get("options") or ():
             option["label"] = option.get("name") or _text(option.get("label_key") or "", {}) or option["code"]
+            if not option.get("note"):
+                # 说明行：推荐来由 / 这个选项是什么（文字键按顺序，翻得到的第一个）；都没有就不出说明行
+                found = next((text for text in (_text(key, {}) for key in option.get("note_keys") or ()) if text), "")
+                if found:
+                    option["note"] = found
+            option.pop("note_keys", None)
     for item in built["decided"]:
         item["source_label"] = _text(item.get("source_key") or "", {})
         item["title"] = _text(f"guide.q.{item['kind']}", {"label": item.get("label") or "",

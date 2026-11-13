@@ -48,9 +48,9 @@ GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，
 ORDERED_MAX = 300  # 第一页按组里手排的先后一并给的最多这么多条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted",
-          "operator_task", "project_ledger"]
+          "operator_task", "project_ledger", "business"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
-               "project_scope", "operator_task", "project_ledger"]
+               "project_scope", "operator_task", "project_ledger", "business"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
 FILED = ["is", "set"]
 # 两种模式（统一对话框架 14.8）：代录会话 = operator_task 不为空；列表按 mode 筛（chat / operator，不带 = 全部）
@@ -132,7 +132,8 @@ def _summary(row, status=None, unread=False) -> dict:
             "archived_at": _when(row.modified) if row.archived else None, "unread": bool(unread),
             "project": row.get("project") or "", "period": row.get("period") or "",
             "scope": row.get("project_scope") or "", "mode": "operator" if row.get("operator_task") else "chat",
-            "task": row.get("operator_task") or "", "ledger": row.get("project_ledger") or ""}
+            "task": row.get("operator_task") or "", "ledger": row.get("project_ledger") or "",
+            "business": row.get("business") or ""}
 
 
 def _tool_runs(row, ids) -> dict:
@@ -649,6 +650,20 @@ def move(session_id, project, period=None, scope=None, ledger_id=None) -> dict:
                     **({} if kept is None else {"ledger": kept}))
     return {"id": row.session_id, "project": target, "period": period, "scope": scope,
             **({} if kept is None else {"ledger": kept})}
+
+
+def set_business(session_id, business) -> dict:
+    """本对话业务（输入框上方的业务菜单，引导式录入第 1 期）：只动本人的会话；``business`` 要在这个产品 × 这个模式声明的清单里
+    （`guided.offered`），"" = 取消。只是记下（这一批上传的票默认按它定方向、占位文字按它换），不改最后活动时间。"""
+    from pearnly_core.assistant import guided
+
+    row = owned(session_id)
+    business = str(business or "").strip()
+    mode = "operator" if row.get("operator_task") else "chat"
+    if business and business not in guided.offered().get(mode, []):
+        frappe.throw(_("Invalid request"))
+    frappe.db.set_value(SESSION, row.name, "business", business, update_modified=False)
+    return {"id": row.session_id, "business": business}
 
 
 FILED_UNDER = "filed"

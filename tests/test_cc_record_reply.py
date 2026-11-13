@@ -93,7 +93,8 @@ process.stdout.write("HARNESS OK\n", () => process.exit(0));
 class RecordReplySourceTests(unittest.TestCase):
     def test_it_sits_above_the_composer_as_a_kit_button(self):
         thread = read("components/assistant-ui/thread.tsx")
-        self.assertIn("<ApprovalSheet />\n            <RecordQuickReply />\n            <Composer />", thread)
+        # 引导式录入第 1 期：业务菜单与「写入」同一行（同一刻只出一种），排在它后面，有意变化
+        self.assertIn("<ApprovalSheet />\n            <RecordQuickReply />\n            <BusinessMenu />\n            <Composer />", thread)
         reply = block(thread, "const RecordQuickReply: FC = () => {")
         self.assertIn('import { Button } from "@/components/ui/button";', thread)
         self.assertIn("const shown = useRecordOffered();", reply)

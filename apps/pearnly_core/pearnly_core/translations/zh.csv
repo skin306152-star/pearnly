@@ -90,10 +90,12 @@ Bound At,绑定时间
 Branch {0},分支机构 {0}
 Branches {0},分店 {0}
 Builder,生成方式
+Business,业务
 Business Key,业务键
 Business number,业务编号
 Buyer,买方
 Buyer Tax ID,买方税号
+By rule,按规则判断
 Bytes,字节数
 CC Desktop,CC 桌面版
 CC Desktop authentication failed.,CC 桌面版认证失败。
@@ -136,6 +138,7 @@ Checkpoints,检查点
 Choose a plan,选择套餐
 Choose document menu,选择单据菜单
 Choose the company in Express,请在 Express 中选择公司
+Chosen before and remembered,上次选过并记住
 Claim,抵扣
 Claiming a push job requires a connection,领取推送任务时必须指定连接
 Click to sort by {0},点击按 {0} 排序
@@ -208,6 +211,7 @@ Counterparty Tax ID,对方税号
 Cowork Admin,Cowork 管理员
 Cowork Intake,Cowork 录入
 Create a new {0},新建{0}
+Create it in Express,在 Express 新建
 Created At,创建时间
 Created: {0},已录入：{0}
 Credit,赊账
@@ -359,6 +363,8 @@ Fiscal year,年度
 Flow Status,流程状态
 For an inbound document the counterparty tax ID cannot be your own,进项单据的对方税号不能与本公司税号相同
 Frappe Light,Pearnly 主题
+From Express history,按 Express 历史单据
+From the document type,按票种判断
 Full Name,姓名
 Gender,性别
 Goods,货品
@@ -370,6 +376,7 @@ Guests are not allowed to upload files for {0} Doctype,访客不能为 {0} 上�
 Guide,使用教程
 HTTP Status,HTTP 状态
 Head Office,总部
+"Header and journal only, no stock",只记表头与分录，不入库
 Home,首页
 Home (Subscription & Billing),首页（订阅与计费）
 How each push to the external ERP went,推送到外部 ERP 的过程与结果
@@ -515,6 +522,7 @@ Not enough stock,库存不够
 Not linked,未绑定
 Not signed in,未登录
 Not subscribed,未订阅
+Not written this time,本次不写入
 Note,备注
 Notes,备注
 Nothing to save,没有需要保存的更改
@@ -646,6 +654,8 @@ Recognized {0}/{1} pages · {2}%,已识别 {0}/{1} 页 · {2}%
 Recognizing,识别中
 Reconcile documents against the ledger,单据与账套的对账
 Reconciliation,对账中心
+Recorded as a cash purchase or sale,记为现购 / 现销
+Recorded as a credit purchase or sale,记为赊购 / 赊销
 Records,记录明细
 Reference,单号
 Reference DocType,业务单据类型
@@ -757,6 +767,7 @@ Subtotal,小计
 Succeeded,成功
 Success / failure,成功 / 失败
 Successes,成功次数
+Suggested from past entries,按往来记录建议
 Summary,摘要
 Supplier,供应商
 Supplier / customer,供应商 / 客户
@@ -1083,6 +1094,13 @@ connect.title,连接 DMS
 connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+guide.desc.detail.amount_only,只记表头与分录，不入库
+guide.desc.detail.skip,本次不写入
+guide.desc.document_policy.skip,本次不写入
+guide.desc.item.__new__,在 Express 新建
+guide.desc.party.__new__,在 Express 新建
+guide.desc.payment.cash,记为现购 / 现销
+guide.desc.payment.credit,记为赊购 / 赊销
 guide.option.detail.amount_only,只记金额
 guide.option.detail.skip,不写入
 guide.option.direction.expense,费用
@@ -1126,6 +1144,13 @@ guide.source.face,票面
 guide.source.pinned,来源单据
 guide.source.remembered,记住的
 guide.source.task_default,任务默认
+guide.why.book_setting,账套设置
+guide.why.express_history,按 Express 历史单据
+guide.why.history,按 Express 历史单据
+guide.why.payment.rule,按票种判断
+guide.why.remembered,上次选过并记住
+guide.why.rule,按规则判断
+guide.why.suggested,按往来记录建议
 home.balance.title,账户余额
 home.balance.used,本月已用 {0} 页 · 套餐 {1} 本周期剩余 {2} 页
 home.balance.usedNoPlan,本月已用 {0} 页 · 按量计费

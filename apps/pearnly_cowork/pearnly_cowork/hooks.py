@@ -716,3 +716,6 @@ pearnly_write_precheck = {
 # MR.ERP 一侧按本产品的连接直读 MR.ERP 列表（D 线 11-11，`push.mrerp.ledger_check`）
 pearnly_ledger_check = {"express": "pearnly_cowork.readback.ledger_check.check",
                         "mrerp": "pearnly_cowork.push.mrerp.ledger_check.check"}
+
+# CC 输入框上方的业务菜单（引导式录入第 1 期，评估 docs/work/2026-11-12-cc-guided-entry.md 6.1、12 节第 3 问）：这个产品 × 这个模式真能做的业务
+pearnly_guide_businesses = {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]}

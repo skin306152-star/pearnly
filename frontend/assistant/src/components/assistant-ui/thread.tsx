@@ -16,7 +16,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 import { usePush } from "@/lib/push";
 import { touchOnly } from "@/lib/touch";
-import { dayLabel, lang, st, steps, t } from "@/i18n";
+import { dayLabel, guide, lang, op, st, steps, t } from "@/i18n";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -41,6 +41,9 @@ import {
   FileSpreadsheetIcon,
   SquareIcon,
   XIcon,
+  ShoppingCartIcon,
+  TagIcon,
+  WalletIcon,
 } from "lucide-react";
 import { fileUrl } from "@/lib/managed-agents/api";
 import { clearPending, lastSendAt, pendingLanded, setDraft, takeHandoff, usePendingSend } from "@/lib/managed-agents/pending-send";
@@ -57,6 +60,8 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { type Business, chooseBusiness, loadOffered, useBusiness, useBusinessCarry, useCurrentBusiness } from "@/lib/business";
+import { useModePlace } from "@/lib/nav";
 import {
   createContext,
   useContext,
@@ -186,6 +191,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
             <SendFailure />
             <ApprovalSheet />
             <RecordQuickReply />
+            <BusinessMenu />
             <Composer />
           </ThreadPrimitive.ViewportFooter>
         </div>
@@ -375,6 +381,51 @@ const RecordQuickReply: FC = () => {
   );
 };
 
+const BUSINESS_ICONS: Record<Business, typeof ShoppingCartIcon> = { purchase: ShoppingCartIcon, sales: TagIcon, collection: WalletIcon };
+const businessLabel = (business: Business) => (business === "collection" ? guide.collection : op.group[business]);
+
+/** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1）：与「写入」同一行、同一种按钮，同一刻只出一种——有写入计划在等时出「写入」，
+ *  在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式真能做的（服务端 businesses，产品声明）；选中的一项实底带「×」，点了取消。
+ *  不是必经之路：没点也照常上传（评估 6.3）。选的记在会话上（新建页先记本页，会话建好补交）。 */
+// map: guide-menu
+const BusinessMenu: FC = () => {
+  const offered = useBusiness((s) => s.offered);
+  const mode = useModePlace((s) => s.mode);
+  const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
+  const running = useAuiState((s) => s.thread.isRunning);
+  const record = useRecordOffered();
+  const current = useCurrentBusiness(sessionId) as Business | "";
+  useBusinessCarry(sessionId);
+  useEffect(() => void loadOffered(), []);
+  const list = offered?.[mode] ?? [];
+  if (record || running || !list.length) return null;
+  if (current && list.includes(current)) {
+    const Icon = BUSINESS_ICONS[current];
+    return (
+      <div data-slot="cc-quick-replies" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
+        <Button variant="secondary" size="sm" aria-pressed onClick={() => chooseBusiness(sessionId, "")}>
+          <Icon />
+          {businessLabel(current)}
+          <XIcon />
+        </Button>
+      </div>
+    );
+  }
+  return (
+    <div data-slot="cc-quick-replies" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
+      {list.map((business) => {
+        const Icon = BUSINESS_ICONS[business];
+        return (
+          <Button key={business} variant="outline" size="sm" onClick={() => chooseBusiness(sessionId, business)}>
+            <Icon />
+            {businessLabel(business)}
+          </Button>
+        );
+      })}
+    </div>
+  );
+};
+
 /** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
  *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距），样子是共用的 .cc-scroll-btn（V70）；在底部时组件库把它禁用，
  *  这里藏起来（visibility: hidden：读屏读不到、Tab 走不到）。读屏名写在 aria-label 上（第 11 轮 C21：只靠按钮里的隐藏文字时属性是空的）。 */
@@ -403,7 +454,10 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   useDraftKeeper();
   // 新对话问「今天能帮你做什么」，对话里就是「回复…」（同 Claude）；打开已有对话、消息还在加载时也已经是「回复…」
   const hasMessages = useAuiState((s) => s.thread.messages.length > 0 || !!s.threadListItem.remoteId);
-  const placeholder = fixed ?? (hasMessages ? t("reply") : t("placeholder"));
+  // 选了业务（输入框上方的业务菜单）：占位字换成按业务的一句，上传就用输入框本来的入口（评估 6.1，用户 11-12：选了业务后不出上传卡）
+  const businessId = useAuiState((s) => s.threadListItem.remoteId ?? null);
+  const business = useCurrentBusiness(businessId) as Business | "";
+  const placeholder = fixed ?? (business ? guide.placeholder[business] : hasMessages ? t("reply") : t("placeholder"));
   // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
   // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
   const [typing, setTyping] = useState(false);
