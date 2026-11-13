@@ -209,6 +209,22 @@ def skipped(tool_input) -> str:
     return json.dumps({"status": "skipped", "answered": 0, "writable": [], "held": held}, ensure_ascii=False)
 
 
+def stored_card(session_id: str, tool_use_id: str) -> Dict[str, Any]:
+    """页面取这次引导卡（服务端出卡前存进执行记录的输入，`toolrun.execute`）：只认本人、本对话、这一次 pearnly_guide 调用。
+    页面拿到的调用参数是模型给的 ``{company, doc_ids}``，卡在这里取。没有回空卡。"""
+    from pearnly_core.assistant import sessions
+
+    row = sessions.owned(session_id)
+    found = frappe.db.get_value(TOOL_RUN, {"session_id": row.session_id, "tool_use_id": str(tool_use_id or ""),
+                                           "user": frappe.session.user, "tool": TOOL}, "tool_input")
+    try:
+        stored = json.loads(found or "{}")
+    except ValueError:
+        stored = {}
+    return {"card": stored.get("card") or {"questions": [], "decided": []},
+            "company_title": stored.get("company_title") or ""}
+
+
 def _guide_waiting() -> bool:
     session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
     return bool(session and frappe.db.exists(TOOL_RUN, {"session_id": session, "tool": TOOL,
@@ -230,4 +246,4 @@ def refuse_ask(tool_input) -> str | None:
 
 
 __all__ = ["ASK_REFUSED", "GUIDE_WAITING", "NOTHING_TO_ASK", "REFUSED_INSTRUCTION", "TOOL", "check", "prepare", "refuse_ask",
-           "result", "skipped"]
+           "result", "skipped", "stored_card"]

@@ -18,6 +18,7 @@ import uuid
 from cc_lib import JS
 from cowork_operator_lib import BASE, CLEANUP
 
+TYPED = "5300 运费"
 TITLE = "CC 对话里的通用提问卡片 ask_user：出题、推荐项默认选中、翻页、「其他」走服务端搜索、提交后服务端记下与模型收到的结果、刷新后是答过的摘要"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 REPLY = "[lab-agent] ask_user "
@@ -48,7 +49,8 @@ print(json.dumps({{"company": company["id"], "doc": name}}, default=str))
         {"question": f"{tag} Flow seller 的运费记到哪个科目？", "header": "费用科目", "multiSelect": False, "options": [
             {"label": "5300 Expense (推荐)", "description": "这家供应商以往都记这里"},
             {"label": "5310 Other", "description": "名称相近的科目"}],
-         "search": {"company": out["company"], "doc_id": out["doc"], "kind": "accounts"}},
+         # 不带科目搜索：带业务搜索的题（科目 / 物料 / 对方）现在由服务端拒、改由引导卡 pearnly_guide 出（引导式录入第 1 期，cowork.cc.guide 测）
+         },
     ]
     return {**out, "ref": ref, "tag": tag, "questions": questions, "cases": []}
 
@@ -75,11 +77,11 @@ def steps(params, camera_code=None):
          "return {two, back: read()};"},
         {"name": "下一步到第 2 项", "js": head + "const n=" + CARD + "?.querySelector('[data-slot=\"cc-askq-next\"]'); n?.click(); await sleep(400); "
          "return read();"},
-        {"name": "其他走搜索", "js": head + "const o=" + CARD + "?.querySelector('[data-slot=\"cc-askq-other-option\"]'); if(!o) return {error:'no other'}; o.click(); "
-         "const found=await until(()=>qa('[data-slot=\"cc-askq-choice\"]').length>0,120); "
-         "const choices=qa('[data-slot=\"cc-askq-choice\"]').map(e=>e.innerText.trim()); const pick=qa('[data-slot=\"cc-askq-choice\"]')[0]; pick?.click(); "
-         "await sleep(300); const now=read(); return {listed: found, choices, picked: pick?.innerText.trim()||'', input: q('[data-slot=\"cc-askq-other\"] input')?.value||'', "
-         "selected: pick?.getAttribute('aria-selected'), next: now.next};"},
+        {"name": "其他自己填", "js": head + "const o=" + CARD + "?.querySelector('[data-slot=\"cc-askq-other-option\"]'); if(!o) return {error:'no other'}; o.click(); "
+         "await until(()=>q('[data-slot=\"cc-askq-other\"] input'),120); const box=q('[data-slot=\"cc-askq-other\"] input'); "
+         f"const set=Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set; set.call(box, {json.dumps(TYPED)}); "
+         "box.dispatchEvent(new Event('input',{bubbles:true})); await sleep(300); const now=read(); "
+         "return {listed: !!box, picked: box?.value||'', input: q('[data-slot=\"cc-askq-other\"] input')?.value||'', next: now.next};"},
         {"name": "提交", "js": head + "const n=" + CARD + "?.querySelector('[data-slot=\"cc-askq-next\"]'); if(!n) return {error:'no submit'}; n.click(); "
          "const done=await until(()=>" + CARD + "?.querySelector('[data-slot=\"cc-ask-answer\"]'),160); "
          # 回复是流式出来的：等到结果原文整段是一个完整的 JSON 再取
@@ -108,7 +110,7 @@ def _result(reply: str) -> dict:
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    first, paged, second, other, sent, again = (by.get(k) or {} for k in ("出题", "翻页", "下一步到第 2 项", "其他走搜索", "提交", "刷新后"))
+    first, paged, second, other, sent, again = (by.get(k) or {} for k in ("出题", "翻页", "下一步到第 2 项", "其他自己填", "提交", "刷新后"))
     q1, q2 = params["questions"]
     labels = [o.get("label") for o in first.get("options") or []]
     got = _result(sent.get("reply") or "")
@@ -133,10 +135,9 @@ def judge(params, results, camera_code=None):
          and [o.get("checked") for o in (paged.get("back") or {}).get("options") or []] == [True, False]},
         {"case": "「下一步」到最后一题，主按钮变「提交」", "seen": second,
          "ok": second.get("question") == q2["question"] and (second.get("next") or {}).get("text", "").startswith("提交")},
-        {"case": "「其他」去服务端搜这张单的账套科目表，选一条后能提交", "seen": other,
-         "ok": bool(other.get("listed")) and other.get("choices", [])[:1] == ["5300 Freight"] and bool(other.get("picked"))
-         and other.get("selected") == "true" and not (other.get("next") or {}).get("disabled")},
-        {"case": "提交后模型收到的工具结果：第一题选推荐的账套，第二题「其他」是选的那条「编码 名称」", "seen": {"reply": sent.get("reply"), "picked": other.get("picked")},
+        {"case": "「其他」自己填一句，填了就能提交", "seen": other,
+         "ok": bool(other.get("listed")) and other.get("input") == TYPED and not (other.get("next") or {}).get("disabled")},
+        {"case": "提交后模型收到的工具结果：第一题选推荐的账套，第二题「其他」是填的那句", "seen": {"reply": sent.get("reply"), "picked": other.get("picked")},
          "ok": bool(sent.get("replied")) and len(answers) == 2
          and answers[0].get("labels") == [q1["options"][0]["label"]] and answers[0].get("header") == q1["header"]
          and answers[1].get("labels") == [] and answers[1].get("other") == other.get("picked") and not answers[1].get("skipped")},
