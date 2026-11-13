@@ -38,6 +38,13 @@ class OperatorGuidedKeys(unittest.TestCase):
                 "items": [{"name": "น้ำมันเครื่อง", "qty": "2", "unit": "ถัง", "amount": "100.00", "item_mode": "stock_item", **line}],
                 "items_status": "ok"}
 
+    def test_the_server_dispatch_side_names_the_same_four_keys(self):
+        """服务端拼代录载荷那侧（``express_operator.contracts.OPERATOR_GUIDED_LINE_KEYS``，引导式窗口）与 CC 写账线放行的四个键相同。"""
+        from pearnly_core.express_operator import contracts as operator_contracts
+
+        self.assertEqual(operator_contracts.OPERATOR_GUIDED_LINE_KEYS, self.client.OPERATOR_LINE_KEYS)
+        self.assertEqual(operator_contracts.GUIDED_PAYLOAD_VERSION, self.common.GUIDED_PAYLOAD_VERSION)
+
     def test_the_four_keys_are_line_keys_of_the_guided_contract(self):
         self.assertEqual(self.client.OPERATOR_LINE_KEYS, ("unit_code", "acccod", "stkgrp", "negallow"))
         self.assertTrue(set(self.client.OPERATOR_LINE_KEYS) <= set(self.common.GUIDED_KEYS["line"]))
