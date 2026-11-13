@@ -64,6 +64,7 @@ def run(ctx):
     product, mode = CELLS[scenario["cell"]]
     with ctx.step("开对话", "选中验收公司与账套"):
         talk = _lib("cc_driver").open_conversation(scenario.get("driver", "real"), product, mode)   # real 没接：抛 Unmet，记「没测到」
+        ctx.on_failure("conversation", talk.evidence)   # 不通过时留服务端原值：会话事件原文，对话不删
     with ctx.step("照脚本做", case["title"]):
         for action in case["script"]:
             if "say" in action:

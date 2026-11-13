@@ -92,6 +92,43 @@ class RunTest(unittest.TestCase):
         result = self.go(always)
         self.assertEqual((result["outcome"], calls.count("x")), (runner.FAIL, 2))  # 再失败就是失败
 
+    def test_failure_keeps_server_values_and_page_scene_before_cleanup(self):
+        """标准 §5.3：不通过时自动留登记过的现场（服务端原值、页面现场），在收尾还原之前；通过、没测到时不取。"""
+        order = []
+
+        def run(ctx):
+            ctx.on_failure("push-record", lambda: order.append("collect") or {"name": "PUSH-1", "ledger_state": "queued"})
+            ctx.on_failure("page.png", lambda: b"\x89PNG")
+            ctx.on_failure("console", lambda: 1 / 0)
+            with ctx.step("读回"):
+                ctx.check("写账状态", "written", "queued")
+        result = self.go(run, cleanup=lambda ctx: order.append("cleanup"))
+        folder = pathlib.Path(result["evidence"]) / "failure"
+        self.assertEqual((result["outcome"], order), (runner.FAIL, ["collect", "cleanup"]))
+        self.assertEqual(result["failure_evidence"], ["failure/push-record.json", "failure/page.png", "failure/console.error.txt"])
+        self.assertIn('"ledger_state": "queued"', (folder / "push-record.json").read_text(encoding="utf-8"))
+        self.assertEqual((folder / "page.png").read_bytes(), b"\x89PNG")
+        self.assertIn("ZeroDivisionError", (folder / "console.error.txt").read_text(encoding="utf-8"))
+
+        def crashed(ctx):
+            ctx.on_failure("doc", lambda: {"name": "PO-1"})
+            raise RuntimeError("页面没出来")
+        self.assertEqual(self.go(crashed)["failure_evidence"], ["failure/doc.json"])
+
+        called = []
+
+        def fine(ctx):
+            ctx.on_failure("doc", lambda: called.append(1))
+            with ctx.step("读回"):
+                ctx.check("写账状态", "written", "written")
+
+        def unmet(ctx):
+            ctx.on_failure("doc", lambda: called.append(1))
+            raise runner.Unmet("没配账号")
+        self.assertNotIn("failure_evidence", self.go(fine))
+        self.assertNotIn("failure_evidence", self.go(unmet))
+        self.assertEqual(called, [])
+
     def test_cleanup_always_runs_and_its_failure_fails_the_scenario(self):
         seen = []
 

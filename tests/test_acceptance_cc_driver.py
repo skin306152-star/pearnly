@@ -221,6 +221,19 @@ class FactoryTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             driver.open_conversation("lab", "cowork", "direct")
 
+    def test_evidence_hands_over_raw_events_and_keeps_the_conversation(self):
+        """标准 §5.3：不通过时留的是站点读回的会话事件原文；对话留在站点上不删；这时站点读不到也把已攒的交出去。"""
+        talk = object.__new__(driver.LabConversation)
+        talk.site, talk.session_id, talk.keep, talk.events = "cowork-new.regression.localhost", "S-1", False, [{"id": "e1", "type": "user.message"}]
+        talk.poll = lambda: talk.events.append({"id": "e2", "type": "agent.message"})
+        kept = talk.evidence()
+        self.assertEqual((kept["session_id"], [event["id"] for event in kept["events"]], talk.keep), ("S-1", ["e1", "e2"], True))
+
+        def down():
+            raise sys.modules["acc_errors"].Infra("站点连不上")
+        talk.poll = down
+        self.assertEqual((len(talk.evidence()["events"]), "连不上" in talk.evidence()["poll_error"]), (2, True))
+
     def test_lab_fake_without_a_lab_is_not_run_not_an_error(self):
         os.environ["PEARNLY_ACC_DOCKER"] = self.folder.name + "/no-docker"
         with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:

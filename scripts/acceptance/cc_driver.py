@@ -113,6 +113,10 @@ class Conversation:
     def cost(self) -> float:
         raise NotImplementedError
 
+    def evidence(self) -> dict:
+        """失败时留的服务端原值（标准 §5.3）：这段对话在站点上的编号与读回的全部会话事件原文。调用后这段对话不再被收尾删掉。"""
+        raise NotImplementedError
+
 
 def open_conversation(target: str, product: str, mode: str, company: str = "", ledger: str = "", **options) -> Conversation:
     """按场景登记的 `driver` 开一段对话：lab-fake = 本机实验栈 + 假智能体；real = 真模型（还没接，抛 Unmet）。"""
@@ -553,6 +557,14 @@ class LabConversation(Conversation):
 
     def cost(self) -> float:
         return 0.0
+
+    def evidence(self) -> dict:
+        self.keep = True  # 失败的现场不清理：对话留在站点上，直到有人看过
+        try:
+            self.poll()
+        except Exception as error:  # noqa: BLE001 —— 站点这时读不到也要把已攒的事件交出去
+            return {"site": self.site, "session_id": self.session_id, "events": self.events, "poll_error": str(error)}
+        return {"site": self.site, "session_id": self.session_id, "events": self.events}
 
     def close(self) -> None:
         """删掉这段对话（keep=True 时留着）、注销这次建的 Desk 会话。可重复调。"""

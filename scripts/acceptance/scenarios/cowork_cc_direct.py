@@ -28,6 +28,7 @@ def run(ctx):
     lines = _lib("cc_lines")
     with ctx.step("开对话", "选中验收公司与验收账套，直写方式"):
         talk = _lib("cc_driver").open_conversation(ctx.scenario.get("driver", "real"), "cowork", "direct", ledger=LEDGER)   # real 没接：Unmet →「没测到」
+        ctx.on_failure("conversation", talk.evidence)   # 不通过时留服务端原值：会话事件原文，对话不删
     with ctx.step("放票并说一句", "识别出一张采购票，复述后出写入计划"):
         talk.attach(["purchase-a1"])
         talk.say("บันทึกให้หน่อย")

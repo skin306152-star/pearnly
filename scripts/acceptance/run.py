@@ -74,6 +74,7 @@ class Ctx:
         self.spent, self.budget = 0.0, float(scenario.get("budget_usd", 0))
         self.facts: dict = {}          # 写成的单号、各端版本等，进证据登记
         self.targets = targets          # 执行通道工厂（targets.py）；单测注入替身
+        self._on_failure: list = []     # 失败时要留的现场（标准 §5.3）：[(名字, 取现场的函数)]
         folder.mkdir(parents=True, exist_ok=True)
 
     @contextmanager
@@ -117,6 +118,26 @@ class Ctx:
             path.write_text(content if isinstance(content, str) else json.dumps(content, ensure_ascii=False, indent=1, default=str),
                             encoding="utf-8")
         return path
+
+    def on_failure(self, name: str, collect) -> None:
+        """登记一样「失败时自动留」的现场（标准 §5.3）：服务端原值（断言涉及的那条记录按主键读出的原始内容、会话事件、写账件与回执）
+        或页面现场（截图、页面文字、控制台报错、地址）。场景在拿到主键 / 开了页面的那一刻就登记；这条场景不通过时运行器在收尾
+        还原**之前**逐个调用，结果存进 `failure/<名字>`（bytes 原样存，其余存 JSON）。通过时不调用。"""
+        self._on_failure.append((name, collect))
+
+    def collect_failure(self) -> list[str]:
+        """逐个取现场并存盘；某一样取不到不影响别的，也不盖住原来的失败（原因存在 `failure/<名字>.error.txt`）。"""
+        saved = []
+        for name, collect in self._on_failure:
+            try:
+                content = collect()
+                target = f"failure/{name}" if isinstance(content, bytes) or "." in name else f"failure/{name}.json"
+                self.save(target, content)
+                saved.append(target)
+            except Exception as failed:  # noqa: BLE001 —— 留现场尽力而为，但取不到要看得见
+                self.save(f"failure/{name}.error.txt", "".join(traceback.format_exception(failed)))
+                saved.append(f"failure/{name}.error.txt")
+        return saved
 
     def spend(self, usd: float, what: str) -> None:
         """按实际调用记费用；超过这条场景登记的上限就停（标准 §8：到额即停，不靠事前估算）。"""
@@ -182,6 +203,10 @@ def run_one(scenario: dict, run_dir: Path, holder: str, dry: bool, targets=None,
                 error = caught
                 ctx.save("error.txt", "".join(traceback.format_exception(caught)))
             finally:
+                if outcome_of(ctx, error)[0] == FAIL:
+                    result["failure_evidence"] = ctx.collect_failure()  # 先留现场，再收尾还原
+                else:
+                    result.pop("failure_evidence", None)
                 if hasattr(module, "cleanup"):
                     try:
                         module.cleanup(ctx)

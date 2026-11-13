@@ -14,7 +14,7 @@
   PEARNLY_ACC_ERP_USER       测试机1 的 CC 桌面版上登录的 ERP 员工
   PEARNLY_ACC_ERP_TAX / _BRANCH   接了验收账套的那家公司
   PEARNLY_ACC_LEDGER         验收账套路径（默认 \\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2）
-  PEARNLY_ACC_BASELINE       基线快照目录（测试机1 本机盘）
+  PEARNLY_ACC_BASELINE       基线快照目录（PEARNLY_ACC_LEDGER_HOST 那台机器的本机盘；默认测试机2）
 """
 import json
 import os
@@ -26,7 +26,8 @@ Unmet = sys.modules["acc_errors"].Unmet
 Infra = sys.modules["acc_errors"].Infra
 
 LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
-HOST = "testpc1"
+# 做账套快照 / 核对 / 还原的那台机器（基线快照在它的本机盘）：主会话 11-13 定基线在测试机2 取
+HOST = os.environ.get("PEARNLY_ACC_LEDGER_HOST", "testpc2")
 SAMPLE = None  # 原生样张的单号；录好并进基线后填，见文件头
 
 
