@@ -186,6 +186,9 @@ print(json.dumps(before))
         time.sleep(SITE_CONFIG_SETTLE)
         return before
 
+    # BOOT_NOTE（11-13）：页面按 Frappe 按用户缓存的启动数据（bootinfo）判断公司类型、接没接 Express 等。产品保存公司会清这份缓存，
+    # 这里直接写库不会；以前改完、还原后都不清，下一格打开页面拿到上一次缓存的旧值——erp.stock-in.units 在同一站点别的格之后
+    # 跑，页面以为是普通公司、不弹「登记车辆」，服务端读库是汽车公司、回「台数与数量不符」。写库与还原后都清掉这一站点的启动缓存
     def set_fields(self, site, doctype, name, values):
         """流程临时改公司等设置（ERP Company 的接 Express、公司类型、收银开关等）一律走这里：写入 values（不改 modified），
         回之前的原值，并记在这一格上；这一格结束时（成功、失败、步骤超时、准备中途出错）`run_flow` 统一还原成第一次改之前的值
@@ -209,6 +212,7 @@ if row is None:
 if values is not None:
     frappe.db.set_value({doctype!r}, {name!r}, values, update_modified=False)
     frappe.db.commit()
+    frappe.cache.delete_key("bootinfo")  # 直接写库不经产品保存，启动缓存不会自己失效（见 BOOT_NOTE）
 print(json.dumps({{key: row.get(key) for key in fields}}, default=str))
 """)
         self.changed().append((site, doctype, name, before))
@@ -234,6 +238,7 @@ print(json.dumps({{key: row.get(key) for key in fields}}, default=str))
                 self.python(site, f"""
 frappe.db.set_value({doctype!r}, {name!r}, {values!r}, update_modified=False)
 frappe.db.commit()
+frappe.cache.delete_key("bootinfo")
 print("{{}}")
 """)
             except Exception as error:  # noqa: BLE001 - 一条没还原上也要接着还原其余的
