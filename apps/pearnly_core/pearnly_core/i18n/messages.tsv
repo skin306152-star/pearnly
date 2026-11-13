@@ -1089,3 +1089,18 @@ Source document	来源单据	เอกสารต้นทาง	元伝票	guid
 This document	本单	เอกสารนี้	この伝票	guide.source.document
 Task default	任务默认	ค่าเริ่มต้นของงาน	タスクの既定値	guide.source.task_default
 Asked before writing	写入前已询问	ถามก่อนบันทึกแล้ว	書き込み前に確認しました	
+Business	业务	ธุรกรรม	業務	
+From the document type	按票种判断	ตามประเภทเอกสาร	書類の種類から判断	guide.why.payment.rule
+Chosen before and remembered	上次选过并记住	เลือกไว้ครั้งก่อนและจำไว้	前回の選択を記憶	guide.why.remembered
+From Express history	按 Express 历史单据	ตามเอกสารเดิมใน Express	Express の過去伝票から	guide.why.history
+From Express history	按 Express 历史单据	ตามเอกสารเดิมใน Express	Express の過去伝票から	guide.why.express_history
+Suggested from past entries	按往来记录建议	แนะนำจากรายการที่ผ่านมา	過去の記帳から提案	guide.why.suggested
+By rule	按规则判断	ตามกฎ	ルールで判断	guide.why.rule
+Account set setting	账套设置	การตั้งค่าชุดบัญชี	帳簿の設定	guide.why.book_setting
+Recorded as a cash purchase or sale	记为现购 / 现销	บันทึกเป็นซื้อ / ขายเงินสด	現金仕入・現金売上として記帳	guide.desc.payment.cash
+Recorded as a credit purchase or sale	记为赊购 / 赊销	บันทึกเป็นซื้อ / ขายเงินเชื่อ	掛仕入・掛売上として記帳	guide.desc.payment.credit
+Header and journal only, no stock	只记表头与分录，不入库	บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก	見出しと仕訳のみ、在庫に入れない	guide.desc.detail.amount_only
+Not written this time	本次不写入	ครั้งนี้ไม่บันทึก	今回は書き込まない	guide.desc.detail.skip
+Not written this time	本次不写入	ครั้งนี้ไม่บันทึก	今回は書き込まない	guide.desc.document_policy.skip
+Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.party.__new__
+Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.item.__new__

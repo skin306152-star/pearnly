@@ -90,10 +90,12 @@ Bound At,連携日時
 Branch {0},支店 {0}
 Branches {0},支店 {0}
 Builder,生成方法
+Business,業務
 Business Key,業務キー
 Business number,業務番号
 Buyer,買い手
 Buyer Tax ID,買い手税番号
+By rule,ルールで判断
 Bytes,バイト数
 CC Desktop,CC デスクトップ
 CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
@@ -138,6 +140,7 @@ Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
 Choose document menu,伝票メニューを選択
 Choose the company in Express,Express で会社を選択してください
+Chosen before and remembered,前回の選択を記憶
 Claim,控除
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
 Click to sort by {0},{0} で並べ替え
@@ -210,6 +213,7 @@ Counterparty Tax ID,取引先の税番号
 Cowork Admin,Cowork 管理者
 Cowork Intake,Cowork 取り込み
 Create a new {0},新しい{0}を作成
+Create it in Express,Express で新規作成
 Created At,作成日時
 Created: {0},登録しました：{0}
 Credit,掛け
@@ -362,6 +366,8 @@ Fiscal year,年度
 Flow Status,進行ステータス
 For an inbound document the counterparty tax ID cannot be your own,仕入伝票では取引先の税番号を自社と同じにできません
 Frappe Light,Pearnly
+From Express history,Express の過去伝票から
+From the document type,書類の種類から判断
 Full Name,氏名
 Gender,性別
 Goods,商品
@@ -373,6 +379,7 @@ Guests are not allowed to upload files for {0} Doctype,ゲストは {0} にフ�
 Guide,使い方
 HTTP Status,HTTPステータス
 Head Office,本店
+"Header and journal only, no stock",見出しと仕訳のみ、在庫に入れない
 Home,ホーム
 Home (Subscription & Billing),ホーム（プランと請求）
 How each push to the external ERP went,外部ERPへの連携過程と結果
@@ -519,6 +526,7 @@ Not linked,未連携
 Not permitted,権限がありません
 Not signed in,未ログイン
 Not subscribed,未登録
+Not written this time,今回は書き込まない
 Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
@@ -650,6 +658,8 @@ Recognized {0}/{1} pages · {2}%,{0}/{1} ページ読み取り済み · {2}%
 Recognizing,読み取り中
 Reconcile documents against the ledger,伝票と会計データの照合
 Reconciliation,照合センター
+Recorded as a cash purchase or sale,現金仕入・現金売上として記帳
+Recorded as a credit purchase or sale,掛仕入・掛売上として記帳
 Records,明細
 Reference,参照番号
 Reference DocType,業務伝票のDocType
@@ -761,6 +771,7 @@ Subtotal,小計
 Succeeded,成功
 Success / failure,成功・失敗
 Successes,成功回数
+Suggested from past entries,過去の記帳から提案
 Summary,摘要
 Supplier,仕入先
 Supplier / customer,仕入先 / 顧客
@@ -1087,6 +1098,13 @@ connect.title,DMSに接続
 connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+guide.desc.detail.amount_only,見出しと仕訳のみ、在庫に入れない
+guide.desc.detail.skip,今回は書き込まない
+guide.desc.document_policy.skip,今回は書き込まない
+guide.desc.item.__new__,Express で新規作成
+guide.desc.party.__new__,Express で新規作成
+guide.desc.payment.cash,現金仕入・現金売上として記帳
+guide.desc.payment.credit,掛仕入・掛売上として記帳
 guide.option.detail.amount_only,金額のみ
 guide.option.detail.skip,書き込まない
 guide.option.direction.expense,経費
@@ -1130,6 +1148,13 @@ guide.source.face,書類
 guide.source.pinned,元伝票
 guide.source.remembered,記憶済み
 guide.source.task_default,タスクの既定値
+guide.why.book_setting,帳簿の設定
+guide.why.express_history,Express の過去伝票から
+guide.why.history,Express の過去伝票から
+guide.why.payment.rule,書類の種類から判断
+guide.why.remembered,前回の選択を記憶
+guide.why.rule,ルールで判断
+guide.why.suggested,過去の記帳から提案
 home.balance.title,口座残高
 home.balance.used,今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 home.balance.usedNoPlan,今月 {0} 枚使用 · 未登録の従量課金

@@ -28,6 +28,9 @@ TIERS = (DECIDED, HOW, WHETHER)
 # 「做不做」：录不录、按哪种业务录、写哪本账套、明细对不上怎么录、出库没有成本基础怎么录（覆盖表 D-2 不预选）
 WHETHER_KINDS = frozenset({"document_policy", "direction", "account_set", "current_book", "detail", "cost_basis"})
 NEW_OPTION_KEY = "guide.option.new"
+# 允许用户在「其他」里自己填的题（卡上每题末尾那一行「其他」只在这些题出）：值不是从主档里选的（例：出库没有成本基础时填单位成本）。
+# 选项来自主档、不许自造的题（对方、物料、科目、仓……）不出
+FREE_KINDS = frozenset({"cost_basis"})
 VERSION = 1
 
 
@@ -37,11 +40,17 @@ def tier_of(item: Mapping[str, Any]) -> str:
     return DECIDED if item.get("state") == c.DECIDED else HOW
 
 
-def _option(kind: str, option: Mapping[str, Any], recommend: bool) -> Dict[str, Any]:
+def _option(kind: str, option: Mapping[str, Any], recommend: bool, source: str = "") -> Dict[str, Any]:
+    """一个选项。说明行（卡上选项名下面那行灰字）：产品给了 ``note`` 照带；没给时给文字键，接口层按本轮语言翻、翻得到的第一个用上——
+    推荐项是推荐来由（``guide.why.<类>.<来源>`` → ``guide.why.<来源>``），其余是这个选项是什么（``guide.desc.<类>.<码>``）。"""
     code = str(option.get("code") or "")
     out: Dict[str, Any] = {"code": code}
     if recommend and option.get("recommended"):
         out["recommended"] = True
+    if not option.get("note"):
+        keys = [f"guide.why.{kind}.{source}", f"guide.why.{source}"] if out.get("recommended") and source else []
+        keys.append(f"guide.desc.{kind}.{code}")
+        out["note_keys"] = keys
     for field in ("name", "branch", "note"):
         if option.get(field):
             out[field] = option[field]
@@ -55,7 +64,7 @@ def _option(kind: str, option: Mapping[str, Any], recommend: bool) -> Dict[str, 
 def _question(item: Mapping[str, Any]) -> Dict[str, Any]:
     tier = tier_of(item)
     recommend = tier == HOW
-    options = [_option(item["kind"], option, recommend) for option in item.get("options") or ()]
+    options = [_option(item["kind"], option, recommend, str(item.get("source") or "")) for option in item.get("options") or ()]
     if not recommend:
         # 「做不做」：照原顺序列，不把后台给的值顶到第一个
         order = {str(option.get("code") or ""): index for index, option in enumerate(item.get("options") or ())}
@@ -65,7 +74,7 @@ def _question(item: Mapping[str, Any]) -> Dict[str, Any]:
                                                                        "count": len(item.get("docs") or ())},
                 "docs": list(item.get("docs") or ()), "count": len(item.get("docs") or ()),
                 "options": options, "preselected": item.get("value") or "" if recommend else "",
-                "remember": bool(item.get("remember"))}
+                "remember": bool(item.get("remember")), "free": item["kind"] in FREE_KINDS}
     if item.get("search"):
         question["search"] = item["search"]
     if item.get("when"):
@@ -131,5 +140,5 @@ def writable(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]] = ())
     return [doc_id for doc_id in docs if doc_id not in held]
 
 
-__all__ = ["DECIDED", "HOW", "NEW_OPTION_KEY", "TIERS", "VERSION", "WHETHER", "WHETHER_KINDS", "build", "held_back",
+__all__ = ["DECIDED", "FREE_KINDS", "HOW", "NEW_OPTION_KEY", "TIERS", "VERSION", "WHETHER", "WHETHER_KINDS", "build", "held_back",
            "needs_card", "tier_of", "writable"]

@@ -90,10 +90,12 @@ Bound At,Bound At
 Branch {0},Branch {0}
 Branches {0},Branches {0}
 Builder,Builder
+Business,Business
 Business Key,Business Key
 Business number,Business number
 Buyer,Buyer
 Buyer Tax ID,Buyer Tax ID
+By rule,By rule
 Bytes,Bytes
 CC Desktop,CC Desktop
 CC Desktop authentication failed.,CC Desktop authentication failed.
@@ -138,6 +140,7 @@ Checkpoints,Checkpoints
 Choose a plan,Choose a plan
 Choose document menu,Choose document menu
 Choose the company in Express,Choose the company in Express
+Chosen before and remembered,Chosen before and remembered
 Claim,Claim
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Click to sort by {0},Click to sort by {0}
@@ -210,6 +213,7 @@ Counterparty Tax ID,Counterparty Tax ID
 Cowork Admin,Cowork Admin
 Cowork Intake,Cowork Intake
 Create a new {0},Create a new {0}
+Create it in Express,Create it in Express
 Created At,Created At
 Created: {0},Created: {0}
 Credit,Credit
@@ -361,6 +365,8 @@ Fiscal year,Fiscal year
 Flow Status,Flow Status
 For an inbound document the counterparty tax ID cannot be your own,For an inbound document the counterparty tax ID cannot be your own
 Frappe Light,Pearnly
+From Express history,From Express history
+From the document type,From the document type
 Full Name,Full Name
 Gender,Gender
 Goods,Goods
@@ -372,6 +378,7 @@ Guests are not allowed to upload files for {0} Doctype,Guests are not allowed to
 Guide,Guide
 HTTP Status,HTTP Status
 Head Office,Head Office
+"Header and journal only, no stock","Header and journal only, no stock"
 Home,Home
 Home (Subscription & Billing),Home (Subscription & Billing)
 How each push to the external ERP went,How each push to the external ERP went
@@ -518,6 +525,7 @@ Not linked,Not linked
 Not permitted,Not permitted
 Not signed in,Not signed in
 Not subscribed,Not subscribed
+Not written this time,Not written this time
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
@@ -648,6 +656,8 @@ Recognized {0}/{1} pages · {2}%,Recognized {0}/{1} pages · {2}%
 Recognizing,Recognizing
 Reconcile documents against the ledger,Reconcile documents against the ledger
 Reconciliation,Reconciliation
+Recorded as a cash purchase or sale,Recorded as a cash purchase or sale
+Recorded as a credit purchase or sale,Recorded as a credit purchase or sale
 Records,Records
 Reference,Reference
 Reference DocType,Reference DocType
@@ -759,6 +769,7 @@ Subtotal,Subtotal
 Succeeded,Succeeded
 Success / failure,Success / failure
 Successes,Successes
+Suggested from past entries,Suggested from past entries
 Summary,Summary
 Supplier,Supplier
 Supplier / customer,Supplier / customer
@@ -1085,6 +1096,13 @@ connect.title,Connect DMS
 connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
+guide.desc.detail.amount_only,"Header and journal only, no stock"
+guide.desc.detail.skip,Not written this time
+guide.desc.document_policy.skip,Not written this time
+guide.desc.item.__new__,Create it in Express
+guide.desc.party.__new__,Create it in Express
+guide.desc.payment.cash,Recorded as a cash purchase or sale
+guide.desc.payment.credit,Recorded as a credit purchase or sale
 guide.option.detail.amount_only,Amount only
 guide.option.detail.skip,Skip
 guide.option.direction.expense,Expense
@@ -1128,6 +1146,13 @@ guide.source.face,Document
 guide.source.pinned,Source document
 guide.source.remembered,Remembered
 guide.source.task_default,Task default
+guide.why.book_setting,Account set setting
+guide.why.express_history,From Express history
+guide.why.history,From Express history
+guide.why.payment.rule,From the document type
+guide.why.remembered,Chosen before and remembered
+guide.why.rule,By rule
+guide.why.suggested,Suggested from past entries
 home.balance.title,Account balance
 home.balance.used,"Used {0} pages this month · plan {1}, {2} left this cycle"
 home.balance.usedNoPlan,Used {0} pages this month · pay-as-you-go

@@ -46,6 +46,7 @@ import {
 } from "./api";
 import { clearUnread, noteRun, runningSessions, seedUnread } from "./activity";
 import { listMode, noteSessionTasks } from "./list-mode";
+import { noteBusiness } from "../business";
 import { draftLedgerOf } from "../conversation-ledger";
 import { type SessionSummary, splitAttachmentNote } from "./events";
 import {
@@ -151,7 +152,12 @@ export function touchedSince(remoteId: string, asked: number): boolean {
   return (touched.get(remoteId) ?? -1) >= asked;
 }
 
-const toThreadMetadata = (s: SessionSummary) => ({
+const toThreadMetadata = (s: SessionSummary) => {
+  noteBusiness(s.id, (s as ListedSession).business); // 本对话业务（输入框上方的业务菜单）随列表记下
+  return threadMetadata(s);
+};
+
+const threadMetadata = (s: SessionSummary) => ({
   status: (s.archived_at ? "archived" : "regular") as "archived" | "regular",
   remoteId: s.id,
   externalId: s.id,

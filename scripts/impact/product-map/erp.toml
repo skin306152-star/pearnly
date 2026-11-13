@@ -1811,6 +1811,17 @@ where = "CC 输入框上方「录吧」快捷回复（CC 复述完写入计划�
 tests = ["unit:tests/test_cc_record_reply.py::test_it_shows_only_while_a_write_plan_awaits_the_user", "unit:tests/test_cc_record_reply.py::test_tapping_it_sends_the_words_like_typing", "unit:tests/test_cc_record_reply.py::test_it_sits_above_the_composer_as_a_kit_button"]
 group = "cc.action.record-reply"
 
+
+[[row]]
+id = "erp.cc.action.guide-menu"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:erp:guide-menu"
+where = "CC 输入框上方的业务菜单（采购 / 销售 / 收款（只在直写）；与「写入」同一行；选了占位文字按业务换、记在会话上，点 × 取消；引导式录入第 1 期）"
+tests = ["unit:tests/test_cc_guide_menu.py::test_menu_lists_what_the_product_offers_and_sits_with_record_reply", "unit:tests/test_cc_guide_menu.py::test_choice_is_kept_before_the_session_and_carried_after"]
+group = "cc.action.guide-menu"
 [[row]]
 id = "erp.cc.action.attach"
 product = "ERP"

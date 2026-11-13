@@ -271,3 +271,5 @@ reason = "标准组件库的开发用展示页（kit.html）：只在开发服�
 [[file]]
 file = "frontend/assistant/src/kit/allow-card.tsx"
 reason = "标准组件库的开发用展示页（kit.html?page=allow，允许卡示例数据）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
+file = "frontend/assistant/src/kit/guide.tsx"
+reason = "标准组件库展示页里的引导卡预览（kit.html?page=guide），只在开发服务器与 CC_KIT=1 构建里、不进生产；卡本身由流程 cowork.cc.guide 与 tests/test_cc_guide_card.py 守住"

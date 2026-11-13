@@ -90,10 +90,12 @@ Bound At,ผูกเมื่อ
 Branch {0},สาขา {0}
 Branches {0},สาขา {0}
 Builder,วิธีสร้างไฟล์
+Business,ธุรกรรม
 Business Key,คีย์ธุรกิจ
 Business number,หมายเลขรายการ
 Buyer,ผู้ซื้อ
 Buyer Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
+By rule,ตามกฎ
 Bytes,จำนวนไบต์
 CC Desktop,CC เดสก์ท็อป
 CC Desktop authentication failed.,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
@@ -138,6 +140,7 @@ Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
 Choose document menu,เลือกเมนูเอกสาร
 Choose the company in Express,เลือกบริษัทใน Express
+Chosen before and remembered,เลือกไว้ครั้งก่อนและจำไว้
 Claim,ขอคืน
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Click to sort by {0},คลิกเพื่อเรียงตาม {0}
@@ -210,6 +213,7 @@ Counterparty Tax ID,เลขประจำตัวผู้เสียภา
 Cowork Admin,ผู้ดูแลระบบ Cowork
 Cowork Intake,บันทึกข้อมูล Cowork
 Create a new {0},สร้าง {0} ใหม่
+Create it in Express,สร้างใหม่ใน Express
 Created At,สร้างเมื่อ
 Created: {0},บันทึกแล้ว: {0}
 Credit,เงินเชื่อ
@@ -362,6 +366,8 @@ Fiscal year,ปีบัญชี
 Flow Status,สถานะขั้นตอน
 For an inbound document the counterparty tax ID cannot be your own,เลขประจำตัวผู้เสียภาษีของคู่ค้าในเอกสารซื้อต้องไม่ตรงกับของบริษัท
 Frappe Light,ธีม Pearnly
+From Express history,ตามเอกสารเดิมใน Express
+From the document type,ตามประเภทเอกสาร
 Full Name,ชื่อ-นามสกุล
 Gender,เพศ
 Goods,สินค้า
@@ -373,6 +379,7 @@ Guests are not allowed to upload files for {0} Doctype,ผู้เยี่ย�
 Guide,คู่มือใช้งาน
 HTTP Status,สถานะ HTTP
 Head Office,สำนักงานใหญ่
+"Header and journal only, no stock",บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
 Home,หน้าหลัก
 Home (Subscription & Billing),หน้าหลัก (แพ็กเกจและค่าบริการ)
 How each push to the external ERP went,ขั้นตอนและผลลัพธ์ของการส่งไป ERP ภายนอก
@@ -519,6 +526,7 @@ Not linked,ยังไม่ผูก
 Not permitted,ไม่ได้รับอนุญาต
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
+Not written this time,ครั้งนี้ไม่บันทึก
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
@@ -650,6 +658,8 @@ Recognized {0}/{1} pages · {2}%,อ่านแล้ว {0}/{1} หน้า �
 Recognizing,กำลังอ่าน
 Reconcile documents against the ledger,กระทบยอดเอกสารกับชุดบัญชี
 Reconciliation,ศูนย์กระทบยอด
+Recorded as a cash purchase or sale,บันทึกเป็นซื้อ / ขายเงินสด
+Recorded as a credit purchase or sale,บันทึกเป็นซื้อ / ขายเงินเชื่อ
 Records,รายละเอียดรายการ
 Reference,เลขที่อ้างอิง
 Reference DocType,DocType ของเอกสารธุรกิจ
@@ -761,6 +771,7 @@ Subtotal,ยอดรวมย่อย
 Succeeded,สำเร็จ
 Success / failure,สำเร็จ / ไม่สำเร็จ
 Successes,จำนวนสำเร็จ
+Suggested from past entries,แนะนำจากรายการที่ผ่านมา
 Summary,สรุป
 Supplier,ผู้จำหน่าย
 Supplier / customer,ผู้จำหน่าย / ลูกค้า
@@ -1087,6 +1098,13 @@ connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+guide.desc.detail.amount_only,บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
+guide.desc.detail.skip,ครั้งนี้ไม่บันทึก
+guide.desc.document_policy.skip,ครั้งนี้ไม่บันทึก
+guide.desc.item.__new__,สร้างใหม่ใน Express
+guide.desc.party.__new__,สร้างใหม่ใน Express
+guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด
+guide.desc.payment.credit,บันทึกเป็นซื้อ / ขายเงินเชื่อ
 guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
 guide.option.detail.skip,ไม่บันทึก
 guide.option.direction.expense,ค่าใช้จ่าย
@@ -1130,6 +1148,13 @@ guide.source.face,เอกสาร
 guide.source.pinned,เอกสารต้นทาง
 guide.source.remembered,ที่จำไว้
 guide.source.task_default,ค่าเริ่มต้นของงาน
+guide.why.book_setting,การตั้งค่าชุดบัญชี
+guide.why.express_history,ตามเอกสารเดิมใน Express
+guide.why.history,ตามเอกสารเดิมใน Express
+guide.why.payment.rule,ตามประเภทเอกสาร
+guide.why.remembered,เลือกไว้ครั้งก่อนและจำไว้
+guide.why.rule,ตามกฎ
+guide.why.suggested,แนะนำจากรายการที่ผ่านมา
 home.balance.title,ยอดคงเหลือในบัญชี
 home.balance.used,เดือนนี้ใช้ไป {0} หน้า · แพ็กเกจ {1} รอบนี้คงเหลือ {2} หน้า
 home.balance.usedNoPlan,เดือนนี้ใช้ไป {0} หน้า · คิดค่าบริการตามการใช้งาน

@@ -51,6 +51,19 @@ def move(session_id, project="", period=None, scope=None, ledger=None):
                          ledger_id=ledger or None)
 
 
+# 输入框上方的业务菜单（引导式录入第 1 期）：这个产品各模式能做的业务（只读）、记本对话业务
+@frappe.whitelist(methods=["GET"])
+def businesses():
+    from pearnly_core.assistant import guided
+
+    return guided.offered()
+
+
+@frappe.whitelist(methods=["POST"])
+def business(session_id, business=""):
+    return sessions.set_business(session_id, business)
+
+
 # 右栏账套下拉：{current, options}（本对话账套，`ledger.view`；只读）
 @frappe.whitelist(methods=["GET"])
 def ledgers(session_id):

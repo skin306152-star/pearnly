@@ -2138,6 +2138,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/guide_tool.py",
   "apps/pearnly_core/pearnly_core/assistant/guided.py",
   "apps/pearnly_core/pearnly_core/write_precheck/guide.py",
+  "frontend/assistant/src/lib/business.ts",
 ]
 
 [[flow]]
