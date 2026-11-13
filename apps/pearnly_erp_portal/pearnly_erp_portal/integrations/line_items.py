@@ -21,6 +21,7 @@ import frappe
 from frappe import _
 
 from pearnly_core import line
+from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.integrations import line_flow
 from pearnly_erp_portal.products import line_memory, line_rules
@@ -227,8 +228,8 @@ def _question(doc, asking) -> dict | None:
         lines = [_title(doc, result), _("Choose the warehouse")]
         lines += [f"{index}. {label}" for index, (_key, label) in enumerate(options, 1)]
         return _message("\n".join(part for part in lines if part),
-                        [_button(f"{index}. {label}", v="w", n=name, k=index - 1)
-                         for index, (_key, label) in enumerate(options, 1)], name)
+                        [_button(text, v="w", n=name, k=index)
+                         for index, text in enumerate(choice_labels([label for _key, label in options]))], name)
     if step == "location":
         from pearnly_erp_portal.inventory import positions
 
