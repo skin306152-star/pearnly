@@ -1493,5 +1493,18 @@ class ReceiptContract(unittest.TestCase):
         self.assertIn("if klass in ACCOUNT_CLASSES", rule)  # 没报或认不出的值退回名称规则
 
 
+    def test_receipt_types_carry_their_bank_account_and_uses(self):
+        """11-13 收款方式按钮「银行简称 ·账号末 4 位」（共享笔记「收款-LINE侧-交接-11-13.md」§4，CC 这一侧负责字段）：主档读回的每种方式
+        可带 ``bank_account``（code / bank / short / number / branch / via，via 只有 shortnam 与 account 两种）与 ``uses``（原生收款单
+        用过几次，整数）。只加不改：取不到户头不带这一栏，旧版 CC 两栏都没有，服务端照旧显示方式名。"""
+        bank = method_source_of(COMPANION / "payment_methods.py", "bank_account_of")
+        for key in ("code", "bank", "short", "number", "branch", "via"):
+            self.assertTrue(quoted(bank, key), key)
+        self.assertTrue(quoted(bank, "shortnam") and quoted(bank, "account"))
+        masters = (COMPANION / "express_masters.py").read_text(encoding="utf-8")
+        self.assertIn('row["bank_account"] = bank', masters)
+        self.assertIn('row["uses"] = counts.get(row["prefix"], 0)', masters)
+        self.assertIn("if bank:", masters)  # 取不到户头不带这一栏
+
 if __name__ == "__main__":
     unittest.main()

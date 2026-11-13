@@ -67,6 +67,53 @@ def banks(account_dir) -> Dict[str, str]:
         table.close()
 
 
+def bank_rows(account_dir) -> Dict[str, Dict[str, str]]:
+    """银行主档 BKMAS：BNKACC → ``{code, bank, short, number, branch, account}``（户头名称、简称、账号、分行、科目；栏不在给空）。"""
+    table = _open(account_dir, "BKMAS")
+    if table is None:
+        return {}
+    try:
+        return {_text(r, "BNKACC"): {"code": _text(r, "BNKACC"), "bank": _text(r, "BNKNAM"), "short": _text(r, "SHORTNAM"),
+                                     "number": _text(r, "BNKNUM"), "branch": _text(r, "BRANCH"), "account": _text(r, "ACCNUM")}
+                for r in S.live_rows(table) if _text(r, "BNKACC")}
+    finally:
+        table.close()
+
+
+def bank_account_of(row: dict, accounts: Dict[str, Dict[str, str]]) -> Optional[dict]:
+    """一种收款方式（:func:`types` 的一行）进哪个户头（收款按钮标签用，接口见共享笔记「收款-LINE侧-交接-11-13.md」§4）：
+    ``SHORTNAM`` 指到 BKMAS 里有的户头 → ``via shortnam``；否则科目恰好是**唯一**一个户头的科目 → ``via account``；
+    方式有问题（没科目 / 冲突）、找不到或几个户头同科目 → ``None``（服务端照旧显示方式名）。"""
+    if row.get("account_issue") or not row.get("account"):
+        return None
+    hit, via = accounts.get(row.get("bank") or ""), "shortnam"
+    if hit is None:
+        same = [item for item in accounts.values() if item["account"] and item["account"] == row["account"]]
+        hit, via = (same[0], "account") if len(same) == 1 else (None, "")
+    if hit is None:
+        return None
+    return {"code": hit["code"], "bank": hit["bank"], "short": hit["short"], "number": hit["number"], "branch": hit["branch"],
+            "via": via}
+
+
+def method_uses(account_dir, book_prefix: str) -> Dict[str, int]:
+    """这本账套里原生收款单用过每种方式几次：ARRCPCQ 里单号以 RE 单据簿前缀开头的方式行，按行编号的前缀（前 2 字）计。读不到 → 空。"""
+    table = _open(account_dir, "ARRCPCQ")
+    if table is None or not book_prefix:
+        if table is not None:
+            table.close()
+        return {}
+    counts: Dict[str, int] = {}
+    try:
+        for r in S.live_rows(table):
+            if _text(r, "RCPNUM").startswith(book_prefix):
+                prefix = _text(r, "CHQNUM")[:2]
+                counts[prefix] = counts.get(prefix, 0) + 1
+    finally:
+        table.close()
+    return counts
+
+
 def account_classes(account_dir) -> Optional[Dict[str, str]]:
     """科目 → 类别（:data:`ACCOUNT_CLASSES`），只按这本账套自己的结构判（GLACC 的 PARENT、BKMAS 的科目、ISINFO.ACCNUM00）：
 
@@ -308,4 +355,4 @@ def lookup_padded(account_dir, table_name: str, key_field: str, key: str, names)
 
 
 __all__ = ["ACCOUNT_CLASSES", "DEFAULT_RECEIPT_JNLEXP", "ISSUE_CONFLICT", "ISSUE_MISSING", "PAYMENT_TYPES", "RECEIPT_TYPES",
-           "account_classes", "account_of", "banks", "journal_text", "line_number", "lookup_padded", "padded", "types"]
+           "account_classes", "account_of", "bank_account_of", "bank_rows", "banks", "journal_text", "line_number", "lookup_padded", "method_uses", "padded", "types"]

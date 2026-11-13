@@ -265,7 +265,7 @@ def _salesman(rec, columns, _gone):
 
 def _receipt_masters(folder: Path, diag: dict, infos: list) -> dict:
     """收款单 RE 要的主档（载荷 20，评估 2026-11-11 契约「读：主档补充」）：收款类型（ISRUN ZR 逐行，科目按 SHORTNAM→BKMAS 否则
-    ACCNUM01，``payment_methods``）、RE 单据簿（前缀、下一个号、默认部门）、销售员 OESLM、现金科目 ISINFO.ACCNUM00。各块读坏了给空，不挡主档。"""
+    ACCNUM01，``payment_methods``；另带进的户头 ``bank_account`` 与原生用量 ``uses``）、RE 单据簿（前缀、下一个号、默认部门）、销售员 OESLM、现金科目 ISINFO.ACCNUM00。各块读坏了给空，不挡主档。"""
     from . import payment_methods
 
     out = {"receipt_types": [], "receipt_run": None, "salesmen": [], "cash_account": ""}
@@ -282,6 +282,16 @@ def _receipt_masters(folder: Path, diag: dict, infos: list) -> dict:
         out["receipt_run"] = runs[0] if runs else None
     except Exception:
         log.info("收款单据簿读不出，这份不带 receipt_run")
+    try:
+        # 户头（11-13，按钮标签「银行简称 ·账号末 4 位」）：方式进的户头 bank_account，没有就不带；用量 uses 见 :func:`_method_uses`。
+        # 旧服务端不认这两栏、照旧显示方式名
+        accounts = payment_methods.bank_rows(folder)
+        for row in out["receipt_types"]:
+            bank = payment_methods.bank_account_of(row, accounts)
+            if bank:
+                row["bank_account"] = bank
+    except Exception:
+        log.info("收款方式的户头读不出，这份不带户头")
     out["salesmen"] = express_read._rows(folder, "OESLM", diag, _salesman)
     try:
         from .account_rules import _first
@@ -291,6 +301,23 @@ def _receipt_masters(folder: Path, diag: dict, infos: list) -> dict:
     except Exception:
         log.info("现金科目读不出，这份不带现金科目")
     return out
+
+
+def _method_uses(types: list, run, folder: Path) -> list:
+    """每种收款方式带 ``uses``：原生收款单用过几次（同一户头被几种方式指到时，服务端只列用得多的那种）。只有出现这种情况才只读
+    原账套的方式行表 ARRCPCQ 来数（主档副本不复制它，平时不多读一张表）；用不到或读不到都是 0。"""
+    codes = [row["bank_account"]["code"] for row in types if row.get("bank_account")]
+    counts = {}
+    if len(codes) != len(set(codes)):
+        from . import payment_methods
+
+        try:
+            counts = payment_methods.method_uses(folder, (run or {}).get("prefix", ""))
+        except Exception:
+            log.info("收款方式用量读不出，这份用量记 0")
+    for row in types:
+        row["uses"] = counts.get(row["prefix"], 0)
+    return types
 
 
 def mark(folder: Path, tables=MARK_TABLES) -> str:
@@ -345,6 +372,7 @@ def read_masters(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
         raise RequestFailed("account_unreadable")
     data, diag = read
     data["suppliers"] = _service_vat(data["suppliers"], folder)
+    data["receipt_types"] = _method_uses(data.get("receipt_types") or [], data.get("receipt_run"), folder)
     data = {"version": data.pop("version"), "account_set": express_read._norm(folder)[:500], "mark": stamp,
             "read_at": dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), **data}
     content = gzip.compress(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))

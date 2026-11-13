@@ -124,3 +124,23 @@ CC 桌面版窗口的本地提交 4e88e559f（`pearnly/cc-desktop-payload-3a2e3d
 - 11-13 真机回归照做清单：共享笔记「收款-接账套与等Express-真机清单-11-12.md」（同期两本、LINE 9 项、等 Express 三处显示、三语菜单、科目余额标记与重算）；
   实验栈驱动 `~/pearnly-devtools/collection-lab/collect_lab.py`（只编译检查过，明天第 0 步先 `scan` 验）、开 Express 赊销单窗口 6 分钟的计划 `hold_iv.json`。
 - 科目余额那一节与 CC 桌面版验证窗口（local_becd0c1b）分工待回复。
+
+## 9. 11-13：银行流水 BKTRN 与收款方式户头字段（接手窗口）
+
+11-13 白天真机结果（同期两本、LINE 9 项、等 Express 三处、GLBAL 两格、旧卡 B1 复现）见共享笔记「收款-真机与CC侧-交接-11-13.md」§3，这里不重抄。
+
+### 9.1 银行流水（管钱缺陷）
+- 现象：原生存 RE 时，方式在 ISRUN ZR 经 `SHORTNAM` 指到 BKMAS 户头的，每种方式另记一行 BKTRN（类型 `bR`）；我们没记，按户头看的存款明细、银行对账会缺这些收款（总账分录照写了，科目余额不受影响）。
+- 依据（本机 NLTTEST 1.0.1.94 只读副本）：这类方式行 2247 / 2247 都有 `bR` 一行、一行方式一行流水；不经 SHORTNAM（只填科目）的 0 行。字段见 `dbf_receipt.bank_row` 的说明；户名 = PRENAM + 不换行空格 + CUSNAM（没有前缀名就只有 CUSNAM），截 50 字节。`CHQSTAT 19`、`REFDOC ~` 含义没查到，照原生。
+- 改法：`dbf_receipt.plan_bank`（写前判哪几种方式要记、账套没有 BKTRN 就整单不写）→ `_write_bank` 追加 → 读回核类型 / 户头 / 行编号 / 金额，不符整单回滚；BKTRN 进 `BACKUP_TABLES`（写前备份与占用探测，文件不存在两处都跳过），重建索引只在真写了时带上。
+- 原生重放逐字节：用 `bank_row` 照原生单头重造 NLTTEST 每一行 `bR`，可比 2245 行中 2202 行原始字节完全一致；其余 43 行都是事后人工改过（手改方式行编号 31、改单后 CHGDAT / USERID / 日期 12），另 18 行原单已改删不可比。
+- 没做（写进清单）：现销 HS 收转账、付款单 PS 要不要记流水（`bP` 存在，本批不写 PS）；69EXP\TEST 已写的 RE0000006 / 07 / 10 / 11 等缺流水、不补；线上 1.12.20 写的收款同样缺，发布记录的已知问题里记。测试机真写核对等 1.12.21 重打包。
+- 和集成分支合并：`BACKUP_TABLES` 一行与 GLBAL 那次提交冲突，取 `WRITE_TABLES + ("ARMAS", "GLBAL", "BKTRN")`。
+
+### 9.2 收款方式带户头信息（CC → 服务端，字段归本线）
+- `express_masters.receipt_types[]` 新增可选 `bank_account {code, bank, short, number, branch, via}`（via：`shortnam` 经 SHORTNAM；`account` 只填科目、科目恰好是唯一一个户头的）与 `uses`（原生 RE 方式行按前缀计）。方式有问题、找不到户头、几个户头同科目的不带 `bank_account`。
+- `uses` 只在同一户头被两种以上方式指到时才只读原账套 ARRCPCQ 去数（主档副本不复制这张表），其余为 0；服务端只拿它在同户头里挑一种。
+- 契约：`tests/test_companion_contract.py::ReceiptContract::test_receipt_types_carry_their_bank_account_and_uses`。服务端标签与测试替身归 LINE 侧。
+
+### 9.3 测试
+- `companion/tests/test_dbf_receipt.py` 新 7 项、`test_express_receivables.py` 新 2 项；CC 全量 1720 项过（本机临时虚拟环境，Windows 专用依赖跳过的照旧 59 项）。
