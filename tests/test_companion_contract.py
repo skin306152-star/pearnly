@@ -1079,11 +1079,10 @@ class WriteDispatch(unittest.TestCase):
     def test_a_task_written_here_is_never_handed_back_to_the_queue(self):
         # 第 5 批审查：这台写过（回执没送到）的单先于占用探测、终止与文件号核对认出来，照上次回执回报；否则放回排队会交给
         # 没有本机写过记录的电脑再写一遍（服务端只按任务号去重不了 Express 里已建的单）
+        # 11-13 起取任务线程不再自己探占用、不弹询问框（方案甲），写过与否、占用都在 _handle_dbf_task 里判
         handle = method_source(COMPANION / "gui_tray_workers.py", "PollWorker", "handle_task")
-        written = handle.index("task_journal.written(task_journal.key_of(task))")
-        self.assertLess(written, handle.index("account_lock.is_account_busy("))
-        self.assertLess(written, handle.index("self._abort_task("))
-        self.assertIn("if not written and (not self._unattended(cfg, task))", handle)
+        self.assertNotIn("is_account_busy", handle)
+        self.assertNotIn("_abort_task", handle)
         handler = method_source_of(COMPANION / "worker.py", "_handle_dbf_task")
         self.assertLess(handler.index("task_journal.written(task_journal.key_of(task))"), handler.index("if expected_uid and"))
 

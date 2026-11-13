@@ -3,27 +3,16 @@
 from __future__ import annotations
 
 import threading
-import time
 from copy import copy
 
 from PySide6.QtCore import QThread, Signal
 
-from . import account_lock, task_journal, watchdog
+from . import watchdog
 from .config import CompanionConfig
-from .i18n import MessageSpec, default_lang, http_status_category, normalize, t
-from .logger import activity, get_logger
+from .i18n import MessageSpec, default_lang, http_status_category, normalize
+from .logger import get_logger
 
 log = get_logger(__name__)
-
-ABORT_MEMORY_SECONDS = 24 * 3600.0   # 询问框里选了「终止」的单记多久（这台再领到就按终止回报）
-
-
-class BusyPrompt:
-    def __init__(self, lang: str) -> None:
-        self.lang = lang
-        self.choice = "retry"
-        self.done = threading.Event()
-
 
 def _operator_task(task) -> bool:
     """代录的单（载荷 ``entry_mode=operator``）：在 Express 界面里录，Express 开着这本账套是它在用。"""
@@ -58,7 +47,6 @@ class PollWorker(QThread):
     status = Signal(str, str, object)
     update_available = Signal(str, str)
     batch_done = Signal(str, int, int, str)
-    busy_prompt = Signal(object)
 
     def __init__(self, configs, *, announce=None) -> None:
         super().__init__()
@@ -85,13 +73,6 @@ class PollWorker(QThread):
         self._batch_stats = {
             cfg.profile_id: {"ok": 0, "fail": 0, "invoice": ""} for cfg in self.configs
         }
-        self._abort_batches: set[str] = set()
-        # 询问框里选了「终止」的单（任务号 → 何时选的）：租约已先放回排队，下次这台再领到它（不论是不是同一批）照样按终止回报。
-        # 别的电脑在此期间领到它会照常写（终止只管这台，ADR-021）；一天后不再记。
-        self._aborted_tasks: dict[str, float] = {}
-        # 弹出去还没人点的「账套正在使用中」询问框：[(框, 成员, 任务键)]。取任务线程不等它（11-13 真机：等人点时心跳与领单
-        # 一起停了十几分钟），点了以后在下一轮领单时生效（_settle_prompts）
-        self._prompts: list = []
         self._logged_offline_errors: dict[str, str] = {}
         self._scheduler = None
         self._live = watchdog.Liveness()
@@ -116,34 +97,6 @@ class PollWorker(QThread):
         except Exception:
             return ""
 
-    @staticmethod
-    def _unattended(cfg: CompanionConfig, task) -> bool:
-        """没人点询问框：服务端说这张单没人在电脑前（attended=False：定时任务、或这台电脑没有录入人的登录记录，多台电脑
-        ADR-021 第 55 条）。旧服务端不带 → 有人值守。1.7.0 起不再有「常驻模式」（第 56 条）。"""
-        return getattr(task, "attended", None) is False
-
-    def _settle_prompts(self) -> None:
-        """询问框点了「终止」：照以前的效果记下——这张单这台再领到按终止回报，这一批后面领到的也按终止回报；点了「重试」或
-        还没点：什么都不做（单子已放回排队，服务端歇一会儿再派）。"""
-        for item in list(self._prompts):
-            prompt, profile_id, key = item
-            if not prompt.done.is_set():
-                continue
-            self._prompts.remove(item)
-            if prompt.choice == "abort":
-                self._aborted_tasks[key] = time.monotonic()
-                self._abort_batches.add(profile_id)
-
-    def _show_busy(self, profile_id: str, task, lang: str) -> None:
-        """弹「账套正在使用中」询问框，**不等人点**：取任务线程照常心跳、领别的单（11-13 真机：两台电脑在框前一起停了十几分钟，
-        Express 关了也不恢复，要人点了才动）。这个成员已经有一个没点的框就不再弹第二个。"""
-        self._settle_prompts()
-        if any(owner == profile_id for _prompt, owner, _key in self._prompts):
-            return
-        prompt = BusyPrompt(lang)
-        self._prompts.append((prompt, profile_id, task_journal.key_of(task)))
-        self.busy_prompt.emit(prompt)
-
     def _beating(self, run):
         """代录一张要几十秒到几分钟（等人停手、Express 慢时等画面）：这段时间旁路每秒盖一次存活时标，看门狗不把取任务线程
         当卡死重启（11-01 录制机：暂停等人时判卡死 184 秒、重启取任务线程，新线程接着领后面的单，和还在录的那张撞在一起，
@@ -160,41 +113,6 @@ class PollWorker(QThread):
         finally:
             done.set()
 
-    def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:
-        """账套被占用：先按「等账套」回报、放掉租约，再弹询问框、不等人点（多台电脑 ADR-021：不拿着租约等人点；11-13 起也不
-        拿着取任务线程等人点）。选「重试」或不点：服务端歇一会儿再派；选「终止」：这张单以后这台再领到就按终止回报
-        （按任务号记，不随这一批结束清掉），这一批后面领到的也都按终止回报。"""
-        from .dbf_writer import ERR_WAITING_LOCK
-
-        try:
-            queue.ack_failure(task.id, "the account set is open in Express", error_code=ERR_WAITING_LOCK,
-                              outcome="waiting_lock")
-        except Exception:
-            log.exception("账套被占用：放回排队失败（租约到期后服务端照样收回）")
-        self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
-        # 这张已放回排队：人点了「终止」，这台再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task，_settle_prompts 记下）
-        self._show_busy(profile_id, task, lang)
-        return "waiting_lock"
-
-    def _is_aborted(self, profile_id: str, task) -> bool:
-        now = time.monotonic()
-        for task_id, chosen in list(self._aborted_tasks.items()):
-            if now - chosen > ABORT_MEMORY_SECONDS:
-                self._aborted_tasks.pop(task_id, None)
-        if self._aborted_tasks.pop(task_journal.key_of(task), None) is not None:
-            return True
-        return profile_id in self._abort_batches
-
-    def _abort_task(self, profile_id: str, queue, task, lang: str) -> None:
-        try:
-            queue.ack_failure(
-                task.id, t("busy_title", lang), error_code="USER_ABORTED_BUSY"
-            )
-        except Exception:
-            log.exception("终止推送回报云端失败")
-        self.status.emit(profile_id, "error", str(task.invoice_no or ""))
-        activity("log_busy_aborted", lang=lang)
-
     def _stats(self, profile_id: str) -> dict:
         return self._batch_stats.setdefault(profile_id, {"ok": 0, "fail": 0, "invoice": ""})
 
@@ -204,20 +122,10 @@ class PollWorker(QThread):
             from .worker import _handle_dbf_task as write
         profile_id = cfg.profile_id
         batch = self._stats(profile_id)
-        # 这台写过、只是回执没送到的单：不探占用、不放回排队、不按终止回报，直接照上次的回执回报（_handle_dbf_task）。
-        # 否则会计正开着 Express 时它会被放回排队，派给没有本机写过记录的电脑再写一遍。
-        written = task_journal.written(task_journal.key_of(task)) is not None
-        self._settle_prompts()  # 询问框里刚点的「终止」先记下，再看这张单
-        if not written and self._is_aborted(profile_id, task):
-            self._abort_task(profile_id, queue, task, lang)
-            batch["fail"] += 1
-            return "error"
-        # 没人在电脑前的单（定时任务等）不弹询问框：交给写入时的占用检查按「等账套」回报，空出来自动再写。
-        # 代录的单不探：Express 开着这本账套正是代录在用它（10-27 实机：第二张被当成「账套被占用」放回排队、还弹了询问框）
-        if not written and not self._unattended(cfg, task) and not self._stop and not _operator_task(task):
-            account_dir = self._account_dir(cfg, task)
-            if account_dir and account_lock.is_account_busy(account_dir):
-                return self._release_then_ask(profile_id, queue, task, lang)
+        # Express 开着要写的表：不弹询问框、不拿着取任务线程等人（11-13 真机：两台电脑在「账套正被占用」框前一起停了十几分钟，
+        # 心跳与领单都停，Express 关了也不恢复）。不论有没有人在电脑前，一律交给写入时的按表探占用（``worker._handle_dbf_task``：
+        # 一个字节不动、按「等账套」回报，服务端歇一会儿再派，Express 关了自动写）；电脑前的人在网页 / LINE / CC 对话里看「在等 Express」、
+        # 要放弃就在那里撤回。这台写过、只是回执没送到的单照上次的回执回报（同样在 _handle_dbf_task）。
         if self._stop:
             return "error"
         try:
@@ -247,7 +155,6 @@ class PollWorker(QThread):
             return self.handle_task(cfg, queue, task, index_batch, lang)
 
         def batch_done(profile_id: str) -> None:
-            self._abort_batches.discard(profile_id)
             batch = stats(profile_id)
             succeeded, failed, invoice = (
                 batch["ok"],

@@ -256,61 +256,22 @@ def _poll_worker():
     return PollWorker([])
 
 
-def test_only_the_servers_attended_flag_decides_whether_anyone_is_asked():
-    # ADR-021 第 55、56 条（用户 10-16）：没有「常驻模式」了，询问框只看服务端的 attended（定时任务、没有录入人登录记录的
-    # 电脑是 False）；旧配置里残留的 always_on 不再起作用
-    unattended = _poll_worker()._unattended
-    assert unattended(_cfg(always_on=True), SimpleNamespace(attended=True)) is False
-    assert unattended(_cfg(), SimpleNamespace(attended=False)) is True
-    assert unattended(_cfg(), SimpleNamespace(attended=True)) is False
-    assert unattended(_cfg(), SimpleNamespace()) is False   # 旧服务端不带：有人值守，照旧问
-
-
-def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiting_lock_path():
-    # 没人点询问框：原先卡住 3 分钟后被看门狗重启、当成用户终止（USER_ABORTED_BUSY）
+def test_no_one_is_ever_asked_and_a_busy_account_set_takes_the_waiting_lock_path():
+    # 11-13 起（方案甲）：没有「账套正被占用」询问框，服务端的 attended 也不再决定问不问——一律交给写入时的按表探占用
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1] / "src/companion"
     source = (root / "gui_tray_workers.py").read_text(encoding="utf-8")
     handle = source.split("def handle_task(", 1)[1].split("\n    def ", 1)[0]
-    unattended = source.split("def _unattended(", 1)[1].split("\n    def ", 1)[0]
-    assert "always_on" not in unattended
-    assert 'getattr(task, "attended", None) is False' in unattended
-    # 代录单不问「账套正在使用」（代录本来就开着 Express 录），其余照旧
-    assert "if not written and not self._unattended(cfg, task) and not self._stop and not _operator_task(task):" in handle
-    # 这台写过的单先于占用探测（写过就照上次回执回报，不放回排队）
-    assert handle.index("task_journal.written(task_journal.key_of(task))") < handle.index("account_lock.is_account_busy(")
-    # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
-    release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
-    assert release.index("queue.ack_failure(") < release.index("self._show_busy(")
-    assert 'outcome="waiting_lock"' in release
+    for gone in ("busy_prompt", "BusyPrompt", "_release_then_ask", "_unattended", "is_account_busy", "USER_ABORTED_BUSY"):
+        assert gone not in source, gone
+    assert "outcome == \"waiting_lock\"" in handle
     # 不再开机锁屏；防睡眠改成「CC 开着时保持电脑唤醒」（keep_awake.py，第 58 条，见 test_keep_awake）；关窗口进托盘照旧
     tray = (root / "gui_tray.py").read_text(encoding="utf-8")
+    assert "busy_prompt" not in tray and "_on_busy_prompt" not in tray
     assert "lock_screen" not in tray and "LockWorkStation" not in tray
     assert "setQuitOnLastWindowClosed(False)" in tray
     assert not (root / "always_on.py").exists()
-
-
-@pytest.mark.parametrize("choice,expected", [("retry", "waiting_lock"), ("abort", "error")])
-def test_a_busy_account_set_releases_the_lease_before_the_prompt(choice, expected):
-    pw = _poll_worker()
-    order = []
-
-    class Queue:
-        def ack_failure(self, task_id, error, error_code=None, outcome=None, meta=None):
-            order.append(("ack", task_id, error_code, outcome))
-
-    def prompt(p):
-        order.append(("prompt",))
-        p.choice = choice
-        p.done.set()
-
-    pw.busy_prompt.connect(prompt)
-    result = pw._release_then_ask("P1", Queue(), SimpleNamespace(id="T-1", invoice_no="INV"), "zh")
-    assert result == "waiting_lock"  # 11-13 起不等人点：取任务线程立刻回去心跳、领单
-    assert order == [("ack", "T-1", "ACCOUNT_BUSY_LOCKED", "waiting_lock"), ("prompt",)]
-    pw._settle_prompts()  # 点了的选择在下一轮领单时生效
-    assert ("P1" in pw._abort_batches) is (choice == "abort") and expected
 
 
 class _AckQueue:
@@ -339,59 +300,26 @@ def test_a_task_already_written_here_is_never_handed_back_because_express_is_ope
     _busy(monkeypatch)
     task_journal.remember("T-5", {"docnum": "RR-5", "line_modes": None, "meta": {}})
     pw = _poll_worker()
-    prompts = []
-
-    def prompt(p):
-        prompts.append(p)
-        p.done.set()
-
-    pw.busy_prompt.connect(prompt)
     queue = _AckQueue()
     task = SimpleNamespace(id="T-5", invoice_no="INV", payload={}, attended=True)
     assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh",
                           write=worker._handle_dbf_task) is None
     assert queue.acks == [("success", "T-5", None, None)]
-    pw._abort_batches.add("P1")   # 这一批选过「终止」也一样：写过的单不按终止回报
     queue = _AckQueue()
     assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh", write=worker._handle_dbf_task) is None
-    assert queue.acks == [("success", "T-5", None, None)] and prompts == []
+    assert queue.acks == [("success", "T-5", None, None)]
 
 
 def test_an_operator_task_goes_to_express_even_though_express_has_the_book_open(monkeypatch):
     # 10-27 实机：代录在 Express 里开着这本账套录第一张，第二张被当成「账套被占用」放回排队、还弹了询问框，再也录不下去
     _busy(monkeypatch)
     pw = _poll_worker()
-    prompts = []
-    pw.busy_prompt.connect(lambda p: prompts.append(p) or p.done.set())
     written = []
     task = SimpleNamespace(id="T-9", invoice_no="INV", payload={"entry_mode": "operator"}, attended=True)
     queue = _AckQueue()
     assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh",
                           write=lambda cfg, q, t, index_batch=None: written.append(t.id)) is None
-    assert written == ["T-9"] and prompts == [] and queue.acks == []
-
-
-def test_abort_follows_the_task_not_the_batch(monkeypatch):
-    # 选「终止」时租约已放回排队；这一批结束后这台再领到它，照样按终止回报，不再弹框
-    _busy(monkeypatch)
-    pw = _poll_worker()
-    prompts = []
-
-    def prompt(p):
-        prompts.append(p)
-        p.choice = "abort"
-        p.done.set()
-
-    pw.busy_prompt.connect(prompt)
-    task = SimpleNamespace(id="T-7", invoice_no="INV", payload={}, attended=True)
-    queue = _AckQueue()
-    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "waiting_lock"
-    assert queue.acks == [("failed", "T-7", "ACCOUNT_BUSY_LOCKED", "waiting_lock")] and len(prompts) == 1
-    pw._abort_batches.discard("P1")   # 这一批结束（batch_done）
-    queue = _AckQueue()
-    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "error"
-    assert queue.acks == [("failed", "T-7", "USER_ABORTED_BUSY", None)] and len(prompts) == 1
-    assert "T-7" not in pw._aborted_tasks
+    assert written == ["T-9"] and queue.acks == []
 
 
 def test_a_repeated_uid_mismatch_cools_down_here_instead_of_spinning(monkeypatch):
@@ -462,32 +390,6 @@ def test_rescan_soon_makes_the_next_heartbeat_scan_everything_again(monkeypatch)
     master_refresh.rescan_soon()
     second = wait(first[1])
     assert second[0] is not None and scans == ["C:/books", "C:/books"]
-
-
-def test_the_busy_prompt_never_holds_the_poll_thread(monkeypatch):
-    """11-13 真机（测试机1、测试机2 两台 1.12.21）：Express 开着同一本账套的单据窗口，有人值守的单弹「账套正被占用」后取任务线程
-    一直等人点，心跳与领单一起停了十几分钟，Express 关了也不恢复。现在：框弹出去就回，取任务线程照常走；同一个成员已有一个没点的
-    框就不再弹第二个；人后来点了「终止」，下一轮领到这张单时按终止回报（点「重试」或不点：服务端歇一会儿再派）。"""
-    _busy(monkeypatch)
-    pw = _poll_worker()
-    shown = []
-    pw.busy_prompt.connect(shown.append)   # 没人点：框一直开着
-    cfg = _cfg(profile_id="P1")
-    first = SimpleNamespace(id="T-1", invoice_no="A", payload={}, attended=True)
-    second = SimpleNamespace(id="T-2", invoice_no="B", payload={}, attended=True)
-    started = time.monotonic()
-    queue = _AckQueue()
-    assert pw.handle_task(cfg, queue, first, None, "zh") == "waiting_lock"
-    assert pw.handle_task(cfg, queue, second, None, "zh") == "waiting_lock"
-    assert time.monotonic() - started < 1.0   # 没在框前等
-    assert len(shown) == 1   # 同一个成员只开一个框
-    assert queue.acks == [("failed", "T-1", "ACCOUNT_BUSY_LOCKED", "waiting_lock"),
-                          ("failed", "T-2", "ACCOUNT_BUSY_LOCKED", "waiting_lock")]
-    shown[0].choice = "abort"
-    shown[0].done.set()   # 人这时才点「终止」
-    queue = _AckQueue()
-    assert pw.handle_task(cfg, queue, first, None, "zh") == "error"
-    assert queue.acks == [("failed", "T-1", "USER_ABORTED_BUSY", None)]
 
 
 def test_a_long_operator_task_keeps_the_watchdog_from_restarting_the_poll_thread(monkeypatch):
