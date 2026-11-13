@@ -204,6 +204,27 @@ class SalesServiceVat(unittest.TestCase):
         self.assertNotIn("service_vat", kinds(resolve(self.fields(), "sales", config=self.config("1", "2"))))
 
 
+class SalesServiceVatPayload(unittest.TestCase):
+    """销项口径的载荷（与 CC 桌面版窗口 11-12 对定）：沿用 ``srv_vattyp``、不进 GUIDED_KEYS；销项单带 ``2`` 才盖 21，``1`` 与旧写法相同不盖。"""
+
+    def payload(self, **extra):
+        return {"direction": "sales", "doctype": "IV", "payload_version": 1, "items": [], **extra}
+
+    def test_answer_goes_on_the_sales_payload(self):
+        made = choices.apply_to_payload(self.payload(), {"service_vat": "cash_basis"})
+        self.assertEqual(made["srv_vattyp"], "2")
+
+    def test_two_is_version_21_and_one_is_not(self):
+        from pearnly_core.express_rules.push import common
+        self.assertEqual(common.finalize_payload(self.payload(srv_vattyp="2"))["payload_version"], 21)
+        self.assertLess(common.finalize_payload(self.payload(srv_vattyp="1"))["payload_version"], 21)
+        self.assertNotIn("srv_vattyp", common.GUIDED_KEYS["header"])
+
+    def test_purchase_unchanged(self):
+        made = choices.apply_to_payload({"direction": "purchase", "payload_version": 1}, {"service_vat": "cash_basis"})
+        self.assertEqual((made["srv_vattyp"], made["payload_version"]), ("2", 13))
+
+
 class NotGuidedUnchanged(unittest.TestCase):
     def test_without_guided_nothing_new_is_asked(self):
         for fields, direction in ((purchase(payment_status="partial"), "purchase"), (sales(), "sales")):
