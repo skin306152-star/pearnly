@@ -184,7 +184,7 @@ class PanelStylesSourceTests(unittest.TestCase):
         # F18（不拿列表第一项充数）在提问卡里：只有预选值排第一带「(推荐)」才默认选中，没选不能提交
         self.assertIn("<AskCard", pending)
         self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", read("components/tool-uis/ask-shared.ts"))
-        self.assertIn('disabled={busy || !answered(state)} onClick={primary}>', read("components/tool-uis/ask-card.tsx"))
+        self.assertIn('data-slot="cc-askq-next" disabled={busy || !answered(state)}>', read("components/tool-uis/ask-card.tsx"))
         self.assertIn("if (embedded && (!items || !items.length) && !error) return null;", pending)
         tasks = read("components/scheduled-tasks.tsx")
         self.assertEqual(tasks.count("onClick={() => newTask(taskCompany)}"), 2)

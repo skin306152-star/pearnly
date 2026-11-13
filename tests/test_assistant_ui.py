@@ -4887,7 +4887,7 @@ class PendingChoiceDefaultTests(unittest.TestCase):
         self.assertIn("<AskCard", page)
         self.assertIn("itemsOfCheck(reply)", page)
         card = read("components/tool-uis/ask-card.tsx")
-        self.assertIn('disabled={busy || !answered(state)} onClick={primary}>', card)
+        self.assertIn('data-slot="cc-askq-next" disabled={busy || !answered(state)}>', card)
         shared = read("components/tool-uis/ask-shared.ts")
         self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", shared)
 
