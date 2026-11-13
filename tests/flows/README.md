@@ -123,6 +123,14 @@ python3 scripts/flows/run.py --rerun-failed ~/pearnly-devtools/flows-main.json -
 1. 写 `scripts/flows/<流程>.py`（照 `erp_stocktake_scan.py`：`prepare` / `steps` / `judge` / `verify`，`verify` 要查库里落的结果，不能只看能不能打开）。
 2. 在 `registry.toml` 登记，`covers` 列出它覆盖的产品文件。
 3. `python3 scripts/flows/run.py --flow <id>` 在两套数据、两种宽度上都过，而且要在**新起的实验栈**上单跑也过。
+4. **同一套数据上连跑两遍也过**（11-13 主会话）：浏览器掉线时 run.py 会自动重跑这一格一次，首轮可能已在服务端写了一半；
+   流程的 `prepare` 要自己把用到的状态备好（公司类型、商品开关、连接记录），不靠「上一遍正好留下 / 正好没留下」。
+
+## 环境重跑（11-13）
+
+只有「无头浏览器掉线」（驱动报 `debug connection closed / did not open`、`browser hung`）算环境：这一格自动重跑一次，结果标 `environment_rerun`，
+汇总把「产品失败」和「环境重跑（再失败）」分开；重跑仍掉线记「环境：浏览器连续掉线」、不通过。页面报错、断言失败、页面自己卡死（`page hung`）都不重跑。
+结果文件记 `machine` 与 `environment`；同一提交头上环境重跑超过全部格数的 3%，汇总标「环境不稳」。
 
 ## 流程之间不共用数据（主会话 11-01）
 

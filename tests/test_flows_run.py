@@ -474,5 +474,29 @@ class DriveTimeout(unittest.TestCase):
             self.drive("")
         self.assertIn("before the first step", str(stopped.exception))
 
+
+class EnvironmentRerun(unittest.TestCase):
+    """无头浏览器掉线（环境）只重跑这一格一次、如实标注；断言失败、页面报错不重跑（11-13 主会话）。"""
+
+    def cell(self, ok, error="", page=()):
+        return {"flow": "f", "dataset": "new", "viewport": "mobile", "ok": ok, "error": error,
+                "checks": [{"case": "page errors", "seen": list(page), "ok": not page}]}
+
+    def test_only_a_dropped_browser_counts(self):
+        self.assertTrue(run.browser_dropped(self.cell(False, page=["driver: debug connection closed"])))
+        self.assertTrue(run.browser_dropped(self.cell(False, error='driver: step "x": Runtime.evaluate timed out after 300s (page answers, browser hung)')))
+        self.assertFalse(run.browser_dropped(self.cell(False, error='driver: step "x": timed out (page hung, browser answers)')), "页面自己卡死算产品")
+        self.assertFalse(run.browser_dropped(self.cell(False, page=["TypeError: x is undefined"])))
+        self.assertFalse(run.browser_dropped(self.cell(True, page=["driver: debug connection closed"])))
+
+    def test_the_summary_keeps_environment_apart_and_warns_above_three_percent(self):
+        product = self.cell(False, page=["TypeError"])
+        rerun_ok = dict(self.cell(True), environment_rerun={"first": "debug connection closed"})
+        rerun_bad = dict(self.cell(False, error=run.ENV_TWICE), environment_rerun={"first": "debug connection closed"})
+        env = run.environment_summary([product, rerun_ok, rerun_bad] + [self.cell(True)] * 97)
+        self.assertEqual((env["reruns"], env["failed_again"], env["product_failures"]), (2, 1, 1))
+        self.assertFalse(env["unstable"], "2 / 100 没超 3%")
+        self.assertTrue(run.environment_summary([rerun_ok] * 4 + [self.cell(True)] * 96)["unstable"])
+
 if __name__ == "__main__":
     unittest.main()

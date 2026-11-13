@@ -26,7 +26,9 @@ import fnmatch
 import importlib.util
 import json
 import os
+import re
 import signal
+import socket
 import subprocess
 import sys
 import tempfile
@@ -463,6 +465,28 @@ def lab_lock(folder=None):
     return handle
 
 
+# 环境：无头浏览器掉线（驱动 `ui_steps.mjs` 的这几种报错）。只认这些；页面报错、断言失败、页面自己卡死（page hung）都不算
+BROWSER_DROPPED = re.compile(r"debug connection (?:closed|did not open)|browser hung")
+ENV_TWICE = "环境：浏览器连续掉线"
+ENV_UNSTABLE = 0.03  # 同一提交头上环境重跑超过全部格数的 3%：标「环境不稳」
+
+
+def browser_dropped(result) -> str:
+    """这一格是不是只因浏览器掉线没跑完：是就回报错原文，否则回空。有断言失败（不是掉线带出的空结果）就不算。"""
+    texts = [str(result.get("error") or "")] + [str(item) for check in result.get("checks") or []
+                                                if check.get("case") == "page errors" for item in check.get("seen") or []]
+    hit = next((text for text in texts if BROWSER_DROPPED.search(text)), "")
+    return hit[:300] if hit and not result.get("ok") else ""
+
+
+def environment_summary(results) -> dict:
+    reruns = [r for r in results if r.get("environment_rerun")]
+    again = [r for r in reruns if not r["ok"]]
+    return {"reruns": len(reruns), "failed_again": len(again),
+            "product_failures": sum(1 for r in results if not r["ok"] and r not in again),
+            "unstable": bool(results) and len(reruns) > ENV_UNSTABLE * len(results)}
+
+
 def head():
     return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
@@ -582,13 +606,23 @@ def main(argv=None) -> int:
         lab.dataset(dataset, product)
     printing = threading.Lock()
 
+    def attempt(flow, dataset, viewport):
+        try:
+            return run_flow(lab, flow, dataset, viewport)
+        except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
+            return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
+                    "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
+
     def one(cell):
         flow, dataset, viewport = cell
-        try:
-            result = run_flow(lab, flow, dataset, viewport)
-        except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
-            result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
-                      "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
+        result = attempt(flow, dataset, viewport)
+        dropped = browser_dropped(result)
+        if dropped:
+            # 环境：无头浏览器掉线（不是页面、不是断言）——只这一类自动重跑这一格一次，结果如实标「环境重跑」并留首轮原文
+            again = attempt(flow, dataset, viewport)
+            if browser_dropped(again):
+                again = dict(again, ok=False, error=f"{ENV_TWICE}: {str(again.get('error') or '')[:300]}")
+            result = dict(again, environment_rerun={"first": dropped})
         bad = [c for c in result["checks"] if not c["ok"]]
         with printing:
             print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
@@ -614,14 +648,19 @@ def main(argv=None) -> int:
         results = [fresh.get(key(r), r) for r in previous["results"]]
         seconds += previous.get("seconds", 0)
     ok = all(r["ok"] for r in results)  # 没有涉及的流程 = 通过（覆盖闸另管改到的入口有没有登记）
+    env = environment_summary(results)
     datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
     summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
-               f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else ""))
+               f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else "")
+               + (f"; environment reruns {env['reruns']} (failed again {env['failed_again']})" if env["reruns"] else ""))
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
+    print(f"产品失败 {env['product_failures']} · 环境重跑 {env['reruns']}（再失败 {env['failed_again']}）")
+    if env["unstable"]:
+        print(f"⚠ 环境不稳：环境重跑 {env['reruns']} / {len(results)} 格，超过 {ENV_UNSTABLE:.0%}——查本机负载与浏览器，别让重跑掩盖真问题")
     if args.out:
         Path(args.out).write_text(json.dumps({
             "ok": ok, "summary": summary, "sha": head(), "dirty": bool(product_dirty()), "scope": scope, "flow_count": flow_count,
-            "seconds": seconds, "order": args.order, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
+            "seconds": seconds, "order": args.order, "machine": socket.gethostname(), "environment": env, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
             "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
