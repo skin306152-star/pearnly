@@ -1883,7 +1883,8 @@ g.done();
 """, stubs={**self.STUBS, **SHEET_STUBS}, lang="zh")
         thread = read("components/assistant-ui/thread.tsx")
         # 跟着输入框走：放在对话底部输入框那一块里，输入框正上方
-        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <RecordQuickReply />\n            <Composer />", thread)
+        # 引导式录入第 1 期：业务菜单与「写入」同一行，排在它后面（有意变化）
+        self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <RecordQuickReply />\n            <BusinessMenu />\n            <Composer />", thread)
         css = read("globals.css")
         sheet = css.split("\n  .cc-ask-sheet {", 1)[1].split("}", 1)[0]
         self.assertIn("border-radius: var(--cc-radius-sheet);", sheet)

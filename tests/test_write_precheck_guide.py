@@ -41,7 +41,10 @@ class Tiers(unittest.TestCase):
         q = built["questions"][0]
         self.assertEqual(q["tier"], g.HOW)
         self.assertEqual(q["preselected"], "credit")
-        self.assertEqual(q["options"][0], {"code": "credit", "recommended": True, "label_key": "guide.option.payment.credit"})
+        self.assertEqual(q["options"][0], {"code": "credit", "recommended": True, "label_key": "guide.option.payment.credit",
+                                           "note_keys": ["guide.why.payment.rule", "guide.why.rule", "guide.desc.payment.credit"]})
+        self.assertEqual(q["options"][1]["note_keys"], ["guide.desc.payment.cash"])  # 非推荐项只有「这个选项是什么」
+        self.assertFalse(q["free"])  # 付款方式不许自己填
 
     def test_whether_question_is_never_preselected(self):
         for raw in (POLICY, DETAIL):

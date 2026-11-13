@@ -695,3 +695,6 @@ doc_events["ERP Company"] = {"on_update": "pearnly_erp_portal.masters.cc_service
 # MR.ERP 一侧按公司的 MR.ERP 连接直读 MR.ERP 列表（D 线 11-11，`mrerp.ledger_check`；MR.ERP 账本开关关着时回空）
 pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.check",
                         "mrerp": "pearnly_erp_portal.mrerp.ledger_check.check"}
+
+# CC 输入框上方的业务菜单（引导式录入第 1 期，评估 docs/work/2026-11-12-cc-guided-entry.md 6.1、12 节第 3 问）：这个产品 × 这个模式真能做的业务
+pearnly_guide_businesses = {"chat": ["purchase", "sales", "collection"], "operator": ["purchase", "sales"]}

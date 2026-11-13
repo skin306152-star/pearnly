@@ -57,7 +57,13 @@ def steps(params, camera_code=None):
     # 一题一页：点「下一步」直到出现「提交」，再点「提交」
     finish = ("for(let k=0;k<12;k++){const c=" + CARD + "; const s=c?.querySelector('[data-slot=\"questionnaire-submit\"]'); "
               "if(s && s.offsetParent!==null){s.click(); break;} const n=c?.querySelector('[data-slot=\"questionnaire-next\"]'); if(!n) break; n.click(); await sleep(300);} ")
+    menu = ("const row=()=>q('[data-slot=\"cc-quick-replies\"][data-business]'); const ph=()=>q('textarea[aria-label]')?.getAttribute('placeholder')||''; ")
     return [
+        {"name": "业务菜单", "js": JS + menu + "const shown=await until(()=>row(),120); const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
+         "const buy=[...(row()?.querySelectorAll('button')||[])].find(b=>b.innerText.trim()==='采购'); buy?.click(); await sleep(400); "
+         "const picked={chosen: row()?.dataset.business||'', placeholder: ph()}; "
+         "row()?.querySelector('button')?.click(); await sleep(400); "
+         "return {shown, labels, picked, cleared: row()?.dataset.business ?? null, placeholder: ph()};"},
         {"name": "出卡", "js": head + f"const sent=await say({json.dumps(_call(params))}); const shown=await until(()=>{CARD}?.dataset.phase==='ask',200); "
          "await sleep(800); return {...read(), sent, seen: shown, sheet: !!q('[data-slot=\"cc-ask-sheet\"]'), ask: !!q('[data-slot=\"cc-askq\"]')};"},
         {"name": "提交", "js": head + reply + finish +
@@ -72,11 +78,16 @@ def steps(params, camera_code=None):
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    first, sent, again = (by.get(k) or {} for k in ("出卡", "提交", "第二次"))
+    menu, first, sent, again = (by.get(k) or {} for k in ("业务菜单", "出卡", "提交", "第二次"))
     items = first.get("items") or []
     pay = next((i for i in items if i.get("title") == "付款方式"), {})
     choices = pay.get("choices") or []
     return [
+        {"case": "输入框上方的业务菜单：Cowork 只有采购、销售（没有收款）；点「采购」占位字换成「上传采购票据」，点 × 取消后回到原样",
+         "seen": menu,
+         "ok": bool(menu.get("shown")) and menu.get("labels") == ["采购", "销售"]
+         and (menu.get("picked") or {}).get("chosen") == "purchase" and (menu.get("picked") or {}).get("placeholder") == "上传采购票据"
+         and menu.get("cleared") == "" and menu.get("placeholder") != "上传采购票据"},
         {"case": "模型调 pearnly_guide 后对话里出引导卡：题目是服务端出的中文（付款方式），选项「赊账」带「推荐」并默认选中，「现金」不选；没有 ask_user 提问卡、不浮成允许卡",
          "seen": first,
          "ok": bool(first.get("seen")) and bool(pay) and any("赊账" in c["text"] and "推荐" in c["text"] and c["checked"] for c in choices)

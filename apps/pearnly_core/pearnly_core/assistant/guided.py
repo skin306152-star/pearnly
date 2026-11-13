@@ -9,9 +9,28 @@ from __future__ import annotations
 import frappe
 
 
+BUSINESSES = ("purchase", "sales", "collection")
+# 产品在 hooks.py 声明这个产品 × 这个模式真能做的业务（输入框上方的业务菜单只列这些；评估 6.1、12 节第 3 问）：
+#     pearnly_guide_businesses = {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]}
+BUSINESS_HOOK = "pearnly_guide_businesses"
+
+
+def offered() -> dict:
+    """本站产品声明的业务清单 ``{chat: [...], operator: [...]}``（只留认得的；没声明 = 空，不出菜单）。一个站点一个产品，取最后声明的。"""
+    found = frappe.get_hooks(BUSINESS_HOOK) or {}
+    found = found[-1] if isinstance(found, list) and found else found
+    found = found if isinstance(found, dict) else {}
+    out = {}
+    for mode in ("chat", "operator"):
+        values = found.get(mode) or []
+        values = values[-1] if values and isinstance(values[0], list) else values
+        out[mode] = [value for value in values if value in BUSINESSES]
+    return out
+
+
 def active() -> bool:
     local = getattr(frappe, "local", None)  # 没有请求上下文（离线测试替身、脚本）= 不在 CC 对话里
     return bool((getattr(local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-__all__ = ["active"]
+__all__ = ["BUSINESSES", "BUSINESS_HOOK", "active", "offered"]
