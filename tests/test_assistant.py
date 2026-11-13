@@ -1721,7 +1721,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_precheck": "Checking push choices",
                                             "pearnly_precheck_answer": "Saving push choices",
                                             "ask_user": "Waiting for answers",
-                                            "pearnly_file_conversation": "Filing the conversation under a company",
+                                            "pearnly_guide": "Waiting for answers", "pearnly_file_conversation": "Filing the conversation under a company",
                                             "pearnly_conversation_ledger": "Setting the conversation's account set",
                                             "pearnly_write_plan": "Making a write plan",
                                             "pearnly_write_start": "Starting to write",
@@ -1729,7 +1729,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
         # 共用的提问工具 ask_user 也要等人作答（卡片由它自己的题目画，这一项只给重开时认步骤）
-        self.assertEqual(steps["ask"], {"ask_user": "Asked questions", "p_write": "Save it?", "p_gate": "Changed it",
+        self.assertEqual(steps["ask"], {"ask_user": "Asked questions", "pearnly_guide": "Asked before writing", "p_write": "Save it?", "p_gate": "Changed it",
                                         "p_when": "Set it?"})
         # 带了哪些参数才要「允许」：重开对话时页面据此认出出过卡片的那一步（同 needs_approval）
         self.assertEqual(steps["gate"], {"p_gate": ["x"]})
@@ -6454,6 +6454,37 @@ class AskUserTests(unittest.TestCase):
                 status = error
         return status, rows["r1"], handed, published, ran
 
+    def _decide_guide(self, answers, allow=True):
+        """引导卡（pearnly_guide，引导式录入第 1 期）：替身 guide_tool——核答案在抢占卡片之前、记答案在抢到之后。"""
+        ask = self.ask()
+        calls = []
+
+        def check(tool_input, given):
+            calls.append("check")
+            if given != [{"key": "k1", "value": "cash"}]:
+                raise ask.AnswerError("not on the card")
+            return given
+
+        fake = types.SimpleNamespace(TOOL="pearnly_guide", check=check,
+                                     result=lambda tool_input, rows: calls.append("result") or '{"status": "answered"}',
+                                     skipped=lambda tool_input: calls.append("skipped") or '{"status": "skipped"}')
+        package = sys.modules["pearnly_core.assistant"]
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant.guide_tool": fake}), \
+                mock.patch.object(package, "guide_tool", fake, create=True):
+            status, row, handed, published, ran = self._decide(answers=answers, allow=allow, tool="pearnly_guide")
+        return status, row, handed, calls
+
+    def test_guide_card_answers_are_checked_before_and_saved_after_claiming(self):
+        ask = self.ask()
+        status, row, handed, calls = self._decide_guide([{"key": "nope", "value": "x"}])
+        self.assertIsInstance(status, ask.AnswerError)
+        self.assertEqual((row["status"], calls, handed), ("awaiting_approval", ["check"], []))  # 答错不占卡、不记
+        status, row, handed, calls = self._decide_guide([{"key": "k1", "value": "cash"}])
+        self.assertEqual((status, row["status"], calls), ("done", "done", ["check", "result"]))
+        self.assertEqual(handed[0][1], '{"status": "answered"}')
+        status, row, handed, calls = self._decide_guide(None, allow=False)
+        self.assertEqual((status, calls), ("done", ["skipped"]))
+
     def test_the_answer_is_the_result_kept_on_the_record_and_handed_back(self):
         status, row, handed, published, ran = self._decide(answers=[{"labels": ["Cash"]}, {"skipped": True}])
         self.assertEqual((status, row["status"], published, ran), ("done", "done", ["done"], []))
@@ -6563,7 +6594,8 @@ class AskUserTests(unittest.TestCase):
         tools_module = sys.modules["pearnly_core.assistant.tools"]
         declared = {tool["name"]: tool for tool in tools_module.CORE_TOOLS}
         self.assertIs(declared["ask_user"]["approval"], True)  # 走「等人作答」那一套，不自动执行
-        self.assertEqual(declared["ask_user"]["refuse"], "pearnly_core.assistant.ask.problem")
+        # 引导式录入第 1 期：出卡前核对换成 guide_tool.refuse_ask（形状核对照旧在里面，另加「业务题只能由后台出」），有意变化
+        self.assertEqual(declared["ask_user"]["refuse"], "pearnly_core.assistant.guide_tool.refuse_ask")
         for name in ("pearnly_precheck", "pearnly_precheck_answer"):
             self.assertTrue(declared[name]["handler"].startswith("pearnly_core.write_precheck.api.tool_"))
         # 旧的 cowork_push_choices 删掉后（主会话 11-05）：推前说现 / 赊、科目照判定带的 planned，不照票种；用户说的费用类别经 hint 交

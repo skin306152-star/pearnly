@@ -19,11 +19,14 @@ Account balance,Account balance
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.
 Account name,Account name
 Account number,Account number
+Account set,Account set
 Account set in use,Account set in use
+Account set setting,Account set setting
 Account set unavailable,Account set unavailable
 Account signed in elsewhere,Account signed in elsewhere
 Account that owns this connection. Leave empty for a site-wide shared connection.,Account that owns this connection. Leave empty for a site-wide shared connection.
 Account with admin rights,Account with admin rights
+Accrual basis,Accrual basis
 Action not found,Action not found
 Actions,Actions
 Active Seconds,Active Seconds
@@ -46,11 +49,13 @@ Allowed,Allowed
 Amount,Amount
 Amount and VAT differ,Amount and VAT differ
 Amount and VAT match,Amount and VAT match
+Amount only,Amount only
 An admin session was requested but no admin credentials are configured,An admin session was requested but no admin credentials are configured
 Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
+Asked before writing,Asked before writing
 Asked questions,Asked questions
 Attempt,Attempt
 Attempts,Attempts
@@ -111,6 +116,9 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},Canno
 Cannot read the remaining time,Cannot read the remaining time
 Car models {0},Car models {0}
 Carried,Carried
+Cash,Cash
+Cash account,Cash account
+Cash basis,Cash basis
 Change account,Change account
 Change declined,Change declined
 Change password,Change password
@@ -128,6 +136,7 @@ Checkpoints,Checkpoints
 Choose a plan,Choose a plan
 Choose document menu,Choose document menu
 Choose the company in Express,Choose the company in Express
+Claim,Claim
 Claiming a push job requires a connection,Claiming a push job requires a connection
 Click to sort by {0},Click to sort by {0}
 Client ID is required,Client ID is required
@@ -141,6 +150,7 @@ Company Profile,Company Profile
 Company Tax ID,Company Tax ID
 Company Title,Company Title
 Company does not match the task,Company does not match the task
+Company rule,Company rule
 Computer in use,Computer in use
 Computer locked,Computer locked
 Configuration is complete. The connection was not tested.,Configuration is complete. The connection was not tested.
@@ -172,6 +182,7 @@ Contact support with the record ID,Contact support with the record ID
 Context Tokens,Context Tokens
 Conversation not found,Conversation not found
 Copy,Copy
+Cost of goods sold,Cost of goods sold
 Could not acquire the lock: {0},Could not acquire the lock: {0}
 Could not call the model: {0},Could not call the model: {0}
 Could not create the OIDC client: {0} {1},Could not create the OIDC client: {0} {1}
@@ -199,6 +210,7 @@ Cowork Intake,Cowork Intake
 Create a new {0},Create a new {0}
 Created At,Created At
 Created: {0},Created: {0}
+Credit,Credit
 Credited,Credited
 Currency,Currency
 Current Password,Current Password
@@ -269,6 +281,7 @@ Display name,Display name
 Display only; the push log is authoritative,Display only; the push log is authoritative
 Doc Date,Doc Date
 Doc No,Doc No
+Document,Document
 Document Type,Document Type
 Document date,Document date
 Document no.,Document no.
@@ -311,6 +324,7 @@ Express Index Tool,Express Index Tool
 Express Number,Express Number
 Express Push Guide,Express Push Guide
 Express closed twice,Express closed twice
+Express history,Express history
 Express license limit reached,Express license limit reached
 Express no.,Express no.
 Express reopened,Express reopened
@@ -371,6 +385,7 @@ Image Fingerprint,Image Fingerprint
 In-progress state of a multi-turn conversation. One row per session.,In-progress state of a multi-turn conversation. One row per session.
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
 Input Tokens,Input Tokens
+Input VAT,Input VAT
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
 "Install, pair, upgrade and uninstall guide for CC Desktop","Install, pair, upgrade and uninstall guide for CC Desktop"
 Intake Workbench,Intake Workbench
@@ -459,10 +474,13 @@ Net Payable,Net Payable
 Net amount,Net amount
 Net payable,Net payable
 Network error,Network error
+New,New
 New Customer,New Customer
 New DMS password,New DMS password
+New counterparty,New counterparty
 New entry,New entry
 New password,New password
+New product,New product
 New purchase order,New purchase order
 Next Period End,Next Period End
 Next Retry At,Next Retry At
@@ -545,6 +563,7 @@ Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages
 Payer,Payer
 Payer name on the bank transfer,Payer name on the bank transfer
 Payload Version,Payload Version
+Payment,Payment
 Payment Status,Payment Status
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -567,6 +586,7 @@ Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Please try again later,Please try again later
 Posted,Posted
+Posting,Posting
 Preparing the file,Preparing the file
 Private Key,Private Key
 Processing…,Processing…
@@ -632,6 +652,7 @@ Refresh,Refresh
 Regenerate,Regenerate
 Rejected,Rejected
 Reload advisors,Reload advisors
+Remembered,Remembered
 Remote Address,Remote Address
 Remote Sessions,Remote Sessions
 Removed At,Removed At
@@ -683,6 +704,7 @@ Seen At,Seen At
 Seller,Seller
 Seller Tax ID,Seller Tax ID
 Server unreachable,Server unreachable
+Service VAT basis,Service VAT basis
 Session,Session
 Session ID,Session ID
 Session Payload,Session Payload
@@ -699,9 +721,11 @@ Signed In Via,Signed In Via
 Site finalization failed,Site finalization failed
 Site is missing setting: {0},Site is missing setting: {0}
 Size And Permission Check,Size And Permission Check
+Skip,Skip
 Skipped,Skipped
 Source,Source
 Source Attachment,Source Attachment
+Source document,Source document
 Stage,Stage
 Starred,Starred
 Start At,Start At
@@ -743,6 +767,7 @@ System URL is not filled in,System URL is not filled in
 System URL is required,System URL is required
 Target ERP,Target ERP
 Task cost limit reached,Task cost limit reached
+Task default,Task default
 Tax Return Drafts,Tax Return Drafts
 Team,Team
 Tenant boot data,Tenant boot data
@@ -815,6 +840,7 @@ This company’s LINE official account is not configured yet.,This company’s L
 This connection has no username and password yet.,This connection has no username and password yet.
 This conversation could not be changed; please try again,This conversation could not be changed; please try again
 This device cannot receive notifications.,This device cannot receive notifications.
+This document,This document
 This document has already been recorded: {0},This document has already been recorded: {0}
 This file has expired. Export it again.,This file has expired. Export it again.
 This identity is already bound to account {0} (record {1}),This identity is already bound to account {0} (record {1})
@@ -914,6 +940,7 @@ Waiting,Waiting
 Waiting for answers,Waiting for answers
 Waiting for start time,Waiting for start time
 Waiting for the server,Waiting for the server
+Warehouse,Warehouse
 Warehouses,Warehouses
 "Warehouses, stock-in and stock-out documents","Warehouses, stock-in and stock-out documents"
 What Was Pushed,What Was Pushed
@@ -1054,6 +1081,49 @@ connect.title,Connect DMS
 connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
+guide.option.detail.amount_only,Amount only
+guide.option.detail.skip,Skip
+guide.option.direction.expense,Expense
+guide.option.direction.purchase,Purchase
+guide.option.direction.sales,Sales
+guide.option.document_policy.enter,Write
+guide.option.document_policy.skip,Skip
+guide.option.goods_posting.service,Expense
+guide.option.goods_posting.stock,Stock
+guide.option.item.__expense__,Expense
+guide.option.new,New
+guide.option.payment.cash,Cash
+guide.option.payment.credit,Credit
+guide.option.service_vat.accrual,Accrual basis
+guide.option.service_vat.cash_basis,Cash basis
+guide.option.vat.claim,Claim
+guide.option.vat.expense,Expense
+guide.q.account,Account
+guide.q.account_set,Account set
+guide.q.cash_account,Cash account
+guide.q.cost_basis,Cost of goods sold
+guide.q.current_book,Account set
+guide.q.detail,Line items
+guide.q.direction,Type
+guide.q.document_policy,Write
+guide.q.goods_posting,Posting
+guide.q.item,Product
+guide.q.location,Warehouse
+guide.q.new_item,New product
+guide.q.new_party,New counterparty
+guide.q.party,Counterparty
+guide.q.payment,Payment
+guide.q.service_vat,Service VAT basis
+guide.q.unit,Unit
+guide.q.vat,Input VAT
+guide.source.book_setting,Account set setting
+guide.source.company_rule,Company rule
+guide.source.document,This document
+guide.source.express_history,Express history
+guide.source.face,Document
+guide.source.pinned,Source document
+guide.source.remembered,Remembered
+guide.source.task_default,Task default
 home.balance.title,Account balance
 home.balance.used,"Used {0} pages this month · plan {1}, {2} left this cycle"
 home.balance.usedNoPlan,Used {0} pages this month · pay-as-you-go

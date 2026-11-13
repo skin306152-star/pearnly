@@ -94,20 +94,27 @@ def answer(company, doc_ids, answers, resume=0):
     return record(str(company or ""), _ids(doc_ids), answers, str(resume) in ("1", "true", "True"))
 
 
-def record(company, doc_ids, answers, resume=False) -> dict:
-    """作答（白名单 ``answer`` 与 CC 工具 ``pearnly_precheck_answer`` 共用）。调用方已过 :func:`_require`。"""
+def record(company, doc_ids, answers, resume=False, guided=False) -> dict:
+    """作答（白名单 ``answer`` 与 CC 工具 ``pearnly_precheck_answer`` 共用）。调用方已过 :func:`_require`。
+
+    ``guided``：CC 引导卡（``assistant.guide_tool``）交来的答案——卡上没点过的预选不生效（不补记 :data:`KEPT_PROPOSALS`），
+    哪些单能写、哪些留下按引导卡口径（``guide.writable`` / ``held_back``）；网页待处理、LINE 照旧。"""
+    from pearnly_core.write_precheck import guide
+
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, list):
         frappe.throw(_("Invalid request"))
     before = card(company, doc_ids)
-    answers = [*answers, *_kept_proposals(before, answers)]
+    if not guided:
+        answers = [*answers, *_kept_proposals(before, answers)]
     expanded, errors = contracts.expand(before, answers)
     if errors:
         return {**before, "errors": errors}
     products.remember(company, expanded)
     # 先落库：重判是「只是看」，产品判完会整笔回滚，不提交的话刚记下的答案也跟着回滚（11-05 实验室流程查出）
     frappe.db.commit()
-    writable, held = contracts.writable(before, answers), contracts.held_back(before, answers)
+    rules = guide if guided else contracts
+    writable, held = rules.writable(before, answers), rules.held_back(before, answers)
     planned = resume and _in_conversation()
     results = products.resume(company, writable) if resume and not planned else []
     after = card(company, doc_ids)
@@ -165,5 +172,7 @@ def tool_answer(tool_input) -> str:
     import json
 
     company, doc_ids = _tool_ids(tool_input)
-    found = record(company, doc_ids, (tool_input or {}).get("answers"), bool((tool_input or {}).get("resume")))
+    # CC 对话里口头作答与引导卡同一口径：没答的预选不生效（引导式录入第 1 期）
+    found = record(company, doc_ids, (tool_input or {}).get("answers"), bool((tool_input or {}).get("resume")),
+                   guided=_in_conversation())
     return json.dumps(found, ensure_ascii=False, default=str)
