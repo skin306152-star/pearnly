@@ -32,6 +32,8 @@ def prepare(lab, manifest):
     ref = "FLOW-GUIDE-" + uuid.uuid4().hex[:6].upper()
     out = lab.python(site, CLEANUP + BASE + f"""
 name = recognized({ref!r})
+# 造单时按这家供应商记住了付款方式：删掉（同公司页删记住的选择），引导卡才会问付款方式（完整税票按漏斗预选赊账）
+frappe.db.delete("Cowork Express Choice", {{"connection": conn["name"], "kind": "payment"}})
 frappe.db.commit()
 since = str(frappe.utils.now_datetime())
 print(json.dumps({{"company": company["id"], "doc": name, "since": since}}, default=str))

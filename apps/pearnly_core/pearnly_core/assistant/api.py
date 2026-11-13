@@ -51,6 +51,14 @@ def move(session_id, project="", period=None, scope=None, ledger=None):
                          ledger_id=ledger or None)
 
 
+# 引导卡（pearnly_guide）：页面取服务端出好的卡（存在执行记录里；页面拿到的调用参数只有单据），只认本人本对话这一次调用
+@frappe.whitelist(methods=["GET"])
+def guide_card(session_id, tool_use_id):
+    from pearnly_core.assistant import guide_tool
+
+    return guide_tool.stored_card(session_id, tool_use_id)
+
+
 # 输入框上方的业务菜单（引导式录入第 1 期）：这个产品各模式能做的业务（只读）、记本对话业务
 @frappe.whitelist(methods=["GET"])
 def businesses():
