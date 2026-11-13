@@ -79,6 +79,11 @@ export const OperatorCard: FC<{
             {steps.cancelled}
           </div>
         )}
+        {phase === "expired" && (
+          <div data-slot="cc-ask-answer" className="cc-ask-answer">
+            {steps.expired}
+          </div>
+        )}
         {after}
         {phase === "ask" && buttons.length > 0 && (
           <div className="cc-ask-foot">

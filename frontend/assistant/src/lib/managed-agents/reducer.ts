@@ -1063,7 +1063,7 @@ function cancelOpenGates(state: Projection): Projection {
 
 /** 本站执行记录各状态的先后：只往前走（推来的新状态之后，晚到的、读得早的旧状态不再把它改回去）。 */
 const RUN_RANK: Readonly<Record<ToolRunStatus, number>> = {
-  awaiting_approval: 0, running: 1, done: 2, error: 2, denied: 2, cancelled: 2,
+  awaiting_approval: 0, running: 1, done: 2, error: 2, denied: 2, cancelled: 2, expired: 2,
 };
 
 /** 本站已定下这次调用（执行完、出错、拒绝、作废）。 */

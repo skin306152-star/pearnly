@@ -423,7 +423,8 @@ def answer_event(tool_use_id, allow, processed_at) -> dict:
 # 调用编号并进来（放在这页最后）。编号带上状态（一次调用每种状态最多一次），对话页按编号去重。只在站点与对话页之间，不进引擎。
 TOOL_RUN_EVENT = "pearnly.tool_run"
 TOOL_RUN_PREFIX = "ptoolrun_"
-TOOL_RUN_STATES = ("awaiting_approval", "running", "done", "error", "denied", "cancelled")
+# expired：卡片所属的代录任务已失效（7 天没动作或新任务已含同票，卡片有效期 11-13），只在投影里出现，执行记录不存它
+TOOL_RUN_STATES = ("awaiting_approval", "running", "done", "error", "denied", "cancelled", "expired")
 
 
 def tool_run_event(tool_use_id, status, processed_at, settled=False, waiting=False) -> dict:

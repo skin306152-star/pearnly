@@ -436,7 +436,7 @@ export function greeting(now = new Date()): string {
 // 工具步骤的说明（同 claude.ai：灰色一行，进行中 / 完成 / 未执行三种说法）。
 const STEPS = {
   en: {
-    thinking: "Working…", thinkingNow: "Working", seconds: (n: number) => `${n}s`, thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", error: "Error",
+    thinking: "Working…", thinkingNow: "Working", seconds: (n: number) => `${n}s`, thought: "Thought process", usedTool: "Used a tool", cancelled: "Cancelled", expired: "Expired", error: "Error",
     showOutput: "Show output", hideOutput: "Hide output",
     work: ["Working with files", "Worked with files", "Work with files"],
     bash: ["Running a command", "Ran a command", "Run a command"],
@@ -458,7 +458,7 @@ const STEPS = {
     },
   },
   zh: {
-    thinking: "正在执行…", thinkingNow: "执行中", seconds: (n: number) => `${n}秒`, thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", error: "错误",
+    thinking: "正在执行…", thinkingNow: "执行中", seconds: (n: number) => `${n}秒`, thought: "思考过程", usedTool: "已使用工具", cancelled: "已取消", expired: "已失效", error: "错误",
     showOutput: "显示输出", hideOutput: "收起输出",
     work: ["正在处理文件", "已处理文件", "处理文件"],
     bash: ["正在运行命令", "已运行命令", "运行命令"],
@@ -477,7 +477,7 @@ const STEPS = {
     },
   },
   th: {
-    thinking: "กำลังดำเนินการ…", thinkingNow: "กำลังดำเนินการ", seconds: (n: number) => `${n} วินาที`, thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", error: "ข้อผิดพลาด",
+    thinking: "กำลังดำเนินการ…", thinkingNow: "กำลังดำเนินการ", seconds: (n: number) => `${n} วินาที`, thought: "กระบวนการคิด", usedTool: "ใช้เครื่องมือแล้ว", cancelled: "ยกเลิกแล้ว", expired: "หมดอายุ", error: "ข้อผิดพลาด",
     showOutput: "แสดงผลลัพธ์", hideOutput: "ซ่อนผลลัพธ์",
     work: ["กำลังจัดการไฟล์", "จัดการไฟล์แล้ว", "จัดการไฟล์"],
     bash: ["กำลังรันคำสั่ง", "รันคำสั่งแล้ว", "รันคำสั่ง"],
@@ -496,7 +496,7 @@ const STEPS = {
     },
   },
   ja: {
-    thinking: "実行しています…", thinkingNow: "実行中", seconds: (n: number) => `${n}秒`, thought: "思考プロセス", usedTool: "ツールを使用しました", cancelled: "キャンセルしました", error: "エラー",
+    thinking: "実行しています…", thinkingNow: "実行中", seconds: (n: number) => `${n}秒`, thought: "思考プロセス", usedTool: "ツールを使用しました", cancelled: "キャンセルしました", expired: "期限切れ", error: "エラー",
     showOutput: "出力を表示", hideOutput: "出力を非表示",
     work: ["ファイルを処理しています", "ファイルを処理しました", "ファイルを処理"],
     bash: ["コマンドを実行しています", "コマンドを実行しました", "コマンドを実行"],

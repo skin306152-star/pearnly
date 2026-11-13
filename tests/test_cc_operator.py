@@ -208,6 +208,8 @@ assert.equal(progressText({ done: 0, total: 2, label: "waiting_computer", detail
 assert.equal(progressText({ done: 3, total: 12, label: "reading_pages" }), run.readingPages(3, 12));
 // 中途要选的卡片与继续卡片：没有 awaiting_approval 也没结果（任务已往前走）= 已取消；有结果 = 点完
 assert.equal(cardPhase({ toolName: "operator_choose" } as any), "cancelled");
+// 任务已失效（卡片有效期，用户 11-13）：本站标 expired → 「已失效」，与用户取消的「已取消」分开
+assert.equal(cardPhase({ toolName: "operator_choose", run: "expired" } as any), "expired");
 assert.equal(cardPhase({ toolName: "operator_choose", run: "awaiting_approval" } as any), "ask");
 assert.equal(cardPhase({ toolName: "operator_choose", run: "awaiting_approval", result: { text: "{}", isError: false } } as any), "answered");
 // 收尾：空正文 + operator 字段 → 一句，报告记在消息上

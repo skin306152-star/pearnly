@@ -19,6 +19,7 @@ import json
 import sys
 import types
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -419,6 +420,16 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual([e["detail"] for e in whole("running")], [""])
         self.state["waiting_on"] = {}
         self.assertEqual([e["detail"] for e in whole("queued")], [""])
+
+    def test_an_expired_task_shows_its_cards_as_expired_and_waits_for_nothing(self):
+        # 卡片有效期（设计 2.3 + 用户 11-13）：任务已失效 → 卡片标 expired（页面「已失效」、按钮点不动），会话不再等人点
+        with mock.patch.object(self.tasks, "expired", lambda task: True):
+            events = self.project(_task("attention", [_doc(1, "not_done", REASONS["human"])]))
+        runs = [e for e in events if e["type"] == "pearnly.tool_run"]
+        statuses = {e["status"] for e in runs}
+        self.assertIn("expired", statuses)
+        self.assertNotIn("awaiting_approval", statuses)
+        self.assertNotEqual(self.feed.run_state(events)["status"], "requires_action")
 
     def test_the_same_record_projects_to_the_same_events_twice(self):
         task = _task("attention", [_doc(1, "saved", docnum="HP01"), _doc(2, "not_done", REASONS["batch"]),

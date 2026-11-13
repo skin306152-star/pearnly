@@ -142,6 +142,18 @@ class _Out:
         return self.add(chat.progress_event(eid, None, use_id, done, total, label, detail), moment, bump)
 
 
+EXPIRED = "expired"
+
+
+def _expired(task) -> bool:
+    """任务此刻是否已失效（`tasks.expired`）；判不出（读不到）当没失效，照常投影。"""
+    try:
+        return bool(tasks.expired(task))
+    except Exception:
+        frappe.clear_messages()
+        return False
+
+
 def _docs(task) -> list:
     """单据子表各行，附上投影要用的时间（R5：旧任务没有时间的按开始时刻加序号排）。"""
     base = _moment(_get(task, "started_at")) or _moment(_get(task, "creation"))
@@ -185,6 +197,7 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
     p = f"{PREFIX}{name}_"
     out = _Out(tz)
     status = str(_get(task, "status") or "preparing")
+    dead = _expired(task)  # 任务已失效：卡片标 expired（「已失效」、点不动），会话不再等人点（卡片有效期，设计 2.3）
     created = _moment(_get(task, "creation"))
     started = _moment(_get(task, "started_at")) or created
     company = str(_get(task, "company") or "")
@@ -278,8 +291,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         card = f"{p}c{item['key']}_{_ms(item['done'])}"
         out.tool(card, CHOOSE, {**base, **view, "reason": code, "detail": detail, "level": contracts.level(code),
                                 "result_unknown": unknown}, item["done"], custom=True, bump=1)
-        out.run(card, "awaiting_approval", item["done"], bump=1)
-        awaiting.append(card)
+        out.run(card, EXPIRED if dead else "awaiting_approval", item["done"], bump=1)
+        if not dead:
+            awaiting.append(card)
 
     # E12 整批停 → 继续
     if requeued:
@@ -293,8 +307,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         out.tool(card, RESUME, {**base, **_doc_view(stopper), "reason": reason_code(stopper["raw"]),
                                 "detail": reason_detail(stopper["raw"]),
                                 "doc_ids": [_doc_view(item)["doc_id"] for item in stopped]}, when, custom=True, bump=2)
-        out.run(card, "awaiting_approval", when, bump=2)
-        awaiting.append(card)
+        out.run(card, EXPIRED if dead else "awaiting_approval", when, bump=2)
+        if not dead:
+            awaiting.append(card)
 
     # E7 / E14 / E17 整个会话的状态
     last = max(last_time(task), anchor)  # 排在开始前卡片之后：它的时刻取过用户这次的话

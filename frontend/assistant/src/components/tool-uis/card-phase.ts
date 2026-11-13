@@ -5,13 +5,14 @@ import type { CardPart } from "@/lib/approval-card";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 
 // ── 卡片此刻的样子 ───────────────────────────────────────────────────────────
-export type CardPhase = "ask" | "answered" | "cancelled";
+export type CardPhase = "ask" | "answered" | "cancelled" | "expired";
 
 /** 方案 14.10：能点 = 有 pearnly.tool_run awaiting_approval、还没有结果（user.custom_tool_result）。有结果、执行记录往前走了、本页刚点完
  *  → 点完；作废、或没在等也没结果（任务已往前走）→ 已取消（同「允许」卡片没答就没了）。 */
 export function cardPhase(part: CardPart): CardPhase {
   if (part.result !== undefined || part.approval?.approved !== undefined) return "answered";
   if (part.run === "awaiting_approval") return "ask";
+  if (part.run === "expired") return "expired"; // 所属代录任务已失效（卡片有效期 11-13）：「已失效」，与取消分开
   if (part.run && part.run !== "cancelled") return "answered";
   return "cancelled";
 }
