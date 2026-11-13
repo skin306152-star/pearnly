@@ -233,6 +233,7 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 | 必填字段登记表 `apps/pearnly_core/pearnly_core/express_rules/contracts/required_fields.py`（引导式录入建） | 每种单据每个必填字段「自动定 / 卡上问 / 复核可改」 | 本登记的 `fields = "<账本>:<单据>"` |
 | 部署后 `tests/e2e/registry.toml` | L4 场景 | 地图行 `e2e:<id>` |
 | CC 对话乱用种子 `tests/acceptance/cc_talk.toml`、用例 `cc_talk_cases.toml` | 十类乱用与八条底线；参数化用例 | L3 场景的 `talk` / `case`；探索式的方向 |
+| 样票库 `tests/acceptance/samples.toml`（生成器 `scripts/acceptance/samples.py`） | CC 对话场景放的票：内容确定、供应商与商品取自验收账套基线里的主档，带「录对了账本里应有的值」；图片现生成、不进仓库 | 用例 `attach` 里的名字；写账场景核账本的预期值 |
 | 盘点快照 `tests/acceptance/inventory.toml` | 11-12 全产品入口盘点的数字（一次性；第四期入口全部进地图后删除） | 一屏总览的第一段 |
 | 链 `tests/acceptance/chains.toml` | 每条业务链经过哪些行 | `chain` 类场景 |
 | 证据 `tests/acceptance/evidence.toml` | 每条 L3 场景最近一次通过 | 检查脚本、CC 能力表 |

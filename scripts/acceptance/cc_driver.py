@@ -502,7 +502,7 @@ class LabConversation(Conversation):
         for item in files:
             path = Path(str(item))
             if not path.is_file():
-                raise Unmet(f"lab-fake 只收本机文件路径；{item!r} 不是文件（样票库还没接到实验栈）")
+                path = _lib("samples").resolve(str(item))  # 样票名（tests/acceptance/samples.toml）→ 现生成的图片；不认识的名字抛 Unmet
             boundary = "----acc" + uuid.uuid4().hex
             mime = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
             body = (f"--{boundary}\r\nContent-Disposition: form-data; name=\"session_id\"\r\n\r\n{self.session_id}\r\n"

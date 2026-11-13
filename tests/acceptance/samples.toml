@@ -1,0 +1,32 @@
+# 验收样票库（验收测试标准 §3.4）：CC 对话场景放的票。内容是确定的（供应商、金额、日期写死），断言才能按值核；
+# 供应商、商品取自验收账套基线 `69EXP\TEST2@2026-11-13` 里真有的主档（APMAS / STMAS），买方就是 TEST2 这家公司（ISINFO）。
+# 文件不进仓库：`python3 scripts/acceptance/samples.py render` 按这里的内容现生成图片（无头 Chrome 截图；不出 PDF，见脚本说明），驱动放票时按名字取。
+# `expect` 是这张票录对了以后账本里应有的值（场景拿它核 APTRN），不是给模型看的。
+# 用例（cc_talk_cases.toml）里还没有对应样票的名字：purchase-b1（别家公司的票）、purchase-june（别的月份）、purchase-ambiguous-pay、
+# purchase-injected（票面藏指令）、purchase-a1-photo2、contract、transfer-slip——随第二期各格场景补。
+
+[buyer]
+name = "บริษัท Pearnly จำกัด"
+tax_id = "1234567890123"
+branch = "สำนักงานใหญ่"
+address = "250/162 กทม 10310"
+
+[[sample]]
+id = "purchase-a1"
+title = "ใบกำกับภาษี / ใบส่งของ"
+number = "ACC-A1-0001"
+date = "2026-11-13"
+supplier = { code = "V001", name = "บริษัท วิศวภัณฑ์ 1991 จำกัด", tax_id = "0105535001847", branch = "สำนักงานใหญ่", address = "กรุงเทพมหานคร" }
+vat_rate = "7"
+lines = [{ description = "น้ำแข็งหลอด", qty = "10", unit = "กก", price = "12.00" }]
+expect = { supplier_code = "V001", amount = "120.00", vat = "8.40", total = "128.40" }
+
+[[sample]]
+id = "purchase-a2"
+title = "ใบกำกับภาษี / ใบเสร็จรับเงิน"
+number = "ACC-A2-0001"
+date = "2026-11-13"
+supplier = { code = "T001", name = "บริษัท ไทย ซี-เซ็นเตอร์ จำกัด", tax_id = "0105533095194", branch = "สาขาที่ 00052", address = "กรุงเทพมหานคร" }
+vat_rate = "7"
+lines = [{ description = "ค่าบริการโฆษณา", qty = "1", unit = "งาน", price = "500.00" }]
+expect = { supplier_code = "T001", amount = "500.00", vat = "35.00", total = "535.00" }
