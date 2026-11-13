@@ -1,6 +1,7 @@
 """LINE「点序号选」按钮标签（`pearnly_core.line_ui.labels.choice_labels`，多产品共用；11-13 收款真机：同一家两本账套截到 20 字后一样）。
 
-纯函数，不连库不出网。另核 ERP 的 LINE 入口里列名称让人点序号选的地方都经它出标签，不再各自 ``[:20]`` 截。Cowork 识别后问仓的按钮以仓库编码开头
+纯函数，不连库不出网。另核 ERP 的 LINE 入口里列名称让人点序号选的地方都经它出标签，不再各自 ``[:20]`` 截。保留项：识别后按行追问里的选仓库按钮
+（`integrations/line_items.py`）没改——那个入口在产品地图里要真机证据（付费识别才能走到），等下一次真机排了一起改。Cowork 识别后问仓的按钮以仓库编码开头
 （「01 Main」），截断后不会相同，不改；DMS 列的是客户编码，同理。
 """
 import pathlib
@@ -53,7 +54,6 @@ class CallSites(unittest.TestCase):
     SITES = {
         "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py": 4,
         "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py": 2,
-        "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py": 1,
     }
 
     def test_numbered_buttons_use_the_shared_labels(self):
