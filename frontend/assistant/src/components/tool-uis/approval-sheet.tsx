@@ -14,6 +14,7 @@ import { useToolLabels } from "@/lib/tool-labels";
 import { t } from "@/i18n";
 import { ApprovalFailure, ChangeList } from "./approval-bar";
 import { ASK_TOOL } from "./ask-shared";
+import { GUIDE_TOOL } from "./guide-shared";
 import { askText } from "./steps";
 
 export function ApprovalSheet() {
@@ -23,7 +24,7 @@ export function ApprovalSheet() {
   if (!phone || !snapshot.sessionId) return null;
   const part = firstPendingApproval<ToolPart | { type: "text" | "reasoning"; approval?: undefined }>(snapshot.messages);
   // 通用提问卡片 ask_user 不浮：它本身就是对话流里一题一页的卡片（ask-card.tsx）
-  if (!part || part.type !== "tool-call" || !part.approval || part.toolName === ASK_TOOL) return null;
+  if (!part || part.type !== "tool-call" || !part.approval || part.toolName === ASK_TOOL || part.toolName === GUIDE_TOOL) return null;
   const { approval } = part;
   const sessionId = snapshot.sessionId;
   const respond = (approved: boolean) => getSessionController(sessionId).respondToApproval(approval.id, approved);
