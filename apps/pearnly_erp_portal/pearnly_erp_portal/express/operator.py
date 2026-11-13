@@ -120,6 +120,18 @@ def uploads(company, period, batches) -> dict:
     return out
 
 
+def waiting_on(company, user) -> str:
+    """代录任务排着等电脑时在等的本人电脑名称（共用层 ``products.waiting_on``，与 Cowork 同一钩子）：这家公司的账套里，``user``
+    自己够得到、此刻不在线的电脑（`cc_desktop.jobs.waiting_on`）；没有回空串。"""
+    from pearnly_core.cc_desktop import books
+
+    row = frappe.db.get_value("ERP Company", company, ["tax_id", "branch"], as_dict=True) if company else None
+    if not row:
+        return ""
+    keys = [book["key"] for book in books.for_company(row.tax_id, row.branch)]
+    return ", ".join(jobs.waiting_on(user, keys))
+
+
 def target(company) -> str:
     return "express"
 
