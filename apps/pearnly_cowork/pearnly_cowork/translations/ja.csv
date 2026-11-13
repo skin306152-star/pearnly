@@ -2250,6 +2250,7 @@ Yellow,黄
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)",はい、カード手数料率は {0}%（手数料に 7% VAT 加算・込みのどちらも可）
 You are watching this card,このカードをウォッチしています
 You do not have access to this ERP target.,このERP送信先にアクセスする権限がありません。
+Your computer is offline,お使いのパソコンがオフライン
 Zero VAT,税額ゼロ
 account,勘定科目
 active,有効
@@ -3419,6 +3420,7 @@ image,画像
 in,入金
 intake.agent.state.needsUpdate,CC デスクトップの更新が必要
 intake.agent.state.noWriter,書き込めるパソコンがありません
+intake.agent.state.notYours,お使いのパソコンがオフライン
 intake.agent.state.offline,パソコンがオフライン
 intake.catalog.reload,再読み込み
 intake.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます

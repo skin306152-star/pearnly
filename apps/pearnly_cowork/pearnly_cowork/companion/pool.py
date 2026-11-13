@@ -10,6 +10,8 @@
   有它就能选 Express、确认、排队（D4：电脑关着也排，开机后写）。与确认同一个判据（`push.native.service.has_writer`）；
 - ``online``：这些能写的电脑里有一台此刻在线（任一把有效密钥 3 分钟内报过到）。能写、都不在线 → 「电脑离线（仍可选）」；
 - ``needs_update``：给了账套、这个人（这台电脑）有排队的单，而他能写的电脑没有一台支持排头要的载荷版本；
+- ``waiting_on`` / ``not_yours``（只在按人、能写、都不在线时带）：在等的本人电脑名称；同事够得到这本、能写的电脑此刻在线时
+  另带 ``not_yours: True``——活照旧只归他的电脑，界面说「您的电脑离线」而不是电脑离线（A 线 11-12 测试机1）；
 - ``computers``：他有没有电脑（有一把有效密钥、没退役，能不能写都算）。录入入口据此分清「未连接电脑」（一台都没有）
   与「没有能写的电脑」（有电脑，但都够不到能写的账套，如账套只在别人电脑的 C 盘上、只读文件夹的成员、或登记人已失权）。
 
@@ -50,7 +52,14 @@ def state(connection, account_key=None, *, user=None, device=None, now=None):
             version = queue_heads.payload_versions(head)[head[0].name]
             known = {item: route_contracts.Peer(payload_version=mine[item].get('payload_version')) for item in writers}
             needs_update = route_contracts.needs_update(version, writers, known)
-    return {'online': online, 'writers_known': bool(writers), 'needs_update': needs_update, 'computers': bool(mine)}
+    result = {'online': online, 'writers_known': bool(writers), 'needs_update': needs_update, 'computers': bool(mine)}
+    if writers and not online and (user or device):
+        # 在等的本人电脑（名称；界面「等待电脑 · 名称」）；同事够得到这本的电脑在线 → not_yours（「您的电脑离线」，A 线 11-12）
+        result['waiting_on'] = sorted(str(mine[item].get('label') or item) for item in writers)
+        others = {name: peer for name, peer in peers.items() if name not in mine and peer.get('online')}
+        if others and account_pool.writers(doc, key or None, peers=others):
+            result['not_yours'] = True
+    return result
 
 
 def for_user(connection, account_key=None, *, device=''):
