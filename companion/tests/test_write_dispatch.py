@@ -282,7 +282,7 @@ def test_unattended_worker_never_asks_and_leaves_a_busy_account_set_to_the_waiti
     assert handle.index("task_journal.written(task_journal.key_of(task))") < handle.index("account_lock.is_account_busy(")
     # 有人值守、账套被占用：先放掉租约（按「等账套」回报）再问，不拿着租约等人点
     release = source.split("def _release_then_ask(", 1)[1].split("\n    def ", 1)[0]
-    assert release.index("queue.ack_failure(") < release.index("self._ask_busy(lang)")
+    assert release.index("queue.ack_failure(") < release.index("self._show_busy(")
     assert 'outcome="waiting_lock"' in release
     # 不再开机锁屏；防睡眠改成「CC 开着时保持电脑唤醒」（keep_awake.py，第 58 条，见 test_keep_awake）；关窗口进托盘照旧
     tray = (root / "gui_tray.py").read_text(encoding="utf-8")
@@ -307,9 +307,10 @@ def test_a_busy_account_set_releases_the_lease_before_the_prompt(choice, expecte
 
     pw.busy_prompt.connect(prompt)
     result = pw._release_then_ask("P1", Queue(), SimpleNamespace(id="T-1", invoice_no="INV"), "zh")
-    assert result == expected
+    assert result == "waiting_lock"  # 11-13 起不等人点：取任务线程立刻回去心跳、领单
     assert order == [("ack", "T-1", "ACCOUNT_BUSY_LOCKED", "waiting_lock"), ("prompt",)]
-    assert ("P1" in pw._abort_batches) is (choice == "abort")
+    pw._settle_prompts()  # 点了的选择在下一轮领单时生效
+    assert ("P1" in pw._abort_batches) is (choice == "abort") and expected
 
 
 class _AckQueue:
@@ -384,7 +385,7 @@ def test_abort_follows_the_task_not_the_batch(monkeypatch):
     pw.busy_prompt.connect(prompt)
     task = SimpleNamespace(id="T-7", invoice_no="INV", payload={}, attended=True)
     queue = _AckQueue()
-    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "error"
+    assert pw.handle_task(_cfg(profile_id="P1"), queue, task, None, "zh") == "waiting_lock"
     assert queue.acks == [("failed", "T-7", "ACCOUNT_BUSY_LOCKED", "waiting_lock")] and len(prompts) == 1
     pw._abort_batches.discard("P1")   # 这一批结束（batch_done）
     queue = _AckQueue()
@@ -463,45 +464,30 @@ def test_rescan_soon_makes_the_next_heartbeat_scan_everything_again(monkeypatch)
     assert second[0] is not None and scans == ["C:/books", "C:/books"]
 
 
-def test_waiting_for_someone_to_answer_the_busy_prompt_is_not_a_stall():
-    """教程问题「附」（10-20 19:47:31）：Express 开着同一份账套，询问框等人点的时候看门狗判「poll loop 卡死 190s」、重启
-    取任务线程，旧线程停下时把这次询问当成「终止」。等人点时线程照常盖存活时标；没在等人（真卡住）照旧算卡死。"""
-    import threading
-
-    from PySide6.QtCore import Qt
-
-    from companion import watchdog
-
-    now = [1000.0]
+def test_the_busy_prompt_never_holds_the_poll_thread(monkeypatch):
+    """11-13 真机（测试机1、测试机2 两台 1.12.21）：Express 开着同一本账套的单据窗口，有人值守的单弹「账套正被占用」后取任务线程
+    一直等人点，心跳与领单一起停了十几分钟，Express 关了也不恢复。现在：框弹出去就回，取任务线程照常走；同一个成员已有一个没点的
+    框就不再弹第二个；人后来点了「终止」，下一轮领到这张单时按终止回报（点「重试」或不点：服务端歇一会儿再派）。"""
+    _busy(monkeypatch)
     pw = _poll_worker()
-    pw._live = watchdog.Liveness(clock=lambda: now[0])
-    limit = watchdog.stall_limit_seconds(60)
     shown = []
-    # 真机上询问框由界面线程弹（排队连接）；这里没有事件循环，直接在发信号的线程里收下
-    pw.busy_prompt.connect(shown.append, Qt.ConnectionType.DirectConnection)
-    answer = {}
-    asking = threading.Thread(target=lambda: answer.update(choice=pw._ask_busy("zh")), daemon=True)
-    asking.start()
-    try:
-        deadline = time.monotonic() + 5
-        while not shown and time.monotonic() < deadline:
-            time.sleep(0.01)
-        assert shown, "询问框没弹"
-        for _minute in range(5):   # 人五分钟没点
-            now[0] += 60.0
-            time.sleep(0.5)
-            assert not watchdog.is_stalled(pw.stall_seconds(), limit), pw.stall_seconds()
-        shown[0].choice = "retry"
-        shown[0].done.set()
-        asking.join(5)
-        assert answer == {"choice": "retry"}
-    finally:
-        pw._stop = True
-        asking.join(5)
-    # 不在等人时不盖时标：真卡住照旧判卡死、自愈
-    now[0] += limit + 10
-    time.sleep(0.5)
-    assert watchdog.is_stalled(pw.stall_seconds(), limit)
+    pw.busy_prompt.connect(shown.append)   # 没人点：框一直开着
+    cfg = _cfg(profile_id="P1")
+    first = SimpleNamespace(id="T-1", invoice_no="A", payload={}, attended=True)
+    second = SimpleNamespace(id="T-2", invoice_no="B", payload={}, attended=True)
+    started = time.monotonic()
+    queue = _AckQueue()
+    assert pw.handle_task(cfg, queue, first, None, "zh") == "waiting_lock"
+    assert pw.handle_task(cfg, queue, second, None, "zh") == "waiting_lock"
+    assert time.monotonic() - started < 1.0   # 没在框前等
+    assert len(shown) == 1   # 同一个成员只开一个框
+    assert queue.acks == [("failed", "T-1", "ACCOUNT_BUSY_LOCKED", "waiting_lock"),
+                          ("failed", "T-2", "ACCOUNT_BUSY_LOCKED", "waiting_lock")]
+    shown[0].choice = "abort"
+    shown[0].done.set()   # 人这时才点「终止」
+    queue = _AckQueue()
+    assert pw.handle_task(cfg, queue, first, None, "zh") == "error"
+    assert queue.acks == [("failed", "T-1", "USER_ABORTED_BUSY", None)]
 
 
 def test_a_long_operator_task_keeps_the_watchdog_from_restarting_the_poll_thread(monkeypatch):
