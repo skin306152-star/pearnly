@@ -405,6 +405,19 @@ class BigLists(unittest.TestCase):
                          ["__new__", "__expense__", "P1", "S1"])
         self.assertEqual([r["code"] for r in module.search("CO1", "h1", "products_all", "fee", 0, 20)["options"]], ["S1"])
 
+    def test_guided_unknown_book_asks_stock_or_expense_instead_of_silent_expense(self):
+        """覆盖表 G-A4（引导式录入第 1 期）：CC 对话里，这本账套还没报记账画像时，有商品行的单问一次「走库存 / 记费用」，预选记费用（原来的默认，
+        点了才算）；不在 CC 对话里（网页、定时）照旧不问。"""
+        lines = document(pages=json.dumps([{"fields": {"direction": "purchase", "seller_name": "ร้าน A", "seller_tax": "0105555000011",
+                                                        "seller_branch": "00000", "document_type": "tax_invoice",
+                                                        "items": [{"name": "Box", "qty": "1", "subtotal": "100"}]}}]))
+        module, _calls, patcher = load(lines, goods=False)
+        self.addCleanup(patcher.stop)
+        self.assertNotIn("goods_posting", [i["kind"] for i in module.document("h1")["items"]])
+        module.assistant_guided.active = lambda: True
+        found = next(i for i in module.document("h1")["items"] if i["kind"] == "goods_posting")
+        self.assertEqual((found["value"], found["source"]), ("service", card.RULE))
+
     def test_per_line_questions_replace_the_whole_document_stock_or_expense_question(self):
         """按行问了存货对照（没声明过账类型的行，11-06）就不再整张问「走库存 / 记费用」；没有按行问的照旧问。"""
         item = {"kind": "item", "subject": "purchase|0105555000011|box", "label": "Box", "current": "", "expense": True}
