@@ -1497,8 +1497,8 @@ STOP_FIELDS = ("auto_class", "auto_reasons")
 ACCOUNT_SET_STOP_NOTE = (
     "A document stopped because its account set is not decided (two or more of the company's account sets cover its "
     "date, or none does) has push_target 'account set not chosen yet' and account_set_options (where it can go): it "
-    "is not going to any account set yet, so never name one as its account set; ask the user which one, then push it "
-    "with that account_set_key. account_set_remembered means the company's remembered account set in use applies "
+    "is not going to any account set yet, so never name one as its account set; call pearnly_guide for it (its card asks "
+    "the account set; do not ask it yourself), then push it with the chosen account_set_key. account_set_remembered means the company's remembered account set in use applies "
     "to it. conversation_account_set means it goes into this conversation's account set: do not ask, push it without "
     "account_set_key.")
 
@@ -5032,8 +5032,8 @@ TOOLS = [
                     + EXPRESS_WAIT_NOTE + "), "
                     "failed with a reason, " + direct_push.unconfirmed_rule("Express or MR.ERP", "cowork_resolve_push_result")
                     + ", needs_choice "
-                    "(call pearnly_precheck for those documents, ask with ask_user, save with pearnly_precheck_answer "
-                    "and push again; for MR.ERP it comes with mrerp_setup, the import menus or default values that "
+                    "(call pearnly_guide for those documents: the server asks the user on a card; never ask these yourself; "
+                    "then push again; for MR.ERP it comes with mrerp_setup, the import menus or default values that "
                     "account set still needs: choose them with cowork_mrerp_setup instead), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
                     "or already_success / already_pending (already entered or on its way; it is not pushed again and "

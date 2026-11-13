@@ -210,6 +210,7 @@ Could not update your account. Please reload and try again.,Could not update you
 Count tasks and variance records,Count tasks and variance records
 Counterparty,Counterparty
 Counterparty Tax ID,Counterparty Tax ID
+Covers this month,Covers this month
 Cowork Admin,Cowork Admin
 Cowork Intake,Cowork Intake
 Create a new {0},Create a new {0}
@@ -1151,6 +1152,7 @@ guide.source.pinned,Source document
 guide.source.remembered,Remembered
 guide.source.task_default,Task default
 guide.why.book_setting,Account set setting
+guide.why.covers,Covers this month
 guide.why.express_history,From Express history
 guide.why.history,From Express history
 guide.why.payment.rule,From the document type

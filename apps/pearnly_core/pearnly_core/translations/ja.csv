@@ -210,6 +210,7 @@ Could not update your account. Please reload and try again.,アカウントを�
 Count tasks and variance records,棚卸タスクと差異記録
 Counterparty,取引先名
 Counterparty Tax ID,取引先の税番号
+Covers this month,今月を含む
 Cowork Admin,Cowork 管理者
 Cowork Intake,Cowork 取り込み
 Create a new {0},新しい{0}を作成
@@ -1153,6 +1154,7 @@ guide.source.pinned,元伝票
 guide.source.remembered,記憶済み
 guide.source.task_default,タスクの既定値
 guide.why.book_setting,帳簿の設定
+guide.why.covers,今月を含む
 guide.why.express_history,Express の過去伝票から
 guide.why.history,Express の過去伝票から
 guide.why.payment.rule,書類の種類から判断

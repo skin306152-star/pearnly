@@ -274,11 +274,9 @@ SET_NOTE = ("<conversation_account_set>This conversation's account set is {label
             "user asks here to switch, ask with ask_user (option labels exactly the names below) and set it with "
             "pearnly_conversation_ledger.{others}</conversation_account_set>")
 NEEDED_NOTE = ("<conversation_account_set>This conversation's account set is not decided yet. Before the first write, "
-               "ask the user once with ask_user which one to write to (one question, each option label exactly one of "
-               "these names; at most 4, Other lets them type another), then set it with pearnly_conversation_ledger "
-               "(ledger = its name exactly as listed); after that every write goes into it and you do not ask again. "
-               "Account sets: "
-               "{options}</conversation_account_set>")
+               "call pearnly_guide with the documents: its card asks the user which account set to write to (the server "
+               "saves the answer); do not ask it yourself. After that every write goes into it and nothing asks again. "
+               "Account sets: {options}</conversation_account_set>")
 NONE_NOTE = ("<conversation_account_set>This company has no account set this conversation can write to, so nothing "
              "can be written yet.</conversation_account_set>")
 

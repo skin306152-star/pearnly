@@ -210,6 +210,7 @@ Could not update your account. Please reload and try again.,无法更新账户�
 Count tasks and variance records,盘点任务与差异记录
 Counterparty,对方名称
 Counterparty Tax ID,对方税号
+Covers this month,覆盖本月
 Cowork Admin,Cowork 管理员
 Cowork Intake,Cowork 录入
 Create a new {0},新建{0}
@@ -1153,6 +1154,7 @@ guide.source.pinned,来源单据
 guide.source.remembered,记住的
 guide.source.task_default,任务默认
 guide.why.book_setting,账套设置
+guide.why.covers,覆盖本月
 guide.why.express_history,按 Express 历史单据
 guide.why.history,按 Express 历史单据
 guide.why.payment.rule,按票种判断
