@@ -200,6 +200,9 @@ export const GuideCardBody: FC<{
   );
 };
 
+const GUIDE_CARD_RETRIES = 5;
+const GUIDE_CARD_RETRY_MS = 800;
+
 /** 工具 pearnly_guide 的卡片：同 ask_user，调用登记成等人作答；「提交」= 对话的「允许」带上答案。 */
 export const GuideCard: ToolCallMessagePartComponent = (props) => {
   const part = props as unknown as CardPart & { approval?: { id: string; failure?: string; sending?: boolean } };
@@ -209,17 +212,29 @@ export const GuideCard: ToolCallMessagePartComponent = (props) => {
   const useId = part.approval?.id ?? (props as { toolCallId?: string }).toolCallId ?? "";
   // 页面拿到的调用参数是模型给的单据；卡由服务端出卡前存在执行记录里，按本人本对话这一次调用取（assistant.api.guide_card）
   const [stored, setStored] = useState<GuideCardData | null>(null);
+  // 服务端先出卡、存进执行记录，再回「等作答」（页面这时才挂上 approval）：等 approval 出现再取；取到空卡（记录还没读到）隔一会儿再取几次
+  const gated = !!part.approval;
   useEffect(() => {
-    if (fromArgs.questions.length || fromArgs.decided.length || !sessionIdForCard || !useId) return;
+    if (fromArgs.questions.length || fromArgs.decided.length || !sessionIdForCard || !useId || !gated) return;
     let alive = true;
-    void get<{ card?: Partial<GuideCardData> }>("guide_card", { session_id: sessionIdForCard, tool_use_id: useId }).then(
-      (out) => alive && setStored(guideCardOf(out)),
-      withReport(undefined, "guide-card"),
-    );
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const fetchCard = (left: number) => {
+      void get<{ card?: Partial<GuideCardData> }>("guide_card", { session_id: sessionIdForCard, tool_use_id: useId }).then(
+        (out) => {
+          if (!alive) return;
+          const found = guideCardOf(out);
+          if (found.questions.length || found.decided.length || left <= 0) setStored(found);
+          else timer = setTimeout(() => fetchCard(left - 1), GUIDE_CARD_RETRY_MS);
+        },
+        withReport(undefined, "guide-card"),
+      );
+    };
+    fetchCard(GUIDE_CARD_RETRIES);
     return () => {
       alive = false;
+      if (timer) clearTimeout(timer);
     };
-  }, [fromArgs, sessionIdForCard, useId]);
+  }, [fromArgs, sessionIdForCard, useId, gated]);
   const card = fromArgs.questions.length || fromArgs.decided.length ? fromArgs : (stored ?? fromArgs);
   const labels = useToolLabels();
   const sessionId = useSessionId();
