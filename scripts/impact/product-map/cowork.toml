@@ -1996,3 +1996,14 @@ anchor = "tool:cowork:pearnly_write_start"
 group = "cc.tool.pearnly_write_start"
 where = "CC 工具 pearnly_write_start"
 tests = ["unit:tests/test_write_plan.py::test_writing_starts_only_after_the_user_answered_the_plan"]
+
+[[row]]
+id = "cowork.cc.operator.waiting-on"
+product = "Cowork"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:cowork:waiting_on"
+group = "cc.operator.waiting_on"
+where = "代录 waiting_on（任务排着等电脑时在等的本人电脑名称，页面「等待电脑 · 名称」，A 线 11-12）"
+tests = ["unit:tests/test_cowork_companies.py::test_an_operator_task_names_the_owners_computer_on_any_place_of_the_book", "unit:tests/test_express_operator_feed.py::test_a_task_waiting_for_the_computer_names_the_owners_computer", "unit:tests/test_cc_operator.py::test_events_fold_into_the_same_conversation"]
