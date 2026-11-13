@@ -779,9 +779,11 @@ class PoolRequestTests(unittest.TestCase):
 
     def test_waiting_for_a_readback_asks_only_the_askers_own_computers(self):
         # 第 54 条：回读按人问。同事的电脑在线不算；自己有电脑、却都够不到这份账套 → unreachable（不转给同事）
-        self.lease("CRED-2")
         wait = lambda user, key=self.KEY: self.service.waiting("C1", "express_read", account_key=key, user=user)
-        self.assertEqual(wait("acc@x.com")["reason"], "offline")   # 自己的 PC1 够得到、此刻没来领
+        self.assertEqual(wait("acc@x.com")["reason"], "offline")   # 谁的电脑都没来领：离线
+        self.lease("CRED-2")
+        # 自己的 PC1 够得到、此刻没来领，同事够得到这本的电脑在：not_yours（「您的电脑离线」，不转给同事，A 线 11-12）
+        self.assertEqual(wait("acc@x.com")["reason"], "not_yours")
         self.assertEqual(wait("other@x.com"), {})
         self.lease("CRED-1")
         self.assertEqual(wait("acc@x.com"), {})
