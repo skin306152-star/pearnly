@@ -61,13 +61,17 @@ def _open(books, params=None):
 def test_the_masters_carry_receipt_types_book_salesmen_and_cash_account(receipts):
     _result, data = _read(receipts)
     assert data["receipt_types"] == [
-        {"code": "05", "prefix": "BB", "name": "เงินโอน BBL", "name_en": "BBL", "bank": "", "account": "1113-01", "account_issue": ""},
+        {"code": "05", "prefix": "BB", "name": "เงินโอน BBL", "name_en": "BBL", "bank": "", "account": "1113-01", "account_issue": "",
+         "uses": 0},
         {"code": "12", "prefix": "TB", "name": "เงินโอน BBL/กระแส", "name_en": "", "bank": "B1", "account": "1112-01",
-         "account_issue": ""},
-        {"code": "03", "prefix": "TR", "name": "SCB", "name_en": "", "bank": "S1", "account": "", "account_issue": "conflict"},
-        {"code": "40", "prefix": "NA", "name": "ไม่มีบัญชี", "name_en": "", "bank": "", "account": "", "account_issue": "missing"},
-        {"code": "41", "prefix": "XX", "name": "", "name_en": "", "bank": "", "account": "", "account_issue": "conflict"},
-        {"code": "42", "prefix": "XX", "name": "", "name_en": "", "bank": "", "account": "", "account_issue": "conflict"},
+         "account_issue": "", "uses": 0,
+         "bank_account": {"code": "B1", "bank": "", "short": "", "number": "", "branch": "", "via": "shortnam"}},
+        {"code": "03", "prefix": "TR", "name": "SCB", "name_en": "", "bank": "S1", "account": "", "account_issue": "conflict",
+         "uses": 0},
+        {"code": "40", "prefix": "NA", "name": "ไม่มีบัญชี", "name_en": "", "bank": "", "account": "", "account_issue": "missing",
+         "uses": 0},
+        {"code": "41", "prefix": "XX", "name": "", "name_en": "", "bank": "", "account": "", "account_issue": "conflict", "uses": 0},
+        {"code": "42", "prefix": "XX", "name": "", "name_en": "", "bank": "", "account": "", "account_issue": "conflict", "uses": 0},
     ]
     assert data["receipt_run"] == {"prefix": "RE", "next": "2403080", "department": "CPI"}
     assert data["salesmen"] == [{"code": "NLTP4", "name": "อาคม 083", "inactive": False},
@@ -75,6 +79,43 @@ def test_the_masters_carry_receipt_types_book_salesmen_and_cash_account(receipts
                                 {"code": "OLD2", "name": "พัก", "inactive": True},
                                 {"code": "ACT", "name": "ใช้งาน", "inactive": False}]  # 状态 A 是在用（同 ARMAS 的记法）
     assert data["cash_account"] == "1111-00"
+
+
+def test_receipt_types_carry_their_bank_account_and_how_often_native_receipts_used_them(receipts):
+    """11-13 户头标签（接口见共享笔记「收款-LINE侧-交接-11-13.md」§4）：方式经 SHORTNAM 指到户头 → via shortnam；只填了科目、
+    科目恰好是唯一一个户头的 → via account；几个户头同科目、方式有问题的不带。uses = 原生 RE 的方式行按前缀计（别的单据簿的行不算），
+    只在同一户头有两种以上方式时才数（这里 TB 与 BK 都指 B1）。"""
+    acct = receipts.acct
+    (acct / "BKMAS.DBF").unlink()
+    _table(acct / "BKMAS.DBF", "BNKACC C(2); BNKNAM C(50); BRANCH C(30); SHORTNAM C(10); BNKNUM C(12); ACCNUM C(15)", [
+        {"BNKACC": "B1", "BNKNAM": "ธ.กรุงเทพ/กระแสรายวัน", "BRANCH": "สวนสยาม", "SHORTNAM": "BBL/CA", "BNKNUM": "1923045866",
+         "ACCNUM": "1112-01"},
+        {"BNKACC": "B2", "BNKNAM": "ธ.กรุงเทพ/ออมทรัพย์", "SHORTNAM": "BBL/SA", "BNKNUM": "1924226366", "ACCNUM": "1113-01"},
+        {"BNKACC": "S1", "BNKNAM": "SCB", "ACCNUM": "1113-02"}])
+    _append(acct / "ISRUN.DBF", [{"DOCTYP": "ZR", "DOCCOD": "60", "PREFIX": "TW", "ACCNUM01": "1113-02", "POSDES": "same as S1"},
+                                 {"DOCTYP": "ZR", "DOCCOD": "61", "PREFIX": "DU", "ACCNUM01": "1113-07"},
+                                 {"DOCTYP": "ZR", "DOCCOD": "62", "PREFIX": "BK", "SHORTNAM": "B1", "POSDES": "BBL/CA 2"}])
+    _append(acct / "BKMAS.DBF", [{"BNKACC": "S9", "ACCNUM": "1113-02"}])  # S1、S9 同科目：只填科目的 TW 认不出是哪个户头
+    seed(acct, "ARRCPCQ", [{"RCPNUM": "RE2403001", "CHQNUM": "TBRE2403001", "RCVAMT": 1.0},
+                           {"RCPNUM": "RE2403002", "CHQNUM": "TBRE2403002", "RCVAMT": 2.0},
+                           {"RCPNUM": "RE2403002", "CHQNUM": "BBRE2403002", "RCVAMT": 3.0},
+                           {"RCPNUM": "HS0000001", "CHQNUM": "TBHS0000001", "RCVAMT": 4.0}])
+    _result, data = _read(receipts)
+    rows = {row["prefix"]: row for row in data["receipt_types"]}
+    assert rows["TB"]["bank_account"] == {"code": "B1", "bank": "ธ.กรุงเทพ/กระแสรายวัน", "short": "BBL/CA", "number": "1923045866",
+                                          "branch": "สวนสยาม", "via": "shortnam"}
+    assert rows["BB"]["bank_account"] == {"code": "B2", "bank": "ธ.กรุงเทพ/ออมทรัพย์", "short": "BBL/SA", "number": "1924226366",
+                                          "branch": "", "via": "account"}
+    assert all("bank_account" not in rows[prefix] for prefix in ("TR", "NA", "XX", "TW", "DU"))
+    assert {prefix: row["uses"] for prefix, row in rows.items()} == {"BB": 1, "TB": 2, "TR": 0, "NA": 0, "XX": 0, "TW": 0, "DU": 0,
+                                                                       "BK": 0}
+    assert rows["BK"]["bank_account"]["code"] == "B1"
+
+
+def test_uses_are_not_counted_when_no_bank_account_has_two_methods(receipts):
+    seed(receipts.acct, "ARRCPCQ", [{"RCPNUM": "RE2403001", "CHQNUM": "TBRE2403001", "RCVAMT": 1.0}])
+    _result, data = _read(receipts)
+    assert [row["uses"] for row in data["receipt_types"]] == [0] * len(data["receipt_types"])
 
 
 def test_receipt_types_carry_the_account_class_from_the_books_own_chart(receipts):
