@@ -21,6 +21,7 @@ import frappe
 from frappe import _
 
 from pearnly_core import line, line_session
+from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
 
@@ -187,8 +188,8 @@ def _next(line_user_id, user, payload, reply_token, note=""):
         return _ask(reply_token, _QUESTIONS[step](payload),
                     [_button(label, urlencode({"a": "erp", "s": step, "v": key})) for key, label in options]
                     + [manual])
-    items = [_button(f"{index}. {short_name(label)}" if numbered else label, urlencode({"a": "erp", "s": step, "v": key}))
-             for index, (key, label) in enumerate(options, 1)]
+    texts = choice_labels([short_name(label) for _key, label in options]) if numbered else [label for _key, label in options]
+    items = [_button(text, urlencode({"a": "erp", "s": step, "v": key})) for text, (key, _label) in zip(texts, options)]
     question = (note + "\n" if note else "") + _QUESTIONS[step](payload)
     if numbered:
         question += "\n" + "\n".join(f"{index}. {label}" for index, (_key, label) in enumerate(options, 1))
@@ -255,8 +256,8 @@ def search(line_user_id, user, text, reply_token) -> bool:
     _save(line_user_id, payload)
     lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
     lines += [f"{index}. {label}" for index, (_key, label) in enumerate(found, 1)]
-    items = [_button(f"{index}. {short_name(label)}", urlencode({"a": "erp", "s": step, "v": key}))
-             for index, (key, label) in enumerate(found, 1)]
+    items = [_button(text, urlencode({"a": "erp", "s": step, "v": key}))
+             for text, (key, _label) in zip(choice_labels([short_name(label) for _key, label in found]), found)]
     _ask(reply_token, "\n".join(lines), items)
     return True
 

@@ -23,6 +23,7 @@ import frappe
 from frappe import _
 
 from pearnly_core import line, line_binding, line_session
+from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts
@@ -251,8 +252,8 @@ def _ask_company(reply_token, payload, note=""):
                                                          _("Type a word from the company name to find it")))))
     lines = [note] if note else []
     lines += [_("Choose the company")] + [f"{index}. {label}" for index, (_key, label) in enumerate(rows, 1)]
-    _ask(reply_token, "\n".join(lines), [_button(f"{index}. {short_name(label)}", _data("company", key))
-                                         for index, (key, label) in enumerate(rows, 1)])
+    labels = choice_labels([short_name(label) for _key, label in rows])
+    _ask(reply_token, "\n".join(lines), [_button(text, _data("company", key)) for text, (key, _label) in zip(labels, rows)])
 
 
 def _pick_company(line_user_id, payload, value, reply_token):
@@ -266,11 +267,14 @@ def _after_company(line_user_id, payload, reply_token):
     """公司定了：这家今天的账套定得下来就去找客户；同期两本、没选过先选一次（A10，11-12）。"""
     asked = _service().book_options(payload["company"])
     if asked:
-        payload.update(step="book", books={row["code"]: row["name"] for row in asked["options"][:MAX_CHOICES]})
+        rows = asked["options"][:MAX_CHOICES]
+        payload.update(step="book", books={row["code"]: row["name"] for row in rows},
+                       book_short={row["code"]: row.get("short") or row["name"] for row in rows})
         _save(line_user_id, payload)
         return _ask_book(reply_token, payload)
     payload.update(step="customer")
     payload.pop("books", None)
+    payload.pop("book_short", None)
     _save(line_user_id, payload)
     _ask_customer(reply_token)
 
@@ -279,11 +283,13 @@ def _after_company(line_user_id, payload, reply_token):
 
 
 def _ask_book(reply_token, payload):
-    """同名的副本与真账只有位置不同：列表写全「名称 · 位置」，按钮只放序号与名称的开头。"""
+    """同名的副本与真账只有位置不同：列表写全「名称 · 位置」，按钮放序号与短名（账套目录名，撞了带年度；`service._with_short`）。"""
     rows = list(payload["books"].items())
+    short = payload.get("book_short") or {}
+    labels = choice_labels([short.get(key) or label for key, label in rows])
     _ask(reply_token, "\n".join([_("Choose the account set")] + [f"{index}. {label}" for index, (_key, label)
                                                                   in enumerate(rows, 1)]),
-         [_button(f"{index}. {label}", _data("book", key)) for index, (key, label) in enumerate(rows, 1)])
+         [_button(text, _data("book", key)) for text, (key, _label) in zip(labels, rows)])
 
 
 def _answer_book(line_user_id, payload, value, reply_token):
@@ -306,7 +312,7 @@ def _type_company(line_user_id, payload, typed, reply_token):
         return _ask(reply_token, _("Too many matches; type a few more letters to narrow it down"))
     _ask(reply_token, "\n".join([_("Found {0}. Tap the number to choose:").format(len(found))]
                                 + [f"{index}. {label}" for index, (_key, label) in enumerate(found, 1)]),
-         [_button(f"{index}. {label}", _data("company", key)) for index, (key, label) in enumerate(found, 1)])
+         [_button(text, _data("company", key)) for text, (key, _label) in zip(choice_labels([label for _key, label in found]), found)])
 
 
 # ── 客户 ────────────────────────────────────────────────────────────────────
@@ -332,7 +338,7 @@ def _type_customer(line_user_id, payload, typed, reply_token):
     _save(line_user_id, payload)
     _ask(reply_token, "\n".join([_("Found {0}. Tap the number to choose:").format(len(items))]
                                 + [f"{index}. {row['code']} {row['name']}" for index, row in enumerate(items, 1)]),
-         [_button(f"{index}. {row['name']}", _data("customer", row["code"])) for index, row in enumerate(items, 1)])
+         [_button(text, _data("customer", row["code"])) for text, row in zip(choice_labels([row["name"] for row in items]), items)])
 
 
 def _pick_customer(line_user_id, payload, value, reply_token, note=""):
