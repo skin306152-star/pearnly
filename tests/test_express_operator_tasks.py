@@ -49,7 +49,13 @@ def _fake_frappe(state):
     frappe._ = lambda text: text
 
     def match(row, filters):
-        return all(row.get(k) in v[1] if isinstance(v, list) and v[0] == "in" else row.get(k) == v for k, v in filters.items())
+        def one(value, wanted):
+            if isinstance(wanted, list) and wanted[0] == "in":
+                return value in wanted[1]
+            if isinstance(wanted, list) and wanted[0] == ">":
+                return value is not None and value > wanted[1]
+            return value == wanted
+        return all(one(row.get(k), v) for k, v in filters.items())
 
     class Doc(_Row):
         def __init__(self, data):

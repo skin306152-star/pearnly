@@ -141,9 +141,10 @@ def expired(doc) -> bool:
     if not undone or not doc.get("creation"):
         return False
     created = _moment(doc.get("creation"))
-    newer = [row.name for row in frappe.get_all(DOCTYPE, filters={"company": doc.get("company"), "product": doc.get("product")},
-                                                fields=["name", "creation"], limit_page_length=0)
-             if row.name != doc.get("name") and row.creation and _moment(row.creation) > created]
+    newer = [row.name for row in frappe.get_all(DOCTYPE, filters={"company": doc.get("company"), "product": doc.get("product"),
+                                                                   "creation": [">", created]},
+                                                fields=["name"], order_by="creation desc", limit_page_length=LIST_MAX)
+             if row.name != doc.get("name")]
     if not newer:
         return False
     return bool(frappe.get_all(DOCUMENT, filters={"parent": ["in", newer], "doc_id": ["in", undone]}, fields=["name"],
