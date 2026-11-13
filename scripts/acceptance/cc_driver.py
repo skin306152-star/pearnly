@@ -25,8 +25,12 @@ user.custom_tool_result / user.interrupt / session.status_*）照 `scripts/flows
 `pearnly.write_plan`（`write_plan.event`）、`pearnly.stopped`（`stopped.event`）、`pearnly.answer`（`contracts.answer_event`）；
 附件说明的写法照 `frontend/assistant/src/lib/managed-agents/events.ts` 的 `attachmentNote`。
 
-验证状态（11-12）：`record_from_events`、`ask_answers`、工厂两个分支、没有实验栈 / 没占锁 / 指向真模型时记「没测到」——只有
-离线单测。`LabConversation` 连实验栈**还没实跑过**（当晚实验栈一直被发布窗口的全套流程占着）：HTTP 调用、CSRF、轮询节奏都未经实测。
+验证状态：`record_from_events`、`ask_answers`、工厂、没有实验栈 / 没占锁 / 指向真模型时记「没测到」有离线单测。
+`LabConversation` 11-13 12:02 在本机实验栈（借 C 线的 pearnly-cline-lab，挂的是 C 线分支 = main 2f68a0f10 + 上传拒收词条，不是本分支的产品代码）
+实跑通过一次（9 秒、22 个事件、费用 0）：建对话、发一句等回显、`[lab-ask]` 出提问卡并点 T.9（卡片记到作答与时刻）、`[lab-cut]` 回复中喊停
+（记到喊停时刻与被停的半段）、读事件、删对话、注销会话；没遇到 CSRF 拦截。**没验到的**：放附件（upload）、点「写入」（plan）、
+允许卡（allow）、推送线程没接手时的提醒（run_tool）。那次通过没存文件（冒烟脚本当时只在失败时存），只有终端输出；紧接着的第二遍在
+建 Desk 会话时失败——那套栈在这期间被整个删掉了（环境原因，不是驱动的问题）。
 """
 from __future__ import annotations
 
