@@ -98,10 +98,15 @@ class AskOnlyWhenHistoryCannotDecide(unittest.TestCase):
                         ask_service_vat=False)
         self.assertEqual(quiet["applied"][V.KIND], "accrual")
 
-    def test_sales_payloads_never_carry_it(self):
+    def test_sales_payloads_carry_it_only_when_chosen(self):
+        """有意变化（主会话 11-12，引导式第 1 期）：以前销项载荷从不带口径（CC 桌面版写死 1）；现在销项也按账套历史定 / 人选一次，
+        选了才带同名键 ``srv_vattyp``（``2`` 盖 21，见 tests/test_express_rules_guided.py）。没选的销项载荷与以前相同。"""
         payload = {"direction": "sales", "payload_version": 1}
         C.apply_to_payload(payload, {V.KIND: "cash_basis"})
-        self.assertNotIn(V.PAYLOAD_KEY, payload)
+        self.assertEqual(payload[V.PAYLOAD_KEY], "2")
+        untouched = {"direction": "sales", "payload_version": 1}
+        C.apply_to_payload(untouched, {})
+        self.assertNotIn(V.PAYLOAD_KEY, untouched)
 
 
 if __name__ == "__main__":

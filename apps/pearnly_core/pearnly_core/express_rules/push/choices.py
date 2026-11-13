@@ -620,6 +620,9 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
         # 人选的服务品进项税口径（这本账套的历史定不了时用）：旧版 CC 桌面版不认这个键、恒写 1，盖版本号让它诚实拒收
         payload[service_vat.PAYLOAD_KEY] = value
         version = max(version, service_vat.PAYLOAD_VERSION)
+    elif value and payload.get("direction") == "sales":
+        # 销项服务品税口径（引导卡答的 / 记过的，主会话 11-12）：同名键；``2`` 由 `common.finalize_payload` 盖 21（旧版写死 1）
+        payload[service_vat.PAYLOAD_KEY] = value
     if version > int(payload.get("payload_version") or 1):
         payload["payload_version"] = version
     return payload

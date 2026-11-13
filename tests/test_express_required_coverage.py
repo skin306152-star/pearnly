@@ -136,18 +136,20 @@ class GapRowsAsk(unittest.TestCase):
 
 
 class ModeGapsHonest(unittest.TestCase):
-    """代录 × 新物料（主会话 11-12）：代录建主档不读逐行新键，必须登记为缺口，不许当成已覆盖。"""
+    """录入方式的缺口如实登记（主会话 11-12）：登记了缺口的字段不算已覆盖；修好的缺口必须删掉（与代码对得上）。"""
 
-    def test_operator_new_item_is_a_registered_gap(self):
-        gap = rf.MODE_GAPS["operator"]["express:STMAS"]
-        self.assertLessEqual({"QUCOD", "ACCCOD", "STKGRP"}, set(gap["fields"]))
-
-    def test_gap_still_true_in_code(self):
-        """缺口登记与代码一致：代录建主档那一处还没把逐行科目组 / 分类 / 单位码传给建档函数时，缺口必须在；修好后删缺口、改这条。"""
+    def test_operator_new_item_gap_is_closed_with_the_code(self):
+        """代录 × 新物料：CC 桌面版代录建主档已把逐行单位码 / 科目组 / 分类 / 负库存传给建档（296f02c9c），服务端代录单带这四键照 21 派——
+        缺口已关，登记里不许再有它；代码若退回不传，这条红。"""
         source = (ROOT / "companion/src/companion/express_operator/masters.py").read_text(encoding="utf-8")
-        passes_line_keys = all(word in source for word in ("stkgrp=", "unit_code"))
-        self.assertEqual(passes_line_keys, "express:STMAS" not in rf.MODE_GAPS.get("operator", {}),
-                         "代录建主档的代码与缺口登记不一致")
+        self.assertTrue(all(word in source for word in ("stkgrp=", "acccod=", "negallow=")))
+        self.assertNotIn("express:STMAS", rf.MODE_GAPS.get("operator", {}))
+
+    def test_remaining_gaps_are_registered_fields(self):
+        for mode, gaps in rf.MODE_GAPS.items():
+            for key, gap in gaps.items():
+                for field in gap["fields"]:
+                    self.assertIsNotNone(rf.row(key, field), f"{mode} {key}.{field}")
 
 
 if __name__ == "__main__":

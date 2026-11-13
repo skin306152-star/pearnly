@@ -288,6 +288,10 @@ def finalize_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
         floor = max(floor, MIXED_LINES_PAYLOAD_VERSION)  # 旧版混行整单拒收：只派给能写的电脑
     if guided_keys_used(payload):
         floor = max(floor, GUIDED_PAYLOAD_VERSION)  # 旧版不认引导录入的新键（到期日、收款科目、单位码…）：诚实拒收
+    if payload.get("direction") == "sales" and str(payload.get("srv_vattyp") or "") == "2":
+        # 销项服务品税口径收付实现（11-12 与 CC 桌面版窗口对定：沿用 srv_vattyp、不进 GUIDED_KEYS）：旧版销项写死 1，盖 21 诚实拒收；
+        # ``1`` 与旧写法相同，不盖
+        floor = max(floor, GUIDED_PAYLOAD_VERSION)
     # 免税行标记（收银日汇总、混合税率的采购盖 11；整单免税的进货单盖 12）：旧版不认或照无税写，诚实拒收
     floor = max(floor, pos_contract.exempt_payload_version(payload))
     if any(isinstance(line, dict) and line.get("role") for line in payload.get("lines") or []):

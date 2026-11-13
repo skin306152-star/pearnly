@@ -422,16 +422,7 @@ DEFAULT_KEYS = {
 # 某种录入方式下还没覆盖的字段（如实登记，不许当成已覆盖）：方式 → 键 → {fields, reason, fix}
 MODE_GAPS = {
     "operator": {
-        # 代录开工前建主档复用直写的 ensure_stock_item（express_operator/masters.py _create），但只传票面单位文字与整单 stock_acccod，
-        # 不传逐行 unit_code / acccod / stkgrp / negallow；服务端也不把带载荷 21 新键的单派给代录、CC 桌面版拒收（约定 8.2a 第 5 条、8.4）。
-        # 所以代录下新物料的单位、科目组、分类仍静默取众数——与直写同一个缺口（主会话 11-12 要求如实登记）
-        "express:STMAS": {
-            "fields": ["QUCOD", "ACCCOD", "STKGRP", "NEGALLOW"],
-            # 代录建主档不读逐行新键；服务端不派带新键的代录单。修法：CC 桌面版 masters._plan / _create 读四个行键传给建档、
-            # 代录载荷放行这四键（CC 侧 8662cc14e 已做）；服务端代录单带这四键时盖 21 照派（本任务做）。两侧都落地后删这一条
-            "reason": "operator masters ignore the per-line keys; the server does not dispatch them to operator jobs",
-            "fix": "companion masters pass unit_code / acccod / stkgrp / negallow; server keeps them on operator payloads at 21",
-        },
+        # 代录 × 新物料（单位码 / 科目组 / 分类 / 负库存）11-13 已关：CC 桌面版 296f02c9c 代录建主档传四个行键，服务端代录单带这四键照 21 派
         # A5 单位换算、A11 出库成本、A13 现销收款科目：代录由 Express 界面自己拦 / 弹（主会话 11-12 定这期不出题）
         "express:LINE": {
             "fields": ["XTRNQTY", "TFACTOR", "XTRNVAL"],

@@ -175,3 +175,12 @@ A 类 14 条在哪一批落地：
 - 真模型、测试机、手机：未做（第 ⑥ 批后由主会话排）。
 
 保留项：`~/pearnly-devtools/cand-run-guided-phase1-fe347a`（候选离线解出的目录，每次重建；本任务收尾时删）。
+
+## 11-13：三项接缝收口（基线 integration-1113 854d3ca46，含 CC 桌面版 296f02c9c）
+
+- **代录 × 新物料缺口已关**：CC 桌面版代录建主档传四个行键、跨边测试 `tests/test_operator_guided_keys_contract.py` 已进来；本任务在里面加了
+  「服务端 `OPERATOR_GUIDED_LINE_KEYS` 与 CC `OPERATOR_LINE_KEYS` 相同、版本号相同」一条；`MODE_GAPS` 删掉 `express:STMAS`，覆盖测试改成「缺口已关、代码退回不传就红」。
+  代录剩下的登记缺口：A5 / A11（`express:LINE`）、A13（`express:HS`），主会话定第 1 期不出题。
+- **销项服务品口径带键**：`apply_to_payload` 销项也带 `srv_vattyp`（只在引导卡答过 / 记过时有值）；`finalize_payload` 销项单带 `2` 盖 21，`1` 不盖；
+  `srv_vattyp` 不进 `GUIDED_KEYS`（进货单早就带它）。有意变化：`tests/test_express_service_vat.py` 原来钉「销项载荷从不带口径」，按新口径改成「选了才带」。
+  CC 桌面版侧已按载荷 `2` 写收付实现（`dbf_sales.py`，未到期销项税科目不能记账时整单不写转人工）。
