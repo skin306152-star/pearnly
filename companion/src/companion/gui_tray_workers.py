@@ -89,6 +89,9 @@ class PollWorker(QThread):
         # 询问框里选了「终止」的单（任务号 → 何时选的）：租约已先放回排队，下次这台再领到它（不论是不是同一批）照样按终止回报。
         # 别的电脑在此期间领到它会照常写（终止只管这台，ADR-021）；一天后不再记。
         self._aborted_tasks: dict[str, float] = {}
+        # 弹出去还没人点的「账套正在使用中」询问框：[(框, 成员, 任务键)]。取任务线程不等它（11-13 真机：等人点时心跳与领单
+        # 一起停了十几分钟），点了以后在下一轮领单时生效（_settle_prompts）
+        self._prompts: list = []
         self._logged_offline_errors: dict[str, str] = {}
         self._scheduler = None
         self._live = watchdog.Liveness()
@@ -119,17 +122,27 @@ class PollWorker(QThread):
         ADR-021 第 55 条）。旧服务端不带 → 有人值守。1.7.0 起不再有「常驻模式」（第 56 条）。"""
         return getattr(task, "attended", None) is False
 
-    def _ask_busy(self, lang: str) -> str:
-        """弹「账套正在使用中」询问框并等人点。等人的这段时间取任务线程没卡：每 0.2 秒照常盖存活时标，看门狗不把它当卡死
-        （教程问题「附」，10-20 19:47：人还没点，看门狗判卡死 190 秒、重启取任务线程，旧线程停下时把这次询问当成「终止」，
-        单子报一次错，新线程领到同一张又弹一次框）。真卡在写盘、网络上照旧不盖时标，自愈不变。"""
+    def _settle_prompts(self) -> None:
+        """询问框点了「终止」：照以前的效果记下——这张单这台再领到按终止回报，这一批后面领到的也按终止回报；点了「重试」或
+        还没点：什么都不做（单子已放回排队，服务端歇一会儿再派）。"""
+        for item in list(self._prompts):
+            prompt, profile_id, key = item
+            if not prompt.done.is_set():
+                continue
+            self._prompts.remove(item)
+            if prompt.choice == "abort":
+                self._aborted_tasks[key] = time.monotonic()
+                self._abort_batches.add(profile_id)
+
+    def _show_busy(self, profile_id: str, task, lang: str) -> None:
+        """弹「账套正在使用中」询问框，**不等人点**：取任务线程照常心跳、领别的单（11-13 真机：两台电脑在框前一起停了十几分钟，
+        Express 关了也不恢复，要人点了才动）。这个成员已经有一个没点的框就不再弹第二个。"""
+        self._settle_prompts()
+        if any(owner == profile_id for _prompt, owner, _key in self._prompts):
+            return
         prompt = BusyPrompt(lang)
+        self._prompts.append((prompt, profile_id, task_journal.key_of(task)))
         self.busy_prompt.emit(prompt)
-        while not self._stop:
-            if prompt.done.wait(0.2):
-                return prompt.choice
-            self._live.tick()
-        return "abort"
 
     def _beating(self, run):
         """代录一张要几十秒到几分钟（等人停手、Express 慢时等画面）：这段时间旁路每秒盖一次存活时标，看门狗不把取任务线程
@@ -148,8 +161,8 @@ class PollWorker(QThread):
             done.set()
 
     def _release_then_ask(self, profile_id: str, queue, task, lang: str) -> str:
-        """账套被占用：先按「等账套」回报、放掉租约，再弹询问框（多台电脑 ADR-021：不再拿着租约等人点——别的电脑会把
-        过期的租约收成「结果不明」）。选「重试」：下一轮再领（多半还是这张）；选「终止」：这张单以后这台再领到就按终止回报
+        """账套被占用：先按「等账套」回报、放掉租约，再弹询问框、不等人点（多台电脑 ADR-021：不拿着租约等人点；11-13 起也不
+        拿着取任务线程等人点）。选「重试」或不点：服务端歇一会儿再派；选「终止」：这张单以后这台再领到就按终止回报
         （按任务号记，不随这一批结束清掉），这一批后面领到的也都按终止回报。"""
         from .dbf_writer import ERR_WAITING_LOCK
 
@@ -159,11 +172,8 @@ class PollWorker(QThread):
         except Exception:
             log.exception("账套被占用：放回排队失败（租约到期后服务端照样收回）")
         self.status.emit(profile_id, "waiting_lock", str(task.invoice_no or ""))
-        if self._ask_busy(lang) == "abort":
-            # 这张已放回排队：这台再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task），这里不重复记
-            self._aborted_tasks[task_journal.key_of(task)] = time.monotonic()
-            self._abort_batches.add(profile_id)
-            return "error"
+        # 这张已放回排队：人点了「终止」，这台再领到它（或这一批后面的）时按终止回报、计入失败（_abort_task，_settle_prompts 记下）
+        self._show_busy(profile_id, task, lang)
         return "waiting_lock"
 
     def _is_aborted(self, profile_id: str, task) -> bool:
@@ -197,6 +207,7 @@ class PollWorker(QThread):
         # 这台写过、只是回执没送到的单：不探占用、不放回排队、不按终止回报，直接照上次的回执回报（_handle_dbf_task）。
         # 否则会计正开着 Express 时它会被放回排队，派给没有本机写过记录的电脑再写一遍。
         written = task_journal.written(task_journal.key_of(task)) is not None
+        self._settle_prompts()  # 询问框里刚点的「终止」先记下，再看这张单
         if not written and self._is_aborted(profile_id, task):
             self._abort_task(profile_id, queue, task, lang)
             batch["fail"] += 1
