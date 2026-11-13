@@ -203,6 +203,8 @@ assert.equal(progressText(liveProgress(state)!), `${op.nth(2, 2)} · ${op.reason
 state = project([{ type: "pearnly.progress", id: `pop_${T}_p_old`, processed_at: at(7), tool_use_id: "", done: 0, total: 2, label: "waiting_computer" }], state);
 assert.equal(liveProgress(state)!.label, "screen_locked");
 assert.equal(progressText({ done: 0, total: 2, label: "waiting_computer" }), `${op.nth(0, 2)} · ${op.queued}`);
+// 在等哪台（服务端给的本人电脑名称，A 线 11-12）：「等待电脑 · 名称」，沿用现成词条
+assert.equal(progressText({ done: 0, total: 2, label: "waiting_computer", detail: "PC-A" }), `${op.nth(0, 2)} · ${co.folderWaiting} · PC-A`);
 assert.equal(progressText({ done: 3, total: 12, label: "reading_pages" }), run.readingPages(3, 12));
 // 中途要选的卡片与继续卡片：没有 awaiting_approval 也没结果（任务已往前走）= 已取消；有结果 = 点完
 assert.equal(cardPhase({ toolName: "operator_choose" } as any), "cancelled");

@@ -307,8 +307,10 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
     elif status in ("queued", "running"):
         out.add({"type": "session.status_running", "id": f"{p}st_run_{_ms(last)}"}, last, 5)
         label = "waiting_computer" if status == "queued" else "entering"
+        # 排着等电脑：带上在等的本人电脑名称（产品钩子，按任务主人；页面「等待电脑 · 名称」，A 线 11-12）
+        waiting_on = products.waiting_on(company, str(_get(task, "owner") or "")) if status == "queued" else ""
         out.progress(f"{p}pg_{label}_{concluded}_{_ms(last)}", "", concluded, len(docs), label, last,
-                     bump=6 if status == "queued" else 7)
+                     detail=waiting_on, bump=6 if status == "queued" else 7)
     else:
         if not open_docs:
             counts = {state: sum(1 for item in docs if item["state"] == state) for state in CONCLUDED}
