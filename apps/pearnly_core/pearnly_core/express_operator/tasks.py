@@ -12,6 +12,7 @@ CC 本机只缓存执行中的进度（任务号即 CC 的批次号）。
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 
 import frappe
 from frappe import _
@@ -119,8 +120,47 @@ def attention() -> dict:
     return {"total": len(rows), "companies": companies, "tasks": [view(frappe._dict(row), documents=False) for row in rows]}
 
 
+# 任务过期（设计 docs/work/2026-11-09-cc-misuse-graceful-design.md 2.3，主会话 11-09 定；用户 11-13「卡片有效期照 DMS」）：
+# 还有没处理的单、且 7 天没有任何动作；或同一公司后来开的代录任务已包含它没处理的票 → 已失效：卡片（作答 / 重试 / 继续 / 交单）
+# 服务端不交单、回 expired（状态，不是报错），票不丢、新任务能拉进来。判定在读的时候做，不加定时任务（记忆 no-cloud-idle-spend）。
+EXPIRE_AFTER = timedelta(days=7)
+UNDONE = ("pending", "queued", "not_done")
+
+
+def expired(doc) -> bool:
+    """这个任务此刻是不是已失效（见 :data:`EXPIRE_AFTER` 上面的说明）；收尾了的（完成 / 停止）不算。只读。"""
+    if doc.get("status") in FINAL:
+        return False
+    undone = sorted({row.doc_id for row in doc.get("documents") or [] if row.state in UNDONE and row.doc_id})
+    if not undone and doc.get("status") != "preparing":
+        return False
+    moments = [doc.get(key) for key in ("modified", "started_at", "message_at", "creation") if doc.get(key)]
+    last = max(_moment(moment) for moment in moments) if moments else None
+    if last is not None and now_datetime() - last > EXPIRE_AFTER:
+        return True
+    if not undone or not doc.get("creation"):
+        return False
+    created = _moment(doc.get("creation"))
+    newer = [row.name for row in frappe.get_all(DOCTYPE, filters={"company": doc.get("company"), "product": doc.get("product")},
+                                                fields=["name", "creation"], limit_page_length=0)
+             if row.name != doc.get("name") and row.creation and _moment(row.creation) > created]
+    if not newer:
+        return False
+    return bool(frappe.get_all(DOCUMENT, filters={"parent": ["in", newer], "doc_id": ["in", undone]}, fields=["name"],
+                               limit_page_length=1))
+
+
+def _moment(value) -> datetime:
+    return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+
+
+def _expired_view(doc) -> dict:
+    return {**view(doc), "expired": True}
+
+
 def read(name) -> dict:
-    return view(_own(name))
+    doc = _own(name)
+    return {**view(doc), "expired": expired(doc)}
 
 
 def _announce(doc, op: str = "upsert") -> None:
@@ -407,7 +447,9 @@ def answer(name, doc_id, answers) -> dict:
     排在这一批最后）。单张「重试」走同一条路，``answers`` 为空（CC 本机重录不了已经回执给站点的单）。只认这个任务里「未完成」的
     单（还记着排队的先问产品一次：CC 回执了、任务还没收尾）；推送结果不明的不重交（要人先在 Express 核对）。"""
     doc = _own(name, for_update=True)
-    _require_company(doc.company)  # 交单要过产品的权限（这个人现在还能不能对这家公司代录），同开始
+    _require_company(doc.company)
+    if expired(doc):
+        return _expired_view(doc)  # 已失效的任务：卡片点了也不交单（2.3）  # 交单要过产品的权限（这个人现在还能不能对这家公司代录），同开始
     row = next((r for r in doc.get("documents") or [] if r.doc_id == str(doc_id or "")), None)
     if row is not None and row.state in OPEN_STATES:
         _refresh(doc, [row])
@@ -431,6 +473,8 @@ def answer_many(name, answers) -> dict:
     （照刚记下的用）。"""
     doc = _own(name, for_update=True)
     _require_company(doc.company)
+    if expired(doc):
+        return _expired_view(doc)  # 已失效的任务：卡片点了也不交单（2.3）
     if doc.status == "preparing" or not isinstance(answers, dict) or not answers:
         frappe.throw(_("Invalid request"))
     rows = {r.doc_id: r for r in doc.get("documents") or []}
@@ -491,6 +535,8 @@ def resume(name) -> dict:
     被跳过的）按原批次号交回原来那台电脑；别的未完成的单不动。只给本人、任务在「需要你处理 / 已停止」。"""
     doc = _own(name, for_update=True)
     _require_company(doc.company)
+    if expired(doc):
+        return _expired_view(doc)  # 已失效的任务：卡片点了也不交单（2.3）
     _conclude(doc)
     rows = [row for row in doc.get("documents") or [] if row.state == "not_done" and _batch_stopped(row.reason)]
     if doc.status not in ("attention", "stopped") or not rows:

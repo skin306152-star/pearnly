@@ -151,7 +151,8 @@ class WritePlanTests(unittest.TestCase):
 
         operator_api.hand_in = hand_in
         tasks = types.ModuleType("pearnly_core.express_operator.tasks")
-        tasks.read = lambda name: {"company": "CO-1", "period": "2026-10"}
+        self.task_expired = False
+        tasks.read = lambda name: {"company": "CO-1", "period": "2026-10", "expired": self.task_expired}
         assistant = types.ModuleType("pearnly_core.assistant")
         assistant.sessions = sessions
         # 本对话账套（`assistant.ledger`）：``self.book`` 是此刻的（None = 产品没有）
@@ -327,6 +328,18 @@ class WritePlanTests(unittest.TestCase):
         self.assertIn("T.9", refused["note"])
         self.assertEqual(self.handed, [])
         self.assertEqual(FAKE.db.rows[out["plan"]]["status"], "replaced")  # 页面的「录吧」随之消失
+
+    def test_an_operator_plan_on_an_expired_task_is_not_started(self):
+        # 卡片有效期（设计 2.3 + 用户 11-13）：代录任务已失效（7 天没动作或新任务已含同票）时，计划的「写入」服务端不交单，
+        # 回 expired，计划作废（页面「写入」消失）；CC 在新任务里重新建计划
+        out = self.plan()
+        self.task_expired = True
+        self.turn[0] += 1
+        refused = self.start(out["plan"])
+        self.assertEqual(refused["status"], "expired")
+        self.assertIn("new", refused["note"])
+        self.assertEqual(self.handed, [])
+        self.assertEqual(FAKE.db.rows[out["plan"]]["status"], "replaced")
 
     def test_a_started_direct_plan_stops_pushing_after_the_account_set_changed(self):
         self.conversation(operator_task="")

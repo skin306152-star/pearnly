@@ -67,6 +67,9 @@ CHANGED_NOTE = ("These documents changed after the plan was said back (changed),
 DIRECT_START_NOTE = ("Started: push exactly these documents (documents) now with the push tool, at most 5 per call, in this "
                      "order; report what was written only from the push results. Stop at once if a push says stopped.")
 OPERATOR_START_NOTE = "Handed to the computer that enters them; progress shows in this conversation."
+EXPIRED_NOTE = ("expired: this operator task has expired (no action for 7 days, or a newer task for this company already "
+                "holds its documents), so nothing was handed in. Tell the user it has expired and start again in a new "
+                "operator task; its documents are not lost.")
 LEDGER_CHANGED_NOTE = ("This conversation's account set changed after the plan was said back (now {label}), so nothing was "
                        "written. Make a new plan, which writes into the account set the conversation has now, and say it "
                        "back again.")
@@ -265,6 +268,14 @@ def start(tool_input) -> dict:
         _announce(doc)
         return {"status": "ledger_changed", "plan": doc.name,
                 "note": LEDGER_CHANGED_NOTE.format(label=label or "not decided yet")}
+    if doc.mode == "operator" and doc.operator_task:
+        from pearnly_core.express_operator import tasks
+
+        if tasks.read(doc.operator_task).get("expired"):
+            # 卡片有效期（设计 2.3 + 用户 11-13）：代录任务已失效，「写入」服务端不交单，这份计划作废（页面的「写入」随之消失）
+            doc.db_set({"status": REPLACED}, update_modified=True)
+            _announce(doc)
+            return {"status": "expired", "plan": doc.name, "note": EXPIRED_NOTE}
     planned = [item for item in json.loads(doc.documents or "[]") if isinstance(item, dict) and item.get("doc_id")]
     ids = [str(item["doc_id"]) for item in planned]
     card, versions = _judge(doc.company, ids) if ids else ({}, {})

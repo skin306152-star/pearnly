@@ -359,6 +359,51 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1", {"h3": choice})])
         self.assertEqual((out["status"], out["documents"][2]["state"], out["finished_at"]), ("queued", "queued", ""))
 
+    def test_a_task_idle_for_seven_days_expires_and_its_cards_cannot_send_anything(self):
+        # 设计 2026-11-09 2.3（主会话 11-09 定）+ 用户 11-13「卡片有效期照 DMS」：还有没处理的单、7 天没有任何动作 → 已失效；
+        # 失效的任务里点卡片（作答 / 重试 / 继续）服务端不交单，回 expired（状态，不是报错）；判定在读的时候做，不加定时任务
+        name = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}}
+        self.tasks.settle(name)
+        self.assertFalse(self.tasks.read(name)["expired"])
+        self.state["now"] += datetime.timedelta(days=7, minutes=1)
+        self.submitted.clear()
+        choice = [{"kind": "party", "subject": "x", "value": "S1", "label": "S1"}]
+        out = self.tasks.answer(name, "h3", choice)
+        self.assertTrue(out["expired"])
+        self.assertEqual(self.submitted, [])
+        self.assertTrue(self.tasks.answer_many(name, {"h3": choice})["expired"])
+        self.assertTrue(self.tasks.read(name)["expired"])
+        self.assertEqual(self.submitted, [])
+
+    def test_a_new_task_holding_the_same_document_expires_the_old_one(self):
+        # 2.3 第二个条件：同一公司开了新的同类代录任务、已包含旧任务里没处理的票 → 旧任务失效（新任务照常）
+        old = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}}
+        self.tasks.settle(old)
+        self.state["now"] += datetime.timedelta(hours=1)
+        new = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(new["name"], [{"doc_id": "h3", "status": "sent"}], {}, "CCD-1", None)
+        self.assertTrue(self.tasks.read(old)["expired"])
+        self.assertFalse(self.tasks.read(new["name"])["expired"])
+        # 新任务只含旧任务已录好的票：旧任务不失效
+        other = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}, "h1": {"state": "saved", "docnum": "RR1"}}
+        self.tasks.settle(other)
+        self.state["now"] += datetime.timedelta(hours=1)
+        later = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(later["name"], [{"doc_id": "h1", "status": "sent"}], {}, "CCD-1", None)
+        self.assertFalse(self.tasks.read(other)["expired"])
+
+    def test_a_finished_task_never_expires(self):
+        made = self.tasks.create("CO-1", "2026-10")
+        name = made["name"]
+        self.tasks.attach(name, [{"doc_id": f"h{i}", "status": "sent"} for i in (1, 2)], {}, "CCD-1", None)
+        self.statuses = {f"h{i}": {"state": "saved", "docnum": f"RR{i}"} for i in (1, 2)}
+        self.assertEqual(self.tasks.settle(name)["status"], "finished")
+        self.state["now"] += datetime.timedelta(days=30)
+        self.assertFalse(self.tasks.read(name)["expired"])
+
     def test_starting_names_every_document_even_those_held_on_the_spot(self):
         """11-08 生产：当场停下等人选的单一直没有单号与对方，任务卡只能写内部编号。交单时就向产品要一次单号与对方。"""
         self.statuses = {f"h{i}": {"state": "not_done", "ref": f"IV69/0075{i}", "party": "Big C"} for i in (1, 2, 3)}
