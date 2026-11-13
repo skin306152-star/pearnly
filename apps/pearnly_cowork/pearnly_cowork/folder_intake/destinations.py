@@ -28,6 +28,12 @@ class ExpressTarget:
         return pool.for_user(connection)["online"]
 
     @staticmethod
+    def waiting(connection):
+        """都不在线时在等的本人电脑与「同事的电脑在线」（`companion.pool.state` 的 ``waiting_on`` / ``not_yours``）。"""
+        found = pool.for_user(connection)
+        return {key: found[key] for key in ("waiting_on", "not_yours") if found.get(key)}
+
+    @staticmethod
     def selectable(connection, device=""):
         """当前用户自己的电脑（给了 ``device`` 就是那台，定时任务读文件夹的电脑）里有能写的（关着也算，D4）：能选 Express、
         确认、排队，开机后写（ADR-021 第 51–53 条）。"""
@@ -75,6 +81,16 @@ def online(adapter, connection):
         return True
     finally:
         frappe.db.commit()  # 只读；判在线会锁住凭据行，读完立刻放开，不带着锁去准备推送（小助手报到也要这把锁）
+
+
+def waiting(adapter, connection):
+    """排队等电脑时给模型说清在等谁（A 线 11-12）：``{waiting_on: [本人电脑名称], not_yours: True?}``；没有、读不出回空。"""
+    target = ADAPTERS[adapter]
+    try:
+        return target.waiting(connection) if hasattr(target, "waiting") else {}
+    except Exception:
+        frappe.clear_messages()
+        return {}
 
 
 def writer_state(adapter, connection, *, device=""):

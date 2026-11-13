@@ -292,8 +292,8 @@ def _candidates(connection, device=None, account_key=None, user=None):
 
 
 def waiting(connection, kind, known_version="", *, device=None, account_key=None, user=None) -> dict:
-    """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
-    "update_needed" | "unreachable" | "missing", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
+    """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" | "not_yours" |
+    "update_needed" | "unreachable" | "missing", ...}``（``not_yours``：他自己的电脑都没来，同事够得到这本的电脑在）（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
     ``account_key``：够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）；``user``：只问他自己的电脑（回读只由
     发起人的电脑做，第 54 条），他有电脑、却没有一台够得到这份账套回 ``unreachable``（不转给同事的电脑），一台登录过 CC 的电脑
     都没有回 ``missing``（「未连接电脑」）。
@@ -317,7 +317,21 @@ def waiting(connection, kind, known_version="", *, device=None, account_key=None
     if seen_any or (version and not contracts.supports(version)):
         return {"status": "waiting_for_cc", "reason": "update_needed", "version": version,
                 "minimum": contracts.MIN_COMPANION}
+    if user and account_key and device is None and _colleague_here(connection, account_key, candidates, kind):
+        # 他自己的电脑都没来、同事够得到这本的电脑在：不转给同事，照实说是他的电脑离线（A 线 11-12 测试机1）
+        return {"status": "waiting_for_cc", "reason": "not_yours"}
     return {"status": "waiting_for_cc", "reason": "offline"}
+
+
+def _colleague_here(connection, account_key, mine, kind) -> bool:
+    """别人（不在 ``mine`` 里）够得到这份账套的电脑此刻来过、领得了这种请求。"""
+    for name in account_pool.reachers(connection, account_key):
+        if name in mine:
+            continue
+        seen = presence(connection, name)
+        if seen["seen"] and kind in seen["kinds"]:
+            return True
+    return False
 
 
 # ── 机器一侧 ────────────────────────────────────────────────────────────────

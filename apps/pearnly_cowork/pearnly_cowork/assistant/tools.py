@@ -1116,6 +1116,11 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
     if adapter == "express":
         # Express 由那台电脑上的 CC 桌面版写入：不在线就先排着，连上后自动写。
         sent["cc_desktop_online"] = destinations.online(adapter, target)
+        if not sent["cc_desktop_online"]:
+            # 在等哪台（本人的电脑）；同事的电脑在线也不替他写（谁的活谁的电脑做，A 线 11-12 测试机1）
+            found = destinations.waiting(adapter, target)
+            sent.update({key: value for key, value in (("waiting_on", found.get("waiting_on")),
+                                                        ("cc_desktop_not_yours", found.get("not_yours"))) if value})
     return sent
 
 
@@ -1130,7 +1135,9 @@ def _push_one(name, connection=None, account_set_key=None, posting_kind=None, ro
 PUSH_WAIT_SECONDS = direct_push.PUSH_WAIT_SECONDS
 PUSH_WAIT_STEP = direct_push.PUSH_WAIT_STEP
 PUSH_QUEUED_NOTE = ("queued: sent, but Express or MR.ERP has not reported a result yet (for Express, CC Desktop on that "
-                    "computer may be offline: it is entered once CC Desktop is back; MR.ERP is written by Pearnly's "
+                    "computer may be offline: it is entered once CC Desktop is back; waiting_on names the user's own "
+                    "computer it waits for, and cc_desktop_not_yours means the user's own computer is offline while a "
+                    "colleague's is on, and a colleague's computer will not write it for them, so say that; MR.ERP is written by Pearnly's "
                     "server, which is still importing it and finding it in the list in MR.ERP, with no computer involved). "
                     "Tell the user it is queued; check later with "
                     "cowork_push_results when they ask. Do not wait or sleep. A queued document is not entered yet: "
@@ -3712,6 +3719,9 @@ READBACK_STILL_READING = ("Still reading the books on the computer. Check again 
                           "when the user asks; do not wait with sleep.")
 READBACK_WAITING = {"offline": "The computer with this account set is offline. Nothing was read; ask the user to turn "
                                "it on or open CC Desktop there.",
+                    "not_yours": "The user's own computer that can open this account set is offline (a colleague's "
+                                 "computer is on, but a colleague's computer will not read it for them). Nothing was "
+                                 "read; ask the user to turn their own computer on or open CC Desktop there.",
                     "update_needed": "CC Desktop on that computer must be updated before the books can be read back.",
                     "unreachable": "None of the user's own computers with CC Desktop can open this account set (a "
                                    "readback is only done by the requester's own computers, never a colleague's). "

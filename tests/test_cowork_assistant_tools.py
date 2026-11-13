@@ -2373,6 +2373,7 @@ class PushWaitTests(unittest.TestCase):
         self.clock, self.sleeps, self.reads, self.rollbacks = [0.0], [], [], [0]
         self.timeline = []  # 每读一次账本取下一份结论；读完了就停在最后一份
         self.online = True
+        self.waiting = {}
         self.docs = {name: types.SimpleNamespace(last_push_status="", push_connection="EXP1", push_account_set="K",
                                                  posting_kind="service", record_version=1, last_push_record="",
                                                  last_push_reason="") for name in ("H1", "H2", "H3")}
@@ -2398,6 +2399,7 @@ class PushWaitTests(unittest.TestCase):
                 (tools.application, "outcomes", outcomes),
                 (tools.destinations, "of", lambda adapter: destination),
                 (tools.destinations, "online", lambda adapter, connection: self.online),
+                (tools.destinations, "waiting", lambda adapter, connection: self.waiting),
                 (tools.time, "sleep", sleep), (tools.time, "monotonic", lambda: self.clock[0]),
                 (frappe.db, "rollback", rollback),
                 (frappe.db, "get_value", lambda *a, **k: ("express", 3)),
@@ -2539,6 +2541,18 @@ class PushWaitTests(unittest.TestCase):
         item, = self._push("H1")["results"]
         self.assertEqual((item["status"], item["cc_desktop_online"]), ("queued", False))
         self.assertEqual((len(self.reads), self.sleeps), (1, []))
+
+    def test_a_push_waiting_for_my_own_computer_says_so_when_a_colleagues_is_online(self):
+        # A 线 11-12 测试机1：本人能写的电脑关着、同事的在线——活不归同事，CC 原来说「CC 电脑不在线」。回包带在等的电脑
+        # 与 cc_desktop_not_yours，说明写明同事的电脑不会替他写
+        self.online = False
+        self.waiting = {"waiting_on": ["PC-ME"], "not_yours": True}
+        self.timeline = [{"PR-H1": {"status": "pending"}}]
+        out = self._push("H1")
+        item, = out["results"]
+        self.assertEqual((item["cc_desktop_online"], item["waiting_on"], item["cc_desktop_not_yours"]),
+                         (False, ["PC-ME"], True))
+        self.assertIn("a colleague's computer will not write it for them", tools.PUSH_QUEUED_NOTE)
 
     def test_documents_not_sent_are_not_waited_for(self):
         self.docs["H1"].last_push_status = "success"
@@ -4102,6 +4116,11 @@ class ReadbackTests(unittest.TestCase):
         out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
         self.assertEqual(out["note"], tools.READBACK_WAITING["missing"])
         self.assertIn("not connected CC Desktop", out["note"])
+        # A 线 11-12：他自己的电脑都没来、同事够得到这本的电脑在——说是他的电脑离线，同事的电脑不会替他读
+        self.made = {"status": "waiting_for_cc", "reason": "not_yours"}
+        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
+        self.assertEqual(out["note"], tools.READBACK_WAITING["not_yours"])
+        self.assertIn("a colleague's computer will not read it for them", out["note"])
 
     def test_someone_elses_readback_still_reading_is_returned_at_once(self):
         # 能用这条连接的人都看得到回读（用户 2026-10-15 夜定），但还在读的那份只由发起人推进：同事的 CC 不空等 90 秒
