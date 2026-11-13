@@ -1103,3 +1103,4 @@ Create it in Express	在 Express 新建	สร้างใหม่ใน Expres
 {count} documents are {label}	{count} 张票面是{label}	เอกสาร {count} ใบเป็น{label}	{count} 件の書類は{label}	guide.q.business_mismatch
 Write as on the document	按票面写入	บันทึกตามเอกสาร	書類どおりに書き込む	guide.option.business.follow
 Skip	不写入	ไม่บันทึก	書き込まない	guide.option.business.skip
+Covers this month	覆盖本月	ครอบคลุมเดือนนี้	今月を含む	guide.why.covers

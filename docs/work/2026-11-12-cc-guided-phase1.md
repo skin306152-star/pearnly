@@ -269,3 +269,15 @@ A 类 14 条在哪一批落地：
 Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模式）、这本账套还没报记账画像（`posting_profile` 的 `inventory_usage == "unknown"`）、
 采购单有商品行时，不再静默按非库存——出「走库存 / 记费用」题，预选「记费用」（原来的默认，怎么录类，点了才算），按公司记住（同已有这一题）。其余入口照旧。
 测试 `test_cowork_write_precheck.py` 加一条（不在 CC 对话不问；在 CC 对话问、预选记费用）。ERP 的商品单由 ERP 单据行上的「入库」勾选定，不走这一题。
+
+## 账套题由引导卡出（A 线接缝约定落地）
+
+- 照 `docs/work/2026-11-12-cc-book-identity.md`「账套题改由引导卡承担」：本对话账套未定时，引导卡最前面一道「做不做」题（不预选），候选就是共用层
+  `ledger.view` 那一份（同右栏、同 `pearnly_conversation_ledger`），覆盖本月的带一行说明；答了只经 `ledger.choose(session, id, by="page")` 存进会话
+  `project_ledger`（引导卡不另存、不交给产品记）；没答或没存上这批单都留下；已定不出。
+- 给模型的说明：`ledger.NEEDED_NOTE` 不再叫模型用 ask_user 问，改为调 `pearnly_guide`；Cowork 工具说明 `needs_choice` 与「账套未定停下的单」两处同样改成调
+  `pearnly_guide`、不自己问（黄金样本 `cowork-push-tools-golden.json` 随之更新一句）。`test_cc_conversation_ledger.py` 按新说法改断言（A 线的测试，已告知）。
+- 测试：`test_cc_guide_tool.py` `LedgerQuestion` 三条（未定才出、不预选、候选同共用层；已定不出；答了经 `ledger.choose`、不交产品、没答全留）。
+  约定第 6 条的跨边链条（卡答的账套 = 会话 `project_ledger` = 写入计划 `ledger` = 写账落点）：卡到 `ledger.choose` 由本测试钉住，会话到写入计划由 A 线已有的
+  `test_write_plan` 钉住；整条在流程 `cowork.cc.guide` 里跑（实验室时段待排）。
+- 还没改的「让模型自己问」：识别去向（`cowork_targets` 说明里「没有本对话账套时问一次」——Cowork 现在都有本对话账套，基本走不到）、月份文件夹（文件夹录入，不是写账题）。
