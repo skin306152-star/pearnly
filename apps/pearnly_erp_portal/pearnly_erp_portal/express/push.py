@@ -572,13 +572,15 @@ VOIDED = "voided"
 
 
 def void(doctype, name):
-    """作废一张已写进 Express 的单（作废事务里叫）：排一件「照 Express 原生作废原单」的写账（出入库第一期 B 段 ①，先只开出入库单）。
-    没写进去的单只在 ERP 作废，什么都不做；准备不了（账套不在了）记在作废栏上，人看到后处理。"""
-    if doctype != STOCK:
+    """ERP 作废一张单时（作废事务里叫）：还没写进 Express 的，排队中 / 转人工的写账件撤掉、清账本栏（电脑正在写的撤不了，写完回执
+    到了见 `job_changed`）——出入库单、采购单、销售单都这样（11-13：采购 / 销售放行排队后作废，原来照冻结载荷写进 Express）。
+    已写进去的出入库单再排一件「照 Express 原生作废原单」的写账（出入库第一期 B 段 ①）；采购 / 销售没有原生作废载荷，不排。
+    准备不了（账套不在了）记在作废栏上，人看到后处理。"""
+    if doctype not in (STOCK, PURCHASE, SALES):
         return
-    row = frappe.db.get_value(doctype, name, ["name", "creation", "owner", "ledger_state", "ledger_docnum",
-                                              "ledger_job", "ledger_void_job"], as_dict=True)
-    if not row or row.ledger_void_job:
+    fields = ["name", "creation", "owner", "ledger_state", "ledger_docnum", "ledger_job"]
+    row = frappe.db.get_value(doctype, name, fields + (["ledger_void_job"] if doctype == STOCK else []), as_dict=True)
+    if not row or row.get("ledger_void_job"):
         return
     if row.ledger_state in contracts.OPEN_STATES:
         # 还没写进去：排队中的写账撤掉（电脑正在写的撤不了，写完回执到了再作废，见 `job_changed`；验收 10-25）
@@ -588,7 +590,7 @@ def void(doctype, name):
         if not job or job["status"] in ("queued", "manual"):
             _set(doctype, name, {"ledger_state": None, "ledger_job": None, "ledger_reason": "", "ledger_needed": None})
         return
-    if row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.ledger_docnum:
+    if doctype != STOCK or row.ledger_state not in (contracts.WRITTEN, contracts.MISMATCH) or not row.ledger_docnum:
         return
     company = company_of(doctype, name)
     result = stock_entry.void_payload(name, _company(company)) if company else {"hold": contracts.NO_BOOK}
@@ -662,6 +664,11 @@ def job_changed(view):
     if doctype == STOCK and state in (contracts.WRITTEN, contracts.MISMATCH) and \
             frappe.db.get_value(doctype, name, "status") == "void":
         void(doctype, name)  # 电脑写的时候 ERP 这边已作废：写完立刻照 Express 原生作废原单
+    if doctype in (PURCHASE, SALES) and state in (contracts.WRITTEN, contracts.MISMATCH) and \
+            frappe.db.get_value(doctype, name, "status") == "void":
+        # 电脑写的时候 ERP 这边已作废（撤不了）：Express 里有了这张，不记成干净的「已写入」，转人工、单号如实留着（11-13）
+        _set(doctype, name, {"ledger_state": contracts.HELD, "ledger_reason": contracts.VOIDED_AFTER_WRITE})
+        return
     if state in (contracts.WRITTEN, contracts.MISMATCH) and (before.ledger_state, before.ledger_docnum or "") != (
             state, values["ledger_docnum"]) and before.company:
         from pearnly_erp_portal.express import masters

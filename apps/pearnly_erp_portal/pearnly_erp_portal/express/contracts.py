@@ -62,6 +62,8 @@ PRINTED_TOTAL_MISMATCH = "express.printed_total_mismatch"
 OPERATOR_OWNED = "express.operator_owned"
 REFUND_ORIGINAL_MANUAL = "express.pos_refund_original_manual"  # 原 HS 是人手工处理的：Express 单号不知道，退货单也要手工处理
 DISCONNECTED = "express.disconnected"  # 断开 Express 时还没写进去（`push.detach`）
+# 采购单 / 销售单在 ERP 作废时电脑已在写，写完才回来：Express 里有这张、ERP 已作废——转人工，人去 Express 里处理（11-13）
+VOIDED_AFTER_WRITE = "express.voided_after_write"
 CHOICE = "choice_needed"
 # 过一会儿自己会好的（电脑开机、主档读完、有人在电脑上登录 CC、退货单的原 HS 写成了）：每分钟再试，判定 / 计划报「等电脑」；
 # 要人选的、单据本身不对的不自动重试
@@ -379,6 +381,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
-           "NOT_YOURS", "OFFLINE", "OPEN_STATES", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "NOT_YOURS", "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

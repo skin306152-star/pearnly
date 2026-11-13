@@ -1854,6 +1854,7 @@ Withholding Tax must be greater than zero,预扣税额必须大于零
 Writing,写入中
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written,已写入
+Written to Express after it was voided,作废后已写进 Express
 Written to Express: {0},已写入 Express：{0}
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yearly,每年
@@ -2460,6 +2461,7 @@ express.reason.refundWaiting,等待原日汇总写入
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号
+express.reason.voidedAfterWrite,作废后已写进 Express
 express.reason.warehouseUnmapped,仓库在 Express 里没有对应的仓库
 express.state.detached,未写入 Express（已断开）
 express.state.handled,已在 Express 手工处理

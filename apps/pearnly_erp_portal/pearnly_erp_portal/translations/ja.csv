@@ -1854,6 +1854,7 @@ Withholding Tax must be greater than zero,源泉徴収税額はゼロより大�
 Writing,書き込み中
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written,書き込み済み
+Written to Express after it was voided,取消後に Express に書き込まれました
 Written to Express: {0},Express に書き込みました：{0}
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
 Yearly,毎年
@@ -2460,6 +2461,7 @@ express.reason.refundWaiting,元の日次集計の書き込み待ち
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません
+express.reason.voidedAfterWrite,取消後に Express に書き込まれました
 express.reason.warehouseUnmapped,この倉庫に対応する Express の倉庫がありません
 express.state.detached,Express 未書き込み（接続解除済み）
 express.state.handled,Express で手動処理済み

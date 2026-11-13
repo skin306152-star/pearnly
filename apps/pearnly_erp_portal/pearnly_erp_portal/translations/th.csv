@@ -1854,6 +1854,7 @@ Withholding Tax must be greater than zero,ยอดภาษีหัก ณ ท
 Writing,กำลังบันทึก
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written,บันทึกแล้ว
+Written to Express after it was voided,บันทึกเข้า Express หลังยกเลิก
 Written to Express: {0},บันทึกลง Express แล้ว: {0}
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yearly,ทุกปี
@@ -2460,6 +2461,7 @@ express.reason.refundWaiting,รอบันทึกสรุปยอดขา
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
+express.reason.voidedAfterWrite,บันทึกเข้า Express หลังยกเลิก
 express.reason.warehouseUnmapped,คลังนี้ไม่มีคลังที่ตรงกันใน Express
 express.state.detached,ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
 express.state.handled,จัดการด้วยมือใน Express แล้ว

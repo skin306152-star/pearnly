@@ -365,6 +365,7 @@ def cancel(name, reason=None):
     doc.stock_posted_at = None
     doc.flags.sales_action = True
     doc.save()
+    express_push.void("ERP Sales Document", doc.name)  # 放行排队还没写进 Express 的写账件一并撤掉（11-13）
     return {"name": doc.name, "status": doc.status}
 
 

@@ -305,6 +305,8 @@ def _cancel(doc, reason=None):
     doc.status, doc.void_reason, doc.voided_at = "void", reason, now()
     doc.flags.purchase_action = True
     doc.save()
+    # 放行排队还没写进 Express 的写账件一并撤掉（「修改」作废原单也走这里，免得原单和新单两张都写进去，11-13）
+    express_push.void("Purchase Document", doc.name)
 
 
 def cancel(name, reason=None):

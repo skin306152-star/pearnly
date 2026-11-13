@@ -1854,6 +1854,7 @@ Withholding Tax must be greater than zero,Withholding Tax must be greater than z
 Writing,Writing
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written,Written
+Written to Express after it was voided,Written to Express after it was voided
 Written to Express: {0},Written to Express: {0}
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yearly,Yearly
@@ -2460,6 +2461,7 @@ express.reason.refundWaiting,Waiting for the original day summary to be written
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID
+express.reason.voidedAfterWrite,Written to Express after it was voided
 express.reason.warehouseUnmapped,The warehouse has no matching Express warehouse
 express.state.detached,Not written to Express (disconnected)
 express.state.handled,Handled manually in Express
