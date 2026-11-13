@@ -17,7 +17,8 @@ import { type ChoiceOption, optionLabel } from "./operator-words";
 
 // ── 形状（AskUserQuestion）──────────────────────────────────────────────────
 export const ASK_TOOL = "ask_user";
-export type AskOption = { label: string; description?: string };
+/** 一个选项。value：编码（页面 / 服务端出题时给，交回时按它换回）；recommended：推荐项（显示「推荐」徽章、默认选中，引导卡由服务端标）。 */
+export type AskOption = { label: string; description?: string; value?: string; recommended?: boolean };
 /** 「其他」接服务端搜索：搜哪类（accounts / products …）、按哪家公司哪张单定账套。 */
 export type AskSearch = { company: string; doc_id?: string; kind: string };
 export type AskQuestion = {
@@ -30,6 +31,10 @@ export type AskQuestion = {
   choices?: ChoiceOption[];
   /** 前面第几题（从 1 起）选中这几个之一才问（工具入参 show_if）。 */
   showIf?: { question: number; labels: string[] };
+  /** 题目下面一行灰字（引导卡：这一题管哪家几张单）。 */
+  subtitle?: string;
+  /** 不出「其他」（引导卡：选项来自主档、不许自己填的题，服务端定）。 */
+  noOther?: boolean;
 };
 export type AskInput = { questions: AskQuestion[] };
 
@@ -40,9 +45,12 @@ export type AskState = { labels: string[]; other: string | null; otherCode?: str
 export type AskAnswer = { header: string; question: string; labels: string[]; other?: string; code?: string; skipped?: true; not_asked?: true };
 export type AskResult = { answers: AskAnswer[] };
 
-/** 「(推荐)」：推荐项排第一、名字带它（三语，大小写不论）。 */
-const RECOMMENDED = /[(（]\s*(推荐|recommended|แนะนำ)\s*[)）]\s*$/i;
-export const isRecommended = (option: AskOption | undefined) => !!option && RECOMMENDED.test(option.label);
+/** 推荐项：服务端 / 页面标了 recommended，或模型照旧在名字后面写了「(推荐)」（四语，大小写不论；日文「おすすめ」以前认不出，审计 D-4）。
+ *  显示时去掉名字后缀、改成独立的「推荐」徽章（用户 11-12 批准的改已有文案）。 */
+const RECOMMENDED = /\s*[(（]\s*(推荐|recommended|แนะนำ|おすすめ)\s*[)）]\s*$/i;
+export const isRecommended = (option: AskOption | undefined) => !!option && (!!option.recommended || RECOMMENDED.test(option.label));
+/** 选项显示的名字：去掉「(推荐)」后缀（推荐改由徽章表示）。 */
+export const shownLabel = (label: string) => label.replace(RECOMMENDED, "");
 
 /** 入参整理：最多 4 题；每题至少要有问题；选项去掉空的（最多 4 个，「其他」另加）。读不出的回空数组。 */
 export function questionsOf(input: unknown): AskQuestion[] {

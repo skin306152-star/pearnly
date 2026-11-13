@@ -496,9 +496,8 @@ class ShortcutTests(unittest.TestCase):
         self.assertEqual(sorted(hints), sorted(["Ctrl ,", "Ctrl N", "Ctrl Shift 1", "Ctrl Shift 2", "Ctrl ,", "Ctrl R", "Ctrl =",
                                                 "Ctrl -", "Ctrl 0", "Ctrl + Alt + Space",
                                                 # 通用提问卡片 ask_user 的「下一步 / 提交」（照 Claude Code 写 ⌘↵，tests/test_cc_ask.py）
-                                                "Ctrl↵",
-                                                # 引导卡 pearnly_guide 的「下一步」「提交」（同一版式，引导式录入第 1 期，tests/test_cc_guide_card.py）
-                                                "Ctrl↵", "Ctrl↵"]))
+                                                # 引导卡 pearnly_guide 用的就是这张卡（同一个组件，引导式录入第 1 期），不另有快捷键
+                                                "Ctrl↵"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
         # 三种触屏判定各管各的（标准化记录 3.4）：lib/touch.ts 的 touchOnly()（hover: none）管「没有悬停」时的行为；

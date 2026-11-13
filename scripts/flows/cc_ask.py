@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
 
 from cc_lib import JS
@@ -61,8 +62,8 @@ def steps(params, camera_code=None):
             "return {question: c?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
             "nth: c?.querySelector('.cc-askq-nth')?.innerText.trim()||'', "
             "options: opts.map(o=>({label:o.querySelector('.cc-askq-label')?.innerText.trim()||'', desc:o.querySelector('.cc-askq-desc')?.innerText.trim()||'', "
-            "checked:o.getAttribute('aria-checked')==='true'})), other: !!c?.querySelector('[data-slot=\"cc-askq-other-option\"]'), "
-            "next: n?{text:n.innerText.trim(), disabled:n.disabled}:null};};")
+            "checked:o.hasAttribute('data-checked')})), other: !!c?.querySelector('[data-slot=\"cc-askq-other-option\"]'), "
+            "badge: !!c?.querySelector('[data-slot=\"badge\"]'), next: n?{text:n.innerText.trim(), disabled:n.disabled}:null};};")
     head = JS + read
     return [
         {"name": "出题", "js": head + f"const sent=await say({json.dumps(message)}); const shown=await until(()=>{CARD},160); "
@@ -114,9 +115,12 @@ def judge(params, results, camera_code=None):
     answers = got.get("answers") or []
     mobile = bool(first.get("status"))
     return [
-        {"case": "模型调 ask_user 后对话里出提问卡：第一题、两个选项带说明、推荐项默认选中、最后是「其他」，「第 1 项，共 2 项」，主按钮「下一步」能点",
+        {"case": "模型调 ask_user 后对话里出提问卡：第一题、两个选项带说明、推荐项带「推荐」徽章并默认选中、最后是「其他」，「第 1 项，共 2 项」，主按钮「下一步」能点",
          "seen": first,
-         "ok": bool(first.get("seen")) and first.get("question") == q1["question"] and labels == [o["label"] for o in q1["options"]]
+         # 推荐项名字不再带「(推荐)」后缀，改成独立徽章（用户 11-12 批准；版式照 Claude 的提问卡，11-13）
+         "ok": bool(first.get("seen")) and first.get("question") == q1["question"]
+         and labels == [re.sub(r"\s*[(（](推荐|Recommended)[)）]\s*$", "", o["label"]) for o in q1["options"]]
+         and bool(first.get("badge"))
          and [o.get("checked") for o in first.get("options") or []] == [True, False]
          and (first.get("options") or [{}])[0].get("desc") == q1["options"][0]["description"] and bool(first.get("other"))
          and first.get("nth") == "第 1 项，共 2 项" and (first.get("next") or {}).get("text", "").startswith("下一步")
