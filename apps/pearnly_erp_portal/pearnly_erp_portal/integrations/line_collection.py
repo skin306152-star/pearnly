@@ -109,14 +109,23 @@ def acting(user):
 def speaking(line_user_id, language=""):
     """后台任务里回给收款员的话用他的语言：webhook 那一刻定下的（`handlers.handle` 按手机上 LINE 的语言），没带就现取
     （`line.user_language`，取不到退回绑定账号的语言、站点语言）。在换身份（:func:`acting`）之后设：后台任务的默认语言是站点语言（泰文），
-    不能让它漏到回复里。做完还原。"""
+    不能让它漏到回复里。做完还原。
+
+    锁定版 Frappe 的 ``_()`` 在后台任务里第一次调用时按排任务的会话用户定语言（``frappe.local.job.user``；webhook 排的任务是 Guest →
+    站点语言），把这里设的盖掉（11-13 真机取证：凭证后那张卡变泰文）。设语言时同时告诉它这一任务的语言已定（``job.lang_resolved``）。"""
     previous = getattr(frappe.local, "lang", None)
+    job = getattr(frappe.local, "job", None)
+    resolved = getattr(job, "lang_resolved", None) if job is not None else None
     frappe.local.lang = language or line.user_language(
         line_user_id, default=frappe.db.get_single_value("System Settings", "language") or "th")
+    if job is not None:
+        job.lang_resolved = True
     try:
         yield frappe.local.lang
     finally:
         frappe.local.lang = previous
+        if job is not None and resolved is not None:
+            job.lang_resolved = resolved
 
 
 # ── 消息 ────────────────────────────────────────────────────────────────────
