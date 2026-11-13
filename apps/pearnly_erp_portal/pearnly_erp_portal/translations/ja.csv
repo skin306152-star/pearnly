@@ -1609,6 +1609,7 @@ This browser cannot scan with the camera,このブラウザーはカメラでス
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
 This card expires in {0} minutes,このカードは {0} 分で期限切れになります
 This card has expired. Please upload the document again.,カードの期限が切れました。もう一度アップロードしてください
+This card has expired. Use the latest card in LINE.,このカードは期限切れです。LINE の最新のカードを使ってください。
 This card is no longer valid,このカードは無効です
 This category already exists,このカテゴリは既に存在します
 This channel is not open yet,このチャンネルはまだ開放していません
@@ -1649,6 +1650,7 @@ This invoice is no longer open,この請求書は入金済みです
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,これは返品・値引伝票です。仕入としてはまだ登録できません。
 This is not a product barcode,これは商品バーコードではありません
 This is not a purchase or sales document,これは仕入・売上の書類ではありません
+This item has expired. Please start again.,有効期限が切れました。もう一度やり直してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください
 This item is not on the original cash sale,元の現金売上にこの商品がありません
@@ -1801,6 +1803,7 @@ Value Change,金額変動
 Vehicle,車両
 Vehicles,自動車
 View,表示
+View result,結果を見る
 Viewed a collection,入金を確認しました
 Viewed a document,書類を確認しました
 Viewed a stock count,棚卸結果を確認しました
