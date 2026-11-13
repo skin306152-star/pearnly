@@ -20,13 +20,15 @@ sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
 TEXTS = {"guide.q.payment": "付款方式", "guide.option.payment.cash": "现金", "guide.option.payment.credit": "赊账",
          "guide.source.remembered": "记住的"}
 EXISTS = {"value": False}
+SESSION = {"business": ""}
 
 
 def _install_frappe():
     frappe = types.ModuleType("frappe")
     frappe._ = lambda text: TEXTS.get(text, text)
     frappe.local = types.SimpleNamespace(pearnly_assistant={"session_id": "S1"})
-    frappe.db = types.SimpleNamespace(exists=lambda doctype, filters: EXISTS["value"])
+    frappe.db = types.SimpleNamespace(exists=lambda doctype, filters: EXISTS["value"],
+                                      get_value=lambda doctype, filters, field: SESSION.get(field))
     frappe.throw = lambda message, *a: (_ for _ in ()).throw(ValueError(message))
     frappe.whitelist = lambda **kw: (lambda fn: fn)
     frappe.parse_json = json.loads
@@ -56,6 +58,7 @@ class Fakes(unittest.TestCase):
         guide_tool.precheck_api.card = lambda company, doc_ids, hint="": self.card_value
         guide_tool.precheck_api.record = self.record
         EXISTS["value"] = False
+        SESSION["business"] = ""
 
     def tearDown(self):
         guide_tool.precheck_api._tool_ids, guide_tool.precheck_api.card, guide_tool.precheck_api.record = self.saved
@@ -112,6 +115,39 @@ class Answers(Fakes):
     def test_closing_the_card_holds_every_document(self):
         out = json.loads(guide_tool.skipped(self.card()))
         self.assertEqual((out["status"], out["held"]), ("skipped", ["d1"]))
+
+
+class BusinessMismatch(Fakes):
+    """选了采购却传了销售票（评估 6.3）：卡最前面一道「做不做」题、不预选；没点或答「不写入」那几张留下，答「按票面写入」照常。"""
+
+    def setUp(self):
+        super().setUp()
+        self.card_value = {**merged(dict(PAY)), "directions": {"d1": "purchase", "d2": "sales"}}
+        self.card_value["ready"] = ["d2"]
+        SESSION["business"] = "purchase"
+
+    def test_question_comes_first_without_preselect(self):
+        card = guide_tool.prepare({"company": "C1", "doc_ids": ["d1", "d2"]})["input"]["card"]
+        first = card["questions"][0]
+        self.assertEqual((first["kind"], first["tier"], first["preselected"], first["docs"]), ("direction", "whether", "", ["d2"]))
+        self.assertEqual([o["code"] for o in first["options"]], ["follow", "skip"])
+
+    def test_no_business_or_same_direction_asks_nothing_extra(self):
+        SESSION["business"] = ""
+        self.assertNotEqual(guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]["card"]["questions"][0]["kind"], "direction")
+        SESSION["business"] = "sales"
+        self.card_value["directions"] = {"d2": "sales"}
+        self.assertNotEqual(guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]["card"]["questions"][0]["kind"], "direction")
+
+    def test_unanswered_or_skip_holds_follow_writes(self):
+        tool_input = guide_tool.prepare({"company": "C1", "doc_ids": ["d1", "d2"]})["input"]
+        self.record = lambda *a, **kw: {"writable": ["d1", "d2"], "held": []}
+        guide_tool.precheck_api.record = self.record
+        out = json.loads(guide_tool.result(tool_input, []))
+        self.assertEqual((out["writable"], out["held"]), (["d1"], ["d2"]))
+        key = tool_input["card"]["questions"][0]["key"]
+        out = json.loads(guide_tool.result(tool_input, [{"key": key, "value": "follow"}]))
+        self.assertEqual(out["writable"], ["d1", "d2"])
 
 
 class AskUserRefusal(Fakes):

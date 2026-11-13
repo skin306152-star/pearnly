@@ -972,6 +972,7 @@ Work Scope,作業範囲
 Work together,コラボレーション
 Worker currently processing this row.,現在この行を処理している実行者。
 Workspace,ワークスペース
+Write as on the document,書類どおりに書き込む
 Writing Key,書き込み中の会計データ
 Written At,書き込み日時
 Written By,書き込んだパソコン
@@ -1105,6 +1106,8 @@ guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成
 guide.desc.payment.cash,現金仕入・現金売上として記帳
 guide.desc.payment.credit,掛仕入・掛売上として記帳
+guide.option.business.follow,書類どおりに書き込む
+guide.option.business.skip,書き込まない
 guide.option.detail.amount_only,金額のみ
 guide.option.detail.skip,書き込まない
 guide.option.direction.expense,経費
@@ -1124,6 +1127,7 @@ guide.option.vat.claim,控除
 guide.option.vat.expense,費用計上
 guide.q.account,勘定科目
 guide.q.account_set,帳簿
+guide.q.business_mismatch,{count} 件の書類は{label}
 guide.q.cash_account,入出金勘定
 guide.q.cost_basis,売上原価
 guide.q.current_book,帳簿
@@ -1569,3 +1573,4 @@ username / password are required,username / password は必須です
 {0}: missing field {1},{0}: フィールド {1} がありません
 "{0}: the manifest requires {1}, but this site does not have it",{0}: マニフェストは {1} を要求していますが、このサイトには入っていません
 {0}: {1} cannot be empty,{0}: {1} は空にできません
+{count} documents are {label},{count} 件の書類は{label}

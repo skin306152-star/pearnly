@@ -28,9 +28,16 @@ def offered() -> dict:
     return out
 
 
+def business_of(session_id: str) -> str:
+    """这段对话选的业务（输入框上方的业务菜单，``Pearnly Assistant Session.business``）；没选回空。"""
+    if not session_id:
+        return ""
+    return str(frappe.db.get_value("Pearnly Assistant Session", {"session_id": session_id}, "business") or "")
+
+
 def active() -> bool:
     local = getattr(frappe, "local", None)  # 没有请求上下文（离线测试替身、脚本）= 不在 CC 对话里
     return bool((getattr(local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-__all__ = ["BUSINESSES", "BUSINESS_HOOK", "active", "offered"]
+__all__ = ["BUSINESSES", "BUSINESS_HOOK", "active", "business_of", "offered"]

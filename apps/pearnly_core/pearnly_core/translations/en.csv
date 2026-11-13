@@ -970,6 +970,7 @@ Work Scope,Work Scope
 Work together,Work together
 Worker currently processing this row.,Worker currently processing this row.
 Workspace,Workspace
+Write as on the document,Write as on the document
 Writing Key,Writing Key
 Written At,Written At
 Written By,Written By
@@ -1103,6 +1104,8 @@ guide.desc.item.__new__,Create it in Express
 guide.desc.party.__new__,Create it in Express
 guide.desc.payment.cash,Recorded as a cash purchase or sale
 guide.desc.payment.credit,Recorded as a credit purchase or sale
+guide.option.business.follow,Write as on the document
+guide.option.business.skip,Skip
 guide.option.detail.amount_only,Amount only
 guide.option.detail.skip,Skip
 guide.option.direction.expense,Expense
@@ -1122,6 +1125,7 @@ guide.option.vat.claim,Claim
 guide.option.vat.expense,Expense
 guide.q.account,Account
 guide.q.account_set,Account set
+guide.q.business_mismatch,{count} documents are {label}
 guide.q.cash_account,Cash account
 guide.q.cost_basis,Cost of goods sold
 guide.q.current_book,Account set
@@ -1567,3 +1571,4 @@ username / password are required,username / password are required
 {0}: missing field {1},{0}: missing field {1}
 "{0}: the manifest requires {1}, but this site does not have it","{0}: the manifest requires {1}, but this site does not have it"
 {0}: {1} cannot be empty,{0}: {1} cannot be empty
+{count} documents are {label},{count} documents are {label}

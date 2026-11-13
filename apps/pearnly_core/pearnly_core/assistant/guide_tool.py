@@ -18,7 +18,7 @@ from typing import Any, Dict, List
 import frappe
 from frappe import _
 
-from pearnly_core.assistant import ask
+from pearnly_core.assistant import ask, guided
 from pearnly_core.write_precheck import api as precheck_api
 from pearnly_core.write_precheck import contracts as card_contracts
 from pearnly_core.write_precheck import guide
@@ -65,11 +65,42 @@ def _translate(built: Dict[str, Any]) -> Dict[str, Any]:
     return built
 
 
+MISMATCH_PREFIX = "business|"
+FOLLOW, SKIP = "follow", "skip"
+
+
+def _side(direction: str) -> str:
+    return "sales" if direction == "sales" else "purchase" if direction in ("purchase", "expense") else ""
+
+
+def _mismatch(found: Dict[str, Any], business: str) -> Dict[str, Any] | None:
+    """选了采购却传了销售票（或反过来，评估 6.3 第 2 行）：这几张一道「做不做」类的题，不预选——按票面写入 / 不写入。
+    没选业务、收款、或方向判不出的不出。（方案里的「按另一种业务录」要产品能强制改方向，两产品还没有，第 1 期不出这一项）"""
+    if business not in ("purchase", "sales"):
+        return None
+    docs = [doc for doc, direction in (found.get("directions") or {}).items()
+            if _side(direction) and _side(direction) != business]
+    if not docs:
+        return None
+    other = "sales" if business == "purchase" else "purchase"
+    params = {"count": len(docs), "label": _text(f"guide.option.direction.{other}", {}) or other}
+    return {"key": MISMATCH_PREFIX + other, "kind": "direction", "group": "book", "tier": "whether",
+            "title_key": "guide.q.business_mismatch", "title_params": params, "docs": docs, "count": len(docs),
+            "options": [{"code": FOLLOW, "label_key": f"guide.option.business.{FOLLOW}"},
+                        {"code": SKIP, "label_key": f"guide.option.business.{SKIP}"}],
+            "preselected": "", "remember": False, "free": False}
+
+
 def prepare(tool_input) -> Dict[str, Any]:
     """出卡前：模型给的 ``{company, doc_ids, hint?}`` → 要问 ``{"input": 卡}`` / 不用问 ``{"result": 文本}``。"""
     company, doc_ids = precheck_api._tool_ids(tool_input)
     found = precheck_api.card(company, doc_ids, str((tool_input or {}).get("hint") or ""))
     built = guide.build(found)
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    mismatch = _mismatch(found, guided.business_of(session))
+    if mismatch:
+        built["questions"].insert(0, mismatch)
+        built["counts"]["questions"] += 1
     if not guide.needs_card(built):
         return {"result": json.dumps({"status": "nothing_to_ask", "writable": guide.writable(found, []),
                                       "not_writable": built["facts"]["not_writable"],
@@ -115,12 +146,23 @@ def result(tool_input, rows) -> str:
     """作答（已核过的 ``rows``）：记下（引导口径），回给模型 ``{status, answered, writable, held}``。产品那边不收（选过的值在 Express 里
     刚被删 / 改了）：不记，回 ``refused`` 与原因码，模型照实告诉用户、再调 pearnly_guide 重出卡。"""
     company, doc_ids = str(tool_input.get("company") or ""), list(tool_input.get("doc_ids") or ())
+    # 业务不一致那一题是引导卡自己出的（不在产品判定里）：答「不写入」或没答的那几张留下，答「按票面写入」的照常；不交给产品记
+    mismatch = next((q for q in ((tool_input or {}).get("card") or {}).get("questions") or ()
+                     if str(q.get("key") or "").startswith(MISMATCH_PREFIX)), None)
+    kept_back: List[str] = []
+    if mismatch:
+        chosen = next((r["value"] for r in rows if r["key"] == mismatch["key"]), "")
+        if chosen != FOLLOW:
+            kept_back = list(mismatch.get("docs") or ())
+        rows = [r for r in rows if r["key"] != mismatch["key"]]
     found = precheck_api.record(company, doc_ids, rows, guided=True)
     if found.get("errors"):
         return json.dumps({"status": "refused", "errors": found["errors"], "instruction": REFUSED_INSTRUCTION},
                           ensure_ascii=False, default=str)
-    return json.dumps({"status": "answered", "answered": len(rows), "writable": found.get("writable") or [],
-                       "held": found.get("held") or []}, ensure_ascii=False, default=str)
+    writable = [doc for doc in found.get("writable") or [] if doc not in kept_back]
+    held = list(dict.fromkeys([*(found.get("held") or []), *kept_back]))
+    return json.dumps({"status": "answered", "answered": len(rows) + (1 if mismatch and not kept_back else 0),
+                       "writable": writable, "held": held}, ensure_ascii=False, default=str)
 
 
 def skipped(tool_input) -> str:

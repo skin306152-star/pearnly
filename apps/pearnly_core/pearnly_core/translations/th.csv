@@ -972,6 +972,7 @@ Work Scope,ขอบเขตงาน
 Work together,ทำงานร่วมกัน
 Worker currently processing this row.,ผู้ที่กำลังประมวลผลรายการนี้
 Workspace,พื้นที่ทำงาน
+Write as on the document,บันทึกตามเอกสาร
 Writing Key,ชุดบัญชีที่กำลังบันทึก
 Written At,เวลาบันทึก
 Written By,เครื่องที่บันทึก
@@ -1105,6 +1106,8 @@ guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express
 guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด
 guide.desc.payment.credit,บันทึกเป็นซื้อ / ขายเงินเชื่อ
+guide.option.business.follow,บันทึกตามเอกสาร
+guide.option.business.skip,ไม่บันทึก
 guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
 guide.option.detail.skip,ไม่บันทึก
 guide.option.direction.expense,ค่าใช้จ่าย
@@ -1124,6 +1127,7 @@ guide.option.vat.claim,ขอคืน
 guide.option.vat.expense,บันทึกเป็นค่าใช้จ่าย
 guide.q.account,รหัสบัญชี
 guide.q.account_set,ชุดบัญชี
+guide.q.business_mismatch,เอกสาร {count} ใบเป็น{label}
 guide.q.cash_account,บัญชีรับจ่ายเงิน
 guide.q.cost_basis,ต้นทุนขาย
 guide.q.current_book,ชุดบัญชี
@@ -1569,3 +1573,4 @@ username / password are required,ต้องระบุ username / password
 {0}: missing field {1},{0}: ขาดฟิลด์ {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}: รายการกำหนดให้ติดตั้ง {1} แต่เว็บไซต์นี้ยังไม่ได้ติดตั้ง
 {0}: {1} cannot be empty,{0}: {1} ต้องไม่ว่าง
+{count} documents are {label},เอกสาร {count} ใบเป็น{label}
