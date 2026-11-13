@@ -281,3 +281,13 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
   约定第 6 条的跨边链条（卡答的账套 = 会话 `project_ledger` = 写入计划 `ledger` = 写账落点）：卡到 `ledger.choose` 由本测试钉住，会话到写入计划由 A 线已有的
   `test_write_plan` 钉住；整条在流程 `cowork.cc.guide` 里跑（实验室时段待排）。
 - 还没改的「让模型自己问」：识别去向（`cowork_targets` 说明里「没有本对话账套时问一次」——Cowork 现在都有本对话账套，基本走不到）、月份文件夹（文件夹录入，不是写账题）。
+
+## 11-13 主会话定：A8 / A10 等读回、「按另一种业务录」缺产品能力
+
+- 评估与覆盖表两份文档（连示意图目录）从评估分支带进本分支；覆盖表第 5 节加「缺产品能力 / 缺数据」：G-P1（按另一种业务录）、G-A8′、G-A10′。
+- 登记表新增 `OPEN_GAPS`：`express:APMAS` 的 SUPTYP / ACCNUM、`express:ARMAS` 的 CUSTYP / ACCNUM、`express:STMAS` 的 QUCOD / ACCCOD / STKGRP，等 CC 桌面版主档读回四张小表
+  （约定草稿在共享笔记「引导式-CC读回四表-约定草稿-11-13.md」，CC 桌面版窗口负责，今晚部署后做）。覆盖测试 `OpenGapsHonest`：判定源里没有出 new_party / new_item 题的代码时，
+  这几格必须在缺口里；出题器落地后必须删缺口。
+- 闸门修正：`assistant.api.businesses` 登记进无守卫接口清单（只读站点配置）；`test_cc_guide_menu` 接进 CI；`test_cc_run_indicator`、`test_assistant_ui` 两处源码断言按有意变化补上业务菜单与引导卡快捷键；
+  `precheck_source.py` 登记为共用件 assistant 的调用方。
+- A 线卡片失效（`pearnly/cc-card-expiry`，还没进集成分支）：进来后引导卡按 `cardPhase` 的 `expired` 分开显示「已失效」（同 operator-card），待接。

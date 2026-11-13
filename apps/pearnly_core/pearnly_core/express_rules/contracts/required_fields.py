@@ -440,6 +440,17 @@ MODE_GAPS = {
 }
 
 
+# 还没覆盖的必填字段（所有录入方式，如实登记，不许当成已覆盖；主会话 11-13）：键 → 字段 → 缺什么、等什么
+OPEN_GAPS = {
+    # A8：新建对方的类型、应付 / 应收科目——服务端拿不到账套的对方类型表与众数，CC 桌面版写入时照旧取众数。
+    # 等 CC 桌面版主档读回加 reported_party_types（约定草稿：共享笔记「引导式-CC读回四表-约定草稿-11-13.md」）
+    "express:APMAS": {"fields": ["SUPTYP", "ACCNUM"], "waiting": "reported_party_types"},
+    "express:ARMAS": {"fields": ["CUSTYP", "ACCNUM"], "waiting": "reported_party_types"},
+    # A10：新物料的单位、存货科目组、分类——同上；等 reported_units / reported_item_groups / reported_stock_acc_groups
+    "express:STMAS": {"fields": ["QUCOD", "ACCCOD", "STKGRP"], "waiting": "reported_units reported_item_groups reported_stock_acc_groups"},
+}
+
+
 def keys() -> List[str]:
     return list(REQUIRED_FIELDS)
 
@@ -484,6 +495,10 @@ def problems(kinds) -> list:
         for key, field in targets:
             if row(key, field) is None:
                 out.append(f"PAYLOAD_KEYS.{name}: target {key}.{field} not registered")
+    for key, gap in OPEN_GAPS.items():
+        for field in gap["fields"]:
+            if row(key, field) is None:
+                out.append(f"OPEN_GAPS.{key}.{field}: not registered")
     for mode, gaps in MODE_GAPS.items():
         for key, gap in gaps.items():
             for field in gap["fields"]:
@@ -492,5 +507,5 @@ def problems(kinds) -> list:
     return out
 
 
-__all__ = ["AUTO_SOURCES", "DEFAULT_KEYS", "MODE_GAPS", "NOT_FIELDS", "PAYLOAD_KEYS", "REQUIRED_FIELDS", "WRITERS", "keys",
+__all__ = ["AUTO_SOURCES", "DEFAULT_KEYS", "MODE_GAPS", "NOT_FIELDS", "OPEN_GAPS", "PAYLOAD_KEYS", "REQUIRED_FIELDS", "WRITERS", "keys",
            "names", "problems", "row", "rows"]
