@@ -46,17 +46,20 @@ def _call(params) -> str:
 
 
 def steps(params, camera_code=None):
-    read = ("const read=()=>{const c=" + CARD + "; if(!c) return null; const items=[...c.querySelectorAll('[data-slot=\"questionnaire-item\"]')]; "
-            "return {phase: c.dataset.phase||'', items: items.map(i=>({title: i.querySelector('[data-slot=\"questionnaire-title\"]')?.innerText.trim()||'', "
-            "choices: [...i.querySelectorAll('[data-slot=\"questionnaire-choice\"]')].map(o=>({text:o.innerText.trim(), "
-            "checked: !!o.querySelector('input')?.checked}))})), text: c.innerText};};")
+    # 引导卡就是提问卡 AskCard（同一个组件，一页一题）：读此刻这一题的题目、选项（名字、选中、推荐徽章）
+    read = ("const read=()=>{const c=" + CARD + "; if(!c) return null; "
+            "return {phase: c.dataset.phase||'', question: c.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
+            "choices: [...c.querySelectorAll('[data-slot=\"cc-askq-option\"]')].map(o=>({text:o.innerText.trim(), checked:o.hasAttribute('data-checked'), "
+            "badge: !!o.querySelector('[data-slot=\"badge\"]')})), other: !!c.querySelector('[data-slot=\"cc-askq-other-option\"]'), text: c.innerText};};")
     head = JS + read
     reply = (f"const R={json.dumps(REPLY)}; const whole=(n)=>{{const found=[]; for(const e of qa('[data-role=\"assistant\"]')){{const t=e.innerText; "
              "const i=t.indexOf(R); if(i<0) continue; const s=t.slice(i+R.length); const j=s.lastIndexOf('}'); try{found.push(JSON.parse(s.slice(0,j+1)));}catch(x){}} "
              "return found.length>=n?found[n-1]:null;}; ")
-    # 一题一页：点「下一步」直到出现「提交」，再点「提交」
-    finish = ("for(let k=0;k<12;k++){const c=" + CARD + "; const s=c?.querySelector('[data-slot=\"questionnaire-submit\"]'); "
-              "if(s && s.offsetParent!==null){s.click(); break;} const n=c?.querySelector('[data-slot=\"questionnaire-next\"]'); if(!n) break; n.click(); await sleep(300);} ")
+    # 一页一题：每一题有推荐就照推荐（已默认选中），没有推荐的（做不做类）选第一个，点主按钮（下一步 / 提交）直到收起
+    finish = ("for(let k=0;k<12;k++){const c=" + CARD + "; if(!c||c.dataset.phase!=='ask') break; "
+              "const picked=c.querySelector('[data-slot=\"cc-askq-option\"][data-checked]'); "
+              "if(!picked) c.querySelector('[data-slot=\"cc-askq-option\"]')?.click(); await sleep(200); "
+              "c.querySelector('[data-slot=\"cc-askq-next\"]')?.click(); await sleep(400);} ")
     menu = ("const row=()=>q('[data-slot=\"cc-quick-replies\"][data-business]'); const ph=()=>q('textarea[aria-label]')?.getAttribute('placeholder')||''; ")
     return [
         {"name": "业务菜单", "js": JS + menu + "const shown=await until(()=>row(),120); const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
@@ -79,8 +82,7 @@ def steps(params, camera_code=None):
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     menu, first, sent, again = (by.get(k) or {} for k in ("业务菜单", "出卡", "提交", "第二次"))
-    items = first.get("items") or []
-    pay = next((i for i in items if i.get("title") == "付款方式"), {})
+    pay = first if first.get("question") == "付款方式" else {}
     choices = pay.get("choices") or []
     return [
         {"case": "输入框上方的业务菜单：Cowork 只有采购、销售（没有收款）；点「采购」占位字换成「上传采购票据」，点 × 取消后回到原样",
@@ -90,14 +92,15 @@ def judge(params, results, camera_code=None):
          and menu.get("cleared") == "" and menu.get("placeholder") != "上传采购票据"},
         {"case": "模型调 pearnly_guide 后对话里出引导卡：题目是服务端出的中文（付款方式），选项「赊账」带「推荐」并默认选中，「现金」不选；没有 ask_user 提问卡、不浮成允许卡",
          "seen": first,
-         "ok": bool(first.get("seen")) and bool(pay) and any("赊账" in c["text"] and "推荐" in c["text"] and c["checked"] for c in choices)
-         and any("现金" in c["text"] and not c["checked"] for c in choices) and not first.get("ask") and not first.get("sheet")},
+         "ok": bool(first.get("seen")) and bool(pay) and any("赊账" in c["text"] and c["badge"] and c["checked"] for c in choices)
+         and any("现金" in c["text"] and not c["checked"] and not c["badge"] for c in choices) and not first.get("other")
+         and not first.get("sheet")},
         {"case": "提交后卡片收成「已答 n 项」，模型收到 answered、这张单能写", "seen": sent,
          "ok": bool(sent.get("done")) and (sent.get("result") or {}).get("status") == "answered"
          and (sent.get("result") or {}).get("answered", 0) >= 1 and params["doc"] in ((sent.get("result") or {}).get("writable") or [])},
         {"case": "同一件事只问一次：再调一次，付款方式已记住——要么不用问，要么新卡里没有「付款方式」这一题", "seen": again,
          "ok": (again.get("result") or {}).get("status") == "nothing_to_ask"
-         or (bool(again.get("card")) and not any(i.get("title") == "付款方式" for i in (again.get("card") or {}).get("items") or []))},
+         or (bool(again.get("card")) and (again.get("card") or {}).get("question") != "付款方式" and "付款方式" not in (again.get("card") or {}).get("text", ""))},
     ]
 
 

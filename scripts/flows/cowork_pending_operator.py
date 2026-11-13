@@ -99,7 +99,7 @@ def steps(params, camera_code=None):
          "const mode=document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
          "const opts=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]'); "
          "return {seen, question: c?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
-         "options: opts.map(o=>({text:o.querySelector('.cc-askq-label')?.innerText.trim()||'', checked:o.getAttribute('aria-checked')==='true'})), "
+         "options: opts.map(o=>({text:o.querySelector('.cc-askq-label')?.innerText.trim()||'', checked:o.hasAttribute('data-checked')})), "
          "other: !!c?.querySelector('[data-slot=\"cc-askq-other-option\"]'), "
          "next: (q=>q?{text:q.innerText.trim(), disabled:q.disabled}:null)(c?.querySelector('[data-slot=\"cc-askq-next\"]')), "
          "status: !!document.querySelector('[data-slot=\"cc-askq-status\"]'), "
@@ -109,7 +109,7 @@ def steps(params, camera_code=None):
          "const o=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]').find(e=>(e.querySelector('.cc-askq-label')?.innerText.trim()||'')==='现购'); "
          "if(!o) return {error:'no cash option'}; o.click(); await new Promise(r=>setTimeout(r,300)); "
          "const n=c.querySelector('[data-slot=\"cc-askq-next\"]'); "
-         "return {checked: o.getAttribute('aria-checked')==='true', next: n?.innerText.trim()||'', enabled: !!n && !n.disabled};"},
+         "return {checked: o.hasAttribute('data-checked'), next: n?.innerText.trim()||'', enabled: !!n && !n.disabled};"},
         {"name": "提交", "js": WAIT + f"const n={card}?.querySelector('[data-slot=\"cc-askq-next\"]'); if(!n) return {{error:'no submit'}}; n.click(); "
          f"const done=await until(()=>{card}?.querySelector('[data-slot=\"cc-ask-answer\"]'),160); await new Promise(r=>setTimeout(r,1500)); "
          f"const c={card}; return {{done, answer: c?.querySelector('[data-slot=\"cc-ask-answer\"]')?.innerText.trim()||'', "
