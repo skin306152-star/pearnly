@@ -68,8 +68,8 @@ def judge(params, results, camera_code=None):
         {"case": "every LINE step was answered in order", "seen": {"steps": params["steps"], "errors": params["errors"]},
          "ok": params["steps"] == EXPECTED and not params["errors"]},
         {"case": "the card has confirm and withdraw for version 1",
-         "seen": params["card_buttons"], "ok": any("s=ok" in d and "ver=1" in d for d in params["card_buttons"])
-         and any("s=wd" in d for d in params["card_buttons"])},
+         "seen": params["card_buttons"], "ok": any("s=ok" in d and "ver=1" in d and "k=" in d for d in params["card_buttons"])
+         and any("s=wd" in d and "k=" in d for d in params["card_buttons"])},
         {"case": "the collector's menu has the collection tile and sales has none", "seen": params["menu"],
          "ok": params["menu"].get("variant") == "collection" and "collection" not in params["menu"].get("sales", "")},
         {"case": "the edit dialog shows the draft amounts", "seen": before,
@@ -82,7 +82,9 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     site, name = manifest["site"], params["name"]
     saved = _record(lab, site, name)
-    ran = line_events(lab, site, [["postback", f"a=col&s=ok&n={name}&ver=1"],
+    # 旧卡（网页改草稿之前出的那张）上的【确认】：带那张卡的一次性确认号（11-13 起【确认】【撤回】都要它）
+    old_ok = next((data for data in params["card_buttons"] if "s=ok" in data), f"a=col&s=ok&n={name}&ver=1")
+    ran = line_events(lab, site, [["postback", old_ok],
                                   ["postback", f"a=col&s=ok&n={name}&ver=2", SALES_LINE],
                                   ["text", " OK "]])["events"]
     released = _record(lab, site, name)

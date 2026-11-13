@@ -68,9 +68,25 @@ LINE = FakeLine()
 SESSIONS = {}
 session_module = types.ModuleType("pearnly_core.line_session")
 session_module.get_session = lambda uid: SESSIONS.get(uid)
-session_module.set_session = lambda uid, state, payload, ttl_minutes=None: SESSIONS.__setitem__(
-    uid, {"state": state, "payload": json.loads(json.dumps(payload))})
+TTLS = []
+session_module.set_session = lambda uid, state, payload, ttl_minutes=None: (TTLS.append(ttl_minutes), SESSIONS.__setitem__(
+    uid, {"state": state, "payload": json.loads(json.dumps(payload))}))
 session_module.clear_session = lambda uid, **kw: SESSIONS.pop(uid, None)
+
+
+def _consume_nonce(uid, expect_state, nonce):
+    """同 `line_session.consume_nonce`：态对、号对才原子清号并回原载荷；否则 None（绝不写）。"""
+    sess = SESSIONS.get(uid)
+    payload = (sess or {}).get("payload") or {}
+    if not sess or sess.get("state") != expect_state or not payload.get("nonce") or payload.get("nonce") != nonce:
+        return None
+    session_module.set_session(uid, expect_state, {**payload, "nonce": None})
+    return payload
+
+
+session_module.consume_nonce = _consume_nonce
+session_module.verify_nonce = lambda sess, nonce, expect_state="reviewing": bool(
+    sess and sess.get("state") == expect_state and nonce and (sess.get("payload") or {}).get("nonce") == nonce)
 BOUND = {"U1": "a@x", "U2": "b@x", "U9": "nobody@x"}
 binding_module = types.ModuleType("pearnly_core.line_binding")
 binding_module.user_of = lambda uid: BOUND.get(uid)
@@ -188,7 +204,7 @@ class Base(T.Base):
         self.tap("a=col&s=invoices&v=done")
 
     def pick(self, label):
-        action = next(item for item in self.buttons() if item["label"] == label)
+        action = next(item for item in self.buttons() if item["label"] == label or item["label"].endswith(". " + label))
         self.tap(action["data"])
 
     def card_button(self, label):
@@ -211,10 +227,11 @@ class Steps(Base):
         self.tap("a=col&s=inv&v=IV2")
         self.tap("a=col&s=invoices&v=done")
         self.assertEqual(self.step(), "method")
+        # 11-13：方式名开头相同（เงินโอนเข้าบัญชี SCB/…），截到 20 字后原来两两一样；现在序号 + 不同的那段，列表里写全名
         self.assertEqual([item["label"] for item in self.buttons()],
-                         ["Cash", "เงินโอนเข้าบัญชี SCB/ออมทรัพย์"[:20], "เงินโอนเข้าบัญชี BBL/ออมทรัพย์"[:20],
-                          "เงินโอนเข้าบัญชี BBL/กระแส"[:20], "เงินโอนเข้าบัญชี SCB/กระแส"[:20],
-                          "เงินโอนเข้าบัญชี KB/CA"[:20], "Cancel"])
+                         ["1. Cash", "2. …SCB/ออมทรัพย์", "3. …BBL/ออมทรัพย์", "4. …BBL/กระแส", "5. …SCB/กระแส",
+                          "6. …KB/CA", "Cancel"])
+        self.assertIn("2. เงินโอนเข้าบัญชี SCB/ออมทรัพย์", self.last_text())
         self.pick("Cash")
         self.assertEqual((self.step(), self.buttons()[0]["label"]), ("amount", "1,500.00"))
         self.type("1,500")
@@ -225,7 +242,7 @@ class Steps(Base):
                          (C.DRAFT, "1500.00", "line", "a@x"))
         self.assertEqual([item["label"] for item in self.flex_buttons()], ["Confirm", "Edit", "Withdraw"])
         self.assertEqual(parse_qs(self.card_button("Confirm")["data"]),
-                         {"a": ["col"], "s": ["ok"], "n": [name], "ver": ["1"]})
+                         {"a": ["col"], "s": ["ok"], "n": [name], "ver": ["1"], "k": [self.payload()["nonce"]]})
         self.assertTrue(self.card_button("Edit")["uri"].endswith("/desk/pearnly-my-collections/" + name))
         self.assertEqual(frappe.session.user, "Guest")  # 做完还原
 
@@ -255,7 +272,7 @@ class Steps(Base):
                 self.type("99001")
                 self.assertIn(text, self.last_text())
                 self.assertNotIn("No open invoices", self.last_text())
-                self.tap("a=col&s=cancel")
+                self.pick("Cancel")
 
     def test_picking_invoices_toggles_and_shows_the_running_total(self):
         self.tap("a=col&s=start")
@@ -288,7 +305,7 @@ class Steps(Base):
 
     def test_cancel_clears_the_session(self):
         self.tap("a=col&s=start")
-        self.tap("a=col&s=cancel")
+        self.pick("Cancel")
         self.assertEqual((self.last_text(), SESSIONS.get("U1")), ("Cancelled", None))
         self.assertFalse(self.type("anything"))  # 不在收款里：交给别的处理
 
@@ -499,8 +516,13 @@ class Release(Base):
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(name, "U1", "a@x", "r-wait")
         self.assertIn("Recorded · pending write", self.last_text())
-        self.tap(self.buttons()[0]["data"])
+        self.assertEqual([item["label"] for item in self.buttons()], ["View result", "Withdraw"])
+        withdraw = self.buttons()[1]["data"]
+        self.tap(withdraw)
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
+        before = len(LINE.replies)
+        self.tap(withdraw)  # 同一个撤回号再点：不回话
+        self.assertEqual(len(LINE.replies), before)
 
 
 class Rights(Base):
@@ -511,11 +533,14 @@ class Rights(Base):
 
     def test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server(self):
         name = Release.card(self)
-        self.tap(f"a=col&s=ok&n={name}&ver=1", uid="U2")
-        self.assertEqual(self.last_text(), "This account cannot record collections")
-        self.tap(f"a=col&s=wd&n={name}", uid="U2")
-        self.assertEqual(self.last_text(), "This account cannot record collections")
+        nonce = self.payload()["nonce"]
+        for data in (f"a=col&s=ok&n={name}&ver=1", f"a=col&s=wd&n={name}", f"a=col&s=ok&n={name}&ver=1&k={nonce}",
+                     f"a=col&s=wd&n={name}&k={nonce}", f"a=col&s=wd&n={name}&p=1&k={nonce}"):
+            self.tap(data, uid="U2")  # 别人的会话里没有这张卡：不认；草稿也不归他，作废不了
+            self.assertIn(self.last_text(), ("This item has expired. Please start again.",
+                                             "This account cannot record collections"))
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)
+        self.assertEqual(self.payload()["nonce"], nonce)
 
     def test_losing_the_post_mid_flow_stops_typed_answers(self):
         self.tap("a=col&s=start")
@@ -547,20 +572,63 @@ class Results(Base):
         flow.notify(name)
         self.assertEqual(LINE.pushes, [])  # 同一结果只说一次
 
-    def test_not_written_within_the_wait_says_pending_then_pushes_the_result_to_the_collector(self):
+    def test_written_after_the_wait_is_not_pushed_and_is_told_by_reply(self):
+        # 11-13 用户定：写成不推送。「已记录 · 待写入」带【查看结果】；下次进「收款」先用回复列出上次之后写成 / 失败的
         name = self.released()
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(name, "U1", "a@x", "r-wait")
         self.assertIn("Recorded · pending write", self.last_text())
         self.assertFalse(flow.waiting(name))
+        view_result = self.buttons()[0]
+        self.assertEqual((view_result["label"], parse_qs(view_result["data"])["s"]), ("View result", ["res"]))
+        self.tap(view_result["data"], event="evt-r1")  # 还没写成：照实再说一遍待写入
+        self.assertIn("Recorded · pending write", self.last_text())
         self.jobs.report("J-" + name, "success", docnum="RE2403081")
         flow.notify(name)
-        self.assertEqual(len(LINE.pushes), 1)
-        to, messages = LINE.pushes[0]
-        self.assertEqual(to, "U1")
-        self.assertIn("Written to Express: RE2403081", messages[0]["text"])
+        self.assertEqual(LINE.pushes, [])  # 成功路径 0 条推送
+        self.tap(view_result["data"], event="evt-r2")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-r2")
+        self.assertIn("Written to Express: RE2403081", self.last_text())
+        self.tap("a=col&s=start", event="evt-m1")  # 看过了：进菜单不再列
+        self.assertNotIn("RE2403081", self.last_text())
+        self.assertEqual(LINE.pushes, [])
+
+    def test_the_menu_lists_what_was_written_or_failed_since_last_time_once(self):
+        name = self.released()
+        with mock.patch.object(flow, "WAIT_SECONDS", 0):
+            flow.await_result(name, "U1", "a@x", "r-wait")
+        self.jobs.report("J-" + name, "success", docnum="RE2403082")
         flow.notify(name)
-        self.assertEqual(len(LINE.pushes), 1)
+        self.tap("a=col&s=start", event="evt-m1")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-m1")  # 用回复，不推送
+        text = self.last_text()
+        self.assertIn("Written to Express: RE2403082", text)
+        self.assertIn("Type the customer code or part of the name", text)  # 接着照常问客户
+        self.tap("a=col&s=start", event="evt-m2")
+        self.assertNotIn("RE2403082", self.last_text())
+        self.assertEqual(LINE.pushes, [])
+
+    def test_a_failure_is_pushed_once_and_not_after_it_was_seen(self):
+        name = self.released()
+        with mock.patch.object(flow, "WAIT_SECONDS", 0):
+            flow.await_result(name, "U1", "a@x", "r-wait")
+        self.jobs.report("J-" + name, "manual", reason="[RECEIPT_TYPE_INVALID] BB has no account")
+        flow.notify(name)
+        flow.notify(name)
+        self.assertEqual(len(LINE.pushes), 1)  # 失败路径最多 1 条
+        self.assertIn("Not written to Express: BB has no account", LINE.pushes[0][1][0]["text"])
+        self.tap("a=col&s=start", event="evt-m1")
+        self.assertNotIn("BB has no account", self.last_text())  # 推过了：菜单不再列
+        other = Release.card(self)
+        self.tap(self.card_button("Confirm")["data"], event="evt-c2")
+        with mock.patch.object(flow, "WAIT_SECONDS", 0):
+            flow.await_result(other, "U1", "a@x", "r-wait2")
+        self.tap(self.buttons()[0]["data"], event="evt-r")
+        self.jobs.report("J-" + other, "manual", reason="[RECEIPT_TYPE_INVALID] seen first")
+        self.tap(self.buttons()[0]["data"], event="evt-r2")  # 收款员先点【查看结果】看到了失败
+        self.assertIn("seen first", self.last_text())
+        flow.notify(other)
+        self.assertEqual(len(LINE.pushes), 1)  # 看过的不推
 
     def test_waiting_for_express_is_said_in_the_pending_reply_only(self):
         # 等 Express 关闭（约定：`cc_desktop.jobs.book_express_wait`，express-wait-display 11-12）：当场的回复（免费）带现成那句，
@@ -619,6 +687,175 @@ class Cards(Base):
         self.assertLess(len(json.dumps(cards.invoices({"order": [f"IV{i}" for i in range(50)], "picked": [],
                                                         "due": {f"IV{i}": "1000.00" for i in range(50)},
                                                         "dates": {}, "customer": C1}))), 50 * 1024)
+
+
+EXPIRED = "This item has expired. Please start again."
+
+
+class CardLife(Base):
+    """确认卡的有效期（共享笔记「卡片有效期规则-对照与整改-11-13」B 节，照 DMS：一卡一个一次性确认号、出新卡旧卡作废、120 分钟）。"""
+
+    def card(self, docnum="IV1", amount="1000"):
+        self.tap("a=col&s=start")
+        self.type(C1)
+        self.tap(f"a=col&s=inv&v={docnum}")
+        self.tap("a=col&s=invoices&v=done")
+        self.pick("Cash")
+        self.type(amount)
+        self.assertEqual(self.step(), "card")
+        return self.payload()["name"], self.card_button("Confirm")["data"], self.card_button("Withdraw")["data"]
+
+    def status(self, name):
+        return T.S.table("ERP Collection")[name]["status"]
+
+    def test_an_old_card_cannot_write_again_after_a_new_collection_was_started(self):
+        # B1：重开一笔后点旧卡【确认】——版本对得上、余额够，原来会再写一张
+        old, old_ok, old_wd = self.card()
+        new, _ok, _wd = self.card(docnum="IV2", amount="500")
+        self.assertEqual(self.status(old), C.WITHDRAWN)  # 旧草稿作废
+        before = dict(SESSIONS["U1"]["payload"])
+        self.tap(old_ok, event="evt-old")
+        self.assertEqual(self.last_text(), EXPIRED)
+        self.assertEqual((self.status(old), self.status(new)), (C.WITHDRAWN, C.DRAFT))
+        self.assertEqual(SESSIONS["U1"]["payload"], before)  # 会话不被改回旧草稿
+        self.tap(old_wd, event="evt-old-wd")
+        self.assertEqual((self.last_text(), self.status(new)), (EXPIRED, C.DRAFT))  # B3：旧卡撤不掉新的
+        self.assertNotIn("pearnly_erp_portal.integrations.line_collection.await_result",
+                         [path for path, _kw in self.enqueued])
+
+    def test_an_old_card_does_not_erase_a_collection_being_entered(self):
+        # B5：新收款录到一半点旧卡，进度不丢
+        old, old_ok, _wd = self.card()
+        self.tap("a=col&s=start")
+        self.type(C1)
+        self.tap("a=col&s=inv&v=IV2")
+        self.assertEqual(self.status(old), C.WITHDRAWN)
+        before = json.loads(json.dumps(SESSIONS["U1"]))
+        self.tap(old_ok, event="evt-old")
+        self.assertEqual(self.last_text(), EXPIRED)
+        self.assertEqual(SESSIONS["U1"], before)
+
+    def test_tapping_confirm_twice_writes_once_and_the_second_tap_gets_no_reply(self):
+        # B7：连点【确认】
+        name, ok, wd = self.card()
+        self.tap(ok, event="evt-a")
+        self.assertEqual(self.status(name), C.QUEUED)
+        replies = len(LINE.replies)
+        self.tap(ok, event="evt-b")
+        self.tap(wd, event="evt-c")
+        self.assertEqual(len(LINE.replies), replies)
+        self.assertEqual(self.status(name), C.QUEUED)
+        self.assertEqual([path for path, _kw in self.enqueued].count(
+            "pearnly_erp_portal.integrations.line_collection.await_result"), 1)
+
+    def test_a_card_shown_again_retires_the_earlier_card_of_the_same_draft(self):
+        name, old_ok, old_wd = self.card()
+        self.type("what")  # 卡片那一步打了别的字：重出卡，换新号
+        new_ok = self.card_button("Confirm")["data"]
+        self.assertNotEqual(new_ok, old_ok)
+        self.tap(old_ok, event="evt-old")
+        self.assertEqual((self.last_text(), self.status(name)), (EXPIRED, C.DRAFT))  # 同一笔的新卡还在：草稿不作废
+        self.tap(old_wd, event="evt-old-wd")
+        self.assertEqual(self.status(name), C.DRAFT)
+        self.tap(new_ok, event="evt-new")
+        self.assertEqual(self.status(name), C.QUEUED)
+
+    def test_the_withdraw_on_the_current_card_works(self):
+        name, _ok, wd = self.card()
+        self.tap(wd)
+        self.assertEqual(self.status(name), C.WITHDRAWN)
+        self.assertIsNone(SESSIONS.get("U1"))
+
+    def test_a_card_is_valid_for_120_minutes_and_then_its_draft_is_discarded(self):
+        name, ok, _wd = self.card()
+        self.assertEqual(TTLS[-1], 120)  # 卡片那一步的会话活 120 分钟（其余步 30 分钟续期照旧）
+        issued = T.datetime.fromisoformat(self.payload()["issued"])
+        with mock.patch.object(frappe.utils, "now_datetime", return_value=issued + T.timedelta(minutes=121)):
+            self.tap(ok, event="evt-late")
+        self.assertEqual((self.last_text(), self.status(name)), (EXPIRED, C.WITHDRAWN))
+        self.assertIsNone(SESSIONS.get("U1"))
+        self.type("ok")  # 打字确认也不行
+        self.assertEqual(self.status(name), C.WITHDRAWN)
+
+    def test_an_expired_session_retires_the_card_and_its_draft(self):
+        name, ok, _wd = self.card()
+        SESSIONS.clear()  # 会话过期
+        self.tap(ok, event="evt-late")
+        self.assertEqual((self.last_text(), self.status(name)), (EXPIRED, C.WITHDRAWN))
+
+    def test_the_document_date_is_the_day_it_is_released(self):
+        # B2：隔天确认，单据日期原来是建草稿那天
+        name, ok, _wd = self.card()
+        self.assertEqual(str(T.S.table("ERP Collection")[name]["doc_date"]), "2026-11-11")
+        with mock.patch.object(service, "nowdate", return_value="2026-11-12"):
+            self.tap(ok, event="evt-next-day")
+        record = T.S.table("ERP Collection")[name]
+        self.assertEqual((record["status"], str(record["doc_date"])), (C.QUEUED, "2026-11-12"))
+
+    def test_cancel_only_from_the_current_step_and_it_discards_the_draft(self):
+        # B6：【取消】原来清整个会话、不撤草稿；旧消息上的【取消】也会抹掉正在录的
+        self.tap("a=col&s=start")
+        old_cancel = next(item["data"] for item in self.buttons() if item["label"] == "Cancel")
+        self.type(C1)
+        self.tap("a=col&s=inv&v=IV1")
+        self.tap("a=col&s=invoices&v=done")
+        self.tap(old_cancel)
+        self.assertEqual(self.step(), "method")  # 旧的【取消】不动当前这一步
+        frappe.session.user = "a@x"
+        made = service.create_draft("CO-1", C1, [{"docnum": "IV2", "amount": "500"}],
+                                    methods=[{"prefix": "BB", "amount": "500"}])
+        frappe.session.user = "Guest"
+        flow._show_card("U1", {}, made, "r-x")  # 缺凭证：卡上等照片
+        self.assertEqual(self.step(), "voucher")
+        self.pick("Cancel")
+        self.assertEqual(self.last_text(), "Cancelled")
+        self.assertIsNone(SESSIONS.get("U1"))
+        self.assertEqual(self.status(made["name"]), C.WITHDRAWN)  # 没放行的草稿一并作废
+
+    def test_the_card_color_is_its_own(self):
+        from pearnly_erp_portal.integrations import line_cards
+
+        self.card()
+        header = next(m for m in self.last() if m.get("type") == "flex")["contents"]["header"]
+        colors = line_cards.COLORS
+        self.assertEqual(header["backgroundColor"], colors["collection"])
+        self.assertEqual(len({colors["purchase"], colors["sales"], colors["collection"]}), 3)
+
+
+class VoucherLanguage(Base):
+    """11-13 真机：发凭证图后的那条回复变泰文。后台任务的默认语言是站点语言（泰文）：语言要在换身份之后设，没带就按 LINE 现取。"""
+
+    def setUp(self):
+        super().setUp()
+        tagged = lambda text, *a, **k: f"[{frappe.local.lang}]{text}"  # noqa: E731
+        for module in (flow, cards):
+            patcher = mock.patch.object(module, "_", tagged)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+    def run_voucher(self, language):
+        self.to_invoices(("IV2",))
+        self.tap(next(item["data"] for item in self.buttons() if "BB" in item["data"]))
+        self.type("500")
+        self.assertEqual(self.step(), "voucher")
+        flow.receive_voucher("U1", "a@x", {"type": "image", "id": "M1"}, "r-img")
+        _path, kwargs = self.enqueued[-1]
+        kwargs = {key: value for key, value in kwargs.items() if key not in ("queue", "enqueue_after_commit")}
+        kwargs["language"] = language
+        worker = mock.patch.object(frappe, "set_user", side_effect=lambda user: (
+            setattr(frappe.session, "user", user), setattr(frappe.local, "lang", "th")))
+        with worker:  # 后台任务：换身份时语言回到站点语言
+            frappe.local.lang = "th"
+            flow.store_voucher(**kwargs)
+        texts = json.dumps(self.last(), ensure_ascii=False)
+        self.assertIn("[zh]", texts)
+        self.assertNotIn("[th]", texts)
+
+    def test_the_reply_after_the_voucher_keeps_the_user_language(self):
+        self.run_voucher("zh")
+
+    def test_without_a_language_it_asks_line_not_the_site_default(self):
+        self.run_voucher("")
 
 
 class RichMenu(unittest.TestCase):
