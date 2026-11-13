@@ -426,6 +426,11 @@ def refusal(name: str, tool_input) -> str | None:
     return str(text) if text else None
 
 
+def prepares(name: str) -> bool:
+    """这个工具声明了出卡前准备（``prepare``）。"""
+    return bool((next((t for t in declared() if t["name"] == str(name or "")), None) or {}).get("prepare"))
+
+
 def prepare(name: str, tool_input) -> dict | None:
     """要「允许」的工具出卡前由服务端准备输入（工具声明的 ``prepare``，引导卡 ``pearnly_guide``）：回 ``{"input": 卡}`` 换掉模型给的输入、
     ``{"result": 文本}`` 不出卡直接交回结果；没声明回 None。出错照抛（调用方按出错交回模型）。"""

@@ -99,7 +99,7 @@ def steps(params, camera_code=None):
          "const mode=document.querySelector('[data-slot=\"cc-mode-switch\"] [aria-checked=\"true\"]')?.dataset.mode; "
          "const opts=qa('[data-slot=\"cc-pending-askq\"] [data-slot=\"cc-askq-option\"]'); "
          "return {seen, question: c?.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
-         "options: opts.map(o=>({text:o.querySelector('.cc-askq-label')?.innerText.trim()||'', checked:o.hasAttribute('data-checked')})), "
+         "options: opts.map(o=>({text:o.querySelector('.cc-askq-label')?.innerText.trim()||'', checked:o.hasAttribute('data-checked'), badge: !!o.querySelector('[data-slot=\"badge\"]')})), "
          "other: !!c?.querySelector('[data-slot=\"cc-askq-other-option\"]'), "
          "next: (q=>q?{text:q.innerText.trim(), disabled:q.disabled}:null)(c?.querySelector('[data-slot=\"cc-askq-next\"]')), "
          "status: !!document.querySelector('[data-slot=\"cc-askq-status\"]'), "
@@ -129,10 +129,11 @@ def judge(params, results, camera_code=None):
          "seen": {**listed, "want": params["title"]},
          "ok": bool(listed.get("seen")) and bool(listed.get("status")) and not listed.get("rowListed")
          and listed.get("mode") == "chat" and params["title"] in (listed.get("chin") or "") and not listed.get("nav")},
-        {"case": "只问付款方式：记住的删掉了，按票种预选赊购（共用判定的预选规则，排第一带「(推荐)」、默认选中），现购、「其他」在后；一题时主按钮是「提交」",
+        {"case": "只问付款方式：记住的删掉了，按票种预选赊购（共用判定的预选规则，排第一带「推荐」徽章、默认选中），现购、「其他」在后；一题时主按钮是「提交」",
          "seen": listed,
          "ok": "付款方式" in (listed.get("question") or "") and "Flow seller" in (listed.get("question") or "")
-         and labels == ["赊购 (推荐)", "现购"] and [o.get("checked") for o in listed.get("options") or []] == [True, False]
+         and labels == ["赊购", "现购"] and [o.get("checked") for o in listed.get("options") or []] == [True, False]
+         and [o.get("badge") for o in listed.get("options") or []] == [True, False]  # 推荐改独立徽章（用户 11-12 批准，11-13 落地）
          and bool(listed.get("other")) and (listed.get("next") or {}).get("text", "").startswith("提交")},
         {"case": "改选现购（单选换成它），能提交", "seen": picked, "ok": bool(picked.get("checked")) and bool(picked.get("enabled"))},
         {"case": "提交后卡片收成一行所选（现购），没有报错", "seen": answered,

@@ -217,8 +217,11 @@ GUIDE_TOOL = "pearnly_guide"  # 引导卡（`guide_tool.TOOL`）
 
 def _prepare_before_card(conversation: str, call: dict) -> dict | None:
     """出卡前准备卡（`tools.prepare`），同 :func:`_refused_before_card` 按这段对话现算（共用规则在 CC 对话里走引导口径）。"""
+    if not tools.prepares(call.get("name")):
+        return None
     before = getattr(frappe.local, "pearnly_assistant", None)
     frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
+    _use_lang(conversation)  # 卡上的题目、选项、说明由服务端按这段对话的语言出（同工具执行，`_finish`）
     try:
         return tools.prepare(call.get("name"), call.get("input"))
     finally:

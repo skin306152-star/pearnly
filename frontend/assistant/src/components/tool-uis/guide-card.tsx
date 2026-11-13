@@ -6,14 +6,15 @@
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
 import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
-import { type FC, useMemo, useRef, useState } from "react";
+import { type FC, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { guide, steps } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
-import { reportCaught } from "@/lib/caught";
+import { reportCaught, withReport } from "@/lib/caught";
+import { get } from "@/lib/frappe";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import { AskCard, askPhase } from "./ask-card";
@@ -203,7 +204,23 @@ export const GuideCardBody: FC<{
 export const GuideCard: ToolCallMessagePartComponent = (props) => {
   const part = props as unknown as CardPart & { approval?: { id: string; failure?: string; sending?: boolean } };
   const argsKey = JSON.stringify(props.args ?? null);
-  const card = useMemo(() => guideCardOf(JSON.parse(argsKey)), [argsKey]);
+  const fromArgs = useMemo(() => guideCardOf(JSON.parse(argsKey)), [argsKey]);
+  const sessionIdForCard = useSessionId();
+  const useId = part.approval?.id ?? (props as { toolCallId?: string }).toolCallId ?? "";
+  // 页面拿到的调用参数是模型给的单据；卡由服务端出卡前存在执行记录里，按本人本对话这一次调用取（assistant.api.guide_card）
+  const [stored, setStored] = useState<GuideCardData | null>(null);
+  useEffect(() => {
+    if (fromArgs.questions.length || fromArgs.decided.length || !sessionIdForCard || !useId) return;
+    let alive = true;
+    void get<{ card?: Partial<GuideCardData> }>("guide_card", { session_id: sessionIdForCard, tool_use_id: useId }).then(
+      (out) => alive && setStored(guideCardOf(out)),
+      withReport(undefined, "guide-card"),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [fromArgs, sessionIdForCard, useId]);
+  const card = fromArgs.questions.length || fromArgs.decided.length ? fromArgs : (stored ?? fromArgs);
   const labels = useToolLabels();
   const sessionId = useSessionId();
   const [sent, setSent] = useState<number | null>(null);
@@ -219,7 +236,7 @@ export const GuideCard: ToolCallMessagePartComponent = (props) => {
       card={card}
       phase={phase ?? "ask"}
       answered={result?.answered ?? sent}
-      busy={phase === null || !!part.approval?.sending}
+      busy={phase === null || !!part.approval?.sending || (phase === "ask" && !card.questions.length && !card.decided.length)}
       onSubmit={submit}
     />
   );
