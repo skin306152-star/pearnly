@@ -8,9 +8,11 @@ const dark = params.get("theme") === "dark";
 document.documentElement.lang = lang;
 document.documentElement.classList.toggle("dark", dark);
 
-void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery")]).then(
-  ([{ createRoot }, { installVariant }, { Gallery }]) => {
+void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery"), import("./guide")]).then(
+  ([{ createRoot }, { installVariant }, { Gallery }, { GuidePreview }]) => {
     installVariant();
-    createRoot(document.getElementById("root") as HTMLElement).render(<Gallery lang={lang} dark={dark} />);
+    // ?page=guide：引导卡预览（kit/guide.tsx，&decided=open 时「已定 n 项」展开）
+    const page = params.get("page") === "guide" ? <GuidePreview decidedOpen={params.get("decided") === "open"} /> : <Gallery lang={lang} dark={dark} />;
+    createRoot(document.getElementById("root") as HTMLElement).render(page);
   },
 );
