@@ -552,7 +552,7 @@ def book_target(book) -> dict | None:
     同一条准备）；``writers`` 是报过能写它的电脑。没选出（没有账套、同期几份没选）回 None。纯函数。"""
     if not isinstance(book, dict) or not book.get("key"):
         return None
-    return {"account_set": str(book["key"]), "account_set_title": str(book.get("label") or book["key"]),
+    return {"account_set": str(book["key"]), "account_set_title": str(book.get("label") or book.get("path") or ""),
             "account_set_path": str(book.get("path") or ""), "connection": "", "connection_title": "",
             "writers": list(book.get("writers") or [])}
 
