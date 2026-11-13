@@ -624,7 +624,7 @@ def _operator_target(doc, loaded, found) -> dict:
     row = found.get("account_row") or {}
     attributes = row.get("attributes") if isinstance(row.get("attributes"), dict) else {}
     account_set = str(getattr(found["target"], "account_set", "") or "")
-    return {"account_set": account_set, "account_set_title": str(row.get("label") or "") or account_set,
+    return {"account_set": account_set, "account_set_title": str(row.get("label") or attributes.get("path") or ""),
             "account_set_path": str(attributes.get("path") or ""), "connection": doc.push_connection or "",
             "connection_title": str(getattr(loaded.doc, "label", "") or "")}
 

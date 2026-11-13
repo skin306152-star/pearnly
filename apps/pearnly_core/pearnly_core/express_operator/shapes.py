@@ -92,7 +92,8 @@ def target_view(target) -> dict | None:
     if not isinstance(target, dict) or not _text(target.get("account_set"), 255):
         return None
     out = {key: _text(target.get(key), 255) for key in TARGET_FIELDS}
-    out["account_set_title"] = out["account_set_title"] or out["account_set"]
+    # 没有账套名写位置；账套键是内部编号（ERP / Cowork 都是 book_key），不给人看（测试机1 11-13）
+    out["account_set_title"] = out["account_set_title"] or out["account_set_path"]
     writers = target.get("writers")
     if isinstance(writers, (list, tuple)):
         out["writers"] = sorted({_text(item) for item in writers if _text(item)})
