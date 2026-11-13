@@ -1602,6 +1602,7 @@ This browser cannot scan with the camera,当前浏览器不支持摄像头扫码
 This browser cannot scan with the camera; use a scanner or type the code,当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入
 This card expires in {0} minutes,本卡片 {0} 分钟内有效
 This card has expired. Please upload the document again.,卡片已过期，请重新上传
+This card has expired. Use the latest card in LINE.,此卡片已失效，请使用 LINE 中最新的卡片。
 This card is no longer valid,这张卡片已失效
 This category already exists,该分类已存在
 This channel is not open yet,该通道尚未开放
@@ -1642,6 +1643,7 @@ This invoice is no longer open,此发票已收清
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,该单据为贷项通知单，暂不支持作为采购单录入。
 This is not a product barcode,这不是商品条码
 This is not a purchase or sales document,该文件不是采购或销售单据
+This item has expired. Please start again.,此项已过期，请重新开始。
 This item is also stocked at:,该物料还存放于：
 This item is not a stock item in Express. Choose another item,此商品在 Express 中不是库存品，请另选商品
 This item is not on the original cash sale,原现销单上没有此商品
@@ -1791,6 +1793,7 @@ Value Change,金额变动
 Vehicle,车
 Vehicles,汽车
 View,显示方式
+View result,查看结果
 Viewed a collection,查看了收款
 Viewed a document,查看了单据详情
 Viewed a stock count,查看了盘点结果
