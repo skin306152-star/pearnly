@@ -22,7 +22,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QColor, QDesktopServices, QIcon, QPainter, QPixmap
-from PySide6.QtWidgets import QMenu, QMessageBox, QSystemTrayIcon
+from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
 from . import toast, watchdog
 from .gui_icon import asset_path, pearnly_icon, pearnly_pixmap as _pearnly_pixmap  # noqa: F401  （asset_path 旧入口）
@@ -285,7 +285,6 @@ class TrayApp(QObject):
         w.status.connect(self._on_status)
         w.update_available.connect(self._on_update_available)
         w.batch_done.connect(self._on_batch_done)
-        w.busy_prompt.connect(self._on_busy_prompt)
         # finished originates on the worker thread. Relay through this QObject so
         # worker replacement and app.quit always execute on the GUI thread.
         w.finished.connect(lambda current=w: self.worker_stopped.emit(current))
@@ -396,24 +395,6 @@ class TrayApp(QObject):
             self._pop(title, body)
         except Exception:
             log.exception("批次完成通知失败")
-
-    def _on_busy_prompt(self, prompt) -> None:
-        """工作线程探测到账套被占用 → 主线程弹原生弹窗(重试/终止);写回选择放行工作线程。
-
-        弹窗为应用模态(挡住误操作),字体随系统;文案语言跟随小助手所选语言。
-        """
-        lang = getattr(prompt, "lang", "") or self.lang
-        box = QMessageBox()
-        box.setWindowIcon(pearnly_icon())
-        box.setIcon(QMessageBox.Warning)
-        box.setWindowTitle(t("busy_title", lang))
-        box.setText(t("busy_body", lang))
-        retry_btn = box.addButton(t("busy_retry", lang), QMessageBox.AcceptRole)
-        box.addButton(t("busy_abort", lang), QMessageBox.RejectRole)
-        box.setDefaultButton(retry_btn)
-        box.exec()
-        prompt.choice = "retry" if box.clickedButton() is retry_btn else "abort"
-        prompt.done.set()
 
     def _check_for_update(self, manual: bool = False) -> None:
         """后台查一次云端有没有新版；有就交给自动更新（下载 → 等空闲 → 安装）。同一时间只查一个。"""
