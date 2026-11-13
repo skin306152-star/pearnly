@@ -719,6 +719,55 @@ class Cards(Base):
 EXPIRED = "This item has expired. Please start again."
 
 
+class AccountLabels(Base):
+    """收款方式按钮换成「银行简称 + 账号末 4 位」（CC 桌面版上报 receipt_types[].bank_account / uses，契约
+    `tests/test_companion_contract.py::ReceiptContract::test_receipt_types_carry_their_bank_account_and_uses`，11-13）。"""
+
+    ACCOUNTS = {"TR": ({"code": "S1", "bank": "ธนาคารไทยพาณิชย์", "short": "SCB/SA", "number": "123-4-56789", "via": "shortnam"}, 40),
+                "SC": ({"code": "S1", "bank": "ธนาคารไทยพาณิชย์", "short": "SCB/SA", "number": "123-4-56789", "via": "account"}, 900),
+                "BB": ({"code": "B1", "bank": "กรุงเทพ", "short": "", "number": "", "via": "shortnam"}, 0),
+                "TB": ({"code": "B2", "bank": "", "short": "", "number": "777-0-01234", "via": "shortnam"}, 0)}
+
+    def setUp(self):
+        super().setUp()
+        rows = []
+        for row in T.TYPES:
+            found = self.ACCOUNTS.get(row["prefix"])
+            rows.append(dict(row, bank_account=found[0], uses=found[1]) if found else dict(row, uses=0))
+        patcher = mock.patch.dict(T.FACTS, {"receipt_types": rows})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_the_method_buttons_show_the_bank_and_the_last_four_digits(self):
+        self.to_invoices(("IV1",))
+        labels = [item["label"] for item in self.buttons()]
+        # TR、SC 进同一户头 S1：只列原生用得多的 SC；BB 没账号：只写银行名；TB 户头没名字：照旧方式名；KB 没报户头：方式名
+        self.assertEqual(labels, ["1. Cash", "2. กรุงเทพ", "3. …BBL/กระแส", "4. SCB/SA ·6789", "5. …KB/CA", "Cancel"])
+        self.assertIn("4. SCB/SA ·6789", self.last_text())
+        self.assertNotIn("TR", [parse_qs(item["data"]).get("v", [""])[0] for item in self.buttons()])
+        self.pick("SCB/SA ·6789")
+        self.assertIn("Enter the amount for SCB/SA ·6789", self.last_text())
+
+    def test_the_edit_dialog_still_lists_every_method(self):
+        frappe.session.user = "a@x"
+        made = service.create_draft("CO-1", C1, [{"docnum": "IV2", "amount": "500"}], methods=[{"prefix": "TR", "amount": "500"}])
+        prefixes = [row["prefix"] for row in service.edit_choices(made["name"])["methods"]["transfers"]]
+        frappe.session.user = "Guest"
+        self.assertIn("TR", prefixes)  # 草稿里用了被收起的那种：改草稿的弹窗照样有它
+        self.assertIn("SC", prefixes)
+
+    def test_label_rules(self):
+        label = C.account_label
+        self.assertEqual(label({"name": "x", "bank_account": {"short": " กรุงศรี ", "bank": "กรุงศรีอยุธยา", "number": "151-1-43016"}}),
+                         "กรุงศรี ·3016")
+        self.assertEqual(label({"name": "x", "bank_account": {"short": "", "bank": "K Bank", "number": "12"}}), "K Bank ·12")
+        self.assertEqual(label({"name": "เงินโอน", "bank_account": None}), "เงินโอน")
+        tie = C.listed([{"code": "12", "prefix": "B", "name": "b", "uses": 3, "bank_account": {"code": "A", "short": "X"}},
+                        {"code": "05", "prefix": "A", "name": "a", "uses": 3, "bank_account": {"code": "A", "short": "X"}}])
+        self.assertEqual([row["prefix"] for row in tie], ["A"])  # 次数平了取编号小的
+
+
+
 class CardLife(Base):
     """确认卡的有效期（共享笔记「卡片有效期规则-对照与整改-11-13」B 节，照 DMS：一卡一个一次性确认号、出新卡旧卡作废、120 分钟）。"""
 

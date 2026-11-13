@@ -24,7 +24,9 @@
 | 旧步骤的按钮（含旧消息上的【取消】）不跳步：吃下、照当前这一步再问（卡片那一步重出当前卡）；会话已结束 / 过期点按钮回「此项已过期」 | `test_stale_buttons_from_another_step_ask_the_current_step_again`、`test_an_old_cancel_asks_the_current_step_again`、`test_a_button_after_the_session_ended_says_expired` |
 | LINE 卡【编辑】打开的那一笔已不是草稿：网页先说「此卡片已失效，请使用 LINE 中最新的卡片。」（DMS 同句）再列状态；「我的收款」列表点开的照旧 | `test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired` |
 
-没做：写失败的卡带原因还回、换新号。写账请求号按收款记录号只认一次（`push.REQUEST` + `cc_desktop.jobs.enqueue` 去重），改过的草稿重新放行要换请求号，动的是写账幂等这道保护，不在冻结前做。收款方式标签（银行简称 + 账号末 4 位）等 CC 桌面版上报字段。
+收款方式标签（第三个提交）：CC 桌面版报了 `receipt_types[].bank_account` / `uses`（契约 `tests/test_companion_contract.py::ReceiptContract::test_receipt_types_carry_their_bank_account_and_uses`，收款真机与 CC 侧接手窗口 11-13）时，按钮与提问写「简称（没有用户头名称）·账号末 4 位数字」（`contracts.account_label`）；进同一户头的几种只列 `uses` 多的那种，平了取编号小的（`contracts.listed`）；没报户头 / 户头没名字的照旧用方式名；整组仍过 `choice_labels`。CC 对话的 `erp_collection_methods` 结果同样带 `label`、同样收起重复户头；改草稿的网页弹窗列全部（`methods(every=True)`），草稿里用了被收起的那种照样能改。测试 `AccountLabels.*`。
+
+没做：写失败的卡带原因还回、换新号。写账请求号按收款记录号只认一次（`push.REQUEST` + `cc_desktop.jobs.enqueue` 去重），改过的草稿重新放行要换请求号，动的是写账幂等这道保护，不在冻结前做。
 
 ## 文案（四语）
 

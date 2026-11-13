@@ -200,14 +200,16 @@ def _catalog(company, book):
     return contracts.catalog(data["receipt_types"], data.get("cash_account") or "")
 
 
-def methods(company, day=None, book=None) -> dict:
-    """收款员能选的方式：``{"cash": bool, "transfers": [{prefix, code, name}], "discount": {…} | None}``（现金走现金那一格；
-    支票、预扣、费用这类不列，规则见 `contracts`）。``book``：已有的草稿冻结的那本（:func:`edit_choices`），不再按日期选。"""
+def methods(company, day=None, book=None, every=False) -> dict:
+    """收款员能选的方式：``{"cash": bool, "transfers": [{prefix, code, name, label}], "discount": {…} | None}``（现金走现金那一格；
+    支票、预扣、费用这类不列，规则见 `contracts`；``label`` 是银行简称 + 账号末 4 位，进同一户头的几种只列一种，`contracts.listed`）。``book``：已有的草稿冻结的那本（:func:`edit_choices`），不再按日期选。
+    ``every``：进同一户头的几种都列（改草稿的弹窗要能显示草稿里已用的那种）。"""
     guard.require(WRITE)
     row = _company(company)
     found = _catalog(company, book or book_for(row, day or nowdate()))
-    shape = lambda item: {"prefix": item["prefix"], "code": item["code"], "name": item["name"]}  # noqa: E731
-    return {"cash": found["cash"], "transfers": [shape(item) for item in found["transfers"]],
+    shape = lambda item: {"prefix": item["prefix"], "code": item["code"], "name": item["name"],  # noqa: E731
+                          "label": item.get("label") or item["name"]}
+    return {"cash": found["cash"], "transfers": [shape(item) for item in (found["transfers"] if every else contracts.listed(found["transfers"]))],
             "discount": shape(found["discount"]) if found["discount"] else None}
 
 
@@ -362,7 +364,7 @@ def edit_choices(name) -> dict:
     found = open_invoices(doc.company, doc.customer, refresh=False, exclude=name, book=book)
     available = {row["docnum"]: row["available"] for row in found["items"]}
     return {"available": {row.docnum: available.get(row.docnum, "0.00") for row in doc.invoices},
-            "methods": methods(doc.company, book=book)}
+            "methods": methods(doc.company, book=book, every=True)}
 
 
 def _fill(doc, checked, people=None):
