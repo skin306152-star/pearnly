@@ -9,13 +9,18 @@
    （公司·账套·客户·各张本次收·方式·折扣·合计）带【确认】【编辑】【撤回】。
 2. 放行：【确认】按钮或打「ยืนยัน / 确认 / ok」（大小写、空格不论）→ `collection.service.release`（卡片展示的版本 + 这次 LINE
    事件号作同意）；卡片之后改过回 ``changed`` 就重出卡片。【编辑】经 `line_login.entry_url` 打开网页原生弹窗（只改这张草稿）。
-3. 结果：放行后在后台等写入最多 :data:`WAIT_SECONDS` 秒（显示三个点），写成用回复给 RE 号；没写成先回「已记录 · 待写入」，
-   之后写成 / 失败由回执（`collection.push` → :func:`notify`）推送给录入的收款员本人。
+   卡片有效期照 DMS（共享笔记「卡片有效期规则」A 节）：每张卡一个一次性确认号（`line_session.consume_nonce`），【确认】【撤回】都要它；
+   出新卡、重开一笔、取消时旧卡失效、没放行的草稿作废；卡自出卡起 :data:`CARD_MINUTES` 分钟有效；同一张卡再点不回话，其余失效回
+   :data:`EXPIRED`。【取消】只认最新那条消息上的（步号 ``turn``）。单据日期按放行当天。
+3. 结果：放行后在后台等写入最多 :data:`WAIT_SECONDS` 秒（显示三个点），写成用回复给 RE 号；没写成先回「已记录 · 待写入」
+   （带【查看结果】【撤回】）。之后写成不推送：点【查看结果】或下次进「收款」时用回复告诉；写失败推一条给录入的收款员本人
+   （回执 `collection.push` → :func:`notify`，同一笔一次，已看过不推）。
 
 规则、权限、金额全部在 `collection.service`（LINE 只调它，不另写一份）；这里只管问与记。身份是绑定的 ERP 账号。
 """
 import contextlib
 import re
+import secrets
 from decimal import Decimal
 from urllib.parse import parse_qs, urlencode
 
@@ -31,6 +36,11 @@ from pearnly_erp_portal.collection import contracts
 STATE = "erp_collection"
 ACTION = "col"
 TTL_MINUTES = 30
+# 确认卡（含卡上缺凭证、等补照片那一步）自出卡起的有效期，与 DMS 订车预览一致（`line_session._STATE_TTL_MINUTES`）
+CARD_MINUTES = 120
+# 卡片失效（被新卡替换、过期、会话没了）统一这一句，与 DMS 同一口径（`dms.card.TXT_EXPIRED`）
+EXPIRED = "This item has expired. Please start again."
+STALE = "This option is no longer current"
 WRITE = "collection.write"
 DOCTYPE = "ERP Collection"
 CASH = "@cash"
@@ -48,6 +58,9 @@ CONFIRM_WORDS = frozenset(("ยืนยัน", "确认", "確認", "ok", "conf
 BALANCE_CODES = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND")
 _WAIT_KEY = "pearnly:erp:collection:line-wait:"
 _TOLD_KEY = "pearnly:erp:collection:line-told:"
+_USED_KEY = "pearnly:erp:collection:line-used:"     # 已消费的确认号：同卡再点不回话
+_PENDING_KEY = "pearnly:erp:collection:line-pending:"  # 「已记录 · 待写入」那条的撤回号（一笔一个）
+USED_SECONDS = 86400
 
 
 def _service():
@@ -61,15 +74,20 @@ def _service():
 
 def payload_of(line_user_id) -> dict:
     found = line_session.get_session(line_user_id) or {}
-    return dict(found.get("payload") or {}) if found.get("state") == STATE else {}
+    payload = dict(found.get("payload") or {}) if found.get("state") == STATE else {}
+    frappe.local.pearnly_collection_turn = payload.get("turn") or ""
+    return payload
 
 
 def active(line_user_id) -> bool:
     return bool(payload_of(line_user_id).get("step"))
 
 
-def _save(line_user_id, payload):
-    line_session.set_session(line_user_id, STATE, payload, ttl_minutes=TTL_MINUTES)
+def _save(line_user_id, payload, ttl_minutes=TTL_MINUTES):
+    """存这一步。每存一次换一个步号（``turn``）：【取消】只认最新那条消息上的（:func:`_cancel`）。"""
+    payload["turn"] = secrets.token_hex(4)
+    frappe.local.pearnly_collection_turn = payload["turn"]
+    line_session.set_session(line_user_id, STATE, payload, ttl_minutes=ttl_minutes)
 
 
 def _clear(line_user_id):
@@ -87,6 +105,20 @@ def acting(user):
         frappe.set_user(previous)
 
 
+@contextlib.contextmanager
+def speaking(line_user_id, language=""):
+    """后台任务里回给收款员的话用他的语言：webhook 那一刻定下的（`handlers.handle` 按手机上 LINE 的语言），没带就现取
+    （`line.user_language`，取不到退回绑定账号的语言、站点语言）。在换身份（:func:`acting`）之后设：后台任务的默认语言是站点语言（泰文），
+    不能让它漏到回复里。做完还原。"""
+    previous = getattr(frappe.local, "lang", None)
+    frappe.local.lang = language or line.user_language(
+        line_user_id, default=frappe.db.get_single_value("System Settings", "language") or "th")
+    try:
+        yield frappe.local.lang
+    finally:
+        frappe.local.lang = previous
+
+
 # ── 消息 ────────────────────────────────────────────────────────────────────
 
 
@@ -100,11 +132,16 @@ def _button(label, data):
 
 
 def _cancel():
-    return _button(_("Cancel"), _data("cancel"))
+    return _button(_("Cancel"), _data("cancel", getattr(frappe.local, "pearnly_collection_turn", "") or ""))
 
 
 def _send(reply_token, messages):
-    """回给这个人。后台任务里（:func:`background`）攒到最后用回复令牌发一次，令牌过期了就推送。"""
+    """回给这个人。后台任务里（:func:`background`）攒到最后用回复令牌发一次，令牌过期了就推送。
+    进「收款」时上次之后写成 / 失败的那几笔（:func:`_told_first`）放在这次回复的最前面。"""
+    prefix = getattr(frappe.local, "pearnly_collection_prefix", None) or []
+    if prefix:
+        frappe.local.pearnly_collection_prefix = []
+        messages = [*prefix, *messages]
     to = getattr(frappe.local, "pearnly_collection_to", "")
     if to:
         return line.reply_or_push(to, messages, reply_token)
@@ -170,7 +207,8 @@ def start(line_user_id, user, reply_token):
     """富菜单「收款」/「เมนู」里的收款按钮。"""
     if not guard.has(WRITE, user=user):
         return _refused(reply_token)
-    with acting(user), _guarded(reply_token):
+    with acting(user), _guarded(reply_token), _told_first(user):
+        _discard(payload_of(line_user_id).get("name"))  # 重开一笔：上一笔没放行的草稿作废，它的卡跟着失效
         rows = _service().companies_for()
         if not rows:
             return _text(reply_token, _("No company is available for this account"))
@@ -188,23 +226,34 @@ def answer(line_user_id, user, data, reply_token, event_id=""):
     step, value = params.get("s") or "", params.get("v", "")
     if step == "start":
         return start(line_user_id, user, reply_token)
-    if step == "cancel":
-        _clear(line_user_id)
-        return _text(reply_token, _("Cancelled"))
     if not guard.has(WRITE, user=user):
         return _refused(reply_token)
     with acting(user), _guarded(reply_token):
-        if step == "ok":  # 卡片上的【确认】：带着卡片展示的那个版本
-            return _release(line_user_id, params.get("n") or "", params.get("ver") or "", reply_token, event_id)
+        if step == "cancel":
+            return _cancel_step(line_user_id, value, reply_token)
+        if step == "ok":  # 卡片上的【确认】：只认当前这张卡的一次性确认号
+            return _confirm_tap(line_user_id, params, reply_token, event_id)
         if step == "wd":
-            return _withdraw(line_user_id, params.get("n") or "", reply_token)
+            return _withdraw_tap(line_user_id, params, reply_token)
+        if step == "res":
+            return _show_result(params.get("n") or "", reply_token)
         payload = payload_of(line_user_id)
         if not payload.get("step") or _STEP_OF.get(step, step) != payload["step"]:
-            return _text(reply_token, _("This option is no longer current"))
+            return _text(reply_token, _(STALE))
         handler = _ANSWERS.get(step)
         if handler is None:
-            return _text(reply_token, _("This option is no longer current"))
+            return _text(reply_token, _(STALE))
         handler(line_user_id, payload, value, reply_token)
+
+
+def _cancel_step(line_user_id, turn, reply_token):
+    """【取消】只认最新那条消息上的（步号对得上）；取消时这一笔没放行的草稿一并作废。旧消息上的照旧步提示，不动正在录的。"""
+    payload = payload_of(line_user_id)
+    if not payload.get("step") or not turn or turn != payload.get("turn"):
+        return _text(reply_token, _(STALE))
+    _discard(payload.get("name"))
+    _clear(line_user_id)
+    _text(reply_token, _("Cancelled"))
 
 
 def text(line_user_id, user, typed, reply_token, event_id="") -> bool:
@@ -220,7 +269,7 @@ def text(line_user_id, user, typed, reply_token, event_id="") -> bool:
     with acting(user), _guarded(reply_token):
         if step == "card":
             if is_confirm(typed):
-                _release(line_user_id, payload.get("name") or "", payload.get("version"), reply_token, event_id)
+                _confirm(line_user_id, payload.get("nonce") or "", payload.get("name") or "", reply_token, event_id)
             else:
                 _show_card(line_user_id, payload, _service().card(payload["name"]), reply_token)
         elif step == "company":
@@ -448,8 +497,10 @@ def _ask_method(line_user_id, payload, reply_token):
     _save(line_user_id, payload)
     if not options:
         return _text(reply_token, _("This collection method is not available"))
-    _ask(reply_token, _status_line(payload) + "\n" + _("Choose the collection method"),
-         [_button(label, _data("method", key)) for key, label in options])
+    lines = [_status_line(payload), _("Choose the collection method")]
+    lines += [f"{index}. {label}" for index, (_key, label) in enumerate(options, 1)]
+    _ask(reply_token, "\n".join(lines),
+         [_button(text, _data("method", key)) for text, (key, _label) in zip(choice_labels([label for _key, label in options]), options)])
 
 
 def _answer_method(line_user_id, payload, value, reply_token):
@@ -652,36 +703,31 @@ def store_voucher(line_user_id, user, message_id, filename, prefix, reply_token=
     """（后台）从 LINE 取凭证、按绑定的账号存成私有凭证（`service.store_voucher`），挂到正在等凭证的那种转账上。"""
     if line_binding.user_of(line_user_id) != user:
         return
-    previous_lang = getattr(frappe.local, "lang", None)
-    if language:
-        frappe.local.lang = language
-    try:
-        with acting(user):
-            payload = payload_of(line_user_id)
-            if payload.get("step") != "voucher" or payload.get("voucher_for") != prefix:
-                return  # 等凭证那一步已经过去（取消了、换了一笔）
-            try:
-                content = line.download_message_content(message_id)
-                stored = _service().store_voucher(filename, content) if content else None
-            except Exception:
-                frappe.db.rollback()
-                frappe.log_error(title="ERP LINE collection voucher failed", message=frappe.get_traceback()[-1500:])
-                stored = None
-            if not stored:
-                return line.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
-                                          reply_token)
-            with background(line_user_id, reply_token), _guarded(reply_token):
-                if payload.get("name"):  # 卡片上缺凭证：补进草稿
-                    found = _service().card(payload["name"])
-                    card = _service().set_voucher(payload["name"], found["version"], prefix, stored["file"])
-                    return _show_card(line_user_id, payload, card, reply_token)
-                for row in payload["methods"]:
-                    if row["prefix"] == prefix and not row.get("voucher"):
-                        row["voucher"] = stored["file"]
-                payload.pop("voucher_for", None)
-                _after_amounts(line_user_id, payload, reply_token)
-    finally:
-        frappe.local.lang = previous_lang
+    with acting(user), speaking(line_user_id, language) as language:
+        payload = payload_of(line_user_id)
+        if payload.get("step") != "voucher" or payload.get("voucher_for") != prefix:
+            return  # 等凭证那一步已经过去（取消了、换了一笔）
+        try:
+            content = line.download_message_content(message_id)
+            stored = _service().store_voucher(filename, content) if content else None
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(title="ERP LINE collection voucher failed", message=frappe.get_traceback()[-1500:])
+            stored = None
+        frappe.local.lang = language  # 存原件的那一段不许把回复的语言带偏（11-13 真机：凭证后那条变泰文）
+        if not stored:
+            return line.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
+                                      reply_token)
+        with background(line_user_id, reply_token), _guarded(reply_token):
+            if payload.get("name"):  # 卡片上缺凭证：补进草稿
+                found = _service().card(payload["name"])
+                card = _service().set_voucher(payload["name"], found["version"], prefix, stored["file"])
+                return _show_card(line_user_id, payload, card, reply_token)
+            for row in payload["methods"]:
+                if row["prefix"] == prefix and not row.get("voucher"):
+                    row["voucher"] = stored["file"]
+            payload.pop("voucher_for", None)
+            _after_amounts(line_user_id, payload, reply_token)
 
 
 # ── 草稿与确认卡 ─────────────────────────────────────────────────────────────
@@ -703,13 +749,18 @@ def _draft(line_user_id, payload, reply_token):
 
 
 def _show_card(line_user_id, payload, card, reply_token, note=""):
+    """出确认卡：每张卡一个新的一次性确认号（`line_session` 同 DMS 预览卡），旧卡当场失效；会话里原来那笔是另一张草稿时，那张草稿作废。"""
     from pearnly_erp_portal.integrations import line_collection_cards as cards
 
+    _discard(payload_of(line_user_id).get("name"), keep=card["name"])
     state = {"step": "card", "company": card["company"], "customer": card["customer"], "name": card["name"],
-             "version": card["version"]}
-    messages = [cards.confirm(card, edit_url=edit_url(card["name"]))]
+             "version": card["version"], "nonce": secrets.token_urlsafe(9),
+             "issued": frappe.utils.now_datetime().isoformat(sep=" ")}
     if card.get("problem") == contracts.VOUCHER_MISSING:
         state.update(step="voucher", voucher_for=(card.get("detail") or {}).get("prefix") or "")
+    _save(line_user_id, state, ttl_minutes=CARD_MINUTES)
+    messages = [cards.confirm(card, edit_url=edit_url(card["name"]), nonce=state["nonce"])]
+    if state["step"] == "voucher":
         messages.append({"type": "text", "text": _("Send a photo of the transfer slip"),
                          "quickReply": {"items": [_cancel()]}})
     elif card.get("problem"):
@@ -717,8 +768,15 @@ def _show_card(line_user_id, payload, card, reply_token, note=""):
                                                                                          card.get("detail")))})
     if note:
         messages.insert(0, {"type": "text", "text": note})
-    _save(line_user_id, state)
     _send(reply_token, messages)
+
+
+def _discard(name, keep=None):
+    """这一笔没放行的草稿作废（被新卡替换、重开一笔、取消、卡片过期）。已放行的、别人的、不存在的不动。"""
+    if not name or name == keep:
+        return
+    with contextlib.suppress(contracts.CollectionError, frappe.PermissionError):
+        _service().discard_draft(name)
 
 
 def edit_url(name) -> str:
@@ -740,10 +798,69 @@ def _repeat(line_user_id, payload, reply_token):
         return _after_amounts(line_user_id, payload, reply_token)
     if step == "split":
         return _ask_split(line_user_id, payload, reply_token)
-    _text(reply_token, _("This option is no longer current"))
+    _text(reply_token, _(STALE))
 
 
 # ── 放行、撤回、结果 ─────────────────────────────────────────────────────────
+
+
+def _store():
+    return _state()
+
+
+def _used(nonce) -> bool:
+    store = _store()
+    return bool(nonce and store.get(store.make_key(_USED_KEY + nonce)))
+
+
+def _consume(line_user_id, nonce, name) -> dict | None:
+    """消费当前卡的确认号（`line_session.consume_nonce`，原子；同一个号第二次一定对不上）。回卡片那一步的会话，对不上回 None。"""
+    if not nonce:
+        return None
+    current = line_session.get_session(line_user_id)
+    if not line_session.verify_nonce(current, nonce, STATE) or (current.get("payload") or {}).get("name") != name:
+        return None  # 号对得上但单号对不上（伪造）：不消费，当前卡照样有效
+    claimed = line_session.consume_nonce(line_user_id, STATE, nonce)
+    if claimed is None:
+        return None
+    store = _store()
+    store.set(store.make_key(_USED_KEY + nonce), "1", ex=USED_SECONDS)
+    return claimed
+
+
+def _expired_card(claimed) -> bool:
+    issued = claimed.get("issued")
+    if not issued:
+        return True
+    age = frappe.utils.now_datetime() - frappe.utils.get_datetime(issued)
+    return age.total_seconds() > CARD_MINUTES * 60
+
+
+def _stale_card(line_user_id, nonce, name, reply_token):
+    """点的不是当前卡：同一张卡已经点过（处理中 / 已处理）不回话；被新卡替换、过期、会话没了回「已过期」。
+    会话里已经不是这一笔（过期了、或已换成别的）时，这张卡的草稿作废；会话正停在同一笔的新卡上则不动它。"""
+    if _used(nonce):
+        return None
+    if payload_of(line_user_id).get("name") != name:
+        _discard(name)
+    return _text(reply_token, _(EXPIRED))
+
+
+def _confirm_tap(line_user_id, params, reply_token, event_id):
+    _confirm(line_user_id, params.get("k") or "", params.get("n") or "", reply_token, event_id)
+
+
+def _confirm(line_user_id, nonce, name, reply_token, event_id):
+    claimed = _consume(line_user_id, nonce, name)
+    if claimed is None:
+        return _stale_card(line_user_id, nonce, name, reply_token)
+    if claimed.get("step") != "card":
+        return _text(reply_token, _(EXPIRED))
+    if _expired_card(claimed):
+        _discard(name)
+        _clear(line_user_id)
+        return _text(reply_token, _(EXPIRED))
+    _release(line_user_id, name, claimed.get("version"), reply_token, event_id)
 
 
 def _release(line_user_id, name, version, reply_token, event_id):
@@ -754,6 +871,8 @@ def _release(line_user_id, name, version, reply_token, event_id):
         return _show_card(line_user_id, found, _service().card(name), reply_token,
                           note=_("The collection changed. Check it again"))
     if status == "not_draft":
+        if payload_of(line_user_id).get("name") == name:
+            _clear(line_user_id)
         return _text(reply_token, _status_text(result["card"]))
     if status == "invalid":
         card = _service().card(name)
@@ -773,6 +892,7 @@ def _release(line_user_id, name, version, reply_token, event_id):
         return _show_card(line_user_id, payload_of(line_user_id), card, reply_token, note=note)
     if payload_of(line_user_id).get("name") == name:
         _clear(line_user_id)
+    _pending_on(name)
     _wait_on(name)
     line.start_loading(line_user_id, 30)
     frappe.enqueue("pearnly_erp_portal.integrations.line_collection.await_result", queue="short",
@@ -780,11 +900,37 @@ def _release(line_user_id, name, version, reply_token, event_id):
                    reply_token=reply_token, language=getattr(frappe.local, "lang", None) or "")
 
 
-def _withdraw(line_user_id, name, reply_token):
+def _withdraw_tap(line_user_id, params, reply_token):
+    """【撤回】只认当前卡（会话里的确认号），或这一笔「已记录 · 待写入」那条上的撤回号；别的旧卡回「已过期」，不动正在录的。"""
+    name, nonce = params.get("n") or "", params.get("k") or ""
+    if params.get("p"):
+        if not nonce or nonce != _pending_of(name):
+            return None if _used(nonce) else _text(reply_token, _(EXPIRED))
+        _store().set(_store().make_key(_USED_KEY + nonce), "1", ex=USED_SECONDS)
+        _pending_off(name)
+        return _text(reply_token, _status_text(_service().withdraw(name)))
+    claimed = _consume(line_user_id, nonce, name)
+    if claimed is None:
+        return _stale_card(line_user_id, nonce, name, reply_token)
     view = _service().withdraw(name)
-    if payload_of(line_user_id).get("name") == name:
-        _clear(line_user_id)
+    _clear(line_user_id)
     _text(reply_token, _status_text(view))
+
+
+def _pending_on(name):
+    store = _store()
+    store.set(store.make_key(_PENDING_KEY + name), secrets.token_urlsafe(9), ex=7 * 86400)
+
+
+def _pending_of(name) -> str:
+    store = _store()
+    found = store.get(store.make_key(_PENDING_KEY + name)) if name else None
+    return found.decode() if isinstance(found, bytes) else str(found or "")
+
+
+def _pending_off(name):
+    store = _store()
+    store.delete(store.make_key(_PENDING_KEY + name))
 
 
 def _status_text(view) -> str:
@@ -817,8 +963,11 @@ def _result_messages(view) -> list:
     # 不另推送；当天第一笔放行时电脑还没去试，不知道）
     waiting = view.get("status") == contracts.QUEUED and _service().express_waiting(view["name"])
     lines = [_("Recorded · pending write"), *([_("express.error.ACCOUNT_BUSY_LOCKED")] if waiting else []), head]
-    return [{"type": "text", "text": "\n".join(lines),
-             "quickReply": {"items": [_button(_("Withdraw"), _data("wd", n=view["name"]))]}}]
+    items = [_button(_("View result"), _data("res", n=view["name"]))]
+    token = _pending_of(view["name"])
+    if token and view.get("status") in contracts.WITHDRAWABLE:
+        items.append(_button(_("Withdraw"), _data("wd", n=view["name"], p=1, k=token)))
+    return [{"type": "text", "text": "\n".join(lines), "quickReply": {"items": items}}]
 
 
 FINAL = (contracts.WRITTEN, contracts.FAILED, contracts.WITHDRAWN)
@@ -862,32 +1011,27 @@ def await_result(name, line_user_id, user, reply_token="", language=""):
     :func:`notify` 之后推送。"""
     import time
 
-    previous_lang = getattr(frappe.local, "lang", None)
-    if language:
-        frappe.local.lang = language
-    try:
-        with acting(user):
-            deadline = time.monotonic() + WAIT_SECONDS
+    with acting(user), speaking(line_user_id, language):
+        deadline = time.monotonic() + WAIT_SECONDS
+        view = _read(name)
+        while view["status"] not in FINAL and time.monotonic() < deadline:
+            time.sleep(1)
             view = _read(name)
-            while view["status"] not in FINAL and time.monotonic() < deadline:
-                time.sleep(1)
-                view = _read(name)
-            if view["status"] not in FINAL:
-                _wait_off(name)
-                view = _read(name)  # 撤下等待之后再读一次：回执恰好在这之间到的，照样在这里回
-            else:
-                _wait_off(name)
-            if view["status"] in FINAL and not claim(name, view):
-                return
-            line.reply_or_push(line_user_id, _result_messages(view), reply_token)
-    finally:
-        frappe.local.lang = previous_lang
+        if view["status"] not in FINAL:
+            _wait_off(name)
+            view = _read(name)  # 撤下等待之后再读一次：回执恰好在这之间到的，照样在这里回
+        else:
+            _wait_off(name)
+        if view["status"] in FINAL and not claim(name, view):
+            return
+        line.reply_or_push(line_user_id, _result_messages(view), reply_token)
 
 
 def notify(name):
-    """（回执提交之后）LINE 录的收款写成 / 失败：后台还在等就交给它回；否则推送给录入的收款员本人。"""
+    """（回执提交之后）LINE 录的收款写失败：后台还在等就交给它回；否则推送一条给录入的收款员本人（同一笔一次，已看过不推）。
+    写成不推送：收款员点「查看结果」或下次进「收款」时用回复告诉（:func:`_show_result`、:func:`_told_first`）。"""
     doc = frappe.db.get_value(DOCTYPE, name, ["collector", "source", "status", "docnum", "job"], as_dict=True)
-    if not doc or doc.source != "line" or doc.status not in (contracts.WRITTEN, contracts.FAILED):
+    if not doc or doc.source != "line" or doc.status != contracts.FAILED:
         return
     if waiting(name):
         return
@@ -895,17 +1039,48 @@ def notify(name):
                               pluck="line_user_id", limit_page_length=1)
     if not bindings:
         return
-    previous_lang = getattr(frappe.local, "lang", None)
-    # 推送用这个人手机上 LINE 的语言（同收单卡片）；取不到用站点语言（`intake.channel_language` 同一口径）
-    frappe.local.lang = line.user_language(bindings[0], default=frappe.db.get_single_value("System Settings", "language")
-                                           or "th")
+    # 推送用这个人手机上 LINE 的语言（同收单卡片）
+    with acting(doc.collector), speaking(bindings[0]):
+        view = _service().status(name)
+        if view["status"] in FINAL and claim(name, view):
+            line.push(bindings[0], _result_messages(view))
+
+
+def _show_result(name, reply_token):
+    """「已记录 · 待写入」上的【查看结果】：用回复给此刻的状态 / RE 号；已了结的记作看过（失败也不再推送）。"""
+    view = _service().status(name)
+    if view["status"] in FINAL:
+        claim(name, view)
+    _send(reply_token, _result_messages(view))
+
+
+UNSEEN_DAYS = 7
+UNSEEN_MAX = 10
+
+
+def _unseen(user) -> list:
+    """这位收款员 LINE 录的、放行后 :data:`UNSEEN_DAYS` 天内写成 / 失败、还没告诉过的几笔（新的在前），告诉一次就记下。"""
+    since = frappe.utils.add_days(frappe.utils.now_datetime(), -UNSEEN_DAYS)
+    names = frappe.get_all(DOCTYPE, filters={"collector": user, "source": "line",
+                                             "status": ["in", [contracts.WRITTEN, contracts.FAILED]],
+                                             "confirmed_at": [">", since]},
+                           pluck="name", order_by="confirmed_at desc", limit_page_length=UNSEEN_MAX)
+    out = []
+    for name in names:
+        view = _service().status(name)
+        if view["status"] in (contracts.WRITTEN, contracts.FAILED) and claim(name, view):
+            out.append(_status_text(view) + "\n" + f"{view.get('customer_name') or ''} · {money(view.get('total'))}")
+    return [{"type": "text", "text": "\n\n".join(out)[:4900]}] if out else []
+
+
+@contextlib.contextmanager
+def _told_first(user):
+    """进「收款」：上次之后写成 / 失败、还没告诉过的放进这次回复的最前面（不另推送）。"""
+    frappe.local.pearnly_collection_prefix = _unseen(user)
     try:
-        with acting(doc.collector):
-            view = _service().status(name)
-            if view["status"] in FINAL and claim(name, view):
-                line.push(bindings[0], _result_messages(view))
+        yield
     finally:
-        frappe.local.lang = previous_lang
+        frappe.local.pearnly_collection_prefix = []
 
 
 # 按钮的步名 → 会话停在的那一步（勾发票的每一下都停在「发票」这一步）

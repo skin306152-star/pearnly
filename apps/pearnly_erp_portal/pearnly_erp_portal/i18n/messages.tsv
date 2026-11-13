@@ -2076,6 +2076,8 @@ This collection method is not available	此收款方式不可用	วิธีร
 Cash is not set up for this account set	此账套未设置现金科目	ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินสด	この帳簿には現金科目がありません
 Enter the amount received	输入已收金额	พิมพ์จำนวนเงินที่รับ	受け取った金額を入力してください
 This collection cannot be withdrawn	此收款不能撤回	ถอนรายการรับชำระนี้ไม่ได้	この入金は取り下げできません
+This item has expired. Please start again.	此项已过期，请重新开始。	รายการนี้หมดอายุแล้ว กรุณาเริ่มใหม่อีกครั้ง	有効期限が切れました。もう一度やり直してください。
+View result	查看结果	ดูผลลัพธ์	結果を見る
 This collection cannot be changed	此收款不能修改	แก้ไขรายการรับชำระนี้ไม่ได้	この入金は変更できません
 CC Desktop is writing this collection	CC 桌面版正在写入此收款	CC เดสก์ท็อปกำลังบันทึกรายการนี้	CC デスクトップがこの入金を書き込み中です
 Salesman	销售员	พนักงานขาย	営業担当

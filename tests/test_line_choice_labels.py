@@ -52,7 +52,7 @@ class CallSites(unittest.TestCase):
     """列名称点序号选的按钮都经 `choice_labels`（按类修，不只收款选账套这一处）。"""
 
     SITES = {
-        "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py": 4,
+        "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py": 5,  # 含收款方式（11-13：同前缀的转账方式截完一样）
         "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py": 2,
     }
 

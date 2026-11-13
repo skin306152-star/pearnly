@@ -2622,8 +2622,8 @@ smoke = "page"
 id = "erp.line.collection"
 product = "ERP"
 where = "LINE 录收款（富菜单第 4 格「收款」、「เมนู」里的收款按钮）"
-steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12、多选合计、组合 / 折扣 / 部分、超收、缺凭证、确认按钮与打字确认、版本变了重出卡、撤回、权限、结果回复 vs 推送）；实验栈流程 erp.line.collection（模拟 LINE 事件走完到确认卡 → 我的收款弹窗改草稿 → 回 LINE 旧卡确认重出新卡、伪造被拒、打 ok 放行、待写入时撤回）；部署后三星真机走一遍"
-expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入、结果推送给收款员本人"
+steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12、多选合计、组合 / 折扣 / 部分、超收、缺凭证、确认按钮与打字确认、版本变了重出卡、撤回、权限、结果回复 vs 推送、确认号与有效期、取消只认当前步、凭证后语言）；实验栈流程 erp.line.collection（模拟 LINE 事件走完到确认卡 → 我的收款弹窗改草稿 → 回 LINE 旧卡确认重出新卡、伪造被拒、打 ok 放行、待写入时撤回）；部署后三星真机走一遍"
+expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入（带查看结果）；写成不推送、写失败推一条；确认卡一卡一个确认号、旧卡与过期卡回已过期、连点不回话；单据日期按放行当天"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py"]
 

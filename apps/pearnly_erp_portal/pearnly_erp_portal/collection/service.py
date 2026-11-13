@@ -561,8 +561,9 @@ def release(name, version, consent) -> dict:
         return {"status": "invalid", "code": error.code, "detail": error.detail}
     _fill(doc, checked, {"salesman": doc.salesman or "", "department": doc.department or contracts.staff(
         checked["invoices"][0], _choices(doc.book_key)["run_department"])["department"]})
-    doc.update({"status": contracts.QUEUED, "confirmed_at": now_datetime(), "consent_ref": str(consent)[:140],
-                "reason": ""})
+    # 单据日期按放行当天（隔了一阵才确认、跨了日也记到确认那天，不是建草稿那天）
+    doc.update({"status": contracts.QUEUED, "doc_date": nowdate(), "confirmed_at": now_datetime(),
+                "consent_ref": str(consent)[:140], "reason": ""})
     doc.save(ignore_permissions=True)
     from pearnly_erp_portal.collection import push
 
@@ -585,6 +586,16 @@ def withdraw(name) -> dict:
     if doc.job:
         push.cancel(doc.job)
     return _view(doc)
+
+
+def discard_draft(name) -> bool:
+    """作废本人一张还没放行的草稿（LINE 里出了新卡、重开一笔、取消、卡片过期）：标「已撤回」，记录与凭证保留。不是草稿的不动。"""
+    doc = _own(name, for_update=True)
+    if doc.status != contracts.DRAFT:
+        return False
+    doc.update({"status": contracts.WITHDRAWN, "withdrawn_by": frappe.session.user, "withdrawn_at": now_datetime()})
+    doc.save(ignore_permissions=True)
+    return True
 
 
 def status(name) -> dict:
@@ -640,6 +651,7 @@ def mine(start=0, limit=20) -> dict:
 
 
 __all__ = ["book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers",
+           "discard_draft",
            "edit_choices", "express_waiting", "methods", "mine",
            "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",
            "withdraw"]

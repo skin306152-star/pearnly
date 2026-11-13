@@ -21,7 +21,8 @@ from frappe import _
 from pearnly_erp_portal.integrations import line_flow
 from pearnly_core.tax_documents import codes as tax_codes
 
-COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
+# LINE 卡片按业务类型取色（一处定义）：采购绿、销售红、收款用品牌紫（`pearnly_core/public/desk/product.css` 的 --pearnly-accent-deep）
+COLORS = {"purchase": "#16873E", "sales": "#B11B50", "collection": "#6B3FF2"}
 DOC_KINDS = {"purchase_invoice": "Purchase Invoice",
              "expense": "Expense", "receipt": "Receipt", "quotation": "Quotation"}
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」。
