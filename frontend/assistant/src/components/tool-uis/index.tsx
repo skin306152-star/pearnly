@@ -7,6 +7,7 @@
 
 import { defineToolkit, Tools, useAui } from "@assistant-ui/react";
 import { AskUserCard } from "./ask-card";
+import { GuideCard } from "./guide-card";
 import { OperatorChooseCard } from "./operator-choose";
 import { OperatorResumeCard } from "./operator-resume";
 import { OperatorStartCard } from "./operator-start";
@@ -16,8 +17,8 @@ import { StepRow } from "./steps";
 /** 代录的卡片：单独一张，不收进步骤组。 */
 export const OPERATOR_CARDS: ReadonlySet<string> = new Set(["operator_start", "operator_choose", "operator_resume"]);
 
-/** 单独一张、不收进步骤组的卡片：代录的卡片与通用提问卡片 ask_user。 */
-export const CARD_TOOLS: ReadonlySet<string> = new Set([...OPERATOR_CARDS, "ask_user"]);
+/** 单独一张、不收进步骤组的卡片：代录的卡片、通用提问卡片 ask_user 与引导卡 pearnly_guide（guide-card.tsx，后台出题）。 */
+export const CARD_TOOLS: ReadonlySet<string> = new Set([...OPERATOR_CARDS, "ask_user", "pearnly_guide"]);
 
 export const toolkit = defineToolkit({
   bash: { type: "backend", render: StepRow },
@@ -29,6 +30,7 @@ export const toolkit = defineToolkit({
   glob: { type: "backend", render: StepRow },
   grep: { type: "backend", render: StepRow },
   ask_user: { type: "backend", render: AskUserCard },
+  pearnly_guide: { type: "backend", render: GuideCard },
   operator_start: { type: "backend", render: OperatorStartCard },
   operator_choose: { type: "backend", render: OperatorChooseCard },
   operator_resume: { type: "backend", render: OperatorResumeCard },

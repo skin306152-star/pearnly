@@ -1832,7 +1832,8 @@ g.done();
         self.assertIn('export const OPERATOR_CARDS: ReadonlySet<string> = new Set(["operator_start", "operator_choose", "operator_resume"]);',
                       read("components/tool-uis/index.tsx"))
         # 通用提问卡片 ask_user 同样单独一张（tests/test_cc_ask.py）
-        self.assertIn('export const CARD_TOOLS: ReadonlySet<string> = new Set([...OPERATOR_CARDS, "ask_user"]);', read("components/tool-uis/index.tsx"))
+        # 引导卡 pearnly_guide 同样单独成卡（引导式录入第 1 期，有意变化）
+        self.assertIn('export const CARD_TOOLS: ReadonlySet<string> = new Set([...OPERATOR_CARDS, "ask_user", "pearnly_guide"]);', read("components/tool-uis/index.tsx"))
         # 步骤组里那一行（出卡片前就核出要拒绝的）写问话 + 失败，不写做完的说法
         steps_src = read("components/tool-uis/steps.tsx")
         plain = steps_src[steps_src.index("const PlainStep: FC"):steps_src.index("export function askText")]

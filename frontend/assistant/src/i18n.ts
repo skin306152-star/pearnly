@@ -1464,6 +1464,20 @@ const ASK = {
 
 export const ask = (ASK as Record<string, (typeof ASK)["en"]>)[lang] ?? ASK.en;
 
+// 引导卡（tool-uis/guide-card.tsx，引导式录入第 1 期）：题目与选项的字由服务端出，这里只有卡片自己的几处
+const GUIDE = {
+  en: { recommended: "Recommended", decided: (n: number) => `${n} decided`, answered: (n: number) => `${n} answered`,
+    documents: (label: string, n: number) => `${label} · ${n} documents` },
+  zh: { recommended: "推荐", decided: (n: number) => `已定 ${n} 项`, answered: (n: number) => `已答 ${n} 项`,
+    documents: (label: string, n: number) => `${label} · ${n} 张` },
+  th: { recommended: "แนะนำ", decided: (n: number) => `กำหนดแล้ว ${n} รายการ`, answered: (n: number) => `ตอบแล้ว ${n} รายการ`,
+    documents: (label: string, n: number) => `${label} · ${n} ใบ` },
+  ja: { recommended: "おすすめ", decided: (n: number) => `決定済み ${n} 件`, answered: (n: number) => `回答済み ${n} 件`,
+    documents: (label: string, n: number) => `${label} · ${n} 件` },
+};
+
+export const guide = (GUIDE as Record<string, (typeof GUIDE)["en"]>)[lang] ?? GUIDE.en;
+
 // 标准组件库（components/ui，docs/development/cc-ui-kit.md）里组件自带的字；能用上面已有词条的组件直接用已有的（close、copy、removeFile、ask.*）
 const UI = {
   en: { copied: "Copied", loading: "Loading", chooseAnswer: "Choose an answer" },

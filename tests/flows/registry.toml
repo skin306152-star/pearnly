@@ -2106,6 +2106,9 @@ covers = [
 id = "cowork.cc.approval-cards"
 title = "Cowork CC 直写对话：删单据、立即运行先出「允许 / 拒绝」卡片（卡上单号 · 对方 · 金额 / 任务名、账套、文件夹与识别扣费），拒绝不执行，允许只执行卡上那几条；新文案中泰英日各看一张（用户 11-12）"
 module = "scripts/flows/cc_approval_cards.py"
+id = "cowork.cc.guide"
+title = "Cowork CC 引导卡 pearnly_guide（假智能体后端调工具）：后台出题、推荐预选点了才算、提交后按供应商记住、第二次不再问、整段对话没有 ask_user（引导式录入第 1 期）"
+module = "scripts/flows/cc_guide.py"
 product = "cowork"
 start = "/assistant"
 user = "admin"
@@ -2130,6 +2133,11 @@ viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
   "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
+  "frontend/assistant/src/components/tool-uis/guide-*.ts",
+  "frontend/assistant/src/components/tool-uis/guide-*.tsx",
+  "apps/pearnly_core/pearnly_core/assistant/guide_tool.py",
+  "apps/pearnly_core/pearnly_core/assistant/guided.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/guide.py",
 ]
 
 [[flow]]
