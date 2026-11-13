@@ -19,11 +19,14 @@ Account balance,账户余额
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,本站点为该操作员创建的账号。仅用于 LINE，不用于网页登录，无需密码。
 Account name,收款户名
 Account number,收款账号
+Account set,账套
 Account set in use,账套正在使用
+Account set setting,账套设置
 Account set unavailable,账套无法打开
 Account signed in elsewhere,账号已在别处登录
 Account that owns this connection. Leave empty for a site-wide shared connection.,连接所属账号。留空为本站点共享连接。
 Account with admin rights,具有管理权限的账号
+Accrual basis,权责发生制
 Action not found,未找到该操作
 Actions,操作
 Active Seconds,运行秒数
@@ -46,11 +49,13 @@ Allowed,允许
 Amount,金额
 Amount and VAT differ,金额和税不一致
 Amount and VAT match,金额和税一致
+Amount only,只记金额
 An admin session was requested but no admin credentials are configured,已请求 admin 会话，但未配置 admin 凭据
 Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
+Asked before writing,写入前已询问
 Asked questions,已提问
 Attempt,尝试次数
 Attempts,尝试次数
@@ -111,6 +116,9 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},无�
 Cannot read the remaining time,无法读取剩余时间
 Car models {0},车型 {0}
 Carried,已转入
+Cash,现金
+Cash account,收付款科目
+Cash basis,收付实现制
 Change account,修改账号
 Change declined,已拒绝此更改
 Change password,更改密码
@@ -130,6 +138,7 @@ Checkpoints,检查点
 Choose a plan,选择套餐
 Choose document menu,选择单据菜单
 Choose the company in Express,请在 Express 中选择公司
+Claim,抵扣
 Claiming a push job requires a connection,领取推送任务时必须指定连接
 Click to sort by {0},点击按 {0} 排序
 Client ID is required,客户端 ID 不能为空
@@ -143,6 +152,7 @@ Company Profile,公司资料
 Company Tax ID,本方税号
 Company Title,公司名称
 Company does not match the task,公司与任务不符
+Company rule,公司规则
 Computer in use,电脑正在使用
 Computer locked,电脑已锁屏
 Configuration is complete. The connection was not tested.,配置完整，未测试实际连接。
@@ -174,6 +184,7 @@ Contact support with the record ID,请提供记录编号联系客服
 Context Tokens,上下文用量
 Conversation not found,未找到对话
 Copy,复制
+Cost of goods sold,出库成本
 Could not acquire the lock: {0},获取锁失败：{0}
 Could not call the model: {0},调用模型失败：{0}
 Could not create the OIDC client: {0} {1},创建 OIDC 客户端失败：{0} {1}
@@ -201,6 +212,7 @@ Cowork Intake,Cowork 录入
 Create a new {0},新建{0}
 Created At,创建时间
 Created: {0},已录入：{0}
+Credit,赊账
 Credited,已到账
 Currency,币种
 Current Password,当前密码
@@ -271,6 +283,7 @@ Display name,显示名
 Display only; the push log is authoritative,仅作展示，以推送记录为准
 Doc Date,单据日期
 Doc No,单据号
+Document,票面
 Document Type,单据类型
 Document date,单据日期
 Document no.,单据号
@@ -314,6 +327,7 @@ Express Index Tool,Express 索引程序
 Express Number,Express 单号
 Express Push Guide,Express 推送手册
 Express closed twice,Express 连续关闭
+Express history,Express 历史
 Express license limit reached,Express 授权名额已满
 Express no.,Express 单号
 Express reopened,Express 已重新打开
@@ -375,6 +389,7 @@ Image Fingerprint,影像指纹
 In-progress state of a multi-turn conversation. One row per session.,多轮对话的中间状态。每个会话一行。
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
 Input Tokens,输入 Token
+Input VAT,进项税
 "Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC 桌面版的安装、配对、升级与卸载说明
 Intake Workbench,录入工作台
@@ -463,10 +478,13 @@ Net Payable,应付净额
 Net amount,未税金额
 Net payable,应付净额
 Network error,网络错误
+New,新建
 New Customer,本次新建
 New DMS password,新 DMS 密码
+New counterparty,新建对方
 New entry,新建录入
 New password,新密码
+New product,新物料
 New purchase order,新建采购单
 Next Period End,次年期末
 Next Retry At,下次重试时间
@@ -551,6 +569,7 @@ Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages
 Payer,付款人
 Payer name on the bank transfer,银行转账时的付款方
 Payload Version,载荷版本
+Payment,付款方式
 Payment Status,付款状态
 Pearnly,Pearnly 主题
 Pearnly Cowork,Pearnly Cowork
@@ -573,6 +592,7 @@ Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
 Please try again later,请稍后重试
 Posted,已入账
+Posting,入账方式
 Preparing the file,正在准备文件
 Private Key,私钥
 Processing…,处理中…
@@ -638,6 +658,7 @@ Refresh,刷新
 Regenerate,重新生成
 Rejected,已拒绝
 Reload advisors,重新读取顾问名册
+Remembered,记住的
 Remote Address,对端地址
 Remote Sessions,远程会话
 Removed At,移除时间
@@ -689,6 +710,7 @@ Seen At,上报时间
 Seller,卖方
 Seller Tax ID,卖方税号
 Server unreachable,服务器无法连接
+Service VAT basis,服务税口径
 Session,会话
 Session ID,会话 ID
 Session Payload,会话载荷
@@ -705,9 +727,11 @@ Signed In Via,登录方式
 Site finalization failed,站点收尾失败
 Site is missing setting: {0},站点缺少配置项：{0}
 Size And Permission Check,大小与权限检查
+Skip,不写入
 Skipped,已跳过
 Source,来源
 Source Attachment,原始附件
+Source document,来源单据
 Stage,阶段
 Starred,已加星标
 Start At,开始时间
@@ -749,6 +773,7 @@ System URL is not filled in,系统地址不能为空
 System URL is required,系统地址为必填项
 Target ERP,目标 ERP
 Task cost limit reached,已达本任务费用上限
+Task default,任务默认
 Tax Return Drafts,报税草稿
 Team,团队管理
 Tenant boot data,本站点启动数据
@@ -821,6 +846,7 @@ This company’s LINE official account is not configured yet.,本公司尚未配
 This connection has no username and password yet.,此连接未填写账号和密码。
 This conversation could not be changed; please try again,对话修改失败，请重试
 This device cannot receive notifications.,此设备无法接收通知。
+This document,本单
 This document has already been recorded: {0},该单据已录入：{0}
 This file has expired. Export it again.,此文件已过期，请重新导出。
 This identity is already bound to account {0} (record {1}),该身份已绑定到账号 {0}（记录 {1}）
@@ -920,6 +946,7 @@ Waiting,等待
 Waiting for answers,等待作答
 Waiting for start time,等待开始时刻
 Waiting for the server,正在等待服务器
+Warehouse,仓位
 Warehouses,仓库
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推送单据
@@ -1060,6 +1087,49 @@ connect.title,连接 DMS
 connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+guide.option.detail.amount_only,只记金额
+guide.option.detail.skip,不写入
+guide.option.direction.expense,费用
+guide.option.direction.purchase,采购
+guide.option.direction.sales,销售
+guide.option.document_policy.enter,写入
+guide.option.document_policy.skip,不写入
+guide.option.goods_posting.service,记费用
+guide.option.goods_posting.stock,走库存
+guide.option.item.__expense__,记费用
+guide.option.new,新建
+guide.option.payment.cash,现金
+guide.option.payment.credit,赊账
+guide.option.service_vat.accrual,权责发生制
+guide.option.service_vat.cash_basis,收付实现制
+guide.option.vat.claim,抵扣
+guide.option.vat.expense,记入费用
+guide.q.account,科目
+guide.q.account_set,账套
+guide.q.cash_account,收付款科目
+guide.q.cost_basis,出库成本
+guide.q.current_book,账套
+guide.q.detail,明细
+guide.q.direction,业务类型
+guide.q.document_policy,是否写入
+guide.q.goods_posting,入账方式
+guide.q.item,物料
+guide.q.location,仓位
+guide.q.new_item,新物料
+guide.q.new_party,新建对方
+guide.q.party,对方
+guide.q.payment,付款方式
+guide.q.service_vat,服务税口径
+guide.q.unit,单位
+guide.q.vat,进项税
+guide.source.book_setting,账套设置
+guide.source.company_rule,公司规则
+guide.source.document,本单
+guide.source.express_history,Express 历史
+guide.source.face,票面
+guide.source.pinned,来源单据
+guide.source.remembered,记住的
+guide.source.task_default,任务默认
 home.balance.title,账户余额
 home.balance.used,本月已用 {0} 页 · 套餐 {1} 本周期剩余 {2} 页
 home.balance.usedNoPlan,本月已用 {0} 页 · 按量计费

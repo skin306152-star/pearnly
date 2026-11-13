@@ -195,3 +195,26 @@ A 类 14 条在哪一批落地：
 - 还没做：A4（Cowork 指纹未知出「走库存 / 记费用」题）、A8 `new_party`、A10 `new_item`——要主档读回的类型 / 分类众数，留到第 3 批之后。
 - 影响：CC 对话里的预检与写入从此按引导口径——在 `pearnly_guide` 入口（第 3 批）落地前，CC 仍用旧的 `pearnly_precheck` + `ask_user`，会多出几类题（明细、现销赊销、收入科目等）。
   所以本分支要等第 3 批一起合入，不能单独合。
+
+## 第 3 批（服务端）：引导卡入口 `pearnly_guide`
+
+- **工具**：共用 CC 工具 `pearnly_guide`（`K/assistant/tools.py`，要等人作答 `approval`，新声明项 `prepare`）。模型只给 `{company, doc_ids, hint?}`。
+  出卡前（`toolrun.execute` → `tools.prepare` → `assistant/guide_tool.prepare`，按这段对话现算，共用规则自动走引导口径）服务端调
+  `write_precheck.api.card` → `guide.build`，按本轮语言翻好题目 / 选项 / 已定项来源，**把卡存成这次调用的输入**；全部已定就不出卡，直接交回
+  `{status: nothing_to_ask, writable, planned}`（不是出错）。
+- **作答**：页面随确认交回 `[{key, value, doc_id?}]`（同 `ask_user` 走 `sessions.confirm` → `toolrun.decide`）。`decide` 先 `guide_tool.check`
+  核答案（键在卡上、值在选项里；对不上抛 `ask.AnswerError`，卡不被占掉），抢到卡之后才 `guide_tool.result` 记下：
+  `write_precheck.api.record(guided=True)`——不补记没点过的预选（`KEPT_PROPOSALS` 只在网页 / LINE 生效），留单按 `guide.writable` / `held_back`。
+  产品那边不收（选过的码刚在 Express 被删）回 `refused`，模型照实说、再出卡。关掉卡片 = 一项不记、卡上的单都留下。
+  用户在聊天里口头作答走 `pearnly_precheck_answer`，CC 对话里同样按引导口径记（`tool_answer` 传 `guided`）。
+- **模型不再出业务题**：`ask_user` 出卡前核对换成 `guide_tool.refuse_ask`——形状照旧核；引导卡挂着时拒；题目带业务搜索（科目 / 物料 / 对方）时拒并叫用
+  `pearnly_guide`。工具说明删掉「可以自加问题」「把预选 / 未定项拼成 ask_user」「把选项名映射回编码」，`pearnly_precheck` 改成只读解释、`pearnly_write_plan`
+  的「先定」改成用 `pearnly_guide`。
+- **文字**：共用层术语表 `pearnly_core/i18n/messages.tsv` 新增 `guide.q.*`（18）、`guide.option.*`（17）、`guide.source.*`（8）与工具名「Asked before writing」，四语；
+  翻译包重新生成；`check-copy` 无拦截。
+- **产品地图**：新增 `cowork.cc.tool.pearnly_guide`、`erp.cc.tool.pearnly_guide`。
+- 测试：`tests/test_cc_guide_tool.py` 11 条（出卡带服务端文字、不用问不出卡、答案核对只核不记、记答案走引导口径、产品不收不记、关卡全留、`ask_user` 四种拒绝、说明里不再有自出题）；
+  `test_assistant.py` 加「引导卡先核后记、答错不占卡、关卡算跳过」并按有意变化改了三处（`ask_user` 的拒绝核对路径、步骤名两张表加 `pearnly_guide`）。
+  这一批测试是和实现一起写的，没有单独先红（如实记）。`toolrun.execute` 的「出卡前准备」分支只有说明与流程测试能覆盖，流程测试要回归实验室（今天不起，待排）。
+- 还没做：Cowork 产品工具说明里让模型自己问的地方（`C/assistant/tools.py` 去向 / 待选账套 / 补页 / 不在本月 / MR.ERP 菜单、`C/companies/context.py`、`C/assistant/write_scope.py`）
+  ——其中账套、公司两类归 A 线账套接缝（约定：账套题由引导卡出，本对话账套已定不出），等 A 线约定落文档后一起改；前端渲染引导卡（第 6 批）。

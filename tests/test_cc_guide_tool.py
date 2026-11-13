@@ -1,0 +1,145 @@
+"""CC 引导卡工具 ``pearnly_guide``（``pearnly_core.assistant.guide_tool``，引导式录入第 1 期）：问什么由后台定。
+
+- 出卡前服务端按写账前置判定出卡（题目、选项、推荐、已定项、按本轮语言的文字），全部已定就不出卡、直接回可写的单；
+- 页面交回的答案先核对（键在卡上、值在选项里），抢到卡后按引导口径记下（``record(guided=True)``：没点过的预选不生效）；
+- ``ask_user`` 出卡前：形状照旧核；引导卡挂着时拒；题目带业务搜索（科目 / 物料 / 对方）时拒并叫用 pearnly_guide。
+
+替身 frappe 与替身判定接口，不连库。
+
+    python3 tests/test_cc_guide_tool.py
+"""
+import json
+import sys
+import types
+import unittest
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
+
+TEXTS = {"guide.q.payment": "付款方式", "guide.option.payment.cash": "现金", "guide.option.payment.credit": "赊账",
+         "guide.source.remembered": "记住的"}
+EXISTS = {"value": False}
+
+
+def _install_frappe():
+    frappe = types.ModuleType("frappe")
+    frappe._ = lambda text: TEXTS.get(text, text)
+    frappe.local = types.SimpleNamespace(pearnly_assistant={"session_id": "S1"})
+    frappe.db = types.SimpleNamespace(exists=lambda doctype, filters: EXISTS["value"])
+    frappe.throw = lambda message, *a: (_ for _ in ()).throw(ValueError(message))
+    frappe.whitelist = lambda **kw: (lambda fn: fn)
+    frappe.parse_json = json.loads
+    frappe.PermissionError = PermissionError
+    frappe.get_hooks = lambda name: {}
+    sys.modules["frappe"] = frappe
+    return frappe
+
+
+_install_frappe()
+from pearnly_core.assistant import ask, guide_tool  # noqa: E402
+from pearnly_core.write_precheck import contracts as c  # noqa: E402
+
+PAY = {"kind": "payment", "subject": "purchase|1|abc", "label": "ABC", "options": [{"code": "cash"}, {"code": "credit"}]}
+
+
+def merged(*items):
+    return {**c.merge([{"doc_id": "d1", "items": list(items)}]), "company": "C1", "company_title": "Co"}
+
+
+class Fakes(unittest.TestCase):
+    def setUp(self):
+        self.card_value = merged(dict(PAY))
+        self.recorded = []
+        self.saved = (guide_tool.precheck_api._tool_ids, guide_tool.precheck_api.card, guide_tool.precheck_api.record)
+        guide_tool.precheck_api._tool_ids = lambda tool_input: ("C1", list(tool_input.get("doc_ids") or ()))
+        guide_tool.precheck_api.card = lambda company, doc_ids, hint="": self.card_value
+        guide_tool.precheck_api.record = self.record
+        EXISTS["value"] = False
+
+    def tearDown(self):
+        guide_tool.precheck_api._tool_ids, guide_tool.precheck_api.card, guide_tool.precheck_api.record = self.saved
+
+    def record(self, company, doc_ids, answers, resume=False, guided=False):
+        self.recorded.append({"answers": answers, "guided": guided})
+        return {"writable": ["d1"], "held": []}
+
+
+class Prepare(Fakes):
+    def test_open_items_make_a_card_with_server_texts(self):
+        found = guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})
+        card = found["input"]["card"]
+        question = card["questions"][0]
+        self.assertEqual(question["title"], "付款方式")
+        self.assertEqual([o["label"] for o in question["options"]], ["现金", "赊账"])
+        self.assertEqual(found["input"]["doc_ids"], ["d1"])
+
+    def test_everything_decided_is_no_card(self):
+        self.card_value = merged({**PAY, "value": "cash", "source": c.REMEMBERED})
+        found = guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})
+        self.assertNotIn("input", found)
+        result = json.loads(found["result"])
+        self.assertEqual((result["status"], result["writable"]), ("nothing_to_ask", ["d1"]))
+
+
+class Answers(Fakes):
+    def card(self):
+        return guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]
+
+    def test_answers_are_checked_against_the_card(self):
+        tool_input = self.card()
+        key = tool_input["card"]["questions"][0]["key"]
+        with self.assertRaises(ask.AnswerError):
+            guide_tool.check(tool_input, [{"key": "nope", "value": "cash"}])
+        with self.assertRaises(ask.AnswerError):
+            guide_tool.check(tool_input, [{"key": key, "value": "bitcoin"}])
+        self.assertEqual(guide_tool.check(tool_input, [{"key": key, "value": "cash"}]), [{"key": key, "value": "cash"}])
+        self.assertEqual(self.recorded, [])  # 只核、不记
+
+    def test_result_records_in_guided_mode(self):
+        tool_input = self.card()
+        key = tool_input["card"]["questions"][0]["key"]
+        out = json.loads(guide_tool.result(tool_input, [{"key": key, "value": "cash"}]))
+        self.assertEqual(self.recorded, [{"answers": [{"key": key, "value": "cash"}], "guided": True}])
+        self.assertEqual((out["status"], out["answered"], out["writable"]), ("answered", 1, ["d1"]))
+
+    def test_refused_by_the_product_saves_nothing(self):
+        tool_input = self.card()
+        guide_tool.precheck_api.record = lambda *a, **kw: {"errors": [{"key": "k", "code": "precheck.value_not_offered"}]}
+        out = json.loads(guide_tool.result(tool_input, []))
+        self.assertEqual(out["status"], "refused")
+
+    def test_closing_the_card_holds_every_document(self):
+        out = json.loads(guide_tool.skipped(self.card()))
+        self.assertEqual((out["status"], out["held"]), ("skipped", ["d1"]))
+
+
+class AskUserRefusal(Fakes):
+    QUESTION = {"question": "Which?", "header": "Pick", "options": [{"label": "A"}, {"label": "B"}]}
+
+    def test_plain_question_passes(self):
+        self.assertIsNone(guide_tool.refuse_ask({"questions": [dict(self.QUESTION)]}))
+
+    def test_shape_is_still_checked(self):
+        self.assertTrue(guide_tool.refuse_ask({"questions": []}))
+
+    def test_business_search_is_refused(self):
+        question = {**self.QUESTION, "search": {"company": "C1", "doc_id": "d1", "kind": "accounts"}}
+        self.assertEqual(guide_tool.refuse_ask({"questions": [question]}), guide_tool.ASK_REFUSED)
+
+    def test_waiting_guide_card_refuses(self):
+        EXISTS["value"] = True
+        self.assertEqual(guide_tool.refuse_ask({"questions": [dict(self.QUESTION)]}), guide_tool.GUIDE_WAITING)
+
+
+class Declared(unittest.TestCase):
+    def test_core_tool_declarations(self):
+        source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/tools.py").read_text(encoding="utf-8")
+        self.assertIn('"prepare": "pearnly_core.assistant.guide_tool.prepare"', source)
+        self.assertIn('"refuse": "pearnly_core.assistant.guide_tool.refuse_ask"', source)
+        self.assertNotIn("You may add your own questions", source)
+        self.assertNotIn("turn the proposed and open items into ask_user questions", source)
+
+
+if __name__ == "__main__":
+    unittest.main()

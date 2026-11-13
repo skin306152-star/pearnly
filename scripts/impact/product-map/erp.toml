@@ -2057,6 +2057,17 @@ group = "cc.tool.pearnly_precheck_answer"
 where = "CC 工具 pearnly_precheck_answer"
 tests = ["unit:tests/test_assistant.py::pearnly_precheck_answer"]
 
+
+[[row]]
+id = "erp.cc.tool.pearnly_guide"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:pearnly_guide"
+group = "cc.tool.pearnly_guide"
+where = "CC 工具 pearnly_guide（引导卡：写入前要人定的事由服务端出题，页面直接作答）"
+tests = ["unit:tests/test_cc_guide_tool.py::test_open_items_make_a_card_with_server_texts"]
 [[row]]
 id = "erp.cc.tool.pearnly_write_plan"
 product = "ERP"
