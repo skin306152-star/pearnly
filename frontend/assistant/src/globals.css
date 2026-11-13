@@ -959,6 +959,7 @@
   --cc-card-btn-icon-phone: 22px; /* 外壳实测：手机卡片按钮里的图标 */
   --cc-ask-sheet-btn-min: 7rem;   /* 外壳实测：手机浮层右下「允许」（8.webp「提交」约 113 宽） */
   --cc-ask-py: 10px;              /* 现有值·CC 自定：允许卡问话上、所选项下 */
+  --cc-ask-pager-w: 168px;      /* 现有值·CC 自定：卡头右侧翻页器「‹ 第 n 项，共 m 项 ›」占的宽，题目右边留出 */
   --cc-ask-changes-lh: var(--code-text-prose-lh);  /* 24：允许卡改动清单的行高 */
   --cc-ask-sheet-lh: var(--ccs-text-md-line-height);   /* 1.4：手机浮层问话的行高 */
   --cc-needs-input-dot: 10px;     /* 现有值·CC 自定：「需要您的输入」前的橙点 */
@@ -3087,4 +3088,38 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   .cc-ui-questionnaire-error { color: var(--cc-danger); font-size: var(--cc-text-footnote); }
   .cc-ui-questionnaire-actions { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--cc-space-8); }
   .cc-ui-questionnaire-actions > [data-hidden] { display: none; }
+  /* 问卷的卡片外观（.cc-ui-questionnaire-card，CC 引导卡 tool-uis/guide-card.tsx；版式照 Claude 的提问卡，用户 11-13；数值同旧提问卡 .cc-askq-*）：
+     每题卡头深一档（题目左、翻页器右，首末项箭头变淡不消失），选项通栏行 + 细分隔线、选中只看圆点，底部一条分隔线后右下按钮 */
+  .cc-ui-questionnaire-card .cc-ui-questionnaire { gap: 0; }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-item { position: relative; display: block; }
+  /* 题目是整条卡头（表单的 legend：浮起来占满一行才按普通块排）；翻页器压在卡头右侧，题目右边留出它的宽度 */
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-title {
+    float: left; width: 100%; padding: var(--cc-ask-py) var(--cc-space-12) var(--cc-space-8); background: var(--cc-bg-subtle); overflow-wrap: anywhere;
+  }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-item:has(.cc-ui-questionnaire-pager) .cc-ui-questionnaire-title { padding-inline-end: var(--cc-ask-pager-w); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-item > :not(.cc-ui-questionnaire-title):not(.cc-ui-questionnaire-pager) { clear: both; }
+  .cc-ui-questionnaire-pager {
+    position: absolute; top: 0; right: 0; display: flex; align-items: center; gap: var(--cc-space-2); padding: var(--cc-space-6) var(--cc-space-8) 0 0;
+    color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);
+  }
+  .cc-ui-questionnaire-pager .cc-ui-questionnaire-progress { white-space: nowrap; }
+  .cc-ui-questionnaire-pager button { background: transparent; }
+  .cc-ui-questionnaire-pager button:hover:not(:disabled) { background: var(--cc-bg-hover); }
+  .cc-ui-questionnaire-pager button:disabled { opacity: var(--cc-disabled-opacity); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-description { padding: 0 var(--cc-space-12) var(--cc-space-8); background: var(--cc-bg-subtle); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choices { gap: 0; border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choice {
+    gap: var(--cc-space-12); padding: var(--cc-space-8) var(--cc-space-12); border: 0; border-radius: 0; background: transparent;
+  }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choice + .cc-ui-questionnaire-choice { border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choice:hover { background: var(--cc-bg-hover); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choice[data-checked] { background: transparent; }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-choice[data-checked]:hover { background: var(--cc-bg-hover); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-input-wrapper { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-ui-questionnaire-card [data-slot="collapsible"] { padding: var(--cc-space-4) var(--cc-space-8); border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-actions {
+    display: flex; justify-content: flex-end; padding: var(--cc-space-8) var(--cc-space-12) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line);
+  }
+  .cc-ui-questionnaire-card .cc-ui-questionnaire-actions .cc-menu-key { padding-inline-start: var(--cc-space-6); color: inherit; opacity: 0.6; }
+  .cc-ui-questionnaire-done { padding: var(--cc-space-8) var(--cc-space-12); color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
 }
