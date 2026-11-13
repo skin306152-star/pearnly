@@ -18,7 +18,8 @@ def load(name, path):
 
 
 lines = load("cc_lines", "scripts/acceptance/cc_lines.py")
-load("acc_errors", "scripts/acceptance/acc_errors.py")
+if "acc_errors" not in sys.modules:  # 全进程只有一份（几份验收单测放同一进程跑时不互相顶掉）
+    load("acc_errors", "scripts/acceptance/acc_errors.py")
 talk = load("acc_cc_talk", "scripts/acceptance/scenarios/cc_talk.py")
 Record = lines.Record
 PLAN = {"kind": "plan", "at": 10, "answer": "write", "answered_at": 12}

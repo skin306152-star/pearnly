@@ -51,7 +51,8 @@ locks = _load("acceptance_locks", HERE / "locks.py")
 registry_check = _load("check_acceptance", ROOT / "scripts" / "check-acceptance.py")
 
 
-errors = _load("acc_errors", HERE / "acc_errors.py")
+# 错误类全进程只有一份：已经加载过就用那一份（场景、驱动、执行通道抛的要和这里接的是同一个类）
+errors = sys.modules.get("acc_errors") or _load("acc_errors", HERE / "acc_errors.py")
 Infra, Unmet, OverBudget = errors.Infra, errors.Unmet, errors.OverBudget
 
 

@@ -33,7 +33,8 @@ def load(name, path):
     return module
 
 
-load("acc_errors", "scripts/acceptance/acc_errors.py")
+if "acc_errors" not in sys.modules:  # 全进程只有一份（几份验收单测放同一进程跑时不互相顶掉）
+    load("acc_errors", "scripts/acceptance/acc_errors.py")
 lines = load("cc_lines", "scripts/acceptance/cc_lines.py")
 driver = load("cc_driver", "scripts/acceptance/cc_driver.py")
 
