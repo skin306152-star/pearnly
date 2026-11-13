@@ -46,6 +46,11 @@ def card(company, doc_ids, hint="") -> dict:
     merged = contracts.merge(documents)
     out = {"company": company, "company_title": str(found.get("company_title") or company or ""), **merged,
            "needs_card": contracts.needs_card(merged)}
+    # 每张单判出的方向（采购 / 费用 / 销售）：引导卡按会话业务比对（选了采购却传了销售票，`assistant.guide_tool`）
+    directions = {str(doc["doc_id"]): str(doc.get("direction") or "") for doc in documents
+                  if isinstance(doc, dict) and doc.get("doc_id") and doc.get("direction")}
+    if directions:
+        out["directions"] = directions
     planned = {str(doc["doc_id"]): doc["planned"] for doc in documents
                if isinstance(doc, dict) and doc.get("doc_id") and doc.get("planned")}
     if planned:
