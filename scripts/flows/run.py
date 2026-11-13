@@ -328,6 +328,11 @@ def load_module(path):
 SHOTS = os.environ.get("PEARNLY_FLOWS_SHOTS", "")
 
 
+class StepsTimeout(RuntimeError):
+    """整格超时：``steps`` 是超时前已跑完的各步结果（驱动逐步打印的那些行），随失败格一起记下，查卡在哪不用重跑。"""
+    steps: list = []
+
+
 def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shots=""):
     job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
            "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {}),
@@ -342,8 +347,11 @@ def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shot
         os.killpg(proc.pid, signal.SIGKILL)
         out, _ = proc.communicate()
         # 说出卡在哪一步（驱动每步开始前打一行 progress）：只报「超时」查不了根因（11-12）
-        stuck = [json.loads(line).get("progress") for line in (out or "").splitlines() if line.startswith('{"progress"')]
-        raise RuntimeError(f"page steps timed out after 900s{f' in step {stuck[-1]!r}' if stuck else ' before the first step'}")
+        lines = [json.loads(line) for line in (out or "").splitlines() if line.startswith("{")]
+        stuck = [line["progress"] for line in lines if "progress" in line]
+        error = StepsTimeout(f"page steps timed out after 900s{f' in step {stuck[-1]!r}' if stuck else ' before the first step'}")
+        error.steps = [line for line in lines if "progress" not in line]  # 已跑完的各步结果照样写进这一格（11-13）
+        raise error
     return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')]
 
 
@@ -580,7 +588,7 @@ def main(argv=None) -> int:
             result = run_flow(lab, flow, dataset, viewport)
         except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
             result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
-                      "checks": []}
+                      "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
         bad = [c for c in result["checks"] if not c["ok"]]
         with printing:
             print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "

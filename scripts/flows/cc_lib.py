@@ -9,7 +9,7 @@
   press(e)                          Radix 下拉按下就开，单发 click 不开
   say(t)                            在当前对话的输入框里写一句并发出（同 cc_chat.py）
   pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认上个月）
-  call(m, args, post)               调站点接口（完整点分名），回 message
+  call(m, args, post)               调站点接口（完整点分名），回 message；最多等 60 秒，超时抛「request <接口> timed out」
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步
   rows()                            侧栏对话行（标题文字）
@@ -41,9 +41,12 @@ JS = (
     "if(!await until(row,40)){for(const tab of [...box().querySelectorAll('[role=\"tab\"]')]){tab.dispatchEvent(new MouseEvent('mousedown',{bubbles:true,button:0})); if(await until(row,20)) break;}}} "
     "const item=row(); if(!item) return false; item.click(); "
     "return await until(()=>!box()&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(title),80);};"
-    "const call=async(m,args,post)=>{const body=new URLSearchParams(args||{}); const r=await fetch('/api/method/'+m+(post?'':'?'+body),"
+    # 每个请求最多等 60 秒，超时就带着接口名抛错（11-13：一格的请求一直没回，整格挂满 900 秒、看不出卡在哪个请求）
+    "const call=async(m,args,post)=>{const body=new URLSearchParams(args||{}); const stop=new AbortController(); "
+    "const timer=setTimeout(()=>stop.abort(),60000); try{ const r=await fetch('/api/method/'+m+(post?'':'?'+body),"
     "{method:post?'POST':'GET',headers:{'X-Frappe-CSRF-Token':window.csrf_token||'','Content-Type':'application/x-www-form-urlencoded'},"
-    "body:post?body:undefined}); return (await r.json()).message;};"
+    "body:post?body:undefined, signal:stop.signal}); return (await r.json()).message; }"
+    "catch(e){ if(e&&e.name==='AbortError') throw new Error('request '+m+' timed out after 60s'); throw e; } finally{ clearTimeout(timer); }};"
     "const listed=async m=>((await call('pearnly_core.assistant.api.listing',{mode:m}))||{}).sessions||[];"
     "const openSteps=async slot=>{for(let k=0;k<20&&!q(`[data-slot=\"${slot}\"]`);k++){"
     "const b=qa('.cc-steps-summary[aria-expanded=\"false\"]')[0]; if(!b) {await sleep(250); continue;} b.click(); await sleep(150);} "

@@ -467,6 +467,7 @@ class DriveTimeout(unittest.TestCase):
         with self.assertRaises(RuntimeError) as stopped:
             self.drive(out)
         self.assertIn("in step 'two'", str(stopped.exception))
+        self.assertEqual(stopped.exception.steps, [{"step": "one", "value": 1}], "已跑完的步骤结果随失败格记下")
 
     def test_before_the_first_step(self):
         with self.assertRaises(RuntimeError) as stopped:
