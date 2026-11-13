@@ -12,6 +12,11 @@ reason = "LINE / LIFF 页面开局取四语文案，此时还没登录"
 guard = "只读公开文案，不碰业务数据"
 
 [[guest]]
+method = "pearnly_core.desk.boot_messages.messages"
+reason = "整份界面翻译表按语言 + 指纹单独取、浏览器缓存一年（11-13 线上访问速度）；同一份表不分用户"
+guard = "只读：Frappe 与各 App 随源码发布的翻译（含站点自定义翻译），语言须在已知语言列表里，不碰业务数据"
+
+[[guest]]
 method = "pearnly_core.identity.begin_login"
 reason = "统一登录入口：未登录才需要"
 guard = "只发起 OIDC 跳转，不返回数据"

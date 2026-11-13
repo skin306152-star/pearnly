@@ -1545,6 +1545,9 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/home.js",
   "apps/pearnly_core/pearnly_core/billing_www.py",
   "apps/pearnly_core/pearnly_core/payments/history.py",
+  # 整份翻译表单独取、缓存（11-13）：首页文字照常是当前语言即证明词表在界面启动前就位。
+  "apps/pearnly_core/pearnly_core/desk/boot_messages.py",
+  "apps/pearnly_core/pearnly_core/public/desk/messages.js",
 ]
 
 [[flow]]
