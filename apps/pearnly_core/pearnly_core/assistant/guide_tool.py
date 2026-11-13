@@ -65,7 +65,29 @@ def _translate(built: Dict[str, Any]) -> Dict[str, Any]:
     return built
 
 
+LEDGER_PREFIX = "ledger|"
 MISMATCH_PREFIX = "business|"
+
+
+def _ledger_question(session: str, doc_ids: List[str]) -> Dict[str, Any] | None:
+    """本对话账套还没定：卡最前面一道「做不做」题（A 线接缝约定，docs/work/2026-11-12-cc-book-identity.md「账套题改由引导卡承担」）。
+    候选就是共用层 ``ledger.view`` 那一份（同右栏、同 pearnly_conversation_ledger），不预选；已定、或产品没有本对话账套的不出。"""
+    if not session:
+        return None
+    from pearnly_core.assistant import ledger
+
+    try:
+        found = ledger.view(session)
+    except frappe.DoesNotExistError:
+        return None
+    if found.get("current") or not found.get("options"):
+        return None
+    options = [{"code": item["id"], "name": item.get("label") or item["id"],
+                **({"note": _text("guide.why.covers", {})} if item.get("covers") and _text("guide.why.covers", {}) else {})}
+               for item in found["options"]]
+    return {"key": LEDGER_PREFIX + session, "kind": "account_set", "group": "book", "tier": "whether",
+            "title_key": "guide.q.account_set", "title_params": {"count": len(doc_ids)}, "docs": list(doc_ids),
+            "count": len(doc_ids), "options": options, "preselected": "", "remember": False, "free": False}
 FOLLOW, SKIP = "follow", "skip"
 
 
@@ -100,6 +122,10 @@ def prepare(tool_input) -> Dict[str, Any]:
     mismatch = _mismatch(found, guided.business_of(session))
     if mismatch:
         built["questions"].insert(0, mismatch)
+        built["counts"]["questions"] += 1
+    book = _ledger_question(session, doc_ids)
+    if book:
+        built["questions"].insert(0, book)
         built["counts"]["questions"] += 1
     if not guide.needs_card(built):
         return {"result": json.dumps({"status": "nothing_to_ask", "writable": guide.writable(found, []),
@@ -150,10 +176,21 @@ def result(tool_input, rows) -> str:
     mismatch = next((q for q in ((tool_input or {}).get("card") or {}).get("questions") or ()
                      if str(q.get("key") or "").startswith(MISMATCH_PREFIX)), None)
     kept_back: List[str] = []
+    # 账套题（引导卡自己出的）：答了只经 ledger.choose 存进会话（页面上本人点的）；没答或没存上，这批单都留下（写入要先有本对话账套）
+    book = next((q for q in ((tool_input or {}).get("card") or {}).get("questions") or ()
+                 if str(q.get("key") or "").startswith(LEDGER_PREFIX)), None)
+    if book:
+        chosen = next((r["value"] for r in rows if r["key"] == book["key"]), "")
+        rows = [r for r in rows if r["key"] != book["key"]]
+        from pearnly_core.assistant import ledger
+
+        session = book["key"][len(LEDGER_PREFIX):]
+        if not chosen or ledger.choose(session, chosen, by="page").get("status") != ledger.SET:
+            kept_back = list(doc_ids)
     if mismatch:
         chosen = next((r["value"] for r in rows if r["key"] == mismatch["key"]), "")
         if chosen != FOLLOW:
-            kept_back = list(mismatch.get("docs") or ())
+            kept_back = list(dict.fromkeys([*kept_back, *(mismatch.get("docs") or ())]))
         rows = [r for r in rows if r["key"] != mismatch["key"]]
     found = precheck_api.record(company, doc_ids, rows, guided=True)
     if found.get("errors"):
@@ -161,7 +198,7 @@ def result(tool_input, rows) -> str:
                           ensure_ascii=False, default=str)
     writable = [doc for doc in found.get("writable") or [] if doc not in kept_back]
     held = list(dict.fromkeys([*(found.get("held") or []), *kept_back]))
-    return json.dumps({"status": "answered", "answered": len(rows) + (1 if mismatch and not kept_back else 0),
+    return json.dumps({"status": "answered", "answered": len(rows),
                        "writable": writable, "held": held}, ensure_ascii=False, default=str)
 
 

@@ -208,6 +208,7 @@ Could not update your account. Please reload and try again.,อัปเดต�
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
 Counterparty,ชื่อคู่ค้า
 Counterparty Tax ID,เลขประจำตัวผู้เสียภาษีของคู่ค้า
+Covers this month,ครอบคลุมเดือนนี้
 Cowork Admin,ผู้ดูแลระบบ Cowork
 Cowork Intake,บันทึกข้อมูล Cowork
 Create a new {0},สร้าง {0} ใหม่
@@ -1149,6 +1150,7 @@ guide.source.pinned,เอกสารต้นทาง
 guide.source.remembered,ที่จำไว้
 guide.source.task_default,ค่าเริ่มต้นของงาน
 guide.why.book_setting,การตั้งค่าชุดบัญชี
+guide.why.covers,ครอบคลุมเดือนนี้
 guide.why.express_history,ตามเอกสารเดิมใน Express
 guide.why.history,ตามเอกสารเดิมใน Express
 guide.why.payment.rule,ตามประเภทเอกสาร

@@ -34,11 +34,20 @@ def _install_frappe():
     frappe.parse_json = json.loads
     frappe.PermissionError = PermissionError
     frappe.get_hooks = lambda name: {}
+    frappe.DoesNotExistError = LookupError
     sys.modules["frappe"] = frappe
     return frappe
 
 
 _install_frappe()
+LEDGER = {"view": {"current": "B1", "options": []}, "chosen": [], "status": "set"}
+_ledger = types.ModuleType("pearnly_core.assistant.ledger")
+_ledger.SET = "set"
+_ledger.view = lambda session: LEDGER["view"]
+_ledger.choose = lambda session, ledger_id, by="page": LEDGER["chosen"].append((session, ledger_id, by)) or {"status": LEDGER["status"]}
+sys.modules["pearnly_core.assistant.ledger"] = _ledger
+import pearnly_core.assistant as _assistant  # noqa: E402
+_assistant.ledger = _ledger
 from pearnly_core.assistant import ask, guide_tool  # noqa: E402
 from pearnly_core.write_precheck import contracts as c  # noqa: E402
 
@@ -59,6 +68,7 @@ class Fakes(unittest.TestCase):
         guide_tool.precheck_api.record = self.record
         EXISTS["value"] = False
         SESSION["business"] = ""
+        LEDGER.update(view={"current": "B1", "options": []}, chosen=[], status="set")
 
     def tearDown(self):
         guide_tool.precheck_api._tool_ids, guide_tool.precheck_api.card, guide_tool.precheck_api.record = self.saved
@@ -148,6 +158,36 @@ class BusinessMismatch(Fakes):
         key = tool_input["card"]["questions"][0]["key"]
         out = json.loads(guide_tool.result(tool_input, [{"key": key, "value": "follow"}]))
         self.assertEqual(out["writable"], ["d1", "d2"])
+
+
+class LedgerQuestion(Fakes):
+    """账套题由引导卡出（A 线接缝约定）：本对话账套未定才出、最前面、不预选、候选同共用层；答了只经 ledger.choose 存会话；没答这批都留下。"""
+
+    def setUp(self):
+        super().setUp()
+        LEDGER["view"] = {"current": "", "options": [{"id": "BK-2026", "label": "TEST 2026", "covers": True},
+                                                       {"id": "BK-2025", "label": "TEST 2025", "covers": False}]}
+
+    def test_undecided_ledger_asks_first_without_preselect(self):
+        card = guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]["card"]
+        first = card["questions"][0]
+        self.assertEqual((first["kind"], first["tier"], first["preselected"]), ("account_set", "whether", ""))
+        self.assertEqual([o["code"] for o in first["options"]], ["BK-2026", "BK-2025"])
+
+    def test_decided_ledger_is_not_asked(self):
+        LEDGER["view"] = {"current": "BK-2026", "options": [{"id": "BK-2026", "label": "TEST 2026"}]}
+        card = guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]["card"]
+        self.assertNotIn("account_set", [q["kind"] for q in card["questions"]])
+
+    def test_answer_goes_through_ledger_choose_and_unanswered_holds_all(self):
+        tool_input = guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["input"]
+        key = tool_input["card"]["questions"][0]["key"]
+        out = json.loads(guide_tool.result(tool_input, [{"key": key, "value": "BK-2025"}]))
+        self.assertEqual(LEDGER["chosen"], [("S1", "BK-2025", "page")])
+        self.assertEqual(out["writable"], ["d1"])
+        self.assertNotIn(key, [a["key"] for a in self.recorded[-1]["answers"]])  # 不交给产品记
+        out = json.loads(guide_tool.result(tool_input, []))
+        self.assertEqual((out["writable"], out["held"]), ([], ["d1"]))
 
 
 class AskUserRefusal(Fakes):

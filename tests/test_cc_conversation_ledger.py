@@ -148,7 +148,9 @@ class LedgerTests(unittest.TestCase):
         self.row.update(period="2026-10", project_ledger="", project_noted="")
         text3, _noted = self.projects.note(self.row, self.OWNER)
         self.assertIn("not decided yet", text3)
-        self.assertIn("pearnly_conversation_ledger", text3)
+        # 引导式录入第 1 期（与 A 线的接缝约定，docs/work/2026-11-12-cc-book-identity.md）：账套题改由引导卡出，说明叫模型调 pearnly_guide、不自己问
+        self.assertIn("pearnly_guide", text3)
+        self.assertNotIn("ask_user", text3)
         self.assertIn("T.8 (id " + T8 + ", covers this month)", text3)
         # provider 出错：只带产品说明，不挡发话
         self.provider.broken = True
