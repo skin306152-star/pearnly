@@ -266,6 +266,18 @@ Express 开着时我们同时写会静默丢行，所以写前逐表探测；MR.
 - **示范 2 的骨架** `scripts/acceptance/scenarios/cowork_cc_direct.py`；示范 3 就是用例 `d09.express-open` 与 `d03.double-write`。都没登记、没跑：对话驱动没接，跑起来如实记「没测到」。
 - 实验栈锁分支到 20 点还没进 main；进了之后要做的只有一件：变基，并确认 `lab:<栈名>` 的锁文件名与目录仍与它一致（单测 `test_lab_lock_file_is_shared_with_flows_runner` 守着）。
 
+### 验收基线（2026-11-13 取，第一条真机上的东西）
+
+- 账套 `\\accserver\d$\ACCOUNT\69EXP\TEST2`；快照在**测试机2** 本机盘 `C:\PearnlyAcceptance\baselines\TEST2@2026-11-13`（`ledger.py snapshot`，
+  167 个文件、5,975,626 字节、用时 9.3 秒；拷完与来源逐文件再比一致，随后 `verify` 账套 = 快照，清单自身哈希也一致）。
+- 按取的那一刻原样整本快照（主会话定）。基线里保留的单，已在快照里按单号读回：RR0000098、RR0000099、RR690715-001、RR691113-001
+  （各在 APTRN / ISVAT / STCRD 一行）、LAB33IV01（ARTRN / ISVAT / STCRD）、OU691113-001（STTRN / STCRD）。科目余额处于 1–11 期全算好的状态
+  （11-13 11:42 在 Express 里重算过）。这些写在快照 `manifest.json` 的 `note` 里。
+- 通道：ssh 进去的是 macadmin，读不到账套服务器；账套工具以 **aksar 的一次性计划任务**跑（`C:\PearnlyAcceptance\acc-run.ps1 -Name <任务名>`，
+  参数一行一个放 `jobs\<任务名>.args`，结果在 `jobs\<任务名>.out`）。占用探测在这条通道上实测可用（Express 没开时 0 个文件被占）。
+  `targets.py` 的 `Windows.python` 还是直接 ssh 跑，**要改成这条通道**后示范 1 才能在测试机2 上恢复 / 核对基线（下一步）。
+- 从此 `69EXP\TEST2` 只归验收用（已写进「测试机占用.md」）；别的窗口要往里写先问验收体系窗口。
+
 ### 第一期还差的（都要动真机，逐项报主会话批）
 
 1. 取验收基线：等主会话通知 TEST2 可用 → 整本快照（逐文件哈希）放测试机1 本机盘；基线里保留今天留下的 RR0000098 / 99 与 RR690715-001（它们是真实写入留下的正常数据，
