@@ -5,7 +5,7 @@
 // 交回：[{key, value}]（跳过的题不交；已定项只交改过的），随「允许」交给服务端（sessions.confirm → toolrun.decide → guide_tool）。
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
 import { type FC, type FormEvent, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -89,13 +89,14 @@ function answeredCount(result: unknown): { status: string; answered: number } | 
   }
 }
 
-const Decided: FC<{ items: GuideDecided[]; disabled: boolean }> = ({ items, disabled }) => {
+const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean }> = ({ items, disabled, open }) => {
+  const [shown, setShown] = useState(!!open);
   if (!items.length) return null;
   return (
-    <Collapsible>
+    <Collapsible open={shown} onOpenChange={setShown}>
       <CollapsibleTrigger asChild>
         <Button variant="ghost" size="sm" type="button">
-          <ChevronRightIcon />
+          {shown ? <ChevronDownIcon /> : <ChevronRightIcon />}
           {guide.decided(items.length)}
         </Button>
       </CollapsibleTrigger>
@@ -130,8 +131,10 @@ export const GuideCardBody: FC<{
   phase: "ask" | "answered" | "cancelled";
   answered?: number | null;
   busy?: boolean;
+  /** 「已定 n 项」一开始就展开（展示页截图用；对话里默认收起）。 */
+  decidedOpen?: boolean;
   onSubmit: (answers: GuideAnswer[]) => void;
-}> = ({ card, phase, answered, busy, onSubmit }) => {
+}> = ({ card, phase, answered, busy, decidedOpen, onSubmit }) => {
   const skipped = useRef(new Set<string>());
   const [, rerender] = useState(0);
   if (phase !== "ask") {
@@ -187,7 +190,7 @@ export const GuideCardBody: FC<{
             </QuestionnaireChoices>
           </QuestionnaireItem>
         ))}
-        <Decided items={card.decided} disabled={!!busy} />
+        <Decided items={card.decided} disabled={!!busy} open={decidedOpen} />
         <QuestionnaireActions>
           <QuestionnaireSkip />
           <QuestionnaireNext />
