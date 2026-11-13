@@ -16,6 +16,7 @@ from zoneinfo import ZoneInfo
 
 import frappe
 
+from pearnly_core.assistant import guided as assistant_guided
 from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_core.express_rules.push import service_vat, stock_acc_group
 from pearnly_core.express_rules.push.prepare import prepare_express
@@ -195,7 +196,8 @@ def prepare(doc, company_row, ensure_masters):
                                     remembered=choices.remembered(company_row["name"]),
                                     account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc),
                                     refund=bool(doc.get("refund")),  # 收银退货单 SR：退货科目问一次、按公司记住
-                                    book=book["key"], ask_service_vat=True)  # 服务品进项税口径：按这本账套 × 这家供应商问、记
+                                    book=book["key"], ask_service_vat=True,  # 服务品进项税口径：按这本账套 × 这家供应商问、记
+                                    guided=assistant_guided.active())  # CC 对话里判定与写入都按引导卡口径（引导式录入第 1 期）
     if decision["needed"]:
         kinds = ",".join(dict.fromkeys(item["kind"] for item in decision["needed"]))
         return {"hold": contracts.CHOICE + ":" + kinds, "needed": decision["needed"], "book": book}

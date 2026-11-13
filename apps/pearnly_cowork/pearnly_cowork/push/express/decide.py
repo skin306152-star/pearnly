@@ -24,10 +24,10 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
            rules_read: bool = True, account_resolved: bool = False, fixed: Optional[Mapping[str, str]] = None,
            receipts: Iterable = (), borrow: Optional[Callable] = None,
            settle: Optional[Callable] = None, undeclared_lines: bool = False,
-           ask_location: bool = False) -> Tuple[Dict[str, Any], Dict[str, Dict[str, str]]]:
+           ask_location: bool = False, guided: bool = False) -> Tuple[Dict[str, Any], Dict[str, Dict[str, str]]]:
     """→ ``(decision, sources)``（见文件头）。``posting_kind`` 是已解析的入账类型（`contracts.push.resolve_posting_kind`）；
     ``undeclared_lines``：没声明的行按行问存货对照（`choices.resolve` 同名参数，11-06）；``ask_location``：多仓账套定不了仓时问一次
-    默认仓（同名参数，11-08；人在场的入口给，自动推不给、照写主仓）。"""
+    默认仓（同名参数，11-08；人在场的入口给，自动推不给、照写主仓）；``guided``：CC 对话里的判定与写入（引导式录入，同名参数）。"""
     remembered, sources = company_choices.overlay(remembered, rules, branch, config)
     # 科目表没读到而先没用的公司规则：这一项不拿 Express 历史顶替，照常要选、等电脑读科目表（`company_choices.held_back`）
     held = company_choices.held_back(remembered, rules, branch, config)
@@ -37,7 +37,7 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
     decision = choice_rules.resolve(fields, direction=direction, posting_kind=posting_kind, config=config,
                                     remembered=remembered, account_resolved=account_resolved, fixed=fixed,
                                     receipts=receipts, trace=trace, undeclared_lines=undeclared_lines,
-                                    ask_location=ask_location)
+                                    ask_location=ask_location, guided=guided)
     waiting = any(item.get("kind") == "account" and item.get("subject") in held.get("account", ())
                   for item in decision["needed"])
     settled = settle(decision["needed"]) if settle is not None and rules_read and not waiting else None
@@ -50,7 +50,7 @@ def decide(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional[
         decision = choice_rules.resolve(fields, direction=direction, posting_kind=posting_kind, config=config,
                                         remembered=remembered, account_resolved=account_resolved, fixed=fixed,
                                         receipts=receipts, trace=trace, undeclared_lines=undeclared_lines,
-                                    ask_location=ask_location)
+                                    ask_location=ask_location, guided=guided)
         decision["history"] = {"account": settled["code"], "docs": settled["docs"]}
         if settled.get("version"):
             # 汇总的版本（CC 桌面版 `account_history.RESULT_VERSION`）：只有排除了 Pearnly 自己写的行（v2）的「已定」才算
