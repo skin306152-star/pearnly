@@ -26,7 +26,7 @@ const card = {
   questions: [
     { key: "k-pay", kind: "payment", tier: "how", title: "PAY-TITLE", title_params: { label: "ABC", count: 5 }, count: 5,
       preselected: "credit",
-      options: [{ code: "credit", label: "CREDIT", recommended: true }, { code: "cash", label: "CASH" }] },
+      options: [{ code: "credit", label: "CREDIT", recommended: true, note: "NOTE-CREDIT" }, { code: "cash", label: "CASH" }] },
     { key: "k-detail", kind: "detail", tier: "whether", title: "DETAIL-TITLE", title_params: { label: "XYZ", count: 1 }, count: 1,
       preselected: "",
       options: [{ code: "amount_only", label: "AMOUNT-ONLY" }, { code: "skip", label: "SKIP-DOC" }] },
@@ -70,7 +70,7 @@ import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { GuideCardBody } from "@/components/tool-uis/guide-card";
-import { guide, steps } from "@/i18n";
+import { ask, guide, steps } from "@/i18n";
 """ + CARD + r"""
 const html = (extra: any = {}) =>
   renderToStaticMarkup(createElement(GuideCardBody, { card, phase: "ask", busy: false, onSubmit: () => {}, ...extra }));
@@ -84,7 +84,16 @@ assert.equal(out.split(`>${guide.recommended}<`).length - 1, 1);
 // 已定 n 项（展开可改）
 assert.ok(out.includes(guide.decided(1)));
 // 标准组件
-assert.ok(out.includes('data-slot="questionnaire"') && out.includes('data-slot="cc-guide-card"') && out.includes("cc-ui-card"));
+assert.ok(out.includes('data-slot="questionnaire"') && out.includes('data-slot="cc-guide-card"') && out.includes("cc-ui-questionnaire-card"));
+// Claude 提问卡版式（用户 11-13）：卡头题目 + 翻页器（第一项左箭头是禁用态，变淡不消失）；选项下一行说明；底部跳过 + 下一步
+assert.ok(out.includes("cc-ui-questionnaire-pager"));
+assert.match(out, new RegExp(`<button[^>]*disabled=""[^>]*aria-label="${ask.prev}"|<button[^>]*aria-label="${ask.prev}"[^>]*disabled=""`));
+assert.ok(out.includes("NOTE-CREDIT") && out.includes('data-slot="questionnaire-choice-description"'));
+assert.ok(out.includes(`>${ask.skip}<`));
+// 「其他」只在允许自己填的题（这张卡两题都不许）
+assert.ok(!out.includes('data-slot="questionnaire-input"'));
+const free = renderToStaticMarkup(createElement(GuideCardBody, { card: { questions: [{ ...card.questions[0], free: true }], decided: [] }, phase: "ask", onSubmit: () => {} }));
+assert.ok(free.includes('data-slot="questionnaire-input"') && free.includes(`placeholder="${ask.other}"`));
 // 答完 / 没答就没了
 assert.ok(html({ phase: "answered", answered: 2 }).includes(guide.answered(2)));
 assert.ok(html({ phase: "cancelled" }).includes(steps.cancelled));
@@ -112,7 +121,7 @@ class GuideCardTests(unittest.TestCase):
 
     def test_only_kit_components(self):
         source = read("components/tool-uis/guide-card.tsx")
-        for name in ("@/components/ui/card", "@/components/ui/questionnaire", "@/components/ui/badge",
+        for name in ("@/components/ui/questionnaire", "@/components/ui/badge", "@/components/ui/button",
                      "@/components/ui/collapsible", "@/components/ui/native-select"):
             self.assertIn(name, source)
         self.assertNotIn("<button", source)
