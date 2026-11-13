@@ -238,19 +238,21 @@ def answer(line_user_id, user, data, reply_token, event_id=""):
         if step == "res":
             return _show_result(params.get("n") or "", reply_token)
         payload = payload_of(line_user_id)
-        if not payload.get("step") or _STEP_OF.get(step, step) != payload["step"]:
-            return _text(reply_token, _(STALE))
+        if not payload.get("step"):
+            return _text(reply_token, _(EXPIRED))  # 会话过期 / 已结束：不是「旧步骤」
         handler = _ANSWERS.get(step)
-        if handler is None:
-            return _text(reply_token, _(STALE))
+        if handler is None or _STEP_OF.get(step, step) != payload["step"]:
+            return _repeat(line_user_id, payload, reply_token)  # 旧步骤的按钮：吃下、照当前这一步再问（同 DMS）
         handler(line_user_id, payload, value, reply_token)
 
 
 def _cancel_step(line_user_id, turn, reply_token):
-    """【取消】只认最新那条消息上的（步号对得上）；取消时这一笔没放行的草稿一并作废。旧消息上的照旧步提示，不动正在录的。"""
+    """【取消】只认最新那条消息上的（步号对得上）；取消时这一笔没放行的草稿一并作废。旧消息上的照当前这一步再问，不动正在录的。"""
     payload = payload_of(line_user_id)
-    if not payload.get("step") or not turn or turn != payload.get("turn"):
-        return _text(reply_token, _(STALE))
+    if not payload.get("step"):
+        return _text(reply_token, _(EXPIRED))
+    if not turn or turn != payload.get("turn"):
+        return _repeat(line_user_id, payload, reply_token)
     _discard(payload.get("name"))
     _clear(line_user_id)
     _text(reply_token, _("Cancelled"))
@@ -786,8 +788,21 @@ def edit_url(name) -> str:
 
 
 def _repeat(line_user_id, payload, reply_token):
-    """停在按钮那几步时打了别的字：照这一步再问一次。"""
+    """照当前这一步再问一次（停在按钮那几步时打了别的字、点了旧步骤的按钮）。"""
     step = payload["step"]
+    if step == "company":
+        return _ask_company(reply_token, payload)
+    if step == "customer":
+        return _ask_customer(reply_token)
+    if step in ("amount",) and payload.get("pending"):
+        return _ask_amount(payload, reply_token)
+    if step == "each":
+        return _ask_each(payload, reply_token)
+    if step == "voucher":
+        return _ask_voucher(reply_token) if not payload.get("name") else _show_card(
+            line_user_id, payload, _service().card(payload["name"]), reply_token)
+    if step == "card":
+        return _show_card(line_user_id, payload, _service().card(payload["name"]), reply_token)
     if step == "book":
         return _ask_book(reply_token, payload)
     if step == "invoices":

@@ -1,6 +1,7 @@
 /* 我的收款（11-11）：收款员本人在 LINE / CC 录的收款。列表只看；还没放行的草稿点开是原生弹窗，改各张本次收、现金、
  * 各方式与折扣、销售员与部门（`collection.service.update_draft`，只认打开时的版本）。LINE 确认卡【编辑】打开的就是这一页的
  * `pearnly-my-collections/<记录>`：直接开那一笔的弹窗；存好后回 LINE 点【确认】，卡片版本变了会重出新卡再确认。
+ * 从这个地址打开、那一笔已经不是草稿（放行了、撤回了、被新卡替换作废了）：先说「此卡片已失效」（同 DMS 编辑页），再列它此刻的状态。
  *
  * 列表是共用的原生列表（`desk/list.js`）：服务端分页（`service.mine`，新的在前）。 */
 (() => {
@@ -16,11 +17,12 @@
 		const amount = value => Number(value || 0);
 		let list = null;
 
-		async function edit(name) {
+		async function edit(name, from_card = false) {
 			const data = await p.call(api + "api_my_collection", {name}, "POST");
 			const card = data.card;
 			if (card.status !== "draft") {
-				frappe.msgprint({title: card.name, message: [card.customer_name, money(card.total), card.docnum
+				frappe.msgprint({title: card.name, message: [from_card ? __("This card has expired. Use the latest card in LINE.") : "",
+					card.customer_name, money(card.total), card.docnum
 					|| status_label(card.status), waiting(card)].filter(Boolean).map(frappe.utils.escape_html).join("<br>")});
 				return;
 			}
@@ -92,7 +94,7 @@
 				});
 				await list.ready;
 			}
-			if (rest.length === 1 && still_current()) await edit(rest[0]);
+			if (rest.length === 1 && still_current()) await edit(rest[0], true);
 		}});
 		await show();
 	};
