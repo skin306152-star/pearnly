@@ -18,6 +18,22 @@ def allowed(user, company) -> bool:
     return bool(company) and scope.allowed("intake", user)
 
 
+def waiting_on(company, user) -> str:
+    """代录任务排着等电脑时在等的本人电脑名称（共用层 ``products.waiting_on``）：这家账套所在各条连接上，``user`` 自己能写、
+    此刻不在线的那几台（`folder_intake.destinations.waiting_on`）；没有回空串。"""
+    from pearnly_cowork.companies import service
+    from pearnly_cowork.folder_intake import destinations
+
+    if not service.exists(company):
+        return ""
+    connections = sorted({place[0] for book in service.listed_books(service.get(company), None)
+                          for place in book.get("places") or [(book.get("connection"), book.get("key"))] if place[0]})
+    names = []
+    for connection in connections:
+        names += destinations.waiting_on(connection, user)
+    return ", ".join(dict.fromkeys(names))
+
+
 def target(company) -> str:
     """这家公司代录录到哪种账本（ADR-026 第 6 条，共用层 ``products.target_of``）：账本是 MR.ERP 的公司在 MR.ERP 代录开了
     （全平台常量 ``contracts.MRERP_OPERATOR_ENABLED``，不按站点开）时回 ``mrerp``；其余（含常量关着时的 MR.ERP 公司）回 Express，

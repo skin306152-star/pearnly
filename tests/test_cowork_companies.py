@@ -2858,6 +2858,23 @@ class BookIdentityTests(unittest.TestCase):
         self.assertEqual(found["default"], "")  # 两本同期、没记住：照今天要问一次
         self.assertEqual(len({item["id"] for item in found["options"]}), 2)
 
+    def test_an_operator_task_names_the_owners_computer_on_any_place_of_the_book(self):
+        # 代录排着等电脑：在等的是任务主人自己的电脑（两条连接各报一处时两处都看），页面「等待电脑 · 名称」
+        company = self._company()
+        asked = []
+        destinations = types.SimpleNamespace(waiting_on=lambda connection, user: asked.append((connection, user)) or {
+            "C1": ["PC-1"], "C2": ["PC-2", "PC-1"]}.get(connection, []))
+        intake = types.ModuleType("pearnly_cowork.folder_intake")
+        intake.destinations = destinations
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake": intake,
+                                           "pearnly_cowork.folder_intake.destinations": destinations}):
+            sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
+            module = importlib.import_module("pearnly_cowork.assistant.operator_source")
+            fresh_request()
+            self.assertEqual(module.waiting_on(company, "a@example.com"), "PC-1, PC-2")
+        self.assertEqual(sorted(asked), [("C1", "a@example.com"), ("C2", "a@example.com")])
+        sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
+
     def test_an_old_id_is_mapped_to_the_new_one_when_read(self):
         company = self._company()
         fresh_request()
