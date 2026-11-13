@@ -21,7 +21,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cc_lib import JS  # noqa: E402
-from cc_conversation_ledger import (EXTRA_CLEANUP, RESULT, SEED, T8, USER, _mine, cleanup as _cleanup,  # noqa: E402
+from cc_conversation_ledger import (EXTRA_CLEANUP, LEDGER_IDS, RESULT, SEED, T8, USER, _mine, cleanup as _cleanup,  # noqa: E402
                                     new_page_ledger)
 from cowork_operator_lib import CLEANUP  # noqa: E402
 
@@ -36,16 +36,17 @@ def prepare(lab, manifest):
     site = manifest["site"]
     lab.python(site, f'frappe.db.set_value("User", {USER!r}, "language", "zh")\nfrappe.db.commit()\nprint("{{}}")')
     ref = "FLOW-OL-" + uuid.uuid4().hex[:6].upper()
-    out = lab.python(site, _mine(CLEANUP) + EXTRA_CLEANUP + OCTOBER_SEED + f"""
+    out = lab.python(site, _mine(CLEANUP) + EXTRA_CLEANUP + OCTOBER_SEED + LEDGER_IDS + f"""
 name = recognized({ref!r})
 # 网页 / 识别时记成了同期的 T.9（代录按公司列待录清单，要有这家的去向）：代录会话的本对话账套是 T.8，计划照 T.8 写（改投）
 frappe.db.set_value("Cowork OCR History", name, {{"push_connection": conn["name"], "push_account_set": "FLOWT9"}})
 frappe.db.commit()
-print(json.dumps({{"company": company["id"], "title": company["title"], "doc": name, "connection": conn["name"]}}))
+print(json.dumps({{"company": company["id"], "title": company["title"], "doc": name, "connection": conn["name"],
+                  "t8": ids.get({T8!r}, "")}}))
 """)
     tag = "ol" + uuid.uuid4().hex[:6]
     plan = {"name": "pearnly_write_plan", "input": {}}
-    return {**out, "ref": ref, "tag": tag, "cases": [], "t8": f"{out['connection']}|{T8}",
+    return {**out, "ref": ref, "tag": tag, "cases": [],
             "open_line": f"{tag} 这个月的票录进 Express",
             "plan_line": f"{tag} 写入 [lab-tool]{json.dumps(plan)}[/lab-tool]"}
 
