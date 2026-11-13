@@ -181,7 +181,9 @@ def catalog(receipt_types, cash_account="") -> dict:
         verdict = classify(row, cash_account)
         judged.append(({"code": str(row.get("code") or "").strip(), "prefix": str(row.get("prefix") or "").strip(),
                         "name": str(row.get("name") or "").strip(), "name_en": str(row.get("name_en") or "").strip(),
-                        "account": str(row.get("account") or "").strip()}, verdict))
+                        "account": str(row.get("account") or "").strip(),
+                        "bank_account": row.get("bank_account") if isinstance(row.get("bank_account"), dict) else None,
+                        "uses": _uses(row.get("uses"))}, verdict))
     counts = {}
     for item, _verdict in judged:
         counts[item["prefix"]] = counts.get(item["prefix"], 0) + 1
@@ -199,6 +201,51 @@ def catalog(receipt_types, cash_account="") -> dict:
         discounts = []
     return {"cash": bool(str(cash_account or "").strip()), "transfers": transfers,
             "discount": discounts[0] if discounts else None, "excluded": excluded}
+
+
+def _uses(value) -> int:
+    try:
+        return max(0, int(value or 0))
+    except (TypeError, ValueError):
+        return 0
+
+
+def account_label(item) -> str:
+    """收款员选方式时看到的名字：方式进的银行户头「简称（没有用户头名称）·账号末 4 位数字」，例「กรุงศรี ·3016」；CC 桌面版没报户头
+    （旧版、方式没指户头）的照旧用方式名。户头字段见 `tests/test_companion_contract.py`（receipt_types[].bank_account，11-13）。"""
+    found = item.get("bank_account") if isinstance(item.get("bank_account"), dict) else None
+    if not found:
+        return item.get("name") or item.get("prefix") or ""
+    bank = " ".join(str(found.get("short") or "").split()) or " ".join(str(found.get("bank") or "").split())
+    digits = "".join(ch for ch in str(found.get("number") or "") if ch.isdigit())[-4:]
+    if not bank:
+        return item.get("name") or item.get("prefix") or ""
+    return f"{bank} ·{digits}" if digits else bank
+
+
+def listed(transfers) -> list:
+    """列给收款员选的转账方式（每种带 ``label``，:func:`account_label`）：两种以上方式进同一个户头的只列一种——这本账套原生收款单用得多的
+    那种（``uses``），平了取编号小的。没报户头的照列。只影响列表；草稿里用了被收起的那种照样能写（规则按 :func:`catalog` 判）。"""
+    keep = {}
+    for item in transfers or []:
+        code = str((item.get("bank_account") or {}).get("code") or "") if isinstance(item.get("bank_account"), dict) else ""
+        if not code:
+            continue
+        best = keep.get(code)
+        if best is None or (item.get("uses") or 0, _code_key(best["code"])) > (best.get("uses") or 0, _code_key(item["code"])):
+            keep[code] = item
+    out = []
+    for item in transfers or []:
+        code = str((item.get("bank_account") or {}).get("code") or "") if isinstance(item.get("bank_account"), dict) else ""
+        if code and keep[code] is not item:
+            continue
+        out.append({**item, "label": account_label(item)})
+    return out
+
+
+def _code_key(code):
+    text = str(code or "")
+    return (0, int(text), text) if text.isdigit() else (1, 0, text)
 
 
 def method_of(catalog_value, prefix):

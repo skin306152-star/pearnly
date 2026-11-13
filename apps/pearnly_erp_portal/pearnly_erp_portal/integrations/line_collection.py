@@ -483,7 +483,8 @@ def _unused(payload) -> list:
     """还能加的方式：``[(值, 名称)]``（现金一次、每种转账一次）。"""
     found, used = _catalog(payload), {row["prefix"] for row in payload.get("methods") or []}
     out = [(CASH, _("Cash"))] if found.get("cash") and not _amount(payload.get("cash") or 0) else []
-    return out + [(row["prefix"], row["name"]) for row in found.get("transfers") or [] if row["prefix"] not in used]
+    return out + [(row["prefix"], row.get("label") or row["name"]) for row in found.get("transfers") or []
+                  if row["prefix"] not in used]
 
 
 def _status_line(payload) -> str:
@@ -520,7 +521,8 @@ def _pending_name(payload) -> str:
         return _("Cash")
     if pending == DISCOUNT:
         return _("Discount")
-    return next((row["name"] for row in _catalog(payload).get("transfers") or [] if row["prefix"] == pending), pending)
+    return next((row.get("label") or row["name"] for row in _catalog(payload).get("transfers") or []
+                 if row["prefix"] == pending), pending)
 
 
 def _ask_amount(payload, reply_token, note=""):
