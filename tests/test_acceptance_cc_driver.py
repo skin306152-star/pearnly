@@ -202,7 +202,11 @@ def fake_docker(folder, running="true", base="http://agents:18780"):
 class FactoryTest(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
-        self.env = {key: os.environ.get(key) for key in ("PEARNLY_ACC_DOCKER", "PEARNLY_LOCK_DIR", "PEARNLY_FLOWS_LAB")}
+        self.env = {key: os.environ.get(key) for key in ("PEARNLY_ACC_DOCKER", "PEARNLY_LOCK_DIR", "PEARNLY_FLOWS_LAB",
+                                                         "PEARNLY_ACC_REAL_BASE", "PEARNLY_ACC_REAL_SITE", "PEARNLY_ACC_REAL_USER",
+                                                         "PEARNLY_ACC_REAL_TARGET")}
+        for key in list(self.env)[3:]:
+            os.environ.pop(key, None)
         os.environ["PEARNLY_LOCK_DIR"] = self.folder.name + "/locks"
         os.environ["PEARNLY_FLOWS_LAB"] = "acc-test-lab"
 
@@ -217,7 +221,13 @@ class FactoryTest(unittest.TestCase):
     def test_real_is_not_wired_and_unknown_is_a_mistake(self):
         with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:
             driver.open_conversation("real", "cowork", "direct")
-        self.assertIn("驱动还没接", str(caught.exception))
+        self.assertIn("真模型驱动没配", str(caught.exception))
+        with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:
+            driver.open_conversation("real", "cowork", "direct", base="https://cowork.example", user="u@x", where="production")
+        self.assertIn("只连实验栈", str(caught.exception))
+        with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:
+            driver.open_conversation("real", "cowork", "operator", base="https://cowork.example", user="u@x")
+        self.assertIn("直写", str(caught.exception))
         with self.assertRaises(ValueError):
             driver.open_conversation("lab", "cowork", "direct")
 
@@ -233,6 +243,68 @@ class FactoryTest(unittest.TestCase):
             raise sys.modules["acc_errors"].Infra("站点连不上")
         talk.poll = down
         self.assertEqual((len(talk.evidence()["events"]), "连不上" in talk.evidence()["poll_error"]), (2, True))
+
+    def test_real_talks_to_the_site_api_and_prices_model_usage(self):
+        """真模型那一层：同一套站点接口（建对话、发一句、读事件、删对话），Desk 会话经站点容器里的脚本建与注销，
+        费用 = 会话事件里的模型用量折算。这里的站点是本进程里起的假站点，只验驱动的调用与计费，不验模型。"""
+        import http.server
+        import threading
+        import urllib.parse
+
+        seen, sessions = [], []
+        usage = {"type": "span.model_request_end", "id": "sevt_u1", "processed_at": "2026-11-13T02:00:02.000000Z",
+                 "model_usage": {"input_tokens": 1000, "output_tokens": 200, "cache_creation_input_tokens": 0, "cache_read_input_tokens": 4000}}
+        feed = [{"type": "user.message", "id": "sevt_1", "processed_at": "2026-11-13T02:00:00.000000Z", "content": [{"type": "text", "text": "录一下"}]},
+                usage,
+                {"type": "agent.message", "id": "sevt_2", "processed_at": "2026-11-13T02:00:03.000000Z", "content": [{"type": "text", "text": "要录哪张？"}]}]
+
+        class Site(http.server.BaseHTTPRequestHandler):
+            def log_message(self, *args):
+                pass
+
+            def reply(self, message):
+                body = json.dumps({"message": message}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+            def do_GET(self):
+                name = urllib.parse.urlsplit(self.path).path.rsplit(".", 1)[-1].rsplit("/", 1)[-1]
+                seen.append(("GET", name, self.headers.get("Host"), self.headers.get("Cookie")))
+                self.reply({"events": feed, "run": {"status": "idle", "parked": []}} if name == "events" else "pong")
+
+            def do_POST(self):
+                name = self.path.rsplit(".", 1)[-1]
+                fields = dict(urllib.parse.parse_qsl(self.rfile.read(int(self.headers.get("Content-Length") or 0)).decode()))
+                seen.append(("POST", name, self.headers.get("Host"), fields))
+                self.reply({"id": "S-9"} if name == "create" else {})
+
+        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Site)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+
+        class Remote:
+            def run(self, product, script, *args, timeout=0):
+                sessions.append((product, script.name, args))
+                return "DROPPED" if "drop" in args else "SID sid-real-1\n"
+
+        talk = driver.open_conversation("real", "cowork", "direct", base=f"http://127.0.0.1:{server.server_address[1]}",
+                                        site="testcowork.lab", user="clerk@test", where="lab", remote=Remote())
+        talk.say("录一下")
+        talk.wait_idle(5)
+        record = talk.record()
+        self.assertEqual((talk.session_id, [turn["text"] for turn in record.turns]), ("S-9", ["录一下", "要录哪张？"]))
+        self.assertEqual(talk.cost(), round((1000 * 5.0 + 200 * 25.0 + 4000 * 0.5) / 1_000_000, 4))
+        talk.close()
+        posts = [(name, fields) for method, name, _, fields in seen if method == "POST"]
+        self.assertEqual([name for name, _ in posts], ["create", "send", "delete"])
+        self.assertEqual(posts[1][1], {"session_id": "S-9", "text": "录一下"})
+        self.assertEqual({host for _, _, host, _ in seen}, {"testcowork.lab"})
+        self.assertIn(("GET", "events", "testcowork.lab", "sid=sid-real-1"), seen)
+        self.assertEqual(sessions, [("cowork", "session.py", ("testcowork.lab", "clerk@test")),
+                                    ("cowork", "session.py", ("testcowork.lab", "clerk@test", "drop", "sid-real-1"))])
 
     def test_lab_fake_without_a_lab_is_not_run_not_an_error(self):
         os.environ["PEARNLY_ACC_DOCKER"] = self.folder.name + "/no-docker"
@@ -266,7 +338,7 @@ class FactoryTest(unittest.TestCase):
         runner = load("acceptance_run_for_driver", "scripts/acceptance/run.py")
         os.environ["PEARNLY_ACC_DOCKER"] = self.folder.name + "/no-docker"
         for module, extra in (("cc_talk.py", {"case": "d03.double-write", "cell": "cowork-direct", "lang": "th"}), ("cowork_cc_direct.py", {})):
-            for target, words in (("lab-fake", "没有 docker"), (None, "驱动还没接")):
+            for target, words in (("lab-fake", "没有 docker"), (None, "真模型驱动没配")):
                 scenario = {"id": "acc.draft", "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1,
                             **extra, **({"driver": target} if target else {})}
                 result = runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False)

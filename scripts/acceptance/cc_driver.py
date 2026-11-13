@@ -13,7 +13,10 @@
   页面替用户做的那几件也照做（附件说明拼进消息、回复中再说的话排到这一轮结束、卡片点「允许」带作答、推送线程没接手时提醒执行）。
   只认假智能体：bench 容器的 ANTHROPIC_BASE_URL 不是指向实验栈的假智能体就不连（不花真模型的钱）。
   调用方要先占住 `lab:<栈名>`（`locks.hold`；验收场景写进 resources），没占住、别人占着都不连，记「没测到」。
-- `real`：真模型那一层**还没接**（等主会话批预算），开对话即抛 Unmet。计划收编 `scripts/e2e/stress.py` 的 `run_one`。
+- `real`（`RealConversation`）：真模型。走的是同一套站点接口，只是站点换成测试机实验栈 / 本机实验栈上接了真模型的那个站点
+  （环境变量 PEARNLY_ACC_REAL_BASE / _SITE / _USER / _TARGET，没配就抛 Unmet 记「没测到」）；Desk 会话经共用件冒烟的
+  `scripts/smoke/run.py::Remote` 在站点容器里建；费用按会话事件里的模型用量折算（同 `scripts/e2e/stress.py::usage_usd`），
+  场景每一步后 `ctx.spend`，到额即停。生产一律不连。**11-13 写好、只有离线单测，没连过真站点。**
 
 `record_from_events(events)` 是纯函数：站点 `assistant.api.events` 读回的会话事件 → `cc_lines.Record`（离线单测
 `tests/test_acceptance_cc_driver.py`）。事件形状的依据：引擎事件（user.message / agent.message / agent.custom_tool_use /
@@ -70,7 +73,9 @@ class _Late:
 
 Unmet, Infra = _Late("Unmet"), _Late("Infra")
 
-REAL_UNMET = "CC 真模型驱动还没接：等主会话批预算（本机假智能体那一层用 driver = \"lab-fake\"）"
+# Opus 5.5 每百万 token 美元（输入 / 输出 / 写缓存 / 读缓存）；用量取会话事件 span.model_request_end（同 scripts/e2e/stress.py 的 PRICE）
+PRICE = {"input_tokens": 5.0, "output_tokens": 25.0, "cache_creation_input_tokens": 6.25, "cache_read_input_tokens": 0.5}
+REAL_TARGETS = ("local", "lab")  # 本机实验栈 / 测试机实验栈；生产不连
 # 「写入」快捷回复的字（frontend/assistant/src/i18n.ts 的 recordNow）：点了等同打出这句发出（thread.tsx RecordQuickReply）
 RECORD_NOW = {"en": "Write", "zh": "写入", "th": "บันทึก", "ja": "書き込む"}
 TOOL_USES = ("agent.custom_tool_use", "agent.tool_use", "agent.mcp_tool_use")
@@ -119,9 +124,9 @@ class Conversation:
 
 
 def open_conversation(target: str, product: str, mode: str, company: str = "", ledger: str = "", **options) -> Conversation:
-    """按场景登记的 `driver` 开一段对话：lab-fake = 本机实验栈 + 假智能体；real = 真模型（还没接，抛 Unmet）。"""
+    """按场景登记的 `driver` 开一段对话：lab-fake = 本机实验栈 + 假智能体；real = 真模型（没配站点时抛 Unmet）。"""
     if target == "real":
-        raise Unmet(REAL_UNMET)
+        return RealConversation(product, mode, company, ledger, **options)
     if target == "lab-fake":
         return LabConversation(product, mode, company, ledger, **options)
     raise ValueError(f"不认识的对话驱动 {target!r}（只有 lab-fake / real）")
@@ -274,6 +279,16 @@ def record_from_events(events: list):
     return lines.Record(turns=turns, tools=tools, cards=cards, writes=[], stops=stops)
 
 
+def usage_usd(events: list) -> float:
+    """会话事件里的模型用量 → 美元（只算 CC 引擎的模型调用；识别费用不在会话事件里，场景另记）。"""
+    total = 0.0
+    for event in events or []:
+        if event.get("type") == "span.model_request_end":
+            usage = event.get("model_usage") or {}
+            total += sum(int(usage.get(key) or 0) * price for key, price in PRICE.items()) / 1_000_000
+    return round(total, 4)
+
+
 def ask_answers(questions: list, choice) -> list:
     """提问卡的作答（页面交给 assistant.api.confirm 的 answers，按题目顺序 [{labels} | {other} | {skipped}]）：
     choice 是列表时逐题对应；是一项时给第一题，其余题选第一个选项（同卡片默认选中推荐项、推荐项排第一）。
@@ -325,11 +340,14 @@ class LabConversation(Conversation):
         self.sid = self.session_id = ""
         self.base = self._ready()
         self.sid = self._desk_session()
+        self._begin()
+
+    def _begin(self) -> None:
         atexit.register(self.close)
-        made = self._post("create", {"project": company} if company else {})
+        made = self._post("create", {"project": self.company} if self.company else {})
         self.session_id = made.get("id") or ""
         if not self.session_id:
-            raise Infra(f"实验栈建对话没回编号：{made}")
+            raise Infra(f"站点 {self.site} 建对话没回编号：{made}")
 
     # 前置：栈在跑、指向假智能体、本进程占着 lab 锁、站点通
     def _run(self, *args, timeout=60) -> subprocess.CompletedProcess:
@@ -575,6 +593,64 @@ class LabConversation(Conversation):
                 pass
         self.session_id = "" if not self.keep else self.session_id
         if self.sid:
-            self._run("exec", "-w", "/home/frappe/frappe-bench/sites", self.container, "../env/bin/python",
-                      "/workspace/scripts/smoke/session.py", self.site, self.user, "drop", self.sid, timeout=120)
+            self._drop_desk_session()
             self.sid = ""
+
+    def _drop_desk_session(self) -> None:
+        self._run("exec", "-w", "/home/frappe/frappe-bench/sites", self.container, "../env/bin/python",
+                  "/workspace/scripts/smoke/session.py", self.site, self.user, "drop", self.sid, timeout=120)
+
+
+# ── 真模型（测试机实验栈 / 本机实验栈上接了真模型的站点）────────────────────────
+class RealConversation(LabConversation):
+    """真模型的一段直写对话。与 lab-fake 走同一套站点接口与同一套「照页面做」的规矩，只换三样：连哪个站点、Desk 会话怎么建、
+    费用怎么算。环境变量（都不是密钥；没配齐就是「没测到」）：
+      PEARNLY_ACC_REAL_BASE     站点地址（如 https://testcowork.pearnly.com，或本机实验栈 http://127.0.0.1:18772）
+      PEARNLY_ACC_REAL_SITE     站点名（Host；默认取地址里的主机名）
+      PEARNLY_ACC_REAL_USER     登录的账号（测试租户的员工；CC 桌面版写账场景要与电脑上登录的是同一人）
+      PEARNLY_ACC_REAL_TARGET   local（本机实验栈）/ lab（测试机实验栈，默认）；生产不连
+    占用（测试机、账套、实验栈）由场景登记的 resources 管，这里不查锁。"""
+
+    target = "real"
+
+    def __init__(self, product: str, mode: str, company: str = "", ledger: str = "", base: str = "", site: str = "",
+                 user: str = "", where: str = "", keep: bool = False, remote=None):
+        Conversation.__init__(self, product, mode, company, ledger)
+        if mode != "direct":
+            raise Unmet(f"真模型驱动现在只接直写对话；{mode} 要桌面会话，还没接")
+        self.base = (base or os.environ.get("PEARNLY_ACC_REAL_BASE", "")).rstrip("/")
+        self.user = user or os.environ.get("PEARNLY_ACC_REAL_USER", "")
+        self.where = where or os.environ.get("PEARNLY_ACC_REAL_TARGET", "lab")
+        missing = [name for name, value in (("PEARNLY_ACC_REAL_BASE", self.base), ("PEARNLY_ACC_REAL_USER", self.user)) if not value]
+        if missing:
+            raise Unmet("CC 真模型驱动没配：" + "、".join(missing) + "（见 cc_driver.RealConversation）")
+        if self.where not in REAL_TARGETS:
+            raise Unmet(f"CC 真模型驱动只连实验栈（{' / '.join(REAL_TARGETS)}），不连 {self.where}")
+        self.site = site or os.environ.get("PEARNLY_ACC_REAL_SITE") or (urllib.parse.urlsplit(self.base).hostname or "")
+        self.keep = keep
+        self.events, self._ids, self._anchor, self._files = [], set(), None, []
+        self._lang, self._reminded, self._csrf = "zh", set(), ""
+        self.sid = self.session_id = ""
+        self._remote = remote or _lib("targets").Targets().site(self.where)
+        try:
+            self._http("GET", self.base + "/api/method/ping", headers={"Host": self.site})
+        except (RuntimeError, urllib.error.URLError) as error:
+            raise Unmet(f"站点 {self.site}（{self.base}）连不上：{error}") from None
+        except Exception as error:  # acc_errors.Infra（_Late 取不到类型，按名字认）
+            if type(error).__name__ != "Infra":
+                raise
+            raise Unmet(f"站点 {self.site}（{self.base}）连不上：{error}") from None
+        self.sid = self._session_script()
+        if not self.sid:
+            raise Unmet(f"站点 {self.site} 给 {self.user} 建不了 Desk 会话")
+        self._begin()
+
+    def _session_script(self, *extra: str) -> str:
+        out = self._remote.run(self.product, HERE.parent / "smoke" / "session.py", self.site, self.user, *extra, timeout=180)
+        return next((line.split()[1] for line in out.splitlines() if line.startswith("SID ")), "")
+
+    def _drop_desk_session(self) -> None:
+        self._session_script("drop", self.sid)
+
+    def cost(self) -> float:
+        return usage_usd(self.events)
