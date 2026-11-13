@@ -2127,3 +2127,14 @@ kind = "cc-tool"
 anchor = "tool:erp:erp_collection_withdraw"
 where = "CC 工具 erp_collection_withdraw（收款第 4 步：撤回没被电脑领走的收款）"
 tests = ["unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one"]
+
+[[row]]
+id = "erp.cc.operator.waiting-on"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:waiting_on"
+group = "cc.operator.waiting_on"
+where = "代录 waiting_on（任务排着等电脑时在等的本人电脑名称，页面「等待电脑 · 名称」，A 线 11-12）"
+tests = ["unit:tests/test_cc_desktop_channel.py::test_the_computers_a_job_waits_for_are_the_owners_offline_ones", "unit:tests/test_express_operator_feed.py::test_a_task_waiting_for_the_computer_names_the_owners_computer"]
