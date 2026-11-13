@@ -138,11 +138,26 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     refused = OWNER_DISABLED if owner_disabled() else (
         _wrong_mode(conversation, call.get("name")) or (_refused_before_card(conversation, call) if gated else None))
     gated = gated and not refused
+    tool_input = call.get("input") or {}
+    prepared = None
+    if gated:
+        # 出卡前由服务端准备卡的工具（引导卡 ``pearnly_guide``，`tools.prepare`）：卡存成这次调用的输入；不用问就不出卡、直接交回结果
+        try:
+            prepared = _prepare_before_card(conversation, call)
+        except Exception as exc:  # noqa: BLE001 — 准备卡出错：不出卡，按出错交回模型（同出卡前核对拒绝）
+            frappe.db.rollback()
+            frappe.clear_messages()
+            frappe.log_error(title="Assistant card preparation failed")
+            refused, gated = json.dumps({"status": "failed", "reason": type(exc).__name__}), False
+        if prepared and "input" in prepared:
+            tool_input = prepared["input"]
+        elif prepared and "result" in prepared:
+            gated = False
     try:
         run = frappe.get_doc({"doctype": TOOL_RUN, "tool_use_id": use_id, "session_id": conversation,
                               "user": frappe.session.user, "tool": call.get("name") or "",
                               "status": "awaiting_approval" if gated else "running",
-                              "tool_input": json.dumps(call.get("input") or {}, ensure_ascii=False)})
+                              "tool_input": json.dumps(tool_input, ensure_ascii=False, default=str)})
         run.insert(ignore_permissions=True)
         frappe.db.commit()
     except (frappe.DuplicateEntryError, frappe.UniqueValidationError, frappe.QueryDeadlockError):
@@ -155,6 +170,14 @@ def execute(conversation: str, remote: str, call: dict) -> str:
         return "awaiting_approval" if waiting == "awaiting_approval" else "running"
     if gated:
         return "awaiting_approval"
+    if prepared and "result" in prepared:
+        # 全部已定、不用问：不出卡，结果照常交回（不是出错）
+        text = str(prepared["result"])
+        engine.adapter().post(remote, [contracts.tool_result(use_id, _with_language(conversation, text), False)])
+        frappe.db.set_value(TOOL_RUN, run.name, {"status": "done", "result": text[:60000]})
+        frappe.db.commit()
+        _publish_run(conversation, use_id, "done")
+        return "done"
     if refused:
         # 出卡片前就核出要拒绝（或会话主人已停用）：不执行工具，把拒绝结果交回模型（按出错），同样留记录。要「允许」的工具结果带上
         # 没问过用户的标记（`tools.not_asked`），对话页重开时才分得清它和点了「允许」后没做成的
@@ -188,6 +211,19 @@ def _refused_before_card(conversation: str, call: dict) -> str | None:
         frappe.local.pearnly_assistant = before
 
 
+GUIDE_TOOL = "pearnly_guide"  # 引导卡（`guide_tool.TOOL`）
+
+
+def _prepare_before_card(conversation: str, call: dict) -> dict | None:
+    """出卡前准备卡（`tools.prepare`），同 :func:`_refused_before_card` 按这段对话现算（共用规则在 CC 对话里走引导口径）。"""
+    before = getattr(frappe.local, "pearnly_assistant", None)
+    frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
+    try:
+        return tools.prepare(call.get("name"), call.get("input"))
+    finally:
+        frappe.local.pearnly_assistant = before
+
+
 def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=None) -> str:
     """用户在对话里对一次要授权的工具调用点了「允许 / 拒绝」：允许就以本人身份执行，拒绝就告诉智能体没得到同意。
     只认本对话、本人、还在等的那一次；授权只管这一次调用，不延续到下一次。
@@ -202,9 +238,16 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
     if not name:
         return "not_waiting"
     asked = None
-    if frappe.db.get_value(TOOL_RUN, name, "tool") == ask.TOOL:
+    tool_name = frappe.db.get_value(TOOL_RUN, name, "tool")
+    if tool_name == ask.TOOL:
         tool_input = json.loads(frappe.db.get_value(TOOL_RUN, name, "tool_input") or "{}")
         asked = ask.result(tool_input, answers) if allow else ask.skipped(tool_input)
+    elif tool_name == GUIDE_TOOL:
+        from pearnly_core.assistant import guide_tool  # 用到时才导入（它连着写账判定那一串）
+
+        # 引导卡（`guide_tool`）：先核答案（对不上卡抛 ask.AnswerError，不占掉卡片）；抢到这张卡之后才记（见下）
+        guide_input = json.loads(frappe.db.get_value(TOOL_RUN, name, "tool_input") or "{}")
+        guide_rows = guide_tool.check(guide_input, answers) if allow else None
     # 抢占：同一次点击重复到达、两个页面同时点，只有一个能把状态从等待改走。只锁这一条、改完马上提交（作废那边锁着时
     # 它是一条一个短事务，等不了多久；它见到这条被锁就跳过，不会反过来等这里）
     # 同时改 modified：增量补拉按「锚点之后改过的」带回执行记录（`sessions._run_rows`）
@@ -219,6 +262,16 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
         return "not_waiting"
     if not claimed:
         return "not_waiting"
+    if tool_name == GUIDE_TOOL:
+        from pearnly_core.assistant import guide_tool
+
+        # 记答案按这段对话现算（共用规则在 CC 对话里走引导口径）
+        before = getattr(frappe.local, "pearnly_assistant", None)
+        frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
+        try:
+            asked = guide_tool.result(guide_input, guide_rows) if allow else guide_tool.skipped(guide_input)
+        finally:
+            frappe.local.pearnly_assistant = before
     if asked is not None:
         # 提问卡片答完（或关掉）：答案落进执行记录（重开、换设备照它定下卡片），经 user.custom_tool_result 交回模型
         frappe.db.set_value(TOOL_RUN, name, {"status": "done", "result": asked[:60000]})

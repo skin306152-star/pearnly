@@ -19,11 +19,14 @@ Account balance,ยอดคงเหลือในบัญชี
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,บัญชีที่สร้างให้พนักงานรายนี้บนเว็บไซต์นี้ ใช้เฉพาะกับ LINE ไม่ใช้เข้าสู่ระบบผ่านเว็บและไม่ต้องใช้รหัสผ่าน
 Account name,ชื่อบัญชี
 Account number,เลขที่บัญชี
+Account set,ชุดบัญชี
 Account set in use,ชุดบัญชีกำลังถูกใช้งาน
+Account set setting,การตั้งค่าชุดบัญชี
 Account set unavailable,เปิดชุดบัญชีไม่ได้
 Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Account that owns this connection. Leave empty for a site-wide shared connection.,บัญชีเจ้าของการเชื่อมต่อ เว้นว่างสำหรับการเชื่อมต่อที่ใช้ร่วมกันทั้งเว็บไซต์
 Account with admin rights,บัญชีที่มีสิทธิ์ผู้ดูแลระบบ
+Accrual basis,เกณฑ์สิทธิ
 Action not found,ไม่พบการดำเนินการ
 Actions,การจัดการ
 Active Seconds,วินาทีที่ทำงาน
@@ -46,11 +49,13 @@ Allowed,อนุญาต
 Amount,จำนวนเงิน
 Amount and VAT differ,ยอดเงินและภาษีไม่ตรงกัน
 Amount and VAT match,ยอดเงินและภาษีตรงกัน
+Amount only,บันทึกเฉพาะยอดเงิน
 An admin session was requested but no admin credentials are configured,มีการขอเซสชัน admin แต่ยังไม่ได้ตั้งค่าข้อมูลรับรอง admin
 Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 Are you sure you want to sign out?,ต้องการออกจากระบบใช่หรือไม่
 Arguments,อาร์กิวเมนต์
+Asked before writing,ถามก่อนบันทึกแล้ว
 Asked questions,ถามคำถามแล้ว
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
@@ -111,6 +116,9 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},ไ�
 Cannot read the remaining time,ไม่สามารถอ่านเวลาที่เหลือได้
 Car models {0},รุ่นรถ {0}
 Carried,โอนต่อแล้ว
+Cash,เงินสด
+Cash account,บัญชีรับจ่ายเงิน
+Cash basis,เกณฑ์เงินสด
 Change account,แก้ไขบัญชี
 Change declined,ปฏิเสธการเปลี่ยนแปลงนี้แล้ว
 Change password,เปลี่ยนรหัสผ่าน
@@ -128,6 +136,7 @@ Checkpoints,จุดตรวจสอบ
 Choose a plan,เลือกแพ็กเกจ
 Choose document menu,เลือกเมนูเอกสาร
 Choose the company in Express,เลือกบริษัทใน Express
+Claim,ขอคืน
 Claiming a push job requires a connection,การรับงานส่งต้องระบุการเชื่อมต่อ
 Click to sort by {0},คลิกเพื่อเรียงตาม {0}
 Client ID is required,ต้องระบุ Client ID
@@ -141,6 +150,7 @@ Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขประจำตัวผู้เสียภาษีของบริษัท
 Company Title,ชื่อบริษัท
 Company does not match the task,บริษัทไม่ตรงกับงาน
+Company rule,กฎของบริษัท
 Computer in use,มีผู้ใช้คอมพิวเตอร์อยู่
 Computer locked,คอมพิวเตอร์ล็อกหน้าจอ
 Configuration is complete. The connection was not tested.,ตั้งค่าครบถ้วน ยังไม่ได้ทดสอบการเชื่อมต่อจริง
@@ -172,6 +182,7 @@ Contact support with the record ID,กรุณาติดต่อฝ่าย
 Context Tokens,ปริมาณบริบท
 Conversation not found,ไม่พบการสนทนา
 Copy,คัดลอก
+Cost of goods sold,ต้นทุนขาย
 Could not acquire the lock: {0},ขอล็อกไม่สำเร็จ: {0}
 Could not call the model: {0},เรียกโมเดลไม่สำเร็จ: {0}
 Could not create the OIDC client: {0} {1},สร้าง OIDC client ไม่สำเร็จ: {0} {1}
@@ -199,6 +210,7 @@ Cowork Intake,บันทึกข้อมูล Cowork
 Create a new {0},สร้าง {0} ใหม่
 Created At,สร้างเมื่อ
 Created: {0},บันทึกแล้ว: {0}
+Credit,เงินเชื่อ
 Credited,เข้าบัญชีแล้ว
 Currency,สกุลเงิน
 Current Password,รหัสผ่านปัจจุบัน
@@ -269,6 +281,7 @@ Display name,ชื่อที่แสดง
 Display only; the push log is authoritative,ใช้แสดงผลเท่านั้น ยึดตามบันทึกการส่ง
 Doc Date,วันที่เอกสาร
 Doc No,เลขที่เอกสาร
+Document,เอกสาร
 Document Type,ประเภทเอกสาร
 Document date,วันที่เอกสาร
 Document no.,เลขที่เอกสาร
@@ -311,6 +324,7 @@ Express Index Tool,โปรแกรมดัชนี Express
 Express Number,เลขที่ Express
 Express Push Guide,คู่มือการส่งเข้า Express
 Express closed twice,Express ปิดตัวซ้ำ
+Express history,ประวัติใน Express
 Express license limit reached,สิทธิ์ใช้งาน Express เต็ม
 Express no.,เลขที่ใน Express
 Express reopened,เปิด Express ใหม่แล้ว
@@ -372,6 +386,7 @@ Image Fingerprint,ลายนิ้วมือภาพ
 In-progress state of a multi-turn conversation. One row per session.,สถานะระหว่างทางของบทสนทนาหลายรอบ หนึ่งแถวต่อหนึ่งเซสชัน
 Inbound = invoices received; outbound = invoices issued,ภาษีซื้อ = ใบกำกับภาษีที่ได้รับ ภาษีขาย = ใบกำกับภาษีที่ออก
 Input Tokens,โทเค็นขาเข้า
+Input VAT,ภาษีซื้อ
 "Install it, then sign in with this account to connect.",ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
 "Install, pair, upgrade and uninstall guide for CC Desktop",คู่มือติดตั้ง จับคู่ อัปเกรด และถอนการติดตั้ง CC เดสก์ท็อป
 Intake Workbench,ศูนย์บันทึกเอกสาร
@@ -460,10 +475,13 @@ Net Payable,ยอดสุทธิที่ต้องชำระ
 Net amount,ยอดก่อนภาษี
 Net payable,ยอดสุทธิที่ต้องชำระ
 Network error,เครือข่ายผิดพลาด
+New,สร้างใหม่
 New Customer,สร้างใหม่ครั้งนี้
 New DMS password,รหัสผ่าน DMS ใหม่
+New counterparty,คู่ค้าใหม่
 New entry,บันทึกใหม่
 New password,รหัสผ่านใหม่
+New product,สินค้าใหม่
 New purchase order,สร้างเอกสารซื้อใหม่
 Next Period End,สิ้นงวดปีถัดไป
 Next Retry At,ลองใหม่ครั้งถัดไปเมื่อ
@@ -547,6 +565,7 @@ Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages
 Payer,ผู้ชำระเงิน
 Payer name on the bank transfer,ชื่อผู้โอนในสลิปธนาคาร
 Payload Version,เวอร์ชันข้อมูล
+Payment,การชำระเงิน
 Payment Status,สถานะการชำระเงิน
 Pearnly,ธีม Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -569,6 +588,7 @@ Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Please try again later,กรุณาลองใหม่ภายหลัง
 Posted,บันทึกบัญชีแล้ว
+Posting,วิธีบันทึกบัญชี
 Preparing the file,กำลังเตรียมไฟล์
 Private Key,คีย์ส่วนตัว
 Processing…,กำลังดำเนินการ…
@@ -634,6 +654,7 @@ Refresh,รีเฟรช
 Regenerate,สร้างใหม่
 Rejected,ถูกปฏิเสธ
 Reload advisors,โหลดรายชื่อที่ปรึกษาใหม่
+Remembered,ที่จำไว้
 Remote Address,ที่อยู่ปลายทาง
 Remote Sessions,เซสชันระยะไกล
 Removed At,เวลาที่ลบ
@@ -685,6 +706,7 @@ Seen At,เวลารายงาน
 Seller,ผู้ขาย
 Seller Tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
 Server unreachable,เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
+Service VAT basis,เกณฑ์ภาษีบริการ
 Session,เซสชัน
 Session ID,รหัสเซสชัน
 Session Payload,เพย์โหลดเซสชัน
@@ -701,9 +723,11 @@ Signed In Via,เข้าสู่ระบบผ่าน
 Site finalization failed,ตั้งค่าเว็บไซต์ขั้นสุดท้ายไม่สำเร็จ
 Site is missing setting: {0},เว็บไซต์ขาดการตั้งค่า: {0}
 Size And Permission Check,การตรวจขนาดและสิทธิ์
+Skip,ไม่บันทึก
 Skipped,ข้ามแล้ว
 Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
+Source document,เอกสารต้นทาง
 Stage,ขั้นตอน
 Starred,ติดดาว
 Start At,เวลาเริ่ม
@@ -745,6 +769,7 @@ System URL is not filled in,ต้องระบุที่อยู่ระ�
 System URL is required,ต้องระบุที่อยู่ระบบ
 Target ERP,ERP ปลายทาง
 Task cost limit reached,ถึงวงเงินค่าใช้จ่ายของงานแล้ว
+Task default,ค่าเริ่มต้นของงาน
 Tax Return Drafts,ร่างแบบยื่นภาษี
 Team,จัดการทีมงาน
 Tenant boot data,ข้อมูลเริ่มต้นของเว็บไซต์นี้
@@ -817,6 +842,7 @@ This company’s LINE official account is not configured yet.,บริษัท
 This connection has no username and password yet.,การเชื่อมต่อนี้ยังไม่มีชื่อผู้ใช้และรหัสผ่าน
 This conversation could not be changed; please try again,แก้ไขบทสนทนาไม่สำเร็จ กรุณาลองใหม่
 This device cannot receive notifications.,อุปกรณ์นี้ไม่สามารถรับการแจ้งเตือนได้
+This document,เอกสารนี้
 This document has already been recorded: {0},เอกสารนี้บันทึกไว้แล้ว: {0}
 This file has expired. Export it again.,ไฟล์นี้หมดอายุแล้ว กรุณาส่งออกใหม่
 This identity is already bound to account {0} (record {1}),ตัวตนนี้ผูกกับบัญชี {0} แล้ว (ระเบียน {1})
@@ -916,6 +942,7 @@ Waiting,รอคิว
 Waiting for answers,รอคำตอบ
 Waiting for start time,รอเวลาเริ่ม
 Waiting for the server,กำลังรอเซิร์ฟเวอร์
+Warehouse,คลังสินค้า
 Warehouses,คลังสินค้า
 "Warehouses, stock-in and stock-out documents",คลังสินค้า เอกสารรับเข้าและจ่ายออก
 What Was Pushed,เอกสารที่ส่ง
@@ -1056,6 +1083,49 @@ connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
+guide.option.detail.skip,ไม่บันทึก
+guide.option.direction.expense,ค่าใช้จ่าย
+guide.option.direction.purchase,ซื้อ
+guide.option.direction.sales,ขาย
+guide.option.document_policy.enter,บันทึก
+guide.option.document_policy.skip,ไม่บันทึก
+guide.option.goods_posting.service,ค่าใช้จ่าย
+guide.option.goods_posting.stock,สต็อก
+guide.option.item.__expense__,ค่าใช้จ่าย
+guide.option.new,สร้างใหม่
+guide.option.payment.cash,เงินสด
+guide.option.payment.credit,เงินเชื่อ
+guide.option.service_vat.accrual,เกณฑ์สิทธิ
+guide.option.service_vat.cash_basis,เกณฑ์เงินสด
+guide.option.vat.claim,ขอคืน
+guide.option.vat.expense,บันทึกเป็นค่าใช้จ่าย
+guide.q.account,รหัสบัญชี
+guide.q.account_set,ชุดบัญชี
+guide.q.cash_account,บัญชีรับจ่ายเงิน
+guide.q.cost_basis,ต้นทุนขาย
+guide.q.current_book,ชุดบัญชี
+guide.q.detail,รายการ
+guide.q.direction,ประเภท
+guide.q.document_policy,บันทึกหรือไม่
+guide.q.goods_posting,วิธีบันทึกบัญชี
+guide.q.item,สินค้า
+guide.q.location,คลังสินค้า
+guide.q.new_item,สินค้าใหม่
+guide.q.new_party,คู่ค้าใหม่
+guide.q.party,คู่ค้า
+guide.q.payment,การชำระเงิน
+guide.q.service_vat,เกณฑ์ภาษีบริการ
+guide.q.unit,หน่วย
+guide.q.vat,ภาษีซื้อ
+guide.source.book_setting,การตั้งค่าชุดบัญชี
+guide.source.company_rule,กฎของบริษัท
+guide.source.document,เอกสารนี้
+guide.source.express_history,ประวัติใน Express
+guide.source.face,เอกสาร
+guide.source.pinned,เอกสารต้นทาง
+guide.source.remembered,ที่จำไว้
+guide.source.task_default,ค่าเริ่มต้นของงาน
 home.balance.title,ยอดคงเหลือในบัญชี
 home.balance.used,เดือนนี้ใช้ไป {0} หน้า · แพ็กเกจ {1} รอบนี้คงเหลือ {2} หน้า
 home.balance.usedNoPlan,เดือนนี้ใช้ไป {0} หน้า · คิดค่าบริการตามการใช้งาน

@@ -19,11 +19,14 @@ Account balance,口座残高
 Account created for this operator on this site. LINE only; not used for web sign-in and needs no password.,このサイトでこのオペレーター用に作成したアカウント。LINE専用で、Webログインには使わず、パスワード不要です。
 Account name,口座名義
 Account number,口座番号
+Account set,帳簿
 Account set in use,会計データは使用中です
+Account set setting,帳簿の設定
 Account set unavailable,会計データを開けません
 Account signed in elsewhere,アカウントは別の場所でログイン中です
 Account that owns this connection. Leave empty for a site-wide shared connection.,この接続の所有アカウント。空欄はサイト共有の接続です。
 Account with admin rights,権限アカウント
+Accrual basis,発生主義
 Action not found,操作が見つかりません
 Actions,操作
 Active Seconds,稼働秒数
@@ -46,11 +49,13 @@ Allowed,許可
 Amount,金額
 Amount and VAT differ,金額と税が不一致
 Amount and VAT match,金額と税が一致
+Amount only,金額のみ
 An admin session was requested but no admin credentials are configured,adminセッションが要求されましたが、admin資格情報が未設定です
 Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
+Asked before writing,書き込み前に確認しました
 Asked questions,質問しました
 Attempt,試行回数
 Attempts,試行回数
@@ -111,6 +116,9 @@ Cannot reach the identity service of the target environment ({0}): {1} {2},対�
 Cannot read the remaining time,残り時間を取得できません
 Car models {0},車種 {0}
 Carried,引き継ぎ済み
+Cash,現金
+Cash account,入出金勘定
+Cash basis,現金主義
 Change account,アカウントを変更
 Change declined,この変更は拒否されました
 Change password,パスワード変更
@@ -128,6 +136,7 @@ Checkpoints,チェックポイント
 Choose a plan,プランを選ぶ
 Choose document menu,伝票メニューを選択
 Choose the company in Express,Express で会社を選択してください
+Claim,控除
 Claiming a push job requires a connection,送信ジョブの取得には接続の指定が必要です
 Click to sort by {0},{0} で並べ替え
 Client ID is required,クライアントIDは必須です
@@ -141,6 +150,7 @@ Company Profile,会社情報
 Company Tax ID,自社の税番号
 Company Title,会社名
 Company does not match the task,会社がタスクと一致しません
+Company rule,会社ルール
 Computer in use,パソコンは使用中です
 Computer locked,パソコンはロック中です
 Configuration is complete. The connection was not tested.,設定は揃っています。接続はテストしていません。
@@ -172,6 +182,7 @@ Contact support with the record ID,記録番号を添えてサポートへご連
 Context Tokens,コンテキスト使用量
 Conversation not found,会話が見つかりません
 Copy,コピー
+Cost of goods sold,売上原価
 Could not acquire the lock: {0},ロックを取得できません：{0}
 Could not call the model: {0},モデルを呼び出せません: {0}
 Could not create the OIDC client: {0} {1},OIDCクライアントの作成に失敗: {0} {1}
@@ -199,6 +210,7 @@ Cowork Intake,Cowork 取り込み
 Create a new {0},新しい{0}を作成
 Created At,作成日時
 Created: {0},登録しました：{0}
+Credit,掛け
 Credited,入金済み
 Currency,通貨
 Current Password,現在のパスワード
@@ -269,6 +281,7 @@ Display name,表示名
 Display only; the push log is authoritative,表示用。送信ログが正本です
 Doc Date,伝票日付
 Doc No,伝票番号
+Document,書類
 Document Type,伝票種別
 Document date,伝票日付
 Document no.,伝票番号
@@ -311,6 +324,7 @@ Express Index Tool,Express インデックスツール
 Express Number,Express 番号
 Express Push Guide,Express プッシュガイド
 Express closed twice,Express が続けて終了しました
+Express history,Express の履歴
 Express license limit reached,Express のライセンス数の上限です
 Express no.,Express 番号
 Express reopened,Express を再度開きました
@@ -372,6 +386,7 @@ Image Fingerprint,画像フィンガープリント
 In-progress state of a multi-turn conversation. One row per session.,多段対話の途中状態。1セッション1行。
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
 Input Tokens,入力トークン
+Input VAT,仮払消費税
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
 "Install, pair, upgrade and uninstall guide for CC Desktop",CC デスクトップのインストール・ペアリング・更新・アンインストールガイド
 Intake Workbench,取り込みワークベンチ
@@ -460,10 +475,13 @@ Net Payable,支払純額
 Net amount,税抜金額
 Net payable,支払純額
 Network error,ネットワークエラー
+New,新規
 New Customer,今回新規作成
 New DMS password,新しいDMSパスワード
+New counterparty,新規取引先
 New entry,新規入力
 New password,新しいパスワード
+New product,新規商品
 New purchase order,仕入伝票を作成
 Next Period End,翌期末
 Next Retry At,次回再試行日時
@@ -547,6 +565,7 @@ Pay as you go: first {0} pages each calendar month at {1}/page; subsequent pages
 Payer,支払者
 Payer name on the bank transfer,銀行振込の振込人名
 Payload Version,ペイロードバージョン
+Payment,支払方法
 Payment Status,支払状況
 Pearnly,Pearnly
 Pearnly Cowork,Pearnly Cowork
@@ -569,6 +588,7 @@ Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Please try again later,しばらくしてから再試行してください
 Posted,記帳済み
+Posting,計上方法
 Preparing the file,ファイルを準備しています
 Private Key,秘密鍵
 Processing…,処理中…
@@ -634,6 +654,7 @@ Refresh,更新
 Regenerate,再生成
 Rejected,却下済み
 Reload advisors,担当者一覧を再読み込み
+Remembered,記憶済み
 Remote Address,接続先アドレス
 Remote Sessions,リモートセッション
 Removed At,削除日時
@@ -685,6 +706,7 @@ Seen At,報告日時
 Seller,売り手
 Seller Tax ID,売り手税番号
 Server unreachable,サーバーに接続できません
+Service VAT basis,サービス消費税の基準
 Session,セッション
 Session ID,セッションID
 Session Payload,セッションのペイロード
@@ -701,9 +723,11 @@ Signed In Via,ログイン方法
 Site finalization failed,サイトの仕上げに失敗しました
 Site is missing setting: {0},サイトに設定項目がありません：{0}
 Size And Permission Check,サイズと権限の確認
+Skip,書き込まない
 Skipped,スキップ
 Source,ソース
 Source Attachment,元の添付ファイル
+Source document,元伝票
 Stage,段階
 Starred,スター付き
 Start At,開始時刻
@@ -745,6 +769,7 @@ System URL is not filled in,システムURLが未入力です
 System URL is required,システムURLは必須です
 Target ERP,連携先 ERP
 Task cost limit reached,このタスクの費用上限に達しました
+Task default,タスクの既定値
 Tax Return Drafts,税務申告の下書き
 Team,チーム
 Tenant boot data,このサイトの起動データ
@@ -817,6 +842,7 @@ This company’s LINE official account is not configured yet.,会社のLINE公�
 This connection has no username and password yet.,この接続にはユーザー名とパスワードがまだ設定されていません。
 This conversation could not be changed; please try again,会話を変更できませんでした。もう一度お試しください
 This device cannot receive notifications.,このデバイスでは通知を受け取れません。
+This document,この伝票
 This document has already been recorded: {0},この伝票は既に登録済みです: {0}
 This file has expired. Export it again.,このファイルは期限切れです。もう一度エクスポートしてください。
 This identity is already bound to account {0} (record {1}),このアイデンティティは既にアカウント {0}（レコード {1}）に紐づいています
@@ -916,6 +942,7 @@ Waiting,待機中
 Waiting for answers,回答待ち
 Waiting for start time,開始時刻を待っています
 Waiting for the server,サーバーを待っています
+Warehouse,倉庫
 Warehouses,倉庫
 "Warehouses, stock-in and stock-out documents",倉庫、入庫・出庫伝票
 What Was Pushed,何を送ったか
@@ -1056,6 +1083,49 @@ connect.title,DMSに接続
 connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+guide.option.detail.amount_only,金額のみ
+guide.option.detail.skip,書き込まない
+guide.option.direction.expense,経費
+guide.option.direction.purchase,仕入
+guide.option.direction.sales,売上
+guide.option.document_policy.enter,書き込む
+guide.option.document_policy.skip,書き込まない
+guide.option.goods_posting.service,費用
+guide.option.goods_posting.stock,在庫
+guide.option.item.__expense__,費用
+guide.option.new,新規
+guide.option.payment.cash,現金
+guide.option.payment.credit,掛け
+guide.option.service_vat.accrual,発生主義
+guide.option.service_vat.cash_basis,現金主義
+guide.option.vat.claim,控除
+guide.option.vat.expense,費用計上
+guide.q.account,勘定科目
+guide.q.account_set,帳簿
+guide.q.cash_account,入出金勘定
+guide.q.cost_basis,売上原価
+guide.q.current_book,帳簿
+guide.q.detail,明細
+guide.q.direction,種類
+guide.q.document_policy,書き込み
+guide.q.goods_posting,計上方法
+guide.q.item,商品
+guide.q.location,倉庫
+guide.q.new_item,新規商品
+guide.q.new_party,新規取引先
+guide.q.party,取引先
+guide.q.payment,支払方法
+guide.q.service_vat,サービス消費税の基準
+guide.q.unit,単位
+guide.q.vat,仮払消費税
+guide.source.book_setting,帳簿の設定
+guide.source.company_rule,会社ルール
+guide.source.document,この伝票
+guide.source.express_history,Express の履歴
+guide.source.face,書類
+guide.source.pinned,元伝票
+guide.source.remembered,記憶済み
+guide.source.task_default,タスクの既定値
 home.balance.title,口座残高
 home.balance.used,今月 {0} 枚使用 · プラン {1}、今サイクル残り {2} 枚
 home.balance.usedNoPlan,今月 {0} 枚使用 · 未登録の従量課金

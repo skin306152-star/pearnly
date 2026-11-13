@@ -85,12 +85,9 @@ CORE_TOOLS = [
                     "value yet), value / value_label, source, options (small lists, the recommended one first, with a note "
                     "saying why) or search (accounts / products / parties for big lists) and the documents it holds; plus "
                     "unknown (last write result unknown: the user must check Express first), not_writable (facts, not "
-                    "choices), waiting and ready. needs_card false means everything is decided: ask nothing and go on to the write plan. "
-                    "Otherwise turn the proposed and open items into ask_user questions, then save the answers with "
-                    "pearnly_precheck_answer. An item with when {key, value} only applies if the item with that key "
-                    "ends up with that value (e.g. the warehouse and the stock items asked only when the entry is by "
-                    "stock): ask it after that item's question with show_if naming that question and the label of that "
-                    "value, and never save an answer for it when the user picked another value. planned, when present, maps a document id to how that document will be "
+                    "choices), waiting and ready. Read-only: use it to explain what is decided or still open. Never ask these items "
+                    "yourself (no ask_user for them): to get the user's decisions call pearnly_guide with the same documents, "
+                    "the server puts the questions on a card. planned, when present, maps a document id to how that document will be "
                     "entered if it is written now (only for documents with nothing left to decide): before writing, "
                     "whenever you tell the user cash or credit or which account, take it from planned, never from the "
                     "document type. When the user said in the chat what kind of expense the documents are (e.g. "
@@ -103,13 +100,32 @@ CORE_TOOLS = [
          "hint": {"type": "string", "description": "The expense category the user stated, in their words."}},
          "required": ["company", "doc_ids"]},
      "handler": "pearnly_core.write_precheck.api.tool_check"},
+    {"name": "pearnly_guide",
+     "label": "Asked before writing",
+     "approval": True,
+     "prepare": "pearnly_core.assistant.guide_tool.prepare",
+     "description": "Before writing documents into Express or MR.ERP, get the user's decisions for them: give the documents "
+                    "(and the expense category the user stated, as hint). The server works out every question (payment, "
+                    "party, items, warehouse, accounts, whether to enter a document, account set, ...), puts them on one "
+                    "card with the recommended choice and the already decided items, and the user answers on the card. "
+                    "You never write these questions yourself. The result is {status, answered, writable, held}: "
+                    "nothing_to_ask means everything is decided; answered means the answers are saved and only writable "
+                    "documents can be written now; skipped means the user closed the card and nothing was saved. When the "
+                    "user answers in a chat message instead (for example 'this supplier is always cash'), save it with "
+                    "pearnly_precheck_answer using the keys of that card. Then make the write plan (pearnly_write_plan).",
+     "input_schema": {"type": "object", "properties": {
+         "company": {"type": "string", "description": "The company id the documents belong to."},
+         "doc_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 200},
+         "hint": {"type": "string", "description": "The expense category the user stated, in their words."}},
+         "required": ["company", "doc_ids"]},
+     "handler": "pearnly_core.assistant.ask.unanswered"},
     {"name": "pearnly_precheck_answer",
      "label": "Saved push choices",
-     "description": "Save what the user chose in ask_user for the items pearnly_precheck returned: answers is "
+     "description": "Save a decision the user gave in a chat message instead of on the pearnly_guide card: answers is "
                     "[{key, value}] with the item key and the option code (or a code the user picked through search). "
                     "Choices are remembered for the company the same way as everywhere else, so the next time they come "
-                    "back decided. Items left unanswered keep their documents back this time; proposed items not "
-                    "answered are written with the proposed value. Returns the card checked again with writable and held "
+                    "back decided. Items left unanswered keep their documents back this time, proposed ones too (only an "
+                    "answered item counts). Returns the card checked again with writable and held "
                     "documents, or errors (nothing saved) when a value is not offered. Saving writes nothing: write the "
                     "documents through the write plan (pearnly_write_plan) afterwards; resume does not write in a "
                     "conversation. An answer with doc_id changes that one document only and is not "
@@ -136,8 +152,7 @@ CORE_TOOLS = [
                     "account set(s). In an operator "
                     "conversation it always takes this task's whole waiting list (give again for documents already "
                     "entered that the user explicitly wants entered again); in a direct-write conversation give "
-                    "documents, the ones the user wants written. Settle the questions first (pearnly_precheck, ask_user, "
-                    "pearnly_precheck_answer). Then say the plan back in one sentence and wait for the user's reply; "
+                    "documents, the ones the user wants written. Settle the questions first with pearnly_guide. Then say the plan back in one sentence and wait for the user's reply; "
                     "writing starts only with pearnly_write_start after the user answers. A new plan replaces the one "
                     "not yet started.",
      "input_schema": {"type": "object", "properties": {
@@ -190,24 +205,21 @@ CORE_TOOLS = [
     {"name": "ask_user",
      "label": "Asked questions",
      "approval": True,
-     "refuse": "pearnly_core.assistant.ask.problem",
-     "description": "Ask the user 1-4 questions in one card and wait for the answers (like a before-start confirmation). "
+     "refuse": "pearnly_core.assistant.guide_tool.refuse_ask",
+     "description": "Ask the user 1-4 questions in one card and wait for the answers, for decisions outside writing "
+                    "documents (questions about writing documents — payment, party, items, accounts, warehouse, account set, "
+                    "whether to enter a document — come only from pearnly_guide and are refused here). "
                     "Write the question, header, labels and descriptions in the user's language; names from the data "
                     "keep their own spelling (account sets, companies, accounts), and reasons a tool gave in English are "
-                    "retold in the user's language. "
-                    "Use it whenever a decision is the user's: above all before writing documents, after "
-                    "pearnly_precheck, ask only the proposed and open items (never the decided ones), one question per "
-                    "item or per group of same-kind items, the recommended option first with '(Recommended)' left out of "
-                    "the label and the reason in its description (for example how this supplier was recorded before). "
-                    "You may add your own questions when you notice something the user should decide (for example the "
-                    "buyer on a document is not this company). Each question: question (full sentence ending with ?), "
+                    "retold in the user's language. Each question: "
+                    "question (full sentence ending with ?), "
                     "header (at most 12 characters), multiSelect, options 2-4 each with label and description; the card "
                     "adds Other by itself. For big lists set search {company, doc_id, kind: accounts|products|parties} so "
                     "Other can search them. show_if {question, labels} asks a question only when an earlier question (its "
                     "number, from 1) got one of those labels; otherwise it is hidden and comes back as not_asked. The "
                     "result is {answers: [{header, question, labels, other?, skipped?, not_asked?}]} in "
                     "question order; skipped means the user left it undecided, so documents that depend on it are not "
-                    "written this time; not_asked means it did not apply, so save nothing for it. Map the labels back to option codes and save them with pearnly_precheck_answer.",
+                    "written this time; not_asked means it did not apply, so save nothing for it.",
      "input_schema": {"type": "object", "properties": {
          "questions": {"type": "array", "minItems": 1, "maxItems": 4, "items": {"type": "object", "properties": {
              "question": {"type": "string"},
@@ -235,6 +247,7 @@ CORE_STEP_NAMES = {
     "pearnly_precheck": "Checking push choices",
     "pearnly_precheck_answer": "Saving push choices",
     "ask_user": "Waiting for answers",
+    "pearnly_guide": "Waiting for answers",
     "pearnly_file_conversation": "Filing the conversation under a company",
     "pearnly_conversation_ledger": "Setting the conversation's account set",
     "pearnly_write_plan": "Making a write plan",
@@ -350,6 +363,17 @@ def refusal(name: str, tool_input) -> str | None:
         frappe.log_error(title="Assistant approval check failed")
         return None
     return str(text) if text else None
+
+
+def prepare(name: str, tool_input) -> dict | None:
+    """要「允许」的工具出卡前由服务端准备输入（工具声明的 ``prepare``，引导卡 ``pearnly_guide``）：回 ``{"input": 卡}`` 换掉模型给的输入、
+    ``{"result": 文本}`` 不出卡直接交回结果；没声明回 None。出错照抛（调用方按出错交回模型）。"""
+    tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
+    if not tool.get("prepare"):
+        return None
+    with _context():
+        found = frappe.get_attr(tool["prepare"])(tool_input if isinstance(tool_input, dict) else {})
+    return found if isinstance(found, dict) else None
 
 
 REFUSED = ("not_saved", "not_started", "not_exported", "failed")

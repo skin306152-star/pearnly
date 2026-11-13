@@ -1041,3 +1041,47 @@ Cache Read Tokens	缓存读取 Token	โทเค็นอ่านแคช	キ
 Active Seconds	运行秒数	วินาทีที่ทำงาน	稼働秒数
 USD	美元	ดอลลาร์สหรัฐ	米ドル
 USD Source	美元来源	แหล่งที่มาของยอดดอลลาร์	米ドルの出所
+Payment	付款方式	การชำระเงิน	支払方法	guide.q.payment
+Input VAT	进项税	ภาษีซื้อ	仮払消費税	guide.q.vat
+Account	科目	รหัสบัญชี	勘定科目	guide.q.account
+Counterparty	对方	คู่ค้า	取引先	guide.q.party
+New counterparty	新建对方	คู่ค้าใหม่	新規取引先	guide.q.new_party
+Product	物料	สินค้า	商品	guide.q.item
+New product	新物料	สินค้าใหม่	新規商品	guide.q.new_item
+Warehouse	仓位	คลังสินค้า	倉庫	guide.q.location
+Unit	单位	หน่วย	単位	guide.q.unit
+Cost of goods sold	出库成本	ต้นทุนขาย	売上原価	guide.q.cost_basis
+Line items	明细	รายการ	明細	guide.q.detail
+Cash account	收付款科目	บัญชีรับจ่ายเงิน	入出金勘定	guide.q.cash_account
+Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
+Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
+Write	是否写入	บันทึกหรือไม่	書き込み	guide.q.document_policy
+Type	业务类型	ประเภท	種類	guide.q.direction
+Account set	账套	ชุดบัญชี	帳簿	guide.q.account_set
+Account set	账套	ชุดบัญชี	帳簿	guide.q.current_book
+Cash	现金	เงินสด	現金	guide.option.payment.cash
+Credit	赊账	เงินเชื่อ	掛け	guide.option.payment.credit
+Claim	抵扣	ขอคืน	控除	guide.option.vat.claim
+Expense	记入费用	บันทึกเป็นค่าใช้จ่าย	費用計上	guide.option.vat.expense
+Amount only	只记金额	บันทึกเฉพาะยอดเงิน	金額のみ	guide.option.detail.amount_only
+Skip	不写入	ไม่บันทึก	書き込まない	guide.option.detail.skip
+Accrual basis	权责发生制	เกณฑ์สิทธิ	発生主義	guide.option.service_vat.accrual
+Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	guide.option.service_vat.cash_basis
+Stock	走库存	สต็อก	在庫	guide.option.goods_posting.stock
+Expense	记费用	ค่าใช้จ่าย	費用	guide.option.goods_posting.service
+Write	写入	บันทึก	書き込む	guide.option.document_policy.enter
+Skip	不写入	ไม่บันทึก	書き込まない	guide.option.document_policy.skip
+Purchase	采购	ซื้อ	仕入	guide.option.direction.purchase
+Expense	费用	ค่าใช้จ่าย	経費	guide.option.direction.expense
+Sales	销售	ขาย	売上	guide.option.direction.sales
+Expense	记费用	ค่าใช้จ่าย	費用	guide.option.item.__expense__
+New	新建	สร้างใหม่	新規	guide.option.new
+Remembered	记住的	ที่จำไว้	記憶済み	guide.source.remembered
+Company rule	公司规则	กฎของบริษัท	会社ルール	guide.source.company_rule
+Express history	Express 历史	ประวัติใน Express	Express の履歴	guide.source.express_history
+Account set setting	账套设置	การตั้งค่าชุดบัญชี	帳簿の設定	guide.source.book_setting
+Document	票面	เอกสาร	書類	guide.source.face
+Source document	来源单据	เอกสารต้นทาง	元伝票	guide.source.pinned
+This document	本单	เอกสารนี้	この伝票	guide.source.document
+Task default	任务默认	ค่าเริ่มต้นของงาน	タスクの既定値	guide.source.task_default
+Asked before writing	写入前已询问	ถามก่อนบันทึกแล้ว	書き込み前に確認しました	
