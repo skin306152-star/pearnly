@@ -14,7 +14,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { guide, steps } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught, withReport } from "@/lib/caught";
-import { get } from "@/lib/frappe";
+import { fetchGuideCard } from "@/lib/guide";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import { AskCard, askPhase } from "./ask-card";
@@ -227,7 +227,7 @@ export const GuideCard: ToolCallMessagePartComponent = (props) => {
     let alive = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const fetchCard = (left: number) => {
-      void get<{ card?: Partial<GuideCardData> }>("guide_card", { session_id: sessionIdForCard, tool_use_id: useId }).then(
+      void fetchGuideCard(sessionIdForCard, useId).then(
         (out) => {
           if (!alive) return;
           const found = guideCardOf(out);
