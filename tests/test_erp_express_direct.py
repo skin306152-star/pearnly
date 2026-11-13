@@ -2434,6 +2434,33 @@ class PosDayActor(PushModule):
             self.assertEqual(self.push.actor_of("ERP POS Day Summary", types.SimpleNamespace(name="PDS-2", owner="amy@x"),
                                                 "BK"), "amy@x")
 
+class CollectionNotYours(PushModule):
+    """收款写账件 × not_yours（集成 1113 跨边，A 线 × 收款）：收款员自己有登录过 CC 的电脑、此刻关着，办公室同事够得到这本的电脑在线
+    —— `jobs.writers` 判 not_yours，`office_actor` 仍把作业归收款员本人（排队等他的电脑，不派给同事），页面原因是「您的电脑离线」。
+    收款员一台电脑都没有（missing）才转给办公室的人（收款支原意，不变）。"""
+
+    def test_a_collectors_job_waits_for_the_collectors_own_computer_when_a_colleagues_is_online(self):
+        import types
+        from unittest import mock
+        peers = {"PC-COL": types.SimpleNamespace(users=frozenset({"col@x"}), online=False, payload_version=None,
+                                                 index_pending=None, targets=None),
+                 "PC-OFFICE": types.SimpleNamespace(users=frozenset({"office@x"}), online=True, payload_version=None,
+                                                    index_pending=None, targets=None)}
+        with mock.patch.object(self.push.jobs.devices, "peers", lambda: peers), \
+                mock.patch.object(self.push.devices, "peers", lambda: peers), \
+                mock.patch.object(self.push.jobs.books, "reachers", lambda keys: {"BK": ["PC-COL", "PC-OFFICE"]}), \
+                mock.patch.object(self.push.books, "reachers", lambda keys: {"BK": ["PC-COL", "PC-OFFICE"]}), \
+                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
+                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"]):
+            self.assertEqual(self.push.jobs.writers("col@x", "BK")["state"], "not_yours")
+            self.assertEqual(self.push.office_actor("col@x", "CO-1", "BK"), "col@x")  # 不派给 office@x
+            from pearnly_erp_portal.express import pending
+            self.assertEqual(pending.REASONS[self.push.contracts.NOT_YOURS], "express.reason.notYours")
+            # 收款员一台电脑都没有：照收款支原意归办公室在线电脑上的人
+            peers.pop("PC-COL")
+            self.assertEqual(self.push.office_actor("col@x", "CO-1", "BK"), "office@x")
+
+
 class LinkParty(PushModule):
     """写进 Express 后把单上随手建的对方档挂上电脑实际用的码（10-24 验收：同步回来又多一条、还对各家公司都可见）。"""
 
