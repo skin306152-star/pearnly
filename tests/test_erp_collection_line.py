@@ -298,10 +298,37 @@ class Steps(Base):
         self.type(C1)
         self.assertEqual(self.payload()["due"], {"IV1": "400.00", "IV2": "500.00"})
 
-    def test_stale_buttons_from_another_step_do_nothing(self):
+    def test_stale_buttons_from_another_step_ask_the_current_step_again(self):
+        # 卡片有效期 A7：旧步骤的按钮不跳步，吃下、照当前这一步再问
         self.tap("a=col&s=start")
+        before = dict(self.payload())
         self.tap("a=col&s=method&v=%40cash")
-        self.assertEqual((self.last_text(), self.step()), ("This option is no longer current", "customer"))
+        self.assertEqual((self.last_text(), self.step()), ("Type the customer code or part of the name", "customer"))
+        self.assertEqual(self.payload(), before)
+        self.to_invoices(("IV1",))
+        self.tap("a=col&s=customer&v=" + C1)  # 方式那一步点了客户按钮：再问方式
+        self.assertEqual(self.step(), "method")
+        self.assertIn("Choose the collection method", self.last_text())
+        self.pick("Cash")
+        self.type("1000")
+        self.assertEqual(self.step(), "card")
+        self.tap("a=col&s=more&v=later")  # 卡片那一步点了旧按钮：重出当前卡
+        self.assertEqual(self.step(), "card")
+        self.assertIn("Confirm", [item["label"] for item in self.flex_buttons()])
+
+    def test_an_old_cancel_asks_the_current_step_again(self):
+        self.tap("a=col&s=start")
+        old_cancel = next(item["data"] for item in self.buttons() if item["label"] == "Cancel")
+        self.type(C1)
+        self.tap(old_cancel)
+        self.assertEqual(self.step(), "invoices")
+        self.assertIn("Next step", [item["label"] for item in self.flex_buttons()])
+
+    def test_a_button_after_the_session_ended_says_expired(self):
+        self.tap("a=col&s=start")
+        SESSIONS.clear()
+        self.tap("a=col&s=customer&v=" + C1)
+        self.assertEqual(self.last_text(), "This item has expired. Please start again.")
 
     def test_cancel_clears_the_session(self):
         self.tap("a=col&s=start")
@@ -800,7 +827,8 @@ class CardLife(Base):
         self.tap("a=col&s=inv&v=IV1")
         self.tap("a=col&s=invoices&v=done")
         self.tap(old_cancel)
-        self.assertEqual(self.step(), "method")  # 旧的【取消】不动当前这一步
+        self.assertEqual(self.step(), "method")  # 旧的【取消】不动当前这一步，照它再问
+        self.assertIn("Choose the collection method", self.last_text())
         frappe.session.user = "a@x"
         made = service.create_draft("CO-1", C1, [{"docnum": "IV2", "amount": "500"}],
                                     methods=[{"prefix": "BB", "amount": "500"}])
