@@ -17,6 +17,15 @@
 
 第 7 条根因没在真机钉死（webhook 那一刻的语言值没有现场记录）；离线覆盖了两种会让它变泰文的情况（没带语言 → 站点默认；换身份 / 存原件时语言被改回）。真机复测见下。
 
+## 今晚之后那批里先做的两条（第二个提交）
+
+| 改了什么 | 测试（旧代码上红） |
+|---|---|
+| 旧步骤的按钮（含旧消息上的【取消】）不跳步：吃下、照当前这一步再问（卡片那一步重出当前卡）；会话已结束 / 过期点按钮回「此项已过期」 | `test_stale_buttons_from_another_step_ask_the_current_step_again`、`test_an_old_cancel_asks_the_current_step_again`、`test_a_button_after_the_session_ended_says_expired` |
+| LINE 卡【编辑】打开的那一笔已不是草稿：网页先说「此卡片已失效，请使用 LINE 中最新的卡片。」（DMS 同句）再列状态；「我的收款」列表点开的照旧 | `test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired` |
+
+没做：写失败的卡带原因还回、换新号。写账请求号按收款记录号只认一次（`push.REQUEST` + `cc_desktop.jobs.enqueue` 去重），改过的草稿重新放行要换请求号，动的是写账幂等这道保护，不在冻结前做。收款方式标签（银行简称 + 账号末 4 位）等 CC 桌面版上报字段。
+
 ## 文案（四语）
 
 新增两条（`i18n/messages.tsv`）：
@@ -25,8 +34,9 @@
 |---|---|---|---|
 | This item has expired. Please start again. | 此项已过期，请重新开始。 | รายการนี้หมดอายุแล้ว กรุณาเริ่มใหม่อีกครั้ง | 有効期限が切れました。もう一度やり直してください。 |
 | View result | 查看结果 | ดูผลลัพธ์ | 結果を見る |
+| This card has expired. Use the latest card in LINE. | 此卡片已失效，请使用 LINE 中最新的卡片。 | การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE | このカードは期限切れです。LINE の最新のカードを使ってください。 |
 
-第一条与 DMS `dms.card.TXT_EXPIRED` 逐字相同。没有改已有文案；"This option is no longer current" 仍用在旧步骤按钮（「原步重问」在今晚之后那批）。
+第一条与 DMS `dms.card.TXT_EXPIRED` 逐字相同，第三条与 DMS `dms.edit.reviewExpired` 逐字相同。没有改已有文案；"This option is no longer current" 只剩步骤内选了不在列表里的值时用。
 
 ## 有意保留 / 已知限制
 
@@ -44,3 +54,5 @@
 6. 写失败（例如方式没科目）→ 收到一条推送；之后进「收款」不再重复列它。
 7. 收款卡片的头部颜色是紫色，与采购（绿）销售（红）卡区分。
 8. 收款方式按钮：同前缀的转账方式（SCB 储蓄 / 活期）按钮互不相同。
+9. 录到方式那一步，点上面更早消息里的客户 / 发票按钮：不跳步，重新问方式。
+10. 卡片【确认】放行后，再点这张卡的【编辑】：网页先显示「此卡片已失效，请使用 LINE 中最新的卡片。」

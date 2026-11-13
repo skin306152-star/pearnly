@@ -1195,6 +1195,15 @@ class ExpressWaiting(Base):
         self.assertIn("title: (value, row) => waiting(row)", page)  # 列表悬浮说明
         self.assertIn("status_label(card.status), waiting(card)]", page)  # 手机没有悬浮：点开后的内容里也有
 
+    def test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired(self):
+        # 卡片有效期 A6：LINE 卡【编辑】打开的那一笔已放行 / 撤回 / 被新卡作废：先说此卡片已失效（同 DMS 编辑页）；列表里点开的照旧只列状态
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js").read_text(encoding="utf-8")
+        self.assertIn('from_card ? __("This card has expired. Use the latest card in LINE.") : ""', page)
+        self.assertIn("await edit(rest[0], true)", page)
+        self.assertIn("on_open: row => void edit(row.name)", page)
+        terms = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
+        self.assertIn("This card has expired. Use the latest card in LINE.\t此卡片已失效，请使用 LINE 中最新的卡片。", terms)
+
     def test_the_opened_record_and_the_release_say_it_too(self):
         from pearnly_erp_portal.collection import api
 
