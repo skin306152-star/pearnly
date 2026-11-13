@@ -502,5 +502,30 @@ class EnvironmentRerun(unittest.TestCase):
         self.assertFalse(env["unstable"], "2 / 100 没超 3%")
         self.assertTrue(run.environment_summary([rerun_ok] * 4 + [self.cell(True)] * 96)["unstable"])
 
+
+class NoRealLabLock(unittest.TestCase):
+    """测试不碰真实的回归实验室锁（11-13：别的窗口占着实验室时本机闸门因此红）。凡是会走到 run.main() 的测试文件，
+    都得先把 lab_lock 改指临时目录；直接调 lab_lock 的必须自己给目录。"""
+
+    def test_tests_never_take_the_real_lock(self):
+        tests = Path(__file__).resolve().parent
+        offenders = []
+        for path in sorted(tests.glob("test_*.py")):
+            text = path.read_text(encoding="utf-8")
+            if "scripts/flows/run.py" not in text:
+                continue
+            if "run.main(" in text and "run.lab_lock = " not in text:
+                offenders.append(f"{path.name}: 调 run.main() 却没把 lab_lock 指到临时目录")
+            if re.search(r"run\.lab_lock\(\s*\)", text):
+                offenders.append(f"{path.name}: lab_lock() 没给目录")
+        self.assertEqual(offenders, [])
+
+    def test_this_module_locks_in_a_temporary_folder(self):
+        handle = run.lab_lock(folder=None)  # 本模块已改指临时目录的那个
+        try:
+            self.assertTrue(handle.name.startswith(_LOCKS), handle.name)
+        finally:
+            handle.close()
+
 if __name__ == "__main__":
     unittest.main()
