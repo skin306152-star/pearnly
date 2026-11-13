@@ -146,19 +146,49 @@ if __name__ == "__main__":
 
 
 class BootMessagesTest(unittest.TestCase):
-    """整份翻译表不进按用户缓存的启动信息、返回前按语言放回（2026-10-02 m7：每人约 1MB，挤满 redis-cache）。"""
+    """整份翻译表不进按用户缓存的启动信息（2026-10-02 m7），也不内联进每次的页面：只给指纹、整表单独取并缓存（2026-11-13）。"""
 
-    def test_cached_boot_drops_messages_and_reply_restores_them(self):
+    def test_cached_boot_drops_messages_and_reply_gives_only_fingerprint(self):
         from pearnly_core.desk import boot_messages
 
         boot = frappe._dict(__messages={"Save": "บันทึก"}, lang="th")
         boot_messages.boot_session(boot)
         self.assertNotIn("__messages", boot)
+        frappe.local.lang = "th"
         with patch("frappe.translate.get_messages_for_boot", return_value={"Save": "บันทึก"}) as load:
             boot_messages.extend_bootinfo(boot)
             boot_messages.extend_bootinfo(boot)  # 已经有了不再取
-        self.assertEqual(boot["__messages"], {"Save": "บันทึก"})
         load.assert_called_once()
+        # 页面里不再内联整表（2026-11-13：每次打开 296KB 里九成是它），只给语言与指纹。
+        self.assertEqual(boot["__messages"], {})
+        self.assertEqual(boot["pearnly_messages"], {"lang": "th", "v": boot_messages._fingerprint({"Save": "บันทึก"})})
+        self.assertNotEqual(boot_messages._fingerprint({"Save": "บันทึก"}), boot_messages._fingerprint({"Save": "บันทึกแล้ว"}))
+
+    def test_messages_cached_only_when_fingerprint_matches(self):
+        from pearnly_core.desk import boot_messages
+
+        table = {"Save": "บันทึก"}
+        v = boot_messages._fingerprint(table)
+        with patch("frappe.translate.get_all_languages", return_value=["en", "th"]), \
+                patch("frappe.translate.get_all_translations", return_value=table):
+            hit = boot_messages.messages(lang="th", v=v)
+            stale = boot_messages.messages(lang="th", v="old")
+            unknown = boot_messages.messages(lang="../x", v=v)
+        self.assertEqual(hit.headers["Cache-Control"], "public, max-age=31536000, immutable")
+        self.assertEqual(hit.mimetype, "application/javascript")
+        self.assertIn("frappe._messages = Object.assign(frappe._messages || {},", hit.get_data(as_text=True))
+        self.assertIn("บันทึก", hit.get_data(as_text=True))
+        self.assertEqual(stale.headers["Cache-Control"], "no-cache")
+        self.assertIn("บันทึก", stale.get_data(as_text=True))
+        self.assertEqual(unknown.status_code, 404)
+
+    def test_loader_is_the_first_core_script(self):
+        source = (ROOT / "apps/pearnly_core/pearnly_core/hooks.py").read_text()
+        include = source[source.index("app_include_js = ["):]
+        self.assertTrue(include.startswith('app_include_js = [versioned_asset("pearnly_core", "desk/messages.js"),'))
+        loader = (ROOT / "apps/pearnly_core/pearnly_core/public/desk/messages.js").read_text()
+        self.assertIn("pearnly_core.desk.boot_messages.messages", loader)
+        self.assertIn("document.write", loader)  # 解析阶段同步插入：界面启动前词表须就位
 
     def test_hooks_strip_before_cache_and_restore_on_every_reply(self):
         source = (ROOT / "apps/pearnly_core/pearnly_core/hooks.py").read_text()

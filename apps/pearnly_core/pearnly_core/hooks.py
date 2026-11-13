@@ -333,14 +333,14 @@ boot_session = [
     "pearnly_core.desk.upload.boot_session",
     # 本站点 LIFF ID：盘点扫码在 LINE 普通内置浏览器里转 LIFF 打开（那里 LINE 会弹原生相机授权）。
     "pearnly_core.desk.line_boot.boot_session",
-    # 整份翻译表不进按用户缓存的启动信息（每人约 1MB，挤满 redis-cache），返回前按语言放回（`extend_bootinfo` 同名模块）。
+    # 整份翻译表不进按用户缓存的启动信息（每人约 1MB，挤满 redis-cache），也不再内联进每次的页面：返回前只给语言与指纹，整表单独取、缓存一年（`extend_bootinfo` 同名模块）。
     "pearnly_core.desk.boot_messages.boot_session",
 ]
 # 页面文案的版本指纹：每次启动都给（不进按用户缓存的启动信息），前端据此把文案包存在浏览器里。
 extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo"]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
-# 顺序即依赖：`errors.js` 最先（页面报错回传，后面的组件出错也抓得到）；`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
-app_include_js = [versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/keyboard.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/field-help.js"), versioned_asset("pearnly_core", "desk/actions.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
+# 顺序即依赖：`messages.js` 最先（整份翻译表按语言 + 指纹单独取、可缓存，界面启动前须就位，`desk/boot_messages.py`）；`errors.js` 其次（页面报错回传，后面的组件出错也抓得到）；`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
+app_include_js = [versioned_asset("pearnly_core", "desk/messages.js"), versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/keyboard.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/field-help.js"), versioned_asset("pearnly_core", "desk/actions.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]
 # 产品站点的网站页（`templates/web.html`：改密码页等）也挂手机键盘处理，与 Desk 同一份（`desk/keyboard.js`，只在触屏且键盘弹起时动作）。
 web_include_js = [versioned_asset("pearnly_core", "desk/keyboard.js")]
 
