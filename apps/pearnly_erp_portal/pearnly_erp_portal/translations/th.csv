@@ -1609,6 +1609,7 @@ This browser cannot scan with the camera,เบราว์เซอร์นี
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง กรุณาใช้เครื่องสแกนหรือพิมพ์รหัสเอง
 This card expires in {0} minutes,การ์ดนี้หมดอายุใน {0} นาที
 This card has expired. Please upload the document again.,การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่
+This card has expired. Use the latest card in LINE.,การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE
 This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
 This category already exists,มีหมวดหมู่นี้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
@@ -1649,6 +1650,7 @@ This invoice is no longer open,ใบแจ้งหนี้นี้ชำร�
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,เอกสารนี้เป็นใบลดหนี้ ยังไม่รองรับการบันทึกเป็นเอกสารซื้อ
 This is not a product barcode,นี่ไม่ใช่บาร์โค้ดสินค้า
 This is not a purchase or sales document,ไฟล์นี้ไม่ใช่เอกสารซื้อหรือขาย
+This item has expired. Please start again.,รายการนี้หมดอายุแล้ว กรุณาเริ่มใหม่อีกครั้ง
 This item is also stocked at:,สินค้านี้มีอยู่ที่อื่นด้วย:
 This item is not a stock item in Express. Choose another item,สินค้านี้ไม่ใช่สินค้าคงคลังใน Express กรุณาเลือกสินค้าอื่น
 This item is not on the original cash sale,ไม่มีสินค้านี้ในใบขายเงินสดต้นฉบับ
@@ -1801,6 +1803,7 @@ Value Change,มูลค่าที่เปลี่ยนแปลง
 Vehicle,รถยนต์
 Vehicles,รถยนต์
 View,มุมมอง
+View result,ดูผลลัพธ์
 Viewed a collection,ดูรายการรับชำระแล้ว
 Viewed a document,ดูเอกสารแล้ว
 Viewed a stock count,ดูผลการตรวจนับสต็อกแล้ว

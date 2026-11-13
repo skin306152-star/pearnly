@@ -1609,6 +1609,7 @@ This browser cannot scan with the camera,This browser cannot scan with the camer
 This browser cannot scan with the camera; use a scanner or type the code,This browser cannot scan with the camera; use a scanner or type the code
 This card expires in {0} minutes,This card expires in {0} minutes
 This card has expired. Please upload the document again.,This card has expired. Please upload the document again.
+This card has expired. Use the latest card in LINE.,This card has expired. Use the latest card in LINE.
 This card is no longer valid,This card is no longer valid
 This category already exists,This category already exists
 This channel is not open yet,This channel is not open yet
@@ -1649,6 +1650,7 @@ This invoice is no longer open,This invoice is no longer open
 This is a credit note. Credit notes cannot be recorded as a purchase yet.,This is a credit note. Credit notes cannot be recorded as a purchase yet.
 This is not a product barcode,This is not a product barcode
 This is not a purchase or sales document,This is not a purchase or sales document
+This item has expired. Please start again.,This item has expired. Please start again.
 This item is also stocked at:,This item is also stocked at:
 This item is not a stock item in Express. Choose another item,This item is not a stock item in Express. Choose another item
 This item is not on the original cash sale,This item is not on the original cash sale
@@ -1801,6 +1803,7 @@ Value Change,Value Change
 Vehicle,Vehicle
 Vehicles,Vehicles
 View,View
+View result,View result
 Viewed a collection,Viewed a collection
 Viewed a document,Viewed a document
 Viewed a stock count,Viewed a stock count
