@@ -36,3 +36,14 @@
 3. 记住的选择按（连接，账套）存：同一本经另一处写入时读不到，要按身份读（`push/choices.py`）。
 4. 受影响流程、候选检查、共用件实测；两台测试机真机（排在四格复测之后）。
 5. 已知缺口登记：无税号公司身份 `name:express:{连接}:{名称键}` 仍跟连接分家（本支不改）。
+
+## 接缝约定：账套题改由引导卡承担（A 线 × 引导式第 1 期，11-13 对过）
+
+A 线是这条接缝的负责人；引导式窗口（local_401d0285，分支 `pearnly/cc-guided-phase1`）同意以下各条，第 3 批实现引导卡入口 `pearnly_guide` 时照做：
+
+1. **题目来源**：共用层 `pearnly_core.assistant.ledger` 的「这段对话可选几本」（`options_of` / `offered`，与 `pearnly_conversation_ledger` 同一份候选），引导卡不另算候选。
+2. **选项编号**：本对话账套编号——ERP 是 `book_key`；Cowork 自本支起也是与电脑无关的 `book_key`（`identity.book_id`），11-12 以前的「连接|键」由 `ledger.canonical` 读时映射。
+3. **答案写入**：只经 `ledger.choose` 存进会话 `project_ledger`，引导卡不另存；`write_precheck/guide.py` 把 account_set / current_book 归「做不做」类（不预选、不标推荐，只认人明选）。
+4. **出不出**：本对话账套已定（新建页选了、右栏改了、答过一次）就不出账套题、不再问；未定才出一次。同期两份那种 current_book 题并进这一题，不单独问。
+5. **之后**：写入闸（`write_scope`）、写入计划（`write_plan` 记的 `ledger`）只认会话的 `project_ledger`。
+6. **跨边测试（第 3 批落地时必须带上）**：引导卡答的账套 = 会话 `project_ledger` = 写入计划 `ledger` = 推送 / 写账作业落点；已定时引导卡不出账套题。引导卡入口还不存在，这条测试由实现 `pearnly_guide` 的窗口在同一提交里加；现有的单边测试是 `test_cc_conversation_ledger`（`ledger.choose` 只认最近一张卡上选的）与 `test_write_plan`（计划记账套、变了判 `ledger_changed`）。
