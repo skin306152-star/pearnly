@@ -552,9 +552,9 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:erp:postback:col"
-where = "LINE 录收款各步的按钮（a=col&s=…：选公司 / 客户 / 勾发票 / 方式 / 金额 / 再加一种方式 / 折扣 / 下次再收 / 确认 / 撤回 / 取消；「เมนู」里的收款）"
+where = "LINE 录收款各步的按钮（a=col&s=…：选公司 / 客户 / 勾发票 / 方式 / 金额 / 再加一种方式 / 折扣 / 下次再收 / 确认 / 撤回 / 取消 / 查看结果；「เมนู」里的收款）；确认、撤回带一次性确认号，取消只认最新那条消息"
 parts = ["line", "line-session"]
-tests = ["unit:tests/test_erp_collection_line.py::test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card", "unit:tests/test_erp_collection_line.py::test_cash_plus_transfer_with_a_voucher_and_a_discount", "unit:tests/test_erp_collection_line.py::test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent", "unit:tests/test_erp_collection_line.py::test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_collection_events_go_to_the_collection_flow_before_other_typed_words", "flow:erp.line.collection"]
+tests = ["unit:tests/test_erp_collection_line.py::test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card", "unit:tests/test_erp_collection_line.py::test_cash_plus_transfer_with_a_voucher_and_a_discount", "unit:tests/test_erp_collection_line.py::test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent", "unit:tests/test_erp_collection_line.py::test_a_forged_button_on_someone_else_s_collection_is_refused_by_the_server", "unit:tests/test_erp_collection_line.py::test_an_old_card_cannot_write_again_after_a_new_collection_was_started", "unit:tests/test_erp_collection_line.py::test_tapping_confirm_twice_writes_once_and_the_second_tap_gets_no_reply", "unit:tests/test_erp_collection_line.py::test_cancel_only_from_the_current_step_and_it_discards_the_draft", "unit:tests/test_erp_collection_line.py::test_written_after_the_wait_is_not_pushed_and_is_told_by_reply", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_collection_events_go_to_the_collection_flow_before_other_typed_words", "flow:erp.line.collection"]
 
 [[row]]
 id = "erp.line.collection-edit"
