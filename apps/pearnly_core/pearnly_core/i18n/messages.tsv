@@ -1100,3 +1100,6 @@ Not written this time	本次不写入	ครั้งนี้ไม่บัน
 Not written this time	本次不写入	ครั้งนี้ไม่บันทึก	今回は書き込まない	guide.desc.document_policy.skip
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.party.__new__
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.item.__new__
+{count} documents are {label}	{count} 张票面是{label}	เอกสาร {count} ใบเป็น{label}	{count} 件の書類は{label}	guide.q.business_mismatch
+Write as on the document	按票面写入	บันทึกตามเอกสาร	書類どおりに書き込む	guide.option.business.follow
+Skip	不写入	ไม่บันทึก	書き込まない	guide.option.business.skip

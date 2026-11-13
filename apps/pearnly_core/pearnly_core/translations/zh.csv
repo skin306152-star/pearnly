@@ -968,6 +968,7 @@ Work Scope,工作范围
 Work together,工作协作
 Worker currently processing this row.,当前处理该记录的执行者。
 Workspace,工作区
+Write as on the document,按票面写入
 Writing Key,写入中的账套
 Written At,写入时间
 Written By,写入的电脑
@@ -1101,6 +1102,8 @@ guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建
 guide.desc.payment.cash,记为现购 / 现销
 guide.desc.payment.credit,记为赊购 / 赊销
+guide.option.business.follow,按票面写入
+guide.option.business.skip,不写入
 guide.option.detail.amount_only,只记金额
 guide.option.detail.skip,不写入
 guide.option.direction.expense,费用
@@ -1120,6 +1123,7 @@ guide.option.vat.claim,抵扣
 guide.option.vat.expense,记入费用
 guide.q.account,科目
 guide.q.account_set,账套
+guide.q.business_mismatch,{count} 张票面是{label}
 guide.q.cash_account,收付款科目
 guide.q.cost_basis,出库成本
 guide.q.current_book,账套
@@ -1564,3 +1568,4 @@ username / password are required,username / password 必填
 {0}: missing field {1},{0}：缺少字段 {1}
 "{0}: the manifest requires {1}, but this site does not have it",{0}：清单要求安装 {1}，但本站点未安装
 {0}: {1} cannot be empty,{0}：{1} 不能为空
+{count} documents are {label},{count} 张票面是{label}
