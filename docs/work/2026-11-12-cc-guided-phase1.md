@@ -184,3 +184,14 @@ A 类 14 条在哪一批落地：
 - **销项服务品口径带键**：`apply_to_payload` 销项也带 `srv_vattyp`（只在引导卡答过 / 记过时有值）；`finalize_payload` 销项单带 `2` 盖 21，`1` 不盖；
   `srv_vattyp` 不进 `GUIDED_KEYS`（进货单早就带它）。有意变化：`tests/test_express_service_vat.py` 原来钉「销项载荷从不带口径」，按新口径改成「选了才带」。
   CC 桌面版侧已按载荷 `2` 写收付实现（`dbf_sales.py`，未到期销项税科目不能记账时整单不写转人工）。
+
+## 第 2 批下半（部分）：两产品接上引导开关
+
+- 共用开关 `pearnly_core.assistant.guided.active()`：这次调用在 CC 对话的工具调用里（`frappe.local.pearnly_assistant` 带对话号）就是引导模式。
+  判定与写入两次都在 CC 对话里发生，所以同一个判断两边一致；LINE、网页待处理、定时、自动推不在 CC 对话里，行为不变。没有请求上下文（离线替身）按不在。
+- Cowork：推送评估 `push/application/service._decisions` → `push/express/decide.decide(guided=)` → `choices.resolve`；ERP：`express/prepare.py` 同样传。
+- A7 明细对账状态：调用方不给时规则按映射器的对账闸（`common.extract_line_items`）自己算。
+- 测试：`test_express_rules_guided.py` 加「Cowork decide 透传」「两产品读同一开关」「状态自算」三条。透传两条是实现后补写的，没有先红过（如实记）。
+- 还没做：A4（Cowork 指纹未知出「走库存 / 记费用」题）、A8 `new_party`、A10 `new_item`——要主档读回的类型 / 分类众数，留到第 3 批之后。
+- 影响：CC 对话里的预检与写入从此按引导口径——在 `pearnly_guide` 入口（第 3 批）落地前，CC 仍用旧的 `pearnly_precheck` + `ask_user`，会多出几类题（明细、现销赊销、收入科目等）。
+  所以本分支要等第 3 批一起合入，不能单独合。
