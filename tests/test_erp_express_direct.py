@@ -1081,6 +1081,60 @@ class UnitRemarks(PushModule):
                          [["S/N 352948094653751"], ["เลขตัวถัง MP1TFR41JTG032993", "เลขเครื่อง FUK575 สี ELG"], None])
 
 
+class PurchaseSalesVoid(PushModule):
+    """采购单 / 销售单放行排队后在 ERP 作废（主会话 11-13 查出：线上会把作废单照入队时冻结的载荷写进 Express、ERP 还记「已写入」；
+    「修改」作废原单时原单和新单两张都写）：作废时撤掉排队中 / 转人工的写账件、清账本栏；电脑已领走撤不了的，写完回执到了不记成
+    干净的「已写入」，转人工、原因写明「作废后写进了 Express」（采购、销售没有 Express 原生作废载荷，要人在 Express 里处理）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.cancelled = []
+
+    def queued(self, doctype, status="submitted", job_status="queued"):
+        table = fake.STATE.db.table(doctype)
+        table["D-1"] = {"name": "D-1", "creation": "2026-10-25 10:00:00", "owner": "a@x", "status": status,
+                        "ledger_state": "queued", "ledger_docnum": "", "ledger_job": "J1", "ledger_reason": ""}
+        self.job_status = job_status
+        return table
+
+    def run_void(self, doctype):
+        from unittest import mock
+        with mock.patch.object(self.push.jobs, "find_by_name", lambda name: {"job": name, "status": self.job_status}), \
+                mock.patch.object(self.push.jobs, "cancel", lambda name, reason: self.cancelled.append((name, reason))):
+            self.push.void(doctype, "D-1")
+
+    def test_voiding_a_queued_purchase_or_sales_document_cancels_its_write(self):
+        for doctype in ("Purchase Document", "ERP Sales Document"):
+            self.cancelled.clear()
+            table = self.queued(doctype, status="void")
+            self.run_void(doctype)
+            self.assertEqual(self.cancelled, [("J1", "voided")], doctype)
+            self.assertEqual((table["D-1"]["ledger_state"], table["D-1"]["ledger_job"]), (None, None), doctype)
+
+    def test_a_job_already_taken_is_left_and_its_receipt_is_not_a_clean_write(self):
+        from unittest import mock
+        table = self.queued("Purchase Document", status="void", job_status="leased")
+        self.run_void("Purchase Document")
+        self.assertEqual(self.cancelled, [])  # 电脑正在写：撤不了
+        self.assertEqual(table["D-1"]["ledger_job"], "J1")
+        with mock.patch.object(self.push, "company_of", lambda doctype, name: ""):
+            self.push.job_changed({"source_doctype": "Purchase Document", "source_name": "D-1", "status": "success",
+                                   "job": "J1", "docnum": "HP691025-001"})
+        self.assertEqual(table["D-1"]["ledger_state"], "held")
+        self.assertEqual(table["D-1"]["ledger_reason"], self.push.contracts.VOIDED_AFTER_WRITE)
+        self.assertEqual(table["D-1"]["ledger_docnum"], "HP691025-001")  # 单号如实留着，人去 Express 里处理
+
+    def test_the_web_void_and_amend_paths_call_it(self):
+        import pathlib
+        root = pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal/pearnly_erp_portal"
+        purchase = (root / "purchasing/entry.py").read_text(encoding="utf-8")
+        sales = (root / "sales/entry.py").read_text(encoding="utf-8")
+        cancel = purchase[purchase.index("def _cancel("):purchase.index("def cancel(")]
+        self.assertIn('express_push.void("Purchase Document"', cancel)  # 「修改」作废原单也走 _cancel
+        sales_cancel = sales[sales.index("def cancel("):sales.index("def payment(")]
+        self.assertIn('express_push.void("ERP Sales Document"', sales_cancel)
+
+
 class StockVoid(PushModule):
     """B 段 ①：已写进 Express 的出入库单在 ERP 作废 → 排一件作废原单；回执记在作废栏上，写入时的单号和状态不动。"""
 
