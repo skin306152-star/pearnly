@@ -747,6 +747,13 @@ class AccountLabels(Base):
         self.assertNotIn("TR", [parse_qs(item["data"]).get("v", [""])[0] for item in self.buttons()])
         self.pick("SCB/SA ·6789")
         self.assertIn("Enter the amount for SCB/SA ·6789", self.last_text())
+        self.type("1000")
+        flow.receive_voucher("U1", "a@x", {"type": "image", "id": "M1"}, "r-img")
+        _path, kwargs = self.enqueued[-1]
+        flow.store_voucher(**{key: value for key, value in kwargs.items() if key not in ("queue", "enqueue_after_commit")})
+        card = json.dumps(self.last(), ensure_ascii=False)
+        self.assertIn("SCB/SA ·6789", card)  # 确认卡上的方式行同一个名字（11-13 真机：卡上仍是方式名）
+        self.assertNotIn("เงินโอนเข้าบัญชี SCB/กระแส", card)
 
     def test_the_edit_dialog_still_lists_every_method(self):
         frappe.session.user = "a@x"
@@ -923,7 +930,12 @@ class VoucherLanguage(Base):
             setattr(frappe.session, "user", user), setattr(frappe.local, "lang", "th")))
         with worker:  # 后台任务：换身份时语言回到站点语言
             frappe.local.lang = "th"
-            flow.store_voucher(**kwargs)
+            if getattr(self, "job_user", None):  # 后台任务的 job（排任务时的会话用户，这一任务里还没定过语言）
+                frappe.local.job = types.SimpleNamespace(user=self.job_user, lang_resolved=False)
+            try:
+                flow.store_voucher(**kwargs)
+            finally:
+                frappe.local.__dict__.pop("job", None)
         texts = json.dumps(self.last(), ensure_ascii=False)
         self.assertIn("[zh]", texts)
         self.assertNotIn("[th]", texts)
@@ -933,6 +945,23 @@ class VoucherLanguage(Base):
 
     def test_without_a_language_it_asks_line_not_the_site_default(self):
         self.run_voucher("")
+
+    def test_the_first_translation_in_a_job_does_not_reset_the_language(self):
+        # 11-13 真机取证（共享笔记「收款-凭证后语言-取证-11-13」）：锁定版 Frappe 的 `_()` 在后台任务里第一次调用时按排任务的会话用户
+        # （webhook 是 Guest → 站点语言泰文）重设 local.lang，盖掉我们设的语言。这里照它的行为模拟
+        def frappe_like(text, *a, **k):
+            job = getattr(frappe.local, "job", None)
+            if job is not None and not job.lang_resolved:
+                frappe.local.lang = "th"
+                job.lang_resolved = True
+            return f"[{frappe.local.lang}]{text}"
+
+        for module in (flow, cards):
+            patcher = mock.patch.object(module, "_", frappe_like)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.job_user = "Guest"
+        self.run_voucher("zh")
 
 
 class RichMenu(unittest.TestCase):

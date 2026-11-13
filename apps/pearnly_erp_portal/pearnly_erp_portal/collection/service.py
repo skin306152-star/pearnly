@@ -531,6 +531,7 @@ def card(name) -> dict:
     doc = _own(name)
     view = _view(doc)
     view.update(ready=False, problem="")
+    _label_methods(doc, view)
     if doc.status == contracts.DRAFT:
         try:
             book = {"key": doc.book_key, **_book_row(doc)}
@@ -539,6 +540,18 @@ def card(name) -> dict:
         except contracts.CollectionError as error:
             view.update(problem=error.code, detail=error.detail)
     return view
+
+
+def _label_methods(doc, view):
+    """确认卡上各转账方式写成选它时看到的名字（银行简称 + 账号末 4 位，`contracts.account_label`）；主档读不到的照旧方式名。"""
+    data = facts.load(doc.book_key) or {}
+    if not isinstance(data.get("receipt_types"), list):
+        return
+    found = contracts.catalog(data["receipt_types"], data.get("cash_account") or "")
+    labels = {item["prefix"]: contracts.account_label(item) for item in found["transfers"]}
+    for row in view.get("methods") or []:
+        if row.get("role") == contracts.TRANSFER and labels.get(row["prefix"]):
+            row["label"] = labels[row["prefix"]]
 
 
 def release(name, version, consent) -> dict:

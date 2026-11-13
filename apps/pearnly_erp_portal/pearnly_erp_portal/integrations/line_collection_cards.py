@@ -88,7 +88,7 @@ def confirm(card, edit_url="", nonce="") -> dict:
     if float(card.get("cash") or 0):
         rows.append(_kv(_("Cash"), _money(card["cash"])))
     for row in card.get("methods") or []:
-        rows.append(_kv(row.get("name") or row["prefix"], _money(row["amount"])))
+        rows.append(_kv(row.get("label") or row.get("name") or row["prefix"], _money(row["amount"])))
     rows.append(_kv(_("Total"), _money(card.get("total")), accent=ACCENT))
     buttons = []
     if card.get("ready"):

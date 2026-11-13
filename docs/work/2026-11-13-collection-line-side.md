@@ -15,7 +15,7 @@
 | 6 | 收款方式按钮经 `choice_labels`（原来 NLTTEST 的「เงินโอนเข้าบัญชี SCB/ออมทรัพย์」「…SCB/กระแส」截完一样），消息里列全名。其余 LINE 用长名做按钮的：公司 / 账套 / 客户 / ERP line_flow 已在上一批改；`line_items` 选仓库照旧保留（要付费识别的真机证据） | `test_each_step_is_asked_in_order…`、`test_line_choice_labels.CallSites` |
 | 7 | 后台任务（存凭证、等结果、失败推送）的回复语言统一经 `speaking()`：在换身份之后设；没带语言时按 LINE 现取（不是后台任务默认的站点语言泰文）；存完原件后再设一次 | `VoucherLanguage.*` |
 
-第 7 条根因没在真机钉死（webhook 那一刻的语言值没有现场记录）；离线覆盖了两种会让它变泰文的情况（没带语言 → 站点默认；换身份 / 存原件时语言被改回）。真机复测见下。
+第 7 条根因 11-13 下午真机钉死（共享笔记「收款-凭证后语言-取证-11-13/」，收款真机与 CC 侧接手窗口）：锁定版 Frappe 的 `_()` 在后台任务里第一次调用时按 `frappe.local.job.user` 定语言，webhook 排的任务是 Guest → 站点语言泰文，盖掉了设好的 zh。第四个提交里 `speaking()` 设语言时同时置 `job.lang_resolved`，测试 `test_the_first_translation_in_a_job_does_not_reset_the_language` 照这个行为模拟（旧代码红）。同一提交：确认卡上的转账方式行也用户头标签。
 
 ## 今晚之后那批里先做的两条（第二个提交）
 
