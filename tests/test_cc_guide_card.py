@@ -107,6 +107,13 @@ assert.deepEqual(guideAnswersOf(card, { answers: [
   { header: "", question: "", labels: ["CASH"] }, { header: "", question: "", labels: [], skipped: true }] }), [{ key: "k-pay", value: "cash" }]);
 assert.deepEqual(guideAnswersOf({ ...card, questions: [{ ...card.questions[0], free: true }] },
   { answers: [{ header: "", question: "", labels: [], other: "12.50" }] }), [{ key: "k-pay", value: "12.50" }]);
+// 大列表题：带 search 的题按公司与第一张单去服务端搜，出「其他」；搜出来选的交编码，不交显示的字；没给公司照旧不出「其他」
+const big = { ...card, questions: [{ ...card.questions[0], search: "accounts", docs: ["D1", "D2"] }] };
+assert.deepEqual(askQuestionsOf(big, "C1")[0].search, { company: "C1", doc_id: "D1", kind: "accounts" });
+assert.equal(askQuestionsOf(big, "C1")[0].noOther, undefined);
+assert.equal(askQuestionsOf(big)[0].noOther, true);
+assert.deepEqual(guideAnswersOf(big, { answers: [{ header: "", question: "", labels: [], other: "5100 Sales", code: "5100" }] }),
+  [{ key: "k-pay", value: "5100" }]);
 // 答完 / 没答就没了
 assert.ok(html({ phase: "answered", answered: 2 }).includes(guide.answered(2)));
 assert.ok(html({ phase: "cancelled" }).includes(steps.cancelled));
