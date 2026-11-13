@@ -413,7 +413,7 @@ jobs:
       - name: CC Express operator frontend (prepare, run, report) on a mock source in three languages, reason codes identical to CC Desktop
         run: python3 tests/test_cc_operator.py
       - name: CC question card (ask_user, like the Claude Code question card) pages one question at a time with a recommended option preselected, Other with server search, skip and submit, and the answers it hands back
-        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py
+        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)

@@ -152,5 +152,19 @@ class ModeGapsHonest(unittest.TestCase):
                     self.assertIsNotNone(rf.row(key, field), f"{mode} {key}.{field}")
 
 
+class OpenGapsHonest(unittest.TestCase):
+    """A8 / A10（主会话 11-13）：服务端没有出 new_party / new_item 题的代码之前，这几格必须登记在 OPEN_GAPS，不算覆盖；出题器落地后删缺口、改这条。"""
+
+    def test_new_party_and_new_item_are_open_until_a_source_asks_them(self):
+        sources = [ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+                   ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+                   ROOT / "apps/pearnly_core/pearnly_core/express_rules/push/choices.py"]
+        asked = {kind for kind in ("new_party", "new_item")
+                 if any(f'"kind": "{kind}"' in p.read_text(encoding="utf-8") for p in sources)}
+        self.assertEqual(asked, set(), "出题器已落地：删 OPEN_GAPS 里对应几格并改这条测试")
+        self.assertLessEqual({"SUPTYP", "ACCNUM"}, set(rf.OPEN_GAPS["express:APMAS"]["fields"]))
+        self.assertLessEqual({"QUCOD", "ACCCOD", "STKGRP"}, set(rf.OPEN_GAPS["express:STMAS"]["fields"]))
+
+
 if __name__ == "__main__":
     unittest.main()
