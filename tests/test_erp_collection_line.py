@@ -653,7 +653,10 @@ class BookStep(Base, T.TwoBooks):
         self.assertIn("1. TEST · " + T.TEST26["path"], self.last_text())  # 同名两本：名称 + 位置
         labels = [item["label"] for item in self.buttons()]
         self.assertEqual((len(labels), labels[-1]), (3, "Cancel"))
+        # 同目录名同年度（副本与真账）：按钮上显示位置里不同的那段，序号后面互不相同（11-13 真机：截到 20 字后两个一样）
         self.assertTrue(labels[0].startswith("1. ") and labels[1].startswith("2. "))
+        self.assertNotEqual(labels[0][3:], labels[1][3:])
+        self.assertTrue(all(len(label) <= 20 for label in labels))
         self.tap(self.buttons()[1]["data"])
         self.assertEqual(self.step(), "customer")
         self.type(C1)
@@ -670,6 +673,13 @@ class BookStep(Base, T.TwoBooks):
         self.assertIn("This option is no longer current", self.last_text())
         self.type("TEST")
         self.assertEqual(self.step(), "book")  # 打字不算选
+
+
+class BookButtons(Base, T.TwoBooks):
+    def test_books_in_different_folders_show_the_folder_name(self):
+        self.books = [T.TEST26, dict(T.TEST26, key="e" * 40, path=r"\\Accserver\d$\ACCOUNT\69EXP\TEST2", label="TEST")]
+        self.tap("a=col&s=start")
+        self.assertEqual([item["label"] for item in self.buttons()], ["1. TEST", "2. TEST2", "Cancel"])
 
 
 if __name__ == "__main__":

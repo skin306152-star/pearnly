@@ -100,7 +100,8 @@ def book_for(company_row, day):
 
 
 def book_options(company, day=None) -> dict | None:
-    """网页 / LINE 开始一笔收款前：这家公司这一天的账套定得下来回 None；同期两份、没选过回 ``{"options": [{code, name}]}``，
+    """网页 / LINE 开始一笔收款前：这家公司这一天的账套定得下来回 None；同期两份、没选过回 ``{"options": [{code, name, short}]}``
+    （``short``：按钮上的短名，见 :func:`_with_short`），
     让收款员选一次（:func:`choose_book`）。其余停下的原因（没有账套、没有税号）照抛。"""
     guard.require(WRITE)
     row = _company(company)
@@ -108,9 +109,32 @@ def book_options(company, day=None) -> dict | None:
         book_for(row, day or nowdate())
     except contracts.CollectionError as error:
         if error.code == express_contracts.SEVERAL_BOOKS:
-            return {"options": error.detail["options"]}
+            return {"options": _with_short(row, error.detail["options"])}
         raise
     return None
+
+
+def _with_short(company_row, options) -> list:
+    """可选的几本各带一个短名（按钮上用）：账套目录名（「TEST2」「TEST」）；目录名撞了再带会计年度；还撞用全名。"""
+    from pearnly_core.cc_desktop import books
+
+    tax = express_contracts.tax13(company_row.get("tax_id"))
+    known = {item["key"]: item for item in (books.for_company(tax, company_row.get("branch")) if tax else [])}
+    out = []
+    for option in options:
+        item = known.get(option["code"]) or {}
+        path = str(item.get("path") or "").rstrip("\\/")
+        out.append({**option, "short": path.replace("/", "\\").rsplit("\\", 1)[-1] or option["name"],
+                    "year": str(item.get("period_start") or "")[:4]})
+    dup = {row["short"] for row in out if [r["short"] for r in out].count(row["short"]) > 1}
+    for row in out:
+        if row["short"] in dup and row["year"]:
+            row["short"] = f"{row['short']} {row['year']}"
+    shorts = [row["short"] for row in out]
+    for row in out:
+        if shorts.count(row["short"]) > 1:
+            row["short"] = row["name"]  # 同目录名同年度（副本与真账）：用全名（名称 · 位置），按钮上由 `line_ui.labels` 取不同的那段
+    return [{key: value for key, value in row.items() if key != "year"} for row in out]
 
 
 def choose_book(company, key, day=None) -> dict:
