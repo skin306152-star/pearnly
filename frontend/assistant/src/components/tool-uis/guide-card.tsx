@@ -5,36 +5,19 @@
 // 交回：[{key, value}]（跳过的题不交；已定项只交改过的），随「允许」交给服务端（sessions.confirm → toolrun.decide → guide_tool）。
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { type FC, type FormEvent, type KeyboardEvent, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronDownIcon, ChevronRightIcon } from "lucide-react";
+import { type FC, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Shortcut } from "@/components/shortcut";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
-import {
-  Questionnaire,
-  QuestionnaireActions,
-  QuestionnaireChoice,
-  QuestionnaireChoiceDescription,
-  QuestionnaireChoices,
-  QuestionnaireDescription,
-  QuestionnaireInput,
-  QuestionnaireItem,
-  QuestionnaireNext,
-  QuestionnairePrevious,
-  QuestionnaireProgress,
-  QuestionnaireSkip,
-  QuestionnaireSubmit,
-  QuestionnaireTitle,
-} from "@/components/ui/questionnaire";
-import { ask, guide, steps } from "@/i18n";
+import { guide, steps } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught } from "@/lib/caught";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
-import { askPhase } from "./ask-card";
+import { AskCard, askPhase } from "./ask-card";
+import type { AskQuestion, AskResult } from "./ask-shared";
 import { useSessionId } from "./operator-card";
 
 export { GUIDE_TOOL } from "./guide-shared";
@@ -94,7 +77,12 @@ function answeredCount(result: unknown): { status: string; answered: number } | 
   }
 }
 
-const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean }> = ({ items, disabled, open }) => {
+const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean; onChange?: (key: string, value: string) => void }> = ({
+  items,
+  disabled,
+  open,
+  onChange,
+}) => {
   const [shown, setShown] = useState(!!open);
   if (!items.length) return null;
   return (
@@ -111,7 +99,8 @@ const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean }> 
             <ItemContent>
               <ItemTitle>{item.title || item.label}</ItemTitle>
               {item.options?.length ? (
-                <NativeSelect name={`decided:${item.key}`} defaultValue={item.value} disabled={disabled} aria-label={item.title || item.label}>
+                <NativeSelect defaultValue={item.value} disabled={disabled} aria-label={item.title || item.label}
+                  onChange={(event) => onChange?.(item.key, event.currentTarget.value)}>
                   {item.options.map((option) => (
                     <NativeSelectOption key={option.code} value={option.code}>
                       {optionText(option)}
@@ -130,11 +119,44 @@ const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean }> 
   );
 };
 
-/** 卡片本体（页面与展示页共用），版式照 Claude 的提问卡（用户 11-13 定）：每题卡头左边题目、右边翻页器「‹ 第 n 项，共 m 项 ›」（首末项箭头变淡）；
- *  选项是通栏的行、行间细分隔线，左边单选圆点，右边选项名（推荐项后面「推荐」标记）+ 一行灰色说明（推荐来由 / 选项是什么，服务端给）；
- *  允许自己填的题末尾一行「其他」；「已定 n 项」在选项下、按钮上；右下「跳过」+「下一步」（最后一项「提交」），电脑带快捷键。
- *  全用 components/ui/questionnaire 的部件，外观是它的卡片外观（globals.css 标准组件库块 .cc-ui-questionnaire-card）。
- *  phase answered 只剩一行「已答 n 项」；cancelled 写「已取消」。 */
+/** 服务端的卡 → 提问卡的题（同一个组件 AskCard，用户 11-13：两张卡必须同一种版式）。推荐项标 recommended（徽章、默认选中，只有「怎么录」的题）；
+ *  说明行是服务端给的；「其他」只在服务端标了 free 的题出；题目下一行写这一题管哪家几张。 */
+export function askQuestionsOf(card: GuideCardData): AskQuestion[] {
+  return card.questions.map((question) => {
+    const label = question.title_params?.label ?? "";
+    const preselect = preselectOf(question);
+    const options = (question.options ?? []).map((option) => ({
+      label: optionText(option),
+      value: option.code,
+      ...(option.note ? { description: option.note } : {}),
+      ...(option.code === preselect ? { recommended: true } : {}),
+    }));
+    // 推荐项排第一（AskCard 按第一个是不是推荐项定默认选中）
+    options.sort((a, b) => Number(!!b.recommended) - Number(!!a.recommended));
+    return {
+      question: question.title || label,
+      header: question.title || label,
+      options,
+      ...(question.title && label ? { subtitle: (question.count ?? 1) > 1 ? guide.documents(label, question.count ?? 1) : label } : {}),
+      ...(question.free ? {} : { noOther: true }),
+    };
+  });
+}
+
+/** 提问卡交回的答（按题序）→ 服务端要的 [{key, value}]：跳过的不交；选项按编码；允许自己填的题「其他」交填的字。 */
+export function guideAnswersOf(card: GuideCardData, result: AskResult): GuideAnswer[] {
+  const out: GuideAnswer[] = [];
+  card.questions.forEach((question, index) => {
+    const answer = result.answers[index];
+    if (!answer || answer.skipped || answer.not_asked) return;
+    const picked = (question.options ?? []).find((option) => answer.labels.includes(optionText(option)));
+    const value = picked?.code ?? (question.free ? (answer.other ?? "").trim() : "");
+    if (value) out.push({ key: question.key, value });
+  });
+  return out;
+}
+
+/** 卡片本体（页面与展示页共用）：就是提问卡 AskCard，加上「已定 n 项」附加区。phase answered 只剩一行；cancelled 写「已取消」。 */
 export const GuideCardBody: FC<{
   card: GuideCardData;
   phase: "ask" | "answered" | "cancelled";
@@ -146,8 +168,8 @@ export const GuideCardBody: FC<{
   startAt?: number;
   onSubmit: (answers: GuideAnswer[]) => void;
 }> = ({ card, phase, answered, busy, decidedOpen, startAt, onSubmit }) => {
-  const skipped = useRef(new Set<string>());
-  const [, rerender] = useState(0);
+  const questions = useMemo(() => askQuestionsOf(card), [card]);
+  const changed = useRef<Record<string, string>>({});
   if (phase !== "ask") {
     return (
       <div data-slot="cc-guide-card" data-phase={phase} className="cc-steps-card cc-ui-questionnaire-card">
@@ -155,107 +177,24 @@ export const GuideCardBody: FC<{
       </div>
     );
   }
-  const submit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const values: Record<string, string> = {};
-    const form = new FormData(event.currentTarget);
-    for (const question of card.questions) {
-      const all = form.getAll(question.key).map(String);
-      const codes = new Set((question.options ?? []).map((o) => o.code));
-      // 允许自己填的题：「其他」里填了字就用填的，没填用选中的选项
-      const typed = question.free ? all.find((v) => !codes.has(v) && v.trim()) : undefined;
-      values[question.key] = typed?.trim() || all.find((v) => codes.has(v)) || "";
-    }
-    form.forEach((value, name) => {
-      if (name.startsWith("decided:")) values[name] = String(value);
-    });
-    onSubmit(answersFrom(card, values, skipped.current));
+  const submit = (result: AskResult) => {
+    const decided = card.decided
+      .filter((item) => changed.current[item.key] && changed.current[item.key] !== item.value)
+      .map((item) => ({ key: item.key, value: changed.current[item.key]! }));
+    onSubmit([...guideAnswersOf(card, result), ...decided]);
   };
-  const paged = card.questions.length > 1;
-  const first = card.questions[Math.min(Math.max(startAt ?? 0, 0), card.questions.length - 1)]?.key;
   return (
-    <div
-      data-slot="cc-guide-card"
-      data-phase={phase}
-      className="cc-steps-card cc-ui-questionnaire-card"
-      onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
-        // ⌘ / Ctrl + 回车 = 此刻的主按钮（下一步 / 提交），同旧提问卡
-        if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey) || busy) return;
-        event.preventDefault();
-        const actions = event.currentTarget.querySelector('[data-slot="questionnaire-actions"]');
-        const main = [...(actions?.querySelectorAll<HTMLButtonElement>('[data-slot="questionnaire-submit"], [data-slot="questionnaire-next"]') ?? [])]
-          .find((button) => !button.hasAttribute("data-hidden") && !button.hidden);
-        main?.click();
-      }}
-    >
-      <Questionnaire onSubmit={submit} aria-busy={busy || undefined} defaultItem={first}>
-        {card.questions.map((question, index) => (
-          <QuestionnaireItem
-            key={question.key}
-            name={question.key}
-            onStatusChange={(status) => {
-              if (status === "skipped") skipped.current.add(question.key);
-              else skipped.current.delete(question.key);
-              rerender((n) => n + 1);
-            }}
-          >
-            <QuestionnaireTitle>{question.title || question.title_params?.label}</QuestionnaireTitle>
-            {paged ? (
-              <div className="cc-ui-questionnaire-pager">
-                {/* 首项没有上一项、末项没有下一项：部件此时不画按钮，这里放同样的按钮的禁用态（箭头变淡不消失，同 Claude） */}
-                {index === 0 ? (
-                  <Button type="button" variant="ghost" size="icon-xs" disabled aria-label={ask.prev}>
-                    <ChevronLeftIcon />
-                  </Button>
-                ) : (
-                  <QuestionnairePrevious variant="ghost" size="icon-xs" aria-label={ask.prev}>
-                    <ChevronLeftIcon />
-                  </QuestionnairePrevious>
-                )}
-                <QuestionnaireProgress />
-                {index === card.questions.length - 1 ? (
-                  <Button type="button" variant="ghost" size="icon-xs" disabled aria-label={ask.after}>
-                    <ChevronRightIcon />
-                  </Button>
-                ) : (
-                  <QuestionnaireNext variant="ghost" size="icon-xs" aria-label={ask.after}>
-                    <ChevronRightIcon />
-                  </QuestionnaireNext>
-                )}
-              </div>
-            ) : null}
-            {question.title && question.title_params?.label ? (
-              <QuestionnaireDescription>
-                {(question.count ?? 1) > 1 ? guide.documents(question.title_params.label, question.count ?? 1) : question.title_params.label}
-              </QuestionnaireDescription>
-            ) : null}
-            <QuestionnaireChoices>
-              {(question.options ?? []).map((option) => (
-                <QuestionnaireChoice key={option.code} value={option.code} defaultChecked={option.code === preselectOf(question)} disabled={busy}>
-                  <span className="flex flex-wrap items-center gap-(--cc-space-8)">
-                    {optionText(option)}
-                    {question.tier === "how" && option.recommended ? <Badge variant="secondary">{guide.recommended}</Badge> : null}
-                  </span>
-                  {option.note ? <QuestionnaireChoiceDescription>{option.note}</QuestionnaireChoiceDescription> : null}
-                </QuestionnaireChoice>
-              ))}
-            </QuestionnaireChoices>
-            {question.free ? <QuestionnaireInput placeholder={ask.other} aria-label={ask.other} /> : null}
-          </QuestionnaireItem>
-        ))}
-        <Decided items={card.decided} disabled={!!busy} open={decidedOpen} />
-        <QuestionnaireActions>
-          <QuestionnaireSkip />
-          <QuestionnaireNext>
-            {ask.next}
-            <Shortcut keys="Ctrl↵" />
-          </QuestionnaireNext>
-          <QuestionnaireSubmit disabled={busy}>
-            {ask.submit}
-            <Shortcut keys="Ctrl↵" />
-          </QuestionnaireSubmit>
-        </QuestionnaireActions>
-      </Questionnaire>
+    <div data-slot="cc-guide-card" data-phase={phase}>
+      <AskCard
+        questions={questions}
+        phase="ask"
+        busy={!!busy}
+        failure=""
+        onSubmit={submit}
+        status={false}
+        startAt={startAt}
+        extra={<Decided items={card.decided} disabled={!!busy} open={decidedOpen} onChange={(key, value) => (changed.current[key] = value)} />}
+      />
     </div>
   );
 };

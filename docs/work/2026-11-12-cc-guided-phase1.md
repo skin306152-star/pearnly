@@ -291,3 +291,19 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 - 闸门修正：`assistant.api.businesses` 登记进无守卫接口清单（只读站点配置）；`test_cc_guide_menu` 接进 CI；`test_cc_run_indicator`、`test_assistant_ui` 两处源码断言按有意变化补上业务菜单与引导卡快捷键；
   `precheck_source.py` 登记为共用件 assistant 的调用方。
 - A 线卡片失效（`pearnly/cc-card-expiry`，还没进集成分支）：进来后引导卡按 `cardPhase` 的 `expired` 分开显示「已失效」（同 operator-card），待接。
+
+## 提问卡与引导卡合成一个组件（主会话 11-13 选 A）
+
+- `tool-uis/ask-card.tsx` 的 `AskCard` 改用问卷部件画（`Questionnaire` / `QuestionnaireItem` / `QuestionnaireTitle` / `QuestionnaireDescription` / `QuestionnaireChoices` /
+  `QuestionnaireChoice` / `QuestionnaireChoiceDescription` / `QuestionnaireActions` + 标准按钮 + `Badge`），外观是问卷部件的卡片外观 `.cc-ui-questionnaire-card`；
+  翻页、带 show_if 的题、多选、「其他」服务端搜索、答完 / 已取消的样子、快捷键都照旧由它管。旧的手写选项行（`OptionRow`）删掉，前端手写控件基线 337 → 328。
+- 推荐：选项名不再带「(推荐)」后缀，改独立「推荐」徽章（用户 11-12 批准的改已有文案第 1 条）；推荐判定认服务端 / 页面标的 `recommended`，也照旧认模型写的后缀，
+  并补上日文「おすすめ」（审计 D-4：以前日文不预选）。
+- 引导卡 `GuideCardBody` 现在就是 `AskCard`（`askQuestionsOf` 把服务端的卡换成提问卡的题：推荐项排第一、说明行、题目下一行写哪家几张、不许自己填的题不出「其他」；
+  `guideAnswersOf` 按选项编码换回 `[{key, value}]`），「已定 n 项」作为卡里的附加区（`extra`）。两张卡同一个组件、同一种版式。
+- 测试：`test_cc_ask.py` 渲染断言改成问卷部件的标记（选中写在行上 `data-checked`、复选框按 `<input type="checkbox">` 数、推荐徽章、主按钮）；`test_cc_guide_card.py` 按一页一题重写
+  并加映射 / 换回的纯函数断言；`test_assistant_ui.py` 快捷键清单回到一处。流程 `cc_ask.py`、`cowork_pending_operator.py` 读选中改读 `data-checked`，`cc_ask` 判定改成「名字不带后缀、带徽章」；
+  `cc_guide.py` 按提问卡结构读题、点主按钮。
+- 截图（触屏模拟重截，手机主按钮不画 ⌘↵）：本目录 `引导卡-电脑-第1项.png`、`引导卡-电脑-最后一项-已定展开.png`、`引导卡-手机-第1项.png`、`引导卡-手机-最后一项-已定展开.png`。
+- **还没验证（如实）**：以上只过了单测与前端检查。共用件 `ask-card` 的四处入口（`ask_user`、代录开始卡、代录中途卡、待处理框）要在回归实验室逐入口实测：
+  流程 `cowork.cc.ask`、`cowork.pending.operator`、`cc.operator`、`cowork.cc.guide`、`cc.send-unblocked`、`cowork.cc.conversation-ledger`（主会话排在 11-14 上午第一个时段）。

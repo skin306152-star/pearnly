@@ -69,31 +69,44 @@ import "cc-test-setup";
 import assert from "node:assert/strict";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
-import { GuideCardBody } from "@/components/tool-uis/guide-card";
+import { GuideCardBody, askQuestionsOf, guideAnswersOf } from "@/components/tool-uis/guide-card";
 import { ask, guide, steps } from "@/i18n";
 """ + CARD + r"""
 const html = (extra: any = {}) =>
   renderToStaticMarkup(createElement(GuideCardBody, { card, phase: "ask", busy: false, onSubmit: () => {}, ...extra }));
+// 同一个提问卡组件（用户 11-13：两张卡同一种版式）：一页一题，卡头题目 + 翻页器，第一项左箭头禁用
 const out = html();
-// 服务端出的题目与选项文字照画；同一家几张单写明张数
-assert.ok(out.includes("PAY-TITLE") && out.includes("DETAIL-TITLE"));
-assert.ok(out.includes("CREDIT") && out.includes("CASH") && out.includes("AMOUNT-ONLY"));
+assert.ok(out.includes('data-slot="cc-askq-question"') && out.includes("PAY-TITLE") && !out.includes("DETAIL-TITLE"));
+assert.ok(out.includes(ask.nth(1, 2)) && out.includes("cc-ui-questionnaire-card"));
+assert.match(out, new RegExp(`<button(?=[^>]*aria-label="${ask.prev}")(?=[^>]*disabled="")`));
+// 题目下一行：这一题管哪家几张；选项名、灰色说明；推荐徽章只一个、推荐项默认选中
 assert.ok(out.includes(guide.documents("ABC", 5)));
-// 「推荐」徽章只有一个（怎么录那一题的推荐项）
+assert.ok(out.includes("CREDIT") && out.includes("CASH") && out.includes("NOTE-CREDIT"));
 assert.equal(out.split(`>${guide.recommended}<`).length - 1, 1);
-// 已定 n 项（展开可改）
+const checked = [...out.matchAll(/<input[^>]* checked=""[^>]*value="([^"]+)"/g)].map((m) => m[1]);
+assert.deepEqual(checked, ["credit"]);
+// 「其他」只在服务端标了 free 的题
+assert.ok(!out.includes('data-slot="cc-askq-other-option"'));
+// 第二题（做不做）：不预选、不带徽章；末项右箭头禁用、主按钮「提交」
+const last = html({ startAt: 1 });
+assert.ok(last.includes("DETAIL-TITLE") && !last.includes(`>${guide.recommended}<`));
+assert.ok(![...last.matchAll(/<input[^>]* checked=""/g)].length);
+assert.match(last, new RegExp(`<button(?=[^>]*aria-label="${ask.after}")(?=[^>]*disabled="")`));
+assert.ok(last.includes(`>${ask.submit}<`));
+// 已定 n 项
 assert.ok(out.includes(guide.decided(1)));
-// 标准组件
-assert.ok(out.includes('data-slot="questionnaire"') && out.includes('data-slot="cc-guide-card"') && out.includes("cc-ui-questionnaire-card"));
-// Claude 提问卡版式（用户 11-13）：卡头题目 + 翻页器（第一项左箭头是禁用态，变淡不消失）；选项下一行说明；底部跳过 + 下一步
-assert.ok(out.includes("cc-ui-questionnaire-pager"));
-assert.match(out, new RegExp(`<button[^>]*disabled=""[^>]*aria-label="${ask.prev}"|<button[^>]*aria-label="${ask.prev}"[^>]*disabled=""`));
-assert.ok(out.includes("NOTE-CREDIT") && out.includes('data-slot="questionnaire-choice-description"'));
-assert.ok(out.includes(`>${ask.skip}<`));
-// 「其他」只在允许自己填的题（这张卡两题都不许）
-assert.ok(!out.includes('data-slot="questionnaire-input"'));
+// 允许自己填的题出「其他」
 const free = renderToStaticMarkup(createElement(GuideCardBody, { card: { questions: [{ ...card.questions[0], free: true }], decided: [] }, phase: "ask", onSubmit: () => {} }));
-assert.ok(free.includes('data-slot="questionnaire-input"') && free.includes(`placeholder="${ask.other}"`));
+assert.ok(free.includes('data-slot="cc-askq-other-option"'));
+// 题目映射与答案换回：推荐项排第一；按选项编码交回；跳过 / 没问的不交；free 题「其他」交填的字
+const qs = askQuestionsOf(card);
+assert.equal(qs[0].options[0].value, "credit");
+assert.equal(qs[0].options[0].recommended, true);
+assert.equal(qs[1].noOther, true);
+assert.deepEqual(guideAnswersOf(card, { answers: [
+  { header: "", question: "", labels: ["CASH"] }, { header: "", question: "", labels: [], skipped: true }] }), [{ key: "k-pay", value: "cash" }]);
+assert.deepEqual(guideAnswersOf({ ...card, questions: [{ ...card.questions[0], free: true }] },
+  { answers: [{ header: "", question: "", labels: [], other: "12.50" }] }), [{ key: "k-pay", value: "12.50" }]);
 // 答完 / 没答就没了
 assert.ok(html({ phase: "answered", answered: 2 }).includes(guide.answered(2)));
 assert.ok(html({ phase: "cancelled" }).includes(steps.cancelled));
@@ -119,13 +132,17 @@ class GuideCardTests(unittest.TestCase):
         self.assertIn('"pearnly_guide"]', index)
         self.assertIn("GUIDE_TOOL) return null;", read("components/tool-uis/approval-sheet.tsx"))
 
-    def test_only_kit_components(self):
+    def test_same_component_as_the_question_card(self):
+        """两张卡同一个组件（用户 11-13）：引导卡渲染的就是 AskCard；AskCard 用问卷部件与按钮，不再手写选项行。"""
         source = read("components/tool-uis/guide-card.tsx")
-        for name in ("@/components/ui/questionnaire", "@/components/ui/badge", "@/components/ui/button",
-                     "@/components/ui/collapsible", "@/components/ui/native-select"):
+        self.assertIn("<AskCard", source)
+        for name in ("@/components/ui/collapsible", "@/components/ui/native-select", "@/components/ui/button"):
             self.assertIn(name, source)
         self.assertNotIn("<button", source)
         self.assertNotIn("<input", source)
+        card = read("components/tool-uis/ask-card.tsx")
+        self.assertIn("@/components/ui/questionnaire", card)
+        self.assertNotIn('className="cc-askq-opt"', card)
 
 
 if __name__ == "__main__":

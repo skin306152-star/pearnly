@@ -16,7 +16,19 @@ import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { type FC, type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
 import { Shortcut } from "@/components/shortcut";
 import { Marquee } from "@/components/ui/marquee";
-import { ask, co, op, steps, t } from "@/i18n";
+import { ask, co, guide, op, steps, t } from "@/i18n";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Questionnaire,
+  QuestionnaireActions,
+  QuestionnaireChoice,
+  QuestionnaireChoiceDescription,
+  QuestionnaireChoices,
+  QuestionnaireDescription,
+  QuestionnaireItem,
+  QuestionnaireTitle,
+} from "@/components/ui/questionnaire";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught, withReport } from "@/lib/caught";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -32,8 +44,10 @@ import {
   type AskResult,
   type AskState,
   initialStates,
+  isRecommended,
   questionsOf,
   resultFrom,
+  shownLabel,
   shownQuestions,
   toggle,
   toggleOther,
@@ -118,25 +132,6 @@ const OtherInput: FC<{ question: AskQuestion; state: AskState; onChange: (other:
   );
 };
 
-/** 一个选项一行：圆点 / 复选框 + 两行字。 */
-const OptionRow: FC<{ multi: boolean; on: boolean; label: string; description?: string | undefined; slot: string; onClick: () => void }> = ({
-  multi,
-  on,
-  label,
-  description,
-  slot,
-  onClick,
-}) => (
-  <button type="button" role={multi ? "checkbox" : "radio"} aria-checked={on} className="cc-askq-opt" data-slot={slot} onClick={onClick}>
-    <span className="cc-askq-mark" data-multi={multi ? "" : undefined} data-on={on ? "" : undefined} aria-hidden="true">
-      {multi && on && <CheckIcon />}
-    </span>
-    <span className="cc-askq-text">
-      <span className="cc-askq-label">{label}</span>
-      {description && <span className="cc-askq-desc">{description}</span>}
-    </span>
-  </button>
-);
 
 /** 卡片本体。phase：ask 能答；answered 只剩问话与一行所选（result）；cancelled 写「已取消」。framed：自己带一层框与「需要您的输入」
  *  （待处理列表里嵌着用时不带）。 */
@@ -151,9 +146,13 @@ export const AskCard: FC<{
   /** 卡片下方「需要您的输入」：不给时跟着 framed（嵌在列表里不画）；ask_user 在电脑上由对话的工作状态行画，这里不画。 */
   status?: boolean;
   slot?: string;
-}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq" }) => {
+  /** 选项下面、按钮上面的附加区（引导卡的「已定 n 项」）。 */
+  extra?: ReactNode;
+  /** 一开始停在第几题（展示页截图用）。 */
+  startAt?: number;
+}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0 }) => {
   // pos：此刻要问的题里的第几题（带 show_if 的题随前面的回答收起，不占位置）
-  const [pos, setPos] = useState(0);
+  const [pos, setPos] = useState(startAt);
   const [states, setStates] = useState<AskState[]>(() => initialStates(questions));
   useEffect(() => setStates((before) => (before.length === questions.length ? before : initialStates(questions))), [questions]);
   const shown = shownQuestions(questions, states);
@@ -182,7 +181,7 @@ export const AskCard: FC<{
     }
   };
   const frame = (body: ReactNode) =>
-    framed ? <div className="cc-steps-card" data-slot={slot}>{body}</div> : <div data-slot={slot}>{body}</div>;
+    framed ? <div className="cc-steps-card cc-ui-questionnaire-card" data-slot={slot}>{body}</div> : <div className="cc-ui-questionnaire-card" data-slot={slot}>{body}</div>;
 
   if (!q) return null;
   if (phase !== "ask") {
@@ -198,49 +197,65 @@ export const AskCard: FC<{
     );
   }
   const multi = !!q.multiSelect;
+  // 版式照 Claude 的提问卡（用户 11-13）：卡头（题目左、翻页器右，首末项箭头变淡）、通栏行选项（圆点 + 名字 + 推荐徽章 + 灰色说明）、
+  // 「其他」、附加区、右下「跳过」「下一步 / 提交」。全用 components/ui 的问卷部件与按钮，外观是问卷部件的卡片外观（.cc-ui-questionnaire-card）；
+  // 翻页与答案由本卡管（带 show_if 的题、多选、「其他」搜索），问卷部件只画这一题
   return (
     <div className="cc-askq-wrap" onKeyDown={onKey}>
       {frame(
-        <div className="cc-askq" data-phase="ask">
-          <div className="cc-askq-head">
-            <div className="cc-askq-q" data-slot="cc-askq-question">{q.question}</div>
+        <Questionnaire noValidate onSubmit={(e) => { e.preventDefault(); primary(); }} data-phase="ask">
+          <QuestionnaireItem key={at} name={`q${at}`} multiple={multi}>
+            <QuestionnaireTitle data-slot="cc-askq-question">{q.question}</QuestionnaireTitle>
             {shown.length > 1 && (
-              <div className="cc-askq-pager" data-slot="cc-askq-pager">
-                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.prev} disabled={place === 0} onClick={() => setPos(place - 1)}>
+              <div className="cc-ui-questionnaire-pager" data-slot="cc-askq-pager">
+                <Button type="button" variant="ghost" size="icon-xs" aria-label={ask.prev} disabled={place === 0} onClick={() => setPos(place - 1)}>
                   <ChevronLeftIcon />
-                </button>
-                <span className="cc-askq-nth">{ask.nth(place + 1, shown.length)}</span>
-                <button type="button" className="cc-row-btn cc-tap" aria-label={ask.after} disabled={last} onClick={() => setPos(place + 1)}>
+                </Button>
+                <span className="cc-askq-nth cc-ui-questionnaire-progress">{ask.nth(place + 1, shown.length)}</span>
+                <Button type="button" variant="ghost" size="icon-xs" aria-label={ask.after} disabled={last} onClick={() => setPos(place + 1)}>
                   <ChevronRightIcon />
-                </button>
+                </Button>
               </div>
             )}
-          </div>
-          <div className="cc-askq-options" role={multi ? "group" : "radiogroup"} aria-label={q.question}>
-            {q.options.map((o) => (
-              <OptionRow key={o.label} slot="cc-askq-option" multi={multi} on={state.labels.includes(o.label)} label={o.label} description={o.description}
-                onClick={() => set(toggle(q, state, o.label))} />
-            ))}
-            <OptionRow slot="cc-askq-other-option" multi={multi} on={state.other !== null} label={ask.other} onClick={() => set(toggleOther(q, state))} />
-            {state.other !== null && (
+            {q.subtitle && <QuestionnaireDescription>{q.subtitle}</QuestionnaireDescription>}
+            <QuestionnaireChoices aria-label={q.question}>
+              {q.options.map((o) => (
+                <QuestionnaireChoice key={o.label} value={o.value ?? o.label} checked={state.labels.includes(o.label)} data-slot="cc-askq-option"
+                  disabled={busy} onChange={() => set(toggle(q, state, o.label))}>
+                  <span className="flex flex-wrap items-center gap-(--cc-space-8)">
+                    <span className="cc-askq-label">{shownLabel(o.label)}</span>
+                    {isRecommended(o) && <Badge variant="secondary">{guide.recommended}</Badge>}
+                  </span>
+                  {o.description && <QuestionnaireChoiceDescription className="cc-askq-desc">{o.description}</QuestionnaireChoiceDescription>}
+                </QuestionnaireChoice>
+              ))}
+              {!q.noOther && (
+                <QuestionnaireChoice value="__other" checked={state.other !== null} data-slot="cc-askq-other-option" disabled={busy}
+                  onChange={() => set(toggleOther(q, state))}>
+                  <span className="cc-askq-label">{ask.other}</span>
+                </QuestionnaireChoice>
+              )}
+            </QuestionnaireChoices>
+            {!q.noOther && state.other !== null && (
               <OtherInput key={at} question={q} state={state} onChange={(other, code) => set({ ...state, other, otherCode: code, skipped: false })} />
             )}
-          </div>
+          </QuestionnaireItem>
+          {extra}
           {failure && (
             <div role="alert" data-slot="cc-ask-failure" className="cc-alert">
               <p className="line-clamp-(--cc-alert-lines)">{failure}</p>
             </div>
           )}
-          <div className="cc-askq-foot">
-            <button type="button" className="cc-card-btn" data-slot="cc-askq-skip" disabled={busy} onClick={skip}>
+          <QuestionnaireActions>
+            <Button type="button" variant="secondary" size="xs" className="col-start-2" data-slot="cc-askq-skip" disabled={busy} onClick={skip}>
               {ask.skip}
-            </button>
-            <button type="button" className="cc-card-btn" data-primary="" data-slot="cc-askq-next" disabled={busy || !answered(state)} onClick={primary}>
+            </Button>
+            <Button type="submit" size="xs" className="col-start-3" data-slot="cc-askq-next" disabled={busy || !answered(state)}>
               {last ? ask.submit : ask.next}
               <Shortcut keys="Ctrl↵" />
-            </button>
-          </div>
-        </div>,
+            </Button>
+          </QuestionnaireActions>
+        </Questionnaire>,
       )}
       {status && (
         <div className="cc-askq-status" data-slot="cc-askq-status">

@@ -181,7 +181,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server.browser";
 import { AskCard, askPhase, askResultOf } from "@/components/tool-uis/ask-card";
 import { questionsOf } from "@/components/tool-uis/ask-shared";
-import { ask, t } from "@/i18n";
+import { ask, guide, t } from "@/i18n";
 
 const g = globalThis as any;
 """ + INPUT + r"""
@@ -192,22 +192,25 @@ const out = html(qs);
 // 头部：问题 + 第 1 项，共 4 项 + 左右箭头（第一项时左箭头不能点）
 assert.ok(out.includes(">Which account set?<"));
 assert.ok(out.includes(ask.nth(1, 4)));
-assert.match(out, new RegExp(`aria-label="${ask.prev}" disabled=""`));
+assert.match(out, new RegExp(`<button(?=[^>]*aria-label="${ask.prev}")(?=[^>]*disabled="")`));
 assert.ok(out.includes(`aria-label="${ask.after}"`));
 // 单选圆点：推荐项默认选中；选项名与说明；最后固定「其他」
-const radios = [...out.matchAll(/role="radio" aria-checked="(true|false)"/g)].map((m) => m[1]);
+// 版式照 Claude 的提问卡、用问卷部件（用户 11-13，同引导卡）：选项是问卷的单选行，选中写在行上（data-checked）
+const radios = [...out.matchAll(/<label (data-checked|data-unchecked)="" data-type="radio"/g)].map((m) => m[1] === "data-checked" ? "true" : "false");
 assert.deepEqual(radios, ["true", "false", "false"]);
+// 推荐：名字不再带「(Recommended)」后缀，改成独立的徽章（用户 11-12 批准）
+assert.ok(out.includes(`>${guide.recommended}<`) && !out.includes(">Acme 2026 (Recommended)<"));
 assert.ok(out.includes("Used all of 2026-10"));
 assert.match(out, new RegExp(`data-slot="cc-askq-other-option"[\\s\\S]*>${ask.other}<`));
 // 底部：「跳过」与「下一步」带快捷键；卡片下方「需要您的输入」
 assert.ok(out.includes(`>${ask.skip}<`));
-assert.match(out, new RegExp(`data-slot="cc-askq-next">${ask.next}<span class="cc-menu-key">(Ctrl|⌘)↵</span>`));
+assert.match(out, new RegExp(`data-slot="cc-askq-next"[^>]*>${ask.next}<span class="cc-menu-key">(Ctrl|⌘)↵</span>`));
 assert.ok(out.includes(t("needsInput")));
 // 只有一题：不出翻页，主按钮是「提交」
 const one = html([qs[2]]);
 assert.ok(!one.includes("cc-askq-pager"));
-assert.match(one, new RegExp(`data-slot="cc-askq-next" disabled="">${ask.submit}<`));   // 没选不能提交
-assert.equal([...one.matchAll(/role="checkbox"/g)].length, 3);                       // 多选题：复选框（含「其他」）
+assert.match(one, new RegExp(`data-slot="cc-askq-next"[^>]*disabled=""[^>]*>${ask.submit}<`));   // 没选不能提交
+assert.equal([...one.matchAll(/<input[^>]* type="checkbox"/g)].length, 3);                       // 多选题：复选框（含「其他」）
 // 带 show_if 的题不占位置：第二题只在第一题选 Stock 时问，第一题预选 Service → 只剩两题
 const gated = questionsOf({ questions: [
   { question: "Stock or service?", header: "Entry", options: [{ label: "Service (推荐)" }, { label: "Stock" }] },
