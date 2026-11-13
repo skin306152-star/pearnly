@@ -23,6 +23,9 @@ import json
 import frappe
 from frappe import _
 
+from pearnly_core.assistant import guided as assistant_guided
+from pearnly_core.express_rules.push import posting_profile
+
 from pearnly_core.write_precheck import contracts as card
 from pearnly_core.write_precheck import preselect
 from pearnly_cowork.access import scope
@@ -317,8 +320,14 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
     from pearnly_cowork.push.express import goods_posting
 
     config = found["selected"]["config"]
-    if kind or not goods_posting.blocked(found["fields"], direction=found["direction"], config=config, posting_kind=None,
-                                         today=today, vat_choice=(decision.get("applied") or {}).get("vat")):
+    # A4（引导式录入第 1 期，覆盖表 G-A4）：CC 对话里（引导模式）这本账套还没报记账画像时，有商品行的单不再静默按非库存——同样问一次，
+    # 预选「记费用」（就是原来的默认，点了才算）。其余入口照旧
+    unknown = (assistant_guided.active() and not kind and found["direction"] != "sales"
+               and posting_profile.profile_from_config(config).inventory_usage == "unknown"
+               and any(isinstance(item, dict) for item in found["fields"].get("items") or []))
+    if not unknown and (kind or not goods_posting.blocked(found["fields"], direction=found["direction"], config=config,
+                                                          posting_kind=None, today=today,
+                                                          vat_choice=(decision.get("applied") or {}).get("vat"))):
         return None
     if any(item.get("kind") == "item" and item.get("expense") for item in decision.get("needed") or ()):
         return None  # 已按行问存货对照（存货 / 新建存货 / 记费用，11-06）：不再整张问「走库存 / 记费用」
@@ -327,7 +336,7 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
     company = goods_posting.company_key(loaded.doc.name, service._account_row(loaded, found["target"]))
     if not company:
         return None
-    return {"kind": GOODS_POSTING, "subject": company, "value": "stock", "source": card.RULE,
+    return {"kind": GOODS_POSTING, "subject": company, "value": "service" if unknown else "stock", "source": card.RULE,
             "options": [{"code": "stock"}, {"code": "service"}]}
 
 
