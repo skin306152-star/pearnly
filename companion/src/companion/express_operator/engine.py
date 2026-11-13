@@ -214,6 +214,11 @@ class Engine:
     def _match(self, w: Dict) -> Optional[Dict]:
         return self.recipe.match_dialog(self._text(w))
 
+    def _button(self, rule: Dict) -> str:
+        """规则要按的钮；``button_by_srv_vattyp`` 按草稿单的服务品税口径换钮（销项税口径框，11-13），草稿没带就用默认钮。"""
+        choice = self.draft.srv_vattyp if self.draft else ""
+        return (rule.get("button_by_srv_vattyp") or {}).get(choice) or rule["button"]
+
     def _dialogs(self) -> List[Dict]:
         return [w for w in self.windows if w["hwnd"] not in self.baseline]
 
@@ -236,7 +241,7 @@ class Engine:
             self._event("dialog", name=rule["name"])
             if rule.get("reason"):
                 self._report(rule["reason"])
-            self.act([{"do": "dialog_button", "text": rule["button"]}, {"do": "wait", "ms": 600}])
+            self.act([{"do": "dialog_button", "text": self._button(rule)}, {"do": "wait", "ms": 600}])
         raise Unexpected("dialog does not close")
 
     def evidence_shot(self, doc_id: str) -> str:

@@ -69,6 +69,9 @@ class Draft:
     # 载荷 ``operator.form_choice`` / ``operator.pay_route``，旧服务端不带就是空（定不下来停这一张、原因 menu_choice）
     form_choice: str = ""
     pay_route: str = ""
+    # 载荷表头 ``srv_vattyp``（服务品税口径 1 权责 / 2 收付实现，别的值当没带）：存档途中 Express 问销项税口径时按它答（配方
+    # ``button_by_srv_vattyp``），不带就按配方默认钮——行为同没有这个键时（11-13）
+    srv_vattyp: str = ""
 
     def __post_init__(self):
         self.doc_type = self.doc_type.upper()
@@ -168,7 +171,13 @@ def from_payload(doc_id: str, payload: Dict) -> Draft:
                  ref_no=ref_no, vat_rate=str(payload["vat_rate"]) if payload.get("vat_rate") not in (None, "") else "7",
                  vat_included=options.get("vat_included") is True, expected=expected,
                  form_choice=str(options.get("form_choice") or "").strip()[:200],
-                 pay_route=_pay_route(options.get("pay_route")))
+                 pay_route=_pay_route(options.get("pay_route")),
+                 srv_vattyp=_srv_vattyp(payload.get("srv_vattyp")))
+
+
+def _srv_vattyp(value) -> str:
+    choice = str(value if value is not None else "").strip()
+    return choice if choice in ("1", "2") else ""
 
 
 def _pay_route(value) -> str:

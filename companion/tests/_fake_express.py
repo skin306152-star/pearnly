@@ -344,6 +344,7 @@ class FakeExpress:
             self._void()
         elif d["name"] == "basis":
             self.basis_answered = True
+            self.basis_button = button
             self._save()
         elif d["name"] == "smb":
             self.alive = False
@@ -411,9 +412,13 @@ class FakeExpress:
             self.dialog("smb", "ExpressI", r"Error -70 (90621) Reading File \\ACCSERVER\ACCOUNT\69EXP\TEST\STMAS.CDX")
             return
         if self.inject.get("odd_mid_save") and not getattr(self, "odd_shown", False):
-            # 11-12 测试机2：服务品赊销单存档途中 Express 问销项税口径（配方没有这一条）：引擎认不出，单停在存档中途
+            # 存档途中弹一个配方里没有的框：引擎认不出，单停在存档中途（11-12 实机是销项税口径框，11-13 已进配方）
             self.odd_shown = True
-            self.dialog("odd", "ExpressI", "ภาษีขายของสินค้าบริการในที่นี้เป็นแบบ", buttons=("เกณฑ์สิทธิ", "เกณฑ์เงินสด"))
+            self.dialog("odd", "ExpressI", "ข้อความที่ไม่รู้จักระหว่างบันทึก", buttons=("ตกลง", "ยกเลิก"))
+            return
+        if self.inject.get("sales_basis_on_save") and not getattr(self, "basis_answered", False):
+            # 11-13 实机（测试机2 70EXP\\test）：有服务品的赊销单存档途中问服务品销项税口径，答了才接着存
+            self.dialog("basis", "ExpressI", "ภาษีขายของสินค้าบริการในที่นี้เป็นแบบ", buttons=("เกณฑ์สิทธิ", "เกณฑ์เงินสด"))
             return
         if self.inject.get("basis_on_save") and not getattr(self, "basis_answered", False):
             # 10-29 实机：有服务品的赊购单存档途中问服务品进项税口径，答了才接着存
@@ -427,6 +432,9 @@ class FakeExpress:
         table = "APTRN" if self.form in ("RR", "HP") else "ARTRN"
         head = next(r for r in self.book[table] if r["DOCNUM"] == docnum)
         head.update({"NETVAL": float(t["net"]), "VATAMT": float(t["vat"]), "NETAMT": float(t["total"])})
+        if getattr(self, "basis_button", ""):  # 答了服务品税口径框：照 Express 记进表头（เกณฑ์เงินสด → '2'，否则 '1'）
+            head["SRV_VATTYP"] = "2" if self.basis_button == "เกณฑ์เงินสด" else "1"
+            self.basis_button = ""
         self.refs.add(head.get("REFNUM", ""))
         for i, r in enumerate(rows, start=1):
             self.book["STCRD"].append({"_row": len(self.book["STCRD"]), "_del": False, "DOCNUM": docnum, "SEQNUM": str(i),

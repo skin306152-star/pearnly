@@ -168,6 +168,56 @@ def test_the_service_vat_basis_prompt_is_answered_on_save_and_while_abandoning()
     assert any(r["DOCSTAT"] == "C" for r in sim.book["APTRN"] if r["DOCNUM"] == rec["voided"][0])
 
 
+def test_the_service_output_vat_basis_prompt_on_a_credit_sale_is_answered_and_the_sale_is_saved_whole():
+    """11-13 实机（测试机2 70EXP\\test，候选 75e785770）：有服务品的赊销单存档途中 Express 问服务品销项税口径；配方原来没有
+    这一条，引擎认不出转人工，批次收尾退出 Express，留下半截单（表头金额 0、明细已写、分录与销项税没写）。按配方答 เกณฑ์สิทธิ
+    （同直写默认的 SRV_VATTYP '1'），单完整存好、没有框留着。"""
+    sale = samples()[2]
+    assert sale.doc_type == "IV"
+    recs, sim, _, _ = run_docs([sale], with_ai=False, inject={"sales_basis_on_save": True})
+    rec = recs[0]
+    assert rec["outcome"] == "saved" and rec["readback"]["ok"] and not sim.dialogs
+    head = next(r for r in sim.book["ARTRN"] if r["DOCNUM"] == rec["docnum"])
+    assert head["NETAMT"] == float(sale.totals()["total"]) and head["SRV_VATTYP"] == "1"
+
+
+def test_a_sale_whose_payload_says_cash_basis_answers_the_output_vat_prompt_with_cash_basis():
+    """载荷表头带 srv_vattyp = 2（收付实现，客户档 srv / 引导式问过一次）：销项税口径框按 เกณฑ์เงินสด 答，同直写写 '2'；
+    带 1、不带或带别的值都按配方默认 เกณฑ์สิทธิ（不带键时行为不变）。"""
+    from dataclasses import replace
+
+    for choice, want in (("2", "2"), ("1", "1"), ("", "1")):
+        sale = replace(samples()[2], srv_vattyp=choice)
+        recs, sim, _, _ = run_docs([sale], with_ai=False, inject={"sales_basis_on_save": True})
+        rec = recs[0]
+        assert rec["outcome"] == "saved" and not sim.dialogs, choice
+        head = next(r for r in sim.book["ARTRN"] if r["DOCNUM"] == rec["docnum"])
+        assert head["SRV_VATTYP"] == want, choice
+
+
+def test_the_output_vat_choice_does_not_change_the_purchase_input_vat_answer():
+    """进货单的服务品进项税框照旧只按 เกณฑ์สิทธิ：载荷带 srv_vattyp = 2 也不换钮（这一条今晚不动）。"""
+    from dataclasses import replace
+
+    purchase = replace(samples()[0], srv_vattyp="2")
+    recs, sim, _, _ = run_docs([purchase], with_ai=False, inject={"basis_on_save": True})
+    rec = recs[0]
+    assert rec["outcome"] == "saved" and not sim.dialogs
+    head = next(r for r in sim.book["APTRN"] if r["DOCNUM"] == rec["docnum"])
+    assert head["SRV_VATTYP"] == "1"
+
+
+def test_the_draft_takes_only_a_one_or_two_service_vat_basis_from_the_payload():
+    from companion.express_operator.draft import from_payload
+
+    base = {"doctype": "IV", "docdate_be": "691113", "customer": {"code": "ก026"},
+            "items": [{"code": "PN00047", "qty": "1", "unit_price": "10"}]}
+    assert from_payload("x", {**base, "srv_vattyp": "2"}).srv_vattyp == "2"
+    assert from_payload("x", {**base, "srv_vattyp": 1}).srv_vattyp == "1"
+    assert from_payload("x", {**base, "srv_vattyp": "3"}).srv_vattyp == ""
+    assert from_payload("x", base).srv_vattyp == ""
+
+
 def test_a_document_without_vat_is_entered_with_the_no_vat_price_type():
     """10-29 实机（rec-laptop 覆盖样本）：不收增值税的进货单（税额 0、明细不是免税品）原来按「2 - แยก VAT」录，Express 照 7% 算出税、
     合计对不上。税额为 0 的单表头价格类型选「0 - ไม่มี VAT」，同直写的 FLGVAT '0'。"""
