@@ -121,22 +121,30 @@ def recognized(number):
 '''
 
 
+# 本对话账套编号（Cowork 自账套身份跨电脑起是与电脑无关的 book_key，`companies.identity.book_id`，不再是「连接|键」）：
+# 从这家的账套目录现取，流程不自己拼
+LEDGER_IDS = """
+from pearnly_cowork.companies import service as company_service
+ids = {item["key"]: item["identity"] for item in company_service.listed_books(company_service.get(company["id"]), None)}
+"""
+
+
 def prepare(lab, manifest):
     site = manifest["site"]
     lab.python(site, f'frappe.db.set_value("User", {USER!r}, "language", "zh")\nfrappe.db.commit()\nprint("{{}}")')
     ref = "FLOW-CL-" + uuid.uuid4().hex[:6].upper()
-    out = lab.python(site, _mine(CLEANUP) + EXTRA_CLEANUP + SEED + f"""
+    out = lab.python(site, _mine(CLEANUP) + EXTRA_CLEANUP + SEED + LEDGER_IDS + f"""
 name = recognized({ref!r})
 doc = frappe.db.get_value("Cowork OCR History", name, ["push_connection", "push_account_set"], as_dict=True)
 print(json.dumps({{"company": company["id"], "title": company["title"], "doc": name, "connection": conn["name"],
-                  "target_before": doc}}))
+                  "target_before": doc, "t8": ids.get({T8!r}, ""), "t9": ids.get({T9!r}, "")}}))
 """)
     tag = "cl" + uuid.uuid4().hex[:6]
     conn = out["connection"]
     plan = {"name": "pearnly_write_plan", "input": {"documents": [out["doc"]]}}
     other = {"name": "cowork_push_documents", "input": {"documents": [out["doc"]], "connection": conn, "account_set_key": "FLOWT9"}}
     plain = {"name": "cowork_push_documents", "input": {"documents": [out["doc"]]}}
-    return {**out, "ref": ref, "tag": tag, "cases": [], "t8": f"{conn}|{T8}", "t9": f"{conn}|{T9}",
+    return {**out, "ref": ref, "tag": tag, "cases": [],
             "open_line": f"{tag} 这家这个月的票",
             "plan_line": f"{tag} 把这张录进 Express [lab-tool]{json.dumps(plan)}[/lab-tool]",
             "other_line": f"{tag} [lab-tool]{json.dumps(other)}[/lab-tool]",
