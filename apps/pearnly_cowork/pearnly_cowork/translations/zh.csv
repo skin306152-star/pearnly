@@ -2250,6 +2250,7 @@ Yellow,黄
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)",是，刷卡手续费率 {0}%（手续费含或不含 7% 增值税均可）
 You are watching this card,已关注此卡片
 You do not have access to this ERP target.,无权访问此 ERP 目标。
+Your computer is offline,您的电脑离线
 Zero VAT,零税额
 account,科目
 active,有效
@@ -3419,6 +3420,7 @@ image,图像
 in,存入
 intake.agent.state.needsUpdate,CC 桌面版需更新
 intake.agent.state.noWriter,没有能写的电脑
+intake.agent.state.notYours,您的电脑离线
 intake.agent.state.offline,电脑离线
 intake.catalog.reload,重新读取
 intake.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动写入
