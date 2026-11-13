@@ -15,6 +15,8 @@ RE2401052 多张发票）：
   （ISINFO.ACCNUM00）与各方式科目（``payment_methods``：SHORTNAM→BKMAS，否则 ACCNUM01；同科目合并、按科目排，负的方式行记贷方，
   :func:`journal_rows`），SEQIT 6 贷应收（客户档 ACCNUM，没有用 ISINFO.ACCNUM02）合计；部门按科目「使用部门」记（同其他单）。
 - ARBAL 客户行 ``RE{期}`` 加 IVCAMT（``fiscal_period``），ARMAS.BALANCE 减 IVCAMT。
+- 银行流水 BKTRN（11-13）：方式经 ``SHORTNAM`` 指到银行户头（BKMAS 有这个 BNKACC）的，每种方式另记一行（原生 NLTTEST 2247 / 2247 张这类
+  方式行都有、没指户头的一行都没有，:func:`bank_row`）；只是科目号与户头科目相同、不经 SHORTNAM 的不记。
 
 管钱底线（写前，持 ``PEARNLY.LCK``，worker 已拿着）：同客户、同 YOUREF、没作废的 RE 已在 → 回原号，一行不写（幂等）；逐张重读发票，
 任一张不在 / 不是这个客户 / 已作废 / 服务品现金制增值税（:data:`ERR_INVOICE_NOT_FOUND`，本批不收）或当前余额不够本次收（:data:`ERR_ALREADY_COLLECTED`，含已被别人收清）
@@ -92,8 +94,15 @@ REFUSALS = (ERR_ALREADY_COLLECTED, ERR_INVOICE_NOT_FOUND, ERR_RECEIPT_TYPE, ERR_
             ERR_NOT_POSTABLE)
 
 WRITE_TABLES = ("ISRUN", "ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNL", "GLJNLIT", "ARBAL")
-BACKUP_TABLES = WRITE_TABLES + ("ARMAS",)
+BACKUP_TABLES = WRITE_TABLES + ("ARMAS", "BKTRN")  # BKTRN：银行流水（BANK_TABLE）
 REQUIRED_TABLES = ("ISRUN", "ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNL", "GLJNLIT", "ARMAS")
+# 银行流水：只在有方式指到户头时写（写前备份与占用探测照 BACKUP_TABLES 带上，文件不存在的两处都跳过；重建索引只在真写了时带上）
+BANK_TABLE = "BKTRN"
+BANK_TRNTYP = "bR"          # 收款进户头（付款是 bP、收支票 QR）
+BANK_CHQSTAT = "19"         # 原生 2265 / 2265 行同值，含义没查到，照原生
+BANK_JNLTRNTYP = "0"
+BANK_REFDOC = "~"
+BANK_NAME_WIDTH = 50        # BKTRN.NAME C(50)
 _VERIFY_TABLES = ("ARTRN", "ARRCPIT", "ARRCPCQ", "GLJNLIT")
 
 _WIDTH = {"ref_no": 30, "customer": 10, "salesman": 10, "department": 4, "docnum": 12, "prefix": 2, "user": 8}
@@ -361,6 +370,25 @@ def plan_methods(account_dir, receipt: Receipt) -> List[Tuple[Method, str]]:
     return out
 
 
+def plan_bank(account_dir, methods: List[Tuple[Method, str]]) -> List[Tuple[Method, str]]:
+    """要记银行流水的方式 → [(方式, 户头 BNKACC)]：这种方式在 ISRUN 里经 ``SHORTNAM`` 指到 BKMAS 里有的户头（同前缀几行取第一行指到户头的）。
+    有要记的而账套没有 BKTRN 表 → :class:`Refused`（整单不写，不留缺流水的单）。"""
+    if not methods:
+        return []
+    accounts = payment_methods.banks(account_dir)
+    rows = payment_methods.types(account_dir, payment_methods.RECEIPT_TYPES)
+    out = []
+    for method, _account in methods:
+        bank = next((row["bank"] for row in rows if row["prefix"] == method.prefix and row["bank"] in accounts), "")
+        if bank:
+            out.append((method, bank))
+    if out and not any(path.stem.upper() == BANK_TABLE and path.suffix.upper() == ".DBF"
+                       for path in Path(account_dir).iterdir()):
+        raise Refused(ERR_BOOK, f"receipt types {[m.prefix for m, _b in out]} go to a bank account but the account set has no "
+                                f"{BANK_TABLE}")
+    return out
+
+
 def cash_account(account_dir, receipt: Receipt) -> str:
     if receipt.cash <= 0:
         return ""
@@ -421,6 +449,7 @@ class _Plan:
     salesman: str
     department: str
     userid: str
+    bank: List[Tuple[Method, str]] = field(default_factory=list)   # 要记银行流水的方式与户头（plan_bank）
 
 
 def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARNLY_USERID, depcod: str = "",
@@ -463,6 +492,7 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
         if run is None:
             raise Refused(ERR_BOOK, "the account set has no receipt (RE) book in ISRUN")
         methods = plan_methods(account_dir, receipt)
+        bank = plan_bank(account_dir, methods)
         cash_acc = cash_account(account_dir, receipt)
         ar_acc = receivable_account(account_dir, receipt.customer)
         states = check_invoices(account_dir, receipt)
@@ -472,18 +502,20 @@ def write_receipt(payload: Dict[str, Any], account_dir, *, userid: str = S.PEARN
     plan = _Plan(receipt, run, methods, cash_acc, ar_acc, states,
                  salesman=receipt.salesman or first.get("slmcod", ""),
                  department=receipt.department or run.get("department", "") or depcod,
-                 userid=_userid(receipt.user, userid))
+                 userid=_userid(receipt.user, userid), bank=bank)
     clock.lap("checks")
     backup_dir = _backup(account_dir, BACKUP_TABLES) if make_backup else None
     clock.lap("backup")
     docnum = ""
     try:
-        since = _table_sizes(account_dir)
+        banked = (BANK_TABLE,) if plan.bank else ()
+        since = _table_sizes(account_dir, _VERIFY_TABLES + banked)
         docnum, gl_rows = _write_all(account_dir, plan)
+        _write_bank(account_dir, plan, docnum)
         notes = _update_arbal(account_dir, receipt.customer, receipt.doc_date, receipt.total)
         master_create.move_party_balance(account_dir, "ARMAS", receipt.customer, -receipt.total)
         clock.lap("write")
-        _reindex_or_defer(account_dir, WRITE_TABLES, 0, "", index_batch)
+        _reindex_or_defer(account_dir, WRITE_TABLES + banked, 0, "", index_batch)
         clock.lap("reindex")
         _verify(account_dir, docnum, plan, gl_rows, since)
         clock.lap("verify")
@@ -630,6 +662,43 @@ def _bump_run(account_dir: Path, following: str) -> None:
         table.close()
 
 
+def bank_name(account_dir, customer: str) -> str:
+    """银行流水的户名：客户档 PRENAM 与 CUSNAM 去掉两头空格、有前缀名时中间用不换行空格（\xa0）连，截到 50 字节
+    （原生 NLTTEST：没有前缀名的 2208 行 = CUSNAM，有前缀名的 13 行 = PRENAM + \xa0 + CUSNAM；其余 44 行是客户后来改了名）。"""
+    from .pos_journal import fit
+
+    armas = payment_methods.lookup_padded(account_dir, "ARMAS", "CUSCOD", customer, ("PRENAM", "CUSNAM")) or {}
+    text = "\xa0".join(part for part in (armas.get("PRENAM", "").strip(), armas.get("CUSNAM", "").strip()) if part)
+    return fit(text, BANK_NAME_WIDTH).rstrip(" ")
+
+
+def bank_row(*, docnum: str, docdat, prefix: str, bank: str, amount: Decimal, customer: str, name: str, department: str,
+             userid: str, chgdat) -> Dict[str, Any]:
+    """一行银行流水（BKTRN），逐字段照原生（NLTTEST 2265 行 bR）：类型 bR、户头 = 方式的 SHORTNAM、CHQNUM = 方式行编号（同 ARRCPCQ）、
+    TRNDAT = CHQDAT = GETDAT = 收款日、客户与户名、部门同单头、AMOUNT = NETAMT = 这种方式的金额、CHQSTAT 19、JNLTRNTYP 0、REFDOC ``~``、
+    VOUCHER = 收款单号、USERID / CHGDAT 同单头；其余栏（银行、分行、手续费、税、存入日、备注……）原生都空，不写。"""
+    return {"BKTRNTYP": BANK_TRNTYP, "TRNDAT": docdat, "CHQNUM": payment_methods.line_number(prefix, docnum), "CHQDAT": docdat,
+            "CUSCOD": customer, "NAME": name, "DEPCOD": department, "GETDAT": docdat, "AMOUNT": float(amount),
+            "NETAMT": float(amount), "CHQSTAT": BANK_CHQSTAT, "BNKACC": bank, "JNLTRNTYP": BANK_JNLTRNTYP,
+            "REFDOC": BANK_REFDOC, "VOUCHER": docnum, "USERID": userid, "CHGDAT": chgdat}
+
+
+def _write_bank(account_dir: Path, plan: _Plan, docnum: str) -> None:
+    if not plan.bank:
+        return
+    receipt = plan.receipt
+    name = bank_name(account_dir, receipt.customer)
+    table = _open(account_dir, BANK_TABLE, dbf.READ_WRITE)
+    try:
+        for method, bank in plan.bank:
+            S.append_native(table, _filtered(table, bank_row(
+                docnum=docnum, docdat=receipt.doc_date, prefix=method.prefix, bank=bank, amount=method.amount,
+                customer=receipt.customer, name=name, department=plan.department, userid=plan.userid,
+                chgdat=_dt.date.today())))
+    finally:
+        table.close()
+
+
 def _update_arbal(account_dir: Path, customer: str, docdat, total: Decimal) -> dict:
     """客户应收 ``RE{期}`` 加本次 IVCAMT（判不出期就不写、把原因报回，同销项）。"""
     from .dbf_sales import _update_arbal as update
@@ -637,9 +706,9 @@ def _update_arbal(account_dir: Path, customer: str, docdat, total: Decimal) -> d
     return update(account_dir, customer, docdat, BALANCE_BUCKET, total)
 
 
-def _table_sizes(account_dir: Path) -> Dict[str, int]:
+def _table_sizes(account_dir: Path, names=_VERIFY_TABLES) -> Dict[str, int]:
     sizes = {}
-    for name in _VERIFY_TABLES:
+    for name in names:
         table = _open(account_dir, name, dbf.READ_ONLY)
         try:
             sizes[name] = len(table)
@@ -686,6 +755,12 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
                      Decimal(0))
     if debit != credit or receivable != receipt.total:
         fail(f"journal not balanced {debit} / {credit} (receivable {receivable})", "GLJNLIT")
+    if plan.bank:
+        got = sorted((str(r["BKTRNTYP"]).strip(), str(r["BNKACC"]).strip(), str(r["CHQNUM"]).strip(), _q2(r["AMOUNT"]))
+                     for r in appended(BANK_TABLE, "VOUCHER"))
+        if got != sorted((BANK_TRNTYP, bank, payment_methods.line_number(method.prefix, docnum), method.amount)
+                         for method, bank in plan.bank):
+            fail(f"bank lines {got}", BANK_TABLE)
     now = invoice_state(account_dir, receipt.customer, [invoice for invoice, _amount in receipt.invoices])
     for invoice, amount in receipt.invoices:
         if now[invoice].get("remaining") != _q2(plan.states[invoice]["remaining"] - amount):
@@ -693,4 +768,4 @@ def _verify(account_dir: Path, docnum: str, plan: _Plan, gl_rows, since: Dict[st
 
 
 __all__ = ["DIRECTION", "ERR_ALREADY_COLLECTED", "ERR_CASH_ACCOUNT", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE",
-           "REFUSALS", "Receipt", "Refused", "check_invoices", "existing", "parse", "run_row", "write_receipt"]
+           "REFUSALS", "Receipt", "Refused", "bank_name", "bank_row", "check_invoices", "existing", "parse", "plan_bank", "run_row", "write_receipt"]

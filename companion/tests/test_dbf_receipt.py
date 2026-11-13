@@ -369,6 +369,97 @@ def test_the_journal_balances_for_every_combination(acct):
     assert debit == credit == Decimal("10972.00")
 
 
+# ── 银行流水 BKTRN（方式经 SHORTNAM 指到户头，原生 NLTTEST 2247 / 2247；11-13）──
+
+
+def _bank(acct, voucher):
+    return _rows(acct, "BKTRN", VOUCHER=voucher)
+
+
+def test_a_type_pointing_to_a_bank_account_also_writes_the_bank_line_like_native_re2400035(acct):
+    """原生 RE2400035：TB 16124（SHORTNAM B1）→ BKTRN 一行 bR；DC 只有科目、不经户头 → 不记。"""
+    res = _write(acct, _payload(invoices=(("IVPB2400376", "10002.24"),), methods=(("TB", "10002.00"), ("DC", "0.24"))))
+    assert res.ok, res.error
+    head = _head(acct, res.docnum)
+    rows = _bank(acct, res.docnum)
+    assert len(rows) == 1
+    row = {k: (v.rstrip(" ") if isinstance(v, str) else v) for k, v in rows[0].items()}
+    assert row == {
+        "BKTRNTYP": "bR", "TRNDAT": DAY, "CHQNUM": "TBRE2403080", "CHQDAT": DAY, "BNKCOD": "", "BRANCH": "",
+        "CUSCOD": CUSTOMER, "NAME": "ร้านส.เจริญสินพานิช", "DEPCOD": "CPI", "POSTGL": "", "GETDAT": DAY, "PAYINDAT": None,
+        "AMOUNT": 10002.0, "CHARGE": 0.0, "VATAMT": 0.0, "NETAMT": 10002.0, "REMAMT": 0.0, "REMCUT": 0.0, "CMPLAPP": "",
+        "CHQSTAT": "19", "BNKACC": "B1", "JNLTRNTYP": "0", "REMARK": "", "REFDOC": "~", "REFNUM": "", "VATDAT": None,
+        "VATPRD": None, "VATLATE": "", "VATTYP": "", "VOUCHER": "RE2403080", "USERID": "somchai",
+        "CHGDAT": head["CHGDAT"], "AUTHID": "", "APPROVE": None, "TAXID": "", "ORGNUM": None}
+    assert row["CHQNUM"] == [r["CHQNUM"].strip() for r in _rows(acct, "ARRCPCQ", RCPNUM=res.docnum)][0]
+
+
+def test_a_type_with_only_an_account_writes_no_bank_line(acct):
+    """BB 自己填了科目 1113-01、没经 SHORTNAM：原生不记银行流水（科目号碰巧与某户头相同也一样）。"""
+    seed(acct, "BKMAS", [{"BNKACC": "B1", "BNKNAM": "ธ.กรุงเทพ/กระแสรายวัน", "ACCNUM": BBL_CA},
+                         {"BNKACC": "B2", "BNKNAM": "ธ.กรุงเทพ/ออมทรัพย์", "ACCNUM": BBL_SA}])
+    res = _write(acct, _payload())
+    assert res.ok, res.error
+    assert _bank(acct, res.docnum) == []
+
+
+def test_every_bank_type_gets_its_own_bank_line_and_the_name_joins_the_prename_with_a_no_break_space(acct):
+    seed(acct, "ISRUN", [{"DOCTYP": "RE", "PREFIX": "RE", "DOCNUM": "2403080", "DEPCOD": "CPI", "JNLTYP": "02",
+                          "JNLEXP": NLT_JNLEXP},
+                         {"DOCTYP": "ZR", "DOCCOD": "12", "PREFIX": "TB", "SHORTNAM": "B1", "POSDES": "BBL/CA"},
+                         {"DOCTYP": "ZR", "DOCCOD": "13", "PREFIX": "SC", "SHORTNAM": "S2", "POSDES": "SCB/CA"},
+                         {"DOCTYP": "ZR", "DOCCOD": "14", "PREFIX": "GH", "SHORTNAM": "Z9", "ACCNUM01": BBL_SA,
+                          "POSDES": "points to no bank"}])
+    seed(acct, "BKMAS", [{"BNKACC": "B1", "BNKNAM": "BBL", "ACCNUM": BBL_CA}, {"BNKACC": "S2", "BNKNAM": "SCB", "ACCNUM": BBL_SA}])
+    res = _write(acct, _payload(invoices=(("IVC2000001", "500.00"),), customer="C2",
+                                methods=(("TB", "300.00"), ("SC", "150.00"), ("GH", "50.00"))))
+    assert res.ok, res.error
+    rows = sorted(_bank(acct, res.docnum), key=lambda r: r["CHQNUM"])
+    assert [(r["BNKACC"], r["CHQNUM"].strip(), r["AMOUNT"], r["NETAMT"], r["CUSCOD"].strip()) for r in rows] == \
+        [("S2", "SCRE2403080", 150.0, 150.0, "C2"), ("B1", "TBRE2403080", 300.0, 300.0, "C2")]
+    assert {r["NAME"].rstrip(" ") for r in rows} == {"บริษัท\xa0ซี.พี.ฟู้ดสโตร์\xa0จำกัด"}
+
+
+def test_the_bank_name_is_cut_to_fifty_bytes():
+    from companion import pos_journal
+
+    assert pos_journal.fit("ก" * 70, R.BANK_NAME_WIDTH) == "ก" * 50
+
+
+def test_a_bank_type_on_a_book_without_bktrn_writes_nothing(acct):
+    (acct / "BKTRN.DBF").unlink()
+    before = _state(acct)
+    res = _write(acct, _payload(invoices=(("IVPB2400376", "10002.24"),), methods=(("TB", "10002.00"), ("DC", "0.24"))))
+    assert not res.ok and res.error_code == R.ERR_BOOK and "BKTRN" in res.error
+    assert _state(acct) == before
+    assert _write(acct, _payload()).ok  # 没有方式指到户头的照写
+
+
+def test_the_bank_table_is_backed_up_probed_and_reindexed_only_when_written(acct):
+    assert "BKTRN" in R.BACKUP_TABLES and "BKTRN" not in R.WRITE_TABLES
+    seen = []
+    with mock.patch.object(R, "_reindex_or_defer", lambda _dir, tables, *_a, **_k: seen.append(tuple(tables))):
+        assert _write(acct, _payload()).ok
+        assert _write(acct, _payload(ref_no="ERC-0002", invoices=(("IVPB2400376", "10002.24"),),
+                                     methods=(("TB", "10002.00"), ("DC", "0.24")))).ok
+    assert seen == [R.WRITE_TABLES, R.WRITE_TABLES + ("BKTRN",)]
+
+
+def test_a_bank_line_readback_mismatch_rolls_everything_back(acct):
+    before = _state(acct)
+    real = R.bank_row
+
+    def wrong(**kw):
+        row = real(**kw)
+        row["AMOUNT"] = row["AMOUNT"] + 1
+        return row
+
+    with mock.patch.object(R, "bank_row", wrong):
+        res = _write(acct, _payload(invoices=(("IVPB2400376", "10002.24"),), methods=(("TB", "10002.00"), ("DC", "0.24"))))
+    assert not res.ok and res.error_code == "READBACK_VERIFY_FAILED" and "bank lines" in res.error
+    assert _state(acct) == before
+
+
 def test_a_readback_mismatch_rolls_everything_back(acct):
     before = _state(acct)
     real = R._write_all
