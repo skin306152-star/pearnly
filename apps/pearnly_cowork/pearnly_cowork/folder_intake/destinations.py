@@ -93,6 +93,15 @@ def waiting(adapter, connection):
         return {}
 
 
+def waiting_on(connection, user) -> list:
+    """``user`` 自己能写、此刻不在线的电脑名称（按人，不看当前请求是谁；代录任务按任务主人问，A 线 11-12）；读不出回空。"""
+    try:
+        return list(pool.state(connection, user=user).get("waiting_on") or [])
+    except Exception:
+        frappe.clear_messages()
+        return []
+
+
 def writer_state(adapter, connection, *, device=""):
     """定时任务的票现在能不能确认、排队（ADR-021 第 4 批 D4；10-16 第 51、53 条与审查）：
 

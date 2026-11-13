@@ -55,7 +55,9 @@ export function progressText(event: Pick<ProgressEvent, "done" | "total" | "labe
     default: {
       // 等电脑空闲时是已有结论的张数；在做（或暂停）时说正在第几张
       const count = total > 0 ? op.nth(Math.min(done + (event.label === "waiting_computer" ? 0 : 1), total), total) : "";
-      const label = event.label === "waiting_computer" ? op.queued : event.label === "entering" ? "" : (op.reason[event.label] ?? "");
+      // 等电脑时服务端给了在等的本人电脑（名称）：「等待电脑 · 名称」（沿用现成词条，A 线 11-12）；没给照旧「排队」
+      const waiting = event.detail ? `${co.folderWaiting} · ${event.detail}` : op.queued;
+      const label = event.label === "waiting_computer" ? waiting : event.label === "entering" ? "" : (op.reason[event.label] ?? "");
       return [count, label].filter(Boolean).join(" · ");
     }
   }

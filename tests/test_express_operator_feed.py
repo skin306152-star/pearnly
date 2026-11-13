@@ -223,6 +223,7 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
         return [{"doc_id": i, "status": "sent"} for i in ids]
 
     products.status, products.submit = status, submit
+    products.waiting_on = lambda company, user: state.get("waiting_on", {}).get((company, user), "")
     products.uploads = lambda company, period, batches: dict(state.get("ocr") or {})
 
     sessions = types.ModuleType("pearnly_core.assistant.sessions")
@@ -407,6 +408,17 @@ class ProjectionTests(unittest.TestCase):
         sent = progress([_doc(1, "queued")])
         self.assertEqual([label for _id, label in sent], ["queued"])
         self.assertNotEqual(waiting[0][0], sent[0][0])
+
+    def test_a_task_waiting_for_the_computer_names_the_owners_computer(self):
+        # A 线 11-12：任务排着等电脑时，整段进度带上在等的本人电脑名称（产品钩子 waiting_on，按任务主人；同事的电脑不算），
+        # 页面写「等待电脑 · 名称」；在录、产品没给时不带
+        self.state["waiting_on"] = {("CO-1", "a@example.com"): "PC-ME"}
+        whole = lambda status: [e for e in self.project(_task(status, [_doc(1, "queued")]))
+                                if e["type"] == "pearnly.progress" and not e["tool_use_id"]]
+        self.assertEqual([(e["label"], e["detail"]) for e in whole("queued")], [("waiting_computer", "PC-ME")])
+        self.assertEqual([e["detail"] for e in whole("running")], [""])
+        self.state["waiting_on"] = {}
+        self.assertEqual([e["detail"] for e in whole("queued")], [""])
 
     def test_the_same_record_projects_to_the_same_events_twice(self):
         task = _task("attention", [_doc(1, "saved", docnum="HP01"), _doc(2, "not_done", REASONS["batch"]),

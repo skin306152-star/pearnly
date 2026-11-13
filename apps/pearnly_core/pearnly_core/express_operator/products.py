@@ -133,6 +133,19 @@ def reason_text(reason) -> str:
         return ""
 
 
+def waiting_on(company, user) -> str:
+    """任务排着等电脑时在等的那位用户自己的电脑（名称，``waiting_on`` 钩子）；没声明、没有、出错回空串（页面照旧「排队」）。
+    同事的电脑不算——活只归任务主人的电脑（谁的活谁的电脑做，A 线 11-12）。"""
+    path = _path("waiting_on")
+    if not path or not company or not user:
+        return ""
+    try:
+        return str(frappe.get_attr(path)(company, user) or "")[:120]
+    except Exception:
+        frappe.log_error(title="Express operator waiting computer failed")
+        return ""
+
+
 STATUS_STATES = ("saved", "queued", "not_done", "cancelled", "unknown")
 
 
