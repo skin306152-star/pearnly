@@ -53,12 +53,27 @@ def _ids(doc_ids) -> list:
 
 
 @frappe.whitelist(methods=["POST"])
-def precheck(company, doc_ids):
+def precheck(company, doc_ids, task=""):
     """开录前预检（主会话 10-27）：产品按自己的写账准备逐张判，要人选的项连同可选值一次列出；不排写账件。
     写进哪份账套（Code 版 CC B4）：产品在判得出的单上带 ``target``（与交单同一条准备算出的），这里合成 ``targets``（几份账套、
-    各几张）；只有一份时 ``target`` 就是它，没有或不止一份时为 None。"""
+    各几张）；只有一份时 ``target`` 就是它，没有或不止一份时为 None。
+    ``task``（开始卡带上）：在这个代录任务的对话里预检——产品按本对话账套准备（同对话里的工具），本对话账套已定就不再出「账套」
+    那一题（测试机1 11-13：原来按单据日期判，还问账套、选项露内部编号）。只认本人这个任务、同一家公司。"""
     _require(company)
-    found = products.precheck(company, _ids(doc_ids))
+    session = ""
+    if task:
+        found_task = tasks.read(task)
+        if found_task["company"] != company:
+            frappe.throw(_("Invalid request"))
+        session = str(found_task.get("session_id") or "")
+    before = getattr(frappe.local, "pearnly_assistant", None) if session else None
+    if session:
+        frappe.local.pearnly_assistant = {**(before or {}), "session_id": session}
+    try:
+        found = products.precheck(company, _ids(doc_ids))
+    finally:
+        if session:
+            frappe.local.pearnly_assistant = before
     documents = []
     for doc in found.get("documents") or []:
         target = shapes.target_view(doc.get("target")) if isinstance(doc, dict) else None

@@ -587,6 +587,24 @@ class PrecheckTargetTests(Base):
         with self.assertRaises(PermissionError_):
             api.precheck("CO-9", ["h1"])
 
+    def test_the_start_card_precheck_runs_in_the_task_conversation(self):
+        # 测试机1 11-13：代录开始卡按网页口径（按单据日期）预检，本对话账套已定还问「账套」、选项露内部编号。页面带上任务号时，
+        # 预检在这个任务的对话里做（产品按本对话账套准备，同对话里的工具），不再出账套那一题；只认本人这个任务、同一家公司
+        seen = []
+        if not hasattr(frappe, "local"):
+            frappe.local = types.SimpleNamespace()
+            self.addCleanup(delattr, frappe, "local")
+        STATE["attrs"]["p.precheck"] = lambda company, ids: seen.append(
+            dict(getattr(frappe.local, "pearnly_assistant", None) or {})) or {"documents": []}
+        before = getattr(frappe.local, "pearnly_assistant", None)
+        with mock.patch.object(api.tasks, "read", lambda name: {"company": "CO-1", "session_id": "op_" + name}):
+            api.precheck("CO-1", ["h1"], task="t1")
+            api.precheck("CO-1", ["h1"])  # 没给任务：照旧（网页口径）
+            with self.assertRaises(Throw):
+                api.precheck("CO-2", ["h1"], task="t1")  # 任务不是这家公司的
+        self.assertEqual([item.get("session_id") for item in seen], ["op_t1", None])
+        self.assertEqual(getattr(frappe.local, "pearnly_assistant", None), before)  # 用完还原
+
     def test_erp_takes_the_account_set_its_preparation_picked(self):
         stubs = {name: types.ModuleType(name) for name in (
             "pearnly_erp_portal", "pearnly_erp_portal.access", "pearnly_erp_portal.access.guard",

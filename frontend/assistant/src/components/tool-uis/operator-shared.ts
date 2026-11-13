@@ -182,7 +182,7 @@ export type PrecheckNeed = { kind: string; subject: string; label: string; optio
 /** state written：同一张票已写进 Express（docnum 是它在 Express 里的单号），默认不交，人可以点「再录一次」（用户 11-09）。 */
 export type PrecheckDoc = { doc_id: string; state: "ready" | "choose" | "waiting" | "blocked" | "written"; reason?: string; message?: string; needed?: PrecheckNeed[]; docnum?: string };
 /** 这次写进哪儿（B4，precheck 回包的 target / targets，取值同 start 实际用的那一份）。count：几张单写进这份（targets 里才有）。 */
-export type WriteTarget = { account_set?: string; account_set_title?: string; connection_title?: string; computer?: string; count?: number };
+export type WriteTarget = { account_set?: string; account_set_title?: string; account_set_path?: string; connection_title?: string; computer?: string; count?: number };
 
 /** precheck 的结论 → 一问一项（同一类、同一对象在几张单上只问一次），groupOfDoc：单据的组（供应商 / 客户按方向写）。 */
 export function questionsOf(prechecks: readonly PrecheckDoc[], groupOfDoc: (id: string) => DocGroup = () => "purchase"): Question[] {
@@ -240,11 +240,12 @@ export const operatorActions = {
     const documents = (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) }));
     return { documents, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };
   },
-  precheck: async (company: string, docIds: readonly string[]) => {
+  /** task：开始卡的代录任务（服务端在它的对话里预检：按本对话账套准备，已定就不问账套）；中途选那些不给。 */
+  precheck: async (company: string, docIds: readonly string[], task = "") => {
     if (!docIds.length) return { documents: [] as PrecheckDoc[], targets: [] as WriteTarget[], card: undefined as unknown };
     // 一批写进几份账套时服务端 target 为空、targets 列出每一份（张数多的在前，api.precheck）；旧服务端只给 target。
     // card：共用写账前置判定合成的「开始前确认」卡片（write_precheck，形状见 precheck-shared.ts）；旧服务端没有，页面按 documents 合成
-    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null; targets?: WriteTarget[]; card?: unknown }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds) });
+    const reply = await site.post<{ documents?: PrecheckDoc[]; target?: WriteTarget | null; targets?: WriteTarget[]; card?: unknown }>(API + "precheck", { company, doc_ids: JSON.stringify(docIds), ...(task ? { task } : {}) });
     const targets = reply?.targets?.length ? reply.targets : reply?.target ? [reply.target] : [];
     return { documents: (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) })), targets, card: reply?.card };
   },
