@@ -257,6 +257,25 @@ ERP 采购 / 销售作废不取消排着的写账件；Cowork 已放行的推送
   （GLBAL 标 0 只是让 Express 重算，不改金额）。
 - **还欠着的验证**：见[测试机清单](2026-11-12-cc-desktop-payload-21-testpc-checklist.md)（11-12 晚按新事实改过）与本窗口结果表；服务端出题那一半等引导式第 1 期。
 
+## 1.12.21 今晚发布步骤清单（11-13 备；17:00 主会话定发不发）
+
+发的条件（主会话 11-13）：管钱的项真机都过（GLBAL 标位与重算、占用探测、TEST2 清单 33 / 34、收款 RE 与银行流水）、62 套回放不变、Companion checks 绿、弹框修复真机验过；
+代录服务品赊销在含 b22c3c28c 的新候选包上复录通过。
+1. 集成分支（含 `pearnly/cc-desktop-verify-7f2d4c` 51af44d34 起）照主线规则合入 main：变基到最新 origin/main → 同名闸门 → Development checks 绿 →
+   主目录快进 main 到同一提交 → 立刻推 → 回读远端 SHA。
+2. 部署服务端：`scripts/production/deploy.sh` 先 `--dry-run`，再按发布标记部署；迁移前后核 DocType；部署后回读线上 revision。
+3. 发 CC：`gh workflow run companion-release.yml --ref main -f target=staging` → 装 staging 包到测试机核版本与源码 SHA → 推标签 `companion-v1.12.21`
+   （prod）→ 回读 `https://pearnly.com/downloads/companion/latest.json` 的版本与 sha256、从公网下载回来比对。
+4. 心跳：服务端随心跳回复带 `companion_latest`，电脑空闲时自动更新；发布后回读各租户电脑的 `companion_version`，低于 1.12.21 的逐台列出，直到清零。
+5. 上线说明要写：① 1.12.20 的已知问题（Express 开着单据窗口 × 有人值守的单 × 没人点「账套正被占用」框 → 那台电脑心跳与领单全停，同账套其他电脑
+   接连卡住；点「重试」恢复；1.12.21 不再弹框）；② 升级前旧版写过分录的账套，科目余额没标，要在 Express 跑一次 5.A 才进试算表；③ 回退：服务端回上一个
+   发布标记、CC 回 1.12.20（载荷 ≤ 20 接口没变）。
+   ④ 代录已知问题（1.12.20 起就有，今晚不改引擎）：保存键按下后出现认不出的框转人工时，批次收尾会退出 Express，账套里可能留下一张未存完的单
+   （单头金额 0、明细已写、没有分录与税），回执不带它的单号；看到「转人工 · 认不出的画面」先在 Express 里查同日同对方的单，别直接重交。
+   销货单服务品销项税口径框已进配方（b22c3c28c），这一种框不再走这条路。按类修排在 11-14（进度笔记「明天第一件」）。
+6. 部署后核对：一台电脑升级后心跳版本号；Express 开着单据窗口时推一张 → 回执等账套、账套哈希不变、不弹框；关窗后写进去；这张单分录科目的 GLBAL
+   那一位是 0，跑 5.A 后试算表含它。
+
 ## 新增文案（14 条，`python3 scripts/check-copy.py --report`：新增 14、改动 0、拦截 0）
 
 七个新原因码各一句，Cowork（`intake.error.<码>`）与 ERP（`express.error.<码>`）同文；CC 桌面版每个错误码都要有词条
