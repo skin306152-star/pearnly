@@ -21,6 +21,10 @@ def load(path, name):
 
 
 run = load("scripts/flows/run.py", "flows_run")
+# 锁文件放临时目录：真实的 ~/.cache/pearnly-flows/<实验室>.lock 可能正被别的窗口的 run.py 占着（11-13 本机闸门因此 4 条 BlockingIOError）
+_LOCKS = tempfile.mkdtemp()
+_real_lab_lock = run.lab_lock
+run.lab_lock = lambda folder=None: _real_lab_lock(folder or _LOCKS)
 FLOWS = [{"id": "a.one", "module": "x.py", "start": "/", "datasets": ["new"], "viewports": ["desktop", "mobile"]},
          {"id": "b.two", "module": "y.py", "start": "/", "datasets": ["new", "old"], "viewports": ["desktop"]}]
 
