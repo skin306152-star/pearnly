@@ -6,8 +6,9 @@
 - `ledger(host, path)`：在测试机上对验收账套做探测 / 快照 / 核对 / 还原 / 对比（把 `ledger.py` 送过去跑）。
 
 主机、Python 路径、工作目录从环境变量取，默认值是 11-12「机器分工与占用」里登记的；连不上、超时一律抛 `Infra`（运行器只对它重跑一次）。
-注意：从 ssh 会话访问账套服务器（\\\\accserver）可能没有凭据——11-12 的做法是以桌面用户的一次性计划任务跑。第一期首次实跑时确认，
-不行就把 `Windows.python` 换成计划任务通道（`scripts/express-operator/run-as-session-user.ps1`）。
+桌面用户通道：ssh 进测试机的账号读不到账套服务器（\\\\accserver），只有已登录桌面的那个用户有凭据。主机登记了 `user` 时，脚本改由
+那个用户的一次性计划任务跑（`win/acc-run.ps1` + `win/acc-job.ps1`：参数放文件、输出写文件、跑完删任务并回读），结果文件取回本机读。
+测试机2（aksar）11-13 实测：占用探测、整本快照、核对都经这条通道跑通。测试机1 还没登记桌面用户（skin3），首次用时实测。
 """
 from __future__ import annotations
 
@@ -17,6 +18,8 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
+import uuid
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
@@ -26,7 +29,8 @@ HOSTS = {
     "testpc1": {"ssh": "PEARNLY_ACC_TESTPC1", "default": "lenovo-office-lan", "python": "PEARNLY_ACC_TESTPC1_PYTHON",
                 "python_default": "python", "work": "PEARNLY_ACC_TESTPC1_WORK", "work_default": "C:/PearnlyAcceptance"},
     "testpc2": {"ssh": "PEARNLY_ACC_TESTPC2", "default": "testpc2", "python": "PEARNLY_ACC_TESTPC2_PYTHON",
-                "python_default": "C:/PearnlyPython311/python.exe", "work": "PEARNLY_ACC_TESTPC2_WORK", "work_default": "C:/RecSetup/acceptance"},
+                "python_default": "C:/PearnlyPython311/python.exe", "work": "PEARNLY_ACC_TESTPC2_WORK", "work_default": "C:/PearnlyAcceptance",
+                "user": "PEARNLY_ACC_TESTPC2_USER", "user_default": "aksar"},
 }
 
 
@@ -44,6 +48,7 @@ class Windows:
         self.host = os.environ.get(spec["ssh"], spec["default"])
         self.python_exe = os.environ.get(spec["python"], spec["python_default"])
         self.work = os.environ.get(spec["work"], spec["work_default"])
+        self.user = os.environ.get(spec["user"], spec["user_default"]) if "user" in spec else ""  # 桌面用户通道，见文件头
 
     def _run(self, argv: list[str], timeout: int):
         try:
@@ -63,11 +68,51 @@ class Windows:
         return remote
 
     def python(self, script: Path, *args: str, timeout: int = 600) -> tuple[int, str]:
-        """把脚本送过去跑。参数经 base64 传（账套路径里的反斜杠、泰文不经 shell 转义），脚本见到 b64: 前缀自己解。"""
+        """把脚本送过去跑。参数经 base64 传（账套路径里的反斜杠、泰文不经 shell 转义），脚本见到 b64: 前缀自己解。
+        主机登记了桌面用户时走一次性计划任务（`_as_user`）。"""
+        if self.user:
+            return self._as_user(script, args, timeout)
         remote = self.put(script)
         quoted = " ".join("b64:" + base64.b64encode(arg.encode("utf-8")).decode() for arg in args)
         done = self._run(["ssh", "-o", "BatchMode=yes", self.host, f'"{self.python_exe}" "{remote}" {quoted}'], timeout)
         return done.returncode, done.stdout
+
+
+    def _as_user(self, script: Path, args: tuple, timeout: int) -> tuple[int, str]:
+        """以桌面用户的一次性计划任务跑脚本：参数一行一个写进文件送过去，输出文件（UTF-16）取回本机读。"""
+        if any("\n" in arg or "\r" in arg for arg in args):
+            raise ValueError("桌面用户通道的参数不能带换行（参数文件一行一个）")
+        name = f"{script.stem}-{uuid.uuid4().hex[:8]}"
+        remote = self.put(script)
+        for helper in ("acc-job.ps1", "acc-run.ps1"):
+            self.put(HERE / "win" / helper)
+        jobs = self.work.replace("/", "\\") + "\\jobs"
+        made = self._run(["ssh", "-o", "BatchMode=yes", self.host, f'cmd /c if not exist "{jobs}" mkdir "{jobs}"'], 60)
+        if made.returncode:
+            raise Infra(f"{self.name}：建不了 {self.work}/jobs（{(made.stderr or '').strip()[-200:]}）")
+        with tempfile.TemporaryDirectory() as folder:
+            local = Path(folder) / f"{name}.args"
+            local.write_text("".join(arg + "\n" for arg in args), encoding="utf-8")
+            self.put(local, f"jobs/{name}.args")
+            win = lambda path: path.replace("/", "\\")  # noqa: E731
+            done = self._run(["ssh", "-o", "BatchMode=yes", self.host,
+                              f'powershell -NoProfile -ExecutionPolicy Bypass -File "{win(self.work)}\\acc-run.ps1" -Work "{win(self.work)}" '
+                              f'-Name {name} -User {self.user} -Python "{win(self.python_exe)}" -Script "{win(remote)}" -Wait {timeout}'],
+                             timeout + 120)
+            status = next((line for line in reversed((done.stdout or "").splitlines()) if line.startswith("ACCJOB ")), "")
+            if not status:
+                raise Infra(f"{self.name}：一次性任务没回状态（{((done.stderr or '') + (done.stdout or '')).strip()[-300:]}）")
+            if "task_left=True" in status:
+                raise Infra(f"{self.name}：一次性任务 PearnlyAcc-{name} 没删掉，先手工删再继续")
+            if status.split()[1] == "timeout":
+                raise Infra(f"{self.name}：脚本 {script.name} 在桌面用户会话里 {timeout} 秒没跑完")
+            back = Path(folder) / f"{name}.out"
+            got = self._run(["scp", "-q", f"{self.host}:{self.work}/jobs/{name}.out", str(back)], 120)
+            if got.returncode or not back.is_file():
+                raise Infra(f"{self.name}：取不回 {name}.out（{(got.stderr or '').strip()[-200:]}）")
+            raw = back.read_bytes()
+            text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8", "replace")
+        return int(status.split()[2]), text
 
 
 class Ledger:
