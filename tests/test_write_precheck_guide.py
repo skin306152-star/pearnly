@@ -57,6 +57,11 @@ class Tiers(unittest.TestCase):
         self.assertEqual([d["value"] for d in built["decided"]], ["cash"])
         self.assertEqual(built["counts"], {"questions": 0, "decided": 1})
 
+    def test_decided_items_carry_their_options_to_change(self):
+        built = g.build(card(doc("d1", {**PAY, "value": "cash", "source": c.REMEMBERED})))
+        self.assertEqual([o["code"] for o in built["decided"][0]["options"]], ["cash", "credit"])
+        self.assertFalse(any(o.get("recommended") for o in built["decided"][0]["options"]))
+
     def test_decided_whether_question_is_still_asked(self):
         """「做不做」的题后台给了值也不算已定（例：账套记忆里有「不录」但这次是新的一批）——只认人明选。"""
         built = g.build(card(doc("d1", {**DETAIL, "value": "skip", "source": c.REMEMBERED})))

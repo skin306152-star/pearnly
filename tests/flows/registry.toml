@@ -1915,3 +1915,20 @@ viewports = ["desktop"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/access.py",
 ]
+
+[[flow]]
+id = "cowork.cc.guide"
+title = "Cowork CC 引导卡 pearnly_guide（假智能体后端调工具）：后台出题、推荐预选点了才算、提交后按供应商记住、第二次不再问、整段对话没有 ask_user（引导式录入第 1 期）"
+module = "scripts/flows/cc_guide.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/tool-uis/guide-*.ts",
+  "frontend/assistant/src/components/tool-uis/guide-*.tsx",
+  "apps/pearnly_core/pearnly_core/assistant/guide_tool.py",
+  "apps/pearnly_core/pearnly_core/assistant/guided.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/guide.py",
+]

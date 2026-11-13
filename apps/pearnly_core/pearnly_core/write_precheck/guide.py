@@ -86,7 +86,10 @@ def build(card: Mapping[str, Any]) -> Dict[str, Any]:
             decided.append({"key": item["key"], "kind": item["kind"], "group": item["group"], "label": item.get("label") or "",
                             "value": item.get("value") or "", "value_label": item.get("value_label") or "",
                             "source": item.get("source") or "", "source_key": f"guide.source.{item.get('source') or ''}",
-                            "docs": list(item.get("docs") or ())})
+                            "docs": list(item.get("docs") or ()),
+                            # 「已定 N 项」展开可改：有小列表的带上选项（同题目的选项写法，不标推荐）
+                            **({"options": [_option(item["kind"], option, False) for option in item["options"]]}
+                               if item.get("options") else {})})
         else:
             questions.append(_question(item))
     return {"version": VERSION, "questions": questions, "decided": decided,

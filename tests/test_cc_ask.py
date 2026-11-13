@@ -267,9 +267,10 @@ class SourceRules(unittest.TestCase):
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("respondToApproval(toolUseId: string, approved: boolean, reason?: string, answers?: unknown) {", controller)
         self.assertIn("...(approved && answers !== undefined ? { answers } : {}),", controller)
-        self.assertIn("part.toolName === ASK_TOOL) return null;", read("components/tool-uis/approval-sheet.tsx"))
+        # 引导卡 pearnly_guide 同样不浮成允许卡（引导式录入第 1 期，有意变化）
+        self.assertIn("part.toolName === ASK_TOOL || part.toolName === GUIDE_TOOL) return null;", read("components/tool-uis/approval-sheet.tsx"))
         self.assertIn('ask_user: { type: "backend", render: AskUserCard },', kit)
-        self.assertIn('new Set([...OPERATOR_CARDS, "ask_user"])', kit)
+        self.assertIn('new Set([...OPERATOR_CARDS, "ask_user", "pearnly_guide"])', kit)
         self.assertIn("CARD_TOOLS.has(part.toolName)", read("components/assistant-ui/thread.tsx"))
         self.assertNotIn("ask_user", read("lib/managed-agents/events.ts"))   # 不当代录卡片：照常提醒服务端执行
 
