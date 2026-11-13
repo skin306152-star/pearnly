@@ -92,6 +92,14 @@ class A7Detail(unittest.TestCase):
         self.assertEqual(item["current"], "")
         self.assertEqual([o["code"] for o in item["options"]], list(choices.DETAIL_VALUES))
 
+    def test_status_is_worked_out_when_not_given(self):
+        """调用方（Cowork 推送评估、ERP 准备）不给对账状态时规则自己按映射器的对账闸算：行合计对不上税前额就问。"""
+        bad = purchase(subtotal="100.00", items=[{"name": "A", "qty": "1", "subtotal": "60"}])
+        good = purchase(subtotal="100.00", items=[{"name": "A", "qty": "1", "subtotal": "100"}])
+        self.assertIn("detail", kinds(resolve(bad, guided=True)))
+        self.assertNotIn("detail", kinds(resolve(good, guided=True)))
+        self.assertNotIn("detail", kinds(resolve(bad)))
+
     def test_consistent_detail_is_not_asked(self):
         self.assertNotIn("detail", kinds(resolve(purchase(), items_status="ok", guided=True)))
 
@@ -223,6 +231,34 @@ class SalesServiceVatPayload(unittest.TestCase):
     def test_purchase_unchanged(self):
         made = choices.apply_to_payload({"direction": "purchase", "payload_version": 1}, {"service_vat": "cash_basis"})
         self.assertEqual((made["srv_vattyp"], made["payload_version"]), ("2", 13))
+
+
+class ProductsPassGuided(unittest.TestCase):
+    """两产品把「在 CC 对话里」交给共用规则：Cowork 推送评估 → ``push/express/decide.decide(guided=)``，ERP ``express/prepare``。"""
+
+    def test_cowork_decide_passes_it_on(self):
+        sys.path.insert(0, str(ROOT / "apps/pearnly_cowork"))
+        from pearnly_cowork.push.express import decide
+        seen = {}
+        original = choices.resolve
+
+        def spy(*args, **kw):
+            seen.update(kw)
+            return original(*args, **kw)
+
+        choices.resolve = spy
+        try:
+            decide.decide(purchase(payment_status="partial"), direction="purchase", posting_kind=None, config={},
+                          remembered={}, guided=True)
+        finally:
+            choices.resolve = original
+        self.assertTrue(seen.get("guided"))
+
+    def test_both_products_read_the_shared_switch(self):
+        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/push/application/service.py").read_text(encoding="utf-8")
+        erp = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py").read_text(encoding="utf-8")
+        for source in (cowork, erp):
+            self.assertIn("guided=assistant_guided.active()", source)
 
 
 class NotGuidedUnchanged(unittest.TestCase):

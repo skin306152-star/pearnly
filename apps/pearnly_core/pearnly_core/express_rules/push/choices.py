@@ -163,6 +163,17 @@ def _payment_question(subject, label, fields, guided) -> Dict[str, Any]:
     return item
 
 
+def _detail_status(fields) -> str:
+    """调用方没给明细对账状态时自己算（同映射器的对账闸 ``common.extract_line_items``）：税前额读不出、没有明细的回空（不出题）。"""
+    from pearnly_core.express_rules.push import common
+
+    base = _money(fields.get("subtotal"))
+    if base is None or not isinstance(fields.get("items"), list) or not fields.get("items"):
+        return ""
+    total = _money(fields.get("total_amount") or fields.get("total"))
+    return str(common.extract_line_items(dict(fields), base, total=total).get("status") or "")
+
+
 def _expense_receipt(fields) -> bool:
     return (str(fields.get("document_type") or "") in _EXPENSE_DOC_TYPES
             and (_money(fields.get("vat")) or Decimal(0)) > 0 and len(digits(fields.get("seller_tax"))) == 13)
@@ -423,6 +434,8 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                            "current": default if default and (not accounts or default in _codes(accounts)) else ""})
 
     # ── 明细对不上（A7，引导模式）：怎么录由人定一次，只管这一张，不预选 ──
+    if guided and not items_status:
+        items_status = _detail_status(fields)
     if guided and str(items_status or "") in ("mismatch", "incomplete"):
         ref = str(fields.get("invoice_number") or fields.get("invoice_no") or "").strip()
         needed.append({"kind": "detail", "subject": f"detail|{direction}|{digits(tax)}|{norm_name(name)}|{ref}"[:1000],

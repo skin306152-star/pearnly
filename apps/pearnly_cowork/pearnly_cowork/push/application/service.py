@@ -12,6 +12,7 @@ from pearnly_cowork.access import scope
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
+from pearnly_core.assistant import guided as assistant_guided
 from pearnly_core.express_rules.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_core.express_rules.contracts import codes as code_rules
@@ -461,6 +462,7 @@ def _decisions(connection, account_set, flat, fields, direction, posting_kind, c
         remembered=choice_store.remembered(connection, account_set), rules=(company or {}).get("rules") or (),
         branch=(company or {}).get("branch") or "", rules_read=rules_read, account_resolved=source == SRC_CATEGORY,
         fixed=fixed, receipts=_pos_receipts(flat), undeclared_lines=undeclared_lines, ask_location=ask_location,
+        guided=assistant_guided.active(),  # CC 对话里判定与写入都按引导卡口径（引导式录入第 1 期）
         borrow=lambda remembered, receipts: _borrow_receipts(remembered, connection, siblings, receipts, config),
         settle=lambda needed: _settled_account(needed, connection, account_set, fields, config, fixed))
     applied = decision["applied"]
