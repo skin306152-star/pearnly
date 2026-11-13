@@ -2242,6 +2242,7 @@ Yellow,Yellow
 "Yes, the card fee is {0}% (with or without 7% VAT on the fee)","Yes, the card fee is {0}% (with or without 7% VAT on the fee)"
 You are watching this card,You are watching this card
 You do not have access to this ERP target.,You do not have access to this ERP target.
+Your computer is offline,Your computer is offline
 Zero VAT,Zero VAT
 account,account
 active,active
@@ -3411,6 +3412,7 @@ image,image
 in,in
 intake.agent.state.needsUpdate,CC Desktop needs update
 intake.agent.state.noWriter,No computer can write
+intake.agent.state.notYours,Your computer is offline
 intake.agent.state.offline,Computer offline
 intake.catalog.reload,Read again
 intake.error.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed

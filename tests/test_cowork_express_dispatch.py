@@ -1198,13 +1198,20 @@ class PoolState(unittest.TestCase):
         return self.pool.state("CONN", key, user=user, **kw)
 
     def test_my_own_computer_offline_reads_as_offline_but_still_selectable(self):
-        # 自己的电脑关着 → 「电脑离线（仍可选）」，排队等它开机；同事的电脑在线也不算自己在线
+        # 自己的电脑关着 → 「电脑离线（仍可选）」，排队等它开机；同事的电脑在线也不算自己在线。
+        # A 线 11-12 测试机1：同事够得到这本的电脑在线时另带 not_yours（界面说「您的电脑离线」，不说成电脑离线），
+        # waiting_on 是在等的本人电脑（名称，没名称用编号；界面「等待电脑 · 名称」）
+        self.peers[A]["label"] = "PC-ME"
         self.assertEqual(self.state("s1"), {"online": False, "writers_known": True, "needs_update": False,
-                                            "computers": True})
-        self.assertEqual(self.state(), {"online": False, "writers_known": True, "needs_update": False,
-                                        "computers": True})
+                                            "computers": True, "not_yours": True, "waiting_on": ["PC-ME"]})
+        self.assertEqual(self.state("s2"), {"online": False, "writers_known": True, "needs_update": False,
+                                            "computers": True, "waiting_on": ["PC-ME"]})  # 同事够不到 s2：只是离线
+        self.peers[B]["online"] = False
+        self.assertNotIn("not_yours", self.state("s1"))  # 谁的电脑都不在线：照旧离线
         self.peers[A]["online"] = True
         self.assertTrue(self.state("s1")["online"])
+        self.assertEqual(self.state("s1"), {"online": True, "writers_known": True, "needs_update": False,
+                                            "computers": True})
 
     def test_only_a_colleagues_computer_reaches_it_means_no_writer_not_offline(self):
         # 账套只在别人电脑上（s3 只有 B 够得到）：我有电脑，但没有能写的 → 「没有能写的电脑」，确认按 push.no_writer 拒

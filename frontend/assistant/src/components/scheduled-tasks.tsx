@@ -124,7 +124,7 @@ const accountSetsText = (tr: Tr, rows?: AccountSetCount[]) =>
 type RemindTime = { days_before: number; time: string };
 type Connection = { name: string; adapter: string; enabled: number | boolean; label?: string; revision?: number; config?: Record<string, string>; main?: boolean; credential?: MrErpCredential };
 // 池的状态（`companion.api.online`，ADR-021）：writers_known = 有能写的电脑（关着也算，能选、排队），computers = 池里有电脑
-type PoolState = { online?: boolean; writers_known?: boolean; needs_update?: boolean; computers?: boolean };
+type PoolState = { online?: boolean; writers_known?: boolean; needs_update?: boolean; computers?: boolean; not_yours?: boolean };
 type Snapshot = { connections: Record<string, Connection | null>; agent: PoolState | null };
 type Group = { value: string; label: string; items: Array<{ value: string; label: string }> };
 // counts：文件夹（相对路径，"" 是根目录）里现有几份会被录入的文件，没数过就没有这个键；partial：数到上限；
@@ -161,7 +161,8 @@ function describe(adapter: string, s: Snapshot, tr: Tr): { text: string; tone: "
   if (!c.enabled) return { text: tr("connect.state.disabled"), tone: "bad" };
   if (adapter === "mrerp" || s.agent?.online) return { text: tr("connect.state.connected"), tone: "ok" };
   // 能写的电脑都关着：仍可选（排队，开机后写，D4）；池里有电脑却没有一台能写；一台电脑都没有（同 Desk 录入入口）
-  if (s.agent?.writers_known) return { text: tr("intake.agent.state.offline"), tone: "wait" };
+  // 本人的都关着、同事的在线（活不归同事）：「您的电脑离线」，不说成电脑离线（A 线 11-12）
+  if (s.agent?.writers_known) return { text: tr(s.agent.not_yours ? "intake.agent.state.notYours" : "intake.agent.state.offline"), tone: "wait" };
   return { text: tr(s.agent?.computers ? "intake.agent.state.noWriter" : "intake.agent.state.missing"), tone: "wait" };
 }
 function ready(adapter: string, s: Snapshot) {
