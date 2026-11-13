@@ -35,6 +35,10 @@ export type GuideQuestion = {
   preselected?: string;
   /** 允许自己填（卡上这一题末尾出「其他」，服务端定） */
   free?: boolean;
+  /** 这题涉及的单据（大列表题按第一张定账套去服务端搜） */
+  docs?: string[];
+  /** 大列表题：「其他」去服务端搜这一类（科目 / 物料 / 对方…，`write_precheck.api.search`），选中交编码 */
+  search?: string;
 };
 export type GuideDecided = { key: string; kind: string; title?: string; label?: string; value: string; value_label?: string; source_label?: string; options?: GuideOption[] };
 export type GuideCardData = { questions: GuideQuestion[]; decided: GuideDecided[] };
@@ -122,7 +126,7 @@ const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean; on
 
 /** 服务端的卡 → 提问卡的题（同一个组件 AskCard，用户 11-13：两张卡必须同一种版式）。推荐项标 recommended（徽章、默认选中，只有「怎么录」的题）；
  *  说明行是服务端给的；「其他」只在服务端标了 free 的题出；题目下一行写这一题管哪家几张。 */
-export function askQuestionsOf(card: GuideCardData): AskQuestion[] {
+export function askQuestionsOf(card: GuideCardData, company = ""): AskQuestion[] {
   return card.questions.map((question) => {
     const label = question.title_params?.label ?? "";
     const preselect = preselectOf(question);
@@ -139,7 +143,8 @@ export function askQuestionsOf(card: GuideCardData): AskQuestion[] {
       header: question.title || label,
       options,
       ...(question.title && label ? { subtitle: (question.count ?? 1) > 1 ? guide.documents(label, question.count ?? 1) : label } : {}),
-      ...(question.free ? {} : { noOther: true }),
+      ...(question.search && company ? { search: { company, doc_id: question.docs?.[0] ?? "", kind: question.search } } : {}),
+      ...(question.free || (question.search && company) ? {} : { noOther: true }),
     };
   });
 }
@@ -151,7 +156,8 @@ export function guideAnswersOf(card: GuideCardData, result: AskResult): GuideAns
     const answer = result.answers[index];
     if (!answer || answer.skipped || answer.not_asked) return;
     const picked = (question.options ?? []).find((option) => answer.labels.includes(optionText(option)));
-    const value = picked?.code ?? (question.free ? (answer.other ?? "").trim() : "");
+    // 大列表题在「其他」里从服务端搜出来选的交编码；允许自己填的题交填的字
+    const value = picked?.code ?? (question.search && answer.code ? answer.code : question.free ? (answer.other ?? "").trim() : "");
     if (value) out.push({ key: question.key, value });
   });
   return out;
@@ -160,6 +166,8 @@ export function guideAnswersOf(card: GuideCardData, result: AskResult): GuideAns
 /** 卡片本体（页面与展示页共用）：就是提问卡 AskCard，加上「已定 n 项」附加区。phase answered 只剩一行；cancelled 写「已取消」。 */
 export const GuideCardBody: FC<{
   card: GuideCardData;
+  /** 大列表题去服务端搜要按公司（调用参数里的 company） */
+  company?: string;
   phase: "ask" | "answered" | "cancelled";
   answered?: number | null;
   busy?: boolean;
@@ -168,8 +176,8 @@ export const GuideCardBody: FC<{
   /** 一开始停在第几题（展示页截图用）。 */
   startAt?: number;
   onSubmit: (answers: GuideAnswer[]) => void;
-}> = ({ card, phase, answered, busy, decidedOpen, startAt, onSubmit }) => {
-  const questions = useMemo(() => askQuestionsOf(card), [card]);
+}> = ({ card, company, phase, answered, busy, decidedOpen, startAt, onSubmit }) => {
+  const questions = useMemo(() => askQuestionsOf(card, company), [card, company]);
   const changed = useRef<Record<string, string>>({});
   if (phase !== "ask") {
     return (
@@ -249,6 +257,7 @@ export const GuideCard: ToolCallMessagePartComponent = (props) => {
   return (
     <GuideCardBody
       card={card}
+      company={String((props.args as { company?: unknown } | undefined)?.company ?? "")}
       phase={phase ?? "ask"}
       answered={result?.answered ?? sent}
       busy={phase === null || !!part.approval?.sending || (phase === "ask" && !card.questions.length && !card.decided.length)}
