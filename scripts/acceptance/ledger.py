@@ -20,7 +20,7 @@
     python ledger.py restore  <快照目录> <账套目录> [--quarantine <多出文件挪到这里>]
     python ledger.py copy     <账套目录> <目标目录>           # 只读拷一份现场
     python ledger.py rows     <目录> <表名> [--where 字段=值]  # 按单号读回
-    python ledger.py diff     <前> <后> [--out 结果.json] [--allow 表名,表名]
+    python ledger.py diff     <前> <后> [--out 结果.json] [--allow 表名,表名] [--show 表名,表名]
 退出码：0 = 成功 / 一致；1 = 不一致、被占用或保护拦下；2 = 用法错。输出一行 JSON（给运行器读）。
 """
 from __future__ import annotations
@@ -294,6 +294,7 @@ def main(argv=None) -> int:
     four.add_argument("after", type=Path)
     four.add_argument("--out", type=Path)
     four.add_argument("--allow", default=None, help="只允许这些表变化（逗号分隔）；给了就核「其余逐字节不变」")
+    four.add_argument("--show", default="", help="这些表（逗号分隔）的逐行变化直接带在结果里（场景按新增行核单号、金额）")
     args = parser.parse_args(argv)
     try:
         if args.command == "probe":
@@ -315,6 +316,8 @@ def main(argv=None) -> int:
                 args.out.write_text(json.dumps(result, ensure_ascii=False, indent=1), encoding="utf-8")
             out = {"ok": True, "files": {kind: len(names) for kind, names in result["files"].items()},
                    "tables": {name: [table["rows_before"], table["rows_after"], len(table["rows"])] for name, table in result["tables"].items()}}
+            if args.show:
+                out["shown"] = {name.upper(): result["tables"].get(name.upper(), {}).get("rows", []) for name in args.show.split(",") if name}
             if args.allow is not None:
                 out["stray"] = untouched(result, [name for name in args.allow.split(",") if name])
                 out["ok"] = not out["stray"]

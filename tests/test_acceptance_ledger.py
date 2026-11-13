@@ -133,6 +133,14 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.untouched(result, ["APTRN"]), ["changed:STMAS.DBF"])
         self.assertEqual(ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN"]), 1)
         self.assertEqual(ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN,STMAS"]), 0)
+        # --show：场景要按新增行核单号、金额，指定的表的逐行变化直接带在结果那一行里
+        import contextlib, io, json
+        printed = io.StringIO()
+        with contextlib.redirect_stdout(printed):
+            ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN,STMAS", "--show", "aptrn,ARTRN"])
+        shown = json.loads(printed.getvalue().strip().splitlines()[-1])["shown"]
+        self.assertEqual(shown["APTRN"][1]["added"], {"DOCNUM": "RR0000002", "AMOUNT": "55.00"})
+        self.assertEqual(shown["ARTRN"], [])
 
     def test_rows_reads_back_by_document_number_and_copy_is_read_only(self):
         found = ledger.rows(self.book, "aptrn", "DOCNUM=RR0000001")["rows"]

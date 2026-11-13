@@ -107,7 +107,7 @@ class LinesTest(unittest.TestCase):
                     scenario = {"id": "acc.draft", "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1, **extra}
                     result = runner.run_one(scenario, pathlib.Path(folder) / "run", "win-test", False)
                     self.assertEqual(result["outcome"], runner.NOT_RUN, module)
-                    self.assertIn("真模型驱动没配", result["detail"])
+                    self.assertIn("PEARNLY_ACC_COWORK_COMPANY" if module == "cowork_cc_direct.py" else "真模型驱动没配", result["detail"])
             finally:
                 os.environ.pop("PEARNLY_LOCK_DIR", None)
 

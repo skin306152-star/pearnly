@@ -144,8 +144,10 @@ class Ledger:
         """跑完后的现场：整本只读拷到证据目录旁（对比用），不动账套。"""
         return self.call("copy", self.path, to)
 
-    def diff(self, before: str, after: str, allow: list[str] | None = None, out: str | None = None) -> dict:
+    def diff(self, before: str, after: str, allow: list[str] | None = None, out: str | None = None, show: list[str] | None = None) -> dict:
         args = ["diff", before, after]
+        if show:
+            args += ["--show", ",".join(show)]
         if out:
             args += ["--out", out]
         if allow is not None:

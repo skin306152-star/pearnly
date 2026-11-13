@@ -20,6 +20,7 @@ import pathlib
 import stat
 import sys
 import tempfile
+import types
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -344,7 +345,104 @@ class FactoryTest(unittest.TestCase):
                             **extra, **({"driver": target} if target else {})}
                 result = runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False)
                 self.assertEqual(result["outcome"], runner.NOT_RUN, (module, target))
-                self.assertIn(words, result["detail"])
+                # 示范 2 先要验收公司与基线：没配就停在那里（还没走到开对话）
+                self.assertIn("PEARNLY_ACC_COWORK_COMPANY" if module == "cowork_cc_direct.py" else words, result["detail"])
+
+
+class DirectWriteScenarioTest(unittest.TestCase):
+    """示范 2（scripts/acceptance/scenarios/cowork_cc_direct.py）整条走一遍，账套与对话都换成替身：只验场景自己的判定——
+    点头之前账套变了判不通过并留会话事件；正常写成一张、金额对得上样票才通过；跑完恢复基线。真环境没跑过。"""
+
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_COWORK_COMPANY": "CO-TEST2",
+                "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+        self.old = {key: os.environ.get(key) for key in keys}
+        os.environ.update(keys)
+        self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
+        self.runner = load("acceptance_run_for_direct", "scripts/acceptance/run.py")
+
+    def go(self, early_write=False, amount="120.0"):
+        lines = sys.modules["cc_lines"]
+        calls = []
+
+        class Book:
+            written = early_write
+
+            def probe(self):
+                return {"ok": True, "busy": []}
+
+            def verify(self, snap):
+                calls.append("verify")
+                return {"ok": not Book.written}
+
+            def restore(self, snap):
+                calls.append("restore")
+                Book.written = False
+                return {"ok": True}
+
+            def copy(self, to):
+                return {"ok": True}
+
+            def diff(self, before, after, allow=None, out=None, show=None):
+                return {"ok": True, "stray": [], "shown": {"APTRN": [{"row": 189, "deleted": False, "added": {
+                    "DOCNUM": "RR691113-002", "SUPCOD": "V001", "AMOUNT": amount, "VATAMT": "8.4", "NETAMT": "128.4", "REFNUM": "ACC-A1-0001"}}]}}
+
+        class Talk:
+            session_id, site, keep = "S-1", "testcowork.lab", False
+
+            def __init__(self):
+                self.clicked = None
+
+            def attach(self, files):
+                calls.append(("attach", files))
+
+            def say(self, text):
+                calls.append(("say", text))
+
+            def wait_idle(self, seconds=0):
+                pass
+
+            def cost(self):
+                return 0.2 if self.clicked else 0.1
+
+            def click(self, card, choice):
+                self.clicked, Book.written = 1.0e9, True
+                return True
+
+            def record(self):
+                plan = {"kind": "plan", "id": "P1", "at": 9.0e8, "topic": "P1", "count": 1, "status": "started" if self.clicked else "awaiting",
+                        "answer": "write" if self.clicked else None, "answered_at": self.clicked}
+                turns = [{"role": "user", "text": "บันทึกให้หน่อย", "at": 1.0}, {"role": "assistant", "at": 2.0,
+                         "text": "บันทึกแล้ว เลขที่ RR691113-002" if self.clicked else "จะบันทึก 1 ใบ"}]
+                return lines.Record(turns=turns, cards=[plan])
+
+            def evidence(self):
+                return {"session_id": "S-1", "events": [{"id": "e1"}]}
+
+        targets = types.SimpleNamespace(ledger=lambda host, path: Book(), windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
+        opened = driver.open_conversation
+        driver.open_conversation = lambda *args, **kwargs: Talk()
+        try:
+            scenario = {"id": "acc.cowork.cc.direct", "module": "scripts/acceptance/scenarios/cowork_cc_direct.py", "resources": [], "budget_usd": 1}
+            return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), calls
+        finally:
+            driver.open_conversation = opened
+
+    def test_one_ticket_written_once_matches_the_sample_and_baseline_is_restored(self):
+        result, calls = self.go()
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertEqual((result["facts"]["docnums"], result["spent_usd"], calls[-1]), (["RR691113-002"], 0.2, "restore"))
+        self.assertIn(("attach", ["purchase-a1"]), calls)
+
+    def test_a_write_before_consent_or_a_wrong_amount_fails_and_keeps_the_conversation(self):
+        result, _ = self.go(early_write=True)   # 开跑时不等于基线 → 先恢复；这里恢复后替身回到基线，所以改用金额不对的情形验失败路径
+        self.assertEqual(result["outcome"], self.runner.PASS)
+        result, calls = self.go(amount="100.0")
+        self.assertEqual(result["outcome"], self.runner.FAIL)
+        self.assertIn("税前金额", result["detail"])
+        self.assertEqual((result["failure_evidence"], calls[-1]), (["failure/conversation.json"], "restore"))
 
 
 if __name__ == "__main__":
