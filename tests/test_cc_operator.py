@@ -282,6 +282,9 @@ const g = globalThis as any;
   const several = writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "S2", account_set_title: "Acme B", count: 2 }, { account_set: "S1", account_set_title: "Acme A", count: 1 }]);
   assert.ok(several.includes("Acme B") && several.includes("Acme A") && several.indexOf("Acme B") < several.indexOf("Acme A"), several);
   assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, []), op.writeTo("Acme"));
+  // 账套没有名称时写位置，不写账套编号（ERP 的编号是内部 book_key，测试机1 11-13）
+  assert.equal(writeLine({ company: "CO-1", company_title: "Acme" }, [{ account_set: "be4d2124c58bf1504d40950fa1f457d2ec986ebb", account_set_path: "S:\\69EXP\\TEST" } as any]),
+    op.writeTo("Acme · S:\\69EXP\\TEST"));
   g.setTargets = (reply: any) => setOperatorSite({ post: async () => reply, get: async () => ({}) as any });
   g.setTargets({ documents: [{ doc_id: 1, state: "ready" }], target: null, targets: [{ account_set: "S2", count: 2 }, { account_set: "S1", count: 1 }] });
   assert.deepEqual((await operatorActions.precheck("CO-1", ["1"])).targets.map((t: any) => t.account_set), ["S2", "S1"]);
@@ -537,6 +540,11 @@ assert.equal(kindName({ kind: "party", subject: "x" }), op.kind.party);
 // 入账方式的选项写四语的说法，不写原值 stock / service（生产照片：「stock (แนะนำ) / service」）
 assert.equal(optionLabel("goods_posting", { code: "stock", name: "" }), op.option.stock);
 assert.equal(optionLabel("goods_posting", { code: "service", name: "" }), op.option.expense);
+// 账套的编号是内部编号（book_key / 连接|键），任何界面都不露给用户（测试机1 11-13 开始卡）：只写账套名
+const BOOK = "be4d2124c58bf1504d40950fa1f457d2ec986ebb";
+assert.equal(optionLabel("account_set", { code: BOOK, name: "9.บริษัท Pearnly จำกัด · \\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST" }), "9.บริษัท Pearnly จำกัด · \\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST");
+assert.ok(!optionLabel("current_book", { code: BOOK, name: "T.8" }).includes(BOOK));
+assert.ok(!optionLabel("account_set", { code: BOOK, name: "" }).includes(BOOK));
 // 标题不给内部编号（生产照片：任务卡列了 24 行 CWH-哈希）
 assert.equal(docTitle({}, "CWH-af181ee25a4fb64fbe6c26a506a97959df4eb66bc140b112"), op.untitled);
 assert.equal(docTitle({}, "P:PUR-0001"), op.untitled);

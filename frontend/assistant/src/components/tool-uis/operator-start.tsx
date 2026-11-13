@@ -36,7 +36,8 @@ import {
 
 /** 问话：写入 {公司} · {账套} · {电脑} 的 Express（不知道的那一项不写）；一批写进几份账套时列出每一份（服务端 targets，张数多的在前）。 */
 export function writeLine(input: Pick<StartInput, "company" | "company_title">, targets: readonly WriteTarget[]): string {
-  const sets = targets.map((t) => t.account_set_title || t.account_set || "").filter(Boolean);
+  // 没有名称写位置；账套编号是内部编号（ERP 是 book_key），不给人看（测试机1 11-13）
+  const sets = targets.map((t) => t.account_set_title || t.account_set_path || "").filter(Boolean);
   const named = sets.length > 1 ? new Intl.ListFormat(lang, { type: "conjunction" }).format(sets) : sets[0];
   const computers = [...new Set(targets.map((t) => t.computer ?? "").filter(Boolean))];
   return op.writeTo([input.company_title || input.company, named, computers.join("、")].filter(Boolean).join(" · "));
@@ -107,7 +108,7 @@ function usePrep(input: StartInput, on: boolean, uploads: string) {
     const page = await operatorActions.documents(input.company, input.period, offset);
     const docs = refresh ? mergeDocs(page.documents, before?.docs ?? []) : [...(before?.docs ?? []), ...page.documents];
     const next = refresh && before ? before.next : page.next;
-    const [checked, login] = await Promise.all([operatorActions.precheck(input.company, docs.map((d) => d.doc_id)), loginHere()]);
+    const [checked, login] = await Promise.all([operatorActions.precheck(input.company, docs.map((d) => d.doc_id), input.task), loginHere()]);
     const fresh = { docs, next, prechecks: checked.documents, targets: checked.targets, login };
     setPrep(fresh);
     return fresh;

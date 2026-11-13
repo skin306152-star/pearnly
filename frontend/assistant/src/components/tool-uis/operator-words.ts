@@ -55,7 +55,11 @@ const CODED_BY_KIND: Record<string, Record<string, () => string>> = {
 };
 
 /** 一个选项的说法：新建（商品写「库存（新建）」）、记费用、现购 / 赊购、抵进项 / 记费用；已有的写编码与名称。 */
+/** 编码是内部编号、不给人看的几类（账套：book_key / 连接|键，测试机1 11-13 开始卡把它露了出来）：只写名称。 */
+const OPAQUE_CODES = new Set(["account_set", "current_book"]);
+
 export function optionLabel(kind: string, option: ChoiceOption): string {
+  if (OPAQUE_CODES.has(kind)) return (option.name ?? "").trim() || op.unknownReason;
   if (option.code === NEW_CODE) return kind === "item" ? op.option.newItem! : op.option.new!;
   if (option.code === EXPENSE_CODE) return op.option.expense!;
   const name = (option.name ?? "").trim();
