@@ -207,6 +207,20 @@ def writers(actor, book_key) -> dict:
     return {"state": "not_yours" if others else "offline", "devices": able}
 
 
+def waiting_on(actor, book_keys) -> list:
+    """``actor`` 的活此刻在等的电脑名称：他自己登录过 CC、够得到这几本里任一本、此刻不在线的电脑（同事的不算，谁的活谁的电脑做）；
+    他有在线的就回空（不在等）。代录排队时页面写「等待电脑 · 名称」（A 线 11-12）。"""
+    keys = [key for key in book_keys or () if key]
+    if not keys:
+        return []
+    peers = devices.peers()
+    reach = {name for names in (books.reachers(keys) or {}).values() for name in names or ()}
+    able = [name for name, peer in peers.items() if name in reach and route_contracts.serves(peer.users, actor)]
+    if any(peers[name].online for name in able):
+        return []
+    return sorted(devices.label(name) for name in able)
+
+
 # ── 电脑领单 ───────────────────────────────────────────────────────────────────
 
 

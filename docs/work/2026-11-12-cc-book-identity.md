@@ -47,3 +47,16 @@ A 线是这条接缝的负责人；引导式窗口（local_401d0285，分支 `pe
 4. **出不出**：本对话账套已定（新建页选了、右栏改了、答过一次）就不出账套题、不再问；未定才出一次。同期两份那种 current_book 题并进这一题，不单独问。
 5. **之后**：写入闸（`write_scope`）、写入计划（`write_plan` 记的 `ledger`）只认会话的 `project_ledger`。
 6. **跨边测试（第 3 批落地时必须带上）**：引导卡答的账套 = 会话 `project_ledger` = 写入计划 `ledger` = 推送 / 写账作业落点；已定时引导卡不出账套题。引导卡入口还不存在，这条测试由实现 `pearnly_guide` 的窗口在同一提交里加；现有的单边测试是 `test_cc_conversation_ledger`（`ledger.choose` 只认最近一张卡上选的）与 `test_write_plan`（计划记账套、变了判 `ledger_changed`）。
+
+## 11-13：Cowork 同类说错离线原因与「等待电脑 · 电脑名」（主会话定：读科目表保持不按人；直写排队不另造界面组件）
+
+| 提交 | 内容 |
+|---|---|
+| 961e31112 | `companion.pool.state` 按人、能写、都不在线时带 `waiting_on`（在等的本人电脑名称）与 `not_yours`（同事够得到这本、能写的电脑在线）；定时任务页（CC）与 Desk 去向选择显示新词条 `intake.agent.state.notYours`「您的电脑离线」（四语，check-copy 过），不再说成电脑离线 |
+| d11b5f101 | 直写推送排队（`_submit_one` 的 sent）带 `waiting_on` 与 `cc_desktop_not_yours`，`PUSH_QUEUED_NOTE` 写明同事的电脑不会替他写；回读等电脑（`request_service.waiting`）新原因 `not_yours`，`READBACK_WAITING` 有对应说明 |
+| adc986bf9 + 本提交 | 代录任务排队等电脑：共用层 `products.waiting_on(company, user)`（产品钩子，Cowork 经 `folder_intake.destinations.waiting_on` 看这家账套各处连接上任务主人的电脑），整段进度事件带 detail；页面「等待电脑 · 名称」（沿用现成 `folderWaiting`，不新增词条） |
+
+- 读科目表（`connections/account_masters.py`）：主会话 11-13 定保持现状，任何够得到这本的电脑都能领（只读，可用性优先），不改。
+- 直写推送排队在对话里是通用步骤（`PlainStep`），没有专门排队界面；express-wait-display 那套在录入工作台 / ERP 单据列表（Desk），且还没进 main，不另造组件——电脑名只由 CC 在回复里说（工具结果 `waiting_on`）。**覆盖表登记：直写排队「等待电脑 · 名称」界面未显示，由 CC 回复说明。**
+- ERP 代录同样声明 `waiting_on`（两产品代录钩子要一致，`check-cc-tools`）：`cc_desktop.jobs.waiting_on` 按任务主人、这家公司的账套算在等的电脑。
+- 测试（都先红）：`test_cowork_express_dispatch.PoolState`、`test_cc_scheduled_task_terms`（新词条四语）、`test_cowork_assistant_tools`（推送排队、回读 not_yours）、`test_cowork_companion_requests`、`test_cc_operator`（进度文字）、`test_express_operator_feed`（排队带 detail）、`test_cowork_companies`（代录在等的电脑按任务主人、两处连接都看）。

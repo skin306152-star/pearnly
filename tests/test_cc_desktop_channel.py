@@ -225,6 +225,19 @@ class Queue(Base):
         self.offline(self.office)  # 谁的电脑都不在线：照旧是离线
         self.assertEqual(jobs.writers("boss@x", book)["state"], "offline")
 
+    def test_the_computers_a_job_waits_for_are_the_owners_offline_ones(self):
+        # 代录排着等电脑时页面写「等待电脑 · 名称」（A 线 11-12）：在等的是 boss 自己够得到这本、此刻不在线的电脑；同事的不算
+        mine = self.register("boss@x", KEY_B)
+        boss = self.context(mine["device"], "boss@x")
+        self.report(boss)
+        self.enqueue(actor="boss@x")
+        book = self.changes[-1]["book_key"]
+        self.assertEqual(jobs.waiting_on("boss@x", [book]), [])  # 在线：不在等
+        self.offline(boss)
+        self.assertEqual(jobs.waiting_on("boss@x", [book]), [devices.label(mine["device"])])
+        self.assertEqual(jobs.waiting_on("staff@x", [book]), [])  # staff 的电脑在线
+        self.assertEqual(jobs.waiting_on("nobody@x", [book]), [])
+
     def test_a_job_nobody_can_write_does_not_hold_up_the_book(self):
         # 验收 10-25：排在最前的单录入人名下没有电脑（Administrator），同一份账套后面 staff 的单原来一直领不到
         self.enqueue(actor="boss@x", name="SD-1")
