@@ -193,7 +193,11 @@
 - 落：同一个 `masters.apply`，不另写一份。主档上的 `express_company / express_code` 字段名保留（改名牵动隔离钩子、条码判重、写账认档几十处），
   语义改成「账本公司 / 账本编码」，另加只读 `ledger`（express / mrerp）标来源；界面标签改「账本」口径（四语）。
 - 触发：MR.ERP 没有文件属性可看，按「写单后一次 + 每小时整读比对」；比对后只写变化行，整读一次一本约几秒（未实测，第 3 批在 TEST2019 实读给实数）。
-- 打开 `MRERP_LEDGER_ENABLED`（全部租户同时生效，不按租户开关）：随第 3 批上线，之前 MR.ERP 标签不出现。
+- 打开 `MRERP_LEDGER_ENABLED`（全部租户同时生效，不按租户开关）：随第 3 批与 Express 同一车上线，之前 MR.ERP 标签不出现。
+  **用户 11-14 定：整条线（连接、主档、写账）一起开，不拆成两个开关、不分段上线**；前提是写账先在 test01·TEST2019 真写读回验过（「MR.ERP 写账四格」窗口负责）。
+  这个开关一处同时放开：CC 授权钩子（`hooks.py:382`）、连接与登录票（`mrerp/connection.py:24,130`）、账套目录与选账本（`mrerp/catalog.py:38,100`）、
+  导入菜单与默认值（`mrerp/choices.py:74`）、选公司窗 MR.ERP 标签（`masters/cc_service._mrerp_on`）、设置里的连接行（`masters/cc_projects.py:44`）、
+  写账直写（`mrerp/push.py:39,149,224`、`express/push.py:431` 分流）、待处理与核对（`express/pending.py:76`、`mrerp/ledger_check.py:19`）、CC 工具措辞（`express/cc_tools.py:717`）。
 
 ### 3.4 无税号账套
 
@@ -395,3 +399,20 @@
 - 首次实测发现：两个进程同时落库时，锁定计数器的那句撞上 MariaDB 11.8 默认快照隔离的 1020（「Record has changed since last read」）；
   已改成先提交再锁、撞上重来。Frappe 自己逐条发号在并发建档时也会撞同一个 1020（同仓 `assistant/sessions.py` 已有同类处理），
   批量写把一万多次发号收成二十几次，撞的机会反而少了。
+
+
+## 接缝约定：公司接入（本窗口）× MR.ERP 写账四格（mrerp-write 窗口）
+
+（主会话 11-14 定：约定只写这一份，对方引用不另写；改约定经主会话转两边。）
+
+| 项 | 归属 | 约定 |
+|---|---|---|
+| `mrerp/__init__.py` 的 `MRERP_LEDGER_ENABLED = True` 那一个提交 | **本窗口**（第 3 批） | 只有一个开关、不拆；在对方报「TEST2019 四格真写读回通过」、主会话转达后才提交，与 Express 同一车 |
+| 对方实验栈里打开开关做验证 | mrerp-write | 只在测试里 `mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True)` 或自己实验栈的未提交改动，不提交开关 |
+| 写账路径：`mrerp/push.py`、`express/push.py` 的 MR.ERP 分支（`:431` 起）、`pearnly_core/mrerp/push/**`、`mrerp/contracts.py`、`mrerp/ledger_check.py` | mrerp-write | 本窗口不改 |
+| 连接与目录：`mrerp/connection.py`、`mrerp/catalog.py`、`mrerp/api.py`、`masters/cc_service.py` 的 MR.ERP 分支 | **本窗口**（第 2、3 批） | 对方只读、只调 |
+| 主档整读：新文件 `pearnly_core/mrerp/master_export.py`（导出页读成 facts）、`mrerp/masters.py`（排读、交 `express.masters.apply` 落库） | **本窗口**（第 3 批） | 写账缺档时现有 `autocreate` 不变；自建后下一轮整读把它落回 ERP |
+| `pearnly_core/mrerp/session.py`、`collect.py`、`master_reader.py`（登录、选账套、小表读取） | 共用、不改契约 | 两边都只调；谁要改先告诉主会话 |
+| 公司「来源」：第 2 批加 `ERP Company.ledger`（express / mrerp）与 `push.linked / enabled / linked_at` 统一读法 | **本窗口** | 对方写账判定继续用 `mrerp.push.handles(company)`；第 2 批把它内部改读 `ledger`，签名不变 |
+| 跨边测试 | 两边 | `tests/test_erp_mrerp_direct.py`（对方）在开关打开时跑全；本窗口第 3 批加「开关打开 + 从连接添加一家 MR.ERP 公司 → 主档落库 → 对方的写账用例照过」一条，放 `tests/test_erp_mrerp_onboarding.py` |
+| 合入顺序 | 主会话排 | 对方写账分支先合（不含开关）→ 本窗口第 3 批（含开关）后合，同一车部署 |
