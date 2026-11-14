@@ -445,5 +445,47 @@ class DirectWriteScenarioTest(unittest.TestCase):
         self.assertEqual((result["failure_evidence"], calls[-1]), (["failure/conversation.json"], "restore"))
 
 
+class ReachPlanTest(unittest.TestCase):
+    """示范 2 的「等到出写入计划」：这一轮停了但没计划接着等；提问卡按默认项答并记下；允许卡不替点；到时限把记录交回。"""
+
+    def setUp(self):
+        load("acceptance_run_for_reach", "scripts/acceptance/run.py")  # 先有 acc_errors
+        self.scenario = load("acc_cowork_cc_direct_reach", "scripts/acceptance/scenarios/cowork_cc_direct.py")
+
+    def talk(self, frames):
+        record = sys.modules["cc_lines"].Record
+        left, clicks = list(frames), []
+
+        class Talk:
+            def wait_idle(self, seconds=180):
+                return None
+
+            def record(self):
+                cards = left.pop(0) if len(left) > 1 else left[0]
+                return record(turns=[], tools=[], cards=cards, writes=[], stops=[])
+
+            def click(self, card, choice):
+                clicks.append((card, choice))
+                return True
+
+        return Talk(), clicks
+
+    def test_waits_through_a_quiet_round_then_answers_an_ask_card_with_the_defaults(self):
+        ask = {"kind": "ask", "id": "u1", "at": 1.0, "topic": "付款方式", "headers": ["付款方式"], "answered_at": None}
+        plan = {"kind": "plan", "id": "p1", "at": 2.0, "topic": "p1", "count": 1, "status": "awaiting"}
+        talk, clicks = self.talk([[], [ask], [dict(ask, answered_at=1.5), plan]])
+        clock = iter(range(0, 1000, 5))
+        found, asked = self.scenario.reach_plan(talk, seconds=400, sleep=lambda _s: None, clock=lambda: next(clock))
+        self.assertEqual((clicks, [item["topic"] for item in asked]), ([("ask", [])], ["付款方式"]))
+        self.assertEqual(found.cards[-1]["status"], "awaiting")
+
+    def test_never_clicks_an_allow_card_and_hands_back_at_the_limit(self):
+        allow = {"kind": "allow", "id": "u2", "at": 1.0, "topic": "cowork_push_documents", "answer": None, "answered_at": None}
+        talk, clicks = self.talk([[allow]])
+        clock = iter(range(0, 10000, 50))
+        found, asked = self.scenario.reach_plan(talk, seconds=120, sleep=lambda _s: None, clock=lambda: next(clock))
+        self.assertEqual((clicks, asked, found.cards), ([], [], [allow]))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2,7 +2,7 @@
 → 账本读回（恰好多一张、供应商与金额对得上样票）、预期以外的表逐字节不变 → 底线 ①⑥⑦ → 恢复基线。
 就是「按现版本从 CC 入口真写验证过 0 项」的那条链；跑不通本身就是要报的结果。
 
-**状态（11-13）：写全了、没跑过、没登记。**依赖：真模型驱动连过一次真站点（cc_driver.RealConversation 只有离线单测）、
+**状态（11-14）：写全了、没跑过、没登记**（开跑前置清单见共享笔记「验收体系-示范2-开跑清单-11-14.md」）。依赖：真模型驱动连过一次真站点（cc_driver.RealConversation 只有离线单测）、
 集成分支的直写修复、验收公司在站点里接着 TEST2。登记时：class = "chain"、env = "B"、driver = "real"、
 rows = ["cowork.cc.tool.cowork_push_documents", "cowork.cc.tool.pearnly_write_start"]、
 resources = ["testpc2", "ledger:69EXP/TEST2"]（站点实验栈另加）、needs_server = true、budget_usd = 1.0、repeat = 1（入库与每周 3）。
@@ -66,6 +66,32 @@ def money(value) -> Decimal:
     return Decimal(str(value or 0)).quantize(Decimal("0.01"))
 
 
+PLAN_WAIT, ASK_LIMIT = 420, 4   # 放票后最多等这么久出写入计划；出计划前最多替用户答这么多张提问卡
+
+
+def reach_plan(talk, seconds: int = PLAN_WAIT, limit: int = ASK_LIMIT, sleep=time.sleep, clock=time.monotonic):
+    """等到出了等用户点头的写入计划 → (对话记录, 中间答过的提问卡)。等的是值，不是「这一轮停了」：
+    识别超过站点的等待时限会挂到后台，这一轮看着停了、过一会儿自己接着走——接着等；
+    CC 先出提问卡（开始前的选择）就照卡片默认项（每题第一个选项）作答并记下来，最多 limit 张；
+    要用户点「允许」的卡片不替点（那是写操作的把关），留给场景判不通过。到时限还没计划就把手上的记录交回，由场景的断言说哪里不对。"""
+    deadline, asked = clock() + seconds, []
+    while True:
+        try:
+            talk.wait_idle(60)
+        except Infra:
+            pass   # 还在跑：接着等到总时限
+        record = talk.record()
+        if any(card["kind"] == "plan" and card.get("status") == "awaiting" for card in record.cards):
+            return record, asked
+        waiting = [card for card in record.cards if card["kind"] == "ask" and card.get("answered_at") is None]
+        if waiting and len(asked) < limit and talk.click("ask", []):
+            asked.append({"topic": waiting[-1].get("topic"), "headers": waiting[-1].get("headers"), "answered": "每题第一个选项"})
+            continue
+        if clock() > deadline:
+            return record, asked
+        sleep(10)
+
+
 def run(ctx):
     lines, samples = _lib("cc_lines"), _lib("samples")
     conf = settings()
@@ -95,10 +121,12 @@ def run(ctx):
     with ctx.step("放票并说一句", "识别出这张采购票，复述后出写入计划；这时账本里还没有新单"):
         talk.attach([conf["sample"]])
         talk.say(SAY.get(lang, SAY["th"]))
-        talk.wait_idle(300)
+        record, asked = reach_plan(talk)
         ctx.spend(talk.cost() - ctx.spent, "识别与复述")
-        record = talk.record()
         ctx.save("before-write.record.json", record.__dict__)
+        ctx.save("cards-before-plan.json", asked)   # CC 出计划前问过什么、按默认项答了什么：正常主线里问得多不多看这里
+        stuck = [card for card in record.cards if card["kind"] == "allow" and card.get("answered_at") is None]
+        ctx.require("出计划之前没有要用户点「允许」的卡片挂着", [], [card.get("topic") for card in stuck])
         waiting = [card for card in record.cards if card["kind"] == "plan" and card.get("status") == "awaiting"]
         ctx.require("出了一张等用户点头的写入计划", 1, len(waiting))
         ctx.check("写入计划里是一张单", 1, waiting[0].get("count"))
