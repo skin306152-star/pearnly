@@ -990,6 +990,25 @@ def carry_text(pending) -> str:
     return text if text.startswith(CARRY_INTRO) else carry_note(text)
 
 
+# 本对话业务（输入框上方的业务菜单，引导式录入第 1 期）：页面已在对话里请用户交票据 / 说客户和金额，那句不进对话记录，
+# 模型从这里知道（只给模型，不经 _()）
+BUSINESS_ASKED = {
+    "purchase": "the page has asked them in the conversation to upload the purchase documents",
+    "sales": "the page has asked them in the conversation to upload the sales documents",
+    "collection": "the page has asked them in the conversation for the customer and the amount received",
+}
+BUSINESS_NOTE = ("<conversation_business>The user chose {business} on the business menu above the input box and {asked}. "
+                 "Read their files and short replies (such as \"ok\") as that.</conversation_business>")
+
+
+def business_note(business) -> str:
+    """批末系统消息里的一段：这段对话选了哪个业务、页面已请用户做什么；没选（或不认得）回空。"""
+    business = str(business or "")
+    if business not in BUSINESS_ASKED:
+        return ""
+    return BUSINESS_NOTE.format(business=business, asked=BUSINESS_ASKED[business])
+
+
 def system_message(*texts):
     """一批事件末尾的那条系统消息：引擎规定每批最多一条、只能放在最后（紧跟用户消息），所以接续、提醒、日期
     合成一条，段与段空一行。全是空的回 None（这一批不带系统消息）。"""

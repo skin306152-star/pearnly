@@ -48,9 +48,9 @@ GROUP_SCAN = 300  # 第一页一次最多读这么多条归在组里的对话，
 ORDERED_MAX = 300  # 第一页按组里手排的先后一并给的最多这么多条
 FIELDS = ["name", "session_id", "title", "title_source", "starred", "archived", "creation", "modified",
           "remote_ids", "context_tokens", "pending_carry", "project", "period", "project_scope", "project_noted",
-          "operator_task", "project_ledger", "business"]
+          "operator_task", "project_ledger", "business", "business_at"]
 LIST_FIELDS = ["name", "session_id", "title", "starred", "archived", "creation", "modified", "project", "period",
-               "project_scope", "operator_task", "project_ledger", "business"]
+               "project_scope", "operator_task", "project_ledger", "business", "business_at"]
 UNFILED = ["is", "not set"]  # 「最近」：project 为空（新加的字段，旧行是 NULL）
 FILED = ["is", "set"]
 # 两种模式（统一对话框架 14.8）：代录会话 = operator_task 不为空；列表按 mode 筛（chat / operator，不带 = 全部）
@@ -133,7 +133,8 @@ def _summary(row, status=None, unread=False) -> dict:
             "project": row.get("project") or "", "period": row.get("period") or "",
             "scope": row.get("project_scope") or "", "mode": "operator" if row.get("operator_task") else "chat",
             "task": row.get("operator_task") or "", "ledger": row.get("project_ledger") or "",
-            "business": row.get("business") or ""}
+            "business": row.get("business") or "",
+            "business_at": _when(row.get("business_at")) if row.get("business") and row.get("business_at") else ""}
 
 
 def _tool_runs(row, ids) -> dict:
@@ -652,9 +653,11 @@ def move(session_id, project, period=None, scope=None, ledger_id=None) -> dict:
             **({} if kept is None else {"ledger": kept})}
 
 
-def set_business(session_id, business) -> dict:
+def set_business(session_id, business, from_start=False) -> dict:
     """本对话业务（输入框上方的业务菜单，引导式录入第 1 期）：只动本人的会话；``business`` 要在这个产品 × 这个模式声明的清单里
-    （`guided.offered`），"" = 取消。只是记下（这一批上传的票默认按它定方向、占位文字按它换），不改最后活动时间。"""
+    （`guided.offered`），"" = 取消。只是记下（这一批上传的票默认按它定方向、占位文字按它换、页面在对话里请用户交票据），
+    不改最后活动时间。``business_at`` 记选的时刻：页面那句「请上传…」只在这之后用户还没交过文件（收款：还没说过话）时出；
+    ``from_start``：新建页先选、会话随第一句建好后补交的，按会话建立时刻算（第一句带的文件也算交过）。"""
     from pearnly_core.assistant import guided
 
     row = owned(session_id)
@@ -662,8 +665,11 @@ def set_business(session_id, business) -> dict:
     mode = "operator" if row.get("operator_task") else "chat"
     if business and business not in guided.offered().get(mode, []):
         frappe.throw(_("Invalid request"))
-    frappe.db.set_value(SESSION, row.name, "business", business, update_modified=False)
-    return {"id": row.session_id, "business": business}
+    at = None
+    if business:
+        at = frappe.db.get_value(SESSION, row.name, "creation") if from_start else frappe.utils.now_datetime()
+    frappe.db.set_value(SESSION, row.name, {"business": business, "business_at": at}, update_modified=False)
+    return {"id": row.session_id, "business": business, "business_at": _when(at) if at else ""}
 
 
 FILED_UNDER = "filed"
@@ -1039,6 +1045,7 @@ def send(session_id, text) -> dict:
     toolrun.remember_turn_language(row.session_id, spoken)
     note = contracts.system_message(contracts.carry_text(row.get("pending_carry")), company,
                                     contracts.notices_note(shown), toolrun.TYPED_INSTEAD_NOTE if typed_instead else "",
+                                    contracts.business_note(row.get("business")),
                                     contracts.language_note(spoken or toolrun.interface_language(row.session_id)),
                                     contracts.now_note(frappe.utils.now_datetime(), frappe.utils.get_system_timezone()))
     if note:

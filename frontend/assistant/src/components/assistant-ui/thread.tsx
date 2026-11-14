@@ -60,7 +60,7 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type Business, chooseBusiness, loadOffered, useBusiness, useBusinessCarry, useCurrentBusiness } from "@/lib/business";
+import { type Business, chooseBusiness, loadOffered, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness } from "@/lib/business";
 import { useModePlace } from "@/lib/nav";
 import {
   createContext,
@@ -177,6 +177,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
               {() => <ThreadMessage />}
             </ThreadPrimitive.Messages>
             <PendingSendBubble />
+            <BusinessPrompt />
             {Tail && <Tail />}
           </div>
 
@@ -215,6 +216,25 @@ const PendingSendBubble: FC = () => {
         {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
       <RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap)" />
+    </div>
+  );
+};
+
+/** 选了业务之后 CC 这一侧的一句「请上传采购票据 / 销售票据」「请告诉我客户和收款金额」（用户 11-14：要文件是 CC 在对话里说，
+ *  不是只换输入框的提示字）。页面按词条画，不进模型上下文（模型从系统说明知道，contracts.business_note）；去重见 lib/business promptOf：
+ *  选的时刻之后交过文件 / 说过话、输入框挂着附件、正在发带文件的一句时都不出；取消就收起、换业务换成那一句，同一段只一条。 */
+const BusinessPrompt: FC = () => {
+  const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
+  const business = useCurrentBusiness(sessionId);
+  const at = useBusinessAt(sessionId);
+  const messages = useAuiState((s) => s.thread.messages);
+  const composerFiles = useAuiState((s) => s.composer.attachments.length);
+  const pending = useShownPending();
+  const shown = promptOf(business, at, messages, composerFiles, pending) as Business | "";
+  if (!shown) return null;
+  return (
+    <div data-slot="cc-business-prompt" data-business={shown} className="cc-reply px-(--cc-space-8) wrap-break-word">
+      <p>{guide.prompt[shown]}</p>
     </div>
   );
 };

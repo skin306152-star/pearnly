@@ -250,6 +250,21 @@ class Businesses(unittest.TestCase):
         body = source[start:source.index("\ndef ", start + 10)]
         self.assertIn("owned(session_id)", body)
         self.assertIn("guided.offered().get(mode, [])", body)
+        # 记选的时刻（页面那句「请上传…」据此去重）；补交的按会话建立时刻；取消清空
+        self.assertIn('"business_at": at', body)
+        self.assertIn('frappe.db.get_value(SESSION, row.name, "creation") if from_start else frappe.utils.now_datetime()', body)
+
+    def test_model_is_told_the_business_and_what_the_page_asked(self):
+        """页面那句不进对话记录：模型从每条消息的系统说明里知道选了哪个业务、页面已请用户做什么（主会话 11-14）。"""
+        from pearnly_core.assistant import contracts
+        self.assertEqual(contracts.business_note(""), "")
+        self.assertEqual(contracts.business_note("payment"), "")
+        self.assertIn("purchase documents", contracts.business_note("purchase"))
+        self.assertIn("sales documents", contracts.business_note("sales"))
+        self.assertIn("customer and the amount received", contracts.business_note("collection"))
+        self.assertIn("short replies", contracts.business_note("purchase"))
+        source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8")
+        self.assertIn('contracts.business_note(row.get("business"))', source)
 
 
 class Declared(unittest.TestCase):

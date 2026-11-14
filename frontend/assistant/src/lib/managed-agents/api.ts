@@ -12,7 +12,9 @@ export type EventsPage = { events: FeedEvent[]; full: boolean; partial?: boolean
  *  scope 分店号（5 位，"" = 不指定）；旧服务端、没有公司分组的产品没有这三项。 */
 export type ListedSession = SessionSummary & { project?: string; period?: string; scope?: string; mode?: ListMode; task?: string;
   /** 本对话业务（输入框上方的业务菜单，lib/business.ts）："" = 没选 */
-  business?: string };
+  business?: string;
+  /** 选业务的时刻（RFC3339；"" = 从会话开头算） */
+  business_at?: string };
 
 /** groups：按公司分组的第一页才有，还有更多的公司 → 它的游标（"" = 这家从头翻）。ordered：同在第一页，组里手排过、按手排一并
  *  给的对话编号（不是各组最新的那几条，list-sync.ts 核对时不按它们算各组翻到哪儿）。 */

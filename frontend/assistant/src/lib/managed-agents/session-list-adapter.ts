@@ -153,7 +153,7 @@ export function touchedSince(remoteId: string, asked: number): boolean {
 }
 
 const toThreadMetadata = (s: SessionSummary) => {
-  noteBusiness(s.id, (s as ListedSession).business); // 本对话业务（输入框上方的业务菜单）随列表记下
+  noteBusiness(s.id, (s as ListedSession).business, (s as ListedSession).business_at); // 本对话业务（输入框上方的业务菜单）与选的时刻随列表记下
   return threadMetadata(s);
 };
 

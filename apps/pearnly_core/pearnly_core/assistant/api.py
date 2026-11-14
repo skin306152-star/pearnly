@@ -68,8 +68,8 @@ def businesses():
 
 
 @frappe.whitelist(methods=["POST"])
-def business(session_id, business=""):
-    return sessions.set_business(session_id, business)
+def business(session_id, business="", from_start=0):
+    return sessions.set_business(session_id, business, from_start=frappe.utils.cint(from_start) == 1)
 
 
 # 右栏账套下拉：{current, options}（本对话账套，`ledger.view`；只读）
