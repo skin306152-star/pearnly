@@ -481,8 +481,9 @@ def status(company, doc_ids) -> list:
                 row["blocked_by"] = blocker
         out.append(row)
     if halves:
-        found = {r.name: r.response_json for r in frappe.get_all("Cowork Push Record", filters={"name": ["in", list(set(halves.values()))]},
-                                                                  fields=["name", "response_json"])}
+        names = list(set(halves.values()))
+        found = {r.name: r.response_json for r in frappe.get_all("Cowork Push Record", filters={"name": ["in", names]},
+                                                                  fields=["name", "response_json"], limit_page_length=len(names))}
         for index, record in halves.items():
             out[index]["docnum"] = _partial_docnum(found.get(record))
     return out

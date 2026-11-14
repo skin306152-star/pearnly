@@ -690,7 +690,8 @@ def _partial_docnums(halves: dict) -> dict:
     from pearnly_core.cc_desktop.documents import JOB
     from pearnly_core.express_rules.push.common import operator_partial_docnum
 
-    rows = frappe.get_all(JOB, filters={"name": ["in", list(set(halves.values()))]}, fields=["name", "meta_json"])
+    names = list(set(halves.values()))
+    rows = frappe.get_all(JOB, filters={"name": ["in", names]}, fields=["name", "meta_json"], limit_page_length=len(names))
     metas = {}
     for row in rows:
         try:
