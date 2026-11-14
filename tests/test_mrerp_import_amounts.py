@@ -169,5 +169,22 @@ class WrittenCheck(unittest.TestCase):
                          {"state": "mismatch", "fields": ["amount"], "party": {}})
 
 
+class CashPurchase(unittest.TestCase):
+    """现购（11-14）：导入第 9 列记账用写现金供应商、第 10 列开票用写卖家；没定下现金供应商不写（TEST2019 真写 PG691114-571007：
+    记账用 CODE_NOAP、开票用卖家，日记账贷 1111-02 现金）。"""
+
+    def test_cash_purchase_sheet_books_the_cash_supplier_and_bills_the_seller(self):
+        cash = dict(NON_VAT, fields=dict(NON_VAT["fields"], posting_payment_manual="cash"))
+        got = sheets(purchase.generate_xlsx_purchase([cash], dict(MAPPINGS, _mrerp_cash_supplier="CODE_NOAP")))
+        self.assertEqual((got[1][1][8], got[1][1][9]), ("CODE_NOAP", SUPPLIER))
+        credit = sheets(purchase.generate_xlsx_purchase([NON_VAT], dict(MAPPINGS, _mrerp_cash_supplier="CODE_NOAP")))
+        self.assertEqual((credit[1][1][8], credit[1][1][9]), (SUPPLIER, SUPPLIER))
+
+    def test_cash_purchase_without_a_cash_supplier_is_not_written(self):
+        cash = dict(NON_VAT, fields=dict(NON_VAT["fields"], posting_payment_manual="cash"))
+        self.assertEqual(purchase.validate_expense_history(cash, MAPPINGS)[:2],
+                         (False, "ERR_MRERP_CASH_SUPPLIER_NOT_CREATED"))
+
+
 if __name__ == "__main__":
     unittest.main()

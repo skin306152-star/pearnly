@@ -1901,6 +1901,7 @@ The total does not match the printed total	合计与票面合计不一致	ยอ
 The company has no MR.ERP account set	公司未设置 MR.ERP 账套	บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP	会社に MR.ERP の会計データが設定されていません	mrerp.reason.notConfigured
 MR.ERP sign-in is not authorized	MR.ERP 登录未授权	ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP	MR.ERP のログインが未許可です	mrerp.reason.loginMissing
 The เงินสด supplier in MR.ERP is not on a cash or bank account.	MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。	ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร	MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。	mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH
+Could not create the cash supplier in MR.ERP.	未能在 MR.ERP 中建立现金供应商。	สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ	MR.ERP に現金仕入先を作成できませんでした。	mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED
 This MR.ERP account is in an operator entry	此 MR.ERP 账号正在代录	บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่	この MR.ERP アカウントは代行入力中です	mrerp.reason.accountBusy
 Importing into MR.ERP	正在导入 MR.ERP	กำลังนำเข้า MR.ERP	MR.ERP に取込中	mrerp.reason.importing
 The result is not confirmed. Check in MR.ERP before sending again	结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送	ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่	結果は未確認です。再送信する前に MR.ERP で確認してください	mrerp.reason.resultUnknown

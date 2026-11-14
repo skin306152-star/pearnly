@@ -448,6 +448,7 @@ Correct entry,Correct entry
 Corrected Value,Corrected Value
 Cost of goods sold not set,Cost of goods sold not set
 Could not connect to MR.ERP,Could not connect to MR.ERP
+Could not create the cash supplier in MR.ERP.,Could not create the cash supplier in MR.ERP.
 Could not finish,Could not finish
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
@@ -3470,6 +3471,7 @@ intake.error.ERR_LOCATION,This warehouse is not in the Express account set
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document."
 intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,The เงินสด supplier in MR.ERP is not on a cash or bank account.
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,Could not create the cash supplier in MR.ERP.
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted

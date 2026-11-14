@@ -448,6 +448,7 @@ Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
 Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
+Could not create the cash supplier in MR.ERP.,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 Could not finish,ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read the MR.ERP menus. Try again later.,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง
@@ -3470,6 +3471,7 @@ intake.error.ERR_LOCATION,ไม่มีคลังสินค้านี้
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,บันทึกใน MR.ERP แล้ว แต่ยอดเงินที่ MR.ERP บันทึกไม่ตรงกับเอกสาร
 intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 intake.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี

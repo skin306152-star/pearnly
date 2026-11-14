@@ -242,8 +242,13 @@ def validate_expense_history(history: Dict[str, Any], mappings: Dict[str, Any]):
         return False, "ERR_NO_INVOICE_DATE", []
     if _gross_total(history) <= 0:
         return False, "ERR_NO_TOTAL_AMOUNT", []
-    if not _supplier_code(history, mappings) or not posting_supplier(history, mappings):
+    if not _supplier_code(history, mappings):
         return False, "ERR_NO_SUPPLIER", []
+    if not posting_supplier(history, mappings):
+        # 现购没定下记账用的现金供应商：不写（不把现购记成挂账）；`transport._cash_supplier` 已按原因挡下，这里兜底
+        from pearnly_core.mrerp.push.defaults import CASH_SUPPLIER_NOT_CREATED
+
+        return False, CASH_SUPPLIER_NOT_CREATED, []
     return True, None, []
 
 

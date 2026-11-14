@@ -377,6 +377,7 @@ Cost Is Set,原価設定済み
 Cost Known,原価判明
 Cost of goods sold not set,売上原価が未設定です
 Could not connect to MR.ERP,MR.ERP に接続できません
+Could not create the cash supplier in MR.ERP.,MR.ERP に現金仕入先を作成できませんでした。
 Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
 Could not read this document. Please send it again.,読み取れませんでした。もう一度送ってください
 Could not record this collection,この入金を記録できません
@@ -2507,6 +2508,7 @@ mrerp.error.ERR_DIRECTION_UNKNOWN,この伝票が仕入か売上かを選んで�
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイン中です
 mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,MR.ERP に現金仕入先を作成できませんでした。
 mrerp.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。

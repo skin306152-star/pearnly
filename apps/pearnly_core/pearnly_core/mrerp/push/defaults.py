@@ -35,6 +35,7 @@ CASH_PARTY = "เงินสด"  # 与 xlsx/lookups.MRERP_CASH_CUSTOMER 同值
 # 「เงินสด」），再是 Pearnly 自建的现金供应商。
 CASH_SUPPLIERS = ("CODE_NOAP", CASH_PARTY)
 CASH_SUPPLIER_NOT_CASH = "ERR_MRERP_CASH_SUPPLIER_NOT_CASH"
+CASH_SUPPLIER_NOT_CREATED = "ERR_MRERP_CASH_SUPPLIER_NOT_CREATED"  # 自建「เงินสด」没建成
 
 
 # MR.ERP 导入报「主档里找不到」（imp*/component/importpc.php）：表头 / 明细里按账套取的值对不上这家公司的主档，

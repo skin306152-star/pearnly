@@ -377,6 +377,7 @@ Cost Is Set,Cost Is Set
 Cost Known,Cost Known
 Cost of goods sold not set,Cost of goods sold not set
 Could not connect to MR.ERP,Could not connect to MR.ERP
+Could not create the cash supplier in MR.ERP.,Could not create the cash supplier in MR.ERP.
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
 Could not record this collection,Could not record this collection
@@ -2507,6 +2508,7 @@ mrerp.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and 
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
 mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,The เงินสด supplier in MR.ERP is not on a cash or bank account.
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,Could not create the cash supplier in MR.ERP.
 mrerp.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.

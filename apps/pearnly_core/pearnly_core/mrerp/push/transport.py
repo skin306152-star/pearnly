@@ -37,7 +37,7 @@ from pearnly_core.mrerp import kick_mark as account_kick
 from pearnly_core.mrerp.session import MrErpSession, SessionError
 from pearnly_core.mrerp.master_reader import MasterReader
 from pearnly_core.mrerp.push import readback, routing
-from pearnly_core.mrerp.push.defaults import AccountDefaults, Missing, tag_default_changed
+from pearnly_core.mrerp.push.defaults import CASH_SUPPLIER_NOT_CREATED, AccountDefaults, Missing, tag_default_changed
 from pearnly_core.mrerp.push.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
 from pearnly_core.mrerp.push.models import (
     FailedRow,
@@ -297,7 +297,7 @@ class MrErpImport:
                     [{"code": code, "name": code, "tax_id": "", "account": account}], mappings).get(code):
                 mappings["_mrerp_cash_supplier"] = code
                 return histories, []
-            reason = self.default_reason or "ERR_NO_SUPPLIER"  # 建不出来：同找不到供应商
+            reason = self.default_reason or CASH_SUPPLIER_NOT_CREATED
             self.default_reason = None  # 只挡现购票；同批赊购的自建另算
         return ([h for h in histories if not is_cash_purchase(h)], [self._fail_row(h, [reason]) for h in cash])
 

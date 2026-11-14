@@ -1030,7 +1030,7 @@ class PendingTests(unittest.TestCase):
         for key in [value for name, value in pending.REASONS.items() if name.startswith("mrerp.")] + ["mrerp.reason.resultUnknown"]:
             with self.subTest(key=key):
                 self.assertTrue(all(keys.get(key, ["", "", "", ""])), key)
-        for code in ("ERR_AUTH", "ERR_MRERP_ACCOUNT_IN_USE", "ERR_MRERP_IMPORT_ERROR", "ERR_TECHNICAL", "ERR_MRERP_MENU_NOT_LINKED", "ERR_MRERP_CASH_SUPPLIER_NOT_CASH", "mrerp_credit_note",
+        for code in ("ERR_AUTH", "ERR_MRERP_ACCOUNT_IN_USE", "ERR_MRERP_IMPORT_ERROR", "ERR_TECHNICAL", "ERR_MRERP_MENU_NOT_LINKED", "ERR_MRERP_CASH_SUPPLIER_NOT_CASH", "ERR_MRERP_CASH_SUPPLIER_NOT_CREATED", "mrerp_credit_note",
                      "mrerp_currency_not_thb", "date_future"):
             with self.subTest(code=code):
                 self.assertTrue(all(keys.get(f"mrerp.error.{code}", ["", "", "", ""])), code)
