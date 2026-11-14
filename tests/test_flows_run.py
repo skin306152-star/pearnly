@@ -84,6 +84,9 @@ class SpaFresh(unittest.TestCase):
 class RerunFailed(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
+        # main() 会拿实验室锁：测试用自己的临时锁目录，别的窗口正在跑真流程（拿着真锁）时本测试照样能跑
+        self.lock_env = os.environ.get("PEARNLY_LOCK_DIR")
+        os.environ["PEARNLY_LOCK_DIR"] = str(self.tmp / "locks")
         self.saved = {name: getattr(run, name) for name in ("registry", "head", "product_dirty", "Lab", "run_flow", "spa_fresh")}
         run.registry = lambda: FLOWS
         run.head = lambda: "f" * 40
@@ -100,6 +103,37 @@ class RerunFailed(unittest.TestCase):
     def tearDown(self):
         for name, value in self.saved.items():
             setattr(run, name, value)
+        if self.lock_env is None:
+            os.environ.pop("PEARNLY_LOCK_DIR", None)
+        else:
+            os.environ["PEARNLY_LOCK_DIR"] = self.lock_env
+
+    def test_runs_while_another_process_holds_the_real_lab_lock(self):
+        # 别的窗口正在跑同一套栈的真流程（拿着用户目录那把锁）：测试用临时锁目录，不受影响（11-14 本机闸门被挡 4 个 error）
+        real = Path(tempfile.mkdtemp())
+        held = run.lab_lock(real)
+        try:
+            out = self.tmp / "merged.json"
+            code, _ = self.main("--rerun-failed", str(self.previous()), "--out", str(out))
+            self.assertEqual(code, 0)
+            self.assertTrue((self.tmp / "locks" / f"{run.LAB}.lock").exists())
+        finally:
+            held.close()
+
+    def test_locks_are_per_lab_name(self):
+        folder = Path(tempfile.mkdtemp())
+        saved = run.LAB
+        try:
+            run.LAB = "lab-one"
+            first = run.lab_lock(folder)
+            run.LAB = "lab-two"
+            run.lab_lock(folder).close()  # 另一套栈名不用等
+            run.LAB = "lab-one"
+            with self.assertRaises(SystemExit):
+                run.lab_lock(folder)
+            first.close()
+        finally:
+            run.LAB = saved
 
     def previous(self, **extra):
         data = {"ok": False, "summary": "…", "sha": "f" * 40, "dirty": False, "scope": "all flows", "flow_count": 2, "seconds": 100,
