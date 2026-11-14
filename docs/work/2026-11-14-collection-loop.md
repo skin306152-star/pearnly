@@ -45,3 +45,26 @@
 `_has_image` 用 GET 读整张图判断「有没有图」，生产到 api-data.line.me 慢时 20 秒读不完（11-13 testerp 首次发布超时）。
 DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearnly_core.line.rich_menu_has_image`（流式取，只看状态、不读正文、立刻关连接），三个产品的 `_has_image` 都调它。
 断点续做：发布按内容散列命名复用已建菜单、只给没图的传图，中途失败后重跑就是接着做；测试 `tests/test_line_menu_publish_lock.py` 新增「只看状态」与「半途重跑只补剩下的」两条（三个产品各跑）。
+
+## 4. LINE 侧后续
+
+### 4.1 后台任务回复语言（已做）
+共用 `pearnly_core/execution/language.py`（`settle` / `use`）：设语言同时置 `job.lang_resolved`。收款 `speaking`、Cowork LINE 收单与追问、DMS `line_language`、
+三产品识别失败回执（`work._notify` 一处）、ERP 网页识别与 DMS 账号检查任务、CC 工具与 Cowork 对账的手写副本都改用它。同类清单见共享笔记
+「LINE后台回复语言-同类清单-11-14.md」。测试 `pearnly_core.execution.test_job_language` +5 条（候选检查本来就跑）。
+
+### 4.2 旧步骤按钮重问（不用做）
+已在 main（fbde8a5af）。
+
+### 4.3 写失败的卡带原因还回、换新号（评估，待主会话审）
+现状：写失败只推一条原因，记录停在「失败」，没有路再放行；请求号 `erp:receipt:<记录号>` 每笔只交一次（`cc_desktop.jobs.enqueue` 按请求号去重）。
+提议（照卡片有效期规则 A9 / A10）：
+- 只对 CC 明确「写前拒绝、一行没写」的码开放：`already_collected`、`invoice_not_found`、`receipt_type_invalid`、`cash_account_missing`
+  （`dbf_receipt.REFUSALS` 里还有 `JOURNAL_BOOK_NOT_FOUND`、`CUSTOMER_NOT_IN_ARMAS`、`ACCOUNT_NOT_POSTABLE`，同为写前拒绝，一并开放；
+  其余失败——写到一半回滚、结果不明、没账套、撤掉——维持现状：不还回，只读核对）。
+- 这类失败：记录退回草稿（版本 +1、放行次数 +1），LINE 推一张「原卡 + 失败原因」的新确认卡（新确认号，旧卡作废）；网页「我的收款」、CC 同一状态可改再放。
+- 再放行的请求号带次数：`erp:receipt:<记录号>:<次数>`（第一次不带，保持线上已有写账件的请求号不变）。
+- 不会重复写账的依据：CC 写前本来就按「同客户、同 YOUREF（= 记录号）、没作废的 RE 已在 → 回原号、一行不写」，再放行即使上次其实写成了也只回原号。
+- 改动：`collection/service.py`（失败转草稿的一个函数、放行计数）、`collection/push.py`（请求号、回执里判码）、`integrations/line_collection.py`（失败卡）、
+  ERP Collection 加一个整数字段 `attempt`（原生迁移）；文案只用现有的确认卡与原因，不新增；测试补「写前拒绝 → 草稿 → 再放行新请求号 → 同 YOUREF 不重复」。
+- 待定：改了草稿后余额仍不够，CC 再拒一次就再还回（不限次数）；是否需要上限请主会话定（建议不限，和人工在 Express 改一样）。
