@@ -87,8 +87,8 @@ def active_companies(names, now=None) -> set:
     edge = (now or now_datetime()) - timedelta(days=IDLE_DAYS)
     found = set()
     for doctype in ACTIVITY:
-        found.update(frappe.get_all(doctype, filters={"company": ["in", list(names)], "creation": [">", edge]},  # loop-query: 固定两类单据，各一条分组查询
-                                    pluck="company", group_by="company", limit_page_length=0))  # bounded: 按公司分组
+        found.update(frappe.get_all(doctype, filters={"company": ["in", list(names)], "creation": [">", edge]},  # bounded: 按公司分组，至多这几家；# loop-query: 固定两类单据各一条
+                                    pluck="company", group_by="company", limit_page_length=0))
     return found
 
 
