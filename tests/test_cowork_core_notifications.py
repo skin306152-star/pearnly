@@ -52,7 +52,9 @@ class CoreNotificationTests(unittest.TestCase):
             set_value=lambda *a, **kw: self.calls.append(("status", a[2]["status"])),
         )
         redis = SimpleNamespace(zrem=lambda *a: self.calls.append(("release", *a)))
-        self.frappe = SimpleNamespace(db=db, flags={}, get_hooks=lambda name: self.hooks, get_attr=self.callback,
+        # local：失败回执前标「后台任务语言已定」（`work._notify`，11-14），这里不在任务里
+        self.frappe = SimpleNamespace(db=db, flags={}, local=SimpleNamespace(), get_hooks=lambda name: self.hooks,
+            get_attr=self.callback,
             logger=lambda name: SimpleNamespace(exception=lambda text: self.calls.append(("diagnostic", text))))
         inputs = ModuleType("pearnly_core.execution.inputs")
         inputs.remove = lambda name: self.calls.append(("remove", name))

@@ -513,7 +513,10 @@ def _notify(name, code):
     row = frappe.db.get_value(DT, name, ["kind", "arguments"], as_dict=True)
     # 产品的失败回执按本人的语言写（ERP / Cowork LINE 收单、DMS 证件）：先标「语言已定」，处理函数设的语言才不被 Frappe
     # 按排任务的用户（调度器续跑是 Administrator）冲掉，同 `run` 里的 `job_language`。
-    job_language(None)
+    # 同 `execution.language.settle(None)`（本包内，直接用 frappe.local：这段由 test_cowork_core_notifications 单独抽出来跑）
+    job = getattr(frappe.local, "job", None)
+    if job is not None:
+        job.lang_resolved = True
     # A Site with no product notification hook gets [] from Frappe, not {}.
     # Terminal persistence/slot release must still finish on such product Sites.
     for path in (frappe.get_hooks("pearnly_ocr_failure_handlers") or {}).get(row.kind) or []:
