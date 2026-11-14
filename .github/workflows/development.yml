@@ -424,6 +424,8 @@ jobs:
         run: python3 tests/test_operator_choice_points.py
       - name: Every reason that stops the flow has a next step (ask the user, wait, or tell them the one thing to do), unclassified ones only in a shrinking baseline
         run: python3 scripts/check-stop-exits.py && python3 tests/test_stop_exits.py
+      - name: CC coverage table (guided side) is one data file, generated into the matrix document and consistent with the guide declarations
+        run: python3 scripts/check-cc-coverage.py && python3 tests/test_cc_coverage.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)

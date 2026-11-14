@@ -1,0 +1,175 @@
+# CC 覆盖总表的引导侧（总设计 docs/work/2026-11-14-cc-guided-master-design.md 第 4 节；总表 docs/work/2026-11-12-cc-coverage-matrix.md 第 8 节由本文件生成）。
+# 行 = 业务；四组 = Cowork 直写 / Cowork 代录 / ERP 直写 / ERP 代录；每组三格按 本地 Express · MR.ERP · 云端 Express（格号见总表第 1 节）。
+# 与账本无关的业务一组只写一格。
+# 一格的写法：
+#   done            引导做完（题、复核、确定、结果都在卡上）
+#   half:<期>       做了一半（有题卡，复核 / 结果 / 开始卡没并）
+#   todo:<期>       范围内、没有引导（现在靠打字能办）
+#   no:<期>:<等谁>  范围内、打字也办不了（等谁：desktop = CC 桌面版）
+#   wait:mrerp / wait:cloud / wait:onboard   等 MR.ERP 写账线 / 云端 Express 实测 / 公司接入
+#   out:<依据>      范围外
+# 闸门 scripts/check-cc-coverage.py：写法合规；标 done / half 的格必须有对应的引导声明（done 还要是完整引导）；有声明的格不许标 out / no；
+# 总表里的表与本文件一致（改这里后跑 --write 重新生成）。
+
+[[row]]
+id = "purchase"
+name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
+guide = "purchase"
+cowork_direct = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
+erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+
+[[row]]
+id = "sales"
+name = "销售：赊销、现销；同上各类票"
+guide = "sales"
+cowork_direct = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
+erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+
+[[row]]
+id = "new_master"
+name = "随单新建对方 / 物料（采购销售里的两道题）"
+cowork_direct = ["no:p2:desktop", "wait:mrerp", "wait:cloud"]
+cowork_operator = ["no:p2:desktop", "wait:mrerp", "wait:cloud"]
+erp_direct = ["no:p2:desktop", "wait:mrerp", "wait:cloud"]
+erp_operator = ["no:p2:desktop", "wait:mrerp", "wait:cloud"]
+
+[[row]]
+id = "collection"
+name = "收款"
+guide = "collection"
+cowork_direct = ["out:只在 ERP"]
+cowork_operator = ["out:代录不做收款"]
+erp_direct = ["half:p1", "wait:mrerp", "wait:cloud"]
+erp_operator = ["out:代录不做收款"]
+
+[[row]]
+id = "pos_day"
+name = "POS 日汇总"
+cowork_direct = ["todo:p3", "out:只支持 Express 账套", "wait:cloud"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 有自己的收银台（存疑，P3 前核对）"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "stock_docs"
+name = "出入库 / 调拨 / 物料调整"
+cowork_direct = ["out:Cowork 无库存业务"]
+cowork_operator = ["out:Cowork 无库存业务"]
+erp_direct = ["todo:p4", "wait:mrerp", "wait:cloud"]
+erp_operator = ["out:11-12 先不做"]
+
+[[row]]
+id = "stocktake"
+name = "盘点"
+cowork_direct = ["todo:p3"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["todo:p4"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "resolve"
+name = "结果不明核对、待处理"
+cowork_direct = ["todo:p2", "todo:p2", "wait:cloud"]
+cowork_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
+erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
+erp_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
+
+[[row]]
+id = "folder_task"
+name = "文件夹定时任务"
+cowork_direct = ["todo:p4", "todo:p4", "wait:cloud"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:11-12 先不做"]
+erp_operator = ["out:11-12 先不做"]
+
+[[row]]
+id = "recon"
+name = "银行对账、收入对账、增值税对账"
+cowork_direct = ["todo:p3", "todo:p3", "wait:cloud"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 无此业务"]
+erp_operator = ["out:ERP 无此业务"]
+
+[[row]]
+id = "vat"
+name = "增值税 ภ.พ.30 草稿"
+cowork_direct = ["todo:p3", "out:MR.ERP 无读回", "wait:cloud"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 无此业务"]
+erp_operator = ["out:ERP 无此业务"]
+
+[[row]]
+id = "wht"
+name = "预扣税 ภ.ง.ด.3 / 53 草稿"
+cowork_direct = ["todo:p3"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 无此业务"]
+erp_operator = ["out:ERP 无此业务"]
+
+[[row]]
+id = "readback"
+name = "Express 读回"
+cowork_direct = ["todo:p3", "out:MR.ERP 无读回", "wait:cloud"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 无此工具"]
+erp_operator = ["out:ERP 无此工具"]
+
+[[row]]
+id = "documents"
+name = "单据维护：改识别结果、录不录、删除、导出复核表"
+cowork_direct = ["todo:p2"]
+cowork_operator = ["todo:p2"]
+erp_direct = ["todo:p2"]
+erp_operator = ["todo:p2"]
+
+[[row]]
+id = "company_info"
+name = "公司资料、记住的选择、知识库"
+cowork_direct = ["todo:p4"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["todo:p4"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "board"
+name = "任务看板"
+cowork_direct = ["todo:p4"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 看板工具未做（随 ADR-027 段 3）"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "ledger_setup"
+name = "MR.ERP 导入设置、库存科目组、重读账套"
+cowork_direct = ["todo:p4"]
+cowork_operator = ["out:只做直写"]
+erp_direct = ["out:ERP 无此设置"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "stock_report"
+name = "收发存报表导出"
+cowork_direct = ["out:Cowork 无库存业务"]
+cowork_operator = ["out:Cowork 无库存业务"]
+erp_direct = ["todo:p4"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "add_company"
+name = "添加公司（从连接里的账本添加）"
+cowork_direct = ["out:现有公司选择窗的页面功能（没核）"]
+cowork_operator = ["out:现有公司选择窗的页面功能（没核）"]
+erp_direct = ["todo:p4", "wait:onboard", "wait:cloud"]
+erp_operator = ["out:只做直写"]
+
+[[row]]
+id = "not_now"
+name = "付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS"
+cowork_direct = ["out:11-12、11-14 定先不做"]
+cowork_operator = ["out:11-12、11-14 定先不做"]
+erp_direct = ["out:11-12、11-14 定先不做"]
+erp_operator = ["out:11-12、11-14 定先不做"]
