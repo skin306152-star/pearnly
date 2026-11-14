@@ -13,8 +13,15 @@
 // 点完按钮行换成一行淡色字：所选那一项（「允许」「拒绝」），这一步没做成时加危险色「失败」；没有绿勾红叉。确认还没送到时
 // 那一行再淡一档（data-unconfirmed）；没答就没了（中断、回合结束）写「已取消」（沿用步骤的 cancelled 词条）。
 // 确认请求没送到（restoreGates 带回 failure）：按钮还在，上方一行原因，再点重试。
+//
+// 版式照 Claude 桌面应用的决定框（用户 2026-11-14 看图定「就按照这样的做」，对照 docs/work/2026-11-14-cc-guided-master-design.md 第 14 节；
+// 这一条覆盖 10-17 的「改动清单不另套框、细线隔开」）：问话是卡片顶部一条标题栏（底色略浅，steps.tsx 的 .cc-ask-q）；下面可以有一行浅色的
+// 事实（note：这一步会动到哪家公司、哪本账套；服务端给了才出，不写固定说明文案）；要做的内容放在一个内嵌的带边框圆角块里（.cc-ask-changes）；
+// 段与段之间不画横线；底部靠右两个按钮不变。主按钮是「允许」（只这一次）：没有「始终允许」——服务端没有记住允许的机制，
+// 以后有了也只给不删东西、不花钱、可撤回的操作（删除 / 扣费 / 写账三类不提供）。
 
 import { ArrowRightIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CardState } from "@/lib/approval-card";
 import { steps, t } from "@/i18n";
@@ -26,6 +33,8 @@ type Approval = {
   reason?: string;
   preview?: Change[];
   failure?: string;
+  /** 一行事实（这一步会动到哪家公司、哪本账套）；服务端给了才出 */
+  note?: string;
 };
 
 /** 卡片上最多几行改动（含「还有 N 项」那一行）。 */
@@ -117,17 +126,18 @@ export function ApprovalBar({
 
   return (
     <div className={cn("flex flex-col", className)}>
+      {approval?.note ? <p className="cc-ask-note">{approval.note}</p> : null}
       <ChangeList preview={approval?.preview} />
       {buttons && (
         <div className="cc-ask-foot">
           <ApprovalFailure message={approval?.failure} />
           <div className="cc-card-actions">
-            <button type="button" className="cc-card-btn" onClick={() => respondToApproval({ approved: false })}>
+            <Button type="button" variant="secondary" size="xs" onClick={() => respondToApproval({ approved: false })}>
               {t("deny")}
-            </button>
-            <button type="button" className="cc-card-btn" data-primary="" onClick={() => respondToApproval({ approved: true })}>
+            </Button>
+            <Button type="button" size="xs" onClick={() => respondToApproval({ approved: true })}>
               {t("allow")}
-            </button>
+            </Button>
           </div>
         </div>
       )}

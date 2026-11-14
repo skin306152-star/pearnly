@@ -959,6 +959,7 @@
   --cc-card-btn-icon-phone: 22px; /* 外壳实测：手机卡片按钮里的图标 */
   --cc-ask-sheet-btn-min: 7rem;   /* 外壳实测：手机浮层右下「允许」（8.webp「提交」约 113 宽） */
   --cc-ask-py: 10px;              /* 现有值·CC 自定：允许卡问话上、所选项下 */
+  --cc-ask-head-bg: var(--cc-bg-hover);  /* 新增·CC 自定：允许卡标题栏的底色（卡身上叠一层悬停色，照 Claude 桌面应用的决定框，用户 11-14） */
   --cc-ask-pager-w: 168px;      /* 现有值·CC 自定：卡头右侧翻页器「‹ 第 n 项，共 m 项 ›」占的宽，题目右边留出 */
   --cc-ask-changes-lh: var(--code-text-prose-lh);  /* 24：允许卡改动清单的行高 */
   --cc-ask-sheet-lh: var(--ccs-text-md-line-height);   /* 1.4：手机浮层问话的行高 */
@@ -1611,15 +1612,23 @@
     font-weight: var(--cc-weight-regular); overflow-wrap: anywhere;
   }
   .cc-ask:not([data-phase="ask"]) .cc-ask-q { padding-bottom: var(--cc-space-2); font-weight: var(--cc-weight-semibold); }
+  /* 等回答时照 Claude 桌面应用的决定框（用户 11-14）：问话是顶部一条标题栏（底色略浅），下面可有一行浅色的事实，内容在内嵌的带边框圆角块里，
+     段间不画横线，底部靠右两个按钮 */
+  .cc-ask[data-phase="ask"] .cc-ask-q { padding-bottom: var(--cc-ask-py); background: var(--cc-ask-head-bg); }
+  .cc-ask-note {
+    padding: var(--cc-space-12) var(--cc-space-12) 0; color: var(--cc-ink-3); font-size: var(--cc-text-sm); line-height: var(--cc-ask-changes-lh);
+    overflow-wrap: anywhere;
+  }
   .cc-ask-label { padding: var(--cc-ask-py) var(--cc-space-12) 0; color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
   .cc-ask .cc-ask-label + .cc-ask-q { padding-top: var(--cc-space-4); color: var(--cc-ink-2); font-weight: var(--cc-weight-regular); }
   .cc-ask-label ~ .cc-ask-answer { color: var(--cc-ink); }
   .cc-ask-changes {
-    padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); color: var(--cc-ink-2);
+    margin: var(--cc-space-12) var(--cc-space-12) 0; padding: var(--cc-space-8) var(--cc-space-12);
+    border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-md); color: var(--cc-ink-2);
     font-size: var(--cc-text-sm); line-height: var(--cc-ask-changes-lh);
   }
   .cc-ask-foot { display: flex; flex-direction: column; gap: var(--cc-space-8); }
-  .cc-ask .cc-ask-foot { padding: var(--cc-space-4) var(--cc-space-12) var(--cc-space-12); }
+  .cc-ask .cc-ask-foot { padding: var(--cc-space-12); }
   .cc-ask-answer { padding: 0 var(--cc-space-12) var(--cc-ask-py); color: var(--cc-ink-3); font-size: var(--cc-row-font); line-height: var(--cc-row-lh); }
   .cc-ask-answer[data-unconfirmed] { opacity: 0.5; }
   /* 通用提问卡片（components/tool-uis/ask-card.tsx，工具 ask_user，照 Claude Code 的提问卡片，用户 11-05）：同一层框（.cc-steps-card）；
@@ -1675,7 +1684,7 @@
     border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-popover); color: var(--cc-ink); box-shadow: var(--cc-shadow-pop);
   }
   .cc-ask-sheet-q { flex: 1; min-width: 0; padding-top: var(--cc-space-8); font-size: var(--cc-ask-sheet-font); line-height: var(--cc-ask-sheet-lh); font-weight: var(--cc-weight-semibold); overflow-wrap: anywhere; }
-  .cc-ask-sheet .cc-ask-changes { padding: 0; border-top: 0; font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
+  .cc-ask-sheet .cc-ask-changes { margin: 0; padding: 0; border: 0; border-radius: 0; font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
   /* 「需要您的输入」（电脑上工作状态行在等用户回答时，照 Claude）：橙色小圆点 + 浅橙底橙字的小胶囊（字与圆点同一个品牌橙），在卡片下方 */
   .cc-needs-input-dot {
     flex-shrink: 0; width: var(--cc-needs-input-dot); height: var(--cc-needs-input-dot); border-radius: var(--cc-radius-full); background: var(--cc-brand);
