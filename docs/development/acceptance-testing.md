@@ -170,6 +170,8 @@ L3 模块：run(ctx)（用 ctx.step、ctx.check、ctx.require、ctx.save、ctx.s
 跑完按备份还原配置并核哈希。账套服务器上的登记表与授权文件只读、不改。场景自带防护不变：这家公司报上来的账套多出任何一本就拒绝建单。
 切域名后要让 CC 把整份名单报到新指向的站点：等测试机上的域名解析稳定到新地址（上游缓存约 5 分钟）再重启 CC，
 否则重启那一刻的名单会报到旧指向——改配置一律放在「域名已切到实验栈且解析已稳定」之后，还原配置放在切回线上之前，切回后再重启一次。
+这个顺序由 `scripts/acceptance/cc_switch.py` 把关（apply / restore / settle：在那台测试机上清缓存后连续 5 次解析到预期地址才动，等不到就不动）；
+建数据根用 `scripts/acceptance/win/make_root.py`，改配置用 `win/cc_root.py`，不手改 `companion.json`。
 
 ### 5.2 占用锁（机器可读）
 
