@@ -28,8 +28,8 @@
 2. 之后每改一处：本地快循环（语法、单测、`scripts/check-architecture.py`）→
    `PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live cowork`（约 13 秒；表结构 / 补丁 / hooks 变了自动迁移，约 35 秒）
    → 用户刷新页面就是新代码。**不用推分支、不用构建镜像。**
-3. 用户试用没问题 → 按主线规则合入 main（本地同名闸门、分支 CI 通过、快进、推送）→ 从 main 触发 `build-production.yml`
-   → 部署生产（每一步仍需用户同意）。生产只跑 main 构建出来的镜像。
+3. 实测通过 → 按主线规则合入 main（本地同名闸门、分支 CI 通过、快进、推送）→ 按已有的部署授权用
+   `scripts/production/deploy.sh` 从 main 上的发布标记构建并部署（先 `--dry-run`；没有授权先取得授权）。生产只跑 main 构建出来的镜像。
 4. 实时源码盖不到的改动，要构建镜像再用新 digest `lab-start`：依赖 / Dockerfile / Frappe 底座版本、`frontend/` 的前端 SPA
    （它是构建产物；实时同步时镜像里的那份原样保留）。要单独验"镜像本身"：`bash scripts/testenv.sh live-off <app>`。
    只调前端 SPA 时可以不换镜像：先在 `frontend/` 里 `vite build`，再 `PEARNLY_TESTENV_LOCAL_SPA=1 … testenv.sh live <app>`，

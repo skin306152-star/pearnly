@@ -17,7 +17,7 @@
 
 - 本仓是新平台代码的唯一权威位置。其他任务的分支、工作树、暂存内容和数据一律不动。
 - 来源仓库（`pearnly-app`、`pearnly-erp`）默认只读参考。确需在其中改动时单独说明归属，不改与本次无关的内容。
-- CC 桌面版（Windows 端）2026-09-27 起在本仓 `companion/`（旧 `pearnly-companion` 仓库停用、不再发布）；它与服务端的接口约定由 `tests/test_companion_contract.py` 守住，发布见 `companion/README.md`。
+- CC 桌面版（Windows 端）的代码在本仓 `companion/`；`pearnly-companion` 仓库已停用，不在其中改动或发布。它与服务端的接口约定由 `tests/test_companion_contract.py` 守住，发布见 `companion/README.md`。
 - 采购、生产切换、数据删除、外部系统写入都不由本仓自主发起，需要用户明确授权。
 - 已有明确授权不重复询问；缺少授权时，先完成不依赖它的实现、检查与具体操作方案。
 - 不执行全局清理、卷清理或覆盖他人改动；只提交、清理本任务明确拥有的路径和资源。
@@ -50,7 +50,7 @@
 
 - 开工及交付前读取并遵循 [架构与模块边界](docs/development/architecture.md)。此要求适用于本仓所有窗口和自有 App；下级说明不得把旧布局照搬或本地正式开户作为例外。
 - 新功能先明确 App、业务域、入口、数据与依赖方向，再按 Frappe 原生结构实现。业务实现进域包，根层只放框架入口、清单、明确的公共基础或登记的兼容入口；禁止继续堆平铺业务模块。
-- **产品自己声明自己的菜单、可售卖功能目录与术语表**（[ADR-009](docs/adr/0009-product-owned-declarations.md)）：菜单写在产品自己的 `hooks.py`（`pearnly_navigation`）、功能目录写 `apps/<app>/<app>/features.json`、术语表写 `apps/<app>/<app>/i18n/messages.tsv`；控制面与共用层只汇总，不再各存一份镜像。只有文件头明确写着"多产品共用"的模块（OCR、浏览器、外部连接、登录、订阅、外壳）留在共用层。
+- **产品自己声明自己的菜单、可售卖功能目录与术语表**（[ADR-009](docs/adr/0009-product-owned-declarations.md)）：菜单写在产品自己的 `hooks.py`（`pearnly_navigation`）、功能目录写 `apps/<app>/<app>/features.json`、术语表写 `apps/<app>/<app>/i18n/messages.tsv`；控制面与共用层只汇总，不各存一份镜像。只有文件头明确写着"多产品共用"的模块（OCR、浏览器、外部连接、登录、订阅、外壳）留在共用层。
 - 公开 API、队列函数及持久化路径移动时，必须核对全部调用方，保留必要的薄兼容入口并验证解析；内部代码不得依赖旧入口。纯契约禁止依赖运行框架或 IO；新代码不引入循环依赖。
 - **管理后台留在本机，正式开户只给云端用户/租户。** 本地样板不是开户目标；在服务端拒绝本地目标和缺失配置，不能只隐藏前端选项。不得将旧本地任务自动转投云端。
 - 本仓共享提交钩子检查实际暂存快照，适用于同仓各工作树；不得禁用或使用 `--no-verify` 绕过。新克隆在长期主目录执行 `sh scripts/install-dev-hooks.sh`，存在旧钩子先保留并整合。
@@ -59,7 +59,7 @@
 
 ## 官方 UI（迁移和新功能同样执行）
 
-- 产品 Web 与管理后台统一使用锁定版本的原生 Frappe Desk：Page / Workspace Sidebar / FieldGroup / Dialog / Grid / DataTable / msgprint / show_alert，提示音遵守账户静音。品牌色仅改强调色，保留官方白底、深色文字与原生布局。禁止新增 Vue 产品壳；LINE 一次性票据编辑器保留 Frappe UI 的明确例外，身份页保持 Keycloak 原生流程与主题。见 ADR-005/007。
+- 产品 Web 与管理后台统一使用锁定版本的原生 Frappe Desk：Page / Workspace Sidebar / FieldGroup / Dialog / Grid / DataTable / msgprint / show_alert，提示音遵守账户静音。品牌色仅改强调色，保留官方白底、深色文字与原生布局。禁止新增 Vue 产品壳。限定例外只有两个：LINE 一次性票据编辑器保留 Frappe UI；智能体对话页 `/assistant` 用 React，只在 `frontend/assistant/`、只服务这一个入口，不扩展成第二套产品 Web（[ADR-019](docs/adr/0019-assistant-foundation.md)）。身份页保持 Keycloak 原生流程与主题。见 ADR-005/007。
 - 品牌色接旧项目的颜色令牌；控件行为、尺寸、焦点和禁用态由官方组件负责。业务布局与协议可以定制，不能借“业务内容”重做通用 UI。
 - 扩展组件优先组合官方插槽；必须自定义时记录具体原因与验收范围。遵循 [UI 决策](docs/adr/0007-frontend-skin.md)，架构检查同时拦截通用控件回退。
 - 列表、选择、搜索、筛选、导出先用 Frappe 原生的服务端分页与搜索（`limit_start` / `limit_page_length`、`ControlLink` 的 `search_link` / `get_query`、FilterArea、`p.export_file`）。不一次取全后在浏览器里排序、切页、过滤。`scripts/check-unbounded-queries.py` 拦截新增的无上限查询，基线只许减少。见[架构](docs/development/architecture.md)「列表、选择与搜索」。
@@ -80,16 +80,16 @@
 
 ### 真实环境验证（Windows 测试环境）
 
-需要"真实环境验证"的改动，在隔离局域网那台 Windows 上由用户试用通过后再合并推送部署。
-测试环境跑**实时源码**（用户 2026-09-27 定，DMS / ERP / Cowork 同一规则）：底座是**线上同一份镜像**（依赖、Frappe 版本一致），
+需要"真实环境验证"的改动，在隔离局域网的 Windows 测试机上实测通过后再合并推送部署。
+测试环境跑**实时源码**（DMS / ERP / Cowork 同一规则）：底座是**线上同一份镜像**（依赖、Frappe 版本一致），
 产品代码取被测工作树（含未提交改动）挂上去，改完 `bash scripts/testenv.sh live <app>` 十几秒生效，用户刷新就能试，
-**不再为每次修改构建镜像**。验证站点用**测试租户**（`testdms.pearnly.com` / `testerp.pearnly.com` / `testcowork.pearnly.com`）。
+不为每次修改构建镜像。验证站点用**测试租户**（`testdms.pearnly.com` / `testerp.pearnly.com` / `testcowork.pearnly.com`）。
 做法、命令与边界见 [测试环境](docs/development/test-environment.md)。
 
 - 起环境 / 整租户切换：`PEARNLY_TESTENV_SRC=<工作树> PEARNLY_TESTENV_IMAGE=<线上 digest> bash scripts/testenv.sh lab-start <app>`
   （起栈、首次导入测试租户、挂上实时源码、切域名）/ `lab-stop <app>`（切回线上）。
 - 改代码后：`PEARNLY_TESTENV_SRC=<工作树> bash scripts/testenv.sh live <app>`（表结构 / 补丁 / hooks 变了自动迁移）。
-- 用户试用没问题 → 按「主线集成」合入 main → 从 main 构建镜像 → 部署生产（生产每一步仍需用户同意，部署只用 main 上的镜像）。
+- 实测通过 → 按「主线集成」合入 main → 按已有的部署授权用 `scripts/production/deploy.sh` 从 main 上的发布标记构建并部署（先 `--dry-run`；没有授权先取得授权；部署只用 main 上的镜像）。
 - 实时源码盖不到的改动要换镜像再试：依赖 / Dockerfile / 底座版本、`frontend/` 前端 SPA 构建产物。
   要单独验"镜像本身"时 `testenv.sh live-off <app>`。
 - 测试环境不能替代线上的部分（WSL2 内核与网络、生产并发、真机与真实消息验收）必须如实说明；
