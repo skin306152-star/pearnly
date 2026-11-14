@@ -88,7 +88,7 @@ MR.ERP 导入采购不看「เงินสด」勾；应付那笔贷方取菜�
   第 14 列）是参考科目「เงินสด」或这份账套选过的银行科目才用；都没有 → 自建 `เงินสด`、科目 = 参考科目「เงินสด」；`เงินสด` 已有但科目
   不是现金类 → 只挡现购票（`ERR_MRERP_CASH_SUPPLIER_NOT_CASH`），同批赊购照写，不改别人的档案。
 - 入口：共用契约、Cowork 推送准备、录入弹窗、LINE、定时任务（网页与 CC 前端）、CC 工具说明、ERP 已付采购原来的「只能赊购」都去掉。
-- 代录：现购在 `operator_draft.stage` 转人工（`ERR_MRERP_OPERATOR_CASH_PURCHASE`）——配方没有开票用供应商（txtapmas_inv）一格。
+- 代录：原先现购在 `operator_draft.stage` 转人工（`ERR_MRERP_OPERATOR_CASH_PURCHASE`）；`pearnly/mrerp-operator-server` 去掉这道门，草稿带记账用 / 开票用供应商（`invoice_party_code`）与现金勾、现销带收款方式与科目，由 CC 桌面版填 txtapmas_inv。CC 侧读这些键已在 main（未发正式版）；已发的 1.12.21 配方四种单都是未核对，MR.ERP 代录一律回「不支持」，所以服务端先合不会让旧版 CC 写错，只是转人工的原因从「不代录现购」变成「不支持」。
 - 自建「เงินสด」没建成：现购停下 `ERR_MRERP_CASH_SUPPLIER_NOT_CREATED`（导入预检兜底同一原因）。
 - 同一做法前一窗口也提交过一份（`pearnly/mrerp-write-grid-99fa21` 92d6d0bad，未推、全闸门不过：入口仍只给赊账、ERP 无词条）；
   合并成本分支一份：取它的「建不成」原因码与导入表测试（TEST2019 PG691114-571007：借进项税 105 / 借采购 1,500 / 贷 1111-02 1,605），

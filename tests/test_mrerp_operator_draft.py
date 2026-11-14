@@ -128,7 +128,10 @@ class Golden(unittest.TestCase):
         for saved in self.golden:
             block = saved["block"]
             with self.subTest(saved["name"]):
-                self.assertEqual(list(block), keys)
+                # 采购另带开票用供应商与现金勾（CC 桌面版 `draft.from_payload` 读这两项，11-14 现购）
+                extra = (["invoice_party_code", "cash"] if block["doc_type"].startswith("purchase")
+                         else ["receipt"] if block["doc_type"] == "sales_cash" else [])  # 现销收款方式与科目
+                self.assertEqual(list(block), keys + extra)
                 self.assertEqual(list(block["account_set"]), ["comidyear", "seldb", "name", "company_name"])
                 self.assertEqual(list(block["defaults"]), ["dept", "job", "employee", "branch", "store"])
                 self.assertEqual(list(block["totals"]), ["before_vat", "vat", "net"])
@@ -247,13 +250,16 @@ class Stage(unittest.TestCase):
         self.assertEqual(failed, {other["id"]: ["ERR_NO_SUPPLIER"], foreign["id"]: ["mrerp_currency_not_thb:usd"]})
         self.assertEqual(importer.calls, [("purchase", [goods["id"], other["id"]])])  # 防呆挡下的不进准备
 
-    def test_a_cash_purchase_is_held_for_a_person_before_any_preparation(self):
-        # 现购代录还没做（配方没有开票用供应商那一格）：不进准备、不建主档，原因码转人工；同批赊购照常出块
+    def test_a_cash_purchase_goes_through_the_same_preparation_and_names_both_suppliers(self):
+        # 现购代录（11-14）：与直写同一份准备；块里记账用 = 现金供应商（第 9 列）、开票用 = 真实卖家（txtapmas_inv，第 10 列）、勾现金
         goods, paid = purchase("e1f2a3b4"), purchase("f2a3b4c5", posting_payment_manual="cash")
         importer = FakeImporter(menus={"purchase": "68"})
-        blocks, failed = stage(importer, [goods, paid])
-        self.assertEqual((list(blocks), failed), ([goods["id"]], {paid["id"]: [operator_draft.OPERATOR_CASH_PURCHASE]}))
-        self.assertEqual(importer.calls, [("purchase", [goods["id"]])])
+        blocks, failed = stage(importer, [goods, paid], dict(MAPPINGS, _mrerp_cash_supplier="CODE_NOAP"))
+        self.assertEqual((sorted(blocks), failed), (sorted([goods["id"], paid["id"]]), {}))
+        self.assertEqual(importer.calls, [("purchase", [goods["id"], paid["id"]])])
+        cash, credit = blocks[paid["id"]], blocks[goods["id"]]
+        self.assertEqual((cash["party_code"], cash["invoice_party_code"], cash["cash"]), ("CODE_NOAP", "S-0001", True))
+        self.assertEqual((credit["party_code"], credit["invoice_party_code"], credit["cash"]), ("S-0001", "S-0001", False))
 
     def test_a_module_not_verified_on_a_real_site_is_held_as_a_whole_group(self):
         goods, credit = purchase("c9d0e1f2"), {**sales("d0e1f2a3", buyer_tax=CUSTOMER), "client_id": "CL-7"}

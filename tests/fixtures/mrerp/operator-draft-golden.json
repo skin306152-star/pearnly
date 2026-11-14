@@ -139,7 +139,9 @@
      "before_vat": "2475.00",
      "vat": "173.25",
      "net": "2648.25"
-    }
+    },
+    "invoice_party_code": "S-0001",
+    "cash": false
    }
   },
   {
@@ -266,7 +268,9 @@
      "before_vat": "535.00",
      "vat": "0.00",
      "net": "535.00"
-    }
+    },
+    "invoice_party_code": "S-0001",
+    "cash": false
    }
   },
   {
@@ -548,6 +552,10 @@
      "before_vat": "2400.00",
      "vat": "168.00",
      "net": "2568.00"
+    },
+    "receipt": {
+     "cash": true,
+     "account": ""
     }
    }
   }

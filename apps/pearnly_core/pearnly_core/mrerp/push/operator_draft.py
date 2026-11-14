@@ -101,7 +101,10 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
     discount: Any = 0
     if doc_type.startswith("purchase"):
         head = account_values.header(mappings)
-        party = purchase._supplier_code(history, mappings)
+        # 现购：记账用的是准备时定的现金供应商、开票用（txtapmas_inv，进项税挂它）是真实卖家，同导入表第 9 / 10 列
+        party = purchase.posting_supplier(history, mappings)
+        extra = {"invoice_party_code": str(purchase._supplier_code(history, mappings) or "").strip(),
+                 "cash": purchase.is_cash_purchase(history)}
         ref_no = mrerp_bill_no(history, docnum, mappings)
         if doc_type == "purchase_expense":
             kind, label = OUTSIDE, purchase.expense_label(mappings)
@@ -114,6 +117,13 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
             discount = _form_discount(rows, header, "price")
             lines = [_line(row["code"], row["qty"], row["price"], head["store"]) for row in rows]
     else:
+        extra = {}
+        if doc_type == "sales_cash":
+            # 收款怎么进：现金进现金格；转账 / 刷卡进「รับอื่นๆ」并记这份账套选的银行科目（同导入表，`sales_cash._receipt_account`）
+            from pearnly_core.mrerp.push.xlsx import sales_cash
+
+            extra = {"receipt": {"cash": sales_cash._is_cash(history),
+                                 "account": sales_cash._receipt_account(history, mappings)}}
         party = resolve_customer_code(history, mappings)
         head = account_values.header(mappings, party)
         ref_no = mrerp_bill_no(history, docnum, mappings)
@@ -130,10 +140,7 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
             "party_code": str(party or "").strip(), "ref_no": ref_no, "ref_date": day, "credit_days": "",
             "vat_rate": label, "vat_included": _KINDS[kind][1], "discount": _num(discount),
             "defaults": {key: str(head.get(key) or "") for key in ("dept", "job", "employee", "branch", "store")},
-            "lines": lines, "totals": totals(lines, kind, discount)}
-
-
-OPERATOR_CASH_PURCHASE = "ERR_MRERP_OPERATOR_CASH_PURCHASE"
+            "lines": lines, "totals": totals(lines, kind, discount), **extra}
 
 
 def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *, today: date, url: str,
@@ -155,14 +162,6 @@ def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *
             if not module.verified:
                 failed.update({str(h.get("id")): [routing.MODULE_UNAVAILABLE_CODE] for h in rows})
                 continue
-            if doc_type.startswith("purchase"):
-                # 现购代录还没做：CC 桌面版要在网页表单里另填开票用供应商（txtapmas_inv），配方没有这一格。不建主档、转人工。
-                from pearnly_core.mrerp.push.xlsx.purchase import is_cash_purchase
-
-                failed.update({str(h.get("id")): [OPERATOR_CASH_PURCHASE] for h in rows if is_cash_purchase(h)})
-                rows = [h for h in rows if not is_cash_purchase(h)]
-                if not rows:
-                    continue
             importer.module = module
             valid, stopped, menu = importer.ready_rows(rows, mappings)
             failed.update({str(row.original.get("id")): [str(r) for r in row.reasons] for row in stopped if row.original})
