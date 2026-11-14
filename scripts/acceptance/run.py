@@ -279,8 +279,9 @@ def select(registry, args) -> list[dict]:
     return sorted(chosen, key=lambda item: item["id"])
 
 
-def record_evidence(results: list[dict], sha: str, run_id: str, path: Path) -> list[str]:
-    """通过且没靠重跑的结果写进证据登记：一条场景一段，按 id 排序（改动小、好合并）。"""
+def record_evidence(results: list[dict], sha: str, run_id: str, path: Path, digests: dict | None = None) -> list[str]:
+    """通过且没靠重跑的结果写进证据登记：一条场景一段，按 id 排序（改动小、好合并）。``digests``：{场景 id: covers 内容指纹}，
+    有就一起记（证据按它判新鲜，变基换了提交号不影响）。"""
     import tomllib
 
     current = {item["scenario"]: item for item in tomllib.loads(path.read_text(encoding="utf-8")).get("pass", [])} if path.is_file() else {}
@@ -289,11 +290,12 @@ def record_evidence(results: list[dict], sha: str, run_id: str, path: Path) -> l
         if result["outcome"] == PASS and not result.get("unstable"):
             current[result["scenario"]] = {"scenario": result["scenario"], "sha": sha, "date": time.strftime("%Y-%m-%d"),
                                            "env": result.get("env", ""), "run": run_id, "retried": bool(result.get("retried")),
+                                           **({"covers": digests[result["scenario"]]} if (digests or {}).get(result["scenario"]) else {}),
                                            **{key: value for key, value in (result.get("facts") or {}).items()
                                               if isinstance(value, (str, int, float, bool)) or
                                               (isinstance(value, list) and all(isinstance(v, str) for v in value))}}
             written.append(result["scenario"])
-    head = ("# 每条 L3 场景最近一次通过（scripts/acceptance/run.py --record 写，不手改）。证据之后 covers 文件又改了，\n"
+    head = ("# 每条 L3 场景最近一次通过（scripts/acceptance/run.py --record 写，不手改）。证据之后 covers 文件的内容又变了，\n"
             "# check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。\n")
     body = []
     for scenario_id in sorted(current):
@@ -365,7 +367,8 @@ def main(argv=None) -> int:
                                           encoding="utf-8")
         sweep(home)
         if args.record:
-            written = record_evidence(results, sha, run_id, ROOT / registry_check.HOME / "evidence.toml")
+            digests = {scenario["id"]: registry_check.covers_digest(ROOT, sha, scenario.get("covers", [])) for scenario in registry.scenarios.values()}
+            written = record_evidence(results, sha, run_id, ROOT / registry_check.HOME / "evidence.toml", digests)
             print(f"已登记证据：{', '.join(written) or '无'}（tests/acceptance/evidence.toml，随本分支提交）")
         if args.post_status:
             repo = json.loads(subprocess.run(["gh", "repo", "view", "--json", "nameWithOwner"], cwd=ROOT, capture_output=True, text=True).stdout)

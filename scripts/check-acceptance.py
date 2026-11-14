@@ -82,6 +82,22 @@ def _toml(path: Path) -> dict:
     return tomllib.loads(path.read_text(encoding="utf-8")) if path.is_file() else {}
 
 
+def covers_digest(root: Path, commit: str, covers: list[str]) -> str | None:
+    """这次提交里 covers 命中的文件的内容指纹（路径 + 文件内容哈希）。证据按它判新鲜：分支变基、合并换了提交号，
+    只要这些文件的内容没变，证据仍然有效；内容变了才过期。读不到提交回 None。"""
+    import hashlib
+
+    listed = git(root, "ls-tree", "-r", commit)
+    if listed is None:
+        return None
+    lines = []
+    for line in listed.splitlines():
+        meta, _, path = line.partition("\t")
+        if any(fnmatch.fnmatch(path, pattern) for pattern in covers):
+            lines.append(f"{path} {meta.split()[2]}")
+    return hashlib.sha256("\n".join(sorted(lines)).encode("utf-8")).hexdigest()[:16]
+
+
 def git(root: Path, *args: str) -> str | None:
     try:
         result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
@@ -346,6 +362,10 @@ class Registry:
         if not item:
             return "没有证据", ""
         sha, covers = str(item.get("sha", "")), self.scenarios.get(scenario_id, {}).get("covers", [])
+        if item.get("covers"):   # 有内容指纹就按它判：不依赖证据那次的提交号还在不在（变基、合并后提交号会换）
+            if covers_digest(self.root, "HEAD", covers) == item["covers"]:
+                return "已验", f"{item.get('date')} {sha[:9]}"
+            return "过期", f"{item.get('date')} 之后被验收覆盖的产品文件改过（covers 的内容指纹变了）"
         if git(self.root, "cat-file", "-e", f"{sha}^{{commit}}") is None:
             return "过期", f"证据的提交 {sha[:9]} 不在仓库"
         changed = git(self.root, "diff", "--name-only", sha, "HEAD") or ""

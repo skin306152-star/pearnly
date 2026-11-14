@@ -138,6 +138,27 @@ class CheckAcceptanceTest(unittest.TestCase):
         repo.write("tests/acceptance/evidence.toml", '[[pass]]\nscenario = "acc.purchase"\nsha = "deadbeef1"\ndate = "2026-11-12"\nrun = "r1"\n')
         self.assertEqual(repo.registry().freshness("acc.purchase")[0], "过期")  # 提交不在仓库
 
+    def test_evidence_with_a_content_digest_survives_a_rewritten_commit_and_goes_stale_on_content(self):
+        repo = Repo(self)
+        repo.write("tests/acceptance/registry.toml", SCENARIO)
+        repo.write("apps/erp/push.py", "x = 1\n")
+        sha = repo.commit("scenario")
+        covers = repo.registry().scenarios["acc.purchase"]["covers"]
+        digest = acceptance.covers_digest(repo.root, sha, covers)
+        self.assertEqual(len(digest), 16)
+        # 证据那次的提交号已经不在仓库（分支变基 / 合并后换了号）：内容没变就仍然算已验
+        repo.write("tests/acceptance/evidence.toml",
+                   f'[[pass]]\nscenario = "acc.purchase"\nsha = "deadbeef1"\ndate = "2026-11-14"\nrun = "r1"\ncovers = "{digest}"\n')
+        repo.write("docs/readme.md", "不相干的改动\n")
+        repo.commit("evidence")
+        self.assertEqual(repo.registry().freshness("acc.purchase")[0], "已验")
+        repo.write("apps/erp/push.py", "x = 2\n")
+        repo.commit("touch covered file")
+        state, why = repo.registry().freshness("acc.purchase")
+        self.assertEqual(state, "过期")
+        self.assertIn("内容指纹", why)
+        self.assertIsNone(acceptance.covers_digest(repo.root, "deadbeef1", covers))
+
     def test_release_gate_lists_gate_scenarios_hit_without_fresh_evidence(self):
         repo = Repo(self)
         repo.write("tests/acceptance/registry.toml", SCENARIO)
