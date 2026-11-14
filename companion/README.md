@@ -242,14 +242,21 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
 不连服务器、不改 `latest.json`，产物只留 1 天；装上去的版本号就是那个分支 `version.py` 里的。
 
 流水线：Windows 上跑全量测试 → PyInstaller + Inno Setup 打包（`packaging/release.ps1 -BuildOnly`）→
-Ubuntu 把安装包经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py` → 从公网下载回来比对 sha256。
+（正式版）Ubuntu 先把安装包传到 R2（桶 `pearnly-media`，公网 `media.pearnly.com`），版本路径与固定名各一份、从公网读回比对，只留最近 5 个版本 →
+经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py`（本机照旧存一份、改 `latest.json`）→ 从公网下载回来比对 sha256。
+
+安装包走 R2（2026-11-14，`docs/work/2026-11-14-prod-speed.md`）：pearnly.com 上的安装包地址由 nginx 302 到 R2 同路径
+（`infrastructure/production/landing.conf`），`latest.json` 仍由服务器给。从泰国办公室下 154MB 由约 45 分钟降到 1–3 分钟，也不再占服务器出口。
+已发布的各版更新器都跟随跳转（`updater.download_installer` 一直是 `follow_redirects=True`，旧仓库起就是），不用等新客户端。
+正式发布要三个仓库密钥 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`（R2 令牌只授 `pearnly-media` 读写）；缺了正式版停在上传 R2 那一步、
+不改 `latest.json`。回退：删掉 `landing.conf` 里那两段 302 再 reload，下载回到服务器本机那份。费用：R2 免费额度内（存储 10GB / 月、读 1000 万次 / 月、出流量免费），零月费。
 
 安装包地址（全平台一个）：
 
 | 用途 | 地址 |
 | --- | --- |
-| 网页「下载 CC 桌面版」 | `https://pearnly.com/downloads/companion/CC-Setup.exe`（始终是最新正式版；改名前的 `PearnlyCompanion-Setup.exe` 同时保留同一份） |
-| 各版本（不可覆盖） | `https://pearnly.com/downloads/companion/releases/<版本>/<提交>/CC-Setup.exe` |
+| 网页「下载 CC 桌面版」 | `https://pearnly.com/downloads/companion/CC-Setup.exe`（始终是最新正式版；改名前的 `PearnlyCompanion-Setup.exe` 同时保留同一份；两个都 302 到 `media.pearnly.com/downloads/companion/CC-Setup.exe`） |
+| 各版本（不可覆盖） | `https://pearnly.com/downloads/companion/releases/<版本>/<提交>/CC-Setup.exe`（302 到 `media.pearnly.com` 同路径；R2 只留最近 5 版，服务器本机全留） |
 | 自动更新 | `https://pearnly.com/downloads/companion/latest.json`：服务器读本机这份、随心跳回复带给小助手（`pearnly_cowork/companion/release.py`；不定时查，用户 2026-10-09），只读文件夹的成员没有心跳、随文件夹同步回复拿到（1.4.4 起）；托盘「检查更新」时小助手自己查一次。旧版查的 `/static/companion/latest.json` 指向同一份 |
 
 ## 文件夹自动录入：已知限制（1.4.4）
