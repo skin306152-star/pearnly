@@ -1141,7 +1141,7 @@ Product Ref,商品の外部参照
 Product Rows  {0},品目明細  {0}  件
 Product Total,品目小計
 Product code,品目コード
-Product group,商品分類
+Product group,商品グループ
 Product group not found in Express,Express にこの商品グループがありません
 Product is disabled,商品は無効になっています
 Product name,商品名
@@ -2527,8 +2527,8 @@ mrerp.default.dept,部門
 mrerp.default.employee,担当者
 mrerp.default.expense_account,費用勘定
 mrerp.default.job,案件
-mrerp.default.product_group,商品分類
-mrerp.default.store,倉庫
+mrerp.default.product_group,商品グループ
+mrerp.default.store,保管場所
 mrerp.default.supplier_type,仕入先区分
 mrerp.default.title,MR.ERP 設定
 mrerp.default.unit,単位

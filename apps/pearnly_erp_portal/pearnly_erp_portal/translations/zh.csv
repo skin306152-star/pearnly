@@ -1141,7 +1141,7 @@ Product Ref,物料外部标识
 Product Rows  {0},物料明细  {0}  笔
 Product Total,物料小计
 Product code,系统编码
-Product group,商品分类
+Product group,物料分类
 Product group not found in Express,Express 中没有此物料分类
 Product is disabled,物料已停用
 Product name,物料名称
@@ -2527,8 +2527,8 @@ mrerp.default.dept,部门
 mrerp.default.employee,员工
 mrerp.default.expense_account,费用科目
 mrerp.default.job,项目
-mrerp.default.product_group,商品分类
-mrerp.default.store,仓库
+mrerp.default.product_group,物料分类
+mrerp.default.store,仓位
 mrerp.default.supplier_type,供应商类型
 mrerp.default.title,MR.ERP 设置
 mrerp.default.unit,单位

@@ -140,6 +140,14 @@ txtvatnum = 供应商票号 NV-6911-77、税额 0；ERP 销售 SI691114-190493 =
 税报告（report 232/45、226/43）只列已归入报税期（vatdatepass）的记录，要人在 MR.ERP 点使用权后才有，本窗口没替人做归期；
 发票号以单据页 vatnum 读回为准（导入同一列同时写税记录，`impartran/component/importpc.php:868, 978`）。
 
+## 文案改动（主会话转拼车窗口用词盘点，11-14）
+
+| 键 | 原（本分支 11-14 新加） | 改为 | 依据 |
+|---|---|---|---|
+| `mrerp.default.store` | 仓库 / Warehouse / คลังสินค้า / 倉庫 | 仓位 / Location / ตำแหน่ง / 保管場所 | 全产品统一叫「仓位」（用户 11-06），四语沿用 ERP 现成 `trade.location` |
+| `mrerp.default.product_group` | 商品分类 / หมวดสินค้า / 商品分類 | 物料分类 / กลุ่มสินค้า / 商品グループ | 界面统称「物料」（用户 11-06），四语沿用 ERP 现成 `express.error.ITEM_GROUP_NOT_FOUND` |
+| `Not Permitted`（`mrerp/connection.py` 三处、`express/api.py` 新加一处） | Not Permitted | Not permitted | Frappe 原生词条 |
+
 ## 待办（不在这批）
 
 - 公司接入第 3 批与本分支都进 main 后：去掉 `mrerp/push.py _after_write` 的 ImportError / getattr 兜底，测试换成真调用（拼车窗口在集成分支补跨边测试）。

@@ -2145,7 +2145,7 @@ MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設�
 Branch	分店	สาขา	支店	mrerp.default.branch
 Department	部门	แผนก	部門	mrerp.default.dept
 Job	项目	งาน	案件	mrerp.default.job
-Warehouse	仓库	คลังสินค้า	倉庫	mrerp.default.store
+Location	仓位	ตำแหน่ง	保管場所	mrerp.default.store
 Employee	员工	พนักงาน	担当者	mrerp.default.employee
 Sales area	销售区域	พื้นที่การขาย	販売地域	mrerp.default.area
 Delivery type	运输方式	ประเภทขนส่ง	配送方法	mrerp.default.delivery
@@ -2154,7 +2154,7 @@ Receivable account	应收科目	บัญชีลูกหนี้	売掛金�
 Supplier type	供应商类型	ประเภทผู้จำหน่าย	仕入先区分	mrerp.default.supplier_type
 Payable account	应付科目	บัญชีเจ้าหนี้	買掛金勘定	mrerp.default.ap_account
 Bank account	银行收款科目	บัญชีเงินฝากธนาคาร	銀行勘定	mrerp.default.bank_account
-Product group	商品分类	หมวดสินค้า	商品分類	mrerp.default.product_group
+Product group	物料分类	กลุ่มสินค้า	商品グループ	mrerp.default.product_group
 Unit	单位	หน่วยนับ	単位	mrerp.default.unit
 Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	mrerp.default.expense_account
 MR.ERP No.	MR.ERP 单号	เลขที่ MR.ERP	MR.ERP 番号

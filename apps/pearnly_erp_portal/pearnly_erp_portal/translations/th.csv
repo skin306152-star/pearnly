@@ -1141,7 +1141,7 @@ Product Ref,รหัสอ้างอิงสินค้า
 Product Rows  {0},รายละเอียดรวมสินค้า  {0}  รายการ
 Product Total,รวมสินค้า
 Product code,รหัสสินค้า
-Product group,หมวดสินค้า
+Product group,กลุ่มสินค้า
 Product group not found in Express,ไม่พบกลุ่มสินค้านี้ใน Express
 Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
@@ -2527,8 +2527,8 @@ mrerp.default.dept,แผนก
 mrerp.default.employee,พนักงาน
 mrerp.default.expense_account,บัญชีค่าใช้จ่าย
 mrerp.default.job,งาน
-mrerp.default.product_group,หมวดสินค้า
-mrerp.default.store,คลังสินค้า
+mrerp.default.product_group,กลุ่มสินค้า
+mrerp.default.store,ตำแหน่ง
 mrerp.default.supplier_type,ประเภทผู้จำหน่าย
 mrerp.default.title,การตั้งค่า MR.ERP
 mrerp.default.unit,หน่วยนับ

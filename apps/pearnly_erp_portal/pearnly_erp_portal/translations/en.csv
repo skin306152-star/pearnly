@@ -2528,7 +2528,7 @@ mrerp.default.employee,Employee
 mrerp.default.expense_account,Expense account
 mrerp.default.job,Job
 mrerp.default.product_group,Product group
-mrerp.default.store,Warehouse
+mrerp.default.store,Location
 mrerp.default.supplier_type,Supplier type
 mrerp.default.title,MR.ERP settings
 mrerp.default.unit,Unit

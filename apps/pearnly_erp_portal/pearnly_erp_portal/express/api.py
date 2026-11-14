@@ -322,7 +322,7 @@ def retry(doctype, name):
     row = _document(doctype, name, write=True)
     if doc_ledger(row) == LEDGER_MRERP:
         if not _mrerp_retryable(row):
-            frappe.throw(_("Not Permitted"), frappe.PermissionError)
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
         mrerp_push.send(doctype, name, manual=True)  # 人点的：清这个账号的被踢标记、照常登录（同 CC 推送）
         return _view(doctype, _document(doctype, name))
     _require_enabled(row)
