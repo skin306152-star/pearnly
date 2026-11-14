@@ -99,3 +99,10 @@ export function valueOk(kind: ValueKind, value: string): boolean {
   if (kind === "number") return /^-?\d+(\.\d+)?$/.test(text.trim());
   return text.trim() !== "" && text.length <= TEXT_MAX;
 }
+
+/** 分 → 给人看的金额（整数部分按语言加千分位，小数两位）。 */
+export function formatMinor(value: bigint, locale: string): string {
+  const negative = value < 0n;
+  const abs = negative ? -value : value;
+  return `${negative ? "-" : ""}${new Intl.NumberFormat(locale).format(abs / 100n)}.${String(abs % 100n).padStart(2, "0")}`;
+}
