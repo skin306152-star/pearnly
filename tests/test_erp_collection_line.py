@@ -639,7 +639,7 @@ class Results(Base):
         name = self.released()
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(name, "U1", "a@x", "r-wait")
-        self.jobs.report("J-" + name, "manual", reason="[RECEIPT_TYPE_INVALID] BB has no account")
+        self.jobs.report("J-" + name, "manual", reason="[WRITE_FAILED] BB has no account")
         flow.notify(name)
         flow.notify(name)
         self.assertEqual(len(LINE.pushes), 1)  # 失败路径最多 1 条
@@ -651,7 +651,7 @@ class Results(Base):
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(other, "U1", "a@x", "r-wait2")
         self.tap(self.buttons()[0]["data"], event="evt-r")
-        self.jobs.report("J-" + other, "manual", reason="[RECEIPT_TYPE_INVALID] seen first")
+        self.jobs.report("J-" + other, "manual", reason="[WRITE_FAILED] seen first")
         self.tap(self.buttons()[0]["data"], event="evt-r2")  # 收款员先点【查看结果】看到了失败
         self.assertIn("seen first", self.last_text())
         flow.notify(other)
@@ -675,20 +675,91 @@ class Results(Base):
             self.assertEqual("express.error.ACCOUNT_BUSY_LOCKED" in self.last_text(), waiting)
         self.assertEqual(LINE.pushes, [])
 
-    def test_already_collected_is_pushed_with_each_current_balance(self):
-        name = self.released()
+
+
+class Returned(Base):
+    """写前被电脑拒（一行没写，主会话 11-14 审定 7 个码）：原卡带原因还回、换新确认号（卡片有效期规则 A9）。"""
+
+    def released(self):
+        name = Release.card(self)
+        self.old = self.card_button("Confirm")["data"]
+        self.tap(self.old)
+        return name
+
+    def refuse(self, name, reason="[already_collected] invoice paid", job=None):
         flow._wait_off(name)
-        self.jobs.report("J-" + name, "manual", reason="[ALREADY_COLLECTED] invoice paid",
+        self.jobs.report(job or "J-" + name, "manual", reason=reason,
                          meta={"invoices": [{"docnum": "IV1", "remaining": "200.00"}]})
         flow.notify(name)
-        text = LINE.pushes[0][1][0]["text"]
-        self.assertIn("Already collected. Current balance:", text)
-        self.assertIn("IV1 200.00", text)
+
+    def test_the_card_comes_back_with_each_current_balance_and_a_new_confirm(self):
+        name = self.released()
+        self.refuse(name)
+        self.assertEqual(LINE.replies[-1][0], "push:U1")
+        self.assertIn("Already collected. Current balance:", self.last_text())  # CC 的小写码对上了（11-14 前对不上）
+        self.assertIn("IV1 200.00", self.last_text())
+        self.assertEqual((self.step(), self.payload()["name"], self.payload()["version"]), ("card", name, 2))
+        # 余额不够这次收：卡上照规则不出【确认】，改了（卡片【编辑】/ 网页 / CC）再确认；确认号已换新
+        self.assertEqual([item for item in self.flex_buttons() if item["label"] == "Confirm"], [])
+        self.assertNotIn(self.payload()["nonce"], self.old)
+        replies = len(LINE.replies)
+        self.tap(self.old, event="evt-old")  # 用过的旧卡：不回话、不放行
+        self.assertEqual((len(LINE.replies), T.S.table("ERP Collection")[name]["status"]), (replies, C.DRAFT))
+        flow.notify(name)
+        self.assertEqual(len(LINE.replies), replies)  # 同一次退回只还一次
+
+    def test_a_returned_card_can_be_released_again_as_a_new_write(self):
+        name = self.released()
+        self.refuse(name, "[receipt_type_invalid] TR has no account")  # Express 里把方式设好了：原样再确认
+        self.assertIn("Not written to Express: TR has no account", self.last_text())
+        self.tap(self.card_button("Confirm")["data"], event="evt-new")
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
+        self.assertEqual(self.jobs.rows["J-" + name + "-1"]["request_key"], "erp:receipt:" + name + ":1")
+        self.refuse(name, job="J-" + name)  # 上一件迟到的回执：不改、不还回
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
+        self.refuse(name, job="J-" + name + "-1")  # 第二次被拒（这一件）：照样还回
+        self.assertEqual((self.step(), self.payload()["version"]), ("card", 3))
+
+    def test_a_collector_busy_with_another_collection_only_hears_the_reason(self):
+        name = self.released()
+        self.tap("a=col&s=start", event="evt-m")  # 已经在录下一笔
+        self.type(C1, event="evt-c")
+        before = (self.step(), self.payload().get("name"))
+        self.refuse(name)
+        self.assertIn("Already collected. Current balance:", self.last_text())
+        self.assertEqual((self.step(), self.payload().get("name")), before)  # 正在录的那笔不动
+        self.assertEqual(self.flex_buttons(), [])
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)  # 草稿留着：网页、CC 照样能放
+
+    def test_while_waiting_the_returned_card_is_the_reply(self):
+        name = Release.card(self)
+        self.tap(self.card_button("Confirm")["data"])
+        self.jobs.report("J-" + name, "manual", reason="[cash_account_missing] no cash account")
+        flow.notify(name)
+        self.assertEqual(LINE.pushes, [])  # 后台还在等：交给它
+        flow.await_result(name, "U1", "a@x", "r-wait")
+        self.assertEqual(LINE.replies[-1][0], "r-wait")
+        self.assertIn("Not written to Express: no cash account", self.last_text())
+        self.assertEqual(self.step(), "card")
+
+    def test_the_same_draft_is_seen_alike_in_line_the_web_list_and_cc(self):
+        """网页「我的收款」、CC 对话、LINE 三处看到的是同一条草稿、同一个状态与版本（主会话 11-14）。"""
+        from pearnly_erp_portal.collection import api, cc_tools
+
+        name = self.released()
+        self.refuse(name)
+        frappe.session.user = "a@x"
+        web = next(row for row in api.api_my_collections()["items"] if row["name"] == name)
+        opened = api.api_my_collection(name)["card"]
+        chat = json.loads(cc_tools.status({"collection": name}))
+        seen = {(row["status"], row["version"], row["returned"], row["reason"]) for row in (web, opened, chat)}
+        self.assertEqual(seen, {(C.DRAFT, 2, True, "[already_collected] invoice paid")})
+        self.assertEqual(self.payload()["version"], 2)  # LINE 新卡上的也是这个版本
 
     def test_a_plain_failure_says_the_reason(self):
         name = self.released()
         flow._wait_off(name)
-        self.jobs.report("J-" + name, "manual", reason="[RECEIPT_TYPE_INVALID] BB has no account")
+        self.jobs.report("J-" + name, "manual", reason="[WRITE_FAILED] BB has no account")
         flow.notify(name)
         self.assertIn("Not written to Express: BB has no account", LINE.pushes[0][1][0]["text"])
 

@@ -30,6 +30,14 @@ CANCELLED = "collection.withdrawn"
 TELL = {"line": "pearnly_erp_portal.integrations.line_collection.notify"}
 
 
+def request_key(name, attempt=0) -> str:
+    """写账请求号：第一次 ``erp:receipt:<记录号>``（线上已有的写账件不变）；写前被拒退回草稿再放行的带次数
+    ``erp:receipt:<记录号>:<次数>``。只进共用写账队列的去重（`cc_desktop.jobs.enqueue`），不下发给 CC 桌面版（领单只给投递号、
+    记录号、单号与载荷，`queue_contracts.job`），YOUREF 仍是记录号。"""
+    attempt = int(attempt or 0)
+    return REQUEST + name + (f":{attempt}" if attempt > 0 else "")
+
+
 def send(name):
     """（放行的事务里）交一件写账。账套此刻没有电脑报了（位置取不到）：记失败「没有账套」，不交。"""
     from pearnly_erp_portal.collection import service
@@ -46,7 +54,7 @@ def send(name):
               "invoices": [{"docnum": row.docnum, "amount": row.amount} for row in doc.invoices],
               "methods": [{"code": row.code, "prefix": row.prefix, "amount": row.amount} for row in doc.payments]}
     payload = contracts.payload(record, book, company, user=doc.collector)
-    job = jobs.enqueue(source_doctype=DOCTYPE, source_name=doc.name, request_key=REQUEST + doc.name,
+    job = jobs.enqueue(source_doctype=DOCTYPE, source_name=doc.name, request_key=request_key(doc.name, doc.get("attempt")),
                        actor=express_push.office_actor(doc.collector, doc.company, doc.book_key), book_key=doc.book_key,
                        payload=payload, payload_version=contracts.PAYLOAD_VERSION, label=doc.name)
     _set(name, {"job": job["job"]})
@@ -98,11 +106,13 @@ def job_changed(view):
     name = view.get("source_name")
     if view.get("source_doctype") != DOCTYPE or not name or not frappe.db.exists(DOCTYPE, name):
         return
-    doc = frappe.db.get_value(DOCTYPE, name, ["name", "status", "book_key", "company", "customer", "source"],
-                              as_dict=True)
+    doc = frappe.db.get_value(DOCTYPE, name, ["name", "status", "book_key", "company", "customer", "source", "job",
+                                              "draft_version", "attempt"], as_dict=True)
     if doc.status == contracts.WITHDRAWN:
         _set(name, {"job": view.get("job")})
         return  # 撤回在先，撤掉作业的回执不改它
+    if doc.status == contracts.DRAFT or (doc.job and view.get("job") and view.get("job") != doc.job):
+        return  # 退回草稿之后、或换了新写账件之后，上一件的回执不改它（草稿没有在跑的写账件）
     state = state_of(view)
     values = {"status": state, "job": view.get("job")}
     if state == contracts.WRITTEN:
@@ -122,6 +132,10 @@ def job_changed(view):
         if found:
             values["balances"] = json.dumps({key: contracts.text(value) for key, value in found.items()})
             snapshot.apply_balances(doc.book_key, found)
+        if ack_rules.error_code(reason) in contracts.RETURNABLE:
+            # 写前就拒、一行没写：退回草稿带原因，录入的人改了再放行（版本 +1，旧卡失效；再放行换新请求号）
+            values.update(status=contracts.DRAFT, draft_version=int(doc.draft_version or 0) + 1,
+                          attempt=int(doc.attempt or 0) + 1)
         _set(name, values)
         if uncollectable:
             _refresh(doc)

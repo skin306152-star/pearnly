@@ -520,7 +520,9 @@ def _view(doc) -> dict:
             "transfer": contracts.text(doc.transfer or 0), "discount": contracts.text(doc.discount or 0),
             "total": contracts.text(doc.total or 0), "docnum": doc.docnum or "", "reason": doc.reason or "",
             "salesman": doc.salesman or "", "department": doc.department or "",
-            "balances": frappe.parse_json(doc.balances) if doc.balances else {}}
+            "balances": frappe.parse_json(doc.balances) if doc.balances else {},
+            # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
+            "returned": doc.status == contracts.DRAFT and bool(int(doc.get("attempt") or 0)) and bool(doc.reason)}
 
 
 def _draft_of(doc):

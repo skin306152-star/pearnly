@@ -55,7 +55,7 @@ EDIT_ROUTE = "/desk/pearnly-my-collections/"
 # 打字确认（用户手打的词不翻译；四种语言 + ok）。比较时去掉空白、不分大小写
 CONFIRM_WORDS = frozenset(("ยืนยัน", "确认", "確認", "ok", "confirm"))
 # 回执里这两种「不能收」带每张发票此刻的余额（`collection.push`）；没带余额的（如服务品现金制）照原因说
-BALANCE_CODES = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND")
+BALANCE_CODES = contracts.UNCOLLECTABLE  # CC 回的原样小写码（11-14 前写成大写、对不上）
 _WAIT_KEY = "pearnly:erp:collection:line-wait:"
 _TOLD_KEY = "pearnly:erp:collection:line-told:"
 _USED_KEY = "pearnly:erp:collection:line-used:"     # 已消费的确认号：同卡再点不回话
@@ -973,7 +973,7 @@ def _failed_text(view) -> str:
         lines = [_("Already collected. Current balance:")]
         lines += [f"{docnum} {money(value)}" for docnum, value in (view.get("balances") or {}).items()]
         return "\n".join(lines)
-    return _("Not written to Express: {0}").format(re.sub(r"^\[[A-Z_]+\]\s*", "", reason) or view.get("status"))
+    return _("Not written to Express: {0}").format(re.sub(r"^\[[A-Za-z0-9_]+\]\s*", "", reason) or view.get("status"))
 
 
 def _result_messages(view) -> list:
@@ -1019,7 +1019,10 @@ def waiting(name) -> bool:
 def claim(name, view) -> bool:
     """同一个结果只告诉一次（后台等结果的回复与回执后的推送谁先到谁发）。"""
     store = _state()
-    key = store.make_key(f"{_TOLD_KEY}{name}:{view.get('status')}:{view.get('docnum') or ''}:{view.get('job') or ''}")
+    key = f"{_TOLD_KEY}{name}:{view.get('status')}:{view.get('docnum') or ''}:{view.get('job') or ''}"
+    if view.get("returned"):
+        key += f":v{view.get('version')}"  # 退回草稿每次版本不同：第二次被拒照样还回
+    key = store.make_key(key)
     return bool(store.set(key, "1", nx=True, ex=7 * 86400))
 
 
@@ -1036,24 +1039,49 @@ def await_result(name, line_user_id, user, reply_token="", language=""):
     with acting(user), speaking(line_user_id, language):
         deadline = time.monotonic() + WAIT_SECONDS
         view = _read(name)
-        while view["status"] not in FINAL and time.monotonic() < deadline:
+        while not _settled(view) and time.monotonic() < deadline:
             time.sleep(1)
             view = _read(name)
-        if view["status"] not in FINAL:
+        if not _settled(view):
             _wait_off(name)
             view = _read(name)  # 撤下等待之后再读一次：回执恰好在这之间到的，照样在这里回
         else:
             _wait_off(name)
-        if view["status"] in FINAL and not claim(name, view):
+        if _settled(view) and not claim(name, view):
             return
+        if view.get("returned"):
+            return _return_card(line_user_id, view, reply_token)
         line.reply_or_push(line_user_id, _result_messages(view), reply_token)
+
+
+def _settled(view) -> bool:
+    """有了结论：写成 / 失败 / 撤回，或写前被电脑拒、退回了草稿（:func:`_return_card`）。"""
+    return view["status"] in FINAL or bool(view.get("returned"))
+
+
+def _return_card(line_user_id, view, reply_token=""):
+    """写前被电脑拒（一行没写）：原卡带原因还回（卡片有效期规则 A9）——新确认号、旧卡失效，同普通出卡（`_show_card`）。
+    这个人正在 LINE 里录另一笔（会话停在别的步骤）：不打断，只说原因；这笔草稿在「我的收款」、CC 对话里照样能改了再放行。"""
+    name = view["name"]
+    note = _failed_text(view)
+    _pending_off(name)  # 「已记录 · 待写入」上的撤回号作废：这笔回到了草稿，撤回走新卡
+    current = payload_of(line_user_id)
+    previous = getattr(frappe.local, "pearnly_collection_to", "")
+    frappe.local.pearnly_collection_to = line_user_id
+    try:
+        if current.get("step") and current.get("name") != name:
+            return _send(reply_token, [{"type": "text", "text": note}])
+        _show_card(line_user_id, {**current, "company": view["company"], "customer": view["customer"]},
+                   _service().card(name), reply_token, note=note)
+    finally:
+        frappe.local.pearnly_collection_to = previous
 
 
 def notify(name):
     """（回执提交之后）LINE 录的收款写失败：后台还在等就交给它回；否则推送一条给录入的收款员本人（同一笔一次，已看过不推）。
     写成不推送：收款员点「查看结果」或下次进「收款」时用回复告诉（:func:`_show_result`、:func:`_told_first`）。"""
     doc = frappe.db.get_value(DOCTYPE, name, ["collector", "source", "status", "docnum", "job"], as_dict=True)
-    if not doc or doc.source != "line" or doc.status != contracts.FAILED:
+    if not doc or doc.source != "line" or doc.status not in (contracts.FAILED, contracts.DRAFT):
         return
     if waiting(name):
         return
@@ -1064,7 +1092,9 @@ def notify(name):
     # 推送用这个人手机上 LINE 的语言（同收单卡片）
     with acting(doc.collector), speaking(bindings[0]):
         view = _service().status(name)
-        if view["status"] in FINAL and claim(name, view):
+        if view.get("returned") and claim(name, view):
+            _return_card(bindings[0], view)
+        elif view["status"] in FINAL and claim(name, view):
             line.push(bindings[0], _result_messages(view))
 
 

@@ -56,7 +56,7 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 ### 4.2 旧步骤按钮重问（不用做）
 已在 main（fbde8a5af）。
 
-### 4.3 写失败的卡带原因还回、换新号（评估，待主会话审）
+### 4.3 写失败的卡带原因还回、换新号（主会话 11-14 同意、次数不设上限；已做，见本节末「施工」）
 现状：写失败只推一条原因，记录停在「失败」，没有路再放行；请求号 `erp:receipt:<记录号>` 每笔只交一次（`cc_desktop.jobs.enqueue` 按请求号去重）。
 提议（照卡片有效期规则 A9 / A10）：
 - 只对 CC 明确「写前拒绝、一行没写」的码开放：`already_collected`、`invoice_not_found`、`receipt_type_invalid`、`cash_account_missing`
@@ -68,6 +68,25 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 - 改动：`collection/service.py`（失败转草稿的一个函数、放行计数）、`collection/push.py`（请求号、回执里判码）、`integrations/line_collection.py`（失败卡）、
   ERP Collection 加一个整数字段 `attempt`（原生迁移）；文案只用现有的确认卡与原因，不新增；测试补「写前拒绝 → 草稿 → 再放行新请求号 → 同 YOUREF 不重复」。
 - 待定：改了草稿后余额仍不够，CC 再拒一次就再还回（不限次数）；是否需要上限请主会话定（建议不限，和人工在 Express 改一样）。
+
+#### 4.3 施工（11-14）
+- 7 个码逐个对到 CC 写前的位置（`companion/src/companion/dbf_receipt.py` `write_receipt`，写前备份 `_backup` 之前）：
+  `JOURNAL_BOOK_NOT_FOUND` ← `_missing_tables`（直接回码）、`run_row` 为空、`plan_bank` 户头表不在；`CUSTOMER_NOT_IN_ARMAS` ← 客户档不在；
+  `receipt_type_invalid` ← `plan_methods`；`cash_account_missing` ← `cash_account`；`ACCOUNT_NOT_POSTABLE` ← `receivable_account`；
+  `already_collected` / `invoice_not_found` ← `check_invoices`。写入阶段 `_next_docnum` 也会抛拒绝，但那里走 `except Exception` →
+  `_error_code` 只认 `_WriteError` → 回 `WRITE_FAILED`，不会被当成写前拒。契约测试 `ReceiptContract.test_codes_the_server_acts_on_are_the_ones_cc_refuses_with_before_writing` 钉住。
+- **顺带发现并修的线上缺陷**：服务端 `contracts.UNCOLLECTABLE` 与 LINE `BALANCE_CODES` 写成大写 `ALREADY_COLLECTED`，CC 回的是小写
+  `[already_collected] …`，从没对上过：CC 拒收时各张余额没记、快照没按客户重读、LINE 说不出「已被收款，当前余额」。改成原样小写，
+  测试里的假回执也改成 CC 的真写法；LINE 去码前缀的正则也认小写。
+- 请求号：`push.request_key`——第一次 `erp:receipt:<记录号>`（线上已有的不变），退回后再放行 `erp:receipt:<记录号>:<次数>`；YOUREF 仍是记录号。
+  CC 桌面版不收也不解析请求号（领单只交投递号 / 记录号 / 单号 / 载荷，`queue_contracts.job`；`companion/` 里没有 `erp:receipt`），
+  已发的 1.12.21 照常；契约测试 `test_the_request_key_never_reaches_cc_so_a_retried_key_works_on_1_12_21`。
+- 回执：写前拒 → 草稿、版本 +1、`attempt` +1（ERP Collection 新加的隐藏整数字段，原生迁移）、原因留着；草稿状态下、或回执来自已换掉的上一件，一律不改记录。
+- LINE：还回原卡（新确认号、旧卡失效、120 分钟、`_show_card` 同一套），最前面一句是现有的失败原因 / 「已被收款，当前余额」；
+  余额不够时卡上照规则不出【确认】，改了再确认。正在录另一笔时不打断，只推原因，草稿留在「我的收款」/ CC。没有新文案。
+- 网页「我的收款」：退回的草稿打开时最前面显示原因（原生「Reason」字段）。
+- 测试：`test_erp_collection.Receipts`（退回、再放行新请求号、迟到回执不改、只 7 个码）、`test_erp_collection_line.Returned`（新卡、旧卡不回话、
+  再放行、忙时只说原因、等结果时直接回卡、LINE / 网页 / CC 三处同一草稿同一版本）。
 
 ## 5. 网页新建收款
 评估 `docs/work/2026-11-14-collection-web-create.md`，一屏摘要在共享笔记「收款网页新建-一屏-11-14.md」，等主会话审。

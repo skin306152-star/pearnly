@@ -84,8 +84,15 @@ SALESMAN_INVALID = "collection.salesman_invalid"
 DEPARTMENT_INVALID = "collection.department_invalid"
 # 电脑写入时说「这张不能收」的回执码（转人工，不重试）：已被收 / 不存在。服务品现金制的发票（SRV_VATTYP=2，CC 不列进未收清发票）
 # 写入时遇到也回 INVOICE_NOT_FOUND（回执证据里 ``problem="cash_basis_vat"``，主会话 11-11 更正：没有新码）。带每张发票此刻的
-# 余额的记下余额；都按客户再读一次未收清发票
-UNCOLLECTABLE = ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND")
+# 余额的记下余额；都按客户再读一次未收清发票。码照 CC 桌面版原样小写（`dbf_receipt.ERR_*`，回执 ``[already_collected] …``）：
+# 11-14 前这里写成大写，从没对上过（余额没记、快照没按客户重读），跨两边由 `test_companion_contract` 守住
+UNCOLLECTABLE = ("already_collected", "invoice_not_found")
+# 电脑「写前就拒、一行没写」的码（`dbf_receipt.write_receipt` 在写前备份之前抛的 Refused / 直接回的码，主会话 11-14 审定）：
+# 这类失败把收款退回草稿、带原因还给录入的人改了再放行（卡片有效期规则 A9）；再放行换新请求号（`push.request_key`），
+# YOUREF 仍是记录号——上次万一其实写成了，CC 按同客户同 YOUREF 回原号、一行不写。其余失败（写到一半回滚、结果不明、
+# 没账套、撤掉）照旧记失败，不还回。
+RETURNABLE = ("already_collected", "invoice_not_found", "receipt_type_invalid", "cash_account_missing",
+              "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS", "ACCOUNT_NOT_POSTABLE")
 
 
 class CollectionError(ValueError):

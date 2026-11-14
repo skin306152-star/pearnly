@@ -587,7 +587,10 @@ class FakeJobs:
                 "book_key": row["book_key"]}
 
     def enqueue(self, *, source_doctype, source_name, request_key, actor, book_key, payload, payload_version=1, label=""):
-        name = "J-" + source_name
+        # 同真的：按请求号去重；请求号带次数（写前被拒、退回草稿再放行）是另一件，投递号 J-<记录号>-<次数>
+        name = "J-" + request_key.split(":", 2)[-1].replace(":", "-")
+        if name in self.rows:
+            return self.view(name)
         self.rows[name] = {"source_doctype": source_doctype, "source_name": source_name, "actor": actor,
                            "book_key": book_key, "payload": payload, "payload_version": payload_version,
                            "status": "queued", "request_key": request_key}
@@ -873,12 +876,15 @@ class Receipts(Base):
         self.assertIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)  # 再按客户读一次
 
     def test_already_collected_keeps_each_current_balance(self):
+        """CC 回的码照原样是小写（`dbf_receipt.ERR_ALREADY_COLLECTED`，回执 ``[already_collected] …``；11-14 前服务端比的是大写、
+        从没对上过）。写前就拒、一行没写：退回草稿带原因（卡片有效期规则 A9），余额照记。"""
         name, job = self.released()
-        self.jobs.report(job, "manual", reason="[ALREADY_COLLECTED] IV1 remaining 0.00",
+        self.jobs.report(job, "manual", reason="[already_collected] IV1 remaining 0.00",
                          meta={"invoices": [{"docnum": "IV1", "remaining": "0.00"}]})
-        row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"], as_dict=True)
-        self.assertEqual(row.status, C.FAILED)
-        self.assertTrue(row.reason.startswith("[ALREADY_COLLECTED]"))
+        row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances", "draft_version", "attempt"],
+                                  as_dict=True)
+        self.assertEqual((row.status, row.draft_version, row.attempt), (C.DRAFT, 2, 1))
+        self.assertTrue(row.reason.startswith("[already_collected]"))
         self.assertEqual(json.loads(row.balances), {"IV1": "0.00"})
         self.assertIsNone(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV1"}, "name"))  # 已收清：快照里没了
         self.as_user("a@x")
@@ -889,21 +895,51 @@ class Receipts(Base):
         ``problem="cash_basis_vat"``，没有新码：照原因记失败，按客户再读一次未收清发票；没带余额就不记余额。"""
         name, job = self.released()
         self.assertNotIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)
-        self.jobs.report(job, "manual", reason="[INVOICE_NOT_FOUND] IV1", meta={"problem": "cash_basis_vat"})
+        self.jobs.report(job, "manual", reason="[invoice_not_found] IV1", meta={"problem": "cash_basis_vat"})
         row = frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"], as_dict=True)
-        self.assertEqual((row.status, row.reason, row.balances), (C.FAILED, "[INVOICE_NOT_FOUND] IV1", None))
+        self.assertEqual((row.status, row.reason, row.balances), (C.DRAFT, "[invoice_not_found] IV1", None))
         self.assertIn(snapshot.request_key(BOOK["key"], "2100883"), self.requests.made)
-        self.assertEqual(C.UNCOLLECTABLE, ("ALREADY_COLLECTED", "INVOICE_NOT_FOUND"))
+        self.assertEqual(C.UNCOLLECTABLE, ("already_collected", "invoice_not_found"))
 
     def test_other_failures_and_queue_states(self):
         name, job = self.released()
         self.jobs.report(job, "queued", reason="payload_version_outdated")
         # 排队里的原因不抄到收款记录（11-12 约定：在不在等 Express 关闭读的时候问共用通道，见 ExpressWaiting）
         self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "reason"]), (C.QUEUED, ""))
-        self.jobs.report(job, "manual", reason="[RECEIPT_TYPE_INVALID] BB")
+        self.jobs.report(job, "manual", reason="[WRITE_FAILED] ARTRN locked")  # 写到一半回滚：不还回，照旧失败
         self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "reason", "balances"]),
-                         (C.FAILED, "[RECEIPT_TYPE_INVALID] BB", None))
+                         (C.FAILED, "[WRITE_FAILED] ARTRN locked", None))
         self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV1"}, "remaining"), Decimal("1000.00"))
+
+    def test_a_refusal_before_writing_returns_the_draft_and_a_second_release_is_a_new_request(self):
+        """写前就拒（7 个码，主会话 11-14 审定）：退回草稿、版本 +1；改了再放行是新的写账件，请求号带次数，YOUREF 仍是记录号；
+        上一件的回执（转人工的被重排、迟到）不再改这笔收款。"""
+        name, job = self.released()
+        self.jobs.report(job, "manual", reason="[receipt_type_invalid] BB")
+        self.as_user("a@x")
+        view = service.status(name)
+        self.assertEqual((view["status"], view["version"], view["returned"], view["reason"]),
+                         (C.DRAFT, 2, True, "[receipt_type_invalid] BB"))
+        self.assertEqual(service.release(name, 1, "line:evt-2"), {"status": "changed", "version": 2})  # 旧卡的版本放不了
+        self.assertEqual(service.release(name, 2, "line:evt-3")["status"], "released")
+        again = "J-" + name + "-1"
+        self.assertEqual((self.jobs.rows[again]["request_key"], self.jobs.rows[again]["payload"]["ref_no"]),
+                         ("erp:receipt:" + name + ":1", name))
+        self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "job", "reason"]), (C.QUEUED, again, ""))
+        self.jobs.report(job, "success", docnum="RE-OLD")  # 上一件迟到的回执：不改
+        self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "docnum"]), (C.QUEUED, None))
+        self.jobs.report(again, "manual", reason="[already_collected] IV1", meta={"invoices": [{"docnum": "IV1", "remaining": "0.00"}]})
+        self.assertEqual(frappe.db.get_value("ERP Collection", name, ["status", "draft_version", "attempt"]), (C.DRAFT, 3, 2))
+        self.assertEqual(service.withdraw(name)["status"], C.WITHDRAWN)  # 退回的草稿照样能撤回
+
+    def test_only_the_seven_codes_cc_refuses_before_writing_are_returned(self):
+        self.assertEqual(C.RETURNABLE, ("already_collected", "invoice_not_found", "receipt_type_invalid",
+                                        "cash_account_missing", "JOURNAL_BOOK_NOT_FOUND", "CUSTOMER_NOT_IN_ARMAS",
+                                        "ACCOUNT_NOT_POSTABLE"))
+        for reason in ("[WRITE_FAILED] x", "[VERIFY_FAILED] x", "cc_desktop.result_unknown", "[PERIOD_LOCKED] x"):
+            name, job = self.released("10")
+            self.jobs.report(job, "manual", reason=reason)
+            self.assertEqual(frappe.db.get_value("ERP Collection", name, "status"), C.FAILED, reason)
 
     def test_sales_documents_still_go_to_the_document_push(self):
         with mock.patch.object(express_push, "job_changed", create=True) as document_push:

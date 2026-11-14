@@ -32,7 +32,11 @@
 				...(methods.discount ? [{...methods.discount, role: "discount"}] : [])];
 			const choice = (rows, current) => [...(rows || []).map(row => ({value: row.code, label: `${row.code} ${row.name}`.trim()})),
 				...(current && !(rows || []).some(row => row.code === current) ? [{value: current, label: current}] : [])];
+			// 写前被电脑拒、退回草稿（`collection.push`，11-14）：原因放最前（同 LINE 还回的卡），改了再放行
+			const returned = card.returned ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1,
+				default: String(card.reason || "").replace(/^\[[A-Za-z0-9_]+\]\s*/, "")}, {fieldtype: "Section Break"}] : [];
 			const fields = [
+				...returned,
 				{fieldtype: "Data", fieldname: "customer", label: __("Customer"), read_only: 1,
 					default: `${card.customer} ${card.customer_name}`},
 				{fieldtype: "Data", fieldname: "book", label: __("Account Set"), read_only: 1, default: card.book},

@@ -1452,6 +1452,42 @@ class ReceiptContract(unittest.TestCase):
         for name in names:
             self.assertIn(f"'{codes[name]}': 'needs_review'", outcome)
 
+    def test_codes_the_server_acts_on_are_the_ones_cc_refuses_with_before_writing(self):
+        """收款写前被拒退回草稿（主会话 11-14）：服务端认的码与 CC 回的码逐字相同（11-14 前服务端写成大写、从没对上过），
+        而且每一个都在写前备份之前就定了：拒绝发生在 ``_backup`` 之前的检查里，写入阶段（``_write_all`` 里取单号）抛的拒绝
+        走写入失败的码（``_error_code`` 只认 ``_WriteError``），不会被当成「写前就拒」。"""
+        erp = module_constants(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py")
+        refusals = module_constants(COMPANION / "dbf_receipt.py")
+        cc_codes = {refusals[name] for name in ("ERR_ALREADY_COLLECTED", "ERR_INVOICE_NOT_FOUND", "ERR_RECEIPT_TYPE",
+                                                 "ERR_CASH_ACCOUNT", "ERR_BOOK", "ERR_CUSTOMER", "ERR_NOT_POSTABLE")}
+        self.assertEqual(set(erp["RETURNABLE"]), cc_codes)
+        self.assertLessEqual(set(erp["UNCOLLECTABLE"]), cc_codes)
+        write = method_source_of(COMPANION / "dbf_receipt.py", "write_receipt")
+        backup = write.index("_backup(")
+        for check in ("_missing_tables(", "existing(", "_code_exists(", "run_row(", "plan_methods(", "plan_bank(",
+                      "cash_account(", "receivable_account(", "check_invoices("):
+            self.assertLess(write.index(check), backup, check)
+        self.assertIn("except Refused as exc:", write[:backup])
+        self.assertNotIn("Refused", write[backup:].split("except Exception")[0].replace("_next_docnum", ""))
+        mapping = method_source_of(COMPANION / "dbf_writer.py", "_error_code")
+        self.assertIn("isinstance(e, _WriteError)", mapping)
+        self.assertNotIn("Refused", mapping)
+
+    def test_the_request_key_never_reaches_cc_so_a_retried_key_works_on_1_12_21(self):
+        """退回草稿再放行的请求号带次数（``erp:receipt:<记录号>:<次数>``）：请求号只在服务端写账队列去重，领单只交投递号、
+        记录号、单号、载荷（与可选的 attended / task_key），CC 桌面版不读也不解析它；YOUREF 仍是记录号。"""
+        job = method_source_of(WIRE / "queue_contracts.py", "job")
+        self.assertNotIn("request_key", job)
+        for key in ("'log_id'", "'history_id'", "'invoice_no'", "'payload'"):
+            self.assertIn(key, job)
+        for path in COMPANION.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            self.assertNotIn("erp:receipt", text, path.name)
+            if "request_key" in text:
+                self.assertNotIn("task.request_key", text, path.name)
+        push = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py").read_text(encoding="utf-8")
+        self.assertIn('"ref_no": doc.name', push)
+
     def test_the_open_invoice_request_is_a_shared_account_read_on_both_sides(self):
         server = number_constants(WIRE / "request_contracts.py", ("KINDS", "ACCOUNT_KINDS", "SHARED_KINDS", "FOLDER_KINDS",
                                                                      "MAX_BYTES", "LEASE_SECONDS", "KIND_MIN_COMPANION",
