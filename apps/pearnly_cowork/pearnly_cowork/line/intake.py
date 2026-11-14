@@ -43,9 +43,12 @@ def store(line_user_id, user, message_id, filename, choices, language, reply_tok
     """后台任务：取原件 → 上传 → 受理识别。换绑 / 停用时不做、不扣费。"""
     if not message_id or line_binding.user_of(line_user_id) != user:
         return
+    from pearnly_core.execution import language as job_language
+
     previous, previous_lang = frappe.session.user, getattr(frappe.local, "lang", None)
     frappe.set_user(user)
-    frappe.local.lang = language
+    # webhook 排的任务是 Guest：不标「已定」，第一句 `_()` 就被 Frappe 换回站点语言
+    job_language.settle(language)
     try:
         if not scope.allowed("intake", user):
             return _say(line_user_id, _("This account cannot send documents"), reply_token)
@@ -200,9 +203,7 @@ def _item_question(line_user_id, records):
 
 
 def _with_language(pending, send):
-    previous = getattr(frappe.local, "lang", None)
-    frappe.local.lang = pending.get("language") or previous
-    try:
+    from pearnly_core.execution import language as job_language
+
+    with job_language.use(pending.get("language")):
         send()
-    finally:
-        frappe.local.lang = previous

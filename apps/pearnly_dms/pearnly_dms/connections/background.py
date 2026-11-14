@@ -69,8 +69,10 @@ def start(kind, token, secrets):
 def run(kind, token, user, lang):
     from frappe.utils.password import decrypt
 
+    from pearnly_core.execution import language as job_language
+
     frappe.set_user(user)
-    frappe.local.lang = lang
+    job_language.settle(lang)
     store = _store()
     sealed = store.get_value(_key(token, "secret"))
     store.delete_value(_key(token, "secret"))

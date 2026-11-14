@@ -91,14 +91,21 @@ class line_language:
             except Exception:
                 language = ""
         language = language if language in LANGUAGES else FALLBACK_LANG
+        from pearnly_core.execution import language as job_language
+
         frappe.local.dms_line_lang = language
-        frappe.local.lang = language
+        job = getattr(frappe.local, "job", None)
+        self._resolved = getattr(job, "lang_resolved", None) if job is not None else None
+        job_language.settle(language)  # 后台任务里第一句 `_()` 不再按排任务的用户换回站点语言
         return language
 
     def __exit__(self, *exc):
         frappe.local.dms_line_lang, previous_lang = self._previous
         if previous_lang is not None:
             frappe.local.lang = previous_lang
+        job = getattr(frappe.local, "job", None)
+        if job is not None and getattr(self, "_resolved", None) is not None:
+            job.lang_resolved = self._resolved
         return False
 
 _cache: dict[str, dict] = {}

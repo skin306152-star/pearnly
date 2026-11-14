@@ -272,11 +272,11 @@ def job_language(user):
     采购卡是中文）。这里先定下，产品处理函数再按自己的口径改 `frappe.local.lang` 就不会被覆盖。"""
     from frappe.utils.translations import set_user_lang
 
+    from pearnly_core.execution import language
+
     if user:
         set_user_lang(user)
-    job = getattr(frappe.local, "job", None)
-    if job is not None:
-        job.lang_resolved = True
+    language.settle(None)
 
 
 @contextmanager
@@ -511,6 +511,9 @@ def has_completed_call():
 
 def _notify(name, code):
     row = frappe.db.get_value(DT, name, ["kind", "arguments"], as_dict=True)
+    # 产品的失败回执按本人的语言写（ERP / Cowork LINE 收单、DMS 证件）：先标「语言已定」，处理函数设的语言才不被 Frappe
+    # 按排任务的用户（调度器续跑是 Administrator）冲掉，同 `run` 里的 `job_language`。
+    job_language(None)
     # A Site with no product notification hook gets [] from Frappe, not {}.
     # Terminal persistence/slot release must still finish on such product Sites.
     for path in (frappe.get_hooks("pearnly_ocr_failure_handlers") or {}).get(row.kind) or []:

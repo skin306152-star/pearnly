@@ -103,11 +103,10 @@ def interface_language(conversation: str, user: str | None = None) -> str:
 def _use_lang(conversation: str) -> None:
     lang = conversation_lang(conversation) or frappe.db.get_value("User", frappe.session.user, "language")
     if lang:
-        frappe.local.lang = lang
-        # Frappe 16 在后台任务里第一次翻译时会按任务用户重设语言（同 `recon_center.jobs`）：标成已定
-        job = getattr(frappe.local, "job", None)
-        if job is not None and hasattr(job, "lang_resolved"):
-            job.lang_resolved = True
+        from pearnly_core.execution import language
+
+        # Frappe 16 在后台任务里第一次翻译时会按任务用户重设语言：标成已定（`execution.language`）
+        language.settle(lang)
 
 
 def fresh():

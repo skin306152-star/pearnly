@@ -113,19 +113,11 @@ def speaking(line_user_id, language=""):
 
     锁定版 Frappe 的 ``_()`` 在后台任务里第一次调用时按排任务的会话用户定语言（``frappe.local.job.user``；webhook 排的任务是 Guest →
     站点语言），把这里设的盖掉（11-13 真机取证：凭证后那张卡变泰文）。设语言时同时告诉它这一任务的语言已定（``job.lang_resolved``）。"""
-    previous = getattr(frappe.local, "lang", None)
-    job = getattr(frappe.local, "job", None)
-    resolved = getattr(job, "lang_resolved", None) if job is not None else None
-    frappe.local.lang = language or line.user_language(
-        line_user_id, default=frappe.db.get_single_value("System Settings", "language") or "th")
-    if job is not None:
-        job.lang_resolved = True
-    try:
-        yield frappe.local.lang
-    finally:
-        frappe.local.lang = previous
-        if job is not None and resolved is not None:
-            job.lang_resolved = resolved
+    from pearnly_core.execution import language as job_language
+
+    with job_language.use(language or line.user_language(
+            line_user_id, default=frappe.db.get_single_value("System Settings", "language") or "th")) as lang:
+        yield lang
 
 
 # ── 消息 ────────────────────────────────────────────────────────────────────

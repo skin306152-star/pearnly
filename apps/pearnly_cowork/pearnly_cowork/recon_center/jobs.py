@@ -437,12 +437,11 @@ def _run(recon_job, kind, workspace, title, files, options="{}"):
     # 后台任务按提交时选的语言写错误与提示（默认是站点语言：2026-09-29 压测 lang=zh 提交，失败提示是英文 /
     # 泰文）。
     if options.get("lang") in ("th", "zh", "en", "ja"):
-        frappe.local.lang = options["lang"]
-        # Frappe 16 在后台任务里第一次翻译时按任务用户的语言重设 frappe.local.lang（`lang_resolved` 标记），会把上面
-        # 这句盖掉：失败提示照样是泰文（2026-09-30 压测 BBL-CA-01，lang=zh）。标成已定，不再重设。
-        job = getattr(frappe.local, "job", None)
-        if job is not None and hasattr(job, "lang_resolved"):
-            job.lang_resolved = True
+        from pearnly_core.execution import language
+
+        # Frappe 16 在后台任务里第一次翻译时按任务用户的语言重设 frappe.local.lang（`lang_resolved` 标记），不标「已定」
+        # 失败提示照样是泰文（2026-09-30 压测 BBL-CA-01，lang=zh）。
+        language.settle(options["lang"])
     def stage(name):
         # 核对前看一眼：同一个人又交了同内容的对账（续跑与重交同时在跑），只让最新那份出结果（压测窗口 2026-09-30）
         if name == "matching" and _superseded(kind, files, recon_job):

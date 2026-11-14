@@ -28,8 +28,10 @@ def start(kind, token, **arguments):
 
 
 def run(kind, token, user, lang, arguments):
+    from pearnly_core.execution import language as job_language
+
     frappe.set_user(user)
-    frappe.local.lang = lang
+    job_language.settle(lang)
     recognise = frappe.get_attr(MODULES[kind] + ".recognise")
     try:
         result = policy.for_web(lambda: recognise(**arguments, progress=progress.reporter(token)))
