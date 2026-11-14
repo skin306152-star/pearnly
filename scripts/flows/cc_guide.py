@@ -80,9 +80,17 @@ def steps(params, camera_code=None):
          "const done=await until(()=>" + CARD + "?.dataset.phase==='answered',200); const got=await until(()=>whole(1),200); "
          "return {done, result: whole(1), after: read()};"},
         {"name": "第二次", "js": head + reply + "const before=qa('[data-slot=\"cc-guide-card\"]').length; "
-         f"await say({json.dumps(_call(params))}); "
+         f"const sent=await say({json.dumps(_call(params))}); "
          "const got=await until(()=>whole(2)||(qa('[data-slot=\"cc-guide-card\"]').length>before&&" + CARD + "?.dataset.phase==='ask'),200); "
-         "await sleep(500); const card=qa('[data-slot=\"cc-guide-card\"]').length>before?read():null; return {result: whole(2), card};"},
+         "await sleep(500); const card=qa('[data-slot=\"cc-guide-card\"]').length>before?read():null; "
+         # 模型第二次收到的结果：页面读全了就用页面的；实验室没有实时通道（只轮询），偶尔停在半截回复（已知问题笔记 11-09 条），
+         # 读不全时按服务端事件取同一句（同对话页取事件的接口），页面上「没出新卡」照旧按页面判
+         "let result=whole(2); if(!result){ const sid=new URL(location.href).searchParams.get('c')||''; "
+         "const ev=((await call('pearnly_core.assistant.api.events',{session_id:sid}))||{}).events||[]; "
+         "const texts=ev.filter(e=>e.type==='agent.message').map(e=>(e.content||[]).map(b=>b.text||'').join('')).filter(t=>t.includes(R)); "
+         "const t=texts[1]||''; const i=t.indexOf(R); if(i>=0){ const s=t.slice(i+R.length); try{ result=JSON.parse(s.slice(0,s.lastIndexOf('}')+1)); }catch(x){} } "
+         "result=result?{...result, from:'events'}:null; } "
+         "return {result, card, sent};"},
         {"name": "会话里选业务", "js": JS + menu + prompt + "await until(()=>row(),120); "
          "const b=[...(row()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()==='采购'); b?.click(); "
          "await until(()=>said().count>0,40); await sleep(1500); "  # 等服务端记下（POST business）再刷新
