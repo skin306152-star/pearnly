@@ -115,6 +115,31 @@ Express 分支没动（`test_cowork_push_contract` 覆盖）；erp-transactions 
 ERP 单据写进 MR.ERP（含写入核不上）后调一次 `pearnly_erp_portal.mrerp.masters.after_write(company)`（公司接入第 3 批窗口提供：去重、
 排进主档队列整读一次）；导入失败不调；它出错只记日志、写账结论不变；那边没合入前 import 不到就跳过（`mrerp/push.py _after_write`）。
 
+## ERP 单据页账本弹窗认 MR.ERP（验收清单 B13，主会话定「乙」）
+
+同一个弹窗按账本来源取文案与调用（`express/api.py ledger_of`：单据记的账本，没记过看公司 `mrerp.push.handles`；公司接入第 3 批
+加来源字段后只改这一处）。MR.ERP 的单：标题与单号栏写 MR.ERP；停在要选导入菜单 / 默认值的出选项（`mrerp.push.answer`）；
+失败或停下（非结果不明）的「再写一次」走 `mrerp.push.send(manual=True)`（同 CC 推送，清被踢标记）。Express 的单行为不变
+（`test_erp_express_direct` 195 条照过，另加 3 条）。四语新词条沿用 Cowork 现成的 MR.ERP 菜单 / 设置文案。
+真验：SD-00039 先因被踢标记失败，弹窗 `can_retry`；点再写一次 → 写成 SI691114-190493（列表 107.00），弹窗显示 MR.ERP 单号、不再给重推。
+
+## 单号与税务发票号、税率按 MR.ERP 的规则（用户：不要写死）
+
+MR.ERP 源码：导入第 1 列 = 单号序号（MR.ERP 拼菜单前缀，同菜单与税库不重号）；第 11 列「เลขที่บิล」= 税务发票号（单据 vatnum、
+销项 / 进项税记录 svatno / pvatno，税报告「ใบกำกับภาษี เลขที่」取它，≤20 字、不查重）；网页不填的默认 = 前缀 + 单号。
+税率表 `tbl_othvatrate`（名称、税率、价内外、throwacvat=1 不进税记录）。
+
+- 第 11 列：票面发票号原样；没有时 = 所选菜单前缀（读该菜单新单表单 `txtdoctype`）+ 单号；超过 20 字预检拦下，不截。
+  原来销售写死「SI」+ 我方号（现销前缀是 SE 也写 SI）、采购截 20 字。Cowork 销售票没有发票号本来就被 `ERR_NO_INVOICE_NO` 挡下。
+- 税率名称按这家公司的税率表（单据接口 `txtothvatrate`），读不到才用初始库名。
+- 无税卖家的采购：「นอกระบบ」（不进进项税记录，同 Express 税额 0 不写 ISVAT），不再写零税率「0」（主会话 11-14 定）。
+- 第 1 列保留自造唯一号（MR.ERP 允许外部给定；用票面号会撞、用网页流水号会和以后手录撞）。
+
+真写：SI691114-906964 txtvatnum = 票面 IV6911-0001；SE691114-435400 = RC6911-0002；PG691114-061053（无税卖家）税率 นอกระบบ、
+txtvatnum = 供应商票号 NV-6911-77、税额 0；ERP 销售 SI691114-190493 = ERP 发票号 SI2569-000008。
+税报告（report 232/45、226/43）只列已归入报税期（vatdatepass）的记录，要人在 MR.ERP 点使用权后才有，本窗口没替人做归期；
+发票号以单据页 vatnum 读回为准（导入同一列同时写税记录，`impartran/component/importpc.php:868, 978`）。
+
 ## 待办（不在这批）
 
 - 代录现购（⑥⑧）：先转人工；要支持得在 CC 桌面版配方加开票用供应商 txtapmas_inv 一格并在 TEST2019 探路。总表
