@@ -72,7 +72,7 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 ## 5. 网页新建收款
 评估 `docs/work/2026-11-14-collection-web-create.md`，一屏摘要在共享笔记「收款网页新建-一屏-11-14.md」，等主会话审。
 
-## 6. 「没有覆盖此日期的 Express 账套」改得更明白（改前 / 改后清单，等用户定，未改）
+## 6. 「没有覆盖此日期的 Express 账套」改得更明白（用户 11-14「文案没问题」，已改）
 
 现象：testerp CO-00146 只报了 69EXP\NLTTEST（2024 年度，到 2025-12-31），今天收款被拒，只说「没有覆盖此日期的 Express 账套」。
 提议：说出日期和已连接账套各自的期间；一本都没连的另一句。同一句也是 ERP 采购 / 销售单的停下原因（`express.reason.noBook`），建议一起换（按类）。
@@ -89,3 +89,11 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 | | 日本語 | | この会社に接続済みの Express 会計データはありません |
 
 `{0}` = 日期（如 2026-11-14），`{1}` = 每本「账套名 起–止」用「、」隔开（如 `NLTTEST 2024-01-01–2025-12-31`）。
+
+施工（11-14）：共用 `express.target.no_book_text`（`company_no_book_text` / 列表用的 `no_book_texts`，每家公司只读一次账套名单）。
+- 收款：`service.book_for` 抛「没有账套」时带公司与日期，`texts.explain` 出新句；LINE 写失败那句（放行时账套没了）同样。
+- ERP 单据：单据页 Express 弹窗（`express.api._view` 的 `reason_text`，`transactions.js` 优先用它）、待处理 / CC `erp_pending`（`pending._items`）。
+- 没有单据日期、拿不到公司的地方（CC 代录原因、推送后补一句）仍用旧词条 `express.reason.noBook`。
+- 新文案两条（新增，已按主会话要求登记 copy-approved）；收款列表「收款员」列不改。
+- 测试：`test_erp_collection.Books.test_no_book_names_the_date_and_each_connected_book_period`、
+  `test_erp_cc_chat_push.PendingToolTests.test_no_book_names_the_date_and_each_book_period_reading_the_books_once_per_company`。

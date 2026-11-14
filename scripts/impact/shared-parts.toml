@@ -456,7 +456,7 @@ paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies", "erp.line.collection"]
-not_entries = { "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列" }
+not_entries = { "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列", "apps/pearnly_dms/pearnly_dms/i18n.py" = "只调 execution.language 定后台任务的回复语言（11-14），不调执行队列；DMS LINE 回复的入口是 dms.execution，由 pearnly_core.execution.test_job_language 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py" = "只调 execution.language 定网页识别任务的语言（11-14），不调执行队列；入口是 erp.execution，由 pearnly_core.execution.test_job_language 守住" }
 
 [[part]]
 id = "assistant"

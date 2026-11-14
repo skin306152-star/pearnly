@@ -1620,6 +1620,7 @@ This collection cannot be changed,แก้ไขรายการรับช�
 This collection cannot be withdrawn,ถอนรายการรับชำระนี้ไม่ได้
 This collection method is not available,วิธีรับชำระนี้ใช้ไม่ได้
 This company does not use Express,บริษัทนี้ไม่ได้ใช้ Express
+This company has no connected Express account set,บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
@@ -3178,6 +3179,7 @@ void,ยกเลิกแล้ว
 {0} added you to {1},"{0} เพิ่มคุณในการ์ด ""{1}"""
 {0} commented on {1},"{0} แสดงความคิดเห็นในการ์ด ""{1}"""
 {0} completed {1},"{0} ทำการ์ด ""{1}"" เสร็จแล้ว"
+{0} is outside the periods of the connected account sets: {1},วันที่ {0} อยู่นอกงวดของชุดบัญชีที่เชื่อมต่อ: {1}
 {0} mentioned you on {1},"{0} กล่าวถึงคุณในการ์ด ""{1}"""
 {0} more items,และอีก {0} รายการ
 {0} moved {1} to {2},"{0} ย้ายการ์ด ""{1}"" ไปที่ {2}"

@@ -1620,6 +1620,7 @@ This collection cannot be changed,この入金は変更できません
 This collection cannot be withdrawn,この入金は取り下げできません
 This collection method is not available,この入金方法は使えません
 This company does not use Express,この会社は Express を使用していません
+This company has no connected Express account set,この会社に接続済みの Express 会計データはありません
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
@@ -3178,6 +3179,7 @@ void,取消済み
 {0} added you to {1},{0} があなたを「{1}」に追加しました
 {0} commented on {1},{0} が「{1}」にコメントしました
 {0} completed {1},{0} が「{1}」を完了しました
+{0} is outside the periods of the connected account sets: {1},{0} は接続済みの会計データの期間外です：{1}
 {0} mentioned you on {1},{0} が「{1}」であなたをメンションしました
 {0} more items,ほか {0} 件
 {0} moved {1} to {2},{0} が「{1}」を{2}に移動しました

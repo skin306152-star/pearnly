@@ -88,6 +88,9 @@ class RichMenuPublish(unittest.TestCase):
             def json(self):
                 return self._payload
 
+            def close(self):  # 问「有没有图」流式取、用完关（`line.rich_menu_has_image`）
+                pass
+
         class Lock:
             def __enter__(self):
                 return self

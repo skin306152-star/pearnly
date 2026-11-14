@@ -242,10 +242,13 @@ def _url(row) -> str:
     return f"/desk/{route}/{row['name']}"
 
 
-def _item(row) -> dict:
+def _item(row, no_book=None) -> dict:
     item = {"document": row["name"], "company": row["company"], "doctype": row["doctype"],
             "reason_code": reason_code(row["ledger_state"], row["ledger_reason"]),
-            "reason_label": reason_label(row["ledger_state"], row["ledger_reason"]),
+            # 「没有账套」说出日期与已连接各本的期间（用户 11-14；每家公司只查一次，`target.no_book_texts`）
+            "reason_label": (no_book or {})[row["company"]](row["date"])
+            if row["ledger_reason"] == contracts.NO_BOOK and row["company"] in (no_book or {}) and row["date"]
+            else reason_label(row["ledger_state"], row["ledger_reason"]),
             "invoice_no": row["number"], "counterparty": row["party"], "amount": _amount(row["total"]),
             "date": row["date"], "filename": "", "month": row["date"][:7], "action": "open", "url": _url(row)}
     if item["reason_code"] == "choice_needed":
@@ -266,7 +269,13 @@ def _items(companies, user=None) -> list:
         if guard.has(kind.capability, user=user):
             rows += _ledger_rows(doctype, companies=companies, user=user)
     rows.sort(key=lambda row: (row["modified"], row["name"]), reverse=True)
-    return [_item(row) for row in rows]
+    stopped = {row["company"] for row in rows if row["ledger_reason"] == contracts.NO_BOOK and row["company"]}
+    no_book = None
+    if stopped:
+        from pearnly_erp_portal.express import target
+
+        no_book = target.no_book_texts(stopped)
+    return [_item(row, no_book) for row in rows]
 
 
 def pending(company=None, limit=None, search=None) -> dict:

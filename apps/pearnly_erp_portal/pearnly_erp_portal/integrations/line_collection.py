@@ -965,6 +965,10 @@ def _failed_text(view) -> str:
     from pearnly_core.cc_desktop.wire import ack_rules
 
     reason = str(view.get("reason") or "")
+    if reason == "express.account_set_missing" and view.get("company"):
+        from pearnly_erp_portal.collection import texts
+
+        return _("Not written to Express: {0}").format(texts.no_book(view["company"], view.get("doc_date")))
     if ack_rules.error_code(reason) in BALANCE_CODES and view.get("balances"):
         lines = [_("Already collected. Current balance:")]
         lines += [f"{docnum} {money(value)}" for docnum, value in (view.get("balances") or {}).items()]

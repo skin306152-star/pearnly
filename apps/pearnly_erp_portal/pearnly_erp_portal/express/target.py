@@ -13,6 +13,8 @@ CC 对话 / 代录任务里（A 线 11-12）：调用方经 `conversation.wanted
 会计期间（本年起 ~ 次年止）之外 → 期间不符（``express.account_period_mismatch``，不写）：Express 原生录单同样拒（Message#70），
 判据同 Cowork 推送（`account_match.conflict`）；账套没报期间的不拦。
 """
+import frappe
+from frappe import _
 from pearnly_core.cc_desktop import books
 from pearnly_core.express_rules.targets import account_match
 
@@ -95,4 +97,46 @@ def current(company_row, day, wanted=None) -> dict:
     return found[0]
 
 
-__all__ = ["candidates", "current", "named", "option_name", "pick", "year_subject"]
+NO_BOOK_LISTED = 5  # 说出几本已连接账套的期间（再多的不列）
+
+
+def no_book_text(company_row, day, every=None) -> str:
+    """「没有账套」给人看的一句（收款与 ERP 单据共用，用户 11-14 定）：已连接的几本都不覆盖这天 → 说出日期与各本的期间；
+    一本都没连 → 这家公司没有已连接的账套。期间写到次年段末（选账套也认次年段，`for_day`）。"""
+    if every is None:
+        every = books_of(company_row)
+    if not every:
+        return _("This company has no connected Express account set")
+    every = sorted(every, key=lambda item: str(item.get("period_start") or ""), reverse=True)[:NO_BOOK_LISTED]
+    joiner = "、" if str(getattr(frappe.local, "lang", "") or "")[:2] in ("zh", "ja") else ", "
+    listed = joiner.join(
+        " ".join(part for part in (item.get("label") or item.get("key") or "", "–".join(
+            str(value)[:10] for value in (item.get("period_start"), item.get("next_end") or item.get("period_end"))
+            if value)) if part) for item in every)
+    return _("{0} is outside the periods of the connected account sets: {1}").format(str(day or "")[:10], listed)
+
+
+def books_of(company_row) -> list:
+    """这家公司（税号 + 分店）已连接的全部账套，不按日期挑。"""
+    tax = contracts.tax13((company_row or {}).get("tax_id"))
+    return books.for_company(tax, (company_row or {}).get("branch")) if tax else []
+
+
+def company_no_book_text(company, day) -> str:
+    """同 :func:`no_book_text`，按 ERP 公司名取税号与分店。"""
+    row = frappe.db.get_value("ERP Company", company, ["tax_id", "branch"], as_dict=True) if company else None
+    return no_book_text(row or {}, day)
+
+
+def no_book_texts(companies) -> dict:
+    """列表用（待处理）：几家公司各查一次账套名单，回 ``{公司: 按日期出那句的函数}``，不逐行查。"""
+    if not companies:
+        return {}
+    rows = frappe.get_all("ERP Company", filters={"name": ["in", sorted(companies)]}, fields=["name", "tax_id", "branch"],
+                          limit_page_length=len(companies))
+    listed = {row.name: (row, books_of(row)) for row in rows}
+    return {name: (lambda day, found=found: no_book_text(found[0], day, every=found[1])) for name, found in listed.items()}
+
+
+__all__ = ["books_of", "candidates", "company_no_book_text", "current", "named", "no_book_text", "no_book_texts",
+           "option_name", "pick", "year_subject"]

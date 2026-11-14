@@ -231,7 +231,9 @@
 		// （手机上没有悬浮，点开单据的 Express 弹窗看这一栏）
 		const waiting = info.waiting === "express_open"
 			? p.express_waiting({ledger_state: "queued", ledger_waiting: info.waiting}) : "";
-		const reason = waiting ? waiting : info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
+		// 「没有账套」：服务端按单据日期说出已连接各本的期间（`reason_text`，用户 11-14）
+		const reason = waiting ? waiting : info.reason_text ? info.reason_text
+			: info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp || info.reason), ...shortages].join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,

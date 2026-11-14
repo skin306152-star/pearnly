@@ -1122,6 +1122,21 @@ class Books(TwoBooks):
                          ({"IV1": "1000.00"}, ["TR"]))
 
 
+    def test_no_book_names_the_date_and_each_connected_book_period(self):
+        """11-13 testerp：只报了 2024 年度的账套，今天收款只说「没有覆盖此日期的账套」；现在说出日期与各本的期间（用户 11-14 定）。"""
+        from pearnly_erp_portal.collection import texts
+
+        nlt = dict(BOOK, period_start="2024-01-01", period_end="2024-12-31", next_end="2025-12-31")
+        self.books = [nlt]
+        with self.assertRaises(C.CollectionError) as caught:
+            service.open_invoices("CO-1", "2100883")
+        self.assertEqual(caught.exception.code, "express.account_set_missing")
+        self.assertEqual(texts.explain(caught.exception),
+                         "2026-11-11 is outside the periods of the connected account sets: NLTTEST 2024-01-01–2025-12-31")
+        self.books = []
+        self.assertEqual(texts.explain(caught.exception), "This company has no connected Express account set")
+
+
 class Explained(unittest.TestCase):
     def test_every_refusal_a_collector_can_meet_has_its_own_words(self):
         # 11-12 前账套、公司、客户、张数上限这几种只说「Could not record this collection」

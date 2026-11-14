@@ -94,6 +94,9 @@ def book_for(company_row, day):
             {"code": item["id"], "name": item.get("label") or item["id"]} for item in pin.get("options") or ()]})
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
         raise contracts.CollectionError(picked["reason"], {"options": picked["options"]})
+    if picked["reason"] == express_contracts.NO_BOOK:
+        # 说出日期与已连接各本的期间（`texts.explain` → `target.no_book_text`，用户 11-14）
+        raise contracts.CollectionError(picked["reason"], {"company": company_row.get("name") or "", "day": str(day)[:10]})
     if picked["reason"] and picked["reason"] != express_contracts.NO_WRITER:
         raise contracts.CollectionError(picked["reason"])
     return picked["book"]  # 没有电脑能写也照样记（排队，电脑上线补写）

@@ -14,7 +14,7 @@ from pearnly_core.cc_desktop.wire import ack_rules
 from pearnly_core.express_rules.push import choices as choice_rules
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push, waiting
+from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push, target, waiting
 from pearnly_erp_portal.masters import company as companies
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
@@ -42,9 +42,13 @@ def _document(doctype, name, write=False):
         fields += ["ledger_void_state", "ledger_void_reason", "ledger_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
     if doctype == push.POS_DAY:
         fields += ["vat_whole_document"]  # 按账套设置整张计税（主会话 10-26）：Express 弹窗标明
-    row = frappe.db.get_value(doctype, name, fields, as_dict=True)
+    from pearnly_erp_portal.express import pending
+
+    day = pending.KINDS[doctype].date if doctype in pending.KINDS else ""
+    row = frappe.db.get_value(doctype, name, fields + ([day] if day else []), as_dict=True)
     if row:
         row.company = push.company_of(doctype, name)   # 出入库单没有公司栏，按仓库的公司
+        row.day = str(row.get(day) or "")[:10] if day else ""   # 单据日期（「没有账套」那句要说出这天）
     if not row or row.company not in companies.allowed_companies():
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     return row
@@ -131,6 +135,9 @@ def _view(doctype, row):
                 "waiting": waiting.of_job(row.ledger_void_state, row.ledger_void_job)}
     stuck = _pos_stuck(doctype, row, job)
     return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
+            # 「没有账套」说出日期与已连接各本的期间（用户 11-14）
+            "reason_text": target.company_no_book_text(row.company, row.day)
+            if row.ledger_reason == contracts.NO_BOOK and row.get("day") else "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
             "can_retry": bool((job and job["status"] == "manual" and not blocked)
                               or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))

@@ -1902,6 +1902,8 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js",
+  # 收款的后台回复（凭证后、结果）用收款员的语言：共用 `execution.language`（11-14）
+  "apps/pearnly_core/pearnly_core/execution/language.py",
 ]
 
 [[flow]]

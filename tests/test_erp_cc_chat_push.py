@@ -192,6 +192,10 @@ def _express_wait_many(names, moment=None):
 jobs = _module("pearnly_core.cc_desktop.jobs", LOST=LOST, find_by_name=lambda name: dict(JOBS[name]) if name in JOBS else None,
                express_wait_many=_express_wait_many)
 importlib.import_module("pearnly_core.cc_desktop").jobs = jobs
+# 电脑报来的账套名单（「没有账套」那句列出各本期间时读，`express.target.books_of`）：这里没有电脑报过
+books = _module("pearnly_core.cc_desktop.books", for_company=lambda tax, branch=None, **kwargs: [],
+                for_day=lambda found, day: [])
+importlib.import_module("pearnly_core.cc_desktop").books = books
 
 CALLS = []
 ENABLED = {"CO-1": True, "CO-2": True}
@@ -459,6 +463,23 @@ class PendingToolTests(unittest.TestCase):
         self.assertEqual(out["count"], pending.pending("CO-1")["count"])
         everything = call(tools.pending_items, all_companies=True)
         self.assertEqual(sorted(row["document"] for row in everything["items"]), ["P:PUR-7", "P:PUR-9"])
+
+    def test_no_book_names_the_date_and_each_book_period_reading_the_books_once_per_company(self):
+        """「没有账套」说出日期与已连接各本的期间（用户 11-14）；两张单同一家公司，账套名单只读一次（不逐行查）。"""
+        from unittest import mock
+
+        STATE.db.table("ERP Company")["CO-1"] = {"name": "CO-1", "tax_id": "0105555000001", "branch": ""}
+        asked = []
+        nlt = {"key": "k", "label": "NLTTEST", "period_start": "2024-01-01", "period_end": "2024-12-31",
+               "next_end": "2025-12-31"}
+        with mock.patch.object(books, "for_company", side_effect=lambda tax, branch=None, **kw: asked.append(tax) or [nlt]):
+            doc(SALES, "SD-5", reason=E.NO_BOOK, day="2026-11-13")
+            doc(PURCHASE, "PUR-6", reason=E.NO_BOOK, day="2026-11-14")
+            labels = {item["document"]: item["reason"] for item in call(tools.pending_items)["items"]}
+        self.assertEqual(labels, {
+            "S:SD-5": "2026-11-13 is outside the periods of the connected account sets: NLTTEST 2024-01-01–2025-12-31",
+            "P:PUR-6": "2026-11-14 is outside the periods of the connected account sets: NLTTEST 2024-01-01–2025-12-31"})
+        self.assertEqual(asked, ["0105555000001"])
 
 
 class PrintedTotalToolTests(unittest.TestCase):

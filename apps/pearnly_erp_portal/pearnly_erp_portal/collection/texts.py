@@ -43,8 +43,17 @@ def money(value) -> str:
     return f"{Decimal(str(value or 0)):,.2f}"
 
 
+def no_book(company, day) -> str:
+    """「没有账套」：说出日期与已连接各本的期间（同 ERP 单据，`express.target.company_no_book_text`）。"""
+    from pearnly_erp_portal.express import target
+
+    return target.company_no_book_text(company, day)
+
+
 def explain(error) -> str:
     code, detail = getattr(error, "code", ""), getattr(error, "detail", {}) or {}
+    if code == "express.account_set_missing" and isinstance(detail, dict) and detail.get("company") and detail.get("day"):
+        return no_book(detail["company"], detail["day"])
     if code == contracts.AMOUNT_MISMATCH:
         return _(CODES[code]).format(money(detail.get("paid")), money(detail.get("invoices")))
     if code in LIMITS:

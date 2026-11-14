@@ -1367,6 +1367,8 @@ Maintained in Express	由 Express 维护	จัดการใน Express	Expres
 Express Company	Express 公司	บริษัท Express	Express 会社
 The company has no 13-digit tax ID	公司没有 13 位税号	บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก	会社に 13 桁の納税者番号がありません	express.reason.taxMissing
 No Express account set covers this date	没有覆盖此日期的 Express 账套	ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้	この日付を含む Express 会計データがありません	express.reason.noBook
+{0} is outside the periods of the connected account sets: {1}	{0} 不在已连接账套的期间内：{1}	วันที่ {0} อยู่นอกงวดของชุดบัญชีที่เชื่อมต่อ: {1}	{0} は接続済みの会計データの期間外です：{1}
+This company has no connected Express account set	此公司没有已连接的 Express 账套	บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ	この会社に接続済みの Express 会計データはありません
 No computer can write this account set	没有能写此账套的电脑	ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้	この会計データに書き込めるパソコンがありません	express.reason.noWriter
 Reading the Express account set	正在读取 Express 账套	กำลังอ่านชุดบัญชี Express	Express 会計データを読み取り中	express.reason.reading
 Computer offline	电脑离线	เครื่องออฟไลน์	パソコンがオフライン	express.reason.offline
