@@ -1838,6 +1838,7 @@ Warehouse not found,ไม่พบคลังสินค้า
 Warehouses,คลังสินค้า
 Warehouses total,รวมทุกคลัง
 Watch,ติดตาม
+Web,เว็บ
 Weekly,ทุกสัปดาห์
 When a card enters,เมื่อการ์ดเข้ารายการ
 "Which company this terminal belongs to, and which warehouse it sells from",บริษัทที่เป็นเจ้าของจุดขายนี้ และคลังสินค้าที่ใช้จ่ายสินค้าขาย
@@ -2023,6 +2024,7 @@ draft,ฉบับร่าง
 due,ครบกำหนด
 erp.collection.source.cc,CC
 erp.collection.source.line,LINE
+erp.collection.source.web,เว็บ
 erp.collection.status.draft,ฉบับร่าง
 erp.collection.status.failed,ไม่สำเร็จ
 erp.collection.status.queued,รอบันทึก

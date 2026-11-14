@@ -1,4 +1,4 @@
-"""收款规则码 → 给人看的一句话（LINE 收款与网页「我的收款」编辑弹窗共用；码见 `contracts` / `service`）。"""
+"""收款规则码 → 给人看的一句话（LINE、CC 与网页「收款」页弹窗共用；码见 `contracts` / `service`）。"""
 from decimal import Decimal
 
 from frappe import _

@@ -1,17 +1,23 @@
-/* 收款（11-11）：收款员在 LINE / CC 录的收款与写进 Express（RE）的结果。只看、导出、看凭证；
- * 网页上不新建、不改、不删（录入只在 LINE 与 CC，写错由财务在 Express 原生作废）。
+/* 收款（11-11；用户 11-14 收成一页、一个权限）：本公司在 LINE / CC / 网页录的全部收款与写进 Express（RE）的结果，不分谁录的。
+ * 页头「新建」（弹窗 `collection-new.js`，提交即放行）；点一行：草稿开原生弹窗改各张本次收、现金、各方式与折扣、销售员与部门，
+ * 副按钮「撤回」；待写入 / 失败的看明细并可「撤回」（同 LINE【撤回】）；已写入的只看。改与撤回只认打开时的版本，别人刚改过回原因。
+ * LINE 确认卡【编辑】打开 `pearnly-collections/<记录>`（旧地址 `pearnly-my-collections/<记录>` 转到这里）：那一笔已经不是草稿时
+ * 先说「此卡片已失效」。导出、看凭证照旧（共用原件查看器 `desk/viewer.js`）。
  *
- * 列表是共用的原生列表（`desk/list.js`）：服务端分页、白名单排序、原生筛选（`collection.records`）；
- * 点一行开只读弹窗：各张发票收多少、各方式与凭证（共用原件查看器 `desk/viewer.js`）。 */
+ * 列表是共用的原生列表（`desk/list.js`）：服务端分页、白名单排序、原生筛选（`collection.records`）。 */
 (() => {
 	const p = frappe.pearnly;
-	p.collections = async (page, t) => {
+	p.collections = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.collection.api.";
 		const root = "pearnly-collections";
 		const status_label = value => (value ? t(`erp.collection.status.${value}`) : "");
 		const source_label = value => (value ? t(`erp.collection.source.${value}`) : "");
 		const money = value => p.money(value);
-		let list;
+		const amount = value => Number(value || 0);
+		// 待写入、此刻在等 Express 关闭（服务端读的时候算的只读字段 `express_wait`，`collection.records`）：状态不变，
+		// 列表悬浮说明与点开后的内容是现成那句（11-12）
+		const waiting = row => (row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : "");
+		let list, creating = false;
 		page.set_title(__("erp.nav.collections"));
 		p.breadcrumbs({label: __("erp.nav.collections"), route: p.subroute(root)});
 		const search = page.add_field({fieldname: "q", label: __("Search"), fieldtype: "Data",
@@ -28,19 +34,24 @@
 			? p.call(api + "api_collection_voucher_page", {file: row.file, page: number})
 			: Promise.resolve({image: row.file_url, pages: 1}));
 
-		async function open(row) {
-			const data = await p.call(api + "api_collection", {name: row.name});
+		async function open(name, from_card = false) {
+			const data = await p.call(api + "api_collection", {name});
+			if (data.status === "draft") return edit(name);
 			const shown = (fieldname, label, value, fieldtype = "Data") => ({fieldtype, fieldname, label, read_only: 1,
 				default: value ?? ""});
 			const vouchers = (data.methods || []).filter(item => item.file);
+			// 还没被电脑领走的（待写入、失败）可以撤回（同 LINE【撤回】）
+			const can_withdraw = ["queued", "failed"].includes(data.status);
 			const dialog = new frappe.ui.Dialog({title: data.name, size: "large", fields: [
+				...(from_card ? [{fieldtype: "HTML", fieldname: "expired",
+					options: `<p>${frappe.utils.escape_html(__("This card has expired. Use the latest card in LINE."))}</p>`}] : []),
 				shown("customer_name", __("Customer Name"), data.customer_name),
 				shown("customer", __("Customer Code"), data.customer),
 				shown("doc_date", __("Collection Date"), data.doc_date, "Date"),
 				shown("collector", __("Collector"), data.collector_name),
 				shown("source", __("Source"), source_label(data.source)),
 				{fieldtype: "Column Break"},
-				shown("status", __("Status"), status_label(data.status)),
+				shown("status", __("Status"), [status_label(data.status), waiting(data)].filter(Boolean).join(" · ")),
 				shown("docnum", __("Express No."), data.docnum),
 				shown("book", __("Account Set"), data.book),
 				shown("total", __("Total"), money(data.total)),
@@ -65,12 +76,80 @@
 						label: item.name || item.prefix, click: () => void viewer.show(item.file)})),
 					{fieldtype: "HTML", fieldname: "voucher_preview"}] : []),
 			]});
+			if (can_withdraw) {
+				dialog.set_primary_action(__("Withdraw"), () => void withdraw(data.name, dialog));
+			}
 			const viewer = vouchers.length
 				? p.document_viewer(dialog.fields_dict.voucher_preview.$wrapper, {load: viewer_load}) : null;
 			dialog.$wrapper.addClass("pearnly-dialog");
 			dialog.onhide = () => viewer?.destroy();
 			dialog.show();
 			if (viewer) void viewer.show(vouchers[0].file);
+		}
+
+		async function edit(name) {
+			const data = await p.call(api + "api_collection_card", {name}, "POST");
+			const card = data.card;
+			const methods = data.methods || {transfers: []};
+			const current = Object.fromEntries((card.methods || []).map(row => [row.prefix, row]));
+			const kinds = [...(methods.transfers || []).map(row => ({...row, role: "transfer"})),
+				...(methods.discount ? [{...methods.discount, role: "discount"}] : [])];
+			const choice = (rows, current) => [...(rows || []).map(row => ({value: row.code, label: `${row.code} ${row.name}`.trim()})),
+				...(current && !(rows || []).some(row => row.code === current) ? [{value: current, label: current}] : [])];
+			// 写前被电脑拒、退回草稿（`collection.push`，11-14）：原因放最前（同 LINE 还回的卡），改了再放行
+			const returned = card.returned ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1,
+				default: String(card.reason || "").replace(/^\[[A-Za-z0-9_]+\]\s*/, "")}, {fieldtype: "Section Break"}] : [];
+			const fields = [
+				...returned,
+				{fieldtype: "Data", fieldname: "customer", label: __("Customer"), read_only: 1,
+					default: `${card.customer} ${card.customer_name}`},
+				{fieldtype: "Data", fieldname: "book", label: __("Account Set"), read_only: 1, default: card.book},
+				{fieldtype: "Column Break"},
+				{fieldtype: "Select", fieldname: "salesman", label: __("Salesman"), default: card.salesman,
+					options: [{value: "", label: ""}, ...choice(data.staff?.salesmen, card.salesman)]},
+				{fieldtype: "Select", fieldname: "department", label: __("Department"), default: card.department,
+					options: choice(data.staff?.departments, card.department)},
+				{fieldtype: "Section Break", label: __("Invoices")},
+				...card.invoices.map((row, index) => ({fieldtype: "Currency", fieldname: `invoice_${index}`,
+					label: row.docnum, default: amount(row.amount),
+					description: __("Due {0}", [money(data.available?.[row.docnum] ?? row.remaining)])})),
+				{fieldtype: "Section Break", label: __("Collection Method")},
+				...(methods.cash || amount(card.cash) ? [{fieldtype: "Currency", fieldname: "cash", label: __("Cash"),
+					default: amount(card.cash)}] : []),
+				...kinds.map((row, index) => ({fieldtype: "Currency", fieldname: `method_${index}`,
+					label: row.role === "discount" ? __("Discount") : row.name, default: amount(current[row.prefix]?.amount)})),
+			];
+			const dialog = new frappe.ui.Dialog({title: card.name, fields, primary_action_label: __("Save"),
+				primary_action: async values => {
+					const invoices = card.invoices.map((row, index) => ({docnum: row.docnum, amount: values[`invoice_${index}`] || 0}))
+						.filter(row => amount(row.amount) > 0);
+					const chosen = kinds.map((row, index) => ({prefix: row.prefix, amount: values[`method_${index}`] || 0,
+						voucher: current[row.prefix]?.voucher || ""})).filter(row => amount(row.amount) > 0);
+					dialog.disable_primary_action();
+					try {
+						await p.call(api + "api_collection_save", {name: card.name, version: card.version,
+							invoices: JSON.stringify(invoices), cash: values.cash || 0, methods: JSON.stringify(chosen),
+						salesman: values.salesman || "", department: values.department || ""}, "POST");
+					} finally {
+						dialog.enable_primary_action();
+					}
+					frappe.utils.play_sound("click");
+					frappe.show_alert({message: __("Saved"), indicator: "green"});
+					dialog.hide();
+					void list?.reload();
+				}});
+			dialog.set_secondary_action_label(__("Withdraw"));
+			dialog.set_secondary_action(() => void withdraw(card.name, dialog));
+			dialog.$wrapper.addClass("pearnly-dialog");
+			dialog.show();
+		}
+
+		async function withdraw(name, shown) {
+			await p.call(api + "api_collection_withdraw", {name}, "POST");
+			frappe.utils.play_sound("cancel");
+			frappe.show_alert({message: status_label("withdrawn"), indicator: "orange"});
+			shown?.hide();
+			void list?.reload();
 		}
 
 		list = p.list({page, doctype: "ERP Collection", compact_columns: true,
@@ -80,7 +159,7 @@
 				{fieldname: "status", label: __("Status"), fieldtype: "Select"},
 				{fieldname: "source", label: __("Source"), fieldtype: "Select"},
 			],
-			on_open: row => void open(row),
+			on_open: row => void open(row.name),
 			columns: [
 				{fieldname: "doc_date", width: 100, min_width: 84, label: __("Collection Date")},
 				{fieldname: "collector", width: 110, min_width: 80, label: __("Collector"),
@@ -100,16 +179,31 @@
 				// 写入结果：写进去了显示 RE 号，否则显示状态（失败的原因在点开的弹窗里）
 				{fieldname: "docnum", width: 110, min_width: 76, label: __("Express"),
 					format: (value, row) => value || status_label(row.status),
+					title: (value, row) => waiting(row),
 					cell_class: (value, row) => (row.status === "failed" ? "pearnly-payment-due" : "")},
 			],
 			// 列头点一下排序（服务端白名单 `collection.records.SORT_FIELDS`）
 			sort_fields: ["doc_date", "collector", "customer_name", "cash", "transfer", "discount", "docnum"],
-			load: ({start, page_length, sort_by, sort_order}) => p.call(api + "api_collections",
-				{params: parameters(), start, limit: page_length, sort_by, sort_order}),
+			load: async ({start, page_length, sort_by, sort_order}) => {
+				const out = await p.call(api + "api_collections",
+					{params: parameters(), start, limit: page_length, sort_by, sort_order});
+				// 能录收款的人（服务端判，`records.page` 的 can_create）：页头「新建」
+				if (out?.can_create && !creating) {
+					creating = true;
+					page.set_primary_action(__("New"), () => void p.collection_new({on_done: () => void list?.reload()}), "add");
+				}
+				return out;
+			},
 		});
 		// 小的当场下载，大的排后台、做完推送后下载（`p.export_file`）
 		page.add_menu_item(__("Export"), () => void p.export_file(`${api}api_collections_export`,
 			{params: parameters()}));
 		await list.ready;
+		// LINE 确认卡【编辑】打开的 `pearnly-collections/<记录>`：直接开那一笔（不是草稿了先说卡片已失效）
+		const show = p.routed_page({wrapper, root, render: async (rest, still_current) => {
+			if (rest.length > 1) {p.redirect_up(root); return;}
+			if (rest.length === 1 && still_current()) await open(rest[0], true);
+		}});
+		await show();
 	};
 })();

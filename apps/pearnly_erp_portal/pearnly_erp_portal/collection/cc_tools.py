@@ -171,7 +171,10 @@ def status(tool_input) -> str:
 def recent(tool_input) -> str:
     limit = max(1, min(int(tool_input.get("limit") or 10), LIST_MAX))
     offset = max(0, int(tool_input.get("offset") or 0))
-    found = _call(service.mine, offset, limit)
+    company = _company()
+    if not company:
+        return _json({"status": "not_saved", "reason": NO_COMPANY, "note": NO_COMPANY_NOTE})
+    found = _call(service.listed, company, offset, limit, collector=str(tool_input.get("collector") or "") or None)
     if "result" not in found:
         return _json(found)
     items = found["result"]["items"]
@@ -373,10 +376,12 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.status"},
     {"name": "erp_collection_list", "label": "Listed collections", "modes": ["chat"],
-     "description": f"The user's latest collections, newest first, up to {LIST_MAX} per call; pass next_offset as offset "
-                    "for the next page. " + RESULT_NOTE,
+     "description": f"This company's latest collections by anyone, newest first, up to {LIST_MAX} per call; pass "
+                    "collector (a user id, as in each item's collector) to list only that person's, and next_offset as "
+                    "offset for the next page. " + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {
-         "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX}}},
+         "offset": {"type": "integer", "minimum": 0}, "limit": {"type": "integer", "minimum": 1, "maximum": LIST_MAX},
+         "collector": {"type": "string"}}},
      "handler": "pearnly_erp_portal.collection.cc_tools.recent"},
     {"name": "erp_collection_withdraw", "label": "Withdrew a collection", "modes": ["chat"],
      "description": "Withdraw one of the user's collections before CC Desktop picks it up (a draft, queued or failed "

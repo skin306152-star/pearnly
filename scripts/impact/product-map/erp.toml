@@ -562,13 +562,13 @@ product = "ERP"
 channel = "line"
 ends = ["mobile"]
 kind = "line-link"
-anchor = "line:erp:link:/desk/pearnly-my-collections/{x}"
-where = "LINE 收款确认卡「编辑」→ 经 LIFF 打开「我的收款」这一笔的原生弹窗（改各张本次收、现金、方式与折扣），存好回 LINE 点确认重出新卡"
+anchor = "line:erp:link:/desk/pearnly-collections/{x}"
+where = "LINE 收款确认卡「编辑」→ 经 LIFF 打开「收款」页这一笔的原生弹窗（改各张本次收、现金、方式与折扣），存好回 LINE 点确认重出新卡（11-14 起；旧卡上的 /desk/pearnly-my-collections/{x} 转到这里）"
 parts = ["line", "line-session"]
 config = ["site:pearnly_line_liff_id", "liff:endpoint"]
 tests = ["flow:erp.line.collection", "unit:tests/test_erp_collection_line.py::test_a_card_changed_after_it_was_shown_is_shown_again_not_released"]
 must_verify = true
-probe = { type = "liff", path = "/desk/pearnly-my-collections" }
+probe = { type = "liff", path = "/desk/pearnly-collections" }
 group = "line.collection-edit"
 na = { Cowork = "收款写进 Express RE 只在 ERP（评估 2026-11-11：Cowork 不做收款）" }
 
@@ -624,8 +624,8 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-collections"
-where = "侧栏「销售 → 收款」（只看、导出、看凭证；收款员在 LINE / CC 录，11-11）"
-cc_na = "只读页；CC 里录收款、查结果是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
+where = "侧栏「销售 → 收款」（11-14 一页一个权限：有「收款」权限的人看本公司全部、新建、改 / 撤回没写进 Express 的、导出、看凭证；LINE / CC 录的也在这里）"
+cc_na = "CC 里录、查、改、撤回收款是收款工具（erp_collection_*），同一个 collection.service"
 tests = ["unit:tests/test_erp_collection.py::test_the_list_pages_on_the_server_with_a_total_and_search", "unit:tests/test_erp_collection.py::test_only_people_who_view_collections_open_the_page_and_the_export", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "unit:tests/test_erp_collection.py::test_native_read_rights_follow_people_and_companies", "flow:erp.page-lists", "flow:erp.collections.refused"]
 
 [[row]]
@@ -633,11 +633,21 @@ id = "erp.desk.pearnly-my-collections"
 product = "ERP"
 channel = "desk"
 ends = ["desktop", "mobile"]
-kind = "nav-page"
-anchor = "nav:erp:pearnly-my-collections"
-where = "左下角「我的收款」（只给收款岗位与管理员：本人录的收款，草稿点开原生弹窗改；LINE 确认卡「编辑」也到这里，11-11）"
-cc_na = "收款员本人的记录与草稿弹窗；CC 里录收款是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
-tests = ["flow:erp.line.collection", "flow:erp.collections.refused"]
+kind = "page"
+anchor = "page:erp:pearnly-my-collections"
+where = "旧地址「我的收款」（11-11～11-14；11-14 用户定并进侧栏「收款」）：不在任何菜单，只为已发出的 LINE 确认卡【编辑】链接，原样转到「收款」页那一笔"
+tests = ["unit:tests/test_erp_collection.py::test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired", "flow:erp.line.collection"]
+
+[[row]]
+id = "erp.desk.pearnly-collections.action.New"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-collections:New"
+where = "「销售 → 收款」页头「新建」（有「收款」权限的人：收款岗位、管理员；原生弹窗，提交即放行写 Express RE；点开还没写进 Express 的可改、可撤回，不分谁录的，11-14）"
+cc_na = "CC 里录收款是收款工具（erp_collection_*），同一个 collection.service"
+tests = ["unit:tests/test_erp_collection.py::test_a_submit_records_and_releases_once_per_dialog", "unit:tests/test_erp_collection.py::test_the_same_rules_refuse_with_the_same_sentence", "unit:tests/test_erp_collection.py::test_only_people_with_the_collection_permission_can_submit", "unit:tests/test_erp_collection.py::test_a_person_given_company_a_cannot_record_for_company_b", "unit:tests/test_erp_collection.py::test_the_collections_page_withdraws_like_line_for_anyone_with_the_permission", "unit:tests/test_erp_collection.py::test_the_customer_box_searches_on_the_server_one_page_at_a_time", "unit:tests/test_erp_collection.py::test_the_page_is_declared_with_the_view_roles_and_no_write_entries", "flow:erp.web.collection"]
 
 [[row]]
 id = "erp.desk.pearnly-company"

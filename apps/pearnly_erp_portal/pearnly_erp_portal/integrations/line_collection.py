@@ -51,7 +51,7 @@ MAX_CHOICES = 12
 # Flex 发票列表：每张气泡 10 张，最多 5 张气泡（一笔收款最多 `contracts.MAX_INVOICES` 张）
 PER_BUBBLE = 10
 WAIT_SECONDS = 20
-EDIT_ROUTE = "/desk/pearnly-my-collections/"
+EDIT_ROUTE = "/desk/pearnly-collections/"  # 11-14 起「收款」一页（旧的 pearnly-my-collections/<记录> 仍转过来）
 # 打字确认（用户手打的词不翻译；四种语言 + ok）。比较时去掉空白、不分大小写
 CONFIRM_WORDS = frozenset(("ยืนยัน", "确认", "確認", "ok", "confirm"))
 # 回执里这两种「不能收」带每张发票此刻的余额（`collection.push`）；没带余额的（如服务品现金制）照原因说
@@ -859,7 +859,8 @@ def _stale_card(line_user_id, nonce, name, reply_token):
     会话里已经不是这一笔（过期了、或已换成别的）时，这张卡的草稿作废；会话正停在同一笔的新卡上则不动它。"""
     if _used(nonce):
         return None
-    if payload_of(line_user_id).get("name") != name:
+    # 只作废自己录的：11-14 起本公司有收款权限的人都能改别人的草稿，但点的是自己 LINE 里没有的卡（别人的、伪造的），不动那一笔
+    if payload_of(line_user_id).get("name") != name and frappe.db.get_value(DOCTYPE, name, "collector") == frappe.session.user:
         _discard(name)
     return _text(reply_token, _(EXPIRED))
 
@@ -1061,7 +1062,7 @@ def _settled(view) -> bool:
 
 def _return_card(line_user_id, view, reply_token=""):
     """写前被电脑拒（一行没写）：原卡带原因还回（卡片有效期规则 A9）——新确认号、旧卡失效，同普通出卡（`_show_card`）。
-    这个人正在 LINE 里录另一笔（会话停在别的步骤）：不打断，只说原因；这笔草稿在「我的收款」、CC 对话里照样能改了再放行。"""
+    这个人正在 LINE 里录另一笔（会话停在别的步骤）：不打断，只说原因；这笔草稿在网页「收款」页、CC 对话里照样能改了再放行。"""
     name = view["name"]
     note = _failed_text(view)
     _pending_off(name)  # 「已记录 · 待写入」上的撤回号作废：这笔回到了草稿，撤回走新卡

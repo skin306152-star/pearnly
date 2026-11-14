@@ -1838,6 +1838,7 @@ Warehouse not found,未找到仓库
 Warehouses,仓库
 Warehouses total,各仓合计
 Watch,关注
+Web,网页
 Weekly,每周
 When a card enters,卡片进入列表时
 "Which company this terminal belongs to, and which warehouse it sells from",收银台所属公司及出货仓库
@@ -2023,6 +2024,7 @@ draft,草稿
 due,到期
 erp.collection.source.cc,CC
 erp.collection.source.line,LINE
+erp.collection.source.web,网页
 erp.collection.status.draft,草稿
 erp.collection.status.failed,失败
 erp.collection.status.queued,待写入

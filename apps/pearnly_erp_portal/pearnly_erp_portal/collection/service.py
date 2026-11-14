@@ -294,12 +294,13 @@ def _new_name():
 
 
 def _own(name, for_update=False):
-    """本人的收款记录（别人的、不存在的一律当没权限）。"""
+    """有「收款」权限的人能动的一笔：本人能用的公司里的，不分是谁录的（用户 11-14）；别家公司的、不存在的一律当没权限。
+    两个人同时改同一笔草稿由版本号拒后到的那个（:func:`update_draft` / :func:`release`）。"""
     guard.require(WRITE)
     if not name or not frappe.db.exists(DOCTYPE, name):
         _not_permitted()
     doc = frappe.get_doc(DOCTYPE, name, for_update=for_update)
-    if doc.collector != frappe.session.user or doc.company not in companies.allowed_companies():
+    if doc.company not in companies.allowed_companies():
         _not_permitted()
     return doc
 
@@ -360,7 +361,7 @@ def staff_choices(name) -> dict:
 
 
 def edit_choices(name) -> dict:
-    """改草稿的弹窗（网页「我的收款」）：各张此刻能收多少、能选的方式，都按这笔草稿冻结的那本账套（A11：不按草稿日期重新选，
+    """改草稿的弹窗（网页「收款」页）：各张此刻能收多少、能选的方式，都按这笔草稿冻结的那本账套（A11：不按草稿日期重新选，
     同期又报来一本也不变）。"""
     doc = _own(name)
     book = {"key": doc.book_key, **_book_row(doc)}
@@ -430,6 +431,31 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
     doc.insert(ignore_permissions=True, set_name=name)
     _attach(name, checked)
     return card(name)
+
+
+WEB_CONSENT = "web:"
+
+
+def submit_web(company, customer, invoices, cash=0, methods=None, salesman=None, department=None, request="") -> dict:
+    """ERP 网页「新建」（11-14 用户：弹窗填好、提交后就写进 Express）：弹窗就是复核，提交 = 建草稿 + 放行一步，同一套规则
+    （:func:`create_draft` / :func:`release`）。``request`` 是弹窗这一次打开时生成的号：同一个号再提交（连点、网络重发）回已建
+    的那一笔，不建第二笔；放行的同意记为 ``web:<号>``。规则不过照码抛（同 LINE / CC），什么都不留。回放行后的 :func:`card`。"""
+    guard.require(WRITE)
+    request = str(request or "").strip()[:80]
+    if not request:
+        frappe.throw(_("Invalid request"))
+    consent = WEB_CONSENT + request
+    done = frappe.db.get_value(DOCTYPE, {"consent_ref": consent, "collector": frappe.session.user}, "name")
+    if done:
+        return card(done)
+    made = create_draft(company, customer, invoices, cash=cash, methods=methods, source="web",
+                        salesman=salesman or None, department=department or None)
+    result = release(made["name"], made["version"], consent)
+    if result["status"] == "invalid":
+        raise contracts.CollectionError(result["code"], result.get("detail") or {})
+    if result["status"] != "released":
+        frappe.throw(_("Invalid request"))
+    return card(made["name"])
 
 
 def update_draft(name, version, invoices, cash=0, methods=None, amount=None, salesman=None, department=None) -> dict:
@@ -510,7 +536,7 @@ def _view(doc) -> dict:
     return {"name": doc.name, "version": int(doc.draft_version or 0), "status": doc.status, "company": doc.company,
             "company_name": frappe.db.get_value(COMPANY, doc.company, "company_name") or doc.company,
             "book": doc.book_label or "", "customer": doc.customer, "customer_name": doc.customer_name,
-            "doc_date": str(doc.doc_date or ""), "source": doc.source,
+            "doc_date": str(doc.doc_date or ""), "source": doc.source, "collector": doc.collector or "",
             "invoices": [{"docnum": row.docnum, "invoice_date": str(row.invoice_date or ""),
                           "remaining": contracts.text(row.remaining or 0), "amount": contracts.text(row.amount or 0)}
                          for row in doc.invoices],
@@ -629,12 +655,9 @@ def status(name) -> dict:
 
 
 def can_read(doc, user=None) -> bool:
+    """本人能用的公司里、有「收款」权限（用户 11-14：看与录同一权限，不分谁录的）。"""
     user = user or frappe.session.user
-    if doc.company not in companies.allowed_companies(user):
-        return False
-    if guard.has(VIEW, user=user):
-        return True
-    return doc.collector == user and guard.has(WRITE, user=user)
+    return doc.company in companies.allowed_companies(user) and guard.has(VIEW, user=user)
 
 
 def _waiting_jobs(docs) -> set:
@@ -656,10 +679,14 @@ def express_waiting(name) -> bool:
     return bool(jobs.book_express_wait(row.book_key).get("waiting"))
 
 
-def mine(start=0, limit=20) -> dict:
-    """本人最近的收款（新的在前）：``{"items": [view… + express_wait], "total"}``；``express_wait``：待写入、此刻在等 Express 关闭。"""
-    guard.require(WRITE)
-    filters = {"collector": frappe.session.user, "company": ["in", companies.allowed_companies() or [""]]}
+def listed(company, start=0, limit=20, collector=None) -> dict:
+    """这家公司最近的收款（新的在前，不分谁录的；``collector`` 给了只看那个人录的，用户 11-14）：``{"items": [view… +
+    express_wait], "total"}``；``express_wait``：待写入、此刻在等 Express 关闭。CC 的 ``erp_collection_list`` 用（网页同一份数据，
+    网页列表另走 `records` 的原生筛选）。"""
+    guard.require(VIEW)
+    if not company or company not in companies.allowed_companies():
+        _not_permitted()
+    filters = {"company": company, **({"collector": str(collector)} if collector else {})}
     names = frappe.get_all(DOCTYPE, filters=filters, pluck="name", order_by="creation desc",
                            limit_start=max(0, int(start or 0)), limit_page_length=max(1, min(int(limit or 20), MINE_MAX)))
     from pearnly_core.desk import list_filters
@@ -671,7 +698,8 @@ def mine(start=0, limit=20) -> dict:
 
 
 __all__ = ["book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers",
+           "submit_web",
            "discard_draft",
-           "edit_choices", "express_waiting", "methods", "mine",
+           "edit_choices", "express_waiting", "listed", "methods",
            "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",
            "withdraw"]

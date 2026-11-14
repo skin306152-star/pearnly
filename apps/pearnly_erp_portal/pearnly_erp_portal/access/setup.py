@@ -45,10 +45,13 @@ def sync_roles():
                 _grant("ERP Product Category", role, perms)
     # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
     _ensure_role(rules.LINE_ROLE)
-    # 收款（11-11）：收款员读自己的收款记录、能看收款的读本公司的（行由 `collection.access` 再按人与公司过滤）；写只走服务层
+    # 收款（11-11 / 11-14）：有「收款」权限的读本公司的（行由 `collection.access` 按公司过滤）；写只走服务层
     _ensure_role(rules.COLLECTOR_ROLE)
     if frappe.db.exists("DocType", "ERP Collection"):
-        for role in (rules.COLLECTOR_ROLE, rules.ADMIN_ROLE, "ERP Sales", menu.role("sales")):
+        # 用户 11-14：只有「收款」权限（收款岗位、管理员）看得到收款；11-11 发给销售岗位的读权限收回（行仍按 `collection.access` 过滤）
+        frappe.db.delete("Custom DocPerm", {"parent": "ERP Collection", "role": ["in", ["ERP Sales", menu.role("sales")]],
+                                            "permlevel": 0, "if_owner": 0})
+        for role in (rules.COLLECTOR_ROLE, rules.ADMIN_ROLE):
             if frappe.db.exists("Role", role):
                 _grant("ERP Collection", role, {**read, "report": 1, "export": 1})
     from pearnly_erp_portal.access.sharing import remove_legacy_shares

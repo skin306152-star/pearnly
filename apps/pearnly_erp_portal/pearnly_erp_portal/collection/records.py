@@ -6,6 +6,7 @@
 import frappe
 
 from pearnly_core.account.names import display_name
+from pearnly_core.cc_desktop import jobs
 from pearnly_core.desk import list_filters
 
 from pearnly_erp_portal.access import guard, listing
@@ -15,7 +16,7 @@ DOCTYPE = "ERP Collection"
 VIEW = "collection.view"
 FIELDS = ("name", "doc_date", "creation", "collector", "source", "customer", "customer_name", "invoice_summary",
           "method_summary", "cash", "transfer", "discount", "total", "voucher_count", "status", "docnum", "reason",
-          "confirmed_at", "written_at", "book_label")
+          "confirmed_at", "written_at", "book_label", "job")
 # 原生筛选里「等于 / 介于」以外的条件可用的字段（页面 collections.js 的 filter_fields）
 CONDITION_FIELDS = ("status", "source", "collector")
 SEARCH_FIELDS = ("name", "customer", "customer_name", "invoice_summary", "docnum")
@@ -53,6 +54,12 @@ def rows(params=None, *, start=0, limit=20, sort_by=None, sort_order=None):
         if row.collector not in names:
             names[row.collector] = display_name(row.collector) if row.collector else ""
         row["collector_name"] = names[row.collector]
+    # 待写入、此刻在等 Express 关闭（读的时候算，一页一次查完；11-12 约定）：列表悬浮与点开都说现成那句
+    queued = [row.job for row in found if row.status == "queued" and row.job]
+    waiting = set(jobs.express_wait_many(queued)) if queued else set()
+    for row in found:
+        row["express_wait"] = bool(row.job and row.job in waiting)
+        row.pop("job", None)
     return found
 
 
@@ -63,7 +70,9 @@ def total(params=None) -> int:
 
 def page(params=None, *, start=0, limit=20, sort_by=None, sort_order=None) -> dict:
     return {"items": rows(params, start=start, limit=limit, sort_by=sort_by, sort_order=sort_order),
-            "total": total(params)}
+            "total": total(params),
+            # 页头「新建」只给能录收款的人（收款岗位、管理员；服务端 `service.submit_web` 同样判）
+            "can_create": guard.has("collection.write")}
 
 
 def detail(name) -> dict:
@@ -85,4 +94,5 @@ def detail(name) -> dict:
             file.file_name = registered.filename(file.name)  # 原件在原件层：给页面原文件名（看器按扩展名分图片 / PDF）
         method["file"] = {"file": file.name, "file_name": file.file_name, "file_url": file.file_url} if file else None
     view["collector_name"] = display_name(doc.collector) if doc.collector else ""
+    view["express_wait"] = service.express_waiting(name)
     return view

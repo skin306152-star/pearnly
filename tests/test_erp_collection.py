@@ -611,14 +611,17 @@ class FakeJobs:
         desktop.job_changed(self.view(name))
 
 
-ROLES = {"a@x": {"collection.write"}, "b@x": {"collection.write"}, "boss@x": {"collection.view"},
-         "sales@x": {"collection.view", "sales.read"}, "nobody@x": set()}
+# 用户 11-14：只有一个「收款」权限（`rules`：collection.view 与 collection.write 同一判据）——boss 是管理员（默认有收款），
+# sales 只有销售岗位、没勾收款：什么都看不到
+ROLES = {"a@x": {"collection.write"}, "b@x": {"collection.write"}, "boss@x": {"collection.write"},
+         "sales@x": {"sales.read"}, "nobody@x": set()}
 ALLOWED = {"a@x": ["CO-1"], "b@x": ["CO-1"], "boss@x": ["CO-1", "CO-2"], "sales@x": ["CO-1"], "nobody@x": ["CO-1"],
            "other@x": ["CO-2"]}
 ROLES["other@x"] = {"collection.write"}
 
 
 def _has(capability, user=None):
+    capability = "collection.write" if capability == "collection.view" else capability  # 同一个「收款」权限
     return capability in ROLES.get(user or frappe.session.user, set())
 
 
@@ -779,6 +782,80 @@ class Release(Base):
         self.assertEqual([(row["prefix"], row["role"]) for row in made["methods"]], [("DC", "discount"), ("BB", "transfer")])
 
 
+class WebCreate(Base):
+    """ERP 网页「新建」（11-14）：弹窗提交即放行，同一套规则（`service.submit_web` → create_draft + release）。"""
+
+    def submit(self, amount="600", request="r-1", **extra):
+        from pearnly_erp_portal.collection import api
+
+        return api.api_collection_submit("CO-1", "2100883", json.dumps([{"docnum": "IV1", "amount": amount}]),
+                                         request, cash=extra.pop("cash", amount), **extra)
+
+    def test_a_submit_records_and_releases_once_per_dialog(self):
+        self.as_user("a@x")
+        made = self.submit()
+        row = S.table("ERP Collection")[made["name"]]
+        self.assertEqual((made["status"], row["source"], row["consent_ref"], self.jobs.rows["J-" + made["name"]]["status"]),
+                         (C.QUEUED, "web", "web:r-1", "queued"))
+        self.assertEqual(self.submit()["name"], made["name"])  # 连点 / 重发：同一个弹窗只建一笔
+        self.assertEqual(len(S.table("ERP Collection")), 1)
+        self.assertEqual(self.available()["IV1"], "400.00")  # 与 LINE / CC 同样占着余额
+        self.as_user("a@x")
+        self.assertNotEqual(self.submit("100", request="r-2")["name"], made["name"])  # 新开一次弹窗是新的一笔
+
+    def test_the_same_rules_refuse_with_the_same_sentence(self):
+        self.as_user("a@x")
+        with self.assertRaises(frappe.ValidationError) as caught:
+            self.submit("1200")  # 超过未收
+        self.assertIn("More than the amount due", str(caught.exception))
+        with self.assertRaises(frappe.ValidationError) as caught:  # 转账没附凭证：不放行（请求整体回滚）
+            self.submit("600", cash=0, methods=json.dumps([{"prefix": "BB", "amount": "600"}]))
+        self.assertIn("Send a photo of the transfer slip", str(caught.exception))
+
+    def test_only_people_with_the_collection_permission_can_submit(self):
+        for user in ("nobody@x", "sales@x"):
+            self.as_user(user)
+            with self.assertRaises(PermissionError_):
+                self.submit()
+        from pearnly_erp_portal.collection import records
+
+        for user in ("a@x", "boss@x"):  # 勾了收款的、管理员：看得到也能新建（同一个权限）
+            self.as_user(user)
+            self.assertTrue(records.page({})["can_create"])
+
+    def test_a_person_given_company_a_cannot_record_for_company_b(self):
+        """团队管理只给了 A 公司的员工（主会话 11-14）：弹窗下拉里没有 B，带 B 调接口被拒（服务端判）。"""
+        from pearnly_erp_portal.collection import api
+
+        self.as_user("a@x")  # 只给了 CO-1
+        self.assertEqual([row["value"] for row in api.api_collection_new_options()["companies"]], ["CO-1"])
+        with self.assertRaises(PermissionError_):
+            api.api_collection_submit("CO-2", "2100883", json.dumps([{"docnum": "IV1", "amount": "10"}]), "r-b", cash="10")
+        with self.assertRaises(PermissionError_):
+            api.api_collection_customer_search("2100", "CO-2")
+
+    def test_the_customer_box_searches_on_the_server_one_page_at_a_time(self):
+        from pearnly_erp_portal.collection import api
+
+        self.as_user("a@x")
+        found = api.api_collection_customer_search("2100", "CO-1")
+        self.assertEqual(found[0]["value"], "2100883")
+        self.assertLessEqual(len(found), 20)
+        self.assertEqual(api.api_collection_customer_search("2100", None), [])
+
+    def test_the_collections_page_withdraws_like_line_for_anyone_with_the_permission(self):
+        from pearnly_erp_portal.collection import api
+
+        self.as_user("a@x")
+        made = self.submit()
+        self.as_user("b@x")  # 同公司、勾了收款的另一个人（用户 11-14：不分谁录的）
+        self.assertEqual(api.api_collection_withdraw(made["name"])["status"], C.WITHDRAWN)
+        self.assertEqual(self.jobs.rows["J-" + made["name"]]["status"], "cancelled")
+        self.as_user("other@x")  # 别家公司的人：撤不了、也看不到
+        with self.assertRaises(PermissionError_):
+            api.api_collection_withdraw(made["name"])
+
+
 class Withdraw(Base):
     def test_withdraw_before_the_computer_takes_it(self):
         made = self.draft("100")
@@ -821,16 +898,37 @@ class Permissions(Base):
         with self.assertRaises(PermissionError_):
             service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": 1}], cash=1)
         made = self.draft("100")
-        self.as_user("b@x")  # 同公司的另一位收款员
+        self.as_user("other@x")  # 别家公司的收款岗位：看不到、动不了
         for call in (lambda: service.card(made["name"]), lambda: service.release(made["name"], 1, "x"),
                      lambda: service.withdraw(made["name"]), lambda: service.status(made["name"]),
                      lambda: service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": 1}], cash=1)):
             with self.assertRaises(PermissionError_):
                 call()
-        self.as_user("boss@x")  # 能看收款：看得到，不能放行
-        self.assertEqual(service.status(made["name"])["name"], made["name"])
+        self.as_user("sales@x")  # 只有销售岗位、没勾收款（用户 11-14）：看不到
         with self.assertRaises(PermissionError_):
-            service.release(made["name"], 1, "x")
+            service.status(made["name"])
+
+    def test_anyone_with_the_permission_in_the_company_edits_releases_and_withdraws_any_collection(self):
+        """用户 11-14：勾了收款的人（或管理员）能改 / 放行 / 撤回本公司还没写进 Express 的任何一笔，不分谁录的。"""
+        made = self.draft("100")
+        self.as_user("b@x")  # 同公司另一位
+        self.assertEqual(service.card(made["name"])["name"], made["name"])
+        changed = service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "90"}], cash="90")
+        self.assertEqual(changed["version"], 2)
+        self.as_user("boss@x")  # 管理员
+        self.assertEqual(service.release(made["name"], 2, "web:x")["status"], "released")
+        self.assertEqual(service.withdraw(made["name"])["status"], C.WITHDRAWN)
+        self.assertEqual(S.table("ERP Collection")[made["name"]]["collector"], "a@x")  # 谁录的照旧记着
+
+    def test_two_people_editing_the_same_draft_the_later_one_is_refused_by_the_version(self):
+        made = self.draft("100")
+        self.as_user("a@x")
+        service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "80"}], cash="80")
+        self.as_user("b@x")  # 打开时也是版本 1
+        with self.assertRaises(C.CollectionError) as caught:
+            service.update_draft(made["name"], 1, [{"docnum": "IV1", "amount": "70"}], cash="70")
+        self.assertEqual((caught.exception.code, caught.exception.detail), (C.CHANGED, {"version": 2}))
+        self.assertEqual(service.release(made["name"], 1, "web:y"), {"status": "changed", "version": 2})
 
     def test_customers_search_by_code_or_name_server_side(self):
         self.as_user("a@x")
@@ -851,11 +949,11 @@ class Permissions(Base):
         doc = frappe.get_doc("ERP Collection", made["name"])
         self.assertTrue(access.record_permission(doc, "read", "a@x"))
         self.assertFalse(access.record_permission(doc, "write", "a@x"))
-        self.assertFalse(access.record_permission(doc, "read", "b@x"))
-        self.assertTrue(access.record_permission(doc, "read", "sales@x"))
+        self.assertTrue(access.record_permission(doc, "read", "b@x"))  # 同公司勾了收款的：看全部（用户 11-14）
+        self.assertFalse(access.record_permission(doc, "read", "sales@x"))  # 只有销售岗位：看不到
+        self.assertFalse(access.record_permission(doc, "read", "other@x"))  # 别家公司
         self.assertFalse(access.record_permission(doc, "read", "nobody@x"))
-        self.assertEqual(access.record_query("a@x"), "`tabERP Collection`.company in ('CO-1') and "
-                                                     "`tabERP Collection`.collector = 'a@x'")
+        self.assertEqual(access.record_query("a@x"), "`tabERP Collection`.company in ('CO-1')")
         self.assertEqual(access.record_query("boss@x"), "`tabERP Collection`.company in ('CO-1', 'CO-2')")
         self.assertEqual(access.record_query("nobody@x"), "1=0")
 
@@ -1064,7 +1162,7 @@ class WebPage(Base):
             made = self.draft("10", user="a@x" if index % 2 else "b@x")
             if index == 4:
                 service.release(made["name"], 1, "line:evt")
-        self.as_user("sales@x")
+        self.as_user("a@x")  # 用户 11-14：勾了收款的人看本公司全部（不分谁录的）
 
     def test_the_list_pages_on_the_server_with_a_total_and_search(self):
         first = records.page({}, start=0, limit=2)
@@ -1084,18 +1182,25 @@ class WebPage(Base):
         self.assertEqual(output.export_size({}), 4)  # 数到「当场给」的上限 + 1 就停
         detail = records.detail(records.rows({}, limit=1)[0]["name"])
         self.assertIn(detail["collector_name"], ("A", "B"))
-        for user in ("a@x", "nobody@x"):
+        for user in ("sales@x", "nobody@x"):  # 只有销售岗位、没勾收款的不再看得到（用户 11-14）
             self.as_user(user)
             with self.assertRaises(PermissionError_):
                 records.page({})
 
     def test_the_page_is_declared_with_the_view_roles_and_no_write_entries(self):
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
-        self.assertIn("('erp.nav.collections', 'pearnly-collections', 'receipt-text', 'sales')", hooks)
-        self.assertIn('"pearnly-collections": ["Export"],', hooks)
+        # 用户 11-14：侧栏「收款」看「收款」功能、只给收款岗位与管理员；「我的收款」去掉（旧地址留一页转过来，不进菜单）
+        self.assertIn("('erp.nav.collections', 'pearnly-collections', 'receipt-text', 'collection')", hooks)
+        self.assertIn('pearnly_navigation[0]["permissions"]["pearnly-collections"] = {"any_role": [_rules.COLLECTOR_ROLE, _rules.ADMIN_ROLE]}', hooks)
+        self.assertNotIn("erp.nav.myCollections", hooks)
+        self.assertNotIn("'pearnly-team', 'pearnly-my-collections'", hooks)
+        self.assertIn('"pearnly-collections": ["Export", "New"],', hooks)  # 11-14：能录收款的人有「新建」（外壳白名单）
         self.assertIn('"kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"]', hooks)
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
-        self.assertNotIn("set_primary_action", page)
+        # 11-14 用户：网页也能新建。「新建」只在服务端说能录收款时出现（`records.page` 的 can_create）
+        self.assertIn("out?.can_create && !creating", page)
+        self.assertIn("p.collection_new(", page)
+        self.assertEqual(page.count("page.set_primary_action"), 1)  # 页头只有「新建」（撤回在弹窗里）
         self.assertNotIn("limit: 0", page)
 
 
@@ -1153,7 +1258,7 @@ class Books(TwoBooks):
         self.books = [TEST26]
         made = self.draft("100")
         self.books = [TEST26, TEST26_COPY]  # 之后又报来同期一本：按日期再选会停在「同期两份」
-        opened = api.api_my_collection(made["name"])
+        opened = api.api_collection_card(made["name"])
         self.assertEqual((opened["available"], [row["prefix"] for row in opened["methods"]["transfers"]][:1]),
                          ({"IV1": "1000.00"}, ["TR"]))
 
@@ -1234,24 +1339,30 @@ class ExpressWaiting(Base):
         self.waiting = {"J-" + first}
         self.jobs.report("J-" + first, "queued", reason="ACCOUNT_BUSY_LOCKED")
         self.as_user("a@x")
-        marked = {row["name"]: row["express_wait"] for row in service.mine()["items"]}
+        marked = {row["name"]: row["express_wait"] for row in service.listed("CO-1")["items"]}
         self.assertEqual(marked, {first: True, second: False})
         self.assertEqual(S.table("ERP Collection")[first]["reason"], "")  # 原因码不抄到收款记录
         self.jobs.report("J-" + first, "success", docnum="RE1")
-        self.assertFalse({row["name"]: row["express_wait"] for row in service.mine()["items"]}[first])
+        self.assertFalse({row["name"]: row["express_wait"] for row in service.listed("CO-1")["items"]}[first])
 
     def test_the_page_shows_the_existing_sentence_for_waiting_rows_only(self):
-        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js").read_text(encoding="utf-8")
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
         self.assertIn('row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : ""', page)
         self.assertIn("title: (value, row) => waiting(row)", page)  # 列表悬浮说明
-        self.assertIn("status_label(card.status), waiting(card)]", page)  # 手机没有悬浮：点开后的内容里也有
+        self.assertIn("[status_label(data.status), waiting(data)]", page)  # 手机没有悬浮：点开后的内容里也有
 
     def test_a_card_link_to_a_record_that_is_no_longer_a_draft_says_the_card_expired(self):
         # 卡片有效期 A6：LINE 卡【编辑】打开的那一笔已放行 / 撤回 / 被新卡作废：先说此卡片已失效（同 DMS 编辑页）；列表里点开的照旧只列状态
-        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js").read_text(encoding="utf-8")
-        self.assertIn('from_card ? __("This card has expired. Use the latest card in LINE.") : ""', page)
-        self.assertIn("await edit(rest[0], true)", page)
-        self.assertIn("on_open: row => void edit(row.name)", page)
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js").read_text(encoding="utf-8")
+        self.assertIn('...(from_card ? [{fieldtype: "HTML", fieldname: "expired",', page)
+        self.assertIn('__("This card has expired. Use the latest card in LINE.")', page)
+        self.assertIn("await open(rest[0], true)", page)
+        self.assertIn('if (data.status === "draft") return edit(name);', page)  # 还是草稿：直接改
+        self.assertIn("on_open: row => void open(row.name)", page)
+        # 旧地址「我的收款」（已发出的 LINE 卡）原样转到这一页的那一笔
+        legacy = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/"
+                  "pearnly_my_collections.js").read_text(encoding="utf-8")
+        self.assertIn('frappe.set_route(["pearnly-collections", ...rest]);', legacy)
         terms = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
         self.assertIn("This card has expired. Use the latest card in LINE.\t此卡片已失效，请使用 LINE 中最新的卡片。", terms)
 
@@ -1260,7 +1371,7 @@ class ExpressWaiting(Base):
 
         name = self.released()
         self.waiting = {"J-" + name}
-        self.assertTrue(api.api_my_collection(name)["card"]["express_wait"])
+        self.assertTrue(api.api_collection_card(name)["card"]["express_wait"])
         self.assertTrue(service.express_waiting(name))
         self.waiting = set()
         self.assertFalse(service.express_waiting(name))

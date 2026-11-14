@@ -1838,6 +1838,7 @@ Warehouse not found,Warehouse not found
 Warehouses,Warehouses
 Warehouses total,Warehouses total
 Watch,Watch
+Web,Web
 Weekly,Weekly
 When a card enters,When a card enters
 "Which company this terminal belongs to, and which warehouse it sells from","Which company this terminal belongs to, and which warehouse it sells from"
@@ -2023,6 +2024,7 @@ draft,draft
 due,due
 erp.collection.source.cc,CC
 erp.collection.source.line,LINE
+erp.collection.source.web,Web
 erp.collection.status.draft,Draft
 erp.collection.status.failed,Failed
 erp.collection.status.queued,Pending write

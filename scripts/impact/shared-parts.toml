@@ -14,7 +14,7 @@ name = "产品外壳与页面注册（product.js；字段说明图标 field-help
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/field-help.js"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections", "erp.page.my-collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections"]
 
 [[part]]
 id = "web-entry"
@@ -75,7 +75,7 @@ name = "共用 Select 弹出选择"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/select.js"]
 markers = ["fieldtype: \"Select\"", "fieldtype: 'Select'"]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.scan.pick-product", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections", "erp.page.my-collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.scan.pick-product", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections"]
 
 [[part]]
 id = "desk-list"
@@ -83,7 +83,7 @@ name = "共用列表（勾选、排序、筛选）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/list.js", "apps/pearnly_core/pearnly_core/desk/list_filters.py"]
 markers = [".list(", ".selection_action(", ".sort_rows(", ".filter_values(", ".filter_conditions("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections", "erp.page.my-collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "erp.report.stock-summary-qty-sort", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.page.collections"]
 
 [[part]]
 id = "desk-home"
@@ -165,7 +165,7 @@ name = "上传框（FileUploader 精简、照片压缩）"
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
 markers = ["new frappe.ui.FileUploader", "\"Attach Image\"", ".shrink_photo("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["shared.home.topup-proof", "erp.page.company", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload", "erp.stock-in.attach", "erp.stock-out.attach"]
+entries = ["shared.home.topup-proof", "erp.page.company", "erp.products.image-upload", "erp.inventory.opening-upload", "erp.stock-count.upload", "erp.purchase.original-upload", "erp.sales.original-upload", "cowork.intake.upload", "cowork.stocktake.upload", "cowork.recon.upload", "cowork.work.attachments", "shared.upload.take-photo", "erp.products.import-upload", "erp.stock-in.attach", "erp.stock-out.attach", "erp.page.collections"]
 
 [[part]]
 id = "cowork-intake-upload"
@@ -2600,10 +2600,10 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "apps
 id = "erp.page.collections"
 product = "ERP"
 where = "pearnly-collections"
-steps = "侧栏「销售 → 收款」：列表翻页、筛选、搜索、点开一笔看发票与凭证、导出"
-expect = "销售岗位与管理员打开出内容（不是无权限页），只读、没有新建 / 修改 / 删除，控制台无报错"
+steps = "侧栏「销售 → 收款」：列表翻页、筛选、搜索、点开一笔看发票与凭证、导出；页头「新建」弹窗（公司、客户搜索、发票表格、方式）提交；点开草稿改并保存、撤回；打开 pearnly-collections/<记录> 与旧地址 pearnly-my-collections/<记录>"
+expect = "收款岗位与管理员打开出内容（不是无权限页），新建提交即放行、草稿存好版本 +1、撤回后状态已撤回；只有销售岗位的是无权限页、接口 403；旧地址转到同一笔；控制台无报错"
 check = "auto"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_collections/pearnly_collections.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_collections/pearnly_collections.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collection-new.js", "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js"]
 smoke = "page"
 url = "/desk/pearnly-collections"
 site = "erp"
@@ -2616,16 +2616,6 @@ steps = "离线：tests/test_erp_collection.py（收款类型只列收钱类、�
 expect = "全部通过；LINE 入口（第 3 步）与 CC 工具（第 4 步）合入时各自补实机"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/snapshot.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/records.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/output.py"]
-
-[[entry]]
-id = "erp.page.my-collections"
-product = "ERP"
-where = "pearnly-my-collections"
-steps = "收款员左下角「我的收款」：列表翻页；点一笔草稿开原生弹窗改各张本次收 / 现金 / 方式与折扣并保存；LINE 确认卡「编辑」打开 pearnly-my-collections/<记录>"
-expect = "收款岗位与管理员打开出内容（不是无权限页）、弹窗存好版本 +1；两者都不是的人是无权限页、接口 403；控制台无报错"
-check = "auto"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js"]
-smoke = "page"
 
 [[entry]]
 id = "erp.line.collection"

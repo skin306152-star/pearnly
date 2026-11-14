@@ -1838,6 +1838,7 @@ Warehouse not found,倉庫が見つかりません
 Warehouses,倉庫
 Warehouses total,倉庫合計
 Watch,ウォッチ
+Web,ウェブ
 Weekly,毎週
 When a card enters,カードがリストに入ったとき
 "Which company this terminal belongs to, and which warehouse it sells from",このレジがどの会社に属し、どの倉庫から販売するか
@@ -2023,6 +2024,7 @@ draft,下書き
 due,期日
 erp.collection.source.cc,CC
 erp.collection.source.line,LINE
+erp.collection.source.web,ウェブ
 erp.collection.status.draft,下書き
 erp.collection.status.failed,失敗
 erp.collection.status.queued,書き込み待ち

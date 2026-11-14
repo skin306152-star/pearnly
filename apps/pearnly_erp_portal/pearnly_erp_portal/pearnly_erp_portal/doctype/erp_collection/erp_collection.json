@@ -72,7 +72,7 @@
    "fieldname": "source",
    "fieldtype": "Select",
    "label": "Source",
-   "options": "line\ncc",
+   "options": "line\ncc\nweb",
    "read_only": 1
   },
   {

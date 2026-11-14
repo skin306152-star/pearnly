@@ -37,7 +37,7 @@ DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN = "draft", "queued", "writing
 STATUSES = (DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN)
 RESERVING = (QUEUED, WRITING)          # 占着发票余额的（已放行、还没写完）
 WITHDRAWABLE = (DRAFT, QUEUED, FAILED)  # 没被电脑领走前可撤回（领走的另由写账队列拒）
-SOURCES = ("line", "cc")
+SOURCES = ("line", "cc", "web")  # web：ERP 网页「新建」（11-14），提交即放行
 
 # 收款类型的结论
 TRANSFER, DISCOUNT = "transfer", "discount"

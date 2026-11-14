@@ -2046,7 +2046,7 @@ Failed	失败	ไม่สำเร็จ	失敗	erp.collection.status.failed
 Withdrawn	已撤回	ยกเลิกแล้ว	取り消し済み	erp.collection.status.withdrawn
 LINE	LINE	LINE	LINE	erp.collection.source.line
 CC	CC	CC	CC	erp.collection.source.cc
-My collections	我的收款	การรับชำระของฉัน	自分の入金	erp.nav.myCollections
+Web	网页	เว็บ	ウェブ	erp.collection.source.web
 Record collections	收款录入	บันทึกรับชำระ	入金入力
 Record customer payments	记录客户付款	บันทึกเงินที่รับจากลูกค้า	顧客の入金を記録
 Type the customer code or part of the name	输入客户编号或名称	พิมพ์รหัสหรือชื่อลูกค้า	顧客コードまたは名前を入力してください

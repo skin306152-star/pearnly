@@ -1888,9 +1888,9 @@ covers = [
 
 [[flow]]
 id = "erp.line.collection"
-title = "LINE 录收款（富菜单第 4 格）走完各步到确认卡 → 卡片【编辑】打开「我的收款」弹窗改草稿 → 回 LINE：旧卡确认重出新卡、无岗位伪造被拒、打 ok 放行、待写入时撤回（收款第 3 步 11-11）"
+title = "LINE 录收款（富菜单第 4 格）走完各步到确认卡 → 旧卡上的【编辑】地址（我的收款）转到「收款」页弹窗改草稿 → 回 LINE：旧卡确认重出新卡、无岗位伪造被拒、打 ok 放行、待写入时撤回（收款第 3 步 11-11；11-14 一页）"
 module = "scripts/flows/erp_line_collection.py"
-start = "/desk/pearnly-my-collections/{name}"
+start = "/desk/pearnly-collections/{name}"
 user = "collector"
 datasets = ["new"]
 viewports = ["mobile"]
@@ -1900,10 +1900,26 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py",
-  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/my-collections.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/pearnly_my_collections.js",
   # 收款的后台回复（凭证后、结果）用收款员的语言：共用 `execution.language`（11-14）
   "apps/pearnly_core/pearnly_core/execution/language.py",
+]
+
+[[flow]]
+id = "erp.web.collection"
+title = "ERP 网页「新建」收款：「销售 → 收款」页头新建 → 原生弹窗（只有一家公司不显示公司）选客户（服务端搜索）→ 列出未收清发票 → 超收被拒弹窗不关 → 正常提交即放行（来源网页、交写账队列）→ 撤回（收款闭环 11-14）"
+module = "scripts/flows/erp_web_collection.py"
+start = "/desk/pearnly-collections"
+user = "collector"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collection-new.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collections.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/records.py",
 ]
 
 [[flow]]

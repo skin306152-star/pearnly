@@ -243,7 +243,7 @@ class Steps(Base):
         self.assertEqual([item["label"] for item in self.flex_buttons()], ["Confirm", "Edit", "Withdraw"])
         self.assertEqual(parse_qs(self.card_button("Confirm")["data"]),
                          {"a": ["col"], "s": ["ok"], "n": [name], "ver": ["1"], "k": [self.payload()["nonce"]]})
-        self.assertTrue(self.card_button("Edit")["uri"].endswith("/desk/pearnly-my-collections/" + name))
+        self.assertTrue(self.card_button("Edit")["uri"].endswith("/desk/pearnly-collections/" + name))  # 11-14 起只有「收款」一页
         self.assertEqual(frappe.session.user, "Guest")  # 做完还原
 
     def test_more_than_twelve_customers_asks_for_more_letters_and_an_exact_code_picks_directly(self):
@@ -291,7 +291,7 @@ class Steps(Base):
     def test_invoice_balances_already_reserved_by_another_collector_are_shown_net(self):
         T.Base.draft(self, "600", user="b@x")
         frappe.session.user = "b@x"
-        made = service.mine()["items"][0]
+        made = service.listed("CO-1")["items"][0]
         service.release(made["name"], made["version"], "line:other")
         frappe.session.user = "Guest"
         self.tap("a=col&s=start")
@@ -563,7 +563,7 @@ class Rights(Base):
         nonce = self.payload()["nonce"]
         for data in (f"a=col&s=ok&n={name}&ver=1", f"a=col&s=wd&n={name}", f"a=col&s=ok&n={name}&ver=1&k={nonce}",
                      f"a=col&s=wd&n={name}&k={nonce}", f"a=col&s=wd&n={name}&p=1&k={nonce}"):
-            self.tap(data, uid="U2")  # 别人的会话里没有这张卡：不认；草稿也不归他，作废不了
+            self.tap(data, uid="U2")  # 别人的会话里没有这张卡：不认；不是他录的，旧卡 / 伪造的点了也不作废它
             self.assertIn(self.last_text(), ("This item has expired. Please start again.",
                                              "This account cannot record collections"))
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)
@@ -743,14 +743,14 @@ class Returned(Base):
         self.assertEqual(self.step(), "card")
 
     def test_the_same_draft_is_seen_alike_in_line_the_web_list_and_cc(self):
-        """网页「我的收款」、CC 对话、LINE 三处看到的是同一条草稿、同一个状态与版本（主会话 11-14）。"""
+        """网页「收款」页、CC 对话、LINE 三处看到的是同一条草稿、同一个状态与版本（主会话 11-14）。"""
         from pearnly_erp_portal.collection import api, cc_tools
 
         name = self.released()
         self.refuse(name)
         frappe.session.user = "a@x"
-        web = next(row for row in api.api_my_collections()["items"] if row["name"] == name)
-        opened = api.api_my_collection(name)["card"]
+        web = api.api_collection(name)  # 「收款」页点开那一笔
+        opened = api.api_collection_card(name)["card"]
         chat = json.loads(cc_tools.status({"collection": name}))
         seen = {(row["status"], row["version"], row["returned"], row["reason"]) for row in (web, opened, chat)}
         self.assertEqual(seen, {(C.DRAFT, 2, True, "[already_collected] invoice paid")})

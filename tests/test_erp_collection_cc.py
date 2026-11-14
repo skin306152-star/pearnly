@@ -287,20 +287,26 @@ class Rights(Base):
         self.assertEqual(self.call(cc_tools.customers, search="21")["reason"], "not_permitted")
         self.assertEqual(self.make("600", user="nobody@x")["reason"], "not_permitted")
 
-    def test_another_collector_s_collection_is_not_planned_viewed_or_released(self):
+    def test_a_colleague_in_the_same_company_sees_plans_and_withdraws_it(self):
+        """用户 11-14：本公司有收款权限的人不分谁录的——同事的收款也能看、放行、撤回；别家公司的看不到。"""
         made = self.make("600")
         self.as_user("b@x")
         self.conversation("b@x")
         planned = self.plan_of(made["document"])
-        self.assertEqual((planned["status"], planned["skipped"][0]["reason"]), ("nothing_to_write", "not_found"))
+        self.assertEqual(planned["skipped"], [])
+        self.assertEqual(self.call(cc_tools.status, collection=made["name"])["name"], made["name"])
+        listed = self.call(cc_tools.recent)
+        self.assertEqual([row["name"] for row in listed["collections"]], [made["name"]])  # 本公司全部，不分谁录的
+        self.assertEqual(self.call(cc_tools.recent, collector="b@x")["collections"], [])  # 按「谁录的」筛
+        self.assertEqual(self.call(cc_tools.withdraw, collection=made["name"])["status"], "withdrawn")
+        self.as_user("other@x")
         self.assertEqual(self.call(cc_tools.status, collection=made["name"])["reason"], "not_permitted")
-        self.assertEqual(self.call(cc_tools.withdraw, collection=made["name"])["reason"], "not_permitted")
 
     def test_a_collection_of_another_company_is_not_planned(self):
         self.as_user("a@x")
         self.assertEqual(plan.check("CO-2", [plan.doc_id(self.make("600")["name"], 1)]), {"documents": []})
         self.assertFalse(plan.allowed("a@x", "CO-2"))
-        self.assertFalse(plan.allowed("boss@x", "CO-1"))  # 只能看收款、不能录
+        self.assertTrue(plan.allowed("boss@x", "CO-1"))  # 管理员默认有收款（11-14）
         self.assertTrue(plan.allowed("a@x", "CO-1"))
 
     def test_customers_invoices_and_methods_come_from_the_service(self):

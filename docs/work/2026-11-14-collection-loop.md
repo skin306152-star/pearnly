@@ -97,6 +97,12 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 
 ## 5. 网页新建收款（11-14 用户新口径：只留侧栏「收款」一页、一个权限、不分谁录的；第一版不推，按新口径重做后单独提交）
 
+第二版已做（11-14，主会话审定三条）：要点见评估 `docs/work/2026-11-14-collection-web-create.md` 开头「第二版要点」。测试：
+`test_erp_collection`（`WebCreate`、`Permissions.test_anyone_with_the_permission_in_the_company_edits_releases_and_withdraws_any_collection`、
+`test_two_people_editing_the_same_draft_the_later_one_is_refused_by_the_version`、`test_a_person_given_company_a_cannot_record_for_company_b`、
+旧地址转页断言）、`test_erp_collection_cc.Rights.test_a_colleague_in_the_same_company_sees_plans_and_withdraws_it`、`test_native_desk_contract`
+（菜单数、个人菜单、收款看「收款」功能）。流程：`erp.web.collection`、`erp.line.collection`（走旧地址转页）、`erp.collections.refused`（含旧地址）。
+
 评估 `docs/work/2026-11-14-collection-web-create.md`，一屏摘要在共享笔记「收款网页新建-一屏-11-14.md」，等主会话审。
 
 ## 6. 「没有覆盖此日期的 Express 账套」改得更明白（用户 11-14「文案没问题」，已改）
@@ -145,3 +151,14 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 
 ### 修复：「没有账套」说不清（§6）、管理员默认有收款（§1）、后台回复语言（§4.1）
 见各节。§1 上线后按 §1 的清单逐家回读管理员菜单。
+
+### 变化：只有销售岗位、没勾收款的人看不到「收款」页（11-14 用户新口径）
+- 11-11 起「销售 → 收款」给销售岗位与管理员看；11-14 起只给勾了「收款」的人与管理员。上线后这部分人侧栏没有「收款」、直接打开是无权限页。
+- 上线前读一次（与上面小写码范围合成同一次只读）：每个 ERP 站点
+  ```python
+  from pearnly_erp_portal.access import menu, rules
+  sales = set(frappe.get_all("Has Role", filters={"role": ["in", ["ERP Sales", menu.role("sales")]], "parenttype": "User"}, pluck="parent"))
+  collect = set(frappe.get_all("Has Role", filters={"role": ["in", [rules.COLLECTOR_ROLE, rules.ADMIN_ROLE]], "parenttype": "User"}, pluck="parent"))
+  enabled = set(frappe.get_all("User", filters={"enabled": 1, "name": ["in", list(sales - collect) or [""]]}, pluck="name"))
+  print(len(enabled), sorted(enabled))
+  ```

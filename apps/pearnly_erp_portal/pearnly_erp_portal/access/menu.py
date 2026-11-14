@@ -22,8 +22,8 @@ CATALOG = {
                  ("Purchase Document", "ERP Purchase Attachment", "ERP Purchase Payment", "ERP LINE Intake"),
                  ("ERP Supplier", "ERP Purchase Settings", "ERP Purchase Category", *SERIALS)),
     "suppliers": ("purchase", "ERP Purchase", ("suppliers.read", "suppliers.write", "tax.lookup"), ("ERP Supplier",), ()),
-    # 销售岗位同时看得到「收款」页（`collection.view`，评估 2026-11-11；收款员是另一个岗位，只录不看这一页）
-    "sales": ("sales", "ERP Sales", ("sales.read", "sales.write", "collection.view"),
+    # 「收款」页只看「收款」这一个权限（用户 11-14：勾了收款的人都能看全部、能新建；只有销售岗位的不再看得到）
+    "sales": ("sales", "ERP Sales", ("sales.read", "sales.write"),
               ("ERP Sales Document", "ERP Sales Attachment", "ERP LINE Intake"), ("ERP Customer", *SERIALS)),
     "cashier": ("cashier", "ERP Cashier", ("cashier.read", "cashier.write", "customers.read"), ("ERP Sale", "ERP Shift"),
                 ("ERP Customer", *SERIALS)),
