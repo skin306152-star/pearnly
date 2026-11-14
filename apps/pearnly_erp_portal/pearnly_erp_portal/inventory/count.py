@@ -28,6 +28,7 @@ from pearnly_erp_portal.access import guard, listing, rules
 from pearnly_erp_portal.masters import access as company_access
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.inventory import stock as stock_service
+from pearnly_erp_portal.express import bulk
 from pearnly_erp_portal.inventory import count_live, count_state, documents as stock_documents, positions, warehouses
 # 商品域只管纯规则的 contracts（不依赖框架、IO 或上层流程）：盘点要照它的口径
 # 决定"表上那一列显示条码还是二维码内容"。这是单向依赖，products 不认识 inventory。
@@ -182,21 +183,30 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
     if not name:
         frappe.throw(_(TITLE_REQUIRED))
     warehouse = warehouses.required(warehouse)
-    warehouses.remember("count", warehouse)  # 下次建盘点预填本人上次选的仓（多仓闭环 P1，问 2）
+    snap, names = [], []
     doc = frappe.get_doc({"doctype": COUNT, "title": name, "warehouse": warehouse,
                           "notes": notes, "status": "Active"})
+    if snapshot:
+        rows = frappe.get_all(BALANCE, filters={"warehouse": warehouse},
+                               fields=["product", "qty_on_hand", "location"], limit_page_length=0)
+        products = {p["name"]: p for p in frappe.get_list(
+            PRODUCT, filters={"is_active": 1, "name": ["in", [r["product"] for r in rows] or [""]]},
+            # 要带二维码内容：只有二维码的商品，盘点表「条码 / 二维码」那一格才不空（录制问题 #23）。
+            fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
+            limit_page_length=0)}
+        snap = [(products[row["product"]], warehouse, flt(row["qty_on_hand"], 3), row.get("location"))
+                for row in rows if products.get(row["product"])]  # 账上快照
+        # 单头与快照行的编号先一次预留（`express.bulk.reserve`：锁全站共用的计数器、加完立刻提交放锁），之后的写入不占着计数器——
+        # 逐条发号会把计数器锁到这次请求提交，几千行的盘点期间同站点别人新建任何单据都要等（拼车窗口 11-14 提醒）。
+        # 在任何写入之前做：预留会先提交，这时这次请求还什么都没写。中途失败只留下用不上的空号（同主档同步）。
+        doc.name = bulk.reserve(COUNT, 1)[0]
+        doc.flags.name_set = True
+        names = bulk.reserve(ITEM, len(snap)) if snap else []
+    warehouses.remember("count", warehouse)  # 下次建盘点预填本人上次选的仓（多仓闭环 P1，问 2）
     count_state.write_document(doc, "insert")
     if not snapshot:
             return {"name": doc.name, "rows": 0}
-    rows = frappe.get_all(BALANCE, filters={"warehouse": warehouse},
-                           fields=["product", "qty_on_hand", "location"], limit_page_length=0)
-    products = {p["name"]: p for p in frappe.get_list(
-        PRODUCT, filters={"is_active": 1, "name": ["in", [r["product"] for r in rows] or [""]]},
-        # 要带二维码内容：只有二维码的商品，盘点表「条码 / 二维码」那一格才不空（录制问题 #23）。
-        fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
-        limit_page_length=0)}
-    created = _insert_snapshot(doc.name, [(products[row["product"]], warehouse, flt(row["qty_on_hand"], 3), row.get("location"))
-                                          for row in rows if products.get(row["product"])])  # 账上快照
+    created = _insert_snapshot(doc.name, snap, names)
     _refresh_totals(doc.name)
     return {"name": doc.name, "rows": created}
 
@@ -382,17 +392,14 @@ def _item_values(count: str, product: dict, warehouse: str, book_qty, location="
     }
 
 
-def _insert_snapshot(count: str, rows: list) -> int:
-    """新建盘点抄快照：``rows`` 是 ``(商品, 仓, 账面数, 库位)``。一次预留编号、每行照原生 ``insert`` 写库前那一段走一遍
+def _insert_snapshot(count: str, rows: list, names: list) -> int:
+    """新建盘点抄快照：``rows`` 是 ``(商品, 仓, 账面数, 库位)``，``names`` 是已预留的编号。每行照原生 ``insert`` 写库前那一段走一遍
     （默认值、命名、校验与写入守卫）、一条多行 INSERT 落库（同主档同步的批量新建，`express.bulk`），与逐条 ``_insert_item``
     落库的字段逐字段相同（`scripts/perf/equal_check.py` 的 erp-count-create 组核）。盘点单在这次请求里先锁一次，逐行的写入守卫不再
     各锁一遍；整单同一个事务，成败一起（性能体检 11-14：251 行原先约 2,000 条查询，线上 7.9 秒）。"""
-    from pearnly_erp_portal.express import bulk
-
     if not rows:
         return 0
     count_state.lock_task(count)
-    names = bulk.reserve_here(ITEM, len(rows))
     previous = getattr(frappe.local, "stock_count_service_write", False), getattr(frappe.local, "stock_count_locked", None)
     frappe.local.stock_count_service_write, frappe.local.stock_count_locked = True, count
     try:

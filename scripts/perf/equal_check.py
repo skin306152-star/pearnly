@@ -152,7 +152,7 @@ def team(app, user, old_dir):
 
 
 def erp_count_create(old_dir):
-    """新建盘点抄快照：旧、新各建一次（各自回滚，编号从同一个计数器起），读回单头与全部盘点行（除时间戳）逐字段比。"""
+    """新建盘点抄快照：旧、新各建一次（各自回滚），读回单头与全部盘点行（除时间戳与编号）逐字段比。"""
     from pearnly_erp_portal.inventory import count as new
 
     old = load_old("pearnly_erp_portal.inventory.count", os.path.join(old_dir, "count.py"))
@@ -169,12 +169,14 @@ def erp_count_create(old_dir):
                 started = time.perf_counter()
                 task = module.create_count(title="equal check", warehouse=place.warehouse)
                 timings.append((module.__name__, round(time.perf_counter() - started, 2)))
-                skip = ("creation", "modified")
+                # 编号预留会提交计数器（回滚不退回），两边编号不同：单号、行号换成占位，行按编号顺序（即发号顺序）比
+                skip = ("creation", "modified", "name")
                 head = frappe.get_all("ERP Stock Count", filters={"name": task["name"]}, fields=["*"], limit_page_length=1)
                 rows = frappe.get_all("ERP Stock Count Item", filters={"count": task["name"]}, fields=["*"],
                                       order_by="name asc", limit_page_length=0)
-                return {"task": task, "head": [{k: v for k, v in r.items() if k not in skip} for r in head],
-                        "rows": [{k: v for k, v in r.items() if k not in skip} for r in rows]}
+                same = lambda r: {k: ("<count>" if k == "count" else v) for k, v in r.items() if k not in skip}  # noqa: E731
+                return {"task": {**task, "name": "<count>"}, "head": [same(r) for r in head], "rows": [same(r) for r in rows],
+                        "row_names_unique": len({r["name"] for r in rows}) == len(rows)}
             return run
         a, b = (call(made(module), {}) for module in (old, new))
         frappe.defaults.set_user_default("company", before, frappe.session.user)  # 切过公司：还原当前公司

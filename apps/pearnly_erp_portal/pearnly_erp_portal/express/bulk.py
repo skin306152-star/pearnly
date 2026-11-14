@@ -49,17 +49,6 @@ def reserve(doctype, count) -> list:
         return [prefix + ("%0" + str(digits) + "d") % (start + offset) for offset in range(1, count + 1)]
 
 
-def reserve_here(doctype, count) -> list:
-    """同 :func:`reserve`，但在当前事务里预留、不提交（同 Frappe 逐条发号：计数器行锁到这次请求提交才放）。
-    用在必须整单一起成败的写入（新建盘点抄快照，性能体检 11-14）：先提交会让单头先落库、行没落时留下半张单。"""
-    found = AUTONAME.match(frappe.get_meta(doctype).autoname or "")
-    if not found:
-        raise ValueError(f"{doctype}: unsupported autoname for bulk insert")
-    prefix, digits = found.group(1), len(found.group(2))
-    start = _take(count)
-    return [prefix + ("%0" + str(digits) + "d") % (start + offset) for offset in range(1, count + 1)]
-
-
 def _take(count) -> int:
     """锁住计数器、加上 ``count``，回加之前的值（不提交）。"""
     row = frappe.db.sql("select `current` from `tabSeries` where `name` = %s for update", (SERIES_KEY,))
