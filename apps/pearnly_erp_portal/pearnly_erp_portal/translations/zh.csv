@@ -2932,7 +2932,7 @@ team.notice.toggled,已更新 {0} 位用户
 team.password,初始密码
 team.resetPassword,重置密码
 team.role.cashier,收银
-team.role.collector,收款员
+team.role.collector,收款
 team.role.products,物料
 team.role.purchase,采购
 team.role.sales,销售

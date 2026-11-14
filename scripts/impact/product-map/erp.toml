@@ -539,7 +539,7 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-menu"
 anchor = "line:erp:menu:collection"
-where = "LINE 富菜单左下「收款」（收款员岗位才有，无岗位是锁；11-11）"
+where = "LINE 富菜单左下「收款」（收款岗位与管理员才有，无岗位是锁；11-11，管理员 11-14）"
 parts = ["line"]
 tests = ["unit:tests/test_erp_collection_line.py::test_the_fourth_tile_is_collections_for_collectors", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_tiles_follow_permissions_and_stocktake_opens_the_native_page", "flow:erp.line.collection"]
 group = "line.menu.collection"
@@ -635,7 +635,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "nav-page"
 anchor = "nav:erp:pearnly-my-collections"
-where = "左下角「我的收款」（只给收款员：本人录的收款，草稿点开原生弹窗改；LINE 确认卡「编辑」也到这里，11-11）"
+where = "左下角「我的收款」（只给收款岗位与管理员：本人录的收款，草稿点开原生弹窗改；LINE 确认卡「编辑」也到这里，11-11）"
 cc_na = "收款员本人的记录与草稿弹窗；CC 里录收款是第 4 步的收款工具（erp_collection_*，还没合入），合入时改成 cc"
 tests = ["flow:erp.line.collection", "flow:erp.collections.refused"]
 
