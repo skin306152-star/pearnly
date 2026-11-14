@@ -141,7 +141,7 @@ CORE_TOOLS = [
                     "party, items, warehouse, accounts, whether to enter a document, account set, ...), puts them on one "
                     "card with the recommended choice and the already decided items, and the user answers on the card. "
                     "You never write these questions yourself. The result is {status, answered, writable, held}: "
-                    "nothing_to_ask means everything is decided; answered means the answers are saved and only writable "
+                    "nothing_to_ask means there is nothing to ask (only writable documents can be written; waiting / not_writable say why the others cannot); answered means the answers are saved and only writable "
                     "documents can be written now; skipped means the user closed the card and nothing was saved. When the "
                     "user answers in a chat message instead (for example 'this supplier is always cash'), save it with "
                     "pearnly_precheck_answer using the keys of that card. Then make the write plan (pearnly_write_plan).",
