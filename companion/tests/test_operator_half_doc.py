@@ -218,3 +218,108 @@ def test_after_a_restart_a_still_running_held_express_keeps_its_account_set_unti
     stored = r.store.load(r.state.id)
     assert stored.held == "" and stored.docs[0].status == K.SAVED and stored.docs[0].docnum == "RR0000001"
     assert host._stored_held(r.state.account_dir) is False  # Express 没了 / 不再占着
+
+
+def _held_host(tmp_path):
+    sims = []
+    factory = fake_factory(sims)
+
+    def with_choice(*args, **kwargs):
+        runner, parts = factory(*args, **kwargs)
+        sims[-1].inject["choice_mid_save"] = True
+        return runner, parts
+
+    clock = [10_000.0]
+    host = Host(tmp_path, factory=with_choice, clock=lambda: clock[0])
+    first = host.handle("t1", payload("RR", "P001", "501780", "2", "10.00", 1, 1), _settings(tmp_path))
+    assert first["reason"] == "partial_saved" and first["meta"]["doc"]
+    return host, sims[0], first, clock
+
+
+def test_once_the_person_finishes_the_box_cc_reports_written_with_the_same_receipt(tmp_path):
+    """主会话 11-14：人在 Express 里答完框、单存完后，CC 主动用原回执号补报「已写入 + 原单号」，不等人回来点重试。框还开着时
+    不报；隔 HELD_CHECK_S 才看一次；报完就清掉、不重报。"""
+    host, sim, first, clock = _held_host(tmp_path)
+    host.note_late("b1", first["meta"]["doc"], "DELIVERY-7", "prof-1")
+    assert host.late_results("prof-1") == []  # 框还开着
+    sim._press(sim.dialogs[-1], "แบบ ก")
+    assert host.late_results("prof-1") == []  # 还没到下一次看的时候
+    clock[0] += 61
+    assert host.late_results("other") == []  # 别的成员档案的不归它报
+    clock[0] += 61
+    got = host.late_results("prof-1")
+    assert got == [{"batch": "b1", "doc": first["meta"]["doc"], "ack": "DELIVERY-7", "docnum": "RR0000001"}]
+    host.late_done("b1", first["meta"]["doc"])
+    clock[0] += 61
+    assert host.late_results("prof-1") == []
+    assert len(sim.book["APTRN"]) == 1  # 只读账套，没录第二张
+
+
+def test_express_closed_by_hand_on_a_half_document_is_not_reported(tmp_path):
+    host, sim, first, clock = _held_host(tmp_path)
+    host.note_late("b1", first["meta"]["doc"], "DELIVERY-7", "prof-1")
+    sim.dialogs, sim.alive = [], False  # 人把 Express 关了，单停在半截
+    clock[0] += 61
+    assert host.late_results("prof-1") == []
+    assert not host.runners["b1"].state.held  # 放手了
+    doc = host.runners["b1"].state.docs[0]
+    assert doc.status == K.WAITING and doc.late_ack == ""
+
+
+def test_the_writer_sends_the_late_receipt_and_stops_on_a_refusal(monkeypatch):
+    import sys
+    from types import SimpleNamespace
+
+    from companion import worker
+    from companion.express_operator import host as host_module
+
+    done, sent = [], []
+    fake = SimpleNamespace(idle=lambda: None, late_done=lambda b, d: done.append((b, d)),
+                           late_results=lambda profile: [{"batch": "b1", "doc": "D1", "ack": "DELIVERY-7", "docnum": "RR0000001"}])
+    monkeypatch.setattr(host_module, "_HOST", fake)
+    monkeypatch.setitem(sys.modules, "companion.express_operator.host", host_module)
+
+    class Qc:
+        def __init__(self, fail=None):
+            self.fail = fail
+
+        def ack_success(self, task_id, extracted_invoice_no=None, meta=None, line_modes=None):
+            if self.fail:
+                raise self.fail
+            sent.append((task_id, extracted_invoice_no, meta))
+            return True
+
+    cfg = SimpleNamespace(profile_id="prof-1")
+    worker.operator_idle(cfg, Qc())
+    assert sent == [("DELIVERY-7", "RR0000001", {"operator": {"batch": "b1", "doc": "D1", "docnum": "RR0000001"}})]
+    assert done == [("b1", "D1")]
+    done.clear()
+    refused = RuntimeError("401")
+    refused.response = SimpleNamespace(status_code=401)
+    worker.operator_idle(cfg, Qc(refused))
+    assert done == [("b1", "D1")]  # 服务端不收：不再试
+    done.clear()
+    worker.operator_idle(cfg, Qc(ConnectionError("down")))
+    assert done == []  # 网络错：下次空闲再试
+
+
+def test_a_held_human_receipt_notes_its_receipt_id_for_the_late_report(monkeypatch, tmp_path):
+    import sys
+    from types import SimpleNamespace
+
+    from test_operator_host import Queue
+
+    from companion import worker
+    from companion.express_operator import host as host_module
+
+    noted = []
+    fake = SimpleNamespace(handle=lambda *_a, **_k: {"status": "human", "reason": "partial_saved", "detail": "x",
+                                                     "meta": {"batch": "b1", "doc": "D1", "held": {"computer": "PC"}}},
+                           note_late=lambda *a: noted.append(a))
+    monkeypatch.setattr(host_module, "host", lambda notify=None: fake)
+    monkeypatch.setattr(sys, "platform", "win32")
+    st = ExpressSettings(method="dbf", express_root="", express_exe=r"\\s\ExpressI.exe", account_dir=str(tmp_path),
+                         account_company="x", account_set="TEST", account_set_row=0)
+    out = worker._handle_operator_task(SimpleNamespace(ui_lang="zh", profile_id="prof-1"), Queue(),
+                                       SimpleNamespace(id="DELIVERY-7", payload={}, invoice_no=""), st)
+    assert out == "needs_review" and noted == [("b1", "D1", "DELIVERY-7", "prof-1")]

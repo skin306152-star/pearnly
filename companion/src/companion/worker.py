@@ -536,17 +536,43 @@ def _ack_operator(cfg, qc, task, result, meta):
         + (f" · menu_options={len(options or [])}" if reason == "menu_choice" else ""))
     qc.ack_failure(task.id, str(result.get("detail") or reason)[:OPERATOR_DETAIL_MAX], error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
                    meta=meta)
+    if status == "human" and info.get("held") and info.get("doc"):
+        # Express 留着等人答框：记下这个回执号，人答完、单存完后用它补报「已写入 + 原单号」（operator_idle）
+        from .express_operator import host as operator_host
+
+        operator_host.host().note_late(str(info.get("batch") or ""), str(info["doc"]), task.id,
+                                       str(getattr(cfg, "profile_id", "") or ""))
     return outcome
 
 
-def operator_idle() -> None:
-    """写账线队列空时：代录宿主已经在用（导入过）才叫它看看要不要退出 Express；没代录过什么都不做、不导入。"""
+def operator_idle(cfg=None, qc=None) -> None:
+    """写账线队列空时：代录宿主已经在用（导入过）才叫它看看要不要退出 Express；没代录过什么都不做、不导入。
+    ``cfg`` / ``qc``（这个成员）：留着等人答框的单，人答完、单在账套里存完后用原回执号补报「已写入 + 原单号」（代录 held，
+    11-14；服务端只收这一种迟到终态）。补报被拒（4xx）不再试，网络错下次空闲再试。"""
     module = sys.modules.get(__name__.rsplit(".", 1)[0] + ".express_operator.host")
-    if module is not None and getattr(module, "_HOST", None) is not None:
+    if module is None or getattr(module, "_HOST", None) is None:
+        return
+    try:
+        module._HOST.idle()
+    except Exception:  # noqa: BLE001
+        pass
+    if cfg is None or qc is None:
+        return
+    try:
+        late = module._HOST.late_results(str(getattr(cfg, "profile_id", "") or ""))
+    except Exception:  # noqa: BLE001
+        return
+    for item in late:
         try:
-            module._HOST.idle()
-        except Exception:  # noqa: BLE001
-            pass
+            qc.ack_success(item["ack"], extracted_invoice_no=item["docnum"],
+                           meta={"operator": {"batch": item["batch"], "doc": item["doc"], "docnum": item["docnum"]}})
+            log.info(f"operator late result · ack={item['ack']} · doc={item['doc']} · docnum={item['docnum']}")
+            module._HOST.late_done(item["batch"], item["doc"])
+        except Exception as exc:  # noqa: BLE001
+            code = getattr(getattr(exc, "response", None), "status_code", 0) or 0
+            log.warning(f"operator late result refused · ack={item['ack']} · {type(exc).__name__} {code}")
+            if 400 <= int(code) < 500:
+                module._HOST.late_done(item["batch"], item["doc"])  # 服务端不收（已再派 / 单号对不上）：不再试
 
 
 def places_of(cfg) -> tuple:

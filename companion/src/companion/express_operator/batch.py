@@ -60,6 +60,10 @@ class DocState:
     held: bool = False
     # 账套里留下的半截单 ``{"docnum", "missing"}``（回执 meta.partial）。旧批次文件没有，按空读
     partial: Dict = field(default_factory=dict)
+    # 留着等人的这张按「未完成」回过的回执号与成员档案（``Host.note_late``）：人答完框、单在账套里存完后，用同一个回执号补报
+    # 「已写入 + 原单号」（服务端只收这一种迟到终态）。补报成功或放手时没存完就清空。旧批次文件没有，按空读
+    late_ack: str = ""
+    late_profile: str = ""
 
 
 @dataclass
@@ -149,6 +153,13 @@ def _write_lock(account_dir: str):
     from ..account_write_lock import held
 
     return held(account_dir)
+
+
+def release(state: "BatchState") -> None:
+    """放手：这一批不再留着 Express 等人（held 标记清掉）。"""
+    for doc in state.docs:
+        doc.held = False
+    state.held = ""
 
 
 class Held(Exception):
@@ -468,27 +479,27 @@ class Runner:
             return ""
 
     def still_held(self) -> bool:
-        """Express 还留着等人答框吗（只读，不点）。人答完、单在账套里存完 → 这张记已写入；框没了（人答了取消、关了 Express）
-        → 放手（那张仍是等人，再交来先读账套）。框还在 → 真。"""
+        """Express 还留着等人答框吗（只读，不点）。认不出的框还开着 → 真（不读账套：框没答完，单不会存完）。框没了 / Express 没了
+        → 读一次账套：那张存完了记已写入（带原单号，等补报）；没存完放手，那张仍等人（再交来先读账套），不补报。"""
         s = self.state
         if not s.held:
             return False
         d = s.doc(s.held)
+        opened = self.engine.open_unknown() if hasattr(self.engine, "open_unknown") else None
+        if opened and d is not None and d.status == K.WAITING:
+            return True
         if d is not None and d.status == K.WAITING and d.counts_before:
             try:
                 draft = self.draft_type(**d.draft)
                 found = (self.find_saved(draft, d.counts_before) if self.find_saved
                          else B.state_of(draft, self.book, d.counts_before))
-            except Exception:  # noqa: BLE001 — 读不了：看框还在不在
+            except Exception:  # noqa: BLE001 — 读不了：当没存完放手，再交来照样先读账套
                 found = {}
             if found.get("docnum"):
                 d.status, d.docnum, d.reason, d.detail, d.partial = K.SAVED, found["docnum"], "", "", {}
-        opened = self.engine.open_unknown() if hasattr(self.engine, "open_unknown") else None
-        if opened and d is not None and d.status == K.WAITING:
-            return True
-        for doc in s.docs:
-            doc.held = False
-        s.held = ""
+            else:
+                d.late_ack, d.late_profile = "", ""
+        release(s)
         self._set()
         return False
 

@@ -688,6 +688,10 @@ class WriteCheck(unittest.TestCase):
         gaps = module_constants(RULES / "common.py")["OPERATOR_PARTIAL_GAPS"]
         book = module_constants(COMPANION / "express_operator" / "book.py")
         self.assertEqual(set(gaps), {book["GAP_TOTAL"], book["GAP_LINES"], book["GAP_JOURNAL"], book["GAP_VAT"]})
+        # 迟到终态（接缝 e）：同一回执号（投递号）、成功、带原单号
+        idle = method_source_of(COMPANION / "worker.py", "operator_idle")
+        self.assertIn("qc.ack_success(item['ack'], extracted_invoice_no=item['docnum']", idle)
+        self.assertIn("operator_host.host().note_late(", method_source_of(COMPANION / "worker.py", "_ack_operator"))
 
     def test_automatic_pushes_only_go_to_a_version_that_returns_the_check(self):
         server = module_constants(self.PUSH / "automation" / "rules.py")["VERIFY_MIN_VERSION"]

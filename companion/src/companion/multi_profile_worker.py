@@ -324,7 +324,7 @@ class MultiProfileWorker:
                 self._emit_status(state, "idle")
                 from .worker import operator_idle
 
-                operator_idle()  # 代录过的话：剩下的单迟迟不来就退出 Express（没代录过什么都不做）
+                operator_idle(state.cfg, qc)  # 代录过的话：剩下的单迟迟不来就退出 Express；留着等人的单存完了补报
                 continue
 
             self._emit_status(
