@@ -44,8 +44,9 @@ def _job_id(company):
     return f"erp-mrerp-masters:{frappe.local.site}:{company}"
 
 
-def queue(company, notify=None):
-    """排一次整读（同一家公司排着的只留一件）。开关关着、公司没接 MR.ERP 的不排。"""
+def queue(company, notify=None, manual=False):
+    """排一次整读（同一家公司排着的只留一件）。开关关着、公司没接 MR.ERP 的不排。``manual``：人点出来的（从连接添加、公司页
+    选账套，`catalog.choose`）——读时先清这个 MR.ERP 账号的被踢标记、照常登录；定时与写单后的不算。"""
     if not mrerp.enabled() or not company:
         return False
     if not frappe.db.get_value(COMPANY, company, "mrerp_enabled"):
@@ -55,7 +56,8 @@ def queue(company, notify=None):
     if frappe.db.get_value(COMPANY, company, "express_sync_state") not in (ledger_masters.READING, ledger_masters.SYNCING):
         ledger_masters._record(company, {"state": ledger_masters.QUEUED})
     frappe.enqueue("pearnly_erp_portal.mrerp.masters.run", queue=ledger_masters.lane(), timeout=JOB_TIMEOUT,
-                   enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company)
+                   enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company,
+                   manual=bool(manual))
     return True
 
 
@@ -99,7 +101,7 @@ def sync_all():
             queue(row.name)
 
 
-def run(company):
+def run(company, manual=False):
     """（后台任务）整读这家公司的 MR.ERP 账套并落库。永不抛到队列：结果记在公司上，手动发起的推给发起人。"""
     if not mrerp.enabled():
         return
@@ -114,7 +116,7 @@ def run(company):
     result = {"state": ledger_masters.FAILED}
     try:
         lease = connections.lease(row.mrerp_connection)
-        facts, error, stats = master_export.read(lease, row.mrerp_account_set) if lease \
+        facts, error, stats = master_export.read(lease, row.mrerp_account_set, manual=bool(manual)) if lease \
             else (None, "ERR_NO_CREDS", {})
         if error:
             result = {"state": ledger_masters.FAILED, "note": error}

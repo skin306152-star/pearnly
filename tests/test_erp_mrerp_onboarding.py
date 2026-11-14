@@ -189,7 +189,7 @@ class RunTests(Base):
     def test_read_lands_through_the_express_landing(self):
         self.frappe.db.companies["CO-1"] = company()
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key: ({"customers": [{"code": "C1"}]}, None, {"requests": 10})
+        export.read = lambda lease, key, manual: ({"customers": [{"code": "C1"}]}, None, {"requests": 10})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
         self.assertEqual(self.ledger.applied, [("CO-1", "TEST2019", "MR.ERP", 1)])
@@ -199,11 +199,26 @@ class RunTests(Base):
     def test_unreadable_is_a_failure_not_an_empty_ledger(self):
         self.frappe.db.companies["CO-1"] = company()
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key: (None, "ERR_ACCOUNT_IN_USE", {})
+        export.read = lambda lease, key, manual: (None, "ERR_ACCOUNT_IN_USE", {})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
         self.assertEqual(self.ledger.applied, [])
         self.assertEqual(self.ledger.recorded[-1], ("CO-1", "failed", "ERR_ACCOUNT_IN_USE"))
+
+    def test_only_a_person_s_read_clears_the_kicked_mark(self):
+        """人点出来的那次（`catalog.choose` → ``queue(manual=True)``）读时清被踢标记；定时、写单后的不清。"""
+        self.frappe.db.companies["CO-1"] = company(express_synced_at=NOW - datetime.timedelta(hours=1))
+        seen = []
+        export = types.ModuleType("pearnly_core.mrerp.master_export")
+        export.read = lambda lease, key, manual: seen.append(manual) or (None, "ERR_TECHNICAL", {})
+        with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
+            self.masters.queue("CO-1", manual=True)
+            self.masters.after_write("CO-1")
+            for _method, kw in self.frappe.enqueued:
+                self.masters.run(kw["company"], manual=kw["manual"])
+            self.masters.run("CO-1")
+        self.assertEqual([kw["manual"] for _m, kw in self.frappe.enqueued], [True])
+        self.assertEqual(seen, [True, False])
 
 
 if __name__ == "__main__":

@@ -466,8 +466,11 @@ class KickedAccount(unittest.TestCase):
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "send", "release_kick"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "release_kick", "clear"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "_route", "manual"),
-            # 11-14 公司接入第 3 批（B13）：单据页「再写一次」对 MR.ERP 的单是人点的
-            ("apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "retry", "manual"),
+            # 11-14 公司接入第 3 批：人在从连接添加 / 公司页选账套后的那次主档整读（往下传的几层）
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "choose", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "queue", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "run", "manual"),
+            ("apps/pearnly_core/pearnly_core/mrerp/master_export.py", "read", "manual"),
             # 11-11 读取：共用入口（清标记只在这一处）与把 manual 往下传的几层
             ("apps/pearnly_core/pearnly_core/mrerp/account.py", "use", "clear"),
             ("apps/pearnly_core/pearnly_core/mrerp/menu_read.py", "read", "manual"),

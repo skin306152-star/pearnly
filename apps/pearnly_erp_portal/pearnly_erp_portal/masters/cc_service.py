@@ -292,12 +292,15 @@ def _catalog(search=None, check_admin=True) -> list:
         name = str(row.get("company") or row["label"])
         out.append({"identity": f"mrerp:{connection}:{row['key']}", "title": name, "legal_name": name,
                     "tax_id": row.get("tax_id") or "", "branch": HEAD_OFFICE if row.get("tax_id") else "", "branches": [],
+                    # MR.ERP 一家公司每个年度一份账套（同一公司名）：带上账套名才分得清
+                    "book": str(row.get("label") or "") if str(row.get("label") or "") != name else "",
                     "adapter": "mrerp", "years": [str(row.get("period_start") or "")[:4]] if row.get("period_start") else [],
                     "folders": [], "connection": connection, "account_set_key": row["key"],
                     "company": found.name if found else None, "linkable": False, "state": _state(found, False)})
     needle = " ".join(str(search or "").split()).casefold()
     if needle:
-        out = [item for item in out if needle in " ".join([item["title"], item["tax_id"], *item["years"]]).casefold()]
+        out = [item for item in out
+               if needle in " ".join([item["title"], item.get("book") or "", item["tax_id"], *item["years"]]).casefold()]
     out.sort(key=lambda item: (STATE_ORDER[item["state"]], item["title"].casefold()))
     return out
 

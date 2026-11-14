@@ -270,9 +270,10 @@ def read_session(session, today: Optional[date] = None) -> tuple:
     return facts, stats
 
 
-def read(lease, account_set_key) -> tuple:
+def read(lease, account_set_key, *, manual) -> tuple:
     """→ (主档 | None, 错误码 | None, 统计)。会话从共用入口拿（`account.use`：同账号锁、被踢标记、接上缓存会话）。
-    整读只在后台跑，永远不算人点的：账号被踢过、还没人在推送入口点过时不登录，回 ``ERR_ACCOUNT_IN_USE``。"""
+    ``manual``：人在明确的入口点出来的这一次（从连接添加、公司页选账套）先清被踢标记、照常登录；定时、写单后的不清，账号被踢过
+    时不登录、回 ``ERR_ACCOUNT_IN_USE``。由调用入口显式给。"""
     # 账号锁与会话入口只在真读时载入（解析部分在离线测试里不需要框架）
     from pearnly_core.session_lock import SessionLockUnavailable
     from pearnly_core.mrerp import account as mrerp_account
@@ -281,7 +282,7 @@ def read(lease, account_set_key) -> tuple:
     if not lease.get("username") or not lease.get("password"):
         return None, "ERR_NO_CREDS", {}
     try:
-        with mrerp_account.use(lease["system_url"], lease["username"], lease["password"], manual=False,
+        with mrerp_account.use(lease["system_url"], lease["username"], lease["password"], manual=manual,
                                lock_wait=LOCK_WAIT_SECONDS) as session:
             session.select(comidyear, seldb)
             facts, stats = read_session(session)

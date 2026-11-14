@@ -27,7 +27,7 @@
 	let dialog = null;
 
 	const esc = value => frappe.utils.escape_html(String(value ?? ""));
-	const meta_of = row => [row.tax_id,
+	const meta_of = row => [row.book, row.tax_id,
 		row.tax_id ? (!row.branch || row.branch === HEAD_OFFICE ? __("Head Office") : `${__("Branch")} ${row.branch}`) : "",
 		((row.folders || []).length ? row.folders : (row.years || [])).join(" ")].filter(Boolean).join(" · ");
 	const PILLS = {added: ["gray", () => __("company.connect.added")], inactive: ["orange", () => __("company.status.inactive")]};

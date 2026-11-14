@@ -2518,60 +2518,6 @@ class OperatorPrecheck(PushModule):
                          {"documents": [{"doc_id": "P:1", "state": "ready"}, {"doc_id": "S:2", "state": "ready"}]})
 
 
-class MrerpDocumentPage(PushModule):
-    """验收清单 B13（公司接入第 3 批）：账本是 MR.ERP 的单，单据页「要选」「再写一次」交给 MR.ERP 写账现成的 `mrerp.push.answer`
-    / `send`（人点的再写一次清被踢标记），不走 Express 的电脑写账件；结果不明、已写成的不给再写一次。"""
-
-    def _api(self):
-        utils = sys.modules["frappe.utils"]
-        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
-                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
-            setattr(utils, name, getattr(utils, name, value))
-        if not hasattr(frappe, "parse_json"):
-            frappe.parse_json = lambda value: json.loads(value) if isinstance(value, str) else value
-        from pearnly_erp_portal.express import api
-        from pearnly_erp_portal.mrerp import push as mrerp_push
-        return api, mrerp_push
-
-    def row(self, **values):
-        base = dict(name="PUR-1", company="CO-1", ledger_state="held", ledger_job=None, ledger_void_state=None,
-                    ledger_book=None, ledger_docnum="", ledger_reason="", ledger_needed=None)
-        base.update(values)
-        return types.SimpleNamespace(**base, get=lambda key: base.get(key))
-
-    def test_choice_and_retry_go_to_the_mrerp_side(self):
-        api, mrerp_push = self._api()
-        needed = '[{"kind": "mrerp_menu", "subject": "purchase", "options": [{"code": "68", "name": "A"}]}]'
-        held = self.row(ledger_reason="choice_needed:mrerp", ledger_needed=needed)
-        failed = self.row(ledger_state="failed", ledger_reason="ERR_TECHNICAL")
-        unknown = self.row(ledger_reason="mrerp.result_unknown")
-        written = self.row(ledger_state="written", ledger_docnum="PG691114-1")
-        sent, answered = [], []
-        current = {"row": held}
-        with mock.patch.object(api, "_document", lambda doctype, name, write=False: current["row"]), \
-                mock.patch.object(api.guard, "has", lambda capability: True), \
-                mock.patch.object(mrerp_push, "handles", lambda company: True), \
-                mock.patch.object(mrerp_push, "send", lambda doctype, name, manual=False: sent.append(manual) or {}), \
-                mock.patch.object(mrerp_push, "answer", lambda doctype, name, answers: answered.append(answers) or True), \
-                mock.patch.object(api.push, "send", side_effect=AssertionError("not the Express path")), \
-                mock.patch.object(api.jobs, "retry", side_effect=AssertionError("not the Express path")):
-            view = api._view("Purchase Document", held)
-            self.assertEqual((view["ledger"], view["can_answer"], view["can_retry"], view["needed"][0]["subject"]),
-                             ("mrerp", True, False, "purchase"))
-            api.answer("Purchase Document", "PUR-1", '[{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]')
-            self.assertEqual(answered, [[{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]])
-            current["row"] = failed
-            self.assertTrue(api._view("Purchase Document", failed)["can_retry"])
-            api.retry("Purchase Document", "PUR-1")
-            self.assertEqual(sent, [True])  # 人点的：清被踢标记
-            for row in (unknown, written):
-                current["row"] = row
-                self.assertFalse(api._view("Purchase Document", row)["can_retry"])
-                with self.assertRaises(frappe.PermissionError):
-                    api.retry("Purchase Document", "PUR-1")
-        self.assertEqual(sent, [True])
-
-
 class PosDayExits(PushModule):
     """B3b 验收复核（主会话 10-26）：收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的、电脑转人工）不能永远卡着：
     「再写一次」按此刻内容重新准备，「已在 Express 手工处理」标 handled、撤掉挂着的写账件；没停住的单不给这两个出口。"""

@@ -114,31 +114,7 @@ def _party_blocked(doctype, row, job):
     return []
 
 
-def _mrerp(row) -> bool:
-    """这张单的公司账本是 MR.ERP（开关开着、公司选了 MR.ERP 账套；`mrerp.push.handles`）：单据页的「要选 / 再写一次」交给
-    MR.ERP 写账那一侧现成的 `mrerp.push.answer` / `send`（公司接入第 3 批，验收清单 B13），不走 Express 的电脑写账件。"""
-    from pearnly_erp_portal.mrerp import push as mrerp_push
-
-    return mrerp_push.handles(row.company)
-
-
-def _mrerp_view(doctype, row):
-    from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
-
-    needed = _needed(row) if row.ledger_state == contracts.HELD else []
-    write = guard.has(CAPABILITIES[doctype][1])
-    # 结果不明（可能已导入）：不给再写一次，先去 MR.ERP 核对（同 `mrerp.push.send`）；正在导入 / 已写成的也不给
-    unknown = str(row.ledger_reason or "").startswith(mrerp_contracts.UNKNOWN)
-    retryable = row.ledger_state in (contracts.HELD, contracts.FAILED) and not needed and not unknown
-    return {"ledger": "mrerp", "state": row.ledger_state or "", "docnum": row.ledger_docnum or "",
-            "reason": row.ledger_reason or "", "void": row.get("ledger_void_state") or "", "needed": needed,
-            "can_answer": bool(needed) and write, "can_retry": retryable and write, "can_mark_handled": False,
-            "vat_whole": False, "waiting": ""}
-
-
 def _view(doctype, row):
-    if _mrerp(row):
-        return _mrerp_view(doctype, row)
     if not push.enabled(row.company):
         # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
         return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
@@ -254,14 +230,6 @@ def preflight(doctype, payload, answers=None, name=None):
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
-    if _mrerp(row):
-        from pearnly_erp_portal.mrerp import push as mrerp_push
-
-        answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
-        # 只认停在单据上的那几项、这一项能选的值；记在公司上后再排导入（`mrerp.push.answer`）
-        if not isinstance(answers, list) or not answers or not mrerp_push.answer(doctype, name, answers):
-            frappe.throw(_("Invalid request"))
-        return _view(doctype, _document(doctype, name))
     _require_enabled(row)
     job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     blocked = _party_blocked(doctype, row, job)
@@ -299,14 +267,6 @@ def retry(doctype, name):
     重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
-    if _mrerp(row):
-        from pearnly_erp_portal.mrerp import push as mrerp_push
-
-        if not _mrerp_view(doctype, row)["can_retry"]:
-            frappe.throw(_("Not Permitted"), frappe.PermissionError)
-        # 人在单据页点的：这个 MR.ERP 账号被踢过的标记先清掉、这次照常登录（同 CC 推送工具，验收清单 B11）
-        mrerp_push.send(doctype, name, manual=True)
-        return _view(doctype, _document(doctype, name))
     _require_enabled(row)
     if row.get("ledger_void_state"):
         void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None
