@@ -160,6 +160,7 @@ Balance,残高
 Balance Value,残高金額
 Bank,銀行
 Bank Transfer,銀行振込
+Bank account,銀行勘定
 Barcode,バーコード
 Barcode / QR code,バーコード / QRコード
 "Barcode, QR code or product code",バーコード・QRコード・商品コード
@@ -242,6 +243,7 @@ Cash Difference,現金差異
 Cash account not set,現金勘定が未設定です
 Cash basis,現金主義
 Cash is not set up for this account set,この帳簿には現金科目がありません
+Cash sales,現金売上
 Cashier,レジ
 Cashier (POS),レジ（POS）
 Cashier Records,レジ記録
@@ -430,6 +432,7 @@ Creation,作成日時
 Credit,掛け
 Credit Note,返品・値引伝票
 Credit notes need a person to post them in MR.ERP,返品・値引伝票は MR.ERP で手動で処理してください
+Credit sales,掛売上
 Currency,通貨
 Current,現在
 Custom,カスタム
@@ -444,6 +447,7 @@ Customer is disabled,顧客は無効です
 Customer is required,顧客は必須です
 Customer not found,顧客が見つかりません
 Customer not found. Please select the customer again.,顧客が見つかりません。選択し直してください。
+Customer type,顧客区分
 Customers,顧客
 Cyan,水色
 Daily,毎日
@@ -475,6 +479,7 @@ Delete this list and all its cards permanently? This cannot be undone.,このリ
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
 Deleted {0},{0} 件を削除しました
 Deleted {0} stock counts,棚卸を {0} 件削除しました
+Delivery type,配送方法
 Department,部門
 Description,説明
 Details,詳細
@@ -557,6 +562,7 @@ Email,メール
 Email Receipt,領収書をメール送信
 Email not sent to {0} (unsubscribed / disabled),{0} にメールを送信できませんでした（配信停止・無効）
 Email sent successfully.,メールを送信しました
+Employee,担当者
 Enable,有効化
 Enable / disable,有効 / 無効
 Enable POS cashier,POS レジを有効にする
@@ -610,6 +616,7 @@ Expense,経費
 Expense Account,費用勘定
 Expense Amount,経費金額
 Expense Count,経費件数
+Expense account,費用勘定
 Export,エクスポート
 Export Excel,Excel に出力
 Export {0},{0}件をエクスポート
@@ -773,6 +780,7 @@ Items are required,品目を入力してください
 Items found at a different place,違う場所で見つかった商品
 Items not found.,商品が見つかりません
 "Items with a difference, largest first",差異のある商品（大きい順）
+Job,案件
 Job Roles,機能権限
 Keep,引き継ぐ
 "Keep product IDs, codes and barcodes as text in the opening stock file",商品ID・コード・バーコードは文字列形式にしてください
@@ -839,12 +847,15 @@ Loyalty Points,ロイヤルティポイント
 Loyalty Program,ロイヤルティプログラム
 MR.ERP,MR.ERP
 MR.ERP Company,MR.ERP 会社
+MR.ERP No.,MR.ERP 番号
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
+MR.ERP import menu,MR.ERP 取込メニュー
 MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
 MR.ERP returned an error. Check in MR.ERP,MR.ERP がエラーを返しました。MR.ERP で確認してください
+MR.ERP settings,MR.ERP 設定
 MR.ERP sign-in is not authorized,MR.ERP のログインが未許可です
 Main,メイン倉庫
 Maintained in Express,Express で管理
@@ -1055,6 +1066,7 @@ Party,取引先
 Password updated,パスワードを更新しました
 Paste a link,リンクを貼り付け
 Pay,会計
+Payable account,買掛金勘定
 Payment,支払
 Payment Date,支払日
 Payment Evidence,支払証跡
@@ -1129,6 +1141,7 @@ Product Ref,商品の外部参照
 Product Rows  {0},品目明細  {0}  件
 Product Total,品目小計
 Product code,品目コード
+Product group,商品分類
 Product group not found in Express,Express にこの商品グループがありません
 Product is disabled,商品は無効になっています
 Product name,商品名
@@ -1143,6 +1156,8 @@ PromptPay QR,コード決済（PromptPay）
 Provide at least one line item,明細を最低 1 行入力してください
 Provide between 1 and 5000 opening stock rows,期首明細を1〜5000行入力してください
 Purchase,仕入
+Purchase (expense),仕入（経費）
+Purchase (goods),仕入（商品）
 Purchase Amount,仕入金額
 Purchase Count,仕入件数
 Purchase Invoice,仕入請求書
@@ -1190,6 +1205,7 @@ Receipt Value,受入金額
 Receipt {0} · Change {1},レシート {0} · お釣り {1}
 Receipts,レシート枚数
 Receipts and simplified tax invoices are usually not claimed,レシートと簡易税票は通常控除しません
+Receivable account,売掛金勘定
 Receive documents and add stock,伝票を登録して入庫
 Received,入庫数量
 Received Amount,入金額
@@ -1287,6 +1303,7 @@ Sales,販売
 Sales Count,件数
 Sales Document,販売伝票
 Sales Records,売上記録
+Sales area,販売地域
 Sales returns account,売上返品勘定
 Salesman,営業担当
 Save,保存
@@ -1460,6 +1477,7 @@ Supplier is disabled,仕入先は無効です
 Supplier is required,仕入先を入力してください
 Supplier not found,仕入先が見つかりません
 Supplier not found. Please select the supplier again.,仕入先が見つかりません。選択し直してください。
+Supplier type,仕入先区分
 Suppliers,仕入先数
 Switch Between Payment Modes,支払方法を切り替え
 Switch company,会社を切り替える
@@ -2498,6 +2516,22 @@ hq,本店
 issued,発行済み
 keyword,カードを検索
 member,メンバー
+mrerp.default.ap_account,買掛金勘定
+mrerp.default.ar_account,売掛金勘定
+mrerp.default.area,販売地域
+mrerp.default.bank_account,銀行勘定
+mrerp.default.branch,支店
+mrerp.default.customer_type,顧客区分
+mrerp.default.delivery,配送方法
+mrerp.default.dept,部門
+mrerp.default.employee,担当者
+mrerp.default.expense_account,費用勘定
+mrerp.default.job,案件
+mrerp.default.product_group,商品分類
+mrerp.default.store,倉庫
+mrerp.default.supplier_type,仕入先区分
+mrerp.default.title,MR.ERP 設定
+mrerp.default.unit,単位
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,金額が合いません。直して再送信してください
 mrerp.error.ERR_AUTH,MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください
@@ -2533,6 +2567,11 @@ mrerp.error.date_future,伝票日付が未来です。直して再送信して�
 mrerp.error.date_implausible,伝票日付がおかしいようです。確認して再送信してください
 mrerp.error.mrerp_credit_note,返品・値引伝票は MR.ERP で手動で処理してください
 mrerp.error.mrerp_currency_not_thb,MR.ERP に送れるのはタイバーツの伝票だけです
+mrerp.menu.purchase,仕入（商品）
+mrerp.menu.purchase_expense,仕入（経費）
+mrerp.menu.sales_cash,現金売上
+mrerp.menu.sales_credit,掛売上
+mrerp.menu.title,MR.ERP 取込メニュー
 mrerp.reason.accountBusy,この MR.ERP アカウントは代行入力中です
 mrerp.reason.importing,MR.ERP に取込中
 mrerp.reason.loginMissing,MR.ERP のログインが未許可です

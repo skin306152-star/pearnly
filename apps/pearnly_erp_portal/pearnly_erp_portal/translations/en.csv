@@ -160,6 +160,7 @@ Balance,Balance
 Balance Value,Balance Value
 Bank,Bank
 Bank Transfer,Bank Transfer
+Bank account,Bank account
 Barcode,Barcode
 Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
@@ -242,6 +243,7 @@ Cash Difference,Cash Difference
 Cash account not set,Cash account not set
 Cash basis,Cash basis
 Cash is not set up for this account set,Cash is not set up for this account set
+Cash sales,Cash sales
 Cashier,Cashier
 Cashier (POS),Cashier (POS)
 Cashier Records,Cashier Records
@@ -430,6 +432,7 @@ Creation,Creation
 Credit,Credit
 Credit Note,Credit Note
 Credit notes need a person to post them in MR.ERP,Credit notes need a person to post them in MR.ERP
+Credit sales,Credit sales
 Currency,Currency
 Current,Current
 Custom,Custom
@@ -444,6 +447,7 @@ Customer is disabled,Customer is disabled
 Customer is required,Customer is required
 Customer not found,Customer not found
 Customer not found. Please select the customer again.,Customer not found. Please select the customer again.
+Customer type,Customer type
 Customers,Customers
 Cyan,Cyan
 Daily,Daily
@@ -475,6 +479,7 @@ Delete this list and all its cards permanently? This cannot be undone.,Delete th
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted {0},Deleted {0}
 Deleted {0} stock counts,Deleted {0} stock counts
+Delivery type,Delivery type
 Department,Department
 Description,Description
 Details,Details
@@ -557,6 +562,7 @@ Email,Email
 Email Receipt,Email Receipt
 Email not sent to {0} (unsubscribed / disabled),Email not sent to {0} (unsubscribed / disabled)
 Email sent successfully.,Email sent successfully.
+Employee,Employee
 Enable,Enable
 Enable / disable,Enable / disable
 Enable POS cashier,Enable POS cashier
@@ -610,6 +616,7 @@ Expense,Expense
 Expense Account,Expense Account
 Expense Amount,Expense Amount
 Expense Count,Expense Count
+Expense account,Expense account
 Export,Export
 Export Excel,Export Excel
 Export {0},Export {0}
@@ -773,6 +780,7 @@ Items are required,Items are required
 Items found at a different place,Items found at a different place
 Items not found.,Items not found.
 "Items with a difference, largest first","Items with a difference, largest first"
+Job,Job
 Job Roles,Job Roles
 Keep,Keep
 "Keep product IDs, codes and barcodes as text in the opening stock file","Keep product IDs, codes and barcodes as text in the opening stock file"
@@ -839,12 +847,15 @@ Loyalty Points,Loyalty Points
 Loyalty Program,Loyalty Program
 MR.ERP,MR.ERP
 MR.ERP Company,MR.ERP Company
+MR.ERP No.,MR.ERP No.
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP does not support this tax rate. Check it and submit again
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
+MR.ERP import menu,MR.ERP import menu
 MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
 MR.ERP returned an error. Check in MR.ERP,MR.ERP returned an error. Check in MR.ERP
+MR.ERP settings,MR.ERP settings
 MR.ERP sign-in is not authorized,MR.ERP sign-in is not authorized
 Main,Main
 Maintained in Express,Maintained in Express
@@ -1055,6 +1066,7 @@ Party,Party
 Password updated,Password updated
 Paste a link,Paste a link
 Pay,Pay
+Payable account,Payable account
 Payment,Payment
 Payment Date,Payment Date
 Payment Evidence,Payment Evidence
@@ -1129,6 +1141,7 @@ Product Ref,Product Ref
 Product Rows  {0},Product Rows  {0}
 Product Total,Product Total
 Product code,Product code
+Product group,Product group
 Product group not found in Express,Product group not found in Express
 Product is disabled,Product is disabled
 Product name,Product name
@@ -1143,6 +1156,8 @@ PromptPay QR,PromptPay QR
 Provide at least one line item,Provide at least one line item
 Provide between 1 and 5000 opening stock rows,Provide between 1 and 5000 opening stock rows
 Purchase,Purchase
+Purchase (expense),Purchase (expense)
+Purchase (goods),Purchase (goods)
 Purchase Amount,Purchase Amount
 Purchase Count,Purchase Count
 Purchase Invoice,Purchase Invoice
@@ -1190,6 +1205,7 @@ Receipt Value,Receipt Value
 Receipt {0} · Change {1},Receipt {0} · Change {1}
 Receipts,Receipts
 Receipts and simplified tax invoices are usually not claimed,Receipts and simplified tax invoices are usually not claimed
+Receivable account,Receivable account
 Receive documents and add stock,Receive documents and add stock
 Received,Received
 Received Amount,Received Amount
@@ -1287,6 +1303,7 @@ Sales,Sales
 Sales Count,Sales Count
 Sales Document,Sales Document
 Sales Records,Sales Records
+Sales area,Sales area
 Sales returns account,Sales returns account
 Salesman,Salesman
 Save,Save
@@ -1460,6 +1477,7 @@ Supplier is disabled,Supplier is disabled
 Supplier is required,Supplier is required
 Supplier not found,Supplier not found
 Supplier not found. Please select the supplier again.,Supplier not found. Please select the supplier again.
+Supplier type,Supplier type
 Suppliers,Suppliers
 Switch Between Payment Modes,Switch Between Payment Modes
 Switch company,Switch company
@@ -2498,6 +2516,22 @@ hq,hq
 issued,issued
 keyword,keyword
 member,member
+mrerp.default.ap_account,Payable account
+mrerp.default.ar_account,Receivable account
+mrerp.default.area,Sales area
+mrerp.default.bank_account,Bank account
+mrerp.default.branch,Branch
+mrerp.default.customer_type,Customer type
+mrerp.default.delivery,Delivery type
+mrerp.default.dept,Department
+mrerp.default.employee,Employee
+mrerp.default.expense_account,Expense account
+mrerp.default.job,Job
+mrerp.default.product_group,Product group
+mrerp.default.store,Warehouse
+mrerp.default.supplier_type,Supplier type
+mrerp.default.title,MR.ERP settings
+mrerp.default.unit,Unit
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,An account used is not in the MR.ERP chart of accounts. Check the account settings
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,The amounts do not add up. Correct them and submit again
 mrerp.error.ERR_AUTH,Could not sign in to MR.ERP. Check the connection's username and password
@@ -2533,6 +2567,11 @@ mrerp.error.date_future,The invoice date is in the future. Correct it and submit
 mrerp.error.date_implausible,The invoice date looks wrong. Correct it and submit again
 mrerp.error.mrerp_credit_note,Credit notes need a person to post them in MR.ERP
 mrerp.error.mrerp_currency_not_thb,Only invoices in Thai baht can be sent to MR.ERP
+mrerp.menu.purchase,Purchase (goods)
+mrerp.menu.purchase_expense,Purchase (expense)
+mrerp.menu.sales_cash,Cash sales
+mrerp.menu.sales_credit,Credit sales
+mrerp.menu.title,MR.ERP import menu
 mrerp.reason.accountBusy,This MR.ERP account is in an operator entry
 mrerp.reason.importing,Importing into MR.ERP
 mrerp.reason.loginMissing,MR.ERP sign-in is not authorized

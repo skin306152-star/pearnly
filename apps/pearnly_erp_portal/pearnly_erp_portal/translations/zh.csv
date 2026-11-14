@@ -160,6 +160,7 @@ Balance,结存
 Balance Value,结存金额
 Bank,银行
 Bank Transfer,银行转账
+Bank account,银行收款科目
 Barcode,条码
 Barcode / QR code,条码/二维码
 "Barcode, QR code or product code",条形码、二维码或物料编码
@@ -242,6 +243,7 @@ Cash Difference,现金差额
 Cash account not set,现金科目未定
 Cash basis,收付实现制
 Cash is not set up for this account set,此账套未设置现金科目
+Cash sales,现金销售
 Cashier,收银
 Cashier (POS),收银（POS）
 Cashier Records,收银记录
@@ -430,6 +432,7 @@ Creation,创建日期
 Credit,赊账
 Credit Note,贷项通知单
 Credit notes need a person to post them in MR.ERP,贷项通知单需在 MR.ERP 中人工处理
+Credit sales,赊销
 Currency,货币
 Current,当前
 Custom,自定义
@@ -444,6 +447,7 @@ Customer is disabled,客户已停用
 Customer is required,客户不能为空
 Customer not found,未找到客户
 Customer not found. Please select the customer again.,客户不存在，请重新选择客户。
+Customer type,客户类型
 Customers,客户
 Cyan,青
 Daily,每天
@@ -475,6 +479,7 @@ Delete this list and all its cards permanently? This cannot be undone.,确定要
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
 Deleted {0},已删除 {0}
 Deleted {0} stock counts,已删除 {0} 份盘点
+Delivery type,运输方式
 Department,部门
 Description,描述
 Details,详细信息
@@ -557,6 +562,7 @@ Email,邮箱
 Email Receipt,邮件发送收据
 Email not sent to {0} (unsubscribed / disabled),未向 {0} 发送邮件（已退订 / 已停用）
 Email sent successfully.,邮件已发送
+Employee,员工
 Enable,启用
 Enable / disable,启用 / 停用
 Enable POS cashier,启用 POS 收银台
@@ -610,6 +616,7 @@ Expense,费用
 Expense Account,费用科目
 Expense Amount,费用金额
 Expense Count,费用笔数
+Expense account,费用科目
 Export,导出
 Export Excel,导出 Excel
 Export {0},导出选中的 {0} 个班次
@@ -773,6 +780,7 @@ Items are required,物料明细不能为空
 Items found at a different place,位置不一样的商品
 Items not found.,未找到物料
 "Items with a difference, largest first",有差异的商品，差得最多的排在最前
+Job,项目
 Job Roles,功能权限
 Keep,保留
 "Keep product IDs, codes and barcodes as text in the opening stock file",期初文件中的物料标识、编码和条码请使用文本格式
@@ -839,12 +847,15 @@ Loyalty Points,忠诚度积分
 Loyalty Program,忠诚度计划
 MR.ERP,MR.ERP
 MR.ERP Company,MR.ERP 公司
+MR.ERP No.,MR.ERP 单号
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP 不支持此税率，请核对税率后重新提交
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
+MR.ERP import menu,MR.ERP 导入菜单
 MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊购录入。
 MR.ERP returned an error. Check in MR.ERP,MR.ERP 返回错误，请在 MR.ERP 中核对
+MR.ERP settings,MR.ERP 设置
 MR.ERP sign-in is not authorized,MR.ERP 登录未授权
 Main,主仓
 Maintained in Express,由 Express 维护
@@ -1055,6 +1066,7 @@ Party,往来单位
 Password updated,密码已更新
 Paste a link,粘贴链接
 Pay,收款
+Payable account,应付科目
 Payment,付款
 Payment Date,付款日期
 Payment Evidence,付款凭证
@@ -1129,6 +1141,7 @@ Product Ref,物料外部标识
 Product Rows  {0},物料明细  {0}  笔
 Product Total,物料小计
 Product code,系统编码
+Product group,商品分类
 Product group not found in Express,Express 中没有此物料分类
 Product is disabled,物料已停用
 Product name,物料名称
@@ -1143,6 +1156,8 @@ PromptPay QR,扫码（PromptPay）
 Provide at least one line item,至少需要一行明细
 Provide between 1 and 5000 opening stock rows,请填写 1 至 5000 条期初明细
 Purchase,采购
+Purchase (expense),采购（费用）
+Purchase (goods),采购（货品）
 Purchase Amount,采购金额
 Purchase Count,采购笔数
 Purchase Invoice,采购发票
@@ -1190,6 +1205,7 @@ Receipt Value,收入金额
 Receipt {0} · Change {1},小票 {0} · 找零 {1}
 Receipts,小票张数
 Receipts and simplified tax invoices are usually not claimed,小票、简易税票的税额一般不抵进项
+Receivable account,应收科目
 Receive documents and add stock,收单并入库
 Received,入库数量
 Received Amount,已收金额
@@ -1287,6 +1303,7 @@ Sales,销售
 Sales Count,销售笔数
 Sales Document,销售单据
 Sales Records,销售记录
+Sales area,销售区域
 Sales returns account,销货退回科目
 Salesman,销售员
 Save,保存
@@ -1460,6 +1477,7 @@ Supplier is disabled,供应商已停用
 Supplier is required,供应商不能为空
 Supplier not found,供应商不存在
 Supplier not found. Please select the supplier again.,供应商不存在，请重新选择供应商。
+Supplier type,供应商类型
 Suppliers,供应商
 Switch Between Payment Modes,切换支付方式
 Switch company,切换公司
@@ -2498,6 +2516,22 @@ hq,总部
 issued,已开出
 keyword,搜索卡片
 member,成员
+mrerp.default.ap_account,应付科目
+mrerp.default.ar_account,应收科目
+mrerp.default.area,销售区域
+mrerp.default.bank_account,银行收款科目
+mrerp.default.branch,分店
+mrerp.default.customer_type,客户类型
+mrerp.default.delivery,运输方式
+mrerp.default.dept,部门
+mrerp.default.employee,员工
+mrerp.default.expense_account,费用科目
+mrerp.default.job,项目
+mrerp.default.product_group,商品分类
+mrerp.default.store,仓库
+mrerp.default.supplier_type,供应商类型
+mrerp.default.title,MR.ERP 设置
+mrerp.default.unit,单位
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,所用科目不在 MR.ERP 科目表中，请检查科目设置
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,金额合计不一致，请更正后重新提交
 mrerp.error.ERR_AUTH,MR.ERP 登录失败，请检查连接的账号和密码
@@ -2533,6 +2567,11 @@ mrerp.error.date_future,票面日期晚于当前日期，请更正后重新提�
 mrerp.error.date_implausible,票面日期可能有误，请核对后重新提交
 mrerp.error.mrerp_credit_note,贷项通知单需在 MR.ERP 中人工处理
 mrerp.error.mrerp_currency_not_thb,仅泰铢发票可推送至 MR.ERP
+mrerp.menu.purchase,采购（货品）
+mrerp.menu.purchase_expense,采购（费用）
+mrerp.menu.sales_cash,现金销售
+mrerp.menu.sales_credit,赊销
+mrerp.menu.title,MR.ERP 导入菜单
 mrerp.reason.accountBusy,此 MR.ERP 账号正在代录
 mrerp.reason.importing,正在导入 MR.ERP
 mrerp.reason.loginMissing,MR.ERP 登录未授权

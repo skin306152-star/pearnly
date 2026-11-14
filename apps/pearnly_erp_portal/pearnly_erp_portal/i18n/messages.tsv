@@ -2136,3 +2136,25 @@ ERP purchase recognition	采购单据识别	อ่านเอกสารซื
 ERP sales recognition	销售单据识别	อ่านเอกสารขาย	売上書類の読み取り	
 Finish this stock count?	确定要结束此盘点吗？	ปิดการตรวจนับนี้หรือไม่	この棚卸を終了しますか？
 Withdraw this collection?	确定要撤回此收款吗？	ถอนรายการรับชำระนี้หรือไม่	この入金を取り下げますか？
+MR.ERP import menu	MR.ERP 导入菜单	เมนูนำเข้า MR.ERP	MR.ERP 取込メニュー	mrerp.menu.title
+Purchase (goods)	采购（货品）	ซื้อ (สินค้า)	仕入（商品）	mrerp.menu.purchase
+Purchase (expense)	采购（费用）	ซื้อ (ค่าใช้จ่าย)	仕入（経費）	mrerp.menu.purchase_expense
+Credit sales	赊销	ขายเชื่อ	掛売上	mrerp.menu.sales_credit
+Cash sales	现金销售	ขายเงินสด	現金売上	mrerp.menu.sales_cash
+MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設定	mrerp.default.title
+Branch	分店	สาขา	支店	mrerp.default.branch
+Department	部门	แผนก	部門	mrerp.default.dept
+Job	项目	งาน	案件	mrerp.default.job
+Warehouse	仓库	คลังสินค้า	倉庫	mrerp.default.store
+Employee	员工	พนักงาน	担当者	mrerp.default.employee
+Sales area	销售区域	พื้นที่การขาย	販売地域	mrerp.default.area
+Delivery type	运输方式	ประเภทขนส่ง	配送方法	mrerp.default.delivery
+Customer type	客户类型	ประเภทลูกค้า	顧客区分	mrerp.default.customer_type
+Receivable account	应收科目	บัญชีลูกหนี้	売掛金勘定	mrerp.default.ar_account
+Supplier type	供应商类型	ประเภทผู้จำหน่าย	仕入先区分	mrerp.default.supplier_type
+Payable account	应付科目	บัญชีเจ้าหนี้	買掛金勘定	mrerp.default.ap_account
+Bank account	银行收款科目	บัญชีเงินฝากธนาคาร	銀行勘定	mrerp.default.bank_account
+Product group	商品分类	หมวดสินค้า	商品分類	mrerp.default.product_group
+Unit	单位	หน่วยนับ	単位	mrerp.default.unit
+Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	mrerp.default.expense_account
+MR.ERP No.	MR.ERP 单号	เลขที่ MR.ERP	MR.ERP 番号

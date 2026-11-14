@@ -3814,12 +3814,16 @@ class ExpressWaiting(PushModule):
         waiting.mark("ERP POS Day Summary", rows, key="express_summary")
         self.assertEqual([row.get("ledger_waiting") for row in rows], ["express_open", "express_open", None])
 
-    def view(self, **values):
+    def api(self):
         utils = sys.modules["frappe.utils"]
         for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
                             ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
             setattr(utils, name, getattr(utils, name, value))
         from pearnly_erp_portal.express import api
+        return api
+
+    def view(self, **values):
+        api = self.api()
         base = {"name": "PUR-1", "company": "CO-1", "ledger_state": "queued", "ledger_job": "J1", "ledger_book": None,
                 "ledger_docnum": "", "ledger_reason": "", "ledger_needed": None}
         row = Row({**base, **values})
@@ -3854,6 +3858,56 @@ class ExpressWaiting(PushModule):
         self.job("J1")
         fake.STATE.db.table("ERP Company")["CO-1"]["express_enabled"] = 0
         self.assertEqual(self.view()["waiting"], "")
+
+    def test_the_dialog_takes_its_ledger_from_the_document_then_the_company(self):
+        """B13（11-14）：同一个账本弹窗按账本来源取文案与调用；来源 = 单据记的账本，没记过看公司（`mrerp.push.handles`）。"""
+        api = self.api()
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True):
+            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="mrerp")), "mrerp")
+            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="")), "mrerp")
+            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="express")), "express")
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: False):  # 开关关着 / 公司不是 MR.ERP 账本
+            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="mrerp")), "express")
+            self.assertEqual(api.ledger_of(Row(company="CO-1")), "express")
+
+    def mrerp_view(self, **values):
+        api = self.api()
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True):
+            return self.view(ledger_target="mrerp", ledger_job=None, **values)
+
+    def test_an_mrerp_document_gets_the_same_dialog_exits(self):
+        menu = [{"kind": "mrerp_menu", "subject": "purchase", "options": [{"code": "68", "name": "ซื้อ"}]},
+                {"kind": "mrerp_default", "subject": "ap_account", "options": [{"code": "2120-03", "name": "เจ้าหนี้"}]}]
+        view = self.mrerp_view(ledger_state="held", ledger_reason="choice_needed:mrerp", ledger_needed=json.dumps(menu))
+        self.assertEqual((view["ledger"], view["can_answer"], view["can_retry"]), ("mrerp", True, False))
+        self.assertEqual([item["label"] for item in view["needed"]], ["mrerp.menu.purchase", "mrerp.default.ap_account"])
+        view = self.mrerp_view(ledger_state="failed", ledger_reason="ERR_MRERP_CASH_SUPPLIER_NOT_CASH")
+        self.assertEqual((view["needed"], view["can_answer"], view["can_retry"]), ([], False, True))
+        self.assertTrue(self.mrerp_view(ledger_state="held", ledger_reason="mrerp.login_missing")["can_retry"])
+        for state, reason in (("held", "mrerp.result_unknown: ERR_TECHNICAL"), ("queued", "mrerp.importing"),
+                              ("written", ""), ("mismatch", "")):
+            view = self.mrerp_view(ledger_state=state, ledger_reason=reason, ledger_docnum="PG691114-1")
+            self.assertEqual((view["can_answer"], view["can_retry"], view["docnum"]), (False, False, "PG691114-1"), state)
+
+    def test_mrerp_retry_and_answer_go_to_the_mrerp_import(self):
+        api = self.api()
+        failed = Row(name="PUR-1", company="CO-1", ledger_target="mrerp", ledger_state="failed", ledger_reason="ERR_X",
+                     ledger_docnum="", ledger_needed=None, ledger_job=None, ledger_book=None)
+        sent, answered = [], []
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True), \
+                mock.patch.object(api, "_document", lambda doctype, name, write=False: failed), \
+                mock.patch.object(api.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(api.mrerp_push, "send", lambda d, n, manual=False: sent.append((d, n, manual))), \
+                mock.patch.object(api.mrerp_push, "answer", lambda d, n, a: answered.append(a) or True), \
+                mock.patch.object(api.frappe, "parse_json", json.loads, create=True):
+            api.retry("Purchase Document", "PUR-1")
+            self.assertEqual(sent, [("Purchase Document", "PUR-1", True)])  # 人点的：清被踢标记
+            api.answer("Purchase Document", "PUR-1", json.dumps([{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]))
+            self.assertEqual(answered, [[{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]])
+            failed["ledger_reason"] = "mrerp.result_unknown: ERR_TECHNICAL"  # 结果不明：可能已写进去，不再推
+            with self.assertRaises(Exception):
+                api.retry("Purchase Document", "PUR-1")
+            self.assertEqual(len(sent), 1)
 
     def test_every_list_entry_marks_its_page(self):
         """采购、销售、出入库 / 调拨、收银小票四个列表接口都给这一页补 ``ledger_waiting``（导出与合计不走这里）。"""

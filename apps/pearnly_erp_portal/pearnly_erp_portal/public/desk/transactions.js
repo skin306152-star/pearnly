@@ -144,6 +144,8 @@
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt", vat_registered: "express.kind.vatRegistered",
 		refund: "express.kind.refundAccount", exempt_mode: "express.kind.exemptMode", service_vat: "express.kind.serviceVat",
+		// 账本是 MR.ERP 的单（`express.api._mrerp_view`）：导入菜单 / 默认值，选项说明是服务端译好的单据类型 / 字段
+		mrerp_menu: "mrerp.menu.title", mrerp_default: "mrerp.default.title",
 	};
 	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
@@ -214,6 +216,7 @@
 		const api = "pearnly_erp_portal.express.api.";
 		const info = await p.call(api + "document_express", {doctype, name}, "POST");
 		const direction = doctype === "Purchase Document" ? "purchase" : "sales";
+		const mrerp_ledger = info.ledger === "mrerp";  // 同一个弹窗按账本来源取标题与单号栏（服务端 `ledger_of`）
 		// CC 桌面版回报的「[错误码] 原文」：认得的码给译文（会计期间已关账等），其余原样
 		const code = (info.reason || "").match(/^\[([A-Z0-9_]+)\]/)?.[1];
 		// 其余电脑回报的码照 Cowork 同一套文案（`express.error.<码>`），没有译文的才原样
@@ -239,7 +242,8 @@
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
 					failed: "Failed", handled: "express.state.handled", detached: "express.state.detached"}[info.state] || info.state)},
-			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
+			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: mrerp_ledger ? __("MR.ERP No.") : __("Express No."),
+				read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
 				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
@@ -258,7 +262,7 @@
 				}, __("express.action.markHandled"))}] : []),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
-		p.dialog(__("Express"), fields, action, async (values, dialog) => {
+		p.dialog(mrerp_ledger ? "MR.ERP" : __("Express"), fields, action, async (values, dialog) => {
 			if (info.can_answer) {
 				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(answers_of(info.needed, values))}, "POST");
 				p.success(__("Saved"), "click");
