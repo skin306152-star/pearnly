@@ -1059,7 +1059,7 @@ Line items	明细	รายการ	明細	guide.q.detail
 Cash account	收付款科目	บัญชีรับจ่ายเงิน	入出金勘定	guide.q.cash_account
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
 Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
-Write	是否写入	บันทึกหรือไม่	書き込み	guide.q.document_policy
+Post	是否入账	บันทึกบัญชีหรือไม่	記帳	guide.q.document_policy
 Type	业务类型	ประเภท	種類	guide.q.direction
 Account set	账套	ชุดบัญชี	帳簿	guide.q.account_set
 Account set	账套	ชุดบัญชี	帳簿	guide.q.current_book
@@ -1068,13 +1068,13 @@ Credit	赊账	เงินเชื่อ	掛け	guide.option.payment.credit
 Claim	抵扣	ขอคืน	控除	guide.option.vat.claim
 Expense	记入费用	บันทึกเป็นค่าใช้จ่าย	費用計上	guide.option.vat.expense
 Amount only	只记金额	บันทึกเฉพาะยอดเงิน	金額のみ	guide.option.detail.amount_only
-Skip	不写入	ไม่บันทึก	書き込まない	guide.option.detail.skip
+Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.detail.skip
 Accrual basis	权责发生制	เกณฑ์สิทธิ	発生主義	guide.option.service_vat.accrual
 Cash basis	收付实现制	เกณฑ์เงินสด	現金主義	guide.option.service_vat.cash_basis
 Stock	走库存	สต็อก	在庫	guide.option.goods_posting.stock
 Expense	记费用	ค่าใช้จ่าย	費用	guide.option.goods_posting.service
-Write	写入	บันทึก	書き込む	guide.option.document_policy.enter
-Skip	不写入	ไม่บันทึก	書き込まない	guide.option.document_policy.skip
+Post	入账	บันทึกบัญชี	記帳する	guide.option.document_policy.enter
+Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.document_policy.skip
 Purchase	采购	ซื้อ	仕入	guide.option.direction.purchase
 Expense	费用	ค่าใช้จ่าย	経費	guide.option.direction.expense
 Sales	销售	ขาย	売上	guide.option.direction.sales
@@ -1088,7 +1088,7 @@ Document	票面	เอกสาร	書類	guide.source.face
 Source document	来源单据	เอกสารต้นทาง	元伝票	guide.source.pinned
 This document	本单	เอกสารนี้	この伝票	guide.source.document
 Task default	任务默认	ค่าเริ่มต้นของงาน	タスクの既定値	guide.source.task_default
-Asked before writing	写入前已询问	ถามก่อนบันทึกแล้ว	書き込み前に確認しました	
+Asked before posting	入账前已询问	ถามก่อนบันทึกบัญชีแล้ว	記帳前に確認しました	
 Business	业务	ธุรกรรม	業務	
 Business Chosen At	选择业务时间	เวลาที่เลือกธุรกรรม	業務選択日時	
 From the document type	按票种判断	ตามประเภทเอกสาร	書類の種類から判断	guide.why.payment.rule
@@ -1101,11 +1101,11 @@ Account set setting	账套设置	การตั้งค่าชุดบั�
 Recorded as a cash purchase or sale	记为现购 / 现销	บันทึกเป็นซื้อ / ขายเงินสด	現金仕入・現金売上として記帳	guide.desc.payment.cash
 Recorded as a credit purchase or sale	记为赊购 / 赊销	บันทึกเป็นซื้อ / ขายเงินเชื่อ	掛仕入・掛売上として記帳	guide.desc.payment.credit
 Header and journal only, no stock	只记表头与分录，不入库	บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก	見出しと仕訳のみ、在庫に入れない	guide.desc.detail.amount_only
-Not written this time	本次不写入	ครั้งนี้ไม่บันทึก	今回は書き込まない	guide.desc.detail.skip
-Not written this time	本次不写入	ครั้งนี้ไม่บันทึก	今回は書き込まない	guide.desc.document_policy.skip
+Not posted this time	本次不入账	ครั้งนี้ไม่บันทึกบัญชี	今回は記帳しない	guide.desc.detail.skip
+Not posted this time	本次不入账	ครั้งนี้ไม่บันทึกบัญชี	今回は記帳しない	guide.desc.document_policy.skip
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.party.__new__
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.item.__new__
 {count} documents are {label}	{count} 张票面是{label}	เอกสาร {count} ใบเป็น{label}	{count} 件の書類は{label}	guide.q.business_mismatch
-Write as on the document	按票面写入	บันทึกตามเอกสาร	書類どおりに書き込む	guide.option.business.follow
-Skip	不写入	ไม่บันทึก	書き込まない	guide.option.business.skip
+Post as on the document	按票面入账	บันทึกบัญชีตามเอกสาร	書類どおりに記帳	guide.option.business.follow
+Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.business.skip
 Covers this month	覆盖本月	ครอบคลุมเดือนนี้	今月を含む	guide.why.covers

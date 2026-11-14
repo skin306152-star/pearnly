@@ -133,7 +133,7 @@ CORE_TOOLS = [
          "required": ["company", "doc_ids"]},
      "handler": "pearnly_core.write_precheck.api.tool_check"},
     {"name": "pearnly_guide",
-     "label": "Asked before writing",
+     "label": "Asked before posting",
      "approval": True,
      "prepare": "pearnly_core.assistant.guide_tool.prepare",
      "description": "Before writing documents into Express or MR.ERP, get the user's decisions for them: give the documents "

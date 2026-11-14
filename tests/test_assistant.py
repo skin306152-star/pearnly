@@ -1836,7 +1836,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
         self.assertEqual((steps["done"]["p_read"], steps["done"]["p_plain"]), ("Read it", "Did it"))
         # 要点「允许」的工具：卡片上的问话（没写问话用步骤名）；点了拒绝的那一步照它写（第 8 轮）
         # 共用的提问工具 ask_user 也要等人作答（卡片由它自己的题目画，这一项只给重开时认步骤）
-        self.assertEqual(steps["ask"], {"ask_user": "Asked questions", "pearnly_guide": "Asked before writing", "p_write": "Save it?", "p_gate": "Changed it",
+        self.assertEqual(steps["ask"], {"ask_user": "Asked questions", "pearnly_guide": "Asked before posting", "p_write": "Save it?", "p_gate": "Changed it",
                                         "p_when": "Set it?"})
         # 带了哪些参数才要「允许」：重开对话时页面据此认出出过卡片的那一步（同 needs_approval）
         self.assertEqual(steps["gate"], {"p_gate": ["x"]})

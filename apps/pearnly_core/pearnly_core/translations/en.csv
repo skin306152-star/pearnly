@@ -55,6 +55,7 @@ Approval,Approval
 Approved amounts are credited to your balance.,Approved amounts are credited to your balance.
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
+Asked before posting,Asked before posting
 Asked before writing,Asked before writing
 Asked questions,Asked questions
 Attempt,Attempt
@@ -525,6 +526,7 @@ Not done,Not done
 Not enough stock,Not enough stock
 Not linked,Not linked
 Not permitted,Not permitted
+Not posted this time,Not posted this time
 Not signed in,Not signed in
 Not subscribed,Not subscribed
 Not written this time,Not written this time
@@ -599,6 +601,7 @@ Please confirm,Please confirm
 Please sign in,Please sign in
 Please sign in again before changing your language.,Please sign in again before changing your language.
 Please try again later,Please try again later
+Post as on the document,Post as on the document
 Posted,Posted
 Posting,Posting
 Preparing the file,Preparing the file
@@ -1100,20 +1103,20 @@ connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 guide.desc.detail.amount_only,"Header and journal only, no stock"
-guide.desc.detail.skip,Not written this time
-guide.desc.document_policy.skip,Not written this time
+guide.desc.detail.skip,Not posted this time
+guide.desc.document_policy.skip,Not posted this time
 guide.desc.item.__new__,Create it in Express
 guide.desc.party.__new__,Create it in Express
 guide.desc.payment.cash,Recorded as a cash purchase or sale
 guide.desc.payment.credit,Recorded as a credit purchase or sale
-guide.option.business.follow,Write as on the document
+guide.option.business.follow,Post as on the document
 guide.option.business.skip,Skip
 guide.option.detail.amount_only,Amount only
 guide.option.detail.skip,Skip
 guide.option.direction.expense,Expense
 guide.option.direction.purchase,Purchase
 guide.option.direction.sales,Sales
-guide.option.document_policy.enter,Write
+guide.option.document_policy.enter,Post
 guide.option.document_policy.skip,Skip
 guide.option.goods_posting.service,Expense
 guide.option.goods_posting.stock,Stock
@@ -1133,7 +1136,7 @@ guide.q.cost_basis,Cost of goods sold
 guide.q.current_book,Account set
 guide.q.detail,Line items
 guide.q.direction,Type
-guide.q.document_policy,Write
+guide.q.document_policy,Post
 guide.q.goods_posting,Posting
 guide.q.item,Product
 guide.q.location,Warehouse

@@ -55,6 +55,7 @@ Approval,การอนุมัติ
 Approved amounts are credited to your balance.,ยอดที่อนุมัติจะเพิ่มในยอดคงเหลือ
 Are you sure you want to sign out?,ต้องการออกจากระบบใช่หรือไม่
 Arguments,อาร์กิวเมนต์
+Asked before posting,ถามก่อนบันทึกบัญชีแล้ว
 Asked before writing,ถามก่อนบันทึกแล้ว
 Asked questions,ถามคำถามแล้ว
 Attempt,จำนวนครั้งที่พยายาม
@@ -526,6 +527,7 @@ Not done,ยังไม่เสร็จ
 Not enough stock,สต็อกไม่พอ
 Not linked,ยังไม่ผูก
 Not permitted,ไม่ได้รับอนุญาต
+Not posted this time,ครั้งนี้ไม่บันทึกบัญชี
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
 Not written this time,ครั้งนี้ไม่บันทึก
@@ -601,6 +603,7 @@ Please confirm,กรุณายืนยัน
 Please sign in,กรุณาเข้าสู่ระบบ
 Please sign in again before changing your language.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนภาษา
 Please try again later,กรุณาลองใหม่ภายหลัง
+Post as on the document,บันทึกบัญชีตามเอกสาร
 Posted,บันทึกบัญชีแล้ว
 Posting,วิธีบันทึกบัญชี
 Preparing the file,กำลังเตรียมไฟล์
@@ -739,7 +742,7 @@ Signed In Via,เข้าสู่ระบบผ่าน
 Site finalization failed,ตั้งค่าเว็บไซต์ขั้นสุดท้ายไม่สำเร็จ
 Site is missing setting: {0},เว็บไซต์ขาดการตั้งค่า: {0}
 Size And Permission Check,การตรวจขนาดและสิทธิ์
-Skip,ไม่บันทึก
+Skip,ไม่บันทึกบัญชี
 Skipped,ข้ามแล้ว
 Source,ที่มา
 Source Attachment,ไฟล์แนบต้นฉบับ
@@ -1102,21 +1105,21 @@ connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 guide.desc.detail.amount_only,บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
-guide.desc.detail.skip,ครั้งนี้ไม่บันทึก
-guide.desc.document_policy.skip,ครั้งนี้ไม่บันทึก
+guide.desc.detail.skip,ครั้งนี้ไม่บันทึกบัญชี
+guide.desc.document_policy.skip,ครั้งนี้ไม่บันทึกบัญชี
 guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express
 guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด
 guide.desc.payment.credit,บันทึกเป็นซื้อ / ขายเงินเชื่อ
-guide.option.business.follow,บันทึกตามเอกสาร
-guide.option.business.skip,ไม่บันทึก
+guide.option.business.follow,บันทึกบัญชีตามเอกสาร
+guide.option.business.skip,ไม่บันทึกบัญชี
 guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
-guide.option.detail.skip,ไม่บันทึก
+guide.option.detail.skip,ไม่บันทึกบัญชี
 guide.option.direction.expense,ค่าใช้จ่าย
 guide.option.direction.purchase,ซื้อ
 guide.option.direction.sales,ขาย
-guide.option.document_policy.enter,บันทึก
-guide.option.document_policy.skip,ไม่บันทึก
+guide.option.document_policy.enter,บันทึกบัญชี
+guide.option.document_policy.skip,ไม่บันทึกบัญชี
 guide.option.goods_posting.service,ค่าใช้จ่าย
 guide.option.goods_posting.stock,สต็อก
 guide.option.item.__expense__,ค่าใช้จ่าย
@@ -1135,7 +1138,7 @@ guide.q.cost_basis,ต้นทุนขาย
 guide.q.current_book,ชุดบัญชี
 guide.q.detail,รายการ
 guide.q.direction,ประเภท
-guide.q.document_policy,บันทึกหรือไม่
+guide.q.document_policy,บันทึกบัญชีหรือไม่
 guide.q.goods_posting,วิธีบันทึกบัญชี
 guide.q.item,สินค้า
 guide.q.location,คลังสินค้า

@@ -55,6 +55,7 @@ Approval,审批
 Approved amounts are credited to your balance.,审核通过后计入账户余额。
 Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
+Asked before posting,入账前已询问
 Asked before writing,写入前已询问
 Asked questions,已提问
 Attempt,尝试次数
@@ -526,6 +527,7 @@ Not done,未完成
 Not enough stock,库存不够
 Not linked,未绑定
 Not permitted,没有权限
+Not posted this time,本次不入账
 Not signed in,未登录
 Not subscribed,未订阅
 Not written this time,本次不写入
@@ -601,6 +603,7 @@ Please confirm,请确认
 Please sign in,请先登录
 Please sign in again before changing your language.,请重新登录后再切换语言。
 Please try again later,请稍后重试
+Post as on the document,按票面入账
 Posted,已入账
 Posting,入账方式
 Preparing the file,正在准备文件
@@ -739,7 +742,7 @@ Signed In Via,登录方式
 Site finalization failed,站点收尾失败
 Site is missing setting: {0},站点缺少配置项：{0}
 Size And Permission Check,大小与权限检查
-Skip,不写入
+Skip,不入账
 Skipped,已跳过
 Source,来源
 Source Attachment,原始附件
@@ -1102,21 +1105,21 @@ connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 guide.desc.detail.amount_only,只记表头与分录，不入库
-guide.desc.detail.skip,本次不写入
-guide.desc.document_policy.skip,本次不写入
+guide.desc.detail.skip,本次不入账
+guide.desc.document_policy.skip,本次不入账
 guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建
 guide.desc.payment.cash,记为现购 / 现销
 guide.desc.payment.credit,记为赊购 / 赊销
-guide.option.business.follow,按票面写入
-guide.option.business.skip,不写入
+guide.option.business.follow,按票面入账
+guide.option.business.skip,不入账
 guide.option.detail.amount_only,只记金额
-guide.option.detail.skip,不写入
+guide.option.detail.skip,不入账
 guide.option.direction.expense,费用
 guide.option.direction.purchase,采购
 guide.option.direction.sales,销售
-guide.option.document_policy.enter,写入
-guide.option.document_policy.skip,不写入
+guide.option.document_policy.enter,入账
+guide.option.document_policy.skip,不入账
 guide.option.goods_posting.service,记费用
 guide.option.goods_posting.stock,走库存
 guide.option.item.__expense__,记费用
@@ -1135,7 +1138,7 @@ guide.q.cost_basis,出库成本
 guide.q.current_book,账套
 guide.q.detail,明细
 guide.q.direction,业务类型
-guide.q.document_policy,是否写入
+guide.q.document_policy,是否入账
 guide.q.goods_posting,入账方式
 guide.q.item,物料
 guide.q.location,仓位

@@ -229,3 +229,12 @@ pearnly_erp_portal:Type the company name, tax ID or account set to find it	zh	�
 pearnly_erp_portal:This account cannot send documents	zh	此账号无权发送单据	2026-11-15	docs/work/2026-11-15-not-permitted-copy.md
 pearnly_erp_portal:mrerp.default.product_group	zh	物料分类	2026-11-14	docs/work/2026-11-14-mrerp-write-grid.md「文案改动」节（既有口径：物料 / 仓位为用户 11-06 定的统一叫法，主会话 11-14 转）
 pearnly_erp_portal:mrerp.default.store	zh	仓位	2026-11-14	docs/work/2026-11-14-mrerp-write-grid.md「文案改动」节（既有口径：物料 / 仓位为用户 11-06 定的统一叫法，主会话 11-14 转）
+pearnly_core:guide.desc.detail.skip	zh	本次不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.desc.document_policy.skip	zh	本次不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.option.business.follow	zh	按票面入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.option.business.skip	zh	不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.option.detail.skip	zh	不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.option.document_policy.enter	zh	入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.option.document_policy.skip	zh	不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:guide.q.document_policy	zh	是否入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+pearnly_core:Asked before posting	zh	入账前已询问	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md

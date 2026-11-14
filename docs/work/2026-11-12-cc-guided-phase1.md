@@ -340,3 +340,22 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
   模型侧每条消息的系统说明带 `<conversation_business>`（`contracts.business_note`）。测试：`test_cc_guide_menu`（纯函数 13 条断言、位置、四语）、`test_cc_guide_tool`（记时刻、给模型的说明）；
   流程 `cowork.cc.guide` 加两条断言（新建页选 / 换 / 取消；会话里选、刷新、取消、服务端读回）。
 - 覆盖表与后续各期计划：`2026-11-14-cc-guided-coverage-plan.md`（放行之后排，主会话 11-14）。
+
+### 文案：引导卡里的「写入」换成「入账」（11-14，待用户过目）
+
+9 处都是本分支新增、从没上线（相对 main 是新增）；提交钩子按本分支上一个提交比，判成「改已有文案」，故登记 `copy-approved.tsv`。
+依据两条：用户既有口径「新文案不用录入、写入」；用户 10-27 定的代录界面用词「已入账 / 需要处理」（现有词条 `operator.report.state.saved`：已入账 / Posted / บันทึกบัญชีแล้ว / 記帳済み，沿用同一个动词）。主会话 11-14 确认按此登记，同时把清单给用户看，有异议再改。
+
+| 键 | 中文（旧 → 新） | English | ไทย | 日本語 |
+|---|---|---|---|---|
+| guide.q.document_policy | 是否写入 → 是否入账 | Post | บันทึกบัญชีหรือไม่ | 記帳 |
+| guide.option.document_policy.enter | 写入 → 入账 | Post | บันทึกบัญชี | 記帳する |
+| guide.option.document_policy.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
+| guide.option.detail.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
+| guide.option.business.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
+| guide.desc.detail.skip | 本次不写入 → 本次不入账 | Not posted this time | ครั้งนี้ไม่บันทึกบัญชี | 今回は記帳しない |
+| guide.desc.document_policy.skip | 本次不写入 → 本次不入账 | Not posted this time | ครั้งนี้ไม่บันทึกบัญชี | 今回は記帳しない |
+| guide.option.business.follow | 按票面写入 → 按票面入账 | Post as on the document | บันทึกบัญชีตามเอกสาร | 書類どおりに記帳 |
+| （步骤名，源串 Asked before writing → Asked before posting） | 写入前已询问 → 入账前已询问 | Asked before posting | ถามก่อนบันทึกบัญชีแล้ว | 記帳前に確認しました |
+
+没动的：写入计划上「写入」按钮等 main 已有词条。

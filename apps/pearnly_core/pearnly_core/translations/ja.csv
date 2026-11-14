@@ -55,6 +55,7 @@ Approval,承認
 Approved amounts are credited to your balance.,承認後、残高に反映されます。
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
+Asked before posting,記帳前に確認しました
 Asked before writing,書き込み前に確認しました
 Asked questions,質問しました
 Attempt,試行回数
@@ -526,6 +527,7 @@ Not done,未完了
 Not enough stock,在庫が足りません
 Not linked,未連携
 Not permitted,権限がありません
+Not posted this time,今回は記帳しない
 Not signed in,未ログイン
 Not subscribed,未登録
 Not written this time,今回は書き込まない
@@ -601,6 +603,7 @@ Please confirm,確認してください
 Please sign in,ログインしてください
 Please sign in again before changing your language.,言語を変更する前に再ログインしてください。
 Please try again later,しばらくしてから再試行してください
+Post as on the document,書類どおりに記帳
 Posted,記帳済み
 Posting,計上方法
 Preparing the file,ファイルを準備しています
@@ -739,7 +742,7 @@ Signed In Via,ログイン方法
 Site finalization failed,サイトの仕上げに失敗しました
 Site is missing setting: {0},サイトに設定項目がありません：{0}
 Size And Permission Check,サイズと権限の確認
-Skip,書き込まない
+Skip,記帳しない
 Skipped,スキップ
 Source,ソース
 Source Attachment,元の添付ファイル
@@ -1102,21 +1105,21 @@ connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 guide.desc.detail.amount_only,見出しと仕訳のみ、在庫に入れない
-guide.desc.detail.skip,今回は書き込まない
-guide.desc.document_policy.skip,今回は書き込まない
+guide.desc.detail.skip,今回は記帳しない
+guide.desc.document_policy.skip,今回は記帳しない
 guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成
 guide.desc.payment.cash,現金仕入・現金売上として記帳
 guide.desc.payment.credit,掛仕入・掛売上として記帳
-guide.option.business.follow,書類どおりに書き込む
-guide.option.business.skip,書き込まない
+guide.option.business.follow,書類どおりに記帳
+guide.option.business.skip,記帳しない
 guide.option.detail.amount_only,金額のみ
-guide.option.detail.skip,書き込まない
+guide.option.detail.skip,記帳しない
 guide.option.direction.expense,経費
 guide.option.direction.purchase,仕入
 guide.option.direction.sales,売上
-guide.option.document_policy.enter,書き込む
-guide.option.document_policy.skip,書き込まない
+guide.option.document_policy.enter,記帳する
+guide.option.document_policy.skip,記帳しない
 guide.option.goods_posting.service,費用
 guide.option.goods_posting.stock,在庫
 guide.option.item.__expense__,費用
@@ -1135,7 +1138,7 @@ guide.q.cost_basis,売上原価
 guide.q.current_book,帳簿
 guide.q.detail,明細
 guide.q.direction,種類
-guide.q.document_policy,書き込み
+guide.q.document_policy,記帳
 guide.q.goods_posting,計上方法
 guide.q.item,商品
 guide.q.location,倉庫
