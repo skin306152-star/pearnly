@@ -96,8 +96,11 @@
 			});
 			if (found.discount) add({fieldtype: "Currency", fieldname: "discount", label: __("Discount")});
 		};
+		// 已列出的是哪家公司的哪位客户：原生 Autocomplete 失焦时会再报一次 change（点表格里的勾选框、「本次收」格子都会让客户框失焦），
+		// 客户没换就不重新拉、不清表，否则刚勾的行与刚填的金额被冲成 0，提交报「请至少选择一张发票」（11-14 真机）
+		let listed = "";
 		const reset_customer = () => {
-			open = [];
+			open = []; listed = "";
 			dialog.fields_dict.invoices.df.data = [];
 			dialog.fields_dict.invoices.grid.refresh();
 		};
@@ -126,8 +129,10 @@
 		}
 		async function pick_customer() {
 			const company = dialog.get_value("company"), customer = dialog.get_value("customer");
+			if (company && customer && listed === `${company}\n${customer}`) return;
 			reset_customer();
 			if (!company || !customer) return;
+			listed = `${company}\n${customer}`;
 			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_open_invoices", {company, customer}, "POST");
 			open = found.items || [];
 			// 行要有 name：原生表格的勾选按行名记（`grid.js` setup_check），没名字的行勾了也不算选中
