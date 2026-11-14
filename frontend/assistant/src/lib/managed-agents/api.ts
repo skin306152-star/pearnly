@@ -141,11 +141,13 @@ export type ToolRunReply = {
   status: string;
   ask?: string;
   preview?: Array<{ field: string; before: string; after: string }>;
+  /** 问句下面那一行事实（这一步会动到哪家公司、哪本账套；服务端有才给） */
+  note?: string;
 };
 
 export async function runTool(id: string, toolUseId: string): Promise<ToolRunReply> {
   const out = await post<Partial<ToolRunReply>>("run_tool", { session_id: id, tool_use_id: toolUseId });
-  return { status: out?.status ?? "", ask: out?.ask, preview: out?.preview };
+  return { status: out?.status ?? "", ask: out?.ask, preview: out?.preview, ...(out?.note ? { note: out.note } : {}) };
 }
 
 /** 上传结果；PDF 读得出页数时带 pages（对话里附件卡片的「PDF · N 页」）。 */

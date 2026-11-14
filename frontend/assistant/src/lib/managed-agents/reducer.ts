@@ -68,6 +68,8 @@ export type ToolApproval = {
   /** Held Pearnly tool calls: what the step asks ("Save this folder task?") and what it changes. */
   ask?: string;
   preview?: ApprovalChange[];
+  /** 问句下面那一行事实（这一步会动到哪家公司、哪本账套）；服务端有才给，没有那一行不出。 */
+  note?: string;
   /** 本页点了却没送到（确认请求出错，restoreGates）：按钮上方那一行原因，再点就清掉。 */
   failure?: string;
   /** 本页刚点、确认还没送到（乐观定下的）：点完那一行先淡一档，送到（markConfirmed）、回声或结果到了再定下。 */
@@ -1354,7 +1356,7 @@ export function clearSending(state: Projection, ids: readonly string[]): Project
 export function gateCustomTool(
   state: Projection,
   id: string,
-  view: { ask?: string; preview?: ApprovalChange[] } = {},
+  view: { ask?: string; preview?: ApprovalChange[]; note?: string } = {},
 ): Projection {
   const found = findToolPart(state.messages, id);
   if (!found) return state;
@@ -1363,7 +1365,7 @@ export function gateCustomTool(
   if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && RUN_RANK[part.run] > 0)) return state;
   if (part.approval && part.approval.approved !== undefined) return state;
   const messages = draft(state.messages);
-  updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview } }));
+  updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview, ...(view.note ? { note: view.note } : {}) } }));
   return withDerivedStatuses({
     ...state,
     messages,
