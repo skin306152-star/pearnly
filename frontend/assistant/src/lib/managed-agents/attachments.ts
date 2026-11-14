@@ -3,7 +3,7 @@
 // 选中文件时先确保有会话（新对话会在这一步建会话），再交给本站：服务端校验类型和大小、HEIC 转 JPEG、
 // 交给当前引擎放进该会话。随消息带过去的只是智能体读取它的位置，智能体自己去读。代录会话同一套（2026-11-06）：服务端另在
 // 会话挂的任务上记一行「待发送」，消息发出后才交识别（11-14：选中就上传是为了发送不用等，不是上传就识别）；输入框里只显示上传状态，
-// 没发出就移除的告诉服务端删掉（dropUpload），不识别、不扣费。
+// 没发出就移除的告诉服务端删掉（dropUpload，两种会话都是），不识别、不扣费。
 // 改自 Anthropic 官方示例的 attachments.ts（MIT，见 NOTICE.md）。
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
@@ -140,11 +140,11 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>, ref
     },
 
     async remove(attachment) {
-      // 已挂进沙箱的文件只读、只属于本会话，留着无害；这里把输入框里的这一项去掉。代录会话里这一份还在任务上记着「待发送」：
-      // 告诉服务端删掉（发出后才交识别，移除的不识别、不扣费）。删不掉只报错，不挡移除
+      // 已挂进沙箱的文件只读、只属于本会话，留着无害；这里把输入框里的这一项去掉，还没发出的告诉服务端删掉本站留的那份
+      // （两种会话都是；代录另删任务上那一行「待发送」：发出后才交识别，移除的不识别、不扣费）。删不掉只报错，不挡移除
       const info = uploaded.get(attachment.id);
       uploaded.delete(attachment.id);
-      if (info?.task && !sent.has(attachment.id)) {
+      if (info && !sent.has(attachment.id)) {
         await dropUpload(await getSessionId(), info.fileId).catch(withReport(() => undefined, "attachments"));
       }
     },

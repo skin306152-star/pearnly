@@ -186,19 +186,42 @@ START_JOB = "pearnly_core.assistant.files.start_sent"
 COMMIT_VIA = ("send", "guide")
 
 
+HANDED = "handed"  # 会话目录下记「已交出」的子目录（一份一个空标记文件，随删对话一起删）
+
+
 def commit(row, file_ids, via) -> list[str]:
-    """**唯一入口**：用户明确交出了输入框里已上传的这几份（``via``：send = 输入框点发送，guide = 引导卡上提交），这一刻才进对话、
-    提交后由后台存原件并交识别（不扣费的「待发送」到此为止）。``row``：本人的会话记录。幂等、可重入：同几份再交不重记、不重复识别
-    （``uploads.start`` 按份加锁）。不是代录会话、没有记过的回空。回这次排去交识别的文件编号。"""
+    """**唯一入口**：用户明确交出了输入框（或引导卡）里已上传的这几份（``via``：send = 输入框点发送，guide = 引导卡上提交）。
+    两种会话都成立：只认这段对话里用户上传、本站留了一份的；给每份记「已交出」（之后 ``drop`` 不再删它）；回认下的文件编号，
+    引导引擎按它把文件交给对应的业务函数。直写会话到此为止（不触发识别）；代录会话这一刻才进对话、提交后由后台存原件并交识别
+    （不扣费的「待发送」到此为止）。``row``：本人的会话记录。幂等、可重入：同几份再交不重记、不重复识别（``uploads.start`` 按份加锁）。"""
     if via not in COMMIT_VIA:
         raise ValueError("unknown commit source")
-    if not row.get("operator_task") or not file_ids:
+    ids = [fid for fid in dict.fromkeys(str(item) for item in file_ids or () if item) if _kept_path(row, fid)]
+    if not ids:
         return []
-    from pearnly_core.express_operator import uploads
+    marks = os.path.join(_folder(row.name), HANDED)
+    os.makedirs(marks, exist_ok=True)
+    for fid in ids:
+        open(os.path.join(marks, fid), "a").close()
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import uploads
 
-    keys = uploads.commit(row.operator_task, list(file_ids))
-    _queue_start(row, keys)
-    return keys
+        _queue_start(row, uploads.commit(row.operator_task, ids))
+    return ids
+
+
+def ids_in(row, text) -> list[str]:
+    """消息原文里带着的、这段对话里用户上传的那几份的文件编号（消息里带着附件的位置 ``/mnt/session/uploads/<编号>/<文件名>``）。只读。"""
+    body = str(text or "")
+    folder = _folder(row.name)
+    if not body or not os.path.isdir(folder):
+        return []
+    ids = [entry.partition("--")[0] for entry in sorted(os.listdir(folder)) if "--" in entry and not entry.endswith(".part")]
+    return [fid for fid in dict.fromkeys(ids) if f"/uploads/{fid}/" in body]
+
+
+def _handed(row, file_id) -> bool:
+    return os.path.exists(os.path.join(_folder(row.name), HANDED, file_id))
 
 
 def _queue_start(row, keys) -> None:
@@ -251,21 +274,23 @@ def _kept_path(row, file_id):
 
 
 def drop(session_id, file_id) -> dict:
-    """输入框里移除了一份还没发出的附件：代录会话删掉任务上那一行「待发送」和本站留的这份（它不会再被识别、不扣费）。已发出的、
-    直写会话的不动（直写的附件在引擎那边只读、只属于本会话，留着无害）。"""
+    """输入框（或引导卡）里移除了一份还没交出的附件：删掉本站留的这份（两种会话都是）；代录会话另删任务上那一行「待发送」（它不会
+    再被识别、不扣费）。已交出的（``commit`` 记过）不动。引擎那边挂着的只读、只属于本会话，留着无害。"""
     row = sessions.owned(session_id)
     fid = sessions._guard(contracts.file_id, file_id)
-    if not row.get("operator_task"):
+    found = _kept_path(row, fid)
+    if _handed(row, fid):
         return {"dropped": False}
-    from pearnly_core.express_operator import uploads
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import uploads
 
-    dropped = uploads.drop(row.operator_task, fid)
-    if dropped:
-        found = _kept_path(row, fid)
-        if found:
-            path = found.path
-            frappe.db.after_commit.add(lambda: os.path.exists(path) and os.remove(path))
-    return {"dropped": dropped}
+        dropped = uploads.drop(row.operator_task, fid)
+    else:
+        dropped = found is not None
+    if dropped and found:
+        path = found.path
+        frappe.db.after_commit.add(lambda: os.path.exists(path) and os.remove(path))
+    return {"dropped": bool(dropped)}
 
 
 def taken(file_id) -> str:

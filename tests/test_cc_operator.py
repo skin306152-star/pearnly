@@ -44,7 +44,7 @@ import assert from "node:assert/strict";
 import { createAttachmentAdapter } from "@/lib/managed-agents/attachments";
 
 // 11-14 用户：选中就上传是为了点发送不用等上传，不是上传就识别。代录会话里传完输入框那一项只有「已上传」，不读识别状态；
-// 没发出就移除的告诉服务端删掉那一行「待发送」（不识别、不扣费）；已发出的、直写会话的不删
+// 没发出就移除的告诉服务端删掉那一行「待发送」与留存（不识别、不扣费，直写会话同样删留存）；已发出的不删
 const g = globalThis as any;
 g.URL.createObjectURL = () => "blob:local";
 const timers: Array<() => void> = [];
@@ -88,11 +88,16 @@ await adapter.send!(second.at(-1));
 await adapter.remove!(second.at(-1));
 assert.equal(only(".drop_upload").length, 1);
 
-// 直写会话（回包不带任务）：移除不找服务端
+// 直写会话（回包不带任务）：没发出就移除同样告诉服务端删掉留存（接缝：两种会话同一套）
 task = "";
 const direct = await add("c.pdf");
 await adapter.remove!(direct.at(-1));
-assert.equal(only(".drop_upload").length, 1);
+assert.deepEqual(only(".drop_upload").at(-1), ["pearnly_core.assistant.api.drop_upload", { session_id: "s1", file_id: "upl_3" }]);
+// 没传上的（失败卡）移除：服务端没有这份，不找服务端
+g.fetch = async () => { throw new Error("offline"); };
+const broken = await add("d.pdf");
+await adapter.remove!(broken.at(-1));
+assert.equal(only(".drop_upload").length, 2);
 console.log("HARNESS OK");
 """
 

@@ -347,8 +347,9 @@ class ConversationUploadTests(Base):
             f"- {key}.pdf → /mnt/session/uploads/{key}/{key}.pdf\n" for key in keys) + "]"
 
     def send(self, text):
-        """输入框点发送（``sessions.send`` 同样两步：认出消息带着的几份，交给唯一入口 ``commit``）。"""
-        return uploads.commit(self.task, uploads.keys_in(self.task, text))
+        """输入框点发送（``sessions.send`` 同样两步：认出消息带着的几份 ``files.ids_in``，交给唯一入口 ``files.commit`` → ``commit``）。"""
+        keys = [row.request_key for row in self.doc.uploads if f"/uploads/{row.request_key}/" in text]
+        return uploads.commit(self.task, keys)
 
     def shown(self):
         feed = importlib.import_module("pearnly_core.express_operator.feed")

@@ -1005,37 +1005,51 @@ class RelayTests(unittest.TestCase):
                         delattr(frappe.db, "get_value")
                     else:
                         frappe.db.get_value = db_get
-                # 输入框里移除还没发出的：删掉那一行，提交后删留存；已发出的（任务不认）不删留存；直写会话不动
-                after = []
-                frappe.db.after_commit = types.SimpleNamespace(add=after.append)
-                operator_uploads.drop = lambda task, key: key == "upl_C"
-                kept_c = os.path.join(root, "private", files.KEPT, "row1", "upl_C--bill.pdf")
-                self.assertTrue(os.path.isfile(kept_c))
-                self.assertEqual(files.drop("s1", "upl_C"), {"dropped": True})
-                for job in after:
-                    job()
-                self.assertFalse(os.path.exists(kept_c))
-                after.clear()
-                self.assertEqual(files.drop("s1", "upl_A"), {"dropped": False})
-                self.assertEqual(after, [])
-                self.assertEqual(files.drop("s2", "upl_A"), {"dropped": False})
-                # 接缝：交出文件只有一个入口 files.commit（输入框点发送 via=send、引导卡上提交 via=guide）——交出的那几份提交后排后台
-                # 交识别，卡上 / 输入框里选了没交的不排、不识别、不扣费；不认识的来源拒绝，直写会话不做
-                enqueued, committed = [], []
+                # 接缝：交出文件只有一个入口 files.commit（输入框点发送 via=send、引导卡上提交 via=guide），两种会话都成立——只认这段
+                # 对话里用户上传、本站留了的，记「已交出」，回认下的编号；代录会话交出的那几份提交后排后台交识别，直写会话不识别；
+                # 选了没交的不排、不识别、不扣费；不认识的来源拒绝
+                enqueued, committed, after = [], [], []
                 enqueue_saved = getattr(frappe, "enqueue", None)
                 frappe.enqueue = lambda method, **kw: enqueued.append((method, kw))
+                frappe.db.after_commit = types.SimpleNamespace(add=after.append)
                 operator_uploads.commit = lambda task, keys: committed.append((task, list(keys))) or [k for k in keys if k == "upl_A"]
                 try:
-                    self.assertEqual(files.commit(rows["s1"], ["upl_A"], via="guide"), ["upl_A"])
+                    note = "看看\n[Attached file:\n- bill.pdf → /mnt/session/uploads/upl_A/bill.pdf\n- x → /mnt/session/uploads/upl_Q/x]"
+                    self.assertEqual(files.ids_in(rows["s1"], note), ["upl_A"])  # 只认这段对话里留了的
+                    self.assertEqual(files.ids_in(rows["s1"], "没带附件"), [])
+                    self.assertEqual(files.commit(rows["s1"], ["upl_A", "upl_Z"], via="guide"), ["upl_A"])
                     self.assertEqual([(m, kw["keys"], kw["session"], kw["enqueue_after_commit"]) for m, kw in enqueued],
                                      [(files.START_JOB, ["upl_A"], "row1", True)])
-                    self.assertEqual(files.commit(rows["s1"], ["upl_Z"], via="send"), [])  # 选了没交出过的（没记过）：不排
+                    self.assertEqual(committed, [("t001", ["upl_A"])])  # 没留存的编号不交给任务
+                    self.assertEqual(files.commit(rows["s1"], ["upl_Z"], via="send"), [])
                     self.assertEqual(files.commit(rows["s1"], [], via="guide"), [])
-                    self.assertEqual(files.commit(rows["s2"], ["upl_A"], via="send"), [])  # 直写会话：不碰任务
+                    # 直写会话：同一个入口认下、记已交出，回编号交给业务函数；不碰任务、不排识别
+                    self.assertEqual(files.commit(rows["s2"], ["upl_B"], via="guide"), ["upl_B"])
                     self.assertEqual(len(enqueued), 1)
-                    self.assertEqual(committed, [("t001", ["upl_A"]), ("t001", ["upl_Z"])])
+                    self.assertEqual(len(committed), 1)
                     with self.assertRaises(ValueError):
                         files.commit(rows["s1"], ["upl_A"], via="upload")  # 没有「上传即识别」这条路
+                    # 移除还没交出的：两种会话都删本站留存（提交后）；代录另删「待发送」那一行；已交出的不删
+                    operator_uploads.drop = lambda task, key: key == "upl_C"
+                    kept_c = os.path.join(root, "private", files.KEPT, "row1", "upl_C--bill.pdf")
+                    self.assertTrue(os.path.isfile(kept_c))
+                    self.assertEqual(files.drop("s1", "upl_C"), {"dropped": True})
+                    for job in after:
+                        job()
+                    self.assertFalse(os.path.exists(kept_c))
+                    after.clear()
+                    self.assertEqual(files.drop("s1", "upl_A"), {"dropped": False})  # 已交出
+                    self.assertEqual(files.drop("s2", "upl_B"), {"dropped": False})  # 直写里已交出的也不删
+                    self.assertEqual(after, [])
+                    files._new_upload_id = lambda: "upl_D"
+                    frappe.request = types.SimpleNamespace(files={"file": Sent("d.pdf", b"%PDF-d")})
+                    files.upload("s2")  # 直写会话里选了一份、没交出就移除：删本站留存
+                    kept_d = os.path.join(root, "private", files.KEPT, "row2", "upl_D--d.pdf")
+                    self.assertEqual(files.drop("s2", "upl_D"), {"dropped": True})
+                    for job in after:
+                        job()
+                    self.assertFalse(os.path.exists(kept_d))
+                    self.assertEqual(files.drop("s2", "upl_D"), {"dropped": False})  # 再移除一次：已经没了
                 finally:
                     if enqueue_saved is None:
                         delattr(frappe, "enqueue")
@@ -1057,7 +1071,7 @@ class RelayTests(unittest.TestCase):
         send = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1].split("\ndef ", 1)[0]
         # 这条消息发出后才把它带着的那几份记进对话（上传卡片排在消息后面），提交后才交识别
         self.assertLess(send.index("api.post(remote, batch)"),
-                        send.index('chat_files.commit(row, operator_uploads.keys_in(row.operator_task, text), via="send")'))
+                        send.index('chat_files.commit(row, chat_files.ids_in(row, text), via="send")'))
         queue = (CORE / "assistant/files.py").read_text(encoding="utf-8").split("def _queue_start(", 1)[1].split("\ndef ", 1)[0]
         self.assertIn("enqueue_after_commit=True", queue)
 

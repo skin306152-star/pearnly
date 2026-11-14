@@ -34,16 +34,16 @@
 
 | 项 | 约定 |
 |---|---|
-| 唯一入口 | `pearnly_core.assistant.files.commit(row, file_ids, via) -> list[str]`。`row`：本人的会话记录（`sessions.owned(session_id)`）；`file_ids`：输入框上传口回的 `fileId`（`upl_…`，即任务上传行的请求键）；`via`：`"send"`（输入框点发送）或 `"guide"`（引导卡上提交），别的值抛 `ValueError`。回这次排去交识别的文件编号 |
-| 它做什么 | 只对代录会话：`express_operator.uploads.commit(task, file_ids)` 给还没交出的那几行记上此刻（进对话、出上传卡片），回其中还没交成识别的；提交后排后台 `files.start_sent` → `uploads.start` 按份加锁读本站留存交产品 `intake`（存原件、排识别、之后扣费都从这里开始）。直写会话、没记过的编号回空 |
-| 幂等、可重入 | 同几份再交：不重记时刻；已交成识别的不再排；还没交上的照样排（`uploads.start` 锁里重读，只交一次）。识别工具 `files.taken` 等不及时当场交，也走 `uploads.start` |
-| 谁调、何时调 | 输入框：`sessions.send` 消息发给引擎之后（`via="send"`）。引导卡：用户在卡上点提交、站点收下这次作答的同一个请求里（`via="guide"`），传卡上交的那几份的 `fileId`。前端不直接调识别，也不调 `express_operator.api.intake` |
-| 交出之前 | 上传口 `assistant.api.upload` 只上传：本站留一份、任务上记一行「待发送」（`uploads.hold`），不识别、不扣费。卡上 / 输入框里的文件显示上传状态（上传中 / 失败）即可 |
-| 移除 / 丢弃 | 交出前移除：前端调 `assistant.api.drop_upload(session_id, file_id)`（删「待发送」那一行，提交后删本站留存）；引导卡上移除同样调它。没交出就关页面 / 卡片作废：什么都不识别，那一行不进对话、不算任务里的上传，本站留存随删对话删（`files.forget`）。不加定时清理 |
-| 上传卡片状态 | 交出后从代录事件源读（`express_operator.feed.upload_states`：已交出还没交上识别 = 排队中；交不成 = 失败带 `start_code`；交上了 = 产品 `uploads` 钩子现读）。`task_uploads` 只列已交出的，页面不再轮询它 |
-| 跨边测试 | `tests/test_assistant.py`（`files.commit` via guide / send：交出的才排、没交出的不排、直写不做、未知来源拒绝）、`tests/test_express_operator_code_cc.py`（`commit` 幂等、交出才记时刻、入口本身不识别） |
+| 唯一入口 | `pearnly_core.assistant.files.commit(row, file_ids, via) -> list[str]`，**直写、代录两种会话通用**（主会话 11-14：引导式后续在直写会话的卡片上收转账凭证、银行流水、总账、销项税报表、POS 导出、盘点 Excel、预扣税票据）。`row`：本人的会话记录（`sessions.owned(session_id)`）；`file_ids`：上传口回的 `fileId`（`upl_…`）；`via`：`"send"`（输入框点发送）或 `"guide"`（引导卡上提交），别的值抛 `ValueError`。回这次认下的交出文件编号 |
+| 它做什么 | 只认这段对话里用户上传、本站留了一份的（别的编号丢掉）；给每份记「已交出」（会话目录 `handed/<编号>` 空标记，随删对话删）。**直写会话到此为止**：不识别，引导引擎拿返回的编号把文件交给对应业务函数（文件内容按 `files.attachment(file_id)` 取）。**代录会话**另外：`express_operator.uploads.commit` 给还没交出的那几行记上此刻（进对话、出上传卡片），提交后排后台 `files.start_sent` → `uploads.start` 按份加锁读本站留存交产品 `intake`（存原件、排识别、之后扣费都从这里开始） |
+| 幂等、可重入 | 同几份再交：标记已在、不重记时刻；代录里已交成识别的不再排，还没交上的照样排（`uploads.start` 锁里重读，只交一次）。识别工具 `files.taken` 等不及时当场交，也走 `uploads.start` |
+| 谁调、何时调 | 输入框：`sessions.send` 消息发给引擎之后，按消息里带着的附件位置认编号（`files.ids_in`），`via="send"`，两种会话都调。引导卡：用户在卡上点提交、站点收下这次作答的同一个请求里（`via="guide"`），传卡上交的那几份的 `fileId`。前端不直接调识别，也不调 `express_operator.api.intake` |
+| 交出之前 | 上传口 `assistant.api.upload` 只上传：本站留一份（两种会话），代录另在任务上记一行「待发送」（`uploads.hold`），不识别、不扣费。卡上 / 输入框里的文件显示上传状态（上传中 / 失败）即可 |
+| 移除 / 丢弃 | 交出前移除：前端调 `assistant.api.drop_upload(session_id, file_id)`，**两种会话都可用**：没有「已交出」标记的删本站留存（提交后），代录另删「待发送」那一行；已交出的回 `dropped: false` 不动。引导卡上移除同样调它。没交出就关页面 / 卡片作废：什么都不处理，本站留存随删对话删（`files.forget`）。不加定时清理 |
+| 上传卡片状态 | 代录交出后从代录事件源读（`express_operator.feed.upload_states`：已交出还没交上识别 = 排队中；交不成 = 失败带 `start_code`；交上了 = 产品 `uploads` 钩子现读）。`task_uploads` 只列已交出的，页面不再轮询它。直写会话没有上传卡片，处理结果由各业务函数自己回 |
+| 跨边测试 | `tests/test_assistant.py`（`files.commit` via guide / send：两种会话认下才回、没留存的编号丢掉、代录才排识别、直写不排；`drop` 两种会话、已交出不删；`ids_in` 只认本对话的）、`tests/test_express_operator_code_cc.py`（`commit` 幂等、交出才记时刻、入口本身不识别）、`tests/test_cc_operator.py`（前端两种会话移除未发出的都调 `drop_upload`） |
 
-引导式现状（`pearnly/guided-3-0cc915`，11-14 读）：第 1 期没有卡上交文件的步骤。选了业务只把占位字换成「上传采购票据 / 上传销售票据」，文件走输入框原来的入口（选中上传、点发送），所以已经落在 `via="send"` 这条路上；没有自己的上传口，也不自己触发识别。**后续各期凡是卡上交文件，必须调 `files.commit(..., via="guide")`，移除调 `drop_upload`。**
+引导式现状（`pearnly/guided-3-0cc915`，11-14 读）：第 1 期没有卡上交文件的步骤。选了业务只把占位字换成「上传采购票据 / 上传销售票据」，文件走输入框原来的入口（选中上传、点发送），所以已经落在 `via="send"` 这条路上；没有自己的上传口，也不自己触发识别。**后续各期凡是卡上交文件（直写、代录都一样），必须调 `files.commit(..., via="guide")`，移除调 `drop_upload`；不另写上传口或「上传即处理」。**
 
 ## 对扣费的影响
 - 以前：选中就识别，移除或不发也扣费。现在：只有随消息发出的文件才识别、才扣费；移除的、没发出的不扣。

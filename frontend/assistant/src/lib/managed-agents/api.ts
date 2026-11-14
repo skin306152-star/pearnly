@@ -169,7 +169,7 @@ export function uploadFile(id: string, file: File): Promise<UploadedFile> {
   return upload("upload", { session_id: id }, file);
 }
 
-/** 输入框里移除了还没发出的附件：代录会话里服务端删掉那一行「待发送」和留存的这份（不识别、不扣费）。 */
+/** 输入框里移除了还没发出的附件：服务端删掉留存的这份，代录会话另删那一行「待发送」（不识别、不扣费）。 */
 export function dropUpload(id: string, fileId: string): Promise<{ dropped: boolean }> {
   return post("drop_upload", { session_id: id, file_id: fileId });
 }

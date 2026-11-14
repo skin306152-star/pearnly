@@ -152,13 +152,6 @@ def batch_of(name, request_key) -> str:
     return next((str(row.batch) for row in doc.get("uploads") or [] if key and row.request_key == key and row.batch), "")
 
 
-def keys_in(name, text) -> list[str]:
-    """消息原文里带着的、这个任务上记过的那几份的请求键（消息里带着附件的位置，按文件编号对上）。只读。"""
-    doc = tasks._own(name)
-    body = str(text or "")
-    return [str(row.request_key) for row in doc.get("uploads") or [] if row.request_key and row.request_key in body]
-
-
 def commit(name, request_keys) -> list[str]:
     """用户交出了这几份（唯一入口 ``assistant.files.commit`` 调；输入框点发送、引导卡上提交都走它）：还没进对话的记上此刻（上传
     卡片排在这一刻后面），回其中已交出、还没交成识别的请求键（调用方提交后交识别）。幂等：同几份再来不重记时刻，还没交上的照样回。"""
@@ -191,4 +184,4 @@ def read(name, batches=None) -> dict:
     return {"task": doc.name, "period": doc.period or "", "uploads": out}
 
 
-__all__ = ["UPLOAD", "check", "commit", "drop", "hold", "keys_in", "read", "record", "start", "waiting"]
+__all__ = ["UPLOAD", "check", "commit", "drop", "hold", "read", "record", "start", "waiting"]
