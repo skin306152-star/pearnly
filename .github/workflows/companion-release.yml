@@ -1,6 +1,7 @@
 name: Companion release
 
-# Windows 小助手的构建与发布（2026-09-27 起在本仓，安装包放在我们自己的服务器 pearnly.com/downloads/companion/）。
+# Windows 小助手的构建与发布（2026-09-27 起在本仓，安装包放在我们自己的服务器 pearnly.com/downloads/companion/；
+# 2026-11-14 起正式版安装包另放 R2，pearnly.com 上的安装包地址 302 过去，latest.json 仍在本机）。
 #
 #   正式发布：改 companion/src/companion/version.py → 合入 main → 推标签 companion-v<版本>（或手动选 prod）。
 #   测试发布：手动运行、target=staging，只写 staging/ 目录，用户看到的下载和自动更新都不变。
@@ -95,6 +96,46 @@ jobs:
         with:
           name: companion-installer
           path: dist
+      # 正式版安装包先放 R2（桶 pearnly-media，公网 media.pearnly.com；11-14 线上访问速度）：pearnly.com 上的安装包地址
+      # 302 到这里（infrastructure/production/landing.conf），latest.json 仍在本机。所以要在 receive-companion.py 改 latest.json
+      # 之前传好、并从公网读回比对；固定名同时换成这一版（网页「下载 CC 桌面版」）。只留最近 5 个版本（R2 免费额度 10GB）。
+      # staging 不上 R2（不跳转、只在本机）。缺 R2 密钥时正式版停在这一步、不改 latest.json，免得跳到不存在的地址。
+      - name: Put the installer on R2 before latest.json points at it
+        if: ${{ (startsWith(github.ref, 'refs/tags/') && 'prod' || inputs.target) == 'prod' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          AWS_DEFAULT_REGION: auto
+          # R2 不收新版 AWS CLI 默认附带的整包校验头
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          if [ -z "$AWS_ACCESS_KEY_ID" ] || [ -z "$AWS_SECRET_ACCESS_KEY" ] || [ -z "$R2_ACCOUNT_ID" ]; then
+            echo "R2 secrets missing: prod installers are served from R2 (landing.conf), so latest.json is not changed"; exit 1
+          fi
+          version=$(python3 -c "import json; print(json.load(open('dist/release.json', encoding='utf-8-sig'))['version'])")
+          current=$(curl -fsSL https://pearnly.com/downloads/companion/latest.json | python3 -c "import json,sys; print(json.load(sys.stdin)['version'])")
+          python3 -c "import sys; t=lambda v: tuple(int(x) for x in v.split('.')); sys.exit(t(sys.argv[1]) < t(sys.argv[2]))" "$version" "$current" \
+            || { echo "refusing to go back from $current to $version"; exit 1; }
+          r2() { aws s3 "$@" --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" --only-show-errors; }
+          base=downloads/companion
+          key="$base/releases/$version/$SOURCE_SHA/CC-Setup.exe"
+          sha256=$(sha256sum dist/CC-Setup.exe | cut -d' ' -f1)
+          r2 cp dist/CC-Setup.exe "s3://pearnly-media/$key" --content-type application/octet-stream \
+            --cache-control "public, max-age=31536000, immutable"
+          r2 cp "s3://pearnly-media/$key" "s3://pearnly-media/$base/CC-Setup.exe" --metadata-directive REPLACE \
+            --content-type application/octet-stream --cache-control no-cache
+          for path in "$key" "$base/CC-Setup.exe"; do
+            got=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://media.pearnly.com/$path?check=$SOURCE_SHA" | sha256sum | cut -d' ' -f1)
+            [ "$got" = "$sha256" ] || { echo "R2 copy $path does not match"; exit 1; }
+          done
+          # 只留最近 5 个版本
+          aws s3 ls "s3://pearnly-media/$base/releases/" --endpoint-url "https://$R2_ACCOUNT_ID.r2.cloudflarestorage.com" | awk '$1=="PRE"{print $2}' | tr -d / | sort -V | head -n -5 |
+            while read -r old; do r2 rm --recursive "s3://pearnly-media/$base/releases/$old/"; done
+          printf 'R2: `https://media.pearnly.com/%s`\n' "$key" >> "$GITHUB_STEP_SUMMARY"
       - name: Send the installer to the download directory and read it back
         env:
           SOURCE_SHA: ${{ github.sha }}
