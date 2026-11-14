@@ -26,7 +26,7 @@ for (const route of ['pearnly-collections', 'pearnly-my-collections']) {{
 const status=async(method, post)=>(await fetch('/api/method/{API}'+method, {{method: post ? 'POST' : 'GET',
   headers: {{'X-Frappe-CSRF-Token': frappe.csrf_token, 'Accept': 'application/json'}}}})).status;
 out.api={{list: await status('api_collections'), export: await status('api_collections_export', true),
-          options: await status('api_collection_new_options')}};
+          options: await status('api_collection_new_options', true)}};
 return out;"""}]
 
 

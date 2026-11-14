@@ -20,7 +20,8 @@
 				body.append("file", item.file_obj, item.file_obj.name);
 				const response = await fetch("/api/method/pearnly_erp_portal.collection.api.api_collection_voucher_upload", {method: "POST", body,
 					credentials: "same-origin", headers: {"X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json"}});
-				const payload = await response.json().catch(() => null);
+				// 回的不是 JSON（网关错误页等）：记下，按上传失败说
+				const payload = await response.json().catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "collection-new"); return null; });
 				if (!response.ok || !payload || !("message" in payload)) throw {...(payload || {}), status: response.status};
 				item.request_succeeded = true;
 				on_done({...payload.message, file_name: item.file_obj.name});
@@ -35,7 +36,7 @@
 
 	p.collection_new = async ({on_done} = {}) => {
 		const request = new_request();  // 这一次打开的号：连点、重发只建一笔
-		const first = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {});
+		const first = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {}, "POST");
 		const companies = first.companies || [];
 		let methods = null, vouchers = {}, open = [];
 		const current = companies.find(row => row.value === frappe.boot.pearnly_company)?.value
@@ -99,7 +100,7 @@
 			dialog.set_value("customer", "");
 			dialog.set_df_property("book", "hidden", 1);
 			if (!company) return;
-			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company});
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company}, "POST");
 			if (found.book?.options?.length) {
 				dialog.set_df_property("book", "options", [{value: "", label: ""},
 					...found.book.options.map(row => ({value: row.code, label: row.name}))]);
@@ -112,7 +113,7 @@
 			const company = dialog.get_value("company"), key = dialog.get_value("book");
 			if (!company || !key) return;
 			await p.call("pearnly_erp_portal.collection.api.api_collection_choose_book", {company, key}, "POST");
-			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company});
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company}, "POST");
 			dialog.set_df_property("book", "hidden", 1);
 			show_methods(found.methods || {});
 		}

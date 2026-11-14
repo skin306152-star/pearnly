@@ -94,9 +94,10 @@ def api_collection_save(name, version, invoices, cash=0, methods=None, salesman=
 # ── 网页「新建」（11-14：「收款」页头，`public/desk/collection-new.js`）────────────────
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def api_collection_new_options(company=None):
-    """弹窗要的：本人能录收款的公司；给了公司再带这家此刻的账套是否要选一次、收款方式。"""
+    """弹窗要的：本人能录收款的公司；给了公司再带这家此刻的账套是否要选一次、收款方式。POST：主档还没读过时要排一次读取
+    （`express.masters.ensure`），GET 里写库不提交。"""
     from pearnly_erp_portal.collection import service
 
     out = {"companies": [{"value": row["name"], "label": row["company_name"]} for row in service.companies_for()]}
