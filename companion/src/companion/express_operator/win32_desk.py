@@ -76,6 +76,7 @@ if IS_WIN:
     user32.GetMonitorInfoW.argtypes = [HANDLE, ctypes.c_void_p]
     user32.SetWindowPos.argtypes = [HWND, HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, W.UINT]
     user32.IsZoomed.argtypes = [HWND]
+    user32.GetWindowLongW.argtypes = [HWND, ctypes.c_int]
     kernel32.GlobalAlloc.argtypes = [W.UINT, ctypes.c_size_t]
     kernel32.GlobalAlloc.restype = HANDLE
     kernel32.GlobalLock.argtypes = [HANDLE]
@@ -869,7 +870,8 @@ class WindowsDesk:
         moved = []
         for w in self.windows():
             hwnd = HWND(w["hwnd"])
-            is_main = bool(main) and w["hwnd"] == main["hwnd"]
+            # 能拉大小的主窗口才铺满工作区；登录窗这种固定大小的（Express 还没进公司时它就是唯一的窗口）只挪不拉
+            is_main = bool(main) and w["hwnd"] == main["hwnd"] and bool(user32.GetWindowLongW(hwnd, -16) & 0x00040000)
             if user32.IsIconic(hwnd) or (is_main and user32.IsZoomed(hwnd)):
                 continue
             work = self._work_area(hwnd)
