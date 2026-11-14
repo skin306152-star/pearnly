@@ -47,9 +47,19 @@ def _insert(values: Dict[str, Any]):
 
 
 def _locked(name: str):
-    """锁住这一行再读（两台设备同时点：后到的等前一个提交、读到最新的）；不是本人的回 None。"""
-    found = frappe.db.get_value(DOCTYPE, {"name": str(name or ""), "user": frappe.session.user}, "name", for_update=True)
-    return frappe.get_doc(DOCTYPE, found) if found else None
+    """锁住这一行再读（两台设备同时点：后到的等前一个提交、读到最新的）；不是本人的回 None。
+    整行都由带锁的那一次读取（``for_update``）给：先锁再普通读的话，这个请求早先的查询已经定了快照，会读到对方提交前的旧行。"""
+    name = str(name or "")
+    if not name or not frappe.db.exists(DOCTYPE, name):
+        return None
+    try:
+        doc = frappe.get_doc(DOCTYPE, name, for_update=True)
+    except frappe.QueryDeadlockError:
+        # 等锁的时候对方提交了：数据库（快照隔离）不让这个旧快照的事务锁改过的行。这里还没写过任何东西，丢掉旧快照重读一次，
+        # 读到的就是对方提交后的那一行，后面照常判「卡变了 / 已经确定过」（11-14 实验栈两连接同时点查出）
+        frappe.db.rollback()
+        doc = frappe.get_doc(DOCTYPE, name, for_update=True)
+    return doc if doc.user == frappe.session.user else None
 
 
 def _save(doc) -> None:
