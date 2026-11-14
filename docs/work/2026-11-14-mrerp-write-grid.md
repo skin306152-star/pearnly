@@ -142,6 +142,10 @@ txtvatnum = 供应商票号 NV-6911-77、税额 0；ERP 销售 SI691114-190493 =
 
 ## 待办（不在这批）
 
+- 公司接入第 3 批与本分支都进 main 后：去掉 `mrerp/push.py _after_write` 的 ImportError / getattr 兜底，测试换成真调用（拼车窗口在集成分支补跨边测试）。
+- 「多年度账套按单据日期选当期」（`mrerp.catalog.pick(company, day, wanted)`）：`mrerp/push.py prepare`、`mrerp/choices.py`、`mrerp/ledger_check.py`、
+  `express/cc_tools.py` 读公司 `mrerp_account_set` 的地方改调它；另开分支，基于公司接入第 3 批分支头，它先合。
+
 - 代录现购（⑥⑧）：先转人工；要支持得在 CC 桌面版配方加开票用供应商 txtapmas_inv 一格并在 TEST2019 探路。总表
   （`pearnly/cc-coverage-matrix-eccdec` 上的 `2026-11-12-cc-coverage-matrix.md`，未合入）合入时补这一行。
 
