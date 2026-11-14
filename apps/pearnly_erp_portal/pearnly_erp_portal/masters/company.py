@@ -672,7 +672,11 @@ def _apply(doc, fields) -> None:
             frappe.throw(_(INVALID))
         doc.company_type = kind
     # 「接 Express」不再由表单勾（公司接入重做第 2 批，2026-11-14：来源决定是否互通）：接上只走「从连接添加」/ CC 选中即建
-    # （`cc_service.create`），断开只走 :func:`disconnect_express`；表单、接口交来的 express_enabled 一律不收
+    # （`cc_service.create`），断开只走 :func:`disconnect_express`；表单、接口交来的 express_enabled 不收。跟现状一样的照旧忽略
+    # （旧页面缓存整份交回）；想改它的（旧页面勾 / 取消「接 Express」）明确拒绝，不静默丢掉让人以为已接上
+    if "express_enabled" in fields and \
+            (1 if fields["express_enabled"] in (True, 1, "1", "true") else 0) != (1 if doc.get("express_enabled") else 0):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))

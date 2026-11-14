@@ -1550,13 +1550,16 @@ class LinkStates(PushModule):
                 mock.patch.object(self.push, "connected", lambda name: True), \
                 mock.patch.object(masters, "queue", synced.append), \
                 mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.push": self.push}):
-            companies.update_company("CO-1", express_enabled=0)  # 表单交来的不收
+            with self.assertRaises(frappe.PermissionError):
+                companies.update_company("CO-1", express_enabled=0)  # 表单交来要改它的：明确拒绝
+            companies.update_company("CO-1", express_enabled=1)  # 与现状相同（旧页面整份交回）：照旧忽略
             self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached, synced),
                              (1, self.LINKED, [], []))
             companies.disconnect_express("CO-1")
             self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached),
                              (0, None, ["CO-1"]))
-            companies.update_company("CO-1", express_enabled=1)  # 断开后也不能靠表单接回
+            with self.assertRaises(frappe.PermissionError):
+                companies.update_company("CO-1", express_enabled=1)  # 断开后也不能靠表单接回
             self.assertEqual((table["CO-1"]["express_enabled"], synced), (0, []))
 
     def test_the_cashier_day_takes_only_receipts_sold_after_the_link(self):

@@ -420,9 +420,7 @@ def create(connection, account_set_key, request_key=None) -> dict:
                 _not_in_catalog()
             if found and not found.express_enabled and not found.mrerp_connection:
                 # 手工建过同税号同分店的公司：接上它，不另建一家（来源由选账套决定，11-14 去掉了「接 Express」勾选）
-                frappe.db.set_value(COMPANY, found.name, {"express_enabled": 1, "express_linked_at": None})
-                masters.queue(found.name)
-                frappe.db.commit()
+                link_express(found.name)
                 _pending_changed()
                 return {**_made(found.name), "created": False, "linked": True}
             if found:
@@ -443,6 +441,17 @@ def create(connection, account_set_key, request_key=None) -> dict:
         frappe.db.commit()
     _pending_changed()
     return {**_made(name), "created": True}
+
+
+def link_express(company):
+    """把一家已有的公司接上 Express（来源由账套决定，公司接入重做第 2 批）：记「接 Express」、清接上时刻（第一次落库时记）、排主档
+    同步，提交。从连接添加选中手工公司、回归实验室 / 测试夹具建站都走这一处，不再改字段（表单交来的 ``express_enabled`` 一律不收，
+    `masters.company._apply`）。权限由调用方判。"""
+    from pearnly_erp_portal.express import masters
+
+    frappe.db.set_value(COMPANY, company, {"express_enabled": 1, "express_linked_at": None})
+    masters.queue(company)
+    frappe.db.commit()
 
 
 def _pending_changed():
