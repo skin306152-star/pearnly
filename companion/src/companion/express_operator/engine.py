@@ -50,6 +50,29 @@ class NeedHuman(Exception):
         self.evidence = ""  # 截到的画面（本机路径）：宿主放进回执 meta.evidence，不进说明
 
 
+# 中性按钮（确认 / 取消 / 关闭）：按了不替人做业务决定。认不出的框上有两个以上别的按钮 = 业务选择（如服务品税口径
+# เกณฑ์สิทธิ / เกณฑ์เงินสด）：配方有规则按规则答，没有规则的 AI 只能看、不能点，原样留给人（11-13 设计要点 4）
+NEUTRAL_BUTTONS = frozenset({"ตกลง", "ยกเลิก", "ปิด", "OK", "CANCEL", "CLOSE"})
+PARTIAL = "partial_saved"
+
+
+def _buttons(w: Dict) -> List[str]:
+    return [b.replace("&", "").strip() for b in (w.get("buttons") or []) if b.replace("&", "").strip()]
+
+
+def is_choice(w: Dict) -> bool:
+    """这个框问的是业务选择：两个以上不是确认 / 取消 / 关闭的按钮。"""
+    return sum(1 for b in _buttons(w) if b.upper() not in NEUTRAL_BUTTONS and b not in NEUTRAL_BUTTONS) >= 2
+
+
+class ChoiceBox(Exception):
+    """AI 接手时要在配方外的业务选择框上动手：工具层直接拦下（不只靠提示词），这张转人工、框原样留着。"""
+
+    def __init__(self, text: str):
+        super().__init__(f"business choice box: {text}")
+        self.text = text
+
+
 class MenuChoice(NeedHuman):
     """菜单子菜单里有几个命令、载荷的选择与付款方式都定不下来：只停这一张（原因 ``menu_choice``），候选带回站点问人。"""
 
@@ -257,6 +280,7 @@ class Engine:
 
     def _need_human_shot(self, doc_id: str) -> None:
         """转人工的单留一张当时的截图（本机证据目录，同存成的单；不上传），路径附在说明后面，随任务回到待处理。截不到不影响转人工。"""
+        self._fit()  # 截图前把超出屏幕的窗口挪回屏内，人看得到整个框
         path = self.evidence_shot(doc_id)
         if not path:
             return
@@ -328,6 +352,10 @@ class Engine:
 
     def _recover(self, where: str, problem: str, expect_text: str, expect: Dict, reverify=None) -> None:
         self.rec["fallbacks"].append({"where": where, "problem": problem[:200]})
+        choice = [w for w in self.windows if w.get("owned") and self._match(w) is None and is_choice(w)]
+        if choice:  # 配方外的业务选择：不交 AI（它只能看不能点），直接留给人
+            self._event("takeover", where=where, status="need_human", note="business choice box")
+            raise NeedHuman("unknown_screen", f"business choice box · {where}: {self._text(choice[0])[:200]}")
         if len(self.rec["fallbacks"]) > MAX_TAKEOVERS_PER_DOC:
             raise NeedHuman("unknown_screen", f"{where}: {problem}")  # 同一张反复出意外：不再烧钱，交给人
         goal = (f"固定流程在「{where}」这一步出了意外：{problem}\n你的目标：处理掉意外，让画面达到「{expect_text}」。\n"
@@ -337,7 +365,11 @@ class Engine:
             if isinstance(self.helper, NoHelper):
                 status, note = "need_human", self._ai_note()
             else:
+                self._fit()  # AI 看画面前：超出屏幕的窗口（报表、弹窗）挪回屏内，按钮看得到
                 status, note = self.helper.take_over(goal, self)
+        except ChoiceBox as box:  # AI 想在业务选择框上动手：拦下，框原样留给人
+            self._event("takeover", where=where, status="need_human", note="business choice box")
+            raise NeedHuman("unknown_screen", f"business choice box · {where}: {box.text}"[:K.DETAIL_MAX]) from None
         except RuntimeError as error:  # 站点没接上 / 出错：交给人（预算用完是 BudgetStop，照旧往上抛）
             status, note = "need_human", self._ai_note(self._ai_unavailable(where, error))
         self._event("takeover", where=where, status=status, note=note[:200])
@@ -373,6 +405,9 @@ class Engine:
             return [png_block(self.act([{"do": "zoom", "region": [x0, y0, x1, y1]}])["results"][0]["png"])]
         clicks = {"left_click": ("left", 1), "right_click": ("right", 1), "middle_click": ("middle", 1),
                   "double_click": ("left", 2), "triple_click": ("left", 3)}
+        if name in clicks or name in ("left_click_drag", "left_mouse_down", "left_mouse_up", "type", "key", "scroll") \
+                or (name == "express_menu" and inp.get("path")):
+            self._no_choice_box()
         if name in clicks:
             button, count = clicks[name]
             x, y = self._xy(inp["coordinate"]) if inp.get("coordinate") else \
@@ -474,6 +509,35 @@ class Engine:
             if rule and rule.get("outcome") == "blocked":
                 raise Blocked(self._reason(rule), self._text(w)[:200])
 
+    def choice_boxes(self) -> List[Dict]:
+        """Express 上开着的、配方认不出的业务选择框（见 :func:`is_choice`）。"""
+        return [w for w in self.windows if w.get("owned") and self._match(w) is None and is_choice(w)]
+
+    def _fit(self) -> None:
+        """超出屏幕的 Express 窗口挪回屏内（``desk.fit_rect``）；挪不了不影响录单。"""
+        try:
+            moved = self.act([{"do": "fit"}], windows=False)["results"][0].get("moved") or []
+        except Exception:  # noqa: BLE001
+            return
+        if moved:
+            self._event("fit", moved=moved[:5])
+
+    def _no_choice_box(self) -> None:
+        self.act([{"do": "wait", "ms": 0}])  # 刷新窗口清单
+        found = self.choice_boxes()
+        if found:
+            raise ChoiceBox(self._text(found[0])[:200])
+
+    def open_unknown(self) -> Optional[List[Dict]]:
+        """这时 Express 上开着的、配方认不出的框（只读，不点）。Express 已经没了回 None。"""
+        try:
+            self.act([{"do": "wait", "ms": 0}])
+        except Crash:
+            return None
+        except Exception:  # noqa: BLE001 — 读不到当成还开着，不放手
+            return [{"title": "?", "texts": []}]
+        return [w for w in self.windows if w.get("owned") and self._match(w) is None]
+
     # ── 读状态 ──────────────────────────────────────────────────────────────
     def step(self, where: str, actions: List[Dict], expect_text: str, expect: Dict) -> None:
         try:
@@ -537,7 +601,7 @@ class Engine:
     def ensure_form(self, doc_type: str) -> None:
         form = self.recipe.form(doc_type)
         self.form = form
-        fg = (self.act([{"do": "activate"}, {"do": "wait", "ms": 300}]).get("fg") or {}).get("title", "")
+        fg = (self.act([{"do": "activate"}, {"do": "fit"}, {"do": "wait", "ms": 300}]).get("fg") or {}).get("title", "")
         options = self._menu_options.get(doc_type)
         want = M.pick(options, *self._menu_hint_now()) if options else ""
         if self.form_open == doc_type and self._is_form(form, fg) and (not options or (want and want == self._form_choice)):
@@ -869,6 +933,8 @@ class Engine:
         except Exception as e:  # noqa: BLE001 — 收尾失败不掩盖原来的原因；画面状态不明，下一张从菜单重开
             self._event("abandon", ok=False, error=str(e)[:200])
             self.form_open = None
+            # 认不出的框留在一张编辑中的单上：Express 原样留给人（退出就把单断在半截），再交来先读账套
+            self.rec.update(held=True, recheck=True)
         return voided
 
     def _screen_note(self) -> str:
@@ -924,22 +990,38 @@ class Engine:
         self.rec["voided"] = self.abandon()
 
     def _after_save_trouble(self, draft: Draft, e: Exception) -> str:
-        """保存键按下之后出了认不出的画面（11-12 测试机2：服务品赊销单存档途中问销项税口径，单其实已存进 IV0000043）。按类处理，
-        不只哪一个框：先读账套——这张已存就回单号（不放弃、不作废、不点 Express 上的东西）；核不出来就转人工，**不碰** Express 上的
-        东西（「取消」在有明细时就是存档、作废闸也可能作废一张存好的单），并标上 ``recheck``：批次再交来时先读账套判断存没存，
-        绝不从头重录（以前会把「其实已存」当成没录成再录一遍，录出重复单）。"""
+        """保存键按下之后出了认不出的画面（11-12 IV0000043、11-13 IV0000045）。按类处理，不只哪一个框：
+
+        - 先读账套（含凭证表）判这张：已完整 → 回单号（不放弃、不作废、不点 Express 上的东西）；
+        - 没存完（半截：单头在、金额 / 明细 / 凭证 / 税缺一样或几样）→ 转人工，原因 ``partial_saved``，带单号与缺什么；
+        - 什么都没看到 → 转人工（原因照旧）；
+        - 后两种都 **不碰** Express 上的东西（「取消」在有明细时就是存档、作废闸也可能作废一张存好的单），标上 ``recheck``（再交来
+          先读账套、绝不从头重录）和 ``held``（Express 原样留着等人答框，批次收尾 / 闲置都不退出 Express：一退出存档就断在半截）。"""
         reason = getattr(e, "reason", "unknown_screen")
         detail = str(getattr(e, "detail", "") or e)
         self.form_open = None  # Express 上留着认不出的东西：下一张从菜单重开（撞上就停在开窗那一步，不会再按保存）
-        docnum = self._wait_for(self._booked, SLOW_SAVE_S)
-        if docnum:
+        self._wait_for(self._booked, SLOW_SAVE_S)  # 存档慢：等单头金额落下（只读单据表，便宜）
+        found = self._book_state()
+        if found.get("docnum"):
             self._layer("dbf")
-            self._event("saved", docnum=docnum, by="book", after=reason, screen=detail[:200])
+            self._event("saved", docnum=found["docnum"], by="book", after=reason, screen=detail[:200])
             self.rec.update(outcome="saved", screen_left=detail[:K.DETAIL_MAX])
-            return docnum
-        self.rec.update(outcome="need_human", reason=reason, detail=detail[:K.DETAIL_MAX], recheck=True)
+            return found["docnum"]
+        self.rec.update(outcome="need_human", reason=reason, detail=detail[:K.DETAIL_MAX], recheck=True, held=True)
+        if found.get("partial"):
+            self.rec.update(reason=PARTIAL, partial=dict(found["partial"][-1]))
+        self._event("held", partial=(found.get("partial") or [{}])[-1].get("docnum", ""))
         self._need_human_shot(draft.doc_id)
         return ""
+
+    def _book_state(self) -> Dict:
+        """读账套判这张（``book.state_of``）；读不了回空（当成没看到，照样转人工、不重录）。"""
+        if self._before is None or self.draft is None:
+            return {}
+        try:
+            return B.state_of(self.draft, self.book, self._before)
+        except Exception:  # noqa: BLE001
+            return {}
 
     def run(self, draft: Draft) -> Dict:
         """录一张。回 ``{"outcome": saved / need_human / blocked / crash, "reason", "docnum", "voided", "readback", ...}``。

@@ -71,6 +71,11 @@ if IS_WIN:
     user32.SetClipboardData.argtypes = [W.UINT, HANDLE]
     user32.SetClipboardData.restype = HANDLE
     user32.GetDpiForSystem.restype = W.UINT
+    user32.MonitorFromWindow.argtypes = [HWND, W.DWORD]
+    user32.MonitorFromWindow.restype = HANDLE
+    user32.GetMonitorInfoW.argtypes = [HANDLE, ctypes.c_void_p]
+    user32.SetWindowPos.argtypes = [HWND, HWND, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, W.UINT]
+    user32.IsZoomed.argtypes = [HWND]
     kernel32.GlobalAlloc.argtypes = [W.UINT, ctypes.c_size_t]
     kernel32.GlobalAlloc.restype = HANDLE
     kernel32.GlobalLock.argtypes = [HANDLE]
@@ -302,7 +307,7 @@ class WindowsDesk:
 
         def top(hwnd, _):
             if user32.IsWindowVisible(hwnd) and self.is_express(hwnd, any_instance):
-                texts, status = [], []
+                texts, status, buttons = [], [], []
                 for ch in self._children(hwnd):
                     if not user32.IsWindowVisible(ch):
                         continue
@@ -315,10 +320,13 @@ class WindowsDesk:
                         text = self._gettext(ch).strip()
                         if text:
                             texts.append(text[:200])
+                            if self._cls(ch) == "Button" and len(buttons) < 12:
+                                buttons.append(text[:60])  # 按钮单列：认「业务选择框」（engine.is_choice）
                 texts = status + texts
                 out.append({"hwnd": int(hwnd), "pid": self._pid_of(hwnd), "exe": self._exe_of(hwnd),
                             "title": self._title(hwnd), "cls": self._cls(hwnd),
-                            "rect": self._rect(hwnd), "owned": bool(user32.GetWindow(hwnd, 4)), "texts": texts})
+                            "rect": self._rect(hwnd), "owned": bool(user32.GetWindow(hwnd, 4)), "texts": texts,
+                            "buttons": buttons})
             return True
 
         user32.EnumWindows(EnumProc(top), 0)
@@ -838,6 +846,43 @@ class WindowsDesk:
             user32.ShowWindowAsync(hwnd, 9)  # SW_RESTORE
         return bool(user32.SetForegroundWindow(hwnd))
 
+    @staticmethod
+    def _work_area(hwnd) -> List[int]:
+        """窗口所在显示器的工作区（去掉任务栏）。"""
+
+        class MONITORINFO(ctypes.Structure):
+            _fields_ = [("cbSize", W.DWORD), ("rcMonitor", W.RECT), ("rcWork", W.RECT), ("dwFlags", W.DWORD)]
+
+        info = MONITORINFO(cbSize=ctypes.sizeof(MONITORINFO))
+        monitor = user32.MonitorFromWindow(hwnd, 2)  # MONITOR_DEFAULTTONEAREST
+        if not monitor or not user32.GetMonitorInfoW(monitor, ctypes.byref(info)):
+            return []
+        r = info.rcWork
+        return [r.left, r.top, r.right, r.bottom]
+
+    def fit(self) -> Dict:
+        """把超出屏幕的 Express 窗口挪回屏内（``desk.fit_rect``）：不激活、不改前后次序、异步（对方停在模态框里也不卡），
+        后台做法照样能用（不碰真键鼠）。已最大化的主窗口不动。回挪过的窗口标题。"""
+        from .desk import fit_rect
+
+        main = self.main_window()
+        moved = []
+        for w in self.windows():
+            hwnd = HWND(w["hwnd"])
+            is_main = bool(main) and w["hwnd"] == main["hwnd"]
+            if user32.IsIconic(hwnd) or (is_main and user32.IsZoomed(hwnd)):
+                continue
+            work = self._work_area(hwnd)
+            new = fit_rect(w["rect"], work, main=is_main) if work else []
+            if not new:
+                continue
+            flags = 0x0004 | 0x0010 | 0x4000  # SWP_NOZORDER | SWP_NOACTIVATE | SWP_ASYNCWINDOWPOS
+            if [new[2] - new[0], new[3] - new[1]] == [w["rect"][2] - w["rect"][0], w["rect"][3] - w["rect"][1]]:
+                flags |= 0x0001  # SWP_NOSIZE：只挪不改大小
+            user32.SetWindowPos(hwnd, None, new[0], new[1], new[2] - new[0], new[3] - new[1], flags)
+            moved.append(w["title"][:60])
+        return {"moved": moved}
+
     def close_express(self) -> Dict:
         """正常退出：给主窗口发 WM_CLOSE（等同点右上角关闭；锁屏时键盘用不了也能发）。"""
         main = self.main_window()
@@ -854,6 +899,7 @@ class WindowsDesk:
                   "activate": self.activate,
                   "cursor": lambda: {"pos": self.cursor()},
                   "fields": self.fields,
+                  "fit": self.fit,
                   "close_express": self.close_express}
         if op in simple:
             return simple[op]()

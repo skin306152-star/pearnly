@@ -56,6 +56,10 @@ class DocState:
     menu_options: List[str] = field(default_factory=list)
     # 转人工那一刻的截图（本机路径，回执 meta.evidence；1.12.15 起不进说明）。旧批次文件没有这一项，按空读
     evidence: str = ""
+    # 保存途中停住、Express 原样留着等人答框（``engine._after_save_trouble``）：收尾不退出 Express。旧批次文件没有，按否读
+    held: bool = False
+    # 账套里留下的半截单 ``{"docnum", "missing"}``（回执 meta.partial）。旧批次文件没有，按空读
+    partial: Dict = field(default_factory=dict)
 
 
 @dataclass
@@ -75,6 +79,7 @@ class BatchState:
     counts_start: Dict[str, int] = field(default_factory=dict)  # 批次开录前账套各表行数（作废闸：只认之后新建的单）
     detail: str = ""  # 整批停下时看到的画面文字（host 记）
     site: str = ""  # 站点上的公司编号（载荷 operator.batch.company）：CC 重启后页面拿它向站点核这一批
+    held: str = ""  # Express 留着等人答框的那一张（单据号）：这期间不退出 Express、这本账套的别的单等着（account_busy）
 
     @classmethod
     def new(cls, company: str, account_set: str, account_dir: str, drafts: List[Draft], *, start_at: float = 0.0):
@@ -99,7 +104,7 @@ def snapshot_of(s: "BatchState", *, now: float, events=(), pauses=(), evidence_s
     avg = (sum(d.seconds for d in done) / len(done)) if done else 0.0
     left = len([d for d in s.docs if d.status in (K.PENDING, K.ENTERING)])
     return {"id": s.id, "status": s.status, "reason": s.reason, "company": s.company, "site": s.site,
-            "account_set": s.account_set,
+            "account_set": s.account_set, "held": s.held,
             "total": len(s.docs), "counts": by, "current": s.current,
             "index": next((i + 1 for i, d in enumerate(s.docs) if d.doc_id == s.current), 0),
             "events": list(events), "pauses": list(pauses), "started": s.started, "finished": s.finished,
@@ -107,6 +112,7 @@ def snapshot_of(s: "BatchState", *, now: float, events=(), pauses=(), evidence_s
             "remaining_estimate": round(avg * left, 1),
             "docs": [{"doc_id": d.doc_id, "doc_type": d.doc_type, "status": d.status, "docnum": d.docnum,
                       "voided": d.voided, "placeholders": d.placeholders, "reason": d.reason,
+                      "held": d.held, "partial": d.partial,
                       "reports": d.reports, "issues": d.issues,
                       "seconds": d.seconds, "evidence": evidence_state(d.doc_id)} for d in s.docs]}
 
@@ -143,6 +149,10 @@ def _write_lock(account_dir: str):
     from ..account_write_lock import held
 
     return held(account_dir)
+
+
+class Held(Exception):
+    """这本账套的 Express 正留着等人答框（``BatchState.held``）：这一张先不录，按「等账套」放回，人处理完再录。"""
 
 
 class Runner:
@@ -301,13 +311,19 @@ class Runner:
         if task and task == d.task:
             return d
         d.task = task
+        if d.held and self.state.held == d.doc_id and self.still_held():
+            # 还留着等人答框：原样回上次的结论（带单号），等人处理完再说（人答完存好了的，still_held 已记成已写入）
+            self._set()
+            return d
         if d.status == K.SAVED:
             self._set()
             return d
         if d.status in (K.WAITING, K.SKIPPED, K.VOIDED):
             d.draft, d.doc_type, d.reason, d.detail, d.menu_options = asdict(draft), draft.doc_type, "", "", []
-            if d.recheck:
-                d.status, d.recheck = K.ENTERING, False  # 开录前行数留着：续录先读这之后新增的行
+            if (d.recheck or d.placeholders or d.partial) and d.counts_before:
+                # 账套里可能已有这张的行（保存后出事、留了半截单 / 空单头）：开录前行数留着，先读这之后新增的行，
+                # 已完整回单号、半截带单号交人，确认一行都没有才从头录（11-13 设计要点 3：半截单再交不出第二张）
+                d.status, d.recheck = K.ENTERING, False
             else:
                 d.status = K.PENDING
                 d.counts_before, d.issues, d.readback_ok = {}, [], None
@@ -358,6 +374,8 @@ class Runner:
         s, d = self.state, self.state.doc(doc_id)
         if d.status in K.DONE_STATES or d.status == K.WAITING:
             return d
+        if self.still_held():
+            raise Held(s.held)
         if self._stop.is_set() or s.status == K.BATCH_STOPPED:
             if d.status == K.ENTERING:  # 停下时正在录的那张（同一件再派来）：结果不明，不当跳过
                 self.park(doc_id)
@@ -449,6 +467,31 @@ class Runner:
         except Exception:  # noqa: BLE001
             return ""
 
+    def still_held(self) -> bool:
+        """Express 还留着等人答框吗（只读，不点）。人答完、单在账套里存完 → 这张记已写入；框没了（人答了取消、关了 Express）
+        → 放手（那张仍是等人，再交来先读账套）。框还在 → 真。"""
+        s = self.state
+        if not s.held:
+            return False
+        d = s.doc(s.held)
+        if d is not None and d.status == K.WAITING and d.counts_before:
+            try:
+                draft = self.draft_type(**d.draft)
+                found = (self.find_saved(draft, d.counts_before) if self.find_saved
+                         else B.state_of(draft, self.book, d.counts_before))
+            except Exception:  # noqa: BLE001 — 读不了：看框还在不在
+                found = {}
+            if found.get("docnum"):
+                d.status, d.docnum, d.reason, d.detail, d.partial = K.SAVED, found["docnum"], "", "", {}
+        opened = self.engine.open_unknown() if hasattr(self.engine, "open_unknown") else None
+        if opened and d is not None and d.status == K.WAITING:
+            return True
+        for doc in s.docs:
+            doc.held = False
+        s.held = ""
+        self._set()
+        return False
+
     def close_express(self) -> None:
         """批中途要建主档：正常退出 Express（开过才退），下一张从头开、核公司，单据窗口也从菜单重开（Express 重新读主档）。"""
         if self.state.started and not self._reopen:
@@ -482,7 +525,7 @@ class Runner:
         self.session.close()
 
     def finish(self) -> None:
-        """批次最后一张录完（或停止）：正常退出 Express、清过期截图。"""
+        """批次最后一张录完（或停止）：正常退出 Express、清过期截图。Express 留着等人答框（``held``）时不退出。"""
         self._close()
         self._tidy()
         if self.state.status not in (K.BATCH_STOPPED,):
@@ -495,6 +538,9 @@ class Runner:
             pass
 
     def _close(self) -> None:
+        if self.state.held:  # 存档停在人要答的框上：退出 Express 就把单断在半截（11-13 IV0000045），留给人
+            self.engine.form_open = None
+            return
         try:
             self.session.close()
         except Exception:  # noqa: BLE001 — 退不掉不掩盖批次结果；Express 留着，下次开录前会核对公司
@@ -542,6 +588,9 @@ class Runner:
                 continue
             if not self._one(d):
                 return
+            if s.held:  # 留着等人答框：剩下的单先不录（等账套），人处理完再交
+                self._set(status=K.BATCH_READY, reason="account_busy", current="")
+                return
         self._set(status=K.BATCH_FINISHED, reason="", current="", finished=self.clock())
 
     def _one(self, d: DocState) -> bool:
@@ -550,14 +599,18 @@ class Runner:
         while True:
             if d.status == K.ENTERING:
                 found = (self.find_saved(draft, d.counts_before) if self.find_saved
-                         else B.find_saved(draft, self.book.rows_since(d.counts_before)))
+                         else B.state_of(draft, self.book, d.counts_before))
                 if found["docnum"]:
                     d.status, d.docnum = K.SAVED, found["docnum"]
                     d.reports.append({"reason": "express_restarted"})
                     self._set()
                     return True
                 if found["placeholders"]:
-                    d.status, d.reason, d.detail = K.WAITING, "placeholder_left", ",".join(found["placeholders"])
+                    # 崩溃留下的空单头照旧 placeholder_left；保存途中停下的半截单 partial_saved（带缺什么）
+                    d.reason = "placeholder_left" if d.crashes else "partial_saved"
+                    d.status, d.detail = K.WAITING, ",".join(found["placeholders"])
+                    d.partial = dict((found.get("partial") or [{}])[-1]) if found.get("partial") else {}
+                    d.recheck = True
                     self._set()
                     return True
                 if d.crashes >= 2:
@@ -584,6 +637,9 @@ class Runner:
             d.placeholders += rec.get("placeholders", [])
             if rec.get("recheck"):  # 保存键按下之后出的事：再交来时先读账套判断存没存，不从头重录（11-12）
                 d.recheck = True
+            d.partial = dict(rec.get("partial") or {})
+            if rec.get("held"):  # Express 原样留着等人答框：收尾不退出，这本账套的别的单等着
+                d.held, self.state.held = True, d.doc_id
             readback = rec.get("readback") or {}
             d.readback_ok = readback.get("ok") if readback else None
             outcome = rec["outcome"]

@@ -1900,8 +1900,8 @@ files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/compone
 id = "cc.desktop.places"
 product = "CC"
 where = "Express 位置与账套上报（两种成员；11-07 起每个位置记给哪几种成员读）"
-steps = "测试机 CC：添加 / 移除位置、新建年度后重新读取、两个成员同扫一台服务器；同时连 testcowork 与 testerp 时设置里位置行「···」勾 / 不勾 ERP，读回 testerp 的 Pearnly CC Book 与「添加公司」候选；离线 companion/tests/test_place_channels.py"
-expect = "只报勾给这个成员的位置下的账套；两种成员都在时新加位置只给 Cowork、ERP 不勾就一本都不报；只连一种成员时界面与以前一样；某种成员仅剩的位置勾不掉"
+steps = "测试机 CC：添加 / 移除位置、新建年度后重新读取、两个成员同扫一台服务器；同时连 testcowork 与 testerp 时设置里位置行「···」勾 / 不勾 ERP，读回 testerp 的 Pearnly CC Book 与「添加公司」候选；添加文件夹选年度里的一本账套（69EXP\\TEST）；离线 companion/tests/test_place_channels.py、test_place_pick_books.py"
+expect = "只报勾给这个成员的位置下的账套；位置选的是某几本账套时只报这几本（同年度别的账套不报）；两种成员都在时新加位置只给 Cowork、ERP 不勾就一本都不报；只连一种成员时界面与以前一样；某种成员仅剩的位置勾不掉"
 check = "manual"
 files = ["companion/src/companion/express_places.py", "companion/src/companion/worker.py", "companion/src/companion/profile_store.py", "companion/src/companion/express_machine.py", "companion/src/companion/master_refresh.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/pairing_flow.py", "companion/src/companion/projection_refresh.py", "companion/src/companion/config.py", "companion/src/companion/gui_tray.py", "companion/src/companion/health_check.py", "companion/src/companion/device_link.py", "companion/src/companion/main.py", "companion/src/companion/pairing.py", "companion/src/companion/account_probe.py", "companion/src/companion/multi_profile_worker.py", "companion/src/companion/queue_client.py", "companion/src/companion/tomo_bridge.py"]
 

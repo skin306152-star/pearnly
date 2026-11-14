@@ -113,8 +113,9 @@ def test_resume_finds_a_blank_placeholder_and_asks_a_human(tmp_path):
     sim.book["APTRN"].append({"_row": 0, "_del": False, "DOCNUM": "RR0000009", "DOCDAT": "2026-10-20",
                               "SUPCOD": "P001", "REFNUM": "INV-7781", "NETVAL": 0.0, "VATAMT": 0.0, "NETAMT": 0.0})
     state = r.run()
-    assert state.docs[0].status == K.WAITING and state.docs[0].reason == "placeholder_left"
-    assert "RR0000009" in state.docs[0].detail
+    # 开录后账套里只多了这张的金额 0 单头（CC 重启前停在半路）：半截单带单号交人，不重录
+    assert state.docs[0].status == K.WAITING and state.docs[0].reason == "partial_saved"
+    assert "RR0000009" in state.docs[0].detail and state.docs[0].partial["docnum"] == "RR0000009"
 
 
 def test_network_error_waits_reopens_and_does_not_enter_twice(tmp_path):

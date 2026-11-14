@@ -30,7 +30,7 @@ _DEFAULT_MIN_COMPANIES = 10
 
 
 # 路径判断在 express_places（位置清单，用户 10-24），这里照旧能引用
-from .express_places import norm_root, same_root, under, within, place_of, merge  # noqa: E402,F401
+from .express_places import norm_root, same_root, under, within, place_of, merge, reaches, parent_of  # noqa: E402,F401
 
 
 def year_key(root: str) -> int:
@@ -250,7 +250,8 @@ def offline_roots(found: Iterable[str], previous: Iterable[str], *, gone=None) -
 
 def places_roots(places: Iterable[str], *, seconds: float = PICK_SECONDS) -> List[str]:
     """位置下面的全部年度文件夹（express_places，用户 10-24）：认登记表、任何名字、3 层内、限时（同「添加」时往下找）；
-    位置本身就是年度文件夹的就是它自己。所在服务器这会儿不在的位置跳过（不等）。默认年度排第一。"""
+    位置本身就是年度文件夹的就是它自己；位置是年度里的某一本账套（11-14：只选其中几本）就是它所在的年度（读了只报这几本，
+    ``express_places.row_in``）。所在服务器这会儿不在的位置跳过（不等）。默认年度排第一。"""
     from .scan_pace import GATE
 
     places = merge(places)
@@ -261,12 +262,14 @@ def places_roots(places: Iterable[str], *, seconds: float = PICK_SECONDS) -> Lis
             continue
         if sccomp_company_count(place) > 0:
             found.append(place)
+        elif parent_of(place) and sccomp_company_count(parent_of(place)) > 0:
+            found.append(parent_of(place).rstrip("\\/"))  # 选的是某一本账套
         else:
             deep.append(place)
     if deep:
         found += _scan_exp_roots(deep)
         found += _deep_scan(deep, total_seconds=seconds, seconds=seconds, max_dirs=PICK_MAX_DIRS)
-    ranked = rank_roots(root for root in found if within(root, places))
+    ranked = rank_roots(root for root in found if reaches(root, places))
     if not ranked:
         return []
     first = pick_default(ranked)
@@ -286,7 +289,7 @@ def rescan_roots(store, places: Iterable[str], previous: Optional[Iterable[str]]
     就保留（:func:`offline_roots`），确实没了才去掉；位置外的不留。原来的主数据根仍排第一（找得到，或只是暂时访问不到）。"""
     places = merge(places)
     previous = machine_roots(store) if previous is None else list(previous)
-    previous = [root for root in previous if within(root, places)]
+    previous = [root for root in previous if reaches(root, places)]
     found = places_roots(places)
     kept = offline_roots(found, previous, gone=gone)
     roots = [*found, *kept]

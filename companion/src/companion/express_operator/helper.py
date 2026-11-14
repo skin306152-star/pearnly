@@ -109,7 +109,7 @@ def cu_tools(background: bool) -> List[Dict]:
 
 CUSTOM_TOOLS = ("express_menu",)  # 自定义工具（结果不带 toolset_name）
 # 工具执行时这些异常原样往上抛给引擎（崩溃、被拦、人点停止；菜单子菜单多候选由引擎按单据定，不让 AI 猜）
-RAISE_THROUGH = ("Crash", "Blocked", "Stopped", "MenuAmbiguous")
+RAISE_THROUGH = ("Crash", "Blocked", "Stopped", "MenuAmbiguous", "ChoiceBox")
 
 
 class BudgetStop(Exception):

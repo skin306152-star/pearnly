@@ -668,6 +668,15 @@ class WriteCheck(unittest.TestCase):
         erp = method_source_of(apps / "pearnly_erp_portal" / "pearnly_erp_portal" / "express" / "operator.py", "status")
         self.assertIn("_partial_docnum(row.ledger_job)", erp)
 
+    def test_cc_desktop_sends_the_half_document_keys_the_server_keeps(self):
+        """CC 宿主回执 meta 带 partial（缺什么的取值与服务端同一组）与 held。"""
+        result = method_source(COMPANION / "express_operator" / "host.py", "Host", "_result")
+        self.assertIn("meta['partial'] = dict(partial)", result)
+        self.assertIn("meta['held'] = self._held_info(", result)
+        gaps = module_constants(RULES / "common.py")["OPERATOR_PARTIAL_GAPS"]
+        book = module_constants(COMPANION / "express_operator" / "book.py")
+        self.assertEqual(set(gaps), {book["GAP_TOTAL"], book["GAP_LINES"], book["GAP_JOURNAL"], book["GAP_VAT"]})
+
     def test_automatic_pushes_only_go_to_a_version_that_returns_the_check(self):
         server = module_constants(self.PUSH / "automation" / "rules.py")["VERIFY_MIN_VERSION"]
         helper = module_constants(COMPANION / "version.py")["VERSION"]

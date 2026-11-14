@@ -16,6 +16,15 @@ from typing import Dict, Iterable, List, Optional, Protocol
 from .draft import DOC_TYPES, Draft, money
 
 DOC_TABLES = ("APTRN", "ARTRN", "STCRD", "ISVAT")
+# 凭证表（GLJNL.VOUCHER = 单号）：存完一张单 Express 最后才写凭证（11-13 测试机2 半截单 IV0000045：单头金额 0、STCRD 1 行、
+# GLJNL / GLJNLIT / ISVAT 都没有；69EXP\TEST 原生 42 张有效 IV / HS 每张都有同号凭证）。表大，只在判「存完没有」时读
+JOURNAL = "GLJNL"
+STATE_TABLES = DOC_TABLES + (JOURNAL,)
+# 半截单缺什么（回执 meta.operator.partial.missing、原因 partial_saved）
+GAP_TOTAL = "total"
+GAP_LINES = "lines"
+GAP_JOURNAL = "journal"
+GAP_VAT = "vat"
 
 
 class Book(Protocol):
@@ -54,7 +63,8 @@ class DbfBook:
                 return entry
         return None
 
-    def counts(self, tables: Iterable[str] = DOC_TABLES) -> Dict[str, int]:
+    def counts(self, tables: Iterable[str] = STATE_TABLES) -> Dict[str, int]:
+        """各表行数（只读表头 8 个字节）；含凭证表，判「存完没有」时只读这之后的凭证。"""
         out = {}
         for name in tables:
             path = self._path(name)
@@ -127,27 +137,54 @@ def heads_for(draft: Draft, rows: Dict[str, List[Dict]]) -> List[Dict]:
             and _text(r.get("DOCNUM")).upper().startswith(draft.doc_type)]
 
 
-def find_saved(draft: Draft, rows: Dict[str, List[Dict]]) -> Dict:
-    """断点续录：在这张单开录之后新增的行里找它。回 ``{"docnum": 已存的单号或空, "placeholders": [留给人处理的单]}``。
+def _live(rows: Dict[str, List[Dict]], table: str, column: str, docnum: str) -> int:
+    return sum(1 for r in rows.get(table, []) if not r.get("_del") and _text(r.get(column)) == docnum)
 
-    按对方码 + 日期 +（有的话）对方单号 + 含税合计认；录到明细时 Express 会先写一张金额 0 的单头占号，保存才填金额——
-    崩在中间就留下这种空单头，要人去作废（不自动改已存的单）。合计对不上、又没作废的（放弃时「取消」把录了一半的明细
-    存成了单、没作废掉，11-01 录制机 HP0000123）同样交给人。"""
+
+def gaps(draft: Draft, head: Dict, rows: Dict[str, List[Dict]]) -> List[str]:
+    """这张单头在账套里缺什么才算存完（按类，四种单同一口径；没读的表不判）：含税合计对上、明细行数够、有同号凭证、
+    有税的单有进项 / 销项税记录（服务品收付实现 ``srv_vattyp`` 2 原生不写 ISVAT，不要求）。空列表 = 已完整。"""
+    docnum = _text(head.get("DOCNUM"))
+    want = draft.totals()
+    missing = []
+    if _num(head.get("NETAMT")) != want["total"]:
+        missing.append(GAP_TOTAL)
+    if "STCRD" in rows and _live(rows, "STCRD", "DOCNUM", docnum) < len(draft.lines):
+        missing.append(GAP_LINES)
+    if JOURNAL in rows and not _live(rows, JOURNAL, "VOUCHER", docnum):
+        missing.append(GAP_JOURNAL)
+    if want["vat"] != 0 and draft.srv_vattyp != "2" and "ISVAT" in rows and not _live(rows, "ISVAT", "DOCNUM", docnum):
+        missing.append(GAP_VAT)
+    return missing
+
+
+def find_saved(draft: Draft, rows: Dict[str, List[Dict]]) -> Dict:
+    """在这张单开录之后新增的行里找它，判「已完整 / 半截 / 没写」。回 ``{"docnum": 已完整的单号或空, "partial": [{"docnum",
+    "missing"}], "placeholders": [半截单号]}``。
+
+    按对方码 + 日期 +（有的话）对方单号认这张的单头（作废的不算）；再按 :func:`gaps` 看存完没有。录到明细时 Express 先写一张金额 0
+    的单头占号、保存才填金额，保存途中停住（认不出的框、Express 被关）就留下半截单：单头在、金额 / 明细 / 凭证 / 税缺一样或几样。
+    半截单不自动改、不作废，带单号交给人（``placeholders`` 是同一批单号，旧字段照旧给）。"""
     spec = DOC_TYPES[draft.doc_type]
-    want = draft.totals()["total"]
-    docnum, placeholders = "", []
+    docnum, partial = "", []
     for head in heads_for(draft, rows):
         same_party = _text(head.get(spec["party"])) == draft.party_code
         same_day = _day(head.get("DOCDAT")) == draft.day
         same_ref = not draft.ref_no or _text(head.get(spec["ref"])) == draft.ref_no
-        if not (same_party and same_day and same_ref):
+        if not (same_party and same_day and same_ref) or _text(head.get("DOCSTAT")).upper() == "C":
             continue
-        total = _num(head.get("NETAMT"))
-        if total == want:
+        missing = gaps(draft, head, rows)
+        if missing:
+            partial.append({"docnum": _text(head.get("DOCNUM")), "missing": missing})
+        else:
             docnum = _text(head.get("DOCNUM"))
-        elif total == 0 or _text(head.get("DOCSTAT")).upper() != "C":
-            placeholders.append(_text(head.get("DOCNUM")))
-    return {"docnum": docnum, "placeholders": [p for p in placeholders if p != docnum]}
+    partial = [p for p in partial if p["docnum"] != docnum]
+    return {"docnum": docnum, "partial": partial, "placeholders": [p["docnum"] for p in partial]}
+
+
+def state_of(draft: Draft, book: "Book", since: Dict[str, int]) -> Dict:
+    """读账套判这张（含凭证表）：同 :func:`find_saved`。"""
+    return find_saved(draft, book.rows_since(since, STATE_TABLES))
 
 
 def compare(draft: Draft, rows: Dict[str, List[Dict]], docnum: str = "", *, check_ref: bool = True) -> Dict:
@@ -189,7 +226,7 @@ def compare(draft: Draft, rows: Dict[str, List[Dict]], docnum: str = "", *, chec
         check(f"line{index}.qty", _qty(line.qty), _qty(got.get("TRNQTY")))
         check(f"line{index}.price", money(line.unit_price), _num(got.get("UNITPR")))
         check(f"line{index}.amount", line.amount, _num(got.get("TRNVAL")))
-    if want["vat"] != 0:
+    if want["vat"] != 0 and draft.srv_vattyp != "2":  # 服务品收付实现：原生不写税记录（11-13 LAB70SV2B）
         vat_rows = [r for r in rows.get("ISVAT", []) if not r.get("_del") and _text(r.get("DOCNUM")) == docnum]
         # 有免税行时进项税记录的应税基数只记应税部分、免税部分记 AMTRAT0（原生，语料 158 本；10-29 TEST2 实测 RR0000086 / 087
         # 原来按整张税前比被误判不符）

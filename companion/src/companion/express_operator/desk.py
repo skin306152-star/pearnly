@@ -6,7 +6,7 @@ Windows 上的实现是 ``win32_desk.WindowsDesk``；测试里用假 Express（�
 这是写死在实现里的守卫，不靠调用方自觉。
 
 动作（``{"do": ...}``）：
-- 窗口：``activate``、``maximize_main``、``us_layout``、``state``（前台、Express 顶层窗口和文字、焦点格）、``windows``；
+- 窗口：``activate``、``maximize_main``、``fit``（把超出屏幕的 Express 窗口挪回屏内，见 :func:`fit_rect`）、``us_layout``、``state``（前台、Express 顶层窗口和文字、焦点格）、``windows``；
 - 键盘：``keys``（SendKeys 子集，如 ``{HOME}+{END}``、``{ENTER}``）、``key``（组合键，如 ``ctrl+F4``、``alt``）、
   ``type``（英文数字直接打，泰文走剪贴板 + Shift+Insert）、``paste``；
 - 表单：``command``（工具栏命令号，灰的拒绝）、``toolbar``（各命令亮不亮）、``fields``（当前单据窗口的输入格和左边标签）、
@@ -24,6 +24,29 @@ from typing import Dict, List, Protocol
 
 # CC 自己用 SendInput 发的每个键盘、鼠标事件都在 dwExtraInfo 打这个签名；「有人在用」的键鼠钩子只忽略带它的（主会话 10-30）
 CC_INPUT_MARK = 0x50524E4C  # "PRNL"
+
+
+FIT_SLACK = 16  # 最大化的窗口边框本来就比工作区多出几像素；差这么多以内不算超出
+
+
+def fit_rect(rect: List[int], work: List[int], *, main: bool = False) -> List[int]:
+    """窗口（``[左, 上, 右, 下]``）超出所在显示器的工作区（去掉任务栏）时该放到哪：回新的 ``[左, 上, 右, 下]``，不用动回空列表。
+
+    按类（11-13 测试机1 150% 缩放：Express 的银行流水报表窗口一部分在屏幕外，按钮看不到、截图截不全）：主窗口铺满工作区；
+    别的窗口（单据、报表、弹窗）比工作区大就缩到工作区大小，再整个挪进工作区。"""
+    left, top, right, bottom = (int(v) for v in rect)
+    wl, wt, wr, wb = (int(v) for v in work)
+    if wr <= wl or wb <= wt or right <= left or bottom <= top:
+        return []
+    inside = left >= wl - FIT_SLACK and top >= wt - FIT_SLACK and right <= wr + FIT_SLACK and bottom <= wb + FIT_SLACK
+    if inside:
+        return []
+    if main:
+        return [wl, wt, wr, wb]
+    width, height = min(right - left, wr - wl), min(bottom - top, wb - wt)
+    x = min(max(left, wl), wr - width)
+    y = min(max(top, wt), wb - height)
+    return [x, y, x + width, y + height]
 
 
 class Refused(Exception):
