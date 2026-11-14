@@ -664,9 +664,9 @@ class WriteCheck(unittest.TestCase):
         self.assertEqual(operator_partial_docnum(None), "")
         apps = ROOT / "apps"
         cowork = method_source_of(apps / "pearnly_cowork" / "pearnly_cowork" / "assistant" / "operator_source.py", "status")
-        self.assertIn("_partial_docnum(", cowork)
+        self.assertIn("halves[len(out)] = doc.get(\"last_push_record\")", cowork.replace("'", '"'))
         erp = method_source_of(apps / "pearnly_erp_portal" / "pearnly_erp_portal" / "express" / "operator.py", "status")
-        self.assertIn("_partial_docnum(row.ledger_job)", erp)
+        self.assertIn("halves[len(out)] = row.ledger_job", erp)
         # 迟到终态（接缝 e）：只收「成功 + 还是未完成 + 单号与记下的半截单号一致」，两套账本都走这一个判定
         from pearnly_core.express_rules.push.common import late_partial_success
 

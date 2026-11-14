@@ -451,7 +451,7 @@ def status(company, doc_ids) -> list:
     from pearnly_cowork.push import lifecycle
     from pearnly_cowork.push.application.service import RESULT_UNKNOWN
 
-    out = []
+    out, halves = [], {}
     for name in doc_ids:
         try:
             doc = storage.read(name)
@@ -466,7 +466,7 @@ def status(company, doc_ids) -> list:
         state = {"success": "saved", "pending": "queued", "manual": "not_done", "failed": "not_done",
                  "blocked": "not_done"}.get(pushed, "cancelled")
         if state == "not_done" and doc.get("last_push_record"):
-            docnum = _partial_docnum(frappe.db.get_value("Cowork Push Record", doc.get("last_push_record"), "response_json"))
+            halves[len(out)] = doc.get("last_push_record")  # 半截单号：循环外按名单一次取回推送记录的回执
         sales = _directions([name]).get(name) == "sales"
         # 单号与对方一起回：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
@@ -480,6 +480,11 @@ def status(company, doc_ids) -> list:
             if blocker:
                 row["blocked_by"] = blocker
         out.append(row)
+    if halves:
+        found = {r.name: r.response_json for r in frappe.get_all("Cowork Push Record", filters={"name": ["in", list(set(halves.values()))]},
+                                                                  fields=["name", "response_json"])}
+        for index, record in halves.items():
+            out[index]["docnum"] = _partial_docnum(found.get(record))
     return out
 
 
