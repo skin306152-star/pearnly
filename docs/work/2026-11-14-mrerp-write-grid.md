@@ -77,8 +77,37 @@
 基线 PG691114-058815 / PN691114-339343 / SI691114-488198 / SE691114-336246 全过；转账收款进现金栏（SE691114-861564）、没税号客户的未收款销售被改成现销（SE691114-614656）修后复验 SE691114-208305、SI691114-395622。
 写后核对核不上：Cowork 转人工、原因与记录带 MR.ERP 单号（真站点 SI691114-416323）；ERP 记 `mismatch` 带单号。
 
+## 现购（分支 pearnly/mrerp-cash-purchase，主会话 11-14 定做法）
+
+MR.ERP 导入采购不看「เงินสด」勾；应付那笔贷方取菜单关联科目，没设取**记账用供应商**（导入第 9 列）档案的科目
+（`aptran/component/aptranpc.php insacglhd`）；进项税记录挂**开票用供应商**（第 10 列，`impaptran/component/importpc.php:909`）。
+所以现购 = 第 9 列放一个科目是现金类的供应商、第 10 列照写真实卖家，纯导入，不要 CC 桌面版。
+
+- 判定：采购票 `payment_is_paid` 为真（入口选现金、ERP 已付都写成 `posting_payment_manual=cash`）。
+- 第 9 列（`mrerp/push/defaults.py cash_supplier`）：依次 MR.ERP 初始库自带的 `CODE_NOAP`、`เงินสด`，科目（`apmas/component/dupdata.php`
+  第 14 列）是参考科目「เงินสด」或这份账套选过的银行科目才用；都没有 → 自建 `เงินสด`、科目 = 参考科目「เงินสด」；`เงินสด` 已有但科目
+  不是现金类 → 只挡现购票（`ERR_MRERP_CASH_SUPPLIER_NOT_CASH`），同批赊购照写，不改别人的档案。
+- 入口：共用契约、Cowork 推送准备、录入弹窗、LINE、定时任务（网页与 CC 前端）、CC 工具说明、ERP 已付采购原来的「只能赊购」都去掉。
+- 代录：现购在 `operator_draft.stage` 转人工（`ERR_MRERP_OPERATOR_CASH_PURCHASE`）——配方没有开票用供应商（txtapmas_inv）一格。
+
+真写 test01 · TEST2019（实验栈挂本分支源码）：
+
+| 单号 | 入口 | 读回 |
+|---|---|---|
+| PG691114-123835 | Cowork 直写，现购货品 749.00 | 记账用 CODE_NOAP、开票用真实卖家；日记账 借 5110-01 700 / 借 1161-11 49 / 贷 1111-02 749 |
+| PN691114-563544 | Cowork 直写，现购费用 321.00 | 同两列；นอกระบบ；借 5390-09 / 贷 1111-02 |
+| PG691114-575570 | ERP 直写，已付采购 321.00 | 账本栏 written；借 5110-01 300 / 借 1161-11 21 / 贷 1111-02 321 |
+| PG691114-394983 | 定时任务推送（`folder_intake.push.push_one`），现购 428.00 | 借 5110-01 400 / 借 1161-11 28 / 贷 1111-02 428 |
+| （无） | 实验进程把候选换成挂 2120-03 的真实供应商 | 推送记录 manual `ERR_MRERP_CASH_SUPPLIER_NOT_CASH`，MR.ERP 无单 |
+
+与 Express HP 对照：同样借采购、借进项税、贷现金，进项税挂卖家；差别是 MR.ERP 单据列表与应付按记账用供应商显示「ยังไม่ระบุผู้จำหน่าย」。
+
+共用件连带（`scripts/check-impact.py`：mrerp-rules、express-rules、erp-transactions）：express-rules 只删了 MR.ERP 现购那一条拒绝，
+Express 分支没动（`test_cowork_push_contract` 覆盖）；erp-transactions 只删了 `transactions.js` 原因表里 `mrerp.purchase_cash` 一项，
+单据页其余逻辑没动——各入口没逐个实测，由本地全闸门与候选离线覆盖，开关打开前的 testerp 验收（清单 B 段）再点 ERP 采购 / 销售页。
+
 ## 待办（不在这批）
 
 - 一张票里部分行免税、部分行带税：现在被「税率异常」预检挡在写入前；11-09 定的「按税率拆两张同号单」没施工。
-- ERP 单据页「再写一次」对 MR.ERP 的单走不到；代录两格（⑥ 只做了格子 id 只读核对，⑧ 没实现）；定时任务电脑读文件夹那一半。
+- ERP 单据页「再写一次」对 MR.ERP 的单走不到（做法见开关前验收清单 B13）；代录两格（⑥ 只做了格子 id 只读核对，⑧ 没实现）；定时任务电脑读文件夹那一半。
 - 给用户定：销售在 MR.ERP 里的发票号是「SI + 我方号」，票面发票号不进 MR.ERP，要不要改。
