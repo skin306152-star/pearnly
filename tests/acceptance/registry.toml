@@ -29,3 +29,27 @@ resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+[[scenario]]
+id = "acc.erp.purchase.express.twice"
+title = "ERP 采购单同一张连推两次（推送后立刻、写完之后）→ Express 验收账套里仍只多一张"
+class = "misuse"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_purchase_express.py"
+rows = ["erp.desk.pearnly-purchase.action.Express"]  # 只重推了「写进 Express」，没有连点两次「提交」：提交那一行的 M02 仍欠着
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"

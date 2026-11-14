@@ -593,7 +593,6 @@ erp.cc.tool.pearnly_write_start|misuse:M11
 erp.cc.tool.pearnly_write_start|misuse:M12
 erp.cc.tool.pearnly_write_start|normal
 erp.cc.tool.pearnly_write_start|variant:new+old
-erp.desk.pearnly-purchase.action.Express|misuse:M02
 erp.desk.pearnly-purchase.action.Express|misuse:M04
 erp.desk.pearnly-purchase.action.Express|misuse:M07
 erp.desk.pearnly-purchase.action.Express|misuse:M08

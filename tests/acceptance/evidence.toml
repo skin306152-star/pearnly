@@ -3,11 +3,11 @@
 
 [[pass]]
 scenario = "acc.erp.purchase.express"
-sha = "fbfe04a63ceeefb503834cf6b75a47c30e525ffc"
+sha = "483c1c7c93dab450f084766b78674f4f5934cd88"
 date = "2026-11-14"
 env = "B"
-run = "20261114-132343-fbfe04a63"
+run = "20261114-132707-483c1c7c9"
 retried = false
 docnums = ["HP691114-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-170184"
+erp_doc = "PUR-2026-170186"

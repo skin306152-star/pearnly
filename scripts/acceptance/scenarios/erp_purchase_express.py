@@ -54,6 +54,7 @@ def settings() -> dict:
 
 def run(ctx):
     conf = settings()
+    twice = ctx.scenario["id"].endswith(".twice")  # 不正常使用 M02：同一张单连推两次，账本里仍只许多一张
     book = ctx.targets.ledger(HOST, LEDGER)
     run_id = ctx.folder.parent.parent.name if ctx.attempt > 1 else ctx.folder.parent.name
     ctx.after = f"{ctx.targets.windows(HOST).work}/runs/{run_id}-{ctx.scenario['id']}-{ctx.attempt}"
@@ -72,7 +73,7 @@ def run(ctx):
 
     with ctx.step("提交采购单并等写入", "单据提交后进写账队列，CC 桌面版写进验收账套并回执"):
         out = ctx.targets.site("lab").run("erp", ROOT / "scripts" / "acceptance" / "site" / "erp_purchase_post.py", "testerp.pearnly.com",
-                                          json.dumps({**conf, "ledger": LEDGER, "run": run_id}), timeout=420)
+                                          json.dumps({**conf, "ledger": LEDGER, "run": run_id, "resend": twice}), timeout=480)
         line = next((text for text in reversed(out.splitlines()) if text.startswith("ACC ")), None)
         if line is None:
             raise Infra(f"站点脚本没有回结果：{out[-300:]}")
@@ -83,6 +84,10 @@ def run(ctx):
         state = posted["state"]
         ctx.require("写账状态", "written", state.get("ledger_state"))
         ctx.check("回显了 Express 单号", True, bool(state.get("ledger_docnum")))
+        if twice:
+            ctx.check("重复推送了两次（推送后立刻、写完之后）", 2, len(posted.get("resent") or []))
+            ctx.check("重复推送后单号没变", (posted.get("first") or {}).get("ledger_docnum"), state.get("ledger_docnum"))
+            ctx.check("重复推送后没有换成另一件写账任务", (posted.get("first") or {}).get("ledger_job"), state.get("ledger_job"))
         ctx.check("CC 桌面版写后读回", "ok", (posted.get("job") or {}).get("verify_state"))
         ctx.check("落点只有验收账套", [LEDGER.casefold()], sorted({str(path).replace("/", "\\").rstrip("\\").casefold() for path in posted["book_paths"]}))
         ctx.facts.update(docnums=[state.get("ledger_docnum") or ""], ledger=LEDGER, erp_doc=posted["doc"])

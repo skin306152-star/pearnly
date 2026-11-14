@@ -4,7 +4,8 @@
     env/bin/python /tmp/smoke-erp_purchase_post.py <站点> '<JSON 参数>'
 
 参数：user（测试机 CC 桌面版上登录的员工，CC 只领他的单）、company_tax / branch（公司）、ledger（验收账套路径，只认它）、
-run（本次运行编号，写进单号便于按号读回）、price、wait（最多等几秒，默认 300）。
+run（本次运行编号，写进单号便于按号读回）、price、wait（最多等几秒，默认 300）、
+resend（真：同一张单推送后立刻再推一次、写完回执后再推一次，再等 settle 秒；看会不会写出第二张）。
 防护（同 `scripts/smoke/express_flow.py`，落点换成验收账套）：只在测试租户跑；这家公司由 CC 报上来的账套必须**全部**就是 ledger，
 多报一本（同税号的真账套、别的测试套）就拒绝、不建单；写完再按单据记下的账套核一次实际路径。
 这一版从服务端提交（与现有冒烟同一个入口 purchasing.entry.post），登记里标 via = "api"：它证明「提交之后写进账本并且写对」，
@@ -68,6 +69,20 @@ try:
     frappe.db.commit()
     push.send("Purchase Document", posted["name"])
     frappe.db.commit()
+    resent = []
+
+    def resend(moment):
+        """同一张单再推一次（不正常使用 M02：连点两次）；报错也算一种结果，记下来由账本读回判对错。"""
+        try:
+            push.send("Purchase Document", posted["name"])
+            frappe.db.commit()
+            resent.append({"at": moment, "ok": True})
+        except Exception as error:  # noqa: BLE001 —— 被拒绝是允许的结果
+            frappe.db.rollback()
+            resent.append({"at": moment, "ok": False, "error": str(error)[:200]})
+
+    if params.get("resend"):
+        resend("right after the first send")
     fields = ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job", "ledger_book"]
     deadline, state = time.monotonic() + int(params.get("wait", 300)), {}
     while time.monotonic() < deadline:
@@ -76,6 +91,13 @@ try:
         if state.get("ledger_state") in ("written", "mismatch", "held", "failed"):
             break
         time.sleep(5)
+    first = dict(state)
+    if params.get("resend") and state.get("ledger_state") == "written":
+        resend("after the ledger write came back")
+        time.sleep(int(params.get("settle", 45)))  # 给 CC 桌面版一次领单的时间：要是真排了第二件，这段时间里会写出来
+        frappe.db.rollback()
+        state = frappe.db.get_value("Purchase Document", posted["name"], fields, as_dict=True) or {}
+        result.update(resent=resent, first=first)
     job = frappe.db.get_value("Pearnly CC Job", state.get("ledger_job"), ["status", "verify_state", "reason"], as_dict=True) \
         if state.get("ledger_job") else None
     written = [row.path for row in frappe.get_all(books.BOOK, filters={"book_key": state.get("ledger_book")}, fields=["path"])] \
