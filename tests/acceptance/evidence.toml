@@ -11,3 +11,14 @@ retried = false
 docnums = ["HP691114-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-170186"
+
+[[pass]]
+scenario = "acc.erp.purchase.express.twice"
+sha = "c5719bed05d73129bbe27ea7dd0220909c3b8315"
+date = "2026-11-14"
+env = "B"
+run = "20261114-133022-c5719bed0"
+retried = false
+docnums = ["HP691114-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-170188"
