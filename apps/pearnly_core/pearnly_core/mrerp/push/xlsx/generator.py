@@ -192,7 +192,7 @@ def validate_history_for_sales_credit(
         ERR_NO_TOTAL_AMOUNT       total_amount missing or 0
         ERR_NEGATIVE_AMOUNT       total_amount < 0  (P1-A §3.3)
         ERR_INVOICE_NO_TOO_LONG   derived invoice_no > 18 chars  (P1-A §3.1)
-        ERR_BILL_NO_TOO_LONG      SI+invoice_no > 20 chars       (P1-A §3.1)
+        ERR_BILL_NO_TOO_LONG      tax invoice no (column 11) > 20 chars (`fmt.mrerp_bill_no`)
         ERR_CUSTOMER_CODE_TOO_LONG       customer_code > 20 chars  (P1-A §3.1)
         ERR_CUSTOMER_BILL_TOO_LONG       customer_bill > 20 chars  (P1-A §3.1)
         ERR_TAX_RATE_INVALID      derive_tax_kind ∉ MRERP_VALID_TAX_KINDS_SC  (P1-A §3.2)
@@ -234,7 +234,9 @@ def validate_history_for_sales_credit(
     invoice_no = derive_mrerp_invoice_no(history)
     if len(invoice_no) > MRERP_INVOICE_NO_MAX:
         return False, "ERR_INVOICE_NO_TOO_LONG", []
-    bill_no = "SI" + invoice_no
+    from pearnly_core.mrerp.push.xlsx.fmt import mrerp_bill_no
+
+    bill_no = mrerp_bill_no(history, invoice_no, mappings)
     if len(bill_no) > MRERP_BILL_NO_MAX:
         return False, "ERR_BILL_NO_TOO_LONG", []
     if len(customer_code) > MRERP_CUSTOMER_CODE_MAX:

@@ -53,6 +53,8 @@ from pearnly_core.mrerp.push.preview_parse import TAGSTRIP_RE, parse_preview_for
 from pearnly_core.mrerp.push.report_parse import parse_master_report
 from pearnly_core.mrerp.push.report_parser import parse_import_report
 from pearnly_core.mrerp.push.xlsx import generator as _gen
+from pearnly_core.mrerp.push.xlsx.fmt import printed_invoice_no
+from pearnly_core.mrerp.masters import UNREADABLE as MASTER_UNREADABLE
 from pearnly_core.mrerp import menus as mrerp_menus
 
 logger = logging.getLogger(__name__)
@@ -243,6 +245,15 @@ class MrErpImport:
             return [], unsettled_failed + [self._fail_row(h, [reason]) for h in histories], None
         selmenu = menu["idmenu"]
         self._menu_label = str(menu.get("label") or "")
+
+        # 税务发票号（第 11 列）：票面没有的同 MR.ERP 网页默认 = 菜单前缀 + 单号，前缀读这个菜单的新单表单（`fmt.mrerp_bill_no`）。
+        # 当前这一组用；会改写会话里的当前菜单，后面自建主档与上传前都会重开导入页。
+        mappings.pop("_mrerp_menu_prefix", None)
+        if any(not printed_invoice_no(h) for h in histories):
+            prefix = self.account_defaults.reader.menu_prefix(m.listing_module, selmenu)
+            if prefix is None:
+                return [], unsettled_failed + [self._fail_row(h, [MASTER_UNREADABLE]) for h in histories], None
+            mappings["_mrerp_menu_prefix"] = prefix
 
         # 现购（采购已付）：第 9 列记账用的现金供应商，定不下来的现购票停下（同一批的赊购照写）。
         if m.sheet_kind == "purchase":

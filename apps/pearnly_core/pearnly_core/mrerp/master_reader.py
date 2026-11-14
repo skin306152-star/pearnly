@@ -27,6 +27,7 @@ LISTS = {
     "stktraniss": "stktraniss/component/bshlistboxdata.php",
     "stkmas": "stkmas/component/bshlistboxdata.php",
     "artran": "artran/component/bshlistboxdata.php",
+    "aptran": "aptran/component/bshlistboxdata.php",  # 采购单：税率表 txtothvatrate（同 artran / arse，同一张 tbl_othvatrate）
 }
 # 给选择弹窗读的（全部字段）；推送时按要用到的另取。
 FOR_CHOICES = ("fabillrev", "armas", "apmas", "stktraniss", "stkmas")
@@ -55,6 +56,7 @@ class MasterReader:
         self._pages_read = set()
         self._samples: Dict[str, list] = {}
         self._records: Dict[tuple, Optional[list]] = {}
+        self._prefixes_by_menu: Dict[tuple, Optional[str]] = {}
 
     def listbox(self, module: str) -> Optional[dict]:
         if module not in self.lists:
@@ -103,6 +105,19 @@ class MasterReader:
                                          headers={"Referer": f"{self._base}/login/mainmenu.php"})
                 self._company_tax = rules.parse_company_tax(getattr(response, "text", "") or "")
         return self._company_tax
+
+    def menu_prefix(self, listing_module: str, idmenu) -> Optional[str]:
+        """这个菜单的单号前缀（2 位，MR.ERP 菜单设置里的「รหัสบิล」）：先 allview 把菜单写进会话，再读新单表单的 ``txtdoctype``
+        （`artran/allform.php:433`，arse / aptran 同）。会改写会话里的当前菜单——调用方之后要重开导入页（上传前那次 formupload
+        本来就会重开）。读不到是 None；同一菜单只读一次。"""
+        key = (listing_module, str(idmenu))
+        if key not in self._prefixes_by_menu:
+            self._request("GET", f"{listing_module}/allview.php?idmenu={idmenu}",
+                          headers={"Referer": f"{self._base}/login/mainmenu.php"})
+            response = self._request("GET", f"{listing_module}/allform.php",
+                                     headers={"Referer": f"{self._base}/{listing_module}/allview.php?idmenu={idmenu}"})
+            self._prefixes_by_menu[key] = rules.parse_menu_prefix(getattr(response, "text", "") or "")
+        return self._prefixes_by_menu[key]
 
     def known_head_branch(self) -> str:
         """已经读到的总店分店码（不去读网页：推送里网页只能在导入页打开前读）。"""

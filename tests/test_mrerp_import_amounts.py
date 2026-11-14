@@ -96,14 +96,52 @@ class LineAmount(unittest.TestCase):
 
 
 class TaxLabel(unittest.TestCase):
-    def test_goods_purchase_from_a_non_vat_seller_is_written_at_zero(self):
-        self.assertEqual(fmt.mrerp_tax_label(NON_VAT), "0")
+    def test_goods_purchase_from_a_non_vat_seller_is_outside_the_vat_report(self):
+        # 11-14 主会话：无税卖家开的不是税务发票，用 MR.ERP「不进税报告」那一档（初始库名 นอกระบบ），不用零税率「0」
+        self.assertEqual(fmt.mrerp_tax_label(NON_VAT, purchase=True), "นอกระบบ")
         got = sheets(purchase.generate_xlsx_purchase([NON_VAT], MAPPINGS))
-        self.assertEqual(got[1][1][2], "0")
+        self.assertEqual(got[1][1][2], "นอกระบบ")
+        self.assertEqual(fmt.mrerp_tax_label(dict(NON_VAT, direction="sales")), "0")  # 销售税额 0 仍是零税率
+
+    def test_names_come_from_the_companys_vat_rate_table(self):
+        # 单据接口 txtothvatrate：[id, 名称, 税率, 价内外 1 价外 / 2 价内, 不进税报告]；名称改过的照这家公司的写
+        rows = [["1", "ศูนย์", "0.00", None, None], ["2", "VAT7 นอก", "7.00", "1", None],
+                ["3", "VAT7 ใน", "7.00", "2", None], ["4", "ไม่เข้าระบบ", "0.00", None, "1"]]
+        rates = fmt.vat_rates(rows)
+        self.assertEqual(rates, {"zero": "ศูนย์", "exclusive": "VAT7 นอก", "inclusive": "VAT7 ใน", "outside": "ไม่เข้าระบบ"})
+        mappings = dict(MAPPINGS, _mrerp_vat_rates=rates)
+        self.assertEqual(sheets(purchase.generate_xlsx_purchase([NON_VAT], mappings))[1][1][2], "ไม่เข้าระบบ")
+        self.assertEqual(sheets(purchase.generate_xlsx_purchase([PURCHASE_DISCOUNT], mappings))[1][1][2], "VAT7 นอก")
+        self.assertEqual(sheets(purchase.generate_xlsx_purchase([NON_VAT], mappings, expense=True))[1][1][2], "ไม่เข้าระบบ")
+        self.assertEqual(sheets(sales_credit._generate_xlsx_sales_credit_korn_clone([LINE_DISCOUNT], mappings))[1][1][2], "VAT7 นอก")
 
     def test_goods_purchase_with_vat_keeps_exclusive_and_expense_keeps_out_of_system(self):
         self.assertEqual(sheets(purchase.generate_xlsx_purchase([PURCHASE_DISCOUNT], MAPPINGS))[1][1][2], "7 (แยก)")
         self.assertEqual(sheets(purchase.generate_xlsx_purchase([NON_VAT], MAPPINGS, expense=True))[1][1][2], "นอกระบบ")
+
+
+class BillNumber(unittest.TestCase):
+    """第 11 列「เลขที่บิล」= MR.ERP 的税务发票号（税报告「ใบกำกับภาษี เลขที่」取它）：票面号原样；没有时 = 菜单前缀 + 单号
+    （MR.ERP 网页不填的默认）；超过 20 字 MR.ERP 拒收，预检拦下不截（11-14 起不再写死「SI」+ 单号）。"""
+
+    def test_sales_carry_the_printed_invoice_number(self):
+        row = sheets(sales_credit._generate_xlsx_sales_credit_korn_clone([LINE_DISCOUNT], MAPPINGS))[1][1]
+        self.assertEqual(row[10], "MW-a1")
+        cash = dict(LINE_DISCOUNT, fields=dict(LINE_DISCOUNT["fields"], posting_payment_manual="cash"))
+        self.assertEqual(sales_credit.build_sales_credit_row(cash, MAPPINGS)["bill_no"], "MW-a1")
+
+    def test_without_a_printed_number_it_is_the_menu_prefix_and_the_document_number(self):
+        bare = {**LINE_DISCOUNT, "invoice_no": "", "invoice_number": "",
+                "fields": dict(LINE_DISCOUNT["fields"], invoice_number="")}
+        docnum = sheets(sales_credit._generate_xlsx_sales_credit_korn_clone([bare], dict(MAPPINGS, _mrerp_menu_prefix="SE")))[1][1][0]
+        row = sheets(sales_credit._generate_xlsx_sales_credit_korn_clone([bare], dict(MAPPINGS, _mrerp_menu_prefix="SE")))[1][1]
+        self.assertEqual(row[10], "SE" + docnum)
+
+    def test_a_number_longer_than_mrerp_takes_is_held_not_cut(self):
+        long_no = "INV-2026-11-000000000123"  # 24 字
+        purchase_ticket = dict(NON_VAT, invoice_no=long_no, invoice_number=long_no)
+        self.assertEqual(purchase.validate_purchase_history(purchase_ticket, MAPPINGS)[:2], (False, "ERR_BILL_NO_TOO_LONG"))
+        self.assertEqual(sheets(purchase.generate_xlsx_purchase([purchase_ticket], MAPPINGS))[1][1][10], long_no)
 
 
 class Discount(unittest.TestCase):
@@ -136,7 +174,7 @@ class Discount(unittest.TestCase):
             self.assertEqual((block["discount"], block["totals"]["net"]), (discount, net))
         block = operator_draft.block(NON_VAT, MAPPINGS, doc_type="purchase", menu="68", url="https://x/",
                                      connection="C", account_set={})
-        self.assertEqual((block["vat_rate"], block["totals"]["net"]), ("0", "500.00"))
+        self.assertEqual((block["vat_rate"], block["totals"]["net"]), ("นอกระบบ", "500.00"))
 
 
 class Routing(unittest.TestCase):

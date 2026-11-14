@@ -18,7 +18,7 @@ from decimal import Decimal
 from typing import Any, Dict, List
 
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
-from pearnly_core.mrerp.push.xlsx.fmt import allocate_discount, history_number, mrerp_tax_label
+from pearnly_core.mrerp.push.xlsx.fmt import allocate_discount, history_number, mrerp_tax_kind, mrerp_tax_label
 from pearnly_core.mrerp.push.xlsx.sales_credit import (
     build_sales_credit_detail_rows,
     build_sales_credit_row,
@@ -120,7 +120,7 @@ def _cash_import_details(
     history: Dict[str, Any], mappings: Dict[str, Any]
 ) -> tuple[Decimal, List[Dict[str, Any]]]:
     """现销的表头折扣与明细行：与赊销、采购货品同一做法（`fmt.allocate_discount`）。"""
-    return allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_label(history))
+    return allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_kind(history))
 
 
 def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str, Any]) -> bytes:
@@ -165,7 +165,7 @@ def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str
         col_vals = {
             1: inv,
             2: date,
-            3: mrerp_tax_label(history),
+            3: mrerp_tax_label(history, mappings),
             4: head["branch"],
             5: head["dept"],
             6: head["job"],

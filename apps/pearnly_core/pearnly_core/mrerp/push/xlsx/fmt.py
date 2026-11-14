@@ -171,18 +171,45 @@ def line_amount(item: Any) -> Optional[float]:
     return None
 
 
-def mrerp_tax_label(history: Any) -> str:
-    """MR.ERP 税率选项（销售与采购货品同一判定；11-14 起采购货品不再写死「7 (แยก)」——无税卖家的票被多加 7%，
-    票 500.00 记成 535.00）：税额≈0 → ``0``；人在复核里标过价内 / 价外照它；否则拿明细合计比总额 / 小计。"""
+# 税率种类 → MR.ERP 税率表（`tbl_othvatrate`：名称、税率、价内外 vatrateinex 1 价外 / 2 价内、throwacvat=1 不进税报告）里的哪一行。
+# 名称按这家公司读到的税率表取（`defaults.AccountDefaults.header` 读单据接口 `txtothvatrate` 放进 ``_mrerp_vat_rates``，导入按名称
+# 去空格匹配，`imp*/component/importpc.php`）；没读到时用 MR.ERP 初始库的名称（stderp2020.sql:3100-3103）。
+EXCLUSIVE, INCLUSIVE, ZERO, OUTSIDE = "exclusive", "inclusive", "zero", "outside"
+STARTER_VAT_RATES = {ZERO: "0", EXCLUSIVE: "7 (แยก)", INCLUSIVE: "7 (รวม)", OUTSIDE: "นอกระบบ"}
+
+
+def vat_rates(rows: Any) -> Dict[str, str]:
+    """单据接口的 ``txtothvatrate`` 行 ``[id, 名称, 税率, 价内外, 不进税报告]`` → {种类: 名称}；认不出的种类不出现。"""
+    found: Dict[str, str] = {}
+    for row in rows or []:
+        if not isinstance(row, list) or len(row) < 5 or not str(row[1] or "").strip():
+            continue
+        name, rate, inex, outside = str(row[1]).strip(), _decimal(row[2]), str(row[3] or ""), str(row[4] or "") == "1"
+        kind = (OUTSIDE if outside else ZERO if rate == 0 and not inex
+                else EXCLUSIVE if rate == 7 and inex == "1" else INCLUSIVE if rate == 7 and inex == "2" else "")
+        if kind:
+            found.setdefault(kind, name)
+    return found
+
+
+def vat_label(kind: str, mappings: Any = None) -> str:
+    rates = (mappings or {}).get("_mrerp_vat_rates") if isinstance(mappings, dict) else None
+    return (rates or {}).get(kind) or STARTER_VAT_RATES[kind]
+
+
+def mrerp_tax_kind(history: Any, *, purchase: bool = False) -> str:
+    """税率种类（销售与采购货品同一判定；11-14 起采购货品不再写死价外——无税卖家的票被多加 7%，票 500.00 记成 535.00）：
+    人在复核里标过价内 / 价外照它；否则拿明细合计比总额 / 小计。税额≈0：销售是零税率 ``zero``；采购是无税卖家开的票、不是税务
+    发票，按 MR.ERP 的「นอกระบบ」不进进项税报告 ``outside``（主会话 11-14；同 Express 税额 0 不写 ISVAT、不进 ภ.พ.30）。"""
     vat = history_number(history, "vat", "vat_amount") or 0
     if abs(vat) < 0.005:
-        return "0"
+        return OUTSIDE if purchase else ZERO
 
     explicit = _bool_value(
         _field_value(history, "price_includes_vat", "vat_included", "tax_inclusive")
     )
     if explicit is not None:
-        return "7 (รวม)" if explicit else "7 (แยก)"
+        return INCLUSIVE if explicit else EXCLUSIVE
 
     gross = _items_gross(history)
     total = history_number(history, "total_amount", "grand_total", "net_payable")
@@ -191,10 +218,36 @@ def mrerp_tax_label(history: Any) -> str:
     if gross is not None:
         after_discount = gross - discount
         if total is not None and abs(after_discount - total) <= 0.10:
-            return "7 (รวม)"
+            return INCLUSIVE
         if subtotal is not None and abs(after_discount - subtotal) <= 0.10:
-            return "7 (แยก)"
-    return "7 (แยก)"
+            return EXCLUSIVE
+    return EXCLUSIVE
+
+
+def printed_invoice_no(history: Any) -> str:
+    """票面发票号（Cowork 识别 / ERP 单号），原样不截。"""
+    fields = history.get("fields") if isinstance(history, dict) and isinstance(history.get("fields"), dict) else {}
+    for value in (history.get("invoice_number"), history.get("invoice_no"), fields.get("invoice_number")):
+        if str(value or "").strip():
+            return str(value).strip()
+    return ""
+
+
+def mrerp_bill_no(history: Any, docnum: str, mappings: Any = None) -> str:
+    """导入第 11 列「เลขที่บิล」= MR.ERP 的税务发票号（单据 vatnum、销项 / 进项税记录 svatno / pvatno，税报告「ใบกำกับภาษี
+    เลขที่」取它，`impartran/component/importpc.php:417-424, 868, 978`）：票面发票号原样；票面没有时同 MR.ERP 网页不填的默认 =
+    这次所选菜单的前缀 + 单号（``docnum`` = 第 1 列，前缀 ``_mrerp_menu_prefix`` 由准备时读那个菜单的新单表单定）。超过 20 字
+    MR.ERP 拒收，不截，由预检拦下（`MRERP_BILL_NO_MAX`）。"""
+    printed = printed_invoice_no(history)
+    if printed:
+        return printed
+    prefix = str((mappings or {}).get("_mrerp_menu_prefix") or "") if isinstance(mappings, dict) else ""
+    return prefix + str(docnum or "")
+
+
+def mrerp_tax_label(history: Any, mappings: Any = None, *, purchase: bool = False) -> str:
+    """导入表与网页表单「อัตราภาษี」写的名称：种类（`mrerp_tax_kind`）按这家公司的税率表取名。"""
+    return vat_label(mrerp_tax_kind(history, purchase=purchase), mappings)
 
 
 mrerp_sales_tax_label = mrerp_tax_label  # 旧名（销售先有这个判定）；新代码用 mrerp_tax_label
@@ -207,7 +260,7 @@ def _decimal(value: Any) -> Decimal:
         return Decimal("0")
 
 
-def allocate_discount(history: Any, rows: List[Dict[str, Any]], tax_label: str) -> Tuple[Decimal, List[Dict[str, Any]]]:
+def allocate_discount(history: Any, rows: List[Dict[str, Any]], tax_kind: str) -> Tuple[Decimal, List[Dict[str, Any]]]:
     """整单折扣怎么进导入表（三种带明细的单同一做法：赊销、现销、采购货品）→ (表头「หักส่วนลด」, 明细行)。
 
     MR.ERP 导入的明细金额与数量、单价无关：对得上账（明细合计 − 票面折扣 = 税前或含税合计）时把折扣按行金额比例摊进各行
@@ -218,7 +271,7 @@ def allocate_discount(history: Any, rows: List[Dict[str, Any]], tax_label: str) 
     if discount <= 0 or not rows:
         return max(discount, Decimal("0")), rows
     target = history_number(history, "total_amount", "grand_total", "net_payable")
-    if tax_label == "7 (แยก)":
+    if tax_kind == EXCLUSIVE:
         target = history_number(history, "subtotal", "amount_before_tax")
     if target is None:
         return discount, rows

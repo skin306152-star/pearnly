@@ -162,6 +162,18 @@ _REF_INPUT = re.compile(r"<input\b[^>]*\bname=[\"']txtacfile\[(\d+)\][\"'][^>]*>
 _VALUE = re.compile(r"\bvalue=[\"']([^\"']*)[\"']", re.IGNORECASE)
 
 
+_DOCTYPE_INPUT = re.compile(r"<input\b[^>]*\bid=[\"']txtdoctype[\"'][^>]*>", re.IGNORECASE)
+
+
+def parse_menu_prefix(page: str) -> Optional[str]:
+    """新单表单「เลขที่」前那格 ``txtdoctype``（菜单的单号前缀，只读）→ 前缀；页上没有这一格 → None。"""
+    match = _DOCTYPE_INPUT.search(page or "")
+    if not match:
+        return None
+    value = _VALUE.search(match.group(0))
+    return _text(value.group(1)) if value else ""
+
+
 def parse_reference(page: str) -> Optional[Dict[int, str]]:
     """`acreffile/acreffileform.php` → {参考科目 id: 科目代码}（没配的是空串）；页上一个都没有 → None。"""
     found = {}

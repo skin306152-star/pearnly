@@ -116,6 +116,12 @@ class AccountDefaults:
             head.update(area=self.value("area")["name"], delivery=self.value("delivery")["name"])
             mappings["_mrerp_customer_header"] = rules.customer_defaults(self.reader.lists.get("artran"))
         mappings["_mrerp_header"] = head
+        # 税率名称按这家公司的税率表（单据接口 txtothvatrate，`fmt.vat_rates`）；读不到用初始库名
+        from pearnly_core.mrerp.push.xlsx.fmt import vat_rates
+
+        rates = vat_rates((self.reader.listbox("artran" if sales else "aptran") or {}).get("txtothvatrate"))
+        if rates:
+            mappings["_mrerp_vat_rates"] = rates
         if cash_sale:
             from pearnly_core.mrerp.push.xlsx.sales_cash import _is_cash
 
