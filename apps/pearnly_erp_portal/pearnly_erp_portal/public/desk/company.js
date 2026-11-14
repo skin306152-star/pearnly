@@ -323,14 +323,14 @@
 			return [{fieldtype: "Section Break", label: __("MR.ERP")},
 				{fieldname: "mrerp_account_set", label: __("Account Set"), fieldtype: "Data", read_only: 1, default: view.label || ""},
 				{fieldname: "mrerp_choose", label: __("Select"), fieldtype: "Button", click: () => choose_mrerp(data, name)},
-				// 主档整读（服务端读 MR.ERP，`mrerp.masters`）：状态、最近一次时间、失败原因，只读
+				// 主档整读（服务端读 MR.ERP，`mrerp.masters`）：状态、最近一次时间，只读；失败原因另起一行
+				{fieldtype: "Column Break"},
 				{fieldname: "mrerp_sync_state", label: __("Status"), fieldtype: "Data", read_only: 1,
 					default: view.sync_state ? t(`company.syncExpress.${sync_key(view.sync_state)}`) : ""},
-				{fieldtype: "Column Break"},
 				{fieldname: "mrerp_synced_at", label: __("Last Synced On"), fieldtype: "Datetime", read_only: 1,
 					default: view.synced_at || ""},
-				...(view.sync_note ? [{fieldname: "mrerp_sync_note", label: __("Reason"), fieldtype: "Small Text",
-					read_only: 1, default: view.sync_note === "masters_failed" ? t("company.syncExpress.failed")
+				...(view.sync_note ? [{fieldtype: "Section Break"}, {fieldname: "mrerp_sync_note", label: __("Reason"),
+					fieldtype: "Small Text", read_only: 1, default: view.sync_note === "masters_failed" ? t("company.syncExpress.failed")
 						: MRERP_NOTES[view.sync_note] ? __(MRERP_NOTES[view.sync_note]) : __(`mrerp.error.${view.sync_note}`)}] : []),
 				{fieldtype: "Section Break"},
 				...(view.linked ? [f("mrerp_detach", "company.express.disconnect", "Button", {click: () => frappe.confirm(
