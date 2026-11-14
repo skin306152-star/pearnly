@@ -70,7 +70,7 @@
 - 按主会话发的清单（只读脚本 `mrerp-amount-scope-1114` 的结果：租户、单据号、MR.ERP 单号、票面金额、MR.ERP 里的金额），由会计在 MR.ERP 里打开那张单，把明细金额、折扣或税率改成与票面一致（Pearnly 上这张单已是「已写入」，不要再推一次）。
 - 清单为空时无需操作。
 
-**线上影响范围（11-14 只读）**：生产 Cowork 3 个站点按旧算法重算已写入 MR.ERP 的推送，命中 0 张（脚本当时没打印每站扫到的单数，见 `~/pearnly-devtools/mrerp-amount-scope-1114/README.md`）。
+**线上影响范围（11-14 只读，两次 SSH）**：生产 Cowork 容器只有 ccdemo / erpcowork / testcowork 三个站点，推送记录全部是 Express（success 43 / 121 / 148 等），adapter=mrerp 的记录 0 条；ERP 的 MR.ERP 总开关在生产关着。线上没有被这三处写错的 MR.ERP 单，**用户无需处理**。脚本与说明在 `~/pearnly-devtools/mrerp-amount-scope-1114/`。
 
 ## 第 3 步：ERP 直写 MR.ERP（开关只在实验进程里打补丁）
 
