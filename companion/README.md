@@ -245,7 +245,7 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
 （正式版）Ubuntu 先把安装包传到 R2（桶 `pearnly-media`，公网 `media.pearnly.com`），版本路径与固定名各一份、从公网读回比对，只留最近 5 个版本 →
 经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py`（本机照旧存一份、改 `latest.json`）→ 从公网下载回来比对 sha256。
 
-安装包走 R2（2026-11-14，`docs/work/2026-11-14-prod-speed.md`）：pearnly.com 上的安装包地址由 nginx 302 到 R2 同路径
+安装包走 R2（2026-11-14，`docs/work/2026-11-14-companion-download-r2.md`）：pearnly.com 上的安装包地址由 nginx 302 到 R2 同路径
 （`infrastructure/production/landing.conf`），`latest.json` 仍由服务器给。从泰国办公室下 154MB 由约 45 分钟降到 1–3 分钟，也不再占服务器出口。
 已发布的各版更新器都跟随跳转（`updater.download_installer` 一直是 `follow_redirects=True`，旧仓库起就是），不用等新客户端。
 正式发布要三个仓库密钥 `R2_ACCOUNT_ID`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`（R2 令牌只授 `pearnly-media` 读写）；缺了正式版停在上传 R2 那一步、
