@@ -166,6 +166,8 @@ class Export(unittest.TestCase):
                             "pearnly_erp_portal.inventory": inventory, "pearnly_erp_portal.masters": masters,
                             "pearnly_erp_portal.masters.company": masters.company,
                             "pearnly_erp_portal.products": products})
+        # 主档按公司可见的口径用真的那份（`masters.access.scope_sql`，公司接入重做第 2 批收口）
+        masters.access = load("pearnly_erp_portal.masters.access", DOMAIN.parent / "masters/access.py")
         inventory.card_rows = load("pearnly_erp_portal.inventory.card_rows", DOMAIN / "card_rows.py")
         self.report = load("pearnly_erp_portal.inventory.report", DOMAIN / "report.py")
         self.report._position_sums = self.position_sums
@@ -218,7 +220,7 @@ class Export(unittest.TestCase):
     def sql(self, query, values=None, **kwargs):
         """物料主档的首末代码（当前公司看得到的：本地档 + 本公司 Express 档）；按库的排序规则，这里用不分大小写近似。"""
         self.assertIn("ERP Product", query)
-        self.assertEqual(list(values), ["CO1"])
+        self.assertEqual(values, {"master_scope_company": "CO1"})  # 口径同 `masters.access.scope_sql`
         codes = sorted((code for code, _name, _unit in self.products.values()), key=str.casefold)
         return [(codes[0], codes[-1])] if codes else [(None, None)]
 
@@ -671,6 +673,7 @@ class WarehouseCode(unittest.TestCase):
         masters.company = SimpleNamespace(document_company=lambda company=None: "CO1", active_company=lambda: "CO1")
         sys.modules.update({"frappe": frappe, "pearnly_erp_portal.access": access, "pearnly_erp_portal.masters": masters,
                             "pearnly_erp_portal.masters.company": masters.company})
+        masters.access = load("pearnly_erp_portal.masters.access", DOMAIN.parent / "masters/access.py")
         self.warehouses = load("card_export_warehouses", DOMAIN / "warehouses.py")
 
     def test_the_list_carries_the_code_the_page_and_the_export_use(self):
