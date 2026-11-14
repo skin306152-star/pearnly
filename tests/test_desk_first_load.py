@@ -155,14 +155,22 @@ class BootMessagesTest(unittest.TestCase):
         boot_messages.boot_session(boot)
         self.assertNotIn("__messages", boot)
         frappe.local.lang = "th"
-        with patch("frappe.translate.get_messages_for_boot", return_value={"Save": "บันทึก"}) as load:
+        table = {"Save": "บันทึก", "Created On": "สร้างเมื่อ", "Search": "ค้นหา"}
+        with patch("frappe.translate.get_messages_for_boot", return_value=table) as load:
             boot_messages.extend_bootinfo(boot)
             boot_messages.extend_bootinfo(boot)  # 已经有了不再取
         load.assert_called_once()
-        # 页面里不再内联整表（2026-11-13：每次打开 296KB 里九成是它），只给语言与指纹。
-        self.assertEqual(boot["__messages"], {})
-        self.assertEqual(boot["pearnly_messages"], {"lang": "th", "v": boot_messages._fingerprint({"Save": "บันทึก"})})
+        # 页面里不再内联整表（2026-11-13：每次打开 296KB 里九成是它），只给 Frappe 加载时就要用的几条（2026-11-14）与指纹。
+        self.assertEqual(boot["__messages"], {"Created On": "สร้างเมื่อ", "Search": "ค้นหา"})
+        self.assertEqual(boot["pearnly_messages"], {"lang": "th", "v": boot_messages._fingerprint(table)})
         self.assertNotEqual(boot_messages._fingerprint({"Save": "บันทึก"}), boot_messages._fingerprint({"Save": "บันทึกแล้ว"}))
+
+    def test_early_list_stays_small(self):
+        from pearnly_core.desk import boot_messages
+
+        # 只放加载时就翻译的常量；整表回到页面里就白做了
+        self.assertLessEqual(len(boot_messages.EARLY), 60)
+        self.assertEqual(len(set(boot_messages.EARLY)), len(boot_messages.EARLY))
 
     def test_messages_cached_only_when_fingerprint_matches(self):
         from pearnly_core.desk import boot_messages

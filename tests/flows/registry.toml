@@ -1545,7 +1545,32 @@ covers = [
   "apps/pearnly_core/pearnly_core/public/desk/home.js",
   "apps/pearnly_core/pearnly_core/billing_www.py",
   "apps/pearnly_core/pearnly_core/payments/history.py",
-  # 整份翻译表单独取、缓存（11-13）：首页文字照常是当前语言即证明词表在界面启动前就位。
+]
+
+[[flow]]
+id = "erp.desk.boot-messages"
+title = "ERP Desk 翻译表单独取、缓存一年后：整表到位且是当前语言，Frappe 加载时就翻译的文字（列表排序、标准字段名、快捷键说明）不变原文（11-14 线上访问速度）"
+module = "scripts/flows/desk_boot_messages.py"
+product = "erp"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/desk/boot_messages.py",
+  "apps/pearnly_core/pearnly_core/public/desk/messages.js",
+]
+
+[[flow]]
+id = "cowork.desk.boot-messages"
+title = "Cowork Desk 翻译表单独取、缓存一年后：整表到位且是当前语言，Frappe 加载时就翻译的文字不变原文（11-14 线上访问速度）"
+module = "scripts/flows/desk_boot_messages.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
   "apps/pearnly_core/pearnly_core/desk/boot_messages.py",
   "apps/pearnly_core/pearnly_core/public/desk/messages.js",
 ]

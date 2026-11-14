@@ -16,14 +16,30 @@ Frappe 原生在 `www/desk.html` 里把整份 `frappe.boot`（含 `__messages`�
 脚本，指纹对得上就 `public, max-age=31536000, immutable`。翻译一变指纹就变，地址跟着变，浏览器自然取新的。
 
 Frappe 自己的打包脚本在本 App 脚本之前执行；界面在 `DOMContentLoaded` 之后才启动（`frappe.start_app`），那时词表已就位。
-各打包脚本在**加载时**就调用 `__()` 的少数常量不在此列——上线前在实验室按语言逐产品点页比对（见
-`docs/work/2026-11-13-prod-speed.md`）。
+例外是 Frappe 打包脚本**加载时**就调用 `__()` 的常量（列表排序的「创建于 / 最后更新日期」、标准字段名、键盘快捷键说明、
+数字缩写等）：它们在词表到之前就定了值，只能随页面先给。`EARLY` 是这批原文，启动信息里只带它们的译文（约 30 条，不到 2KB）。
+清单来自实验室实测（2026-11-14，Frappe 16.34：在打包脚本执行前挂钩 `__()`，四种语言、ERP / Cowork / DMS 各页、60KB/s 慢网
+都是同样 29 条），流程 `desk.boot-messages` 在每次改到这里时重测、多出来就拦；升级 Frappe 时同样重跑。
 """
 import hashlib
 
 import frappe
 
 MAX_AGE = 31536000
+# Frappe 打包脚本加载时就翻译的原文（见文件头）：译文随启动信息先到，其余整表单独取
+EARLY = (
+    # 键盘快捷键说明（frappe/ui/keyboard.js）
+    "Trigger primary action", "Open Awesomebar", "Open Global Search", "Show keyboard shortcuts", "Clear cache and reload",
+    "Open console",
+    # 数字缩写（千 / 十亿 / 百万 / 千万 / 十万 等，frappe/utils/number_format.js）
+    "T", "B", "M", "K", "Cr", "L", "Kh", "Ar",
+    # 相机控件
+    "Camera", "Unable to load camera.",
+    # 标准字段名（frappe.model.std_fields：列表排序、筛选、报表列）
+    "ID", "Created By", "Index", "Created On", "Last Updated On", "Last Updated By", "Tags", "Liked By", "Comments",
+    "Assigned To", "Document Status", "Parent",
+    "Search",
+)
 
 
 def boot_session(bootinfo):
@@ -37,14 +53,15 @@ def _fingerprint(messages: dict) -> str:
 
 
 def extend_bootinfo(bootinfo):
-    """每次返回前：只给语言与指纹，整表由 `messages` 单独取（可缓存）。"""
+    """每次返回前：只给加载时就要用的那几条译文与指纹，整表由 `messages` 单独取（可缓存）。"""
     if bootinfo.get("pearnly_messages"):
         return
     from frappe.translate import get_messages_for_boot
 
     lang = str(frappe.local.lang or "en")
-    bootinfo["__messages"] = {}
-    bootinfo["pearnly_messages"] = {"lang": lang, "v": _fingerprint(get_messages_for_boot())}
+    table = get_messages_for_boot()
+    bootinfo["__messages"] = {text: table[text] for text in EARLY if text in table}
+    bootinfo["pearnly_messages"] = {"lang": lang, "v": _fingerprint(table)}
 
 
 def _known_lang(lang: str) -> bool:
