@@ -118,6 +118,22 @@ def _supplier_code(history: Dict[str, Any], mappings: Dict[str, Any]) -> str:
     return code
 
 
+def is_cash_purchase(history: Dict[str, Any]) -> bool:
+    """现购：采购票已付（入口选现金 / ERP 采购单已付都写成 ``posting_payment_manual=cash``，同 Express 判已付的漏斗）。"""
+    from pearnly_core.express_rules.push.payment import payment_is_paid
+
+    fields = history.get("fields") if isinstance(history.get("fields"), dict) else history
+    return payment_is_paid(fields) is True
+
+
+def posting_supplier(history: Dict[str, Any], mappings: Dict[str, Any]) -> str:
+    """第 9 列「รหัสผู้จำหน่าย」= 记账用的供应商：现购是准备时定好的现金供应商（`defaults.cash_supplier`，MR.ERP 记账时应付
+    那笔贷方取它的科目），赊购是真实卖家。第 10 列「(บิล)」= 开票用的供应商（进项税挂它）始终是真实卖家。"""
+    if is_cash_purchase(history):
+        return str((mappings or {}).get("_mrerp_cash_supplier") or "")
+    return _supplier_code(history, mappings)
+
+
 def _detail_rows(history: Dict[str, Any], mappings: Dict[str, Any]) -> List[Dict[str, Any]]:
     """明细行:商品码经 lookup 解析,量/单价/金额来自 items(无 items → 单行按总额兜底)。"""
     lookup = _build_product_lookup(mappings)
@@ -226,7 +242,7 @@ def validate_expense_history(history: Dict[str, Any], mappings: Dict[str, Any]):
         return False, "ERR_NO_INVOICE_DATE", []
     if _gross_total(history) <= 0:
         return False, "ERR_NO_TOTAL_AMOUNT", []
-    if not _supplier_code(history, mappings):
+    if not _supplier_code(history, mappings) or not posting_supplier(history, mappings):
         return False, "ERR_NO_SUPPLIER", []
     return True, None, []
 
@@ -283,8 +299,8 @@ def generate_xlsx_purchase(
             6: head["job"],
             7: head["employee"],
             8: date,
-            9: supplier,
-            10: supplier,
+            9: posting_supplier(history, mappings),  # 记账用（现购 = 现金供应商）
+            10: supplier,  # 开票用：真实卖家，进项税挂它
             11: bill_no,
             12: date,
             13: documents[ridx - 2][0],  # 表头折扣（`fmt.allocate_discount`；费用档单行含税全额，没有折扣）

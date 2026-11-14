@@ -1427,7 +1427,8 @@ Enter a board name	请输入看板名称	กรุณากรอกชื่อ
 Only board admins can do this	仅看板管理员可执行此操作	เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้	ボード管理者のみ実行できます	cowork.work.error.board_rights
 A board needs at least one admin	看板至少需要一位管理员	บอร์ดต้องมีผู้ดูแลอย่างน้อยหนึ่งคน	ボードには管理者が少なくとも1人必要です	cowork.work.error.last_admin
 The default board cannot be archived	默认看板不能归档	ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้	既定のボードはアーカイブできません	cowork.work.error.default_board
-MR.ERP purchases can only be entered on credit.	MR.ERP 的进项只能按赊购录入。	รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น	MR.ERP の仕入は掛けでのみ登録できます。
+The เงินสด supplier in MR.ERP is not on a cash or bank account.	MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。	ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร	MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。	intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH
+CC Desktop does not enter MR.ERP cash purchases.	CC 桌面版不代录 MR.ERP 现购。	CC เดสก์ท็อปไม่บันทึกการซื้อเงินสดใน MR.ERP	CC デスクトップは MR.ERP の現金仕入を代行入力しません。	intake.error.ERR_MRERP_OPERATOR_CASH_PURCHASE
 Inventory account group	存货科目组	กลุ่มบัญชีสินค้าคงเหลือ	在庫勘定グループ
 used by {0} items	{0} 个商品使用中	มีสินค้าใช้อยู่ {0} รายการ	{0} 品目が使用中
 Delete {0} item permanently?	确定要永久删除 {0} 项吗？	ต้องการลบ {0} รายการถาวรใช่หรือไม่	{0} 件を完全に削除しますか？	

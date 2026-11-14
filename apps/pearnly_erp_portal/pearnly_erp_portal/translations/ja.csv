@@ -1597,6 +1597,7 @@ The value is not a number,数値ではありません
 The value must be zero or more,0 以上で入力してください
 The warehouse differs from the warehouse of this document,この伝票の倉庫と一致しません
 The warehouse has no matching Express warehouse,この倉庫に対応する Express の倉庫がありません
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
 Then,実行
 There are no lines,明細がありません
 There is nothing to save,保存する行がありません
@@ -2505,6 +2506,7 @@ mrerp.error.ERR_DATE_FUTURE,伝票日付が未来です。直して再送信し�
 mrerp.error.ERR_DIRECTION_UNKNOWN,この伝票が仕入か売上かを選んで再送信してください
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイン中です
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
 mrerp.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。

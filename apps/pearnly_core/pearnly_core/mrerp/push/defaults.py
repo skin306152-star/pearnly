@@ -31,6 +31,10 @@ _PRODUCT_REFERENCE = ("acc_rev", "acc_ret", "acc_dis", "acc_pur", "acc_purret", 
 _SAMPLE_MODULE = {"customer_type": "armas", "ar_account": "armas", "supplier_type": "apmas", "ap_account": "apmas",
                   "product_group": "stkmas", "unit": "stkmas"}
 CASH_PARTY = "เงินสด"  # 与 xlsx/lookups.MRERP_CASH_CUSTOMER 同值（Pearnly 自建的现金客户 / 供应商码）
+# 现购记账用的供应商（导入第 9 列）按这个顺序找：MR.ERP 标准初始库自带的「未指定供应商」样板（stderp2020.sql，科目 = 参考科目
+# 「เงินสด」），再是 Pearnly 自建的现金供应商。
+CASH_SUPPLIERS = ("CODE_NOAP", CASH_PARTY)
+CASH_SUPPLIER_NOT_CASH = "ERR_MRERP_CASH_SUPPLIER_NOT_CASH"
 
 
 # MR.ERP 导入报「主档里找不到」（imp*/component/importpc.php）：表头 / 明细里按账套取的值对不上这家公司的主档，
@@ -175,6 +179,30 @@ class AccountDefaults:
         else:
             values.update({f"_mrerp_product_{key}": self._reference(key) for key in _PRODUCT_REFERENCE})
         return values
+
+    def cash_supplier(self) -> Tuple[str, Optional[str]]:
+        """现购记账用的供应商 → (代码, 要自建时它的科目；已有可用的是 None)。
+
+        MR.ERP 导入采购不看「เงินสด」勾（`impaptran/component/importpc.php` 写死），记账时应付那笔贷方取菜单关联科目，没设就取
+        **记账用供应商**（第 9 列）档案的科目（`aptran/component/aptranpc.php insacglhd`）；进项税挂**开票用供应商**（第 10 列）。
+        所以现购 = 第 9 列放一个科目是现金类的供应商、第 10 列照写真实卖家。候选按 `CASH_SUPPLIERS` 顺序，科目是参考科目
+        「เงินสด」或这份账套选过的银行科目才用；都没有 → 自建「เงินสด」、科目用参考科目「เงินสด」；「เงินสด」已有但科目不是
+        现金类 → 停下（`CASH_SUPPLIER_NOT_CASH`），不改别人的档案。"""
+        rows = {str(row[1]).strip(): row[0] for row in (self.reader.listbox("apmas") or {}).get("inpdupdata") or []
+                if isinstance(row, list) and len(row) >= 2 and row[1]}
+        cash = self._reference("cash")
+        usable = {cash, self.chosen.get("bank_account") or cash}
+        column = rules.SAMPLE_COLUMNS["apmas"]["ap_account"]
+        for code in CASH_SUPPLIERS:
+            if code not in rows:
+                continue
+            record = self.reader.record("apmas", rows[code])
+            account = str(record[column]).strip() if record and len(record) > column else ""
+            if account in usable:
+                return code, None
+            if code == CASH_PARTY:
+                raise Missing(CASH_SUPPLIER_NOT_CASH if account else rules.UNREADABLE)
+        return CASH_PARTY, cash
 
     def _product_supplier(self) -> str:
         # 商品主档的「รหัสผู้จำหน่าย」必填且要存在（impstkmas :761-787），MR.ERP 网页不预填：用现金供应商，没有就用第一个。

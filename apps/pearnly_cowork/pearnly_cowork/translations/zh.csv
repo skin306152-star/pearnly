@@ -250,6 +250,7 @@ CC Desktop Version,CC 桌面版版本
 CC Desktop authentication failed.,CC 桌面版认证失败。
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
 CC Desktop could not write this invoice. It is retried automatically,CC 桌面版写入失败，将自动重试
+CC Desktop does not enter MR.ERP cash purchases.,CC 桌面版不代录 MR.ERP 现购。
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
 CC Desktop has not finished.,CC 桌面版尚未完成。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
@@ -1966,6 +1967,7 @@ The uploaded file was not received. It will be sent again.,未收到上传的文
 The uploaded file was not received. Please upload again.,未收到上传的文件，请重新上传。
 The verified ERP export details are invalid.,已核实的 ERP 导出信息无效。
 The worksheet row or column information is invalid.,工作表行列信息无效。
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。
 Then,自动
 There is not enough balance to read the scanned or photographed document. Top up and try again.,余额不足，无法读取扫描件或照片，请充值后再试。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,余额不足，无法识别图片和 PDF 发票，请充值后再试。
@@ -3467,6 +3469,7 @@ intake.error.ERR_INVOICE_NO_TOO_LONG,发票号超出 MR.ERP 允许的长度，�
 intake.error.ERR_LOCATION,Express 账套中无此仓库
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,账号已在别处登录
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,已写进 MR.ERP，但 MR.ERP 记的金额与单据不符。
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP 导入出错，未入账
@@ -3477,6 +3480,7 @@ intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP 中此类单据有多个已�
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 intake.error.ERR_MRERP_MENU_UNREADABLE,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 intake.error.ERR_MRERP_MODULE_UNAVAILABLE,此单据类型无法写入 MR.ERP
+intake.error.ERR_MRERP_OPERATOR_CASH_PURCHASE,CC 桌面版不代录 MR.ERP 现购。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 intake.error.ERR_NEGATIVE_AMOUNT,合计金额为负数，请更正后重新提交

@@ -5318,7 +5318,7 @@ class MrErpTests(unittest.TestCase):
         guidance = " ".join(tools.GUIDANCE)
         for words in ("no computer and no CC Desktop are involved in an MR.ERP push",
                       "import menu per document kind and its default values chosen once before pushing",
-                      "purchases are always on credit", "no readback or VAT draft",
+                      "a purchase is entered paid or on credit", "no readback or VAT draft",
                       "no automatic push tiers or proposals, no company choices"):
             self.assertIn(words, guidance)
         self.assertIn("MR.ERP is written by Pearnly's server", tools.PUSH_QUEUED_NOTE)

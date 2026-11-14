@@ -183,12 +183,10 @@ class DocumentPrecheckContract(unittest.TestCase):
 		self.assertEqual(push.require_adapter_choices("express", "purchase", posting_kind=" STOCK "), "stock")
 		self.assertEqual(push.require_adapter_choices("express", "sales", posting_kind="service", payment="cash"), "service")
 
-	def test_mrerp_requires_payment_and_preserves_unverified_cash_purchase_block(self):
+	def test_mrerp_requires_payment_and_takes_cash_purchases(self):
 		with self.assertRaisesRegex(push.PushContractError, "^payment_required$"):
 			push.require_adapter_choices("mrerp", "sales")
-		with self.assertRaisesRegex(push.PushContractError, "^mrerp_purchase_cash_unverified$"):
-			push.require_adapter_choices("mrerp", "purchase", payment="cash")
-		for direction, payment in (("sales", "cash"), ("sales", "credit"), ("purchase", "credit")):
+		for direction, payment in (("sales", "cash"), ("sales", "credit"), ("purchase", "cash"), ("purchase", "credit")):
 			self.assertIsNone(push.require_adapter_choices("mrerp", direction, payment=payment))
 
 	def test_unknown_adapter_rejects_and_normal_return_has_no_success_payload(self):

@@ -247,6 +247,14 @@ class Stage(unittest.TestCase):
         self.assertEqual(failed, {other["id"]: ["ERR_NO_SUPPLIER"], foreign["id"]: ["mrerp_currency_not_thb:usd"]})
         self.assertEqual(importer.calls, [("purchase", [goods["id"], other["id"]])])  # 防呆挡下的不进准备
 
+    def test_a_cash_purchase_is_held_for_a_person_before_any_preparation(self):
+        # 现购代录还没做（配方没有开票用供应商那一格）：不进准备、不建主档，原因码转人工；同批赊购照常出块
+        goods, paid = purchase("e1f2a3b4"), purchase("f2a3b4c5", posting_payment_manual="cash")
+        importer = FakeImporter(menus={"purchase": "68"})
+        blocks, failed = stage(importer, [goods, paid])
+        self.assertEqual((list(blocks), failed), ([goods["id"]], {paid["id"]: [operator_draft.OPERATOR_CASH_PURCHASE]}))
+        self.assertEqual(importer.calls, [("purchase", [goods["id"]])])
+
     def test_a_module_not_verified_on_a_real_site_is_held_as_a_whole_group(self):
         goods, credit = purchase("c9d0e1f2"), {**sales("d0e1f2a3", buyer_tax=CUSTOMER), "client_id": "CL-7"}
         real = get_module

@@ -129,6 +129,9 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
             "lines": lines, "totals": totals(lines, vat_label, discount)}
 
 
+OPERATOR_CASH_PURCHASE = "ERR_MRERP_OPERATOR_CASH_PURCHASE"
+
+
 def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *, today: date, url: str,
           connection: str, account_set: Dict[str, str]) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, List[str]]]:
     """开录前的服务端准备（要在 ``with importer:`` 里，同直写一次登录、一次读主档）→ ``({票号: mrerp 块}, {票号: 挡下的原因码})``。
@@ -148,6 +151,14 @@ def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *
             if not module.verified:
                 failed.update({str(h.get("id")): [routing.MODULE_UNAVAILABLE_CODE] for h in rows})
                 continue
+            if doc_type.startswith("purchase"):
+                # 现购代录还没做：CC 桌面版要在网页表单里另填开票用供应商（txtapmas_inv），配方没有这一格。不建主档、转人工。
+                from pearnly_core.mrerp.push.xlsx.purchase import is_cash_purchase
+
+                failed.update({str(h.get("id")): [OPERATOR_CASH_PURCHASE] for h in rows if is_cash_purchase(h)})
+                rows = [h for h in rows if not is_cash_purchase(h)]
+                if not rows:
+                    continue
             importer.module = module
             valid, stopped, menu = importer.ready_rows(rows, mappings)
             failed.update({str(row.original.get("id")): [str(r) for r in row.reasons] for row in stopped if row.original})

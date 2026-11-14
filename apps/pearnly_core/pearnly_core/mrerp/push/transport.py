@@ -244,6 +244,13 @@ class MrErpImport:
         selmenu = menu["idmenu"]
         self._menu_label = str(menu.get("label") or "")
 
+        # 现购（采购已付）：第 9 列记账用的现金供应商，定不下来的现购票停下（同一批的赊购照写）。
+        if m.sheet_kind == "purchase":
+            histories, cash_failed = self._cash_supplier(histories, mappings)
+            unsettled_failed = unsettled_failed + cash_failed
+            if not histories:
+                return [], unsettled_failed, None
+
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
             from pearnly_core.mrerp.push.autocreate import provision_customers
@@ -271,6 +278,28 @@ class MrErpImport:
                                                                  for h in valid], None
 
         return valid, unsettled_failed + preflight_failed, selmenu
+
+    def _cash_supplier(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
+                       ) -> Tuple[List[Dict[str, Any]], List[FailedRow]]:
+        """这组里有现购票 → 定记账用的现金供应商放进 ``mappings['_mrerp_cash_supplier']``（`defaults.cash_supplier`，要自建就
+        在这里建）；定不下来 → 现购票停下、给原因码。没有现购票什么都不做。"""
+        from pearnly_core.mrerp.push.xlsx.purchase import is_cash_purchase
+
+        cash = [h for h in histories if is_cash_purchase(h)]
+        if not cash or mappings.get("_mrerp_cash_supplier"):
+            return histories, []
+        try:
+            code, account = self.account_defaults.cash_supplier()
+        except Missing as missing:
+            reason = missing.reason
+        else:
+            if account is None or self.create_suppliers(
+                    [{"code": code, "name": code, "tax_id": "", "account": account}], mappings).get(code):
+                mappings["_mrerp_cash_supplier"] = code
+                return histories, []
+            reason = self.default_reason or "ERR_NO_SUPPLIER"  # 建不出来：同找不到供应商
+            self.default_reason = None  # 只挡现购票；同批赊购的自建另算
+        return ([h for h in histories if not is_cash_purchase(h)], [self._fail_row(h, [reason]) for h in cash])
 
     def _fail_row(self, h: Dict[str, Any], reasons: List[str]) -> FailedRow:
         return FailedRow(invoice_no=_gen.derive_mrerp_invoice_no(h), reasons=reasons, original=h)

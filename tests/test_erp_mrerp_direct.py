@@ -298,13 +298,14 @@ class SwitchedOn(unittest.TestCase):
             saved = DB.table(PURCHASE)["PUR-1"]
             self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected)
 
-    def test_a_cash_purchase_stops_mrerp_only_imports_credit(self):
+    def test_a_paid_purchase_is_imported_as_a_cash_purchase(self):
+        # 11-14 起现购照写：票面付款 = cash，共用层第 9 列放现金供应商、第 10 列真实卖家（与 Cowork 同一份）
         doc(ledger_state="queued", ledger_target="mrerp", paid=True)
-        with _Module({"status": "success"}):
+        with _Module({"status": "success", "docnum": "PG691114-000001", "menus": {}, "masters": {}}):
             push.run(PURCHASE, "PUR-1", document)
         saved = DB.table(PURCHASE)["PUR-1"]
-        self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("failed", contracts.PURCHASE_CASH))
-        self.assertEqual(CALLS, [])
+        self.assertEqual((saved["ledger_state"], saved["ledger_docnum"]), ("written", "PG691114-000001"))
+        self.assertEqual(CALLS[0]["payload"]["histories"][0]["fields"]["posting_payment_manual"], "cash")
 
     def test_a_recognized_document_whose_printed_total_does_not_match_is_held_before_mrerp(self):
         """2026-11-03「CC 通用疑难处理」：识别来的单票面合计没有 / 对不上，同 Express 直写停下进待处理，不导入 MR.ERP；

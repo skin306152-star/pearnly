@@ -250,6 +250,7 @@ CC Desktop Version,CC デスクトップのバージョン
 CC Desktop authentication failed.,CC デスクトップの認証に失敗しました。
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop could not write this invoice. It is retried automatically,CC デスクトップが書き込めませんでした。自動で再試行します
+CC Desktop does not enter MR.ERP cash purchases.,CC デスクトップは MR.ERP の現金仕入を代行入力しません。
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
 CC Desktop has not finished.,CC デスクトップの処理が完了していません。
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC デスクトップはこの会計データに書き込めません。CC デスクトップの会計データ設定を確認してください
@@ -1966,6 +1967,7 @@ The uploaded file was not received. It will be sent again.,アップロードさ
 The uploaded file was not received. Please upload again.,アップロードしたファイルを受け取れませんでした。もう一度アップロードしてください。
 The verified ERP export details are invalid.,確認済みの ERP エクスポート情報が無効です。
 The worksheet row or column information is invalid.,ワークシートの行または列の情報が無効です。
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
 Then,実行
 There is not enough balance to read the scanned or photographed document. Top up and try again.,残高が不足しているため、スキャンや写真の書類を読み取れません。チャージしてからもう一度お試しください。
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,残高が不足しているため、画像・PDF の請求書を読み取れません。チャージしてからもう一度お試しください。
@@ -3467,6 +3469,7 @@ intake.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超�
 intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイン中です
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,MR.ERP に登録済みですが、MR.ERP の金額が伝票と一致しません。
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません
@@ -3477,6 +3480,7 @@ intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP にはこの種類の伝票�
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 intake.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 intake.error.ERR_MRERP_MODULE_UNAVAILABLE,この種類の伝票は MR.ERP に書き込めません
+intake.error.ERR_MRERP_OPERATOR_CASH_PURCHASE,CC デスクトップは MR.ERP の現金仕入を代行入力しません。
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 intake.error.ERR_NEGATIVE_AMOUNT,合計がマイナスです。直して再送信してください

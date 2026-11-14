@@ -1597,6 +1597,7 @@ The value is not a number,该值不是数字
 The value must be zero or more,该值不能小于 0
 The warehouse differs from the warehouse of this document,仓库与本单仓库不一致
 The warehouse has no matching Express warehouse,仓库在 Express 里没有对应的仓库
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。
 Then,自动
 There are no lines,缺少明细
 There is nothing to save,没有需要保存的内容
@@ -2505,6 +2506,7 @@ mrerp.error.ERR_DATE_FUTURE,票面日期晚于当前日期，请更正后重新�
 mrerp.error.ERR_DIRECTION_UNKNOWN,请选择此发票为进项或销项后重新提交
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,账号已在别处登录
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP 中供应商「เงินสด」的科目不是现金或银行科目。
 mrerp.error.ERR_MRERP_IMPORT_ERROR,MR.ERP 导入出错，未入账
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,无法读取 MR.ERP 主档。
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。

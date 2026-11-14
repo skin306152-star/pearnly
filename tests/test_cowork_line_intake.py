@@ -190,12 +190,15 @@ class LineFlowTest(unittest.TestCase):
         self.refresh.assert_not_called()
         self.read.assert_not_called()
 
-    def test_mrerp_purchase_is_credit_only(self):
+    def test_mrerp_purchase_asks_cash_or_credit(self):
+        # 11-14 起 MR.ERP 现购照写：进项与销项一样问现金 / 赊账
         self.books = MRERP_BOOKS[:1]
         flow.start("U1", "tok")
         self.tap("MR.ERP")
         self.tap("intake.dir.purchase")
-        self.assertEqual(flow.choices("U1")["payment"], "credit")
+        self.assertNotIn("payment", flow.choices("U1"))
+        self.tap("Cash")
+        self.assertEqual(flow.choices("U1")["payment"], "cash")
         self.assertTrue(flow.ready(flow.choices("U1")))
 
     def test_recognize_only_asks_direction_only(self):

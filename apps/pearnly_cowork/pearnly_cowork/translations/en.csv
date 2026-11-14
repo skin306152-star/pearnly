@@ -250,6 +250,7 @@ CC Desktop Version,CC Desktop Version
 CC Desktop authentication failed.,CC Desktop authentication failed.
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
 CC Desktop could not write this invoice. It is retried automatically,CC Desktop could not write this invoice. It is retried automatically
+CC Desktop does not enter MR.ERP cash purchases.,CC Desktop does not enter MR.ERP cash purchases.
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
 CC Desktop has not finished.,CC Desktop has not finished.
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
@@ -1966,6 +1967,7 @@ The uploaded file was not received. It will be sent again.,The uploaded file was
 The uploaded file was not received. Please upload again.,The uploaded file was not received. Please upload again.
 The verified ERP export details are invalid.,The verified ERP export details are invalid.
 The worksheet row or column information is invalid.,The worksheet row or column information is invalid.
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,The เงินสด supplier in MR.ERP is not on a cash or bank account.
 Then,Then
 There is not enough balance to read the scanned or photographed document. Top up and try again.,There is not enough balance to read the scanned or photographed document. Top up and try again.
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,There is not enough balance to recognize the image and PDF invoices. Top up and try again.
@@ -3467,6 +3469,7 @@ intake.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP al
 intake.error.ERR_LOCATION,This warehouse is not in the Express account set
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document."
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,The เงินสด supplier in MR.ERP is not on a cash or bank account.
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
@@ -3477,6 +3480,7 @@ intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP has several import menus link
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 intake.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
 intake.error.ERR_MRERP_MODULE_UNAVAILABLE,This document type cannot be written to MR.ERP
+intake.error.ERR_MRERP_OPERATOR_CASH_PURCHASE,CC Desktop does not enter MR.ERP cash purchases.
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 intake.error.ERR_NEGATIVE_AMOUNT,The total is negative. Correct it and submit again

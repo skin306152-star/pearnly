@@ -386,7 +386,7 @@ class MrErp(Precheck):
         # 停在要选导入菜单的单：记下后排一次导入（同单据上「选一次」）；别的原因停下的不动
         fake.STATE.db.table(self.push.PURCHASE)["PI-2"] = {
             "name": "PI-2", "company": "CO-1", "owner": "staff@x", "ledger_state": E.HELD,
-            "ledger_reason": self.precheck.mrerp_contracts.PURCHASE_CASH, "ledger_job": None}
+            "ledger_reason": self.precheck.mrerp_contracts.NOT_CONFIGURED, "ledger_job": None}
         self.assertEqual(self.precheck.resume("CO-1", ["P:PI-1", "P:PI-2"]),
                          [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
         self.assertEqual(self.sent, ["PI-1"])

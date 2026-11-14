@@ -4,8 +4,8 @@
 
 - 只在 :data:`pearnly_erp_portal.mrerp.MRERP_LEDGER_ENABLED` 开着时生效（:func:`handles` 关着时直接回假，不查库）；Express 那条
   （`express.push`）在入口处先问 :func:`handles`，关着时一字不变。
-- 哪些单：采购单（真进货 / 费用）与销售单（同 Express 的种类），已提交、在公司选 MR.ERP 当账本之后开始的。MR.ERP 导入只有赊购：
-  现购停下（``mrerp.purchase_cash``，同 Cowork）。出入库、收银日汇总、盘点 MR.ERP 没有对应的导入，不排。
+- 哪些单：采购单（真进货 / 费用）与销售单（同 Express 的种类），已提交、在公司选 MR.ERP 当账本之后开始的。已付的采购按现购写
+  （共用层第 9 列现金供应商、第 10 列真实卖家，同 Cowork）。出入库、收银日汇总、盘点 MR.ERP 没有对应的导入，不排。
 - 要人选的导入菜单 / 主档默认值：读到过、此刻要人选的，导入前就停在单据上（``choice_needed:mrerp`` + ``ledger_needed``）；没读到过的
   照导，MR.ERP 那边按读到的核对，要选就停下（读到的选项存回连接）。选一次（:func:`answer`）记在公司上后再排。
 - 同账号互斥（ADR-026 第 8 条）：导入拿共用层的账号短锁（`session_lock.account_lock`，导入 5 步里拿）；被 CC 桌面版代录占着
@@ -84,9 +84,6 @@ def prepare(doctype, name, document) -> dict:
     if held:
         return {"hold": held}
     body = document(doctype, name)
-    stop = contracts.blocked(body)
-    if stop:
-        return {"failed": stop}
     menu_view, master_view = choices.views(row)
     needed = contracts.needed(menu_view, master_view, body["direction"])
     if needed:

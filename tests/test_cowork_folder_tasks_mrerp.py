@@ -1,4 +1,4 @@
-"""定时任务加 MR.ERP（2026-10-09）：与「新建录入」同一口径 —— MR.ERP 选付款方式（进项只有赊账）、没有过账类型与默认处理；
+"""定时任务加 MR.ERP（2026-10-09）：与「新建录入」同一口径 —— MR.ERP 选付款方式（现金 / 赊账，11-14 起进项也可现金）、没有过账类型与默认处理；
 推送去向登记 MR.ERP（确认一步什么都不做）；小助手配对前可以只问连接类型（probe，不改任何东西）。不连库、不依赖 Frappe。"""
 import importlib.util
 import json
@@ -18,8 +18,8 @@ desktop_update = _load("connections_desktop_update_mrerp", APP / "connections/de
 
 
 class Payments(unittest.TestCase):
-    def test_mrerp_purchase_is_credit_only(self):
-        self.assertEqual(contracts.MRERP_PAYMENTS, {"purchase": ("credit",), "sales": ("cash", "credit")})
+    def test_mrerp_purchase_and_sales_take_cash_or_credit(self):
+        self.assertEqual(contracts.MRERP_PAYMENTS, {"purchase": ("cash", "credit"), "sales": ("cash", "credit")})
 
 
 class Destinations(unittest.TestCase):
@@ -125,13 +125,15 @@ class SaveMrerpTask(unittest.TestCase):
         with self.assertRaises(Exception):  # 文件夹不是那台小助手的
             rules.save(json.dumps(self.values(payment="credit", reader="EX", root_id=self.ROOT_A)))
 
-    def test_mrerp_purchase_cash_and_missing_payment_are_refused(self):
+    def test_mrerp_missing_payment_is_refused_and_cash_purchase_is_kept(self):
         rules, saved, _masters = self._rules("mrerp")
-        for payment in ("cash", "", None):
+        for payment in ("", None, "other"):
             with self.assertRaises(Exception):
                 rules.save(json.dumps(self.values(payment=payment)))
         rules.save(json.dumps(self.values(direction="sales", payment="cash")))
         self.assertEqual(saved[-1]["payment"], "cash")
+        rules.save(json.dumps(self.values(payment="cash")))  # 11-14 起现购照写
+        self.assertEqual((saved[-1]["direction"], saved[-1]["payment"]), ("purchase", "cash"))
 
     def test_express_task_reads_only_on_its_own_helper(self):
         rules, saved, _masters = self._rules("express")
