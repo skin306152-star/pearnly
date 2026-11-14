@@ -82,6 +82,9 @@ function answeredCount(result: unknown): { status: string; answered: number } | 
   }
 }
 
+/** 服务端没出卡（不用问，``nothing_to_ask``）：对话里不画这张卡。 */
+export const nothingAsked = (result: unknown) => answeredCount(result)?.status === "nothing_to_ask";
+
 const Decided: FC<{ items: GuideDecided[]; disabled: boolean; open?: boolean; onChange?: (key: string, value: string) => void }> = ({
   items,
   disabled,
@@ -254,6 +257,7 @@ export const GuideCard: ToolCallMessagePartComponent = (props) => {
     getSessionController(sessionId).respondToApproval(part.approval.id, true, undefined, answers);
   };
   const result = answeredCount(props.result);
+  if (result?.status === "nothing_to_ask") return null;
   return (
     <GuideCardBody
       card={card}

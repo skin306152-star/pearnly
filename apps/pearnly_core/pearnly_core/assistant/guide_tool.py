@@ -27,7 +27,11 @@ TOOL = "pearnly_guide"
 TOOL_RUN = "Pearnly Assistant Tool Run"
 
 # 给模型看的话（英文，不经 _()）
-NOTHING_TO_ASK = "Everything for these documents is decided. Make the write plan (pearnly_write_plan) next."
+NOTHING_TO_ASK = ("Nothing to ask the user. Make the write plan (pearnly_write_plan) next with the documents in writable; "
+                  "documents in waiting or not_writable are left out: tell the user why in plain words.")
+# 不用问、但一张都写不了（都在等电脑读主档 / 写不了）：不叫模型建写入计划（真模型 11-14：销售单在等科目表时说明叫它去建计划）
+NOTHING_WRITABLE = ("Nothing to ask the user, and none of these documents can be written now: waiting and not_writable say "
+                    "why. Tell the user that in plain words and do not make a write plan for them.")
 ASK_REFUSED = ("Questions about writing documents (accounts, items, parties, payment, account sets, whether to enter "
                "a document) are asked by the server: call pearnly_guide with the documents instead of ask_user.")
 REFUSED_INSTRUCTION = ("Some answers no longer match Express (a chosen code was removed or changed) and nothing was saved. "
@@ -128,10 +132,12 @@ def prepare(tool_input) -> Dict[str, Any]:
         built["questions"].insert(0, book)
         built["counts"]["questions"] += 1
     if not guide.needs_card(built):
-        return {"result": json.dumps({"status": "nothing_to_ask", "writable": guide.writable(found, []),
+        writable = guide.writable(found, [])
+        return {"result": json.dumps({"status": "nothing_to_ask", "writable": writable,
                                       "not_writable": built["facts"]["not_writable"],
                                       "waiting": built["facts"]["waiting"], "planned": found.get("planned") or {},
-                                      "instruction": NOTHING_TO_ASK}, ensure_ascii=False, default=str)}
+                                      "instruction": NOTHING_TO_ASK if writable else NOTHING_WRITABLE},
+                                     ensure_ascii=False, default=str)}
     card = _translate(built)
     return {"input": {"company": company, "company_title": found.get("company_title") or "", "doc_ids": doc_ids,
                       "card": card}}
@@ -245,5 +251,5 @@ def refuse_ask(tool_input) -> str | None:
     return None
 
 
-__all__ = ["ASK_REFUSED", "GUIDE_WAITING", "NOTHING_TO_ASK", "REFUSED_INSTRUCTION", "TOOL", "check", "prepare", "refuse_ask",
+__all__ = ["ASK_REFUSED", "GUIDE_WAITING", "NOTHING_TO_ASK", "NOTHING_WRITABLE", "REFUSED_INSTRUCTION", "TOOL", "check", "prepare", "refuse_ask",
            "result", "skipped", "stored_card"]

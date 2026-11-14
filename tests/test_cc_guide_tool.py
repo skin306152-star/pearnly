@@ -93,6 +93,15 @@ class Prepare(Fakes):
         self.assertNotIn("input", found)
         result = json.loads(found["result"])
         self.assertEqual((result["status"], result["writable"]), ("nothing_to_ask", ["d1"]))
+        self.assertEqual(result["instruction"], guide_tool.NOTHING_TO_ASK)
+
+    def test_nothing_to_ask_and_nothing_writable_does_not_send_to_the_write_plan(self):
+        """不用问、但一张都写不了（都在等电脑读科目表）：不叫模型建写入计划，叫它照实说原因（真模型 11-14 销售格）。"""
+        self.card_value = {"ready": [], "items": [], "waiting": [{"doc_id": "d1", "reason": "offline"}], "not_writable": []}
+        result = json.loads(guide_tool.prepare({"company": "C1", "doc_ids": ["d1"]})["result"])
+        self.assertEqual((result["status"], result["writable"]), ("nothing_to_ask", []))
+        self.assertEqual(result["instruction"], guide_tool.NOTHING_WRITABLE)
+        self.assertNotIn("pearnly_write_plan) next", result["instruction"])
 
 
 class Answers(Fakes):

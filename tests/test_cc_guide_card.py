@@ -41,7 +41,7 @@ const card = {
 PURE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { answersFrom, guideCardOf, optionText, preselectOf } from "@/components/tool-uis/guide-card";
+import { answersFrom, guideCardOf, nothingAsked, optionText, preselectOf } from "@/components/tool-uis/guide-card";
 """ + CARD + r"""
 // 调用的输入 → 卡；读不出回空卡
 assert.deepEqual(guideCardOf({ card }).questions.length, 2);
@@ -61,6 +61,11 @@ assert.equal(preselectOf(card.questions[0]), "credit");
 assert.equal(preselectOf(card.questions[1]), "");
 assert.equal(preselectOf({ ...card.questions[1], preselected: "skip" }), "");
 assert.equal(preselectOf({ ...card.questions[0], preselected: "bitcoin" }), "");
+// 服务端没出卡（nothing_to_ask）：对话里不画卡（不写「已答 0 项」）；答过 / 读不出的照旧
+assert.equal(nothingAsked('{"status": "nothing_to_ask", "writable": []}'), true);
+assert.equal(nothingAsked({ text: '{"status": "nothing_to_ask"}' }), true);
+assert.equal(nothingAsked('{"status": "answered", "answered": 1}'), false);
+assert.equal(nothingAsked(undefined), false);
 (globalThis as any).done();
 """
 
