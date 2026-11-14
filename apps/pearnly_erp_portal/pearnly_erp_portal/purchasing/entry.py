@@ -15,6 +15,7 @@ from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import line_memory
 from pearnly_erp_portal.products import purchase as purchase_items
 from pearnly_erp_portal.purchasing import access, amounts, category_memory, contracts, files, settings
+from pearnly_erp_portal.masters import access as master_access
 
 KINDS = {"purchase_invoice", "expense", "goods", "service"}
 METHODS = {"cash", "transfer", "promptpay", "bank", "cheque", "other"}
@@ -45,7 +46,7 @@ def _supplier(payload, company=None, started=None):
         if not frappe.db.exists("ERP Supplier", key):
             frappe.throw(_("Supplier not found. Please select the supplier again."))
         doc = frappe.get_doc("ERP Supplier", key)
-        if getattr(doc, "express_company", None) and company and doc.express_company != company:
+        if not master_access.usable(doc.get(master_access.OWNER), company):
             # 别家公司 Express 同步来的档不能挂在这家的单上（主档按公司隔离，服务端也拒；10-24 验收）
             frappe.throw(_("Supplier not found. Please select the supplier again."))
         if not doc.is_active:

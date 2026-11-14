@@ -29,7 +29,7 @@
 		// 字段"丢掉（`is_null("")` 为真），所以"清空一格再保存"照旧留着老值。
 		const FIELDS = ["company_name", "short_name", "tax_id", "branch", "vat_registered", "phone",
 			"contact_person", "contact_email", "promptpay_id", "logo", "address", "note", "pos_enabled",
-			"company_type", "express_enabled"];
+			"company_type"];
 		// 公司类型（用户 10-29）：汽车 / 手机电器按台管理，普通公司不按台
 		const TYPE_OPTIONS = ["general", "vehicle", "device"].map(value => ({value, label: t(`company.type.${value}`)}));
 		// CC 桌面版安装包（始终是最新正式版，`companion/README.md`）
@@ -152,6 +152,12 @@
 		}
 
 		function restore_new() {
+			// 从连接添加（公司接入重做第 2 批）：能建公司的人才有；勾完回到列表刷新
+			if (frappe.boot.pearnly_can_build) {
+				page.set_secondary_action(__("company.connect.add"), () => p.connect_companies({done: () => list?.reload?.()}));
+			} else {
+				page.clear_secondary_action();
+			}
 			if (!can_write()) return page.clear_primary_action();
 			// 新建走**二级页面**（面包屑），不再弹窗 —— 字段太多（用户 2026-09-24）。
 			page.set_primary_action(t("company.new"), () => go_to("new"));
@@ -191,8 +197,8 @@
 				f("contact_person", "company.field.contactPerson", "Data"),
 				f("contact_email", "company.field.contactEmail", "Data"),
 				f("promptpay_id", "company.field.promptpay", "Data"),
+				// 「接 Express」勾选去掉（公司接入重做第 2 批，11-14）：这里新建的只用 Pearnly ERP；接账本的公司从「从连接添加」来
 				f("company_type", "company.field.companyType", "Select", {options: TYPE_OPTIONS, default: "general"}),
-				f("express_enabled", "company.field.expressEnabled", "Check", {default: 0}),
 				{fieldtype: "Section Break", label: t("company.section.address")},
 				f("address", "company.field.address", "Small Text"),
 				{fieldtype: "Column Break"},
@@ -258,19 +264,18 @@
 		const sync_key = state => (SYNC_STATES.includes(state) ? state : "failed");
 		// 失败原因：认得的原因码给译文，其余（出错信息）原样
 		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};
-		// 不勾 = 普通 ERP；勾了未连上（CC 桌面版没报过这家公司的账套）只给下载 CC 桌面版；连上了能「断开」。
-		// 已连上的勾选框只读：要先断开才能取消（服务端 `company.DISCONNECT_FIRST` 同样拦）。
+		// 来源决定是否互通（公司接入重做第 2 批，11-14）：不接 Express 的公司不出这一节（没有勾选框）；从连接添加进来的才有。
+		// 接着但未连上（CC 桌面版没报过这家公司的账套）只给下载 CC 桌面版；连上了能「断开」（断开后回到只用 Pearnly ERP）。
 		const express_section = (data, name) => {
 			const on = Number(data.express_enabled) === 1, connected = Boolean(data.express_connected);
-			const out = [{fieldtype: "Section Break", label: __("Express")},
-				f("express_enabled", "company.field.expressEnabled", "Check",
-					{default: on ? 1 : 0, read_only: !data.can_write || (on && connected)})];
-			if (on && !connected) out.push(
+			if (!on) return [];
+			const out = [{fieldtype: "Section Break", label: __("Express")}];
+			if (!connected) out.push(
 				{fieldname: "express_connection", label: __("Status"), fieldtype: "Data", read_only: 1,
 					default: t("company.syncExpress.offline")},
 				{fieldname: "cc_download", label: __("Download CC Desktop"), fieldtype: "Button",
 					click: () => window.open(CC_INSTALLER, "_blank", "noopener")});
-			if (on && connected && data.can_write) out.push(
+			if (connected && data.can_write) out.push(
 				f("express_disconnect", "company.express.disconnect", "Button", {click: () => frappe.confirm(
 					__("Are you sure you want to proceed?"), async () => {
 						await p.call(api + "api_disconnect_express", {name: name || data.name}, "POST");
@@ -310,7 +315,8 @@
 		};
 		const mrerp_section = (data, name) => {
 			const view = data.mrerp;
-			if (!view) return [];
+			// 只有从连接添加进来、接着 MR.ERP 的公司出这一节（换账套、断开）；手工新建的公司不再在这里接上 MR.ERP（来源决定）
+			if (!view || !view.linked) return [];
 			return [{fieldtype: "Section Break", label: __("MR.ERP")},
 				{fieldname: "mrerp_account_set", label: __("Account Set"), fieldtype: "Data", read_only: 1, default: view.label || ""},
 				{fieldname: "mrerp_choose", label: __("Select"), fieldtype: "Button", click: () => choose_mrerp(data, name)},

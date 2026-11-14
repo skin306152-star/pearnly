@@ -186,6 +186,13 @@
 			}, true);
 		}
 
+		// 产品按类改搜索（ERP 2026-11-14：客户 / 供应商 / 物料选择框走自己的原生 `get_query` 服务端查询，本公司账本档排前、编码可搜）：
+		// 共用层只留这个口子，产品声明 `p.link_query_wrap(args)` 才生效；各页自己给了 `query` 的不动。
+		set_custom_query(args) {
+			super.set_custom_query(args);
+			if (typeof p.link_query_wrap === "function") p.link_query_wrap(args);
+		}
+
 		// 官方那两项的兜底：万一入口还在（字段没设 `only_select`），动作也必须落在我们自己的页面上。
 		new_doc() {
 			if (p.open_link_create(this.get_options(), this.$input, this)) return false;

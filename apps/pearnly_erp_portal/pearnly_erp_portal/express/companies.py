@@ -1,17 +1,19 @@
 """CC 桌面版报来的账套 → ERP 公司（用户 10-23：「CC 这边选择 Express 后，这些数据主动回报同步到 ERP」）。
 
-共用机器通道换了一台电脑的账套名单（`pearnly_core.cc_desktop.books.replace` → 钩子 ``books_changed``）就排一个后台任务
-（同站点只留一件）：账套按「税号 + 分店」分组，已有同税号同分店的公司就接上，没有就建一家（公司名取账套登记的公司名，
-不做收银）；新建的每家排上主档同步（`masters.queue`，每分钟按顺序发起几家，读好了在后台落库）。哪些账套报给这个 ERP：CC 里
-「Express 位置」勾给 ERP 的那些（同一台电脑也连着 Cowork 时默认不勾，要人勾；只连 ERP 的电脑全给），见
-docs/work/2026-11-07-cc-shared-computer-isolation-评估.md。
+**公司接入重做第 2 批（2026-11-14，用户定 A 方案）：不再按账套自动建公司。** 以前一台电脑的账套名单有变化就把位置下全部
+有税号的账套按「税号 + 分店」建成公司、各自整本同步（testerp 因此有 66 家公司、59 家从没用过，客户 8.5 万条）。现在：
 
-**只看还连着、按成员报账套的电脑**（CC 桌面版 :data:`SCOPED_FROM` 起、令牌没作废、没退役）：更早的版本报的是位置下全部账套
-（1.12.0 的 ERP 勾选 10-24 随整机位置删了，1.12.0–1.12.16 也一样），电脑断开（`devices.leave`）后名单也还留着；照它们建会把
-事务所电脑上别的客户都建进这个 ERP。
+- 名单有变化（`pearnly_core.cc_desktop.books.replace` → 钩子 :func:`books_changed`）只排一件 :func:`announce`：算出连接里还没
+  接进 ERP 的公司（Express 账套与 MR.ERP 账套目录，同 CC 选公司弹窗 `masters.cc_service._catalog`），有新的就推实时事件
+  :data:`EVENT`，ERP 网页给能建公司的人弹「选择要用的公司」（`public/desk/company-connect.js`），勾谁建谁（`cc_service.create`）；
+  不在线的人下次打开 ERP 时由启动数据带出（`masters.boot`）。
+- 已经接着 Express 的公司：电脑报上它的账套后马上排一次同步（不用人点「同步 Express」，也不等每 10 分钟看标记）。
 
-**没有有效 13 位税号的账套不建公司**：ERP 认账套（选账套、写单、同步）全靠税号 + 分店，没税号认不出归哪家，建了也写不进、
-同步不了；Express 里补上税号后下一次心跳就建。停用的公司不重建、不启用（人停的）。
+哪些账套报给这个 ERP：CC 里「Express 位置」勾给 ERP 的那些（同一台电脑也连着 Cowork 时默认不勾，要人勾；只连 ERP 的电脑全给），
+见 docs/work/2026-11-07-cc-shared-computer-isolation-评估.md。**只看还连着、按成员报账套的电脑**（CC 桌面版 :data:`SCOPED_FROM`
+起、令牌没作废、没退役）：更早的版本报的是位置下全部账套，电脑断开（`devices.leave`）后名单也还留着。
+
+没有有效 13 位税号的账套不在目录里：ERP 认账套（选账套、写单、同步）全靠税号 + 分店（评估 §3.4，第 4 批再做）。
 """
 import frappe
 
@@ -24,17 +26,54 @@ COMPANY = "ERP Company"
 BOOK = "Pearnly CC Book"
 DEVICE = "Pearnly CC Device"
 SCOPED_FROM = "1.12.17"  # 起这一版 CC 桌面版的 ERP 成员只报勾给它的「Express 位置」下的账套（companion express_places.places_for）
-COMMIT_EVERY = 20
+COMPANIES_MAX = 2000  # 一个租户的公司（同 `cc_service.COMPANY_MAX`）
 DEVICES_MAX = 500    # 一个租户连着的电脑（候选只看在用的几台）
 BOOKS_MAX = 5000     # 这些电脑报的账套行（一台几十份）
 
 
+EVENT = "pearnly_erp_new_ledgers"   # 连接里有还没接进 ERP 的公司：{count}；页面只对能建公司的人弹窗
+PENDING_KEY = "erp-new-ledgers"      # 站点缓存：还要人勾的账套标识（:func:`announce` 算好，启动数据只读它）
+PENDING_TTL = 6 * 3600
+WAITING_SYNC = (None, "", "offline", "outdated")  # 接着 Express、还没读成的公司：电脑报上账套后马上排一次同步
+
+
 def books_changed(device):
-    """（共用通道钩子，心跳的事务里叫）一台电脑的账套名单有变化：排一次建公司（同站点只留一件，提交后才排）。"""
+    """（共用通道钩子，心跳的事务里叫）一台电脑的账套名单有变化：排一次 :func:`announce`（同站点只留一件，提交后才排）。"""
     from pearnly_erp_portal.express import masters
 
-    frappe.enqueue("pearnly_erp_portal.express.companies.ensure", queue=masters.lane(), timeout=1800,
+    frappe.enqueue("pearnly_erp_portal.express.companies.announce", queue=masters.lane(), timeout=600,
                    enqueue_after_commit=True, job_id=f"erp-express-companies:{frappe.local.site}", deduplicate=True)
+
+
+def pending(refresh=False) -> list:
+    """还要人勾的账套标识（缓存；没有就现算）。"""
+    found = None if refresh else frappe.cache.get_value(PENDING_KEY)
+    if found is None:
+        from pearnly_erp_portal.masters import cc_service
+
+        found = cc_service.pending_identities()
+        frappe.cache.set_value(PENDING_KEY, found, expires_in_sec=PENDING_TTL)
+    return list(found)
+
+
+def announce():
+    """（后台任务）账套名单或 MR.ERP 目录变了之后：重算还要人勾的公司，比上次多了就推 :data:`EVENT`；接着 Express、电脑这时
+    才报上账套的公司排一次同步。回 ``{"pending": 几家, "new": 几家, "queued": [公司]}``。"""
+    from pearnly_erp_portal.express import masters, push
+
+    before = set(frappe.cache.get_value(PENDING_KEY) or [])
+    now = pending(refresh=True)
+    fresh = [identity for identity in now if identity not in before]
+    queued = []
+    for row in frappe.get_all(COMPANY, filters={"express_enabled": 1, "is_active": 1},
+                              fields=["name", "express_sync_state"], limit_page_length=COMPANIES_MAX):
+        if row.express_sync_state in WAITING_SYNC and push.connected(row.name):
+            masters.queue(row.name)
+            queued.append(row.name)
+    frappe.db.commit()
+    if fresh:
+        frappe.publish_realtime(EVENT, {"count": len(now)}, after_commit=True)
+    return {"pending": len(now), "new": len(fresh), "queued": queued}
 
 
 def groups(rows) -> dict:
@@ -89,27 +128,3 @@ def catalog() -> dict:
         if tax and year:
             years.setdefault((tax, contracts.branch5(row.get("branch"))), set()).add(year)
     return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True)} for key, name in groups(rows).items()}
-
-
-def ensure():
-    """（后台任务）按这些电脑报的账套补建公司，新建的排主档同步。回新建的公司。"""
-    devices = scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
-                                    limit_page_length=0))
-    if not devices:
-        return []
-    rows = frappe.get_all(BOOK, filters={"device": ["in", devices]},
-                          fields=["company", "label", "tax_id", "branch", "period_end"], limit_page_length=0)
-    companies = frappe.get_all(COMPANY, fields=["name", "tax_id", "branch"], limit_page_length=0)
-    made = []
-    for tax, branch, name in missing(groups(rows), companies):
-        made.append(build(tax, branch, name))
-        if len(made) % COMMIT_EVERY == 0:
-            frappe.db.commit()
-    frappe.db.commit()
-    if made:
-        from pearnly_erp_portal.express import masters
-
-        for name in made:
-            masters.queue(name)
-        frappe.db.commit()
-    return made

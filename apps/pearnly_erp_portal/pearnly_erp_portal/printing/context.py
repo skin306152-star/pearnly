@@ -159,8 +159,10 @@ def _is_main(warehouse, company) -> bool:
 def _party(doctype, name, company, fields) -> frappe._dict:
     """客户 / 供应商档：只在属于本单公司（接 Express 的档记着 `express_company`）或是共用档时读，否则当作没有
     （`masters.access` 同一口径：有 `express_company` 的档只在那家公司可见）。"""
-    row = frappe.db.get_value(doctype, name, [*fields, "express_company"], as_dict=True) if name else None
-    if not row or (row.express_company and row.express_company != company):
+    from pearnly_erp_portal.masters import access as master_access
+
+    row = frappe.db.get_value(doctype, name, [*fields, master_access.OWNER], as_dict=True) if name else None
+    if not row or not master_access.usable(row.get(master_access.OWNER), company or "-"):
         return frappe._dict()
     return row
 

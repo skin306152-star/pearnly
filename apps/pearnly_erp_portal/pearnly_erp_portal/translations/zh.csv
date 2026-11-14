@@ -68,6 +68,7 @@ Add an item,添加项目
 Add and issue,新建并出库
 Add and receive,新建并入库
 Add another list,添加另一个列表
+Add from connections,从连接添加
 Add label,添加标签
 Add locations in stock,带入有库存的仓位
 Add member,添加成员
@@ -1322,6 +1323,7 @@ Select a stock count,选择盘点
 Select a warehouse and opening date first,请先选择仓库和期初日期
 Select an invoice to load summary data,选择一张单据以查看汇总
 "Select both ""Date"" values",请选齐“日期”
+Select companies,选择要用的公司
 Select item group,选择物料组
 Select one receipt to refund,每次只能对一张小票退款
 Select one row to open its ledger,请仅选择一行以查看流水
@@ -1931,6 +1933,8 @@ company.col.status,状态
 company.col.taxId,税号
 company.col.warehouse,仓库名称
 company.col.warehouseCode,仓库编号
+company.connect.add,从连接添加
+company.connect.title,选择要用的公司
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发
 company.enable,启用

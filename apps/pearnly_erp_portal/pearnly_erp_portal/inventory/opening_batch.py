@@ -14,6 +14,7 @@ from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.inventory import access, contracts, opening_workbook, positions, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.masters import access as master_access
 
 INVALID_ROW = "Check the opening stock row"
 NUMBER_REQUIRED = "Opening quantity and unit cost are required and must be non-negative"
@@ -126,8 +127,7 @@ def _product(row, catalog, company=None):
             candidates = []
             for column in columns:
                 candidates = list({product.name: product for product in catalog if product.get(column) == value
-                                   and (not company or not product.get("express_company")
-                                        or product.get("express_company") == company)}.values())
+                                   and master_access.usable(product.get(master_access.OWNER), company)}.values())
                 if candidates:
                     break
             if len(candidates) != 1:
@@ -419,7 +419,7 @@ def template(warehouse):
     kind = companies.company_type(context["company"]) if companies.unit_tracking(context["company"]) else None
     # 只列这家公司 Express 的档和本地档（几十家公司各自同步来的商品不混进来，合起来还会超过模板行数上限）
     rows = frappe.get_all("ERP Product", filters={"is_active": 1},
-                          or_filters=[["express_company", "=", context["company"]], ["express_company", "is", "not set"]],
+                          or_filters=master_access.scope_or_filters(context["company"]),
                           fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "base_unit", "unit",
                                   "category", "attribute"],
                           order_by="name", limit_page_length=opening_workbook.MAX_ROWS + 1)

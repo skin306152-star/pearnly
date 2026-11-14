@@ -81,6 +81,38 @@ def warehouse_permission(doc, ptype="read", user=None, **kwargs):
 COMPANY_MASTERS = ("ERP Customer", "ERP Supplier", "ERP Product")
 
 
+# ── 本公司看得到哪些主档：唯一一处口径（公司接入重做第 2 批，2026-11-14）────────────────────────────
+# 账本档（Express / MR.ERP 同步来的，`express_company` = 归属公司）只给归属那家；本地档（没归属）各家都能用。
+# 权限钩子、选择框、LINE、收款、打印、导出、单据提交时的校验都调下面几个函数，不各写一份
+# （11-14 评估 §2.3：原来 1 个钩子 + 5 个函数 + 17 处手写、口径不一）；`scripts/check-master-scope.py` 拦新的手写。
+OWNER = "express_company"
+
+
+def usable(owner, company) -> bool:
+    """一条主档（归属 ``owner``）能不能用在 ``company`` 这家：本地档、或就是这家的；``company`` 没给时不拦。"""
+    return not owner or not company or owner == company
+
+
+def scope_sql(company, table=None) -> tuple:
+    """SQL 条件片段（参数化）：``(条件, {"master_scope_company": 公司})``。``table`` 给了就带表名前缀。
+    不包 ifnull：`express_company` 上的索引才用得上（客户近 2 万条时列表、链接搜索不全表扫）。"""
+    column = f"`{table}`.`{OWNER}`" if table else f"`{OWNER}`"
+    local = f"{column} is null or {column} = ''"
+    if not company:
+        return f"({local})", {}
+    return f"({local} or {column} = %(master_scope_company)s)", {"master_scope_company": company}
+
+
+def scope_or_filters(company) -> list:
+    """``frappe.get_all(or_filters=...)`` 用：本公司的账本档 + 本地档。"""
+    return [[OWNER, "=", company], [OWNER, "is", "not set"]] if company else [[OWNER, "is", "not set"]]
+
+
+def ledger_filters(company) -> dict:
+    """只要这家公司的账本档（带账本编码的）：写进账本的单（收款）只能挂账本里有的对方。"""
+    return {OWNER: company, "express_code": ["is", "set"]}
+
+
 def master_query(doctype, user=None):
     user = user or frappe.session.user
     if user == "Administrator":
@@ -89,10 +121,8 @@ def master_query(doctype, user=None):
         current = company.active_company(user)
     except frappe.PermissionError:
         current = None
-    # 不包 ifnull：`express_company` 上的索引才用得上（客户近 2 万条时列表、链接搜索不全表扫）
-    column = f"`tab{doctype}`.`express_company`"
-    local = f"{column} is null or {column} = ''"
-    return f"({local} or {column} = {frappe.db.escape(current)})" if current else f"({local})"
+    condition, values = scope_sql(current, f"tab{doctype}")
+    return condition.replace("%(master_scope_company)s", frappe.db.escape(values["master_scope_company"])) if values else condition
 
 
 def master_permission(doc, ptype="read", user=None, **kwargs):

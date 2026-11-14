@@ -120,7 +120,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 10:00:00.000000",
+ "modified": "2026-11-14 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Supplier",
  "naming_rule": "Expression",
@@ -141,6 +141,7 @@
    "write": 1
   }
  ],
+ "search_fields": "supplier_name,express_code,tax_id,phone",
  "sort_field": "modified",
  "sort_order": "DESC",
  "states": [],

@@ -68,6 +68,7 @@ Add an item,เพิ่มรายการ
 Add and issue,สร้างใหม่และจ่ายออก
 Add and receive,สร้างใหม่และรับเข้า
 Add another list,เพิ่มรายการอื่น
+Add from connections,เพิ่มจากการเชื่อมต่อ
 Add label,เพิ่มป้ายกำกับ
 Add locations in stock,เพิ่มตำแหน่งที่มีสต็อก
 Add member,เพิ่มสมาชิก
@@ -1322,6 +1323,7 @@ Select a stock count,เลือกการตรวจนับ
 Select a warehouse and opening date first,กรุณาเลือกคลังและวันที่ยกมาก่อน
 Select an invoice to load summary data,เลือกเอกสารเพื่อดูข้อมูลสรุป
 "Select both ""Date"" values","กรุณาเลือก ""วันที่"" ให้ครบ"
+Select companies,เลือกบริษัทที่จะใช้
 Select item group,เลือกกลุ่มสินค้า
 Select one receipt to refund,คืนเงินได้ครั้งละหนึ่งใบเสร็จเท่านั้น
 Select one row to open its ledger,กรุณาเลือกเพียงหนึ่งรายการเพื่อดูบัญชีสต็อก
@@ -1931,6 +1933,8 @@ company.col.status,สถานะ
 company.col.taxId,เลขประจำตัวผู้เสียภาษี
 company.col.warehouse,ชื่อคลังสินค้า
 company.col.warehouseCode,รหัสคลัง
+company.connect.add,เพิ่มจากการเชื่อมต่อ
+company.connect.title,เลือกบริษัทที่จะใช้
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 company.enable,เปิดใช้งาน

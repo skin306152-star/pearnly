@@ -30,6 +30,18 @@ def _express_linked():
     return push.linked(company)
 
 
+def _can_build() -> bool:
+    from pearnly_erp_portal.masters import cc_service
+
+    return cc_service.can_build()
+
+
+def _new_ledgers() -> int:
+    from pearnly_erp_portal.masters import cc_service, ledger_prompt
+
+    return ledger_prompt.unseen() if cc_service.can_build() else 0
+
+
 def boot_session(bootinfo):
     if not frappe.conf.get("pearnly_product"):
         return
@@ -43,3 +55,6 @@ def boot_session(bootinfo):
     _put(bootinfo, "pearnly_line", lambda: guard.has("integration.read"), False)
     # 当前公司接了 Express 账本：销售 / 采购列表多一列 Express 单号与状态
     _put(bootinfo, "pearnly_express", _express_linked, False)
+    # 连接里有还没接进 ERP 的公司（公司接入重做第 2 批）：能建公司的人打开 ERP 时弹「选择要用的公司」，关过的不再弹
+    _put(bootinfo, "pearnly_new_ledgers", _new_ledgers, 0)
+    _put(bootinfo, "pearnly_can_build", _can_build, False)

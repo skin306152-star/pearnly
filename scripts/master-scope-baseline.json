@@ -1,0 +1,13 @@
+{
+ "apps/pearnly_erp_portal/pearnly_erp_portal/express/bulk.py": 1,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/express/locks.py": 3,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py": 12,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py": 8,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py": 3,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/opening_batch.py": 1,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/printing/context.py": 2,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/products/codes.py": 14,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py": 6,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py": 1,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py": 1
+}

@@ -800,6 +800,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.company.connect"
+title = "ERP 公司页「从连接添加」：勾账套建公司、手工同税号公司直接接上（公司接入重做第 2 批，11-14）"
+module = "scripts/flows/erp_company_connect.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/ledger_prompt.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py",
+]
+
+[[flow]]
 id = "erp.stocktake.report"
 title = "ERP 盘点报表：差异报表、只看差异、打印点数表 / 结果表、导出（演示准备 10-30）"
 module = "scripts/flows/erp_stocktake_report.py"

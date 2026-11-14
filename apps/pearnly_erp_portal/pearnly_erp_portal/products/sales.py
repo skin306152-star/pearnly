@@ -10,6 +10,7 @@ from frappe import _
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.products import contracts, service
+from pearnly_erp_portal.masters import access as master_access
 
 
 def resolve(line, *, create=True, company=None, created=None):
@@ -38,7 +39,7 @@ def resolve(line, *, create=True, company=None, created=None):
             created.append(name)
     if name:
         item = frappe.get_doc("ERP Product", name)
-        if getattr(item, "express_company", None) and company and item.express_company != company:
+        if not master_access.usable(item.get(master_access.OWNER), company):
             frappe.throw(_("Product not found"))  # 别家公司 Express 的商品不能用在这家的单上（10-24 验收）
         if not item.is_active:
             frappe.throw(_("Item is disabled"))

@@ -3,7 +3,7 @@
  "creation": "2026-09-21 00:00:00.000000",
  "doctype": "DocType",
  "engine": "InnoDB",
- "search_fields": "customer_name,contact_phone",
+ "search_fields": "customer_name,express_code,tax_id,contact_phone",
  "show_title_field_in_link": 1,
  "title_field": "customer_name",
  "field_order": [
@@ -160,7 +160,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 10:00:00.000000",
+ "modified": "2026-11-14 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Customer",
  "owner": "Administrator",

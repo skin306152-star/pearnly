@@ -277,7 +277,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-01 20:00:00.000000",
+ "modified": "2026-11-14 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",
@@ -307,6 +307,6 @@
  "states": [],
  "track_changes": 1,
  "title_field": "product_name",
- "search_fields": "product_name,code,internal_code,barcode,qr_payload,attribute",
+ "search_fields": "product_name,code,express_code,internal_code,barcode,qr_payload,attribute",
  "show_title_field_in_link": 1
 }
