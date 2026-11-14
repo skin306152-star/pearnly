@@ -55,7 +55,7 @@ def resolve(line, *, create=True, currency_rate=1, company=None, created=None):
             created.append(name)
     if name:
         item = frappe.get_doc("ERP Product", name)
-        if not master_access.usable(item.get(master_access.OWNER), company):
+        if not master_access.usable(getattr(item, master_access.OWNER, None), company):
             frappe.throw(_("Product not found"))  # 别家公司 Express 的商品不能用在这家的单上（10-24 验收）
         if not item.is_active:
             frappe.throw(_("Item is disabled"))
