@@ -719,3 +719,6 @@ pearnly_ledger_check = {"express": "pearnly_cowork.readback.ledger_check.check",
 
 # CC 输入框上方的业务菜单（引导式录入第 1 期，评估 docs/work/2026-11-12-cc-guided-entry.md 6.1、12 节第 3 问）：这个产品 × 这个模式真能做的业务
 pearnly_guide_businesses = {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]}
+# 引导声明（总设计 docs/work/2026-11-14-cc-guided-master-design.md 2.2）：每项业务一份声明，共用引擎 `pearnly_core.assistant.guide` 据此出菜单与卡；
+# 上面的 pearnly_guide_businesses 在菜单改读注册表之后删（两处由 tests/test_cc_guide_registry.py 核成一致）
+pearnly_guides = ["pearnly_cowork.assistant.guides.GUIDES"]
