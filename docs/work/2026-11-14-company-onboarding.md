@@ -426,3 +426,44 @@
   - 若是往返：批量写把一万多次往返收成几十次，会比 1 分钟快得多。
   所以写「首次落库约 1–1.5 分钟」是按较慢的那种算的上限，不是实测；上线后在 testerp 实测（主会话排）。
 - 11-13 那种「换账套整本重写」改后是 0 条改动（实验栈 0.3 秒量级，只读一遍比对），这一项不依赖估算。
+
+## 第 2 批施工记录（接入两步、口径收口、选择框）
+
+主会话 11-14 批准开工。自动建出来没用过的公司：代码里一律不动（testerp 那 59 家停不停是数据操作，等用户回话）。
+
+### 改动
+- 不再自动建公司：`express/companies.py` 的 `ensure` 删掉，`books_changed` 改排 `announce`（同一条 erp_masters 道）：重算「还要人勾」的账套
+  （`cc_service.pending_identities`，Express 账套 + MR.ERP 目录，同 CC 选公司弹窗一份目录），比上次多了才推 `pearnly_erp_new_ledgers`；
+  接着 Express、还没读成（状态空 / 未连接 / 要更新）、电脑这时报上账套的公司马上排同步。MR.ERP 目录刷新完（`mrerp/catalog.run`）也排一次。
+- 自动弹窗与「从连接添加」：`public/desk/company-connect.js`（全站加载）一个原生 Dialog（来源 Select、搜索 Data、MultiCheck、「加载更多」，
+  按页向服务端取 `api_connection_choices` → `cc_service.pending`）；勾几家一次 `api_add_from_connections` → `cc_service.create_many`（逐家走 CC 同一个 `create`）。
+  启动数据 `pearnly_new_ledgers`（本人没看过的几家）/ `pearnly_can_build`；关掉或建好记「看过这一批」（`masters/ledger_prompt.py`，官方用户默认值）。
+  自动弹在路由画好第一页之后（在 app_ready 里直接开会打断原生建页，实验栈复现过 `set_workspace_sidebar` 报错）。
+- 手工建过同税号同分店、没接账本的公司：目录里标 `linkable`，勾上就把它接上（`express_enabled=1`、排同步），不另建一家。
+- 公司页：新建页去掉「接 Express」勾选；详情页不接 Express 的公司不出 Express 一节；MR.ERP 一节只给已接 MR.ERP 的公司。`_apply` 不再收 express_enabled，
+  断开只走「断开」。「同步 Express」按钮保留。
+- 口径收口：`masters/access.py` 的 `usable / scope_sql / scope_or_filters / ledger_filters`，权限钩子 `master_query` 改用它；改调的：收款找客户、
+  打印抬头、收发存导出、期初模板、LINE 选对方（搜索 / 计数 / 最近用过）、采购 / 销售提交时的物料与对方校验。`scripts/check-master-scope.py` +
+  `master-scope-baseline.json`（61 处 / 13 个文件，只减不增）进 development.yml。
+- 选择框：`masters/link_search.py`（原生 `get_query` 的服务端查询，范围同权限口径、本公司账本档排前、账本编码 / 条码 / 税号可搜、完全相同的排最前、
+  服务端分页）；共用 `link.js` 的 `set_custom_query` 留一个产品口子，ERP 的 `p.link_query_wrap` 给物料 / 客户 / 供应商没自带 `query` 的 Link 套上
+  （只接「某列 = 某值」的简单条件，别的照原生，不放宽也不丢）。三个 DocType 的 `search_fields` 补账本编码（客户、供应商再补税号）。
+- 文案：新增 2 条（`company.connect.add`、`company.connect.title`，四语照 §10）；「接 Express」「请先断开 Express」两条入口删了，术语表里的行先留着（删已有文案先给用户看）。
+
+### 与评估不同的两处（技术取舍，说明原因）
+1. **没有加 `ledger` 字段**：来源已经由 `express_enabled` / `mrerp_connection` 唯一决定，且只能由「从连接添加」/ CC 选中即建写入、「断开」清掉；
+   再加一列就是同一件事两份真相（还要补丁同步、几十处读者二选一）。去掉表单勾选后它们已经是「来源字段」。第 3 批 MR.ERP 主档落库若需要区分档的来源，在档上加。
+2. **`push.connected` 与建公司目录的口径没有合成一个**：前者决定写账、同步时「这家有没有电脑够得到」，旧版 CC（1.12.17 以前）的电脑照样能写账；
+   后者决定「哪些账套可以建公司」，故意排除旧版（旧版报的是位置下全部账套，会把事务所别的客户建进来）。合成一个会让还在用旧版的客户停写账。
+   §1.2 说的「授权后要等 10–20 分钟」改由 `announce` 当场排同步解决。
+
+### 没收口、留到下一批的（各有原因）
+- `masters/selection.py`、`products/line_memory.py`：产品地图把它们连到「LINE 识别后按行追问」（只能真机），本批不带真机，留基线。
+- `inventory/count.py`（盘点搜索只列有结存的）：性能体检窗口正在改同一文件（`pearnly/page-perf-audit-50db59`），等它合入后再收。
+- `products/codes.py`、`products/service.py`（编码 / 条码判重按归属）、`express/*`（同步写归属）：不是「看得到哪些」的口径，留基线。
+
+### 验证（截至提交 e1c2ceb26）
+- 单元：`test_erp_cc_companies.py` 35 项（新增：从连接添加列剩余与接上手工公司、公告不建公司且同批不重推）、`test_erp_express_direct.py` 195 项、`test_check_master_scope.py`。
+- 实验栈真库：空搜本公司账本档在前、按账本编码搜得到物料与客户、本地档照出、认不得的条件被拒、别家公司退回当前公司。
+- 流程：新增 `erp.company.connect` 4/4（自动弹窗、按钮打开、勾两份、新税号建公司并排同步、手工同税号公司被接上、两份不再待勾）；受影响的 17 条与物料调整流程见下。
+- 产品地图：剩 `erp.scan.line.stocktake.liff-camera` 要真机记录（共用件 desk-scan-core 的 link.js 被改到），已报主会话定。
