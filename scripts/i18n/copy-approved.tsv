@@ -221,3 +221,6 @@ companion:pair_err_unexpected	zh	操作未完成，请重试。	2026-11-08	docs/
 assistant:MESSAGES.recordNow	zh	写入	2026-11-12	docs/work/2026-11-12-cc-composer-send.md（用户 11-12 定「文案统一用『写入』」，主会话转）
 pearnly_cowork:intake.error.ACCOUNT_BUSY_LOCKED	zh	Express 正在使用此账套，关闭后将自动写入	2026-11-12	docs/work/2026-11-12-express-wait-display.md（用户 11-12「文案统一用写入」，主会话转）
 pearnly_erp_portal:express.error.ACCOUNT_BUSY_LOCKED	zh	Express 正在使用此账套，关闭后将自动写入	2026-11-12	docs/work/2026-11-12-express-wait-display.md（用户 11-12「文案统一用写入」，主会话转）
+assistant:GUIDE.fillRest	zh	填入差额	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
+assistant:GUIDE.over	zh	超出 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
+assistant:GUIDE.remaining	zh	差额 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
