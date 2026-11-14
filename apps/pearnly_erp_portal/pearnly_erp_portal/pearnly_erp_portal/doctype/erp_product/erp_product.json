@@ -219,7 +219,7 @@
   {
    "fieldname": "ledger",
    "fieldtype": "Select",
-   "label": "Ledger",
+   "label": "Source",
    "options": "\nexpress\nmrerp",
    "read_only": 1
   },

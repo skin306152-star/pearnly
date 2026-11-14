@@ -1834,7 +1834,6 @@ Synced from Express	Express 同步	ซิงค์จาก Express	Express か�
 This company has no connected MR.ERP account set	此公司没有已连接的 MR.ERP 账套	บริษัทนี้ไม่มีชุดบัญชี MR.ERP ที่เชื่อมต่อ	この会社に接続済みの MR.ERP 会計データはありません
 MR.ERP Company	MR.ERP 公司	บริษัท MR.ERP	MR.ERP 会社
 Synced from MR.ERP	MR.ERP 同步	ซิงค์จาก MR.ERP	MR.ERP から同期	product.origin.mrerp
-Ledger	账本	ระบบบัญชี	帳簿	master.field.ledger
 Created by purchase	采购自动建	สร้างจากการซื้อ	仕入で作成	product.origin.purchase
 Created by sale	销售自动建	สร้างจากการขาย	売上で作成	product.origin.sales
 Created in stock count	盘点新建	สร้างระหว่างตรวจนับ	棚卸で作成	product.origin.stocktake

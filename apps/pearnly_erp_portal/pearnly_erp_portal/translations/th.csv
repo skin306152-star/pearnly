@@ -837,6 +837,7 @@ Low stock alert,แจ้งเตือนสต็อกต่ำ
 Loyalty Points,คะแนนสะสม
 Loyalty Program,โปรแกรมสะสมคะแนน
 MR.ERP,MR.ERP
+MR.ERP Company,บริษัท MR.ERP
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
@@ -1466,6 +1467,7 @@ Sync Express,ซิงค์ Express
 Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
 Synced from Express,ซิงค์จาก Express
+Synced from MR.ERP,ซิงค์จาก MR.ERP
 Syncing,กำลังซิงค์
 System number,เลขที่เอกสาร
 Table,ตาราง
@@ -1629,6 +1631,7 @@ This collection cannot be withdrawn,ถอนรายการรับชำ�
 This collection method is not available,วิธีรับชำระนี้ใช้ไม่ได้
 This company does not use Express,บริษัทนี้ไม่ได้ใช้ Express
 This company has no connected Express account set,บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ
+This company has no connected MR.ERP account set,บริษัทนี้ไม่มีชุดบัญชี MR.ERP ที่เชื่อมต่อ
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
@@ -2626,6 +2629,7 @@ product.notice.toggledCount,อัปเดต {0} รายการแล้�
 product.origin.express,ซิงค์จาก Express
 product.origin.import,นำเข้า
 product.origin.manual,สร้างเอง
+product.origin.mrerp,ซิงค์จาก MR.ERP
 product.origin.purchase,สร้างจากการซื้อ
 product.origin.sales,สร้างจากการขาย
 product.origin.stocktake,สร้างระหว่างตรวจนับ

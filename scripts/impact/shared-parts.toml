@@ -231,7 +231,7 @@ name = "Express 写账规则（express_rules）"
 paths = ["apps/pearnly_core/pearnly_core/express_rules/**"]
 markers = ["pearnly_core.express_rules", "pearnly_core import express_rules"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting", "cowork.line.item-questions", "erp.trade.line-stock", "erp.cc.collection", "erp.page.collections", "erp.place.header"]
+entries = ["erp.cc.write", "erp.cc.stock-entry", "erp.cc.pos-day", "erp.cc.pos-refund", "cowork.cc.channel", "cowork.express.push", "cowork.mrerp.push", "cowork.companies", "cowork.connections", "cowork.history", "cowork.cc-chat.push", "cc.operator.page", "cowork.cc.troubleshooting", "cowork.line.item-questions", "erp.trade.line-stock", "erp.cc.collection", "erp.page.collections", "erp.place.header", "erp.mrerp.masters"]
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/codes.py" = "CC 工具编码换回主档原样（express_rules.contracts.codes）的框架侧薄封装，自身没有入口；调用它的收款入口登记为 erp.cc.collection / erp.page.collections（11-15 cc-code-fidelity）", "apps/pearnly_core/pearnly_core/mrerp/masters.py" = "MR.ERP 主档规则只用 codes.choose 把复述的编码换回读到的原样；入口 cowork.mrerp.push 已在本件登记", "apps/pearnly_core/pearnly_core/write_precheck/contracts.py" = "预选卡契约（共用层纯函数）只用 codes.choose 把答案换回选项原样；它的入口登记在共用件 write-precheck", "apps/pearnly_cowork/pearnly_cowork/readback/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_core/pearnly_core/cc_desktop/books.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/contracts.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/ack_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_core/pearnly_core/cc_desktop/wire/report_rules.py" = "cc_desktop 通道内部转用写账规则，入口见 cc-desktop", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_20_express_account_sets.py" = "一次性迁移", "apps/pearnly_cowork/pearnly_cowork/patches/v0_0_2_backfill_history_parties.py" = "一次性迁移", "apps/pearnly_core/pearnly_core/write_precheck/preselect.py" = "写账前置判定（共用层纯函数）只取写账规则的常量、分店归一与付款判定；它的入口登记在共用件 write-precheck", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_projects.py" = "ERP 本对话账套的可选几本只用 account_match.for_month 按月取覆盖的账套（A 线 11-12），不写账；用户看到的入口是 erp.cc.companies（右栏 / 公司说明）与 erp.cc.chat-push，由 test_cc_conversation_ledger_erp 守住" }
 
 [[part]]
@@ -2069,7 +2069,7 @@ where = "ERP 接 MR.ERP 的公司：主档整读进 ERP（服务端登录读导�
 steps = "开关关着：什么都不排；开关在测试里打开：从连接添加 / 公司页选一份 MR.ERP 账套 → 排一次整读，公司页 MR.ERP 一节显示排队中 / 读取中 / 已同步；采购、物料调整等选择框里本公司的 MR.ERP 档排前、按 MR.ERP 编码搜得到；再落一次不改任何行"
 expect = "客户 / 供应商 / 物料 / 仓库按 MR.ERP 建出、来源 MR.ERP；结存与 MR.ERP 按仓结存一致；读不到记原因、不当空账套停用档；Express 公司的同步不受影响"
 check = "offline"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py"]
 
 [[entry]]
 id = "erp.cc.stocktake"

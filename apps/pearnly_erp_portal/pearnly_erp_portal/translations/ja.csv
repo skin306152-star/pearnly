@@ -837,6 +837,7 @@ Low stock alert,低在庫アラート
 Loyalty Points,ロイヤルティポイント
 Loyalty Program,ロイヤルティプログラム
 MR.ERP,MR.ERP
+MR.ERP Company,MR.ERP 会社
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください
@@ -1466,6 +1467,7 @@ Sync Express,Express と同期
 Sync failed,同期に失敗しました
 Synced,同期しました
 Synced from Express,Express から同期
+Synced from MR.ERP,MR.ERP から同期
 Syncing,同期中
 System number,システム番号
 Table,テーブル
@@ -1629,6 +1631,7 @@ This collection cannot be withdrawn,この入金は取り下げできません
 This collection method is not available,この入金方法は使えません
 This company does not use Express,この会社は Express を使用していません
 This company has no connected Express account set,この会社に接続済みの Express 会計データはありません
+This company has no connected MR.ERP account set,この会社に接続済みの MR.ERP 会計データはありません
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
@@ -2626,6 +2629,7 @@ product.notice.toggledCount,{0}件を更新しました
 product.origin.express,Express から同期
 product.origin.import,インポート
 product.origin.manual,手動作成
+product.origin.mrerp,MR.ERP から同期
 product.origin.purchase,仕入で作成
 product.origin.sales,売上で作成
 product.origin.stocktake,棚卸で作成
