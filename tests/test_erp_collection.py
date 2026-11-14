@@ -1358,11 +1358,12 @@ class ExpressWaiting(Base):
         self.assertIn('__("This card has expired. Use the latest card in LINE.")', page)
         self.assertIn("await open(rest[0], true)", page)
         self.assertIn('if (data.status === "draft") return edit(name);', page)  # 还是草稿：直接改
-        self.assertIn("on_open: row => void open(row.name)", page)
+        self.assertIn("on_open: row => void settle(open(row.name))", page)
         # 旧地址「我的收款」（已发出的 LINE 卡）原样转到这一页的那一笔
         legacy = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/page/pearnly_my_collections/"
                   "pearnly_my_collections.js").read_text(encoding="utf-8")
-        self.assertIn('frappe.set_route(["pearnly-collections", ...rest]);', legacy)
+        self.assertIn('frappe.set_route(["pearnly-collections", ...frappe.get_route().slice(1)]);', legacy)
+        self.assertIn('frappe.show_not_permitted("pearnly-my-collections");', legacy)  # 进不了「收款」的不转
         terms = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
         self.assertIn("This card has expired. Use the latest card in LINE.\t此卡片已失效，请使用 LINE 中最新的卡片。", terms)
 

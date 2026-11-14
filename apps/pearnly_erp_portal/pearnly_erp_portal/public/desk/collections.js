@@ -16,6 +16,8 @@
 		const amount = value => Number(value || 0);
 		// 待写入、此刻在等 Express 关闭（服务端读的时候算的只读字段 `express_wait`，`collection.records`）：状态不变，
 		// 列表悬浮说明与点开后的内容是现成那句（11-12）
+		// 服务端拒了（别人刚改过、电脑正在写…）框架已经弹出那句话；这里只接住，不让它变成页面上没接住的错误
+		const settle = promise => promise.catch(window.pearnlyReported(null, "collections"));
 		const waiting = row => (row?.status === "queued" && row?.express_wait ? __("express.error.ACCOUNT_BUSY_LOCKED") : "");
 		let list, creating = false;
 		page.set_title(__("erp.nav.collections"));
@@ -77,7 +79,7 @@
 					{fieldtype: "HTML", fieldname: "voucher_preview"}] : []),
 			]});
 			if (can_withdraw) {
-				dialog.set_primary_action(__("Withdraw"), () => void withdraw(data.name, dialog));
+				dialog.set_primary_action(__("Withdraw"), () => void settle(withdraw(data.name, dialog)));
 			}
 			const viewer = vouchers.length
 				? p.document_viewer(dialog.fields_dict.voucher_preview.$wrapper, {load: viewer_load}) : null;
@@ -120,7 +122,7 @@
 					label: row.role === "discount" ? __("Discount") : row.name, default: amount(current[row.prefix]?.amount)})),
 			];
 			const dialog = new frappe.ui.Dialog({title: card.name, fields, primary_action_label: __("Save"),
-				primary_action: async values => {
+				primary_action: values => void settle((async () => {
 					const invoices = card.invoices.map((row, index) => ({docnum: row.docnum, amount: values[`invoice_${index}`] || 0}))
 						.filter(row => amount(row.amount) > 0);
 					const chosen = kinds.map((row, index) => ({prefix: row.prefix, amount: values[`method_${index}`] || 0,
@@ -137,9 +139,9 @@
 					frappe.show_alert({message: __("Saved"), indicator: "green"});
 					dialog.hide();
 					void list?.reload();
-				}});
+				})())});
 			dialog.set_secondary_action_label(__("Withdraw"));
-			dialog.set_secondary_action(() => void withdraw(card.name, dialog));
+			dialog.set_secondary_action(() => void settle(withdraw(card.name, dialog)));
 			dialog.$wrapper.addClass("pearnly-dialog");
 			dialog.show();
 		}
@@ -159,7 +161,7 @@
 				{fieldname: "status", label: __("Status"), fieldtype: "Select"},
 				{fieldname: "source", label: __("Source"), fieldtype: "Select"},
 			],
-			on_open: row => void open(row.name),
+			on_open: row => void settle(open(row.name)),
 			columns: [
 				{fieldname: "doc_date", width: 100, min_width: 84, label: __("Collection Date")},
 				{fieldname: "collector", width: 110, min_width: 80, label: __("Collector"),

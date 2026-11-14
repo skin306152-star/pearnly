@@ -5,6 +5,8 @@
 (() => {
 	const p = frappe.pearnly;
 	const amount = value => Number(value || 0);
+	// 服务端拒了（超收、缺凭证、没权限…）框架已经弹出那句话、弹窗不关；这里只接住，不让它变成页面上没接住的错误
+	const settle = promise => promise.catch(window.pearnlyReported(null, "collection-new"));
 	const new_request = () => (crypto?.randomUUID ? crypto.randomUUID()
 		: `${Date.now().toString(16)}-${Math.random().toString(16).slice(2, 14)}`);
 
@@ -43,13 +45,13 @@
 			|| (companies.length === 1 ? companies[0].value : "");
 		const dialog = new frappe.ui.Dialog({title: __("New"), size: "large", fields: [
 			{fieldtype: "Select", fieldname: "company", label: __("Company"), reqd: 1, hidden: companies.length <= 1 ? 1 : 0,
-				options: [{value: "", label: ""}, ...companies], change: () => void pick_company()},
-			{fieldtype: "Select", fieldname: "book", label: __("Account Set"), hidden: 1, change: () => void pick_book()},
+				options: [{value: "", label: ""}, ...companies], change: () => void settle(pick_company())},
+			{fieldtype: "Select", fieldname: "book", label: __("Account Set"), hidden: 1, change: () => void settle(pick_book())},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Autocomplete", fieldname: "customer", label: __("Customer"), reqd: 1, ignore_validation: true,
 				get_query: () => ({query: "pearnly_erp_portal.collection.api.api_collection_customer_search",
 					params: {company: dialog.get_value("company") || ""}}),
-				change: () => void pick_customer()},
+				change: () => void settle(pick_customer())},
 			{fieldtype: "Section Break", label: __("Invoices")},
 			{fieldtype: "Table", fieldname: "invoices", cannot_add_rows: true, cannot_delete_rows: true, in_place_edit: true,
 				data: [], fields: [
@@ -60,7 +62,7 @@
 				]},
 			{fieldtype: "Section Break", fieldname: "methods_section", label: __("Collection Method")},
 			{fieldtype: "HTML", fieldname: "methods_area"},
-		], primary_action_label: __("Submit"), primary_action: values => void submit(values)});
+		], primary_action_label: __("Submit"), primary_action: values => void settle(submit(values))});
 		dialog.$wrapper.addClass("pearnly-dialog");
 		const extra = {};  // 方式那几格（随公司 / 账套换）：fieldname → control
 
@@ -82,10 +84,10 @@
 			(found.transfers || []).forEach((row, index) => {
 				add({fieldtype: "Currency", fieldname: `transfer_${index}`, label: row.label || row.name});
 				const button = add({fieldtype: "Button", fieldname: `voucher_${index}`, label: __("Attachments"),
-					click: () => void upload_voucher(stored => {
+					click: () => void settle(upload_voucher(stored => {
 						vouchers[row.prefix] = stored.file;
 						button.$input.text(stored.file_name || __("Attachments"));
-					})});
+					}))});
 			});
 			if (found.discount) add({fieldtype: "Currency", fieldname: "discount", label: __("Discount")});
 		};

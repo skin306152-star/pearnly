@@ -20,8 +20,11 @@ def steps(params, camera_code=None):
 const out={{}};
 for (const route of ['pearnly-collections', 'pearnly-my-collections']) {{
   frappe.set_route(route); await sleep(600); await idle();
-  const page=await until(()=>pageOf('pearnly-collections'), 15000);  // 旧地址转到收款页
-  out[route]={{opened: !!page, not_permitted: !!(page&&page.querySelector('.message-page'))}};
+  const page=await until(()=>pageOf(route), route === 'pearnly-collections' ? 15000 : 5000);
+  // 收款页：原生无权限页；旧地址：停在原生无权限页、或框架根本不给这一页，都看不到收款列表（不能经旧地址进去）
+  const list=all('.page-container').find(el=>el.getAttribute('data-page-route')==='pearnly-collections'&&!el.querySelector('.message-page'));
+  out[route]={{opened: !!page, not_permitted: route === 'pearnly-collections' ? !!(page&&page.querySelector('.message-page'))
+                                                 : !list && (!page || !!page.querySelector('.message-page'))}};
 }}
 const status=async(method, post)=>(await fetch('/api/method/{API}'+method, {{method: post ? 'POST' : 'GET',
   headers: {{'X-Frappe-CSRF-Token': frappe.csrf_token, 'Accept': 'application/json'}}}})).status;
