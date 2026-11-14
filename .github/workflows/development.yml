@@ -419,7 +419,7 @@ jobs:
       - name: CC question card (ask_user, like the Claude Code question card) pages one question at a time with a recommended option preselected, Other with server search, skip and submit, and the answers it hands back
         run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py
       - name: CC guide declarations (one declaration per business, shape, registry menu by mode and permission, every dotted path and tool exists, same entry across products)
-        run: python3 scripts/check-cc-guides.py && python3 tests/test_cc_guide_registry.py && python3 tests/test_cc_guide_steps.py && python3 tests/test_cc_guide_run.py
+        run: python3 scripts/check-cc-guides.py && python3 tests/test_cc_guide_registry.py && python3 tests/test_cc_guide_steps.py && python3 tests/test_cc_guide_run.py && python3 tests/test_cc_guide_inputs.py
       - name: Operator dialog register matches the CC Desktop recipes (a dialog in a recipe that is not registered fails; every business choice names the question asked before the start)
         run: python3 tests/test_operator_choice_points.py
       - name: Every reason that stops the flow has a next step (ask the user, wait, or tell them the one thing to do), unclassified ones only in a shrinking baseline
