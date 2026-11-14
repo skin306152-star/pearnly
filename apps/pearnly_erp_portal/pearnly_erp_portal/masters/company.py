@@ -454,6 +454,11 @@ def get_profile(name=None) -> dict:
 
     mrerp_view = mrerp_catalog.company_view(doc.name)
     if mrerp_view is not None:
+        if mrerp_view["linked"]:
+            # 主档整读（`mrerp.masters`，与 Express 同一组状态字段）：状态、最近一次时间与原因，公司页 MR.ERP 一节显示
+            mrerp_view.update(sync_state=doc.get("express_sync_state") or "", sync_note=doc.get("express_sync_note") or "",
+                              synced_at=frappe.utils.get_datetime(doc.express_synced_at).strftime("%Y-%m-%d %H:%M:%S")
+                              if doc.get("express_synced_at") else "")
         payload["mrerp"] = mrerp_view
     return payload
 

@@ -537,3 +537,36 @@
 - **重新启用后的提示**：有新建（含接管开户时的空公司）说「已新建」；只是重新启用 / 接上已有公司的，用公司页启用时那句「已更新」
   （现成 `company.notice.toggled`，不新增词）。
 - 流程 `erp.company.connect` 补「只有一家公司的账号：左上角下拉里有从连接添加、没有切换组」。
+## 第 3 批施工记录（MR.ERP 同一套，窗口 company-onboarding-3，11-14 起）
+
+基线：第 2 批本地头 7934a02cc（第 2 批合入 main 后变基）。写账路径（`mrerp/push.py`、`express/push.py`、`pearnly_core/mrerp/push/**`、
+`mrerp/contracts.py`、`mrerp/ledger_check.py`）按接缝约定不改。
+
+### 改动
+- 读：`pearnly_core/mrerp/master_export.py`。MR.ERP 自带导出页 `exparmas` / `expapmas` / `expstkmas`（`component/expdata.php`，POST 编码范围，
+  首末编码取同模块列表接口第一 / 最后一条，两边同一库排序）出 xlsx；单位名取物料主档列表；仓库取结存报表页的列表接口；按仓结存取报表
+  241「สินค้าคงเหลือ:แยกคลัง」（先打开报表页带 `idmenu=55` 设会话当前菜单，再 `showreportfile.php`）。xlsx 用标准库读（离线测试不需要
+  openpyxl）。输出与 Express facts 同形状；主仓 `mainloc` = 编码排第一的仓（MR.ERP 新建单据的默认仓），ERP 建公司自带的 Main 仓认作它。
+  整读固定 `account.use(manual=False)`：后台不清被踢标记、不登录被踢过的账号。
+- 落：`express.masters.apply(..., ledger="MR.ERP")`，同一个比对、批量写、停用；四类档（客户 / 供应商 / 物料 / 仓库）加只读 `ledger`
+  （Express / MR.ERP），参与比对；物料来由加 `mrerp`；补丁 v1_28 用一条 UPDATE 把带编码的存量档回填 Express（不逐条保存、不生成修改记录）。
+  仓库码 Express 照旧截 4 位，MR.ERP 照原样。结存叠加「接上之后、还没写成的单」时 MR.ERP 公司取 `mrerp_linked_at`。
+- 排：`erp mrerp/masters.py`。`queue`（erp_masters 队列、同公司一件）、`run`（读 → 落 → 状态记在公司同一组字段 → 推给发起人）、
+  `after_write`（写账一侧写成后调；5 分钟内读过 / 排着的不排）、`sync_all`（每小时，`hooks.py`）。接上 / 换账套（`catalog.choose`，
+  从连接添加与公司页选账套都经它）排一次并推给本人。Express 的每分钟推进（`express.masters.advance`）跳过接 MR.ERP 的公司。
+- 「长期没人用」判定（`mrerp.masters.idle`）：读过一次，接上 / 换账套已超过 14 天，14 天内没有新的采购单 / 销售单 → 每小时那次不读；
+  没读过的总读一次；一写单就由写单后那次读上。不新增固定花费（只是已有后台进程里每小时多几个请求）。
+- 公司页 MR.ERP 一节加「状态 / Last Synced On / 原因」（原因码映射现成的 MR.ERP 文案），排着 / 在读时挂上同步完成的推送，做完重画。
+- 文案新增 2 条：`product.origin.mrerp`「MR.ERP 同步」、`master.field.ledger`「账本」（四语）。
+
+### 实测
+- TEST2019 实读（经写账窗口实验栈的共用入口，复用缓存会话，没有新登录、没踢人）：一次整读 10 个请求、0.46 秒、533 KB；
+  客户 7 / 供应商 14 / 物料 12 / 单位 35 / 仓库 3 / 结存 11 行。原样 xlsx 存为 `tests/fixtures/mrerp/export_*.xlsx`、`report_stock_by_store.xlsx`。
+- 实验栈 `pearnly-onboard3-lab`（`scripts/erp-mrerp-masters-lab-verify.py`）：首次落库四类全建、`ledger` = MR.ERP、Main 仓认作 0000、
+  结存与 MR.ERP 一致、服务档不进库存、再落 0 改动、补丁回填、Express 推进不碰 MR.ERP 公司 —— 全过。
+- 单测：`test_mrerp_master_export.py` 8、`test_erp_mrerp_onboarding.py` 8；`test_erp_mrerp_direct.py` 36、`test_erp_express_direct.py` 195 照过。
+
+### 待定 / 未做
+- 写单后那次的调用点在写账路径（`mrerp/push.py` 写成处一行 `mrerp.masters.after_write(company)`）：等主会话定由谁加。
+- 档上「Express 编码」等已有标签改成「账本编码」口径属于改已有文案，清单见下，等用户确认后再改：
+  `Express Code`→「账本编码」、`Express Company`→「账本公司」、`Express Account Set`→「账本账套」（隐藏字段）。

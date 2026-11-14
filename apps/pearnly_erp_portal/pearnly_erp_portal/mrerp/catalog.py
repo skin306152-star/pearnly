@@ -94,6 +94,11 @@ def choose(company, connection, account_set):
     if not row.mrerp_enabled or (row.mrerp_connection, row.mrerp_account_set) != (connection, key):
         values["mrerp_linked_at"] = now_datetime()  # 换了账套重记：之前开始的单不导入
     frappe.db.set_value(COMPANY, company, values)
+    if "mrerp_linked_at" in values:
+        # 接上 / 换了账套：整读一次主档进 ERP（`mrerp.masters`，排在 erp_masters）
+        from pearnly_erp_portal.mrerp import masters as mrerp_masters
+
+        mrerp_masters.queue(company, notify=frappe.session.user)
     return values
 
 

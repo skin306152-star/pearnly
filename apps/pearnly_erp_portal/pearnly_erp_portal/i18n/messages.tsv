@@ -1831,6 +1831,8 @@ Origin	来由	ที่มา	由来	product.field.origin
 Created manually	手建	สร้างเอง	手動作成	product.origin.manual
 Imported	导入	นำเข้า	インポート	product.origin.import
 Synced from Express	Express 同步	ซิงค์จาก Express	Express から同期	product.origin.express
+Synced from MR.ERP	MR.ERP 同步	ซิงค์จาก MR.ERP	MR.ERP から同期	product.origin.mrerp
+Ledger	账本	ระบบบัญชี	帳簿	master.field.ledger
 Created by purchase	采购自动建	สร้างจากการซื้อ	仕入で作成	product.origin.purchase
 Created by sale	销售自动建	สร้างจากการขาย	売上で作成	product.origin.sales
 Created in stock count	盘点新建	สร้างระหว่างตรวจนับ	棚卸で作成	product.origin.stocktake
