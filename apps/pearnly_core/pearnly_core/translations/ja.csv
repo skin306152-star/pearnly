@@ -272,6 +272,7 @@ Doc No,伝票番号
 Document Type,伝票種別
 Document date,伝票日付
 Document no.,伝票番号
+Document partly saved in Express,Express に保存が完了していない伝票があります
 Document type not supported yet,この種類の伝票はまだ対応していません
 Documents,伝票数
 Done At,完了日時
@@ -1301,6 +1302,7 @@ operator.report.reason.menu_choice,伝票メニューを選択
 operator.report.reason.negative_stock,在庫が足りません
 operator.report.reason.network_down,サーバーに接続できません
 operator.report.reason.network_wait,サーバーを待っています
+operator.report.reason.partial_saved,Express に保存が完了していない伝票があります
 operator.report.reason.party_missing,Express に取引先がありません
 operator.report.reason.period_locked,期間は締め済みです
 operator.report.reason.period_outside,日付が会計データの期間外です

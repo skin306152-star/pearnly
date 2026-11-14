@@ -465,6 +465,8 @@ def status(company, doc_ids) -> list:
             docnum = frappe.db.get_value("Cowork Push Record", doc.get("last_push_record"), "external_docnum") or ""
         state = {"success": "saved", "pending": "queued", "manual": "not_done", "failed": "not_done",
                  "blocked": "not_done"}.get(pushed, "cancelled")
+        if state == "not_done" and doc.get("last_push_record"):
+            docnum = _partial_docnum(frappe.db.get_value("Cowork Push Record", doc.get("last_push_record"), "response_json"))
         sales = _directions([name]).get(name) == "sales"
         # 单号与对方一起回：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
@@ -479,6 +481,17 @@ def status(company, doc_ids) -> list:
                 row["blocked_by"] = blocker
         out.append(row)
     return out
+
+
+def _partial_docnum(raw) -> str:
+    """代录保存途中停住、Express 里留下的半截单号（回执 ``meta.operator.partial``）：未完成的单只多显示这个单号。"""
+    from pearnly_core.express_rules.push.common import operator_partial_docnum
+
+    try:
+        response = json.loads(raw or "{}")
+    except (TypeError, ValueError):
+        return ""
+    return operator_partial_docnum(response.get("meta") if isinstance(response, dict) else None)
 
 
 def _blocker(record) -> dict:

@@ -43,6 +43,7 @@ export const REASONS = {
   menu_choice: "human",
   crash_repeated: "human",
   cc_restarted: "human",
+  partial_saved: "human",
   placeholder_left: "human",
   network_down: "human",
   budget: "human",

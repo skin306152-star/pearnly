@@ -73,6 +73,9 @@ REASONS = {
     "menu_choice": HUMAN,
     "crash_repeated": HUMAN,  # 同一张崩了两次
     "cc_restarted": HUMAN,  # 录到一半 CC 重启：上次留下的 Express 已按放弃收拾（作废两道保护），这张没录成
+    # 保存途中停住（认不出的框、Express 被关）：账套里留了这张的半截单（单头在，金额 / 明细 / 凭证 / 税缺一样或几样）。
+    # 不重录、不作废，结果 meta 带 partial {docnum, missing} 与 docnum；Express 还留着等人答框时另带 held {computer, account_set}
+    "partial_saved": HUMAN,
     "placeholder_left": HUMAN,  # 崩在录明细之后：Express 留了金额 0 的空单头占号，要人作废（不自动改已存的单）
     "network_down": HUMAN,  # 服务器连不上超过等待时间（整批暂停）
     "budget": HUMAN,  # 到了每张 / 每批费用上限

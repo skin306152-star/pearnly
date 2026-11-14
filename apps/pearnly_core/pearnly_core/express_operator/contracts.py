@@ -38,6 +38,7 @@ REASONS = {
     "menu_choice": HUMAN,  # 单据菜单落到子菜单、里面几个命令定不下来：只停这一张，候选在结果 meta.menu_options，问一次记住后按 form_choice 再交
     "crash_repeated": HUMAN,
     "cc_restarted": HUMAN,  # 录到一半 CC 重启：上次留下的 Express 已按放弃收拾，这张没录成
+    "partial_saved": HUMAN,  # 保存途中停住：账套里留了这张的半截单（结果 meta.operator.partial 带单号与缺什么），不重录、不作废
     "placeholder_left": HUMAN,
     "network_down": HUMAN,
     "budget": HUMAN,

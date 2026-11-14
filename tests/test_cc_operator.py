@@ -99,7 +99,7 @@ assert.equal(levelOf("company_pick"), "human");
 assert.equal(levelOf("duplicate_ref"), "auto_reported");
 assert.equal(levelOf("screen_locked"), "auto");
 assert.equal(levelOf("brand_new"), "human");
-assert.equal(Object.keys(REASONS).length, 32);
+assert.equal(Object.keys(REASONS).length, 33);
 assert.deepEqual([...BATCH_STOPPERS].sort(), ["account_in_use", "account_set_unavailable", "budget", "company_mismatch", "license", "login_failed", "login_missing", "network_down"]);
 // 每个原因代码都有这种语言的文案，且不是代码本身；原码不外露
 for (const code of Object.keys(REASONS)) {

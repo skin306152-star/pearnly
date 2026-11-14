@@ -682,6 +682,20 @@ def _submit_intake(company, doc_id, answers=None):
     return (*done, rest) if done else None
 
 
+def _partial_docnum(job) -> str:
+    """写账件回执里代录留下的半截单号（``meta.operator.partial``，原因 partial_saved）；没有回空。"""
+    import json
+
+    from pearnly_core.cc_desktop.documents import JOB
+    from pearnly_core.express_rules.push.common import operator_partial_docnum
+
+    try:
+        meta = json.loads(frappe.db.get_value(JOB, job, "meta_json") or "{}")
+    except (TypeError, ValueError):
+        return ""
+    return operator_partial_docnum(meta)
+
+
 def status(company, doc_ids) -> list:
     """CC 重启后恢复出来的任务，以站点为准收尾（共用层 ``status``）：按单据的 Express 写账状态——已写入 → 已入账（带单号）、
     排着写账件 → 仍在队列、停住 / 失败 / 对不上 → 未完成（带原因）、没排或已撤回、人标了手工处理 → 已取消；不是这家公司、
@@ -715,7 +729,10 @@ def status(company, doc_ids) -> list:
         else:
             state = "cancelled"
         # 单号与对方一起回（同 Cowork）：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
-        out.append({"doc_id": doc_id, "state": state, "docnum": (row.ledger_docnum or "") if state == "saved" else "",
+        # 未完成的单：代录保存途中停住、Express 里留下的半截单号（回执 meta.operator.partial），只多显示这个单号
+        docnum = (row.ledger_docnum or "") if state == "saved" else \
+            _partial_docnum(row.ledger_job) if state == "not_done" and row.ledger_job else ""
+        out.append({"doc_id": doc_id, "state": state, "docnum": docnum,
                     "reason": (row.ledger_reason or "") if state == "not_done" else "",
                     "ref": str(getattr(row, "system_no", None) or target[1]),
                     "party": str(getattr(row, PARTY_FIELD[target[0]], None) or "")})
