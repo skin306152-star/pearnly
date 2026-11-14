@@ -46,7 +46,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "tax_setting_mismatch": ask("review", SERVER, "p2"),
     "period_locked": act("period_locked", "p2"),
     "period_outside": ask("ledger", SERVER, "p2"),                      # 有覆盖这个日期的别的账套才成题，没有则是要人去开期间
-    "negative_stock": act("negative_stock", "p2"),                      # 能不能问了照办等原生证据与用户定（总设计 9.4）
+    "negative_stock": ask("fixed", DESKTOP, "p2"),                      # 账本允许的解决选项（改数量 / 换仓 / 先补入库 / 改物料设置 / 先留下），用户 11-14
     "login_failed": act("desktop_login", "p2"),
     "login_missing": act("desktop_login", "p2"),
     "license": act("license", "p2"),
@@ -54,8 +54,8 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "company_pick": ask("screen", DESKTOP, "p2"),
     "account_in_use": act("account_in_use", "mrerp"),
     "account_set_unavailable": act("company_link", "mrerp"),
-    "recipe_mismatch": act("ours_retry", "p2"),
-    "unsupported": act("unsupported", "p2"),
+    "recipe_mismatch": ask("fixed", SERVER, "p2"),                      # 待补配方：这张先留下 / 这批先停（总设计 9.5）
+    "unsupported": ask("fixed", SERVER, "p2"),
     "readback_mismatch": ask("fixed", DESKTOP, "p2"),                   # 列出差异：已核对没问题 / 改后再读
     "unknown_screen": ask("screen", DESKTOP, "p2"),                     # 总设计第 10 节；乙类框的做法 B 等用户定
     "menu_choice": ask("receipt:menu_options", DESKTOP, live=True),
@@ -66,7 +66,8 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "budget": act("ours_retry", "p2"),
     "duplicate_ref": wait("reported"), "voided": wait("reported"), "ai_resolved": wait("reported"),
     "express_restarted": wait("reported"),
-    "screen_locked": wait("computer_free"), "user_active": wait("computer_free"), "network_wait": wait("network"),
+    "screen_locked": wait("computer_free"), "network_wait": wait("network"),
+    "user_active": ask("fixed", DESKTOP, "p2"),                         # 人在账本里操作打断了 CC：继续 / 停止（用户 11-14，总设计 10.6）
     "account_busy": wait("ledger_free"), "waiting_start": wait("start_time"),
     # ── 直写回执（cc_desktop.wire.ack_rules、express_rules.push.common）────────────────────────────────────────
     "UNIT_CHOICE": ask("receipt:choice", DESKTOP, "p2"),
@@ -85,6 +86,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "DUPLICATE_CONTENT_DIFFERS": ask("fixed", SERVER, live=True),
     "PRIOR_DOC_STILL_IN_ERP": ask("fixed", SERVER, live=True),
     "FIELD_TOO_LONG": ask("review", SERVER, "p2"),
+    "STOCK_INSUFFICIENT": ask("fixed", DESKTOP, "p2"),
     # ── ERP 单据停下的原因（pearnly_erp_portal.express.contracts）──────────────────────────────────────────────
     "choice_needed": ask("precheck:any", SERVER, live=True),
     "express.company_tax_missing": act("company_link", "p2"),
