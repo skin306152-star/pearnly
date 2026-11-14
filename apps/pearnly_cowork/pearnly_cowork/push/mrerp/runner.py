@@ -29,6 +29,7 @@ from zoneinfo import ZoneInfo
 import frappe
 
 from pearnly_core.express_operator.contracts import is_operator
+from pearnly_core.mrerp.push.readback import AMOUNT_MISMATCH
 from pearnly_core.mrerp.session import lock_key
 from pearnly_core.session_lock import operator_holds
 from pearnly_cowork.connections import service as connections
@@ -133,6 +134,14 @@ def run(record):
     if outcome["status"] == "unknown":
         ledger.mark_unknown(record, context=context, adapter=adapter, fence=fence, attempt_token=token,
                             reason=outcome["reason"])
+    elif outcome["status"] == "success" and ((outcome.get("meta") or {}).get("verify") or {}).get("state") == "mismatch":
+        # 写进去了、MR.ERP 记的金额与票面不符（共用层读回核对，`mrerp.push.readback.amount_check`）：不记「已写入」，转人工；
+        # 原因与记录都带 MR.ERP 单号（单已在 MR.ERP 里，改那张，别再录一张；重推同号会被「单号已存在」认领，不会多一张）
+        docnum = outcome.get("docnum") or ""
+        ledger.ack(record, context=context, adapter=adapter, fence=fence, attempt_token=token, success=False,
+                   outcome=common.STAGE_NEEDS_REVIEW, express_docnum=docnum,
+                   error=f"{AMOUNT_MISMATCH}:{docnum}", meta=outcome.get("meta"))
+        frappe.db.set_value(RECORD, record, "external_docnum", docnum[:140] or None, update_modified=False)
     else:
         success = outcome["status"] == "success"
         ledger.ack(record, context=context, adapter=adapter, fence=fence, attempt_token=token, success=success,

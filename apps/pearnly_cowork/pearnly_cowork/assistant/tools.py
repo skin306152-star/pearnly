@@ -811,6 +811,7 @@ def _key(name, version, last) -> str:
 # MR.ERP 没有 Express 那种按单据要人选的项（对方档 / 商品 / 科目 / 现赊 / 抵进项）：对方按税号找、找不到就自建；要人选的只有
 # 每份账套每类单据推哪个导入菜单、主档默认值（部门、员工、应付科目……），选一次大家共用（同网页推送前那一步，
 # `targets.js::mrerp_menu_ready`）。网页推之前就问；CC 原先不问，直接推，要等 MR.ERP 登录、读完导入页才报「请选择菜单」。
+MRERP_AMOUNT_MISMATCH = "ERR_MRERP_AMOUNT_MISMATCH"  # 同 `pearnly_core.mrerp.push.readback.AMOUNT_MISMATCH`（本模块离线检查不载入共用层推送）
 MRERP_SETUP_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED", "ERR_MRERP_DEFAULT_CHOICE_REQUIRED",
                      "ERR_MRERP_DEFAULT_CHANGED")
 # 10-19 lab：默认值一项一项问（先费用科目、存完再问银行科目）。这张单要选的全部一次给出（``mrerp_setup``，按这张单的方向），
@@ -1173,6 +1174,10 @@ def _concluded(item, outcome) -> bool:
             item["docnum"] = outcome["docnum"]
         if outcome.get("written"):
             item["written"] = outcome["written"]  # 现购 / 赊购、哪层定的、记的科目（验收 F19）
+    elif status == "manual" and str(outcome.get("reason") or "").startswith(MRERP_AMOUNT_MISMATCH + ":"):
+        # 写进了 MR.ERP、金额与单据不符（`push.mrerp.runner`）：单号照给，告诉用户去 MR.ERP 改那一张，别再录
+        item.update(status="entered_amount_differs", reason=_reason(outcome.get("reason")),
+                    docnum=str(outcome["reason"]).split(":", 1)[1])
     elif status == "manual" and not outcome.get("result_unknown") and any(
             code in str(outcome.get("reason") or "") for code in MRERP_SETUP_CODES):
         # MR.ERP 推送时才发现菜单 / 默认值要选（推之前没读到过、或刚在 MR.ERP 里改过）：是要人选，不是失败

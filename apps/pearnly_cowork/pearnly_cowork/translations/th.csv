@@ -714,6 +714,7 @@ Enter the user name,กรุณากรอกชื่อผู้ใช้
 Entered By,ผู้บันทึก
 Entered by,ผู้บันทึก
 Entered in Express,บันทึกใน Express โดยตรง
+"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.",บันทึกใน MR.ERP แล้ว แต่ยอดเงินที่ MR.ERP บันทึกไม่ตรงกับเอกสาร
 Entered into Express,ส่งแล้ว
 Entered {0},ส่งแล้ว {0}
 Entered {0} · in progress {1},บันทึกแล้ว {0} · กำลังทำ {1}
@@ -3453,6 +3454,7 @@ intake.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอ
 intake.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 intake.error.ERR_LOCATION,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
+intake.error.ERR_MRERP_AMOUNT_MISMATCH,บันทึกใน MR.ERP แล้ว แต่ยอดเงินที่ MR.ERP บันทึกไม่ตรงกับเอกสาร
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 intake.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี

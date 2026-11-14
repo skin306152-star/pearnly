@@ -714,6 +714,7 @@ Enter the user name,ユーザー名を入力してください
 Entered By,入力者
 Entered by,入力者
 Entered in Express,Express で直接入力
+"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.",MR.ERP に登録済みですが、MR.ERP の金額が伝票と一致しません。
 Entered into Express,登録済み
 Entered {0},登録済み {0}
 Entered {0} · in progress {1},登録済み {0} · 処理中 {1}
@@ -3453,6 +3454,7 @@ intake.error.ERR_DIRECTION_UNKNOWN,この伝票が仕入か売上かを選んで
 intake.error.ERR_INVOICE_NO_TOO_LONG,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 intake.error.ERR_LOCATION,この Express 会計データにこの倉庫はありません
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイン中です
+intake.error.ERR_MRERP_AMOUNT_MISMATCH,MR.ERP に登録済みですが、MR.ERP の金額が伝票と一致しません。
 intake.error.ERR_MRERP_DEFAULT_CHANGED,選択した値は MR.ERP に存在しません。選び直してください。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP の既定値を選択してから送信してください。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません

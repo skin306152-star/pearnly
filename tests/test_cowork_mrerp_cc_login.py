@@ -371,6 +371,35 @@ class SameAccount(Framework):
             execute.assert_called_once()
             ack.assert_called_once()
 
+    def test_a_written_import_whose_listed_amount_differs_goes_to_a_person_with_its_mrerp_number(self):
+        """写进去了、MR.ERP 列表金额与票面不符（共用层 ``meta.verify``）：不记「已写入」，转人工，原因与记录都带 MR.ERP 单号
+        （主会话 11-14；11-14 TEST2019 真写：三种票都报了「已写入」而金额是错的）。"""
+        row = frappe._dict(name="CWPR-2", status="pending", result_unknown=0,
+                           target_json='{"adapter": "mrerp", "account_set": "6:1"}', actor="staff@x",
+                           workspace="WS", client="", history="H", history_version=1, connection="CWEC-1",
+                           account_key="k", branch="legacy", binding_generation=0, connection_revision=7)
+        loaded = types.SimpleNamespace(endpoint={"config": {"system_url": URL}})
+        db = types.SimpleNamespace(get_value=lambda *a, **k: row, rollback=MagicMock(), commit=MagicMock(),
+                                   set_value=MagicMock())
+        verify = {"verify": {"state": "mismatch", "fields": ["amount"]}}
+        execute = MagicMock(return_value={"status": "success", "docnum": "SI691114-865946", "reason": "", "meta": verify,
+                                          "menus": {}})
+        with patch.object(runner.frappe, "db", db), patch.object(runner.frappe, "set_user", lambda user: None), \
+                patch.object(runner.ledger, "lease", lambda *a, **k: {"leased": True, "fence": 1, "attempt_token": "t",
+                                                                      "payload": {}}), \
+                patch.object(runner.ledger, "ack", MagicMock()) as ack, \
+                patch.object(runner.ledger, "trusted_adapter_context", lambda *a, **k: None), \
+                patch.object(runner.connections, "read_for_push", connection_doubles.read_for_push_returning(loaded)), \
+                patch.object(runner.connections, "credentials_for_use",
+                             lambda loaded: {"username": "test01", "password": PASSWORD}), \
+                patch.object(runner, "execute", execute), patch.object(runner, "dispatch_next", MagicMock()):
+            runner.run("CWPR-2")
+        kwargs = ack.call_args.kwargs
+        self.assertEqual((kwargs["success"], kwargs["error"], kwargs["express_docnum"]),
+                         (False, "ERR_MRERP_AMOUNT_MISMATCH:SI691114-865946", "SI691114-865946"))
+        db.set_value.assert_called_once_with(runner.RECORD, "CWPR-2", "external_docnum", "SI691114-865946",
+                                             update_modified=False)
+
 
 PUBLIC = [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
 

@@ -69,6 +69,9 @@ def find(rows: List[ListedRow], invoice_no: str) -> Optional[ListedRow]:
     return hits[0] if len(hits) == 1 else None
 
 
+# 写进去了、MR.ERP 记的含税合计与票面不符：不记「已写入」，转人工，原因带 MR.ERP 单号（主会话 11-14：单已在 MR.ERP 里，别让人再录一张）。
+# 原因写法 ``码:MR.ERP 单号``（`push.export_facts.reason_text` 认的「码:细节」）
+AMOUNT_MISMATCH = "ERR_MRERP_AMOUNT_MISMATCH"
 AMOUNT_TOLERANCE = Decimal("0.05")  # 卖方与 MR.ERP 各自四舍五入税额的差；再大就是写走样
 
 
@@ -91,5 +94,5 @@ def amount_check(listed: str, ticket_total: Any) -> dict:
             "fields": [] if abs(got - want) <= AMOUNT_TOLERANCE else ["amount"]}
 
 
-__all__ = ["AMOUNT_TOLERANCE", "ListedRow", "NOT_LINKED_MARK", "PAGE_ROWS", "amount_check", "find", "listing_problem",
+__all__ = ["AMOUNT_MISMATCH", "AMOUNT_TOLERANCE", "ListedRow", "NOT_LINKED_MARK", "PAGE_ROWS", "amount_check", "find", "listing_problem",
            "parse_rows"]

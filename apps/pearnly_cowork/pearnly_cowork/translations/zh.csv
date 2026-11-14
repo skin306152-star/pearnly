@@ -714,6 +714,7 @@ Enter the user name,请填写用户名
 Entered By,录入人
 Entered by,录入人
 Entered in Express,Express 直接录入
+"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.",已写进 MR.ERP，但 MR.ERP 记的金额与单据不符。
 Entered into Express,已推送
 Entered {0},已推送 {0}
 Entered {0} · in progress {1},已推 {0} · 处理中 {1}
@@ -3453,6 +3454,7 @@ intake.error.ERR_DIRECTION_UNKNOWN,请选择此发票为进项或销项后重新
 intake.error.ERR_INVOICE_NO_TOO_LONG,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 intake.error.ERR_LOCATION,Express 账套中无此仓库
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,账号已在别处登录
+intake.error.ERR_MRERP_AMOUNT_MISMATCH,已写进 MR.ERP，但 MR.ERP 记的金额与单据不符。
 intake.error.ERR_MRERP_DEFAULT_CHANGED,所选的值在 MR.ERP 中已不存在，请重新选择。
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,需要选择 MR.ERP 默认值，请选择后再推送。
 intake.error.ERR_MRERP_IMPORT_ERROR,MR.ERP 导入出错，未入账

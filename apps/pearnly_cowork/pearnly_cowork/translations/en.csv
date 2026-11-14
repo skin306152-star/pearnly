@@ -714,6 +714,7 @@ Enter the user name,Enter the user name
 Entered By,Entered By
 Entered by,Entered by
 Entered in Express,Entered in Express
+"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.","Entered in MR.ERP, but the amount MR.ERP recorded differs from the document."
 Entered into Express,Entered into Express
 Entered {0},Entered {0}
 Entered {0} · in progress {1},Entered {0} · in progress {1}
@@ -3453,6 +3454,7 @@ intake.error.ERR_DIRECTION_UNKNOWN,Choose purchase or sales for this invoice and
 intake.error.ERR_INVOICE_NO_TOO_LONG,The invoice number is longer than MR.ERP allows. Shorten it and submit again
 intake.error.ERR_LOCATION,This warehouse is not in the Express account set
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,Account signed in elsewhere
+intake.error.ERR_MRERP_AMOUNT_MISMATCH,"Entered in MR.ERP, but the amount MR.ERP recorded differs from the document."
 intake.error.ERR_MRERP_DEFAULT_CHANGED,A chosen MR.ERP value no longer exists in MR.ERP. Choose again.
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,MR.ERP default values are needed for this account set. Choose them before pushing.
 intake.error.ERR_MRERP_IMPORT_ERROR,The MR.ERP import failed. Nothing was posted
