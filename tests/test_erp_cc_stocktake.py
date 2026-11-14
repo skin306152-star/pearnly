@@ -187,6 +187,13 @@ class Behaviour(unittest.TestCase):
         self.assertEqual([(row["field"], row["after"]) for row in rows],
                          [("nav.stockCount", "Nov"), ("stock.count.countedRows", "3"), ("stock.count.rowUncounted", "2")])
         self.assertEqual([c[0] for c in CALLS], ["get_count"])  # 只读，不调结束
+        # 问句下面那一行事实：这份盘点所在仓的公司名（不写公司、仓的编号）
+        count.get_count = _record("get_count", {"name": "SC-1", "title": "Nov", "warehouse": "WH-0001"})
+        names = {("ERP Warehouse", "WH-0001", "company"): "CO-0001", ("ERP Company", "CO-0001", "company_name"): "T9 Sincer Co."}
+        with mock.patch.object(frappe.db, "get_value", lambda doctype, name, field: names.get((doctype, name, field)), create=True):
+            self.assertEqual(tools.note_stocktake_close({"count": "SC-1"}), "T9 Sincer Co.")
+            count.get_count = _record("get_count", {"name": "SC-1", "title": "Nov", "warehouse": ""})
+            self.assertEqual(tools.note_stocktake_close({"count": "SC-1"}), "")
 
     def test_adjust_only_makes_a_draft(self):
         out = run("stocktake_adjust", count="SC-1")

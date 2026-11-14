@@ -2156,7 +2156,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_collection_withdraw"
 where = "CC 工具 erp_collection_withdraw（收款第 4 步：撤回没被电脑领走的收款；先出「允许」卡片，列客户、发票、金额，用户 11-12）"
-tests = ["unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one", "unit:tests/test_erp_collection_cc.py::test_the_allow_card_lists_the_customer_invoices_and_amount_and_changes_nothing", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
+tests = ["flow:erp.cc.approval-withdraw", "unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one", "unit:tests/test_erp_collection_cc.py::test_the_allow_card_lists_the_customer_invoices_and_amount_and_changes_nothing", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "erp.cc.operator.waiting-on"

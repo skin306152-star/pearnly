@@ -344,6 +344,12 @@ class Withdraw(Base):
         rows = cc_tools.preview_withdraw({"collection": made["name"]})
         self.assertEqual([row["after"] for row in rows], ["2100883 · ร้านป้าแดง", "IV1", "100.00"])
         self.assertEqual(self.call(cc_tools.status, collection=made["name"])["status"], "draft")
+        # 问句下面那一行事实：公司与账套的名字（不写公司编号）
+        fact = cc_tools.note_withdraw({"collection": made["name"]})
+        view = service.status(made["name"])
+        self.assertEqual(fact, " · ".join(p for p in (view["company_name"], view["book"]) if p))
+        self.assertTrue(fact)
+        self.assertNotIn(view["company"], fact.split(" · "))
 
 
 class ConversationBook(Base, T.TwoBooks):

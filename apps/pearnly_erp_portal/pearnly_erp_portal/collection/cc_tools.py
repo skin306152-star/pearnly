@@ -371,6 +371,12 @@ def preview_withdraw(tool_input) -> list:
             {"field": _("Amount"), "before": "", "after": str(view.get("total") or "")}]
 
 
+def note_withdraw(tool_input) -> str:
+    """卡片问句下面那一行事实：这笔收款的公司与账套（名字）。"""
+    view = service.status(str(tool_input.get("collection") or ""))
+    return " · ".join(str(part) for part in (view.get("company_name"), view.get("book")) if part)
+
+
 def withdraw(tool_input) -> str:
     found = _call(service.withdraw, str(tool_input.get("collection") or ""))
     return _json({"status": "withdrawn", "collection": found["result"]} if "result" in found else found)
@@ -473,6 +479,7 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "approval": True,
      "ask": "Withdraw this collection?",
+     "note": "pearnly_erp_portal.collection.cc_tools.note_withdraw",
      "preview": "pearnly_erp_portal.collection.cc_tools.preview_withdraw",
      "handler": "pearnly_erp_portal.collection.cc_tools.withdraw"},
 ]

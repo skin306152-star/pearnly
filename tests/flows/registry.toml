@@ -2039,3 +2039,33 @@ viewports = ["desktop"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/access.py",
 ]
+
+[[flow]]
+id = "cowork.cc.approval-cards"
+title = "Cowork CC 直写对话：删单据、立即运行先出「允许 / 拒绝」卡片（卡上单号 · 对方 · 金额 / 任务名、账套、文件夹与识别扣费），拒绝不执行，允许只执行卡上那几条；新文案中泰英日各看一张（用户 11-12）"
+module = "scripts/flows/cc_approval_cards.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py",
+  "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
+  "frontend/assistant/src/components/tool-uis/approval-bar.tsx",
+  "frontend/assistant/src/components/tool-uis/approval-sheet.tsx",
+]
+
+[[flow]]
+id = "erp.cc.approval-withdraw"
+title = "ERP 版 CC 直写对话：撤回收款先出「允许 / 拒绝」卡片（卡上客户、发票、金额），拒绝仍是草稿，允许才撤回（用户 11-12）"
+module = "scripts/flows/erp_cc_approval_withdraw.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
+  "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
+]

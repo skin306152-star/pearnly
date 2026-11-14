@@ -4490,6 +4490,48 @@ def preview_stocktake_close(tool_input) -> list:
             _change("cowork.stock.count.rowUncounted", "", max(row["total"] - row["counted"], 0))]
 
 
+# 问句下面那一行事实（`note`，用户 11-14 照 Claude 桌面应用的权限确认框）：这一次会动到哪家公司、哪本账套，只写名字；
+# 没有就回空串（那一行不出）。对账、盘点在工作空间里、不分公司，不给。
+
+def _joined(names) -> str:
+    return ", ".join(dict.fromkeys(_shown(n) for n in names if _shown(n)))
+
+
+def note_delete_documents(tool_input) -> str:
+    """这几张单要推往的账套（名字，账套名带公司）；还没定去向的不算。"""
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("documents") or []))[:DELETE_MAX]
+    if not names:
+        return ""
+    rows = frappe.get_list(HISTORY, filters={"name": ["in", names]}, fields=["push_connection", "push_account_set"],
+                           limit_page_length=len(names))
+    cache = {}
+    return _joined(_account_names(cache, row["push_connection"]).get(_account_key(row["push_account_set"]))
+                   for row in rows if row.get("push_connection") and row.get("push_account_set"))
+
+
+def note_express_readback_delete(tool_input) -> str:
+    from pearnly_cowork.readback import service as readback
+
+    return readback.label(str(tool_input.get("readback") or ""))["account_set"]
+
+
+def note_tax_draft_delete(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    raw = tool_input.get("drafts") or []
+    names = list(dict.fromkeys([str(raw)] if isinstance(raw, str) else [str(n) for n in raw]))
+    return _joined(row.get("company") for row in tax_service.labels(names).values())
+
+
+def note_run_folder_task(tool_input) -> str:
+    """这个任务会识别并推进的公司与账套。"""
+    row = _task_row(str(tool_input.get("task") or ""))
+    if not row:
+        return ""
+    company = frappe.db.get_value("Cowork Company", row["company"], "title") if row.get("company") else ""
+    return " · ".join(_shown(p) for p in (company, row.get("account_label")) if _shown(p))
+
+
 RUN_NOW_FACT = "cowork.folder.runNow.charge"
 
 
@@ -5029,6 +5071,7 @@ TOOLS = [
          "required": ["documents"]},
      "approval": True,
      "ask": "Delete these documents?",
+     "note": "pearnly_cowork.assistant.tools.note_delete_documents",
      "preview": "pearnly_cowork.assistant.tools.preview_delete_documents",
      "handler": "pearnly_cowork.assistant.tools.delete_documents"},
     {"name": "cowork_export_review_workbook", "label": "Exported the review workbook",
@@ -5118,6 +5161,7 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
      "approval": True,
      "ask": "Delete this readback?",
+     "note": "pearnly_cowork.assistant.tools.note_express_readback_delete",
      "preview": "pearnly_cowork.assistant.tools.preview_express_readback_delete",
      "handler": "pearnly_cowork.assistant.tools.express_readback_delete"},
     {"name": "cowork_save_folder_task", "label": "Saved a scheduled task",
@@ -5360,6 +5404,7 @@ TOOLS = [
          "required": ["drafts"]},
      "approval": True,
      "ask": "Delete these tax drafts?",
+     "note": "pearnly_cowork.assistant.tools.note_tax_draft_delete",
      "preview": "pearnly_cowork.assistant.tools.preview_tax_draft_delete",
      "handler": "pearnly_cowork.assistant.tools.tax_draft_delete"},
     {"name": "cowork_stocktake_list", "label": "Listed stock counts",
@@ -5462,6 +5507,7 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "approval": True,
      "ask": "Run this scheduled task now?",
+     "note": "pearnly_cowork.assistant.tools.note_run_folder_task",
      "preview": "pearnly_cowork.assistant.tools.preview_run_folder_task",
      "handler": "pearnly_cowork.assistant.tools.run_folder_task"},
     {"name": "cowork_folder_task_runs", "label": "Checked scheduled task runs",

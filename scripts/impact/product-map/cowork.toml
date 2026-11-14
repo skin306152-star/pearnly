@@ -222,7 +222,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_delete_documents"
 where = "CC 工具 cowork_delete_documents（先出「允许」卡片，列单号 · 对方 · 金额，用户 11-12）"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_list_and_reports_skipped", "unit:tests/test_cowork_assistant_tools.py::test_documents_are_listed_by_number_party_and_amount", "unit:tests/test_cc_approval_cards.py::test_fake_agent_delete_two_documents_deny_then_allow", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
+tests = ["flow:cowork.cc.approval-cards", "unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_list_and_reports_skipped", "unit:tests/test_cowork_assistant_tools.py::test_documents_are_listed_by_number_party_and_amount", "unit:tests/test_cc_approval_cards.py::test_fake_agent_delete_two_documents_deny_then_allow", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_delete_folder_tasks"
@@ -569,7 +569,7 @@ ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_run_folder_task"
 where = "CC 工具 cowork_run_folder_task（先出「允许」卡片，列任务名、账套、方向、文件夹与会识别扣费并推送，用户 11-12）"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up", "unit:tests/test_cowork_assistant_tools.py::test_run_now_names_the_task_and_says_it_recognizes_and_charges", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
+tests = ["flow:cowork.cc.approval-cards", "unit:tests/test_cowork_assistant_tools.py::test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up", "unit:tests/test_cowork_assistant_tools.py::test_run_now_names_the_task_and_says_it_recognizes_and_charges", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_save_folder_task"

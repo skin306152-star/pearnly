@@ -64,7 +64,7 @@ def _declarations() -> dict:
             if not isinstance(name, ast.Constant) or name.value not in names:
                 continue
             found[name.value] = {key: ast.literal_eval(keys[key]) for key in
-                                 ("name", "label", "approval", "ask", "preview", "handler", "modes") if key in keys}
+                                 ("name", "label", "approval", "ask", "note", "preview", "handler", "modes") if key in keys}
     return found
 
 
@@ -132,6 +132,7 @@ class ApprovalCardFlowTests(unittest.TestCase):
         handlers = {tool["handler"]: handler(name) for name, tool in DECLARED.items()}
         previews = {tool["preview"]: (lambda data: [{"field": "Delete", "before": "", "after": "x"}])
                     for tool in DECLARED.values()}
+        previews.update({tool["note"]: (lambda data: "Flow Co · Flow 69") for tool in DECLARED.values() if tool.get("note")})
         patches = [
             mock.patch.object(tools, "declared", lambda: list(DECLARED.values())),
             mock.patch.object(toolrun.frappe, "db", self.db, create=True),
@@ -167,6 +168,14 @@ class ApprovalCardFlowTests(unittest.TestCase):
                 view = tools.approval_view(name, INPUTS[name])
                 self.assertEqual(view["ask"], tool["ask"])
                 self.assertEqual(view["preview"], [{"field": "Delete", "before": "", "after": "x"}])
+                if tool.get("note"):  # 有事实的那一行（公司、账套）：函数也在产品自己的工具文件里
+                    self.assertEqual(tool["note"].rpartition(".")[0], tool["handler"].rpartition(".")[0])
+                    self.assertEqual(view["note"], "Flow Co · Flow 69")
+                else:
+                    self.assertNotIn("note", view)
+        # 立即运行最需要这一行（会识别并推进哪本账套）；撤回、结束写公司
+        for name in ("cowork_run_folder_task", "cowork_delete_documents", "erp_stocktake_close", "erp_collection_withdraw"):
+            self.assertIn("note", DECLARED[name], name)
 
     def test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed(self):
         for index, (name, tool_input) in enumerate(INPUTS.items()):
@@ -193,6 +202,31 @@ class ApprovalCardFlowTests(unittest.TestCase):
                 self.assertEqual(self.handed[-1][1]["status"], "denied")
                 self.assertEqual(toolrun.decide("conv", "sesn", use_id, True), "not_waiting")  # 拒绝后再点「允许」也不执行
                 self.assertEqual(self.ran, [])
+
+    def test_the_fact_line_shows_only_when_the_tool_gives_one(self):
+        """问句下面那一行事实（`note`，用户 11-14 照 Claude 桌面应用的权限确认框）：工具给了才出；回空、出错、没声明都不出。"""
+        tool = {"name": "t_note", "approval": True, "ask": "Delete?", "note": "x.note", "preview": "x.preview", "handler": "x.run"}
+        plain = {"name": "t_plain", "approval": True, "ask": "Delete?", "preview": "x.preview", "handler": "x.run"}
+        answers = {"x.preview": lambda data: [{"field": "Delete", "before": "", "after": "IV-1"}]}
+
+        def boom(data):
+            raise RuntimeError("note failed")
+
+        logged = []
+        with mock.patch.object(tools, "declared", lambda: [tool, plain]), \
+                mock.patch.object(tools.frappe, "log_error", lambda **kw: logged.append(kw), create=True), \
+                mock.patch.object(tools.frappe, "clear_messages", lambda: None, create=True):
+            for given, expected in (("T9 Sincer · 70EXP T.9", "T9 Sincer · 70EXP T.9"), ("  ", None), (None, None)):
+                with mock.patch.object(tools.frappe, "get_attr", lambda path, given=given: {
+                        **answers, "x.note": lambda data: given}[path], create=True):
+                    view = tools.approval_view("t_note", {})
+                self.assertEqual(view.get("note"), expected, given)
+                self.assertEqual(view["preview"], [{"field": "Delete", "before": "", "after": "IV-1"}])
+            with mock.patch.object(tools.frappe, "get_attr", lambda path: {**answers, "x.note": boom}[path], create=True):
+                self.assertNotIn("note", tools.approval_view("t_note", {}))  # 算不出：那一行不出，卡片照出
+            self.assertEqual(len(logged), 1)
+            with mock.patch.object(tools.frappe, "get_attr", lambda path: answers[path], create=True):
+                self.assertNotIn("note", tools.approval_view("t_plain", {}))  # 没声明不出
 
     def test_fake_agent_delete_two_documents_deny_then_allow(self):
         """用户：「删掉这两张」→ 出卡 → 拒绝 → 两张都还在；再说一次 → 允许 → 两张删掉，只删这两张。"""

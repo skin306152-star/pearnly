@@ -1909,6 +1909,31 @@ class ApprovalCardTests(unittest.TestCase):
                           ("", "cowork.folder.runNow.charge")])
         self.assertEqual([r["after"] for r in missing], ["R9", "cowork.folder.runNow.charge"])
 
+    def test_the_fact_line_names_the_company_and_account_set_never_an_id(self):
+        """问句下面那一行事实（`note`）：会动到哪家公司、哪本账套，只写名字；对不上名字的、没有去向的不写，没有就是空串。"""
+        rows = [{"push_connection": "EXP1", "push_account_set": "c:\\70exp\\t9"},
+                {"push_connection": "EXP1", "push_account_set": "c:\\70exp\\t9"},
+                {"push_connection": "", "push_account_set": ""}]
+        with mock.patch.object(frappe, "get_list", lambda doctype, **kw: [dict(r) for r in rows]), \
+                mock.patch.object(tools, "_account_names", lambda cache, connection: {"c:\\70exp\\t9": "70EXP · T.9 SINCER"}):
+            self.assertEqual(tools.note_delete_documents({"documents": ["H1", "H2", "H3"]}), "70EXP · T.9 SINCER")
+        self.assertEqual(tools.note_delete_documents({"documents": []}), "")
+        self._module("pearnly_cowork.readback.service", label=lambda name: {"account_set": "70EXP · T.9 SINCER", "period": "2026-10"})
+        self.assertEqual(tools.note_express_readback_delete({"readback": "r" * 32}), "70EXP · T.9 SINCER")
+        self._module("pearnly_cowork.tax.service", labels=lambda names: {
+            "CTD-1": {"kind": "vat_return", "period": "2026-10", "company": "T9 Sincer", "branch": ""},
+            "CTD-2": {"kind": "withholding", "period": "2026-10", "company": "T9 Sincer", "branch": ""}})
+        self.assertEqual(tools.note_tax_draft_delete({"drafts": ["CTD-1", "CTD-2"]}), "T9 Sincer")
+        task = {"name": "R1", "title": "Monthly", "company": "COMP-0001", "account_label": "70EXP · T.9 SINCER"}
+        with mock.patch.object(tools.rules, "listing", return_value={"rules": [task]}, create=True), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, field: "T9 Sincer Co." if name == "COMP-0001" else None):
+            fact = tools.note_run_folder_task({"task": "R1"})
+            self.assertEqual(fact, "T9 Sincer Co. · 70EXP · T.9 SINCER")
+            self.assertNotIn("COMP-0001", fact)  # 公司写名字，不写主档编号
+            self.assertEqual(tools.note_run_folder_task({"task": "R9"}), "")
+        for name in ("cowork_recon_delete", "cowork_stocktake_close", "cowork_stocktake_delete"):
+            self.assertNotIn("note", {t["name"]: t for t in tools.TOOLS}[name], name)  # 不分公司：不给那一行
+
     def test_cards_are_declared_on_every_delete_finish_and_run_now_tool(self):
         by_name = {tool["name"]: tool for tool in tools.TOOLS}
         for name in ("cowork_delete_documents", "cowork_express_readback_delete", "cowork_recon_delete",

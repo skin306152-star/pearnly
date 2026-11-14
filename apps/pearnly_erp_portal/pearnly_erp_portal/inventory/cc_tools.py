@@ -155,6 +155,13 @@ def preview_stocktake_close(tool_input) -> list:
             {"field": _("stock.count.rowUncounted"), "before": "", "after": str(max(total - counted, 0))}]
 
 
+def note_stocktake_close(tool_input) -> str:
+    """卡片问句下面那一行事实：这份盘点所在仓的公司（名字）。"""
+    task = _counts().get_count(str(tool_input.get("count") or ""))
+    company = frappe.db.get_value("ERP Warehouse", task.get("warehouse"), "company") if task.get("warehouse") else None
+    return str(frappe.db.get_value("ERP Company", company, "company_name") or "") if company else ""
+
+
 def stocktake_adjust(tool_input) -> str:
     """按盘点结果生成物料调整单草稿（同盘点页「按盘点结果调整物料」；已有就回那一张）。不提交、不动库存。"""
     out = _call(_counts().adjustment_draft, str(tool_input.get("count") or ""))
@@ -235,6 +242,7 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
      "approval": True,
      "ask": "Finish this stock count?",
+     "note": "pearnly_erp_portal.inventory.cc_tools.note_stocktake_close",
      "preview": "pearnly_erp_portal.inventory.cc_tools.preview_stocktake_close",
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_close"},
     {"name": "erp_stocktake_adjust", "label": "Created an adjustment from a stock count",
