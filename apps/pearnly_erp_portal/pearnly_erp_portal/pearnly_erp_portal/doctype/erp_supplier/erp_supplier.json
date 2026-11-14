@@ -96,7 +96,7 @@
    "fieldname": "ledger",
    "fieldtype": "Select",
    "label": "Ledger",
-   "options": "\nExpress\nMR.ERP",
+   "options": "\nexpress\nmrerp",
    "read_only": 1
   },
   {

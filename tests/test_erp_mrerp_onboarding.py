@@ -73,7 +73,7 @@ def install():
     ledger = types.ModuleType("pearnly_erp_portal.express.masters")
     ledger.QUEUED, ledger.READING, ledger.SYNCING, ledger.READY, ledger.FAILED = (
         "queued", "reading", "syncing", "ready", "failed")
-    ledger.MRERP, ledger.NOTIFY_KEY = "MR.ERP", "notify:"
+    ledger.MRERP, ledger.NOTIFY_KEY = "mrerp", "notify:"
     ledger.lane = lambda: "erp_masters"
     ledger.recorded, ledger.applied, ledger.notified = [], [], []
 
@@ -195,7 +195,7 @@ class RunTests(Base):
         export.read = lambda lease, key, manual: ({"customers": [{"code": "C1"}]}, None, {"requests": 10})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
-        self.assertEqual(self.ledger.applied, [("CO-1", "TEST2019", "MR.ERP", 1)])
+        self.assertEqual(self.ledger.applied, [("CO-1", "TEST2019", "mrerp", 1)])
         self.assertEqual([state for _c, state, _n in self.ledger.recorded], ["reading", "syncing", "ready"])
         self.assertEqual(self.ledger.notified, [("CO-1", "ready")])
 
@@ -320,28 +320,28 @@ class CompanyIdentityTests(unittest.TestCase):
         self.assertEqual(self.catalog.legal_name(self.sets()[0]["attributes"]), "บริษัท ทดสอบการใช้ จำกัด")
         self.assertEqual(self.catalog.legal_name({"company": "TEST"}), "TEST")
 
-    def test_book_for_picks_by_the_period_read_from_mrerp(self):
+    def test_pick_chooses_by_the_period_read_from_mrerp(self):
         self.catalogs["MR-1"] = self.sets(TEST2019={"period_start": "2026-01-01", "period_end": "2026-12-31"})
         self.company["mrerp_company"] = self.catalog.identity("MR-1", self.sets()[0]["attributes"])
-        picked = self.catalog.book_for(self.company, "2026-11-14")
+        picked = self.catalog.pick(self.company, "2026-11-14")
         self.assertEqual((picked["book"]["key"], picked["reason"]), ("6:1", ""))
         # 期间读不到的年度库（TEST2020）不参与按日期选：不从名字猜年份 → 没有覆盖这天的账套
-        none = self.catalog.book_for(self.company, "2020-05-01")
+        none = self.catalog.pick(self.company, "2020-05-01")
         self.assertEqual((none["book"], none["reason"]), (None, self.contracts.NO_BOOK))
         # 对话定了那本：就用那本；名单里没有 → 没有账套
-        self.assertEqual(self.catalog.book_for(self.company, "2020-05-01", wanted="15:1")["book"]["key"], "15:1")
-        self.assertEqual(self.catalog.book_for(self.company, "2020-05-01", wanted="99:1")["reason"], self.contracts.NO_BOOK)
+        self.assertEqual(self.catalog.pick(self.company, "2020-05-01", wanted="15:1")["book"]["key"], "15:1")
+        self.assertEqual(self.catalog.pick(self.company, "2020-05-01", wanted="99:1")["reason"], self.contracts.NO_BOOK)
 
     def test_two_books_for_one_period_ask_once_in_the_express_choice(self):
         same = {"period_start": "2026-01-01", "period_end": "2026-12-31"}
         self.catalogs["MR-1"] = self.sets(TEST2019=same, TEST2020=same)
         self.company["mrerp_company"] = self.catalog.identity("MR-1", self.sets()[0]["attributes"])
-        asked = self.catalog.book_for(self.company, "2026-11-14")
+        asked = self.catalog.pick(self.company, "2026-11-14")
         self.assertEqual((asked["reason"], [o["code"] for o in asked["options"]], asked["subject"]),
                          (self.contracts.SEVERAL_BOOKS, ["6:1", "15:1"], "year:2026-01-01"))
         # 选过一次（记在 Express 同一处：公司 + account_set + 这个会计年度）：直接用选的
         self.chosen[("CO-1", "account_set", "year:2026-01-01")] = "15:1"
-        self.assertEqual(self.catalog.book_for(self.company, "2026-11-14")["book"]["key"], "15:1")
+        self.assertEqual(self.catalog.pick(self.company, "2026-11-14")["book"]["key"], "15:1")
         # 主档整读不停下：没选过时取第一本
         self.chosen.clear()
         self.assertEqual(self.catalog.current(self.company, "2026-11-14")["key"], "6:1")

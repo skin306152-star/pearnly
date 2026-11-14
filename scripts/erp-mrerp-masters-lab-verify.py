@@ -9,11 +9,11 @@
         env/bin/python /workspace/scripts/erp-mrerp-masters-lab-verify.py --fixtures /tmp/mrerp-fixtures
 
 核对：
-1. 第一次落库：客户 7 / 供应商 14 / 物料 12 / 仓库 3 全部建出，档上 ``ledger`` = MR.ERP、``express_company`` = 这家公司、
+1. 第一次落库：客户 7 / 供应商 14 / 物料 12 / 仓库 3 全部建出，档上 ``ledger`` = mrerp、``express_company`` = 这家公司、
    ``express_code`` = MR.ERP 编码；物料来由 ``mrerp``；税号写「-」的客户不存税号；仓库码照 MR.ERP 原样（4 位以上不截）；
 2. 结存：库存品各仓的 ERP 结存 = MR.ERP 报表的数（服务档 EXPENSE 不进库存）；
 3. 同一份再落一次：0 条改动；
-4. 回填补丁（v1_29）：带编码、没有 ``ledger`` 的 Express 档补成 Express，再落不算改动；
+4. 回填补丁（v1_30）：带编码、没有 ``ledger`` 的 Express 档补成 express，再落不算改动；
 5. Express 的每分钟推进（`express.masters.advance`）不碰接 MR.ERP 的公司（状态停在排队中也不发电脑读取）。
 任何一项不过，退出码非 0。
 """

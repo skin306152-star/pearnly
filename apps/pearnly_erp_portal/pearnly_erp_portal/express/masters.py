@@ -52,8 +52,9 @@ STALE_AFTER = 24 * 3600      # 每小时兜底：超过这么久没同步的照�
 TOL = Decimal("0.000001")
 JOB_WAIT = 180      # 后台同步等电脑读完的上限（秒）
 LAND_LIMIT = 3600   # 落库的上限（秒）：大账套首次落库的实测见 docs/work/2026-10-23-erp-express-sync-background.md
-# 档上的只读来源 ``ledger``（公司接入第 3 批）：主档来自哪种账本；商品的来由 ``origin`` 跟着它
-EXPRESS, MRERP = "Express", "MR.ERP"
+# 档上的只读来源 ``ledger``（公司接入第 3 批）：主档来自哪种账本，存小写码，与单据上的 ``ledger_target`` 同一套值
+# （`contracts.LEDGER_EXPRESS` / `mrerp.contracts.LEDGER_MRERP`，主会话 11-14 定），界面显示走翻译；商品的来由 ``origin`` 跟着它
+EXPRESS, MRERP = contracts.LEDGER_EXPRESS, "mrerp"
 LEDGERS = (EXPRESS, MRERP)
 ORIGINS = {EXPRESS: "express", MRERP: "mrerp"}
 COMMIT_EVERY = 500  # 落库每改这么多条提交一次（任务中途出错，已落的不丢；再同步一次幂等补齐）

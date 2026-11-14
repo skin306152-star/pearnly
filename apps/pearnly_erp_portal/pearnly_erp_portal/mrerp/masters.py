@@ -4,7 +4,7 @@
 - 读：服务端用这条连接的账号登录 MR.ERP，整读这家公司账套的客户 / 供应商 / 物料 / 单位 / 仓库 / 按仓结存
   （`pearnly_core.mrerp.master_export`，导出页与按仓结存报表），不占电脑。会话走共用入口（同账号锁、被踢标记、接上缓存会话）；
   后台读不算人点的：账号被踢过、还没人点过推送时这次不登录，记失败原因，下一轮再试。
-- 落：交 `express.masters.apply(..., ledger="MR.ERP")`：按「公司 + 账本编码」认档，只写有变化的行，没了的停用；档上记来源
+- 落：交 `express.masters.apply(..., ledger="mrerp")`：按「公司 + 账本编码」认档，只写有变化的行，没了的停用；档上记来源
   ``ledger``（只读）。公司上的同步状态与 Express 同一组字段（``express_sync_state`` 等，公司页同一处显示）。
 - 触发（MR.ERP 没有文件标记可看）：选 / 建公司后一次（`cc_service.create`、`catalog.choose`）、写单后一次（:func:`after_write`，
   写账一侧写成后调）、每小时整读比对一次（:func:`sync_all`）。长期没人用的公司（:func:`idle`）每小时那次不读；它一写单就会

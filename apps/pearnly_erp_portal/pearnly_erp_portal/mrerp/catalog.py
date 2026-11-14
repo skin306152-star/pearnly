@@ -93,8 +93,8 @@ def choose(company, connection, account_set):
     key = str(account_set or "").strip()
     if key not in {item["source_id"] for item in _sets(connection)}:
         frappe.throw(_("Invalid request"))
-    # 接的是这份账套所属的那家 MR.ERP 公司（各年度账套归一家，按单据日期选那一本：`book_for`）；``mrerp_account_set`` 记人选的
-    # 那本（写账一侧切到 `book_for` 之前照旧读它）
+    # 接的是这份账套所属的那家 MR.ERP 公司（各年度账套归一家，按单据日期选那一本：`pick`）；``mrerp_account_set`` 记人选的
+    # 那本（写账一侧切到 `pick` 之前照旧读它）
     found = next(item for item in _sets(connection) if item["source_id"] == key)
     ident = identity(connection, found.get("attributes") or {})
     values = {"mrerp_enabled": 1, "mrerp_connection": connection, "mrerp_account_set": key, "mrerp_company": ident}
@@ -192,7 +192,7 @@ def books_of(company) -> list:
     return found
 
 
-def book_for(company, day, wanted=None) -> dict:
+def pick(company, day, wanted=None) -> dict:
     """单据该写进这家公司的哪一本 MR.ERP 账套（接缝：写账一侧 `mrerp.push` 调；签名与行为见评估文档接缝一节，定了不改）。
 
     回 ``{book, reason, options, subject}``，与 `express.target.pick` 同形状、同原因码（`express.contracts`）：
@@ -229,7 +229,7 @@ def book_for(company, day, wanted=None) -> dict:
 def current(company, day) -> dict | None:
     """主档整读读哪一本：今天该写的那本（同期两本按选过的，没选过取第一本，读主档不必停下）；没有覆盖今天的（新年度库还没建或期间
     读不到）读期间最近的那本，再没有就取年度库号最大的那本（同 Express `target.current`：主档按公司认）。"""
-    picked = book_for(company, day)
+    picked = pick(company, day)
     if picked["book"]:
         return picked["book"]
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
@@ -251,5 +251,5 @@ def no_book_text(company, day) -> str:
     return target.no_book_text({}, day, every)
 
 
-__all__ = ["account_sets", "book_for", "books_of", "choose", "company_view", "current", "detach", "identity", "legal_name",
+__all__ = ["account_sets", "pick", "books_of", "choose", "company_view", "current", "detach", "identity", "legal_name",
            "no_book_text", "refresh", "run"]

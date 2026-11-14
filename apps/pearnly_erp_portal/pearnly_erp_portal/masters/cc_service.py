@@ -619,7 +619,7 @@ def _reactivate(name):
 
 def _build_mrerp(group, blank=None) -> str:
     """一家 MR.ERP 公司建一家 ERP 公司并接上（同 ERP 公司页选账本 `mrerp.catalog.choose`）：名称用全称去掉内部编号；接上时记的
-    那本是今天该写的（之后按单据日期选，`catalog.pick`）；``blank`` 是要接管的空默认公司。"""
+    那本是今天该写的（`catalog.current`；之后按单据日期选，`catalog.pick`）；``blank`` 是要接管的空默认公司。"""
     from pearnly_erp_portal.express import contracts
     from pearnly_erp_portal.inventory import warehouses
     from pearnly_erp_portal.mrerp import catalog
