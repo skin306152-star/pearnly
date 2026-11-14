@@ -14,10 +14,12 @@ from typing import Any, Dict, List
 
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
 from pearnly_core.mrerp.push.xlsx.fmt import (
+    allocate_discount,
     fmt_date,
     fmt_number,
     history_number,
-    mrerp_sales_tax_label,
+    line_amount,
+    mrerp_tax_label,
 )
 from pearnly_core.mrerp.push.xlsx.lookups import (
     resolve_customer_code,
@@ -106,7 +108,7 @@ def build_sales_credit_detail_rows(
                 continue
             qty = fmt_number(it.get("qty") or it.get("quantity"))
             price = fmt_number(it.get("unit_price") or it.get("price"))
-            amt = fmt_number(it.get("amount") or it.get("total"))
+            amt = line_amount(it)
             if qty is None and price is not None and amt is not None and price != 0:
                 qty = round(amt / price, 4)
             if price is None and qty is not None and amt is not None and qty != 0:
@@ -234,6 +236,9 @@ def _generate_xlsx_sales_credit_korn_clone(
         f'x14ac:dyDescent="0.2">{"".join(row1_cells)}</row>'
     ]
 
+    # 表头折扣与明细行同一做法（`fmt.allocate_discount`，与现销、采购货品一致）：每张算一次，两张 sheet 共用
+    documents = [allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_label(history))
+                 for history in histories]
     for ridx, history in enumerate(histories, start=2):
         row_data = build_sales_credit_row(history, mappings)
         invoice_no = row_data.get("invoice_no", "")
@@ -244,7 +249,7 @@ def _generate_xlsx_sales_credit_korn_clone(
         STR_VALUES = [
             invoice_no,
             invoice_date,
-            mrerp_sales_tax_label(history),
+            mrerp_tax_label(history),
             head["branch"],
             head["dept"],
             head["job"],
@@ -262,8 +267,8 @@ def _generate_xlsx_sales_credit_korn_clone(
             cells.append(
                 f'<c r="{_col_letter(i)}{ridx}" s="3" t="s">' f"<v>{_get_idx(val)}</v></c>"
             )
-        # 第 15 列(O)= 折扣 0(数值 · 不带 t)
-        cells.append(f'<c r="O{ridx}" s="5"><v>0</v></c>')
+        # 第 15 列(O)= 表头折扣(数值 · 不带 t):摊进明细时是 0,对不上账时照票面写,交 MR.ERP 自己算
+        cells.append(f'<c r="O{ridx}" s="5"><v>{_format_num(documents[ridx - 2][0])}</v></c>')
         # 第 16-18 列(P/Q/R)= 备注完全空 cell
         for i in (16, 17, 18):
             cells.append(f'<c r="{_col_letter(i)}{ridx}" s="3"/>')
@@ -294,9 +299,8 @@ def _generate_xlsx_sales_credit_korn_clone(
     cur_row = 2
     total_detail_rows = 0
     line = account_values.header(mappings)
-    for history in histories:
+    for history, (_discount, detail_rows) in zip(histories, documents):
         invoice_no = _gen.derive_mrerp_invoice_no(history)
-        detail_rows = build_sales_credit_detail_rows(history, mappings)
         for row_data in detail_rows:
             qty = row_data.get("qty", 0) or 0
             unit_price = row_data.get("unit_price", 0) or 0

@@ -110,7 +110,7 @@ class FakeMrErp:
 
     def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
                  menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None,
-                 lists=None, records=None, head="00000", company_tax=""):
+                 lists=None, records=None, head="00000", company_tax="", listed_amount="1,070.00"):
         self.password, self.importpc, self.notes = password, importpc, notes
         self.upload_error, self.importpc_raises = upload_error, importpc_raises
         self.menus = dict(MENUS, **(menus or {}))
@@ -123,6 +123,7 @@ class FakeMrErp:
         self.files = []
         self.records, self.head = dict(records or {}), head  # {(模块, id): dupdata 回应}；总店分店
         self.company_tax, self.company_reads = company_tax, []  # 本公司分店档案登记的税号；读过哪几个分店 id
+        self.listed_amount = listed_amount  # 列表里每张单的金额（写后核对比票面总额，`readback.amount_check`）
 
     kick = False  # 同一账号在别处登录了：之后每一页都先回 checkuseruse 的被踢提示
 
@@ -198,7 +199,7 @@ class FakeMrErp:
             if not rows:
                 return response(url, '<p id="nodata">No Data</p>')
             return response(url, "".join(f"<p><span>{d}</span><span>12/09/2569</span><span>ผู้ขาย</span>"
-                                         f"<span>1,070.00</span><span><a></a></span></p>" for d in rows))
+                                         f"<span>{self.listed_amount}</span><span><a></a></span></p>" for d in rows))
         return response(url, "<html></html>")
 
 

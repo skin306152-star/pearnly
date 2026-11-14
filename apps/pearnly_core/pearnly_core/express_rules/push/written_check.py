@@ -18,7 +18,9 @@ OK, MISMATCH, UNVERIFIED = "ok", "mismatch", "unverified"
 STATES = (OK, MISMATCH, UNVERIFIED)
 # CC 桌面版回的不符项（`write_verify.FIELDS`）加服务端自己比出的两项
 COMPANION_FIELDS = ("party_code", "party_master", "account", "date", "rectyp", "refnum", "vat_tax_id", "vat_branch",
-                    "pos_date", "unreadable")
+                    "pos_date", "unreadable",
+                    # MR.ERP 由服务端导入后读回列表核对（`mrerp.push.readback.amount_check`）：含税合计对不上票面
+                    "amount")
 FIELDS = (*COMPANION_FIELDS, "party_tax", "party_branch")
 TAX_MAX, BRANCH_MAX = 20, 5
 

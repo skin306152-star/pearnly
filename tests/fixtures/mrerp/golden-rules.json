@@ -848,6 +848,10 @@
      "already_pushed": true,
      "doc_type": "purchase_expense",
      "mrerp_menu": "ซื้อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11077
     },
     "reason": "",
@@ -1356,6 +1360,10 @@
     "meta": {
      "doc_type": "purchase_expense",
      "mrerp_menu": "ซื้อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11078
     },
     "reason": "",
@@ -2350,6 +2358,10 @@
     "meta": {
      "doc_type": "purchase_expense",
      "mrerp_menu": "ซื้อ-ค่าใช้จ่าย",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11080
     },
     "reason": "",
@@ -2852,6 +2864,10 @@
     "meta": {
      "doc_type": "purchase",
      "mrerp_menu": "ซื้อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11072
     },
     "reason": "",
@@ -3349,6 +3365,10 @@
     "meta": {
      "doc_type": "purchase_expense",
      "mrerp_menu": "ซื้อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11078
     },
     "reason": "",
@@ -4326,6 +4346,10 @@
     "meta": {
      "doc_type": "sales_cash",
      "mrerp_menu": "ใบขายเงินสด",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11738
     },
     "reason": "",
@@ -4709,6 +4733,10 @@
     "meta": {
      "doc_type": "sales_cash",
      "mrerp_menu": "ใบขายเงินสด",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11740
     },
     "reason": "",
@@ -5104,6 +5132,10 @@
     "meta": {
      "doc_type": "sales_credit",
      "mrerp_menu": "ขายเชื่อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 8588
     },
     "reason": "",
@@ -5586,6 +5618,10 @@
     "meta": {
      "doc_type": "sales_credit",
      "mrerp_menu": "ขายเชื่อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 8580
     },
     "reason": "",

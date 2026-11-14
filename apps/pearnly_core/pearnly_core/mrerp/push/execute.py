@@ -10,9 +10,11 @@ import logging
 from copy import deepcopy
 
 from pearnly_core.session_lock import SessionLockUnavailable
+from pearnly_core.mrerp.push import readback
 from pearnly_core.mrerp.push.models import MRERPAccountInUseError, MRERPAuthError, MRERPBusinessError, MRERPTechnicalError
 from pearnly_core.mrerp.push.transport import MrErpImport
 from pearnly_core.mrerp.push.user_data import is_user_data_error
+from pearnly_core.mrerp.push.xlsx.fmt import history_number
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +50,8 @@ def execute(payload, target, secrets, system_url, today):
             meta["already_pushed"] = True
         # 进了哪类单据、哪个导入菜单：记进推送回执，CC 说得出「记成现销，进了 ใบขายเงินสด」（`application.service._entered`）
         meta.update({key: value for key, value in (("doc_type", row.doc_type), ("mrerp_menu", row.menu)) if value})
+        # 写后核对（同 Express 的 ``meta.verify``，只记不拦）：列表金额对票面总额；两个产品照各自的「写入核不上」显示
+        meta["verify"] = readback.amount_check(row.listed_amount, history_number(row.original, "total_amount"))
         return {"status": "success", "docnum": row.mrerp_bill_no, "reason": "", "meta": meta, "menus": menus,
                 "masters": masters}
     failed = result.failed[0] if result.failed else None

@@ -6,8 +6,8 @@
 
 import hashlib
 from datetime import datetime
-from decimal import Decimal
-from typing import Any, Optional
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from typing import Any, Dict, List, Optional, Tuple
 
 # ============================================================
 # 铁律 29 · 字段格式工具
@@ -144,7 +144,7 @@ def _items_gross(history: Any) -> Optional[float]:
     for item in items:
         if not isinstance(item, dict):
             return None
-        amount = fmt_number(item.get("amount") or item.get("total") or item.get("line_total"))
+        amount = line_amount(item)
         if amount is None:
             qty = fmt_number(item.get("qty") or item.get("quantity"))
             price = fmt_number(item.get("unit_price") or item.get("price"))
@@ -155,8 +155,25 @@ def _items_gross(history: Any) -> Optional[float]:
     return float(total)
 
 
-def mrerp_sales_tax_label(history: Any) -> str:
-    """Choose MR.ERP's VAT mode from explicit review data or reconciled item totals."""
+LINE_AMOUNT_KEYS = ("amount", "subtotal", "total", "line_total")
+
+
+def line_amount(item: Any) -> Optional[float]:
+    """一行明细的金额（印在票上的那一格）：导入表与 ERP 载荷记 ``amount``，Cowork 识别记 ``subtotal``（同 Express 的读法，
+    `express_rules.push.common` 明细行），再兜底 ``total`` / ``line_total``；都没有回 None，由调用方按「数量 × 单价」补。
+    11-14 TEST2019 真写：只认 ``amount`` 时 Cowork 有行折扣的票被改成「数量 × 单价」（票 288.90 记成 321.00）。"""
+    if not isinstance(item, dict):
+        return None
+    for key in LINE_AMOUNT_KEYS:
+        found = fmt_number(item.get(key))
+        if found is not None:
+            return found
+    return None
+
+
+def mrerp_tax_label(history: Any) -> str:
+    """MR.ERP 税率选项（销售与采购货品同一判定；11-14 起采购货品不再写死「7 (แยก)」——无税卖家的票被多加 7%，
+    票 500.00 记成 535.00）：税额≈0 → ``0``；人在复核里标过价内 / 价外照它；否则拿明细合计比总额 / 小计。"""
     vat = history_number(history, "vat", "vat_amount") or 0
     if abs(vat) < 0.005:
         return "0"
@@ -178,6 +195,50 @@ def mrerp_sales_tax_label(history: Any) -> str:
         if subtotal is not None and abs(after_discount - subtotal) <= 0.10:
             return "7 (แยก)"
     return "7 (แยก)"
+
+
+mrerp_sales_tax_label = mrerp_tax_label  # 旧名（销售先有这个判定）；新代码用 mrerp_tax_label
+
+
+def _decimal(value: Any) -> Decimal:
+    try:
+        return Decimal(str(value if value not in (None, "") else 0))
+    except (InvalidOperation, TypeError, ValueError):
+        return Decimal("0")
+
+
+def allocate_discount(history: Any, rows: List[Dict[str, Any]], tax_label: str) -> Tuple[Decimal, List[Dict[str, Any]]]:
+    """整单折扣怎么进导入表（三种带明细的单同一做法：赊销、现销、采购货品）→ (表头「หักส่วนลด」, 明细行)。
+
+    MR.ERP 导入的明细金额与数量、单价无关：对得上账（明细合计 − 票面折扣 = 税前或含税合计）时把折扣按行金额比例摊进各行
+    （分到分、尾差进最后一行，印的单价不动），表头折扣写 0——现销导入表头折扣与已扣过的收款额同时给会被拒（原
+    `sales_cash._cash_import_details`）。对不上时行照印的、折扣照写表头，交 MR.ERP 自己算，写后读回金额核对（`readback`）。
+    11-14 TEST2019 真写：赊销表头折扣写死 0，票 963.00 记成 1,070.00。"""
+    discount = _decimal(history_number(history, "discount", "discount_total"))
+    if discount <= 0 or not rows:
+        return max(discount, Decimal("0")), rows
+    target = history_number(history, "total_amount", "grand_total", "net_payable")
+    if tax_label == "7 (แยก)":
+        target = history_number(history, "subtotal", "amount_before_tax")
+    if target is None:
+        return discount, rows
+    target_amount = _decimal(target)
+    line_amounts = [_decimal(row.get("amount")) for row in rows]
+    gross = sum(line_amounts, Decimal("0"))
+    if target_amount < 0 or gross <= 0 or abs((gross - target_amount) - discount) > Decimal("0.10"):
+        return discount, rows
+    positive = [index for index, amount in enumerate(line_amounts) if amount > 0]
+    if not positive:
+        return discount, rows
+    adjusted = [dict(row) for row in rows]
+    allocated = Decimal("0")
+    cent = Decimal("0.01")
+    for index in positive[:-1]:
+        net = (line_amounts[index] * target_amount / gross).quantize(cent, rounding=ROUND_HALF_UP)
+        adjusted[index]["amount"] = net
+        allocated += net
+    adjusted[positive[-1]]["amount"] = target_amount - allocated
+    return Decimal("0"), adjusted
 
 
 def fmt_number_strict(value: Any) -> float:

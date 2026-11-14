@@ -50,15 +50,16 @@ CUSTOMER_PARTY = {"code": "", "name": "บริษัท ลูกค้า จ
 DOCS = [
     ("purchase_goods_credit", body("PUR-2026-00012@20260912093000000000", "purchase", False, SUPPLIER_PARTY,
                                    number="IV6909-0012"), "goods", {"purchase": "68"}, dict(CHOSEN),
-     lambda: FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})),
+     lambda: FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]},
+                       listed_amount="1,605.00")),
     ("purchase_expense_credit", body("PUR-2026-00013@20260912100000000000", "purchase", False, SUPPLIER_PARTY,
                                      number="IV6909-0013"), "expense", {"purchase_expense": "454"}, dict(CHOSEN),
      lambda: FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]},
-                       prefix={"454": "PN"})),
+                       prefix={"454": "PN"}, listed_amount="1,605.00")),
     ("sales_credit", body("SAL-2026-00007@20260912110000000000", "sales", False, CUSTOMER_PARTY), "receipt", {},
-     dict(CHOSEN), FakeMrErp),
+     dict(CHOSEN), lambda: FakeMrErp(listed_amount="1,605.00")),
     ("sales_cash", body("SAL-2026-00008@20260912113000000000", "sales", True, CUSTOMER_PARTY), "receipt", {},
-     dict(CHOSEN), FakeMrErp),
+     dict(CHOSEN), lambda: FakeMrErp(listed_amount="1,605.00")),
 ]
 
 

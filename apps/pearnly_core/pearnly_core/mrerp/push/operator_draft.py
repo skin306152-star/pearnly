@@ -27,7 +27,7 @@ from typing import Any, Dict, List, Tuple
 from pearnly_core.mrerp.push import routing
 from pearnly_core.mrerp.push.modules import get_module
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
-from pearnly_core.mrerp.push.xlsx.fmt import fmt_date, history_number, mrerp_sales_tax_label
+from pearnly_core.mrerp.push.xlsx.fmt import allocate_discount, fmt_date, mrerp_tax_label
 
 CENT = Decimal("0.01")
 DOC_TYPES = ("purchase", "purchase_expense", "sales_credit", "sales_cash")
@@ -70,6 +70,16 @@ def totals(lines: List[Dict[str, str]], vat_label: str, discount: Any = 0) -> Di
     return {"before_vat": str(_money(before)), "vat": str(_money(vat)), "net": str(_money(before + vat))}
 
 
+def _form_discount(rows: List[Dict[str, Any]], header: Any, price_key: str) -> Decimal:
+    """网页表单的表头折扣：表单每行按「数量 × 单价」自己算、行金额不能另填，所以要入账的行金额（导入同一份，
+    `fmt.allocate_discount` 之后）与「数量 × 单价」差多少、连同没摊进行里的表头折扣，都放进表头折扣——表单合计因此与
+    导入表、与票面一致（行折扣、整单折扣都是；11-14 TEST2019 导入真写查出行折扣与整单折扣曾被丢掉）。"""
+    typed = sum((_money(_dec(row.get("qty") if row.get("qty") not in (None, "") else 1) * _dec(row.get(price_key)))
+                 for row in rows), Decimal(0))
+    wanted = sum((_money(_dec(row.get("amount"))) for row in rows), Decimal(0))
+    return max(typed - wanted, Decimal(0)) + _money(_dec(header))
+
+
 def _line(code: Any, qty: Any, price: Any, store: str, desc: Any = "") -> Dict[str, str]:
     return {"code": str(code or "").strip(), "qty": _num(qty if qty not in (None, "") else 1), "price": _num(price),
             "unit": "", "store": store, "desc": str(desc or "").strip()[:200]}
@@ -95,18 +105,18 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
             lines = [_line(purchase._expense_item_code(mappings), 1, purchase._gross_total(history), head["store"],
                            purchase._expense_note(history))]
         else:
-            vat_label = "7 (แยก)"
-            lines = [_line(row["code"], row["qty"], row["price"], head["store"])
-                     for row in purchase._detail_rows(history, mappings)]
+            vat_label = mrerp_tax_label(history)
+            header, rows = allocate_discount(history, purchase._detail_rows(history, mappings), vat_label)
+            discount = _form_discount(rows, header, "price")
+            lines = [_line(row["code"], row["qty"], row["price"], head["store"]) for row in rows]
     else:
         party = resolve_customer_code(history, mappings)
         head = account_values.header(mappings, party)
         ref_no = ("SI" + docnum)[:20]
-        vat_label = mrerp_sales_tax_label(history)
-        rows = sales_credit.build_sales_credit_detail_rows(history, mappings)
-        if doc_type == "sales_cash":
-            # 网页表单按「数量 × 单价」自己算，折扣写在表头（导入表把折扣摊进行金额，是导入的口径）；收款由菜单关联的科目带出
-            discount = history_number(history, "discount", "discount_total") or 0
+        vat_label = mrerp_tax_label(history)
+        header, rows = allocate_discount(history, sales_credit.build_sales_credit_detail_rows(history, mappings),
+                                         vat_label)
+        discount = _form_discount(rows, header, "unit_price")  # 收款由菜单关联的科目带出
         lines = [_line(row.get("product_code"), row.get("qty"), row.get("unit_price"), head["store"],
                        row.get("item_name")) for row in rows]
     return {"url": str(url or "").strip().rstrip("/"), "connection": str(connection or ""),

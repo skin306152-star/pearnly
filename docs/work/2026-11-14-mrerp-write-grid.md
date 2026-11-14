@@ -1,0 +1,51 @@
+# MR.ERP 写账四格验齐（11-14）
+
+分支 `pearnly/mrerp-write-grid-99fa21`，基线 main a838abe54。范围：CC 写账总表里 MR.ERP 一侧四格（Cowork / ERP × 直写 / 代录）验齐、缺的补上，
+让 `MRERP_LEDGER_ENABLED` 打开时写账路径是验过的。开关本身由公司接入窗口（`pearnly/company-onboarding-b2d996` 第 3 批）打开，本分支不改它。
+进度与单号台账的实时版本在主会话共享笔记 `MR.ERP写账四格-进度-11-14.md`；这里留结论。
+
+## 环境
+
+- 本机 colima 栈 `pearnly-mrerp-lab`（`infrastructure/compose/regression-lab.yml`，端口 18841–18843），站点 `cowork.regression.localhost`、
+  `erp.regression.localhost`，挂本分支源码。真写只写 mrerp4sme.com · test01 · TEST2019（6:1）；test01 只看得到 TEST2019 / TEST2020。
+- MR.ERP 连接凭据在实验栈后台写入（不经测试机）；导入菜单 / 主档默认值按 CC「选一次」的同一接口记。
+- TEST2019 登记税号是样板值（无效），方向按工作空间税号判（实验栈合成 0105989581512）。
+
+## 第 2 步：Cowork 直写 MR.ERP
+
+入口：`pearnly_cowork.assistant.tools._push_one`（CC 推送工具对每张票走的函数）→ `push.mrerp.runner.run`。每张单读回列表与单据查看页
+（`allform.php?id=N&status=vie`）逐格比对。
+
+| 单号 | 单型 | 结果 |
+|---|---|---|
+| PG691114-379821 | 采购货品 68 | ✅ 供应商、商品自建；7 (แยก) 105.00；1,605.00 |
+| PN691114-425545 | 采购费用 454 | ✅ นอกระบบ 单行含税 856.00 |
+| SI691114-986168 | 赊销 119 | ✅ 客户、商品自建；140.00；2,140.00 |
+| SE691114-426386 | 现销 126 | ✅ 现金栏 321.00 |
+| SI691114-865946 | 赊销（行折扣，修前） | ❌ 票 288.90 → 321.00 |
+| PG691114-730046 | 采购货品（无税卖家，修前） | ❌ 票 500.00 → 535.00 |
+| SI691114-762644 | 赊销（整单折扣，修前） | ❌ 票 963.00 → 1,070.00 |
+| SI691114-551405 / PG691114-856585 / SI691114-537862 / PG691114-995716 | 上面三种 + 采购整单折扣（修后） | ✅ 288.90 / 500.00 / 963.00 / 963.00，写后核对 ok |
+| SE691114-621451 | 现销（删票路径） | ✅ 排队中删票被跳过、照常写入；写成后删票只删 Pearnly 一侧 |
+
+### 修复（共用层，直写与代录、Cowork 与 ERP 同一份）
+
+1. 明细金额：`mrerp.push.xlsx.fmt.line_amount` 依次认 `amount` / `subtotal` / `total` / `line_total`。Cowork 识别的明细金额键是 `subtotal`
+   （同 Express 读法），此前生成器只读 `amount`，行金额被改成「数量 × 单价」。
+2. 税率：`fmt.mrerp_tax_label`（原销售判定 `mrerp_sales_tax_label`，旧名留作别名）采购货品也用，不再写死「7 (แยก)」。
+3. 折扣：`fmt.allocate_discount`（原现销 `_cash_import_details` 的摊分）赊销、现销、采购货品同一做法；对不上账时照票写表头折扣。
+   代录网页表单行金额不能另填，行折扣与整单折扣都放表头折扣（`operator_draft._form_discount`）。
+4. 写后核对：`mrerp.push.readback.amount_check` 拿列表金额比票面总额，`execute` 回执带 `meta.verify`（同 Express 形状，
+   `written_check` 白名单加 `amount`）；Cowork `push.native.service._written_check` 不再跳过 MR.ERP，记 `verify_state`；
+   ERP `mrerp.contracts.settle` 核不上记 `mismatch`。只记不拦，单号照记。
+
+测试：`tests/test_mrerp_import_amounts.py`（修前红 9 条，修后 10 条全绿，进 development.yml）；`golden-rules.json`、
+`erp-direct-golden.json` 只多 `meta.verify: ok`，导入表逐字节不变（假站点列表金额改成可配，ERP 样本按 1,605.00）。
+
+### 事实（只记录）
+
+- MR.ERP 采购导入把「เงินสด」一律勾上（`impaptran/component/importpc.php` 写死 `cash=1`）；记账按菜单关联科目、付款按未付余额，导入单仍是应付。
+- 销售在 MR.ERP 里的发票号是「SI + 我方号」，票面发票号不进 MR.ERP。
+- 费用档按 2026-07-09 口径记 นอกระบบ、含税全额进费用、不抵进项。
+- 自建供应商应付科目跟「现有档案最常用」走；TEST2019 现在是 1111-02（เงินสดย่อย），是测试账套数据所致。
+- Cowork 没有「撤回已放行推送」（A 线 11-13 评估，口径已定未施工），MR.ERP 直写排队中的单同样撤不回。

@@ -45,6 +45,7 @@ class SuccessRow:
     # 推进了哪类单据、哪个导入菜单（2026-10-19：CC 答得出 MR.ERP 的单是现销还是赊销、进了哪个菜单）
     doc_type: str = ""
     menu: str = ""
+    listed_amount: str = ""  # 列表里这张单的金额（MR.ERP 算出的含税合计），写后核对用（`readback.amount_check`）
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)

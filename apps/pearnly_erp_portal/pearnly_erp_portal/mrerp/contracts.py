@@ -78,10 +78,14 @@ CHOICE_CODES = ("ERR_MRERP_MENU_CHOICE_REQUIRED", "ERR_MRERP_MENU_CHANGED",
 
 
 def settle(outcome: dict) -> dict:
-    """导入结论 → 单据账本栏的值（状态码同 `express.contracts`：written / held / failed）。"""
+    """导入结论 → 单据账本栏的值（状态码同 `express.contracts`：written / mismatch / held / failed）。"""
     status, reason = outcome.get("status"), str(outcome.get("reason") or "")
     if status == "success":
-        return {"ledger_state": "written", "ledger_docnum": str(outcome.get("docnum") or "")[:140], "ledger_reason": ""}
+        # 写后核对（共用层读回列表核含税合计，`pearnly_core.mrerp.push.readback.amount_check`）核不上：同 Express 的
+        # 「写入核不上」（mismatch），只记不拦、单号照记
+        verify = ((outcome.get("meta") or {}).get("verify") or {}).get("state")
+        return {"ledger_state": "mismatch" if verify == "mismatch" else "written",
+                "ledger_docnum": str(outcome.get("docnum") or "")[:140], "ledger_reason": ""}
     if status == "unknown":
         return {"ledger_state": "held", "ledger_reason": f"{UNKNOWN}: {reason}"[:500]}
     if any(code in reason for code in CHOICE_CODES):

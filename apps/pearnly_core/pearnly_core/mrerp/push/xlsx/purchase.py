@@ -21,9 +21,12 @@ from typing import Any, Dict, List
 
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
 from pearnly_core.mrerp.push.xlsx.fmt import (
+    allocate_discount,
     fmt_date,
     fmt_number,
     history_number,
+    line_amount,
+    mrerp_tax_label,
     supplier_code_from_name,
 )
 from pearnly_core.mrerp.push.xlsx.lookups import (
@@ -132,7 +135,9 @@ def _detail_rows(history: Dict[str, Any], mappings: Dict[str, Any]) -> List[Dict
         name = str(it.get("name") or it.get("description") or "").strip()
         qty = fmt_number(it.get("qty") or it.get("quantity")) or 1
         price = fmt_number(it.get("unit_price") or it.get("price")) or 0
-        amount = fmt_number(it.get("amount")) or round((qty or 0) * (price or 0), 2)
+        amount = line_amount(it)
+        if amount is None:
+            amount = round((qty or 0) * (price or 0), 2)
         rows.append(
             {
                 "code": _resolve_product_code(name, lookup) or "",
@@ -258,6 +263,10 @@ def generate_xlsx_purchase(
         return f'<row r="1" spans="1:{span}" x14ac:dyDescent="0.2">{cells}</row>'
 
     # ── Sheet1 header ──────────────────────────────────────────────
+    # 货品单的表头折扣与明细行同赊销、现销一个做法（`fmt.allocate_discount`）；费用档固定单行含税全额
+    documents = [(0, None) if expense else allocate_discount(history, _detail_rows(history, mappings),
+                                                            mrerp_tax_label(history))
+                 for history in histories]
     rows1 = [_header_row(_HEADERS_1, 16)]
     head = account_values.header(mappings)
     for ridx, history in enumerate(histories, start=2):
@@ -268,11 +277,7 @@ def generate_xlsx_purchase(
         col_vals = {
             1: inv,
             2: date,
-            3: (
-                expense_cfg(mappings, "_mrerp_expense_vat_label", _EXPENSE_VAT_LABEL)
-                if expense
-                else "7 (แยก)"
-            ),
+            3: expense_cfg(mappings, "_mrerp_expense_vat_label", _EXPENSE_VAT_LABEL) if expense else mrerp_tax_label(history),
             4: head["branch"],
             5: head["dept"],
             6: head["job"],
@@ -282,7 +287,7 @@ def generate_xlsx_purchase(
             10: supplier,
             11: bill_no,
             12: date,
-            13: 0,
+            13: documents[ridx - 2][0],  # 表头折扣（`fmt.allocate_discount`；费用档单行含税全额，没有折扣）
         }
         if expense:
             col_vals[14] = _expense_note(history)  # หมายเหตุ 1 · 人读线索
@@ -299,7 +304,7 @@ def generate_xlsx_purchase(
     # ── Sheet2 items ───────────────────────────────────────────────
     rows2 = [_header_row(_HEADERS_2, 8)]
     cur = 2
-    for history in histories:
+    for history, (_discount, allocated) in zip(histories, documents):
         inv = _gen.derive_mrerp_invoice_no(history)
         if expense:
             # 费用档单行:通用费用物料 × 含税总额(นอกระบบ 税率下服务器不再拆税)
@@ -308,7 +313,7 @@ def generate_xlsx_purchase(
                 {"code": _expense_item_code(mappings), "qty": 1, "price": gross, "amount": gross}
             ]
         else:
-            details = _detail_rows(history, mappings)
+            details = allocated
         for d in details:
             cells = [
                 _str_cell(1, cur, inv, _S_TEXT),

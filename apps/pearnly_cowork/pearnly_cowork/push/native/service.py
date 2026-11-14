@@ -924,8 +924,9 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
 def _written_check(row, target, response):
     """推后核对（数字会计员第 3 期第 6 条，`push.express.written_check`）：CC 桌面版回的 ``verify`` 照收，另拿准备时冻结的
     票面对方税号 / 分店比实际挂到的对方档；写进推送记录 ``verify_state`` / ``verify_json``。只记不拦：不回滚、不重推。
-    旧版 CC 桌面版不带 → ``unverified``。MR.ERP 不核。"""
-    if (target.get('adapter') or 'express') != 'express':
+    旧版 CC 桌面版不带 → ``unverified``。MR.ERP 由服务端导入后读回列表核含税合计（`pearnly_core.mrerp.push.readback`，
+    11-14 起），同一个 ``meta.verify``、同一套显示。"""
+    if (target.get('adapter') or 'express') not in ('express', 'mrerp'):
         return None
     meta = (response or {}).get('meta') if isinstance(response, dict) else None
     found = written_check.outcome((meta or {}).get('verify'), target.get('party_face'))

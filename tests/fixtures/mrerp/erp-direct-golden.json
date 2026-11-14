@@ -318,6 +318,10 @@
     "meta": {
      "doc_type": "purchase_expense",
      "mrerp_menu": "ซื้อ-ค่าใช้จ่าย",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11098
     },
     "reason": "",
@@ -815,6 +819,10 @@
     "meta": {
      "doc_type": "purchase",
      "mrerp_menu": "ซื้อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11126
     },
     "reason": "",
@@ -1319,6 +1327,10 @@
     "meta": {
      "doc_type": "sales_cash",
      "mrerp_menu": "ใบขายเงินสด",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 11803
     },
     "reason": "",
@@ -1813,6 +1825,10 @@
     "meta": {
      "doc_type": "sales_credit",
      "mrerp_menu": "ขายเชื่อ",
+     "verify": {
+      "fields": [],
+      "state": "ok"
+     },
      "xlsx_size_bytes": 8641
     },
     "reason": "",

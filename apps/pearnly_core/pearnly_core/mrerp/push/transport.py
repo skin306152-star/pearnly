@@ -480,7 +480,7 @@ class MrErpImport:
             else:
                 success.append(SuccessRow(invoice_no=inv, mrerp_bill_no=row.docno, original=by_inv.get(inv, {}),
                                           already_pushed=inv in already, doc_type=self.module.doc_type,
-                                          menu=getattr(self, "_menu_label", "")))
+                                          menu=getattr(self, "_menu_label", ""), listed_amount=row.amount))
         return success, failed, unknown
 
     def _read_back(self, selmenu: str, invoice_nos: List[str]) -> Tuple[Dict[str, readback.ListedRow], Optional[str]]:

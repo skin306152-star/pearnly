@@ -15,7 +15,8 @@ from __future__ import annotations
 import html as _html
 import re
 from dataclasses import dataclass
-from typing import List, Optional
+from decimal import Decimal, InvalidOperation
+from typing import Any, List, Optional
 
 NOT_LINKED_MARK = "กรุณากำหนดการเชื่อมโยง"
 SETUP_MISSING_MARK = "กรุณาป้อนข้อมูล"
@@ -68,4 +69,27 @@ def find(rows: List[ListedRow], invoice_no: str) -> Optional[ListedRow]:
     return hits[0] if len(hits) == 1 else None
 
 
-__all__ = ["ListedRow", "NOT_LINKED_MARK", "PAGE_ROWS", "find", "listing_problem", "parse_rows"]
+AMOUNT_TOLERANCE = Decimal("0.05")  # 卖方与 MR.ERP 各自四舍五入税额的差；再大就是写走样
+
+
+def _money(text: str) -> Optional[Decimal]:
+    try:
+        return Decimal(str(text or "").replace(",", "").strip())
+    except (InvalidOperation, ValueError):
+        return None
+
+
+def amount_check(listed: str, ticket_total: Any) -> dict:
+    """写后核对的 MR.ERP 一半（同 `express_rules.push.written_check` 的 ``verify`` 形状，只记不拦）：列表里这张单的金额
+    （MR.ERP 算出的含税合计）与票面总额比 → ``{"state": "ok" | "mismatch", "fields": [...]}``；任一边读不出数 →
+    ``{"state": "mismatch", "fields": ["unreadable"]}``。11-14 TEST2019 真写：行折扣、整单折扣、无税卖家三种票都报「已写入」
+    而金额是错的（288.90→321.00、963.00→1,070.00、500.00→535.00），此前回读只认单号。"""
+    got, want = _money(listed), _money(ticket_total) if ticket_total is not None else None
+    if got is None or want is None:
+        return {"state": "mismatch", "fields": ["unreadable"]}
+    return {"state": "ok" if abs(got - want) <= AMOUNT_TOLERANCE else "mismatch",
+            "fields": [] if abs(got - want) <= AMOUNT_TOLERANCE else ["amount"]}
+
+
+__all__ = ["AMOUNT_TOLERANCE", "ListedRow", "NOT_LINKED_MARK", "PAGE_ROWS", "amount_check", "find", "listing_problem",
+           "parse_rows"]

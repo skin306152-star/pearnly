@@ -14,11 +14,11 @@ import os
 import re
 import zipfile
 from collections import OrderedDict
-from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
+from decimal import Decimal
 from typing import Any, Dict, List
 
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
-from pearnly_core.mrerp.push.xlsx.fmt import history_number, mrerp_sales_tax_label
+from pearnly_core.mrerp.push.xlsx.fmt import allocate_discount, history_number, mrerp_tax_label
 from pearnly_core.mrerp.push.xlsx.sales_credit import (
     build_sales_credit_detail_rows,
     build_sales_credit_row,
@@ -116,58 +116,11 @@ def _cash_received(history: Dict[str, Any]) -> str:
     return _format_num(tot)
 
 
-def _decimal(value: Any) -> Decimal:
-    try:
-        return Decimal(str(value or 0))
-    except (InvalidOperation, TypeError, ValueError):
-        return Decimal("0")
-
-
 def _cash_import_details(
     history: Dict[str, Any], mappings: Dict[str, Any]
 ) -> tuple[Decimal, List[Dict[str, Any]]]:
-    """Return MR.ERP cash-sale header discount and detail rows.
-
-    MR.ERP's cash importer rejects a reconciled document when both the document
-    discount and the already-discounted receipt total are supplied. Its detail
-    amount column is independent from quantity and unit price, so a reconciled
-    discount is allocated across line amounts while preserving the printed unit
-    prices. Unreconciled data is left untouched and remains visible to MR.ERP's
-    own validation instead of being guessed into balance.
-    """
-    rows = build_sales_credit_detail_rows(history, mappings)
-    discount = _decimal(history_number(history, "discount", "discount_total"))
-    if discount <= 0 or not rows:
-        return discount, rows
-
-    tax_label = mrerp_sales_tax_label(history)
-    target = history_number(history, "total_amount", "grand_total", "net_payable")
-    if tax_label == "7 (แยก)":
-        target = history_number(history, "subtotal", "amount_before_tax")
-    if target is None:
-        return discount, rows
-
-    target_amount = _decimal(target)
-    line_amounts = [_decimal(row.get("amount")) for row in rows]
-    gross = sum(line_amounts, Decimal("0"))
-    if target_amount < 0 or gross <= 0:
-        return discount, rows
-    if abs((gross - target_amount) - discount) > Decimal("0.10"):
-        return discount, rows
-
-    positive = [index for index, amount in enumerate(line_amounts) if amount > 0]
-    if not positive:
-        return discount, rows
-    adjusted = [dict(row) for row in rows]
-    allocated = Decimal("0")
-    cent = Decimal("0.01")
-    for index in positive[:-1]:
-        net = (line_amounts[index] * target_amount / gross).quantize(cent, rounding=ROUND_HALF_UP)
-        adjusted[index]["amount"] = net
-        allocated += net
-    last = positive[-1]
-    adjusted[last]["amount"] = target_amount - allocated
-    return Decimal("0"), adjusted
+    """现销的表头折扣与明细行：与赊销、采购货品同一做法（`fmt.allocate_discount`）。"""
+    return allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_label(history))
 
 
 def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str, Any]) -> bytes:
@@ -212,7 +165,7 @@ def generate_xlsx_sales_cash(histories: List[Dict[str, Any]], mappings: Dict[str
         col_vals = {
             1: inv,
             2: date,
-            3: mrerp_sales_tax_label(history),
+            3: mrerp_tax_label(history),
             4: head["branch"],
             5: head["dept"],
             6: head["job"],
