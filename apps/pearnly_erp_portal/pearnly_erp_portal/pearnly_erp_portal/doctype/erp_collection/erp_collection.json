@@ -234,8 +234,7 @@
    "label": "Attempt",
    "default": "0",
    "hidden": 1,
-   "read_only": 1,
-   "description": "写前被电脑拒、退回草稿的次数（再放行的请求号带它）"
+   "read_only": 1
   },
   {
    "fieldname": "consent_ref",
