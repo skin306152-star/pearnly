@@ -17,6 +17,7 @@ CC 的 ERP 档案跑的时候只读它；做法见验收测试标准「验收专
   PEARNLY_ACC_ERP_TAX / _BRANCH   接了验收账套的那家公司
   PEARNLY_ACC_LEDGER         验收账套路径（默认 \\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2）
   PEARNLY_ACC_BASELINE       基线快照目录（PEARNLY_ACC_LEDGER_HOST 那台机器的本机盘；默认测试机2）
+  PEARNLY_ACC_SITE_TARGET / PEARNLY_ACC_ERP_SITE   服务端在哪（lab 测试机实验栈，默认；maclab 本机 Mac 实验栈）与站点名
 """
 import json
 import os
@@ -30,6 +31,9 @@ Infra = sys.modules["acc_errors"].Infra
 LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
 # 做账套快照 / 核对 / 还原的那台机器（基线快照在它的本机盘）：主会话 11-13 定基线在测试机2 取
 HOST = os.environ.get("PEARNLY_ACC_LEDGER_HOST", "testpc2")
+# 服务端在哪：lab = 测试机1 的实验栈（testerp 域名切过去）；maclab = 本机 Mac 实验栈（不切域名，CC 经局域网连）
+SITE_TARGET = os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
+SITE = os.environ.get("PEARNLY_ACC_ERP_SITE", "erp.maclab.localhost" if SITE_TARGET == "maclab" else "testerp.pearnly.com")
 SAMPLE = None  # 原生样张的单号；录好并进基线后填，见文件头
 
 
@@ -72,7 +76,7 @@ def run(ctx):
         ctx.check("账套 = 基线", True, True)
 
     with ctx.step("提交采购单并等写入", "单据提交后进写账队列，CC 桌面版写进验收账套并回执"):
-        out = ctx.targets.site("lab").run("erp", ROOT / "scripts" / "acceptance" / "site" / "erp_purchase_post.py", "testerp.pearnly.com",
+        out = ctx.targets.site(SITE_TARGET).run("erp", ROOT / "scripts" / "acceptance" / "site" / "erp_purchase_post.py", SITE,
                                           json.dumps({**conf, "ledger": LEDGER, "run": run_id, "resend": twice}), timeout=480)
         line = next((text for text in reversed(out.splitlines()) if text.startswith("ACC ")), None)
         if line is None:

@@ -155,12 +155,40 @@ class Ledger:
         return self.call(*args)
 
 
+class MacLab:
+    """本机 Mac 实验栈（`scripts/maclab.sh`，项目 `pearnly-maclab-<产品>`）的站点容器：接口同 smoke 的 Remote.run。
+    测试机上的 CC 桌面版经局域网连这套栈，不切线上域名（11-14 起，见 infrastructure/maclab/README.md）。"""
+
+    def __init__(self, runner=subprocess.run):
+        self.runner = runner
+
+    def container(self, product: str) -> str:
+        return f"pearnly-maclab-{product}-{product}-web-1"
+
+    def run(self, product: str, script: Path, *args: str, timeout=600) -> str:
+        name, container = f"acc-{script.name}", self.container(product)
+        quoted = ["b64:" + base64.b64encode(arg.encode("utf-8")).decode() for arg in args]
+        copied = self.runner(["docker", "cp", str(script), f"{container}:/tmp/{name}"], capture_output=True, text=True, timeout=120)
+        if copied.returncode:
+            raise Infra(f"Mac 实验栈的 {container} 进不去（栈没起？）：{(copied.stderr or '').strip()[-200:]}")
+        try:
+            return self.runner(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", container, "../env/bin/python", f"/tmp/{name}", *quoted],
+                               capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL).stdout
+        except subprocess.TimeoutExpired as error:
+            raise Infra(f"Mac 实验栈：{script.name} 超时（{timeout} 秒）") from error
+        finally:
+            self.runner(["docker", "exec", "-u", "root", container, "rm", "-f", f"/tmp/{name}"], capture_output=True, stdin=subprocess.DEVNULL)
+
+
 class Targets:
     def __init__(self):
         self._smoke = None
 
     def site(self, target: str):
-        """`target`：local（本机实验栈）/ lab（测试机实验栈）/ production（生产只读）。返回 smoke 的 Remote。"""
+        """`target`：local（本机回归实验栈）/ lab（测试机实验栈）/ maclab（本机 Mac 实验栈）/ production（生产只读）。
+        maclab 返回 `MacLab`，其余返回 smoke 的 Remote；两者的 run 接口相同。"""
+        if target == "maclab":
+            return MacLab()
         if self._smoke is None:
             sys.path.insert(0, str(ROOT / "scripts" / "smoke"))
             spec = importlib.util.spec_from_file_location("smoke_run", ROOT / "scripts" / "smoke" / "run.py")

@@ -29,7 +29,7 @@ try:
     from pearnly_core.cc_desktop import books, contracts, devices, documents
     from pearnly_core.execution.replay import TEST_SITES
 
-    if not TEST_SITES.fullmatch(site):
+    if not (TEST_SITES.fullmatch(site) or site.endswith(".maclab.localhost")):   # 本机 Mac 实验栈的站点名带两段，产品的测试站点名单不认
         raise SystemExit(f"refuse: {site} is not a test tenant")
     tax, ledger = params["company_tax"], params["ledger"]
     now = devices.now()

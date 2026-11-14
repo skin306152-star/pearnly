@@ -38,7 +38,7 @@ try:
     from pearnly_erp_portal.express import push
     from pearnly_erp_portal.purchasing import entry
 
-    if not TEST_SITES.fullmatch(site):
+    if not (TEST_SITES.fullmatch(site) or site.endswith(".maclab.localhost")):   # 本机 Mac 实验栈的站点名带两段，产品的测试站点名单不认
         raise SystemExit(f"refuse: {site} is not a test tenant")
     filters = {"tax_id": params["company_tax"], "is_active": 1}
     if params.get("branch"):
