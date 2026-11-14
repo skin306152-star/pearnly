@@ -58,3 +58,5 @@ pearnly_erp_portal.patches.v1_25_stock_adjust_menu
 pearnly_erp_portal.patches.v1_26_sales_line_item_type
 # 收款（收款员在 LINE / CC 录收款、写进 Express RE，11-11）：已开通的站点补上功能码
 pearnly_erp_portal.patches.v1_27_collection_feature
+# 管理员默认有收款（11-14）：已绑定 LINE 的人各重挂一次富菜单，管理员换上带收款格的那套
+pearnly_erp_portal.patches.v1_28_admin_collection_menus

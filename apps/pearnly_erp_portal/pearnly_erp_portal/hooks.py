@@ -571,8 +571,8 @@ pearnly_navigation[0]["permissions"][_menu_permissions.route("profile")]["any_ro
 # 收款页（11-11）：与接口同一判据 `collection.view`——销售岗位（菜单岗位与旧功能角色）和 ERP 管理员；收款员只录不看这一页
 pearnly_navigation[0]["permissions"]["pearnly-collections"] = {
     "any_role": [*_menu_permissions.page_roles("sales"), _rules.ADMIN_ROLE]}
-# 我的收款（11-11）：与录收款同一判据 `collection.write`——只有收款员岗位
-pearnly_navigation[0]["permissions"]["pearnly-my-collections"] = {"any_role": [_rules.COLLECTOR_ROLE]}
+# 我的收款（11-11）：与录收款同一判据 `collection.write`——收款岗位与管理员（11-14 管理员默认有收款）
+pearnly_navigation[0]["permissions"]["pearnly-my-collections"] = {"any_role": [_rules.COLLECTOR_ROLE, _rules.ADMIN_ROLE]}
 # 任务管理的默认看板（团队可见、默认三列）在装好 / 升级后建好。
 after_install = ["pearnly_erp_portal.access.setup.sync_roles", "pearnly_erp_portal.team.login_settings.apply",
                  "pearnly_erp_portal.work.service.ensure_on_migrate"]

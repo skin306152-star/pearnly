@@ -31,8 +31,9 @@ FEATURE_ROLES = {
     "cashier": "ERP Cashier",
     # 任务管理（看板，2026-10-23 从 Cowork 复制）：开通时发给租户管理员；员工在团队管理里逐人勾「任务管理」菜单。
     "tasks": "ERP Tasks",
-    # 收款员（2026-11-11，收款写进 Express RE）：只能在 LINE / CC 录收款（`collection.write`），看不到销售开单；
-    # 团队管理里逐人勾（同 LINE 那一格，不是侧栏页）。网页收款页另由销售岗位与管理员看（`collection.view`）。
+    # 收款岗位（2026-11-11，收款写进 Express RE）：只能在 LINE / CC 录收款（`collection.write`），看不到销售开单；
+    # 团队管理里逐人勾（同 LINE 那一格，不是侧栏页）；管理员默认就有（ADMIN_FEATURE_CAPABILITIES）。
+    # 网页收款页另由销售岗位与管理员看（`collection.view`）。
     "collection": "ERP Collector",
 }
 COLLECTOR_ROLE = FEATURE_ROLES["collection"]
@@ -66,13 +67,17 @@ CAPABILITY_FEATURES = {
     "tax.lookup": ("purchase", "clients", "sales"),
     # 用任务管理（进页面、调看板接口）。能看 / 改哪块看板再按看板成员与可见范围判（`work.access`）。
     "tasks.use": ("tasks",),
-    # 收款：录（LINE / CC）只给收款员；看（网页「销售 → 收款」、导出、凭证）给销售岗位与管理员（见 required_roles）
+    # 收款：录（LINE / CC）给收款岗位与管理员；看（网页「销售 → 收款」、导出、凭证）给销售岗位与管理员（见 required_roles）
     "collection.write": ("collection",),
     "collection.view": ("sales",),
 }
 
 # 只有管理员能用的能力（不经功能角色发放）。
 ADMIN_CAPABILITIES = ("team.manage",)
+
+# 管理员默认就有、但仍跟着功能开通走的能力：能力 → 功能码。功能没开通时管理员也没有（`guard.has` 判）。
+# 收款（主会话 11-14）：团队管理把管理员画成全勾，网页 / LINE / CC 三处录收款与之一致。
+ADMIN_FEATURE_CAPABILITIES = {"collection.write": "collection"}
 
 # LINE（本租户官方号）：团队管理里**逐人勾选**才开通（用户 2026-09-25），不再随业务岗位自动给；
 # 租户管理员本人默认可用。绑定仍是**自己绑自己**（码只发给当前登录账号，见 integrations/binding.py），
@@ -115,8 +120,8 @@ def required_roles(capability: str) -> tuple[str, ...]:
                "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}
     capability = aliases.get(capability, capability)
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
-    if capability == "collection.view":
-        roles += [ADMIN_ROLE]  # 主会话 11-11 审定：收款页给 ERP 管理员与销售岗位
+    if capability == "collection.view" or capability in ADMIN_FEATURE_CAPABILITIES:
+        roles += [ADMIN_ROLE]  # 主会话 11-11 审定：收款页给 ERP 管理员与销售岗位；11-14：管理员默认能录收款
     if capability == "company.read":
         # 能改公司资料的人当然读得到（主会话 11-09：只拿 ERP Admin 的账号能改公司、却打不开公司页）
         roles += list(COMPANY_MANAGE_ROLES)

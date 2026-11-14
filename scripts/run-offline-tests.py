@@ -89,6 +89,7 @@ PLAIN = [
 ]
 
 IMAGE = [
+    "tests/test_erp_admin_collection.py",
     "tests/test_cowork_accounting.py",
     "tests/test_cowork_bank_exports.py",
     "tests/test_cowork_bank_recon_export.py",
