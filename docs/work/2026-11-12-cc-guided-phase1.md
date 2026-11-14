@@ -307,3 +307,30 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 - 截图（触屏模拟重截，手机主按钮不画 ⌘↵）：本目录 `引导卡-电脑-第1项.png`、`引导卡-电脑-最后一项-已定展开.png`、`引导卡-手机-第1项.png`、`引导卡-手机-最后一项-已定展开.png`。
 - **还没验证（如实）**：以上只过了单测与前端检查。共用件 `ask-card` 的四处入口（`ask_user`、代录开始卡、代录中途卡、待处理框）要在回归实验室逐入口实测：
   流程 `cowork.cc.ask`、`cowork.pending.operator`、`cc.operator`、`cowork.cc.guide`、`cc.send-unblocked`、`cowork.cc.conversation-ledger`（主会话排在 11-14 上午第一个时段）。
+
+## 11-14 收口验证（窗口 guided-3）
+
+- **基线**：远端 `pearnly/cc-guided-phase1-wip` d6040b2ec（23 个提交）变基到 main a838abe54，无冲突；新头加 1 个修正提交（下）。
+  旧分支 `pearnly/cc-guided-entry-51673b` 的两份评估文档已全在本分支（本分支多 8 行），可删。
+- **本机实验栈**（`pearnly-guided-lab`，自起自删，编排默认镜像）六条流程 `--jobs 2` 合跑：
+  - 变基后头 e9d20a0fb：**16/16 一次通过**（605 秒）——11-13 的两处不过（引导卡取卡时序、账套断言旧编号）都已消失。
+  - 修正后头 e4f7af1c7：最后一轮 **16/16**，其中 `cowork.pending.operator` 新开户 / 电脑一格第一步驱动浏览器断开（`debug connection closed … browser hung`，
+    没走到业务断言），按流程说明 `--rerun-failed` 只补跑这一格后通过（`reran 1`）。之前两轮 `cc.operator` 新开户两格不过，是我跑真模型收款格时在 `erp-new`
+    留下的数据（一段对话与 2 份写入计划、一张排队收款单、一份原本不存在的账套资料文件），清掉后过，不是代码问题。
+  - 顺带发现（不在本任务改）：`scripts/flows/collection_lib.restore` 只在账套原来有资料时才还原，原来没有就把造数据写的收款类型等资料留在站点上；
+    排在 `erp.line.collection` 之后的 `cc.operator`（新开户）会因此看不到开始卡目标。按登记表顺序全套碰不到，`--order reverse` 会碰到。
+- **候选离线**（生产镜像 054aa603 = 11-13 线上版，头 e9d20a0fb）：111 组，LANE EXIT 0。
+- **真模型三格**（6QAA、Opus 5.5、本机实验栈、脚本 `~/pearnly-devtools/guided-real/guided_real.py` 按会话真实用量设每格上限；台账 `round12/ocr-spend.md`）：
+  合计 **1.43 美元**（上限 3）。没有 CC 桌面版：写到推送 / 排队为止。
+  | 格 | 结果 | 状态链 |
+  |---|---|---|
+  | Cowork 直写 · 采购 | 通过（0.38；首次 0.30 是驱动脚本超时） | 业务菜单「采购」→ 模型调 `pearnly_guide`（没调 ask_user）→ 服务端出「付款方式」、「赊账」推荐并默认选中 → 提交 → 写入计划 awaiting、无推送记录 → 点「写入」→ 计划 started、推送记录建在开始之后（无电脑，记录取消，CC 照实说） |
+  | Cowork 直写 · 销售 | 通过（0.13；前两次 0.09 + 0.32 查出下面两处缺陷与实验室数据缺收入科目） | 卡上把推荐「赊账」**改选「现金」** → 账套记忆记 cash、复述「现金销售」→ 计划 awaiting 无推送 → 点「写入」才推送 |
+  | ERP 直写 · 收款 | 通过（0.21） | 「收款」→ 草稿现金 1000、计划 awaiting、状态 draft → 说「改成 600」→ 同一张草稿第 2 版、旧计划 replaced → 点「写入」→ queued、cash 600、`confirmed_at` 在点击后、`consent_ref` 指本对话第 2 句 |
+- **真模型查出并修掉的两处**（提交 "nothing to ask and none writable"，先红后绿：`test_cc_guide_tool` 1 条、`test_cc_guide_card` 4 条断言）：
+  1. `pearnly_guide` 不用问时，对话里仍画一张卡写「已答 0 项」→ 服务端回 `nothing_to_ask` 时页面不画卡。
+  2. 不用问、但一张都写不了（都在等电脑读科目表）时，给模型的说明仍是「都定好了，下一步建写入计划」→ 改为照实说原因、不建计划；有能写的仍叫建计划并说明哪些被留下。
+     （复跑里模型仍试了一次 `pearnly_write_plan`，服务端回 `nothing_to_write`、不建计划，兜得住。）
+- **已知问题（不阻塞，未修）**：CC 复述把刚在引导卡上答的付款方式说成「之前为这家记下的选择」（卡答案存进账套记忆后来源显示成已记住）；
+  收款复述里账套名显示成「名称 · 位置路径」（A 线位置回退，不是内部编号）。
+- **没测到**：真写进 Express（无 CC 桌面版）、代录模式真模型、手机宽度真模型、ERP 采购 / 销售（ERP 实验栈单据都在等电脑读主档）。
