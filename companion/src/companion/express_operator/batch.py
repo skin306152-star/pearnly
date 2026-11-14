@@ -501,6 +501,9 @@ class Runner:
                 d.late_ack, d.late_profile = "", ""
         release(s)
         self._set()
+        if opened is not None and s.status in (K.BATCH_FINISHED, K.BATCH_STOPPED):
+            # 这一批早已收尾（当时 Express 留着等人没退出）：现在框没了，正常退出 Express，释放授权名额（11-14 测试机2）
+            self._close()
         return False
 
     def close_express(self) -> None:

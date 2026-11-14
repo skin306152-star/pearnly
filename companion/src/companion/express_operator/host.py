@@ -302,7 +302,8 @@ class Host:
                 continue
             if live is None and state.held:
                 pid = marks.get(batch_id)
-                self._settle_stored(store, state, alive=bool(pid) and self.alive(pid))
+                if not self._settle_stored(store, state, alive=bool(pid) and self.alive(pid)) and pid and self.alive(pid):
+                    self.recover_orphans()  # 放手了、Express 还开着：按「上次留下的 Express」收拾流程正常退出
             for doc in state.docs:
                 if doc.late_ack and doc.status == K.SAVED and doc.late_profile == profile and doc.docnum:
                     out.append({"batch": batch_id, "doc": doc.doc_id, "ack": doc.late_ack, "docnum": doc.docnum})

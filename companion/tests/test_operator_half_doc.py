@@ -334,3 +334,15 @@ def test_a_sale_whose_recipe_leaves_the_customer_reference_empty_is_still_recogn
     assert B.find_saved(draft, rows)["partial"] == [{"docnum": "IV0000048", "missing": ["total", "journal", "vat"]}]
     rows["ARTRN"] = [dict(head, YOUREF="OTHER")]  # 填了别的对方单号：不是这张
     assert B.find_saved(draft, rows)["partial"] == []
+
+
+def test_a_finished_batch_closes_express_once_the_person_has_answered_the_box(tmp_path):
+    """11-14 测试机2：这一批收尾时 Express 留着等人没退出；人答完、单存完、放手后，这一批已收尾就正常退出 Express（释放授权
+    名额），不一直开着。框还开着时不退。"""
+    r, sim, session, *_ = make(tmp_path, [samples()[2]], inject={"choice_mid_save": True})
+    r.run()
+    r.finish()
+    assert session.closed == 0 and r.still_held() is True and session.closed == 0
+    sim._press(sim.dialogs[-1], "แบบ ก")
+    assert r.still_held() is False
+    assert session.closed == 1 and r.state.docs[0].status == K.SAVED
