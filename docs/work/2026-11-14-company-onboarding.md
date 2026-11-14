@@ -415,6 +415,7 @@
 | `pearnly_core/mrerp/session.py`、`collect.py`、`master_reader.py`（登录、选账套、小表读取） | 共用、不改契约 | 两边都只调；谁要改先告诉主会话 |
 | 公司「来源」：第 2 批加 `ERP Company.ledger`（express / mrerp）与 `push.linked / enabled / linked_at` 统一读法 | **本窗口** | 对方写账判定继续用 `mrerp.push.handles(company)`；第 2 批把它内部改读 `ledger`，签名不变 |
 | 跨边测试 | 两边 | `tests/test_erp_mrerp_direct.py`（对方）在开关打开时跑全；本窗口第 3 批加「开关打开 + 从连接添加一家 MR.ERP 公司 → 主档落库 → 对方的写账用例照过」一条，放 `tests/test_erp_mrerp_onboarding.py` |
+| 写单后整读一次：`pearnly_erp_portal.mrerp.masters.after_write(company)` | 函数归**本窗口**（第 3 批），调用那一行归 mrerp-write（`mrerp/push.py` 写成处；主会话 11-14 定） | 签名固定 `after_write(company) -> bool`，定了不改。行为：开关关着 / 公司没接 MR.ERP / 已排着或在读 / 5 分钟内读过 → 不排、回 False；否则排一次整读（erp_masters 队列，同公司一件，`enqueue_after_commit`）回 True；只排队、不读不落、不阻塞写账；任何异常吞掉记 Error Log、回 False。调用方用延迟导入、函数不存在就跳过，两边分支互不依赖 |
 | 合入顺序 | 主会话排 | 对方写账分支先合（不含开关）→ 本窗口第 3 批（含开关）后合，同一车部署 |
 
 ### 线上耗时估算的依据（主会话 11-14 要求写清）
