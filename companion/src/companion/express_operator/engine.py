@@ -238,7 +238,7 @@ class Engine:
         return self.recipe.match_dialog(self._text(w))
 
     def _button(self, rule: Dict) -> str:
-        """规则要按的钮；``button_by_srv_vattyp`` 按草稿单的服务品税口径换钮（销项税口径框，11-13），草稿没带就用默认钮。"""
+        """规则要按的钮；``button_by_srv_vattyp`` 按草稿单的服务品税口径换钮（销项税口径框 11-13、进项税口径框 11-14），草稿没带就用默认钮。"""
         choice = self.draft.srv_vattyp if self.draft else ""
         return (rule.get("button_by_srv_vattyp") or {}).get(choice) or rule["button"]
 

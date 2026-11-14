@@ -195,16 +195,18 @@ def test_a_sale_whose_payload_says_cash_basis_answers_the_output_vat_prompt_with
         assert head["SRV_VATTYP"] == want, choice
 
 
-def test_the_output_vat_choice_does_not_change_the_purchase_input_vat_answer():
-    """进货单的服务品进项税框照旧只按 เกณฑ์สิทธิ：载荷带 srv_vattyp = 2 也不换钮（这一条今晚不动）。"""
+def test_a_purchase_answers_the_input_vat_prompt_with_the_basis_the_person_chose():
+    """11-14（引导式对拍查出）：赊购单的服务品进项税框也按载荷 srv_vattyp 答——站点开始前问过一次、用户选了收付实现（2）就按
+    เกณฑ์เงินสด，同直写；带 1、不带按 เกณฑ์สิทธิ（原来一律 เกณฑ์สิทธิ，用户选的收付实现被代录存成权责）。"""
     from dataclasses import replace
 
-    purchase = replace(samples()[0], srv_vattyp="2")
-    recs, sim, _, _ = run_docs([purchase], with_ai=False, inject={"basis_on_save": True})
-    rec = recs[0]
-    assert rec["outcome"] == "saved" and not sim.dialogs
-    head = next(r for r in sim.book["APTRN"] if r["DOCNUM"] == rec["docnum"])
-    assert head["SRV_VATTYP"] == "1"
+    for choice, want in (("2", "2"), ("1", "1"), ("", "1")):
+        purchase = replace(samples()[0], srv_vattyp=choice)
+        recs, sim, _, _ = run_docs([purchase], with_ai=False, inject={"basis_on_save": True})
+        rec = recs[0]
+        assert rec["outcome"] == "saved" and not sim.dialogs, choice
+        head = next(r for r in sim.book["APTRN"] if r["DOCNUM"] == rec["docnum"])
+        assert head["SRV_VATTYP"] == want, choice
 
 
 def test_the_draft_takes_only_a_one_or_two_service_vat_basis_from_the_payload():
