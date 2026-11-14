@@ -379,10 +379,10 @@ def create_many(items) -> list:
     if not isinstance(items, list) or not items:
         _not_in_catalog()
     out = []
-    for item in items[:PAGE_MAX]:  # loop-query: 一次最多一页（PAGE_MAX）家，逐家走 create（锁内幂等、各自提交），不是按行查询
+    for item in items[:PAGE_MAX]:
         if not isinstance(item, dict):
             _not_in_catalog()
-        out.append(create(item.get("connection"), item.get("account_set_key")))
+        out.append(create(item.get("connection"), item.get("account_set_key")))  # loop-query: 一次最多一页（PAGE_MAX）家，逐家锁内幂等建
     return out
 
 
