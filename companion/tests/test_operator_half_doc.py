@@ -323,3 +323,14 @@ def test_a_held_human_receipt_notes_its_receipt_id_for_the_late_report(monkeypat
     out = worker._handle_operator_task(SimpleNamespace(ui_lang="zh", profile_id="prof-1"), Queue(),
                                        SimpleNamespace(id="DELIVERY-7", payload={}, invoice_no=""), st)
     assert out == "needs_review" and noted == [("b1", "D1", "DELIVERY-7", "prof-1")]
+
+
+def test_a_sale_whose_recipe_leaves_the_customer_reference_empty_is_still_recognised():
+    """11-14 测试机2 IV0000048：销项配方不填 YOUREF，草稿带对方单号 → 单头这一栏空着时不比对方单号，半截单照样认得出。"""
+    draft = replace(samples()[2], ref_no="LAB70HD01")
+    head = {"DOCNUM": "IV0000048", "DOCDAT": draft.date, "CUSCOD": draft.party_code, "DOCSTAT": "N", "NETAMT": 0.0,
+            "YOUREF": ""}
+    rows = {"ARTRN": [head], "STCRD": [{"DOCNUM": "IV0000048"}], "ISVAT": [], "GLJNL": []}
+    assert B.find_saved(draft, rows)["partial"] == [{"docnum": "IV0000048", "missing": ["total", "journal", "vat"]}]
+    rows["ARTRN"] = [dict(head, YOUREF="OTHER")]  # 填了别的对方单号：不是这张
+    assert B.find_saved(draft, rows)["partial"] == []

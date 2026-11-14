@@ -170,7 +170,10 @@ def find_saved(draft: Draft, rows: Dict[str, List[Dict]]) -> Dict:
     for head in heads_for(draft, rows):
         same_party = _text(head.get(spec["party"])) == draft.party_code
         same_day = _day(head.get("DOCDAT")) == draft.day
-        same_ref = not draft.ref_no or _text(head.get(spec["ref"])) == draft.ref_no
+        # 对方单号：单头这一栏空着就不比（销项配方不填 YOUREF，11-14 测试机2 IV0000048：草稿带对方单号、单头空着，原来因此认不出
+        # 这张半截单；11-13 IV0000045 同样）；填了就要一致
+        head_ref = _text(head.get(spec["ref"]))
+        same_ref = not draft.ref_no or not head_ref or head_ref == draft.ref_no
         if not (same_party and same_day and same_ref) or _text(head.get("DOCSTAT")).upper() == "C":
             continue
         missing = gaps(draft, head, rows)
