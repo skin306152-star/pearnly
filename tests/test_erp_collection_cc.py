@@ -129,7 +129,12 @@ class Declarations(unittest.TestCase):
         for tool in cc_tools.TOOLS:
             self.assertTrue(tool["name"].startswith("erp_collection_"), tool["name"])
             self.assertEqual(tool.get("modes"), ["chat"], tool["name"])  # 只在直写对话（用户 11-11：代录不做收款）
-            self.assertNotIn("approval", tool)  # 不加「允许」卡片：放行由写入计划 + 用户下一句定
+            if tool["name"] == "erp_collection_withdraw":
+                # 撤回先出「允许」卡片（用户 11-12：删除、撤回类在对话里点一次「允许」）
+                self.assertIs(tool["approval"], True)
+                self.assertEqual(len([cell for cell in words.get(tool["ask"], []) if cell.strip()]), 3, tool["ask"])
+            else:
+                self.assertNotIn("approval", tool)  # 不加「允许」卡片：放行由写入计划 + 用户下一句定
             module, _dot, function = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.collection.cc_tools")
             self.assertTrue(callable(getattr(cc_tools, function)), tool["handler"])
@@ -332,6 +337,13 @@ class Withdraw(Base):
         self.assertEqual(self.call(cc_tools.withdraw, collection=queued["name"])["status"], "withdrawn")
         self.assertEqual(self.call(cc_tools.status, collection=queued["name"])["result"], "withdrawn")
         self.assertEqual(self.jobs.rows["J-" + queued["name"]]["status"], "cancelled")
+
+    def test_the_allow_card_lists_the_customer_invoices_and_amount_and_changes_nothing(self):
+        """撤回先出「允许」卡片（用户 11-12）：卡上是客户、哪几张发票、多少钱；出卡片只读，不撤回。"""
+        made = self.make("100")
+        rows = cc_tools.preview_withdraw({"collection": made["name"]})
+        self.assertEqual([row["after"] for row in rows], ["2100883 · ร้านป้าแดง", "IV1", "100.00"])
+        self.assertEqual(self.call(cc_tools.status, collection=made["name"])["status"], "draft")
 
 
 class ConversationBook(Base, T.TwoBooks):

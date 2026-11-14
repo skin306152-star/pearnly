@@ -362,6 +362,15 @@ def push(tool_input) -> str:
     return _json(_refusal_note(out, view))
 
 
+def preview_withdraw(tool_input) -> list:
+    """「撤回收款」卡片上列的（只读）：客户、各张发票、金额（用户 11-12：撤回类在对话里先点「允许」）。"""
+    view = service.status(str(tool_input.get("collection") or ""))
+    customer = " · ".join(str(part) for part in (view.get("customer"), view.get("customer_name")) if part)
+    return [{"field": _("trade.customer"), "before": "", "after": customer},
+            {"field": _("Invoices"), "before": "", "after": ", ".join(row["docnum"] for row in view.get("invoices") or [])},
+            {"field": _("Amount"), "before": "", "after": str(view.get("total") or "")}]
+
+
 def withdraw(tool_input) -> str:
     found = _call(service.withdraw, str(tool_input.get("collection") or ""))
     return _json({"status": "withdrawn", "collection": found["result"]} if "result" in found else found)
@@ -459,8 +468,12 @@ TOOLS = [
      "handler": "pearnly_erp_portal.collection.cc_tools.recent"},
     {"name": "erp_collection_withdraw", "label": "Withdrew a collection", "modes": ["chat"],
      "description": "Withdraw one of the user's collections before CC Desktop picks it up (a draft, queued or failed "
-                    "one), only when the user asks. One being written or already in Express cannot be withdrawn.",
+                    "one), only when the user asks; the user sees Allow / Deny first. One being written or already in Express cannot "
+                    "be withdrawn.",
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
+     "approval": True,
+     "ask": "Withdraw this collection?",
+     "preview": "pearnly_erp_portal.collection.cc_tools.preview_withdraw",
      "handler": "pearnly_erp_portal.collection.cc_tools.withdraw"},
 ]
 

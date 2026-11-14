@@ -288,8 +288,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_stocktake_close"
-where = "CC 工具 erp_stocktake_close"
-tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_close"]
+where = "CC 工具 erp_stocktake_close（先出「允许」卡片，列盘点名、已盘 / 未盘项数，用户 11-12）"
+tests = ["unit:tests/test_erp_cc_stocktake.py::erp_stocktake_close", "unit:tests/test_erp_cc_stocktake.py::test_the_close_card_lists_the_count_and_what_is_counted_and_changes_nothing", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "erp.cc.tool.erp_stocktake_count"
@@ -2155,8 +2155,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:erp:erp_collection_withdraw"
-where = "CC 工具 erp_collection_withdraw（收款第 4 步：撤回没被电脑领走的收款）"
-tests = ["unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one"]
+where = "CC 工具 erp_collection_withdraw（收款第 4 步：撤回没被电脑领走的收款；先出「允许」卡片，列客户、发票、金额，用户 11-12）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_withdraw_a_draft_and_a_released_one", "unit:tests/test_erp_collection_cc.py::test_the_allow_card_lists_the_customer_invoices_and_amount_and_changes_nothing", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "erp.cc.operator.waiting-on"

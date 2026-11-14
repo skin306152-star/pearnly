@@ -2131,3 +2131,5 @@ Invoice Date	发票日期	วันที่ใบแจ้งหนี้	請�
 Prefix	前缀	คำนำหน้า	接頭辞
 ERP purchase recognition	采购单据识别	อ่านเอกสารซื้อ	仕入書類の読み取り	
 ERP sales recognition	销售单据识别	อ่านเอกสารขาย	売上書類の読み取り	
+Finish this stock count?	确定要结束此盘点吗？	ปิดการตรวจนับนี้หรือไม่	この棚卸を終了しますか？
+Withdraw this collection?	确定要撤回此收款吗？	ถอนรายการรับชำระนี้หรือไม่	この入金を取り下げますか？

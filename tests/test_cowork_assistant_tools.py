@@ -1835,6 +1835,93 @@ class ApprovalPreviewTests(unittest.TestCase):
         self.assertEqual((saved[0]["posting_kind"], saved[0]["folder"], saved[0]["run_time"]), ("service", "f", "22:00"))
 
 
+class ApprovalCardTests(unittest.TestCase):
+    """删除、结束、立即运行先出「允许」卡片（用户 11-12）：卡上一条一行，写用户认得的名字（单号 · 对方 · 金额、标题、账套与月份），
+    读不到名字的照编号列；立即运行列任务名、账套、方向、文件夹和「会识别扣费并推送」。卡片只读，不调删除 / 运行。
+    「没允许不执行、允许只执行预览那份、拒绝不执行」走共用层，见 ``test_cc_approval_cards``。"""
+
+    def _module(self, name, **attrs):
+        module = types.ModuleType(name)
+        module.__dict__.update(attrs)
+        parent, _dot, child = name.rpartition(".")
+        package = sys.modules.setdefault(parent, types.ModuleType(parent))
+        # 只换这一个模块（不用 patch.dict 整表还原：那会连带清掉测试期间别处按需导入的模块）
+        before = sys.modules.get(name)
+        sys.modules[name] = module
+        self.addCleanup(lambda: sys.modules.__setitem__(name, before) if before else sys.modules.pop(name, None))
+        patcher = mock.patch.object(package, child, module, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        return module
+
+    def test_documents_are_listed_by_number_party_and_amount(self):
+        ListAndRunsTests.setUp(self)  # 同列表测试的识别页 / 方向替身（不导入真的，免得留给后面的测试）
+        rows = [{"name": "H1", "invoice_no": "IV-001", "seller_name": "Thai Steel", "buyer_name": "Us",
+                 "total_amount": "1,070.00", "pages": "[]", "workspace": ""},
+                {"name": "H2", "invoice_no": "", "filename": "scan.jpg", "seller_name": "Us", "buyer_name": "Siam Paper",
+                 "total_amount": "50.00", "pages": json.dumps([{"fields": {"direction": "sales", "invoice_number": "x"}}]),
+                 "workspace": ""}]
+        asked = []
+        with mock.patch.object(frappe, "get_list", lambda doctype, **kw: asked.append(kw) or [dict(r) for r in rows]):
+            out = tools.preview_delete_documents({"documents": ["H1", "H2", "H9", "H1"]})
+        self.assertEqual(asked[0]["filters"], {"name": ["in", ["H1", "H2", "H9"]]})  # 一次查询，走列表同一道权限
+        self.assertEqual([(r["field"], r["after"]) for r in out],
+                         [("Delete", "IV-001 · Thai Steel · 1,070.00"), ("Delete", "scan.jpg · Siam Paper · 50.00"),
+                          ("Delete", "H9")])
+
+    def test_readback_recon_tax_and_stock_counts_show_their_names(self):
+        self._module("pearnly_cowork.readback.service",
+                     label=lambda name: {"account_set": "70EXP · T.9 SINCER", "period": "2026-10"})
+        self._module("pearnly_cowork.recon_center.api",
+                     titles=lambda kind, names: {"CBR-1": "KBank Oct"} if kind == "bank" else {})
+        self._module("pearnly_cowork.tax.access", VAT="vat_return", WHT="withholding")
+        self._module("pearnly_cowork.tax.service", labels=lambda names: {
+            "CTD-1": {"kind": "vat_return", "period": "2026-10", "company": "T9 Sincer", "branch": "00000"},
+            "CTD-2": {"kind": "withholding", "period": "2026-09", "company": "T9 Sincer", "branch": ""}})
+        self._module("pearnly_cowork.stocktake.upload", summaries=lambda names: {
+            "ST-1": {"title": "March", "status": "Active", "total": 10, "counted": 7}})
+        after = lambda rows: [r["after"] for r in rows]
+        self.assertEqual(after(tools.preview_express_readback_delete({"readback": "r" * 32})),
+                         ["70EXP · T.9 SINCER · 2026-10"])
+        self.assertEqual(after(tools.preview_recon_delete({"kind": "bank", "tasks": ["CBR-1", "CBR-2"]})),
+                         ["KBank Oct", "CBR-2"])
+        self.assertEqual(after(tools.preview_tax_draft_delete({"drafts": ["CTD-1", "CTD-2"]})),
+                         ["T9 Sincer 00000 · cowork.tax.sheet.pp30 · 2026-10",
+                          "T9 Sincer · cowork.tax.form.pnd3 / cowork.tax.form.pnd53 · 2026-09"])
+        self.assertEqual(after(tools.preview_tax_draft_delete({"drafts": "CTD-1"})),
+                         ["T9 Sincer 00000 · cowork.tax.sheet.pp30 · 2026-10"])  # 模型给一个字符串也照删除口径
+        self.assertEqual(after(tools.preview_stocktake_delete({"counts": ["ST-1", "ST-9"]})), ["March", "ST-9"])
+        self.assertEqual([(r["field"], r["after"]) for r in tools.preview_stocktake_close({"count": "ST-1"})],
+                         [("Stock count", "March"), ("cowork.stock.count.countedRows", "7"),
+                          ("cowork.stock.count.rowUncounted", "3")])
+
+    def test_run_now_names_the_task_and_says_it_recognizes_and_charges(self):
+        row = {"name": "R1", "title": "Monthly purchases", "account_label": "70EXP · T.9 SINCER", "direction": "purchase",
+               "root_label": "Docs", "folder": "Invoices\\2026-10"}
+        with mock.patch.object(tools.rules, "listing", return_value={"rules": [row]}, create=True):
+            out = tools.preview_run_folder_task({"task": "R1"})
+            missing = tools.preview_run_folder_task({"task": "R9"})
+        self.assertEqual([(r["field"], r["after"]) for r in out],
+                         [("cowork.folder.field.title", "Monthly purchases"),
+                          ("intake.target.accountSet", "70EXP · T.9 SINCER"),
+                          ("intake.field.direction", "intake.dir.purchase"),
+                          ("cowork.folder.field.folder", "Docs\\Invoices\\2026-10"),
+                          ("", "cowork.folder.runNow.charge")])
+        self.assertEqual([r["after"] for r in missing], ["R9", "cowork.folder.runNow.charge"])
+
+    def test_cards_are_declared_on_every_delete_finish_and_run_now_tool(self):
+        by_name = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("cowork_delete_documents", "cowork_express_readback_delete", "cowork_recon_delete",
+                     "cowork_tax_draft_delete", "cowork_stocktake_close", "cowork_stocktake_delete",
+                     "cowork_run_folder_task", "cowork_delete_folder_tasks"):
+            tool = by_name[name]
+            self.assertIs(tool["approval"], True, name)
+            self.assertTrue(callable(getattr(tools, tool["preview"].rpartition(".")[2])), name)
+            # 确认由卡片承担：说明里不再叫模型「直接删、不另确认」
+            self.assertNotIn("no extra confirmation", tool["description"])
+        self.assertIn("recognized (charged) and pushed", by_name["cowork_run_folder_task"]["description"])
+
+
 class OriginalTests(unittest.TestCase):
     """复核页右侧的原件：页图放进对话（同网页入口判权限、记访问日志）。"""
 
@@ -3827,10 +3914,13 @@ class LocalTimeTests(unittest.TestCase):
         module.__dict__.update(attrs)
         parent, _, child = name.rpartition(".")
         package = sys.modules.setdefault(parent, types.ModuleType(parent))
-        for patcher in (mock.patch.dict(sys.modules, {name: module}),
-                        mock.patch.object(package, child, module, create=True)):
-            patcher.start()
-            self.addCleanup(patcher.stop)
+        # 只换这一个模块（不用 patch.dict 整表还原：那会连带清掉测试期间别处按需导入的模块）
+        before = sys.modules.get(name)
+        sys.modules[name] = module
+        self.addCleanup(lambda: sys.modules.__setitem__(name, before) if before else sys.modules.pop(name, None))
+        patcher = mock.patch.object(package, child, module, create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         return module
 
     def test_one_rule_for_every_time(self):
@@ -4234,8 +4324,9 @@ class ReadbackTests(unittest.TestCase):
                       "sales_vat (income reconciliation right_files; output VAT check left_files)", "Read-only",
                       "nothing is recognized or charged", "waiting_for_cc", "cowork_express_readback_status"):
             self.assertIn(words, readback["description"])
-        for name in ("cowork_express_readback", "cowork_express_readback_status", "cowork_express_readback_delete"):
+        for name in ("cowork_express_readback", "cowork_express_readback_status"):
             self.assertNotIn("approval", by_name[name])  # 只读、不扣费：不弹「允许」卡
+        self.assertIs(by_name["cowork_express_readback_delete"]["approval"], True)  # 删除先点「允许」（用户 11-12）
         names = [tool["name"] for tool in tools.TOOLS]
         self.assertEqual(names.index("cowork_express_readback"), names.index("cowork_folder_fetch") + 1)
         # L7：推送成功的单 Pearnly 改不到，改完用回读看；第 5 轮审查：同 WRITTEN_NOTE，不再叫人去那个程序改已入账的单

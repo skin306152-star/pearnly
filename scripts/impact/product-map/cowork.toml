@@ -221,8 +221,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_delete_documents"
-where = "CC 工具 cowork_delete_documents"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_list_and_reports_skipped"]
+where = "CC 工具 cowork_delete_documents（先出「允许」卡片，列单号 · 对方 · 金额，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_list_and_reports_skipped", "unit:tests/test_cowork_assistant_tools.py::test_documents_are_listed_by_number_party_and_amount", "unit:tests/test_cc_approval_cards.py::test_fake_agent_delete_two_documents_deny_then_allow", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_delete_folder_tasks"
@@ -293,8 +293,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_express_readback_delete"
-where = "CC 工具 cowork_express_readback_delete"
-tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_express_readback_delete"]
+where = "CC 工具 cowork_express_readback_delete（先出「允许」卡片，列账套 · 月份，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_express_readback_delete", "unit:tests/test_cowork_assistant_tools.py::test_readback_recon_tax_and_stock_counts_show_their_names", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_express_readback_status"
@@ -477,8 +477,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_recon_delete"
-where = "CC 工具 cowork_recon_delete"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_named_tasks_and_a_refusal_is_returned"]
+where = "CC 工具 cowork_recon_delete（先出「允许」卡片，列对账标题，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_passes_the_named_tasks_and_a_refusal_is_returned", "unit:tests/test_cowork_assistant_tools.py::test_readback_recon_tax_and_stock_counts_show_their_names", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_recon_export"
@@ -568,8 +568,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_run_folder_task"
-where = "CC 工具 cowork_run_folder_task"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up"]
+where = "CC 工具 cowork_run_folder_task（先出「允许」卡片，列任务名、账套、方向、文件夹与会识别扣费并推送，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_run_now_asks_the_task_service_and_says_cc_desktop_picks_it_up", "unit:tests/test_cowork_assistant_tools.py::test_run_now_names_the_task_and_says_it_recognizes_and_charges", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_save_folder_task"
@@ -628,8 +628,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_close"
-where = "CC 工具 cowork_stocktake_close"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_closing_a_count_goes_through_the_page_call_and_a_refusal_is_returned"]
+where = "CC 工具 cowork_stocktake_close（先出「允许」卡片，列盘点名、已盘 / 未盘项数，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_closing_a_count_goes_through_the_page_call_and_a_refusal_is_returned", "unit:tests/test_cowork_assistant_tools.py::test_readback_recon_tax_and_stock_counts_show_their_names", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_count"
@@ -658,8 +658,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_stocktake_delete"
-where = "CC 工具 cowork_stocktake_delete"
-tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_reports_each_count_and_refusals_do_not_raise"]
+where = "CC 工具 cowork_stocktake_delete（先出「允许」卡片，列盘点名，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_delete_reports_each_count_and_refusals_do_not_raise", "unit:tests/test_cowork_assistant_tools.py::test_readback_recon_tax_and_stock_counts_show_their_names", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_stocktake_export"
@@ -708,8 +708,8 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-tool"
 anchor = "tool:cowork:cowork_tax_draft_delete"
-where = "CC 工具 cowork_tax_draft_delete"
-tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_tax_draft_delete"]
+where = "CC 工具 cowork_tax_draft_delete（先出「允许」卡片，列公司 · 申报表 · 月份，用户 11-12）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::cowork_tax_draft_delete", "unit:tests/test_cowork_assistant_tools.py::test_readback_recon_tax_and_stock_counts_show_their_names", "unit:tests/test_cc_approval_cards.py::test_nothing_runs_before_allow_and_allow_runs_exactly_what_was_previewed", "unit:tests/test_cc_approval_cards.py::test_deny_runs_nothing_and_tells_the_model"]
 
 [[row]]
 id = "cowork.cc.tool.cowork_vat_draft"

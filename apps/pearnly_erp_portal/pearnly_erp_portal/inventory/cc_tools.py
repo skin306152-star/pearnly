@@ -4,8 +4,8 @@
   两份盘点代码不在这里合并，工具只调 ERP 盘点页同一组服务函数（``inventory.count``），权限、仓库可见、锁与审阅令牌都由它们核。
 - 公司按对话挂的那家：工具执行期间 ERP 的「当前公司」就是它（共用层 ``pearnly_assistant_tool_context`` → ``masters.company.acting``），
   盘点服务照页面口径按当前公司取仓；模型给了别的公司（``masters.cc_tools.resolve`` 认得出、本人可用）就在那家下面执行。
-- 不加「允许」卡片（主会话 11-08 第 4 条，同 Cowork 盘点工具）；结束只锁定结果、不动库存（ERP 口径，岳父 11-06），调整单只生成草稿，
-  人在调整单页提交才入账。
+- 只有「结束盘点」要用户在对话里点「允许」（用户 11-12：删除、结束类各一张卡，卡上列清是哪份盘点、已盘几项、未盘几项，
+  结束后不能再记数）；其余不加卡片。结束只锁定结果、不动库存（ERP 口径，岳父 11-06），调整单只生成草稿，人在调整单页提交才入账。
 - 业务拒绝回 ``not_saved`` 与原因（已翻译），不抛给模型（同 Cowork ``_call``）。
 """
 import json
@@ -144,6 +144,17 @@ def stocktake_close(tool_input) -> str:
     return _json(_call(counts.close_count, count, review_token=review.get("review_token")))
 
 
+def preview_stocktake_close(tool_input) -> list:
+    """「结束盘点」卡片上列的（只读）：哪份盘点、已盘几项、未盘几项（同盘点页结束前的确认）。"""
+    from frappe import _
+
+    task = _counts().get_count(str(tool_input.get("count") or ""))
+    total, counted = int(task.get("item_total") or 0), int(task.get("counted_total") or 0)
+    return [{"field": _("nav.stockCount"), "before": "", "after": str(task.get("title") or task.get("name") or "")},
+            {"field": _("stock.count.countedRows"), "before": "", "after": str(counted)},
+            {"field": _("stock.count.rowUncounted"), "before": "", "after": str(max(total - counted, 0))}]
+
+
 def stocktake_adjust(tool_input) -> str:
     """按盘点结果生成物料调整单草稿（同盘点页「按盘点结果调整物料」；已有就回那一张）。不提交、不动库存。"""
     out = _call(_counts().adjustment_draft, str(tool_input.get("count") or ""))
@@ -219,9 +230,12 @@ TOOLS = [
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_count"},
     {"name": "erp_stocktake_close", "label": "Finished a stock count",
      "description": "Finish a stock count: the counts are locked and the differences worked out; stock does not change "
-                    "yet. Only when the user says counting is done. Then make the adjustment with erp_stocktake_adjust "
-                    "if the user wants the stock corrected.",
+                    "yet. Only when the user says counting is done; the user sees Allow / Deny first. Then make the "
+                    "adjustment with erp_stocktake_adjust if the user wants the stock corrected.",
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
+     "approval": True,
+     "ask": "Finish this stock count?",
+     "preview": "pearnly_erp_portal.inventory.cc_tools.preview_stocktake_close",
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_close"},
     {"name": "erp_stocktake_adjust", "label": "Created an adjustment from a stock count",
      "description": "Make the product adjustment for a finished stock count's differences, like Adjust products from "

@@ -2412,3 +2412,11 @@ Checking pending items	正在查看待处理	กำลังตรวจสอ�
 Cowork invoice recognition	发票识别	อ่านใบแจ้งหนี้	請求書の読み取り	
 Cowork VAT check invoice recognition	增值税核对发票识别	อ่านใบกำกับภาษีเพื่อตรวจภาษีมูลค่าเพิ่ม	消費税照合の請求書読み取り	
 Cowork reconciliation document recognition	对账单据识别	อ่านเอกสารกระทบยอด	照合書類の読み取り	
+Delete these documents?	确定要删除以下单据吗？	ลบเอกสารเหล่านี้หรือไม่	これらの書類を削除しますか？
+Delete this readback?	确定要删除此回读吗？	ลบการอ่านข้อมูลกลับนี้หรือไม่	この読み戻しを削除しますか？
+Delete these reconciliations?	确定要删除以下对账任务吗？	ลบงานกระทบยอดเหล่านี้หรือไม่	これらの照合を削除しますか？
+Delete these tax drafts?	确定要删除以下申报草稿吗？	ลบร่างแบบภาษีเหล่านี้หรือไม่	これらの申告下書きを削除しますか？
+Finish this stock count?	确定要结束此盘点吗？	ปิดการตรวจนับนี้หรือไม่	この棚卸を終了しますか？
+Delete these stock counts?	确定要删除以下盘点吗？	ลบการตรวจนับเหล่านี้หรือไม่	これらの棚卸を削除しますか？
+Run this scheduled task now?	确定要立即运行此定时任务吗？	เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่	この定期タスクを今すぐ実行しますか？
+New files are recognized (charged) and pushed	新文件将识别（扣费）并推送	ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ	新しいファイルを認識（課金）して送信します	cowork.folder.runNow.charge
