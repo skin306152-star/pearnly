@@ -39,6 +39,31 @@ def stock_token(product, *, for_update=False):
     return hashlib.sha256(json.dumps([movement, balances, units], default=str).encode()).hexdigest()
 
 
+def stock_tokens(products, *, for_update=False) -> dict:
+    """一批物料的 :func:`stock_token`（盘点明细 / 查找一次算几百个）：只读时按名单一次取三张表、按物料分组后照原样算，
+    结果与逐个 ``stock_token`` 逐字相等（性能体检 11-14：251 行原先发 753 条）。加锁读（结束盘点）仍逐个取，锁的行与先后不变。"""
+    names = sorted({p for p in products if p})
+    if for_update:
+        return {p: stock_token(p, for_update=True) for p in names}  # loop-query: 加锁读保持逐个取（结束盘点，锁的行与先后不变）
+    out = {}
+    for start in range(0, len(names), 500):
+        chunk = tuple(names[start:start + 500])
+        movement = {row[0]: (tuple(row[1:]),) for row in frappe.db.sql(
+            "select product, count(*), max(creation), max(name) from `tabERP Stock Movement` where product in %s group by product",
+            (chunk,))}
+        balances = {}
+        for row in frappe.db.sql(
+                "select product, name, qty_on_hand, value, unit_cost, cost_known from `tabERP Stock Balance` where product in %s "
+                "order by product, name", (chunk,)):
+            balances.setdefault(row[0], []).append(tuple(row[1:]))
+        units = {row[0]: (tuple(row[1:]),) for row in frappe.db.sql(
+            "select name, base_unit, unit from `tabERP Product` where name in %s", (chunk,))}
+        for product in chunk:
+            state = [movement.get(product, ((0, None, None),)), tuple(balances.get(product, ())), units.get(product, ())]
+            out[product] = hashlib.sha256(json.dumps(state, default=str).encode()).hexdigest()
+    return out
+
+
 def validate_document(doc):
     """Generic Desk/RPC writes must not bypass totals, locks or closed-task immutability."""
     if doc.doctype == "ERP Stock Count":

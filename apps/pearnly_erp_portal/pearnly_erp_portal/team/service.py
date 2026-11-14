@@ -219,10 +219,14 @@ def _tenant_admin():
 
 
 def _within_management_scope(user):
+    return _in_scope(user.name, {row.role for row in user.roles}, lambda: member_companies(user.name))
+
+
+def _in_scope(name, held, target_companies, allowed=None) -> bool:
+    """`_within_management_scope` 的判据，按已取好的角色 / 公司算（名单一次取时用）；`allowed` 是当前管理者能看的公司。"""
     from pearnly_erp_portal.masters import company
 
-    held = {row.role for row in user.roles}
-    if user.name in ("Administrator", "Guest") or not held.intersection(_member_roles()):
+    if name in ("Administrator", "Guest") or not held.intersection(_member_roles()):
         return False
     if held.intersection(rules.ALL_RECORDS_ROLES):
         return False
@@ -230,8 +234,8 @@ def _within_management_scope(user):
         return True
     # An unrestricted target remains unrestricted when new companies are added.
     # A delegated manager may only manage explicitly bounded employee accounts.
-    target = set(member_companies(user.name))
-    return bool(target and target.issubset(set(company.allowed_companies())))
+    target = set(target_companies())
+    return bool(target and target.issubset(set(company.allowed_companies() if allowed is None else allowed())))
 
 
 def _employee(email: str):
@@ -245,19 +249,48 @@ def _employee(email: str):
 
 
 def list_members() -> list[dict]:
+    """团队名单。账号、角色、公司、姓名按名单一次取（性能体检 11-14：原先每人 get_doc + 公司 + 姓名各查一遍，人越多越慢），
+    口径与逐个取相同。"""
+    from pearnly_erp_portal.masters import company
+
     guard.require("team.manage")
     roles = _member_roles()
     emails = sorted(set(frappe.get_all(
         "Has Role", filters={"role": ["in", list(roles | {rules.ADMIN_ROLE})], "parenttype": "User"}, pluck="parent"
     )))
     bindings = _line_bindings(emails)
+    people = [email for email in emails if email != "Administrator"]
+    users = {row.name: row for row in frappe.get_all(  # bounded: 有本产品角色的账号
+        "User", filters={"name": ["in", people or [""]]},
+        fields=["name", "username", "first_name", "last_name", "enabled", "last_login"], limit_page_length=0)}
+    held = {}
+    for row in frappe.get_all("Has Role", filters={"parent": ["in", people or [""]], "parenttype": "User",  # bounded: 同上
+                                                  "parentfield": "roles"},
+                              fields=["parent", "role"], order_by="idx asc", limit_page_length=0):
+        held.setdefault(row.parent, []).append(row.role)
+    assigned = {}
+    for row in frappe.get_all("User Permission", filters={"user": ["in", people or [""]], "allow": COMPANY},  # bounded: 同上
+                              fields=["user", "for_value"], limit_page_length=0):
+        assigned.setdefault(row.user, []).append(row.for_value)
+    names = person_names.display_names(people)
+    allowed = []
+
+    def allowed_companies():
+        if not allowed:
+            allowed.append(company.allowed_companies())
+        return allowed[0]
+
     members = []
-    for email in emails:
-        if email == "Administrator":
-            continue
-        user = frappe.get_doc("User", email)
-        admin_row = rules.ADMIN_ROLE in {row.role for row in user.roles}
-        if not _within_management_scope(user) and not (admin_row and _tenant_admin()):
+    for email in people:
+        if email not in users:
+            frappe.get_doc("User", email)  # 原先逐个 get_doc：账号不存在照旧报同样的错
+        user = users[email]
+        user_roles = held.get(email, [])
+        role_set = set(user_roles)
+        companies = sorted(assigned.get(email, []))
+        admin_row = rules.ADMIN_ROLE in role_set
+        within = _in_scope(email, role_set, lambda: companies, allowed_companies)
+        if not within and not (admin_row and _tenant_admin()):
             continue
         members.append({
             # `name` 是给列表框架用的行标识，**必须有**：框架在 `BaseList.prepare_data()`
@@ -269,19 +302,19 @@ def list_members() -> list[dict]:
             "username": user.username or "",
             # 姓名（用户 10-30）：名 / 姓给编辑框，列表显示拼好的全名（没填过的老账号就是用户名）
             "first_name": user.first_name or "", "last_name": user.last_name or "",
-            "display": display_name(email),
+            "display": names.get(email) or "",
             "enabled": bool(user.enabled),
-            "roles": sorted(r.role for r in user.roles if r.role in roles),
+            "roles": sorted(r for r in user_roles if r in roles),
             # 一租户多公司：这个账号被指到哪几家（官方的 User Permission，没指就是全部）。
-            "companies": member_companies(email),
+            "companies": companies,
             "last_login": user.last_login,
-            "is_admin": bool(set(rules.ALL_RECORDS_ROLES) & {r.role for r in user.roles}),
+            "is_admin": bool(set(rules.ALL_RECORDS_ROLES) & role_set),
             # 管理员本人那一行：本来就拥有全部功能与全部公司，服务端也不许在这里改
             # （`_employee` 拒绝）。页面据此把勾选全部画成已勾、灰色不可点（用户 2026-09-25）。
-            "locked": not _within_management_scope(user),
+            "locked": not within,
             # LINE：开没开（租户管理员本人默认开），以及绑到了哪个 LINE。绑定码只有本人看得到
             # （`integrations/binding.py`），名单里只给状态。
-            "line": admin_row or rules.LINE_ROLE in {r.role for r in user.roles},
+            "line": admin_row or rules.LINE_ROLE in role_set,
             "line_name": (bindings.get(email) or {}).get("display_name") or "",
             "line_bound_at": (bindings.get(email) or {}).get("bound_at"),
         })

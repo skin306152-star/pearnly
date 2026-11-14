@@ -139,8 +139,11 @@ def _clean_roles(roles, *, existing=()) -> list:
 
 
 def _manageable(user) -> bool:
-    held = {row.role for row in user.roles}
-    return (user.name not in ("Administrator", "Guest") and bool(held & set(menu.roles()))
+    return _manageable_by(user.name, {row.role for row in user.roles})
+
+
+def _manageable_by(name, held) -> bool:
+    return (name not in ("Administrator", "Guest") and bool(held & set(menu.roles()))
             and not held & set(ALL_RECORDS_ROLES))
 
 
@@ -160,17 +163,27 @@ def _line_bindings(emails) -> dict:
 
 
 def list_members() -> list:
+    """团队名单。账号与角色按名单一次取（性能体检 11-14：原先每人一次 get_doc，人越多越慢），口径与逐个取相同。"""
     require_admin()
     known = set(menu.roles())
     emails = sorted(set(frappe.get_all("Has Role", filters={
         "role": ["in", [*known, menu.ADMIN_ROLE]], "parenttype": "User"}, pluck="parent")))
     bindings = _line_bindings(emails)
+    people = [email for email in emails if email != "Administrator"]
+    users = {row.name: row for row in frappe.get_all(  # bounded: 有本产品角色的账号
+        "User", filters={"name": ["in", people or [""]]},
+        fields=["name", "username", "first_name", "last_name", "enabled", "last_login"], limit_page_length=0)}
+    roles = {}
+    for row in frappe.get_all("Has Role", filters={"parent": ["in", people or [""]], "parenttype": "User",  # bounded: 同上
+                                                  "parentfield": "roles"}, fields=["parent", "role"], limit_page_length=0):
+        roles.setdefault(row.parent, set()).add(row.role)
+    names = person_names.display_names(people)
     members = []
-    for email in emails:
-        if email == "Administrator":
-            continue
-        user = frappe.get_doc("User", email)
-        held = {row.role for row in user.roles}
+    for email in people:
+        if email not in users:
+            frappe.get_doc("User", email)  # 原先逐个 get_doc：账号不存在照旧报同样的错
+        user = users[email]
+        held = roles.get(email, set())
         admin = bool(held & set(ALL_RECORDS_ROLES))
         members.append({
             # `name` 是列表框架的行标识（`uniqBy(d => d.name)`），缺了整页会并成一行。
@@ -179,13 +192,13 @@ def list_members() -> list:
             "username": user.username or "",
             # 姓名（用户 10-30：分清是哪个人；没填过的老账号就是用户名）
             "first_name": user.first_name or "", "last_name": user.last_name or "",
-            "display": person_names.display_name(email),
+            "display": names.get(email) or "",
             "enabled": bool(user.enabled),
             "roles": sorted(held & known),
             "last_login": user.last_login,
             "is_admin": admin,
             # 管理员本人：全部功能都有，这里只看不改（页面画成全勾、灰色）。
-            "locked": not _manageable(user),
+            "locked": not _manageable_by(email, held),
             "line": admin or menu.LINE_ROLE in held,
             "line_name": (bindings.get(email) or {}).get("display_name") or "",
             "line_bound_at": (bindings.get(email) or {}).get("bound_at"),

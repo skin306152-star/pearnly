@@ -201,7 +201,7 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
         if not product:
             continue
         qty = flt(row["qty_on_hand"], 3)
-        _insert_item(doc.name, product, warehouse, qty, row.get("location"), origin=False)  # 账上快照
+        _insert_item(doc.name, product, warehouse, qty, row.get("location"), origin=False, fresh=True)  # 账上快照
         created += 1
     _refresh_totals(doc.name)
     return {"name": doc.name, "rows": created}
@@ -350,7 +350,7 @@ def _upsert_import_entry(count: str, item_name: str, row) -> None:
               source="Import", request_id=request_id)
 
 
-def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="", origin=None) -> str:
+def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="", origin=None, fresh=False) -> str:
     """一行 = **商品 × 仓库 × 库位**（与旧项目 `services/stocktake/schema.py` 的唯一键一致）。
 
     库位是行的身份的一部分，不是记录上的备注：同一个商品放在两个货架上就是两行、
@@ -362,8 +362,9 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
             origin = NEW
         else:
             origin = REACTIVATED if not product.get("is_active", 1) else ADDED
-    existing = frappe.db.get_value(ITEM, {"count": count, "product": product["name"],
-                                          "warehouse": warehouse, "location": location}, "name")
+    # `fresh`：刚建的盘点抄快照（结存一个位置一行，不会重），不必逐行先查有没有
+    existing = None if fresh else frappe.db.get_value(ITEM, {"count": count, "product": product["name"],
+                                                             "warehouse": warehouse, "location": location}, "name")
     if existing:
         return existing
     doc = frappe.get_doc({
@@ -515,19 +516,26 @@ def ensure_item(*, count, code=None, product=None, location="") -> dict:
 def _refresh_totals(count: str) -> None:
     """任务上的三个数（行数 / 已盘点 / 有差异）与行上的差异一起更新。"""
     rows = frappe.get_list(ITEM, filters={"count": count},
-                           fields=["name", "book_qty", "basis_qty", "basis_set", "counted", "counted_qty"],
+                           fields=["name", "book_qty", "basis_qty", "basis_set", "counted", "counted_qty", "difference",
+                                   "warehouse", "location"],
                            limit_page_length=0)
+    # 录一笔就要重算整份盘点：记录按盘点一次取、差异没变的行不写（性能体检 11-14：251 行原先每录一笔发约 1,000 条）
+    for place in {row["warehouse"] for row in rows if row["counted"]}:
+        company_access.require_warehouse(place)
+    found = {}
+    for entry in frappe.get_all(ENTRY, filters={"count": count, "voided": 0},  # bounded: 这一份盘点的记录
+                                fields=["item", "warehouse", "location"], limit_page_length=0):
+        found.setdefault(entry.item, []).append(entry)
     counted = differences = 0
     for row in rows:
         difference = (flt(row["counted_qty"], 3) - flt(row["basis_qty"] if row["basis_set"] else row["book_qty"], 3)) if row["counted"] else 0
-        frappe.db.set_value(ITEM, row["name"], "difference", difference,
-                            update_modified=False)
+        if row["difference"] is None or flt(row["difference"], 3) != flt(difference, 3):
+            frappe.db.set_value(ITEM, row["name"], "difference", difference,  # loop-query: 只写差异变了的行
+                                update_modified=False)
         if row["counted"]:
             counted += 1
-            original = _item(row["name"])
-            moved = any((e.warehouse, e.location or "") != (original.warehouse, original.location or "")
-                        for e in frappe.get_all(ENTRY, filters={"item": row["name"], "voided": 0},
-                                                fields=["warehouse", "location"]))
+            moved = any((e.warehouse, e.location or "") != (row["warehouse"], row["location"] or "")
+                        for e in found.get(row["name"], []))
             if difference or moved:
                 differences += 1
     frappe.db.set_value(COUNT, count, {"item_total": len(rows), "counted_total": counted,
@@ -567,7 +575,8 @@ def list_counts(*, status=None, limit=50, start=0, sort_by=None, sort_order=None
         limit_start=int(start or 0), limit_page_length=_size(limit),
     )
 
-    return [dict(row, warehouse_name=_warehouse_label(row.warehouse)) for row in rows]
+    labels = _warehouse_labels(row.warehouse for row in rows)
+    return [dict(row, warehouse_name=labels.get(row.warehouse) or "") for row in rows]
 
 
 def count_total(*, status=None) -> int:
@@ -644,7 +653,7 @@ def template_rows(*, name=None, warehouse=None) -> list[dict]:
             "product_name": row["product_name"], "category": row["category"], "attribute": row["attribute"],
             "barcode": row["barcode"], "unit": row["unit"], "book_qty": row["book_qty"],
             "counted_qty": row["counted_qty"] if row["counted"] else None,
-            "warehouse": _warehouse_label(row["warehouse"]), "location": row["location"] or "",
+            "warehouse": row["warehouse_name"], "location": row["location"] or "",
         } for row in rows]
         return _expand_units(name, rows, out) if template_unit_kind(name=name) else out
     warehouse = _template_warehouse(warehouse=warehouse)
@@ -733,6 +742,14 @@ def _warehouse_label(name) -> str:
     return frappe.db.get_value("ERP Warehouse", name, "warehouse_name") or name or ""
 
 
+def _warehouse_labels(names) -> dict:
+    """一批仓库的显示名（同 :func:`_warehouse_label`，按名单一次取；列表、明细逐行用）。"""
+    wanted = sorted({name for name in names if name})
+    found = dict(frappe.get_all("ERP Warehouse", filters={"name": ["in", wanted or [""]]}, fields=["name", "warehouse_name"],
+                                as_list=True, limit_page_length=len(wanted) or 1))
+    return {name: found.get(name) or name for name in wanted}
+
+
 def valuation(product_id: str, key: tuple):
     """这一笔差异按什么单价落账。
 
@@ -755,18 +772,20 @@ def _warehouse_of(value, fallback, company) -> str:
     return warehouses.required(value or fallback, company=company)
 
 
-def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False) -> list[dict]:
-    """快照行。`filter`: all / uncounted / counted / differences（旧线上那三个筛选项）。"""
+def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=False, product=None) -> list[dict]:
+    """快照行。`filter`: all / uncounted / counted / differences（旧线上那三个筛选项）；`product` 只要这一件物料的行
+    （录入时扫到一件货，不必把整份盘点算一遍）。逐行要用的仓库名、库存令牌、记录都按名单一次取（性能体检 11-14）。"""
     guard.require("count.read")
     task = _get(count)
+    filters = {"count": count, **({"product": product} if product else {})}
     rows = frappe.get_list(
-        ITEM, filters={"count": count},
+        ITEM, filters=filters,
         fields=["name", "product", "product_name", "code", "barcode", "unit", "warehouse",
                 "location", "row_origin", "book_qty", "counted", "counted_qty", "difference",
                 "last_counted_at", "last_counted_by", "basis_qty", "basis_set", "stock_token"],
         order_by="product_name asc, name asc", limit_page_length=0,
     )
-    all_entries = list_entries(count=count, limit=0)
+    all_entries = list_entries(count=count, limit=0, items=[row.name for row in rows] if product else None)
     by_item = {}
     for entry in all_entries:
         if not entry["voided"]:
@@ -781,21 +800,20 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
         row.barcode = row.barcode or shown.get(row.product) or None
     wanted = (q or "").strip().lower()
     out = []
-    tokens = {}
     can_view_costs = guard.cost_visible()
-    costs = {r.name: r for r in frappe.get_all(ITEM, filters={"count": count},
+    costs = {r.name: r for r in frappe.get_all(ITEM, filters=filters,
              fields=["name", "basis_unit_cost", "basis_cost_known"])} if can_view_costs else {}
+    tokens = count_state.stock_tokens({row.product for row in rows}, for_update=_locked)
+    labels = _warehouse_labels(row.warehouse for row in rows)
     for row in rows:
         row.book_qty = row.basis_qty if row.basis_set else row.book_qty
         entries = by_item.get(row.name, [])
         row.actual_positions = " / ".join(
-            f"{_warehouse_label(e['warehouse'])} · {e.get('location') or '—'} ({e['qty']:g})"
+            f"{e['warehouse_name']} · {e.get('location') or '—'} ({e['qty']:g})"
             for e in entries)
         row.location_difference = any(
             (e['warehouse'], e.get('location') or '') != (row.warehouse, row.location or '')
             for e in entries)
-        if row.product not in tokens:
-            tokens[row.product] = count_state.stock_token(row.product, for_update=_locked)
         row.stock_changed = bool(task.status == "Active" and row.counted and (not row.stock_token or row.stock_token != tokens[row.product]))
         if wanted and wanted not in " ".join(
                 str(row.get(key) or "").lower()
@@ -816,7 +834,7 @@ def list_items(*, count: str, q=None, filter="all", limit=50, start=0, _locked=F
             continue
         if filter == "locations" and not row.location_difference:
             continue
-        out.append(dict(row, warehouse_name=_warehouse_label(row.warehouse)))
+        out.append(dict(row, warehouse_name=labels.get(row.warehouse) or ""))
     start = int(start or 0)
     size = _size(limit)
     return out[start:] if size is None else out[start:start + size]
@@ -1255,7 +1273,7 @@ def lookup_count(*, count, code=None, product=None):
         return {"not_found": True}
     if not found:
         frappe.throw(_(CODE_NOT_FOUND))
-    rows = [r for r in list_items(count=count, limit=0) if r['product'] == found['name']]
+    rows = list_items(count=count, limit=0, product=found['name'])
     return {"product": {**{key: found.get(key) for key in ("name", "product_name", "barcode", "base_unit", "unit", "serial_kind",
                                                            "is_active", "attribute")},
                         "code": product_contracts.count_code(found),
@@ -1295,7 +1313,7 @@ def recorded_entries(count: str, items: list) -> list:
     """这件货在本次盘点里**已经记过**的（谁、在哪、多少）：多人分区盘点时扫到别人盘过的货，
     当场看得见，免得同一架货被两个人各数一遍（用户 2026-10-15 多人协作口径）。"""
     out = []
-    for entry in list_entries(count=count, limit=0):
+    for entry in list_entries(count=count, limit=0, items=items):
         if entry["item"] in items and not entry["voided"]:
             out.append({"counted_by": entry["counted_by_name"],
                         "warehouse_name": entry["warehouse_name"], "location": entry.get("location") or "",
@@ -1310,14 +1328,16 @@ def elsewhere_positions(product_id: str, here: set) -> list:
     product = frappe.db.get_value(PRODUCT, product_id, ["base_unit", "unit"], as_dict=True) or {}
     unit = product.get("base_unit") or product.get("unit") or ""
     out = []
-    for balance in frappe.db.get_all(BALANCE, filters={"product": product_id, **warehouses.scope_filter()},
-            fields=["warehouse", "location", "qty_on_hand"],
-            order_by="qty_on_hand desc, warehouse asc"):
+    balances = frappe.db.get_all(BALANCE, filters={"product": product_id, **warehouses.scope_filter()},
+                                 fields=["warehouse", "location", "qty_on_hand"],
+                                 order_by="qty_on_hand desc, warehouse asc")
+    labels = _warehouse_labels(balance.warehouse for balance in balances)
+    for balance in balances:
         if (balance.warehouse, balance.location or "") in here:
             continue
         if not flt(balance.qty_on_hand, 3):
             continue
-        out.append({"warehouse_name": _warehouse_label(balance.warehouse),
+        out.append({"warehouse_name": labels.get(balance.warehouse) or "",
                     "location": balance.location or "", "qty": float(balance.qty_on_hand),
                     "unit": unit})
     return out
@@ -1447,12 +1467,15 @@ def recount_product(*, count, product):
     return {"ok": True}
 
 
-def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
+def list_entries(*, count, item=None, limit=50, start=0, items=None) -> list[dict]:
+    """`items`：只要这几行的记录（查找一件货时用），不给就是全部。"""
     guard.require("count.read")
     _get(count)
     filters = {"count": count}
     if item:
         filters["item"] = item
+    if items is not None:
+        filters["item"] = ["in", list(items) or [""]]
     result = frappe.get_list(
         ENTRY, filters=filters,
         fields=["name", "item", "product", "warehouse", "location", "qty", "voided", "version",
@@ -1469,11 +1492,12 @@ def list_entries(*, count, item=None, limit=50, start=0) -> list[dict]:
                                   limit_page_length=len(result) or 1))
     # 盘点人显示姓名（用户 10-30 个人信息加姓名；没填过的老账号是用户名），页面、导出、分区都用这一格
     people = person_names.display_names(row.counted_by for row in result)
-    return [dict(row, warehouse_name=_warehouse_label(row.warehouse), serial_no=numbers.get(row.serial) or "",
+    labels = _warehouse_labels([row.warehouse for row in result] + [items[row.item].warehouse for row in result])
+    return [dict(row, warehouse_name=labels.get(row.warehouse) or "", serial_no=numbers.get(row.serial) or "",
                  counted_by_name=people.get(row.counted_by) or "",
                  product_name=items[row.item].product_name, code=items[row.item].code,
                  unit=items[row.item].unit,
-                 book_warehouse_name=_warehouse_label(items[row.item].warehouse),
+                 book_warehouse_name=labels.get(items[row.item].warehouse) or "",
                  book_location=items[row.item].location) for row in result]
 
 
