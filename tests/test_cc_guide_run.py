@@ -31,6 +31,7 @@ frappe.log_error = lambda title="", message="": LOGGED.append(title)
 frappe.session = types.SimpleNamespace(user="u@example.com")
 frappe.DoesNotExistError = LookupError
 frappe.PermissionError = PermissionError
+frappe.QueryDeadlockError = type("QueryDeadlockError", (Exception,), {})
 
 
 def _throw(message, exc=ValueError):
