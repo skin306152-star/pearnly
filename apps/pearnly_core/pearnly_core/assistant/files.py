@@ -243,7 +243,7 @@ def start_sent(session, keys, user, lang="") -> None:
         return
     for key in keys:
         try:
-            _start(row, key)
+            _start(row, key)  # loop-query: 一条消息 / 一张卡交出的几份（有界），每份要单独加锁、交产品识别
         except Exception:
             frappe.db.rollback()
             frappe.log_error(title="Operator upload start failed")
