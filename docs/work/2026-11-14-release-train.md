@@ -6,19 +6,24 @@
 
 | # | 线 | 来源 | 状态 | 闸门 | 候选离线 | 流程 | 真机 |
 |---|---|---|---|---|---|---|---|
-| 0 | main 已合未上线：公司接入第 1 批（主档整读、erp-masters-worker）、MR.ERP 金额修复、收款闭环（单页收款、一个权限、拒收退回、后台回复语言） | origin/main 93476cbec（比线上多 29 个提交） | 已在 main | 见下 | 见下 | 见下 | LIFF 相机 3 行、收款写进 Express：待做 |
-| 1 | 公司接入第 2 批 | pearnly/company-onboarding-b2d996 | 待进（本地 a5c953538 未推） | | | | |
-| 2 | 引导式第 1 期 | origin/pearnly/cc-guided-phase1 97cc633bf | 已进 | 第 1 轮跑中 | 第 1 轮跑中 | 待跑 | 真模型三格窗口自测 1.43 美元 |
-| 3 | 上传后才识别 | pearnly/cc-upload-read-on-send-c21d68 | 待进（未推） | | | | |
-| 4 | 性能体检 | origin/pearnly/page-perf-audit-50db59 82dd7c94f | 已进（远端旧版；本地 12e71d3a9 推后替换） | 逐行查询闸门红 2 处（待替换）| | | 上线后 testerp 复量 |
+| 0 | main 已合未上线：公司接入第 1 批（主档整读、erp-masters-worker）、MR.ERP 金额修复、收款闭环（单页收款、一个权限、拒收退回、后台回复语言）、性能体检（11-14 预批合入） | origin/main 12e71d3a9 | 已在 main | 见下 | 见下 | 见下 | 见「真机」节 |
+| 1 | 公司接入第 2 批 | origin/pearnly/company-onboarding-b2d996 43d0ceda5 | 已进（CI 缺真机记录会红，主会话定进集成分支） | 逐行查询闸门：cc_service.create_many 待标有界 | | | 见「真机」节 |
+| 2 | 引导式第 1 期 | origin/pearnly/cc-guided-phase1 97cc633bf | 已进 | | | 待跑 | 真模型三格窗口自测 1.43 美元 |
+| 3 | 上传后才识别 | origin/pearnly/cc-upload-read-on-send-c21d68 88562fb05 | 已进 | 逐行查询闸门：files.start_sent 待标有界 | | | |
+| 4 | 性能体检 | 已在 main 12e71d3a9 | 已在 main | 带来逐行查询闸门 | | | 上线后 testerp 复量 |
 | 5 | MR.ERP 写账弹窗 + 现金采购 | pearnly/mrerp-ledger-dialog | 待进（未推）；mrerp-cash-purchase 不单独进 | | | | |
-| 5' | ERP 作废缺口 | origin/pearnly/erp-void-gaps-1114 4be2019c6 | 已进（本地 dde614495 推后替换） | | | | |
+| 5' | ERP 作废缺口 | origin/pearnly/erp-void-gaps-1114 dde614495 | 已进 | | | | |
 | 6 | 访问速度 C 启动词条 | origin/pearnly/boot-messages-cache 5c2fbb833 | 已进 | | | | |
-| 7 | CC 半截单（服务端部分；CC 后发） | origin/pearnly/cc-desktop-half-doc-1ee3e3 18a14ddf4 | 已进 | | | | 测试机真跑待做 |
-| 8 | 收款菜单发布 | pearnly/rich-menu-image-check | 待进（未推） | | | | |
+| 7 | CC 半截单（服务端部分；CC 后发） | origin/pearnly/cc-desktop-half-doc-1ee3e3 18a14ddf4 | 已进 | 逐行查询闸门：两产品 status 逐行查半截单号，待改一次取回 | | | 测试机真跑待做 |
+| 8 | 收款菜单发布 | origin/pearnly/rich-menu-image-check c3a248f5d | 已进（CI 缺真机记录会红，属预期） | | | | 见「真机」节 |
 | 9 | 公司接入第 3 批（含 MR.ERP 开关） | pearnly/company-onboarding-3-307a0a | 待进（wip） | | | | testerp 真写 TEST2019 |
 
 集成分支上本窗口自己的提交：接缝 1 真跨边测试 `companion/tests/test_seam_half_doc_server.py`（交半截单窗口收进其分支）。
+
+## 本车之后（不进这一车）
+
+- 「Not permitted」统一：源码统一 `_("Not permitted")`，译文只在 pearnly_core 留一份；泰 / 日有可见变化，先给用户看前后清单。单独小分支、一个窗口做。
+- 产品地图真机记录规则收紧（验收体系窗口在改）。
 
 ## 上线前置
 
@@ -60,3 +65,18 @@ DocType 改动：Pearnly Assistant Session（引导式 business / business_at）
 ## 集成记录
 
 见共享笔记 `拼车-进度-11-14.md`（盘点表、冲突解法、接缝核对、口径差异清单）。
+
+## 真机
+
+执行：收款窗口（三星 SM-A146P + 测试机）；清单见共享笔记「拼车-上线前真机清单-11-14.md」（拼车 9 项 + 收款 3 项，约 1 小时 45 分）。
+被测集成头：开测前写死在此。每项一个条目，格式：
+
+```
+### <产品地图行 id 或项名>
+- 日期：
+- 被测提交 SHA：
+- 设备：
+- 结果：通过 / 不通过 / 没测到（原因）
+- 步骤：
+- 截图：
+```
