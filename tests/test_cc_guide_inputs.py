@@ -102,6 +102,21 @@ class GuideInputTests(unittest.TestCase):
         self.assertNotEqual(steps.value_problem({"key": "m", "input": "month"}, "2026-13"), "")
         self.assertNotEqual(steps.value_problem({"key": "d", "input": "date"}, "2026-02-30"), "")
 
+    def test_the_components_use_the_standard_kit_and_the_four_languages(self):
+        src = Path(ROOT) / "frontend/assistant/src"
+        code = (src / "components/tool-uis/guide-inputs.tsx").read_text(encoding="utf-8")
+        for part in ('from "@/components/ui/item"', 'from "@/components/ui/checkbox"', 'from "@/components/ui/input"',
+                     'from "@/components/ui/button"', "aria-invalid", "toggleRow", "fillRest"):
+            self.assertIn(part, code)
+        for raw in ("<input", "<button", "<table", "radix-ui"):          # 不手写通用控件、不直接引底层件
+            self.assertNotIn(raw, code)
+        i18n = (src / "i18n.ts").read_text(encoding="utf-8")
+        block = i18n[i18n.index("const GUIDE = {"):i18n.index("export const guide =")]
+        for key in ("total:", "remaining:", "over:", "fillRest:", " amount:"):   # 「 amount:」带空格：不数进 (amount: string) 的参数
+            self.assertEqual(block.count(key), 4, key)                    # 四语各一条
+        self.assertIn('"guide-inputs"', (src / "kit/main.tsx").read_text(encoding="utf-8"))
+        self.assertIn("--cc-guide-amount-w:", (src / "globals.css").read_text(encoding="utf-8"))
+
 
 if __name__ == "__main__":
     unittest.main()
