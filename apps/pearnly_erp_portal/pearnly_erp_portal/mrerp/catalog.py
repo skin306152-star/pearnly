@@ -148,12 +148,18 @@ def _norm(value) -> str:
     return " ".join(str(value or "").split()).casefold()
 
 
-def identity(connection, attributes) -> str:
+def site_host(connection) -> str:
+    """这条连接的 MR.ERP 站点主机名（认同一家公司用；循环里按连接先取一次再传给 :func:`identity`）。"""
+    url = frappe.db.get_value(connections.CONNECTION, connection, "system_url") if connection else ""
+    return (urlsplit(str(url or connections.DEFAULT_URL)).hostname or "").lower()
+
+
+def identity(connection, attributes, host=None) -> str:
+    """``host``：调用方按连接取好的 :func:`site_host`（逐行算标识时不再每行查一次连接）。"""
     tax = express_contracts.tax13((attributes or {}).get("tax_id"))
     if tax:
         return f"tax:{tax}"
-    url = frappe.db.get_value(connections.CONNECTION, connection, "system_url") if connection else ""
-    host = (urlsplit(str(url or connections.DEFAULT_URL)).hostname or "").lower()
+    host = site_host(connection) if host is None else host
     return f"row:{host}|{_norm((attributes or {}).get('company'))}|{_norm((attributes or {}).get('company_name'))}"
 
 
@@ -183,8 +189,10 @@ def books_of(company) -> list:
     names.sort(key=lambda name: name != row.get("mrerp_connection"))
     found, seen = [], set()
     for name in names:
-        for item in _sets(name):
-            wanted = identity(name, item.get("attributes") or {}) == row.get("mrerp_company") if row.get("mrerp_company") \
+        host = site_host(name)  # loop-query: 一个租户的 MR.ERP 连接（最多 20 条），每条取一次
+        for item in _sets(name):  # loop-query: 同上，每条连接读一次自己的目录快照
+            ident = identity(name, item.get("attributes") or {}, host)  # loop-query: 传了 host，不再查库
+            wanted = ident == row.get("mrerp_company") if row.get("mrerp_company") \
                 else (name, item["source_id"]) == (row.get("mrerp_connection"), row.get("mrerp_account_set"))
             if wanted and item["source_id"] not in seen:
                 seen.add(item["source_id"])

@@ -80,7 +80,19 @@ def after_write(company):
         return False
 
 
-def idle(row, now=None) -> bool:
+def active_companies(names, now=None) -> set:
+    """这几家里 :data:`IDLE_DAYS` 天内有新采购 / 销售单的：每类单据一条分组查询（不按公司逐家查）。"""
+    if not names:
+        return set()
+    edge = (now or now_datetime()) - timedelta(days=IDLE_DAYS)
+    found = set()
+    for doctype in ACTIVITY:
+        found.update(frappe.get_all(doctype, filters={"company": ["in", list(names)], "creation": [">", edge]},  # loop-query: 固定两类单据，各一条分组查询
+                                    pluck="company", group_by="company", limit_page_length=0))  # bounded: 按公司分组
+    return found
+
+
+def idle(row, now=None, active=None) -> bool:
     """长期没人用：读过一次（没读过的总要读一次），接上 / 换账套已超过 :data:`IDLE_DAYS` 天，这段时间也没有新的采购 / 销售单。"""
     now = now or now_datetime()
     edge = now - timedelta(days=IDLE_DAYS)
@@ -88,18 +100,31 @@ def idle(row, now=None) -> bool:
         return False
     if row.get("mrerp_linked_at") and get_datetime(row["mrerp_linked_at"]) > edge:
         return False
-    return not any(frappe.db.exists(doctype, {"company": row["name"], "creation": [">", edge]}) for doctype in ACTIVITY)
+    if active is not None:
+        return row["name"] not in active
+    return row["name"] not in active_companies([row["name"]], now)
 
 
 def sync_all():
     """（每小时）接着 MR.ERP、不是长期没人用的公司各排一次整读；整读比对后只写有变化的行。"""
     if not mrerp.enabled():
         return
-    for row in companies():
-        if row.express_sync_state in (ledger_masters.QUEUED, ledger_masters.READING, ledger_masters.SYNCING):
-            continue  # 排着 / 在读 / 在落库的不再排
-        if not idle(row):
-            queue(row.name)
+    rows = [row for row in companies()  # 排着 / 在读 / 在落库的不再排
+            if row.express_sync_state not in (ledger_masters.QUEUED, ledger_masters.READING, ledger_masters.SYNCING)]
+    active = active_companies([row.name for row in rows])
+    for row in rows:
+        if not idle(row, active=active):  # loop-query: 传了活跃名单，不再查库
+            _enqueue(row.name)  # loop-query: 只排队（每家一件后台任务），状态已在上面一次取回
+
+
+def _enqueue(company, notify=None, manual=False):
+    """排一件整读任务并记「排队中」（调用方已确认开关、公司接 MR.ERP、不在读）。"""
+    if notify:
+        frappe.cache.hset(ledger_masters.NOTIFY_KEY + company, notify, 1)
+    ledger_masters._record(company, {"state": ledger_masters.QUEUED})
+    frappe.enqueue("pearnly_erp_portal.mrerp.masters.run", queue=ledger_masters.lane(), timeout=JOB_TIMEOUT,
+                   enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company,
+                   manual=bool(manual))
 
 
 def run(company, manual=False):

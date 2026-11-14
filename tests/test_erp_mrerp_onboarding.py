@@ -60,9 +60,16 @@ def install():
     frappe.cache = types.SimpleNamespace(hset=lambda *a: None)
     frappe.log_error = lambda **kw: None
     frappe.get_traceback = lambda: ""
-    frappe.get_all = lambda doctype, filters=None, fields=None, limit_page_length=None: [
-        Row(row) for row in frappe.db.companies.values()
-        if row.get("is_active") and row.get("mrerp_enabled") and row.get("mrerp_account_set")]
+    def get_all(doctype, filters=None, fields=None, limit_page_length=None, pluck=None, group_by=None):
+        if doctype == "ERP Company":
+            return [Row(row) for row in frappe.db.companies.values()
+                    if row.get("is_active") and row.get("mrerp_enabled") and row.get("mrerp_account_set")]
+        # 活跃公司：按公司分组（`masters.active_companies`）
+        edge = filters["creation"][1]
+        return [company for company in filters["company"][1]
+                if any(when > edge for when in frappe.db.docs.get((doctype, company), []))]
+
+    frappe.get_all = get_all
     utils = types.ModuleType("frappe.utils")
     utils.get_datetime = lambda value: value if isinstance(value, datetime.datetime) else datetime.datetime.fromisoformat(value)
     utils.now_datetime = lambda: NOW

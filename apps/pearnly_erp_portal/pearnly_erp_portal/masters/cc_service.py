@@ -252,7 +252,7 @@ def _mrerp_sets(check_admin=True) -> list:
 
     out = []
     for name in frappe.get_all(connections.CONNECTION, pluck="name", order_by="name asc", limit_page_length=CONNECTIONS_MAX):
-        out += [(name, item) for item in catalog._sets(name)]
+        out += [(name, item) for item in catalog._sets(name)]  # loop-query: 一个租户的 MR.ERP 连接（CONNECTIONS_MAX 内），每条读一次目录快照
     return out
 
 
@@ -271,10 +271,12 @@ def _mrerp_companies(check_admin=True) -> dict:
     各年度按期间排（期间读不到的排后）。同一家出现在几条连接里只取第一条。"""
     from pearnly_erp_portal.mrerp import catalog
 
-    groups = {}
+    groups, hosts = {}, {}
     for connection, item in _mrerp_sets(check_admin):
         attributes = item.get("attributes") or {}
-        group = groups.setdefault(catalog.identity(connection, attributes),
+        if connection not in hosts:
+            hosts[connection] = catalog.site_host(connection)  # loop-query: 每条连接只取一次（连接数有界）
+        group = groups.setdefault(catalog.identity(connection, attributes, hosts[connection]),
                                   {"connection": connection, "attributes": attributes, "books": []})
         if group["connection"] == connection:
             group["books"].append(catalog._book(connection, item))
