@@ -39,7 +39,7 @@ def reserve(doctype, count) -> list:
     for attempt in range(RESERVE_TRIES):
         frappe.db.commit()
         try:
-            start = _take(count)
+            start = _take(count)  # loop-query: 撞上 1020 才重来，最多 RESERVE_TRIES 次
         except frappe.QueryDeadlockError:
             frappe.db.rollback()
             if attempt == RESERVE_TRIES - 1:
@@ -108,7 +108,7 @@ def insert_new(doctype, records, one) -> int:
     made = 0
     for start in range(0, len(records), CHUNK):
         chunk = records[start:start + CHUNK]
-        names = reserve(doctype, len(chunk))
+        names = reserve(doctype, len(chunk))  # loop-query: 每块 CHUNK 行预留一次编号，不是每行
         docs = [prepare(doctype, values, name) for values, name in zip(chunk, names)]
         frappe.db.savepoint("erp_masters_bulk")
         try:
