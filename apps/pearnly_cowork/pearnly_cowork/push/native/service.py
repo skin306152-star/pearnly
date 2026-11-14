@@ -893,6 +893,8 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         response_json = call(encode, response)
         ack_digest = call(digest, [transition.stage, success, docnum, error, line_modes, meta])
         if attempt.status == 'finished':
+            if attempt.ack_digest != ack_digest and _late_partial(row, attempt, success, docnum):
+                return _late_success(row, attempt, target, response, response_json, docnum, now)
             if attempt.ack_digest != ack_digest:
                 fail('push.native_ack_conflict')
             return {**project(row), 'replayed': True}
@@ -919,6 +921,29 @@ def ack(name, *, context, adapter, fence, attempt_token, success, outcome=None,
         if checked == written_check.MISMATCH and isinstance(target.get('automation'), dict):
             _automation_mismatch(row, target)
         return {**project(row), 'replayed': False}
+
+
+def _late_partial(row, attempt, success, docnum):
+    """代录 held（11-14）：这条记录这一次尝试按「未完成 + 半截单号」收过回执、之后没有再派过（还是这一次尝试），人在 Express 里
+    答完框、单存完后同一次投递补报「已写入 + 那个单号」：只收这一种（``common.late_partial_success``）。"""
+    stored = json.loads(row.response_json or '{}') if row.response_json else {}
+    return (row.active_attempt == attempt.name and isinstance(stored, dict)
+            and common.late_partial_success(success, row.status, stored.get('meta'), docnum))
+
+
+def _late_success(row, attempt, target, response, response_json, docnum, now):
+    """把收过「未完成」的这一条改成已写入（不再动写者锁：收未完成时已放）。"""
+    timestamp = now_utc(now)
+    attempt.outcome, attempt.response_json, attempt.completed_at = common.STAGE_SUCCESS, response_json, timestamp
+    persist(attempt)
+    row.status, row.reason, row.response_json = 'success', '', response_json
+    row.result_unknown, row.lease_expires_at, row.external_docnum, row.completed_at = 0, None, docnum, timestamp
+    completion.success(row, timestamp)
+    checked = _written_check(row, target, response)
+    _save_record(row, timestamp)
+    if checked == written_check.MISMATCH and isinstance(target.get('automation'), dict):
+        _automation_mismatch(row, target)
+    return {**project(row), 'replayed': False}
 
 
 def _written_check(row, target, response):

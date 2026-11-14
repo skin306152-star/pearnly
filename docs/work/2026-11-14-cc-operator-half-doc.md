@@ -15,6 +15,15 @@
 - 判定（`book.gaps`，四种单同一口径）：开录后新出现、对方+日期+对方单号对上、没作废的单头 → 缺 total（含税合计不符）/ lines（STCRD 行数不够）/ journal（无同号 GLJNL）/ vat（有税且非服务品收付实现却无 ISVAT）任一 = 半截；都不缺 = 已完整。GLJNL 只在出事 / 再交时读（表大）。
 - 代录只有 RR / HP / IV / HS 四种单（收款 RE 不走代录，直写半途失败整单回滚，已有测试 test_a_failure_half_way_rolls_everything_back），四种都覆盖。
 
+### 原生证据（11-14 测试机2 以 aksar 只读复制三本测试账套，~/pearnly-devtools/half-doc/doc_shape.py）
+按「单种 · 有效 / 作废 · 单头金额 · 有无 STCRD · ISVAT · GLJNL · GLJNLIT」计数：
+| 账套 | 正常存完的有效单 | 人为打断 / 占号留下的 |
+|---|---|---|
+| 70EXP\test | RR 23、HP 8、IV 9、HS 36：金额≠0、有明细、有凭证与分录；有税的都有 ISVAT（1 张无税 RR 无 ISVAT） | IV0000045：金额 0、STCRD 1 行、无 ISVAT / GLJNL / GLJNLIT（11-13 存档途中 Express 被关）；IV0000026/28/29/30/34/35/37、HS0000043：金额 0、其余全无（放弃时留下的空单头） |
+| 69EXP\TEST | RR 288、HP 105、IV 28、HS 13、收款 RE 17：全部金额≠0、有凭证与分录；买卖单都有明细，有税的都有 ISVAT | 无 |
+| 69EXP\TEST2 | RR 79、HP 50、IV 27、HS 13：同上 | 无 |
+作废的单（DOCSTAT C）金额 0，凭证 / ISVAT 留不留不一，判定一律跳过作废单。结论：「已完整」= 金额对上 + 明细行够 + 有同号凭证（+ 有税时有 ISVAT）在 600+ 张原生单上无一例外；两类打断形状都被判成半截。收款 RE 原生同样「金额 + 凭证 + 分录」齐全；RE 不走代录，直写半途失败整单回滚（companion/tests/test_dbf_receipt.py::test_a_failure_half_way_rolls_everything_back），本修法不涉及。
+
 ### 修法（CC 侧，已写）
 - `engine._after_save_trouble`：先读账套（含凭证）→ 已完整回单号；半截 → 原因 `partial_saved` + `partial {docnum, missing}`；都标 `recheck` + `held`，**不碰 Express**。
 - 放弃（保存前）时认不出的框留在编辑中的单上 → 也 `held`。
@@ -44,12 +53,19 @@ b. 回执 `meta.operator`（CC worker 把宿主 meta 放进这里）新增两项
    CC 另把半截单号放进回执 `meta.operator.docnum`（原有键）。
 c. 两产品对未完成（not_done）的单只多显示这个单号：`common.operator_partial_docnum(meta)`；Cowork `operator_source.status` 读推送记录 `response_json.meta`，ERP `express/operator.status` 读写账件 `Pearnly CC Job.meta_json`。不加说明句、按钮、确认步骤。
 d. 等待：Express 留着等人期间，同一本账套的代录单 / 要先建主档的单回 `waiting_lock` + `error_code ACCOUNT_BUSY_LOCKED`（现成的「Express 正在使用此账套」，`ack_rules.EXPRESS_OPEN`：这本账套歇 30 秒再派、别的账套照常领），不另起状态、不加文案。
+e. 迟到终态（主会话 11-14 补）：人在 Express 里答完框、单存完后，CC 用**同一件的回执**（投递号 log_id）补报 `result=success` +
+   `express_docnum = 记下的半截单号`。服务端只收这一种：同一件、状态仍是未完成（manual）、带的单号与回执 meta 里记下的
+   `operator.partial.docnum` 一致（`common.late_partial_success`）；ERP 写账件另要同一台电脑（`last_device`），Cowork 推送记录另要
+   还是这一次尝试（没有再派过、`active_attempt` 未换）。收了就记已写入，不再动写者锁、不改尝试次数；不加状态、文案、按钮。
+   CC 侧：写账线回「未完成 + held」时记下投递号与成员档案（`Host.note_late`）；空闲时隔 60 秒只读看一次（框还开着不读账套），
+   框没了读一次账套：已完整 → 补报（`worker.operator_idle`），服务端拒收（4xx）不再试、网络错下次再试；没存完（Express 被手工关掉）
+   → 放手、不补报，等人重试时按账本判。
 上线顺序：服务端提交先部署（旧 CC 不发这些键，净化与显示都是空，行为不变）；CC 后发。服务端遇到旧 CC 照旧；新 CC 遇到旧服务端：原因显示「未知原因」、单号被净化丢掉，不坏事。
 
 ## held（Express 留着等人）的三点
 1. 排在后面的单：只影响同一本账套，见接缝 d；直写遇到 Express 开着这本账套本来就等，口径一致。CC 重启后内存里没有那一批，也凭本机 Express 记录（进程还在 + 批次标 held + 同账套）照样等。
 2. 人一直不来：CC 永远不关、不点那个 Express。收场——人在 Express 里答完、单存完：账套读到「已完整」即放手、记已写入；Express 被人关掉 / accserver 关机后进程没了：放手，那张保持半截 / 没写（再交按账本实际状态判）；框和 Express 都还在：一直算占着这本账套（同人自己开着 Express），只挡这一本，不占整条队列。不加超时自动收场（超时只能关 Express 留半截或替人点框，都违反管钱底线）。
-3. 结果回报：转人工当时回 partial_saved + 单号 + 缺什么；人答完框后用任务里现成的「重试 / 整批继续」再交，CC 只读账套：已完整回「已写入 + 原单号」（服务端从未完成变已写入），半截带单号再回未完成，一行都没有才从头录。CC 不主动补报、不加按钮。
+3. 结果回报：转人工当时回 partial_saved + 单号 + 缺什么；人答完框、单存完后 CC 主动用原回执补报「已写入 + 原单号」（接缝 e），页面不再挂着「未完成」；Express 被手工关掉后仍是半截的不补报，等人用现成的「重试 / 整批继续」再交（CC 只读账套：已完整回原单号，半截带单号再回未完成，一行都没有才从头录）。
 
 ## 第三件：窗口超出屏幕
 - `desk.fit_rect`（纯函数）+ `win32_desk.fit`：主窗口没最大化又超出 → 铺满工作区；别的窗口（报表、弹窗、单据）比工作区大就缩、再整个挪进所在显示器工作区；SetWindowPos 不激活、异步（后台做法照样能用）。

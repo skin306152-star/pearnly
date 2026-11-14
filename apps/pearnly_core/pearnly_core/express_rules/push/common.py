@@ -569,6 +569,14 @@ def operator_partial_docnum(meta: Any) -> str:
     return str((clean_operator_meta(meta.get(OPERATOR_META)).get("partial") or {}).get("docnum") or "")
 
 
+def late_partial_success(success: Any, status: Any, stored_meta: Any, docnum: Any) -> bool:
+    """迟到的终态能不能收（代录 held，11-14）：这件已经按「未完成」收了回执（``status`` = manual），回执 meta 里记着 Express 留下的
+    半截单号；人在 Express 里答完框、单存完后 CC 用同一件的回执补报「已写入」。只收：成功、状态还是未完成、带的单号与记下的半截单号
+    一致。别的一律照旧（不是这一件、不是这个单号、要从别的状态改，都不收）。"""
+    number = str(docnum or "").strip()
+    return success is True and status == "manual" and bool(number) and operator_partial_docnum(stored_meta) == number
+
+
 def clean_revenue_meta(raw: Any) -> List[Dict[str, str]]:
     """``meta.revenue`` → [{acc, amount}]；不是列表、空、超条数或有一条认不出（科目空 / 超长、金额不是非负数）回空列表。"""
     if not isinstance(raw, list) or not raw or len(raw) > _META_MAX_LIST:

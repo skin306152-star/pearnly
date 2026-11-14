@@ -411,6 +411,18 @@ def _stored_meta(request):
     return meta
 
 
+def _late_partial(doc, request, success) -> bool:
+    """代录 held（11-14）：这件按「未完成 + 半截单号」收过回执，人在 Express 里答完框、单存完后，同一台电脑用同一件补报「已写入
+    + 那个单号」。只收这一种（``common.late_partial_success``）。"""
+    from pearnly_core.express_rules.push.common import late_partial_success
+
+    try:
+        stored = json.loads(doc.meta_json or "{}")
+    except ValueError:
+        return False
+    return late_partial_success(success, doc.status, stored, request["express_docnum"])
+
+
 def acknowledge(context, body) -> dict:
     request = queue_contracts.ack_request(body)
     context = devices.revalidate(context)
@@ -425,7 +437,8 @@ def acknowledge(context, body) -> dict:
             raise frappe.AuthenticationError
         return _reply(doc, "success", replayed=True)
     mine = (doc.status == "leased" and doc.lease_device == context.device) or (
-        doc.status in ("queued", "manual") and doc.reason == LOST and doc.route_device == context.device)
+        doc.status in ("queued", "manual") and doc.reason == LOST and doc.route_device == context.device) or (
+        doc.last_device == context.device and _late_partial(doc, request, success))
     if not mine:
         # 不是这台电脑领的、已经交给别人的：这次回执不算（电脑丢掉它）
         raise frappe.AuthenticationError

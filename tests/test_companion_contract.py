@@ -667,6 +667,18 @@ class WriteCheck(unittest.TestCase):
         self.assertIn("_partial_docnum(", cowork)
         erp = method_source_of(apps / "pearnly_erp_portal" / "pearnly_erp_portal" / "express" / "operator.py", "status")
         self.assertIn("_partial_docnum(row.ledger_job)", erp)
+        # 迟到终态（接缝 e）：只收「成功 + 还是未完成 + 单号与记下的半截单号一致」，两套账本都走这一个判定
+        from pearnly_core.express_rules.push.common import late_partial_success
+
+        stored = {"operator": {"partial": {"docnum": "IV0000045"}}}
+        self.assertTrue(late_partial_success(True, "manual", stored, " IV0000045 "))
+        for args in ((False, "manual", stored, "IV0000045"), (True, "queued", stored, "IV0000045"),
+                     (True, "manual", stored, "IV0000046"), (True, "manual", {}, "IV0000045"), (True, "manual", stored, "")):
+            self.assertFalse(late_partial_success(*args), args)
+        self.assertIn("late_partial_success(", method_source_of(apps / "pearnly_core" / "pearnly_core" / "cc_desktop" / "jobs.py",
+                                                                "_late_partial"))
+        self.assertIn("common.late_partial_success(", method_source_of(apps / "pearnly_cowork" / "pearnly_cowork" / "push" / "native"
+                                                                       / "service.py", "_late_partial"))
 
     def test_cc_desktop_sends_the_half_document_keys_the_server_keeps(self):
         """CC 宿主回执 meta 带 partial（缺什么的取值与服务端同一组）与 held。"""
