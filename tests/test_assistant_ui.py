@@ -1611,16 +1611,21 @@ assert.equal(items(html), 3);
 assert.doesNotMatch(html, /more/);
 assert.equal(buttons(html).length, 2);
 assert.ok(html.lastIndexOf("</ul>") < html.indexOf("<button"));
-// 按钮照 Claude：底部靠右，「拒绝」在左（次要，没有 data-primary）、「允许」在右（主要）；同一个卡片按钮类，不带图标
+// 按钮照 Claude：底部靠右，「拒绝」在左（次要，没有 data-primary）、「允许」在右（主要）；同一个卡片按钮类（标准组件 Button 的 xs 档），不带图标
 assert.match(html, /<div class="cc-card-actions">/);
 const [deny, allow] = buttons(html);
-assert.match(deny!, /^<button type="button" class="cc-card-btn">Deny<\/button>$/);
-assert.match(allow!, /^<button type="button" class="cc-card-btn" data-primary="">Allow<\/button>$/);
+assert.match(deny!, /^<button data-slot="button" data-variant="secondary" data-size="xs" type="button" class="cc-ui-button cc-card-btn">Deny<\/button>$/);
+assert.match(allow!, /^<button data-slot="button" data-variant="default" data-size="xs" type="button" class="cc-ui-button cc-card-btn" data-primary="">Allow<\/button>$/);
 assert.doesNotMatch(html.slice(html.indexOf('<div class="cc-card-actions">')), /<svg/);
 // 改前 → 改后之间是 SVG 箭头图标（用户 11-07：图标统一 SVG，不用「→」字符）
 assert.match(html, /<svg[^>]*lucide-arrow-right[^>]*aria-hidden="true"/);
 assert.doesNotMatch(html, /→/);
-// 改动清单不另套一层带边框的框（卡里只一层框，细线隔开：.cc-ask-changes）
+// 改动清单是一个内嵌的带边框圆角块（.cc-ask-changes，样式在 globals.css；用户 11-14 照 Claude 桌面应用的决定框，覆盖 10-17「不另套框」），
+// 组件里不另写边框类
+// 服务端给了一行事实（会动到哪家公司、哪本账套）才出说明行，没给不出
+assert.doesNotMatch(html, /cc-ask-note/);
+assert.match(renderToStaticMarkup(createElement(ApprovalBar, { approval: { id: "n", note: "ABC Co., Ltd. · T.8", preview: rows(1) }, respondToApproval: () => {} })),
+  /<p class="cc-ask-note">ABC Co\., Ltd\. · T\.8<\/p><ul class="cc-ask-changes">/);
 assert.match(html, /<ul class="cc-ask-changes">/);
 assert.doesNotMatch(html, /rounded-md border/);
 // 卡内不套滚动
@@ -1669,7 +1674,10 @@ g.done();
 """, lang="th")
         source = read("components/tool-uis/approval-bar.tsx")
         self.assertIsNone(re.search(r"#[0-9a-fA-F]{3,8}\b|rgba?\(|emerald|\bred-\d|\d+px", source))
-        self.assertNotIn("@/components/ui/button", source)
+        # 两个按钮用标准组件库的 Button（xs 档 = 卡片按钮 .cc-card-btn，11-12「改到哪换到哪」；10-17 时这里禁的是旧的通用按钮），不手写 <button>
+        self.assertIn('import { Button } from "@/components/ui/button";', source)
+        self.assertEqual(source.count('size="xs"'), 2)
+        self.assertNotIn("<button", source)
         # 图标只有改前 → 改后之间的 SVG 箭头（11-07 图标统一 SVG），按钮不带图标
         self.assertEqual(re.findall(r'import \{([^}]*)\} from "lucide-react";', source), [" ArrowRightIcon "])
         # 卡片按钮：电脑 24 高（设计系统 xs 档，6.webp「跳过 / 提交」，第 11 轮按钮排查 G4）、左右 8、13px、字重 500、两钮间距 8；
@@ -1703,6 +1711,12 @@ g.done();
         self.assertIn("font-weight: var(--cc-weight-regular);", question)
         self.assertIn('  .cc-ask:not([data-phase="ask"]) .cc-ask-q { padding-bottom: var(--cc-space-2); font-weight: var(--cc-weight-semibold); }', css)
         self.assertNotIn(".cc-ask-q.cc-step-row", css)
+        # 等回答时照 Claude 桌面应用的决定框（用户 11-14）：问话是标题栏（底色略浅）；内容在内嵌的带边框圆角块里；手机浮层里的清单不套框
+        self.assertIn('  .cc-ask[data-phase="ask"] .cc-ask-q { padding-bottom: var(--cc-ask-py); background: var(--cc-ask-head-bg); }', css)
+        changes = rule(".cc-ask-changes")
+        self.assertIn("border: var(--cc-ring-w) solid var(--cc-line); border-radius: var(--cc-radius-md);", changes)
+        self.assertNotIn("border-top:", changes)
+        self.assertIn("  .cc-ask-sheet .cc-ask-changes { margin: 0; padding: 0; border: 0; border-radius: 0;", css)
 
     def test_the_answered_card_looks_the_same_live_and_reopened(self):
         # 点完卡片留在原处（不进折叠的步骤组）：问话 + 所选那一项。当场点的与重开对话（历史里没有点击记录，按结果认）同一个样子
@@ -1767,7 +1781,7 @@ for (const ended of [{ type: "complete" }, { type: "incomplete", reason: "cancel
 // 等回答：问话正文色，下面两个按钮；电脑上在卡片里
 html = step({ approval: { id: "t1", ask, preview: [{ field: "公司", before: "", after: "A" }] } });
 assert.match(html, /data-phase="ask"/);
-assert.match(html, />拒绝<\/button><button type="button" class="cc-card-btn" data-primary="">允许<\/button>/);
+assert.match(html, />拒绝<\/button><button [^>]*class="cc-ui-button cc-card-btn" data-primary="">允许<\/button>/);
 // 手机：等回答时这一步不在对话流里（浮在输入框上方，照 Claude 手机端：问话与改动不画两遍）
 g.phone = true;
 html = step({ approval: { id: "t1", ask, preview: [{ field: "公司", before: "", after: "A" }] } });
