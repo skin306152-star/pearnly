@@ -13,6 +13,9 @@
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步
   rows()                            侧栏对话行（标题文字）
+  turnDone(n)                       等这一轮结束再读回复：停止键消失、连续 1 秒没再出现（最多 n×250 毫秒，默认 60 秒），回 true / false。
+                                    从页面读回复文字一律先等它（11-14：这一轮还在跑时读到的可能是还没画完的半截；实验室没有实时通道，
+                                    「这一轮结束」靠补拉带回）
   toolResult(name)                  假智能体回的「[lab-agent] <工具名> <工具结果原文>」里那段结果，**整段 JSON 已完整画出来**时回对象，
                                     否则回 null（回复是流式画出来的）。读工具结果一律 `await until(()=>toolResult(名))` 再取字段：
                                     只等某个字段名出现就读（11-11 / 11-12 两次偶发：`"status"` 先出现在嵌套的跳过清单里，顶层还没画完）
@@ -52,6 +55,8 @@ JS = (
     "const b=qa('.cc-steps-summary[aria-expanded=\"false\"]')[0]; if(!b) {await sleep(250); continue;} b.click(); await sleep(150);} "
     "return !!q(`[data-slot=\"${slot}\"]`);};"
     "const rows=()=>qa('[data-slot=\"aui_thread-list-item\"]').map(e=>e.innerText.trim().split('\\n')[0]);"
+    "const turnDone=async(n=240)=>{let quiet=0; for(let k=0;k<n;k++){ if(q('button.aui-composer-cancel')) quiet=0; else if(++quiet>=4) return true; "
+    "await new Promise(r=>setTimeout(r,250)); } return false;};"
 )
 
 # 工具结果整段 JSON（见文件头 toolResult）：从「<工具名> {」起按括号配对（跳过字符串里的括号）取到完整的一段再解析，取最新的那条回复

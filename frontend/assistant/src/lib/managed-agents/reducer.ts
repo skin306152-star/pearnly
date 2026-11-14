@@ -708,9 +708,11 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
         });
         return { ...state, messages, previews };
       }
-      // agent.message preview: open an empty text part the deltas fill.
+      // agent.message preview: open an empty text part the deltas fill. 记在消息上「是逐字推来的」（custom.streamed）：
+      // 只有这种回复用逐字动画（markdown-text.tsx）；补拉 / 重放一次带回的整条直接显示全文（11-14：组件库把已到齐的整条
+      // 按打字效果慢慢画，只靠轮询时页面有零点几秒到一秒是半截）
       const content: ContentPart[] = [...msg.content, { type: "text", text: "" }];
-      messages[mi] = withContent(msg, content);
+      messages[mi] = { ...withContent(msg, content), metadata: { custom: { ...(msg.metadata?.custom ?? {}), streamed: true } } };
       const previews = new Map(state.previews).set(event.event.id, {
         messageIndex: mi,
         partIndex: content.length - 1,
