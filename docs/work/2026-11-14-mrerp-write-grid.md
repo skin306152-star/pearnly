@@ -117,7 +117,7 @@ ERP 单据写进 MR.ERP（含写入核不上）后调一次 `pearnly_erp_portal.
 
 ## ERP 单据页账本弹窗认 MR.ERP（验收清单 B13，主会话定「乙」）
 
-同一个弹窗按账本来源取文案与调用（`express/api.py ledger_of`：单据记的账本，没记过看公司 `mrerp.push.handles`；公司接入第 3 批
+同一个弹窗按账本来源取文案与调用（`express/api.py doc_ledger`：单据记的账本，没记过看公司 `mrerp.push.handles`；公司接入第 3 批
 加来源字段后只改这一处）。MR.ERP 的单：标题与单号栏写 MR.ERP；停在要选导入菜单 / 默认值的出选项（`mrerp.push.answer`）；
 失败或停下（非结果不明）的「再写一次」走 `mrerp.push.send(manual=True)`（同 CC 推送，清被踢标记）。Express 的单行为不变
 （`test_erp_express_direct` 195 条照过，另加 3 条）。四语新词条沿用 Cowork 现成的 MR.ERP 菜单 / 设置文案。

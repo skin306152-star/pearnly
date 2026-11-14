@@ -3863,12 +3863,12 @@ class ExpressWaiting(PushModule):
         """B13（11-14）：同一个账本弹窗按账本来源取文案与调用；来源 = 单据记的账本，没记过看公司（`mrerp.push.handles`）。"""
         api = self.api()
         with mock.patch.object(api.mrerp_push, "handles", lambda company: True):
-            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="mrerp")), "mrerp")
-            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="")), "mrerp")
-            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="express")), "express")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="mrerp")), "mrerp")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="")), "mrerp")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="express")), "express")
         with mock.patch.object(api.mrerp_push, "handles", lambda company: False):  # 开关关着 / 公司不是 MR.ERP 账本
-            self.assertEqual(api.ledger_of(Row(company="CO-1", ledger_target="mrerp")), "express")
-            self.assertEqual(api.ledger_of(Row(company="CO-1")), "express")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="mrerp")), "express")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1")), "express")
 
     def mrerp_view(self, **values):
         api = self.api()

@@ -64,7 +64,7 @@ def _require_enabled(row):
 LEDGER_EXPRESS, LEDGER_MRERP = "express", mrerp_contracts.LEDGER_MRERP
 
 
-def ledger_of(row) -> str:
+def doc_ledger(row) -> str:
     """单据账本弹窗按哪本账：这家公司账本是 MR.ERP（`mrerp.push.handles`：开关开着、公司选了 MR.ERP 账套）回 ``mrerp``，其余
     ``express``。公司接入第 3 批加「账本来源」字段后只改这一处。"""
     target = row.get("ledger_target") or ""
@@ -161,7 +161,7 @@ def _party_blocked(doctype, row, job):
 
 
 def _view(doctype, row):
-    if ledger_of(row) == LEDGER_MRERP:
+    if doc_ledger(row) == LEDGER_MRERP:
         return _mrerp_view(doctype, row)
     if not push.enabled(row.company):
         # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
@@ -278,7 +278,7 @@ def preflight(doctype, payload, answers=None, name=None):
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
-    if ledger_of(row) == LEDGER_MRERP:
+    if doc_ledger(row) == LEDGER_MRERP:
         answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
         if not isinstance(answers, list) or not answers or not mrerp_push.answer(doctype, name, answers):
             frappe.throw(_("Invalid request"))  # 只认停在单据上的那几项、这一项能选的值（记在公司上后再推一次）
@@ -320,7 +320,7 @@ def retry(doctype, name):
     重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
-    if ledger_of(row) == LEDGER_MRERP:
+    if doc_ledger(row) == LEDGER_MRERP:
         if not _mrerp_retryable(row):
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         mrerp_push.send(doctype, name, manual=True)  # 人点的：清这个账号的被踢标记、照常登录（同 CC 推送）
