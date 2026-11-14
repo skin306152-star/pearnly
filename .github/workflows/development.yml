@@ -420,6 +420,8 @@ jobs:
         run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py
       - name: CC guide declarations (one declaration per business, shape, registry menu by mode and permission, every dotted path and tool exists, same entry across products)
         run: python3 scripts/check-cc-guides.py && python3 tests/test_cc_guide_registry.py && python3 tests/test_cc_guide_steps.py
+      - name: Operator dialog register matches the CC Desktop recipes (a dialog in a recipe that is not registered fails; every business choice names the question asked before the start)
+        run: python3 tests/test_operator_choice_points.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)
