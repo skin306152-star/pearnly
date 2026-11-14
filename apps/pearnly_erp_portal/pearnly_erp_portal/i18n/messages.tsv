@@ -1936,6 +1936,28 @@ Only invoices in Thai baht can be sent to MR.ERP	仅泰铢发票可推送至 MR.
 The invoice date is in the future. Correct it and submit again	票面日期晚于当前日期，请更正后重新提交	วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่	伝票日付が未来です。直して再送信してください	mrerp.error.date_future
 The invoice date looks wrong. Correct it and submit again	票面日期可能有误，请核对后重新提交	วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่	伝票日付がおかしいようです。確認して再送信してください	mrerp.error.date_implausible
 Account signed in elsewhere	账号已在别处登录	บัญชีเข้าสู่ระบบที่อื่นอยู่	アカウントは別の場所でログイン中です	mrerp.error.ERR_MRERP_ACCOUNT_IN_USE
+MR.ERP import menu	MR.ERP 导入菜单	เมนูนำเข้า MR.ERP	MR.ERP 取込メニュー	mrerp.menu.title
+Purchase (goods)	采购（货品）	ซื้อ (สินค้า)	仕入（商品）	mrerp.menu.purchase
+Purchase (expense)	采购（费用）	ซื้อ (ค่าใช้จ่าย)	仕入（経費）	mrerp.menu.purchase_expense
+Credit sales	赊销	ขายเชื่อ	掛売上	mrerp.menu.sales_credit
+Cash sales	现金销售	ขายเงินสด	現金売上	mrerp.menu.sales_cash
+MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設定	mrerp.default.title
+Branch	分店	สาขา	支店	mrerp.default.branch
+Department	部门	แผนก	部門	mrerp.default.dept
+Job	项目	งาน	案件	mrerp.default.job
+Warehouse	仓库	คลังสินค้า	倉庫	mrerp.default.store
+Employee	员工	พนักงาน	担当者	mrerp.default.employee
+Sales area	销售区域	พื้นที่การขาย	販売地域	mrerp.default.area
+Delivery type	运输方式	ประเภทขนส่ง	配送方法	mrerp.default.delivery
+Customer type	客户类型	ประเภทลูกค้า	顧客区分	mrerp.default.customer_type
+Receivable account	应收科目	บัญชีลูกหนี้	売掛金勘定	mrerp.default.ar_account
+Supplier type	供应商类型	ประเภทผู้จำหน่าย	仕入先区分	mrerp.default.supplier_type
+Payable account	应付科目	บัญชีเจ้าหนี้	買掛金勘定	mrerp.default.ap_account
+Bank account	银行收款科目	บัญชีเงินฝากธนาคาร	銀行勘定	mrerp.default.bank_account
+Product group	商品分类	หมวดสินค้า	商品分類	mrerp.default.product_group
+Unit	单位	หน่วยนับ	単位	mrerp.default.unit
+Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	mrerp.default.expense_account
+MR.ERP No.	MR.ERP 单号	เลขที่ MR.ERP	MR.ERP 番号	mrerp.docnum
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
 Viewed a document	查看了单据详情	ดูเอกสารแล้ว	書類を確認しました

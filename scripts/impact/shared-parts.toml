@@ -254,7 +254,7 @@ name = "MR.ERP 规则（会话、目录、主档、菜单、方向、导入文�
 paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct"]
+entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters"]
 not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）" }
 
 [[part]]
@@ -2061,6 +2061,15 @@ steps = "开关关着：ERP 采购 / 销售提交、对话直写、待处理照�
 expect = "关着时 MR.ERP 入口全挡、Express 输出不变；开着时单据记 MR.ERP 单号，现购停下，要选的停在单据上，账号被代录占着时排队"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/connection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py"]
+
+[[entry]]
+id = "erp.mrerp.masters"
+product = "ERP"
+where = "ERP 接 MR.ERP 的公司：主档整读进 ERP（服务端登录读导出页与按仓结存，落进与 Express 同一个落库；总开关 MRERP_LEDGER_ENABLED）"
+steps = "开关关着：什么都不排；开关在测试里打开：从连接添加 / 公司页选一份 MR.ERP 账套 → 排一次整读，公司页 MR.ERP 一节显示排队中 / 读取中 / 已同步；采购、物料调整等选择框里本公司的 MR.ERP 档排前、按 MR.ERP 编码搜得到；再落一次不改任何行"
+expect = "客户 / 供应商 / 物料 / 仓库按 MR.ERP 建出、来源 MR.ERP；结存与 MR.ERP 按仓结存一致；读不到记原因、不当空账套停用档；Express 公司的同步不受影响"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
 
 [[entry]]
 id = "erp.cc.stocktake"

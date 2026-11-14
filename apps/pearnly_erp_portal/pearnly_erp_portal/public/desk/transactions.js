@@ -145,6 +145,7 @@
 		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt", vat_registered: "express.kind.vatRegistered",
 		refund: "express.kind.refundAccount", exempt_mode: "express.kind.exemptMode", service_vat: "express.kind.serviceVat",
 	};
+	const MRERP_KINDS = {mrerp_menu: "mrerp.menu", mrerp_default: "mrerp.default"};
 	const EXPRESS_CODES = {PERIOD_LOCKED: "express.reason.periodLocked", STOCK_INSUFFICIENT: "express.reason.stockInsufficient"};
 	const EXPRESS_OPTIONS = {cash: "Cash", credit: "Credit", claim: "express.option.claim", expense: "express.option.expense",
 		__new__: "New", yes: "express.option.yes", no: "express.option.no", split: "express.option.exemptSplit",
@@ -157,8 +158,12 @@
 				: item.kind === "account_set" ? option.name  // 账套的编码是内部键，只显示名称与位置
 				: [option.code, option.name, option.branch].filter(Boolean).join(" · ")}));
 		// 选项多（科目表、整张对方档表）用官方可输入搜索的下拉，少的用普通下拉
+		// MR.ERP 的单（`express.api._mrerp_view`）：导入菜单按单据类型、默认值按字段（Cowork 同一套叫法）
+		const mrerp = MRERP_KINDS[item.kind];
 		return {fieldtype: options.length > 20 ? "Autocomplete" : "Select", fieldname: `pick_${index}`, reqd: 1,
-			label: __(kind?.[direction] || kind || item.kind), description: item.label || "", default: item.current || "",
+			label: mrerp === "mrerp.menu" ? __(`mrerp.menu.${item.subject}`) : mrerp ? __(`mrerp.default.${item.subject}`)
+				: __(kind?.[direction] || kind || item.kind),
+			description: mrerp === "mrerp.menu" ? __("mrerp.menu.title") : item.label || "", default: item.current || "",
 			options: options.length > 20 ? options : [{value: "", label: ""}, ...options]};
 	});
 	const answers_of = (needed, values) => needed.map((item, index) =>
@@ -239,7 +244,8 @@
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
 					failed: "Failed", handled: "express.state.handled", detached: "express.state.detached"}[info.state] || info.state)},
-			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: __("Express No."), read_only: 1, default: info.docnum}] : []),
+			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: info.ledger === "mrerp" ? __("mrerp.docnum")
+				: __("Express No."), read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
 				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
@@ -258,7 +264,7 @@
 				}, __("express.action.markHandled"))}] : []),
 		];
 		const action = info.can_answer ? __("Save") : info.can_retry ? __("Retry") : __("Close");
-		p.dialog(__("Express"), fields, action, async (values, dialog) => {
+		p.dialog(info.ledger === "mrerp" ? "MR.ERP" : __("Express"), fields, action, async (values, dialog) => {
 			if (info.can_answer) {
 				await p.call(api + "answer", {doctype, name, answers: JSON.stringify(answers_of(info.needed, values))}, "POST");
 				p.success(__("Saved"), "click");
