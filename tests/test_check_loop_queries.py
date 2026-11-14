@@ -25,6 +25,7 @@ def rows(names):
     once = [r for r in frappe.get_all("X", filters={"name": ["in", names]}, limit_page_length=50)]
     made = [frappe.get_doc({"doctype": "X", "title": n}) for n in names]
     pure = [helpers.pure(n) for n in names]
+    later = {n: (lambda: frappe.db.get_value("X", n)) for n in names}
     for name in names:
         frappe.db.exists("X", name)  # loop-query: a company has two warehouses
     while names:
@@ -67,7 +68,7 @@ class LoopQueries(unittest.TestCase):
         root = self.repo({"apps/a/a/service.py": SERVICE, "apps/a/a/helpers.py": HELPERS,
                           "apps/a/a/tests/test_x.py": "import frappe\nfor n in x:\n    frappe.db.get_value('X', n)\n"})
         self.assertEqual(self.found(root), [(9, "frappe.db.get_value"), (10, "label→frappe.db.get_value"),
-                                            (11, "deep→label→frappe.db.get_value"), (19, "frappe.qb….run")])
+                                            (11, "deep→label→frappe.db.get_value"), (20, "frappe.qb….run")])
 
     def test_the_baseline_may_shrink_but_not_grow(self):
         loop = "import frappe\nfor n in x:\n    frappe.db.get_value('X', n)\n"

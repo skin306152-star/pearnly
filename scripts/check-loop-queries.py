@@ -10,7 +10,8 @@ docs/work/2026-11-14-page-performance.md）。`check-unbounded-queries.py` 只�
 - 直接查库：`frappe.db.get_value / get_values / get_all / get_list / exists / count / sql / get_single_value`、
   `frappe.get_all / get_list / get_doc / get_last_doc / get_value`、`frappe.qb ….run()`；
 - 或调用了「会查库的函数」：本仓 apps/ 里函数体（含它再调用的本仓函数，按名字解析：同模块函数、`模块别名.函数`）有上面的直接查库。
-不算：`frappe.get_cached_value` / `get_cached_doc`（同一请求只查一次）；`for x in frappe.get_all(...)` 的取数本身（只执行一次）。
+不算：`frappe.get_cached_value` / `get_cached_doc`（同一请求只查一次）；`for x in frappe.get_all(...)` 的取数本身（只执行一次）；
+循环里建的 lambda / 嵌套函数体（建函数不等于执行它）。
 
 确实有界的（按几家公司、几个仓、一张单的几行）在那一行写 `# loop-query: 原因`。存量登记在
 scripts/loop-queries-baseline.json（按文件计数）：**只许减少不许增加**；修掉后用 `--update` 降基线。
@@ -116,8 +117,17 @@ class Module:
         return None
 
 
-def calls_in(node) -> list[ast.Call]:
-    return [n for n in ast.walk(node) if isinstance(n, ast.Call)]
+def calls_in(node, deferred=True) -> list[ast.Call]:
+    """节点里的调用。``deferred=False``：不进 lambda / 嵌套函数（循环里建函数不等于循环里执行它）。"""
+    out, stack = [], [node]
+    while stack:
+        current = stack.pop()
+        if not deferred and isinstance(current, (ast.Lambda, ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        if isinstance(current, ast.Call):
+            out.append(current)
+        stack.extend(ast.iter_child_nodes(current))
+    return out
 
 
 def query_functions(modules: list[Module]) -> dict[str, str]:
@@ -172,7 +182,7 @@ def findings() -> list[tuple[str, int, str]]:
         rel = str(m.path.relative_to(ROOT))
         for _loop, parts in loop_parts(m.tree):
             for part in parts:
-                for call in calls_in(part):
+                for call in calls_in(part, deferred=False):
                     what = direct_query(call)
                     if not what:
                         target = m.resolve(call)
