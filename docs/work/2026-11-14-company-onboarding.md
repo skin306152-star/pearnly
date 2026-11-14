@@ -444,7 +444,7 @@
   断开只走「断开」。「同步 Express」按钮保留。
 - 口径收口：`masters/access.py` 的 `usable / scope_sql / scope_or_filters / ledger_filters`，权限钩子 `master_query` 改用它；改调的：收款找客户、
   打印抬头、收发存导出、期初模板、LINE 选对方（搜索 / 计数 / 最近用过）、采购 / 销售提交时的物料与对方校验。`scripts/check-master-scope.py` +
-  `master-scope-baseline.json`（61 处 / 13 个文件，只减不增）进 development.yml。
+  `master-scope-baseline.json`（52 处 / 11 个文件，只减不增）进 development.yml。
 - 选择框：`masters/link_search.py`（原生 `get_query` 的服务端查询，范围同权限口径、本公司账本档排前、账本编码 / 条码 / 税号可搜、完全相同的排最前、
   服务端分页）；共用 `link.js` 的 `set_custom_query` 留一个产品口子，ERP 的 `p.link_query_wrap` 给物料 / 客户 / 供应商没自带 `query` 的 Link 套上
   （只接「某列 = 某值」的简单条件，别的照原生，不放宽也不丢）。三个 DocType 的 `search_fields` 补账本编码（客户、供应商再补税号）。
@@ -458,7 +458,7 @@
    §1.2 说的「授权后要等 10–20 分钟」改由 `announce` 当场排同步解决。
 
 ### 没收口、留到下一批的（各有原因）
-- `masters/selection.py`、`products/line_memory.py`：产品地图把它们连到「LINE 识别后按行追问」（只能真机），本批不带真机，留基线。
+- （已收）`masters/selection.py`、`products/line_memory.py`：主会话 11-14 定这批一起收口，「LINE 识别后按行追问」的真机与 LIFF 相机那条并成一次（集成分支挂 testenv，收款窗口拿三星走）。
 - `inventory/count.py`（盘点搜索只列有结存的）：性能体检窗口正在改同一文件（`pearnly/page-perf-audit-50db59`），等它合入后再收。
 - `products/codes.py`、`products/service.py`（编码 / 条码判重按归属）、`express/*`（同步写归属）：不是「看得到哪些」的口径，留基线。
 

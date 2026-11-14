@@ -35,9 +35,11 @@ def _product(name, company):
     """这件物料在这家公司还能用：启用着、不是别家公司 Express 的档。"""
     if not name:
         return None
-    row = frappe.db.get_value("ERP Product", name, ["name", "is_active", "express_company", "express_code",
+    from pearnly_erp_portal.masters import access as master_access
+
+    row = frappe.db.get_value("ERP Product", name, ["name", "is_active", master_access.OWNER, "express_code",
                                                     "express_stock"], as_dict=True)
-    if not row or not row.is_active or (row.express_company and company and row.express_company != company):
+    if not row or not row.is_active or not master_access.usable(row.get(master_access.OWNER), company):
         return None
     return row
 
