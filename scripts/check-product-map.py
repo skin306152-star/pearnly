@@ -15,7 +15,7 @@
 5. 对照组：同一 group 里 ERP / Cowork 缺一边又没写 na，或同一端某行的测试比兄弟弱 → 失败，
    除非在 sibling_baseline.txt（只许减少）。
 6. 命中要补测试（主会话 11-04）：这次改动命中的「上线必验」行、带共用件（parts）的行或出过事（incidents）的行，某端是红 / 黄 → 失败，
-   同一提交补绿测试；只能真机的行要同一提交在 docs/work/ 附真机记录（行 id、日期、SHA）。存量不追溯，只管命中的。
+   同一提交补绿测试；只能真机的行要同一提交在 docs/work/ 附固定格式的真机记录（一行六栏：标记、行 id、日期、被测提交 SHA、设备、结果）。存量不追溯，只管命中的。
 
     python3 scripts/check-product-map.py                      # 闸门 + 影响清单（相对 origin/main 的分叉点，含未提交）
     python3 scripts/check-product-map.py --markdown --out F   # 清单按 Markdown 写进 F（CI 摘要）
@@ -30,6 +30,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -221,15 +222,49 @@ def check_cc(product_map, baseline: list) -> list[str]:
     return errors
 
 
-RECORD_SHA = re.compile(r"\b[0-9a-f]{7,40}\b")
-RECORD_DATE = re.compile(r"\b20\d\d-\d\d-\d\d\b")
+RECORD_SHA = re.compile(r"[0-9a-f]{7,40}")
+RECORD_DATE = re.compile(r"20\d\d-\d\d-\d\d")
+RECORD_MARK = "真机记录"
+RECORD_RESULTS = ("通过", "不通过", "没测到")
+RECORD_FORMAT = "真机记录 | <行 id> | <日期 YYYY-MM-DD> | <被测提交 SHA> | <设备> | <通过 / 不通过：原因 / 没测到：原因> | <步骤与看到的结果，可省>"
 
 
-def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, root=ROOT) -> list[str]:
+def device_records(text: str) -> dict[str, list[dict]]:
+    """记录文件里的真机记录条目 → {行 id: [条目]}。一条记录是**同一行**里按固定顺序写的六栏（`RECORD_FORMAT`，竖线分隔，
+    可以是表格行或列表项）：标记、行 id、日期、被测提交 SHA、设备、结果。结果只认「通过」「不通过：原因」「没测到：原因」。
+    栏目不全、顺序不对、日期或 SHA 不成形、不通过 / 没测到没写原因的行不算条目——提到行 id 的句子、待办、散落在别处的 SHA 都不算
+    （11-14：一句「剩 … 要真机记录」的待办因为同文件别处有日期和十六进制串被当成了记录）。"""
+    found: dict[str, list[dict]] = {}
+    for line in text.splitlines():
+        cells = [cell.strip().strip("`*").strip() for cell in re.split(r"[|｜]", line.strip().lstrip("-*").strip())]
+        while cells and not cells[0]:
+            cells.pop(0)
+        if len(cells) < 6 or cells[0] != RECORD_MARK:
+            continue
+        row_id, date, sha, device, result = cells[1:6]
+        verdict, _, reason = re.sub(r"[:：（(]", "：", result, count=1).partition("：")
+        verdict, reason = verdict.strip(), reason.strip("）) 　")
+        try:
+            datetime.date.fromisoformat(date)
+        except ValueError:
+            continue
+        if not (row_id and device and RECORD_DATE.fullmatch(date) and RECORD_SHA.fullmatch(sha) and verdict in RECORD_RESULTS):
+            continue
+        if verdict != "通过" and not reason:
+            continue
+        found.setdefault(row_id, []).append({"date": date, "sha": sha, "device": device, "result": verdict, "reason": reason})
+    return found
+
+
+def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, root=ROOT, notes: list | None = None) -> list[str]:
     """规则 6（主会话 11-04）：这次改动命中的「上线必验」行、带共用件（parts）的行或出过事（incidents）的行，某端是红 / 黄就失败——同一提交补上该端的绿测试。
-    只能真机的行（device_only）要同一提交附真机记录：docs/work/ 下改到的 .md 里写着这一行的 id、日期和 SHA。存量不追溯，只管命中的。"""
+    只能真机的行（device_only）要同一提交附真机记录：docs/work/ 下改到的 .md 里有这一行的固定格式条目（`device_records`）。
+    条目的结果是「不通过」→ 失败；「没测到」→ 不拦，记进 ``notes`` 由调用方打印（缺哪层说哪层，不代签通过）。存量不追溯，只管命中的。"""
     records = [path for path in changes if path.startswith("docs/work/") and path.endswith(".md") and (root / path).is_file()]
-    texts = {path: (root / path).read_text(encoding="utf-8", errors="ignore") for path in records}
+    entries: dict[str, list[dict]] = {}
+    for path in records:
+        for row_id, items in device_records((root / path).read_text(encoding="utf-8", errors="ignore")).items():
+            entries.setdefault(row_id, []).extend({**item, "file": path} for item in items)
     errors = []
     for row_id in sorted(hits):
         row = product_map.rows[row_id]
@@ -241,10 +276,19 @@ def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, 
         if gaps:
             errors.append(f"命中要补测试：{row_id}（{why}；{row.where}）这次被改到（{'；'.join(hits[row_id])}），"
                           f"{'、'.join(gaps)} —— 同一提交给这一端补绿测试（流程 / 单测 / 业务冒烟）；确实只能真机的写 device_only 与 device")
-        elif row.device_only and not any(row_id in text and RECORD_SHA.search(text) and RECORD_DATE.search(text)
-                                         for text in texts.values()):
-            errors.append(f"命中要附真机记录：{row_id}（只能真机：{row.device_only}）这次被改到 —— 同一提交在 docs/work/ 下的记录里写明"
-                          f"这一行的 id、日期、SHA、步骤与结果；只在提交说明里写「已真机」不算")
+        elif row.device_only:
+            mine = entries.get(row_id, [])
+            failed = [item for item in mine if item["result"] == "不通过"]
+            if not mine:
+                errors.append(f"命中要附真机记录：{row_id}（只能真机：{row.device_only}）这次被改到 —— 同一提交在 docs/work/ 下的记录里按固定格式"
+                              f"写一行：{RECORD_FORMAT}；提到这一行的句子、待办、只在提交说明里写「已真机」都不算")
+            elif failed:
+                errors.append(f"真机不通过：{row_id}（{failed[-1]['file']}，{failed[-1]['date']} {failed[-1]['device']}：{failed[-1]['reason']}）"
+                              f"—— 修好后在真机上重测并补一条新的记录")
+            elif notes is not None:
+                for item in mine:
+                    if item["result"] == "没测到":
+                        notes.append(f"真机没测到：{row_id}（{item['file']}，{item['date']} {item['device']}：{item['reason']}）")
     return errors
 
 
@@ -486,9 +530,12 @@ def main(argv=None) -> int:
     errors += pm.validate_e2e(pm.e2e_scenarios())
     errors += check_siblings(sibling_gaps(product_map, flows, impact), sibling_baseline())
     errors += check_cc(product_map, cc_baseline())
-    errors += enforce_hits(product_map, hits, flows, impact, changes)
+    notes: list[str] = []
+    errors += enforce_hits(product_map, hits, flows, impact, changes, notes=notes)
     report = render(product_map, hits, flows, impact, args.markdown)
     print(report)
+    for note in notes:
+        print(note)
     if args.out:
         mode = "a" if args.out == os.environ.get("GITHUB_STEP_SUMMARY") else "w"
         with open(args.out, mode, encoding="utf-8") as handle:
