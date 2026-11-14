@@ -39,6 +39,7 @@ checks.append('Capacity knobs default to the previous process counts and memory 
 for product in ('dms', 'erp', 'cowork'):
     assert int(services[product + '-ocr-dispatch']['mem_limit']) >= 256 * M
 checks.append('All OCR dispatchers retain measured cold-start memory headroom')
+ENTRY_WORKER = ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker']
 assert services['dms-sync-worker']['command'] == ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker', '--queue', 'dms_sync']
 # 2g 按实测定：整组客户快照要一次性持在内存里再落库。1g 被 OOM 杀过（2026-09-25，
 # anon-rss 835MB）；2026-09-28 生产 cgroup memory.peak 738MB，期间完整读完并发布了
@@ -61,6 +62,14 @@ assert services['cowork-long-worker']['profiles'] == ['cowork']
 assert not services['cowork-long-worker'].get('ports')
 assert services['cowork-ocr-worker']['command'][4] == 'ocr'
 checks.append('Cowork reconciliation lane never holds scheduled or interactive jobs')
+# ERP 主档同步单独一条道（2026-11-14，公司接入重做第 1 批）：大账套落库不和写账、定时任务、LINE 回复挤一个进程。
+# 512m 按实测定（一万多客户逐条重写一遍，落库进程峰值 187 MB）；故意改这个值时同时改这一行。
+assert services['erp-masters-worker']['command'] == ENTRY_WORKER + ['--queue', 'erp_masters']
+assert int(services['erp-masters-worker']['mem_limit']) == 512 * M
+assert services['erp-masters-worker']['profiles'] == ['erp']
+assert not services['erp-masters-worker'].get('ports')
+assert services['erp-worker']['command'] == ENTRY_WORKER + ['--queue', 'short,default,long']
+checks.append('Dedicated ERP masters lane only takes the erp_masters queue')
 
 # 抢 CPU 时网页 / 数据库先跑（2026-10-01 半量压测：后台与网页抢同一台机器，页面跟着变慢）。只给后台降权重，
 # 不限核数；底座服务（数据库、Redis、Keycloak）不改配置，激活产品时不会连带重建。
@@ -93,7 +102,8 @@ checks.append('Only the three OCR worker pools run jobs without forking')
 ENTRY = ['/home/frappe/frappe-bench/env/bin/python', '-m', 'pearnly_core.execution.worker']
 forking = [name for name, service in services.items()
            if name.endswith('-worker') and not (service.get('environment') or {}).get(NOFORK)]
-assert sorted(forking) == ['cowork-long-worker', 'cowork-worker', 'dms-sync-worker', 'dms-worker', 'erp-worker'], forking
+assert sorted(forking) == ['cowork-long-worker', 'cowork-worker', 'dms-sync-worker', 'dms-worker', 'erp-masters-worker',
+                          'erp-worker'], forking
 for name in forking:
     command = services[name]['command']
     assert command[:3] == ENTRY, name

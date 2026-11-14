@@ -5,7 +5,10 @@
 整份另存一份（`facts`）给准备写账载荷用。主档以 Express 为准：
 
 - 按「这家公司 + Express 编码」认档（``express_company`` + ``express_code``）：换了年度账套编码不变，不会重建一份；
-  一个 ERP 租户挂几家公司，各自的档互不相认。``express_book`` 只记最近从哪份账套来。
+  一个 ERP 租户挂几家公司，各自的档互不相认。档上的 ``express_book`` 只在新建时记一次来自哪份账套，**不参与比对、之后不改**
+  （11-13 生产 testerp CO-00146：现用账套从「T.8 …」换成「9.…」，一万多条客户全部按「有变化」逐条重写、各多一条修改记录；
+  公司上的 ``express_book`` 照旧记现用账套）。
+- 新建的行批量写（`bulk`：预留编号段 + 多行 INSERT，字段与逐条保存一样），改动的行逐条保存。
 - ERP 里没编码的同编码 / 同税号加分店 / 同名的档，第一次同步时认领过来，不另建一份。
 - Express 里没有了的档（这家公司的）在 ERP 里停用；又出现了就启用。
 - Express 里有的字段完全照 Express 写（空也写），在 ERP 里不能改（`locks`）；ERP 自有字段（图片、分类等）不动。
@@ -33,7 +36,7 @@ from frappe.utils import now_datetime, nowdate
 
 from pearnly_core.cc_desktop import jobs, requests
 
-from pearnly_erp_portal.express import contracts, facts, push, target
+from pearnly_erp_portal.express import bulk, contracts, facts, push, target
 from pearnly_erp_portal.inventory import contracts as stock_contracts
 from pearnly_erp_portal.inventory import stock
 
@@ -58,6 +61,16 @@ OFFLINE_CHECK_EVERY = 240  # 秒
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
 OFFLINE, OUTDATED = "offline", "outdated"
+# 主档同步、落库、按账套建公司走自己的队列（公司接入重做第 1 批，11-14）：生产 `erp-masters-worker` 只听它，大账套落库不再
+# 和写账、LINE 回复挤在 `erp-worker` 一个进程里（11-13 testerp：CO-00146 落库期间 default 队列 66 个任务在等）。队列由
+# `scripts/production/configure-erp-runtime.py` 登记（Frappe 只认登记过的队列）；没登记的 bench（旧测试栈）退回 long
+QUEUE = "erp_masters"
+
+
+def lane() -> str:
+    return QUEUE if QUEUE in ((getattr(frappe, "conf", None) or {}).get("workers") or {}) else "long"
+
+
 # 自动同步同时在读的公司最多这么多：电脑一本一本读（大账套约 50 秒），6 本约 5 分钟，在 10 分钟领取时限内；3 家时电脑常空等
 # （10-24 实验栈 41 家重同步 60 分钟）
 OPEN_READS = 6
@@ -143,7 +156,7 @@ def enqueue(company, notify=None, wait=JOB_WAIT):
     if notify:
         # 记下要通知谁：自动同步那件已经排着时这件会按任务号去重掉，做完由那件一并推（10-24 审查）
         frappe.cache.hset(NOTIFY_KEY + company, notify, 1)
-    frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue="long", timeout=JOB_WAIT + LAND_LIMIT,
+    frappe.enqueue("pearnly_erp_portal.express.masters.sync", queue=lane(), timeout=JOB_WAIT + LAND_LIMIT,
                    enqueue_after_commit=True, job_id=_job_id("sync", company), deduplicate=True, company=company,
                    wait=wait)
 
@@ -318,7 +331,7 @@ def _land(company, book, made, inline=True):
         return {"state": READY, "account_set": book["key"], "label": book["label"]}
     since = str(made.get("requested_at") or "")
     if not inline:
-        frappe.enqueue("pearnly_erp_portal.express.masters.land", queue="long", timeout=LAND_LIMIT,
+        frappe.enqueue("pearnly_erp_portal.express.masters.land", queue=lane(), timeout=LAND_LIMIT,
                        enqueue_after_commit=True, job_id=_job_id("land", company),
                        deduplicate=True, company=company, book_key=book["key"], label=book["label"], since=since,
                        company_name=book.get("company") or "")
@@ -522,6 +535,13 @@ def _upsert(doctype, name, values, current=None):
         return 0
 
 
+def _insert_new(doctype, records):
+    """这一轮要新建的行批量写（`bulk.insert_new`）；一批撞了唯一索引就逐条（:func:`_upsert`，出错行只记日志）。"""
+    if not records:
+        return 0
+    return bulk.insert_new(doctype, records, lambda values: _upsert(doctype, None, values))
+
+
 def _claim(claimed, *finders):
     """这一行 Express 档落到 ERP 哪一条：按编码、税号 + 分店、名称依次认（认到了就不再往下找）；一条 ERP 档一次同步只给
     一行 Express 档，已被前面的行认走的跳过（否则两行认到同一条，后一行把前一行的编码改掉，前一行就丢了）。"""
@@ -604,7 +624,7 @@ def _supplier_fields(item):
 
 PARTY_FIELDS = {CUSTOMER: ("customer_name", "tax_id", "branch_no", "branch_type", "party_type", "address", "contact_phone"),
                 SUPPLIER: ("supplier_name", "tax_id", "branch_no", "branch_type", "address", "phone")}
-SYNC_FIELDS = ("express_book", "is_active")
+SYNC_FIELDS = ("is_active",)  # 档上的 express_book 不比对（见文件头）
 
 
 def _parties(doctype, company, book, rows, fields_of):
@@ -615,17 +635,20 @@ def _parties(doctype, company, book, rows, fields_of):
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed, claimed, seen = 0, set(), set()
+    changed, claimed, seen, fresh = 0, set(), set(), []
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
         if not _first(seen, item["code"]):
             continue
-        values = {**fields_of(item), "express_code": item["code"], "express_company": company,
-                  "express_book": book[:140], "is_active": 1}
+        values = {**fields_of(item), "express_code": item["code"], "express_company": company, "is_active": 1}
         name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
                       lambda: free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None,
                       lambda: free_name.pop(item["name"].casefold(), None))
-        changed += _upsert(doctype, name, values, current.get(name))
+        if name:
+            changed += _upsert(doctype, name, values, current.get(name))
+        else:
+            fresh.append({**values, "express_book": book[:140]})
+    changed += _insert_new(doctype, fresh)
     return changed + _retire(doctype, [name for name in ours if name not in claimed], current)
 
 
@@ -657,7 +680,7 @@ def _products(company, book, data):
     # 条码在这家公司看得到的范围里（本公司的档 + 本地档）不能重（`products.service.taken`）；同一本账套里两件同条码的
     # （Express 允许）后一件不写条码，写过的随写随记
     taken_barcodes = {row.barcode: row.name for row in current.values() if row.barcode}
-    changed, claimed, seen = 0, set(), set()
+    changed, claimed, seen, fresh = 0, set(), set(), []
     for raw in contracts.rows(data.get("products")):
         item = contracts.product(raw, units)
         if not _first(seen, item["code"]):
@@ -668,7 +691,7 @@ def _products(company, book, data):
         values = {"product_name": item["name"], "base_unit": item["base_unit"], "unit": item["unit"],
                   "units": [{"unit_name": row["unit_name"], "factor": str(contracts.d(row["factor"]).normalize())}
                             for row in item["units"]],
-                  "express_code": item["code"], "express_company": company, "express_book": book[:140],
+                  "express_code": item["code"], "express_company": company,
                   "express_stock": int(item["stock"]), "is_active": 1}
         if not name and not products.taken("code", item["code"], owner=company):
             # 问库而不是在内存里比：按库的排序规则比（泰文声调符号等会被当成一样），内存逐字比会漏
@@ -680,7 +703,11 @@ def _products(company, book, data):
         elif taken_barcodes.get(item["barcode"], name) == name:
             values["barcode"] = item["barcode"]
             taken_barcodes[item["barcode"]] = name or ("new", item["code"])
-        changed += _upsert(PRODUCT, name, values, current.get(name))
+        if name:
+            changed += _upsert(PRODUCT, name, values, current.get(name))
+        else:
+            fresh.append({**values, "express_book": book[:140], "origin": "express"})
+    changed += _insert_new(PRODUCT, fresh)
     return changed + _retire(PRODUCT, [name for name in ours if name not in claimed], current)
 
 

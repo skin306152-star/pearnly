@@ -24,6 +24,8 @@ def activated_services(product):
     suffixes = ['web', 'worker', 'ocr-worker', 'ocr-dispatch', 'scheduler', 'socketio', 'frontend']
     if product == 'dms':
         suffixes.insert(3, 'sync-worker')
+    if product == 'erp':
+        suffixes.insert(3, 'masters-worker')  # Express / MR.ERP 主档同步的 erp_masters 道
     if product == 'cowork':
         suffixes.insert(3, 'long-worker')
     return [f'{product}-{suffix}' for suffix in suffixes]
@@ -402,6 +404,18 @@ elif 'ps' in args:
         start = next(i for i, args in enumerate(calls) if 'up' in args)
         self.assertIn('cowork-long-worker', calls[drain])
         self.assertIn('cowork-long-worker', calls[start])
+
+    def test_erp_masters_lane_is_drained_and_recreated(self):
+        result, trace = self.run_activation(product='erp')
+        self.assertEqual(result.returncode, 0, result.stderr)
+        calls = [row['args'] for row in trace]
+        drain = next(i for i, args in enumerate(calls) if '660' in args and 'stop' in args)
+        start = next(i for i, args in enumerate(calls) if 'up' in args)
+        self.assertIn('erp-masters-worker', calls[drain])
+        self.assertIn('erp-masters-worker', calls[start])
+        for product in ('dms', 'cowork'):
+            result, trace = self.run_activation(product=product)
+            self.assertFalse(any('erp-masters-worker' in row['args'] for row in trace), product)
 
     def test_other_products_do_not_get_dms_queue_or_tick_changes(self):
         for product in ('erp', 'cowork'):

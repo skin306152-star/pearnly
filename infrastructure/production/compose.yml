@@ -290,6 +290,17 @@ services:
     environment:
       <<: *frappe-env
       GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/ocr.json
+  erp-masters-worker:
+    profiles: [erp]
+    <<: *worker
+    # Express / MR.ERP 主档同步与落库单独一条道（公司接入重做第 1 批，2026-11-14）：只听 erp_masters，写账（short）、
+    # 定时任务（default）、LINE 后台回复不再排在大账套落库后面（11-13 testerp：CO-00146 落库期间 66 个定时任务在等）。
+    # 512m：一万多客户的账套逐条重写一遍，落库进程实测峰值 187 MB（docs/work/2026-11-14-company-onboarding.md）。
+    mem_limit: 512m
+    command: [/home/frappe/frappe-bench/env/bin/python, -m, pearnly_core.execution.worker, --queue, erp_masters]
+    volumes: *erp-volumes
+    environment:
+      <<: *frappe-env
   erp-ocr-worker:
     profiles: [erp]
     <<: *worker

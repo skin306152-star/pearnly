@@ -74,6 +74,8 @@ def main(only):
     from pearnly_core.originals import upload_limits
 
     config = upload_limits.bench_values(config)  # 请求体上限同线上（activate-product.sh）
+    # ERP 主档同步的队列同线上（configure-erp-runtime.py；实验室的后台进程也听它）
+    config.setdefault("workers", {}).setdefault("erp_masters", {})["timeout"] = 3900
     config_file.write_text(json.dumps(config, indent=2) + "\n")
     (sites / "apps.txt").write_text("frappe\npearnly_core\npearnly_control\npearnly_erp_portal\npearnly_cowork\npearnly_dms\n")
     assets = sites / "assets"

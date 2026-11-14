@@ -277,6 +277,9 @@ class ProductImages(unittest.TestCase):
                 # Cowork runs reconciliation jobs (long queue) in their own worker pool.
                 if group == "cowork":
                     expected_containers.append("cowork-long-worker")
+                # ERP runs Express / MR.ERP master sync in its own lane (erp_masters).
+                if group == "erp":
+                    expected_containers.append("erp-masters-worker")
                 # 只动本产品的容器：不加 --no-deps 会顺带重建共用的数据库（2026-10-01）。
                 self.assertEqual(args[args.index("up") + 1:args.index("up") + 3], ["-d", "--no-deps"])
                 self.assertEqual(args[args.index("up") + 3:], expected_containers)
@@ -290,9 +293,10 @@ class Contracts(unittest.TestCase):
             self.assertIn("dms-sync-worker", agent.services("dms", suffixes))
             self.assertIn("cowork-long-worker", agent.services("cowork", suffixes))
             self.assertNotIn("dms-sync-worker", agent.services("cowork", suffixes))
-            self.assertEqual(agent.services("erp", suffixes), ["erp-" + item for item in suffixes])
+            self.assertEqual(agent.services("erp", suffixes), ["erp-" + item for item in suffixes] + ["erp-masters-worker"])
+            self.assertNotIn("erp-masters-worker", agent.services("cowork", suffixes))
         self.assertEqual(agent.services("cowork", ("web", "frontend")), ["cowork-web", "cowork-frontend"])
-        for group, lane in (("dms", "dms-sync-worker"), ("cowork", "cowork-long-worker")):
+        for group, lane in (("dms", "dms-sync-worker"), ("cowork", "cowork-long-worker"), ("erp", "erp-masters-worker")):
             with patch.object(agent, "compose") as compose:
                 agent.restart_group(group)
                 self.assertIn(lane, compose.call_args.args)

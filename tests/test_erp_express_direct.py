@@ -425,6 +425,17 @@ class MasterSync(Base):
         self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.masters", None)
         from pearnly_erp_portal.express import masters
         self.sync = masters
+        # 内存替身没有 tabSeries / 多行 INSERT：新建的行照逐条那条退路建（批量写与逐条写逐字段一致由
+        # scripts/erp-masters-bulk-lab-verify.py 在实验栈真库上核）
+        self.bulk_calls = []
+
+        def insert_new(doctype, records, one):
+            self.bulk_calls.append((doctype, len(records)))
+            return sum(one(values) for values in records)
+
+        bulk_patch = mock.patch.object(masters.bulk, "insert_new", insert_new)
+        bulk_patch.start()
+        self.addCleanup(bulk_patch.stop)
         store = {}
 
         class Cache:
@@ -472,6 +483,27 @@ class MasterSync(Base):
             self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 0)
         rows[3] = {**rows[3], "name": "ผู้ขาย ใหม่"}
         self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 1)
+
+    def test_a_book_change_rewrites_nothing_and_new_rows_go_through_the_bulk_path(self):
+        # 11-13 生产 testerp CO-00146：现用账套从「T.8 …」换成「9.…」，一万多条客户因档上的 express_book 不同全部重写。
+        # 档上的 express_book 只在新建时记、不比对；新建的行走批量写，已有的行不走
+        rows = [{"code": f"V{i:03d}", "name": f"ผู้ขาย {i}", "tax_id": "", "branch": "00000"} for i in range(5)]
+        self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.8 old", rows, self.sync._supplier_fields), 5)
+        self.assertEqual(self.bulk_calls, [("ERP Supplier", 5)])
+        with mock.patch.object(frappe, "get_doc", side_effect=AssertionError("a book change must not rewrite rows")):
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "9. new", rows, self.sync._supplier_fields), 0)
+        books = {row.get("express_book") for row in fake.STATE.db.table("ERP Supplier").values()}
+        self.assertEqual(books, {"T.8 old"})
+        self.assertEqual(self.bulk_calls, [("ERP Supplier", 5)])
+        self.assertNotIn("express_book", self.sync.SYNC_FIELDS)
+
+    def test_sync_jobs_take_the_masters_lane_once_the_bench_lists_it(self):
+        conf = getattr(frappe, "conf", None)
+        self.addCleanup(setattr, frappe, "conf", conf)
+        frappe.conf = {"workers": {"erp_masters": {"timeout": 3900}}}
+        self.assertEqual(self.sync.lane(), "erp_masters")
+        frappe.conf = {"workers": {}}
+        self.assertEqual(self.sync.lane(), "long")  # 没登记的 bench（旧测试栈）退回 long，不排进没人取的队列
 
     def test_manual_sync_only_starts_and_the_job_records_what_happened(self):
         # 手动同步：请求里只发起读取、排后台任务，不等不落库；任务做完（或出错）结果记在公司上并推给发起人

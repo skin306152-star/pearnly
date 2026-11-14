@@ -15,8 +15,9 @@ class ErpRuntime(unittest.TestCase):
         before = copy.deepcopy(original)
         result = runtime["configured"](original)
         self.assertEqual(original, before)
-        self.assertEqual(result, {**original, "scheduler_tick_interval": 60})
-        self.assertEqual(runtime["configured"]({}), {"scheduler_tick_interval": 60})
+        masters = {"ocr": {"timeout": 600}, "erp_masters": {"timeout": 3900}}
+        self.assertEqual(result, {**original, "workers": masters, "scheduler_tick_interval": 60})
+        self.assertEqual(runtime["configured"]({}), {"workers": {"erp_masters": {"timeout": 3900}}, "scheduler_tick_interval": 60})
         self.assertEqual(runtime["configured"](result), result)
 
     def test_install_is_atomic_idempotent_and_preserves_mode(self):
@@ -31,6 +32,7 @@ class ErpRuntime(unittest.TestCase):
             self.assertEqual(path.stat().st_mode & 0o777, 0o640)
             self.assertEqual(json.loads(first)["sentinel"], "keep")
             self.assertEqual(json.loads(first)["scheduler_tick_interval"], 60)
+            self.assertEqual(json.loads(first)["workers"], {"ocr": {"timeout": 600}, "erp_masters": {"timeout": 3900}})
             self.assertEqual(list(Path(folder).iterdir()), [path])
 
 

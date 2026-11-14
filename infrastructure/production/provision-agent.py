@@ -102,6 +102,9 @@ def services(group, suffixes):
         names.append("dms-sync-worker")
     if group == "cowork" and "worker" in suffixes:
         names.append("cowork-long-worker")
+    # ERP 主档同步单独一条道（erp_masters，2026-11-14）
+    if group == "erp" and "worker" in suffixes:
+        names.append("erp-masters-worker")
     return names
 
 

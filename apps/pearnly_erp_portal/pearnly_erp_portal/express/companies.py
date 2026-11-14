@@ -31,7 +31,9 @@ BOOKS_MAX = 5000     # 这些电脑报的账套行（一台几十份）
 
 def books_changed(device):
     """（共用通道钩子，心跳的事务里叫）一台电脑的账套名单有变化：排一次建公司（同站点只留一件，提交后才排）。"""
-    frappe.enqueue("pearnly_erp_portal.express.companies.ensure", queue="long", timeout=1800,
+    from pearnly_erp_portal.express import masters
+
+    frappe.enqueue("pearnly_erp_portal.express.companies.ensure", queue=masters.lane(), timeout=1800,
                    enqueue_after_commit=True, job_id=f"erp-express-companies:{frappe.local.site}", deduplicate=True)
 
 
