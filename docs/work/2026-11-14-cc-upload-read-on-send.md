@@ -49,5 +49,23 @@
 - 以前：选中就识别，移除或不发也扣费。现在：只有随消息发出的文件才识别、才扣费；移除的、没发出的不扣。
 - 发出后识别比以前晚开始几秒（后台交原件层那几秒，以前在等用户打字时就做完了）；识别本身的时间不变。
 
-## 验证
-见交付说明（单测、流程用例、闸门、候选离线检查的真实结果）。
+## 验证（基线 origin/main a3e1a4c38）
+- 单测（还原改动即失败的断言）：`test_express_operator_code_cc.py`（待发送不识别、发出后才交、交出入口幂等、移除的不识别、多份各交一次、交不成的三种原因与重交）、
+  `test_assistant.py`（上传口只记待发送、`taken` 当场交、后台按人与语言交、移除删留存、`files.commit` 跨边：via guide / send）、
+  `test_cc_operator.py`（输入框只上传：传完不读识别状态，没发出就移除调 `drop_upload`，已发出的、直写的不调）、`test_assistant_ui.py`、`test_cc_idle_motion.py`、`test_upload_limits.py` 跟着改。
+- 本地全闸门（= development.yml）：244 步全过。
+- 流程用例（本机实验栈 pearnly-uos-lab，挂本分支，假智能体）：新流程 `cc.operator.upload-on-send` / `cowork.cc.operator.upload-on-send`，
+  加受影响的 `cc.attach-delete`、`cowork.cc.attach-delete`、`cc.operator`、`cc.operator.replay`、`cc.send-unblocked`、`cowork.cc.send-unblocked`：
+  8 条 × 数据集 × 电脑 / 手机 **20/20 通过**。新流程实测：选两份都传上、方块上没有「排队中 / 识别中」、任务里没有上传；移除一份后服务端那行没了；
+  上传接口 503 时留失败卡、可移除、任务不多记；发出后只有发出的那份进对话：ERP 这时才建收单记录（实验栈识别队列忙，产品记 `queue_busy`），
+  Cowork 交到产品后被拒（实验栈没配识别参数，`start_refused`，已过工作空间与权限）；被移除那份的留存删了，识别队列里没有它。
+- 识别没接真模型（主会话口径：识别用替身即可）。
+
+### 共用件连带回归（`check-impact.py`：cc-composer、assistant）
+| 入口 | 结果 |
+|---|---|
+| cc.assistant（对话页附件、发消息） | 通过（cc.attach-delete、cc.send-unblocked 两产品 × 两宽度） |
+| cc.operator.page / cc.operator.thread（代录会话） | 通过（cc.operator、cc.operator.replay、新流程）；离线 test_cc_operator / test_express_operator_feed / tasks 通过 |
+| erp.cc.chat-push、erp.cc.stocktake、erp.cc.collection、erp.cc.companies | 没测到：只改附件上传与交出后交识别，这几个工具不经过这条路；离线测试在全闸门里通过 |
+| cowork.assistant、cowork.cc-chat.push、cowork.cc.troubleshooting | Cowork 识别工具只改注释；`files.taken` 行为变化由单测覆盖；没在实验栈真点（没有真识别） |
+| control.assistant、shared.assistant、shared.exports | 没测到：不经过改动的路径 |
