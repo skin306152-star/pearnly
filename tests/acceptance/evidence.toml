@@ -1,1 +1,13 @@
-# 每条 L3 场景最近一次通过（scripts/acceptance/run.py --record 写，不手改）。现在一条都没有：第一期只搭了骨架，还没有真机跑过。
+# 每条 L3 场景最近一次通过（scripts/acceptance/run.py --record 写，不手改）。证据之后 covers 文件又改了，
+# check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。
+
+[[pass]]
+scenario = "acc.erp.purchase.express"
+sha = "fbfe04a63ceeefb503834cf6b75a47c30e525ffc"
+date = "2026-11-14"
+env = "B"
+run = "20261114-132343-fbfe04a63"
+retried = false
+docnums = ["HP691114-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-170184"

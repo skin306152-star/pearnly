@@ -1,9 +1,11 @@
 """验收场景：ERP 采购单提交 → CC 桌面版写进 Express 验收账套 → 单号回显 → 账本读回、账本不变式 → 恢复基线。
 
-编排 B（测试机1 的实验栈挂候选源码 + 测试机1 的 CC 桌面版 + 账套服务器上的验收账套）。模型不参与，费用 0。
+编排 B（测试机1 的实验栈挂候选源码 + 测试机2 的 CC 桌面版 + 账套服务器上的验收账套）。模型不参与，费用 0。
 这是第一期的示范「正常主线」：把基线恢复 / 占用探测 / 读回对比 / 不变式 / 证据 / 收尾还原整条骨架跑通。
 
-**状态：已写、未在真机跑过**（11-12 第一期只搭骨架；首次实跑要主会话排测试机1 与验收账套）。首次实跑时要校准、现在按代码推出的：
+**状态：11-14 真机首跑通过**（测试机1 的 erp 实验栈 + 测试机2 的 CC + 69EXP\\TEST2；HP691114-001，124 秒，没有重跑）。
+CC 桌面版不能只勾一本账套，所以测试机2 上有一个验收专用数据根 `C:\\PearnlyAcceptance\\root`（登记表只有一行，指向验收账套），
+CC 的 ERP 档案跑的时候只读它；做法见验收测试标准「验收专用数据根」。仍待校准的：
 - ALLOWED：采购直写会动的表，取自 `companion/src/companion/dbf_schema.py::PURCHASE_BACKUP_TABLES`，另加库存分仓表与附加说明表
   （`dbf_writer.write_purchase` 写前备份的范围）；实际多动了哪张表，本场景会直接判不通过并列出来——那就是要查的东西。
 - 字段比对现在只核 APTRN 表头（单号、供应商、金额、税、合计）；「与原生样张逐字段比」（标准 §4.2 第 3 条）要先在验收账套里
@@ -101,8 +103,25 @@ def run(ctx):
             ctx.check("含税合计", round(totals["grand_total"], 2), round(float(row.get("NETAMT") or 0), 2))
         if "vat_amount" in totals:
             ctx.check("税额", round(totals["vat_amount"], 2), round(float(row.get("VATAMT") or 0), 2))
-        aptrn = summary.get("tables", {}).get("APTRN")
-        ctx.check("APTRN 只多一行", 1, (aptrn[1] - aptrn[0]) if aptrn else None)
+        tables = summary.get("tables", {})
+        grew = lambda name: (tables[name][1] - tables[name][0]) if name in tables else None  # noqa: E731
+        ctx.check("APTRN 只多一行", 1, grew("APTRN"))
+        # 应有的变化（11-14 首跑校准）：明细一行、进项税一行、凭证一张且分录不少于两行；少了任何一样都是没写全
+        lines = book.call("rows", ctx.after, "STCRD", "--where", f"DOCNUM={state['ledger_docnum']}").get("rows", [])
+        ctx.save("stcrd-rows.json", lines)
+        ctx.require("STCRD 里这张单的明细行数", 1, len(lines))
+        ctx.check("明细的物料编码", expected["item_code"], lines[0].get("STKCOD"))
+        ctx.check("明细的数量", float(expected["qty"]), float(lines[0].get("TRNQTY") or 0))
+        ctx.check("明细的不含税单价", round(float(expected["price"]), 2), round(float(lines[0].get("XUNITPR") or 0), 2))
+        vat = book.call("rows", ctx.after, "ISVAT", "--where", f"DOCNUM={state['ledger_docnum']}").get("rows", [])
+        ctx.save("isvat-rows.json", vat)
+        ctx.require("ISVAT 里这张单恰好一行", 1, len(vat))
+        if "subtotal" in totals:
+            ctx.check("进项税登记的税前金额", round(totals["subtotal"], 2), round(float(vat[0].get("AMT01") or 0), 2))
+        if "vat_amount" in totals:
+            ctx.check("进项税登记的税额", round(totals["vat_amount"], 2), round(float(vat[0].get("VAT01") or 0), 2))
+        ctx.check("凭证多一张", 1, grew("GLJNL"))
+        ctx.check("凭证分录不少于两行", True, (grew("GLJNLIT") or 0) >= 2)
         if SAMPLE:
             sample = book.call("rows", conf["baseline"], "APTRN", "--where", f"DOCNUM={SAMPLE}").get("rows", [])
             ctx.require("基线里有原生样张", 1, len(sample))

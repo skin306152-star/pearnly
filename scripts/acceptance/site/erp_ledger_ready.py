@@ -4,7 +4,7 @@
     env/bin/python /tmp/smoke-erp_ledger_ready.py <站点> '<JSON 参数>'
 
 参数：user（测试机 CC 桌面版上登录的员工）、company_tax / branch、ledger（验收账套路径）、
-drop_stale（真：把这个税号下路径不是 ledger 的账套行删掉——只给实验栈用，那是导入线上数据带来的旧行或别的电脑报的测试套）、
+drop_stale（真：把这个税号下路径不是 ledger 的、或不在线电脑留下的账套行删掉——只给实验栈用，那是导入线上数据带来的旧行或别的电脑报的测试套）、
 sync（真：对选中的公司跑一次主档同步，最多等 wait 秒）。
 不带 drop_stale / sync 时只读。只在测试租户跑。
 """
@@ -26,7 +26,7 @@ frappe.init(site=site, sites_path="/home/frappe/frappe-bench/sites")
 frappe.connect()
 result = {"ok": False}
 try:
-    from pearnly_core.cc_desktop import books, contracts, devices
+    from pearnly_core.cc_desktop import books, contracts, devices, documents
     from pearnly_core.execution.replay import TEST_SITES
 
     if not TEST_SITES.fullmatch(site):
@@ -40,10 +40,12 @@ try:
                                                                                "last_seen_at", "companion_version", "retired_at"])]
     rows = frappe.get_all(books.BOOK, filters={"tax_id": tax}, fields=["name", "device", "path", "root", "branch", "writable", "seen_at", "book_key"])
     result["books"] = [{**row, "seen_at": str(row.seen_at)} for row in rows]
-    stale = [row for row in rows if norm(row.path) != norm(ledger)]
+    live = {d["name"] for d in result["devices"] if d["online"]}
+    # 不在线电脑留下的行也算旧行：同一本账套几台电脑各报一行时，派单用的数据根取电脑编号排前的那行，在线那台不认它
+    stale = [row for row in rows if norm(row.path) != norm(ledger) or row.device not in live]
     if params.get("drop_stale") and stale:
         for row in stale:
-            frappe.delete_doc(books.BOOK, row.name, ignore_permissions=True, force=True)
+            documents.remove(books.BOOK, row.name)
         frappe.db.commit()
         result["dropped"] = [row.path for row in stale]
     filters = {"tax_id": tax}
