@@ -1819,7 +1819,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:erp:guide-menu"
-where = "CC 输入框上方的业务菜单（采购 / 销售 / 收款（只在直写）；与「写入」同一行；选了占位文字按业务换、记在会话上，点 × 取消；引导式录入第 1 期）"
+where = "CC 输入框上方的业务菜单（直写只有收款，代录是采购 / 销售；与「写入」同一行；选了 CC 在对话里说一句要什么、占位文字按业务换、记在会话上，点 × 取消；引导式录入第 1 期）"
 tests = ["unit:tests/test_cc_guide_menu.py::test_menu_lists_what_the_product_offers_and_sits_with_record_reply", "unit:tests/test_cc_guide_menu.py::test_choice_is_kept_before_the_session_and_carried_after"]
 group = "cc.action.guide-menu"
 [[row]]

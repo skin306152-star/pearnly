@@ -359,3 +359,5 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 | （步骤名，源串 Asked before writing → Asked before posting） | 写入前已询问 → 入账前已询问 | Asked before posting | ถามก่อนบันทึกบัญชีแล้ว | 記帳前に確認しました |
 
 没动的：写入计划上「写入」按钮等 main 已有词条。
+
+- **ERP 直写菜单先只留「收款」**（主会话 11-14）：ERP 直写采购 / 销售整链（传票 → 识别 → 引导卡 → 复核 → 写入）没有流程或真模型证据，按「菜单只列此刻真能办完的」先不列，第 2 期验过再放出；ERP 代录仍是采购 / 销售；打字照旧能办。

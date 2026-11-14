@@ -218,7 +218,7 @@ class AskUserRefusal(Fakes):
 
 
 class Businesses(unittest.TestCase):
-    """输入框上方的业务菜单：只列这个产品 × 这个模式真能做的（Cowork 两种模式、ERP 代录没有收款；ERP 直写有收款，主会话 11-12 / 11-13）。"""
+    """输入框上方的业务菜单：只列这个产品 × 这个模式真能做的（Cowork 两种模式、ERP 代录没有收款；ERP 直写只有收款：采购 / 销售等第 2 期整链验过再放出，主会话 11-14）。"""
 
     def offered(self, hooks):
         import frappe
@@ -238,7 +238,7 @@ class Businesses(unittest.TestCase):
     def test_products_declare_what_they_can_do(self):
         import ast
         for app, chat, operator in (("pearnly_cowork", ["purchase", "sales"], ["purchase", "sales"]),
-                                    ("pearnly_erp_portal", ["purchase", "sales", "collection"], ["purchase", "sales"])):
+                                    ("pearnly_erp_portal", ["collection"], ["purchase", "sales"])):
             tree = ast.parse((ROOT / f"apps/{app}/{app}/hooks.py").read_text(encoding="utf-8"))
             found = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
                          and getattr(n.targets[0], "id", "") == "pearnly_guide_businesses")
