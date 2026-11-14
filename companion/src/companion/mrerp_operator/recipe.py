@@ -16,7 +16,8 @@ from typing import Dict, List, Optional
 RECIPES = Path(__file__).resolve().parent / "recipes"
 DEFAULT_VERSION = "2026.11-src"
 KINDS = {"text", "date", "check", "pick"}
-DRAFT_KEYS = {"docnum", "date", "cash", "vat_rate", "party_code", "credit_days", "ref_no", "ref_date", "delivery_date"}
+DRAFT_KEYS = {"docnum", "date", "cash", "vat_rate", "party_code", "invoice_party_code", "credit_days", "ref_no", "ref_date",
+              "delivery_date"}
 OUTCOMES = {"kicked", "login_failed", "blocked"}
 
 

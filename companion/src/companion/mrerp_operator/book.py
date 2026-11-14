@@ -295,7 +295,7 @@ class MrerpBook:
         self.session.goto(form.view_path(record_id))
         page = self.session.page
         ids = [spec["docnum"]["prefix_id"], spec["docnum"]["number_id"], spec["party_id"], spec.get("ref_id", ""),
-               "txtdate", *form.totals.values()]
+               spec.get("invoice_party_id", ""), "txtdate", *form.totals.values()]
         n = len(draft.lines)
         for i in range(1, n + 2):
             ids += [form.line_id(name, i) for name in ("code", "qty", "price", "total")]
@@ -310,6 +310,7 @@ class MrerpBook:
                           "total": values.get(form.line_id("total", i)) or ""})
         return {"docnum": f"{values.get(spec['docnum']['prefix_id']) or ''}{values.get(spec['docnum']['number_id']) or ''}",
                 "number_editable": bool(draft.docnum), "party_code": values.get(spec["party_id"]) or "",
+                "invoice_party_code": values.get(spec.get("invoice_party_id", "")) or "",
                 "ref_no": values.get(spec.get("ref_id", "")) or "", "date": values.get("txtdate") or "",
                 "totals": {k: values.get(v) or "" for k, v in form.totals.items()}, "lines": lines, "id": record_id}
 
@@ -323,6 +324,8 @@ class MrerpBook:
             diffs.append(f"party {seen['party_code']}")
         if draft.ref_no and not same_text(seen["ref_no"], draft.ref_no):
             diffs.append(f"ref {seen['ref_no']}")
+        if draft.invoice_party_code and not same_text(seen.get("invoice_party_code"), draft.invoice_party_code):
+            diffs.append(f"invoice party {seen.get('invoice_party_code')}")
         if len(seen["lines"]) != len(draft.lines):
             diffs.append(f"lines {len(seen['lines'])}")
         for i, (line, got) in enumerate(zip(draft.lines, seen["lines"]), 1):

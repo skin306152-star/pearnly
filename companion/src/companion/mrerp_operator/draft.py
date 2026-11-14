@@ -78,6 +78,9 @@ class Draft:
     date: str  # 公历 ISO
     party_code: str
     lines: List[Line]
+    invoice_party_code: str = ""  # 采购的开票用供应商（txtapmas_inv，进项税挂它）；现购时与记账用的现金供应商不同
+    cash: Optional[bool] = None  # 采购「เงินสด」勾：服务端按票面定；没给按配方表单的默认
+    receipt: Dict[str, object] = field(default_factory=dict)  # 现销收款：{"cash": 现金收否, "account": 收款科目}
     docnum: str = ""
     ref_no: str = ""
     ref_date: str = ""
@@ -150,7 +153,10 @@ def from_payload(doc_id: str, payload: Dict) -> Draft:
     defaults = {k: str(v or "").strip() for k, v in (data.get("defaults") or {}).items() if isinstance(k, str)}
     return Draft(doc_id=str(doc_id), doc_type=str(data.get("doc_type") or ""), menu=str(data.get("menu") or "").strip(),
                  date=str(data.get("date") or "")[:10], party_code=str(data.get("party_code") or "").strip(),
-                 lines=lines, docnum=str(data.get("docnum") or "").strip()[:18],
+                 lines=lines, invoice_party_code=str(data.get("invoice_party_code") or "").strip(),
+                 cash=data["cash"] if isinstance(data.get("cash"), bool) else None,
+                 receipt=dict(data["receipt"]) if isinstance(data.get("receipt"), dict) else {},
+                 docnum=str(data.get("docnum") or "").strip()[:18],
                  ref_no=str(data.get("ref_no") or "").strip()[:20], ref_date=str(data.get("ref_date") or "")[:10],
                  credit_days=str(data.get("credit_days") or "").strip(), vat_rate=str(data.get("vat_rate") or "").strip(),
                  vat_included=data.get("vat_included") is True, discount=str(dec(data.get("discount")) or 0),

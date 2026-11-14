@@ -20,7 +20,7 @@ from __future__ import annotations
 import time
 from typing import Callable, Dict, List, Optional
 
-from ..express_operator.engine import NeedHuman, Stopped
+from ..express_operator.engine import NeedHuman, Stopped, is_choice
 from ..express_operator.helper import NoHelper
 from .book import MrerpBook, same_amount, same_text
 from .draft import Draft
@@ -29,6 +29,15 @@ from .session import Kicked, MrerpSession, NetworkDown
 from .web_desk import DeskGone, PageError
 
 SUBMIT_GRACE_S = 1.5  # 点了存档后这么久页面还没开始加载、又弹了框：页面自己的检查拦下了，没提交
+
+
+# 页面原生弹框的按钮（alert 只有确定；confirm / prompt 是确定 + 取消）；网页弹层若带按钮文字（``buttons``）照它。
+_NATIVE_BUTTONS = {"alert": ["OK"], "confirm": ["OK", "Cancel"], "prompt": ["OK", "Cancel"]}
+
+
+def _buttons_of(dialog: Dict) -> List[str]:
+    found = dialog.get("buttons")
+    return [str(b) for b in found] if isinstance(found, list) else list(_NATIVE_BUTTONS.get(str(dialog.get("kind") or ""), []))
 
 
 class Blocked(Exception):
@@ -146,6 +155,9 @@ class Engine:
     # ── 步骤 ────────────────────────────────────────────────────────────
     def _enter(self, draft: Draft, form: Form) -> tuple:
         spec = form.module_spec
+        if draft.receipt.get("cash") is False and not (spec.get("receipt") or {}).get("transfer_id"):
+            # 转账 / 刷卡收款要进「รับอื่นๆ」（第 4 页收款明细）；配方还没探路这几格：不开新单、不填进现金格记错栏，交人
+            raise Blocked("recipe_mismatch", "transfer receipt is not in the recipe yet")
         if self.session.where != (form.module, str(draft.menu)):
             self.book.open_list(draft)
         page = self.page
@@ -177,8 +189,9 @@ class Engine:
     def _value(self, key: str, draft: Draft, form: Form):
         if key.startswith("defaults."):
             return draft.defaults.get(key.split(".", 1)[1], "")
-        return {"docnum": draft.docnum, "date": draft.date_th, "cash": form.cash, "vat_rate": draft.vat_rate,
-                "party_code": draft.party_code, "credit_days": draft.credit_days, "ref_no": draft.ref_no,
+        return {"docnum": draft.docnum, "date": draft.date_th, "cash": form.cash if draft.cash is None else draft.cash,
+                "vat_rate": draft.vat_rate, "party_code": draft.party_code,
+                "invoice_party_code": draft.invoice_party_code, "credit_days": draft.credit_days, "ref_no": draft.ref_no,
                 "ref_date": draft.ref_date_th if (draft.ref_no or draft.ref_date) else draft.date_th,
                 "delivery_date": draft.date_th}[key]
 
@@ -350,6 +363,9 @@ class Engine:
         for dialog in self.page.take_dialogs():
             text = str(dialog.get("text") or "")
             rule = self.recipe.match_dialog(text)
+            if rule is None and is_choice({"buttons": _buttons_of(dialog)}):
+                # 配方外的业务选择框：不交 AI、直接交人（与 Express 代录同一判定 `express_operator.engine.is_choice`）
+                raise Blocked("unknown_screen", f"choice: {text[:200]}")
             if rule is None:
                 judged = self._ask_helper(text, stage)
                 if judged:

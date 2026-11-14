@@ -75,6 +75,7 @@
         {"key": "cash", "id": "chkcash", "kind": "check", "verified": false},
         {"key": "vat_rate", "id": "txtothvatrate", "kind": "pick", "verified": false},
         {"key": "party_code", "id": "txtapmas", "kind": "pick", "settle": "txttopcode", "verified": false},
+        {"key": "invoice_party_code", "id": "txtapmas_inv", "kind": "pick", "verified": false, "_doc": "开票用供应商（进项税挂它）：选了 txtapmas 后页面带成同一家，现购改成真实卖家；11-14 只读核对过新单表单有这一格，填法待探路"},
         {"key": "credit_days", "id": "txttopcode", "kind": "text", "verified": false},
         {"key": "ref_no", "id": "txtvatnum", "kind": "text", "verified": false},
         {"key": "ref_date", "id": "txtvatdate", "kind": "date", "verified": false},
@@ -91,6 +92,7 @@
       "totals": {"before_vat": "txtbeforevat", "vat": "txtvat", "net": "txtnet"},
       "save_id": "btnsave",
       "party_id": "txtapmas",
+      "invoice_party_id": "txtapmas_inv",
       "ref_id": "txtvatnum"
     },
     "artran": {
