@@ -16,6 +16,11 @@ kind = "delete"
 reason = "11-04 左侧「待处理」入口删了（待处理并进对话），前端不再取代录「需要你处理」的任务数；接口归共用层（W1），待统一框架方案定后删"
 
 [[anchor]]
+anchor = "endpoint:pearnly_core.express_operator.api.task_uploads"
+kind = "delete"
+reason = "11-14 输入框附件不再显示识别到哪（用户：发送后才识别），页面不再轮询它；发出后的识别状态走代录事件源的上传卡片（feed.upload_states）。接口归共用层，测试还在用，下一批删"
+
+[[anchor]]
 anchor = "endpoint:pearnly_core.express_operator.api.task_create"
 kind = "delete"
 reason = "11-04 统一对话框架（U2）：页面不再直接调；代录会话由 sessions.create(mode=operator) 在同一事务里建任务。接口归共用层（U1），随 U1 合入时删或改内部调用"

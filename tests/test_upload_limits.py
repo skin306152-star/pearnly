@@ -316,7 +316,7 @@ class FilesStayOnDisk(unittest.TestCase):
         upload = self._body("apps/pearnly_core/pearnly_core/assistant/files.py", "_upload")
         self.assertNotIn("stream.read(contracts.UPLOAD_MAX_BYTES", upload)
         self.assertLess(upload.index("content = _keep(row, upload_id, name, content)"), upload.index("api.upload(name, content, mime)"))
-        self.assertLess(upload.index("content = _keep("), upload.index("_operator_take(row, upload_id, name, content)"))
+        self.assertLess(upload.index("content = _keep("), upload.index("_operator_take(row, upload_id, name, size)"))
 
     def test_operator_materials_and_cowork_intake_land_on_disk(self):
         self.assertIn("content = local_file.from_upload(incoming, UPLOAD_MAX, frappe.request)",

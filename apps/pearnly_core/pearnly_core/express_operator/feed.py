@@ -158,7 +158,7 @@ def _docs(task) -> list:
 
 
 def _uploads(task) -> list:
-    """进了对话的上传（没有上传时刻的是对话输入框里的一份，带着它的消息还没发出：``uploads.take``，不出卡片）。"""
+    """进了对话的上传（没有上传时刻的是对话输入框里的一份，带着它的消息还没发出：``uploads.hold``，不出卡片）。"""
     return [{"row": row, "key": str(_get(row, "name") or index), "at": _moment(_get(row, "uploaded_at"))}
             for index, row in enumerate(_get(task, "uploads") or [], start=1) if _moment(_get(row, "uploaded_at"))]
 
@@ -403,17 +403,23 @@ def _tz() -> str:
 
 
 def upload_states(doc) -> dict:
-    """任务里每份上传此刻的识别状态（产品现读，同 ``uploads.read``），按上传行名。读不到的不给。"""
+    """任务里每份上传此刻的识别状态（产品现读，同 ``uploads.read``），按上传行名。读不到的不给。已发出、还在等后台交识别的
+    排队中，交不成的失败（``shapes.unstarted``）。"""
+    out = {}
+    for row in doc.get("uploads") or []:
+        waiting = shapes.unstarted(row)
+        if waiting:
+            out[row.name] = shapes.upload_view({"filename": row.filename, "batch": ""}, waiting, doc.period or "")
     rows = [row for row in doc.get("uploads") or [] if row.batch]
     if not rows:
-        return {}
+        return out
     try:
         found = products.uploads(doc.company, doc.period or "", [row.batch for row in rows])
     except Exception:
         frappe.log_error(title="Operator upload states read failed")
-        return {}
-    return {row.name: shapes.upload_view({"filename": row.filename, "batch": row.batch}, found.get(row.batch),
-                                         doc.period or "") for row in rows}
+        return out
+    return {**out, **{row.name: shapes.upload_view({"filename": row.filename, "batch": row.batch}, found.get(row.batch),
+                                                   doc.period or "") for row in rows}}
 
 
 def task_of(row):

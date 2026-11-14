@@ -76,6 +76,11 @@ def precheck(company, doc_ids) -> dict:
     return frappe.get_attr(path)(company, list(doc_ids))
 
 
+def can_intake() -> bool:
+    """产品收不收任务里的上传（声明了 ``intake``）。"""
+    return bool(_path("intake"))
+
+
 def intake(company, filename: str, content: bytes, request_key: str) -> dict:
     path = _path("intake")
     if not path:

@@ -1,6 +1,5 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
-import type { OperatorUpload } from "./attachment-recognition";
 import { get, post, upload } from "@/lib/frappe";
 import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 import { listMode, type ListMode } from "./list-mode";
@@ -149,8 +148,8 @@ export async function runTool(id: string, toolUseId: string): Promise<ToolRunRep
 /** 上传结果；PDF 读得出页数时带 pages（对话里附件卡片的「PDF · N 页」）。 */
 export type UploadedFile = {
   fileId: string; filename: string; mountPath: string; size_bytes: number; pages?: number;
-  /** 代录会话：这一份也交给了会话挂的任务识别（任务号、任务里的那一行，attachment-recognition.ts） */
-  task?: string; upload?: OperatorUpload;
+  /** 代录会话：这一份在会话挂的任务上记了一行「待发送」（任务号）；发出后才交识别 */
+  task?: string;
 };
 
 export type SessionFile = {
@@ -168,6 +167,11 @@ export type SessionFile = {
 /** 附件：传到本站，服务端校验后存进会话（HEIC 照片会转成 JPEG）。 */
 export function uploadFile(id: string, file: File): Promise<UploadedFile> {
   return upload("upload", { session_id: id }, file);
+}
+
+/** 输入框里移除了还没发出的附件：代录会话里服务端删掉那一行「待发送」和留存的这份（不识别、不扣费）。 */
+export function dropUpload(id: string, fileId: string): Promise<{ dropped: boolean }> {
+  return post("drop_upload", { session_id: id, file_id: fileId });
 }
 
 export function listSessionFiles(id: string): Promise<SessionFile[]> {

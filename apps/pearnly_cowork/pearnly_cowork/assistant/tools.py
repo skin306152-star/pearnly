@@ -555,7 +555,7 @@ CONVERSATION_DOCUMENTS_MAX = 500
 
 def _conversation_documents() -> list:
     """本对话附件识别出的单（``cowork_list_documents`` 的 ``this_conversation``，11-10 线上压测 S1）：每个用户附件按识别时的
-    请求号（``assistant:<附件>``，重试的 ``:2``…）找本人的识别批次，代录放进输入框交给任务的那份（`files.taken`）也算；
+    请求号（``assistant:<附件>``，重试的 ``:2``…）找本人的识别批次，代录随消息发出交给任务的那份（`files.taken`）也算；
     工具生成的文件不是票，不算。"""
     from pearnly_core.assistant import files as chat_files
     from pearnly_cowork.ocr.execution import access
@@ -1432,7 +1432,7 @@ def _admit(file_id, choices) -> dict:
     if chat_files.origin(file_id) == "tool":
         return {"file": file_id, "filename": filename, "status": "not_started",
                 "reason": "made_by_tool: this file was made by a tool, not a document to recognize"}
-    # 代录会话里放进输入框时已交给任务识别的那一份（`assistant.files.taken`）：拿回它，不按本工具的请求号另交、另扣费；
+    # 代录会话里随消息发出、交给任务识别的那一份（`assistant.files.taken`，后台还没交上的当场交）：拿回它，不按本工具的请求号另交、另扣费；
     # 那次没出结果（``RETRY_STATES``）才照下面重新识别
     taken = chat_files.taken(fid)
     if taken and _recognition().detail(taken).get("state") not in RETRY_STATES:

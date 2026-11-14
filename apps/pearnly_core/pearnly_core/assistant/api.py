@@ -123,6 +123,12 @@ def upload(session_id):
     return files.upload(session_id)
 
 
+# 输入框里移除了还没发出的附件：代录会话的那一行「待发送」与本站留存一起删，不识别、不扣费（files.drop）
+@frappe.whitelist(methods=["POST"])
+def drop_upload(session_id, file_id):
+    return files.drop(session_id, file_id)
+
+
 @frappe.whitelist(methods=["GET"])
 def session_files(session_id):
     return files.listing(session_id)

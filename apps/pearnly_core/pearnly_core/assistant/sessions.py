@@ -1041,10 +1041,12 @@ def send(session_id, text) -> dict:
         except Exception:
             frappe.log_error(title="Operator message sent mark failed")
 
-        # 代录会话：这条消息带着的、输入框里已交识别的资料这时才进对话（上传卡片排在这条消息后面，files._operator_take）。
-        # 消息已发出：记不上（任务刚被删等）只留日志，不当发送失败
+        # 代录会话：这条消息带着的、输入框里已传好的资料这时才进对话（上传卡片排在这条消息后面），提交后才交识别（11-14 用户：
+        # 点了发送才识别；交出文件的唯一入口 files.commit）。消息已发出：记不上（任务刚被删等）只留日志，不当发送失败
         try:
-            operator_uploads.sent(row.operator_task, text)
+            from pearnly_core.assistant import files as chat_files
+
+            chat_files.commit(row, operator_uploads.keys_in(row.operator_task, text), via="send")
         except Exception:
             frappe.log_error(title="Operator upload sent mark failed")
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）

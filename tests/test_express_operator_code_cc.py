@@ -98,6 +98,10 @@ def fake_frappe(state):
         def set(self, key, value):
             self[key] = [Row(item) for item in value] if key in ("documents", "uploads") else value
 
+        def remove(self, row):
+            for key in ("documents", "uploads"):
+                self[key] = [item for item in self[key] if item is not row]
+
         def insert(self):
             state["seq"] += 1
             self.update(name=f"t{state['seq']:03d}", owner=frappe.session.user, starred=0, creation=state["now"],
@@ -128,7 +132,23 @@ def fake_frappe(state):
     frappe.get_doc, frappe.get_all = get_doc, get_all
     frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
         (event, message, user, after_commit))
-    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all)
+    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all,
+                                      commit=lambda: state.setdefault("commits", []).append(1),
+                                      rollback=lambda: state.setdefault("rollbacks", []).append(1))
+    frappe.local = types.SimpleNamespace(site="test.site", lang="th")
+    frappe.log_error = lambda **kwargs: state.setdefault("errors", []).append(kwargs.get("title"))
+
+    class Lock:
+        def __init__(self, key, **kwargs):
+            state.setdefault("locks", []).append(key)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    frappe.cache = types.SimpleNamespace(lock=Lock)
     frappe.parse_json = lambda text: __import__("json").loads(text) if isinstance(text, str) else text
     frappe.as_json = lambda value: __import__("json").dumps(value, default=str)
     frappe.get_hooks = lambda name: state["hooks"].get(name)
@@ -180,6 +200,8 @@ class Product:
             from pearnly_core.execution.errors import Deferred
 
             raise Deferred("oracle_unreachable", 10)
+        if getattr(self, "broken", False):
+            raise RuntimeError("startxref not found")
         if not self.accept:
             return {"accepted": False, "code": "no_target"}
         return {"accepted": True, "source": f"SRC-{request_key}", "name": f"B-{request_key}", "page_count": 12,
@@ -307,57 +329,137 @@ class UploadRecordTests(Base):
 
 
 class ConversationUploadTests(Base):
-    """2026-11-06「选中就上传」：代录会话输入框里的文件由对话的上传口交给任务（``uploads.take``，请求键 = 文件编号），带着它的消息
-    发出时才进对话（``uploads.sent``）；之前对话里不出上传卡片，发出后卡片排在这条消息后面。"""
+    """代录会话输入框里的文件（2026-11-06「选中就上传」；11-14 用户：上传是为了点发送不用等，识别要等点了发送才开始）：
+    对话的上传口只在任务上记一行「待发送」（``uploads.hold``：不交识别、不扣费、没有上传时刻，对话里不出卡片）；带着它的消息发出时
+    记上时刻（``uploads.sent``，卡片排在这条消息后面），之后才交产品识别（``uploads.start``，后台或识别工具当场）。没发出就移除的
+    删掉那一行（``uploads.drop``），从头到尾不识别。"""
 
-    def test_a_file_in_the_composer_is_recognized_at_once_and_joins_the_conversation_when_sent(self):
-        feed = importlib.import_module("pearnly_core.express_operator.feed")
-        task = tasks.create("CO-1", "2026-10")["name"]
-        view = uploads.take(task, "bill.pdf", b"%PDF-x", "file_011ABC")
-        self.assertEqual(self.product.intakes, [("CO-1", "bill.pdf", 6, "file_011ABC")])  # 选中就交识别
-        self.assertEqual((view["batch"], view["state"], view["uploaded_at"]), ("B-file_011ABC", "queued", ""))
-        doc = frappe.get_doc("Pearnly Express Operator Task", task)
-
-        def shown():
-            return [e["input"]["filename"] for e in feed.project(doc, None, "UTC") if e.get("name") == feed.UPLOAD]
-
-        self.assertEqual(shown(), [])  # 还在输入框里：对话里没有上传卡片
-        self.assertEqual(uploads.read(task)["uploads"][0]["batch"], "B-file_011ABC")  # 输入框那一项照样读得到识别状态
-        self.assertEqual(uploads.sent(task, "看看这张"), 0)  # 不带它的消息不算
+    def setUp(self):
+        super().setUp()
+        self.task = tasks.create("CO-1", "2026-10")["name"]
+        self.doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
         before = STATE["now"]
-        STATE["now"] = datetime.datetime(2026, 11, 4, 16, 5)
         self.addCleanup(STATE.__setitem__, "now", before)
-        note = "看看这张\n\n[Attached file, mounted read-only in the sandbox:\n- bill.pdf → /mnt/session/uploads/file_011ABC/bill.pdf]"
-        self.assertEqual(uploads.sent(task, note), 1)
-        self.assertEqual(shown(), ["bill.pdf"])
-        self.assertEqual(doc.uploads[0].uploaded_at, STATE["now"])  # 发出那一刻：卡片排在这条消息后面
-        self.assertEqual(uploads.sent(task, note), 0)  # 再发一遍同一句不重记
 
-    def test_the_recognition_a_composer_file_already_started_is_found_by_its_file_id(self):
-        # 产品的「识别附件」工具据此拿回这一份，不另交一次（11-07 实验栈：同一份识别两次、资料里列成两倍）
-        task = tasks.create("CO-1", "2026-10")["name"]
-        uploads.take(task, "bill.pdf", b"%PDF-x", "file_011ABC")
-        self.assertEqual(uploads.batch_of(task, "file_011ABC"), "B-file_011ABC")
-        self.assertEqual(uploads.batch_of(task, "file_other"), "")
-        self.assertEqual(uploads.batch_of(task, ""), "")
+    @staticmethod
+    def note(*keys):
+        return "看看\n\n[Attached file, mounted read-only in the sandbox:\n" + "".join(
+            f"- {key}.pdf → /mnt/session/uploads/{key}/{key}.pdf\n" for key in keys) + "]"
 
-    def test_take_refuses_like_intake_and_skips_what_the_product_does_not_take(self):
-        task = tasks.create("CO-1", "2026-10")["name"]
-        self.product.deferred = True
-        with self.assertRaises(ValidationError_) as caught:
-            uploads.take(task, "bill.pdf", b"x", "file_1")
-        self.assertEqual(str(caught.exception), "upload.deferred")  # 一时连不上：可重试的一句，不是 500
+    def send(self, text):
+        """输入框点发送（``sessions.send`` 同样两步：认出消息带着的几份，交给唯一入口 ``commit``）。"""
+        return uploads.commit(self.task, uploads.keys_in(self.task, text))
+
+    def shown(self):
+        feed = importlib.import_module("pearnly_core.express_operator.feed")
+        return [e["input"]["filename"] for e in feed.project(self.doc, None, "UTC") if e.get("name") == feed.UPLOAD]
+
+    def test_a_file_in_the_composer_is_only_held_until_the_message_is_sent(self):
+        view = uploads.hold(self.task, "bill.pdf", 6, "upl_1")
+        self.assertEqual(self.product.intakes, [])  # 选中只上传：不交识别、不扣费
+        self.assertEqual((view["batch"], view["uploaded_at"]), ("", ""))
+        self.assertEqual([(r.request_key, r.batch, r.uploaded_at) for r in self.doc.uploads], [("upl_1", "", None)])
+        self.assertEqual(self.shown(), [])  # 还在输入框里：对话里没有上传卡片
+        self.assertEqual(uploads.read(self.task)["uploads"], [])  # 也不算任务里的上传
+        self.assertEqual(uploads.start(self.task, "upl_1", b"%PDF-x"), "")  # 没发出的交不了识别
+        self.assertEqual(self.product.intakes, [])
+        self.assertEqual(self.send("看看这张"), [])  # 不带它的消息不算
+        STATE["now"] = datetime.datetime(2026, 11, 4, 16, 5)
+        self.assertEqual(self.send(self.note("upl_1")), ["upl_1"])
+        self.assertEqual(self.shown(), ["bill.pdf"])
+        self.assertEqual(self.doc.uploads[0].uploaded_at, STATE["now"])  # 发出那一刻：卡片排在这条消息后面
+        # 发出了、后台还没交上：卡片是「排队中」，不是「读不到」
+        self.assertEqual(uploads.read(self.task)["uploads"][0]["state"], "queued")
+        feed = importlib.import_module("pearnly_core.express_operator.feed")
+        self.assertEqual([v["state"] for v in feed.upload_states(self.doc).values()], ["queued"])
+        self.assertTrue(uploads.waiting(self.task, "upl_1"))
+        # 这时才交识别
+        self.assertEqual(uploads.start(self.task, "upl_1", b"%PDF-x"), "B-upl_1")
+        self.assertEqual(self.product.intakes, [("CO-1", "bill.pdf", 6, "upl_1")])
+        self.assertEqual((self.doc.uploads[0].batch, self.doc.uploads[0].source), ("B-upl_1", "SRC-upl_1"))
+        self.assertFalse(uploads.waiting(self.task, "upl_1"))
+        # 再来一次（后台与识别工具都来了）：回原来那个，不再交
+        self.assertEqual(uploads.start(self.task, "upl_1", b"%PDF-x"), "B-upl_1")
+        self.assertEqual(len(self.product.intakes), 1)
+        self.assertEqual(uploads.batch_of(self.task, "upl_1"), "B-upl_1")
+        self.assertEqual(self.send(self.note("upl_1")), [])  # 再发一遍同一句不重记
+
+    def test_commit_is_the_one_way_in_and_can_be_called_again(self):
+        # 接缝（引导卡上提交与输入框点发送同一个入口）：交出才记时刻；再交同几份不重记时刻，还没交上识别的照样回（后台重排无害）
+        uploads.hold(self.task, "a.pdf", 6, "upl_1")
+        uploads.hold(self.task, "b.pdf", 6, "upl_2")
+        self.assertEqual(uploads.commit(self.task, []), [])
+        self.assertEqual(uploads.commit(self.task, ["upl_9"]), [])  # 不认识的不算
+        STATE["now"] = datetime.datetime(2026, 11, 4, 16, 5)
+        self.assertEqual(uploads.commit(self.task, ["upl_1"]), ["upl_1"])
+        first = self.doc.uploads[0].uploaded_at
+        STATE["now"] = datetime.datetime(2026, 11, 4, 16, 9)
+        self.assertEqual(uploads.commit(self.task, ["upl_1"]), ["upl_1"])
+        self.assertEqual(self.doc.uploads[0].uploaded_at, first)
+        self.assertIsNone(self.doc.uploads[1].uploaded_at)  # 没交出的那份还是「待发送」
+        self.assertEqual(self.product.intakes, [])  # 入口本身不识别：提交后由后台交
+        uploads.start(self.task, "upl_1", b"x")
+        self.assertEqual(uploads.commit(self.task, ["upl_1"]), [])
+        self.assertEqual(len(self.product.intakes), 1)
+
+    def test_a_file_removed_before_sending_is_never_recognized(self):
+        uploads.hold(self.task, "a.pdf", 6, "upl_1")
+        uploads.hold(self.task, "b.pdf", 6, "upl_2")
+        self.assertTrue(uploads.drop(self.task, "upl_1"))
+        self.assertEqual([r.request_key for r in self.doc.uploads], ["upl_2"])
+        self.assertFalse(uploads.drop(self.task, "upl_1"))  # 已删的、不认识的
+        self.assertEqual(self.send(self.note("upl_1", "upl_2")), ["upl_2"])
+        self.assertFalse(uploads.drop(self.task, "upl_2"))  # 已发出的不删
+        self.assertEqual(uploads.start(self.task, "upl_1", b"x"), "")
+        self.assertEqual(uploads.start(self.task, "upl_2", b"x"), "B-upl_2")
+        self.assertEqual([i[3] for i in self.product.intakes], ["upl_2"])  # 移除的那份从头到尾没交识别
+
+    def test_several_files_in_one_message_each_start_once(self):
+        for key in ("upl_1", "upl_2", "upl_3"):
+            uploads.hold(self.task, f"{key}.pdf", 6, key)
+        self.assertEqual(self.send(self.note("upl_1", "upl_3")), ["upl_1", "upl_3"])
+        for key in ("upl_1", "upl_3", "upl_1"):
+            uploads.start(self.task, key, b"x")
+        self.assertEqual([i[3] for i in self.product.intakes], ["upl_1", "upl_3"])
+        self.assertEqual([r.batch for r in self.doc.uploads], ["B-upl_1", "", "B-upl_3"])  # 没带上的那份还在输入框里
+
+    def test_a_start_that_fails_shows_failed_and_can_start_again(self):
+        uploads.hold(self.task, "bill.pdf", 6, "upl_1")
+        self.send(self.note("upl_1"))
+        self.product.deferred = True  # 原件存放处一时连不上
+        self.assertEqual(uploads.start(self.task, "upl_1", b"x"), "")
+        row = uploads.read(self.task)["uploads"][0]
+        self.assertEqual((row["state"], row["code"]), ("failed", "upload.deferred"))
         self.product.deferred = False
+        self.product.accept = False  # 产品不收（例如还没选账套）
+        uploads.start(self.task, "upl_1", b"x")
+        self.assertEqual(uploads.read(self.task)["uploads"][0]["code"], "no_target")
+        self.product.allowed = {"CO-2"}  # 发出前这家公司不能代录了
+        self.assertEqual(uploads.start(self.task, "upl_1", b"x"), "")
+        self.assertEqual(uploads.read(self.task)["uploads"][0]["code"], "start_refused")
+        self.product.allowed = {"CO-1"}
+        self.product.broken = True  # 产品读文件出了意外（11-14 实验栈：坏 PDF 让那一行一直停在排队中）
+        self.assertEqual(uploads.start(self.task, "upl_1", b"x"), "")
+        self.assertEqual(uploads.read(self.task)["uploads"][0]["code"], "start_failed")
+        self.product.broken = False
+        self.product.accept = True  # 下次再来照样重交
+        self.assertEqual(uploads.start(self.task, "upl_1", b"x"), "B-upl_1")
+        self.assertEqual(self.doc.uploads[0].start_code, "")
+
+    def test_hold_refuses_like_intake_and_skips_what_the_product_does_not_take(self):
         self.product.install(intake=False)  # 产品不收上传：文件照常只进对话，任务上不记
-        self.assertIsNone(uploads.take(task, "bill.pdf", b"x", "file_2"))
-        self.assertEqual(frappe.get_doc("Pearnly Express Operator Task", task).uploads, [])
+        self.assertIsNone(uploads.hold(self.task, "bill.pdf", 1, "upl_2"))
+        self.assertEqual(self.doc.uploads, [])
         self.product.install()
         self.product.allowed = {"CO-2"}
-        with self.assertRaises(PermissionError_):
-            uploads.take(task, "bill.pdf", b"x", "file_3")  # 这家公司现在不能代录
+        self.assertIsNone(uploads.hold(self.task, "bill.pdf", 1, "upl_3"))  # 这家公司现在不能代录：不记
+        self.product.allowed = {"CO-1"}
         frappe.session.user = "b@example.com"
         with self.assertRaises(DoesNotExistError_):
-            uploads.take(task, "bill.pdf", b"x", "file_4")  # 别人的任务
+            uploads.hold(self.task, "bill.pdf", 1, "upl_4")  # 别人的任务
+        with self.assertRaises(DoesNotExistError_):
+            uploads.drop(self.task, "upl_4")
+        self.assertEqual(self.product.intakes, [])
 
 
 class UploadStatusTests(Base):

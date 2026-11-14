@@ -484,12 +484,46 @@ covers = [
   "frontend/assistant/src/lib/managed-agents/api.ts",
   "frontend/assistant/src/lib/managed-agents/runtime-provider.tsx",
   "frontend/assistant/src/lib/managed-agents/reducer.ts",
-  # 代录会话输入框的附件同直写（11-06「选中就上传」）：附件方块显示识别到哪
+  # 代录会话输入框的附件同直写（11-06「选中就上传」；11-14 起发出后才交识别，输入框只显示上传状态、移除的告诉服务端删掉）
   "frontend/assistant/src/components/assistant-ui/attachment.tsx",
   "frontend/assistant/src/lib/managed-agents/attachments.ts",
-  "frontend/assistant/src/lib/managed-agents/attachment-recognition.ts",
   "scripts/flows/cc_lib.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+]
+
+[[flow]]
+id = "cc.operator.upload-on-send"
+title = "ERP CC 代录会话选中就上传、发送后才识别（11-14）：没发出时任务里没有上传、不识别不扣费；移除的不识别、留存删掉；上传失败留失败卡；发出后才交识别"
+module = "scripts/flows/cc_operator_upload_on_send.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/uploads.py",
+  "apps/pearnly_core/pearnly_core/express_operator/shapes.py",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "frontend/assistant/src/components/assistant-ui/attachment.tsx",
+]
+
+[[flow]]
+id = "cowork.cc.operator.upload-on-send"
+title = "Cowork CC 代录会话选中就上传、发送后才识别：同 ERP"
+module = "scripts/flows/cc_operator_upload_on_send.py"
+product = "cowork"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+  "apps/pearnly_core/pearnly_core/assistant/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/uploads.py",
+  "apps/pearnly_core/pearnly_core/express_operator/shapes.py",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "frontend/assistant/src/components/assistant-ui/attachment.tsx",
 ]
 
 [[flow]]
