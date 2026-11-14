@@ -239,6 +239,8 @@ jobs:
         run: python3 scripts/production/test-erp-runtime.py
       - name: Verify the ERP masters lane can be handed back to the long queue on rollback
         run: python3 scripts/production/test-requeue-erp-masters.py
+      - name: Verify the cleanup of never-used auto-built companies only deletes with the confirmed plan
+        run: python3 scripts/production/test-purge-unused-ledger-companies.py
       - name: Verify the daily offsite backup and restore drill contracts
         run: python3 scripts/production/test-offsite-backup.py
       - name: Verify the Windows helper and the server agree on endpoints, pairing code and downloads
