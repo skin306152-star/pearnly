@@ -66,6 +66,7 @@ def install():
     utils = types.ModuleType("frappe.utils")
     utils.get_datetime = lambda value: value if isinstance(value, datetime.datetime) else datetime.datetime.fromisoformat(value)
     utils.now_datetime = lambda: NOW
+    utils.nowdate = lambda: NOW.date().isoformat()
     frappe.utils = utils
     sys.modules["frappe"], sys.modules["frappe.utils"] = frappe, utils
 
@@ -98,6 +99,8 @@ def install():
     sys.modules["pearnly_erp_portal.mrerp.connection"] = connection
     catalog = types.ModuleType("pearnly_erp_portal.mrerp.catalog")
     catalog._sets = lambda connection: [{"source_id": "6:1", "label": "TEST2019"}]
+    catalog.current = lambda row, day: {"key": "6:1", "label": "TEST2019", "connection": row.get("mrerp_connection")} \
+        if row.get("mrerp_account_set") else None
     sys.modules["pearnly_erp_portal.mrerp.catalog"] = catalog
     sys.modules.pop("pearnly_erp_portal.mrerp.masters", None)
     from pearnly_erp_portal import mrerp
@@ -219,6 +222,129 @@ class RunTests(Base):
             self.masters.run("CO-1")
         self.assertEqual([kw["manual"] for _m, kw in self.frappe.enqueued], [True])
         self.assertEqual(seen, [True, False])
+
+
+class CompanyIdentityTests(unittest.TestCase):
+    """各年度账套归成一家（主会话 11-14）：认同一家、法定名称、按日期选哪一本、同期两本问一次（Express 同一个选择与记忆）。
+    这里载入真的 `mrerp/catalog.py`，只替身数据库与 Express 的选择 / 对话 / 年度键。"""
+
+    def setUp(self):
+        import importlib.util
+
+        self.frappe = frappe = types.ModuleType("frappe")
+        frappe._ = lambda text: text
+        self.connections_rows = {"MR-1": {"system_url": "https://www.mrerp4sme.com", "enabled": 1}}
+        self.catalogs = {}
+        self.company = {"name": "CO-1", "mrerp_connection": "MR-1", "mrerp_account_set": "6:1", "mrerp_company": ""}
+
+        class Db:
+            def get_value(db, doctype, name, field, as_dict=False):
+                if doctype == "ERP MRERP Connection":
+                    return (self.connections_rows.get(name) or {}).get(field)
+                return Row(self.company) if as_dict else self.company.get(field)
+
+        frappe.db = Db()
+        frappe.get_all = lambda doctype, filters=None, pluck=None, order_by=None, limit_page_length=None: [
+            name for name, row in self.connections_rows.items() if row["enabled"]]
+        utils = types.ModuleType("frappe.utils")
+        utils.now_datetime = lambda: NOW
+        frappe.utils = utils
+        express_pkg = types.ModuleType("pearnly_erp_portal.express")
+        spec = importlib.util.spec_from_file_location(
+            "pearnly_erp_portal.express.contracts", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py")
+        contracts = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(contracts)
+        self.contracts = contracts
+        self.chosen = {}
+        choices = types.ModuleType("pearnly_erp_portal.express.choices")
+        choices.ACCOUNT_SET = "account_set"
+        choices.chosen = lambda company, kind, subject: self.chosen.get((company, kind, subject), "")
+        conversation = types.ModuleType("pearnly_erp_portal.express.conversation")
+        conversation.LEDGER_NEEDED = "ledger_needed"
+        target = types.ModuleType("pearnly_erp_portal.express.target")
+        target.year_subject = lambda day, book: f"year:{book.get('period_start') or str(day)[:4]}"
+        express_pkg.contracts, express_pkg.choices, express_pkg.conversation, express_pkg.target = (
+            contracts, choices, conversation, target)
+        connection = types.ModuleType("pearnly_erp_portal.mrerp.connection")
+        connection.CONNECTION, connection.DEFAULT_URL = "ERP MRERP Connection", "https://www.mrerp4sme.com"
+        modules = {"frappe": frappe, "frappe.utils": utils, "pearnly_erp_portal.express": express_pkg,
+                   "pearnly_erp_portal.express.contracts": contracts, "pearnly_erp_portal.express.choices": choices,
+                   "pearnly_erp_portal.express.conversation": conversation, "pearnly_erp_portal.express.target": target,
+                   "pearnly_erp_portal.mrerp.connection": connection}
+        patcher = patch.dict(sys.modules, modules)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        import pearnly_erp_portal.mrerp as mrerp_pkg
+        mrerp_pkg.connection = connection
+        spec = importlib.util.spec_from_file_location("lab_mrerp_catalog",
+                                                      ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py")
+        self.catalog = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(self.catalog)
+        self.catalog._sets = lambda name: self.catalogs.get(name, [])
+
+    @staticmethod
+    def sets(**periods):
+        row = {"company": "TEST", "company_name": "1010-01-000006 บริษัท ทดสอบการใช้ จำกัด"}
+        out = []
+        for key, label, comidyear in (("6:1", "TEST2019", "6"), ("15:1", "TEST2020", "15")):
+            attributes = {**row, "comidyear": comidyear, **periods.get(label, {})}
+            out.append({"source_id": key, "label": label, "attributes": attributes})
+        return out
+
+    def test_identity_survives_a_new_account_or_a_rebuilt_connection(self):
+        """没税号：站点主机 + 选公司页那一行（简称 + 全称），不带连接号、不带账号 —— 换 MR.ERP 账号、连接删了重建都认成同一家。"""
+        attributes = self.sets()[0]["attributes"]
+        first = self.catalog.identity("MR-1", attributes)
+        self.connections_rows["MR-9"] = {"system_url": "https://WWW.mrerp4sme.com/", "enabled": 1}
+        self.assertEqual(self.catalog.identity("MR-9", attributes), first)
+        self.assertEqual(first, "row:www.mrerp4sme.com|test|1010-01-000006 บริษัท ทดสอบการใช้ จำกัด")
+        # 同站点别的公司（另一行）、别的站点：不是同一家
+        self.assertNotEqual(self.catalog.identity("MR-1", {**attributes, "company_name": "บริษัท อื่น จำกัด"}), first)
+        self.connections_rows["MR-X"] = {"system_url": "https://erp.other.example", "enabled": 1}
+        self.assertNotEqual(self.catalog.identity("MR-X", attributes), first)
+        # 有效税号：按税号认（同 Express），与站点、行无关
+        self.assertEqual(self.catalog.identity("MR-X", {**attributes, "tax_id": "0105560000001"}), "tax:0105560000001")
+
+    def test_books_follow_the_company_to_a_rebuilt_connection(self):
+        self.catalogs["MR-1"] = self.sets()
+        self.company["mrerp_company"] = self.catalog.identity("MR-1", self.sets()[0]["attributes"])
+        self.assertEqual([book["key"] for book in self.catalog.books_of(self.company)], ["6:1", "15:1"])
+        # 旧连接停用、重建一条（新账号）：目录里同一行 → 照样找到这家公司的各年度
+        self.connections_rows["MR-1"]["enabled"] = 0
+        self.connections_rows["MR-2"] = {"system_url": "https://www.mrerp4sme.com", "enabled": 1}
+        self.catalogs["MR-2"] = self.sets()
+        self.assertEqual([(book["key"], book["connection"]) for book in self.catalog.books_of(self.company)],
+                         [("6:1", "MR-2"), ("15:1", "MR-2")])
+
+    def test_legal_name_drops_the_internal_code(self):
+        self.assertEqual(self.catalog.legal_name(self.sets()[0]["attributes"]), "บริษัท ทดสอบการใช้ จำกัด")
+        self.assertEqual(self.catalog.legal_name({"company": "TEST"}), "TEST")
+
+    def test_book_for_picks_by_the_period_read_from_mrerp(self):
+        self.catalogs["MR-1"] = self.sets(TEST2019={"period_start": "2026-01-01", "period_end": "2026-12-31"})
+        self.company["mrerp_company"] = self.catalog.identity("MR-1", self.sets()[0]["attributes"])
+        picked = self.catalog.book_for(self.company, "2026-11-14")
+        self.assertEqual((picked["book"]["key"], picked["reason"]), ("6:1", ""))
+        # 期间读不到的年度库（TEST2020）不参与按日期选：不从名字猜年份 → 没有覆盖这天的账套
+        none = self.catalog.book_for(self.company, "2020-05-01")
+        self.assertEqual((none["book"], none["reason"]), (None, self.contracts.NO_BOOK))
+        # 对话定了那本：就用那本；名单里没有 → 没有账套
+        self.assertEqual(self.catalog.book_for(self.company, "2020-05-01", wanted="15:1")["book"]["key"], "15:1")
+        self.assertEqual(self.catalog.book_for(self.company, "2020-05-01", wanted="99:1")["reason"], self.contracts.NO_BOOK)
+
+    def test_two_books_for_one_period_ask_once_in_the_express_choice(self):
+        same = {"period_start": "2026-01-01", "period_end": "2026-12-31"}
+        self.catalogs["MR-1"] = self.sets(TEST2019=same, TEST2020=same)
+        self.company["mrerp_company"] = self.catalog.identity("MR-1", self.sets()[0]["attributes"])
+        asked = self.catalog.book_for(self.company, "2026-11-14")
+        self.assertEqual((asked["reason"], [o["code"] for o in asked["options"]], asked["subject"]),
+                         (self.contracts.SEVERAL_BOOKS, ["6:1", "15:1"], "year:2026-01-01"))
+        # 选过一次（记在 Express 同一处：公司 + account_set + 这个会计年度）：直接用选的
+        self.chosen[("CO-1", "account_set", "year:2026-01-01")] = "15:1"
+        self.assertEqual(self.catalog.book_for(self.company, "2026-11-14")["book"]["key"], "15:1")
+        # 主档整读不停下：没选过时取第一本
+        self.chosen.clear()
+        self.assertEqual(self.catalog.current(self.company, "2026-11-14")["key"], "6:1")
 
 
 if __name__ == "__main__":

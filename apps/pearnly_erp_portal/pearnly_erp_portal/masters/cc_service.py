@@ -252,7 +252,7 @@ def _mrerp_sets(check_admin=True) -> list:
 
     out = []
     for name in frappe.get_all(connections.CONNECTION, pluck="name", order_by="name asc", limit_page_length=CONNECTIONS_MAX):
-        out += [(name, row) for row in catalog.account_sets(name, 0, catalog.PAGE_MAX)["rows"]]
+        out += [(name, item) for item in catalog._sets(name)]
     return out
 
 
@@ -266,9 +266,33 @@ def _state(found, linkable) -> str:
     return ADDED if found.is_active else INACTIVE
 
 
+def _mrerp_companies(check_admin=True) -> dict:
+    """MR.ERP 目录按公司归组（各年度账套归一家，`mrerp.catalog.identity`）：``{标识: {connection, attributes, books}}``，
+    各年度按期间排（期间读不到的排后）。同一家出现在几条连接里只取第一条。"""
+    from pearnly_erp_portal.mrerp import catalog
+
+    groups = {}
+    for connection, item in _mrerp_sets(check_admin):
+        attributes = item.get("attributes") or {}
+        group = groups.setdefault(catalog.identity(connection, attributes),
+                                  {"connection": connection, "attributes": attributes, "books": []})
+        if group["connection"] == connection:
+            group["books"].append(catalog._book(connection, item))
+    for group in groups.values():
+        group["books"].sort(key=lambda book: (not book["period_start"], book["period_start"], book["comidyear"]))
+    return groups
+
+
+def _year_label(book) -> str:
+    """弹窗行里一个年度库怎么写：账套名 + 期间年份；期间读不到的写「—」（写账遇到它覆盖不了的日期照「没有账套」停下）。"""
+    start, end = book["period_start"][:4], book["period_end"][:4]
+    return f"{book['label']} {start}–{end}" if start and end and start != end else \
+        f"{book['label']} {start}" if start else f"{book['label']} —"
+
+
 def _catalog(search=None, check_admin=True) -> list:
     """账套目录里的公司（`choices` 里还没建的那些行从这里来；不截断、不判权限，调用方判）：Express = 在用电脑报的账套按
-    「税号 + 分店」合并（`express.companies.catalog`）；MR.ERP = 各连接目录里的账套，一份一行（一家公司只接一份账本）。
+    「税号 + 分店」合并（`express.companies.catalog`）；MR.ERP = 各年度账套归一家公司，一家一行。
     ``company`` 是已有的那家，``state`` 见 :data:`NEW`（停用的也列：「从连接添加」里勾它就是重新启用那家，主会话 11-15）。
     顺序：还要人勾的在前，停用的其次，已有的最后，各自按名称。不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
     from pearnly_erp_portal.express import companies as express_companies
@@ -276,7 +300,7 @@ def _catalog(search=None, check_admin=True) -> list:
 
     rows = _companies()
     by_tax = _by_tax(rows)
-    by_set = {(row.mrerp_connection, row.mrerp_account_set): row for row in rows if row.mrerp_connection}
+    by_company = {row.mrerp_company: row for row in rows if row.mrerp_company}
     out = []
     for (tax, branch), item in express_companies.catalog().items():
         found = by_tax.get((tax, branch))
@@ -287,16 +311,21 @@ def _catalog(search=None, check_admin=True) -> list:
                     "folders": item.get("folders") or [], "connection": "",
                     "account_set_key": f"{tax}:{branch}", "company": found.name if found else None,
                     "linkable": linkable, "state": _state(found, linkable)})
-    for connection, row in _mrerp_sets(check_admin):
-        found = by_set.get((connection, row["key"]))
-        name = str(row.get("company") or row["label"])
-        out.append({"identity": f"mrerp:{connection}:{row['key']}", "title": name, "legal_name": name,
-                    "tax_id": row.get("tax_id") or "", "branch": HEAD_OFFICE if row.get("tax_id") else "", "branches": [],
-                    # MR.ERP 一家公司每个年度一份账套（同一公司名）：带上账套名才分得清
-                    "book": str(row.get("label") or "") if str(row.get("label") or "") != name else "",
-                    "adapter": "mrerp", "years": [str(row.get("period_start") or "")[:4]] if row.get("period_start") else [],
-                    "folders": [], "connection": connection, "account_set_key": row["key"],
-                    "company": found.name if found else None, "linkable": False, "state": _state(found, False)})
+    from pearnly_erp_portal.mrerp import catalog
+
+    for ident, group in _mrerp_companies(check_admin).items():
+        found = by_company.get(ident)
+        attributes = group["attributes"]
+        name = catalog.legal_name(attributes, group["books"][0]["label"])
+        short = str(attributes.get("company") or "").strip()
+        tax = contracts.tax13(attributes.get("tax_id"))
+        # 一家 MR.ERP 公司一行（各年度账套归一家，主会话 11-14）：法定名称、简称辅助显示、各年度账套与期间
+        out.append({"identity": f"mrerp:{ident}", "title": name, "legal_name": name, "tax_id": tax,
+                    "branch": HEAD_OFFICE if tax else "", "branches": [], "book": short if short != name else "",
+                    "adapter": "mrerp", "years": [_year_label(book) for book in group["books"]],
+                    "connection": group["connection"], "account_set_key": ident,
+                    "folders": [], "company": found.name if found else None, "linkable": False,
+                    "state": _state(found, False)})
     needle = " ".join(str(search or "").split()).casefold()
     if needle:
         out = [item for item in out
@@ -354,7 +383,7 @@ def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
 
 def _companies() -> list:
     return frappe.get_all(COMPANY, fields=["name", "is_active", "tax_id", "branch", "express_enabled", "mrerp_connection",
-                                           "mrerp_account_set"], limit_page_length=COMPANY_MAX)
+                                           "mrerp_account_set", "mrerp_company"], limit_page_length=COMPANY_MAX)
 
 
 def waiting(row) -> bool:
@@ -510,11 +539,14 @@ def create(connection, account_set_key, request_key=None) -> dict:
             name = express_companies.build(tax, branch, item["name"])
             masters.queue(name)
         else:
-            found_set = next((row for conn, row in _mrerp_sets() if conn == connection and row["key"] == key), None)
-            if not found_set:
+            # MR.ERP：``account_set_key`` 是公司标识（`_catalog` 一家一行）；旧调法给的是一本账套的键，按它所属的公司认
+            groups = _mrerp_companies()
+            group = groups.get(key) or next((value for value in groups.values() if value["connection"] == connection
+                                              and any(book["key"] == key for book in value["books"])), None)
+            if not group:
                 _not_in_catalog()
-            found = frappe.db.get_value(COMPANY, {"mrerp_connection": connection, "mrerp_account_set": key},
-                                        ["name", "is_active"], as_dict=True)
+            ident = next(name for name, value in groups.items() if value is group)
+            found = frappe.db.get_value(COMPANY, {"mrerp_company": ident}, ["name", "is_active"], as_dict=True)
             if found and not found.is_active:
                 _reactivate(found.name)
                 frappe.db.commit()
@@ -522,7 +554,7 @@ def create(connection, account_set_key, request_key=None) -> dict:
                 return {**_made(found.name), "created": False, "reactivated": True}
             if found:
                 return {**_made(found.name), "created": False}
-            name = _build_mrerp(connection, found_set, _blank_default())
+            name = _build_mrerp(group, _blank_default())
         frappe.db.commit()
     _pending_changed()
     return {**_made(name), "created": True}
@@ -585,22 +617,29 @@ def _reactivate(name):
     doc.save(ignore_permissions=True)
 
 
-def _build_mrerp(connection, row, blank=None) -> str:
-    """MR.ERP 账套建一家公司并接上这份账本（同 ERP 公司页选账本 `mrerp.catalog.choose`）；``blank`` 是要接管的空默认公司。"""
+def _build_mrerp(group, blank=None) -> str:
+    """一家 MR.ERP 公司建一家 ERP 公司并接上（同 ERP 公司页选账本 `mrerp.catalog.choose`）：名称用全称去掉内部编号；接上时记的
+    那本是今天该写的（之后按单据日期选，`catalog.pick`）；``blank`` 是要接管的空默认公司。"""
+    from pearnly_erp_portal.express import contracts
     from pearnly_erp_portal.inventory import warehouses
     from pearnly_erp_portal.mrerp import catalog
 
-    tax = str(row.get("tax_id") or "")
+    attributes = group["attributes"]
+    tax = contracts.tax13(attributes.get("tax_id"))
+    books = group["books"]
+    today = frappe.utils.nowdate()
+    covering = [book for book in books if book["period_start"] and book["period_start"] <= today <= book["period_end"]]
+    pick = (covering or sorted(books, key=lambda book: (book["period_start"], book["comidyear"]))[-1:])[0]
     if blank:
-        _rename(blank, str(row.get("company") or row["label"]), tax, HEAD_OFFICE if tax else "")
-        catalog.choose(blank, connection, row["key"])
+        _rename(blank, catalog.legal_name(attributes, pick["label"]), tax, HEAD_OFFICE if tax else "")
+        catalog.choose(blank, group["connection"], pick["key"])
         return blank
-    doc = frappe.get_doc({"doctype": COMPANY, "company_name": str(row.get("company") or row["label"])[:200], "tax_id": tax,
+    doc = frappe.get_doc({"doctype": COMPANY, "company_name": catalog.legal_name(attributes, pick["label"]), "tax_id": tax,
                           "branch": HEAD_OFFICE if tax else "", "is_active": 1, "pos_enabled": 0, "express_enabled": 0,
                           "company_type": "general"})
     doc.insert(ignore_permissions=True)
     warehouses.ensure_for_company(doc.name, "Main")
-    catalog.choose(doc.name, connection, row["key"])
+    catalog.choose(doc.name, group["connection"], pick["key"])
     return doc.name
 
 

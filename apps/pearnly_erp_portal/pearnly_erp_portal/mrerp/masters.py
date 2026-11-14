@@ -29,6 +29,7 @@ IDLE_DAYS = 14
 ACTIVITY = ("Purchase Document", "ERP Sales Document")
 # 写单后那次：上次整读开始不到这么久的不再排（连写几张只读一次；读完落库前写的单由下一轮补上）
 AFTER_WRITE_GAP = timedelta(minutes=5)
+NO_BOOK = "account_set_missing"  # 目录里没有这家公司的账套（公司页按 Express 那句「没有账套」显示）
 
 
 def companies(filters=None) -> list:
@@ -106,24 +107,33 @@ def run(company, manual=False):
     if not mrerp.enabled():
         return
     row = frappe.db.get_value(COMPANY, company, ["name", "company_name", "is_active", "mrerp_enabled", "mrerp_connection",
-                                                 "mrerp_account_set"], as_dict=True)
-    if not row or not row.is_active or not row.mrerp_enabled or not row.mrerp_account_set:
+                                                 "mrerp_account_set", "mrerp_company"], as_dict=True)
+    if not row or not row.is_active or not row.mrerp_enabled or not (row.mrerp_company or row.mrerp_account_set):
         return
     from pearnly_core.mrerp import master_export
+    from pearnly_erp_portal.mrerp import catalog
+
+    # 读今天该写的那一本（各年度账套归一家，`catalog.current`）；主档按「公司 + 账本编码」认，换年度不重建
+    book = catalog.current(row, frappe.utils.nowdate())
+    if book is None:
+        ledger_masters._record(company, {"state": ledger_masters.FAILED, "note": NO_BOOK})
+        frappe.db.commit()
+        ledger_masters._notify(company, {"state": ledger_masters.FAILED})
+        return
 
     ledger_masters._record(company, {"state": ledger_masters.READING})
     frappe.db.commit()
     result = {"state": ledger_masters.FAILED}
     try:
-        lease = connections.lease(row.mrerp_connection)
-        facts, error, stats = master_export.read(lease, row.mrerp_account_set, manual=bool(manual)) if lease \
+        lease = connections.lease(book["connection"])
+        facts, error, stats = master_export.read(lease, book["key"], manual=bool(manual)) if lease \
             else (None, "ERR_NO_CREDS", {})
         if error:
             result = {"state": ledger_masters.FAILED, "note": error}
         else:
             ledger_masters._record(company, {"state": ledger_masters.SYNCING})
             frappe.db.commit()
-            counts = ledger_masters.apply(company, _label(row), facts, ledger=ledger_masters.MRERP)
+            counts = ledger_masters.apply(company, str(book["label"])[:140], facts, ledger=ledger_masters.MRERP)
             result = {"state": ledger_masters.READY, "counts": counts}
             logger.info("MR.ERP masters %s: %s", company, {**stats, "landed": counts})
     except Exception:  # noqa: BLE001 — 契约：结果记在公司上
@@ -134,10 +144,3 @@ def run(company, manual=False):
     frappe.db.commit()
     ledger_masters._notify(company, result)
 
-
-def _label(row) -> str:
-    """账套名（目录里的），落在档的 ``express_book`` 与公司上的现用账套。"""
-    from pearnly_erp_portal.mrerp import catalog
-
-    sets = {item["source_id"]: item.get("label") or item["source_id"] for item in catalog._sets(row.mrerp_connection)}
-    return str(sets.get(row.mrerp_account_set) or row.mrerp_account_set)[:140]

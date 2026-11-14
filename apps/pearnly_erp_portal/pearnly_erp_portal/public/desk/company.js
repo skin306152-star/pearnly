@@ -266,7 +266,8 @@
 		// 失败原因：认得的原因码给译文，其余（出错信息）原样
 		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};
 		// MR.ERP 主档整读失败的原因码（`pearnly_core.mrerp.master_export.read`）→ 现成的 MR.ERP 文案；其余 ERR_* 照 mrerp.error.<码>
-		const MRERP_NOTES = {ERR_ACCOUNT_IN_USE: "mrerp.error.ERR_MRERP_ACCOUNT_IN_USE", ERR_NO_CREDS: "mrerp.reason.loginMissing"};
+		const MRERP_NOTES = {ERR_ACCOUNT_IN_USE: "mrerp.error.ERR_MRERP_ACCOUNT_IN_USE", ERR_NO_CREDS: "mrerp.reason.loginMissing",
+			account_set_missing: "express.reason.noBook"};
 		// 来源决定是否互通（公司接入重做第 2 批，11-14）：不接 Express 的公司不出这一节（没有勾选框）；从连接添加进来的才有。
 		// 接着但未连上（CC 桌面版没报过这家公司的账套）只给下载 CC 桌面版；连上了能「断开」（断开后回到只用 Pearnly ERP）。
 		const express_section = (data, name) => {
@@ -321,7 +322,10 @@
 			// 只有从连接添加进来、接着 MR.ERP 的公司出这一节（换账套、断开）；手工新建的公司不再在这里接上 MR.ERP（来源决定）
 			if (!view || !view.linked) return [];
 			return [{fieldtype: "Section Break", label: __("MR.ERP")},
-				{fieldname: "mrerp_account_set", label: __("Account Set"), fieldtype: "Data", read_only: 1, default: view.label || ""},
+				// 这家 MR.ERP 公司的各年度账套（按单据日期选那一本）；期间读不到的标「—」
+				{fieldname: "mrerp_account_set", label: __("Account Set"), fieldtype: "Small Text", read_only: 1,
+					default: (view.books || []).map(book => `${book.label} ${book.period_start
+						? `${book.period_start.slice(0, 4)}–${book.period_end.slice(0, 4)}` : "—"}`).join("\n") || view.label || ""},
 				{fieldname: "mrerp_choose", label: __("Select"), fieldtype: "Button", click: () => choose_mrerp(data, name)},
 				// 主档整读（服务端读 MR.ERP，`mrerp.masters`）：状态、最近一次时间，只读；失败原因另起一行
 				{fieldtype: "Column Break"},

@@ -455,6 +455,9 @@ def get_profile(name=None) -> dict:
     mrerp_view = mrerp_catalog.company_view(doc.name)
     if mrerp_view is not None:
         if mrerp_view["linked"]:
+            # 这家 MR.ERP 公司的各年度账套（各年度归一家、按单据日期选那一本；期间读不到的页面标「—」）
+            mrerp_view["books"] = [{key: book[key] for key in ("key", "label", "period_start", "period_end")}
+                                   for book in mrerp_catalog.books_of(doc.name)]
             # 主档整读（`mrerp.masters`，与 Express 同一组状态字段）：状态、最近一次时间与原因，公司页 MR.ERP 一节显示
             mrerp_view.update(sync_state=doc.get("express_sync_state") or "", sync_note=doc.get("express_sync_note") or "",
                               synced_at=frappe.utils.get_datetime(doc.express_synced_at).strftime("%Y-%m-%d %H:%M:%S")

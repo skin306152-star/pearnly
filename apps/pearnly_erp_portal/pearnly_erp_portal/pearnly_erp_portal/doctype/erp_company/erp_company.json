@@ -40,6 +40,7 @@
   "mrerp_enabled",
   "mrerp_connection",
   "mrerp_account_set",
+  "mrerp_company",
   "mrerp_linked_at",
   "mrerp_menus",
   "mrerp_defaults"
@@ -280,6 +281,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "mrerp_company",
+   "fieldtype": "Data",
+   "label": "MR.ERP Company",
+   "hidden": 1,
+   "read_only": 1
+  },
+  {
    "fieldname": "mrerp_linked_at",
    "fieldtype": "Datetime",
    "hidden": 1,
@@ -300,7 +308,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-03 00:00:00.000000",
+ "modified": "2026-11-14 18:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Company",
  "show_title_field_in_link": 1,

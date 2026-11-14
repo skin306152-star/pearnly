@@ -416,6 +416,7 @@
 | 公司「来源」：第 2 批加 `ERP Company.ledger`（express / mrerp）与 `push.linked / enabled / linked_at` 统一读法 | **本窗口** | 对方写账判定继续用 `mrerp.push.handles(company)`；第 2 批把它内部改读 `ledger`，签名不变 |
 | 跨边测试 | 两边 | `tests/test_erp_mrerp_direct.py`（对方）在开关打开时跑全；本窗口第 3 批加「开关打开 + 从连接添加一家 MR.ERP 公司 → 主档落库 → 对方的写账用例照过」一条，放 `tests/test_erp_mrerp_onboarding.py` |
 | 写单后整读一次：`pearnly_erp_portal.mrerp.masters.after_write(company)` | 函数归**本窗口**（第 3 批），调用那一行归 mrerp-write（`mrerp/push.py` 写成处；主会话 11-14 定） | 签名固定 `after_write(company) -> bool`，定了不改。行为：开关关着 / 公司没接 MR.ERP / 已排着或在读 / 5 分钟内读过 → 不排、回 False；否则排一次整读（erp_masters 队列，同公司一件，`enqueue_after_commit`）回 True；只排队、不读不落、不阻塞写账；任何异常吞掉记 Error Log、回 False。调用方用延迟导入、函数不存在就跳过，两边分支互不依赖 |
+| 写进哪一本 MR.ERP 账套：`pearnly_erp_portal.mrerp.catalog.book_for(company, day, wanted=None)` | 函数归**本窗口**（第 3 批，各年度账套归一家），调用归 mrerp-write（`mrerp/push.py` 的 prepare、`mrerp/choices.py`、`mrerp/ledger_check.py`、`express/cc_tools.py` 里现在读 `mrerp_account_set` 的地方；主会话 11-14 定） | 签名固定，定了不改。``company``：ERP 公司名，或带 `name / mrerp_connection / mrerp_account_set / mrerp_company` 的行；``day``：单据日期（`YYYY-MM-DD`）；``wanted``：CC 对话 / 代录定了的那本账套键（None = 按日期选；空串 = 对话账套未定）。回 ``{book, reason, options, subject}``，与 `express.target.pick` 同形状、同原因码（`express.contracts`）：``book`` = ``{key, label, connection, period_start, period_end, comidyear}``（``key`` 即 `comidyear:seldb`，登录 / 导入 / 选择都用它，``connection`` 用它的凭据）；按 MR.ERP 里读出的会计期间、与 Express 同一条规则（`account_match.for_day`）选，期间读不到的年度库不参与；一本不覆盖 → ``NO_BOOK``（给人看的一句 `catalog.no_book_text(company, day)`，同收款那两句的写法）；同期两本 → Express 同一个选择与记忆（`express.choices` 的 ``account_set`` + ``subject``）选过用选的，没选过 ``SEVERAL_BOOKS`` 带 ``options`` / ``subject``（人选的值照 Express 记到同一处）。只读、不写库、不连 MR.ERP。过渡：公司上的 `mrerp_account_set` 保留（= 接上时今天该写的那本），写账一侧切完前照旧可读 |
 | 合入顺序 | 主会话排 | 对方写账分支先合（不含开关）→ 本窗口第 3 批（含开关）后合，同一车部署 |
 
 ### 线上耗时估算的依据（主会话 11-14 要求写清）
@@ -550,7 +551,7 @@
   openpyxl）。输出与 Express facts 同形状；主仓 `mainloc` = 编码排第一的仓（MR.ERP 新建单据的默认仓），ERP 建公司自带的 Main 仓认作它。
   整读固定 `account.use(manual=False)`：后台不清被踢标记、不登录被踢过的账号。
 - 落：`express.masters.apply(..., ledger="MR.ERP")`，同一个比对、批量写、停用；四类档（客户 / 供应商 / 物料 / 仓库）加只读 `ledger`
-  （Express / MR.ERP），参与比对；物料来由加 `mrerp`；补丁 v1_28 用一条 UPDATE 把带编码的存量档回填 Express（不逐条保存、不生成修改记录）。
+  （Express / MR.ERP），参与比对；物料来由加 `mrerp`；补丁 v1_29 用一条 UPDATE 把带编码的存量档回填 Express（不逐条保存、不生成修改记录）。
   仓库码 Express 照旧截 4 位，MR.ERP 照原样。结存叠加「接上之后、还没写成的单」时 MR.ERP 公司取 `mrerp_linked_at`。
 - 排：`erp mrerp/masters.py`。`queue`（erp_masters 队列、同公司一件）、`run`（读 → 落 → 状态记在公司同一组字段 → 推给发起人）、
   `after_write`（写账一侧写成后调；5 分钟内读过 / 排着的不排）、`sync_all`（每小时，`hooks.py`）。接上 / 换账套（`catalog.choose`，

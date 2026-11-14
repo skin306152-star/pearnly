@@ -64,3 +64,5 @@ pearnly_erp_portal.patches.v1_28_admin_collection_menus
 pearnly_erp_portal.patches.v1_29_stock_count_indexes
 # 主档上的只读来源 ledger（公司接入第 3 批）：已同步的 Express 档回填 express，免得下一次落库整本当成有改动
 pearnly_erp_portal.patches.v1_30_master_ledger_source
+# 接 MR.ERP 的公司记上 MR.ERP 公司标识（公司接入第 3 批：各年度账套归成一家）
+pearnly_erp_portal.patches.v1_31_mrerp_company_identity

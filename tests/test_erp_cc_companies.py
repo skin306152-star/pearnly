@@ -182,7 +182,7 @@ class Cache:
 frappe.cache = Cache()
 frappe.get_doc = lambda doctype, name=None, for_update=False: Doc(doctype, STATE.db.table(doctype)[name])
 frappe.new_doc = lambda doctype: Doc(doctype)
-frappe.utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2026, 11, 2, 9, 30),
+frappe.utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2026, 11, 2, 9, 30), nowdate=lambda: "2026-11-02",
                                      get_system_timezone=lambda: "Asia/Bangkok")
 utils = types.ModuleType("frappe.utils")
 utils.now_datetime = frappe.utils.now_datetime
@@ -552,13 +552,29 @@ class AddCompanyTests(unittest.TestCase):
         connection.is_admin = lambda user=None: (user or frappe.session.user) == "boss@x"
         catalog = types.ModuleType("pearnly_erp_portal.mrerp.catalog")
         catalog.PAGE_MAX = 100
-        self.sets = {"MR-1": [{"key": "c69:db1", "label": "2569", "company": "Nakhon Foods", "tax_id": "0105560000001",
-                               "period_start": "2026-01-01", "period_end": "2026-12-31"}]}
-        catalog.account_sets = lambda name, start=0, page_length=20, search=None: {"rows": self.sets.get(name, []), "total": 1}
+        # MR.ERP 目录（原样快照的形状）：同一家公司（同一行）两个年度库归一家；另一家没税号、全称带内部编号
+        nakhon = {"company": "NKF", "company_name": "Nakhon Foods", "tax_id": "0105560000001"}
+        self.sets = {"MR-1": [
+            {"source_id": "c69:db1", "label": "NKF2569", "attributes": {**nakhon, "period_start": "2026-01-01",
+                                                                       "period_end": "2026-12-31", "comidyear": "69"}},
+            {"source_id": "c70:db1", "label": "NKF2570", "attributes": {**nakhon, "comidyear": "70"}},
+            {"source_id": "c71:db1", "label": "TEST2019", "attributes": {"company": "TEST", "comidyear": "71",
+                                                                        "company_name": "1010-01-000006 บริษัท ทดสอบ จำกัด"}}]}
+        catalog._sets = lambda name: self.sets.get(name, [])
+        catalog.identity = lambda conn, attrs: (f"tax:{attrs['tax_id']}" if attrs.get("tax_id")
+                                                else f"row:mrerp.example|{attrs['company']}|{attrs['company_name']}")
+        catalog.legal_name = lambda attrs, fallback="": (attrs.get("company_name") or "").split(" ", 1)[-1] \
+            if (attrs.get("company_name") or "")[:1].isdigit() else (attrs.get("company_name") or fallback)
+        catalog._book = lambda conn, item: {"key": item["source_id"], "label": item["label"], "connection": conn,
+                                            "period_start": item["attributes"].get("period_start", ""),
+                                            "period_end": item["attributes"].get("period_end", ""), "next_end": None,
+                                            "comidyear": item["attributes"].get("comidyear", "")}
 
         def choose(company, conn, key):
             self.chosen.append((company, conn, key))
-            STATE.db.table("ERP Company")[company].update(mrerp_enabled=1, mrerp_connection=conn, mrerp_account_set=key)
+            item = next(item for item in self.sets[conn] if item["source_id"] == key)
+            STATE.db.table("ERP Company")[company].update(mrerp_enabled=1, mrerp_connection=conn, mrerp_account_set=key,
+                                                          mrerp_company=catalog.identity(conn, item["attributes"]))
         catalog.choose = choose
         mrerp.catalog, mrerp.connection = catalog, connection
         modules = {"pearnly_erp_portal.inventory.warehouses": warehouses, "pearnly_erp_portal.express.masters": masters,
@@ -833,15 +849,23 @@ class AddCompanyTests(unittest.TestCase):
         self.mrerp_on = True
         STATE.db.table("ERP MRERP Connection")["MR-1"] = Row(name="MR-1")
         found = [row for row in cc_service._catalog() if row["adapter"] == "mrerp"]
-        self.assertEqual([(row["title"], row["connection"], row["account_set_key"], row["years"], row["company"]) for row in found],
-                         [("Nakhon Foods", "MR-1", "c69:db1", ["2026"], None)])
-        made = cc_companies.create("MR-1", "c69:db1")
+        # 一家 MR.ERP 公司一行（各年度归一家，主会话 11-14）：法定名称（全称去掉内部编号）、简称辅助、各年度带期间（读不到的标「—」）
+        self.assertEqual([(row["title"], row["book"], row["account_set_key"], row["years"], row["company"]) for row in found],
+                         [("Nakhon Foods", "NKF", "tax:0105560000001", ["NKF2569 2026", "NKF2570 —"], None),
+                          ("บริษัท ทดสอบ จำกัด", "TEST", "row:mrerp.example|TEST|1010-01-000006 บริษัท ทดสอบ จำกัด",
+                           ["TEST2019 —"], None)])
+        made = cc_companies.create("MR-1", "tax:0105560000001")
         row = STATE.db.table("ERP Company")[made["id"]]
         self.assertEqual((row["company_name"], row["tax_id"], row["branch"], row["express_enabled"]),
                          ("Nakhon Foods", "0105560000001", "00000", 0))
-        self.assertEqual(self.chosen, [(made["id"], "MR-1", "c69:db1")])
-        self.assertEqual(cc_companies.create("MR-1", "c69:db1")["created"], False)
-        self.assertEqual([row["company"] for row in cc_service._catalog() if row["adapter"] == "mrerp"], [made["id"]])
+        self.assertEqual(self.chosen, [(made["id"], "MR-1", "c69:db1")])     # 接上时记今天该写的那本（期间覆盖今天的）
+        # 同一家再点（按公司标识，或旧调法给其中任一年度的账套键）：不另建
+        self.assertEqual(cc_companies.create("MR-1", "tax:0105560000001")["created"], False)
+        self.assertEqual(cc_companies.create("MR-1", "c70:db1")["created"], False)
+        self.assertEqual(next(row["company"] for row in cc_service._catalog() if row["title"] == "Nakhon Foods"), made["id"])
+        # 没税号的那家：用法定名称建
+        other = cc_companies.create("MR-1", "row:mrerp.example|TEST|1010-01-000006 บริษัท ทดสอบ จำกัด")
+        self.assertEqual(STATE.db.table("ERP Company")[other["id"]]["company_name"], "บริษัท ทดสอบ จำกัด")
         with self.assertRaises(ValidationError):
             cc_companies.create("MR-1", "other:db")
         # 不是 MR.ERP 管理员：候选里没有 MR.ERP，建也建不了
