@@ -89,6 +89,10 @@ MR.ERP 导入采购不看「เงินสด」勾；应付那笔贷方取菜�
   不是现金类 → 只挡现购票（`ERR_MRERP_CASH_SUPPLIER_NOT_CASH`），同批赊购照写，不改别人的档案。
 - 入口：共用契约、Cowork 推送准备、录入弹窗、LINE、定时任务（网页与 CC 前端）、CC 工具说明、ERP 已付采购原来的「只能赊购」都去掉。
 - 代录：现购在 `operator_draft.stage` 转人工（`ERR_MRERP_OPERATOR_CASH_PURCHASE`）——配方没有开票用供应商（txtapmas_inv）一格。
+- 自建「เงินสด」没建成：现购停下 `ERR_MRERP_CASH_SUPPLIER_NOT_CREATED`（导入预检兜底同一原因）。
+- 同一做法前一窗口也提交过一份（`pearnly/mrerp-write-grid-99fa21` 92d6d0bad，未推、全闸门不过：入口仍只给赊账、ERP 无词条）；
+  合并成本分支一份：取它的「建不成」原因码与导入表测试（TEST2019 PG691114-571007：借进项税 105 / 借采购 1,500 / 贷 1111-02 1,605），
+  那条提交不再推。
 
 真写 test01 · TEST2019（实验栈挂本分支源码）：
 
@@ -106,7 +110,15 @@ MR.ERP 导入采购不看「เงินสด」勾；应付那笔贷方取菜�
 Express 分支没动（`test_cowork_push_contract` 覆盖）；erp-transactions 只删了 `transactions.js` 原因表里 `mrerp.purchase_cash` 一项，
 单据页其余逻辑没动——各入口没逐个实测，由本地全闸门与候选离线覆盖，开关打开前的 testerp 验收（清单 B 段）再点 ERP 采购 / 销售页。
 
+## 公司接入接缝
+
+ERP 单据写进 MR.ERP（含写入核不上）后调一次 `pearnly_erp_portal.mrerp.masters.after_write(company)`（公司接入第 3 批窗口提供：去重、
+排进主档队列整读一次）；导入失败不调；它出错只记日志、写账结论不变；那边没合入前 import 不到就跳过（`mrerp/push.py _after_write`）。
+
 ## 待办（不在这批）
+
+- 代录现购（⑥⑧）：先转人工；要支持得在 CC 桌面版配方加开票用供应商 txtapmas_inv 一格并在 TEST2019 探路。总表
+  （`pearnly/cc-coverage-matrix-eccdec` 上的 `2026-11-12-cc-coverage-matrix.md`，未合入）合入时补这一行。
 
 - 一张票里部分行免税、部分行带税：现在被「税率异常」预检挡在写入前；11-09 定的「按税率拆两张同号单」没施工。
 - ERP 单据页「再写一次」对 MR.ERP 的单走不到（做法见开关前验收清单 B13）；代录两格（⑥ 只做了格子 id 只读核对，⑧ 没实现）；定时任务电脑读文件夹那一半。
