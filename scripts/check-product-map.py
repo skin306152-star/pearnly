@@ -256,10 +256,11 @@ def device_records(text: str) -> dict[str, list[dict]]:
     return found
 
 
-def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, root=ROOT, notes: list | None = None) -> list[str]:
+def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, root=ROOT) -> list[str]:
     """规则 6（主会话 11-04）：这次改动命中的「上线必验」行、带共用件（parts）的行或出过事（incidents）的行，某端是红 / 黄就失败——同一提交补上该端的绿测试。
     只能真机的行（device_only）要同一提交附真机记录：docs/work/ 下改到的 .md 里有这一行的固定格式条目（`device_records`）。
-    条目的结果是「不通过」→ 失败；「没测到」→ 不拦，记进 ``notes`` 由调用方打印（缺哪层说哪层，不代签通过）。存量不追溯，只管命中的。"""
+    要有一条结果是「通过」的条目才放行；「不通过」「没测到」都失败（主会话 11-14：只能真机的入口没测不进 main，这类改动进集成分支、
+    由拼车窗口安排真机，做完带着记录一起进）。存量不追溯，只管命中的。"""
     records = [path for path in changes if path.startswith("docs/work/") and path.endswith(".md") and (root / path).is_file()]
     entries: dict[str, list[dict]] = {}
     for path in records:
@@ -278,17 +279,18 @@ def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, 
                           f"{'、'.join(gaps)} —— 同一提交给这一端补绿测试（流程 / 单测 / 业务冒烟）；确实只能真机的写 device_only 与 device")
         elif row.device_only:
             mine = entries.get(row_id, [])
+            passed = [item for item in mine if item["result"] == "通过"]
             failed = [item for item in mine if item["result"] == "不通过"]
-            if not mine:
-                errors.append(f"命中要附真机记录：{row_id}（只能真机：{row.device_only}）这次被改到 —— 同一提交在 docs/work/ 下的记录里按固定格式"
-                              f"写一行：{RECORD_FORMAT}；提到这一行的句子、待办、只在提交说明里写「已真机」都不算")
-            elif failed:
+            way_out = "此改动需真机记录：进集成分支，由拼车窗口安排真机，做完带着记录一起进 main"
+            if failed:
                 errors.append(f"真机不通过：{row_id}（{failed[-1]['file']}，{failed[-1]['date']} {failed[-1]['device']}：{failed[-1]['reason']}）"
                               f"—— 修好后在真机上重测并补一条新的记录")
-            elif notes is not None:
-                for item in mine:
-                    if item["result"] == "没测到":
-                        notes.append(f"真机没测到：{row_id}（{item['file']}，{item['date']} {item['device']}：{item['reason']}）")
+            elif not passed and mine:
+                errors.append(f"真机没测到：{row_id}（{mine[-1]['file']}，{mine[-1]['date']} {mine[-1]['device']}：{mine[-1]['reason']}）"
+                              f"—— 只能真机的入口没测不进 main。{way_out}")
+            elif not passed:
+                errors.append(f"命中要附真机记录：{row_id}（只能真机：{row.device_only}）这次被改到 —— 同一提交在 docs/work/ 下的记录里按固定格式"
+                              f"写一行：{RECORD_FORMAT}；提到这一行的句子、待办、只在提交说明里写「已真机」都不算。{way_out}")
     return errors
 
 
@@ -530,12 +532,9 @@ def main(argv=None) -> int:
     errors += pm.validate_e2e(pm.e2e_scenarios())
     errors += check_siblings(sibling_gaps(product_map, flows, impact), sibling_baseline())
     errors += check_cc(product_map, cc_baseline())
-    notes: list[str] = []
-    errors += enforce_hits(product_map, hits, flows, impact, changes, notes=notes)
+    errors += enforce_hits(product_map, hits, flows, impact, changes)
     report = render(product_map, hits, flows, impact, args.markdown)
     print(report)
-    for note in notes:
-        print(note)
     if args.out:
         mode = "a" if args.out == os.environ.get("GITHUB_STEP_SUMMARY") else "w"
         with open(args.out, mode, encoding="utf-8") as handle:

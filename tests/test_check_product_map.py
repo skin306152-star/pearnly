@@ -195,9 +195,7 @@ class Rules(unittest.TestCase):
 
         def judged(text):
             record.write_text(text, encoding="utf-8")
-            notes = []
-            found = "\n".join(gate.enforce_hits(product_map, hits, FLOWS, IMPACT, ["docs/work/device.md"], root, notes=notes))
-            return found, notes
+            return "\n".join(gate.enforce_hits(product_map, hits, FLOWS, IMPACT, ["docs/work/device.md"], root)), None
 
         # 固定格式的一行六栏：算记录（表格行、列表项、全角竖线都认）
         for good in ("真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 SM-A146P LINE | 通过 | 点卡片 → 打开编辑页\n",
@@ -219,10 +217,15 @@ class Rules(unittest.TestCase):
         found, notes = judged("真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 | 不通过：编辑页白屏\n")
         self.assertIn("真机不通过：erp.d", found)                                                  # 不通过的记录不放行
         self.assertIn("编辑页白屏", found)
-        found, notes = judged("真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 | 没测到：手机不在线\n")
-        self.assertNotIn("erp.d", found)                                                           # 没测到：不拦，但要说出来
-        self.assertEqual(len(notes), 1)
-        self.assertIn("真机没测到：erp.d", notes[0])
+        found, _ = judged("真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 | 没测到：手机不在线\n")
+        self.assertIn("真机没测到：erp.d", found)                                                  # 没测到也不放行，报错里写明出路
+        self.assertIn("进集成分支，由拼车窗口安排真机", found)
+        found, _ = judged("真机记录 | erp.d | 2026-11-03 | 1111111 | 三星 | 没测到：手机不在线\n"
+                          "真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 | 通过\n")
+        self.assertNotIn("erp.d", found)                                                           # 之后补测通过：放行
+        found, _ = judged("真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | 三星 | 通过\n"
+                          "真机记录 | erp.d | 2026-11-04 | 4ffe8aea6 | iPhone | 不通过：相机黑屏\n")
+        self.assertIn("真机不通过：erp.d", found)                                                  # 有一条不通过就不放行
         self.assertEqual(gate.enforce_hits(product_map, {}, FLOWS, IMPACT, [], root), [])
 
     def test_rule_5_siblings_missing_or_weaker_and_their_baseline(self):
