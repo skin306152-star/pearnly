@@ -77,7 +77,17 @@ testerp 表规模（精确计数）：结存 20,220、流水 20,705、物料 59,
 
 ## 5. 改前 / 改后（本机实验栈，ERP 大账套）
 
-（逐页表在第 3 步复量后补，见下方「复量结果」。）
+`scripts/perf/pages.py --budget scripts/perf/budgets.json`，改后 ERP 23 页、Cowork 9 页、DMS 4 页全部在上限内。
+（改前那遍没有预热，Cowork 各页改前的 100–500 毫秒多是冷启动；改后先预热再量，页面「可用」改后是首页整页重载、其余页内换路由。）
+
+| 页面 | 可用（毫秒） | 首屏接口最慢（毫秒） | 单个接口最多查询 |
+|---|---|---|---|
+| ERP 盘点明细（251 行） | 893 → 171 | 802 → 67 | 1,363 → 65 |
+| ERP 团队 | 214 → 129 | 63 → 40 | 101 → 33 |
+| ERP 其余 20 页 | 104–220 → 110–125 | ≤ 45 → ≤ 69 | 不变（≤ 21） |
+| Cowork 团队 | 209 → 114 | 54 → 14 | 86 → 7（含冷启动差） |
+| Cowork 其余 7 页 | 不超 2 秒 | ≤ 35 | ≤ 35 |
+ERP 其余页的毫秒差在同一台机器的波动范围内（实验栈经 amd64 模拟），查询条数逐页不变。
 
 ## 6. 未做与交接
 
@@ -96,4 +106,22 @@ testerp 表规模（精确计数）：结存 20,220、流水 20,705、物料 59,
 
 ## 8. 共用件连带回归（check-impact）
 
-命中 `erp-count-code` 等 12 个入口，逐入口结果见下方「入口实测」。
+`scripts/check-impact.py` 命中 `erp-count-code` 等 12 个入口。流程用例（`scripts/flows/run.py --changed --base origin/main`，本窗口实验栈
+`pearnly-perf-lab`，基点 a838abe5）：16 条流程 × new / old × 电脑 / 手机共 59 格，**59/59 通过**；其中 `erp.stocktake.new` new 两格首轮
+因新开户站点没有库存（已知的流程间数据依赖，见共享笔记「已知问题与结论」11-01 条）不通过，先跑一格入库造库存后补跑通过
+（造库存的 `erp.stock-in.units` new/desktop 那一格自己没通过：单位弹窗「台数与数量不符」，不在本次改动文件里，未追）。
+
+| 入口 | 结果 | 依据 |
+|---|---|---|
+| erp.stock-count.code（盘点按码认商品） | 通过 | 流程 erp.stocktake.scan / web-code / gs1 / new-product、equal_check lookup_count 按码 / 按物料 |
+| erp.stock-count.adjust（结束 → 调整单） | 通过 | 流程 erp.stocktake.adjust |
+| erp.cc.stocktake（CC 对话盘点） | 通过 | 候选离线车道 111 组（生产镜像 77e2cec0） |
+| erp.stock-count.upload（上传 / 凭证照片） | 通过 | 流程 erp.stock.excel-units；equal_check template_rows |
+| erp.stock-count.new-product | 通过 | 流程 erp.stocktake.new-product |
+| erp.records.scope（按公司） | 通过 | equal_check list_counts / list_items（同一权限过滤，结果逐字段相等） |
+| erp.line.binding / cowork.line.binding | 通过 | 流程 erp.team.actions / cowork.team.actions；改动的 list_members 只读绑定状态，绑定 / 解绑函数未改 |
+| shared.team.members | 通过 | 流程 erp/cowork.team.add-member / full-name / bulk-disable |
+| shared.navigation / shared.shell-gate | 没测到（原因：改动函数不在侧栏与开通闸的调用链，命中是按文件） | — |
+| shared.scan-codes.web-address | 通过 | 流程 erp.stocktake.web-code |
+
+本地全闸门（`gate.sh`，照 development.yml）243 步全过；候选离线车道 LANE EXIT 0。
