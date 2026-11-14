@@ -29,10 +29,10 @@ volumes:
 services:
   keycloak:
     profiles: [keycloak]
-  # 6) 数据库用本机已有的 mariadb:11.8（同一大版本、arm64 原生跑）：生产固定的那个摘要本机没有，实验栈不为它去拉镜像。
-  #    要与生产逐字节同一份时设 MACLAB_MARIADB_IMAGE（先自己拉好）。
+  # 6) 数据库就是生产钉的那一份（production/compose.yml 里的 mariadb:11.8@sha256:…，这里不换镜像）：验收环境的数据库版本
+  #    必须和线上一致（主会话 11-14：当天两条线都在 MariaDB 11.8 的快照隔离上踩过坑）。那份摘要是多架构的，本机取到 arm64 原生的同一版。
+  #    本机没有就先拉好：docker pull <compose.yml 里那一行>；拉不下来就别起，不要换别的镜像将就。
   mariadb:
-    image: ${MACLAB_MARIADB_IMAGE:-mariadb:11.8}
     pull_policy: never
 
   billing-web:

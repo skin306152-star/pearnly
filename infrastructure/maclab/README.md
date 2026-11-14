@@ -35,10 +35,11 @@ scripts/maclab.sh reset erp --yes # 删本栈全部卷（要重新签配对码�
 ```
 
 `up` 先看本机 1 分钟负载（> 20 不起）和 colima 可用内存（< 8G 不起），本机没有镜像不自动拉。镜像默认线上 digest
-`054aa603…`（env 文件里的 `PEARNLY_IMAGE`，或临时 `MACLAB_IMAGE=`）；数据库用本机已有的 `mariadb:11.8`（arm64 原生，生产固定的那个摘要本机没有）。
+`054aa603…`（env 文件里的 `PEARNLY_IMAGE`，或临时 `MACLAB_IMAGE=`）；数据库就是生产钉的那一份（`production/compose.yml` 里的摘要，多架构，本机取到 arm64 的同一版 11.8.9）；本机没有先 `docker pull`，拉不下来不要换别的镜像。
 
 验收站点侧脚本：容器名固定 `pearnly-maclab-<产品>-bench-1`，`scripts/smoke/run.py` 的 `Remote("local")` 设
-`PEARNLY_FLOWS_LAB=pearnly-maclab-erp` 就进它跑。站点名 `*.localhost` 在 `pearnly_core.execution.replay.TEST_SITES` 里，算测试站点。
+`PEARNLY_FLOWS_LAB=pearnly-maclab-erp` 就进它跑。注意：站点名带两段（`erp.maclab.localhost`），**不在**产品的测试站点名单 `pearnly_core.execution.replay.TEST_SITES` 里（那个名单只认一段的 `*.localhost`）：
+识别回放这类只对测试站点开的功能在这里不生效；验收的站点侧脚本自己认 `.maclab.localhost`。
 
 ## 签配对码、在测试机上接
 
