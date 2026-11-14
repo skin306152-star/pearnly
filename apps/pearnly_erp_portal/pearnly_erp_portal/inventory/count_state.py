@@ -72,7 +72,8 @@ def validate_document(doc):
         if doc.status != "Active" or not getattr(frappe.local, "stock_count_service_write", False):
             frappe.throw(_("Use the stock count workbench"))
         return
-    lock_task(doc.get("count"))
+    if not (doc.is_new() and getattr(frappe.local, "stock_count_locked", None) == doc.get("count")):
+        lock_task(doc.get("count"))  # 抄快照批量新建时盘点单已在这次请求里锁过一次（`count._insert_snapshot`）
     if not getattr(frappe.local, "stock_count_service_write", False):
         frappe.throw(_("Use the stock count workbench"))
     if not doc.is_new():

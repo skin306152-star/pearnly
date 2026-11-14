@@ -23,7 +23,7 @@ import frappe
 
 CHUNK = 500
 RESERVE_TRIES = 5
-AUTONAME = re.compile(r"^format:([A-Z]+-)\{(#+)\}$")
+AUTONAME = re.compile(r"^format:([A-Z][A-Z-]*-)\{(#+)\}$")  # 盘点行是 STC-ITEM-{#####}
 SERIES_KEY = ""  # `format:XXX-{#####}` 的计数器键：Frappe `parse_naming_series` 只拿到 `#####` 一段，前缀是空串（各 DocType 共用一个计数器）
 
 
@@ -49,6 +49,17 @@ def reserve(doctype, count) -> list:
         return [prefix + ("%0" + str(digits) + "d") % (start + offset) for offset in range(1, count + 1)]
 
 
+def reserve_here(doctype, count) -> list:
+    """同 :func:`reserve`，但在当前事务里预留、不提交（同 Frappe 逐条发号：计数器行锁到这次请求提交才放）。
+    用在必须整单一起成败的写入（新建盘点抄快照，性能体检 11-14）：先提交会让单头先落库、行没落时留下半张单。"""
+    found = AUTONAME.match(frappe.get_meta(doctype).autoname or "")
+    if not found:
+        raise ValueError(f"{doctype}: unsupported autoname for bulk insert")
+    prefix, digits = found.group(1), len(found.group(2))
+    start = _take(count)
+    return [prefix + ("%0" + str(digits) + "d") % (start + offset) for offset in range(1, count + 1)]
+
+
 def _take(count) -> int:
     """锁住计数器、加上 ``count``，回加之前的值（不提交）。"""
     row = frappe.db.sql("select `current` from `tabSeries` where `name` = %s for update", (SERIES_KEY,))
@@ -61,12 +72,13 @@ def _take(count) -> int:
     return start
 
 
-def prepare(doctype, values, name):
-    """一行要新建的档 → 已走完 ``insert`` 写库前那一段的 Document（不写库）。``values`` 里的 ``units`` 是物料单位子表。"""
+def prepare(doctype, values, name, express_sync=True):
+    """一行要新建的档 → 已走完 ``insert`` 写库前那一段的 Document（不写库）。``values`` 里的 ``units`` 是物料单位子表。
+    ``express_sync``：标成主档同步写的（主档同步用）；别的业务批量新建传 False。"""
     doc = frappe.get_doc({"doctype": doctype, **{key: value for key, value in values.items() if key != "units"}})
     for row in values.get("units") or []:
         doc.append("units", {"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])})
-    doc.flags.express_sync = True
+    doc.flags.express_sync = express_sync
     doc.flags.ignore_permissions = True
     doc.flags.ignore_links = True
     doc.set("__islocal", True)

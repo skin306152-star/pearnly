@@ -195,14 +195,8 @@ def create_count(*, title, warehouse=None, notes=None, snapshot=True) -> dict:
         # 要带二维码内容：只有二维码的商品，盘点表「条码 / 二维码」那一格才不空（录制问题 #23）。
         fields=["name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "unit", "base_unit"],
         limit_page_length=0)}
-    created = 0
-    for row in rows:
-        product = products.get(row["product"])
-        if not product:
-            continue
-        qty = flt(row["qty_on_hand"], 3)
-        _insert_item(doc.name, product, warehouse, qty, row.get("location"), origin=False, fresh=True)  # 账上快照
-        created += 1
+    created = _insert_snapshot(doc.name, [(products[row["product"]], warehouse, flt(row["qty_on_hand"], 3), row.get("location"))
+                                          for row in rows if products.get(row["product"])])  # 账上快照
     _refresh_totals(doc.name)
     return {"name": doc.name, "rows": created}
 
@@ -350,25 +344,32 @@ def _upsert_import_entry(count: str, item_name: str, row) -> None:
               source="Import", request_id=request_id)
 
 
-def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="", origin=None, fresh=False) -> str:
+def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="", origin=None) -> str:
     """一行 = **商品 × 仓库 × 库位**（与旧项目 `services/stocktake/schema.py` 的唯一键一致）。
 
     库位是行的身份的一部分，不是记录上的备注：同一个商品放在两个货架上就是两行、
     两个账面、两个差异。少了这一层，"每个仓位的差异"根本算不出来。
     """
+    values = _item_values(count, product, warehouse, book_qty, location, origin)
+    existing = frappe.db.get_value(ITEM, {"count": count, "product": product["name"],
+                                          "warehouse": warehouse, "location": values["location"]}, "name")
+    if existing:
+        return existing
+    doc = frappe.get_doc({"doctype": ITEM, **values})
+    count_state.write_document(doc, "insert")
+    return doc.name
+
+
+def _item_values(count: str, product: dict, warehouse: str, book_qty, location="", origin=None) -> dict:
+    """一行盘点行要写的字段（逐条新建与抄快照批量新建同一份）。"""
     location = positions.clean_location(location)
     if origin is None:  # 快照之外补进来的行（`origin=False` 是账上快照）
         if product.get("origin") == "stocktake" and product.get("origin_name") == count:
             origin = NEW
         else:
             origin = REACTIVATED if not product.get("is_active", 1) else ADDED
-    # `fresh`：刚建的盘点抄快照（结存一个位置一行，不会重），不必逐行先查有没有
-    existing = None if fresh else frappe.db.get_value(ITEM, {"count": count, "product": product["name"],
-                                                             "warehouse": warehouse, "location": location}, "name")
-    if existing:
-        return existing
-    doc = frappe.get_doc({
-        "doctype": ITEM, "count": count, "product": product["name"],
+    return {
+        "count": count, "product": product["name"],
         # 「编码」显示内部编码（主会话 10-26），没有就用系统编码
         "product_name": product.get("product_name"), "code": product_contracts.count_code(product) or None,
         # 商品那边的"码"是一格（条码与二维码合并）：只有二维码的商品，盘点表这一列
@@ -378,9 +379,31 @@ def _insert_item(count: str, product: dict, warehouse: str, book_qty, location="
         "warehouse": warehouse, "location": location,
         "book_qty": flt(book_qty, 3), "counted": 0,
         "row_origin": origin or None,
-    })
-    count_state.write_document(doc, "insert")
-    return doc.name
+    }
+
+
+def _insert_snapshot(count: str, rows: list) -> int:
+    """新建盘点抄快照：``rows`` 是 ``(商品, 仓, 账面数, 库位)``。一次预留编号、每行照原生 ``insert`` 写库前那一段走一遍
+    （默认值、命名、校验与写入守卫）、一条多行 INSERT 落库（同主档同步的批量新建，`express.bulk`），与逐条 ``_insert_item``
+    落库的字段逐字段相同（`scripts/perf/equal_check.py` 的 erp-count-create 组核）。盘点单在这次请求里先锁一次，逐行的写入守卫不再
+    各锁一遍；整单同一个事务，成败一起（性能体检 11-14：251 行原先约 2,000 条查询，线上 7.9 秒）。"""
+    from pearnly_erp_portal.express import bulk
+
+    if not rows:
+        return 0
+    count_state.lock_task(count)
+    names = bulk.reserve_here(ITEM, len(rows))
+    previous = getattr(frappe.local, "stock_count_service_write", False), getattr(frappe.local, "stock_count_locked", None)
+    frappe.local.stock_count_service_write, frappe.local.stock_count_locked = True, count
+    try:
+        # 差异先写 0（未盘的行 `_refresh_totals` 本来就写 0），合计时不再逐行补写
+        docs = [bulk.prepare(ITEM, {**_item_values(count, product, warehouse, qty, location, origin=False), "difference": 0},
+                             name, express_sync=False)
+                for (product, warehouse, qty, location), name in zip(rows, names)]
+    finally:
+        frappe.local.stock_count_service_write, frappe.local.stock_count_locked = previous
+    bulk.write(docs)
+    return len(docs)
 
 
 def item_of_product(*, count: str, product: str, location="") -> dict | None:

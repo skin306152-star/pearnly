@@ -93,7 +93,7 @@ ERP 其余页的毫秒差在同一台机器的波动范围内（实验栈经 amd
 
 - Cowork 公司详情 / 月份 / 待处理：需线上 testcowork 只读量一次（同 `measure.py`，可与上线后 testerp 复量合成一次 SSH）；
   量到逐行查询再按本记录的做法改，不是就记结论。
-- 新建盘点的逐行原生插入：属写入路径，要快到 1 秒内得改批量写（绕开逐行 `doc.insert` 的编号与守卫），需单独评估。
+- 新建盘点的逐行原生插入：已在第二批改成批量写（见第 9 节）。
 - 看板：同一请求里重复做当前用户权限检查（7 次，固定），可按请求缓存，收益小，未做。
 
 ## 7. CC `session_files`（转引导式 / CC 线）
@@ -125,3 +125,21 @@ ERP 其余页的毫秒差在同一台机器的波动范围内（实验栈经 amd
 | shared.scan-codes.web-address | 通过 | 流程 erp.stocktake.web-code |
 
 本地全闸门（`gate.sh`，照 development.yml）243 步全过；候选离线车道 LANE EXIT 0。
+
+## 9. 第二批：新建盘点改批量写（分支 `pearnly/stock-count-bulk-create`）
+
+用户原话抱怨的也包括新建（线上 7.9 秒）。本机 251 行原先 0.97 秒 / 2,032 条（每行原生 `insert`：发号加锁、外键校验、写入守卫各查一遍）。
+做法：复用公司接入第 1 批的 `express/bulk.py`（预留编号段 + 照 `Document.insert` 写库前那一段逐行准备 + 多行 INSERT），不另造一份。
+对 `bulk.py` 两处扩展，主档同步行为不变：`reserve_here`（在当前事务里预留、不提交——新建盘点必须单头与行一起成败，同 Frappe 逐条发号
+锁到请求结束）；`prepare(..., express_sync=True)` 可选参数（盘点行传 False）；命名规则放宽到 `STC-ITEM-{#####}` 这类多段前缀。
+盘点侧：`count._insert_snapshot` 先锁一次盘点单，逐行写入守卫不再各锁一遍（`count_state.validate_document` 认这次请求已锁的单）；
+快照行差异直接写 0（原先插入后 `_refresh_totals` 逐行补写 0），最终库里一样。
+
+| 情形 | 改前 | 改后 |
+|---|---|---|
+| 251 行（本公司仓） | 0.97 秒 / 2,032 条 | 0.10 秒 / 30 条 |
+| 2 万行（另一家公司的仓） | 242 秒 | 10 秒 |
+
+行为不变的证据：`equal_check.py erp-count-create`——旧版（origin/main 的 count.py）与新版各建一次（各自回滚，编号从同一个计数器起），
+单头与全部盘点行除时间戳外逐字段相等（251 行、2 万行两组）；`erp-count` 读路径 30 组复核仍相等；公司接入的
+`scripts/erp-masters-bulk-lab-verify.py` 在改后的 `bulk.py` 上重跑通过（failures 为空）。

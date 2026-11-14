@@ -4,12 +4,13 @@
 每个读接口用同样参数各调一次，结果 JSON 化后逐字段比；写接口（录入后重算合计）各跑一次后读回受影响的行比，然后回滚。
 
     ../env/bin/python /workspace/scripts/perf/equal_check.py <站点> <对照组> <旧源码目录>
-对照组：erp-count（ERP 盘点）、erp-team / cowork-team（团队名单）。旧源码目录里放改前的同名文件（如 count.py、count_state.py）。末行 `EQUAL {json}`，不相等的列出第一处差别。
+对照组：erp-count（ERP 盘点）、erp-count-create（新建盘点抄快照）、erp-team / cowork-team（团队名单）。旧源码目录里放改前的同名文件（如 count.py、count_state.py）。末行 `EQUAL {json}`，不相等的列出第一处差别。
 """
 import importlib.util
 import json
 import os
 import sys
+import time
 
 if os.environ.get("PEARNLY_REGRESSION_LAB") != "1":
     raise SystemExit("Requires the task-owned regression laboratory")
@@ -150,7 +151,41 @@ def team(app, user, old_dir):
     return results
 
 
-GROUPS = {"erp-count": erp_count,
+def erp_count_create(old_dir):
+    """新建盘点抄快照：旧、新各建一次（各自回滚，编号从同一个计数器起），读回单头与全部盘点行（除时间戳）逐字段比。"""
+    from pearnly_erp_portal.inventory import count as new
+
+    old = load_old("pearnly_erp_portal.inventory.count", os.path.join(old_dir, "count.py"))
+    places = [frappe._dict(warehouse=w, n=n) for w, n in frappe.db.sql(
+        "select warehouse, count(*) n from `tabERP Stock Balance` group by warehouse order by n desc limit 3")]
+    results, timings = [], []
+    before = frappe.defaults.get_user_default("company", frappe.session.user)
+    for place in places:
+        def made(module):
+            def run():
+                from pearnly_erp_portal.masters import company as companies
+
+                companies.set_active_company(frappe.db.get_value("ERP Warehouse", place.warehouse, "company"))
+                started = time.perf_counter()
+                task = module.create_count(title="equal check", warehouse=place.warehouse)
+                timings.append((module.__name__, round(time.perf_counter() - started, 2)))
+                skip = ("creation", "modified")
+                head = frappe.get_all("ERP Stock Count", filters={"name": task["name"]}, fields=["*"], limit_page_length=1)
+                rows = frappe.get_all("ERP Stock Count Item", filters={"count": task["name"]}, fields=["*"],
+                                      order_by="name asc", limit_page_length=0)
+                return {"task": task, "head": [{k: v for k, v in r.items() if k not in skip} for r in head],
+                        "rows": [{k: v for k, v in r.items() if k not in skip} for r in rows]}
+            return run
+        a, b = (call(made(module), {}) for module in (old, new))
+        frappe.defaults.set_user_default("company", before, frappe.session.user)  # 切过公司：还原当前公司
+        frappe.db.commit()
+        results.append({"case": "create_count", "kwargs": {"warehouse": place.warehouse, "balances": place.n, "seconds": timings[-2:], "why": a.get("message") if isinstance(a, dict) else None},
+                        "diff": first_diff(a, b), "raised": isinstance(a, dict) and "raised" in a,
+                        "rows": len(a.get("rows", [])) if isinstance(a, dict) else None})
+    return results
+
+
+GROUPS = {"erp-count": erp_count, "erp-count-create": erp_count_create,
           "erp-team": lambda old_dir: team("pearnly_erp_portal", ADMIN, old_dir),
           "cowork-team": lambda old_dir: team("pearnly_cowork", "admin@cowork.regression", old_dir)}
 

@@ -160,7 +160,7 @@
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/attachments.py": 3,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/audit.py": 7,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/card_export.py": 2,
- "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py": 26,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py": 25,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count_state.py": 3,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py": 8,
  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/locations.py": 1,
