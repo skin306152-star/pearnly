@@ -68,15 +68,25 @@ DocType 改动：Pearnly Assistant Session（引导式 business / business_at）
 
 ## 真机
 
-执行：收款窗口（三星 SM-A146P + 测试机）；清单见共享笔记「拼车-上线前真机清单-11-14.md」（拼车 9 项 + 收款 3 项，约 1 小时 45 分）。
-被测集成头：开测前写死在此。每项一个条目，格式：
+执行：上线前真机窗口（device-test-1114）。被测集成头 `a31c2ba2f`（工作树 integ1114-device，前端本地构建），底座线上 `054aa603…`，测试机1 testenv 实验栈（erp → cowork → dms 依次 lab-start / lab-stop）。
+截图与日志：`~/pearnly-devtools/device-1114/shots/`。原始记录：共享笔记「真机-记录-11-14.md」（含环境与收尾回读）。
+结论：16 行，11 通过（4 行注明有分支没测到）、1 不通过（`erp.line.collection-edit@old-url`，收款窗口在修，修后在新头只复测这一项；**这一项没过本车不上线**）、4 没测到。
 
 ```
-### <产品地图行 id 或项名>
-- 日期：
-- 被测提交 SHA：
-- 设备：
-- 结果：通过 / 不通过 / 没测到（原因）
-- 步骤：
-- 截图：
+真机记录 | erp.scan.line.stocktake.liff-camera | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | ERP-TEST 富菜单「盘点」经 LIFF 打开盘点页 → 新建测试盘点 device-1114-test（WH-140490）→ 开始盘点 → 扫码 → LINE 原生授权「是否允许此网站访问您的相机？」→ 仅允许本次 → 真相机对测试机屏幕 Code128「ZZG1112A」读出，认出「น้ำแข็งหลอด」、实际仓库带出 → 完成不保存（e54–e69）
+真机记录 | cowork.scan.line.stocktake.liff-camera | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | Cowork-test 富菜单「库存盘点」经 LIFF → 盘点「123」→ 开始盘点 → 扫码 → LINE 原生授权 → 真相机读 EAN-13 8851932100014，认出「สบู่ก้อนลักส์ 70 กรัม」、账面 คลังสาขาบางนา / S-02-02 → 完成不保存（c03–c07）
+真机记录 | dms.line.richmenu.liff | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | DMS-TEST 富菜单「修改账号密码」经 LIFF 打开 testdms「บัญชี DMS ของฉัน」（用户名 sale02），未保存即关（d01–d02）
+真机记录 | erp.line.postback.erp_item | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | 采购录入 → 上传识别 → mr.erp（CO-00036，express/mrerp 均未开）→ 按票面 → 已付现金（不再问服务/库存和仓库）→ 虚构票 TS6911-0014（付费识别 1 次）→ 卡片字段全对，行标 1「入库」2「新建·入库」3 运费「只记账」，追问列新物料 2 → 逐项选择 → 新建并入库 → 更新卡（单仓不问仓）→ 编辑经 LIFF 打开采购页、附件原件在 → 提交 PE2569-000031 → 读回 purchase_in 两条（PRD-00046 ×1、新建 PRD-173814 ×4），运费不进库存。没测到：选已有物料、多仓问仓、有仓位清单问仓位、两张连发、同票重拍、销售「ขาย」（e70–e85）
+真机记录 | erp.line.postback.col | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | 收款录入 → 公司 Pearnly → 选账套按钮「2. TEST」（\69EXP\TEST，没选 TEST2）→ 客户 นาย ทดสอบ → IV0000027 → BBL-S/A ·0555 → 2,461.00 → 转账凭证照片 → 确认卡（账套 69EXP\TEST）→ 确认 → 测试机1 CC 写 RE0000018（YOUREF COL261114-1150）→ LINE「已写入 Express：RE0000018」；69EXP\TEST 只读复制读回：RE0000018 2,461.00、BKTRN 新增 bR TRRE0000018、IV0000027 余额 0（e03–e22）
+真机记录 | erp.line.postback.col@refused | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过：服务端写前拒；没测到：CC 拒收退回草稿那一支（真机造不出 Express 与服务端不一致） | 开新一笔会把旧草稿作废（COL261114-6BFE withdrawn，点旧卡确认回「此项已过期，请重新开始。」）；LINE 卡 COL261114-F8B3（IV0000010 现金）未确认时，网页先收同一张并写成 RE0000020，再点 LINE 确认 → 回「此发票已收清」、卡片去掉确认、草稿保留，69EXP\TEST 无多写（e25–e32、e49）
+真机记录 | erp.line.collection-edit | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | 新卡 COL261114-1150【编辑】经 LIFF 打开收款页那一笔原生弹窗（账套、发票、方式），关闭未保存，背后是只留一页的新收款列表（e18–e20）
+真机记录 | erp.line.collection-edit@old-url | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 不通过：11-13 旧卡【编辑】落到「首页」，没转到那一笔 | 旧卡 COL261113-ED1B【编辑】：服务端日志 line_login.enter?to=/desk/pearnly-my-collections/COL261113-ED1B → GET /desk/pearnly-my-collections/COL261113-ED1B 200，页面最终是「首页」；aksarapak 的 boot.pearnly_pages 有 pearnly-collections、无 pearnly-my-collections（e50–e52）；已派收款窗口修，修后在新头只复测这一项
+真机记录 | erp.desk.pearnly-collections.action.New | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过（手机宽度）；没测到：电脑宽度（Mac 无 testerp 登录） | 收款页「＋」原生弹窗：公司 Pearnly → 客户 → 发票表勾 IV0000010 并在「金额」格填 3,054.85 → 现金 3,054.85 → 提交 →「已记录 · 待写入」→ CC 写 RE0000020（YOUREF COL261114-E5B7），读回一致；只勾不填金额时提交报「请至少选择一张发票」（e34–e48）
+真机记录 | line.richmenu.publish.erp | 2026-11-14 | a31c2ba2f | 测试机1 实验栈 + 三星 | 通过 | 绑定名单 1 人（用户本人 aksarapak，全是测试账号）；line_menu.publish 两次 69.7 / 68.1 秒、60 套，无超时报错；该用户菜单前后同为 richmenu-8e0bb661…，三星富菜单含第 4 格「收款录入」（e02）
+真机记录 | line.richmenu.publish.cowork | 2026-11-14 | a31c2ba2f | 测试机1 实验栈 + 三星 | 通过 | 绑定名单 1 人（用户本人，同一 LINE），publish 两次 38.3 / 33.0 秒、28 套，无超时；挂上新套 317d827a 后已手动挂回原 richmenu-cad3b30e… 并回读（c02）
+真机记录 | line.richmenu.publish.dms | 2026-11-14 | a31c2ba2f | 测试机1 实验栈 | 没测到：绑定名单有身份不明的一行，按规矩不发布 | 名单 2 行同属操作员 dmsop-bda3b7da：active 尾号 47fe（三星 Skin）；unbound 尾号 4706，建于 2026-10-03 02:47:36、02:47:36 绑定、02:47:38 解绑（与 10-03 剖析脚本临时身份事故同一时刻）。旁证：三产品「发布不下载图」同一写法（共用 pearnly_core.line.rich_menu_has_image），ERP、Cowork 两次真机已过
+真机记录 | erp.desk.boot-messages@line-login | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过（中文）；没测到：泰文 | 经 ERP-TEST 进网页（LIFF 内 LINE 登录）：收款、盘点、首页、采购页文字中文正常，无英文漏翻；词条按指纹整表取（boot_messages.messages?lang=zh&v=… 200）
+真机记录 | erp.desk.boot-messages@cc-connect | 2026-11-14 | a31c2ba2f | 测试机1 | 通过（对话页）；没测到：连接页 | 测试机1 CC（连实验栈 testerp）开窗口：侧栏、问候、输入框、「收款」芯片中文正常（e86）；看完只关窗口进程，常驻进程不动
+真机记录 | erp.desk.boot-messages@original | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | 采购页 PE2569-000031 附件区原件（测试票图）显示、可缩放，页面文字正常（e82、e85）
+真机记录 | express.report.bank-deposit | 2026-11-14 | a31c2ba2f | 测试机1 | 没测到：报表窗口超出屏幕需盲按、有误点打印风险，留 11-15 上午 | 数据层旁证：69EXP\TEST BKTRN 有 bR TRRE0000018（2026-11-14）
 ```
