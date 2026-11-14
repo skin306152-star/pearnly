@@ -53,6 +53,7 @@
 | redis-queue | 160 MB，`noeviction`，AOF 每秒刷盘 | 队列与不能丢的状态（锁、登录 state、对账进度） |
 | 调度器 | 每个产品一个（`dms-scheduler` / `erp-scheduler` / `cowork-scheduler`） | 加 Web 机器时**不得**在新机器上再起调度器 |
 | 前端 nginx、socketio、Keycloak | compose 内固定上限 | 实测远低于上限 |
+| 主机 TCP 拥塞控制 | `bbr`（内核模块 `tcp_bbr` 开机加载）；队列规则保持系统默认 `fq_codel`。文件：`infrastructure/production/host/etc/sysctl.d/60-pearnly-bbr.conf`、`…/modules-load.d/pearnly-bbr.conf`，与生产 `/etc/` 下同名文件逐字一致（2026-11-13 晚主会话手工上线；11-14 按当晚只读采集登记，未改生产）。新机器照装：两个文件放到 `/etc/` 对应目录，`modprobe tcp_bbr && sysctl --system`。回退：删两个文件，`sysctl -w net.ipv4.tcp_congestion_control=cubic` | 晚高峰到泰国线路途中丢包（发往办公室重传约 1/3），原来的 cubic 遇丢包把速度压到底；改后同线路下载 20KB/s → 115KB/s、接口首字节 2–4 s → 0.2–1.0 s。同晚试过的 TCP 三项（`tcp_slow_start_after_idle=0`、`tcp_notsent_lowat`、`fq`）与 nginx 全局 TLS 缓存 / 压缩引出 HTTP/2 协议错误，已全部回退，不要再在生产试（`docs/work/2026-11-13-prod-speed.md`） |
 
 ### 云上（按谷歌配额与模型限速定，不随本机变）
 
