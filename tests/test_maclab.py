@@ -121,7 +121,7 @@ class ProfileTransform(unittest.TestCase):
         self.assertTrue(profiles["old"]["paused"])          # 本来就暂停的不记
         self.assertFalse(profiles["mac"]["paused"])
         self.assertEqual(profiles["mac"]["authorized_roots"], [ACC])
-        self.assertEqual(undo, {"added_root": True, "stripped": ["S:\\", r"C:\PearnlyExpress", r"D:\Old"], "paused": ["erp"]})
+        self.assertEqual(undo, {"added_root": True, "root_had_channel": False, "stripped": ["S:\\", r"C:\PearnlyExpress", r"D:\Old"], "paused": ["erp"]})
 
     def test_pause_gives_everything_back(self):
         before = _config()
@@ -156,6 +156,40 @@ class ProfileTransform(unittest.TestCase):
                                                            [ACC, ["cowork"]]])
         self.assertEqual(undo["paused"], ["cw"])
         self.assertFalse(next(p for p in out["profiles"] if p["profile_id"] == "erp")["paused"])
+
+    def test_erp_and_cowork_share_the_acceptance_root(self):
+        """测试机2 上 ERP、Cowork 两份 maclab 档案读同一个验收数据根：两种都给；按任意顺序拿走，最后回到启用前。"""
+        config = _config()
+        config["profiles"].append({"profile_id": "mac2", "channel": "cowork", "kind": "express", "paused": False,
+                                   "authorized_roots": [ACC]})
+        before = copy.deepcopy(config)
+        one, undo_erp = pair_profile.activate(config, "mac", "core", ACC)
+        two, undo_cw = pair_profile.activate(one, "mac2", "cowork", ACC)
+        self.assertIn([ACC, ["cowork", "core"]], two["global"]["place_channels"])
+        self.assertFalse(undo_cw["added_root"])
+        self.assertFalse(undo_cw["root_had_channel"])
+        paused = {item["profile_id"]: item["paused"] for item in two["profiles"]}
+        self.assertEqual((paused["erp"], paused["cw"], paused["mac"], paused["mac2"]), (True, True, False, False))
+        for order in ((("mac", "core", undo_erp), ("mac2", "cowork", undo_cw)), (("mac2", "cowork", undo_cw), ("mac", "core", undo_erp))):
+            with self.subTest(first=order[0][0]):
+                state = two
+                state = pair_profile.deactivate(state, *order[0][:2], ACC, order[0][2], drop=True)
+                self.assertTrue(any(pair_profile.norm(p[0]) == pair_profile.norm(ACC) for p in state["global"]["place_channels"]))
+                state = pair_profile.deactivate(state, *order[1][:2], ACC, order[1][2], drop=True)
+                expected = copy.deepcopy(before)
+                expected["profiles"] = [item for item in expected["profiles"] if item["profile_id"] not in ("mac", "mac2")]
+                expected["global"]["place_channels"].append([r"D:\Old", ["cowork", "core"]])
+                expected["profiles"][1]["authorized_roots"] = [r"C:\PearnlyExpress\70EXP"]
+                self.assertEqual(state, expected)
+
+    def test_root_already_given_to_the_channel_is_left_as_it_was(self):
+        config = _config()
+        config["global"]["express_places"].append(ACC)
+        config["global"]["place_channels"].append([ACC, ["core"]])
+        out, undo = pair_profile.activate(config, "mac", "core", ACC)
+        self.assertTrue(undo["root_had_channel"])
+        back = pair_profile.deactivate(out, "mac", "core", ACC, undo, drop=True)
+        self.assertIn([ACC, ["core"]], back["global"]["place_channels"])
 
     def test_root_inside_an_existing_place_is_refused(self):
         for root in (r"S:\maclab", r"c:/pearnlyexpress/acc"):

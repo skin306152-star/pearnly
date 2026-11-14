@@ -44,7 +44,7 @@ scripts/maclab.sh reset erp --yes # 删本栈全部卷（要重新签配对码�
 ## 签配对码、在测试机上接
 
 ```bash
-scripts/maclab.sh mint erp testpc1      # 标准输出两行：DEVICE PCD-… / PAIRING_CODE pcc_…@erp.maclab.localhost:18991
+scripts/maclab.sh mint erp maclab-erp     # 标准输出两行：DEVICE PCD-… / PAIRING_CODE pcc_…@erp.maclab.localhost:18991
 scripts/maclab.sh mint cowork testpc2   # PAIRING_CODE exp_…@cowork.maclab.localhost:18992
 printf '%s' "$code" | scripts/maclab.sh probe erp [--leave]   # 本机模拟一次心跳（冒烟用；--leave 作废这把）
 ```
@@ -54,18 +54,38 @@ printf '%s' "$code" | scripts/maclab.sh probe erp [--leave]   # 本机模拟一�
   用本机设备密钥「认电脑」时认领它。槽位上已有一把回 `in_use`，`MACLAB_REPLACE=1` 换新；已被认领过回 `update_needed`，只能 reset。
   所以 Cowork 栈一次接一台测试机。
 
-测试机侧三步（以桌面用户跑，见下）：
+## 测试机侧（只用测试机2，`scripts/acceptance/maclab_pc.py`）
 
-1. hosts 加一行（管理员）：`192.168.0.93  erp.maclab.localhost cowork.maclab.localhost`（Mac 换了局域网地址要改）。
-2. 配对码写进一个文件，`python pair_profile.py add maclab-erp <码文件> <验收数据根> <验收账套完整路径>`：读完就删码文件，
-   调 CC 自己的 `pairing.pair()` 加一份**新档案**（已有档案不动、不写开机自启），再按下节让出位置。
-3. Mac 栈停之前 `pause maclab-erp`（让出的都还回去），回来 `resume`；不用了 `remove`（能连上就先作废密钥）。
+主会话 11-14 定：只用测试机2（ssh `testpc2`，桌面用户 aksar），它的 ERP、Cowork 两种连接各接一套 Mac 栈；用完原样还回，
+`companion.json` 的哈希必须等于启用前（11-14 是 `C216460D`）。四条命令：
 
-`pair_profile.py` 必须在桌面用户自己的会话里跑：密钥用 DPAPI（当前用户）加密存进 `companion.json`，ssh 公钥登录的会话不保证能
-加 / 解；也读不到账套服务器。照验收体系的 `scripts/acceptance/win/acc-run.ps1`（一次性计划任务）跑。Python 用
-`C:\PearnlyPython311\python.exe`、CC 源码 `C:\PearnlyAcceptance\ccsrc`；除已有的 `dbf`、`aenum` 外**还缺 `httpx`**
-（连带 `httpcore`、`h11`、`anyio`、`sniffio`、`idna`、`certifi`、`typing_extensions`，版本照 `companion/packaging/requirements-build.txt`）。
-每次改配置前停 CC、整份备份到 `C:\PearnlyAcceptance\maclab\backup`，改完用 CC 的 `ProfileStore.load` 读回校验，失败还原；原来开着就再启动。
+```bash
+python3 scripts/acceptance/maclab_pc.py prepare --host testpc2 [--address 192.168.0.93]
+python3 scripts/acceptance/maclab_pc.py attach  --host testpc2 --app erp     # 再 --app cowork；名字默认 maclab-<产品>
+python3 scripts/acceptance/maclab_pc.py release --host testpc2 --expect C216460D
+python3 scripts/acceptance/maclab_pc.py status  --host testpc2
+```
+
+1. **prepare**：① 管理员 ssh 跑 `win/hosts_add.ps1`，hosts 加一行 `<Mac 局域网地址> erp.maclab.localhost cowork.maclab.localhost`
+   （改前整份备份到 `C:\PearnlyAcceptance\maclab\hosts-backup-<时间>`；已有同一行不动；同名字指向别处或只带一个名字就停下不改）；
+   ② 本机 `pip install --target … --platform win_amd64 --python-version 3.11 --only-binary=:all: --no-deps` 装 httpx 一族
+   （版本照 `companion/packaging/requirements-build.txt`），拷到 `C:\PearnlyAcceptance\maclab\site`（`pair_profile.py` 把它加到 `sys.path`
+   最前面，不动测试机现有 Python）；本工作树 `companion/src/companion` 刷新到 `C:\PearnlyAcceptance\ccsrc\companion`；打印包与版本清单；
+   ③ 以桌面用户（`win/maclab_reach.py`）看两个站点解析到的地址、各 ping 一次，栈没起的标 `down`，不算失败。
+2. **attach**：第一次启用前在测试机 `C:\PearnlyAcceptance\maclab\before\` 记下 `companion.json` 的逐字节备份与哈希（已有不覆盖，
+   `win/cfg_guard.py snapshot`）→ 本机 `maclab.sh mint` 取配对码（只在内存和 600 的临时文件里）→ 拷到测试机 `maclab\codes\<随机>.code`
+   → 以桌面用户 `pair_profile.py add <名字> <码文件> C:\PearnlyAcceptance\root \\accserver\d$\ACCOUNT\69EXP\TEST2`（读完即删，
+   调 CC 自己的 `pairing.pair()` 加一份**新档案**，再按下节让出位置）→ 回读确认码文件已不在（还在就删掉并报错）。
+3. **release**：状态里每份 maclab 档案 `remove`（能连上 Mac 栈就让服务端作废密钥）→ `cfg_guard.py check`：字节等于启用前（与 `--expect`）
+   就过；不等但 JSON 语义相同 → 停 CC、逐字节拷回、启动、隔 10 秒再核两次；语义也不同 → 停下列出差异键路径（不带值），不硬拷 →
+   重启 CC，`companion.log` 里重启之后要有 `[heartbeat]` INFO、其后没有心跳告警或错误（最多 150 秒），之后哈希仍等于启用前 →
+   `before\` 改名留档（下次 attach 重新记）。
+4. **status**：`pair_profile.py show`（档案、位置、maclab 状态）+ 当前哈希 + 启用前哈希。
+
+桌面用户的脚本都经 `scripts/acceptance/targets.py` 的 `Windows(host).python`（一次性计划任务：参数一行一个写进 `jobs\<名字>.args`、
+输出写 `jobs\<名字>.out`）跑：DPAPI 加密密钥、读账套服务器都要桌面用户本人的会话。`add` 的参数里只有配对码**文件路径**，
+配对码不进任何参数文件、输出与 CC 日志。每次改配置前停 CC、整份备份到 `C:\PearnlyAcceptance\maclab\backup`，改完用 CC 的
+`ProfileStore.load` 读回校验，失败还原；原来开着就再启动。手工也可直接跑 `win/pair_profile.py add | pause | resume | remove | show`。
 
 ## 已有档案的上报范围（影响）
 
@@ -73,15 +93,15 @@ CC 的「Express 位置」和每个位置给哪种成员读是**整台电脑一�
 同一通道上的两份档案因此隔离不开：maclab 的 ERP 档案一启用就会读到这台电脑所有勾给 ERP 的位置（把那些账套报给 Mac 栈，自动建公司、
 同步主档），原来连 testerp 的 ERP 档案也会读到验收数据根。所以 `add` / `resume` 时：
 
-- 验收数据根加进位置清单，只给这条通道；它不能在任何已有位置里面或包含已有位置（否则那个位置的成员照样读到，脚本拒绝）；
+- 验收数据根加进位置清单、给上这条通道（ERP、Cowork 两份 maclab 档案共用同一个验收数据根时两种都给，最后一份拿走时整个去掉）；它不能在任何已有位置里面或包含已有位置（否则那个位置的成员照样读到，脚本拒绝）；
 - 别的位置去掉这条通道的勾（另一条通道不动），记下来，`pause` / `remove` 时加回；
-- **同通道的其余 Express 档案暂停**（例如测试机1 连 testerp 的 ERP 档案），`pause` / `remove` 时恢复。
+- **同通道的其余 Express 档案暂停**（例如测试机2 连 testerp 的 ERP 档案），`pause` / `remove` 时恢复。
 
 也就是说：maclab ERP 档案启用期间，这台测试机对 testerp 的 ERP 连接离线（Cowork 档案照常）；反之 Cowork 亦然。
 
 ## 已知限制 / 没实测的
 
-- 测试机那一半（hosts、`pair_profile.py`、CC 领单写进验收账套、回执）都没跑过；`pair_profile.py` 只有纯函数的离线单测。
+- 测试机那一半（`maclab_pc.py` 四条命令、CC 领单写进验收账套、回执）都没在真机跑过；只有纯函数与编排的离线单测（`tests/test_maclab.py`、`tests/test_maclab_pc.py`）。
 - 本机 Mac 防火墙、换网络后的局域网地址、colima 重启后端口转发是否照旧：只在本机经 `192.168.0.93` 自测过。
 - Cowork 只做到：计费与余额、全部功能、管理员、工作空间、ERP 推送总闸、Express 连接（签码时建）。**`Cowork Company`（公司主档）
   没建**：要 CC 先报上账套目录，再由人在网页 / CC 对话里从目录建（`companies.service.create`）；CC 对话直写还要真模型，本栈没配。

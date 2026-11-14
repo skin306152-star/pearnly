@@ -10,7 +10,10 @@
 ssh 的公钥登录会话解不开 / 加不了密；也读不到账套服务器。照验收体系的做法经一次性计划任务跑
 （``scripts/acceptance/win/acc-run.ps1``）。Python 用 ``C:\\PearnlyPython311\\python.exe``，CC 源码副本 ``C:\\PearnlyAcceptance\\ccsrc``
 （``--ccsrc`` 可改），除已有的 ``dbf``、``aenum`` 外还要 ``httpx``（连带 ``httpcore``、``h11``、``anyio``、``sniffio``、``idna``、
-``certifi``、``typing_extensions``，版本照 ``companion/packaging/requirements-build.txt``）。
+``certifi``、``typing_extensions``，版本照 ``companion/packaging/requirements-build.txt``）：由本机
+``scripts/acceptance/maclab_pc.py prepare`` 装进 ``C:\\PearnlyAcceptance\\maclab\\site``（``--site`` 可改），这里只把它加到
+``sys.path`` 最前面，不动测试机现有的 Python 环境。整条导入链（``pairing`` / ``profile_store`` / ``account_probe`` / ``channel``，
+含函数内的导入）用到的第三方包只有 dbf、httpx 一族，和不写开机自启时用不到的 winrt。
 
 **配对**：直接调 CC 自己的 ``pairing.pair()``（同配对窗那一步：校验配对码、上报账套名单、把所选账套锁进档案），写进一份**新的**
 档案（``ProfileStore.new_runtime_config``），已有档案的密钥、账套一概不动；不写开机自启。配对码从文件读、读完就删
@@ -21,7 +24,7 @@ ssh 的公钥登录会话解不开 / 加不了密；也读不到账套服务器�
 成员之间互相补（``worker._adopt_machine_roots``）。所以同一通道上两份档案分不开：新档案一启用，它会读到这条通道的全部位置，
 原来那份同通道档案也会读到验收数据根。启用这份档案时只好：
 
-1. 验收数据根加进位置清单，只给这条通道；
+1. 验收数据根加进位置清单、给上这条通道（ERP、Cowork 两份 maclab 档案共用同一个验收数据根时两种都给；最后一份拿走时去掉）；
 2. 别的位置上去掉这条通道（另一条通道的勾不动）——记下去掉了哪几个，暂停 / 删除时原样加回；
 3. 同一通道上别的 Express 档案暂停（例如连 testerp 的那份 ERP 档案）——记下暂停了哪几个，暂停 / 删除时恢复。
 
@@ -47,6 +50,8 @@ CFG = APPDATA / "Pearnly" / "companion.json"
 EXE = Path(os.environ.get("LOCALAPPDATA") or (Path.home() / "AppData" / "Local")) / "Programs" / "CC" / "companion.exe"
 STATE_DIR = Path(r"C:\PearnlyAcceptance\maclab")
 CCSRC = Path(r"C:\PearnlyAcceptance\ccsrc")
+# 配对要的第三方包（httpx 一族）单独放这里（scripts/acceptance/maclab_pc.py prepare 拷过来），不动测试机现有的 Python 环境
+SITE = Path(r"C:\PearnlyAcceptance\maclab\site")
 CHANNELS = ("cowork", "core")
 PREFIXES = {"exp_": "cowork", "pcc_": "core"}
 _HOST = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9.-]{0,251}[A-Za-z0-9])?(?::\d{1,5})?$")
@@ -107,14 +112,17 @@ def activate(doc: dict, profile_id: str, channel: str, root: str) -> tuple[dict,
         raise ValueError(f"验收数据根 {root} 与已有位置 {nested} 互相包含：换一个不在任何位置里的本机文件夹")
     pairs = {norm(item[0]): [str(item[0]), [name for name in item[1] if name in CHANNELS]]
              for item in box.get("place_channels") or [] if isinstance(item, (list, tuple)) and len(item) == 2}
-    added_root =not any(norm(place) == norm(root) for place in places)
+    added_root = not any(norm(place) == norm(root) for place in places)
     if added_root:
         places.append(root)
+    # 验收数据根可以同时给两种通道（ERP、Cowork 两份 maclab 档案读同一本验收账套）：在它原有的通道上加这一种，不覆盖
+    had = [] if added_root else pairs.get(norm(root), [root, list(CHANNELS)])[1]
+    root_had_channel = channel in had
     stripped = []
     for place in places:
         key = norm(place)
         if key == norm(root):
-            pairs[key] = [place, [channel]]
+            pairs[key] = [place, [name for name in CHANNELS if name in had or name == channel]]
             continue
         # 没登记的位置 CC 当「两种都给」（express_places.channels_of），所以也要显式登记成只给另一种
         current = pairs.get(key, [place, list(CHANNELS)])[1]
@@ -130,13 +138,13 @@ def activate(doc: dict, profile_id: str, channel: str, root: str) -> tuple[dict,
         item["paused"] = True
         paused.append(item["profile_id"])
     mine.update(paused=False, express_root=root, authorized_roots=[root])
-    return out, {"added_root": added_root, "stripped": stripped, "paused": paused}
+    return out, {"added_root": added_root, "root_had_channel": root_had_channel, "stripped": stripped, "paused": paused}
 
 
 def deactivate(doc: dict, profile_id: str, channel: str, root: str, undo: dict, *, drop: bool = False) -> dict:
     """把 :func:`activate` 让出来的还回去（不改传入的那份）：本档案暂停（``drop`` 时删掉），暂停过的同通道档案恢复，
-    去掉过这条通道的位置加回来，验收数据根是本档案加进来的就从位置清单里去掉、也从别的档案的授权根里去掉
-    （CC 会在成员之间互相补数据根）。已经不在的档案 / 位置跳过。"""
+    去掉过这条通道的位置加回来；验收数据根上这条通道是启用时加的就拿掉，拿掉后一种通道都不剩就把这个位置去掉、也从别的档案的
+    授权根里去掉它下面的（CC 会在成员之间互相补数据根）。已经不在的档案 / 位置跳过。"""
     out = json.loads(json.dumps(doc))
     box = out["global"]
     mine = _profile(out, profile_id)
@@ -155,7 +163,14 @@ def deactivate(doc: dict, profile_id: str, channel: str, root: str, undo: dict, 
         if norm(place) in back and channel not in kinds:
             kinds = [name for name in CHANNELS if name in kinds or name == channel]
         pairs.append([place, kinds])
-    if undo.get("added_root"):
+    dropped = False
+    if not undo.get("root_had_channel"):
+        for pair in pairs:
+            if norm(pair[0]) == norm(root) and channel in pair[1]:
+                pair[1] = [name for name in pair[1] if name != channel]
+                # 验收数据根上最后一种通道是这份档案拿走的：整个位置去掉（另一份 maclab 档案还在用时它还有那一种，不去）
+                dropped = not pair[1]
+    if dropped:
         places = [place for place in places if norm(place) != norm(root)]
         pairs = [pair for pair in pairs if norm(pair[0]) != norm(root)]
         for item in out.get("profiles") or []:
@@ -165,6 +180,13 @@ def deactivate(doc: dict, profile_id: str, channel: str, root: str, undo: dict, 
     box["express_places"] = places
     box["place_channels"] = pairs
     return out
+
+
+def import_paths(ccsrc: Path, site: Path, flat: bool, nested: bool, has_site: bool) -> list:
+    """要放到 ``sys.path`` 最前面的目录（按顺序）：CC 源码副本（``ccsrc\\companion`` 优先——maclab_pc.py prepare 刷新的就是它，
+    其次 ``ccsrc\\src\\companion``），再是第三方包目录（排在测试机自己的 site-packages 前面，版本以它为准）。"""
+    out = [str(ccsrc)] if flat else [str(ccsrc / "src")] if nested else [str(ccsrc)]
+    return out + ([str(site)] if has_site else [])
 
 
 def view(doc: dict, names: dict | None = None) -> dict:
@@ -343,7 +365,7 @@ def remove(state_dir: Path, name: str) -> dict:
 
 def main(argv) -> int:
     args = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in argv]
-    state_dir, ccsrc = STATE_DIR, CCSRC
+    state_dir, ccsrc, site = STATE_DIR, CCSRC, SITE
     while args and args[0].startswith("--"):
         flag, value = args[0], args[1]
         args = args[2:]
@@ -351,7 +373,11 @@ def main(argv) -> int:
             state_dir = Path(value)
         elif flag == "--ccsrc":
             ccsrc = Path(value)
-    sys.path.insert(0, str(ccsrc / "src") if (ccsrc / "src" / "companion").is_dir() else str(ccsrc))
+        elif flag == "--site":
+            site = Path(value)
+    for entry in reversed(import_paths(ccsrc, site, (ccsrc / "companion").is_dir(), (ccsrc / "src" / "companion").is_dir(),
+                                       site.is_dir())):
+        sys.path.insert(0, entry)
     mode = args[0] if args else "show"
     if mode == "add":
         out = add(state_dir, args[1], Path(args[2]), args[3], args[4])
@@ -361,6 +387,8 @@ def main(argv) -> int:
         out = {}
     state = load_state(state_dir)
     out["config"] = view(_read(CFG), {entry["profile_id"]: key for key, entry in state.items()})
+    out["maclab"] = {key: {"active": bool(entry.get("active")), "channel": entry.get("channel"), "site": entry.get("site")}
+                     for key, entry in state.items()}
     out["cc_running"] = cc_running()
     print(json.dumps(out, ensure_ascii=True))
     return 0
