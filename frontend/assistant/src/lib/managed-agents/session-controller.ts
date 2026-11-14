@@ -694,7 +694,7 @@ export class SessionController {
             // Held for the user's Allow/Deny: show the gate with what it changes, don't treat it as answered.
             this.answerAttempts.delete(id);
             this.retryAfter.delete(id);
-            this.mergeProjection(gateCustomTool(this.state, id, { ask: reply.ask, preview: reply.preview }));
+            this.mergeProjection(gateCustomTool(this.state, id, { ask: reply.ask, preview: reply.preview, note: reply.note }));
             return;
           }
           if (reply.status === "running") {
