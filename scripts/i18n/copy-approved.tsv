@@ -251,3 +251,6 @@ pearnly_erp_portal:Each product and warehouse may appear only once	zh	同一物�
 pearnly_erp_portal:This product already has stock movements in this warehouse; use a stock adjustment	zh	该物料在此仓库已有出入库记录，请使用库存调整	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
 pearnly_erp_portal:This product is already initialized in this warehouse; use a stock adjustment	zh	该物料在此仓库已录入期初，请使用库存调整	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
 pearnly_erp_portal:stock.view.position	zh	按仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+assistant:GUIDE.fillRest	zh	填入差额	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
+assistant:GUIDE.over	zh	超出 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
+assistant:GUIDE.remaining	zh	差额 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
