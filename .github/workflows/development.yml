@@ -549,5 +549,7 @@ jobs:
         run: python3 tests/test_reason_codes_have_words.py
       - name: Check frontend translation keys
         run: python3 scripts/check-frontend-i18n.py --strict
+      - name: No tracked file carries an unresolved merge conflict (grouped conflict markers with branch names)
+        run: python3 tests/test_check_conflict_markers.py && python3 scripts/check-conflict-markers.py
       - name: Check whitespace
         run: git diff --check
