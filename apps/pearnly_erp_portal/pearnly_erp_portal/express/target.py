@@ -134,7 +134,7 @@ def no_book_texts(companies) -> dict:
         return {}
     rows = frappe.get_all("ERP Company", filters={"name": ["in", sorted(companies)]}, fields=["name", "tax_id", "branch"],
                           limit_page_length=len(companies))
-    listed = {row.name: (row, books_of(row)) for row in rows}
+    listed = {row.name: (row, books_of(row)) for row in rows}  # loop-query: 待处理里出现的几家公司，各一次
     return {name: (lambda day, found=found: no_book_text(found[0], day, every=found[1])) for name, found in listed.items()}
 
 

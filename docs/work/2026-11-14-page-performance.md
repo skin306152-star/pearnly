@@ -67,7 +67,7 @@ testerp 表规模（精确计数）：结存 20,220、流水 20,705、物料 59,
 ## 4. 修法（三个提交）
 
 1. `perf: index …`（机械）：结存 `product_warehouse_index`、`warehouse_product_index`，盘点行 `count_product_index`，盘点记录
-   `count_item_index`；Frappe 原生 `on_doctype_update` + 补丁 `v1_28_stock_count_indexes`（已有同名就跳过）。
+   `count_item_index`；Frappe 原生 `on_doctype_update` + 补丁 `v1_29_stock_count_indexes`（已有同名就跳过；提交说明里写的 v1_28 在变基时因 main 新进 v1_28_admin_collection_menus 改名为 v1_29）。
 2. `perf: … by list instead of per row`（行为不变）：ERP 盘点明细 / 查找 / 记录 / 别处结存 / 导出表 / 录入后重算合计按名单一次取
    （`count._warehouse_labels`、`count_state.stock_tokens`；加锁读仍逐个取，锁的行与先后不变）；ERP、Cowork 团队名单按名单取账号、
    角色、公司、姓名。证据：`scripts/perf/equal_check.py` 旧模块与新模块同参调用逐字段比——ERP 盘点 30 组（含库存令牌 252 个、录入后重算

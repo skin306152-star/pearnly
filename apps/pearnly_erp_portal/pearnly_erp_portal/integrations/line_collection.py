@@ -1122,7 +1122,7 @@ def _unseen(user) -> list:
     for name in names:
         view = _service().status(name)
         if view["status"] in (contracts.WRITTEN, contracts.FAILED) and claim(name, view):
-            out.append(_status_text(view) + "\n" + f"{view.get('customer_name') or ''} · {money(view.get('total'))}")
+            out.append(_status_text(view) + "\n" + f"{view.get('customer_name') or ''} · {money(view.get('total'))}")  # loop-query: 最多 UNSEEN_MAX 笔
     return [{"type": "text", "text": "\n\n".join(out)[:4900]}] if out else []
 
 
