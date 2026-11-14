@@ -22,14 +22,16 @@ def _tax(rng):
 def prepare(lab, manifest):
     rng = random.Random()
     tag = f"{rng.randint(0, 0xFFFFFF):06X}"
-    fresh, manual = _tax(rng), _tax(rng)
+    fresh, manual, by_cc = _tax(rng), _tax(rng), _tax(rng)
+    other = f"{rng.randint(0, 0xFFFFFF):06X}"  # CC 那份用另一个标记：网页步骤只勾带 tag 的两份
     made = lab.python(manifest["site"], f"""
 frappe.set_user("Administrator")
 # 机器通道的表只经本域写（`cc_desktop.documents`）：同电脑配对、心跳报名单时的写法
 from pearnly_core.cc_desktop import documents
 device = documents.new(documents.DEVICE, "PCD-LAB{tag}", {{"device_label": "LAB {tag}", "token_digest": "lab-{tag}",
                                                          "companion_version": "1.12.21"}})
-for key, name, tax in (("lab-{tag}-a", "บริษัท ต่อใหม่ {tag} จำกัด", {fresh!r}), ("lab-{tag}-b", "ห้าง มือ {tag}", {manual!r})):
+for key, name, tax in (("lab-{tag}-a", "บริษัท ต่อใหม่ {tag} จำกัด", {fresh!r}), ("lab-{tag}-b", "ห้าง มือ {tag}", {manual!r}),
+                       ("lab-{tag}-c", "บริษัท ซีซี {other} จำกัด", {by_cc!r})):
     documents.new(documents.BOOK, frappe.generate_hash(length=20), {{"device": device.name, "book_key": key, "label": name,
                   "company": name, "tax_id": tax, "branch": "00000", "path": "C:/LAB/" + key, "root": "C:/LAB",
                   "period_start": "2026-01-01", "period_end": "2026-12-31", "writable": 1}})
@@ -41,7 +43,7 @@ from pearnly_erp_portal.express import companies
 frappe.cache.delete_value(companies.PENDING_KEY)
 print(json.dumps({{"device": device.name, "hand": hand.name}}))
 """)
-    return {"tag": tag, "fresh": fresh, "manual": manual, **made, "cases": []}
+    return {"tag": tag, "other": other, "fresh": fresh, "manual": manual, "by_cc": by_cc, **made, "cases": []}
 
 
 def steps(params, camera_code=None):
@@ -90,9 +92,17 @@ def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 rows = frappe.get_all("ERP Company", filters={{"tax_id": ["in", [{params['fresh']!r}, {params['manual']!r}]]}},
                       fields=["name", "tax_id", "express_enabled", "express_sync_state"], limit_page_length=10)
-from pearnly_erp_portal.masters import cc_service
+from pearnly_erp_portal.masters import cc_service, cc_tools
 left = [i for i in cc_service.pending_identities() if {params['fresh']!r} in i or {params['manual']!r} in i]
-print(json.dumps({{"rows": rows, "left": left}}, default=str))
+# CC 对话里同一个动作（ADR-027）：管理员用 CC 工具列出待添加的公司、选中第三份添加
+frappe.set_user("admin@erp.regression")
+listed = json.loads(cc_tools.connection_companies({{"source": "express", "search": {params['other']!r}}}))
+picked = [{{"connection": c["connection"], "account_set_key": c["account_set_key"]}} for c in listed["companies"]]
+added = json.loads(cc_tools.add_from_connections({{"companies": picked}})) if picked else {{}}
+frappe.db.commit()
+frappe.set_user("Administrator")
+by_cc = frappe.get_all("ERP Company", filters={{"tax_id": {params['by_cc']!r}}}, fields=["name", "express_enabled"])
+print(json.dumps({{"rows": rows, "left": left, "listed": listed, "added": added, "by_cc": by_cc}}, default=str))
 """)
     by_tax = {}
     for row in got["rows"]:
@@ -104,13 +114,18 @@ print(json.dumps({{"rows": rows, "left": left}}, default=str))
         {"case": "手工同税号的那家被接上，没另建一家", "saved": manual,
          "ok": len(manual) == 1 and manual[0]["name"] == params["hand"] and manual[0]["express_enabled"] == 1},
         {"case": "两份都不在待勾名单里了", "saved": got["left"], "ok": got["left"] == []},
+        {"case": "CC 工具列出同一份目录里还没添加的那家（ADR-027：网页动作 CC 也能办）", "saved": got["listed"],
+         "ok": [c["account_set_key"] for c in got["listed"].get("companies") or []] == [f"{params['by_cc']}:00000"]},
+        {"case": "CC 工具添加后建出一家接 Express 的公司", "saved": {"added": got["added"], "rows": got["by_cc"]},
+         "ok": len(got["by_cc"]) == 1 and got["by_cc"][0]["express_enabled"] == 1
+         and [c.get("created") for c in got["added"].get("companies") or []] == [True]},
     ]
 
 
 def cleanup(lab, manifest, params):
     lab.python(manifest["site"], f"""
 frappe.set_user("Administrator")
-names = frappe.get_all("ERP Company", filters={{"tax_id": ["in", [{params['fresh']!r}, {params['manual']!r}]]}}, pluck="name")
+names = frappe.get_all("ERP Company", filters={{"tax_id": ["in", [{params['fresh']!r}, {params['manual']!r}, {params.get('by_cc', '')!r}]]}}, pluck="name")
 for doctype, field in (("ERP Warehouse", "company"), ("ERP POS Terminal", "company")):
     frappe.db.delete(doctype, {{field: ["in", names or [""]]}})
 frappe.db.delete("ERP Company", {{"name": ["in", names or [""]]}})

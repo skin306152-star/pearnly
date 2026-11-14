@@ -76,8 +76,10 @@ Add opening item,添加明细
 Add photos,添加照片
 Add row,添加明细
 Add terminal,新增收银台
+Add these companies?,确定要添加以下公司吗？
 Add watcher,添加关注人
 Added,补盘
+Added companies,添加了公司
 Added {0},已添加 {0}
 Added: {0},已加入：{0}
 Additional,附加项
@@ -809,6 +811,7 @@ List name,列表名称
 Listed collection methods,查看了收款方式
 Listed collections,查看了收款列表
 Listed companies,列出了公司
+Listed companies to add,列出了可添加的公司
 Listed documents,查看了单据
 Listed open invoices,查看了未收清的发票
 Listed stock counts,查看了盘点列表

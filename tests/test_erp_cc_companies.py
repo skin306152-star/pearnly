@@ -714,6 +714,20 @@ class AddCompanyTests(unittest.TestCase):
         self.assertEqual(len(STATE.db.table("ERP Company")), 3)          # 一家也没建
         self.assertEqual(self.queued, ["CO-00001", "CO-00001"])
 
+    def test_cc_tools_list_and_add_the_same_companies_as_the_page(self):
+        """ADR-027：公司页「从连接添加」在 CC 里同样能办——同一份目录（`service.pending`）、同一个建法（`create_many`）。"""
+        from pearnly_erp_portal.masters import cc_tools
+
+        page = cc_service.pending(adapter="express")
+        listed = json.loads(cc_tools.connection_companies({"source": "express"}))
+        self.assertEqual([c["account_set_key"] for c in listed["companies"]], [row["account_set_key"] for row in page["rows"]])
+        self.assertTrue(listed["companies"])
+        first = listed["companies"][0]
+        added = json.loads(cc_tools.add_from_connections({"companies": [first]}))
+        self.assertEqual(len(added["companies"]), 1)
+        again = json.loads(cc_tools.connection_companies({"source": "express"}))
+        self.assertNotIn(first["account_set_key"], [c["account_set_key"] for c in again["companies"]])
+
     def test_mrerp_sets_only_when_the_ledger_is_on_and_for_admins(self):
         self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_service._catalog()))
         self.mrerp_on = True
@@ -1057,7 +1071,10 @@ class ToolTests(unittest.TestCase):
     def test_tools_are_declared_with_approval_for_writes(self):
         names = {tool["name"]: tool for tool in cc_tools.TOOLS}
         self.assertEqual(set(names), {"erp_companies", "erp_company_profile", "erp_company_note_save",
-                                      "erp_company_note_remove"})
+                                      "erp_company_note_remove", "erp_connection_companies", "erp_company_add"})
+        # 从连接添加（ADR-027：公司页那个动作 CC 也能办）：建公司要人先 Allow，预览列出要建的几家
+        self.assertTrue(names["erp_company_add"]["approval"])
+        self.assertTrue(names["erp_company_add"]["preview"].endswith(".preview_add_from_connections"))
         for name in ("erp_company_note_save", "erp_company_note_remove"):
             self.assertTrue(names[name]["approval"])
             self.assertTrue(names[name]["refuse"].endswith(".company_refusal"))

@@ -76,8 +76,10 @@ Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
 Add terminal,レジを追加
+Add these companies?,これらの会社を追加しますか？
 Add watcher,ウォッチャーを追加
 Added,追加
+Added companies,会社を追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional,追加
@@ -809,6 +811,7 @@ List name,リスト名
 Listed collection methods,入金方法を確認しました
 Listed collections,入金の一覧を確認しました
 Listed companies,会社一覧を表示
+Listed companies to add,追加できる会社を表示
 Listed documents,書類を一覧しました
 Listed open invoices,未入金の請求書を確認しました
 Listed stock counts,棚卸の一覧を確認しました

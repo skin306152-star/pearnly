@@ -76,8 +76,10 @@ Add opening item,เพิ่มรายการ
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
 Add terminal,เพิ่มเครื่องขาย
+Add these companies?,เพิ่มบริษัทเหล่านี้หรือไม่
 Add watcher,เพิ่มผู้ติดตาม
 Added,เพิ่มระหว่างนับ
+Added companies,เพิ่มบริษัทแล้ว
 Added {0},เพิ่ม {0} แล้ว
 Added: {0},เพิ่มแล้ว: {0}
 Additional,เพิ่มเติม
@@ -809,6 +811,7 @@ List name,ชื่อรายการ
 Listed collection methods,ดูวิธีรับชำระแล้ว
 Listed collections,ดูรายการรับชำระทั้งหมดแล้ว
 Listed companies,แสดงรายชื่อบริษัท
+Listed companies to add,แสดงบริษัทที่เพิ่มได้
 Listed documents,ดูรายการเอกสารแล้ว
 Listed open invoices,ดูใบแจ้งหนี้ค้างชำระแล้ว
 Listed stock counts,ดูรายการตรวจนับสต็อกแล้ว

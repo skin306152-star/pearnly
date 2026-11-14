@@ -76,8 +76,10 @@ Add opening item,Add opening item
 Add photos,Add photos
 Add row,Add row
 Add terminal,Add terminal
+Add these companies?,Add these companies?
 Add watcher,Add watcher
 Added,Added
+Added companies,Added companies
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
@@ -809,6 +811,7 @@ List name,List name
 Listed collection methods,Listed collection methods
 Listed collections,Listed collections
 Listed companies,Listed companies
+Listed companies to add,Listed companies to add
 Listed documents,Listed documents
 Listed open invoices,Listed open invoices
 Listed stock counts,Listed stock counts

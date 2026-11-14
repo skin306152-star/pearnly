@@ -195,6 +195,45 @@ def preview_note_remove(tool_input) -> list:
     return [{"field": _("erp.company.notes"), "before": _before(row, tool_input.get("note")), "after": ""}]
 
 
+# ── 从连接添加（同 ERP 公司页「从连接添加」，ADR-027 网页动作 CC 都能办）──────────────────────────────────────────
+
+
+def connection_companies(tool_input) -> str:
+    """连接里还没接进 ERP 的公司（Express 账套按税号 + 分店、MR.ERP 按公司各年度一行；同公司页弹窗同一份 `service.pending`）。
+    只给能建公司的人（ERP 管理员）。"""
+    try:
+        start = max(0, int(tool_input.get("start") or 0))
+    except (TypeError, ValueError):
+        start = 0
+    page = service.pending(tool_input.get("search"), tool_input.get("source"), start, 20)
+    return _json({"total": page["total"], "sources": page["adapters"], "start": start,
+                  "companies": [{"source": row["adapter"], "connection": row["connection"],
+                                 "account_set_key": row["account_set_key"], "title": row["title"],
+                                 "short_name": row.get("book") or "", "tax_id": row["tax_id"], "years": row["years"],
+                                 "links_existing": bool(row.get("linkable"))} for row in page["rows"]]})
+
+
+def _picked(tool_input) -> list:
+    items = tool_input.get("companies")
+    return [{"connection": str(item.get("connection") or ""), "account_set_key": str(item.get("account_set_key") or "")}
+            for item in (items if isinstance(items, list) else []) if isinstance(item, dict)][:service.PAGE_MAX]
+
+
+def add_from_connections(tool_input) -> str:
+    """勾的几家一次建（同公司页「从连接添加」点「添加」：`service.create_many`，逐家锁内幂等；建好排主档同步）。"""
+    made = service.create_many(_picked(tool_input))
+    return _json({"status": "added", "companies": [{"id": item.get("id"), "title": item.get("title") or item.get("label"),
+                                                    "created": item.get("created"), "linked": bool(item.get("linked"))}
+                                                   for item in made]})
+
+
+def preview_add_from_connections(tool_input) -> list:
+    wanted = {(item["connection"], item["account_set_key"]) for item in _picked(tool_input)}
+    names = [row["title"] for row in service.pending(limit=service.PAGE_MAX)["rows"]
+             if (row["connection"], row["account_set_key"]) in wanted]
+    return [{"field": _("Company"), "before": "", "after": "\n".join(names)}]
+
+
 COMPANY_PROP = {"type": "string", "description": "Company id from erp_companies; leave out for the company this "
                                                  "conversation is filed under."}
 
@@ -235,4 +274,25 @@ TOOLS = [
      "refuse": "pearnly_erp_portal.masters.cc_tools.company_refusal",
      "preview": "pearnly_erp_portal.masters.cc_tools.preview_note_remove",
      "handler": "pearnly_erp_portal.masters.cc_tools.note_remove"},
+    {"name": "erp_connection_companies", "label": "Listed companies to add",
+     "description": "List the companies in the user's connections that are not in this ERP yet (same list as Add from "
+                    "connections on the company page): Express account sets by tax ID and branch, MR.ERP companies "
+                    "with each yearly account set and its period. source filters express or mrerp; search matches "
+                    "the name, short name, tax ID or year; 20 per page from start. Only ERP admins can add companies.",
+     "input_schema": {"type": "object", "properties": {"search": {"type": "string"},
+                                                       "source": {"type": "string", "enum": ["express", "mrerp"]},
+                                                       "start": {"type": "integer"}}},
+     "handler": "pearnly_erp_portal.masters.cc_tools.connection_companies"},
+    {"name": "erp_company_add", "label": "Added companies",
+     "description": "Add one or more companies from erp_connection_companies to this ERP (same as ticking them in Add "
+                    "from connections): give each one's connection and account_set_key. A hand-made company with "
+                    "the same tax ID and branch is linked instead of a new one; masters start syncing. The user sees "
+                    "Allow / Deny first.",
+     "input_schema": {"type": "object", "properties": {"companies": {"type": "array", "items": {
+         "type": "object", "properties": {"connection": {"type": "string"}, "account_set_key": {"type": "string"}},
+         "required": ["account_set_key"]}}}, "required": ["companies"]},
+     "approval": True,
+     "ask": "Add these companies?",
+     "preview": "pearnly_erp_portal.masters.cc_tools.preview_add_from_connections",
+     "handler": "pearnly_erp_portal.masters.cc_tools.add_from_connections"},
 ]

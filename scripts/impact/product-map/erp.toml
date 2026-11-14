@@ -133,6 +133,26 @@ where = "CC 工具 erp_company_note_remove"
 tests = ["unit:tests/test_erp_cc_companies.py::erp_company_note_remove"]
 
 [[row]]
+id = "erp.cc.tool.erp_connection_companies"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_connection_companies"
+where = "CC 工具 erp_connection_companies（从连接添加：列出连接里还没接进 ERP 的公司）"
+tests = ["flow:erp.company.connect"]
+
+[[row]]
+id = "erp.cc.tool.erp_company_add"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_company_add"
+where = "CC 工具 erp_company_add（从连接添加：选中几家一次建，先 Allow / Deny）"
+tests = ["flow:erp.company.connect"]
+
+[[row]]
 id = "erp.cc.tool.erp_company_note_save"
 product = "ERP"
 channel = "cc-chat"
@@ -953,6 +973,7 @@ kind = "page-action"
 anchor = "action:erp:pearnly-company:company.connect.add"
 where = "pearnly-company 页头「从连接添加」（公司接入重做第 2 批：选 CC 授权的 Express 账套 / MR.ERP 账套建公司；授权后也自动弹同一个对话框）"
 tests = ["flow:erp.company.connect"]
+cc = ["erp_connection_companies", "erp_company_add"]
 
 [[row]]
 id = "erp.desk.pearnly-company.action.company.save"
