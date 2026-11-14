@@ -75,30 +75,31 @@
 
 ### 2.2 业务声明的形状
 
-纯数据 + 点路径（指向产品已有的服务函数），没有界面代码。以 ERP 收款为例（字段名是设计稿，施工时定稿并加形状检查）：
+纯数据 + 点路径（指向产品已有的服务函数），没有界面代码。以 ERP 收款为例（P1 的目标形态；字段名已按施工定稿：`pearnly_core/assistant/guide/declaration.py`。
+声明放在产品现有的域包里——Cowork `assistant/guides.py`，ERP `express/cc_guides.py`、`collection/cc_guide.py`——不另起根层包；`label_key` / `opening_key` / `rule` 这三个名字是为了不和工具声明的 `label` / `ask` 撞文案闸）：
 
 ```python
-# apps/pearnly_erp_portal/pearnly_erp_portal/guides/collection.py
+# apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_guide.py
 GUIDE = {
     "id": "collection",
-    "label": "guide.business.collection",          # 菜单上的字（术语表键，四语）
+    "label_key": "guide.business.collection",          # 菜单上的字（术语表键，四语）
     "icon": "wallet",                               # 图标名，取共用白名单（lucide）
     "order": 10,                                    # 菜单顺序
     "modes": ["chat"],                              # chat = 直写，operator = 代录
     "ledgers": ["express_local", "express_cloud", "mrerp"],   # 这项业务面向哪几种账本；真亮不亮看 2.5 的能力判定
     "allowed": "pearnly_erp_portal.collection.plan.allowed",  # 权限：勾了这个功能的人（服务端一处判断）
-    "opening": "guide.open.collection",             # CC 发的那一句（术语表键）
+    "opening_key": "guide.open.collection",             # CC 发的那一句（术语表键）
     "source": "form",                               # form = 按表单；documents = 按单据
     "steps": [
-        {"key": "customer", "input": "choice", "ask": "always", "search": True,
+        {"key": "customer", "input": "choice", "rule": "always", "search": True,
          "options": "pearnly_erp_portal.collection.guide.customers"},
-        {"key": "invoices", "input": "amounts", "ask": "always", "after": ["customer"],
+        {"key": "invoices", "input": "amounts", "rule": "always", "after": ["customer"],
          "options": "pearnly_erp_portal.collection.guide.open_invoices"},
-        {"key": "method", "input": "split", "ask": "always", "after": ["invoices"],
+        {"key": "method", "input": "split", "rule": "always", "after": ["invoices"],
          "options": "pearnly_erp_portal.collection.guide.methods"},
-        {"key": "voucher", "input": "file", "ask": "always",
+        {"key": "voucher", "input": "file", "rule": "always",
          "when": {"key": "method", "has": "transfer"}},
-        {"key": "staff", "input": "choice", "ask": "auto",
+        {"key": "staff", "input": "choice", "rule": "auto",
          "default": "pearnly_erp_portal.collection.guide.staff"},   # 销售员 / 部门：按第一张发票与单据簿默认，进「已定」可改
     ],
     "draft": "pearnly_erp_portal.collection.guide.draft",       # 答案 → 草稿（service.create_draft / update_draft）

@@ -430,6 +430,8 @@ jobs:
         run: python3 tests/test_cc_operator.py
       - name: CC question card (ask_user, like the Claude Code question card) pages one question at a time with a recommended option preselected, Other with server search, skip and submit, and the answers it hands back
         run: python3 tests/test_cc_ask.py
+      - name: CC guide declarations (one declaration per business, shape, registry menu by mode and permission, every dotted path and tool exists, same entry across products)
+        run: python3 scripts/check-cc-guides.py && python3 tests/test_cc_guide_registry.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)
