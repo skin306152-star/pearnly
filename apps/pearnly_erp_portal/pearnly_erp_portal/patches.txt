@@ -60,3 +60,5 @@ pearnly_erp_portal.patches.v1_26_sales_line_item_type
 pearnly_erp_portal.patches.v1_27_collection_feature
 # 管理员默认有收款（11-14）：已绑定 LINE 的人各重挂一次富菜单，管理员换上带收款格的那套
 pearnly_erp_portal.patches.v1_28_admin_collection_menus
+# 盘点 / 结存按物料、按仓库、按盘点单过滤的索引（性能体检 11-14：盘点明细线上 6–7 秒，结存按物料整表扫）
+pearnly_erp_portal.patches.v1_29_stock_count_indexes
