@@ -1,0 +1,134 @@
+# 本机 Mac 实验栈（maclab）：只叠在 production/compose.yml 上，栈定义本身仍然只有那一份（同 testenv/override.yml 的做法）。
+# 由 scripts/maclab.sh 调用，不单独用：它设 MACLAB_PROJECT（pearnly-maclab-<产品>）、MACLAB_REPO（本仓绝对路径）、
+# MACLAB_PORT（网页入口端口）和 --env-file（~/.config/pearnly-maclab/<产品>.env，600，数据库口令等只在本机）。
+#
+# 与生产 / 测试机的差异全在这里：
+# 1) 站点卷换成本栈自己的（卷名带项目名，ERP、Cowork 两套各自一份库、Redis、站点卷、网络，能同时跑）。
+# 2) 生产机上的主机路径（/opt/pearnly/secrets/ocr.json 识别凭据、CC 桌面版发布目录）在本机没有，不挂：
+#    列表用 !override 整个换掉（不挂就不会在 colima 虚拟机里凭空建出这些目录）；识别凭据环境变量清空，不接真实识别。
+# 3) 只有网页入口（前端 nginx）发布到 0.0.0.0（局域网测试机要连）；账本（billing-web）不发布，Keycloak 不起（身份不走线上登录服务）。
+# 4) 每套多一个常驻的 <产品>-bench（sleep），初始化、签配对码、验收站点侧脚本都 docker exec 进它跑（scripts/smoke/run.py 的
+#    Remote("local") 认 <PEARNLY_FLOWS_LAB>-bench-1，所以容器名固定成 pearnly-maclab-<产品>-bench-1）。
+# 5) 后台进程数按本机调小（识别 / 对账各 1 个进程，见 maclab.sh 写的 env 文件）；调度器内存放宽到 384m（amd64 镜像经 Rosetta 跑，
+#    同 compose/erp-acceptance.yml 对调度器的放宽）。
+
+volumes:
+  sites-billing:
+    external: true
+    name: ${MACLAB_PROJECT:?}_sites-billing
+  sites-dms:
+    external: true
+    name: ${MACLAB_PROJECT:?}_sites-dms
+  sites-erp:
+    external: true
+    name: ${MACLAB_PROJECT:?}_sites-erp
+  sites-cowork:
+    external: true
+    name: ${MACLAB_PROJECT:?}_sites-cowork
+
+services:
+  keycloak:
+    profiles: [keycloak]
+  # 6) 数据库用本机已有的 mariadb:11.8（同一大版本、arm64 原生跑）：生产固定的那个摘要本机没有，实验栈不为它去拉镜像。
+  #    要与生产逐字节同一份时设 MACLAB_MARIADB_IMAGE（先自己拉好）。
+  mariadb:
+    image: ${MACLAB_MARIADB_IMAGE:-mariadb:11.8}
+    pull_policy: never
+
+  billing-web:
+    pull_policy: never
+    ports: !reset []
+    volumes: !override
+      - sites-billing:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+      - ${MACLAB_REPO:?}/infrastructure/maclab:/workspace/maclab:ro
+      - ${MACLAB_REPO:?}/infrastructure/testenv:/workspace/testenv:ro
+
+  # ── ERP ───────────────────────────────────────────────────────────────────
+  erp-web:
+    volumes: !override
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["erp.maclab.localhost:host-gateway"]
+  erp-worker:
+    volumes: !override
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["erp.maclab.localhost:host-gateway"]
+  erp-masters-worker:
+    volumes: !override
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+  erp-ocr-worker:
+    volumes: !override
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+  erp-scheduler:
+    mem_limit: 384m
+  erp-frontend:
+    ports: !override ['0.0.0.0:${MACLAB_PORT:?}:8080']
+  erp-bench:
+    profiles: [erp]
+    extends: {file: ../production/compose.yml, service: erp-web}
+    container_name: ${MACLAB_PROJECT:?}-bench-1
+    restart: "no"
+    command: [sleep, infinity]
+    volumes: !override
+      - sites-erp:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+      - ${MACLAB_REPO:?}/infrastructure/maclab:/workspace/maclab:ro
+      - ${MACLAB_REPO:?}/infrastructure/testenv:/workspace/testenv:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["erp.maclab.localhost:host-gateway"]
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis-cache: {condition: service_healthy}
+      redis-queue: {condition: service_healthy}
+
+  # ── Cowork ────────────────────────────────────────────────────────────────
+  cowork-web:
+    volumes: !override
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["cowork.maclab.localhost:host-gateway"]
+  cowork-worker:
+    volumes: !override
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["cowork.maclab.localhost:host-gateway"]
+  cowork-long-worker:
+    volumes: !override
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+  cowork-ocr-worker:
+    volumes: !override
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+  cowork-scheduler:
+    mem_limit: 384m
+  cowork-frontend:
+    ports: !override ['0.0.0.0:${MACLAB_PORT:?}:8080']
+  cowork-bench:
+    profiles: [cowork]
+    extends: {file: ../production/compose.yml, service: cowork-web}
+    container_name: ${MACLAB_PROJECT:?}-bench-1
+    restart: "no"
+    command: [sleep, infinity]
+    volumes: !override
+      - sites-cowork:/home/frappe/frappe-bench/sites
+      - ${MACLAB_REPO:?}/infrastructure/production/mariadb-client.cnf:/etc/mysql/mariadb.conf.d/zz-pearnly-client.cnf:ro
+      - ${MACLAB_REPO:?}/infrastructure/maclab:/workspace/maclab:ro
+      - ${MACLAB_REPO:?}/infrastructure/testenv:/workspace/testenv:ro
+    environment: {GOOGLE_APPLICATION_CREDENTIALS: ""}
+    extra_hosts: ["cowork.maclab.localhost:host-gateway"]
+    depends_on:
+      mariadb: {condition: service_healthy}
+      redis-cache: {condition: service_healthy}
+      redis-queue: {condition: service_healthy}

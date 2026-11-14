@@ -16,6 +16,7 @@
 | Cowork 录入演示数据 | `sample-cowork-intake-demo.py` | 只写本地样板 `cowork-a.localhost`：建原件与识别记录（固定识别结果，不调模型、不计费），请求键固定、重跑幂等 |
 | 定向业务验证 | `sample-verify-*` | 有离线、本地写入、外部读取和外部真写，不能通配符全跑 |
 | Windows 测试环境 | `testenv.sh` | `sync` / `config` / `check` / `smoke` / `urls` 只读；`up`、`sites`、`import`、`migrate`、`reset`、`live` / `live-off` 会改测试环境；`lab-start` / `lab-stop` 会**切换测试租户域名在线上与测试环境之间的指向**，见 [测试环境](../docs/development/test-environment.md) |
+| 本机 Mac 实验栈（测试机经局域网连） | `maclab.sh` | `status` / `ps` / `logs` 只读；`up` / `down` / `init` / `finish` / `live` / `live-off` 只动本机项目名 `pearnly-maclab-<erp\|cowork>` 的容器与卷（`down` 保留卷）；`reset <产品> --yes` 删本栈全部卷；`mint` 在本栈站点登记一台电脑、配对码只打到标准输出；不切域名、不连远程机器，见 [maclab 说明](../infrastructure/maclab/README.md) |
 | 测试租户域名切换 | `testenv-cloudflare.sh` | 只改 Cloudflare 上 `testdms` / `testerp` / `testcowork` 的解析记录；读取本机 `~/.config/pearnly-testenv/` 凭据，不碰其它记录 |
 | 发票 CPU 测量（只在测试环境） | `testenv-invoice-cpu.py` | 在测试栈站点上真的建原件 / 识别任务单 / 票作压测数据；Cloud Run 换成已有结果、扣费直接回成功、不投递识别队列，**须先停识别进程**；不调谷歌、不扣费 |
 | 回放压测开关（只给测试租户） | `ocr-replay.py` | 在站点所在 bench 里 `--site test<app>.pearnly.com on|off|status`，改站点配置里的回放开关：开着时识别交回以前的真结果、不调谷歌、识别费 0；站点名不是 `testcowork` / `testerp` / `testdms` 系列直接拒绝，`check-architecture.py` 拦误开；在该租户没有在途识别时切 |

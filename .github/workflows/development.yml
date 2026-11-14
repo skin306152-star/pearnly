@@ -107,6 +107,8 @@ jobs:
         run: python3 tests/test_ledger_check.py
       - name: Lab-made CC Desktop computers stay online while a scenario runs (reported the products' own UTC way, judged online by both products' rules, more often than half the window)
         run: python3 tests/test_lab_online.py
+      - name: Mac lab stacks (ERP and Cowork side by side for test PCs on the LAN) publish only the two web entries, and the test PC profile script reads pairing codes the CC Desktop way and gives back every place, channel and paused profile it took
+        run: python3 tests/test_maclab.py
       - name: Hands-on tasks as one conversation, the event source projects every task, document and reason state, replays the same, pushes only to the owner, and leaves product submit and status calls unchanged
         run: python3 tests/test_express_operator_feed.py
       - name: Express operator submenu choice, the payment text read as cash or transfer, the remembered menu text and pay route in the operator payload, and the submenu item in the precheck card
