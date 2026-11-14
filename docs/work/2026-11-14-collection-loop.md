@@ -68,3 +68,24 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 - 改动：`collection/service.py`（失败转草稿的一个函数、放行计数）、`collection/push.py`（请求号、回执里判码）、`integrations/line_collection.py`（失败卡）、
   ERP Collection 加一个整数字段 `attempt`（原生迁移）；文案只用现有的确认卡与原因，不新增；测试补「写前拒绝 → 草稿 → 再放行新请求号 → 同 YOUREF 不重复」。
 - 待定：改了草稿后余额仍不够，CC 再拒一次就再还回（不限次数）；是否需要上限请主会话定（建议不限，和人工在 Express 改一样）。
+
+## 5. 网页新建收款
+评估 `docs/work/2026-11-14-collection-web-create.md`，一屏摘要在共享笔记「收款网页新建-一屏-11-14.md」，等主会话审。
+
+## 6. 「没有覆盖此日期的 Express 账套」改得更明白（改前 / 改后清单，等用户定，未改）
+
+现象：testerp CO-00146 只报了 69EXP\NLTTEST（2024 年度，到 2025-12-31），今天收款被拒，只说「没有覆盖此日期的 Express 账套」。
+提议：说出日期和已连接账套各自的期间；一本都没连的另一句。同一句也是 ERP 采购 / 销售单的停下原因（`express.reason.noBook`），建议一起换（按类）。
+
+| 场景 | 语言 | 改前 | 改后 |
+|---|---|---|---|
+| 有已连接账套，但都不覆盖这天 | 中文 | 没有覆盖此日期的 Express 账套 | {0} 不在已连接账套的期间内：{1} |
+| | English | No Express account set covers this date | {0} is outside the periods of the connected account sets: {1} |
+| | ไทย | ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้ | วันที่ {0} อยู่นอกงวดของชุดบัญชีที่เชื่อมต่อ: {1} |
+| | 日本語 | この日付を含む Express 会計データがありません | {0} は接続済みの会計データの期間外です：{1} |
+| 一本都没连 | 中文 | （同上一句） | 此公司没有已连接的 Express 账套 |
+| | English | | This company has no connected Express account set |
+| | ไทย | | บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ |
+| | 日本語 | | この会社に接続済みの Express 会計データはありません |
+
+`{0}` = 日期（如 2026-11-14），`{1}` = 每本「账套名 起–止」用「、」隔开（如 `NLTTEST 2024-01-01–2025-12-31`）。
