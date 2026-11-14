@@ -79,11 +79,7 @@ def _has_image(menu_id, session=None):
     同一套菜单会被重复发布（开户重跑、改渠道、换租户用同域名同 LIFF 时内容散列都一样），
     每次都盲传就会在第二次直接失败 —— 2026-09-20 线上就是这么卡住开户的。
     """
-    if not line.can_send():
-        raise RuntimeError("LINE channel unavailable")
-    response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
-                            + "/content", timeout=20, session=session)
-    return response.status_code == 200
+    return line.rich_menu_has_image(menu_id, session=session)
 
 
 def payload(query=False, language="th"):

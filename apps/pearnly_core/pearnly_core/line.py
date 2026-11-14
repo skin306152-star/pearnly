@@ -187,6 +187,24 @@ def request(method: str, url: str, *, headers: dict | None = None, session=None,
         raise _without_request(exc) from None
 
 
+def rich_menu_has_image(menu_id: str, session=None) -> bool:
+    """富菜单现在有没有图（三个产品的菜单发布共用）：200 = 有，只看状态、不下图。
+
+    为什么要问：LINE 拒绝给已有图的菜单再传图（400），发布是幂等重跑的，所以每套都先问一次。
+    LINE 没有「是否已上传」的字段，只能 GET 内容；以前整张图（约 100–300 KB）读下来，生产到 api-data.line.me
+    慢的时段 20 秒读不完就超时，整次发布记失败（11-13 testerp）。改成流式取：响应头到了就知道状态，正文不读、
+    立刻关连接。发布本身按内容散列命名复用已建的菜单、只补没图的那几套，所以中途失败后重跑就是接着做。
+    """
+    if not can_send():
+        raise RuntimeError("LINE channel unavailable")
+    response = request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="") + "/content",
+                       timeout=20, stream=True, session=session)
+    try:
+        return response.status_code == 200
+    finally:
+        response.close()
+
+
 def _never_sent(exc) -> bool:
     """这次失败是不是发生在连上 LINE 之前（解析不到域名、连接被拒），请求一个字节都没发出去。"""
     if not isinstance(exc, requests.exceptions.ConnectionError) or not exc.args:

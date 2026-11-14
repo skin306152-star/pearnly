@@ -109,11 +109,7 @@ def _image(variant, language) -> bytes:
 
 
 def _has_image(menu_id, session=None) -> bool:
-    if not line.can_send():
-        raise RuntimeError("LINE channel unavailable")
-    response = line.request("GET", "https://api-data.line.me/v2/bot/richmenu/" + quote(menu_id, safe="")
-                            + "/content", timeout=20, session=session)
-    return response.status_code == 200
+    return line.rich_menu_has_image(menu_id, session=session)
 
 
 def publish() -> dict:
