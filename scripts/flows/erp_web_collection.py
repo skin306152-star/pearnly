@@ -2,7 +2,7 @@
 
 不出网、不写 Express：在新开户那套站点里用收款员账号（`collection_lib.seed`：本次专用客户与两张未收清发票、账套收款类型）。
 页面（收款员；电脑与手机宽度各跑一遍）：「销售 → 收款」页头【新建】→ 原生弹窗：只有一家公司，「公司」不显示、已取好 → 客户框打客户码，从服务端搜索的
-下拉里点中 → 表格列出这位客户能收的两张发票 → 第一张本次收 600、现金 600 → 提交。再开一次弹窗、超收（第一张填 1200）提交：
+下拉里点中 → 表格列出这位客户能收的两张发票 → 勾第一张（带出未收余额 1000）、现金 1000 → 提交。再开一次弹窗、超收（第一张填 1200）提交：
 服务端照码拒、弹窗不关、什么都不留。库里：一笔来源「网页」、待写入（已交写账队列，同意记成 ``web:<弹窗号>``）、金额对；
 「收款」页点开这一笔可【撤回】（这里按同一个接口撤），撤回后写账作业撤掉。
 """
@@ -30,7 +30,16 @@ def cleanup(lab, manifest, params):
 
 
 def _fill(params, amount):
+    """``amount`` 为 None：只勾第一张发票（真机 11-14：勾上应带出未收余额 1000）；给了数就直接填那个数。"""
     first = params["invoices"][0]
+    # 同人的操作：勾第一张（带出未收余额），要别的数再改这一行的「本次收」
+    pick_row = ("const grid=dialog.fields_dict.invoices.grid; const check=await until(()=>grid.wrapper.find('.grid-body .grid-row-check:visible')[0], 10000);"
+                "if(check) check.click(); await sleep(600);"
+                if amount is None else
+                # 超收这一步要测的是服务端照码拒：直接改第一行的「本次收」（勾选带出余额由提交那一步验）
+                f"const grid=dialog.fields_dict.invoices.grid; await until(()=>grid.grid_rows&&grid.grid_rows[0], 10000);"
+                f"grid.grid_rows[0].doc.amount={amount}; grid.refresh(); await sleep(300);")
+    cash = 1000 if amount is None else amount
     return f"""
 frappe.set_route('pearnly-collections');
 await until(()=>pageOf('pearnly-collections')&&all('.page-actions .primary-action, .page-actions .btn-primary').length, 25000);
@@ -46,22 +55,29 @@ await idle();
 const rows=await until(()=>(dialog.fields_dict.invoices.df.data||[]).length===2&&dialog.fields_dict.invoices.df.data, 20000);
 const listed=(rows||[]).map(r=>[r.docnum, r.available]);
 const row=(rows||[]).find(r=>r.docnum==={json.dumps(first)});
-if(row) row.amount={amount};
-dialog.fields_dict.invoices.grid.refresh();
+{pick_row}
+const filled=row?row.amount:null;
 const cash=dialog.fields_dict.methods_area.$wrapper.find('input[data-fieldname=cash]')[0];
-setInput(cash, '{amount}'); await sleep(300);
+setInput(cash, '{cash}'); await sleep(300);
 const wide=document.documentElement.scrollWidth<=window.innerWidth+1;
 dialog.get_primary_btn().click();
 const closed=await until(()=>!dialog.display, 15000); await idle();
-return {{company, company_shown, picked, listed, wide, closed: !!closed, msg: msg(), alerts: alerts()}};"""
+const said=all('.msgprint').map(e=>e.textContent.trim()).join(' | ').slice(0,200);
+return {{company, company_shown, picked, listed, filled, wide, closed: !!closed, said, msg: msg(), alerts: alerts()}};"""
 
 
 def steps(params, camera_code=None):
-    return [{"name": "超收被拒", "js": JS + _fill(params, 1200)},
+    # shot：设了 PEARNLY_FLOWS_SHOTS 才截（人工看手机宽度下弹窗的发票表与列表的列）
+    return [{"name": "超收被拒", "js": JS + _fill(params, 1200), "shot": True},
             {"name": "关掉被拒的弹窗", "js": JS + """
 if(window.cur_dialog&&cur_dialog.display) cur_dialog.hide();
 await sleep(500); return {closed: !(window.cur_dialog&&cur_dialog.display)};"""},
-            {"name": "新建并提交", "js": JS + _fill(params, 600)}]
+            {"name": "新建并提交", "js": JS + _fill(params, None)},
+            {"name": "列表", "js": JS + """
+await until(()=>!(window.cur_dialog&&cur_dialog.display), 10000); await sleep(800); await idle();
+const rows=all('.list-row-container').length;
+const cut=all('.list-row-container .list-row-col').filter(el=>el.scrollWidth>el.clientWidth+1).map(el=>el.textContent.trim()).slice(0,8);
+return {rows, cut};""", "shot": True}]
 
 
 def judge(params, results, camera_code=None):
@@ -74,8 +90,10 @@ def judge(params, results, camera_code=None):
          "ok": made.get("company") == params["company"] and made.get("company_shown") is False and bool(made.get("picked"))},
         {"case": "the customer's two open invoices are listed with what can be collected",
          "seen": made.get("listed"), "ok": made.get("listed") == [[first, 1000], [second, 500]]},
-        {"case": "over-collecting is refused by the server and the dialog stays open",
-         "seen": {k: refused.get(k) for k in ("closed", "msg")}, "ok": refused.get("closed") is False and bool(refused.get("msg"))},
+        {"case": "over-collecting is refused by the server with that reason and the dialog stays open",
+         "seen": {k: refused.get(k) for k in ("closed", "said")},
+         "ok": refused.get("closed") is False and "超过未收金额" in str(refused.get("said") or "")},
+        {"case": "ticking an invoice fills what is still due", "seen": made.get("filled"), "ok": made.get("filled") == 1000},
         {"case": "a valid submit closes the dialog", "seen": {k: made.get(k) for k in ("closed", "msg", "alerts")},
          "ok": bool(made.get("closed"))},
         {"case": "the dialog fits the screen width", "seen": made.get("wide"), "ok": made.get("wide") is True},
@@ -103,7 +121,7 @@ print(json.dumps({{"status": out.get("status"), "job": job}}))
         {"case": "exactly one collection was recorded (the refused one left nothing)", "seen": rows, "ok": len(rows) == 1},
         {"case": "it came from the web and was released at once with the dialog as consent", "seen": made,
          "ok": made.get("source") == "web" and made.get("status") == "queued" and str(made.get("consent_ref", "")).startswith("web:")
-         and bool(made.get("job")) and made.get("cash") == "600.00" and made.get("total") == "600.00"},
+         and bool(made.get("job")) and made.get("cash") == "1000.00" and made.get("total") == "1000.00"},
         {"case": "the collections page withdraws it like LINE does", "seen": withdrawn,
          "ok": withdrawn.get("status") == "withdrawn" and withdrawn.get("job") == "cancelled"},
     ]

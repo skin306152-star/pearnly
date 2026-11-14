@@ -41,6 +41,7 @@
 		const first = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {}, "POST");
 		const companies = first.companies || [];
 		let methods = null, vouchers = {}, open = [];
+		const narrow = frappe.is_mobile();
 		const current = companies.find(row => row.value === frappe.boot.pearnly_company)?.value
 			|| (companies.length === 1 ? companies[0].value : "");
 		const dialog = new frappe.ui.Dialog({title: __("New"), size: "large", fields: [
@@ -55,10 +56,14 @@
 			{fieldtype: "Section Break", label: __("Invoices")},
 			{fieldtype: "Table", fieldname: "invoices", cannot_add_rows: true, cannot_delete_rows: true, in_place_edit: true,
 				data: [], fields: [
-					{fieldtype: "Data", fieldname: "docnum", label: __("Invoice No"), in_list_view: 1, read_only: 1},
-					{fieldtype: "Date", fieldname: "doc_date", label: __("Invoice Date"), in_list_view: 1, read_only: 1},
-					{fieldtype: "Currency", fieldname: "available", label: __("Outstanding Amount"), in_list_view: 1, read_only: 1},
-					{fieldtype: "Currency", fieldname: "amount", label: __("Amount"), in_list_view: 1},
+					// 原生表格的列宽（`columns`，一行合计 10）：手机宽度不放日期，单号、未收、本次收各占得下（11-14 真机：四列都被截断）
+					{fieldtype: "Data", fieldname: "docnum", label: __("Invoice No"), in_list_view: 1, read_only: 1,
+						columns: narrow ? 4 : 3},
+					{fieldtype: "Date", fieldname: "doc_date", label: __("Invoice Date"), in_list_view: narrow ? 0 : 1, read_only: 1,
+						columns: 2},
+					{fieldtype: "Currency", fieldname: "available", label: __("Outstanding Amount"), in_list_view: 1, read_only: 1,
+						columns: 3},
+					{fieldtype: "Currency", fieldname: "amount", label: __("Amount"), in_list_view: 1, columns: narrow ? 3 : 2},
 				]},
 			{fieldtype: "Section Break", fieldname: "methods_section", label: __("Collection Method")},
 			{fieldtype: "HTML", fieldname: "methods_area"},
@@ -125,12 +130,26 @@
 			if (!company || !customer) return;
 			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_open_invoices", {company, customer}, "POST");
 			open = found.items || [];
-			dialog.fields_dict.invoices.df.data = open.map(row => ({docnum: row.docnum, doc_date: row.doc_date,
+			// 行要有 name：原生表格的勾选按行名记（`grid.js` setup_check），没名字的行勾了也不算选中
+			dialog.fields_dict.invoices.df.data = open.map(row => ({name: row.docnum, docnum: row.docnum, doc_date: row.doc_date,
 				available: amount(row.available), amount: 0}));
 			dialog.fields_dict.invoices.grid.refresh();
 		}
+		// 勾选一张发票（原生表格的行勾选）= 收它：「本次收」还空着就填未收余额，可再改（11-14 真机：只勾不填提交报「请至少选择一张发票」）
+		const fill_checked = () => {
+			const grid = dialog.fields_dict.invoices.grid;
+			let changed = false;
+			for (const row of grid.get_selected_children()) {
+				if (!amount(row.amount)) { row.amount = row.available; changed = true; }
+			}
+			if (changed) grid.refresh();
+		};
+		// 原生在 click 上记勾选；排在它之后再填
+		dialog.fields_dict.invoices.grid.wrapper.on("click", ".grid-row-check", () => setTimeout(fill_checked));
 		async function submit(values) {
-			const invoices = (dialog.fields_dict.invoices.df.data || [])
+			fill_checked();
+			// 读表格自己的行（在格子里改的「本次收」在这里），不读打开时塞进去的那份
+			const invoices = (dialog.fields_dict.invoices.grid.get_data() || [])
 				.filter(row => amount(row.amount) > 0).map(row => ({docnum: row.docnum, amount: row.amount}));
 			const chosen = [
 				...(methods?.transfers || []).map((row, index) => ({prefix: row.prefix,

@@ -48,8 +48,9 @@ def cleanup(lab, manifest, params):
 
 
 def steps(params, camera_code=None):
+    # 11-14 真机：旧卡【编辑】整页打开旧地址，外壳把它当成不是本产品的页、换回首页。流程按真的进法走：登记里的 start 是
+    # LINE 卡片同一个入口 `line_login.enter?to=/desk/pearnly-my-collections/<记录>`（已登录直接整页跳过去），这里不再在页面里切路由
     return [{"name": "改草稿", "js": JS + f"""
-frappe.set_route('pearnly-my-collections', {json.dumps(params['name'])});
 const dialog=await until(()=>window.cur_dialog&&cur_dialog.display&&cur_dialog.fields_dict.invoice_0&&cur_dialog, 25000);
 if(!dialog) return {{error:'no dialog', msg: msg()}};
 await idle();
@@ -59,7 +60,7 @@ const before={{invoices:[dialog.get_value('invoice_0'), dialog.get_value('invoic
 await dialog.set_value('invoice_0', 900); await dialog.set_value('cash', 900); await dialog.set_value('salesman', 'S2'); await sleep(300);
 dialog.get_primary_btn().click();
 const closed=await until(()=>!dialog.display, 20000); await idle();
-return {{before, closed: !!closed, msg: msg(), route: frappe.get_route()}};"""}]
+return {{before, closed: !!closed, msg: msg(), route: frappe.get_route(), path: location.pathname}};"""}]
 
 
 def judge(params, results, camera_code=None):
@@ -77,6 +78,9 @@ def judge(params, results, camera_code=None):
          "ok": before.get("invoices") == [1000, 500] and before.get("cash") == 1000 and len(before.get("methods") or []) == 3
          and before.get("salesman") == "S1" and before.get("department") == params["department"]},
         {"case": "saved", "seen": {k: seen.get(k) for k in ("closed", "msg", "error")}, "ok": bool(seen.get("closed"))},
+        {"case": "the old edit address opened the record on the collections page (not the home page)",
+         "seen": {k: seen.get(k) for k in ("route", "path", "error")},
+         "ok": (seen.get("route") or [None])[0] == "pearnly-collections" and seen.get("path", "").startswith("/desk/pearnly-collections/")},
     ]
 
 
