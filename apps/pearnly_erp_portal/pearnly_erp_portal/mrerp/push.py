@@ -203,6 +203,25 @@ def run(doctype, name, document):
             values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
     _set(doctype, name, values)
     frappe.db.commit()
+    if values.get("ledger_state") in (express_contracts.WRITTEN, express_contracts.MISMATCH):
+        _after_write(company.name)
+
+
+def _after_write(company):
+    """写进了 MR.ERP（含写入核不上）：通知主档整读一次（公司接入第 3 批 `mrerp.masters.after_write`：去重、排进主档队列）。
+    那边还没合入就跳过；它出错不改写账结论。"""
+    try:
+        from pearnly_erp_portal.mrerp import masters
+    except ImportError:
+        return
+    hook = getattr(masters, "after_write", None)
+    if hook is None:
+        return
+    try:
+        hook(company)
+    except Exception:  # noqa: BLE001 — 主档整读只是后续同步，不影响已落定的写账结论
+        frappe.db.rollback()
+        frappe.log_error(title="mrerp masters after_write")
 
 
 def answer(doctype, name, answers) -> bool:

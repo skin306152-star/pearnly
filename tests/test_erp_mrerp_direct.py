@@ -298,6 +298,36 @@ class SwitchedOn(unittest.TestCase):
             saved = DB.table(PURCHASE)["PUR-1"]
             self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected)
 
+    def test_a_write_asks_the_masters_to_be_read_once_and_a_failure_does_not(self):
+        """公司接入第 3 批的接缝（`mrerp.masters.after_write`）：写进 MR.ERP 后调一次；失败不调；它出错不改写账结论；还没有这个
+        模块时跳过。"""
+        called = []
+        masters = types.ModuleType("pearnly_erp_portal.mrerp.masters")
+        masters.after_write = lambda company: called.append(company)
+        with patch.dict(sys.modules, {"pearnly_erp_portal.mrerp.masters": masters}):
+            doc(ledger_state="queued", ledger_target="mrerp")
+            with _Module({"status": "success", "docnum": "PG691114-000002", "menus": {}, "masters": {}}):
+                push.run(PURCHASE, "PUR-1", document)
+            self.assertEqual(called, ["CO-1"])
+            doc(name="PUR-2", ledger_state="queued", ledger_target="mrerp")
+            with _Module({"status": "failed", "reason": "ERR_NO_SUPPLIER"}):
+                push.run(PURCHASE, "PUR-2", document)
+            self.assertEqual(called, ["CO-1"])
+
+            def broken(company):
+                raise RuntimeError("queue down")
+            masters.after_write = broken
+            doc(name="PUR-3", ledger_state="queued", ledger_target="mrerp")
+            with _Module({"status": "success", "docnum": "PG691114-000003", "menus": {}, "masters": {}}):
+                push.run(PURCHASE, "PUR-3", document)
+            saved = DB.table(PURCHASE)["PUR-3"]
+            self.assertEqual((saved["ledger_state"], saved["ledger_docnum"]), ("written", "PG691114-000003"))
+        doc(name="PUR-4", ledger_state="queued", ledger_target="mrerp")
+        with patch.dict(sys.modules, {"pearnly_erp_portal.mrerp.masters": None}), \
+                _Module({"status": "success", "docnum": "PG691114-000004", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-4", document)  # 接入那边还没合入：import 失败就跳过
+        self.assertEqual(DB.table(PURCHASE)["PUR-4"]["ledger_state"], "written")
+
     def test_a_paid_purchase_is_imported_as_a_cash_purchase(self):
         # 11-14 起现购照写：票面付款 = cash，共用层第 9 列放现金供应商、第 10 列真实卖家（与 Cowork 同一份）
         doc(ledger_state="queued", ledger_target="mrerp", paid=True)
