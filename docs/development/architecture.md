@@ -274,6 +274,7 @@ Cowork 3.8 视觉复核 `OCR_LAYER3_ENABLED` 仍默认关。识别前都用 `ocr
 - **筛选**：用原生 FilterArea，运算符也照原生实现。「等于 / 介于」由 `p.filter_values` 翻成各页参数；其余运算符（不等于、包含、不包含、在…之中、大于、为空、时间段）由 `p.filter_conditions` 原样交给服务端，服务端按本页白名单交给 `frappe.get_list` 执行（`pearnly_core.desk.list_filters`）。不在库里的恒定值（如销售记录里的收银小票）用 `list_filters.matches` 按同一口径判断。
 - **导出**：走 `p.export_file`，由服务端生成文件，大的排后台。参数多时用 POST，不拼进网址。
 - **闸门**：`scripts/check-unbounded-queries.py`。服务端无上限查询，或前端 `limit: 0` / `p.sort_rows(`，按文件计数，超过 `scripts/unbounded-queries-baseline.json` 的基线就失败。基线只许减少。天然有界的（按单号、一张单的明细、固定的小字典）在那一行写 `# bounded: 原因`。冒烟的页面打开时限是 3 秒（`verification.md`「大数据量」）。
+- **逐行查询（N+1）**：循环里不查库——循环外按 `["in", 名单]` 一次取回建字典，循环里查字典；同一请求反复读的小主档用 `frappe.get_cached_value`。`scripts/check-loop-queries.py` 拦新增的「循环里直接查库或调用会查库的本仓函数」，按文件计数、基线 `scripts/loop-queries-baseline.json` 只许减少；确实有界的（几家公司、几个仓）在那一行写 `# loop-query: 原因`。按表过滤的字段要有索引（Frappe 原生 `on_doctype_update` + 补丁补建）。实测法与上限表见 `scripts/perf/README.md`（11-14 盘点明细 251 行发 1,362 条、线上 6–7 秒）。
 
 ### 智能体底座（ADR-019，2026-10-10）
 

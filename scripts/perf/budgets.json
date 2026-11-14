@@ -1,0 +1,22 @@
+{
+  "_说明": "性能体检上限（scripts/perf/pages.py --budget）。page_ms：页面可用；api_ms：每个首屏接口服务端毫秒（实验栈，生产同版镜像经 amd64 模拟，比线上慢）；apis：按接口名末段另给的上限，queries 是查询条数（逐行查询的闸，数据量变大时不该跟着涨）。基线在 docs/work/2026-11-14-page-performance.md。",
+  "page_ms": 2000,
+  "api_ms": 300,
+  "apis": {
+    "api_stock_count_review": {"ms": 300, "queries": 80},
+    "api_stock_count_lookup": {"queries": 100},
+    "api_list_stock_counts": {"queries": 20},
+    "api_list_members": {"queries": 40},
+    "api_list_products": {"queries": 20},
+    "api_stock": {"queries": 40},
+    "api_stock_summary_page": {"queries": 40},
+    "api_list_stock_entries": {"queries": 20},
+    "api_purchase_records": {"queries": 30},
+    "api_sales_records": {"queries": 40},
+    "api_list_sales": {"queries": 30},
+    "api_list_shifts": {"queries": 30},
+    "api_list_customers": {"queries": 30},
+    "api_collections": {"queries": 30},
+    "board": {"queries": 60}
+  }
+}
