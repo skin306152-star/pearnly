@@ -117,14 +117,12 @@ def sync_all():
             _enqueue(row.name)  # loop-query: 只排队（每家一件后台任务），状态已在上面一次取回
 
 
-def _enqueue(company, notify=None, manual=False):
-    """排一件整读任务并记「排队中」（调用方已确认开关、公司接 MR.ERP、不在读）。"""
-    if notify:
-        frappe.cache.hset(ledger_masters.NOTIFY_KEY + company, notify, 1)
+def _enqueue(company):
+    """（每小时那次）排一件整读任务并记「排队中」：调用方已确认开关、公司接 MR.ERP、不在读；不算人点的。"""
     ledger_masters._record(company, {"state": ledger_masters.QUEUED})
     frappe.enqueue("pearnly_erp_portal.mrerp.masters.run", queue=ledger_masters.lane(), timeout=JOB_TIMEOUT,
                    enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company,
-                   manual=bool(manual))
+                   manual=False)
 
 
 def run(company, manual=False):

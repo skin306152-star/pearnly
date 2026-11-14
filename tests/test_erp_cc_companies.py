@@ -561,7 +561,8 @@ class AddCompanyTests(unittest.TestCase):
             {"source_id": "c71:db1", "label": "TEST2019", "attributes": {"company": "TEST", "comidyear": "71",
                                                                         "company_name": "1010-01-000006 บริษัท ทดสอบ จำกัด"}}]}
         catalog._sets = lambda name: self.sets.get(name, [])
-        catalog.identity = lambda conn, attrs: (f"tax:{attrs['tax_id']}" if attrs.get("tax_id")
+        catalog.site_host = lambda conn: "mrerp.example"
+        catalog.identity = lambda conn, attrs, host=None: (f"tax:{attrs['tax_id']}" if attrs.get("tax_id")
                                                 else f"row:mrerp.example|{attrs['company']}|{attrs['company_name']}")
         catalog.legal_name = lambda attrs, fallback="": (attrs.get("company_name") or "").split(" ", 1)[-1] \
             if (attrs.get("company_name") or "")[:1].isdigit() else (attrs.get("company_name") or fallback)
