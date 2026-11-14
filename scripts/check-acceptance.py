@@ -469,7 +469,7 @@ def report(registry: Registry) -> str:
         f"业务链：{len(registry.chains)} 条登记；有串联场景的 {len({s.get('chain') for s in registry.scenarios.values() if s.get('chain')} | {f.get('chain') for f in registry.flows.values() if f.get('chain')})} 条",
         f"欠的场景：{len(owed)} 项（其中在存量基线里 {len(owed & registry.baseline)} 项）："
         + "、".join(f"{label} {count}" for label, count in owed_summary(owed)),
-        f"CC 对话乱用种子：{len(registry.talk)} 类；用例骨架 {len(registry.cases.get('case', []))} 条（驱动没接，都没跑过）；已登记成场景的 "
+        f"CC 对话乱用种子：{len(registry.talk)} 类；用例骨架 {len(registry.cases.get('case', []))} 条（都没跑过）；已登记成场景的 "
         f"{len({code for s in registry.scenarios.values() for code in s.get('talk', [])})} 类；底线 {len(registry.lines)} 条",
     ]
     for scenario_id, scenario in sorted(registry.scenarios.items()):

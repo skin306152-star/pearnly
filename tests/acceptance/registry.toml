@@ -25,7 +25,7 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "ledger:69EXP/TEST2"]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
