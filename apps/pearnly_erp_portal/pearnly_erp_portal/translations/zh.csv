@@ -657,6 +657,7 @@ Find,查询
 Find product,查找物料
 Finish,完成
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
+Finish this stock count?,确定要结束此盘点吗？
 Finished a stock count,结束了盘点
 Finishing a stock count,正在结束盘点
 First Receipt,首张小票
@@ -1856,6 +1857,7 @@ Who can comment,评论权限
 Whole document taxed,按账套设置整张计税
 With differences,有差异
 Withdraw,撤回
+Withdraw this collection?,确定要撤回此收款吗？
 Withdrawing a collection,正在撤回收款
 Withdrawn,已撤回
 Withdrew a collection,撤回了收款

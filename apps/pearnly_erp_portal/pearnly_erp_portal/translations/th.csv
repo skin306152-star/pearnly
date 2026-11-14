@@ -657,6 +657,7 @@ Find,ค้นหา
 Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
+Finish this stock count?,ปิดการตรวจนับนี้หรือไม่
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
 Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Receipt,ใบเสร็จแรก
@@ -1856,6 +1857,7 @@ Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole document taxed,คิดภาษีทั้งใบตามชุดบัญชี
 With differences,มีผลต่าง
 Withdraw,ถอนรายการ
+Withdraw this collection?,ถอนรายการรับชำระนี้หรือไม่
 Withdrawing a collection,กำลังถอนรายการรับชำระ
 Withdrawn,ยกเลิกแล้ว
 Withdrew a collection,ถอนรายการรับชำระแล้ว

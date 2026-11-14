@@ -579,9 +579,14 @@ Default board,既定のボード
 Default handling for this folder,既定の処理
 Defaults,既定値
 Delete selected ({0}),選択を削除（{0}）
+Delete these documents?,これらの書類を削除しますか？
+Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
+Delete these stock counts?,これらの棚卸を削除しますか？
+Delete these tax drafts?,これらの申告下書きを削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
+Delete this readback?,この読み戻しを削除しますか？
 Delete {0},{0}件を削除
 Delete {0} item permanently?,{0} 件を完全に削除しますか？
 Delete {0} items permanently?,{0} 件を完全に削除しますか？
@@ -793,6 +798,7 @@ Fingerprint,フィンガープリント
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,差異を在庫に反映して終了しますか？確認済み {0} 件、未確認 {1} 件は変更しません。終了後は閲覧・出力のみです。
 "Finish this count? {0} counted, {1} uncounted; the task becomes read-only.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件で、終了後は閲覧とエクスポートのみ可能です。
+Finish this stock count?,この棚卸を終了しますか？
 Finished a stock count,棚卸を終了しました
 Finishing a stock count,棚卸を終了しています
 First Recognition Snapshot,初回認識結果のスナップショット
@@ -1089,6 +1095,7 @@ Network Path,ネットワークパス
 Never,なし
 New Files,新規ファイル数
 New code,新しいコード
+New files are recognized (charged) and pushed,新しいファイルを認識（課金）して送信します
 New folder rule,ルールを作成
 New items:,新しい品目：
 New records must start as drafts.,新しいレコードは下書きとして作成する必要があります。
@@ -1522,6 +1529,7 @@ Run now,今すぐ実行
 Run now (tasks: {0}):,今すぐ実行（{0} 件）：
 Run on day,実行日
 Run requested. CC Desktop starts within a few minutes.,実行を依頼しました。数分以内に開始します。
+Run this scheduled task now?,この定期タスクを今すぐ実行しますか？
 Run time,実行時刻
 SHA-256,SHA-256
 SKU,SKU
@@ -2498,6 +2506,7 @@ cowork.folder.root_invalid,CC デスクトップが報告したルートを選�
 cowork.folder.rule_disabled,この定期タスクは停止中です。
 cowork.folder.rule_missing,このパソコンにこの定期タスクはありません。
 cowork.folder.runNow,今すぐ実行
+cowork.folder.runNow.charge,新しいファイルを認識（課金）して送信します
 cowork.folder.runRequested,実行を依頼しました。数分以内に開始します。
 cowork.folder.runScan,検出 {0} · 新規 {1} · スキップ {2} · アップロード失敗 {3}
 cowork.folder.runs,実行履歴

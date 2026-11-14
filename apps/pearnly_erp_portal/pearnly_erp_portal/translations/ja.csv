@@ -657,6 +657,7 @@ Find,検索
 Find product,商品を検索
 Finish,完了
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
+Finish this stock count?,この棚卸を終了しますか？
 Finished a stock count,棚卸を終了しました
 Finishing a stock count,棚卸を終了しています
 First Receipt,最初のレシート
@@ -1856,6 +1857,7 @@ Who can comment,コメントできる人
 Whole document taxed,会計データの設定どおり全体に課税
 With differences,差異あり
 Withdraw,取り下げ
+Withdraw this collection?,この入金を取り下げますか？
 Withdrawing a collection,入金を取り下げています
 Withdrawn,取り消し済み
 Withdrew a collection,入金を取り下げました

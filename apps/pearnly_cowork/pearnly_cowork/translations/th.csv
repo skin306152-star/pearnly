@@ -579,9 +579,14 @@ Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
+Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
+Delete these stock counts?,ลบการตรวจนับเหล่านี้หรือไม่
+Delete these tax drafts?,ลบร่างแบบภาษีเหล่านี้หรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
+Delete this readback?,ลบการอ่านข้อมูลกลับนี้หรือไม่
 Delete {0},ลบ {0} รายการ
 Delete {0} item permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
 Delete {0} items permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
@@ -793,6 +798,7 @@ Fingerprint,ลายนิ้วมือข้อมูล
 Finish,เสร็จสิ้น
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
 "Finish this count? {0} counted, {1} uncounted; the task becomes read-only.",ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น
+Finish this stock count?,ปิดการตรวจนับนี้หรือไม่
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
 Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Recognition Snapshot,สำเนาผลการอ่านครั้งแรก
@@ -1089,6 +1095,7 @@ Network Path,พาธเครือข่าย
 Never,ไม่ซ้ำ
 New Files,จำนวนไฟล์ใหม่
 New code,สร้างรหัสใหม่
+New files are recognized (charged) and pushed,ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ
 New folder rule,สร้างกฎ
 New items:,สินค้าใหม่:
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
@@ -1522,6 +1529,7 @@ Run now,เรียกใช้ทันที
 Run now (tasks: {0}):,ทำงานทันที ({0} งาน):
 Run on day,วันที่ทำงานประจำเดือน
 Run requested. CC Desktop starts within a few minutes.,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
+Run this scheduled task now?,เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่
 Run time,เวลาทำงาน
 SHA-256,SHA-256
 SKU,SKU
@@ -2498,6 +2506,7 @@ cowork.folder.root_invalid,กรุณาเลือกโฟลเดอร�
 cowork.folder.rule_disabled,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
 cowork.folder.rule_missing,ไม่พบงานตามกำหนดเวลานี้ในเครื่องนี้
 cowork.folder.runNow,เรียกใช้ทันที
+cowork.folder.runNow.charge,ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ
 cowork.folder.runRequested,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
 cowork.folder.runScan,พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
 cowork.folder.runs,ประวัติการทำงาน
