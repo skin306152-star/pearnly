@@ -124,3 +124,24 @@ DMS、Cowork 的菜单发布是同一写法，按类一起改：共用层 `pearn
 - 新文案两条（新增，已按主会话要求登记 copy-approved）；收款列表「收款员」列不改。
 - 测试：`test_erp_collection.Books.test_no_book_names_the_date_and_each_connected_book_period`、
   `test_erp_cc_chat_push.PendingToolTests.test_no_book_names_the_date_and_each_book_period_reading_the_books_once_per_company`。
+
+## 7. 发布说明素材（给主会话写发布记录用）
+
+### 修复：CC 拒收的原因码大小写对不上（11-13 上线起）
+- 现象：CC 桌面版写收款前发现发票已被收清 / 不存在时回 `[already_collected] …` / `[invoice_not_found] …`（小写，`dbf_receipt` 契约原样），
+  服务端按大写 `ALREADY_COLLECTED` / `INVOICE_NOT_FOUND` 比，从没认出。
+- 线上影响（只这两种拒收）：收款记录照样记「失败」并带原因（这部分对），但①各张发票此刻的余额没记到记录上，②没按客户重读一次未收清发票，
+  ③LINE 推的是「未写入 Express：<原文>」而不是「已被收款，当前余额 …」。Express 里没有写错任何东西（CC 整单没写）。
+  应收快照会在这位客户下次被录收款时按客户重读（`open_invoices` 带 refresh），会自己补上；不需要补数据。
+- 修后：认得小写码；这两种和另外 5 种写前拒绝改为退回草稿、还回 LINE 卡（§4.3）。上线前已失败的记录不迁移，仍是「失败」，可以撤回后重录。
+- 线上范围怎么查（只读，一次 SSH 进 web 容器，逐个 ERP 站点 bench console，不写）：
+  ```python
+  rows = frappe.get_all("ERP Collection", filters={"status": "failed"}, or_filters=[["reason", "like", "[already_collected]%"],
+                        ["reason", "like", "[invoice_not_found]%"]], fields=["name", "company", "customer", "reason", "modified"],
+                        limit_page_length=200)
+  print(len(rows)); print(rows)
+  ```
+  我没连生产（规矩），等主会话排。
+
+### 修复：「没有账套」说不清（§6）、管理员默认有收款（§1）、后台回复语言（§4.1）
+见各节。§1 上线后按 §1 的清单逐家回读管理员菜单。
