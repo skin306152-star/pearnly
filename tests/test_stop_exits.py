@@ -65,8 +65,10 @@ class RepositoryTests(unittest.TestCase):
 
     def test_reasons_that_recover_by_themselves_wait_and_choices_ask(self):
         for code, level in operator.REASONS.items():
-            if level != operator.HUMAN:
+            if level != operator.HUMAN and code != "user_active":
                 self.assertEqual(s.EXITS[code]["next"], s.WAIT, code)
+        # 人在账本里操作打断了 CC：现在是自己等 30 秒接着录，用户 11-14 定改成停下给「继续 / 停止」
+        self.assertEqual(s.EXITS["user_active"], {"next": "ask", "source": "fixed", "by": "desktop", "phase": "p2"})
         for code in ("UNIT_CHOICE", "COST_BASIS_CHOICE", "CASH_ACCOUNT_CHOICE", "menu_choice", "company_pick", "choice_needed",
                      "express.account_set_several", "ledger_needed", "already_entered", "last_write_result_unknown"):
             self.assertEqual(s.EXITS[code]["next"], s.ASK, code)
