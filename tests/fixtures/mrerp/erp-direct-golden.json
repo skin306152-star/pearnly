@@ -5,8 +5,10 @@
     {
      "direction": "purchase",
      "fields": {
+      "buyer_branch": "00000",
       "buyer_name": "บริษัท เรา จำกัด",
       "buyer_tax": "0105559000001",
+      "currency": "THB",
       "date": "2026-09-12",
       "direction": "purchase",
       "invoice_number": "IV6909-0013",
@@ -26,6 +28,7 @@
       ],
       "posting_item_type_manual": "expense",
       "posting_payment_manual": "credit",
+      "seller_branch": "00000",
       "seller_name": "บริษัท ผู้ขาย จำกัด",
       "seller_tax": "0105561012345",
       "subtotal": "1500.00",
@@ -58,8 +61,10 @@
     {
      "direction": "purchase",
      "fields": {
+      "buyer_branch": "00000",
       "buyer_name": "บริษัท เรา จำกัด",
       "buyer_tax": "0105559000001",
+      "currency": "THB",
       "date": "2026-09-12",
       "direction": "purchase",
       "invoice_number": "IV6909-0012",
@@ -79,6 +84,7 @@
       ],
       "posting_item_type_manual": "goods",
       "posting_payment_manual": "credit",
+      "seller_branch": "00000",
       "seller_name": "บริษัท ผู้ขาย จำกัด",
       "seller_tax": "0105561012345",
       "subtotal": "1500.00",
@@ -111,8 +117,10 @@
     {
      "direction": "sales",
      "fields": {
+      "buyer_branch": "00000",
       "buyer_name": "บริษัท ลูกค้า จำกัด",
       "buyer_tax": "0105562055501",
+      "currency": "THB",
       "date": "2026-09-12",
       "direction": "sales",
       "invoice_number": "SAL-2026-00008",
@@ -131,6 +139,7 @@
        }
       ],
       "posting_payment_manual": "cash",
+      "seller_branch": "00000",
       "seller_name": "บริษัท เรา จำกัด",
       "seller_tax": "0105559000001",
       "subtotal": "1500.00",
@@ -161,8 +170,10 @@
     {
      "direction": "sales",
      "fields": {
+      "buyer_branch": "00000",
       "buyer_name": "บริษัท ลูกค้า จำกัด",
       "buyer_tax": "0105562055501",
+      "currency": "THB",
       "date": "2026-09-12",
       "direction": "sales",
       "invoice_number": "SAL-2026-00007",
@@ -181,6 +192,7 @@
        }
       ],
       "posting_payment_manual": "credit",
+      "seller_branch": "00000",
       "seller_name": "บริษัท เรา จำกัด",
       "seller_tax": "0105559000001",
       "subtotal": "1500.00",

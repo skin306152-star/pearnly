@@ -137,12 +137,17 @@ class Receipt(unittest.TestCase):
         self.assertEqual((row.verify_state, json.loads(row.verify_json)["fields"]), ("mismatch", ["party_tax"]))
         module._automation_mismatch(row, {"automation": {"class": "A", "account_row": {"source_id": "x"}}})
         self.assertEqual(hooked, [("C1", "c:\\pearnlyexpress\\69acme", {"source_id": "x"})])
-        # 旧版不带 verify：unverified；MR.ERP 不核
+        # 旧版不带 verify：unverified
         row = Row(name="CWP-2")
         self.assertEqual(module._written_check(row, {"party_face": face}, {"meta": {}}), "unverified")
         self.assertEqual(row.verify_state, "unverified")
+        # MR.ERP（11-14 起）：服务端导入后读回列表核含税合计，同一个 meta.verify、同一套记法
         row = Row(name="CWP-3")
-        self.assertIsNone(module._written_check(row, {"adapter": "mrerp"}, {"meta": {}}))
+        verify = {"meta": {"verify": {"state": "mismatch", "fields": ["amount"]}}}
+        self.assertEqual(module._written_check(row, {"adapter": "mrerp"}, verify), "mismatch")
+        self.assertEqual(json.loads(row.verify_json)["fields"], ["amount"])
+        row = Row(name="CWP-4")
+        self.assertIsNone(module._written_check(row, {"adapter": "dms"}, {"meta": {}}))
         self.assertNotIn("verify_state", row)
 
     def test_only_success_is_checked_and_only_automatic_pushes_touch_the_tier(self):

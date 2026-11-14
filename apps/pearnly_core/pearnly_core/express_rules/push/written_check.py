@@ -18,10 +18,10 @@ OK, MISMATCH, UNVERIFIED = "ok", "mismatch", "unverified"
 STATES = (OK, MISMATCH, UNVERIFIED)
 # CC 桌面版回的不符项（`write_verify.FIELDS`）加服务端自己比出的两项
 COMPANION_FIELDS = ("party_code", "party_master", "account", "date", "rectyp", "refnum", "vat_tax_id", "vat_branch",
-                    "pos_date", "unreadable",
-                    # MR.ERP 由服务端导入后读回列表核对（`mrerp.push.readback.amount_check`）：含税合计对不上票面
-                    "amount")
-FIELDS = (*COMPANION_FIELDS, "party_tax", "party_branch")
+                    "pos_date", "unreadable")
+# MR.ERP 没有 CC 桌面版这一步：服务端导入后读回列表核对（`mrerp.push.readback.amount_check`），含税合计对不上票面
+READBACK_FIELDS = ("amount",)
+FIELDS = (*COMPANION_FIELDS, *READBACK_FIELDS, "party_tax", "party_branch")
 TAX_MAX, BRANCH_MAX = 20, 5
 
 
@@ -42,7 +42,7 @@ def clean(raw: Any) -> Optional[Dict[str, Any]]:
         return None
     fields = raw.get("fields") if isinstance(raw.get("fields"), list) else []
     party = raw.get("party") if isinstance(raw.get("party"), Mapping) else {}
-    kept = [name for name in COMPANION_FIELDS if name in {str(item) for item in fields}]
+    kept = [name for name in (*COMPANION_FIELDS, *READBACK_FIELDS) if name in {str(item) for item in fields}]
     out_party = {}
     for key, limit in (("tax_id", TAX_MAX), ("branch", BRANCH_MAX)):
         if key in party:
@@ -70,4 +70,4 @@ def outcome(verify: Any, party_face: Optional[Mapping[str, Any]]) -> Dict[str, A
             "party": party}
 
 
-__all__ = ["FIELDS", "MISMATCH", "OK", "STATES", "UNVERIFIED", "clean", "face", "outcome"]
+__all__ = ["FIELDS", "MISMATCH", "OK", "READBACK_FIELDS", "STATES", "UNVERIFIED", "clean", "face", "outcome"]

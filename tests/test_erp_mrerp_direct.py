@@ -684,6 +684,27 @@ class PureRules(unittest.TestCase):
         self.assertEqual(contracts.settle({"status": "failed", "reason": "ERR_AUTH: x"}),
                          {"ledger_state": "failed", "ledger_reason": "ERR_AUTH: x"})
 
+    def test_a_written_import_whose_listed_amount_differs_is_a_mismatch(self):
+        verify = {"meta": {"verify": {"state": "mismatch", "fields": ["amount"]}}}
+        self.assertEqual(contracts.settle({"status": "success", "docnum": "SI1", **verify})["ledger_state"], "mismatch")
+        self.assertEqual(contracts.settle({"status": "success", "docnum": "SI1",
+                                           "meta": {"verify": {"state": "ok"}}})["ledger_docnum"], "SI1")
+
+    def test_the_document_face_carries_payment_method_party_record_branch_and_currency(self):
+        """11-14 TEST2019 真写：转账收款的销售记进了现金栏（SE691114-861564）、没税号客户的未收款销售被改成现销挂「เงินสด」
+        （SE691114-614656）——ERP 票面没带付款方式与对方记录号。"""
+        body = {"ref": "SD-1@1", "direction": "sales", "date": "2026-11-14", "number": "SD-1", "paid": True,
+                "company": {"tax_id": "0105989581512", "branch": "00000"},
+                "party": {"code": "", "name": "ลูกค้า", "tax_id": "", "branch": "00001"}, "currency": "THB",
+                "subtotal": "300.00", "vat": "21.00", "total": "321.00",
+                "items": [{"name": "A", "qty": "2", "price": "150.00", "amount": "300.00"}]}
+        flat = contracts.history(body, company_name="เรา", payment_method="transfer", party_id="CUS-00012")
+        self.assertEqual((flat["client_id"], flat["fields"]["payment_method"], flat["fields"]["buyer_branch"],
+                          flat["fields"]["currency"]), ("CUS-00012", "transfer", "00001", "THB"))
+        unpaid = contracts.history(dict(body, paid=False), company_name="เรา", payment_method="cash")
+        self.assertNotIn("payment_method", unpaid["fields"])
+        self.assertNotIn("client_id", unpaid)
+
     def test_the_mrerp_number_is_stable_per_document_and_hex(self):
         self.assertEqual(contracts.history_id("PUR-1@1"), contracts.history_id("PUR-1@1"))
         self.assertNotEqual(contracts.history_id("PUR-1@1"), contracts.history_id("PUR-1@2"))

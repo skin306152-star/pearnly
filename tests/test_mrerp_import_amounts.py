@@ -139,6 +139,22 @@ class Discount(unittest.TestCase):
         self.assertEqual((block["vat_rate"], block["totals"]["net"]), ("0", "500.00"))
 
 
+class Routing(unittest.TestCase):
+    def test_an_explicit_credit_sale_without_a_buyer_stays_a_credit_sale(self):
+        """无买方身份的销售只在没人明确选赊账时才算散客现销（11-14 ERP 真写：未收款、客户没税号的单被改成现销）。"""
+        from datetime import date
+        from pearnly_core.mrerp.push import routing
+
+        walkin = ticket("b1", "sales", [{"name": "A", "qty": "1", "price": "200", "subtotal": "200"}],
+                        subtotal="200.00", vat="14.00", total_amount="214.00")
+        walkin["fields"]["buyer_tax"] = ""
+        credit = dict(walkin, fields=dict(walkin["fields"], posting_payment_manual="credit"))
+        groups, _ = routing.group_by_doc_type([walkin, credit], {"_own_tax_id": OWN}, "sales_credit",
+                                              today=date(2026, 11, 14))
+        self.assertEqual({k: [h["id"] for h in v] for k, v in groups.items()},
+                         {"sales_cash": [walkin["id"]], "sales_credit": [credit["id"]]})
+
+
 class WrittenCheck(unittest.TestCase):
     def test_listed_amount_against_the_printed_total(self):
         self.assertEqual(readback.amount_check("1,605.00", "1605.00"), {"state": "ok", "fields": []})

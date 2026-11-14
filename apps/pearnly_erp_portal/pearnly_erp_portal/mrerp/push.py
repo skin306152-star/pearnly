@@ -91,8 +91,10 @@ def prepare(doctype, name, document) -> dict:
     needed = contracts.needed(menu_view, master_view, body["direction"])
     if needed:
         return {"hold": contracts.CHOICE, "needed": needed}
-    flat = contracts.history(body, company_name=row.company_name,
-                             doc_kind=frappe.db.get_value(doctype, name, "doc_kind") or "")
+    party_field = "supplier" if body["direction"] == "purchase" else "customer"
+    found = frappe.db.get_value(doctype, name, ["doc_kind", "payment_method", party_field], as_dict=True) or {}
+    flat = contracts.history(body, company_name=row.company_name, doc_kind=found.get("doc_kind") or "",
+                             payment_method=found.get("payment_method") or "", party_id=found.get(party_field) or "")
     menus, defaults = choices.chosen(row)
     return {"payload": contracts.payload(flat, own_tax_id=body["company"]["tax_id"], menus=menus, defaults=defaults),
             "company": row, "direction": body["direction"]}

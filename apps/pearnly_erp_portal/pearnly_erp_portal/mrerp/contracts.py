@@ -36,11 +36,15 @@ def history_id(ref: str) -> str:
     return "ERP-" + hashlib.sha256(str(ref or "").encode("utf-8")).hexdigest()[:24]
 
 
-def history(body: dict, *, company_name: str, doc_kind: str = "") -> dict:
-    """ERP 单据（`express.contracts.document` 的形状）→ MR.ERP 规则读的拍平票面。"""
+def history(body: dict, *, company_name: str, doc_kind: str = "", payment_method: str = "", party_id: str = "") -> dict:
+    """ERP 单据（`express.contracts.document` 的形状）→ MR.ERP 规则读的拍平票面。
+
+    11-14 TEST2019 真写补的三样（与 Cowork 票面同名的键）：``payment_method``（已收款的销售按它分现金栏 / 银行科目，原来没有，
+    转账收款记进了现金栏）；``client_id`` = ERP 对方记录号（对方没有税号时 MR.ERP 按「C + 记录号」自建，原来落进「เงินสด」）；
+    对方分店与币种（自建对方的分店、外币单的防呆，同 Cowork）。"""
     direction = body["direction"]
-    own = {"name": str(company_name or "").strip(), "tax": body["company"]["tax_id"]}
-    party = {"name": body["party"]["name"], "tax": body["party"]["tax_id"]}
+    own = {"name": str(company_name or "").strip(), "tax": body["company"]["tax_id"], "branch": body["company"]["branch"]}
+    party = {"name": body["party"]["name"], "tax": body["party"]["tax_id"], "branch": body["party"]["branch"]}
     seller, buyer = (party, own) if direction == "purchase" else (own, party)
     items = [{"name": item["name"], "qty": item["qty"], "unit_price": item["price"], "amount": item["amount"]}
              for item in body["items"]]
@@ -48,11 +52,17 @@ def history(body: dict, *, company_name: str, doc_kind: str = "") -> dict:
               "total_amount": body["total"], "direction": direction, "items": items,
               "seller_name": seller["name"], "seller_tax": seller["tax"],
               "buyer_name": buyer["name"], "buyer_tax": buyer["tax"],
+              "seller_branch": seller["branch"], "buyer_branch": buyer["branch"], "currency": body.get("currency") or "THB",
               "posting_payment_manual": "cash" if body["paid"] else "credit"}
+    if body["paid"] and payment_method:
+        fields["payment_method"] = str(payment_method)
     if direction == "purchase":
         fields["posting_item_type_manual"] = "expense" if doc_kind in EXPENSE_KINDS else "goods"
-    return {"id": history_id(body["ref"]), "invoice_no": body["number"], "invoice_date": body["date"],
-            "total_amount": body["total"], "direction": direction, "fields": fields}
+    out = {"id": history_id(body["ref"]), "invoice_no": body["number"], "invoice_date": body["date"],
+           "total_amount": body["total"], "direction": direction, "fields": fields}
+    if party_id:
+        out["client_id"] = str(party_id)
+    return out
 
 
 def payload(flat: dict, *, own_tax_id: str, menus: dict, defaults: dict) -> dict:

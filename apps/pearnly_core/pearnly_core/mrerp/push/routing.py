@@ -148,6 +148,10 @@ def _walkin_to_cash(history: Dict[str, Any], default_doc: str, mappings: Dict[st
     if history.get("client_id"):
         return False
     fields = _fields(history)
+    if str(fields.get("posting_payment_manual") or "").strip().lower() == "credit":
+        # 人明确选了赊账（Cowork 入口选的、ERP 未收款的单）：不改成现销。11-14 TEST2019 真写：ERP 一张未收款、客户没税号的销售
+        # 被改成现销、挂「เงินสด」客户、整额进了银行科目
+        return False
     return not clean_tax_id(fields.get("buyer_tax") or fields.get("buyer_tax_id"))
 
 
