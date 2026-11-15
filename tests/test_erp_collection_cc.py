@@ -311,7 +311,7 @@ class Rights(Base):
 
     def test_customers_invoices_and_methods_come_from_the_service(self):
         found = self.call(cc_tools.customers, search="ป้า")
-        self.assertEqual((found["total"], found["customers"]), (1, [{"code": "2100883", "name": "ร้านป้าแดง"}]))
+        self.assertEqual((found["total"], found["customers"]), (1, [{"code": "2100883", "name": "ร้านป้าแดง", "tax_id": ""}]))  # 税号一并给（找客户同一份查询）
         invoices = self.call(cc_tools.invoices, customer="2100883")
         self.assertEqual([(row["docnum"], row["available"]) for row in invoices["invoices"]],
                          [("IV1", "1000.00"), ("IV2", "500.00")])
