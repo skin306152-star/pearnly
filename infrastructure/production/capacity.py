@@ -179,6 +179,11 @@ def calculate(services, containers, product, total_bytes, available_bytes, trans
               if not row.get('profiles') or product in row['profiles']}
     other_bytes = 0
     for row in containers:
+        # 开户 / 改站点用的维护容器（provision-agent.py `ensure_maintenance`）是临时的：建它之前已按 transient 核过当下余量，
+        # 发布那一步就删。它的 1 GiB 上限不算进常驻预算之和，否则同一轮开通后面的检查（restart_web）把自己建的临时容器
+        # 当成常驻，预算余量不到 1 GiB 时每个新租户都卡在这一步（2026-11-15 开 vision：erp-masters-worker 上线后余量约 300 MiB）。
+        if row.get('role') == 'maintenance':
+            continue
         if row['project'] == 'pearnly-production' and row['service'] in services:
             wanted.add(row['service'])
         else:
@@ -236,10 +241,11 @@ def check(product, transient_mib=0):
     containers = []
     if ids:
         # Emit only limits/labels from Docker; never whole container Config.Env.
-        template = '{{json .HostConfig.Memory}}\t{{json (index .Config.Labels "com.docker.compose.project")}}\t{{json (index .Config.Labels "com.docker.compose.service")}}'
+        template = ('{{json .HostConfig.Memory}}\t{{json (index .Config.Labels "com.docker.compose.project")}}\t'
+                    '{{json (index .Config.Labels "com.docker.compose.service")}}\t{{json (index .Config.Labels "pearnly.role")}}')
         for line in output(['docker', 'inspect', '--format', template, *ids]).splitlines():
-            memory, project, service = (json.loads(value) for value in line.split('\t'))
-            containers.append({'memory': memory, 'project': project or '', 'service': service or ''})
+            memory, project, service, role = (json.loads(value) for value in line.split('\t'))
+            containers.append({'memory': memory, 'project': project or '', 'service': service or '', 'role': role or ''})
     mem = {line.split(':')[0]: int(line.split()[1]) * 1024
            for line in Path('/proc/meminfo').read_text().splitlines()
            if line.startswith(('MemTotal:', 'MemAvailable:', 'SwapTotal:'))}

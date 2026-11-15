@@ -301,6 +301,20 @@ others = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['
           for name, row in whole.items() if set(row.get('profiles', [])) & {'dms', 'erp'}]
 fit = capacity.calculate(whole, others, 'cowork', 32095 * M, 23000 * M, swap_bytes=16383 * M)
 assert fit['container_budget_mib'] + fit['host_reserve_mib'] <= min(32095 * capacity.OVERCOMMIT, 32095 + 16383), fit
+# 2026-11-15 开 vision：三个产品全在跑时开 ERP 新租户，同一轮开通自己建的 1 GiB 维护容器还在（发布那一步才删），
+# restart_web 的检查把它算进常驻预算，超过整机上限、每个新租户都卡住。维护容器建之前已按 transient 核过余量，不再计入；
+# 同样大小的其它无主容器照算。
+running_all = [{'project': 'pearnly-production', 'service': name, 'memory': int(row['mem_limit'])}
+               for name, row in whole.items() if set(row.get('profiles', [])) & {'dms', 'erp', 'cowork'}]
+maintenance = {'project': '', 'service': '', 'memory': 1024 * M, 'role': 'maintenance'}
+capacity.calculate(whole, running_all + [maintenance], 'erp', 32095 * M, 23000 * M, swap_bytes=16383 * M)
+try:
+    capacity.calculate(whole, running_all + [{**maintenance, 'role': ''}], 'erp', 32095 * M, 23000 * M, swap_bytes=16383 * M)
+except ValueError as error:
+    assert 'exceed this host' in str(error), error
+else:
+    raise AssertionError('A 1 GiB container that is not a maintenance container must still count against the budget')
+checks.append('The transient maintenance container of a provisioning run is not counted as a standing budget')
 # Cowork 网页进程同 ERP 一样处理约 2000 个请求后换新进程（11-10：没设时单进程只涨不回收，150–404 MB）
 assert '--max-requests=2000' in whole['cowork-web']['command'] and '--max-requests-jitter=200' in whole['cowork-web']['command']
 for cores, mem_mib in ((8, 32 * 1024), (12, 48 * 1024), (16, 64 * 1024), (32, 128 * 1024)):
