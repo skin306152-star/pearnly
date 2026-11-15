@@ -89,9 +89,9 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 控制面页面打开冒烟 | 部署后核 |
 | `pearnly/cowork-withdraw-push`（0be7bcb07，共用件 cowork-intake-upload，手工 6） | 合入队列 | Cowork 撤回 1 行 + 手工入口（D 组 ⑫）；第 ① 步重启测试机1 上用户的 CC，主会话白天问用户 | 待 11-16；第 ① 步**待批** |
 | `pearnly/cc-operator-other-months`（86d0240c9，共用件 assistant，手工 16） | 合入队列 | 月份代录 ①–④（C 组，真模型约 0.5 美元）；⑤ 没批记没测到；手工入口由作者备用 A 写成待测行，并进 C 组末尾 | 待 11-16；待作者给行 |
-| `pearnly/cc-approval-cards-7865fe`（f09af0041，共用件 assistant，手工 15） | 合入队列（rows.toml 待作者答复） | 作者（local_292cabb6）给真机清单 | **缺**：已向作者要 |
+| `cc-approval-cards`（9ac8a8f5f / ce6c56482 / f09af0041，**已在 main 未上线**；按这三个提交的 32 个文件算：共用件 0、上线必验 0、真机单 1 项） | 已在 main | ① cowork.scan.line.stocktake.liff-camera（三星，0 费用；只读摘要不经过相机路径，可记没测到并写原因）；② cowork.cc.approval-cards（约 ฿5）、③ erp.cc.approval-withdraw（约 ฿3）真模型实机，**费用待主会话批**；实验栈流程两条已验 | 待 11-16（D 组 ⑫ / C 组末尾） |
 
-产品地图本批真机单（`check-product-map.py --batch --files <分支相对 main 的文件>`，同 `deploy.sh` 的调用）：搜索统一 2 项（erp_item、liff-camera，已在本车）；cc-approval-cards、capacity-maintenance-transient、control-frontend-source 各报 `cowork.scan.line.stocktake.liff-camera` 1 项（按分支相对分叉点算，这三条分叉点较旧、改到的入口 149 个，进 main 后以 `deploy.sh --dry-run` 打印的为准）。其余为 0。
+产品地图本批真机单（`check-product-map.py --batch --files <分支相对 main 的文件>`，同 `deploy.sh` 的调用）：搜索统一 2 项（erp_item、liff-camera，已在本车）；cc-approval-cards 按它三个提交本身算真机单 1 项（cowork liff-camera，来自 stocktake/upload.py）；capacity-maintenance-transient、control-frontend-source 也各报这 1 项，149 个入口是按旧分叉点带出来的（多半同一原因），进 main 后以 `deploy.sh --dry-run` 打印的为准。其余为 0。
 手工入口数按 `check-impact.py --files` 算（同上），命中 assistant 的几条分支（月份代录、引导式、允许卡等）的手工入口大部分重合，统一点一次即可。
 （11-15 23:1x 一度记「--batch 全报 0 项」：是拼车在 zsh 里没把文件名拆开，工具无误。）
 
