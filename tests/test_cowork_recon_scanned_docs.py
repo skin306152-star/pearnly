@@ -2110,6 +2110,40 @@ class ReviewTaskIsNotCalledUnmatched(unittest.TestCase):
 			notes = revision.bank_notes(doc)
 		self.assertFalse(any("匹配" in note or "match" in note.lower() for note in notes), notes)
 
+class RerunReadsWithoutCharging(unittest.TestCase):
+	"""答了预设问题后用原文件重跑（``recon_center.rerun``）：识别结果按原对账号取，不再提交识别、不再过余额与扣费（11-15 主会话
+	核对：对账重跑不加确认卡的前提就是这一条，守住它）。"""
+
+	def test_an_existing_recognition_is_waited_for_not_submitted_again(self):
+		db = mock.Mock(exists=mock.Mock(return_value=True))
+		with mock.patch.object(document_ocr.core_work, "name_for", return_value="W-OLD") as name_for, \
+				mock.patch.object(document_ocr.frappe, "db", db), mock.patch.object(document_ocr, "_progress"), \
+				mock.patch.object(document_ocr, "submit") as submit, \
+				mock.patch.object(document_ocr, "wait", return_value={"pages": []}) as wait:
+			read = document_ocr.reader("CBR-OLD", "left0", "F1", "someone-else@example.com")
+			self.assertEqual(read("bank_statement", b"x", "s.jpg"), {"pages": []})
+		name_for.assert_called_once_with(document_ocr.KIND, "CBR-OLD:left0:bank_statement")
+		submit.assert_not_called()
+		wait.assert_called_once_with("W-OLD")
+
+	def test_the_rerun_reads_by_the_original_reconciliation(self):
+		from pearnly_cowork.recon_center import rerun
+
+		doc = frappe._dict(recon_job="CBR-OLD", recon_kind="bank", workspace="ws", title="t",
+			options_json=json.dumps({"lang": "th"}), files_json=json.dumps({"left": ["F1"], "right": ["F2"]}))
+		with mock.patch.object(rerun.frappe, "get_doc", return_value=doc), \
+				mock.patch.object(rerun, "questions", return_value=[{"rule": "gl_account"}]):
+			kind, _workspace, _title, files, options = rerun.prepared("TASK-1", "zh")
+		self.assertEqual((kind, files["left"], options["ocr_job"], options["replace_task"], options["lang"]),
+			("bank", ["F1"], "CBR-OLD", "TASK-1", "zh"))
+
+	def test_only_the_bank_ledger_account_answer_reruns(self):
+		# 别的预设也要重跑时，要先让它的读取同样按原对账号取（收入、税报的读取路径各自另有提交）
+		from pearnly_cowork.reconciliation import presets
+
+		self.assertEqual(presets.RERUN, {("bank", presets.GL_ACCOUNT)})
+
+
 
 if __name__ == "__main__":
 	unittest.main()
