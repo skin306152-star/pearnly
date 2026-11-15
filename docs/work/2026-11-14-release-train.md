@@ -27,7 +27,7 @@
 |---|---|---|
 | 全闸门（gate.sh = development.yml） | 72516d120：251 / 251 首轮全过（bcda444ae 同为 251 / 251） | ~/pearnly-devtools/integ1115-gate-7.log |
 | 候选离线（线上镜像 054aa603） | 72516d120：111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1115-cand-7.log |
-| Development / Companion checks | 532de63b1 两项 success；bcda444ae 推送后待查 | GitHub |
+| Development checks | 72516d120 与其后 docs 头 60b34da0b 均 success | GitHub |
 | 产品地图 / 共用件连带 / i18n / 逐行查询 | 0 错 / 通过 / 通过 / 935 = 基线 | 本地 |
 | 收款三组测试（_collection / _line / _cc） | 全 OK；翻译包合并头上重生成零差异 | 本地 |
 | 全套流程 new 数据集（0813bc83c，正式建站） | 210 / 210 | ~/pearnly-devtools/full-1115.log |
@@ -35,7 +35,7 @@
 | 空默认公司接管（新建空站点实走） | 空默认 9/9、默认有记录 4/4 | 拼车笔记 |
 | 8 处写用户默认值并发回填核对 | 8/8 | 拼车笔记 |
 | 手机宽度「从连接添加」弹窗空白 | 已收掉（最终头重拍） | ~/pearnly-devtools/integ1115/shots/ |
-| 全套 `--all --post-status`（部署流程闸要的那一份） | 72516d120 上进行中（15:33 起，实验室 down -v 重新正式建站） | GitHub pearnly/flows（72516d120） |
+| 全套 `--all --post-status`（部署流程闸要的那一份） | 72516d120：首轮 386 / 387（唯一不过 erp.stocktake.gs1 old / 手机：无头浏览器断开，页面步骤未执行），按部署闸规定 `--rerun-failed` 补跑该格通过，合并回写 **success「all flows; 122 flows; datasets new,old; 387/387 runs passed; 10144s; reran 1」**（实验室 down -v 正式建站，15:33–18:23） | GitHub pearnly/flows @ 72516d120 |
 
 已知、不挡上线（下一车）：
 - `erp.link.ledger-first`：选择框排序「本公司的档排前」不分账本物料与本公司手工物料，手工物料多时账本物料被挤出第一页；新建站数据少能过。修法：本公司之后加「有账本编码」排前（公司接入窗口）。
