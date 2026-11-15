@@ -89,7 +89,8 @@ class GuideMenuTests(unittest.TestCase):
         body = thread[start:thread.index("\n};", start)]
         # 同一行、同一种按钮；在跑时、有写入计划在等时不出；只列产品声明的
         self.assertIn("<RecordQuickReply />\n            <BusinessMenu />", thread)
-        self.assertIn('data-slot="cc-quick-replies"', body)
+        self.assertIn('data-slot="cc-business-menu"', body)
+        self.assertNotIn('cc-quick-replies', body)  # 业务菜单不是快捷回复：流程按 cc-quick-replies 找「写入」那颗
         self.assertIn("if (record || running || !list.length) return null;", body)
         self.assertIn("offered?.[mode]", body)
         # 选中的实底带 ×，点了取消；没选的是描边按钮

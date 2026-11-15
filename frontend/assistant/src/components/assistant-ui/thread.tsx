@@ -422,7 +422,7 @@ const BusinessMenu: FC = () => {
   if (current && list.includes(current)) {
     const Icon = BUSINESS_ICONS[current];
     return (
-      <div data-slot="cc-quick-replies" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
+      <div data-slot="cc-business-menu" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
         <Button variant="secondary" size="sm" aria-pressed onClick={() => chooseBusiness(sessionId, "")}>
           <Icon />
           {businessLabel(current)}
@@ -432,7 +432,7 @@ const BusinessMenu: FC = () => {
     );
   }
   return (
-    <div data-slot="cc-quick-replies" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
+    <div data-slot="cc-business-menu" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
       {list.map((business) => {
         const Icon = BUSINESS_ICONS[business];
         return (

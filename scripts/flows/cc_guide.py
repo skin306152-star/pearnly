@@ -62,7 +62,7 @@ def steps(params, camera_code=None):
               "const picked=c.querySelector('[data-slot=\"cc-askq-option\"][data-checked]'); "
               "if(!picked) c.querySelector('[data-slot=\"cc-askq-option\"]')?.click(); await sleep(200); "
               "c.querySelector('[data-slot=\"cc-askq-next\"]')?.click(); await sleep(400);} ")
-    menu = ("const row=()=>q('[data-slot=\"cc-quick-replies\"][data-business]'); const ph=()=>q('textarea[aria-label]')?.getAttribute('placeholder')||''; ")
+    menu = ("const row=()=>q('[data-slot=\"cc-business-menu\"][data-business]'); const ph=()=>q('textarea[aria-label]')?.getAttribute('placeholder')||''; ")
     # 选了业务 CC 在对话里说一句要什么（页面画、不进模型上下文）：读此刻对话里这一句（几条、哪个业务、文字、算不算模型回复）
     prompt = ("const said=()=>{const all=qa('[data-slot=\"cc-business-prompt\"]'); return {count: all.length, "
               "business: all[0]?.dataset.business||'', text: all[0]?.innerText.trim()||'', reply: !!all[0]?.closest('[data-role]')};}; ")
