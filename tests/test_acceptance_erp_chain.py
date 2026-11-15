@@ -131,6 +131,37 @@ class World:
         out["record"] = self._receipt(f"COL-{self.count + 1}", cash, transfer, params["entry"])
         return out
 
+    def erp_stock_post(self, params):
+        prefix = {"in": "JU", "out": "OU", "adjust": "TK", "count": "TK", "transfer": "RL"}
+        docs = []
+        for index, step in enumerate(params["steps"]):
+            kind = step["kind"]
+            if kind == "void":
+                docnum = docs[step["of"]]["state"]["ledger_docnum"]
+                head = next(row for row in self.tables["STTRN"] if row["DOCNUM"] == docnum)
+                if self.break_at != "void-kept":
+                    head.update(DOCSTAT="C", TRNVAL=0.0)
+                    self.tables["STCRD"] = [row for row in self.tables["STCRD"] if row["DOCNUM"] != docnum]
+                docs.append({"kind": "void", "of": step["of"], "status": "void", "docnum": docnum, "name": docs[step["of"]]["name"],
+                             "state": {"ledger_void_state": "voided", "ledger_docnum": docnum}, "job": {"verify_state": "ok"}, "book_paths": []})
+                continue
+            if kind == "transfer" and self.break_at == "one-warehouse":
+                return {"ok": False, "why": "this ledger has only one Express warehouse: a transfer needs two", "reported": []}
+            docnum, qty = f"{prefix[kind]}691115-00{index + 1}", float(step.get("qty", step.get("delta", 1)))
+            self.add("STTRN", DOCNUM=docnum, LOCCOD="02" if self.break_at == "wrong-warehouse" else "01", DOCSTAT="N", TRNVAL=20.0,
+                     PEOPLE="02" if kind == "transfer" else "")
+            for sign in ((-1, 1) if kind == "transfer" else (-1,) if kind == "out" else (1,)):
+                self.add("STCRD", DOCNUM=docnum, STKCOD="P001", TRNQTY=sign * (qty + (1 if self.break_at == "qty" else 0)))
+            doc = {"kind": kind, "qty": qty, "name": f"SE-{index}", "state": {"ledger_state": "written", "ledger_docnum": docnum},
+                   "job": {"verify_state": "ok"}, "book_paths": [params["ledger"]]}
+            if kind == "transfer":
+                doc["to_warehouse_code"] = "02"
+            if kind == "count":
+                doc.update(count="CNT-1", closed="Closed", draft_created=True, count_status="Posted",
+                           draft_again=[True, self.break_at == "second-draft"])
+            docs.append(doc)
+        return {"ok": True, "company": "CO-1", "item_code": "P001", "warehouse_code": "01", "warehouses": ["01", "02"], "docs": docs}
+
     def erp_company_connect(self, params):
         fresh = self.break_at != "not-fresh"
         if params.get("require_fresh") and not fresh:
@@ -170,14 +201,17 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "erp_company_connect.py" if ".company." in scenario_id else "erp_collection_express.py"
+        module = "erp_company_connect.py" if ".company." in scenario_id else \
+            "erp_stock_express.py" if ".stock." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
                                         windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
         scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 0}
         return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), world
 
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
-        wrote = {"acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
+        wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
+                 "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
+                 "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
         for scenario_id, docs in wrote.items():
             result, world = self.go(scenario_id)
@@ -200,6 +234,9 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.erp.collection.nbsp", "nbsp", "逐字符原样"), ("acc.erp.collection.three", "stale-read", "已读好"),
                  ("acc.erp.collection.web.twice", "twice", "记录只有一条"), ("acc.erp.collection.line.edit", "stale-card", "旧卡"),
                  ("acc.erp.collection.line.refused", "double", "ARTRN 多的行数"), ("acc.erp.collection.three", "stray", "预期以外"),
+                 ("acc.erp.stock.void.express", "void-kept", "作废后"), ("acc.erp.stock.in.express", "wrong-warehouse", "仓库码"),
+                 ("acc.erp.stock.out.express", "qty", "物料与数量"), ("acc.erp.stock.count.express", "second-draft", "不新建"),
+                 ("acc.erp.stock.adjust.express", "stray", "预期以外"),
                  ("acc.erp.company.connect", "switch", "三处一致"), ("acc.erp.company.connect", "stale-facts", "带收款方式"),
                  ("acc.erp.company.connect.fresh", "second-company", "接管")]
         for scenario_id, break_at, words in cases:
@@ -216,12 +253,19 @@ class ChainScenarioTest(unittest.TestCase):
         result, _ = self.go("acc.erp.company.connect", "not-fresh")
         self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
 
+    def test_a_transfer_on_a_ledger_with_one_warehouse_is_not_run(self):
+        result, _ = self.go("acc.erp.stock.transfer.express", "one-warehouse")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("only one Express warehouse", result["detail"])
+
     def test_allowed_tables_come_from_the_desktop_write_lists(self):
         load("acceptance_run_for_chain_tables", "scripts/acceptance/run.py")
         chain = load("acc_erp_chain_tables", "scripts/acceptance/erp_chain.py")
         self.assertTrue({"ARTRN", "ARRCPIT", "ARRCPCQ", "BKTRN", "GLJNL", "GLJNLIT"} <= set(chain.receipt_tables()))
         self.assertTrue({"ARTRN", "ARMAS", "ISVAT"} <= set(chain.sales_tables()))
         self.assertFalse({"APTRN", "APMAS"} & set(chain.chain_tables()))
+        self.assertTrue({"STTRN", "STCRD", "STMAS", "STLOC", "ISRUN"} <= set(chain.stock_tables()))
+        self.assertFalse({"ARTRN", "APTRN"} & set(chain.stock_tables()))
 
 
 if __name__ == "__main__":

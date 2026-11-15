@@ -113,3 +113,25 @@
 - 验收账套缺转账方式或带不换行空格的客户时：用正式途径（正式 CC 或服务器版 Express，不离线改 DBF）补上并重取基线，补了什么报主会话；
   `69EXP\TEST2` 仍只有验收窗口写。
 - 5 行真机排在 11-16 白天，与 Mac 栈测试机一半的 40 分钟一起做。
+
+## 第 1 批：库存单据写 Express（11-15 晚接着写，同一分支）
+
+站点脚本 `scripts/acceptance/site/erp_stock_post.py`（按顺序做几步、每步等写完）+ 场景 `scenarios/erp_stock_express.py`，6 条，都是 `via = "api"`、费用 0、**写好未跑**：
+
+| id | 做什么 | Express 单别 |
+|---|---|---|
+| `acc.erp.stock.in.express` | 入库 2 件 | 调整 JU |
+| `acc.erp.stock.out.express` | 先入库 2 件再出库 1 件 | 领用 OU |
+| `acc.erp.stock.adjust.express` | 物料调整 +3 | 盘点调整 TK |
+| `acc.erp.stock.transfer.express` | 先入库再调拨到另一个仓 | 调拨 RL |
+| `acc.erp.stock.void.express` | 入库写成后作废 | 原单改作废、明细打删除标记 |
+| `acc.erp.stock.count.express` | 新建盘点 → 实盘多 1 → 结束 → 生成调整单（再点一次不生成第二张）→ 提交 | TK |
+
+读回：STTRN 单头（仓库码、状态、调入仓）、STCRD 明细（物料、数量；调拨一出一入两行）、预期以外的表不变
+（允许的表 = `dbf_stock.TABLES` + 科目余额标记、分仓、附加说明）。基线再减 8 项（四种库存单的真环境主线与链），939 → 931。
+
+首跑要校准：明细数量的正负号（现按绝对值核）；验收账套有没有第二个 Express 仓、JU / OU / TK / RL 单据簿、是否允许负库存——缺了会停在等人处理，
+场景原样报原因、记前置条件不满足。凭证张数没核（定期盘存或零金额不过账）。
+
+这一批没做、留给下一批的：POS 日汇总（要先造收银台、开班、小票）、采购单 / 销售单作废（已写进 Express 的不写 Express，只能断言「账本不变 + 状态」）、
+Cowork 网页上传 → 写、定时 / 文件夹录入。

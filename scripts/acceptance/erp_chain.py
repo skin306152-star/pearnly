@@ -65,6 +65,12 @@ def receipt_tables() -> list[str]:
     return tuple_of("companion/src/companion/dbf_receipt.py", "WRITE_TABLES") + ["ARMAS", "GLBAL", "BKTRN"]
 
 
+def stock_tables() -> list[str]:
+    """库存单（入库 / 出库 / 调整 / 调拨 / 作废）允许变化的表：`dbf_stock.TABLES` 加写前一并备份的科目余额标记、分仓、附加说明
+    （`dbf_stock.write_stock_entry` 的备份范围；调拨与作废动的表都在这个范围里）。"""
+    return tuple_of("companion/src/companion/dbf_stock.py", "TABLES") + ["GLBAL", "STLOC", "ARTRNRM"]
+
+
 def chain_tables() -> list[str]:
     """先开赊销单再收款的场景：两种写入的表合起来。"""
     return sorted(set(sales_tables()) | set(receipt_tables()))

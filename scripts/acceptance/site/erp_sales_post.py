@@ -8,7 +8,7 @@ buyer（手打的新客户名，例如「ร้านเอซีซี 1234」�
 customer_code（账本里已有客户的 Express 编码，原样，含不换行空格；nbsp = 真时不给编码，自己挑一位编码带不换行空格的客户）、
 wait（最多等几秒，默认 300）。
 
-走的是网页「提交」背后的同一个入口 `sales.entry.post`（提交事务里自己排写账，不另外推），登记里标 via = "api"。
+走的是网页「提交」背后的同一个入口 `sales.entry.post`，登记里标 via = "api"。
 防护同别的验收站点脚本：只在测试租户跑；这家公司由 CC 报上来的账套必须全部就是 ledger；写完再按单据记下的账套核一次实际路径。
 """
 import base64
@@ -78,6 +78,13 @@ try:
         payload.update(buyer_name=buyer, party_type="person")
     posted = entry.post(payload, request_id=f"acc-{secrets.token_hex(6)}")
     frappe.db.commit()
+    try:
+        from pearnly_erp_portal.express import push
+
+        push.send(DOCTYPE, posted["name"])   # 提交时已经排过；这里只是不等后台任务（同冒烟），重复推由服务端自己挡
+        frappe.db.commit()
+    except Exception:  # noqa: BLE001
+        frappe.db.rollback()
     fields = ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job", "ledger_book", "ledger_needed"]
     deadline, state = time.monotonic() + int(params.get("wait", 300)), {}
     while time.monotonic() < deadline:

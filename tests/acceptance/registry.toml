@@ -290,3 +290,146 @@ resources = ["testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+# ---- 第二期第 1 批：库存单据写 Express（零费用、不占屏幕）。写好未跑，首跑通过才有证据。
+
+[[scenario]]
+id = "acc.erp.stock.in.express"
+title = "ERP 入库单提交 → CC 桌面版写成 Express 调整单（JU）→ 账本读回"
+class = "chain"
+chain = "erp.stock-in-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-in.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.stock.out.express"
+title = "ERP 出库单提交（先入库再出库）→ CC 桌面版写成 Express 领用单（OU）→ 账本读回"
+class = "chain"
+chain = "erp.stock-out-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-out.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.stock.adjust.express"
+title = "ERP 物料调整单提交 → CC 桌面版写成 Express 盘点调整（TK）→ 账本读回"
+class = "chain"
+chain = "erp.stock-adjust-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-adjust.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.stock.transfer.express"
+title = "ERP 调拨单提交（两个仓）→ CC 桌面版写成 Express 调拨单（RL）→ 账本读回"
+class = "chain"
+chain = "erp.stock-transfer-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-transfer.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+  "companion/src/companion/dbf_transfer.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.stock.void.express"
+title = "ERP 已写进 Express 的入库单作废 → 原单在账本里改成作废、没有有效明细"
+class = "chain"
+chain = "erp.stock-void-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-in.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+  "companion/src/companion/dbf_void.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.stock.count.express"
+title = "ERP 盘点：新建 → 录实盘数 → 结束 → 按盘点结果生成调整单 → 提交 → Express 盘点调整（TK）读回"
+class = "chain"
+chain = "erp.stocktake-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_stock_express.py"
+rows = ["erp.desk.pearnly-stock-count.action.stock.count.adjust", "erp.desk.pearnly-stock-adjust.action.trade.action.submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_stock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
