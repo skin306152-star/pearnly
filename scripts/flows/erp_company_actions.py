@@ -6,7 +6,8 @@
 - 仓库页「新建仓库」：老数据实建一个，库里它属于当时的当前公司；接了 Express 的公司没有这颗（仓库以 Express 为准）；
 - 新开户（接了 Express）：这家公司页头「同步 Express」→ 请求只发起读取、立刻回一个状态；库里这家公司记下的同步状态就是回来的那个
   （prepare 先清空；实验室没有接电脑，多半是「电脑离线」）；
-- 老数据（两家公司、当前是 A）：打开 B 点「设为当前公司」→ 页面整页刷新 → 左上角当前公司是 B、库里本人的当前公司是 B。cleanup 换回 A。
+- 老数据（两家公司、当前是 A）：左上角公司名下拉 →「公司」→ 点 B → 页面整页刷新 → 左上角当前公司是 B、库里本人的当前公司是 B。
+  cleanup 换回 A。（用户 11-15 删了公司页的「设为当前」，换当前公司只在左上角下拉里。）
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desk_list import ACTION  # noqa: E402
 from erp_lib import JS, js_value  # noqa: E402
 
-TITLE = "ERP 公司页：新建后取消、保存、同步 Express、设为当前公司"
+TITLE = "ERP 公司页：新建后取消、保存、同步 Express、左上角下拉切换当前公司"
 ADMIN = "admin@erp.regression"
 
 
@@ -35,7 +36,8 @@ def prepare(lab, manifest):
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user({ADMIN!r})
 current = companies.active_company()
-print(json.dumps({{"current": current or "", "count": frappe.db.count("ERP Company")}}))
+print(json.dumps({{"current": current or "", "count": frappe.db.count("ERP Company"),
+                  "target_name": frappe.db.get_value("ERP Company", {target!r}, "company_name") or ""}}))
 """)
     return {**out, "target": target, "linked": linked, "switch": len(companies) > 1,
             "new_note": "flow note " + uuid.uuid4().hex[:6], "warehouse": "คลังโฟลว์ปุ่ม " + uuid.uuid4().hex[:6], "cases": []}
@@ -95,10 +97,21 @@ const via=await action(t('company.syncExpress')); if(!via) return {{error:'no sy
 await until(()=>window.__sync.length, 15000); await idle();
 return {{via, result: window.__sync[0]||null}};"""})
     if params["switch"]:
-        out.append({"name": "设为当前", "wait_ms": 6000, "js": SETUP + f"""
+        out.append({"name": "左上角切换", "wait_ms": 6000, "js": SETUP + f"""
 if(!await open({target})) return {{error:'company page did not open'}}; await idle();
-// 点下去会写当前公司、整页刷新：点完就回，下一步在刷新后的页面上看
-const via=await action(t('company.setCurrent')); return {{via}};"""})
+// 公司页上没有「设为当前」了（用户 11-15）
+const gone=!all('.page-head button').some(b=>/当前/.test(b.innerText));
+// 左上角公司名下拉（原生菜单）→「公司」→ 这家：写当前公司、整页刷新，点完就回，下一步在刷新后的页面上看
+const leaf=(text)=>[...document.querySelectorAll('.frappe-menu *, .dropdown-menu *')].find(e=>e.offsetParent&&!e.children.length&&e.textContent.trim()===text);
+document.querySelector('.sidebar-header')?.click(); await sleep(600);
+const group=leaf(__('Company')); if(!group) return {{error:'no Company group in the header menu', gone}};
+(group.closest('.dropdown-menu-item')||group).click(); await sleep(600);
+// 菜单上显示的名字由页面自己算（`p.company_name_of`：同名带分店号、有简称用简称）
+const rows=frappe.boot.pearnly_companies||[]; const row=rows.find(r=>r.name==={target});
+const name=row?frappe.pearnly.company_name_of(row, rows):{js_value(params.get('target_name') or '')};
+const item=[...document.querySelectorAll('.frappe-menu *, .dropdown-menu *')].find(e=>e.offsetParent&&!e.children.length&&e.textContent.trim()===name);
+if(!item) return {{error:'no target in the header menu', gone, name}};
+(item.closest('.dropdown-menu-item')||item).click(); return {{via:'header', gone}};"""})
         out.append({"name": "刷新后当前公司", "js": """
 for(let k=0;k<120&&!(window.frappe&&frappe.boot&&frappe.router&&document.readyState==='complete'&&window.frappe.pearnly);k++) await new Promise(r=>setTimeout(r,250));
 return {current: (window.frappe&&frappe.boot&&frappe.boot.pearnly_company)||''};"""})
@@ -121,9 +134,10 @@ def judge(params, results, camera_code=None):
         checks.append({"case": "Sync Express answers at once with a state", "seen": sync,
                        "ok": bool(sync.get("via")) and isinstance(sync.get("result"), dict) and bool(sync["result"].get("state"))})
     if params["switch"]:
-        switch, after = by.get("设为当前", {}), by.get("刷新后当前公司", {})
-        checks.append({"case": "Set as current reloads into the chosen company", "seen": {"switch": switch, "after": after},
-                       "ok": bool(switch.get("via")) and after.get("current") == params["target"]})
+        switch, after = by.get("左上角切换", {}), by.get("刷新后当前公司", {})
+        checks.append({"case": "the company page has no Set as current; the header menu switch reloads into the chosen company",
+                       "seen": {"switch": switch, "after": after},
+                       "ok": switch.get("gone") is True and bool(switch.get("via")) and after.get("current") == params["target"]})
     return checks
 
 

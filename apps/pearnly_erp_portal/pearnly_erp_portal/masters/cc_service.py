@@ -411,7 +411,7 @@ def rescan() -> dict:
 
 
 def rescan_pending(devices) -> dict:
-    """这批重扫的进度（页面边等边出）：``pending`` 还有几台没回执、``online`` 其中还在线几台（中途都离线就不再等）、``stamp``
+    """这批重扫的进度（页面边等边出）：``pending`` 还有几台没回执、``online`` 其中还在线、也来领了指令（或刚下发、还在领单周期内）的几台（都不是就不再等，页面显示未连接）、``stamp``
     这几台报上来的账套名单的指纹（变了页面就重取列表，扫得慢时「进行中」快照也先出来）。只认本租户在用的电脑。"""
     require_build()
     from pearnly_core.cc_desktop import rescan as desktop_rescan
@@ -426,7 +426,8 @@ def rescan_pending(devices) -> dict:
     latest = frappe.get_all(express_companies.BOOK, filters={"device": ["in", wanted or [""]]}, fields=["creation"],
                             order_by="creation desc", limit_page_length=1)
     count = frappe.db.count(express_companies.BOOK, {"device": ["in", wanted or [""]]})
-    return {"pending": len(waiting), "online": len([name for name in waiting if name in online]),
+    gone = set(desktop_rescan.unreached(wanted))  # 下发后迟迟没来领（刚退出的 CC 还算在线那几分钟）：当不在线
+    return {"pending": len(waiting), "online": len([name for name in waiting if name in online and name not in gone]),
             "stamp": f"{count}|{latest[0].creation if latest else ''}"}
 
 

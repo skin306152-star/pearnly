@@ -514,3 +514,26 @@
 
 测试：`tests/test_erp_cc_companies.py`（全部账套带状态、停用重开、接管空默认公司、用过的默认公司不碰、MR.ERP 接管）；
 流程 `erp.company.connect` 加了已停用 / 已在用两份账套、刷新按钮、第二行格式、禁用与状态、左上角入口的断言。
+
+## 11-15（续）切换当前公司间歇不生效；删「设为当前」；刷新判离线；重新启用的提示
+
+- **切换当前公司间歇不生效（线上 11-13 就有）**：根因在锁定的 Frappe 16.33.0 `frappe/defaults.py` 的 `set_default`——写库后在
+  **提交之前**就清 `defaults::<用户>`（`frappe.client_cache`，值存在 Redis、各进程都认）。这段间隙里同一用户的另一个请求（刷新、
+  启动数据、轮询）读到已提交的旧值并回填缓存；之后再设同一家，库里已是新值，`set_default` 判「没变」直接返回、不清缓存，旧值一直卡着。
+  `set_active_company` 从 09-23 起没改过、底座同版，所以线上就有。
+  - 修法（一处管全部写用户默认值的地方）：共用层 `pearnly_core/account/user_defaults.py`，`hooks.doc_events` 给 `DefaultValue`
+    挂 after_insert，换值时登记 `frappe.db.after_commit`，**提交之后**再清这个用户的默认值与启动数据缓存。全仓 8 处写用户默认值
+    （当前公司、团队页改可见公司、侧栏排序、界面语言、智能体偏好、上次选的仓、看过的新账套、Cowork 查重开关）不用改。
+  - 切公司时值没变也当场清、提交后再清（`user_defaults.refresh`），解开已卡住的旧值；`active_company` 先读已提交的那一行
+    （`user_defaults.current`），不经缓存。
+  - 单例设置（`set_single_value`）同类竞态：调用点都在开户 / 启动补齐 / 管理员登录设置，没有并发读者，这次不改。
+  - 证据：实验栈真 Frappe 两条连接复现 `scripts/erp-active-company-race-lab-verify.py`：`--without-fix` 2 项不通过（提交后下一次读到
+    旧公司；再设同一家解不开），带修复全过；离线 `tests/test_user_defaults_cache.py` 按同样顺序守住。
+- **删「设为当前」**（用户 11-15：冗余，左上角切换保持）：公司页按钮、`p.switch_company` 出口、文案 `company.setCurrent`（删 1 条）、
+  页头入口声明、产品地图那一行都删；流程 `erp.company.actions` 改测左上角下拉切换并断言公司页没有这颗。CC、手机端没有同名入口。
+- **刷新遇到刚退出的 CC 干转 60 秒**（真机复测）：刚退出的 CC 在 `ONLINE_SECONDS`（180 秒）内还算在线。现在记下电脑领走重扫指令的
+  时刻（`cc_desktop.rescan.command`），下发后 20 秒（1.12.21 空闲时每 3 秒领一次单）还没来领就当不在线（`rescan.unreached`）；
+  在等的都这样就提前结束、显示「CC 桌面版未连接」。领走了在扫的照旧等。
+- **重新启用后的提示**：有新建（含接管开户时的空公司）说「已新建」；只是重新启用 / 接上已有公司的，用公司页启用时那句「已更新」
+  （现成 `company.notice.toggled`，不新增词）。
+- 流程 `erp.company.connect` 补「只有一家公司的账号：左上角下拉里有从连接添加、没有切换组」。

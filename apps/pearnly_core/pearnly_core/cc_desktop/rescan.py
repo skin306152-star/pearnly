@@ -6,19 +6,32 @@ account_set_key: "@endpoint"}``，电脑下一拍对给这个成员的全部 Exp
 ``master_refresh_request_id`` 算扫完（:func:`acknowledge`）。不改桌面版。
 
 请求按电脑记在站点缓存里（:data:`TTL` 后自动作废，电脑那边 300 秒也会放弃）：同一台还有没回执的就不再下发，连点只算一次。
+电脑领走指令时记一笔（:func:`command`）：下发后 :data:`TAKE_WITHIN` 秒还没来领的（刚退出的 CC 在 `contracts.ONLINE_SECONDS`
+内仍算在线），页面就当它不在线、不再干等（:func:`unreached`，主会话 11-15 真机复测）。
 """
 from __future__ import annotations
 
+import time
 import uuid
 
 import frappe
 
 SCOPE, KEY = "endpoint", "@endpoint"
 TTL = 300  # 与 CC 桌面版放弃一条重扫请求的时限相同（projection_refresh._REFRESH_TIMEOUT_S）
+# 下发后这么久还没来领就当不在线：CC 桌面版空闲时每 3 秒领一次单（1.12.21 `poll_interval_ms` 默认 3000），留足六七个周期
+TAKE_WITHIN = 20
 
 
 def _key(device) -> str:
     return f"cc-desktop-rescan:{device}"
+
+
+def _asked_key(device) -> str:
+    return f"cc-desktop-rescan-asked:{device}"
+
+
+def _taken_key(device) -> str:
+    return f"cc-desktop-rescan-taken:{device}"
 
 
 def request(device_names) -> dict:
@@ -29,6 +42,8 @@ def request(device_names) -> dict:
         if not current:
             current = str(uuid.uuid4())
             frappe.cache.set_value(_key(device), current, expires_in_sec=TTL)
+            frappe.cache.set_value(_asked_key(device), time.time(), expires_in_sec=TTL)
+            frappe.cache.delete_value(_taken_key(device))
         out[device] = current
     return out
 
@@ -38,10 +53,24 @@ def pending(device_names) -> list:
     return [device for device in device_names if frappe.cache.get_value(_key(device))]
 
 
+def unreached(device_names, now=None) -> list:
+    """这几台里还没回执、下发超过 :data:`TAKE_WITHIN` 秒也没来领的（当不在线）。"""
+    now = time.time() if now is None else now
+    out = []
+    for device in pending(device_names):
+        asked = frappe.cache.get_value(_asked_key(device))
+        if not frappe.cache.get_value(_taken_key(device)) and asked and now - float(asked) >= TAKE_WITHIN:
+            out.append(device)
+    return out
+
+
 def command(device) -> dict | None:
-    """（领单回复）这台电脑有待做的整份重扫就给出指令，没有回 ``None``。"""
+    """（领单回复）这台电脑有待做的整份重扫就给出指令（记下已领），没有回 ``None``。"""
     current = frappe.cache.get_value(_key(device)) if device else None
-    return {"request_id": current, "scope_kind": SCOPE, "account_set_key": KEY} if current else None
+    if not current:
+        return None
+    frappe.cache.set_value(_taken_key(device), 1, expires_in_sec=TTL)
+    return {"request_id": current, "scope_kind": SCOPE, "account_set_key": KEY}
 
 
 def acknowledge(device, body) -> bool:
@@ -52,4 +81,6 @@ def acknowledge(device, body) -> bool:
     if frappe.cache.get_value(_key(device)) != request_id:
         return False
     frappe.cache.delete_value(_key(device))
+    frappe.cache.delete_value(_taken_key(device))
+    frappe.cache.delete_value(_asked_key(device))
     return True

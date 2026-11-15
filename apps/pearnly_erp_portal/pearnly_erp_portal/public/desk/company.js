@@ -5,8 +5,9 @@
  *   · `/desk/pearnly-company`          → **公司列表**（点菜单先看到它）：登记过哪几家；
  *                                        行内不放按钮，勾选之后右上角才出现「停用 / 启用」；
  *   · `/desk/pearnly-company/<公司名>` → **公司信息**（点列表任意一行进来）：抬头、简称、
- *                                        税号、分支、联系方式、收款 PromptPay、地址与备注，
- *                                        以及「设为当前公司」。改得动它的只有产品管理员。
+ *                                        税号、分支、联系方式、收款 PromptPay、地址与备注。
+ *                                        改得动它的只有产品管理员。换当前公司只在左上角公司名下拉里
+ *                                        （用户 11-15 删了这一屏的「设为当前」，`desk/company-menu.js`）。
  *
  * 仓库**不在这一页**：它有自己的入口（侧栏「公司」下面那项，`desk/warehouses.js`）。
  *
@@ -499,10 +500,6 @@
 					if (form?.fields_dict?.express_sync_state) form.set_value("express_sync_state", t(`company.syncExpress.${key}`));
 					if (key === "reading") watch_sync(company, still_current);
 				});
-			}
-			// 「设为当前公司」只在这一屏给（列表上不再放行内按钮）：写的是自己的用户默认值。
-			if (name && name !== frappe.boot.pearnly_company) {
-				page.add_inner_button(t("company.setCurrent"), () => p.switch_company(name));
 			}
 		}
 

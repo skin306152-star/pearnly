@@ -90,12 +90,17 @@ def steps(params, camera_code=None):
          "const head=document.querySelector('.sidebar-header'); if(!head) return {error:'no sidebar header'}; head.click(); "
          "await new Promise(r=>setTimeout(r,600)); "
          # 原生 `frappe.ui.create_menu` 画的菜单：按文字找看得见的那一项，点它所在的菜单项
-         "const leaf=[...document.querySelectorAll('body *')].find(e=>e.offsetParent&&!e.children.length&&e.textContent.trim()==='从连接添加'"
-         "&&!e.closest('.page-head')); "
-         "if(!leaf) return {found:false}; (leaf.closest('[class*=menu-item], li, a, button')||leaf).click(); "
+         "const leaf=[...document.querySelectorAll('.frappe-menu *, .dropdown-menu *')].find(e=>e.offsetParent&&!e.children.length"
+         "&&e.textContent.trim()==='从连接添加'); "
+         "if(!leaf) return {found:false}; (leaf.closest('.dropdown-menu-item')||leaf).click(); "
          "let d=null; for(let k=0;k<40&&!(d=document.querySelector('.modal.show [data-fieldname=items]'));k++) await new Promise(r=>setTimeout(r,250)); "
          "const ok=!!d; document.querySelector('.modal.show .btn-modal-close')?.click(); await new Promise(r=>setTimeout(r,400)); "
          "return {found:true, opened: ok};"},
+        {"name": "只有一家公司时下拉里也有从连接添加", "js": IDLE +
+         # 实验栈这个账号有好几家：把启动数据里的公司清单换成一家、重画左上角下拉，看「从连接添加」还在、「公司」切换组不出
+         "const keep=frappe.boot.pearnly_companies; frappe.boot.pearnly_companies=(keep||[]).slice(0,1); "
+         "const items=(frappe.pearnly.header_menu_items?.()||[]).map(i=>i.name); frappe.boot.pearnly_companies=keep; "
+         "return {items, count: 1};"},
         {"name": "刷新：没有在线电脑时显示未连接", "js": IDLE +
          # 实验栈里那台电脑从没心跳过（不在线）：刷新不下发、不干等，直接显示「CC 桌面版未连接」
          "const b=[...document.querySelectorAll('.page-head button')].find(e=>e.offsetParent&&e.innerText.trim()==='从连接添加'); "
@@ -130,6 +135,8 @@ def judge(params, results, camera_code=None):
          "ok": bool(opened.get("opened")) and len(opened.get("mine") or []) == 4},
         {"case": "左上角公司名下拉里的「从连接添加」打开同一个选择窗", "seen": menu,
          "ok": bool(menu.get("found")) and bool(menu.get("opened"))},
+        {"case": "只有一家公司的账号：左上角下拉里有「从连接添加」、没有切换组", "seen": by.get("只有一家公司时下拉里也有从连接添加"),
+         "ok": (by.get("只有一家公司时下拉里也有从连接添加") or {}).get("items") == ["pearnly-company-connect"]},
         {"case": "刷新时没有在线电脑：不干等，直接显示「CC 桌面版未连接」", "seen": by.get("刷新：没有在线电脑时显示未连接"),
          "ok": (by.get("刷新：没有在线电脑时显示未连接") or {}).get("text") == "CC 桌面版未连接"
          and (by.get("刷新：没有在线电脑时显示未连接") or {}).get("took", 99999) < 5000},
