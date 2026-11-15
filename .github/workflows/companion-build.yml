@@ -4,12 +4,16 @@ name: Companion test build
 # （ADR-021：多电脑等改动要真机通过后才合入 main，而 Companion release 只发 main 上的提交）。
 # 构建步骤与 Companion release 的 build 相同（先跑全量测试再打包）；没有发布凭据、不连服务器、不改 latest.json，
 # 安装包只作为本次运行的产物留 1 天（账号的 Actions 存储只有 0.5 GB）。用法：gh workflow run companion-build.yml --ref <分支>，
-# 再 gh run download <运行编号> 取 CC-Setup.exe。
+# 再 gh run download <运行编号> 取 CC-Setup.exe；加 -f cloud=true 另打云端精简包 CC-Cloud.zip（云端 Express 主机上那份，见 packaging/companion-cloud.spec）。
 on:
   workflow_dispatch:
     inputs:
       msix:
         description: 'Also upload the unsigned Microsoft Store package (CC.msix)'
+        type: boolean
+        default: false
+      cloud:
+        description: 'Also build and upload the cloud package for the Express cloud host (CC-Cloud.zip)'
         type: boolean
         default: false
 
@@ -78,6 +82,26 @@ jobs:
         with:
           name: companion-store-package-${{ steps.identity.outputs.version }}-${{ github.sha }}
           path: companion/dist/CC.msix
+          if-no-files-found: error
+          retention-days: 1
+      # 云端精简包（packaging/companion-cloud.spec：云端 Express 主机上那份 CC，不带 PySide6 / 网页内核）：勾选 cloud 才打、才上传，
+      # 不改上面的正式安装包，也不发布。冒烟只跑 --cloud 那一步（smoke_launch.py --cloud-only），同上只在 GitHub 的机器上跑
+      - name: Build the cloud package
+        if: ${{ inputs.cloud }}
+        shell: pwsh
+        env:
+          RELEASE_PY: python
+        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly -Cloud
+      - name: Launch the cloud package in cloud mode
+        if: ${{ inputs.cloud && runner.environment == 'github-hosted' }}
+        run: python packaging/smoke_launch.py --cloud-only dist/companion-cloud/companion.exe
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: ${{ inputs.cloud }}
+        with:
+          name: companion-cloud-package-${{ steps.identity.outputs.version }}-${{ github.sha }}
+          path: |
+            companion/dist/CC-Cloud.zip
+            companion/dist/cloud.json
           if-no-files-found: error
           retention-days: 1
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
