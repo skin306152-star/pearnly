@@ -897,3 +897,79 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 1
 tier = "gate"
+
+[[scenario]]
+id = "acc.erp.mrerp.purchase.cash"
+title = "ERP 现购单导入 MR.ERP → 读回（借贷相等、进项税一行）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.sales.discount"
+title = "ERP 整单折扣的赊销单导入 MR.ERP → 读回（金额 = 折后合计、销项税一行）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-sales.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.purchase.novat"
+title = "ERP 无税卖家的采购单导入 MR.ERP → 读回（借贷各一行等于合计、没有进项税）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.purchase.nobook"
+title = "ERP 单据日期不在任何 MR.ERP 账套期间里：停下「没有账套」、不导入"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"

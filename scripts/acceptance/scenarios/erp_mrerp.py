@@ -6,13 +6,17 @@
   acc.erp.mrerp.sales.credit       赊销（T3 / T4）：贷方有一行销项税 = 单据税额
   acc.erp.mrerp.sales.cash         现销现金（T5）：借方一行 = 单据合计
   acc.erp.mrerp.twice              写成后再推一次、再跑一次导入：单号不变，MR.ERP 列表里仍只有这一张
+  acc.erp.mrerp.purchase.cash      现购（T7）：分录借贷相等、进项税一行；贷方不是应付（记现金）——只核金额，科目首跑时看
+  acc.erp.mrerp.sales.discount     整单折扣的赊销（T8）：金额 = 单据合计（折后），销项税一行
+  acc.erp.mrerp.purchase.novat     无税卖家的采购（T8）：借贷各一行都等于合计，没有进项税
+  acc.erp.mrerp.purchase.nobook    单据日期不在任何账套期间里（T15）：停下「没有账套」、不导入、没有 MR.ERP 单号
 
 模型不参与，费用 0。不是 Express：没有账套基线可恢复，MR.ERP 里的单不删、会累积，断言只按本次的单号读回。
 
 **状态：写好未跑**（11-15 晚）。**依赖三条还没进 main 的分支**（公司接入第 3 批 → `pearnly/mrerp-ledger-dialog` → `pearnly/mrerp-catalog-pick`）：
 按日期选账套并把账套键记在单据上、现购写入、称谓拆分都在那里；在今天的 main 上跑，「单据上记着写进了哪本」那条会不过。
-没在这里做、留着的：现购（T7，要现金供应商默认值）、整单折扣与无税卖家（T8）、要人选菜单 / 再写一次 / CC 对话推送 / 导入中作废
-（T9–T12，界面与对话）、没有账套 / 关开关（T15、T16）、税报告（T18，要在 MR.ERP 里归期）——下一批。
+没在这里做、留着的：要人选菜单 / 再写一次 / CC 对话推送 / 导入中作废（T9–T12，界面与对话）、关开关（T16）、
+税报告（T18，要在 MR.ERP 里归期）——下一批。
 
 参数（环境变量）：
   PEARNLY_ACC_ERP_USER        开单的员工
@@ -62,6 +66,13 @@ def run(ctx):
         out = chain.site(ctx, "erp_mrerp_post.py", {**conf, "kind": "purchase_goods" if twice else kind, "run": chain.tag(ctx),
                                                     "resend": twice}, timeout=600)
         state = out["state"]
+        if kind == "purchase_nobook":
+            # 11-15 清单 T15：两本年度账套都不覆盖单据日期时停下说清楚，不往任何一本里导
+            ctx.check("停下、原因是没有账套、没有 MR.ERP 单号", ["held", "express.account_set_missing", ""],
+                      [state.get("ledger_state"), state.get("ledger_reason"), state.get("ledger_docnum") or ""])
+            ctx.check("没有去读 MR.ERP（没导入就没有可读的单）", None, out.get("read"))
+            ctx.facts.update(docnums=[], ledger=f"MR.ERP {conf['book_label']} {conf['account_set']}", erp_doc=out["doc"])
+            return
         if state.get("ledger_state") == "held":
             raise Unmet(f"停在等人处理：{state.get('ledger_reason')} {state.get('ledger_needed') or ''}")
         ctx.require("写账状态", "written", state.get("ledger_state"))
@@ -84,8 +95,13 @@ def run(ctx):
         debits, credits = [amount(line["debit"]) for line in lines], [amount(line["credit"]) for line in lines]
         ctx.check("借方合计 = 贷方合计 = 单据合计", [total, total], [round(sum(debits), 2), round(sum(credits), 2)])
         shape = "purchase_goods" if twice else kind
-        if shape == "purchase_goods":
+        if shape in ("purchase_goods", "purchase_cash"):
             ctx.check("借方有一行进项税 = 单据税额", True, vat in debits)
+        elif shape == "purchase_novat":
+            ctx.check("无税卖家：单据税额 0，借方一行、贷方一行，都等于单据合计", [0.0, [total], [total]],
+                      [vat, [value for value in debits if value], [value for value in credits if value]])
+        elif shape == "sales_discount":
+            ctx.check("贷方有一行销项税 = 折后的单据税额", True, vat in credits)
         elif shape == "purchase_expense":
             ctx.check("费用单行含税：借方一行、贷方一行，都等于单据合计", [[total], [total]],
                       [[value for value in debits if value], [value for value in credits if value]])

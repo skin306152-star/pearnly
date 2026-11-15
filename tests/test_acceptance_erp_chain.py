@@ -202,10 +202,20 @@ class World:
 
     def erp_mrerp_post(self, params):
         kind, total, vat = params["kind"], 321.0, 21.0
+        if kind == "purchase_nobook":
+            held = self.break_at != "imported-anyway"
+            return {"ok": True, "doc": "PUR-9", "company": params["company"],
+                    "state": {"ledger_state": "held" if held else "written", "ledger_reason": "express.account_set_missing" if held else "",
+                              "ledger_docnum": "" if held else "PG1", "ledger_target": "mrerp", "grand_total": total, "vat_amount": vat}}
+        if kind == "purchase_novat":
+            vat = 0.0
         journal = {"purchase_goods": [("5110-01", 300, 0), ("1161-11", vat, 0), ("2120-03", 0, total)],
                    "purchase_expense": [("5390-09", total, 0), ("2120-03", 0, total)],
                    "sales_credit": [("1130-01", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)],
-                   "sales_cash": [("1111-02", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)]}[kind]
+                   "sales_cash": [("1111-02", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)],
+                   "purchase_cash": [("5110-01", 300, 0), ("1161-11", vat, 0), ("1111-02", 0, total)],
+                   "sales_discount": [("1130-01", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)],
+                   "purchase_novat": [("5110-01", total, 0), ("2120-03", 0, total)]}[kind]
         if self.break_at == "unbalanced":
             journal = journal[:-1]
         docnum = "PG691115-000001"
@@ -442,10 +452,16 @@ class ChainScenarioTest(unittest.TestCase):
         self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
 
     def test_documents_imported_into_mrerp_are_read_back_by_number(self):
-        for kind in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice"):
+        for kind in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice", "purchase.cash", "sales.discount",
+                     "purchase.novat"):
             result, world = self.go(f"acc.erp.mrerp.{kind}")
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
             self.assertEqual((result["facts"]["docnums"], world.calls.count("restore")), (["PG691115-000001"], 0), kind)
+        result, _ = self.go("acc.erp.mrerp.purchase.nobook")
+        self.assertEqual((result["outcome"], result["detail"], result["facts"]["docnums"]), (self.runner.PASS, "", []))
+        result, _ = self.go("acc.erp.mrerp.purchase.nobook", "imported-anyway")
+        self.assertEqual(result["outcome"], self.runner.FAIL)
+        self.assertIn("没有账套", result["detail"])
         for kind, break_at, words in (("purchase.goods", "unbalanced", "借方合计"), ("sales.cash", "listed-twice", "恰好一张"),
                                       ("sales.credit", "no-book", "哪本账套"), ("twice", "renumbered", "单号没变")):
             result, _ = self.go(f"acc.erp.mrerp.{kind}", break_at)

@@ -4,7 +4,9 @@
     env/bin/python /tmp/acc-erp_mrerp_post.py <站点> '<JSON 参数>'
 
 参数：user（开单的员工）、company（ERP 公司名）、account_set（MR.ERP 账套键，如 6:1）、book_label（账套名里必须带的字，如 TEST2019）、
-kind：purchase_goods（货品赊购）/ purchase_expense（费用）/ sales_credit（赊销）/ sales_cash（现销现金）、run（本次运行标记）、
+kind：purchase_goods（货品赊购）/ purchase_expense（费用）/ sales_credit（赊销）/ sales_cash（现销现金）/ purchase_cash（现购）/
+sales_discount（整单折扣的赊销）/ purchase_novat（无税卖家的采购）/ purchase_nobook（单据日期不在任何账套期间里，应停下不导入）、
+outside_date（purchase_nobook 用的日期，默认 2019-06-01）、run（本次运行标记）、
 resend（真：写成后再推一次、再跑一次导入——单号不许变、列表里不许多一张）、journal_menus（日记账菜单号，默认 248 250 251 249 247）。
 
 做法照 11-15 写账窗口实测过的那一套（`~/pearnly-devtools/mrerp-write-grid-lab/`，这里收成一个进程）：
@@ -29,7 +31,11 @@ import frappe
 sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]
 KINDS = {  # 我方种类 → (方向, MR.ERP 单据类型, 列表模块)
     "purchase_goods": ("purchase", "purchase", "aptran"), "purchase_expense": ("purchase", "purchase_expense", "aptran"),
-    "sales_credit": ("sales", "sales_credit", "artran"), "sales_cash": ("sales", "sales_cash", "arse")}
+    "sales_credit": ("sales", "sales_credit", "artran"), "sales_cash": ("sales", "sales_cash", "arse"),
+    # 第二批（11-15 清单 T7、T8、T15）：现购、整单折扣的赊销、无税卖家的采购、单据日期不在任何账套期间里
+    "purchase_cash": ("purchase", "purchase", "aptran"), "sales_discount": ("sales", "sales_credit", "artran"),
+    "purchase_novat": ("purchase", "purchase", "aptran"), "purchase_nobook": ("purchase", "purchase", "aptran")}
+ORDER = list(KINDS)
 FIELDS = ["status", "ledger_state", "ledger_target", "ledger_reason", "ledger_docnum", "ledger_book", "ledger_needed", "grand_total",
           "vat_amount", "subtotal"]
 FORM_KEYS = ["txtdoctype", "txtdocnum", "txtdocdate", "txtapmas", "txtapmasdetail", "txtapmas_inv", "txtapmas_invdetail", "txtarmas",
@@ -111,18 +117,22 @@ try:
 
     frappe.set_user(params["user"])
     tag, today = params["run"], frappe.utils.today()
-    tax = tax_id(tag + str({"purchase_goods": 1, "purchase_expense": 2, "sales_credit": 3, "sales_cash": 4}[kind]))
+    tax = "" if kind == "purchase_novat" else tax_id(tag + str(ORDER.index(kind) + 1))
+    if kind == "purchase_nobook":
+        today = params.get("outside_date") or "2019-06-01"
     party = f"บริษัท เอซีซี {tag} จำกัด"
     line = {"description": f"ACC {kind} {tag}", "qty": "2", "unit_price": "150", "vat_rate": 7, "vat_applicable": 1, "unit": "ชิ้น",
             "item_type": "service" if kind == "purchase_expense" else "goods"}
-    payload = {"company": row.name, "doc_date": today, "has_vat": 1, "lines": [line]}
+    payload = {"company": row.name, "doc_date": today, "has_vat": 0 if kind == "purchase_novat" else 1, "lines": [line]}
+    if kind == "purchase_novat":
+        line.update(vat_rate=0, vat_applicable=0)
     if direction == "purchase":
         from pearnly_erp_portal.purchasing import entry, suppliers
 
         doctype = "Purchase Document"
-        supplier = suppliers.create_supplier(supplier_name=party, tax_id=tax)["name"]
-        payload.update(doc_kind="expense" if kind == "purchase_expense" else "purchase_invoice", doc_no=f"ACC-{tag}-{kind[-3:]}", is_paid=0,
-                       price_mode="exclusive", supplier=supplier)
+        supplier = suppliers.create_supplier(supplier_name=party, tax_id=tax or None)["name"]
+        payload.update(doc_kind="expense" if kind == "purchase_expense" else "purchase_invoice", doc_no=f"ACC-{tag}-{ORDER.index(kind)}",
+                       is_paid=1 if kind == "purchase_cash" else 0, price_mode="exclusive", supplier=supplier)
     else:
         from pearnly_erp_portal.masters import customers
         from pearnly_erp_portal.sales import entry
@@ -131,7 +141,7 @@ try:
         customer = customers.create_customer(customer_name=party, tax_id=tax)["name"]
         paid = kind == "sales_cash"
         payload.update(doc_kind="receipt", vat_rate=7, source="manual", customer=customer, is_paid=1 if paid else 0,
-                       **({"payment_method": "cash"} if paid else {}))
+                       **({"payment_method": "cash"} if paid else {}), **({"header_discount": "50"} if kind == "sales_discount" else {}))
 
     def state():
         frappe.db.rollback()
