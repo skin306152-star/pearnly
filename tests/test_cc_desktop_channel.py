@@ -25,7 +25,7 @@ import cc_desktop_fake as fake  # noqa: E402
 frappe = fake.install()
 
 from pearnly_core.cc_desktop import books, contracts, devices, documents, http_auth, jobs, requests  # noqa: E402
-from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, route_contracts  # noqa: E402
+from pearnly_core.cc_desktop.wire import ack_rules, link_contracts, queue_contracts, route_contracts  # noqa: E402
 
 SITE = "testerp.localhost"
 KEY_A, KEY_B = "a" * 43, "b" * 43
@@ -557,6 +557,68 @@ class OperatorTargets(Base):
         self.assertEqual(rescan.unreached([self.office.device], now=later), [self.office.device])
         jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []})          # 来领了：在扫，照旧等
         self.assertEqual(rescan.unreached([self.office.device], now=later), [])
+
+
+class CloudLink(Base):
+    """心跳的 ``link``（云端 Express 的来源标记，11-15 评估第 4、6 节）：经哪台电脑（桥）连上来、云端主机名，记在电脑行上只给
+    显示用；只有明确的 ``cloud`` 才写、``none`` 清空，缺省与坏值不改，也绝不因为它拒收心跳。选目标账本的逻辑不看它。"""
+
+    CLOUD = {"kind": "cloud", "via": " ACC-01\n ", "host": "z1.tsplus.example"}
+
+    def setUp(self):
+        super().setUp()
+        office = self.register("staff@x", KEY_A)
+        self.office = self.context(office["device"], "staff@x")
+
+    def stored(self):
+        row = fake.STATE.db.table(documents.DEVICE)[self.office.device]
+        return tuple(row.get(key) or "" for key in link_contracts.FIELDS)
+
+    def beat(self, **extra):
+        from pearnly_core.cc_desktop import machine
+
+        reply = machine._heartbeat(self.office, {"companion_version": "1.12.22", "max_payload_version": 18, **extra})
+        self.assertIs(reply["ok"], True)
+        return reply
+
+    def test_the_pure_contract(self):
+        self.assertEqual(link_contracts.stored(self.CLOUD),
+                         {"link_kind": "cloud", "link_via": "ACC-01", "link_host": "z1.tsplus.example"})
+        self.assertEqual(link_contracts.stored({"kind": "cloud", "via": 3, "host": ["x"]}),
+                         {"link_kind": "cloud", "link_via": "", "link_host": ""})
+        self.assertEqual(link_contracts.stored({"kind": "cloud", "via": "x" * 200})["link_via"], "x" * 80)
+        self.assertEqual(link_contracts.stored({"kind": "none", "via": "ACC-01"}),
+                         {"link_kind": "", "link_via": "", "link_host": ""})
+        for value in (None, {}, {"kind": "local"}, {"kind": "Cloud"}, {"kind": None}, "cloud", ["cloud"], 1, True):
+            self.assertIsNone(link_contracts.stored(value), value)
+        self.assertEqual(link_contracts.view("cloud", "ACC-01", None), {"kind": "cloud", "via": "ACC-01", "host": ""})
+        for kind in ("", None, "local"):
+            self.assertIsNone(link_contracts.view(kind, "ACC-01", "z1"))
+        self.assertFalse(link_contracts.changed(None, {}))
+        self.assertTrue(link_contracts.changed(link_contracts.stored(self.CLOUD), {"link_kind": None}))
+
+    def test_a_cloud_link_is_written_and_missing_or_junk_keeps_it(self):
+        self.beat(link=self.CLOUD)
+        self.assertEqual(self.stored(), ("cloud", "ACC-01", "z1.tsplus.example"))
+        for junk in (None, {"kind": "local"}, {"kind": "CLOUD"}, "cloud", ["cloud"], 7, {"via": "ACC-02"}):
+            with self.subTest(junk=junk):
+                self.beat(link=junk)
+                self.assertEqual(self.stored(), ("cloud", "ACC-01", "z1.tsplus.example"))
+        self.beat()  # 旧版不报
+        self.assertEqual(self.stored(), ("cloud", "ACC-01", "z1.tsplus.example"))
+
+    def test_kind_none_clears_it_and_offline_leaves_it(self):
+        self.beat(link=self.CLOUD)
+        self.beat(offline=True, link={"kind": "none"})  # 报离线只清报到时间
+        self.assertEqual(self.stored(), ("cloud", "ACC-01", "z1.tsplus.example"))
+        self.beat(link={"kind": "none"})
+        self.assertEqual(self.stored(), ("", "", ""))
+
+    def test_a_cloud_computer_routes_like_any_other(self):
+        self.beat()
+        before = devices.peers()[self.office.device]
+        self.beat(link=self.CLOUD)
+        self.assertEqual(devices.peers()[self.office.device], before)
 
 
 class Requests(Base):

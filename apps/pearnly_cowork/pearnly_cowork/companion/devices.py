@@ -497,6 +497,36 @@ def record_mrerp_users(device, reported):
     return True
 
 
+def record_link(device, reported):
+    """心跳报的 ``link``（经哪台电脑连上来：云端 Express 的来源标记，`pearnly_core.cc_desktop.wire.link_contracts`；只给界面
+    显示，选目标账本不看它）：旧版不报 / 认不出的不动；``{"kind": "none"}`` 清空；变了才写。电脑行在加锁顺序的最后。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    value = link_contracts.stored(reported)
+    if value is None or not device:
+        return False
+    row = frappe.db.get_value(DOCTYPE, device, ['retired_at', *link_contracts.FIELDS], as_dict=True)
+    if not row or row.retired_at or not link_contracts.changed(value, row):
+        return False
+    doc = read(device)
+    for key, item in value.items():
+        setattr(doc, key, item)
+    persist(doc)
+    return True
+
+
+def links(names):
+    """几台电脑经哪台电脑连上来 ``{电脑: {kind, via, host}}``（只有云端的才在里面；网页「电脑」列表显示「云端」用）。只读。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    names = [name for name in dict.fromkeys(names or ()) if name]
+    if not names:
+        return {}
+    rows = frappe.db.sql(f'SELECT name, link_kind, link_via, link_host FROM `tab{DOCTYPE}` WHERE name IN %s',
+                         (tuple(names),))
+    found = {row[0]: link_contracts.view(row[1], row[2], row[3]) for row in rows}
+    return {name: link for name, link in found.items() if link}
+
 def reporter_label(connection):
     """这条连接上最近报到的那台电脑的名字（网页「连接」里显示，第 4 批改成每台电脑一行）；没有回空串。连接行上的
     「上报凭据」第 3 批起不再随上报改（两台轮流上报不来回重写连接行），按各把密钥自己的报到时间取。"""

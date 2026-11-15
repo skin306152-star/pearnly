@@ -11,7 +11,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-10-15 00:00:00.000000",
- "modified": "2026-11-03 12:00:00.000000",
+ "modified": "2026-11-15 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "title_field": "label",
@@ -30,6 +30,9 @@
   "operator_targets",
   "mrerp_logins",
   "mrerp_users",
+  "link_kind",
+  "link_via",
+  "link_host",
   "selection_json",
   "host_names",
   "index_pending",
@@ -134,6 +137,33 @@
    "fieldtype": "Small Text",
    "label": "MR.ERP Users on This Computer",
    "read_only": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "link_kind",
+   "fieldtype": "Select",
+   "label": "Connected Through",
+   "options": "\ncloud",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "link_via",
+   "fieldtype": "Data",
+   "label": "Bridge Computer",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 80,
+   "hidden": 1
+  },
+  {
+   "fieldname": "link_host",
+   "fieldtype": "Data",
+   "label": "Cloud Host",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 80,
    "hidden": 1
   },
   {

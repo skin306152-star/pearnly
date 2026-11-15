@@ -25,7 +25,7 @@ VIEWS = {
 
 class Computers(unittest.TestCase):
     def run_computers(self, records, online=(), denied=(), members=None, owners=None, user="me@example.com",
-                      manager=False):
+                      manager=False, links=None):
         """``members``：各条连接上的电脑（ADR-021 第 4 批：一台电脑一行）；不给就每条连接一台，在线按 ``online``。"""
         docs = {r["name"]: doc(r["name"], r["adapter"]) for r in records}
         members = members if members is not None else {
@@ -43,6 +43,8 @@ class Computers(unittest.TestCase):
                 mock.patch.object(rules.readers, "members", side_effect=lambda n: members.get(n, {})), \
                 mock.patch.object(rules.devices, "owners", side_effect=lambda names: {
                     name: owner for name, owner in (owners or {}).items() if name in names}), \
+                mock.patch.object(rules.devices, "links", side_effect=lambda names: {
+                    name: link for name, link in (links or {}).items() if name in names}), \
                 mock.patch("pearnly_cowork.companion.credentials.manages", return_value=manager), \
                 mock.patch.object(rules.frappe, "session", SimpleNamespace(user=user)), \
                 mock.patch.object(rules, "_reader_view",
@@ -57,9 +59,18 @@ class Computers(unittest.TestCase):
                                      {"name": "C-OLD", "adapter": "mrerp", "enabled": 1}], online={"C-E"})
         self.assertEqual(result, [
             {"adapter": "express", "device": "OFFICE-PC", "online": True, "version": "1.4.0", "folders": [r"D:\\Invoices"],
-             "id": "PC-C-E", "connection": "C-E", "can_remove": False},
+             "id": "PC-C-E", "connection": "C-E", "can_remove": False, "link": None},
             {"adapter": "mrerp", "device": "OLD-PC", "online": False, "version": "1.3.20", "folders": [],
-             "id": "PC-C-OLD", "connection": "C-OLD", "can_remove": False}])
+             "id": "PC-C-OLD", "connection": "C-OLD", "can_remove": False, "link": None}])
+
+    def test_a_cloud_computer_says_which_computer_it_came_through(self):
+        """云端 Express（11-15 评估第 6 节）：经桥连上来的电脑这一行带 ``link``（云端 ``{kind, via, host}``），其余 None。"""
+        cloud = {"kind": "cloud", "via": "ACC-01", "host": "z1.tsplus.example"}
+        members = {"C-E": {"PC1": {"online": True}, "PC2": {"online": True}}}
+        with mock.patch.dict(VIEWS, {"PC2|C-E": {**VIEWS["C-E"], "label": "CLOUD-PC"}}):
+            result = self.run_computers([{"name": "C-E", "adapter": "express", "enabled": 1}], members=members,
+                                        links={"PC2": cloud})
+        self.assertEqual([(row["id"], row["link"]) for row in result], [("PC1", None), ("PC2", cloud)])
 
     def test_the_owner_or_an_admin_may_remove_a_computer(self):
         """第 6 批「电脑」列表：登记人或管理员才给 ``can_remove``；没挂电脑的旧槽位密钥（不是电脑记录）不给。

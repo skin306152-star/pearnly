@@ -43,7 +43,7 @@ def _heartbeat(context, body):
                                 payload_version=payload_version if type(payload_version) is int else None,
                                 offline=offline, full=full, runner=body.get("reindex_runner"),
                                 targets=body.get("operator_targets"), logins=body.get("mrerp_logins"),
-                                users=body.get("mrerp_users"))
+                                users=body.get("mrerp_users"), link=body.get("link"))
     # 给托盘显示「连的是谁」（CC 桌面版 `_sync_connection_identity`）：电脑编号、站点、令牌的签发人
     reply = {"ok": True, "connection": {"endpoint_id": context.device, "endpoint_name": frappe.local.site,
                                         "pearnly_account": context.issuer}}

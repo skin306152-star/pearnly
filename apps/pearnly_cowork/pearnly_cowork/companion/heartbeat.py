@@ -31,6 +31,7 @@ def _receive_operator(context, doc, body):
     if not plan.offline:
         devices.record_mrerp_logins(device, body.get('mrerp_logins'))
         devices.record_mrerp_users(device, body.get('mrerp_users'))
+        devices.record_link(device, body.get('link'))
     reply = {'connected': bool(plan.response.get('connected'))}
     latest = release.latest()
     if latest:
@@ -66,6 +67,8 @@ def _receive(context, body):
     if not plan.offline:
         devices.record_mrerp_logins(device, body.get('mrerp_logins'))
         devices.record_mrerp_users(device, body.get('mrerp_users'))
+        # 经哪台电脑连上来（云端 Express 的来源标记，只给界面显示）：旧版不报不动
+        devices.record_link(device, body.get('link'))
     # 告诉小助手：账套名单没变时可以只报「没变」（`plan_report` 的 `account_sets_unchanged`）。
     # 旧服务端不回这一项，小助手就照旧每次整份上传 —— 两边谁先上线都不会把网页上的账套目录清掉。
     reply = {**result, 'account_sets_unchanged_ok': True}
