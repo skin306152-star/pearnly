@@ -223,7 +223,7 @@ paths = ["apps/pearnly_core/pearnly_core/cc_desktop/**"]
 markers = ["pearnly_core.cc_desktop", "pearnly_core import cc_desktop", "pearnly_cc_desktop"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "companion/src/**/*.py"]
 entries = ["erp.cc.connect", "erp.cc.write", "erp.cc.masters", "erp.cc.stock-void", "cowork.cc.channel", "cc.operator.page", "erp.cc.companies", "erp.cc.chat-push", "cc.mrerp-login", "erp.mrerp.direct", "cc.desktop.bridge", "cowork.cc-chat.push", "erp.collection.server", "erp.line.collection"]
-not_entries = { "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py" = "LINE 选公司按账套目录名 / 账套键找：只读账套登记（books.for_company），不发请求；入口见流程 erp.line.collection 与 test_line_search_and_loading", "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法", "apps/pearnly_cowork/pearnly_cowork/companies/identity.py" = "Cowork 公司主档只用 cc_desktop.contracts 的纯函数 book_identity / book_key 算与电脑无关的账套编号（A 线 11-12 账套身份跨电脑），不走机器通道；用户看到的入口是 cowork.cc-chat.push（本对话账套与写入）与 cowork.connections（账套目录），由 test_cowork_companies.BookIdentityTests、test_cc_conversation_ledger_cowork.CrossComputerTests 守住" }
+not_entries = { "companion/src/companion/cloud_link/tunnel_protocol.py" = "云端 Express 文件隧道的路径白名单只列出机器通道的方法路径（字符串），本身不调用通道；现有代码还没导入隧道，接进云端模式时登记入口（express-cloud 11-15，docs/work/2026-11-15-express-cloud-build-assessment.md 步 C）", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py" = "LINE 选公司按账套目录名 / 账套键找：只读账套登记（books.for_company），不发请求；入口见流程 erp.line.collection 与 test_line_search_and_loading", "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py" = "录过的票先核账本的产品通道（express_doc_check），还没有调用方；「录过的票」判定接入时登记入口（A 线 11-11，docs/work/2026-11-11-cc-ledger-check.md）", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/line_mobile.py" = "只在注释里提到 cc_desktop.http_auth 的做法", "apps/pearnly_cowork/pearnly_cowork/companies/identity.py" = "Cowork 公司主档只用 cc_desktop.contracts 的纯函数 book_identity / book_key 算与电脑无关的账套编号（A 线 11-12 账套身份跨电脑），不走机器通道；用户看到的入口是 cowork.cc-chat.push（本对话账套与写入）与 cowork.connections（账套目录），由 test_cowork_companies.BookIdentityTests、test_cc_conversation_ledger_cowork.CrossComputerTests 守住" }
 
 [[part]]
 id = "express-rules"
@@ -432,6 +432,7 @@ paths = ["companion/src/companion/express_doc_check.py", "companion/src/companio
 markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch", "express_receivables"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.requests", "cc.desktop.places", "cc.desktop.operator"]
+not_entries = { "companion/src/companion/cloud_link/tunnel_protocol.py" = "云端 Express 文件隧道只引用按需读取的分块大小与路径常量来定白名单和上限，本身不领取、不交回按需请求；现有代码还没导入隧道，接进云端模式时登记入口（express-cloud 11-15，docs/work/2026-11-15-express-cloud-build-assessment.md 步 C）" }
 
 [[part]]
 id = "cc-dbf-write"
