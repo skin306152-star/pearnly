@@ -53,6 +53,8 @@ class World:
 
             def diff(self, before, after, allow=None, out=None):
                 stray = ["STMAS.DBF"] if world.break_at == "stray" else []
+                if allow == [] and world.break_at == "cancel-wrote":
+                    stray = ["APTRN.DBF"]
                 return {"ok": True, "stray": stray, "tables": {name: [0, len(rows)] for name, rows in world.tables.items()}}
 
             def call(self, command, folder, table, flag, where):
@@ -131,6 +133,27 @@ class World:
         out["record"] = self._receipt(f"COL-{self.count + 1}", cash, transfer, params["entry"])
         return out
 
+    def erp_purchase_post(self, params):
+        self.add("APTRN", DOCNUM="HP691115-001")
+        return {"ok": True, "company": "CO-1", "doc": "PE-1", "book_paths": [params["ledger"]], "job": {"verify_state": "ok"},
+                "state": {"ledger_state": "written", "ledger_docnum": "HP691115-001"}, "expected": {}}
+
+    def erp_doc_cancel(self, params):
+        jobs = [{"name": "J-1", "status": "success"}]
+        return {"ok": True, "cancelled": {"name": params["doc"], "status": "void"}, "before": {"ledger_state": "written"},
+                "after": {"ledger_state": "written", "ledger_docnum": "HP691115-001" if params["kind"] == "purchase" else self.invoice},
+                "jobs_before": jobs, "jobs_after": jobs + ([{"name": "J-2", "status": "queued"}] if self.break_at == "cancel-job" else [])}
+
+    def erp_pos_day(self, params):
+        docnum, total = "HS691115-001", 100.0
+        self.add("ARTRN", DOCNUM=docnum, NETAMT=total, REMAMT=0.0)
+        for _index in range(1 if self.break_at == "pos-short" else 2):
+            self.add("STCRD", DOCNUM=docnum, STKCOD="P001", TRNQTY=-1.0)
+        return {"ok": True, "company": "CO-1", "doc": "PD-1", "again": "PD-2" if self.break_at == "pos-twice" else None,
+                "book_paths": [params["ledger"]], "job": {"verify_state": "ok"}, "receipts": ["S-1", "S-2"],
+                "state": {"ledger_state": "written", "ledger_docnum": docnum, "doc_kind": "HS", "sales_count": 2, "grand_total": total},
+                "expected": {"item_code": "P001", "receipts": 2, "in_summary": 2, "qty": 2.0, "grand_total": total, "sold_total": total}}
+
     def erp_stock_post(self, params):
         prefix = {"in": "JU", "out": "OU", "adjust": "TK", "count": "TK", "transfer": "RL"}
         docs = []
@@ -171,12 +194,13 @@ class World:
         rounds = [{"target": target, "committed": target, "cached": "CO-9" if stuck else target, "effective": "CO-9" if stuck else target}
                   for target in ("CO-9", "CO-1", "CO-9", "CO-1")]
         extra = 1 if self.break_at == "second-company" else 0
+        twice = 1 if self.break_at == "added-twice" else 0
         return {"ok": True, "name": "CO-1", "reported": [params["ledger"]],
                 "before": {"connected": True, "total": 1, "row": row, "companies": 1},
                 "rescan": {"devices": 1, "seconds": 8.0, "last": {"pending": 0, "online": 0}, "polls": [], "row_after": row},
                 "add": {"state_before": row["state"], "blank_default": "CO-1" if fresh else None,
                         "first": {"id": "CO-1", "created": False, **({"adopted": True} if fresh else {})},
-                        "again": {"id": "CO-1", "created": False}, "companies_after_first": 1 + extra, "companies_after_again": 1 + extra,
+                        "again": {"id": "CO-1", "created": False}, "companies_after_first": 1 + extra, "companies_after_again": 1 + extra + twice,
                         "row_after": {**row, "state": "added", "company": "CO-1"}},
                 "company": {"tax_id": "1234567890123", "is_active": 1, "express_enabled": 1, "warehouses": 1},
                 "sync": {"states": ["queued", "reading", "ready"], "customers": 12, "suppliers": 3, "products": 40, "nbsp_customers": 1,
@@ -202,7 +226,8 @@ class ChainScenarioTest(unittest.TestCase):
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
         module = "erp_company_connect.py" if ".company." in scenario_id else \
-            "erp_stock_express.py" if ".stock." in scenario_id else "erp_collection_express.py"
+            "erp_stock_express.py" if ".stock." in scenario_id else \
+            "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
                                         windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
         scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 0}
@@ -211,13 +236,14 @@ class ChainScenarioTest(unittest.TestCase):
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
                  "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
+                 "acc.erp.pos.day.express": 1, "acc.erp.purchase.cancel.express": 1, "acc.erp.sales.cancel.express": 1,
                  "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
         for scenario_id, docs in wrote.items():
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (docs, "restore"), scenario_id)
-        for scenario_id in ("acc.erp.company.connect", "acc.erp.company.connect.fresh"):
+        for scenario_id in ("acc.erp.company.connect", "acc.erp.company.connect.fresh", "acc.erp.company.connect.twice"):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((result["facts"]["add_branch"], world.calls.count("restore")), ("adopted", 0))
@@ -234,11 +260,15 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.erp.collection.nbsp", "nbsp", "逐字符原样"), ("acc.erp.collection.three", "stale-read", "已读好"),
                  ("acc.erp.collection.web.twice", "twice", "记录只有一条"), ("acc.erp.collection.line.edit", "stale-card", "旧卡"),
                  ("acc.erp.collection.line.refused", "double", "ARTRN 多的行数"), ("acc.erp.collection.three", "stray", "预期以外"),
+                 ("acc.erp.pos.day.express", "pos-twice", "第二张日汇总"), ("acc.erp.pos.day.express", "pos-short", "数量合计"),
+                 ("acc.erp.purchase.cancel.express", "cancel-wrote", "没有任何文件变化"),
+                 ("acc.erp.sales.cancel.express", "cancel-job", "多排写账件"),
                  ("acc.erp.stock.void.express", "void-kept", "作废后"), ("acc.erp.stock.in.express", "wrong-warehouse", "仓库码"),
                  ("acc.erp.stock.out.express", "qty", "物料与数量"), ("acc.erp.stock.count.express", "second-draft", "不新建"),
                  ("acc.erp.stock.adjust.express", "stray", "预期以外"),
                  ("acc.erp.company.connect", "switch", "三处一致"), ("acc.erp.company.connect", "stale-facts", "带收款方式"),
-                 ("acc.erp.company.connect.fresh", "second-company", "接管")]
+                 ("acc.erp.company.connect.fresh", "second-company", "接管"),
+                 ("acc.erp.company.connect.twice", "added-twice", "再添加一次")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))

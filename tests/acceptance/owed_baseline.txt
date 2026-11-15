@@ -688,7 +688,6 @@ erp.desk.pearnly-collections.action.New|misuse:M08
 erp.desk.pearnly-collections.action.New|misuse:M09
 erp.desk.pearnly-collections.action.New|misuse:M11
 erp.desk.pearnly-collections.action.New|variant:new+old
-erp.desk.pearnly-company.action.company.connect.add|misuse:M02
 erp.desk.pearnly-company.action.company.connect.add|misuse:M09
 erp.desk.pearnly-company.action.company.connect.add|misuse:M11
 erp.desk.pearnly-purchase.action.Express|misuse:M04
