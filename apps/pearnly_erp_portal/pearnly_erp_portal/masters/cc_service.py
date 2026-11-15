@@ -277,7 +277,7 @@ def _mrerp_companies(check_admin=True) -> dict:
         if connection not in hosts:
             hosts[connection] = catalog.site_host(connection)  # loop-query: 每条连接只取一次（连接数有界）
         group = groups.setdefault(catalog.identity(connection, attributes, hosts[connection]),
-                                  {"connection": connection, "attributes": attributes, "books": []})
+                                  {"connection": connection, "host": hosts[connection], "attributes": attributes, "books": []})
         if group["connection"] == connection:
             group["books"].append(catalog._book(connection, item))
     for group in groups.values():
@@ -325,7 +325,7 @@ def _catalog(search=None, check_admin=True) -> list:
         out.append({"identity": f"mrerp:{ident}", "title": name, "legal_name": name, "tax_id": tax,
                     "branch": HEAD_OFFICE if tax else "", "branches": [], "book": short if short != name else "",
                     "adapter": "mrerp", "years": [_year_label(book) for book in group["books"]],
-                    "connection": group["connection"], "account_set_key": ident,
+                    "connection": group["connection"], "connection_title": group.get("host") or "", "account_set_key": ident,
                     "folders": [], "company": found.name if found else None, "linkable": False,
                     "state": _state(found, False)})
     needle = " ".join(str(search or "").split()).casefold()

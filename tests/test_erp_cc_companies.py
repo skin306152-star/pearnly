@@ -855,6 +855,8 @@ class AddCompanyTests(unittest.TestCase):
                          [("Nakhon Foods", "NKF", "tax:0105560000001", ["NKF2569 2026", "NKF2570 —"], None),
                           ("บริษัท ทดสอบ จำกัด", "TEST", "row:mrerp.example|TEST|1010-01-000006 บริษัท ทดสอบ จำกัด",
                            ["TEST2019 —"], None)])
+        # 主会话 11-15：一家公司在两台 MR.ERP 服务器的连接里会出两行，行上带连接的站点地址分得清
+        self.assertEqual({row["connection_title"] for row in found}, {"mrerp.example"})
         made = cc_companies.create("MR-1", "tax:0105560000001")
         row = STATE.db.table("ERP Company")[made["id"]]
         self.assertEqual((row["company_name"], row["tax_id"], row["branch"], row["express_enabled"]),

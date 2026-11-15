@@ -30,7 +30,9 @@
 	const meta_of = row => [row.book, row.tax_id,
 		row.tax_id ? (!row.branch || row.branch === HEAD_OFFICE ? __("Head Office") : `${__("Branch")} ${row.branch}`) : "",
 		// MR.ERP 各年度写的是「账套名 年份」，用逗号隔开才分得清；Express 的年份 / 文件夹照旧空格
-		((row.folders || []).length ? row.folders : (row.years || [])).join(row.adapter === "mrerp" ? ", " : " ")]
+		((row.folders || []).length ? row.folders : (row.years || [])).join(row.adapter === "mrerp" ? ", " : " "),
+		// MR.ERP 一家公司在两条连接（两台 MR.ERP 服务器）里会出两行：带上连接的站点地址分得清（主会话 11-15）
+		row.adapter === "mrerp" ? row.connection_title : ""]
 		.filter(Boolean).join(" · ");
 	const PILLS = {added: ["gray", () => __("company.connect.added")], inactive: ["orange", () => __("company.status.inactive")]};
 
