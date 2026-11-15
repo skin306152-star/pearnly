@@ -84,7 +84,7 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | `pearnly/cc-1122-desktop`（1c65aff15） | 不随服务端部署 | 服务端上线后另发 staging → prod（prod 等主会话点头） | 不挡部署 |
 | MR.ERP 三条：第 3 批 `company-onboarding-3-307a0a`（共用件 mrerp-rules，手工 14）→ `mrerp-ledger-dialog`（a1b09740d）→ `mrerp-catalog-pick`（d58919b6c）（后两条共用件 erp-transactions / express-rules / mrerp-rules，手工合计 30 个，含第 3 批的） | 合入队列（今晚） | ① 升级演练、② T9–T11、③ 这 30 个手工入口：都归线 3 写账窗口 local_3e3bec90，15:30 起 T9–T11 → 演练 → 接着点手工入口，不够顺延次日；④ 开关前生产只读核对：收款负责窗口 local_292cabb6，部署前主会话单独叫；开关 `MRERP_LEDGER_ENABLED` 不随部署打开 | ①② 待 11-16；③ 可能顺延；④ 部署前 |
 | `pearnly/admin-all-features`（7ec1d4600，未命中共用件，调用方手工入口 2 个） | 合入队列 | 部署后逐个正式租户只读核：每个已开通功能管理员都为真（收款负责窗口，照 collection-admin-check 的做法扩） | 部署后 |
-| `pearnly/cc-guided-core`（909971dbb，共用件 assistant，手工 16） | 合入队列 | 作者（引导式 local_38ec22a7）给真机清单 | **缺**：已向作者要 |
+| `pearnly/cc-guided-core`（909971dbb，共用件 assistant，手工 16） | 合入队列 | 作者给了 3 行（0 美元，新代码运行时无调用方，assistant 手工入口被调代码改动 0 处，见 `docs/work/2026-11-15-cc-guided-p0-p1.md`）：guided-core.erp-cc（C 组末尾）、guided-core.cowork-cc（D 组 ⑫）、guided-core.migrate（部署时：**新增 DocType `Pearnly Assistant Guide Run`**，DocType 守卫只拦减少、不拦新增；看各 ERP / Cowork 租户迁移无报错） | 前两行待 11-16；第三行部署时 |
 | `pearnly/capacity-maintenance-transient`（7c47c996e） | 合入队列 | `deploy.sh --dry-run` 容量检查通过；生产内存余量约 300 MiB，本批不能新增 ≥300 MiB 常驻进程 | 部署预演时核 |
 | `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 控制面页面打开冒烟 | 部署后核 |
 | `pearnly/cowork-withdraw-push`（0be7bcb07，共用件 cowork-intake-upload，手工 6） | 合入队列 | Cowork 撤回 1 行 + 手工入口（D 组 ⑫）；第 ① 步重启测试机1 上用户的 CC，主会话白天问用户 | 待 11-16；第 ① 步**待批** |
