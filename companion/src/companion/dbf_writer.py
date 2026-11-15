@@ -643,6 +643,8 @@ def _write_all(
                 "DOCSTAT": "N",
                 "USERID": userid,
                 **audit_fields(docdat, depcod, has_vat, orgnum, duedat, srv=srv),
+                # 口径 2:付款时 Express 才记税期(原生单头 VATDAT 空,70EXP\test 代录 RR0000031;同销货 dbf_sales)
+                **({"VATDAT": None} if deferred_vat else {}),
                 # 单据上的付款天数(真账 RR 89% 等于供应商档的);老合成表没有这一列就不写
                 **({"PAYTRM": payterm} if "PAYTRM" in ap.field_names else {}),
                 **nxtseq_override,

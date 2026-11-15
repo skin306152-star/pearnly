@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """按需请求的后台线程（2026-10 CC 闭环）：轮流问每条已配对、没暂停的连接「有没有要我读的」，领到一件就做、分块交回，
-做完马上再问一次；空闲时每 ``POLL_SECONDS`` 问一次。
+做完马上再问一次；空闲时每 ``POLL_SECONDS`` 问一次，领单回复说有新请求时提前问（``request_wake``，1.12.22）。
 
 与写账套的推送线完全分开（同文件夹自动录入的做法）：自己一条守护线程、自己的 httpx 客户端，不进 PollWorker、
 不碰看门狗的存活时标——读得再慢也不挡推送，也不会被当成「卡死」重启。一次只做一件；线程里任何错误都不抛出去。
@@ -24,7 +24,8 @@ from typing import Callable, Iterable, Optional
 
 import httpx
 
-from . import account_history, device_link, express_doc_check, express_masters, express_read, express_receivables, folder_fetch
+from . import (account_history, device_link, express_doc_check, express_masters, express_read, express_receivables, folder_fetch,
+               request_wake)
 from .config import member_active
 from .logger import get_logger
 from .queue_client import _device_name
@@ -87,6 +88,7 @@ class RequestWorker:
 
     def stop(self) -> None:
         self._stop.set()
+        request_wake.ring()  # 正在空闲等的线程马上看到停
 
     def running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
@@ -149,7 +151,12 @@ class RequestWorker:
                 except Exception:
                     log.exception("按需请求本轮失败（%s 秒后再问）", self._back_off(key))
             if not worked:
-                self._stop.wait(self._idle)
+                self._rest(self._idle)
+
+    def _rest(self, seconds: float) -> None:
+        """空闲时等一会儿：领单回复说有新请求就提前醒（``request_wake``，1.12.22），停线程也马上醒。"""
+        if not self._stop.is_set():
+            request_wake.nap(seconds)
 
     def _back_off(self, key) -> int:
         """这条连接又失败一次：按连续失败次数退避（ERROR_BACKOFF），回这次等几秒。"""

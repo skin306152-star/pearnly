@@ -170,12 +170,15 @@ class ServiceVatWriteTest(unittest.TestCase):
         self.assertTrue(cash.ok, cash.error)
         head = self._rows("APTRN", cash.docnum)[0]
         self.assertEqual(((head.SRV_VATTYP or "").strip(), head.VATPRD), ("2", None))
+        # 单头 VATDAT 也空（11-15 真机：代录 RR0000031 原生为空，直写以前填了单据日期）
+        self.assertIsNone(head.VATDAT)
         self.assertEqual(self._rows("ISVAT", cash.docnum), [])
         vat_lines = [(r.ACCNUM or "").strip() for r in self._rows("GLJNLIT", cash.docnum) if (r.SEQIT or "").strip() == "3"]
         self.assertEqual(vat_lines, [DEFERRED_ACC])
         accrual = self._buy({**_payload("SV-9"), "supplier": {**_payload("x")["supplier"], "code": "S002"}})
         self.assertTrue(accrual.ok, accrual.error)
         self.assertIsNotNone(self._rows("APTRN", accrual.docnum)[0].VATPRD)
+        self.assertIsNotNone(self._rows("APTRN", accrual.docnum)[0].VATDAT)
         self.assertEqual(len(self._rows("ISVAT", accrual.docnum)), 1)
         self.assertEqual([(r.ACCNUM or "").strip() for r in self._rows("GLJNLIT", accrual.docnum)
                           if (r.SEQIT or "").strip() == "3"], [VAT_IN_ACC])

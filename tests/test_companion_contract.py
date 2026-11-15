@@ -1619,7 +1619,8 @@ class ReceiptContract(unittest.TestCase):
         self.assertEqual(server["KIND_MIN_COMPANION"]["express_ar_open"], "1.12.20")
         helper = number_constants(COMPANION / "express_receivables.py", ("PARAM_KEYS", "OPTIONAL_KEYS"))
         self.assertEqual(set(helper["PARAM_KEYS"]), set(server["LOCATION_KEYS"]))
-        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer",))
+        # docnums（按单号查状态，1.12.22）只派给认得它的版本：`Release1122Edges`
+        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer", "docnums"))
         self.assertIn('"express_ar_open": express_receivables.read_ar_open',
                       (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
         tree = ast.parse((COMPANION / "express_receivables.py").read_text(encoding="utf-8"))
