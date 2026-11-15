@@ -571,3 +571,52 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+# ---- 第二期第 1 批（续）：Cowork 录入页提交 → 写 Express。服务端只在测试机实验栈跑（主会话 11-15 定 A）。写好未跑。
+[[scenario]]
+id = "acc.cowork.intake.express"
+title = "Cowork 录入页提交一张采购票（内容写死、不跑识别）→ 推送 → CC 桌面版写进 Express 验收账套 → 账本读回"
+class = "chain"
+chain = "cowork.intake-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_intake_express.py"
+rows = ["cowork.desk.pearnly-intake.action.Submit"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.cowork.intake.express.twice"
+title = "Cowork 同一张票写成后再提交一次 → Express 验收账套里仍只多一张"
+class = "misuse"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_intake_express.py"
+rows = ["cowork.desk.pearnly-intake.action.Submit"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"

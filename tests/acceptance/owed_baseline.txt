@@ -352,10 +352,7 @@ cowork.cc.tool.pearnly_write_start|misuse:M11
 cowork.cc.tool.pearnly_write_start|misuse:M12
 cowork.cc.tool.pearnly_write_start|normal
 cowork.cc.tool.pearnly_write_start|variant:new+old
-cowork.desk.pearnly-intake.action.Submit|L3:normal
-cowork.desk.pearnly-intake.action.Submit|chain
 cowork.desk.pearnly-intake.action.Submit|misuse:M01
-cowork.desk.pearnly-intake.action.Submit|misuse:M02
 cowork.desk.pearnly-intake.action.Submit|misuse:M04
 cowork.desk.pearnly-intake.action.Submit|misuse:M07
 cowork.desk.pearnly-intake.action.Submit|misuse:M08

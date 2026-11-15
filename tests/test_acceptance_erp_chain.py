@@ -185,6 +185,21 @@ class World:
             docs.append(doc)
         return {"ok": True, "company": "CO-1", "item_code": "P001", "warehouse_code": "01", "warehouses": ["01", "02"], "docs": docs}
 
+    def cowork_intake_post(self, params):
+        docnum, total = "HP691115-009", float(params["amount"]) + float(params["vat"])
+        self.add("APTRN", DOCNUM=docnum, SUPCOD="V001" if self.break_at == "supplier" else "T001", NETAMT=total, VATAMT=float(params["vat"]))
+        self.add("ISVAT", DOCNUM=docnum)
+        self.add("GLJNL", VOUCHER=docnum)
+        out = {"ok": True, "history": "H-1", "pushes": 1, "last": {"last_push_status": "success", "last_push_record": "PR-1"},
+               "record": {"name": "PR-1", "status": "success", "docnum": docnum, "verify": "ok", "written": True, "duplicate_skipped": False,
+                          "written_to": params["ledger"]},
+               "expected": {"number": "ACC-1", "amount": float(params["amount"]), "vat": float(params["vat"]), "total": total}}
+        if params.get("resubmit"):
+            out["resubmit"] = {"status": "prepared", "name": "PR-2", "record": {"docnum": None, "duplicate_skipped": True}}
+            if self.break_at == "second-doc":
+                self.add("APTRN", DOCNUM="HP691115-010", SUPCOD="T001", NETAMT=total, VATAMT=35.0)
+        return out
+
     def erp_denied(self, params):
         names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
                  "connect.add"]
@@ -226,7 +241,8 @@ class ChainScenarioTest(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_ERP_USER": "acc.erp@maclab.test",
-                "PEARNLY_ACC_ERP_TAX": "1234567890123", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+                "PEARNLY_ACC_ERP_TAX": "1234567890123", "PEARNLY_ACC_COWORK_USER": "acc@cowork.test",
+                "PEARNLY_ACC_COWORK_CONNECTION": "CONN-1", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
         self.old = {key: os.environ.get(key) for key in keys}
         os.environ.update(keys)
         self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
@@ -235,7 +251,8 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
+        module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
+            "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
@@ -246,6 +263,7 @@ class ChainScenarioTest(unittest.TestCase):
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
                  "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
+                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1,
                  "acc.erp.pos.day.express": 1, "acc.erp.purchase.cancel.express": 1, "acc.erp.sales.cancel.express": 1,
                  "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
@@ -279,6 +297,7 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.erp.company.connect", "switch", "三处一致"), ("acc.erp.company.connect", "stale-facts", "带收款方式"),
                  ("acc.erp.company.connect.fresh", "second-company", "接管"),
                  ("acc.erp.company.connect.twice", "added-twice", "再添加一次"),
+                 ("acc.cowork.intake.express", "supplier", "供应商编码"), ("acc.cowork.intake.express.twice", "second-doc", "只多一行"),
                  ("acc.erp.denied", "open-door", "都被拒"), ("acc.erp.denied", "left-record", "都没变")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)

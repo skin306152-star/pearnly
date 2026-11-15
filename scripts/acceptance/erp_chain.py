@@ -90,9 +90,11 @@ def baseline(ctx, book, conf) -> None:
         ctx.check("账套 = 基线", True, True)
 
 
-def site(ctx, script: str, params: dict, timeout=600, save: str = "") -> dict:
-    """跑一段站点脚本，取末行 ``ACC {json}``；脚本自己拒绝（不是测试租户、账套不对）算前置条件不满足。"""
-    out = ctx.targets.site(SITE_TARGET).run("erp", SITE_DIR / script, SITE, json.dumps(params, ensure_ascii=False), timeout=timeout)
+def site(ctx, script: str, params: dict, timeout=600, save: str = "", product: str = "erp", name: str = "", target: str = "") -> dict:
+    """跑一段站点脚本，取末行 ``ACC {json}``；脚本自己拒绝（不是测试租户、账套不对）算前置条件不满足。
+    ``product`` / ``name`` / ``target``：不是 ERP 站点时给（Cowork 的场景在测试机实验栈跑）。"""
+    out = ctx.targets.site(target or SITE_TARGET).run(product, SITE_DIR / script, name or SITE, json.dumps(params, ensure_ascii=False),
+                                                      timeout=timeout)
     line = next((text for text in reversed(out.splitlines()) if text.startswith("ACC ")), None)
     if line is None:
         raise Infra(f"站点脚本 {script} 没有回结果：{out[-300:]}")

@@ -56,3 +56,8 @@ rows = ["erp.desk.pearnly-stock-count.action.stock.count.adjust", "erp.desk.pear
 id = "erp.pos-day-to-express"
 title = "ERP 收银：小票 → 当天日汇总 → 写进 Express 现销单 → 账本读回"
 rows = ["erp.desk.pearnly-pos-receipts"]
+
+[[chain]]
+id = "cowork.intake-to-express"
+title = "Cowork 录入：提交 → 推送 → 写进 Express → 单号回显 → 账本读回"
+rows = ["cowork.desk.pearnly-intake.action.Submit"]
