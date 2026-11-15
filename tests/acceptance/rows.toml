@@ -88,3 +88,24 @@ card = true
 [row."cowork.cc.tool.cowork_run_folder_task"]
 effect = ["ledger"]
 card = true
+
+# ---- 收款链路（11-15 第二期第 0 批首次登记；主会话 11-15：把账记实，不是回退）
+[row."erp.desk.pearnly-collections.action.New"]
+effect = ["site", "ledger"]
+na = { "misuse:M03" = "网页提交没有「停止」这个动作；写到一半停止在 CC 对话与代录的行上验" }
+
+[row."erp.line.postback.col"]
+effect = ["site", "ledger"]
+line = true
+card = true
+
+[row."erp.cc.tool.erp_collection_draft"]
+effect = ["site"]
+card = true
+
+[row."erp.cc.tool.erp_collection_push"]
+effect = ["site", "ledger"]
+card = true
+
+[row."erp.desk.pearnly-company.action.company.connect.add"]
+effect = ["site"]
