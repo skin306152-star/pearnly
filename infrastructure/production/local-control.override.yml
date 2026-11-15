@@ -11,3 +11,7 @@ services:
     volumes: *source
   control-scheduler:
     volumes: *source
+  # 前端 nginx 直接按 sites/assets 下的链接取各 App 的 public 目录，不挂源码就取的是镜像里那份旧文件：
+  # 新加的静态文件一律 404（11-15 实测：主线新加的 desk/messages.js 取不到，控制面整份翻译表没加载，界面退回英文）。
+  control-frontend:
+    volumes: *source
