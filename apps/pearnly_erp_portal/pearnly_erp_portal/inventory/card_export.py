@@ -87,10 +87,12 @@ def _warehouse_code(row) -> str:
 def _product_master_range() -> tuple:
     """物料主档的第一个 / 最后一个代码（MR.ERP 筛选页的默认「从 ~ 到」）：当前公司看得到的物料 = 本地档 + 本公司 Express 档
     （`products.codes._scope`），代码口径同 `_product_code`，按库的排序规则（MR.ERP 也是库里 ORDER BY）。"""
+    from pearnly_erp_portal.masters import access as master_access
+
+    scope, values = master_access.scope_sql(companies.active_company())
     rows = frappe.db.sql(
-        """select min(c), max(c) from (select coalesce(nullif(express_code, ''), nullif(code, ''), name) as c
-           from `tabERP Product` where ifnull(express_company, '') in ('', %s)) as codes""",
-        [companies.active_company()])
+        f"""select min(c), max(c) from (select coalesce(nullif(express_code, ''), nullif(code, ''), name) as c
+           from `tabERP Product` where {scope}) as codes""", values)
     first, last = (rows[0] if rows else (None, None))
     return (first or "").strip(), (last or "").strip()
 

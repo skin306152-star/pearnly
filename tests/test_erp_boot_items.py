@@ -29,13 +29,20 @@ class ErpBootItems(unittest.TestCase):
         self.companies.selling_warehouse = Mock(return_value="WH-1")
         self.guard = types.ModuleType("pearnly_erp_portal.access.guard")
         self.guard.has = Mock(return_value=True)
+        # 「从连接添加」自动弹窗的两项（公司接入重做第 2 批）：能不能建公司、本人还没看过的新账套几家
+        self.cc_service = types.ModuleType("pearnly_erp_portal.masters.cc_service")
+        self.cc_service.can_build = Mock(return_value=True)
+        self.ledger_prompt = types.ModuleType("pearnly_erp_portal.masters.ledger_prompt")
+        self.ledger_prompt.unseen = Mock(return_value=2)
         masters = types.ModuleType("pearnly_erp_portal.masters")
         masters.company = self.companies
+        masters.cc_service, masters.ledger_prompt = self.cc_service, self.ledger_prompt
         access = types.ModuleType("pearnly_erp_portal.access")
         access.guard = self.guard
         modules = patch.dict(sys.modules, {
             "frappe": self.frappe, "pearnly_erp_portal": types.ModuleType("pearnly_erp_portal"),
             "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.masters.company": self.companies,
+            "pearnly_erp_portal.masters.cc_service": self.cc_service, "pearnly_erp_portal.masters.ledger_prompt": self.ledger_prompt,
             "pearnly_erp_portal.express": express, "pearnly_erp_portal.express.push": self.push,
             "pearnly_erp_portal.access": access, "pearnly_erp_portal.access.guard": self.guard})
         modules.start()
@@ -48,7 +55,7 @@ class ErpBootItems(unittest.TestCase):
         self.namespace["boot_session"](boot)
         # 没有 `pearnly_warehouse`：单据的仓库建议改由各表单问 `warehouses.api_prefill`（多仓闭环 P1）
         self.assertEqual(boot, {"pearnly_companies": [{"name": "CO-00001"}], "pearnly_company": "CO-00001",
-                                "pearnly_line": True, "pearnly_express": True})
+                                "pearnly_line": True, "pearnly_express": True, "pearnly_new_ledgers": 2, "pearnly_can_build": True})
         self.frappe.log_error.assert_not_called()
 
     def test_tenant_without_company_still_gets_line(self):

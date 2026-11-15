@@ -74,7 +74,8 @@ co = frappe.db.get_value("ERP Company", {{"tax_id": {MY_TAX!r}, "branch": {BRANC
 if not co:
     co = companies.create_company(company_name={MY_NAME!r}, tax_id={MY_TAX!r}, branch={BRANCH!r}, payment_methods=["cash"])["name"]
 if not frappe.db.get_value("ERP Company", co, "express_enabled"):
-    companies.update_company(co, express_enabled=1)  # 公司页勾「接 Express」
+    from pearnly_erp_portal.masters import cc_service
+    cc_service.link_express(co)  # 正式接入路径（第 2 批起表单不再改「接 Express」）
 frappe.db.commit()
 mapping = {{"fallback_acc": "51-03-00-00", "vat_input_acc": "11-06-01-00", "ap_acc": "21-01-01-00", "revenue_acc": "41-01-00-00",
            "vat_output_acc": "21-04-01-00", "ar_acc": "11-03-01-00"}}

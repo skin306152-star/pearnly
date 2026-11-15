@@ -68,6 +68,7 @@ Add an item,Add an item
 Add and issue,Add and issue
 Add and receive,Add and receive
 Add another list,Add another list
+Add from connections,Add from connections
 Add label,Add label
 Add locations in stock,Add locations in stock
 Add member,Add member
@@ -75,8 +76,10 @@ Add opening item,Add opening item
 Add photos,Add photos
 Add row,Add row
 Add terminal,Add terminal
+Add these companies?,Add these companies?
 Add watcher,Add watcher
 Added,Added
+Added companies,Added companies
 Added {0},Added {0}
 Added: {0},Added: {0}
 Additional,Additional
@@ -808,6 +811,7 @@ List name,List name
 Listed collection methods,Listed collection methods
 Listed collections,Listed collections
 Listed companies,Listed companies
+Listed companies to add,Listed companies to add
 Listed documents,Listed documents
 Listed open invoices,Listed open invoices
 Listed stock counts,Listed stock counts
@@ -1322,6 +1326,7 @@ Select a stock count,Select a stock count
 Select a warehouse and opening date first,Select a warehouse and opening date first
 Select an invoice to load summary data,Select an invoice to load summary data
 "Select both ""Date"" values","Select both ""Date"" values"
+Select companies,Select companies
 Select item group,Select item group
 Select one receipt to refund,Select one receipt to refund
 Select one row to open its ledger,Select one row to open its ledger
@@ -1931,6 +1936,8 @@ company.col.status,Status
 company.col.taxId,Tax ID
 company.col.warehouse,Warehouse name
 company.col.warehouseCode,Warehouse code
+company.connect.add,Add from connections
+company.connect.title,Select companies
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules
 company.enable,Enable

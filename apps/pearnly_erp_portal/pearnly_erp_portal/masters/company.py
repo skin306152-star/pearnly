@@ -48,7 +48,6 @@ VAT_STATES = (VAT_YES, VAT_NO)
 GENERAL = "general"
 UNIT_KINDS = {"vehicle": "vehicle", "device": "device"}
 COMPANY_TYPES = (GENERAL, *UNIT_KINDS)
-DISCONNECT_FIRST = "Disconnect Express first"
 
 def _get(name):
     if not name or not frappe.db.exists(DOCTYPE, name):
@@ -558,16 +557,8 @@ def update_company(name, **fields) -> dict:
     guard.require("company.manage")
     doc = _get(document_company(name))
     before = doc.get("vat_registered") or ""
-    was_enabled = bool(doc.get("express_enabled"))
     _apply(doc, fields)
     doc.save()
-    if was_enabled and not doc.express_enabled:
-        _detach(doc.name)  # 没连上时直接取消勾选：同「断开」
-    elif doc.express_enabled and not was_enabled:
-        from pearnly_erp_portal.express import masters as express_masters, push as express_push
-
-        if express_push.connected(doc.name):
-            express_masters.queue(doc.name)  # 重新勾上、已连上：排一次同步，落库那一刻记接上时刻，不等每小时兜底
     if (doc.get("vat_registered") or "") != before:
         _vat_changed(doc.name)
     frappe.db.commit()
@@ -680,16 +671,12 @@ def _apply(doc, fields) -> None:
         if kind not in COMPANY_TYPES:
             frappe.throw(_(INVALID))
         doc.company_type = kind
-    if "express_enabled" in fields:
-        wanted = 1 if fields.get("express_enabled") in (True, 1, "1", "true") else 0
-        if not wanted and doc.get("express_enabled") and not doc.is_new():
-            from pearnly_erp_portal.express import push as express_push
-
-            if express_push.connected(doc.name):
-                frappe.throw(_(DISCONNECT_FIRST))
-        if not wanted:
-            doc.express_linked_at = None
-        doc.express_enabled = wanted
+    # 「接 Express」不再由表单勾（公司接入重做第 2 批，2026-11-14：来源决定是否互通）：接上只走「从连接添加」/ CC 选中即建
+    # （`cc_service.create`），断开只走 :func:`disconnect_express`；表单、接口交来的 express_enabled 不收。跟现状一样的照旧忽略
+    # （旧页面缓存整份交回）；想改它的（旧页面勾 / 取消「接 Express」）明确拒绝，不静默丢掉让人以为已接上
+    if "express_enabled" in fields and \
+            (1 if fields["express_enabled"] in (True, 1, "1", "true") else 0) != (1 if doc.get("express_enabled") else 0):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     if "fiscal_year_start_month" in fields:
         if not contracts.fiscal_month_ok(fields["fiscal_year_start_month"]):
             frappe.throw(_("The fiscal year start month must be between 1 and 12"))

@@ -19,6 +19,7 @@ from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.numbering import service as numbering
 from pearnly_erp_portal.products import line_memory
 from pearnly_erp_portal.sales import access, contracts, files
+from pearnly_erp_portal.masters import access as master_access
 
 DOCTYPE = "ERP Sales Document"
 LINE_DOCTYPE = "ERP Sales Document Line"
@@ -118,7 +119,7 @@ def _buyer(payload, company=None, started=None):
         if not frappe.db.exists("ERP Customer", key):
             frappe.throw(_("Customer not found. Please select the customer again."))
         doc = frappe.get_doc("ERP Customer", key)
-        if getattr(doc, "express_company", None) and company and doc.express_company != company:
+        if not master_access.usable(getattr(doc, master_access.OWNER, None), company):
             # 别家公司 Express 同步来的档不能挂在这家的单上（主档按公司隔离，服务端也拒；10-24 验收）
             frappe.throw(_("Customer not found. Please select the customer again."))
         if not doc.is_active:
@@ -285,7 +286,7 @@ def _resolve_item(row, company=None, *, create=False, created=None):
     if row.get("product"):
         item = frappe.get_doc("ERP Product", row["product"])
         item.check_permission("read")
-        if getattr(item, "express_company", None) and company and item.express_company != company:
+        if not master_access.usable(getattr(item, master_access.OWNER, None), company):
             frappe.throw(_("Product not found"))  # 别家公司 Express 的商品不能用在这家的单上（10-24 验收）
         if not item.is_active:
             frappe.throw(_("Item is disabled"))

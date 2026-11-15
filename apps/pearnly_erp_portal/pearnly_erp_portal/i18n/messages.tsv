@@ -870,6 +870,11 @@ Active	正常	ปกติ	有効	company.status.active
 Disabled	已停用	ปิดใช้งาน	無効	company.status.inactive
 Yes	是	ใช่	はい	company.yes
 New company	新建公司	เพิ่มบริษัท	会社を追加	company.new
+Listed companies to add	列出了可添加的公司	แสดงบริษัทที่เพิ่มได้	追加できる会社を表示
+Added companies	添加了公司	เพิ่มบริษัทแล้ว	会社を追加
+Add these companies?	确定要添加以下公司吗？	เพิ่มบริษัทเหล่านี้หรือไม่	これらの会社を追加しますか？
+Add from connections	从连接添加	เพิ่มจากการเชื่อมต่อ	接続から追加	company.connect.add
+Select companies	选择要用的公司	เลือกบริษัทที่จะใช้	使用する会社を選択	company.connect.title
 Set as current	设为当前	ตั้งเป็นปัจจุบัน	現在の会社にする	company.setCurrent
 Disable	停用	ปิดใช้งาน	無効にする	company.disable
 Enable	启用	เปิดใช้งาน	有効にする	company.enable

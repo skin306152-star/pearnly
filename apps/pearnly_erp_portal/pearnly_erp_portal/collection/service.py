@@ -19,6 +19,7 @@ from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts, snapshot
 from pearnly_erp_portal.express import choices, contracts as express_contracts, facts, target
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.masters import access as master_access
 
 DOCTYPE = "ERP Collection"
 INVOICE = "ERP Collection Invoice"
@@ -163,7 +164,7 @@ def customers(company, q="", start=0, limit=12) -> dict:
     ``{"items": [{code, name}], "total"}``。收款员看所有客户（不按收款员过滤）。"""
     guard.require(WRITE)
     _company(company)
-    filters = {"express_company": company, "is_active": 1, "express_code": ["is", "set"]}
+    filters = {**master_access.ledger_filters(company), "is_active": 1}
     text = str(q or "").strip()[:60]
     or_filters = [["express_code", "like", f"%{text}%"], ["customer_name", "like", f"%{text}%"]] if text else None
     limit = max(1, min(int(limit or 12), SEARCH_MAX))
@@ -177,7 +178,7 @@ def customers(company, q="", start=0, limit=12) -> dict:
 
 
 def _customer_name(company, code):
-    name = frappe.db.get_value(CUSTOMER, {"express_company": company, "express_code": code, "is_active": 1},
+    name = frappe.db.get_value(CUSTOMER, {**master_access.ledger_filters(company), "express_code": code, "is_active": 1},
                                "customer_name")
     if name is None:
         raise contracts.CollectionError(NO_CUSTOMER, {"customer": code})

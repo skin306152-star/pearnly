@@ -101,6 +101,8 @@ class OpeningBatch(unittest.TestCase):
                    "pearnly_erp_portal.access": access, "pearnly_erp_portal.inventory": inventory,
                    "pearnly_erp_portal.masters": masters, "pearnly_erp_portal.express": express}
         sys.modules.update(modules)
+        # 主档按公司可见的口径用真的那份（`masters.access`，公司接入重做第 2 批收口）
+        masters.access = load("pearnly_erp_portal.masters.access", DOMAIN.parent / "masters/access.py")
         self.service = load("opening_test_service", DOMAIN / "opening_batch.py")
         self.args = {"warehouse": "W1", "as_of_date": "2026-09-01", "note": "opening test",
                      "rows": [{"product": "P1", "qty": "4", "unit_cost": "10"}]}

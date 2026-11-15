@@ -173,6 +173,8 @@ jobs:
         env:
           FLOWS_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}
         run: python3 tests/test_flows_coverage.py && python3 tests/test_flows_lab_migrate.py && python3 tests/test_flows_run.py && python3 tests/test_flows_wait_values.py && python3 scripts/flows/coverage.py
+      - name: Block new hand-written "which masters can this company see" conditions (baseline may only shrink)
+        run: python3 scripts/check-master-scope.py && python3 tests/test_check_master_scope.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
       - name: Block new database queries inside loops (N+1; baseline may only shrink)
@@ -239,6 +241,8 @@ jobs:
         run: python3 scripts/production/test-erp-runtime.py
       - name: Verify the ERP masters lane can be handed back to the long queue on rollback
         run: python3 scripts/production/test-requeue-erp-masters.py
+      - name: Verify the cleanup of never-used auto-built companies only deletes with the confirmed plan
+        run: python3 scripts/production/test-purge-unused-ledger-companies.py
       - name: Verify the daily offsite backup and restore drill contracts
         run: python3 scripts/production/test-offsite-backup.py
       - name: Verify the Windows helper and the server agree on endpoints, pairing code and downloads

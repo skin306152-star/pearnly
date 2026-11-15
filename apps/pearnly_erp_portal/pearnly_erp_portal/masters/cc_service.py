@@ -235,16 +235,17 @@ def require_build(user=None) -> str:
     return user
 
 
-def _mrerp_on() -> bool:
+def _mrerp_on(check_admin=True) -> bool:
     from pearnly_erp_portal import mrerp
     from pearnly_erp_portal.mrerp import connection as connections
 
-    return mrerp.enabled() and connections.is_admin()
+    return mrerp.enabled() and (not check_admin or connections.is_admin())
 
 
-def _mrerp_sets() -> list:
-    """MR.ERP 各连接目录里的账套（只在 MR.ERP 账本开着、本人是管理员时；同 ERP 公司页选账本的那份目录）。"""
-    if not _mrerp_on():
+def _mrerp_sets(check_admin=True) -> list:
+    """MR.ERP 各连接目录里的账套（只在 MR.ERP 账本开着、本人是管理员时；同 ERP 公司页选账本的那份目录）。
+    ``check_admin`` 为假只给后台算「有没有新账套」（`express.companies.announce`，不回给任何人看）。"""
+    if not _mrerp_on(check_admin):
         return []
     from pearnly_erp_portal.mrerp import catalog
     from pearnly_erp_portal.mrerp import connection as connections
@@ -255,7 +256,7 @@ def _mrerp_sets() -> list:
     return out
 
 
-def _catalog(search=None) -> list:
+def _catalog(search=None, check_admin=True) -> list:
     """账套目录里的公司（`choices` 里还没建的那些行从这里来；不截断、不判权限，调用方判）：Express = 在用电脑报的账套按
     「税号 + 分店」合并（`express.companies.catalog`，后台本来就会照它补建）；MR.ERP = 各连接目录里的账套，一份一行（一家公司只接
     一份账本）。``company`` 是已有的那家（停用的不列，人停的不在这里重开）。不调电脑、不扣费；纯 ERP 公司（不接账本）在 ERP 公司页建。"""
@@ -272,8 +273,10 @@ def _catalog(search=None) -> list:
             continue
         out.append({"identity": f"express:{tax}:{branch}", "title": item["name"], "legal_name": item["name"], "tax_id": tax,
                     "branch": branch, "branches": [branch], "adapter": "express", "years": item["years"], "connection": "",
-                    "account_set_key": f"{tax}:{branch}", "company": found.name if found else None})
-    for connection, row in _mrerp_sets():
+                    "account_set_key": f"{tax}:{branch}", "company": found.name if found else None,
+                    # 已有同税号同分店、但没接账本的公司（ERP 里手工建的）：选中就是把它接上，不另建一家（`create`）
+                    "linkable": bool(found and not found.express_enabled and not found.mrerp_connection)})
+    for connection, row in _mrerp_sets(check_admin):
         found = by_set.get((connection, row["key"]))
         if found and not found.is_active:
             continue
@@ -281,7 +284,8 @@ def _catalog(search=None) -> list:
         out.append({"identity": f"mrerp:{connection}:{row['key']}", "title": name, "legal_name": name,
                     "tax_id": row.get("tax_id") or "", "branch": HEAD_OFFICE if row.get("tax_id") else "", "branches": [],
                     "adapter": "mrerp", "years": [str(row.get("period_start") or "")[:4]] if row.get("period_start") else [],
-                    "connection": connection, "account_set_key": row["key"], "company": found.name if found else None})
+                    "connection": connection, "account_set_key": row["key"], "company": found.name if found else None,
+                    "linkable": False})
     needle = " ".join(str(search or "").split()).casefold()
     if needle:
         out = [item for item in out if needle in " ".join([item["title"], item["tax_id"], *item["years"]]).casefold()]
@@ -337,8 +341,49 @@ def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
 
 
 def _companies() -> list:
-    return frappe.get_all(COMPANY, fields=["name", "is_active", "tax_id", "branch", "mrerp_connection", "mrerp_account_set"],
-                          limit_page_length=COMPANY_MAX)
+    return frappe.get_all(COMPANY, fields=["name", "is_active", "tax_id", "branch", "express_enabled", "mrerp_connection",
+                                           "mrerp_account_set"], limit_page_length=COMPANY_MAX)
+
+
+def waiting(row) -> bool:
+    """目录里这一行还要人勾：没建公司，或有同税号的手工公司还没接账本。"""
+    return row["company"] is None or bool(row.get("linkable"))
+
+
+def pending(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
+    """ERP 公司页「从连接添加」的选择窗（公司接入重做第 2 批，2026-11-14）：连接里还没接进 ERP 的公司（同 CC 对话选公司弹窗
+    同一份目录 `_catalog`），按标签（Express / MR.ERP）服务端分页。只给能建公司的人。回 ``{rows, adapters, total}``。"""
+    require_build()
+    try:
+        start, limit = max(0, int(start or 0)), max(1, min(int(limit or PAGE_MAX), PAGE_MAX))
+    except (TypeError, ValueError):
+        start, limit = 0, PAGE_MAX
+    rows = [row for row in _catalog(search) if waiting(row)]
+    adapters = [name for name in ("express", "mrerp") if any(row["adapter"] == name for row in rows)]
+    wanted = str(adapter or "").strip()
+    if wanted in adapters:
+        rows = [row for row in rows if row["adapter"] == wanted]
+    return {"rows": rows[start:start + limit], "adapters": adapters, "total": len(rows)}
+
+
+def pending_identities() -> list:
+    """（后台）还要人勾的那些账套的标识：自动弹窗、启动数据据此判断有没有新的（不判权限，不回给前端看内容）。"""
+    return sorted(row["identity"] for row in _catalog(check_admin=False) if waiting(row))
+
+
+def create_many(items) -> list:
+    """「从连接添加」勾了几家一次建：逐家走 :func:`create`（同 CC 选中即建，锁内幂等、各自提交）。最多一页。"""
+    require_build()
+    if isinstance(items, str):
+        items = frappe.parse_json(items)
+    if not isinstance(items, list) or not items:
+        _not_in_catalog()
+    out = []
+    for item in items[:PAGE_MAX]:
+        if not isinstance(item, dict):
+            _not_in_catalog()
+        out.append(create(item.get("connection"), item.get("account_set_key")))  # loop-query: 一次最多一页（PAGE_MAX）家，逐家锁内幂等建
+    return out
 
 
 def _by_tax(rows) -> dict:
@@ -373,6 +418,11 @@ def create(connection, account_set_key, request_key=None) -> dict:
             found = _by_tax(_companies()).get((tax, branch))
             if found and not found.is_active:
                 _not_in_catalog()
+            if found and not found.express_enabled and not found.mrerp_connection:
+                # 手工建过同税号同分店的公司：接上它，不另建一家（来源由选账套决定，11-14 去掉了「接 Express」勾选）
+                link_express(found.name)
+                _pending_changed()
+                return {**_made(found.name), "created": False, "linked": True}
             if found:
                 return {**_made(found.name), "created": False}
             name = express_companies.build(tax, branch, item["name"])
@@ -389,7 +439,26 @@ def create(connection, account_set_key, request_key=None) -> dict:
                 return {**_made(found.name), "created": False}
             name = _build_mrerp(connection, found_set)
         frappe.db.commit()
+    _pending_changed()
     return {**_made(name), "created": True}
+
+
+def link_express(company):
+    """把一家已有的公司接上 Express（来源由账套决定，公司接入重做第 2 批）：记「接 Express」、清接上时刻（第一次落库时记）、排主档
+    同步，提交。从连接添加选中手工公司、回归实验室 / 测试夹具建站都走这一处，不再改字段（表单交来的 ``express_enabled`` 一律不收，
+    `masters.company._apply`）。权限由调用方判。"""
+    from pearnly_erp_portal.express import masters
+
+    frappe.db.set_value(COMPANY, company, {"express_enabled": 1, "express_linked_at": None})
+    masters.queue(company)
+    frappe.db.commit()
+
+
+def _pending_changed():
+    """建了 / 接上一家：还要人勾的名单变了，下次启动数据重算（`express.companies.pending`）。"""
+    from pearnly_erp_portal.express import companies as express_companies
+
+    frappe.cache.delete_value(express_companies.PENDING_KEY)
 
 
 def _build_mrerp(connection, row) -> str:

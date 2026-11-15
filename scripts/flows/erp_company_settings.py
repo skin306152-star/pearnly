@@ -31,8 +31,9 @@ def steps(params, camera_code=None):
          "for(let k=0;k<60&&!window.__fgs.find(f=>f.fields_dict&&f.fields_dict.company_type);k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "const f=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.company_type).pop(); if(!f) return {error:'no company form'};"
          "const has=n=>!!(f.fields_dict[n]&&f.fields_dict[n].$wrapper.is(':visible'));"
-         "return {company_type: f.get_value('company_type'), express_enabled: Number(f.get_value('express_enabled')||0),"
-         " express_read_only: !!f.fields_dict.express_enabled.df.read_only, disconnect: has('express_disconnect'), download: has('cc_download'),"
+         # 公司接入重做第 2 批（11-14）：没有「接 Express」勾选了，来源决定——接着的公司出「断开」，不接的整节不出
+         "return {company_type: f.get_value('company_type'), checkbox: !!f.fields_dict.express_enabled,"
+         " disconnect: has('express_disconnect'), download: has('cc_download'),"
          " sync: [...document.querySelectorAll('.page-actions button, .page-actions .btn, .page-actions .dropdown-item, .page-head .dropdown-item')]"
          ".some(b=>(b.textContent||'').includes('Express'))};"},  # 手机宽度下页头按钮收进「…」菜单
         {"name": "改成汽车保存", "js": IDLE +
@@ -50,11 +51,9 @@ def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     seen, saved = by.get("打开公司资料", {}), by.get("改成汽车保存", {})
     if params["express"]:
-        express_ok = seen.get("express_enabled") == 1 and seen.get("express_read_only") and seen.get("disconnect") \
-            and not seen.get("download") and seen.get("sync")
+        express_ok = not seen.get("checkbox") and seen.get("disconnect") and not seen.get("download") and seen.get("sync")
     else:
-        express_ok = seen.get("express_enabled") == 0 and not seen.get("express_read_only") and not seen.get("disconnect") \
-            and not seen.get("download")
+        express_ok = not seen.get("checkbox") and not seen.get("disconnect") and not seen.get("download")
     return [
         {"case": "company type shown as general", "seen": seen, "ok": seen.get("company_type") == "general"},
         {"case": "express state", "seen": seen, "ok": bool(express_ok)},

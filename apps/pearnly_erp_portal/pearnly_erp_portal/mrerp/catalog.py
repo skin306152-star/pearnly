@@ -52,6 +52,10 @@ def run(connection, manual=False):
         frappe.db.set_value(connections.CONNECTION, connection, {
             "catalog_json": json.dumps(mrerp_catalog.account_sets(result["rows"]), ensure_ascii=False),
             "catalog_at": now_datetime(), "catalog_error": ""}, update_modified=False)
+        # 目录里可能多了没接进 ERP 的账套：同 Express 账套名单变化，排一次「有没有新的要人勾」（`express.companies.announce`）
+        from pearnly_erp_portal.express import companies as ledger_companies
+
+        ledger_companies.books_changed(None)
     frappe.db.commit()
 
 

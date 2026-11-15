@@ -1574,34 +1574,33 @@ class LinkStates(PushModule):
             self.push.void("ERP Stock Entry", "SE-1")
         self.assertEqual((len(made), fake.STATE.db.table("ERP Stock Entry")["SE-1"]["ledger_void_state"]), (1, "queued"))
 
-    def test_disconnect_clears_the_link_time_and_relinking_starts_from_the_next_landing(self):
-        """公司页「断开」、没连上时直接取消勾选：清接上时刻、撤单；重新勾上（已连上）排一次同步，落库那一刻重记接上时刻
-        （`masters.apply`，见 MasterSync 的接上时刻测试）。"""
+    def test_the_form_cannot_toggle_the_link_and_disconnect_clears_the_link_time(self):
+        """公司接入重做第 2 批（11-14）：「接 Express」不再由表单勾，来源决定是否互通——新建 / 改公司交来的 express_enabled 一律不收；
+        断开只走「断开」（清接上时刻、撤单），之后重新接上只走「从连接添加」（`cc_service.create`），落库那一刻重记接上时刻。"""
         from pearnly_erp_portal.masters import company as companies
         table = fake.STATE.db.table("ERP Company")
         self.company()
-        table["CO-1"].update(company_name="CO", tax_id=OWN, branch="00012", vat_registered="yes")
-        detached, synced, connected = [], [], {"CO-1": False}
+        table["CO-1"].update(company_name="CO", tax_id=OWN, branch="00012", vat_registered="yes", express_enabled=1,
+                             express_linked_at=self.LINKED)
+        detached, synced = [], []
         masters = sys.modules["pearnly_erp_portal.express.masters"]
         with mock.patch.object(companies.guard, "require", lambda *a: None), \
                 mock.patch.object(companies, "document_company", lambda name: name), \
                 mock.patch.object(self.push, "detach", lambda name: detached.append(name)), \
-                mock.patch.object(self.push, "connected", lambda name: connected[name]), \
+                mock.patch.object(self.push, "connected", lambda name: True), \
                 mock.patch.object(masters, "queue", synced.append), \
                 mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.push": self.push}):
-            companies.update_company("CO-1", express_enabled=0)  # 没连上：可以直接取消勾选，同断开
-            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached),
-                             (0, None, ["CO-1"]))
-            connected["CO-1"] = True
-            companies.update_company("CO-1", express_enabled=1)  # 重新勾上、已连上：排一次同步，接上时刻等落库时记
-            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], synced),
-                             (1, None, ["CO-1"]))
-            table["CO-1"]["express_linked_at"] = self.LINKED
-            with self.assertRaises(frappe.ValidationError):
-                companies.update_company("CO-1", express_enabled=0)  # 连着时要先「断开」
+            with self.assertRaises(frappe.PermissionError):
+                companies.update_company("CO-1", express_enabled=0)  # 表单交来要改它的：明确拒绝
+            companies.update_company("CO-1", express_enabled=1)  # 与现状相同（旧页面整份交回）：照旧忽略
+            self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached, synced),
+                             (1, self.LINKED, [], []))
             companies.disconnect_express("CO-1")
             self.assertEqual((table["CO-1"]["express_enabled"], table["CO-1"]["express_linked_at"], detached),
-                             (0, None, ["CO-1", "CO-1"]))
+                             (0, None, ["CO-1"]))
+            with self.assertRaises(frappe.PermissionError):
+                companies.update_company("CO-1", express_enabled=1)  # 断开后也不能靠表单接回
+            self.assertEqual((table["CO-1"]["express_enabled"], synced), (0, []))
 
     def test_the_cashier_day_takes_only_receipts_sold_after_the_link(self):
         """收银日汇总 / 退货单只收接上时刻之后卖 / 退的小票（原来按第一次同步那天整天算，断开后重新接上会把断开期间的补写进去，

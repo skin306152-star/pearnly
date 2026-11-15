@@ -92,6 +92,36 @@ def api_disconnect_express(name=None, **kwargs):
     return company.disconnect_express(name)
 
 
+# ── 从连接添加（公司接入重做第 2 批）：同 CC 选公司弹窗同一份目录与建法（`cc_service`）──────────────
+
+
+@frappe.whitelist(methods=["GET"])
+def api_connection_choices(search=None, adapter=None, start=0, limit=None):
+    from pearnly_erp_portal.masters import cc_service
+
+    return cc_service.pending(search, adapter, start, limit or cc_service.PAGE_MAX)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_add_from_connections(items=None):
+    from pearnly_erp_portal.masters import cc_service, ledger_prompt
+
+    made = cc_service.create_many(items)
+    ledger_prompt.mark_seen()
+    frappe.db.commit()
+    return made
+
+
+@frappe.whitelist(methods=["POST"])
+def api_new_ledgers_seen():
+    from pearnly_erp_portal.masters import cc_service, ledger_prompt
+
+    cc_service.require_build()
+    ledger_prompt.mark_seen()
+    frappe.db.commit()
+    return {"ok": True}
+
+
 # ── 客户 ────────────────────────────────────────────────────────────────────
 
 

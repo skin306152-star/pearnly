@@ -4,6 +4,7 @@ from frappe import _
 
 from pearnly_erp_portal.access import guard, rules
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.masters import access as master_access
 
 KINDS = {
     "product": ("ERP Product", "product_name", ("code", "internal_code", "express_code", "barcode", "qr_payload", "attribute")),
@@ -24,8 +25,8 @@ def for_company(rows, company):
     同步来的不认（那是别家账套的编码，写进本公司账套认不出）。``company`` 没给就不分。"""
     if not company:
         return list(rows)
-    own = [row for row in rows if row.get("express_company") == company]
-    return own or [row for row in rows if not row.get("express_company")]
+    own = [row for row in rows if row.get(master_access.OWNER) == company]
+    return own or [row for row in rows if not row.get(master_access.OWNER)]
 
 
 def match_party(kind, name, *, tax_id=None, branch_type=None, branch_no=None, company=None, ambiguous="throw"):
@@ -45,7 +46,7 @@ def match_party(kind, name, *, tax_id=None, branch_type=None, branch_no=None, co
         filters[title] = name
     else:
         return None
-    rows = for_company(frappe.get_all(doctype, filters=filters, fields=["name", "express_company", title],
+    rows = for_company(frappe.get_all(doctype, filters=filters, fields=["name", master_access.OWNER, title],
                                       limit_page_length=50), company)
     if len(rows) > 1:
         rows = _in_use(kind, rows, name, title, company)
@@ -102,7 +103,7 @@ def match_product(description, company=None):
     """明细行按品名认商品（没选商品时）：``(商品, 认出几条)``。按 :func:`for_company` 只在这家公司该用的商品里认；
     认出不止一条时商品给 None，调用方按各自口径处理（要人选）。"""
     rows = frappe.get_all("ERP Product", filters={"product_name": description, "is_active": 1},
-                          fields=["name", "express_company", "express_code", "code", "express_stock"],
+                          fields=["name", master_access.OWNER, "express_code", "code", "express_stock"],
                           limit_page_length=50)
     rows = for_company(rows, company)
     for prefer in (lambda row: description in (row.get("express_code"), row.get("code")),  # 编码就是品名的那条
@@ -144,12 +145,12 @@ def api_choices(kind, context, txt="", scan=False, company=None):
             company = None
     if company:
         # 这张单的公司：别家公司从 Express 同步来的档不列（`for_company`），本公司同步来的排前
-        fields.append("express_company")
-        filters["express_company"] = ["in", [company, ""]]
+        fields.append(master_access.OWNER)
+        filters[master_access.OWNER] = ["in", [company, ""]]
     rows = frappe.get_all(doctype, filters=filters, or_filters=matches, fields=fields,
                           order_by=f"{title} asc, name asc", limit_page_length=20)
     if company:
-        rows.sort(key=lambda row: row.get("express_company") != company)
+        rows.sort(key=lambda row: row.get(master_access.OWNER) != company)
     if exact and kind == "product":
         parents = frappe.get_all("ERP Product Unit", filters={"barcode": text}, pluck="parent", limit_page_length=20)
         if parents:

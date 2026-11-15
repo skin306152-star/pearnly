@@ -159,6 +159,27 @@ frappe.ValidationError = ValidationError
 frappe.log_error = lambda title=None, **kw: STATE.logged.append(title)
 frappe.clear_messages = lambda: None
 frappe.whitelist = lambda *args, **kwargs: (lambda fn: fn)
+frappe.parse_json = lambda text: __import__("json").loads(text)
+
+
+class Cache:
+    """站点缓存替身（「还要人勾的账套」名单）：只记删过哪些键。"""
+
+    def __init__(self):
+        self.deleted, self.values = [], {}
+
+    def delete_value(self, key):
+        self.deleted.append(key)
+        self.values.pop(key, None)
+
+    def get_value(self, key):
+        return self.values.get(key)
+
+    def set_value(self, key, value, expires_in_sec=None):
+        self.values[key] = value
+
+
+frappe.cache = Cache()
 frappe.get_doc = lambda doctype, name=None, for_update=False: Doc(doctype, STATE.db.table(doctype)[name])
 frappe.new_doc = lambda doctype: Doc(doctype)
 frappe.utils = types.SimpleNamespace(now_datetime=lambda: datetime.datetime(2026, 11, 2, 9, 30),
@@ -649,6 +670,64 @@ class AddCompanyTests(unittest.TestCase):
         self.assertEqual(len(STATE.db.table("ERP Company")), 3)
         self.assertEqual(self.queued, [])
 
+    def test_add_from_connections_lists_what_is_left_and_links_a_hand_made_company_instead_of_a_second_one(self):
+        # 公司接入重做第 2 批（11-14）：ERP 公司页「从连接添加」只列还没接进 ERP 的；手工建过同税号同分店、没接账本的公司（Korat，
+        # CO-00002）也列出来，勾上就是把它接上（排同步），不另建一家；勾几家一次建
+        STATE.db.table("Pearnly CC Book")["b6"] = Row(name="b6", device="PC1", company="Korat Branch", label="Korat Branch",
+                                                      tax_id=TAX_B, branch="00012", period_start="2026-01-01",
+                                                      period_end="2026-12-31")
+        left = cc_service.pending()
+        self.assertEqual([(row["title"], row["company"], row["linkable"]) for row in left["rows"]],
+                         [("Chiang Mai Rice", None, False), ("Korat Branch", "CO-00002", True)])
+        self.assertEqual((left["adapters"], left["total"]), (["express"], 2))
+        self.assertEqual([row["title"] for row in cc_service.pending(start=1, limit=1)["rows"]], ["Korat Branch"])
+        made = cc_service.create_many([{"connection": "", "account_set_key": row["account_set_key"]} for row in left["rows"]])
+        self.assertEqual([(row["title"], row["created"], row.get("linked")) for row in made],
+                         [("Chiang Mai Rice", True, None), ("Korat Branch", False, True)])
+        korat = STATE.db.table("ERP Company")["CO-00002"]
+        self.assertEqual((korat["express_enabled"], korat["express_linked_at"]), (1, None))
+        self.assertEqual(len(STATE.db.table("ERP Company")), 4)          # 只多了 Chiang Mai 一家
+        self.assertEqual(sorted(self.queued), sorted([made[0]["id"], "CO-00002"]))
+        self.assertEqual(cc_service.pending()["rows"], [])
+        self.assertIn("erp-new-ledgers", frappe.cache.deleted)           # 名单变了，启动数据下次重算
+        frappe.session.user = "staff@x"
+        with self.assertRaises(PermissionError_):
+            cc_service.pending()
+        with self.assertRaises(PermissionError_):
+            cc_service.create_many([{"connection": "", "account_set_key": "0105570000009:00000"}])
+
+    def test_new_books_are_announced_not_built_and_linked_companies_sync_at_once(self):
+        # 用户 11-14 定 A 方案：CC 报来新账套不再自动建公司（以前 testerp 因此 66 家、59 家没用过），只推一次「有新的要人勾」，
+        # 同一批不再推；接着 Express、电脑这时才报上账套的公司马上排同步（不用人点「同步 Express」）
+        from pearnly_erp_portal.express import companies
+        published = []
+        STATE.db.table("ERP Company")["CO-00001"]["express_sync_state"] = "offline"
+        push = types.ModuleType("pearnly_erp_portal.express.push")
+        push.connected = lambda name: name == "CO-00001"
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.push": push}), \
+                mock.patch.object(frappe, "publish_realtime", lambda event, data, **kw: published.append((event, data)), create=True):
+            frappe.cache.values.clear()
+            first = companies.announce()
+            again = companies.announce()
+        self.assertEqual((first["pending"], first["new"], again["new"]), (1, 1, 0))
+        self.assertEqual(published, [("pearnly_erp_new_ledgers", {"count": 1})])
+        self.assertEqual(len(STATE.db.table("ERP Company")), 3)          # 一家也没建
+        self.assertEqual(self.queued, ["CO-00001", "CO-00001"])
+
+    def test_cc_tools_list_and_add_the_same_companies_as_the_page(self):
+        """ADR-027：公司页「从连接添加」在 CC 里同样能办——同一份目录（`service.pending`）、同一个建法（`create_many`）。"""
+        from pearnly_erp_portal.masters import cc_tools
+
+        page = cc_service.pending(adapter="express")
+        listed = json.loads(cc_tools.connection_companies({"source": "express"}))
+        self.assertEqual([c["account_set_key"] for c in listed["companies"]], [row["account_set_key"] for row in page["rows"]])
+        self.assertTrue(listed["companies"])
+        first = listed["companies"][0]
+        added = json.loads(cc_tools.add_from_connections({"companies": [first]}))
+        self.assertEqual(len(added["companies"]), 1)
+        again = json.loads(cc_tools.connection_companies({"source": "express"}))
+        self.assertNotIn(first["account_set_key"], [c["account_set_key"] for c in again["companies"]])
+
     def test_mrerp_sets_only_when_the_ledger_is_on_and_for_admins(self):
         self.assertFalse(any(row["adapter"] == "mrerp" for row in cc_service._catalog()))
         self.mrerp_on = True
@@ -992,7 +1071,10 @@ class ToolTests(unittest.TestCase):
     def test_tools_are_declared_with_approval_for_writes(self):
         names = {tool["name"]: tool for tool in cc_tools.TOOLS}
         self.assertEqual(set(names), {"erp_companies", "erp_company_profile", "erp_company_note_save",
-                                      "erp_company_note_remove"})
+                                      "erp_company_note_remove", "erp_connection_companies", "erp_company_add"})
+        # 从连接添加（ADR-027：公司页那个动作 CC 也能办）：建公司要人先 Allow，预览列出要建的几家
+        self.assertTrue(names["erp_company_add"]["approval"])
+        self.assertTrue(names["erp_company_add"]["preview"].endswith(".preview_add_from_connections"))
         for name in ("erp_company_note_save", "erp_company_note_remove"):
             self.assertTrue(names[name]["approval"])
             self.assertTrue(names[name]["refuse"].endswith(".company_refusal"))

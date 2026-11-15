@@ -130,7 +130,12 @@ def build_new():
                       now_datetime())
         commit()
     if not push.linked(co):
-        commit(companies.update_company(co, express_enabled=1))  # 公司页勾「接 Express」（用户 10-29：连上且勾了才推送 / 同步）
+        # 正式接入路径（公司接入重做第 2 批：「接 Express」不再由表单改字段，`update_company` 不收 express_enabled）
+        from pearnly_erp_portal.masters import cc_service
+
+        cc_service.link_express(co)
+    if not push.linked(co):
+        raise RuntimeError(f"new 数据集的公司 {co} 没接上 Express：靠「new = 接了 Express」的流程会走错分支，建站停下")
     masters.apply(co, "NEW", {"warehouses": [{"code": f"0{i}", "name": f"คลัง {i}"} for i in range(1, 8)],
                               "settings": {"mainloc": "01"},
                               "products": [{"code": EXPRESS_PRODUCT["code"], "name": EXPRESS_PRODUCT["name"], "unit": EXPRESS_PRODUCT["unit"],

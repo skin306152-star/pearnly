@@ -288,7 +288,8 @@ name = "ERP 主档按公司隔离（权限钩子）"
 paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/access.py"]
 markers = ["masters.access", "masters import access"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.masters.scope", "erp.records.scope", "erp.print.purchase", "erp.print.sales"]
+entries = ["erp.masters.scope", "erp.records.scope", "erp.print.purchase", "erp.print.sales", "erp.entry.choices", "erp.trade.line-stock",
+           "erp.collection.server", "erp.line.webhook-sim", "erp.exports", "erp.inventory.opening.row-warehouse"]
 
 [[part]]
 id = "erp-printing"
@@ -662,7 +663,7 @@ where = "pearnly-company"
 steps = "侧栏点「pearnly-company」，页面里每个按钮 / 选择框 / 列表点一遍"
 expect = "有权限的员工打开出内容（不是无权限页），控制台无报错"
 check = "auto"
-files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_company/pearnly_company.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js"]
+files = ["apps/pearnly_core/pearnly_core/pearnly_core/page/pearnly_company/pearnly_company.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company.js", "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js"]
 smoke = "page"
 url = "/desk/pearnly-company"
 site = "erp"
@@ -1735,7 +1736,7 @@ where = "主档按公司隔离"
 steps = "物料 / 客户 / 供应商列表、搜索、计数、Link 搜索、打开单条；切换公司前后各看"
 expect = "只出当前公司 + 本地；直接调别家被拒（需要已读权限 / 未找到），不是 403 白页"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/customers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/suppliers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/customers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/suppliers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/selection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/masters/link_search.py"]
 
 [[entry]]
 id = "erp.records.scope"

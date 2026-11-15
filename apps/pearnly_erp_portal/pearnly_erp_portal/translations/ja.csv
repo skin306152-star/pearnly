@@ -68,6 +68,7 @@ Add an item,項目を追加
 Add and issue,新規で出庫
 Add and receive,新規で入庫
 Add another list,リストを追加
+Add from connections,接続から追加
 Add label,ラベルを追加
 Add locations in stock,在庫のあるロケーションを追加
 Add member,メンバーを追加
@@ -75,8 +76,10 @@ Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
 Add terminal,レジを追加
+Add these companies?,これらの会社を追加しますか？
 Add watcher,ウォッチャーを追加
 Added,追加
+Added companies,会社を追加
 Added {0},{0}を追加しました
 Added: {0},追加しました: {0}
 Additional,追加
@@ -808,6 +811,7 @@ List name,リスト名
 Listed collection methods,入金方法を確認しました
 Listed collections,入金の一覧を確認しました
 Listed companies,会社一覧を表示
+Listed companies to add,追加できる会社を表示
 Listed documents,書類を一覧しました
 Listed open invoices,未入金の請求書を確認しました
 Listed stock counts,棚卸の一覧を確認しました
@@ -1322,6 +1326,7 @@ Select a stock count,棚卸を選択
 Select a warehouse and opening date first,先に倉庫と期首日を選択してください
 Select an invoice to load summary data,伝票を選択すると概要が表示されます
 "Select both ""Date"" values",「日付」を両方選択してください
+Select companies,使用する会社を選択
 Select item group,品目グループを選択
 Select one receipt to refund,返品できるレシートは1件ずつです
 Select one row to open its ledger,明細は1行ずつ開きます
@@ -1931,6 +1936,8 @@ company.col.status,状態
 company.col.taxId,納税者番号
 company.col.warehouse,倉庫名
 company.col.warehouseCode,倉庫コード
+company.connect.add,接続から追加
+company.connect.title,使用する会社を選択
 company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します
 company.enable,有効にする

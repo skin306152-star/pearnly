@@ -24,6 +24,7 @@ from pearnly_core import line, line_session
 from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
+from pearnly_erp_portal.masters import access as master_access
 
 STATE = "erp_intake"
 TTL_MINUTES = 30
@@ -309,11 +310,12 @@ def _searchable(step, payload, user, text):
                      else ("ERP Customer", "customer_name"))
     like = "%" + "%".join(str(text or "").split()) + "%"
     digits = re.sub(r"\D", "", str(text or ""))
+    scope, values = master_access.scope_sql(payload["company"])
     rows = frappe.db.sql(f"""select name, `{title}` as label, express_code, tax_id from `tab{master}`
-        where is_active = 1 and (express_company is null or express_company = '' or express_company = %(company)s)
+        where is_active = 1 and {scope}
           and (`{title}` like %(like)s or express_code = %(text)s or (%(digits)s != '' and tax_id = %(digits)s))
         order by length(`{title}`) limit 200""",
-        {"company": payload["company"], "like": like, "text": str(text or "").strip(), "digits": digits if len(digits) == 13 else ""},
+        {**values, "like": like, "text": str(text or "").strip(), "digits": digits if len(digits) == 13 else ""},
         as_dict=True)
     return [(row.name, row.label or row.name, [row.express_code or "", row.tax_id or ""]) for row in rows]
 
@@ -358,8 +360,8 @@ def _options(step, payload, user):
 def _more_parties(payload, shown) -> bool:
     """这家公司能选的供应商 / 客户比按钮里列出的多（多了才提示打字找；不多就全在按钮里了）。"""
     master = "ERP Supplier" if payload["direction"] == "purchase" else "ERP Customer"
-    count = frappe.db.sql(f"""select count(*) from `tab{master}` where is_active = 1
-        and (express_company is null or express_company = '' or express_company = %s)""", (payload["company"],))[0][0]
+    scope, values = master_access.scope_sql(payload["company"])
+    count = frappe.db.sql(f"""select count(*) from `tab{master}` where is_active = 1 and {scope}""", values)[0][0]
     return int(count or 0) > shown
 
 
@@ -374,15 +376,16 @@ def recent_parties(payload, limit):
         group by `{field}` order by max(modified) desc limit %s""",
         (payload["company"], limit), pluck=True)
     company = payload["company"]
-    usable = lambda name: (frappe.db.get_value(master, name, ["is_active", "express_company"], as_dict=True)  # noqa: E731
+    row_of = lambda name: (frappe.db.get_value(master, name, ["is_active", master_access.OWNER], as_dict=True)  # noqa: E731
                            or frappe._dict())
-    names = [name for name in recent if usable(name).is_active and (usable(name).express_company or company) == company]
+    names = [name for name in recent
+             if row_of(name).is_active and master_access.usable(row_of(name).get(master_access.OWNER), company)]
     if len(names) < limit:
         # 不够再补这家公司该用的启用主档（本公司 Express 的 + 本地档；别家公司的不列，主档按公司隔离）
+        scope, values = master_access.scope_sql(company)
         names += frappe.db.sql(f"""select name from `tab{master}` where is_active = 1 and name not in %(names)s
-            and (express_company is null or express_company = '' or express_company = %(company)s)
-            order by modified desc limit %(limit)s""",
-            {"names": tuple(names) or ("",), "company": company, "limit": limit - len(names)}, pluck=True)
+            and {scope} order by modified desc limit %(limit)s""",
+            {"names": tuple(names) or ("",), "limit": limit - len(names), **values}, pluck=True)
     labels = dict(frappe.get_all(master, filters={"name": ["in", names or [""]]},
                                  fields=["name", title], as_list=True))
     return [(name, labels.get(name) or name) for name in names]
