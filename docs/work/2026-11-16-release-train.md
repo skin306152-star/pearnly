@@ -80,18 +80,20 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | 分支（头） | 进 main | 要过的（真机行 / 演练 / 只读核对） | 现状 |
 |---|---|---|---|
 | 本集成分支（搜索统一、收款日期、no-period、验收第 0 批、page-company 可摘除） | 拼车 | 见上一节 | 待 11-16 |
-| `pearnly/cc-1122-server`（e97f3b3b2，动共用机器通道 cc-desktop） | 合入队列 | 共用件 cc-desktop 的 8 个手工入口（erp.cc.connect、erp.cc.masters、erp.cc.stock-void、cowork.cc.channel、erp.cc.companies、cc.mrerp-login、cc.desktop.bridge、cowork.cc-chat.push）；CC 1.12.22 真机 12 行（服务端先上线、旧 CC 不受影响那几行是部署前必须的：⑫ 领单回复多 requests_waiting 不影响 1.12.21） | 待 11-16（D 组）；**缺** |
+| `pearnly/cc-1122-server`（e97f3b3b2，共用件 cc-desktop，手工入口 10 个） | 合入队列 | 手工入口并进 D 组（备用 D）；CC 1.12.22 真机 12 行；**⑫「旧 CC 1.12.21 不受影响」部署前必须** | 待 11-16（D 组） |
 | `pearnly/cc-1122-desktop`（1c65aff15） | 不随服务端部署 | 服务端上线后另发 staging → prod（prod 等主会话点头） | 不挡部署 |
-| MR.ERP 三条：第 3 批 `company-onboarding-3-307a0a` → `mrerp-ledger-dialog`（a1b09740d）→ `mrerp-catalog-pick`（d58919b6c）（改 Express 主档落库与 Cowork → MR.ERP 写法，命中共用件 express-rules） | 合入队列（今晚） | ① 升级演练：旧代码 + 线上 testerp 重导数据 → 同步落定 → 新代码迁移 v1_30 / v1_31 → 再同步，主档改动 0、修改记录不增、选择框照常（F 组）；② T9–T11 真浏览器 / 真对话（F 组）；③ express-rules 的 12 个手工入口（erp.cc.pos-day、erp.cc.pos-refund、cowork.cc.channel、cowork.mrerp.push、cowork.companies、cowork.connections、cowork.history、cowork.cc-chat.push、cowork.cc.troubleshooting、cowork.line.item-questions、erp.trade.line-stock、erp.place.header）——**总表还没排**，要作者或主会话定由谁测；④ 生产只读核对（写账窗口清单里的「开关前」那项）；开关 `MRERP_LEDGER_ENABLED` 不随部署打开 | ①② 待 11-16；③④ **缺** |
-| `pearnly/admin-all-features`（7ec1d4600，管理员自动拥有全部已开通功能） | 合入队列 | 共用件未命中；部署后逐个正式租户只读核：管理员能看到已开通的全部功能、非管理员不变 | **缺**（未排） |
-| `pearnly/cc-guided-core`（909971dbb） | 合入队列 | 共用件未命中；引导式窗口的真机清单未给 | **缺**（待引导式窗口） |
-| `pearnly/capacity-maintenance-transient`（7c47c996e，开户容量检查不把临时维护容器算常驻） | 合入队列 | `deploy.sh --dry-run` 容量检查通过；生产内存余量约 300 MiB，本批不能新增 ≥300 MiB 常驻进程 | 部署预演时核 |
-| `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 共用件未命中；控制面页面打开冒烟 | 部署后核 |
-| `pearnly/cowork-withdraw-push`（0be7bcb07） | 合入队列 | Cowork 撤回 1 行（D 组 ⑫；第 ① 步要主会话批让测试机1 的 CC 暂时不领单） | 待 11-16；**要批** |
-| `pearnly/cc-operator-other-months`（86d0240c9，命中共用件 assistant） | 合入队列 | 月份代录 ①–④（C 组，真模型约 0.5 美元）；⑤ 没批记没测到；assistant 的 8 个手工入口（control / shared / cowork / cc.assistant、cc.operator.thread、erp.cc.companies、cowork.cc-chat.push、cowork.cc.troubleshooting）——**总表还没排** | 部分待 11-16；**缺** |
-| `pearnly/cc-approval-cards-7865fe`（f09af0041） | 合入队列（rows.toml 待作者答复） | 共用件未命中；作者的真机清单未给 | **缺** |
+| MR.ERP 三条：第 3 批 `company-onboarding-3-307a0a`（共用件 mrerp-rules，手工 14）→ `mrerp-ledger-dialog`（a1b09740d）→ `mrerp-catalog-pick`（d58919b6c）（后两条共用件 erp-transactions / express-rules / mrerp-rules，手工合计 30 个，含第 3 批的） | 合入队列（今晚） | ① 升级演练、② T9–T11、③ 这 30 个手工入口：都归线 3 写账窗口 local_3e3bec90，15:30 起 T9–T11 → 演练 → 接着点手工入口，不够顺延次日；④ 开关前生产只读核对：收款负责窗口 local_292cabb6，部署前主会话单独叫；开关 `MRERP_LEDGER_ENABLED` 不随部署打开 | ①② 待 11-16；③ 可能顺延；④ 部署前 |
+| `pearnly/admin-all-features`（7ec1d4600，未命中共用件，调用方手工入口 2 个） | 合入队列 | 部署后逐个正式租户只读核：每个已开通功能管理员都为真（收款负责窗口，照 collection-admin-check 的做法扩） | 部署后 |
+| `pearnly/cc-guided-core`（909971dbb，共用件 assistant，手工 16） | 合入队列 | 作者（引导式 local_38ec22a7）给真机清单 | **缺**：已向作者要 |
+| `pearnly/capacity-maintenance-transient`（7c47c996e） | 合入队列 | `deploy.sh --dry-run` 容量检查通过；生产内存余量约 300 MiB，本批不能新增 ≥300 MiB 常驻进程 | 部署预演时核 |
+| `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 控制面页面打开冒烟 | 部署后核 |
+| `pearnly/cowork-withdraw-push`（0be7bcb07，共用件 cowork-intake-upload，手工 6） | 合入队列 | Cowork 撤回 1 行 + 手工入口（D 组 ⑫）；第 ① 步重启测试机1 上用户的 CC，主会话白天问用户 | 待 11-16；第 ① 步**待批** |
+| `pearnly/cc-operator-other-months`（86d0240c9，共用件 assistant，手工 16） | 合入队列 | 月份代录 ①–④（C 组，真模型约 0.5 美元）；⑤ 没批记没测到；手工入口由作者备用 A 写成待测行，并进 C 组末尾 | 待 11-16；待作者给行 |
+| `pearnly/cc-approval-cards-7865fe`（f09af0041，共用件 assistant，手工 15） | 合入队列（rows.toml 待作者答复） | 作者（local_292cabb6）给真机清单 | **缺**：已向作者要 |
 
-注：`check-product-map.py --batch --files` 对上面每条都报「真机单 0 项」，与作者自己列的真机行不符（如 Cowork 撤回），**不作依据**，真机行以作者清单为准；这个差异另报主会话。
+产品地图本批真机单（`check-product-map.py --batch --files <分支相对 main 的文件>`，同 `deploy.sh` 的调用）：搜索统一 2 项（erp_item、liff-camera，已在本车）；cc-approval-cards、capacity-maintenance-transient、control-frontend-source 各报 `cowork.scan.line.stocktake.liff-camera` 1 项（按分支相对分叉点算，这三条分叉点较旧、改到的入口 149 个，进 main 后以 `deploy.sh --dry-run` 打印的为准）。其余为 0。
+手工入口数按 `check-impact.py --files` 算（同上），命中 assistant 的几条分支（月份代录、引导式、允许卡等）的手工入口大部分重合，统一点一次即可。
+（11-15 23:1x 一度记「--batch 全报 0 项」：是拼车在 zsh 里没把文件名拆开，工具无误。）
 
 ## 部署预演与回滚
 
