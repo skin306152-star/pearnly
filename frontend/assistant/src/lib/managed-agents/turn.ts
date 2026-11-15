@@ -90,6 +90,15 @@ function openInBatch(message: ThreadMessage, index: number): TurnActivity | null
   return null;
 }
 
+const seen = new Map<string, number>();
+function firstSeen(id: string, now: number): number {
+  if (!seen.has(id)) {
+    if (seen.size > 200) seen.clear();
+    seen.set(id, now);
+  }
+  return seen.get(id)!;
+}
+
 /** 这一轮的计时起点（毫秒）。本页发出的（乐观气泡、还在发送）从按下发送那一刻算；别处发出的、刷新后接着看的从服务端记下
  *  这条消息的时间算（不晚于此刻）。没有用户消息时回 null。 */
 export function turnStartedAt(
@@ -102,7 +111,10 @@ export function turnStartedAt(
   for (let i = messages.length - 1; i >= 0; i--) {
     const message = messages[i]!;
     if (message.role !== "user") continue;
-    const at = message.createdAt.getTime();
+    const known = message.createdAt.getTime();
+    // 时间未知（回放里缺服务端时间，reducer 用 0 占位）：不能当起点（11-15 线上显示「29912454分」= 从 1970 年算）。
+    // 本页刚发的用按下发送那一刻；否则用本页第一次看到这条的时刻，服务端时间补上后改用它
+    const at = known > 0 ? known : sentAt && message.id.startsWith("optimistic-") ? sentAt : firstSeen(message.id, now);
     // 本页发出的这条（乐观气泡的编号在回显后也保留）：用按下发送的那一刻，回显换成服务端时间后计时也不跳。
     // 隔得远的不是这一次发送（例如切到另一段还在跑的对话）。
     if (message.id.startsWith("optimistic-") && sentAt && Math.abs(at - sentAt) < SAME_SEND_MS) return sentAt;

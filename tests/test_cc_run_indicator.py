@@ -551,6 +551,10 @@ assert.equal(turnStartedAt([bubble("optimistic-1", sent - 3000)], sent, false, n
 assert.equal(turnStartedAt([bubble("sevt_1", sent - 3000)], sent, false, now), sent - 3000);
 assert.equal(turnStartedAt([bubble("sevt_1", now + 9000)], sent, false, now), now);  // 服务端时钟快了也不倒着走
 assert.equal(turnStartedAt([], sent, true, now), sent);
+// 时间未知（0 占位）不当起点：本页发的用发送时刻；别处发的从本页第一次看到算，之后不变
+assert.equal(turnStartedAt([bubble("optimistic-1", 0)], sent, false, now), sent);
+assert.equal(turnStartedAt([bubble("sevt_9", 0)], 0, false, now), now);
+assert.equal(turnStartedAt([bubble("sevt_9", 0)], 0, false, now + 7000), now);
 """)
 
     def test_a_streaming_reply_is_not_followed_and_the_arrow_brings_the_reader_down(self):
