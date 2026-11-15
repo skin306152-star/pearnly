@@ -196,6 +196,23 @@ class RerunFailed(unittest.TestCase):
             self.main("--rerun-failed", str(path))
         self.assertIn("对不上", str(stop.exception))
 
+    def test_a_full_run_without_post_status_says_twice_that_the_deploy_gate_will_not_count_it(self):
+        # 11-15 发布日：全套 210 格没带 --post-status，部署闸不认，头冻结后整轮重跑
+        code, text = self.main("--all")
+        self.assertEqual(code, 0)
+        self.assertEqual(text.count(run.UNPOSTED), 2)                       # 开跑前一次、结束汇总一次
+        self.assertLess(text.index(run.UNPOSTED), text.index("通过 "))       # 第一次在任何一格之前
+        self.assertIn("--all --post-status", run.UNPOSTED)
+        self.assertIn("--changed --base", run.UNPOSTED)
+
+    def test_scopes_that_are_not_the_full_suite_are_not_nagged(self):
+        flow_id = run.registry()[0]["id"]
+        for argv in (["--flow", flow_id], ["--all", "--dataset", "new"], ["--changed", "--base", "HEAD"]):
+            self.assertNotIn(run.UNPOSTED, self.main(*argv)[1], argv)
+        self.assertEqual(run.unposted_note("all flows", True), "")           # 带了 --post-status 不提醒
+        self.assertEqual(run.unposted_note("base 4ffe8aea6abc", False), "")
+        self.assertEqual(run.unposted_note("all flows", False), run.UNPOSTED)
+
     def test_partial_scope_cannot_post_status(self):
         with self.assertRaises(SystemExit) as stop:
             self.main("--rerun-failed", str(self.previous(scope="flows a.one")), "--post-status")

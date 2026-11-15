@@ -7,6 +7,8 @@
     ... --out 结果.json --post-status                                # 结果作为提交状态 `pearnly/flows` 回写 GitHub
     python3 scripts/flows/run.py --rerun-failed 结果.json --out 合并.json --post-status   # 同一提交上只补跑失败格、并进上次结果
 
+发布日：集成头还会变时只跑受影响的（`--changed --base <上一个头>`），头冻结后在发布提交上只跑一次 `--all --post-status`；
+全套不带 `--post-status` 时开跑前与结束时各提醒一次「结果不登记、部署闸不认」（`unposted_note`）。
 分支：`--changed --post-status` 只跑改动文件涉及的流程；部署前：在要部署的 main 提交上 `--all --post-status` 跑全套，
 `scripts/production/deploy.sh` 只认全套通过（说明以 `all flows` 开头）。回写前核对实验室挂的就是本工作树的源码、产品代码没有未提交改动。
 本机睡眠或实验室没起来时没有这个状态，部署闸照样拦；补跑方法见 `tests/flows/README.md`。
@@ -490,6 +492,16 @@ def post_status(ok, summary):
     return sha
 
 
+UNPOSTED = ("注意：这一轮是全套但没带 --post-status，结果不会登记到这个提交，部署闸（scripts/production/deploy.sh）不认。"
+            "发布用：头冻结后在发布提交上跑一次 run.py --all --post-status；头还会变时只跑受影响的 run.py --changed --base <上一个头>。")
+
+
+def unposted_note(scope: str, post: bool) -> str:
+    """全套（含补跑全套）不回写状态时的提醒；其余范围、已带 --post-status 的不提醒。11-15 发布日：在还会变的头上分段跑了
+    210 格全套、没带 --post-status，部署闸不认，头冻结后又整轮重跑。只提醒不拦：调试时跑全套看结果是正常用法。"""
+    return UNPOSTED if scope.startswith("all flows") and not post else ""
+
+
 def expand(flows, dataset=None, viewport=None):
     """流程 × 数据集 × 宽度 = 格。"""
     return [(flow, d, v) for flow in flows
@@ -574,6 +586,9 @@ def main(argv=None) -> int:
         cells, flow_count = expand(flows, args.dataset, args.viewport), len(flows)
     if args.post_status:
         lab_runs_this_tree()
+    note = unposted_note(scope, args.post_status) if cells else ""
+    if note:
+        print(note, flush=True)   # 开跑前说一次：几小时的全套别白跑
     lab, results, started = Lab(), [], time.monotonic()
     held = lab_lock() if cells else None  # noqa: F841 —— 进程退出时放锁
     if cells:
@@ -635,6 +650,8 @@ def main(argv=None) -> int:
             "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
+    elif note:
+        print(note)               # 结束汇总里再说一次
     return 0 if ok else 1
 
 

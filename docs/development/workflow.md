@@ -77,6 +77,11 @@ PR 使用 [模板](../../.github/PULL_REQUEST_TEMPLATE.md)。只改文档时允�
 
 改到产品入口文件（产品 App 的 public / page / doctype JS、www 页面，前端单页源码，带 `@frappe.whitelist` 的服务端模块）的分支，要在**同一分支**里给它补流程用例：已有流程覆盖它就在 `tests/flows/registry.toml` 那条的 `covers` 里加上，没有就照 [流程用例](../../tests/flows/README.md)「加一条流程」新写一条，并在回归实验室里两套数据、两种宽度跑过。CI 的覆盖闸（`scripts/flows/coverage.py`）对没登记的入口直接失败，不放宽；确实没有业务流程可跑的逐个登记进 `tests/flows/not_flows.toml` 并写原因。
 
+**发布日的流程用例**（11-15：集成头还在变时在旧头上分段跑了全套 210 格、没带 `--post-status`，部署闸不认；头冻结后又整轮重跑，约 5 小时花了两遍）：
+- 集成头**未冻结**（还会进提交）时只跑受改动影响的流程：`python3 scripts/flows/run.py --changed --base <上一个头>`。不在未冻结的头上跑 `--all`。
+- 头**冻结后**，在发布提交上只跑一次 `python3 scripts/flows/run.py --all --post-status`；部署闸只认登记在这个提交上的全套。其后只改文档等非产品路径的提交可以沿用（`flows_inherit.py`），不用重跑。
+- 机器把关：`run.py` 跑全套不带 `--post-status` 时，开跑前与结束汇总各提醒一次「结果不登记、部署闸不认」；`deploy.sh`（含 `--dry-run`）缺全套记录时直接打印要跑的那条完整命令。
+
 生产统一部署用 `scripts/production/deploy.sh` 一条命令串起构建、放镜像、逐个产品激活与通用回读（先 `--dry-run`；做法见 [一条命令部署](../work/2026-10-28-one-command-deploy.md)）。按**发布标记**部署（10-31）：不带参数时从远端 main 当前提交打 `release-<UTC 年月日-时分>` 并推上去，`--tag <标记>` 部署已有标记（重跑、或 main 上更早的提交）；构建、放镜像、服务器核对镜像 revision 都针对标记所指的提交，部署不冻结 main。激活时每个站点迁移前后各数一次 DocType，变少就停在维护里、不放开流量、后面的站点不迁移，并打印少了哪些（`scripts/production/doctype_guard.py`；有意删的登记在 `doctype-removals.txt`），实验室 `run.py` 迁移同样逐站这样核。构建前它核对标记所指提交在 GitHub 上的 `pearnly/flows` 是全套通过（本机回归实验室跑 `scripts/flows/run.py --all --post-status` 回写），没有或没过就停下并打印补跑命令，没有绕过开关；本机睡眠或实验室没起来时照样拦；本机最多三套实验栈并行、收尾清残留，补跑见 [流程用例](../../tests/flows/README.md)。
 
 **手工动过生产**（11-04 产品地图事故回放待补项 F；10-22 手工重建 web 漏挂 frontend 致全站 502、10-03 剖析脚本顶掉真实操作员 LINE 绑定）：

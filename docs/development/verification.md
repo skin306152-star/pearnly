@@ -22,6 +22,10 @@
 | 验收场景与登记（`tests/acceptance/`、`scripts/acceptance/`、地图行的验收属性） | `python3 scripts/check-acceptance.py`；改到场景的 `covers` 文件后，这条场景的证据自动过期，要重跑并登记；见 [验收测试标准](acceptance-testing.md) | 真环境运行的时间与费用先报主会话；动测试机、手机、测试账套先拿占用锁 |
 | 需要在真实环境确认的改动 | 在 [Windows 测试环境](test-environment.md) 用**同一镜像 digest** 起环境，并用测试租户走一遍受影响路径 | 涉及电话/手机、真实 LINE 消息、第三方落单时，要在切换状态下做真机验收并单独记录 |
 
+发布日怎么跑流程用例（11-15）：集成头未冻结时只跑受影响的（`run.py --changed --base <上一个头>`），头冻结后在发布提交上只跑一次
+`run.py --all --post-status`，不在未冻结的头上跑 `--all`；全套不带 `--post-status` 的结果不登记、部署闸不认（`run.py` 开跑前与结束时各提醒一次）。
+细则见 [流程](workflow.md#6-发布与收尾)。
+
 部署前的流程用例全套（`pearnly/flows`，见 [流程用例](../../tests/flows/README.md)）可以**沿用**（主会话 10-30）：发布标记所指的提交没有全套时，
 `scripts/production/deploy.sh` 沿首父链找最近一次全套，那次之后改到的文件全部不在产品路径里就沿用（`scripts/production/flows_inherit.py`，
 打印沿用哪个提交和之后改了哪些文件）。产品路径命中任一就照旧拦、要全套：`apps/`、`frontend/`、`companion/`、`infrastructure/`、`tests/flows/`、
