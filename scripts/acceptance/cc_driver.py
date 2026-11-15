@@ -324,8 +324,9 @@ class LabConversation(Conversation):
     CARD_WAIT = 90
 
     def __init__(self, product: str, mode: str, company: str = "", ledger: str = "", stack: str = "", site: str = "",
-                 user: str = "", keep: bool = False):
+                 user: str = "", keep: bool = False, session: dict | None = None):
         super().__init__(product, mode, company, ledger)
+        self.session = dict(session or {})   # 建对话时一并交的：月份 period、账套 ledger（站点认的账套键）、范围 scope
         if mode != "direct":
             raise Unmet(f"lab-fake 只接直写对话；{mode} 在实验栈上没接（代录要电脑端）")
         self.stack = stack or os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab")
@@ -348,7 +349,7 @@ class LabConversation(Conversation):
 
     def _begin(self) -> None:
         atexit.register(self.close)
-        made = self._post("create", {"project": self.company} if self.company else {})
+        made = self._post("create", {**({"project": self.company} if self.company else {}), **getattr(self, "session", {})})
         self.session_id = made.get("id") or ""
         if not self.session_id:
             raise Infra(f"站点 {self.site} 建对话没回编号：{made}")
@@ -618,8 +619,9 @@ class RealConversation(LabConversation):
     target = "real"
 
     def __init__(self, product: str, mode: str, company: str = "", ledger: str = "", base: str = "", site: str = "",
-                 user: str = "", where: str = "", keep: bool = False, remote=None):
+                 user: str = "", where: str = "", keep: bool = False, remote=None, session: dict | None = None):
         Conversation.__init__(self, product, mode, company, ledger)
+        self.session = dict(session or {})
         if mode != "direct":
             raise Unmet(f"真模型驱动现在只接直写对话；{mode} 要桌面会话，还没接")
         self.base = (base or os.environ.get("PEARNLY_ACC_REAL_BASE", "")).rstrip("/")

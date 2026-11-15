@@ -76,7 +76,10 @@ def chain_tables() -> list[str]:
     return sorted(set(sales_tables()) | set(receipt_tables()))
 
 
-def baseline(ctx, book, conf) -> None:
+def baseline(ctx, book, conf, writes: bool = True) -> None:
+    """``writes``：这条场景会写账本——从这一刻起收尾一定恢复基线（哪一步不通过都恢复，不等走到账本读回）。"""
+    if writes:
+        ctx.after = after_dir(ctx)
     with ctx.step("基线", "账套没人开着，内容与基线快照逐文件一致"):
         probe = book.probe()
         ctx.require("没有别的程序开着账套", [], probe.get("busy"))

@@ -622,7 +622,6 @@ erp.cc.tool.erp_collection_draft|misuse:M04
 erp.cc.tool.erp_collection_draft|misuse:M05
 erp.cc.tool.erp_collection_draft|misuse:M11
 erp.cc.tool.erp_collection_draft|misuse:M12
-erp.cc.tool.erp_collection_draft|normal
 erp.cc.tool.erp_collection_draft|variant:new+old
 erp.cc.tool.erp_collection_push|misuse:M02
 erp.cc.tool.erp_collection_push|misuse:M03
@@ -633,7 +632,6 @@ erp.cc.tool.erp_collection_push|misuse:M08
 erp.cc.tool.erp_collection_push|misuse:M09
 erp.cc.tool.erp_collection_push|misuse:M11
 erp.cc.tool.erp_collection_push|misuse:M12
-erp.cc.tool.erp_collection_push|normal
 erp.cc.tool.erp_collection_push|variant:new+old
 erp.cc.tool.erp_collection_withdraw|misuse:M02
 erp.cc.tool.erp_collection_withdraw|misuse:M03

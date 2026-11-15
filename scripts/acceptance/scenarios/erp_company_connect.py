@@ -52,7 +52,7 @@ def run(ctx):
     chain = _chain()
     conf = chain.settings()
     book = ctx.targets.ledger(chain.HOST, chain.LEDGER)
-    chain.baseline(ctx, book, conf)
+    chain.baseline(ctx, book, conf, writes=False)   # 这一组只读账本
     if ctx.scenario["id"] == "acc.erp.denied":
         return denied(ctx, chain, conf, book)
 

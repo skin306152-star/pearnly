@@ -722,3 +722,55 @@ covers = [
 resources = ["mrerp:test01"]
 budget_usd = 0
 tier = "weekly"
+
+# ---- 第二期第 2 批：CC 对话直写（真模型）。写好未跑、没花钱；每条登记的 budget_usd 是硬上限。
+
+[[scenario]]
+id = "acc.erp.cc.collection"
+title = "ERP 的 CC 对话录收款（刚开的发票，只说一句）→ 写入计划 → 点写入 → Express 收款单读回"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_cc_collection.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.cc.collection.nbsp"
+title = "ERP 的 CC 对话录收款：客户编码带不换行空格 → 写成，收款单客户编码逐字符原样"
+class = "variant"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_cc_collection.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"

@@ -219,6 +219,51 @@ class World:
             out["resend"] = {"send": "already_queued", "state": dict(state, ledger_docnum="PG691115-000002" if self.break_at == "renumbered" else docnum)}
         return out
 
+    def erp_collection_lookup(self, params):
+        return {"ok": True, "records": [dict(item, consent_ref="cc:S-1:3") for item in getattr(self, "cc_records", [])]}
+
+    def talk(self):
+        """替身对话：说一句就出写入计划；点「写入」时「CC 桌面版」把收款单写进替身账套。"""
+        world, record = self, sys.modules["cc_lines"].Record
+
+        class Talk:
+            session_id, site, said, clicked = "S-1", "erp.test", [], None
+
+            def say(self, text):
+                Talk.said.append(text)
+
+            def wait_idle(self, seconds=180):
+                return None
+
+            def record(self):
+                users = [{"role": "user", "text": text, "at": 1.0 + index} for index, text in enumerate(Talk.said)]
+                if world.break_at == "nagged":
+                    users.append({"role": "user", "text": "刚开的，再读一次", "at": 2.5})
+                plan = {"kind": "plan", "id": "p1", "at": 3.0, "topic": "p1", "count": 1, "answer": "write" if Talk.clicked else None,
+                        "answered_at": Talk.clicked, "status": "started" if Talk.clicked else "awaiting"}
+                reply = "已写入 Express：RE0000001（发票 IV691115-001）" if Talk.clicked else "计划如下"
+                if world.break_at == "wrong-reply" and Talk.clicked:
+                    reply = "已写入 Express：RE0000009"
+                tools = [] if world.break_at == "no-draft" else [{"id": "t1", "name": "erp_collection_draft", "at": 2.0, "input": {}, "status": "ok"}]
+                return record(turns=users + [{"role": "assistant", "text": reply, "at": 4.0}], tools=tools, cards=[plan], writes=[], stops=[])
+
+            def click(self, card, choice):
+                Talk.clicked = 5.0
+                written = world._receipt("COL-CC", 400.0, 0.0, "cc")
+                if world.break_at == "refused-by-desktop":
+                    written.update(status="failed", docnum="")
+                world.cc_records = [written]
+                return True
+
+            def cost(self):
+                return 0.3
+
+            def evidence(self):
+                return {"session_id": "S-1", "events": []}
+
+        Talk.said, Talk.clicked = [], None
+        return Talk()
+
     def erp_denied(self, params):
         names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
                  "connect.add"]
@@ -271,13 +316,20 @@ class ChainScenarioTest(unittest.TestCase):
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
         module = "cowork_intake_express.py" if ".cowork." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
+            "erp_cc_collection.py" if ".cc." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
                                         windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
-        scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 0}
-        return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), world
+        scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1 if ".cc." in scenario_id else 0}
+        driver = load("cc_driver", "scripts/acceptance/cc_driver.py") if "cc_driver" not in sys.modules else sys.modules["cc_driver"]
+        opened = driver.open_conversation
+        driver.open_conversation = lambda *args, **kwargs: world.talk()
+        try:
+            return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), world
+        finally:
+            driver.open_conversation = opened
 
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
@@ -342,6 +394,17 @@ class ChainScenarioTest(unittest.TestCase):
             result, _ = self.go(f"acc.erp.mrerp.{kind}", break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, (kind, break_at))
             self.assertIn(words, result["detail"], (kind, break_at))
+
+    def test_a_collection_said_in_the_cc_chat_is_written_once_and_read_back(self):
+        for scenario_id in ("acc.erp.cc.collection", "acc.erp.cc.collection.nbsp"):
+            result, world = self.go(scenario_id)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
+            self.assertEqual((len(result["facts"]["docnums"]), result["spent_usd"], world.calls[-1]), (2, 0.3, "restore"))
+        for break_at, words in (("nbsp", "逐字符原样"), ("refused-by-desktop", "收款状态"), ("wrong-reply", "收款单号"), ("no-draft", "建了收款草稿")):
+            result, world = self.go("acc.erp.cc.collection.nbsp", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
+            self.assertIn(words, result["detail"], break_at)
+            self.assertEqual(world.calls[-1], "restore", break_at)
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")
