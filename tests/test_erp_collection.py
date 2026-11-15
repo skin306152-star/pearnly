@@ -1326,19 +1326,104 @@ class Books(TwoBooks):
                          ({"IV1": "1000.00"}, ["TR"]))
 
 
-    def test_no_book_names_the_date_and_each_connected_book_period(self):
-        """11-13 testerp：只报了 2024 年度的账套，今天收款只说「没有覆盖此日期的账套」；现在说出日期与各本的期间（用户 11-14 定）。"""
+    def test_a_day_outside_every_period_asks_for_the_collection_date(self):
+        """11-15 用户：今天不在已连接账套的期间里不拒，问收款日期（同 Express 里把工作日期改进期间再录）；一本都没连才说没有账套。
+        11-13 testerp 只报了 2024 年度的账套时，原来只回一句「不在已连接账套的期间内」。"""
         from pearnly_erp_portal.collection import texts
 
         nlt = dict(BOOK, period_start="2024-01-01", period_end="2024-12-31", next_end="2025-12-31")
         self.books = [nlt]
         with self.assertRaises(C.CollectionError) as caught:
             service.open_invoices("CO-1", "2100883")
-        self.assertEqual(caught.exception.code, "express.account_set_missing")
-        self.assertEqual(texts.explain(caught.exception),
-                         "2026-11-11 is outside the periods of the connected account sets: NLTTEST 2024-01-01–2025-12-31")
+        self.assertEqual(caught.exception.code, service.DAY_NEEDED)
+        self.assertEqual([(row["start"], row["end"], row["last"]) for row in caught.exception.detail["periods"]],
+                         [("2024-01-01", "2025-12-31", "2024-12-31")])
+        self.assertEqual(texts.explain(caught.exception), "Collection Date · Accounting period: 2024-01-01–2025-12-31 NLTTEST")
         self.books = []
+        with self.assertRaises(C.CollectionError) as caught:
+            service.open_invoices("CO-1", "2100883")
+        self.assertEqual(caught.exception.code, "express.account_set_missing")
         self.assertEqual(texts.explain(caught.exception), "This company has no connected Express account set")
+
+
+OLD = dict(BOOK, key="e" * 40, path=r"\\Accserver\d$\ACCOUNT\70EXP\OLD", label="OLD", period_start="2024-01-01",
+           period_end="2024-12-31", next_end="2025-12-31")
+
+
+class CollectionDate(TwoBooks):
+    """今天不在任何一本账套的期间里（11-15 线上 testerp นิว ลิงค์ 只接了 2024–2025 那本）：不拒，问收款日期，账套跟着日期走；
+    人选的日期一路写到载荷（放行不改回当天）；改草稿只能在冻结那本的期间里；当天在期间里流程不变。"""
+
+    def setUp(self):
+        super().setUp()
+        self.books = [OLD]
+        snapshot.replace("CO-1", OLD["key"], OPEN, "2026-11-11T03:00:00+00:00")
+        self.as_user("a@x")
+
+    def test_today_outside_every_period_asks_with_the_ranges(self):
+        asked = service.day_options("CO-1")
+        self.assertEqual(asked["day"], "2026-11-11")
+        self.assertEqual([(row["start"], row["end"], row["last"], row["short"]) for row in asked["periods"]],
+                         [("2024-01-01", "2025-12-31", "2024-12-31", "OLD")])
+        self.assertIsNone(service.day_options("CO-1", "2024-12-31"))
+        self.assertIsNone(service.day_options("CO-1", "31/12/2567"))  # 泰国写法、佛历
+        self.assertEqual(service.day_options("CO-1", "2026-01-05")["periods"][0]["key"], OLD["key"])  # 期间外：再问
+        self.assertEqual(service.day_options("CO-1", "abc")["day"], "")
+
+    def test_today_inside_a_period_does_not_ask(self):
+        self.books = [OLD, TEST26]
+        self.assertIsNone(service.day_options("CO-1"))
+        self.assertEqual(service.open_invoices("CO-1", "2100883")["book"], TEST26["key"])
+        # 收老账套的欠款：选老账套期间里的日期，账套跟着换
+        self.assertEqual(service.open_invoices("CO-1", "2100883", "2024-12-31")["book"], OLD["key"])
+
+    def test_the_chosen_date_is_written_as_chosen(self):
+        made = service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": "100"}], cash="100",
+                                    doc_date="2024-12-31")
+        row = S.table("ERP Collection")[made["name"]]
+        self.assertEqual((row["book_key"], str(row["doc_date"]), row["date_chosen"]), (OLD["key"], "2024-12-31", 1))
+        self.assertEqual(service.release(made["name"], made["version"], "line:evt-1")["status"], "released")
+        job = self.jobs.rows["J-" + made["name"]]
+        self.assertEqual(job["payload"]["doc_date"], "2024-12-31")
+        self.assertEqual(str(S.table("ERP Collection")[made["name"]]["doc_date"]), "2024-12-31")
+
+    def test_without_a_date_the_draft_asks(self):
+        with self.assertRaises(C.CollectionError) as caught:
+            service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": "100"}], cash="100")
+        self.assertEqual(caught.exception.code, service.DAY_NEEDED)
+        with self.assertRaises(C.CollectionError) as caught:
+            service.methods("CO-1")
+        self.assertEqual(caught.exception.code, service.DAY_NEEDED)
+        self.assertTrue(service.methods("CO-1", "2024-06-30")["cash"])
+
+    def test_editing_the_date_stays_inside_the_drafts_book(self):
+        made = service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": "100"}], cash="100",
+                                    doc_date="2024-12-31")
+        card = service.update_draft(made["name"], made["version"], [{"docnum": "IV1", "amount": "100"}], cash="100",
+                                    doc_date="2025-03-01")
+        self.assertEqual(card["doc_date"], "2025-03-01")
+        with self.assertRaises(C.CollectionError) as caught:
+            service.update_draft(made["name"], card["version"], [{"docnum": "IV1", "amount": "100"}], cash="100",
+                                 doc_date="2026-11-11")
+        self.assertEqual(caught.exception.code, service.DAY_NEEDED)
+        self.assertEqual([row["key"] for row in caught.exception.detail["periods"]], [OLD["key"]])
+        self.assertEqual([(row["start"], row["end"]) for row in service.edit_choices(made["name"])["periods"]],
+                         [("2024-01-01", "2025-12-31")])
+
+    def test_a_default_date_still_moves_to_the_release_day(self):
+        self.books = [TEST26]
+        made = service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": "100"}], cash="100")
+        self.assertEqual(S.table("ERP Collection")[made["name"]]["date_chosen"], 0)
+        with mock.patch.object(service, "nowdate", lambda: "2026-11-12"):
+            service.release(made["name"], made["version"], "line:evt-1")
+        self.assertEqual(str(S.table("ERP Collection")[made["name"]]["doc_date"]), "2026-11-12")
+
+    def test_period_locked_reads_as_the_express_words(self):
+        from pearnly_erp_portal.collection import texts
+
+        self.assertEqual(texts.reason("[PERIOD_LOCKED] accounting period of 2024-12-31 is locked in Express"),
+                         "express.reason.periodLocked")
+        self.assertEqual(texts.reason("[X] other"), "other")
 
 
 class Explained(unittest.TestCase):
@@ -1349,7 +1434,7 @@ class Explained(unittest.TestCase):
         codes = [value for key, value in vars(C).items() if key.isupper() and isinstance(value, str)
                  and value.startswith("collection.") and value != C.CONSENT_MISSING]
         codes += [service.NO_COMPANY, service.NO_CUSTOMER, service.CC_UPDATE, service.VOUCHER_INVALID,
-                  service.LEDGER_NEEDED, "express.account_set_several", "express.company_tax_missing",
+                  service.LEDGER_NEEDED, service.DAY_NEEDED, "express.account_set_several", "express.company_tax_missing",
                   "express.account_set_missing", "express.masters_reading"]
         for code in codes:
             self.assertNotEqual(texts.explain(C.CollectionError(code, {})), "Could not record this collection", code)

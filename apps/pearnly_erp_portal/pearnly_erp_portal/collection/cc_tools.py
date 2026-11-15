@@ -50,6 +50,12 @@ LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not dec
                       "user once with ask_user which account set to record collections in (one question, each option "
                       "label exactly the label of one of allowed_account_sets), set it with pearnly_conversation_ledger "
                       "(ledger = its id), then go on; do not ask again after that.")
+DAY_NEEDED_NOTE = ("date_needed: the collection date is outside the periods this conversation's account set can record "
+                   "(periods: start–end), so nothing was saved. Ask the user once with ask_user for the collection date "
+                   "(options: the last day of each period, the user may type another date inside a period), then call "
+                   "again with date (YYYY-MM-DD) on erp_collection_invoices, erp_collection_methods and "
+                   "erp_collection_draft. Do not change the account set here: the user switches it in the conversation's "
+                   "account set selector.")
 QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desktop on the computer that writes it may "
                "be offline: it is recorded once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_collection_status when they ask. Do not wait. A queued collection is not in Express yet.")
@@ -88,6 +94,11 @@ def _refused(error) -> dict:
         return {"status": "not_saved", "reason": error.code, "note": LEDGER_NEEDED_NOTE,
                 "allowed_account_sets": [{"id": item["code"], "label": item["name"]}
                                          for item in (error.detail or {}).get("options") or ()]}
+    if isinstance(error, contracts.CollectionError) and error.code == service.DAY_NEEDED:
+        # 收款日期不在本对话账套的期间里：问日期（用户 11-15「人在 Express 改工作日期就能录」），换账套走对话的账套选择
+        return {"status": "not_saved", "reason": error.code, "note": DAY_NEEDED_NOTE,
+                "periods": [{"start": row["start"], "end": row["end"], "last": row["last"], "account_set": row["label"]}
+                            for row in (error.detail or {}).get("periods") or ()]}
     if isinstance(error, contracts.CollectionError) and error.code == service.NO_CUSTOMER:
         # 编号对不上账本里唯一一位客户（多半是复述时空白变了，`service.customer_code`）：叫模型问人选，不说「不存在」
         from pearnly_core.assistant import codes
@@ -172,16 +183,16 @@ READ_NOTES = {
 }
 
 
-def _fresh_invoices(company, customer) -> dict:
+def _fresh_invoices(company, customer, day=None) -> dict:
     """请电脑按这位客户即时读一次，能等的地方短等（照 LINE：读不到就如实说还在读）。回 `service.open_invoices` 的结果或
     `_call` 的拒绝。"""
-    found = _call(service.open_invoices, company, customer)  # _call 提交：读取请求要先落库电脑才看得见
+    found = _call(service.open_invoices, company, customer, day)  # _call 提交：读取请求要先落库电脑才看得见
     deadline = time.monotonic() + READ_WAIT_SECONDS
     while ("result" in found and found["result"]["refresh"] == snapshot.READING and direct_push.may_wait()
            and time.monotonic() < deadline):
         time.sleep(max(0.0, min(READ_WAIT_STEP, deadline - time.monotonic())))
         frappe.db.rollback()  # 回执在别的请求里提交：换一份新快照再读
-        found = _call(service.open_invoices, company, customer)  # loop-query: 短等读回，最多 READ_WAIT_SECONDS 次
+        found = _call(service.open_invoices, company, customer, day)  # loop-query: 短等读回，最多 READ_WAIT_SECONDS 次
     return found
 
 
@@ -195,15 +206,15 @@ def invoices(tool_input) -> str:
     customer = str(tool_input.get("customer") or "").strip()
 
     def run(company):
-        found = _fresh_invoices(company, customer)
+        found = _fresh_invoices(company, customer, tool_input.get("date") or None)
         return _read_view(found["result"], customer) if "result" in found else found
 
     return _in_company(run)
 
 
-def methods(_tool_input) -> str:
+def methods(tool_input) -> str:
     def run(company):
-        found = _call(service.methods, company)
+        found = _call(service.methods, company, (tool_input or {}).get("date") or None)
         return found.get("result", found)
 
     return _in_company(run)
@@ -267,7 +278,8 @@ def draft(tool_input) -> str:
         if name:
             return service.update_draft(name, tool_input.get("version"), rows, cash=tool_input.get("cash") or 0,
                                         methods=_methods(tool_input.get("methods")), amount=tool_input.get("amount"),
-                                        salesman=tool_input.get("salesman"), department=tool_input.get("department"))
+                                        salesman=tool_input.get("salesman"), department=tool_input.get("department"),
+                                        doc_date=tool_input.get("date") or None)
         return service.create_draft(company, str(tool_input.get("customer") or ""), rows, cash=tool_input.get("cash") or 0,
                                     methods=_methods(tool_input.get("methods")), amount=tool_input.get("amount"),
                                     doc_date=tool_input.get("date") or None, source="cc",
@@ -382,6 +394,8 @@ RESULT_NOTE = ("status is draft, queued (released, on its way to Express), writi
                "Express), failed (reason says why; balances are the invoices' balances now when they were already "
                "collected) or withdrawn.")
 
+DATE_PROP = {"type": "string", "description": "Collection date YYYY-MM-DD; leave out for today. Give the date the user chose "
+                                            "after date_needed on every collection call."}
 TOOLS = [
     {"name": "erp_collection_customers", "label": "Searched customers for a collection", "modes": ["chat"],
      "description": "Customers of the company this conversation is filed under that a collection can be recorded for "
@@ -398,14 +412,15 @@ TOOLS = [
                     "recorded). Only available can be collected; never work amounts out yourself. It reads Express again "
                     "first; read says whether the list is fresh (ready) or not (reading / offline / outdated) — only a "
                     "ready list can tell that an invoice is not open; follow note.",
-     "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."}},
+     "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."},
+                                                       "date": DATE_PROP},
                       "required": ["customer"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.invoices"},
     {"name": "erp_collection_methods", "label": "Listed collection methods", "modes": ["chat"],
      "description": "How a collection can be received in this company's account set: cash (true when cash can be "
                     "recorded), transfers (prefix, code, name: the account set's money-receiving transfer kinds) and "
                     "discount (the cash discount kind, or none). Only these can be used.",
-     "input_schema": {"type": "object", "properties": {}},
+     "input_schema": {"type": "object", "properties": {"date": DATE_PROP}},
      "handler": "pearnly_erp_portal.collection.cc_tools.methods"},
     {"name": "erp_collection_draft", "label": "Saved a collection draft", "modes": ["chat"],
      "description": "Save a collection the user is recording for one customer: the invoices with the amount collected on "
@@ -420,7 +435,7 @@ TOOLS = [
          "customer": {"type": "string", "description": "Customer code (new collection)."},
          "invoices": INVOICES_PROP, "amount": {"type": "string"}, "cash": {"type": "string"},
          "methods": METHODS_PROP, "salesman": {"type": "string"}, "department": {"type": "string"},
-         "date": {"type": "string", "description": "YYYY-MM-DD; leave out for today."}},
+         "date": DATE_PROP},
          "required": ["invoices"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.draft"},
     {"name": "erp_collection_voucher", "label": "Attached a transfer slip", "modes": ["chat"],

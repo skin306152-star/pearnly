@@ -386,6 +386,28 @@ class ConversationBook(Base, T.TwoBooks):
         self.assertEqual(planned["status"], "nothing_to_write")
         self.assertEqual(planned["skipped"][0]["reason"], "collection.book_not_conversation")
 
+    def test_a_date_outside_the_conversations_book_asks_for_the_date(self):
+        """11-15 用户：对话账套是老账套、今天不在它的期间里：不拒，回 date_needed 带这一本的期间，叫模型问日期；换账套走对话的
+        账套选择，不在这里另给。"""
+        self.books = [T.TEST26, T.OLD]
+        T.snapshot.replace("CO-1", T.OLD["key"], T.OPEN, "2026-11-11T03:00:00+00:00")
+        self.ledger[0] = self.ledger_of(T.OLD, [T.TEST26, T.OLD])
+        self.as_user("a@x")
+        refused = self.call(cc_tools.invoices, customer="2100883")
+        self.assertEqual((refused["status"], refused["reason"]), ("not_saved", "collection.date_needed"))
+        self.assertEqual([(row["start"], row["end"], row["last"]) for row in refused["periods"]],
+                         [("2024-01-01", "2025-12-31", "2024-12-31")])
+        self.assertIn("OLD", refused["periods"][0]["account_set"])
+        self.assertIn("ask_user", refused["note"])
+        self.assertEqual(self.call(cc_tools.methods)["reason"], "collection.date_needed")
+        listed = self.call(cc_tools.invoices, customer="2100883", date="2024-12-31")
+        self.assertEqual([row["docnum"] for row in listed["invoices"]], ["IV1"])
+        self.assertTrue(self.call(cc_tools.methods, date="2024-12-31")["cash"])
+        made = self.make("100", date="2024-12-31")
+        self.assertTrue(made["ready"], made)
+        row = T.S.table("ERP Collection")[made["name"]]
+        self.assertEqual((row["book_key"], str(row["doc_date"])), (T.OLD["key"], "2024-12-31"))
+
 
 class ExpressOpen(Base):
     def test_a_queued_collection_waiting_for_express_tells_cc_why(self):

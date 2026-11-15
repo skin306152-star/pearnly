@@ -50,8 +50,31 @@ def no_book(company, day) -> str:
     return target.company_no_book_text(company, day)
 
 
+def periods_text(rows, shown=str) -> str:
+    """可录收款的日期段：「会计期间：2024-01-01–2025-12-31 TEST2、…」（:func:`service.periods`）；``shown`` 换日期写法（LINE 用佛历）。"""
+    import frappe
+
+    joiner = "、" if str(getattr(frappe.local, "lang", "") or "")[:2] in ("zh", "ja") else ", "
+    listed = joiner.join(f"{shown(row['start'])}–{shown(row['end'])} {row.get('short') or row.get('label') or ''}".strip() for row in rows or ())
+    return _("Accounting period: {0}").format(listed)
+
+
+def reason(value) -> str:
+    """回执里的原因给人看：电脑回的码有现成说法的换成它（会计期间已在 Express 关账），其余去掉码头照原文。"""
+    import re
+
+    from pearnly_core.cc_desktop.wire import ack_rules
+
+    if ack_rules.error_code(value) == "PERIOD_LOCKED":
+        return _("express.reason.periodLocked")
+    return re.sub(r"^\[[A-Za-z0-9_]+\]\s*", "", str(value or ""))
+
+
 def explain(error) -> str:
     code, detail = getattr(error, "code", ""), getattr(error, "detail", {}) or {}
+    if code == "collection.date_needed":
+        return " · ".join(filter(None, (_("Collection Date"), periods_text(detail.get("periods")) if detail.get("periods")
+                                        else "")))
     if code == "express.account_set_missing" and isinstance(detail, dict) and detail.get("company") and detail.get("day"):
         return no_book(detail["company"], detail["day"])
     if code == contracts.AMOUNT_MISMATCH:

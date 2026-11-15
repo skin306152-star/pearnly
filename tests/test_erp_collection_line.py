@@ -217,7 +217,7 @@ class Steps(Base):
         with mock.patch.object(service, "warm") as warm:
             self.tap("a=col&s=start")
         self.assertEqual(self.step(), "customer")
-        warm.assert_called_once_with(self.payload()["company"])
+        warm.assert_called_once_with(self.payload()["company"], None)
 
     def test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card(self):
         self.tap("a=col&s=start")
@@ -1094,6 +1094,47 @@ class BookStep(Base, T.TwoBooks):
         self.assertIn("This option is no longer current", self.last_text())
         self.type("TEST")
         self.assertEqual(self.step(), "book")  # 打字不算选
+
+
+class DayStep(Base, T.TwoBooks):
+    """今天不在这家任何一本账套的期间里（11-15 线上 นิว ลิงค์）：选公司后问收款日期（佛历，同卡片），快捷回复是各本期间的最后一天，
+    也可以打日期；账套跟着日期走，确认卡写出收款日期，写入用这个日期。"""
+
+    def setUp(self):
+        super().setUp()
+        self.books = [T.OLD]
+        T.snapshot.replace("CO-1", T.OLD["key"], T.OPEN, "2026-11-11T03:00:00+00:00")
+
+    def test_the_date_is_asked_and_carried_to_the_card(self):
+        self.tap("a=col&s=start")
+        self.assertEqual(self.step(), "day")
+        self.assertIn("Collection Date", self.last_text())
+        self.assertIn("Accounting period: 01/01/2567–31/12/2568 OLD", self.last_text())
+        self.assertEqual([item["label"] for item in self.buttons()], ["31/12/2567 OLD", "Cancel"])
+        self.tap(self.buttons()[0]["data"])
+        self.assertEqual((self.step(), self.payload()["day"]), ("customer", "2024-12-31"))
+        self.type(C1)
+        self.assertEqual(self.step(), "invoices")
+        self.assertIn(T.snapshot.request_key(T.OLD["key"], C1), self.requests.made)
+        self.tap("a=col&s=inv&v=IV1")
+        self.tap("a=col&s=invoices&v=done")
+        self.tap("a=col&s=method&v=@cash")
+        self.type("1000")
+        self.assertEqual(self.step(), "card")
+        row = T.S.table("ERP Collection")[self.payload()["name"]]
+        self.assertEqual((str(row["doc_date"]), row["book_key"]), ("2024-12-31", T.OLD["key"]))
+        self.assertIn("31/12/2567", str(self.last()))
+
+    def test_a_typed_date_is_read_and_a_wrong_one_is_asked_again(self):
+        self.tap("a=col&s=start")
+        self.type("abc")
+        self.assertEqual(self.step(), "day")
+        self.assertIn("No match for “abc”", self.last_text())
+        self.type("2026-01-05")  # 期间外
+        self.assertEqual(self.step(), "day")
+        self.type("15/06/2567")
+        self.assertEqual((self.step(), self.payload()["day"]), ("customer", "2024-06-15"))
+        self.assertNotIn("No match", self.last_text())  # 认对了的日期：问客户那一步不带「没找到」
 
 
 class BookButtons(Base, T.TwoBooks):

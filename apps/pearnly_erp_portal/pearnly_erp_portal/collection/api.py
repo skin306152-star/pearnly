@@ -82,37 +82,45 @@ def api_collection_card(name):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_collection_save(name, version, invoices, cash=0, methods=None, salesman=None, department=None):
+def api_collection_save(name, version, invoices, cash=0, methods=None, salesman=None, department=None, doc_date=None):
     """改草稿（各张本次收、现金、各方式与折扣、销售员、部门）：只认打开时的版本（别人或 LINE 里刚改过回原因），存好回新的确认卡。"""
     from pearnly_erp_portal.collection import service
 
     invoices, methods = _payload(invoices), _payload(methods) or []
     return _explained(service.update_draft, name, version, invoices if isinstance(invoices, list) else [], cash,
-                      methods if isinstance(methods, list) else [], salesman=salesman, department=department)
+                      methods if isinstance(methods, list) else [], salesman=salesman, department=department,
+                      doc_date=doc_date or None)
 
 
 # ── 网页「新建」（11-14：「收款」页头，`public/desk/collection-new.js`）────────────────
 
 
 @frappe.whitelist(methods=["POST"])
-def api_collection_new_options(company=None):
-    """弹窗要的：本人能录收款的公司；给了公司再带这家此刻的账套是否要选一次、收款方式。POST：主档还没读过时要排一次读取
-    （`express.masters.ensure`），GET 里写库不提交。"""
+def api_collection_new_options(company=None, day=None):
+    """弹窗要的：本人能录收款的公司；给了公司再带这一天（默认今天）要不要另选收款日期（``day_needed``：可录的各段期间，
+    `service.day_options`）、账套是否要选一次、收款方式。POST：主档还没读过时要排一次读取（`express.masters.ensure`），GET 里
+    写库不提交。"""
     from pearnly_erp_portal.collection import service
 
     out = {"companies": [{"value": row["name"], "label": row["company_name"]} for row in service.companies_for()]}
     if company:
-        out["book"] = _explained(service.book_options, company)
+        out["day_needed"] = _explained(service.day_options, company, day or None)
+        if out["day_needed"]:
+            from pearnly_erp_portal.collection import texts
+
+            out["day_needed"]["text"] = texts.periods_text(out["day_needed"]["periods"])
+            return out
+        out["book"] = _explained(service.book_options, company, day or None)
         if not out["book"]:
-            out["methods"] = _explained(service.methods, company)
+            out["methods"] = _explained(service.methods, company, day or None)
     return out
 
 
 @frappe.whitelist(methods=["POST"])
-def api_collection_choose_book(company, key):
+def api_collection_choose_book(company, key, day=None):
     from pearnly_erp_portal.collection import service
 
-    return _explained(service.choose_book, company, key)
+    return _explained(service.choose_book, company, key, day or None)
 
 
 @frappe.whitelist()
@@ -129,11 +137,11 @@ def api_collection_customer_search(txt="", company=None, start=0):
 
 
 @frappe.whitelist(methods=["POST"])
-def api_collection_open_invoices(company, customer):
+def api_collection_open_invoices(company, customer, day=None):
     """选好客户：这位客户此刻能收的发票（同 LINE / CC，一次查完；POST：要请电脑按客户即时读一次）。"""
     from pearnly_erp_portal.collection import service
 
-    return _explained(service.open_invoices, company, customer)
+    return _explained(service.open_invoices, company, customer, day or None)
 
 
 @frappe.whitelist(methods=["POST"])
@@ -151,14 +159,15 @@ def api_collection_voucher_upload():
 
 
 @frappe.whitelist(methods=["POST"])
-def api_collection_submit(company, customer, invoices, request, cash=0, methods=None, salesman=None, department=None):
+def api_collection_submit(company, customer, invoices, request, cash=0, methods=None, salesman=None, department=None,
+                          doc_date=None):
     """提交即放行（`service.submit_web`）：规则不过照码回一句、什么都不留；同一个 ``request`` 再提交回已建的那一笔。"""
     from pearnly_erp_portal.collection import service
 
     invoices, methods = _payload(invoices), _payload(methods) or []
     return _explained(service.submit_web, company, customer, invoices if isinstance(invoices, list) else [], cash,
                       methods if isinstance(methods, list) else [], salesman=salesman, department=department,
-                      request=request)
+                      request=request, doc_date=doc_date or None)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -44,6 +44,7 @@ Abbreviated Tax Invoice,簡易税務請求書
 Account Set,会計データ
 Account name matches,勘定科目名が一致
 Account signed in elsewhere,アカウントは別の場所でログイン中です
+Accounting period: {0},会計期間：{0}
 Accrual basis,発生主義
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量

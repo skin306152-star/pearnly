@@ -1982,6 +1982,23 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.collection.date"
+title = "收款日期：今天不在这家任何一本账套的期间里 → LINE 选公司后问收款日期（佛历、期间最后一天的快捷回复）→ 确认卡写出日期、放行后载荷仍是选的日期；网页新建弹窗清空日期、原生日期框限定到期间、填期间内日期后列出发票（用户 11-15）"
+module = "scripts/flows/erp_collection_date.py"
+start = "/desk/pearnly-collections"
+user = "collector"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/collection-new.js",
+]
+
+[[flow]]
 id = "erp.collections.refused"
 title = "没有收款岗位的人（采购）打不开「收款」与「我的收款」两页，两页的接口也拒（收款 11-11）"
 module = "scripts/flows/erp_collections_refused.py"

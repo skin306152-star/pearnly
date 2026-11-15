@@ -18,7 +18,7 @@ from frappe.utils import now_datetime, nowdate
 from pearnly_core.cc_desktop import requests
 from pearnly_core.express_rules.contracts import codes
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.collection import contracts, snapshot
+from pearnly_erp_portal.collection import contracts, snapshot, texts
 from pearnly_erp_portal.express import choices, contracts as express_contracts, facts, target
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.masters import access as master_access
@@ -38,6 +38,9 @@ NO_CUSTOMER = "collection.customer_not_found"
 CC_UPDATE = "collection.cc_update_needed"
 VOUCHER_INVALID = "collection.voucher_invalid"
 LEDGER_NEEDED = "ledger_needed"  # CC 对话里本对话账套未定（同 `express.conversation.LEDGER_NEEDED`）
+# 收款日期不在任何已连接账套的可录期间（或不在本对话账套的期间）：不拒，问收款日期（``detail.periods`` = 可选的各段，
+# :func:`periods`；用户 11-15：「我只要改到账本期间就可以写帐，为何我们不可以」——同 Express 里人把工作日期改进期间再录）
+DAY_NEEDED = "collection.date_needed"
 BOOK_NOT_CONVERSATION = "collection.book_not_conversation"  # 草稿的账套不是本对话账套（之后在右栏换了，`plan.view`）
 # 凭证原件的 id 前缀。任务书写的是 ``ERC-``，但共用原件层（`pearnly_core.originals.registered.NAME` / ``links.OBJECT`` /
 # ``cloud_run.ORIGINAL``）与甲骨文上的原件服务只认 ``CWS-`` / ``ERO-``：用 ``ERC-`` 要同时改共用层并重新部署甲骨文
@@ -84,6 +87,43 @@ def _picked(company_row, day):
     return target.pick(company_row, day, conversation.wanted(company_row))
 
 
+def parse_day(value) -> str:
+    """收款日期：``YYYY-MM-DD``，或泰国写法 ``D/M/YYYY``（年份大于 2400 当佛历减 543）；认不出回空串。"""
+    import datetime as dt
+
+    text = str(value or "").strip()
+    try:
+        if "/" in text:
+            day, month, year = (int(part) for part in text.split("/"))
+            return dt.date(year - 543 if year > 2400 else year, month, day).isoformat()
+        return dt.date.fromisoformat(text[:10]).isoformat() if len(text) >= 10 else ""
+    except ValueError:
+        return ""
+
+
+def periods(company_row, only=None) -> list:
+    """这家公司已连接各本账套能录收款的日期段（本年起 ~ 次年止，与选账套、期间判据同一条 `account_match`），早的在前：
+    ``[{key, label, short, start, end, last}]``；``last`` 是本年段最后一天（LINE 快捷回复给的那个日期）。``only``：只要这一本
+    （CC 对话账套、草稿冻结的那本）。"""
+    every = [item for item in target.books_of(company_row) if only is None or item["key"] == only]
+    rows = []
+    for item in every:
+        start = str(item.get("period_start") or "")[:10]
+        end = str(item.get("next_end") or item.get("period_end") or "")[:10]
+        if start and end:
+            rows.append({"key": item["key"], "label": target.option_name(item), "start": start, "end": end,
+                         "last": str(item.get("period_end") or end)[:10]})
+    shorts = {row["code"]: row["short"] for row in _with_short(
+        company_row, [{"code": row["key"], "name": row["label"]} for row in rows])}
+    return sorted(({**row, "short": shorts.get(row["key"]) or row["label"]} for row in rows), key=lambda row: row["start"])
+
+
+def _day_needed(company_row, day, only=None):
+    found = periods(company_row, only)
+    return contracts.CollectionError(DAY_NEEDED, {"company": company_row.get("name") or "", "day": str(day or "")[:10],
+                                                  "periods": found}) if found else None
+
+
 def book_for(company_row, day):
     """这笔收款写进哪本账套（:func:`_picked`）。没有税号 / 没有账套抛那个原因码；CC 对话里本对话账套未定抛
     :data:`LEDGER_NEEDED`（``detail`` 带可选的几本，问一次用 ``pearnly_conversation_ledger`` 设）；网页 / LINE 同期两份、没选过抛
@@ -97,12 +137,37 @@ def book_for(company_row, day):
             {"code": item["id"], "name": item.get("label") or item["id"]} for item in pin.get("options") or ()]})
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
         raise contracts.CollectionError(picked["reason"], {"options": picked["options"]})
-    if picked["reason"] == express_contracts.NO_BOOK:
-        # 说出日期与已连接各本的期间（`texts.explain` → `target.no_book_text`，用户 11-14）
-        raise contracts.CollectionError(picked["reason"], {"company": company_row.get("name") or "", "day": str(day)[:10]})
+    if picked["reason"] in (express_contracts.NO_BOOK, express_contracts.PERIOD_OUTSIDE):
+        # 这天不在可录期间：有已连接的账套就问收款日期（:data:`DAY_NEEDED`；CC 对话账套只给这一本的期间，换账套走对话的
+        # 账套选择）；一本都没有才说没有账套（`texts.explain` → `target.no_book_text`）
+        asked = _day_needed(company_row, day, (picked.get("book") or {}).get("key") if picked.get("book") else None)
+        if asked is not None:
+            raise asked
+        raise contracts.CollectionError(express_contracts.NO_BOOK, {"company": company_row.get("name") or "",
+                                                                     "day": str(day)[:10]})
     if picked["reason"] and picked["reason"] != express_contracts.NO_WRITER:
         raise contracts.CollectionError(picked["reason"])
     return picked["book"]  # 没有电脑能写也照样记（排队，电脑上线补写）
+
+
+def day_options(company, day=None) -> dict | None:
+    """开始一笔收款（网页 / LINE / 引导式）：这一天（默认今天）能录就回 None；不在任何已连接账套的期间里回
+    ``{"day", "periods": [...]}``（:func:`periods`），问收款日期，选好的日期再调一次。``day`` 认不出也照这样回（再问）。
+    其余停下的原因（没有账套、没有税号）照抛。"""
+    guard.require(WRITE)
+    row = _company(company)
+    chosen = parse_day(day) if day else nowdate()
+    try:
+        if not chosen:
+            raise _day_needed(row, day) or contracts.CollectionError(express_contracts.NO_BOOK, {
+                "company": company, "day": ""})
+        book_for(row, chosen)
+    except contracts.CollectionError as error:
+        if error.code == DAY_NEEDED:
+            return {"day": chosen, "periods": error.detail["periods"]}
+        if error.code != express_contracts.SEVERAL_BOOKS:
+            raise
+    return None
 
 
 def book_options(company, day=None) -> dict | None:
@@ -404,8 +469,9 @@ def edit_choices(name) -> dict:
     book = {"key": doc.book_key, **_book_row(doc)}
     found = open_invoices(doc.company, doc.customer, refresh=False, exclude=name, book=book)
     available = {row["docnum"]: row["available"] for row in found["items"]}
+    row = frappe.db.get_value(COMPANY, doc.company, ["name", "tax_id", "branch"], as_dict=True) or {}
     return {"available": {row.docnum: available.get(row.docnum, "0.00") for row in doc.invoices},
-            "methods": methods(doc.company, book=book, every=True)}
+            "methods": methods(doc.company, book=book, every=True), "periods": periods(row, doc.book_key)}
 
 
 def _fill(doc, checked, people=None):
@@ -453,7 +519,9 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
     row = _company(company)
     customer = customer_code(company, customer)
     customer_name = _customer_name(company, customer)
-    day = str(doc_date or nowdate())[:10]
+    day = (parse_day(doc_date) if doc_date else nowdate()) or ""
+    if not day:
+        raise _day_needed(row, doc_date) or contracts.CollectionError(DAY_NEEDED, {"day": "", "periods": []})
     book = book_for(row, day)
     if source not in contracts.SOURCES:
         frappe.throw(_("Invalid value"))
@@ -462,7 +530,7 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
     people = _staff(book["key"], checked, salesman, department)
     name = _new_name()
     doc = frappe.get_doc({"doctype": DOCTYPE, "name": name, "company": company, "doc_date": day,
-                          "collector": frappe.session.user, "source": source, "customer": customer,
+                          "date_chosen": 1 if day != nowdate() else 0, "collector": frappe.session.user, "source": source, "customer": customer,
                           "customer_name": customer_name, "status": contracts.DRAFT, "draft_version": 1,
                           "book_key": book["key"], "book_label": target.option_name(book)[:140]})
     _fill(doc, checked, people)
@@ -475,7 +543,8 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
 WEB_CONSENT = "web:"
 
 
-def submit_web(company, customer, invoices, cash=0, methods=None, salesman=None, department=None, request="") -> dict:
+def submit_web(company, customer, invoices, cash=0, methods=None, salesman=None, department=None, request="",
+               doc_date=None) -> dict:
     """ERP 网页「新建」（11-14 用户：弹窗填好、提交后就写进 Express）：弹窗就是复核，提交 = 建草稿 + 放行一步，同一套规则
     （:func:`create_draft` / :func:`release`）。``request`` 是弹窗这一次打开时生成的号：同一个号再提交（连点、网络重发）回已建
     的那一笔，不建第二笔；放行的同意记为 ``web:<号>``。规则不过照码抛（同 LINE / CC），什么都不留。回放行后的 :func:`card`。"""
@@ -487,7 +556,7 @@ def submit_web(company, customer, invoices, cash=0, methods=None, salesman=None,
     done = frappe.db.get_value(DOCTYPE, {"consent_ref": consent, "collector": frappe.session.user}, "name")
     if done:
         return card(done)
-    made = create_draft(company, customer, invoices, cash=cash, methods=methods, source="web",
+    made = create_draft(company, customer, invoices, cash=cash, methods=methods, source="web", doc_date=doc_date or None,
                         salesman=salesman or None, department=department or None)
     result = release(made["name"], made["version"], consent)
     if result["status"] == "invalid":
@@ -497,7 +566,8 @@ def submit_web(company, customer, invoices, cash=0, methods=None, salesman=None,
     return card(made["name"])
 
 
-def update_draft(name, version, invoices, cash=0, methods=None, amount=None, salesman=None, department=None) -> dict:
+def update_draft(name, version, invoices, cash=0, methods=None, amount=None, salesman=None, department=None,
+                 doc_date=None) -> dict:
     """改草稿（整笔换成新内容，规则全过）：``version`` 要是本人看到的那个版本（别处刚改过回 ``changed``），改完版本 +1。
     ``salesman`` / ``department`` 不给：收款员改过的沿用，没改过的跟着第一张发票走（`contracts.staff`）。"""
     doc = _own(name, for_update=True)
@@ -507,6 +577,8 @@ def update_draft(name, version, invoices, cash=0, methods=None, amount=None, sal
         raise contracts.CollectionError(contracts.CHANGED, {"version": int(doc.draft_version or 0)})
     book = {"key": doc.book_key}
     book.update(_book_row(doc))
+    if doc_date:
+        _redate(doc, book, doc_date)
     open_rows = _open_rows(doc.book_key, doc.customer, exclude=doc.name)
     draft = _draft_input(invoices, cash, methods, amount, open_rows)
     checked = _checked(doc.company, book, doc.customer, draft, record=doc.name)
@@ -521,6 +593,18 @@ def update_draft(name, version, invoices, cash=0, methods=None, amount=None, sal
     doc.save(ignore_permissions=True)
     _attach(doc.name, checked)
     return card(doc.name)
+
+
+def _redate(doc, book, doc_date):
+    """改草稿的收款日期（网页改草稿弹窗；LINE【编辑】打开的就是它）：只能在这笔冻结的那本账套的期间里（发票、方式都是那本的；
+    要收别的账套的就重开一笔）。"""
+    from pearnly_core.express_rules.targets import account_match
+
+    day = parse_day(doc_date)
+    if not day or account_match.conflict("express", {"attributes": book}, fields={"date": day}):
+        row = frappe.db.get_value(COMPANY, doc.company, ["name", "tax_id", "branch"], as_dict=True) or {}
+        raise _day_needed(row, doc_date, doc.book_key) or contracts.CollectionError(DAY_NEEDED, {"day": "", "periods": []})
+    doc.doc_date, doc.date_chosen = day, 1 if day != nowdate() else 0
 
 
 def _book_row(doc):
@@ -576,7 +660,7 @@ def _view(doc) -> dict:
     return {"name": doc.name, "version": int(doc.draft_version or 0), "status": doc.status, "company": doc.company,
             "company_name": frappe.db.get_value(COMPANY, doc.company, "company_name") or doc.company,
             "book": doc.book_label or "", "customer": doc.customer, "customer_name": doc.customer_name,
-            "doc_date": str(doc.doc_date or ""), "source": doc.source, "collector": doc.collector or "",
+            "doc_date": str(doc.doc_date or ""), "date_chosen": bool(doc.get("date_chosen")), "source": doc.source, "collector": doc.collector or "",
             "invoices": [{"docnum": row.docnum, "invoice_date": str(row.invoice_date or ""),
                           "remaining": contracts.text(row.remaining or 0), "amount": contracts.text(row.amount or 0)}
                          for row in doc.invoices],
@@ -585,6 +669,7 @@ def _view(doc) -> dict:
                          "amount": contracts.text(row.amount or 0), "voucher": row.voucher or ""} for row in doc.payments],
             "transfer": contracts.text(doc.transfer or 0), "discount": contracts.text(doc.discount or 0),
             "total": contracts.text(doc.total or 0), "docnum": doc.docnum or "", "reason": doc.reason or "",
+            "reason_text": texts.reason(doc.reason) if doc.reason else "",
             "salesman": doc.salesman or "", "department": doc.department or "",
             "balances": frappe.parse_json(doc.balances) if doc.balances else {},
             # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
@@ -647,8 +732,8 @@ def release(name, version, consent) -> dict:
         return {"status": "invalid", "code": error.code, "detail": error.detail}
     _fill(doc, checked, {"salesman": doc.salesman or "", "department": doc.department or contracts.staff(
         checked["invoices"][0], _choices(doc.book_key)["run_department"])["department"]})
-    # 单据日期按放行当天（隔了一阵才确认、跨了日也记到确认那天，不是建草稿那天）
-    doc.update({"status": contracts.QUEUED, "doc_date": nowdate(), "confirmed_at": now_datetime(),
+    # 单据日期按放行当天（隔了一阵才确认、跨了日也记到确认那天，不是建草稿那天）；人选过的收款日期照选的（:data:`DAY_NEEDED`）
+    doc.update({"status": contracts.QUEUED, "doc_date": doc.doc_date if doc.get("date_chosen") else nowdate(), "confirmed_at": now_datetime(),
                 "consent_ref": str(consent)[:140], "reason": ""})
     doc.save(ignore_permissions=True)
     from pearnly_erp_portal.collection import push
@@ -737,7 +822,7 @@ def listed(company, start=0, limit=20, collector=None) -> dict:
             "total": list_filters.count(DOCTYPE, filters, ignore_permissions=True)}
 
 
-__all__ = ["book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers",
+__all__ = ["DAY_NEEDED", "book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers", "day_options", "parse_day", "periods",
            "submit_web",
            "discard_draft",
            "edit_choices", "express_waiting", "listed", "methods",

@@ -7,6 +7,7 @@
  "field_order": [
   "company",
   "doc_date",
+  "date_chosen",
   "collector",
   "source",
   "customer",
@@ -58,6 +59,14 @@
    "search_index": 1,
    "in_list_view": 1,
    "read_only": 1
+  },
+  {
+   "fieldname": "date_chosen",
+   "fieldtype": "Check",
+   "label": "Date Chosen",
+   "hidden": 1,
+   "read_only": 1,
+   "default": "0"
   },
   {
    "fieldname": "collector",
@@ -277,7 +286,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-14 00:00:00.000000",
+ "modified": "2026-11-15 20:32:18.874035",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "ERP Collection",

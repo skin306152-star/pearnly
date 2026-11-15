@@ -80,6 +80,7 @@ def invoices(payload) -> dict:
 def confirm(card, edit_url="", nonce="") -> dict:
     """确认卡（`collection.service.card` 的内容）。"""
     rows = [_kv(_("Company"), card.get("company_name")), _kv(_("Account Set"), card.get("book")),
+            _kv(_("Collection Date"), _be_date(card.get("doc_date"))),
             _kv(_("Customer"), f"{card.get('customer') or ''} {card.get('customer_name') or ''}".strip()),
             _separator()]
     for row in card.get("invoices") or []:
