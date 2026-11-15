@@ -229,7 +229,10 @@ class FactoryTest(unittest.TestCase):
         self.assertIn("只连实验栈", str(caught.exception))
         with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:
             driver.open_conversation("real", "cowork", "operator", base="https://cowork.example", user="u@x")
-        self.assertIn("直写", str(caught.exception))
+        self.assertIn("公司与月份", str(caught.exception))   # 代录对话 = 一个代录任务：要说清哪家公司、哪个月
+        with self.assertRaises(sys.modules["acc_errors"].Unmet) as caught:
+            driver.open_conversation("real", "cowork", "guided", base="https://cowork.example", user="u@x")
+        self.assertIn("只接直写与代录", str(caught.exception))
         with self.assertRaises(ValueError):
             driver.open_conversation("lab", "cowork", "direct")
 

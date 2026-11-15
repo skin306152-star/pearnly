@@ -3,7 +3,8 @@
 
     env/bin/python /tmp/acc-erp_push_held.py <站点> '<JSON 参数>'
 
-参数：user、company_tax / branch、ledger（验收账套路径，只认它）、kind（purchase / sales）、run、price。
+参数：user、company_tax / branch、ledger（验收账套路径，只认它）、kind（purchase / sales）、run、price、
+leave：failed（默认：交一次写账再撤掉，账本栏落成「失败」）/ queued（只提交、不交写账：停在「排队中、还没交进队列」，留给代录接）。
 
 ERP 单据一提交就自动排写账，直写对话里的「推送」只等于单据页的「再写一次」：要验那条路，先得有一张停下的单。
 这里只在本进程里不排提交后的那次后台直写，自己交一次写账、紧接着撤掉那一件（CC 桌面版每隔十几秒领一次单，来不及领）；
@@ -92,7 +93,8 @@ try:
         posted = entry.post(payload, request_id=f"acc-{secrets.token_hex(6)}")
         frappe.db.commit()
     name = posted["name"]
-    push.send(doctype, name)
+    if params.get("leave", "failed") == "failed":
+        push.send(doctype, name)
     job = frappe.db.get_value(doctype, name, "ledger_job")
     taken = False
     if job:

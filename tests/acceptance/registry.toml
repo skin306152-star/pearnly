@@ -873,3 +873,27 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 1
 tier = "gate"
+
+[[scenario]]
+id = "acc.erp.operator.talk.purchase"
+title = "ERP 代录对话里下令 → 写入计划 → 点写入 → CC 桌面版在 Express 界面录成 → 账本读回"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_operator_talk.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.operator.submit", "erp.cc.view.operator"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"

@@ -221,22 +221,23 @@ class World:
 
     def erp_push_held(self, params):
         kind = params["kind"]
-        self.pushing = kind
+        self.pushing, queued = kind, params.get("leave") == "queued"
+        self.operating = queued
         expected = {"supplier_code": "V001", "item_code": "P001", "qty": 1, "price": 10,
                     "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}} if kind == "purchase" else \
             {"new_customer": True, "buyer": "ร้านเอซีซี 1", "prename": "ร้าน", "core_name": "เอซีซี 1",
              "totals": {"subtotal": 1000.0, "vat_amount": 70.0, "grand_total": self.total}}
         return {"ok": True, "company": "CO-1", "doctype": "Purchase Document" if kind == "purchase" else "ERP Sales Document", "doc": "DOC-1",
-                "doc_id": "P:DOC-1", "number": "PE2569-000001", "taken": self.break_at == "taken", "expected": expected, "jobs": 1,
-                "state": {"ledger_state": "failed", "ledger_docnum": ""}}
+                "doc_id": "P:DOC-1", "number": "PE2569-000001", "taken": self.break_at == "taken", "expected": expected,
+                "jobs": 0 if queued else 1, "state": {"ledger_state": "queued" if queued else "failed", "ledger_docnum": ""}}
 
     def erp_doc_state(self, params):
         kind = getattr(self, "pushing", "purchase")
         docnum = "HP691115-001" if kind == "purchase" else self.invoice
-        operator = self.break_at == "operator-job"
+        operator = (self.break_at == "operator-job") != bool(getattr(self, "operating", False))
         return {"ok": True, "state": {"ledger_state": "written", "ledger_docnum": docnum}, "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"],
                 "job": {"status": "success", "verify_state": "ok", "request_key": "erp:operator:T:x" if operator else f"erp:{kind}:DOC-1#2"},
-                "party": {"express_code": "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 2}
+                "party": {"express_code": "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 1 if getattr(self, "operating", False) else 2}
 
     def push_written(self):
         """替身「CC 桌面版」：对话里点了写入之后把那张停下的单写进替身账套。"""
@@ -371,14 +372,14 @@ class ChainScenarioTest(unittest.TestCase):
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
         module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
-            "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
+            "erp_operator_talk.py" if ".operator.talk." in scenario_id else "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_cc_push.py" if ".cc.push." in scenario_id else "erp_cc_collection.py" if ".cc." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
                                         windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
-        scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1 if ".cc." in scenario_id else 0}
+        scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1 if ".cc." in scenario_id or ".talk." in scenario_id else 0}
         driver = load("cc_driver", "scripts/acceptance/cc_driver.py") if "cc_driver" not in sys.modules else sys.modules["cc_driver"]
         opened = driver.open_conversation
         driver.open_conversation = lambda *args, **kwargs: world.talk()
@@ -491,6 +492,15 @@ class ChainScenarioTest(unittest.TestCase):
             self.assertIn(words, result["detail"], break_at)
         result, _ = self.go("acc.erp.cc.push.purchase", "taken")
         self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+
+    def test_an_order_in_the_operator_chat_is_entered_once_and_read_back(self):
+        result, world = self.go("acc.erp.operator.talk.purchase")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertEqual((result["facts"]["docnums"], world.calls[-1]), (["HP691115-001"], "restore"))
+        for break_at, words in (("operator-job", "代录交的"), ("extra-job", "只有这一件")):
+            result, _ = self.go("acc.erp.operator.talk.purchase", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
+            self.assertIn(words, result["detail"], break_at)
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")

@@ -608,7 +608,7 @@ class LabConversation(Conversation):
 
 # ── 真模型（测试机实验栈 / 本机实验栈上接了真模型的站点）────────────────────────
 class RealConversation(LabConversation):
-    """真模型的一段直写对话。与 lab-fake 走同一套站点接口与同一套「照页面做」的规矩，只换三样：连哪个站点、Desk 会话怎么建、
+    """真模型的一段直写（或代录）对话。与 lab-fake 走同一套站点接口与同一套「照页面做」的规矩，只换三样：连哪个站点、Desk 会话怎么建、
     费用怎么算。环境变量（都不是密钥；没配齐就是「没测到」）：
       PEARNLY_ACC_REAL_BASE     站点地址（如 https://testcowork.pearnly.com，或本机实验栈 http://127.0.0.1:18772）
       PEARNLY_ACC_REAL_SITE     站点名（Host；默认取地址里的主机名）
@@ -622,8 +622,14 @@ class RealConversation(LabConversation):
                  user: str = "", where: str = "", keep: bool = False, remote=None, session: dict | None = None):
         Conversation.__init__(self, product, mode, company, ledger)
         self.session = dict(session or {})
-        if mode != "direct":
-            raise Unmet(f"真模型驱动现在只接直写对话；{mode} 要桌面会话，还没接")
+        if mode == "operator":
+            # 代录对话 = 一个代录任务（站点建对话时带 mode=operator，同一事务里建任务）：必须说清哪家公司、哪个月。
+            # 驱动只管对话这一半（下令、写入计划、卡片）；Express 界面由那台电脑上的 CC 桌面版自己操作，场景要占那台的桌面。
+            if not company or not self.session.get("period"):
+                raise Unmet("代录对话要给公司与月份（open_conversation(..., company=…, session={'period': 'YYYY-MM'})）")
+            self.session["mode"] = "operator"
+        if mode not in ("direct", "operator"):
+            raise Unmet(f"真模型驱动只接直写与代录对话，不认 {mode}")
         self.base = (base or os.environ.get("PEARNLY_ACC_REAL_BASE", "")).rstrip("/")
         self.user = user or os.environ.get("PEARNLY_ACC_REAL_USER", "")
         self.where = where or os.environ.get("PEARNLY_ACC_REAL_TARGET", "lab")
