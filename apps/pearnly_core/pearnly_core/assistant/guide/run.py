@@ -241,7 +241,7 @@ def start(session_id: str, business: str) -> Dict[str, Any]:
             or business not in registry.offered().get(now["mode"], []):
         frappe.throw(_("Invalid request"))
     for name in _open_runs(now["session_id"]):
-        old = _locked(name)
+        old = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
         if old is not None and old.status in OPEN:
             _end(old, CANCELLED, "replaced")
     doc = _insert({"session_id": now["session_id"], "user": frappe.session.user, "business": business, "status": ASKING,

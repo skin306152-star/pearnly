@@ -38,7 +38,7 @@
   {
    "fieldname": "business",
    "fieldtype": "Data",
-   "label": "Business",
+   "label": "Type",
    "read_only": 1
   },
   {
