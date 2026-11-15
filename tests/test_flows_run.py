@@ -30,6 +30,20 @@ def cell(flow, dataset, viewport, ok=True):
 
 
 class FakeLab:
+    fallbacks = []
+
+    def __init__(self, persistent=False):
+        self.persistent = persistent
+
+    def cell_started(self):
+        pass
+
+    def cell_mode(self):
+        return "persistent" if self.persistent else "per-call"
+
+    def close_workers(self):
+        pass
+
     def unbilled(self):
         return []
 
@@ -243,13 +257,35 @@ class RerunFailed(unittest.TestCase):
     def test_reverse_order_runs_each_site_backwards_but_records_registry_order(self):
         out = self.tmp / "reverse.json"
         self.main("--all", "--order", "reverse", "--out", str(out))
-        self.assertEqual(self.ran, [("b.two", "old", "desktop"), ("b.two", "new", "desktop"), ("a.one", "new", "mobile"),
-                                    ("a.one", "new", "desktop")])
+        # 站点内倒过来；站点之间仍是大组先跑（new 三格、old 一格）
+        self.assertEqual(self.ran, [("b.two", "new", "desktop"), ("a.one", "new", "mobile"), ("a.one", "new", "desktop"),
+                                    ("b.two", "old", "desktop")])
         data = json.loads(out.read_text())
         self.assertEqual([(r["flow"], r["dataset"], r["viewport"]) for r in data["results"]],
                          [("a.one", "new", "desktop"), ("a.one", "new", "mobile"), ("b.two", "new", "desktop"), ("b.two", "old", "desktop")])
         self.assertTrue(data["summary"].startswith("all flows; "))
         self.assertEqual(data["order"], "reverse")
+
+    def test_bigger_sites_start_first_and_cells_say_how_lab_python_ran(self):
+        # 墙钟由最大的一组决定：大组先排，小组跟在后面（11-15）；登记表顺序、结果顺序不变
+        run.registry = lambda: [{"id": "c.small", "module": "z.py", "start": "/", "datasets": ["old"], "viewports": ["desktop"]},
+                                {"id": "d.big", "module": "w.py", "start": "/", "datasets": ["new"], "viewports": ["desktop", "mobile"]}]
+        out = self.tmp / "order.json"
+        self.main("--all", "--out", str(out))
+        self.assertEqual(self.ran, [("d.big", "new", "desktop"), ("d.big", "new", "mobile"), ("c.small", "old", "desktop")])
+        data = json.loads(out.read_text())
+        self.assertEqual([r["flow"] for r in data["results"]], ["c.small", "d.big", "d.big"])
+        self.assertEqual({r["lab_python"] for r in data["results"]}, {"persistent"})
+        self.assertEqual((data["jobs"], data["lab_python_fallbacks"]), (1, []))
+
+    def test_parallel_sites_each_get_their_own_web_process(self):
+        # 三个网页口各是一个进程；并行的几路各占一个，超过 3 路才轮着共用（11-15 前都挤在 8000）
+        out = self.tmp / "ports.json"
+        self.main("--all", "--jobs", "2", "--out", str(out))
+        ports = {r["dataset"]: r["port"] for r in json.loads(out.read_text())["results"]}
+        self.assertEqual(sorted(ports.values()), sorted(run.PORTS[:2]))
+        five = run.port_slots(5)
+        self.assertEqual([five.get() for _ in range(5)], run.PORTS + run.PORTS[:2])
 
     def test_long_description_is_cut_for_github(self):
         posted = []

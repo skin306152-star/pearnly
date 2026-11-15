@@ -47,8 +47,84 @@ STATUS = "pearnly/flows"
 LAB = os.environ.get("PEARNLY_FLOWS_LAB", "pearnly-regression-lab")
 CONTAINER = os.environ.get("REGRESSION_LAB_CONTAINER", f"{LAB}-bench-1")
 PORT = int(os.environ.get("REGRESSION_LAB_PORT", "18771"))
+# 实验室 bench 起三个网页进程（8000 / 8001 / 8002，各是单进程多线程、受 GIL 限制，任一口都能开任一站点）。11-15 前所有格都连 8000，
+# 并行的几路挤在一个进程里、另两个一直空着；现在每一路（一个站点组）占一个口，路数超过 3 才有两路共用（`port_slots`）
+PORTS = [PORT, int(os.environ.get("REGRESSION_LAB_PORT_COWORK", "18772")), int(os.environ.get("REGRESSION_LAB_PORT_DMS", "18773"))]
+_PORT = threading.local()
+
+
+def lab_port():
+    """这一路的浏览器连哪个网页口（没分配时同旧：REGRESSION_LAB_PORT）。"""
+    return getattr(_PORT, "port", PORT)
 # 改了站点配置后等多久网页进程才都看到新值：Frappe 16 网页进程的站点配置缓存 60 秒（见 `Lab.site_config`），多等 1 秒
 SITE_CONFIG_SETTLE = 61
+# 容器里的常驻 Python（11-15）：每格约 6 段 Python 不再各起一个进程（每次加载 frappe + 首连约 2.8 秒），见 `scripts/regression/lab_worker.py`。
+# PEARNLY_FLOWS_LAB_WORKER=0 关掉、退回每段新起一个进程（对照用）
+WORKER = "/workspace/scripts/regression/lab_worker.py"
+WORKER_START_SECONDS = 180
+
+
+class LabWorkerGone(RuntimeError):
+    """常驻进程没了（被杀、崩溃、协议断了）：这一段照旧报错，这个线程之后退回每段新起一个进程。"""
+
+
+class LabWorker:
+    """一个线程一个：`docker exec -i` 起 `lab_worker.py`，一行 JSON 请求、一行 JSON 回复（回复由读线程放进队列，好按秒超时）。"""
+
+    def __init__(self, command=None):
+        import queue
+
+        command = command or ["docker", "exec", "-i", "-w", "/home/frappe/frappe-bench/sites", CONTAINER, "../env/bin/python", WORKER]
+        self.proc = subprocess.Popen(command,
+                                     stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True,
+                                     encoding="utf-8", start_new_session=True)
+        self.replies = queue.Queue()
+        threading.Thread(target=self._read, daemon=True).start()
+        ready = self._next(WORKER_START_SECONDS)
+        if not ready.get("ready"):
+            self.close()
+            raise LabWorkerGone(f"worker did not start: {ready}")
+
+    def _read(self):
+        for line in self.proc.stdout:
+            if line.startswith("{"):
+                self.replies.put(json.loads(line))
+        self.replies.put(None)  # 输出断了 = 进程没了
+
+    def _next(self, timeout):
+        import queue
+
+        try:
+            reply = self.replies.get(timeout=timeout)
+        except queue.Empty:
+            raise subprocess.TimeoutExpired(WORKER, timeout) from None
+        if reply is None:
+            raise LabWorkerGone(f"worker exited ({self.proc.poll()})")
+        return reply
+
+    def call(self, request, timeout):
+        try:
+            self.proc.stdin.write(json.dumps(request, ensure_ascii=False) + "\n")
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError, ValueError) as error:
+            raise LabWorkerGone(f"worker stdin closed: {error}") from None
+        return self._next(timeout)
+
+    def close(self):
+        try:
+            self.proc.stdin.close()
+        except (OSError, ValueError):
+            pass
+        try:
+            self.proc.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            os.killpg(self.proc.pid, signal.SIGKILL)
+            self.proc.wait()
+        if self.proc.stdout:
+            try:
+                self.proc.stdout.close()
+            except (OSError, ValueError):
+                pass
 
 
 def registry() -> list[dict]:
@@ -151,9 +227,70 @@ def lab_runs_this_tree():
 class Lab:
     """回归实验室容器：在站点里跑一段 Python（已 init / connect，结尾 commit），回它最后一行打印的 JSON。"""
 
-    def __init__(self):
+    def __init__(self, persistent=False):
         self.manifests = {}  # 每套数据一次运行只补齐一遍
         self._cell = threading.local()  # 并行时每个线程一次只跑一格：这一格临时改过的设置（`set_fields`）记在这里
+        # 常驻 Python 只给 run.py 自己开（其余调用方照旧每段新起一个进程）；一个线程一个，崩了这个线程退回老路
+        self.persistent = persistent and os.environ.get("PEARNLY_FLOWS_LAB_WORKER", "1") != "0"
+        self._workers = threading.local()
+        self._all_workers, self._workers_lock = [], threading.Lock()
+        self.fallbacks = []  # (什么时候, 原因)：结果里写明哪些格退回了老路
+
+    def _worker(self):
+        state = self._workers
+        if not self.persistent or getattr(state, "off", False):
+            return None
+        if getattr(state, "worker", None) is None:
+            try:
+                state.worker = LabWorker()
+            except (LabWorkerGone, subprocess.TimeoutExpired, OSError) as error:
+                self._fall_back(f"start: {error}")
+                return None
+            with self._workers_lock:
+                self._all_workers.append(state.worker)
+        return state.worker
+
+    def _fall_back(self, reason):
+        self._workers.off, self._workers.worker = True, None
+        self.fallbacks.append(reason)
+        events = getattr(self._cell, "fallbacks", None)
+        if events is not None:
+            events.append(reason)
+
+    def _python_call(self, request, argv, timeout=900):
+        """容器里跑一段 Python：有常驻进程走它，没有（关了、起不来、崩过）照旧 `docker exec` 新起一个。回 CompletedProcess。"""
+        worker = self._worker()
+        if worker is None:
+            return self.exec(*argv, timeout=timeout)
+        try:
+            reply = worker.call(request, timeout)
+        except subprocess.TimeoutExpired:
+            # 同老路：这一段超时就报超时；卡住的进程收掉，下一段再起一个新的
+            self._workers.worker = None
+            worker.close()
+            raise subprocess.TimeoutExpired(argv, timeout) from None
+        except LabWorkerGone as error:
+            worker.close()
+            self._fall_back(str(error))
+            # 同老路里进程半路死掉：这一段算失败（不重跑，它可能已经写过库），之后这个线程每段新起一个进程
+            return subprocess.CompletedProcess(argv, 1, "", f"lab worker gone: {error}")
+        return subprocess.CompletedProcess(argv, reply["returncode"], reply["stdout"], reply["stderr"])
+
+    def close_workers(self):
+        with self._workers_lock:
+            workers, self._all_workers = self._all_workers, []
+        for worker in workers:
+            worker.close()
+        self._workers = threading.local()
+
+    def cell_started(self):
+        self._cell.fallbacks = []
+        self._cell.mode = "per-call" if not self.persistent or getattr(self._workers, "off", False) else "persistent"
+
+    def cell_mode(self):
+        """这一格容器里的 Python 怎么跑的：persistent（常驻进程）/ per-call（每段新起）/ fallback: 原因（中途退回老路）。"""
+        events = getattr(self._cell, "fallbacks", None) or []
+        return f"fallback: {events[0][:200]}" if events else getattr(self._cell, "mode", "per-call")
 
     def exec(self, *args, timeout=900):
         return subprocess.run(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", CONTAINER, *args],
@@ -162,7 +299,7 @@ class Lab:
     def python(self, site, body):
         code = f"import frappe, json\nfrappe.init(site={site!r}, sites_path='.')\nfrappe.connect()\ntry:\n" + \
             "\n".join("    " + line for line in body.strip().splitlines()) + "\nfinally:\n    frappe.destroy()\n"
-        result = self.exec("../env/bin/python", "-c", code)
+        result = self._python_call({"code": code}, ("../env/bin/python", "-c", code))
         lines = [line for line in result.stdout.splitlines() if line.startswith(("{", "["))]
         if result.returncode or not lines:
             raise RuntimeError(f"lab python failed on {site}: {result.stderr[-800:]}")
@@ -254,15 +391,18 @@ print("{{}}")
         return self.manifests[key]
 
     def session(self, site, user):
-        out = self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user).stdout
+        out = self._python_call({"script": "/workspace/scripts/smoke/session.py", "argv": [site, user]},
+                                ("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user)).stdout
         return next((line.split()[1] for line in out.splitlines() if line.startswith("SID ")), "")
 
     def drop(self, site, user, sid):
-        self.exec("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user, "drop", sid)
+        self._python_call({"script": "/workspace/scripts/smoke/session.py", "argv": [site, user, "drop", sid]},
+                          ("../env/bin/python", "/workspace/scripts/smoke/session.py", site, user, "drop", sid))
 
     def restart(self):
         """重启 bench 容器再等网页起来：网页进程用 --noreload 起，已导入的模块一直留在内存里，换了源码不重启就是新旧混跑
-        （10-30 变基后 terminals.py 新、warehouses 还是旧的，报找不到 main_of）。"""
+        （10-30 变基后 terminals.py 新、warehouses 还是旧的，报找不到 main_of）。常驻 Python 同理先收掉，下一段按新源码再起。"""
+        self.close_workers()
         subprocess.run(["docker", "restart", CONTAINER], capture_output=True, check=True, timeout=300)
         for _ in range(120):
             ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", "Host: erp.regression.localhost",
@@ -336,7 +476,7 @@ class StepsTimeout(RuntimeError):
 
 
 def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shots=""):
-    job = {"base": f"http://{site}:{PORT}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
+    job = {"base": f"http://{site}:{lab_port()}", "cookie_domain": site, "sid": sid, "start": start, "mobile": mobile,
            "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {}),
            **({"shots": shots} if shots else {})}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
@@ -438,6 +578,16 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
     checks.append({"case": "client errors in Error Log", "seen": after - before, "ok": after == before})
     return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": all(c["ok"] for c in checks),
             "seconds": round(time.monotonic() - started, 1), "checks": checks}
+
+
+def port_slots(jobs):
+    """每一路拿一个网页口：前 3 路各占一个进程，再多的轮着共用（队列里同一个口放多份）。"""
+    import queue
+
+    slots = queue.Queue()
+    for index in range(max(1, jobs)):
+        slots.put(PORTS[index % len(PORTS)])
+    return slots
 
 
 def lab_lock(folder=None):
@@ -555,7 +705,7 @@ def main(argv=None) -> int:
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
-    parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；实验室 bench 有 3 个网页进程，建议不超过 3）")
+    parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；每一路占实验室一个网页进程，共 3 个，超过 3 路两路共用一个）")
     args = parser.parse_args(argv)
     flows = registry()
     previous = None
@@ -589,7 +739,7 @@ def main(argv=None) -> int:
     note = unposted_note(scope, args.post_status) if cells else ""
     if note:
         print(note, flush=True)   # 开跑前说一次：几小时的全套别白跑
-    lab, results, started = Lab(), [], time.monotonic()
+    lab, results, started = Lab(persistent=True), [], time.monotonic()
     held = lab_lock() if cells else None  # noqa: F841 —— 进程退出时放锁
     if cells:
         spa_fresh()
@@ -609,11 +759,14 @@ def main(argv=None) -> int:
 
     def one(cell):
         flow, dataset, viewport = cell
+        lab.cell_started()
         try:
             result = run_flow(lab, flow, dataset, viewport)
         except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
             result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
                       "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
+        result["lab_python"] = lab.cell_mode()
+        result["port"] = lab_port()
         bad = [c for c in result["checks"] if not c["ok"]]
         with printing:
             print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
@@ -624,8 +777,22 @@ def main(argv=None) -> int:
     groups = {}
     for cell in (cells[::-1] if args.order == "reverse" else cells):
         groups.setdefault((cell[0].get("product", "erp"), cell[1]), []).append(cell)
-    with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
-        done = dict(zip(groups, pool.map(lambda group: [one(cell) for cell in group], groups.values())))
+    # 大组先排（11-15）：墙钟由最大的一组决定，小组排在它后面就白等；只改先后，同一站点仍依次跑、结果仍按登记表顺序记
+    groups = dict(sorted(groups.items(), key=lambda item: -len(item[1])))
+    slots = port_slots(args.jobs)
+
+    def site_group(group):
+        port = slots.get()
+        _PORT.port = port
+        try:
+            return [one(cell) for cell in group]
+        finally:
+            slots.put(port)
+    try:
+        with ThreadPoolExecutor(max_workers=max(1, args.jobs)) as pool:
+            done = dict(zip(groups, pool.map(site_group, groups.values())))
+    finally:
+        lab.close_workers()
     results = [done[group_key][group.index(cell)] for group_key, group in groups.items() for cell in group]
     order = [key(cell) for cell in cells]
     results.sort(key=lambda r: order.index(key(r)))
@@ -643,10 +810,12 @@ def main(argv=None) -> int:
     summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
                f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else ""))
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
+    if lab.fallbacks:
+        print(f"常驻 Python 退回每段新起进程 {len(lab.fallbacks)} 次（各格的 lab_python 字段）：{lab.fallbacks[0][:200]}", flush=True)
     if args.out:
         Path(args.out).write_text(json.dumps({
             "ok": ok, "summary": summary, "sha": head(), "dirty": bool(product_dirty()), "scope": scope, "flow_count": flow_count,
-            "seconds": seconds, "order": args.order, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
+            "seconds": seconds, "order": args.order, "jobs": args.jobs, "ports": PORTS[:max(1, min(args.jobs, len(PORTS)))], "lab_python_fallbacks": lab.fallbacks, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
             "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))
