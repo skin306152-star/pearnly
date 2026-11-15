@@ -525,6 +525,25 @@ class OperatorTargets(Base):
         got = jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []})["jobs"]
         self.assertEqual([item["log_id"] for item in got], [job["job"]])
 
+    def test_a_rescan_rides_on_the_lease_until_the_full_report_comes_back(self):
+        # 主会话 11-15：ERP「从连接添加」的刷新请在线电脑整份重扫（同 Cowork 的 master_refresh，CC 桌面版 1.1.77 起认）；
+        # 连点只下发一次，电脑带回同一编号的整份名单才算完
+        from pearnly_core.cc_desktop import machine, rescan
+
+        first = rescan.request([self.office.device])
+        self.assertEqual(rescan.request([self.office.device]), first)       # 没回执：沿用原编号
+        sent = jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []})
+        self.assertEqual(sent["master_refresh"], {"request_id": first[self.office.device], "scope_kind": "endpoint",
+                                                  "account_set_key": "@endpoint"})
+        machine._heartbeat(self.office, {"companion_version": "1.12.21", "account_sets": [book_row()],
+                                         "master_refresh_request_id": "other", "master_refresh_scope": "endpoint"})
+        self.assertEqual(rescan.pending([self.office.device]), [self.office.device])   # 别的编号不算
+        machine._heartbeat(self.office, {"companion_version": "1.12.21", "account_sets": [book_row()],
+                                         "master_refresh_request_id": first[self.office.device],
+                                         "master_refresh_scope": "endpoint"})
+        self.assertEqual(rescan.pending([self.office.device]), [])
+        self.assertNotIn("master_refresh", jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []}))
+
 
 class Requests(Base):
     def test_shared_kind_read_by_a_reaching_computer(self):

@@ -1937,6 +1937,7 @@ company.col.taxId,税号
 company.col.warehouse,仓库名称
 company.col.warehouseCode,仓库编号
 company.connect.add,从连接添加
+company.connect.added,已添加
 company.connect.title,选择要用的公司
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发

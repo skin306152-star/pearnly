@@ -111,20 +111,53 @@ def build(tax, branch, name) -> str:
     return doc.name
 
 
+def devices() -> list:
+    """能据以建公司的电脑（:func:`scoped`）：连着、按成员报账套的那几台。"""
+    return scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
+                                 limit_page_length=DEVICES_MAX))
+
+
+def online_devices() -> list:
+    """:func:`devices` 里此刻在线的（最近一次心跳 / 领单在 `cc_desktop.contracts.ONLINE_SECONDS` 内）。"""
+    from datetime import datetime, timezone
+
+    from pearnly_core.cc_desktop import contracts as desktop_contracts
+
+    found = devices()
+    if not found:
+        return []
+    moment = datetime.now(timezone.utc).replace(tzinfo=None)  # 表里的时间存 UTC（同 `cc_desktop.devices.now`）
+    seen = frappe.get_all(DEVICE, filters={"name": ["in", found]}, fields=["name", "last_seen_at"],
+                          limit_page_length=DEVICES_MAX)
+    return [row.name for row in seen if desktop_contracts.online(row.last_seen_at, moment)]
+
+
+def folder_of(root) -> str:
+    """账套所在 Express 文件夹的名字（电脑报的根目录最后一段，如 ``69EXP``；同 CC 选公司弹窗第二行那一段）。"""
+    parts = [part for part in str(root or "").replace("\\", "/").split("/") if part.strip()]
+    return parts[-1].strip() if parts else ""
+
+
 def catalog() -> dict:
-    """在用电脑报的账套按「税号 + 分店」分组（同 :func:`ensure` 的口径）：``{(税号, 分店): {"name": 公司名, "years": [年度]}}``，
-    年度新的在前。CC 里「添加公司」的候选从这里来。"""
-    devices = scoped(frappe.get_all(DEVICE, fields=["name", "token_digest", "retired_at", "companion_version"],
-                                    limit_page_length=DEVICES_MAX))
-    if not devices:
+    """在用电脑报的账套按「税号 + 分店」分组（同 :func:`ensure` 的口径）：``{(税号, 分店): {"name": 公司名, "years": [年度],
+    "folders": [文件夹]}}``，年度新的在前。CC 里「添加公司」与 ERP「从连接添加」的候选从这里来。"""
+    found = devices()
+    if not found:
         return {}
-    rows = frappe.get_all(BOOK, filters={"device": ["in", devices]},
-                          fields=["company", "label", "tax_id", "branch", "period_start", "period_end"],
+    rows = frappe.get_all(BOOK, filters={"device": ["in", found]},
+                          fields=["company", "label", "tax_id", "branch", "period_start", "period_end", "root"],
                           limit_page_length=BOOKS_MAX)
-    years = {}
+    years, folders = {}, {}
     for row in rows:
         tax = contracts.tax13(row.get("tax_id"))
+        if not tax:
+            continue
+        key = (tax, contracts.branch5(row.get("branch")))
         year = str(row.get("period_start") or "")[:4]
-        if tax and year:
-            years.setdefault((tax, contracts.branch5(row.get("branch"))), set()).add(year)
-    return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True)} for key, name in groups(rows).items()}
+        if year:
+            years.setdefault(key, set()).add(year)
+        folder = folder_of(row.get("root"))
+        if folder:
+            folders.setdefault(key, set()).add(folder)
+    return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True),
+                  "folders": sorted(folders.get(key, ()))} for key, name in groups(rows).items()}

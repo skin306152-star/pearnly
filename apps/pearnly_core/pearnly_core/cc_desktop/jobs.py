@@ -385,7 +385,10 @@ def lease(context, body) -> dict:
     devices.touch(context)
     if not jobs:
         jobs = [] if _busy(context.device, moment) else _claim(context, {}, moment)
-    return queue_contracts.lease_response(jobs, None)
+    from pearnly_core.cc_desktop import rescan
+
+    # 网页要这台整份重扫账套（`rescan`，ERP「从连接添加」的刷新）：随领单回复带下去，同 Cowork 的 master_refresh
+    return queue_contracts.lease_response(jobs, rescan.command(context.device))
 
 
 # ── 电脑回报 ───────────────────────────────────────────────────────────────────

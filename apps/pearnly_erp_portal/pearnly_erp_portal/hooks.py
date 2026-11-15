@@ -336,6 +336,7 @@ app_include_css = [
     versioned_asset("pearnly_erp_portal", "desk/pos/official-pos.css"),
     versioned_asset("pearnly_erp_portal", "desk/cashier.css"),
     versioned_asset("pearnly_erp_portal", "desk/work.css"),
+    versioned_asset("pearnly_erp_portal", "desk/company.css"),
 ]
 
 # LINE 事件处理：传输层（pearnly_core.line）验签与幂等之后，交给这里处理。

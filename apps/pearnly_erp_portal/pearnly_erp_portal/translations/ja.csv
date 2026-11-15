@@ -1937,6 +1937,7 @@ company.col.taxId,納税者番号
 company.col.warehouse,倉庫名
 company.col.warehouseCode,倉庫コード
 company.connect.add,接続から追加
+company.connect.added,追加済み
 company.connect.title,使用する会社を選択
 company.disable,無効にする
 company.docPrefixHint,いまは記録のみ。書類番号は採番ルールで発行します

@@ -1937,6 +1937,7 @@ company.col.taxId,เลขประจำตัวผู้เสียภา�
 company.col.warehouse,ชื่อคลังสินค้า
 company.col.warehouseCode,รหัสคลัง
 company.connect.add,เพิ่มจากการเชื่อมต่อ
+company.connect.added,เพิ่มแล้ว
 company.connect.title,เลือกบริษัทที่จะใช้
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข

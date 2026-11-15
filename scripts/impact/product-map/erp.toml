@@ -971,7 +971,7 @@ channel = "desk"
 ends = ["desktop", "mobile"]
 kind = "page-action"
 anchor = "action:erp:pearnly-company:company.connect.add"
-where = "pearnly-company 页头「从连接添加」（公司接入重做第 2 批：选 CC 授权的 Express 账套 / MR.ERP 账套建公司；授权后也自动弹同一个对话框）"
+where = "pearnly-company 页头「从连接添加」（公司接入重做第 2 批：选 CC 授权的 Express 账套 / MR.ERP 账套建公司；授权后也自动弹同一个对话框；左上角公司名下拉里同一项，11-15）"
 tests = ["flow:erp.company.connect"]
 cc = ["erp_connection_companies", "erp_company_add"]
 

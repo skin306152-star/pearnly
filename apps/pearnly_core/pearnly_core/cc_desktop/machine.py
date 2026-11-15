@@ -16,7 +16,7 @@
 """
 import frappe
 
-from pearnly_core.cc_desktop import books, devices, http_auth, jobs, login_tickets, products, release, requests
+from pearnly_core.cc_desktop import books, devices, http_auth, jobs, login_tickets, products, release, requests, rescan
 from pearnly_core.cc_desktop.wire import queue_contracts, request_contracts
 from pearnly_core.transaction import conflicts
 
@@ -36,6 +36,7 @@ def _heartbeat(context, body):
     full = body.get("account_sets") is not None and not offline
     if full:
         books.replace(context.device, body["account_sets"], devices.now())
+        rescan.acknowledge(context.device, body)  # 网页要的整份重扫已随这份名单报上来
     version = body.get("companion_version")
     payload_version = body.get("max_payload_version")
     due = devices.record_report(context, version=version if isinstance(version, str) else None,

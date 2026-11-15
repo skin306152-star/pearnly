@@ -57,7 +57,20 @@ class DB:
         return deepcopy(self.tables)
 
 
-STATE = types.SimpleNamespace(db=DB(), hooks={}, attrs={}, users={})
+STATE = types.SimpleNamespace(db=DB(), hooks={}, attrs={}, users={}, cache={})
+
+
+class _Cache:
+    """站点缓存（只用到的几样）：值存在 ``STATE.cache``，不算过期。"""
+
+    def get_value(self, key):
+        return STATE.cache.get(key)
+
+    def set_value(self, key, value, expires_in_sec=None):
+        STATE.cache[key] = value
+
+    def delete_value(self, key):
+        STATE.cache.pop(key, None)
 
 
 class Doc(dict):
@@ -298,6 +311,7 @@ def install():
     frappe.get_doc = get_doc
     frappe.new_doc = new_doc
     frappe.db = _DBApi()
+    frappe.cache = _Cache()
     frappe.local = types.SimpleNamespace(site="testerp.localhost", message_log=[])
     frappe.session = types.SimpleNamespace(user="Guest")
     frappe.flags = _Flags()
@@ -319,7 +333,7 @@ def install():
 
 def reset(site_dir):
     STATE.db = DB()
-    STATE.hooks, STATE.attrs, STATE.users = {}, {}, {}
+    STATE.hooks, STATE.attrs, STATE.users, STATE.cache = {}, {}, {}, {}
     STATE.site_dir = str(site_dir)
     from pearnly_core.cc_desktop import documents
 

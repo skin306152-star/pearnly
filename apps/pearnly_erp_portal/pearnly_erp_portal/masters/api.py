@@ -99,7 +99,21 @@ def api_disconnect_express(name=None, **kwargs):
 def api_connection_choices(search=None, adapter=None, start=0, limit=None):
     from pearnly_erp_portal.masters import cc_service
 
-    return cc_service.pending(search, adapter, start, limit or cc_service.PAGE_MAX)
+    return cc_service.connection_list(search, adapter, start, limit or cc_service.PAGE_MAX)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_connection_rescan():
+    from pearnly_erp_portal.masters import cc_service
+
+    return cc_service.rescan()
+
+
+@frappe.whitelist()
+def api_connection_rescan_pending(devices=None):
+    from pearnly_erp_portal.masters import cc_service
+
+    return cc_service.rescan_pending(devices)
 
 
 @frappe.whitelist(methods=["POST"])

@@ -295,6 +295,7 @@ PURCHASE, SALES = "Purchase Document", "ERP Sales Document"
 
 def reset():
     STATE.db.tables.clear()
+    STATE.db.clock = 0
     STATE.logged.clear()
     NARROWED.clear()
     BOOKS.clear()
@@ -601,9 +602,11 @@ class AddCompanyTests(unittest.TestCase):
         self.assertEqual(rows[0] | {}, {**rows[0], "identity": "express:0105570000009:00000", "adapter": "express", "connection": "",
                                        "account_set_key": "0105570000009:00000", "tax_id": "0105570000009", "branch": "00000"})
         self.assertEqual([row["title"] for row in cc_service._catalog("siam")], ["Siam Trading"])   # 服务端搜
-        # 人停用的公司不出（不在这里重开）
+        self.assertEqual([row["state"] for row in rows], ["new", "added"])
+        # 停用的公司也列（主会话 11-15：勾它就是重新启用那家），排在还要人勾的后面、已有的前面
         STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
-        self.assertEqual([row["title"] for row in cc_service._catalog()], ["Chiang Mai Rice"])
+        self.assertEqual([(row["title"], row["state"]) for row in cc_service._catalog()],
+                         [("Chiang Mai Rice", "new"), ("Siam Trading", "inactive")])
 
     def test_only_people_who_can_build_list_or_create(self):
         # 11-07 定案 #1：能管公司的人，或有开单权限、看得到全部公司的人（clerk@x）能选中即建；被限定公司的员工、只读、
@@ -664,11 +667,14 @@ class AddCompanyTests(unittest.TestCase):
         for key in ("", "0105580000007:00000", "1234:00000", "0105570000009:00099", "No Tax Shop"):
             with self.assertRaises(ValidationError, msg=key):
                 cc_companies.create("", key)    # 旧版电脑报的、没税号的、不在名单上的都建不了
-        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
-        with self.assertRaises(ValidationError):
-            cc_companies.create("", f"{TAX_A}:00000")      # 停用的不在这里重开
         self.assertEqual(len(STATE.db.table("ERP Company")), 3)
         self.assertEqual(self.queued, [])
+        # 停用的那家：勾它就是重新启用（不另建一家），照常排同步（主会话 11-15）
+        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
+        made = cc_companies.create("", f"{TAX_A}:00000")
+        self.assertEqual((made["id"], made["created"], made.get("reactivated")), ("CO-00001", False, True))
+        self.assertEqual(STATE.db.table("ERP Company")["CO-00001"]["is_active"], 1)
+        self.assertEqual((len(STATE.db.table("ERP Company")), self.queued), (3, ["CO-00001"]))
 
     def test_add_from_connections_lists_what_is_left_and_links_a_hand_made_company_instead_of_a_second_one(self):
         # 公司接入重做第 2 批（11-14）：ERP 公司页「从连接添加」只列还没接进 ERP 的；手工建过同税号同分店、没接账本的公司（Korat，
@@ -695,6 +701,100 @@ class AddCompanyTests(unittest.TestCase):
             cc_service.pending()
         with self.assertRaises(PermissionError_):
             cc_service.create_many([{"connection": "", "account_set_key": "0105570000009:00000"}])
+
+    def test_connection_list_shows_every_reported_book_with_its_state(self):
+        # ERP「从连接添加」（主会话 11-15，照 CC 选择公司弹窗）：连接上报的全部账套都列，带状态：还要人勾的在前、停用的其次、
+        # 已有的最后；第二行用的账套文件夹（电脑报的根目录最后一段）跟着出来；一行都没有时告诉页面有没有连着的电脑
+        BOOKS.clear()
+        for row in STATE.db.table("Pearnly CC Book").values():
+            row["root"] = "\\\\accserver\\Express\\69EXP"
+        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
+        out = cc_service.connection_list()
+        self.assertEqual([(row["title"], row["state"]) for row in out["rows"]],
+                         [("Chiang Mai Rice", "new"), ("Siam Trading", "inactive")])
+        self.assertEqual(out["rows"][0]["folders"], ["69EXP"])
+        self.assertEqual((out["total"], out["adapters"], out["connected"]), (2, ["express"], True))
+        self.assertEqual([row["title"] for row in cc_service.connection_list("69exp", start=1)["rows"]], ["Siam Trading"])
+        STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 1
+        self.assertEqual([row["state"] for row in cc_service.connection_list()["rows"]], ["new", "added"])
+        # 停用的、已有的都不算「还要人勾」：自动弹窗与 CC 工具的名单照旧
+        self.assertEqual([row["title"] for row in cc_service.pending()["rows"]], ["Chiang Mai Rice"])
+        STATE.db.table("Pearnly CC Device").clear()
+        empty = cc_service.connection_list()
+        self.assertEqual((empty["rows"], empty["connected"]), ([], False))
+        frappe.session.user = "staff@x"
+        with self.assertRaises(PermissionError_):
+            cc_service.connection_list()
+
+    def test_refresh_asks_the_computers_online_now_to_report_again(self):
+        # 主会话 11-15：弹窗右上的刷新请在线电脑立刻整份重扫上报（`cc_desktop.rescan`）；没有在线电脑回空，页面直接显示
+        # 「CC 桌面版未连接」；页面只问本租户在用电脑的回执；只给能建公司的人
+        now = datetime.datetime.now(datetime.timezone.utc).replace(tzinfo=None)
+        self.assertEqual(cc_service.rescan(), {"devices": []})                 # PC1 还没心跳过：不在线
+        STATE.db.table("Pearnly CC Device")["PC1"]["last_seen_at"] = now
+        STATE.db.table("Pearnly CC Device")["PC-OLD"]["last_seen_at"] = now
+        sent = cc_service.rescan()
+        self.assertEqual(sent, {"devices": ["PC1"]})                           # 旧版电脑报的不算，不叫它
+        self.assertEqual(cc_service.rescan(), sent)                            # 连点：同一条没回执的不再下发
+        state = cc_service.rescan_pending('["PC1", "PC-STRANGER"]')
+        self.assertEqual((state["pending"], state["online"]), (1, 1))
+        STATE.db.table("Pearnly CC Book")["b9"] = Row(name="b9", device="PC1", company="New One", label="New One",
+                                                      tax_id="0105570000025", branch="00000", period_start="2026-01-01",
+                                                      period_end="2026-12-31", creation="2026-11-15 10:00:00")
+        self.assertNotEqual(cc_service.rescan_pending(["PC1"])["stamp"], state["stamp"])   # 报上来新的：页面重取列表
+        STATE.db.table("Pearnly CC Device")["PC1"]["last_seen_at"] = None                   # 中途离线：页面不再等
+        self.assertEqual(cc_service.rescan_pending(["PC1"])["online"], 0)
+        frappe.cache.delete_value("cc-desktop-rescan:PC1")                     # 电脑带回编号（通道里清掉）
+        self.assertEqual(cc_service.rescan_pending(["PC1"])["pending"], 0)
+        frappe.session.user = "staff@x"
+        with self.assertRaises(PermissionError_):
+            cc_service.rescan()
+
+    def _blank_default(self):
+        STATE.db.table("ERP Company")["CO-00009"] = Row(name="CO-00009", company_name="My Company", tax_id="", branch="",
+                                                        is_active=1, is_default=1, express_enabled=0, owner="boss@x",
+                                                        creation="2026-09-01 09:00:00")
+        STATE.db.table("ERP Warehouse")["WH-9"] = Row(name="WH-9", company="CO-00009")
+        stock = types.ModuleType("pearnly_erp_portal.inventory.stock")
+        stock.MOVEMENT = "ERP Stock Movement"
+        patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.inventory.stock": stock})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_first_add_takes_over_the_blank_default_company(self):
+        # 主会话 11-15：开户时建的空默认公司（My Company），第一次从连接添加接到它上面，不并存一家空公司；当前公司本来就是它
+        self._blank_default()
+        made = cc_service.create_many([{"connection": "", "account_set_key": "0105570000009:00000"}])
+        self.assertEqual([(row["id"], row["title"], row["created"], row.get("adopted")) for row in made],
+                         [("CO-00009", "Chiang Mai Rice", False, True)])
+        blank = STATE.db.table("ERP Company")["CO-00009"]
+        self.assertEqual((blank["tax_id"], blank["branch"], blank["express_enabled"]), ("0105570000009", "00000", 1))
+        self.assertEqual((len(STATE.db.table("ERP Company")), self.queued), (4, ["CO-00009"]))
+        # 已经接上账本了：下一家照常新建
+        STATE.db.table("Pearnly CC Book")["b7"] = Row(name="b7", device="PC1", company="Lampang Mill", label="Lampang Mill",
+                                                      tax_id="0105570000017", branch="00000", period_start="2026-01-01",
+                                                      period_end="2026-12-31")
+        self.assertTrue(cc_service.create("", "0105570000017:00000")["created"])
+        self.assertEqual(len(STATE.db.table("ERP Company")), 5)
+
+    def test_a_default_company_in_use_is_left_alone(self):
+        self._blank_default()
+        for doctype, field in (("Purchase Document", "company"), ("ERP Collection", "company"),
+                               ("ERP Stock Movement", None)):
+            STATE.db.table(doctype)["x1"] = Row(name="x1", **({field: "CO-00009"} if field else {"warehouse": "WH-9"}))
+            made = cc_service.create("", "0105570000009:00000")
+            self.assertTrue(made["created"], doctype)
+            self.assertEqual(STATE.db.table("ERP Company")["CO-00009"]["company_name"], "My Company", doctype)
+            del STATE.db.table("ERP Company")[made["id"]], STATE.db.table(doctype)["x1"]
+
+    def test_mrerp_first_add_takes_over_the_blank_default_company_too(self):
+        self._blank_default()
+        self.mrerp_on = True
+        STATE.db.table("ERP MRERP Connection")["MR-1"] = Row(name="MR-1")
+        made = cc_service.create("MR-1", "c69:db1")
+        self.assertEqual((made["id"], made["created"]), ("CO-00009", True))
+        self.assertEqual(self.chosen, [("CO-00009", "MR-1", "c69:db1")])
+        self.assertEqual(STATE.db.table("ERP Company")["CO-00009"]["company_name"], "Nakhon Foods")
 
     def test_new_books_are_announced_not_built_and_linked_companies_sync_at_once(self):
         # 用户 11-14 定 A 方案：CC 报来新账套不再自动建公司（以前 testerp 因此 66 家、59 家没用过），只推一次「有新的要人勾」，

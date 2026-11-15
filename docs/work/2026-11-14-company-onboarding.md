@@ -482,3 +482,35 @@
 - 生产预演会对每家公司逐字段计数（testerp 63 家 × 一百多个字段，客户 8.5 万条分批 IN），是只读，估计几分钟。
 - **发布顺序（写进发布清单）**：第 2 批（停自动建）上线并确认 CC 心跳不再建公司之后才执行；先在 testerp、mrerp 各跑一次预演给用户确认，
   永久删除再确认一次；由主会话排生产操作，本窗口不连生产执行。
+
+## 11-15 从连接添加：空列表、停用公司、入口、空默认公司（分支 `pearnly/company-connect-empty-state`，基于集成头 532de63b1）
+
+主会话转来真机窗口的两处体验问题与用户截图要求（照 CC「选择公司」弹窗排布，控件用 Pearnly 网页端原生的，不做「最近」）。
+
+- **列出连接上报的全部账套**（`cc_service.connection_list`，接口 `api_connection_choices` 改调它）：每行带状态
+  `new` / `inactive` / `added`，排序待添加 → 已停用 → 已添加。已添加的行原生勾选框禁用、行尾 `indicator-pill` 标「已添加」
+  （新词 `company.connect.added`，四语）；已停用的行可勾、标现成的「已停用」（`company.status.inactive`），勾了就是重新启用那家
+  （`cc_service.create` 里 `_reactivate`，不另建；CC 对话选公司同一处）。原来「停用的不列、人停的不在这里重开」的口径按主会话 11-15 改掉。
+- **自动弹窗与 CC 工具名单不变**：`pending` / `pending_identities` 仍只算还要人勾的（`waiting` = 状态 `new`）。
+- **空状态**：一行都没有时，没有连着的电脑也没有 MR.ERP 连接 → 现成的「CC 桌面版未连接」；否则 Frappe 官方「No Data」。
+- **排布**（`desk/company-connect.js` + `desk/company.css` 只排位置）：原生 Dialog 标题；右上在原生 `.modal-actions` 里照关闭那颗
+  （`btn-ghost icon-btn`）加刷新；整行原生 Data 搜索；原生 `form-tabs` 标签（只有一种来源时不出标签栏——这一车 MR.ERP 开关关着，
+  只出 Express 列表）；原生 MultiCheck，选项文字里放两行字（公司名；`text-muted small` 的「税号 · 总部 / 分店 · 账套文件夹」）与行尾状态；
+  列表在弹窗里滚动；底部原生主按钮「添加」。账套文件夹 = 电脑报的 Express 根目录最后一段（`express.companies.folder_of`，同 CC 的
+  `root_label`，如 69EXP），MR.ERP 取年度。
+  - 注意：右上「刷新」与 10-07 用户口径「所有界面右上角的刷新按钮全部去掉」冲突；本次按用户 11-15 截图的明确要求加在弹窗里（页面右上仍不加）。
+- **刷新 = 让在线电脑立刻整份重扫上报**（用户 11-15：「不要只是个摆设」）：`cc_service.rescan` 给本租户每台在线电脑记一条整份
+  重扫（共用层 `cc_desktop.rescan`，站点缓存按电脑记、5 分钟作废，同一台没回执的不再下发），随共用通道领单回复带下去
+  （`jobs.lease` → `master_refresh {scope_kind: endpoint}`，与 Cowork「重新读取」同一条指令，CC 桌面版 1.1.77 起就认，1.12.21 不用改）；
+  心跳带回同一编号即清掉（`machine._heartbeat` → `rescan.acknowledge`）。页面按钮保持原生禁用态，每 2 秒问一次进度
+  （`rescan_pending`：没回执几台、其中在线几台、名单指纹），指纹变了就重取列表（边报边出），都回执了 / 在等的电脑都离线了 /
+  满 60 秒就停（主会话：办公室 SMB1 + 无线下整份重扫超 15 秒是常态）。没有在线电脑时不下发，直接显示「CC 桌面版未连接」。
+- **入口（主会话定 A）**：左上角公司名的原生下拉里给能建公司的人常驻「从连接添加」（`company-menu.js`，只有一家公司时也有）。
+- **开户的空默认公司**（`company.ensure_default`）：第一次添加时接管它（`cc_service._blank_default`：默认、启用、没税号、没接账本、
+  七类挂公司的单据记录与库存流水都没有），改成账套的名称 / 税号 / 分店再接上（Express `link_express`，MR.ERP `catalog.choose`），不再出现
+  「My Company + 新公司」两家；它本来就是当前公司，接管后当前公司就是新加的那家。有任何数据就不碰，照常新建。
+
+文案清单（`check-copy.py --report`）：新增 1 条 `company.connect.added`（已添加 / Added / เพิ่มแล้ว / 追加済み）；其余全是现成词。
+
+测试：`tests/test_erp_cc_companies.py`（全部账套带状态、停用重开、接管空默认公司、用过的默认公司不碰、MR.ERP 接管）；
+流程 `erp.company.connect` 加了已停用 / 已在用两份账套、刷新按钮、第二行格式、禁用与状态、左上角入口的断言。
