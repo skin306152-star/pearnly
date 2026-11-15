@@ -2727,6 +2727,57 @@ def resolve_push_result(tool_input) -> str:
         name, {key: result.get(key) for key in ("status", "docnum", "reason")} if isinstance(result, dict) else {}))
 
 
+WITHDRAW_MAX = 20
+NOT_QUEUED = "not_queued"  # 不在排队（没推、已有结果，或电脑正在写：撤回只收排队中的）
+
+
+def withdraw_push(tool_input) -> str:
+    """撤回已放行、还在排队的推送（同录入详情页「撤回」，`push.application.service.withdraw`；A 线 11-13 主会话定、11-15 接 CC）：
+    先出「允许」卡片；只动对话选中公司的单（:func:`_documents_company_refusal`，卡片前已拒过，这里再核）；电脑正在写的、已有结果的
+    由账本拒并照实回原因。逐张执行、逐张回结果。"""
+    from pearnly_cowork.push.application import service as application_service
+
+    scope.require("intake")
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("documents") or [] if n))[:WITHDRAW_MAX]
+    if not names:
+        frappe.throw(_("No documents were given."))
+    refused = _documents_company_refusal(names)
+    if refused:
+        return _json(refused)
+    rows = {row.name: row for row in frappe.get_all(HISTORY, filters={"name": ["in", names]},
+                                                    fields=["name", "invoice_no", "last_push_status", "last_push_record"],
+                                                    limit_page_length=len(names))}
+    results = []
+    for name in names:
+        row = rows.get(name)
+        if not row:
+            results.append({"document": name, "status": "not_found"})
+            continue
+        if row.last_push_status != "pending" or not row.last_push_record:
+            results.append({"document": name, "status": "not_withdrawn", "reason": NOT_QUEUED})
+            continue
+        point = f"cowork_withdraw_{len(results)}"
+        frappe.db.savepoint(point)
+        try:
+            application_service.withdraw(row.last_push_record)  # loop-query: 一次最多 WITHDRAW_MAX 张，逐张锁记录
+            results.append({"document": name, "invoice_no": row.invoice_no or "", "status": "withdrawn"})
+        except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
+            frappe.db.rollback(save_point=point)
+            frappe.clear_messages()
+            results.append({"document": name, "status": "not_withdrawn", "reason": str(error)[:300]})
+    if any(item["status"] == "withdrawn" for item in results):
+        frappe.db.commit()
+    return _json({"results": results})
+
+
+def preview_withdraw_push(tool_input) -> list:
+    return preview_delete_documents({"documents": list(tool_input.get("documents") or [])[:WITHDRAW_MAX]})
+
+
+def note_withdraw_push(tool_input) -> str:
+    return note_delete_documents({"documents": list(tool_input.get("documents") or [])[:WITHDRAW_MAX]})
+
+
 # ---------------- 删除记录、导出复核工作簿（同录入工作台列表） ----------------
 
 DELETE_MAX = 500
@@ -5309,8 +5360,9 @@ TOOLS = [
                     "then push again; for MR.ERP it comes with mrerp_setup, the import menus or default values that "
                     "account set still needs: choose them with cowork_mrerp_setup instead), "
                     "waiting_for_cc (the computer is still reading that account set's chart; push again shortly), "
-                    "or already_success / already_pending (already entered or on its way; it is not pushed again and "
-                    "CC cannot change it, see below). In a conversation with its own account set leave connection and "
+                    "already_success (already entered; it is not pushed again and CC cannot change it, see below) or "
+                    "already_pending (on its way, not pushed again; while it still waits for the computer the user can "
+                    "withdraw it with cowork_withdraw_push, not once the computer is writing it). In a conversation with its own account set leave connection and "
                     "account_set_key out: every document goes into that account set, and any other is refused "
                     "(not_this_conversation_book; ledger_needed when it is not decided yet). Elsewhere connection and "
                     "account_set_key choose where to push (from cowork_intake_options), e.g. for a recognize-only "
@@ -5340,6 +5392,22 @@ TOOLS = [
      "preview": "pearnly_cowork.assistant.tools.preview_resolve_push_result",
      "refuse": "pearnly_cowork.assistant.tools.resolve_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
+    {"name": "cowork_withdraw_push", "label": "Withdrew pushes",
+     "description": "Withdraw pushes the user released that still wait in the queue for the computer (already_pending "
+                    "in a push result, shown as entering), the same as Withdraw on the document's page: each goes back "
+                    "to not pushed and can be pushed again. The user sees the documents with Allow / Deny first, so do "
+                    "not ask again before calling it. One the computer is already writing cannot be withdrawn (the "
+                    "reason says so; it is recorded when it finishes), nor one with a result. Only this conversation's "
+                    f"company's documents. Up to {WITHDRAW_MAX} at a time; results lists each one.",
+     "input_schema": {"type": "object", "properties": {
+         "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": WITHDRAW_MAX}},
+         "required": ["documents"]},
+     "approval": True,
+     "ask": "Withdraw these pushes?",
+     "note": "pearnly_cowork.assistant.tools.note_withdraw_push",
+     "preview": "pearnly_cowork.assistant.tools.preview_withdraw_push",
+     "refuse": "pearnly_cowork.assistant.tools.documents_company_refusal",
+     "handler": "pearnly_cowork.assistant.tools.withdraw_push"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
                     "in the list; documents already pushed are skipped. The user sees the documents listed with Allow / "

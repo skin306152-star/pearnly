@@ -4039,6 +4039,43 @@ class CompanyScopeTests(unittest.TestCase):
             self.assertEqual([row["after"] for row in rows][:2], ["IV-1 · Makro · 1,070.00", "page2.jpg"])
             self.assertEqual(rows[-1]["after"], tools.INTO_DOCUMENT_FACT)
 
+    def test_cc_withdraws_only_queued_pushes_of_this_company_after_allow(self):
+        """A 线 11-15 撤回后半：CC 撤回排队中的推送走录入详情页同一个服务（`push.application.service.withdraw`），先出「允许」
+        卡片；不在排队的、电脑正在写的照实回原因；别家公司的不出卡片直接拒（同分支一的判据）。"""
+        rows = {"Q1": ("pending", "CWP-1", "IV-1"), "Q2": ("pending", "CWP-2", "IV-2"), "S1": ("success", "CWP-3", "IV-3")}
+        withdrawn = []
+
+        class Writing(frappe.ValidationError):
+            pass
+
+        def withdraw(record):
+            if record == "CWP-2":
+                raise Writing("Writing now. Cannot withdraw.")
+            withdrawn.append(record)
+
+        service = types.SimpleNamespace(withdraw=withdraw)
+        get_all = lambda doctype, filters=None, **kw: [types.SimpleNamespace(
+            name=name, invoice_no=rows[name][2], last_push_status=rows[name][0], last_push_record=rows[name][1],
+            push_connection="", push_account_set="") for name in filters["name"][1] if name in rows]
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.push.application.service": service,
+                                           "pearnly_cowork.push.application": types.SimpleNamespace(service=service)}), \
+                mock.patch.object(frappe, "get_all", get_all, create=True), \
+                mock.patch.object(frappe.db, "savepoint", lambda name: None, create=True), \
+                mock.patch.object(frappe.db, "rollback", lambda **kw: None, create=True), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            out = json.loads(tools.withdraw_push({"documents": ["Q1", "Q2", "S1", "nope"]}))
+        by = {item["document"]: item for item in out["results"]}
+        self.assertEqual(by["Q1"]["status"], "withdrawn")
+        self.assertEqual((by["Q2"]["status"], by["Q2"]["reason"]), ("not_withdrawn", "Writing now. Cannot withdraw."))
+        self.assertEqual((by["S1"]["status"], by["S1"]["reason"]), ("not_withdrawn", "not_queued"))
+        self.assertEqual(by["nope"]["status"], "not_found")
+        self.assertEqual(withdrawn, ["CWP-1"])
+        tool = next(item for item in tools.TOOLS if item["name"] == "cowork_withdraw_push")
+        self.assertIs(tool["approval"], True)
+        self.assertEqual(tool["refuse"], "pearnly_cowork.assistant.tools.documents_company_refusal")
+        push = next(item for item in tools.TOOLS if item["name"] == "cowork_push_documents")
+        self.assertIn("cowork_withdraw_push", push["description"])  # 推送中的不再说「CC 改不了」
+
     def test_the_scope_tools_offer_the_lift_and_the_guidance_says_when(self):
         declared = {tool["name"]: tool for tool in tools.TOOLS}
         for name in ("cowork_list_documents", "cowork_push_results", "cowork_folder_tasks"):

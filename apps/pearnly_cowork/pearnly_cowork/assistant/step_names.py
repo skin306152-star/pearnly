@@ -23,6 +23,7 @@ STEP_NAMES = {
     "cowork_push_documents": "Pushing documents",
     "cowork_resolve_push_result": "Confirming a push result",
     "cowork_delete_documents": "Deleting documents",
+    "cowork_withdraw_push": "Withdrawing pushes",
     "cowork_export_review_workbook": "Exporting the review workbook",
     "cowork_folder_task_options": "Checking scheduled task options",
     "cowork_folder_files": "Listing folder files",

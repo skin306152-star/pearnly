@@ -2227,6 +2227,9 @@ Checking push choices	正在查看推送前要选的项	กำลังตรว
 Saving push choices	正在保存推送选项	กำลังบันทึกตัวเลือกการส่ง	送信の選択を保存しています
 Confirming a push result	正在确认推送结果	กำลังยืนยันผลการส่ง	送信結果を確定しています
 Deleting documents	正在删除单据	กำลังลบเอกสาร	書類を削除しています
+Withdrawing pushes	正在撤回推送	กำลังถอนการส่ง	送信を取り下げています	
+Withdrew pushes	已撤回推送	ถอนการส่งแล้ว	送信を取り下げました	
+Withdraw these pushes?	确定要撤回以下推送吗？	ถอนการส่งเหล่านี้หรือไม่	これらの送信を取り下げますか？	
 Exporting the review workbook	正在导出复核工作簿	กำลังส่งออกสมุดงานตรวจทาน	確認用ワークブックを書き出しています
 Checking scheduled task options	正在查看定时任务可选项	กำลังตรวจสอบตัวเลือกงานตามกำหนดเวลา	定期タスクの選択肢を確認しています
 Listing folder files	正在列出文件夹里的文件	กำลังแสดงรายการไฟล์ในโฟลเดอร์	フォルダーのファイルを一覧しています

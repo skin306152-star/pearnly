@@ -1987,6 +1987,17 @@ group = "cc.tool.pearnly_operator_month"
 where = "CC 工具 pearnly_operator_month（代录对话里用户在提问卡上选了别的月份，CC 改这次代录的月份）"
 tests = ["unit:tests/test_assistant.py::test_cc_changes_the_operator_month_only_to_a_counted_month_the_user_picked"]
 [[row]]
+id = "cowork.cc.tool.cowork_withdraw_push"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:cowork:cowork_withdraw_push"
+group = "cc.tool.cowork_withdraw_push"
+where = "CC 工具 cowork_withdraw_push（撤回已放行、还在排队的推送，先出「允许」卡片，只动本对话公司的单，A 线 11-15）"
+tests = ["unit:tests/test_cowork_assistant_tools.py::test_cc_withdraws_only_queued_pushes_of_this_company_after_allow"]
+na = { ERP = "ERP 的单据推送提交即排写账，撤回走单据作废（express_push.void）；排队中的写账件 CC 桌面版领单前由 still_wanted 兜底，没有单独的撤回工具" }
+[[row]]
 id = "cowork.cc.tool.pearnly_precheck"
 product = "Cowork"
 channel = "cc-chat"
