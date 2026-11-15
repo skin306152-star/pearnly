@@ -825,3 +825,51 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+[[scenario]]
+id = "acc.erp.cc.push.purchase"
+title = "ERP 的 CC 对话把一张停下的现购单再写进 Express → 写入计划 → 点写入 → 账本读回"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_cc_push.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.tool.erp_push_documents"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.cc.push.sales"
+title = "ERP 的 CC 对话把一张停下的赊销单再写进 Express → 写入计划 → 点写入 → 账本读回"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_cc_push.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.tool.erp_push_documents"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"

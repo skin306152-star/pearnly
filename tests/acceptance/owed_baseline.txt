@@ -639,7 +639,6 @@ erp.cc.tool.erp_collection_withdraw|misuse:M09
 erp.cc.tool.erp_collection_withdraw|misuse:M11
 erp.cc.tool.erp_collection_withdraw|misuse:M12
 erp.cc.tool.erp_collection_withdraw|variant:new+old
-erp.cc.tool.erp_push_documents|L3:normal
 erp.cc.tool.erp_push_documents|chain
 erp.cc.tool.erp_push_documents|misuse:M02
 erp.cc.tool.erp_push_documents|misuse:M03
@@ -650,7 +649,6 @@ erp.cc.tool.erp_push_documents|misuse:M08
 erp.cc.tool.erp_push_documents|misuse:M09
 erp.cc.tool.erp_push_documents|misuse:M11
 erp.cc.tool.erp_push_documents|misuse:M12
-erp.cc.tool.erp_push_documents|normal
 erp.cc.tool.erp_push_documents|variant:new+old
 erp.cc.tool.erp_stocktake_close|misuse:M02
 erp.cc.tool.erp_stocktake_close|misuse:M03

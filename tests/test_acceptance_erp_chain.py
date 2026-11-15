@@ -219,6 +219,33 @@ class World:
             out["resend"] = {"send": "already_queued", "state": dict(state, ledger_docnum="PG691115-000002" if self.break_at == "renumbered" else docnum)}
         return out
 
+    def erp_push_held(self, params):
+        kind = params["kind"]
+        self.pushing = kind
+        expected = {"supplier_code": "V001", "item_code": "P001", "qty": 1, "price": 10,
+                    "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}} if kind == "purchase" else \
+            {"new_customer": True, "buyer": "ร้านเอซีซี 1", "prename": "ร้าน", "core_name": "เอซีซี 1",
+             "totals": {"subtotal": 1000.0, "vat_amount": 70.0, "grand_total": self.total}}
+        return {"ok": True, "company": "CO-1", "doctype": "Purchase Document" if kind == "purchase" else "ERP Sales Document", "doc": "DOC-1",
+                "doc_id": "P:DOC-1", "number": "PE2569-000001", "taken": self.break_at == "taken", "expected": expected, "jobs": 1,
+                "state": {"ledger_state": "failed", "ledger_docnum": ""}}
+
+    def erp_doc_state(self, params):
+        kind = getattr(self, "pushing", "purchase")
+        docnum = "HP691115-001" if kind == "purchase" else self.invoice
+        operator = self.break_at == "operator-job"
+        return {"ok": True, "state": {"ledger_state": "written", "ledger_docnum": docnum}, "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"],
+                "job": {"status": "success", "verify_state": "ok", "request_key": "erp:operator:T:x" if operator else f"erp:{kind}:DOC-1#2"},
+                "party": {"express_code": "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 2}
+
+    def push_written(self):
+        """替身「CC 桌面版」：对话里点了写入之后把那张停下的单写进替身账套。"""
+        if self.pushing == "purchase":
+            self.add("APTRN", DOCNUM="HP691115-001", SUPCOD="V001", NETAMT=10.7, VATAMT=0.7)
+            self.add("GLJNL", VOUCHER="HP691115-001")
+        else:
+            self.erp_sales_post({"buyer": "ร้านเอซีซี 1", "ledger": ""})
+
     def erp_collection_lookup(self, params):
         return {"ok": True, "records": [dict(item, consent_ref="cc:S-1:3") for item in getattr(self, "cc_records", [])]}
 
@@ -242,13 +269,18 @@ class World:
                 plan = {"kind": "plan", "id": "p1", "at": 3.0, "topic": "p1", "count": 1, "answer": "write" if Talk.clicked else None,
                         "answered_at": Talk.clicked, "status": "started" if Talk.clicked else "awaiting"}
                 reply = "已写入 Express：RE0000001（发票 IV691115-001）" if Talk.clicked else "计划如下"
+                if getattr(world, "pushing", "") and Talk.clicked:
+                    reply = "已写入 Express：" + ("HP691115-001" if world.pushing == "purchase" else world.invoice)
                 if world.break_at == "wrong-reply" and Talk.clicked:
                     reply = "已写入 Express：RE0000009"
-                tools = [] if world.break_at == "no-draft" else [{"id": "t1", "name": "erp_collection_draft", "at": 2.0, "input": {}, "status": "ok"}]
+                tools = [] if world.break_at == "no-draft" or getattr(world, "pushing", "") else [{"id": "t1", "name": "erp_collection_draft", "at": 2.0, "input": {}, "status": "ok"}]
                 return record(turns=users + [{"role": "assistant", "text": reply, "at": 4.0}], tools=tools, cards=[plan], writes=[], stops=[])
 
             def click(self, card, choice):
                 Talk.clicked = 5.0
+                if getattr(world, "pushing", ""):
+                    world.push_written()
+                    return True
                 written = world._receipt("COL-CC", 400.0, 0.0, "cc")
                 if world.break_at == "refused-by-desktop":
                     written.update(status="failed", docnum="")
@@ -340,7 +372,7 @@ class ChainScenarioTest(unittest.TestCase):
         world = World(break_at)
         module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
             "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
-            "erp_cc_collection.py" if ".cc." in scenario_id else \
+            "erp_cc_push.py" if ".cc.push." in scenario_id else "erp_cc_collection.py" if ".cc." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
@@ -447,6 +479,18 @@ class ChainScenarioTest(unittest.TestCase):
             result, world = self.go(f"acc.erp.operator.{stub}")
             self.assertEqual(result["outcome"], self.runner.NOT_RUN, stub)
             self.assertEqual([call for call in world.calls if call.endswith(".py")], [], stub)
+
+    def test_a_stopped_document_is_sent_again_from_the_cc_chat(self):
+        for kind in ("purchase", "sales"):
+            result, world = self.go(f"acc.erp.cc.push.{kind}")
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
+            self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (1, "restore"), kind)
+        for break_at, words in (("operator-job", "直写"), ("extra-job", "只多一件"), ("wrong-reply", "单号与账本一致")):
+            result, world = self.go("acc.erp.cc.push.purchase", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
+            self.assertIn(words, result["detail"], break_at)
+        result, _ = self.go("acc.erp.cc.push.purchase", "taken")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")
