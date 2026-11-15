@@ -606,8 +606,6 @@ dms.roster.unbind|misuse:M09
 dms.roster.unbind|misuse:M17
 dms.roster.unbind|normal
 dms.roster.unbind|variant:new+old
-erp.cc.operator.submit|L3:normal
-erp.cc.operator.submit|chain
 erp.cc.operator.submit|misuse:M02
 erp.cc.operator.submit|misuse:M03
 erp.cc.operator.submit|misuse:M04

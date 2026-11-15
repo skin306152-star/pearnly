@@ -71,3 +71,8 @@ rows = ["erp.desk.pearnly-purchase.action.Submit"]
 id = "erp.sales-to-mrerp"
 title = "ERP 销售单：提交 → 导入 MR.ERP → 单号回显 → MR.ERP 单据页与日记账读回"
 rows = ["erp.desk.pearnly-sales.action.Submit"]
+
+[[chain]]
+id = "erp.operator-to-express"
+title = "ERP 代录：单据交给代录 → CC 桌面版在 Express 界面录入 → 回执 → 账本读回"
+rows = ["erp.cc.operator.submit"]

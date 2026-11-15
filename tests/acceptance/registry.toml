@@ -774,3 +774,54 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 1
 tier = "gate"
+
+# ---- 第二期第 3 批：代录（CC 桌面版在测试机上开 Express 界面录入）。要占测试机桌面、一次一条。写好未跑。
+# 云端 Express、MR.ERP 的代录产品还没到：场景模块里留了桩（走到就记前置条件不满足），不登记。
+
+[[scenario]]
+id = "acc.erp.operator.purchase.express"
+title = "ERP 现购单交给代录 → CC 桌面版在 Express 界面录成 → 账本读回（与直写同一套断言）"
+class = "chain"
+chain = "erp.operator-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_express.py"
+rows = ["erp.cc.operator.submit"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.operator.sales.express"
+title = "ERP 赊销单（新建「ร้าน…」客户）交给代录 → CC 桌面版在 Express 界面录成 → 账本读回"
+class = "chain"
+chain = "erp.operator-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_express.py"
+rows = ["erp.cc.operator.submit"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"

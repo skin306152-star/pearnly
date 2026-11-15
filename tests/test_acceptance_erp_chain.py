@@ -264,6 +264,29 @@ class World:
         Talk.said, Talk.clicked = [], None
         return Talk()
 
+    def erp_operator_post(self, params):
+        if self.break_at == "direct-first":
+            return {"ok": True, "taken_by_direct": True, "doc": "PUR-1", "doc_id": "P:PUR-1"}
+        kind = params["kind"]
+        docnum = "HP691115-001" if kind == "purchase" else self.invoice
+        if kind == "purchase":
+            self.add("APTRN", DOCNUM=docnum, SUPCOD="V001", NETAMT=10.7, VATAMT=0.7)
+            self.add("STCRD", DOCNUM=docnum, STKCOD="P001", TRNQTY=1.0)
+            self.add("ISVAT", DOCNUM=docnum)
+            self.add("GLJNL", VOUCHER=docnum)
+            expected = {"supplier_code": "V001", "item_code": "P001", "qty": 1, "price": 10,
+                        "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}}
+            doc_id = "P:PUR-1"
+        else:
+            sale = self.erp_sales_post({"buyer": "ร้านเอซีซี 1", "ledger": params["ledger"]})
+            expected, doc_id = sale["expected"], "S:SI-1"
+        direct = self.break_at == "direct-job"
+        return {"ok": True, "company": "CO-1", "doc": doc_id[2:], "doc_id": doc_id, "task": "TASK-1", "book_paths": [params["ledger"]],
+                "state": {"ledger_state": "written", "ledger_docnum": docnum}, "expected": expected, "jobs": 2 if self.break_at == "two-jobs" else 1,
+                "job": {"status": "success", "verify_state": "ok", "request_key": ("erp:purchase:" if direct else "erp:operator:TASK-1:") + "x"},
+                "task_view": {"status": "finished", "documents": [{"doc_id": doc_id, "state": "not_done" if self.break_at == "task-open" else "saved",
+                                                                   "docnum": docnum, "reason": ""}]}}
+
     def erp_denied(self, params):
         names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
                  "connect.add"]
@@ -315,7 +338,8 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "cowork_intake_express.py" if ".cowork." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
+        module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
+            "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_cc_collection.py" if ".cc." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
@@ -405,6 +429,24 @@ class ChainScenarioTest(unittest.TestCase):
             self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
             self.assertIn(words, result["detail"], break_at)
             self.assertEqual(world.calls[-1], "restore", break_at)
+
+    def test_documents_handed_to_the_operator_are_entered_once_and_read_back(self):
+        for kind in ("purchase", "sales"):
+            result, world = self.go(f"acc.erp.operator.{kind}.express")
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
+            self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (1, "restore"), kind)
+        for break_at, words in (("direct-job", "代录交的"), ("two-jobs", "只有这一件"), ("task-open", "已录入")):
+            result, world = self.go("acc.erp.operator.purchase.express", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
+            self.assertIn(words, result["detail"], break_at)
+            self.assertEqual(world.calls[-1], "restore", break_at)
+        result, _ = self.go("acc.erp.operator.purchase.express", "direct-first")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("直写先领走", result["detail"])
+        for stub in ("cloud.purchase", "mrerp.sales"):
+            result, world = self.go(f"acc.erp.operator.{stub}")
+            self.assertEqual(result["outcome"], self.runner.NOT_RUN, stub)
+            self.assertEqual([call for call in world.calls if call.endswith(".py")], [], stub)
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")
