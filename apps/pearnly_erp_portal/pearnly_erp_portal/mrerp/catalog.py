@@ -101,6 +101,12 @@ def choose(company, connection, account_set):
     if not row.mrerp_enabled or row.get("mrerp_company") != ident:
         values["mrerp_linked_at"] = now_datetime()  # 换了公司重记：之前开始的单不导入
     frappe.db.set_value(COMPANY, company, values)
+    # 今天同期两本、选的是其中一本：记进写单同一份记忆（公司 × 会计年度，`express.choices`），主档整读与写单都用这一本
+    picked = pick(company, frappe.utils.nowdate())
+    if key in {option["code"] for option in picked.get("options") or ()}:
+        from pearnly_erp_portal.express import choices
+
+        choices.remember(company, choices.ACCOUNT_SET, picked["subject"], key, found.get("label") or key)
     # 人点的（从连接添加 / 公司页选账套，选同一本也算一次重读）：整读一次主档进 ERP（`mrerp.masters`，排在 erp_masters），
     # 先清这个账号的被踢标记；做完推给本人
     from pearnly_erp_portal.mrerp import masters as mrerp_masters
@@ -235,13 +241,14 @@ def pick(company, day, wanted=None) -> dict:
 
 
 def current(company, day) -> dict | None:
-    """主档整读读哪一本：今天该写的那本（同期两本按选过的，没选过取第一本，读主档不必停下）；没有覆盖今天的（新年度库还没建或期间
-    读不到）读期间最近的那本，再没有就取年度库号最大的那本（同 Express `target.current`：主档按公司认）。"""
+    """主档整读读哪一本：今天该写的那本（同期两本按选过的；没选过回 None，主档整读停下等人在公司页选一次——不默认读第一本，
+    11-16 同 Express `masters_choice`）；没有覆盖今天的（新年度库还没建或期间读不到）读期间最近的那本，再没有就取年度库号最大的
+    那本（同 Express `target.current`：主档按公司认）。"""
     picked = pick(company, day)
     if picked["book"]:
         return picked["book"]
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
-        return next(item for item in books_of(company) if item["key"] == picked["options"][0]["code"])
+        return None
     every = books_of(company)
     if not every:
         return None

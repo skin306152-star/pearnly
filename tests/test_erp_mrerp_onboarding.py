@@ -107,7 +107,10 @@ def install():
     catalog = types.ModuleType("pearnly_erp_portal.mrerp.catalog")
     catalog._sets = lambda connection: [{"source_id": "6:1", "label": "TEST2019"}]
     catalog.current = lambda row, day: {"key": "6:1", "label": "TEST2019", "connection": row.get("mrerp_connection")} \
-        if row.get("mrerp_account_set") else None
+        if row.get("mrerp_account_set") not in (None, "", "several") else None
+    catalog.pick = lambda row, day: {"book": None, "reason": "express.account_set_several", "subject": "year:2026-01-01",
+                                     "options": [{"code": "6:1"}, {"code": "15:1"}]} if row.get("mrerp_account_set") == "several" \
+        else {"book": None, "reason": "express.account_set_missing", "options": []}
     sys.modules["pearnly_erp_portal.mrerp.catalog"] = catalog
     sys.modules.pop("pearnly_erp_portal.mrerp.masters", None)
     from pearnly_erp_portal import mrerp
@@ -205,6 +208,20 @@ class RunTests(Base):
         self.assertEqual(self.ledger.applied, [("CO-1", "TEST2019", "mrerp", 1)])
         self.assertEqual([state for _c, state, _n in self.ledger.recorded], ["reading", "syncing", "ready"])
         self.assertEqual(self.ledger.notified, [("CO-1", "ready")])
+
+    def test_two_books_unchosen_stop_and_ask_instead_of_reading_the_first(self):
+        self.frappe.db.companies["CO-1"] = company(mrerp_account_set="several")
+        export = types.ModuleType("pearnly_core.mrerp.master_export")
+        export.read = lambda lease, key, manual: self.fail("must not read before a book is chosen")
+        with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
+            self.masters.run("CO-1")
+        self.assertEqual(self.ledger.applied, [])
+        self.assertEqual(self.ledger.recorded[-1], ("CO-1", "failed", "express.account_set_several"))
+        # 没有账套照旧说没有账套
+        self.frappe.db.companies["CO-1"] = company(mrerp_account_set="", mrerp_company="tax:1")
+        with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
+            self.masters.run("CO-1")
+        self.assertEqual(self.ledger.recorded[-1], ("CO-1", "failed", "account_set_missing"))
 
     def test_unreadable_is_a_failure_not_an_empty_ledger(self):
         self.frappe.db.companies["CO-1"] = company()
@@ -349,9 +366,31 @@ class CompanyIdentityTests(unittest.TestCase):
         # 选过一次（记在 Express 同一处：公司 + account_set + 这个会计年度）：直接用选的
         self.chosen[("CO-1", "account_set", "year:2026-01-01")] = "15:1"
         self.assertEqual(self.catalog.pick(self.company, "2026-11-14")["book"]["key"], "15:1")
-        # 主档整读不停下：没选过时取第一本
+        # 主档整读也停下：没选过不默认读第一本（可能是副本），等公司页选一次
         self.chosen.clear()
-        self.assertEqual(self.catalog.current(self.company, "2026-11-14")["key"], "6:1")
+        self.assertIsNone(self.catalog.current(self.company, "2026-11-14"))
+
+    def test_choosing_one_of_two_same_period_books_is_remembered_for_the_year(self):
+        """公司页「选择」选的是同期两本之一：记进写单同一份记忆（公司 × 会计年度），主档整读与写单都用这一本，不再各问一次。"""
+        same = {"period_start": "2026-01-01", "period_end": "2026-12-31"}
+        self.catalogs["MR-1"] = self.sets(TEST2019=same, TEST2020=same)
+        self.company.update(express_enabled=0, mrerp_enabled=1,
+                            mrerp_company=self.catalog.identity("MR-1", self.sets()[0]["attributes"]))
+        remembered, queued = [], []
+        self.frappe.db.set_value = lambda doctype, name, values: self.company.update(values)
+        self.frappe.utils.nowdate = lambda: "2026-11-14"
+        self.frappe.session = types.SimpleNamespace(user="admin@example.com")
+        self.catalog.connections.require_admin = lambda: None
+        sys.modules["pearnly_erp_portal.express.choices"].remember = \
+            lambda company, kind, subject, value, label="": remembered.append((company, kind, subject, value, label))
+        masters = types.ModuleType("pearnly_erp_portal.mrerp.masters")
+        masters.queue = lambda company, notify=None, manual=False: queued.append((company, manual))
+        with patch.dict(sys.modules, {"pearnly_erp_portal.mrerp.masters": masters}):
+            import pearnly_erp_portal.mrerp as mrerp_pkg
+            with patch.object(mrerp_pkg, "masters", masters, create=True):
+                self.catalog.choose("CO-1", "MR-1", "15:1")
+        self.assertEqual(remembered, [("CO-1", "account_set", "year:2026-01-01", "15:1", "TEST2020")])
+        self.assertEqual(queued, [("CO-1", True)])
 
 
 if __name__ == "__main__":

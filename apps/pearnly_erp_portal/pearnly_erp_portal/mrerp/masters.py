@@ -139,7 +139,10 @@ def run(company, manual=False):
     # 读今天该写的那一本（各年度账套归一家，`catalog.current`）；主档按「公司 + 账本编码」认，换年度不重建
     book = catalog.current(row, frappe.utils.nowdate())
     if book is None:
-        ledger_masters._record(company, {"state": ledger_masters.FAILED, "note": NO_BOOK})
+        # 同期两本没选过（`pick` 带可选的几本）：停下说「选择账套」，公司页「选择」选一次后接着读；其余是没有账套
+        picked = catalog.pick(row, frappe.utils.nowdate())
+        note = picked["reason"] if picked.get("options") else NO_BOOK
+        ledger_masters._record(company, {"state": ledger_masters.FAILED, "note": note})
         frappe.db.commit()
         ledger_masters._notify(company, {"state": ledger_masters.FAILED})
         return

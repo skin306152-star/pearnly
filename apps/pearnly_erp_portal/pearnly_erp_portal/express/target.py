@@ -89,7 +89,7 @@ def masters_choice(company_row, day) -> dict | None:
 
 
 def current(company_row, day, wanted=None) -> dict:
-    """主档同步读哪一份：今天该写的那份（同期两份时按选过的，没选过取写得进的第一份，读主档不必停下）。还没有今年的账套
+    """今天该写的那份（同期两份时按选过的，没选过取写得进的第一份；主档同步先看 :func:`masters_choice`，没选过就停下不读）。还没有今年的账套
     （只有往年的）就读会计期间最近的那份：主档按公司认，不因为没开今年的账套就读不到（10-24 测试机：按账套自动建的公司里
     有只剩往年账套的）。``wanted`` 给了（本对话账套）就是名单里那一本（不在名单里、未定回 None）。"""
     if wanted is not None:
