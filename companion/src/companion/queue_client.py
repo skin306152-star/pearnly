@@ -20,7 +20,7 @@ from typing import Optional
 
 import httpx
 
-from . import channel, http_tls, net, request_wake
+from . import channel, http_tls, net, request_wake, runtime_mode
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -200,6 +200,9 @@ class QueueClient:
             body["device"] = (
                 _device_name()
             )  # 上报本机名 → 网页显示"已连接:<电脑名>"(链接设备身份)
+            link = runtime_mode.link()
+            if link:
+                body["link"] = link  # 云端那份 CC：经哪台电脑（桥）连上来；本地模式不带这个键
         if selected:
             body.update(selected)  # 整组所选账套并入 body 顶层(对齐云端契约)
         timeout = (

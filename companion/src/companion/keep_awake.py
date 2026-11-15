@@ -34,6 +34,7 @@ import sys
 import threading
 from typing import Optional, Protocol
 
+from . import runtime_mode
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -178,6 +179,8 @@ class KeepAwake:
         """开关或成员变了：两样都满足才拿住（用电池时再按 ``on_battery``），否则马上放开。"""
         if self._power is None:
             return
+        if runtime_mode.cloud():
+            enabled = False  # 云端那份 CC 不防睡眠（托管主机的电源不归我们管，runtime_mode）
         with self._lock:
             self._on_battery_too = bool(on_battery)
             if enabled and members:

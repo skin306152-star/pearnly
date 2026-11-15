@@ -6,7 +6,11 @@
 1. 后台常驻（``--background``，同开机自启 / 安装程序拉起）起来，日志有「托盘常驻」；
 2. **再不带参数启动一次**（同双击桌面图标）：这一份要很快自己退出（把「打开窗口」交给已在跑的那份，不弹「已在运行」框），
    已在跑的那份要记「打开 CC 窗口（窗口进程）」；
-3. 结束全部 CC，**不带参数直接启动**：要起来（「托盘常驻」）并且自己打开窗口（「打开 CC 窗口（窗口进程）」）。
+3. 结束全部 CC，**不带参数直接启动**：要起来（「托盘常驻」）并且自己打开窗口（「打开 CC 窗口（窗口进程）」）；
+4. 结束全部 CC，**云端模式** ``--cloud``（云端主机上那份，runtime_mode.py）：日志有「云端模式」、不起托盘，没有成员时同
+   ``--headless`` 以 2 退出。
+
+只在 Windows 上跑（打包后的 exe；GitHub 的 windows-latest），macOS / Linux 开发机不跑这个脚本。
 
 失败时打出日志尾巴与原因，退出码 1。用法：``python packaging/smoke_launch.py dist/companion/companion.exe``
 """
@@ -21,6 +25,7 @@ import time
 from pathlib import Path
 
 STARTED = "托盘常驻"
+CLOUD_STARTED = "云端模式"
 OPENED = "打开 CC 窗口（窗口进程）"
 
 
@@ -112,6 +117,24 @@ class Smoke:
             if not self.wait_for(OPENED, opened_before + 1, 30):
                 return self.fail("plain launch started the tray but did not open the CC window")
             print("ok: plain launch with nothing running started the tray and opened the window")
+
+            # 4. 云端模式：不起托盘；全新目录没有成员 → 同 --headless 以 2 退出
+            self.kill_all()
+            self.trays.clear()
+            started_before, cloud_before = self.count(STARTED), self.count(CLOUD_STARTED)
+            cloud = subprocess.Popen([str(self.exe), "--cloud"], env=self.env, cwd=str(self.exe.parent))
+            try:
+                code = cloud.wait(60)
+            except subprocess.TimeoutExpired:
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(cloud.pid)], capture_output=True, check=False)
+                return self.fail("--cloud with no member did not exit within 60 s")
+            if code != 2:
+                return self.fail(f"--cloud with no member exited with {code}, expected 2")
+            if self.count(CLOUD_STARTED) != cloud_before + 1:
+                return self.fail("--cloud did not log the cloud mode line")
+            if self.count(STARTED) != started_before:
+                return self.fail("--cloud started the tray")
+            print("ok: --cloud ran without the tray and exited with 2 when nothing is paired")
             return 0
         finally:
             self.kill_all()

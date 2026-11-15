@@ -15,6 +15,7 @@ import hashlib
 import sys
 from collections import deque
 
+from . import runtime_mode
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -40,8 +41,8 @@ def show(title: str, body: str, tag: str = "", on_click=None) -> bool:
     """发一条 Windows 应用通知，发出去了返回 True；同一 tag 的新通知替换旧的。从不抛异常。
 
     on_click 在系统线程上被调用，必须线程安全（只发信号 / 排队），不能直接碰界面。"""
-    if not _WINDOWS:
-        return False
+    if not _WINDOWS or runtime_mode.cloud():
+        return False  # 云端那份 CC 会话里没人看，不发通知（runtime_mode）
     try:
         import windows_toasts  # 只在 Windows 构建里有；导入放这里，开发机与测试不受影响
     except Exception as exc:  # 没装库，或系统版本太旧（库导入时就报）

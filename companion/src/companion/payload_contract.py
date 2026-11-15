@@ -89,9 +89,12 @@ MRERP_OPERATOR_ENV = "PEARNLY_CC_MRERP_OPERATOR"
 
 
 def mrerp_operator_enabled() -> bool:
+    """开关打开、且不是云端那份 CC（云端不起 MR.ERP 成员、不代录 MR.ERP，runtime_mode）。"""
     import os
 
-    return os.environ.get(MRERP_OPERATOR_ENV, "").strip() == "1"
+    from . import runtime_mode
+
+    return os.environ.get(MRERP_OPERATOR_ENV, "").strip() == "1" and not runtime_mode.cloud()
 
 
 def operator_targets() -> tuple:

@@ -14,7 +14,7 @@ from __future__ import annotations
 import sys
 from typing import Optional
 
-from . import package_identity
+from . import package_identity, runtime_mode
 
 _RUN_KEY = r"Software\Microsoft\Windows\CurrentVersion\Run"
 _VALUE_NAME = "PearnlyCompanion"   # 名字不改(2026-10-20):老用户的开机自启项原样沿用,任务管理器里显示的是 exe 的「CC」
@@ -69,6 +69,8 @@ def _startup_task(action: str) -> bool:
 
 
 def enable(command: Optional[str] = None) -> str:
+    if runtime_mode.cloud():
+        return ""  # 云端那份 CC 由桥在每次会话开始时启动，不写开机自启（runtime_mode）
     if package_identity.packaged():
         _startup_task("enable")
         return ""
@@ -102,7 +104,7 @@ def repoint() -> bool:
 
     只在打包后的程序里做(开发时 sys.executable 是 python,不能写进开机启动);Store 版用 StartupTask,不碰 Run。返回是否改了。
     """
-    if not getattr(sys, "frozen", False) or package_identity.packaged():
+    if not getattr(sys, "frozen", False) or package_identity.packaged() or runtime_mode.cloud():
         return False
     winreg = _winreg()
     try:
