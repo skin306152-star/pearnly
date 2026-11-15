@@ -177,11 +177,18 @@ def unstable(scenario_id: str, home: Path) -> bool:
     return sum(1 for line in recent if line.get("retried")) >= 2
 
 
+def resources_of(scenario: dict, target: str | None = None) -> list[str]:
+    """这条场景这一次要占的资源：登记的 `resources`，加上按服务端在哪（`PEARNLY_ACC_SITE_TARGET`：lab 测试机实验栈，默认 /
+    maclab 本机 Mac 实验栈）分别登记的 `site_resources`——服务端在 Mac 上时不占测试机1。"""
+    target = target or os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
+    return list(scenario.get("resources", [])) + list((scenario.get("site_resources") or {}).get(target, []))
+
+
 def run_one(scenario: dict, run_dir: Path, holder: str, dry: bool, targets=None, module=None, now=None) -> dict:
     """跑一条场景。返回结果字典（进 run.json）。"""
     scenario_id = scenario["id"]
     result = {"scenario": scenario_id, "title": scenario.get("title", ""), "class": scenario.get("class"), "env": scenario.get("env"),
-              "resources": scenario.get("resources", []), "budget_usd": scenario.get("budget_usd", 0), "retried": False}
+              "resources": resources_of(scenario), "budget_usd": scenario.get("budget_usd", 0), "retried": False}
     if dry:
         return {**result, "outcome": NOT_RUN, "detail": "--dry-run：没有碰任何机器", "module": scenario.get("module")}
     if scenario.get("needs_server") and not in_server_hours(now):
@@ -189,7 +196,7 @@ def run_one(scenario: dict, run_dir: Path, holder: str, dry: bool, targets=None,
     module = module or _load(f"acc_{scenario_id.replace('.', '_')}", ROOT / scenario["module"])
     started = time.monotonic()
     try:
-        held = locks.hold_all(scenario.get("resources", []), holder, f"验收场景 {scenario_id}")
+        held = locks.hold_all(resources_of(scenario), holder, f"验收场景 {scenario_id}")
     except locks.Busy as busy:
         return {**result, "outcome": NOT_RUN, "detail": f"资源被占用：{busy}"}
     try:

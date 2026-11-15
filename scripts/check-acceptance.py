@@ -209,7 +209,11 @@ class Registry:
             for pattern in scenario.get("covers", []):
                 if not any(fnmatch.fnmatch(path, pattern) for path in self.tracked):
                     say(f"{where}：covers 的 {pattern} 一个文件都对不上")
-            for resource in scenario.get("resources", []):
+            by_site = scenario.get("site_resources") or {}
+            for target in by_site:
+                if target not in ("lab", "maclab"):
+                    say(f"{where}：site_resources 只按 lab / maclab 分")
+            for resource in list(scenario.get("resources", [])) + [name for names in by_site.values() for name in names]:
                 try:
                     locks.check_name(resource)
                 except ValueError:

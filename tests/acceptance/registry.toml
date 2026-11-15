@@ -3,7 +3,9 @@
 # env（A 本机实验栈 + 真模型 / B 测试机实验栈 + CC 桌面版 + 验收账套 / C 线上测试租户 / D 真手机）、
 # module、rows（真的走到并断言了的地图行）、covers（改了就让证据过期的产品文件，glob）、
 # resources（要占用的资源，名字见 scripts/acceptance/locks.py）、budget_usd、tier（gate 上线前必跑 / weekly）、
-# 可选：via = "api"（被验收的那段没走界面：不算界面覆盖）、needs_server（要账套服务器，只在 08:00–20:40 开跑）、
+# 可选：site_resources = { lab = [...], maclab = [...] }（服务端在测试机实验栈 / 本机 Mac 实验栈时各自另占的资源，
+#       由 PEARNLY_ACC_SITE_TARGET 选；默认 lab）、
+#       via = "api"（被验收的那段没走界面：不算界面覆盖）、needs_server（要账套服务器，只在 08:00–20:40 开跑）、
 #       misuse = [代号…]、chain = "<链 id>"。
 
 [[scenario]]
@@ -25,7 +27,8 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -49,7 +52,8 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -78,6 +82,7 @@ covers = [
   "companion/src/companion/worker.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -102,6 +107,7 @@ covers = [
   "companion/src/companion/worker.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -127,6 +133,7 @@ covers = [
   "companion/src/companion/worker.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -153,6 +160,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -185,6 +193,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -216,6 +225,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -248,6 +258,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -280,6 +291,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -312,6 +324,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -337,6 +350,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -360,6 +374,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -383,6 +398,7 @@ covers = [
   "companion/src/companion/write_verify.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -407,6 +423,7 @@ covers = [
   "companion/src/companion/dbf_transfer.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -431,6 +448,7 @@ covers = [
   "companion/src/companion/dbf_void.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -455,6 +473,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/count.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -480,6 +499,7 @@ covers = [
   "companion/src/companion/dbf_sales.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -502,6 +522,7 @@ covers = [
   "companion/src/companion/dbf_writer.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -524,6 +545,7 @@ covers = [
   "companion/src/companion/dbf_sales.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -545,6 +567,7 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
 ]
 resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"

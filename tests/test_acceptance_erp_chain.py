@@ -304,6 +304,18 @@ class ChainScenarioTest(unittest.TestCase):
         self.assertEqual(result["outcome"], self.runner.NOT_RUN)
         self.assertIn("only one Express warehouse", result["detail"])
 
+    def test_the_test_pc_lab_is_only_held_when_the_server_side_runs_there(self):
+        scenario = {"resources": ["testpc2"], "site_resources": {"lab": ["testpc1"], "maclab": ["lab:pearnly-maclab-erp"]}}
+        self.assertEqual(self.runner.resources_of(scenario, "lab"), ["testpc2", "testpc1"])
+        self.assertEqual(self.runner.resources_of(scenario, "maclab"), ["testpc2", "lab:pearnly-maclab-erp"])
+        self.assertEqual(self.runner.resources_of({"resources": ["testpc2"]}, "maclab"), ["testpc2"])
+        old = os.environ.pop("PEARNLY_ACC_SITE_TARGET", None)
+        try:
+            self.assertEqual(self.runner.resources_of(scenario), ["testpc2", "testpc1"])   # 没说在哪：按测试机实验栈
+        finally:
+            if old is not None:
+                os.environ["PEARNLY_ACC_SITE_TARGET"] = old
+
     def test_allowed_tables_come_from_the_desktop_write_lists(self):
         load("acceptance_run_for_chain_tables", "scripts/acceptance/run.py")
         chain = load("acc_erp_chain_tables", "scripts/acceptance/erp_chain.py")
