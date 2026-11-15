@@ -287,6 +287,36 @@ class RerunFailed(unittest.TestCase):
         five = run.port_slots(5)
         self.assertEqual([five.get() for _ in range(5)], run.PORTS + run.PORTS[:2])
 
+    def test_cells_that_leave_data_behind_are_named_with_the_table(self):
+        # 跑完和跑前不一样的格记 left_data（哪张表多几行、哪份文件新增 / 改了）；只记不判，判过与否仍看检查项（11-16 收款留资料）
+        state = {"rows: ERP Customer": 3, "file: erp_express_facts/k.json.gz": None}
+
+        class Lab(FakeLab):
+            def dataset(self, which, product="erp"):
+                return {"site": f"{product}-{which}.site"}
+
+            def footprint(self, site):
+                return {key: value for key, value in state.items() if value is not None}
+        run.Lab = Lab
+
+        def run_flow(lab, flow, dataset, viewport):
+            if flow["id"] == "a.one":
+                state.update({"rows: ERP Customer": 4, "file: erp_express_facts/k.json.gz": "abc"})
+            return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": True, "checks": []}
+        run.run_flow = run_flow
+        out = self.tmp / "left.json"
+        self.main("--all", "--out", str(out))
+        data = json.loads(out.read_text())
+        left = [r.get("left_data") for r in data["results"]]
+        # 第一格 a.one 留下了；之后的格跑前就已是这个样子，自己没留就不记
+        self.assertEqual([value for value in left if value], [{"file: erp_express_facts/k.json.gz": "新增", "rows: ERP Customer": "+1"}])
+        self.assertTrue(data["ok"])
+
+    def test_footprint_diff(self):
+        self.assertEqual(run.footprint_diff({"rows: A": 2, "file: x": "1", "settings: S": "a"},
+                                            {"rows: A": 1, "file: y": "2", "settings: S": "b"}),
+                         {"file: x": "删了", "file: y": "新增", "rows: A": "-1", "settings: S": "改了"})
+
     def test_long_description_is_cut_for_github(self):
         posted = []
         saved = run.subprocess.run

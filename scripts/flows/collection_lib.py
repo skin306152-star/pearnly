@@ -72,13 +72,22 @@ print(json.dumps({{"company": co, "book": book["key"], "customer": code, "invoic
 
 
 def restore(lab, manifest, params):
-    """还原账套主档（收款类型）、删掉本次的客户；本次录的收款没写完的撤回（撤掉写账作业，不留在队列里）。"""
+    """还原账套主档（收款类型；原来没有就删掉，回到没读过）、删掉本次的客户与它的发票快照；本次录的收款没写完的撤回（撤掉写账作业，不留在队列里）。"""
     lab.python(manifest["site"], f"""
 from pearnly_erp_portal.collection import contracts, service
 from pearnly_erp_portal.express import facts
+import os
 before = json.loads({json.dumps(params.get("facts_before"), ensure_ascii=False)!r})
 if before is not None:
     facts.save({params["book"]!r}, before)
+else:
+    # 账套原来没读回过资料：还原成「没有」（11-15：留下只有收款类型的一份，后面新开户那套的 cc.operator 开始卡就没有目标）
+    try:
+        os.remove(facts._path({params["book"]!r}))
+    except FileNotFoundError:
+        pass
+# 本次客户的未收清发票快照（客户删了它们也不会自己走）
+frappe.db.delete("ERP Receivable Snapshot", {{"book_key": {params["book"]!r}, "customer": {params["customer"]!r}}})
 # 本次的客户删掉（不留给别的流程：客户页的列表与计数按当前公司算，留下的 Express 客户会让 erp.page-lists 对不上）
 for customer in frappe.get_all("ERP Customer", filters={{"express_company": {params["company"]!r}, "express_code": {params["customer"]!r}}},
                                pluck="name"):

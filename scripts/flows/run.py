@@ -452,8 +452,56 @@ print("{{}}")
             raise SystemExit(f"读不到实验室站点配置（{CONTAINER} 起来了吗）：{result.stderr[-400:]}")
         return json.loads(result.stdout.strip().splitlines()[-1])
 
+    def footprint(self, site):
+        """这个站点里后面的流程看得到的那部分（`FOOTPRINT_CODE`）：本仓 App 的单据表与 Single、用户与岗位的行数，站点私有目录
+        （账套读回的资料等，不含上传原件与备份）每个文件的摘要。一格跑前跑后各取一次，不一样就是这条流程留下了数据。"""
+        return self.python(site, FOOTPRINT_CODE)
+
     def client_errors(self, site):
         return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
+
+
+# 流程结束要和开始一样的那部分（11-16：收款流程在账套原来没有资料时留下一份只有收款类型的资料，同一实验室后面的
+# cc.operator 新开户格开始卡没有目标、两格必挂；清卷重建才过）。日志类（名字以 Log 结尾）不算：记录本身就是要留的痕迹。
+FOOTPRINT_EXTRA = ("User", "Has Role", "User Permission", "File")
+FOOTPRINT_SKIP_DIRS = ("files", "backups")
+FOOTPRINT_CODE = f"""
+import hashlib, os
+modules = frappe.get_all("Module Def", filters={{"app_name": ["like", "pearnly%"]}}, pluck="name")
+rows = frappe.get_all("DocType", filters={{"module": ["in", modules], "istable": 0, "is_virtual": 0}}, fields=["name", "issingle"])
+tables = sorted({{row.name for row in rows if not row.issingle and not row.name.endswith(" Log")}} | set({FOOTPRINT_EXTRA!r}))
+singles = sorted(row.name for row in rows if row.issingle)
+out = {{}}
+if tables:
+    sql = " UNION ALL ".join("SELECT %s, COUNT(*) FROM `tab" + t.replace("`", "") + "`" for t in tables)
+    out.update({{"rows: " + t: n for t, n in frappe.db.sql(sql, tables)}})
+for name, value in frappe.db.sql("SELECT doctype, GROUP_CONCAT(CONCAT(field, '=', IFNULL(value, '')) ORDER BY field SEPARATOR '\\n') "
+                                 "FROM tabSingles WHERE doctype IN %s GROUP BY doctype", [tuple(singles) or ("",)]):
+    out["settings: " + name] = hashlib.sha1((value or "").encode()).hexdigest()[:12]
+root = frappe.get_site_path("private")
+for folder, dirs, files in os.walk(root):
+    if folder == root:
+        dirs[:] = [d for d in dirs if d not in {FOOTPRINT_SKIP_DIRS!r}]
+    for name in files:
+        path = os.path.join(folder, name)
+        with open(path, "rb") as handle:
+            out["file: " + os.path.relpath(path, root)] = hashlib.sha1(handle.read()).hexdigest()[:12]
+print(json.dumps(out))
+"""
+
+
+def footprint_diff(before, after):
+    """跑前跑后不一样的项：行数写增减，设置与文件写「改了 / 新增 / 删了」。"""
+    changed = {}
+    for key in sorted(set(before) | set(after)):
+        old, new = before.get(key), after.get(key)
+        if old == new:
+            continue
+        if key.startswith("rows: "):
+            changed[key] = f"{(new or 0) - (old or 0):+d}"
+        else:
+            changed[key] = "新增" if old is None else "删了" if new is None else "改了"
+    return changed
 
 
 def load_module(path):
@@ -760,11 +808,25 @@ def main(argv=None) -> int:
     def one(cell):
         flow, dataset, viewport = cell
         lab.cell_started()
+        site = lab.dataset(dataset, flow.get("product", "erp")).get("site")
+        try:
+            start_print = lab.footprint(site) if site else None
+            footprint_error = "" if site else "no site"
+        except Exception as error:  # noqa: BLE001 - 取不到只是这一格不比对，不挡流程
+            start_print, footprint_error = None, str(error)[:200]
         try:
             result = run_flow(lab, flow, dataset, viewport)
         except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
             result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
                       "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
+        # 留下了数据：只记不判（后面的流程看得到、可能被它带歪；判过与否仍只看这一格自己的检查项）
+        try:
+            left = (footprint_diff(start_print, lab.footprint(site)) if start_print is not None
+                    else {"error": footprint_error} if site else {})
+        except Exception as error:  # noqa: BLE001
+            left = {"error": str(error)[:200]}
+        if left:
+            result["left_data"] = left
         result["lab_python"] = lab.cell_mode()
         result["port"] = lab_port()
         bad = [c for c in result["checks"] if not c["ok"]]
@@ -810,6 +872,11 @@ def main(argv=None) -> int:
     summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
                f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else ""))
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
+    left = [r for r in results if r.get("left_data")]
+    if left:
+        print(f"留下了数据的格 {len(left)} 个（跑完和跑前不一样；各格的 left_data 字段）：", flush=True)
+        for r in left:
+            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(r['left_data'], ensure_ascii=False)[:400]}", flush=True)
     if lab.fallbacks:
         print(f"常驻 Python 退回每段新起进程 {len(lab.fallbacks)} 次（各格的 lab_python 字段）：{lab.fallbacks[0][:200]}", flush=True)
     if args.out:
