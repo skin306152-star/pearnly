@@ -267,6 +267,19 @@ def _open_rows(book_key, customer, exclude=None) -> dict:
     return out
 
 
+def warm(company, day=None) -> None:
+    """预热（11-15 真机：首次读客户发票要点「刷新」，约 10 秒）：LINE 收款定下公司（和账套）时，请电脑把这本账套的未收发票整本读一次
+    （已有的整本读回请求，同一请求号在读的不重发）；等人选好客户时多半已读好，列发票前落库（:func:`open_invoices`）。
+    读不到照旧回「正在读取 + 刷新」。任何问题都不挡收款流程。"""
+    try:
+        book = book_for(_company(company), day or nowdate())
+        # 只给还没有任何快照的账套整本读一次（新接的公司、第一次收款）；读过的平常由标记刷新与按客户读跟上（`snapshot.marks_seen`）
+        if not frappe.db.exists(snapshot.DOCTYPE, {"book_key": book["key"]}):
+            snapshot.request(company, book)
+    except Exception:
+        frappe.log_error(title="ERP collection warm-up skipped", message=frappe.get_traceback()[-1200:])
+
+
 def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=None) -> dict:
     """一位客户此刻能收的发票（快照减去别的记录的预留），日期早的在前：``{"items": [{docnum, doc_date, net, received,
     remaining, reserved, available, salesman, department}], "refresh": ready | reading | offline | outdated}``。
@@ -275,6 +288,8 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     row = _company(company)
     _customer_name(company, customer)
     book = book or book_for(row, day or nowdate())
+    if refresh:
+        snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
     state = snapshot.request(company, book, customer) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",

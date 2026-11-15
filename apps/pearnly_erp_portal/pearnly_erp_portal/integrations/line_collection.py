@@ -329,6 +329,7 @@ def _after_company(line_user_id, payload, reply_token):
     payload.pop("book_short", None)
     _save(line_user_id, payload)
     _ask_customer(reply_token)
+    _service().warm(payload["company"])  # 先回问句再预热：整本读回请求排给电脑，选好客户时多半已读好
 
 
 # ── 账套（同期两本时）───────────────────────────────────────────────────────

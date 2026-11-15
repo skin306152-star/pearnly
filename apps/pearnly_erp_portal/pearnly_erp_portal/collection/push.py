@@ -61,8 +61,29 @@ def send(name):
     return job
 
 
+LIVE_EVENT = "pearnly_erp_collection_changed"
+
+
 def _set(name, values):
     frappe.db.set_value(DOCTYPE, name, values, update_modified=False)
+    _live(name)
+
+
+def _live(name):
+    """状态变了通知能看收款页的人刷新（11-15 真机：「待写入」写完不自己变，要手动刷新）：同 `inventory.count_live` 的做法，
+    只推给有「收款·查看」的人、只带单号，页面按本人权限重新取；同一请求里只推一次。"""
+    sent = getattr(frappe.flags, "pearnly_collection_live", None)
+    if sent is None:
+        sent = set()
+        setattr(frappe.flags, "pearnly_collection_live", sent)
+    if name in sent:
+        return
+    sent.add(name)
+    from pearnly_erp_portal.access import guard
+
+    for user in frappe.get_all("User", filters={"enabled": 1, "user_type": "System User"}, pluck="name"):
+        if user != "Guest" and guard.has("collection.view", user=user):
+            frappe.publish_realtime(LIVE_EVENT, {"name": name}, user=user, after_commit=True)
 
 
 def cancellable(job) -> bool:

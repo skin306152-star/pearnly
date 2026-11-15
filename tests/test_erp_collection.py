@@ -866,6 +866,27 @@ class Withdraw(Base):
         self.assertEqual(self.jobs.rows["J-" + queued["name"]]["status"], "cancelled")
         self.assertEqual(frappe.db.get_value("ERP Collection", queued["name"], "status"), C.WITHDRAWN)  # 撤掉的回执不改它
 
+    def test_a_status_change_tells_people_who_see_the_collections_page_by_record_name_only(self):
+        """11-15 真机：「待写入」写完不自己变。回执改了状态，推给有「收款·查看」的人一个只带单号的事件，收款页据此刷新。"""
+        made = self.draft("100")
+        sent = []
+        users = {"boss@example.com": True, "sales@example.com": False}
+        real_get_all = frappe.get_all
+
+        def get_all(doctype, *args, **kwargs):
+            return sorted(users) if doctype == "User" else real_get_all(doctype, *args, **kwargs)
+
+        with mock.patch.object(frappe, "get_all", get_all), \
+                mock.patch.object(frappe, "publish_realtime", lambda event, data, **kw: sent.append((event, data, kw.get("user")))), \
+                mock.patch("pearnly_erp_portal.access.guard.has", lambda capability, user=None: users.get(user, False)):
+            frappe.flags.pearnly_collection_live = None
+            service.release(made["name"], 1, "line:evt-1")
+            frappe.flags.pearnly_collection_live = None
+            self.jobs.report("J-" + made["name"], "success", docnum="RE2403080")
+        self.assertTrue(sent)
+        self.assertEqual({(event, json.dumps(data), user) for event, data, user in sent},
+                         {(push.LIVE_EVENT, json.dumps({"name": made["name"]}), "boss@example.com")})
+
     def test_no_withdraw_while_writing_or_once_written(self):
         made = self.draft("100")
         service.release(made["name"], 1, "line:evt-1")
@@ -1131,6 +1152,22 @@ class Snapshot(Base):
         snapshot.advance()
         self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV3"}, "remaining"), Decimal("30.00"))
         self.assertEqual(S.hashes.get(snapshot.PENDING), {})
+
+    def test_choosing_the_company_in_line_warms_up_a_book_never_read_and_the_first_list_uses_it(self):
+        """11-15 真机：第一次读客户发票要点「刷新」。选定公司时请电脑整本读一次（只给还没有快照的账套），选好客户时读好了就直接列出。"""
+        self.as_user("a@x")
+        service.warm("CO-1")
+        self.assertNotIn(snapshot.request_key(BOOK["key"]), self.requests.made)  # 读过的账套不整本再读
+        snapshot.replace("CO-1", BOOK["key"], [], "2026-11-11T04:00:00+00:00")
+        service.warm("CO-1")
+        key = snapshot.request_key(BOOK["key"])
+        self.assertIn(key, self.requests.made)
+        service.warm("CO-1")  # 在读的不重发
+        self.assertEqual(len([k for k in self.requests.made if k == key]), 1)
+        self.requests.finish(key, [{"docnum": "IV9", "customer": "2100900", "net": "70", "received": "0",
+                                    "remaining": "70"}], "2026-11-11T05:00:00+00:00")
+        found = service.open_invoices("CO-1", "2100900")
+        self.assertEqual([row["docnum"] for row in found["items"]], ["IV9"])
 
     def test_an_ar_mark_change_refreshes_a_book_in_use_only(self):
         self.assertFalse(snapshot.marks_seen("CO-1", BOOK, {"mark": "m1"}))  # 旧版不报 ar_mark

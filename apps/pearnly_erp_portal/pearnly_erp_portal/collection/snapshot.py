@@ -75,6 +75,16 @@ def request(company, book, customer=""):
     return READING
 
 
+def land_ready(company, book):
+    """整本那次读回（不分客户）已经读好就落库，不新发请求（列发票前叫：LINE 选公司时预热的那次，`service.warm`）。"""
+    try:
+        made = requests.find(KIND, request_key(book["key"]))
+        if made is not None and made["status"] == "done":
+            land(company, book["key"], made)
+    except (frappe.ValidationError, KeyError, ValueError):
+        pass
+
+
 def _remember(key, company, book_key, customer):
     frappe.cache.hset(PENDING, key, json.dumps({"company": company, "book_key": book_key, "customer": customer or ""}))
 
