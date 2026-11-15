@@ -1152,6 +1152,26 @@ class Snapshot(Base):
         snapshot.replace("CO-1", BOOK["key"], [], "2026-11-11T05:00:00+00:00")
         self.assertEqual(S.table(snapshot.DOCTYPE), {})
 
+    def test_an_older_whole_book_read_does_not_bring_back_an_invoice_a_newer_read_found_gone(self):
+        """11-15：按客户读（04:00）发现 IV2 已收清删掉；晚到的整本读是 03:30 的、里面还有 IV2——不插回（之前会显示到下次读回）。
+        写后回执把 IV1 收清（05:00）同理；比它们新的整本读里又有这张（重开 / 撤销），照常插回。"""
+        snapshot.replace("CO-1", BOOK["key"], [{"docnum": "IV1", "customer": "2100883", "net": "1000",
+                                                "received": "0", "remaining": "1000"}],
+                         "2026-11-11T04:00:00+00:00", customer="2100883")
+        self.assertIsNone(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV2"}, "name"))
+        whole = [{"docnum": "IV1", "customer": "2100883", "net": "1000", "received": "0", "remaining": "1000"},
+                 {"docnum": "IV2", "customer": "2100883", "net": "800", "received": "300", "remaining": "500"},
+                 {"docnum": "IV3", "customer": "2100900", "net": "50", "received": "0", "remaining": "50"}]
+        snapshot.replace("CO-1", BOOK["key"], whole, "2026-11-11T03:30:00+00:00")
+        self.assertIsNone(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV2"}, "name"))
+        snapshot.apply_balances(BOOK["key"], {"IV1": Decimal("0")}, "2026-11-11T05:00:00+00:00")
+        snapshot.replace("CO-1", BOOK["key"], whole, "2026-11-11T04:30:00+00:00")
+        self.assertIsNone(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV1"}, "name"))
+        self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV3"}, "remaining"), Decimal("50.00"))
+        snapshot.replace("CO-1", BOOK["key"], whole, "2026-11-11T06:00:00+00:00")
+        self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV1"}, "remaining"), Decimal("1000.00"))
+        self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV2"}, "remaining"), Decimal("500.00"))
+
     def test_a_requested_read_lands_inline_or_on_the_next_minute(self):
         self.as_user("a@x")
         state = service.open_invoices("CO-1", "2100900")["refresh"]
