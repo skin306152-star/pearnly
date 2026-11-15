@@ -106,7 +106,7 @@ class UndecidedTests(_Ledger):
             out = self._pushed(**given)
             self.assertEqual((out["status"], out["reason"]), ("failed", write_scope.LEDGER_NEEDED))
             self.assertEqual([item["label"] for item in out["allowed_account_sets"]], ["T.8", "T.9", "T.7"])
-            self.assertEqual(out["allowed_account_sets"][0]["id"], "EXP1|" + T8)
+            self.assertNotIn("id", out["allowed_account_sets"][0])  # 不给本对话账套编号，CC 按名称设（A 线 11-15）
             self.assertIn("pearnly_conversation_ledger", out["note"])
         self.assertEqual(self.submitted, [])
 

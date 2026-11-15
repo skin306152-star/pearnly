@@ -180,13 +180,13 @@ CORE_TOOLS = [
                     "so, or a write came back with reason ledger_needed) or the user asked here to switch. Ask first "
                     "with ask_user: one question listing the account sets the note or the refusal gives, each option "
                     "label exactly the account set's name (at most 4; Other lets the user type another). Then call "
-                    "this with ledger = that account set's id. The server accepts only the account set the user picked "
+                    "this with ledger = that account set's name exactly as given. The server accepts only the account set the user picked "
                     "or typed on the latest ask_user card: refused reasons are not_chosen_by_user (ask again; never "
                     "choose for the user), not_an_option and not_available (this conversation has no account set to "
                     "choose: it is not filed under a company, or the product has none). After status set, every write "
                     "in this conversation goes into it: continue with the write the user asked for.",
      "input_schema": {"type": "object", "properties": {
-         "ledger": {"type": "string", "description": "The id of the account set the user chose."}},
+         "ledger": {"type": "string", "description": "The name of the account set the user chose."}},
          "required": ["ledger"]},
      "handler": "pearnly_core.assistant.ledger.tool_choose"},
     {"name": "ask_user",

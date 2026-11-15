@@ -49,7 +49,7 @@ EXPRESS_OPEN_NOTE = (" Express has this account set open on the computer that wr
 LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not decided yet, so nothing was saved. Ask the "
                       "user once with ask_user which account set to record collections in (one question, each option "
                       "label exactly the label of one of allowed_account_sets), set it with pearnly_conversation_ledger "
-                      "(ledger = its id), then go on; do not ask again after that.")
+                      "(ledger = its label), then go on; do not ask again after that.")
 QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desktop on the computer that writes it may "
                "be offline: it is recorded once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_collection_status when they ask. Do not wait. A queued collection is not in Express yet.")
@@ -86,7 +86,7 @@ def _refused(error) -> dict:
     if isinstance(error, contracts.CollectionError) and error.code == service.LEDGER_NEEDED:
         # 本对话账套未定（A 线 11-12）：形状同单据推送的 ``ledger_needed``（`express.cc_tools._ledger_refusal`）
         return {"status": "not_saved", "reason": error.code, "note": LEDGER_NEEDED_NOTE,
-                "allowed_account_sets": [{"id": item["code"], "label": item["name"]}
+                "allowed_account_sets": [{"label": item["name"]}
                                          for item in (error.detail or {}).get("options") or ()]}
     if isinstance(error, contracts.CollectionError) and error.code == service.NO_CUSTOMER:
         # 编号对不上账本里唯一一位客户（多半是复述时空白变了，`service.customer_code`）：叫模型问人选，不说「不存在」

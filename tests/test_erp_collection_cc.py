@@ -388,7 +388,11 @@ class ConversationBook(Base, T.TwoBooks):
         refused = self.call(cc_tools.invoices, customer="2100883")
         self.assertEqual((refused["status"], refused["reason"]), ("not_saved", "ledger_needed"))
         self.assertIn("pearnly_conversation_ledger", refused["note"])
-        self.assertEqual([row["id"] for row in refused["allowed_account_sets"]], [T.TEST26["key"], T.TEST26_COPY["key"]])
+        self.assertEqual(len(refused["allowed_account_sets"]), 2)
+        # 只给名称，不给账套键（book_key 是内部编号，CC 会复述给人；A 线 11-15）
+        self.assertFalse(any(T.TEST26["key"] in str(row) or T.TEST26_COPY["key"] in str(row)
+                             for row in refused["allowed_account_sets"]))
+        self.assertTrue(all(row["label"] for row in refused["allowed_account_sets"]))
         self.assertEqual(self.call(cc_tools.methods)["reason"], "ledger_needed")
         self.assertEqual(self.make("100")["reason"], "ledger_needed")
         self.ledger[0] = self.ledger_of(T.TEST26_COPY, [T.TEST26, T.TEST26_COPY])  # 用户在提问卡上选了、记在会话上

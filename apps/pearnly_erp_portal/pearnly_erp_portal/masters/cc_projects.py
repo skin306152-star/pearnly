@@ -109,7 +109,7 @@ def ledgers(ref, period, work_scope, user) -> dict | None:
     keys = {item["key"] for item in covering}
     rest = sorted((item for item in every if item["key"] not in keys and item.get("writable")),
                   key=lambda item: str(item.get("period_start") or ""), reverse=True)
-    options = [{"id": item["key"], "label": target.option_name(item) or item["key"], "covers": item["key"] in keys}
+    options = [{"id": item["key"], "label": target.option_name(item), "covers": item["key"] in keys}
                for item in [*covering, *rest][:LEDGER_OPTIONS_MAX]]
     return {"options": options, "default": chosen["key"] if chosen else ""}
 

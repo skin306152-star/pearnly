@@ -798,8 +798,10 @@ class LedgerGateTests(unittest.TestCase):
         self.pin = {"status": "needed", "key": "", "label": "", "options": options}
         item = call(tools.push_documents, documents=["S:SD-5"])["results"][0]
         self.assertEqual((item["status"], item["reason"], item["reason_code"]), ("failed", "ledger_needed", "ledger_needed"))
-        self.assertEqual([(book["id"], book["label"], book["covers"]) for book in item["allowed_account_sets"]],
-                         [("BK8", "T.8 · S:\\68", True), ("BK9", "T.9", True)])
+        # 只给名称，不给账套键（内部编号，CC 会复述给人）；CC 按名称设本对话账套（A 线 11-15）
+        self.assertEqual([(book["label"], book["covers"]) for book in item["allowed_account_sets"]],
+                         [("T.8 · S:\\68", True), ("T.9", True)])
+        self.assertNotIn("BK8", json.dumps(item))
         self.assertIn("pearnly_conversation_ledger", item["note"])
         self.assertEqual(CALLS, [])
 

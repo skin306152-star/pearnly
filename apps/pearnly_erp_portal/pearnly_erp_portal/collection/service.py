@@ -94,7 +94,7 @@ def book_for(company_row, day):
     if picked["reason"] == conversation.LEDGER_NEEDED:
         pin = conversation.pinned(company_row) or {}
         raise contracts.CollectionError(LEDGER_NEEDED, {"options": [
-            {"code": item["id"], "name": item.get("label") or item["id"]} for item in pin.get("options") or ()]})
+            {"code": item["id"], "name": item.get("label") or ""} for item in pin.get("options") or ()]})
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
         raise contracts.CollectionError(picked["reason"], {"options": picked["options"]})
     if picked["reason"] == express_contracts.NO_BOOK:

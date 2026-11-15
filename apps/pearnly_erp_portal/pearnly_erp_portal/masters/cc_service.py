@@ -110,7 +110,7 @@ def account_sets(row) -> list:
 
     tax = contracts.tax13(row.get("tax_id"))
     found = books.for_company(tax, row.get("branch")) if tax else []
-    out = [{"connection": "", "adapter": "express", "key": item["key"], "label": item.get("label") or item["key"],
+    out = [{"connection": "", "adapter": "express", "key": item["key"], "label": item.get("label") or item.get("path") or "",
             "year_label": _year(item), "branch": item.get("branch") or "",
             "period_start": str(item.get("period_start") or "")[:10], "period_end": str(item.get("period_end") or "")[:10],
             "next_end": str(item.get("next_end") or "")[:10], "writable": bool(item.get("writable"))} for item in found]

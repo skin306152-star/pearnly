@@ -113,7 +113,7 @@ def _ledger(row) -> tuple[str, str]:
     found = ledger.of_session(row.session_id) or {}
     if found.get("status") != "set":
         return "", ""
-    return str(found.get("id") or ""), str(found.get("label") or found.get("id") or "")
+    return str(found.get("id") or ""), str(found.get("label") or "")
 
 
 def _same_ledger(project, now, planned) -> bool:
