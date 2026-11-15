@@ -57,11 +57,41 @@
 （待填）
 ```
 
-## 上线前置
+## 一、集成分支进 main 的条件（拼车负责）
 
-- 上面要求的真机行在最终集成头上「通过」。
-- 全套 `--all --post-status` 在要部署的提交上通过（头冻结后只跑一次）。
-- collection-date 的 NLTTEST 原生对照通过。
+只看这条集成分支装的东西（主会话 11-15 23:0x 定）：
+
+| 必须 | 内容 | 状态 |
+|---|---|---|
+| 必须 | 搜索统一：`erp.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item` 两行真机记录「通过」，绑最终集成头 | 待 11-16 真机（A 组） |
+| 必须 | 共用件连带回归：每个 manual 入口记「通过 / 不通过 / 没测到（原因）」 | 待 11-16（A、C 组）；白天并 main 后重出全表 |
+| 必须 | 收款日期：NLTTEST 原生对照通过（作者判定）；LINE / 网页改日期；no-period 核点 | 待 11-16（A、B 组） |
+| 必须 | 验收第 0 批首跑（验收窗口，E 组） | 待 11-16 |
+| 必须 | 白天并最新 origin/main 后：全闸门（只许差已附记录的真机行）、候选离线 LANE EXIT 0、`run.py --changed` 受影响流程全过；Development checks 绿 | 并 main 前的结果见上表 |
+| 可摘除 | page-company：三星一行 + 它的共用件入口；不过或来不及就重建集成分支跳过它（不用 revert） | 各组最后做 |
+
+CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）**不是**本分支进 main 的条件（主会话确认），它们的分支走合入队列。
+
+## 二、下一次部署的条件（主会话定是否部署；按届时 main 上的全部内容算）
+
+全套流程在发布提交上只跑一次 `run.py --all --post-status`；`deploy.sh --dry-run` 全过（流程闸、租户配置、LIFF、站外设置、容量检查）。
+下表按 11-15 23:1x 的分支状态列，**缺的如实标**；进 main 的顺序与时间由合入队列与主会话定。共用件命中按 `check-impact.py --files <分支相对 main 的文件>` 算。
+
+| 分支（头） | 进 main | 要过的（真机行 / 演练 / 只读核对） | 现状 |
+|---|---|---|---|
+| 本集成分支（搜索统一、收款日期、no-period、验收第 0 批、page-company 可摘除） | 拼车 | 见上一节 | 待 11-16 |
+| `pearnly/cc-1122-server`（e97f3b3b2，动共用机器通道 cc-desktop） | 合入队列 | 共用件 cc-desktop 的 8 个手工入口（erp.cc.connect、erp.cc.masters、erp.cc.stock-void、cowork.cc.channel、erp.cc.companies、cc.mrerp-login、cc.desktop.bridge、cowork.cc-chat.push）；CC 1.12.22 真机 12 行（服务端先上线、旧 CC 不受影响那几行是部署前必须的：⑫ 领单回复多 requests_waiting 不影响 1.12.21） | 待 11-16（D 组）；**缺** |
+| `pearnly/cc-1122-desktop`（1c65aff15） | 不随服务端部署 | 服务端上线后另发 staging → prod（prod 等主会话点头） | 不挡部署 |
+| MR.ERP 三条：第 3 批 `company-onboarding-3-307a0a` → `mrerp-ledger-dialog`（a1b09740d）→ `mrerp-catalog-pick`（d58919b6c）（改 Express 主档落库与 Cowork → MR.ERP 写法，命中共用件 express-rules） | 合入队列（今晚） | ① 升级演练：旧代码 + 线上 testerp 重导数据 → 同步落定 → 新代码迁移 v1_30 / v1_31 → 再同步，主档改动 0、修改记录不增、选择框照常（F 组）；② T9–T11 真浏览器 / 真对话（F 组）；③ express-rules 的 12 个手工入口（erp.cc.pos-day、erp.cc.pos-refund、cowork.cc.channel、cowork.mrerp.push、cowork.companies、cowork.connections、cowork.history、cowork.cc-chat.push、cowork.cc.troubleshooting、cowork.line.item-questions、erp.trade.line-stock、erp.place.header）——**总表还没排**，要作者或主会话定由谁测；④ 生产只读核对（写账窗口清单里的「开关前」那项）；开关 `MRERP_LEDGER_ENABLED` 不随部署打开 | ①② 待 11-16；③④ **缺** |
+| `pearnly/admin-all-features`（7ec1d4600，管理员自动拥有全部已开通功能） | 合入队列 | 共用件未命中；部署后逐个正式租户只读核：管理员能看到已开通的全部功能、非管理员不变 | **缺**（未排） |
+| `pearnly/cc-guided-core`（909971dbb） | 合入队列 | 共用件未命中；引导式窗口的真机清单未给 | **缺**（待引导式窗口） |
+| `pearnly/capacity-maintenance-transient`（7c47c996e，开户容量检查不把临时维护容器算常驻） | 合入队列 | `deploy.sh --dry-run` 容量检查通过；生产内存余量约 300 MiB，本批不能新增 ≥300 MiB 常驻进程 | 部署预演时核 |
+| `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 共用件未命中；控制面页面打开冒烟 | 部署后核 |
+| `pearnly/cowork-withdraw-push`（0be7bcb07） | 合入队列 | Cowork 撤回 1 行（D 组 ⑫；第 ① 步要主会话批让测试机1 的 CC 暂时不领单） | 待 11-16；**要批** |
+| `pearnly/cc-operator-other-months`（86d0240c9，命中共用件 assistant） | 合入队列 | 月份代录 ①–④（C 组，真模型约 0.5 美元）；⑤ 没批记没测到；assistant 的 8 个手工入口（control / shared / cowork / cc.assistant、cc.operator.thread、erp.cc.companies、cowork.cc-chat.push、cowork.cc.troubleshooting）——**总表还没排** | 部分待 11-16；**缺** |
+| `pearnly/cc-approval-cards-7865fe`（f09af0041） | 合入队列（rows.toml 待作者答复） | 共用件未命中；作者的真机清单未给 | **缺** |
+
+注：`check-product-map.py --batch --files` 对上面每条都报「真机单 0 项」，与作者自己列的真机行不符（如 Cowork 撤回），**不作依据**，真机行以作者清单为准；这个差异另报主会话。
 
 ## 部署预演与回滚
 
