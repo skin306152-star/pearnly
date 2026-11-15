@@ -397,3 +397,15 @@ A 表、B 表用 `#` 对齐。
 | 第 6 条 | `cowork_pos_import` / `cowork_pos_layout` 的认列答案（哪一列是日期、金额、增值税、付款方式、状态，日期顺序，含不含税，哪些状态算作废或退货） | 题由服务端出，答案由模型把用户的话转成参数；按公司记住；没有卡 | **POS 认列题卡**：每一题的选项就是这份导出的真实表头 / 状态值（服务端从文件里读出，choice / multi），含不含税、日期顺序是固定选项；答完按公司记住（remember：company），以后同版式不再问。可选「预览前 3 天的日汇总」作为 facts 行，让人对照再点确定 | 按表头猜一个预选；不能替用户答 |
 
 判断口径：凡是**决定写进账本的金额、方向、对象，或改不回来**的值，都要由服务端出原值或选项、用户在卡上点或填；模型只能给预选，或转述用户原话作为建议。这和 P2 第 4 节的口径一致。
+
+## 8. 待定：只记工作空间、没有所属公司的对象（主会话 11-15：这次不做，攒着问用户）
+
+A 线分支一把「按名字 / 记录号动对象」的写 / 删工具都限在对话选中的公司；下面 5 类对象本身只记 `workspace`，代码里查不到它属于哪家公司，所以没法按公司限。**要按公司限，得先定它们归哪家**（例如按建它的那段对话所挂的公司记一列，或按其中的账套 / 税号推）。
+
+| 对象 | 工具 | 现在记在哪 | 归属可能的依据（待定） |
+|---|---|---|---|
+| 对账任务、记住的对账规则 | `cowork_recon_start / answer / presets / delete` | `Cowork Bank Reconciliation` / `Cowork Income Reconciliation` 只有 `workspace`；`Cowork Recon Preset` 有 `workspace + scope`（银行按总账科目、收入按 `income_tax_id`，`recon_center/presets.py:15-21`） | 收入对账有税号可推；银行对账没有 |
+| 盘点 | `cowork_stocktake_create / count / close / delete` | `Cowork Stocktake Task` 只有 `workspace` | 无 |
+| 预扣税收款方所得类别 | `cowork_wht_answer` | `Cowork WHT Choice`：`workspace + scope`，工具说明写的是「全工作空间」 | 按设计就是全工作空间共用 |
+| 「录不录」规则（转账凭条、预扣税凭证等） | `cowork_choose_document_policy` 的 enter / skip | `history/document_policy.py:39-48`：按 `doc.workspace + 类别`，全工作空间生效 | 按设计就是全工作空间（用户 10-07：按租户选一次） |
+| 任务看板 | `cowork_work_create_card / update_card / move_card / comment` | `Cowork Work Card / Board` 只有 `workspace` | 无 |
