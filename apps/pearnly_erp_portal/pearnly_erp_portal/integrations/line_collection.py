@@ -301,7 +301,7 @@ def _ask_company(reply_token, payload, note=""):
     rows = list(payload["companies"].items())
     if len(rows) > MAX_CHOICES:
         return _ask(reply_token, "\n".join(filter(None, (note, _("Choose the company"),
-                                                         _("Type a word from the company name to find it")))))
+                                                         _("Type the company name, tax ID or account set to find it")))))
     lines = [note] if note else []
     lines += [_("Choose the company")] + [f"{index}. {label}" for index, (_key, label) in enumerate(rows, 1)]
     labels = choice_labels([short_name(label) for _key, label in rows])

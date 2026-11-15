@@ -207,7 +207,7 @@ SEARCHED = ("company", "party")
 # 当前公司、上次用过的一开始就给按钮。按钮最多 12 个，另加「取消」。
 MAX_RESULTS = MAX_CHOICES
 _SEARCH_PROMPTS = {
-    "company": lambda p: _("Type a word from the company name to find it"),
+    "company": lambda p: _("Type the company name, tax ID or account set to find it"),
     "party": lambda p: (_("Type a word from the supplier name to find it") if p["direction"] == "purchase"
                         else _("Type a word from the customer name to find it")),
     "warehouse": lambda p: _("Type a word from the warehouse name to find it"),

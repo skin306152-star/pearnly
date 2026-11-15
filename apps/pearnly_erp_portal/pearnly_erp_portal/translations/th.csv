@@ -1735,6 +1735,7 @@ Type a word from the warehouse name to find it,พิมพ์คำในชื
 Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 Type not found in Express,ไม่พบประเภทนี้ใน Express
 Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
+"Type the company name, tax ID or account set to find it",พิมพ์ชื่อบริษัท เลขประจำตัวผู้เสียภาษี หรือชุดบัญชีเพื่อค้นหา
 Type the customer code or part of the name,พิมพ์รหัสหรือชื่อลูกค้า
 Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
 Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
