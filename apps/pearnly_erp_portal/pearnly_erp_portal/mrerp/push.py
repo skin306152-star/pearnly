@@ -76,6 +76,14 @@ def _set(doctype, name, values):
         pending.notify(doctype, name, before)
 
 
+def _wanted(row):
+    """交给 `catalog.pick` 的 ``wanted``（None 照单据日期选；账套键）。MR.ERP 的年度账套还没列进 CC 对话账套（公司接入第 3 批），
+    MR.ERP 公司在对话里会回空串（「对话账套 0 本」= 未定）——列进去之前按 None：照单据日期选，不卡在「对话账套未定」。"""
+    from pearnly_erp_portal.express import conversation  # 同 :func:`prepare`
+
+    return conversation.wanted(row) or None
+
+
 def prepare(doctype, name, document) -> dict:
     """准备一张：``{"payload", "company", "direction"}``，或 ``{"hold": 原因, "needed": [...]}`` / ``{"failed": 原因}``。不写单据。
     ``document``：建单据的函数（`express.push.document`，同 Express 交给写账规则的那个形状）。"""
@@ -88,10 +96,10 @@ def prepare(doctype, name, document) -> dict:
         return {"hold": held}
     body = document(doctype, name)
     # 选账套与「同期两本选一次」的记忆在 express / 公司接入一侧（它们经 `express.push` 反向用到本模块）：用到时再导入
-    from pearnly_erp_portal.express import choices as express_choices, conversation
+    from pearnly_erp_portal.express import choices as express_choices
     from pearnly_erp_portal.mrerp import catalog
 
-    picked = catalog.pick(row.name, body["date"], conversation.wanted(row))
+    picked = catalog.pick(row.name, body["date"], _wanted(row))
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
         return {"hold": contracts.CHOICE, "needed": [{
             "kind": express_choices.ACCOUNT_SET, "subject": picked["subject"], "label": row.company_name or row.name,
@@ -115,16 +123,14 @@ def prepare(doctype, name, document) -> dict:
 def picked(doctype, name) -> dict:
     """这张单写进哪本（CC 预选卡用，同 Express 预检 `_book_of` 的取法）：CC 对话 / 代录里是本对话账套；否则单据上记过的
     （``ledger_book``）；都没有按单据日期选。回 `mrerp.catalog.pick` 的结论（``{book, reason, options, subject}``）。"""
-    from pearnly_erp_portal.express import conversation  # 同 :func:`prepare`
-    from pearnly_erp_portal.mrerp import catalog
+    from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
 
     row = frappe.db.get_value(doctype, name, ["company", "doc_date", "ledger_book"], as_dict=True) if doctype in DIRECTIONS \
         else None
     if not row:
         return {"book": None, "reason": contracts.NOT_CONFIGURED, "options": [], "subject": ""}
-    wanted = conversation.wanted(choices.company_row(row.company))
-    if wanted is None and row.ledger_book:
-        wanted = row.ledger_book
+    # 都没有给 None（照单据日期选），不给空串（`catalog.pick` 把空串当「对话账套未定」）
+    wanted = _wanted(choices.company_row(row.company)) or row.ledger_book or None
     return catalog.pick(row.company, str(row.doc_date or "")[:10], wanted)
 
 
@@ -274,7 +280,8 @@ def answer(doctype, name, answers) -> bool:
             return False
         if item["kind"] == express_choices.ACCOUNT_SET:
             # 同期两本选哪本：与 Express 同一个记忆（这家公司 × 这个会计年度），`catalog.pick` 下次照它选
-            express_choices.remember(row.company, item["kind"], item["subject"], value, options[value] or item.get("label") or "")
+            express_choices.remember(row.company, item["kind"], item["subject"], value,  # loop-query: 停在单据上的几项
+                                     options[value] or item.get("label") or "")
             continue
         if (row.ledger_book and book is None) or choices.choose(row.company, item["kind"], item["subject"], value, book) is None:
             return False

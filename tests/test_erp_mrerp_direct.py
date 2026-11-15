@@ -368,6 +368,23 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual((saved["ledger_state"], saved["ledger_book"]), ("written", "14:1"))
         self.assertEqual(CALLS[0]["target"], {"account_set": "14:1"})
 
+    def test_an_unset_conversation_account_set_still_picks_by_date(self):
+        """MR.ERP 的年度账套还没列进 CC 对话账套：MR.ERP 公司在对话里时 `conversation.wanted` 回空串（对话账套 0 本 = 未定），
+        不能当「对话账套未定」卡住——按单据日期选（与公司接入第 3 批 11-15 对齐）；对话定了某本时照那本。"""
+        from pearnly_erp_portal.express import conversation
+
+        BOOKS["CO-1"] = [
+            {"key": "14:1", "label": "TEST2025", "connection": "C1", "period_start": "2025-01-01", "period_end": "2025-12-31"},
+            {"key": "15:1", "label": "TEST2026", "connection": "C1", "period_start": "2026-01-01", "period_end": "2026-12-31"}]
+        for wanted, expected in (("", "15:1"), ("14:1", "14:1")):
+            CALLS.clear()
+            doc(ledger_state="queued", ledger_target="mrerp")
+            with patch.object(conversation, "wanted", lambda row, task=None, wanted=wanted: wanted), \
+                    _Module({"status": "success", "docnum": "PG691103-000010", "menus": {}, "masters": {}}):
+                push.run(PURCHASE, "PUR-1", document)
+            self.assertEqual((DB.table(PURCHASE)["PUR-1"]["ledger_state"], CALLS[0]["target"]),
+                             ("written", {"account_set": expected}))
+
     def test_no_account_set_for_the_date_holds_without_importing(self):
         doc(ledger_state="queued", ledger_target="mrerp", doc_date="2024-03-01")
         with _Module({"status": "success", "docnum": "x", "menus": {}, "masters": {}}):

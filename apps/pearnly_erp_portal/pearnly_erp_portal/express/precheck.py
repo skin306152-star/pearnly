@@ -484,7 +484,7 @@ def save_mrerp(company, doctype, answers, seen, name=None) -> int:
     for (kind, subject), value in checked:
         if kind == choices.ACCOUNT_SET:
             label = next((option["name"] for option in asked[(kind, subject)]["options"] if option["code"] == value), "")
-            choices.remember(company, kind, subject, value, label)
+            choices.remember(company, kind, subject, value, label)  # loop-query: 一张卡片答的几项，同一项只记一次
             continue
         if mrerp_choices.choose(company, kind, subject, value, book) is None:
             frappe.throw(_("Invalid request"))
