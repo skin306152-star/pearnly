@@ -95,6 +95,7 @@ Add label,ラベルを追加
 Add member,メンバーを追加
 Add photo,写真を追加
 Add photos,写真を追加
+Add this file to this document?,このファイルをこの伝票に追加しますか？
 Add time,時間を追加
 Add watcher,ウォッチャーを追加
 Added {0},{0}を追加しました
@@ -1403,6 +1404,7 @@ Recognition tasks cannot be shared separately from their originals.,認識タス
 Recognition was interrupted (not charged). Upload this file again,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
 Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,会社が源泉徴収票を取り込まない場合に ภ.ง.ด.3 / ภ.ง.ด.53 下書き用に保管する 50 ทวิ。送信・課金しません。
 Recognized Fields,認識した項目
+Recognized again with this file (charged) and replaces this document,このファイルを含めて再認識し（有料）、この伝票を置き換えます
 Recognized documents,書類を読み取りました
 Recognized with high confidence,高い信頼度で認識
 "Recognized, waiting to enter",読み取り済み
@@ -1421,6 +1423,7 @@ Record Key,記録キー
 Record Revision,レコードの版
 Record a count,棚卸を入力
 Record as expense,費用に計上
+Record this push result?,この送信結果を記録しますか？
 Recorded a count,実数を記録しました
 Recording a count,実数を記録しています
 Recount,再棚卸
@@ -2558,6 +2561,7 @@ cowork.folder.wb.reason,確認表がない理由
 cowork.folder.workbook_not_ready,結果表はまだ準備できていません。
 cowork.intake.interrupted,読み取りが中断されました（課金なし）。このファイルをもう一度アップロードしてください
 cowork.intake.waitingRoom,順番待ち・自動で送信します
+cowork.intoDocument.replace,このファイルを含めて再認識し（有料）、この伝票を置き換えます
 cowork.line.boundAt,連携日時
 cowork.line.code,連携コード
 cowork.line.expired,コードの有効期限が切れました

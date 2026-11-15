@@ -95,6 +95,7 @@ Add label,添加标签
 Add member,添加成员
 Add photo,添加照片
 Add photos,添加照片
+Add this file to this document?,确定要把此文件补进此单据吗？
 Add time,添加时间
 Add watcher,添加关注人
 Added {0},已添加 {0}
@@ -1403,6 +1404,7 @@ Recognition tasks cannot be shared separately from their originals.,识别任务
 Recognition was interrupted (not charged). Upload this file again,识别已中断（未扣费），请重新上传此文件
 Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,公司选择不录入预扣税凭证时，为 ภ.ง.ด.3 / ภ.ง.ด.53 草稿保留的 50 ทวิ。不推送、不计费。
 Recognized Fields,识别字段
+Recognized again with this file (charged) and replaces this document,连同此文件重新识别（扣费）并覆盖此单据
 Recognized documents,识别了单据
 Recognized with high confidence,高置信识别
 "Recognized, waiting to enter",已识别
@@ -1421,6 +1423,7 @@ Record Key,记录键
 Record Revision,记录版本
 Record a count,录入盘点
 Record as expense,不抵扣，计入费用
+Record this push result?,确定要记下此推送结果吗？
 Recorded a count,记录了实盘数
 Recording a count,正在记录实盘数
 Recount,重盘
@@ -2558,6 +2561,7 @@ cowork.folder.wb.reason,未生成复核表的原因
 cowork.folder.workbook_not_ready,结果表格尚未生成。
 cowork.intake.interrupted,识别已中断（未扣费），请重新上传此文件
 cowork.intake.waitingRoom,排队中，稍后自动提交
+cowork.intoDocument.replace,连同此文件重新识别（扣费）并覆盖此单据
 cowork.line.boundAt,绑定时间
 cowork.line.code,绑定码
 cowork.line.expired,绑定码已过期

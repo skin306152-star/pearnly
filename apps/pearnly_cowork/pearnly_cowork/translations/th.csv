@@ -95,6 +95,7 @@ Add label,เพิ่มป้ายกำกับ
 Add member,เพิ่มสมาชิก
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
+Add this file to this document?,เพิ่มไฟล์นี้เข้าเอกสารนี้หรือไม่
 Add time,เพิ่มเวลา
 Add watcher,เพิ่มผู้ติดตาม
 Added {0},เพิ่ม {0} แล้ว
@@ -1403,6 +1404,7 @@ Recognition tasks cannot be shared separately from their originals.,ไม่ส
 Recognition was interrupted (not charged). Upload this file again,การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,หนังสือรับรอง 50 ทวิ ที่เก็บไว้สำหรับร่าง ภ.ง.ด.3 / ภ.ง.ด.53 เมื่อบริษัทไม่บันทึกหนังสือรับรอง ไม่ส่งข้อมูลและไม่คิดค่าบริการ
 Recognized Fields,ข้อมูลที่อ่านได้
+Recognized again with this file (charged) and replaces this document,อ่านใหม่พร้อมไฟล์นี้ (มีค่าใช้จ่าย) และแทนที่เอกสารนี้
 Recognized documents,อ่านเอกสารแล้ว
 Recognized with high confidence,อ่านข้อมูลด้วยความมั่นใจสูง
 "Recognized, waiting to enter",อ่านแล้ว
@@ -1421,6 +1423,7 @@ Record Key,คีย์รายการ
 Record Revision,เวอร์ชันของรายการ
 Record a count,บันทึกการตรวจนับ
 Record as expense,ไม่ใช้สิทธิ์ภาษีซื้อ บันทึกเป็นค่าใช้จ่าย
+Record this push result?,บันทึกผลการส่งนี้หรือไม่
 Recorded a count,บันทึกจำนวนที่นับได้แล้ว
 Recording a count,กำลังบันทึกจำนวนที่นับได้
 Recount,นับใหม่
@@ -2558,6 +2561,7 @@ cowork.folder.wb.reason,สาเหตุที่ไม่มีตารา�
 cowork.folder.workbook_not_ready,ตารางผลยังไม่พร้อม
 cowork.intake.interrupted,การอ่านถูกขัดจังหวะ (ไม่มีการเรียกเก็บเงิน) กรุณาอัปโหลดไฟล์นี้อีกครั้ง
 cowork.intake.waitingRoom,อยู่ในคิว ระบบจะส่งให้อัตโนมัติ
+cowork.intoDocument.replace,อ่านใหม่พร้อมไฟล์นี้ (มีค่าใช้จ่าย) และแทนที่เอกสารนี้
 cowork.line.boundAt,เวลาที่ผูกบัญชี
 cowork.line.code,รหัสผูกบัญชี
 cowork.line.expired,รหัสหมดอายุแล้ว

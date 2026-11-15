@@ -1252,8 +1252,18 @@ def push_documents(tool_input) -> str:
     if not names:
         frappe.throw(_("No documents were given."))
     names, refused = direct_push.permitted(names)  # 只推用户同意了的写入计划里的单（一句话下令，A 线 11-11）
+    posting_kind = tool_input.get("posting_kind") or None
+    if posting_kind and names and _in_conversation():
+        # 写入计划是按单据自己的入账类型判、复述的；推送时另给一个不同的，就不是用户点头的那份（A 线 11-15）：不推，回到计划
+        kinds = {row.name: row.posting_kind for row in frappe.get_all(HISTORY, filters={"name": ["in", names]},
+                                                                      fields=["name", "posting_kind"],
+                                                                      limit_page_length=len(names))}
+        changed = [name for name in names if (kinds.get(name) or None) != posting_kind]
+        refused += [{"document": name, "status": "not_pushed", "reason": POSTING_KIND_CHANGED,
+                     "note": POSTING_KIND_CHANGED_NOTE} for name in changed]
+        names = [name for name in names if name not in changed]
     results = [_push_listed(name, tool_input.get("connection") or None, tool_input.get("account_set_key") or None,
-                            tool_input.get("posting_kind") or None) for name in names]
+                            posting_kind) for name in names]
     _settle(results)
     results += refused
     for item in results:
@@ -1277,6 +1287,11 @@ def push_documents(tool_input) -> str:
 
 
 CHOICE_PREFIX = "choice_needed:"  # 推送时要人选记在票上的码（`_submit_one`）
+POSTING_KIND_CHANGED = "posting_kind_changed"
+POSTING_KIND_CHANGED_NOTE = ("posting_kind_changed: the write plan the user agreed to was made with this document's own "
+                             "posting kind, not the one passed now, so it was not pushed. Leave posting_kind out to push "
+                             "it as planned; to change it, set it on the document first (cowork_choose_document_policy "
+                             "or the review page), then make a new plan and say it back.")
 
 
 def _push_listed(name, connection, account_set_key, posting_kind) -> dict:
@@ -2690,7 +2705,7 @@ def resolve_push_result(tool_input) -> str:
     """推送结果不明：用户在 ERP 里核对后告诉 CC 已入账（可带 ERP 单号）或未入账（之后可重推）。"""
     scope.require("intake")
     name = str(tool_input.get("document") or "")
-    refused = _documents_company_refusal([name])
+    refused = _documents_company_refusal([name]) or _docnum_refusal(tool_input)  # 卡片前已拒过；放行后再核一次
     if refused:
         return _json({"document": name, **refused})
     try:
@@ -3626,6 +3641,38 @@ def _documents_company_refusal(names) -> dict | None:
                           limit_page_length=len(names))
     return _record_company_refusal([(row.invoice_no or row.name, row.push_connection, row.push_account_set)
                                     for row in rows])
+
+
+def resolve_company_refusal(tool_input) -> str | None:
+    refused = _documents_company_refusal([(tool_input or {}).get("document")]) or _docnum_refusal(tool_input)
+    return _json(refused) if refused else None
+
+
+def into_document_company_refusal(tool_input) -> str | None:
+    if not (tool_input or {}).get("into_document"):
+        return None
+    refused = _documents_company_refusal([tool_input["into_document"]])
+    return _json(refused) if refused else None
+
+
+DOCNUM_NOT_FROM_USER = "docnum_not_from_user"
+DOCNUM_NOTE = ("docnum_not_from_user: the document number in Express is recorded only as the user typed it. Ask the user "
+               "with ask_user to type the number they see in Express (Other), then call again with exactly that; or "
+               "leave docnum out.")
+
+
+def _docnum_refusal(tool_input) -> dict | None:
+    """结果不明核对的 ERP 单号不收模型填的（A 线 11-15）：只认用户在本对话最近一张提问卡上打的（同 `ledger.choose` 的核法）。
+    不在 CC 对话里不限。"""
+    docnum = str((tool_input or {}).get("docnum") or "").strip()
+    session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
+    if not docnum or not session:
+        return None
+    from pearnly_core.assistant import ask, toolrun
+
+    if ask.names_one_of(toolrun.last_answers(session), (docnum,)):
+        return None
+    return {"status": "not_saved", "reason": DOCNUM_NOT_FROM_USER, "note": DOCNUM_NOTE}
 
 
 def documents_company_refusal(tool_input) -> str | None:
@@ -4723,6 +4770,36 @@ def note_run_folder_task(tool_input) -> str:
 
 
 RUN_NOW_FACT = "cowork.folder.runNow.charge"
+INTO_DOCUMENT_FACT = "cowork.intoDocument.replace"
+
+
+def preview_resolve_push_result(tool_input) -> list:
+    """「结果不明核对」卡片（A 线 11-15，记成「没入账」后可再推，不可逆）：哪张单、记成什么、ERP 单号（用户给了才有）。"""
+    name = str(tool_input.get("document") or "")
+    return [{"field": "", "before": "", "after": preview_delete_documents({"documents": [name]})[0]["after"] if name else ""},
+            _change("cowork.unknown.outcome", "", _("cowork.unknown.entered") if tool_input.get("entered")
+                    else _("cowork.unknown.not_entered")),
+            *([_change("cowork.unknown.docnum", "", tool_input["docnum"])] if tool_input.get("docnum") else [])]
+
+
+def note_resolve_push_result(tool_input) -> str:
+    return note_delete_documents({"documents": [tool_input.get("document")]})
+
+
+def preview_into_document(tool_input) -> list:
+    """「补页」卡片（A 线 11-15，整份重读后覆盖原单，不可逆）：哪张单、哪个文件、会发生什么。"""
+    from pearnly_core.assistant import files as chat_files
+
+    name = str(tool_input.get("into_document") or "")
+    file_ids = [str(f) for f in tool_input.get("files") or []][:1]
+    shown = {str(item.get("file_id")): item.get("filename") for item in chat_files.attachments()} if file_ids else {}
+    return [{"field": "", "before": "", "after": preview_delete_documents({"documents": [name]})[0]["after"] if name else ""},
+            *([_change("File", "", shown.get(file_ids[0]) or file_ids[0])] if file_ids else []),
+            {"field": "", "before": "", "after": _(INTO_DOCUMENT_FACT)}]
+
+
+def note_into_document(tool_input) -> str:
+    return note_delete_documents({"documents": [tool_input.get("into_document")]}) if tool_input.get("into_document") else ""
 
 
 def preview_run_folder_task(tool_input) -> list:
@@ -4988,6 +5065,12 @@ TOOLS = [
              "belongs to; ask the user when unsure. not_merged means it was not changed (say why); recognizing means "
              "call again with the same document and file later.")}},
          "required": ["files"]},
+     # 补页（into_document）整份重读后覆盖原单，改不回来：只有带了它才出「允许」卡片（A 线 11-15）
+     "approval": ["into_document"],
+     "ask_when": {"into_document": "Add this file to this document?"},
+     "note": "pearnly_cowork.assistant.tools.note_into_document",
+     "preview": "pearnly_cowork.assistant.tools.preview_into_document",
+     "refuse": "pearnly_cowork.assistant.tools.into_document_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.recognize_attachments"},
     {"name": "cowork_intake_options", "label": "Checked intake choices",
      "description": "Where recognized documents can go, as on the web's New intake and in LINE: each accounting "
@@ -5250,6 +5333,12 @@ TOOLS = [
     {"name": "cowork_resolve_push_result", "label": "Confirmed a push result",
      "description": direct_push.resolve_description("Express or MR.ERP"),
      "input_schema": direct_push.RESOLVE_SCHEMA,
+     # 记成「没入账」后可以再推（可能重复入账）、记成「已入账」不再推：都改不回来，先出「允许」卡片（A 线 11-15）
+     "approval": True,
+     "ask": "Record this push result?",
+     "note": "pearnly_cowork.assistant.tools.note_resolve_push_result",
+     "preview": "pearnly_cowork.assistant.tools.preview_resolve_push_result",
+     "refuse": "pearnly_cowork.assistant.tools.resolve_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "

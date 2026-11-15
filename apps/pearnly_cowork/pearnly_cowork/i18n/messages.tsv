@@ -2422,6 +2422,9 @@ Delete these tax drafts?	确定要删除以下申报草稿吗？	ลบร่า
 Finish this stock count?	确定要结束此盘点吗？	ปิดการตรวจนับนี้หรือไม่	この棚卸を終了しますか？
 Delete these stock counts?	确定要删除以下盘点吗？	ลบการตรวจนับเหล่านี้หรือไม่	これらの棚卸を削除しますか？
 Run this scheduled task now?	确定要立即运行此定时任务吗？	เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่	この定期タスクを今すぐ実行しますか？
+Record this push result?	确定要记下此推送结果吗？	บันทึกผลการส่งนี้หรือไม่	この送信結果を記録しますか？	
+Add this file to this document?	确定要把此文件补进此单据吗？	เพิ่มไฟล์นี้เข้าเอกสารนี้หรือไม่	このファイルをこの伝票に追加しますか？	
+Recognized again with this file (charged) and replaces this document	连同此文件重新识别（扣费）并覆盖此单据	อ่านใหม่พร้อมไฟล์นี้ (มีค่าใช้จ่าย) และแทนที่เอกสารนี้	このファイルを含めて再認識し（有料）、この伝票を置き換えます	cowork.intoDocument.replace
 New files are recognized (charged) and pushed	新文件将识别（扣费）并推送	ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ	新しいファイルを認識（課金）して送信します	cowork.folder.runNow.charge
 Read Back	回读	อ่านข้อมูลกลับ	読み戻し	guide.business.readback
 Choose the account set and month.	选择账套和月份。	เลือกชุดบัญชีและเดือน	会計データと月を選択してください。	guide.open.readback

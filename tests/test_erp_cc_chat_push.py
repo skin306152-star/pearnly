@@ -380,7 +380,12 @@ class DeclarationTests(unittest.TestCase):
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)
-            self.assertNotIn('"approval"', source[start:end], twin)  # Cowork 这几个不要「允许」，ERP 照做
+            if twin == "cowork_resolve_push_result":
+                # A 线 11-15：Cowork 记成「没入账」后会照常再推（可能重复入账），先出「允许」卡片；ERP 记成「没入账」交回写账电脑
+                # 按单号去 Express 查、有就记单号、没有才写一次（同单据上「再写一次」），不会重复，照旧不要卡片
+                self.assertIn('"approval": True', source[start:end], twin)
+            else:
+                self.assertNotIn('"approval"', source[start:end], twin)  # Cowork 这几个不要「允许」，ERP 照做
             self.assertNotIn("approval", tool)
             for text in (tool["label"], tools.STEP_NAMES[tool["name"]]):
                 self.assertEqual(erp[text], cowork[text], text)  # 译文与 Cowork 同一份

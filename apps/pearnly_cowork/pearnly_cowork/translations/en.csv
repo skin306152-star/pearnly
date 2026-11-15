@@ -95,6 +95,7 @@ Add label,Add label
 Add member,Add member
 Add photo,Add photo
 Add photos,Add photos
+Add this file to this document?,Add this file to this document?
 Add time,Add time
 Add watcher,Add watcher
 Added {0},Added {0}
@@ -1403,6 +1404,7 @@ Recognition tasks cannot be shared separately from their originals.,Recognition 
 Recognition was interrupted (not charged). Upload this file again,Recognition was interrupted (not charged). Upload this file again
 Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.,Recognized 50 Tawi kept for the P.N.D.3 / P.N.D.53 draft when the company does not enter certificates. Not pushed or billed.
 Recognized Fields,Recognized Fields
+Recognized again with this file (charged) and replaces this document,Recognized again with this file (charged) and replaces this document
 Recognized documents,Recognized documents
 Recognized with high confidence,Recognized with high confidence
 "Recognized, waiting to enter","Recognized, waiting to enter"
@@ -1421,6 +1423,7 @@ Record Key,Record Key
 Record Revision,Record Revision
 Record a count,Record a count
 Record as expense,Record as expense
+Record this push result?,Record this push result?
 Recorded a count,Recorded a count
 Recording a count,Recording a count
 Recount,Recount
@@ -2558,6 +2561,7 @@ cowork.folder.wb.reason,Why it is not in the review sheet
 cowork.folder.workbook_not_ready,The result sheet is not ready yet.
 cowork.intake.interrupted,Recognition was interrupted (not charged). Upload this file again
 cowork.intake.waitingRoom,"Waiting in line, will submit automatically"
+cowork.intoDocument.replace,Recognized again with this file (charged) and replaces this document
 cowork.line.boundAt,Bound at
 cowork.line.code,Binding code
 cowork.line.expired,Code expired

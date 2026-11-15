@@ -3993,6 +3993,52 @@ class CompanyScopeTests(unittest.TestCase):
                              ("cowork_tax_draft_delete", "tax_drafts_company_refusal")):
             self.assertEqual(declared[name]["refuse"], f"pearnly_cowork.assistant.tools.{refuse}", name)
 
+    def test_irreversible_steps_ask_first_and_a_push_keeps_the_planned_posting_kind(self):
+        """A 线 11-15 分支二：推送时另给的入账类型与单据自己的（写入计划按它复述的）不同就不推、回到计划；结果不明核对与补页
+        都先出「允许」卡片（补页只在带了 into_document 时）；核对的 ERP 单号只认用户在最近一张提问卡上打的。"""
+        pushed = []
+        kinds = {"D1": "stock", "D2": None}
+        with mock.patch.object(tools.direct_push, "permitted", lambda names: (list(names), [])), \
+                mock.patch.object(frappe, "get_all", lambda doctype, filters=None, **kw: [
+                    types.SimpleNamespace(name=name, posting_kind=kinds[name]) for name in filters["name"][1]],
+                    create=True), \
+                mock.patch.object(tools, "_push_listed", lambda name, *a: pushed.append((name, a[-1])) or {
+                    "document": name, "status": "queued"}), \
+                mock.patch.object(tools, "_settle", lambda results: None):
+            out = json.loads(tools.push_documents({"documents": ["D1", "D2"], "posting_kind": "stock"}))
+            by = {item["document"]: item for item in out["results"]}
+            self.assertEqual(by["D2"]["reason"], "posting_kind_changed")  # 单据没定、计划按没定复述的：不推
+            self.assertEqual(pushed, [("D1", "stock")])
+            json.loads(tools.push_documents({"documents": ["D2"]}))  # 不另给：照计划推
+            self.assertEqual(pushed[-1], ("D2", None))
+        answers = {"value": None}
+        fake_ask = types.SimpleNamespace(names_one_of=lambda texts, names: any(text in names for text in texts or ()))
+        fake_toolrun = types.SimpleNamespace(last_answers=lambda session: answers["value"])
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant.ask": fake_ask,
+                                           "pearnly_core.assistant.toolrun": fake_toolrun}):
+            refused = json.loads(tools.resolve_company_refusal({"document": "BARE", "entered": 1, "docnum": "PI69-0007"}))
+            self.assertEqual(refused["reason"], "docnum_not_from_user")
+            answers["value"] = ["PI69-0007"]
+            self.assertIsNone(tools._docnum_refusal({"document": "BARE", "entered": 1, "docnum": "PI69-0007"}))
+            self.assertIsNone(tools._docnum_refusal({"document": "BARE", "entered": 0}))
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        self.assertIs(declared["cowork_resolve_push_result"]["approval"], True)
+        self.assertEqual(declared["cowork_resolve_push_result"]["refuse"],
+                         "pearnly_cowork.assistant.tools.resolve_company_refusal")
+        self.assertEqual(declared["cowork_recognize_attachments"]["approval"], ["into_document"])
+        self.assertEqual(declared["cowork_recognize_attachments"]["ask_when"],
+                         {"into_document": "Add this file to this document?"})
+        with mock.patch.object(tools, "preview_delete_documents", lambda given: [{"after": "IV-1 · Makro · 1,070.00"}]):
+            rows = tools.preview_resolve_push_result({"document": "D1", "entered": 0})
+            self.assertEqual([row["after"] for row in rows][:1], ["IV-1 · Makro · 1,070.00"])
+            self.assertEqual(len(rows), 2)  # 没给单号不出那一行
+            fake_files = types.SimpleNamespace(attachments=lambda: [{"file_id": "f1", "filename": "page2.jpg"}])
+            with mock.patch.dict(sys.modules, {"pearnly_core.assistant.files": fake_files}), \
+                    mock.patch.object(sys.modules["pearnly_core.assistant"], "files", fake_files, create=True):
+                rows = tools.preview_into_document({"into_document": "D1", "files": ["f1"]})
+            self.assertEqual([row["after"] for row in rows][:2], ["IV-1 · Makro · 1,070.00", "page2.jpg"])
+            self.assertEqual(rows[-1]["after"], tools.INTO_DOCUMENT_FACT)
+
     def test_the_scope_tools_offer_the_lift_and_the_guidance_says_when(self):
         declared = {tool["name"]: tool for tool in tools.TOOLS}
         for name in ("cowork_list_documents", "cowork_push_results", "cowork_folder_tasks"):
