@@ -2053,3 +2053,20 @@ viewports = ["desktop"]
 covers = [
   "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
 ]
+
+[[flow]]
+id = "erp.line.edit-other-company"
+title = "LINE 卡片「编辑」打开别家公司的单：只这一页按那家取数（仓、搜仓、当前公司接口），提交后查看页照样打得开，回列表还原，同页再开本公司的不进入，已不在的回列表；本人的当前公司从头到尾不变；不能用那家、没有采购岗的服务端拒（线上 6，11-15）"
+module = "scripts/flows/erp_line_edit_other_company.py"
+start = "/desk/pearnly-purchase"
+user = "admin"
+datasets = ["old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-menu.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js",
+]

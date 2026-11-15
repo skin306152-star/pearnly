@@ -12,6 +12,31 @@
 	const p = frappe.pearnly;
 	const api = "pearnly_erp_portal.masters.api.";
 
+	/** 页面级当前公司（线上 6，11-15）：LINE 卡片「编辑」打开别家公司的单时，**只在这一页**按那家取数，不改本人网页的当前公司。
+	 *  进入后本标签页发出的请求都带 `X-Pearnly-Company`（jQuery 原生 `ajaxPrefilter`：框架自己的请求如选择框搜索也带；`fetch` 的
+	 *  调 `p.page_company.headers()`），本页 `frappe.boot.pearnly_company` 临时换成那家。范围是这一页的二级页面（编辑、提交后转去的
+	 *  查看页都是那家的单）：回到这一页的列表、去别的页就还原；同页打开另一张卡片先还原再按新的一张进入；整页刷新时本来就没有
+	 *  （不落库）。服务端只认本人可用的公司（`masters.company.page_company`）。 */
+	p.page_company = (() => {
+		const HEADER = "X-Pearnly-Company";
+		let active = null, scope = "", saved = null;
+		$.ajaxPrefilter((_options, _original, xhr) => { if (active) xhr.setRequestHeader(HEADER, active); });
+		const leave = () => {
+			if (saved) Object.assign(frappe.boot, saved);
+			active = null; scope = ""; saved = null;
+		};
+		const enter = (company, company_name) => {
+			leave();
+			if (!company || company === frappe.boot.pearnly_company) return;
+			saved = {pearnly_company: frappe.boot.pearnly_company, pearnly_company_name: frappe.boot.pearnly_company_name};
+			active = company; scope = frappe.get_route()[0] || "";
+			Object.assign(frappe.boot, {pearnly_company: company, pearnly_company_name: company_name || company});
+		};
+		const outside = () => { const route = frappe.get_route(); return route[0] !== scope || route.length < 2; };
+		frappe.router?.on?.("change", () => { if (active && outside()) leave(); });
+		return {enter, leave, current: () => active, headers: () => (active ? {[HEADER]: active} : {})};
+	})();
+
 	async function switch_company(name, is_current) {
 		if (is_current) return;
 		frappe.dom.freeze(__("Switching company..."));

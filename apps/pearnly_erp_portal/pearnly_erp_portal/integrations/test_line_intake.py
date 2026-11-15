@@ -1570,6 +1570,8 @@ class Web(Base):
         self.enterContext(patch.object(intake, "now", lambda: "2026-09-25 23:00:00"))
         self.active = self.enterContext(patch("pearnly_erp_portal.masters.company.active_company", return_value="CO-1"))
         self.switch = self.enterContext(patch("pearnly_erp_portal.masters.company.set_active_company"))
+        self.allowed = self.enterContext(patch("pearnly_erp_portal.masters.company.allowed_companies",
+                                               return_value=["CO-1", "CO-2"]))
         frappe.session.user = "buyer"
         self.roles["buyer"] |= {"purchase.write"}
 
@@ -1584,7 +1586,7 @@ class Web(Base):
     def test_open_prefills_the_native_form_with_choices_and_source_file(self):
         opened = intake.open_for_edit("LI-1")
         form = opened["doc"]
-        self.assertEqual((opened["intake"], opened["switched_company"]), ("LI-1", False))
+        self.assertEqual((opened["intake"], opened["company"]), ("LI-1", "CO-1"))
         self.assertEqual((form["supplier"], form["supplier_name"], form["is_paid"], form["payment_method"]),
                          ("SUP-1", "Acme Co", 1, "transfer"))
         self.assertEqual((form["doc_no"], form["lines"][0]["item_type"], form["lines"][0]["warehouse"]),
@@ -1602,14 +1604,21 @@ class Web(Base):
         self.assertNotIn("review", opened["doc"])
         self.assertNotIn("ocr_review", opened["doc"])  # 识别标记提交时服务端补（11-03），页面只有票面合计
 
-    def test_open_switches_to_the_company_chosen_in_line(self):
+    def test_open_hands_the_card_company_to_the_page_without_changing_the_users_company(self):
+        # 线上 6（11-15）：原来打开就把本人网页的当前公司写成卡片那家；现在只把那家交给这一页（`company.page_company`）
         self.active.return_value = "CO-2"
-        self.assertTrue(intake.open_for_edit("LI-1")["switched_company"])
-        self.switch.assert_called_once_with("CO-1")
+        self.assertEqual(intake.open_for_edit("LI-1")["company"], "CO-1")
+        self.switch.assert_not_called()
+
+    def test_a_card_of_a_company_the_sender_can_no_longer_use_is_refused(self):
+        self.allowed.return_value = ["CO-2"]
+        with self.assertRaises(frappe.PermissionError):
+            intake.open_for_edit("LI-1")
 
     def test_recorded_card_opens_the_record(self):
         self.doc.status, self.doc.purchase = "confirmed", "PD-1"
-        self.assertEqual(intake.open_for_edit("LI-1"), {"direction": "purchase", "recorded": "PD-1"})
+        opened = intake.open_for_edit("LI-1")
+        self.assertEqual((opened["direction"], opened["recorded"], opened["company"]), ("purchase", "PD-1", "CO-1"))
 
     def test_submit_posts_once_with_the_card_company_and_file_and_no_line_reply(self):
         seen = {}

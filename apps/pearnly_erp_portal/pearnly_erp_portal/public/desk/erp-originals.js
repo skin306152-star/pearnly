@@ -15,7 +15,8 @@
 
 	const post = async (method, body) => {
 		const response = await fetch(`/api/method/${method}`, {method: "POST", body, credentials: "same-origin",
-			headers: {"X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json"}});
+			headers: {"X-Frappe-CSRF-Token": frappe.csrf_token, Accept: "application/json",
+				...(frappe.pearnly.page_company?.headers() || {})}});  // LINE 卡片编辑页：附件跟这一页的公司（线上 6）
 		const payload = await response.json().catch(() => null);
 		if (!response.ok || !payload || !("message" in payload)) throw {...(payload || {}), status: response.status};
 		return payload.message;

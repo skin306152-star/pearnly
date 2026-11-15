@@ -429,16 +429,18 @@ def open_for_edit(name) -> dict:
     """卡片「编辑」打开的数据：已入账就给单号（页面转去查看页），否则给预填好的表单数据。"""
     doc = _owned(name)
     recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
-    if doc.status == CONFIRMED and recorded:
-        return {"direction": doc.direction, "recorded": recorded}
-    if doc.status != READY:
-        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
     from pearnly_erp_portal.masters import company
 
-    # 这张单在 LINE 里选的是哪家公司，页面就按哪家打开（仓库、商品选择都跟当前公司走）。
-    switched = company.active_company() != doc.company
-    if switched:
-        company.set_active_company(doc.company)
+    if doc.status == CONFIRMED and recorded:
+        return {"direction": doc.direction, "recorded": recorded, "company": doc.company,
+                "company_name": frappe.db.get_value("ERP Company", doc.company, "company_name") or doc.company}
+    if doc.status != READY:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+
+    # 这张单在 LINE 里选的是哪家公司，页面就按哪家打开（仓库、商品选择都跟这家走）：只在这一页（页面级当前公司
+    # `company.page_company`），不改本人网页的当前公司（线上 6，11-15：原来写用户默认值，点完「编辑」网页别处也换了公司）。
+    if doc.company not in company.allowed_companies():
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     form = build_payload(doc)
     file = frappe.db.get_value("File", _file_name(doc), ["name", "file_name", "file_url"], as_dict=True)
     from pearnly_core.originals import registered
@@ -454,7 +456,8 @@ def open_for_edit(name) -> dict:
     form.pop("company", None)
     form.pop("ocr_review", None)  # 识别标记提交时由服务端按这张卡补上（:func:`submit`）
     # 识别检查没过的原因不给页面（用户 2026-10-02：录入侧不出识别后的错误提示，只靠识别质量）。
-    return {"direction": doc.direction, "intake": doc.name, "switched_company": switched, "doc": form}
+    return {"direction": doc.direction, "intake": doc.name, "doc": form, "company": doc.company,
+            "company_name": frappe.db.get_value("ERP Company", doc.company, "company_name") or doc.company}
 
 
 def submit(name, payload) -> dict:

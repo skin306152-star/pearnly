@@ -154,6 +154,51 @@ class Acting(unittest.TestCase):
             self.assertEqual(company.active_company(), "A")
 
 
+class PageCompany(unittest.TestCase):
+    """页面级当前公司（线上 6，11-15）：LINE 卡片「编辑」那一页的请求带 ``X-Pearnly-Company``，本请求的当前公司就是它；只认本人
+    可用的，别的拒、不回落；只对会话用户本人；没有请求（后台任务）读不到；CC 的 `acting` 优先；不写用户默认值。"""
+
+    def setUp(self):
+        frappe.session.user = "u@x"
+        self.headers = {}
+        frappe.local = types.SimpleNamespace(request=object())
+        frappe.get_request_header = lambda key, default=None: self.headers.get(key, default)
+        TABLES["User Permission"] = [{"user": "u@x", "allow": "ERP Company", "for_value": "A"},
+                                     {"user": "u@x", "allow": "ERP Company", "for_value": "B"}]
+        DEFAULTS.clear()
+        DEFAULTS[("u@x", "company")] = "A"
+
+    def test_the_header_company_is_this_requests_company_only(self):
+        self.assertEqual(company.active_company(), "A")
+        self.headers[company.PAGE_HEADER] = "B"
+        self.assertEqual(company.active_company(), "B")
+        self.assertEqual(warehouses_now(), ["WB"])
+        self.assertEqual(DEFAULTS[("u@x", "company")], "A")  # 本人的当前公司（用户默认值）不变
+        self.headers.clear()
+        self.assertEqual(company.active_company(), "A")  # 下一个不带头的请求照旧
+
+    def test_a_company_the_user_may_not_use_is_refused_not_fallen_back(self):
+        TABLES["User Permission"] = [{"user": "u@x", "allow": "ERP Company", "for_value": "A"}]
+        self.headers[company.PAGE_HEADER] = "B"
+        with self.assertRaises(PermissionError_):
+            company.active_company()
+        self.headers[company.PAGE_HEADER] = "NOPE"
+        with self.assertRaises(PermissionError_):
+            company.active_company()
+
+    def test_only_the_session_user_and_only_inside_a_request(self):
+        self.headers[company.PAGE_HEADER] = "B"
+        TABLES["User Permission"].append({"user": "v@x", "allow": "ERP Company", "for_value": "A"})
+        self.assertEqual(company.active_company("v@x"), "A")  # 问别人的当前公司（团队页等）：不看这一页的头
+        frappe.local = types.SimpleNamespace()  # 后台任务：没有请求
+        self.assertEqual(company.active_company(), "A")
+
+    def test_cc_acting_comes_first(self):
+        self.headers[company.PAGE_HEADER] = "B"
+        with company.acting("A"):
+            self.assertEqual(company.active_company(), "A")
+
+
 class Declared(unittest.TestCase):
     def test_erp_declares_the_tool_context_and_falls_back_when_not_filed(self):
         hooks = (ERP / "hooks.py").read_text(encoding="utf-8")

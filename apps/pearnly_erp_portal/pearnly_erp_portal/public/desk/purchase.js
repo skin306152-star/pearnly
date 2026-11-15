@@ -94,7 +94,7 @@
 			p.clear_page(page); page.clear_menu();
 			if (!rest.length) {await listing(still_current); return;}
 			// 从 LINE 卡片「编辑」进来（`line/<记录>`）：识别结果与 LINE 里的选择已填好；
-			// 已入账就转去那张单的查看页；按 LINE 里选的公司打开（切了公司就整页重载）。
+			// 已入账就转去那张单的查看页；按 LINE 里选的公司打开（只在这一页，`p.page_company`）。
 			const from_line = rest[0] === "line" && rest.length === 2 ? rest[1] : undefined;
 			// 卡片上的这张已不在 / 已失效（旧卡片、已作废）：框架已弹原生那句「已不可用」，回到列表，不在后面留一张空页面（11-15 线上，
 			// 同 Cowork 录入「编辑」）
@@ -103,8 +103,10 @@
 				.catch(error => { if (gone(error)) return {gone: true}; throw error; }) : null;
 			if (!still_current()) return;
 			if (opened?.gone) {await go(); return;}
+			// 这张单是另一家公司的：只这一页（编辑与之后的查看页）按那家取数，同页再开另一张时按新的一张重来（线上 6：原来改本人的
+			// 当前公司、整页重载，点完网页别处也换了公司）
+			if (opened) p.page_company.enter(opened.company, opened.company_name);
 			if (opened?.recorded) {await go(opened.recorded); return;}
-			if (opened?.switched_company) {window.location.reload(); return;}
 			const is_new = rest[0] === "new" || Boolean(opened), amended_from = rest[0] === "amend" ? rest[1] : undefined;
 			if ((!is_new && !amended_from && rest.length > 1) || (rest[0] === "amend" && !amended_from)) {await go(); return;}
 			const defaults = await u.call("api_purchase_defaults");
