@@ -57,6 +57,11 @@ class Parse(unittest.TestCase):
         self.assertEqual(rules.prefix_for("บริษัท ลูกค้า จำกัด", prefixes), "บริษัท")
         self.assertEqual(rules.prefix_for("ห้างหุ้นส่วนจำกัด ก", prefixes), "ห้างหุ้นส่วนจำกัด")
         self.assertEqual(rules.prefix_for("ABC Co.", prefixes), "นาย")  # 都不是：用第一项（MR.ERP 网页默认）
+        # MR.ERP 称谓、名称分两栏（打印拼「称谓 名称」）：名称栏拿掉开头的称谓；不是称谓开头或拿掉后为空，名称原样
+        self.assertEqual(rules.split_prefix("บริษัท  ลูกค้า จำกัด", prefixes), ("บริษัท", "ลูกค้า จำกัด"))
+        self.assertEqual(rules.split_prefix("ห้างหุ้นส่วนจำกัดก", prefixes), ("ห้างหุ้นส่วนจำกัด", "ก"))
+        self.assertEqual(rules.split_prefix("ABC Co.", prefixes), ("นาย", "ABC Co."))
+        self.assertEqual(rules.split_prefix("บริษัท", prefixes), ("บริษัท", "บริษัท"))
 
     def test_customer_record_defaults(self):
         row = [9, "C0001", "บริษัท", "ลูกค้า", 9, "C0001", "ลูกค้า", 2, "สมหญิง ขายเก่ง", 2, "เชียงใหม่", 2, "ไปรษณีย์"]

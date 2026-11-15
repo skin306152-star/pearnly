@@ -202,6 +202,16 @@ def prefix_for(name: Any, prefixes: List[str]) -> str:
     return max(hits, key=len) if hits else (prefixes[0] if prefixes else "")
 
 
+def split_prefix(name: Any, prefixes: List[str]) -> Tuple[str, str]:
+    """票面名称 → (称谓, 名称栏)。MR.ERP 称谓与名称分两栏存（`tbl_armas` / `tbl_apmas` 的 idprefix、name；它自带的样例
+    「นาย」+「อนุรักษ์ ทดสอบ」），单据打印拼成「称谓 + 空格 + 名称」（如 `report/115/all/260.php`），税报告只印名称栏。
+    所以开头是称谓表里的哪一项，就把它从名称里拿掉；拿掉后什么都不剩，或开头不是任何一项（用第一项作称谓），名称原样留着。"""
+    text = " ".join(str(name or "").split())
+    prefix = prefix_for(text, prefixes)
+    core = text[len(prefix):].strip() if prefix and text.startswith(prefix) else ""
+    return prefix, core or text
+
+
 # ── 判定这次写哪个值 ───────────────────────────────────────────────────────
 
 

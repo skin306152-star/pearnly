@@ -149,11 +149,13 @@ class AccountDefaults:
         want = "".join(ch for ch in str(wanted or "") if ch.isdigit()).zfill(5)[-5:] if wanted else "00000"
         return want if want in codes else ("00000" if "00000" in codes else codes[0])
 
-    def _prefix_for(self, name: Any) -> str:
+    def _named(self, record: Dict[str, Any]) -> Dict[str, Any]:
+        """称谓一栏、名称一栏（`masters.split_prefix`）。"""
         prefixes = self.reader.prefixes()
         if not prefixes:
             raise Missing(rules.UNREADABLE)
-        return rules.prefix_for(name, prefixes)
+        prefix, name = rules.split_prefix(record.get("name"), prefixes)
+        return {**record, "prefix": prefix, "name": name}
 
     def customers(self, records: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
         """自建客户要的值：每个客户的称谓与分店，加上整批共用的结构码（`_mrerp_customer_*`）。"""
@@ -162,15 +164,13 @@ class AccountDefaults:
                   "_mrerp_customer_salesman": self.value("employee")["code"],
                   "_mrerp_customer_area": self.value("area")["code"],
                   "_mrerp_customer_shipping": self.value("delivery")["code"]}
-        return [{**r, "prefix": self._prefix_for(r.get("name")), "branch": self._branch_for(r.get("branch"))}
-                for r in records], shared
+        return [{**self._named(r), "branch": self._branch_for(r.get("branch"))} for r in records], shared
 
     def suppliers(self, records: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], Dict[str, str]]:
         self.reader.listbox("apmas")
         shared = {"_mrerp_supplier_type": self.value("supplier_type")["code"],
                   "_mrerp_supplier_account": self.value("ap_account")["code"]}
-        return [{**r, "prefix": self._prefix_for(r.get("name")), "branch": self._branch_for(r.get("branch"))}
-                for r in records], shared
+        return [{**self._named(r), "branch": self._branch_for(r.get("branch"))} for r in records], shared
 
     def products(self, *, expense: bool) -> Dict[str, str]:
         """自建商品 / 费用物料要的 `_mrerp_product_*`（费用物料另由 autocreate 换成费用类型与费用科目）。"""
