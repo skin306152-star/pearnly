@@ -62,6 +62,13 @@ class Parse(unittest.TestCase):
         self.assertEqual(rules.split_prefix("ห้างหุ้นส่วนจำกัดก", prefixes), ("ห้างหุ้นส่วนจำกัด", "ก"))
         self.assertEqual(rules.split_prefix("ABC Co.", prefixes), ("นาย", "ABC Co."))
         self.assertEqual(rules.split_prefix("บริษัท", prefixes), ("บริษัท", "บริษัท"))
+        # 全称与简称算同一项（TEST2019 的称谓表只有「หจก.」「หสม」「น.ส.」，11-15 真写「ห้างหุ้นส่วนจำกัด …」时被写成「บริษัท」）
+        mrerp_own = ["บริษัท", "หจก.", "หสม", "น.ส.", "นาย", "นาง", "คุณ"]
+        self.assertEqual(rules.split_prefix("ห้างหุ้นส่วนจำกัด ทดสอบ สอง", mrerp_own), ("หจก.", "ทดสอบ สอง"))
+        self.assertEqual(rules.split_prefix("หจก.ทดสอบ", mrerp_own), ("หจก.", "ทดสอบ"))
+        self.assertEqual(rules.split_prefix("ห้างหุ้นส่วนสามัญ ก", mrerp_own), ("หสม", "ก"))
+        self.assertEqual(rules.split_prefix("นางสาวสมศรี ใจดี", mrerp_own), ("น.ส.", "สมศรี ใจดี"))
+        self.assertEqual(rules.prefix_for("ห้างหุ้นส่วนจำกัด ทดสอบ", mrerp_own), "หจก.")
 
     def test_customer_record_defaults(self):
         row = [9, "C0001", "บริษัท", "ลูกค้า", 9, "C0001", "ลูกค้า", 2, "สมหญิง ขายเก่ง", 2, "เชียงใหม่", 2, "ไปรษณีย์"]

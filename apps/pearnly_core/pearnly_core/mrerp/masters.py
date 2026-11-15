@@ -195,21 +195,36 @@ def parse_prefixes(page: str) -> Optional[List[str]]:
     return [name for name in (_text(option) for option in _OPTION.findall(match.group(1))) if name][:200]
 
 
+# 同一种法人 / 称呼的全称与简称：一家公司的 MR.ERP 称谓表常只建了其中一种写法（MR.ERP 自带的是「หจก.」「หสม」「น.ส.」，
+# 票面常写全称「ห้างหุ้นส่วนจำกัด」）。票面用哪种写法都认成同一项，称谓取这家表里有的那种写法。
+_SAME_FORM = (("ห้างหุ้นส่วนจำกัด", "หจก.", "หจก"), ("ห้างหุ้นส่วนสามัญ", "หสม.", "หสม"), ("นางสาว", "น.ส."))
+
+
+def _prefix_match(text: str, prefixes: List[str]) -> Tuple[str, str]:
+    """(称谓表里的那一项, 票面开头对上的写法)；都没对上 → ("", "")。表里原样有的与全称 / 简称同一项的一起比，取票面上对上的
+    最长写法（「นางสาว」不被表里的「นาง」截走）。"""
+    found = [(p, p) for p in prefixes if p and text.startswith(p)]
+    for group in _SAME_FORM:
+        listed = next((p for p in prefixes if p in group), "")
+        found += [(listed, form) for form in group if listed and text.startswith(form)]
+    return max(found, key=lambda hit: len(hit[1]), default=("", ""))
+
+
 def prefix_for(name: Any, prefixes: List[str]) -> str:
-    """票面名称以哪个称谓开头就用哪个（取最长的）；都不是就用称谓表第一项（MR.ERP 网页的默认）。"""
+    """票面名称以哪个称谓开头就用哪个（取最长的；全称 / 简称算同一项，见 ``_SAME_FORM``）；都不是就用称谓表第一项（MR.ERP 网页的默认）。"""
     text = " ".join(str(name or "").split())
-    hits = [p for p in prefixes if p and text.startswith(p)]
-    return max(hits, key=len) if hits else (prefixes[0] if prefixes else "")
+    return _prefix_match(text, prefixes)[0] or (prefixes[0] if prefixes else "")
 
 
 def split_prefix(name: Any, prefixes: List[str]) -> Tuple[str, str]:
     """票面名称 → (称谓, 名称栏)。MR.ERP 称谓与名称分两栏存（`tbl_armas` / `tbl_apmas` 的 idprefix、name；它自带的样例
     「นาย」+「อนุรักษ์ ทดสอบ」），单据打印拼成「称谓 + 空格 + 名称」（如 `report/115/all/260.php`），税报告只印名称栏。
-    所以开头是称谓表里的哪一项，就把它从名称里拿掉；拿掉后什么都不剩，或开头不是任何一项（用第一项作称谓），名称原样留着。"""
+    所以开头对上称谓表里哪一项（含全称 / 简称同一项），就把票面上那种写法从名称里拿掉；拿掉后什么都不剩，或开头不是任何一项
+    （用第一项作称谓），名称原样留着。"""
     text = " ".join(str(name or "").split())
-    prefix = prefix_for(text, prefixes)
-    core = text[len(prefix):].strip() if prefix and text.startswith(prefix) else ""
-    return prefix, core or text
+    prefix, written = _prefix_match(text, prefixes)
+    core = text[len(written):].strip() if written else ""
+    return (prefix or (prefixes[0] if prefixes else "")), core or text
 
 
 # ── 判定这次写哪个值 ───────────────────────────────────────────────────────
