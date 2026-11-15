@@ -152,7 +152,10 @@ def active_company(user=None) -> str:
             return acting_now[1]
         frappe.throw(_("Not permitted"), frappe.PermissionError)  # 中途被收回了这家公司：不回落到别家
     from frappe.defaults import get_user_default
-    chosen = get_user_default("company", user) or frappe.db.get_default("company")
+    from pearnly_core.account import user_defaults
+
+    # 先读已提交的那一行（`user_defaults.current`）：Frappe 的默认值缓存会被并发请求回填旧值（主会话 11-15「设为当前」间歇不生效）
+    chosen = user_defaults.current("company", user) or get_user_default("company", user) or frappe.db.get_default("company")
     if chosen in allowed:
         return chosen
     return allowed[0]
@@ -189,7 +192,12 @@ def set_active_company(name, user=None) -> dict:
     name = str(name or "").strip()
     if name not in allowed_companies(user):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
+    from pearnly_core.account import user_defaults
+
     frappe.defaults.set_user_default("company", name, user)
+    # 换了值的提交后清缓存由 `user_defaults.after_write` 钩子管；没换值（库里已是它）时 Frappe 不清，之前被并发回填的旧值就一直
+    # 卡着（主会话 11-15「点 3 次只第一次生效」）：这里当场清、提交后再清一次
+    user_defaults.refresh(user)
     return {"company": name, "company_name": frappe.db.get_value(DOCTYPE, name, "company_name")}
 
 

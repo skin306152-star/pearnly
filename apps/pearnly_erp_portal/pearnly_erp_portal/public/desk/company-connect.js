@@ -53,14 +53,16 @@
 				const items = [...chosen.values()];
 				if (!items.length) return;
 				dialog.disable_primary_action();
+				let made = [];
 				try {
-					await p.call(api + "api_add_from_connections", {items: JSON.stringify(items)}, "POST");
+					made = await p.call(api + "api_add_from_connections", {items: JSON.stringify(items)}, "POST") || [];
 				} finally {
 					dialog.enable_primary_action();
 				}
 				frappe.boot.pearnly_new_ledgers = 0;
 				dialog.hide();
-				p.success(__("company.notice.created"), "click");
+				// 有新建的（含接管开户时那家空公司）说「已新建」；只是重新启用停用的公司 / 接上已有公司的，用公司页启用时那句「已更新」
+				p.success(__(made.some(item => item?.created || item?.adopted) ? "company.notice.created" : "company.notice.toggled"), "click");
 				await p.refresh_company_context?.();
 				done?.();
 			},
@@ -98,7 +100,14 @@
 						stamp = state?.stamp;
 						await load(true);
 					}
-					if (!state?.pending || !state?.online) break;
+					if (state?.pending && !state?.online) {
+						// 在等的电脑都没来领指令（刚退出的 CC 几分钟内还算在线）：当不在线，不干等满上限
+						connected = false;
+						rows = [];
+						total = 0;
+						return paint();
+					}
+					if (!state?.pending) break;
 				}
 				await load(true);
 			} finally {

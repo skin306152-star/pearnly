@@ -986,17 +986,6 @@ where = "pearnly-company 页头「company.save」"
 tests = ["flow:erp.company.actions"]
 
 [[row]]
-id = "erp.desk.pearnly-company.action.company.setCurrent"
-product = "ERP"
-channel = "desk"
-ends = ["desktop", "mobile"]
-kind = "page-action"
-anchor = "action:erp:pearnly-company:company.setCurrent"
-where = "pearnly-company 页头「company.setCurrent」"
-cc_na = "CC 里换对话挂的公司（公司选择弹窗）即可，不改网页的当前公司"
-tests = ["flow:erp.company.actions"]
-
-[[row]]
 id = "erp.desk.pearnly-company.action.company.syncExpress"
 product = "ERP"
 channel = "desk"

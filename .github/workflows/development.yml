@@ -291,6 +291,8 @@ jobs:
         run: python3 tests/test_cowork_companies.py
       - name: ERP CC by company (provider, visible companies only, team notes shared with Cowork, pending documents, CC tools)
         run: python3 tests/test_erp_cc_companies.py
+      - name: User defaults (current company and other per-user settings) are cleared again after commit so a concurrent read cannot leave the old value cached
+        run: python3 tests/test_user_defaults_cache.py
       - name: ERP CC pushes from the chat by company through the document page's own Express path, with the same rights as the page
         run: python3 tests/test_erp_cc_chat_push.py
       - name: ERP CC stock counts in the chat go through the stock count page's own functions, finish without moving stock and only draft the adjustment

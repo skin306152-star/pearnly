@@ -185,6 +185,9 @@ jinja = {"methods": ["pearnly_core.desk.assets.versioned_asset"]}
 # Hook on document methods and events
 
 doc_events = {
+    # 用户默认值（当前公司、个人偏好）换值后，提交之后再清一次缓存：Frappe 提交前就清，并发请求会把旧值回填进
+    # 缓存、之后再点「没变」也不清（主会话 11-15「切换当前公司间歇不生效」，见 `account/user_defaults.py`）
+    "DefaultValue": {"after_insert": "pearnly_core.account.user_defaults.after_write"},
     # 登录后直接进产品工作台，不要"桌面"那一屏。
     # 开通时会给已存在的账号设一遍默认工作区；这个钩子管**之后新增**的员工账号，
     # 否则他们又会先落到桌面上。理由与取舍见 pearnly_core/workspace.py。

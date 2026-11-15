@@ -82,7 +82,6 @@
 		return same && row.branch ? `${name} (${row.branch})` : name;
 	};
 	p.header_title = () => (frappe.boot.pearnly_companies || []).find(row => row.is_current)?.company_name;
-	p.switch_company = name => switch_company(name, false);
 
 	/** 建公司 / 改公司名之后重取「我能用哪些公司、当前是哪家」，左上角公司名当场换掉
 	 *  （录制问题 #4：建第一家公司后要刷新页面才出现，公司列表「当前」一栏也先显示「—」）。 */

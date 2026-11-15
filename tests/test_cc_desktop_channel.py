@@ -544,6 +544,20 @@ class OperatorTargets(Base):
         self.assertEqual(rescan.pending([self.office.device]), [])
         self.assertNotIn("master_refresh", jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []}))
 
+    def test_a_computer_that_never_takes_the_rescan_counts_as_gone(self):
+        # 主会话 11-15 真机：CC 刚退出的几分钟内电脑还算在线，刷新干等满 60 秒。下发后 TAKE_WITHIN 秒还没来领就当不在线；
+        # 领走了的（在扫）照旧等
+        import time as clock
+
+        from pearnly_core.cc_desktop import rescan
+
+        rescan.request([self.office.device])
+        soon, later = clock.time() + 1, clock.time() + rescan.TAKE_WITHIN + 1
+        self.assertEqual(rescan.unreached([self.office.device], now=soon), [])
+        self.assertEqual(rescan.unreached([self.office.device], now=later), [self.office.device])
+        jobs.lease(self.office, {"max": 1, "agent_id": "c", "index_pending": []})          # 来领了：在扫，照旧等
+        self.assertEqual(rescan.unreached([self.office.device], now=later), [])
+
 
 class Requests(Base):
     def test_shared_kind_read_by_a_reaching_computer(self):

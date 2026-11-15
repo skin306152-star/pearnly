@@ -876,7 +876,6 @@ Add these companies?	确定要添加以下公司吗？	เพิ่มบริ�
 Add from connections	从连接添加	เพิ่มจากการเชื่อมต่อ	接続から追加	company.connect.add
 Select companies	选择要用的公司	เลือกบริษัทที่จะใช้	使用する会社を選択	company.connect.title
 Added	已添加	เพิ่มแล้ว	追加済み	company.connect.added
-Set as current	设为当前	ตั้งเป็นปัจจุบัน	現在の会社にする	company.setCurrent
 Disable	停用	ปิดใช้งาน	無効にする	company.disable
 Enable	启用	เปิดใช้งาน	有効にする	company.enable
 Created	已新建	สร้างแล้ว	作成しました	company.notice.created
