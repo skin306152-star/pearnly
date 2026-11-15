@@ -3101,7 +3101,9 @@ class ProviderAndToolTests(unittest.TestCase):
         self.assertIn(f"{OTHER_TAX} is the tax ID of client company {xyz}, not of the company this conversation", reason)
         self.assertIsNone(tools.company_refusal({"company": TAX}))
         self.assertIsNone(tools.company_refusal({}))
-        self.assertEqual(tools.company_refusal({"company": xyz}), None)  # 主档编号照用（改别家要明说是哪家）
+        # 主档编号传别家：公司对话里不改别家的笔记与规则（A 线 11-15「只写对话选中的公司」），回是哪家
+        refused = json.loads(tools.company_refusal({"company": xyz}))
+        self.assertEqual((refused["status"], refused["reason"]), ("refused", "not_this_company_record"))
         notes_before = dict(frappe.db.tables.get(notes.NOTE, {}))
         for refuse in (tools.company_refusal, tools.choice_refusal):
             refused = json.loads(refuse({"company": OTHER_TAX, "text": "x", "document": "h1", "kind": "payment",

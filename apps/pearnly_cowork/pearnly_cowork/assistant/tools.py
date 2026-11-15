@@ -1692,10 +1692,13 @@ def recognize_attachments(tool_input) -> str:
         frappe.throw(_("No attachments were given."))
     if tool_input.get("into_document"):
         # 补传的文件接到这张单后面整份重读、覆盖这张单，不新建单（`assistant.into_document`，2026-11-03）
-        from pearnly_cowork.assistant import into_document
-
         if len(file_ids) != 1:
             return _json({"status": "not_started", "reason": "Add one file at a time to a document."})
+        refused = _documents_company_refusal([tool_input["into_document"]])
+        if refused:
+            return _json({"document": tool_input["into_document"], **refused})
+        from pearnly_cowork.assistant import into_document
+
         try:
             return _json(into_document.run(str(tool_input["into_document"]), file_ids[0], sys.modules[__name__]))
         except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -1987,6 +1990,10 @@ def pos_layout(tool_input) -> str:
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as exc:
             frappe.clear_messages()
             return _json({"folder_file": folder_file, "status": "not_found", "reason": str(exc)[:200]})
+        refused = _record_company_refusal([(held.get("title") or folder_file, held["connection"],
+                                            held["account_set_key"])])
+        if refused:
+            return _json({"folder_file": folder_file, **refused})
         result = _pos().preview(held["source_file"], workspace=held["workspace"], connection=held["connection"],
                                 account_set_key=held["account_set_key"], answers=answers,
                                 posting_kind=held["posting_kind"])
@@ -2474,6 +2481,9 @@ def edit_document(tool_input) -> str:
     items = tool_input.get("items")
     if not changes and items is None:
         frappe.throw(_("No changes were given."))
+    refused = _documents_company_refusal([name])
+    if refused:
+        return _json({"document": name, **refused})
     if not tool_input.get("version"):
         # 不带版本就等于跳过「别人刚改过不覆盖」：先查详情拿版本
         return _json({"document": name, "status": "not_saved",
@@ -2588,6 +2598,9 @@ def choose_document_policy(tool_input) -> str:
     scope.require("intake")
     name = str(tool_input.get("document") or "")
     value = tool_input.get("value")
+    refused = _documents_company_refusal([name]) if value in GOODS_POSTING_VALUES else None  # 按单据推往的那家公司记
+    if refused:
+        return _json({"document": name, **refused})
     try:
         if value == CURRENT_BOOK:
             return _choose_current_book(name, str(tool_input.get("account_set_key") or ""))
@@ -2677,6 +2690,9 @@ def resolve_push_result(tool_input) -> str:
     """推送结果不明：用户在 ERP 里核对后告诉 CC 已入账（可带 ERP 单号）或未入账（之后可重推）。"""
     scope.require("intake")
     name = str(tool_input.get("document") or "")
+    refused = _documents_company_refusal([name])
+    if refused:
+        return _json({"document": name, **refused})
     try:
         doc = storage.read(name)
     except (frappe.DoesNotExistError, frappe.PermissionError):
@@ -2711,6 +2727,9 @@ def delete_documents(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("documents") or [])][:DELETE_MAX]
     if not names:
         frappe.throw(_("No documents were given."))
+    refused = _documents_company_refusal(names)  # 卡片前已拒过；放行后再核一次
+    if refused:
+        return _json(refused)
     try:
         result = removal.delete(json.dumps(names))
         frappe.db.commit()
@@ -3152,6 +3171,13 @@ def _wht_defaults(tool_input) -> dict:
     if not session:
         return values
     filed, period, branch = projects.of_session(session)
+    if values.get("company_tax_id"):
+        # 公司对话里只做本对话公司的草稿（A 线 11-15）：给了别家的税号不认，记下拒绝（`wht_draft` 回给模型）
+        own = frappe.db.get_value("Cowork Company", filed, "tax_id") if filed else ""
+        given = re.sub(r"[\s-]", "", str(values["company_tax_id"]))
+        if filed and own and given != re.sub(r"[\s-]", "", own):
+            values["_refused"] = {"status": "refused", "reason": RECORD_OTHER_COMPANY, "record": given,
+                                  "record_company": "", "note": RECORD_OTHER_COMPANY_NOTE}
     if filed and not values.get("company_tax_id"):
         row = frappe.db.get_value("Cowork Company", filed, ["tax_id", "title"], as_dict=True) or {}
         if row.get("tax_id"):
@@ -3167,6 +3193,8 @@ def wht_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
     tool_input = _wht_defaults(tool_input)
+    if tool_input.get("_refused"):
+        return _json(tool_input["_refused"])
     summary = _tax_call(tax_service.wht_draft, tool_input.get("company_tax_id"), tool_input.get("period"),
                         tool_input.get("edits") or [], str(tool_input.get("company_name") or ""),
                         str(tool_input.get("company_branch") or ""))
@@ -3213,8 +3241,10 @@ def wht_answer(tool_input) -> str:
 def tax_draft_delete(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
-    raw = tool_input.get("drafts") or []
-    drafts = [raw] if isinstance(raw, str) else [str(name) for name in raw]
+    drafts = _draft_names(tool_input)
+    refused = _drafts_company_refusal(drafts)
+    if refused:
+        return _json(refused)
     return _json(_tax_call(tax_service.delete, drafts, refused="not_deleted"))
 
 
@@ -3505,9 +3535,13 @@ TASK_OTHER_COMPANY_NOTE = ("not_this_company_task: this scheduled task belongs t
                            "the company this conversation is filed under, so nothing was done. Tell the user in one "
                            "sentence whose task it is and that it can be done in a conversation of that company; never "
                            "do it from here.")
+TASK_NO_COMPANY = "no_company"
+TASK_NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so scheduled tasks cannot be run, "
+                        "switched or deleted here (listing them is fine). Tell the user in one sentence that it can be "
+                        "done in a conversation of the task's company (task_company); never do it from here.")
 
 
-def _task_company_refusal(names) -> dict | None:
+def _task_company_refusal(names, read_only=False) -> dict | None:
     """CC 只动对话选中公司的定时任务（用户 11-10「只写对话选中的公司」；A 线 11-15：公司对话里能运行 / 启停 / 删 / 看别家公司
     的任务）：读出任务的连接与账套，走保存任务同一个判据（`_task_scope` → `write_scope.check(whole_company=True)`）。不在 CC 对话里
     （网页由人点）回 None 不限；找不到的任务交任务服务自己报。拒的回给模型：哪个任务、属于哪家公司。"""
@@ -3518,13 +3552,109 @@ def _task_company_refusal(names) -> dict | None:
         return None
     rows = {row.get("name"): row for row in rules.listing().get("rules") or []}
     found = [rows[name] for name in wanted if name in rows]
-    row = next((row for row in found if _task_scope(  # loop-query: 一次最多 FOLDER_BATCH_MAX 个任务，同保存批量
-        {"connection": row.get("connection"), "account_set_key": row.get("account_set_key")})), None)
+    judged = ((row, _task_scope(  # loop-query: 一次最多 FOLDER_BATCH_MAX 个任务，同保存批量
+        {"connection": row.get("connection"), "account_set_key": row.get("account_set_key")})) for row in found)
+    row, refused = next(((row, refused) for row, refused in judged if refused), (None, None))
     if not row:
         return None
+    unfiled = refused.get("reason") == TASK_NO_COMPANY
+    if unfiled and read_only:
+        return None  # 「最近」里只读（看运行记录）照旧可以；运行 / 启停 / 删除不行（主会话 11-15）
     company = frappe.db.get_value("Cowork Company", row["company"], "title") if row.get("company") else ""
-    return {"status": "refused", "reason": TASK_OTHER_COMPANY, "task": row.get("name"), "title": row.get("title") or "",
-            "task_company": company or "", "note": TASK_OTHER_COMPANY_NOTE}
+    reason, note = (TASK_NO_COMPANY, TASK_NO_COMPANY_NOTE) if unfiled else (TASK_OTHER_COMPANY, TASK_OTHER_COMPANY_NOTE)
+    return {"status": "refused", "reason": reason, "task": row.get("name"), "title": row.get("title") or "",
+            "task_company": company or "", "note": note}
+
+
+RECORD_OTHER_COMPANY = "not_this_company_record"
+RECORD_OTHER_COMPANY_NOTE = ("not_this_company_record: record belongs to another company (record_company), not to the "
+                             "company this conversation is filed under, so nothing was changed. Tell the user in one "
+                             "sentence whose it is and that it can be done in a conversation of that company; never do "
+                             "it from here.")
+RECORD_NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so record, which belongs to "
+                          "record_company, cannot be changed or deleted here. Tell the user in one sentence that it can "
+                          "be done in a conversation of that company; never do it from here.")
+
+
+def _record_company_refusal(records) -> dict | None:
+    """CC 只改 / 删对话选中公司的东西（用户 11-10；A 线 11-15 按类补齐：单据、回读、报税草稿、POS 停着的文件等按名字给的对象）：
+    ``records`` 是 ``[(给人看的名字, 连接, 账套键)]``。判据同写入闸（`write_scope.allowed` 的账套对，与保存任务 `whole_company`
+    同一套），这次允许的账套只算一次。还没有去向（账套键空，例如只识别的单）的不属于哪家公司，照旧放行；不在 CC 对话里
+    （网页由人点）回 None 不限。拒的回给模型：哪一条、属于哪家公司。"""
+    if not _in_conversation():
+        return None
+    from pearnly_cowork.assistant import write_scope
+
+    found = write_scope.allowed()
+    if found is None:
+        return None
+    outside = next(((label, connection, key) for label, connection, key in records if key and not (
+        found["company"] and (str(connection or ""), write_scope.key_of(key)) in found["pairs"])), None)
+    if not outside:
+        return None
+    from pearnly_cowork.companies import tasks as company_tasks
+
+    label, connection, key = outside
+    owner = company_tasks.company_of(connection, key) or {}
+    title = frappe.db.get_value("Cowork Company", owner["company"], "title") if owner.get("company") else ""
+    reason, note = (RECORD_OTHER_COMPANY, RECORD_OTHER_COMPANY_NOTE) if found["company"] else (
+        write_scope.NO_COMPANY, RECORD_NO_COMPANY_NOTE)
+    return {"status": "refused", "reason": reason, "record": str(label or ""), "record_company": title or "",
+            "note": note}
+
+
+def _documents_company_refusal(names) -> dict | None:
+    """识别单据按它推往的连接与账套判（:func:`_record_company_refusal`），一次查完。"""
+    names = [str(name or "") for name in names if str(name or "")]
+    if not names or not _in_conversation():
+        return None
+    rows = frappe.get_all("Cowork OCR History", filters={"name": ["in", names]},
+                          fields=["name", "invoice_no", "push_connection", "push_account_set"],
+                          limit_page_length=len(names))
+    return _record_company_refusal([(row.invoice_no or row.name, row.push_connection, row.push_account_set)
+                                    for row in rows])
+
+
+def documents_company_refusal(tool_input) -> str | None:
+    """删单据的「允许」卡片之前：别家公司的单不出卡片，直接拒。"""
+    raw = (tool_input or {}).get("documents") or (tool_input or {}).get("document")
+    refused = _documents_company_refusal(raw if isinstance(raw, list) else [raw])
+    return _json(refused) if refused else None
+
+
+def _field_record_refusal(doctype, name, connection_field, key_field) -> dict | None:
+    """按记录号给的回读 / 报税草稿：读出它的连接与账套再判（:func:`_record_company_refusal`）。读不到的交服务自己报。"""
+    if not name or not _in_conversation():
+        return None
+    row = frappe.db.get_value(doctype, name, [connection_field, key_field], as_dict=True)
+    if not row:
+        return None
+    connection, key = (row.get(connection_field), row.get(key_field)) if isinstance(row, dict) else tuple(row)[:2]
+    return _record_company_refusal([(name, connection, key)])
+
+
+def readback_company_refusal(tool_input) -> str | None:
+    refused = _field_record_refusal("Cowork Express Readback", str((tool_input or {}).get("readback") or ""),
+                                    "connection", "account_set_key")
+    return _json(refused) if refused else None
+
+
+def _drafts_company_refusal(drafts) -> dict | None:
+    for name in drafts:
+        refused = _field_record_refusal("Cowork Tax Draft", name, "connection", "account_set")  # loop-query: 一次删的几份草稿
+        if refused:
+            return refused
+    return None
+
+
+def _draft_names(tool_input) -> list:
+    raw = (tool_input or {}).get("drafts") or []
+    return [raw] if isinstance(raw, str) else [str(name) for name in raw]
+
+
+def tax_drafts_company_refusal(tool_input) -> str | None:
+    refused = _drafts_company_refusal(_draft_names(tool_input))
+    return _json(refused) if refused else None
 
 
 def _task_names(tool_input) -> list:
@@ -3551,7 +3681,7 @@ def run_folder_task(tool_input) -> str:
 
 
 def folder_task_runs(tool_input) -> str:
-    refused = _task_company_refusal(_task_names(tool_input))
+    refused = _task_company_refusal(_task_names(tool_input), read_only=True)
     if refused:
         return _json(refused)
     data = rules.runs(str(tool_input.get("task") or ""))
@@ -3915,6 +4045,9 @@ def express_readback_status(tool_input) -> str:
 def express_readback_delete(tool_input) -> str:
     from pearnly_cowork.readback import service as readback
 
+    refused = readback_company_refusal(tool_input)
+    if refused:
+        return refused
     return _json(_readback_call(readback.delete, str(tool_input.get("readback") or "")))
 
 
@@ -5117,6 +5250,7 @@ TOOLS = [
      "ask": "Delete these documents?",
      "note": "pearnly_cowork.assistant.tools.note_delete_documents",
      "preview": "pearnly_cowork.assistant.tools.preview_delete_documents",
+     "refuse": "pearnly_cowork.assistant.tools.documents_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.delete_documents"},
     {"name": "cowork_export_review_workbook", "label": "Exported the review workbook",
      "description": "Export documents (up to 100) to the review workbook, the Excel file accountants check and send "
@@ -5207,6 +5341,7 @@ TOOLS = [
      "ask": "Delete this readback?",
      "note": "pearnly_cowork.assistant.tools.note_express_readback_delete",
      "preview": "pearnly_cowork.assistant.tools.preview_express_readback_delete",
+     "refuse": "pearnly_cowork.assistant.tools.readback_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.express_readback_delete"},
     {"name": "cowork_save_folder_task", "label": "Saved a scheduled task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
@@ -5453,6 +5588,7 @@ TOOLS = [
      "ask": "Delete these tax drafts?",
      "note": "pearnly_cowork.assistant.tools.note_tax_draft_delete",
      "preview": "pearnly_cowork.assistant.tools.preview_tax_draft_delete",
+     "refuse": "pearnly_cowork.assistant.tools.tax_drafts_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.tax_draft_delete"},
     {"name": "cowork_stocktake_list", "label": "Listed stock counts",
      "description": "The company's stock counts (stocktakes), newest first.",

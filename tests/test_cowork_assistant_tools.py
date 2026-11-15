@@ -226,6 +226,9 @@ def _install():
     # 本对话账套（A 线 11-12）同样另有专门的测试：这里一律当作没有（照旧取票上 / 模型给的）
     scope_stub.aim = lambda *a, **k: None
     scope_stub.pinned = lambda company=None, task="": None
+    scope_stub.allowed = lambda company=None: None  # 按名字给的对象（单据、回读、草稿）同样不限，另有专门的测试
+    scope_stub.key_of = lambda value: str(value or "").casefold()
+    scope_stub.NO_COMPANY = "no_company"
     sys.modules[scope_stub.__name__] = sys.modules["pearnly_cowork.assistant"].write_scope = scope_stub
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
@@ -3870,6 +3873,13 @@ class CompanyScopeTests(unittest.TestCase):
             self.assertIsNone(tools.folder_task_company_refusal({"tasks": ["R1"]}))
             self.assertEqual(json.loads(tools.run_folder_task({"task": "R1"}))["task"], "R1")
             self.assertEqual(touched, [("run", "R1")])
+            # 「最近」（没选公司）：运行 / 启停 / 删除都拒（原因是没选公司），看运行记录可以（主会话 11-15）
+            with mock.patch.object(tools, "_task_scope", lambda values: {"reason": "no_company"}):
+                out = json.loads(tools.run_folder_task({"task": "R1"}))
+                self.assertEqual((out["status"], out["reason"]), ("refused", "no_company"))
+                self.assertIn("listing them is fine", out["note"])
+                json.loads(tools.folder_task_runs({"task": "R1"}))
+                self.assertEqual(touched[-1], ("runs", "R1"))
             frappe.local.pearnly_assistant = None  # 网页由人点：不经这里限
             json.loads(tools.run_folder_task({"task": "R2"}))
             self.assertEqual(touched[-1], ("run", "R2"))
@@ -3879,6 +3889,87 @@ class CompanyScopeTests(unittest.TestCase):
             self.assertEqual(declared[name]["refuse"], "pearnly_cowork.assistant.tools.folder_task_company_refusal", name)
             self.assertTrue(declared[name]["approval"], name)
         self.assertIn("never do it from here", tools.TASK_OTHER_COMPANY_NOTE)
+
+    def test_every_write_delete_or_task_tool_refuses_what_belongs_to_another_company(self):
+        """A 线 11-15 按类：凡按名字 / 记录号给对象、会写 / 会删 / 会排任务的工具，对象推往的账套不在对话选中公司名下就拒，回是哪家；
+        「最近」（没选公司）里同样拒；对象还没有去向（只识别）的照旧。判据同写入闸（`write_scope.allowed` 的账套对）。"""
+        scope = sys.modules["pearnly_cowork.assistant.write_scope"]
+        mine, theirs = ("EXP1", "S:\\69EXP\\69SINCER"), ("EXP1", "S:\\69EXP\\DEMO01")
+        allowed = {"company": "CO-1", "sets": [], "pairs": {(mine[0], mine[1].casefold())}}
+        docs = {"MINE": mine, "THEIRS": theirs, "BARE": ("", "")}
+        records = {("Cowork Express Readback", "RB-THEIRS"): theirs, ("Cowork Tax Draft", "TD-THEIRS"): theirs,
+                   ("Cowork Express Readback", "RB-MINE"): mine}
+        touched = []
+
+        def get_all(doctype, filters=None, fields=None, **kw):
+            if doctype != "Cowork OCR History":
+                return []
+            return [types.SimpleNamespace(name=name, invoice_no=f"IV-{name}", push_connection=docs[name][0],
+                                          push_account_set=docs[name][1]) for name in filters["name"][1] if name in docs]
+
+        def get_value(doctype, name, field=None, *a, **k):
+            if doctype == "Cowork Company":
+                return {"CO-9": "บริษัท อื่น จำกัด"}.get(name) if field == "title" else "0105500000001"
+            return records.get((doctype, name))
+
+        company_tasks = types.SimpleNamespace(company_of=lambda connection, key: {"company": "CO-9"})
+        stub_rules = types.SimpleNamespace(pos_file=lambda name: {"title": "POS", "connection": theirs[0],
+                                                                  "account_set_key": theirs[1], "source_file": "f",
+                                                                  "workspace": "W", "posting_kind": "", "filename": "x"})
+        storage = types.SimpleNamespace(read=lambda name: touched.append(("read", name)) or self.fail("must not read"))
+        calls = [(tools.edit_document, {"document": "THEIRS", "changes": {"seller_name": "x"}, "version": 1}),
+                 (tools.recognize_attachments, {"files": ["f1"], "into_document": "THEIRS"}),
+                 (tools.resolve_push_result, {"document": "THEIRS", "entered": 0}),
+                 (tools.delete_documents, {"documents": ["MINE", "THEIRS"]}),
+                 (tools.choose_document_policy, {"document": "THEIRS", "value": "stock"}),
+                 (tools.pos_layout, {"folder_file": "FF-1", "answers": []}),
+                 (tools.express_readback_delete, {"readback": "RB-THEIRS"}),
+                 (tools.tax_draft_delete, {"drafts": ["TD-THEIRS"]})]
+        with mock.patch.object(scope, "allowed", lambda company=None: allowed), \
+                mock.patch.object(frappe, "get_all", get_all, create=True), \
+                mock.patch.object(frappe.db, "get_value", get_value, create=True), \
+                mock.patch.dict(sys.modules, {"pearnly_cowork.companies.tasks": company_tasks,
+                                              "pearnly_cowork.companies": types.SimpleNamespace(tasks=company_tasks),
+                                              "pearnly_cowork.history.removal": types.SimpleNamespace(
+                                                  delete=lambda names: self.fail("must not delete")),
+                                              "pearnly_cowork.tax.service": types.SimpleNamespace(
+                                                  delete=lambda names: self.fail("must not delete")),
+                                              "pearnly_cowork.readback.service": types.SimpleNamespace(
+                                                  delete=lambda name: self.fail("must not delete")),
+                                              "pearnly_cowork.assistant.pending_api": types.SimpleNamespace(),
+                                              "pearnly_cowork.history.document_policy": types.SimpleNamespace(),
+                                              "pearnly_cowork.push.application.goods_posting": types.SimpleNamespace(
+                                                  choose=lambda name, value: self.fail("must not choose"))}), \
+                mock.patch.object(tools, "rules", stub_rules), mock.patch.object(tools, "storage", storage), \
+                mock.patch.object(tools, "_book_defaults", lambda tool_input, **k: (tool_input, None)), \
+                mock.patch.object(tools, "_pos_answers", lambda tool_input: []):
+            for handler, given in calls:
+                out = json.loads(handler(given))
+                self.assertEqual((out["status"], out["reason"], out["record_company"]),
+                                 ("refused", "not_this_company_record", "บริษัท อื่น จำกัด"), handler.__name__)
+            self.assertEqual(touched, [])
+            # 允许卡片之前就拒（不出卡片）；本公司的、还没有去向的放行
+            for refuse, given in ((tools.documents_company_refusal, {"documents": ["THEIRS"]}),
+                                  (tools.readback_company_refusal, {"readback": "RB-THEIRS"}),
+                                  (tools.tax_drafts_company_refusal, {"drafts": ["TD-THEIRS"]})):
+                self.assertEqual(json.loads(refuse(given))["reason"], "not_this_company_record", refuse.__name__)
+            self.assertIsNone(tools.documents_company_refusal({"documents": ["MINE", "BARE"]}))
+            self.assertIsNone(tools.readback_company_refusal({"readback": "RB-MINE"}))
+            # 「最近」（没选公司）：有去向的一律拒，原因是没选公司
+            allowed.update(company="", pairs=set())
+            out = json.loads(tools.delete_documents({"documents": ["MINE"]}))
+            self.assertEqual((out["status"], out["reason"]), ("refused", "no_company"))
+            self.assertIsNone(tools.documents_company_refusal({"documents": ["BARE"]}))
+            # 预扣税草稿：公司对话里给了别家的税号不做
+            allowed.update(company="CO-1")
+            with mock.patch.object(tools.projects, "of_session", lambda session: ("CO-1", "2026-10", ""), create=True):
+                out = json.loads(tools.wht_draft({"company_tax_id": "0999999999999", "period": "2026-10"}))
+            self.assertEqual((out["status"], out["reason"]), ("refused", "not_this_company_record"))
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        for name, refuse in (("cowork_delete_documents", "documents_company_refusal"),
+                             ("cowork_express_readback_delete", "readback_company_refusal"),
+                             ("cowork_tax_draft_delete", "tax_drafts_company_refusal")):
+            self.assertEqual(declared[name]["refuse"], f"pearnly_cowork.assistant.tools.{refuse}", name)
 
     def test_the_scope_tools_offer_the_lift_and_the_guidance_says_when(self):
         declared = {tool["name"]: tool for tool in tools.TOOLS}

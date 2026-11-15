@@ -114,8 +114,8 @@ def resolve(wanted, filed="", write=False) -> tuple:
         if write and found:
             return "", (f"{tax} is the tax ID of client company {', '.join(found)}, not of the company this conversation "
                         f"is filed under. Nothing was changed. For this conversation's company leave company out; a "
-                        f"supplier's or customer's tax ID never goes in company. To change that other company, check "
-                        f"with the user first, then pass its id as company.")
+                        f"supplier's or customer's tax ID never goes in company. That other company's notes and rules "
+                        f"are changed only in a conversation of that company.")
         if len(found) == 1:
             return found[0], None
         if found:
@@ -138,13 +138,36 @@ def _no_company(tool_input=None, write=False) -> str:
     return _json({"status": "failed", "reason": reason or "no company: pass company (an id from cowork_companies)"})
 
 
+OTHER_COMPANY = "not_this_company_record"  # 同 `tools.RECORD_OTHER_COMPANY`
+OTHER_COMPANY_NOTE = ("not_this_company_record: record_company is not the company this conversation is filed under, so "
+                      "nothing was changed. Tell the user in one sentence that it can be done in a conversation of that "
+                      "company; never do it from here.")
+NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so a company's notes and rules cannot "
+                   "be changed here. Tell the user in one sentence that it can be done in a conversation of that "
+                   "company; never do it from here.")
+
+
+def other_company(row) -> dict | None:
+    """CC 对话里只改本对话公司的团队笔记与公司规则（用户 11-10「只写对话选中的公司」；A 线 11-15：主档编号传别家照改）：不在 CC
+    对话里（网页由人点）不限；「最近」里一律不改。拒的回给模型：是哪家。"""
+    if not _session() or not row:
+        return None
+    filed = _filed()[0]
+    if filed and row.name == filed:
+        return None
+    return {"status": "refused", "reason": OTHER_COMPANY if filed else "no_company", "record": row.title or row.name,
+            "record_company": row.title or row.name, "note": OTHER_COMPANY_NOTE if filed else NO_COMPANY_NOTE}
+
+
 def company_refusal(tool_input) -> str | None:
     """写公司的工具（存 / 删团队笔记、公司规则）出「允许」卡片前（工具声明的 ``refuse``）：给的 company 认不出、或是别家的税号
-    就不出卡片，直接回失败与原因（卡上「公司」一行不写一家用户没说过的公司）。"""
-    if not tool_input.get("company"):
-        return None
-    _wanted, reason = resolve(tool_input.get("company"), _filed()[0], write=True)
-    return _json({"status": "failed", "reason": reason}) if reason else None
+    就不出卡片，直接回失败与原因（卡上「公司」一行不写一家用户没说过的公司）；认出的不是本对话公司也拒（:func:`other_company`）。"""
+    if tool_input.get("company"):
+        _wanted, reason = resolve(tool_input.get("company"), _filed()[0], write=True)
+        if reason:
+            return _json({"status": "failed", "reason": reason})
+    refused = other_company(_company(tool_input, write=True))
+    return _json(refused) if refused else None
 
 
 # ---------------- 公司对话的默认范围 ----------------
@@ -311,6 +334,9 @@ def note_save(tool_input) -> str:
     row = _company(tool_input, write=True)
     if not row:
         return _no_company(tool_input, write=True)
+    refused = other_company(row)  # 卡片前已拒过；放行后再核一次
+    if refused:
+        return _json(refused)
     saved = notes.save(row.name, tool_input.get("text"), tool_input.get("note") or None,
                        workspace=scope.default_workspace(), origin="cc", session=_session())
     service.announce("upsert", row.name, part="notes")
@@ -322,6 +348,9 @@ def note_remove(tool_input) -> str:
     row = _company(tool_input, write=True)
     if not row:
         return _no_company(tool_input, write=True)
+    refused = other_company(row)  # 卡片前已拒过；放行后再核一次
+    if refused:
+        return _json(refused)
     removed = notes.delete(row.name, str(tool_input.get("note") or ""))
     service.announce("upsert", row.name, part="notes")
     return _json({"status": "removed", "company": row.title, "note": removed["id"]})
@@ -531,6 +560,9 @@ def choice_save(tool_input) -> str:
     row = _company(tool_input, write=True)
     if not row:
         return _no_company(tool_input, write=True)
+    refused = other_company(row)  # 卡片前已拒过；放行后再核一次
+    if refused:
+        return _json(refused)
     if row.adapter == "mrerp":
         return _json({"status": "not_saved", "reason": MRERP_NO_RULES})
     sets = service.books(row, limit=None)
@@ -561,6 +593,9 @@ def choice_remove(tool_input) -> str:
     row = _company(tool_input, write=True)
     if not row:
         return _no_company(tool_input, write=True)
+    refused = other_company(row)  # 卡片前已拒过；放行后再核一次
+    if refused:
+        return _json(refused)
     key = str(tool_input.get("key") or "")
     if saved_choices.decode(key)[0] != "rule":
         frappe.throw(_("cowork.company.choice_not_found"), frappe.DoesNotExistError)
