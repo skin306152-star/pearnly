@@ -88,3 +88,36 @@ card = true
 [row."cowork.cc.tool.cowork_run_folder_task"]
 effect = ["ledger"]
 card = true
+
+# ---- 加了允许卡的删除 / 结束类 CC 工具（cc-approval-cards，11-14 用户：只管这一次）：只改本站数据，不写外部账本
+[row."cowork.cc.tool.cowork_delete_documents"]
+effect = ["site"]
+card = true
+
+[row."cowork.cc.tool.cowork_express_readback_delete"]
+effect = ["site"]
+card = true
+
+[row."cowork.cc.tool.cowork_recon_delete"]
+effect = ["site"]
+card = true
+
+[row."cowork.cc.tool.cowork_stocktake_close"]
+effect = ["site"]
+card = true
+
+[row."cowork.cc.tool.cowork_stocktake_delete"]
+effect = ["site"]
+card = true
+
+[row."cowork.cc.tool.cowork_tax_draft_delete"]
+effect = ["site"]
+card = true
+
+[row."erp.cc.tool.erp_stocktake_close"]
+effect = ["site"]
+card = true
+
+[row."erp.cc.tool.erp_collection_withdraw"]
+effect = ["site"]
+card = true
