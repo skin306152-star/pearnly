@@ -38,6 +38,9 @@ _BALANCE_TOL = Decimal("0.02")  # 税前+税额 与 含税 容差
 _VAT_RATE = Decimal("7")
 
 # 泰国法人前缀(prename)· 按长度降序匹配(长的先,防 หจก. 被 ห้าง 短前缀截断)。
+# 与 CC 桌面版 master_create._PRENAMES 逐项一致(跨边测试守住):CC 建对方档时按那份表把前缀从名称里拆掉、
+# PRENAM 写这里给的值;少一项就丢字(11-15:「ร้านทดสอบ 1115」写成 CUSNAM「ทดสอบ 1115」、PRENAM 空)。
+# Express 原生 PRENAM 放前缀、CUSNAM / SUPNAM 放核心名(70EXP\test:ARMAS ร้าน 10 行、APMAS 18 行)。
 _PRENAMES = (
     "บริษัทจำกัด",
     "บริษัท",
@@ -46,6 +49,7 @@ _PRENAMES = (
     "หจก.",
     "หจก",
     "หสน.",
+    "ร้าน",
 )
 
 

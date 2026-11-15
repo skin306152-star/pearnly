@@ -53,6 +53,14 @@ class ExpressSalesMapperTests(unittest.TestCase):
         self.assertEqual(r.payload['customer']['tax_id'], '0105551234567')
         self.assertEqual(r.payload['customer']['prename'], 'บริษัท')
 
+    def test_shop_prefix_goes_to_prename(self):
+        # 11-15：「ร้าน」不在服务端前缀表里 → prename 空，CC 桌面版照拆前缀写 CUSNAM「ทดสอบ 1115」、PRENAM 空，丢字
+        r = build_express_sales_payload(_sales_history(fields={'buyer_name': 'ร้านทดสอบ 1115', 'buyer_tax': ''}),
+                                        config=_CONFIG, today=date(2026, 9, 21))
+        self.assertTrue(r.ok, r.reason)
+        self.assertEqual(r.payload['customer']['prename'], 'ร้าน')
+        self.assertEqual(r.payload['customer']['name'], 'ร้านทดสอบ 1115')  # 全名照给，拆前缀由 CC 按同一份表做
+
     def test_customer_address_carried_for_b2b(self):
         addr = 'เลขที่ 99 หมู่ 2 ถนนสุขุมวิท แขวงคลองเตย กรุงเทพฯ 10110'
         r = build_express_sales_payload(_sales_history(fields={'buyer_addr': addr}), config=_CONFIG, today=date(2026, 9, 21))

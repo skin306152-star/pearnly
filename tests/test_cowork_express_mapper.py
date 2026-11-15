@@ -80,6 +80,14 @@ class ExpressMapperTests(unittest.TestCase):
         self.assertEqual(r.payload['supplier']['tax_id'], '0107561000013')
         self.assertEqual(r.payload['supplier']['prename'], 'บริษัท')
 
+    def test_shop_prefix_goes_to_prename(self):
+        # 11-15：同销售，供应商名「ร้าน…」的前缀也要给到 prename，否则 CC 桌面版拆掉后 PRENAM 空、丢字
+        r = build_express_payload(_ptt_history(fields={'seller_name': 'ร้านทดสอบ 1115', 'seller_tax': ''}),
+                                  config=_CONFIG, today=date(2026, 9, 21))
+        self.assertTrue(r.ok, r.reason)
+        self.assertEqual(r.payload['supplier']['prename'], 'ร้าน')
+        self.assertEqual(r.payload['supplier']['name'], 'ร้านทดสอบ 1115')
+
     def test_supplier_address_carried(self):
         addr = '555 ถนนวิภาวดีรังสิต แขวงจตุจักร กรุงเทพฯ 10900'
         r = build_express_payload(_ptt_history(fields={'seller_addr': addr}), config=_CONFIG, today=date(2026, 9, 21))

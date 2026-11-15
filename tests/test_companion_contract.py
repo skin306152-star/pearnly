@@ -804,6 +804,30 @@ def _literal(path, name):
     raise AssertionError(name)
 
 
+class PartyPrenames(unittest.TestCase):
+    """对方名称的法人前缀：服务端给载荷 prename（`express_rules/push/common._PRENAMES`），CC 桌面版建对方档时按自己那份
+    （`master_create._PRENAMES`）把前缀从名称里拆掉、PRENAM 写载荷给的值。两份不一致就丢字或重复（11-15：服务端少「ร้าน」，
+    「ร้านทดสอบ 1115」写成 CUSNAM「ทดสอบ 1115」、PRENAM 空）。"""
+
+    def test_both_sides_know_the_same_prefixes_in_the_same_order(self):
+        self.assertEqual(_literal(RULES / "common.py", "_PRENAMES"), _literal(COMPANION / "master_create.py", "_PRENAMES"))
+
+    def test_what_cc_strips_is_what_the_server_gives_as_prename(self):
+        cc = _literal(COMPANION / "master_create.py", "_PRENAMES")
+        server = _literal(RULES / "common.py", "_PRENAMES")
+
+        def first(prefixes, name):  # 两边同一种取法：按表的顺序取第一个开头对上的
+            return next((p for p in prefixes if name.startswith(p)), "")
+
+        for name in ("ร้านทดสอบ 1115", "บริษัท ลูกค้า จำกัด", "บริษัทจำกัด ทดสอบ", "หจก.ทดสอบ", "หจก ทดสอบ",
+                     "ห้างหุ้นส่วนจำกัด ทดสอบ", "หสน.ทดสอบ", "นาย ทดสอบ", "ทดสอบ"):
+            stripped = first(cc, name)
+            core = name[len(stripped):].strip()
+            prename = first(server, name)
+            self.assertEqual(prename, stripped, name)
+            self.assertEqual((prename + core).replace(" ", ""), name.replace(" ", ""), name)  # PRENAM + 核心名 = 原名，不丢字
+
+
 class PosPayload(unittest.TestCase):
     """载荷 3（POS 导出的日汇总票）：版本、`pos` 块的键、拒收码与摘要字样两边一致。"""
 
