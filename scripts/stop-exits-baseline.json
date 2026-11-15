@@ -1,13 +1,11 @@
 {
  "unclassified": [
-  "ACCOUNT_CODE_IS_STOCK_ITEM",
   "ACCOUNT_COMPANY_MISMATCH",
   "ACCOUNT_DIR_NOT_ALLOWED",
   "ACCOUNT_NOT_POSTABLE",
   "ERR_CUSTOMER_CODE_TOO_LONG",
   "ERR_CUSTOMER_NAME_MISMATCH",
   "ERR_DUPLICATE_INVOICE",
-  "ERR_LOCATION",
   "ERR_MRERP_MASTER_UNREADABLE",
   "ERR_NEGATIVE_AMOUNT",
   "ERR_NO_CLIENT",
@@ -29,11 +27,9 @@
   "REINDEX_UNAVAILABLE",
   "SERVICE_VAT_BASIS_CHOICE",
   "STOCK_ACC_GROUP_UNFIT",
-  "STOCK_IN_FAILED",
   "STOCK_ITEM_NOT_FOUND",
   "VOID_DOCUMENT_CHANGED",
   "VOID_DOCUMENT_NOT_FOUND",
-  "already_collected",
   "cash_account_missing",
   "collection.consent_missing",
   "collection.not_draft",
@@ -43,7 +39,6 @@
   "express.pos_refund_cross_year",
   "express.pos_refund_original_manual",
   "express.voided_after_write",
-  "invoice_not_found",
   "not_found",
   "receipt_type_invalid"
  ]

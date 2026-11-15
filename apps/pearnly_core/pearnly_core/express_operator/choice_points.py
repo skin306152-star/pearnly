@@ -35,11 +35,11 @@ EXPRESS_DIALOGS: List[Dict[str, Any]] = [
      "close": "ยกเลิก", "verified": True},
     {"name": "duplicate_ref", "cls": NOTICE, "match": "\\b1029\\b", "auto": True, "button": "ตกลง", "reason": "duplicate_ref",
      "verified": True},
-    # 赊购带服务品：进项税按权责还是收付实现。配方现在一律点权责；开始前那一题（`express_rules.push.choices` 的服务品进项税口径）
-    # 答了收付实现也不会按它点——没接上
+    # 赊购带服务品：进项税按权责还是收付实现。答案走载荷表头 ``srv_vattyp``（开始前那一题，`express_rules.push.choices`），2 点收付实现，
+    # 其余点权责（CC 桌面版配方 11-14 接上）
     {"name": "service_vat_basis", "cls": CHOICE, "match": "ภาษีซื้อของสินค้าบริการ", "auto": True, "button": ACCRUAL,
-     "ask": "service_vat", "answer": None, "options": [{"code": "1", "button": ACCRUAL}, {"code": "2", "button": CASH_BASIS}],
-     "verified": True},
+     "button_by_srv_vattyp": {"2": CASH_BASIS}, "ask": "service_vat", "answer": "srv_vattyp",
+     "options": [{"code": "1", "button": ACCRUAL}, {"code": "2", "button": CASH_BASIS}], "verified": True},
     # 赊销带服务品：销项税口径。答案走载荷表头 ``srv_vattyp``，2 点收付实现，其余点权责
     {"name": "service_output_vat_basis", "cls": CHOICE, "match": "ภาษีขายของสินค้าบริการ", "auto": True, "button": ACCRUAL,
      "button_by_srv_vattyp": {"2": CASH_BASIS}, "ask": "service_vat", "answer": "srv_vattyp",
@@ -76,7 +76,7 @@ DIALOGS: Dict[str, List[Dict[str, Any]]] = {EXPRESS: EXPRESS_DIALOGS, MRERP: MRE
 # 配方回的原因不是代录原因码本身、由引擎再拆的：登记它拆成哪几个
 REASON_ALIASES = {"master_missing": ("party_missing", "item_missing")}
 # 业务选择框里「开始前问了、但运行时不会按答案点」的（账本, 名字）：存量，只许减少（接上一个删一个）
-NOT_WIRED = frozenset({(EXPRESS, "unit"), (EXPRESS, "service_vat_basis")})
+NOT_WIRED = frozenset({(EXPRESS, "unit")})
 
 
 def of(ledger: str) -> List[Dict[str, Any]]:

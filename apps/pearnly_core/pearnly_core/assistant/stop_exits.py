@@ -62,6 +62,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "crash_repeated": act("ours_retry", "p2"),
     "cc_restarted": act("ours_retry", "p2"),
     "placeholder_left": act("placeholder_left", "p2"),
+    "partial_saved": act("partial_left", "p2"),                        # 保存途中停住、账套里留了半截单（不重录、不作废）：说清哪张缺什么，人去账本补完
     "network_down": act("computer_online", "p2"),
     "budget": act("ours_retry", "p2"),
     "duplicate_ref": wait("reported"), "voided": wait("reported"), "ai_resolved": wait("reported"),
@@ -81,8 +82,6 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "SUPPLIER_BRANCH_AMBIGUOUS": ask("precheck:party", SERVER, "p2"),
     "CUSTOMER_DUP_SUSPECTED": ask("precheck:party", SERVER, "p2"),
     "SUPPLIER_DUP_SUSPECTED": ask("precheck:party", SERVER, "p2"),
-    "SUPPLIER_NOT_IN_APMAS": ask("precheck:new_party", DESKTOP, "p2"),
-    "CUSTOMER_NOT_IN_ARMAS": ask("precheck:new_party", DESKTOP, "p2"),
     "DUPLICATE_CONTENT_DIFFERS": ask("fixed", SERVER, live=True),
     "PRIOR_DOC_STILL_IN_ERP": ask("fixed", SERVER, live=True),
     "FIELD_TOO_LONG": ask("review", SERVER, "p2"),
@@ -111,8 +110,8 @@ EXITS: Dict[str, Dict[str, Any]] = {
         "salesman_invalid", "department_invalid", "changed")},
     "collection.cash_account_missing": act("ledger_setting", "p1"),
     "collection.busy": wait("ledger_free"),
-    "ALREADY_COLLECTED": ask("review", SERVER, live=True),              # 退回草稿，可改了再放行
-    "INVOICE_NOT_FOUND": ask("review", SERVER, live=True),
+    "already_collected": ask("review", SERVER, live=True),              # 退回草稿，可改了再放行（码照 CC 桌面版原样小写）
+    "invoice_not_found": ask("review", SERVER, live=True),
     # ── 写入计划跳过的原因（assistant.write_plan）──────────────────────────────────────────────────────────────
     "moved_to_not_entered": ask("fixed", SERVER, "p2"),
     "already_entered": ask("fixed", SERVER, "p2"),                      # 再办一次 / 跳过，不预选

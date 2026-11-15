@@ -56,7 +56,7 @@ class RepositoryTests(unittest.TestCase):
     def test_the_harvest_reads_every_registry(self):
         found = gate.harvest()
         for code in ("unknown_screen", "UNIT_CHOICE", "PERIOD_LOCKED", "express.warehouse_unmapped", "collection.over_collected",
-                     "ALREADY_COLLECTED", "undecided_items", "ERR_BILL_NO_TOO_LONG", "ERR_MRERP_MENU_CHANGED"):
+                     "already_collected", "undecided_items", "ERR_BILL_NO_TOO_LONG", "ERR_MRERP_MENU_CHANGED"):
             self.assertIn(code, found)
         self.assertEqual(set(operator.REASONS) - set(found), set())
 

@@ -83,7 +83,8 @@ class RegisterTests(unittest.TestCase):
         found = [(ledger, row) for ledger, row in self.rows() if row["cls"] == cp.CHOICE]
         self.assertEqual(sorted(row["name"] for _, row in found), ["service_output_vat_basis", "service_vat_basis", "unit"])
         for ledger, row in found:
-            self.assertIn(row["ask"], precheck.KINDS, row["name"])
+            # 「单位」题随引导式第 1 期（write_precheck 的 unit 题类）进 main；它进来之前只认这一个
+            self.assertIn(row["ask"], set(precheck.KINDS) | {"unit"}, row["name"])
         self.assertEqual([row["name"] for row in cp.choices(cp.MRERP)], [])
 
     def test_a_wired_choice_clicks_the_button_of_the_answer_and_the_unwired_ones_are_the_registered_two(self):
@@ -99,7 +100,7 @@ class RegisterTests(unittest.TestCase):
             for option in row["options"]:
                 self.assertEqual(by_value.get(option["code"], row["button"]), option["button"], (row["name"], option))
         self.assertEqual(unwired, set(cp.NOT_WIRED))
-        self.assertLessEqual(len(cp.NOT_WIRED), 2)
+        self.assertLessEqual(len(cp.NOT_WIRED), 1)
 
 
 if __name__ == "__main__":
