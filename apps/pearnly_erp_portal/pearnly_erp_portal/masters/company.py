@@ -461,6 +461,11 @@ def get_profile(name=None) -> dict:
         # 同步在后台做：最近一次的账套、时间、状态与失败原因（`express.masters._record`）给这一屏显示
         payload["express"] = {field: doc.get(field) for field in
                               ("express_book", "express_synced_at", "express_sync_state", "express_sync_note")}
+        # 同期几份账套没选过（主档同步停在这里）：给可选的几份，公司页选一次（`express.masters.choose_book`）
+        from pearnly_erp_portal.express import target as express_target
+
+        asked = express_target.masters_choice(doc.as_dict(), frappe.utils.nowdate())
+        payload["express"]["book_options"] = asked["options"] if asked else []
         if doc.get("express_synced_at"):
             # 原生日期时间控件只认到秒：带微秒的值会弹「必须采用格式」（10-24 测试机）
             payload["express"]["express_synced_at"] = frappe.utils.get_datetime(doc.express_synced_at).strftime("%Y-%m-%d %H:%M:%S")

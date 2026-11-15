@@ -793,7 +793,8 @@ class MasterSync(Base):
         with mock.patch.object(self.sync, "requests", stub), \
                 mock.patch.object(self.sync, "linked_companies", lambda: rows), \
                 mock.patch.object(self.sync.target, "current",
-                                  lambda row, day: {"key": "k" + row.name[-1], "label": "T.9", "path": PATH}, create=True):
+                                  lambda row, day: {"key": "k" + row.name[-1], "label": "T.9", "path": PATH}, create=True), \
+                mock.patch.object(self.sync.target, "masters_choice", lambda row, day: None, create=True):
             self.sync.check_marks()
         self.assertEqual([table[f"CO-{i}"]["express_sync_state"] for i in (1, 2, 3)], ["ready", "queued", "queued"])
         self.assertEqual(made, [("express_marks", "erp_marks:k1"), ("express_marks", "erp_marks:k2"),
@@ -980,6 +981,24 @@ class AutoCompanies(Base):
         self.assertEqual(target.current(COMPANY, "2026-10-23")["key"], old)
         self.assertEqual(target.pick(COMPANY, "2026-10-23")["reason"], E.NO_BOOK)  # 今年的单照旧没有账套可写
         self.assertEqual(target.current(COMPANY, "2024-05-01")["key"], older)
+
+    def test_masters_ask_once_when_two_books_cover_today(self):
+        # 11-15：同期两份（如 C 盘副本与 S 盘年度文件夹）没选过时，主档同步不再默认读第一份，停下等人在公司页选一次；
+        # 选的记在写单同一份记忆里（按公司 × 会计年度），之后主档、写单都用它
+        from pearnly_erp_portal.express import choices, target
+        copy, real = self.computer([book(path=PATH + "-copy", uid="vsn:1/copy", start="2026-01-01", end="2026-12-31"),
+                                    book(path=PATH + "-real", uid="vsn:1/real", start="2026-01-01", end="2026-12-31")])
+        asked = target.masters_choice(COMPANY, "2026-10-23")
+        self.assertEqual(sorted(item["code"] for item in asked["options"]), sorted([copy, real]))
+        choices.remember(COMPANY["name"], choices.ACCOUNT_SET, asked["subject"], real, "real")
+        self.assertIsNone(target.masters_choice(COMPANY, "2026-10-23"))
+        self.assertEqual(target.current(COMPANY, "2026-10-23")["key"], real)
+        self.assertEqual(target.pick(COMPANY, "2026-10-23")["book"]["key"], real)
+
+    def test_one_book_needs_no_choice(self):
+        from pearnly_erp_portal.express import target
+        self.computer([book(path=PATH + "-real", uid="vsn:1/real", start="2026-01-01", end="2026-12-31")])
+        self.assertIsNone(target.masters_choice(COMPANY, "2026-10-23"))
 
     def test_only_connected_computers_that_report_the_chosen_roots_count(self):
         # 1.12.17 以前报位置下全部账套（同一台电脑连着 Cowork 时含事务所别的客户）、断开后名单还留着：照它们建会把别的客户建进来

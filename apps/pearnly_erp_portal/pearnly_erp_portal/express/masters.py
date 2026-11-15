@@ -32,6 +32,7 @@ import json
 import time
 
 import frappe
+from frappe import _
 from frappe.utils import now_datetime, nowdate
 
 from pearnly_core.cc_desktop import jobs, requests
@@ -97,6 +98,8 @@ def queue(company):
 
 def _reachable(row) -> bool:
     """这家公司现用的账套此刻有能读的电脑（在线、版本够）。"""
+    if target.masters_choice(row, nowdate()):
+        return False
     book = target.current(row, nowdate())
     return book is not None and requests.waiting(KIND, book["key"]) is None
 
@@ -195,7 +198,7 @@ def check_marks():
     """（每 10 分钟）每家接了 Express 的公司：取上一次请电脑看的标记，和上次落库时的不同（主档改了）、或现用账套换了
     （新年度账套报上来了）就排整套同步；再发下一次看标记的请求。电脑不在线 / 旧版 CC 桌面版不认：不建，靠每小时兜底。"""
     for row in linked_companies():
-        book = target.current(row, nowdate())
+        book = None if target.masters_choice(row, nowdate()) else target.current(row, nowdate())  # loop-query: 每家公司一次（10 分钟一轮），同 current 读同一份账套名单
         if book is None:
             continue
         key = "erp_marks:" + book["key"]
@@ -292,6 +295,20 @@ def _record(company, result):
         note = ""
     frappe.db.set_value(COMPANY, company, {"express_sync_state": state, "express_sync_note": note[:500] or None},
                         update_modified=False)
+
+
+def choose_book(company, key) -> dict:
+    """公司页：同期几份账套里选主档同步读哪一份（与写单同一份记忆，按公司 × 会计年度），选完排一次同步。"""
+    from pearnly_erp_portal.express import choices
+
+    row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
+    asked = target.masters_choice(row, nowdate()) if row else None
+    found = next((item for item in (asked or {}).get("options") or () if item["code"] == key), None)
+    if found is None:
+        frappe.throw(_("Invalid value"))
+    choices.remember(company, choices.ACCOUNT_SET, asked["subject"], key, found["name"])
+    queue(company)
+    return {"state": QUEUED}
 
 
 def _request_key(book):
@@ -392,6 +409,8 @@ def _request(company, fresh=False):
     row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)
     if not row or not contracts.tax13(row.tax_id):
         return {"state": "company_tax_missing"}
+    if target.masters_choice(row, nowdate()):
+        return {"state": contracts.SEVERAL_BOOKS}  # 同期几份没选过：停下等人在公司页选一次（不默认读第一份）
     book = target.current(row, nowdate())
     if book is None:
         return {"state": "account_set_missing"}

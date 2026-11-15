@@ -33,6 +33,15 @@ def sync_company(company):
     return masters.start(company)
 
 
+@frappe.whitelist(methods=["POST"])
+def choose_masters_book(company, key):
+    """公司页：同期几份账套时选主档同步读哪一份（`masters.choose_book`，与写单同一份记忆）。"""
+    guard.require("team.manage")
+    if not isinstance(company, str) or not frappe.db.exists(masters.COMPANY, company):
+        frappe.throw(_("Company not found"), frappe.DoesNotExistError)
+    return masters.choose_book(company, str(key or ""))
+
+
 def _document(doctype, name, write=False):
     if doctype not in CAPABILITIES or not isinstance(name, str):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)

@@ -76,6 +76,18 @@ def pick(company_row, day, wanted=None) -> dict:
     return {"book": book, "reason": "", "options": []}
 
 
+def masters_choice(company_row, day) -> dict | None:
+    """主档同步要人选一次的那种情况（11-15：同期几份账套没选过时不再默认读第一份——可能读到 C 盘副本）：
+    ``{subject, options}``，与写单同一份记忆（`choices.ACCOUNT_SET`，按公司 × 会计年度）；不用选回 None。"""
+    found = candidates(company_row, day)
+    if len(found) < 2:
+        return None
+    subject = year_subject(day, found[0])
+    if choices.chosen(company_row["name"], choices.ACCOUNT_SET, subject) in {item["key"] for item in found}:
+        return None
+    return {"subject": subject, "options": [{"code": item["key"], "name": option_name(item)} for item in found]}
+
+
 def current(company_row, day, wanted=None) -> dict:
     """主档同步读哪一份：今天该写的那份（同期两份时按选过的，没选过取写得进的第一份，读主档不必停下）。还没有今年的账套
     （只有往年的）就读会计期间最近的那份：主档按公司认，不因为没开今年的账套就读不到（10-24 测试机：按账套自动建的公司里

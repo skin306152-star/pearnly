@@ -264,7 +264,8 @@
 		const SYNC_STATES = ["queued", "reading", "syncing", "ready", "offline", "outdated"];
 		const sync_key = state => (SYNC_STATES.includes(state) ? state : "failed");
 		// 失败原因：认得的原因码给译文，其余（出错信息）原样
-		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook"};
+		const SYNC_NOTES = {company_tax_missing: "express.reason.taxMissing", account_set_missing: "express.reason.noBook",
+			"express.account_set_several": "Choose the account set"};
 		// MR.ERP 主档整读失败的原因码（`pearnly_core.mrerp.master_export.read`）→ 现成的 MR.ERP 文案；其余 ERR_* 照 mrerp.error.<码>
 		const MRERP_NOTES = {ERR_ACCOUNT_IN_USE: "mrerp.error.ERR_MRERP_ACCOUNT_IN_USE", ERR_NO_CREDS: "mrerp.reason.loginMissing",
 			account_set_missing: "express.reason.noBook"};
@@ -347,10 +348,20 @@
 		// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
 		const pending_refunds = express => (express.pending_refunds ? [{fieldname: "express_pending_refunds",
 			label: __("express.pendingRefunds"), fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []);
-		const express_fields = express => [
+		const express_fields = (express, company) => [
 			// 两栏成行（11-01）：账套 | 同步时间，状态 | 原因；待写退货放在短的那一栏（原来左二格、右最多四格）
 			{fieldname: "express_book", label: __("Account Set"), fieldtype: "Data", read_only: 1,
 				default: express.express_book || ""},
+			// 同期几份账套没选过：主档同步停下，在这里选一次（与写单同一份记忆；11-15 不再默认读第一份，可能是 C 盘副本）
+			...((express.book_options || []).length ? [{fieldname: "express_book_choice", label: __("Account Set"),
+				fieldtype: "Select", options: [{value: "", label: ""}, ...express.book_options.map(row => ({value: row.code, label: row.name}))],
+				change: async () => {
+					const key = form?.get_value?.("express_book_choice");
+					if (!key) return;
+					await p.call("pearnly_erp_portal.express.api.choose_masters_book", {company, key}, "POST");
+					p.success(t("company.notice.saved"), "click");
+					await show();
+				}}] : []),
 			{fieldname: "express_sync_state", label: __("Status"), fieldtype: "Data", read_only: 1,
 				default: express.express_sync_state ? t(`company.syncExpress.${sync_key(express.express_sync_state)}`) : ""},
 			...(express.express_sync_note ? pending_refunds(express) : []),
@@ -359,7 +370,7 @@
 				default: express.express_synced_at || ""},
 			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
 				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
-					? t(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : pending_refunds(express)),
+					? __(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : pending_refunds(express)),
 			// Express 自己对不上的存货（全仓结存 ≠ 各仓合计）：同步不按它抹 ERP 的数，这里只列不拦（出入库第一期）。
 			// 只读，用官方 DataTable（`p.table`，见 `show_stock_differences`），不用表格字段（会带勾选框和铅笔）
 			...((express.stock_differences || []).length ? [
@@ -466,7 +477,7 @@
 				// 接 Express（用户 10-29）：勾选；勾了未连上只给连接引导；连上了有同步状态与「断开」
 				...express_section(data, name),
 				// 接了 Express：最近一次同步（后台落库，见 `express.masters._record`）的账套、时间、状态与失败原因，只读
-				...(data.express ? express_fields(data.express) : []),
+				...(data.express ? express_fields(data.express, name || data.name) : []),
 				...mrerp_section(data, name),
 			]);
 			if (data.express) show_stock_differences(data.express);
