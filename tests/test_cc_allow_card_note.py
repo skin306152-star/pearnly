@@ -33,6 +33,14 @@ const VIEW = { ask: "Run this scheduled task now?", preview: [{ field: "Task", b
 
 
 class AllowCardNoteTests(unittest.TestCase):
+    def test_the_phone_sheet_shows_the_same_fact_line_under_its_question(self):
+        source = (Path(ROOT) / "frontend/assistant/src/components/tool-uis/approval-sheet.tsx").read_text(encoding="utf-8")
+        body = source[source.index("export function ApprovalSheet"):]
+        line = '{approval.note ? <p className="cc-ask-note">{approval.note}</p> : null}'
+        self.assertIn(line, body)
+        self.assertLess(body.index('className="cc-ask-sheet-q"'), body.index(line))
+        self.assertLess(body.index(line), body.index("<ChangeList"))
+
     def run_page(self, imports, body):
         return run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\nimport assert from "node:assert/strict";\n' + imports
                       + HEAD + body + "\ng.done();\n", stubs=STUBS)
