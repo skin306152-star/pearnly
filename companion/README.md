@@ -252,6 +252,12 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
 `gh workflow run companion-build.yml --ref <分支>`，跑完 `gh run download <运行编号>` 取 `CC-Setup.exe`。它和发布同一套测试与打包，
 不连服务器、不改 `latest.json`，产物只留 1 天；装上去的版本号就是那个分支 `version.py` 里的。
 
+云端精简包（云端 Express 主机上那份 CC，`companion.exe --cloud`）：`packaging/companion-cloud.spec`（入口 `launcher_cloud.py`，不管带不带
+`--cloud` 都按云端跑）不带 PySide6 / 网页内核 / Windows 通知 / winrt、只有界面用的模块与 MR.ERP 代录包，只留代录 Express 的配方；
+`release.ps1 -BuildOnly -Cloud` 只打这一份 → `dist\companion-cloud\`（旁边放 `cdx_reindex_runner.exe`）→ `dist\CC-Cloud.zip` 与 `dist\cloud.json`
+（sha256、大小），不打安装包、不发布。`companion-build.yml` 勾 `cloud` 才打、才上传（同样留 1 天），冒烟 `smoke_launch.py --cloud-only`。
+云端路径不依赖排除的包由 `tests/test_cloud_package.py` 守住。
+
 流水线：Windows 上跑全量测试 → PyInstaller + Inno Setup 打包（`packaging/release.ps1 -BuildOnly`）→
 （正式版）Ubuntu 先把安装包传到 R2（桶 `pearnly-media`，公网 `media.pearnly.com`），版本路径与固定名各一份、从公网读回比对，只留最近 5 个版本 →
 经受限 SSH 交给服务器上的 `infrastructure/production/receive-companion.py`（本机照旧存一份、改 `latest.json`）→ 从公网下载回来比对 sha256。
