@@ -362,3 +362,9 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 
 - **ERP 直写菜单先只留「收款」**（主会话 11-14）：ERP 直写采购 / 销售整链（传票 → 识别 → 引导卡 → 复核 → 写入）没有流程或真模型证据，按「菜单只列此刻真能办完的」先不列，第 2 期验过再放出；ERP 代录仍是采购 / 销售；打字照旧能办。
   截图（实验栈真页面，四语 × 手机浅色 / 手机深色 / 电脑）：本目录 `2026-11-12-cc-guided-phase1/业务提示/`。
+
+## 11-15 收尾合入（P0 窗口接手）
+
+- 业务菜单改用单独的 `data-slot="cc-business-menu"`（不再占 `cc-quick-replies`），`cc_guide.py` 与 `test_cc_guide_menu.py` 同步。
+- 本机实验栈 `pearnly-guided-p0-lab`（线上镜像 02eebaa4，头 055a46369）：`cowork.cc.record-reply` + 六条流程 `--jobs 2` 合跑 **18/18**（record-reply 新旧数据都过）。
+- `cowork.cc.guide [new/desktop]` 与 `cowork.cc.ask` 并行（`--jobs 2`）连跑 4 轮，4/4 通过，「第二次调用为空」没有复现；不改代码。
