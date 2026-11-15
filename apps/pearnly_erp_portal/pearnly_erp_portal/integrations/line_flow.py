@@ -269,11 +269,19 @@ def _fold(text) -> str:
 
 
 def find(step, payload, user, text):
-    """``(准确命中的那一项或 None, [(值, 名称)] 模糊匹配)``。编号（税号、公司编号、Express 编码、仓库编码）要整串相同；
-    名称按去掉公司类型词、空白后包含关键词（几个词时每个词都要有）算，名称相同 / 开头相同的排前面。"""
+    """``(准确命中的那一项或 None, [(值, 名称)] 模糊匹配)``，规则见 :func:`match`。"""
+    return match(_searchable(step, payload, user, str(text or "").strip()), text)
+
+
+def match(rows, text):
+    """LINE 里按打的字找一项（选公司、供应商 / 客户、仓库；收款选公司同一份，`line_collection._type_company`）。
+
+    ``rows`` 是 ``[(值, 名称, [编号…])]``。编号（税号、公司编号、账套目录名 / 账套键、Express 编码、仓库编码）整串相同
+    （不分大小写；13 位数字按税号比）就是准确命中；否则按词找：名称或任一编号去掉公司类型词、空白、标点后不分大小写包含
+    每个词（几个词时每个词都要有），名称命中的排在只靠编号命中的前面，名称相同 / 开头相同的再往前（11-15 真机：按税号、
+    按账套目录名找不到泰文名的公司）。"""
     wanted = str(text or "").strip()
     digits = re.sub(r"\D", "", wanted)
-    rows = _searchable(step, payload, user, wanted)
     exact = [(key, label) for key, label, codes in rows
              if any(code and (code.casefold() == wanted.casefold() or (len(digits) == 13 and code == digits)) for code in codes)]
     if len(exact) == 1:
@@ -281,13 +289,38 @@ def find(step, payload, user, text):
     if exact:
         return None, exact  # 同一税号几家（不同分店）：列出来点
     words = [_fold(word) for word in wanted.split() if _fold(word)] or [_fold(wanted)]
+    if not any(words):
+        return None, []
     hits = []
-    for key, label, _codes in rows:
+    for key, label, codes in rows:
         name = _fold(label)
-        if all(word in name for word in words):
-            hits.append(((name != _fold(wanted), not name.startswith(words[0]), len(name)), key, label))
+        by_name = all(word in name for word in words)
+        folded = [_fold(code) for code in codes if code]
+        if by_name or all(any(word in code for code in folded) for word in words):
+            hits.append(((not by_name, name != _fold(wanted), not name.startswith(words[0]), len(name)), key, label))
     hits.sort(key=lambda item: item[0])
     return None, [(key, label) for _rank, key, label in hits]
+
+
+def company_rows(names):
+    """``[(公司, 名称, [编号…])]``：这几家公司可按名称、简称、公司编号、税号、账套目录名与账套键找（采购 / 销售 / 收款选公司同一份）。
+    同名几家（不同分店）名称后带分店号。"""
+    from pearnly_core.cc_desktop import books
+
+    rows = frappe.get_all("ERP Company", filters={"name": ["in", list(names) or [""]]},
+                          fields=["name", "company_name", "short_name", "tax_id", "branch"])
+    same = {}
+    for row in rows:
+        same[row.company_name] = same.get(row.company_name, 0) + 1
+    out = []
+    for row in rows:
+        codes = [row.name, row.short_name or "", row.tax_id or ""]
+        for item in books.for_company(row.tax_id, row.branch) if row.tax_id else []:  # loop-query: 本人可用的几家公司，打字找公司时一次
+            path = str(item.get("path") or "").replace("/", "\\").rstrip("\\")
+            codes += [path.rsplit("\\", 1)[-1], str(item.get("key") or "")]
+        out.append((row.name, (row.company_name or row.name) + (f" ({row.branch})" if same.get(row.company_name, 0) > 1
+                    and row.branch else ""), [code for code in dict.fromkeys(codes) if code]))
+    return out
 
 
 def _searchable(step, payload, user, text):
@@ -295,29 +328,16 @@ def _searchable(step, payload, user, text):
     if step == "company":
         from pearnly_erp_portal.masters import company
 
-        rows = frappe.get_all("ERP Company", filters={"name": ["in", company.allowed_companies(user) or [""]]},
-                              fields=["name", "company_name", "short_name", "tax_id", "branch"])
-        same = {}
-        for row in rows:
-            same[row.company_name] = same.get(row.company_name, 0) + 1
-        return [(row.name, (row.company_name or row.name) + (f" ({row.branch})" if same.get(row.company_name, 0) > 1
-                 and row.branch else ""), [row.name, row.short_name or "", row.tax_id or ""]) for row in rows]
+        return company_rows(company.allowed_companies(user))
     if step == "warehouse":
         rows = frappe.get_all("ERP Warehouse", filters={"company": payload["company"], "is_active": 1},
                               fields=["name", "warehouse_name", "express_code"])
         return [(row.name, row.warehouse_name or row.name, [row.express_code or ""]) for row in rows]
-    master, title = (("ERP Supplier", "supplier_name") if payload["direction"] == "purchase"
-                     else ("ERP Customer", "customer_name"))
-    like = "%" + "%".join(str(text or "").split()) + "%"
-    digits = re.sub(r"\D", "", str(text or ""))
-    scope, values = master_access.scope_sql(payload["company"])
-    rows = frappe.db.sql(f"""select name, `{title}` as label, express_code, tax_id from `tab{master}`
-        where is_active = 1 and {scope}
-          and (`{title}` like %(like)s or express_code = %(text)s or (%(digits)s != '' and tax_id = %(digits)s))
-        order by length(`{title}`) limit 200""",
-        {**values, "like": like, "text": str(text or "").strip(), "digits": digits if len(digits) == 13 else ""},
-        as_dict=True)
-    return [(row.name, row.label or row.name, [row.express_code or "", row.tax_id or ""]) for row in rows]
+    from pearnly_erp_portal.masters import link_search
+
+    master = "ERP Supplier" if payload["direction"] == "purchase" else "ERP Customer"
+    rows = link_search.rows(master, payload["company"], text, limit=200, filters={"is_active": 1})
+    return [(row.name, row.title or row.name, [row.express_code or "", row.tax_id or ""]) for row in rows]
 
 
 def short_name(label) -> str:

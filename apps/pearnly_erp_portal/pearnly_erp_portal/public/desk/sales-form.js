@@ -105,10 +105,13 @@
 		const place = p.place.of(doc);
 		if (editable && !place.warehouse) place.warehouse = await p.place.prefill("sales", {company: doc.company});
 		if (!still_current() || state.disposed) return () => {state.disposed = true; cleanup_entry(); layout.destroy();};
+		// 「已付款」不是单据上存的字段：新单默认已付（现金、今天）；存过的单按收款状态（收清才算，部分收款保存时照原实收）。
+		// 11-15 真机：取消已付款提交后，详情仍照新单默认画成已付、收款方式空着的下拉显示成第一项「现金」；未付草稿再打开保存会被当成已付
+		const paid = doc.name ? (doc.payment_status === "paid" ? 1 : 0) : 1;
 		await form.set_values({system_no: defaults.system_no, doc_kind: "receipt", doc_date: frappe.datetime.get_today(),
-			party_type: "person", has_vat: 1, price_includes_vat: 0, vat_rate: defaults.default_vat_rate || 7, is_paid: 1,
-			payment_method: "cash", payment_date: frappe.datetime.get_today(), header_discount: 0,
-			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place,
+			party_type: "person", has_vat: 1, price_includes_vat: 0, vat_rate: defaults.default_vat_rate || 7,
+			...(doc.name ? {} : {payment_method: "cash", payment_date: frappe.datetime.get_today()}), header_discount: 0,
+			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), is_paid: paid, ...place,
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
 		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();

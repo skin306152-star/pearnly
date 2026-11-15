@@ -539,6 +539,8 @@ Duplicate location code,รหัสตำแหน่งซ้ำ
 ERP,ERP
 ERP Stock Count Variance,แดชบอร์ดผลต่างการตรวจนับ
 ERP menu,เมนู ERP
+ERP purchase recognition,อ่านเอกสารซื้อ
+ERP sales recognition,อ่านเอกสารขาย
 Each product and location may appear only once,สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว
 Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
@@ -1191,7 +1193,7 @@ Received Amount,จำนวนเงินที่ได้รับ
 Received At,เวลาที่ได้รับ
 Received By,ผู้รับเงิน
 "Received from LINE, then confirmed into a purchase record or discarded",รับจาก LINE และสร้างเป็นรายการจัดซื้อเมื่อยืนยัน หรือทิ้ง
-Received {0} · due {1},รับแล้ว {0} · ค้าง {1}
+Received {0} · due {1},รับแล้ว {0} · ค้างชำระ {1}
 Received; confirm it on the ERP page,ได้รับแล้ว กรุณายืนยันในหน้า ERP
 Receiving Account,บัญชีรับเงิน
 Recent Orders,คำสั่งซื้อล่าสุด

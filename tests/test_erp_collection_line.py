@@ -212,6 +212,13 @@ class Base(T.Base):
 
 
 class Steps(Base):
+    def test_choosing_the_company_warms_up_its_receivables_after_asking_for_the_customer(self):
+        """11-15 真机：首次读发票要点「刷新」。定下公司就请电脑预热（`service.warm`），在问客户之后排，不挡回复。"""
+        with mock.patch.object(service, "warm") as warm:
+            self.tap("a=col&s=start")
+        self.assertEqual(self.step(), "customer")
+        warm.assert_called_once_with(self.payload()["company"])
+
     def test_each_step_is_asked_in_order_and_a_cash_collection_reaches_the_card(self):
         self.tap("a=col&s=start")
         self.assertEqual(self.step(), "customer")  # 只有一家公司：跳过

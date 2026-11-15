@@ -38,13 +38,17 @@
 
 	p.collection_new = async ({on_done} = {}) => {
 		const request = new_request();  // 这一次打开的号：连点、重发只建一笔
-		const first = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {}, "POST");
+		// 取可选公司期间给原生的加载遮罩（11-15 真机：点「新建」2–3 秒没反馈）
+		frappe.dom.freeze();
+		const first = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {}, "POST")
+			.finally(() => frappe.dom.unfreeze());
 		const companies = first.companies || [];
 		let methods = null, vouchers = {}, open = [];
 		const narrow = frappe.is_mobile();
 		const current = companies.find(row => row.value === frappe.boot.pearnly_company)?.value
 			|| (companies.length === 1 ? companies[0].value : "");
-		const dialog = new frappe.ui.Dialog({title: __("New"), size: "large", fields: [
+		// no_focus（原生开关）：打开时不把焦点放进第一格，公司下拉不自己展开盖住客户框（11-15 真机）
+		const dialog = new frappe.ui.Dialog({title: __("New"), size: "large", no_focus: true, fields: [
 			{fieldtype: "Select", fieldname: "company", label: __("Company"), reqd: 1, hidden: companies.length <= 1 ? 1 : 0,
 				options: [{value: "", label: ""}, ...companies], change: () => void settle(pick_company())},
 			{fieldtype: "Select", fieldname: "book", label: __("Account Set"), hidden: 1, change: () => void settle(pick_book())},

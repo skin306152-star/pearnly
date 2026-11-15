@@ -163,17 +163,19 @@ def choose_book(company, key, day=None) -> dict:
 def customers(company, q="", start=0, limit=12) -> dict:
     """找客户：这家公司从 Express 同步来的客户，按编号或名字的一部分（服务端分页，LINE 快捷回复最多 12 个）。
     ``{"items": [{code, name}], "total"}``。收款员看所有客户（不按收款员过滤）。"""
+    from pearnly_core.desk import list_filters
+    from pearnly_erp_portal.masters import search_rules
+
     guard.require(WRITE)
     _company(company)
     filters = {**master_access.ledger_filters(company), "is_active": 1}
     text = str(q or "").strip()[:60]
-    or_filters = [["express_code", "like", f"%{text}%"], ["customer_name", "like", f"%{text}%"]] if text else None
+    # 与选择框、LINE 选客户同一套匹配（`masters.search_rules`：名称、账本编码、税号、电话，不分大小写包含，几个词都要有）
+    or_filters = search_rules.or_filters(CUSTOMER, text) or None
     limit = max(1, min(int(limit or 12), SEARCH_MAX))
     found = frappe.get_all(CUSTOMER, filters=filters, or_filters=or_filters, fields=["express_code", "customer_name"],
                            order_by="customer_name asc, express_code asc", limit_start=max(0, int(start or 0)),
                            limit_page_length=limit)
-    from pearnly_core.desk import list_filters
-
     return {"items": [{"code": row.express_code, "name": row.customer_name} for row in found],
             "total": list_filters.count(CUSTOMER, filters, or_filters, ignore_permissions=True)}
 
@@ -279,6 +281,19 @@ def _open_rows(book_key, customer, exclude=None) -> dict:
     return out
 
 
+def warm(company, day=None) -> None:
+    """预热（11-15 真机：首次读客户发票要点「刷新」，约 10 秒）：LINE 收款定下公司（和账套）时，请电脑把这本账套的未收发票整本读一次
+    （已有的整本读回请求，同一请求号在读的不重发）；等人选好客户时多半已读好，列发票前落库（:func:`open_invoices`）。
+    读不到照旧回「正在读取 + 刷新」。任何问题都不挡收款流程。"""
+    try:
+        book = book_for(_company(company), day or nowdate())
+        # 只给还没有任何快照的账套整本读一次（新接的公司、第一次收款）；读过的平常由标记刷新与按客户读跟上（`snapshot.marks_seen`）
+        if not frappe.db.exists(snapshot.DOCTYPE, {"book_key": book["key"]}):
+            snapshot.request(company, book)
+    except Exception:
+        frappe.log_error(title="ERP collection warm-up skipped", message=frappe.get_traceback()[-1200:])
+
+
 def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=None) -> dict:
     """一位客户此刻能收的发票（快照减去别的记录的预留），日期早的在前：``{"items": [{docnum, doc_date, net, received,
     remaining, reserved, available, salesman, department}], "refresh": ready | reading | offline | outdated}``。
@@ -288,6 +303,8 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     customer = customer_code(company, customer)
     _customer_name(company, customer)
     book = book or book_for(row, day or nowdate())
+    if refresh:
+        snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
     state = snapshot.request(company, book, customer) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",

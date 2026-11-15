@@ -431,3 +431,4 @@ Reader Scope	读取范围	ขอบเขตการดึงข้อมูล
 Requested Query	请求的查询	เงื่อนไขการสอบถามที่ขอ	要求された照会	
 Source Read Started	源读取开始时间	เวลาเริ่มดึงข้อมูลจากต้นทาง	ソース読み取り開始日時	
 Verified Write Results	已核实的写入结果	ผลการบันทึกที่ตรวจสอบแล้ว	検証済みの書き込み結果	
+ID card recognition (tier A)	身份证识别	อ่านบัตรประชาชน	身分証の読み取り	

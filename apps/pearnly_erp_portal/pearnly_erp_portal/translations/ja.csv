@@ -539,6 +539,8 @@ Duplicate location code,ロケーションコードが重複しています
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
+ERP purchase recognition,仕入書類の読み取り
+ERP sales recognition,売上書類の読み取り
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
 Each returned line must be an Express stock item,返品明細は Express の在庫品である必要があります
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
@@ -1191,7 +1193,7 @@ Received Amount,入金額
 Received At,受信日時
 Received By,受領者
 "Received from LINE, then confirmed into a purchase record or discarded",LINEから受信し、仕入記録として確定するか破棄します
-Received {0} · due {1},受領 {0} · 残り {1}
+Received {0} · due {1},受領 {0} · 未入金 {1}
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Receiving Account,入金勘定
 Recent Orders,最近の会計

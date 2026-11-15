@@ -208,6 +208,13 @@
 		page.add_menu_item(__("Export"), () => void p.export_file(`${api}api_collections_export`,
 			{params: parameters()}));
 		await list.ready;
+		// 写账回执改了状态（待写入 → 已写入 / 失败）：服务端推一个只带单号的事件（`collection.push._live`），在这一页就刷新列表
+		// （原生 socket.io；连不上时照常手动刷新。11-15 真机：「待写入」写完不自己变）
+		const live = frappe.utils.debounce(() => {
+			if (frappe.get_route()[0] === root) void list?.reload();
+		}, 800);
+		frappe.realtime.off("pearnly_erp_collection_changed");
+		frappe.realtime.on("pearnly_erp_collection_changed", () => live());
 		// LINE 确认卡【编辑】打开的 `pearnly-collections/<记录>`：直接开那一笔（不是草稿了先说卡片已失效）
 		const show = p.routed_page({wrapper, root, render: async (rest, still_current) => {
 			if (rest.length > 1) {p.redirect_up(root); return;}

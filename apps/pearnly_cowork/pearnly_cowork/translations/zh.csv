@@ -518,10 +518,13 @@ Cowork Stocktake Task,Cowork 盘点任务
 Cowork Supplier Posting Profile,Cowork 供应商过账档案
 Cowork Tax Draft,Cowork 报税草稿
 Cowork Tax Filing,报税草稿
+Cowork VAT check invoice recognition,增值税核对发票识别
 Cowork WHT Certificate,Cowork 预扣税凭证参考
 Cowork WHT Choice,Cowork 预扣税所得类型
 Cowork Workspace,Cowork 公司账套
+Cowork invoice recognition,发票识别
 Cowork menu,Cowork 菜单
+Cowork reconciliation document recognition,对账单据识别
 Create a new label,新建标签
 Create a rule,新建规则
 Create board,新建看板

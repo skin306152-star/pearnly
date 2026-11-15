@@ -224,3 +224,4 @@ pearnly_erp_portal:express.error.ACCOUNT_BUSY_LOCKED	zh	Express 正在使用此�
 pearnly_erp_portal:team.role.collector	zh	收款	2026-11-13	docs/work/2026-11-14-collection-loop.md 第 2 节（用户 11-13 晚「收款员的文案按照功能名称写：收款」，主会话交接第十节转）
 pearnly_erp_portal:{0} is outside the periods of the connected account sets: {1}	zh	{0} 不在已连接账套的期间内：{1}	2026-11-14	docs/work/2026-11-14-collection-loop.md 第 6 节（用户 11-14「文案没问题」，主会话转）
 pearnly_erp_portal:This company has no connected Express account set	zh	此公司没有已连接的 Express 账套	2026-11-14	docs/work/2026-11-14-collection-loop.md 第 6 节（用户 11-14「文案没问题」，主会话转）
+pearnly_erp_portal:Received {0} · due {1}	zh	已收 {0} · 未收 {1}	2026-11-15	docs/work/2026-11-15-device-1115-fixes.md 第 5 节（用户 11-15「可以」，主会话转）

@@ -46,6 +46,49 @@ class ErpFind(unittest.TestCase):
         self.assertEqual(self.find("CO-")[0], None)
 
 
+class ErpFindByLedgerAndTaxNumber(unittest.TestCase):
+    """11-15 真机：LINE 收款选公司按税号「没有找到」、泰文名的公司要打泰文。采购 / 销售 / 收款选公司同一份（`line_flow.match`）：
+    税号、账套目录名整串相同直接选上；税号、目录名的一部分也找得到，名称命中的排在只靠编号命中的前面。"""
+    ROWS = [
+        ("CO-7", "บริษัท เดโม่ ทู จำกัด", ["CO-7", "", "0105599210021", "DEMO02", "book-demo02"]),
+        ("CO-8", "บริษัท เดโม่ วัน จำกัด", ["CO-8", "", "0105599210013", "DEMO01", "book-demo01"]),
+        ("CO-9", "Demo Trading", ["CO-9", "", "0105599210099"]),
+    ]
+
+    def test_the_full_tax_number_or_ledger_folder_selects_the_company(self):
+        self.assertEqual(line_flow.match(self.ROWS, "0105599210021"), ("CO-7", []))
+        self.assertEqual(line_flow.match(self.ROWS, "demo02"), ("CO-7", []))
+        self.assertEqual(line_flow.match(self.ROWS, " DEMO01 "), ("CO-8", []))
+
+    def test_part_of_the_tax_number_or_folder_lists_the_matches_with_name_hits_first(self):
+        self.assertEqual([key for key, _label in line_flow.match(self.ROWS, "9921002")[1]], ["CO-7"])
+        self.assertEqual([key for key, _label in line_flow.match(self.ROWS, "demo")[1]], ["CO-9", "CO-7", "CO-8"])
+
+    def test_company_rows_carry_the_tax_number_and_the_ledger_folders(self):
+        from pearnly_core.cc_desktop import books
+
+        company = SimpleNamespace(name="CO-7", company_name="บริษัท เดโม่ ทู จำกัด", short_name="", tax_id="0105599210021",
+                                  branch="00000")
+        found = [{"key": "k-2569", "path": "C:\\ACCOUNT\\70EXP\\DEMO02"}, {"key": "k-2568", "path": "C:/ACCOUNT/69EXP/DEMO02/"}]
+        with patch.object(line_flow.frappe, "get_all", return_value=[company]), \
+                patch.object(books, "for_company", return_value=found):
+            rows = line_flow.company_rows(["CO-7"])
+        self.assertEqual(rows, [("CO-7", "บริษัท เดโม่ ทู จำกัด", ["CO-7", "0105599210021", "DEMO02", "k-2569", "k-2568"])])
+
+
+class CollectionCompanyTyped(unittest.TestCase):
+    """收款选公司打字走同一份匹配：按税号直接选上那家。"""
+
+    def test_a_tax_number_picks_the_company(self):
+        from pearnly_erp_portal.integrations import line_collection
+
+        payload = {"step": "company", "companies": {"CO-7": "บริษัท เดโม่ ทู จำกัด", "CO-8": "บริษัท เดโม่ วัน จำกัด"}}
+        with patch.object(line_flow, "company_rows", return_value=ErpFindByLedgerAndTaxNumber.ROWS[:2]), \
+                patch.object(line_collection, "_pick_company") as picked:
+            line_collection._type_company(USER, payload, "0105599210021", "token")
+        picked.assert_called_once_with(USER, payload, "CO-7", "token")
+
+
 class ErpChoiceTiers(unittest.TestCase):
     """用户 10-24：≤12 个直接列按钮、不出关键字提示；>12 个先打关键字；找到 ≤12 列序号，>12 请多打几个字，0 说没找到再问；
     编号整串直接选上；当前公司 / 上次用的一开始就给按钮。"""
