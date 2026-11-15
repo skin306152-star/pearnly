@@ -315,7 +315,7 @@ def company_rows(names):
     out = []
     for row in rows:
         codes = [row.name, row.short_name or "", row.tax_id or ""]
-        for item in books.for_company(row.tax_id, row.branch) if row.tax_id else []:
+        for item in books.for_company(row.tax_id, row.branch) if row.tax_id else []:  # loop-query: 本人可用的几家公司，打字找公司时一次
             path = str(item.get("path") or "").replace("/", "\\").rstrip("\\")
             codes += [path.rsplit("\\", 1)[-1], str(item.get("key") or "")]
         out.append((row.name, (row.company_name or row.name) + (f" ({row.branch})" if same.get(row.company_name, 0) > 1

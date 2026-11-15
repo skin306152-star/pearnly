@@ -1193,7 +1193,7 @@ Received Amount,已收金额
 Received At,收到时间
 Received By,收款人
 "Received from LINE, then confirmed into a purchase record or discarded",接收自 LINE，确认后生成采购记录或予以丢弃
-Received {0} · due {1},已收 {0} · 还差 {1}
+Received {0} · due {1},已收 {0} · 未收 {1}
 Received; confirm it on the ERP page,已接收，请在 ERP 页面确认
 Receiving Account,收款科目
 Recent Orders,最近订单

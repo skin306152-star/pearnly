@@ -1193,7 +1193,7 @@ Received Amount,入金額
 Received At,受信日時
 Received By,受領者
 "Received from LINE, then confirmed into a purchase record or discarded",LINEから受信し、仕入記録として確定するか破棄します
-Received {0} · due {1},受領 {0} · 残り {1}
+Received {0} · due {1},受領 {0} · 未入金 {1}
 Received; confirm it on the ERP page,受け取りました。ERP 画面で確認してください
 Receiving Account,入金勘定
 Recent Orders,最近の会計
