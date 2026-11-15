@@ -4,7 +4,7 @@
 线上现为 `6f58f0b48`（镜像 `sha256:054aa603…`，记录 [2026-11-13-release-6f58f0b4.md](2026-11-13-release-6f58f0b4.md)）。
 目标（用户 11-15）：线上「下载 CC → 从连接添加新建公司（接 Express）→ LINE 收款写进 Express」整条路不带瑕疵，按普通新用户视角验收。
 
-## 这一车装什么（最终候选头 `bcda444ae`，比线上多 122 个提交）
+## 这一车装什么（发布头 `72516d120`）
 
 | # | 内容 | 来源分支 → 头 |
 |---|---|---|
@@ -17,15 +17,16 @@
 | 6 | CC 工具编码按主档回查换回原样（\xa0）、写入被拒定式说明、CC 查发票 / 建草稿先按客户即时读回（ready / reading / offline / outdated） | cc-code-fidelity → 199315fdb |
 | 7 | 切换当前公司缓存竞态修复（共用层 `account/user_defaults.py`，DefaultValue after_insert 提交后清缓存，覆盖 8 处写用户默认值）、删「设为当前」、刷新 20 秒无人领单判未连接、重新启用提示「已更新」 | company-connect-empty-state → 7b25f84d6 |
 | 8 | 真机 14 条里本车修的：LINE 选公司 / 客户 / 供应商搜索统一、选定公司后预热读未收发票、未付款单不显示「现金」、收款页新建加载态与公司下拉不自动展开、收款状态实时刷新、首页 6 条漏翻、「未收」文案 | device-1115-fixes → fb08ab5d7 |
+| 9 | 新建客户 / 供应商名称以「ร้าน」开头时不再丢字：服务端前缀表补「ร้าน」（与 CC 桌面版 1.12.21 的表一致，跨边契约测试守住）；线上现有缺陷，所有新建对方档的入口都受影响 | prename-shop → 72516d120 |
 
 **不进这一车**：公司接入第 3 批（无条件改 Express 主档落库，周一路用不到 MR.ERP，主会话 11-15 同意不进）、引导式第 1 期、上传后才识别、MR.ERP 写账弹窗、允许卡、回复整段显示、新建盘点批量写、mrerp-operator*。
 
-## 放行检查表（bcda444ae）
+## 放行检查表（发布头 72516d120；bcda444ae 及之前的检查见下表注）
 
 | 项 | 结果 | 证据 |
 |---|---|---|
-| 全闸门（gate.sh = development.yml） | 251 / 251 首轮全过 | ~/pearnly-devtools/integ1115-gate-6.log |
-| 候选离线（线上镜像 054aa603） | 111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1115-cand-6.log |
+| 全闸门（gate.sh = development.yml） | 72516d120：251 / 251 首轮全过（bcda444ae 同为 251 / 251） | ~/pearnly-devtools/integ1115-gate-7.log |
+| 候选离线（线上镜像 054aa603） | 72516d120：111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1115-cand-7.log |
 | Development / Companion checks | 532de63b1 两项 success；bcda444ae 推送后待查 | GitHub |
 | 产品地图 / 共用件连带 / i18n / 逐行查询 | 0 错 / 通过 / 通过 / 935 = 基线 | 本地 |
 | 收款三组测试（_collection / _line / _cc） | 全 OK；翻译包合并头上重生成零差异 | 本地 |
@@ -34,7 +35,7 @@
 | 空默认公司接管（新建空站点实走） | 空默认 9/9、默认有记录 4/4 | 拼车笔记 |
 | 8 处写用户默认值并发回填核对 | 8/8 | 拼车笔记 |
 | 手机宽度「从连接添加」弹窗空白 | 已收掉（最终头重拍） | ~/pearnly-devtools/integ1115/shots/ |
-| 全套 `--all --post-status`（部署流程闸要的那一份） | 进行中（实验室 down -v 重新正式建站） | GitHub pearnly/flows |
+| 全套 `--all --post-status`（部署流程闸要的那一份） | 72516d120 上进行中（15:33 起，实验室 down -v 重新正式建站） | GitHub pearnly/flows（72516d120） |
 
 已知、不挡上线（下一车）：
 - `erp.link.ledger-first`：选择框排序「本公司的档排前」不分账本物料与本公司手工物料，手工物料多时账本物料被挤出第一页；新建站数据少能过。修法：本公司之后加「有账本编码」排前（公司接入窗口）。
@@ -48,6 +49,7 @@
 |---|---|---|
 | 必须 | erp.line.postback.col、erp.line.postback.col@refused、erp.line.collection-edit、erp.line.collection-edit@old-url、erp.desk.pearnly-collections.action.New（补电脑宽度） | 收款修复与 device-1115-fixes 都在路径上；@old-url 是昨晚不通过项 |
 | 必须（新增） | 从连接添加接 Express → 主档落库 → 新公司在收款 / 采购选择框可见（干净电脑、任意账套）；含首次添加接管空默认公司、刷新让在线电脑立即重报 | 周一核心路；在线电脑重报只有真机能验 |
+| 必须（部署后线上） | 新建「ร้าน…」客户写进 Express 读回 PRENAM | prename-shop 修的线上缺陷，真机最终轮查出 |
 | 必须（新增） | CC 两条：编码带不换行空格的单写进 Express；查发票先读回再说「已收清」 | cc-code-fidelity 修的挡上线项 |
 | 建议 | erp.desk.boot-messages@cc-connect、erp.line.postback.erp_item（至少编辑经 LIFF 打开采购页 + 提交）、erp.desk.boot-messages@original | 昨晚看到的内容来自去掉的分支 |
 | 可沿用 | erp / cowork liff-camera、dms.line.richmenu.liff、三产品菜单发布、boot-messages@line-login | 去掉的分支不碰这些路径 |
@@ -67,9 +69,9 @@
 
 | 项 | 做法 / 结论 |
 |---|---|
-| 从哪个提交 | main 快进到集成分支头（bcda444ae 之后只多 docs 提交，现为 48b718332）；`deploy.sh` 只认在 main 上的提交（`merge-base --is-ancestor` 不过就停） |
+| 从哪个提交 | main 快进到集成分支头（发布头 72516d120，其后只多 docs 提交）；`deploy.sh` 只认在 main 上的提交（`merge-base --is-ancestor` 不过就停） |
 | 发布标记 | 不带 `--tag` 时 `deploy.sh` 从远端 main 当前提交打 `release-<UTC 年月日-时分>` 并推上去；`--dry-run` 不打标记 |
-| 流程闸 | 要部署的提交上 GitHub 状态 `pearnly/flows` = 全套通过；bcda444ae 上的 `--all --post-status` 在跑，其后只改 docs，`flows_inherit.py` 沿用（docs/ 不算产品路径） |
+| 流程闸 | 要部署的提交上 GitHub 状态 `pearnly/flows` = 全套通过；72516d120 上的 `--all --post-status` 在跑，其后只改 docs，`flows_inherit.py` 沿用（docs/ 不算产品路径） |
 | 构建 / 放镜像 | build-production（含候选三车道）约 8–9 分钟（11-13 为 8 分 18 秒）；stage-production 只把镜像拉到生产机、不启动 |
 | 维护窗口 | 激活脚本 deploy-run.sh 自带：逐产品进维护模式 → 迁移前备份 → migrate → 退出维护；任一步失败就停、不自动回滚；全程约 40 分钟（含回读与登录后 e2e 约 6 分钟，e2e 只登测试租户） |
 | DocType 守卫 | 本车相对线上没有新增 / 删除 DocType、Page、Report（只给 4 个 DocType 加字段 / 选项 / 搜索字段），守卫不会拦，`doctype-removals.txt` 不用改 |
@@ -85,7 +87,7 @@
    - DocType：ERP Collection（新字段 attempt；source 选项加 web）；ERP Customer / Supplier / Product（search_fields 加编码、税号）。
    - 共用层新钩子：DefaultValue after_insert → `pearnly_core.account.user_defaults.after_write`（无表结构）。
    - 菜单：ERP「收款」页权限 = 收款岗位 + 管理员；「我的收款」不进菜单、旧地址转收款页；公司页无「设为当前」、有「从连接添加」。
-5. 部署后线上核对（主会话 11-15 定）：先在线上 testerp（清空之前）用三星点旧收款卡【编辑】与新卡【编辑】各一次（真机在 532de63b1 通过、bcda444ae 未重测、实验室流程在 bcda444ae 通过），过了才往下走；再按新用户视角走一遍：下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express；六家 ERP 租户收款页 / 权限 / LINE 收款卡；erp-masters-worker 在跑、队列不积压；三产品首页 / 列表中泰文正常。
+5. 部署后线上核对（主会话 11-15 定）：先在线上 testerp（清空之前）用三星点旧收款卡【编辑】与新卡【编辑】各一次（真机在 532de63b1 通过、bcda444ae 未重测、实验室流程在 bcda444ae 通过），过了才往下走；网页手打新建一个「ร้าน…」开头的客户写进 Express，读回 PRENAM = ร้าน、CUSNAM 为核心名；再按新用户视角走一遍：下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express；六家 ERP 租户收款页 / 权限 / LINE 收款卡；erp-masters-worker 在跑、队列不积压；三产品首页 / 列表中泰文正常。
 
 ## 回滚
 
