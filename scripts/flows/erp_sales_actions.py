@@ -118,9 +118,11 @@ const gone=await until(()=>!document.querySelector(sel), 20000); await idle();
 return {{label, gone: !!gone}};"""},
         {"name": "收款", "js": JS + ACTION + OPEN + DIALOG + f"""
 if(!await open({v['collecting']}, {v['collecting_no']})) return {{error:'unpaid sale did not open '+window.__opened}};
+// 未付款的单：详情里不画收款方式（11-15 真机：照新单默认画成已付、空着的下拉显示「现金」）
+const method_shown=all('[data-fieldname="payment_method"]').filter(el=>el.offsetParent!==null).map(el=>(el.innerText||'').trim());
 const via=await action(__('Collection')); if(!via) return {{error:'no Collection button'}};
 const done=await dialog({{amount: 50, method: 'transfer'}}); if(!done) return {{error:'no collection dialog'}};
-return {{via, ...done}};"""},
+return {{via, method_shown, ...done}};"""},
         {"name": "Express 弹窗", "js": JS + ACTION + OPEN + f"""
 if(!await open({v['viewing']}, {v['viewing_no']})) return {{error:'sale did not open '+window.__opened}};
 {hook}
@@ -144,6 +146,8 @@ def judge(params, results, camera_code=None):
         {"case": "the list New button opens the new page", "seen": new, "ok": bool(new.get("via")) and new.get("route") == "pearnly-sales/new"},
         {"case": "selecting the draft turns the head button into Delete and the row goes away", "seen": drop,
          "ok": (drop.get("label") or "").endswith("(1)") and drop.get("gone") is True},
+        {"case": "an unpaid sale does not show a collection method in its details", "seen": (by.get("收款") or {}).get("method_shown"),
+         "ok": (by.get("收款") or {}).get("method_shown") == []},
         {"case": "collection and cancel dialogs closed without a message", "seen": {k: by.get(k) for k in ("收款", "作废")},
          "ok": all((by.get(k) or {}).get("open") is False and not (by.get(k) or {}).get("msg") for k in ("收款", "作废"))},
     ]
