@@ -53,28 +53,43 @@
 | 可沿用 | erp / cowork liff-camera、dms.line.richmenu.liff、三产品菜单发布、boot-messages@line-login | 去掉的分支不碰这些路径 |
 | 仍没测到 | express.report.bank-deposit、line.richmenu.publish.dms、CC 拒收退回草稿 | — |
 
+结果（11-15）：最终头 bcda444ae 真机 14 行 13 过（见「真机」节）。erp.line.collection-edit 与 collection-edit@old-url：真机在 532de63b1 通过，bcda444ae 未重测，实验室流程（erp.web.collection、erp.line.collection）在 bcda444ae 通过；主会话定列入部署后线上核对第一项。
+
 ## 上线前置
 
 - 上面「必须」的真机行在 bcda444ae 上通过（只有「通过」放行）。
 - 全套 `--all --post-status` 在要部署的提交上通过（或其后只改 docs 沿用）。
 - 生产只读（连生产前先把脚本给主会话）：① 小写原因码（already_collected / invoice_not_found）影响范围；② 「有销售岗位、没勾收款」的人数（收款改成一个权限后这些人看不到收款页）。
 
-## 部署预演步骤（主会话执行）
+## 部署预演步骤（主会话执行；拼车窗口不动生产、不打标记）
 
-1. main 快进到本车提交（bcda444ae 或其后只加 docs 的提交），推送、回读远端 SHA。
-2. 打回滚分支 `pearnly/rollback-1116` 指 6f58f0b48（线上现版本）。
-3. `scripts/production/deploy.sh --dry-run`：流程闸（pearnly/flows 全套通过或可沿用）、租户配置对比、LIFF 落地地址、站外设置对比全过；核 **erp-masters-worker**（队列 erp_masters、512M、profile erp）只在 ERP 机上会被建出。
-4. 正式 `scripts/production/deploy.sh`（后台，约 40 分钟，含回读与登录后 e2e）。
-5. 迁移前后核（一次 SSH，web 容器里 bench，只读）：
+前置核对（11-15 拼车窗口按 `scripts/production/deploy.sh` 与 11-13 记录核过）：
+
+| 项 | 做法 / 结论 |
+|---|---|
+| 从哪个提交 | main 快进到集成分支头（bcda444ae 之后只多 docs 提交，现为 48b718332）；`deploy.sh` 只认在 main 上的提交（`merge-base --is-ancestor` 不过就停） |
+| 发布标记 | 不带 `--tag` 时 `deploy.sh` 从远端 main 当前提交打 `release-<UTC 年月日-时分>` 并推上去；`--dry-run` 不打标记 |
+| 流程闸 | 要部署的提交上 GitHub 状态 `pearnly/flows` = 全套通过；bcda444ae 上的 `--all --post-status` 在跑，其后只改 docs，`flows_inherit.py` 沿用（docs/ 不算产品路径） |
+| 构建 / 放镜像 | build-production（含候选三车道）约 8–9 分钟（11-13 为 8 分 18 秒）；stage-production 只把镜像拉到生产机、不启动 |
+| 维护窗口 | 激活脚本 deploy-run.sh 自带：逐产品进维护模式 → 迁移前备份 → migrate → 退出维护；任一步失败就停、不自动回滚；全程约 40 分钟（含回读与登录后 e2e 约 6 分钟，e2e 只登测试租户） |
+| DocType 守卫 | 本车相对线上没有新增 / 删除 DocType、Page、Report（只给 4 个 DocType 加字段 / 选项 / 搜索字段），守卫不会拦，`doctype-removals.txt` 不用改 |
+| 新进程 | erp-masters-worker（compose profile erp、队列 erp_masters、512M）首次随本车上；dry-run 时看它只在 ERP 机建出 |
+| CC 桌面版 | 半截单的 CC 一侧不在本次部署；服务端先上（旧 CC 不发新键，行为不变），CC 正式版之后另发 |
+
+步骤：
+1. main 快进到集成分支头并推送，回读远端 SHA。
+2. `scripts/production/deploy.sh --dry-run`：流程闸、租户配置对比、LIFF 落地地址、站外设置对比全过；只读连生产一次。
+3. 告诉用户后正式 `scripts/production/deploy.sh`（后台；断开用 `deploy.sh --attach` 接回）。
+4. 迁移后核（一次 SSH，web 容器里 bench，只读）：
    - 补丁：`pearnly_erp_portal.patches.v1_28_admin_collection_menus`（已绑定 LINE 的人重挂富菜单）、`pearnly_erp_portal.patches.v1_29_stock_count_indexes`（结存 / 盘点索引）都在 Patch Log。
    - DocType：ERP Collection（新字段 attempt；source 选项加 web）；ERP Customer / Supplier / Product（search_fields 加编码、税号）。
-   - 共用层新钩子：DefaultValue after_insert → `pearnly_core.account.user_defaults.after_write`（hooks 生效即可，无表结构）。
-   - 菜单：ERP「收款」页权限改为收款岗位 + 管理员；「我的收款」不进菜单、旧地址转收款页；公司页按钮去掉「设为当前」、加「从连接添加」。
-6. 上线后必验：新用户视角走一遍（下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express）；六家 ERP 租户收款页 / 权限 / LINE 收款卡；erp-masters-worker 在跑、队列不积压；三产品首页 / 列表中泰文正常；登录后 e2e。
+   - 共用层新钩子：DefaultValue after_insert → `pearnly_core.account.user_defaults.after_write`（无表结构）。
+   - 菜单：ERP「收款」页权限 = 收款岗位 + 管理员；「我的收款」不进菜单、旧地址转收款页；公司页无「设为当前」、有「从连接添加」。
+5. 部署后线上核对（主会话 11-15 定）：先在线上 testerp（清空之前）用三星点旧收款卡【编辑】与新卡【编辑】各一次（真机在 532de63b1 通过、bcda444ae 未重测、实验室流程在 bcda444ae 通过），过了才往下走；再按新用户视角走一遍：下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express；六家 ERP 租户收款页 / 权限 / LINE 收款卡；erp-masters-worker 在跑、队列不积压；三产品首页 / 列表中泰文正常。
 
 ## 回滚
 
-`deploy.sh --tag <6f58f0b48 的发布标记>` 重部署；补丁只加索引与重挂菜单、DocType 只加字段与选项，回旧镜像不需要反向迁移；erp-masters-worker 回旧版后由 compose 去掉；DefaultValue 钩子随代码回退。
+`scripts/production/deploy.sh --tag release-20261113-1011`（线上现版本 6f58f0b48 的标记，镜像已构建过可加 `--digest sha256:054aa603db1722c28381e65cb0517175a0dfa3a868c9df5d1e276fe870f261ff`）。本车没有新增 DocType，旧代码迁移不会删 DocType 记录，不需要 11-13 那样的回滚提交；补丁只加索引与重挂菜单、字段只增不删，回旧镜像不需要反向迁移；erp-masters-worker 随旧 compose 去掉；DefaultValue 钩子随代码回退。
 
 ## 本车之后
 
