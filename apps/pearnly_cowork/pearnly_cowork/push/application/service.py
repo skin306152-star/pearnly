@@ -14,6 +14,7 @@ from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_core.express_rules.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
+from pearnly_core.express_rules.contracts import codes as code_rules
 from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.contracts.history import primary_page, primary_page_fields
 from pearnly_core.express_rules.contracts.push import clean_tax_id, explicit_direction, resolve_account_direction, resolve_posting_kind
@@ -742,6 +743,8 @@ def save_choices(history, connection, account_set_key, items):
             frappe.throw(_("connection.config_invalid"))
         kind, value = item["kind"], str(item.get("value") or "").strip()
         options = parties if kind == "party" else allowed[kind]
+        if options:
+            value = code_rules.choose(value, [code for code in options if code])  # 复述时空白变了的编码换回主档原样
         if kind in ("party", "item") and value == choice_rules.NEW:
             pass
         elif kind == "item" and value == choice_rules.EXPENSE:

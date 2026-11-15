@@ -194,6 +194,16 @@ class Card(unittest.TestCase):
                                          "remember": True}])
         self.assertEqual([row["kind"] for row in result["D2"]], ["party", "account"])
 
+    def test_an_answer_whose_spaces_changed_maps_back_to_the_offered_code(self):
+        """模型复述编码时空白会变（11-15 真机：不换行空格 → 普通空格）：换回选项里的原样，不报「不在选项里」。"""
+        nbsp = dict(party(), options=[{"code": "__new__"}, {"code": "นาย\u00a0ทดสอบ"}, {"code": "S002"}])
+        card = c.merge([doc("D1", nbsp)])
+        key = c.item_key("party", party()["subject"])
+        for given in ("นาย ทดสอบ", "นาย  ทดสอบ", "นาย\u3000ทดสอบ"):
+            result, errors = c.expand(card, [{"key": key, "value": given}])
+            self.assertEqual(errors, [])
+            self.assertEqual(result["D1"][0]["value"], "นาย\u00a0ทดสอบ")
+
     def test_bad_answers_are_reported_one_by_one(self):
         card = c.merge([doc("D1", party(), account())])
         key = c.item_key("party", party()["subject"])

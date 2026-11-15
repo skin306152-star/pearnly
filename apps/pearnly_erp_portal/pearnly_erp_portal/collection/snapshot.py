@@ -133,9 +133,10 @@ def replace(company, book_key, items, read_at=None, customer=""):
     """一份读取结果（整本或一位客户）对齐进快照：新的建、变的改、读到时已没有（收清 / 作废）的删；比这次读取新的行不动。"""
     at = _moment(read_at)
     filters = {"book_key": book_key, **({"customer": customer} if customer else {})}
+    # 按客户读的一份只动这位客户的行：客户按原样比（库的排序规则把只差空白的两位客户当成一位，不能删了另一位的发票）
     current = {row.docnum: row for row in frappe.get_all(
         DOCTYPE, filters=filters, fields=["name", "docnum", "remaining", "received", "net", "read_at", "customer"],
-        limit_page_length=ROWS_MAX)}
+        limit_page_length=ROWS_MAX) if not customer or row.customer == customer}
     seen, written = set(), 0
     for item in items[:ROWS_MAX]:
         try:
@@ -175,10 +176,12 @@ def apply_balances(book_key, found, at=None):
 
 
 def rows(book_key, customer, limit=200):
-    """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。"""
-    return frappe.get_all(DOCTYPE, filters={"book_key": book_key, "customer": customer},
-                          fields=["name", "docnum", "doc_date", "salesman", "department", "net", "received", "remaining",
-                                  "read_at"], order_by="doc_date asc, docnum asc", limit_page_length=limit)
+    """一位客户在这本账套此刻的未收清发票（快照），日期早的在前。客户按原样比：库的排序规则把不换行空格与空格当相等，
+    只差空白的是 Express 里两位客户，不能把另一位的发票列进来。"""
+    found = frappe.get_all(DOCTYPE, filters={"book_key": book_key, "customer": customer},
+                           fields=["name", "customer", "docnum", "doc_date", "salesman", "department", "net", "received",
+                                   "remaining", "read_at"], order_by="doc_date asc, docnum asc", limit_page_length=limit)
+    return [row for row in found if row.customer == customer]
 
 
 def lock(book_key, docnums):

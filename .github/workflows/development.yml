@@ -315,6 +315,8 @@ jobs:
         run: PYTHONPATH=apps/pearnly_core python3 tests/test_cowork_express_choices.py
       - name: Verify each purchase or sales line can be decided on its own (stock item, new stock item or expense) and mixed documents ask the expense account
         run: python3 tests/test_express_rules_line_choice.py
+      - name: Verify a code the assistant passed back with changed spaces maps to the master's own code (no-break, full-width, doubled), several near codes go back to the user
+        run: python3 tests/test_express_rules_codes.py
       - name: Verify Cowork LINE asks the undecided lines after recognition (all new, all expense, one by one with a typed search, cancel)
         run: python3 tests/test_cowork_line_items.py
       - name: Verify income reconciliation pairs a sale whose Express number differs from its printed number (push records)

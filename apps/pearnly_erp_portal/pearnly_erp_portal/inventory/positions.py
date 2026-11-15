@@ -8,6 +8,7 @@ follow later edits to product defaults.
 import frappe
 from frappe import _
 
+from pearnly_core.express_rules.contracts import codes as code_rules
 from pearnly_erp_portal.inventory import warehouses
 
 
@@ -83,6 +84,7 @@ def check(warehouse, location):
         names = listed(warehouse)
         if not names:
             frappe.throw(_(NO_ACTIVE))  # 建过清单但全部停用 = 没有可用库位，先启用一个（主会话 10-26）
+        location = code_rules.choose(location, list(names))  # 复述时空白变了的库位换回清单原样
         if location not in names:
             frappe.throw(_(NOT_LISTED) + f": {location}")
     return location

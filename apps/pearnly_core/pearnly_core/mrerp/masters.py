@@ -30,6 +30,8 @@ import json
 import re
 from typing import Any, Dict, List, Optional, Tuple
 
+from pearnly_core.express_rules.contracts import codes as code_rules
+
 # 字段 → 从哪个 JSON 键读（多个模块的接口给的是同一张表，先到先用）。
 SOURCES: Dict[str, Tuple[str, ...]] = {
     "branch": ("txtothcombrh",),
@@ -359,7 +361,9 @@ def choose(raw: Any, account: str, field: str, code: Any, observed: Any, *, acto
     known = observed_for(observed, account)
     if not account or field not in FIELDS or not known:
         return None
-    hit = next((v for v in options(known, field) or [] if v["code"] == want), None)
+    offered = options(known, field) or []
+    want = code_rules.choose(want, [v["code"] for v in offered])  # 复述时空白变了的编码换回读到的原样
+    hit = next((v for v in offered if v["code"] == want), None)
     if not hit:
         return None
     value = deepcopy(choices(raw))

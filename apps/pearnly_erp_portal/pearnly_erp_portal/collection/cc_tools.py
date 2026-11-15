@@ -20,7 +20,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import direct_push
-from pearnly_erp_portal.collection import contracts, plan, service, texts
+from pearnly_erp_portal.collection import contracts, plan, service, snapshot, texts
 
 LIST_MAX = 20
 CUSTOMERS_MAX = 50
@@ -53,6 +53,17 @@ LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not dec
 QUEUED_NOTE = ("queued: sent, but Express has not reported a result yet (CC Desktop on the computer that writes it may "
                "be offline: it is recorded once CC Desktop is back). Tell the user it is queued; check later with "
                "erp_collection_status when they ask. Do not wait. A queued collection is not in Express yet.")
+REFUSED_NOTE = ("Express did not take this collection: reason is what CC Desktop reported. Tell the user that in one "
+                "plain sentence, then ask with ask_user what to do: pick the customer (or the invoices) again from "
+                "erp_collection_customers / erp_collection_invoices and change the draft, or stop. Do not tell the user "
+                "to create or change anything in Express, and do not guess why.")
+
+
+def _refusal_note(out, view) -> dict:
+    """写前被拒退回草稿 / 写失败：给模型一句定式（说清事实、给选择），不让它自由发挥成「去 Express 建客户」（11-15 真机）。"""
+    if view.get("returned") or view.get("status") == contracts.FAILED:
+        out["note"] = REFUSED_NOTE
+    return out
 
 
 def _json(value) -> str:
@@ -77,6 +88,12 @@ def _refused(error) -> dict:
         return {"status": "not_saved", "reason": error.code, "note": LEDGER_NEEDED_NOTE,
                 "allowed_account_sets": [{"id": item["code"], "label": item["name"]}
                                          for item in (error.detail or {}).get("options") or ()]}
+    if isinstance(error, contracts.CollectionError) and error.code == service.NO_CUSTOMER:
+        # 编号对不上账本里唯一一位客户（多半是复述时空白变了，`service.customer_code`）：叫模型问人选，不说「不存在」
+        from pearnly_core.assistant import codes
+
+        detail = error.detail or {}
+        return codes.unmatched("customer", detail.get("customer"), {"matches": detail.get("options") or ()})
     if isinstance(error, contracts.CollectionError):
         return {"status": "not_saved", "reason": error.code, "message": texts.explain(error),
                 **({"detail": error.detail} if error.detail else {})}
@@ -105,6 +122,8 @@ def _in_company(run) -> str:
 def _card(card) -> dict:
     """确认卡 → 工具结果：规则全过的草稿带写入计划的单号与下一步。"""
     out = dict(card)
+    if card.get("returned"):
+        out["refused_note"] = REFUSED_NOTE
     if card.get("status") == contracts.DRAFT and card.get("ready"):
         return {**out, "document": plan.doc_id(card["name"], card["version"]), "note": READY_NOTE}
     if card.get("status") == contracts.DRAFT:
@@ -130,19 +149,54 @@ def customers(tool_input) -> str:
     return _in_company(run)
 
 
+# 读回未收清发票（按客户即时读一次，`snapshot.request`）的几种结果：模型只能按这一格说话（11-15 真机：刚开的发票还没读到，
+# CC 说成「已收清，请在 Express 核对」）。CC 桌面版只报未收清的发票，所以读到了也分不出「收清了」与「账套里没有」。
+READ_WAIT_SECONDS = 8
+READ_WAIT_STEP = 1
+READ_NOTES = {
+    "ready": ("read: ready — just read from Express. invoices are exactly this customer's open invoices in Express now. "
+              "An invoice that is not listed is not open for this customer in Express now (it may be collected, voided, "
+              "under another customer, or in another account set; Express does not say which): say only that and ask the "
+              "user which listed invoice to collect, or to stop. Do not guess which, and do not ask the user to check Express."),
+    "reading": ("read: reading — CC Desktop is reading this customer's invoices from Express right now and has not "
+                "answered yet; invoices are from an earlier read and may miss new ones. Never say an invoice is collected, "
+                "missing or not open. Tell the user it is still reading from Express, then call erp_collection_invoices "
+                "again (or when the user asks)."),
+    "offline": ("read: offline — CC Desktop on the computer that reads this account set is not connected, so nothing "
+                "could be read now; invoices are from an earlier read and may miss new ones. Never say an invoice is "
+                "collected, missing or not open. Tell the user CC Desktop is not connected and they can try again once "
+                "it is on."),
+    "outdated": ("read: outdated — CC Desktop on that computer needs an update before it can read invoices; invoices are "
+                 "from an earlier read. Never say an invoice is collected, missing or not open. Tell the user CC Desktop "
+                 "needs an update."),
+}
+
+
+def _fresh_invoices(company, customer) -> dict:
+    """请电脑按这位客户即时读一次，能等的地方短等（照 LINE：读不到就如实说还在读）。回 `service.open_invoices` 的结果或
+    `_call` 的拒绝。"""
+    found = _call(service.open_invoices, company, customer)  # _call 提交：读取请求要先落库电脑才看得见
+    deadline = time.monotonic() + READ_WAIT_SECONDS
+    while ("result" in found and found["result"]["refresh"] == snapshot.READING and direct_push.may_wait()
+           and time.monotonic() < deadline):
+        time.sleep(max(0.0, min(READ_WAIT_STEP, deadline - time.monotonic())))
+        frappe.db.rollback()  # 回执在别的请求里提交：换一份新快照再读
+        found = _call(service.open_invoices, company, customer)  # loop-query: 短等读回，最多 READ_WAIT_SECONDS 次
+    return found
+
+
+def _read_view(data, customer) -> dict:
+    state = data["refresh"] if data["refresh"] in READ_NOTES else snapshot.READING  # 说不清的不当「读到了」
+    return {"customer": data.get("customer") or customer, "invoices": data["items"], "read": state,
+            "note": READ_NOTES[state]}
+
+
 def invoices(tool_input) -> str:
     customer = str(tool_input.get("customer") or "").strip()
 
     def run(company):
-        found = _call(service.open_invoices, company, customer)
-        if "result" not in found:
-            return found
-        data = found["result"]
-        out = {"customer": customer, "invoices": data["items"], "refresh": data["refresh"]}
-        if data["refresh"] == "reading":
-            out["note"] = ("CC Desktop is reading this customer's invoices again now; these are from the last read. "
-                           "Call again in a moment for the latest.")
-        return out
+        found = _fresh_invoices(company, customer)
+        return _read_view(found["result"], customer) if "result" in found else found
 
     return _in_company(run)
 
@@ -165,7 +219,7 @@ def status(tool_input) -> str:
     if "result" not in found:
         return _json(found)
     view = found["result"]
-    return _json({**view, "result": RESULT.get(view["status"], view["status"])})
+    return _json(_refusal_note({**view, "result": RESULT.get(view["status"], view["status"])}, view))
 
 
 def recent(tool_input) -> str:
@@ -221,6 +275,22 @@ def draft(tool_input) -> str:
 
     def run(company):
         found = _call(make, company)
+        if "result" not in found and found.get("reason") == contracts.INVOICE_NOT_FOUND and not name:
+            # 快照里没有这张：先按客户即时读一次再判（刚开的发票还没读到，11-15 真机），读到了就照原样再建一次
+            customer = str(tool_input.get("customer") or "")
+            read = _fresh_invoices(company, customer)
+            if "result" not in read:
+                return read
+            view = _read_view(read["result"], customer)
+            if view["read"] == snapshot.READY:
+                again = _call(make, company)
+                if "result" in again:
+                    return _card(again["result"])
+                if again.get("reason") != contracts.INVOICE_NOT_FOUND:
+                    return again
+                found = again
+            return {"status": "not_saved", "reason": contracts.INVOICE_NOT_FOUND,
+                    "docnum": (found.get("detail") or {}).get("docnum") or "", **view}
         return _card(found["result"]) if "result" in found else found
 
     return _in_company(run)
@@ -287,7 +357,9 @@ def push(tool_input) -> str:
         out["note"] = QUEUED_NOTE
         if service.express_waiting(name):  # 这本账套此刻在等 Express 关闭（共用通道读的时候算）
             out.update(express_wait=True, note=QUEUED_NOTE + EXPRESS_OPEN_NOTE)
-    return _json(out)
+    if view.get("returned"):
+        out["reason"] = view["reason"]
+    return _json(_refusal_note(out, view))
 
 
 def withdraw(tool_input) -> str:
@@ -323,7 +395,9 @@ TOOLS = [
     {"name": "erp_collection_invoices", "label": "Listed open invoices", "modes": ["chat"],
      "description": "A customer's invoices that are not fully paid in Express, oldest first: docnum, date, net, received, "
                     "remaining and available (what can be collected now: remaining less what other collectors already "
-                    "recorded). Only available can be collected; never work amounts out yourself.",
+                    "recorded). Only available can be collected; never work amounts out yourself. It reads Express again "
+                    "first; read says whether the list is fresh (ready) or not (reading / offline / outdated) — only a "
+                    "ready list can tell that an invoice is not open; follow note.",
      "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."}},
                       "required": ["customer"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.invoices"},

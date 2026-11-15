@@ -122,8 +122,15 @@ def _norm(value):
     return value
 
 
+def _ci(value):
+    """库的排序规则 utf8mb4_unicode_ci 的近似：不分大小写，不换行空格与空格相等（11-15 真机根因之一）。"""
+    return str(value).replace("\xa0", " ").casefold()
+
+
 def _cmp(value, op, wanted):
     if op == "=":
+        if isinstance(value, str) and isinstance(wanted, str):
+            return _ci(value) == _ci(wanted)
         return value == wanted
     if op == "!=":
         return value != wanted
@@ -133,9 +140,12 @@ def _cmp(value, op, wanted):
         return value not in wanted
     if op == "is":
         return value not in (None, "") if wanted == "set" else value in (None, "")
-    if op == "like":
-        needle = str(wanted).strip("%").lower()
-        return needle in str(value or "").lower()
+    if op == "like":  # % 是通配（转义的 \\% \\_ 按字面），整串比
+        import re
+
+        parts = [re.escape(_ci(part.replace("\\%", "%").replace("\\_", "_")))
+                 for part in re.split(r"(?<!\\)%", str(wanted))]
+        return re.fullmatch(".*".join(parts), _ci(value or ""), re.S) is not None
     left, right = _norm(value), _norm(wanted)
     if left is None:
         return False

@@ -397,5 +397,146 @@ class ExpressOpen(Base):
         self.assertIn("written automatically once Express is closed", pushed["note"])
 
 
+NBSP = "นาย\u00a0ทดสอบ"  # 11-15 真机：Express 里的客户编码带不换行空格（69EXP\TEST）
+
+
+class CodeFidelity(Base):
+    """模型复述编码时空白会变（不换行空格 → 普通空格，真模型 3/3），库的排序规则又把两者当相等：工具一律换回主档原样，
+    草稿、写入载荷里是 Express 的原样编码；只差空白的两位客户交人选；写前被拒给定式说明，不叫人去 Express 建客户。"""
+
+    def setUp(self):
+        super().setUp()
+        T.S.table("ERP Customer")["C9"] = {"name": "C9", "express_company": "CO-1", "express_code": NBSP,
+                                          "customer_name": "นาย ทดสอบ", "is_active": 1}
+        T.snapshot.replace("CO-1", T.BOOK["key"], [
+            {"docnum": "IV0000006", "rectyp": "3", "docdat": "2026-11-01", "customer": NBSP, "salesman": "",
+             "department": "", "net": "1000.00", "received": "0.00", "remaining": "1000.00"}],
+            "2026-11-15T03:00:00+00:00")
+        self.as_user("a@x")
+
+    def draft_as(self, given, docnum="IV0000006"):
+        return self.call(cc_tools.draft, customer=given, invoices=[{"docnum": docnum, "amount": "1000"}], cash="1000")
+
+    def test_every_spelling_lands_as_the_master_code_in_the_draft_and_the_payload(self):
+        for given in ("นาย ทดสอบ", "นาย  ทดสอบ", " นาย ทดสอบ ", "นาย\u3000ทดสอบ", NBSP):
+            with self.subTest(given=repr(given)):
+                found = self.call(cc_tools.invoices, customer=given)
+                self.assertEqual(found["customer"], NBSP)
+                self.assertEqual([row["docnum"] for row in found["invoices"]], ["IV0000006"])
+                made = self.draft_as(given)
+                self.assertTrue(made["ready"], made)
+                self.assertEqual(made["customer"], NBSP)
+                self.assertEqual(frappe.db.get_value("ERP Collection", made["name"], "customer"), NBSP)
+                self.call(cc_tools.withdraw, collection=made["name"])
+        made = self.draft_as("นาย ทดสอบ", docnum="IV0000006 ")  # 单号复述多了空白也换回快照里的原样
+        self.agreed(made["document"])
+        self.assertEqual(self.call(cc_tools.push, document=made["document"])["status"], "queued")
+        payload = self.jobs.rows["J-" + made["name"]]["payload"]
+        self.assertEqual((payload["customer"], payload["invoices"]), (NBSP, [{"docnum": "IV0000006", "amount": "1000.00"}]))
+
+    def test_two_customers_differing_only_by_spaces_go_back_to_the_user(self):
+        T.S.table("ERP Customer")["C10"] = {"name": "C10", "express_company": "CO-1", "express_code": "นาย\u3000ทดสอบ",
+                                           "customer_name": "นาย ทดสอบ (2)", "is_active": 1}
+        refused = self.draft_as("นาย ทดสอบ")
+        self.assertEqual((refused["status"], refused["reason"]), ("not_saved", "code_not_matched"))
+        self.assertEqual(sorted(refused["options"]), sorted([NBSP, "นาย\u3000ทดสอบ"]))
+        self.assertIn("ask_user", refused["note"])
+        self.assertIn("Never say it is missing from Express", refused["note"])
+        self.assertEqual(self.draft_as(NBSP)["customer"], NBSP)  # 原样给的照旧认得出
+        self.assertEqual(T.S.table("ERP Customer")["C10"]["express_code"], "นาย\u3000ทดสอบ")
+
+    def test_invoices_of_a_sibling_code_are_not_listed(self):
+        T.S.table("ERP Customer")["C10"] = {"name": "C10", "express_company": "CO-1", "express_code": "นาย ทดสอบ",
+                                           "customer_name": "นาย ทดสอบ (2)", "is_active": 1}
+        exact = self.call(cc_tools.invoices, customer="นาย ทดสอบ")  # 逐字有这位：认它，不列另一位（只差空白）的发票
+        self.assertEqual((exact["customer"], exact["invoices"]), ("นาย ทดสอบ", []))
+
+    def test_an_unknown_customer_is_not_called_missing_from_express(self):
+        refused = self.draft_as("ไม่มีคนนี้")
+        self.assertEqual((refused["reason"], refused["options"]), ("code_not_matched", []))
+        self.assertNotIn("message", refused)
+
+    def test_a_refusal_before_writing_gets_the_fixed_note(self):
+        made = self.draft_as("นาย ทดสอบ")
+        self.agreed(made["document"])
+        self.call(cc_tools.push, document=made["document"])
+        self.jobs.report("J-" + made["name"], "manual", reason="[CUSTOMER_NOT_IN_ARMAS] customer is not in Express")
+        status = self.call(cc_tools.status, collection=made["name"])
+        self.assertTrue(status["returned"])
+        self.assertIn("Do not tell the user to create or change anything in Express", status["note"])
+        self.assertIn("ask_user", status["note"])
+        self.assertIn("refused_note", self.call(cc_tools.card, collection=made["name"]))
+
+
+class ReadBack(Base):
+    """查发票 / 建草稿时快照里没有那张：先按客户即时读一次、短等，再按读回的几种结果说话（11-15 真机：刚开的发票还没读到，
+    CC 说成「已收清，请在 Express 核对」）。快照为空（新开的发票）、快照过期（那张其实已收清）、读回超时、电脑未连接。"""
+
+    KEY = None
+
+    def setUp(self):
+        super().setUp()
+        frappe.local.pearnly_assistant["may_wait"] = True
+        self.KEY = T.snapshot.request_key(T.BOOK["key"], "2100883")
+        self.answer = [None]  # 电脑在短等期间读回的那一份（None = 一直没回）
+        clock = [0.0]
+
+        def sleep(seconds):
+            clock[0] += max(seconds, 0.5)
+            if self.answer[0] is not None and self.KEY in self.requests.made:
+                self.requests.finish(self.KEY, self.answer[0], "2026-11-15T04:00:00+00:00")
+
+        for patch in (mock.patch.object(cc_tools.time, "sleep", side_effect=sleep),
+                      mock.patch.object(cc_tools.time, "monotonic", side_effect=lambda: clock[0])):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.as_user("a@x")
+
+    @staticmethod
+    def row(docnum, remaining, customer="2100883"):
+        return {"docnum": docnum, "rectyp": "3", "docdat": "2026-11-15", "customer": customer, "salesman": "",
+                "department": "", "net": remaining, "received": "0.00", "remaining": remaining}
+
+    def draft_of(self, docnum, amount):
+        return self.call(cc_tools.draft, customer="2100883", invoices=[{"docnum": docnum, "amount": amount}], cash=amount)
+
+    def test_a_new_invoice_not_in_the_snapshot_is_read_then_recorded(self):
+        self.answer[0] = [self.row("IV1", "1000.00"), self.row("IV2", "500.00"), self.row("IV691115-003", "572.45")]
+        made = self.draft_of("IV691115-003", "572.45")
+        self.assertTrue(made.get("ready"), made)
+        self.assertEqual([row["docnum"] for row in made["invoices"]], ["IV691115-003"])
+
+    def test_a_stale_snapshot_is_read_again_and_a_collected_invoice_is_said_as_not_open(self):
+        self.answer[0] = [self.row("IV2", "500.00")]  # IV1 在 Express 里刚被收清
+        listed = self.call(cc_tools.invoices, customer="2100883")
+        self.assertEqual((listed["read"], [row["docnum"] for row in listed["invoices"]]), ("ready", ["IV2"]))
+        self.assertIn("not open for this customer in Express now", listed["note"])
+        self.assertIn("do not ask the user to check Express", listed["note"])
+        refused = self.draft_of("IV1", "1000")
+        self.assertEqual((refused["status"], refused["reason"], refused["read"], refused["docnum"]),
+                         ("not_saved", T.C.INVOICE_NOT_FOUND, "ready", "IV1"))
+        self.assertNotIn("message", refused)
+
+    def test_a_read_that_does_not_come_back_in_time_is_never_said_as_collected(self):
+        listed = self.call(cc_tools.invoices, customer="2100883")
+        self.assertEqual(listed["read"], "reading")
+        self.assertEqual([row["docnum"] for row in listed["invoices"]], ["IV1", "IV2"])  # 上一次读到的照给，标明不是最新
+        self.assertIn("Never say an invoice is collected, missing or not open", listed["note"])
+        refused = self.draft_of("IV691115-003", "572.45")
+        self.assertEqual((refused["reason"], refused["read"]), (T.C.INVOICE_NOT_FOUND, "reading"))
+        self.assertIn("still reading from Express", refused["note"])
+        self.assertNotIn("message", refused)
+        self.answer[0] = [self.row("IV691115-003", "572.45")]  # 用户说「再读一次」：读到了照常建
+        self.assertTrue(self.draft_of("IV691115-003", "572.45").get("ready"))
+
+    def test_an_offline_computer_is_said_as_not_connected(self):
+        with mock.patch.object(self.requests, "waiting", side_effect=lambda kind, book_key, actor=None: {"reason": "offline"}):
+            listed = self.call(cc_tools.invoices, customer="2100883")
+            self.assertEqual(listed["read"], "offline")
+            self.assertIn("not connected", listed["note"])
+            refused = self.draft_of("IV691115-003", "572.45")
+        self.assertEqual((refused["reason"], refused["read"]), (T.C.INVOICE_NOT_FOUND, "offline"))
+
+
 if __name__ == "__main__":
     unittest.main()

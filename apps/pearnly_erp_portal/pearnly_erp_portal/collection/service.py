@@ -15,6 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, nowdate
 
+from pearnly_core.express_rules.contracts import codes
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts, snapshot
 from pearnly_erp_portal.express import choices, contracts as express_contracts, facts, target
@@ -177,7 +178,20 @@ def customers(company, q="", start=0, limit=12) -> dict:
             "total": list_filters.count(CUSTOMER, filters, or_filters, ignore_permissions=True)}
 
 
+def customer_code(company, given) -> str:
+    """给的客户编号 → 这家公司账本客户的原样编号（`pearnly_core.assistant.codes`：CC 复述时空白会变，库的排序规则又把不换行
+    空格与空格当相等，不换回原样就会把模型的串存进草稿、写 Express 时被拒）。认不出或几件只差空白的抛 :data:`NO_CUSTOMER`，
+    ``detail.options`` 带像的那几件（交人选）。"""
+    from pearnly_core.assistant import codes
+
+    found = codes.canonical(CUSTOMER, "express_code", given, {**master_access.ledger_filters(company), "is_active": 1})
+    if not found["code"]:
+        raise contracts.CollectionError(NO_CUSTOMER, {"customer": str(given or ""), "options": found["matches"]})
+    return found["code"]
+
+
 def _customer_name(company, code):
+    code = customer_code(company, code)
     name = frappe.db.get_value(CUSTOMER, {**master_access.ledger_filters(company), "express_code": code, "is_active": 1},
                                "customer_name")
     if name is None:
@@ -271,6 +285,7 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     ``refresh``：同时请电脑按这位客户即时读一次（读好前先给快照里的）；``book``：已有的草稿冻结的那本。"""
     guard.require(WRITE)
     row = _company(company)
+    customer = customer_code(company, customer)
     _customer_name(company, customer)
     book = book or book_for(row, day or nowdate())
     state = snapshot.request(company, book, customer) if refresh else ""
@@ -280,7 +295,7 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
              for value in rows.values() if value["available"] > 0]
     for item in items:
         item.pop("read_at", None)
-    return {"items": items, "refresh": state, "book": book["key"]}
+    return {"items": items, "refresh": state, "book": book["key"], "customer": customer}
 
 
 # ── 草稿 ─────────────────────────────────────────────────────────────────────
@@ -345,6 +360,10 @@ def _choices(book_key) -> dict:
 def _staff(book_key, checked, salesman=None, department=None, previous=None) -> dict:
     """销售员与部门（`contracts.staff`）；收款员给的值要在这本账套里（停用的销售员、不存在的部门拒）。"""
     found = _choices(book_key)
+    if salesman and found["salesmen"] is not None:
+        salesman = codes.choose(salesman, [row["code"] for row in found["salesmen"]])
+    if department and found["departments"] is not None:
+        department = codes.choose(department, [row["code"] for row in found["departments"]])
     out = contracts.staff(checked["invoices"][0], found["run_department"], salesman, department, previous)
     if salesman and found["salesmen"] is not None and out["salesman"] not in {row["code"] for row in found["salesmen"]}:
         raise contracts.CollectionError(contracts.SALESMAN_INVALID, {"salesman": out["salesman"]})
@@ -395,6 +414,8 @@ def _attach(name, checked):
 def _draft_input(invoices, cash, methods_value, amount, open_rows):
     """``invoices`` 可以只给单号（``amount`` 是总数，按日期早的先收满，`contracts.allocate`），也可以逐张给金额。"""
     invoices = [row if isinstance(row, dict) else {"docnum": row} for row in invoices or []]
+    # 复述时空白变了的单号换回快照里的原样（`pearnly_core.express_rules.contracts.codes`）
+    invoices = [{**row, "docnum": codes.choose(row.get("docnum"), open_rows)} for row in invoices]
     if amount not in (None, "") and invoices and all(row.get("amount") in (None, "") for row in invoices):
         picked = [open_rows[row["docnum"]] for row in invoices if row.get("docnum") in open_rows]
         if len(picked) != len(invoices):
@@ -413,7 +434,7 @@ def create_draft(company, customer, invoices, cash=0, methods=None, amount=None,
     ``salesman`` / ``department``：不给就默认第一张发票的（`contracts.staff`）。"""
     guard.require(WRITE)
     row = _company(company)
-    customer = str(customer or "").strip()
+    customer = customer_code(company, customer)
     customer_name = _customer_name(company, customer)
     day = str(doc_date or nowdate())[:10]
     book = book_for(row, day)
@@ -522,6 +543,7 @@ def set_voucher(name, version, prefix, voucher) -> dict:
     doc = _own(name, for_update=True)
     if doc.status != contracts.DRAFT:
         raise contracts.CollectionError(contracts.NOT_DRAFT, {"status": doc.status})
+    prefix = codes.choose(prefix, [row.prefix for row in doc.payments])
     methods_value = [{"prefix": row.prefix, "amount": row.amount,
                       "voucher": voucher if row.prefix == prefix else row.voucher} for row in doc.payments]
     if not any(row.prefix == prefix for row in doc.payments):

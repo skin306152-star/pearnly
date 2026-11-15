@@ -25,6 +25,8 @@ import json
 from collections import Counter
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
+from pearnly_core.express_rules.contracts import codes as code_rules
+
 # ── 业务分组（卡片上的顺序）──
 BOOK, PURCHASE, SALES, STOCK, SERVICE, PAYMENT = "book", "purchase", "sales", "stock", "service", "payment"
 GROUPS = (BOOK, PURCHASE, SALES, STOCK, SERVICE, PAYMENT)
@@ -367,6 +369,8 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
             errors.append({"key": key, "code": ERR_EMPTY_VALUE})
             continue
         codes = _codes(item.get("options"))
+        if codes is not None:
+            value = code_rules.choose(value, codes)  # 复述时空白变了的编码换回选项里的原样
         if codes is not None and not item.get("search") and value not in codes:
             errors.append({"key": key, "code": ERR_NOT_OFFERED})
             continue

@@ -24,6 +24,8 @@ from __future__ import annotations
 
 from decimal import Decimal, InvalidOperation
 
+from pearnly_core.express_rules.contracts import codes
+
 PAYLOAD_VERSION = 20
 DIRECTION = "receipt"
 CENT = Decimal("0.01")
@@ -257,11 +259,12 @@ def _code_key(code):
 
 def method_of(catalog_value, prefix):
     """按前缀认一种可用的方式（转账或折扣）：``(那一种, 角色)``；认不出回 ``(None, "")``。"""
-    prefix = str(prefix or "").strip()
+    discount = catalog_value.get("discount")
+    prefix = codes.choose(prefix, [item["prefix"] for item in catalog_value.get("transfers") or []] +
+                          ([discount["prefix"]] if discount else []))
     for item in catalog_value.get("transfers") or []:
         if item["prefix"] == prefix:
             return item, TRANSFER
-    discount = catalog_value.get("discount")
     if discount and discount["prefix"] == prefix:
         return discount, DISCOUNT
     return None, ""
@@ -311,7 +314,7 @@ def check(draft, open_rows, catalog_value, *, require_vouchers=False) -> dict:
         raise CollectionError(INVOICES_TOO_MANY)
     seen, out_invoices, over = set(), [], {}
     for row in invoices:
-        docnum = str(row.get("docnum") or "").strip()
+        docnum = codes.choose(row.get("docnum"), open_rows)  # 复述时空白变了的单号换回快照里的原样
         if not docnum or docnum in seen:
             raise CollectionError(INVOICE_DUPLICATE if docnum else INVOICE_NOT_FOUND, {"docnum": docnum})
         seen.add(docnum)

@@ -173,6 +173,13 @@ class WritePlanTests(unittest.TestCase):
         patcher = mock.patch.dict(sys.modules, modules)
         patcher.start()
         self.addCleanup(patcher.stop)
+        # 预选卡契约用共用的编码换回原样（纯契约，真实现）
+        for name in ("pearnly_core.express_rules", "pearnly_core.express_rules.contracts"):
+            patcher_pkg = mock.patch.dict(sys.modules, {name: types.ModuleType(name)})
+            patcher_pkg.start()
+            self.addCleanup(patcher_pkg.stop)
+        sys.modules["pearnly_core.express_rules.contracts"].codes = _load(
+            "pearnly_core.express_rules.contracts.codes", CORE / "express_rules/contracts/codes.py")
         write_precheck.contracts = _load("pearnly_core.write_precheck.contracts", CORE / "write_precheck/contracts.py")
         self.plan_module = _load("pearnly_core.assistant.write_plan", CORE / "assistant/write_plan.py")
         self.conversation(operator_task="OPT-1")

@@ -773,6 +773,7 @@ def _save_rule(company, sets, kind, subject, value, branch, period, *, subject_l
     if kind not in KINDS or not isinstance(subject, str) or not subject:
         frappe.throw(_("cowork.company.choice_unsupported"))
     branch, masters = scoped or _scope(sets, branch, period)
+    value = company_choices.canonical(kind, value, masters, subject)  # 存主档原样编码，不存模型复述的串
     if not company_choices.valid(kind, value, masters, subject):
         frappe.throw(_("cowork.company.choice_invalid"))
     saved = rules.save(company["name"], workspace=scope.default_workspace(), kind=kind, subject=subject,

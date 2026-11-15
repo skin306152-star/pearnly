@@ -89,6 +89,24 @@ def _ensure_masters(doc, account_set_key):
     return found
 
 
+def _faithful(raw, accounts, departments):
+    """CC 给的默认科目 / 部门换回这份账套主档里的原样编码（复述时空白会变，`express_rules.contracts.codes`）；其余原样。"""
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except ValueError:
+            return raw  # 交给 `contracts.defaults` 照旧报格式不对
+    if not isinstance(raw, dict):
+        return raw
+    known = {"account": accounts, "department": departments}
+    if not any(known.get(kind) and isinstance(value, str) and value for kind, value in raw.items()):
+        return raw
+    from pearnly_core.express_rules.contracts import codes as code_rules
+
+    return {kind: code_rules.choose(value, sorted(known[kind])) if known.get(kind) and isinstance(value, str) and value
+            else value for kind, value in raw.items()}
+
+
 def _masters(doc, account_set_key):
     found = preparation.reported_masters(doc, normalize_express_account_key(account_set_key)) or {}
     accounts = found.get("reported_accounts")
@@ -307,8 +325,8 @@ def save(values, *, cc_session=None):
             if direction == "sales" and accounts is not None:
                 # 销项的默认科目是收入科目：只收这份账套科目表里的收入类（用户 2026-10-20）
                 accounts = contracts.income_codes(found.get("reported_accounts"))
-            defaults = contracts.defaults(values.get("defaults"), direction=direction, posting_kind=posting_kind,
-                                          accounts=accounts, departments=departments)
+            defaults = contracts.defaults(_faithful(values.get("defaults"), accounts, departments), direction=direction,
+                                          posting_kind=posting_kind, accounts=accounts, departments=departments)
     except contracts.ContractError as error:
         _error(error)
     account_set_key, label = _catalog_item(doc.name, values.get("account_set_key"))

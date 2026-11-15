@@ -21,6 +21,7 @@ from __future__ import annotations
 import re
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
+from pearnly_core.express_rules.contracts import codes as code_rules
 from pearnly_core.express_rules.push import service_vat
 from pearnly_core.express_rules.push.choices import KINDS, NEW, PAYMENT_VALUES, VAT_VALUES
 
@@ -45,7 +46,7 @@ def _codes(rows: Any) -> Optional[set]:
     """主档里的编码；没报上来（不是列表或空表，同 `choices.resolve` 的「不拦」）回 None。"""
     if not isinstance(rows, list) or not rows:
         return None
-    return {str(row.get("code")).strip() for row in rows
+    return {str(row.get("code")) for row in rows  # 原样（不 strip）：Express 按原样认编码，首尾不换行空格也是编码的一部分
             if isinstance(row, Mapping) and str(row.get("code") or "").strip()}
 
 
@@ -61,10 +62,20 @@ def _masters(kind: str, subject: str, config: Mapping[str, Any]) -> Optional[set
     return _codes(config.get(MASTERS.get(kind, "")))
 
 
+def canonical(kind: str, value: Any, config: Optional[Mapping[str, Any]], subject: str = "") -> str:
+    """CC 给的编码换回这份账套主档里的原样（复述时空白会变，`express_rules.contracts.codes`）；固定值、「新建」、主档没报上来
+    的照原样（去首尾空白）回。"""
+    text = str(value or "").strip()
+    if kind not in KINDS or kind in ("payment", "vat", service_vat.KIND) or text == NEW:
+        return text
+    found = _masters(kind, subject, config or {})
+    return text if found is None else code_rules.choose(value, sorted(found))
+
+
 def valid(kind: str, value: Any, config: Optional[Mapping[str, Any]], subject: str = "") -> bool:
     """`value` 能不能用在这份账套：付款 / 抵进项 / 服务品进项税口径是固定值；对方档、存货可以是「新建」；其余要在这份账套的主档里，
     主档没报上来（`config` 为 None 或那张表没报）时放行。"""
-    value = str(value or "").strip()
+    value = canonical(kind, value, config, subject)
     if kind not in KINDS or not value or len(value) > VALUE_MAX:
         return False
     if kind == "payment":

@@ -6,9 +6,12 @@
 import importlib.util
 import json
 import pathlib
+import sys
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "apps/pearnly_core"))  # 主档规则用共用的编码换回原样（`express_rules.contracts.codes`）
 spec = importlib.util.spec_from_file_location(
     "mrerp_masters", ROOT / "apps/pearnly_core/pearnly_core/mrerp/masters.py")
 rules = importlib.util.module_from_spec(spec)
@@ -72,6 +75,13 @@ class Resolve(unittest.TestCase):
         self.assertEqual(rules.resolve([], None), (None, rules.UNREADABLE))
         # 科目字段不因「只有一个」就自动定
         self.assertEqual(rules.resolve(one, None, single=False), (None, rules.CHOICE_REQUIRED))
+
+    def test_a_chosen_code_whose_spaces_changed_is_kept_as_read(self):
+        observed = {"15:1": {"at": "t1", "fields": {"dept": [{"code": "D\u00a001", "name": "ฝ่าย"}]}}}
+        with mock.patch.object(rules, "observed_for", side_effect=lambda value, account: value.get(account)), \
+                mock.patch.object(rules, "options", side_effect=lambda known, field: known["fields"].get(field)):
+            chosen = rules.choose(None, "15:1", "dept", "D 01", observed, actor="u", at="t2")
+        self.assertEqual(rules.chosen_map(chosen, "15:1"), {"dept": "D\u00a001"})
 
     def test_choices_are_remembered_per_account_set_and_only_from_what_was_read(self):
         observed = rules.observe(None, "15:1", rules.masters([FABILLREV, ARMAS]), at="t1")

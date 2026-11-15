@@ -29,6 +29,7 @@ from frappe import _
 
 from pearnly_core.cc_desktop import jobs
 from pearnly_core.express_operator import menu_choice
+from pearnly_core.express_rules.contracts import codes as code_rules
 from pearnly_core.express_rules.contracts import pos as pos_contract
 from pearnly_core.express_rules.push import common as receipt_rules
 from pearnly_core.express_rules.push import choices as choice_rules
@@ -459,8 +460,9 @@ def save_mrerp(company, doctype, answers, seen) -> int:
         if key in seen or answer.get("remember") is False:
             continue
         item = asked.get(key)
-        value = str(answer.get("value") or "").strip()
-        if item is None or value not in {option["code"] for option in item["options"]}:
+        offered = [option["code"] for option in item["options"]] if item is not None else []
+        value = code_rules.choose(answer.get("value"), offered)
+        if item is None or value not in offered:
             frappe.throw(_("Invalid request"))
         seen.add(key)
         checked.append((key, value))
@@ -524,8 +526,8 @@ def save(company, found, answers, seen=None) -> int:
         item = asked.get(key)
         if item is None or key in seen or answer.get("remember") is False:
             continue
-        value = str(answer.get("value") or "").strip()
         options = {row["code"]: row.get("name") or "" for row in full_options(item, found["data"])}
+        value = code_rules.choose(answer.get("value"), options)  # 复述时空白变了的编码换回主档原样
         if value not in options:
             frappe.throw(_("Invalid request"))
         seen.add(key)
