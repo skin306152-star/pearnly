@@ -285,6 +285,7 @@ def _install():
         raise exc(message)
 
     frappe.throw = throw
+    frappe.validate_and_sanitize_search_inputs = lambda function: function
     frappe._ = lambda text: text
     frappe.get_all = get_all
     frappe.get_list = get_all
@@ -640,6 +641,18 @@ def _require(capability, user=None):
         raise PermissionError_("Not permitted")
 
 
+def _ledger_rows(doctype, company, text, *, start=0, limit=20, filters=None, ledger_only=False):
+    """`masters.link_search.rows` 的替身（真查询是原生 SQL，另有流程守）：这家的账本客户，名称 / 编码 / 税号包含所打的字。"""
+    words = str(text or "").split()
+    found = []
+    for row in sorted(S.table("ERP Customer").values(), key=lambda row: (row.get("customer_name"), row["name"])):
+        hay = " ".join(str(row.get(key) or "") for key in ("name", "customer_name", "express_code", "tax_id"))
+        if row.get("express_company") == company and row.get("express_code") and all(word in hay for word in words):
+            found.append(Row(name=row["name"], title=row["customer_name"], express_code=row["express_code"],
+                             tax_id=row.get("tax_id") or ""))
+    return found[start:start + limit]
+
+
 class Base(unittest.TestCase):
     def setUp(self):
         global S
@@ -669,6 +682,9 @@ class Base(unittest.TestCase):
             mock.patch.object(snapshot, "requests", self.requests),
             mock.patch.object(push, "jobs", self.jobs),
             mock.patch.object(records, "display_name", side_effect=lambda user: user.split("@")[0].upper()),
+            mock.patch("pearnly_erp_portal.masters.link_search.rows", side_effect=_ledger_rows),
+            mock.patch("pearnly_erp_portal.masters.link_search.count",
+                       side_effect=lambda *a, **k: len(_ledger_rows(*a, **{**k, "start": 0, "limit": 10 ** 6}))),
         ]
         for patch in patches:
             patch.start()
@@ -963,7 +979,7 @@ class Permissions(Base):
 
     def test_customers_search_by_code_or_name_server_side(self):
         self.as_user("a@x")
-        self.assertEqual(service.customers("CO-1", "ป้า")["items"], [{"code": "2100883", "name": "ร้านป้าแดง"}])
+        self.assertEqual(service.customers("CO-1", "ป้า")["items"], [{"code": "2100883", "name": "ร้านป้าแดง", "tax_id": ""}])
         self.assertEqual(service.customers("CO-1", "2100")["total"], 2)
         self.assertEqual(len(service.customers("CO-1", "", limit=1)["items"]), 1)
         self.assertEqual(service.companies_for(), [{"name": "CO-1", "company_name": "นิภา"}])

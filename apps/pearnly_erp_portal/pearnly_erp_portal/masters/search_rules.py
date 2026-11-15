@@ -21,6 +21,23 @@ def pattern(text) -> str:
     return "%" + "%".join(str(text or "").split()) + "%"
 
 
-def or_filters(doctype, text) -> list:
-    """``frappe.get_all(or_filters=…)`` 版：单据号 ``name`` 与 :data:`COLUMNS` 任一列包含。没打字回空。"""
-    return [[column, "like", pattern(text)] for column in ("name", *COLUMNS[doctype])] if str(text or "").split() else []
+# 电话列：库里有的带横线 / 空格（081-234-5678），有的不带；打的字只要是电话样子，两边都去掉这些再比（11-15 真机：带横线才搜得到）
+PHONES = {"ERP Customer": ("contact_phone",), "ERP Supplier": ("phone",)}
+PHONE_MARKS = ("-", " ", ".", "(", ")")
+
+
+def phone_digits(text) -> str:
+    """打的字像电话（只有数字与 - 空格 . ( ) +，至少 3 位数字）时回去掉符号的数字串，否则空串。"""
+    text = str(text or "").strip()
+    digits = "".join(ch for ch in text if ch.isdigit())
+    if len(digits) < 3 or any(not (ch.isdigit() or ch in PHONE_MARKS or ch == "+") for ch in text):
+        return ""
+    return digits
+
+
+def phone_column(column) -> str:
+    """SQL：这一列去掉电话符号后的值（与 :func:`phone_digits` 同一组符号）。"""
+    expr = f"ifnull(`{column}`, '')"
+    for mark in PHONE_MARKS:
+        expr = f"replace({expr}, '{mark}', '')"
+    return expr

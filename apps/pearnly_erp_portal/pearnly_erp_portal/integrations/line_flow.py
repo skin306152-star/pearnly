@@ -240,11 +240,13 @@ def search(line_user_id, user, text, reply_token) -> bool:
     step = _pending(payload) if payload.get("direction") and payload.get("entry") == "upload" else ""
     if step not in SEARCHED or not str(text or "").strip():
         return False
-    exact, found = find(step, payload, user, text)
+    rows = _searchable(step, payload, user, str(text or "").strip())
+    exact, found = match(rows, text)
     if exact:
         payload[{"company": "company", "party": "party"}[step]] = exact
         payload.pop("offered", None)
-        _next(line_user_id, user, payload, reply_token)
+        # 打税号 / 编号直接命中：下一问的第一行是选中的那家（点按钮的有按钮字可看，打字的没有，11-15 真机）
+        _next(line_user_id, user, payload, reply_token, note=next((label for key, label, _codes in rows if key == exact), ""))
         return True
     if not found:
         # 没找到：照这一步原来的问法与按钮再问一次（供应商 / 客户那几个最近用过的按钮还在，验收 10-24）

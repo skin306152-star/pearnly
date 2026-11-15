@@ -123,7 +123,8 @@ def api_collection_customer_search(txt="", company=None, start=0):
     if not company:
         return []
     found = _explained(service.customers, company, q=txt, start=start, limit=20)
-    return [{"value": row["code"], "label": f"{row['code']} {row['name']}", "description": row["name"]}
+    # description 放税号：原生 Autocomplete 在本地再按「标签 + 说明 + 值」筛一遍，按税号搜到的不会被筛掉（11-15），下拉第二行就是税号
+    return [{"value": row["code"], "label": f"{row['code']} {row['name']}", "description": row.get("tax_id") or ""}
             for row in found["items"]]
 
 

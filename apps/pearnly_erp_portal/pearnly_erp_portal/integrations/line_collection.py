@@ -308,14 +308,14 @@ def _ask_company(reply_token, payload, note=""):
     _ask(reply_token, "\n".join(lines), [_button(text, _data("company", key)) for text, (key, _label) in zip(labels, rows)])
 
 
-def _pick_company(line_user_id, payload, value, reply_token):
+def _pick_company(line_user_id, payload, value, reply_token, note=""):
     if value not in payload.get("companies", {}):
         return _text(reply_token, _("This option is no longer current"))
     payload["company"] = value
-    _after_company(line_user_id, payload, reply_token)
+    _after_company(line_user_id, payload, reply_token, note=note)
 
 
-def _after_company(line_user_id, payload, reply_token):
+def _after_company(line_user_id, payload, reply_token, note=""):
     """公司定了：这家今天的账套定得下来就去找客户；同期两本、没选过先选一次（A10，11-12）。"""
     asked = _service().book_options(payload["company"])
     if asked:
@@ -323,24 +323,24 @@ def _after_company(line_user_id, payload, reply_token):
         payload.update(step="book", books={row["code"]: row["name"] for row in rows},
                        book_short={row["code"]: row.get("short") or row["name"] for row in rows})
         _save(line_user_id, payload)
-        return _ask_book(reply_token, payload)
+        return _ask_book(reply_token, payload, note=note)
     payload.update(step="customer")
     payload.pop("books", None)
     payload.pop("book_short", None)
     _save(line_user_id, payload)
-    _ask_customer(reply_token)
+    _ask_customer(reply_token, note=note)
     _service().warm(payload["company"])  # 先回问句再预热：整本读回请求排给电脑，选好客户时多半已读好
 
 
 # ── 账套（同期两本时）───────────────────────────────────────────────────────
 
 
-def _ask_book(reply_token, payload):
+def _ask_book(reply_token, payload, note=""):
     """同名的副本与真账只有位置不同：列表写全「名称 · 位置」，按钮放序号与短名（账套目录名，撞了带年度；`service._with_short`）。"""
     rows = list(payload["books"].items())
     short = payload.get("book_short") or {}
     labels = choice_labels([short.get(key) or label for key, label in rows])
-    _ask(reply_token, "\n".join([_("Choose the account set")] + [f"{index}. {label}" for index, (_key, label)
+    _ask(reply_token, "\n".join([note] * bool(note) + [_("Choose the account set")] + [f"{index}. {label}" for index, (_key, label)
                                                                   in enumerate(rows, 1)]),
          [_button(text, _data("book", key)) for text, (key, _label) in zip(labels, rows)])
 
@@ -357,12 +357,13 @@ def _type_company(line_user_id, payload, typed, reply_token):
 
     # 与采购 / 销售选公司同一份（`line_flow.match`）：名称、税号、账套目录名等，不分大小写包含（11-15 真机：按税号找不到）
     exact, found = line_flow.match(line_flow.company_rows(payload["companies"]), typed)
-    if exact:
-        return _pick_company(line_user_id, payload, exact, reply_token)
     labels = payload["companies"]
+    # 打字选中的（税号、账套名、名称唯一命中）：下一问的第一行是选中的那家，点按钮的有按钮字可看（11-15 真机）
+    if exact:
+        return _pick_company(line_user_id, payload, exact, reply_token, note=labels.get(exact) or "")
     found = [(key, labels.get(key) or label) for key, label in found]
     if len(found) == 1:
-        return _pick_company(line_user_id, payload, found[0][0], reply_token)
+        return _pick_company(line_user_id, payload, found[0][0], reply_token, note=found[0][1])
     if not found:
         return _ask_company(reply_token, payload, note=_("No match for “{0}”").format(typed[:40]))
     if len(found) > MAX_CHOICES:

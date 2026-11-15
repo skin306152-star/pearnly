@@ -6,7 +6,7 @@
 
 - 范围同权限口径（`masters.access.scope_sql`）：本公司的账本档 + 本地档；公司取选择框给的（单据的公司），本人用不了那家时退回当前公司；
 - 顺序：本公司的档在前（其中有账本编码的先列），其次本地档，各自按名称；
-- 打字按名称、编码、账本编码、条码、税号等（各 DocType 的 ``search_fields``）模糊找，账本编码与条码完全相同的排最前；
+- 打字按名称、编码、账本编码、条码、税号等（各 DocType 的 ``search_fields``）模糊找，电话不论带不带横线都认，账本编码与条码完全相同的排最前；
 - 服务端分页（``start`` / ``page_len``），每页最多 :data:`PAGE_MAX`。
 
 前端在共用的 Link 控件里按类挂上（`public/desk/company-connect.js` 里的 ``p.link_query_wrap``），各页原来给的条件（``is_active`` 等）照带。
@@ -50,7 +50,12 @@ def _conditions(doctype, company, text, filters=None, *, ledger_only=False):
     if text:
         values["like"] = search_rules.pattern(text)
         values["text"] = text
-        where.append("(" + " or ".join(["`name` like %(like)s", *[f"`{column}` like %(like)s" for column in searched]]) + ")")
+        phones = [column for column in search_rules.PHONES.get(doctype, ()) if meta.has_field(column)]
+        digits = search_rules.phone_digits(text) if phones else ""
+        if digits:
+            values["phone"] = f"%{digits}%"
+        where.append("(" + " or ".join(["`name` like %(like)s", *[f"`{column}` like %(like)s" for column in searched],
+                                        *[f"{search_rules.phone_column(column)} like %(phone)s" for column in phones if digits]]) + ")")
         exact = " or ".join(f"`{column}` = %(text)s" for column in EXACT if meta.has_field(column))
     values["own"] = company
     # 本公司之后先列有账本编码的（11-15 实验栈复现：本公司随单 / 盘点新建、还没写进账本的物料按名称排在前，第一页 10 条占 9 条，

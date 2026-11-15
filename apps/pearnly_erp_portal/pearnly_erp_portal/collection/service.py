@@ -163,22 +163,19 @@ def choose_book(company, key, day=None) -> dict:
 
 def customers(company, q="", start=0, limit=12) -> dict:
     """找客户：这家公司从 Express 同步来的客户，按编号或名字的一部分（服务端分页，LINE 快捷回复最多 12 个）。
-    ``{"items": [{code, name}], "total"}``。收款员看所有客户（不按收款员过滤）。"""
-    from pearnly_core.desk import list_filters
-    from pearnly_erp_portal.masters import search_rules
+    ``{"items": [{code, name, tax_id}], "total"}``。收款员看所有客户（不按收款员过滤）。"""
+    from pearnly_erp_portal.masters import link_search
 
     guard.require(WRITE)
     _company(company)
-    filters = {**master_access.ledger_filters(company), "is_active": 1}
     text = str(q or "").strip()[:60]
-    # 与选择框、LINE 选客户同一套匹配（`masters.search_rules`：名称、账本编码、税号、电话，不分大小写包含，几个词都要有）
-    or_filters = search_rules.or_filters(CUSTOMER, text) or None
+    # 与选择框、LINE 选客户同一份查询（`masters.link_search`：名称、账本编码、税号、电话，不分大小写包含，几个词都要有，
+    # 电话不论带不带横线），只要这家的账本客户
     limit = max(1, min(int(limit or 12), SEARCH_MAX))
-    found = frappe.get_all(CUSTOMER, filters=filters, or_filters=or_filters, fields=["express_code", "customer_name"],
-                           order_by="customer_name asc, express_code asc", limit_start=max(0, int(start or 0)),
-                           limit_page_length=limit)
-    return {"items": [{"code": row.express_code, "name": row.customer_name} for row in found],
-            "total": list_filters.count(CUSTOMER, filters, or_filters, ignore_permissions=True)}
+    found = link_search.rows(CUSTOMER, company, text, start=max(0, int(start or 0)), limit=limit,
+                             filters={"is_active": 1}, ledger_only=True)
+    return {"items": [{"code": row.express_code, "name": row.title, "tax_id": row.tax_id or ""} for row in found],
+            "total": link_search.count(CUSTOMER, company, text, filters={"is_active": 1}, ledger_only=True)}
 
 
 def customer_code(company, given) -> str:

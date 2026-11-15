@@ -86,7 +86,18 @@ class CollectionCompanyTyped(unittest.TestCase):
         with patch.object(line_flow, "company_rows", return_value=ErpFindByLedgerAndTaxNumber.ROWS[:2]), \
                 patch.object(line_collection, "_pick_company") as picked:
             line_collection._type_company(USER, payload, "0105599210021", "token")
-        picked.assert_called_once_with(USER, payload, "CO-7", "token")
+        # 打字选中的下一问第一行是选中的那家（11-15 真机：按税号选中后不回显）
+        picked.assert_called_once_with(USER, payload, "CO-7", "token", note="บริษัท เดโม่ ทู จำกัด")
+
+    def test_purchase_typed_tax_number_echoes_the_company_in_the_next_question(self):
+        payload = {"direction": "purchase", "entry": "upload"}
+        with patch.object(line_flow, "choices", return_value=payload), \
+                patch.object(line_flow, "_pending", return_value="company"), \
+                patch.object(line_flow, "_searchable", return_value=ErpFindByLedgerAndTaxNumber.ROWS), \
+                patch.object(line_flow, "_next") as asked:
+            self.assertTrue(line_flow.search("Uline", USER, "0105599210021", "token"))
+        self.assertEqual(payload["company"], "CO-7")
+        asked.assert_called_once_with("Uline", USER, payload, "token", note="บริษัท เดโม่ ทู จำกัด")
 
 
 class ErpChoiceTiers(unittest.TestCase):
@@ -125,7 +136,8 @@ class ErpChoiceTiers(unittest.TestCase):
         payload = {"direction": "purchase", "entry": "upload"}
         with patch.object(line_flow, "choices", return_value=payload), \
                 patch.object(line_flow, "_pending", return_value="company"), \
-                patch.object(line_flow, "find", return_value=(exact, found)), \
+                patch.object(line_flow, "_searchable", return_value=[(exact, "Company 7", [exact])] if exact else []), \
+                patch.object(line_flow, "match", return_value=(exact, found)), \
                 patch.object(line_flow, "_next") as again:
             self.assertTrue(line_flow.search(USER, "u@example.com", "Company", "r"))
         return payload, again
@@ -143,7 +155,7 @@ class ErpChoiceTiers(unittest.TestCase):
         self.assertEqual(again.call_args.kwargs["note"], "No match for “Company”")
         payload, again = self.run_search([], exact="CO-7")
         self.assertEqual(payload["company"], "CO-7")
-        self.assertNotIn("note", again.call_args.kwargs)
+        self.assertEqual(again.call_args.kwargs["note"], "Company 7")  # 打字直接命中：下一问先回显选中的那家（11-15）
 
     def test_the_party_word_prompt_only_when_not_all_parties_are_buttons(self):
         payload = {"direction": "purchase", "entry": "upload", "company": "CO-1"}
@@ -162,7 +174,7 @@ class ErpNoMatch(unittest.TestCase):
         payload = {"direction": "purchase", "entry": "upload", "company": "CO-1"}
         with patch.object(line_flow, "choices", return_value=payload), \
                 patch.object(line_flow, "_pending", return_value="party"), \
-                patch.object(line_flow, "find", return_value=(None, [])), \
+                patch.object(line_flow, "_searchable", return_value=[]), \
                 patch.object(line_flow, "_", side_effect=lambda text: text), \
                 patch.object(line_flow, "_next") as again:
             self.assertTrue(line_flow.search(USER, "u@example.com", "13", "r"))

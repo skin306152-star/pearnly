@@ -147,8 +147,18 @@ def api_choices(kind, context, txt="", scan=False, company=None):
         # 这张单的公司：别家公司从 Express 同步来的档不列（`for_company`），本公司同步来的排前
         fields.append(master_access.OWNER)
         filters[master_access.OWNER] = ["in", [company, ""]]
-    rows = frappe.get_all(doctype, filters=filters, or_filters=matches, fields=fields,
-                          order_by=f"{title} asc, name asc", limit_page_length=20)
+    if company and not exact:
+        # 打字找：与选择框、LINE、收款同一份查询（`link_search`：名称、编码、税号、电话不论横线，本公司账本档在前；11-15 真机
+        # 采购单供应商框按电话搜不到——这里原来另有一份只认名称 / 编码 / 税号的匹配）
+        from pearnly_erp_portal.masters import link_search
+
+        names = [row.name for row in link_search.rows(doctype, company, text, limit=20, filters={"is_active": 1})]
+        found = {row.name: row for row in frappe.get_all(doctype, filters={"name": ["in", names or [""]]}, fields=fields,
+                                                         limit_page_length=len(names) or 1)}
+        rows = [found[name] for name in names if name in found]
+    else:
+        rows = frappe.get_all(doctype, filters=filters, or_filters=matches, fields=fields,
+                              order_by=f"{title} asc, name asc", limit_page_length=20)
     if company:
         rows.sort(key=lambda row: row.get(master_access.OWNER) != company)
     if exact and kind == "product":

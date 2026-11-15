@@ -25,11 +25,20 @@ class SearchRules(unittest.TestCase):
     def test_several_words_must_all_be_there_in_order(self):
         self.assertEqual(rules.pattern("  rice   co "), "%rice%co%")
 
-    def test_or_filters_cover_the_record_name_and_every_column(self):
-        found = rules.or_filters("ERP Customer", "0105599210021")
-        self.assertEqual([row[0] for row in found], ["name", "customer_name", "express_code", "tax_id", "contact_phone"])
-        self.assertTrue(all(row[1:] == ["like", "%0105599210021%"] for row in found))
-        self.assertEqual(rules.or_filters("ERP Customer", "   "), [])
+    def test_a_phone_is_compared_by_its_digits(self):
+        # 11-15 真机：库里 081-234-5678，打 0812345678 搜不到；反过来也一样
+        self.assertEqual(rules.phone_digits("0812345678"), "0812345678")
+        self.assertEqual(rules.phone_digits(" 081-234 5678 "), "0812345678")
+        self.assertEqual(rules.phone_digits("+66 (81) 234.5678"), "66812345678")
+        self.assertEqual(rules.phone_digits("ร้าน 081"), "")   # 夹着字的不当电话
+        self.assertEqual(rules.phone_digits("12"), "")
+        expr = rules.phone_column("contact_phone")
+        for mark in ("-", " ", ".", "(", ")"):
+            self.assertIn(f"'{mark}', ''", expr)
+        self.assertIn("ifnull(`contact_phone`, '')", expr)
+        self.assertEqual(set(rules.PHONES), {"ERP Customer", "ERP Supplier"})
+        for doctype, columns in rules.PHONES.items():
+            self.assertTrue(set(columns) <= set(rules.columns(doctype)), doctype)
 
 
 if __name__ == "__main__":
