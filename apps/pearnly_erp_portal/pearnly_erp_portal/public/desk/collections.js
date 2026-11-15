@@ -6,6 +6,13 @@
  *
  * 列表是共用的原生列表（`desk/list.js`）：服务端分页、白名单排序、原生筛选（`collection.records`）。 */
 (() => {
+	// 旧地址「我的收款」（11-11～11-14，已发出的 LINE 卡【编辑】）：整页打开时（经 LIFF、LINE 登录跳转、已登录直接开）在框架路由开始前
+	// 换成「收款」页同一笔。外壳的路由白名单只认菜单里的页（`desk/actions.js`），旧页已不在菜单，等路由起来再转就被换回首页了（11-14 真机）。
+	const LEGACY = "/desk/pearnly-my-collections";
+	if (window.location.pathname === LEGACY || window.location.pathname.startsWith(LEGACY + "/")) {
+		window.history.replaceState(window.history.state, "", "/desk/pearnly-collections"
+			+ window.location.pathname.slice(LEGACY.length) + window.location.search + window.location.hash);
+	}
 	const p = frappe.pearnly;
 	p.collections = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.collection.api.";

@@ -1949,7 +1949,7 @@ covers = [
 id = "erp.line.collection"
 title = "LINE 录收款（富菜单第 4 格）走完各步到确认卡 → 旧卡上的【编辑】地址（我的收款）转到「收款」页弹窗改草稿 → 回 LINE：旧卡确认重出新卡、无岗位伪造被拒、打 ok 放行、待写入时撤回（收款第 3 步 11-11；11-14 一页）"
 module = "scripts/flows/erp_line_collection.py"
-start = "/desk/pearnly-collections/{name}"
+start = "/api/method/pearnly_core.account.line_login.enter?to=/desk/pearnly-my-collections/{name}"
 user = "collector"
 datasets = ["new"]
 viewports = ["mobile"]
