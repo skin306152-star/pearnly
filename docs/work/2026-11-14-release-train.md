@@ -1,83 +1,85 @@
 # 上线车 11-15（集成分支 pearnly/integration-1115，周一 11-16 上线）
 
-拼车窗口维护。部署不由本窗口发起，等主会话通知。线上现为 `6f58f0b48`（镜像 `sha256:054aa603…`，记录 [2026-11-13-release-6f58f0b4.md](2026-11-13-release-6f58f0b4.md)）。
-目标（用户 11-15）：线上「下载 CC → 从连接添加新建公司（接 Express）→ LINE 收款写进 Express」整条路不带瑕疵，按普通新用户视角验收。这一车以此为准，其它让路；main 其余合入队列冻结到本车合入。
+拼车窗口维护。部署不由本窗口发起：主会话外部核对后合入 main、打标记，部署前先告诉用户。
+线上现为 `6f58f0b48`（镜像 `sha256:054aa603…`，记录 [2026-11-13-release-6f58f0b4.md](2026-11-13-release-6f58f0b4.md)）。
+目标（用户 11-15）：线上「下载 CC → 从连接添加新建公司（接 Express）→ LINE 收款写进 Express」整条路不带瑕疵，按普通新用户视角验收。
 
-## 这一车装什么
+## 这一车装什么（最终候选头 `bcda444ae`，比线上多 122 个提交）
 
-| # | 内容 | 来源（分支 → 头） | 说明 |
-|---|---|---|---|
-| 0 | main 已合未上线（比线上多 74 个提交）：公司接入第 1 批（主档整读、erp-masters-worker）、MR.ERP 金额修复、收款闭环（单页收款、一个权限、拒收退回、后台回复语言）、性能体检（索引 v1_29、逐行查询闸门）、作废补漏、启动词条瘦身、验收体系（含真机记录六栏闸门）、CC 安装包走 R2 | origin/main 28e9d53d8 | R2 下载 11-14 已在线上（只动发布流程与 landing.conf） |
-| 1 | 公司接入第 2 批：CC 报上来的账套改为提示而不自动建；公司页「从连接添加」；接 Express 只留 `cc_service.link_express` 一个入口；主档可见范围统一走 masters.access | company-onboarding-b2d996 → 2b4ff7223 | 周一核心路 |
-| 2 | CC 半截单（服务端部分）：partial_saved 原因、回执 partial / held 净化、未完成单显示半截单号、迟到终态 | cc-desktop-half-doc-1ee3e3 → 18a1361ac | 服务端先上，CC 桌面版后发；含接缝 1 真跨边测试 |
-| 3 | 三产品富菜单发布：已有图的不再传图（只看响应状态） | rich-menu-image-check → c3a248f5d | 菜单重发不超时 |
-| 4 | 收款旧卡编辑地址修复 | collection-legacy-route-2 → 待确认卡窗口推出最终头 | 昨晚真机唯一不通过项 |
-| 5 | 上线车清单与真机记录（本文件） | 拼车窗口 | 文档 |
+| # | 内容 | 来源分支 → 头 |
+|---|---|---|
+| 0 | main 已合未上线：公司接入第 1 批（主档整读、erp-masters-worker）、MR.ERP 金额修复、收款闭环（单页收款、一个权限、拒收退回、后台回复语言）、性能体检（索引 v1_29、逐行查询闸门）、作废补漏、启动词条瘦身、验收体系（真机记录六栏闸门）、CC 安装包走 R2（11-14 已在线上） | origin/main 28e9d53d8 |
+| 1 | 公司接入第 2 批：CC 报上来的账套改为提示、不自动建；「从连接添加」；接 Express 只留 `cc_service.link_express`；主档可见范围统一走 masters.access | company-onboarding-b2d996 → 2b4ff7223 |
+| 2 | CC 半截单服务端：partial_saved、回执 partial / held 净化、未完成单显示半截单号、迟到终态（CC 桌面版后发） | cc-desktop-half-doc-1ee3e3 → 18a1361ac |
+| 3 | 三产品富菜单发布：已有图的不再传图 | rich-menu-image-check → c3a248f5d |
+| 4 | 收款旧卡编辑地址修复、新建收款弹窗勾选与金额保留 | collection-legacy-route-2 → 6b7810944 |
+| 5 | 「从连接添加」弹窗重排（已添加禁用 / 已停用可重启 / 空状态）、刷新经 `cc_desktop.rescan` 让在线电脑立即重报、左上公司下拉入口、首次添加接管空默认公司 | company-connect-empty-state → dc86d2d26 |
+| 6 | CC 工具编码按主档回查换回原样（\xa0）、写入被拒定式说明、CC 查发票 / 建草稿先按客户即时读回（ready / reading / offline / outdated） | cc-code-fidelity → 199315fdb |
+| 7 | 切换当前公司缓存竞态修复（共用层 `account/user_defaults.py`，DefaultValue after_insert 提交后清缓存，覆盖 8 处写用户默认值）、删「设为当前」、刷新 20 秒无人领单判未连接、重新启用提示「已更新」 | company-connect-empty-state → 7b25f84d6 |
+| 8 | 真机 14 条里本车修的：LINE 选公司 / 客户 / 供应商搜索统一、选定公司后预热读未收发票、未付款单不显示「现金」、收款页新建加载态与公司下拉不自动展开、收款状态实时刷新、首页 6 条漏翻、「未收」文案 | device-1115-fixes → fb08ab5d7 |
 
-**不进这一车**：公司接入第 3 批 3764ff83b（无条件改 Express 主档落库：主档加 ledger 字段、SYNC_FIELDS 比对 ledger、补丁 v1_30 回填全部主档、仓库码截断按账本分支、公司页改动——周一路用不到 MR.ERP，主会话 11-15 同意不进）；引导式第 1 期、上传后才识别、MR.ERP 写账弹窗、允许卡、回复整段显示、新建盘点批量写、mrerp-operator*（下一车）。
+**不进这一车**：公司接入第 3 批（无条件改 Express 主档落库，周一路用不到 MR.ERP，主会话 11-15 同意不进）、引导式第 1 期、上传后才识别、MR.ERP 写账弹窗、允许卡、回复整段显示、新建盘点批量写、mrerp-operator*。
 
-## 放行检查（0813bc83c，不含收款修复）
+## 放行检查表（bcda444ae）
 
-| 项 | 结果 |
-|---|---|
-| 全闸门（gate.sh = development.yml） | 248 / 248 首轮全过 |
-| 候选离线（线上镜像 054aa603） | 111 组 LANE EXIT 0 |
-| 产品地图 / 共用件连带 | 0 错；真机记录 16 行合规（六栏闸门） |
-| 逐行查询 | 935 = 基线 |
-| 回归实验室全套 | 进行中：正式建站（不手工接公司）+ `--all --dataset new` |
+| 项 | 结果 | 证据 |
+|---|---|---|
+| 全闸门（gate.sh = development.yml） | 251 / 251 首轮全过 | ~/pearnly-devtools/integ1115-gate-6.log |
+| 候选离线（线上镜像 054aa603） | 111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1115-cand-6.log |
+| Development / Companion checks | 532de63b1 两项 success；bcda444ae 推送后待查 | GitHub |
+| 产品地图 / 共用件连带 / i18n / 逐行查询 | 0 错 / 通过 / 通过 / 935 = 基线 | 本地 |
+| 收款三组测试（_collection / _line / _cc） | 全 OK；翻译包合并头上重生成零差异 | 本地 |
+| 全套流程 new 数据集（0813bc83c，正式建站） | 210 / 210 | ~/pearnly-devtools/full-1115.log |
+| 本车后半段改动涉及流程（bcda444ae，两套数据） | 39 + 52 过；不过的见下 | ~/pearnly-devtools/integ1115/phase2.log |
+| 空默认公司接管（新建空站点实走） | 空默认 9/9、默认有记录 4/4 | 拼车笔记 |
+| 8 处写用户默认值并发回填核对 | 8/8 | 拼车笔记 |
+| 手机宽度「从连接添加」弹窗空白 | 已收掉（最终头重拍） | ~/pearnly-devtools/integ1115/shots/ |
+| 全套 `--all --post-status`（部署流程闸要的那一份） | 进行中（实验室 down -v 重新正式建站） | GitHub pearnly/flows |
 
-收款修复进车后在最终头上重跑全闸门、候选离线与受影响流程。
+已知、不挡上线（下一车）：
+- `erp.link.ledger-first`：选择框排序「本公司的档排前」不分账本物料与本公司手工物料，手工物料多时账本物料被挤出第一页；新建站数据少能过。修法：本公司之后加「有账本编码」排前（公司接入窗口）。
+- 收款预热：较旧的整本预热结果晚于按客户读回落库时，可能把刚收清的发票插回、显示到下次读回；兜底 CC 写前 already_collected 拒收（收款窗口）。
 
 ## 需在最终头上重测的真机行
 
-昨晚 16 行是在含第 3 批、引导式、上传、写账弹窗的头 a31c2ba2f 上测的。逐行对过去掉的分支改到的文件：
+昨晚 16 行在含第 3 批、引导式、上传、写账弹窗的头 a31c2ba2f 上测的；最终头 bcda444ae 由接手的真机窗口测：
 
 | 级别 | 行 | 原因 |
 |---|---|---|
-| 必须 | erp.line.postback.col、erp.line.postback.col@refused、erp.line.collection-edit、erp.line.collection-edit@old-url、erp.desk.pearnly-collections.action.New（补电脑宽度） | 收款修复进车，都在它的路径上；@old-url 是昨晚不通过项 |
-| 必须（新增） | 从连接添加接 Express → 主档落库 → 新公司在收款 / 采购选择框可见（干净电脑、任意账套） | 周一核心路，昨晚没有一行真机测过；昨晚的头带第 3 批，正改这一段 |
-| 建议 | erp.desk.boot-messages@cc-connect | 昨晚看到的「收款」芯片是引导式业务菜单，新头没有 |
-| 建议 | erp.line.postback.erp_item（至少复测「编辑经 LIFF 打开采购页 + 提交」） | 采购页 transactions.js 昨晚是写账弹窗改过的版本 |
-| 建议 | erp.desk.boot-messages@original | 同在采购页 |
+| 必须 | erp.line.postback.col、erp.line.postback.col@refused、erp.line.collection-edit、erp.line.collection-edit@old-url、erp.desk.pearnly-collections.action.New（补电脑宽度） | 收款修复与 device-1115-fixes 都在路径上；@old-url 是昨晚不通过项 |
+| 必须（新增） | 从连接添加接 Express → 主档落库 → 新公司在收款 / 采购选择框可见（干净电脑、任意账套）；含首次添加接管空默认公司、刷新让在线电脑立即重报 | 周一核心路；在线电脑重报只有真机能验 |
+| 必须（新增） | CC 两条：编码带不换行空格的单写进 Express；查发票先读回再说「已收清」 | cc-code-fidelity 修的挡上线项 |
+| 建议 | erp.desk.boot-messages@cc-connect、erp.line.postback.erp_item（至少编辑经 LIFF 打开采购页 + 提交）、erp.desk.boot-messages@original | 昨晚看到的内容来自去掉的分支 |
 | 可沿用 | erp / cowork liff-camera、dms.line.richmenu.liff、三产品菜单发布、boot-messages@line-login | 去掉的分支不碰这些路径 |
 | 仍没测到 | express.report.bank-deposit、line.richmenu.publish.dms、CC 拒收退回草稿 | — |
 
 ## 上线前置
 
-- 上面「必须」的真机行在最终头上通过。
-- 生产只读 1：小写原因码（already_collected / invoice_not_found）影响范围。
-- 生产只读 2：「有销售岗位、没勾收款」的人数（收款改成一个权限后这些人看不到收款页）。
-- `deploy.sh --dry-run`：核 erp-masters-worker 被建出、只在 ERP 机起。
+- 上面「必须」的真机行在 bcda444ae 上通过（只有「通过」放行）。
+- 全套 `--all --post-status` 在要部署的提交上通过（或其后只改 docs 沿用）。
+- 生产只读（连生产前先把脚本给主会话）：① 小写原因码（already_collected / invoice_not_found）影响范围；② 「有销售岗位、没勾收款」的人数（收款改成一个权限后这些人看不到收款页）。
 
-## 新增进程与配置
+## 部署预演步骤（主会话执行）
 
-- `erp-masters-worker`（队列 `erp_masters`，512M，profile erp）：线上没有，本车首次上（公司接入第 1 批，已在 main）。
-- 启动词条：启动数据只带语言与指纹，整表走新接口（游客可调，已登记原因与守卫）。
-- R2 安装包：11-14 已上线，本车不再动。
-
-## 迁移与补丁（相对线上）
-
-| 补丁 | 来源 | 说明 |
-|---|---|---|
-| pearnly_erp_portal.patches.v1_28_admin_collection_menus | 收款闭环（main） | 已绑定 LINE 的人重挂富菜单 |
-| pearnly_erp_portal.patches.v1_29_stock_count_indexes | 性能体检（main） | 结存 / 盘点索引 |
-
-DocType 改动：ERP Collection（attempt 字段）；ERP Customer / Supplier / Product（搜索字段加编码、税号，公司接入第 2 批）。只加不删，回旧镜像不需要反向迁移。
+1. main 快进到本车提交（bcda444ae 或其后只加 docs 的提交），推送、回读远端 SHA。
+2. 打回滚分支 `pearnly/rollback-1116` 指 6f58f0b48（线上现版本）。
+3. `scripts/production/deploy.sh --dry-run`：流程闸（pearnly/flows 全套通过或可沿用）、租户配置对比、LIFF 落地地址、站外设置对比全过；核 **erp-masters-worker**（队列 erp_masters、512M、profile erp）只在 ERP 机上会被建出。
+4. 正式 `scripts/production/deploy.sh`（后台，约 40 分钟，含回读与登录后 e2e）。
+5. 迁移前后核（一次 SSH，web 容器里 bench，只读）：
+   - 补丁：`pearnly_erp_portal.patches.v1_28_admin_collection_menus`（已绑定 LINE 的人重挂富菜单）、`pearnly_erp_portal.patches.v1_29_stock_count_indexes`（结存 / 盘点索引）都在 Patch Log。
+   - DocType：ERP Collection（新字段 attempt；source 选项加 web）；ERP Customer / Supplier / Product（search_fields 加编码、税号）。
+   - 共用层新钩子：DefaultValue after_insert → `pearnly_core.account.user_defaults.after_write`（hooks 生效即可，无表结构）。
+   - 菜单：ERP「收款」页权限改为收款岗位 + 管理员；「我的收款」不进菜单、旧地址转收款页；公司页按钮去掉「设为当前」、加「从连接添加」。
+6. 上线后必验：新用户视角走一遍（下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express）；六家 ERP 租户收款页 / 权限 / LINE 收款卡；erp-masters-worker 在跑、队列不积压；三产品首页 / 列表中泰文正常；登录后 e2e。
 
 ## 回滚
 
-部署前给线上打回滚分支（同 11-13 做法 `pearnly/rollback-<日期>` 指 6f58f0b48），出事 `deploy.sh` 以 6f58f0b48 的发布标记重部署；erp-masters-worker 回旧版后由 compose 去掉。
-
-## 上线后必验
-
-- 新用户视角走一遍：下载 CC（R2）→ 从连接添加接 Express → 主档落库 → LINE 收款写进 Express。
-- 六家 ERP 租户：收款页（单页）、权限、LINE 收款卡；`erp-masters-worker` 在跑、队列不积压。
-- 启动词条：三产品首页、列表页中文 / 泰文正常。
-- 登录后 e2e。
+`deploy.sh --tag <6f58f0b48 的发布标记>` 重部署；补丁只加索引与重挂菜单、DocType 只加字段与选项，回旧镜像不需要反向迁移；erp-masters-worker 回旧版后由 compose 去掉；DefaultValue 钩子随代码回退。
 
 ## 本车之后
 
 - 「Not permitted」统一（源码与译文各一份；泰 / 日有可见变化，先给用户看清单）。
+- 选择框账本物料排前、收款预热边角（见上）。
 - 公司接入第 3 批、引导式等按下一车排。
 
 ## 集成记录
