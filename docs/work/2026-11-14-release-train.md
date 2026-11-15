@@ -110,3 +110,26 @@
 真机记录 | erp.desk.boot-messages@original | 2026-11-14 | a31c2ba2f | 三星 SM-A146P + 测试机1 | 通过 | 采购页 PE2569-000031 附件区原件（测试票图）显示、可缩放，页面文字正常（e82、e85）
 真机记录 | express.report.bank-deposit | 2026-11-14 | a31c2ba2f | 测试机1 | 没测到：报表窗口超出屏幕需盲按、有误点打印风险，留 11-15 上午 | 数据层旁证：69EXP\TEST BKTRN 有 bR TRRE0000018（2026-11-14）
 ```
+
+### 最终头 bcda444ae 真机记录（11-15 14:27–15:23，接手窗口原样交来）
+
+执行：真机最终轮接手窗口（接 device-test-1114）。14 行：13 通过、1 不通过（LIFF 采购单供应商框按电话搜不到，体验瑕疵、不挡上线）。
+同日在 532de63b1 上已测通过、未出六栏行的：erp.line.collection-edit@old-url（COL261113-ED1B 旧卡编辑经 LIFF 打开那一笔，只读提示「此卡片已失效…」）、erp.line.collection-edit、erp.line.postback.erp_item（编辑经 LIFF）、boot-messages@original、boot-messages@cc-connect（见共享笔记「真机-11-15-瑕疵与进度.md」）。
+现场已还原：testerp 已 lab-stop 回到线上；两台 CC 配置 BED3D4E3 / C216460D。
+
+```
+真机记录 | erp.line.collection（选公司：税号 / 账套目录名 DEMO02、demo02、TEST / 名称一部分 + 大小写） | 2026-11-15 | bcda444ae | 三星 SM-A146P + 测试机2 | 通过 | 0105599210021、DEMO02、demo02 → DEMO02 那家；TEST、pearnly → Pearnly（用独有客户反证）
+真机记录 | erp.line.collection（选客户：名称 / 编码 / 税号 / 电话） | 2026-11-15 | bcda444ae | 三星 + 实验栈 | 通过 | 泰文「บ้านดี」、บ001、小写 c001、2222222222222、081-234-5678 都找到；纯数字电话 0812345678 找不到（体验瑕疵）
+真机记录 | erp.desk.purchase（LIFF 采购单供应商框：名称 / 编码 / 税号 / 电话） | 2026-11-15 | bcda444ae | 三星 LIFF | 不通过（电话） | v001、0105535001847、泰文「น้ำแข็ง」找到；电话 0-2328-1245 找不到（selection.api_choices 不认电话）
+真机记录 | erp.line.collection（预热读回命中率） | 2026-11-15 | bcda444ae | 三星 + 测试机2 / 测试机1 | 通过 | 已有快照 69EXP\TEST 3/3 直接列发票；真冷启动 DEMO01 间隔 21 秒命中、DEMO02 间隔 5 秒未命中（正在读取 + 刷新，15 秒后点刷新列出）
+真机记录 | erp.desk.collections（新建加载态 / 公司下拉 / 列表自己变状态） | 2026-11-15 | bcda444ae | 本机浏览器 1440 宽 + 三星 | 通过 | 点新建 4 ms 出遮罩、0.29 秒弹窗；公司下拉不展开；LINE 写完 RE0000005 页面不刷新列表 5→6 并显示单号
+真机记录 | erp.desk.sales（未付款不显示现金 / 未付草稿重开提交） | 2026-11-15 | bcda444ae | 本机浏览器 1440 宽 | 通过 | SI2569-000011/12 详情只显示未付；实验栈造的草稿 SD-174119 重开「已付款」未勾，提交后 unpaid、方式清空
+真机记录 | erp.line.collection（部分收款文案） | 2026-11-15 | bcda444ae | 三星 + 测试机2 | 通过（中文） | 「已收 200.00 · 未收 372.45」；泰文没测到（LINE 语言跟手机，没改系统语言），译文已核
+真机记录 | erp.desk.home（扣费说明四语） | 2026-11-15 | bcda444ae | 本机浏览器 | 通过（ERP 两条） | zh/th/en/ja 首页「采购 / 销售单据识别」等均为当前语言；Cowork 三条、DMS 一条没测到（实验栈只装 ERP）
+真机记录 | erp.desk.pearnly-company.action.company.connect.add（从连接添加 + 刷新 + 主档同步） | 2026-11-15 | bcda444ae | 本机浏览器 + 测试机1/2 | 通过 | 刷新后两台 ≤12 秒重报；DEMO01 → CO-174104；主档 2 分钟 ready
+真机记录 | erp.desk.company-switch（左上切换当前公司） | 2026-11-15 | bcda444ae | 三星 LIFF + 本机浏览器 | 通过 | 3/3：手机 → Pearnly、电脑 → DEMO01、→ DEMO02，库内 / 生效 / 缓存 / 页面一致
+真机记录 | erp.line.collection（现金 + 转账组合，69EXP\TEST） | 2026-11-15 | bcda444ae | 三星 + 测试机1 + accserver | 通过 | IV0000006 现金 300 + BBL 700 + 凭证 → RE0000024；读回 CSHRCV 300 / CHQRCV 700、ARRCPCQ、BKTRN 齐
+真机记录 | erp.desk.collections（网页收款，69EXP\TEST） | 2026-11-15 | bcda444ae | 本机浏览器 1440 宽 + 测试机1 | 通过 | IV0000006 现金 500 → RE0000025；客户框按税号搜不出（体验瑕疵），按名称可以
+真机记录 | erp.cc.tool.collection（CC 对话直写，客户编码含 \xa0） | 2026-11-15 | bcda444ae | 本机浏览器 + 测试机1 | 通过 | IV0000006 现金 200 → RE0000026，CUSCOD 原样 'นาย\xa0ทดสอบ'；IV0000006 已收 4,700 / 余额 102,300
+真机记录 | erp.cc.tool.collection（刚开发票即时读回） | 2026-11-15 | bcda444ae | 本机浏览器 + 测试机2 | 通过 | IV691115-006 写入 85 秒后 CC 直接读到未收 343.47 → RE0000006，读回余额 0
+```
