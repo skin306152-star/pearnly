@@ -46,7 +46,9 @@ SKIP_LEDGER_NEEDED = "ledger_needed"
 SKIP_NOT_FOUND = "not_found"              # 不是本人能写的单 / 找不到
 
 PLAN_NOTE = ("Before writing, say back to the user in one sentence: the company, the account set(s), how many documents "
-             "will be written, and which are skipped with the reason for each (skipped). Then ask whether to go ahead and "
+             "will be written, and which are skipped with the reason for each (skipped). Name the company and each account "
+             "set exactly as company_title and account_set_title give them, adding nothing to the names (no words from "
+             "these notes, no explanation in brackets). Then ask whether to go ahead and "
              "wait for the user's reply. Only after the user answers in a new message call pearnly_write_start with this "
              "plan. If the user changes something (e.g. drop one), make a new plan and say it back again. Never start on "
              "your own, never say anything was written before pearnly_write_start reports it.")
