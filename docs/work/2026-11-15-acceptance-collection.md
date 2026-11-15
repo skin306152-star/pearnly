@@ -245,3 +245,19 @@ ERP 那 21 条用 Mac 栈时不再占测试机1。
 `.purchase.nobook`（单据日期不在任何账套期间里，T15：停下「没有账套」、不导入、不去读 MR.ERP）。同一个站点脚本、同一个场景模块，
 都登记成每周跑。登记 39 条。仍没做：要人选菜单 / 再写一次 / CC 对话推送 / 导入中作废（T9–T12）、关开关（T16）、税报告（T18）。
 现购的贷方科目、称谓分栏没核（读回的单据页里对方档只有代码与名称；称谓要读对方档页，下一批加）。
+
+## 跑单脚本（11-15 晚，主会话点头）
+
+`scripts/acceptance/first_run.py`：按首跑顺序一条命令跑一组（`--group erp | operator | chat | mrerp | cowork`，可多给），失败即停，
+每格记「通过 / 不通过 / 没测到（原因）」，最后出一屏结果（三种各几格、模型花费、每格一行），同时存进这次运行的证据目录。
+
+- 开跑前把这一趟要占的资源一次列清并检查：被别人占着、要账套服务器而不在 08:00–20:40、缺环境变量、没给 `--holder`，有一样就一条都不跑、说清缺什么。
+- 会花模型费的格默认跳过并记「没测到」，给 `--paid` 才跑；一屏结果列本次花费。
+- `--list` 只列会跑什么、要占什么，不碰任何机器；`--from <场景>` 从某一格接着跑；`--record` 登记证据；`--stop-on-not-run` 没测到也停。
+- 例（Mac 栈、ERP 那 21 格）：
+
+```bash
+PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_ACC_ERP_TAX=1234567890123 PEARNLY_ACC_BASELINE='C:\PearnlyAcceptance\baselines\TEST2@2026-11-13' python3 scripts/acceptance/first_run.py --group erp --holder <窗口名> --record
+```
+
+它只检查占用锁，不替人排时间：测试机、test01 的时间窗照旧先问主会话。
