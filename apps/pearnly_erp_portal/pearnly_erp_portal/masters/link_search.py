@@ -5,7 +5,7 @@
 调 ``get_query`` 的 ``query``）按类给三种主档：
 
 - 范围同权限口径（`masters.access.scope_sql`）：本公司的账本档 + 本地档；公司取选择框给的（单据的公司），本人用不了那家时退回当前公司；
-- 顺序：本公司账本档在前，其次本地档，各自按名称；
+- 顺序：本公司的档在前（其中有账本编码的先列），其次本地档，各自按名称；
 - 打字按名称、编码、账本编码、条码、税号等（各 DocType 的 ``search_fields``）模糊找，账本编码与条码完全相同的排最前；
 - 服务端分页（``start`` / ``page_len``），每页最多 :data:`PAGE_MAX`。
 
@@ -53,7 +53,10 @@ def _conditions(doctype, company, text, filters=None, *, ledger_only=False):
         where.append("(" + " or ".join(["`name` like %(like)s", *[f"`{column}` like %(like)s" for column in searched]]) + ")")
         exact = " or ".join(f"`{column}` = %(text)s" for column in EXACT if meta.has_field(column))
     values["own"] = company
-    order = [f"({exact}) desc" if exact else "", f"(`{access.OWNER}` = %(own)s) desc", f"`{title}` asc", "`name` asc"]
+    # 本公司之后先列有账本编码的（11-15 实验栈复现：本公司随单 / 盘点新建、还没写进账本的物料按名称排在前，第一页 10 条占 9 条，
+    # 上千条账本物料挤不进第一页）
+    coded = "(ifnull(`express_code`, '') != '') desc" if meta.has_field("express_code") else ""
+    order = [f"({exact}) desc" if exact else "", f"(`{access.OWNER}` = %(own)s) desc", coded, f"`{title}` asc", "`name` asc"]
     return where, values, [part for part in order if part], title, [column for column in searched if column != title][:3]
 
 
