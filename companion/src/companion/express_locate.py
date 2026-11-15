@@ -504,8 +504,48 @@ def _scan_exp_roots(parents: List[str]) -> List[str]:
     return found
 
 
-def candidate_roots() -> List[str]:
-    """按优先级返回候选根:环境变量 → 注册表 → Express 快捷方式 → 有界扫描。"""
+# 云端那份 CC（runtime_mode）的会话里，客户电脑的盘经远程桌面映射成 ``\\tsclient\<盘>``（也可能被映射成盘符）：那是客户电脑上的，
+# 不是云端主机的 Express，找数据根时不碰（隧道盘以后也在这下面）。
+_CLIENT_SHARE = "\\\\tsclient\\"
+
+
+def _drive_remote(root: str) -> str:
+    r"""盘符映射到的网络地址（``WNetGetConnectionW``，如 ``\\tsclient\C``）；本机盘、取不到回空串。"""
+    letter = ntpath.splitdrive(str(root or ""))[0]
+    if len(letter) != 2 or letter[1] != ":":
+        return ""
+    try:
+        mpr = ctypes.windll.mpr  # type: ignore[attr-defined]
+    except (AttributeError, OSError):
+        return ""
+    size = ctypes.c_ulong(1024)
+    buffer = ctypes.create_unicode_buffer(size.value)
+    try:
+        if mpr.WNetGetConnectionW(letter, buffer, ctypes.byref(size)) != 0:
+            return ""
+    except OSError:
+        return ""
+    return buffer.value or ""
+
+
+def _client_side(path: str) -> bool:
+    r"""这个位置在客户电脑上（经远程桌面映射进来：``\\tsclient\…``，或映射到它的盘符）。"""
+    text = str(path or "").strip().replace("/", "\\")
+    if text.casefold().startswith(_CLIENT_SHARE):
+        return True
+    return _drive_remote(str(path or "").strip()).replace("/", "\\").casefold().startswith(_CLIENT_SHARE)
+
+
+def candidate_roots(local_only: Optional[bool] = None) -> List[str]:
+    r"""按优先级返回候选根:环境变量 → 注册表 → Express 快捷方式 → 有界扫描。
+
+    ``local_only``：只找本机盘（云端那份 CC，默认按 :func:`runtime_mode.cloud` 定）：不扫局域网共享（``\\accserver``、
+    这台登记过的网络共享），映射进来的客户电脑的盘（``\\tsclient\*`` 与映射到它的盘符）一律不碰；本机盘照常扫。
+    本地模式（默认）与原来一样。"""
+    if local_only is None:
+        from . import runtime_mode
+
+        local_only = runtime_mode.cloud()
     cands: List[str] = []
     env = (os.environ.get("PEARNLY_EXPRESS_ROOT") or "").strip()
     if env:
@@ -513,19 +553,28 @@ def candidate_roots() -> List[str]:
     install_dirs = _registry_install_dirs()
     cands.extend(install_dirs)  # 安装目录本身也可能直接是数据根
     cands.extend(_shortcut_candidate_roots())
-    shares = _network_share_roots()
-    parents = _mounted_drive_roots() + list(_SHARE_PARENTS) + shares
+    if local_only:
+        parents = [drive for drive in _mounted_drive_roots() if not _client_side(drive)]
+        cands = [path for path in cands if not _client_side(path)]
+    else:
+        shares = _network_share_roots()
+        parents = _mounted_drive_roots() + list(_SHARE_PARENTS) + shares
     for loc in install_dirs:  # 安装目录及其父目录当扫描父(年度根常与 exe 同级/邻级)
+        if local_only and _client_side(loc):
+            continue
         parents.append(loc)
         parents.append(str(Path(loc).parent))
     cands.extend(_scan_exp_roots(parents))
     # 再按「只认登记表、不认文件夹名」往深处找一遍：文件夹不叫 *EXP*、放得更深、在没映射成盘符的共享上的，
     # 都在这里补上（原来那一遍照旧在前，结果顺序不变）。
-    cands.extend(_deep_scan([*parents, *_user_folders()]))
+    deep = [*parents, *_user_folders()]
+    if local_only:
+        deep = [path for path in deep if not _client_side(path)]
+    cands.extend(_deep_scan(deep))
     seen, ordered = set(), []
     for c in cands:
         key = c.lower().rstrip("\\/")
-        if key and key not in seen:
+        if key and key not in seen and not (local_only and _client_side(c)):
             seen.add(key)
             ordered.append(c)
     return ordered

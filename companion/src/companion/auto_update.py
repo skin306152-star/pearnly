@@ -23,6 +23,7 @@ from __future__ import annotations
 import time
 from typing import Callable, Optional
 
+from . import runtime_mode
 from .logger import get_logger
 from .update_block import UpdateMemory, blocked_code
 
@@ -69,7 +70,11 @@ class AutoUpdate:
     def offer(self, version: str, url: str) -> bool:
         """云端有新版。换了版本就丢掉之前下好的包重新下；同一版本重复提示不重来。返回是否是新提示。
 
-        这个版本以前没装上（本机记录）：照记录的退避等，不因为重开 CC、换了一次提示就马上再试。"""
+        这个版本以前没装上（本机记录）：照记录的退避等，不因为重开 CC、换了一次提示就马上再试。
+
+        云端那份 CC 不自动更新（跟着桥的版本走，由桥换包，runtime_mode）：一律不接。"""
+        if runtime_mode.cloud():
+            return False
         if self.pending and self.pending[0] == version:
             return False
         self.pending = (version, url)

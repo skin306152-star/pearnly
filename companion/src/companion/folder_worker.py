@@ -36,7 +36,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Iterable, Optional
 
-from . import channel, device_link
+from . import channel, device_link, runtime_mode
 from . import folder_plan as plan
 from . import update_block
 from .config import member_active
@@ -134,6 +134,8 @@ class FolderIntake:
         """有连接设了根目录（或还没向云端报过「没有文件夹」）才启动；已在跑就不重复启动。"""
         if self._thread and self._thread.is_alive():
             return
+        if runtime_mode.cloud():
+            return  # 云端那份 CC 不做文件夹自动录入（runtime_mode）
         if not self.wanted():
             return
         self._stop.clear()

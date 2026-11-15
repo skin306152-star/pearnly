@@ -14,6 +14,7 @@ CLI:
   python -m src.companion.main --background # 开机自启:后台常驻,不弹 Tomo 窗口
   python -m src.companion.main --debug      # 调试日志
   python -m src.companion.main --window     # CC 窗口进程(只由托盘拉起,window_main.py;不占单实例锁)
+  python -m src.companion.main --cloud      # 云端那份 CC(runtime_mode):无托盘/窗口/通知/更新/自启/防睡眠,只跑直写 + 按需请求 + 代录
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ import os
 import signal
 import sys
 
+from . import runtime_mode
 from .config import CompanionConfig
 from .logger import get_logger, setup_logging
 from .worker import (
@@ -143,10 +145,29 @@ def step_poll_loop(configs) -> None:
         worker.close(signal_offline=True)
 
 
+def step_cloud_loop(configs) -> None:
+    """云端那份 CC（``--cloud``，runtime_mode）：取任务直写（代录单照常交代录宿主，在云端会话里开 Express）+ 按需请求。
+    托盘、窗口、通知、自动更新、开机自启、防睡眠、文件夹自动录入一样都不起；MR.ERP 成员调用前已去掉（runtime_mode.serves）。"""
+    from .request_worker import RequestWorker
+
+    configs = list(configs)
+    requests = RequestWorker(lambda: configs)
+    requests.start()
+    try:
+        step_poll_loop(configs)
+    finally:
+        requests.stop()
+
+
 def _run_dbf(store, args) -> int:
-    """入口:校验账套白名单 → 托盘常驻 + Tomo(或 --headless console 直写,须已配对)。"""
+    """入口:校验账套白名单 → 托盘常驻 + Tomo(或 --headless console 直写,须已配对;--cloud 云端那份)。"""
     configs = store.runtime_configs(include_paused=True)
-    if not configs and args.headless:
+    cloud = runtime_mode.cloud()
+    console = args.headless or cloud   # 没有界面：缺配对、缺账套就退出（托盘模式照常启动）
+    if cloud:
+        configs = [cfg for cfg in configs if runtime_mode.serves(cfg)]
+        log.info("云端模式 · method=dbf · profiles=%d", len(configs))
+    if not configs and console:
         log.error("dbf 需要至少一个已配对 Profile")
         return 2
     for cfg in configs:
@@ -159,12 +180,12 @@ def _run_dbf(store, args) -> int:
                 cfg.account_dir,
                 cfg.account_set,
             )
-            if args.headless:
+            if console:
                 return 2   # 托盘模式照常启动：Tomo 不受影响，连接问题在「连接与设置」里看到并修
 
-    if args.headless:
+    if console:
         try:
-            step_poll_loop(configs)
+            (step_cloud_loop if cloud else step_poll_loop)(configs)
         except KeyboardInterrupt:
             pass
         log.info("companion exited")
@@ -190,10 +211,20 @@ def main() -> int:
         action="store_true",
         help="无托盘 GUI 的 console 直写循环(测试/服务器)",
     )
+    parser.add_argument(
+        "--cloud",
+        action="store_true",
+        help="云端那份 CC(桥启动):无托盘/窗口/通知/更新/自启/防睡眠,只跑直写、按需请求与代录",
+    )
+    # 桥电脑的显示名(心跳 link.via);也可经环境变量 PEARNLY_CLOUD_VIA 交过来
+    parser.add_argument("--cloud-via", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--window", action="store_true", help=argparse.SUPPRESS)  # CC 窗口进程(托盘拉起)
     # MR.ERP 代录的网页窗口进程(ADR-026:每批由代录宿主拉起、录完退出;网页内核只在这里,托盘不加载)
     parser.add_argument("--mrerp-desk", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
+    if args.cloud:
+        runtime_mode.enable(args.cloud_via)   # 进入云端模式：之后各处只问 runtime_mode.cloud()
+    cloud = runtime_mode.cloud()
     if args.mrerp_desk:
         from .mrerp_operator.web_driver import child_main
 
@@ -204,7 +235,8 @@ def main() -> int:
 
         return run_window()
 
-    _register_app_user_model_id()  # 必须早于任何 QApplication,否则托盘通知不弹
+    if not cloud:
+        _register_app_user_model_id()  # 必须早于任何 QApplication,否则托盘通知不弹
 
     signal.signal(signal.SIGINT, _stop_handler)
     if hasattr(signal, "SIGTERM"):
@@ -221,7 +253,7 @@ def main() -> int:
 
     _INSTANCE_GUARD = single_instance.acquire()
     if _INSTANCE_GUARD is None:
-        _notify_already_running(cfg, headless=args.headless)
+        _notify_already_running(cfg, headless=args.headless or cloud)
         return 0
     # 若 launcher 选了非默认端口,覆盖 cfg.backend_url(env override)
     _env_port = os.environ.get("PEARNLY_COMPANION_PORT")
