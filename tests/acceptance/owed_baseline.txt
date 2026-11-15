@@ -623,7 +623,6 @@ erp.cc.tool.erp_collection_draft|misuse:M02
 erp.cc.tool.erp_collection_draft|misuse:M03
 erp.cc.tool.erp_collection_draft|misuse:M04
 erp.cc.tool.erp_collection_draft|misuse:M05
-erp.cc.tool.erp_collection_draft|misuse:M09
 erp.cc.tool.erp_collection_draft|misuse:M11
 erp.cc.tool.erp_collection_draft|misuse:M12
 erp.cc.tool.erp_collection_draft|normal
@@ -685,10 +684,8 @@ erp.cc.tool.pearnly_write_start|variant:new+old
 erp.desk.pearnly-collections.action.New|misuse:M04
 erp.desk.pearnly-collections.action.New|misuse:M07
 erp.desk.pearnly-collections.action.New|misuse:M08
-erp.desk.pearnly-collections.action.New|misuse:M09
 erp.desk.pearnly-collections.action.New|misuse:M11
 erp.desk.pearnly-collections.action.New|variant:new+old
-erp.desk.pearnly-company.action.company.connect.add|misuse:M09
 erp.desk.pearnly-company.action.company.connect.add|misuse:M11
 erp.desk.pearnly-purchase.action.Express|misuse:M04
 erp.desk.pearnly-purchase.action.Express|misuse:M07
@@ -757,7 +754,6 @@ erp.line.postback.col|misuse:M04
 erp.line.postback.col|misuse:M05
 erp.line.postback.col|misuse:M07
 erp.line.postback.col|misuse:M08
-erp.line.postback.col|misuse:M09
 erp.line.postback.col|misuse:M11
 erp.line.postback.col|misuse:M12
 erp.line.postback.col|misuse:M16

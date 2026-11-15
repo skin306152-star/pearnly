@@ -36,11 +36,25 @@ def _chain():
 RESCAN_SECONDS = 30   # 首跑校准
 
 
+def denied(ctx, chain, conf, book):
+    """`acc.erp.denied`：没有任何岗位的员工碰收款与「从连接添加」的每个写入口，都被拒、什么都不留、账本不动。"""
+    with ctx.step("没岗位的员工逐个入口去试", "每一处都被服务端拒绝；收款记录、公司、写账件一条不多"):
+        out = chain.site(ctx, "erp_denied.py", conf, timeout=300)
+        ctx.require("这个员工确实没有任何岗位", [], out["roles"])
+        ctx.check("每个入口都被拒", {name: "denied" for name in out["outcome"]}, out["outcome"])
+        ctx.check("试了八处", 8, len(out["outcome"]))
+        ctx.check("收款记录、公司、写账件数都没变", out["before"], out["after"])
+    with ctx.step("账本没被动过", "账套与基线逐文件一致"):
+        ctx.check("账套 = 基线", True, bool(book.verify(conf["baseline"]).get("ok")))
+
+
 def run(ctx):
     chain = _chain()
     conf = chain.settings()
     book = ctx.targets.ledger(chain.HOST, chain.LEDGER)
     chain.baseline(ctx, book, conf)
+    if ctx.scenario["id"] == "acc.erp.denied":
+        return denied(ctx, chain, conf, book)
 
     with ctx.step("从连接添加", "列表里有验收账套；刷新后电脑重报；添加后是同一家公司，重复添加不另建"):
         fresh = ctx.scenario["id"].endswith(".fresh")

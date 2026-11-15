@@ -527,3 +527,24 @@ resources = ["testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+[[scenario]]
+id = "acc.erp.denied"
+title = "ERP 没有任何岗位的员工碰收款（网页 / LINE / CC 草稿）与从连接添加的每个写入口：都被拒、什么都不留、账本不动"
+class = "misuse"
+misuse = ["M09"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_company_connect.py"
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft",
+        "erp.desk.pearnly-company.action.company.connect.add"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/access/guard.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"

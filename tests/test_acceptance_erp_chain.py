@@ -185,6 +185,16 @@ class World:
             docs.append(doc)
         return {"ok": True, "company": "CO-1", "item_code": "P001", "warehouse_code": "01", "warehouses": ["01", "02"], "docs": docs}
 
+    def erp_denied(self, params):
+        names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
+                 "connect.add"]
+        outcome = {name: "denied" for name in names}
+        if self.break_at == "open-door":
+            outcome["connect.add"] = "allowed"
+        counts = {"collections": 3, "companies": 1, "jobs": 9}
+        return {"ok": True, "user": "acc.denied@x", "roles": [], "outcome": outcome, "before": counts,
+                "after": {**counts, "collections": 4} if self.break_at == "left-record" else counts}
+
     def erp_company_connect(self, params):
         fresh = self.break_at != "not-fresh"
         if params.get("require_fresh") and not fresh:
@@ -225,7 +235,7 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "erp_company_connect.py" if ".company." in scenario_id else \
+        module = "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
         targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
@@ -268,12 +278,13 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.erp.stock.adjust.express", "stray", "预期以外"),
                  ("acc.erp.company.connect", "switch", "三处一致"), ("acc.erp.company.connect", "stale-facts", "带收款方式"),
                  ("acc.erp.company.connect.fresh", "second-company", "接管"),
-                 ("acc.erp.company.connect.twice", "added-twice", "再添加一次")]
+                 ("acc.erp.company.connect.twice", "added-twice", "再添加一次"),
+                 ("acc.erp.denied", "open-door", "都被拒"), ("acc.erp.denied", "left-record", "都没变")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))
             self.assertIn(words, result["detail"], (scenario_id, break_at))
-            if ".company." not in scenario_id:
+            if ".company." not in scenario_id and not scenario_id.endswith(".denied"):
                 self.assertEqual(world.calls[-1], "restore", (scenario_id, break_at))
 
     def test_the_fresh_only_scenario_is_not_run_on_a_site_that_already_has_the_company(self):
@@ -282,6 +293,11 @@ class ChainScenarioTest(unittest.TestCase):
         self.assertIn("not a fresh site", result["detail"])
         result, _ = self.go("acc.erp.company.connect", "not-fresh")
         self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
+
+    def test_an_employee_without_any_role_is_refused_everywhere(self):
+        result, world = self.go("acc.erp.denied")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertEqual([call for call in world.calls if call.endswith(".py")], ["erp_denied.py"])
 
     def test_a_transfer_on_a_ledger_with_one_warehouse_is_not_run(self):
         result, _ = self.go("acc.erp.stock.transfer.express", "one-warehouse")
