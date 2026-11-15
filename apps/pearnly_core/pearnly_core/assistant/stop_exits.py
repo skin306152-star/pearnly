@@ -78,6 +78,11 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "ITEM_GROUP_NOT_FOUND": ask("precheck:stock_group", SERVER, "p2"),
     "PARTY_TYPE_NOT_FOUND": ask("precheck:new_party", SERVER, "p2"),
     "INVALID_DUE_DATE": ask("review", SERVER, "p2"),
+    "SUPPLIER_NOT_IN_APMAS": ask("precheck:new_party", DESKTOP, "p2"),
+    "CUSTOMER_NOT_IN_ARMAS": ask("precheck:new_party", DESKTOP, "p2"),
+    "ERR_LOCATION": ask("precheck:location", SERVER, "p2"),           # 仓码不在仓库表：换一个仓
+    "ACCOUNT_CODE_IS_STOCK_ITEM": ask("precheck:account", SERVER, "p2"),  # 费用行的科目码其实是库存品：换科目或改走库存
+    "STOCK_IN_FAILED": ask("review", SERVER, "p2"),                     # 采购入库失败：回复核卡改这张（覆盖表 G-B3）
     "CUSTOMER_BRANCH_AMBIGUOUS": ask("precheck:party", SERVER, "p2"),
     "SUPPLIER_BRANCH_AMBIGUOUS": ask("precheck:party", SERVER, "p2"),
     "CUSTOMER_DUP_SUSPECTED": ask("precheck:party", SERVER, "p2"),
