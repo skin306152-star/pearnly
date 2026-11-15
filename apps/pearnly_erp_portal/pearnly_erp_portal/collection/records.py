@@ -4,6 +4,7 @@
 ``limit_page_length``）、白名单排序（`access.listing.order_by`）、原生筛选条件（`pearnly_core.desk.list_filters`）。
 """
 import frappe
+from frappe import _
 
 from pearnly_core.account.names import display_name
 from pearnly_core.cc_desktop import jobs
@@ -80,6 +81,10 @@ def detail(name) -> dict:
     guard.require(VIEW)
     from pearnly_erp_portal.collection import service
 
+    # 不存在的、别家公司的一样按原生「找不到」（11-15 线上：不存在的报「没有权限」；别家的也说找不到，不透露这个编号在不在）
+    company = frappe.db.get_value(DOCTYPE, name, "company") if name else None
+    if not company or company not in companies.allowed_companies():
+        frappe.throw(_("{0} {1} not found").format(_("Collection"), name), frappe.DoesNotExistError)
     view = service.status(name)
     doc = frappe.get_doc(DOCTYPE, name)
     files = {row.voucher for row in doc.payments if row.voucher}

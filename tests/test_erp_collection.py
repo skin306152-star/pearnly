@@ -1234,6 +1234,20 @@ class WebPage(Base):
             with self.assertRaises(PermissionError_):
                 records.page({})
 
+    def test_a_missing_or_other_company_collection_reads_as_not_found(self):
+        # 11-15 线上：打开不存在的收款报「没有权限」。不存在的、别家公司的一样说找不到（不透露编号在不在）；没收款权限的照旧拒
+        name = records.rows({}, limit=1)[0]["name"]
+        for missing in ("COL-NOPE", ""):
+            with self.assertRaises(ValidationError) as caught:
+                records.detail(missing)
+            self.assertNotIsInstance(caught.exception, PermissionError_)
+        self.as_user("other@x")  # 有收款权限、只能用 CO-2，这一笔是 CO-1 的
+        with self.assertRaises(ValidationError):
+            records.detail(name)
+        self.as_user("nobody@x")
+        with self.assertRaises(PermissionError_):
+            records.detail(name)
+
     def test_the_page_is_declared_with_the_view_roles_and_no_write_entries(self):
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
         # 用户 11-14：侧栏「收款」看「收款」功能、只给收款岗位与管理员；「我的收款」去掉（旧地址留一页转过来，不进菜单）
