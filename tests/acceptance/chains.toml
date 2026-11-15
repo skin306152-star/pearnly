@@ -5,3 +5,19 @@
 id = "erp.purchase-to-express"
 title = "ERP 采购单：提交 → 写进 Express → 单号回显 → 账本读回"
 rows = ["erp.desk.pearnly-purchase.action.Submit", "erp.desk.pearnly-purchase.action.Express"]
+
+[[chain]]
+id = "erp.connect-to-masters"
+title = "ERP 公司接入：从连接添加 → 接上 Express → 主档与账套资料落库（只读账本）"
+rows = ["erp.desk.pearnly-company.action.company.connect.add"]
+
+[[chain]]
+id = "erp.sales-to-express"
+title = "ERP 销售单：提交 → 写进 Express → 单号回显 → 账本读回"
+rows = ["erp.desk.pearnly-sales.action.Submit", "erp.desk.pearnly-sales.action.Express"]
+
+[[chain]]
+id = "erp.collection-to-express"
+title = "ERP 收款：发票读回 → 录收款（网页 / LINE / CC 对话）→ 写成 Express 收款单 → 账本读回（挂的发票、余额、凭证、银行流水）"
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft",
+        "erp.cc.tool.erp_collection_push"]

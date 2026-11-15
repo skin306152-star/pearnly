@@ -605,16 +605,12 @@ erp.desk.pearnly-purchase.action.Submit|misuse:M08
 erp.desk.pearnly-purchase.action.Submit|misuse:M09
 erp.desk.pearnly-purchase.action.Submit|misuse:M10
 erp.desk.pearnly-purchase.action.Submit|misuse:M11
-erp.desk.pearnly-sales.action.Express|L3:normal
-erp.desk.pearnly-sales.action.Express|chain
 erp.desk.pearnly-sales.action.Express|misuse:M02
 erp.desk.pearnly-sales.action.Express|misuse:M04
 erp.desk.pearnly-sales.action.Express|misuse:M07
 erp.desk.pearnly-sales.action.Express|misuse:M08
 erp.desk.pearnly-sales.action.Express|misuse:M09
 erp.desk.pearnly-sales.action.Express|misuse:M11
-erp.desk.pearnly-sales.action.Submit|L3:normal
-erp.desk.pearnly-sales.action.Submit|chain
 erp.desk.pearnly-sales.action.Submit|misuse:M02
 erp.desk.pearnly-sales.action.Submit|misuse:M04
 erp.desk.pearnly-sales.action.Submit|misuse:M07
