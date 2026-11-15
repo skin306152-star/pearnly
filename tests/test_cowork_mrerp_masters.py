@@ -69,6 +69,17 @@ class Parse(unittest.TestCase):
         self.assertEqual(rules.split_prefix("ห้างหุ้นส่วนสามัญ ก", mrerp_own), ("หสม", "ก"))
         self.assertEqual(rules.split_prefix("นางสาวสมศรี ใจดี", mrerp_own), ("น.ส.", "สมศรี ใจดี"))
         self.assertEqual(rules.prefix_for("ห้างหุ้นส่วนจำกัด ทดสอบ", mrerp_own), "หจก.")
+        # 简称本身含着末尾字：บจก. = บริษัท … จำกัด、บมจ. = บริษัท … จำกัด (มหาชน)，换写法时末尾字跟着补上 / 去掉
+        self.assertEqual(rules.split_prefix("บริษัท ก จำกัด", mrerp_own), ("บริษัท", "ก จำกัด"))
+        self.assertEqual(rules.split_prefix("บริษัท ก จำกัด (มหาชน)", mrerp_own), ("บริษัท", "ก จำกัด (มหาชน)"))
+        self.assertEqual(rules.split_prefix("บจก. ก", mrerp_own), ("บริษัท", "ก จำกัด"))
+        self.assertEqual(rules.split_prefix("บมจ.ก", mrerp_own), ("บริษัท", "ก จำกัด (มหาชน)"))
+        with_abbrev = ["บจก.", "บมจ.", "หจก.", "นาย"]  # 公司自己加的简称、没有 บริษัท
+        self.assertEqual(rules.split_prefix("บริษัท ก จำกัด", with_abbrev), ("บจก.", "ก"))
+        self.assertEqual(rules.split_prefix("บริษัท ก จำกัด (มหาชน)", with_abbrev), ("บมจ.", "ก"))
+        self.assertEqual(rules.split_prefix("บริษัท ก", with_abbrev), ("บจก.", "บริษัท ก"))  # 没有「จำกัด」认不出是哪种：称谓第一项、名称原样
+        self.assertEqual(rules.split_prefix("หสม.ข", mrerp_own), ("หสม", "ข"))
+        self.assertEqual(rules.split_prefix("น.ส.สมศรี", ["นาย", "นาง", "นางสาว"]), ("นางสาว", "สมศรี"))
 
     def test_customer_record_defaults(self):
         row = [9, "C0001", "บริษัท", "ลูกค้า", 9, "C0001", "ลูกค้า", 2, "สมหญิง ขายเก่ง", 2, "เชียงใหม่", 2, "ไปรษณีย์"]
