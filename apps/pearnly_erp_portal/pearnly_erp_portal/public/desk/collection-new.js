@@ -51,6 +51,10 @@
 		const dialog = new frappe.ui.Dialog({title: __("New"), size: "large", no_focus: true, fields: [
 			{fieldtype: "Select", fieldname: "company", label: __("Company"), reqd: 1, hidden: companies.length <= 1 ? 1 : 0,
 				options: [{value: "", label: ""}, ...companies], change: () => void settle(pick_company())},
+			// 收款日期：默认今天；今天不在这家任何一本账套的期间里时清空、限定到可录的期间，选好再往下（账套跟着日期走，
+			// `service.day_options`；用户 11-15：同 Express 里把工作日期改进期间再录）
+			{fieldtype: "Date", fieldname: "doc_date", label: __("Collection Date"), reqd: 1, default: frappe.datetime.get_today(),
+				change: () => void settle(pick_company())},
 			{fieldtype: "Select", fieldname: "book", label: __("Account Set"), hidden: 1, change: () => void settle(pick_book())},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Autocomplete", fieldname: "customer", label: __("Customer"), reqd: 1, ignore_validation: true,
@@ -108,13 +112,28 @@
 			dialog.fields_dict.invoices.df.data = [];
 			dialog.fields_dict.invoices.grid.refresh();
 		};
+		// 这一天不在可录期间：日期框限定到各段期间、说出期间（服务端那句），清空等人选
+		const limit_day = needed => {
+			const control = dialog.fields_dict.doc_date;
+			const starts = (needed?.periods || []).map(row => row.start).sort(), ends = (needed?.periods || []).map(row => row.end).sort();
+			const range = starts.length ? {min_date: frappe.datetime.str_to_obj(starts[0]),
+				max_date: frappe.datetime.str_to_obj(ends[ends.length - 1])} : {min_date: null, max_date: null};
+			Object.assign(control.df, range);
+			control.datepicker?.update({minDate: range.min_date || false, maxDate: range.max_date || false});
+			dialog.set_df_property("doc_date", "description", needed?.text || "");
+		};
 		async function pick_company() {
-			const company = dialog.get_value("company");
+			const company = dialog.get_value("company"), day = dialog.get_value("doc_date") || "";
 			clear_methods(); reset_customer();
 			dialog.set_value("customer", "");
 			dialog.set_df_property("book", "hidden", 1);
 			if (!company) return;
-			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company}, "POST");
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company, day}, "POST");
+			limit_day(found.day_needed);
+			if (found.day_needed) {
+				if (day) dialog.set_value("doc_date", "");  // 清空会再报一次 change：那次 day 为空，到这里就停
+				return;
+			}
 			if (found.book?.options?.length) {
 				dialog.set_df_property("book", "options", [{value: "", label: ""},
 					...found.book.options.map(row => ({value: row.code, label: row.name}))]);
@@ -126,8 +145,9 @@
 		async function pick_book() {
 			const company = dialog.get_value("company"), key = dialog.get_value("book");
 			if (!company || !key) return;
-			await p.call("pearnly_erp_portal.collection.api.api_collection_choose_book", {company, key}, "POST");
-			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company}, "POST");
+			const day = dialog.get_value("doc_date") || "";
+			await p.call("pearnly_erp_portal.collection.api.api_collection_choose_book", {company, key, day}, "POST");
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company, day}, "POST");
 			dialog.set_df_property("book", "hidden", 1);
 			show_methods(found.methods || {});
 		}
@@ -137,7 +157,8 @@
 			reset_customer();
 			if (!company || !customer) return;
 			listed = `${company}\n${customer}`;
-			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_open_invoices", {company, customer}, "POST");
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_open_invoices",
+				{company, customer, day: dialog.get_value("doc_date") || ""}, "POST");
 			open = found.items || [];
 			// 行要有 name：原生表格的勾选按行名记（`grid.js` setup_check），没名字的行勾了也不算选中
 			dialog.fields_dict.invoices.df.data = open.map(row => ({name: row.docnum, docnum: row.docnum, doc_date: row.doc_date,
@@ -169,7 +190,7 @@
 			try {
 				await p.call("pearnly_erp_portal.collection.api.api_collection_submit", {company: values.company, customer: values.customer,
 					invoices: JSON.stringify(invoices), cash: extra.cash?.get_value() || 0, methods: JSON.stringify(chosen),
-					request}, "POST");
+					request, doc_date: values.doc_date || ""}, "POST");
 			} finally {
 				dialog.enable_primary_action();
 			}

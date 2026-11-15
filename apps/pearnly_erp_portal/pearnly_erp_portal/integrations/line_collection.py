@@ -11,7 +11,7 @@
    事件号作同意）；卡片之后改过回 ``changed`` 就重出卡片。【编辑】经 `line_login.entry_url` 打开网页原生弹窗（只改这张草稿）。
    卡片有效期照 DMS（共享笔记「卡片有效期规则」A 节）：每张卡一个一次性确认号（`line_session.consume_nonce`），【确认】【撤回】都要它；
    出新卡、重开一笔、取消时旧卡失效、没放行的草稿作废；卡自出卡起 :data:`CARD_MINUTES` 分钟有效；同一张卡再点不回话，其余失效回
-   :data:`EXPIRED`。【取消】只认最新那条消息上的（步号 ``turn``）。单据日期按放行当天。
+   :data:`EXPIRED`。【取消】只认最新那条消息上的（步号 ``turn``）。单据日期按放行当天；今天不在这家任何一本账套的期间里时，选公司后先问收款日期（账套跟着日期走），照选的写。
 3. 结果：放行后在后台等写入最多 :data:`WAIT_SECONDS` 秒（显示三个点），写成用回复给 RE 号；没写成先回「已记录 · 待写入」
    （带【查看结果】【撤回】）。之后写成不推送：点【查看结果】或下次进「收款」时用回复告诉；写失败推一条给录入的收款员本人
    （回执 `collection.push` → :func:`notify`，同一笔一次，已看过不推）。
@@ -277,6 +277,8 @@ def text(line_user_id, user, typed, reply_token, event_id="") -> bool:
                 _show_card(line_user_id, payload, _service().card(payload["name"]), reply_token)
         elif step == "company":
             _type_company(line_user_id, payload, typed, reply_token)
+        elif step == "day":
+            _type_day(line_user_id, payload, typed, reply_token)
         elif step == "customer":
             _type_customer(line_user_id, payload, typed, reply_token)
         elif step in ("amount", "each"):
@@ -315,9 +317,19 @@ def _pick_company(line_user_id, payload, value, reply_token, note=""):
     _after_company(line_user_id, payload, reply_token, note=note)
 
 
-def _after_company(line_user_id, payload, reply_token, note=""):
-    """公司定了：这家今天的账套定得下来就去找客户；同期两本、没选过先选一次（A10，11-12）。"""
-    asked = _service().book_options(payload["company"])
+def _after_company(line_user_id, payload, reply_token, note="", day_note=""):
+    """公司定了：今天（或已选的收款日期）不在这家任何一本账套的期间里，先问收款日期（`service.day_options`，账套跟着日期走）；
+    这一天的账套定得下来就去找客户；同期两本、没选过先选一次（A10，11-12）。"""
+    # ``note``：回显刚选的（公司名），挂在下一步的问句上；``day_note``：只挂在「再问收款日期」上（打的日期认不出 / 在期间外）
+    service = _service()
+    asked_day = service.day_options(payload["company"], payload.get("day"))
+    if asked_day:
+        payload.update(step="day", periods=asked_day["periods"][:MAX_CHOICES])
+        payload.pop("day", None)
+        _save(line_user_id, payload)
+        return _ask_day(reply_token, payload, day_note or note)
+    payload.pop("periods", None)
+    asked = service.book_options(payload["company"], payload.get("day"))
     if asked:
         rows = asked["options"][:MAX_CHOICES]
         payload.update(step="book", books={row["code"]: row["name"] for row in rows},
@@ -329,7 +341,35 @@ def _after_company(line_user_id, payload, reply_token, note=""):
     payload.pop("book_short", None)
     _save(line_user_id, payload)
     _ask_customer(reply_token, note=note)
-    _service().warm(payload["company"])  # 先回问句再预热：整本读回请求排给电脑，选好客户时多半已读好
+    service.warm(payload["company"], payload.get("day"))  # 先回问句再预热：整本读回请求排给电脑，选好客户时多半已读好
+
+
+# ── 收款日期（今天不在任何一本账套的期间里时）──────────────────────────────────
+
+
+def _ask_day(reply_token, payload, note=""):
+    """问收款日期：列出各本可录的期间；快捷回复是各本本年段的最后一天（日期 + 账套短名），也可以直接打日期。"""
+    from pearnly_erp_portal.collection import texts
+    from pearnly_erp_portal.integrations.line_cards import _be_date
+
+    rows = payload.get("periods") or []
+    lines = [note] if note else []
+    lines += [_("Collection Date"), texts.periods_text(rows, _be_date)]  # 佛历日 / 月 / 年，同卡片；打字也认这种写法
+    _ask(reply_token, "\n".join(lines),
+         [_button(f"{_be_date(row['last'])} {row.get('short') or ''}".strip()[:20], _data("day", row["last"])) for row in rows])
+
+
+def _answer_day(line_user_id, payload, value, reply_token):
+    payload["day"] = value
+    _after_company(line_user_id, payload, reply_token)
+
+
+def _type_day(line_user_id, payload, typed, reply_token):
+    day = _service().parse_day(typed)
+    if not day:
+        return _ask_day(reply_token, payload, note=_("No match for “{0}”").format(typed[:40]))
+    payload["day"] = day
+    _after_company(line_user_id, payload, reply_token, day_note=_("No match for “{0}”").format(typed[:40]))
 
 
 # ── 账套（同期两本时）───────────────────────────────────────────────────────
@@ -348,7 +388,7 @@ def _ask_book(reply_token, payload, note=""):
 def _answer_book(line_user_id, payload, value, reply_token):
     if value not in (payload.get("books") or {}):
         return _text(reply_token, _("This option is no longer current"))
-    _service().choose_book(payload["company"], value)
+    _service().choose_book(payload["company"], value, payload.get("day"))
     _after_company(line_user_id, payload, reply_token)
 
 
@@ -403,7 +443,7 @@ def _pick_customer(line_user_id, payload, value, reply_token, note=""):
     service = _service()
     if value not in (payload.get("offered") or {}) and not service.customers(payload["company"], value, limit=1)["items"]:
         return _text(reply_token, _("This option is no longer current"))
-    found = service.open_invoices(payload["company"], value)
+    found = service.open_invoices(payload["company"], value, payload.get("day"))
     name = (payload.get("offered") or {}).get(value) or next(
         (row["name"] for row in service.customers(payload["company"], value, limit=MAX_CHOICES)["items"]
          if row["code"] == value), value)
@@ -482,7 +522,7 @@ def _rest(payload) -> Decimal:
 def _catalog(payload) -> dict:
     found = payload.get("catalog")
     if found is None:
-        found = payload["catalog"] = _service().methods(payload["company"])
+        found = payload["catalog"] = _service().methods(payload["company"], payload.get("day"))
     return found
 
 
@@ -752,7 +792,8 @@ def _draft_methods(payload) -> list:
 def _draft(line_user_id, payload, reply_token):
     try:
         card = _service().create_draft(payload["company"], payload["customer"], payload["allocation"],
-                                       cash=payload.get("cash") or 0, methods=_draft_methods(payload), source="line")
+                                       cash=payload.get("cash") or 0, methods=_draft_methods(payload), source="line",
+                                       doc_date=payload.get("day") or None)
     except contracts.CollectionError as error:
         # 别人刚收了同一张、余额变了：从发票那一步按此刻的余额重来
         return _pick_customer(line_user_id, payload, payload["customer"], reply_token, note=_explain(error))
@@ -814,6 +855,8 @@ def _repeat(line_user_id, payload, reply_token):
         return _show_card(line_user_id, payload, _service().card(payload["name"]), reply_token)
     if step == "book":
         return _ask_book(reply_token, payload)
+    if step == "day":
+        return _ask_day(reply_token, payload)
     if step == "invoices":
         return _show_invoices(payload, reply_token)
     if step == "method":
@@ -980,7 +1023,9 @@ def _failed_text(view) -> str:
         lines = [_("Already collected. Current balance:")]
         lines += [f"{docnum} {money(value)}" for docnum, value in (view.get("balances") or {}).items()]
         return "\n".join(lines)
-    return _("Not written to Express: {0}").format(re.sub(r"^\[[A-Za-z0-9_]+\]\s*", "", reason) or view.get("status"))
+    from pearnly_erp_portal.collection import texts
+
+    return _("Not written to Express: {0}").format(texts.reason(reason) or view.get("status"))
 
 
 def _result_messages(view) -> list:
@@ -1148,6 +1193,7 @@ _STEP_OF = {"inv": "invoices"}
 _ANSWERS = {
     "company": _pick_company,
     "book": _answer_book,
+    "day": _answer_day,
     "customer": _answer_customer,
     "inv": _answer_invoice,
     "invoices": _answer_invoices_done,

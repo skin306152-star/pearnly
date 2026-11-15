@@ -64,7 +64,7 @@
 				shown("docnum", __("Express No."), data.docnum),
 				shown("book", __("Account Set"), data.book),
 				shown("total", __("Total"), money(data.total)),
-				...(data.reason ? [shown("reason", __("Reason"), data.reason, "Small Text")] : []),
+				...(data.reason ? [shown("reason", __("Reason"), data.reason_text || data.reason, "Small Text")] : []),
 				{fieldtype: "Section Break"},
 				{fieldtype: "Table", fieldname: "invoices", label: __("Invoices"), cannot_add_rows: true,
 					cannot_delete_rows: true, in_place_edit: false, read_only: 1, data: data.invoices || [], fields: [
@@ -96,6 +96,13 @@
 			if (viewer) void viewer.show(vouchers[0].file);
 		}
 
+		// 原生日期框的可选范围（`df.min_date` / `max_date`）：几段期间的最早起、最晚止
+		const period_range = rows => {
+			const starts = (rows || []).map(row => row.start).sort(), ends = (rows || []).map(row => row.end).sort();
+			return starts.length ? {min_date: frappe.datetime.str_to_obj(starts[0]),
+				max_date: frappe.datetime.str_to_obj(ends[ends.length - 1])} : {};
+		};
+
 		async function edit(name) {
 			const data = await p.call(api + "api_collection_card", {name}, "POST");
 			const card = data.card;
@@ -107,12 +114,15 @@
 				...(current && !(rows || []).some(row => row.code === current) ? [{value: current, label: current}] : [])];
 			// 写前被电脑拒、退回草稿（`collection.push`，11-14）：原因放最前（同 LINE 还回的卡），改了再放行
 			const returned = card.returned ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1,
-				default: String(card.reason || "").replace(/^\[[A-Za-z0-9_]+\]\s*/, "")}, {fieldtype: "Section Break"}] : [];
+				default: card.reason_text || String(card.reason || "").replace(/^\[[A-Za-z0-9_]+\]\s*/, "")}, {fieldtype: "Section Break"}] : [];
 			const fields = [
 				...returned,
 				{fieldtype: "Data", fieldname: "customer", label: __("Customer"), read_only: 1,
 					default: `${card.customer} ${card.customer_name}`},
 				{fieldtype: "Data", fieldname: "book", label: __("Account Set"), read_only: 1, default: card.book},
+				// 收款日期：只能在这笔冻结的那本账套的期间里（原生日期框限定范围，服务端 `service._redate` 再判；LINE【编辑】打开的也是这里）
+				{fieldtype: "Date", fieldname: "doc_date", label: __("Collection Date"), reqd: 1, default: card.doc_date,
+					...period_range(data.periods)},
 				{fieldtype: "Column Break"},
 				{fieldtype: "Select", fieldname: "salesman", label: __("Salesman"), default: card.salesman,
 					options: [{value: "", label: ""}, ...choice(data.staff?.salesmen, card.salesman)]},
@@ -138,7 +148,9 @@
 					try {
 						await p.call(api + "api_collection_save", {name: card.name, version: card.version,
 							invoices: JSON.stringify(invoices), cash: values.cash || 0, methods: JSON.stringify(chosen),
-						salesman: values.salesman || "", department: values.department || ""}, "POST");
+						salesman: values.salesman || "", department: values.department || "",
+						// 只在改了日期时带：没改的草稿照旧按放行当天记
+						...(values.doc_date && values.doc_date !== card.doc_date ? {doc_date: values.doc_date} : {})}, "POST");
 					} finally {
 						dialog.enable_primary_action();
 					}
