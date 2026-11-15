@@ -164,3 +164,16 @@
 - 第 24 行（vat 抵扣）和第 26 行（A7）「ERP 单不会触发」是按代码路径推断的，没有实测。
 - 收单记录的仓题没答时（只有一个仓时有预选），交单时怎么处理没读到（`apply_intake_answers` 只在答了时写 `chosen["warehouse"]`）。
 - 代录开始卡（页面走 `express_operator.api.start(answers=…)`，不经 `pearnly_guide`）有没有也按「没点过的预选不生效」处理：没读页面代码。
+
+## 补：ERP 直写对话的现状（验收体系窗口 11-15 晚，读 main 0c87836b7 代码得出，未在站点上点过）
+
+补上面「未查到：ERP 直写对话里识别的票提交成 ERP 单的工具入口」——**没有这个入口**：
+
+1. ERP 直写对话不识别附件。把票识别成单据的入口 `integrations.intake.receive_chat` 只有代录在调（`express/operator.py:86 intake`，经 hooks.py:656 的代录钩子）；
+   直写模式的工具清单（`express/cc_tools.py:755` 起）没有相当于 Cowork `cowork_recognize_attachments` 的工具。直写对话里的附件只是普通对话附件（`assistant/api.py:122 upload`），
+   只有收款把它当转账凭证用（`erp_collection_voucher`）。
+2. ERP 单据一提交就自动排写账：`purchasing/entry.py:146`、`sales/entry.py:173` 在提交事务里调 `express_push.queue`（`express/push.py:122–143`），不经过对话。
+3. 所以直写对话里的「推送」（`erp_push_documents`，cc_tools.py:669 / :776）只等于单据页的「再写一次」：只推用户同意的写入计划里的、已存在且停下或失败的单；不建单、不识别。
+
+对 P2 的含义：ERP 直写的「放票 → 识别 → 复核 → 录」是**新能力**，不是把现有行为改成卡片；现有能做到的是代录模式（放票 → 收单记录 `I:<记录>` → 开始时提交 → 代录录入）
+与直写的「停下的单再写一次」。P2 开工时按新能力估：识别入口接进直写对话、识别结果建 ERP 草稿单（不提交）、复核卡上确认才提交（提交即排写账）。收款例外，直写对话里已能从头录到写。
