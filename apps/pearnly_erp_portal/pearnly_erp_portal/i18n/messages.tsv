@@ -6,7 +6,7 @@ Bind this account first	请先绑定 ERP 账号	กรุณาผูกบั�
 LINE unbound	LINE 已解绑	ยกเลิกการผูกบัญชี LINE แล้ว	LINE の連携を解除しました
 This channel is not open yet	该通道尚未开放	ช่องทางนี้ยังไม่เปิดใช้งาน	このチャンネルはまだ開放していません
 Only purchase documents can be sent in for now	目前仅支持接收采购单据	ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น	現時点では仕入書類のみ受け付けます
-This account cannot send documents	该账号无权发送单据	บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร	このアカウントは書類を送信できません
+This account cannot send documents	此账号无权发送单据	บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร	このアカウントは書類を送信できません
 Could not store this document	单据保存失败，请重新发送	บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่	書類を保存できませんでした。再送してください
 Already received	该文件已接收	ได้รับไฟล์นี้แล้ว	このファイルは受け取り済みです
 Received; confirm it on the ERP page	已接收，请在 ERP 页面确认	ได้รับแล้ว กรุณายืนยันในหน้า ERP	受け取りました。ERP 画面で確認してください
@@ -537,7 +537,6 @@ New	新建	สร้างใหม่	新規
 New Category	新建分类	สร้างหมวดหมู่	カテゴリ作成
 New Purchase Invoice	新建采购发票	สร้างใบแจ้งหนี้ซื้อ	仕入請求書作成
 None	无	ไม่มี	なし
-Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません
 Note	备注	หมายเหตุ	備考
 OCR	文字识别	อ่านเอกสาร (OCR)	文字認識
 Only Draft documents can be deleted	只能删除草稿单据	ลบได้เฉพาะเอกสารฉบับร่าง	下書きの伝票のみ削除できます

@@ -489,13 +489,14 @@ No such local account: {0},ไม่พบบัญชีภายในระ�
 No.,เลขที่
 None deleted: the {0} selected records are being pushed.,ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
-Not Permitted,ไม่มีสิทธิ์
+Not Permitted,ไม่ได้รับอนุญาต
 Not allowed,ไม่อนุญาต
 Not authorized,ยังไม่ได้อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
 Not done,ยังไม่เสร็จ
 Not enough stock,สต็อกไม่พอ
 Not linked,ยังไม่ผูก
+Not permitted,ไม่ได้รับอนุญาต
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
 Note,หมายเหตุ

@@ -780,7 +780,8 @@ Unable to load this page. Please reload.	无法加载此页面，请刷新。	�
 Create a new {0}	新建{0}	สร้าง {0} ใหม่	新しい{0}を作成
 Edit Full Form	编辑完整表单	แก้ไขฟอร์มเต็ม	全項目フォームを編集
 No Data	暂无数据	ไม่มีข้อมูล	データがありません
-Not Permitted	没有权限	ไม่มีสิทธิ์	権限がありません
+Not Permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません
+Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません
 Nothing to show	没有可显示的内容	ไม่มีข้อมูลให้แสดง	表示する項目がありません
 Click to sort by {0}	点击按 {0} 排序	คลิกเพื่อเรียงตาม {0}	{0} で並べ替え
 Change your password and sign out other devices on the account page of the identity service	请在身份服务的账户页修改密码并退出其他设备	กรุณาเปลี่ยนรหัสผ่านและออกจากระบบอุปกรณ์อื่นในหน้าบัญชีของบริการยืนยันตัวตน	パスワードの変更と他の端末からのログアウトは、ID サービスのアカウントページで行ってください
