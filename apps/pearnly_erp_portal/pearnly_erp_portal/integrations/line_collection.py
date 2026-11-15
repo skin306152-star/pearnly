@@ -352,10 +352,14 @@ def _answer_book(line_user_id, payload, value, reply_token):
 
 
 def _type_company(line_user_id, payload, typed, reply_token):
-    from pearnly_erp_portal.integrations.line_flow import _fold
+    from pearnly_erp_portal.integrations import line_flow
 
-    wanted = _fold(typed)
-    found = [(key, label) for key, label in payload["companies"].items() if wanted and wanted in _fold(label)]
+    # 与采购 / 销售选公司同一份（`line_flow.match`）：名称、税号、账套目录名等，不分大小写包含（11-15 真机：按税号找不到）
+    exact, found = line_flow.match(line_flow.company_rows(payload["companies"]), typed)
+    if exact:
+        return _pick_company(line_user_id, payload, exact, reply_token)
+    labels = payload["companies"]
+    found = [(key, labels.get(key) or label) for key, label in found]
     if len(found) == 1:
         return _pick_company(line_user_id, payload, found[0][0], reply_token)
     if not found:

@@ -162,17 +162,19 @@ def choose_book(company, key, day=None) -> dict:
 def customers(company, q="", start=0, limit=12) -> dict:
     """找客户：这家公司从 Express 同步来的客户，按编号或名字的一部分（服务端分页，LINE 快捷回复最多 12 个）。
     ``{"items": [{code, name}], "total"}``。收款员看所有客户（不按收款员过滤）。"""
+    from pearnly_core.desk import list_filters
+    from pearnly_erp_portal.masters import search_rules
+
     guard.require(WRITE)
     _company(company)
     filters = {**master_access.ledger_filters(company), "is_active": 1}
     text = str(q or "").strip()[:60]
-    or_filters = [["express_code", "like", f"%{text}%"], ["customer_name", "like", f"%{text}%"]] if text else None
+    # 与选择框、LINE 选客户同一套匹配（`masters.search_rules`：名称、账本编码、税号、电话，不分大小写包含，几个词都要有）
+    or_filters = search_rules.or_filters(CUSTOMER, text) or None
     limit = max(1, min(int(limit or 12), SEARCH_MAX))
     found = frappe.get_all(CUSTOMER, filters=filters, or_filters=or_filters, fields=["express_code", "customer_name"],
                            order_by="customer_name asc, express_code asc", limit_start=max(0, int(start or 0)),
                            limit_page_length=limit)
-    from pearnly_core.desk import list_filters
-
     return {"items": [{"code": row.express_code, "name": row.customer_name} for row in found],
             "total": list_filters.count(CUSTOMER, filters, or_filters, ignore_permissions=True)}
 
