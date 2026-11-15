@@ -12,6 +12,7 @@
 | 1 | 物料 / 客户 / 供应商选择框账本档优先；搜索统一（采购 / 销售对方与物料框、网页收款客户框、LINE 收款同一条查询，电话带不带分隔符都认，税号命中不被过滤，LINE 回显选中的名称；LINE 选公司提示句已批文案） | link-ledger-code-first f971c8579 + master-search-unify → a15f8c1cf（作者 11-15 晚确认这两个 SHA，顺序 1 → 2；作者本机已过受影响流程 8 条、单测 6 组） | 已并（快进） | `erp.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item`（产品地图闸要求） |
 | 2 | 收款日期可改（当天不在任何一本期间时改问日期；LINE day 步、网页弹窗日期、CC 工具 date / date_needed；隐藏字段 date_chosen） | collection-date 465b5fc7a → 变基后 1fe229338（基于 a15f8c1cf；作者解了 `_after_company` 冲突，认对日期后不再带「No match」并补测试） | 已并（52105b5cc） | 合入前测试机1 NLTTEST 原生对照；LINE / 网页改日期 |
 | 2b | 收款公司列表不列「已连接账套一本都没报会计期间」的公司（collection.service.companies_for） | collection-date-no-period 9d9f0c109（叠在 1fe229338 上，1 个提交） | 已并（79e38eccc） | 不命中新的真机入口；并进收款日期那趟核「有期间的公司照常可选」 |
+| 2c | LINE 卡片【编辑】按卡片的公司打开那一页、不改用户当前公司（页面级公司头，线上 6）；卡片指向已不存在的单据时回列表（intake-edit-missing 两个提交，队列已合，变基去重） | page-company d9207ed4c（基于 main 9c1e783ad） | 已并（7a2e73226） | 三星一行（两家公司账号 B 卡编辑、A 不变）；共用件 erp-originals / erp-company-menu / cowork-intake-upload 的手工入口 |
 | 3 | 验收体系第二期第 0 批：收款链路场景 8 条、站点脚本、首次登记 5 行验收属性（基线 903 → 939） | acceptance-collection → 892df7a4e | 已并 | 真环境首跑（Mac 栈测试机一半）；5 行真机 |
 | 4 | MR.ERP 这一车之后的界面行 T9–T11、真实 testerp 数据副本升级演练 | 待三条 MR.ERP 分支进 main | 未到 | T9–T11 真浏览器 / 真对话 |
 | 5 | CC 桌面版 1.12.22 服务端 | cc-1122-server e97f3b3b2（是否并入本分支待主会话定） | 未定 | 12 行（共享笔记「CC桌面版1.12.22-真机待测-11-15.md」） |
@@ -25,7 +26,7 @@
 | 候选离线（线上镜像 02eebaa4…） | 9f2119f64 与合并头 1f2b2de62 均 111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1116-cand-1.log、-cand-2.log |
 | Development checks | 未推 | — |
 | 产品地图 | 8d415ba14：只差两行真机记录（liff-camera、erp_item），其余通过 | 本地 |
-| 共用件连带回归 | 8d415ba14：命中 `erp-masters-selection`，14 个入口，见下 | `check-impact.py --markdown` |
+| 共用件连带回归 | 7a2e73226：命中 erp-masters-selection、erp-originals、erp-company-menu、cowork-intake-upload，40 个入口（下表是 8d415ba14 时的 14 个，白天并 main 后重出全表） | `check-impact.py --markdown` |
 | 受影响流程 | 1f2b2de62：交叠的 4 条收款流程（erp.line.collection、erp.web.collection、erp.collection.date、erp.collections.refused）5/5 格通过，404 秒，自建小栈 pearnly-integ1116-lab（跑完已 stop）；其余 33 条中的另外 29 条等白天并 main 后 `--changed` 跑（主会话 11-15 晚定） | ~/pearnly-devtools/integ1116-flows-1.log |
 | 全闸门（合并头） | 1f2b2de62：251 项过，同上只差两行真机记录 | ~/pearnly-devtools/integ1116-gate-2.log |
 
@@ -74,3 +75,4 @@
 | 11-15 21:4x | 从 origin/main 0c87836b7 开分支；快进到 master-search-unify a15f8c1cf；合 acceptance-collection | 8d415ba14 |
 | 11-15 21:5x | 合 collection-date 1fe229338（无冲突） | 52105b5cc |
 | 11-15 22:4x | 合 collection-date-no-period 9d9f0c109（无冲突；收款三组离线测试 OK） | 79e38eccc |
+| 11-15 22:5x | 合 page-company d9207ed4c（无冲突；带进 main 到 9c1e783ad；作者已过全闸门、候选离线、受影响流程 17 条 56/56） | 7a2e73226 |
