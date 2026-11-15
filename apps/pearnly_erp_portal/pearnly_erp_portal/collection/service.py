@@ -68,14 +68,18 @@ def _company(company):
 
 
 def companies_for() -> list:
-    """收款员能选的公司（本人可用、接了 Express）：``[{name, company_name}]``。只有一家时 LINE 跳过这一步。"""
+    """收款员能选的公司（本人可用、接了 Express、已连接账套报了会计期间）：``[{name, company_name}]``。只有一家时 LINE 跳过这一步。
+    一本账套都没报期间的选了也录不了（问不出收款日期，11-15 线上「不在已连接账套的期间内」），不列出来。"""
     from pearnly_erp_portal.express import push as express_push
 
     guard.require(WRITE)
     out = []
     for name in companies.allowed_companies():
-        if express_push.linked(name):
-            out.append({"name": name, "company_name": frappe.db.get_value(COMPANY, name, "company_name") or name})
+        if not express_push.linked(name):
+            continue
+        row = frappe.db.get_value(COMPANY, name, ["name", "company_name", "tax_id", "branch"], as_dict=True)  # loop-query: 本人可用的几家
+        if row and periods(row):
+            out.append({"name": name, "company_name": row.company_name or name})
     return out
 
 
