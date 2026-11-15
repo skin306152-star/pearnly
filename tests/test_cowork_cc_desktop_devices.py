@@ -272,6 +272,9 @@ class FakeDB:
                      and r["name"] != values[2] and _active_row(r)]
             return [(r["name"],) for r in sorted(found, key=lambda r: -r["token_generation"])]
         # 第 6 批：电脑名（推送记录由哪台写入）、登记人（「电脑」列表的移除）
+        if "SELECT name, link_kind, link_via, link_host FROM `tabCowork CC Desktop Device` WHERE name IN %s" in q:
+            return [(r["name"], r.get("link_kind"), r.get("link_via"), r.get("link_host")) for r in _rows(DEVICE)
+                    if r["name"] in values[0]]
         if "SELECT name, label FROM `tabCowork CC Desktop Device` WHERE name IN %s" in q:
             return [(r["name"], r.get("label")) for r in _rows(DEVICE) if r["name"] in values[0]]
         if "SELECT name, device_owner FROM `tabCowork CC Desktop Device` WHERE name IN %s AND retired_at IS NULL" in q:
@@ -606,7 +609,12 @@ class Schema(unittest.TestCase):
         self.assertEqual(set(fields), {"workspace", "device_owner", "signed_in_user", "signed_in_users", "label",
                                        "secret_digest", "companion_version", "max_payload_version", "selection_json",
                                        "host_names", "index_pending", "retired_at", "retired_by", "index_pending_uids",
-                                       "reindex_runner", "operator_targets", "mrerp_logins", "mrerp_users"})
+                                       "reindex_runner", "operator_targets", "mrerp_logins", "mrerp_users",
+                                       "link_kind", "link_via", "link_host"})
+        # 经哪台电脑连上来（云端 Express 的来源标记）：心跳写，隐藏只读，表单里不给人改
+        self.assertEqual((fields["link_kind"]["fieldtype"], fields["link_kind"]["options"]), ("Select", "\ncloud"))
+        for name in ("link_kind", "link_via", "link_host"):
+            self.assertEqual((fields[name]["hidden"], fields[name]["read_only"]), (1, 1), name)
         # 这台电脑已授权的 MR.ERP 连接号（ADR-026 第 7 条）：只有连接号，隐藏只读
         self.assertEqual((fields["mrerp_logins"]["hidden"], fields["mrerp_logins"]["read_only"]), (1, 1))
         # 本机授权的「连接号 → 用户名」（ADR-026 第 8 条，账号租约用；不存密码）：隐藏只读
@@ -1411,6 +1419,51 @@ class HeartbeatComputer(Base):
         self.assertEqual(devices.state(made["device"], self.express), {"account_set": r"S:\NEW", "companion_version": "1.6.0"})
         self.assertEqual(json.loads(STORE[CONNECTION][self.express]["config_json"])["account_set"], r"S:\STALE")
         self.assertIs(reply["account_sets_unchanged_ok"], True)
+
+class HeartbeatLink(Base):
+    """心跳的 ``link``（云端 Express 的来源标记，11-15 评估第 4、6 节）：只有明确的云端才写，``none`` 清空，其余不改；只给显示用。"""
+
+    CLOUD = {"kind": "cloud", "via": "  ACC-01 ", "host": "z1.tsplus.example"}
+    claimed = HeartbeatComputer.claimed
+
+    def test_a_cloud_link_is_written_and_read_back(self):
+        made = self.claimed(KEY_A)
+        LOCKS.clear()
+        self.assertTrue(devices.record_link(made["device"], self.CLOUD))
+        row = STORE[DEVICE][made["device"]]
+        self.assertEqual((row["link_kind"], row["link_via"], row["link_host"]), ("cloud", "ACC-01", "z1.tsplus.example"))
+        self.assertEqual(devices.links([made["device"], "", made["device"]]),
+                         {made["device"]: {"kind": "cloud", "via": "ACC-01", "host": "z1.tsplus.example"}})
+        LOCKS.clear()
+        self.assertFalse(devices.record_link(made["device"], dict(self.CLOUD)))  # 没变：不碰电脑行
+        self.assertEqual(LOCKS, [])
+
+    def test_missing_or_unknown_link_leaves_what_was_stored(self):
+        made = self.claimed(KEY_A)
+        devices.record_link(made["device"], self.CLOUD)
+        for value in (None, {}, {"kind": "local"}, {"kind": "CLOUD"}, {"kind": 1}, "cloud", ["cloud"], 7):
+            with self.subTest(value=value):
+                self.assertFalse(devices.record_link(made["device"], value))
+                self.assertEqual(STORE[DEVICE][made["device"]]["link_kind"], "cloud")
+
+    def test_kind_none_clears_the_mark(self):
+        made = self.claimed(KEY_A)
+        devices.record_link(made["device"], self.CLOUD)
+        self.assertTrue(devices.record_link(made["device"], {"kind": "none"}))
+        row = STORE[DEVICE][made["device"]]
+        self.assertEqual((row["link_kind"], row["link_via"], row["link_host"]), ("", "", ""))
+        self.assertEqual(devices.links([made["device"]]), {})
+        self.assertFalse(devices.record_link(made["device"], {"kind": "none"}))
+
+    def test_a_computer_never_marked_has_no_link_and_a_retired_one_is_not_written(self):
+        made = self.claimed(KEY_A)
+        self.assertEqual(devices.links([made["device"]]), {})
+        self.assertEqual(devices.links([]), {})
+        self.assertFalse(devices.record_link("", self.CLOUD))
+        STORE[DEVICE][made["device"]]["retired_at"] = "2026-11-15 00:00:00"
+        self.assertFalse(devices.record_link(made["device"], self.CLOUD))
+        self.assertFalse(STORE[DEVICE][made["device"]].get("link_kind"))
+
 
 class PatchSeedsOldComputers(Base):
     def load_patch(self):

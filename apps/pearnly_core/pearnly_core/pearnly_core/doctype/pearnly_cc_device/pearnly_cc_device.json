@@ -19,6 +19,9 @@
   "operator_targets",
   "mrerp_logins",
   "mrerp_users",
+  "link_kind",
+  "link_via",
+  "link_host",
   "last_seen_at",
   "full_report_due",
   "retired_at",
@@ -123,6 +126,33 @@
    "hidden": 1
   },
   {
+   "fieldname": "link_kind",
+   "fieldtype": "Select",
+   "label": "Connected Through",
+   "options": "\ncloud",
+   "read_only": 1,
+   "no_copy": 1,
+   "hidden": 1
+  },
+  {
+   "fieldname": "link_via",
+   "fieldtype": "Data",
+   "label": "Bridge Computer",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 80,
+   "hidden": 1
+  },
+  {
+   "fieldname": "link_host",
+   "fieldtype": "Data",
+   "label": "Cloud Host",
+   "read_only": 1,
+   "no_copy": 1,
+   "length": 80,
+   "hidden": 1
+  },
+  {
    "fieldname": "last_seen_at",
    "fieldtype": "Datetime",
    "label": "Last Seen At",
@@ -151,7 +181,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-03 12:00:00.000000",
+ "modified": "2026-11-15 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly CC Device",

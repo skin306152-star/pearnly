@@ -227,6 +227,7 @@ def computers():
                 continue
         peers = readers.members(doc.name)
         owners = devices.owners(list(peers))
+        linked = devices.links(list(peers))
         for device in sorted(peers):
             view = _reader_view(doc, device, peers[device])
             # Express 以这台电脑的心跳为准（任一把有效密钥 3 分钟内报过到）；MR.ERP 的电脑只同步文件夹，以最近同步为准。
@@ -242,7 +243,9 @@ def computers():
             row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
                    "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)],
                    "id": device, "connection": doc.name,
-                   "can_remove": device in owners and (owners[device] == actor or bool(manager))}
+                   "can_remove": device in owners and (owners[device] == actor or bool(manager)),
+                   # 经哪台电脑连上来（云端 Express 的来源标记）：云端 ``{kind, via, host}``，其余 None
+                   "link": linked.get(device)}
             if view.get("update_blocked"):
                 row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
             result.append(row)
