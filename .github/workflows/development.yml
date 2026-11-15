@@ -55,6 +55,8 @@ jobs:
         run: python3 tests/test_master_search_rules.py
       - name: ERP collections in CC chat (erp_collection_* tools on the collection service, release through the write plan after the user's next message, changed after said back not written, stop, operator conversation keeps the draft, slip from a chat attachment, rights, withdraw, results)
         run: python3 tests/test_erp_collection_cc.py
+      - name: ERP collection guided in CC (form guide over the shared engine: decided steps, read-back facts, amounts held to what can be collected now, slips per transfer, review, consent by the click, sent-back steps, changed drafts, dates outside the period)
+        run: python3 tests/test_erp_collection_guide.py
       - name: Verify LINE numbered choice buttons stay distinct within 20 characters (shared line_ui.labels and every ERP caller)
         run: python3 tests/test_line_choice_labels.py
       - name: ERP write precheck gathers every pre-write choice in one pass, recommends with a reason, remembers through the document page checks and leaves the write path unchanged

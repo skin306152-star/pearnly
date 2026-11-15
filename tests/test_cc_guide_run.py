@@ -299,5 +299,151 @@ class EndTests(Base):
         self.assertRaises(ValueError, run.search, name, "on_date")
 
 
+class WritingGuideTests(Base):
+    """写账本的表单引导要的几样（P1 收款）：每步的服务端校验、选后动作、题目下的事实行与「在读」、金额不超可收、
+    生成草稿 / 放行时业务函数退回某一步、复核后草稿在别处改过、开始时没定的账套在引导里定下来不算失效、按码前缀判条件。"""
+
+    def setUp(self):
+        super().setUp()
+        self.applied, self.made = [], []
+        guide = json.loads(json.dumps(GUIDE))
+        steps = {step["key"]: step for step in guide["steps"]}
+        steps["customer"]["apply"] = "app.pick_customer"
+        steps["invoices"]["options"] = "app.invoice_rows"
+        steps["method"]["check"] = "app.method_total"
+        steps["method"]["options"] = "app.method_rows"
+        steps["voucher"]["when"] = {"key": "method", "starts": "transfer:"}
+        steps["on_date"]["facts"] = "app.periods"
+        guide["draft"] = "app.make"
+        ATTRS["app.GUIDES"] = [guide]
+        self.reading = [False]
+        ATTRS.update({
+            "app.pick_customer": lambda ctx, value: self.applied.append(value),
+            "app.invoice_rows": lambda ctx, txt="", start=0, page_length=20, codes=None: {
+                "options": [{"code": "IV001", "name": "IV001", "amount": "1000.00", "max": "1000.00"}],
+                "more": False, **({"facts": ["Reading from Express"], "wait": True} if self.reading[0] else {})},
+            "app.method_rows": lambda ctx, txt="", start=0, page_length=20, codes=None:
+                self.options(["cash", "transfer:T1"], codes),
+            "app.method_total": lambda ctx, value: "" if sum(float(r["amount"]) for r in value) == sum(
+                float(r["amount"]) for r in ctx["answers"]["invoices"]) else "collection.amount_mismatch",
+            "app.periods": lambda ctx: ["Accounting period: 2026-01-01–2026-12-31"],
+            "app.make": self.make,
+        })
+        self.returned = [None]
+
+    def make(self, ctx, values):
+        self.made.append(ctx["draft"])
+        if self.returned[0]:
+            found, self.returned[0] = self.returned[0], None
+            return {"returned": found}
+        return {"draft": f"COL1@{len(self.made)}"}
+
+    def walk(self, method=None):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        run.answer(name, {"invoices": [{"code": "IV001", "amount": "600"}]})
+        return name, run.answer(name, {"method": method or [{"code": "cash", "amount": "600"}]})
+
+    def test_facts_and_a_still_reading_flag_come_with_the_question(self):
+        self.reading[0] = True
+        name = run.start("S1", "collection")["run"]
+        found = run.answer(name, {"customer": "C001"})
+        question = found["card"]["questions"][0]
+        self.assertEqual((question["key"], question["facts"], question["wait"]), ("invoices", ["Reading from Express"], True))
+        self.assertEqual(found["card"]["decided"][0]["key"], "on_date")
+
+    def test_an_amount_over_what_can_be_collected_now_is_refused(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        over = run.answer(name, {"invoices": [{"code": "IV001", "amount": "1000.01"}]})
+        self.assertEqual(over["refused"], {"invoices": "over max"})
+        self.assertNotIn("invoices", json.loads(self.docs[name].answers))
+
+    def test_a_step_check_refuses_with_its_reason_and_keeps_nothing(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        run.answer(name, {"invoices": [{"code": "IV001", "amount": "600"}]})
+        short = run.answer(name, {"method": [{"code": "cash", "amount": "500"}]})
+        self.assertEqual(short["refused"], {"method": "collection.amount_mismatch"})
+        self.assertEqual(self.made, [])
+
+    def test_the_action_runs_once_when_the_answer_is_taken_and_again_only_when_it_changes(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        run.answer(name, {"customer": "C001"})
+        run.answer(name, {"customer": "C002"})
+        self.assertEqual(self.applied, ["C001", "C002"])
+
+    def test_the_voucher_is_asked_only_when_a_method_code_starts_with_transfer(self):
+        name, found = self.walk([{"code": "transfer:T1", "amount": "600"}])
+        self.assertEqual([q["key"] for q in found["card"]["questions"]], ["voucher"])
+        _name, plain = self.walk()
+        self.assertEqual(plain["status"], "reviewing")
+
+    def test_a_step_sent_back_by_the_draft_is_asked_again_with_its_reason_and_the_rest_kept(self):
+        self.returned[0] = {"invoices": {"reason": "collection.over_collected", "text": "Already collected"}}
+        name, found = self.walk()
+        self.assertEqual(found["status"], "asking")
+        self.assertEqual([q["key"] for q in found["card"]["questions"]], ["invoices"])
+        self.assertEqual(found["card"]["returned"], {"invoices": {"reason": "collection.over_collected", "text": "Already collected"}})
+        self.assertEqual(json.loads(self.docs[name].answers), {"customer": "C001"})  # 发票作废，依赖它的方式也作废
+        again = run.answer(name, {"invoices": [{"code": "IV001", "amount": "400"}]})
+        self.assertNotIn("returned", again["card"])
+        self.assertEqual(run.answer(name, {"method": [{"code": "cash", "amount": "400"}]})["status"], "reviewing")
+        self.assertEqual(self.made, ["", ""])
+
+    def test_answering_again_under_review_makes_a_new_draft_and_hands_over_the_old_one(self):
+        name, _found = self.walk()
+        self.assertEqual(self.docs[name].draft, "COL1@1")
+        run.answer(name, {"method": [{"code": "cash", "amount": "600"}], "invoices": [{"code": "IV001", "amount": "600"}]})
+        self.assertEqual(self.made, ["", "COL1@1"])  # 上一张草稿号交给业务函数（由它作废）
+
+    def test_a_draft_changed_elsewhere_after_review_returns_to_review_with_the_new_version(self):
+        name, found = self.walk()
+        ATTRS["app.release"] = lambda ctx, values, draft, consent: {"outcome": "changed", "draft": "COL1@7"}
+        back = run.confirm(name, found["version"])
+        self.assertEqual((back["outcome"], back["status"]), ("changed", "reviewing"))
+        self.assertEqual((self.docs[name].draft, self.docs[name].consent), ("COL1@7", ""))
+        ATTRS["app.release"] = self.release
+        done = run.confirm(name, back["version"])
+        self.assertEqual((done["status"], self.released[0][0]), ("done", "COL1@7"))
+
+    def test_a_release_refused_now_sends_the_step_back(self):
+        name, found = self.walk()
+        ATTRS["app.release"] = lambda ctx, values, draft, consent: {
+            "returned": {"invoices": {"reason": "collection.over_collected", "text": ""}}}
+        back = run.confirm(name, found["version"])
+        self.assertEqual((back["outcome"], back["status"]), ("refused", "asking"))
+        self.assertEqual([q["key"] for q in back["card"]["questions"]], ["invoices"])
+        self.assertEqual(self.docs[name].consent, "")
+
+    def test_an_account_set_decided_during_the_guide_fills_in_instead_of_expiring(self):
+        self.now["ledger"] = ""
+        name = run.start("S1", "collection")["run"]
+        self.now["ledger"] = "B2"   # 引导里选了账套、记进本对话
+        found = run.answer(name, {"customer": "C001"})
+        self.assertEqual((found["status"], found["ledger"]), ("asking", "B2"))
+        self.now["ledger"] = "B3"   # 之后再换就是变了
+        self.assertEqual(run.answer(name, {"invoices": [{"code": "IV001", "amount": "600"}]})["status"], "expired")
+
+    def test_a_default_that_gives_nothing_does_not_stop_a_later_default_from_deciding(self):
+        """11-15 收款测试查出：前一步的默认值给不出（降成问）时，后一步算默认值读「已定」各步的值出错，后一步也被降成问。"""
+        guide = ATTRS["app.GUIDES"][0]
+        guide["steps"].append({"key": "staff", "input": "choice", "rule": "auto", "after": ["customer"],
+                               "options": "app.method_rows", "default": "app.staff"})
+        ATTRS["app.today"] = lambda ctx: None
+        ATTRS["app.staff"] = lambda ctx: {"value": "cash", "source": "first invoice"}
+        name = run.start("S1", "collection")["run"]
+        found = run.answer(name, {"customer": "C001"})
+        self.assertIn("staff", [item["key"] for item in found["card"]["decided"]])
+        self.assertNotIn("staff", [q["key"] for q in found["card"]["questions"]])
+
+    def test_fact_lines_of_a_step_come_from_its_facts_function(self):
+        ATTRS["app.today"] = lambda ctx: None
+        found = run.start("S1", "collection")
+        dated = next(q for q in found["card"]["questions"] if q["key"] == "on_date")
+        self.assertEqual(dated["facts"], ["Accounting period: 2026-01-01–2026-12-31"])
+
+
 if __name__ == "__main__":
     unittest.main()

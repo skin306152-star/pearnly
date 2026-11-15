@@ -1751,6 +1751,7 @@ Track by unit,ติดตามรายชิ้น
 Tracking by unit can only be turned off when every unit is sold or void,ปิดการติดตามรายชิ้นได้เมื่อทุกรายการขายแล้วหรือยกเลิกแล้วเท่านั้น
 Transaction type,ประเภทรายการ
 Transfer,โอนเงิน
+Transfer Slip,สลิปการโอน
 Type,ประเภท
 Type a word from the company name to find it,พิมพ์คำในชื่อบริษัทเพื่อค้นหา
 Type a word from the customer name to find it,พิมพ์คำในชื่อลูกค้าเพื่อค้นหา
@@ -2513,6 +2514,15 @@ express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
+guide.review.department,แผนก
+guide.review.salesman,พนักงานขาย
+guide.step.collection.book,ชุดบัญชี
+guide.step.collection.company,บริษัท
+guide.step.collection.customer,ลูกค้า
+guide.step.collection.day,วันที่รับเงิน
+guide.step.collection.invoices,ใบแจ้งหนี้
+guide.step.collection.methods,วิธีรับเงิน
+guide.step.collection.voucher,สลิปการโอน
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

@@ -123,7 +123,7 @@ def _decided(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> Dict[
             if step["key"] in found or step["key"] in blocked:
                 continue
             try:
-                value = _call(step["default"], _ctx(doc, {**{k: v["value"] for k, v in found.items()}, **answers}))
+                value = _call(step["default"], _ctx(doc, {**{k: v["value"] for k, v in found.items() if v}, **answers}))
             except Exception:  # noqa: BLE001 — 默认值算不出不挡引导：这一步降成问
                 frappe.log_error(title="Assistant guide default failed")
                 value = None
@@ -178,7 +178,7 @@ def _fill_context(doc, now: Mapping[str, Any]) -> bool:
     filled = False
     for column in CONTEXT_FIELDS.values():
         if not str(doc.get(column) or "") and str(now.get(column) or ""):
-            doc.set(column, str(now[column]))
+            setattr(doc, column, str(now[column]))
             filled = True
     return filled
 
@@ -395,6 +395,7 @@ def confirm(name: str, version: int) -> Dict[str, Any]:
         if isinstance(result, Mapping) and result.get("outcome") == CHANGED:
             # 复核之后草稿在别处改过（另一台设备、网页、LINE）：不办，复核卡刷新成新的再让人确定
             doc.status, doc.consent = REVIEWING, ""
+            doc.draft = str(result.get("draft") or doc.draft or "")
             doc.version = int(doc.version or 0) + 1
             _save(doc)
             _announce(doc)

@@ -1751,6 +1751,7 @@ Track by unit,個体管理
 Tracking by unit can only be turned off when every unit is sold or void,すべての個体が販売済みまたは無効の場合のみ個体管理を解除できます
 Transaction type,取引区分
 Transfer,振込
+Transfer Slip,振込明細
 Type,種別
 Type a word from the company name to find it,会社名の一部を入力して検索
 Type a word from the customer name to find it,顧客名の一部を入力して検索
@@ -2513,6 +2514,15 @@ express.state.written,書き込み済み
 express.summary.extra,追加分
 express.void,Express で取消
 goods,物品
+guide.review.department,部門
+guide.review.salesman,営業担当
+guide.step.collection.book,会計データ
+guide.step.collection.company,会社
+guide.step.collection.customer,顧客
+guide.step.collection.day,入金日
+guide.step.collection.invoices,請求書
+guide.step.collection.methods,入金方法
+guide.step.collection.voucher,振込明細
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

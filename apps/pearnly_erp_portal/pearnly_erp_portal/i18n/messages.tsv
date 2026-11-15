@@ -2159,3 +2159,12 @@ Product group	物料分类	กลุ่มสินค้า	商品グループ	
 Unit	单位	หน่วยนับ	単位	mrerp.default.unit
 Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	mrerp.default.expense_account
 MR.ERP No.	MR.ERP 单号	เลขที่ MR.ERP	MR.ERP 番号
+Company	公司	บริษัท	会社	guide.step.collection.company
+Collection Date	收款日期	วันที่รับเงิน	入金日	guide.step.collection.day
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.collection.book
+Customer	客户	ลูกค้า	顧客	guide.step.collection.customer
+Invoices	发票	ใบแจ้งหนี้	請求書	guide.step.collection.invoices
+Collection Method	收款方式	วิธีรับเงิน	入金方法	guide.step.collection.methods
+Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.step.collection.voucher
+Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
+Department	部门	แผนก	部門	guide.review.department

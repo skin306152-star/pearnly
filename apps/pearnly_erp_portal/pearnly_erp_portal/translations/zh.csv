@@ -1751,6 +1751,7 @@ Track by unit,按台管理
 Tracking by unit can only be turned off when every unit is sold or void,全部台已售或作废后才能关闭按台管理
 Transaction type,业务类型
 Transfer,转账
+Transfer Slip,转账凭证
 Type,类型
 Type a word from the company name to find it,输入公司名称关键字查找
 Type a word from the customer name to find it,输入客户名称关键字查找
@@ -2513,6 +2514,15 @@ express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废
 goods,货物
+guide.review.department,部门
+guide.review.salesman,销售员
+guide.step.collection.book,账套
+guide.step.collection.company,公司
+guide.step.collection.customer,客户
+guide.step.collection.day,收款日期
+guide.step.collection.invoices,发票
+guide.step.collection.methods,收款方式
+guide.step.collection.voucher,转账凭证
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出

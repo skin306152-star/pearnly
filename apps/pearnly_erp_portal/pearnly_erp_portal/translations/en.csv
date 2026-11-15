@@ -1751,6 +1751,7 @@ Track by unit,Track by unit
 Tracking by unit can only be turned off when every unit is sold or void,Tracking by unit can only be turned off when every unit is sold or void
 Transaction type,Transaction type
 Transfer,Transfer
+Transfer Slip,Transfer Slip
 Type,Type
 Type a word from the company name to find it,Type a word from the company name to find it
 Type a word from the customer name to find it,Type a word from the customer name to find it
@@ -2513,6 +2514,15 @@ express.state.written,Written
 express.summary.extra,Late receipts
 express.void,Cancel in Express
 goods,goods
+guide.review.department,Department
+guide.review.salesman,Salesman
+guide.step.collection.book,Account Set
+guide.step.collection.company,Company
+guide.step.collection.customer,Customer
+guide.step.collection.day,Collection Date
+guide.step.collection.invoices,Invoices
+guide.step.collection.methods,Collection Method
+guide.step.collection.voucher,Transfer Slip
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
