@@ -494,6 +494,7 @@ def _install_service():
     package.contracts, package.webpush = contracts, webpush
     package.engines = _load("pearnly_core.assistant.engines", CORE / "assistant/engines/__init__.py")
     package.config = _load("pearnly_core.assistant.config", CORE / "assistant/config.py")
+    package.attention = _load("pearnly_core.assistant.attention", CORE / "assistant/attention.py")
     package.push = _load("pearnly_core.assistant.push", CORE / "assistant/push.py")
     return frappe, requests, package.push
 
@@ -703,6 +704,24 @@ class SendTests(_Service):
         self.assertEqual(second["title"], "Brief")
         # ttl 0 = 推送服务不保留（设备不在线就不送），不能被当成没给换成 6 小时；只有没有值才用默认
         self.assertEqual([call["headers"]["TTL"] for call in requests.calls], ["3600", "0", str(push.DEFAULT_TTL)])
+
+    def test_a_notice_on_the_conversation_being_looked_at_is_not_pushed(self):
+        """叫人的判据（`assistant.attention`，总设计 15.2）：记下提醒到推送发出之间人回到了那段对话，发前判出来就不推。"""
+        import time
+        import types as _types
+
+        self.subscribe()
+        frappe.notices["n1"] = {"user": "a@example.com", "title": "", "text": "Done", "session_id": "sesn_0123", "ttl": 3600}
+        seen = {"pearnly_assistant:attention:a@example.com": {"phone": {"session": "sesn_0123", "at": time.time()}}}
+        original = frappe.cache
+        frappe.cache = _types.SimpleNamespace(lock=original.lock, get_value=seen.get, set_value=lambda *a, **k: None)
+        try:
+            self.assertEqual(push.send_notice("n1"), {"sent": 0, "gone": 0, "failed": 0, "watching": 1})
+            self.assertEqual(requests.calls, [])
+            seen["pearnly_assistant:attention:a@example.com"]["phone"]["session"] = "sesn_other"  # 在看别的对话：照推
+            self.assertEqual(push.send_notice("n1")["sent"], 1)
+        finally:
+            frappe.cache = original
 
 
 class SessionTests(_Service):
