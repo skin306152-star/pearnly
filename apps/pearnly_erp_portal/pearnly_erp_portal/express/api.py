@@ -91,10 +91,17 @@ def _mrerp_view(doctype, row):
     """账本是 MR.ERP 的单：同一个弹窗的出口——停在要人选导入菜单 / 默认值的选一次（`mrerp.push.answer`），失败 / 停下的再推
     （`mrerp.push.send`，人点的、清被踢标记）；结果不明的不再推（可能已写进 MR.ERP）；已写入、排队中、正在导入的只看。"""
     reason = str(row.ledger_reason or "")
+    # 导入菜单 / 默认值写 MR.ERP 的项目名；同期两本选哪本（`mrerp.catalog.pick`）同 Express 那项，标签是公司名
     needed = [dict(item, label=_(MRERP_SUBJECTS.get(item["subject"], item["subject"])))
+              if item["kind"] != choices.ACCOUNT_SET else item
               for item in _needed(row)] if row.ledger_state == contracts.HELD and reason == mrerp_contracts.CHOICE else []
     writer = guard.has(CAPABILITIES[doctype][1])
+    from pearnly_erp_portal.mrerp import catalog  # 公司接入一侧：用到时导入（同 `mrerp.push`）
+
     return {"ledger": LEDGER_MRERP, "state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": reason,
+            # 「没有账套」说出日期与这家各年度账套的期间（同 Express 那句的写法）
+            "reason_text": catalog.no_book_text(row.company, row.day)
+            if reason == contracts.NO_BOOK and row.get("day") else "",
             "void": "", "needed": needed, "can_answer": bool(needed) and writer,
             "can_retry": _mrerp_retryable(row) and not needed and writer, "can_mark_handled": False,
             "vat_whole": False, "waiting": ""}

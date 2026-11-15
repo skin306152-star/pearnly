@@ -3,8 +3,11 @@
 
 - 读到的选项记在连接上（``menu_options`` / ``master_options``，按账套键分）：管理员申请读一次（后台任务，网络那一半是共用层
   `pearnly_core.mrerp.menu_read`），每次导入读到的也存回来（`push.run`）。
-- 选过的值记在公司上（``mrerp_menus`` / ``mrerp_defaults``，同样按账套键分）：一家公司一份账套，等于按公司记。只收最近一次读到、
-  当前可用的值；导入时 MR.ERP 那边按读到的再核对，失效就停下重问（同 Cowork）。
+- 选过的值记在公司上（``mrerp_menus`` / ``mrerp_defaults``，同样按账套键分）。一家公司可挂多本年度账套（公司接入第 3 批，
+  `mrerp.catalog.pick` 按单据日期选），每本各自读、各自记——年度库是各自的一份 MR.ERP 数据库，菜单号与主档代码按库算。
+  只收最近一次读到、当前可用的值；导入时 MR.ERP 那边按读到的再核对，失效就停下重问（同 Cowork）。
+- ``book``：这张单选中的那本（`catalog.pick` 回的 ``{"connection", "key", ...}``）；不给时是公司上记的那一本
+  （``mrerp_connection`` / ``mrerp_account_set``，旧调用方与没走选账套的入口）。
 """
 import json
 
@@ -40,17 +43,24 @@ def menu_options_of(connection) -> tuple:
     return _options(connection)
 
 
-def views(row) -> tuple:
+def place(row, book=None) -> tuple:
+    """（连接, 账套键）：给了选中的那本用那本，没给用公司上记的那一本。"""
+    if book:
+        return book.get("connection") or "", str(book.get("key") or "")
+    return (row.mrerp_connection or "", row.mrerp_account_set or "") if row else ("", "")
+
+
+def views(row, book=None) -> tuple:
     """（菜单视图, 主档视图）：共用层 `menus.view` / `masters.view` 的形状。"""
-    menu_options, master_options = _options(row.mrerp_connection)
-    account = row.mrerp_account_set or ""
+    connection, account = place(row, book)
+    menu_options, master_options = _options(connection)
     return (menu_rules.view(row.mrerp_menus, menu_options, account),
             master_rules.view(row.mrerp_defaults, master_options, account))
 
 
-def chosen(row) -> tuple:
+def chosen(row, book=None) -> tuple:
     """准备导入时冻结进载荷的：（{单据类型: 菜单号}, {主档字段: 代码}）。"""
-    account = row.mrerp_account_set or ""
+    account = place(row, book)[1]
     return menu_rules.chosen_map(row.mrerp_menus, account), master_rules.chosen_map(row.mrerp_defaults, account)
 
 
@@ -102,15 +112,16 @@ def observe(connection, account_set, pages, fields, error=None, master_error=Non
         frappe.db.set_value(connections.CONNECTION, connection, values, update_modified=False)
 
 
-def choose(company, kind, subject, value):
-    """记下这家公司一项选择（``kind``：``mrerp_menu`` / ``mrerp_default``）。只收最近一次读到的可用值；不对回 None。
-    权限由调用方核（单据上的开单权，同 `express.api.answer`）。"""
+def choose(company, kind, subject, value, book=None):
+    """记下这家公司一项选择（``kind``：``mrerp_menu`` / ``mrerp_default``），记在 ``book`` 那本（没给是公司上记的那本）名下。
+    只收最近一次读到的可用值；不对回 None。权限由调用方核（单据上的开单权，同 `express.api.answer`）。"""
     connections.require_enabled()
     row = company_row(company)
     if not row or not row.mrerp_enabled:
         return None
-    menu_options, master_options = _options(row.mrerp_connection)
-    actor, at, account = frappe.session.user, now_datetime().isoformat(), row.mrerp_account_set or ""
+    connection, account = place(row, book)
+    menu_options, master_options = _options(connection)
+    actor, at = frappe.session.user, now_datetime().isoformat()
     if kind == MENU:
         picked = menu_rules.choose(row.mrerp_menus, account, subject, value, menu_options, actor=actor, at=at)
         field = "mrerp_menus"
@@ -125,5 +136,5 @@ def choose(company, kind, subject, value):
     return picked
 
 
-__all__ = ["DEFAULT", "MENU", "chosen", "choose", "company_row", "menu_options_of", "observe", "request_read", "run_read",
-           "views"]
+__all__ = ["DEFAULT", "MENU", "chosen", "choose", "company_row", "menu_options_of", "observe", "place", "request_read",
+           "run_read", "views"]

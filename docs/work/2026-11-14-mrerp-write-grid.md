@@ -174,3 +174,13 @@ txtvatnum = 供应商票号 NV-6911-77、税额 0；ERP 销售 SI691114-190493 =
 - MR.ERP 税报告（销项 / 进项）上的对方名称不带称谓（如「ทดสอบ หนึ่ง จำกัด」不带 บริษัท），与 MR.ERP 原生一致：MR.ERP 的税报告只印名称栏，称谓另存一栏，单据打印才把两者拼在一起。
 - 现购在 MR.ERP 单据列表与应付里显示记账用供应商「ยังไม่ระบุผู้จำหน่าย」（CODE_NOAP），真实卖家在开票用供应商与进项税记录里——已知并经用户确认的表现（用户 11-15「现购显示未指定供应商也可以接受」，主会话转）。
 - Pearnly 导入的税记录在 MR.ERP 里是「未归期」，月底在 MR.ERP 归期后才出现在税报告里。
+
+## 按单据日期选年度账套（`mrerp.catalog.pick`，11-15，分支 `pearnly/mrerp-catalog-pick`）
+- 依赖：公司接入第 3 批（`catalog.pick` / `books_of` / `no_book_text`、`masters.after_write`）。本分支基于 ledger-dialog，第 3 批与 ledger-dialog 都进 main 后变基到 main 再合；在那之前测试里用替身（`tests/test_erp_mrerp_direct.py` 顶部的 BOOKS / CHOSEN）。
+- 接入四处：
+  1. `mrerp/push.py prepare`：`catalog.pick(公司, 单据日期, conversation.wanted)`；没有覆盖单据日期的 → 停下 `express.account_set_missing`（单据页弹窗那句用 `catalog.no_book_text`）；同期两本没选过 → 停下 `choice_needed:mrerp`，needed 只一项 `account_set`（形状同 Express `_needed_book`）。
+  2. `mrerp/choices.py`：`views` / `chosen` / `choose` 收选中的那本（`place(row, book)` → 连接、账套键），菜单与默认值按那本读、记。年度库是各自的 MR.ERP 数据库，所以每本各问一次。
+  3. `mrerp/push.py run / answer / release_kick`：导入、存回读到的选项用选中那本；单据记 `ledger_book`；「选一次」按单据上的 `ledger_book` 记，选哪本记进 `express.choices`（与 Express 同一个记忆，`catalog.pick` 下次照它选）；人点推送清这家公司各本所在连接的被踢标记。
+  4. `express/precheck.py`（CC 预选卡）：按这张单的那本问（`mrerp.push.picked`：对话账套 → 单据上记过的 → 单据日期）；同期两本先问选哪本；没有账套 → 写不了（`no_account_set`）。
+- 去掉了 `_after_write` 的 ImportError / getattr 兜底，直接调 `masters.after_write`（它约定只排队、不抛）。
+- 没改：`mrerp/ledger_check.py`（调用方传连接与账套键，取自 CC 项目的账套列表 `masters.cc_service`，那是公司接入一侧）；CC 对话 `_ledger_refusal` 对 MR.ERP 公司照旧放行——对话账套对「不接 Express」的公司回 None（照单据日期选），若第 3 批把 MR.ERP 年度账套列进对话账套，要同时去掉这条放行。
