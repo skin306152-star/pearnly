@@ -573,5 +573,7 @@ jobs:
         run: python3 scripts/check-frontend-i18n.py --strict
       - name: No tracked file carries an unresolved merge conflict (grouped conflict markers with branch names)
         run: python3 tests/test_check_conflict_markers.py && python3 scripts/check-conflict-markers.py
+      - name: Workflow files GitHub can read (no colon and space in unquoted values, no reserved first characters, no tab indentation, full parse when PyYAML is there)
+        run: python3 tests/test_check_workflows.py && python3 scripts/check-workflows.py
       - name: Check whitespace
         run: git diff --check

@@ -11,6 +11,10 @@ fi
 if [ -f scripts/check-conflict-markers.py ]; then
     python3 scripts/check-conflict-markers.py --staged >/dev/null
 fi
+# Workflow files GitHub would refuse (11-15: a colon in a step name voided development.yml and branch CI never ran).
+if [ -f scripts/check-workflows.py ]; then
+    python3 scripts/check-workflows.py --staged >/dev/null
+fi
 changed=$(git diff --cached --name-only --diff-filter=ACDMR)
 architecture=no
 copy=no
