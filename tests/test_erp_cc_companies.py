@@ -1020,6 +1020,14 @@ class PendingTests(unittest.TestCase):
         self.assertEqual(dict(re.findall(r'(\w+):\s*"([^"]+)"', codes)), pending.CODES)
         self.assertEqual(pending.reason_label(E.FAILED, "[SOMETHING_ELSE] raw text"), "[SOMETHING_ELSE] raw text")
         self.assertEqual(pending.reason_label(E.HELD, "plain words"), "plain words")
+        # 11-15 线上：右栏待处理露出英文 cancelled（写账件被撤下的原因码）。撤下的几种有词条；认不得的小写码不原样给人看，说状态
+        for code in ("cancelled", "replaced", "voided"):
+            self.assertEqual(pending.reason_label(E.FAILED, code), "Cancelled")
+        self.assertEqual(pending.reason_label(E.FAILED, "disconnected"), "express.state.detached")
+        for code in ("cc_desktop.result_unknown", "payload_version_outdated", "some_new_code"):
+            self.assertEqual(pending.reason_label(E.FAILED, code), "Failed", code)
+            self.assertEqual(pending.reason_label(E.HELD, code), "Pending", code)
+        self.assertIn("/^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$/.test(info.reason)", page)  # 单据页同一规则
 
     def test_mrerp_reasons_get_their_text_in_four_languages(self):
         """账本是 MR.ERP 的单（11-09 P0-④）：本域原因、结果不明、共用层的「码」「码:细节」「码; 原文」与防呆码都有词条，

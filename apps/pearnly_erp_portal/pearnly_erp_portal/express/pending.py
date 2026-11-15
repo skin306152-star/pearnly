@@ -77,6 +77,10 @@ REASONS = {
     "mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
     "mrerp.account_busy": "mrerp.reason.accountBusy",
     "mrerp.importing": "mrerp.reason.importing",
+    # 写账件被撤下（共用通道 `cc_desktop.jobs.cancel` 的原因，11-15 线上右栏露出英文 cancelled）：撤销 / 换了一件 / 来源作废 → 已取消；
+    # 断开 Express 时撤的 → 未写入（已断开）
+    "cancelled": "Cancelled", "replaced": "Cancelled", "voided": "Cancelled",
+    "disconnected": "express.state.detached", "express.disconnected": "express.state.detached",
 }
 # 电脑回报的「[错误码] 原文」里认得的码（同单据页 EXPRESS_CODES）；其余码用 `express.error.<码>`，没有译文的原样
 CODES = {"PERIOD_LOCKED": "express.reason.periodLocked", "STOCK_INSUFFICIENT": "express.reason.stockInsufficient"}
@@ -85,6 +89,7 @@ CODES = {"PERIOD_LOCKED": "express.reason.periodLocked", "STOCK_INSUFFICIENT": "
 # 译文在 `mrerp.error.<码>`（同 Cowork `intake.error.<码>` 的四语），没有译文的原样
 MRERP_UNKNOWN = "mrerp.result_unknown"
 _MRERP_CODE = re.compile(r"^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])")  # 共用层的 ERR_ 码与防呆码（mrerp_credit_note、date_future…）
+_BARE_CODE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$")  # 只有小写码、没有原文的原因（cancelled、cc_desktop.result_unknown…）
 STATES = {contracts.HELD: "Pending", contracts.FAILED: "Failed", contracts.MISMATCH: "Mismatch"}
 
 
@@ -130,6 +135,8 @@ def reason_label(state, reason) -> str:
         text = _(key)
         if text != key:
             return text
+    if _BARE_CODE.match(reason):
+        return _(STATES.get(state, "Pending"))  # 认不得的原因码不原样给人看（11-15 右栏露出 cancelled）：说状态
     return reason
 
 

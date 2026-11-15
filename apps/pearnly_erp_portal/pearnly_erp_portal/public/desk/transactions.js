@@ -138,6 +138,8 @@
 		"mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
 		"mrerp.account_busy": "mrerp.reason.accountBusy",
 		"mrerp.importing": "mrerp.reason.importing",
+		"cancelled": "Cancelled", "replaced": "Cancelled", "voided": "Cancelled",
+		"disconnected": "express.state.detached", "express.disconnected": "express.state.detached",
 	};
 	const EXPRESS_KINDS = {
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
@@ -237,7 +239,8 @@
 		// 「没有账套」：服务端按单据日期说出已连接各本的期间（`reason_text`，用户 11-14）
 		const reason = waiting ? waiting : info.reason_text ? info.reason_text
 			: info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
-			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp || info.reason), ...shortages].join("\n") : "";
+			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp
+				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
