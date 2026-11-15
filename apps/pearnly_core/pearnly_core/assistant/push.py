@@ -279,6 +279,11 @@ def send_notice(notice) -> dict:
                               as_dict=True)
     if not row:
         return {"sent": 0, "gone": 0, "failed": 0}
+    from pearnly_core.assistant import attention
+
+    if row.session_id and attention.watching(row.user, row.session_id):
+        # 记下提醒到推送发出之间，人已经在那段对话里了：内容就在眼前，不推（发前判，总设计 15.2）
+        return {"sent": 0, "gone": 0, "failed": 0, "watching": 1}
     return send(row.user, title=row.title or APP_NAME, body=row.text or "",
                 url=contracts.deep_link(row.session_id, row.get("view") or ""),
                 tag="notice:pnotice_" + row.name, ttl=DEFAULT_TTL if row.ttl is None else int(row.ttl))
