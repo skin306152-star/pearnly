@@ -64,3 +64,14 @@
 | `erp.collection.server`（offline） | 通过：`test_erp_collection` |
 | `erp.line.collection`（offline） | 全闸门里跑（LINE 不带单号，行为不变） |
 | `erp.cc.collection`（offline） | 通过：`test_erp_collection_cc` |
+
+## CC 桌面版这一侧（分支 `pearnly/cc-1122-desktop`，叠在本分支上；发版另等主会话点头）
+- `express_masters._party` 多报 `prename`（PRENAM）；`express_receivables` 认 `docnums`（≤20、每个 ≤40 字），结果另报 `looked_up`
+  （open / settled / cancelled，不论客户与列表的筛选，没有的单号不列）；`request_wake`（新）+ `queue_client.poll` 读 `requests_waiting` 叫醒、
+  `request_worker._rest` 空闲时等这个事件（停线程也叫醒）；`dbf_writer` 进货单头口径 2 时 `VATDAT` 空（同销货 `dbf_sales`、同原生）；
+  `version.py` 1.12.22；README 改正 1.12.21 已于 11-13 发布并加 1.12.22 一段。
+- 检查：CC 全量 `pytest companion/tests` 1870 通过、60 跳过（Windows 专属）；新 `test_release_1122.py`（叫醒只认 true、叫一次醒一次、停线程即醒；
+  按单号查五种情形、不带单号结果不变、坏参数拒收），`test_express_masters`（prename）、`test_service_vat`（口径 2 VATDAT 空、口径 1 有）；
+  `test_companion_contract` 的 `Release1122Edges` 此时走「这版 CC 认得」那一支（两端状态集合、上限、键名一致）。
+- 连带回归：另命中 `cc-request-worker`（`cc.desktop.requests`、`cc.desktop.places`、`cc.desktop.operator`）与 `cc-dbf-write`（9 个写入口）；
+  离线全量通过，实机各行见共享笔记「CC桌面版1.12.22-真机待测-11-15.md」，明天由主会话排测试机。`request_wake.py` 登记进 `cc-request-worker` 的 paths。

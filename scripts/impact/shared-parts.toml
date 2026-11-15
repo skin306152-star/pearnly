@@ -428,7 +428,7 @@ entries = ["cc.desktop.places", "cc.desktop.requests"]
 [[part]]
 id = "cc-request-worker"
 name = "CC 按需读取"
-paths = ["companion/src/companion/express_doc_check.py", "companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py", "companion/src/companion/express_receivables.py"]
+paths = ["companion/src/companion/express_doc_check.py", "companion/src/companion/request_worker.py", "companion/src/companion/request_client.py", "companion/src/companion/request_contract.py", "companion/src/companion/express_read.py", "companion/src/companion/express_masters.py", "companion/src/companion/account_history.py", "companion/src/companion/folder_fetch.py", "companion/src/companion/express_receivables.py", "companion/src/companion/request_wake.py"]
 markers = ["request_worker", "request_client", "request_contract", "express_read", "express_masters", "account_history", "folder_fetch", "express_receivables"]
 search = ["companion/src/**"]
 entries = ["cc.desktop.requests", "cc.desktop.places", "cc.desktop.operator"]
