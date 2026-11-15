@@ -83,6 +83,9 @@ MIN_COMPANION = "1.5.0"
 # express_ar_open：未收清发票（收款单 RE，载荷 20 同一版 CC 起；发版时本值要与带它的那一版 VERSION 对齐）
 KIND_MIN_COMPANION = {"express_masters": "1.10.0", "express_marks": "1.12.0", "express_doc_check": "1.12.20",
                       "express_ar_open": "1.12.20"}
+# 后加的参数同理：带了它的请求只派给这一版起的 CC 桌面端（旧版对不认的参数回 ``params_invalid``）。
+# express_ar_open.docnums：按单号查这几张发票在账套里的状态（已收清 / 已作废 / 账套里没有，1.12.22）
+PARAM_MIN_COMPANION = {"express_ar_open": {"docnums": "1.12.22"}}
 _KEY = re.compile(r"^[A-Za-z0-9_.:-]{1,140}$")
 _HEX32 = re.compile(r"^[0-9a-f]{32}$")
 _HEX64 = re.compile(r"^[0-9a-f]{64}$")
@@ -237,9 +240,13 @@ def supports(version: Any, minimum: str = MIN_COMPANION) -> bool:
     return version_tuple(version) >= version_tuple(minimum)
 
 
-def minimum(kind_value: Any) -> str:
-    """这种请求要求的最低 CC 桌面端版本（``supports(version, minimum(kind))``）。"""
-    return KIND_MIN_COMPANION.get(kind_value, MIN_COMPANION)
+def minimum(kind_value: Any, params_value: Any = None) -> str:
+    """这种请求（带这些参数时）要求的最低 CC 桌面端版本（``supports(version, minimum(kind, params))``）。"""
+    found = KIND_MIN_COMPANION.get(kind_value, MIN_COMPANION)
+    for key, version in (PARAM_MIN_COMPANION.get(kind_value) or {}).items():
+        if isinstance(params_value, dict) and key in params_value and version_tuple(version) > version_tuple(found):
+            found = version
+    return found
 
 
 def seen_recently(at: Optional[datetime], now: datetime) -> bool:

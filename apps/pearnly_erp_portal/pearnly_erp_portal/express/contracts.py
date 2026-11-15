@@ -240,10 +240,23 @@ def unit_names(data: dict) -> dict:
     return {str(row["code"]).strip(): str(row.get("name") or row["code"]).strip() for row in rows(data.get("units"))}
 
 
+PRENAME_JOIN = " "  # 前缀与核心名之间（Express 打印口径，真机冒烟核；改它不会引起整批改名，见 masters.same_name）
+
+
+def display_name(prename, core) -> str:
+    """Express 的 PRENAM（称谓 / 法人前缀）+ CUSNAM / SUPNAM（核心名）→ 显示名。没有前缀、或核心名本来就带着它时只用核心名。"""
+    prename, core = str(prename or "").strip(), str(core or "").strip()
+    if not prename or core.startswith(prename):
+        return core
+    return f"{prename}{PRENAME_JOIN}{core}"
+
+
 def party(row: dict) -> dict:
-    """客户 / 供应商一行 → ERP 字段的共同部分。"""
+    """客户 / 供应商一行 → ERP 字段的共同部分。``name`` 是显示名（CC 桌面版 1.12.22 起另报 ``prename``，旧版不带时就是核心名），
+    ``core`` 是 Express 里的核心名（按名称认领本地档时也认它）。"""
     branch = branch5(row.get("branch"))
-    return {"code": str(row["code"]).strip()[:20], "name": str(row.get("name") or row["code"]).strip()[:140],
+    core = str(row.get("name") or row["code"]).strip()
+    return {"code": str(row["code"]).strip()[:20], "name": display_name(row.get("prename"), core)[:140], "core": core[:140],
             "tax_id": tax13(row.get("tax_id")), "branch": branch, "head": branch == "00000",
             "address": str(row.get("address") or "").strip()[:500], "phone": str(row.get("phone") or "").strip()[:60]}
 

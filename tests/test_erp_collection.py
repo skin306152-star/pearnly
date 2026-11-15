@@ -564,7 +564,7 @@ class FakeRequests:
         found = self.made.get(key)
         return dict(found) if found and found["status"] in ("requested", "leased", "done") else None
 
-    def waiting(self, kind, book_key, actor=None):
+    def waiting(self, kind, book_key, actor=None, params=None):
         return None
 
     def create(self, kind, key, params, *, book_key, actor):
@@ -579,9 +579,12 @@ class FakeRequests:
             if row["request"] == name:
                 del self.made[key]
 
-    def finish(self, key, items, read_at):
+    def finish(self, key, items, read_at, looked_up=None):
         self.made[key]["status"] = "done"
-        self.results["R-" + key] = json.dumps({"read_at": read_at, "items": items}).encode()
+        data = {"read_at": read_at, "items": items}
+        if looked_up is not None and "docnums" in self.made[key]["params"]:  # 电脑只在请求带单号时报
+            data["looked_up"] = looked_up
+        self.results["R-" + key] = json.dumps(data).encode()
 
 
 class FakeJobs:

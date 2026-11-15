@@ -16,6 +16,7 @@ import sys
 import tempfile
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / "tests"), str(ROOT / "apps/pearnly_core")]
@@ -580,6 +581,44 @@ class Requests(Base):
                                           "meta": {}})
         self.assertEqual(done["status"], "done")
         self.assertEqual(requests.result(item["id"])[0], content)
+
+
+    def test_a_request_with_a_later_parameter_goes_only_to_a_version_that_knows_it(self):
+        # express_ar_open 带 docnums（按单号查发票状态，1.12.22）：旧版不认多出来的参数会回 params_invalid
+        minimum = requests.contracts.minimum
+        self.assertEqual(minimum("express_ar_open", {"customer": "C1"}), "1.12.20")
+        self.assertEqual(minimum("express_ar_open", {"docnums": ["IV1"]}), "1.12.22")
+        self.assertEqual(minimum("express_masters", {"docnums": ["IV1"]}), "1.10.0")
+        # 这个替身站点只装了 express_masters 这一种：把同一条规则挂到它身上验派发
+        later = {"express_masters": {"docnums": "1.12.22"}}
+        made = self.register("staff@x", KEY_A)
+        office = self.context(made["device"], "staff@x")
+        key = contracts.book_key(contracts.book_identity(PATH, "vsn:1234/5"))
+        self.report(office)
+        frappe.db.set_value(documents.DEVICE, office.device, "companion_version", "1.12.21")
+        params = {"account_set": "X", "account_root": "", "docnums": ["IV1"]}
+        with mock.patch.dict(requests.contracts.PARAM_MIN_COMPANION, later):
+            self.assertEqual(requests.waiting("express_masters", key, params=params), {"reason": "update_needed"})
+            self.assertIsNone(requests.waiting("express_masters", key, params={"account_set": "X", "account_root": ""}))
+            created = requests.create("express_masters", "erp_masters:" + key, params, book_key=key, actor="Administrator")
+            old = requests.lease_next(office, {"version": "1.12.21", "kinds": ["express_masters"], "device": "PC"})
+            self.assertIsNone(old["request"])
+            new = requests.lease_next(office, {"version": "1.12.22", "kinds": ["express_masters"], "device": "PC"})
+        self.assertEqual((new["request"]["id"], new["request"]["params"]["docnums"]), (created["request"], ["IV1"]))
+
+    def test_a_new_request_wakes_the_computers_that_reach_its_book_once(self):
+        # 11-15：LINE 选完公司马上选客户，预热读回要等电脑下一次空闲问（15 秒）。领单（3 秒）回复带 requests_waiting 叫它马上来
+        made = self.register("staff@x", KEY_A)
+        office = self.context(made["device"], "staff@x")
+        key = contracts.book_key(contracts.book_identity(PATH, "vsn:1234/5"))
+        self.report(office)
+        frappe.db.set_value(documents.DEVICE, office.device, "companion_version", "1.12.22")
+        body = {"max": 1, "agent_id": "c", "index_pending": []}
+        self.assertNotIn("requests_waiting", jobs.lease(office, body))
+        requests.create("express_masters", "erp_masters:" + key, {"account_set": "X", "account_root": ""},
+                        book_key=key, actor="Administrator")
+        self.assertIs(jobs.lease(office, body)["requests_waiting"], True)
+        self.assertNotIn("requests_waiting", jobs.lease(office, body))  # 一次性：叫过就清
 
 
 class Machine(unittest.TestCase):

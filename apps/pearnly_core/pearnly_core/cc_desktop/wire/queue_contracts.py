@@ -173,8 +173,9 @@ def task_key(record_name: str) -> str:
     return str(UUID(digest[:32]))
 
 
-def lease_response(jobs: list, refresh: dict | None = None) -> dict:
-    """Build the top-level old response, with an optional directory command."""
+def lease_response(jobs: list, refresh: dict | None = None, requests_waiting: bool = False) -> dict:
+    """Build the top-level old response, with an optional directory command. ``requests_waiting``: an on-demand request
+    this computer can take was just made (`request_wake`); CC Desktop 1.12.22+ asks for it at once, older ones ignore it."""
     if not isinstance(jobs, list) or len(jobs) > MAX_JOBS:
         _invalid(True)
     values = []
@@ -194,6 +195,8 @@ def lease_response(jobs: list, refresh: dict | None = None) -> dict:
                 _invalid(True)
             _uuid(refresh.get("request_id"), response=True)
             result["master_refresh"] = _json_copy(refresh, response=True)
+    if requests_waiting:
+        result["requests_waiting"] = True
     return result
 
 

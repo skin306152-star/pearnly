@@ -635,7 +635,7 @@ def _parties(doctype, company, book, rows, fields_of):
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed, claimed, seen, fresh = 0, set(), set(), []
+    changed, claimed, seen, fresh, renames = 0, set(), set(), [], {}
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
         if not _first(seen, item["code"]):
@@ -643,13 +643,42 @@ def _parties(doctype, company, book, rows, fields_of):
         values = {**fields_of(item), "express_code": item["code"], "express_company": company, "is_active": 1}
         name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
                       lambda: free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None,
-                      lambda: free_name.pop(item["name"].casefold(), None))
+                      lambda: free_name.pop(item["name"].casefold(), None),
+                      lambda: free_name.pop(item["core"].casefold(), None))
         if name:
-            changed += _upsert(doctype, name, values, current.get(name))
+            row = current.get(name)
+            if row is not None and same_name(row.get(name_field), values[name_field]):
+                values[name_field] = row.get(name_field)  # 只差空格：留着原来的写法（人打的、或上一版拼的），不改名
+            if row is not None and _only_renamed(row, values, name_field):
+                renames[name] = values[name_field]
+            else:
+                changed += _upsert(doctype, name, values, row)
         else:
             fresh.append({**values, "express_book": book[:140]})
+    changed += _rename(doctype, name_field, renames)
     changed += _insert_new(doctype, fresh)
     return changed + _retire(doctype, [name for name in ours if name not in claimed], current)
+
+
+def same_name(current, wanted) -> bool:
+    """两个名称只差空白（前缀后有没有空格、多个空格）就算同一个名称。"""
+    return "".join(str(current or "").split()).casefold() == "".join(str(wanted or "").split()).casefold()
+
+
+def _only_renamed(current, values, name_field) -> bool:
+    """这一行只有名称变了（1.12.22 起 CC 桌面版报 PRENAM，已同步的档第一次从核心名改成全名，一本账套成千条）。"""
+    return _same(current.get(name_field)) != _same(values[name_field]) and \
+        not _differs(current, {key: value for key, value in values.items() if key != name_field})
+
+
+def _rename(doctype, name_field, renames) -> int:
+    """只改名称的行直接改这一列（``frappe.db.set_value``，``modified`` 不动），不读出整份、不 ``save``、不逐条留修改记录：
+    显示名从 Express 读来、Express 为准；档上没有别的字段跟着名称算（客户 / 供应商的 ``validate`` 只管类型与分店）。
+    每 :data:`COMMIT_EVERY` 条提交一次（同 :func:`_written`）。"""
+    for name, value in sorted(renames.items()):
+        frappe.db.set_value(doctype, name, name_field, value, update_modified=False)
+        _written()
+    return len(renames)
 
 
 # ── 商品 ─────────────────────────────────────────────────────────────────────

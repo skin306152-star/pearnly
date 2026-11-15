@@ -33,6 +33,7 @@ from frappe.utils import get_datetime
 from pearnly_core.execution import state as pearnly_state
 
 from pearnly_cowork.companion import credentials
+from pearnly_core.cc_desktop import request_wake
 from pearnly_core.cc_desktop.wire import request_contracts as contracts
 from pearnly_cowork.companion import request_store as store
 from pearnly_cowork.companion.request_access import REQUEST, read, write
@@ -147,6 +148,7 @@ def create(kind, connection, params, request_key, *, target_device="", account_k
         if not _same(first, actor, connection, kind):
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         return view(first, now)
+    request_wake.ring(["cw:" + connection])  # 领单回复带 requests_waiting，这条连接上的电脑马上来领
     return view(row, now)
 
 

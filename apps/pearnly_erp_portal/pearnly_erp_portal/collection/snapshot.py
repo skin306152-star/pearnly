@@ -39,43 +39,83 @@ IN_USE_DAYS = 30
 READY, READING, OFFLINE, OUTDATED, FAILED = "ready", "reading", "offline", "outdated", "failed"
 
 
-def request_key(book_key, customer=""):
+LOOKED = "erp-ar-looked:"          # 缓存：请求号 → 按单号查到的 {单号: {state, customer, remaining}}（docnums 那种读，10 分钟）
+LOOKED_SECONDS = 600
+DOCNUMS_MAX = 20
+STATES = ("open", "settled", "cancelled")  # 电脑报的；读回里没有的单号 = 这本账套里没有这张（ABSENT）
+ABSENT = "absent"
+
+
+def _docnums(docnums):
+    return sorted({str(value or "").strip()[:40] for value in docnums or () if str(value or "").strip()})[:DOCNUMS_MAX]
+
+
+def request_key(book_key, customer="", docnums=()):
     """按客户读一次的请求号：客户编号可能是泰文、带空格（11-12 三星实测「นาย ทดสอบ」），共用通道的请求号只认字母数字，
     所以放编号的摘要；编号原样在请求参数里交给电脑（`_params`）。"""
     customer = str(customer or "").strip()
-    if not customer:
-        return "erp_ar_open:" + str(book_key)
-    return "erp_ar_open:" + str(book_key) + ":c" + hashlib.sha1(customer.encode("utf-8")).hexdigest()[:16]
+    key = "erp_ar_open:" + str(book_key)
+    if customer:
+        key += ":c" + hashlib.sha1(customer.encode("utf-8")).hexdigest()[:16]
+    docnums = _docnums(docnums)
+    if docnums:
+        key += ":d" + hashlib.sha1("\n".join(docnums).encode("utf-8")).hexdigest()[:16]
+    return key
 
 
-def _params(book, customer=""):
+def _params(book, customer="", docnums=()):
     params = {"account_set": book["path"], "account_root": book.get("root") or ""}
     if customer:
         params["customer"] = str(customer)
+    if _docnums(docnums):
+        params["docnums"] = _docnums(docnums)
     return params
 
 
-def request(company, book, customer=""):
+def request(company, book, customer="", docnums=()):
     """请电脑读一次（同一请求号在读的不重发；读好了没落的就地落）。回 ``ready`` / ``reading`` / ``offline`` / ``outdated``。
-    CC 桌面版还不认这种请求（服务端或电脑太旧）回 ``outdated``，不抛。"""
-    key = request_key(book["key"], customer)
+    CC 桌面版还不认这种请求（服务端或电脑太旧）回 ``outdated``，不抛。``docnums``：同时按单号查这几张在账套里的状态
+    （CC 桌面版 1.12.22 起；读好后 :func:`looked_up`）；够得到的电脑都还旧时回 ``outdated``，调用方改发不带单号的那种。"""
+    key = request_key(book["key"], customer, docnums)
+    params = _params(book, customer, docnums)
     try:
         made = requests.find(KIND, key)
         if made is not None and made["status"] == "done":
-            land(company, book["key"], made, customer)
+            land(company, book["key"], made, customer, key)
             return READY
         if made is not None:
             _remember(key, company, book["key"], customer)
             return READING
-        waiting = requests.waiting(KIND, book["key"])
+        waiting = requests.waiting(KIND, book["key"], params=params)
         if waiting:
             return OUTDATED if waiting.get("reason") == "update_needed" else OFFLINE
-        requests.create(KIND, key, _params(book, customer), book_key=book["key"], actor=frappe.session.user)
+        requests.create(KIND, key, params, book_key=book["key"], actor=frappe.session.user)
     except (frappe.ValidationError, KeyError, ValueError):
         # 共用通道还不认 ``express_ar_open``（另一批的改动没上）：当成要更新，不让收款流程报错
         return OUTDATED
     _remember(key, company, book["key"], customer)
     return READING
+
+
+def looked_up(book_key, customer, docnums) -> dict:
+    """带单号那次读回查到的状态：``{单号: {"state": open | settled | cancelled | absent, "customer", "remaining"}}``；
+    还没读好（或读的电脑太旧、没按单号查）回空。"""
+    found = frappe.cache.get_value(LOOKED + request_key(book_key, customer, docnums))
+    if not isinstance(found, dict):
+        return {}
+    return {docnum: found.get(docnum) or {"state": ABSENT, "customer": "", "remaining": ""} for docnum in _docnums(docnums)}
+
+
+def _looked(key, data):
+    rows = data.get("looked_up")
+    if not isinstance(rows, list):
+        return
+    found = {}
+    for row in rows[:DOCNUMS_MAX]:
+        if isinstance(row, dict) and str(row.get("state") or "") in STATES and str(row.get("docnum") or "").strip():
+            found[str(row["docnum"]).strip()[:40]] = {"state": row["state"], "customer": str(row.get("customer") or "")[:40],
+                                                      "remaining": str(row.get("remaining") or "")[:20]}
+    frappe.cache.set_value(LOOKED + key, found, expires_in_sec=LOOKED_SECONDS)
 
 
 def land_ready(company, book):
@@ -104,16 +144,19 @@ def _decode(content):
     return data
 
 
-def land(company, book_key, made, customer=""):
-    """电脑读好的一份落进快照（取走即删）。回落了几行；结果坏了回 -1（记 Error Log）。"""
+def land(company, book_key, made, customer="", key=None):
+    """电脑读好的一份落进快照（取走即删）；带单号的那种另把查到的状态记进缓存（:func:`looked_up`）。回落了几行；
+    结果坏了回 -1（记 Error Log）。``key``：这件的请求号（缺省是不带单号的那种）。"""
+    key = key or request_key(book_key, customer)
     content, _meta = requests.result(made["request"])
     requests.drop(made["request"])
-    frappe.cache.hdel(PENDING, request_key(book_key, customer))
+    frappe.cache.hdel(PENDING, key)
     try:
         data = _decode(content)
     except (ValueError, UnicodeDecodeError):
         frappe.log_error(title="ERP receivable snapshot result invalid", message=str(made.get("request")))
         return -1
+    _looked(key, data)
     return replace(company, book_key, data["items"], data.get("read_at"), customer)
 
 
@@ -270,5 +313,5 @@ def advance():
         if made is None:
             frappe.cache.hdel(PENDING, key)
         elif made["status"] == "done":
-            land(item["company"], item["book_key"], made, item.get("customer") or "")
+            land(item["company"], item["book_key"], made, item.get("customer") or "", key)
             frappe.db.commit()

@@ -13,7 +13,7 @@ from datetime import timedelta
 import frappe
 from frappe import _
 
-from pearnly_core.cc_desktop import books, devices, documents, products, store
+from pearnly_core.cc_desktop import books, devices, documents, products, request_wake, store
 from pearnly_core.cc_desktop.wire import request_contracts as contracts
 from pearnly_core.cc_desktop.wire import route_contracts
 
@@ -56,7 +56,7 @@ def latest(kind, request_key):
     return _view(rows[0]) if rows else None
 
 
-def waiting(kind, book_key, actor=None):
+def waiting(kind, book_key, actor=None, params=None):
     """此刻没有电脑能做这件就说为什么（不建请求）：``missing``（发起人一台登录过 CC 的电脑都没有，非共享种类）、
     ``unreachable``（没有一台够得到这份账套）、``offline``（够得到的都关着）、``update_needed``（CC 桌面版太旧）。能做回 None。"""
     peers = devices.peers()
@@ -71,7 +71,7 @@ def waiting(kind, book_key, actor=None):
     online = [name for name in reach if (peers.get(name) or route_contracts.Peer()).online]
     if not online:
         return {"reason": "offline"}
-    if not any(contracts.supports(devices.version_of(name), contracts.minimum(kind)) for name in online):
+    if not any(contracts.supports(devices.version_of(name), contracts.minimum(kind, params)) for name in online):
         return {"reason": "update_needed"}
     return None
 
@@ -92,6 +92,7 @@ def create(kind, request_key, params, *, book_key, actor):
     documents.new(REQUEST, name, {"request_key": request_key, "kind": kind, "actor": actor, "book_key": book_key,
                                   "params": json.dumps(params, ensure_ascii=False, sort_keys=True), "status": "requested",
                                   "requested_at": _now(), "received_bytes": 0})
+    request_wake.ring((books.reachers([book_key], writable_only=False) or {}).get(book_key) or ())
     return {"request": name, "status": "requested"}
 
 
@@ -160,12 +161,14 @@ def lease_next(context, body):
         return {"request": None}
     users = devices.signed_in(context.device)
     marks, keys = ", ".join(["%s"] * len(kinds)), sorted(reach)
-    rows = frappe.db.sql(f"""SELECT name, kind, actor, book_key FROM `tab{REQUEST}` WHERE status = 'requested'
+    rows = frappe.db.sql(f"""SELECT name, kind, actor, book_key, params FROM `tab{REQUEST}` WHERE status = 'requested'
         AND kind IN ({marks}) AND book_key IN ({', '.join(['%s'] * len(keys))}) ORDER BY requested_at, name
         LIMIT {LEASE_SCAN}""", (*kinds, *keys), as_dict=True)
     for candidate in rows:
         if not contracts.shared(candidate.kind) and not route_contracts.serves(users, candidate.actor):
             continue
+        if not contracts.supports(wanted["version"], contracts.minimum(candidate.kind, _params_of(candidate.params))):
+            continue  # 带了后加参数的请求只给认得它的版本（旧版领了只会回 params_invalid）
         doc = frappe.get_doc(REQUEST, candidate.name, for_update=True)
         if doc.status != "requested":
             continue  # 别的电脑刚领走
@@ -181,6 +184,14 @@ def lease_next(context, body):
                             "lease_seconds": seconds, "chunk_bytes": contracts.CHUNK_BYTES,
                             "max_bytes": contracts.MAX_BYTES[doc.kind]}}
     return {"request": None}
+
+
+def _params_of(text):
+    try:
+        value = json.loads(text or "{}")
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
 
 
 def complete(context, body):

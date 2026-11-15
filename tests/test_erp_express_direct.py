@@ -484,6 +484,39 @@ class MasterSync(Base):
         rows[3] = {**rows[3], "name": "ผู้ขาย ใหม่"}
         self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 1)
 
+    def test_the_prefix_joins_the_name_and_a_first_full_name_sync_only_rewrites_the_name_column(self):
+        # 11-15：CC 桌面版只报 CUSNAM / SUPNAM，带称谓的对方在 ERP 只显示短名。1.12.22 起另报 PRENAM：显示名 = 前缀 + 核心名；
+        # 已同步的档第一次改成全名（一本账套八九成档带前缀）只改名称这一列，不读出整份、不 save（不留修改记录）
+        from unittest import mock
+        old = [{"code": f"V{i:03d}", "name": f"ทดสอบ {i}", "tax_id": "", "branch": "00000"} for i in range(4)]
+        self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", old, self.sync._supplier_fields), 4)
+        new = [{**row, "prename": "ร้าน" if i % 2 else ""} for i, row in enumerate(old)]
+        with mock.patch.object(frappe, "get_doc", side_effect=AssertionError("a rename must not read or save the row")):
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", new, self.sync._supplier_fields), 2)
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", new, self.sync._supplier_fields), 0)
+        names = sorted(row["supplier_name"] for row in fake.STATE.db.table("ERP Supplier").values())
+        self.assertEqual(names, ["ทดสอบ 0", "ทดสอบ 2", "ร้าน ทดสอบ 1", "ร้าน ทดสอบ 3"])
+        self.assertEqual(len(fake.STATE.db.table("ERP Supplier")), 4)  # 按编码认档，没有一条当成新的
+
+    def test_a_name_that_differs_only_by_spaces_is_kept_as_written(self):
+        # 人在 ERP 建的「ร้านลีฟทดสอบ 1115」推进 Express 成 PRENAM ร้าน + 核心名；同步回来不改成「ร้าน ลีฟทดสอบ 1115」
+        made = self.supplier(supplier_name="ร้านลีฟทดสอบ 1115", express_code="S9", express_company="CO-1",
+                             branch_type="head_office")
+        rows = [{"code": "S9", "name": "ลีฟทดสอบ 1115", "prename": "ร้าน", "tax_id": "", "branch": "00000"}]
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        self.assertEqual(fake.STATE.db.table("ERP Supplier")[made]["supplier_name"], "ร้านลีฟทดสอบ 1115")
+
+    def test_a_local_record_is_claimed_by_its_full_or_its_core_name(self):
+        short = self.supplier(supplier_name="ลีฟ", branch_type="head_office")
+        full = self.supplier(supplier_name="บริษัท เอ จำกัด", branch_type="head_office")
+        rows = [{"code": "S1", "name": "ลีฟ", "prename": "ร้าน", "tax_id": "", "branch": "00000"},
+                {"code": "S2", "name": "เอ จำกัด", "prename": "บริษัท", "tax_id": "", "branch": "00000"}]
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        table = fake.STATE.db.table("ERP Supplier")
+        self.assertEqual((table[short]["express_code"], table[short]["supplier_name"]), ("S1", "ร้าน ลีฟ"))
+        self.assertEqual((table[full]["express_code"], table[full]["supplier_name"]), ("S2", "บริษัท เอ จำกัด"))
+        self.assertEqual(len(table), 2)
+
     def test_a_book_change_rewrites_nothing_and_new_rows_go_through_the_bulk_path(self):
         # 11-13 生产 testerp CO-00146：现用账套从「T.8 …」换成「9.…」，一万多条客户因档上的 express_book 不同全部重写。
         # 档上的 express_book 只在新建时记、不比对；新建的行走批量写，已有的行不走

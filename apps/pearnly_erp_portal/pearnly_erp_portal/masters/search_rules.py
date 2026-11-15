@@ -16,9 +16,24 @@ def columns(doctype) -> tuple:
     return COLUMNS[doctype]
 
 
+# Express 主档的称谓 / 法人前缀（PRENAM 常见值，长的在前）。档名是「前缀 + 空格 + 核心名」（`express.contracts.display_name`），
+# 人常连着打（「ร้านลีฟ」）：打的字以前缀开头就在前缀后断开，连着打、隔空格打、只打核心名都找得到。
+PREFIXES = ("ห้างหุ้นส่วนจำกัด", "ห้างหุ้นส่วนสามัญ", "ห้างหุ้นส่วน", "บริษัทจำกัด", "บริษัท", "หจก.", "หจก", "หสน.", "บจก.", "บจก",
+            "บมจ.", "บจ.", "ร้าน", "นางสาว", "นาย", "นาง", "คุณ")
+
+
+def words(text) -> list:
+    found = str(text or "").split()
+    if found:
+        head = next((p for p in PREFIXES if found[0].startswith(p) and len(found[0]) > len(p)), "")
+        if head:
+            found[:1] = [head, found[0][len(head):]]
+    return found
+
+
 def pattern(text) -> str:
     """``like`` 用的串：几个词按顺序都要有（「%甲%乙%」）；不分大小写由库的排序规则负责。"""
-    return "%" + "%".join(str(text or "").split()) + "%"
+    return "%" + "%".join(words(text)) + "%"
 
 
 def or_filters(doctype, text) -> list:
