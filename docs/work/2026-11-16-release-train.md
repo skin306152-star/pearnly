@@ -21,11 +21,12 @@
 | 项 | 结果 | 证据 |
 |---|---|---|
 | 全闸门（gate.sh = development.yml） | 9f2119f64：251 项过，1 项不过 = 产品地图只差两行真机记录（liff-camera、erp_item，预期，真机后补） | ~/pearnly-devtools/integ1116-gate-1.log |
-| 候选离线（线上镜像 02eebaa4…） | 9f2119f64：111 组 LANE EXIT 0；52105b5cc 待重跑（作者在 1fe229338 上已跑过 LANE EXIT 0） | ~/pearnly-devtools/integ1116-cand-1.log |
+| 候选离线（线上镜像 02eebaa4…） | 9f2119f64 与合并头 1f2b2de62 均 111 组 LANE EXIT 0 | ~/pearnly-devtools/integ1116-cand-1.log、-cand-2.log |
 | Development checks | 未推 | — |
 | 产品地图 | 8d415ba14：只差两行真机记录（liff-camera、erp_item），其余通过 | 本地 |
 | 共用件连带回归 | 8d415ba14：命中 `erp-masters-selection`，14 个入口，见下 | `check-impact.py --markdown` |
-| 受影响流程（`run.py --changed --base origin/main`） | 未跑 | — |
+| 受影响流程 | 1f2b2de62：交叠的 4 条收款流程（erp.line.collection、erp.web.collection、erp.collection.date、erp.collections.refused）5/5 格通过，404 秒，自建小栈 pearnly-integ1116-lab（跑完已 stop）；其余 33 条中的另外 29 条等白天并 main 后 `--changed` 跑（主会话 11-15 晚定） | ~/pearnly-devtools/integ1116-flows-1.log |
+| 全闸门（合并头） | 1f2b2de62：251 项过，同上只差两行真机记录 | ~/pearnly-devtools/integ1116-gate-2.log |
 
 ### 共用件连带回归（8d415ba14，`erp-masters-selection`）
 
