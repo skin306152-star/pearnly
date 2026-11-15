@@ -15,6 +15,7 @@ import frappe
 from frappe import _
 from frappe.utils import now_datetime, nowdate
 
+from pearnly_core.cc_desktop import requests
 from pearnly_core.express_rules.contracts import codes
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts, snapshot
@@ -205,18 +206,18 @@ def _customer_name(company, code):
 
 
 def _catalog(company, book):
-    """这本账套的收款方式（`contracts.catalog`）。主档还没读过就请电脑读（抛 ``express.masters_reading``）；电脑是旧版、读回来
-    没有收款类型抛 :data:`CC_UPDATE`。"""
+    """这本账套的收款方式（`contracts.catalog`）。主档还没读过、或只有旧版读回（`facts.stale_for_collection`）就请电脑重读
+    （抛 ``express.masters_reading``）；够得到这本的在线电脑都比带收款的版本旧才抛 :data:`CC_UPDATE`。"""
     data = facts.load(book["key"])
-    if data is None:
+    if facts.stale_for_collection(data):
+        if (requests.waiting(snapshot.KIND, book["key"]) or {}).get("reason") == "update_needed":
+            raise contracts.CollectionError(CC_UPDATE)
         from pearnly_erp_portal.express import masters
 
-        masters.ensure(company, book)
+        masters.ensure(company, book)  # 已经在读不重复建；读好了的在这里存成资料
         data = facts.load(book["key"])
-    if data is None:
+    if facts.stale_for_collection(data):
         raise contracts.CollectionError(express_contracts.READING)
-    if not isinstance(data.get("receipt_types"), list):
-        raise contracts.CollectionError(CC_UPDATE)
     return contracts.catalog(data["receipt_types"], data.get("cash_account") or "")
 
 
@@ -362,6 +363,8 @@ def _choices(book_key) -> dict:
     """这本账套能选的销售员（未停用）与部门、RE 单据簿的默认部门（主档读回的 ``salesmen`` / ``departments`` / ``receipt_run``）。
     旧版 CC 桌面版没报的项是 None（不核）。"""
     data = facts.load(book_key) or {}
+    if facts.stale_for_collection(data):
+        data = {}  # 旧读回的销售员 / 部门不作数（收款方式那一步已请电脑重读）
     salesmen = data.get("salesmen") if isinstance(data.get("salesmen"), list) else None
     departments = data.get("departments") if isinstance(data.get("departments"), list) else None
     run = data.get("receipt_run") if isinstance(data.get("receipt_run"), dict) else {}
@@ -615,8 +618,8 @@ def card(name) -> dict:
 
 def _label_methods(doc, view):
     """确认卡上各转账方式写成选它时看到的名字（银行简称 + 账号末 4 位，`contracts.account_label`）；主档读不到的照旧方式名。"""
-    data = facts.load(doc.book_key) or {}
-    if not isinstance(data.get("receipt_types"), list):
+    data = facts.load(doc.book_key)
+    if facts.stale_for_collection(data):
         return
     found = contracts.catalog(data["receipt_types"], data.get("cash_account") or "")
     labels = {item["prefix"]: contracts.account_label(item) for item in found["transfers"]}

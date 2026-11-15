@@ -80,6 +80,13 @@ def accounts_first(rows, subject) -> list:
     return sorted(rows, key=lambda row: not first(row))
 
 
+def stale_for_collection(data) -> bool:
+    """这份资料还没被带收款的 CC 桌面版读过（11-11 起主档读回才带 ``receipt_types`` / ``cash_account`` / ``salesmen``）：
+    旧资料缺这几项不是「电脑要更新」，是要用新版重读一次（11-15 线上 testerp：TEST 停在 10-27 的旧读回，电脑早是 1.12.21，
+    收款一直报需更新）。收款三处（方式、确认卡方式名、销售员）共用这一条判据。"""
+    return not isinstance(data, dict) or not isinstance(data.get("receipt_types"), list)
+
+
 def vat_initem(data):
     """CC 桌面版 1.12.6 测试包 c 起结果里带这份账套 ISINFO.VAT_INITEM（开了逐行 VAT 是 Y）；旧版没有这一项回 None。"""
     facts = data.get("facts") if isinstance(data, dict) and isinstance(data.get("facts"), dict) else {}

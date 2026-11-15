@@ -330,7 +330,7 @@ express_push.office_actor = lambda owner, company, book_key: "office@x"
 sys.modules["pearnly_erp_portal.express.push"] = express_push
 
 from pearnly_erp_portal.collection import access, contracts as C, push, records, service, snapshot  # noqa: E402
-from pearnly_erp_portal.express import desktop, target as express_target  # noqa: E402
+from pearnly_erp_portal.express import contracts as express_contracts, desktop, facts, target as express_target  # noqa: E402
 
 REAL_PICK = express_target.pick  # 选账套的真规则（Base 里换成固定一本；Books 换回真的）
 
@@ -1423,6 +1423,60 @@ class ExpressWaiting(Base):
         self.assertTrue(service.express_waiting(name))
         self.waiting = set()
         self.assertFalse(service.express_waiting(name))
+
+
+class StaleFacts(Base):
+    """资料是旧版 CC 读的（缺收款项，11-15 线上 testerp TEST 停在 10-27）：请电脑重读、回「正在读取」，不说「需更新」；
+    够得到这本的在线电脑都比带收款的版本旧才说「需更新」；重读落好就照常列方式。三处共用 `facts.stale_for_collection`。"""
+
+    OLD = {"customers": [], "salesmen_missing": True}
+
+    def setUp(self):
+        super().setUp()
+        import pearnly_erp_portal.express as express_pkg
+
+        self.current = dict(self.OLD)
+        self.ensured = []
+        self.reason = None
+        fake = types.SimpleNamespace(ensure=lambda company, book: self._ensure(company, book))
+        for patch in (mock.patch("pearnly_erp_portal.express.facts.load", side_effect=lambda key: self.current),
+                      mock.patch.dict(sys.modules, {"pearnly_erp_portal.express.masters": fake}),
+                      mock.patch.object(express_pkg, "masters", fake, create=True),
+                      mock.patch.object(service.requests, "waiting",
+                                        side_effect=lambda kind, key, actor=None: self.reason and {"reason": self.reason})):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.as_user("a@x")
+
+    def _ensure(self, company, book):
+        self.ensured.append((company, book["key"]))
+
+    def test_the_rule_is_one_place(self):
+        self.assertTrue(facts.stale_for_collection(None))
+        self.assertTrue(facts.stale_for_collection({"customers": []}))
+        self.assertFalse(facts.stale_for_collection({"receipt_types": []}))
+
+    def test_old_facts_ask_the_computer_to_read_again_instead_of_update(self):
+        with self.assertRaises(C.CollectionError) as caught:
+            service.methods("CO-1")
+        self.assertEqual(caught.exception.code, express_contracts.READING)
+        self.assertEqual(self.ensured, [("CO-1", BOOK["key"])])
+
+    def test_update_needed_only_when_every_computer_is_too_old(self):
+        self.reason = "update_needed"
+        with self.assertRaises(C.CollectionError) as caught:
+            service.methods("CO-1")
+        self.assertEqual(caught.exception.code, service.CC_UPDATE)
+        self.assertEqual(self.ensured, [])
+
+    def test_the_reread_lands_and_methods_list(self):
+        self._ensure = lambda company, book: self.current.update(FACTS)
+        found = service.methods("CO-1")
+        self.assertEqual({item["prefix"] for item in found["transfers"]}, LISTED)
+
+    def test_old_salesmen_and_labels_are_not_used(self):
+        self.current = {"salesmen": [{"code": "S1", "name": "x"}]}
+        self.assertIsNone(service._choices(BOOK["key"])["salesmen"])
 
 
 if __name__ == "__main__":
