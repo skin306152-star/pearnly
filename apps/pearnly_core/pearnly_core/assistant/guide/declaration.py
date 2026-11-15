@@ -33,8 +33,14 @@ ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
                         "draft", "review", "confirm", "result", "tool", "expires", "judge"})
-STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required"})
-WHEN_TESTS = ("value", "has", "in")
+STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required",
+                       "check", "apply", "facts"})
+# ``check(ctx, value) -> 原因码 | ""``：作答时服务端再核一遍（选项里有、形状对之外的业务规则：金额合计、日期在期间里）；
+# ``apply(ctx, value)``：答案收下之后要落的一步（例：选了账套记进本对话）；``facts(ctx) -> [一行事实]``：题目下的事实行（已翻译的字，
+# 只陈述事实：可录的日期段、在读、电脑没连），没有就不出。三个都是点路径、都可选
+STEP_PATHS = ("options", "default", "check", "apply", "facts")
+# ``starts``：依赖那一步的值里有以它开头的选项码（分摊的各行码带种类前缀，例 ``transfer:``，有转账才问凭证）
+WHEN_TESTS = ("value", "has", "in", "starts")
 
 _ID = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
 _PATH = re.compile(r"^[a-z_][a-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)+$")
@@ -74,8 +80,9 @@ def _step_problems(step: Any, seen: List[str]) -> List[str]:
         out.append(f"step {key}: search is True and only on {sorted(SEARCH_INPUTS)}")
     if ask == AUTO and not _is_path(step.get("default")):
         out.append(f"step {key}: rule auto needs default (a dotted path)")
-    if "default" in step and not _is_path(step["default"]):
-        out.append(f"step {key}: default is not a dotted path")
+    for name in ("default", "check", "apply", "facts"):
+        if name in step and not _is_path(step[name]):
+            out.append(f"step {key}: {name} is not a dotted path")
     if ask == REMEMBER and step.get("remember") not in REMEMBER_SCOPES:
         out.append(f"step {key}: rule remember needs remember in {REMEMBER_SCOPES}")
     if ask != REMEMBER and "remember" in step:
@@ -155,7 +162,7 @@ def paths(guide: Mapping[str, Any]) -> List[str]:
     """声明里出现的全部点路径（闸门按源码核它们指向的函数在不在）。"""
     found = [guide[key] for key in ("allowed", "draft", "review", "confirm", "result") if _is_path(guide.get(key))]
     for step in guide.get("steps") or ():
-        found.extend(step[key] for key in ("options", "default") if isinstance(step, Mapping) and _is_path(step.get(key)))
+        found.extend(step[key] for key in STEP_PATHS if isinstance(step, Mapping) and _is_path(step.get(key)))
     return found
 
 
@@ -165,5 +172,5 @@ def complete(guide: Mapping[str, Any]) -> bool:
 
 
 __all__ = ["ALWAYS", "ASK", "AUTO", "CHAT", "DOCUMENTS", "EXPIRES", "FORM", "GUIDE_KEYS", "ICONS", "INPUTS", "LEDGERS", "MODES",
-           "OPTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS", "TIERS", "WHEN_TESTS",
+           "OPTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS", "STEP_PATHS", "TIERS", "WHEN_TESTS",
            "complete", "paths", "problems"]

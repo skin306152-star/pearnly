@@ -107,7 +107,8 @@ def _answers(doc) -> Dict[str, Any]:
 
 def _ctx(doc, answers: Mapping[str, Any]) -> Dict[str, Any]:
     return {"session": doc.session_id, "user": doc.user, "business": doc.business, "company": doc.company or "",
-            "ledger": doc.ledger or "", "period": doc.period or "", "answers": dict(answers), "run": doc.name}
+            "ledger": doc.ledger or "", "period": doc.period or "", "answers": dict(answers), "run": doc.name,
+            "draft": doc.draft or ""}
 
 
 def _decided(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
@@ -139,7 +140,14 @@ def _decided(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> Dict[
 def _options(step: Mapping[str, Any], ctx: Dict[str, Any], txt="", start=0, page_length=PAGE, codes=None) -> Dict[str, Any]:
     out = _call(step["options"], ctx, txt=str(txt or ""), start=int(start or 0), page_length=int(page_length or PAGE), codes=codes)
     rows = [dict(row) for row in (out or {}).get("options") or () if isinstance(row, Mapping) and row.get("code")]
-    return {"options": rows, "more": bool((out or {}).get("more"))}
+    found = {"options": rows, "more": bool((out or {}).get("more"))}
+    # 选项函数可以带两样：``facts``（题目下的事实行，例：读回还没到、电脑没连）、``wait``（选项还在读，页面过一会儿再取这张卡）
+    facts = [str(item) for item in (out or {}).get("facts") or () if str(item or "").strip()]
+    if facts:
+        found["facts"] = facts
+    if (out or {}).get("wait"):
+        found["wait"] = True
+    return found
 
 
 def _codes_of(value: Any) -> List[str]:
@@ -148,13 +156,31 @@ def _codes_of(value: Any) -> List[str]:
     return [str(row.get("code")) if isinstance(row, Mapping) else str(row) for row in value or ()]
 
 
-def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> bool:
-    """这个值里有没有不在选项里的码（客户停用了、发票已收清、科目被删）。"""
+def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> str:
+    """这个值哪里不在此刻的选项里（空串 = 都在）：码不在（客户停用了、发票已收清、科目被删）回 ``not offered``；金额多选 / 分摊
+    的一行超过选项给的上限（``max``：此刻还能收多少）回 ``over max``。码按原样比，不做空白归一（编码里的不换行空格是另一件档）。"""
     if step["input"] not in d.OPTION_INPUTS:
-        return False
+        return ""
     wanted = _codes_of(value)
-    offered = {row["code"] for row in _options(step, ctx, codes=wanted, page_length=len(wanted) or 1)["options"]}
-    return any(code not in offered for code in wanted)
+    offered = {row["code"]: row for row in _options(step, ctx, codes=wanted, page_length=len(wanted) or 1)["options"]}
+    if any(code not in offered for code in wanted):
+        return "not offered"
+    if step["input"] in ("amounts", "split"):
+        for row in value:
+            top = offered[str(row["code"])].get("max")
+            if top not in (None, "") and steps.amount(row["amount"]) > steps.amount(top):
+                return "over max"
+    return ""
+
+
+def _fill_context(doc, now: Mapping[str, Any]) -> bool:
+    """开始时还没定、之后定下了的上下文（例：引导里选了账套、记进本对话）：补进这次引导，不算失效。回有没有补。"""
+    filled = False
+    for column in CONTEXT_FIELDS.values():
+        if not str(doc.get(column) or "") and str(now.get(column) or ""):
+            doc.set(column, str(now[column]))
+            filled = True
+    return filled
 
 
 # ── 给页面的样子 ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -162,9 +188,17 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
               decided: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
     out = {"key": step["key"], "input": step["input"], "rule": step["rule"], "tier": step.get("tier") or "how",
            "title_key": f"guide.step.{guide['id']}.{step['key']}", "required": step.get("required", True)}
+    facts: List[str] = []
     if step["input"] in d.OPTION_INPUTS:
         found = _options(step, ctx)
         out.update(options=found["options"], more=found["more"], search=bool(step.get("search")))
+        facts.extend(found.get("facts") or ())
+        if found.get("wait"):
+            out["wait"] = True
+    if step.get("facts"):
+        facts.extend(str(item) for item in _call(step["facts"], ctx) or () if str(item or "").strip())
+    if facts:
+        out["facts"] = facts
     # ``always`` 的步骤后台给了值：只作推荐预选，点了才算
     hint = (decided.get(step["key"]) or {}).get("value")
     if hint not in (None, "", [], {}) and out["tier"] == "how":
@@ -192,6 +226,9 @@ def view(doc) -> Dict[str, Any]:
         out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided) for step in asked],
                        "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}"} for item in settled],
                        "ready": steps.state(guide, answers, decided) == steps.READY}
+        returned = _returned(doc)
+        if returned:
+            out["card"]["returned"] = returned
     elif doc.status == REVIEWING and guide.get("review"):
         out["review"] = _call(guide["review"], ctx, doc.draft or "")
     elif doc.status in (CONFIRMED, DONE, FAILED):
@@ -199,6 +236,26 @@ def view(doc) -> Dict[str, Any]:
         if guide.get("result") and doc.status != FAILED:
             out["result"] = _call(guide["result"], ctx, doc.draft or "") or out["result"]
     return out
+
+
+def _returned(doc) -> Dict[str, Any]:
+    """业务函数退回来的那几步（``{步骤 key: {reason, text?}}``：生成草稿或放行时规则此刻不过，例如发票刚被别人收了）。"""
+    try:
+        found = json.loads(doc.result or "null")
+    except ValueError:
+        return {}
+    return dict(found.get("returned") or {}) if isinstance(found, dict) and doc.status == ASKING else {}
+
+
+def _send_back(guide: Mapping[str, Any], doc, answers: Dict[str, Any], returned: Mapping[str, Any]) -> None:
+    """把业务函数退回的那几步（与依赖它们的后面各步）作废、回到问的状态，原因留在卡上；其余答案保留。"""
+    keys = [key for key in returned if any(step["key"] == key for step in guide["steps"])]
+    answers = steps.without_dependents(guide, answers, keys)
+    for key in keys:
+        answers.pop(key, None)
+    doc.answers = json.dumps(answers, ensure_ascii=False, default=str)
+    doc.result = json.dumps({"returned": {key: dict(returned[key]) for key in keys}}, ensure_ascii=False, default=str)
+    doc.status, doc.consent = ASKING, ""
 
 
 # ── 失效 ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -226,6 +283,8 @@ def _checked(name: str):
         frappe.throw(_("Not found"), frappe.DoesNotExistError)
     guide = _guide(doc)
     now = _conversation(doc.session_id)
+    if doc.status in OPEN and _fill_context(doc, now):
+        _save(doc)
     if doc.status in OPEN:
         stale = _stale(guide, doc, now)
         if stale:
@@ -256,8 +315,17 @@ def _settle(guide: Mapping[str, Any], doc, answers: Dict[str, Any]) -> None:
     ready = steps.state(guide, answers, decided) == steps.READY
     doc.answers = json.dumps(answers, ensure_ascii=False, default=str)
     doc.version = int(doc.version or 0) + 1
+    doc.result = ""
+    doc.status = ASKING
     if ready and guide.get("draft"):
-        doc.draft = str(_call(guide["draft"], _ctx(doc, answers), steps.final_values(guide, answers, decided)) or "")
+        made = _call(guide["draft"], _ctx(doc, answers), steps.final_values(guide, answers, decided))
+        if isinstance(made, Mapping) and made.get("returned"):
+            # 规则此刻不过（发票刚被别人收了、金额对不上、日期不在期间）：退回那几步重问，其余答案保留
+            _send_back(guide, doc, answers, made["returned"])
+            _save(doc)
+            _announce(doc)
+            return
+        doc.draft = str((made.get("draft") if isinstance(made, Mapping) else made) or "")
     doc.status = REVIEWING if ready and guide.get("review") else ASKING
     _save(doc)
     _announce(doc)
@@ -277,13 +345,24 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     by_key = {step["key"]: step for step in guide["steps"]}
     ctx = _ctx(doc, answers)
     for key, value in given.items():
-        if key not in refused and _not_offered(by_key[key], ctx, value):
-            refused[key] = "not offered"
+        if key not in refused:
+            missing = _not_offered(by_key[key], ctx, value)
+            if missing:
+                refused[key] = missing
+        if key not in refused and by_key[key].get("check"):
+            code = _call(by_key[key]["check"], {**ctx, "answers": {**answers, **given}}, value)
+            if code:
+                refused[key] = str(code)
     if refused:
         return {**view(doc), "outcome": REFUSED, "refused": refused}
     changed = [key for key, value in given.items() if answers.get(key) != value]
     answers = steps.without_dependents(guide, answers, changed)
     answers.update(given)
+    for key in changed:
+        if by_key[key].get("apply"):
+            _call(by_key[key]["apply"], _ctx(doc, answers), given[key])
+    if changed and any(by_key[key].get("apply") for key in changed):
+        _fill_context(doc, _conversation(doc.session_id))
     _settle(guide, doc, answers)
     return view(doc)
 
@@ -313,6 +392,19 @@ def confirm(name: str, version: int) -> Dict[str, Any]:
     doc = _locked(doc.name)
     try:
         result = _call(guide["confirm"], _ctx(doc, answers), steps.final_values(guide, answers, decided), doc.draft or "", consent)
+        if isinstance(result, Mapping) and result.get("outcome") == CHANGED:
+            # 复核之后草稿在别处改过（另一台设备、网页、LINE）：不办，复核卡刷新成新的再让人确定
+            doc.status, doc.consent = REVIEWING, ""
+            doc.version = int(doc.version or 0) + 1
+            _save(doc)
+            _announce(doc)
+            return {**view(doc), "outcome": CHANGED}
+        if isinstance(result, Mapping) and result.get("returned"):
+            _send_back(guide, doc, answers, result["returned"])
+            doc.version = int(doc.version or 0) + 1
+            _save(doc)
+            _announce(doc)
+            return {**view(doc), "outcome": REFUSED}
         doc.status = DONE
     except Exception as exc:  # noqa: BLE001 — 业务函数拒了 / 出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()

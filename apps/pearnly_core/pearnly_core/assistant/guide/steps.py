@@ -65,6 +65,8 @@ def applies(step: Mapping[str, Any], values: Mapping[str, Any]) -> bool:
         return codes == [str(when["value"])]
     if "has" in when:
         return str(when["has"]) in codes
+    if "starts" in when:
+        return any(code.startswith(str(when["starts"])) for code in codes)
     return any(code in {str(v) for v in when["in"]} for code in codes)
 
 
@@ -133,7 +135,7 @@ def without_dependents(guide: Mapping[str, Any], answers: Mapping[str, Any], cha
     return {key: value for key, value in (answers or {}).items() if key not in drop}
 
 
-def _amount(value: Any) -> Decimal | None:
+def amount(value: Any) -> Decimal | None:
     try:
         found = Decimal(str(value))
     except (InvalidOperation, ValueError):
@@ -146,8 +148,8 @@ def _rows_problem(value: Any) -> str:
         return "a non-empty list of rows"
     codes = []
     for row in value:
-        amount = _amount(row.get("amount")) if isinstance(row, Mapping) else None
-        if not isinstance(row, Mapping) or not isinstance(row.get("code"), str) or not row["code"] or amount is None or amount <= 0:
+        found = amount(row.get("amount")) if isinstance(row, Mapping) else None
+        if not isinstance(row, Mapping) or not isinstance(row.get("code"), str) or not row["code"] or found is None or found <= 0:
             return "each row is {code, amount} with a positive amount"
         codes.append(row["code"])
     return "a code appears twice" if len(set(codes)) != len(codes) else ""
@@ -171,7 +173,7 @@ def value_problem(step: Mapping[str, Any], value: Any) -> str:
     if kind == "month":
         return "" if isinstance(value, str) and _MONTH.match(value) else "a month as YYYY-MM"
     if kind == "number":
-        return "" if isinstance(value, (str, int)) and not isinstance(value, bool) and _amount(value) is not None else "a number"
+        return "" if isinstance(value, (str, int)) and not isinstance(value, bool) and amount(value) is not None else "a number"
     if kind == "date":
         try:
             date.fromisoformat(value if isinstance(value, str) else "")
@@ -203,5 +205,5 @@ def problems_in(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: M
     return out
 
 
-__all__ = ["ASKING", "FILES_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "applies", "blocked", "dependents", "final_values",
+__all__ = ["ASKING", "FILES_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "amount", "applies", "blocked", "dependents", "final_values",
            "problems_in", "settled", "state", "to_ask", "value_problem", "without_dependents"]
