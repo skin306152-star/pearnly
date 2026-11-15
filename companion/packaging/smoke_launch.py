@@ -12,6 +12,9 @@
 
 只在 Windows 上跑（打包后的 exe；GitHub 的 windows-latest），macOS / Linux 开发机不跑这个脚本。
 
+云端精简包（``dist/companion-cloud/companion.exe``，companion-cloud.spec，没有托盘与窗口）只跑第 4 步，加 ``--cloud-only``：
+``python packaging/smoke_launch.py --cloud-only dist/companion-cloud/companion.exe``。
+
 失败时打出日志尾巴与原因，退出码 1。用法：``python packaging/smoke_launch.py dist/companion/companion.exe``
 """
 
@@ -83,8 +86,10 @@ class Smoke:
             print("\n".join(window_log.read_text(encoding="utf-8", errors="replace").splitlines()[-20:]))
         return 1
 
-    def run(self) -> int:
+    def run(self, cloud_only: bool = False) -> int:
         try:
+            if cloud_only:
+                return self.cloud_step()
             # 1. 后台常驻
             self.start("--background")
             if not self.wait_for(STARTED, 1, 120):
@@ -118,26 +123,30 @@ class Smoke:
                 return self.fail("plain launch started the tray but did not open the CC window")
             print("ok: plain launch with nothing running started the tray and opened the window")
 
-            # 4. 云端模式：不起托盘；全新目录没有成员 → 同 --headless 以 2 退出
+            # 4. 云端模式
             self.kill_all()
             self.trays.clear()
-            started_before, cloud_before = self.count(STARTED), self.count(CLOUD_STARTED)
-            cloud = subprocess.Popen([str(self.exe), "--cloud"], env=self.env, cwd=str(self.exe.parent))
-            try:
-                code = cloud.wait(60)
-            except subprocess.TimeoutExpired:
-                subprocess.run(["taskkill", "/F", "/T", "/PID", str(cloud.pid)], capture_output=True, check=False)
-                return self.fail("--cloud with no member did not exit within 60 s")
-            if code != 2:
-                return self.fail(f"--cloud with no member exited with {code}, expected 2")
-            if self.count(CLOUD_STARTED) != cloud_before + 1:
-                return self.fail("--cloud did not log the cloud mode line")
-            if self.count(STARTED) != started_before:
-                return self.fail("--cloud started the tray")
-            print("ok: --cloud ran without the tray and exited with 2 when nothing is paired")
-            return 0
+            return self.cloud_step()
         finally:
             self.kill_all()
+
+    def cloud_step(self) -> int:
+        """云端模式：不起托盘；全新目录没有成员 → 同 --headless 以 2 退出。"""
+        started_before, cloud_before = self.count(STARTED), self.count(CLOUD_STARTED)
+        cloud = subprocess.Popen([str(self.exe), "--cloud"], env=self.env, cwd=str(self.exe.parent))
+        try:
+            code = cloud.wait(60)
+        except subprocess.TimeoutExpired:
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(cloud.pid)], capture_output=True, check=False)
+            return self.fail("--cloud with no member did not exit within 60 s")
+        if code != 2:
+            return self.fail(f"--cloud with no member exited with {code}, expected 2")
+        if self.count(CLOUD_STARTED) != cloud_before + 1:
+            return self.fail("--cloud did not log the cloud mode line")
+        if self.count(STARTED) != started_before:
+            return self.fail("--cloud started the tray")
+        print("ok: --cloud ran without the tray and exited with 2 when nothing is paired")
+        return 0
 
 
 def main() -> int:
@@ -145,14 +154,17 @@ def main() -> int:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # CI 的输出是管道、默认 cp1252，日志里有中文
     except (AttributeError, ValueError):
         pass
-    if len(sys.argv) != 2:
+    args = sys.argv[1:]
+    cloud_only = "--cloud-only" in args
+    args = [arg for arg in args if arg != "--cloud-only"]
+    if len(args) != 1:
         print(__doc__)
         return 2
-    exe = Path(sys.argv[1])
+    exe = Path(args[0])
     if not exe.is_file():
         print(f"FAIL: {exe} not found")
         return 1
-    return Smoke(exe).run()
+    return Smoke(exe).run(cloud_only=cloud_only)
 
 
 if __name__ == "__main__":

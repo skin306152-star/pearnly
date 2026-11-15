@@ -1,7 +1,8 @@
 # Build the exact checked-out commit on Windows; publication is a separate Ubuntu job.
 # Usage: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly
+#        add -Cloud to build only the cloud package (dist\CC-Cloud.zip + dist\cloud.json); no installer, nothing published
 [CmdletBinding()]
-param([switch]$BuildOnly)
+param([switch]$BuildOnly, [switch]$Cloud)
 
 if (-not $BuildOnly) {
     throw 'Legacy direct publication is retired. Use -BuildOnly or the release workflow; see docs/RELEASE.md.'
@@ -34,6 +35,44 @@ if ($LASTEXITCODE -ne 0 -or $dirty) { throw 'release build requires a clean sour
 $ver = (& $py64 -c "from src.companion.version import VERSION; print(VERSION)").Trim()
 if ($LASTEXITCODE -ne 0 -or $ver -notmatch '^\d+(\.\d+){2,3}$') { throw 'cannot read numeric VERSION' }
 Write-Host "=== Releasing Pearnly Companion v$ver ==="
+
+# 云端精简包（-Cloud，packaging\companion-cloud.spec）：云端 Express 主机上那份 CC（companion.exe --cloud），不带 PySide6 / 网页内核 /
+# Windows 通知，由桥经远程桌面映射盘拷上去。只打这一份：不打正式包、不做安装程序、不写 release.json / latest.json。
+if ($Cloud) {
+    Write-Host '=== [1/3] build the cloud package dist\companion-cloud ==='
+    $cloudDir = Join-Path $root 'dist\companion-cloud'
+    Invoke-Native $py64 -m PyInstaller --noconfirm --distpath dist --workpath build\cloud packaging\companion-cloud.spec
+    if ($LASTEXITCODE -ne 0) { throw 'cloud package build failed' }
+    if (-not (Test-Path (Join-Path $cloudDir 'companion.exe'))) { throw 'cloud package has no companion.exe' }
+    if (Get-ChildItem $cloudDir -Recurse -Include 'QtWebEngineProcess.exe', 'Qt6Core.dll', 'shiboken6*' | Select-Object -First 1) {
+        throw 'cloud package still contains Qt'
+    }
+
+    # 后台 CDX 索引：同正式包放在 companion.exe 旁边（cdx_reindex.runner_path）
+    Write-Host '=== [2/3] stage cdx_reindex_runner.exe next to companion.exe ==='
+    $cdxSrc = Join-Path $root 'packaging\native\cdx_reindex_runner.exe'
+    if (-not (Test-Path $cdxSrc)) { throw "missing prebuilt $cdxSrc (rebuild: see packaging\native\README)" }
+    Copy-Item $cdxSrc (Join-Path $cloudDir 'cdx_reindex_runner.exe') -Force
+
+    Write-Host '=== [3/3] zip dist\CC-Cloud.zip ==='
+    $zip = Join-Path $root 'dist\CC-Cloud.zip'
+    if (Test-Path $zip) { Remove-Item $zip -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::CreateFromDirectory($cloudDir, $zip, [System.IO.Compression.CompressionLevel]::Optimal, $false)
+    $zipItem = Get-Item $zip
+    $unpacked = (Get-ChildItem $cloudDir -Recurse -File | Measure-Object -Property Length -Sum).Sum
+    $cloudManifest = [ordered]@{
+        version = $ver
+        source_sha = $sourceSha
+        sha256 = (Get-FileHash $zipItem.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+        size = [int64]$zipItem.Length
+        unpacked_size = [int64]$unpacked
+    }
+    $cloudManifest | ConvertTo-Json | Out-File -FilePath dist\cloud.json -Encoding ascii
+    Write-Host ("Cloud package: version=$ver source=$sourceSha zip={0:N1} MB unpacked={1:N1} MB sha256={2}" -f ($zipItem.Length / 1MB), ($unpacked / 1MB), $cloudManifest.sha256)
+    Write-Host 'No publication performed.'
+    return
+}
 
 Write-Host '=== [1/3] build companion.exe (64-bit) ==='
 Invoke-Native $py64 -m PyInstaller --noconfirm --distpath dist --workpath build\b64 packaging\companion.spec
