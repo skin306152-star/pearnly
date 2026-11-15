@@ -15,7 +15,10 @@
 - 对话接续到新上下文后，沙箱里的旧文件没了，本站这份还在（按对话留，不分段）：`kept` 列给智能体，工具照样按文件名取。
 - 用户发的附件也能在右侧面板预览（2026-10-16 CC 外壳，同 Claude 点消息里的附件卡片）：引擎不让下载用户上传的文件，
   `download` / `preview` 找不到可下载的结果时取本站留存的那份；列表里的附件带上大小与 PDF 页数（附件卡片的说明行）。
-- 代录会话里放进输入框的文件（2026-11-06）：同一个上传口、同一套附件组件，另交给会话挂的代录任务识别（``_operator_take``）。
+- 代录会话里放进输入框的文件（2026-11-06）：同一个上传口、同一套附件组件，另在会话挂的代录任务上记一行「待发送」（``_operator_take``）。
+  11-14 用户：选中就上传是为了点发送不用等上传，不是上传就识别——识别等带着它的消息发出后才交（``start_sent``，后台；
+  识别工具等不及时当场交，``taken``），没发出就移除的不识别、不扣费，那一行和本站留的这份一起删（``drop``）。用户交出文件只有
+  一个入口 ``commit``（输入框点发送、引导卡上提交都走它）。
 - PDF 的一页画成图（`page_image`，第 5 轮测试 1、2）：附件卡片的缩略图（第一页，`thumb`）、手机上的 PDF 预览（安卓 Chrome
   不能在 iframe 里显示 PDF，逐页 `page`）。用镜像里已有的 PyMuPDF（识别流水线同一个，frappe.Dockerfile 锁定），不给前端
   加 PDF 渲染库；只有两种宽度，回应带私有缓存头（文件编号对应的内容不变），浏览器同一张只取一次。画好的页图与从引擎取来的
@@ -95,14 +98,14 @@ def _upload(row) -> dict:
     sending = _Background(lambda: api.upload(name, content, mime))
     remote = sessions.segment_for_turn(row, api)
     steps.done("session")
-    task = _operator_take(row, upload_id, name, content)
+    task = _operator_take(row, upload_id, name, size)
     steps.done("task")
     meta = _remember_meta(upload_id, name, content)
     steps.done("keep")
     try:
         engine_file = sending.result()
     except Exception:
-        # 引擎一时没收（断线、超时）：站点这边已交过任务、留存过，同一个上传编号再传一次，不让用户重传（重传会再交一次识别）
+        # 引擎一时没收（断线、超时）：站点这边已记过任务、留存过，同一个上传编号再传一次，不让用户重传
         frappe.log_error(title="Assistant attachment upload retried")
         engine_file = api.upload(name, content, mime)
     steps.done("engine_wait", engine=sending.seconds)
@@ -166,29 +169,145 @@ class _Steps:
             pass
 
 
-def _operator_take(row, file_id, name, content) -> dict:
-    """代录会话（2026-11-06「选中就上传」）：放进输入框的这一份同时交给会话挂的任务识别，请求键就是文件编号（带着它的消息发出时
-    按它记上时刻，``express_operator.uploads.sent``）。回包多带 ``task`` 与 ``upload``（同 ``task_uploads`` 里的一项），输入框那一项
-    按它显示识别中；产品不收上传时不带，文件照常只进对话。"""
+def _operator_take(row, file_id, name, size) -> dict:
+    """代录会话（2026-11-06「选中就上传」）：放进输入框的这一份在会话挂的任务上记一行「待发送」，请求键就是文件编号（带着它的
+    消息发出时按它记上时刻、交识别，``commit`` / ``start_sent``）。这时不交识别、不扣费（11-14 用户）。
+    回包多带 ``task``；产品不收上传时不带，文件照常只进对话。"""
     if not row.get("operator_task"):
         return {}
     from pearnly_core.express_operator import uploads
 
-    view = uploads.take(row.operator_task, name, content, file_id)
-    return {"task": row.operator_task, "upload": view} if view else {}
+    view = uploads.hold(row.operator_task, name, size, file_id)
+    return {"task": row.operator_task} if view else {}
+
+
+START_JOB = "pearnly_core.assistant.files.start_sent"
+# 用户交出文件的几种方式（接缝，docs/work/2026-11-14-cc-upload-read-on-send.md「接缝」）：输入框点发送、引导卡上提交
+COMMIT_VIA = ("send", "guide")
+
+
+HANDED = "handed"  # 会话目录下记「已交出」的子目录（一份一个空标记文件，随删对话一起删）
+
+
+def commit(row, file_ids, via) -> list[str]:
+    """**唯一入口**：用户明确交出了输入框（或引导卡）里已上传的这几份（``via``：send = 输入框点发送，guide = 引导卡上提交）。
+    两种会话都成立：只认这段对话里用户上传、本站留了一份的；给每份记「已交出」（之后 ``drop`` 不再删它）；回认下的文件编号，
+    引导引擎按它把文件交给对应的业务函数。直写会话到此为止（不触发识别）；代录会话这一刻才进对话、提交后由后台存原件并交识别
+    （不扣费的「待发送」到此为止）。``row``：本人的会话记录。幂等、可重入：同几份再交不重记、不重复识别（``uploads.start`` 按份加锁）。"""
+    if via not in COMMIT_VIA:
+        raise ValueError("unknown commit source")
+    ids = [fid for fid in dict.fromkeys(str(item) for item in file_ids or () if item) if _kept_path(row, fid)]
+    if not ids:
+        return []
+    marks = os.path.join(_folder(row.name), HANDED)
+    os.makedirs(marks, exist_ok=True)
+    for fid in ids:
+        open(os.path.join(marks, fid), "a").close()
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import uploads
+
+        _queue_start(row, uploads.commit(row.operator_task, ids))
+    return ids
+
+
+def ids_in(row, text) -> list[str]:
+    """消息原文里带着的、这段对话里用户上传的那几份的文件编号（消息里带着附件的位置 ``/mnt/session/uploads/<编号>/<文件名>``）。只读。"""
+    body = str(text or "")
+    folder = _folder(row.name)
+    if not body or not os.path.isdir(folder):
+        return []
+    ids = [entry.partition("--")[0] for entry in sorted(os.listdir(folder)) if "--" in entry and not entry.endswith(".part")]
+    return [fid for fid in dict.fromkeys(ids) if f"/uploads/{fid}/" in body]
+
+
+def _handed(row, file_id) -> bool:
+    return os.path.exists(os.path.join(_folder(row.name), HANDED, file_id))
+
+
+def _queue_start(row, keys) -> None:
+    """提交后由后台把这几份交给产品识别（存原件层要走网络，交出文件的那一步不等它）。"""
+    if not keys:
+        return
+    frappe.enqueue(START_JOB, queue="default", enqueue_after_commit=True, session=row.name, keys=list(keys),
+                   user=frappe.session.user, lang=getattr(frappe.local, "lang", None) or "")
+
+
+def start_sent(session, keys, user, lang="") -> None:
+    """后台任务：以发消息的人的身份、按那时的界面语言，把消息带着的几份逐份交给会话挂的任务识别（``uploads.start``）。
+    一份出错只记日志，接着交下一份（交不成的原因已记在那一行上，卡片显示失败）。"""
+    frappe.set_user(user)
+    if lang:
+        frappe.local.lang = lang
+    row = frappe.db.get_value(sessions.SESSION, {"name": session, "user": user}, ["name", "operator_task"], as_dict=True)
+    if not row or not row.operator_task:
+        return
+    for key in keys:
+        try:
+            _start(row, key)  # loop-query: 一条消息 / 一张卡交出的几份（有界），每份要单独加锁、交产品识别
+        except Exception:
+            frappe.db.rollback()
+            frappe.log_error(title="Operator upload start failed")
+
+
+def _start(row, file_id) -> str:
+    """一份交给任务识别：读本站留的那份原件交出去，回识别任务号（没发出、没留存回空串）。"""
+    from pearnly_core.express_operator import uploads
+
+    found = _kept_path(row, file_id)
+    if not found:
+        return ""
+    return uploads.start(row.operator_task, file_id, found)
+
+
+def _kept_path(row, file_id):
+    """本站留存的那份用户附件（`local_file.LocalFile`）；没有回 None。"""
+    from pearnly_core.originals import local_file
+
+    folder = _folder(row.name)
+    if not os.path.isdir(folder):
+        return None
+    for entry in os.listdir(folder):
+        path = os.path.join(folder, entry)
+        if entry.startswith(file_id + "--") and not entry.endswith(".part") and os.path.isfile(path):
+            return local_file.LocalFile(path)
+    return None
+
+
+def drop(session_id, file_id) -> dict:
+    """输入框（或引导卡）里移除了一份还没交出的附件：删掉本站留的这份（两种会话都是）；代录会话另删任务上那一行「待发送」（它不会
+    再被识别、不扣费）。已交出的（``commit`` 记过）不动。引擎那边挂着的只读、只属于本会话，留着无害。"""
+    row = sessions.owned(session_id)
+    fid = sessions._guard(contracts.file_id, file_id)
+    found = _kept_path(row, fid)
+    if _handed(row, fid):
+        return {"dropped": False}
+    if row.get("operator_task"):
+        from pearnly_core.express_operator import uploads
+
+        dropped = uploads.drop(row.operator_task, fid)
+    else:
+        dropped = found is not None
+    if dropped and found:
+        path = found.path
+        frappe.db.after_commit.add(lambda: os.path.exists(path) and os.remove(path))
+    return {"dropped": bool(dropped)}
 
 
 def taken(file_id) -> str:
-    """当前工具调用所在的代录会话里，这一份（已认成编号的 ``file_id``）放进输入框时交给任务的那次识别（识别任务号，
-    `_operator_take`）；不是代录会话、这一份没交过回空串。产品的「识别附件」工具据此拿回那一份，不再按自己的请求号另交一次
-    （11-07 本机实验栈真引擎：代录里同一份 12 页 PDF 识别两次，照收两次费、资料里 11 张列成 22 行，CC 等的是排在后面的自己那份）。"""
+    """当前工具调用所在的代录会话里，这一份（已认成编号的 ``file_id``）交给任务的那次识别（识别任务号）；已发出、后台还没交上
+    的当场交（``uploads.start`` 按份加锁，后台再来不重交）；不是代录会话、这一份没记过回空串。产品的「识别附件」工具据此拿回那一份，
+    不再按自己的请求号另交一次（11-07 本机实验栈真引擎：代录里同一份 12 页 PDF 识别两次，照收两次费、资料里 11 张列成 22 行，
+    CC 等的是排在后面的自己那份）。"""
     context = getattr(frappe.local, "pearnly_assistant", None) or {}
     row = sessions.owned(context.get("session_id"), allow_archived=True)
     if not row.get("operator_task"):
         return ""
     from pearnly_core.express_operator import uploads
 
-    return uploads.batch_of(row.operator_task, file_id)
+    batch = uploads.batch_of(row.operator_task, file_id)
+    if batch or not uploads.waiting(row.operator_task, file_id):
+        return batch
+    return _start(row, file_id)
 
 
 KEPT = "assistant-attachments"

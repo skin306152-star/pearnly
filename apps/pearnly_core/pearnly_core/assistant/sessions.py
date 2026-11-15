@@ -1033,20 +1033,21 @@ def send(session_id, text) -> dict:
     steps.done("post")
     if row.get("operator_task"):
         from pearnly_core.express_operator import tasks as operator_tasks
-        from pearnly_core.express_operator import uploads as operator_uploads
 
         # 代录会话的第一句发出了：记下此刻，资料与开始前卡片这时才出、排在这句后面（``feed.project``）。记不上只留日志
         try:
             operator_tasks.message_sent(row.operator_task)
         except Exception:
             frappe.log_error(title="Operator message sent mark failed")
-
-        # 代录会话：这条消息带着的、输入框里已交识别的资料这时才进对话（上传卡片排在这条消息后面，files._operator_take）。
-        # 消息已发出：记不上（任务刚被删等）只留日志，不当发送失败
+    # 这条消息带着的、输入框里已传好的文件这时才算交出（交出文件的唯一入口 files.commit，两种会话同一个）：代录会话这时进对话
+    # （上传卡片排在这条消息后面）、提交后才交识别（11-14 用户：点了发送才识别）。消息已发出：记不上只留日志，不当发送失败
+    if "/uploads/" in text:  # 带着附件（附件位置 /mnt/session/uploads/<编号>/<文件名>）才有要交出的
         try:
-            operator_uploads.sent(row.operator_task, text)
+            from pearnly_core.assistant import files as chat_files
+
+            chat_files.commit(row, chat_files.ids_in(row, text), via="send")
         except Exception:
-            frappe.log_error(title="Operator upload sent mark failed")
+            frappe.log_error(title="Assistant attachment hand-over failed")
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
     context.active(row.name)
     turn = _count_turn(row.name)

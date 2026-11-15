@@ -138,6 +138,22 @@ def acting(company, user=None):
         setattr(frappe.local, _ACTING, previous)
 
 
+# 页面级当前公司（线上 6，11-15）：LINE 卡片「编辑」打开别家公司的单时，那一页发出的请求都带这个头（前端
+# `company-menu.js` 的 `p.page_company`），本请求的当前公司就是它——同 CC 的 `acting`，只在这一个请求里、不写用户默认值，所以网页
+# 别处与别的标签页的当前公司不变。头是客户端给的：只认本人（会话用户）可用的公司，别的一律拒（:func:`active_company`）；只有本函数读它，
+# Cowork / DMS / 控制面不读；后台任务没有请求、读不到它（排到后台的要用公司的，调用方显式把公司带进任务参数）。
+PAGE_HEADER = "X-Pearnly-Company"
+
+
+def page_company(user=None) -> str:
+    """本请求带的页面级公司（没带、不是 HTTP 请求、问的不是会话用户本人时回空串）。"""
+    if not getattr(frappe.local, "request", None):
+        return ""
+    if (user or frappe.session.user) != frappe.session.user:
+        return ""
+    return str(frappe.get_request_header(PAGE_HEADER) or "").strip()[:140]
+
+
 def active_company(user=None) -> str:
     """当前公司。官方口径：用户默认值 `company`（没设就看 User Permission 的默认那条），
     再回落租户的默认公司；都不行就报错，不猜一个出来。CC 工具执行期间是对话挂的那家（`acting`）。
@@ -151,6 +167,11 @@ def active_company(user=None) -> str:
         if acting_now[1] in allowed:
             return acting_now[1]
         frappe.throw(_("Not permitted"), frappe.PermissionError)  # 中途被收回了这家公司：不回落到别家
+    page = page_company(user)
+    if page:
+        if page in allowed:
+            return page
+        frappe.throw(_("Not permitted"), frappe.PermissionError)  # 请求头是客户端给的：不是本人可用的就拒，不回落
     from frappe.defaults import get_user_default
     from pearnly_core.account import user_defaults
 

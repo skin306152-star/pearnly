@@ -54,6 +54,15 @@ def upload_view(row, found, period: str) -> dict:
             "page_count": page_count, "code": code if state in ("failed", "queued") else "", "documents": documents}
 
 
+def unstarted(row) -> dict | None:
+    """已发出、还没交成识别的一行此刻的状态（``upload_view`` 的 ``found``）：交不成有原因 → 失败；还在等后台交 → 排队中。
+    已交过识别（有任务号）或还没发出的回 None（照产品现读 / 不出卡片）。"""
+    if row.get("batch") or not row.get("uploaded_at"):
+        return None
+    code = str(row.get("start_code") or "")
+    return {"state": "failed", "code": code} if code else {"state": "queued"}
+
+
 GROUPS = ("purchase", "sales", "expense", "payment", "skip")  # 资料区的组（页面 DOC_GROUPS 同一份）
 
 

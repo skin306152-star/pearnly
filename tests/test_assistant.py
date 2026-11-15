@@ -865,9 +865,10 @@ class RelayTests(unittest.TestCase):
                 else:
                     setattr(frappe, name, value)
 
-    def test_operator_session_upload_hands_the_file_to_its_task_and_plain_chat_does_not(self):
-        """2026-11-06「选中就上传」：代录会话放进输入框的文件走同一个上传口，进会话的同时交给会话挂的任务识别（请求键 = 文件编号），
-        回包多带任务与那一行，输入框那一项显示识别中；直写会话不交；任务不收（产品没声明上传）照常只进对话。还原成只进对话就失败。"""
+    def test_operator_session_upload_holds_the_file_on_its_task_and_starts_it_only_once_sent(self):
+        """2026-11-06「选中就上传」：代录会话放进输入框的文件走同一个上传口，进会话的同时在会话挂的任务上记一行「待发送」（请求键 =
+        文件编号）。11-14 用户：上传是为了点发送不用等，不是上传就识别——上传口不交识别；发出后后台读本站留的那份交（``start_sent``），
+        识别工具等不及时当场交（``taken``）；没发出就移除的删掉那一行和留存（``drop``）。直写会话这些都不做。改回上传就识别即失败。"""
         import tempfile
 
         root = tempfile.mkdtemp()
@@ -883,12 +884,18 @@ class RelayTests(unittest.TestCase):
         heic = types.ModuleType("heic")
         heic.is_heic = lambda content: False
         sys.modules["pearnly_core.desk.heic"] = sys.modules["pearnly_core.desk"].heic = heic
-        taken = []
+        held, started = [], []
         operator_uploads = types.ModuleType("pearnly_core.express_operator.uploads")
-        answer = {"view": {"batch": "B-1", "state": "queued", "pages_done": 0, "page_count": 2}}
-        # 交给任务的是留存那份磁盘文件（ADR-028 第 2 步）：读出来比，内容就是上传的字节
-        operator_uploads.take = lambda task, name, content, key: taken.append(
-            (task, name, content.read() if hasattr(content, "read") else content, key)) or answer["view"]
+        answer = {"view": {"batch": "", "state": "queued", "pages_done": 0, "page_count": 0}}
+        operator_uploads.hold = lambda task, name, size, key: held.append((task, name, size, key)) or answer["view"]
+
+        # 交识别的是留存那份磁盘文件（ADR-028 第 2 步）：读出来比，内容就是上传的字节
+        def start(task, key, content):
+            with open(content.path, "rb") as handle:
+                started.append((task, key, handle.read()))
+            return "B-" + key
+
+        operator_uploads.start = start
         package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
         files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
         numbers = iter(["upl_A", "upl_B", "upl_C"])
@@ -922,7 +929,7 @@ class RelayTests(unittest.TestCase):
         db_saved = (getattr(frappe.db, "rollback", None), getattr(frappe.db, "commit", None))
         frappe.db.rollback = lambda *a, **k: trail.append(("rollback",))
         frappe.db.commit = lambda *a, **k: trail.append(("commit",))
-        operator_uploads.take = (lambda take: lambda *a: trail.append(("take",)) or take(*a))(operator_uploads.take)
+        operator_uploads.hold = (lambda hold: lambda *a: trail.append(("hold",)) or hold(*a))(operator_uploads.hold)
         site = getattr(frappe.local, "site", None)
         frappe.local.site = "t.localhost"
         try:
@@ -931,30 +938,123 @@ class RelayTests(unittest.TestCase):
                     mock.patch.object(files.engine, "adapter", return_value=adapter):
                 frappe.request = types.SimpleNamespace(files={"file": Sent("bill.pdf", b"%PDF-x")})
                 out = files.upload("s1")
-                # 交任务的请求键、挂载位置、回包都是本站先定的上传编号；引擎的文件编号只用来挂进会话（U2）
-                self.assertEqual(taken, [("t001", "bill.pdf", b"%PDF-x", "upl_A")])
-                self.assertEqual((out["fileId"], out["task"], out["upload"]["batch"]), ("upl_A", "t001", "B-1"))
+                # 记任务的请求键、挂载位置、回包都是本站先定的上传编号；引擎的文件编号只用来挂进会话（U2）。不交识别
+                self.assertEqual(held, [("t001", "bill.pdf", 6, "upl_A")])
+                self.assertEqual(started, [])
+                self.assertEqual((out["fileId"], out["task"], "upload" in out), ("upl_A", "t001", False))
                 self.assertEqual(out["mountPath"], "/mnt/session/uploads/upl_A/bill.pdf")
                 self.assertEqual(mounted, [("remote-row1", "file_engine_bill.pdf", "upl_A")])
                 self.assertTrue(os.path.isfile(os.path.join(root, "private", files.KEPT, "row1", "upl_A--bill.pdf")))
                 # 同一段代录会话里同时传几份按会话排队：拿锁、丢旧读视图、交任务、先提交再放锁（11-06 一次选两份第二份 500）
                 key = "t.localhost:pearnly_assistant:upload:row1"
-                self.assertEqual(trail, [("lock", key), ("rollback",), ("take",), ("commit",), ("unlock", key)])
+                self.assertEqual(trail, [("lock", key), ("rollback",), ("hold",), ("commit",), ("unlock", key)])
                 trail.clear()
                 out = files.upload("s2")  # 直写会话：只进对话，不排队
                 self.assertEqual(trail, [])
-                self.assertEqual(len(taken), 1)
+                self.assertEqual(len(held), 1)
                 self.assertNotIn("task", out)
                 answer["view"] = None  # 任务不收：照常只进对话，不带任务
                 out = files.upload("s1")
                 self.assertEqual((out["fileId"], "task" in out), ("upl_C", False))
-                # 产品的识别工具按附件身份拿回这次已交的识别（11-07 代录里同一份识别两次）：只有代录会话、只问它挂的任务
+                # 识别工具按附件身份拿回这一份的识别（11-07 代录里同一份识别两次）：已交过的回原来那个；发出了、后台还没交的
+                # 当场交（读本站留的那份）；没发出的、不认识的不交；直写会话不去问
                 asked = []
-                operator_uploads.batch_of = lambda task, key: asked.append((task, key)) or {"file_A": "B-1"}.get(key, "")
-                for sid, fid, want in (("s1", "file_A", "B-1"), ("s1", "file_X", ""), ("s2", "file_A", "")):
+                batches, sent_keys = {"upl_X": "B-X"}, {"upl_A"}
+                operator_uploads.batch_of = lambda task, key: asked.append((task, key)) or batches.get(key, "")
+                operator_uploads.waiting = lambda task, key: key in sent_keys
+                for sid, fid, want in (("s1", "upl_X", "B-X"), ("s1", "upl_A", "B-upl_A"), ("s1", "upl_C", ""),
+                                       ("s2", "upl_A", "")):
                     frappe.local.pearnly_assistant = {"session_id": sid}
                     self.assertEqual(files.taken(fid), want)
-                self.assertEqual(asked, [("t001", "file_A"), ("t001", "file_X")])  # 直写会话不去问
+                self.assertEqual(asked, [("t001", "upl_X"), ("t001", "upl_A"), ("t001", "upl_C")])
+                self.assertEqual(started, [("t001", "upl_A", b"%PDF-x")])
+                # 发出后的后台：以发消息的人、那时的语言逐份交；一份出错只记日志，接着交下一份
+                started.clear()
+                db_get = getattr(frappe.db, "get_value", None)
+                frappe.db.get_value = lambda doctype, filters, fields, as_dict=False: types.SimpleNamespace(
+                    name="row1", operator_task="t001") if filters == {"name": "row1", "user": "a@x"} else None
+                users = []
+                user_saved = getattr(frappe, "set_user", None)
+                frappe.set_user = users.append
+                errors = []
+                log_saved = getattr(frappe, "log_error", None)
+                frappe.log_error = lambda *a, **k: errors.append(k.get("title"))
+                real_start = operator_uploads.start
+                lang_saved = getattr(frappe.local, "lang", None)
+                operator_uploads.start = lambda task, key, content: (_ for _ in ()).throw(RuntimeError("x")) \
+                    if key == "upl_B" else real_start(task, key, content)
+                try:
+                    with open(os.path.join(root, "private", files.KEPT, "row1", "upl_B--b.pdf"), "wb") as handle:
+                        handle.write(b"B")
+                    files.start_sent("row1", ["upl_B", "upl_A", "upl_missing"], "a@x", "ja")
+                    self.assertEqual(users, ["a@x"])
+                    self.assertEqual(frappe.local.lang, "ja")
+                    self.assertEqual(started, [("t001", "upl_A", b"%PDF-x")])  # 没留存的那份不交
+                    self.assertEqual(errors, ["Operator upload start failed"])
+                    files.start_sent("row1", ["upl_A"], "b@x")  # 不是这个人的会话：不交
+                    self.assertEqual(len(started), 1)
+                finally:
+                    operator_uploads.start = real_start
+                    frappe.local.lang = lang_saved
+                    for name, value in (("set_user", user_saved), ("log_error", log_saved)):
+                        if value is None:
+                            delattr(frappe, name)
+                        else:
+                            setattr(frappe, name, value)
+                    if db_get is None:
+                        delattr(frappe.db, "get_value")
+                    else:
+                        frappe.db.get_value = db_get
+                # 接缝：交出文件只有一个入口 files.commit（输入框点发送 via=send、引导卡上提交 via=guide），两种会话都成立——只认这段
+                # 对话里用户上传、本站留了的，记「已交出」，回认下的编号；代录会话交出的那几份提交后排后台交识别，直写会话不识别；
+                # 选了没交的不排、不识别、不扣费；不认识的来源拒绝
+                enqueued, committed, after = [], [], []
+                enqueue_saved = getattr(frappe, "enqueue", None)
+                frappe.enqueue = lambda method, **kw: enqueued.append((method, kw))
+                frappe.db.after_commit = types.SimpleNamespace(add=after.append)
+                operator_uploads.commit = lambda task, keys: committed.append((task, list(keys))) or [k for k in keys if k == "upl_A"]
+                try:
+                    note = "看看\n[Attached file:\n- bill.pdf → /mnt/session/uploads/upl_A/bill.pdf\n- x → /mnt/session/uploads/upl_Q/x]"
+                    self.assertEqual(files.ids_in(rows["s1"], note), ["upl_A"])  # 只认这段对话里留了的
+                    self.assertEqual(files.ids_in(rows["s1"], "没带附件"), [])
+                    self.assertEqual(files.commit(rows["s1"], ["upl_A", "upl_Z"], via="guide"), ["upl_A"])
+                    self.assertEqual([(m, kw["keys"], kw["session"], kw["enqueue_after_commit"]) for m, kw in enqueued],
+                                     [(files.START_JOB, ["upl_A"], "row1", True)])
+                    self.assertEqual(committed, [("t001", ["upl_A"])])  # 没留存的编号不交给任务
+                    self.assertEqual(files.commit(rows["s1"], ["upl_Z"], via="send"), [])
+                    self.assertEqual(files.commit(rows["s1"], [], via="guide"), [])
+                    # 直写会话：同一个入口认下、记已交出，回编号交给业务函数；不碰任务、不排识别
+                    self.assertEqual(files.commit(rows["s2"], ["upl_B"], via="guide"), ["upl_B"])
+                    self.assertEqual(len(enqueued), 1)
+                    self.assertEqual(len(committed), 1)
+                    with self.assertRaises(ValueError):
+                        files.commit(rows["s1"], ["upl_A"], via="upload")  # 没有「上传即识别」这条路
+                    # 移除还没交出的：两种会话都删本站留存（提交后）；代录另删「待发送」那一行；已交出的不删
+                    operator_uploads.drop = lambda task, key: key == "upl_C"
+                    kept_c = os.path.join(root, "private", files.KEPT, "row1", "upl_C--bill.pdf")
+                    self.assertTrue(os.path.isfile(kept_c))
+                    self.assertEqual(files.drop("s1", "upl_C"), {"dropped": True})
+                    for job in after:
+                        job()
+                    self.assertFalse(os.path.exists(kept_c))
+                    after.clear()
+                    self.assertEqual(files.drop("s1", "upl_A"), {"dropped": False})  # 已交出
+                    self.assertEqual(files.drop("s2", "upl_B"), {"dropped": False})  # 直写里已交出的也不删
+                    self.assertEqual(after, [])
+                    files._new_upload_id = lambda: "upl_D"
+                    frappe.request = types.SimpleNamespace(files={"file": Sent("d.pdf", b"%PDF-d")})
+                    files.upload("s2")  # 直写会话里选了一份、没交出就移除：删本站留存
+                    kept_d = os.path.join(root, "private", files.KEPT, "row2", "upl_D--d.pdf")
+                    self.assertEqual(files.drop("s2", "upl_D"), {"dropped": True})
+                    for job in after:
+                        job()
+                    self.assertFalse(os.path.exists(kept_d))
+                    self.assertEqual(files.drop("s2", "upl_D"), {"dropped": False})  # 再移除一次：已经没了
+                finally:
+                    if enqueue_saved is None:
+                        delattr(frappe, "enqueue")
+                    else:
+                        frappe.enqueue = enqueue_saved
         finally:
             frappe.local.site = site
             frappe.local.pearnly_assistant = None
@@ -969,8 +1069,11 @@ class RelayTests(unittest.TestCase):
                 elif value is not None:
                     setattr(frappe, name, value)
         send = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("def send(", 1)[1].split("\ndef ", 1)[0]
-        # 这条消息发出后才把它带着的那几份记进对话（上传卡片排在消息后面）
-        self.assertLess(send.index("api.post(remote, batch)"), send.index("operator_uploads.sent(row.operator_task, text)"))
+        # 这条消息发出后才把它带着的那几份记进对话（上传卡片排在消息后面），提交后才交识别
+        self.assertLess(send.index("api.post(remote, batch)"),
+                        send.index('chat_files.commit(row, chat_files.ids_in(row, text), via="send")'))
+        queue = (CORE / "assistant/files.py").read_text(encoding="utf-8").split("def _queue_start(", 1)[1].split("\ndef ", 1)[0]
+        self.assertIn("enqueue_after_commit=True", queue)
 
     def test_upload_sends_bytes_to_the_engine_while_the_site_side_works(self):
         """U2（研究 docs/work/2026-11-08-cc-upload-ux-研究.md）：11-08 晚 24 页 10.6MB 一份，服务端串着做「传引擎 → 挂会话 →
@@ -999,12 +1102,12 @@ class RelayTests(unittest.TestCase):
         taken = []
         operator_uploads = types.ModuleType("pearnly_core.express_operator.uploads")
 
-        def take(task, name, content, key):
-            time.sleep(0.4)  # 存原件 + 交识别
+        def hold(task, name, size, key):
+            time.sleep(0.4)  # 记任务（11-14 起只记「待发送」，不再存原件、交识别；这里照旧给它一段耗时）
             taken.append(key)
-            return {"batch": "B-9", "state": "queued"}
+            return {"batch": "", "state": "queued"}
 
-        operator_uploads.take = take
+        operator_uploads.hold = hold
         package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
         files = _load("pearnly_core.assistant.files", CORE / "assistant/files.py")
         files._new_upload_id = lambda: "upl_9"

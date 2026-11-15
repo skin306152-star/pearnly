@@ -38,44 +38,66 @@ g.navigator ??= { userAgent: "node", onLine: true };
 STUBS = {"socket.io-client": SOCKET_STUB, "cc-dom-setup": DOM_SETUP, "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; '
          'export const loadProfile = async () => null; export const assistantMascot = () => null; export const assistantLogo = () => null;'}
 
-FRAPPE_STUB = r"""
-export const getMethod = async (method: string, args: Record<string, unknown>) => (globalThis as any).reply(method, args);
-"""
-
-RECOGNITION = r"""
+COMPOSER_UPLOAD = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { recognitionNow, recognitionOf, stopRecognition, watchRecognition } from "@/lib/managed-agents/attachment-recognition";
+import { createAttachmentAdapter } from "@/lib/managed-agents/attachments";
 
+// 11-14 用户：选中就上传是为了点发送不用等上传，不是上传就识别。代录会话里传完输入框那一项只有「已上传」，不读识别状态；
+// 没发出就移除的告诉服务端删掉那一行「待发送」与留存（不识别、不扣费，直写会话同样删留存）；已发出的不删
 const g = globalThis as any;
-const ticks: Array<() => void> = [];
-g.setTimeout = (f: () => void) => { ticks.push(f); return ticks.length; };
-g.clearTimeout = () => {};
-const asked: unknown[] = [];
-let row: Record<string, unknown> = { batch: "B-1", state: "reading", pages_done: 1, page_count: 3 };
-g.reply = (method: string, args: Record<string, unknown>) => { asked.push([method, args]); return { uploads: [row] }; };
-const flush = async () => { const f = ticks.shift(); assert.ok(f); await f(); await new Promise((r) => setImmediate(r)); };
+g.URL.createObjectURL = () => "blob:local";
+const timers: Array<() => void> = [];
+g.setTimeout = (f: () => void) => { timers.push(f); return timers.length; };
+const calls: Array<[string, unknown]> = [];
+let task = "t001";
+let n = 0;
+g.fetch = async (url: string, init: any) => {
+  const method = String(url).split("/api/method/")[1] ?? String(url);
+  calls.push([method, typeof init?.body === "string" ? JSON.parse(init.body) : null]);
+  if (method.endsWith(".upload")) {
+    n += 1;
+    return { ok: true, status: 200, json: async () => ({ message: { fileId: `upl_${n}`, filename: `f${n}.pdf`,
+      mountPath: `/mnt/session/uploads/upl_${n}/f${n}.pdf`, size_bytes: 8, ...(task ? { task } : {}) } }) };
+  }
+  return { ok: true, status: 200, json: async () => ({ message: { dropped: true } }) };
+};
+const adapter = createAttachmentAdapter(async () => "s1");
+const add = async (name: string) => {
+  const steps: any[] = [];
+  for await (const step of adapter.add!({ file: new File([new Uint8Array(8)], name, { type: "application/pdf" }) }) as any) steps.push(step);
+  return steps;
+};
+const only = (suffix: string) => calls.filter(([method]) => method.endsWith(suffix));
 
-assert.deepEqual(recognitionOf({ batch: "B", state: "queued" }), { busy: true, failed: false, text: "排队中" });
-assert.equal(recognitionOf({ batch: "B", state: "reading", pages_done: 2, page_count: 5 }).text, "识别中 2/5 页");
-assert.deepEqual(recognitionOf({ batch: "B", state: "done", documents: [{}, {}] }), { busy: false, failed: false, text: "已识别 2 张" });
-assert.equal(recognitionOf({ batch: "B", state: "failed" }).failed, true);
+// 选中 → 上传中 → 已上传（等发送），之后没有任何识别状态的读取
+const first = await add("a.pdf");
+assert.deepEqual(first.map((step) => step.status.type), ["running", "requires-action"]);
+const second = await add("b.pdf");
+for (const tick of timers.splice(0)) tick();
+await new Promise((r) => setImmediate(r));
+assert.equal(calls.filter(([method]) => method.includes("task_uploads")).length, 0);
+assert.equal(only(".upload").length, 2);
 
-watchRecognition("att-1", "t001", { batch: "B-1", state: "queued" });
-assert.equal(recognitionNow("att-1")?.text, "排队中");
-await flush();
-assert.deepEqual(asked[0], ["pearnly_core.express_operator.api.task_uploads", { name: "t001", batches: JSON.stringify(["B-1"]) }]);
-assert.equal(recognitionNow("att-1")?.text, "识别中 1/3 页");
-row = { batch: "B-1", state: "done", documents: [{}] };
-await flush();
-assert.equal(recognitionNow("att-1")?.text, "已识别 1 张");
-assert.equal(ticks.length, 0);  // 有结论就不再读
+// 没发出就移除：服务端删掉那一行
+await adapter.remove!(first.at(-1));
+assert.deepEqual(only(".drop_upload"), [["pearnly_core.assistant.api.drop_upload", { session_id: "s1", file_id: "upl_1" }]]);
 
-watchRecognition("att-2", "t001", { batch: "B-2", state: "queued" });
-stopRecognition("att-2");  // 发出或移除：不再显示、不再读
-assert.equal(recognitionNow("att-2"), undefined);
-await flush();
-assert.equal(asked.length, 2);
+// 发出去的那一份：不删（之后组件库再调 remove 也不删）
+await adapter.send!(second.at(-1));
+await adapter.remove!(second.at(-1));
+assert.equal(only(".drop_upload").length, 1);
+
+// 直写会话（回包不带任务）：没发出就移除同样告诉服务端删掉留存（接缝：两种会话同一套）
+task = "";
+const direct = await add("c.pdf");
+await adapter.remove!(direct.at(-1));
+assert.deepEqual(only(".drop_upload").at(-1), ["pearnly_core.assistant.api.drop_upload", { session_id: "s1", file_id: "upl_3" }]);
+// 没传上的（失败卡）移除：服务端没有这份，不找服务端
+g.fetch = async () => { throw new Error("offline"); };
+const broken = await add("d.pdf");
+await adapter.remove!(broken.at(-1));
+assert.equal(only(".drop_upload").length, 2);
 console.log("HARNESS OK");
 """
 
@@ -483,7 +505,7 @@ class SourceRules(unittest.TestCase):
         self.assertIn('if (c.action === "stop") await b.call("operator_control", { batch: batch.id, action: "stop", doc: "" });', read("components/operator/bridge.ts"))
 
     def test_operator_sessions_use_the_chat_attachments_and_need_a_company(self):
-        """2026-11-06「选中就上传」：代录与直写同一套附件组件和上传路径——选中、拖进、粘贴就传（服务端同时交任务识别），发出走
+        """2026-11-06「选中就上传」：代录与直写同一套附件组件和上传路径——选中、拖进、粘贴就传（11-14 起识别等发出后才交），发出走
         直写同一条发送（附件在这条消息里、CC 读得到、只放附件也发得出）。以前代录的资料留在本页、发送时另调 intake、只有附件时
         不发消息：消息里没有附件、CC 不知道这些文件（11-06 测试机实测）。"""
         provider = read("lib/managed-agents/runtime-provider.tsx")
@@ -495,14 +517,14 @@ class SourceRules(unittest.TestCase):
         # 发出就是直写那一条：附件位置随消息带给 CC（attachments.ts 的 filesToSend）
         self.assertIn("const files = filesToSend(message.attachments);", provider)
         self.assertIn("await getSessionController(id).sendMessage(text, files, pendingShownAs);", provider)
-        attachments = read("lib/managed-agents/attachments.ts")
-        self.assertIn("if (stored.task && stored.upload && !sent.has(id)) watchRecognition(id, stored.task, stored.upload);", attachments)
+        # 11-14：输入框那一项只显示上传状态，识别进度只在发出后对话里的上传卡片
+        self.assertFalse((SRC / "lib/managed-agents/attachment-recognition.ts").exists())
         tile = read("components/assistant-ui/attachment.tsx")
-        self.assertIn("const recognition = useRecognition(id);", tile)
-        self.assertIn('<span className="cc-compose-type">{recognition?.text}</span>', tile)
+        for gone in ("useRecognition", "recognition", "run.queued", "run.reading"):
+            self.assertNotIn(gone, tile)
 
-    def test_a_composer_file_shows_its_recognition_until_it_has_a_result(self):
-        out = run_ts(RECOGNITION, stubs={**STUBS, "@/lib/frappe": FRAPPE_STUB}, lang="zh")
+    def test_a_composer_file_is_only_uploaded_and_a_removed_one_is_dropped(self):
+        out = run_ts(COMPOSER_UPLOAD, stubs=STUBS, lang="zh")
         self.assertIn("HARNESS OK", out)
 
     def test_old_words_never_reach_the_page(self):

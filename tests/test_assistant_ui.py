@@ -4952,7 +4952,7 @@ class AttachmentCardSourceTests(unittest.TestCase):
         self.assertIn("{() => <ComposerAttachment />}", source)
         self.assertIn("<AttachmentRemove />", source)       # 输入框里的移除、上传中、失败照旧
         self.assertIn("aui-attachment-tile-uploading", source)
-        self.assertIn("aui-attachment-tile-error", source)
+        self.assertIn('<Attachment state="error" size="sm">', source)  # 上传失败是标准附件卡的出错样子（11-12）
         self.assertIn("results.openUpload(open)", source)
         # 右侧面板：附件不在结果文件里，临时多列点开的那一个；右上角「文件 N」仍只数结果
         page = read("assistant.tsx")

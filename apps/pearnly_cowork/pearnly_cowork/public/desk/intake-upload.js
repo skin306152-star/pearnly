@@ -282,6 +282,11 @@
 		// 「仅识别」（用户 2026-09-26）：识别后导出复核工作簿，不推送；过账类型同样不摆，右上角是「导出」。
 		// 从列表 / LINE 卡片打开已有的票：目标卡片记在票上（`intake_target`，新建时写入），没有弹窗里的选择可用。
 		const opened = name ? await p.call(HISTORY + "detail", {name}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "intake-upload"); return (() => null)(caughtError); }) : null;
+		// 带了记录号却取不到（记录已删、旧卡片）：框架已弹原生「找不到」，回到列表，不留一张空的编辑表单（11-15 线上）
+		if (name && !opened) {
+			if (still_current()) await go();
+			return () => {};
+		}
 		const target = choice?.target || opened?.intake_target || "";
 		const recognize_only = target === p.intake_targets?.RECOGNIZE_ONLY;
 		const no_kind = target === "mrerp" || recognize_only ? 1 : 0;
