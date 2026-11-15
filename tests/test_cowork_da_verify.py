@@ -150,6 +150,29 @@ class Receipt(unittest.TestCase):
         self.assertIsNone(module._written_check(row, {"adapter": "dms"}, {"meta": {}}))
         self.assertNotIn("verify_state", row)
 
+    def test_a_half_document_finished_by_a_person_is_taken_late_as_written(self):
+        """代录 held（11-14）：这条记录这一次尝试收过「未完成 + 半截单号」、之后没再派过，同一次投递补报「已写入 + 那个单号」才收；
+        单号不同、已经再派出去（换了尝试）、本来就不是半截的都不收。收了就记成功、带单号，不再动写者锁。"""
+        module = self._native([])
+        held = json.dumps({"ok": False, "meta": {"operator": {"partial": {"docnum": "IV0000045", "missing": ["total"]}}}})
+        attempt = Row(name="ATT-1")
+        row = Row(name="CWP-9", status="manual", active_attempt="ATT-1", response_json=held)
+        self.assertTrue(module._late_partial(row, attempt, True, "IV0000045"))
+        self.assertFalse(module._late_partial(row, attempt, True, "IV0000046"))
+        self.assertFalse(module._late_partial(row, attempt, False, "IV0000045"))
+        self.assertFalse(module._late_partial(Row(row, active_attempt="ATT-2"), attempt, True, "IV0000045"))
+        self.assertFalse(module._late_partial(Row(row, response_json=json.dumps({"meta": {}})), attempt, True, "IV0000045"))
+        self.assertFalse(module._late_partial(Row(row, status="pending"), attempt, True, "IV0000045"))
+        response = {"ok": True, "express_docnum": "IV0000045", "meta": {}}
+        out = module._late_success(row, attempt, {"adapter": "express"}, response, json.dumps(response), "IV0000045", None)
+        self.assertEqual((row.status, row.external_docnum, row.reason, row.result_unknown), ("success", "IV0000045", "", 0))
+        self.assertEqual(out["replayed"], False)
+        source = (APP / "push/native/service.py").read_text(encoding="utf-8")
+        ack = source.split("\ndef ack(", 1)[1].split("\ndef ", 1)[0]
+        late = ack.index("_late_partial(row, attempt, success, docnum)")
+        self.assertLess(late, ack.index("fail('push.native_ack_conflict')"))
+        self.assertNotIn("_release(", source.split("\ndef _late_success(", 1)[1].split("\ndef ", 1)[0])
+
     def test_only_success_is_checked_and_only_automatic_pushes_touch_the_tier(self):
         source = (APP / "push/native/service.py").read_text(encoding="utf-8")
         ack = source.split("\ndef ack(", 1)[1].split("\ndef ", 1)[0]

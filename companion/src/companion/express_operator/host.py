@@ -27,6 +27,7 @@ from . import contract as K
 from .draft import Draft, from_payload
 
 IDLE_CLOSE_S = 120
+HELD_CHECK_S = 60  # 留着等人的 Express：空闲时隔多久看一次框答没答完（只读）
 RECENT_SHOWN = 50  # CC 窗口里列出的最近任务数
 # 本机记下「代录开 / 接管的 Express」：进程号 → 批次、账套、程序，正常退出后删掉（主会话 10-27）
 EXPRESS_MARKS = "express.json"
@@ -142,11 +143,18 @@ class Host:
             settings = factory.settings_of(payload)
         with self.lock:
             runner = self.runners.get(batch_id) or self._start(batch_id, info, settings, factory, member)
+        from .batch import Held
         from .engine import NeedHuman
 
+        if self._held_elsewhere(batch_id, str(getattr(settings, "account_dir", "") or "")):
+            return self._busy(batch_id)
         try:
             runner.add(draft, task_id)
             doc = runner.run_one(draft.doc_id)
+        except Held:
+            # 这本账套的 Express 正留着等人答框（这一批前面那张保存途中停住）：这张不录、不碰 Express，按「等账套」放回
+            self.last_used[batch_id] = self.clock()
+            return self._busy(batch_id)
         except NeedHuman as error:
             # 整批停在哪一步、看到了什么（没截图时也查得到）；停在半路的这张记等人（原因同整批），再交来时先读账套判断存没存
             evidence = str(getattr(error, "evidence", "") or "")
@@ -168,11 +176,157 @@ class Host:
         return self._result(batch_id, doc)
 
     def close_express(self, payload: Dict) -> None:
-        """这张单要先建主档（``masters``）：这一批开着 Express 就先正常退出，下一张再开、重新核公司（主档索引要独占重建）。"""
+        """这张单要先建主档（``masters``）：这一批开着 Express 就先正常退出，下一张再开、重新核公司（主档索引要独占重建）。
+        Express 正留着等人答框（``held``）时不退出、也不建主档：抛 ``Busy``，写账线按「等账套」放回。"""
         info = (payload.get("operator") or {}).get("batch") or {}
         runner = self.runners.get(str(info.get("id") or ""))
+        account_dir = str(getattr(runner, "state", None) and runner.state.account_dir or "")
+        if (runner is not None and runner.still_held()) or self._stored_held(account_dir):
+            from ..account_write_lock import Busy
+
+            held = Busy("express held for a person")
+            held.express_open = True  # 写账线按「Express 开着这本账套」等（ACCOUNT_BUSY_LOCKED）
+            raise held
         if runner is not None:
             runner.close_express()
+
+    def _busy(self, batch_id: str) -> Dict:
+        """这本账套的 Express 留着等人答框：这张不录、不碰 Express，按「Express 开着这本账套」放回（``express_open``）。"""
+        return {"status": "waiting", "reason": "account_busy", "express_open": True,
+                "meta": {"batch": batch_id, "held": self._held_info()}}
+
+    @staticmethod
+    def _held_info(account_set: str = "") -> Dict:
+        """留着等人的 Express 在哪台电脑、哪本账套（CC 与任务说明照此写明）。"""
+        import platform
+
+        return {"computer": platform.node()[:60], **({"account_set": account_set[:60]} if account_set else {})}
+
+    def _held_elsewhere(self, batch_id: str, account_dir: str) -> bool:
+        """同一本账套别的批次的 Express 正留着等人答框：这一批先不开、不接管、不关（等人处理完）。"""
+        import ntpath
+
+        def key(path) -> str:
+            return ntpath.normpath(str(path or "")).lower().rstrip("\\/")
+
+        for other, runner in list(self.runners.items()):
+            if other == batch_id or not account_dir or key(getattr(runner.state, "account_dir", "")) != key(account_dir):
+                continue
+            if getattr(runner.state, "held", "") and runner.still_held():
+                return True
+        return self._stored_held(account_dir, skip=batch_id)
+
+    def _stored_held(self, account_dir: str, skip: str = "") -> bool:
+        """CC 重启后（内存里没有那一批）：本机记着、进程还在的 Express 属于一个「留着等人答框」的批次、同一本账套 → 还占着。
+        那一张在账套里已经存完了（人答完存好）就放手、记下（批次文件 held 清掉）；Express 进程没了也放手（记录照旧删）。"""
+        import ntpath
+
+        from .batch import BatchStore
+
+        def key(path) -> str:
+            return ntpath.normpath(str(path or "")).lower().rstrip("\\/")
+
+        if not account_dir:
+            return False
+        store = BatchStore(self.root / "batches")
+        for pid, info in read_marks(self.root).items():
+            batch_id = str(info.get("batch") or "")
+            if batch_id == skip or batch_id in self.runners or key(info.get("account_dir")) != key(account_dir):
+                continue
+            try:
+                state = store.load(batch_id)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            if not state.held:
+                continue
+            if self._settle_stored(store, state, alive=self.alive(int(pid))):
+                return True
+        return False
+
+    def _settle_stored(self, store, state, *, alive: bool) -> bool:
+        """内存里没有的那一批（CC 重启过）还占着吗：那张在账套里存完了 → 记已写入（等补报）、放手；Express 进程没了 → 放手，
+        没存完的不补报；进程还在、没存完 → 还占着（看不到框，只能以账套为准）。"""
+        from .batch import release
+        from .book import DbfBook, state_of
+        from .draft import Draft
+
+        doc = state.doc(state.held)
+        try:
+            found = state_of(Draft(**doc.draft), DbfBook(state.account_dir), doc.counts_before) \
+                if doc is not None and doc.counts_before else {}
+        except Exception:  # noqa: BLE001 — 读不了：Express 还在就当还占着
+            found = {}
+        if found.get("docnum"):
+            doc.status, doc.docnum, doc.reason, doc.partial = K.SAVED, found["docnum"], "", {}
+        elif alive:
+            return True
+        elif doc is not None:
+            doc.late_ack, doc.late_profile = "", ""
+        release(state)
+        store.save(state)
+        return False
+
+    # ── 留着等人的单：人答完框后补报（代录 held，11-14）─────────────────────────────
+    def note_late(self, batch_id: str, doc_id: str, ack_id: str, profile: str) -> None:
+        """这张按「未完成」回过回执、Express 留着等人答框：记下回执号与成员档案，人答完存好后用它补报。"""
+        state, store = self._state_of(batch_id)
+        doc = state.doc(doc_id) if state is not None else None
+        if doc is None or not doc.held:
+            return
+        doc.late_ack, doc.late_profile = str(ack_id or ""), str(profile or "")
+        store.save(state)
+
+    def late_results(self, profile: str) -> list:
+        """（写账线空闲时，隔 ``HELD_CHECK_S`` 一次）留着等人的单现在怎样：框答完、单存完的回 ``[{batch, doc, ack, docnum}]``，
+        由写账线用原回执号补报「已写入」；只读、不碰 Express。"""
+        now = self.clock()
+        if now - getattr(self, "_held_checked", 0.0) < HELD_CHECK_S:
+            return []
+        self._held_checked = now
+        from .batch import BatchStore
+
+        for runner in list(self.runners.values()):
+            if getattr(runner.state, "held", ""):
+                try:
+                    runner.still_held()
+                except Exception:  # noqa: BLE001 — 看不了下次再看
+                    pass
+        store = BatchStore(self.root / "batches")
+        marks = {str(info.get("batch") or ""): int(pid) for pid, info in read_marks(self.root).items()}
+        out = []
+        for batch_id in store.recent(RECENT_SHOWN):
+            live = self.runners.get(batch_id)
+            try:
+                state = live.state if live is not None else store.load(batch_id)
+            except (OSError, ValueError, KeyError, TypeError):
+                continue
+            if live is None and state.held:
+                pid = marks.get(batch_id)
+                if not self._settle_stored(store, state, alive=bool(pid) and self.alive(pid)) and pid and self.alive(pid):
+                    self.recover_orphans()  # 放手了、Express 还开着：按「上次留下的 Express」收拾流程正常退出
+            for doc in state.docs:
+                if doc.late_ack and doc.status == K.SAVED and doc.late_profile == profile and doc.docnum:
+                    out.append({"batch": batch_id, "doc": doc.doc_id, "ack": doc.late_ack, "docnum": doc.docnum})
+        return out
+
+    def late_done(self, batch_id: str, doc_id: str) -> None:
+        state, store = self._state_of(batch_id)
+        doc = state.doc(doc_id) if state is not None else None
+        if doc is not None:
+            doc.late_ack, doc.late_profile = "", ""
+            store.save(state)
+
+    def _state_of(self, batch_id: str):
+        from .batch import BatchStore
+
+        store = BatchStore(self.root / "batches")
+        runner = self.runners.get(batch_id)
+        if runner is not None:
+            return runner.state, runner.store
+        try:
+            return store.load(batch_id), store
+        except (OSError, ValueError, KeyError, TypeError):
+            return None, store
 
     def idle(self) -> None:
         """写账线队列空时调：剩下的单迟迟不来，就先退出 Express 释放授权名额；CC 启动满 ``ORPHAN_GRACE_S`` 还没有批次在跑，
@@ -206,6 +360,8 @@ class Host:
                 state = store.load(batch_id)
             except (OSError, ValueError, KeyError, TypeError):
                 state = BatchState(batch_id or f"express-{pid}", "", "", str(info.get("account_dir") or ""), [])
+            if state.held:
+                continue  # 留着等人答框的 Express：不收拾、不关（记录留着，人处理完、退出 Express 后再删）
             settings = SimpleNamespace(account_dir=state.account_dir or str(info.get("account_dir") or ""),
                                        account_company=state.company, account_set=state.account_set, express_root="",
                                        express_exe=str(info.get("exe") or ""))
@@ -253,12 +409,19 @@ class Host:
                 self.notify(runner.snapshot())
 
     def _result(self, batch_id: str, doc) -> Dict:
-        meta = {"batch": batch_id, "docnum": doc.docnum, "voided": doc.voided, "placeholders": doc.placeholders,
+        meta = {"batch": batch_id, "doc": getattr(doc, "doc_id", ""), "docnum": doc.docnum, "voided": doc.voided, "placeholders": doc.placeholders,
                 "reports": doc.reports, "seconds": doc.seconds, "reason": doc.reason}
         if doc.reason == "menu_choice":  # 站点据此问一次走哪个菜单、记住后按 operator.form_choice 再交
             meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))
         if doc.evidence:  # 转人工那一刻的截图（本机路径）：站点单独处理，不在说明里
             meta["evidence"] = doc.evidence
+        partial = getattr(doc, "partial", None)  # 别的目标（MR.ERP）的单据状态没有这两项
+        if partial:  # 账套里留下的半截单：单号与缺什么（人一眼知道账套里留了哪张）
+            meta["partial"] = dict(partial)
+            meta["docnum"] = meta["docnum"] or str(partial.get("docnum") or "")
+        if getattr(doc, "held", False):  # Express 原样留着等人答框：哪台电脑、哪本账套
+            runner = self.runners.get(batch_id)
+            meta["held"] = self._held_info(getattr(getattr(runner, "state", None), "account_set", "") or "")
         if doc.status == K.SAVED:
             return {"status": "saved", "docnum": doc.docnum, "meta": meta}
         if doc.status == K.SKIPPED:

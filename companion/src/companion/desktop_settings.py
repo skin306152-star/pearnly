@@ -26,7 +26,7 @@ from . import autostart, channel, device_link, folder_store, master_refresh, pai
 from . import folder_plan as plan
 from . import express_places as place_channels
 from .express_machine import (apply_roots, authorized_order, default_places, gone_test, machine_roots, offline_roots,
-                              places_roots, rescan_roots, same_root, under, within)
+                              places_roots, reaches, rescan_roots, same_root)
 from .i18n import MessageSpec, normalize, t
 from .logger import get_logger
 from .profile_store import ProfileRecord, ProfileStore, ProfileStoreError
@@ -214,7 +214,7 @@ class DesktopSettings:
             "place_channels": self._place_channels(store),
             # 每个位置下面有哪些年度（11-08 KORN：清单只写 P:\\，看不出里面有 69EXP 在内的 17 个年度）：设置页在位置下面一行列出，
             # 新的在前；旧版桥没有这一项，设置页不列
-            "place_years": [{"path": place, "years": authorized_order([root for root in roots if under(root, place)])}
+            "place_years": [{"path": place, "years": authorized_order([root for root in roots if reaches(root, [place])])}
                             for place in store.global_settings.express_places],
             "members": members,
             "autostart": self._autostart(store),
@@ -516,7 +516,7 @@ class DesktopSettings:
         # 选什么存什么：在已有位置里面的年度文件夹也单列（11-08 KORN：P:\\ 下再选 P:\\69EXP 被吞掉、仍回成功）
         places = place_channels.add([] if replace else store.global_settings.express_places, picked)
         gone = gone_test()   # 原来授权的照旧带上，确实没了的不带（同一次每台服务器只问一次）
-        current = [root for root in machine_roots(store) if within(root, places) and not within(root, [picked])
+        current = [root for root in machine_roots(store) if reaches(root, places) and not reaches(root, [picked])
                    and not gone(root)]
         return self._use_places(places, [*found, *current], lang)
 
@@ -529,10 +529,10 @@ class DesktopSettings:
             return {"ok": False}
         if not express:
             store.set_places(places)
-            self._detected = [root for root in (self._detected or []) if within(root, places)] or None
+            self._detected = [root for root in (self._detected or []) if reaches(root, places)] or None
             return {"ok": True}
         gone = gone_test()
-        roots = ([root for root in machine_roots(store) if within(root, places) and not gone(root)]
+        roots = ([root for root in machine_roots(store) if reaches(root, places) and not gone(root)]
                  or places_roots(places))
         return self._use_places(places, roots, lang)
 
@@ -561,7 +561,7 @@ class DesktopSettings:
     def _use_places(self, places: list, roots: list, lang: str) -> dict:
         """记下新的位置清单，再把位置下面的年度写进每个成员；位置里原来授权、这次访问不到的照旧保留。"""
         store = self._store()
-        previous = [root for root in machine_roots(store) if within(root, places)]
+        previous = [root for root in machine_roots(store) if reaches(root, places)]
         kept = offline_roots(roots, previous)
         result = self._use_roots([*roots, *kept], lang, offline=kept)
         if result.get("ok"):

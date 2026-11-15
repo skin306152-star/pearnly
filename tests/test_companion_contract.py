@@ -642,6 +642,57 @@ class WriteCheck(unittest.TestCase):
         self.assertIn("out[OPERATOR_META] = operator", method_source_of(RULES / "common.py", "sanitize_push_meta"))
         self.assertIn('OPERATOR_META = "operator"', (RULES / "common.py").read_text(encoding="utf-8"))
 
+    def test_the_half_document_receipt_keys_are_the_ones_the_server_keeps(self):
+        """代录保存途中停住（11-14，接缝见 docs/work/2026-11-14-cc-operator-half-doc.md）：服务端净化放行 meta.operator 的 partial
+        {docnum, missing} 与 held {computer, account_set}；原因 partial_saved 两边都登记；两产品未完成的单只多显示这个单号。"""
+        clean = method_source_of(RULES / "common.py", "clean_operator_meta")
+        for key in ("partial", "held", "docnum", "missing", "computer", "account_set"):
+            self.assertTrue(quoted(clean, key), key)
+        core = (ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_operator" / "contracts.py").read_text(encoding="utf-8")
+        self.assertIn('"partial_saved": HUMAN', core)
+        self.assertIn('"partial_saved": HUMAN', (COMPANION / "express_operator" / "contract.py").read_text(encoding="utf-8"))
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.express_rules.push.common import clean_operator_meta, operator_partial_docnum
+
+        got = clean_operator_meta({"partial": {"docnum": " IV0000045 ", "missing": ["total", "journal", "x"]},
+                                   "held": {"computer": "PC1", "account_set": "TEST", "pid": 1}, "evidence": "C:/x.png"})
+        self.assertEqual(got, {"partial": {"docnum": "IV0000045", "missing": ["total", "journal"]},
+                               "held": {"computer": "PC1", "account_set": "TEST"}})
+        # 从存下的回执 meta 读（Cowork 推送记录 response_json.meta、ERP 写账件 meta_json）
+        self.assertEqual(operator_partial_docnum({"operator": {"partial": {"docnum": "IV0000045"}}}), "IV0000045")
+        self.assertEqual(operator_partial_docnum({"operator": {"menu_options": ["x"]}}), "")
+        self.assertEqual(operator_partial_docnum(None), "")
+        apps = ROOT / "apps"
+        cowork = method_source_of(apps / "pearnly_cowork" / "pearnly_cowork" / "assistant" / "operator_source.py", "status")
+        self.assertIn("halves[len(out)] = doc.get(\"last_push_record\")", cowork.replace("'", '"'))
+        erp = method_source_of(apps / "pearnly_erp_portal" / "pearnly_erp_portal" / "express" / "operator.py", "status")
+        self.assertIn("halves[len(out)] = row.ledger_job", erp)
+        # 迟到终态（接缝 e）：只收「成功 + 还是未完成 + 单号与记下的半截单号一致」，两套账本都走这一个判定
+        from pearnly_core.express_rules.push.common import late_partial_success
+
+        stored = {"operator": {"partial": {"docnum": "IV0000045"}}}
+        self.assertTrue(late_partial_success(True, "manual", stored, " IV0000045 "))
+        for args in ((False, "manual", stored, "IV0000045"), (True, "queued", stored, "IV0000045"),
+                     (True, "manual", stored, "IV0000046"), (True, "manual", {}, "IV0000045"), (True, "manual", stored, "")):
+            self.assertFalse(late_partial_success(*args), args)
+        self.assertIn("late_partial_success(", method_source_of(apps / "pearnly_core" / "pearnly_core" / "cc_desktop" / "jobs.py",
+                                                                "_late_partial"))
+        self.assertIn("common.late_partial_success(", method_source_of(apps / "pearnly_cowork" / "pearnly_cowork" / "push" / "native"
+                                                                       / "service.py", "_late_partial"))
+
+    def test_cc_desktop_sends_the_half_document_keys_the_server_keeps(self):
+        """CC 宿主回执 meta 带 partial（缺什么的取值与服务端同一组）与 held。"""
+        result = method_source(COMPANION / "express_operator" / "host.py", "Host", "_result")
+        self.assertIn("meta['partial'] = dict(partial)", result)
+        self.assertIn("meta['held'] = self._held_info(", result)
+        gaps = module_constants(RULES / "common.py")["OPERATOR_PARTIAL_GAPS"]
+        book = module_constants(COMPANION / "express_operator" / "book.py")
+        self.assertEqual(set(gaps), {book["GAP_TOTAL"], book["GAP_LINES"], book["GAP_JOURNAL"], book["GAP_VAT"]})
+        # 迟到终态（接缝 e）：同一回执号（投递号）、成功、带原单号
+        idle = method_source_of(COMPANION / "worker.py", "operator_idle")
+        self.assertIn("qc.ack_success(item['ack'], extracted_invoice_no=item['docnum']", idle)
+        self.assertIn("operator_host.host().note_late(", method_source_of(COMPANION / "worker.py", "_ack_operator"))
+
     def test_automatic_pushes_only_go_to_a_version_that_returns_the_check(self):
         server = module_constants(self.PUSH / "automation" / "rules.py")["VERIFY_MIN_VERSION"]
         helper = module_constants(COMPANION / "version.py")["VERSION"]

@@ -24,23 +24,20 @@ def test_a_document_saved_before_an_unknown_box_is_reported_written_with_its_num
 def test_an_unknown_box_in_the_middle_of_saving_is_not_abandoned_and_is_rechecked_before_any_retry():
     recs, sim, _, _ = run_docs([samples()[0]], with_ai=False, inject={"odd_mid_save": True})
     rec = recs[0]
-    assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
-    assert rec["voided"] == [] and rec.get("recheck") is True
+    # 录到明细时 Express 已写下金额 0 的单头：账套里留的是半截单，带单号交人
+    assert rec["outcome"] == "need_human" and rec["reason"] == "partial_saved"
+    assert rec["partial"]["docnum"] == "RR0000001" and "total" in rec["partial"]["missing"]
+    assert rec["voided"] == [] and rec.get("recheck") is True and rec.get("held") is True
     assert sim.dialogs  # 认不出的框原样留给人，没乱点、没按取消
 
 
 def test_a_retry_after_an_unknown_box_mid_save_reads_the_book_and_does_not_enter_it_twice(tmp_path):
-    r, sim, *_ = make(tmp_path, [samples()[0]], inject={"odd_mid_save": True})
+    r, sim, *_ = make(tmp_path, [samples()[0]], inject={"choice_mid_save": True})
     r.run()
     d = r.state.docs[0]
     assert d.status == K.WAITING and d.recheck
-    sim.dialogs = []  # 人在 Express 上答了那个框，单存好了
-    sim.head = {}
-    sim.editing = False
-    head = next(h for h in sim.book["APTRN"] if h["DOCNUM"] == "RR0000001")
-    head.update({"NETAMT": float(samples()[0].totals()["total"])})
-    again = r.add(samples()[0], task="retry-1")
-    assert again.status == K.ENTERING  # 再交来：先读账套
+    sim._press(sim.dialogs[-1], "แบบ ก")  # 人在 Express 上答了那个框，单存完了
+    again = r.add(samples()[0], task="retry-1")  # 再交来：先读账套，人已经把它存完了
     done = r.run_one(again.doc_id)
     assert done.status == K.SAVED and done.docnum == "RR0000001"
     assert sum(1 for h in sim.book["APTRN"] if h["DOCSTAT"] != "C") == 1  # 没有重录出第二张

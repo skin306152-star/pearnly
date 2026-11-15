@@ -303,6 +303,16 @@ class Submit(Base):
                             system_no="PE-7", supplier_name="ISUZU"))
         row = operator.status("CO-1", ["I:LI-1"])[0]
         self.assertEqual((row["state"], row["docnum"], row["ref"], row["party"]), ("saved", "RR001", "PE-7", "ISUZU"))
+        # 代录保存途中停住：未完成的单多显示 Express 里留下的半截单号（写账件回执 meta.operator.partial），只加单号
+        meta = '{"operator": {"partial": {"docnum": "RR0000045", "missing": ["total"]}}}'
+        self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
+            self.rows.get(name) if doctype == intake.DOCTYPE else
+            SimpleNamespace(ledger_state=operator.contracts.HELD, ledger_docnum="", ledger_reason="partial_saved",
+                            ledger_job="J2", system_no="PE-7", supplier_name="ISUZU"))
+        jobs = [SimpleNamespace(name="J2", meta_json=meta)]
+        with patch.object(frappe, "get_all", create=True, side_effect=lambda doctype, **kw: jobs):  # 循环外一次取回
+            row = operator.status("CO-1", ["I:LI-1"])[0]
+        self.assertEqual((row["state"], row["docnum"], row["reason"]), ("not_done", "RR0000045", "partial_saved"))
 
 
 if __name__ == "__main__":

@@ -8,7 +8,7 @@
     {"name": "unit", "match": "หน่วยนับ", "auto": false},
     {"name": "picker", "match": "ค้นหา", "auto": true, "outcome": "blocked", "reason": "master_missing", "close": "ยกเลิก", "_说明": "码在主档里找不到时回车弹选择框（试点实测）：表头上是对方没有，明细里是商品没有；关它按「ยกเลิก」（按「ตกลง」会选中第一项）"},
     {"name": "duplicate_ref", "match": "\\b1029\\b", "auto": true, "button": "ตกลง", "reason": "duplicate_ref"},
-    {"name": "service_vat_basis", "match": "ภาษีซื้อของสินค้าบริการ", "auto": true, "button": "เกณฑ์สิทธิ", "_说明": "10-29 实机 rec-laptop 69EXP：赊购单（RR）有服务品时，保存中途 Express 问服务品进项税按 เกณฑ์สิทธิ / เกณฑ์เงินสด（两个按钮；不答就停在保存中途：表头、明细已写，进项税没写）。按 เกณฑ์สิทธิ 读回 APTRN.SRV_VATTYP = '1'，与直写 dbf_fields.audit_fields 写的一致"},
+    {"name": "service_vat_basis", "match": "ภาษีซื้อของสินค้าบริการ", "auto": true, "button": "เกณฑ์สิทธิ", "button_by_srv_vattyp": {"2": "เกณฑ์เงินสด"}, "_说明": "11-14：载荷表头带 srv_vattyp = 2（站点开始前问过的收付实现）时按 เกณฑ์เงินสด，同直写；不带或 1 按 เกณฑ์สิทธิ。10-29 实机 rec-laptop 69EXP：赊购单（RR）有服务品时，保存中途 Express 问服务品进项税按 เกณฑ์สิทธิ / เกณฑ์เงินสด（两个按钮；不答就停在保存中途：表头、明细已写，进项税没写）。按 เกณฑ์สิทธิ 读回 APTRN.SRV_VATTYP = '1'，与直写 dbf_fields.audit_fields 写的一致"},
     {"name": "service_output_vat_basis", "match": "ภาษีขายของสินค้าบริการ", "auto": true, "button": "เกณฑ์สิทธิ", "button_by_srv_vattyp": {"2": "เกณฑ์เงินสด"}, "_说明": "11-13 测试机2 70EXP\\test 实机（候选 75e785770，代录 IV ก026 / PN00047）：有服务品的赊销单（IV）存档途中 Express 问服务品销项税按 เกณฑ์สิทธิ / เกณฑ์เงินสด；配方原来没有这一条，引擎认不出转人工、批次收尾退出 Express，留下半截单 IV0000045（表头金额 0、STCRD 已写、GLJNL / ISVAT 没写）。同进货单那一条答 เกณฑ์สิทธิ，读回 ARTRN.SRV_VATTYP = '1'，与直写默认一致；载荷表头带 srv_vattyp = 2（收付实现）时按 เกณฑ์เงินสด，同直写 dbf_sales 写 '2'"},
     {"name": "no_history", "match": "\\b4108\\b", "auto": true, "button": "ตกลง"},
     {"name": "never_bought", "match": "\\b4079\\b", "auto": true, "button": "ตกลง"},

@@ -272,6 +272,7 @@ Doc No,เลขที่เอกสาร
 Document Type,ประเภทเอกสาร
 Document date,วันที่เอกสาร
 Document no.,เลขที่เอกสาร
+Document partly saved in Express,มีเอกสารบันทึกไม่ครบใน Express
 Document type not supported yet,ยังไม่รองรับเอกสารประเภทนี้
 Documents,จำนวนเอกสาร
 Done At,เวลาที่เสร็จ
@@ -1301,6 +1302,7 @@ operator.report.reason.menu_choice,เลือกเมนูเอกสาร
 operator.report.reason.negative_stock,สต็อกไม่พอ
 operator.report.reason.network_down,เชื่อมต่อเซิร์ฟเวอร์ไม่ได้
 operator.report.reason.network_wait,กำลังรอเซิร์ฟเวอร์
+operator.report.reason.partial_saved,มีเอกสารบันทึกไม่ครบใน Express
 operator.report.reason.party_missing,ไม่มีคู่ค้านี้ใน Express
 operator.report.reason.period_locked,งวดปิดบัญชีแล้ว
 operator.report.reason.period_outside,วันที่อยู่นอกงวดของชุดบัญชี

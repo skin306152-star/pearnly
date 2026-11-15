@@ -476,7 +476,11 @@ def _handle_operator_task(cfg, qc, task, st):
             # 写账件号用同一件每次派都一样的键（投递号重派时换新）：宿主据此分辨「同一件再派来」与站点交来的新指令
             # st 是这张单的 Express 设置（程序、账套）；成员配置 cfg 带站点与令牌，AI 接手走它的通道
             result = operator_host.host().handle(task_journal.key_of(task), ready.payload, st, member=cfg)
-    except Busy:
+    except Busy as busy:
+        if getattr(busy, "express_open", False):  # 这本账套的 Express 正留着等人答框（代录 held）：同「Express 开着」等
+            qc.ack_failure(task.id, "Express has this account set open", error_code="ACCOUNT_BUSY_LOCKED",
+                           outcome="waiting_lock")
+            return "waiting_lock"
         qc.ack_failure(task.id, "another computer is writing this account set", error_code=ERR_WRITER_BUSY,
                        outcome="waiting_lock")
         return "waiting_lock"
@@ -515,6 +519,12 @@ def _ack_operator(cfg, qc, task, result, meta):
         return None
     reason = str(result.get("reason") or "unknown_screen")
     outcome = "waiting_lock" if status == "waiting" else "needs_review"
+    if status == "waiting" and result.get("express_open"):
+        # 这本账套的 Express 正留着等人答框（代录 held）：按现成的「Express 正在使用此账套」等（服务端这本账套歇一会儿再派，
+        # 别的账套照常领；ack_rules.EXPRESS_OPEN），不另起状态、不加文案
+        qc.ack_failure(task.id, "Express has this account set open", error_code="ACCOUNT_BUSY_LOCKED",
+                       outcome=outcome, meta=meta)
+        return outcome
     # 没存上的单记一行（托盘只记「任务状态异常」时，看日志就知道是哪张、为什么）；说明只取前 200 字
     info = result.get("meta") or {}
     options = info.get("menu_options") if reason == "menu_choice" else None
@@ -526,17 +536,43 @@ def _ack_operator(cfg, qc, task, result, meta):
         + (f" · menu_options={len(options or [])}" if reason == "menu_choice" else ""))
     qc.ack_failure(task.id, str(result.get("detail") or reason)[:OPERATOR_DETAIL_MAX], error_code=f"OPERATOR_{reason.upper()}", outcome=outcome,
                    meta=meta)
+    if status == "human" and info.get("held") and info.get("doc"):
+        # Express 留着等人答框：记下这个回执号，人答完、单存完后用它补报「已写入 + 原单号」（operator_idle）
+        from .express_operator import host as operator_host
+
+        operator_host.host().note_late(str(info.get("batch") or ""), str(info["doc"]), task.id,
+                                       str(getattr(cfg, "profile_id", "") or ""))
     return outcome
 
 
-def operator_idle() -> None:
-    """写账线队列空时：代录宿主已经在用（导入过）才叫它看看要不要退出 Express；没代录过什么都不做、不导入。"""
+def operator_idle(cfg=None, qc=None) -> None:
+    """写账线队列空时：代录宿主已经在用（导入过）才叫它看看要不要退出 Express；没代录过什么都不做、不导入。
+    ``cfg`` / ``qc``（这个成员）：留着等人答框的单，人答完、单在账套里存完后用原回执号补报「已写入 + 原单号」（代录 held，
+    11-14；服务端只收这一种迟到终态）。补报被拒（4xx）不再试，网络错下次空闲再试。"""
     module = sys.modules.get(__name__.rsplit(".", 1)[0] + ".express_operator.host")
-    if module is not None and getattr(module, "_HOST", None) is not None:
+    if module is None or getattr(module, "_HOST", None) is None:
+        return
+    try:
+        module._HOST.idle()
+    except Exception:  # noqa: BLE001
+        pass
+    if cfg is None or qc is None:
+        return
+    try:
+        late = module._HOST.late_results(str(getattr(cfg, "profile_id", "") or ""))
+    except Exception:  # noqa: BLE001
+        return
+    for item in late:
         try:
-            module._HOST.idle()
-        except Exception:  # noqa: BLE001
-            pass
+            qc.ack_success(item["ack"], extracted_invoice_no=item["docnum"],
+                           meta={"operator": {"batch": item["batch"], "doc": item["doc"], "docnum": item["docnum"]}})
+            log.info(f"operator late result · ack={item['ack']} · doc={item['doc']} · docnum={item['docnum']}")
+            module._HOST.late_done(item["batch"], item["doc"])
+        except Exception as exc:  # noqa: BLE001
+            code = getattr(getattr(exc, "response", None), "status_code", 0) or 0
+            log.warning(f"operator late result refused · ack={item['ack']} · {type(exc).__name__} {code}")
+            if 400 <= int(code) < 500:
+                module._HOST.late_done(item["batch"], item["doc"])  # 服务端不收（已再派 / 单号对不上）：不再试
 
 
 def places_of(cfg) -> tuple:
@@ -573,18 +609,19 @@ def _in_member_places(cfg, path: str) -> bool:
 def scan_roots(cfg, authorized: list) -> list:
     """心跳要扫的数据根：只扫给这个成员的位置下面的（用户 10-24「我选择了c盘，就只扫描c盘的exp，别搞出s盘」；11-07 起
     同一台电脑上 Cowork 与 ERP 成员各读勾给自己的位置）。还没有位置清单时照旧扫全部授权的。"""
-    from .express_places import within
+    from .express_places import reaches
 
     places = member_places(cfg)
-    return [root for root in authorized if within(root, places)] if places is not None else authorized
+    return [root for root in authorized if reaches(root, places)] if places is not None else authorized
 
 
 def places_scope(cfg, rows: list) -> list:
-    """只报给这个成员的位置下面的账套：成员记录里万一还留着位置外的数据根、本机清单里还有上次报的，也不报出去。"""
-    from .express_places import within
+    """只报给这个成员的位置下面的账套：成员记录里万一还留着位置外的数据根、本机清单里还有上次报的，也不报出去；位置选的是
+    某几本账套（11-14）就只报这几本（``express_places.row_in``，同一个年度里别的账套不报）。"""
+    from .express_places import row_in
 
     places = member_places(cfg)
-    return [row for row in rows if within(str(row.get("root") or ""), places)] if places is not None else rows
+    return [row for row in rows if row_in(row, places)] if places is not None else rows
 
 
 def _outcome_for(error_code: Optional[str]) -> Optional[str]:
@@ -761,12 +798,12 @@ def _remember_roots(cfg: CompanionConfig, authorized: list, found) -> None:
     Cowork 成员「重新读取」找到 71EXP，ERP 成员仍只有 70EXP；找新年度的 24 小时计时是整台电脑一份，每天自动查找也一样）。"""
     if not isinstance(found, list):
         return
-    from .express_places import within
+    from .express_places import reaches
 
     known = {_norm_path(root) for root in authorized}
     places = places_of(cfg)
     added = [str(root) for root in found if str(root or "").strip() and _norm_path(root) not in known
-             and (not places or within(root, places))]
+             and (not places or reaches(root, places))]
     if not added:
         return
     cfg.update(authorized_roots=[*authorized, *added]).save()
@@ -828,12 +865,12 @@ def _adopt_machine_roots(cfg: CompanionConfig) -> None:
     except Exception:
         log.exception("[heartbeat] 读这台电脑的数据根失败（忽略）")
         return
-    from .express_places import within
+    from .express_places import reaches
 
     own = [getattr(cfg, "express_root", "") or "", *authorized]
     places = places_of(cfg)
     missing = [root for root in roots if not any(_norm_path(root) == _norm_path(item) for item in own if item)
-               and (not places or within(root, places))]
+               and (not places or reaches(root, places))]
     if missing:
         # 别的成员手里的旧副本可能还带着已经没了的数据根（它自己下一次完整扫描时才去掉，_drop_gone_roots）：不补进来
         from .express_machine import gone_test

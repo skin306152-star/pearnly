@@ -451,7 +451,7 @@ def status(company, doc_ids) -> list:
     from pearnly_cowork.push import lifecycle
     from pearnly_cowork.push.application.service import RESULT_UNKNOWN
 
-    out = []
+    out, halves = [], {}
     for name in doc_ids:
         try:
             doc = storage.read(name)
@@ -465,6 +465,8 @@ def status(company, doc_ids) -> list:
             docnum = frappe.db.get_value("Cowork Push Record", doc.get("last_push_record"), "external_docnum") or ""
         state = {"success": "saved", "pending": "queued", "manual": "not_done", "failed": "not_done",
                  "blocked": "not_done"}.get(pushed, "cancelled")
+        if state == "not_done" and doc.get("last_push_record"):
+            halves[len(out)] = doc.get("last_push_record")  # 半截单号：循环外按名单一次取回推送记录的回执
         sales = _directions([name]).get(name) == "sales"
         # 单号与对方一起回：CC 重启后页面没有这一页的资料清单，靠它把单据写成「单号 · 对方」
         reason = str(doc.get("last_push_reason") or "") if state == "not_done" else ""
@@ -478,7 +480,24 @@ def status(company, doc_ids) -> list:
             if blocker:
                 row["blocked_by"] = blocker
         out.append(row)
+    if halves:
+        names = list(set(halves.values()))
+        found = {r.name: r.response_json for r in frappe.get_all("Cowork Push Record", filters={"name": ["in", names]},
+                                                                  fields=["name", "response_json"], limit_page_length=len(names))}
+        for index, record in halves.items():
+            out[index]["docnum"] = _partial_docnum(found.get(record))
     return out
+
+
+def _partial_docnum(raw) -> str:
+    """代录保存途中停住、Express 里留下的半截单号（回执 ``meta.operator.partial``）：未完成的单只多显示这个单号。"""
+    from pearnly_core.express_rules.push.common import operator_partial_docnum
+
+    try:
+        response = json.loads(raw or "{}")
+    except (TypeError, ValueError):
+        return ""
+    return operator_partial_docnum(response.get("meta") if isinstance(response, dict) else None)
 
 
 def _blocker(record) -> dict:

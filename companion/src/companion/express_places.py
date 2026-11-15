@@ -56,6 +56,18 @@ def within(root, places: Iterable[str]) -> bool:
     return any(under(root, place) for place in places or ())
 
 
+def reaches(root, places: Iterable[str]) -> bool:
+    """数据根（年度文件夹）要不要读：在某个位置里面，或某个位置在它里面（位置选的是这一年里的某几本账套，11-14：
+    69EXP 里混着真实客户账套，不能整个目录给，只勾 69EXP\\TEST）。读了也只报位置里的那几本（:func:`row_in`）。"""
+    return any(under(root, place) or under(place, root) for place in places or ())
+
+
+def row_in(row: Dict, places: Iterable[str]) -> bool:
+    """这一本账套（上报清单的一行 ``{root, path}``）给不给报：所在数据根在位置里（选的是盘 / 上层 / 年度），或账套目录本身
+    在位置里（选的是某一本）。上报范围严格等于所选。"""
+    return within(str(row.get("root") or ""), places) or within(str(row.get("path") or ""), places)
+
+
 def parent_of(path: str) -> str:
     head = ntpath.dirname(str(path or "").rstrip("\\/"))
     return head + "\\" if re.fullmatch(r"[A-Za-z]:", head) else head

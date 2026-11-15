@@ -523,12 +523,18 @@ GLBAL_UNMARKED_META = "glbal_unmarked"
 _CHOICE_TEXT = {"name": 200, "stkcod": 40, "balance": 30}
 _CHOICE_UNIT_TABLE_MAX = 400
 OPERATOR_DOC_TYPE_MAX = 10
+# 代录保存途中停住（原因 partial_saved / 认不出的框，CC 桌面版 1.12.22 起）：``partial`` = 账套里留下的半截单 {docnum, missing}
+# （missing ⊆ OPERATOR_PARTIAL_GAPS），``held`` = Express 原样留着等人答框的那台电脑与账套 {computer, account_set}。
+OPERATOR_PARTIAL_GAPS = ("total", "lines", "journal", "vat")
+OPERATOR_DOCNUM_MAX = 20
+OPERATOR_HELD_TEXT = 60
 OPERATOR_OPTIONS_MAX = 10
 OPERATOR_OPTION_LEN = 120
 
 
 def clean_operator_meta(raw: Any) -> Dict[str, Any]:
-    """``meta.operator`` → 只留 ``doc_type``（短字符串）与 ``menu_options``（字符串列表，空白归一、去空），认不出的回空。"""
+    """``meta.operator`` → 只留 ``doc_type``（短字符串）、``menu_options``（字符串列表，空白归一、去空）、``partial``
+    （半截单 {docnum, missing}）与 ``held``（{computer, account_set}），认不出的回空。"""
     if not isinstance(raw, dict):
         return {}
     out: Dict[str, Any] = {}
@@ -541,7 +547,34 @@ def clean_operator_meta(raw: Any) -> Dict[str, Any]:
         kept = [item for item in kept if item][:OPERATOR_OPTIONS_MAX]
         if kept:
             out["menu_options"] = kept
+    partial = raw.get("partial")
+    if isinstance(partial, dict) and isinstance(partial.get("docnum"), str) and partial["docnum"].strip():
+        missing = partial.get("missing") if isinstance(partial.get("missing"), list) else []
+        out["partial"] = {"docnum": partial["docnum"].strip()[:OPERATOR_DOCNUM_MAX],
+                          "missing": [gap for gap in OPERATOR_PARTIAL_GAPS if gap in missing]}
+    held = raw.get("held")
+    if isinstance(held, dict):
+        kept_held = {key: str(held[key]).strip()[:OPERATOR_HELD_TEXT] for key in ("computer", "account_set")
+                     if isinstance(held.get(key), str) and held[key].strip()}
+        if kept_held:
+            out["held"] = kept_held
     return out
+
+
+def operator_partial_docnum(meta: Any) -> str:
+    """回执 meta 里代录留下的半截单号（``meta.operator.partial.docnum``，原因 partial_saved）；没有回空。两产品对未完成的单只据此
+    多显示这个单号（不加说明、不加按钮）。读的是存下的原始 meta 也照样净化一遍。"""
+    if not isinstance(meta, dict):
+        return ""
+    return str((clean_operator_meta(meta.get(OPERATOR_META)).get("partial") or {}).get("docnum") or "")
+
+
+def late_partial_success(success: Any, status: Any, stored_meta: Any, docnum: Any) -> bool:
+    """迟到的终态能不能收（代录 held，11-14）：这件已经按「未完成」收了回执（``status`` = manual），回执 meta 里记着 Express 留下的
+    半截单号；人在 Express 里答完框、单存完后 CC 用同一件的回执补报「已写入」。只收：成功、状态还是未完成、带的单号与记下的半截单号
+    一致。别的一律照旧（不是这一件、不是这个单号、要从别的状态改，都不收）。"""
+    number = str(docnum or "").strip()
+    return success is True and status == "manual" and bool(number) and operator_partial_docnum(stored_meta) == number
 
 
 def clean_revenue_meta(raw: Any) -> List[Dict[str, str]]:

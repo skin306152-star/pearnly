@@ -272,6 +272,7 @@ Doc No,单据号
 Document Type,单据类型
 Document date,单据日期
 Document no.,单据号
+Document partly saved in Express,Express 里有一张未存完的单
 Document type not supported yet,此类单据暂不支持
 Documents,单据数
 Done At,完成时间
@@ -1301,6 +1302,7 @@ operator.report.reason.menu_choice,选择单据菜单
 operator.report.reason.negative_stock,库存不够
 operator.report.reason.network_down,服务器无法连接
 operator.report.reason.network_wait,正在等待服务器
+operator.report.reason.partial_saved,Express 里有一张未存完的单
 operator.report.reason.party_missing,Express 中没有此对方
 operator.report.reason.period_locked,期间已关账
 operator.report.reason.period_outside,日期不在账套期间内

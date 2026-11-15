@@ -116,7 +116,7 @@ class FakeExpress:
         self.alive = True
         self.sold = set()
         self.counters: Dict[str, int] = {}
-        self.book: Dict[str, List[Dict]] = {"APTRN": [], "ARTRN": [], "STCRD": [], "ISVAT": []}
+        self.book: Dict[str, List[Dict]] = {"APTRN": [], "ARTRN": [], "STCRD": [], "ISVAT": [], "GLJNL": []}
         self.refs = set()
         self.cursor = [0, 0]
         self.unit_mult = "1.000"
@@ -154,7 +154,8 @@ class FakeExpress:
         out = [{"hwnd": 100, "title": "Express Accounting", "cls": "Afx:400000:8", "rect": [0, 0, 1920, 1040],
                 "owned": False, "texts": [self.company]}]
         out += [{"hwnd": d["hwnd"], "title": d["title"], "cls": "#32770", "rect": [700, 400, 1200, 560],
-                 "owned": True, "texts": [d["text"]] + ["&" + b for b in d["buttons"]]} for d in self.dialogs]
+                 "owned": True, "texts": [d["text"]] + ["&" + b for b in d["buttons"]], "buttons": ["&" + b for b in d["buttons"]]}
+                for d in self.dialogs]
         if self.exe:
             for w in out:
                 w["exe"] = self.exe
@@ -342,6 +343,9 @@ class FakeExpress:
             self.head = {self.docnum_label(): f"{self.form}{last:07d}"} if last else {}
         elif d["name"] == "void" and button == "ตกลง":
             self._void()
+        elif d["name"] == "choice":
+            self.choice_answered = True
+            self._save()
         elif d["name"] == "basis":
             self.basis_answered = True
             self.basis_button = button
@@ -416,6 +420,13 @@ class FakeExpress:
             self.odd_shown = True
             self.dialog("odd", "ExpressI", "ข้อความที่ไม่รู้จักระหว่างบันทึก", buttons=("ตกลง", "ยกเลิก"))
             return
+        if self.inject.get("choice_mid_save") and not getattr(self, "choice_answered", False):
+            # 存档途中问一个配方里没有的业务选择（两个业务钮）：Express 这时已写下金额 0 的单头和明细行，分录与税还没写
+            # （11-13 测试机2 半截单 IV0000045 的原生形状）。人答了才接着存完；Express 被关就停在这个半截状态
+            self._prewrite()
+            self._stock_rows()
+            self.dialog("choice", "ExpressI", "เลือกวิธีบันทึกรายการนี้", buttons=("แบบ ก", "แบบ ข"))
+            return
         if self.inject.get("sales_basis_on_save") and not getattr(self, "basis_answered", False):
             # 11-13 实机（测试机2 70EXP\\test）：有服务品的赊销单存档途中问服务品销项税口径，答了才接着存
             self.dialog("basis", "ExpressI", "ภาษีขายของสินค้าบริการในที่นี้เป็นแบบ", buttons=("เกณฑ์สิทธิ", "เกณฑ์เงินสด"))
@@ -436,18 +447,27 @@ class FakeExpress:
             head["SRV_VATTYP"] = "2" if self.basis_button == "เกณฑ์เงินสด" else "1"
             self.basis_button = ""
         self.refs.add(head.get("REFNUM", ""))
-        for i, r in enumerate(rows, start=1):
+        self._stock_rows(docnum)
+        if rows and t["vat"]:
+            self.book["ISVAT"].append({"_row": len(self.book["ISVAT"]), "_del": False, "DOCNUM": docnum,
+                                       "AMT01": float(t["net"]), "VAT01": float(t["vat"])})
+        self.book["GLJNL"].append({"_row": len(self.book["GLJNL"]), "_del": False, "VOUCHER": docnum})
+        self.head[self.docnum_label()] = docnum
+        self.editing, self.focus = False, None
+        self.choice_answered = False
+        if self.inject.get("odd_after_save"):  # 存好之后又弹一个配方里没有的框（单已完整入库）
+            self.dialog("odd", "ExpressI", "ข้อความที่ไม่รู้จักหลังบันทึก")
+
+    def _stock_rows(self, docnum: str = "") -> None:
+        """明细行进 STCRD（存档时写；保存途中被问时已先写好，存完不重复写）。"""
+        docnum = docnum or self.head.get("_docnum", "")
+        if any(r["DOCNUM"] == docnum for r in self.book["STCRD"]):
+            return
+        for i, r in enumerate(self.complete_rows(), start=1):
             self.book["STCRD"].append({"_row": len(self.book["STCRD"]), "_del": False, "DOCNUM": docnum, "SEQNUM": str(i),
                                        "STKCOD": r["item"], "LOCCOD": r.get("loc", "01"), "TRNQTY": float(r["qty"]),
                                        "UNITPR": float(r["price"]),
                                        "TRNVAL": float(money(Decimal(r["qty"]) * Decimal(r["price"])))})
-        if rows and t["vat"]:
-            self.book["ISVAT"].append({"_row": len(self.book["ISVAT"]), "_del": False, "DOCNUM": docnum,
-                                       "AMT01": float(t["net"]), "VAT01": float(t["vat"])})
-        self.head[self.docnum_label()] = docnum
-        self.editing, self.focus = False, None
-        if self.inject.get("odd_after_save"):  # 存好之后又弹一个配方里没有的框（单已完整入库）
-            self.dialog("odd", "ExpressI", "ข้อความที่ไม่รู้จักหลังบันทึก")
 
     def _void(self) -> None:
         docnum = self.head.get(self.docnum_label(), "")
@@ -483,6 +503,9 @@ class FakeExpress:
             return {}
         if op in ("us_layout", "maximize_main", "move", "mouse", "scroll", "drag"):
             return {}
+        if op == "fit":
+            self.fits = getattr(self, "fits", 0) + 1
+            return {"moved": []}
         if op == "activate":
             return {"title": self.title()}
         if op == "menu_tree":
@@ -613,7 +636,7 @@ class FakeBook:
     def _table(self, name: str) -> List[Dict]:
         return self.masters.get(name) if name in self.masters else self.sim.book.get(name, [])
 
-    def counts(self, tables=("APTRN", "ARTRN", "STCRD", "ISVAT")) -> Dict[str, int]:
+    def counts(self, tables=("APTRN", "ARTRN", "STCRD", "ISVAT", "GLJNL")) -> Dict[str, int]:
         return {t: len(self._table(t)) for t in tables}
 
     def rows_since(self, since: Dict[str, int], tables=("APTRN", "ARTRN", "STCRD", "ISVAT")) -> Dict[str, List[Dict]]:

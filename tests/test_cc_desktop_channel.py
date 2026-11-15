@@ -296,6 +296,32 @@ class Queue(Base):
         jobs.retry(job["job"])
         self.assertEqual(jobs.find_by_name(job["job"])["status"], "queued")
 
+    def test_a_half_document_finished_by_a_person_is_reported_late_as_written_once(self):
+        """代录 held（11-14）：这件按「未完成 + 半截单号」收过回执；人在 Express 里答完框、单存完，同一台电脑用同一件补报
+        「已写入 + 那个单号」→ 记成已写入。别的单号、别的电脑、已经再派出去的都不收。"""
+        job = self.enqueue()
+        self.lease(self.office)
+        held = {"operator": {"partial": {"docnum": "IV0000045", "missing": ["total"]}, "held": {"computer": "PC2"}}}
+        reply = self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="needs_review",
+                         error="[OPERATOR_PARTIAL_SAVED] partial_saved", meta=held)
+        self.assertEqual(reply["status"], "manual")
+        with self.assertRaises(frappe.AuthenticationError):
+            self.ack(self.office, job["job"], express_docnum="IV0000046")  # 不是记下的半截单号
+        other = self.register("other@x", KEY_B)
+        with self.assertRaises(frappe.AuthenticationError):
+            self.ack(self.context(other["device"], "other@x"), job["job"], express_docnum="IV0000045")  # 别的电脑
+        late = self.ack(self.office, job["job"], express_docnum="IV0000045")
+        self.assertEqual(late["status"], "success")
+        self.assertEqual((self.changes[-1]["status"], self.changes[-1]["docnum"]), ("success", "IV0000045"))
+        self.assertEqual(self.ack(self.office, job["job"], express_docnum="IV0000045")["idempotent"], True)
+
+    def test_a_manual_job_without_a_half_document_takes_no_late_receipt(self):
+        job = self.enqueue()
+        self.lease(self.office)
+        self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="needs_review", error="x")
+        with self.assertRaises(frappe.AuthenticationError):
+            self.ack(self.office, job["job"], express_docnum="IV691023-001")
+
     def test_express_open_keeps_the_reason_and_rests_the_book_while_other_books_go_on(self):
         # 11-12：Express 开着这本账套。以前原因清空、放回即可再领——电脑连着领同一张，别的账套的单领不到，界面看不出在等什么
         other = contracts.book_key(contracts.book_identity(PATH_B, "vsn:9999/1"))
