@@ -2026,3 +2026,30 @@ viewports = ["desktop"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/access.py",
 ]
+
+[[flow]]
+id = "erp.line.edit-gone"
+title = "ERP LINE 识别单据卡的「编辑」打开已不在的单（旧卡片）：采购、销售都弹原生「已不可用」并回到列表，不留空页面（11-15 线上）"
+module = "scripts/flows/line_card_edit_gone.py"
+start = "/desk/pearnly-home"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+]
+
+[[flow]]
+id = "cowork.line.edit-gone"
+title = "Cowork LINE 识别卡的「编辑」打开已不在的记录（旧卡片）：弹原生「找不到」并回到录入列表，不留空的编辑表单（11-15 线上）"
+module = "scripts/flows/line_card_edit_gone.py"
+product = "cowork"
+start = "/desk/pearnly-intake"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/public/desk/intake-upload.js",
+]

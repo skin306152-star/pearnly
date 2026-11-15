@@ -96,8 +96,13 @@
 			// 从 LINE 卡片「编辑」进来（`line/<记录>`）：识别结果与 LINE 里的选择已填好；
 			// 已入账就转去那张单的查看页；按 LINE 里选的公司打开（切了公司就整页重载）。
 			const from_line = rest[0] === "line" && rest.length === 2 ? rest[1] : undefined;
-			const opened = from_line ? await p.call("pearnly_erp_portal.integrations.api.api_open_line_intake", {name: from_line}, "POST") : null;
+			// 卡片上的这张已不在 / 已失效（旧卡片、已作废）：框架已弹原生那句「已不可用」，回到列表，不在后面留一张空页面（11-15 线上，
+			// 同 Cowork 录入「编辑」）
+			const gone = error => error?.status === 404 || (error?.responseJSON?.exc_type || error?.exc_type) === "DoesNotExistError";
+			const opened = from_line ? await p.call("pearnly_erp_portal.integrations.api.api_open_line_intake", {name: from_line}, "POST")
+				.catch(error => { if (gone(error)) return {gone: true}; throw error; }) : null;
 			if (!still_current()) return;
+			if (opened?.gone) {await go(); return;}
 			if (opened?.recorded) {await go(opened.recorded); return;}
 			if (opened?.switched_company) {window.location.reload(); return;}
 			const is_new = rest[0] === "new" || Boolean(opened), amended_from = rest[0] === "amend" ? rest[1] : undefined;
