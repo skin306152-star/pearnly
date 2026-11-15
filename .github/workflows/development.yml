@@ -178,7 +178,7 @@ jobs:
       - name: Changed product entry files must be covered by a registered flow case (the flows themselves run in the local regression lab)
         env:
           FLOWS_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || 'origin/main' }}
-        run: python3 tests/test_flows_coverage.py && python3 tests/test_flows_lab_migrate.py && python3 tests/test_flows_run.py && python3 tests/test_flows_wait_values.py && python3 scripts/flows/coverage.py
+        run: python3 tests/test_flows_coverage.py && python3 tests/test_flows_lab_migrate.py && python3 tests/test_flows_run.py && python3 tests/test_flows_lab_worker.py && python3 tests/test_flows_wait_values.py && python3 scripts/flows/coverage.py
       - name: Block new hand-written "which masters can this company see" conditions (baseline may only shrink)
         run: python3 scripts/check-master-scope.py && python3 tests/test_check_master_scope.py
       - name: Block new unbounded queries and full fetches sorted in the browser (baseline may only shrink)
