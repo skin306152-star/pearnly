@@ -3500,13 +3500,60 @@ def folder_tasks(tool_input) -> str:
     return _json({"tasks": tasks, **({"scope": company["scope"]} if company else {})})
 
 
+TASK_OTHER_COMPANY = "not_this_company_task"
+TASK_OTHER_COMPANY_NOTE = ("not_this_company_task: this scheduled task belongs to another company (task_company), not to "
+                           "the company this conversation is filed under, so nothing was done. Tell the user in one "
+                           "sentence whose task it is and that it can be done in a conversation of that company; never "
+                           "do it from here.")
+
+
+def _task_company_refusal(names) -> dict | None:
+    """CC 只动对话选中公司的定时任务（用户 11-10「只写对话选中的公司」；A 线 11-15：公司对话里能运行 / 启停 / 删 / 看别家公司
+    的任务）：读出任务的连接与账套，走保存任务同一个判据（`_task_scope` → `write_scope.check(whole_company=True)`）。不在 CC 对话里
+    （网页由人点）回 None 不限；找不到的任务交任务服务自己报。拒的回给模型：哪个任务、属于哪家公司。"""
+    if not _in_conversation():
+        return None
+    wanted = [str(name or "") for name in names if str(name or "")]
+    if not wanted:
+        return None
+    rows = {row.get("name"): row for row in rules.listing().get("rules") or []}
+    found = [rows[name] for name in wanted if name in rows]
+    row = next((row for row in found if _task_scope(  # loop-query: 一次最多 FOLDER_BATCH_MAX 个任务，同保存批量
+        {"connection": row.get("connection"), "account_set_key": row.get("account_set_key")})), None)
+    if not row:
+        return None
+    company = frappe.db.get_value("Cowork Company", row["company"], "title") if row.get("company") else ""
+    return {"status": "refused", "reason": TASK_OTHER_COMPANY, "task": row.get("name"), "title": row.get("title") or "",
+            "task_company": company or "", "note": TASK_OTHER_COMPANY_NOTE}
+
+
+def _task_names(tool_input) -> list:
+    """这次要动的任务名：单个（``task``）、批量启停（``tasks[].task``）、批量删除（``tasks[]`` 是名字）。"""
+    items = (tool_input or {}).get("tasks")
+    if isinstance(items, list):
+        return [item.get("task") if isinstance(item, dict) else item for item in items]
+    return [(tool_input or {}).get("task")]
+
+
+def folder_task_company_refusal(tool_input) -> str | None:
+    """运行、启停、删除定时任务的「允许」卡片之前：别家公司的任务不出卡片，直接拒（同 :func:`_task_company_refusal`）。"""
+    refused = _task_company_refusal(_task_names(tool_input))
+    return _json(refused) if refused else None
+
+
 def run_folder_task(tool_input) -> str:
+    refused = _task_company_refusal(_task_names(tool_input))  # 卡片前已拒过；放行后再核一次（任务在卡片挂着时可能被改）
+    if refused:
+        return _json(refused)
     row = rules.run_now(str(tool_input.get("task") or ""))
     return _json({"task": row.get("name"), "title": row.get("title"), "requested": True,
                   "note": "CC Desktop picks this up on its next sync, usually within a minute."})
 
 
 def folder_task_runs(tool_input) -> str:
+    refused = _task_company_refusal(_task_names(tool_input))
+    if refused:
+        return _json(refused)
     data = rules.runs(str(tool_input.get("task") or ""))
     keep = ("trigger", "started_at", "scanned_at", "found", "new_files", "skipped", "upload_failed", "note",
             "results", "states")
@@ -4059,6 +4106,9 @@ def _switched(row) -> dict:
 
 
 def set_folder_task_enabled(tool_input) -> str:
+    refused = _task_company_refusal(_task_names(tool_input))
+    if refused:
+        return _json(refused)
     args = _switch_args(tool_input)
     if not args:
         return _json({"status": "not_saved", "reason": "Give enabled, remind or remind_times."})
@@ -4081,6 +4131,9 @@ def set_folder_tasks_enabled(tool_input) -> str:
         frappe.throw(_("No tasks were given."))
     if len(items) > FOLDER_BATCH_MAX:
         return _json({"status": "not_saved", "reason": f"At most {FOLDER_BATCH_MAX} tasks at a time; split the list."})
+    refused = _task_company_refusal(_task_names(tool_input))
+    if refused:
+        return _json(refused)
     titles = {row.get("name"): row.get("title") for row in rules.listing().get("rules") or []}
     results, seen = [], set()
     for number, item in enumerate(items, 1):
@@ -4115,6 +4168,9 @@ def delete_folder_tasks(tool_input) -> str:
     names = [str(n) for n in (tool_input.get("tasks") or [])]
     if not names:
         frappe.throw(_("No tasks were given."))
+    refused = _task_company_refusal(names)
+    if refused:
+        return _json(refused)
     return _json(_task_call(rules.delete, json.dumps(names)))
 
 
@@ -5205,6 +5261,7 @@ TOOLS = [
      "ask": "Change this scheduled task?",
      "ask_when": {"enabled": "Turn this scheduled task on or off?"},
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_task_enabled",
+     "refuse": "pearnly_cowork.assistant.tools.folder_task_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.set_folder_task_enabled"},
     # 一句话改几个任务的提醒或启停只弹一张「允许」卡片（用户 2026-10-13 第 5 条），同批量保存（F4）
     {"name": "cowork_set_folder_tasks_enabled", "label": "Updated scheduled tasks",
@@ -5222,6 +5279,7 @@ TOOLS = [
      "approval": True,
      "ask": "Change these scheduled tasks?",
      "preview": "pearnly_cowork.assistant.tools.preview_set_folder_tasks_enabled",
+     "refuse": "pearnly_cowork.assistant.tools.folder_task_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.set_folder_tasks_enabled"},
     {"name": "cowork_delete_folder_tasks", "label": "Deleted scheduled tasks",
      "description": "Delete scheduled folder tasks with their run history; documents they already created stay on the "
@@ -5231,6 +5289,7 @@ TOOLS = [
      "approval": True,
      "ask": "Delete these scheduled tasks?",
      "preview": "pearnly_cowork.assistant.tools.preview_delete_folder_tasks",
+     "refuse": "pearnly_cowork.assistant.tools.folder_task_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.delete_folder_tasks"},
     {"name": "cowork_recon_start", "label": "Started a reconciliation",
      "description": "Start a reconciliation like New on the reconciliation pages, with files in this chat: the "
@@ -5497,6 +5556,7 @@ TOOLS = [
      "ask": "Run this scheduled task now?",
      "note": "pearnly_cowork.assistant.tools.note_run_folder_task",
      "preview": "pearnly_cowork.assistant.tools.preview_run_folder_task",
+     "refuse": "pearnly_cowork.assistant.tools.folder_task_company_refusal",
      "handler": "pearnly_cowork.assistant.tools.run_folder_task"},
     {"name": "cowork_folder_task_runs", "label": "Checked scheduled task runs",
      "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed, and per run "

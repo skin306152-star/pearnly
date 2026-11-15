@@ -3834,6 +3834,52 @@ class CompanyScopeTests(unittest.TestCase):
             out = json.loads(tools.folder_tasks({}))
             self.assertEqual(([task["name"] for task in out["tasks"]], "scope" in out), (["R1", "R2"], False))
 
+    def test_a_task_of_another_company_is_not_run_switched_deleted_or_read_from_here(self):
+        """A 线 11-15（P3 盘点）：公司对话里给出别家公司的任务名，运行 / 启停 / 删除 / 看运行记录都拒，回「这是 X 公司的任务」，
+        不碰任务服务；判据同保存任务（`_task_scope`）。不在 CC 对话里（网页由人点）照旧。"""
+        rules = [{"name": "R1", "title": "Mine", "connection": "EXP1", "account_set_key": "S:\\69EXP\\69SINCER",
+                  "company": "CO-1", "enabled": 1, "remind": 0},
+                 {"name": "R2", "title": "Theirs", "connection": "EXP1", "account_set_key": "S:\\69EXP\\DEMO01",
+                  "company": "CO-9", "enabled": 1, "remind": 0}]
+        touched = []
+        scoped = lambda values: None if values["account_set_key"].endswith("69SINCER") else {
+            "reason": "not_this_company_book"}
+        stub = types.SimpleNamespace(
+            listing=lambda: {"rules": [dict(row) for row in rules]},
+            run_now=lambda name: touched.append(("run", name)) or {"name": name, "title": name},
+            runs=lambda name: touched.append(("runs", name)) or {"rule": {"name": name}, "runs": []},
+            set_enabled=lambda name, enabled=None, **kw: touched.append(("switch", name)) or {"name": name, "enabled": enabled},
+            delete=lambda names: touched.append(("delete", json.loads(names))) or {"deleted": len(json.loads(names))})
+        titles = {"CO-9": "บริษัท อื่น จำกัด"}
+        with mock.patch.object(tools, "rules", stub), mock.patch.object(tools, "_task_scope", scoped), \
+                mock.patch.object(frappe.db, "get_value", lambda doctype, name, field=None, *a, **k: titles.get(name),
+                                  create=True), \
+                mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            calls = [(tools.run_folder_task, {"task": "R2"}), (tools.folder_task_runs, {"task": "R2"}),
+                     (tools.set_folder_task_enabled, {"task": "R2", "enabled": 0}),
+                     (tools.set_folder_tasks_enabled, {"tasks": [{"task": "R1", "enabled": 0}, {"task": "R2", "enabled": 0}]}),
+                     (tools.delete_folder_tasks, {"tasks": ["R1", "R2"]})]
+            for handler, given in calls:
+                out = json.loads(handler(given))
+                self.assertEqual((out["status"], out["reason"], out["task"], out["task_company"]),
+                                 ("refused", "not_this_company_task", "R2", "บริษัท อื่น จำกัด"), handler.__name__)
+            self.assertEqual(touched, [])  # 一个都没动（批量里有一个别家的整批不做）
+            # 「允许」卡片之前就拒（不出卡片）；本公司的照常出卡片
+            self.assertEqual(json.loads(tools.folder_task_company_refusal({"task": "R2"}))["reason"], "not_this_company_task")
+            self.assertIsNone(tools.folder_task_company_refusal({"task": "R1"}))
+            self.assertIsNone(tools.folder_task_company_refusal({"tasks": ["R1"]}))
+            self.assertEqual(json.loads(tools.run_folder_task({"task": "R1"}))["task"], "R1")
+            self.assertEqual(touched, [("run", "R1")])
+            frappe.local.pearnly_assistant = None  # 网页由人点：不经这里限
+            json.loads(tools.run_folder_task({"task": "R2"}))
+            self.assertEqual(touched[-1], ("run", "R2"))
+        declared = {tool["name"]: tool for tool in tools.TOOLS}
+        for name in ("cowork_run_folder_task", "cowork_set_folder_task_enabled", "cowork_set_folder_tasks_enabled",
+                     "cowork_delete_folder_tasks"):
+            self.assertEqual(declared[name]["refuse"], "pearnly_cowork.assistant.tools.folder_task_company_refusal", name)
+            self.assertTrue(declared[name]["approval"], name)
+        self.assertIn("never do it from here", tools.TASK_OTHER_COMPANY_NOTE)
+
     def test_the_scope_tools_offer_the_lift_and_the_guidance_says_when(self):
         declared = {tool["name"]: tool for tool in tools.TOOLS}
         for name in ("cowork_list_documents", "cowork_push_results", "cowork_folder_tasks"):
