@@ -87,9 +87,9 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | `pearnly/cc-guided-core`（909971dbb，共用件 assistant，手工 16） | 合入队列 | 作者给了 3 行（0 美元，新代码运行时无调用方，assistant 手工入口被调代码改动 0 处，见 `docs/work/2026-11-15-cc-guided-p0-p1.md`）：guided-core.erp-cc（C 组末尾）、guided-core.cowork-cc（D 组 ⑫）、guided-core.migrate（部署时：**新增 DocType `Pearnly Assistant Guide Run`**，DocType 守卫只拦减少、不拦新增；看各 ERP / Cowork 租户迁移无报错） | 前两行待 11-16；第三行部署时 |
 | `pearnly/capacity-maintenance-transient`（7c47c996e） | 合入队列 | `deploy.sh --dry-run` 容量检查通过；生产内存余量约 300 MiB，本批不能新增 ≥300 MiB 常驻进程 | 部署预演时核 |
 | `pearnly/control-frontend-source`（b5b0d6393） | 合入队列 | 控制面页面打开冒烟 | 部署后核 |
-| `pearnly/cowork-withdraw-push`（0be7bcb07，共用件 cowork-intake-upload，手工 6） | 合入队列 | Cowork 撤回 1 行 + 手工入口（D 组 ⑫）；第 ① 步重启测试机1 上用户的 CC，主会话白天问用户 | 待 11-16；第 ① 步**待批** |
+| `pearnly/cowork-withdraw-push`（0be7bcb07，共用件 cowork-intake-upload，手工 6） | 合入队列 | Cowork 撤回 1 行 + 手工入口（D 组 ⑫）；第 ① 步重启测试机1 上用户的 CC：用户 11-15 夜已批（skin3 普通权限起、哈希 BED3D4E3 不变） | 待 11-16 |
 | `pearnly/cc-operator-other-months`（86d0240c9，共用件 assistant，手工 16） | 合入队列 | 月份代录 ①–④（C 组，真模型约 0.5 美元）；⑤ 没批记没测到；手工入口由作者备用 A 写成待测行，并进 C 组末尾 | 待 11-16；待作者给行 |
-| `cc-approval-cards`（9ac8a8f5f / ce6c56482 / f09af0041，**已在 main 未上线**；按这三个提交的 32 个文件算：共用件 0、上线必验 0、真机单 1 项） | 已在 main | ① cowork.scan.line.stocktake.liff-camera（三星，0 费用；只读摘要不经过相机路径，可记没测到并写原因）；② cowork.cc.approval-cards（约 ฿5）、③ erp.cc.approval-withdraw（约 ฿3）真模型实机，**费用待主会话批**；实验栈流程两条已验 | 待 11-16（D 组 ⑫ / C 组末尾） |
+| `cc-approval-cards`（9ac8a8f5f / ce6c56482 / f09af0041，**已在 main 未上线**；按这三个提交的 32 个文件算：共用件 0、上线必验 0、真机单 1 项） | 已在 main | ① cowork.scan.line.stocktake.liff-camera（三星，0 费用；只读摘要不经过相机路径，可记没测到并写原因）；② cowork.cc.approval-cards（约 ฿5）、③ erp.cc.approval-withdraw（约 ฿3）真模型实机，费用主会话已批（约 ฿8）；实验栈流程两条已验 | 待 11-16（D 组 ⑫ / C 组末尾） |
 
 产品地图本批真机单（`check-product-map.py --batch --files <分支相对 main 的文件>`，同 `deploy.sh` 的调用）：搜索统一 2 项（erp_item、liff-camera，已在本车）；cc-approval-cards 按它三个提交本身算真机单 1 项（cowork liff-camera，来自 stocktake/upload.py）；capacity-maintenance-transient、control-frontend-source 也各报这 1 项，149 个入口是按旧分叉点带出来的（多半同一原因），进 main 后以 `deploy.sh --dry-run` 打印的为准。其余为 0。
 手工入口数按 `check-impact.py --files` 算（同上），命中 assistant 的几条分支（月份代录、引导式、允许卡等）的手工入口大部分重合，统一点一次即可。
