@@ -880,6 +880,20 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.company.connect.mrerp"
+title = "ERP「从连接添加」MR.ERP 标签页：一家一行、已添加禁用、勾选建公司；开关关着时不出（公司接入第 3 批，11-15）"
+module = "scripts/flows/erp_company_connect_mrerp.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py",
+]
+
+[[flow]]
 id = "erp.stocktake.report"
 title = "ERP 盘点报表：差异报表、只看差异、打印点数表 / 结果表、导出（演示准备 10-30）"
 module = "scripts/flows/erp_stocktake_report.py"

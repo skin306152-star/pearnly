@@ -427,7 +427,7 @@ def connection_list(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     rows = [row for row in every if row["adapter"] == wanted] if wanted in adapters else every
     needle = " ".join(str(search or "").split()).casefold()
     if needle:
-        rows = [row for row in rows if needle in " ".join([row["title"], row["tax_id"], *row["years"], *row["folders"]]).casefold()]
+        rows = [row for row in rows if needle in " ".join([row["title"], row.get("book") or "", row["tax_id"], *row["years"], *row["folders"]]).casefold()]
     connected = bool(every) or bool(express_companies.devices()) or (
         _mrerp_on() and bool(frappe.get_all(connections.CONNECTION, pluck="name", limit_page_length=1)))
     return {"rows": rows[start:start + limit], "adapters": adapters, "total": len(rows), "connected": connected}
