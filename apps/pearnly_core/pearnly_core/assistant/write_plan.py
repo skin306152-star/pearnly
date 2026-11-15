@@ -60,6 +60,13 @@ NO_COMPANY_NOTE = ("This conversation is not filed under a company, so nothing c
                    "make the plan again.")
 NOTHING_NOTE = ("Nothing can be written now: tell the user in plain words why (skipped, with each reason), without "
                 "offering to start.")
+OTHER_MONTHS_NOTE = ("Nothing in this operator task's month (period) can be written. other_months lists the other months "
+                     "of this company that still have documents waiting and how many (counted by the server; say them as "
+                     "given). Tell the user in plain words how many this month has, why (skipped, with each reason, if "
+                     "any) and how many each other month has. Then ask with ask_user whether to switch this task to one "
+                     "of those months: one option per month, the latest first (at most 3), each label starting with the "
+                     "month exactly as YYYY-MM, plus an option to keep this month. If the user picks a month, call "
+                     "pearnly_operator_month with it, then make the plan again. Do not offer to start before that.")
 NOT_CONFIRMED_NOTE = ("The user has not answered since you said the plan back. Say it back (if you have not) and wait for "
                       "the user's reply; do not call pearnly_write_start again before the user sends a new message.")
 STOPPED_NOTE = ("The user stopped after this plan was made. Do not write. If they want to go on, make a new plan and say it "
@@ -213,9 +220,18 @@ def make(tool_input) -> dict:
     _replace_open(row.session_id)
     if not write:
         # 做不了：不存计划（没有可开始的，页面不出「录吧」），旧的没开始的已作废
-        return {"plan": "", "company": company, "company_title": str(card.get("company_title") or ""), "account_sets": [],
-                "count": 0, "documents": [], "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN],
-                "status": "nothing_to_write", "note": NOTHING_NOTE}
+        out = {"plan": "", "company": company, "company_title": str(card.get("company_title") or ""), "account_sets": [],
+               "count": 0, "documents": [], "skipped_count": len(skipped), "skipped": skipped[:SKIPPED_SHOWN],
+               "status": "nothing_to_write", "note": NOTHING_NOTE}
+        if mode == "operator":
+            from pearnly_core.express_operator import products
+
+            # 这个月没有可录的、别的月份有：说清各月几张、问要不要改这次代录的月份（11-13 测试机1：6 月的单放在 10 月的
+            # 代录对话里，只回「0 张」不说原因）
+            months = products.elsewhere(company, period)
+            if months:
+                out.update(period=period, other_months=months, note=OTHER_MONTHS_NOTE)
+        return out
     doc = frappe.get_doc({"doctype": DOCTYPE, "session_id": row.session_id, "user": frappe.session.user, "mode": mode,
                           "company": company, "operator_task": task, "ledger": _ledger(row)[0],
                           "user_turn": _turn(row), "status": AWAITING,

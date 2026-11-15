@@ -2398,6 +2398,37 @@ class OperatorPrecheck(PushModule):
         self.assertNotIn("moves", out["documents"][0])  # ERP 不声明改分组：资料区的单不能拖（共用层补成空）
         self.assertEqual((seen[0]["company"], seen[0]["owner"]), ("CO-9", "a@x"))  # 员工只看本人录入的
 
+    def test_other_months_are_counted_with_the_same_rule_as_the_list(self):
+        """A 线 11-15：代录这个月没有可录的单时，CC 要说清别的月份各有几张（11-13 测试机1：6 月的单放在 10 月的代录对话里只回「0 张」）。
+        与资料区同一套判据（公司可见、开单权、员工只看本人的、带按台号码的不算），只换日期：这个月之前、之后各查一次。"""
+        from unittest import mock
+        seen = []
+        older = [Row(name="PI-6", doc_date="2026-06-03", grand_total=100, system_no="PE-6", supplier_name="S",
+                     ledger_reason="", ledger_job=None),
+                 Row(name="PI-7", doc_date="2026-06-20", grand_total=100, system_no="PE-7", supplier_name="S",
+                     ledger_reason="", ledger_job=None),
+                 Row(name="PI-8", doc_date="2026-05-02", grand_total=100, system_no="PE-8", supplier_name="S",
+                     ledger_reason="", ledger_job=None)]
+        newer = [Row(name="PI-9", doc_date="2026-11-01", grand_total=100, system_no="PE-9", supplier_name="S",
+                     ledger_reason="", ledger_job=None)]
+
+        def get_all(doctype, **kw):
+            seen.append(kw["filters"])
+            return older if kw["filters"]["doc_date"][0] == "<" else newer
+
+        with mock.patch.object(frappe.db, "sql_list", lambda query, values: ["PI-8"] if "ERP Line Serial" in query else [],
+                               create=True), \
+                mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
+                mock.patch.object(self.operator.guard, "has", lambda capability, user=None: capability == "purchase.write"), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {"owner": "a@x"}), \
+                mock.patch.object(frappe, "get_all", get_all, create=True), \
+                mock.patch.object(frappe, "session", types.SimpleNamespace(user="a@x"), create=True):
+            self.assertEqual(self.operator.elsewhere("CO-9", "2026-10"),
+                             [{"month": "2026-11", "count": 1}, {"month": "2026-06", "count": 2}])  # PI-8 带按台号码：不算
+            self.assertEqual(self.operator.elsewhere("CO-1", "2026-10"), [])  # 不是本人可见的公司
+        self.assertEqual([f["doc_date"] for f in seen], [["<", "2026-10-01"], [">", "2026-10-31"]])
+        self.assertTrue(all(f["company"] == "CO-9" and f["owner"] == "a@x" for f in seen))
+
     def test_a_document_already_queued_elsewhere_is_not_offered(self):
         found = self.run_precheck({"PI-1": {"payload": {}, "book": {}}}, job="J9")
         self.assertEqual((found["P:PI-1"]["state"], found["P:PI-1"]["reason"]), ("blocked", "already_queued"))

@@ -161,15 +161,21 @@ class WritePlanTests(unittest.TestCase):
             same=lambda project, left, right: left == right or {left, right} <= self.same_book)
         self.same_book = set()  # 同一本的新旧两种编号（账套身份跨电脑：旧「连接|键」读时映射）
         assistant.contracts = types.SimpleNamespace(REALTIME_EVENT="pearnly_assistant")
+        # 这个月以外还等着录的单按月计数（产品 `elsewhere`，A 线 11-15）：``self.elsewhere`` 是此刻的
+        self.elsewhere, self.elsewhere_calls = [], []
+        operator_products = types.ModuleType("pearnly_core.express_operator.products")
+        operator_products.elsewhere = lambda company, period: self.elsewhere_calls.append((company, period)) or self.elsewhere
         express_operator = types.ModuleType("pearnly_core.express_operator")
         express_operator.api, express_operator.tasks = operator_api, tasks
+        express_operator.products = operator_products
         write_precheck = types.ModuleType("pearnly_core.write_precheck")
         write_precheck.products = products
         modules = {"frappe": _frappe(), "pearnly_core": types.ModuleType("pearnly_core"), "pearnly_core.assistant": assistant,
                    "pearnly_core.assistant.sessions": sessions, "pearnly_core.assistant.contracts": assistant.contracts,
                    "pearnly_core.write_precheck": write_precheck, "pearnly_core.write_precheck.products": products,
                    "pearnly_core.express_operator": express_operator, "pearnly_core.express_operator.api": operator_api,
-                   "pearnly_core.express_operator.tasks": tasks}
+                   "pearnly_core.express_operator.tasks": tasks,
+                   "pearnly_core.express_operator.products": operator_products}
         patcher = mock.patch.dict(sys.modules, modules)
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -256,6 +262,35 @@ class WritePlanTests(unittest.TestCase):
         self.assertIn({"doc_id": "D001", "reason": "period_locked"}, out["skipped"])
         self.assertEqual((out["plan"], FAKE.db.rows), ("", {}))  # 不存计划：页面不出「录吧」
         self.assertEqual(FAKE.published, [])
+
+    def test_an_empty_operator_month_says_how_many_other_months_have(self):
+        """11-13 测试机1：6 月的单放在 10 月的代录对话里，计划只回「0 张」不说原因。这个月没有可录的、别的月份有：带上服务端数的
+        各月张数，叫 CC 说清再用提问卡问要不要改月份（A 线 11-15）。"""
+        self.docs = {}
+        self.elsewhere = [{"month": "2026-06", "count": 1}, {"month": "2026-05", "count": 3}]
+        out = self.plan()
+        self.assertEqual((out["status"], out["count"], out["plan"]), ("nothing_to_write", 0, ""))
+        self.assertEqual((out["period"], out["other_months"]), ("2026-10", self.elsewhere))
+        self.assertEqual(self.elsewhere_calls, [("CO-1", "2026-10")])
+        self.assertIn("pearnly_operator_month", out["note"])
+        self.assertIn("ask_user", out["note"])
+        # 别的月份也没有：照旧只说原因
+        self.elsewhere = []
+        out = self.plan()
+        self.assertNotIn("other_months", out)
+        self.assertEqual(out["note"], self.plan_module.NOTHING_NOTE)
+        # 有可录的：不查别的月份
+        self.docs, self.elsewhere_calls = {"D001": {"state": "check", "items": []}}, []
+        self.assertEqual(self.plan()["status"], "ready")
+        self.assertEqual(self.elsewhere_calls, [])
+
+    def test_an_empty_direct_plan_never_counts_other_months(self):
+        self.conversation(operator_task="")
+        self.docs = {"D001": {"state": "not_writable", "reason": "period_locked"}}
+        self.elsewhere = [{"month": "2026-06", "count": 1}]
+        out = self.plan(documents=["D001"])
+        self.assertNotIn("other_months", out)
+        self.assertEqual(self.elsewhere_calls, [])
 
     def test_again_lets_an_entered_document_in_only_when_the_user_said_so(self):
         out = self.plan(again=["D010"])

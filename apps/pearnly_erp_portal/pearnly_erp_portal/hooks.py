@@ -653,6 +653,8 @@ permission_query_conditions.update({
 pearnly_express_operator = {
     "allowed": "pearnly_erp_portal.express.operator.allowed",
     "sources": "pearnly_erp_portal.express.operator.sources",
+    # 这个月以外还等着录的单按月计数（代录计划这个月为空时 CC 说清、问要不要改月份，A 线 11-15）
+    "elsewhere": "pearnly_erp_portal.express.operator.elsewhere",
     "precheck": "pearnly_erp_portal.express.operator.precheck",
     # 放文件（A 批 1，ADR-027 代录完整）：交 ERP 对话收单识别、识别状态现读；目标只有 Express
     "intake": "pearnly_erp_portal.express.operator.intake",

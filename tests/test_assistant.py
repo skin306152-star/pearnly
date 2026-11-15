@@ -1826,6 +1826,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "ask_user": "Waiting for answers",
                                             "pearnly_file_conversation": "Filing the conversation under a company",
                                             "pearnly_conversation_ledger": "Setting the conversation's account set",
+                                            "pearnly_operator_month": "Changing the month",
                                             "pearnly_write_plan": "Making a write plan",
                                             "pearnly_write_start": "Starting to write",
                                             "p_read": "Reading it"})
@@ -5833,6 +5834,43 @@ class OperatorSessionTests(unittest.TestCase):
         patcher = mock.patch.object(self.sessions.engine, "adapter", lambda: self.api)
         patcher.start()
         self.addCleanup(patcher.stop)
+
+    def test_cc_changes_the_operator_month_only_to_a_counted_month_the_user_picked(self):
+        """A 线 11-15：代录计划这个月为空、别的月份有单时，CC 用提问卡问，用户选了由 CC 改这次代录的月份——只在代录对话、任务还在
+        准备中；月份要是服务端数出来的那几个、且是用户在最近一张提问卡上选的；改法同对话上方的月份（`sessions.move`）。"""
+        tools = self.sessions.tools
+        products = sys.modules["pearnly_core.express_operator.products"]
+        tasks = sys.modules["pearnly_core.express_operator.tasks"]
+        state = {"status": "preparing", "answers": ["2026-06 · 1 ใบ"], "row": {
+            "operator_task": "task0001", "project": "co_abc1", "project_scope": ""}}
+        counted, moves = [{"month": "2026-06", "count": 1}, {"month": "2026-05", "count": 3}], []
+
+        def call(month, session="op_task0001"):
+            with mock.patch.object(frappe, "local", types.SimpleNamespace(pearnly_assistant={"session_id": session}),
+                                   create=True), \
+                    mock.patch.object(self.db, "get_value", lambda doctype, filters, fields, as_dict=False: (
+                        state["row"] and dict(state["row"])), create=True), \
+                    mock.patch.object(tasks, "read", lambda name: {"company": "co_abc1", "period": "2026-10",
+                                                                    "status": state["status"]}, create=True), \
+                    mock.patch.object(products, "elsewhere", lambda company, period: counted, create=True), \
+                    mock.patch.object(self.sessions.toolrun, "last_answers", lambda sid: state["answers"]), \
+                    mock.patch.object(self.sessions, "move", lambda sid, project, period=None, scope=None: moves.append(
+                        (sid, project, period, scope)) or {"period": period}):
+                return json.loads(tools.operator_month({"month": month}))
+
+        self.assertEqual(call("2026-05"), {"status": "refused", "reason": "not_chosen_by_user"})  # 选的是 6 月
+        self.assertEqual(call("2026-04"), {"status": "refused", "reason": "not_an_option"})  # 服务端没数出这个月
+        self.assertEqual(moves, [])
+        self.assertEqual(call("2026-06"), {"status": "set", "month": "2026-06"})
+        self.assertEqual(moves, [("op_task0001", "co_abc1", "2026-06", "")])
+        state["status"] = "queued"  # 已交单：月份改不了，如实说
+        self.assertEqual(call("2026-06"), {"status": "refused", "reason": "task_started"})
+        state["row"] = {"operator_task": "", "project": "co_abc1", "project_scope": ""}  # 直写对话
+        self.assertEqual(call("2026-06"), {"status": "refused", "reason": "not_an_operator_conversation"})
+        self.assertEqual(len(moves), 1)
+        tool = next(item for item in tools.CORE_TOOLS if item["name"] == "pearnly_operator_month")
+        self.assertEqual(tool["modes"], ["operator"])
+        self.assertEqual(tool["handler"], "pearnly_core.assistant.tools.operator_month")
 
     def test_reading_a_conversation_without_a_remote_session_never_touches_the_engine(self):
         page = self.sessions.events("op_task0001", status=True)

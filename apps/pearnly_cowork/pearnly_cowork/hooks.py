@@ -687,6 +687,8 @@ pearnly_worker_preload = [
 pearnly_express_operator = {
     "allowed": "pearnly_cowork.assistant.operator_source.allowed",
     "sources": "pearnly_cowork.assistant.operator_source.sources",
+    # 这个月以外还等着录的单按月计数（代录计划这个月为空时 CC 说清、问要不要改月份，A 线 11-15）
+    "elsewhere": "pearnly_cowork.assistant.operator_source.elsewhere",
     "precheck": "pearnly_cowork.assistant.operator_source.precheck",
     "intake": "pearnly_cowork.assistant.operator_source.intake",
     "uploads": "pearnly_cowork.assistant.operator_source.uploads",

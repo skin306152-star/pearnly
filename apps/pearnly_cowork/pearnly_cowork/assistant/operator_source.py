@@ -83,6 +83,42 @@ def sources(company, period, offset, limit) -> dict:
     return {"documents": documents, "next_offset": found.get("next_offset"), "total": found.get("total")}
 
 
+ELSEWHERE_MAX = 500  # 这个月以外最多数这么多张（两段日期各自分页取，到上限就停：只为说「其他月份还有几张」）
+
+
+def elsewhere(company, period) -> list:
+    """这家公司**这个月以外**还等着录的单，按单据月份计数 ``[{"month": "YYYY-MM", "count": n}]``（新到旧）。代录计划这个月没有可录的单
+    时交给 CC 说清、再问要不要改这次代录的月份（11-13 测试机1：6 月的单放在 10 月的代录对话里，只回「0 张」不说原因）。与
+    :func:`sources` 同一个列表（`tools.list_documents` 的 ``push_state=waiting``、按公司账套筛），只换日期；任务里放进来的月份外的单
+    已经在资料区（带 ``other_month``），这里照样数进它所在的月份。"""
+    from datetime import date, timedelta
+
+    from pearnly_cowork.assistant import tools
+
+    first, last = _month(period)
+    before = (date.fromisoformat(first) - timedelta(days=1)).isoformat()
+    after = (date.fromisoformat(last) + timedelta(days=1)).isoformat()
+    counts, seen = {}, 0
+    for window in ({"invoice_date_to": before}, {"invoice_date_from": after}):
+        offset = 0
+        while seen < ELSEWHERE_MAX:
+            query = {"company": company, "push_state": "waiting", "limit": tools.LIST_MAX, "offset": offset, **window}
+            found = json.loads(tools.list_documents(query))  # loop-query: 服务端分页，合计到 ELSEWHERE_MAX 张就停
+            if found.get("status") == "failed":
+                return []
+            rows = found.get("documents") or []
+            for row in rows:
+                month = str(row.get("invoice_date") or "")[:7]
+                if month:
+                    counts[month] = counts.get(month, 0) + 1
+            seen += len(rows)
+            following = found.get("next_offset")
+            if not rows or following is None or int(following) <= offset:
+                break
+            offset = int(following)
+    return [{"month": month, "count": counts[month]} for month in sorted(counts, reverse=True)]
+
+
 OTHER_TASKS_MAX, OTHER_BATCHES_MAX = 200, 500
 
 

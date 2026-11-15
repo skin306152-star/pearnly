@@ -7,6 +7,8 @@
                                  # "party", "ref", "total"}], "next_offset", "total"}：可代录的单据（Cowork 识别草稿、ERP 采购 /
                                  # 销售单据与放文件识别出的收单记录），服务端分页；``total`` 是这个月一共几张。``moves``：这张能拖到
                                  # 哪几组（产品声明了 ``regroup`` 才算数，没有的不能拖）
+        "elsewhere": "<点路径>", # 可选：(company, period) -> [{"month": "YYYY-MM", "count"}]：这个月以外还等着代录的单按单据月份计数
+                                 # （与 sources 同一套判据），代录计划这个月没有可录的单时交给 CC 说清、问要不要改这次代录的月份
         "precheck": "<点路径>",  # (company, doc_ids) -> {"documents": [{"doc_id", "state": ready / choose / waiting / blocked,
                                  # "reason", "message", "needed": [{kind, subject, label, options}]}]}：按产品自己的准备逐张判
                                  # （与直写同一条路，不排写账件），要人选的一次问完
@@ -67,6 +69,28 @@ def allowed(user, company) -> bool:
 def sources(company, period, offset: int, limit: int) -> dict:
     path = _path("sources")
     return frappe.get_attr(path)(company, period, offset, limit) if path else {"documents": [], "next_offset": None}
+
+
+ELSEWHERE_SHOWN = 12  # 给 CC 的其他月份最多这么多个（新到旧）
+
+
+def elsewhere(company, period) -> list:
+    """这个月以外还等着代录的单按月计数（产品声明了 ``elsewhere`` 才有；没声明、出错回 []）：``[{"month", "count"}]``，新到旧、
+    张数大于 0。月份与张数是服务端数的，CC 照着说、照着问，不自己算（A 线 11-15）。"""
+    path = _path("elsewhere")
+    if not path or not company or not period:
+        return []
+    try:
+        found = frappe.get_attr(path)(company, str(period))
+    except Exception:
+        frappe.log_error(title="Express operator elsewhere failed")
+        return []
+    out = []
+    for item in found or ():
+        month, count = str((item or {}).get("month") or "")[:7], int((item or {}).get("count") or 0)
+        if len(month) == 7 and month[4] == "-" and month != str(period)[:7] and count > 0:
+            out.append({"month": month, "count": count})
+    return sorted(out, key=lambda item: item["month"], reverse=True)[:ELSEWHERE_SHOWN]
 
 
 def precheck(company, doc_ids) -> dict:
