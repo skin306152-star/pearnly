@@ -111,6 +111,7 @@ All new stock items,All new stock items
 Allowed Users,Allowed Users
 Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
+Already has a result. Cannot withdraw.,Already has a result. Cannot withdraw.
 Already recorded:,Already recorded:
 Amount,Amount
 Amount Tolerance,Amount Tolerance
@@ -2244,7 +2245,9 @@ Whole company,Whole company
 Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
 With differences,With differences
+Withdraw,Withdraw
 Withdrawal,Withdrawal
+Withdrawn.,Withdrawn.
 Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
@@ -2256,6 +2259,7 @@ Writable,Writable
 Write Check,Write Check
 Write Check Detail,Write Check Detail
 Write Route,Write Route
+Writing now. Cannot withdraw.,Writing now. Cannot withdraw.
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written By Computer,Written By Computer
 Yearly,Yearly
@@ -2580,6 +2584,7 @@ cowork.policy.service,Expense (this kind from now on)
 cowork.policy.skip,Don't enter (this kind from now on)
 cowork.policy.skipped,Not entered
 cowork.policy.stock,Stock (this kind from now on)
+cowork.push.withdraw,Withdraw
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
 cowork.readback.account_missing,This account set is not on this connection.
@@ -3712,6 +3717,9 @@ push.record_not_found,Push record not found.
 push.request_conflict,This request key was used for different push content.
 push.request_invalid,Invalid push request.
 push.utc_required,A timezone-aware UTC timestamp is required.
+push.withdraw_settled,Already has a result. Cannot withdraw.
+push.withdraw_writing,Writing now. Cannot withdraw.
+push.withdrawn,Withdrawn.
 ready to push,ready to push
 recognized,recognized
 recognizing,recognizing

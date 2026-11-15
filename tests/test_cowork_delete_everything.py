@@ -125,23 +125,115 @@ class HistoryRemoval(unittest.TestCase):
         })
         purged = []
         result = self._removal(db, purged).delete(json.dumps(["H1", "H2", "H3", "gone"]))
-        self.assertEqual(result, {"deleted": 2, "skipped": 2})
-        self.assertEqual(set(db.tables["Cowork OCR History"]), {"H2"})  # 正在推送的留着
-        self.assertEqual(set(db.tables["Cowork Push Record"]), {"P2"})
-        self.assertEqual(set(db.tables["Cowork Push Attempt"]), {"A2"})
+        # 已放行、还在排队的（P2 pending）删前随票撤掉：推送记录一起删，电脑不会再领到（A 线 11-13 主会话定）
+        self.assertEqual(result, {"deleted": 3, "skipped": 1})
+        self.assertEqual(db.tables["Cowork OCR History"], {})
+        self.assertEqual(db.tables["Cowork Push Record"], {})
+        self.assertEqual(db.tables["Cowork Push Attempt"], {})
         self.assertEqual(db.tables["Cowork Push Notification"], {})
         self.assertEqual(db.tables["Cowork OCR Correction"], {})
         self.assertEqual(purged, ["CWS-a"])
 
     def test_unknown_result_or_held_writer_lock_counts_as_pushing(self):
         db = FakeDB({
-            "Cowork OCR History": {"H1": {"last_push_status": "manual"}, "H2": {"last_push_status": "success"}},
+            "Cowork OCR History": {"H1": {"last_push_status": "manual"}, "H2": {"last_push_status": "success"},
+                                   "H3": {"last_push_status": "pending"}, "H4": {"last_push_status": ""}},
             "Cowork Push Record": {"P1": {"history": "H1", "status": "manual", "result_unknown": 1},
-                                   "P2": {"history": "H2", "status": "success"}},
+                                   "P2": {"history": "H2", "status": "success"},
+                                   "P3": {"history": "H3", "status": "leased"},  # CC 桌面版正在写：不删（写完再删）
+                                   "P4": {"history": "H4", "status": "prepared"}},
             "Cowork Push Writer Lock": {"L1": {"holder": "P2"}},
         })
-        result = self._removal(db, []).delete(["H1", "H2"])
-        self.assertEqual(result, {"deleted": 0, "skipped": 2})
+        result = self._removal(db, []).delete(["H1", "H2", "H3", "H4"])
+        self.assertEqual(result, {"deleted": 0, "skipped": 4})
+        self.assertEqual(set(db.tables["Cowork Push Record"]), {"P1", "P2", "P3", "P4"})
+
+
+class _Refused(Exception):
+    pass
+
+
+class PushWithdraw(unittest.TestCase):
+    """已放行、还在排队的推送可以撤回（A 线 11-13 主会话定、11-15 施工）：只撤 pending；电脑正在写的、已有结论的拒并说明；
+    撤成了票回到「没推」。替身模块上加载真 `push/native/service.py`，不连库。"""
+
+    def _ledger(self):
+        stub = mock.MagicMock
+        names = ["frappe", "pearnly_cowork", "pearnly_cowork.access", "pearnly_cowork.access.scope",
+                 "pearnly_cowork.history", "pearnly_cowork.history.push_state", "pearnly_cowork.connections",
+                 "pearnly_cowork.connections.service", "pearnly_cowork.connections.access",
+                 "pearnly_cowork.connections.pool", "pearnly_cowork.connections.preparation", "pearnly_cowork.push",
+                 "pearnly_cowork.push.native", "pearnly_cowork.push.native.completion",
+                 "pearnly_cowork.push.native.contracts", "pearnly_cowork.push.native.documents",
+                 "pearnly_cowork.targets", "pearnly_cowork.targets.freeze", "pearnly_cowork.targets.contracts",
+                 "pearnly_core", "pearnly_core.express_rules", "pearnly_core.express_rules.contracts",
+                 "pearnly_core.express_rules.contracts.push", "pearnly_core.express_rules.push",
+                 "pearnly_core.express_rules.push.common", "pearnly_core.express_rules.push.written_check",
+                 "pearnly_core.express_rules.push.referenced", "pearnly_core.cc_desktop", "pearnly_core.cc_desktop.wire",
+                 "pearnly_core.cc_desktop.wire.ack_rules", "pearnly_core.express_rules.targets",
+                 "pearnly_core.express_rules.targets.identity"]
+        modules = {name: stub() for name in names}
+        modules["pearnly_cowork.push.native.documents"].TYPES = ("Cowork Push Record", "Cowork Push Attempt", "Lock")
+        module = _load("pearnly_cowork.push.native.service_withdraw", APP / "push/native/service.py", modules)
+        self.saved, self.cleared, self.checked = [], [], []
+
+        def refuse(code):
+            raise _Refused(code)
+
+        module.fail = refuse
+        module.call = lambda function, *args, **kwargs: None
+        module.atomic = mock.MagicMock()
+        module._context = lambda context: None
+        module._authorize = lambda context: self.checked.append("authorize")
+        module._history = lambda context: self.checked.append("history")
+        module._record = lambda name, context: self.row
+        module._save_record = lambda row, timestamp, select_history=False: self.saved.append((row.status, row.reason))
+        module.now_utc = lambda value=None: "2026-11-15T14:00:00Z"
+        module.project = lambda row: dict(vars(row))
+        module.push_state = types.SimpleNamespace(withdrawn=lambda row: self.cleared.append(row.name))
+        return module
+
+    def _row(self, **values):
+        return types.SimpleNamespace(**{"name": "CWP-1", "history": "H1", "status": "pending", "revision": 4,
+                                        "result_unknown": 0, "actor": "colleague@x", **values})
+
+    def test_only_a_queued_push_is_withdrawn_and_the_document_goes_back_to_not_pushed(self):
+        ledger = self._ledger()
+        self.row = self._row()
+        out = ledger.withdraw_pending("CWP-1", context=object(), expected_revision=4)
+        self.assertEqual((out["status"], out["reason"]), ("cancelled", "push.withdrawn"))
+        self.assertEqual(self.saved, [("cancelled", "push.withdrawn")])
+        self.assertEqual(self.cleared, ["CWP-1"])  # 票上的推送状态清回「没推」，可以重推
+        self.assertEqual(self.checked, ["authorize", "history"])  # 录入权限与公司范围照旧守；不核是谁放行的（11-14 口径）
+
+    def test_a_push_being_written_or_already_settled_is_refused_with_its_reason(self):
+        ledger = self._ledger()
+        for values, code in (({"status": "leased"}, "push.withdraw_writing"),
+                             ({"status": "success"}, "push.withdraw_settled"),
+                             ({"status": "manual"}, "push.withdraw_settled"),
+                             ({"status": "cancelled"}, "push.withdraw_settled"),
+                             ({"status": "pending", "result_unknown": 1}, "push.withdraw_settled")):
+            row = {"name": "CWP-1", "history": "H1", "revision": 4, "result_unknown": 0, **values}
+            self.row = types.SimpleNamespace(**row)
+            with self.assertRaises(_Refused) as raised:
+                ledger.withdraw_pending("CWP-1", context=object(), expected_revision=4)
+            self.assertEqual(raised.exception.args[0], code, values)
+        self.row = self._row()
+        with self.assertRaises(_Refused) as raised:  # 页面上的版本过时
+            ledger.withdraw_pending("CWP-1", context=object(), expected_revision=3)
+        self.assertEqual(raised.exception.args[0], "push.native_revision_conflict")
+        self.assertEqual((self.saved, self.cleared), ([], []))
+
+    def test_every_refusal_and_the_button_have_four_languages(self):
+        rows = {line.split("\t")[-1]: line.split("\t") for line in
+                (APP / "i18n/messages.tsv").read_text(encoding="utf-8").splitlines() if line.strip()}
+        for key in ("push.withdrawn", "push.withdraw_writing", "push.withdraw_settled", "cowork.push.withdraw"):
+            self.assertEqual(len([cell for cell in rows[key][:4] if cell]), 4, key)
+        page = (APP / "public/desk/intake-upload.js").read_text(encoding="utf-8")
+        self.assertIn('PUSH + "withdraw"', page)
+        self.assertIn('__("cowork.push.withdraw")', page)
+        api = (APP / "push/application/api.py").read_text(encoding="utf-8")
+        self.assertIn("def withdraw(name):", api)
 
 
 class OraclePurge(unittest.TestCase):

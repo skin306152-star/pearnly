@@ -1094,7 +1094,8 @@ kind = "nav-page"
 anchor = "nav:cowork:pearnly-intake"
 where = "侧栏「pearnly-intake」"
 cc = ["cowork_list_documents"]
-tests = ["flow:cowork.intake.review", "flow:cowork.keyboard.intake", "flow:cowork.field-help", "flow:cowork.express.warehouse", "impact:cowork.page.intake"]
+# 详情里已放行、还在排队的推送有「撤回」（不另确认；正在写入 / 已有结果由服务端拒并说明，A 线 11-15）
+tests = ["flow:cowork.intake.review", "flow:cowork.keyboard.intake", "flow:cowork.field-help", "flow:cowork.express.warehouse", "impact:cowork.page.intake", "unit:tests/test_cowork_delete_everything.py::test_only_a_queued_push_is_withdrawn_and_the_document_goes_back_to_not_pushed", "unit:tests/test_cowork_delete_everything.py::test_every_refusal_and_the_button_have_four_languages"]
 
 [[row]]
 id = "cowork.desk.pearnly-recon-bank"

@@ -7,7 +7,9 @@
   · 这张票的推送记录、推送尝试、推送通知、纠错样本一起删；
   · 原件（含识别批次、50 ทวิ 参考记录、服务器上的文件、原件桶里的原件与预览）在没有别的票再用时一起删
     （`files.service.purge`）；
-  · 只有推送还没出结论的票（准备好 / 排队 / 小助手在写 / 结果不明）不删，计入 `skipped`：推送收尾要回写这张票。
+  · 已放行、还在排队（``pending``，还没有电脑领走）的推送删前先撤：推送记录随票一起删，电脑不会再领到（A 线 11-13 主会话定：
+    不留删除后又写进 Express 的孤儿件）；
+  · 推送还没出结论的票（准备好 / CC 桌面版正在写 / 结果不明 / 持着写者锁）不删，计入 `skipped`：推送收尾要回写这张票。
 扣费流水在控制面的账本里，不在这里，删票不改余额。
 """
 import frappe
@@ -20,15 +22,14 @@ MAX_RECORDS = 500
 # 只有本服务核过权限与推送之后才给识别记录的 `on_trash` 放行（见 DocType 控制器）。
 DELETE = object()
 RECORD = "Cowork Push Record"
-# 推送还没出结论：收尾（成功回写、失败记原因、结果核实）都要读这张票。
-_IN_FLIGHT = ("prepared", "pending", "leased")
+# 推送还没出结论：收尾（成功回写、失败记原因、结果核实）都要读这张票。排队中（pending）的不算：删前随票撤掉
+_IN_FLIGHT = ("prepared", "leased")
 
 
 def _pushing(doc):
-    if doc.get("last_push_status") == "pending":
-        return True
+    # 锁住这张票的推送记录再判（领单先锁记录再判 pending，两边互斥：判成排队中的，删完之前电脑领不走）
     records = frappe.get_all(RECORD, filters={"history": doc.name}, fields=["name", "status", "result_unknown"],
-                             ignore_permissions=True)
+                             ignore_permissions=True, for_update=True)
     return any(row.status in _IN_FLIGHT or row.result_unknown for row in records) or bool(
         records and frappe.db.exists("Cowork Push Writer Lock", {"holder": ["in", [row.name for row in records]]}))
 
@@ -71,5 +72,5 @@ def delete(records):
                           flags={"cowork_history_delete": DELETE})
         deleted += 1
     if sources:
-        files.purge(sources)
+        files.purge(list(dict.fromkeys(sources)))  # 两张票共用一份原件时只交一次
     return {"deleted": deleted, "skipped": skipped}

@@ -618,7 +618,13 @@
 			const many = book_many(record);
 			// 录入中、在等 Express 关闭：官方蓝色提示行（手机上没有悬浮，靠这一行）
 			const waiting = p.intake_push_waiting(record);
-			if (waiting) $("<div class='form-message blue'>").text(waiting).appendTo(wrapper);
+			// 已放行、还在排队：可以撤回（误操作要能撤回，用户口径；不另确认）。电脑正在写的由服务端拒并说明
+			if (pushed === "pending" && record?.last_push_record && !recognize_only) {
+				const row = $("<div class='form-message blue'>").appendTo(wrapper);
+				$("<span>").text(waiting || t("intake.push.pending")).appendTo(row);
+				$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.push.withdraw"))
+					.on("click", event => void withdraw(record, $(event.currentTarget))).appendTo(row);
+			} else if (waiting) $("<div class='form-message blue'>").text(waiting).appendTo(wrapper);
 			if ((record?.last_push_reason && (pushed === "manual" || !pushed)) || many) {
 				const reason = String(record.last_push_reason || ACCOUNT_SET_AMBIGUOUS);
 				const row = $(`<div class='form-message ${POLICY_SKIPPED.test(reason) ? "blue" : "red"}'>`).appendTo(wrapper);
@@ -915,6 +921,19 @@
 			fill(current);
 			sync_save();
 			if (result?.reason) frappe.show_alert({message: p.escape(p.intake_push_reason(result.reason)), indicator: "red"});
+		};
+
+		/** 撤回排队中的推送（`push.application.api.withdraw`）：撤成了票回到「没推」，可以重推；不成的原因由服务端说。 */
+		const withdraw = async (record, button) => {
+			button.prop("disabled", true);
+			try {
+				await p.call(PUSH + "withdraw", {name: record.last_push_record}, "POST");
+				frappe.show_alert({message: __("push.withdrawn"), indicator: "green"});
+			} finally {
+				current = await detail(record.name);
+				fill(current);
+				sync_save();
+			}
 		};
 
 		const resolve_unknown = record => new Promise(resolve => {

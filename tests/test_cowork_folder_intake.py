@@ -2298,5 +2298,28 @@ class CompanyFolderBindings(unittest.TestCase):
         self.assertNotIn("pearnly_cowork.companies", source)  # folder_intake 不导入 companies（不成环）
 
 
+
+class WithdrawnPushIsNotPushedAgain(unittest.TestCase):
+    """A 线 11-15（主会话 11-13 定：先查实文件夹录入会不会把人撤掉的单再推回去，加一条测试钉住真实行为）：
+    一份文件里每张票自动推过一次就记进这份的 ``outcome``，之后的轮次跳过它、不再调 ``push_one``；人撤回（票回到「没推」）后
+    这份照样算有了结论（`_settle` 只等还在路上的），所以撤掉的单不会被下一轮自动再推。"""
+
+    def test_a_document_already_tried_in_this_file_is_skipped_and_never_pushed_again(self):
+        source = (pathlib.Path(__file__).resolve().parents[1]
+                  / "apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py").read_text(encoding="utf-8")
+        tree = ast.parse(source)
+        push = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_push")
+        loop = next(node for node in ast.walk(push) if isinstance(node, ast.For)
+                    and ast.unparse(node.iter).startswith("json.loads(entry.histories_json"))
+        first = loop.body[0]
+        self.assertEqual(ast.unparse(first.test), "history in outcome")  # 推过的先跳过
+        self.assertIsInstance(first.body[0], ast.Continue)
+        calls = [ast.unparse(node) for node in ast.walk(loop) if isinstance(node, ast.Call)
+                 and ast.unparse(node.func) == "push_one"]
+        self.assertEqual(len(calls), 1)
+        self.assertIn("outcome[history] = result", ast.unparse(loop))  # 推一次就记下这张的去向
+        settle = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "_settle")
+        self.assertIn("只等还在路上的", ast.get_docstring(settle))
+
 if __name__ == "__main__":
     unittest.main()

@@ -1111,6 +1111,37 @@ def cancel_prepared(name, *, context, expected_revision):
         return project(row)
 
 
+WITHDRAWN = 'push.withdrawn'
+WITHDRAW_WRITING = 'push.withdraw_writing'
+WITHDRAW_SETTLED = 'push.withdraw_settled'
+
+
+def withdraw_pending(name, *, context, expected_revision):
+    """人撤回已放行、还在排队的推送（``pending``，还没有电脑领走；A 线 11-13 主会话定）：转 ``cancelled``（原因
+    ``push.withdrawn``），票上的推送状态还指着它就清回「没推」，之后可以重推。电脑正在写的（``leased``）不撤：回「正在写入，
+    无法撤回」，写完照常记结果；已有结论的（成功、转人工、结果不明、已作废）回「已有结果，无法撤回」。
+
+    不核是谁放行的：勾了录入功能就能处理本公司全部（用户 11-14 权限口径），录入权限与公司范围由 ``_authorize`` / ``_history``
+    守。排队中不持写者锁，领单（:func:`lease`）同样先锁这条记录再判 ``pending``，两者互斥。"""
+    _context(context)
+    call(integer, expected_revision, minimum=1)
+    with atomic():
+        _authorize(context)
+        _history(context)
+        row = _record(name, context)
+        if int(row.revision) != expected_revision:
+            fail('push.native_revision_conflict')
+        if row.status == 'leased':
+            fail(WITHDRAW_WRITING)
+        if row.status != 'pending' or row.result_unknown:
+            fail(WITHDRAW_SETTLED)
+        row.status, row.reason = 'cancelled', WITHDRAWN
+        row.completed_at = now_utc()
+        _save_record(row, row.completed_at)
+        push_state.withdrawn(row)
+        return project(row)
+
+
 def open_account_keys(connection):
     """被未了结推送记录（不是成功、也不是作废）引用的账套键：连接域的账套资料不淘汰它们（ADR-021，方案 2.2）。只读。"""
     rows = frappe.db.sql("""SELECT DISTINCT account_key FROM `tabCowork Push Record`

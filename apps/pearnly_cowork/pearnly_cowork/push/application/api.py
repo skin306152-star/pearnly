@@ -38,6 +38,12 @@ def cancel_prepared(name, expected_revision):
 
 
 @frappe.whitelist(methods=["POST"])
+def withdraw(name):
+    """撤回已放行、还在排队的推送（录入详情页「撤回」，A 线 11-15）。"""
+    return _local_transaction(service.withdraw, name)
+
+
+@frappe.whitelist(methods=["POST"])
 def confirm(name, expected_revision, request_key):
     """MR.ERP：确认发送（服务端直连执行）。Express 的确认走 `companion.submission.confirm`。"""
     return _local_transaction(service.confirm_server, name, expected_revision, request_key)

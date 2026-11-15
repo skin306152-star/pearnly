@@ -954,6 +954,21 @@ def cancel_prepared(name, expected_revision):
         expected_revision=storage.revision(expected_revision)))
 
 
+def withdraw(name):
+    """录入详情页「撤回」：撤回已放行、还在排队的推送（``ledger.withdraw_pending``）。网页不另确认（用户口径：误操作要能撤回）；
+    按此刻的版本号撤，正在写入、已有结果的由账本拒并说明。"""
+    scope.require("intake")
+    row = frappe.db.get_value("Cowork Push Record", name,
+        ["connection", "workspace", "client", "history"], as_dict=True)
+    if not row:
+        frappe.throw(_("push.record_not_found"), frappe.DoesNotExistError)
+    loaded = connections.read_for_push(row.connection, row.workspace, row.client)
+    history = storage.read(row.history, for_update=True)
+    doc = frappe.get_doc("Cowork Push Record", name, for_update=True)
+    context = _context(history, loaded, doc.account_key)
+    return _view(ledger.withdraw_pending(name, context=context, expected_revision=int(doc.revision or 0)))
+
+
 def confirm(name, expected_revision, request_key):
     """Called by authenticated Companion submission orchestration, never RPC. Express needs no computer's key
     (ADR-021): the ledger checks the actor's grant and that some computer reaches the account set."""

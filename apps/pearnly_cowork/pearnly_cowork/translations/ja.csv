@@ -111,6 +111,7 @@ All new stock items,すべて新規在庫品
 Allowed Users,許可ユーザー
 Allowed root folder on the PC,許可されたルートフォルダー
 Already exists,すでに存在します
+Already has a result. Cannot withdraw.,結果が出ているため取り下げできません。
 Already recorded:,記録済み:
 Amount,金額
 Amount Tolerance,金額許容差
@@ -2244,7 +2245,9 @@ Whole company,会社全体
 Why it is not in the review sheet,確認表がない理由
 Wire Attempt,送信試行回数
 With differences,差異あり
+Withdraw,取り下げ
 Withdrawal,出金
+Withdrawn.,取り下げました。
 Withholding agent,源泉徴収義務者
 Withholding tax certificates,源泉徴収票
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,源泉徴収証明書（50 ทวิ）は入力しないため、送信しません
@@ -2256,6 +2259,7 @@ Writable,書き込み可
 Write Check,書き込み確認
 Write Check Detail,書き込み確認の詳細
 Write Route,書き込みの割り当て
+Writing now. Cannot withdraw.,書き込み中のため取り下げできません。
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written By Computer,書き込んだパソコン
 Yearly,毎年
@@ -2580,6 +2584,7 @@ cowork.policy.service,費用に計上（以後も同様）
 cowork.policy.skip,入力しない（以後も同様）
 cowork.policy.skipped,入力しない
 cowork.policy.stock,在庫に計上（以後も同様）
+cowork.push.withdraw,取り下げ
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
 cowork.readback.account_missing,この接続にこの会計データはありません。
@@ -3712,6 +3717,9 @@ push.record_not_found,送信記録が見つかりません。
 push.request_conflict,この要求キーは別の送信内容に使用されています。
 push.request_invalid,送信要求が無効です。
 push.utc_required,タイムゾーン付きのUTC時刻が必要です。
+push.withdraw_settled,結果が出ているため取り下げできません。
+push.withdraw_writing,書き込み中のため取り下げできません。
+push.withdrawn,取り下げました。
 ready to push,送信待ち
 recognized,認識済み
 recognizing,認識中

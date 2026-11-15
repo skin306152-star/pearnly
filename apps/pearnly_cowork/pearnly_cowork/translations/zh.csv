@@ -111,6 +111,7 @@ All new stock items,全部新建存货
 Allowed Users,授权用户
 Allowed root folder on the PC,允许读取的根目录
 Already exists,已存在
+Already has a result. Cannot withdraw.,已有结果，无法撤回。
 Already recorded:,已记录：
 Amount,金额
 Amount Tolerance,金额容差
@@ -2244,7 +2245,9 @@ Whole company,全公司
 Why it is not in the review sheet,未生成复核表的原因
 Wire Attempt,发送尝试次数
 With differences,有差异
+Withdraw,撤回
 Withdrawal,提款
+Withdrawn.,已撤回。
 Withholding agent,扣缴义务人
 Withholding tax certificates,预扣税凭证
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,预扣税凭证（50 ทวิ）不录入，此单据不推送
@@ -2256,6 +2259,7 @@ Writable,可写
 Write Check,写入核对
 Write Check Detail,写入核对明细
 Write Route,写入分派
+Writing now. Cannot withdraw.,正在写入，无法撤回。
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written By Computer,写入的电脑
 Yearly,每年
@@ -2580,6 +2584,7 @@ cowork.policy.service,记费用（同类单据均记费用）
 cowork.policy.skip,不录入（同类单据均不录入）
 cowork.policy.skipped,不录入
 cowork.policy.stock,走库存（同类单据均走库存）
+cowork.push.withdraw,撤回
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
 cowork.readback.account_missing,此连接中没有该账套。
@@ -3712,6 +3717,9 @@ push.record_not_found,找不到推送记录。
 push.request_conflict,此请求标识已用于其他推送内容。
 push.request_invalid,推送请求无效。
 push.utc_required,必须提供带时区的 UTC 时间。
+push.withdraw_settled,已有结果，无法撤回。
+push.withdraw_writing,正在写入，无法撤回。
+push.withdrawn,已撤回。
 ready to push,待推送
 recognized,已识别
 recognizing,识别中

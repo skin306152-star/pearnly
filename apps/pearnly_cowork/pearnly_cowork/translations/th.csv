@@ -111,6 +111,7 @@ All new stock items,สร้างใหม่ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
 Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
+Already has a result. Cannot withdraw.,มีผลแล้ว ถอนไม่ได้
 Already recorded:,บันทึกไว้แล้ว:
 Amount,จำนวนเงิน
 Amount Tolerance,ค่าผลต่างยอมรับได้
@@ -2244,7 +2245,9 @@ Whole company,ทั้งบริษัท
 Why it is not in the review sheet,สาเหตุที่ไม่มีตารางตรวจทาน
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
 With differences,มีผลต่าง
+Withdraw,ถอนรายการ
 Withdrawal,ถอน
+Withdrawn.,ถอนแล้ว
 Withholding agent,ผู้มีหน้าที่หักภาษี ณ ที่จ่าย
 Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
@@ -2256,6 +2259,7 @@ Writable,เขียนได้
 Write Check,ตรวจการบันทึก
 Write Check Detail,รายละเอียดการตรวจการบันทึก
 Write Route,การมอบหมายการเขียน
+Writing now. Cannot withdraw.,กำลังบันทึก ถอนไม่ได้
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written By Computer,คอมพิวเตอร์ที่เขียน
 Yearly,ทุกปี
@@ -2580,6 +2584,7 @@ cowork.policy.service,ค่าใช้จ่าย (เอกสารปร�
 cowork.policy.skip,ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)
 cowork.policy.skipped,ไม่บันทึก
 cowork.policy.stock,สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
+cowork.push.withdraw,ถอนรายการ
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปจากการอ่าน
 cowork.readback.account_missing,ไม่พบชุดบัญชีนี้ในการเชื่อมต่อนี้
@@ -3712,6 +3717,9 @@ push.record_not_found,ไม่พบรายการส่ง
 push.request_conflict,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 push.request_invalid,คำขอส่งไม่ถูกต้อง
 push.utc_required,ต้องระบุเวลา UTC พร้อมเขตเวลา
+push.withdraw_settled,มีผลแล้ว ถอนไม่ได้
+push.withdraw_writing,กำลังบันทึก ถอนไม่ได้
+push.withdrawn,ถอนแล้ว
 ready to push,รอส่ง
 recognized,อ่านเอกสารแล้ว
 recognizing,กำลังอ่านเอกสาร
