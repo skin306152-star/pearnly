@@ -328,7 +328,8 @@ class SerialRoles(unittest.TestCase):
             with mock.patch.object(setup, "_grant", lambda doctype, role, perms, permlevel=0: grants.__setitem__((doctype, role), perms)), \
                     mock.patch.object(setup, "_ensure_role", lambda role: None), \
                     mock.patch.object(setup.frappe, "db", db, create=True), \
-                    mock.patch.object(setup.frappe, "clear_cache", lambda: None, create=True):
+                    mock.patch.object(setup.frappe, "clear_cache", lambda: None, create=True), \
+                    mock.patch.object(setup.frappe, "conf", {"pearnly_features": []}, create=True):  # 管理员补表权限另测
                 setup.sync_roles()
         for role in ("ERP Products", "ERP Stock", "ERP Purchase", "ERP Sales", "ERP Cashier", "ERP Admin",
                      menu.role("inventory"), menu.role("stock-card"), menu.role("pos-receipts")):

@@ -33,10 +33,7 @@ def has(capability: str, user=None) -> bool:
                           if spec[1] == "ERP Stock" and capability in spec[2]), None)
     if stock_feature and stock_feature not in features:
         return False
-    gated = rules.ADMIN_FEATURE_CAPABILITIES.get(capability)
-    if gated and gated not in features:
-        return False
-    held = current_roles(user)
+    held = rules.admin_held(current_roles(user), features)
     disabled = {menu.role(key) for key, spec in menu.CATALOG.items() if spec[0] and spec[0] not in features}
     disabled.update(role for role in set(rules.FEATURE_ROLES.values())
                     if not any(code in features for code, legacy in rules.FEATURE_ROLES.items() if legacy == role))
