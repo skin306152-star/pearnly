@@ -85,7 +85,11 @@ def steps(params, camera_code=None):
          "for(let k=0;k<40&&document.querySelector('.modal.show [data-fieldname=items]');k++) await new Promise(r=>setTimeout(r,250)); "
          "await idle(); await new Promise(r=>setTimeout(r,800)); "
          "const alerts=[...document.querySelectorAll('.alert-message, .desk-alert')].map(e=>e.innerText.trim()); "
-         f"return {{closed: !document.querySelector('.modal.show [data-fieldname=items]'), alerts, listed: document.body.innerText.includes({tag})}};"},
+         # 主会话 11-15：添加后刚加的几家排在列表最前、行高亮（不切当前公司）
+         "const rows=[...document.querySelectorAll('.list-row-container')].filter(r=>r.offsetParent&&r.querySelector('.list-row-checkbox[data-name]')); "
+         "const fresh=rows.map((r,i)=>[i, r.classList.contains('pearnly-row-fresh'), r.innerText.trim().split('\\n')[0]]).filter(x=>x[1]); "
+         f"return {{closed: !document.querySelector('.modal.show [data-fieldname=items]'), alerts, listed: document.body.innerText.includes({tag}), "
+         "fresh: fresh.map(x=>x[0]), fresh_names: fresh.map(x=>x[2]), current: frappe.boot.pearnly_company};"},
         {"name": "左上角公司名下拉里没有从连接添加", "js": IDLE +
          "const head=document.querySelector('.sidebar-header'); if(!head) return {error:'no sidebar header'}; head.click(); "
          "await new Promise(r=>setTimeout(r,600)); "
@@ -137,6 +141,9 @@ def judge(params, results, camera_code=None):
         {"case": "刷新时没有在线电脑：不干等，直接显示「CC 桌面版未连接」", "seen": by.get("刷新：没有在线电脑时显示未连接"),
          "ok": (by.get("刷新：没有在线电脑时显示未连接") or {}).get("text") == "CC 桌面版未连接"
          and (by.get("刷新：没有在线电脑时显示未连接") or {}).get("took", 99999) < 5000},
+        # 勾的带标记的三份：新税号新建、已停用重新启用、手工同税号接上
+        {"case": "添加后刚加的三家排在列表最前、行高亮", "seen": {k: done.get(k) for k in ("fresh", "fresh_names")},
+         "ok": done.get("fresh") == [0, 1, 2] and all(params["tag"] in name for name in done.get("fresh_names") or ["x"])},
         {"case": "添加后对话框关闭、提示已新建、列表里看得到", "seen": done,
          "ok": bool(done.get("closed")) and any("已新建" in a for a in done.get("alerts") or []) and bool(done.get("listed"))},
     ]

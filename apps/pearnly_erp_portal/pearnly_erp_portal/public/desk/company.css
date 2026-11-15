@@ -31,3 +31,6 @@
 .pearnly-connect-dialog [data-fieldname="items"] > .control-label:empty {
 	display: none;
 }
+
+/* 从连接添加刚加的几家：排在最前、底色同原生高亮（主会话 11-15：添加后定位到新公司） */
+.list-row-container.pearnly-row-fresh { background: var(--highlight-color); }

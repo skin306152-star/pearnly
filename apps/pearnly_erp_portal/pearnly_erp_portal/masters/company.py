@@ -305,12 +305,28 @@ def for_document(name) -> dict:
 COMPANY_SORT = {field: field for field in ("company_name", "short_name", "tax_id", "phone", "is_active")}
 
 
-def list_companies(*, include_inactive=False, limit=50, start=0, sort_by=None, sort_order=None) -> list[dict]:
+FIRST_MAX = 20  # 「从连接添加」一次加的几家排在最前（主会话 11-15：添加后定位到新公司）
+
+
+def list_companies(*, include_inactive=False, limit=50, start=0, sort_by=None, sort_order=None, first=None) -> list[dict]:
+    """``first``：刚从连接添加的几家（公司编号），排在列表最前；其余照排序分页（总数不变）。"""
     guard.require("company.read")
     filters = {} if include_inactive else {"is_active": 1}
-    return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS),
-                           order_by=listing.order_by(sort_by, sort_order, COMPANY_SORT, "is_default desc, company_name asc"),
-                           limit_start=int(start or 0), limit_page_length=int(limit))
+    if isinstance(first, str):
+        first = frappe.parse_json(first) if first.strip().startswith("[") else [part for part in first.split(",") if part]
+    first = [str(name) for name in (first or [])][:FIRST_MAX]
+    start, limit = int(start or 0), int(limit)
+    order_by = listing.order_by(sort_by, sort_order, COMPANY_SORT, "is_default desc, company_name asc")
+    if not first:
+        return frappe.get_list(DOCTYPE, filters=filters, fields=list(LIST_FIELDS), order_by=order_by,
+                               limit_start=start, limit_page_length=limit)
+    fresh = frappe.get_list(DOCTYPE, filters={**filters, "name": ["in", first]}, fields=list(LIST_FIELDS),
+                            order_by=order_by, limit_page_length=len(first))
+    head = fresh[start:start + limit]
+    rest = frappe.get_list(DOCTYPE, filters={**filters, "name": ["not in", [row["name"] for row in fresh] or [""]]},
+                           fields=list(LIST_FIELDS), order_by=order_by,
+                           limit_start=max(0, start - len(fresh)), limit_page_length=limit - len(head))
+    return head + rest
 
 
 def count_companies(*, include_inactive=False) -> int:

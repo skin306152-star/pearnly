@@ -51,7 +51,7 @@
 			});
 			return values;
 		};
-		let form = null, list = null;
+		let form = null, list = null, fresh = [];  // fresh：刚从连接添加的几家（排在列表最前并高亮，主会话 11-15）
 		// 列表上的勾选动作（共享层那一套）：选中之后右上角才出现按钮，停用状态的行显示「启用」。
 		let selection = null;
 
@@ -129,7 +129,8 @@
 				sort_fields: ["company_name", "short_name", "tax_id", "phone", "is_active"],
 				load: async ({start, page_length, sort_by, sort_order}) => {
 					const [items, total] = await Promise.all([
-						p.call(api + "api_list_companies", {include_inactive: 1, start, limit: page_length, sort_by, sort_order}),
+						p.call(api + "api_list_companies", {include_inactive: 1, start, limit: page_length, sort_by, sort_order,
+							first: fresh.join(",")}),
 						p.call(api + "api_count_companies", {include_inactive: 1}),
 					]);
 					return {items, total};
@@ -148,6 +149,16 @@
 			await p.take_open("pearnly-company", "ERP Company", name => frappe.set_route(root, name));
 		}
 
+		// 从连接添加之后：刚加的几家排在列表最前、行高亮，列表回到顶上（不切当前公司，主会话 11-15）
+		async function show_fresh(made) {
+			fresh = made || [];
+			await list?.reload?.();
+			const rows = fresh.map(name => $(page.body).find(`.list-row-checkbox[data-name="${CSS.escape(name)}"]`)
+				.closest(".list-row-container")).filter(row => row.length);
+			rows.forEach(row => row.addClass("pearnly-row-fresh"));
+			rows[0]?.get(0)?.scrollIntoView({block: "nearest"});
+		}
+
 		function can_write() {
 			return Boolean(frappe.model.can_write("ERP Company"));
 		}
@@ -155,7 +166,7 @@
 		function restore_new() {
 			// 从连接添加（公司接入重做第 2 批）：能建公司的人才有；勾完回到列表刷新
 			if (frappe.boot.pearnly_can_build) {
-				page.set_secondary_action(__("company.connect.add"), () => p.connect_companies({done: () => list?.reload?.()}));
+				page.set_secondary_action(__("company.connect.add"), () => p.connect_companies({done: made => void show_fresh(made)}));
 			} else {
 				page.clear_secondary_action();
 			}

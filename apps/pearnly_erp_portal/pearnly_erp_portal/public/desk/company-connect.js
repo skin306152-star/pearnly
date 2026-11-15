@@ -68,7 +68,7 @@
 				// 有新建的（含接管开户时那家空公司）说「已新建」；只是重新启用停用的公司 / 接上已有公司的，用公司页启用时那句「已更新」
 				p.success(__(made.some(item => item?.created || item?.adopted) ? "company.notice.created" : "company.notice.toggled"), "click");
 				await p.refresh_company_context?.();
-				done?.();
+				done?.(made.map(item => item?.id).filter(Boolean));
 			},
 		});
 		dialog.onhide = () => {

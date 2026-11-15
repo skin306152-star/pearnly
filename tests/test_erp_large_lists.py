@@ -58,6 +58,26 @@ class PagedLists(unittest.TestCase):
         self.assertEqual(calls[-1][1]["order_by"], "is_default desc, company_name asc")
         self.assertEqual(company.count_companies(include_inactive=1), 3)
 
+        # 从连接添加后（主会话 11-15：定位到新公司）：刚加的几家排最前，其余照排序接着分页、不重复
+        rows = {"A": "ก", "B": "ข", "C": "ค", "D": "ง", "E": "จ"}
+
+        def fake(doctype, filters=None, order_by=None, limit_start=0, limit_page_length=20, **kwargs):
+            names = sorted(rows, key=rows.get)
+            wanted = (filters or {}).get("name")
+            if wanted and wanted[0] == "in":
+                names = [name for name in names if name in wanted[1]]
+            elif wanted and wanted[0] == "not in":
+                names = [name for name in names if name not in wanted[1]]
+            return [{"name": name} for name in names[limit_start:limit_start + limit_page_length]]
+
+        with mock.patch.object(company.frappe, "get_list", side_effect=fake):
+            first_page = [row["name"] for row in company.list_companies(limit=3, first="D,B")]
+            second_page = [row["name"] for row in company.list_companies(start=3, limit=3, first="D,B")]
+            plain = [row["name"] for row in company.list_companies(limit=3)]
+        self.assertEqual(first_page, ["B", "D", "A"])
+        self.assertEqual(second_page, ["C", "E"])
+        self.assertEqual(plain, ["A", "B", "C"])
+
         calls = self.capture(shifts)
         with mock.patch.object(shifts.terminals, "scope_filter", return_value={"terminal": ["in", ["T1"]]}), \
                 mock.patch.object(shifts.rules, "record_scope", return_value="own"), \
