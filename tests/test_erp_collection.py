@@ -358,7 +358,8 @@ TYPES = [{"code": code, "prefix": prefix, "name": name, "name_en": "", "bank": b
 CASH_ACCOUNT = "1111-00"
 LISTED = {"TR", "BB", "TB", "SC", "KB"}
 BOOK = {"key": "a" * 40, "path": r"\\Accserver\d$\ACCOUNT\69EXP\NLTTEST", "root": r"\\Accserver\d$\ACCOUNT",
-        "company": "NLT", "label": "NLTTEST", "writers": ["PC"], "writable": True}
+        "company": "NLT", "label": "NLTTEST", "writers": ["PC"], "writable": True,
+        "period_start": "2026-01-01", "period_end": "2026-12-31"}  # CC 报的账套都带会计期间
 FACTS = {"receipt_types": TYPES, "cash_account": CASH_ACCOUNT}
 # 新版 CC 按账套自身结构报的科目类别（`payment_methods.account_classes`，NLTTEST 本机只读副本的 GLACC / BKMAS / ISINFO 算出）
 NLTTEST_CLASSES = {"1111-00": "cash", "1111-50": "cash_group", "1112-01": "bank", "1112-02": "bank", "1112-03": "bank",
@@ -983,6 +984,9 @@ class Permissions(Base):
         self.assertEqual(service.customers("CO-1", "2100")["total"], 2)
         self.assertEqual(len(service.customers("CO-1", "", limit=1)["items"]), 1)
         self.assertEqual(service.companies_for(), [{"name": "CO-1", "company_name": "นิภา"}])
+        # 11-15 线上：账套没报会计期间的公司选了也录不了（问不出收款日期），不列出来
+        with mock.patch.dict(BOOK, {"period_start": "", "period_end": ""}):
+            self.assertEqual(service.companies_for(), [])
 
     def test_methods_listed_for_the_collector(self):
         self.as_user("a@x")
