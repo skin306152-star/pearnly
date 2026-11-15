@@ -2409,3 +2409,6 @@ Account signed in elsewhere	账号已在别处登录	บัญชีเข้า
 Operator Ledgers	实操账本	ระบบบัญชีที่บันทึกแทนได้	代行入力先の帳簿
 Checked pending items	查看了待处理	ตรวจสอบรายการรอดำเนินการแล้ว	処理待ちの項目を確認しました
 Checking pending items	正在查看待处理	กำลังตรวจสอบรายการรอดำเนินการ	処理待ちの項目を確認しています
+Cowork invoice recognition	发票识别	อ่านใบแจ้งหนี้	請求書の読み取り	
+Cowork VAT check invoice recognition	增值税核对发票识别	อ่านใบกำกับภาษีเพื่อตรวจภาษีมูลค่าเพิ่ม	消費税照合の請求書読み取り	
+Cowork reconciliation document recognition	对账单据识别	อ่านเอกสารกระทบยอด	照合書類の読み取り	

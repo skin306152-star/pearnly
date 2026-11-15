@@ -518,10 +518,13 @@ Cowork Stocktake Task,Cowork 棚卸タスク
 Cowork Supplier Posting Profile,Cowork 仕入先転記プロファイル
 Cowork Tax Draft,Cowork 税務申告の下書き
 Cowork Tax Filing,税務申告の下書き
+Cowork VAT check invoice recognition,消費税照合の請求書読み取り
 Cowork WHT Certificate,Cowork 源泉徴収票（参照）
 Cowork WHT Choice,Cowork 源泉徴収の所得種類
 Cowork Workspace,Cowork 会計対象会社
+Cowork invoice recognition,請求書の読み取り
 Cowork menu,Coworkメニュー
+Cowork reconciliation document recognition,照合書類の読み取り
 Create a new label,新しいラベルを作成
 Create a rule,ルールを作成
 Create board,ボードを作成

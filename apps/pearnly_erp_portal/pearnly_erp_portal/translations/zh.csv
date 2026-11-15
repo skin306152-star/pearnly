@@ -539,6 +539,8 @@ Duplicate location code,仓位编码重复
 ERP,ERP
 ERP Stock Count Variance,盘点差异看板
 ERP menu,ERP 菜单
+ERP purchase recognition,采购单据识别
+ERP sales recognition,销售单据识别
 Each product and location may appear only once,同一物料和仓位只能填写一次
 Each returned line must be an Express stock item,退货明细须为 Express 库存商品
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。

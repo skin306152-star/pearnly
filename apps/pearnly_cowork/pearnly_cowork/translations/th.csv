@@ -518,10 +518,13 @@ Cowork Stocktake Task,งานตรวจนับสินค้า Cowork
 Cowork Supplier Posting Profile,โปรไฟล์การลงบัญชีผู้จำหน่าย Cowork
 Cowork Tax Draft,ร่างแบบยื่นภาษี Cowork
 Cowork Tax Filing,ร่างแบบยื่นภาษี
+Cowork VAT check invoice recognition,อ่านใบกำกับภาษีเพื่อตรวจภาษีมูลค่าเพิ่ม
 Cowork WHT Certificate,หนังสือรับรองการหักภาษี ณ ที่จ่าย (อ้างอิง) Cowork
 Cowork WHT Choice,ประเภทเงินได้ภาษีหัก ณ ที่จ่าย Cowork
 Cowork Workspace,Cowork ชุดบัญชีบริษัท
+Cowork invoice recognition,อ่านใบแจ้งหนี้
 Cowork menu,เมนู Cowork
+Cowork reconciliation document recognition,อ่านเอกสารกระทบยอด
 Create a new label,สร้างป้ายกำกับใหม่
 Create a rule,สร้างกฎ
 Create board,สร้างบอร์ด

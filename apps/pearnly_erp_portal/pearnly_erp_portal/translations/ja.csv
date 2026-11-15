@@ -539,6 +539,8 @@ Duplicate location code,ロケーションコードが重複しています
 ERP,ERP
 ERP Stock Count Variance,棚卸差異ボード
 ERP menu,ERPメニュー
+ERP purchase recognition,仕入書類の読み取り
+ERP sales recognition,売上書類の読み取り
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
 Each returned line must be an Express stock item,返品明細は Express の在庫品である必要があります
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
