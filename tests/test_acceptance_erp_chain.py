@@ -200,6 +200,25 @@ class World:
                 self.add("APTRN", DOCNUM="HP691115-010", SUPCOD="T001", NETAMT=total, VATAMT=35.0)
         return out
 
+    def erp_mrerp_post(self, params):
+        kind, total, vat = params["kind"], 321.0, 21.0
+        journal = {"purchase_goods": [("5110-01", 300, 0), ("1161-11", vat, 0), ("2120-03", 0, total)],
+                   "purchase_expense": [("5390-09", total, 0), ("2120-03", 0, total)],
+                   "sales_credit": [("1130-01", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)],
+                   "sales_cash": [("1111-02", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)]}[kind]
+        if self.break_at == "unbalanced":
+            journal = journal[:-1]
+        docnum = "PG691115-000001"
+        state = {"status": "submitted", "ledger_state": "written", "ledger_target": "mrerp", "ledger_docnum": docnum,
+                 "ledger_book": None if self.break_at == "no-book" else params["account_set"], "grand_total": total, "vat_amount": vat}
+        out = {"ok": True, "doc": "PUR-1", "state": state, "company": params["company"],
+               "read": {"listed": 2 if self.break_at == "listed-twice" else 1, "form": {"txtdocnum": docnum}, "journals": 1, "journal_menu": 248,
+                        "journal": [{"account": code, "debit": f"{debit:,.2f}" if debit else "", "credit": f"{credit:,.2f}" if credit else ""}
+                                    for code, debit, credit in journal]}}
+        if params.get("resend"):
+            out["resend"] = {"send": "already_queued", "state": dict(state, ledger_docnum="PG691115-000002" if self.break_at == "renumbered" else docnum)}
+        return out
+
     def erp_denied(self, params):
         names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
                  "connect.add"]
@@ -242,7 +261,7 @@ class ChainScenarioTest(unittest.TestCase):
         self.addCleanup(self.folder.cleanup)
         keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_ERP_USER": "acc.erp@maclab.test",
                 "PEARNLY_ACC_ERP_TAX": "1234567890123", "PEARNLY_ACC_COWORK_USER": "acc@cowork.test",
-                "PEARNLY_ACC_COWORK_CONNECTION": "CONN-1", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+                "PEARNLY_ACC_COWORK_CONNECTION": "CONN-1", "PEARNLY_ACC_MRERP_COMPANY": "CO-MR", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
         self.old = {key: os.environ.get(key) for key in keys}
         os.environ.update(keys)
         self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
@@ -251,7 +270,7 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
+        module = "cowork_intake_express.py" if ".cowork." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
             "erp_stock_express.py" if ".stock." in scenario_id else \
             "erp_more_express.py" if ".pos." in scenario_id or ".cancel." in scenario_id else "erp_collection_express.py"
@@ -312,6 +331,17 @@ class ChainScenarioTest(unittest.TestCase):
         self.assertIn("not a fresh site", result["detail"])
         result, _ = self.go("acc.erp.company.connect", "not-fresh")
         self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
+
+    def test_documents_imported_into_mrerp_are_read_back_by_number(self):
+        for kind in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice"):
+            result, world = self.go(f"acc.erp.mrerp.{kind}")
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
+            self.assertEqual((result["facts"]["docnums"], world.calls.count("restore")), (["PG691115-000001"], 0), kind)
+        for kind, break_at, words in (("purchase.goods", "unbalanced", "借方合计"), ("sales.cash", "listed-twice", "恰好一张"),
+                                      ("sales.credit", "no-book", "哪本账套"), ("twice", "renumbered", "单号没变")):
+            result, _ = self.go(f"acc.erp.mrerp.{kind}", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (kind, break_at))
+            self.assertIn(words, result["detail"], (kind, break_at))
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")

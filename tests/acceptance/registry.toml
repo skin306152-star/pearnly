@@ -620,3 +620,105 @@ resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+# ---- 第二期第 4 批：ERP 单据导入 MR.ERP 测试账套（test01 · TEST2019）并按单号读回。写好未跑。
+# 依赖三条还没进 main 的分支（公司接入第 3 批、mrerp-ledger-dialog、mrerp-catalog-pick）；MR.ERP 写账开关默认关、只在场景进程里打开。
+# 先登记成每周跑（weekly）：开关对客户打开、三条分支合入后再改成上线前必跑。MR.ERP 里的单不删，数据会累积。
+
+[[scenario]]
+id = "acc.erp.mrerp.purchase.goods"
+title = "ERP 货品赊购单导入 MR.ERP → 按单号读回单据页与日记账（借贷相等、进项税一行）"
+class = "chain"
+chain = "erp.purchase-to-mrerp"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.purchase.expense"
+title = "ERP 费用单导入 MR.ERP → 读回（单行含税，借贷各等于合计）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.sales.credit"
+title = "ERP 赊销单导入 MR.ERP → 读回（应收一行、销项税一行）"
+class = "chain"
+chain = "erp.sales-to-mrerp"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-sales.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.sales.cash"
+title = "ERP 现销现金单导入 MR.ERP → 读回（现金一行 = 合计）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-sales.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.twice"
+title = "ERP 已写进 MR.ERP 的单再推一次：单号不变、MR.ERP 列表里仍只有一张"
+class = "misuse"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Express"]  # 重推的是「写进账本」，没有连点两次「提交」：提交那一行的 M02 仍欠
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
