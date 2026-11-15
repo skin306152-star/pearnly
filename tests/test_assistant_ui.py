@@ -4717,9 +4717,10 @@ assert.deepEqual(g.calls.at(-1).args, { grouped: "1", group: "comp_abc", after: 
         self.assertIn("void listChoices(text.trim(), tab, start)", picker)
         self.assertIn("{tabs.length > 0 && (", picker)
         self.assertNotIn("rows.filter(", picker)
-        # 分了标签时整窗定高，切标签不跳
-        self.assertIn('.cc-modal:has([data-slot="cc-company-picker-tabs"]) { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }',
+        # 一打开就整窗定高：转圈、数据到了、切标签都不跳（11-15 真机：加载完撑大、搜索框跳到顶上）
+        self.assertIn('.cc-modal[data-slot="cc-company-picker"] { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }',
                       read("globals.css"))
+        self.assertIn('data-slot="cc-company-picker"', picker)
 
     def test_branches_group_account_sets_and_saved_choices_show_where_they_came_from(self):
         self.run_page(r"""

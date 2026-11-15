@@ -61,6 +61,8 @@ class PickerSourceTests(unittest.TestCase):
         body = self.picker.split('data-slot="cc-candidates">', 1)[1]
         self.assertLess(body.index('data-slot="cc-company-picker-recents"'), body.index("rows.map((row) => ("))
         self.assertIn("const recents = current !== null && !typing;", self.picker)
+        # 11-15 真机：转圈时「最近」那一行就在、点得到，加载中误选；列表回来前不可点
+        self.assertIn('data-slot="cc-company-picker-recents" disabled={!!busy || rows === null}', self.picker)
         self.assertIn('onClick={() => finish("", "")}', self.picker)
         self.assertIn('{current === "" && <CheckIcon className="shrink-0 text-ink-3" />}', self.picker)
         self.assertIn(") : row.company && row.company === current ? (\n                <CheckIcon", self.picker)

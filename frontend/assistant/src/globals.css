@@ -2169,8 +2169,8 @@
     top: calc(var(--cc-vvtop) + var(--cc-viewport-h) / 2);
     max-height: calc(var(--cc-viewport-h) * var(--cc-modal-share));
   }
-  /* 添加公司按 ERP 分了标签时整窗定在上限高：切标签列表长短不同，窗口不跟着跳（10-20 lab） */
-  .cc-modal:has([data-slot="cc-company-picker-tabs"]) { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }
+  /* 选择公司一打开就定在上限高：转圈时与数据到了、切标签时窗口都不跳，搜索框不从中间跳到顶上（10-20 lab；11-15 真机：加载完撑大） */
+  .cc-modal[data-slot="cc-company-picker"] { height: calc(var(--cc-viewport-h) * var(--cc-modal-share)); }
   /* 手机长按出菜单的行（侧栏对话行、公司组头）：不选字、不弹系统长按菜单与「点按即可查看搜索结果」；行内改名的输入框照常选字 */
   @media (hover: none) {
     /* 整个手机抽屉、平板侧栏都不可选字：只关行本身时，长按会改选旁边能选的字（抽屉顶上的「CC」）并弹出 Google 触摸搜索
