@@ -53,3 +53,240 @@ resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+# ---- 第二期第 0 批：收款链路（11-15 上线的新用户路：从连接添加 → 主档 → 赊销单 → 收款三处）。写好未跑，首跑通过才有证据。
+# 都从服务端函数走（via = "api"）：证明同意之后写进账本并且写对、三处口径一致；界面与对话本身在流程用例与真机行上验。
+
+[[scenario]]
+id = "acc.erp.company.connect"
+title = "ERP 从连接添加：刷新重报 → 添加不重复建 → 主档同步 → 停用后重新启用 → 切换当前公司；账本不动"
+class = "chain"
+chain = "erp.connect-to-masters"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_company_connect.py"
+rows = ["erp.desk.pearnly-company.action.company.connect.add"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "apps/pearnly_core/pearnly_core/account/user_defaults.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.company.connect.fresh"
+title = "ERP 新开的站点第一次从连接添加：接管空的默认公司，不另建一家（只在刚重置的站点上跑）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_company_connect.py"
+rows = ["erp.desk.pearnly-company.action.company.connect.add"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/company.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/facts.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "apps/pearnly_core/pearnly_core/account/user_defaults.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.sales.credit.express"
+title = "ERP 赊销单（新建「ร้าน…」客户、未付款）→ CC 桌面版写成 Express 发票 → 账本读回（余额、称谓栏）"
+class = "chain"
+chain = "erp.sales-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.desk.pearnly-sales.action.Submit", "erp.desk.pearnly-sales.action.Express"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.three"
+title = "ERP 收款三处同收一张刚开的发票：网页现金、LINE 现金 + 转账、CC 对话 → 三张 Express 收款单读回、余额对得上"
+class = "chain"
+chain = "erp.collection-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/express_receivables.py",
+  "companion/src/companion/payment_methods.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.nbsp"
+title = "ERP 收款：客户编码带不换行空格、交进去时被复述成普通空格 → 收款单的客户编码逐字符原样"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/express_receivables.py",
+  "companion/src/companion/payment_methods.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.web.twice"
+title = "ERP 网页收款同一个请求号提交两次 → 只一笔记录、账本只多一张收款单"
+class = "misuse"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.desk.pearnly-collections.action.New"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/express_receivables.py",
+  "companion/src/companion/payment_methods.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.line.edit"
+title = "ERP LINE 收款出卡后改了金额：拿旧卡确认被挡回、拿新卡确认写成改后的金额"
+class = "misuse"
+misuse = ["M13"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.line.postback.col"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/express_receivables.py",
+  "companion/src/companion/payment_methods.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.line.refused"
+title = "ERP 同一张发票 LINE 草稿没确认时网页先收清：再确认被拒、账本只有网页那一张收款单"
+class = "misuse"
+misuse = ["M14"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_express.py"
+rows = ["erp.line.postback.col", "erp.desk.pearnly-collections.action.New"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
+  "apps/pearnly_core/pearnly_core/assistant/codes.py",
+  "companion/src/companion/dbf_receipt.py",
+  "companion/src/companion/express_receivables.py",
+  "companion/src/companion/payment_methods.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_sales.py",
+  "companion/src/companion/master_create.py",
+  "companion/src/companion/dbf_schema.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"

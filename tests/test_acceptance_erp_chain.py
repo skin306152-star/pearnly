@@ -1,0 +1,228 @@
+"""收款链路验收场景（scripts/acceptance/scenarios/erp_company_connect.py、erp_collection_express.py）整条走一遍，站点与账套都换成
+替身：只验场景自己的判定——该过的过、今天修掉的那几类缺陷重现时判不通过、跑完恢复基线。真环境没跑过。"""
+import importlib.util
+import json
+import os
+import pathlib
+import sys
+import tempfile
+import types
+import unittest
+
+ROOT = pathlib.Path(__file__).resolve().parents[1]
+NBSP = "\xa0"
+
+
+def load(name, relative):
+    spec = importlib.util.spec_from_file_location(name, ROOT / relative)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+class World:
+    """替身：站点脚本回的结果 + 一本「账套」（按表存行）。场景只通过 site.run / ledger 的几个调用碰它。"""
+
+    def __init__(self, break_at=""):
+        self.break_at, self.tables, self.calls, self.restored = break_at, {}, [], 0
+        self.customer, self.invoice, self.total, self.received, self.count = "C001", "IV691115-001", 1070.0, 0.0, 0
+
+    # ── 账套
+    def add(self, table, **row):
+        self.tables.setdefault(table, []).append(row)
+
+    def book(self):
+        world = self
+
+        class Book:
+            def probe(self):
+                return {"ok": True, "busy": []}
+
+            def verify(self, snap):
+                world.calls.append("verify")
+                return {"ok": not world.tables}
+
+            def restore(self, snap):
+                world.calls.append("restore")
+                world.tables.clear()
+                return {"ok": True}
+
+            def copy(self, target):
+                return {"ok": True}
+
+            def diff(self, before, after, allow=None, out=None):
+                stray = ["STMAS.DBF"] if world.break_at == "stray" else []
+                return {"ok": True, "stray": stray, "tables": {name: [0, len(rows)] for name, rows in world.tables.items()}}
+
+            def call(self, command, folder, table, flag, where):
+                key, _, value = where.partition("=")
+                return {"ok": True, "rows": [row for row in world.tables.get(table, []) if str(row.get(key, "")).strip() == value.strip()]}
+
+        return Book()
+
+    # ── 站点
+    def run(self, product, script, site, raw, timeout=600):
+        params = json.loads(raw)
+        self.calls.append(script.name)
+        return "noise\nACC " + json.dumps(getattr(self, script.stem)(params), ensure_ascii=False)
+
+    def erp_sales_post(self, params):
+        new = bool(params.get("buyer"))
+        self.customer = "C001" if new else f"นาย{NBSP}ทดสอบ"
+        self.add("ARTRN", DOCNUM=self.invoice, CUSCOD=self.customer, NETAMT=self.total, RCVAMT=0.0, REMAMT=self.total, CMPLAPP="")
+        self.add("ISVAT", DOCNUM=self.invoice)
+        self.add("GLJNL", VOUCHER=self.invoice)
+        if new:
+            self.add("ARMAS", CUSCOD=self.customer, PRENAM="" if self.break_at == "prename" else "ร้าน",
+                     CUSNAM=params["buyer"][len("ร้าน"):].strip())
+        paid = self.break_at == "paid"
+        return {"ok": True, "company": "CO-1", "doc": "SI-1", "book_paths": [params["ledger"]],
+                "state": {"ledger_state": "written", "ledger_docnum": self.invoice}, "job": {"verify_state": "ok"},
+                "party": {"express_code": self.customer, "express_company": "CO-1"},
+                "sale": {"payment_status": "paid" if paid else "unpaid", "paid_amount": self.total if paid else 0,
+                         "payment_method": "cash" if paid else None},
+                "expected": {"customer_code": self.customer, "new_customer": new, "buyer": params.get("buyer") or "",
+                             "prename": "ร้าน" if new else "", "core_name": (params.get("buyer") or "")[len("ร้าน"):].strip(),
+                             "totals": {"subtotal": 1000.0, "vat_amount": 70.0, "grand_total": self.total}}}
+
+    def _receipt(self, name, cash, transfer, source):
+        self.count += 1
+        docnum, amount = f"RE000000{self.count}", cash + transfer
+        self.received += amount
+        written = self.customer.replace(NBSP, " ") if self.break_at == "nbsp" else self.customer
+        self.add("ARTRN", DOCNUM=docnum, CUSCOD=written, YOUREF=name, NETAMT=amount, CSHRCV=cash, CHQRCV=transfer)
+        self.add("ARRCPIT", RCPNUM=docnum, DOCNUM=self.invoice, RCVAMT=amount)
+        self.add("GLJNL", VOUCHER=docnum)
+        methods = []
+        if transfer:
+            self.add("ARRCPCQ", RCPNUM=docnum, CHQNUM="TR" + docnum, RCVAMT=transfer)
+            self.add("BKTRN", VOUCHER=docnum, AMOUNT=transfer)
+            methods = [{"prefix": "TR", "role": "transfer", "amount": f"{transfer:.2f}"}]
+        head = self.tables["ARTRN"][0]
+        head.update(RCVAMT=self.received, REMAMT=self.total - self.received, CMPLAPP="Y" if self.received == self.total else "")
+        return {"name": name, "status": "written", "docnum": docnum, "source": source, "customer": self.customer, "cash": f"{cash:.2f}",
+                "total": f"{amount:.2f}", "methods": methods, "invoices": [{"docnum": self.invoice, "amount": f"{amount:.2f}"}],
+                "balances": {self.invoice: f"{self.total - self.received:.2f}"}, "job": {"verify_state": "ok"},
+                "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"]}
+
+    def erp_collection_post(self, params):
+        spoken = params["customer"].replace(NBSP, " ") if params.get("spoken") else params["customer"]
+        out = {"ok": True, "company": "CO-1", "entry": params["entry"], "methods": {"cash": True, "transfers": ["TR"], "discount": False},
+               "customer": {"given": params["customer"], "spoken": spoken, "canonical": params["customer"]},
+               "reads": {"count": 2, "first": {"refresh": "reading", "listed": False}, "last": {"refresh": "ready", "listed": True},
+                         "ready_without_invoice": 1 if self.break_at == "stale-read" else 0}}
+        left = self.total - self.received
+        cash, transfer = (left, 0.0) if params.get("full") else (float(params.get("cash") or 0), float(params.get("transfer") or 0))
+        variant = params.get("variant") or ""
+        if variant == "refused":
+            out["first"] = self._receipt("COL-WEB", left, 0.0, "web")
+            if self.break_at == "double":
+                self._receipt("COL-LINE", 100.0, 0.0, "line")
+            out["refused"] = {"status": "invalid", "code": "collection.invoice_not_found", "draft_status": "draft"}
+            out["record"] = {"name": "COL-LINE", "status": "withdrawn", "docnum": ""}
+            return out
+        if variant == "edit":
+            cash = float(params["edit_cash"])
+            out["edit"] = {"version_before": 1, "version_after": 2, "stale_release": "released" if self.break_at == "stale-card" else "changed",
+                           "stale_version": 2, "status_after_stale": "draft"}
+        if variant == "twice":
+            out["twice"] = {"same_record": True, "records_for_request": 2 if self.break_at == "twice" else 1}
+        out["record"] = self._receipt(f"COL-{self.count + 1}", cash, transfer, params["entry"])
+        return out
+
+    def erp_company_connect(self, params):
+        fresh = self.break_at != "not-fresh"
+        if params.get("require_fresh") and not fresh:
+            return {"ok": False, "why": "not a fresh site", "reported": []}
+        row = {"identity": "express:1234567890123:00000", "tax_id": "1234567890123", "state": "new" if fresh else "added", "company": None}
+        stuck = self.break_at == "switch"
+        rounds = [{"target": target, "committed": target, "cached": "CO-9" if stuck else target, "effective": "CO-9" if stuck else target}
+                  for target in ("CO-9", "CO-1", "CO-9", "CO-1")]
+        extra = 1 if self.break_at == "second-company" else 0
+        return {"ok": True, "name": "CO-1", "reported": [params["ledger"]],
+                "before": {"connected": True, "total": 1, "row": row, "companies": 1},
+                "rescan": {"devices": 1, "seconds": 8.0, "last": {"pending": 0, "online": 0}, "polls": [], "row_after": row},
+                "add": {"state_before": row["state"], "blank_default": "CO-1" if fresh else None,
+                        "first": {"id": "CO-1", "created": False, **({"adopted": True} if fresh else {})},
+                        "again": {"id": "CO-1", "created": False}, "companies_after_first": 1 + extra, "companies_after_again": 1 + extra,
+                        "row_after": {**row, "state": "added", "company": "CO-1"}},
+                "company": {"tax_id": "1234567890123", "is_active": 1, "express_enabled": 1, "warehouses": 1},
+                "sync": {"states": ["queued", "reading", "ready"], "customers": 12, "suppliers": 3, "products": 40, "nbsp_customers": 1,
+                         "facts": True, "stale_for_collection": self.break_at == "stale-facts", "receipt_types": 5, "cash_account": True},
+                "reactivate": {"row_inactive": {**row, "state": "inactive"}, "companies_before": 1, "companies_after": 1,
+                               "result": {"id": "CO-1", "created": False, "reactivated": True}, "row_after": {**row, "state": "added"},
+                               "is_active": 1},
+                "switch": {"allowed": 2, "rounds": rounds}}
+
+
+class ChainScenarioTest(unittest.TestCase):
+    def setUp(self):
+        self.folder = tempfile.TemporaryDirectory()
+        self.addCleanup(self.folder.cleanup)
+        keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_ERP_USER": "acc.erp@maclab.test",
+                "PEARNLY_ACC_ERP_TAX": "1234567890123", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+        self.old = {key: os.environ.get(key) for key in keys}
+        os.environ.update(keys)
+        self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
+        self.runner = load("acceptance_run_for_chain", "scripts/acceptance/run.py")
+        sys.modules.pop("acc_erp_chain", None)
+
+    def go(self, scenario_id, break_at=""):
+        world = World(break_at)
+        module = "erp_company_connect.py" if ".company." in scenario_id else "erp_collection_express.py"
+        targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world,
+                                        windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
+        scenario = {"id": scenario_id, "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 0}
+        return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), world
+
+    def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
+        wrote = {"acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
+                 "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
+        for scenario_id, docs in wrote.items():
+            result, world = self.go(scenario_id)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
+            self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (docs, "restore"), scenario_id)
+        for scenario_id in ("acc.erp.company.connect", "acc.erp.company.connect.fresh"):
+            result, world = self.go(scenario_id)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
+            self.assertEqual((result["facts"]["add_branch"], world.calls.count("restore")), ("adopted", 0))
+
+    def test_three_entries_collect_the_same_invoice_and_the_balance_adds_up(self):
+        result, world = self.go("acc.erp.collection.three")
+        self.assertEqual(result["outcome"], self.runner.PASS)
+        self.assertEqual([call for call in world.calls if call.endswith(".py")],
+                         ["erp_sales_post.py"] + ["erp_collection_post.py"] * 3)
+        self.assertEqual(world.received, 750.0)
+
+    def test_each_defect_fixed_on_1115_fails_its_scenario_when_it_comes_back(self):
+        cases = [("acc.erp.sales.credit.express", "prename", "称谓栏"), ("acc.erp.sales.credit.express", "paid", "未付款"),
+                 ("acc.erp.collection.nbsp", "nbsp", "逐字符原样"), ("acc.erp.collection.three", "stale-read", "已读好"),
+                 ("acc.erp.collection.web.twice", "twice", "记录只有一条"), ("acc.erp.collection.line.edit", "stale-card", "旧卡"),
+                 ("acc.erp.collection.line.refused", "double", "ARTRN 多的行数"), ("acc.erp.collection.three", "stray", "预期以外"),
+                 ("acc.erp.company.connect", "switch", "三处一致"), ("acc.erp.company.connect", "stale-facts", "带收款方式"),
+                 ("acc.erp.company.connect.fresh", "second-company", "接管")]
+        for scenario_id, break_at, words in cases:
+            result, world = self.go(scenario_id, break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))
+            self.assertIn(words, result["detail"], (scenario_id, break_at))
+            if ".company." not in scenario_id:
+                self.assertEqual(world.calls[-1], "restore", (scenario_id, break_at))
+
+    def test_the_fresh_only_scenario_is_not_run_on_a_site_that_already_has_the_company(self):
+        result, world = self.go("acc.erp.company.connect.fresh", "not-fresh")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("not a fresh site", result["detail"])
+        result, _ = self.go("acc.erp.company.connect", "not-fresh")
+        self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
+
+    def test_allowed_tables_come_from_the_desktop_write_lists(self):
+        load("acceptance_run_for_chain_tables", "scripts/acceptance/run.py")
+        chain = load("acc_erp_chain_tables", "scripts/acceptance/erp_chain.py")
+        self.assertTrue({"ARTRN", "ARRCPIT", "ARRCPCQ", "BKTRN", "GLJNL", "GLJNLIT"} <= set(chain.receipt_tables()))
+        self.assertTrue({"ARTRN", "ARMAS", "ISVAT"} <= set(chain.sales_tables()))
+        self.assertFalse({"APTRN", "APMAS"} & set(chain.chain_tables()))
+
+
+if __name__ == "__main__":
+    unittest.main()
