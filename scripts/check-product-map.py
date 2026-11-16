@@ -371,12 +371,44 @@ def impact_rows(product_map, found, keys, changes, root=ROOT, endpoints=None, fu
     return hits, hit_parts
 
 
+def flows_of(rows) -> list[str]:
+    """命中的行登记的流程（`tests` 里的 `flow:<id>[@宽度]`）：影响清单的「要跑的流程」。"""
+    return sorted({ref.partition(":")[2].partition("@")[0] for row in rows for ref in row.tests if ref.startswith("flow:")})
+
+
+def hits_for(base="auto", files=None, root=ROOT):
+    """改动 → 命中的地图行（同 main 的算法：相对 base 的分叉点，接口按函数算；给了 files 就按整个文件算）。"""
+    repo = pm.Repo(root)
+    product_map = pm.load()
+    found = pm.discover(repo)
+    keys, _ = pm.discover_config(repo)
+    endpoints = pm.discover_endpoints(repo)
+    changes = files if files is not None else changed(base, root)
+    functions, removed = {}, {}
+    if files is None:
+        fork = merge_base(base, root)
+        if fork:
+            functions = pm.changed_functions(root, fork, changes)
+            removed = {path: names for path in changes if path.endswith(".py") and path.startswith("apps/")
+                       and (names := pm.deleted_whitelisted(git_show(fork, path, root), _read(root / path)))}
+        else:
+            functions = {path: None for path in changes}
+    hits, _ = impact_rows(product_map, found, keys, changes, root=root, endpoints=endpoints, functions=functions, removed=removed)
+    return product_map, found, keys, endpoints, changes, hits
+
+
+def map_flows(base="auto", files=None, root=ROOT) -> list[str]:
+    """地图连带出的要跑的流程（入口文件、它调用的接口函数、共用件、读到的配置键）。`run.py --changed` 与它取并集（11-16）。"""
+    product_map, *_, hits = hits_for(base, files, root)
+    return flows_of([product_map.rows[row_id] for row_id in hits])
+
+
 def render(product_map, hits, flows, impact, markdown: bool) -> str:
     if not hits:
         return "没有改到地图里的入口。"
     rows = [product_map.rows[row_id] for row_id in hits]
     lines = []
-    flow_ids = sorted({ref.partition(":")[2].partition("@")[0] for row in rows for ref in row.tests if ref.startswith("flow:")})
+    flow_ids = flows_of(rows)
     entries = sorted({ref.partition(":")[2] for row in rows for ref in row.tests if ref.startswith("impact:")})
     e2e_ids = e2e_of(rows)
     must = [row for row in rows if row.must_verify]
@@ -506,25 +538,12 @@ def main(argv=None) -> int:
         Path(args.export).write_text(json.dumps(export(product_map), ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         return 0
     repo = pm.Repo(ROOT)
-    product_map = pm.load()
-    found = pm.discover(repo)
-    keys, families = pm.discover_config(repo)
-    endpoints = pm.discover_endpoints(repo)
-    flows, impact, parts = pm.test_sources(ROOT)
     if args.suggest:
-        print(suggest(product_map, found))
+        print(suggest(pm.load(), pm.discover(repo)))
         return 0
-    changes = args.files if args.files is not None else changed(args.base)
-    functions, removed = {}, {}
-    if args.files is None:
-        base = merge_base(args.base)
-        if base:
-            functions = pm.changed_functions(ROOT, base, changes)
-            removed = {path: names for path in changes if path.endswith(".py") and path.startswith("apps/")
-                       and (names := pm.deleted_whitelisted(git_show(base, path), _read(ROOT / path)))}
-        else:
-            functions = {path: None for path in changes}
-    hits, _ = impact_rows(product_map, found, keys, changes, endpoints=endpoints, functions=functions, removed=removed)
+    product_map, found, keys, endpoints, changes, hits = hits_for(args.base, args.files)
+    _, families = pm.discover_config(repo)
+    flows, impact, parts = pm.test_sources(ROOT)
     if args.batch:
         print(batch(product_map, hits))
         return 0

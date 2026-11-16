@@ -101,8 +101,10 @@ class RerunFailed(unittest.TestCase):
         # main() 会拿实验室锁：测试用自己的临时锁目录，别的窗口正在跑真流程（拿着真锁）时本测试照样能跑
         self.lock_env = os.environ.get("PEARNLY_LOCK_DIR")
         os.environ["PEARNLY_LOCK_DIR"] = str(self.tmp / "locks")
-        self.saved = {name: getattr(run, name) for name in ("registry", "head", "product_dirty", "Lab", "run_flow", "spa_fresh")}
+        self.saved = {name: getattr(run, name) for name in ("registry", "head", "product_dirty", "Lab", "run_flow", "spa_fresh",
+                                                            "product_map_flows")}
         run.registry = lambda: FLOWS
+        run.product_map_flows = lambda base: set()  # 地图连带另有测试（test_product_map_flows_follow_the_real_map）
         run.head = lambda: "f" * 40
         run.product_dirty = lambda: ""
         run.Lab = FakeLab
@@ -311,6 +313,32 @@ class RerunFailed(unittest.TestCase):
         # 第一格 a.one 留下了；之后的格跑前就已是这个样子，自己没留就不记
         self.assertEqual([value for value in left if value], [{"file: erp_express_facts/k.json.gz": "新增", "rows: ERP Customer": "+1"}])
         self.assertTrue(data["ok"])
+
+    def test_changed_takes_the_product_map_flows_too(self):
+        # --changed = covers / 流程自己的脚本 ∪ 产品地图按连带算的「要跑的流程」（11-16：只算前一套漏了 22 条 / 13 条）
+        flows = [{"id": "a.covered", "module": "scripts/flows/none_a.py", "covers": ["apps/x/page.js"]},
+                 {"id": "b.mapped", "module": "scripts/flows/none_b.py", "covers": []},
+                 {"id": "c.neither", "module": "scripts/flows/none_c.py", "covers": []}]
+        saved = run.product_map_flows
+        asked = []
+        run.product_map_flows = lambda base: asked.append(base) or {"b.mapped"}
+        try:
+            self.assertEqual([f["id"] for f in run.changed_flows(flows, ["apps/x/page.js"], "abc123")], ["a.covered", "b.mapped"])
+            self.assertEqual(asked, ["abc123"])
+            self.assertEqual([f["id"] for f in run.changed_flows(flows, ["apps/x/page.js"])], ["a.covered"])  # 没给基线：只看文件
+        finally:
+            run.product_map_flows = saved
+
+    def test_product_map_flows_follow_the_real_map(self):
+        # 真地图：改到某一行入口的文件，这一行登记的流程都在地图清单里（与 check-product-map 的「要跑的流程」同一函数）
+        spec = importlib.util.spec_from_file_location("check_product_map_t", run.ROOT / "scripts" / "check-product-map.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        product_map, found, *_ = module.hits_for(files=[])
+        row = next(r for r in product_map.rows.values() if any(t.startswith("flow:") for t in r.tests) and r.anchor in found)
+        wanted = {t.partition(":")[2].partition("@")[0] for t in row.tests if t.startswith("flow:")}
+        self.assertTrue(wanted <= set(module.map_flows(files=list(found[row.anchor].files))))
+        self.assertEqual(module.map_flows(files=[]), [])
 
     def test_footprint_diff(self):
         self.assertEqual(run.footprint_diff({"rows: A": 2, "file: x": "1", "settings: S": "a"},
@@ -529,10 +557,11 @@ class ChangedFlows(unittest.TestCase):
 
     def setUp(self):
         self.flows = run.registry()
-        self.saved = run.changed_files
+        self.saved = run.changed_files, run.product_map_flows
+        run.product_map_flows = lambda base: set()  # 这里只看第一套规则；并集见 RerunFailed.test_changed_takes_the_product_map_flows_too
 
     def tearDown(self):
-        run.changed_files = self.saved
+        run.changed_files, run.product_map_flows = self.saved
 
     def picked(self, *files):
         run.changed_files = lambda base: list(files)

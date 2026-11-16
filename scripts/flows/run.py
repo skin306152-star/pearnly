@@ -177,10 +177,23 @@ def own_scripts(flow) -> set[str]:
     return found
 
 
-def changed_flows(flows, files) -> list[dict]:
-    """改动涉及的流程：registry 的 covers，加上流程自己的脚本与它引用到的流程辅助脚本（`own_scripts`）。--changed 与补跑范围同一规则。"""
+def product_map_flows(base) -> set[str]:
+    """产品地图连带出的要跑的流程（`check-product-map.py` 的影响清单：入口文件、它调用的接口函数、共用件、读到的配置键）。"""
+    spec = importlib.util.spec_from_file_location("check_product_map", ROOT / "scripts" / "check-product-map.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return set(module.map_flows(base, root=ROOT))
+
+
+def changed_flows(flows, files, base=None) -> list[dict]:
+    """改动涉及的流程，两套规则取并集（11-16：只用第一套，集成分支漏 22 条、第二列车漏 13 条，靠人工对照影响清单补跑）：
+    ① registry 的 covers，加上流程自己的脚本与它引用到的流程辅助脚本（`own_scripts`）——改流程脚本、改到 covers 写的产品文件；
+    ② 给了 ``base`` 时再加产品地图按连带算出的流程（同 `check-product-map.py` 的「要跑的流程」，相对 base 的分叉点）——
+       改到页面调用的接口、共用件、配置键，covers 没写到的也选上。
+    --changed、补跑范围、部署闸认范围都用这一个函数。"""
+    mapped = product_map_flows(base) if base else set()
     return [flow for flow in flows
-            if any(covers(flow, path) for path in files) or own_scripts(flow) & set(files)]
+            if any(covers(flow, path) for path in files) or own_scripts(flow) & set(files) or flow["id"] in mapped]
 
 
 # 前端单页：源码目录 → 构建产物。`frontend/` 是 Frappe UI 单页（DMS 的 LINE 一次性票据编辑器），`frontend/assistant` 是 CC 对话页
@@ -717,7 +730,7 @@ def scope_flows(flows, scope):
         return flows
     if scope.startswith("base ") and " " not in scope[5:]:
         files = changed_files(scope[5:])
-        return changed_flows(flows, files)
+        return changed_flows(flows, files, scope[5:])
     return None
 
 
@@ -778,7 +791,7 @@ def main(argv=None) -> int:
             base = merge_base(args.base)
             scope = f"base {base[:12]}"
             files = changed_files(base)
-            flows = changed_flows(flows, files)
+            flows = changed_flows(flows, files, base)
         elif not args.all:
             parser.error("--all, --flow, --changed or --rerun-failed")
         cells, flow_count = expand(flows, args.dataset, args.viewport), len(flows)
