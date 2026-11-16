@@ -586,3 +586,18 @@ def test_an_older_cc_refuses_payload_20(monkeypatch, acct):
 def test_an_operator_flag_never_sends_a_receipt_to_the_operator(monkeypatch, acct):
     outcome, acks = _run_task(monkeypatch, acct, _payload(entry_mode="operator"))
     assert outcome is None and acks[0][1] == "RE2403080"
+
+
+def test_the_receipt_journal_carries_who_and_when_like_a_native_voucher(acct):
+    """收款凭证稽核栏照原生（11-16 取样：原生 RE2403079 单头 BIT9 / 当天、明细当天 + 1940；我们这几栏全空）：单头 CREDAT / CHGDAT
+    当天、USERID 同收款单头的录入人；明细 CHGDAT 当天、CHGTIM = HHMM；CREBY 仍是机器标记。"""
+    import datetime as dt
+
+    res = _write(acct, _payload())
+    assert res.ok, res.error
+    today = dt.date.today()
+    gl, = _rows(acct, "GLJNL", VOUCHER="RE2403080")
+    assert (gl["CREBY"].strip(), gl["USERID"].strip(), gl["CREDAT"], gl["CHGDAT"]) == \
+        (S.PEARNLY_USERID, _head(acct, "RE2403080")["USERID"].strip(), today, today)
+    lines = _rows(acct, "GLJNLIT", VOUCHER="RE2403080")
+    assert lines and all(r["CHGDAT"] == today and len(r["CHGTIM"].strip()) == 4 for r in lines)

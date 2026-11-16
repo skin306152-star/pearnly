@@ -700,8 +700,7 @@ def _write_all(
     descrp = (f"ซื้อเชื่อจาก {name}" if prefix == "RR" else f"ซื้อสดจาก {name}")[:50]
     gj = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
-        gj.append(
-            {
+        gj.append(S.journal_stamp(gj, {  # 稽核栏照原生（录入人 / 当天，``dbf_schema.journal_stamp``）
                 "JNLTYP": jnltyp,
                 "VOUDAT": docdat,
                 "VOUCHER": docnum,
@@ -709,8 +708,7 @@ def _write_all(
                 "TRNSTAT": "P",
                 "DOCSTAT": "N",
                 "CREBY": S.PEARNLY_USERID,  # 凭证建立人一律记机器标记（认 CC 写的单；单头录入人记 Express 账户名，``writer_id``）
-            }
-        )
+            }, userid=userid))
     finally:
         gj.close()
 
@@ -724,7 +722,7 @@ def _write_all(
                for seqit, accnum, trntyp, amt in gl_rows]
     try:
         for line in written:
-            S.append_native(gi, line)
+            S.append_native(gi, S.journal_stamp(gi, line))
     finally:
         gi.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）

@@ -645,8 +645,7 @@ def _write_all(
         descrp = pos_journal.sale_description(entry.pos_first, entry.pos_last)
     gj = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
-        gj.append(
-            {
+        gj.append(S.journal_stamp(gj, {  # 稽核栏照原生（录入人 / 当天，``dbf_schema.journal_stamp``）
                 "JNLTYP": jnltyp,
                 "VOUDAT": docdat,
                 "VOUCHER": docnum,
@@ -654,8 +653,7 @@ def _write_all(
                 "TRNSTAT": "P",
                 "DOCSTAT": "N",
                 "CREBY": S.PEARNLY_USERID,  # 凭证建立人一律记机器标记（``dbf_schema.is_pearnly``）
-            }
-        )
+            }, userid=userid))
     finally:
         gj.close()
 
@@ -670,7 +668,7 @@ def _write_all(
                for seqit, accnum, trntyp, amt in gl_rows]
     try:
         for line in written:
-            S.append_native(gi, line)
+            S.append_native(gi, S.journal_stamp(gi, line))
     finally:
         gi.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）

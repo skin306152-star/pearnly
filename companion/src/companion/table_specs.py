@@ -45,13 +45,14 @@ TABLE_SPECS = {
         "REFNUM C(15); DESCRP C(60); AMT01 B; VAT01 B; AMTRAT0 B; DOCSTAT C(1); "
         "TAXID C(15); ORGNUM N(5,0); PRENAM C(15)"
     ),
+    # 稽核栏照真表（11-16 NLTTEST / 69EXP\TEST 取样）：单头 CREDAT D、USERID C(8)、CHGDAT D；明细 CHGDAT D、CHGTIM C(4)
     "GLJNL": (
         "JNLTYP C(2); VOUDAT D; VOUCHER C(12); DESCRP C(50); TRNSTAT C(1); "
-        "DOCSTAT C(1); CREBY C(8)"
+        "DOCSTAT C(1); CREBY C(8); CREDAT D; USERID C(8); CHGDAT D"
     ),
     "GLJNLIT": (
         "VOUCHER C(12); SEQIT C(2); VOUDAT D; ACCNUM C(15); DESCRP C(50); "
-        "TRNTYP C(1); AMOUNT N(13,2); DEPCOD C(4)"
+        "TRNTYP C(1); AMOUNT N(13,2); DEPCOD C(4); CHGDAT D; CHGTIM C(4)"
     ),
     # 真表 122 列,按单别分桶:HP 现购 / RR 赊购 / CP 付款 / GR 退货 / PS 折让。写错组=月报
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
