@@ -11,7 +11,7 @@ R2-5（生产只读查清）：公司有两本同期账套（T.8、T.9，会计�
    进项票、没有推送目标（识别时模型没给，R2-5 的样子）、票据日期 2026-06-09；付款与科目在两本账套里都记住了（写账判定没有要问的，
    T.9 被拒只能是因为不是本对话账套）；录入人有一台登记过的电脑（合成密钥 + 一次心跳）够得到这两本。实验室没有识别进程
    （识别只排队，`cc_send_while_waiting.py`），所以用预造的已识别单，不在对话里上传识别。
-2. 新建页（还没建会话）选这家（月份默认上个月 2026-10）：账套胶囊未定（两本同期、没记住），点开选 T.8（测试机1 11-12：第一句之前
+2. 新建页（还没建会话）选这家（月份默认当月）：账套胶囊未定（两本同期、没记住），点开选 T.8（测试机1 11-12：第一句之前
    就要能选），再说第一句建对话 → 接口读回的本对话账套就是 T.8、不出提问卡；右栏「ชุดบัญชี」一行显示 T.8。
 3. 说一句建写入计划（``pearnly_write_plan`` 带这张单）→ ready、1 张，出「写入」；对话里不出任何提问卡。点「写入」，再按计划开始
    （``pearnly_write_start``）→ started。
@@ -32,6 +32,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from cc_lib import JS  # noqa: E402
 from cowork_operator_lib import CLEANUP, LABEL, TAX  # noqa: E402
 
+# 新对话默认的月份：当月（CC 11-16 起，原来是上个月）；实验室与本机同一个时钟
+CHAT_MONTH = __import__("datetime").date.today().strftime("%Y-%m")
 TITLE = "CC 本对话账套（R2-5）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、模型另填同期 T.9 被拒只给 T.8、不填照 T.8 写，库里只有 T.8"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 USER = "admin@cowork.regression"
@@ -253,10 +255,10 @@ def judge(params, results, camera_code=None):
     t8_only = [{"connection": params["connection"], "key": T8, "label": "T.8"}]
     return [
         {"case": "新建页（还没建会话）选了公司就有账套胶囊：两本同期、没记住时未定；点开列出 T.8、T.9，选 T.8 后显示 T.8；"
-                 "再说第一句建对话（月份 2026-10、CC 回了这一句），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
+                 "再说第一句建对话（月份是当月、CC 回了这一句），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
          "ok": bool(opened.get("picked")) and opened.get("chip_found") is True and opened.get("chip_before") not in ("T.8", "T.9")
          and {"T.8", "T.9"} <= set(opened.get("chip_options") or []) and opened.get("chip_after") == "T.8"
-         and bool(opened.get("replied")) and opened.get("period") == "2026-10" and opened.get("project") == params["company"]
+         and bool(opened.get("replied")) and opened.get("period") == CHAT_MONTH and opened.get("project") == params["company"]
          and opened.get("current") == params["t8"] and opened.get("asked") == 0},
         {"case": "右栏账套一行显示新建页选的 T.8；点开列出 T.8、T.9，服务端读回仍是 T.8", "seen": chose,
          "ok": chose.get("found") is True and chose.get("before") == "T.8" and {"T.8", "T.9"} <= set(chose.get("options") or [])

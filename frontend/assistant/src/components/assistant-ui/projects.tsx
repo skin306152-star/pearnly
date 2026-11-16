@@ -3,7 +3,7 @@
 //   ProjectHeader       — 一家公司的组头（sidebar-group.tsx 的 GroupHeader，设计文档 3.4）：最左公司图标、公司名（同会话行标题
 //                         字号字色），整行折叠 / 展开，下面这家的对话行缩进到公司名起点；右侧「···」（上半段是这家公司的改名 /
 //                         刷新账套 / 在 ERP 中打开 / 删除公司，用户 11-07 从公司页搬来，components/company-menu.tsx；下半段分组和
-//                         排序）、「＋」（在这家开新对话，月份 = 上个月）；手机上长按组头、键盘菜单键出
+//                         排序）、「＋」（在这家开新对话，月份 = 当月）；手机上长按组头、键盘菜单键出
 //                         「···」菜单；收起时组里有在跑或没看过的，名字后一个点。组头开关同时是拖动把手（thread-list.tsx 的公司组排序，
 //                         共用拖动）。组头不再有待处理数（用户 11-04：左侧待处理不要，并进对话）
 //   PendingPlaceholder  — 待处理并进对话（用户 11-04）：这家这个月有要处理的单、本人还没有这个月的对话时，组里一行「{月份}」，
@@ -38,7 +38,7 @@ import { co, t } from "@/i18n";
 import {
   branchShort,
   cachedDetail,
-  lastMonth,
+  chatMonth,
   monthLabel,
   type PendingMonth,
   placeholderTitle,
@@ -104,12 +104,12 @@ export function useStartIn() {
   };
 }
 
-/** 在某家公司开新对话，月份默认上个月（服务端不收月份的产品不带）。 */
+/** 在某家公司开新对话，月份默认当月（`chatMonth`；服务端不收月份的产品不带）。 */
 export function useNewChatIn() {
   const start = useStartIn();
   return (project: string) => {
     const { period } = useProjects.getState();
-    start(project ? { project, period: period ? lastMonth() : "" } : NO_FILING);
+    start(project ? { project, period: period ? chatMonth() : "" } : NO_FILING);
   };
 }
 
@@ -407,7 +407,7 @@ const DraftChin: FC<{ side?: "top" | "bottom" }> = ({ side = "top" }) => {
       hintTitle(project, label); // 挂进侧栏还没有的公司时先按这个名称搭出这一组
     }
     if (project === draft.project) return;
-    setDraft(project ? { project, period: withPeriod ? lastMonth() : "", scope: "" } : NO_FILING);
+    setDraft(project ? { project, period: withPeriod ? chatMonth() : "", scope: "" } : NO_FILING);
   };
   return (
     <>

@@ -15,7 +15,7 @@ ERP 的模型给不了账套（`erp_push_documents` 没有账套参数，写哪�
    - D：票据日期 2024-12-15，在两本的会计期间（2025 起、次年段到 2026-12-31）之外（Express 原生录单拒，Message#70）。
    写账规则要人定的项（对方、存货、科目…）在 T.8 上先记住（同网页选过一次），判定没有要问的，T.9 被拒只能是因为不是本对话账套。
    实验室没有真的 CC 桌面版来领，推出去的单停在已排队（写账件 ``book_key`` 就是写向哪本）。
-2. 新建页（还没建会话）选这家（月份默认上个月 2026-10）：账套胶囊未定（两本同期、没记住），点开选 T.8，再说第一句建对话 → 接口
+2. 新建页（还没建会话）选这家（月份默认当月）：账套胶囊未定（两本同期、没记住），点开选 T.8，再说第一句建对话 → 接口
    读回的本对话账套就是 T.8、不出提问卡；右栏「ชุดบัญชี」一行显示 T.8（测试机1 11-12：第一句之前就要能选）。
 3. 说一句建写入计划（A、D）→ ready、写 A 1 张、目标 T.8，D 跳过、原因期间不符（``account_period_mismatch``，不另选账套），出「写入」；
    不出任何提问卡。点「写入」、按计划开始 → started；推 A → 排上了（网页留在 A 上的「选哪本」不再挡：对话里按本对话账套重新准备）。
@@ -50,6 +50,8 @@ assert RESULT.count("[lab-agent] '+tool") == 2 and "before.has" in RESULT and "t
 from cc_lib import JS  # noqa: E402
 from erp_lib import void_documents  # noqa: E402
 
+# 新对话默认的月份：当月（CC 11-16 起，原来是上个月）；实验室与本机同一个时钟
+CHAT_MONTH = __import__("datetime").date.today().strftime("%Y-%m")
 TITLE = ("ERP CC 本对话账套（R2-5）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、点写入开始推进 T.8；网页记成 T.9 的单在对话里改投 T.8；"
          "开始后右栏换 T.9 不建新计划推被拒，库里没有写向 T.9 的写账件")
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
@@ -158,7 +160,7 @@ frappe.db.commit()
 # 右栏下拉每一项的名称（账套名 · 位置，`target.option_name`）；默认值读 provider（旧代码没有它时记成缺，流程照跑、在页面上红）
 labels = {{key: target.option_name(books.find(key)) for key in (t8, t9)}}
 ledgers = getattr(cc_projects, "ledgers", None)
-options = ledgers(co, "2026-10", "", {USER!r}) if ledgers else {{"default": "missing"}}
+options = ledgers(co, {CHAT_MONTH!r}, "", {USER!r}) if ledgers else {{"default": "missing"}}
 print(json.dumps({{"company": co, "title": frappe.db.get_value("ERP Company", co, "company_name"), "t8": t8, "t9": t9,
                   "label8": labels.get(t8, ""), "label9": labels.get(t9, ""), "default": options["default"],
                   "docs": [a, b, c], "outside": d, "web": web, "prepared": sorted(k for k in ready if k != "book") if isinstance(ready, dict) else [],
@@ -267,17 +269,17 @@ def judge(params, results, camera_code=None):
         return [(item.get("account_set"), item.get("account_set_title")) for item in made.get("account_sets") or []]
 
     return [
-        {"case": "造的数据：两本同期都覆盖 2026-10、没记住哪本（右栏没有默认）；网页按日期没能定 A 写哪本（同期两本），B、C 记成了 T.9",
+        {"case": "造的数据：两本同期都覆盖当月、没记住哪本（右栏没有默认）；网页按日期没能定 A 写哪本（同期两本），B、C 记成了 T.9",
          "seen": {"default": params["default"], "labels": [label8, label9], "web": params["web"], "prepared": params["prepared"],
                   "hold": params["hold"]},
          "ok": params["default"] == "" and bool(label8) and bool(label9) and label8 != label9
          and (params["web"].get(params["docs"][0]) or {}).get("ledger_book") in (None, "")
          and "payload" in params["prepared"]},
         {"case": "新建页（还没建会话）选了公司就有账套胶囊：两本同期、没记住时未定；点开列出 T.8、T.9，选 T.8 后显示 T.8；"
-                 "再说第一句建对话（月份 2026-10、CC 回了这一句），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
+                 "再说第一句建对话（月份是当月、CC 回了这一句），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
          "ok": bool(opened.get("picked")) and opened.get("chip_found") is True and opened.get("chip_before") not in (label8, label9)
          and {label8, label9} <= set(opened.get("chip_options") or []) and opened.get("chip_after") == label8
-         and bool(opened.get("replied")) and opened.get("period") == "2026-10" and opened.get("project") == params["company"]
+         and bool(opened.get("replied")) and opened.get("period") == CHAT_MONTH and opened.get("project") == params["company"]
          and opened.get("current") == t8 and opened.get("asked") == 0},
         {"case": "右栏账套一行显示新建页选的 T.8；点开列出 T.8、T.9，服务端读回仍是 T.8", "seen": chose8,
          "ok": chose8.get("found") is True and chose8.get("before") == label8 and {label8, label9} <= set(chose8.get("options") or [])

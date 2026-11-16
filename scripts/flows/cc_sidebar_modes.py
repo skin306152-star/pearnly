@@ -2,7 +2,7 @@
 同一个侧栏按模式筛，ERP、Cowork 同一个模块，电脑与手机宽度）——
 对话模式与代录模式里共有的入口（新建）位置、顺序一样，切模式时一格不挪；没有「公司」（11-07 删了，对话里点「公司」弹窗选）与
 「待处理」（11-04 并进对话）入口；定时任务只在对话模式（只 Cowork 声明了）；侧栏同一个接口按模式列：对话模式只列直写的对话、代录
-模式只列代录会话（准备的两段各只在自己的模式出现）；代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份上个月），
+模式只列代录会话（准备的两段各只在自己的模式出现）；代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份当月），
 仍在代录、没说话不建任务；侧栏点那段「要你处理」的代录会话：在代录打开它，代录事件源出那张没录成的单的卡片（单号、原因）；
 对话模式下同一个弹窗选公司，下巴选好这家。
 
@@ -69,7 +69,7 @@ if {product!r} == "erp":
 else:
     company, title = seeded["id"], seeded["title"]
     doc_id = recognized({tag!r} + "-REF")
-period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
+period = frappe.utils.today()[:7]  # 对话月份：CC 新对话默认当月（11-16）
 tasks_before = frappe.get_all(tasks.DOCTYPE, filters={{"owner": {user!r}}}, pluck="name", limit_page_length=1000)
 chat = sessions.create(project=company, period=period)
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": chat["id"]}}, "title", {tag!r} + " 对话")
@@ -106,7 +106,7 @@ def steps(params, camera_code=None):
          f"await until(()=>shownRows({tag}).some(t=>t.includes('要你处理')),60); await sleep(800); "
          f"return {{mode: mode(), nav: nav(), rows: shownRows({tag}), "
          "groups: (root()?.querySelectorAll('[data-slot=\"cc-project\"]')||[]).length};"},
-        # 用户 11-03 / 11-04 / 11-07：代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份上个月），没说话不建任务
+        # 用户 11-03 / 11-04 / 11-07：代录模式新建页下巴点「公司」在弹窗里选一家 = 下巴选好这家（月份当月），没说话不建任务
         {"name": "代录下选公司", **_shot(params, "3-代录下选公司"), "js": WAIT + "if(phone()) {q('.cc-mshell')?.dataset.open==='true'&&q('[data-slot=\"cc-nav-toggle\"]')?.click(); await sleep(600);} "
          f"const ok=await pickCompany({title}); await sleep(800); "
          "return {ok, mode: mode(), chin: q('[data-slot=\"cc-chin-company\"]')?.innerText.trim()||'', welcome: !!q('.aui-thread-welcome-root'), "

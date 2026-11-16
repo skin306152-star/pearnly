@@ -8,7 +8,7 @@
   toMode(m)                         切到那种模式（看得见的那个切换钮）
   press(e)                          Radix 下拉按下就开，单发 click 不开
   say(t)                            在当前对话的输入框里写一句并发出（同 cc_chat.py）
-  pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认上个月）
+  pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认当月）
   call(m, args, post)               调站点接口（完整点分名），回 message；最多等 60 秒，超时抛「request <接口> timed out」
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步

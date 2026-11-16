@@ -66,7 +66,7 @@ def steps(params, camera_code=None):
     company, back = json.dumps(params["company"]), json.dumps(f"/assistant?view=pending&company={params['company']}")
     row = f"qa('[data-slot=\"cc-pending-ask\"][data-variant=\"row\"]').find(e=>e.innerText.includes({json.dumps(ref)}))"
     return [
-        # 这家这个月的一段对话（在弹窗里选这家、说一句；月份默认上个月 = 造的单据月份）：右侧栏「本月」卡就是这个月的月结台账
+        # 这家这个月的一段对话（在弹窗里选这家、说一句；月份默认当月 = 造的单据月份）：右侧栏「本月」卡就是这个月的月结台账
         # （11-07 公司页删了）：这张列成收着的一行（码名 · 单据 · 金额），点开才判定、出同一张提问卡（不带框）；看完收起（手机上关掉
         # 盖满屏的右侧栏）。再从提醒入口回到这家这个月的对话，末尾的提问卡照旧
         {"name": "开对话", "js": f"setTimeout(()=>location.assign('/assistant'),0); return true;", "wait_ms": 5000},

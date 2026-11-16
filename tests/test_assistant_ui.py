@@ -2960,7 +2960,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         self.assertIn('export type View = "chat" | "tasks" | "operator";', nav)
         open_ = nav.split("    const open = async (target: Target) => {", 1)[1].split("\n    };\n", 1)[0]
         # 落不到公司、待处理时都是新对话（带上公司与月份就是在这家开新对话；产品不按月份时月份空）
-        self.assertIn('setDraft(project ? { project, period: useProjects.getState().period ? month || lastMonth() : "", scope: "" } : {});\n'
+        self.assertIn('setDraft(project ? { project, period: useProjects.getState().period ? month || chatMonth() : "", scope: "" } : {});\n'
                       '          latest.current.setView("chat");\n          void aui.threads().switchToNewThread();', open_)
         # ?view=pending 是兼容入口（早上汇总提醒、CC 桌面版托盘还在发）：落到这家待处理最多那个月的对话，没有就在那家那个月开新对话；
         # 多家（或一家都没有）开新对话（侧栏占位行带提醒点），不再落公司页
@@ -2971,7 +2971,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # 旧的 ?view=companies：新对话并弹选择公司窗口，选了就把这家放进新对话的下巴（上个月）
         companies = open_.split('if (target.view === "companies") {', 1)[1].split("\n        }\n", 1)[0]
         self.assertIn("newChat();\n          openCompanyPicker(", companies)
-        self.assertIn('if (id) setDraft({ project: id, period: useProjects.getState().period ? lastMonth() : "", scope: "" });', companies)
+        self.assertIn('if (id) setDraft({ project: id, period: useProjects.getState().period ? chatMonth() : "", scope: "" });', companies)
         # ?company=（定时任务提醒没挂对话时的地址）：有定时任务的产品落定时任务页只看这家，没有的在这家开新对话
         company = open_.split("// ?company=：", 1)[1]
         self.assertIn("if (!tasks) return newChat(company);", company)
@@ -3096,13 +3096,15 @@ assert.match(placeholderTitle(p("comp_A", "2026-09"), "en"), /^2 /);
 
     def test_months_branches_and_amounts(self):
         self.run_page(r"""
-import { branchesOf, branchShort, formatAmount, isPeriod, lastMonth, monthLabel, monthShort, parseCounts, recentMonths } from "@/lib/companies";
+import { branchesOf, branchShort, chatMonth, formatAmount, isPeriod, lastMonth, monthLabel, monthShort, parseCounts, recentMonths } from "@/lib/companies";
 // 泰文按佛历；只有月份的短写今年不带年
 assert.equal(monthLabel("2026-09"), "ก.ย. 2569");
 assert.equal(monthShort("2026-09", new Date(2026, 9, 15)), "ก.ย.");
 assert.equal(monthShort("2025-12", new Date(2026, 9, 15)), "ธ.ค. 2568");
 assert.equal(monthLabel(""), "ไม่ระบุเดือน");
-// 默认上个月；胶囊里本月往前 12 个月
+// 新对话默认当月（用户 11-16）；定时任务按上个月；胶囊里本月往前 12 个月
+assert.equal(chatMonth(new Date(2026, 0, 10)), "2026-01");
+assert.equal(chatMonth(new Date(2026, 10, 30)), "2026-11");
 assert.equal(lastMonth(new Date(2026, 0, 10)), "2025-12");
 assert.deepEqual(recentMonths(new Date(2026, 9, 15)).slice(0, 2), ["2026-10", "2026-09"]);
 assert.equal(recentMonths(new Date(2026, 9, 15)).length, 12);
@@ -3720,7 +3722,7 @@ class SidebarShellSourceTests(unittest.TestCase):
         # D：「＋」照旧：在这家开新对话（月份 = 上个月）
         self.assertIn("<GroupNew onClick={onNew} />", head)
         self.assertIn("const onNew = useCallback(() => newChat.current(project.id), [project.id]);", head)
-        self.assertIn('start(project ? { project, period: period ? lastMonth() : "" } : NO_FILING);', projects)
+        self.assertIn('start(project ? { project, period: period ? chatMonth() : "" } : NO_FILING);', projects)
         # E：漏斗按钮（分组和排序）从所有组标题上去掉；已置顶 / 最近 / 月份组标题右侧是同一个「···」，「最近」的「＋」保留
         for source in (group, projects, rows):
             self.assertNotIn("ListFilterIcon", source)

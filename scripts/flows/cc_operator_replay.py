@@ -40,7 +40,7 @@ from pearnly_core.assistant import sessions
 from pearnly_core.express_operator import tasks
 from pearnly_erp_portal.express import push
 frappe.set_user({USER!r})
-period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
+period = frappe.utils.today()[:7]  # 对话月份：CC 新对话默认当月（11-16）
 def submitted():
     return frappe.get_all(push.PURCHASE, filters={{"company": {company!r}, "status": "submitted"}}, fields=["name", "system_no"],
                           order_by="name asc", limit_page_length=2)

@@ -78,7 +78,7 @@ connections.install_snapshot(conn["name"], observation, refresh["request_id"], c
 pool.ensure_registered(frappe.get_doc("Cowork ERP Connection", conn["name"]), "flowop", root="D:\\\\FLOWOP", now=frappe.utils.now_datetime())
 company = companies.create(conn["name"], "FLOWOP")
 frappe.db.commit()
-period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
+period = frappe.utils.today()[:7]  # 对话月份：CC 新对话默认当月（11-16）
 writer = native.trusted_adapter_context(conn["name"], "synthetic-writer")  # 实验室的合成写入端（同 cowork-push-native-lab-verify）
 def context_of(record):
     row = frappe.get_doc("Cowork Push Record", record)
@@ -87,7 +87,7 @@ def context_of(record):
         connection_revision=int(row.connection_revision))
 def recognized(number):
     fields = {{"direction": "purchase", "seller_name": "Flow seller", "seller_tax": {SELLER_TAX!r}, "buyer_tax": {TAX!r},
-              "buyer_name": "Flow Operator Co", "subtotal": "100", "vat": "7", "total_amount": "107", "date": period + "-15",
+              "buyer_name": "Flow Operator Co", "subtotal": "100", "vat": "7", "total_amount": "107", "date": period + "-01",
               "document_type": "tax_invoice", "invoice_number": number}}
     pages = [{{"page_index": 1, "fields": fields}}]
     made = storage.create_recognized(ws, pages, uuid4().hex, source="manual", confidence="high", ai_raw=pages)

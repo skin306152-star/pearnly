@@ -265,7 +265,12 @@ export function isPeriod(value: string): boolean {
 const pad = (n: number) => String(n).padStart(2, "0");
 export const periodOf = (date: Date) => `${date.getFullYear()}-${pad(date.getMonth() + 1)}`;
 
-/** 上个月（按这台设备的日期；新对话默认处理上个月）。 */
+/** 新对话默认的月份：当月（按这台设备的日期；用户 11-16「按建议」，原来默认上个月）。 */
+export function chatMonth(now = new Date()): string {
+  return periodOf(now);
+}
+
+/** 上个月（按这台设备的日期；定时任务按上个月读详情）。 */
 export function lastMonth(now = new Date()): string {
   return periodOf(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 }

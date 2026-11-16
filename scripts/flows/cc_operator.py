@@ -31,7 +31,7 @@ def prepare(lab, manifest):
 from pearnly_core.express_operator import tasks
 from pearnly_erp_portal.express import contracts, operator, push
 frappe.set_user({USER!r})
-period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]
+period = frappe.utils.today()[:7]  # 对话月份：CC 新对话默认当月（11-16）
 first, last = operator._month(period)
 # 这家已提交、还没交进写账队列（没有写账件；状态同代录资料的范围）、不带按台号码（带号码的不交代录）的采购单：先找这个月的；
 # 新开户那套数据这个月没有，就挑一张别的
@@ -140,7 +140,7 @@ def judge(params, results, camera_code=None):
     return [
         {"case": "切到代录：新建页就是直写的新建页（问候、下巴的公司胶囊），没选公司写了字也发不出", "seen": switch,
          "ok": bool(switch.get("ok")) and switch.get("mode") == "operator" and bool(switch.get("welcome")) and bool(switch.get("blocked"))},
-        {"case": "选了公司（月份默认上个月）说一句：交给这段会话的 CC，回复照对话画，等回复时出状态行、回复到了收起", "seen": made,
+        {"case": "选了公司（月份默认当月）说一句：交给这段会话的 CC，回复照对话画，等回复时出状态行、回复到了收起", "seen": made,
          "ok": bool(made.get("picked")) and bool(made.get("sent")) and bool(made.get("got")) and params["line"] in (made.get("user") or [])
          and bool(made.get("indicator")) and made.get("after") == 0 and made.get("mode") == "operator"},
         {"case": "同一事务建了代录会话与任务：侧栏同一个接口按 mode=operator 列出这一段（挂着任务、这家这个月），直写列表里没有它",

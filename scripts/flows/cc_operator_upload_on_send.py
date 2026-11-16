@@ -53,7 +53,7 @@ def prepare(lab, manifest):
         head = CLEANUP + BASE + "project = company['id']\n"
     else:
         head = (f"frappe.set_user({admin!r})\nproject = {(manifest.get('company') or manifest['companies'][0])!r}\n"
-                "period = frappe.utils.add_months(frappe.utils.today(), -1)[:7]\n")
+                "period = frappe.utils.today()[:7]  # 对话月份：CC 新对话默认当月（11-16）\n")
     out = lab.python(site, head + f"""
 from pearnly_core.assistant import sessions
 frappe.set_user({admin!r})

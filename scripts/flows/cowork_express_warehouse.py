@@ -40,7 +40,7 @@ pool.put_facts(frappe.get_doc("Cowork ERP Connection", conn["name"]), "flowwh", 
     device="flow", routine=False, now=frappe.utils.now_datetime())
 def stock_doc(number):
     fields = {{"direction": "purchase", "seller_name": "Flow seller", "seller_tax": {SELLER_TAX!r}, "buyer_tax": {MY_TAX!r},
-              "buyer_name": "Flow Operator Co", "subtotal": "100", "vat": "7", "total_amount": "107", "date": period + "-15",
+              "buyer_name": "Flow Operator Co", "subtotal": "100", "vat": "7", "total_amount": "107", "date": period + "-01",
               "document_type": "tax_invoice", "invoice_number": number, "posting_kind": "stock",
               "items": [{{"name": {ITEM!r}, "qty": "1", "price": "100", "subtotal": "100", "posting_kind": "stock"}}]}}
     pages = [{{"page_index": 1, "fields": fields}}]

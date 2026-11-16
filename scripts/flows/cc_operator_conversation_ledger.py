@@ -1,10 +1,10 @@
 """流程用例：代录新建页先选账套再发第一句（测试机1 11-12：新建页没有账套行，第一句之前选不了，只能等 CC 问）。
 
 同 `cc_conversation_ledger.py` 的造数据（Cowork：一条 Express 连接，同一税号两本同期账套 T.8、T.9，都没记住现用的；一张识别好的进项票，
-付款与科目两本都记住了），只是票据日期放在任务那个月（2026-10-09）、票上记的去向是同期的 T.9（代录按这家这个月的待录清单建计划，
+付款与科目两本都记住了），只是票据日期放在任务那个月（当月 1 号）、票上记的去向是同期的 T.9（代录按这家这个月的待录清单建计划，
 清单按公司的账套列）。
 
-1. 切到代录，新建页（还没建会话）选这家（月份默认上个月 2026-10）：账套胶囊未定（两本同期），点开选 T.8，再说第一句 → 建出代录会话与
+1. 切到代录，新建页（还没建会话）选这家（月份默认当月）：账套胶囊未定（两本同期），点开选 T.8，再说第一句 → 建出代录会话与
    任务，接口读回的本对话账套就是 T.8，不出提问卡。
 2. 说一句建写入计划（``pearnly_write_plan``，代录按任务这个月的待录清单）→ ready、这张票、目标 T.8（票上原来是 T.9，改投），
    不出选账套的提问卡。
@@ -25,11 +25,13 @@ from cc_conversation_ledger import (EXTRA_CLEANUP, LEDGER_IDS, RESULT, SEED, T8,
                                     new_page_ledger)
 from cowork_operator_lib import CLEANUP  # noqa: E402
 
+# 新对话默认的月份：当月（CC 11-16 起，原来是上个月）；实验室与本机同一个时钟
+CHAT_MONTH = __import__("datetime").date.today().strftime("%Y-%m")
 TITLE = "CC 代录新建页先选账套（Cowork）：选 T.8 再发第一句，代录会话的本对话账套就是 T.8，建计划写进 T.8、不问账套"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 # 票据日期放进任务那个月（代录按这家这个月的待录清单建计划）
-OCTOBER_SEED = SEED.replace('"date": "2026-06-09"', '"date": "2026-10-09"')
-assert OCTOBER_SEED != SEED, "cc_conversation_ledger.SEED changed: move the document date into 2026-10 again"
+OCTOBER_SEED = SEED.replace('"date": "2026-06-09"', '"date": "' + CHAT_MONTH + '-01"')
+assert OCTOBER_SEED != SEED, "cc_conversation_ledger.SEED changed: move the document date into the chat month again"
 
 
 def prepare(lab, manifest):
@@ -78,11 +80,11 @@ def judge(params, results, camera_code=None):
     opened, made = (by.get(k) or {} for k in ("代录新建页选 T.8 后说一句", "说一句建写入计划"))
     return [
         {"case": "代录新建页（还没建会话）选了公司就有账套胶囊：两本同期时未定；点开列出 T.8、T.9，选 T.8 后显示 T.8；说第一句建出"
-                 "代录会话与任务（月份 2026-10），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
+                 "代录会话与任务（月份是当月），服务端读回本对话账套就是 T.8，没出提问卡", "seen": opened,
          "ok": opened.get("mode") == "operator" and bool(opened.get("picked")) and opened.get("chip_found") is True
          and opened.get("chip_before") not in ("T.8", "T.9") and {"T.8", "T.9"} <= set(opened.get("chip_options") or [])
          and opened.get("chip_after") == "T.8" and bool(opened.get("replied")) and bool(opened.get("task"))
-         and opened.get("period") == "2026-10" and opened.get("current") == params["t8"] and opened.get("asked") == 0},
+         and opened.get("period") == CHAT_MONTH and opened.get("current") == params["t8"] and opened.get("asked") == 0},
         {"case": "说一句建写入计划：ready、写这张票、目标 T.8；不出选账套的提问卡", "seen": made,
          "ok": made.get("status") == "ready" and params["doc"] in (made.get("documents") or [])
          and [(item.get("account_set"), item.get("account_set_title")) for item in made.get("account_sets") or []]

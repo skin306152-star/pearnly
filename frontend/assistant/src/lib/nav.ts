@@ -27,7 +27,7 @@
 import { useAui, useAuiState } from "@assistant-ui/react";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { create } from "zustand";
-import { lastMonth, type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
+import { chatMonth, type PendingMonth, refreshPendingCounts, useCompanyNav, usePendingCounts } from "@/lib/companies";
 import { getSession } from "@/lib/managed-agents/api";
 import { sessionMode, useListMode } from "@/lib/managed-agents/list-mode";
 import { getMethod } from "@/lib/frappe";
@@ -353,7 +353,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         // 公司、待处理都在对话模式里落（提醒点开时在代录就先回对话模式）
         if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
         const newChat = (project = "", month = "") => {
-          setDraft(project ? { project, period: useProjects.getState().period ? month || lastMonth() : "", scope: "" } : {});
+          setDraft(project ? { project, period: useProjects.getState().period ? month || chatMonth() : "", scope: "" } : {});
           latest.current.setView("chat");
           void aui.threads().switchToNewThread();
         };
@@ -373,7 +373,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
           newChat();
           openCompanyPicker((id, title) => {
             if (title) hintTitle(id, title);
-            if (id) setDraft({ project: id, period: useProjects.getState().period ? lastMonth() : "", scope: "" });
+            if (id) setDraft({ project: id, period: useProjects.getState().period ? chatMonth() : "", scope: "" });
           }, "");
           return;
         }
