@@ -828,6 +828,33 @@ class PartyPrenames(unittest.TestCase):
             self.assertEqual((prename + core).replace(" ", ""), name.replace(" ", ""), name)  # PRENAM + 核心名 = 原名，不丢字
 
 
+class OperatorMastersReachTheProduct(unittest.TestCase):
+    """代录回执里随单新建的主档（11-16 验收：代录新建客户 เ001 写成 IV0000030，ERP 客户的码一直空、同步回来另建一条）：CC 桌面版
+    放在 ``meta.operator.masters``（``[{kind: party / item, code, name?}]``，1.12.21 已发出）；服务端两条读法都认它——机器通道作业视图
+    （ERP，`common.written_codes`）与 Cowork 存回执前的净化（`sanitize_push_meta` 留下它、顶层没有对方码时照它补）。"""
+
+    def test_the_desktop_shape_is_the_one_the_server_reads(self):
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        self.assertIn('{"masters": ready.created}', worker)
+        masters = (COMPANION / "express_operator" / "masters.py").read_text(encoding="utf-8")
+        self.assertIn('created.append({"kind": "party", "code": plan.party_code})', masters)
+        self.assertIn('created.append({"kind": "item", "code": line["code"], "name": line["name"]})', masters)
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.express_rules.push import common
+
+        self.assertEqual(set(common.OPERATOR_MASTER_KINDS), {"party", "item"})
+        sent = {"operator": {"masters": [{"kind": "party", "code": "เ001"}, {"kind": "item", "code": "ST-1", "name": "ข้าว"},
+                                         {"kind": "repaired", "code": "ST-2"}]}}
+        self.assertEqual(common.written_codes(sent), {"party_code": "เ001", "line_codes": [{"name": "ข้าว", "code": "ST-1"}]})
+        clean = common.sanitize_push_meta(sent)
+        self.assertEqual(clean["party_code"], "เ001")
+        self.assertEqual([row["kind"] for row in clean["operator"]["masters"]], ["party", "item"])
+        # 直写回执顶层有的照旧以顶层为准
+        self.assertEqual(common.written_codes({"party_code": "C-9", **sent})["party_code"], "C-9")
+        channel = (ROOT / "apps" / "pearnly_core" / "pearnly_core" / "cc_desktop" / "jobs.py").read_text(encoding="utf-8")
+        self.assertIn("codes = written_codes(meta)", channel)
+
+
 class Release1122Edges(unittest.TestCase):
     """CC 桌面版 1.12.22 那一批的三条接缝（11-15）：服务端先上线，旧版（1.12.21）与新版都要对。各条按「仓库里这版 CC 认不认」
     分两种写法核：认了就两端同名同值；还不认时服务端不能把它交给这版。"""

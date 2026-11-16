@@ -203,6 +203,21 @@ class Queue(Base):
             {"seq": 2, "name": "ค่าขนส่ง", "mode": "direct_account", "stkcod": ""}])
         self.assertEqual(self.changes[-1]["line_codes"], [{"seq": 1, "name": "น้ำแข็ง", "code": "ST-0099"}])
 
+    def test_the_masters_an_operator_job_made_reach_the_product_as_written_codes(self):
+        """代录回执只在 meta.operator.masters 里报随单新建的客户 / 存货（11-16 验收：代录新建客户 เ001 写成 IV0000030，ERP 客户的
+        码一直空）：作业视图照它给出对方码与 {name, code}（没有序号）；直写回执顶层有的照旧以顶层为准。已发出的 1.12.21 就是这个形状。"""
+        job = self.enqueue()
+        self.lease(self.office)
+        masters = [{"kind": "party", "code": "เ001"}, {"kind": "item", "code": "ST-0100", "name": "น้ำแข็ง"},
+                   {"kind": "repaired", "code": "X"}]
+        self.ack(self.office, job["job"], meta={"operator": {"masters": masters}})
+        self.assertEqual((self.changes[-1]["party_code"], self.changes[-1]["line_codes"]),
+                         ("เ001", [{"name": "น้ำแข็ง", "code": "ST-0100"}]))
+        direct = self.enqueue(name="SD-2")
+        self.lease(self.office)
+        self.ack(self.office, direct["job"], meta={"party_code": "C-9", "operator": {"masters": masters}})
+        self.assertEqual(self.changes[-1]["party_code"], "C-9")
+
     def test_a_receipts_balances_reach_the_product_and_other_jobs_carry_none(self):
         """收款单 RE（载荷 20，11-11）：电脑回执 meta.receipt 原样带到产品的作业视图；别的单是空字典。"""
         receipt = {"docnum": "RE2403080", "invoices": [{"docnum": "IVP42400239", "remaining_after": "0.00"}]}

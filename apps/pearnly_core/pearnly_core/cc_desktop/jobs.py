@@ -59,6 +59,10 @@ def view(row) -> dict:
         meta = json.loads(row.get("meta_json") or "{}")
     except ValueError:
         pass
+    from pearnly_core.express_rules.push.common import written_codes
+
+    # 直写回执在顶层；代录回执只在 meta.operator.masters 里报随单新建的（11-16 验收，已发出去的版本也认）
+    codes = written_codes(meta)
     return {"job": row.get("name"), "request_key": row.get("request_key"), "source_doctype": row.get("source_doctype"),
             "source_name": row.get("source_name"), "actor": row.get("actor"), "book_key": row.get("book_key"),
             "status": row.get("status"), "docnum": row.get("docnum") or "", "stage": row.get("stage") or "",
@@ -66,9 +70,9 @@ def view(row) -> dict:
             "attempt": int(row.get("attempt") or 0), "device": row.get("written_by_device") or row.get("lease_device")
             or row.get("route_device") or "", "written_at": row.get("written_at"),
             # 电脑写这张单实际用的客户 / 供应商码（新建的、复用的都报）：产品据此把单上的对方档挂上 Express 码
-            "party_code": str((meta if isinstance(meta, dict) else {}).get("party_code") or "")[:40],
-            # 逐行实际用的存货码（{seq, name, code}）：产品据此把随单新建的本地商品挂上 Express 码
-            "line_codes": (meta.get("line_codes") if isinstance(meta, dict) else None) or [],
+            "party_code": codes["party_code"],
+            # 逐行实际用的存货码（直写 {seq, name, code}；代录 {name, code}，按品名对行）：产品据此把随单新建的本地商品挂上 Express 码
+            "line_codes": codes["line_codes"],
             # 收款单 RE（载荷 20）：电脑回报的单号与每张发票写后余额 {docnum, invoices: [{docnum, remaining_after}]}，原样带出；别的单为空
             "receipt": _receipt(meta)}
 
