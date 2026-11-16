@@ -49,11 +49,12 @@ path = facts._path(key)
 backup = path + ".flow-{tag}"
 if os.path.exists(path):
     os.replace(path, backup)
-# 这份账套：两个供应商同税号（电脑才认得出疑似重复）；存货科目组两个合格（DM 在用 4 件、P002 在用 1 件）、一个不合格（ST01 办公设备）
+# 这份账套：供应商同税号只有一个（服务端按税号认得准，开始前不问）——电脑写时另在 Express 里认出一个名字相近、没填税号的旧档，
+# 以「疑似重复」拦下（服务端判不出的那种停法，同 H5 的存货科目组）；存货科目组两个合格（DM 在用 4 件、P002 在用 1 件）、
+# 一个不合格（ST01 办公设备）
 facts.save(key, {{"version": 2, "customers": [], "departments": [], "products": [],
                  "suppliers": [{{"code": "SUP-A-{tag}", "name": "ผู้ขาย H5 {tag}", "tax_id": {SUPPLIER_TAX!r}, "branch": "00000"}},
-                               {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": {SUPPLIER_TAX!r},
-                                 "branch": "00000"}}],
+                               {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": "", "branch": ""}}],
                  "facts": {{"accounts": [{{"code": "11-04-01-00", "name": "วัตถุดิบคงเหลือ", "type": "1"}}], "mapping": {{}},
                            "catalog": {{"isacc_candidates": [
                                {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 4}},
@@ -98,7 +99,7 @@ push.send(push.PURCHASE, name)
 frappe.db.commit()
 job = frappe.db.get_value(push.PURCHASE, name, "ledger_job")
 out["job"] = job
-reason = "[SUPPLIER_DUP_SUSPECTED] two suppliers share tax id {SUPPLIER_TAX}"
+reason = "[SUPPLIER_DUP_SUSPECTED] a similar supplier without a tax id is in Express"
 if job:
     frappe.db.set_value("Pearnly CC Job", job, {{"status": "manual", "reason": reason}}, update_modified=False)
     push.job_changed({{"source_doctype": push.PURCHASE, "source_name": name, "status": "manual", "job": job, "reason": reason}})
@@ -178,10 +179,9 @@ def verify(lab, manifest, params, camera_code=None):
          "ok": bool(group) and group[1] == "DM" and sorted(group[2]) == ["DM", "P002"]},
         {"case": "S1：选了 P002 后再准备，载荷带 stock_acccod = P002（不再交给 CC 桌面版按众数选）",
          "seen": params.get("s1_payload_group"), "ok": params.get("s1_payload_group") == "P002"},
-        {"case": "S2：电脑以同税号两个供应商档拦下 → 卡片列出选对方档那一项、选项是这两个档",
+        {"case": "S2：电脑以疑似重复拦下（服务端开始前判不出）→ 卡片列出选对方档那一项，选项有同税号的那个档",
          "seen": params.get("s2_items"),
-         "ok": any(row[0] == "party" and {"SUP-A-" + params["tag"], "SUP-B-" + params["tag"]} <= set(row[2])
-                   for row in params.get("s2_items") or [])},
+         "ok": any(row[0] == "party" and "SUP-A-" + params["tag"] in row[2] for row in params.get("s2_items") or [])},
         {"case": "S2：代录预检同样列出这一项（中途那张卡照它出题）", "seen": params.get("operator_items"),
          "ok": "party" in (params.get("operator_items") or [])},
         {"case": "S2：代录卡片带上产品那一句原因（不是空、不是原因码）", "seen": params.get("card_reason_text"),
