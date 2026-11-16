@@ -66,7 +66,7 @@
 |---|---|---|
 | 必须 | 搜索统一：`erp.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item` 两行真机记录「通过」，绑最终集成头 | 待 11-16 真机（A 组） |
 | 必须 | 共用件连带回归：每个 manual 入口记「通过 / 不通过 / 没测到（原因）」 | 待 11-16（A、C 组）；白天并 main 后重出全表 |
-| 必须 | 收款日期：NLTTEST 原生对照通过（作者判定）；LINE / 网页改日期；no-period 核点 | 待 11-16（A、B 组） |
+| 必须 | 收款日期：NLTTEST 原生对照通过（作者判定）；LINE / 网页改日期；no-period 核点 | **原生对照 11-16 作者判定通过**（唯一差异 GLJNLIT 的 CHGDAT / CHGTIM 为空，是四类单据共用写法的存量差异，另案；关账期间拒绝没测到，判可接受）；LINE / 网页改日期、no-period 待 A 组真机 |
 | 必须 | 验收第 0 批首跑（验收窗口，E 组） | 待 11-16 |
 | 必须 | 白天并最新 origin/main 后：全闸门（只许差已附记录的真机行）、候选离线 LANE EXIT 0、`run.py --changed` 受影响流程全过；Development checks 绿 | 并 main 前的结果见上表 |
 | 可摘除 | page-company：三星一行 + 它的共用件入口；不过或来不及就重建集成分支跳过它（不用 revert） | 各组最后做 |
