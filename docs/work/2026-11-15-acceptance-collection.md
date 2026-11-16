@@ -301,3 +301,30 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 - 收款「转账方式经 SHORTNAM 指到户头 → 记银行流水」那一支：TEST2 的转账方式 SHORTNAM 都是空的，测不到；要测需在 Express 里给一种方式设 SHORTNAM 并重取基线。
 - operator.talk.purchase：Mac 栈没接模型，改在测试机1 实验栈或 testerp 上跑。
 - 旧路径证据的格（除抽查过的 4 格）明天按新路径补跑一遍。
+
+## 第 5 批：真机线 11-16 问题补成场景（修复前红）
+
+11-16，本地分支 `pearnly/acceptance-scenarios-1116`（基点 a1cf24198），只在本地提交。五条都按「修好后的正确行为」断言：对应修复在
+别的窗口、还没进 main，现在跑应当不通过；修复进 main 并部署到被测站点后应转绿。都没跑过（不连测试机 / 实验栈），模型费 0、不跑识别。
+组：`first_run.py --group fixes`（顺序：未连接 → 办公室电脑 → H3 → H5 → 挂码；后三条占测试机桌面）。替身单测
+`tests/test_acceptance_erp_chain.py` 两条新用例：假世界「修好」时五条都通过，「没修」时各自不通过且原因指到那个缺陷；造不出现场时记没测到。
+登记 45 条；欠账基线 986 → 984（`erp.cc.operator.submit|misuse:M07`、`erp.desk.pearnly-purchase.action.Submit|misuse:M07` 由未连接、
+办公室电脑两条还上）。共用件 `erp_chain.py` 加了 `purchase_tables()` / `purchase_readback()`（现购单读回，同示范 1 与代录采购那套）。
+
+| 场景 id | 怎么造现场 | 断言 | 依赖的修复 |
+|---|---|---|---|
+| `acc.erp.operator.intake.purchase`（H3） | 站点脚本 `site/erp_operator_card.py`（kind=intake）照识别结果的样子直接造一条「已识别」的收单记录 `I:<LI-…>`（写死：现购、验收公司里第一位 Express 供应商、一行已有库存品、票面合计），行物料 / 仓库已定；建代录任务 | 开始前卡片（`write_precheck.api.card`，写入计划与页面卡片同一判定）列得到这张、不是 `unknown_document`；按卡片作答经 `express_operator.api.remember` 记下不报没有权限；`hand_in` 后收单记录提交成 ERP 采购单、代录录成（代录交的、只一件、任务里已录入同单号）；账本读回同代录采购 | `pearnly/erp-operator-intake`（32ec86ccf，H3 窗口） |
+| `acc.erp.operator.stock.group`（H5） | 同脚本 kind=stock_group：现购一件新建的 ERP 物料（账套里没有）交代录；开跑前清掉这家公司记过的存货科目组选择，跑完原样还原 | 开始前卡片问了物料组、合格的组都在选项里；答第一项（推荐）后再判不再问；写成，STMAS 新物料的 ACCCOD = 选的组、只多一行；万一停下，另核单据上带原因与可选项（S2） | `pearnly/cc-stop-exits-h5`（d818a1791，S1 + S2） |
+| `acc.erp.operator.masters.link`（首跑缺陷 2） | 同脚本 kind=new_masters：新供应商（校验位正确的税号）+ 新物料的现购单交代录；写成后等主档同步做完（最多 7 分钟） | 供应商档 / 物料的 express_code = 账本 APTRN.SUPCOD / STCRD.STKCOD；同步后这一轮新建的档里同一个码只有单上那一条；APMAS、STMAS 各只多一行 | `pearnly/operator-masters-link`（e7d615d3b） |
+| `acc.erp.operator.no.computer`（未连接） | `site/erp_operator_no_computer.py`：没有电脑的员工开现购单（不排直写）、建任务、`hand_in`；读完撤掉那一件、作废这张单、任务标停止。**不写任何账套**、不占测试机 | 写账件排着、归发单人；单据页原因（`push._queued_note`）、代录钩子 `computer_state`、模型的 `express_operator_status.no_computer`、对话投影（`feed.project`）都说「CC 桌面版未连接」 | `pearnly/erp-operator-intake` 的 341e08624 |
+| `acc.erp.office.actor.purchase`（office_actor） | `site/erp_office_actor.py`：只用手机的员工（从没在电脑上登录过 CC）开现购单提交（直写正路） | 写账件不归发单人、归 `push.office_actor` 选的人（测试机那台 CC 上登录的员工）；排队时单据页不说未连接；那台电脑写成、单据仍是发单人的；账本读回。修复前写账件归发单人：脚本不空等，撤件作废后交回，场景判不通过 | 评估「ERP 写账人改走 office_actor」（流程 `erp.office-actor` 红绿证据在共享笔记，代码还没推到远端分支） |
+
+没写成留桩的：无。五条都能从现有服务端入口走到；但两条要先备现场，没备好跑到时记前置条件不满足：
+- **未连接**：要另配一家公司——CC 报上来了它的账套，但够得到这本账套的电脑上登录过 CC 的人里没有这家公司的员工（否则 office_actor 修好后
+  会由那台电脑兜底，正确结果就不是「未连接」），以及这家公司一个从没在电脑上登录过 CC 的员工。环境变量 `PEARNLY_ACC_ERP_NOPC_USER` /
+  `_TAX` / `_BRANCH`。验收公司本身造不出这个现场（测试机那台 CC 的员工就在这家公司里）。
+- **办公室电脑**：验收公司里一个有开采购单权限、从没在电脑上登录过 CC 的员工（`PEARNLY_ACC_ERP_PHONE_USER`）；测试机那台 CC 此刻在线。
+- **H5** 另要验收账套合格的存货科目组两个以上（站点脚本按账套资料判，不到两个记前置条件不满足；69EXP\TEST 有 DM、P002 两个，TEST2 没核）。
+
+首跑要校准的：H3 收单记录里供应商按名称 + 税号认回（产品认不回会新建供应商，读回的供应商编码断言会报出来）；卡片作答规则（已定不动、
+预选照预选、物料 / 对方「新建」、其余第一项）是否覆盖 TEST2 实际出的题（答不了的列在 `unanswered`，断言会报）；挂码那条主档同步的等待时长。
