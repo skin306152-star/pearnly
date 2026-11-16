@@ -785,7 +785,7 @@ def _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, 
                for side, acc, amount in rows]
     try:
         for line in written:
-            S.append_native(entries, _filtered(entries, line))
+            S.append_native(entries, S.journal_stamp(entries, _filtered(entries, line)))
     finally:
         entries.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）

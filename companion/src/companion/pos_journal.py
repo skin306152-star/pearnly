@@ -149,8 +149,9 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
         for row in transfers:
             voucher = _next_voucher(gj, prefix, docdate_be)
             descrp = fit(f"{row.get('label') or ''} {docnum}".strip(), _GL_DESCRP)
-            gj.append({"JNLTYP": GENERAL_JOURNAL, "VOUDAT": docdat, "VOUCHER": voucher, "DESCRP": descrp,
-                       "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID})  # 机器标记
+            gj.append(S.journal_stamp(gj, {"JNLTYP": GENERAL_JOURNAL, "VOUDAT": docdat, "VOUCHER": voucher, "DESCRP": descrp,
+                                           "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID},  # 机器标记
+                                      userid=userid))  # 稽核栏照原生（``dbf_schema.journal_stamp``）
             written.append({"voucher": voucher, "acc": str(row["acc"]), "amount": Decimal(str(row["amount"])),
                             "descrp": descrp})
     finally:
@@ -165,7 +166,7 @@ def write(account_dir, prefix: str, *, docnum: str, docdat, docdate_be: str, cas
                               depcod, departmental))
     try:
         for line in lines:
-            S.append_native(gi, line)
+            S.append_native(gi, S.journal_stamp(gi, line))
     finally:
         gi.close()
     glbal_mark.mark(account_dir, lines)  # 科目余额对应格标待重算（照 Express 原生，11-12）

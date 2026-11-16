@@ -605,3 +605,18 @@ def test_cash_purchase_credits_the_cash_account_not_payables(datat):
     credits = [(r.ACCNUM or "").strip() for r in _rows(datat, "GLJNLIT", VOUCHER=res.docnum)
                if (r.TRNTYP or "").strip() == S.TRNTYP_CREDIT]
     assert credits == ["11-01-01-00"]
+
+
+def test_the_journal_carries_who_and_when_like_a_native_voucher(datat):
+    """凭证稽核栏照原生（11-16 取样：原生每张凭证都写谁、哪天、几点录的，我们这几栏全空）：单头 CREDAT / CHGDAT = 当天、USERID = 单头
+    录入人（同 APTRN.USERID）；CREBY 仍是机器标记 PEARNLY；明细 CHGDAT = 当天、CHGTIM = HHMM 四位。"""
+    import datetime as dt
+
+    W.write_purchase(_payload(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False, userid="KIK")
+    head, = _rows(datat, "GLJNL", VOUCHER="RR581231-001")
+    today = dt.date.today()
+    assert (head.CREBY.strip(), head.USERID.strip(), head.CREDAT, head.CHGDAT) == (S.PEARNLY_USERID, "KIK", today, today)
+    lines = _rows(datat, "GLJNLIT", VOUCHER="RR581231-001")
+    assert lines and all(r.CHGDAT == today and len(r.CHGTIM.strip()) == 4 and r.CHGTIM.strip().isdigit() for r in lines)
+    aptrn, = _rows(datat, "APTRN", DOCNUM="RR581231-001")
+    assert aptrn.USERID.strip() == head.USERID.strip()  # 同一个录入人口径，不另造
