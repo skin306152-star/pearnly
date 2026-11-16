@@ -29,6 +29,12 @@ CC 桌面版直写侧早已备好（载荷 21，1.12.21 已发）：`unit_code` 
 ## 接下来（第 2 步，等 H5 服务端那块合 main 后在其上开）
 - `choices.resolve` / `mapper` / `sales_mapper` 接出题，ERP `express/facts.py` 把主档镜像交给 `facts_of`、`express/precheck.py` 预选与记住，Cowork 先接现金科目。
 - CC 写时回的 `UNIT_CHOICE` / `COST_BASIS_CHOICE` / `CASH_ACCOUNT_CHOICE` 转成同一题（与 H5 的停下出口钩子同一处）。
+- documents 出卡已认 `entry` 形状（guided-erp `pearnly/cc-guide-documents` 7a997cb23，`guide/documents.py check_answers` 只核形状）；
+  业务核对在记答那一步（`write_precheck.api.record`）调 `book_questions.answer_problem`，归本任务接线。
+- 前端已认 `entry`（guided-frontend `pearnly/cc-guided-ui-review` f582741a8）：选中带 entry 的选项出一格数字、交「码:数」；负库存 Y / hold 按普通题画；
+  「库存不够」事实按 `card.facts` 事实行显示。**前端不出词条：题目与选项字由服务端给**——接线时四题的题目、选项名、事实行四语词条由本任务补，过 check-copy。
+- Cowork `precheck_source`：存货科目组用 H5 的 `_stock_group_item`；盘点窗口（clever-shannon）的 MR.ERP 菜单 / 默认值两类在 H5 之后接；
+  本任务的现金科目题排在它们之后变基。
 - 4 条流程：ERP 采购单位 / 销售新物料负库存 / 销售成本 / 现购现金科目。
 - `guided: true` 只给人在场的入口（预选卡、题卡、人点的推送）；带它的单只派给报过载荷 21 的电脑，更老的沿用现成「要更新」词条。
 

@@ -232,3 +232,4 @@ apps/pearnly_core/pearnly_core/mrerp/masters.py	นางสาว	数据：同�
 apps/pearnly_core/pearnly_core/mrerp/masters.py	น.ส.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
 apps/pearnly_core/pearnly_core/mrerp/masters.py	น.ส	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
 apps/pearnly_core/pearnly_core/mrerp/master_export.py	*	数据：MR.ERP 按仓结存报表与物料导出里的泰文固定字（仓行前缀、服务类型名、合计行），按原字面解析，不进界面
+apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py	*	数据：票面单位文字到 Express 单位码的后备映射（与 CC 桌面版 dbf_schema._UNIT_MAP 逐条相同）与现金科目名称关键词 เงินสด，按原字面比对，不进界面
