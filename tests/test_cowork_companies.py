@@ -3104,6 +3104,23 @@ class ProviderAndToolTests(unittest.TestCase):
         # 主档编号传别家：公司对话里不改别家的笔记与规则（A 线 11-15「只写对话选中的公司」），回是哪家
         refused = json.loads(tools.company_refusal({"company": xyz}))
         self.assertEqual((refused["status"], refused["reason"]), ("refused", "not_this_company_record"))
+        # 没归公司的对话（主会话 11-16「要人定的事问用户、别拒绝」）：用户多家公司先问是哪家（不拒）；只有一家按那家办，是那家放行、
+        # 不是那家照样拒
+        projects.sessions["sesn_tax"] = ("", "", "")
+        fresh_request()
+        scope = types.SimpleNamespace(only_company=lambda: "",
+                                      company_needed=lambda **fields: {"status": "needs_company", **fields})
+        package = sys.modules["pearnly_cowork.assistant"]
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.assistant.write_scope": scope}), \
+                mock.patch.object(package, "write_scope", scope, create=True):
+            out = json.loads(tools.company_refusal({"company": xyz}))
+            self.assertEqual((out["status"], out["record_company"]), ("needs_company", "XYZ Co"))
+            scope.only_company = lambda: xyz
+            self.assertIsNone(tools.company_refusal({"company": xyz}))
+            scope.only_company = lambda: abc
+            self.assertEqual(json.loads(tools.company_refusal({"company": xyz}))["reason"], "not_this_company_record")
+        projects.sessions["sesn_tax"] = (abc, "2026-09", "00012")
+        fresh_request()
         notes_before = dict(frappe.db.tables.get(notes.NOTE, {}))
         for refuse in (tools.company_refusal, tools.choice_refusal):
             refused = json.loads(refuse({"company": OTHER_TAX, "text": "x", "document": "h1", "kind": "payment",

@@ -229,6 +229,10 @@ def _install():
     scope_stub.allowed = lambda company=None: None  # 按名字给的对象（单据、回读、草稿）同样不限，另有专门的测试
     scope_stub.key_of = lambda value: str(value or "").casefold()
     scope_stub.NO_COMPANY = "no_company"
+    # 没归公司的对话（主会话 11-16）：默认当用户有多家公司（先问是哪家）；真实现另有 test_cc_write_scope
+    scope_stub.only_company = lambda: ""
+    scope_stub.company_needed = lambda **fields: {"status": "needs_company", "reason": "no_company", **fields,
+                                                  "companies": [], "note": "Ask the user with ask_user which company"}
     sys.modules[scope_stub.__name__] = sys.modules["pearnly_cowork.assistant"].write_scope = scope_stub
     spec = importlib.util.spec_from_file_location("cowork_assistant_tools", COWORK / "assistant/tools.py")
     tools = importlib.util.module_from_spec(spec)
@@ -3873,13 +3877,23 @@ class CompanyScopeTests(unittest.TestCase):
             self.assertIsNone(tools.folder_task_company_refusal({"tasks": ["R1"]}))
             self.assertEqual(json.loads(tools.run_folder_task({"task": "R1"}))["task"], "R1")
             self.assertEqual(touched, [("run", "R1")])
-            # 「最近」（没选公司）：运行 / 启停 / 删除都拒（原因是没选公司），看运行记录可以（主会话 11-15）
+            # 没归公司的对话（主会话 11-16「要人定的事问用户、别拒绝」）：用户有多家公司时不拒，先问是哪家（不出卡片、不碰任务）；
+            # 只有一家时按那家判，是那家的照常出卡片、别家的照样拒；看运行记录照旧可以
+            scope = sys.modules["pearnly_cowork.assistant.write_scope"]
             with mock.patch.object(tools, "_task_scope", lambda values: {"reason": "no_company"}):
-                out = json.loads(tools.run_folder_task({"task": "R1"}))
-                self.assertEqual((out["status"], out["reason"]), ("refused", "no_company"))
-                self.assertIn("listing them is fine", out["note"])
+                out = json.loads(tools.folder_task_company_refusal({"task": "R1"}))
+                self.assertEqual((out["status"], out["reason"], out["task"]), ("needs_company", "no_company", "R1"))
+                self.assertIn("Ask the user", out["note"])
+                self.assertEqual(json.loads(tools.run_folder_task({"task": "R1"}))["status"], "needs_company")
+                self.assertEqual(touched, [("run", "R1")])
                 json.loads(tools.folder_task_runs({"task": "R1"}))
                 self.assertEqual(touched[-1], ("runs", "R1"))
+                only = lambda connection, key, company=None, whole_company=False, **kw: None if (
+                    company == "CO-1" and key.endswith("69SINCER")) else {"reason": "not_this_company_book"}
+                with mock.patch.object(scope, "only_company", lambda: "CO-1"), mock.patch.object(scope, "check", only):
+                    self.assertIsNone(tools.folder_task_company_refusal({"task": "R1"}))
+                    out = json.loads(tools.folder_task_company_refusal({"task": "R2"}))
+                    self.assertEqual((out["reason"], out["task_company"]), ("not_this_company_task", "บริษัท อื่น จำกัด"))
             frappe.local.pearnly_assistant = None  # 网页由人点：不经这里限
             json.loads(tools.run_folder_task({"task": "R2"}))
             self.assertEqual(touched[-1], ("run", "R2"))
@@ -3892,7 +3906,7 @@ class CompanyScopeTests(unittest.TestCase):
 
     def test_every_write_delete_or_task_tool_refuses_what_belongs_to_another_company(self):
         """A 线 11-15 按类：凡按名字 / 记录号给对象、会写 / 会删 / 会排任务的工具，对象推往的账套不在对话选中公司名下就拒，回是哪家；
-        「最近」（没选公司）里同样拒；对象还没有去向（只识别）的照旧。判据同写入闸（`write_scope.allowed` 的账套对）。"""
+        没归公司的对话里先问用户是哪家（只有一家按那家判）；对象还没有去向（只识别）的照旧。判据同写入闸（`write_scope.allowed`）。"""
         scope = sys.modules["pearnly_cowork.assistant.write_scope"]
         mine, theirs = ("EXP1", "S:\\69EXP\\69SINCER"), ("EXP1", "S:\\69EXP\\DEMO01")
         allowed = {"company": "CO-1", "sets": [], "pairs": {(mine[0], mine[1].casefold())}}
@@ -3955,11 +3969,19 @@ class CompanyScopeTests(unittest.TestCase):
                 self.assertEqual(json.loads(refuse(given))["reason"], "not_this_company_record", refuse.__name__)
             self.assertIsNone(tools.documents_company_refusal({"documents": ["MINE", "BARE"]}))
             self.assertIsNone(tools.readback_company_refusal({"readback": "RB-MINE"}))
-            # 「最近」（没选公司）：有去向的一律拒，原因是没选公司
-            allowed.update(company="", pairs=set())
-            out = json.loads(tools.delete_documents({"documents": ["MINE"]}))
-            self.assertEqual((out["status"], out["reason"]), ("refused", "no_company"))
-            self.assertIsNone(tools.documents_company_refusal({"documents": ["BARE"]}))
+            # 没归公司的对话（主会话 11-16「要人定的事问用户、别拒绝」）：用户有多家公司时不拒，先问是哪家（回对象属于哪家）；
+            # 只有一家时按那家判：那家的放行（出卡片），别家的照样拒；还没有去向的照旧放行
+            unfiled = {"company": "", "sets": [], "pairs": set()}
+            with mock.patch.object(scope, "allowed", lambda company=None: allowed if company == "CO-1" else unfiled):
+                out = json.loads(tools.delete_documents({"documents": ["MINE"]}))
+                self.assertEqual((out["status"], out["reason"], out["record"]), ("needs_company", "no_company", "IV-MINE"))
+                self.assertEqual(json.loads(tools.documents_company_refusal({"documents": ["MINE"]}))["status"],
+                                 "needs_company")
+                self.assertIsNone(tools.documents_company_refusal({"documents": ["BARE"]}))
+                with mock.patch.object(scope, "only_company", lambda: "CO-1"):
+                    self.assertIsNone(tools.documents_company_refusal({"documents": ["MINE", "BARE"]}))
+                    out = json.loads(tools.documents_company_refusal({"documents": ["THEIRS"]}))
+                    self.assertEqual((out["reason"], out["record_company"]), ("not_this_company_record", "บริษัท อื่น จำกัด"))
             # 预扣税草稿：公司对话里给了别家的税号不做
             allowed.update(company="CO-1")
             with mock.patch.object(tools.projects, "of_session", lambda session: ("CO-1", "2026-10", ""), create=True):

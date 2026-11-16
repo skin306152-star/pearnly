@@ -271,6 +271,27 @@ def _companies() -> list:
     return [{"id": row.get("id"), "title": row.get("title"), "tax_id": row.get("tax_id")} for row in rows]
 
 
+COMPANY_NEEDED = "needs_company"
+COMPANY_NEEDED_NOTE = ("no_company: this conversation is not filed under a company and the user has several, so nothing "
+                       "was done yet. Ask the user with ask_user which company this is for (one question, each option "
+                       "label exactly a company title from companies; record_company is the company it belongs to), "
+                       "file this conversation under the one they chose with pearnly_file_conversation, then call this "
+                       "again. Do not refuse and do not choose for the user.")
+
+
+def only_company() -> str:
+    """没归公司的对话里改 / 删一样东西时按哪家办（主会话 11-16「要人定的事问用户、别拒绝」）：本人能用的公司只有一家就是那家；
+    多家或没有回空串（多家由用户在提问卡上选、`pearnly_file_conversation` 归档后再来，:func:`company_needed`）。"""
+    listed = _companies()
+    return str(listed[0].get("id") or "") if len(listed) == 1 else ""
+
+
+def company_needed(**fields) -> dict:
+    """没归公司、用户又有多家公司：不拒，回给模型先问用户是哪家（现有的选公司做法：提问卡 + 归档对话），定了再调一次出卡片。"""
+    return {"status": COMPANY_NEEDED, "reason": NO_COMPANY, **fields, "companies": _companies(),
+            "note": COMPANY_NEEDED_NOTE}
+
+
 def this_company_options(connection, day="") -> list | None:
     """停在「待选账套」的单在公司对话里的候选：本对话公司在这条连接上、覆盖单据日期的账套 ``[{key, label}]``
     （票的双方都不是本公司时，按票归属算出的候选全是别家的——CC 照实说明、用户同意后照样能写进本公司的账套，用户 11-10）。
@@ -302,5 +323,6 @@ def keep(options, connection_of=None, company=None, task="") -> list | None:
     return [item for item in options or () if (str(pick(item) or ""), key_of(item.get("key"))) in found["pairs"]]
 
 
-__all__ = ["LEDGER_NEEDED", "NOT_THIS_COMPANY", "NOT_THIS_LEDGER", "NO_COMPANY", "aim", "allowed", "check", "covering",
-           "is_pin", "keep", "key_of", "label_of", "needed", "pinned", "place", "refusal", "this_company_options"]
+__all__ = ["COMPANY_NEEDED", "LEDGER_NEEDED", "NOT_THIS_COMPANY", "NOT_THIS_LEDGER", "NO_COMPANY", "aim", "allowed",
+           "check", "company_needed", "covering", "is_pin", "keep", "key_of", "label_of", "needed", "only_company",
+           "pinned", "place", "refusal", "this_company_options"]

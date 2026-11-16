@@ -3536,11 +3536,6 @@ TASK_OTHER_COMPANY_NOTE = ("not_this_company_task: this scheduled task belongs t
                            "sentence whose task it is and that it can be done in a conversation of that company; never "
                            "do it from here.")
 TASK_NO_COMPANY = "no_company"
-TASK_NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so scheduled tasks cannot be run, "
-                        "switched or deleted here (listing them is fine). Tell the user in one sentence that it can be "
-                        "done in a conversation of the task's company (task_company); never do it from here.")
-
-
 def _task_company_refusal(names, read_only=False) -> dict | None:
     """CC 只动对话选中公司的定时任务（用户 11-10「只写对话选中的公司」；A 线 11-15：公司对话里能运行 / 启停 / 删 / 看别家公司
     的任务）：读出任务的连接与账套，走保存任务同一个判据（`_task_scope` → `write_scope.check(whole_company=True)`）。不在 CC 对话里
@@ -3555,15 +3550,27 @@ def _task_company_refusal(names, read_only=False) -> dict | None:
     judged = ((row, _task_scope(  # loop-query: 一次最多 FOLDER_BATCH_MAX 个任务，同保存批量
         {"connection": row.get("connection"), "account_set_key": row.get("account_set_key")})) for row in found)
     row, refused = next(((row, refused) for row, refused in judged if refused), (None, None))
+    if row and refused.get("reason") == TASK_NO_COMPANY:
+        # 没归公司（主会话 11-16「要人定的事问用户、别拒绝」）：看运行记录照旧；用户只有一家公司按那家判，多家先问是哪家
+        if read_only:
+            return None
+        from pearnly_cowork.assistant import write_scope
+
+        only = write_scope.only_company()
+        if not only:
+            return write_scope.company_needed(task=row.get("name"), title=row.get("title") or "",
+                                              record_company=_company_title(row.get("company")))
+        judged = ((row, write_scope.check(  # loop-query: 同上，一次最多 FOLDER_BATCH_MAX 个
+            row.get("connection"), row.get("account_set_key"), company=only, whole_company=True)) for row in found)
+        row = next((row for row, refused in judged if refused), None)
     if not row:
         return None
-    unfiled = refused.get("reason") == TASK_NO_COMPANY
-    if unfiled and read_only:
-        return None  # 「最近」里只读（看运行记录）照旧可以；运行 / 启停 / 删除不行（主会话 11-15）
-    company = frappe.db.get_value("Cowork Company", row["company"], "title") if row.get("company") else ""
-    reason, note = (TASK_NO_COMPANY, TASK_NO_COMPANY_NOTE) if unfiled else (TASK_OTHER_COMPANY, TASK_OTHER_COMPANY_NOTE)
-    return {"status": "refused", "reason": reason, "task": row.get("name"), "title": row.get("title") or "",
-            "task_company": company or "", "note": note}
+    return {"status": "refused", "reason": TASK_OTHER_COMPANY, "task": row.get("name"), "title": row.get("title") or "",
+            "task_company": _company_title(row.get("company")), "note": TASK_OTHER_COMPANY_NOTE}
+
+
+def _company_title(company) -> str:
+    return (frappe.db.get_value("Cowork Company", company, "title") or "") if company else ""
 
 
 RECORD_OTHER_COMPANY = "not_this_company_record"
@@ -3571,9 +3578,6 @@ RECORD_OTHER_COMPANY_NOTE = ("not_this_company_record: record belongs to another
                              "company this conversation is filed under, so nothing was changed. Tell the user in one "
                              "sentence whose it is and that it can be done in a conversation of that company; never do "
                              "it from here.")
-RECORD_NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so record, which belongs to "
-                          "record_company, cannot be changed or deleted here. Tell the user in one sentence that it can "
-                          "be done in a conversation of that company; never do it from here.")
 
 
 def _record_company_refusal(records) -> dict | None:
@@ -3588,19 +3592,28 @@ def _record_company_refusal(records) -> dict | None:
     found = write_scope.allowed()
     if found is None:
         return None
-    outside = next(((label, connection, key) for label, connection, key in records if key and not (
-        found["company"] and (str(connection or ""), write_scope.key_of(key)) in found["pairs"])), None)
+    keyed = [(label, connection, key) for label, connection, key in records if key]
+    if not keyed:
+        return None
+    if not found["company"]:
+        only = write_scope.only_company()  # 没归公司：只有一家按那家判，多家先问用户（主会话 11-16）
+        if not only:
+            label, connection, key = keyed[0]
+            return write_scope.company_needed(record=str(label or ""), record_company=_owner_title(connection, key))
+        found = write_scope.allowed(only)
+    outside = next(((label, connection, key) for label, connection, key in keyed
+                    if (str(connection or ""), write_scope.key_of(key)) not in found["pairs"]), None)
     if not outside:
         return None
+    label, connection, key = outside
+    return {"status": "refused", "reason": RECORD_OTHER_COMPANY, "record": str(label or ""),
+            "record_company": _owner_title(connection, key), "note": RECORD_OTHER_COMPANY_NOTE}
+
+
+def _owner_title(connection, key) -> str:
     from pearnly_cowork.companies import tasks as company_tasks
 
-    label, connection, key = outside
-    owner = company_tasks.company_of(connection, key) or {}
-    title = frappe.db.get_value("Cowork Company", owner["company"], "title") if owner.get("company") else ""
-    reason, note = (RECORD_OTHER_COMPANY, RECORD_OTHER_COMPANY_NOTE) if found["company"] else (
-        write_scope.NO_COMPANY, RECORD_NO_COMPANY_NOTE)
-    return {"status": "refused", "reason": reason, "record": str(label or ""), "record_company": title or "",
-            "note": note}
+    return _company_title((company_tasks.company_of(connection, key) or {}).get("company"))
 
 
 def _documents_company_refusal(names) -> dict | None:

@@ -322,5 +322,26 @@ class FolderTaskTests(_Conversation):
             self.assertIsNone(json.loads(tools.folder_task_refusal({**task, "account_set_key": A_TEST}) or "null"))
 
 
+class UnfiledConversationTests(unittest.TestCase):
+    """没归公司的对话里改 / 删一样东西（主会话 11-16「要人定的事问用户、别拒绝」）：用户只有一家公司就按那家办；多家先问是哪家，
+    回给模型的不是拒绝，带上可选的公司与「问用户、归档对话、再调一次」。"""
+
+    def test_one_company_is_used_and_several_are_asked(self):
+        one = [{"id": "CO-A", "title": "Pearnly", "tax_id": "1"}]
+        with mock.patch.object(write_scope, "_companies", lambda: one):
+            self.assertEqual(write_scope.only_company(), "CO-A")
+        two = one + [{"id": "CO-B", "title": "Sincere", "tax_id": "2"}]
+        with mock.patch.object(write_scope, "_companies", lambda: two):
+            self.assertEqual(write_scope.only_company(), "")
+            out = write_scope.company_needed(record="IV-1", record_company="Sincere")
+        self.assertEqual((out["status"], out["reason"], out["record"], out["record_company"]),
+                         ("needs_company", "no_company", "IV-1", "Sincere"))
+        self.assertEqual([item["id"] for item in out["companies"]], ["CO-A", "CO-B"])
+        for words in ("ask_user", "pearnly_file_conversation", "call this again", "Do not refuse"):
+            self.assertIn(words, out["note"])
+        with mock.patch.object(write_scope, "_companies", lambda: []):
+            self.assertEqual(write_scope.only_company(), "")
+
+
 if __name__ == "__main__":
     unittest.main()

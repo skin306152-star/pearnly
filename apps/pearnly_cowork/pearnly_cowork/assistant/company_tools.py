@@ -142,21 +142,23 @@ OTHER_COMPANY = "not_this_company_record"  # 同 `tools.RECORD_OTHER_COMPANY`
 OTHER_COMPANY_NOTE = ("not_this_company_record: record_company is not the company this conversation is filed under, so "
                       "nothing was changed. Tell the user in one sentence that it can be done in a conversation of that "
                       "company; never do it from here.")
-NO_COMPANY_NOTE = ("no_company: this conversation is not filed under a company, so a company's notes and rules cannot "
-                   "be changed here. Tell the user in one sentence that it can be done in a conversation of that "
-                   "company; never do it from here.")
 
 
 def other_company(row) -> dict | None:
     """CC 对话里只改本对话公司的团队笔记与公司规则（用户 11-10「只写对话选中的公司」；A 线 11-15：主档编号传别家照改）：不在 CC
-    对话里（网页由人点）不限；「最近」里一律不改。拒的回给模型：是哪家。"""
+    对话里（网页由人点）不限。没归公司的对话（主会话 11-16「要人定的事问用户、别拒绝」）：用户只有一家公司按那家办，多家先问
+    用户是哪家（提问卡 + 归档对话），定了再出卡片。拒的回给模型：是哪家。"""
     if not _session() or not row:
         return None
-    filed = _filed()[0]
+    from pearnly_cowork.assistant import write_scope
+
+    filed = _filed()[0] or write_scope.only_company()
     if filed and row.name == filed:
         return None
-    return {"status": "refused", "reason": OTHER_COMPANY if filed else "no_company", "record": row.title or row.name,
-            "record_company": row.title or row.name, "note": OTHER_COMPANY_NOTE if filed else NO_COMPANY_NOTE}
+    if not filed:
+        return write_scope.company_needed(record=row.title or row.name, record_company=row.title or row.name)
+    return {"status": "refused", "reason": OTHER_COMPANY, "record": row.title or row.name,
+            "record_company": row.title or row.name, "note": OTHER_COMPANY_NOTE}
 
 
 def company_refusal(tool_input) -> str | None:
