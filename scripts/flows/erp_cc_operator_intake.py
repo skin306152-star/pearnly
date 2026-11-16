@@ -73,7 +73,7 @@ doc = frappe.get_doc({{"doctype": intake.DOCTYPE, "status": intake.READY, "direc
 value = line_items.prepare(doc, result)
 # 同 H3 真机那张票：行已认出物料（这里认成 Express 同步来的那件）、仓库按这家第一个启用的仓定好，卡片问付款与 Express 那几项；
 # 行没认出、仓库没定时那几问由单测守住
-product = frappe.db.get_value("ERP Product", {{"express_code": ["is", "set"], "is_active": 1}}, "name")
+product = frappe.db.get_value("ERP Product", {{"express_company": {co!r}, "express_code": ["is", "set"], "is_active": 1}}, "name")
 value["lines"] = [{{**line, "item_type": "goods", "product": product, "new": False, "decided": True}} for line in value["lines"]]
 value["warehouse"] = value.get("warehouse") or frappe.get_all("ERP Warehouse", filters={{"company": {co!r}, "is_active": 1}},
                                                               pluck="name", order_by="express_code asc", limit_page_length=1)[0]
