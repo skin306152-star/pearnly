@@ -2,6 +2,7 @@
 // 用法：node scripts/smoke/inventory.mjs '<JSON>'，JSON = {base, pages: [路径], cookie_domain, sid, secure, crawl, max_pages, ua}
 //   crawl：顺着每页侧栏 / 顶栏下拉 / 主区里的站内 /desk、/app 链接继续打开（只读，不点按钮），最多 max_pages 页。
 // Chrome 路径：环境变量 SMOKE_CHROME，默认 macOS 的 Google Chrome。Node 22 起自带 WebSocket / fetch，不需要 Playwright。
+import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "./devtools.mjs";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -11,10 +12,9 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const job = JSON.parse(process.argv[2] || "{}");
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const port = 9300 + Math.floor(Math.random() * 600);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "smoke-"));
 const chrome = spawn(chromePath, [
-  "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  "--headless=new", DEVTOOLS_PORT_FLAG, `--user-data-dir=${profile}`,
   "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",
   ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : []),
   // 实验栈经 Mac 侧端口转发打开，不切域名：测试租户的域名在本机 Chrome 里解析到回环（SMOKE_CHROME_RULES，如 "MAP testcowork.pearnly.com 127.0.0.1"）
@@ -52,10 +52,7 @@ const norm = (href) => {
   } catch { return null; }
 };
 try {
-  let info;
-  for (let i = 0; i < 150 && !info; i++) {
-    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
-  }
+  const info = await devtoolsVersion(profile, chrome);
   if (!info) throw new Error(`Chrome did not start: ${chromePath}`);
   ws = new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((resolve) => ws.addEventListener("open", resolve));

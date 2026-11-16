@@ -620,5 +620,30 @@ class DriveTimeout(unittest.TestCase):
             self.drive("")
         self.assertIn("before the first step", str(stopped.exception))
 
+class ChromeDebugPort(unittest.TestCase):
+    """无头 Chrome 一律用系统分配的调试端口（`scripts/smoke/devtools.mjs`）：随机挑端口时并行的两格会连到同一个 Chrome，
+    一格跑完关掉它，另一格报 debug connection closed（11-16 列车 A、D 并行反复挂、串行补跑就过）。"""
+
+    def test_no_driver_picks_its_own_debug_port(self):
+        import subprocess
+
+        listed = subprocess.run(["git", "ls-files", "*.mjs", "*.js", "*.py", "*.ts"], cwd=ROOT, capture_output=True, text=True,
+                                check=True).stdout.split()
+        bad = []
+        for name in listed:
+            if name.startswith(("docs/", "tests/")) or "node_modules" in name:
+                continue
+            for number, line in enumerate((ROOT / name).read_text(errors="ignore").splitlines(), 1):
+                for flag in re.findall(r"remote-debugging-port=(\S*)", line):
+                    if not flag.startswith("0"):
+                        bad.append(f"{name}:{number}: {line.strip()[:120]}")
+        self.assertEqual(bad, [], "改用 scripts/smoke/devtools.mjs 的 DEVTOOLS_PORT_FLAG / devtoolsVersion")
+
+    def test_the_shared_flag_is_port_zero(self):
+        text = (ROOT / "scripts/smoke/devtools.mjs").read_text()
+        self.assertIn('DEVTOOLS_PORT_FLAG = "--remote-debugging-port=0"', text)
+        self.assertIn("DevToolsActivePort", text)
+
+
 if __name__ == "__main__":
     unittest.main()

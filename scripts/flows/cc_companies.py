@@ -66,7 +66,10 @@ row = frappe.get_all("Purchase Document", filters={{"company": {a!r}, "status": 
                      fields=["name", "system_no", "ledger_state", "ledger_reason"], order_by="creation asc", limit_page_length=1)[0]
 frappe.db.set_value("Purchase Document", row.name, {{"ledger_state": "held", "ledger_reason": "choice_needed:party"}},
                     update_modified=False)
-if not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {a!r}}}):
+# 采购员只能用 A：数据集本来就给了（lab_seed_erp 的 set_member_roles），没有才补一条，收尾只删自己补的（11-16：无条件删掉了数据集
+# 原有的那条，同站点后面的 erp.line.edit-other-company 采购员不再被拒）
+permission_made = not frappe.db.exists("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {a!r}}})
+if permission_made:
     frappe.get_doc({{"doctype": "User Permission", "user": "purchase@erp.regression", "allow": "ERP Company",
                     "for_value": {a!r}, "apply_to_all_doctypes": 1}}).insert(ignore_permissions=True)
 titles = {{name: frappe.db.get_value("ERP Company", name, "company_name") for name in ({a!r}, {b!r})}}
@@ -86,7 +89,7 @@ frappe.db.commit()
 print(json.dumps({{"a": {a!r}, "b": {b!r}, "titles": titles, "document": row.name, "number": row.system_no, "before": [row.ledger_state or "",
                   row.ledger_reason or ""], "note": "flow note " + {uuid.uuid4().hex[:6]!r}, "cases": [],
                   "entry": entry.name, "entry_no": entry.doc_no or entry.name, "entry_direction": entry.direction,
-                  "entry_before": [entry.ledger_state or "", entry.ledger_reason or ""], "day": day.name,
+                  "entry_before": [entry.ledger_state or "", entry.ledger_reason or ""], "day": day.name, "permission_made": permission_made,
                   "device": device.name, "new_title": "Flow New " + {tag!r}, "new_tax": new_tax, "tasks_before": tasks_before,
                   "line": "flow " + {tag!r} + " 看一下待处理"}}))
 """)
@@ -213,7 +216,8 @@ frappe.db.delete("Pearnly CC Device", {{"name": {params['device']!r}}})
 frappe.db.delete("ERP Company Note", {{"company": {params['a']!r}, "text": {params['note']!r}}})
 frappe.db.set_value("Purchase Document", {params['document']!r}, {{"ledger_state": {params['before'][0]!r} or None,
                     "ledger_reason": {params['before'][1]!r}}}, update_modified=False)
-frappe.db.delete("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {params['a']!r}}})
+if {bool(params.get('permission_made'))!r}:
+    frappe.db.delete("User Permission", {{"user": "purchase@erp.regression", "allow": "ERP Company", "for_value": {params['a']!r}}})
 frappe.db.set_value("ERP Stock Entry", {params['entry']!r}, {{"ledger_state": {params['entry_before'][0]!r} or None,
                     "ledger_reason": {params['entry_before'][1]!r}}}, update_modified=False)
 frappe.db.delete("ERP POS Day Summary", {params['day']!r})

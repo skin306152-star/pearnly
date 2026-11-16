@@ -3,6 +3,7 @@
 // 用法：node scripts/regression/ui_steps.mjs '<JSON>'，JSON = {base, cookie_domain, sid, start, ready, preload, shots, mobile, width, video, steps: [{name, js, wait_ms, shot, full, file}]}
 // width：手机宽度（默认 390）；full：截图时把整张表单截全；height：手机宽度时这一步之前把视口高度改成它（模拟安卓键盘弹出整页变矮，0 = 还原 844）
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
+import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "../smoke/devtools.mjs";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,11 +11,10 @@ import { join } from "node:path";
 
 const job = JSON.parse(process.argv[2] || "{}");
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const port = 9900 + Math.floor(Math.random() * 90);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));
 // 假摄像头：job.video 是 make_barcode_video.py 写的 y4m（条码画面）；不给就用 Chrome 自带的测试画面
 const camera = ["--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream", ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : [])];
-const chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`, ...camera,
+const chrome = spawn(chromePath, ["--headless=new", DEVTOOLS_PORT_FLAG, `--user-data-dir=${profile}`, ...camera,
   ...(process.env.SMOKE_CHROME_RULES ? [`--host-resolver-rules=${process.env.SMOKE_CHROME_RULES}`] : []),
   // 静音但允许页面自己放提示音：步骤里直接调函数、脚本点按钮都不算真人手势，否则保存成功那一声 play() 被浏览器拦下记成页面报错。
   // 只为「脚本点击不算手势」服务：它也会放过「不是用户触发的提示音（例如实时推送来的）被浏览器拦下」这类真问题，那类要在真机上看。
@@ -37,10 +37,8 @@ const send = (method, params = {}, sessionId, ms = 60000) => {
 };
 const STEP_MS = 300000;  // 一步页面脚本最多跑这么久（最慢的流程步骤约 100 秒）
 try {
-  let info;
-  for (let i = 0; i < 150 && !info; i++) {
-    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
-  }
+  const info = await devtoolsVersion(profile, chrome);
+  if (!info) throw new Error(`Chrome did not start: ${chromePath}`);
   ws = new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((resolve, reject) => { ws.addEventListener("open", resolve); setTimeout(() => reject(new Error("debug connection did not open")), 30000); });
   // 连接断开（Chrome 崩溃 / 被杀）：挂着的调用全部立即失败

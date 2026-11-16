@@ -3,6 +3,7 @@
 //   probe：scripts/smoke/probes/<名>.js，内容是一个 async 函数体，拿得到 `args`，回一个对象（含 ok: true/false）。
 // 页面上的未捕获异常、console.error 都收进 logs；探针本身不判异常，汇总时一律算不通过。
 // Chrome 路径：环境变量 SMOKE_CHROME，默认 macOS 的 Google Chrome。Node 22 起自带 WebSocket / fetch，不需要 Playwright。
+import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "./devtools.mjs";
 import { spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -12,12 +13,11 @@ import { fileURLToPath } from "node:url";
 const here = dirname(fileURLToPath(import.meta.url));
 const job = JSON.parse(process.argv[2] || "{}");
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const port = 9300 + Math.floor(Math.random() * 600);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "smoke-"));
 // 本次运行的标记：profile 里记下自己的进程号。以后的冒烟启动时只清「标记的进程已经结束」的（chrome_reaper），不按进程名或父进程猜
 writeFileSync(join(profile, ".owner-pid"), String(process.pid));
 const chrome = spawn(chromePath, [
-  "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  "--headless=new", DEVTOOLS_PORT_FLAG, `--user-data-dir=${profile}`,
   "--use-fake-device-for-media-stream", "--use-fake-ui-for-media-stream",
   ...(job.video ? [`--use-file-for-fake-video-capture=${job.video}`] : []),
   "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank",
@@ -50,10 +50,7 @@ const send = (method, params = {}, sessionId) => {
 };
 let output;
 try {
-  let info;
-  for (let i = 0; i < 150 && !info; i++) {  // 最多等 30 秒：假摄像头文件要先读进来
-    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
-  }
+  const info = await devtoolsVersion(profile, chrome);
   if (!info) throw new Error(`Chrome did not start: ${chromePath}`);
   ws = new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((resolve) => ws.addEventListener("open", resolve));

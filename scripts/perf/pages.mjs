@@ -3,6 +3,7 @@
 // 用法：node scripts/perf/pages.mjs '<JSON>'，JSON = {base, pages: [路径], cookie_domain, sid, settle_ms}
 // 每页一行 JSON：{path, ready_ms, requests: [{cmd, ms, status}], error}。第一页整页打开（含框架启动），之后页内换路由（同用户点侧栏）。
 // 默认先把全部页面预热一遍（请求头记 `warm:<路径>`，不输出），第二遍才记；`warm: false` 不预热。
+import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "../smoke/devtools.mjs";
 import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -10,10 +11,9 @@ import { join } from "node:path";
 
 const job = JSON.parse(process.argv[2] || "{}");
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
-const port = 9300 + Math.floor(Math.random() * 600);
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "perf-"));
 const chrome = spawn(chromePath, [
-  "--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${profile}`,
+  "--headless=new", DEVTOOLS_PORT_FLAG, `--user-data-dir=${profile}`,
   ...(process.env.SMOKE_CHROME_RULES ? [`--host-resolver-rules=${process.env.SMOKE_CHROME_RULES}`] : []),
   "--no-first-run", "--no-default-browser-check", "--window-size=1280,900", "about:blank",
 ], { stdio: "ignore" });
@@ -38,10 +38,7 @@ const ready = `(() => { if (!(window.frappe && frappe.boot && frappe.get_route &
 const api = (url) => { try { const u = new URL(url); return u.pathname.startsWith("/api/") ? u.pathname.replace(/^\/api\/method\//, "") : null; } catch { return null; } };
 const origin = new URL(job.base).origin;
 try {
-  let info;
-  for (let i = 0; i < 150 && !info; i++) {
-    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
-  }
+  const info = await devtoolsVersion(profile, chrome);
   if (!info) throw new Error(`Chrome did not start: ${chromePath}`);
   ws = new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((resolve) => ws.addEventListener("open", resolve));
