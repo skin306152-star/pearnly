@@ -180,9 +180,9 @@ def blocked_needed(doctype, name) -> list:
     """这张单上次被电脑拦下、要在 ERP 里选一次才能再写的那一项（:func:`_party_blocked`：对方档、新建库存品的存货科目组、服务品进项
     税口径）；不是这种停法回 []。单据页、开始前确认卡片（`precheck.collect_document`）、代录中途那张卡同一个出口（11-16 真机 H5：
     代录对话里只给「重试」）。只读。"""
-    row = frappe.get_doc(doctype, name)
-    job = jobs.find_by_name(row.ledger_job) if row.get("ledger_job") else None
-    return _party_blocked(doctype, row, job)
+    row = frappe.db.get_value(doctype, name, ["name", "company", "ledger_job"], as_dict=True)
+    job = jobs.find_by_name(row.ledger_job) if row and row.get("ledger_job") else None
+    return _party_blocked(doctype, row, job) if job else []
 
 
 def _view(doctype, row):
