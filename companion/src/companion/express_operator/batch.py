@@ -488,7 +488,22 @@ class Runner:
         d = s.doc(doc_id) if s.held == doc_id else None
         if d is None or d.status != K.WAITING or not hasattr(self.engine, "answer_held"):
             return {"state": "not_held"}
-        return self.engine.answer_held(d.doc_type, digest, button)
+        result = self.engine.answer_held(d.doc_type, digest, button)
+        if result.get("state") == "pressed" and (d.dialog or {}).get("stage") == "editing" and hasattr(self.engine, "abandon"):
+            # 录入中途的框：点完后单据还在编辑中、没存。按放弃收拾这张（作废两道闸照旧），放手；站点带着记住的答案再交，
+            # 重录时遇到同一个框照点（``dialog_answers``）。不在半截的编辑状态上接着录（画面状态读不全，宁可重录）
+            try:
+                self.engine.begin(self.draft_type(**d.draft))
+                self.engine._before = dict(d.counts_before or {}) or None
+                voided = self.engine.abandon()
+            except Exception:  # noqa: BLE001 — 收拾不了：照旧留着，等下一次「留着等人」检查
+                return {"state": "pressed", "redo": False}
+            d.voided += list(voided or [])
+            d.recheck = True
+            release(s)
+            self._set()
+            return {"state": "pressed", "redo": True}
+        return result
 
     def still_held(self) -> bool:
         """Express 还留着等人答框吗（只读，不点）。认不出的框还开着 → 真（不读账套：框没答完，单不会存完）。框没了 / Express 没了
