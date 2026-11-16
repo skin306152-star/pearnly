@@ -1,6 +1,7 @@
 // 对话里的卡片骨架（一套，所有卡共用；用户 11-16「同一套，不许两套」）：照线上已在用的允许卡 / 代录卡（steps.tsx 的 AskStep、
 // operator-card.tsx 的 OperatorCard）——
-//   头：.cc-ask-q 灰底一行（问句或业务名）；
+//   头：.cc-ask-q 灰底一行——允许式（删除 / 结束 / 立即运行这类）写问句（服务端 consent_title），其余写业务名或代录的「写入 公司 · 账套 · 电脑」；
+//   问句下面一行浅色事实（.cc-ask-note，服务端给，没有不出）；
 //   体：内容；
 //   脚：.cc-ask-foot 里出错一行（Alert）+ 靠右一组卡片按钮（Button size="xs"：次按钮 variant="secondary" 在左、主按钮默认样式在右）。
 // 按钮文字的规则：次按钮 = 取消 / 跳过 / 拒绝，主按钮 = 下一步 / 提交 / 写入 / 允许；一张卡最多一个主按钮。
@@ -40,6 +41,8 @@ export const CardFoot: FC<{ buttons: readonly FrameButton[]; failure?: string; b
 /** 卡片：头 + 体 + 脚。slot / attrs 给流程脚本认。 */
 export const CardFrame: FC<{
   title: ReactNode;
+  /** 标题栏下面一行浅色事实（同允许卡的 note），没有不出 */
+  note?: string;
   children?: ReactNode;
   buttons?: readonly FrameButton[];
   failure?: string;
@@ -47,10 +50,11 @@ export const CardFrame: FC<{
   slot?: string;
   attrs?: Record<string, string | undefined>;
   phase?: string;
-}> = ({ title, children, buttons = [], failure, busy, slot, attrs, phase = "ask" }) => (
+}> = ({ title, note, children, buttons = [], failure, busy, slot, attrs, phase = "ask" }) => (
   <div className="cc-steps-card" data-slot={slot} {...attrs}>
     <div className="aui-step cc-ask" data-phase={phase}>
       <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
+      {note ? <p className="cc-ask-note" data-slot="cc-card-note">{note}</p> : null}
       {children}
       <CardFoot buttons={buttons} failure={failure} busy={busy} />
     </div>

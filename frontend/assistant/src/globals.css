@@ -3139,6 +3139,8 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   :root[data-cc-touch] .cc-guide-doc-head { min-height: var(--cc-tap); }
   /* 卡体只有一层左右内边距（.cc-op-before-body）：卡里的 Item 不再自带左右内边距，标题、普通行、表格行、字段行左边对齐（验收 B5） */
   .cc-steps-card .cc-op-before-body [data-slot="item"] { padding-inline: 0; }
+  /* 卡体第一块与标题栏之间留出同允许卡的上边距（验收 B75：复核卡第一行贴着标题栏） */
+  .cc-steps-card :is([data-slot="cc-card-head"], [data-slot="cc-card-note"]) + :is(.cc-op-before-body, .cc-ask-changes) { margin-top: var(--cc-space-8); }
   [data-slot="cc-guide-line"] { padding: var(--cc-space-6) 0; }
   [data-slot="cc-guide-line"] [data-readonly] { display: flex; align-items: center; justify-content: flex-end; min-height: var(--cc-control); }
   :is(.cc-ui-questionnaire-card, .cc-steps-card) .cc-guide-body .cc-alert, .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }

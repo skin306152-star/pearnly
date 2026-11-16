@@ -154,7 +154,8 @@ const FormReview: FC<Props & { review: FormReviewData; head?: ReactNode }> = (pr
   const { view, busy, act, review, head } = props;
   const back = (step: string) => act(() => reopenGuide(view.run, step, view.version));
   return (
-    <CardFrame title={view.consent_title || businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} buttons={decideButtons(props, review.ready)}
+    <CardFrame title={view.consent_title || businessName(view.business)} note={view.consent_note} slot="cc-guide-run" attrs={runAttrs(view)}
+      buttons={decideButtons(props, review.ready)}
       failure={props.failure} busy={busy}>
       {head}
       {view.consent === "allow" ? (

@@ -265,7 +265,8 @@ function view(run: Run): GuideView {
   }
   if (run.flow === "wht") return run.status === "reviewing" ? { ...base, review: whtReview() } : { ...base, result: { status: "entered" } };
   if (run.flow === "allow") {
-    if (run.status === "reviewing") return { ...base, consent_title: L("删除这个定时任务？", "ลบงานตามกำหนดเวลานี้?", "Delete this scheduled task?", "この定期タスクを削除しますか？"), review: allowReview() };
+    if (run.status === "reviewing") return { ...base, consent_title: L("删除这个定时任务？", "ลบงานตามกำหนดเวลานี้?", "Delete this scheduled task?", "この定期タスクを削除しますか？"),
+      consent_note: "C001 บจก. ข้าวหอมมะลิ · 69EXP", review: allowReview() };
     return { ...base, result: { status: "entered", reason_text: L("已删除", "ลบแล้ว", "Deleted", "削除しました") } };
   }
   if (run.flow === "follow") {

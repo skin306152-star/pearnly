@@ -84,6 +84,8 @@ export type GuideView = {
   consent?: "confirm" | "allow";
   /** 允许式确定的问句（同线上允许卡「要……吗」，服务端按本页语言翻好；引擎窗口 11-16 约定）；没有时标题栏写业务名 */
   consent_title?: string; consent_title_key?: string;
+  /** 允许式确定问句下面那行浅色事实（会动到哪家公司、哪本账套；同允许卡的 note），没有不出（已向引擎窗口约） */
+  consent_note?: string;
   stale?: boolean; reason?: string; outcome?: "changed" | "refused" | "stopped" | "";
   /** 不收的原因：引擎回 {键: {code, text}}（text 已翻译，11-16 定）；documents 的 guide_edit 回 {格: 码} + refused_text {格: 已翻译} */
   refused?: Record<string, string | { code: string; text?: string }>; refused_text?: Record<string, string>;
