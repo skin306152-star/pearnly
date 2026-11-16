@@ -65,9 +65,9 @@ def same_book(a, b, *, share: Optional[Callable[[str], str]] = None, uid: Option
     """两个写法是不是同一本账套目录，认不准一律当不是（「只写对话选中的账套」，认错宁可停下请人选）：
 
     1. 字面相同；
-    2. 换成网络路径后相同（映射盘按本机的映射换算，10-29 实机：P:\\69EXP\\TEST 与 \\\\accserver\\ACCOUNT\\69EXP\\test）；
-    3. 同一台服务器的两个共享名指着同一个目录（11-16 验收：\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2 与 P: 映射的
-       \\\\accserver\\ACCOUNT\\69EXP\\TEST2，网络路径对不上）：两边的目录文件号（卷序列号 + 文件号，`device_facts.file_uid`）
+    2. 换成网络路径后相同（映射盘按本机的映射换算，10-29 实机：P:\\69EXP\\TEST 与 \\\\bookserver\\ACCOUNT\\69EXP\\test）；
+    3. 同一台服务器的两个共享名指着同一个目录（11-16 验收：\\\\bookserver\\d$\\ACCOUNT\\69EXP\\TEST2 与 P: 映射的
+       \\\\bookserver\\ACCOUNT\\69EXP\\TEST2，网络路径对不上）：两边的目录文件号（卷序列号 + 文件号，`device_facts.file_uid`）
        **都取得到且相同**、并且最后一级文件夹名也相同才认。复制出来的账套是另一个目录、文件号不同；克隆盘会带着相同的文件号，
        文件夹名不同就不认；取不到文件号（NAS、部分服务器回 0）不用它。只对文件夹名相同的那一对取文件号（一般一两次）。"""
     share, uid = share or _share_path, uid or _file_uid

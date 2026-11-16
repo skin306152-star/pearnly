@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""代录认「是不是同一本账套」（11-16 验收首跑：CC 登记 \\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2，Express 公司登记表在 P:（映射
-\\\\accserver\\ACCOUNT）那份里，两个共享名对不上，代录停在 company_pick）。底线「只写对话选中的账套」：认不准一律当不是。"""
+"""代录认「是不是同一本账套」（11-16 验收首跑：CC 登记 \\\\bookserver\\d$\\ACCOUNT\\69EXP\\TEST2，Express 公司登记表在 P:（映射
+\\\\bookserver\\ACCOUNT）那份里，两个共享名对不上，代录停在 company_pick）。底线「只写对话选中的账套」：认不准一律当不是。"""
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -9,13 +9,13 @@ from companion.express_operator import host as host_module
 from companion.express_operator import session as session_module
 from companion.express_operator.session import same_book
 
-D_SHARE = r"\\accserver\d$\ACCOUNT\69EXP\TEST2"
-ACCOUNT_SHARE = r"\\accserver\ACCOUNT\69EXP\TEST2"
+D_SHARE = r"\\bookserver\d$\ACCOUNT\69EXP\TEST2"
+ACCOUNT_SHARE = r"\\bookserver\ACCOUNT\69EXP\TEST2"
 MAPPED = r"P:\69EXP\TEST2"
 
 
 def _share(path):
-    return path.replace("P:", r"\\accserver\ACCOUNT", 1) if path.upper().startswith("P:") else (path if path.startswith("\\\\") else "")
+    return path.replace("P:", r"\\bookserver\ACCOUNT", 1) if path.upper().startswith("P:") else (path if path.startswith("\\\\") else "")
 
 
 def _uids(table):
