@@ -273,6 +273,21 @@ def initial(doc_ids=None, at: str = ASKING, operator: Mapping[str, Any] | None =
     return json.dumps(found)
 
 
+def check_handed(company: str, doc_ids: List[str]) -> None:
+    """交进来的已有单据先核（`run.start` 开运行之前，核不过开着的那次不动）：写账判定只回本人能写、这家公司的单，判定里一张都
+    没出现的（不是本人的、不是这家公司的、找不到）拒，抛 ``PermissionError``。已推送 / 等电脑 / 写不了的照开，卡上的事实行说明。"""
+    if not doc_ids:
+        return
+    found = precheck_api.card(company, list(doc_ids))
+    seen = {str(doc_id) for doc_id in found.get("ready") or ()}
+    for item in card_contracts.items_of(found):
+        seen.update(str(doc_id) for doc_id in item.get("docs") or ())
+    for key in (card_contracts.WAITING, card_contracts.NOT_WRITABLE, card_contracts.UNKNOWN):
+        seen.update(str(fact.get("doc_id")) for fact in found.get(key) or () if isinstance(fact, Mapping))
+    if any(str(doc_id) not in seen for doc_id in doc_ids):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+
+
 def state(doc) -> Dict[str, Any]:
     try:
         found = json.loads(doc.get("documents") or "{}")

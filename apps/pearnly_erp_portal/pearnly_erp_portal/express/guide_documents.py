@@ -100,6 +100,49 @@ def _records(ctx, doc_ids) -> dict:
     return {names[row.name]: row for row in rows if row.direction in allowed}
 
 
+DOCUMENT_PREFIXES = {"P": "purchase", "S": "sales"}   # 已经是 ERP 单据的（待处理、代录待录清单里的 P: / S:）
+
+
+def direction_of(doc_id) -> str | None:
+    """这张单是采购还是销售（别的引导交单给 documents 源时定业务用，公开）：``P:`` / ``S:`` 按前缀，``I:`` 按收单记录；
+    读不到回 None。"""
+    prefix, _sep, name = str(doc_id or "").partition(":")
+    if prefix in DOCUMENT_PREFIXES and name:
+        return DOCUMENT_PREFIXES[prefix]
+    if prefix == INTAKE and name:
+        from pearnly_erp_portal.integrations import intake as chat_intake
+
+        found = frappe.db.get_value(chat_intake.DOCTYPE, name, ["direction", "sent_by"], as_dict=True)
+        return str(found.direction) if found and found.sent_by == frappe.session.user else None
+    return None
+
+
+def _document_row(doc_id):
+    """``P:`` / ``S:`` → (种类, 单据)：单据页同一判据（`cc_tools._row`：查看权 / 公司可见 / 员工只看本人录入的）；看不到回 None。"""
+    from pearnly_erp_portal.express import cc_tools
+
+    kind, name = cc_tools._parse(doc_id)
+    if kind is None or kind.code not in DOCUMENT_PREFIXES.values():
+        return None
+    row = cc_tools._row(kind, name)
+    return (kind, frappe.get_doc(kind.doctype, name)) if row not in (None, cc_tools.NOT_PERMITTED) else None
+
+
+def _document_review(doc_id, kind, doc) -> dict:
+    """已经是 ERP 单据的一行复核票面（改要回单据页走网页的修改，这里只看：``editable`` 为空）。"""
+    party = ("supplier_name", "supplier_tax_id", "supplier_branch_no") if kind.code == "purchase" else \
+        ("buyer_name", "buyer_tax_id", "buyer_branch_no")
+    fields = {"doc_no": doc.get("doc_no") or doc.get("system_no"), "party_name": doc.get(party[0]), "party_tax": doc.get(party[1]),
+              "party_branch": doc.get(party[2]), "date": doc.get("doc_date"), "subtotal": doc.get("subtotal"),
+              "vat": doc.get("vat_amount"), "total": doc.get("grand_total"),
+              "lines": [{"description": row.get("description"), "qty": row.get("qty"), "unit_price": row.get("unit_price"),
+                         "amount": row.get("amount")} for row in doc.get("lines") or ()]}
+    face = card.face(fields)
+    marks = card.check(face)
+    return {"doc_id": doc_id, "direction": kind.code, "version": str(doc.get("modified") or ""), "face": face,
+            "marks": marks["marks"], "cells": marks["cells"], "blocking": marks["blocking"], "editable": []}
+
+
 # ── 交文件 / 识别 ────────────────────────────────────────────────────────────
 
 
@@ -186,6 +229,11 @@ def review(ctx, doc_ids) -> dict:
     found = _records(ctx, doc_ids)
     rows = []
     for doc_id in _ids(doc_ids):
+        if doc_id.partition(":")[0] in DOCUMENT_PREFIXES:
+            got = _document_row(doc_id)  # loop-query: 已经是 ERP 单据的按单据页同一判据逐张读，一次引导最多 DOCS_MAX 张
+            if got:
+                rows.append(_document_review(doc_id, *got))
+            continue
         row = found.get(doc_id)
         if row is None or row.status != chat_intake.READY:
             continue
@@ -239,6 +287,9 @@ def confirm(ctx, doc_ids, consent) -> dict:
     found = _records(ctx, doc_ids)
     with _conversation(ctx), conversation.for_session(str(ctx.get("session") or "")):
         for doc_id in _ids(doc_ids):
+            if doc_id.partition(":")[0] in DOCUMENT_PREFIXES:
+                docs.append(_push_document(ctx, doc_id))  # loop-query: 已经是 ERP 单据的逐张推（对话推送同一条），最多 DOCS_MAX 张
+                continue
             row = found.get(doc_id)
             if row is None:
                 docs.append({"doc_id": doc_id, "status": HELD, "reason": "not_permitted"})
@@ -259,6 +310,19 @@ def confirm(ctx, doc_ids, consent) -> dict:
             frappe.db.commit()  # 一张一提交：后面一张出错回滚不带走前面已入账的
             docs.append({"doc_id": doc_id, "status": QUEUED, "document": created.get("name")})
     return {"status": "done", "docs": docs}
+
+
+def _push_document(ctx, doc_id) -> dict:
+    """已经是 ERP 单据的（待处理里停下的、代录待录里的）：对话推送同一条（`cc_tools._push_one`：写入计划的门、本对话账套、
+    结果不明不再推、交给代录的不接）。"""
+    from pearnly_erp_portal.express import cc_tools
+
+    found = cc_tools._push_one(doc_id, {"company": str(ctx.get("company") or "")})
+    status = str(found.get("status") or "")
+    if status in ("sent", "already_success", "already_pending", "queued", "entered", "waiting_for_cc"):
+        return {"doc_id": doc_id, "status": QUEUED}
+    return {"doc_id": doc_id, "status": HELD, **({"reason_text": str(found["reason"])} if found.get("reason") else {}),
+            **({"reason": str(found["reason_code"])} if found.get("reason_code") else {})}
 
 
 UNDECIDED_LINES = "undecided_lines"
@@ -300,7 +364,11 @@ def result(ctx, doc_ids) -> dict:
     found = _records(ctx, doc_ids)
     rows, wait = [], False
     for doc_id in _ids(doc_ids):
+        prefix, _sep, plain = doc_id.partition(":")
         record = found.get(doc_id)
+        if prefix in DOCUMENT_PREFIXES:
+            record = frappe._dict(status=chat_intake.CONFIRMED, direction=DOCUMENT_PREFIXES[prefix],
+                                  purchase=plain if prefix == "P" else None, sales_document=plain if prefix == "S" else None)
         if record is None:
             rows.append({"doc_id": doc_id, "status": FAILED, "reason": "not_permitted"})
             continue
@@ -320,5 +388,5 @@ def result(ctx, doc_ids) -> dict:
     return {"rows": rows, "wait": wait}
 
 
-__all__ = ["COMPUTED", "ENTERED", "FAILED", "HELD", "NOT_AVAILABLE", "PAYMENT_UNDECIDED", "QUEUED", "UNDECIDED_LINES",
+__all__ = ["DOCUMENT_PREFIXES", "direction_of", "COMPUTED", "ENTERED", "FAILED", "HELD", "NOT_AVAILABLE", "PAYMENT_UNDECIDED", "QUEUED", "UNDECIDED_LINES",
            "confirm", "edit", "intake", "result", "review", "uploads"]

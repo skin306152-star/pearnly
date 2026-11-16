@@ -387,6 +387,8 @@ def start(session_id: str, business: str, doc_ids=None, at: str = "asking", oper
     if doc_ids is not None and not _documents(guide):
         frappe.throw(_("Invalid request"))
     documents_column = _docs().initial(doc_ids, at, operator) if _documents(guide) else None  # 先核单据，核不过不作废旧的
+    if doc_ids:
+        _docs().check_handed(now["company"], list(json.loads(documents_column)["doc_ids"]))
     for name in _open_runs(now["session_id"]):
         old = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
         if old is not None and old.status in OPEN:

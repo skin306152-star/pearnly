@@ -139,9 +139,10 @@ class Base(unittest.TestCase):
         if self.second_round and any(i["kind"] == "payment" and i.get("source") == c.REMEMBERED for i in self.items["I:1"]) \
                 and not any(i["kind"] == "account" for i in self.items["I:1"]):
             self.items["I:1"].append(dict(ACCOUNT))  # 付款定了以后账本那边才判得出科目（ERP 收单记录的第二轮）
-        docs = [{"doc_id": d, "direction": self.directions[d], "items": [dict(i) for i in self.items[d]]} for d in doc_ids]
+        docs = [{"doc_id": d, "direction": self.directions[d], "items": [dict(i) for i in self.items[d]]}
+                for d in doc_ids if d in self.items]  # 产品只回本人能写、这家公司的单
         return {**c.merge(docs), "company": company, "company_title": "Co",
-                "directions": {d: self.directions[d] for d in doc_ids}}
+                "directions": {d: self.directions[d] for d in doc_ids if d in self.items}}
 
     def record(self, company, doc_ids, answers, resume=False, guided=False):
         self.recorded.append({"answers": answers, "guided": guided})
@@ -346,6 +347,7 @@ class HandOver(Base):
         self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=[])
         self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=["I:1"], at="files")
         self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=[f"I:{n}" for n in range(201)])
+        self.assertRaises(PermissionError, run.start, "S1", "purchase", doc_ids=["I:1", "I:9"])  # 不是本人能写的
         self.assertEqual(self.docs[first].status, "asking")  # 核不过不作废开着的那次
 
 

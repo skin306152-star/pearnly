@@ -94,6 +94,15 @@ def uploads(ctx, batches) -> dict:
     return {"files": files, "doc_ids": list(dict.fromkeys(doc_ids))[:DOCS_MAX], "wait": wait}
 
 
+def direction_of(doc_id) -> str | None:
+    """这张单是采购还是销售（别的引导交单给 documents 源时定业务用，公开）：按单据主页的方向；读不到回 None。"""
+    doc = _read(str(doc_id or ""))
+    if not doc or not doc.get("pages"):
+        return None
+    index, pages = _primary(doc)
+    return _direction(pages[index].get("fields") or {})
+
+
 # ── 复核 ─────────────────────────────────────────────────────────────────────
 
 
@@ -239,4 +248,4 @@ def result(ctx, doc_ids) -> dict:
     return {"rows": rows, "wait": wait}
 
 
-__all__ = ["ENTERED", "FAILED", "HELD", "QUEUED", "confirm", "edit", "intake", "result", "review", "uploads"]
+__all__ = ["direction_of", "ENTERED", "FAILED", "HELD", "QUEUED", "confirm", "edit", "intake", "result", "review", "uploads"]
