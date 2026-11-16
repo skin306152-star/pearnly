@@ -1619,6 +1619,27 @@ class TaxDraftTests(unittest.TestCase):
         self.assertEqual((out["files_added_to_chat"], out["files_note"]), (True, tools.FILES_ADDED_NOTE))
         self.assertNotIn("excluded", out)
 
+    def test_in_a_company_conversation_only_that_companys_draft_is_made(self):
+        """11-16 缺陷修复（P3 盘点 #41）：以前给了别家的税号也照出草稿。"""
+        frappe.local.pearnly_assistant = {"session_id": "sesn_1"}
+        wht = types.ModuleType("pearnly_cowork.tax.wht")
+        wht.tax_id = lambda value: "".join(ch for ch in str(value or "") if ch.isdigit())
+        try:
+            with mock.patch.object(tools.projects, "of_session", lambda session: ("CO-1", "2026-09", "")), \
+                    mock.patch.dict(sys.modules, {"pearnly_cowork.tax.wht": wht}), \
+                    mock.patch.object(frappe, "db", types.SimpleNamespace(
+                        get_value=lambda doctype, name, field, as_dict=False: (
+                            {"tax_id": "0105556000009", "title": "T9"} if as_dict else "0105556000009"),
+                        commit=lambda: None, rollback=lambda: None), create=True):
+                other = json.loads(tools.wht_draft({"company_tax_id": "0999999999999", "period": "2026-09"}))
+                own = json.loads(tools.wht_draft({"company_tax_id": "0-1055-56000-00-9", "period": "2026-09"}))
+        finally:
+            frappe.local.pearnly_assistant = None
+        self.assertEqual(other["status"], "not_drafted")
+        self.assertTrue(other["reason"].startswith("not_this_company"))
+        self.assertEqual([call[1] for call in self.calls if call[0] == "wht"], ["0-1055-56000-00-9"])
+        self.assertIn("forms", own)   # 本对话公司（税号写法不同也认）照常出草稿
+
     def test_wht_draft_says_why_documents_read_were_not_counted(self):
         excluded = [{"ref": f"S{i}", "reason": "sales_document", "date": "2026-09-09"} for i in range(45)]
         excluded.insert(0, {"ref": "R1", "reason": "nothing_withheld", "date": "2026-09-02", "seller_name": "Mali"})

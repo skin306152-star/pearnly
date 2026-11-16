@@ -3163,9 +3163,31 @@ def _wht_defaults(tool_input) -> dict:
     return values
 
 
+def _wht_other_company(tool_input) -> dict | None:
+    """在公司对话里只出本对话公司的预扣税草稿（11-16 缺陷修复：以前给了别家税号也照出，P3 盘点 #41）：给的税号不是本对话
+    公司的就拒；不在对话里、对话没挂公司或公司没有税号照旧。"""
+    session = (getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id")
+    filed = projects.of_session(session)[0] if session else ""
+    own = str(frappe.db.get_value("Cowork Company", filed, "tax_id") or "") if filed else ""
+    given = str(tool_input.get("company_tax_id") or "")
+    if own and given and wht_tax_id(given) != wht_tax_id(own):
+        return {"status": "not_drafted", "reason": "not_this_company: withholding tax drafts in this conversation are only "
+                                                   "for the company it is filed under; leave company_tax_id out."}
+    return None
+
+
+def wht_tax_id(value) -> str:
+    from pearnly_cowork.tax import wht
+
+    return wht.tax_id(value)
+
+
 def wht_draft(tool_input) -> str:
     from pearnly_cowork.tax import service as tax_service
 
+    refused = _wht_other_company(tool_input)
+    if refused:
+        return _json(refused)
     tool_input = _wht_defaults(tool_input)
     summary = _tax_call(tax_service.wht_draft, tool_input.get("company_tax_id"), tool_input.get("period"),
                         tool_input.get("edits") or [], str(tool_input.get("company_name") or ""),
