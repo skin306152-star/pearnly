@@ -11,6 +11,24 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 - 计划与盘点：`docs/work/2026-11-14-cc-guided-coverage-plan.md`（分支 cc-guided-phase1）、`2026-11-15-cc-guided-p2-choice-points.md`（分支 cc-guided-collection）、
   `2026-11-15-cc-guided-p3-choice-points.md`（分支 cc-guided-p3-choice-points；下文「P3 盘点 #n」指它第 1 节的行号）、共享笔记「代录×引导式-衔接规划-11-16」「引导式-分支3接线方案-11-16」。
 
+## 一句话现状（11-16）
+
+范围内 65 格：真机 0、真模型 2、服务端 5、没做 58；引擎（题卡、复核、确定、失效）已在 main，**所有格进「接线」档都卡在分支 3 接线**（引导式窗口在做）；
+大多数格在 LINE 或网页上已有同一流程，CC 这边主要是「转调同一组服务函数 + 卡片」，复用后的估时见第 1.5 节。
+
+**按现在的并行分组，各组做完的时间合计**（写码 h / 机器 h，机器 = 闸门、候选离线、流程、真模型；各组同时跑）：
+
+| 组 | 负责 | 写码 | 机器 | 另需 |
+|---|---|---|---|---|
+| A 引擎接线与采购 / 销售、代录 | 引导式 local_38ec22a7 | 50–64 | 20–21 | 测试机实机 6–8；CC 桌面版一侧另估 |
+| B ERP 采购 / 销售直写、ERP 待处理 | guided-erp local_f0882fd0 | 12–16 | 4.5 | — |
+| C Cowork 常规功能（P3）+ 引擎通用能力 N1–N9 | 本窗口 | 45–55（P3）+ 10–14（N1–N9） | 13–15 + 3 | 接线后每类流程 + 真模型约 1 / 1 |
+| D ERP 盘点、库存报表、公司资料、公司接入 | 本窗口（C 之后） | 6–9 | 2.5 | — |
+| E 云端 Express 19 格 | 云端线 | 每格放开约 0.5–1 / 0.5（通路由云端线另估） | | 云端 T1–T6 |
+| F MR.ERP 12 格（依赖它的） | MR.ERP 线 | 每格放开约 0.5–1 / 0.5（写法由 MR.ERP 线另估） | | 真站点探路 2 |
+
+最长的一条是 A（关键路径：分支 3 接线 → 分支 6 → P2-1 → P2-2 → P2-3）；C、D 的服务端不等 A，接线档等 A 的分支 3。
+
 ## 0. 数字（可核对）
 
 | 项 | 格数 |
@@ -119,6 +137,36 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 
 题、自动定、复核、结果同 1.2；估时在衔接规划里与 Cowork 代录共用一份（同一套声明、`modes: operator`）。
 
+### 1.5 LINE / 网页上已有的同一流程 · 可复用多少 · 真正要新做的（每业务一行，同业务各账本格相同）
+
+「真正要新做」不含两样所有格共用、不重复计的：分支 3 接线（A 组）与引擎通用能力 N1–N9（C 组，第 4 节）。估时 = 复用后剩下的，替换 1.1–1.4 里的原估时。
+
+| 业务（格） | LINE / 网页已有的同一流程 | 出题与判定代码在哪 | 能直接复用 | 真正要新做 | 复用后估时 写码 / 机器 h |
+|---|---|---|---|---|---|
+| 采购 / 销售 · Cowork（CW-D/O-P/S） | **LINE 有**：「发单据进 ERP」选目标 → 账套 → 进销项 → 发票 → 识别后按行追问存货 / 仓（`line/flow.py`、`line/items.py`）；**网页有**：新建录入弹窗 + 复核页 + 待处理 | `precheck_source.document`（判定卡全部题）、`choices.resolve`、`write_precheck`、`line/items.py` | 出题、判定、记忆、推送全部复用（第 1 期已接成 `pearnly_guide` 卡） | 单据版复核卡、结果卡（A 组 P2-1）；识别时 `direction / posting_kind / payment` 模型参数退场 | 已计入 A 组 |
+| 采购 / 销售 · ERP（ERP-D/O-P/S） | **LINE 有**：采购 / 销售格选公司 → 发票 → 逐题选（`integrations/line_flow.py`、`line_items.py`）；**网页有**：采购 / 销售单据页 | `write_precheck`、`express/precheck.py`、`intake_items`、`choices` | 同上；代录收单 `I:` 已有 | ERP 直写放票识别（P2-4，网页 / LINE 有、CC 直写没有）+ 卡 | 已计入 A / B 组 |
+| 收款 · ERP（ERP-D-COL） | **LINE 有**：公司 → 日期 → 客户 → 勾发票 → 方式 → 金额 → 凭证 → 确认卡（`integrations/line_collection.py`）；**网页有**：新建收款弹窗 | `collection.service`（三处同一组） | 全部（`collection/guide.py` 已转调完） | 只剩接线 | 已计入 A 组 |
+| 读回（CW-D-RB） | 都没有（`readback/` 无 whitelist，只有 CC 工具） | `readback/service.request / status / file`；工具里 `_readback_files` | 服务函数、放进对话的做法 | 声明 + 薄转调 | **2–3 / 1** |
+| 银行对账、收入对账、销项税核查（BR / IR / VC） | **网页有**成熟流程：对账中心「新建」两侧文件 → 后台任务 → 结果页的问题与预设 → 导出（`recon_center/api.py start / status / tasks / detail / delete`、`presets.answer`） | `recon_center/jobs.start`、`rerun.questions`、`presets.valid` | 开始、进度、结果问题、预设、导出全部复用 | 声明（三类一份，kind 一题）+ 文件题 + 结果问题接 N1 | **5–6 / 1.5**（原 8–10 / 2） |
+| 收银日汇总（POS） | 网页没有（只有 CC 与文件夹定时任务 `folder_intake/pump.py` 用）；LINE 没有 | `pos_import/service.preview` → `contracts.apply_answers`（认列题已是服务端出） | 认列题、版式记忆、按天建单、推送判定 | 声明 + 认列题接 N1 | **4–5 / 1.5**（原 6–8 / 2） |
+| 盘点 · Cowork（CW-D-ST） | **网页有**：盘点页新建（Excel）→ 扫码记数 → 复核 → 结束 → 导出（`stocktake/desk_api.py` 15 个接口）；**LINE 有**：富菜单「盘点」用 LIFF 打开同一网页 | `desk_api.api_create_stock_count / lookup / add_entry / review / close / export` | 全部接口 | 声明 + 连续记数接 N4、结束 / 删除接 N5 | **4–5 / 1.5**（原 6–8 / 2） |
+| 盘点 · ERP（ERP-D-ST） | **网页有**：盘点页；**LINE 有**：富菜单第 3 格、手机盘点页（`inventory/line_mobile.py`，与桌面同一批接口） | `inventory` 盘点服务（CC 工具 `erp_stocktake_*` 已转调） | 全部 | 声明 + 生成调整单一步；N4 / N5 与 Cowork 共用 | **3–4 / 1**（原 6–8 / 2） |
+| 增值税 ภ.พ.30（VAT） | 网页没有入口（`tax/` 无 whitelist，只在公司页汇总里显示）；LINE 没有 | `tax.service.vat_draft`（检查项已是服务端算） | 草稿、检查、工作簿全部 | 声明 + 「先读回」一步复用读回函数 | **3–4 / 1**（原 4–6 / 1.5） |
+| 预扣税 ภ.ง.ด.3 / 53（WHT） | 网页没有；LINE 没有 | `tax.service.wht_draft`、`tax.service.answer`（收入类型题已是服务端出） | 草稿、问题、记忆 | 声明 + 问题接 N1、工作空间记住 N3；付款公司只认对话公司（现不核，要改） | **5–6 / 1.5**（原 6–8 / 2） |
+| 文件夹定时任务（FT） | **网页有**完整表单：电脑 / 文件夹 → 去向 → 默认处理 → 日程提醒；启停、立即运行、删除、运行记录（`folder_intake/api.py` 8 个接口） | `folder_intake/rules.options / save`、`contracts.defaults / schedule` | 表单选项、保存校验、启停、运行、删除 | 声明（新建 / 改两条路）+ 时间输入 N8；立即运行补写入闸 | **5–6 / 1.5**（原 8–10 / 2） |
+| 待处理 / 结果核对（PD，Cowork） | **网页有**：待处理页（账套待选、MR.ERP 待设、结果不明核对）+ 复核页（改票面、删单） | `companies/api.pending`、`pending_api.account_sets / mrerp_needs / mrerp_answer`、`push/application/api.resolve_unknown`、`history/api.save / delete` | 清单、各类处理函数 | 声明（按类分支）+ 复核卡复用 A 组单据版 | **4–5 / 1.5**（原 6–8 / 2） |
+| 待处理（ERP-D-PD） | **网页有**：ERP 待处理（Express 窗口「重试」、结果不明核对） | `erp_pending` 同一份、`express` 推送服务 | 同上 | 声明 + 卡 | **3–4 / 1**（原 4–6 / 1.5，B 组） |
+| 公司资料 / 知识库 / 记住的选择（CW-D-CO、ERP-D-CO） | **网页有**：公司页笔记、规则（`companies/api.note_save / note_delete / choice_set / choice_promote / choice_forget`）；ERP 公司页笔记 | 同左 | 全部 | 声明 + 删除接 N5 | Cowork **2–3 / 0.5**；ERP **1–2 / 0.5** |
+| 任务看板（WK） | **网页有**：看板全套（`work/api.py` 50 多个接口）；LINE 用 LIFF 打开同一网页 | `work/api.create / update / move / toggle_done / comment / search` | 全部 | 声明（建卡、改、移动、完成、评论五条） | **4–5 / 1**（原 6–8 / 1.5） |
+| MR.ERP 设置（CW-D-MS） | **网页有**：待处理页 MR.ERP 待设（`pending_api.mrerp_needs / mrerp_answer`） | `connections/service.mrerp_menu / choose_mrerp_menu / choose_mrerp_default` | 全部 | 判定卡加题类（ERP 已有同题类，照抄） | **2 / 0.5**（原 3–4 / 1） |
+| 存货科目组（CW-D-SG） | **网页有**：连接页（`connections/api.stock_acc_group / choose_stock_acc_group`） | 同左 | 全部 | 判定卡加题类（ERP 已有） | **1–2 / 0.5**（原 2–3 / 0.5） |
+| 连接与账套（CW-D-CN） | **网页有**：连接页 | `connections` 服务 | 全部 | 声明 | **1–2 / 0.5** |
+| 库存收发报表（ERP-D-SC） | **网页有**：库存页「导出」 | `erp_stock_card_export` 同一服务 | 全部 | 声明 + 结果带文件 N2 | **1 / 0.5** |
+| 公司接入（ERP-D-ADD） | **网页有**：「从连接添加」勾选窗（11-13 用户认可） | `erp_connection_companies / erp_company_add` 同一服务 | 全部 | 声明 | **1–2 / 0.5** |
+
+复用不了、要从服务函数起做卡的只有四类：读回、日汇总、增值税、预扣税（网页 / LINE 都没有入口，但服务函数与服务端出题都已有，只差声明）。
+**C 组顺序按「已有成熟流程优先」调整**（读回仍第一，主会话已定）：读回 → 对账三类 → 盘点（Cowork + ERP 一起，共用 N4）→ 定时任务 → 待处理 → 公司资料 / 看板 / MR.ERP 设置 / 科目组 / 连接 → 增值税 → 日汇总 → 预扣税 → D 组其余（库存报表、公司接入）。
+
 ## 2. 范围外（不计格，写依据）
 
 | 组合 | 依据 |
@@ -132,14 +180,30 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | Cowork 直写 × 存货科目组 × MR.ERP | 存货科目组是 Express 的概念；MR.ERP 的对应项在 MR.ERP 默认值（CW-D-MS） |
 | 盘点、预扣税、公司资料、看板、连接、库存报表、公司接入 × 分账本 | 不读不写账本，只算一格（「—」） |
 
-## 3. 只读查询工具（归到格里，不另做引导）
+## 3. 查询类工具 → 归属格（主会话 11-16 认：归到格里当选项来源 / 结果取数，不单独做卡；打字查询照旧直接答）
 
-用户只要求「每个功能都有引导」；纯查询工具在引导里是**选项来源或结果卡的取数**，不单独成一张卡。打字问照旧直接答（同收款口径「查询照旧直接问」）。
-`pearnly_whoami`、`pearnly_tax_id_lookup`（对方税号查询，作为 A8 新对方题的取数）、`cowork_list_documents`、`cowork_document_detail`、`cowork_document_original`、`cowork_recognition_results`、
-`cowork_push_results`、`cowork_companies`、`cowork_company_profile`、`cowork_recon_list / status / result`、`cowork_stocktake_list / report / template`、`cowork_folder_tasks / folder_task_runs / folder_task_options / folder_files`、
-`cowork_express_readback_status`、`cowork_work_boards / board / card / search`、`cowork_intake_options`、`cowork_companion_status`、`erp_list_documents`、`erp_document_detail / original`、`erp_push_results`、
-`erp_companies`、`erp_company_profile`、`erp_connection_companies`、`erp_stocktake_list / report`、`erp_collection_customers / invoices / methods / card / status / list`、`express_operator_status`。
-**要主会话定**：这样归类是否认可（认可后这些不再单列进度）。
+| 工具 | 归属格 | 在引导里的用处 |
+|---|---|---|
+| `pearnly_whoami` | 全部 | 不用（身份由会话定） |
+| `pearnly_tax_id_lookup` | CW/ERP 采购 / 销售 | A8 新对方题的取数 |
+| `cowork_list_documents`、`cowork_document_detail`、`cowork_document_original`、`cowork_recognition_results`、`cowork_intake_options` | CW-D/O-P/S | 复核卡取数、识别「等」、账套选项 |
+| `cowork_push_results` | CW-D-PD | 待处理清单与结果卡 |
+| `cowork_companies`、`cowork_company_profile` | CW-D-CO | 公司 / 笔记 / 规则选项 |
+| `cowork_recon_list`、`cowork_recon_status`、`cowork_recon_result` | CW-D-BR / IR / VC | 结果卡、在跑「等」、结果问题来源 |
+| `cowork_stocktake_list`、`cowork_stocktake_report`、`cowork_stocktake_template` | CW-D-ST | 盘点单选项、差异表、模板文件 |
+| `cowork_folder_tasks`、`cowork_folder_task_runs`、`cowork_folder_task_options`、`cowork_folder_files` | CW-D-FT | 任务选项、运行记录、电脑 / 文件夹选项 |
+| `cowork_express_readback_status` | CW-D-RB | 结果卡「等」 |
+| `cowork_work_boards`、`cowork_work_board`、`cowork_work_card`、`cowork_work_search` | CW-D-WK | 看板 / 列表 / 卡片选项与搜索 |
+| `cowork_companion_status` | CW-D-CN | 电脑在线事实行 |
+| `erp_list_documents`、`erp_document_detail`、`erp_document_original` | ERP-D/O-P/S | 复核卡取数 |
+| `erp_push_results` | ERP-D-PD | 待处理清单与结果卡 |
+| `erp_companies`、`erp_company_profile` | ERP-D-CO | 公司 / 笔记选项 |
+| `erp_connection_companies` | ERP-D-ADD | 勾选清单 |
+| `erp_stocktake_list`、`erp_stocktake_report` | ERP-D-ST | 盘点单选项、差异表 |
+| `erp_collection_customers / invoices / methods / card / status / list` | ERP-D-COL | 打字路径的查询；引导里由 `collection/guide.py` 直接调同一组服务 |
+| `express_operator_status` | 代录 12 格 | 进度状态行 |
+
+共 42 个；其余 69 个（会写、会删、会触发的）都在第 5 节对到了格。
 
 ## 4. 引擎要补的通用能力（归引导式窗口 local_38ec22a7，本窗口发约定，不改它的文件）
 
@@ -186,9 +250,12 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 与任务书建议的差别只有一处：**读回提前到第一个**——对账三类与增值税的「总账 / 销项税报表从 Express 读回」一步直接调读回的服务函数，先做读回这两类不返工；读回本身最小（3–4 小时）。
 C 组合计约写码 60–75 小时、机器 15–18 小时（不含接线后的前端与流程，那部分每类约 1–2 / 1 小时）。
 
-## 7. 要主会话定的事
+## 7. 主会话 11-16 已定
 
-1. 第 3 节：只读查询工具归到格里、不单独成卡，认不认。
-2. 第 6 节 D 组（ERP 盘点、库存报表、公司资料、公司接入 4 格）谁做：建议本窗口在 C 组之后接，公司接入格与 local_3709c091 对齐。
-3. C 组顺序把读回提前到第一个。
-4. 声明放各自域包（`<域>/cc_guide.py`）而不是都堆在 `cowork/assistant/guides.py`：避免和 A 组（采购 / 销售声明在那个文件）碰同一文件；hooks 的 `pearnly_guides` 列表只追加。
+1. 查询类工具归到格里（第 3 节附表核对无遗漏）。
+2. D 组 4 格归本窗口，排在 C 组之后；公司接入格与 local_3709c091 对齐。
+3. C 组读回第一；其后按「已有成熟流程优先」（第 1.5 节末）。
+4. 声明放各自域包（`<域>/cc_guide.py`），hooks 的 `pearnly_guides` 只追加。
+5. 读回菜单单列一项 + 对账 / 增值税里一步共用；科目前缀不问。
+6. 引擎通用能力 N1–N9 由本窗口在共用层写、引擎窗口只审接口（约定见共享笔记「引导式-引擎通用能力N1-N9-约定-11-16.md」）；N9 先修。
+7. 每次有格状态变化就更新本表、把变化的那几行发主会话。
