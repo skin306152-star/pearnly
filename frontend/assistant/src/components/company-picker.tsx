@@ -15,7 +15,8 @@
 // 代录新建页传草稿的公司（""= 最近）；定时任务「＋」先选公司时不传（必须选一家，不出「最近」）。对话框在 assistant.tsx 里挂一次。
 
 import { CheckIcon, LoaderIcon, PlugIcon, RefreshCwIcon, XIcon } from "lucide-react";
-import { Dialog as DialogPrimitive, Tabs } from "radix-ui";
+import { Dialog, DialogClose, DialogDescription, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { type FC, useEffect, useRef, useState } from "react";
 import { co, st, t } from "@/i18n";
 import { create } from "zustand";
@@ -91,18 +92,18 @@ export const CompanyPickerDialog: FC = () => {
     }
   };
   return (
-    <DialogPrimitive.Root open={open} onOpenChange={(v) => !v && close()}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-sheet)" />
-        <DialogPrimitive.Content
+    <Dialog open={open} onOpenChange={(v) => !v && close()}>
+      <DialogPortal>
+        <DialogOverlay />
+        <DialogSurface
           data-slot="cc-company-picker"
           data-size="md"
           className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-sheet) flex -translate-x-1/2 -translate-y-1/2 flex-col [--cc-modal-share:var(--cc-company-picker-share)]"
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-dialog-title">
+            <DialogHeading className="cc-dialog-title">
               <Marquee className="block truncate">{co.chooseCompany}</Marquee>
-            </DialogPrimitive.Title>
+            </DialogHeading>
             <span className="flex shrink-0 items-center gap-(--cc-space-4)">
               {canRefresh && (
                 <button
@@ -117,16 +118,16 @@ export const CompanyPickerDialog: FC = () => {
                   {refreshing ? <LoaderIcon className="cc-spinner" /> : <RefreshCwIcon />}
                 </button>
               )}
-              <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
+              <DialogClose className="cc-icon-btn" aria-label={t("close")}>
                 <XIcon />
-              </DialogPrimitive.Close>
+              </DialogClose>
             </span>
           </div>
-          <DialogPrimitive.Description className="sr-only">{co.chooseCompany}</DialogPrimitive.Description>
+          <DialogDescription className="sr-only">{co.chooseCompany}</DialogDescription>
           {open && <Choices reload={reload} />}
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+        </DialogSurface>
+      </DialogPortal>
+    </Dialog>
   );
 };
 
@@ -219,7 +220,7 @@ const Choices: FC<{ reload: { current: () => void } }> = ({ reload }) => {
         </label>
       </div>
       {tabs.length > 0 && (
-        <Tabs.Root
+        <Tabs
           value={erp}
           onValueChange={(value) => {
             setRows(null);
@@ -228,14 +229,14 @@ const Choices: FC<{ reload: { current: () => void } }> = ({ reload }) => {
           className="shrink-0"
           data-slot="cc-company-picker-tabs"
         >
-          <Tabs.List className="cc-tabs border-b" aria-label={co.companies}>
+          <TabsList variant="line" className="w-full justify-start" aria-label={co.companies}>
             {tabs.map((e) => (
-              <Tabs.Trigger key={e.adapter} value={e.adapter}>
+              <TabsTrigger key={e.adapter} value={e.adapter} className="flex-none">
                 {e.label}
-              </Tabs.Trigger>
+              </TabsTrigger>
             ))}
-          </Tabs.List>
-        </Tabs.Root>
+          </TabsList>
+        </Tabs>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">
         {recents && (

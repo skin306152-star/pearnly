@@ -36,8 +36,7 @@
   },
   "components/company-picker.tsx": {
     "K1": 6,
-    "K2": 1,
-    "K4": 10
+    "K4": 9
   },
   "components/delete-chats.tsx": {
     "K1": 2,
@@ -65,7 +64,6 @@
   },
   "components/mrerp-connect.tsx": {
     "K1": 4,
-    "K2": 1,
     "K4": 10
   },
   "components/mrerp-login.tsx": {

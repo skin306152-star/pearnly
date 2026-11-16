@@ -115,8 +115,20 @@ function DialogDescription({
   );
 }
 
+// CC 自己的弹窗外框（globals.css 的 .cc-dialog 一套：公司选择窗、MR.ERP 连接）：不带上面 DialogContent 的默认外框与样式，
+// 只是底层 Content / Title 换个出口，调用方不直接引 radix-ui（标准组件闸门 K2，欠账 B37）。
+function DialogSurface(props: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  return <DialogPrimitive.Content data-slot="dialog-surface" {...props} />;
+}
+
+function DialogHeading(props: React.ComponentProps<typeof DialogPrimitive.Title>) {
+  return <DialogPrimitive.Title data-slot="dialog-heading" {...props} />;
+}
+
 export {
   Dialog,
+  DialogSurface,
+  DialogHeading,
   DialogClose,
   DialogContent,
   DialogDescription,

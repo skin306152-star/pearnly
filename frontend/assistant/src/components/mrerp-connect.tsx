@@ -10,7 +10,7 @@
 //                   标签下就有这些公司。
 // 不提供断开 / 删除连接（产品本来就不允许删连接）。
 
-import { Dialog as DialogPrimitive } from "radix-ui";
+import { Dialog, DialogClose, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
 import { XIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
 import { authorizedDetail, type MrErpCredential, MrErpLogin } from "@/components/mrerp-login";
@@ -122,20 +122,20 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
     }
   };
   return (
-    <DialogPrimitive.Root open onOpenChange={(v) => !v && onClose(changed, current?.name ?? "")}>
-      <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="cc-overlay z-(--cc-z-confirm)" />
-        <DialogPrimitive.Content
+    <Dialog open onOpenChange={(v) => !v && onClose(changed, current?.name ?? "")}>
+      <DialogPortal>
+        <DialogOverlay className="z-(--cc-z-confirm)" />
+        <DialogSurface
           aria-describedby={undefined}
           data-slot="cc-mrerp-connect-dialog"
           data-size="sm"
           className="cc-dialog cc-enter cc-modal fixed left-1/2 z-(--cc-z-confirm) flex -translate-x-1/2 -translate-y-1/2 flex-col"
         >
           <div className="cc-dialog-head">
-            <DialogPrimitive.Title className="cc-dialog-title">{`${st.connect} MR.ERP`}</DialogPrimitive.Title>
-            <DialogPrimitive.Close className="cc-icon-btn" aria-label={t("close")}>
+            <DialogHeading className="cc-dialog-title">{`${st.connect} MR.ERP`}</DialogHeading>
+            <DialogClose className="cc-icon-btn" aria-label={t("close")}>
               <XIcon />
-            </DialogPrimitive.Close>
+            </DialogClose>
           </div>
           <div className="cc-dialog-body flex flex-col gap-(--cc-space-16)">
             <label className="flex flex-col gap-(--cc-space-6)">
@@ -156,15 +156,15 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
           </div>
           <div className="cc-dialog-foot">
             {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
-            <DialogPrimitive.Close asChild>
+            <DialogClose asChild>
               <button type="button" className="cc-btn">{t("cancel")}</button>
-            </DialogPrimitive.Close>
+            </DialogClose>
             <button type="button" className="cc-btn" data-primary="" disabled={busy || !url} onClick={() => void submit()}>
               {st.connect}
             </button>
           </div>
-        </DialogPrimitive.Content>
-      </DialogPrimitive.Portal>
-    </DialogPrimitive.Root>
+        </DialogSurface>
+      </DialogPortal>
+    </Dialog>
   );
 };

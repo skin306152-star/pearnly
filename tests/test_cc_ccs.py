@@ -917,7 +917,8 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(exports("components/ui/sidebar.tsx"),
                          ["Sidebar", "SidebarContent", "SidebarFooter", "SidebarHeader", "SidebarInset", "SidebarProvider", "useSidebar"])
         self.assertEqual(exports("components/ui/dialog.tsx"), ["Dialog", "DialogClose", "DialogContent", "DialogDescription", "DialogFooter",
-                                                               "DialogHeader", "DialogOverlay", "DialogPortal", "DialogTitle", "DialogTrigger"])
+                                                               "DialogHeader", "DialogHeading", "DialogOverlay", "DialogPortal", "DialogSurface",
+                                                               "DialogTitle", "DialogTrigger"])
         # V9：图片预览（唯一用组件库弹窗的地方）同整窗弹窗圆角 16（--cc-radius-dialog，外壳实测），原来 10
         dialog = self.read("components/ui/dialog.tsx")
         self.assertIn(" rounded-dialog border ", dialog)
@@ -1563,11 +1564,17 @@ class DialogsAndListsTests(unittest.TestCase):
 
     def test_overlays_fade_with_cc_overlay(self):
         # V15（B4）：弹窗遮罩用 .cc-overlay（120ms 主缓动），不用 tw-animate 的 animate-in / fade-in（150ms）；层级与弹窗同档
-        for rel, layer in (("components/settings.tsx", "--cc-z-modal"), ("components/company-picker.tsx", "--cc-z-sheet"),
+        for rel, layer in (("components/settings.tsx", "--cc-z-modal"),
                            ("components/delete-chats.tsx", "--cc-z-confirm"), ("components/scheduled-tasks.tsx", "--cc-z-sheet")):
             source = self.read(rel)
             self.assertIn(f'<DialogPrimitive.Overlay className="cc-overlay z-({layer})" />', source, rel)
             self.assertNotRegex(source, r"animate-in|fade-in", rel)
+        # 公司选择窗、MR.ERP 连接改用标准组件的遮罩（欠账 B37）：ui/dialog 的 DialogOverlay 就是 .cc-overlay，默认层级 --cc-z-sheet
+        self.assertIn('"cc-overlay z-(--cc-z-sheet)"', self.read("components/ui/dialog.tsx"))
+        self.assertIn("<DialogOverlay />", self.read("components/company-picker.tsx"))
+        self.assertIn('<DialogOverlay className="z-(--cc-z-confirm)" />', self.read("components/mrerp-connect.tsx"))
+        for rel in ("components/company-picker.tsx", "components/mrerp-connect.tsx"):
+            self.assertNotIn('from "radix-ui"', self.read(rel), rel)
 
     def test_settings_nav_is_the_sidebar_nav(self):
         # V17（B4）：设置左栏同侧栏导航行与组标题：图标 20 放在 28 的前导槽、间距 6、行间 2、选中色同侧栏、组标题 13/16
