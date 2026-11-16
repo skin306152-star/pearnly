@@ -11,6 +11,8 @@
   ``auto`` 给不出值就降成问。``always`` 永远要用户明答（钱和对象的事不记不预选）。
 - 改了前面一步的答案，依赖它的后面各步的答案作废（:func:`without_dependents`）：选了别的客户，勾过的发票不能留着。
 - 值的形状按输入方式核（:func:`value_problem`）；值在不在选项里由调用方拿着选项核。
+- **可不答的步骤**（``required: False``）：没答不挡「问完」；``after`` 点名它的步骤照常问（同一张卡上一起出）；``when`` 依赖它的步骤
+  在它没答时不适用，也不算「没轮到」；交给业务函数的值里没有它。
 """
 from __future__ import annotations
 
@@ -70,8 +72,15 @@ def applies(step: Mapping[str, Any], values: Mapping[str, Any]) -> bool:
     return any(code in {str(v) for v in when["in"]} for code in codes)
 
 
-def _needs(step: Mapping[str, Any]) -> List[str]:
-    return [*step.get("after", ()), *([step["when"]["key"]] if step.get("when") else ())]
+def _optional_keys(guide: Mapping[str, Any]) -> set:
+    """声明里可不答的步骤（``required: False``）。"""
+    return {step["key"] for step in guide.get("steps") or () if step.get("required") is False}
+
+
+def _needs(step: Mapping[str, Any], optional=frozenset()) -> List[str]:
+    """这一步要先有值的步骤：``after`` 与 ``when`` 点名的；可不答的那几步不算（没答也不挡后面的步骤）。"""
+    return [name for name in (*step.get("after", ()), *([step["when"]["key"]] if step.get("when") else ()))
+            if name not in optional]
 
 
 def _undecided(step: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> bool:
@@ -84,16 +93,18 @@ def _undecided(step: Mapping[str, Any], answers: Mapping[str, Any], decided: Map
 def to_ask(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[Dict[str, Any]]:
     """现在这张卡上问哪几步（照声明顺序）：适用、依赖都有值、还没定的。"""
     values = _values(guide, answers, decided)
+    optional = _optional_keys(guide)
     return [dict(step) for step in guide.get("steps") or ()
-            if applies(step, values) and all(_has(values.get(name)) for name in _needs(step))
+            if applies(step, values) and all(_has(values.get(name)) for name in _needs(step, optional))
             and _undecided(step, answers, decided)]
 
 
 def blocked(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[str]:
     """还没轮到的步骤（依赖的那一步没值，现在既问不了也判不出适不适用）。"""
     values = _values(guide, answers, decided)
+    optional = _optional_keys(guide)
     return [step["key"] for step in guide.get("steps") or ()
-            if not all(_has(values.get(name)) for name in _needs(step))]
+            if not all(_has(values.get(name)) for name in _needs(step, optional))]
 
 
 def settled(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -110,7 +121,9 @@ def settled(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mappi
 
 def state(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> str:
     """``asking``：还有要问的或没轮到的；``ready``：适用的步骤都有值了，可以进复核 / 确定。"""
-    return ASKING if to_ask(guide, answers, decided) or blocked(guide, answers, decided) else READY
+    optional = _optional_keys(guide)
+    waiting = [step for step in to_ask(guide, answers, decided) if step["key"] not in optional]
+    return ASKING if waiting or blocked(guide, answers, decided) else READY
 
 
 def final_values(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:

@@ -157,5 +157,53 @@ class ValueTests(unittest.TestCase):
             self.assertNotEqual(steps.value_problem(self.step(kind), None), "", kind)
 
 
+OPTIONAL = {"id": "readback", "label_key": "guide.business.readback", "icon": "download", "order": 40, "modes": ["chat"],
+            "ledgers": ["express_local"], "opening_key": "guide.open.readback", "source": "form", "writes": False,
+            "steps": [{"key": "period", "input": "month", "rule": "always"},
+                      {"key": "accounts", "input": "multi", "rule": "always", "required": False, "after": ["period"],
+                       "options": "app.mod.accounts"},
+                      {"key": "note", "input": "text", "rule": "always", "after": ["accounts"]},
+                      {"key": "only", "input": "choice", "rule": "always", "when": {"key": "accounts", "has": "1100"},
+                       "options": "app.mod.only"}],
+            "confirm": "app.mod.request"}
+
+
+class OptionalTests(unittest.TestCase):
+    """可不答的步骤（``required: False``）：11-16 前不答会一直停在「问」，整次引导确定不了。"""
+
+    def test_the_declaration_used_here_is_well_formed(self):
+        self.assertEqual(d.problems(OPTIONAL), [])
+
+    def test_an_unanswered_optional_step_does_not_keep_the_guide_asking(self):
+        answers = {"period": "2026-10", "note": "x"}
+        self.assertIn("accounts", keys(steps.to_ask(OPTIONAL, answers, {})))   # 仍在卡上，可以答
+        self.assertEqual(steps.blocked(OPTIONAL, answers, {}), [])
+        self.assertEqual(steps.state(OPTIONAL, answers, {}), steps.READY)
+        self.assertEqual(steps.final_values(OPTIONAL, answers, {}), {"period": "2026-10", "note": "x"})
+
+    def test_a_step_after_an_optional_step_is_asked_on_the_same_card(self):
+        self.assertEqual(keys(steps.to_ask(OPTIONAL, {"period": "2026-10"}, {})), ["accounts", "note"])
+        self.assertEqual(steps.state(OPTIONAL, {"period": "2026-10"}, {}), steps.ASKING)   # 要答的 note 还没答
+
+    def test_a_step_conditioned_on_an_unanswered_optional_step_does_not_apply(self):
+        answers = {"period": "2026-10", "note": "x"}
+        self.assertNotIn("only", keys(steps.to_ask(OPTIONAL, answers, {})))
+        self.assertNotIn("only", steps.blocked(OPTIONAL, answers, {}))
+
+    def test_answering_the_optional_step_brings_its_condition_back(self):
+        answers = {"period": "2026-10", "note": "x", "accounts": ["1100"]}
+        self.assertIn("only", keys(steps.to_ask(OPTIONAL, answers, {})))
+        self.assertEqual(steps.state(OPTIONAL, answers, {}), steps.ASKING)
+        self.assertEqual(steps.state(OPTIONAL, {**answers, "only": "a"}, {}), steps.READY)
+
+    def test_changing_the_optional_step_still_voids_what_depended_on_it(self):
+        kept = steps.without_dependents(OPTIONAL, {"period": "2026-10", "accounts": ["1100"], "note": "x", "only": "a"},
+                                        ["accounts"])
+        self.assertEqual(kept, {"period": "2026-10", "accounts": ["1100"]})
+
+    def test_a_required_step_is_unchanged(self):
+        self.assertEqual(steps.state(GUIDE, {"customer": "C1"}, TODAY), steps.ASKING)
+
+
 if __name__ == "__main__":
     unittest.main()
