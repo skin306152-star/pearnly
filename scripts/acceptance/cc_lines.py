@@ -84,14 +84,16 @@ def questions(record: Record, topic: str | None = None) -> int:
 
 
 def language_of(text: str) -> str:
-    """粗分四种语言：有泰文算 th，有假名算 ja，有汉字算 zh，否则 en。"""
-    if re.search(r"[฀-๿]", text):
-        return "th"
-    if re.search(r"[぀-ヿ]", text):
+    """粗分四种语言，按主体文字定：泰文、假名、汉字谁的字多算谁（有假名的日文里汉字也算日文），一个都没有算 en。
+    不按「出现一个就算」：中文回复里照抄泰文公司名、账套名很常见，不算换了语言（11-16 首跑 operator.talk 误判成 th）。"""
+    thai = len(re.findall(r"[฀-๿]", text))
+    kana = len(re.findall(r"[぀-ヿ]", text))
+    han = len(re.findall(r"[一-鿿]", text))
+    if not (thai or kana or han):
+        return "en"
+    if kana and kana + han >= thai:
         return "ja"
-    if re.search(r"[一-鿿]", text):
-        return "zh"
-    return "en"
+    return "th" if thai > han else "zh"
 
 
 def b8_language(record: Record) -> list[str]:

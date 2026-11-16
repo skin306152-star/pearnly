@@ -2,6 +2,18 @@
 # check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。
 
 [[pass]]
+scenario = "acc.erp.collection.offline"
+sha = "574d61f9beab16a9e40ee2dff1063b72f5e270ee"
+date = "2026-11-16"
+env = "B"
+run = "20261116-192538-574d61f9b"
+retried = false
+covers = "1d0bc9fef96d59d2"
+docnums = ["IV691116-001", "RE0000001", "RE0000002", "RE0000003"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00853"
+
+[[pass]]
 scenario = "acc.erp.company.connect"
 sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"

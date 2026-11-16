@@ -70,6 +70,10 @@ class LinesTest(unittest.TestCase):
 
     def test_language_follows_the_user_and_internal_words_do_not_leak(self):
         self.assertEqual([lines.language_of(text) for text in ("บันทึกแล้ว", "已写入", "書き込みました", "Done")], ["th", "zh", "ja", "en"])
+        # 中文回复里照抄泰文公司名 / 账套名仍是中文；泰文回复里夹一个中文词仍是泰文（11-16 首跑误判）
+        self.assertEqual(lines.language_of("我查过了：บริษัท Pearnly จำกัด 这个月只有 1 张单要录，已交给 CC 桌面版去录"), "zh")
+        self.assertEqual(lines.language_of("บันทึกใบซื้อเรียบร้อยแล้ว 已"), "th")
+        self.assertEqual(lines.language_of("Run precheck."), "en")
         record = Record(turns=[{"role": "user", "text": "บันทึกให้หน่อย", "at": 1}, {"role": "assistant", "text": "已写入 1 张", "at": 2},
                                {"role": "user", "text": "好", "at": 3}, {"role": "assistant", "text": "完成", "at": 4}])
         self.assertEqual(len(lines.b8_language(record)), 1)
