@@ -211,7 +211,9 @@ def _with_blocked(doctype, name, company, found) -> dict:
     data = found.get("data") or (facts.load(book["key"]) if book.get("key") else None)
     body = push.document(doctype, name)
     company_row = push._company(company)
-    return {**found, "data": data, "items": [_item(raw, data, company_row, body, doctype, name) for raw in blocked]}
+    items = [_item(raw, data, company_row, body, doctype, name)  # loop-query: 电脑拦下的只有一项（对方档 / 存货组 / 服务口径），有界
+             for raw in blocked]
+    return {**found, "data": data, "items": items}
 
 
 def collect_form(doctype, payload, company, given=None) -> dict:
