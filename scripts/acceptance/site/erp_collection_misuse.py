@@ -121,6 +121,10 @@ try:
     if not row:
         raise SystemExit(f"invoice {invoice} never showed up as collectable")
     result["invoice"] = row
+    if mode == "warm":
+        # 电脑在线时先把这张发票读进未收快照（离线那格：停 CC 之前做；收款员平时看到的就是读回过的快照）
+        result.update(ok=True, company=company)
+        raise SystemExit("")
     token = secrets.token_hex(6)
 
     def record_for(entry, cash) -> str:

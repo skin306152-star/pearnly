@@ -140,6 +140,9 @@ def run(ctx):
 
     if kind == "offline":
         pc = ctx.targets.windows(chain.HOST)
+        with ctx.step("电脑在线时读回发票", "停 CC 之前这张发票已在未收快照里（收款员平时看到的就是读回过的快照）"):
+            warm = misuse(ctx, chain, conf, sale, "warm")
+            ctx.require("发票已可收", True, bool(warm.get("invoice")))
         with ctx.step("停 CC 桌面版", "测试机上的 CC 桌面版进程没了"):
             stopped = pc.cc("stop", timeout=180)
             ctx.cc_stopped = True

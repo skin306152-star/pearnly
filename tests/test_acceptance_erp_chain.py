@@ -535,6 +535,8 @@ class MisuseWorld(World):
 
     def erp_collection_misuse(self, params):
         mode = params["mode"]
+        if mode == "warm":   # 离线那格停 CC 之前：电脑在线时把发票读进快照
+            return {"ok": True, "company": "CO-1", "invoice": {"docnum": params.get("invoice"), "available": "1070.00"}}
         if mode == "submit":
             blocked = self.holding or not self.cc_running
             records = []
