@@ -214,7 +214,8 @@ def _facts(folder: Path) -> dict:
         log.info("单据簿读不出（没有 ISRUN？），这份不带库存单默认科目")
     try:
         ranked = catalog_probe.probe_isacc_candidates(folder)
-        facts["catalog"]["isacc_candidates"] = [row for row in ranked if row["fit"]][:MAX_STOCK_GROUPS]
+        # 合格的在前、不合格的也报（带 fit，同 `catalog_probe.catalog_payload`，1.12.23）
+        facts["catalog"]["isacc_candidates"] = ranked[:MAX_STOCK_GROUPS]
     except Exception:
         log.info("存货科目组读不出，这份不带存货科目组")
     return facts

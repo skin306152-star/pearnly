@@ -380,8 +380,9 @@ def catalog_payload(account_dir) -> Dict[str, Any]:
     candidates: List[Dict[str, Any]] = []
     try:
         ranked = probe_isacc_candidates(account_dir)
-        # 只报能选的:不合格的组选中了照样被建档那关挡下,搬上云只是让人白点一次
-        candidates = [c for c in ranked if c["fit"]][:_MAX_ISACC_CANDIDATES]
+        # 合格的在前、不合格的也报（带 fit 标记，1.12.23）：服务端自动定组只认合格的；人在卡片上可以明确选不合格的，CC 照写
+        # （`stock_template.GUARD_CHOSEN_GROUP`）。以前只报合格的
+        candidates = ranked[:_MAX_ISACC_CANDIDATES]
         # 两个数都记:可选 0 个时,日志要能分清「没配存货科目组」和「这块压根没跑」
         log.info(
             "[catalog] 存货科目组 %d 个 · 可选 %d 个", len(ranked), len(candidates)
