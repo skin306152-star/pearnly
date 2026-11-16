@@ -55,15 +55,46 @@ def _share_path(path: str) -> str:
     return share_path(path)
 
 
+def _file_uid(path: str) -> str:
+    from ..device_facts import file_uid
+
+    return file_uid(path)
+
+
+def same_book(a, b, *, share: Optional[Callable[[str], str]] = None, uid: Optional[Callable[[str], str]] = None) -> bool:
+    """两个写法是不是同一本账套目录，认不准一律当不是（「只写对话选中的账套」，认错宁可停下请人选）：
+
+    1. 字面相同；
+    2. 换成网络路径后相同（映射盘按本机的映射换算，10-29 实机：P:\\69EXP\\TEST 与 \\\\accserver\\ACCOUNT\\69EXP\\test）；
+    3. 同一台服务器的两个共享名指着同一个目录（11-16 验收：\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2 与 P: 映射的
+       \\\\accserver\\ACCOUNT\\69EXP\\TEST2，网络路径对不上）：两边的目录文件号（卷序列号 + 文件号，`device_facts.file_uid`）
+       **都取得到且相同**、并且最后一级文件夹名也相同才认。复制出来的账套是另一个目录、文件号不同；克隆盘会带着相同的文件号，
+       文件夹名不同就不认；取不到文件号（NAS、部分服务器回 0）不用它。只对文件夹名相同的那一对取文件号（一般一两次）。"""
+    share, uid = share or _share_path, uid or _file_uid
+    if _norm_path(a) == _norm_path(b):
+        return True
+    unc_a, unc_b = (_norm_path(share(str(x or ""))) for x in (a, b))
+    if unc_a and unc_a == unc_b:
+        return True
+    name_a, name_b = (PureWindowsPath(_norm_path(x)).name.casefold() for x in (a, b))
+    if not name_a or name_a != name_b:
+        return False
+    uid_a, uid_b = uid(str(a or "")), uid(str(b or ""))
+    return bool(uid_a) and uid_a == uid_b
+
+
 class Session:
     def __init__(self, desk, recipe: Recipe, *, express_exe: str, account_dir: str, company_name: str,
                  credential_target: str, account_open: Callable[[str], bool] = _busy,
                  launch: Optional[Callable[[str], None]] = None, sleep: Callable[[float], None] = time.sleep,
                  registry: Optional[Callable[[], Tuple[int, str]]] = None,
                  on_claim: Callable[[int], None] = lambda _pid: None, on_gone: Callable[[int], None] = lambda _pid: None,
-                 share: Optional[Callable[[str], str]] = None, own_pids: Callable[[], Iterable[int]] = lambda: ()):
+                 share: Optional[Callable[[str], str]] = None, own_pids: Callable[[], Iterable[int]] = lambda: (),
+                 uid: Optional[Callable[[str], str]] = None):
         self.desk, self.recipe = desk, recipe
         self.share = share or _share_path
+        self._uids: Dict[str, str] = {}
+        self._read_uid = uid or _file_uid
         self.registry = registry or self._registry_target
         self.picked: Dict = {}
         self.express_exe, self.account_dir, self.company_name = express_exe, account_dir, company_name
@@ -122,13 +153,14 @@ class Session:
         return not names or _plain(name) in names
 
     def same_place(self, a: str, b: str) -> bool:
-        """两个写法是不是同一个账套目录：字面相同，或换成网络路径后相同（10-29 实机：从映射盘 P: 开的 Express，状态栏写
-        「P:\\69EXP\\TEST」，任务配的是 \\\\accserver\\ACCOUNT\\69EXP\\test）。映射盘按本机的映射换算（同多台电脑认账套那一套），
-        换不出来就只认字面。"""
-        if _norm_path(a) == _norm_path(b):
-            return True
-        unc_a, unc_b = (_norm_path(self.share(str(x or ""))) for x in (a, b))
-        return bool(unc_a) and unc_a == unc_b
+        """两个写法是不是同一个账套目录（:func:`same_book`）：字面、网络路径、同一目录的文件号依次认；文件号一个路径只取一次。"""
+        return same_book(a, b, share=self.share, uid=self._uid)
+
+    def _uid(self, path: str) -> str:
+        key = _norm_path(path)
+        if key not in self._uids:
+            self._uids[key] = str(self._read_uid(path) or "")
+        return self._uids[key]
 
     def status_line(self) -> str:
         """主窗口状态栏第一格（windows() 把状态栏的字放在最前面）。"""
