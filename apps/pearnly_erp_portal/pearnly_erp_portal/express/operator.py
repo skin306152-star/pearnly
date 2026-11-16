@@ -237,6 +237,11 @@ def _target(company, doc_id):
     return doctype, name
 
 
+def log_unknown(company, doc_id) -> None:
+    """编号种类本产品不认（`contracts.UNKNOWN_DOCUMENT`）：记一条错误日志（写账判定与代录预检同一条）。"""
+    frappe.log_error(title=contracts.UNKNOWN_DOCUMENT_LOG, message=f"company={company} doc_id={str(doc_id)[:200]}")
+
+
 def precheck(company, doc_ids) -> dict:
     """代录开录前逐张判一遍（写账前置判定 `express.precheck.collect_document`：与直写同一条准备，不写单据、不排写账件）：要人选的项
     （新商品、费用科目、对方档、账套、存货科目组、收银三项……连同可选值，商品与对方可选「新建」）一次收齐列出；准备不了的写明原因。
@@ -250,8 +255,8 @@ def precheck(company, doc_ids) -> dict:
             continue
         if str(doc_id).partition(":")[0] not in KINDS:
             # 代录只收采购、销售与收单记录：别的种类是契约缺口（同写账判定 `precheck.UNKNOWN_DOCUMENT`），记日志，不当成没有权限
-            write_precheck._unknown(company, doc_id)
-            documents.append({"doc_id": doc_id, "state": "blocked", "reason": write_precheck.UNKNOWN_DOCUMENT})
+            log_unknown(company, doc_id)
+            documents.append({"doc_id": doc_id, "state": "blocked", "reason": contracts.UNKNOWN_DOCUMENT})
             continue
         target = _target(company, doc_id)
         if target is None:

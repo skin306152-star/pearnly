@@ -760,6 +760,7 @@ class PrecheckTargetTests(Base):
         stubs["pearnly_erp_portal.access"].guard = guard
         contracts = stubs["pearnly_erp_portal.express.contracts"]
         contracts.CHOICE, contracts.READING = "choice_needed", "reading"
+        contracts.UNKNOWN_DOCUMENT, contracts.UNKNOWN_DOCUMENT_LOG = "unknown_document", "Write precheck: unknown document kind"
         push = stubs["pearnly_erp_portal.express.push"]
         push.PURCHASE, push.SALES = "Pearnly Purchase", "Pearnly Sales"
         push.company_of = lambda doctype, name: "CO-1"
@@ -782,7 +783,9 @@ class PrecheckTargetTests(Base):
         stubs["pearnly_core.cc_desktop"].jobs = stubs["pearnly_core.cc_desktop.jobs"]
         operator = _load("erp_operator_code_cc", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
                          stubs)
-        with mock.patch.dict(sys.modules, stubs), mock.patch.object(frappe.db, "get_value", lambda *a, **k: None):
+        logged = []
+        with mock.patch.dict(sys.modules, stubs), mock.patch.object(frappe.db, "get_value", lambda *a, **k: None), \
+                mock.patch.object(frappe, "log_error", lambda title=None, message=None, **kw: logged.append(title), create=True):
             out = operator.precheck("CO-1", ["P:PUR-1", "P:PUR-2", "P:PUR-3", "X:bad"])
         by = {row["doc_id"]: row for row in out["documents"]}
         expected = {"account_set": "BK-69", "account_set_title": "ABC 69", "account_set_path": "S:\\69EXP\\ABC",
@@ -790,7 +793,9 @@ class PrecheckTargetTests(Base):
         self.assertEqual((by["P:PUR-1"]["state"], by["P:PUR-1"]["target"]), ("ready", expected))
         self.assertEqual((by["P:PUR-2"]["state"], by["P:PUR-2"]["target"]), ("choose", expected))
         self.assertNotIn("target", by["P:PUR-3"])  # 没选出账套
-        self.assertEqual((by["X:bad"]["state"], by["X:bad"]["reason"]), ("blocked", "not_permitted"))
+        # 认不得的编号种类是契约缺口：单独报码、记日志，不当成没有权限（11-16 H3「找不到就报没有权限」按类）
+        self.assertEqual((by["X:bad"]["state"], by["X:bad"]["reason"]), ("blocked", contracts.UNKNOWN_DOCUMENT))
+        self.assertEqual(logged, [contracts.UNKNOWN_DOCUMENT_LOG])
         self.assertIsNone(operator.book_target({"label": "no key"}))
         # 没有账套名写位置，没有位置就空着；账套键（book_key）是内部编号，不当名称（测试机1 11-13）
         self.assertEqual(operator.book_target({"key": "K", "path": "S:\\K"})["account_set_title"], "S:\\K")

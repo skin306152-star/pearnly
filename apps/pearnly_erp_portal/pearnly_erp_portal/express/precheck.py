@@ -103,8 +103,7 @@ def _collection():
 INTAKE_PREFIX = "I"
 DOCUMENT, INTAKE, COLLECTION, MISSING, UNKNOWN = "document", "intake", "collection", "missing", "unknown"
 # 编号种类本产品不认（契约缺口）：写账判定回这个原因（给模型、写入计划的跳过原因）并记错误日志，与「不是本人的单」（不回、不报存在与否）分开
-UNKNOWN_DOCUMENT = "unknown_document"
-UNKNOWN_LOG = "Write precheck: unknown document kind"
+UNKNOWN_DOCUMENT, UNKNOWN_LOG = contracts.UNKNOWN_DOCUMENT, contracts.UNKNOWN_DOCUMENT_LOG
 
 
 def target_of(company, doc_id) -> tuple:
@@ -126,7 +125,9 @@ def target_of(company, doc_id) -> tuple:
 
 
 def _unknown(company, doc_id) -> None:
-    frappe.log_error(title=UNKNOWN_LOG, message=f"company={company} doc_id={str(doc_id)[:200]}")
+    from pearnly_erp_portal.express import operator
+
+    operator.log_unknown(company, doc_id)
 
 
 def resolve_target(company, doc_id):
@@ -550,7 +551,7 @@ def check(company, doc_ids) -> dict:
                 continue
             from pearnly_erp_portal.express import operator
 
-            view = operator.intake_view(company, doc_id)
+            view = operator.intake_view(company, doc_id)  # loop-query: 收单记录逐张判（同单据 document_view），一批有上限
             if view:
                 documents.append(view)
             continue
@@ -622,7 +623,7 @@ def remember(company, answers) -> dict:
         if kind == INTAKE:
             from pearnly_erp_portal.express import operator
 
-            saved += operator.remember_intake(company, found, given, seen)
+            saved += operator.remember_intake(company, found, given, seen)  # loop-query: 一张卡片答到的几条记录，逐条写回
             continue
         doctype, name = found
         if ledger_mrerp:
