@@ -46,6 +46,18 @@ LOG_DIR = APPDATA_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def _local_appdata_root() -> Path:
+    """本机（不漫游）的 appdata 目录：Windows 是 %LOCALAPPDATA%/Pearnly，其他系统同 ``_appdata_root``。"""
+    if platform.system() == "Windows":
+        return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "Pearnly"
+    return _appdata_root()
+
+
+# 云端 Express 文件隧道（桥本机，cloud_link/host.py）：每条云端连接一个子目录 <主机>\（in、out、ctl），subst 成隧道盘。
+# 只在起云端连接时才建，没连云端的电脑不建
+CLOUD_TUNNEL_DIR = _local_appdata_root() / "cloud-tunnel"
+
+
 def _default_backend_url() -> str:
     """Honor PEARNLY_COMPANION_PORT env var (set by launcher when 8765 is busy)"""
     port = os.environ.get("PEARNLY_COMPANION_PORT", "8765")

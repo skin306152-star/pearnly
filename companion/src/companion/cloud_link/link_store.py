@@ -73,6 +73,7 @@ class CloudLink:
     host_name: str = ""
     via: str = ""
     members: tuple = ()
+    tunnel_drive: str = ""   # 上次用的隧道盘符（``host`` 下次优先用它）；旧文件没有这一项，读成空串
 
     @property
     def device_name(self) -> str:
@@ -84,9 +85,12 @@ class CloudLink:
         return next((item for item in self.members if item.site == site), None)
 
     def to_dict(self) -> dict:
-        return {"host": self.host, "port": self.port, "user": self.user, "domain": self.domain,
-                "host_name": self.host_name, "via": self.via, "device": {"key": self.device_cipher},
-                "members": [{"site": m.site, "backend_url": m.backend_url, "token": m.token_cipher} for m in self.members]}
+        raw = {"host": self.host, "port": self.port, "user": self.user, "domain": self.domain,
+               "host_name": self.host_name, "via": self.via, "device": {"key": self.device_cipher},
+               "members": [{"site": m.site, "backend_url": m.backend_url, "token": m.token_cipher} for m in self.members]}
+        if self.tunnel_drive:
+            raw["tunnel_drive"] = self.tunnel_drive
+        return raw
 
     @classmethod
     def from_dict(cls, raw) -> "CloudLink":
@@ -109,7 +113,8 @@ class CloudLink:
                 raise LinkStoreError("cloud link member is invalid")
             members.append(Member(_site(item["site"]), item["backend_url"], item["token"]))
         return cls(host=host, port=port, user=user, domain=domain, device_cipher=cipher,
-                   host_name=_label(raw.get("host_name")), via=_label(raw.get("via")), members=tuple(members))
+                   host_name=_label(raw.get("host_name")), via=_label(raw.get("via")), members=tuple(members),
+                   tunnel_drive=_drive(raw.get("tunnel_drive")))
 
 
 def _account(user, domain) -> str:
@@ -120,6 +125,14 @@ def _account(user, domain) -> str:
 def _label(value) -> str:
     """电脑名一类的显示名：去掉控制字符，截到 60 个字符。"""
     return "".join(ch for ch in str(value or "") if ch >= " " and ch != "\x7f").strip()[:_NAME_LIMIT]
+
+
+def _drive(value) -> str:
+    """记下的隧道盘符：认不出（没有、不是 D–Z）当没记过，不让一项可选的记录挡住整个文件。"""
+    try:
+        return rdp.drive(value) if value else ""
+    except rdp.RdpValueError:
+        return ""
 
 
 def _site(value) -> str:
@@ -205,6 +218,14 @@ class LinkStore:
         """云端那份 CC 报上来的电脑名（下次登记作设备名）。"""
         with self._lock:
             self._put(replace(self._need(host), host_name=_label(host_name)))
+
+    def set_tunnel_drive(self, host: str, letter: str) -> None:
+        """记下这条连接这次用的隧道盘符（``host.CloudHost`` 起连接时；空串 = 忘掉）。"""
+        letter = rdp.drive(letter) if letter else ""
+        with self._lock:
+            link = self._need(host)
+            if link.tunnel_drive != letter:
+                self._put(replace(link, tunnel_drive=letter))
 
     def device_key(self, host: str) -> str:
         """云端那台电脑的设备密钥明文（只交给本站自己的对话页登记用，同 ``device_link.identity``）。"""

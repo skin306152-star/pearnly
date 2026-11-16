@@ -29,8 +29,11 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 「设置 → 连接」的「云端 Express」一行（步 E，用户 11-16；逻辑在 ``cloud_link/settings_link.py``，只在调到时导入）：
 ``cloud_prefill``（连接弹窗预填主机、端口、用户名，不含任何密码）、``cloud_connect {host, port, user}``（同 MR.ERP 授权
 （ADR-026 第 7 条）：密码不经页面，桥弹 CC 原生小窗（``login_dialog.ask``，账号预填页面上那个）收账号和密码，只存本机凭据管理器；
-存连接配置、生成云端设备密钥；还不打开连接窗口，回「未连接」）、``cloud_disconnect``（``LinkStore.remove``）、
-``cloud_status``（连接与状态词）。旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
+存连接配置、生成云端设备密钥；存好后在界面线程起这条连接的宿主 ``cloud_link/host.py``——隧道盘、会话交接、中转、可见的连接
+窗口（默认最小化），回包的状态换成会话实况；一个桥一个宿主，再点「连接」先停旧的再起）、``cloud_disconnect``（先停宿主——关窗即
+断开、停中转、撤隧道盘——再 ``LinkStore.remove``）、``cloud_status``（连接与状态词，状态来自宿主的会话）。人把连接窗口关掉
+= 断开，宿主随之停。**CC 启动时就算存有云端连接也不自动连**，等人在设置里点「连接」。
+旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
 
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
@@ -94,6 +97,7 @@ class TomoBridge(QObject):
                  cloud_new: Optional[Callable[[], object]] = None,
                  session_rdp: Optional[Callable[[], object]] = None,
                  cloud_session: Optional[Callable[[], object]] = None,
+                 cloud_host: Optional[Callable[[str, Callable], object]] = None,
                  ask_login: Optional[Callable[[str, str, str], Optional[Tuple[str, str]]]] = None) -> None:
         super().__init__()
         self._settings = settings
@@ -111,10 +115,14 @@ class TomoBridge(QObject):
         self._on_attention = on_attention
         # 本机的云端连接（cloud_link.link_store.LinkStore，没有云端连接回 None）；测试注入
         self._cloud_links = cloud_links or _cloud_store
-        # 还没有云端连接时新建一份（不建文件，存的时候才写）、本机 TSplus 的 Session.rdp、连接窗口的会话（还没接：None）；测试注入
+        # 还没有云端连接时新建一份（不建文件，存的时候才写）、本机 TSplus 的 Session.rdp；测试注入
         self._cloud_new = cloud_new or _cloud_store_new
         self._session_rdp = session_rdp or _session_rdp
-        self._cloud_session = cloud_session or (lambda: None)
+        # 云端连接宿主（cloud_link.host.CloudHost）：(主机, 状态回调) → 宿主；一个桥最多一个，点「连接」时才建；测试注入
+        self._cloud_host_new = cloud_host or _cloud_host_new
+        self._cloud_host = None
+        # 连接窗口的会话：默认取宿主的（宿主没起是 None = 未连接）；测试注入
+        self._cloud_session = cloud_session or self._host_session
 
     @Slot(result=str)
     def state(self) -> str:
@@ -383,6 +391,7 @@ class TomoBridge(QObject):
         if method == "cloud_status":
             return settings_link.status(self._cloud_links(), self._cloud_session())
         if method == "cloud_disconnect":
+            self._stop_cloud_host()   # 界面线程：关窗即断开、停中转、撤隧道盘
             store, session = self._cloud_links(), self._cloud_session()
             return self._job(lambda: settings_link.disconnect(store, session))
         if method == "cloud_connect":
@@ -409,7 +418,41 @@ class TomoBridge(QObject):
             finally:
                 password = ""
 
-        return self._job(work)
+        return self._job(work, after=lambda result: self._after_cloud_connect(settings_link, result))
+
+    def _after_cloud_connect(self, settings_link, result: dict) -> dict:
+        """（界面线程）存好了：起这条连接的宿主（先停旧的），回包的状态换成会话实况；起不来照样存着、回「未连接」。"""
+        if not result.get("ok") or not result.get("host"):
+            return result
+        from .cloud_link.host import HostUnavailable
+
+        self._stop_cloud_host()
+        try:
+            host = self._cloud_host_new(result["host"], self._cloud_changed)
+            self._cloud_host = host
+            host.start()
+        except HostUnavailable:
+            log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 QtAxContainer）")
+        except Exception as exc:
+            log.warning("起云端连接失败：%s", type(exc).__name__)
+        session = self._cloud_session()
+        return {**result, "state": settings_link.status_of(session.snapshot() if session is not None else None)}
+
+    def _host_session(self):
+        host = self._cloud_host
+        return host.session if host is not None else None
+
+    def _cloud_changed(self, snapshot=None, description: str = "") -> None:
+        """（界面线程）连接窗口状态变了：对话页重取状态。"""
+        self.changed.emit()
+
+    def _stop_cloud_host(self) -> None:
+        host, self._cloud_host = self._cloud_host, None
+        if host is not None:
+            try:
+                host.stop()
+            except Exception:
+                log.exception("停云端连接失败")
 
     def _device_name(self) -> str:
         try:
@@ -437,11 +480,16 @@ class TomoBridge(QObject):
         self.changed.emit()
         return result
 
-    def _job(self, work) -> dict:
+    def _job(self, work, after: Optional[Callable[[dict], dict]] = None) -> dict:
         job = uuid.uuid4().hex
 
         def finished(result) -> None:   # 回到界面线程
             result = dict(result or {"ok": False})
+            if after is not None:
+                try:
+                    result = after(result)
+                except Exception:
+                    log.exception("本机设置后台任务的收尾失败")
             if result.pop("profiles_changed", False):
                 try:
                     self._settings.profiles_changed()
@@ -458,6 +506,7 @@ class TomoBridge(QObject):
         return {"job": job}
 
     def shutdown(self) -> None:
+        self._stop_cloud_host()
         self._probes.shutdown()
 
 
@@ -477,6 +526,14 @@ def _cloud_store_new():
     from .cloud_link.link_store import LinkStore
 
     return LinkStore.load()
+
+
+def _cloud_host_new(host: str, on_change):
+    """这条云端连接的宿主（只在点「连接」时导入 cloud_link.host）；连接配置每次现读。"""
+    from .cloud_link.host import CloudHost
+    from .cloud_link.link_store import LinkStore
+
+    return CloudHost(host, links=LinkStore.load, on_change=on_change)
 
 
 def _session_rdp():

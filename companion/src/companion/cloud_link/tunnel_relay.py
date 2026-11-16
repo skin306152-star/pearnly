@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 """桥那一侧（评估第 4.3 节）：处理云端写进 ``in\\`` 的请求，代发到配对时记下的站点，回复写进 ``out\\``。
 
-处理逻辑（``process`` 一个 ``.req``）与监视方式分开：现在 ``poll_once`` 轮询一遍；接进 ``--cloud-link`` 子进程时换成
-``ReadDirectoryChangesW`` 事件驱动，只换「什么时候叫 ``process``」。
+处理逻辑（``process`` 一个 ``.req``）与监视方式分开：现在由 ``host.CloudHost`` 的后台线程每 0.5 秒看一遍 ``pending``、
+交给工作线程 ``process``；以后要换成 ``ReadDirectoryChangesW`` 事件驱动，只换「什么时候叫 ``process``」。
 
 - 先把 ``.req`` 改名 ``.work`` 认领（几条线并发处理时同一个请求只处理一次；云端据此分清「桥不在」与「桥慢」）；
 - 核对签名、会话号、防重放、路径与方法白名单、大小（``tunnel_protocol.decode_request``）；
 - 只发到 ``site``（``https://<租户域名>``，配对时记下），请求里带的主机名一律不用，不跟随重定向；
+  给了 ``route`` 时按请求的方法路径选站点与令牌（一个桥同时配了 Cowork 与 ERP 两个站点，两种通道的路径前缀不同），
+  选不出（这台云端电脑还没在那种通道的站点登记）按路径不允许拒绝；
 - ``Authorization`` 由桥换上真令牌，云端带的一律丢；
 - 站点的回复（包括 4xx / 5xx）原样写回；不合规、站点连不上、超时写「隧道拒绝」回复（云端变成网络错误，不是 4xx）；
   重放的请求不写回复（免得盖掉同一编号真正的回复）；
@@ -62,6 +64,8 @@ class SiteTimeout(Exception):
 
 
 Forward = Callable[[Outgoing], Incoming]
+# 按方法路径选站点：回 ``(站点 https://<主机>, 令牌)``；选不出回 None
+Route = Callable[[str], Optional[tuple]]
 
 
 def httpx_forward(client: httpx.Client) -> Forward:
@@ -87,15 +91,17 @@ def normalize_site(site: str) -> str:
 
 class TunnelRelay:
     def __init__(self, root, session: protocol.Session, site: str, token: Union[str, Callable[[], str]],
-                 forward: Forward, *, clock: Callable[[], float] = time.time) -> None:
+                 forward: Forward, *, clock: Callable[[], float] = time.time, route: Optional[Route] = None) -> None:
         self.root = Path(root)
         self.inbox = self.root / "in"
         self.outbox = self.root / "out"
         self.session = session
-        self.site = normalize_site(site)
+        # 给了 route 时站点每个请求现选，``site`` 可以空着（云端电脑还没在任何站点登记）
+        self.site = normalize_site(site) if site or route is None else ""
         self._token = token if callable(token) else (lambda: token)
         self._forward = forward
         self._clock = clock
+        self._route = route
         self._guard = protocol.ReplayGuard()
         self._guard_lock = threading.Lock()
 
@@ -149,9 +155,21 @@ class TunnelRelay:
             _remove(work)
 
     def _relay(self, request: protocol.Request, started: float) -> None:
-        url = self.site + request.path + (f"?{request.query}" if request.query else "")
+        site, token = self.site, None
+        if self._route is not None:
+            try:
+                target = self._route(request.path)
+                if target is not None:
+                    site, token = normalize_site(target[0]), str(target[1] or "")
+            except Exception as error:  # noqa: BLE001 - 选不出就拒绝，不发到别的站点
+                log.info("隧道选站点失败：%s", type(error).__name__)
+                target = None
+            if target is None:
+                self._refuse(request.id, protocol.PATH_NOT_ALLOWED, request.method, request.path, started)
+                return
+        url = site + request.path + (f"?{request.query}" if request.query else "")
         headers = dict(request.headers)
-        token = str(self._token() or "")
+        token = str(self._token() or "") if token is None else token
         if token:
             headers["authorization"] = f"Bearer {token}"
         out = Outgoing(method=request.method, url=url, headers=headers, body=request.body, timeout=request.timeout)
