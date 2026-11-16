@@ -57,7 +57,7 @@ def on_main(sha):
 
 
 def calibration(message):
-    """提交说明里的 `[flows-on-github: 流程1,流程2]`：仓库私有时校准用，只跑这几条、不回写（同手动 scope=flows）。"""
+    """提交说明里的 `[flows-on-github: 流程1,流程2]`（只跑这几条、不回写，同手动 scope=flows）或 `[flows-on-github: all]`（全套）：校准用。"""
     found = re.search(r"\[flows-on-github:([^\]]+)\]", message or "")
     return found.group(1).strip() if found else ""
 
@@ -67,8 +67,9 @@ def decide():
     scope, flows = os.environ.get("INPUT_SCOPE", ""), os.environ.get("INPUT_FLOWS", "")
     if event == "push":
         message = subprocess.run(["git", "log", "-1", "--format=%B", sha], cwd=ROOT, capture_output=True, text=True).stdout
-        if calibration(message):
-            event, scope, flows = "workflow_dispatch", "flows", calibration(message)
+        wanted = calibration(message)
+        if wanted:  # `all` = 全套（在工作流还没进 main、手动触发用不了时校准墙钟）
+            event, scope, flows = ("workflow_dispatch", "all", "") if wanted == "all" else ("workflow_dispatch", "flows", wanted)
     args, post = scope_args(event, scope, flows)
     plan = json.loads(subprocess.run(RUN + args + ["--plan"], cwd=ROOT, capture_output=True, text=True, check=True).stdout)
     skip = ""

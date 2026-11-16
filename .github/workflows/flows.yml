@@ -131,7 +131,7 @@ jobs:
           name: flows-shard-${{ strategy.job-index }}
           path: results/
           if-no-files-found: ignore
-          retention-days: 3
+          retention-days: 1
 
   finish:
     needs: [plan, shard]
@@ -220,4 +220,4 @@ jobs:
             merged.json
             final.json
           if-no-files-found: ignore
-          retention-days: 14
+          retention-days: 1
