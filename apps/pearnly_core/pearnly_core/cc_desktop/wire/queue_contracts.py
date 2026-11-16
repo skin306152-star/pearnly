@@ -9,6 +9,7 @@ No native attempt secret is encoded in a wire ID. The caller supplies its UUID.
 from __future__ import annotations
 
 import hashlib
+from typing import Any
 import math
 from uuid import UUID
 
@@ -28,6 +29,12 @@ MAX_INDEX_PENDING = 500
 # stale、要它整份重报，单子回到排队交给别的电脑（ADR-021，方案 2.5）。
 ERR_ACCOUNT_UID_MISMATCH = "ERR_ACCOUNT_UID_MISMATCH"
 _REFRESH_KEYS = frozenset(("request_id", "account_set_key", "scope_kind"))
+# 领单回复的 ``operator_controls``（CC 桌面版 1.12.23 ④）：对话里人对留着等人的代录单做的选择，执行电脑在取任务线程里照做。
+# 每条 {action, batch, doc, digest, button}；现在只有 answer（按指纹点留着的业务选择框的某个钮）。1.12.22 及以前不发。
+OPERATOR_CONTROL_ACTIONS = ("answer",)
+OPERATOR_CONTROLS_MAX = 20
+OPERATOR_CONTROL_KEYS = ("action", "batch", "doc", "digest", "button")
+OPERATOR_CONTROL_TEXT = {"batch": 80, "doc": 80, "button": 60}
 
 
 class QueueContractError(ValueError):
@@ -173,9 +180,28 @@ def task_key(record_name: str) -> str:
     return str(UUID(digest[:32]))
 
 
-def lease_response(jobs: list, refresh: dict | None = None, requests_waiting: bool = False) -> dict:
+def operator_control(raw: Any) -> dict | None:
+    """一条代录指令的形状（``operator_controls`` 的一项）；不合格回 None（不发）。纯规则。"""
+    if not isinstance(raw, dict) or raw.get("action") not in OPERATOR_CONTROL_ACTIONS:
+        return None
+    digest = raw.get("digest")
+    if not isinstance(digest, str) or len(digest) != 16 or any(c not in "0123456789abcdef" for c in digest):
+        return None
+    out = {"action": raw["action"], "digest": digest}
+    for key, limit in OPERATOR_CONTROL_TEXT.items():
+        value = raw.get(key)
+        if not isinstance(value, str) or not value.strip() or len(value) > limit:
+            return None
+        out[key] = value
+    return out
+
+
+def lease_response(jobs: list, refresh: dict | None = None, requests_waiting: bool = False,
+                   operator_controls: list | None = None) -> dict:
     """Build the top-level old response, with an optional directory command. ``requests_waiting``: an on-demand request
-    this computer can take was just made (`request_wake`); CC Desktop 1.12.22+ asks for it at once, older ones ignore it."""
+    this computer can take was just made (`request_wake`); CC Desktop 1.12.22+ asks for it at once, older ones ignore it.
+    ``operator_controls``: choices made in the conversation for this computer's held operator documents (CC Desktop
+    1.12.23+, the caller only passes them to such a computer); malformed items are dropped."""
     if not isinstance(jobs, list) or len(jobs) > MAX_JOBS:
         _invalid(True)
     values = []
@@ -197,6 +223,9 @@ def lease_response(jobs: list, refresh: dict | None = None, requests_waiting: bo
             result["master_refresh"] = _json_copy(refresh, response=True)
     if requests_waiting:
         result["requests_waiting"] = True
+    controls = [found for found in map(operator_control, (operator_controls or [])[:OPERATOR_CONTROLS_MAX]) if found]
+    if controls:
+        result["operator_controls"] = controls
     return result
 
 
