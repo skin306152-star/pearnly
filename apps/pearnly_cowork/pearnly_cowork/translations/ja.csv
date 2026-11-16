@@ -97,6 +97,7 @@ Add an item,項目を追加
 Add another list,リストを追加
 Add label,ラベルを追加
 Add member,メンバーを追加
+Add note,メモを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Add this file to this document?,このファイルをこの伝票に追加しますか？
@@ -415,6 +416,7 @@ Comments and activity,コメントとアクティビティ
 Commission,手数料
 Company,会社
 Company Branch,会社の支店
+Company Details,会社情報
 Company Name,会社名
 Company choices are full,会社の選択が上限です
 Company not found,会社が見つかりません
@@ -597,6 +599,8 @@ Default Sell Unit,既定の販売単位
 Default board,既定のボード
 Default handling for this folder,既定の処理
 Defaults,既定値
+Delete note,メモを削除
+Delete rule,ルールを削除
 Delete selected ({0}),選択を削除（{0}）
 Delete the stock counts?,棚卸を削除しますか？
 Delete these documents?,これらの書類を削除しますか？
@@ -717,6 +721,7 @@ Edit dates,日付を編集
 Edit folder rule,ルールを編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
+Edit note,メモを編集
 Edited a document,書類を修正しました
 Editing a document,書類を修正しています
 Electronic,電子版
@@ -1145,6 +1150,7 @@ No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No cash account is set in Express,Express に現金勘定が設定されていません
 No changes were given.,変更内容が指定されていません。
+No company selected,会社が未選択です
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるパソコンがありません。
 No computer can write,書き込めるパソコンがありません
 No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのパソコンがありません
@@ -1652,6 +1658,7 @@ Set as the account set in use?,使用中の会計データに設定しますか�
 Set by {0} on {1},{0}（{1}）が設定
 Set document handling,書類の処理方法を設定
 Set due date,期日を N 日後に設定
+Set for whole company,会社全体に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー
 Set the POS export columns,POS エクスポートの列を設定しました
@@ -3511,6 +3518,17 @@ guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
 guide.open.stocktake,操作を選択してください。
+guide.business.company,会社情報
+guide.fact.company.none,会社が未選択です
+guide.open.company,操作を選択してください。
+guide.option.company.note_add,メモを追加
+guide.option.company.note_delete,メモを削除
+guide.option.company.note_edit,メモを編集
+guide.option.company.rule_delete,ルールを削除
+guide.option.company.rule_promote,会社全体に設定
+guide.step.company.action,操作
+guide.step.company.note,対象
+guide.step.company.text,内容
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書

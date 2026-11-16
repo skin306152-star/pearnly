@@ -97,6 +97,7 @@ Add an item,เพิ่มรายการ
 Add another list,เพิ่มรายการอื่น
 Add label,เพิ่มป้ายกำกับ
 Add member,เพิ่มสมาชิก
+Add note,เพิ่มบันทึก
 Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Add this file to this document?,เพิ่มไฟล์นี้เข้าเอกสารนี้หรือไม่
@@ -415,6 +416,7 @@ Comments and activity,ความคิดเห็นและกิจกร�
 Commission,ค่านายหน้า
 Company,บริษัท
 Company Branch,สาขาของบริษัท
+Company Details,ข้อมูลบริษัท
 Company Name,ชื่อบริษัท
 Company choices are full,ตัวเลือกของบริษัทเต็มแล้ว
 Company not found,ไม่พบบริษัท
@@ -597,6 +599,8 @@ Default Sell Unit,หน่วยขายเริ่มต้น
 Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
+Delete note,ลบบันทึก
+Delete rule,ลบกฎ
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
@@ -717,6 +721,7 @@ Edit dates,แก้ไขวันที่
 Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
+Edit note,แก้ไขบันทึก
 Edited a document,แก้ไขเอกสารแล้ว
 Editing a document,กำลังแก้ไขเอกสาร
 Electronic,อิเล็กทรอนิกส์
@@ -1145,6 +1150,7 @@ No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No cash account is set in Express,ยังไม่ได้ตั้งบัญชีเงินสดใน Express
 No changes were given.,ไม่ได้ระบุสิ่งที่จะแก้ไข
+No company selected,ยังไม่ได้เลือกบริษัท
 No computer can reach the account set for the document date.,ไม่มีคอมพิวเตอร์เครื่องใดเข้าถึงชุดบัญชีของวันที่ในเอกสารได้
 No computer can write,ไม่มีคอมพิวเตอร์ที่บันทึกได้
 No computer with CC Desktop can write to this account set,ไม่มีคอมพิวเตอร์ที่ใช้ CC เดสก์ท็อปซึ่งเขียนชุดบัญชีนี้ได้
@@ -1652,6 +1658,7 @@ Set as the account set in use?,ตั้งเป็นชุดบัญชี�
 Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
 Set document handling,ตั้งค่าวิธีจัดการเอกสาร
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
+Set for whole company,ตั้งเป็นทั้งบริษัท
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 Set reminder,ตั้งการแจ้งเตือน
 Set the POS export columns,กำหนดคอลัมน์ไฟล์ส่งออก POS แล้ว
@@ -3511,6 +3518,17 @@ guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
 guide.open.stocktake,เลือกการดำเนินการ
+guide.business.company,ข้อมูลบริษัท
+guide.fact.company.none,ยังไม่ได้เลือกบริษัท
+guide.open.company,เลือกการดำเนินการ
+guide.option.company.note_add,เพิ่มบันทึก
+guide.option.company.note_delete,ลบบันทึก
+guide.option.company.note_edit,แก้ไขบันทึก
+guide.option.company.rule_delete,ลบกฎ
+guide.option.company.rule_promote,ตั้งเป็นทั้งบริษัท
+guide.step.company.action,การดำเนินการ
+guide.step.company.note,รายการ
+guide.step.company.text,ข้อความ
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

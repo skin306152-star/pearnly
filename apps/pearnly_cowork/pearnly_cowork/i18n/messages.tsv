@@ -2491,3 +2491,14 @@ Quantity counted this time	本次实盘数量	จำนวนที่นับ�
 Method	方式	วิธี	方法	guide.step.stocktake.mode
 Close the stock count?	要结束盘点吗？	ปิดการตรวจนับหรือไม่	棚卸を終了しますか？	guide.consent.stocktake.close
 Delete the stock counts?	要删除盘点吗？	ลบการตรวจนับหรือไม่	棚卸を削除しますか？	guide.consent.stocktake.delete
+Company Details	公司资料	ข้อมูลบริษัท	会社情報	guide.business.company
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.company
+Action	操作	การดำเนินการ	操作	guide.step.company.action
+Item	对象	รายการ	対象	guide.step.company.note
+Text	内容	ข้อความ	内容	guide.step.company.text
+Add note	添加笔记	เพิ่มบันทึก	メモを追加	guide.option.company.note_add
+Edit note	编辑笔记	แก้ไขบันทึก	メモを編集	guide.option.company.note_edit
+Delete note	删除笔记	ลบบันทึก	メモを削除	guide.option.company.note_delete
+Set for whole company	设为全公司	ตั้งเป็นทั้งบริษัท	会社全体に設定	guide.option.company.rule_promote
+Delete rule	删除规则	ลบกฎ	ルールを削除	guide.option.company.rule_delete
+No company selected	未选公司	ยังไม่ได้เลือกบริษัท	会社が未選択です	guide.fact.company.none

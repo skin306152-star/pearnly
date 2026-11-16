@@ -97,6 +97,7 @@ Add an item,Add an item
 Add another list,Add another list
 Add label,Add label
 Add member,Add member
+Add note,Add note
 Add photo,Add photo
 Add photos,Add photos
 Add this file to this document?,Add this file to this document?
@@ -415,6 +416,7 @@ Comments and activity,Comments and activity
 Commission,Commission
 Company,Company
 Company Branch,Company Branch
+Company Details,Company Details
 Company Name,Company Name
 Company choices are full,Company choices are full
 Company not found,Company not found
@@ -597,6 +599,8 @@ Default Sell Unit,Default Sell Unit
 Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
+Delete note,Delete note
+Delete rule,Delete rule
 Delete selected ({0}),Delete selected ({0})
 Delete the stock counts?,Delete the stock counts?
 Delete these documents?,Delete these documents?
@@ -717,6 +721,7 @@ Edit dates,Edit dates
 Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
+Edit note,Edit note
 Edited a document,Edited a document
 Editing a document,Editing a document
 Electronic,Electronic
@@ -1145,6 +1150,7 @@ No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No cash account is set in Express,No cash account is set in Express
 No changes were given.,No changes were given.
+No company selected,No company selected
 No computer can reach the account set for the document date.,No computer can reach the account set for the document date.
 No computer can write,No computer can write
 No computer with CC Desktop can write to this account set,No computer with CC Desktop can write to this account set
@@ -1652,6 +1658,7 @@ Set as the account set in use?,Set as the account set in use?
 Set by {0} on {1},Set by {0} on {1}
 Set document handling,Set document handling
 Set due date,Set due date
+Set for whole company,Set for whole company
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
 Set the POS export columns,Set the POS export columns
@@ -3511,6 +3518,17 @@ guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
 guide.open.stocktake,Choose an action.
+guide.business.company,Company Details
+guide.fact.company.none,No company selected
+guide.open.company,Choose an action.
+guide.option.company.note_add,Add note
+guide.option.company.note_delete,Delete note
+guide.option.company.note_edit,Edit note
+guide.option.company.rule_delete,Delete rule
+guide.option.company.rule_promote,Set for whole company
+guide.step.company.action,Action
+guide.step.company.note,Item
+guide.step.company.text,Text
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
