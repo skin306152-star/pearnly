@@ -124,7 +124,8 @@ def _party(code_field: str, name_field: str):
         code, name = _code(get(rec, columns, code_field)), text(get(rec, columns, name_field))
         if not code and not name:
             return None
-        return {"code": code, "name": name, "tax_id": text(get(rec, columns, "TAXID")),
+        # prename：Express 的 PRENAM（称谓 / 法人前缀，name 是不带它的核心名）；服务端拼成显示名（1.12.22 起，旧服务端不看）
+        return {"code": code, "name": name, "prename": text(get(rec, columns, "PRENAM")), "tax_id": text(get(rec, columns, "TAXID")),
                 "branch": express_read._branch(rec, columns), "address": _address(rec, columns),
                 "phone": text(get(rec, columns, "TELNUM")), "payterm": whole(get(rec, columns, "PAYTRM"))}
 

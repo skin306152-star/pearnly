@@ -37,7 +37,7 @@ from pearnly_core.mrerp import kick_mark as account_kick
 from pearnly_core.mrerp.session import MrErpSession, SessionError
 from pearnly_core.mrerp.master_reader import MasterReader
 from pearnly_core.mrerp.push import readback, routing
-from pearnly_core.mrerp.push.defaults import AccountDefaults, Missing, tag_default_changed
+from pearnly_core.mrerp.push.defaults import CASH_SUPPLIER_NOT_CREATED, AccountDefaults, Missing, tag_default_changed
 from pearnly_core.mrerp.push.account_valve import ACCOUNT_REVIEW_CODE, account_gate, tag_account_review
 from pearnly_core.mrerp.push.models import (
     FailedRow,
@@ -53,6 +53,8 @@ from pearnly_core.mrerp.push.preview_parse import TAGSTRIP_RE, parse_preview_for
 from pearnly_core.mrerp.push.report_parse import parse_master_report
 from pearnly_core.mrerp.push.report_parser import parse_import_report
 from pearnly_core.mrerp.push.xlsx import generator as _gen
+from pearnly_core.mrerp.push.xlsx.fmt import printed_invoice_no
+from pearnly_core.mrerp.masters import UNREADABLE as MASTER_UNREADABLE
 from pearnly_core.mrerp import menus as mrerp_menus
 
 logger = logging.getLogger(__name__)
@@ -244,6 +246,22 @@ class MrErpImport:
         selmenu = menu["idmenu"]
         self._menu_label = str(menu.get("label") or "")
 
+        # 税务发票号（第 11 列）：票面没有的同 MR.ERP 网页默认 = 菜单前缀 + 单号，前缀读这个菜单的新单表单（`fmt.mrerp_bill_no`）。
+        # 当前这一组用；会改写会话里的当前菜单，后面自建主档与上传前都会重开导入页。
+        mappings.pop("_mrerp_menu_prefix", None)
+        if any(not printed_invoice_no(h) for h in histories):
+            prefix = self.account_defaults.reader.menu_prefix(m.listing_module, selmenu)
+            if prefix is None:
+                return [], unsettled_failed + [self._fail_row(h, [MASTER_UNREADABLE]) for h in histories], None
+            mappings["_mrerp_menu_prefix"] = prefix
+
+        # 现购（采购已付）：第 9 列记账用的现金供应商，定不下来的现购票停下（同一批的赊购照写）。
+        if m.sheet_kind == "purchase":
+            histories, cash_failed = self._cash_supplier(histories, mappings)
+            unsettled_failed = unsettled_failed + cash_failed
+            if not histories:
+                return [], unsettled_failed, None
+
         # 缺对手方主数据则自建并注入码(须在 preflight 前)· 销项建买方客户 / 采购建卖方供应商。
         if m.doc_type.startswith("sales"):
             from pearnly_core.mrerp.push.autocreate import provision_customers
@@ -271,6 +289,28 @@ class MrErpImport:
                                                                  for h in valid], None
 
         return valid, unsettled_failed + preflight_failed, selmenu
+
+    def _cash_supplier(self, histories: List[Dict[str, Any]], mappings: Dict[str, Any]
+                       ) -> Tuple[List[Dict[str, Any]], List[FailedRow]]:
+        """这组里有现购票 → 定记账用的现金供应商放进 ``mappings['_mrerp_cash_supplier']``（`defaults.cash_supplier`，要自建就
+        在这里建）；定不下来 → 现购票停下、给原因码。没有现购票什么都不做。"""
+        from pearnly_core.mrerp.push.xlsx.purchase import is_cash_purchase
+
+        cash = [h for h in histories if is_cash_purchase(h)]
+        if not cash or mappings.get("_mrerp_cash_supplier"):
+            return histories, []
+        try:
+            code, account = self.account_defaults.cash_supplier()
+        except Missing as missing:
+            reason = missing.reason
+        else:
+            if account is None or self.create_suppliers(
+                    [{"code": code, "name": code, "tax_id": "", "account": account}], mappings).get(code):
+                mappings["_mrerp_cash_supplier"] = code
+                return histories, []
+            reason = self.default_reason or CASH_SUPPLIER_NOT_CREATED
+            self.default_reason = None  # 只挡现购票；同批赊购的自建另算
+        return ([h for h in histories if not is_cash_purchase(h)], [self._fail_row(h, [reason]) for h in cash])
 
     def _fail_row(self, h: Dict[str, Any], reasons: List[str]) -> FailedRow:
         return FailedRow(invoice_no=_gen.derive_mrerp_invoice_no(h), reasons=reasons, original=h)

@@ -250,6 +250,7 @@ CC Desktop Version,เวอร์ชัน CC เดสก์ท็อป
 CC Desktop authentication failed.,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 CC Desktop could not write this invoice. It is retried automatically,CC เดสก์ท็อปไม่สามารถบันทึกเอกสารนี้ได้ ระบบจะลองใหม่อัตโนมัติ
+CC Desktop does not enter MR.ERP cash purchases.,CC เดสก์ท็อปไม่บันทึกการซื้อเงินสดใน MR.ERP
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
 CC Desktop has not finished.,CC เดสก์ท็อปยังดำเนินการไม่เสร็จ
 CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -447,6 +448,7 @@ Correct entry,แก้ไขรายการ
 Corrected Value,ค่าที่แก้ไข
 Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
+Could not create the cash supplier in MR.ERP.,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 Could not finish,ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read the MR.ERP menus. Try again later.,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง
@@ -1966,6 +1968,7 @@ The uploaded file was not received. It will be sent again.,ไม่ได้ร
 The uploaded file was not received. Please upload again.,ไม่ได้รับไฟล์ที่อัปโหลด กรุณาอัปโหลดใหม่
 The verified ERP export details are invalid.,ข้อมูล ERP ที่ยืนยันแล้วสำหรับการส่งออกไม่ถูกต้อง
 The worksheet row or column information is invalid.,ข้อมูลแถวหรือคอลัมน์ของเวิร์กชีตไม่ถูกต้อง
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร
 Then,ให้ทำ
 There is not enough balance to read the scanned or photographed document. Top up and try again.,ยอดคงเหลือไม่เพียงพอสำหรับการอ่านเอกสารสแกนหรือรูปถ่าย กรุณาเติมเงินแล้วลองใหม่
 There is not enough balance to recognize the image and PDF invoices. Top up and try again.,ยอดคงเหลือไม่เพียงพอสำหรับอ่านใบกำกับภาษีที่เป็นรูปภาพและ PDF กรุณาเติมเงินแล้วลองใหม่
@@ -3467,6 +3470,8 @@ intake.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยา�
 intake.error.ERR_LOCATION,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
 intake.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
 intake.error.ERR_MRERP_AMOUNT_MISMATCH,บันทึกใน MR.ERP แล้ว แต่ยอดเงินที่ MR.ERP บันทึกไม่ตรงกับเอกสาร
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร
+intake.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 intake.error.ERR_MRERP_DEFAULT_CHANGED,ค่าที่เลือกไม่มีใน MR.ERP แล้ว กรุณาเลือกใหม่
 intake.error.ERR_MRERP_DEFAULT_CHOICE_REQUIRED,กรุณาเลือกค่าเริ่มต้นของ MR.ERP สำหรับชุดบัญชีนี้ก่อนส่ง
 intake.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
@@ -3477,6 +3482,7 @@ intake.error.ERR_MRERP_MENU_CHOICE_REQUIRED,MR.ERP มีเมนูนำเ�
 intake.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 intake.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 intake.error.ERR_MRERP_MODULE_UNAVAILABLE,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
+intake.error.ERR_MRERP_OPERATOR_CASH_PURCHASE,CC เดสก์ท็อปไม่บันทึกการซื้อเงินสดใน MR.ERP
 intake.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 intake.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 intake.error.ERR_NEGATIVE_AMOUNT,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่

@@ -34,6 +34,7 @@ from pearnly_core.cc_desktop.wire.ack_rules import error_code
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+from pearnly_core.cc_desktop import request_wake
 from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, request_contracts, route_contracts
 from pearnly_core.express_operator import contracts as operator_target
 from . import credentials, delivery_store, devices, mrerp_jobs, queue_heads, receipt_auth, request_service
@@ -364,7 +365,9 @@ def lease(context, body):
         # 电脑行在加锁顺序的最后：这次报的「主档索引还没重建的账套」
         devices.note_index_pending(device if device != credential.credential_id else None,
                                    request.get('index_pending'))
-        return _value(queue_contracts.lease_response, jobs, requested_refresh)
+        # 刚建了这条连接上的按需请求（`request_wake`）：带 requests_waiting，电脑马上去领
+        return _value(queue_contracts.lease_response, jobs, requested_refresh,
+                      request_wake.take("cw:" + credential.connection))
 
 
 def acknowledge(context, body):

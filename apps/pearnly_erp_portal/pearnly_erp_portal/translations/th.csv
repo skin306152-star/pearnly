@@ -161,6 +161,7 @@ Balance,คงเหลือ
 Balance Value,มูลค่าคงเหลือ
 Bank,ธนาคาร
 Bank Transfer,โอนเงินผ่านธนาคาร
+Bank account,บัญชีเงินฝากธนาคาร
 Barcode,บาร์โค้ด
 Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
@@ -243,6 +244,7 @@ Cash Difference,ผลต่างเงินสด
 Cash account not set,ยังไม่ได้กำหนดบัญชีเงินสด
 Cash basis,เกณฑ์เงินสด
 Cash is not set up for this account set,ชุดบัญชีนี้ยังไม่ได้ตั้งบัญชีเงินสด
+Cash sales,ขายเงินสด
 Cashier,เก็บเงิน
 Cashier (POS),ขายหน้าร้าน (POS)
 Cashier Records,บันทึกการรับเงิน
@@ -378,6 +380,7 @@ Cost Is Set,ตั้งต้นทุนแล้ว
 Cost Known,ทราบต้นทุนแล้ว
 Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
+Could not create the cash supplier in MR.ERP.,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง
 Could not record this collection,บันทึกการรับชำระนี้ไม่ได้
@@ -430,6 +433,7 @@ Creation,วันที่สร้าง
 Credit,เงินเชื่อ
 Credit Note,ใบลดหนี้
 Credit notes need a person to post them in MR.ERP,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
+Credit sales,ขายเชื่อ
 Currency,สกุลเงิน
 Current,ปัจจุบัน
 Custom,กำหนดเอง
@@ -444,6 +448,7 @@ Customer is disabled,ลูกค้าถูกปิดใช้งาน
 Customer is required,กรุณาระบุลูกค้า
 Customer not found,ไม่พบลูกค้า
 Customer not found. Please select the customer again.,ไม่พบลูกค้า กรุณาเลือกใหม่
+Customer type,ประเภทลูกค้า
 Customers,ลูกค้า
 Cyan,ฟ้า
 Daily,ทุกวัน
@@ -475,6 +480,7 @@ Delete this list and all its cards permanently? This cannot be undone.,ต้อ
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted {0},ลบแล้ว {0}
 Deleted {0} stock counts,ลบการตรวจนับแล้ว {0} รายการ
+Delivery type,ประเภทขนส่ง
 Department,แผนก
 Description,คำอธิบาย
 Details,รายละเอียด
@@ -557,6 +563,7 @@ Email,อีเมล
 Email Receipt,ส่งใบเสร็จทางอีเมล
 Email not sent to {0} (unsubscribed / disabled),ไม่ได้ส่งอีเมลถึง {0} (ยกเลิกการรับข่าวสาร / ปิดใช้งาน)
 Email sent successfully.,ส่งอีเมลแล้ว
+Employee,พนักงาน
 Enable,เปิดใช้งาน
 Enable / disable,เปิด / ปิดใช้งาน
 Enable POS cashier,เปิดใช้เครื่องขาย POS
@@ -610,6 +617,7 @@ Expense,ค่าใช้จ่าย
 Expense Account,บัญชีค่าใช้จ่าย
 Expense Amount,ยอดค่าใช้จ่าย
 Expense Count,จำนวนรายการค่าใช้จ่าย
+Expense account,บัญชีค่าใช้จ่าย
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export {0},ส่งออก {0} กะ
@@ -773,6 +781,7 @@ Items are required,กรุณาระบุรายการสินค้�
 Items found at a different place,สินค้าที่พบคนละตำแหน่ง
 Items not found.,ไม่พบสินค้า
 "Items with a difference, largest first",สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
+Job,งาน
 Job Roles,สิทธิ์การใช้งาน
 Keep,คงไว้
 "Keep product IDs, codes and barcodes as text in the opening stock file",รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ
@@ -838,12 +847,16 @@ Low stock alert,แจ้งเตือนสต็อกต่ำ
 Loyalty Points,คะแนนสะสม
 Loyalty Program,โปรแกรมสะสมคะแนน
 MR.ERP,MR.ERP
+MR.ERP Company,บริษัท MR.ERP
+MR.ERP No.,เลขที่ MR.ERP
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
+MR.ERP import menu,เมนูนำเข้า MR.ERP
 MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
 MR.ERP returned an error. Check in MR.ERP,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
+MR.ERP settings,การตั้งค่า MR.ERP
 MR.ERP sign-in is not authorized,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
 Main,คลังหลัก
 Maintained in Express,จัดการใน Express
@@ -1054,6 +1067,7 @@ Party,คู่ค้า
 Password updated,อัปเดตรหัสผ่านแล้ว
 Paste a link,วางลิงก์
 Pay,รับชำระ
+Payable account,บัญชีเจ้าหนี้
 Payment,การชำระเงิน
 Payment Date,วันที่ชำระเงิน
 Payment Evidence,หลักฐานการชำระเงิน
@@ -1128,6 +1142,7 @@ Product Ref,รหัสอ้างอิงสินค้า
 Product Rows  {0},รายละเอียดรวมสินค้า  {0}  รายการ
 Product Total,รวมสินค้า
 Product code,รหัสสินค้า
+Product group,กลุ่มสินค้า
 Product group not found in Express,ไม่พบกลุ่มสินค้านี้ใน Express
 Product is disabled,สินค้าถูกปิดใช้งาน
 Product name,ชื่อสินค้า
@@ -1142,6 +1157,8 @@ PromptPay QR,สแกน (PromptPay)
 Provide at least one line item,ต้องมีรายการอย่างน้อยหนึ่งรายการ
 Provide between 1 and 5000 opening stock rows,กรุณาระบุรายการยกมา 1 ถึง 5000 รายการ
 Purchase,การซื้อ
+Purchase (expense),ซื้อ (ค่าใช้จ่าย)
+Purchase (goods),ซื้อ (สินค้า)
 Purchase Amount,จำนวนเงินซื้อ
 Purchase Count,จำนวนรายการซื้อ
 Purchase Invoice,ใบแจ้งหนี้ซื้อ
@@ -1189,6 +1206,7 @@ Receipt Value,มูลค่ารับ
 Receipt {0} · Change {1},ใบเสร็จ {0} · เงินทอน {1}
 Receipts,จำนวนใบเสร็จ
 Receipts and simplified tax invoices are usually not claimed,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ
+Receivable account,บัญชีลูกหนี้
 Receive documents and add stock,รับเอกสารและรับสินค้าเข้าสต็อก
 Received,รับเข้า
 Received Amount,จำนวนเงินที่ได้รับ
@@ -1286,6 +1304,7 @@ Sales,ขาย
 Sales Count,จำนวนรายการขาย
 Sales Document,เอกสารขาย
 Sales Records,บันทึกการขาย
+Sales area,พื้นที่การขาย
 Sales returns account,บัญชีรับคืนสินค้า
 Salesman,พนักงานขาย
 Save,บันทึก
@@ -1459,6 +1478,7 @@ Supplier is disabled,ผู้จำหน่ายถูกปิดใช้�
 Supplier is required,กรุณาระบุผู้จำหน่าย
 Supplier not found,ไม่พบผู้จำหน่าย
 Supplier not found. Please select the supplier again.,ไม่พบผู้จำหน่าย กรุณาเลือกใหม่
+Supplier type,ประเภทผู้จำหน่าย
 Suppliers,ผู้จำหน่าย
 Switch Between Payment Modes,สลับวิธีชำระเงิน
 Switch company,สลับบริษัท
@@ -1467,6 +1487,7 @@ Sync Express,ซิงค์ Express
 Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
 Synced from Express,ซิงค์จาก Express
+Synced from MR.ERP,ซิงค์จาก MR.ERP
 Syncing,กำลังซิงค์
 System number,เลขที่เอกสาร
 Table,ตาราง
@@ -1596,6 +1617,7 @@ The value is not a number,ค่านี้ไม่ใช่ตัวเลข
 The value must be zero or more,ค่านี้ต้องไม่ติดลบ
 The warehouse differs from the warehouse of this document,คลังไม่ตรงกับคลังของเอกสารนี้
 The warehouse has no matching Express warehouse,คลังนี้ไม่มีคลังที่ตรงกันใน Express
+The เงินสด supplier in MR.ERP is not on a cash or bank account.,ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร
 Then,ให้ทำ
 There are no lines,ไม่มีรายการ
 There is nothing to save,ไม่มีข้อมูลที่จะบันทึก
@@ -1630,6 +1652,7 @@ This collection cannot be withdrawn,ถอนรายการรับชำ�
 This collection method is not available,วิธีรับชำระนี้ใช้ไม่ได้
 This company does not use Express,บริษัทนี้ไม่ได้ใช้ Express
 This company has no connected Express account set,บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ
+This company has no connected MR.ERP account set,บริษัทนี้ไม่มีชุดบัญชี MR.ERP ที่เชื่อมต่อ
 "This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
@@ -2495,6 +2518,22 @@ hq,สำนักงานใหญ่
 issued,ออกเอกสารแล้ว
 keyword,ค้นหาการ์ด
 member,สมาชิก
+mrerp.default.ap_account,บัญชีเจ้าหนี้
+mrerp.default.ar_account,บัญชีลูกหนี้
+mrerp.default.area,พื้นที่การขาย
+mrerp.default.bank_account,บัญชีเงินฝากธนาคาร
+mrerp.default.branch,สาขา
+mrerp.default.customer_type,ประเภทลูกค้า
+mrerp.default.delivery,ประเภทขนส่ง
+mrerp.default.dept,แผนก
+mrerp.default.employee,พนักงาน
+mrerp.default.expense_account,บัญชีค่าใช้จ่าย
+mrerp.default.job,งาน
+mrerp.default.product_group,กลุ่มสินค้า
+mrerp.default.store,ตำแหน่ง
+mrerp.default.supplier_type,ประเภทผู้จำหน่าย
+mrerp.default.title,การตั้งค่า MR.ERP
+mrerp.default.unit,หน่วยนับ
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
 mrerp.error.ERR_AUTH,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
@@ -2504,6 +2543,8 @@ mrerp.error.ERR_DATE_FUTURE,วันที่เอกสารเป็นว�
 mrerp.error.ERR_DIRECTION_UNKNOWN,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 mrerp.error.ERR_INVOICE_NO_TOO_LONG,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,บัญชีเข้าสู่ระบบที่อื่นอยู่
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,ผู้จำหน่าย เงินสด ใน MR.ERP ไม่ได้ผูกกับบัญชีเงินสดหรือธนาคาร
+mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
 mrerp.error.ERR_MRERP_IMPORT_ERROR,การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
@@ -2528,6 +2569,11 @@ mrerp.error.date_future,วันที่เอกสารเป็นวั�
 mrerp.error.date_implausible,วันที่เอกสารอาจไม่ถูกต้อง กรุณาตรวจสอบแล้วส่งใหม่
 mrerp.error.mrerp_credit_note,ใบลดหนี้ต้องบันทึกใน MR.ERP ด้วยตนเอง
 mrerp.error.mrerp_currency_not_thb,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
+mrerp.menu.purchase,ซื้อ (สินค้า)
+mrerp.menu.purchase_expense,ซื้อ (ค่าใช้จ่าย)
+mrerp.menu.sales_cash,ขายเงินสด
+mrerp.menu.sales_credit,ขายเชื่อ
+mrerp.menu.title,เมนูนำเข้า MR.ERP
 mrerp.reason.accountBusy,บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่
 mrerp.reason.importing,กำลังนำเข้า MR.ERP
 mrerp.reason.loginMissing,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
@@ -2628,6 +2674,7 @@ product.notice.toggledCount,อัปเดต {0} รายการแล้�
 product.origin.express,ซิงค์จาก Express
 product.origin.import,นำเข้า
 product.origin.manual,สร้างเอง
+product.origin.mrerp,ซิงค์จาก MR.ERP
 product.origin.purchase,สร้างจากการซื้อ
 product.origin.sales,สร้างจากการขาย
 product.origin.stocktake,สร้างระหว่างตรวจนับ

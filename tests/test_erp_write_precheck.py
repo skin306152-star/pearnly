@@ -342,16 +342,23 @@ class MrErp(Precheck):
         docs = fake.STATE.db.table(self.push.PURCHASE)
         docs["PI-1"] = {"name": "PI-1", "company": "CO-1", "owner": "staff@x", "system_no": "PE-1", "supplier_name": "S",
                         "ledger_state": E.HELD, "ledger_reason": self.precheck.mrerp_contracts.CHOICE, "ledger_job": None}
-        self.chosen, self.sent, self.viewed = [], [], []
+        self.chosen, self.sent, self.viewed, self.remembered = [], [], [], []
+        # 这张单写进哪本（`mrerp.push.picked` → 公司接入 `catalog.pick`，规则在那边测）：默认是公司上那一本
+        self.picked = {"book": {"key": "12:3", "connection": "MR1"}, "reason": "", "options": [], "subject": ""}
         for patch in (
+                mock.patch.object(self.precheck.mrerp_push, "picked", lambda doctype, name: self.picked),
+                mock.patch.object(self.precheck.choices, "remember",
+                                  lambda company, kind, subject, value, label="":
+                                  self.remembered.append((company, kind, subject, value))),
                 mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True),
                 mock.patch.object(self.precheck.guard, "scope_filters", lambda user=None: {}),
                 mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]),
                 mock.patch.object(self.push, "operator_owned", lambda doctype, name: False),
                 mock.patch.object(self.precheck.mrerp_choices, "views",
-                                  lambda row: self.viewed.append(row.mrerp_account_set) or mrerp_views()),
+                                  lambda row, book=None: self.viewed.append((book or {}).get("key")) or mrerp_views()),
                 mock.patch.object(self.precheck.mrerp_choices, "choose",
-                                  lambda company, kind, subject, value: self.chosen.append((company, kind, subject, value))
+                                  lambda company, kind, subject, value, book=None:
+                                  self.chosen.append((company, kind, subject, value, (book or {}).get("key")))
                                   or {"picked": value}),
                 mock.patch.object(self.precheck.mrerp_push, "send",
                                   lambda doctype, name: self.sent.append(name) or {"status": "sent"})):
@@ -381,15 +388,30 @@ class MrErp(Precheck):
         answers = [{"kind": "mrerp_menu", "subject": "purchase", "value": "454", "label": "ซื้อ2", "remember": True},
                    {"kind": "mrerp_default", "subject": "supplier_type", "value": "sup002", "label": "B", "remember": True}]
         self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": answers}), {"saved": 2})
-        self.assertEqual(self.chosen, [("CO-1", "mrerp_menu", "purchase", "454"),
-                                       ("CO-1", "mrerp_default", "supplier_type", "sup002")])
+        self.assertEqual(self.chosen, [("CO-1", "mrerp_menu", "purchase", "454", "12:3"),
+                                       ("CO-1", "mrerp_default", "supplier_type", "sup002", "12:3")])
         # 停在要选导入菜单的单：记下后排一次导入（同单据上「选一次」）；别的原因停下的不动
         fake.STATE.db.table(self.push.PURCHASE)["PI-2"] = {
             "name": "PI-2", "company": "CO-1", "owner": "staff@x", "ledger_state": E.HELD,
-            "ledger_reason": self.precheck.mrerp_contracts.PURCHASE_CASH, "ledger_job": None}
+            "ledger_reason": self.precheck.mrerp_contracts.NOT_CONFIGURED, "ledger_job": None}
         self.assertEqual(self.precheck.resume("CO-1", ["P:PI-1", "P:PI-2"]),
                          [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
         self.assertEqual(self.sent, ["PI-1"])
+
+    def test_two_account_sets_for_the_date_ask_which_one_first_and_no_set_is_not_writable(self):
+        """一家公司挂多本年度账套：同期两本没选过，卡片只问选哪本（同 Express 那项、记在同一个记忆）；没有覆盖单据日期的写不了。"""
+        self.switch(True)
+        self.picked = {"book": None, "reason": E.SEVERAL_BOOKS, "subject": "year:2026-01-01",
+                       "options": [{"code": "12:3", "name": "TEST2026"}, {"code": "13:3", "name": "TEST2026 copy"}]}
+        found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]
+        self.assertEqual([(item["kind"], item["subject"], [o["code"] for o in item["options"]]) for item in found["items"]],
+                         [("account_set", "year:2026-01-01", ["12:3", "13:3"])])
+        self.assertEqual(self.precheck.remember("CO-1", {"P:PI-1": [{"kind": "account_set", "subject": "year:2026-01-01",
+                                                                     "value": "13:3", "remember": True}]}), {"saved": 1})
+        self.assertEqual((self.remembered, self.chosen), ([("CO-1", "account_set", "year:2026-01-01", "13:3")], []))
+        self.picked = {"book": None, "reason": E.NO_BOOK, "options": [], "subject": ""}
+        found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]
+        self.assertEqual((found["state"], found["reason"]), (card.NOT_WRITABLE, self.precheck.NO_ACCOUNT_SET))
 
     def test_the_switch_off_asks_nothing_about_mrerp(self):
         self.switch(False)

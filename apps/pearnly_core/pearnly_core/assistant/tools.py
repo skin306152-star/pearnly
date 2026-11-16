@@ -61,6 +61,36 @@ def file_conversation(tool_input) -> str:
     return json.dumps(sessions.file_chosen(session, tool_input.get("company")), ensure_ascii=False)
 
 
+# 改不了这次代录月份的原因（只给模型）
+MONTH_NOT_OPERATOR = "not_an_operator_conversation"
+MONTH_STARTED = "task_started"
+MONTH_NOT_AN_OPTION = "not_an_option"
+MONTH_NOT_CHOSEN = "not_chosen_by_user"
+
+
+def operator_month(tool_input) -> str:
+    """CC 把这次代录改到用户刚在提问卡上选的月份（A 线 11-15）：只在代录对话、任务还在准备中；月份要是服务端数出来还有单在等的
+    那几个（`products.elsewhere`），且是用户在本对话最近一张提问卡上选的。改法同对话上方的月份（`sessions.move`：任务跟着改）。"""
+    from pearnly_core.assistant import ask, sessions, toolrun
+    from pearnly_core.express_operator import products, tasks
+
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    row = frappe.db.get_value(sessions.SESSION, {"session_id": session, "user": frappe.session.user},
+                              ["operator_task", "project", "project_scope"], as_dict=True) if session else None
+    if not row or not row.get("operator_task"):
+        return json.dumps({"status": "refused", "reason": MONTH_NOT_OPERATOR})
+    task = tasks.read(row.get("operator_task"))
+    if task.get("status") != "preparing":
+        return json.dumps({"status": "refused", "reason": MONTH_STARTED})
+    month = str((tool_input or {}).get("month") or "").strip()[:7]
+    if month not in {item["month"] for item in products.elsewhere(task["company"], task.get("period"))}:
+        return json.dumps({"status": "refused", "reason": MONTH_NOT_AN_OPTION})
+    if not ask.names_one_of(toolrun.last_answers(session), (month,)):
+        return json.dumps({"status": "refused", "reason": MONTH_NOT_CHOSEN})
+    moved = sessions.move(session, row.get("project") or "", period=month, scope=row.get("project_scope") or "")
+    return json.dumps({"status": "set", "month": moved["period"]})
+
+
 CORE_TOOLS = [
     {"name": "pearnly_whoami",
      "label": "Checked your account",
@@ -174,6 +204,17 @@ CORE_TOOLS = [
          "company": {"type": "string", "description": "The id of the company the user chose."}},
          "required": ["company"]},
      "handler": "pearnly_core.assistant.tools.file_conversation"},
+    {"name": "pearnly_operator_month",
+     "label": "Changed the month",
+     "modes": ["operator"],
+     "description": "Switch this operator task to another month, only after the write plan came back with other_months "
+                    "and the user picked one of those months on the latest ask_user card. Call it with month = that "
+                    "month (YYYY-MM). Refused reasons: task_started (the task was already handed in, so its month cannot "
+                    "change: tell the user), not_an_option (not one of other_months), not_chosen_by_user (ask again; "
+                    "never choose for the user). After status set, make the write plan again.",
+     "input_schema": {"type": "object", "properties": {
+         "month": {"type": "string", "description": "The month the user picked, YYYY-MM."}}, "required": ["month"]},
+     "handler": "pearnly_core.assistant.tools.operator_month"},
     {"name": "pearnly_conversation_ledger",
      "label": "Set the conversation's account set",
      "description": "Set the account set this conversation writes to, when it is not decided yet (the company note says "
@@ -239,6 +280,7 @@ CORE_STEP_NAMES = {
     "ask_user": "Waiting for answers",
     "pearnly_file_conversation": "Filing the conversation under a company",
     "pearnly_conversation_ledger": "Setting the conversation's account set",
+    "pearnly_operator_month": "Changing the month",
     "pearnly_write_plan": "Making a write plan",
     "pearnly_write_start": "Starting to write",
 }

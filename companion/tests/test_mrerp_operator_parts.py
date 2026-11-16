@@ -92,6 +92,44 @@ def test_a_payload_becomes_a_draft_with_page_style_totals_and_no_password():
     assert "password" not in json.dumps(block()).lower()
 
 
+def test_a_cash_purchase_names_the_posting_and_the_invoice_supplier():
+    """现购（11-14）：记账用 = 现金供应商（txtapmas），开票用 = 真实卖家（txtapmas_inv，进项税挂它），勾「เงินสด」；
+    没给这两项的老载荷按配方默认（赊购不勾、开票用不填，页面带成同一家）。"""
+    cash = D.from_payload("x", block(party_code="CODE_NOAP", invoice_party_code="S001", cash=True))
+    assert (cash.party_code, cash.invoice_party_code, cash.cash) == ("CODE_NOAP", "S001", True)
+    old = D.from_payload("x", block())
+    assert (old.invoice_party_code, old.cash) == ("", None)
+    form = RECIPE.form("purchase")
+    assert "txtapmas_inv" in [field["id"] for field in form.header]
+    engine = E.Engine.__new__(E.Engine)
+    assert engine._value("cash", cash, form) is True and engine._value("cash", old, form) is form.cash
+    assert engine._value("invoice_party_code", cash, form) == "S001"
+
+
+def test_a_cash_sale_paid_by_transfer_is_handed_to_a_person_until_the_receipt_cells_are_probed():
+    """现销转账 / 刷卡收款要进「รับอื่นๆ」（第 4 页收款明细）；配方没这几格时不开新单、不填进现金格（直写 11-14 修过同一错栏）。"""
+    draft = D.from_payload("x", block(doc_type="sales_cash", receipt={"cash": False, "account": "1112-01"}))
+    assert draft.receipt == {"cash": False, "account": "1112-01"}
+    engine = E.Engine.__new__(E.Engine)
+    engine.session = SimpleNamespace(where=("", ""))
+    with pytest.raises(E.Blocked):
+        engine._enter(draft, RECIPE.form("sales_cash"))
+
+
+def test_a_business_choice_box_goes_to_a_person_without_the_ai_like_express():
+    """配方外的业务选择框（两个以上不是确定 / 取消 / 关闭的钮，`express_operator.engine.is_choice`）不交 AI；原生 confirm 不算。"""
+    asked = []
+    engine = E.Engine.__new__(E.Engine)
+    engine.recipe, engine.rec = RECIPE, {"reports": []}
+    engine.helper = SimpleNamespace(judge_text=lambda text, stage: asked.append(text) or "continue")
+    engine.session = SimpleNamespace(page=SimpleNamespace(take_dialogs=lambda: [
+        {"kind": "modal", "text": "เลือกวิธีบันทึก", "buttons": ["บันทึกแยก", "บันทึกรวม", "ยกเลิก"]}]))
+    with pytest.raises(E.Blocked):
+        engine._dialogs("save")
+    assert asked == []
+    assert E._buttons_of({"kind": "confirm", "text": "x"}) == ["OK", "Cancel"]
+
+
 # ── 会话 ──────────────────────────────────────────────────────────────────
 def test_the_local_login_is_one_per_connection_and_named_by_site_and_connection():
     assert S.credential_target("https://mrerp4sme.com", "c9") == "Pearnly CC/MR.ERP/mrerp4sme.com/c9"

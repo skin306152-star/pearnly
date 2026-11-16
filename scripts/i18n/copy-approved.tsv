@@ -227,3 +227,5 @@ pearnly_erp_portal:This company has no connected Express account set	zh	此公�
 pearnly_erp_portal:Received {0} · due {1}	zh	已收 {0} · 未收 {1}	2026-11-15	docs/work/2026-11-15-device-1115-fixes.md 第 5 节（用户 11-15「可以」，主会话转）
 pearnly_erp_portal:Type the company name, tax ID or account set to find it	zh	输入公司名称、税号或账套名查找	2026-11-15	docs/work/2026-11-15-master-search-unify.md 改已有文案一节（用户 11-15「可以」，主会话转）
 pearnly_erp_portal:This account cannot send documents	zh	此账号无权发送单据	2026-11-15	docs/work/2026-11-15-not-permitted-copy.md
+pearnly_erp_portal:mrerp.default.product_group	zh	物料分类	2026-11-14	docs/work/2026-11-14-mrerp-write-grid.md「文案改动」节（既有口径：物料 / 仓位为用户 11-06 定的统一叫法，主会话 11-14 转）
+pearnly_erp_portal:mrerp.default.store	zh	仓位	2026-11-14	docs/work/2026-11-14-mrerp-write-grid.md「文案改动」节（既有口径：物料 / 仓位为用户 11-06 定的统一叫法，主会话 11-14 转）

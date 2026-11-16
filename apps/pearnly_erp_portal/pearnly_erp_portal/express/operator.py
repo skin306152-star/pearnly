@@ -44,12 +44,8 @@ def _month(period: str):
 SOURCES_MAX = 500
 
 
-def sources(company, period, offset, limit) -> dict:
-    """任务选的这家公司这个月的单。按任务给的公司取，不走单据列表的权限条件：那条只认本人「当前公司」，任务选的公司不是当前公司时
-    一张都取不到（10-29 测试机）。同一套判据在这里自己守：公司在本人可见公司里、有开单权，员工只看本人录入的（``guard.scope_filters``）。"""
-    if not _company_ok(frappe.session.user, company):
-        return {"documents": [], "next_offset": None, "total": 0}
-    first, last = _month(period)
+def _ready_rows(company, dates) -> list:
+    """这家公司单据日期落在 ``dates``（Frappe 筛选条件）里、还没交进写账队列的采购 / 销售单（资料区一行的样子）。"""
     scope = guard.scope_filters()
     rows = []
     for prefix, (doctype, capability) in KINDS.items():
@@ -57,7 +53,7 @@ def sources(company, period, offset, limit) -> dict:
             continue
         party = PARTY_FIELD[doctype]
         # 还没交进写账队列的；加上代录交过、停在要人处理的（上一件是代录的、转人工了：代录可以再录，`push.release_operator`）
-        found = frappe.get_all(doctype, filters={"company": company, "doc_date": ["between", [first, last]],
+        found = frappe.get_all(doctype, filters={"company": company, "doc_date": dates,
                                                  "status": push.ready(doctype),
                                                  "ledger_state": ["in", [*contracts.OPEN_STATES, contracts.FAILED]], **scope},
                                fields=["name", "doc_date", "grand_total", "system_no", party, "ledger_reason",
@@ -72,6 +68,31 @@ def sources(company, period, offset, limit) -> dict:
                   "date": str(row.doc_date or ""), "party": row.get(party) or "", "ref": row.system_no or row.name,
                   "total": str(row.grand_total or ""), "stopped": row.ledger_reason or ""} for row in found
                  if not row.ledger_job or _operator_held(row.ledger_job)]
+    return rows
+
+
+def elsewhere(company, period) -> list:
+    """这家公司**这个月以外**还没交进写账队列的单，按单据月份计数 ``[{"month": "YYYY-MM", "count": n}]``（新到旧）。代录计划这个月
+    没有可录的单时交给 CC 说清、再问要不要改这次代录的月份（11-13 测试机1：6 月的单放在 10 月的代录对话里，只回「0 张」不说原因）。
+    与 :func:`sources` 同一套判据（公司可见、开单权、员工只看本人的），月份外的放文件记录已经在资料区里（带 ``other_month``），不再计。"""
+    if not _company_ok(frappe.session.user, company):
+        return []
+    first, last = _month(period)
+    counts = {}
+    for row in [*_ready_rows(company, ["<", first]), *_ready_rows(company, [">", last])]:
+        month = str(row.get("date") or "")[:7]
+        if month:
+            counts[month] = counts.get(month, 0) + 1
+    return [{"month": month, "count": counts[month]} for month in sorted(counts, reverse=True)]
+
+
+def sources(company, period, offset, limit) -> dict:
+    """任务选的这家公司这个月的单。按任务给的公司取，不走单据列表的权限条件：那条只认本人「当前公司」，任务选的公司不是当前公司时
+    一张都取不到（10-29 测试机）。同一套判据在这里自己守：公司在本人可见公司里、有开单权，员工只看本人录入的（``guard.scope_filters``）。"""
+    if not _company_ok(frappe.session.user, company):
+        return {"documents": [], "next_offset": None, "total": 0}
+    first, last = _month(period)
+    rows = _ready_rows(company, ["between", [first, last]])
     rows += _intake_rows(company, first, last)
     rows.sort(key=lambda r: (r["date"], r["doc_id"]))
     page = rows[offset:offset + limit]

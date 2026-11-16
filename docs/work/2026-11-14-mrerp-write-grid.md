@@ -77,8 +77,110 @@
 基线 PG691114-058815 / PN691114-339343 / SI691114-488198 / SE691114-336246 全过；转账收款进现金栏（SE691114-861564）、没税号客户的未收款销售被改成现销（SE691114-614656）修后复验 SE691114-208305、SI691114-395622。
 写后核对核不上：Cowork 转人工、原因与记录带 MR.ERP 单号（真站点 SI691114-416323）；ERP 记 `mismatch` 带单号。
 
+## 现购（分支 pearnly/mrerp-cash-purchase，主会话 11-14 定做法）
+
+MR.ERP 导入采购不看「เงินสด」勾；应付那笔贷方取菜单关联科目，没设取**记账用供应商**（导入第 9 列）档案的科目
+（`aptran/component/aptranpc.php insacglhd`）；进项税记录挂**开票用供应商**（第 10 列，`impaptran/component/importpc.php:909`）。
+所以现购 = 第 9 列放一个科目是现金类的供应商、第 10 列照写真实卖家，纯导入，不要 CC 桌面版。
+
+- 判定：采购票 `payment_is_paid` 为真（入口选现金、ERP 已付都写成 `posting_payment_manual=cash`）。
+- 第 9 列（`mrerp/push/defaults.py cash_supplier`）：依次 MR.ERP 初始库自带的 `CODE_NOAP`、`เงินสด`，科目（`apmas/component/dupdata.php`
+  第 14 列）是参考科目「เงินสด」或这份账套选过的银行科目才用；都没有 → 自建 `เงินสด`、科目 = 参考科目「เงินสด」；`เงินสด` 已有但科目
+  不是现金类 → 只挡现购票（`ERR_MRERP_CASH_SUPPLIER_NOT_CASH`），同批赊购照写，不改别人的档案。
+- 入口：共用契约、Cowork 推送准备、录入弹窗、LINE、定时任务（网页与 CC 前端）、CC 工具说明、ERP 已付采购原来的「只能赊购」都去掉。
+- 代录：现购在 `operator_draft.stage` 转人工（`ERR_MRERP_OPERATOR_CASH_PURCHASE`）——配方没有开票用供应商（txtapmas_inv）一格。
+- 自建「เงินสด」没建成：现购停下 `ERR_MRERP_CASH_SUPPLIER_NOT_CREATED`（导入预检兜底同一原因）。
+- 同一做法前一窗口也提交过一份（`pearnly/mrerp-write-grid-99fa21` 92d6d0bad，未推、全闸门不过：入口仍只给赊账、ERP 无词条）；
+  合并成本分支一份：取它的「建不成」原因码与导入表测试（TEST2019 PG691114-571007：借进项税 105 / 借采购 1,500 / 贷 1111-02 1,605），
+  那条提交不再推。
+
+真写 test01 · TEST2019（实验栈挂本分支源码）：
+
+| 单号 | 入口 | 读回 |
+|---|---|---|
+| PG691114-123835 | Cowork 直写，现购货品 749.00 | 记账用 CODE_NOAP、开票用真实卖家；日记账 借 5110-01 700 / 借 1161-11 49 / 贷 1111-02 749 |
+| PN691114-563544 | Cowork 直写，现购费用 321.00 | 同两列；นอกระบบ；借 5390-09 / 贷 1111-02 |
+| PG691114-575570 | ERP 直写，已付采购 321.00 | 账本栏 written；借 5110-01 300 / 借 1161-11 21 / 贷 1111-02 321 |
+| PG691114-394983 | 定时任务推送（`folder_intake.push.push_one`），现购 428.00 | 借 5110-01 400 / 借 1161-11 28 / 贷 1111-02 428 |
+| （无） | 实验进程把候选换成挂 2120-03 的真实供应商 | 推送记录 manual `ERR_MRERP_CASH_SUPPLIER_NOT_CASH`，MR.ERP 无单 |
+
+与 Express HP 对照：同样借采购、借进项税、贷现金，进项税挂卖家；差别是 MR.ERP 单据列表与应付按记账用供应商显示「ยังไม่ระบุผู้จำหน่าย」。
+
+共用件连带（`scripts/check-impact.py`：mrerp-rules、express-rules、erp-transactions）：express-rules 只删了 MR.ERP 现购那一条拒绝，
+Express 分支没动（`test_cowork_push_contract` 覆盖）；erp-transactions 只删了 `transactions.js` 原因表里 `mrerp.purchase_cash` 一项，
+单据页其余逻辑没动——各入口没逐个实测，由本地全闸门与候选离线覆盖，开关打开前的 testerp 验收（清单 B 段）再点 ERP 采购 / 销售页。
+
+## 公司接入接缝
+
+ERP 单据写进 MR.ERP（含写入核不上）后调一次 `pearnly_erp_portal.mrerp.masters.after_write(company)`（公司接入第 3 批窗口提供：去重、
+排进主档队列整读一次）；导入失败不调；它出错只记日志、写账结论不变；那边没合入前 import 不到就跳过（`mrerp/push.py _after_write`）。
+
+## ERP 单据页账本弹窗认 MR.ERP（验收清单 B13，主会话定「乙」）
+
+同一个弹窗按账本来源取文案与调用（`express/api.py doc_ledger`：单据记的账本，没记过看公司 `mrerp.push.handles`；公司接入第 3 批
+加来源字段后只改这一处）。MR.ERP 的单：标题与单号栏写 MR.ERP；停在要选导入菜单 / 默认值的出选项（`mrerp.push.answer`）；
+失败或停下（非结果不明）的「再写一次」走 `mrerp.push.send(manual=True)`（同 CC 推送，清被踢标记）。Express 的单行为不变
+（`test_erp_express_direct` 195 条照过，另加 3 条）。四语新词条沿用 Cowork 现成的 MR.ERP 菜单 / 设置文案。
+真验：SD-00039 先因被踢标记失败，弹窗 `can_retry`；点再写一次 → 写成 SI691114-190493（列表 107.00），弹窗显示 MR.ERP 单号、不再给重推。
+
+## 单号与税务发票号、税率按 MR.ERP 的规则（用户：不要写死）
+
+MR.ERP 源码：导入第 1 列 = 单号序号（MR.ERP 拼菜单前缀，同菜单与税库不重号）；第 11 列「เลขที่บิล」= 税务发票号（单据 vatnum、
+销项 / 进项税记录 svatno / pvatno，税报告「ใบกำกับภาษี เลขที่」取它，≤20 字、不查重）；网页不填的默认 = 前缀 + 单号。
+税率表 `tbl_othvatrate`（名称、税率、价内外、throwacvat=1 不进税记录）。
+
+- 第 11 列：票面发票号原样；没有时 = 所选菜单前缀（读该菜单新单表单 `txtdoctype`）+ 单号；超过 20 字预检拦下，不截。
+  原来销售写死「SI」+ 我方号（现销前缀是 SE 也写 SI）、采购截 20 字。Cowork 销售票没有发票号本来就被 `ERR_NO_INVOICE_NO` 挡下。
+- 税率名称按这家公司的税率表（单据接口 `txtothvatrate`），读不到才用初始库名。
+- 无税卖家的采购：「นอกระบบ」（不进进项税记录，同 Express 税额 0 不写 ISVAT），不再写零税率「0」（主会话 11-14 定）。
+- 第 1 列保留自造唯一号（MR.ERP 允许外部给定；用票面号会撞、用网页流水号会和以后手录撞）。
+
+真写：SI691114-906964 txtvatnum = 票面 IV6911-0001；SE691114-435400 = RC6911-0002；PG691114-061053（无税卖家）税率 นอกระบบ、
+txtvatnum = 供应商票号 NV-6911-77、税额 0；ERP 销售 SI691114-190493 = ERP 发票号 SI2569-000008。
+税报告（report 232/45、226/43）只列已归入报税期（vatdatepass）的记录，要人在 MR.ERP 点使用权后才有，本窗口没替人做归期；
+发票号以单据页 vatnum 读回为准（导入同一列同时写税记录，`impartran/component/importpc.php:868, 978`）。
+
+## 文案改动（主会话转拼车窗口用词盘点，11-14）
+
+| 键 | 原（本分支 11-14 新加） | 改为 | 依据 |
+|---|---|---|---|
+| `mrerp.default.store` | 仓库 / Warehouse / คลังสินค้า / 倉庫 | 仓位 / Location / ตำแหน่ง / 保管場所 | 全产品统一叫「仓位」（用户 11-06），四语沿用 ERP 现成 `trade.location` |
+| `mrerp.default.product_group` | 商品分类 / หมวดสินค้า / 商品分類 | 物料分类 / กลุ่มสินค้า / 商品グループ | 界面统称「物料」（用户 11-06），四语沿用 ERP 现成 `express.error.ITEM_GROUP_NOT_FOUND` |
+| `Not Permitted`（`mrerp/connection.py` 三处、`express/api.py` 新加一处） | Not Permitted | Not permitted | Frappe 原生词条 |
+
 ## 待办（不在这批）
 
+- 公司接入第 3 批与本分支都进 main 后：去掉 `mrerp/push.py _after_write` 的 ImportError / getattr 兜底，测试换成真调用（拼车窗口在集成分支补跨边测试）。
+- 「多年度账套按单据日期选当期」（`mrerp.catalog.pick(company, day, wanted)`）：`mrerp/push.py prepare`、`mrerp/choices.py`、`mrerp/ledger_check.py`、
+  `express/cc_tools.py` 读公司 `mrerp_account_set` 的地方改调它；另开分支，基于公司接入第 3 批分支头，它先合。
+
+- 代录现购（⑥⑧）：先转人工；要支持得在 CC 桌面版配方加开票用供应商 txtapmas_inv 一格并在 TEST2019 探路。总表
+  （`pearnly/cc-coverage-matrix-eccdec` 上的 `2026-11-12-cc-coverage-matrix.md`，未合入）合入时补这一行。
+
 - 一张票里部分行免税、部分行带税：现在被「税率异常」预检挡在写入前；11-09 定的「按税率拆两张同号单」没施工。
-- ERP 单据页「再写一次」对 MR.ERP 的单走不到；代录两格（⑥ 只做了格子 id 只读核对，⑧ 没实现）；定时任务电脑读文件夹那一半。
+- ERP 单据页「再写一次」对 MR.ERP 的单走不到（做法见开关前验收清单 B13）；代录两格（⑥ 只做了格子 id 只读核对，⑧ 没实现）；定时任务电脑读文件夹那一半。
 - 给用户定：销售在 MR.ERP 里的发票号是「SI + 我方号」，票面发票号不进 MR.ERP，要不要改。
+
+## 自建客户 / 供应商的称谓与名称（11-15）
+- 核对依据：MR.ERP 源码 `impapmas/component/importpc.php`、`imparmas/component/importpc.php` 把第 3 列称谓（须是 `tbl_prefix` 里已有的非空项）与第 4 列名称分别存进 `idprefix`、`name`；它自带的样例账套是「นาย」+「อนุรักษ์ ทดสอบ」；单据打印拼「称谓 + 空格 + 名称」（如 `report/115/all/260.php`），销项 / 进项税报告（232/45、226/43）只印 `name`。
+- 之前：称谓按这家公司自己的称谓表取（`armas/allform.php` 的下拉，不用 Express 的称谓表），名称栏却写整个票面名，打印成「บริษัท บริษัท ทดสอบ จำกัด」。
+- 现在：`masters.split_prefix` 把开头匹配上的称谓（取最长）从名称里拿掉；不是称谓开头（称谓用第一项，MR.ERP 网页默认）或拿掉后为空，名称原样。Express 那张称谓表（11-15 prename-shop 改的 `express_rules/push/common.py`）MR.ERP 推送不用，也不照搬。
+- 影响面：只改自建客户 / 供应商的导入表；客户 / 供应商代码仍按税号或原票面名推导，已有主档不改。黄金样本只变推送过程中客户 / 供应商主档那一次上传（摘要与大小，少了称谓那几个字节）。
+- 留给真写：TEST2019 新供应商「บริษัท …」一张，读回 `apmas` 名称栏不带称谓、单据打印只出现一次称谓。
+- 11-15 真写复验后补：同一种法人 / 称呼的几种写法算同一项（`masters._SAME_FORM`：บริษัท…จำกัด (มหาชน) = บมจ.、บริษัท…จำกัด = บจก.、ห้างหุ้นส่วนจำกัด = หจก.、ห้างหุ้นส่วนสามัญ = หสม.、นางสาว = น.ส.），称谓取这家公司表里有的那种写法，简称自带的「จำกัด / จำกัด (มหาชน)」换写法时跟着补上或去掉。MR.ERP 自带的称谓表（`stderp2020.sql` tbl_prefix）只有 บริษัท、หจก.、หสม、น.ส.、นาย、นาง、คุณ 与空项，其余由各公司在网页里自己加。TEST2019：SI691115-723568 修前建成「บริษัท」+整名（测试数据留着），修后 SI691115-636349 是「หจก.」+「ทดสอบคำนำหน้า สาม」。
+- 口径（主会话 11-15 定）：按 MR.ERP 自己的存法，称谓、名称分两栏。
+
+### 上线说明（MR.ERP 写账，随开关打开时发）
+- MR.ERP 税报告（销项 / 进项）上的对方名称不带称谓（如「ทดสอบ หนึ่ง จำกัด」不带 บริษัท），与 MR.ERP 原生一致：MR.ERP 的税报告只印名称栏，称谓另存一栏，单据打印才把两者拼在一起。
+- 现购在 MR.ERP 单据列表与应付里显示记账用供应商「ยังไม่ระบุผู้จำหน่าย」（CODE_NOAP），真实卖家在开票用供应商与进项税记录里——已知并经用户确认的表现（用户 11-15「现购显示未指定供应商也可以接受」，主会话转）。
+- Pearnly 导入的税记录在 MR.ERP 里是「未归期」，月底在 MR.ERP 归期后才出现在税报告里。
+
+## 按单据日期选年度账套（`mrerp.catalog.pick`，11-15，分支 `pearnly/mrerp-catalog-pick`）
+- 依赖：公司接入第 3 批（`catalog.pick` / `books_of` / `no_book_text`、`masters.after_write`）。本分支基于 ledger-dialog，第 3 批与 ledger-dialog 都进 main 后变基到 main 再合；在那之前测试里用替身（`tests/test_erp_mrerp_direct.py` 顶部的 BOOKS / CHOSEN）。
+- 接入四处：
+  1. `mrerp/push.py prepare`：`catalog.pick(公司, 单据日期, conversation.wanted)`；没有覆盖单据日期的 → 停下 `express.account_set_missing`（单据页弹窗那句用 `catalog.no_book_text`）；同期两本没选过 → 停下 `choice_needed:mrerp`，needed 只一项 `account_set`（形状同 Express `_needed_book`）。
+  2. `mrerp/choices.py`：`views` / `chosen` / `choose` 收选中的那本（`place(row, book)` → 连接、账套键），菜单与默认值按那本读、记。年度库是各自的 MR.ERP 数据库，所以每本各问一次。
+  3. `mrerp/push.py run / answer / release_kick`：导入、存回读到的选项用选中那本；单据记 `ledger_book`；「选一次」按单据上的 `ledger_book` 记，选哪本记进 `express.choices`（与 Express 同一个记忆，`catalog.pick` 下次照它选）；人点推送清这家公司各本所在连接的被踢标记。
+  4. `express/precheck.py`（CC 预选卡）：按这张单的那本问（`mrerp.push.picked`：对话账套 → 单据上记过的 → 单据日期）；同期两本先问选哪本；没有账套 → 写不了（`no_account_set`）。
+- 去掉了 `_after_write` 的 ImportError / getattr 兜底，直接调 `masters.after_write`（它约定只排队、不抛）。
+- 没改：`mrerp/ledger_check.py`（调用方传连接与账套键，取自 CC 项目的账套列表 `masters.cc_service`，那是公司接入一侧）；CC 对话 `_ledger_refusal` 对 MR.ERP 公司照旧放行——对话账套对「不接 Express」的公司回 None（照单据日期选），若第 3 批把 MR.ERP 年度账套列进对话账套，要同时去掉这条放行。

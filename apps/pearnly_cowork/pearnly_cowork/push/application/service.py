@@ -855,11 +855,7 @@ def mrerp_basis(doc, loaded, account_set_key, catalog_request_id=None, catalog_r
     复核改过的字段都已写在票面里（`direction` / `posting_payment_manual`），分流与建档在执行时按旧规则做。
     ``lock=False``：代录开录前的服务端准备（`push.mrerp.operator.stage`）只读、不加锁，紧接着要对外请求。
     """
-    # MR.ERP 没有打通现金采购（只有应付的采购 / 费用模块）：进项 + 现金在服务端挡下，不悄悄改成赊购
-    # （旧线上 `mrerp_purchase_cash_unverified`；此前只靠入口不给这个选项）。
-    fields = primary_page_fields(json.loads(doc.pages or "[]"))
-    if fields.get("direction") == "purchase" and fields.get("posting_payment_manual") == "cash":
-        frappe.throw(_("MR.ERP purchases can only be entered on credit."))
+    # 现购（进项 + 现金）11-14 起照写：导入表第 9 列放现金供应商、第 10 列真实卖家（`pearnly_core.mrerp.push.defaults.cash_supplier`）。
     try:
         target = freeze_target(loaded.endpoint, access=loaded.access, evidence=loaded.evidence,
             account_set_key=account_set_key, request_id=catalog_request_id, revision=catalog_revision)

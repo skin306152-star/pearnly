@@ -8,7 +8,7 @@
   · **账套上传前由用户定**（用户 2026-09-27：系统判断不了的由用户选，按用户的选择执行）：快捷回复一次
     最多 12 个选项，放不下几十上百份账套，所以请用户打几个字（公司名、账套名、年度文件夹、税号都认），
     从匹配结果里点序号（`connections/account_search.py`）；另给「上次用的」一键选；目录里只有一份就直接选上；
-  · 入账方式以第三方为准：MR.ERP 选付款（进项只有赊账）；Express 不在上传前选（11-06 起识别后按行追问，`line.items`）；
+  · 入账方式以第三方为准：MR.ERP 选付款（现金 / 赊账）；Express 不在上传前选（11-06 起识别后按行追问，`line.items`）；
   · 存货科目组不在上传前问（11-06 起没有整批「存货」）：推送前要用时在网页 / CC 卡片里问一次、存回账套；
   · 识别后导出只选进项 / 销项。
 每一步末尾都有「取消」。选择存在本人的 LINE 会话里（30 分钟），之后发的每一张都按这组选择识别。
@@ -157,7 +157,7 @@ def _next(line_user_id, payload, reply_token):
         if not options:
             line_session.clear_session(line_user_id)
             return _text(reply_token, _empty(step, payload))
-        # 只有一个可选就直接选上（MR.ERP 进项只有赊账；网页弹窗同一口径）。
+        # 只有一个可选就直接选上（网页弹窗同一口径）。
         if len(options) == 1 and step == "payment":
             payload[step] = options[0][0]
             continue
@@ -351,8 +351,8 @@ def _options(step, payload):
     if step == "direction":
         return [("purchase", _("intake.dir.purchase")), ("sales", _("intake.dir.sales"))]
     if step == "payment":
-        # 以第三方为准：MR.ERP 进项只有赊账（旧线上 `mode_options`）。
-        return ([] if payload.get("direction") == "purchase" else [("cash", _("Cash"))]) + [("credit", _("Credit"))]
+        # MR.ERP 进项、销项都可选现金 / 赊账（11-14 起现购照写，按现金供应商记账）。
+        return [("cash", _("Cash")), ("credit", _("Credit"))]
     if step == "posting_kind":
         return [("service", _("Service")), ("stock", _("Stock"))]
     return []

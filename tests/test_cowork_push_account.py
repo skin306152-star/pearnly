@@ -30,16 +30,15 @@ def pages(**fields):
 
 
 class MrerpPurchaseCashTest(unittest.TestCase):
-    """MR.ERP 没有现金采购模块：进项 + 现金在服务端挡下，不悄悄改成赊购（此前只靠入口不给选项）。"""
+    """11-14 起 MR.ERP 现购照写（第 9 列现金供应商、第 10 列真实卖家，`pearnly_core.mrerp.push.defaults.cash_supplier`）：
+    进项 + 现金与销项一样往下冻结目标，不再在服务端挡。"""
 
-    def test_purchase_cash_is_refused_before_anything_is_frozen(self):
+    def test_purchase_cash_goes_on_to_freeze_the_target(self):
         doc = frappe._dict(pages=pages(direction="purchase", posting_payment_manual="cash"), workspace="W1")
-        with mock.patch.object(service, "_", side_effect=lambda text, *a, **k: text), \
-                mock.patch.object(frappe, "throw", side_effect=_throw), \
-                mock.patch.object(service, "freeze_target") as freeze:
-            with self.assertRaises(frappe.ValidationError):
+        with mock.patch.object(service, "freeze_target", side_effect=RuntimeError("frozen")) as freeze:
+            with self.assertRaises(RuntimeError):
                 service._prepare_mrerp(doc, mock.Mock(), "key", {}, "16:1", None, None)
-        freeze.assert_not_called()
+        freeze.assert_called_once()
 
     def test_sales_cash_goes_on_to_freeze_the_target(self):
         doc = frappe._dict(pages=pages(direction="sales", posting_payment_manual="cash"), workspace="W1")

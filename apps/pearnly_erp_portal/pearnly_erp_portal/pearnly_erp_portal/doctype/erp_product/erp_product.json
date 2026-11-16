@@ -32,6 +32,7 @@
   "units",
   "default_location",
   "express_section",
+  "ledger",
   "express_code",
   "express_company",
   "express_book",
@@ -216,6 +217,13 @@
    "collapsible": 1
   },
   {
+   "fieldname": "ledger",
+   "fieldtype": "Select",
+   "label": "Source",
+   "options": "\nexpress\nmrerp",
+   "read_only": 1
+  },
+  {
    "fieldname": "express_code",
    "fieldtype": "Data",
    "label": "Express Code",
@@ -253,7 +261,7 @@
    "fieldname": "origin",
    "fieldtype": "Select",
    "label": "Origin",
-   "options": "\nmanual\nimport\nexpress\npurchase\nsales\nstocktake",
+   "options": "\nmanual\nimport\nexpress\npurchase\nsales\nstocktake\nmrerp",
    "read_only": 1,
    "no_copy": 1
   },
@@ -277,7 +285,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-14 12:00:00.000000",
+ "modified": "2026-11-14 16:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

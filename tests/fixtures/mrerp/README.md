@@ -20,3 +20,8 @@
 四种单（赊购货品、赊购费用、赊销价内、现销散客带折扣）各一份：固定输入（票面与 `ready_rows` 之后的 mappings）与固定输出的 `mrerp` 块，
 由 `python3 tests/test_mrerp_operator_draft.py --write` 生成，`tests/test_mrerp_operator_draft.py` 逐字符比对（含键的先后）。CC 第 2 步
 （`mrerp_operator/draft.py`）那一侧的契约测试读同一份样本的 `block`。输入全是合成值，不含任何真实数据或密码。
+
+`export_customers.xlsx` / `export_suppliers.xlsx` / `export_products.xlsx` / `report_stock_by_store.xlsx`：MR.ERP 自带导出页
+（`exparmas` / `expapmas` / `expstkmas` 的 `component/expdata.php`）与「สินค้าคงเหลือ:แยกคลัง」报表 241 的原样输出，
+2026-11-14 从我们专属的测试账套 test01 · TEST2019 只读取得（全是测试单留下的测试档，不含客户数据），给
+`tests/test_mrerp_master_export.py` 核对整读主档的解析。

@@ -124,7 +124,7 @@ def build_supplier_row(sup: Dict[str, Any], mappings: Dict[str, Any]) -> Dict[in
         10: _or_ph(str(sup.get("phone") or "")[:40]),
         11: _email(sup.get("email")),
         12: _cfg(mappings, "country"),
-        13: _cfg(mappings, "account"),
+        13: str(sup.get("account") or "").strip() or _cfg(mappings, "account"),  # 现购记账用的现金供应商带自己的科目
         14: prefix,
         15: name[:50],
         16: 0,  # เครดิตเทอม

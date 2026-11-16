@@ -311,6 +311,7 @@ def _service(clock):
     """request_service 连同替身：允许谁用哪条连接在 `allowed` 里改。"""
     frappe, utils = _frappe()
     state = FakeState()
+    rings = []
     allowed = {("acc@x.com", "C1"), ("acc@x.com", "M1"), ("other@x.com", "C1")}
     db = frappe.db
     pool = Pool()
@@ -342,7 +343,9 @@ def _service(clock):
                "pearnly_core.execution": execution, "pearnly_core.execution.state": execution.state,
                "pearnly_cowork": types.ModuleType("pearnly_cowork"),
                "pearnly_cowork.companion": types.ModuleType("pearnly_cowork.companion"),
-               "pearnly_core.cc_desktop": types.ModuleType("pearnly_core.cc_desktop"),
+               # 建请求后叫醒这条连接上的电脑（`request_wake`，1.12.22）：这里只记下叫了谁
+               "pearnly_core.cc_desktop": types.SimpleNamespace(request_wake=types.SimpleNamespace(
+                   ring=lambda scopes: rings.append(list(scopes)), take=lambda scope: False)),
                "pearnly_core.cc_desktop.wire": types.SimpleNamespace(request_contracts=contracts, route_contracts=route),
                "pearnly_core.cc_desktop.wire.request_contracts": contracts,
                "pearnly_core.cc_desktop.wire.route_contracts": route,

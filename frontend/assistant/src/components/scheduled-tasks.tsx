@@ -849,7 +849,7 @@ function RuleDialog({ tr, rule, seed = null, onClose, onSaved }: {
   const stock = postingKind === "stock";
   const sg = options?.stock_group;
   const needsStockGroup = express && stock && Boolean(sg?.known && !sg.chosen && (sg.groups || []).length >= 2);
-  const paymentOptions: Option[] = [...(purchase ? [] : [{ value: "cash", label: tr("Cash") }]), { value: "credit", label: tr("Credit") }];
+  const paymentOptions: Option[] = [{ value: "cash", label: tr("Cash") }, { value: "credit", label: tr("Credit") }];
   useEffect(() => {
     if (!express && target && !paymentOptions.some((o) => o.value === payment)) setPayment(paymentOptions.length === 1 ? paymentOptions[0]!.value : "");
     // eslint-disable-next-line react-hooks/exhaustive-deps

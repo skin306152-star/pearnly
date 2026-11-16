@@ -784,6 +784,64 @@ class Defaults(unittest.TestCase):
         self.assertEqual(outcome["masters"]["dept"], [{"code": "D001", "name": "บัญชี"}])
 
 
+def supplier_record(account):
+    """`apmas/component/dupdata.php` 回应（第 1 列类型、第 14 列科目，`masters.SAMPLE_COLUMNS`）。"""
+    return [1, "2-11", "", 1, "x"] + [""] * 9 + [account]
+
+
+class CashPurchase(unittest.TestCase):
+    """现购（11-14）：第 9 列「记账用供应商」= 科目是现金类的供应商（MR.ERP 记账时应付那笔贷方取它的科目），第 10 列
+    「开票用供应商」= 真实卖家（进项税挂它）。候选先 MR.ERP 初始库自带的 CODE_NOAP、再 เงินสด；科目是参考科目「เงินสด」
+    （这里 1111-01）或选过的银行科目（1112-01）才用；都没有就自建 เงินสด；เงินสด 已有但科目不对就停下。"""
+
+    def site(self, rows, records):
+        lists = {"apmas": {**LISTS["apmas"], "inpdupdata": rows}}
+        return FakeMrErp(lists=lists, records={("apmas", str(i)): supplier_record(a) for i, a in records.items()})
+
+    def header(self, site):
+        return sheet_rows(dict(site.files)["impaptran"])[0]
+
+    def test_code_noap_on_the_cash_account_is_the_posting_supplier(self):
+        site = self.site([[1, "CODE_NOAP", "ไม่ระบุผู้จำหน่าย"], [2, "เงินสด", "เงินสด"]], {1: "1111-01", 2: "1111-01"})
+        _, result = push(site, [purchase(posting_payment_manual="cash")])
+        self.assertEqual((len(result.success), result.failed), (1, []))
+        self.assertEqual(self.header(site)[8:10], ["CODE_NOAP", SUPPLIER])
+        created = [r for m, b in site.files if m == "impapmas" for r in sheet_rows(b)]
+        self.assertNotIn("CODE_NOAP", [r[0] for r in created])
+
+    def test_a_chosen_bank_account_also_counts(self):
+        site = self.site([[1, "CODE_NOAP", "ไม่ระบุผู้จำหน่าย"]], {1: "1112-01"})
+        _, result = push(site, [purchase(posting_payment_manual="cash")])
+        self.assertEqual(self.header(site)[8:10], ["CODE_NOAP", SUPPLIER])
+
+    def test_no_cash_supplier_creates_cash_on_the_reference_cash_account(self):
+        # CODE_NOAP 被改成应付科目、没有 เงินสด：自建 เงินสด，科目 = 参考科目「เงินสด」（不跟现有档案最常用的应付科目）
+        site = self.site([[1, "CODE_NOAP", "ไม่ระบุผู้จำหน่าย"]], {1: "2120-01"})
+        _, result = push(site, [purchase(posting_payment_manual="cash")])
+        self.assertEqual((len(result.success), result.failed), (1, []))
+        created = {r[0]: r for m, b in site.files if m == "impapmas" for r in sheet_rows(b)}
+        self.assertEqual(created["เงินสด"][12], "1111-01")
+        self.assertEqual(created[SUPPLIER][12], "2120-01")  # 真实卖家照常按选过的应付科目建
+        self.assertEqual(self.header(site)[8:10], ["เงินสด", SUPPLIER])
+
+    def test_cash_on_a_payable_account_stops_cash_purchases_only(self):
+        site = self.site([[2, "เงินสด", "เงินสด"]], {2: "2120-01"})
+        paid, owed = purchase("p1", posting_payment_manual="cash"), purchase("p2", posting_payment_manual="credit")
+        _, result = push(site, [paid, owed])
+        self.assertEqual([r.reasons for r in result.failed], [["ERR_MRERP_CASH_SUPPLIER_NOT_CASH"]])
+        self.assertEqual(len(result.success), 1)
+        rows = sheet_rows(dict(site.files)["impaptran"])
+        self.assertEqual([r[8:10] for r in rows], [[SUPPLIER, SUPPLIER]])  # 只有赊购那张，第 9、10 列都是卖家
+        created = [r[0] for m, b in site.files if m == "impapmas" for r in sheet_rows(b)]
+        self.assertNotIn("เงินสด", created)  # 不改、不重建别人的档案
+
+    def test_a_credit_purchase_keeps_the_seller_in_both_columns(self):
+        site = self.site([[1, "CODE_NOAP", "ไม่ระบุผู้จำหน่าย"]], {1: "1111-01"})
+        _, result = push(site, [purchase(posting_payment_manual="credit")])
+        self.assertEqual(self.header(site)[8:10], [SUPPLIER, SUPPLIER])
+        self.assertFalse([c for c in site.calls if c[1].endswith("/component/dupdata.php")])  # 没有现购就不读档案
+
+
 class Menu(unittest.TestCase):
     """菜单定不下来就在导入前停下（不建主档、不上传），原因码原样交给账本；不自动换菜单。"""
 

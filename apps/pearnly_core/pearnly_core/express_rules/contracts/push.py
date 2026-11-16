@@ -262,8 +262,6 @@ def require_adapter_choices(adapter, direction, *, posting_kind=None, payment=No
 		raise PushContractError("adapter_not_supported")
 	if payment is None:
 		raise PushContractError("payment_required")
-	if direction == "purchase" and payment == "cash":
-		raise PushContractError("mrerp_purchase_cash_unverified")
 	return None
 
 

@@ -523,12 +523,14 @@ class ReadBack(Base):
         frappe.local.pearnly_assistant["may_wait"] = True
         self.KEY = T.snapshot.request_key(T.BOOK["key"], "2100883")
         self.answer = [None]  # 电脑在短等期间读回的那一份（None = 一直没回）
+        self.looked = [None]  # 带单号的那种读回里按单号查到的（CC 桌面版 1.12.22 起）
         clock = [0.0]
 
         def sleep(seconds):
             clock[0] += max(seconds, 0.5)
-            if self.answer[0] is not None and self.KEY in self.requests.made:
-                self.requests.finish(self.KEY, self.answer[0], "2026-11-15T04:00:00+00:00")
+            for key, made in list(self.requests.made.items()):
+                if self.answer[0] is not None and made["status"] == "requested" and key.startswith(self.KEY):
+                    self.requests.finish(key, self.answer[0], "2026-11-15T04:00:00+00:00", self.looked[0])
 
         for patch in (mock.patch.object(cc_tools.time, "sleep", side_effect=sleep),
                       mock.patch.object(cc_tools.time, "monotonic", side_effect=lambda: clock[0])):
@@ -573,8 +575,40 @@ class ReadBack(Base):
         self.answer[0] = [self.row("IV691115-003", "572.45")]  # 用户说「再读一次」：读到了照常建
         self.assertTrue(self.draft_of("IV691115-003", "572.45").get("ready"))
 
+    def test_a_number_not_listed_is_looked_up_and_said_as_collected_voided_or_not_in_the_book(self):
+        # 11-15 已知限制：读回只报未收清的发票，「收清了」与「账套里没有这张」分不开。1.12.22 起同一次读按单号查
+        self.answer[0] = [self.row("IV2", "500.00")]  # IV1 在 Express 里已收清
+        self.call(cc_tools.invoices, customer="2100883")
+        for docnum, looked, state in (
+                ("IV1", [{"docnum": "IV1", "customer": "2100883", "state": "settled", "remaining": "0.00"}], "settled"),
+                ("IV7", [{"docnum": "IV7", "customer": "2100883", "state": "cancelled", "remaining": "100.00"}], "cancelled"),
+                ("IV9", [], "absent"),
+                ("IV8", [{"docnum": "IV8", "customer": "9999", "state": "open", "remaining": "50.00"}], "open")):
+            self.looked[0] = looked
+            refused = self.draft_of(docnum, "100")
+            self.assertEqual((refused["reason"], refused["read"], refused["docnum"], refused.get("invoice_state")),
+                             (T.C.INVOICE_NOT_FOUND, "ready", docnum, state), docnum)
+            self.assertIn(f"invoice: {state}", refused["invoice_note"])
+        self.assertEqual(refused["invoice_customer"], "9999")
+
+    def test_when_every_computer_is_older_than_1_12_22_the_plain_read_is_sent_and_nothing_is_guessed(self):
+        sent = []
+
+        def waiting(kind, book_key, actor=None, params=None):
+            sent.append(dict(params or {}))
+            return {"reason": "update_needed"} if "docnums" in (params or {}) else None
+
+        self.answer[0] = [self.row("IV2", "500.00")]
+        self.call(cc_tools.invoices, customer="2100883")
+        sent.clear()
+        with mock.patch.object(self.requests, "waiting", side_effect=waiting):
+            refused = self.draft_of("IV1", "1000")
+        self.assertEqual((refused["reason"], refused["read"]), (T.C.INVOICE_NOT_FOUND, "ready"))
+        self.assertNotIn("invoice_state", refused)
+        self.assertEqual([("docnums" in params) for params in sent[:2]], [True, False])
+
     def test_an_offline_computer_is_said_as_not_connected(self):
-        with mock.patch.object(self.requests, "waiting", side_effect=lambda kind, book_key, actor=None: {"reason": "offline"}):
+        with mock.patch.object(self.requests, "waiting", side_effect=lambda kind, book_key, actor=None, params=None: {"reason": "offline"}):
             listed = self.call(cc_tools.invoices, customer="2100883")
             self.assertEqual(listed["read"], "offline")
             self.assertIn("not connected", listed["note"])

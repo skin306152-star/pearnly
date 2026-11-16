@@ -162,6 +162,18 @@ _REF_INPUT = re.compile(r"<input\b[^>]*\bname=[\"']txtacfile\[(\d+)\][\"'][^>]*>
 _VALUE = re.compile(r"\bvalue=[\"']([^\"']*)[\"']", re.IGNORECASE)
 
 
+_DOCTYPE_INPUT = re.compile(r"<input\b[^>]*\bid=[\"']txtdoctype[\"'][^>]*>", re.IGNORECASE)
+
+
+def parse_menu_prefix(page: str) -> Optional[str]:
+    """新单表单「เลขที่」前那格 ``txtdoctype``（菜单的单号前缀，只读）→ 前缀；页上没有这一格 → None。"""
+    match = _DOCTYPE_INPUT.search(page or "")
+    if not match:
+        return None
+    value = _VALUE.search(match.group(0))
+    return _text(value.group(1)) if value else ""
+
+
 def parse_reference(page: str) -> Optional[Dict[int, str]]:
     """`acreffile/acreffileform.php` → {参考科目 id: 科目代码}（没配的是空串）；页上一个都没有 → None。"""
     found = {}
@@ -183,11 +195,56 @@ def parse_prefixes(page: str) -> Optional[List[str]]:
     return [name for name in (_text(option) for option in _OPTION.findall(match.group(1))) if name][:200]
 
 
+# 同一种法人 / 称呼的几种写法（称谓, 名称末尾跟着的字）：MR.ERP 自带的称谓表只有 บริษัท、หจก.、หสม、น.ส.、นาย、นาง、คุณ 与一个空项
+# （`stderp2020.sql` 的 tbl_prefix），一家公司可在网页里自己加（如 บจก.、บมจ.）；票面常写另一种（ห้างหุ้นส่วนจำกัด、
+# บริษัท … จำกัด、บจก. …）。同一组里的写法算同一项：称谓取这家表里有的那种（票面原样那种在表里就用它），名称是去掉票面写法
+# 之后的核心名再接上表里那种写法自己带的末尾字（บจก. = บริษัท … จำกัด，所以「บจก. ก」在只有 บริษัท 的表里写成 บริษัท +「ก จำกัด」）。
+_SAME_FORM = (
+    (("บริษัท", "จำกัด (มหาชน)"), ("บมจ.", ""), ("บมจ", "")),
+    (("บริษัท", "จำกัด"), ("บจก.", ""), ("บจก", "")),
+    (("ห้างหุ้นส่วนจำกัด", ""), ("หจก.", ""), ("หจก", "")),
+    (("ห้างหุ้นส่วนสามัญ", ""), ("หสม.", ""), ("หสม", "")),
+    (("นางสาว", ""), ("น.ส.", ""), ("น.ส", "")),
+)
+
+
+def _prefix_match(text: str, prefixes: List[str]) -> Tuple[str, str, int]:
+    """(称谓表里的那一项, 名称栏, 票面对上的写法长度)；都没对上 → ("", "", 0)。表里原样有的与同一组的其它写法一起比，
+    取票面上对上的最长写法（含末尾字；「นางสาว」不被表里的「นาง」截走）；一样长时用表里原样那项。"""
+    listed = [p for p in prefixes if p]
+    found = [(len(p), 1, p, text[len(p):].strip()) for p in listed if text.startswith(p)]
+    for group in _SAME_FORM:
+        offered = [(lead, tail) for lead, tail in group if lead in listed]
+        for lead, tail in group:
+            rest = text[len(lead):].strip() if text.startswith(lead) else None
+            if rest is None or (tail and not rest.endswith(tail)):
+                continue
+            core = rest[:len(rest) - len(tail)].strip() if tail else rest
+            # 票面原样那种写法在表里就用它，否则用这一组在表里的第一种（按称谓表顺序）
+            own = [form for form in offered if form == (lead, tail)]
+            pick = own[0] if own else next((form for p in listed for form in offered if form[0] == p), None)
+            if pick and core:
+                found.append((len(lead) + len(tail), 0, pick[0], f"{core} {pick[1]}".strip()))
+    if not found:
+        return "", "", 0
+    size, _exact, prefix, name = max(found, key=lambda hit: (hit[0], hit[1]))
+    return prefix, name, size
+
+
 def prefix_for(name: Any, prefixes: List[str]) -> str:
-    """票面名称以哪个称谓开头就用哪个（取最长的）；都不是就用称谓表第一项（MR.ERP 网页的默认）。"""
+    """票面名称以哪个称谓开头就用哪个（取最长的；同一组的几种写法算同一项，见 ``_SAME_FORM``）；都不是就用称谓表第一项（MR.ERP 网页的默认）。"""
     text = " ".join(str(name or "").split())
-    hits = [p for p in prefixes if p and text.startswith(p)]
-    return max(hits, key=len) if hits else (prefixes[0] if prefixes else "")
+    return _prefix_match(text, prefixes)[0] or (prefixes[0] if prefixes else "")
+
+
+def split_prefix(name: Any, prefixes: List[str]) -> Tuple[str, str]:
+    """票面名称 → (称谓, 名称栏)。MR.ERP 称谓与名称分两栏存（`tbl_armas` / `tbl_apmas` 的 idprefix、name；它自带的样例
+    「นาย」+「อนุรักษ์ ทดสอบ」），单据打印拼成「称谓 + 空格 + 名称」（如 `report/115/all/260.php`），税报告只印名称栏（与 MR.ERP
+    网页手工建的档一样）。开头对上称谓表里哪一项（含同一组的其它写法），名称栏是去掉那种写法后的名字；拿掉后什么都不剩，或开头
+    不是任何一项（用第一项作称谓），名称原样留着。"""
+    text = " ".join(str(name or "").split())
+    prefix, core, _size = _prefix_match(text, prefixes)
+    return (prefix or (prefixes[0] if prefixes else "")), core or text
 
 
 # ── 判定这次写哪个值 ───────────────────────────────────────────────────────

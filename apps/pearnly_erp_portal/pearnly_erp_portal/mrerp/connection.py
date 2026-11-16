@@ -22,7 +22,7 @@ DEFAULT_URL = "https://www.mrerp4sme.com"
 def require_enabled():
     """所有 MR.ERP 入口的第一道：没开就当没有这个功能（同没有权限，不说明原因）。"""
     if not mrerp.enabled():
-        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def is_admin(user=None) -> bool:
@@ -33,7 +33,7 @@ def is_admin(user=None) -> bool:
 def require_admin():
     require_enabled()
     if not is_admin():
-        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
 def configure(system_url, name=None) -> str:
@@ -136,7 +136,7 @@ def login_store(connection, username, password, *, user, device_label, scope) ->
     """（钩子 ``mrerp_login_store``）收下 CC 桌面版交来的登录：``site`` 写进连接的 Password 字段与授权记录（此刻不是管理员就拒写）。
     回 ``{connection, system_url, username, device, at, written}``，不含密码。"""
     if scope != "site" or login_scope(user, connection) != "site":
-        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
     doc = frappe.get_doc(CONNECTION, connection, for_update=True)
     at = now_datetime()
     doc.update({"credential_username": str(username or "")[:140], "credential_password": password,

@@ -30,6 +30,8 @@ EXTRA = {
     "push/execute.py": {"pearnly_core.session_lock"},
     "menu_read.py": {"pearnly_core.session_lock"},
     "collect.py": {"time", "pearnly_core.session_lock"},
+    # 11-14 公司接入第 3 批：整读主档（导出页与结存报表的 xlsx 用标准库读），经共用会话入口
+    "master_export.py": {"time", "xml.etree", "pearnly_core.session_lock"},
     "push/report_parser.py": {"openpyxl"},
     "push/xlsx/generator.py": {"openpyxl", "openpyxl.styles"},
 }

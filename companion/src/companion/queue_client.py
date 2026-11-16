@@ -20,7 +20,7 @@ from typing import Optional
 
 import httpx
 
-from . import channel, http_tls
+from . import channel, http_tls, request_wake
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -216,6 +216,9 @@ class QueueClient:
         command = response.get("master_refresh")
         if isinstance(command, dict) and command.get("request_id"):
             self._master_refresh = command
+        if response.get("requests_waiting") is True:
+            # 服务端刚建了这台能领的按需请求（1.12.22）：叫醒按需请求线程马上去领，不等它空闲的 15 秒
+            request_wake.ring()
         jobs = response.get("jobs") or []
         if not jobs:
             return None

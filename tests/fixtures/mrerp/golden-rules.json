@@ -252,6 +252,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -289,9 +299,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -950,6 +960,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -987,9 +1007,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -1469,6 +1489,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -1506,9 +1536,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "590d1a41c2c861c2da4e5a46b7acc4d62a0d83d1d126522fe997be55ca0d460d",
-         "members": "0e6e38ed97f170fe327bcd98dba479fae29f7551cfc00cca3794226adfcc2024",
-         "size": 8607
+         "bytes": "ad23094fd203ba32c3eeb9f7deac84788ca2e01f554f8170cfedc346d902b33f",
+         "members": "a8cb0be013416540962d06634454498b92bda2fc98a2acd2ad27f94b68bdc653",
+         "size": 8603
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -1964,6 +1994,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -2001,9 +2041,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -2460,6 +2500,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -2497,9 +2547,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -2966,6 +3016,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -3003,9 +3063,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -3467,6 +3527,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -3504,9 +3574,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -3962,6 +4032,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -3999,9 +4079,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",
-         "members": "1509822772ff7d9862cc599590c99d51b3461f0d3dc9a028f94f41e196c4b4a9",
-         "size": 8607
+         "bytes": "bff6014f726ad4f1d1ed6748246c82f147f20b05445af0abcfec4ee6f038a227",
+         "members": "5f194e03c432e318bc5f2e6f5a273d94ea7311fe35d87228dbc27f8668128b75",
+         "size": 8604
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -4350,7 +4430,7 @@
       "fields": [],
       "state": "ok"
      },
-     "xlsx_size_bytes": 11738
+     "xlsx_size_bytes": 11740
     },
     "reason": "",
     "status": "success"
@@ -4465,9 +4545,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
-         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
-         "size": 8693
+         "bytes": "ef55e88448054fe755fcf641cb8c31dffe4d0bf7bdafbd945e6f4c7bb3d082f1",
+         "members": "aa4fb701241e3354b25bcef9e8320a7b5762104c71f6b53207a088423b356b78",
+         "size": 8692
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -4544,9 +4624,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "f6404592fe1d03ebee38d94685000bbcb48f9cb093b67af95700dcfb5349448c",
-         "members": "056c61e359e8bcd2ff9e5065e5aba4438311d58bfaa32c7c1ad12a29261c15cf",
-         "size": 11738
+         "bytes": "728538150067d044c7e462325b0f204aa3bd23c3737eda7e06ddd657c135f465",
+         "members": "e70b6c3ac0566cd32f566994e48d9c72bd67b9153e5f8a7854f355aa21651b28",
+         "size": 11740
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -4852,9 +4932,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
-         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
-         "size": 8693
+         "bytes": "ef55e88448054fe755fcf641cb8c31dffe4d0bf7bdafbd945e6f4c7bb3d082f1",
+         "members": "aa4fb701241e3354b25bcef9e8320a7b5762104c71f6b53207a088423b356b78",
+         "size": 8692
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -4931,8 +5011,8 @@
        [
         "import.xlsx",
         {
-         "bytes": "83deff7ded90f50e8a7268f8f77ce02647ede64fe708525e1a91c1bf3e83d511",
-         "members": "3278dc285e01e0a69febe061291ed5e4a81c44a8cd576451d5d4898a886dc6a9",
+         "bytes": "99afca486f286413861d2f3acff5b2d79efdd8569d7448391d29bc8342aab8e3",
+         "members": "827e5ea9d66d3db9841b5c82cb0614ff4bcab3af09a9f2587ce30ca7fb03a7f1",
          "size": 11740
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
@@ -5136,7 +5216,7 @@
       "fields": [],
       "state": "ok"
      },
-     "xlsx_size_bytes": 8588
+     "xlsx_size_bytes": 8586
     },
     "reason": "",
     "status": "success"
@@ -5251,9 +5331,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
-         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
-         "size": 8693
+         "bytes": "ef55e88448054fe755fcf641cb8c31dffe4d0bf7bdafbd945e6f4c7bb3d082f1",
+         "members": "aa4fb701241e3354b25bcef9e8320a7b5762104c71f6b53207a088423b356b78",
+         "size": 8692
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -5429,9 +5509,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "1e0af0168a644e37ff7a230056f409bdc6f85235e9d039141fae0929ad195cc7",
-         "members": "e9032418bc4dd1b137f74bf0f831159a313b0e08d763f73fa86af448c4f9b485",
-         "size": 8588
+         "bytes": "7d019da376e2f2c108c6671a8001c3ff925ee627fafe5cf93cb14ac1ae3f3dcf",
+         "members": "666c8411012b2243381b3ebfba1d47dc13d02f3d56a10d6768e131d2643d985c",
+         "size": 8586
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -5622,7 +5702,7 @@
       "fields": [],
       "state": "ok"
      },
-     "xlsx_size_bytes": 8580
+     "xlsx_size_bytes": 8581
     },
     "reason": "",
     "status": "success"
@@ -5737,9 +5817,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "c08c5bd76439b026b3d0971455df2cc51db47b030bd39c7ce6757aa9db0ca0ff",
-         "members": "7d07db629a30a89e00a538b8d0eef66f56610c09dfbe8f5101c3f4f0fa046421",
-         "size": 8693
+         "bytes": "ef55e88448054fe755fcf641cb8c31dffe4d0bf7bdafbd945e6f4c7bb3d082f1",
+         "members": "aa4fb701241e3354b25bcef9e8320a7b5762104c71f6b53207a088423b356b78",
+         "size": 8692
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -5816,9 +5896,9 @@
        [
         "import.xlsx",
         {
-         "bytes": "e9fcf664bd81b6ee6f7c5d3738b691dd6d4687bc7be00a8da38e6a52849cb42b",
-         "members": "792cb9710dd655a3aa36a80dc9c6d31df0a941d4481d4d77b8d75336ee73d435",
-         "size": 8580
+         "bytes": "fcf59bdbc8a896a9b535bbbe6fd15f30655cf063d51a723dcc6dc1348bb17e2e",
+         "members": "f95557a9df412a5d2b19ce793e217ef4a5ed59f86d92d9a73018df9d3f04031e",
+         "size": 8581
         },
         "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
        ]
@@ -6087,6 +6167,16 @@
       "X-Requested-With": "XMLHttpRequest"
      },
      "method": "POST",
+     "url": "/aptran/component/bshlistboxdata.php"
+    },
+    {
+     "data": {},
+     "headers": {
+      "Origin": "https://www.mrerp4sme.com",
+      "Referer": "https://www.mrerp4sme.com/login/mainmenu.php",
+      "X-Requested-With": "XMLHttpRequest"
+     },
+     "method": "POST",
      "url": "/armas/component/bshlistboxdata.php"
     },
     {
@@ -6167,19 +6257,19 @@
    "size": 11119
   },
   "sales_cash": {
-   "bytes": "39ee0f0a21ed080e1ce0890ca1f7f14386bc9357af901fea9673184b5e30e8da",
-   "members": "55f7095c53b84affa39bef3f926ba5c1a16403fd45497a875284744d5da829ce",
-   "size": 11786
+   "bytes": "81522a66a3f6d92ba0e9d2300a61c52edc637e76dc366676fe4965171ec7dc12",
+   "members": "f18260d4060a15af84eb2a0c80fa6395f618303d6d02cfbc187d39f3b01c4d16",
+   "size": 11792
   },
   "sales_cash_bee2": {
-   "bytes": "664db701859cfadce9a7afa8cbf2bee119683a1f5e67153517dd614dc1c5f812",
-   "members": "ad2390205be141a43eb1948c6135500db96a6fc98f2e9f5aeed3bb594e0b621f",
-   "size": 11787
+   "bytes": "6b89c94e72cd40a9d0355a5c4cbf2b0434f300e12b14cda2a571397b575bbef0",
+   "members": "da7c51b96305481be2c8eb5f37e77cb9d36d9c59c3e0a35b2fa89b295ada2c25",
+   "size": 11793
   },
   "sales_credit": {
-   "bytes": "9e106b2811d06789676d726c2564a542de7057febe34be2fc368e44fee760869",
-   "members": "9a78ddefedb82645d92a3cc8c39c0539c85c8457d94e4e61e04a91639260c4df",
-   "size": 8623
+   "bytes": "db982ea6bef70bfa49a0253894b6f632d1e44c76d4428862bc9e5cea33ed2160",
+   "members": "0741dcb13bd3bad5e336c2ba3f3ee99286f9501a9625795176dfc2ff479864ae",
+   "size": 8629
   },
   "supplier_master": {
    "bytes": "b47658d85255e075c109fe1cd23f509069a28c9cc45a0e326b4cdebb38f0f1f5",

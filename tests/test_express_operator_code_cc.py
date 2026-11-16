@@ -15,6 +15,7 @@ import datetime
 import importlib
 import importlib.util
 import io
+import json
 import sys
 import types
 import unittest
@@ -591,6 +592,44 @@ class CoworkUploadStateTests(unittest.TestCase):
         self.assertEqual(out["B1"]["documents"], [
             {"doc_id": "h1", "ref": "IV-1", "date": "2026-10-03", "party": "Makro", "waiting": True},
             {"doc_id": "h2", "ref": "IV-2", "date": "2026-10-04", "party": "Shop", "waiting": False}])
+
+
+class CoworkElsewhereTests(unittest.TestCase):
+    """A 线 11-15：这个月以外还等着录的单按月计数，与资料区同一个列表（`tools.list_documents` 的 waiting、按公司账套），只换日期。"""
+
+    def test_other_months_are_counted_before_and_after_this_month_page_by_page(self):
+        scope = types.ModuleType("pearnly_cowork.access.scope")
+        access = types.ModuleType("pearnly_cowork.access")
+        access.scope = scope
+        source = _load("cowork_operator_source_elsewhere",
+                       ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+                       {"pearnly_cowork": types.ModuleType("pearnly_cowork"), "pearnly_cowork.access": access,
+                        "pearnly_cowork.access.scope": scope})
+        calls = []
+        pages = {("to", 0): ([{"invoice_date": "2026-06-02"}, {"invoice_date": "2026-06-30"}], 2),
+                 ("to", 2): ([{"invoice_date": "2026-05-09"}, {"invoice_date": None}], None),
+                 ("from", 0): ([{"invoice_date": "2026-11-01"}], None)}
+
+        def list_documents(given):
+            calls.append(given)
+            side = "to" if "invoice_date_to" in given else "from"
+            rows, following = pages[(side, given["offset"])]
+            return json.dumps({"documents": rows, "next_offset": following})
+
+        tools = types.ModuleType("pearnly_cowork.assistant.tools")
+        tools.LIST_MAX, tools.list_documents = 2, list_documents
+        parents = {"pearnly_cowork": types.ModuleType("pearnly_cowork"),
+                   "pearnly_cowork.assistant": types.ModuleType("pearnly_cowork.assistant")}
+        parents["pearnly_cowork.assistant"].tools = tools
+        with mock.patch.dict(sys.modules, {**parents, "pearnly_cowork.assistant.tools": tools}):
+            out = source.elsewhere("CO-1", "2026-10")
+            self.assertEqual(out, [{"month": "2026-11", "count": 1}, {"month": "2026-06", "count": 2},
+                                   {"month": "2026-05", "count": 1}])
+            self.assertEqual([(c.get("invoice_date_to"), c.get("invoice_date_from"), c["offset"]) for c in calls],
+                             [("2026-09-30", None, 0), ("2026-09-30", None, 2), (None, "2026-11-01", 0)])
+            self.assertTrue(all(c["company"] == "CO-1" and c["push_state"] == "waiting" for c in calls))
+            tools.list_documents = lambda given: json.dumps({"status": "failed", "reason": "no_company"})
+            self.assertEqual(source.elsewhere("CO-1", "2026-10"), [])
 
 
 class SharedUploadStateTests(unittest.TestCase):

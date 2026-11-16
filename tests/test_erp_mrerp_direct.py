@@ -104,7 +104,50 @@ frappe.utils.password.get_decrypted_password = lambda doctype, name, field, rais
 sys.modules.update({"frappe": frappe, "frappe.utils": frappe.utils, "frappe.utils.password": frappe.utils.password})
 
 import pearnly_erp_portal.mrerp as mrerp  # noqa: E402
-from pearnly_erp_portal.mrerp import connection, contracts, push  # noqa: E402
+from pearnly_erp_portal.mrerp import catalog, connection, contracts, push  # noqa: E402
+from pearnly_erp_portal.express import contracts as express_contracts  # noqa: E402
+
+# 选账套与主档整读在公司接入一侧（`mrerp.catalog.pick` / `books_of`、`mrerp.masters.after_write`，规则与它们自己的测试在那边）：
+# 这里换成只给形状的替身——BOOKS 是每家公司的年度账套（没登记就是公司上记的那一本），CHOSEN 是「同期两本选过哪本」。
+BOOKS, CHOSEN, AFTER_WRITE = {}, {}, []
+
+
+def fake_books_of(company):
+    name = company["name"] if isinstance(company, dict) else company
+    if name in BOOKS:
+        return BOOKS[name]
+    row = DB.table("ERP Company").get(name) or {}
+    return [{"key": row.get("mrerp_account_set"), "label": "TEST2026", "connection": row.get("mrerp_connection"),
+             "period_start": "2026-01-01", "period_end": "2026-12-31", "next_end": None, "comidyear": "15"}] \
+        if row.get("mrerp_account_set") else []
+
+
+def fake_pick(company, day, wanted=None):
+    name = company["name"] if isinstance(company, dict) else company
+    every = fake_books_of(name)
+    if wanted is not None:
+        book = next((item for item in every if item["key"] == wanted), None) if wanted else None
+        return {"book": book, "reason": "" if book else express_contracts.NO_BOOK, "options": [], "subject": ""}
+    day = str(day or "")[:10]
+    found = [item for item in every if item["period_start"] <= day <= item["period_end"]]
+    if not found:
+        return {"book": None, "reason": express_contracts.NO_BOOK, "options": [], "subject": ""}
+    if len(found) == 1:
+        return {"book": found[0], "reason": "", "options": [], "subject": ""}
+    subject = f"year:{found[0]['period_start']}"
+    book = next((item for item in found if item["key"] == CHOSEN.get((name, subject))), None)
+    if book:
+        return {"book": book, "reason": "", "options": [], "subject": subject}
+    return {"book": None, "reason": express_contracts.SEVERAL_BOOKS, "subject": subject,
+            "options": [{"code": item["key"], "name": item["label"]} for item in found]}
+
+
+catalog.pick, catalog.books_of = fake_pick, fake_books_of
+catalog.no_book_text = lambda company, day: f"no MR.ERP account set for {day}"
+_masters = types.ModuleType("pearnly_erp_portal.mrerp.masters")
+_masters.after_write = lambda company: AFTER_WRITE.append(company) or True
+sys.modules["pearnly_erp_portal.mrerp.masters"] = _masters
+mrerp.masters = _masters
 
 PURCHASE, SALES = "Purchase Document", "ERP Sales Document"
 OPERATOR = {"held": False}
@@ -124,7 +167,8 @@ def document(doctype, name):
     from pearnly_erp_portal.express import contracts as E
 
     party = {"code": "", "name": "บริษัท ผู้ขาย จำกัด", "tax_id": "0105561012345", "branch": "00000"}
-    return E.document(ref=f"{name}@20261103090000000000", direction=push.DIRECTIONS[doctype], doc_date="2026-11-03",
+    return E.document(ref=f"{name}@20261103090000000000", direction=push.DIRECTIONS[doctype],
+                      doc_date=row.get("doc_date") or "2026-11-03",
                       number=name, company={"tax_id": "0105559000001", "branch": "00000"}, party=party,
                       paid=bool(row.get("paid")), has_vat=True, total="107.00", vat="7.00",
                       lines=[{"name": "x", "qty": "1", "amount": "100.00", "stock": True}])
@@ -134,6 +178,9 @@ def reset(enabled=True):
     DB.tables.clear()
     ENQUEUED.clear()
     CALLS.clear()
+    BOOKS.clear()
+    CHOSEN.clear()
+    AFTER_WRITE.clear()
     OPERATOR["held"] = False
     DB.table("ERP Company")["CO-1"] = {"name": "CO-1", "company_name": "บริษัท เรา จำกัด", "tax_id": "0105559000001",
                                       "branch": "00000", "express_enabled": 0, "mrerp_enabled": 1,
@@ -298,13 +345,92 @@ class SwitchedOn(unittest.TestCase):
             saved = DB.table(PURCHASE)["PUR-1"]
             self.assertEqual((saved["ledger_state"], saved["ledger_reason"], saved.get("ledger_docnum")), expected)
 
-    def test_a_cash_purchase_stops_mrerp_only_imports_credit(self):
-        doc(ledger_state="queued", ledger_target="mrerp", paid=True)
-        with _Module({"status": "success"}):
+    def test_a_write_asks_the_masters_to_be_read_once_and_a_failure_does_not(self):
+        """公司接入的接缝（`mrerp.masters.after_write`，只排队、去重、不抛）：写进 MR.ERP（含写入核不上）后调一次；没导入成不调。"""
+        doc(ledger_state="queued", ledger_target="mrerp")
+        with _Module({"status": "success", "docnum": "PG691114-000002", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        self.assertEqual(AFTER_WRITE, ["CO-1"])
+        doc(name="PUR-2", ledger_state="queued", ledger_target="mrerp")
+        with _Module({"status": "failed", "reason": "ERR_NO_SUPPLIER"}):
+            push.run(PURCHASE, "PUR-2", document)
+        self.assertEqual(AFTER_WRITE, ["CO-1"])
+
+    def test_the_account_set_follows_the_document_date(self):
+        """一家公司挂多本年度账套（公司接入第 3 批）：按单据日期选那本（`catalog.pick`），导入、存回的选项都用它、记在单据上。"""
+        BOOKS["CO-1"] = [
+            {"key": "14:1", "label": "TEST2025", "connection": "C1", "period_start": "2025-01-01", "period_end": "2025-12-31"},
+            {"key": "15:1", "label": "TEST2026", "connection": "C1", "period_start": "2026-01-01", "period_end": "2026-12-31"}]
+        doc(ledger_state="queued", ledger_target="mrerp", doc_date="2025-06-01")
+        with _Module({"status": "success", "docnum": "PG680601-000001", "menus": {}, "masters": {}}):
             push.run(PURCHASE, "PUR-1", document)
         saved = DB.table(PURCHASE)["PUR-1"]
-        self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("failed", contracts.PURCHASE_CASH))
+        self.assertEqual((saved["ledger_state"], saved["ledger_book"]), ("written", "14:1"))
+        self.assertEqual(CALLS[0]["target"], {"account_set": "14:1"})
+
+    def test_an_unset_conversation_account_set_still_picks_by_date(self):
+        """MR.ERP 的年度账套还没列进 CC 对话账套：MR.ERP 公司在对话里时 `conversation.wanted` 回空串（对话账套 0 本 = 未定），
+        不能当「对话账套未定」卡住——按单据日期选（与公司接入第 3 批 11-15 对齐）；对话定了某本时照那本。"""
+        from pearnly_erp_portal.express import conversation
+
+        BOOKS["CO-1"] = [
+            {"key": "14:1", "label": "TEST2025", "connection": "C1", "period_start": "2025-01-01", "period_end": "2025-12-31"},
+            {"key": "15:1", "label": "TEST2026", "connection": "C1", "period_start": "2026-01-01", "period_end": "2026-12-31"}]
+        for wanted, expected in (("", "15:1"), ("14:1", "14:1")):
+            CALLS.clear()
+            doc(ledger_state="queued", ledger_target="mrerp")
+            with patch.object(conversation, "wanted", lambda row, task=None, wanted=wanted: wanted), \
+                    _Module({"status": "success", "docnum": "PG691103-000010", "menus": {}, "masters": {}}):
+                push.run(PURCHASE, "PUR-1", document)
+            self.assertEqual((DB.table(PURCHASE)["PUR-1"]["ledger_state"], CALLS[0]["target"]),
+                             ("written", {"account_set": expected}))
+
+    def test_no_account_set_for_the_date_holds_without_importing(self):
+        doc(ledger_state="queued", ledger_target="mrerp", doc_date="2024-03-01")
+        with _Module({"status": "success", "docnum": "x", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("held", express_contracts.NO_BOOK))
         self.assertEqual(CALLS, [])
+
+    def test_two_account_sets_for_one_year_ask_once_on_the_document(self):
+        """同期两本没选过：停在单据上问选哪本（同 Express 那项、记在同一个记忆）；选了再排，导入用选中的那本。"""
+        BOOKS["CO-1"] = [
+            {"key": "15:1", "label": "TEST2026", "connection": "C1", "period_start": "2026-01-01", "period_end": "2026-12-31"},
+            {"key": "16:1", "label": "TEST2026 copy", "connection": "C1", "period_start": "2026-01-01",
+             "period_end": "2026-12-31"}]
+        doc(ledger_state="queued", ledger_target="mrerp")
+        with _Module({"status": "success", "docnum": "x", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("held", contracts.CHOICE))
+        needed = json.loads(saved["ledger_needed"])
+        self.assertEqual([(item["kind"], item["subject"]) for item in needed], [("account_set", "year:2026-01-01")])
+        self.assertEqual(CALLS, [])
+
+        from pearnly_erp_portal.express import choices as express_choices
+
+        def remember(company, kind, subject, value, label=""):
+            CHOSEN[(company, subject)] = value
+        with patch.object(express_choices, "remember", remember):
+            self.assertFalse(push.answer(PURCHASE, "PUR-1", [{"kind": "account_set", "subject": "year:2026-01-01",
+                                                              "value": "99:1"}]))
+            self.assertTrue(push.answer(PURCHASE, "PUR-1", [{"kind": "account_set", "subject": "year:2026-01-01",
+                                                             "value": "16:1"}]))
+        self.assertEqual(DB.table(PURCHASE)["PUR-1"]["ledger_state"], "queued")
+        with _Module({"status": "success", "docnum": "PG691103-000009", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        self.assertEqual(CALLS[0]["target"], {"account_set": "16:1"})
+        self.assertEqual(DB.table(PURCHASE)["PUR-1"]["ledger_book"], "16:1")
+
+    def test_a_paid_purchase_is_imported_as_a_cash_purchase(self):
+        # 11-14 起现购照写：票面付款 = cash，共用层第 9 列放现金供应商、第 10 列真实卖家（与 Cowork 同一份）
+        doc(ledger_state="queued", ledger_target="mrerp", paid=True)
+        with _Module({"status": "success", "docnum": "PG691114-000001", "menus": {}, "masters": {}}):
+            push.run(PURCHASE, "PUR-1", document)
+        saved = DB.table(PURCHASE)["PUR-1"]
+        self.assertEqual((saved["ledger_state"], saved["ledger_docnum"]), ("written", "PG691114-000001"))
+        self.assertEqual(CALLS[0]["payload"]["histories"][0]["fields"]["posting_payment_manual"], "cash")
 
     def test_a_recognized_document_whose_printed_total_does_not_match_is_held_before_mrerp(self):
         """2026-11-03「CC 通用疑难处理」：识别来的单票面合计没有 / 对不上，同 Express 直写停下进待处理，不导入 MR.ERP；
@@ -466,6 +592,12 @@ class KickedAccount(unittest.TestCase):
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "send", "release_kick"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py", "release_kick", "clear"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py", "_route", "manual"),
+            # 11-14 公司接入第 3 批：人在从连接添加 / 公司页选账套后的那次主档整读（往下传的几层）
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "choose", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "queue", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "run", "manual"),
+            ("apps/pearnly_core/pearnly_core/mrerp/master_export.py", "read", "manual"),
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "retry", "manual"),  # 单据页「再写一次」（B13）
             # 11-11 读取：共用入口（清标记只在这一处）与把 manual 往下传的几层
             ("apps/pearnly_core/pearnly_core/mrerp/account.py", "use", "clear"),
             ("apps/pearnly_core/pearnly_core/mrerp/menu_read.py", "read", "manual"),

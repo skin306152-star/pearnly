@@ -416,14 +416,24 @@ def save_answers(company, doctype, name, answers, seen=None) -> int:
 MRERP_KINDS = (mrerp_choices.MENU, mrerp_choices.DEFAULT)
 
 
-def mrerp_needed(company, doctype):
+def mrerp_picked(doctype, name):
+    """这张 MR.ERP 单写进哪本（`mrerp.push.picked`：对话账套 → 单据上记过的 → 按单据日期）；MR.ERP 不导的单据类型回 None。"""
+    return mrerp_push.picked(doctype, name) if mrerp_push.DIRECTIONS.get(doctype) else None
+
+
+def mrerp_needed(company, doctype, picked=None):
     """这家公司这类单导入 MR.ERP 前此刻要人选的导入菜单（``mrerp_menu`` / 单据类型）与主档默认值（``mrerp_default`` / 主档字段），
-    卡片项的形状；选一次记在公司上，大家共用（同单据上「选一次」`mrerp.push.answer`）。MR.ERP 不导的单据类型回 None。"""
+    卡片项的形状；选一次记在公司上那本账套名下，大家共用（同单据上「选一次」`mrerp.push.answer`）。``picked``：这张单选账套的结论
+    （:func:`mrerp_picked`）——同期两本没选过只问选哪本（同 Express 那项、同一个记忆），选中了按那本的菜单与默认值问；没给时是公司上
+    记的那本。MR.ERP 不导的单据类型回 None。"""
     direction = mrerp_push.DIRECTIONS.get(doctype)
     row = mrerp_choices.company_row(company) if direction else None
     if not row:
         return None
-    menu_view, master_view = mrerp_choices.views(row)
+    if picked and picked["reason"] == contracts.SEVERAL_BOOKS:
+        return [{"kind": choices.ACCOUNT_SET, "subject": picked["subject"], "label": row.company_name or row.name,
+                 "value": "", "source": "", "options": [_option(option) for option in picked["options"]]}]
+    menu_view, master_view = mrerp_choices.views(row, (picked or {}).get("book"))
     return [{"kind": raw["kind"], "subject": raw["subject"], "label": raw["subject"], "value": "", "source": "",
              "options": [_option(option) for option in raw.get("options") or ()]}
             for raw in mrerp_contracts.needed(menu_view, master_view, direction)]
@@ -442,16 +452,21 @@ def mrerp_view(doc_id, doctype, name) -> dict:
         return {**view, "state": card.UNKNOWN, "reason": mrerp_contracts.UNKNOWN}
     if head["ledger_state"] == contracts.QUEUED:
         return {**view, "state": card.NOT_WRITABLE, "reason": ALREADY_QUEUED}
-    items = mrerp_needed(push.company_of(doctype, name), doctype)
+    picked = mrerp_picked(doctype, name)
+    if picked and picked["reason"] == contracts.NO_BOOK:
+        return {**view, "state": card.NOT_WRITABLE, "reason": NO_ACCOUNT_SET}  # 没有覆盖单据日期的年度账套（同 Express）
+    items = mrerp_needed(push.company_of(doctype, name), doctype, picked)
     if items is None:
         return {**view, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED}
     return {**view, "state": card.CHECK, "items": items}
 
 
-def save_mrerp(company, doctype, answers, seen) -> int:
-    """记 MR.ERP 的导入菜单 / 主档默认值：只认此刻要选的那几项、最近一次读到的可用值（不是就整批拒），记在公司上
-    （`mrerp.choices.choose`）。同一项（``seen``）只记一次。"""
-    asked = {(item["kind"], item["subject"]): item for item in mrerp_needed(company, doctype) or ()}
+def save_mrerp(company, doctype, answers, seen, name=None) -> int:
+    """记 MR.ERP 的导入菜单 / 主档默认值：只认此刻要选的那几项、最近一次读到的可用值（不是就整批拒），记在公司上这张单那本账套名下
+    （`mrerp.choices.choose`）；同期两本选哪本记进与 Express 同一个记忆（`express.choices`）。同一项（``seen``）只记一次。"""
+    picked = mrerp_picked(doctype, name) if name else None
+    book = (picked or {}).get("book")
+    asked = {(item["kind"], item["subject"]): item for item in mrerp_needed(company, doctype, picked) or ()}
     checked = []
     for answer in answers or ():
         if not isinstance(answer, dict):
@@ -467,7 +482,11 @@ def save_mrerp(company, doctype, answers, seen) -> int:
         seen.add(key)
         checked.append((key, value))
     for (kind, subject), value in checked:
-        if mrerp_choices.choose(company, kind, subject, value) is None:
+        if kind == choices.ACCOUNT_SET:
+            label = next((option["name"] for option in asked[(kind, subject)]["options"] if option["code"] == value), "")
+            choices.remember(company, kind, subject, value, label)  # loop-query: 一张卡片答的几项，同一项只记一次
+            continue
+        if mrerp_choices.choose(company, kind, subject, value, book) is None:
             frappe.throw(_("Invalid request"))
     return len(checked)
 
@@ -552,7 +571,7 @@ def remember(company, answers) -> dict:
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
         doctype, name = found
         if ledger_mrerp:
-            saved += save_mrerp(company, doctype, given, seen)
+            saved += save_mrerp(company, doctype, given, seen, name)
             continue
         saved += save_answers(company, doctype, name, given, seen)
     return {"saved": saved}

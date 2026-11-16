@@ -27,13 +27,16 @@ from typing import Any, Dict, List, Tuple
 from pearnly_core.mrerp.push import routing
 from pearnly_core.mrerp.push.modules import get_module
 from pearnly_core.mrerp.push.xlsx import defaults as account_values, generator as _gen
-from pearnly_core.mrerp.push.xlsx.fmt import allocate_discount, fmt_date, mrerp_tax_label
+from pearnly_core.mrerp.push.xlsx.fmt import (EXCLUSIVE, INCLUSIVE, OUTSIDE, ZERO, STARTER_VAT_RATES, allocate_discount,
+                                              fmt_date, mrerp_bill_no, mrerp_tax_kind, vat_label)
 
 CENT = Decimal("0.01")
 DOC_TYPES = ("purchase", "purchase_expense", "sales_credit", "sales_cash")
 # 税率选项文字 → (税率, 价内)
-_RATES = {"7 (แยก)": (Decimal(7), False), "7 (รวม)": (Decimal(7), True), "0": (Decimal(0), False),
-          "นอกระบบ": (Decimal(0), False)}
+# 税率种类 → (税率, 价内)；页面合计按种类算（名称按这家公司的税率表，`fmt.vat_label`）。初始库名也认（旧调用与测试）。
+_KINDS = {EXCLUSIVE: (Decimal(7), False), INCLUSIVE: (Decimal(7), True), ZERO: (Decimal(0), False),
+          OUTSIDE: (Decimal(0), False)}
+_RATES = {**_KINDS, **{STARTER_VAT_RATES[kind]: rate for kind, rate in _KINDS.items()}}
 
 
 def _dec(value: Any) -> Decimal:
@@ -99,23 +102,24 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
     if doc_type.startswith("purchase"):
         head = account_values.header(mappings)
         party = purchase._supplier_code(history, mappings)
-        ref_no = str(history.get("invoice_number") or history.get("invoice_no") or docnum)[:20]
+        ref_no = mrerp_bill_no(history, docnum, mappings)
         if doc_type == "purchase_expense":
-            vat_label = purchase.expense_cfg(mappings, "_mrerp_expense_vat_label", purchase._EXPENSE_VAT_LABEL)
+            kind, label = OUTSIDE, purchase.expense_label(mappings)
             lines = [_line(purchase._expense_item_code(mappings), 1, purchase._gross_total(history), head["store"],
                            purchase._expense_note(history))]
         else:
-            vat_label = mrerp_tax_label(history)
-            header, rows = allocate_discount(history, purchase._detail_rows(history, mappings), vat_label)
+            kind = mrerp_tax_kind(history, purchase=True)
+            label = vat_label(kind, mappings)
+            header, rows = allocate_discount(history, purchase._detail_rows(history, mappings), kind)
             discount = _form_discount(rows, header, "price")
             lines = [_line(row["code"], row["qty"], row["price"], head["store"]) for row in rows]
     else:
         party = resolve_customer_code(history, mappings)
         head = account_values.header(mappings, party)
-        ref_no = ("SI" + docnum)[:20]
-        vat_label = mrerp_tax_label(history)
-        header, rows = allocate_discount(history, sales_credit.build_sales_credit_detail_rows(history, mappings),
-                                         vat_label)
+        ref_no = mrerp_bill_no(history, docnum, mappings)
+        kind = mrerp_tax_kind(history)
+        label = vat_label(kind, mappings)
+        header, rows = allocate_discount(history, sales_credit.build_sales_credit_detail_rows(history, mappings), kind)
         discount = _form_discount(rows, header, "unit_price")  # 收款由菜单关联的科目带出
         lines = [_line(row.get("product_code"), row.get("qty"), row.get("unit_price"), head["store"],
                        row.get("item_name")) for row in rows]
@@ -124,9 +128,12 @@ def block(history: Dict[str, Any], mappings: Dict[str, Any], *, doc_type: str, m
                             for key in ("comidyear", "seldb", "name", "company_name")},
             "doc_type": doc_type, "menu": str(menu or ""), "docnum": docnum, "date": day,
             "party_code": str(party or "").strip(), "ref_no": ref_no, "ref_date": day, "credit_days": "",
-            "vat_rate": vat_label, "vat_included": _RATES.get(vat_label, (0, False))[1], "discount": _num(discount),
+            "vat_rate": label, "vat_included": _KINDS[kind][1], "discount": _num(discount),
             "defaults": {key: str(head.get(key) or "") for key in ("dept", "job", "employee", "branch", "store")},
-            "lines": lines, "totals": totals(lines, vat_label, discount)}
+            "lines": lines, "totals": totals(lines, kind, discount)}
+
+
+OPERATOR_CASH_PURCHASE = "ERR_MRERP_OPERATOR_CASH_PURCHASE"
 
 
 def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *, today: date, url: str,
@@ -148,6 +155,14 @@ def stage(importer, histories: List[Dict[str, Any]], mappings: Dict[str, Any], *
             if not module.verified:
                 failed.update({str(h.get("id")): [routing.MODULE_UNAVAILABLE_CODE] for h in rows})
                 continue
+            if doc_type.startswith("purchase"):
+                # 现购代录还没做：CC 桌面版要在网页表单里另填开票用供应商（txtapmas_inv），配方没有这一格。不建主档、转人工。
+                from pearnly_core.mrerp.push.xlsx.purchase import is_cash_purchase
+
+                failed.update({str(h.get("id")): [OPERATOR_CASH_PURCHASE] for h in rows if is_cash_purchase(h)})
+                rows = [h for h in rows if not is_cash_purchase(h)]
+                if not rows:
+                    continue
             importer.module = module
             valid, stopped, menu = importer.ready_rows(rows, mappings)
             failed.update({str(row.original.get("id")): [str(r) for r in row.reasons] for row in stopped if row.original})

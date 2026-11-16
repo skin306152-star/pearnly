@@ -4,8 +4,11 @@
 
 - 只在 :data:`pearnly_erp_portal.mrerp.MRERP_LEDGER_ENABLED` 开着时生效（:func:`handles` 关着时直接回假，不查库）；Express 那条
   （`express.push`）在入口处先问 :func:`handles`，关着时一字不变。
-- 哪些单：采购单（真进货 / 费用）与销售单（同 Express 的种类），已提交、在公司选 MR.ERP 当账本之后开始的。MR.ERP 导入只有赊购：
-  现购停下（``mrerp.purchase_cash``，同 Cowork）。出入库、收银日汇总、盘点 MR.ERP 没有对应的导入，不排。
+- 哪些单：采购单（真进货 / 费用）与销售单（同 Express 的种类），已提交、在公司选 MR.ERP 当账本之后开始的。已付的采购按现购写
+  （共用层第 9 列现金供应商、第 10 列真实卖家，同 Cowork）。出入库、收银日汇总、盘点 MR.ERP 没有对应的导入，不排。
+- 写进哪本：一家公司可挂多本年度账套，按单据日期选（`mrerp.catalog.pick`，与 Express `target.pick` 同一条规则、同一个「同期两本选
+  一次」记忆）；选中的那本记在单据上（``ledger_book``），导入、选项、写后核对都用它。没有覆盖单据日期的停下（``NO_BOOK``），同期两本
+  没选过停下让人选一次（``choice_needed:mrerp`` + 账套那一项）。
 - 要人选的导入菜单 / 主档默认值：读到过、此刻要人选的，导入前就停在单据上（``choice_needed:mrerp`` + ``ledger_needed``）；没读到过的
   照导，MR.ERP 那边按读到的核对，要选就停下（读到的选项存回连接）。选一次（:func:`answer`）记在公司上后再排。
 - 同账号互斥（ADR-026 第 8 条）：导入拿共用层的账号短锁（`session_lock.account_lock`，导入 5 步里拿）；被 CC 桌面版代录占着
@@ -73,31 +76,62 @@ def _set(doctype, name, values):
         pending.notify(doctype, name, before)
 
 
+def _wanted(row):
+    """交给 `catalog.pick` 的 ``wanted``（None 照单据日期选；账套键）。MR.ERP 的年度账套还没列进 CC 对话账套（公司接入第 3 批），
+    MR.ERP 公司在对话里会回空串（「对话账套 0 本」= 未定）——列进去之前按 None：照单据日期选，不卡在「对话账套未定」。"""
+    from pearnly_erp_portal.express import conversation  # 同 :func:`prepare`
+
+    return conversation.wanted(row) or None
+
+
 def prepare(doctype, name, document) -> dict:
     """准备一张：``{"payload", "company", "direction"}``，或 ``{"hold": 原因, "needed": [...]}`` / ``{"failed": 原因}``。不写单据。
     ``document``：建单据的函数（`express.push.document`，同 Express 交给写账规则的那个形状）。"""
     company = frappe.db.get_value(doctype, name, "company")
     row = choices.company_row(company)
-    if not row or not row.mrerp_enabled or not row.mrerp_connection or not row.mrerp_account_set:
+    if not row or not row.mrerp_enabled:
         return {"failed": contracts.NOT_CONFIGURED}
     held = printed.hold(doctype, name)  # 识别来的单票面合计没有 / 对不上：同 Express 直写停下
     if held:
         return {"hold": held}
     body = document(doctype, name)
-    stop = contracts.blocked(body)
-    if stop:
-        return {"failed": stop}
-    menu_view, master_view = choices.views(row)
+    # 选账套与「同期两本选一次」的记忆在 express / 公司接入一侧（它们经 `express.push` 反向用到本模块）：用到时再导入
+    from pearnly_erp_portal.express import choices as express_choices
+    from pearnly_erp_portal.mrerp import catalog
+
+    picked = catalog.pick(row.name, body["date"], _wanted(row))
+    if picked["reason"] == express_contracts.SEVERAL_BOOKS:
+        return {"hold": contracts.CHOICE, "needed": [{
+            "kind": express_choices.ACCOUNT_SET, "subject": picked["subject"], "label": row.company_name or row.name,
+            "options": picked["options"], "current": ""}]}
+    if picked["reason"]:
+        return {"hold": picked["reason"]}
+    book = picked["book"]
+    menu_view, master_view = choices.views(row, book)
     needed = contracts.needed(menu_view, master_view, body["direction"])
     if needed:
-        return {"hold": contracts.CHOICE, "needed": needed}
+        return {"hold": contracts.CHOICE, "needed": needed, "book": book}
     party_field = "supplier" if body["direction"] == "purchase" else "customer"
     found = frappe.db.get_value(doctype, name, ["doc_kind", "payment_method", party_field], as_dict=True) or {}
     flat = contracts.history(body, company_name=row.company_name, doc_kind=found.get("doc_kind") or "",
                              payment_method=found.get("payment_method") or "", party_id=found.get(party_field) or "")
-    menus, defaults = choices.chosen(row)
+    menus, defaults = choices.chosen(row, book)
     return {"payload": contracts.payload(flat, own_tax_id=body["company"]["tax_id"], menus=menus, defaults=defaults),
-            "company": row, "direction": body["direction"]}
+            "company": row, "direction": body["direction"], "book": book}
+
+
+def picked(doctype, name) -> dict:
+    """这张单写进哪本（CC 预选卡用，同 Express 预检 `_book_of` 的取法）：CC 对话 / 代录里是本对话账套；否则单据上记过的
+    （``ledger_book``）；都没有按单据日期选。回 `mrerp.catalog.pick` 的结论（``{book, reason, options, subject}``）。"""
+    from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
+
+    row = frappe.db.get_value(doctype, name, ["company", "doc_date", "ledger_book"], as_dict=True) if doctype in DIRECTIONS \
+        else None
+    if not row:
+        return {"book": None, "reason": contracts.NOT_CONFIGURED, "options": [], "subject": ""}
+    # 都没有给 None（照单据日期选），不给空串（`catalog.pick` 把空串当「对话账套未定」）
+    wanted = _wanted(choices.company_row(row.company)) or row.ledger_book or None
+    return catalog.pick(row.company, str(row.doc_date or "")[:10], wanted)
 
 
 def send(doctype, name, manual=False):
@@ -128,11 +162,19 @@ def release_kick(company) -> bool:
     from pearnly_core.mrerp import kick_mark as account_kick
     from pearnly_core.mrerp.session import lock_key
 
+    from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
+
     row = choices.company_row(company)
-    lease = connections.lease(row.mrerp_connection) if row and row.mrerp_connection else {}
-    if not lease.get("username"):
+    if not row:
         return False
-    return account_kick.clear(lock_key(lease["system_url"], lease["username"]))
+    # 这家公司各年度账套所在的连接（一般是同一条）：哪本被选中都可能用到，各清一次
+    names = dict.fromkeys([row.mrerp_connection] + [book["connection"] for book in catalog.books_of(company)])
+    cleared = False
+    for name in filter(None, names):
+        lease = connections.lease(name)  # loop-query: 一家公司的 MR.ERP 连接，一般一条、至多几条
+        if lease.get("username"):
+            cleared = account_kick.clear(lock_key(lease["system_url"], lease["username"])) or cleared
+    return cleared
 
 
 def _claim(doctype, name):
@@ -159,15 +201,17 @@ def run(doctype, name, document):
     if row is None:
         return
     prepared = prepare(doctype, name, document)
+    book = prepared.get("book") or {}
     if "failed" in prepared or "hold" in prepared:
         _set(doctype, name, {"ledger_state": express_contracts.FAILED if "failed" in prepared else express_contracts.HELD,
                              "ledger_reason": prepared.get("failed") or prepared.get("hold"),
+                             "ledger_book": book.get("key") or None,
                              "ledger_needed": json.dumps(prepared.get("needed") or [], ensure_ascii=False)
                              if "hold" in prepared else None})
         frappe.db.commit()
         return
     company = prepared["company"]
-    lease = connections.lease(company.mrerp_connection)
+    lease = connections.lease(book["connection"])
     if not lease.get("username") or not lease.get("password"):
         _set(doctype, name, {"ledger_state": express_contracts.HELD, "ledger_reason": contracts.NO_LOGIN})
         frappe.db.commit()
@@ -176,14 +220,14 @@ def run(doctype, name, document):
         _set(doctype, name, {"ledger_reason": contracts.ACCOUNT_BUSY})  # 等账号：照旧排队，每分钟再看
         frappe.db.commit()
         return
-    _set(doctype, name, {"ledger_reason": contracts.IMPORTING, "ledger_sent_at": now_datetime()})
+    _set(doctype, name, {"ledger_reason": contracts.IMPORTING, "ledger_sent_at": now_datetime(), "ledger_book": book["key"]})
     frappe.db.commit()  # 领取落定、行锁释放，之后才对外请求
 
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
-    outcome = execute(prepared["payload"], {"account_set": company.mrerp_account_set},
+    outcome = execute(prepared["payload"], {"account_set": book["key"]},
                       {"username": lease["username"], "password": lease["password"]}, lease["system_url"], today)
     try:
-        choices.observe(company.mrerp_connection, company.mrerp_account_set, outcome.get("menus"),
+        choices.observe(book["connection"], book["key"], outcome.get("menus"),
                         outcome.get("masters") or None)
         frappe.db.commit()
     except Exception:  # noqa: BLE001 — 只是给选择用的缓存，存不了不影响导入结论
@@ -191,7 +235,7 @@ def run(doctype, name, document):
     values = contracts.settle(outcome)
     if values["ledger_reason"] == contracts.CHOICE:
         fresh = choices.company_row(company.name)
-        menu_view, master_view = choices.views(fresh)
+        menu_view, master_view = choices.views(fresh, book)
         values["ledger_needed"] = json.dumps(contracts.needed(menu_view, master_view, prepared["direction"]),
                                              ensure_ascii=False)
     else:
@@ -206,24 +250,40 @@ def run(doctype, name, document):
             values = {"ledger_state": None, "ledger_reason": "", "ledger_needed": None}
     _set(doctype, name, values)
     frappe.db.commit()
+    if values.get("ledger_state") in (express_contracts.WRITTEN, express_contracts.MISMATCH):
+        # 写进了 MR.ERP（含写入核不上）：排一次主档整读（公司接入 `mrerp.masters.after_write`：去重、只排队、出错只记日志不抛）
+        from pearnly_erp_portal.mrerp import masters  # 主档整读那一侧在写账之后才用到（同上，用到时导入）
+
+        masters.after_write(company.name)
 
 
 def answer(doctype, name, answers) -> bool:
     """单据上选要人选的 MR.ERP 项（``[{kind, subject, value}]``，只认停在单据上的那几项、这一项能选的值）：记在公司上后再排。
     权限由调用方核（同 `express.api.answer`）。全部认得回真。"""
-    row = frappe.db.get_value(doctype, name, ["company", "ledger_state", "ledger_needed"], as_dict=True)
+    row = frappe.db.get_value(doctype, name, ["company", "ledger_state", "ledger_needed", "ledger_book"], as_dict=True)
     if not row or row.ledger_state != express_contracts.HELD or not handles(row.company):
         return False
     try:
         needed = {(item["kind"], item["subject"]): item for item in json.loads(row.ledger_needed or "[]")}
     except (ValueError, KeyError, TypeError):
         return False
+    from pearnly_erp_portal.express import choices as express_choices  # 同 :func:`prepare`
+    from pearnly_erp_portal.mrerp import catalog
+
+    # 菜单 / 默认值记在停下时选中的那本名下（单据上的 ``ledger_book``）；那本已不在这家名单里就不收
+    book = catalog.pick(row.company, None, row.ledger_book)["book"] if row.ledger_book else None
     for given in answers or []:
         item = needed.get((given.get("kind"), given.get("subject"))) if isinstance(given, dict) else None
         value = str(given.get("value") or "").strip() if item else ""
-        if not item or value not in {option["code"] for option in item.get("options") or []}:
+        options = {option["code"]: option.get("name") or "" for option in (item or {}).get("options") or []}
+        if not item or value not in options:
             return False
-        if choices.choose(row.company, item["kind"], item["subject"], value) is None:
+        if item["kind"] == express_choices.ACCOUNT_SET:
+            # 同期两本选哪本：与 Express 同一个记忆（这家公司 × 这个会计年度），`catalog.pick` 下次照它选
+            express_choices.remember(row.company, item["kind"], item["subject"], value,  # loop-query: 停在单据上的几项
+                                     options[value] or item.get("label") or "")
+            continue
+        if (row.ledger_book and book is None) or choices.choose(row.company, item["kind"], item["subject"], value, book) is None:
             return False
     send(doctype, name)
     return True

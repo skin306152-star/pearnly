@@ -114,6 +114,12 @@ class QueueContractTests(unittest.TestCase):
         self.assert_invalid(lambda: job("native-record", record()), response=True)
         self.assert_invalid(lambda: job(ID, record(invoice_no=7)), response=True)
 
+    def test_lease_response_says_requests_are_waiting_only_when_they_are(self):
+        # 11-15：刚建了这台够得到的按需请求，CC 桌面版 1.12.22 起马上去领；没有时不多这个键（旧版照旧）
+        self.assertNotIn("requests_waiting", lease_response([]))
+        self.assertNotIn("requests_waiting", lease_response([], None, False))
+        self.assertIs(lease_response([], None, True)["requests_waiting"], True)
+
     def test_lease_response_retains_source_shape_and_optional_refresh(self):
         self.assertEqual(lease_response([]), {"ok": True, "lease_seconds": 120, "jobs": []})
         self.assertEqual(lease_response([], {}), lease_response([]))

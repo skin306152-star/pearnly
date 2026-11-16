@@ -361,10 +361,11 @@ def warm(company, day=None) -> None:
         frappe.log_error(title="ERP collection warm-up skipped", message=frappe.get_traceback()[-1200:])
 
 
-def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=None) -> dict:
+def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=None, docnums=()) -> dict:
     """一位客户此刻能收的发票（快照减去别的记录的预留），日期早的在前：``{"items": [{docnum, doc_date, net, received,
     remaining, reserved, available, salesman, department}], "refresh": ready | reading | offline | outdated}``。
-    ``refresh``：同时请电脑按这位客户即时读一次（读好前先给快照里的）；``book``：已有的草稿冻结的那本。"""
+    ``refresh``：同时请电脑按这位客户即时读一次（读好前先给快照里的）；``book``：已有的草稿冻结的那本；``docnums``：这次读
+    同时按单号查这几张在账套里的状态（CC 桌面版 1.12.22 起，结果多一项 ``looked_up``，见 `snapshot.looked_up`）。"""
     guard.require(WRITE)
     row = _company(company)
     customer = customer_code(company, customer)
@@ -372,14 +373,17 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     book = book or book_for(row, day or nowdate())
     if refresh:
         snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
-    state = snapshot.request(company, book, customer) if refresh else ""
+    state = snapshot.request(company, book, customer, docnums) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",
                                                                        "available")}}
              for value in rows.values() if value["available"] > 0]
     for item in items:
         item.pop("read_at", None)
-    return {"items": items, "refresh": state, "book": book["key"], "customer": customer}
+    found = {"items": items, "refresh": state, "book": book["key"], "customer": customer}
+    if docnums:
+        found["looked_up"] = snapshot.looked_up(book["key"], customer, docnums) if state == snapshot.READY else {}
+    return found
 
 
 # ── 草稿 ─────────────────────────────────────────────────────────────────────

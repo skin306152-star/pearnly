@@ -415,6 +415,8 @@
 | `pearnly_core/mrerp/session.py`、`collect.py`、`master_reader.py`（登录、选账套、小表读取） | 共用、不改契约 | 两边都只调；谁要改先告诉主会话 |
 | 公司「来源」：第 2 批加 `ERP Company.ledger`（express / mrerp）与 `push.linked / enabled / linked_at` 统一读法 | **本窗口** | 对方写账判定继续用 `mrerp.push.handles(company)`；第 2 批把它内部改读 `ledger`，签名不变 |
 | 跨边测试 | 两边 | `tests/test_erp_mrerp_direct.py`（对方）在开关打开时跑全；本窗口第 3 批加「开关打开 + 从连接添加一家 MR.ERP 公司 → 主档落库 → 对方的写账用例照过」一条，放 `tests/test_erp_mrerp_onboarding.py` |
+| 写单后整读一次：`pearnly_erp_portal.mrerp.masters.after_write(company)` | 函数归**本窗口**（第 3 批），调用那一行归 mrerp-write（`mrerp/push.py` 写成处；主会话 11-14 定） | 签名固定 `after_write(company) -> bool`，定了不改。行为：开关关着 / 公司没接 MR.ERP / 已排着或在读 / 5 分钟内读过 → 不排、回 False；否则排一次整读（erp_masters 队列，同公司一件，`enqueue_after_commit`）回 True；只排队、不读不落、不阻塞写账；任何异常吞掉记 Error Log、回 False。调用方用延迟导入、函数不存在就跳过，两边分支互不依赖 |
+| 写进哪一本 MR.ERP 账套：`pearnly_erp_portal.mrerp.catalog.pick(company, day, wanted=None)`（11-14 主会话统一命名：原名 book_for，与收款的 `collection.service.book_for` 重名，角色等同 `express.target.pick`） | 函数归**本窗口**（第 3 批，各年度账套归一家），调用归 mrerp-write（`mrerp/push.py` 的 prepare、`mrerp/choices.py`、`mrerp/ledger_check.py`、`express/cc_tools.py` 里现在读 `mrerp_account_set` 的地方；主会话 11-14 定） | 签名固定，定了不改。``company``：ERP 公司名，或带 `name / mrerp_connection / mrerp_account_set / mrerp_company` 的行；``day``：单据日期（`YYYY-MM-DD`）；``wanted``：CC 对话 / 代录定了的那本账套键（None = 按日期选；空串 = 对话账套未定）。回 ``{book, reason, options, subject}``，与 `express.target.pick` 同形状、同原因码（`express.contracts`）：``book`` = ``{key, label, connection, period_start, period_end, comidyear}``（``key`` 即 `comidyear:seldb`，登录 / 导入 / 选择都用它，``connection`` 用它的凭据）；按 MR.ERP 里读出的会计期间、与 Express 同一条规则（`account_match.for_day`）选，期间读不到的年度库不参与；一本不覆盖 → ``NO_BOOK``（给人看的一句 `catalog.no_book_text(company, day)`，同收款那两句的写法）；同期两本 → Express 同一个选择与记忆（`express.choices` 的 ``account_set`` + ``subject``）选过用选的，没选过 ``SEVERAL_BOOKS`` 带 ``options`` / ``subject``（人选的值照 Express 记到同一处）。只读、不写库、不连 MR.ERP。过渡：公司上的 `mrerp_account_set` 保留（= 接上时今天该写的那本），写账一侧切完前照旧可读 |
 | 合入顺序 | 主会话排 | 对方写账分支先合（不含开关）→ 本窗口第 3 批（含开关）后合，同一车部署 |
 
 ### 线上耗时估算的依据（主会话 11-14 要求写清）
@@ -537,3 +539,72 @@
 - **重新启用后的提示**：有新建（含接管开户时的空公司）说「已新建」；只是重新启用 / 接上已有公司的，用公司页启用时那句「已更新」
   （现成 `company.notice.toggled`，不新增词）。
 - 流程 `erp.company.connect` 补「只有一家公司的账号：左上角下拉里有从连接添加、没有切换组」。
+## 第 3 批施工记录（MR.ERP 同一套，窗口 company-onboarding-3，11-14 起）
+
+基线：第 2 批本地头 7934a02cc（第 2 批合入 main 后变基）。写账路径（`mrerp/push.py`、`express/push.py`、`pearnly_core/mrerp/push/**`、
+`mrerp/contracts.py`、`mrerp/ledger_check.py`）按接缝约定不改。
+
+### 改动
+- 读：`pearnly_core/mrerp/master_export.py`。MR.ERP 自带导出页 `exparmas` / `expapmas` / `expstkmas`（`component/expdata.php`，POST 编码范围，
+  首末编码取同模块列表接口第一 / 最后一条，两边同一库排序）出 xlsx；单位名取物料主档列表；仓库取结存报表页的列表接口；按仓结存取报表
+  241「สินค้าคงเหลือ:แยกคลัง」（先打开报表页带 `idmenu=55` 设会话当前菜单，再 `showreportfile.php`）。xlsx 用标准库读（离线测试不需要
+  openpyxl）。输出与 Express facts 同形状；主仓 `mainloc` = 编码排第一的仓（MR.ERP 新建单据的默认仓），ERP 建公司自带的 Main 仓认作它。
+  整读固定 `account.use(manual=False)`：后台不清被踢标记、不登录被踢过的账号。
+- 落：`express.masters.apply(..., ledger="MR.ERP")`，同一个比对、批量写、停用；四类档（客户 / 供应商 / 物料 / 仓库）加只读 `ledger`
+  （Express / MR.ERP），参与比对；物料来由加 `mrerp`；补丁 v1_29 用一条 UPDATE 把带编码的存量档回填 Express（不逐条保存、不生成修改记录）。
+  仓库码 Express 照旧截 4 位，MR.ERP 照原样。结存叠加「接上之后、还没写成的单」时 MR.ERP 公司取 `mrerp_linked_at`。
+- 排：`erp mrerp/masters.py`。`queue`（erp_masters 队列、同公司一件）、`run`（读 → 落 → 状态记在公司同一组字段 → 推给发起人）、
+  `after_write`（写账一侧写成后调；5 分钟内读过 / 排着的不排）、`sync_all`（每小时，`hooks.py`）。接上 / 换账套（`catalog.choose`，
+  从连接添加与公司页选账套都经它）排一次并推给本人。Express 的每分钟推进（`express.masters.advance`）跳过接 MR.ERP 的公司。
+- 「长期没人用」判定（`mrerp.masters.idle`）：读过一次，接上 / 换账套已超过 14 天，14 天内没有新的采购单 / 销售单 → 每小时那次不读；
+  没读过的总读一次；一写单就由写单后那次读上。不新增固定花费（只是已有后台进程里每小时多几个请求）。
+- 公司页 MR.ERP 一节加「状态 / Last Synced On / 原因」（原因码映射现成的 MR.ERP 文案），排着 / 在读时挂上同步完成的推送，做完重画。
+- 文案新增 2 条：`product.origin.mrerp`「MR.ERP 同步」、`master.field.ledger`「账本」（四语）。
+
+### 实测
+- TEST2019 实读（经写账窗口实验栈的共用入口，复用缓存会话，没有新登录、没踢人）：一次整读 10 个请求、0.46 秒、533 KB；
+  客户 7 / 供应商 14 / 物料 12 / 单位 35 / 仓库 3 / 结存 11 行。原样 xlsx 存为 `tests/fixtures/mrerp/export_*.xlsx`、`report_stock_by_store.xlsx`。
+- 实验栈 `pearnly-onboard3-lab`（`scripts/erp-mrerp-masters-lab-verify.py`）：首次落库四类全建、`ledger` = MR.ERP、Main 仓认作 0000、
+  结存与 MR.ERP 一致、服务档不进库存、再落 0 改动、补丁回填、Express 推进不碰 MR.ERP 公司 —— 全过。
+- 单测：`test_mrerp_master_export.py` 8、`test_erp_mrerp_onboarding.py` 8；`test_erp_mrerp_direct.py` 36、`test_erp_express_direct.py` 195 照过。
+
+### 待定 / 未做
+- 写单后那次的调用点在写账路径（`mrerp/push.py` 写成处一行 `mrerp.masters.after_write(company)`）：等主会话定由谁加。
+- 档上「Express 编码」等已有标签改成「账本编码」口径属于改已有文案，清单见下，等用户确认后再改：
+  `Express Code`→「账本编码」、`Express Company`→「账本公司」、`Express Account Set`→「账本账套」（隐藏字段）。
+
+### 第 3 批补充（11-14 晚）
+- B13 由写账接手窗口做（分支 `pearnly/mrerp-ledger-dialog`，来源判定集中在 `express/api.py` 的 `ledger_of(row)`）；本批撤回自己那份，
+  变基到它之后只改 `ledger_of` 读档的来源并补一条测试（主会话 11-14 定）。
+- 人点出来的整读（从连接添加、公司页选账套——选同一本也算一次重读）算人点的：先清这个 MR.ERP 账号的被踢标记再登录；定时与写单后的不算。
+  起因：实验栈端到端时，建公司后的那次整读碰上被踢标记（账号刚被别处登录）直接失败，且没有人点的重试入口。源码锁白名单补 4 处往下传的层。
+- 从连接添加的 MR.ERP 行带上账套名（MR.ERP 一家公司每个年度一份账套、公司名相同：TEST2019 / TEST2020 原来都显示「TEST」）。
+- 公司页原因栏的 MR.ERP 原因码走 `__()`（MR.ERP 文案在全局词表），不是公司页自己的词表。
+- 端到端（实验栈 `pearnly-onboard3-lab`，开关只在工作树里临时打开、未提交；test01 真登录，写账窗口让出空档）：连接写入凭据后刷新账套目录
+  （1.0 秒，TEST2019 / TEST2020）→ 打开公司页自动弹「选择要用的公司」→ 勾 TEST2019 → 「已新建」→ 公司页 MR.ERP 一节「排队中」→
+  后台整读落库：客户 7 / 供应商 14 / 物料 12、仓库 0000 / 0001 / 0002（自带 Main 仓认作 0000），来源 MR.ERP → 刷新后「已同步」带时间。
+  电脑与手机宽度（375）各看一遍。没覆盖：CC 桌面版里授权 MR.ERP 登录那一步（凭据直接写进连接代替）；同步完成的实时推送（实验栈不跑 socketio，要刷新）。
+- 已知、待定：MR.ERP 建出的公司名取账套目录的「公司」简称（TEST），不是法定名称（目录里另有 `company_name`「1010-01-000006 บริษัท ทดสอบการใช้ จำกัด」，带内部编号）；
+  MR.ERP 一家公司的多个年度账套各建一家 ERP 公司（Express 按税号 + 分店把各年度归成一家）——两件都报主会话定。
+
+### 第 3 批 11-15 晚：变基到第 2 批上线后的 main、Express 升级回归、MR.ERP 标签页
+
+- **变基**：从第 2 批旧头 2b4ff7223 变基到 origin/main 19d9d0d3a（release-20261115-1126 之后）。补丁编号不用顺延（main 末尾 1.29，本批 1.30 / 1.31）。
+  - `cc_service.py` 合并：第 2 批的状态（新 / 已停用 / 已添加）、账套文件夹副标题、停用即重新启用、接管空默认公司，与本批「MR.ERP 一家一行、各年度归一家」合在一起。
+  - MR.ERP 也走接管：`_build_mrerp(group, blank)`，接管时改名为全称、接上今天该写的那本。
+  - 弹窗副标题加上 MR.ERP 简称（`book`）；搜索把简称也算进去（目录和弹窗两处）。
+- **Express 升级回归**（`scripts/erp-express-ledger-upgrade-lab-verify.py`，实验栈 pearnly-onboard-lab）：
+  - 做法：先挂 origin/main 源码，用旧代码首次落库一套合成 Express 账套（客户 1500 / 供应商 300 / 物料 1500 / 仓 2，此时库里没有 ledger 列）。
+  - 再换挂本分支迁移，v1_30 照生产升级那样执行，然后核对：
+    - 回填：四类主档 ledger 全是 express，一条空的都没有。
+    - 再同步一次：各类 0 条改动，`modified` 一条没变，修改记录 6023→6023。
+    - 收款客户框按编码、按名字照常搜得到（「接上」只把 `push.linked` 当真，查询原样）。
+    - 对照：清掉客户的 ledger 再落，客户 1500 条整本改写。这证明「不回填就整本重写」这条检查确实拦得住。
+  - 全部通过。旧数据站点 erp-old 升级也跑了 v1_30，但它没有 Express 主档，所以以合成账套的结果为准。
+- **MR.ERP 标签页流程** `erp.company.connect.mrerp`：
+  - 开关关着（CI 跑这面）：没有 MR.ERP 标签，MR.ERP 目录里的公司一家也不出。
+  - 开关打开：本地临时把常量改成 True（不提交），用 `run.py --migrate` 重启网页进程后跑，新 / 旧数据 × 电脑 / 手机宽度。
+    - 两个标签都在；一家一行，A 的两个年度归一行。
+    - 已建公司的 C 禁用并标「已添加」。
+    - 勾 A 添加后建出一家公司：标识 tax:税号，记的是覆盖今天的那本，名称去掉内部编号；再开选择窗 A 也标「已添加」。
+  - 坑：`run.py` 不带 `--migrate` 不重启网页进程，改了模块常量的网页还是旧值。

@@ -354,7 +354,9 @@ pearnly_ocr_failure_handlers = {"erp.line_intake": "pearnly_erp_portal.integrati
 scheduler_events = {
     "hourly": ["pearnly_erp_portal.integrations.intake.expire_stale",
                # Express 当账本的公司：主档与库存从 Express 回读（没接 Express 的站点什么都不做）
-               "pearnly_erp_portal.express.masters.sync_all"],
+               "pearnly_erp_portal.express.masters.sync_all",
+               # MR.ERP 当账本的公司：服务端整读主档比对、只写变化行；长期没人用的不读（开关关着什么都不做）
+               "pearnly_erp_portal.mrerp.masters.sync_all"],
     # 写进 Express 的单：停下的、会自己好的再准备一次（结果由写账队列直接交回，不轮询；没有要看的就一条查询）
     "cron": {"* * * * *": ["pearnly_erp_portal.express.push.poll",
                            # 排着的 Express 主档同步：按顺序发起读取、读好了排后台任务落库（没有排着的就一条查询）
@@ -651,6 +653,8 @@ permission_query_conditions.update({
 pearnly_express_operator = {
     "allowed": "pearnly_erp_portal.express.operator.allowed",
     "sources": "pearnly_erp_portal.express.operator.sources",
+    # 这个月以外还等着录的单按月计数（代录计划这个月为空时 CC 说清、问要不要改月份，A 线 11-15）
+    "elsewhere": "pearnly_erp_portal.express.operator.elsewhere",
     "precheck": "pearnly_erp_portal.express.operator.precheck",
     # 放文件（A 批 1，ADR-027 代录完整）：交 ERP 对话收单识别、识别状态现读；目标只有 Express
     "intake": "pearnly_erp_portal.express.operator.intake",

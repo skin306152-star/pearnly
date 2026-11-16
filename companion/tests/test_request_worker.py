@@ -146,7 +146,7 @@ def test_a_server_without_these_methods_is_asked_again_only_after_a_while():
             worker._stop.set()
         return worker._stop.is_set()
 
-    worker._stop.wait = wait
+    worker._rest = wait
     worker._loop()
     assert len(asked) == 1 and len(waits) == 3  # 退避期内的两轮不再问
     now[0] += request_worker.REFUSED_BACKOFF
@@ -198,7 +198,7 @@ def test_server_errors_back_off_and_a_rejected_key_is_reported(monkeypatch):
             worker._stop.set()
         return worker._stop.is_set()
 
-    worker._stop.wait = wait
+    worker._rest = wait
     worker._loop()
     key = request_worker._key(_cfg())
     assert worker._failures[key] == 1 and worker._refused[key] == 1000.0 + 15   # 退避的 15 秒里只问了一次
@@ -209,6 +209,6 @@ def test_server_errors_back_off_and_a_rejected_key_is_reported(monkeypatch):
             raise Refused("on-demand request refused: 401", 401)
 
     worker = request_worker.RequestWorker(lambda: [_cfg()], client_factory=Rejected(), timer=lambda: now[0])
-    worker._stop.wait = lambda seconds: worker._stop.set() or True
+    worker._rest = lambda seconds: worker._stop.set() or True
     worker._loop()
     assert reported == ["exp_CONN1_s"]

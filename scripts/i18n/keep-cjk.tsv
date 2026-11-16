@@ -15,6 +15,7 @@
 apps/pearnly_erp_portal/pearnly_erp_portal/inventory/workbook.py	*	输入词：客户旧盘点表的表头别名（中/泰/日），按原字面认表，翻了就认不出；模板表头本身走词条
 apps/pearnly_cowork/pearnly_cowork/reconciliation/export/summary.py	*	规格：银行对账工作簿标题四语表，按导出语言取词
 apps/pearnly_cowork/pearnly_cowork/tax/thai_words.py	*	输入词：Express 摘要与票面名称里的泰文原词（อย่างย่อ、非法人前缀、称谓），按原字面认，翻了就认不出；界面文案走词条
+apps/pearnly_erp_portal/pearnly_erp_portal/masters/search_rules.py	*	输入词：Express 主档称谓 / 法人前缀的泰文原词（ร้าน、บริษัท、หจก. 等），按原字面在打的字里断开前缀找档，翻了就认不出；不进界面
 apps/pearnly_core/pearnly_core/express_operator/menu_choice.py	*	输入词：单据付款文字与 Express 菜单里的泰文原词（เงินสด、โอน、各家银行泰文名），按原字面认现金 / 转账，翻了就认不出；不进界面
 apps/pearnly_core/pearnly_core/express_operator/choice_points.py	*	输入词：Express / MR.ERP 屏幕上弹框的泰文原文与按钮原字（用来认是哪个框、点哪个钮），与 CC 桌面版配方 dialogs 同值、由 tests/test_operator_choice_points.py 比对；不是给用户看的文案，翻了就认不出框
 apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py	解绑	输入词：同上，ERP 的 LINE 通道收同一组解绑词
@@ -214,3 +215,20 @@ apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py	เลขเค�
 apps/pearnly_erp_portal/pearnly_erp_portal/express/contracts.py	สี	数据：按台号码写进 Express 单据行附加说明（ARTRNRM）的标签，与 ERP 打印行下印号（printing/_labels.html 宏 vehicle）同一写法，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/operator_draft.py	*	数据：MR.ERP 网页表单税率选项的泰文原文（与导入模板同值），按原字面交 CC 桌面版选项，不进界面
 apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py	*	数据：按 Express 收款类型（ISRUN ZR）名称里的泰文字判断给不给收款员选（ส่วนลดเงินสด / เช็ค / ภาษีถูกหัก / หัก ณ ที่จ่าย / โอนเข้าบัญชี / เงินสด），只用于比对，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	บริษัท	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	จำกัด (มหาชน)	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	บมจ.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	บมจ	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	จำกัด	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	บจก.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	บจก	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	ห้างหุ้นส่วนจำกัด	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	หจก.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	หจก	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	ห้างหุ้นส่วนสามัญ	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	หสม.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	หสม	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	นางสาว	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	น.ส.	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/masters.py	น.ส	数据：同一种泰国法人 / 称呼的几种写法（`_SAME_FORM`），按原字面比对票面名称与 MR.ERP 称谓表，不进界面
+apps/pearnly_core/pearnly_core/mrerp/master_export.py	*	数据：MR.ERP 按仓结存报表与物料导出里的泰文固定字（仓行前缀、服务类型名、合计行），按原字面解析，不进界面

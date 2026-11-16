@@ -828,6 +828,48 @@ class PartyPrenames(unittest.TestCase):
             self.assertEqual((prename + core).replace(" ", ""), name.replace(" ", ""), name)  # PRENAM + 核心名 = 原名，不丢字
 
 
+class Release1122Edges(unittest.TestCase):
+    """CC 桌面版 1.12.22 那一批的三条接缝（11-15）：服务端先上线，旧版（1.12.21）与新版都要对。各条按「仓库里这版 CC 认不认」
+    分两种写法核：认了就两端同名同值；还不认时服务端不能把它交给这版。"""
+
+    ERP = ROOT / "apps" / "pearnly_erp_portal" / "pearnly_erp_portal"
+
+    def version(self):
+        return tuple(int(part) for part in module_constants(COMPANION / "version.py")["VERSION"].split("."))
+
+    def test_invoice_numbers_go_only_to_a_cc_that_takes_the_docnums_parameter(self):
+        # 未收发票按单号查（已收清 / 已作废 / 账套里没有）：旧版对多出来的参数回 params_invalid，服务端按版本只派给新版
+        minimum = number_constants(WIRE / "request_contracts.py", ("PARAM_MIN_COMPANION",))["PARAM_MIN_COMPANION"]
+        floor = tuple(int(part) for part in minimum["express_ar_open"]["docnums"].split("."))
+        optional = number_constants(COMPANION / "express_receivables.py", ("OPTIONAL_KEYS",))["OPTIONAL_KEYS"]
+        self.assertEqual("docnums" in optional, self.version() >= floor)
+        if "docnums" in optional:
+            states = number_constants(self.ERP / "collection" / "snapshot.py", ("STATES",))["STATES"]
+            helper = number_constants(COMPANION / "express_receivables.py", ("LOOKUP_STATES", "DOCNUMS_MAX"))
+            self.assertEqual(set(helper["LOOKUP_STATES"]), set(states))
+            self.assertEqual(helper["DOCNUMS_MAX"],
+                             number_constants(self.ERP / "collection" / "snapshot.py", ("DOCNUMS_MAX",))["DOCNUMS_MAX"])
+            self.assertIn('"looked_up"', (COMPANION / "express_receivables.py").read_text(encoding="utf-8"))
+
+    def test_the_wake_up_in_the_lease_reply_is_read_by_name_or_ignored(self):
+        # 领单回复的 requests_waiting：新版读这个名字叫醒按需请求线程；旧版只按名字取 jobs / master_refresh，多一个键不碍事
+        wire = (WIRE / "queue_contracts.py").read_text(encoding="utf-8")
+        self.assertIn('result["requests_waiting"] = True', wire)
+        poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
+        self.assertIn("response.get('jobs')", poll)  # 方法源码经 AST 还原，引号是单引号
+        self.assertNotIn("set(response)", poll)
+        if 'requests_waiting' in poll:
+            self.assertIn("response.get('requests_waiting')", poll)
+
+    def test_the_party_prefix_is_optional_and_joined_by_the_server(self):
+        # 主档上报的 prename（PRENAM）：服务端按「前缀 + 核心名」显示，没带（旧版）就是核心名；按编码认档不变
+        pick = (COMPANION / "express_masters.py").read_text(encoding="utf-8")
+        contract = (self.ERP / "express" / "contracts.py").read_text(encoding="utf-8")
+        self.assertIn('row.get("prename")', contract)
+        if '"prename"' in pick:
+            self.assertIn('"PRENAM"', pick)
+
+
 class PosPayload(unittest.TestCase):
     """载荷 3（POS 导出的日汇总票）：版本、`pos` 块的键、拒收码与摘要字样两边一致。"""
 
@@ -1577,7 +1619,8 @@ class ReceiptContract(unittest.TestCase):
         self.assertEqual(server["KIND_MIN_COMPANION"]["express_ar_open"], "1.12.20")
         helper = number_constants(COMPANION / "express_receivables.py", ("PARAM_KEYS", "OPTIONAL_KEYS"))
         self.assertEqual(set(helper["PARAM_KEYS"]), set(server["LOCATION_KEYS"]))
-        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer",))
+        # docnums（按单号查状态，1.12.22）只派给认得它的版本：`Release1122Edges`
+        self.assertEqual(tuple(helper["OPTIONAL_KEYS"]), ("customer", "docnums"))
         self.assertIn('"express_ar_open": express_receivables.read_ar_open',
                       (COMPANION / "request_worker.py").read_text(encoding="utf-8"))
         tree = ast.parse((COMPANION / "express_receivables.py").read_text(encoding="utf-8"))

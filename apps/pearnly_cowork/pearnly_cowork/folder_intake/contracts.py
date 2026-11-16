@@ -39,8 +39,8 @@ XLS_NOT_SUPPORTED = "pos.xls_not_supported"
 POS_LAYOUT_NEEDED = "pos.layout_needed"  # POS 导出的列还没认好：停在 source_ready 等人答一次（算「停下待人」）
 DIRECTIONS = ("purchase", "sales")
 POSTING_KINDS = ("service", "stock")
-# MR.ERP 在入口选付款方式（与「新建录入」同一口径：进项只有赊账，旧线上对 MR.ERP 进项现金明确拦截）。
-MRERP_PAYMENTS = {"purchase": ("credit",), "sales": ("cash", "credit")}
+# MR.ERP 在入口选付款方式（与「新建录入」同一口径；11-14 起进项也可选现金：现购按现金供应商记账，`mrerp/push/defaults.py`）。
+MRERP_PAYMENTS = {"purchase": ("cash", "credit"), "sales": ("cash", "credit")}
 # 规则可以预先定下的「这一类都这样处理」（与 push/express/choices.py 的选择项同名，对方档除外）
 KINDS = ("payment", "vat", "account", "item", "department")
 PAYMENT_VALUES = ("cash", "credit")

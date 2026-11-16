@@ -484,6 +484,39 @@ class MasterSync(Base):
         rows[3] = {**rows[3], "name": "ผู้ขาย ใหม่"}
         self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields), 1)
 
+    def test_the_prefix_joins_the_name_and_a_first_full_name_sync_only_rewrites_the_name_column(self):
+        # 11-15：CC 桌面版只报 CUSNAM / SUPNAM，带称谓的对方在 ERP 只显示短名。1.12.22 起另报 PRENAM：显示名 = 前缀 + 核心名；
+        # 已同步的档第一次改成全名（一本账套八九成档带前缀）只改名称这一列，不读出整份、不 save（不留修改记录）
+        from unittest import mock
+        old = [{"code": f"V{i:03d}", "name": f"ทดสอบ {i}", "tax_id": "", "branch": "00000"} for i in range(4)]
+        self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", old, self.sync._supplier_fields), 4)
+        new = [{**row, "prename": "ร้าน" if i % 2 else ""} for i, row in enumerate(old)]
+        with mock.patch.object(frappe, "get_doc", side_effect=AssertionError("a rename must not read or save the row")):
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", new, self.sync._supplier_fields), 2)
+            self.assertEqual(self.sync._parties("ERP Supplier", "CO-1", "T.9", new, self.sync._supplier_fields), 0)
+        names = sorted(row["supplier_name"] for row in fake.STATE.db.table("ERP Supplier").values())
+        self.assertEqual(names, ["ทดสอบ 0", "ทดสอบ 2", "ร้าน ทดสอบ 1", "ร้าน ทดสอบ 3"])
+        self.assertEqual(len(fake.STATE.db.table("ERP Supplier")), 4)  # 按编码认档，没有一条当成新的
+
+    def test_a_name_that_differs_only_by_spaces_is_kept_as_written(self):
+        # 人在 ERP 建的「ร้านลีฟทดสอบ 1115」推进 Express 成 PRENAM ร้าน + 核心名；同步回来不改成「ร้าน ลีฟทดสอบ 1115」
+        made = self.supplier(supplier_name="ร้านลีฟทดสอบ 1115", express_code="S9", express_company="CO-1",
+                             branch_type="head_office")
+        rows = [{"code": "S9", "name": "ลีฟทดสอบ 1115", "prename": "ร้าน", "tax_id": "", "branch": "00000"}]
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        self.assertEqual(fake.STATE.db.table("ERP Supplier")[made]["supplier_name"], "ร้านลีฟทดสอบ 1115")
+
+    def test_a_local_record_is_claimed_by_its_full_or_its_core_name(self):
+        short = self.supplier(supplier_name="ลีฟ", branch_type="head_office")
+        full = self.supplier(supplier_name="บริษัท เอ จำกัด", branch_type="head_office")
+        rows = [{"code": "S1", "name": "ลีฟ", "prename": "ร้าน", "tax_id": "", "branch": "00000"},
+                {"code": "S2", "name": "เอ จำกัด", "prename": "บริษัท", "tax_id": "", "branch": "00000"}]
+        self.sync._parties("ERP Supplier", "CO-1", "T.9", rows, self.sync._supplier_fields)
+        table = fake.STATE.db.table("ERP Supplier")
+        self.assertEqual((table[short]["express_code"], table[short]["supplier_name"]), ("S1", "ร้าน ลีฟ"))
+        self.assertEqual((table[full]["express_code"], table[full]["supplier_name"]), ("S2", "บริษัท เอ จำกัด"))
+        self.assertEqual(len(table), 2)
+
     def test_a_book_change_rewrites_nothing_and_new_rows_go_through_the_bulk_path(self):
         # 11-13 生产 testerp CO-00146：现用账套从「T.8 …」换成「9.…」，一万多条客户因档上的 express_book 不同全部重写。
         # 档上的 express_book 只在新建时记、不比对；新建的行走批量写，已有的行不走
@@ -2365,6 +2398,37 @@ class OperatorPrecheck(PushModule):
         self.assertNotIn("moves", out["documents"][0])  # ERP 不声明改分组：资料区的单不能拖（共用层补成空）
         self.assertEqual((seen[0]["company"], seen[0]["owner"]), ("CO-9", "a@x"))  # 员工只看本人录入的
 
+    def test_other_months_are_counted_with_the_same_rule_as_the_list(self):
+        """A 线 11-15：代录这个月没有可录的单时，CC 要说清别的月份各有几张（11-13 测试机1：6 月的单放在 10 月的代录对话里只回「0 张」）。
+        与资料区同一套判据（公司可见、开单权、员工只看本人的、带按台号码的不算），只换日期：这个月之前、之后各查一次。"""
+        from unittest import mock
+        seen = []
+        older = [Row(name="PI-6", doc_date="2026-06-03", grand_total=100, system_no="PE-6", supplier_name="S",
+                     ledger_reason="", ledger_job=None),
+                 Row(name="PI-7", doc_date="2026-06-20", grand_total=100, system_no="PE-7", supplier_name="S",
+                     ledger_reason="", ledger_job=None),
+                 Row(name="PI-8", doc_date="2026-05-02", grand_total=100, system_no="PE-8", supplier_name="S",
+                     ledger_reason="", ledger_job=None)]
+        newer = [Row(name="PI-9", doc_date="2026-11-01", grand_total=100, system_no="PE-9", supplier_name="S",
+                     ledger_reason="", ledger_job=None)]
+
+        def get_all(doctype, **kw):
+            seen.append(kw["filters"])
+            return older if kw["filters"]["doc_date"][0] == "<" else newer
+
+        with mock.patch.object(frappe.db, "sql_list", lambda query, values: ["PI-8"] if "ERP Line Serial" in query else [],
+                               create=True), \
+                mock.patch.object(self.operator, "_company_ok", lambda user, company: company == "CO-9"), \
+                mock.patch.object(self.operator.guard, "has", lambda capability, user=None: capability == "purchase.write"), \
+                mock.patch.object(self.operator.guard, "scope_filters", lambda user=None: {"owner": "a@x"}), \
+                mock.patch.object(frappe, "get_all", get_all, create=True), \
+                mock.patch.object(frappe, "session", types.SimpleNamespace(user="a@x"), create=True):
+            self.assertEqual(self.operator.elsewhere("CO-9", "2026-10"),
+                             [{"month": "2026-11", "count": 1}, {"month": "2026-06", "count": 2}])  # PI-8 带按台号码：不算
+            self.assertEqual(self.operator.elsewhere("CO-1", "2026-10"), [])  # 不是本人可见的公司
+        self.assertEqual([f["doc_date"] for f in seen], [["<", "2026-10-01"], [">", "2026-10-31"]])
+        self.assertTrue(all(f["company"] == "CO-9" and f["owner"] == "a@x" for f in seen))
+
     def test_a_document_already_queued_elsewhere_is_not_offered(self):
         found = self.run_precheck({"PI-1": {"payload": {}, "book": {}}}, job="J9")
         self.assertEqual((found["P:PI-1"]["state"], found["P:PI-1"]["reason"]), ("blocked", "already_queued"))
@@ -3781,12 +3845,16 @@ class ExpressWaiting(PushModule):
         waiting.mark("ERP POS Day Summary", rows, key="express_summary")
         self.assertEqual([row.get("ledger_waiting") for row in rows], ["express_open", "express_open", None])
 
-    def view(self, **values):
+    def api(self):
         utils = sys.modules["frappe.utils"]
         for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
                             ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
             setattr(utils, name, getattr(utils, name, value))
         from pearnly_erp_portal.express import api
+        return api
+
+    def view(self, **values):
+        api = self.api()
         base = {"name": "PUR-1", "company": "CO-1", "ledger_state": "queued", "ledger_job": "J1", "ledger_book": None,
                 "ledger_docnum": "", "ledger_reason": "", "ledger_needed": None}
         row = Row({**base, **values})
@@ -3821,6 +3889,56 @@ class ExpressWaiting(PushModule):
         self.job("J1")
         fake.STATE.db.table("ERP Company")["CO-1"]["express_enabled"] = 0
         self.assertEqual(self.view()["waiting"], "")
+
+    def test_the_dialog_takes_its_ledger_from_the_document_then_the_company(self):
+        """B13（11-14）：同一个账本弹窗按账本来源取文案与调用；来源 = 单据记的账本，没记过看公司（`mrerp.push.handles`）。"""
+        api = self.api()
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True):
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="mrerp")), "mrerp")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="")), "mrerp")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="express")), "express")
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: False):  # 开关关着 / 公司不是 MR.ERP 账本
+            self.assertEqual(api.doc_ledger(Row(company="CO-1", ledger_target="mrerp")), "express")
+            self.assertEqual(api.doc_ledger(Row(company="CO-1")), "express")
+
+    def mrerp_view(self, **values):
+        api = self.api()
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True):
+            return self.view(ledger_target="mrerp", ledger_job=None, **values)
+
+    def test_an_mrerp_document_gets_the_same_dialog_exits(self):
+        menu = [{"kind": "mrerp_menu", "subject": "purchase", "options": [{"code": "68", "name": "ซื้อ"}]},
+                {"kind": "mrerp_default", "subject": "ap_account", "options": [{"code": "2120-03", "name": "เจ้าหนี้"}]}]
+        view = self.mrerp_view(ledger_state="held", ledger_reason="choice_needed:mrerp", ledger_needed=json.dumps(menu))
+        self.assertEqual((view["ledger"], view["can_answer"], view["can_retry"]), ("mrerp", True, False))
+        self.assertEqual([item["label"] for item in view["needed"]], ["mrerp.menu.purchase", "mrerp.default.ap_account"])
+        view = self.mrerp_view(ledger_state="failed", ledger_reason="ERR_MRERP_CASH_SUPPLIER_NOT_CASH")
+        self.assertEqual((view["needed"], view["can_answer"], view["can_retry"]), ([], False, True))
+        self.assertTrue(self.mrerp_view(ledger_state="held", ledger_reason="mrerp.login_missing")["can_retry"])
+        for state, reason in (("held", "mrerp.result_unknown: ERR_TECHNICAL"), ("queued", "mrerp.importing"),
+                              ("written", ""), ("mismatch", "")):
+            view = self.mrerp_view(ledger_state=state, ledger_reason=reason, ledger_docnum="PG691114-1")
+            self.assertEqual((view["can_answer"], view["can_retry"], view["docnum"]), (False, False, "PG691114-1"), state)
+
+    def test_mrerp_retry_and_answer_go_to_the_mrerp_import(self):
+        api = self.api()
+        failed = Row(name="PUR-1", company="CO-1", ledger_target="mrerp", ledger_state="failed", ledger_reason="ERR_X",
+                     ledger_docnum="", ledger_needed=None, ledger_job=None, ledger_book=None)
+        sent, answered = [], []
+        with mock.patch.object(api.mrerp_push, "handles", lambda company: True), \
+                mock.patch.object(api, "_document", lambda doctype, name, write=False: failed), \
+                mock.patch.object(api.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(api.mrerp_push, "send", lambda d, n, manual=False: sent.append((d, n, manual))), \
+                mock.patch.object(api.mrerp_push, "answer", lambda d, n, a: answered.append(a) or True), \
+                mock.patch.object(api.frappe, "parse_json", json.loads, create=True):
+            api.retry("Purchase Document", "PUR-1")
+            self.assertEqual(sent, [("Purchase Document", "PUR-1", True)])  # 人点的：清被踢标记
+            api.answer("Purchase Document", "PUR-1", json.dumps([{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]))
+            self.assertEqual(answered, [[{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}]])
+            failed["ledger_reason"] = "mrerp.result_unknown: ERR_TECHNICAL"  # 结果不明：可能已写进去，不再推
+            with self.assertRaises(Exception):
+                api.retry("Purchase Document", "PUR-1")
+            self.assertEqual(len(sent), 1)
 
     def test_every_list_entry_marks_its_page(self):
         """采购、销售、出入库 / 调拨、收银小票四个列表接口都给这一页补 ``ledger_waiting``（导出与合计不走这里）。"""

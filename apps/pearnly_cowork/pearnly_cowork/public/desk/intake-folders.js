@@ -160,7 +160,7 @@
 	 * 与「新建录入」同一套交互（2026-10-09 加 MR.ERP，用户：两者细节、视觉、交互逻辑对齐）：
 	 *   1. 目标 ERP 卡片（MR.ERP / Express，同一组件、同一状态与「连接」按钮）；编辑时目标固定；
 	 *   2. 两级账套：MR.ERP「公司 → 年度」，Express「年度 → 账套」（`targets.catalog`，同一份目录）；
-	 *   3. 进项 / 销项；4. MR.ERP 选付款方式（进项只有赊账），Express 选过账类型（存货且多个科目组时当场选一次）；
+	 *   3. 进项 / 销项；4. MR.ERP 选付款方式（现金 / 赊账），Express 选过账类型（存货且多个科目组时当场选一次）；
 	 *   5. 文件夹：这条连接的小助手允许读取的根目录与其下文件夹。MR.ERP 的小助手只读文件夹，没配就「连接小助手」；
 	 *   6. 每月几号几点；7. 默认处理只有 Express 有（MR.ERP 的菜单与默认值保存前按「新建录入」同一个弹窗问一次）。
 	 */
@@ -315,9 +315,7 @@
 			d.set_df_property("payment", "hidden", picked.target && !express() ? 0 : 1);
 			d.set_df_property("posting_kind", "reqd", express() ? 1 : 0);
 			d.set_df_property("payment", "reqd", picked.target && !express() ? 1 : 0);
-			const purchase = d.get_value("direction") === "purchase";
-			set_options("payment", (purchase ? [] : [{value: "cash", label: __("Cash")}]).concat(
-				[{value: "credit", label: __("Credit")}]), rule?.payment);
+			set_options("payment", [{value: "cash", label: __("Cash")}, {value: "credit", label: __("Credit")}], rule?.payment);
 			paint_stock();
 		};
 		const needs_stock_group = () => express() && d.get_value("posting_kind") === "stock"

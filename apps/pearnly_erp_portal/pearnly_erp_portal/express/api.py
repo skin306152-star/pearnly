@@ -16,6 +16,7 @@ from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.express import choices, contracts, facts, masters, pos_day, prepare, push, target, waiting
 from pearnly_erp_portal.masters import company as companies
+from pearnly_erp_portal.mrerp import contracts as mrerp_contracts, push as mrerp_push
 
 CAPABILITIES = {push.SALES: ("sales.read", "sales.write"), push.PURCHASE: ("purchase.read", "purchase.write"),
                 push.STOCK: ("stock.read", "stock.write"), push.POS_DAY: ("cashier.read", "cashier.write"),
@@ -37,7 +38,7 @@ def _document(doctype, name, write=False):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     guard.require(CAPABILITIES[doctype][1 if write else 0])
     fields = ["name", "status", "ledger_state", "ledger_docnum", "ledger_reason", "ledger_needed", "ledger_job",
-              "ledger_book"]
+              "ledger_book", "ledger_target"]
     if doctype == push.STOCK:
         fields += ["ledger_void_state", "ledger_void_reason", "ledger_void_job"]  # 作废原单（B 段 ①，先只开出入库单）
     if doctype == push.POS_DAY:
@@ -58,6 +59,58 @@ def _require_enabled(row):
     """选、再写一次、标手工处理都要这家公司还勾着「接 Express」：断开优先，断开后不再写（`push.detach`）。"""
     if not push.enabled(row.company):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
+
+
+LEDGER_EXPRESS, LEDGER_MRERP = "express", mrerp_contracts.LEDGER_MRERP
+
+
+def doc_ledger(row) -> str:
+    """单据账本弹窗按哪本账：这家公司账本是 MR.ERP（`mrerp.push.handles`：开关开着、公司选了 MR.ERP 账套）回 ``mrerp``，其余
+    ``express``。公司接入第 3 批加「账本来源」字段后只改这一处。"""
+    target = row.get("ledger_target") or ""
+    if target == LEDGER_MRERP or (not target and mrerp_push.handles(row.company)):
+        return LEDGER_MRERP if mrerp_push.handles(row.company) else LEDGER_EXPRESS
+    return LEDGER_EXPRESS
+
+
+# MR.ERP 要人选的项 → 说明文字（导入菜单按单据类型、默认值按主档字段；同 Cowork `intake.mrerpMenu.*` / `intake.mrerpDefault.*`）
+MRERP_SUBJECTS = {
+    "purchase": "mrerp.menu.purchase", "purchase_expense": "mrerp.menu.purchase_expense",
+    "sales_credit": "mrerp.menu.sales_credit", "sales_cash": "mrerp.menu.sales_cash",
+    "branch": "mrerp.default.branch", "dept": "mrerp.default.dept", "job": "mrerp.default.job",
+    "store": "mrerp.default.store", "employee": "mrerp.default.employee", "area": "mrerp.default.area",
+    "delivery": "mrerp.default.delivery", "customer_type": "mrerp.default.customer_type",
+    "ar_account": "mrerp.default.ar_account", "supplier_type": "mrerp.default.supplier_type",
+    "ap_account": "mrerp.default.ap_account", "bank_account": "mrerp.default.bank_account",
+    "product_group": "mrerp.default.product_group", "unit": "mrerp.default.unit",
+    "expense_account": "mrerp.default.expense_account",
+}
+
+
+def _mrerp_view(doctype, row):
+    """账本是 MR.ERP 的单：同一个弹窗的出口——停在要人选导入菜单 / 默认值的选一次（`mrerp.push.answer`），失败 / 停下的再推
+    （`mrerp.push.send`，人点的、清被踢标记）；结果不明的不再推（可能已写进 MR.ERP）；已写入、排队中、正在导入的只看。"""
+    reason = str(row.ledger_reason or "")
+    # 导入菜单 / 默认值写 MR.ERP 的项目名；同期两本选哪本（`mrerp.catalog.pick`）同 Express 那项，标签是公司名
+    needed = [dict(item, label=_(MRERP_SUBJECTS.get(item["subject"], item["subject"])))
+              if item["kind"] != choices.ACCOUNT_SET else item
+              for item in _needed(row)] if row.ledger_state == contracts.HELD and reason == mrerp_contracts.CHOICE else []
+    writer = guard.has(CAPABILITIES[doctype][1])
+    from pearnly_erp_portal.mrerp import catalog  # 公司接入一侧：用到时导入（同 `mrerp.push`）
+
+    return {"ledger": LEDGER_MRERP, "state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": reason,
+            # 「没有账套」说出日期与这家各年度账套的期间（同 Express 那句的写法）
+            "reason_text": catalog.no_book_text(row.company, row.day)
+            if reason == contracts.NO_BOOK and row.get("day") else "",
+            "void": "", "needed": needed, "can_answer": bool(needed) and writer,
+            "can_retry": _mrerp_retryable(row) and not needed and writer, "can_mark_handled": False,
+            "vat_whole": False, "waiting": ""}
+
+
+def _mrerp_retryable(row) -> bool:
+    reason = str(row.ledger_reason or "")
+    return row.ledger_state in (contracts.FAILED, contracts.HELD) and reason != mrerp_contracts.CHOICE \
+        and not reason.startswith(mrerp_contracts.UNKNOWN)
 
 
 def _needed(row):
@@ -115,6 +168,8 @@ def _party_blocked(doctype, row, job):
 
 
 def _view(doctype, row):
+    if doc_ledger(row) == LEDGER_MRERP:
+        return _mrerp_view(doctype, row)
     if not push.enabled(row.company):
         # 断开了：只看状态、Express 单号与原因（已断开的照实写），不再给选、再写一次
         return {"state": row.ledger_state or "", "docnum": row.ledger_docnum or "", "reason": row.ledger_reason or "",
@@ -230,6 +285,11 @@ def preflight(doctype, payload, answers=None, name=None):
 def answer(doctype, name, answers):
     """在单据上选要人拿主意的项：``answers`` = ``[{kind, subject, value}]``。只认这一项能选的值；记在这家公司名下后再准备一次。"""
     row = _document(doctype, name, write=True)
+    if doc_ledger(row) == LEDGER_MRERP:
+        answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
+        if not isinstance(answers, list) or not answers or not mrerp_push.answer(doctype, name, answers):
+            frappe.throw(_("Invalid request"))  # 只认停在单据上的那几项、这一项能选的值（记在公司上后再推一次）
+        return _view(doctype, _document(doctype, name))
     _require_enabled(row)
     job = jobs.find_by_name(row.ledger_job) if row.ledger_job else None
     blocked = _party_blocked(doctype, row, job)
@@ -267,6 +327,11 @@ def retry(doctype, name):
     重新核记住的选择，不对的停下来在这里选），不拿原来那份载荷再试；只有结果不明的（可能已经写进去了）原样再排、钉在原来
     那台电脑上，由它按单据号查重。"""
     row = _document(doctype, name, write=True)
+    if doc_ledger(row) == LEDGER_MRERP:
+        if not _mrerp_retryable(row):
+            frappe.throw(_("Not permitted"), frappe.PermissionError)
+        mrerp_push.send(doctype, name, manual=True)  # 人点的：清这个账号的被踢标记、照常登录（同 CC 推送）
+        return _view(doctype, _document(doctype, name))
     _require_enabled(row)
     if row.get("ledger_void_state"):
         void_job = jobs.find_by_name(row.ledger_void_job) if row.ledger_void_job else None

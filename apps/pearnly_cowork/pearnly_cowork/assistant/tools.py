@@ -136,8 +136,8 @@ MRERP_GUIDANCE = (
     "itself: no computer and no CC Desktop are involved in an MR.ERP push, so never ask the user to turn on a "
     "computer or open CC Desktop for one (a scheduled task still needs the computer that reads its folder). Each "
     "account set needs its import menu per document kind and its default values chosen once before pushing "
-    "(cowork_mrerp_setup); there are no per-document choices like Express, purchases are always on credit, and the "
-    "counterparty is found by its tax ID in MR.ERP or created there. MR.ERP account sets have no readback or VAT "
+    "(cowork_mrerp_setup); there are no per-document choices like Express, a purchase is entered paid or on credit "
+    "as the document says, and the counterparty is found by its tax ID in MR.ERP or created there. MR.ERP account sets have no readback or VAT "
     "draft from their books here, no automatic push tiers or proposals, no company choices and no choices learned "
     "from history: when asked, say plainly that these are for Express account sets, and do not offer them for an "
     "MR.ERP one. " + MRERP_NAMES_NOTE)
@@ -2184,8 +2184,8 @@ def intake_options(tool_input) -> str:
     for item in targets:
         item.pop("_keys", None)
     return _json({"suggested": last or None, **extra, "targets": targets,
-                  "modes": {"express": "posting_kind: service or stock", "mrerp": "payment: cash or credit "
-                            "(purchases are credit only)", "none": "recognize only, nothing else to choose"}})
+                  "modes": {"express": "posting_kind: service or stock", "mrerp": "payment: cash or credit",
+                  "none": "recognize only, nothing else to choose"}})
 
 
 def _connection_call(fn, *args):
@@ -4633,8 +4633,8 @@ WRITTEN_NOTE = ("An entered document carries written: the facts of how it was wr
                 "a cash purchase (HP, paid in cash) or a cash sale (HS); credit = a credit purchase (RR, owed to the "
                 "supplier) or a credit sale (IV). For MR.ERP, written has docnum (the number shown in MR.ERP, with "
                 "its menu's prefix) and, on documents pushed from 2026-10-19 on, entered_as with payment: sales_cash "
-                "(a cash sale), sales_credit (a credit sale), purchase (a credit purchase of goods) or "
-                "purchase_expense (a credit purchase of expenses), and menu, the MR.ERP import menu it went into; "
+                "(a cash sale), sales_credit (a credit sale), purchase (a purchase of goods) or "
+                "purchase_expense (a purchase of expenses), paid or on credit as the document says, and menu, the MR.ERP import menu it went into; "
                 "MR.ERP records give no payment_from, accounts, vat or writer, so never add any. payment_from = what decided it: chosen (a person's choice: one made "
                 "for this document at upload or on review, or on older documents possibly the choice remembered for "
                 "this supplier or a scheduled task's default, so do not claim it was picked for this one document), "
@@ -4708,7 +4708,7 @@ FOLDER_TASK_PROPS = {
     "title": {"type": "string"}, "connection": {"type": "string"}, "account_set_key": {"type": "string"},
     "direction": {"type": "string", "enum": ["purchase", "sales"]},
     "posting_kind": {"type": "string", "enum": ["service", "stock"], "description": "Express."},
-    "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP; purchases are credit."},
+    "payment": {"type": "string", "enum": ["cash", "credit"], "description": "MR.ERP."},
     "reader": {"type": "string", "description": "The computer (reader) whose folder is used."},
     "root_id": {"type": "string"}, "folder": {"type": "string", "description": "Subfolder; empty for the root."},
     "run_day": {"type": "integer", "minimum": 0, "maximum": 31, "description": "Day of month; 0 = last day."},

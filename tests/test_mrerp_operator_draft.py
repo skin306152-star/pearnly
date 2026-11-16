@@ -156,10 +156,10 @@ class Golden(unittest.TestCase):
         self.assertEqual((expense["vat_rate"], [(l["code"], l["qty"], l["price"]) for l in expense["lines"]]),
                          ("นอกระบบ", [("EXP-01", "1", "535")]))
         self.assertEqual(expense["totals"], {"before_vat": "535.00", "vat": "0.00", "net": "535.00"})
-        # 赊销：客户码按映射、表头员工 / 区域用客户档的（空的不覆盖）、销项参考号 SI + 单号
+        # 赊销：客户码按映射、表头员工 / 区域用客户档的（空的不覆盖）、税务发票号 = 票面号（11-14 起不再写死 SI + 单号）
         credit = by["sales_credit_included"]
         self.assertEqual((credit["party_code"], credit["vat_rate"], credit["vat_included"]), ("C0001", "7 (รวม)", True))
-        self.assertEqual(credit["ref_no"], "SI" + credit["docnum"])
+        self.assertEqual(credit["ref_no"], "INV-c3d4e5f6")  # `fmt.mrerp_bill_no`
         self.assertEqual((credit["defaults"]["employee"], credit["defaults"]["store"]), ("สมหญิง ขายดี", "0001"))
         # 价内逐行拆税：575 → 37.62，1900 → 124.30
         self.assertEqual(credit["totals"], {"before_vat": "2313.08", "vat": "161.92", "net": "2475.00"})
@@ -246,6 +246,14 @@ class Stage(unittest.TestCase):
         self.assertEqual(list(blocks), [goods["id"]])
         self.assertEqual(failed, {other["id"]: ["ERR_NO_SUPPLIER"], foreign["id"]: ["mrerp_currency_not_thb:usd"]})
         self.assertEqual(importer.calls, [("purchase", [goods["id"], other["id"]])])  # 防呆挡下的不进准备
+
+    def test_a_cash_purchase_is_held_for_a_person_before_any_preparation(self):
+        # 现购代录还没做（配方没有开票用供应商那一格）：不进准备、不建主档，原因码转人工；同批赊购照常出块
+        goods, paid = purchase("e1f2a3b4"), purchase("f2a3b4c5", posting_payment_manual="cash")
+        importer = FakeImporter(menus={"purchase": "68"})
+        blocks, failed = stage(importer, [goods, paid])
+        self.assertEqual((list(blocks), failed), ([goods["id"]], {paid["id"]: [operator_draft.OPERATOR_CASH_PURCHASE]}))
+        self.assertEqual(importer.calls, [("purchase", [goods["id"]])])
 
     def test_a_module_not_verified_on_a_real_site_is_held_as_a_whole_group(self):
         goods, credit = purchase("c9d0e1f2"), {**sales("d0e1f2a3", buyer_tax=CUSTOMER), "client_id": "CL-7"}

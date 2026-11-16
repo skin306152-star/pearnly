@@ -52,6 +52,11 @@ STALE_AFTER = 24 * 3600      # 每小时兜底：超过这么久没同步的照�
 TOL = Decimal("0.000001")
 JOB_WAIT = 180      # 后台同步等电脑读完的上限（秒）
 LAND_LIMIT = 3600   # 落库的上限（秒）：大账套首次落库的实测见 docs/work/2026-10-23-erp-express-sync-background.md
+# 档上的只读来源 ``ledger``（公司接入第 3 批）：主档来自哪种账本，存小写码，与单据上的 ``ledger_target`` 同一套值
+# （`contracts.LEDGER_EXPRESS` / `mrerp.contracts.LEDGER_MRERP`，主会话 11-14 定），界面显示走翻译；商品的来由 ``origin`` 跟着它
+EXPRESS, MRERP = contracts.LEDGER_EXPRESS, "mrerp"
+LEDGERS = (EXPRESS, MRERP)
+ORIGINS = {EXPRESS: "express", MRERP: "mrerp"}
 COMMIT_EVERY = 500  # 落库每改这么多条提交一次（任务中途出错，已落的不丢；再同步一次幂等补齐）
 POLL_EVERY = 8
 EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{company, state, note}
@@ -113,8 +118,10 @@ def advance():
     重启打断）排回队里。没有要推进的就一条查询。"""
     rows = frappe.get_all(COMPANY, filters={"express_sync_state": ["in", [QUEUED, READING, SYNCING, OFFLINE, OUTDATED]],
                                             "is_active": 1},
-                          fields=["name", "tax_id", "branch", "express_sync_state"],
+                          fields=["name", "tax_id", "branch", "express_sync_state", "mrerp_enabled"],
                           order_by="express_synced_at asc, name asc", limit_page_length=0)
+    # 只推进接 Express 的：接 MR.ERP 的公司同用这组状态字段，由 `mrerp.masters` 自己排读（服务端登录，不经电脑）
+    rows = [row for row in rows if not row.get("mrerp_enabled")]
     # 「未连接 / 要更新」的隔几分钟看一次电脑回来没有（整夜关机时几十家）。按上次看的时间算：定时任务在后台进程忙时会推迟，
     # 按「分钟数是 5 的倍数」常常错过（10-24 验收：电脑回来 9 分钟还显示未连接）
     recheck = not frappe.cache.get_value(OFFLINE_CHECK_KEY)
@@ -414,15 +421,16 @@ def _sync_once(company):
 STALE = "stale"  # 这一轮库存没套用：读完之后又有单写进去（`_stock_stale`）
 
 
-def apply(company, book, data, stale=False, company_name=""):
+def apply(company, book, data, stale=False, company_name="", ledger=EXPRESS):
     """把读好的整套主档落进 ERP（幂等：再落一次不改任何东西）。回各类新建 / 更新 / 停用的条数。``stale``：读完之后这份账套又有写账
-    回执，库存这一轮不套用（回 ``stock: stale``，调用方再排一轮），主档、仓库照落。"""
+    回执，库存这一轮不套用（回 ``stock: stale``，调用方再排一轮），主档、仓库照落。``ledger``：主档来自哪种账本（:data:`LEDGERS`，
+    MR.ERP 由 `mrerp.masters` 整读后交进来，同一个落库），记在每条档的只读 ``ledger`` 上。"""
     frappe.flags.express_sync_written = 0
     counts = {}
-    counts["customers"] = _parties(CUSTOMER, company, book, data.get("customers"), _customer_fields)
-    counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields)
-    counts["products"] = _products(company, book, data)
-    warehouses, counts["warehouses"] = _warehouses(company, book, data)
+    counts["customers"] = _parties(CUSTOMER, company, book, data.get("customers"), _customer_fields, ledger)
+    counts["suppliers"] = _parties(SUPPLIER, company, book, data.get("suppliers"), _supplier_fields, ledger)
+    counts["products"] = _products(company, book, data, ledger)
+    warehouses, counts["warehouses"] = _warehouses(company, book, data, ledger)
     # 同步建了 / 停了仓之后：没挂仓或挂着停用仓的收银台改挂主仓（10-30，接 Express 的公司第一次收银就报没有仓）
     from pearnly_erp_portal.cashier import terminals
 
@@ -522,7 +530,7 @@ def _upsert(doctype, name, values, current=None):
             return _written()
         record = {key: value for key, value in values.items() if key != "units"}
         if doctype == PRODUCT:
-            record["origin"] = "express"  # 商品来由（用户 10-26 / 10-29）：Express 主档同步建的
+            record["origin"] = ORIGINS.get(record.get("ledger"), "express")  # 商品来由（用户 10-26 / 10-29）：账本主档同步建的
         doc = frappe.get_doc({"doctype": doctype, **record})
         for row in values.get("units") or []:
             doc.append("units", {"unit_name": row["unit_name"], "factor_to_base": float(row["factor"])})
@@ -624,10 +632,10 @@ def _supplier_fields(item):
 
 PARTY_FIELDS = {CUSTOMER: ("customer_name", "tax_id", "branch_no", "branch_type", "party_type", "address", "contact_phone"),
                 SUPPLIER: ("supplier_name", "tax_id", "branch_no", "branch_type", "address", "phone")}
-SYNC_FIELDS = ("is_active",)  # 档上的 express_book 不比对（见文件头）
+SYNC_FIELDS = ("is_active", "ledger")  # 档上的 express_book 不比对（见文件头）
 
 
-def _parties(doctype, company, book, rows, fields_of):
+def _parties(doctype, company, book, rows, fields_of, ledger=None):
     name_field = "customer_name" if doctype == CUSTOMER else "supplier_name"
     by_code, ours, free, current = _mine(doctype, company, [*PARTY_FIELDS[doctype], *SYNC_FIELDS])
     free_tax, free_name = {}, {}
@@ -635,21 +643,51 @@ def _parties(doctype, company, book, rows, fields_of):
         if contracts.tax13(row.tax_id):
             free_tax.setdefault((row.tax_id, contracts.branch5(row.branch_no)), row.name)
         free_name.setdefault(str(row.get(name_field) or "").strip().casefold(), row.name)
-    changed, claimed, seen, fresh = 0, set(), set(), []
+    changed, claimed, seen, fresh, renames = 0, set(), set(), [], {}
     for raw in contracts.rows(rows):
         item = contracts.party(raw)
         if not _first(seen, item["code"]):
             continue
-        values = {**fields_of(item), "express_code": item["code"], "express_company": company, "is_active": 1}
+        values = {**fields_of(item), "express_code": item["code"], "express_company": company, "is_active": 1,
+                  "ledger": ledger or EXPRESS}
         name = _claim(claimed, lambda: by_code.get(item["code"]), lambda: by_code.get(_loose(item["code"])),
                       lambda: free_tax.pop((item["tax_id"], item["branch"]), None) if item["tax_id"] else None,
-                      lambda: free_name.pop(item["name"].casefold(), None))
+                      lambda: free_name.pop(item["name"].casefold(), None),
+                      lambda: free_name.pop(item["core"].casefold(), None))
         if name:
-            changed += _upsert(doctype, name, values, current.get(name))
+            row = current.get(name)
+            if row is not None and same_name(row.get(name_field), values[name_field]):
+                values[name_field] = row.get(name_field)  # 只差空格：留着原来的写法（人打的、或上一版拼的），不改名
+            if row is not None and _only_renamed(row, values, name_field):
+                renames[name] = values[name_field]
+            else:
+                changed += _upsert(doctype, name, values, row)
         else:
             fresh.append({**values, "express_book": book[:140]})
+    changed += _rename(doctype, name_field, renames)
     changed += _insert_new(doctype, fresh)
     return changed + _retire(doctype, [name for name in ours if name not in claimed], current)
+
+
+def same_name(current, wanted) -> bool:
+    """两个名称只差空白（前缀后有没有空格、多个空格）就算同一个名称。"""
+    return "".join(str(current or "").split()).casefold() == "".join(str(wanted or "").split()).casefold()
+
+
+def _only_renamed(current, values, name_field) -> bool:
+    """这一行只有名称变了（1.12.22 起 CC 桌面版报 PRENAM，已同步的档第一次从核心名改成全名，一本账套成千条）。"""
+    return _same(current.get(name_field)) != _same(values[name_field]) and \
+        not _differs(current, {key: value for key, value in values.items() if key != name_field})
+
+
+def _rename(doctype, name_field, renames) -> int:
+    """只改名称的行直接改这一列（``frappe.db.set_value``，``modified`` 不动），不读出整份、不 ``save``、不逐条留修改记录：
+    显示名从 Express 读来、Express 为准；档上没有别的字段跟着名称算（客户 / 供应商的 ``validate`` 只管类型与分店）。
+    每 :data:`COMMIT_EVERY` 条提交一次（同 :func:`_written`）。"""
+    for name, value in sorted(renames.items()):
+        frappe.db.set_value(doctype, name, name_field, value, update_modified=False)
+        _written()
+    return len(renames)
 
 
 # ── 商品 ─────────────────────────────────────────────────────────────────────
@@ -658,7 +696,7 @@ PRODUCT_FIELDS = ("code", "barcode", "product_name", "base_unit", "unit", "expre
                   *SYNC_FIELDS)
 
 
-def _products(company, book, data):
+def _products(company, book, data, ledger=None):
     from pearnly_erp_portal.products import service as products
 
     units = contracts.unit_names(data)
@@ -692,7 +730,7 @@ def _products(company, book, data):
                   "units": [{"unit_name": row["unit_name"], "factor": str(contracts.d(row["factor"]).normalize())}
                             for row in item["units"]],
                   "express_code": item["code"], "express_company": company,
-                  "express_stock": int(item["stock"]), "is_active": 1}
+                  "express_stock": int(item["stock"]), "is_active": 1, "ledger": ledger or EXPRESS}
         if not name and not products.taken("code", item["code"], owner=company):
             # 问库而不是在内存里比：按库的排序规则比（泰文声调符号等会被当成一样），内存逐字比会漏
             values["code"] = item["code"]
@@ -706,7 +744,7 @@ def _products(company, book, data):
         if name:
             changed += _upsert(PRODUCT, name, values, current.get(name))
         else:
-            fresh.append({**values, "express_book": book[:140], "origin": "express"})
+            fresh.append({**values, "express_book": book[:140], "origin": ORIGINS[ledger or EXPRESS]})
     changed += _insert_new(PRODUCT, fresh)
     return changed + _retire(PRODUCT, [name for name in ours if name not in claimed], current)
 
@@ -714,7 +752,7 @@ def _products(company, book, data):
 # ── 仓库与库存 ───────────────────────────────────────────────────────────────
 
 
-def _warehouses(company, book, data):
+def _warehouses(company, book, data, ledger=None):
     """这家公司的仓库按 Express 仓库码建 / 认领 / 改名 / 停用：回 (``{仓库码: ERP 仓库}``, 改动条数)。
     第一次同步时，这家公司唯一一个没编码的仓库认作 Express 的主仓（ERP 开户自带一个仓库）。"""
     existing = frappe.get_all(WAREHOUSE, filters={"company": company},
@@ -725,13 +763,15 @@ def _warehouses(company, book, data):
     main = str((data.get("settings") or {}).get("mainloc") or "").strip()
     found, changed = {}, 0
     for raw in contracts.rows(data.get("warehouses")):
-        code, label = str(raw["code"]).strip()[:4], str(raw.get("name") or raw["code"]).strip()[:140]
+        # Express 仓库码（LOCCOD）最多 4 位；MR.ERP 仓库码照原样
+        code = str(raw["code"]).strip()[:4 if (ledger or EXPRESS) == EXPRESS else 20]
+        label = str(raw.get("name") or raw["code"]).strip()[:140]
         name = by_code.get(code) or free_name.pop(label.casefold(), None)
         if not name and code == main and len(free) == 1 and free[0].name in free_name.values():
             name = free[0].name
             free_name = {key: value for key, value in free_name.items() if value != name}
         changed += _upsert(WAREHOUSE, name, {"warehouse_name": label, "express_code": code, "express_book": book[:140],
-                                             "company": company, "is_active": 1})
+                                             "company": company, "is_active": 1, "ledger": ledger or EXPRESS})
         found[code] = name or frappe.db.get_value(WAREHOUSE, {"company": company, "express_code": code}, "name")
     changed += _retire(WAREHOUSE, [name for code, name in by_code.items() if code not in found])
     return {code: name for code, name in found.items() if name}, changed
@@ -759,7 +799,7 @@ def _pending(company, products, warehouses):
       （``ledger_void_state`` = voided）的除外；
     - 其余来源（手工调整等，从不写进 Express）：接上之后的照算；同步调整本身、期初不算。
     没接上（没有接上时刻）的公司不叠加。原来出入库 / 盘点 / 小票接上前的单也永久叠加、采购 / 销售 / 期初却被覆盖，口径不一。"""
-    since = push.linked_at(company)
+    since = push.linked_at(company) or _mrerp_linked_at(company)
     code_of = {name: code for code, name in products.items()}
     loc_of = {name: code for code, name in warehouses.items()}
     if not code_of or not loc_of or not since:
@@ -827,6 +867,12 @@ def _pending(company, products, warehouses):
         if (row.ref_type or "") not in KNOWN_REFS:
             add([row])
     return pending
+
+
+def _mrerp_linked_at(company):
+    """接 MR.ERP 的公司的「接上时刻」（选账套时记，`mrerp.catalog.choose`）：之后开始、还没写成的单同样叠加。"""
+    row = frappe.db.get_value(COMPANY, company, ["mrerp_enabled", "mrerp_linked_at"], as_dict=True) if company else None
+    return frappe.utils.get_datetime(row.mrerp_linked_at) if row and row.mrerp_enabled and row.mrerp_linked_at else None
 
 
 def stock_differences(products, stock_rows) -> dict:

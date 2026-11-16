@@ -7,8 +7,7 @@
  *      （用户 2026-09-27）；用服务端存着的那份，「重新读取」才让助手重扫；上次选的账套下次预选；
  *   3. 进项 / 销项；
  *   4. 入账方式 —— **以第三方为准**（用户 2026-09-26），与旧线上 `mode_options` 一致（11-06 起 Express 不在这里选，见 MODE）：
- *      · MR.ERP 选付款方式（现金 / 赊账）；进项只有赊账（旧版对 MR.ERP 进项现金明确拦截，
- *        `mrerp_purchase_cash_unverified`）；不选过账类型；
+ *      · MR.ERP 选付款方式（现金 / 赊账），进项、销项都一样（11-14 起现购照写，按现金供应商记账）；不选过账类型；
  *      · Express 选过账类型（服务 / 存货）；付款按票面由六级漏斗判定，复核页仍可逐张改。
  *        选了存货、这份账套又有两个以上合格的存货科目组且没选过：在这里选一次存回账套（用户 2026-09-28），
  *        以后这份账套新建的库存品都挂它；小助手还没读过这份账套时不问，提交前再问（`intake-upload.js`）。
@@ -33,8 +32,7 @@
 			direction: () => [{value: "purchase", label: t("intake.dir.purchase")},
 				{value: "sales", label: t("intake.dir.sales")}],
 			posting_kind: () => [{value: "service", label: __("Service")}, {value: "stock", label: __("Stock")}],
-			payment: () => (picked.direction === "purchase" ? [] : [{value: "cash", label: __("Cash")}])
-				.concat([{value: "credit", label: __("Credit")}]),
+			payment: () => [{value: "cash", label: __("Cash")}, {value: "credit", label: __("Credit")}],
 			company: () => (catalog?.groups || []).map(({value, label}) => ({value, label})),
 			year: () => (catalog?.groups || []).find(row => row.value === picked.company)?.items || [],
 		};
@@ -134,7 +132,7 @@
 			if (picked[key] && !list.some(row => row.value === picked[key])) set_value(name, null);
 			else if (!picked[key] && d.get_value(name)) d.set_value(name, "");  // 上一级换了：清掉旧显示
 			if (!picked[key] && list.length === 1 && ["company", "year", "payment"].includes(name)) {
-				set_value(name, list[0].value);  // 只有一个可选就直接选上（例如 MR.ERP 进项只有赊账）
+				set_value(name, list[0].value);  // 只有一个可选就直接选上
 			}
 		};
 		// 选定的 Express 账套：够得到它的电脑都不支持排头要的载荷版本时，在下拉下面写「CC 桌面版需更新」（仍可选，第 6 批）
@@ -283,7 +281,7 @@
 				paint_year();
 			}
 			if (name === "year") paint_year();
-			if (name === "direction") paint_mode();  // 进项 / 销项决定 MR.ERP 能选哪几种付款方式
+			if (name === "direction") paint_mode();
 			paint_primary();
 		}
 		d.onhide = () => {  // 关掉弹窗就停止目录轮询与助手状态重读

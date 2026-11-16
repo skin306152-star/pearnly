@@ -849,6 +849,21 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.link.ledger-first.mrerp"
+title = "ERP 选择框（接 MR.ERP 的公司）：本公司账本档排前、账本编码可搜（公司接入第 3 批，11-14）"
+module = "scripts/flows/erp_link_ledger_first_mrerp.py"
+start = "/desk/pearnly-stock-adjust"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py",
+  "apps/pearnly_core/pearnly_core/mrerp/master_export.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/link_search.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/access.py",
+]
+
+[[flow]]
 id = "erp.company.connect"
 title = "ERP 公司页「从连接添加」：勾账套建公司、手工同税号公司直接接上（公司接入重做第 2 批，11-14）"
 module = "scripts/flows/erp_company_connect.py"
@@ -862,6 +877,20 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/masters/ledger_prompt.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py",
+]
+
+[[flow]]
+id = "erp.company.connect.mrerp"
+title = "ERP「从连接添加」MR.ERP 标签页：一家一行、已添加禁用、勾选建公司；开关关着时不出（公司接入第 3 批，11-15）"
+module = "scripts/flows/erp_company_connect_mrerp.py"
+start = "/desk/pearnly-company"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/masters/cc_service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py",
 ]
 
 [[flow]]

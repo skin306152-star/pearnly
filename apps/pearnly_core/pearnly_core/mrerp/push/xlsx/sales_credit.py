@@ -19,6 +19,8 @@ from pearnly_core.mrerp.push.xlsx.fmt import (
     fmt_number,
     history_number,
     line_amount,
+    mrerp_bill_no,
+    mrerp_tax_kind,
     mrerp_tax_label,
 )
 from pearnly_core.mrerp.push.xlsx.lookups import (
@@ -49,7 +51,7 @@ def build_sales_credit_row(history: Dict[str, Any], mappings: Dict[str, Any]) ->
         "delivery_date": inv_date,  # 通常 = 开票日(没运单时)
         "customer_code": customer_code,
         "customer_bill": customer_code,
-        "bill_no": ("SI" + mrerp_invoice_no)[:30],  # 'SI690415-501'
+        "bill_no": mrerp_bill_no(history, mrerp_invoice_no, mappings),  # 票面发票号；没有时 = 菜单前缀 + 单号（`fmt.mrerp_bill_no`）
         "bill_date": inv_date,
         # 'discount' default = 0
         # v27.8.1.6 · 严格对齐 Korn 真样本 · 三个 note 都留空(MR.ERP 可能对备注字段格式有限制)
@@ -237,7 +239,7 @@ def _generate_xlsx_sales_credit_korn_clone(
     ]
 
     # 表头折扣与明细行同一做法（`fmt.allocate_discount`，与现销、采购货品一致）：每张算一次，两张 sheet 共用
-    documents = [allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_label(history))
+    documents = [allocate_discount(history, build_sales_credit_detail_rows(history, mappings), mrerp_tax_kind(history))
                  for history in histories]
     for ridx, history in enumerate(histories, start=2):
         row_data = build_sales_credit_row(history, mappings)
@@ -249,7 +251,7 @@ def _generate_xlsx_sales_credit_korn_clone(
         STR_VALUES = [
             invoice_no,
             invoice_date,
-            mrerp_tax_label(history),
+            mrerp_tax_label(history, mappings),
             head["branch"],
             head["dept"],
             head["job"],

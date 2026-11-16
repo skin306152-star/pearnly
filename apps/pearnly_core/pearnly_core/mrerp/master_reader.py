@@ -27,6 +27,7 @@ LISTS = {
     "stktraniss": "stktraniss/component/bshlistboxdata.php",
     "stkmas": "stkmas/component/bshlistboxdata.php",
     "artran": "artran/component/bshlistboxdata.php",
+    "aptran": "aptran/component/bshlistboxdata.php",  # 采购单：税率表 txtothvatrate（同 artran / arse，同一张 tbl_othvatrate）
 }
 # 给选择弹窗读的（全部字段）；推送时按要用到的另取。
 FOR_CHOICES = ("fabillrev", "armas", "apmas", "stktraniss", "stkmas")
@@ -54,6 +55,8 @@ class MasterReader:
         self._company_tax = ""
         self._pages_read = set()
         self._samples: Dict[str, list] = {}
+        self._records: Dict[tuple, Optional[list]] = {}
+        self._prefixes_by_menu: Dict[tuple, Optional[str]] = {}
 
     def listbox(self, module: str) -> Optional[dict]:
         if module not in self.lists:
@@ -103,6 +106,19 @@ class MasterReader:
                 self._company_tax = rules.parse_company_tax(getattr(response, "text", "") or "")
         return self._company_tax
 
+    def menu_prefix(self, listing_module: str, idmenu) -> Optional[str]:
+        """这个菜单的单号前缀（2 位，MR.ERP 菜单设置里的「รหัสบิล」）：先 allview 把菜单写进会话，再读新单表单的 ``txtdoctype``
+        （`artran/allform.php:433`，arse / aptran 同）。会改写会话里的当前菜单——调用方之后要重开导入页（上传前那次 formupload
+        本来就会重开）。读不到是 None；同一菜单只读一次。"""
+        key = (listing_module, str(idmenu))
+        if key not in self._prefixes_by_menu:
+            self._request("GET", f"{listing_module}/allview.php?idmenu={idmenu}",
+                          headers={"Referer": f"{self._base}/login/mainmenu.php"})
+            response = self._request("GET", f"{listing_module}/allform.php",
+                                     headers={"Referer": f"{self._base}/{listing_module}/allview.php?idmenu={idmenu}"})
+            self._prefixes_by_menu[key] = rules.parse_menu_prefix(getattr(response, "text", "") or "")
+        return self._prefixes_by_menu[key]
+
     def known_head_branch(self) -> str:
         """已经读到的总店分店码（不去读网页：推送里网页只能在导入页打开前读）。"""
         return self._head_branch
@@ -113,19 +129,23 @@ class MasterReader:
             rows = [r for r in (self.listbox(module) or {}).get("inpdupdata") or []
                     if isinstance(r, list) and r and str(r[0]).isdigit()]
             newest = sorted(rows, key=lambda r: int(r[0]), reverse=True)[:SAMPLE_SIZE]
-            found = []
-            for row in newest:
-                response = self._request("POST", f"{module}/component/dupdata.php", data={"hiddupdata": str(row[0])},
-                                         headers={"X-Requested-With": "XMLHttpRequest", "Origin": self._base,
-                                                  "Referer": f"{self._base}/{module}/allform.php"})
-                try:
-                    value = json.loads(getattr(response, "text", "") or "")
-                except ValueError:
-                    continue
-                if isinstance(value, list):
-                    found.append(value)
+            found = [value for value in (self.record(module, row[0]) for row in newest) if value is not None]
             self._samples[module] = found
         return self._samples[module]
+
+    def record(self, module: str, record_id) -> Optional[list]:
+        """一份现有档案的完整资料（`component/dupdata.php`，MR.ERP「复制现有档案」同源）；读不到是 None。同一份只读一次。"""
+        key = (module, str(record_id))
+        if key not in self._records:
+            response = self._request("POST", f"{module}/component/dupdata.php", data={"hiddupdata": str(record_id)},
+                                     headers={"X-Requested-With": "XMLHttpRequest", "Origin": self._base,
+                                              "Referer": f"{self._base}/{module}/allform.php"})
+            try:
+                value = json.loads(getattr(response, "text", "") or "")
+            except ValueError:
+                value = None
+            self._records[key] = value if isinstance(value, list) else None
+        return self._records[key]
 
     def suggested(self, *modules: str) -> Dict[str, str]:
         """这几类档案各字段最常用的值（`rules.sampled`：抽到了样、没有明显多数的字段是空串；一份都没读到的那类不出现）。"""

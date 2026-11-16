@@ -161,7 +161,8 @@ def customers(tool_input) -> str:
 
 
 # 读回未收清发票（按客户即时读一次，`snapshot.request`）的几种结果：模型只能按这一格说话（11-15 真机：刚开的发票还没读到，
-# CC 说成「已收清，请在 Express 核对」）。CC 桌面版只报未收清的发票，所以读到了也分不出「收清了」与「账套里没有」。
+# CC 说成「已收清，请在 Express 核对」）。CC 桌面版只报未收清的发票；建草稿时单号不在列表里，1.12.22 起同一次读按单号查它
+# 在账套里的状态（`INVOICE_NOTES`），旧版仍只能说「此刻不是这位客户的未收发票」。
 READ_WAIT_SECONDS = 8
 READ_WAIT_STEP = 1
 READ_NOTES = {
@@ -183,17 +184,43 @@ READ_NOTES = {
 }
 
 
-def _fresh_invoices(company, customer, day=None) -> dict:
+# 按单号查到的状态（读回 ready 时才有）：模型据此说清是哪一种，不再只说「不是未收」
+INVOICE_NOTES = {
+    "settled": "invoice: settled — Express has this invoice for this customer and it is fully collected (balance 0). Say so.",
+    "cancelled": "invoice: cancelled — this invoice is voided in Express. Say so.",
+    "absent": "invoice: absent — there is no invoice with this number in this account set. Say so and ask for the right number.",
+    "open": ("invoice: open under another customer — this number is an open invoice of another customer in this account "
+             "set (customer code given). Say so and ask whether that customer is meant."),
+}
+
+
+def _fresh_invoices(company, customer, day=None, docnums=()) -> dict:
     """请电脑按这位客户即时读一次，能等的地方短等（照 LINE：读不到就如实说还在读）。回 `service.open_invoices` 的结果或
-    `_call` 的拒绝。"""
-    found = _call(service.open_invoices, company, customer, day)  # _call 提交：读取请求要先落库电脑才看得见
+    `_call` 的拒绝。``day``：收款日期（不传按今天）；``docnums``：同时按单号查（够得到的电脑都还旧时改读不带单号的那种）。"""
+    found = _call(service.open_invoices, company, customer, day, docnums=docnums)  # _call 提交：读取请求要先落库电脑才看得见
+    if docnums and "result" in found and found["result"]["refresh"] == snapshot.OUTDATED:
+        docnums = ()
+        found = _call(service.open_invoices, company, customer, day)
     deadline = time.monotonic() + READ_WAIT_SECONDS
     while ("result" in found and found["result"]["refresh"] == snapshot.READING and direct_push.may_wait()
            and time.monotonic() < deadline):
         time.sleep(max(0.0, min(READ_WAIT_STEP, deadline - time.monotonic())))
         frappe.db.rollback()  # 回执在别的请求里提交：换一份新快照再读
-        found = _call(service.open_invoices, company, customer, day)  # loop-query: 短等读回，最多 READ_WAIT_SECONDS 次
+        found = _call(service.open_invoices, company, customer, day, docnums=docnums)  # loop-query: 短等读回，最多 READ_WAIT_SECONDS 次
     return found
+
+
+def _invoice_view(data, docnum) -> dict:
+    """建草稿时不在列表里的那张：读回按单号查到了就带上状态与定式说明；没查（电脑旧、还在读）不带。"""
+    seen = (data.get("looked_up") or {}).get(docnum)
+    if not seen or seen.get("state") not in INVOICE_NOTES:
+        return {}
+    if seen["state"] == "open" and seen.get("customer") == data.get("customer"):
+        return {}  # 这位客户的未收发票：列表里本该有（预留满了），照列表说
+    view = {"invoice_state": seen["state"], "invoice_note": INVOICE_NOTES[seen["state"]]}
+    if seen["state"] == "open":
+        view["invoice_customer"] = seen.get("customer") or ""
+    return view
 
 
 def _read_view(data, customer) -> dict:
@@ -290,7 +317,8 @@ def draft(tool_input) -> str:
         if "result" not in found and found.get("reason") == contracts.INVOICE_NOT_FOUND and not name:
             # 快照里没有这张：先按客户即时读一次再判（刚开的发票还没读到，11-15 真机），读到了就照原样再建一次
             customer = str(tool_input.get("customer") or "")
-            read = _fresh_invoices(company, customer)
+            missing = str((found.get("detail") or {}).get("docnum") or "").strip()
+            read = _fresh_invoices(company, customer, tool_input.get("date") or None, docnums=[missing] if missing else ())
             if "result" not in read:
                 return read
             view = _read_view(read["result"], customer)
@@ -301,8 +329,9 @@ def draft(tool_input) -> str:
                 if again.get("reason") != contracts.INVOICE_NOT_FOUND:
                     return again
                 found = again
-            return {"status": "not_saved", "reason": contracts.INVOICE_NOT_FOUND,
-                    "docnum": (found.get("detail") or {}).get("docnum") or "", **view}
+            docnum = (found.get("detail") or {}).get("docnum") or ""
+            return {"status": "not_saved", "reason": contracts.INVOICE_NOT_FOUND, "docnum": docnum, **view,
+                    **(_invoice_view(read["result"], docnum) if view["read"] == snapshot.READY else {})}
         return _card(found["result"]) if "result" in found else found
 
     return _in_company(run)

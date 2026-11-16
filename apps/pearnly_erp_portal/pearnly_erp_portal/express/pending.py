@@ -75,7 +75,7 @@ REASONS = {
     "express.voided_after_write": "express.reason.voidedAfterWrite",
     # 账本是 MR.ERP 的公司（`mrerp.contracts`；开关 MRERP_LEDGER_ENABLED 关着时不会出现）
     "mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
-    "mrerp.purchase_cash": "mrerp.reason.purchaseCash", "mrerp.account_busy": "mrerp.reason.accountBusy",
+    "mrerp.account_busy": "mrerp.reason.accountBusy",
     "mrerp.importing": "mrerp.reason.importing",
 }
 # 电脑回报的「[错误码] 原文」里认得的码（同单据页 EXPRESS_CODES）；其余码用 `express.error.<码>`，没有译文的原样
