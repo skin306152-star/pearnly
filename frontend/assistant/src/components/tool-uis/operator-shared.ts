@@ -173,7 +173,7 @@ export type StartResult = { sent?: number; not_sent?: Array<DocRef & { reason?: 
 
 /** operator_choose 的 input：每张没做成、要人处理的单一张（整批停的不在这里）。 */
 /** detail：CC 回执的说明原文（AI 接手的结论在最前，站点 feed.reason_detail，最多 2000 字），没有就不显示。 */
-export type ChooseInput = { task: string; company: string; doc_id: string; ref?: string; party?: string; reason?: string; detail?: string; level?: Level; result_unknown?: boolean };
+export type ChooseInput = { task: string; company: string; doc_id: string; ref?: string; party?: string; reason?: string; reason_text?: string; detail?: string; level?: Level; result_unknown?: boolean };
 
 /** operator_resume 的 input：整批停（或停止，reason = stopped）时一张；doc_ids = 会被继续的几张。 */
 export type ResumeInput = { task: string; company: string; reason: string; detail?: string; doc_id?: string; ref?: string; party?: string; doc_ids?: string[] };
