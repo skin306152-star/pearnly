@@ -2533,10 +2533,17 @@ guide.step.collection.invoices,請求書
 guide.step.collection.methods,入金方法
 guide.step.collection.voucher,振込明細
 guide.step.stocktake.action,操作
+guide.step.stocktake.category,カテゴリ
+guide.step.stocktake.code,バーコード / QRコード
 guide.step.stocktake.count,棚卸
+guide.step.stocktake.default_cost,参考原価
 guide.step.stocktake.mode,方法
+guide.step.stocktake.product_name,商品名
+guide.step.stocktake.qty,今回の実地数量
 guide.step.stocktake.rows,今回の実地数量
 guide.step.stocktake.title,名前
+guide.step.stocktake.unit,単位
+guide.step.stocktake.unit_price,販売価格
 guide.step.stocktake.warehouse,倉庫
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）

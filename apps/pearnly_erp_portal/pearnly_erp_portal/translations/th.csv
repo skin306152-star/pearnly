@@ -2533,10 +2533,17 @@ guide.step.collection.invoices,ใบแจ้งหนี้
 guide.step.collection.methods,วิธีรับเงิน
 guide.step.collection.voucher,สลิปการโอน
 guide.step.stocktake.action,การดำเนินการ
+guide.step.stocktake.category,หมวดหมู่
+guide.step.stocktake.code,บาร์โค้ด / คิวอาร์โค้ด
 guide.step.stocktake.count,ตรวจนับสินค้า
+guide.step.stocktake.default_cost,ต้นทุนอ้างอิง
 guide.step.stocktake.mode,วิธี
+guide.step.stocktake.product_name,ชื่อสินค้า
+guide.step.stocktake.qty,จำนวนที่นับครั้งนี้
 guide.step.stocktake.rows,จำนวนที่นับครั้งนี้
 guide.step.stocktake.title,ชื่อ
+guide.step.stocktake.unit,หน่วย
+guide.step.stocktake.unit_price,ราคาขาย
 guide.step.stocktake.warehouse,คลังสินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)

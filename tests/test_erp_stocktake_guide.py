@@ -134,6 +134,8 @@ _module("pearnly_erp_portal.inventory.count", list_counts=_list_counts, get_coun
         search_count_products=_search, add_entry=_add_entry, review_count=_review, create_count=_create,
         recount_product=lambda *, count, product: STATE["recounts"].append((count, product)),
         close_count=lambda name, review_token=None: STATE["closed"].append((name, review_token)) or {"status": "Closed"},
+        create_product_here=lambda *, count, code, product_name, **extra: STATE["new_products"].append(
+            (count, code, product_name, extra)) or ({"name": "P1", "created": False} if code == "A01" else {"name": "P7", "created": True}),
         adjustment_draft=lambda name: STATE["adjusted"].append(name) or {"name": "SE-1", "doc_no": "ADJ-0001"},
         delete_count=lambda name: STATE["deleted"].append(name) or {"ok": True},
         _warehouse_labels=lambda names: {name: f"{name} name" for name in names})
@@ -157,7 +159,7 @@ class Base(unittest.TestCase):
     def setUp(self):
         STATE.clear()
         STATE.update(counts=[dict(row) for row in COUNTS], count_write=True, acting=[], entries=[], recounts=[], closed=[],
-                     adjusted=[], deleted=[], created=[], rollbacks=[], reviews=0, last_warehouse="WH2")
+                     adjusted=[], deleted=[], created=[], new_products=[], rollbacks=[], reviews=0, last_warehouse="WH2")
         HOOKS["pearnly_guides"] = ["pearnly_erp_portal.inventory.cc_guide.GUIDES"]
         self.docs, self.clock = {}, [0]
         self.now = {"session_id": SESSION, "mode": "chat", "company": "CO-1", "ledger": "BOOK", "period": "2026-11",
@@ -284,6 +286,33 @@ class Count(Base):
         back = run.confirm(name, found["version"])
         self.assertEqual(back["card"]["returned"]["count"]["text"], "This stock count is closed")
         self.assertEqual(STATE["rollbacks"], [1])
+
+
+class NewProduct(Base):
+    def test_an_unknown_code_creates_the_product_with_its_fields_and_records_the_count(self):
+        name, found = self.walk({"action": "new_product"}, {"count": "SC1"})
+        self.assertEqual(list(self.questions(found)),
+                         ["code", "product_name", "unit", "unit_price", "default_cost", "category", "qty"])
+        found = run.answer(name, {"code": "8850001", "product_name": "Green tea", "unit": "box", "unit_price": "25",
+                                  "qty": "0"})
+        lines = {line["key"]: line["value"] for line in found["review"]["lines"]}
+        self.assertEqual((lines["code"], lines["product_name"], lines["qty"]), ("8850001", "Green tea", "0"))
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["new_products"], [("SC1", "8850001", "Green tea", {"unit": "box", "unit_price": "25"})])
+        self.assertEqual(STATE["entries"][0][:3], ("SC1", "P7", "0"))
+        self.assertEqual((done["result"]["product"], done["result"]["created"]), ("P7", True))
+
+    def test_a_code_that_turns_out_to_exist_is_counted_on_that_product(self):
+        name, found = self.walk({"action": "new_product"}, {"count": "SC1"},
+                                {"code": "A01", "product_name": "Apple", "qty": "3"})
+        done = run.confirm(name, found["version"])
+        self.assertEqual((STATE["entries"][0][1], done["result"]["created"]), ("P1", False))
+
+    def test_a_negative_quantity_is_refused_and_only_active_counts_are_offered(self):
+        name, found = self.walk({"action": "new_product"})
+        self.assertEqual([row["code"] for row in self.questions(found)["count"]["options"]], ["SC1"])
+        run.answer(name, {"count": "SC1"})
+        self.assertEqual(run.answer(name, {"code": "X1", "product_name": "X", "qty": "-1"})["refused"], {"qty": "Enter a quantity"})
 
 
 class CloseAdjustDelete(Base):

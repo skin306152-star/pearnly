@@ -2179,3 +2179,10 @@ Quantity counted this time	本次实盘数量	จำนวนที่นับ�
 Method	方式	วิธี	方法	guide.step.stocktake.mode
 Close the stock count?	要结束盘点吗？	ปิดการตรวจนับหรือไม่	棚卸を終了しますか？	guide.consent.stocktake.close
 Delete the stock count?	要删除盘点吗？	ลบการตรวจนับหรือไม่	棚卸を削除しますか？	guide.consent.stocktake.delete
+Barcode / QR code	条码/二维码	บาร์โค้ด / คิวอาร์โค้ด	バーコード / QRコード	guide.step.stocktake.code
+Product name	物料名称	ชื่อสินค้า	商品名	guide.step.stocktake.product_name
+Unit	单位	หน่วย	単位	guide.step.stocktake.unit
+Selling price	售价	ราคาขาย	販売価格	guide.step.stocktake.unit_price
+Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	guide.step.stocktake.default_cost
+Category	分类	หมวดหมู่	カテゴリ	guide.step.stocktake.category
+Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.qty

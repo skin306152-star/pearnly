@@ -19,13 +19,15 @@ import json
 import frappe
 from frappe import _
 
-NEW, COUNT, CLOSE, ADJUST, DELETE = "new", "count", "close", "adjust", "delete"
-ACTIONS = ((NEW, "stock.count.new"), (COUNT, "stock.workbench.record"), (CLOSE, "stock.count.close"),
-           (ADJUST, "stock.count.adjust"), (DELETE, "Delete"))
+NEW, COUNT, NEW_PRODUCT, CLOSE, ADJUST, DELETE = "new", "count", "new_product", "close", "adjust", "delete"
+ACTIONS = ((NEW, "stock.count.new"), (COUNT, "stock.workbench.record"), (NEW_PRODUCT, "stock.mobile.newProduct"),
+           (CLOSE, "stock.count.close"), (ADJUST, "stock.count.adjust"), (DELETE, "Delete"))
+# 当场新建物料那几格 → `create_product_here` 的参数（同物料页新建弹窗的 `standard_fields`；空的不传）
+PRODUCT_FIELDS = ("unit", "unit_price", "default_cost", "category")
 ADD, RECOUNT = "add", "recount"
 MODES = ((ADD, "stock.workbench.record"), (RECOUNT, "stock.workbench.recount"))
 # 各动作能选的盘点单状态（同盘点页：记数、结束、删除只对进行中的；调整只对已结束、差异还没调的）
-STATUSES = {COUNT: "Active", CLOSE: "Active", DELETE: "Active", ADJUST: "Closed"}
+STATUSES = {COUNT: "Active", NEW_PRODUCT: "Active", CLOSE: "Active", DELETE: "Active", ADJUST: "Closed"}
 SCAN_PAGE, SCAN_PAGES = 100, 20
 REVIEW_ROWS = 200
 DRAFT_SEP = "@"
@@ -168,6 +170,16 @@ def item_options(ctx, txt="", start=0, page_length=20, codes=None):
                         for row in found[:size]], "more": len(found) > size}
 
 
+def qty_check(ctx, value) -> str:
+    """数量不能是负数（0 有效：盘到 0 也是一笔），同 `add_entry` 的口径。"""
+    from decimal import Decimal, InvalidOperation
+
+    try:
+        return "" if Decimal(str(value)) >= 0 else "Enter a quantity"
+    except (InvalidOperation, ValueError):
+        return "Enter a quantity"
+
+
 # ── 草稿、复核、确定 ────────────────────────────────────────────────────────────
 
 
@@ -218,6 +230,12 @@ def review(ctx, draft) -> dict:
             out["lines"].append(_line("mode", "guide.step.stocktake.mode", _(dict(MODES)[_answer(ctx, "mode", ADD)]), "mode"))
             out["tables"].append({"key": "rows", "label_key": "guide.step.stocktake.rows", "step": "rows",
                                   "rows": _rows(ctx, _answer(ctx, "rows", []))})
+        if action == NEW_PRODUCT:
+            labels = {"code": "product.field.codeValue", "product_name": "product.field.name", "unit": "product.field.unit",
+                      "unit_price": "product.field.price", "default_cost": "product.field.cost",
+                      "category": "product.field.category", "qty": "stock.workbench.entryQty"}
+            out["lines"] += [_line(key, label, _answer(ctx, key), key) for key, label in labels.items()
+                             if _answer(ctx, key) not in ("", None)]
         if action == CLOSE:
             total, counted = int(task.get("item_total") or 0), int(task.get("counted_total") or 0)
             out["lines"] += [_line("counted", "stock.count.countedRows", counted),
@@ -243,6 +261,17 @@ def _record(ctx, count, rows, mode):
     return len(rows)
 
 
+def _new_product(ctx, count, values) -> dict:
+    """扫到系统没有的码：当场建物料（`create_product_here`：盘点锁里按码再认一次，别人刚建过或这码其实已有就用那件、不建重复码；
+    来由记这份盘点）再记这一笔数（同盘点页「新建物料」后接着记数）。"""
+    counts = _counts()
+    extra = {key: values[key] for key in PRODUCT_FIELDS if values.get(key) not in (None, "")}
+    made = counts.create_product_here(count=count, code=values["code"], product_name=values["product_name"], **extra)
+    request = "cc:" + hashlib.sha256(f"{ctx.get('run')}:{count}:{made['name']}".encode()).hexdigest()[:32]
+    counts.add_entry(count=count, qty=values["qty"], product=made["name"], warehouse=None, location=None, request_id=request)
+    return {"status": "entered", "docnum": count, "product": made["name"], "created": bool(made.get("created"))}
+
+
 def confirm(ctx, values, draft, consent) -> dict:
     counts = _counts()
     action = values["action"]
@@ -255,6 +284,8 @@ def confirm(ctx, values, draft, consent) -> dict:
             if action == COUNT:
                 return {"status": "entered", "docnum": count, "recorded": _record(ctx, count, values["rows"],
                                                                                   values.get("mode") or ADD)}
+            if action == NEW_PRODUCT:
+                return _new_product(ctx, count, values)
             if action == CLOSE:
                 review_token = counts.review_count(count).get("review_token")
                 done = counts.close_count(count, review_token=review_token)
@@ -267,5 +298,5 @@ def confirm(ctx, values, draft, consent) -> dict:
     except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        step = "title" if action == NEW else "count"
+        step = "title" if action == NEW else "code" if action == NEW_PRODUCT else "count"
         return {"returned": {step: {"reason": "stocktake_refused", "text": str(error)[:300]}}}
