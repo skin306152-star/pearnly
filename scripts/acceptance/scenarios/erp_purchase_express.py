@@ -22,6 +22,7 @@ CC 的 ERP 档案跑的时候只读它；做法见验收测试标准「验收专
 import json
 import os
 import sys
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -77,7 +78,8 @@ def run(ctx):
 
     with ctx.step("提交采购单并等写入", "单据提交后进写账队列，CC 桌面版写进验收账套并回执"):
         out = ctx.targets.site(SITE_TARGET).run("erp", ROOT / "scripts" / "acceptance" / "site" / "erp_purchase_post.py", SITE,
-                                          json.dumps({**conf, "ledger": LEDGER, "run": run_id, "resend": twice}), timeout=480)
+                                          json.dumps({**conf, "ledger": LEDGER, "run": f"{run_id}-{zlib.crc32(ctx.scenario['id'].encode('utf-8')) % 1000:03d}{ctx.attempt}",
+                                                      "resend": twice}), timeout=480)
         line = next((text for text in reversed(out.splitlines()) if text.startswith("ACC ")), None)
         if line is None:
             raise Infra(f"站点脚本没有回结果：{out[-300:]}")

@@ -172,8 +172,10 @@ class MacLab:
         if copied.returncode:
             raise Infra(f"Mac 实验栈的 {container} 进不去（栈没起？）：{(copied.stderr or '').strip()[-200:]}")
         try:
-            return self.runner(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", container, "../env/bin/python", f"/tmp/{name}", *quoted],
-                               capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL).stdout
+            done = self.runner(["docker", "exec", "-w", "/home/frappe/frappe-bench/sites", container, "../env/bin/python", f"/tmp/{name}", *quoted],
+                               capture_output=True, text=True, timeout=timeout, stdin=subprocess.DEVNULL)
+            # 脚本崩了（没打出 ACC 行）时把报错尾巴接在后面，场景的「没有回结果」能带上原因（11-16 首跑只看到空串）
+            return done.stdout + (f"\n[exit {done.returncode}] {(done.stderr or '')[-600:]}" if done.returncode else "")
         except subprocess.TimeoutExpired as error:
             raise Infra(f"Mac 实验栈：{script.name} 超时（{timeout} 秒）") from error
         finally:

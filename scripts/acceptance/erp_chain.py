@@ -10,6 +10,7 @@ import ast
 import json
 import os
 import sys
+import zlib
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -38,9 +39,14 @@ def run_id(ctx) -> str:
 
 
 def tag(ctx) -> str:
-    """写进客户名 / 请求号的短标记：同一轮几条场景、同一条重跑都不撞名。"""
+    """写进客户名 / 请求号的短标记：同一轮几条场景、同一条重跑都不撞名。一条命令跑一组（first_run）时各场景共用一个运行编号，
+    所以再带场景编号的三位校验码（11-16 首跑：采购 .twice 与上一格开出同一个单号 ACC-<运行编号>，被产品按重复单号拒掉）。"""
     digits = "".join(ch for ch in run_id(ctx) if ch.isdigit())
-    return f"{digits[-6:] or '0'}{ctx.attempt}"
+    return f"{digits[-6:] or '0'}{scenario_code(ctx)}{ctx.attempt}"
+
+
+def scenario_code(ctx) -> str:
+    return f"{zlib.crc32(ctx.scenario['id'].encode('utf-8')) % 1000:03d}"
 
 
 def after_dir(ctx, part: str = "") -> str:
