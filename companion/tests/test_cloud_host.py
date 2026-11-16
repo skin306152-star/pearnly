@@ -616,7 +616,12 @@ def test_bridge_pair_actions_return_only_the_token_and_the_status(tmp_path, vaul
     fake.running = True
     fake.begin_pairing = lambda lang: types.SimpleNamespace(token="ABCD-EFGH", expires=123)  # scan: fake
     fake.pairing_status = lambda: {"state": "waiting", "code": "", "expires": 123}
-    assert json.loads(bridge.call("cloud_pair_begin", "{}")) == {"ok": True, "token": "ABCD-EFGH", "expires": 123}
+    fake.root, fake.drive = tmp_path / "tunnel", "Z"
+    bridge._cloud_prepare = lambda root, host: None   # 放 cc\ 的细节在 test_cloud_install_files.py
+    result = _wait(bridge, bridge.call("cloud_pair_begin", "{}"))
+    assert {key: result[key] for key in ("ok", "token", "expires", "drive")} == {"ok": True, "token": "ABCD-EFGH",
+                                                                                "expires": 123, "drive": "Z"}
+    assert result["command"].endswith("\\\\tsclient\\Z\\cc\\cloud_install.ps1 -Token ABCD-EFGH")
     assert json.loads(bridge.call("cloud_pair_status", "{}")) == {"ok": True, "state": "waiting", "code": "",
                                                                   "expires": 123}
     bridge.shutdown()

@@ -21,7 +21,8 @@ from .version import VERSION, version_tuple
 log = get_logger(__name__)
 
 DOWNLOAD_SITE = "https://pearnly.com"
-_LATEST_PATH = "/downloads/companion/latest.json"
+LATEST_PATH = "/downloads/companion/latest.json"   # 发布清单（cloud_link/cloud_package.py 也从这里读云端包那一项）
+_LATEST_PATH = LATEST_PATH
 # 「下载新版」（自动更新被 Windows 拦下时，update_block.py）：官网与网页「下载 CC 桌面版」同一个固定地址，始终是最新正式版
 DOWNLOAD_PAGE = DOWNLOAD_SITE + "/downloads/companion/CC-Setup.exe"
 

@@ -493,3 +493,45 @@ def test_the_install_script_keeps_the_token_out_of_files_and_the_shortcut():
                                                      "Arguments", "Start-Transcript")), line
     assert "-ArgumentList @('--cloud', '--pair', $cleanToken)" in body
     assert "Get-FileHash" in body and "$manifest.sha256" in body
+
+
+def _install_script_lines():
+    from pathlib import Path
+
+    script = (Path(__file__).resolve().parents[1] / "packaging" / "cloud_install.ps1").read_text(encoding="utf-8-sig")
+    return [line for line in script.splitlines() if not line.lstrip().startswith("#")]
+
+
+def _first(lines, needle):
+    return next(i for i, line in enumerate(lines) if needle in line)
+
+
+def test_a_checksum_mismatch_exits_before_unpacking_or_starting_anything():
+    lines = _install_script_lines()
+    mismatch = _first(lines, "Stop-With '校验值不符，未安装' 11")
+    assert _first(lines, "if ($actual -ne $expected)") < mismatch
+    for later in ("ExtractToDirectory", "Expand-Archive", "Start-Process", "CreateShortcut"):
+        found = [i for i, line in enumerate(lines) if later in line]
+        assert all(i > mismatch for i in found), later
+    assert any("ExtractToDirectory" in line for line in lines) and any("Start-Process" in line for line in lines)
+
+
+def test_the_startup_shortcut_is_created_only_after_pairing_succeeded():
+    lines = _install_script_lines()
+    failed = _first(lines, "if ($code -ne 0) {")
+    pairing = _first(lines, "'--pair'")
+    saves = [i for i, line in enumerate(lines) if "$link.Save()" in line]
+    assert saves and all(i > failed > pairing for i in saves)
+    failure_exit = next(i for i in range(failed, len(lines)) if "Stop-With $line $code" in lines[i])
+    assert all(i > failure_exit for i in saves)
+
+
+def test_a_failed_pairing_removes_the_shortcut_this_install_made():
+    lines = _install_script_lines()
+    failed = _first(lines, "if ($code -ne 0) {")
+    failure_exit = next(i for i in range(failed, len(lines)) if "Stop-With $line $code" in lines[i])
+    branch = "\n".join(lines[failed:failure_exit])
+    assert "Remove-Item -LiteralPath $linkPath" in branch
+    assert "StartsWith($base" in branch   # 只删指向本安装目录的那个
+    timeout = _first(lines, "$code = 6")
+    assert timeout < failed               # 配对超时也走同一个失败分支

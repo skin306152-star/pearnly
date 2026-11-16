@@ -5,10 +5,12 @@
 # （-ExecutionPolicy Bypass 只作用于这一个 powershell 进程；本脚本不调 Set-ExecutionPolicy。）
 #
 # 做的事：
-#   1. 把同目录的 CC-Cloud.zip 先拷到 %LOCALAPPDATA%\Pearnly\CC-Cloud\ 再算 SHA-256，必须等于同目录 cloud.json 的 sha256，不等就停；
+#   1. 每次都把同目录的 CC-Cloud.zip 先拷到 %LOCALAPPDATA%\Pearnly\CC-Cloud\ 再算 SHA-256，必须等于同目录 cloud.json 的 sha256；
+#      不等就打一行结果、以非 0 退出：不解压、不运行、不建快捷方式；
 #   2. 解压到 %LOCALAPPDATA%\Pearnly\CC-Cloud\<版本>（同版本目录已有 companion.exe 就不重解压）；
-#   3. 在本用户「启动」文件夹建快捷方式 CC.lnk：companion.exe --cloud（不带令牌）；
-#   4. 启动一次 companion.exe --cloud --pair <令牌>，按退出码打印一行结果；配对成功再启动一次 companion.exe --cloud（不带令牌）。
+#   3. 启动一次 companion.exe --cloud --pair <令牌>，按退出码打印一行结果；
+#   4. 配对成功（退出码 0）才在本用户「启动」文件夹建快捷方式 CC.lnk：companion.exe --cloud（不带令牌），再启动一次
+#      companion.exe --cloud；配对失败不留快捷方式（之前安装建的、指向上面目录的 CC.lnk 删掉）。
 # 不做的事：不要管理员、不改系统设置与执行策略、不建计划任务、不写注册表、不碰上面两个目录以外的地方；
 #   令牌不写进任何文件、快捷方式、日志，不回显；不模拟键鼠、不点系统对话框。
 [CmdletBinding()]
@@ -45,16 +47,17 @@ $dest = Join-Path $base $version
 $exe = Join-Path $dest 'companion.exe'
 New-Item -ItemType Directory -Path $base -Force | Out-Null
 
-if (-not (Test-Path -LiteralPath $exe)) {
-    # 先拷到本机再校验、再从这份解压：校验与解压用同一份文件
-    $localZip = Join-Path $base ('CC-Cloud-' + [guid]::NewGuid().ToString('N') + '.zip')
-    $staging = Join-Path $base ($version + '.partial-' + [guid]::NewGuid().ToString('N'))
-    try {
-        Copy-Item -LiteralPath $zipSource -Destination $localZip -Force
-        $actual = (Get-FileHash -LiteralPath $localZip -Algorithm SHA256).Hash.ToLowerInvariant()
-        if ($actual -ne $expected) {
-            Stop-With '校验值不符，未安装' 11
-        }
+# 每次都先拷到本机再校验：校验不对立刻退出（不解压、不运行、不建快捷方式）；解压用同一份文件
+$localZip = Join-Path $base ('CC-Cloud-' + [guid]::NewGuid().ToString('N') + '.zip')
+$staging = Join-Path $base ($version + '.partial-' + [guid]::NewGuid().ToString('N'))
+try {
+    Copy-Item -LiteralPath $zipSource -Destination $localZip -Force
+    $actual = (Get-FileHash -LiteralPath $localZip -Algorithm SHA256).Hash.ToLowerInvariant()
+    if ($actual -ne $expected) {
+        Remove-Item -LiteralPath $localZip -Force
+        Stop-With '校验值不符，未安装' 11
+    }
+    if (-not (Test-Path -LiteralPath $exe)) {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::ExtractToDirectory($localZip, $staging)
         if (-not (Test-Path -LiteralPath (Join-Path $staging 'companion.exe'))) {
@@ -63,32 +66,26 @@ if (-not (Test-Path -LiteralPath $exe)) {
         if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
         Move-Item -LiteralPath $staging -Destination $dest
     }
-    finally {
-        if (Test-Path -LiteralPath $localZip) { Remove-Item -LiteralPath $localZip -Force }
-        if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
-    }
+}
+finally {
+    if (Test-Path -LiteralPath $localZip) { Remove-Item -LiteralPath $localZip -Force }
+    if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Recurse -Force }
 }
 
-# 开机（登录）自启：只带 --cloud
 $startup = [Environment]::GetFolderPath('Startup')
-$shell = New-Object -ComObject WScript.Shell
-$link = $shell.CreateShortcut((Join-Path $startup 'CC.lnk'))
-$link.TargetPath = $exe
-$link.Arguments = '--cloud'
-$link.WorkingDirectory = $dest
-$link.Save()
-[void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($link)
-[void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell)
+$linkPath = Join-Path $startup 'CC.lnk'
 
 # 配对：令牌只在这个子进程的参数里出现一次；结果看退出码（cloud_link/cloud_side.py 的 EXIT_*）
 $pairing = Start-Process -FilePath $exe -ArgumentList @('--cloud', '--pair', $cleanToken) -WorkingDirectory $dest -PassThru
 $Token = ''
 $cleanToken = ''
-if (-not $pairing.WaitForExit(150000)) {
-    Stop-Process -Id $pairing.Id -Force
-    Stop-With '配对超时' 6
+if ($pairing.WaitForExit(150000)) {
+    $code = $pairing.ExitCode
 }
-$code = $pairing.ExitCode
+else {
+    Stop-Process -Id $pairing.Id -Force
+    $code = 6
+}
 $lines = @{
     0 = '配对完成'
     3 = '未找到隧道盘'
@@ -98,7 +95,29 @@ $lines = @{
     7 = '配对被拒绝'
 }
 $line = if ($lines.ContainsKey($code)) { $lines[$code] } else { '配对失败' }
-if ($code -eq 0) {
-    Start-Process -FilePath $exe -ArgumentList @('--cloud') -WorkingDirectory $dest | Out-Null
+if ($code -ne 0) {
+    # 配对失败：不留快捷方式；之前安装建的（指向 %LOCALAPPDATA%\Pearnly\CC-Cloud 下）删掉，别人的不碰
+    if (Test-Path -LiteralPath $linkPath) {
+        $shell = New-Object -ComObject WScript.Shell
+        $old = $shell.CreateShortcut($linkPath)
+        $oldTarget = [string]$old.TargetPath
+        [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($old)
+        [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell)
+        if ($oldTarget.StartsWith($base + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
+            Remove-Item -LiteralPath $linkPath -Force
+        }
+    }
+    Stop-With $line $code
 }
+
+# 配对成功才建开机（登录）自启：只带 --cloud
+$shell = New-Object -ComObject WScript.Shell
+$link = $shell.CreateShortcut($linkPath)
+$link.TargetPath = $exe
+$link.Arguments = '--cloud'
+$link.WorkingDirectory = $dest
+$link.Save()
+[void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($link)
+[void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($shell)
+Start-Process -FilePath $exe -ArgumentList @('--cloud') -WorkingDirectory $dest | Out-Null
 Stop-With $line $code

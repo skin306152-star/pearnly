@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 HEAVY = ("comtypes", "src.companion.cloud_link.ax_host", "src.companion.cloud_link.window",
-         "src.companion.cloud_link.nonscriptable")
+         "src.companion.cloud_link.nonscriptable", "src.companion.cloud_link.cloud_package")
 
 _CHILD = r"""
 import json, sys, tempfile
@@ -131,6 +131,8 @@ def test_cloud_window_modules_load_only_when_connecting(tmp_path):
     result = json.loads(line[len("RESULT "):])
     assert result["idle"] == []                              # 启动、托盘、对话页、设置页那一行：都不导入
     assert result["after_host_import"] == []                 # 宿主模块本身也不带它们
+    # 放云端安装文件（cloud_package）只在配对前 / cc\ 放过且版本变了时导入：不连云端、连上但 cc\ 是空的都不导入
+    assert "src.companion.cloud_link.cloud_package" not in result["started"]
     started = set(result["started"])
     assert {"src.companion.cloud_link.window", "src.companion.cloud_link.ax_host",
             "src.companion.cloud_link.nonscriptable"} <= started   # 点「连接」才导入

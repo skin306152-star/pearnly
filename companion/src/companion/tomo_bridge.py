@@ -37,9 +37,14 @@ MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点�
 （宿主 ``cloud_link/host.py`` 处理）。``cloud_operator_forget {connection}`` 删本机这条，并经 ``ctl`` 请云端删掉它那条（宿主没起
 时先记着，下次起宿主补发）。前端按钮另做；旧版桥回 ``{ok: false}``。
 
-设备密钥的一次性配对（``cloud_link/device_pairing.py``）：``cloud_pair_begin`` 请正在运行的宿主生成一次性令牌（2 分钟、一次、
-失败即作废），回包只有 ``token`` 与 ``expires``（墙上时钟秒），供设置页显示给人抄到云端；令牌不进日志。``cloud_pair_status``
-回 ``{state, code, expires}``（idle / waiting / answered / paired / failed），不含令牌。宿主没起回 ``not_running``。
+设备密钥的一次性配对（``cloud_link/device_pairing.py``）：``cloud_pair_begin`` 先在后台确保隧道盘 ``cc\\`` 里有云端安装文件
+（``cloud_link/cloud_package.py``：本机缓存或按发布清单下载、核 sha256、写 ``cloud_install.ps1`` / ``CC-Cloud.zip`` / ``cloud.json``；
+回 job），准备失败回 ``{ok: false, code}``（``no_package`` / ``download_failed`` / ``checksum`` / ``write_failed``，``cloud_status``
+另带 ``package`` 同一个码，设置页沿用现有状态词）；就绪了再请正在运行的宿主生成一次性令牌（2 分钟、一次、失败即作废），回包
+``token``、``expires``（墙上时钟秒）、``drive``（隧道盘符）与 ``command``（云端 PowerShell 里打的那一行，令牌已填入），供设置页显示
+给人照打；令牌与命令不进日志、不写文件。``cloud_pair_status`` 回 ``{state, code, expires}``（idle / waiting / answered / paired /
+failed），不含令牌。宿主没起回 ``not_running``。点「连接」起宿主后，只有 ``cc\\cloud.json`` 已经在时才在后台看一次发布清单，云端包
+版本变了才重新放（``cc\\`` 是空的不联网、不导入 cloud_package）；空闲时不做任何事。
 
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
@@ -52,6 +57,7 @@ MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点�
 from __future__ import annotations
 
 import json
+import threading
 import uuid
 from typing import Callable, Optional
 from urllib.parse import urlsplit
@@ -96,7 +102,9 @@ class TomoBridge(QObject):
                  ask_login: Optional[Callable[[str, str], object]] = None,
                  ask_express_login: Optional[Callable[[str], object]] = None,
                  cloud_cred_store: Optional[Callable[[str, str, str], None]] = None,
-                 cloud_cred_forget: Optional[Callable[[str], object]] = None) -> None:
+                 cloud_cred_forget: Optional[Callable[[str], object]] = None,
+                 cloud_prepare: Optional[Callable[[object, str], object]] = None,
+                 cloud_refresh: Optional[Callable[[object, str], object]] = None) -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
@@ -124,6 +132,12 @@ class TomoBridge(QObject):
         self._cloud_cred_forget = cloud_cred_forget or _cloud_cred_forget
         # 宿主没起时点了「取消授权」的连接号：下次起宿主时请云端删
         self._cloud_forgets: set = set()
+        # 隧道盘 cc\ 的云端安装文件（cloud_link/cloud_package.py）：(隧道根, 主机) → 准备 / 版本变了才重放；测试注入。
+        # 两条路径同一把锁（不会同时写 cc\）；最近一次失败的状态码给 cloud_status
+        self._cloud_prepare = cloud_prepare or _cloud_prepare
+        self._cloud_refresh = cloud_refresh or _cloud_refresh
+        self._cloud_package_lock = threading.Lock()
+        self._cloud_package_code = ""
 
     @Slot(result=str)
     def state(self) -> str:
@@ -424,19 +438,69 @@ class TomoBridge(QObject):
         return {"ok": True, "removed": removed}
 
     def _cloud_pair(self, method: str, lang: str) -> dict:
-        """设备密钥的一次性配对：生成令牌（只回令牌与过期时间）/ 查状态（不含令牌）。宿主没起回 ``not_running``。"""
+        """设备密钥的一次性配对：查状态（不含令牌）/ 先在后台备好隧道盘 ``cc\\``，再生成令牌（回 job）。宿主没起回 ``not_running``。"""
         host = self._cloud_host
         if host is None or not getattr(host, "running", False):
             return {"ok": False, "code": "not_running"}
         if method == "cloud_pair_status":
             return {"ok": True, **host.pairing_status()}
+        root, name = host.root, host.host
+
+        def work() -> dict:
+            return self._package_step(self._cloud_prepare, root, name) or {"ok": True}
+
+        return self._job(work, after=lambda result: self._after_cloud_package(result, lang))
+
+    def _package_step(self, step, root, name) -> Optional[dict]:
+        """（后台）准备 / 重放 ``cc\\``：成功回 None，失败回 ``{ok: false, code}``。日志只有状态码。"""
+        with self._cloud_package_lock:
+            try:
+                step(root, name)
+            except Exception as exc:
+                code = str(getattr(exc, "code", "") or "write_failed")
+                log.warning("准备隧道盘 cc 目录失败：%s", code)
+                return {"ok": False, "code": code}
+        return None
+
+    def _after_cloud_package(self, result: dict, lang: str) -> dict:
+        """（界面线程）``cc\\`` 备好了才生成令牌，回令牌、过期时间、隧道盘符与那一行命令；令牌与命令不进日志。"""
+        self._cloud_package_code = "" if result.get("ok") else str(result.get("code") or "")
+        if not result.get("ok"):
+            return result
+        host = self._cloud_host
+        if host is None or not getattr(host, "running", False):
+            return {"ok": False, "code": "not_running"}
         try:
             ticket = host.begin_pairing(normalize(lang))
+            drive = str(host.drive or "")
+            from .cloud_link.cloud_package import install_command
+
+            command = install_command(drive, ticket.token)
         except Exception as exc:
             log.warning("生成云端配对令牌失败：%s", type(exc).__name__)
             return {"ok": False, "code": "not_running"}
         log.info("云端配对令牌已生成")
-        return {"ok": True, "token": ticket.token, "expires": ticket.expires}
+        return {"ok": True, "token": ticket.token, "expires": ticket.expires, "drive": drive, "command": command}
+
+    def _refresh_cloud_package(self, host) -> None:
+        """（界面线程，起宿主之后）``cc\\cloud.json`` 已经在才在后台看一次发布清单，版本变了才重放；没有就什么都不做。"""
+        root = getattr(host, "root", None)
+        if root is None:
+            return
+        from pathlib import Path
+
+        if not (Path(root) / "cc" / "cloud.json").is_file():
+            return
+        name = host.host
+
+        def finished(result) -> None:
+            code = str((result or {}).get("code") or "")
+            if code != self._cloud_package_code:
+                self._cloud_package_code = code
+                self.changed.emit()
+
+        self._probes.spawn("cloud_package", lambda: self._package_step(self._cloud_refresh, root, name) or {"ok": True},
+                           finished)
 
     def _cloud_settings(self, method: str, args: dict, lang: str) -> dict:
         """「云端 Express」一行的四个动作。``cloud_connect`` 只收地址与预填的账号（args 里的密码一概不看）：地址不合规直接回，
@@ -446,9 +510,13 @@ class TomoBridge(QObject):
         if method == "cloud_prefill":
             return settings_link.prefill(self._cloud_links(), self._session_rdp())
         if method == "cloud_status":
-            return settings_link.status(self._cloud_links(), self._cloud_session())
+            result = settings_link.status(self._cloud_links(), self._cloud_session())
+            if self._cloud_package_code:
+                result["package"] = self._cloud_package_code
+            return result
         if method == "cloud_disconnect":
             self._stop_cloud_host()   # 界面线程：关窗即断开、停中转、撤隧道盘
+            self._cloud_package_code = ""
             store, session = self._cloud_links(), self._cloud_session()
             return self._job(lambda: settings_link.disconnect(store, session))
         if method == "cloud_connect":
@@ -491,6 +559,7 @@ class TomoBridge(QObject):
             for connection in sorted(self._cloud_forgets):
                 host.request_forget(connection)
             self._cloud_forgets.clear()
+            self._refresh_cloud_package(host)
         except HostUnavailable:
             log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 PySide6、comtypes）")
         except Exception as exc:
@@ -586,6 +655,20 @@ def _cloud_store_new():
     from .cloud_link.link_store import LinkStore
 
     return LinkStore.load()
+
+
+def _cloud_prepare(root, host: str):
+    """配对前备好隧道盘 cc\\（只在这时导入 cloud_link.cloud_package）。"""
+    from .cloud_link import cloud_package
+
+    return cloud_package.prepare(root, host)
+
+
+def _cloud_refresh(root, host: str):
+    """起宿主后：cc\\ 放过且云端包版本变了才重放。"""
+    from .cloud_link import cloud_package
+
+    return cloud_package.refresh(root, host)
 
 
 def _cloud_host_new(host: str, on_change):

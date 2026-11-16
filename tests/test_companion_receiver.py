@@ -102,6 +102,34 @@ class Receiver(unittest.TestCase):
         self.assertFalse((self.root / "latest.json").exists())
         self.assertFalse((self.root / "releases").exists())
 
+    def test_prod_with_a_cloud_package_adds_it_to_latest(self):
+        body, cloud = installer(b"v130"), b"PK\x03\x04" + b"cloud" * 20
+        head = {"target": "prod", "version": "1.3.0", "source_sha": SHA, "sha256": hashlib.sha256(body).hexdigest(),
+                "size": len(body), "publication": "36300000000-1",
+                "cloud": {"version": "1.3.0", "sha256": hashlib.sha256(cloud).hexdigest(), "size": len(cloud)}}
+        data = json.dumps(head).encode() + b"\n" + body + cloud
+        out = io.StringIO()
+        with mock.patch.object(sys, "stdin", Stdin(data)), mock.patch.object(sys, "stdout", out):
+            self.module.main()
+        self.assertEqual((self.root / "releases/1.3.0" / SHA / "CC-Cloud.zip").read_bytes(), cloud)
+        latest = json.loads((self.root / "latest.json").read_text())
+        self.assertEqual(latest["cloud"], {"version": "1.3.0", "sha256": hashlib.sha256(cloud).hexdigest(),
+                                           "size": len(cloud),
+                                           "url": f"/downloads/companion/releases/1.3.0/{SHA}/CC-Cloud.zip?v={SHA}"})
+        self.assertEqual(latest["version"], "1.3.0")
+
+    def test_a_bad_cloud_package_publishes_nothing(self):
+        body, cloud = installer(b"v130"), b"PK\x03\x04" + b"cloud" * 20
+        for bad in ({"sha256": "0" * 64}, {"version": "1.2.9"}, {"size": len(cloud) + 1}):
+            head = {"target": "prod", "version": "1.3.0", "source_sha": SHA,
+                    "sha256": hashlib.sha256(body).hexdigest(), "size": len(body), "publication": "1-1",
+                    "cloud": {"version": "1.3.0", "sha256": hashlib.sha256(cloud).hexdigest(), "size": len(cloud),
+                              **bad}}
+            data = json.dumps(head).encode() + b"\n" + body + cloud
+            with mock.patch.object(sys, "stdin", Stdin(data)), self.assertRaises(SystemExit):
+                self.module.main()
+        self.assertFalse((self.root / "latest.json").exists())
+
 
 if __name__ == "__main__":
     unittest.main()

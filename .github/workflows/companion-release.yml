@@ -75,12 +75,25 @@ jobs:
       # 发布前照用户的用法启动一遍打出来的程序（同 Companion checks；分支检查在测试机上跑时没有这一步）
       - name: Launch the packaged CC the way people do
         run: python packaging/smoke_launch.py dist/companion/companion.exe
+      # 云端精简包（packaging/companion-cloud.spec，云端 Express 主机上那份 CC）随正式包同一个提交一起打、一起发：
+      # receive-companion.py 放在安装包旁边，latest.json 多一项 cloud（地址、sha256、大小、版本），桥 CC 从那里下载
+      # （cloud_link/cloud_package.py），核对 sha256 后放进隧道盘 cc\。
+      - name: Build the cloud package (CC-Cloud.zip + cloud.json)
+        shell: pwsh
+        env:
+          RELEASE_PY: python
+        run: powershell -ExecutionPolicy Bypass -File packaging\release.ps1 -BuildOnly -Cloud
+      - name: Launch the cloud package in cloud mode
+        if: ${{ runner.environment == 'github-hosted' }}
+        run: python packaging/smoke_launch.py --cloud-only dist/companion-cloud/companion.exe
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
         with:
           name: companion-installer
           path: |
             companion/dist/CC-Setup.exe
             companion/dist/release.json
+            companion/dist/CC-Cloud.zip
+            companion/dist/cloud.json
           if-no-files-found: error
           retention-days: 1
 
@@ -145,16 +158,25 @@ jobs:
         run: |
           set -euo pipefail
           installer=dist/CC-Setup.exe
+          package=dist/CC-Cloud.zip
           sha256=$(sha256sum "$installer" | cut -d' ' -f1)
           size=$(stat -c %s "$installer")
-          manifest=$(python3 - "$sha256" "$size" <<'EOF'
+          cloud_sha256=$(sha256sum "$package" | cut -d' ' -f1)
+          cloud_size=$(stat -c %s "$package")
+          manifest=$(python3 - "$sha256" "$size" "$cloud_sha256" "$cloud_size" <<'EOF'
           import json, os, sys
           release = json.load(open("dist/release.json", encoding="utf-8-sig"))
+          cloud = json.load(open("dist/cloud.json", encoding="utf-8-sig"))
           sha256, size = sys.argv[1], int(sys.argv[2])
+          cloud_sha256, cloud_size = sys.argv[3], int(sys.argv[4])
           if release["source_sha"] != os.environ["SOURCE_SHA"] or release["sha256"] != sha256 or int(release["size"]) != size:
               raise SystemExit("artifact does not match this run")
+          if (cloud["source_sha"] != os.environ["SOURCE_SHA"] or cloud["version"] != release["version"]
+                  or cloud["sha256"] != cloud_sha256 or int(cloud["size"]) != cloud_size):
+              raise SystemExit("cloud package does not match this run")
           print(json.dumps({"target": os.environ["TARGET"], "version": release["version"],
                             "source_sha": release["source_sha"], "sha256": sha256, "size": size,
+                            "cloud": {"version": cloud["version"], "sha256": cloud_sha256, "size": cloud_size},
                             "publication": f"{os.environ['GITHUB_RUN_ID']}-{os.environ['GITHUB_RUN_ATTEMPT']}"}))
           EOF
           )
@@ -163,13 +185,17 @@ jobs:
           printf '%s\n' "$SSH_KEY" > ~/.ssh/companion_publisher
           chmod 600 ~/.ssh/companion_publisher
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          result=$({ printf '%s\n' "$manifest"; cat "$installer"; } |
+          result=$({ printf '%s\n' "$manifest"; cat "$installer" "$package"; } |
             ssh -T -i ~/.ssh/companion_publisher -o IdentitiesOnly=yes -o BatchMode=yes \
               -o ConnectTimeout=15 -o StrictHostKeyChecking=yes "root@$target_host")
           echo "$result"
           url=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['url'].split('?')[0])" "$result")
           downloaded=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com$url" | sha256sum | cut -d' ' -f1)
           [ "$downloaded" = "$sha256" ] || { echo "public download does not match"; exit 1; }
+          # 云端精简包不走 R2（landing.conf 只把 CC-Setup.exe 跳过去），从服务器本机读回比对
+          cloud_url=$(python3 -c "import json,sys; print(json.loads(sys.argv[1])['cloud']['url'].split('?')[0])" "$result")
+          cloud_downloaded=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com$cloud_url" | sha256sum | cut -d' ' -f1)
+          [ "$cloud_downloaded" = "$cloud_sha256" ] || { echo "public cloud package download does not match"; exit 1; }
           if [ "$TARGET" = prod ]; then
             for name in CC-Setup.exe PearnlyCompanion-Setup.exe; do
               fixed=$(curl -fsSL -A 'Pearnly-Release-Check/1.0' "https://pearnly.com/downloads/companion/$name" | sha256sum | cut -d' ' -f1)

@@ -257,6 +257,8 @@ QT_QPA_PLATFORM=offscreen python -m pytest -q -p no:cacheprovider tests
 `release.ps1 -BuildOnly -Cloud` 只打这一份 → `dist\companion-cloud\`（旁边放 `cdx_reindex_runner.exe`）→ `dist\CC-Cloud.zip` 与 `dist\cloud.json`
 （sha256、大小），不打安装包、不发布。`companion-build.yml` 勾 `cloud` 才打、才上传（同样留 1 天），冒烟 `smoke_launch.py --cloud-only`。
 云端路径不依赖排除的包由 `tests/test_cloud_package.py` 守住。
+正式发布（`companion-release.yml`）同一个提交也打云端精简包，放在安装包旁边（`releases/<版本>/<提交>/CC-Cloud.zip`，不走 R2），`latest.json` 多一项 `cloud`（地址、sha256、大小、版本）；
+桥配对前按它下载、核 sha256、放进隧道盘 `cc\`（`cloud_link/cloud_package.py`）。
 
 流水线：Windows 上跑全量测试 → PyInstaller + Inno Setup 打包（`packaging/release.ps1 -BuildOnly`）→
 （正式版）Ubuntu 先把安装包传到 R2（桶 `pearnly-media`，公网 `media.pearnly.com`），版本路径与固定名各一份、从公网读回比对，只留最近 5 个版本 →

@@ -50,7 +50,9 @@ _datas_operator += [("../src/companion/mrerp_operator/recipes/*.json", "src/comp
 # comtypes 只列用到的子模块（client / server / tools 不用）。
 _hidden += ["comtypes", "comtypes.automation", "comtypes.connectionpoints"]
 _hidden += [f"src.companion.cloud_link.{name}" for name in (
-    "host", "window", "ax_host", "nonscriptable", "session", "reasons", "tunnel_relay", "tunnel_protocol")]
+    "host", "window", "ax_host", "nonscriptable", "session", "reasons", "tunnel_relay", "tunnel_protocol", "cloud_package")]
+# 云端那份 CC 的安装脚本：桥配对前把它连同 CC-Cloud.zip、cloud.json 放进隧道盘 cc\（cloud_link/cloud_package.py 在模块旁边找它）
+_datas_operator += [("cloud_install.ps1", "src/companion/cloud_link")]
 
 a = Analysis(
     ["launcher_companion.py"],
