@@ -2241,3 +2241,66 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
 ]
+
+[[flow]]
+id = "erp.express.book-unit"
+title = "开始前问单位（A3）：票面单位对不上物料单位才问、选物料单位或填换算、载荷带换算率、第二次不问；对得上不问"
+module = "scripts/flows/erp_book_unit.py"
+start = "/desk/pearnly-purchase"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/book_answers.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/contracts.py",
+]
+
+[[flow]]
+id = "erp.express.book-negative"
+title = "开始前问新物料负库存（A3）：不许负库存的账套卖新物料才问、只给允许、选了按账套记住、载荷带 negallow；账套允许不问"
+module = "scripts/flows/erp_book_negative.py"
+start = "/desk/pearnly-sales"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/book_answers.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+]
+
+[[flow]]
+id = "erp.express.book-cost"
+title = "开始前问出库成本（A3）：无成本基础才问、不预选、填成本带数字、只对这一张单、下一张照问；有结存不问"
+module = "scripts/flows/erp_book_cost.py"
+start = "/desk/pearnly-sales"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/book_answers.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+]
+
+[[flow]]
+id = "erp.express.book-cash"
+title = "开始前问现金科目（A3）：现购而现金科目不能记账才问、按账套记住、载荷带 cash_account；只一个现金科目自动用；赊购不问"
+module = "scripts/flows/erp_book_cash.py"
+start = "/desk/pearnly-purchase"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+camera = false
+covers = [
+  "apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/book_answers.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+]

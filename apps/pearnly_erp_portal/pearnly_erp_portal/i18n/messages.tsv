@@ -2168,3 +2168,9 @@ Collection Method	收款方式	วิธีรับเงิน	入金方法	gu
 Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.step.collection.voucher
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
+Allow negative stock	允许负库存	อนุญาตสต็อกติดลบ	マイナス在庫を許可	express.book.allowNegative
+Hold	暂缓	พักไว้ก่อน	保留	express.book.hold
+Do not post cost	不结转成本	ไม่บันทึกต้นทุน	原価を計上しない	express.book.costNone
+Enter unit cost	填写单位成本	ระบุต้นทุนต่อหน่วย	単位原価を入力	express.book.costGiven
+Enter conversion	填写换算	ระบุอัตราแปลงหน่วย	換算を入力	express.book.unitFactor
+Item pack unit	物料包装单位	หน่วยบรรจุของสินค้า	商品の包装単位	express.precheck.note.packUnit

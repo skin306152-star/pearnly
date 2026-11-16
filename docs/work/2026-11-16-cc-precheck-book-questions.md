@@ -53,3 +53,22 @@ mapper / sales_mapper 先后：H5 先合（等 erp-operator-intake 进 main 后�
 
 ## 证据分层
 - 实现：纯判据与测试（本提交）。本地测试：服务端单测、契约测试、跨边测试通过。部署、真机：无（第 2 步之后由主会话排）。
+
+## 第 2 步：ERP 接线（分支 `pearnly/cc-precheck-book-wiring`，叠在 H5 089a1f6bb 之上；H5 进 main 后变基）
+- `express/book_answers.py`（新）：什么时候问、记在哪、代录怎么下发。
+  - **只在有人看着的地方问**：开始前确认卡片 / 代录预检 / 网页提交前弹窗（`precheck.collect` 包在 `asking()` 里）。提交后的直写在后台跑
+    （`push.send`，分不出网页、CC 对话还是 LINE），只**套用**记住的与自动定下的值、不新增停下——LINE 这次不出四题、行为不变。
+  - 记法（`ERP Express Choice`，对象带账套键）：单位 `{账套}|unit|…`、现金科目 `{账套}|cash` 按账套记；负库存选「允许」另记 `{账套}|new-item`、
+    「先留下」不记（这次不写、下次再问）；出库成本对象带单据号 `{账套}|doc:{单据}|line-N`，只对这一张。
+  - 网页提交前弹窗（表单没存，单据号固定 `preflight`）：**不问出库成本**（答案挂不到存好的单上）、负库存不给「先留下」（关弹窗就是不提交）。
+    出库成本在 CC 直写的开始前确认卡片上问。网页提交、没经过确认卡片的销售单照旧由 CC 不结转（现状），记为余下缺口。
+  - 代录（`operator.precheck` 包在 `operating()` 里；交单时 `conversation.for_task`）：只问单位、负库存，下发只写 CC 代录认的行键。
+  - 已有物料库存不够：开始前判出时停在 `STOCK_INSUFFICIENT`（已有译文）；后台直写照旧交 CC 按原样核。
+- `prepare.py` 准备好载荷后调 `book_answers.apply`；`precheck.py` 收齐时问、记答时用 `answer_problem` 核「码:数」、负库存「先留下」不记；
+  `api._options` / `precheck._option` 保留选项的 `entry`；共用卡片契约 `write_precheck/contracts.py` 登记四类，带数字输入的选项收「码:数」。
+- 选项字（四语，ERP 术语表 `express.book.*`、`express.precheck.note.packUnit`）；题类名在 CC 网页 `i18n.ts` 的 `precheck.kind`，由 guided-frontend 加
+  （已发：unit 单位 / negative_stock 负库存 / cost_basis 出库成本 / cash_account 现金科目，四语见消息）。
+- **`guided: true` 这次 ERP 不发**：发了 CC 会在没问过的入口（LINE、网页直接提交）停下，而 `*_CHOICE` 回执转成题这一处还没接；
+  等回执转题接上再开（单据页 `api._party_blocked` 加三种码、代录卡同一出口）。
+- Cowork 不改：四题资料（物料单位、结存、负库存设置、ACCNUM00）Cowork 心跳都没有，等 CC 桌面版补上（cc-desktop-takeover 已认领）。
+- 测试：`tests/test_erp_book_questions.py`（内存替身 7 条）；流程 `erp.express.book-unit / -negative / -cost / -cash`（待排回归实验室：先红后绿）。

@@ -101,6 +101,7 @@ All companies,ทุกบริษัท
 All labels,ป้ายกำกับทั้งหมด
 All record only,ลงบัญชีอย่างเดียวหมด
 All the items have been already returned.,สินค้าทั้งหมดถูกคืนแล้ว
+Allow negative stock,อนุญาตสต็อกติดลบ
 Already collected. Current balance:,มีการรับชำระแล้ว ยอดคงเหลือปัจจุบัน:
 Already exists,มีอยู่แล้ว
 Already received,ได้รับไฟล์นี้แล้ว
@@ -509,6 +510,7 @@ Discount cannot be greater than 100%.,ส่วนลดต้องไม่เ
 Discount cannot exceed the amount,ส่วนลดต้องไม่เกินยอดเงิน
 Discount percentage,เปอร์เซ็นต์ส่วนลด
 Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
+Do not post cost,ไม่บันทึกต้นทุน
 Document,เอกสาร
 Document No,เลขเอกสาร
 Document Number,เลขที่เอกสาร
@@ -583,6 +585,7 @@ Enter a tax ID first,กรุณากรอกเลขประจำตั�
 Enter a valid amount,กรุณาพิมพ์จำนวนเงินที่ถูกต้อง
 Enter a valid email,กรุณากรอกอีเมลให้ถูกต้อง
 Enter amount to be redeemed.,กรอกจำนวนเงินที่ต้องการใช้คะแนนสะสม
+Enter conversion,ระบุอัตราแปลงหน่วย
 Enter customer's email,กรอกอีเมลลูกค้า
 Enter customer's phone number,กรอกเบอร์โทรลูกค้า
 Enter discount percentage,กรอกเปอร์เซ็นต์ส่วนลด
@@ -597,6 +600,7 @@ Enter the amount received,พิมพ์จำนวนเงินที่ร
 Enter the discount amount,กรอกยอดส่วนลด
 Enter the sale by hand. Files are added as attachments only.,กรอกข้อมูลการขายด้วยตนเอง ไฟล์ที่อัปโหลดใช้เป็นเอกสารแนบเท่านั้น
 Enter the user name,กรุณากรอกชื่อผู้ใช้
+Enter unit cost,ระบุต้นทุนต่อหน่วย
 Enter {0} amount,กรอกจำนวนเงิน {0}
 Enter {0} amount.,กรอกจำนวนเงิน {0}
 Entries,รายการ
@@ -707,6 +711,7 @@ Has taxed sales,มียอดขายที่มีภาษี
 Head Office,สำนักงานใหญ่
 Hide Recent Orders,ซ่อนคำสั่งซื้อล่าสุด
 Hide details,ซ่อนรายละเอียด
+Hold,พักไว้ก่อน
 ID,รหัส
 Idempotency anchor for a whole request; a repeat submit is ignored,การส่งซ้ำจะถูกละเว้น
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,การส่งซ้ำจะได้รับใบเสร็จเดิม และจะไม่เรียกเก็บเงินซ้ำ
@@ -776,6 +781,7 @@ Item Name is required,กรุณาระบุชื่อสินค้า
 Item Type,ประเภทสินค้า
 Item is disabled,สินค้าถูกปิดใช้งาน
 Item is removed since no serial / batch no selected.,นำสินค้าออกแล้ว เนื่องจากไม่ได้เลือกหมายเลขเครื่อง / เลขล็อต
+Item pack unit,หน่วยบรรจุของสินค้า
 Items,รายการสินค้า
 Items are required,กรุณาระบุรายการสินค้า
 Items found at a different place,สินค้าที่พบคนละตำแหน่ง
@@ -2367,6 +2373,11 @@ erp.work.view.calendar,ปฏิทิน
 erp.work.view.mine,การ์ดของฉัน
 erp.work.view.table,ตาราง
 express.action.markHandled,ทำเครื่องหมายว่าจัดการใน Express แล้ว
+express.book.allowNegative,อนุญาตสต็อกติดลบ
+express.book.costGiven,ระบุต้นทุนต่อหน่วย
+express.book.costNone,ไม่บันทึกต้นทุน
+express.book.hold,พักไว้ก่อน
+express.book.unitFactor,ระบุอัตราแปลงหน่วย
 express.code.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 express.code.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
@@ -2479,6 +2490,7 @@ express.precheck.note.bookBasis,เกณฑ์ที่ชุดบัญชี
 express.precheck.note.mostUsedGroup,กลุ่มที่ใช้มากที่สุดในชุดบัญชี
 express.precheck.note.notInBook,ยังไม่มีในชุดบัญชี
 express.precheck.note.onlyRecord,เลขผู้เสียภาษีนี้มีเพียงรายเดียว
+express.precheck.note.packUnit,หน่วยบรรจุของสินค้า
 express.precheck.note.sameBranch,เลขผู้เสียภาษีและสาขาตรงกัน
 express.precheck.note.splitExempt,สินค้ายกเว้นภาษีไม่คิด VAT รายบรรทัด
 express.precheck.note.vatExpense,ใบเสร็จและใบกำกับภาษีอย่างย่อโดยทั่วไปไม่ขอคืนภาษีซื้อ

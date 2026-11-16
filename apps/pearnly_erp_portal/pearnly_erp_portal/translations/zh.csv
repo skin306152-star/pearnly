@@ -101,6 +101,7 @@ All companies,全部公司
 All labels,全部标签
 All record only,全部只记账
 All the items have been already returned.,所有物料都已退货
+Allow negative stock,允许负库存
 Already collected. Current balance:,已被收款，当前余额：
 Already exists,已存在
 Already received,该文件已接收
@@ -509,6 +510,7 @@ Discount cannot be greater than 100%.,折扣率不能超过 100%。
 Discount cannot exceed the amount,折扣不能超过金额
 Discount percentage,折扣百分比
 Display text (optional),显示文本（可选）
+Do not post cost,不结转成本
 Document,单据
 Document No,单据编号
 Document Number,单据编号
@@ -583,6 +585,7 @@ Enter a tax ID first,请先填写税号
 Enter a valid amount,请输入有效金额
 Enter a valid email,请填写正确的邮箱
 Enter amount to be redeemed.,输入要抵扣的金额
+Enter conversion,填写换算
 Enter customer's email,输入客户邮箱
 Enter customer's phone number,输入客户电话
 Enter discount percentage,输入折扣百分比
@@ -597,6 +600,7 @@ Enter the amount received,输入已收金额
 Enter the discount amount,输入折扣金额
 Enter the sale by hand. Files are added as attachments only.,手动填写销售内容，文件仅作为附件。
 Enter the user name,请填写用户名
+Enter unit cost,填写单位成本
 Enter {0} amount,输入{0}金额
 Enter {0} amount.,输入 {0} 金额
 Entries,记录
@@ -707,6 +711,7 @@ Has taxed sales,有含税销售
 Head Office,总部
 Hide Recent Orders,隐藏最近订单
 Hide details,隐藏详情
+Hold,暂缓
 ID,编号
 Idempotency anchor for a whole request; a repeat submit is ignored,重复提交将被忽略
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,重复提交将返回同一张小票，不会重复收款
@@ -776,6 +781,7 @@ Item Name is required,物料名称不能为空
 Item Type,物料类型
 Item is disabled,物料已停用
 Item is removed since no serial / batch no selected.,未选择序列号 / 批号，已移除该物料
+Item pack unit,物料包装单位
 Items,物料
 Items are required,物料明细不能为空
 Items found at a different place,位置不一样的商品
@@ -2367,6 +2373,11 @@ erp.work.view.calendar,日历
 erp.work.view.mine,我的卡片
 erp.work.view.table,表格
 express.action.markHandled,标记为已在 Express 手工处理
+express.book.allowNegative,允许负库存
+express.book.costGiven,填写单位成本
+express.book.costNone,不结转成本
+express.book.hold,暂缓
+express.book.unitFactor,填写换算
 express.code.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
 express.code.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
@@ -2479,6 +2490,7 @@ express.precheck.note.bookBasis,此账套的口径
 express.precheck.note.mostUsedGroup,账套里用得最多的合格组
 express.precheck.note.notInBook,账套中未建
 express.precheck.note.onlyRecord,此税号仅此一家
+express.precheck.note.packUnit,物料包装单位
 express.precheck.note.sameBranch,税号和分店都对得上
 express.precheck.note.splitExempt,免税商品按行不计税
 express.precheck.note.vatExpense,小票、简易税票的税额一般不抵进项

@@ -39,7 +39,7 @@ from pearnly_core.write_precheck import contracts as card
 from pearnly_core.write_precheck import preselect
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.express import choices, contracts, conversation, facts, pending, pos_day, printed, push, stock_entry, target
+from pearnly_erp_portal.express import book_answers, choices, contracts, conversation, facts, pending, pos_day, printed, push, stock_entry, target
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.mrerp import choices as mrerp_choices, contracts as mrerp_contracts, push as mrerp_push
 
@@ -68,6 +68,7 @@ NOTE_MOST_USED = "express.precheck.note.mostUsedGroup"   # 账套里挂得最多
 NOTE_BOOK_BASIS = "express.precheck.note.bookBasis"      # 这本账套各家供应商的口径
 NOTE_VAT_SALES = "express.precheck.note.vatSales"        # 税号 13 位，卖过带税的商品
 NOTE_SPLIT = "express.precheck.note.splitExempt"         # 免税商品按行不计税
+NOTE_PACK_UNIT = "express.precheck.note.packUnit"        # 这一方向只有这一个包装单位
 
 
 # ---------------- 单号与权限 ----------------
@@ -163,7 +164,8 @@ def collect(doctype, company, make_body, given=None, name="") -> dict:
                 # 同 `push.send`：冲减后为负数停下交人；一天全退（全部为 0）Express 里什么都不用写
                 stop = {"hold": pos_day.NET_NEGATIVE} if body.get("net_negative") else {}
                 return {"result": stop, "items": list(items.values()), "data": data}
-            result, _vat_fields, unmapped = push._prepare_body(doctype, company, copy.deepcopy(body))
+            with book_answers.asking():  # 开始前四题在这里问（后台直写只套用记住的）
+                result, _vat_fields, unmapped = push._prepare_body(doctype, company, copy.deepcopy(body))
         hold = str(result.get("hold") or "")
         if not hold.startswith(contracts.CHOICE):
             if unmapped and "failed" not in result and "hold" not in result:
@@ -233,6 +235,8 @@ def _probe(item, raw, data) -> str:
     「不是」试：「是」才会多出免税商品写法那一问，不该先问。"""
     if item["kind"] == pos_day.VAT_REGISTERED:
         return companies.VAT_NO
+    if item["kind"] in book_answers.KINDS:
+        return book_answers.probe(item)
     rows = item.get("options") or full_options(raw, data)
     return next((row["code"] for row in rows if row.get("code")), "")
 
@@ -254,6 +258,8 @@ def _option(row, note="") -> dict:
     out = {"code": str(row.get("code") or ""), "name": str(row.get("name") or "")}
     if row.get("branch"):
         out["branch"] = row["branch"]
+    if row.get("entry"):
+        out["entry"] = dict(row["entry"])  # 开始前四题：选它还要填一个数（「码:数」）
     if note:
         out["note"] = _(note)
     return out
@@ -323,6 +329,8 @@ def _preselect(raw, rows, data, company_row, body, doctype="", name=""):
         return (value, card.RULE, NOTE_VAT_SALES) if value else ("", "", "")
     if kind == pos_day.EXEMPT_MODE:
         return pos_day.EXEMPT_SPLIT, card.RULE, NOTE_SPLIT
+    if kind in book_answers.KINDS and raw.get("preselected"):
+        return str(raw["preselected"]), card.RULE, NOTE_PACK_UNIT  # 单位题：这一方向只有一个包装单位
     return "", "", ""
 
 
@@ -613,6 +621,14 @@ def save(company, found, answers, seen=None) -> int:
         if item is None or key in seen or answer.get("remember") is False:
             continue
         options = {row["code"]: row.get("name") or "" for row in full_options(item, found["data"])}
+        if item["kind"] in book_answers.KINDS:
+            # 开始前四题：带数字输入的选项答「码:数」（`book_questions.answer_problem` 核）
+            value = str(answer.get("value") or "").strip()
+            if book_answers.value_problem({**item, "options": full_options(item, found["data"])}, value):
+                frappe.throw(_("Invalid request"))
+            seen.add(key)
+            checked.append((item, value, options.get(value.partition(":")[0]) or item.get("label") or ""))
+            continue
         value = code_rules.choose(answer.get("value"), options)  # 复述时空白变了的编码换回主档原样
         if value not in options:
             frappe.throw(_("Invalid request"))
@@ -621,6 +637,10 @@ def save(company, found, answers, seen=None) -> int:
     for item, value, label in checked:
         if item["kind"] == pos_day.VAT_REGISTERED:
             companies.set_vat_registered(company, value)
+        elif item["kind"] in book_answers.KINDS:
+            if book_answers.keep(item, value):  # 负库存答「先留下」不记：这次不写、下次再问
+                choices.remember(company, item["kind"], item["subject"], value, label)
+                book_answers.remember_extra(company, item, value, choices.remember)
         else:
             choices.remember(company, item["kind"], item["subject"], value, label)
     return len(checked)

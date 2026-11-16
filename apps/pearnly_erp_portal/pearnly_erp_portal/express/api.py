@@ -139,7 +139,8 @@ def _options(item, data):
             wanted = (str(item.get("subject") or "").split("|") + ["", "", ""])[2]
             options = [row for row in options if row.get("branch") == wanted] or options
         rows = [{"code": str(row.get("code") or ""), "name": str(row.get("name") or row.get("code") or ""),
-                 **({"branch": row["branch"]} if row.get("branch") else {})} for row in options]
+                 **({"branch": row["branch"]} if row.get("branch") else {}),
+                 **({"entry": row["entry"]} if row.get("entry") else {})} for row in options]  # 开始前四题：选它还要填一个数
         if item["kind"] == "party" and not item.get("existing_only"):
             rows.append({"code": choice_rules.NEW, "name": ""})
         return rows

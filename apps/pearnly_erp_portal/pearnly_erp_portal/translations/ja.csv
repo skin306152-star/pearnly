@@ -101,6 +101,7 @@ All companies,全社
 All labels,すべてのラベル
 All record only,すべて記帳のみ
 All the items have been already returned.,すべての商品は返品済みです
+Allow negative stock,マイナス在庫を許可
 Already collected. Current balance:,入金済みです。現在の残高：
 Already exists,すでに存在します
 Already received,このファイルは受け取り済みです
@@ -509,6 +510,7 @@ Discount cannot be greater than 100%.,割引率は100%を超えられません
 Discount cannot exceed the amount,割引は金額を超えられません
 Discount percentage,割引率
 Display text (optional),表示テキスト（任意）
+Do not post cost,原価を計上しない
 Document,伝票
 Document No,伝票番号
 Document Number,伝票番号
@@ -583,6 +585,7 @@ Enter a tax ID first,先に納税者番号を入力してください
 Enter a valid amount,正しい金額を入力してください
 Enter a valid email,正しいメールアドレスを入力してください
 Enter amount to be redeemed.,利用する金額を入力してください
+Enter conversion,換算を入力
 Enter customer's email,顧客のメールを入力
 Enter customer's phone number,顧客の電話番号を入力
 Enter discount percentage,割引率を入力
@@ -597,6 +600,7 @@ Enter the amount received,受け取った金額を入力してください
 Enter the discount amount,割引額を入力してください
 Enter the sale by hand. Files are added as attachments only.,販売内容を手入力します。ファイルは添付のみです。
 Enter the user name,ユーザー名を入力してください
+Enter unit cost,単位原価を入力
 Enter {0} amount,{0}の金額を入力
 Enter {0} amount.,{0} の金額を入力してください
 Entries,記録
@@ -707,6 +711,7 @@ Has taxed sales,課税売上あり
 Head Office,本店
 Hide Recent Orders,最近の会計を隠す
 Hide details,詳細を隠す
+Hold,保留
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,リクエスト全体の冪等アンカー。再送信は無視されます
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,冪等アンカー。再送信時は同じ売上を返し、二重に会計しません
@@ -776,6 +781,7 @@ Item Name is required,品目名を入力してください
 Item Type,品目区分
 Item is disabled,品目は無効です
 Item is removed since no serial / batch no selected.,シリアル・ロットが未選択のため商品を削除しました
+Item pack unit,商品の包装単位
 Items,品目
 Items are required,品目を入力してください
 Items found at a different place,違う場所で見つかった商品
@@ -2367,6 +2373,11 @@ erp.work.view.calendar,カレンダー
 erp.work.view.mine,自分のカード
 erp.work.view.table,テーブル
 express.action.markHandled,Express で処理済みにする
+express.book.allowNegative,マイナス在庫を許可
+express.book.costGiven,単位原価を入力
+express.book.costNone,原価を計上しない
+express.book.hold,保留
+express.book.unitFactor,換算を入力
 express.code.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
 express.code.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
@@ -2479,6 +2490,7 @@ express.precheck.note.bookBasis,この会計データの基準
 express.precheck.note.mostUsedGroup,会計データで最も使われている適合グループ
 express.precheck.note.notInBook,会計データにまだありません
 express.precheck.note.onlyRecord,この税番号はこの1件のみ
+express.precheck.note.packUnit,商品の包装単位
 express.precheck.note.sameBranch,税番号と支店が一致
 express.precheck.note.splitExempt,免税商品は行ごとに非課税
 express.precheck.note.vatExpense,レシートと簡易税票は通常控除しません

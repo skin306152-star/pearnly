@@ -267,6 +267,13 @@ def precheck(company, doc_ids) -> dict:
     """代录开录前逐张判一遍（写账前置判定 `express.precheck.collect_document`：与直写同一条准备，不写单据、不排写账件）：要人选的项
     （新商品、费用科目、对方档、账套、存货科目组、收银三项……连同可选值，商品与对方可选「新建」）一次收齐列出；准备不了的写明原因。
     回包形状不变（U1 / U2 调用方不用改），每张另带 ``precheck``（开始前确认卡片这一张的判定，共用层合成 ``card``）。"""
+    from pearnly_erp_portal.express import book_answers
+
+    with book_answers.operating():  # 代录：开始前四题只问单位与负库存（成本、现金科目由 Express 界面自己定）
+        return _precheck(company, doc_ids)
+
+
+def _precheck(company, doc_ids) -> dict:
     from pearnly_erp_portal.express import precheck as write_precheck
 
     documents = []

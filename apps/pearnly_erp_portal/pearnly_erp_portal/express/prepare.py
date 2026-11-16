@@ -21,7 +21,7 @@ from pearnly_core.express_rules.push import service_vat, stock_acc_group
 from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.preflight import ExpressContext
 
-from pearnly_erp_portal.express import choices, contracts, conversation, facts, target
+from pearnly_erp_portal.express import book_answers, choices, contracts, conversation, facts, target
 
 SOURCE = "erp_desk"
 _NO_MAPPINGS = {"accounts": [], "clients": []}
@@ -191,8 +191,9 @@ def prepare(doc, company_row, ensure_masters):
     config = _config(book, data, company_row["name"])
     pages = _current_codes(contracts.pages(doc), config)
     own = _own_accounts(pages, config)   # 销项的服务行同样按自己的收入科目记
+    remembered = choices.remembered(company_row["name"])
     decision = choice_rules.resolve(pages[0]["fields"], direction=doc["direction"], posting_kind=None, config=config,
-                                    remembered=choices.remembered(company_row["name"]),
+                                    remembered=remembered,
                                     account_resolved=own and doc["direction"] == "purchase", receipts=_receipts(doc),
                                     refund=bool(doc.get("refund")),  # 收银退货单 SR：退货科目问一次、按公司记住
                                     book=book["key"], ask_service_vat=True)  # 服务品进项税口径：按这本账套 × 这家供应商问、记
@@ -206,9 +207,16 @@ def prepare(doc, company_row, ensure_masters):
         enabled=True, today=today, own_tax_id=doc["company"]["tax_id"], tenant_id=frappe.local.site,
         mappings=dict(_NO_MAPPINGS), account_tax_id=book.get("tax_id") or ""))
     if prepared.disposition == "ready":
+        # 开始前四题（单位、负库存、出库成本、现金科目，`book_answers`）：开始前确认卡片里要人答的停下问；后台直写只套用记住的值
+        answered = book_answers.apply(prepared.payload, data, book["key"], doc["ref"], remembered)
+        if "needed" in answered:
+            kinds = ",".join(dict.fromkeys(item["kind"] for item in answered["needed"]))
+            return {"hold": contracts.CHOICE + ":" + kinds, "needed": answered["needed"], "book": book}
+        if "hold" in answered:
+            return {"hold": answered["hold"], "book": book}
         # 单据日期所在的会计期在 Express 里已关账（上一年度账套常全年锁）：CC 桌面版不写、回 PERIOD_LOCKED，单据上显示原因
         # （用户 10-23）。Cowork 的推送不带这个标记，照旧。
-        return {"payload": {**master_party(prepared.payload, data), "respect_period_lock": True}, "book": book}
+        return {"payload": {**master_party(answered["payload"], data), "respect_period_lock": True}, "book": book}
     if prepared.reason == stock_acc_group.REASON_ACC_GROUP_REQUIRED:
         return {"hold": contracts.CHOICE + ":" + choices.STOCK_GROUP, "needed": _needed_group(config, book),
                 "book": book}

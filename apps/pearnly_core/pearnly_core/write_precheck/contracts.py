@@ -72,6 +72,8 @@ KIND_GROUPS = {
     "vat": PURCHASE,
     "refund": SALES, "vat_registered": SALES, "exempt_mode": SALES,
     "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK, "location": STOCK,
+    # 开始前四题（`express_rules.push.book_questions`，A3 11-16）：单位、负库存、出库成本在库存组，现金科目在收付款组
+    "unit": STOCK, "negative_stock": STOCK, "cost_basis": STOCK, "cash_account": PAYMENT,
     "service_vat": SERVICE, "posting_kind": SERVICE,
     "payment": PAYMENT, "receipt": PAYMENT,
 }
@@ -126,6 +128,28 @@ def _codes(options) -> Optional[set]:
     if not isinstance(options, (list, tuple)) or not options:
         return None
     return {str(option.get("code") or "").strip() for option in options if isinstance(option, Mapping)}
+
+
+def _entry_of(item: Mapping[str, Any], value: str) -> Optional[Mapping[str, Any]]:
+    """答案「码:数」里那个码的选项带的数字输入（``entry``）；不是这种选项回 None。"""
+    code = str(value or "").partition(":")[0].strip()
+    for option in item.get("options") or ():
+        if isinstance(option, Mapping) and str(option.get("code") or "").strip() == code and option.get("entry"):
+            return option["entry"]
+    return None
+
+
+def _entry_ok(entry: Mapping[str, Any], value: str) -> bool:
+    """「码:数」里的数：有限数字、满足 ``min_exclusive`` / ``min``（只核大小，不参与金额计算）。"""
+    _code, sep, number = str(value or "").partition(":")
+    try:
+        amount = float(number.strip()) if sep and number.strip() else None
+        bounds = {key: float(str(entry[key])) for key in ("min_exclusive", "min") if key in entry}
+    except ValueError:
+        return False
+    if amount is None or amount != amount or amount in (float("inf"), float("-inf")):
+        return False
+    return amount > bounds.get("min_exclusive", float("-inf")) and amount >= bounds.get("min", float("-inf"))
 
 
 def _text(value, limit) -> str:
@@ -369,9 +393,15 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
             errors.append({"key": key, "code": ERR_EMPTY_VALUE})
             continue
         codes = _codes(item.get("options"))
-        if codes is not None:
+        entry = _entry_of(item, value)
+        if entry is not None:
+            # 选项带数字输入（``entry``，与引导引擎表单子题同一形状）：答「码:数」，数是有限数字且大于 ``min_exclusive``
+            if not _entry_ok(entry, value):
+                errors.append({"key": key, "code": ERR_NOT_OFFERED})
+                continue
+        elif codes is not None:
             value = code_rules.choose(value, codes)  # 复述时空白变了的编码换回选项里的原样
-        if codes is not None and not item.get("search") and value not in codes:
+        if entry is None and codes is not None and not item.get("search") and value not in codes:
             errors.append({"key": key, "code": ERR_NOT_OFFERED})
             continue
         if not applies(item, by_key, answers):

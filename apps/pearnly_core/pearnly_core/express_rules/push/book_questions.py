@@ -389,7 +389,7 @@ def questions(facts, payload, *, mode: str = DIRECT, remembered: Optional[Mappin
         if row["approval"]:
             facts_out.append({"kind": NEGATIVE, "rows": [{**row, "new": True}], "exit": HOLD, "approval": True})
             continue
-        if known(NEGATIVE, NEW_ITEM_SUBJECT) == ALLOW:
+        if ALLOW in (known(NEGATIVE, NEW_ITEM_SUBJECT), known(NEGATIVE, row["name"])):
             auto.setdefault(NEGATIVE, {})[row["name"]] = ALLOW
             continue
         needed.append({"kind": NEGATIVE, "subject": row["name"], "lines": row["lines"], "context": row,
@@ -413,7 +413,13 @@ def questions(facts, payload, *, mode: str = DIRECT, remembered: Optional[Mappin
         needed.append(question)
     if mode != OPERATOR and not blocked:
         for row in cost_questions(facts, items):
-            needed.append({"kind": COST, "subject": f"line-{row['line']}", "lines": [row["line"]], "context": row,
+            subject = f"line-{row['line']}"
+            value = known(COST, subject)
+            if value:
+                # 调用方只把「这一张单答过的」交进来（成本不跨单复用）
+                auto.setdefault(COST, {})[subject] = value
+                continue
+            needed.append({"kind": COST, "subject": subject, "lines": [row["line"]], "context": row,
                            "options": [{"code": COST_NONE}, {"code": COST_GIVEN, "entry": dict(NUMBER_ENTRY)}]})
     if mode != OPERATOR:
         cash = cash_question(facts, payload)

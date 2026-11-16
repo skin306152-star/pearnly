@@ -121,6 +121,8 @@ jobs:
         run: python3 tests/test_express_operator_menu_choice.py
       - name: The four questions asked before a write start (unit, negative stock, sale cost, cash account) follow the same rules CC Desktop stops on, write only payload 21 keys, are remembered per book where agreed, and the operator mode never asks cost or cash
         run: python3 tests/test_express_book_questions.py
+      - name: ERP asks the four questions only where someone is looking (start card, page submit dialog), remembers them per book or per document as agreed, applies remembered answers to background writes without new stops, and the operator mode asks only unit and negative stock
+        run: python3 tests/test_erp_book_questions.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)

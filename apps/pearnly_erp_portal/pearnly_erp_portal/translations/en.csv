@@ -101,6 +101,7 @@ All companies,All companies
 All labels,All labels
 All record only,All record only
 All the items have been already returned.,All the items have been already returned.
+Allow negative stock,Allow negative stock
 Already collected. Current balance:,Already collected. Current balance:
 Already exists,Already exists
 Already received,Already received
@@ -509,6 +510,7 @@ Discount cannot be greater than 100%.,Discount cannot be greater than 100%.
 Discount cannot exceed the amount,Discount cannot exceed the amount
 Discount percentage,Discount percentage
 Display text (optional),Display text (optional)
+Do not post cost,Do not post cost
 Document,Document
 Document No,Document No
 Document Number,Document Number
@@ -583,6 +585,7 @@ Enter a tax ID first,Enter a tax ID first
 Enter a valid amount,Enter a valid amount
 Enter a valid email,Enter a valid email
 Enter amount to be redeemed.,Enter amount to be redeemed.
+Enter conversion,Enter conversion
 Enter customer's email,Enter customer's email
 Enter customer's phone number,Enter customer's phone number
 Enter discount percentage,Enter discount percentage
@@ -597,6 +600,7 @@ Enter the amount received,Enter the amount received
 Enter the discount amount,Enter the discount amount
 Enter the sale by hand. Files are added as attachments only.,Enter the sale by hand. Files are added as attachments only.
 Enter the user name,Enter the user name
+Enter unit cost,Enter unit cost
 Enter {0} amount,Enter {0} amount
 Enter {0} amount.,Enter {0} amount.
 Entries,Entries
@@ -707,6 +711,7 @@ Has taxed sales,Has taxed sales
 Head Office,Head Office
 Hide Recent Orders,Hide Recent Orders
 Hide details,Hide details
+Hold,Hold
 ID,ID
 Idempotency anchor for a whole request; a repeat submit is ignored,Idempotency anchor for a whole request; a repeat submit is ignored
 Idempotency anchor: a repeat submit returns the same sale instead of charging twice,Idempotency anchor: a repeat submit returns the same sale instead of charging twice
@@ -776,6 +781,7 @@ Item Name is required,Item Name is required
 Item Type,Item Type
 Item is disabled,Item is disabled
 Item is removed since no serial / batch no selected.,Item is removed since no serial / batch no selected.
+Item pack unit,Item pack unit
 Items,Items
 Items are required,Items are required
 Items found at a different place,Items found at a different place
@@ -2367,6 +2373,11 @@ erp.work.view.calendar,Calendar
 erp.work.view.mine,My cards
 erp.work.view.table,Table
 express.action.markHandled,Mark as handled in Express
+express.book.allowNegative,Allow negative stock
+express.book.costGiven,Enter unit cost
+express.book.costNone,Do not post cost
+express.book.hold,Hold
+express.book.unitFactor,Enter conversion
 express.code.ACCOUNT_BUSY_LOCKED,Express has this account set open. It is sent automatically once Express is closed
 express.code.ACCOUNT_COMPANY_MISMATCH,The chosen account set belongs to another company. Check the account set
 express.code.ACCOUNT_DIR_NOT_ALLOWED,CC Desktop is not allowed to write to this account set. Check the account set chosen in CC Desktop
@@ -2479,6 +2490,7 @@ express.precheck.note.bookBasis,Basis used in this account set
 express.precheck.note.mostUsedGroup,Most used fitting group in the account set
 express.precheck.note.notInBook,Not in the account set yet
 express.precheck.note.onlyRecord,Only one with this tax number
+express.precheck.note.packUnit,Item pack unit
 express.precheck.note.sameBranch,Tax number and branch match
 express.precheck.note.splitExempt,Exempt items without VAT per line
 express.precheck.note.vatExpense,Receipts and simplified tax invoices are usually not claimed
