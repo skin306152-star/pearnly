@@ -23,12 +23,12 @@ from companion.cloud_link.reasons import Outcome
 from companion.cloud_link.session import Snapshot, State
 
 PASSWORD = "Cloud-Pass-9!x"
-HOST = "203.151.54.45"
+HOST = "198.51.100.7"
 SESSION_RDP = "\r\n".join([
-    "full address:s:203.151.54.45",
-    "server port:i:4490",
-    "username:s:W10E061734-01",
-    "domain:s:expressoncloud",
+    "full address:s:198.51.100.7",
+    "server port:i:3390",
+    "username:s:CLOUDUSER-01",
+    "domain:s:example",
     "password 51:b:01000000D08C9DDF0115D1118C7A00C04FC297EB",
     "credential:s:SECRETVALUE",
 ]) + "\r\n"
@@ -73,7 +73,7 @@ def _session_file(tmp_path):
 
 
 def _connect(tmp_path, store=None, **fields):
-    args = {"host": HOST, "port": 4490, "user": "W10E061734-01", "password": PASSWORD, **fields}
+    args = {"host": HOST, "port": 3390, "user": "CLOUDUSER-01", "password": PASSWORD, **fields}
     return settings_link.connect(store, new_store=lambda: _store(tmp_path), session_rdp=_session_file(tmp_path)
                                  if not (tmp_path / "home").exists() else tmp_path / "home" / "RDP6" / "Session.rdp",
                                  **args)
@@ -83,7 +83,7 @@ def _connect(tmp_path, store=None, **fields):
 
 def test_prefill_reads_only_the_address_from_session_rdp_and_never_a_password(tmp_path):
     found = settings_link.prefill(None, _session_file(tmp_path))
-    assert found == {"ok": True, "host": HOST, "port": 4490, "user": ""}
+    assert found == {"ok": True, "host": HOST, "port": 3390, "user": ""}
     text = json.dumps(found)
     assert "SECRET" not in text and "D08C9DDF" not in text and "password" not in text
 
@@ -98,7 +98,7 @@ def test_prefill_without_anything_is_empty(tmp_path):
 def test_prefill_prefers_the_saved_link_and_still_has_no_password(tmp_path, vault):
     _connect(tmp_path)
     found = settings_link.prefill(_store(tmp_path), None)
-    assert found == {"ok": True, "host": HOST, "port": 4490, "user": "W10E061734-01"}
+    assert found == {"ok": True, "host": HOST, "port": 3390, "user": "CLOUDUSER-01"}
     assert PASSWORD not in json.dumps(found)
 
 
@@ -111,11 +111,11 @@ def test_connect_stores_the_password_only_in_the_two_local_credentials(tmp_path,
     result = _connect(tmp_path)
     assert result == {"ok": True, "state": "idle", "host": HOST}
     # 只填用户名：域取 Session.rdp 里同一台主机的
-    assert generic == {"Pearnly CC/cloud/" + HOST: ("expressoncloud\\W10E061734-01", PASSWORD)}
-    assert domain == {"TERMSRV/" + HOST: ("expressoncloud", "W10E061734-01", PASSWORD)}
+    assert generic == {"Pearnly CC/cloud/" + HOST: ("example\\CLOUDUSER-01", PASSWORD)}
+    assert domain == {"TERMSRV/" + HOST: ("example", "CLOUDUSER-01", PASSWORD)}
     store = _store(tmp_path)
     link = store.get(HOST)
-    assert (link.port, link.user, link.domain) == (4490, "W10E061734-01", "expressoncloud")
+    assert (link.port, link.user, link.domain) == (3390, "CLOUDUSER-01", "example")
     assert len(store.device_key(HOST)) >= 32
     raw = (tmp_path / "cloud_link.json").read_text(encoding="utf-8")
     assert PASSWORD not in raw and PASSWORD not in json.dumps(result) and PASSWORD not in caplog.text
@@ -153,9 +153,9 @@ def test_connect_to_another_host_replaces_the_old_link(tmp_path, vault):
 def test_saving_the_same_host_again_keeps_the_device_key(tmp_path, vault):
     _connect(tmp_path)
     key = _store(tmp_path).device_key(HOST)
-    assert _connect(tmp_path, store=_store(tmp_path), user="W10E061734-02")["ok"] is True
+    assert _connect(tmp_path, store=_store(tmp_path), user="CLOUDUSER-02")["ok"] is True
     store = _store(tmp_path)
-    assert store.device_key(HOST) == key and store.get(HOST).user == "W10E061734-02"
+    assert store.device_key(HOST) == key and store.get(HOST).user == "CLOUDUSER-02"
 
 
 # ── 断开、状态 ───────────────────────────────────────────────────────────────
@@ -190,7 +190,7 @@ def test_status_without_a_link_and_with_one(tmp_path, vault):
     session = types.SimpleNamespace(snapshot=lambda: Snapshot(State.HALTED, Outcome.REPLACED, Outcome.REPLACED, "x", 0, None))
     found = settings_link.status(_store(tmp_path), session)
     assert found == {"ok": True, "state": "replaced", "places": [],
-                     "link": {"host": HOST, "port": 4490, "user": "W10E061734-01", "name": ""}}
+                     "link": {"host": HOST, "port": 3390, "user": "CLOUDUSER-01", "name": ""}}
     assert PASSWORD not in json.dumps(found)
 
 
@@ -248,18 +248,18 @@ def test_bridge_state_stays_byte_identical_and_no_file_without_a_cloud_link(tmp_
 
 def test_bridge_connect_status_disconnect_round_trip(tmp_path, vault):
     generic, domain = vault
-    holder = {"rdp": _session_file(tmp_path), "login": ("W10E061734-01", PASSWORD)}
+    holder = {"rdp": _session_file(tmp_path), "login": ("CLOUDUSER-01", PASSWORD)}
     bridge = _bridge(tmp_path, holder)
     prefill = bridge.call("cloud_prefill", "{}")
-    assert json.loads(prefill) == {"ok": True, "host": HOST, "port": 4490, "user": ""}
+    assert json.loads(prefill) == {"ok": True, "host": HOST, "port": 3390, "user": ""}
     # 页面就算带了密码也不看：账号密码只从原生小窗来，页面上的账号只作预填
-    args = {"host": HOST, "port": 4490, "user": "W10E061734-01", "password": "typed-in-page", "lang": "th"}
+    args = {"host": HOST, "port": 3390, "user": "CLOUDUSER-01", "password": "typed-in-page", "lang": "th"}
     reply = bridge.call("cloud_connect", json.dumps(args))
     assert PASSWORD not in reply
     result = _wait(bridge, reply)
     assert result == {"ok": True, "state": "idle", "host": HOST}
-    assert holder["asked"] == [("th", "W10E061734-01")]
-    assert generic == {"Pearnly CC/cloud/" + HOST: ("expressoncloud\\W10E061734-01", PASSWORD)}
+    assert holder["asked"] == [("th", "CLOUDUSER-01")]
+    assert generic == {"Pearnly CC/cloud/" + HOST: ("example\\CLOUDUSER-01", PASSWORD)}
     assert "typed-in-page" not in json.dumps(generic) + json.dumps(domain)
     assert _store(tmp_path).get(HOST).via == "OFFICE-PC"
     assert json.loads(bridge.state())["cloud_link"] is True
@@ -276,7 +276,7 @@ def test_bridge_checks_the_address_before_asking_and_cancel_changes_nothing(tmp_
     bridge = _bridge(tmp_path, holder)
     bad = json.loads(bridge.call("cloud_connect", json.dumps({"host": "bad host!", "user": "u"})))
     assert bad == {"ok": False, "code": "invalid", "field": "host"} and "asked" not in holder
-    cancelled = json.loads(bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 4490, "user": "u", "lang": "zh"})))
+    cancelled = json.loads(bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 3390, "user": "u", "lang": "zh"})))
     assert cancelled == {"ok": False, "cancelled": True} and holder["asked"] == [("zh", "u")]
     assert generic == {} and domain == {} and not (tmp_path / "cloud_link.json").exists()
 
@@ -289,9 +289,9 @@ def test_bridge_connect_failure_is_reported_not_retried(tmp_path, vault, monkeyp
         raise OSError(1312, "CredWriteW")
 
     monkeypatch.setattr(rdp_credentials, "store", refuse)
-    holder = {"login": ("expressoncloud\\W10E061734-01", PASSWORD)}
+    holder = {"login": ("example\\CLOUDUSER-01", PASSWORD)}
     bridge = _bridge(tmp_path, holder)
-    args = {"host": HOST, "port": 4490, "user": "W10E061734-01"}
+    args = {"host": HOST, "port": 3390, "user": "CLOUDUSER-01"}
     assert _wait(bridge, bridge.call("cloud_connect", json.dumps(args))) == {"ok": False, "code": "credential_failed"}
     assert calls == [HOST]
     generic, domain = vault

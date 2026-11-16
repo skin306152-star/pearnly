@@ -19,7 +19,7 @@ from companion.cloud_link import cred_cloud  # noqa: E402
 from companion.cloud_link import cred_handoff as handoff  # noqa: E402
 from companion.cloud_link import device_pairing as pairing  # noqa: E402
 
-HOST = "203.151.54.45"
+HOST = "198.51.100.7"
 DEVICE_KEY = "dk_" + "A1b2C3d4E5f6G7h8I9j0K1l2M3n4O5p6Q7r8S9t"
 NOW = 1_800_000_000.0
 

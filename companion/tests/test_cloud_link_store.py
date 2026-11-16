@@ -40,8 +40,8 @@ def _store(tmp_path):
 
 def _saved(tmp_path):
     store = _store(tmp_path)
-    store.save_link(host="203.151.54.45", port=4490, user="W10E061734-01", domain="expressoncloud",
-                    host_name="ESGPRD-HOST25", via="OFFICE-PC")
+    store.save_link(host="198.51.100.7", port=3390, user="CLOUDUSER-01", domain="example",
+                    host_name="CLOUD-HOST", via="OFFICE-PC")
     return store
 
 
@@ -56,7 +56,7 @@ def test_the_file_lives_next_to_companion_json_and_is_not_created_without_a_link
 def test_save_and_reload_keep_the_fields_and_protect_the_device_key(tmp_path):
     store = _saved(tmp_path)
     raw = (tmp_path / "cloud_link.json").read_text(encoding="utf-8")
-    key = store.device_key("203.151.54.45")
+    key = store.device_key("198.51.100.7")
     # 与 device_link.new_device_key 同格式（服务端收 32–128 个 [A-Za-z0-9_-]）
     assert re.fullmatch(r"[A-Za-z0-9_-]{43}", key)
     assert key not in raw and PASSWORD not in raw
@@ -64,14 +64,14 @@ def test_save_and_reload_keep_the_fields_and_protect_the_device_key(tmp_path):
     assert doc["schema_version"] == 1 and len(doc["links"]) == 1
     assert doc["links"][0]["device"]["key"].startswith("dpapi-current-user:v1:")
     again = _store(tmp_path)
-    link = again.get("203.151.54.45")
+    link = again.get("198.51.100.7")
     assert (link.host, link.port, link.user, link.domain, link.host_name, link.via) == \
-        ("203.151.54.45", 4490, "W10E061734-01", "expressoncloud", "ESGPRD-HOST25", "OFFICE-PC")
-    assert link.device_name == "ESGPRD-HOST25"
-    assert again.device_key("203.151.54.45") == key
+        ("198.51.100.7", 3390, "CLOUDUSER-01", "example", "CLOUD-HOST", "OFFICE-PC")
+    assert link.device_name == "CLOUD-HOST"
+    assert again.device_key("198.51.100.7") == key
     # 改端口不换设备密钥
-    again.save_link(host="203.151.54.45", port=4491, user="W10E061734-01", domain="expressoncloud")
-    assert again.device_key("203.151.54.45") == key and again.get("203.151.54.45").host_name == "ESGPRD-HOST25"
+    again.save_link(host="198.51.100.7", port=4491, user="CLOUDUSER-01", domain="example")
+    assert again.device_key("198.51.100.7") == key and again.get("198.51.100.7").host_name == "CLOUD-HOST"
 
 
 def test_one_link_per_bridge_and_bad_values_are_refused(tmp_path):
@@ -81,12 +81,12 @@ def test_one_link_per_bridge_and_bad_values_are_refused(tmp_path):
     with pytest.raises(LinkStoreError):
         store.save_link(host="bad host\n", port=3389, user="u")
     with pytest.raises(LinkStoreError):
-        store.save_link(host="203.151.54.45", port=0, user="u")
+        store.save_link(host="198.51.100.7", port=0, user="u")
 
 
 def test_tokens_per_site_pending_and_drop(tmp_path):
     store = _saved(tmp_path)
-    host = "203.151.54.45"
+    host = "198.51.100.7"
     assert [link.host for link in store.pending("testcowork.pearnly.com")] == [host]
     store.set_token(host, "testcowork.pearnly.com", "https://testcowork.pearnly.com", TOKEN)
     store.set_token(host, "testerp.pearnly.com", "https://testerp.pearnly.com", CORE_TOKEN)
@@ -106,7 +106,7 @@ def test_tokens_per_site_pending_and_drop(tmp_path):
 
 def test_remove_revokes_tokens_and_forgets_both_local_credentials(tmp_path, monkeypatch):
     store = _saved(tmp_path)
-    host = "203.151.54.45"
+    host = "198.51.100.7"
     store.set_token(host, "testcowork.pearnly.com", "https://testcowork.pearnly.com", TOKEN)
     forgotten = []
     monkeypatch.setattr(rdp_credentials, "forget", lambda name: forgotten.append(("TERMSRV", name)) or True)
@@ -121,14 +121,14 @@ def test_remove_revokes_tokens_and_forgets_both_local_credentials(tmp_path, monk
 
 def test_remove_still_deletes_when_the_site_cannot_be_reached(tmp_path, monkeypatch):
     store = _saved(tmp_path)
-    store.set_token("203.151.54.45", "testcowork.pearnly.com", "https://testcowork.pearnly.com", TOKEN)
+    store.set_token("198.51.100.7", "testcowork.pearnly.com", "https://testcowork.pearnly.com", TOKEN)
     monkeypatch.setattr(rdp_credentials, "forget", lambda name: False)
     monkeypatch.setattr(link_store, "forget_password", lambda name: (_ for _ in ()).throw(OSError(5, "CredDeleteW")))
 
     def down(url, token):
         raise ConnectionError("down " + token)   # 即使异常里带了令牌，日志也只记异常类型
 
-    assert store.remove("203.151.54.45", leave=down) is True
+    assert store.remove("198.51.100.7", leave=down) is True
     assert _store(tmp_path).links == ()
 
 
@@ -151,23 +151,23 @@ def test_password_goes_only_to_the_generic_credential(tmp_path, monkeypatch):
     fake, saved = _fake_creds()
     monkeypatch.setattr(link_store, "_creds", fake)
     monkeypatch.setattr(sys, "platform", "win32")
-    link_store.store_password("203.151.54.45", "W10E061734-01", "expressoncloud", PASSWORD)
-    assert saved == {"Pearnly CC/cloud/203.151.54.45": ("expressoncloud\\W10E061734-01", PASSWORD)}
-    assert link_store.password_target("203.151.54.45") == "Pearnly CC/cloud/203.151.54.45"
-    assert link_store.has_password("203.151.54.45")
-    assert link_store.password_provider("203.151.54.45")() == PASSWORD
-    assert link_store.forget_password("203.151.54.45") is True and saved == {}
+    link_store.store_password("198.51.100.7", "CLOUDUSER-01", "example", PASSWORD)
+    assert saved == {"Pearnly CC/cloud/198.51.100.7": ("example\\CLOUDUSER-01", PASSWORD)}
+    assert link_store.password_target("198.51.100.7") == "Pearnly CC/cloud/198.51.100.7"
+    assert link_store.has_password("198.51.100.7")
+    assert link_store.password_provider("198.51.100.7")() == PASSWORD
+    assert link_store.forget_password("198.51.100.7") is True and saved == {}
     with pytest.raises(PasswordMissing) as missing:
-        link_store.password_provider("203.151.54.45")()
-    assert "W10E061734" not in str(missing.value) and PASSWORD not in str(missing.value)
+        link_store.password_provider("198.51.100.7")()
+    assert "CLOUDUSER" not in str(missing.value) and PASSWORD not in str(missing.value)
     with pytest.raises(ValueError):
-        link_store.store_password("203.151.54.45", "u", "", "")
+        link_store.store_password("198.51.100.7", "u", "", "")
 
 
 def test_password_store_refuses_off_windows(monkeypatch):
     monkeypatch.setattr(sys, "platform", "darwin")
     with pytest.raises(rdp_credentials.NotWindows):
-        link_store.store_password("203.151.54.45", "u", "", PASSWORD)
+        link_store.store_password("198.51.100.7", "u", "", PASSWORD)
 
 
 def test_secrets_never_reach_logs_repr_or_errors(tmp_path, monkeypatch, caplog):
@@ -178,8 +178,8 @@ def test_secrets_never_reach_logs_repr_or_errors(tmp_path, monkeypatch, caplog):
     caplog.set_level(logging.DEBUG)
     monkeypatch.setattr(logging.getLogger("pearnly_companion"), "propagate", True)
     store = _saved(tmp_path)
-    host = "203.151.54.45"
-    link_store.store_password(host, "W10E061734-01", "expressoncloud", PASSWORD)
+    host = "198.51.100.7"
+    link_store.store_password(host, "CLOUDUSER-01", "example", PASSWORD)
     store.set_token(host, "testcowork.pearnly.com", "https://testcowork.pearnly.com", TOKEN)
     key = store.device_key(host)
     link = store.get(host)
@@ -198,7 +198,7 @@ def test_secrets_never_reach_logs_repr_or_errors(tmp_path, monkeypatch, caplog):
     text = caplog.text + " ".join(errors)
     for secret in (PASSWORD, TOKEN, key, cipher):
         assert secret not in text
-    assert "203.151.54.45" in caplog.text
+    assert "198.51.100.7" in caplog.text
 
 
 # ── 桥：配对代登记 ──────────────────────────────────────────────────────────────
@@ -253,20 +253,20 @@ def test_bridge_hands_the_cloud_device_key_only_to_a_connected_site(tmp_path):
     member = ("testcowork.pearnly.com", "https://testcowork.pearnly.com", "exp_OWN_member")
     bridge = _bridge(tmp_path, member, store)
     pending = json.loads(bridge.call("cloud_pending", "{}"))
-    assert pending == {"ok": True, "links": [{"host": "203.151.54.45",
-                                              "device": {"key": store.device_key("203.151.54.45"),
-                                                         "name": "ESGPRD-HOST25"}}]}
+    assert pending == {"ok": True, "links": [{"host": "198.51.100.7",
+                                              "device": {"key": store.device_key("198.51.100.7"),
+                                                         "name": "CLOUD-HOST"}}]}
 
 
 def test_bridge_stores_the_token_only_for_the_same_channel(tmp_path):
     store = _saved(tmp_path)
     member = ("testcowork.pearnly.com", "https://testcowork.pearnly.com", "exp_OWN_member")
     bridge = _bridge(tmp_path, member, store)
-    wrong = json.loads(bridge.call("cloud_token", json.dumps({"host": "203.151.54.45", "token": CORE_TOKEN})))
+    wrong = json.loads(bridge.call("cloud_token", json.dumps({"host": "198.51.100.7", "token": CORE_TOKEN})))
     assert wrong == {"ok": False, "code": "token_invalid"}
     missing = json.loads(bridge.call("cloud_token", json.dumps({"host": "other.example.com", "token": TOKEN})))
     assert missing == {"ok": False, "code": "not_found"}
-    stored = bridge.call("cloud_token", json.dumps({"host": "203.151.54.45", "token": TOKEN}))
+    stored = bridge.call("cloud_token", json.dumps({"host": "198.51.100.7", "token": TOKEN}))
     assert json.loads(stored) == {"ok": True} and TOKEN not in stored
-    assert _store(tmp_path).token("203.151.54.45", "testcowork.pearnly.com") == TOKEN
+    assert _store(tmp_path).token("198.51.100.7", "testcowork.pearnly.com") == TOKEN
     assert json.loads(bridge.call("cloud_pending", "{}")) == {"ok": True, "links": []}

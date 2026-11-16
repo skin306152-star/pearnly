@@ -78,7 +78,7 @@ def drive(value: str) -> str:
 
 def split_account(account: str, default_domain: str = "") -> tuple:
     """用户输的账号拆成（用户名，域）：``域\\用户名``、``用户名@域`` 两种写法照拆；只给用户名时用 ``default_domain``
-    （``Session.rdp`` 里读到的域；11-15 实测：TSplus 送的是用户名 ``W10E061734-01`` + 域 ``expressoncloud``）。"""
+    （``Session.rdp`` 里读到的域；11-15 实测：TSplus 送的是用户名 ``CLOUDUSER-01`` + 域 ``example``）。"""
     account = str(account or "").strip()
     if "\\" in account:
         domain, user = account.split("\\", 1)

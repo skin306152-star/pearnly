@@ -11,10 +11,10 @@ import pytest
 from companion.cloud_link import credentials, rdp
 
 EXPECTED = [
-    "full address:s:203.151.54.45",
-    "server port:i:4490",
-    "username:s:W10E061734-01",
-    "domain:s:expressoncloud",
+    "full address:s:198.51.100.7",
+    "server port:i:3390",
+    "username:s:CLOUDUSER-01",
+    "domain:s:example",
     "drivestoredirect:s:X:\\;",
     "redirectclipboard:i:0",
     "redirectprinters:i:0",
@@ -41,7 +41,7 @@ EXPECTED = [
 
 
 def _build(**kw):
-    args = dict(host_name="203.151.54.45", port_number=4490, user="W10E061734-01", domain="expressoncloud",
+    args = dict(host_name="198.51.100.7", port_number=3390, user="CLOUDUSER-01", domain="example",
                 tunnel_drive="X")
     args.update(kw)
     return args
@@ -91,8 +91,8 @@ def test_rejects_bad_values_without_echoing_them(bad):
 
 
 @pytest.mark.parametrize("account,default,expected", [
-    ("W10E061734-01", "expressoncloud", ("W10E061734-01", "expressoncloud")),
-    ("corp\\alice", "expressoncloud", ("alice", "corp")),
+    ("CLOUDUSER-01", "example", ("CLOUDUSER-01", "example")),
+    ("corp\\alice", "example", ("alice", "corp")),
     ("alice@corp", "", ("alice", "corp")),
     ("alice", "", ("alice", "")),
 ])
@@ -102,10 +102,10 @@ def test_split_account(account, default, expected):
 
 SESSION_RDP = "\r\n".join([
     "screen mode id:i:2",
-    "full address:s:203.151.54.45",
-    "server port:i:4490",
-    "username:s:W10E061734-01",
-    "domain:s:expressoncloud",
+    "full address:s:198.51.100.7",
+    "server port:i:3390",
+    "username:s:CLOUDUSER-01",
+    "domain:s:example",
     "password 51:b:01000000D08C9DDF0115D1118C7A00C04FC297EB",
     "credential:s:SECRETVALUE",
     "authentication level:i:0",
@@ -114,7 +114,7 @@ SESSION_RDP = "\r\n".join([
 
 def test_parse_session_rdp_takes_only_three_fields():
     target = rdp.parse_session_rdp(b"\xff\xfe" + SESSION_RDP.encode("utf-16-le"))
-    assert target == rdp.CloudTarget(host="203.151.54.45", port=4490, domain="expressoncloud")
+    assert target == rdp.CloudTarget(host="198.51.100.7", port=3390, domain="example")
     assert set(vars(target)) == {"host", "port", "domain"}
     assert "SECRET" not in repr(target) and "D08C9DDF" not in repr(target)
 
@@ -128,8 +128,8 @@ def test_parse_session_rdp_encodings_and_embedded_port():
 
 
 def test_parse_session_rdp_server_port_wins_and_first_value_kept():
-    data = "full address:s:h1:5000\nserver port:i:4490\nfull address:s:h2\n".encode()
-    assert rdp.parse_session_rdp(data) == rdp.CloudTarget("h1", 4490, "")
+    data = "full address:s:h1:5000\nserver port:i:3390\nfull address:s:h2\n".encode()
+    assert rdp.parse_session_rdp(data) == rdp.CloudTarget("h1", 3390, "")
 
 
 def test_parse_session_rdp_missing_or_bad_host():
@@ -146,7 +146,7 @@ def test_find_and_read_session_rdp(tmp_path):
     path = folder / "Session.rdp"
     path.write_bytes(b"\xff\xfe" + SESSION_RDP.encode("utf-16-le"))
     assert rdp.find_session_rdp(tmp_path) == path
-    assert rdp.read_session_rdp(path).host == "203.151.54.45"
+    assert rdp.read_session_rdp(path).host == "198.51.100.7"
 
 
 def test_read_session_rdp_refuses_large_file(tmp_path):
@@ -158,7 +158,7 @@ def test_read_session_rdp_refuses_large_file(tmp_path):
 
 def test_credential_target_and_user():
     assert credentials.target("Cloud.Example.com.") == "TERMSRV/cloud.example.com"
-    assert credentials.credential_user("W10E061734-01", "expressoncloud") == "expressoncloud\\W10E061734-01"
+    assert credentials.credential_user("CLOUDUSER-01", "example") == "example\\CLOUDUSER-01"
     assert credentials.credential_user("alice", "") == "alice"
     with pytest.raises(rdp.RdpValueError):
         credentials.target("bad host")

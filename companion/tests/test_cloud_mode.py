@@ -370,13 +370,13 @@ def _scan_setup(monkeypatch, tmp_path, *, client_drive: Path, share: Path, local
 
 def test_cloud_scans_only_this_hosts_drives(cloud, tmp_path):
     local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "accserver"
-    _registry(local_drive / "W10E061734" / "ExpressI-Cloud", 3)
+    _registry(local_drive / "CLOUDUSER" / "ExpressI-Cloud", 3)
     _registry(client_drive / "70EXP", 5)
     _registry(share / "69EXP", 4)
     scanned = _scan_setup(cloud, tmp_path, client_drive=client_drive, share=share, local_drive=local_drive)
 
     found = express_locate.candidate_roots()
-    assert found == [str(local_drive / "W10E061734" / "ExpressI-Cloud")]
+    assert found == [str(local_drive / "CLOUDUSER" / "ExpressI-Cloud")]
     assert scanned == [str(local_drive)]   # 客户电脑的盘、局域网共享、\\tsclient 都不去深扫
 
 
@@ -417,7 +417,7 @@ def test_the_parameter_overrides_the_mode(local, tmp_path):
 def test_client_side_paths_are_recognised():
     assert express_locate._client_side(r"\\tsclient\C\70EXP")
     assert express_locate._client_side("//TSCLIENT/x/dist")
-    assert not express_locate._client_side(r"D:\W10E061734\ExpressI-Cloud")
+    assert not express_locate._client_side(r"D:\CLOUDUSER\ExpressI-Cloud")
     assert not express_locate._client_side(r"\\accserver\ACCOUNT")
 
 
@@ -425,7 +425,7 @@ def test_client_side_paths_are_recognised():
 
 
 def _heartbeat_bodies(monkeypatch, calls):
-    monkeypatch.setattr(queue_client, "_device_name", lambda: "ESGPRD-HOST25")
+    monkeypatch.setattr(queue_client, "_device_name", lambda: "CLOUD-HOST")
     raw = []
 
     def handler(request):
@@ -450,7 +450,7 @@ CALLS = (
 def test_cloud_heartbeat_carries_the_link(cloud):
     cloud.setenv(runtime_mode.VIA_ENV, "OFFICE-PC")
     online, offline = [json.loads(body) for body in _heartbeat_bodies(cloud, CALLS)]
-    assert online["link"] == {"kind": "cloud", "via": "OFFICE-PC", "host": "ESGPRD-HOST25"}
+    assert online["link"] == {"kind": "cloud", "via": "OFFICE-PC", "host": "CLOUD-HOST"}
     assert "link" not in offline   # 优雅退出那一下只说离线（服务端离线时也不改 link）
 
 
@@ -472,7 +472,7 @@ def test_local_heartbeat_is_byte_for_byte_unchanged(local):
     assert plain == with_name
     # 键与顺序都和加 link 之前一样（序列化的空格写法随 httpx 版本，这里按解析后的键值与顺序比）
     expected = [("companion_version", "1.12.22"), ("max_payload_version", 21), ("operator_targets", ["express"]),
-                ("device", "ESGPRD-HOST25"), ("account_set", "A"), ("account_dir", "D:\\A"), ("account_company", "C"),
+                ("device", "CLOUD-HOST"), ("account_set", "A"), ("account_dir", "D:\\A"), ("account_company", "C"),
                 ("account_set_row", 1), ("express_root", "D:\\")]
     assert list(json.loads(plain[0]).items()) == expected
     assert json.loads(plain[1]) == {"offline": True}

@@ -336,13 +336,13 @@ class FakeAx:
         return self.subs.setdefault(name, FakeAx(refuse=self.refuse))
 
 
-PARAMS = window.ConnectParams.make(host="203.151.54.45", port=4490, user="W10E061734-01",
-                                   domain="expressoncloud", tunnel_drive="x:")
+PARAMS = window.ConnectParams.make(host="198.51.100.7", port=3390, user="CLOUDUSER-01",
+                                   domain="example", tunnel_drive="x:")
 
 
 def test_connect_params_validation():
-    assert PARAMS.host == "203.151.54.45" and PARAMS.port == 4490
-    assert PARAMS.user == "W10E061734-01" and PARAMS.domain == "expressoncloud" and PARAMS.tunnel_drive == "X"
+    assert PARAMS.host == "198.51.100.7" and PARAMS.port == 3390
+    assert PARAMS.user == "CLOUDUSER-01" and PARAMS.domain == "example" and PARAMS.tunnel_drive == "X"
     with pytest.raises(Exception):
         window.ConnectParams.make(host="bad host\n", port=1, user="u", domain="", tunnel_drive="X")
     with pytest.raises(Exception):
@@ -354,10 +354,10 @@ def test_connect_params_validation():
 def test_apply_settings_properties_and_password_only_in_cleartext():
     ax, calls = FakeAx(), []
     window.apply_settings(ax, PARAMS, "s3cret!", nonscriptable=lambda a, ns: calls.append((a, ns)))
-    assert ax.props == {"Server": "203.151.54.45", "UserName": "W10E061734-01", "Domain": "expressoncloud",
+    assert ax.props == {"Server": "198.51.100.7", "UserName": "CLOUDUSER-01", "Domain": "example",
                         "DesktopWidth": 1280, "DesktopHeight": 800, "ColorDepth": 16}
     adv = ax.subs["AdvancedSettings9"]
-    assert adv.props == {"RDPPort": 4490, "AuthenticationLevel": 0, "EnableAutoReconnect": False,
+    assert adv.props == {"RDPPort": 3390, "AuthenticationLevel": 0, "EnableAutoReconnect": False,
                          "RedirectClipboard": False, "RedirectPrinters": False, "RedirectPorts": False,
                          "RedirectSmartCards": False, "RedirectDrives": False, "ClearTextPassword": "s3cret!"}
     assert calls == [(ax, window.NonScriptable(enable_credssp=True, drive="X"))]

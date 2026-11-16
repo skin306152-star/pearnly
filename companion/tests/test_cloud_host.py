@@ -23,7 +23,7 @@ from companion.cloud_link.link_store import LinkStore
 from companion.cloud_link.session import CloudSession, State
 from companion.cloud_link.tunnel_relay import Incoming
 
-HOST = "203.151.54.45"
+HOST = "198.51.100.7"
 PASSWORD = "Cloud-Pass-9!x"
 COWORK_TOKEN = "exp_CWEC-7_secrettokenvalue"
 CORE_TOKEN = "pcc_ABCD_secretcorevalue"
@@ -45,7 +45,7 @@ def _load(tmp_path):
 
 def _saved(tmp_path, **fields):
     store = _load(tmp_path)
-    store.save_link(host=HOST, port=4490, user="W10E061734-01", domain="expressoncloud")
+    store.save_link(host=HOST, port=3390, user="CLOUDUSER-01", domain="example")
     if fields.get("drive"):
         store.set_tunnel_drive(HOST, fields["drive"])
     return store
@@ -521,7 +521,7 @@ def _bridge(tmp_path, holder, log, fail=None):
     return TomoBridge(settings, allowed=lambda: True, window=lambda: None, set_lang=lambda lang: None,
                       cloud_links=lambda: holder.get("store"),
                       cloud_new=lambda: holder.setdefault("store", _load(tmp_path)),
-                      session_rdp=lambda: None, ask_login=lambda lang, user: ("W10E061734-01", PASSWORD),
+                      session_rdp=lambda: None, ask_login=lambda lang, user: ("CLOUDUSER-01", PASSWORD),
                       cloud_host=lambda host, on_change: _FakeHost(host, on_change, log, fail))
 
 
@@ -543,7 +543,7 @@ def _wait(bridge, reply):
 def test_bridge_connect_starts_the_host_and_disconnect_stops_it_first(tmp_path, vault):
     log, holder = [], {}
     bridge = _bridge(tmp_path, holder, log)
-    args = json.dumps({"host": HOST, "port": 4490, "user": "W10E061734-01"})
+    args = json.dumps({"host": HOST, "port": 3390, "user": "CLOUDUSER-01"})
     assert _wait(bridge, bridge.call("cloud_connect", args)) == {"ok": True, "state": "connecting", "host": HOST}
     assert log == [("new", HOST), ("start", HOST)]
     assert json.loads(bridge.call("cloud_status", "{}"))["state"] == "connecting"
@@ -560,7 +560,7 @@ def test_bridge_connect_starts_the_host_and_disconnect_stops_it_first(tmp_path, 
 def test_bridge_keeps_the_link_when_the_host_cannot_start(tmp_path, vault):
     log, holder = [], {}
     bridge = _bridge(tmp_path, holder, log, fail=HostUnavailable("x"))
-    args = json.dumps({"host": HOST, "port": 4490, "user": "W10E061734-01"})
+    args = json.dumps({"host": HOST, "port": 3390, "user": "CLOUDUSER-01"})
     assert _wait(bridge, bridge.call("cloud_connect", args)) == {"ok": True, "state": "idle", "host": HOST}
     assert _load(tmp_path).get(HOST) is not None
     assert json.loads(bridge.call("cloud_status", "{}"))["state"] == "idle"
@@ -569,7 +569,7 @@ def test_bridge_keeps_the_link_when_the_host_cannot_start(tmp_path, vault):
 def test_bridge_host_shutdown_stops_the_running_host(tmp_path, vault):
     log, holder = [], {}
     bridge = _bridge(tmp_path, holder, log)
-    _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 4490, "user": "u"})))
+    _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 3390, "user": "u"})))
     bridge.shutdown()
     assert log[-1] == ("stop", HOST)
 
@@ -611,7 +611,7 @@ def test_bridge_pair_actions_return_only_the_token_and_the_status(tmp_path, vaul
     log, holder = [], {}
     bridge = _bridge(tmp_path, holder, log)
     assert json.loads(bridge.call("cloud_pair_begin", "{}")) == {"ok": False, "code": "not_running"}
-    _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 4490, "user": "u"})))
+    _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 3390, "user": "u"})))
     fake = bridge._cloud_host
     fake.running = True
     fake.begin_pairing = lambda lang: types.SimpleNamespace(token="ABCD-EFGH", expires=123)

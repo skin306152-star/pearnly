@@ -183,7 +183,7 @@ def test_bad_connection_names_are_refused():
     for bad in ("", "a/b", "x" * 141, "a b"):
         with pytest.raises(handoff.Refused):
             handoff.make_request(DEVICE_KEY, EPOCH, bad, NOW)
-    assert handoff.bridge_target("203.151.54.45", "c-1") == "Pearnly CC/cloud-express/203.151.54.45/c-1"
+    assert handoff.bridge_target("198.51.100.7", "c-1") == "Pearnly CC/cloud-express/198.51.100.7/c-1"
 
 
 def test_forget_round_trip_and_its_refusals():
