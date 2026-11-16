@@ -1,177 +1,263 @@
-// 按表单的引导卡（引导式 P0 接线；服务端 assistant/guide/run.py）：一次引导在对话里是一张卡，按服务端此刻的状态画——
-// 在问：这一轮要答的题（单选 / 金额多选 / 分摊 / 日期），已定的项一行灰字；复核：要办的全部摆出来，「写入」才办；办完：结果一行。
-// 卡上的值都是服务端给的选项码或用户填的数，按键交回（`answerGuide`），页面不拼、不改、不经模型。标题、复核行名由服务端按本页语言翻好。
-// 用标准组件（Button、RadioGroup、Input、Item 与 guide-inputs 里的金额 / 分摊 / 一格输入），样式走 globals.css 现有的卡片类。
+// 按表单的引导卡（引导式分支 3 接线 F2 / F4 / F5；服务端 assistant/guide/run.py · view()）：一次引导在对话里是一张卡，按服务端此刻的状态画——
+//   在问：这一轮要答的题，版式同提问卡（卡头题目 + 翻页器、通栏选项、右下「跳过」「下一步 / 提交」，⌘ / Ctrl + 回车同主按钮）；
+//        每题按 input 画（十一种：choice / multi 可服务端搜索、amounts〔可搜索加行、可为 0〕、split、file、month、date、time、number、text、questions 子题）；
+//        题下灰字是服务端给的事实行（facts）；还在读（wait）出一行「正在加载」并过一会儿再取（退避，有上限）；被规则退回的题停在那一题、说明原因；
+//        已定的项收在「已定 n 项」里。
+//   复核 / 办完：见 guide-review.tsx（G2）。
+//   取消 / 失效（F5）：只剩一行（业务名 · 已取消 / 已失效），不能点。
+// 卡上交回的值都是服务端给的选项码、对话文件 id 或用户在卡上填的数，按键交回（answerGuide），页面不拼、不改、不经模型。
+// 标题、选项名、事实行由服务端按本页语言翻好。只用标准组件（问卷部件、按钮、徽章、折叠）与 globals.css 的令牌。
 
-import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { type FC, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Shortcut } from "@/components/shortcut";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { ask, guide, t } from "@/i18n";
-import { withReport } from "@/lib/caught";
-import { type AmountRow, rowsToSend, sumMinor, fromMinor } from "@/lib/guide-inputs";
 import {
-  answerGuide, cancelGuide, confirmGuide, type GuideOption, type GuideQuestion, type GuideView, searchGuide, viewGuide,
+  Questionnaire, QuestionnaireActions, QuestionnaireDescription, QuestionnaireItem, QuestionnaireTitle,
+} from "@/components/ui/questionnaire";
+import { Spinner } from "@/components/ui/spinner";
+import { ask, guide, steps, t, ui } from "@/i18n";
+import { businessName } from "@/lib/business";
+import { reportCaught } from "@/lib/caught";
+import { shownError } from "@/lib/frappe";
+import type { AmountRow } from "@/lib/guide-inputs";
+import {
+  answerGuide, answeredOk, cancelGuide, firstPosition, type GuideDecided, type GuideQuestion, type GuideView, initialValue, isClosed, isEmpty,
+  isWaiting, searchGuide, splitTotal, toSend, viewGuide, WAIT_TRIES, waitDelay,
 } from "@/lib/guide-run";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
-import { AmountsField, SplitField, ValueField } from "./guide-inputs";
-
-const OPEN = new Set(["asking", "reviewing"]);
-const WAIT_MS = 3000;
+import {
+  AmountsField, ChoiceField, FileField, SearchAmountsField, SplitField, SubQuestionsField, ValueField,
+} from "./guide-inputs";
+import { GuideReview, GuideResultCard } from "./guide-review";
 
 type Values = Record<string, unknown>;
+type Act = (call: () => Promise<GuideView>) => void;
 
-const hasValue = (value: unknown) =>
-  !(value === undefined || value === null || value === "" || (Array.isArray(value) && value.length === 0));
-
-/** 一题：按输入方式画，值交给上层。 */
-const Question: FC<{
-  run: string; question: GuideQuestion; value: unknown; answers: Values; disabled: boolean; returned?: string;
+/** 一题的输入（按 input 选组件）。 */
+const QuestionBody: FC<{
+  run: string; sessionId: string | null; question: GuideQuestion; all: readonly GuideQuestion[]; values: Values; disabled: boolean;
   onChange: (value: unknown) => void;
-}> = ({ run, question, value, answers, disabled, returned, onChange }) => {
-  const [options, setOptions] = useState<GuideOption[]>(question.options ?? []);
-  const [txt, setTxt] = useState("");
-  useEffect(() => setOptions(question.options ?? []), [question.options]);
-  useEffect(() => {
-    if (!question.search) return;
-    const timer = setTimeout(() => {
-      void searchGuide(run, question.key, txt).then((found) => setOptions(found.options ?? []))
-        .catch(withReport(() => undefined, "guide-search"));
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [run, question.key, question.search, txt]);
-  const total = useMemo(() => {
-    // 分摊的合计 = 前面金额多选那一步填的合计（收款：各张发票本次收的合计）
-    const rows = Object.values(answers).find((v) => Array.isArray(v) && v.length && typeof v[0] === "object") as AmountRow[] | undefined;
-    return rows ? fromMinor(sumMinor(rows)) : "";
-  }, [answers]);
-  let body = null;
-  if (question.input === "choice") {
-    body = (
-      <>
-        {question.search ? <Input value={txt} disabled={disabled} onChange={(e) => setTxt(e.target.value)} aria-label={question.title} /> : null}
-        <RadioGroup value={typeof value === "string" ? value : ""} onValueChange={onChange} disabled={disabled}>
-          {options.map((option) => (
-            <Item key={option.code} size="sm" asChild>
-              <label>
-                <RadioGroupItem value={option.code} />
-                <ItemContent>
-                  <ItemTitle>{option.name || option.code}</ItemTitle>
-                  {option.note ? <ItemDescription>{option.note}</ItemDescription> : null}
-                </ItemContent>
-              </label>
-            </Item>
-          ))}
-        </RadioGroup>
-      </>
-    );
-  } else if (question.input === "amounts") {
-    body = <AmountsField options={options} rows={(value as AmountRow[]) ?? []} disabled={disabled} onChange={onChange} />;
-  } else if (question.input === "split") {
-    body = <SplitField options={options} rows={(value as AmountRow[]) ?? []} total={total} disabled={disabled} onChange={onChange} />;
-  } else if (["date", "month", "number", "text"].includes(question.input)) {
-    body = (
-      <ValueField kind={question.input as "date" | "month" | "number" | "text"} value={typeof value === "string" ? value : ""}
-        label={question.title} disabled={disabled} onChange={onChange} />
-    );
+}> = ({ run, sessionId, question: q, all, values, disabled, onChange }) => {
+  const value = values[q.key];
+  const search = q.search ? (txt: string, start: number) => searchGuide(run, q.key, txt, start) : undefined;
+  switch (q.input) {
+    case "choice":
+    case "multi":
+      return (
+        <ChoiceField options={q.options ?? []} more={q.more} search={search} multi={q.input === "multi"} label={q.title} disabled={disabled}
+          value={value as string | string[] | undefined} recommended={q.tier === "how" && typeof q.preselected === "string" ? q.preselected : undefined}
+          onChange={onChange} />
+      );
+    case "amounts":
+      return search || q.more ? (
+        <SearchAmountsField options={q.options ?? []} more={q.more} search={search} rows={(value as AmountRow[]) ?? []} zero={q.zero}
+          label={q.title} disabled={disabled} onChange={onChange} />
+      ) : (
+        <AmountsField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} zero={q.zero} disabled={disabled} onChange={onChange} />
+      );
+    case "split":
+      return <SplitField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} total={splitTotal(q, all, values)} disabled={disabled} onChange={onChange} />;
+    case "file":
+      return <FileField sessionId={sessionId} value={(value as string[]) ?? []} label={q.title} disabled={disabled} onChange={onChange} />;
+    case "questions":
+      return <SubQuestionsField questions={q.questions ?? []} value={(value as Values) ?? {}} disabled={disabled} onChange={onChange} />;
+    default:
+      return (
+        <div className="cc-guide-body">
+          <ValueField kind={q.input as "month" | "date" | "time" | "number" | "text"} label={q.title} disabled={disabled}
+            value={typeof value === "string" ? value : ""} onChange={onChange} />
+        </div>
+      );
   }
+};
+
+/** 「已定 n 项」：后台能定的、不用问的（照服务端给的显示名），收在折叠里。 */
+const Decided: FC<{ items: readonly GuideDecided[]; open?: boolean }> = ({ items, open }) => {
+  const [shown, setShown] = useState(!!open);
+  if (!items.length) return null;
   return (
-    <div data-slot="cc-guide-question" data-key={question.key} className="cc-ui-questionnaire-question">
-      <div className="cc-ask-q">{question.title}</div>
-      {returned ? <p className="cc-ask-note">{returned}</p> : null}
-      {(question.facts ?? []).map((fact) => <p key={fact} className="cc-ask-note">{fact}</p>)}
-      {body}
+    <Collapsible open={shown} onOpenChange={setShown} data-slot="cc-guide-decided">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" type="button">
+          {shown ? <ChevronDownIcon /> : <ChevronRightIcon />}
+          {guide.decided(items.length)}
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        {items.map((item) => (
+          <Item key={item.key} size="sm" data-key={item.key}>
+            <ItemContent>
+              <ItemTitle>{item.title}</ItemTitle>
+              <ItemDescription>{item.value_label ?? (typeof item.value === "string" ? item.value : "")}</ItemDescription>
+            </ItemContent>
+          </Item>
+        ))}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+/** 在问的这一轮。 */
+const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act; decidedOpen?: boolean }> = ({
+  view, sessionId, busy, failure, act, decidedOpen,
+}) => {
+  const card = view.card!;
+  const questions = card.questions;
+  const [pos, setPos] = useState(() => firstPosition(questions, card.returned));
+  const [values, setValues] = useState<Values>(() => Object.fromEntries(questions.map((q) => [q.key, initialValue(q)])));
+  const place = Math.min(pos, Math.max(questions.length - 1, 0));
+  const q = questions[place];
+  const all: Values = { ...(card.answers ?? {}), ...values };
+  const ok = (question: GuideQuestion) => answeredOk(question, values[question.key], question.input === "split" ? splitTotal(question, questions, all) : "");
+  const skippable = (question: GuideQuestion) => !question.required && isEmpty(values[question.key]);
+  const last = place >= questions.length - 1;
+  const ready = questions.every((question) => ok(question) || skippable(question));
+  const submit = () => {
+    const given: Values = {};
+    for (const question of questions) if (ok(question)) given[question.key] = toSend(question, values[question.key]);
+    act(() => answerGuide(view.run, given, view.version));
+  };
+  const primary = () => (last ? ready && submit() : setPos(place + 1));
+  const skip = () => {
+    setValues((s) => ({ ...s, [q.key]: undefined }));
+    if (last) submit(); else setPos(place + 1);
+  };
+  const onKey = (e: KeyboardEvent) => {
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !busy) {
+      e.preventDefault();
+      primary();
+    }
+  };
+  const refused = view.refused?.[q?.key ?? ""];
+  const returned = card.returned?.[q?.key ?? ""];
+  if (!q) {
+    // 没有要问的（全都定了、等服务端生成草稿）：只留已定项
+    return <Decided items={card.decided} open={decidedOpen} />;
+  }
+  const multi = q.input === "multi" || q.input === "file";
+  return (
+    <div className="cc-askq-wrap" onKeyDown={onKey}>
+      <Questionnaire noValidate onSubmit={(e) => { e.preventDefault(); primary(); }} data-phase="ask">
+        <QuestionnaireItem key={q.key} name={q.key} multiple={multi} data-slot="cc-guide-question" data-key={q.key} data-input={q.input}>
+          <QuestionnaireTitle data-slot="cc-askq-question">{q.title}</QuestionnaireTitle>
+          {questions.length > 1 && (
+            <div className="cc-ui-questionnaire-pager" data-slot="cc-askq-pager">
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={ask.prev} disabled={place === 0} onClick={() => setPos(place - 1)}>
+                <ChevronLeftIcon />
+              </Button>
+              <span className="cc-askq-nth cc-ui-questionnaire-progress">{ask.nth(place + 1, questions.length)}</span>
+              <Button type="button" variant="ghost" size="icon-xs" aria-label={ask.after} disabled={last} onClick={() => setPos(place + 1)}>
+                <ChevronRightIcon />
+              </Button>
+            </div>
+          )}
+          {(q.facts ?? []).map((fact) => <QuestionnaireDescription key={fact} data-slot="cc-guide-fact">{fact}</QuestionnaireDescription>)}
+          {q.wait && (
+            <QuestionnaireDescription data-slot="cc-guide-wait" className="flex items-center gap-(--cc-space-8)">
+              <Spinner />
+              {ui.loading}
+            </QuestionnaireDescription>
+          )}
+          {(returned || refused) && (
+            <Alert variant="destructive" data-slot="cc-guide-returned">
+              <AlertDescription>{returned?.text || refused}</AlertDescription>
+            </Alert>
+          )}
+          <QuestionBody run={view.run} sessionId={sessionId} question={q} all={questions} values={all} disabled={busy}
+            onChange={(value) => setValues((s) => ({ ...s, [q.key]: value }))} />
+        </QuestionnaireItem>
+        <Decided items={card.decided} open={decidedOpen} />
+        {failure && (
+          <Alert variant="destructive" data-slot="cc-ask-failure">
+            <AlertDescription className="line-clamp-(--cc-alert-lines)">{failure}</AlertDescription>
+          </Alert>
+        )}
+        <QuestionnaireActions>
+          <Button type="button" variant="ghost" size="xs" className="col-start-1" data-slot="cc-guide-cancel" disabled={busy}
+            onClick={() => act(() => cancelGuide(view.run))}>
+            {t("cancel")}
+          </Button>
+          {skippable(q) && (
+            <Button type="button" variant="secondary" size="xs" className="col-start-2" data-slot="cc-askq-skip" disabled={busy} onClick={skip}>
+              {ask.skip}
+            </Button>
+          )}
+          {/* 不用 type=submit：问卷部件在提交时会先把焦点跳到空着的输入格（分摊里没用的方式本来就空着），不交 */}
+          <Button type="button" size="xs" className="col-start-3" data-slot="cc-askq-next" onClick={primary} disabled={busy || (last ? !ready : !(ok(q) || skippable(q)))}>
+            {last ? ask.submit : ask.next}
+            <Shortcut keys="Ctrl↵" />
+          </Button>
+        </QuestionnaireActions>
+      </Questionnaire>
     </div>
   );
 };
 
-/** 一次引导在对话里的卡。 */
-export const GuideRunCard: FC<{ run: GuideRun }> = ({ run }) => {
+/** 卡的外框（同提问卡）。 */
+const Frame: FC<{ view: GuideView; children: React.ReactNode }> = ({ view, children }) => (
+  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business}
+    className="cc-steps-card cc-ui-questionnaire-card">
+    {children}
+  </div>
+);
+
+/** 取消 / 失效（F5）：一行，不能点。 */
+export const GuideClosed: FC<{ view: GuideView }> = ({ view }) => (
+  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.stale ? "expired" : view.status} data-ended
+    className="cc-steps-card cc-ui-questionnaire-card" aria-disabled>
+    <div className="aui-step cc-ask" data-phase="cancelled">
+      <div className="cc-ask-q">{businessName(view.business)}</div>
+      <div data-slot="cc-ask-answer" className="cc-ask-answer">{view.status === "cancelled" ? steps.cancelled : guide.expired}</div>
+    </div>
+  </div>
+);
+
+/** 一张卡此刻的样子（只画，不取）：展示页与对话页共用。 */
+export const GuideRunView: FC<{
+  view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act; decidedOpen?: boolean;
+}> = ({ view, sessionId, busy, failure, act, decidedOpen }) => {
+  if (isClosed(view)) return <GuideClosed view={view} />;
+  if (view.status === "asking" && view.card) {
+    return (
+      <Frame view={view}>
+        <Asking key={`${view.run}:${view.version}`} view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} decidedOpen={decidedOpen} />
+      </Frame>
+    );
+  }
+  if (view.status === "reviewing" && view.review) {
+    return <Frame view={view}><GuideReview view={view} busy={busy} failure={failure} act={act} /></Frame>;
+  }
+  if (view.result) return <Frame view={view}><GuideResultCard view={view} /></Frame>;
+  return null;
+};
+
+/** 对话里的一次引导：按事件的版本取 view；在等读取时退避再取；作答 / 确定 / 取消后用服务端回的那份。 */
+export const GuideRunCard: FC<{ run: GuideRun; sessionId: string | null }> = ({ run, sessionId }) => {
   const [view, setView] = useState<GuideView | null>(null);
-  const [values, setValues] = useState<Values>({});
   const [busy, setBusy] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [failure, setFailure] = useState("");
+  const tries = useRef(0);
   const load = useCallback(() => {
-    void viewGuide(run.run).then(setView).catch(withReport(() => undefined, "guide-view"));
+    void viewGuide(run.run).then(setView, (err) => reportCaught(err, "guide-view"));
   }, [run.run]);
   useEffect(load, [load, run.version]);
-  // 选项还在读（读回没到）：过一会儿再取这张卡
   useEffect(() => {
-    if (timer.current) clearTimeout(timer.current);
-    const waiting = view?.card?.questions.some((q) => q.wait) || view?.result?.wait;
-    if (waiting) timer.current = setTimeout(load, WAIT_MS);
-    return () => { if (timer.current) clearTimeout(timer.current); };
+    if (!isWaiting(view) || tries.current >= WAIT_TRIES) return;
+    const timer = window.setTimeout(() => { tries.current += 1; load(); }, waitDelay(tries.current));
+    return () => window.clearTimeout(timer);
   }, [view, load]);
-  useEffect(() => setValues({}), [view?.version]);
-  const act = (call: () => Promise<GuideView>) => {
+  useEffect(() => { tries.current = 0; }, [view?.version, view?.status]);
+  const act: Act = useMemo(() => (call) => {
     setBusy(true);
-    void call().then(setView).catch(withReport(() => undefined, "guide-act")).finally(() => setBusy(false));
-  };
+    setFailure("");
+    void call()
+      .then(setView, (err) => { reportCaught(err, "guide-act"); setFailure(shownError(err)); })
+      .finally(() => setBusy(false));
+  }, []);
   if (!view) return null;
-  const status = view.status;
-  const label = view.business === "collection" ? guide.collection : view.business;
-  if (!OPEN.has(status) && status !== "done" && status !== "failed" && status !== "confirmed") {
-    return <div data-slot="cc-guide-run" data-status={status} className="cc-steps-card cc-ui-questionnaire-card"><div className="cc-ui-questionnaire-done">{label}</div></div>;
-  }
-  const card = view.card;
-  const answers = card?.answers ?? {};
-  const questions = card?.questions ?? [];
-  const filled = questions.every((q) => !q.required || hasValue(values[q.key]));
-  const send = () => {
-    const given: Values = {};
-    for (const q of questions) {
-      const value = values[q.key];
-      if (!hasValue(value)) continue;
-      given[q.key] = q.input === "amounts" || q.input === "split" ? rowsToSend(value as AmountRow[]) : value;
-    }
-    act(() => answerGuide(view.run, given, view.version));
-  };
-  return (
-    <div data-slot="cc-guide-run" data-status={status} data-business={view.business} className="cc-steps-card cc-ui-questionnaire-card">
-      <div className="cc-ui-questionnaire-done">{label}</div>
-      {status === "asking" ? (
-        <>
-          {(card?.decided ?? []).map((item) => (
-            <p key={item.key} data-slot="cc-guide-decided" className="cc-ask-note">{item.title} · {item.value_label ?? String(item.value ?? "")}</p>
-          ))}
-          {questions.map((q) => (
-            <Question key={q.key} run={view.run} question={q} value={values[q.key]} answers={{ ...answers, ...values }} disabled={busy}
-              returned={card?.returned?.[q.key]?.text} onChange={(value) => setValues((s) => ({ ...s, [q.key]: value }))} />
-          ))}
-          <div className="cc-card-actions">
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => act(() => cancelGuide(view.run))}>{t("cancel")}</Button>
-            <Button size="sm" disabled={busy || !filled || !questions.length} onClick={send}>{ask.submit}</Button>
-          </div>
-        </>
-      ) : null}
-      {status === "reviewing" && view.review ? (
-        <div data-slot="cc-guide-review">
-          {(view.review.lines ?? []).map((line) => (
-            <p key={line.key} className="cc-ask-note"><span>{line.label}</span> · <span>{line.value}</span></p>
-          ))}
-          {(view.review.tables ?? []).map((table) => (
-            <div key={table.key} className="cc-ask-changes">
-              <div className="cc-ask-q">{table.label}</div>
-              {table.rows.map((row) => (
-                <p key={row.code} data-code={row.code}>{row.name || row.code}{row.note ? ` · ${row.note}` : ""} · {row.amount}</p>
-              ))}
-            </div>
-          ))}
-          <p data-slot="cc-guide-total">{guide.total} · {view.review.total}</p>
-          {view.review.problem_text ? <p className="cc-ask-note">{view.review.problem_text}</p> : null}
-          <div className="cc-card-actions">
-            <Button variant="secondary" size="sm" disabled={busy} onClick={() => act(() => cancelGuide(view.run))}>{t("cancel")}</Button>
-            <Button size="sm" disabled={busy || !view.review.ready} onClick={() => act(() => confirmGuide(view.run, view.version))}>{t("recordNow")}</Button>
-          </div>
-        </div>
-      ) : null}
-      {view.result ? (
-        <p data-slot="cc-guide-result" data-result={view.result.status} className="cc-ask-note">
-          {view.result.customer ?? ""}{view.result.total ? ` · ${view.result.total}` : ""}{view.result.docnum ? ` · ${view.result.docnum}` : ""}
-          {view.result.reason_text ? ` · ${view.result.reason_text}` : ""}
-        </p>
-      ) : null}
-    </div>
-  );
+  return <GuideRunView view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} />;
 };

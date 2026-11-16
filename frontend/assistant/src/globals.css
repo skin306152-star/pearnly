@@ -3106,6 +3106,18 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   /* 引导卡的金额格（tool-uis/guide-inputs.tsx：金额多选、分摊）：定宽、靠右、等宽数字；合计行还差 / 多出的数用提示色 */
   .cc-guide-amount { width: var(--cc-guide-amount-w); text-align: right; font-variant-numeric: tabular-nums; }
   [data-slot="cc-guide-total"] [data-rest="over"] { color: var(--cc-danger); }
+  /* 按表单的引导卡（tool-uis/guide-run-card.tsx）：卡里不是通栏选项的输入（搜索框、金额行、一格输入、文件、子题）同问卷输入框的边距与分隔线；
+     「取消」靠左，其余按钮靠右；提示条与「显示更多」照提问卡的边距 */
+  /* 金额行：单号 / 日期这类说明不折行（手机上金额格占去一截，日期被拆成三行），放不下省略 */
+  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-content"] { min-width: 0; }
+  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) :is([data-slot="item-title"], [data-slot="item-description"]) {
+    max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+  .cc-ui-questionnaire-card .cc-guide-body { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
+  .cc-ui-questionnaire-card [data-slot="cc-guide-cancel"] { margin-inline-end: auto; }
+  .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }
+  .cc-ui-questionnaire-card [data-slot="cc-guide-more"], .cc-ui-questionnaire-card .cc-guide-body + .cc-menu-label { border-top: var(--cc-ring-w) solid var(--cc-line); }
+  [data-slot="cc-guide-run"][data-ended] .cc-ask { opacity: var(--cc-disabled-opacity); }
 
   /* 提问卡（questionnaire）：同现有提问卡的字与选项行（卡片按钮 .cc-card-btn 由 Button 给） */
   .cc-ui-questionnaire { gap: var(--cc-space-16); color: var(--cc-ink); }

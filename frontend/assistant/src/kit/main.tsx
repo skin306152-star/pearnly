@@ -8,11 +8,12 @@ const dark = params.get("theme") === "dark";
 document.documentElement.lang = lang;
 document.documentElement.classList.toggle("dark", dark);
 
-void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery"), import("./guide"), import("./guide-inputs"), import("./allow-card")]).then(
-  ([{ createRoot }, { installVariant }, { Gallery }, { GuidePreview }, { GuideInputsPreview }, { AllowCardPreview }]) => {
+void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery"), import("./guide"), import("./guide-inputs"), import("./allow-card"), import("./guide-run")]).then(
+  ([{ createRoot }, { installVariant }, { Gallery }, { GuidePreview }, { GuideInputsPreview }, { AllowCardPreview }, { GuideRunPreview }]) => {
     installVariant();
     // ?page=guide：引导卡预览（kit/guide.tsx，&decided=open 时「已定 n 项」展开）；?page=guide-inputs：引导卡的几种输入；?page=allow：允许 / 拒绝卡
-    const page = params.get("page") === "allow" ? <AllowCardPreview /> : params.get("page") === "guide-inputs" ? <GuideInputsPreview /> : params.get("page") === "guide" ? <GuidePreview decidedOpen={params.get("decided") === "open"} last={params.get("item") === "last"} /> : <Gallery lang={lang} dark={dark} />;
+    // ?page=guide-run&state=…：按表单的引导卡 + 替身引擎（kit/guide-run.tsx）
+    const page = params.get("page") === "guide-run" ? <GuideRunPreview state={params.get("state") ?? ""} /> : params.get("page") === "allow" ? <AllowCardPreview /> : params.get("page") === "guide-inputs" ? <GuideInputsPreview /> : params.get("page") === "guide" ? <GuidePreview decidedOpen={params.get("decided") === "open"} last={params.get("item") === "last"} /> : <Gallery lang={lang} dark={dark} />;
     createRoot(document.getElementById("root") as HTMLElement).render(page);
   },
 );

@@ -49,11 +49,12 @@ export const setAmount = (rows: readonly AmountRow[], code: string, amount: stri
   rows.map((row) => (row.code === code ? { code, amount } : row));
 
 /** 金额多选哪里不对：一行都没勾 / 有一行不是正数 / 有一行超过它最多能填的数；回哪一种与是哪一行。 */
-export function amountsProblem(options: readonly AmountOption[], rows: readonly AmountRow[]): { problem: AmountProblem; code?: string } {
+export function amountsProblem(options: readonly AmountOption[], rows: readonly AmountRow[], zero = false): { problem: AmountProblem; code?: string } {
   if (!rows.length) return { problem: "empty" };
   for (const row of rows) {
     const value = toMinor(row.amount);
-    if (value === null || value <= 0n) return { problem: "amount", code: row.code };
+    // zero（N4 盘点记数）：数到 0 是有效的
+    if (value === null || value < 0n || (value === 0n && !zero)) return { problem: "amount", code: row.code };
     const max = toMinor(options.find((item) => item.code === row.code)?.max);
     if (max !== null && value > max) return { problem: "over", code: row.code };
   }
@@ -83,7 +84,7 @@ export function fillRest(rows: readonly AmountRow[], total: string, code: string
   return rest > 0n ? setAmount(rows, code, fromMinor(rest)) : [...rows];
 }
 
-export type ValueKind = "month" | "date" | "number" | "text";
+export type ValueKind = "month" | "date" | "time" | "number" | "text";
 export const TEXT_MAX = 500;
 
 /** 一格输入的值对不对（规则同服务端）。 */
@@ -96,6 +97,8 @@ export function valueOk(kind: ValueKind, value: string): boolean {
     const found = new Date(Date.UTC(year, month - 1, day));
     return found.getUTCFullYear() === year && found.getUTCMonth() === month - 1 && found.getUTCDate() === day;
   }
+  // N8 时刻：HH:MM，24 小时
+  if (kind === "time") return /^([01]\d|2[0-3]):[0-5]\d$/.test(text);
   if (kind === "number") return /^-?\d+(\.\d+)?$/.test(text.trim());
   return text.trim() !== "" && text.length <= TEXT_MAX;
 }

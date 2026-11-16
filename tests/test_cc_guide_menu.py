@@ -92,14 +92,14 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn('data-slot="cc-business-menu"', body)
         self.assertNotIn('cc-quick-replies', body)  # 业务菜单不是快捷回复：流程按 cc-quick-replies 找「写入」那颗
         self.assertIn("if (record || running || !list.length) return null;", body)
-        self.assertIn("offered?.[mode]", body)
+        self.assertIn("const list = menuOf(offered, mode);", body)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
         # 选中的实底带 ×，点了取消；没选的是描边按钮
         self.assertIn('variant="secondary"', body)
         self.assertIn("<XIcon />", body)
         self.assertIn('chooseBusiness(sessionId, "")', body)
         self.assertIn('variant="outline"', body)
         # 占位字按业务换
-        self.assertIn("guide.placeholder[business]", thread)
+        self.assertIn("(guide.placeholder as Record<string, string>)[business]", thread)
 
     def test_prompt_is_drawn_by_the_page_in_the_conversation(self):
         """选了业务 CC 在对话里说一句要什么（用户 11-14：不是只换输入框的提示字）：在消息组里、待发气泡之后；同回复的正文样式；
@@ -111,7 +111,7 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn('data-slot="cc-business-prompt"', body)
         self.assertIn("cc-reply", body)
         self.assertIn("promptOf(business, at, messages, composerFiles, pending)", body)
-        self.assertIn("guide.prompt[shown]", body)
+        self.assertIn("(guide.prompt as Record<string, string>)[shown]", body)
         self.assertNotIn("data-role", body)
 
     def test_words_in_four_languages(self):

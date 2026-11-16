@@ -37,18 +37,20 @@ class GuideRunCardTests(unittest.TestCase):
         self.assertIn("if (!was || was.version <= run.version) byRun.set(run.run, run);", body)
         self.assertIn("a.startedAt.localeCompare(b.startedAt)", body)
         self.assertIn("<BusinessPrompt />\n            <GuideRuns />", thread)
+        self.assertIn("<GuideRunCard key={run.run} run={run} sessionId={snapshot.sessionId} />", thread)
         reducer = read("lib/managed-agents/reducer.ts")
         self.assertIn('case "pearnly.guide": {', reducer)
         self.assertIn("if (was && was.version >= event.version) return state;", reducer)
 
     def test_the_card_sends_only_chosen_values_and_confirms_with_the_shown_version(self):
         card = read("components/tool-uis/guide-run-card.tsx")
-        self.assertIn('q.input === "amounts" || q.input === "split" ? rowsToSend(value as AmountRow[]) : value', card)
+        lib = read("lib/guide-run.ts")
+        # 金额行按 rowsToSend 交（lib/guide-run.ts 的 toSend，A2 线 11-16 把一题的值的规则收进纯函数）
+        self.assertIn('if (question.input === "amounts" || question.input === "split") return rowsToSend(value as AmountRow[]);', lib)
         self.assertIn("answerGuide(view.run, given, view.version)", card)
-        self.assertIn("confirmGuide(view.run, view.version)", card)
-        self.assertIn('{t("recordNow")}', card)  # 已上线的词，不新增文案
-        for kit in ('from "@/components/ui/button"', 'from "@/components/ui/radio-group"', 'from "@/components/ui/input"',
-                    'from "./guide-inputs"'):
+        self.assertIn("confirmGuide(view.run, view.version)", read("components/tool-uis/guide-review.tsx"))
+        self.assertIn('{t("recordNow")}', read("components/tool-uis/guide-review.tsx"))  # 已上线的词，不新增文案
+        for kit in ('from "@/components/ui/button"', 'from "@/components/ui/questionnaire"', 'from "./guide-inputs"'):
             self.assertIn(kit, card)
         self.assertNotIn("<button", card)  # 不手写通用控件
 

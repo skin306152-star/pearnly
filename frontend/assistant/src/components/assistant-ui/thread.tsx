@@ -60,11 +60,12 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type Business, chooseBusiness, loadOffered, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
+import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
 import { startGuide } from "@/lib/guide-run";
 import { withReport } from "@/lib/caught";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
 import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
+import { BusinessIcon } from "@/components/business-icon";
 import { useModePlace } from "@/lib/nav";
 import {
   createContext,
@@ -255,7 +256,7 @@ const GuideRuns: FC = () => {
     return [...byRun.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   }, [snapshot.guides, started]);
   if (!runs.length) return null;
-  return <>{runs.map((run) => <GuideRunCard key={run.run} run={run} />)}</>;
+  return <>{runs.map((run) => <GuideRunCard key={run.run} run={run} sessionId={snapshot.sessionId} />)}</>;
 };
 
 const BusinessPrompt: FC = () => {
@@ -269,7 +270,7 @@ const BusinessPrompt: FC = () => {
   if (!shown) return null;
   return (
     <div data-slot="cc-business-prompt" data-business={shown} className="cc-reply px-(--cc-space-8) wrap-break-word">
-      <p>{guide.prompt[shown]}</p>
+      <p>{(guide.prompt as Record<string, string>)[shown] ?? ""}</p>
     </div>
   );
 };
@@ -436,8 +437,6 @@ const RecordQuickReply: FC = () => {
   );
 };
 
-const BUSINESS_ICONS: Record<Business, typeof ShoppingCartIcon> = { purchase: ShoppingCartIcon, sales: TagIcon, collection: WalletIcon };
-const businessLabel = (business: Business) => (business === "collection" ? guide.collection : op.group[business]);
 
 /** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1）：与「写入」同一行、同一种按钮，同一刻只出一种——有写入计划在等时出「写入」，
  *  在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式真能做的（服务端 businesses，产品声明）；选中的一项实底带「×」，点了取消。
@@ -452,15 +451,14 @@ const BusinessMenu: FC = () => {
   const current = useCurrentBusiness(sessionId) as Business | "";
   useBusinessCarry(sessionId);
   useEffect(() => void loadOffered(), []);
-  const list = offered?.[mode] ?? [];
+  const list = menuOf(offered, mode);
   if (record || running || !list.length) return null;
   if (current && list.includes(current)) {
-    const Icon = BUSINESS_ICONS[current];
     return (
       <div data-slot="cc-business-menu" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
         <Button variant="secondary" size="sm" aria-pressed onClick={() => chooseBusiness(sessionId, "")}>
-          <Icon />
-          {businessLabel(current)}
+          <BusinessIcon business={current} icon={offered?.icons?.[current]} />
+          {businessName(current)}
           <XIcon />
         </Button>
       </div>
@@ -469,11 +467,10 @@ const BusinessMenu: FC = () => {
   return (
     <div data-slot="cc-business-menu" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
       {list.map((business) => {
-        const Icon = BUSINESS_ICONS[business];
         return (
-          <Button key={business} variant="outline" size="sm" onClick={() => pickBusiness(sessionId, business, offered?.forms ?? [])}>
-            <Icon />
-            {businessLabel(business)}
+          <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => pickBusiness(sessionId, business, offered?.forms ?? [])}>
+            <BusinessIcon business={business} icon={offered?.icons?.[business]} />
+            {businessName(business)}
           </Button>
         );
       })}
@@ -512,7 +509,7 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   // 选了业务（输入框上方的业务菜单）：占位字换成按业务的一句，上传就用输入框本来的入口（评估 6.1，用户 11-12：选了业务后不出上传卡）
   const businessId = useAuiState((s) => s.threadListItem.remoteId ?? null);
   const business = useCurrentBusiness(businessId) as Business | "";
-  const placeholder = fixed ?? (business ? guide.placeholder[business] : hasMessages ? t("reply") : t("placeholder"));
+  const placeholder = fixed ?? (business ? ((guide.placeholder as Record<string, string>)[business] ?? t("reply")) : hasMessages ? t("reply") : t("placeholder"));
   // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
   // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
   const [typing, setTyping] = useState(false);

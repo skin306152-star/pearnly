@@ -7,10 +7,17 @@
 import { useEffect } from "react";
 import { create } from "zustand";
 import { get, post } from "@/lib/frappe";
+import { guide, op } from "@/i18n";
 import { withReport } from "./caught";
 
-export type Business = "purchase" | "sales" | "collection";
-export type Offered = { chat: Business[]; operator: Business[]; /** 按表单走的业务：点了开一次引导运行（guide_start） */ forms?: string[] };
+export type Business = string;
+/** 清单（服务端 api.businesses，S1）：两种模式各能做的业务、按表单走的业务；菜单字（已按本页语言翻好）、图标（声明 ICONS 里的 lucide 名）、顺序。
+ *  labels / icons / order 是 S1 要加的（引擎窗口 11-16 答复），没带时退回第 1 期写死的三个。 */
+export type Offered = {
+  chat: Business[]; operator: Business[];
+  /** 按表单走的业务：点了开一次引导运行（guide_start） */ forms?: string[];
+  labels?: Record<string, string>; icons?: Record<string, string>; order?: Record<string, number>;
+};
 
 
 type State = { offered: Offered | null; bySession: Record<string, string>; atBySession: Record<string, number>; draft: string;
@@ -27,7 +34,8 @@ let loading: Promise<void> | null = null;
 /** 读一次这个产品能做的业务（读不到当没有，不出菜单）。 */
 export function loadOffered(): Promise<void> {
   loading ??= get<Offered>("businesses")
-    .then((out) => useBusiness.setState({ offered: { chat: out?.chat ?? [], operator: out?.operator ?? [], forms: out?.forms ?? [] } }))
+    .then((out) => useBusiness.setState({ offered: { chat: out?.chat ?? [], operator: out?.operator ?? [], forms: out?.forms ?? [],
+      labels: out?.labels ?? {}, icons: out?.icons ?? {}, order: out?.order ?? {} } }))
     .catch(withReport(() => useBusiness.setState({ offered: { chat: [], operator: [] } }), "business-offered"));
   return loading;
 }
@@ -93,4 +101,17 @@ export type StartedRun = { run: string; business: string; status: string; versio
 export const useStartedRuns = create<{ bySession: Record<string, StartedRun[]> }>(() => ({ bySession: {} }));
 export function noteStartedRun(sessionId: string, run: StartedRun) {
   useStartedRuns.setState((s) => ({ bySession: { ...s.bySession, [sessionId]: [...(s.bySession[sessionId] ?? []).filter((r) => r.run !== run.run), run] } }));
+}
+
+const FALLBACK: Record<string, () => string> = { collection: () => guide.collection, purchase: () => op.group.purchase, sales: () => op.group.sales };
+/** 业务的菜单字：服务端清单给的（已翻好）；没给退回第 1 期的三个；都没有用业务 id。 */
+export function businessName(business: string): string {
+  return useBusiness.getState().offered?.labels?.[business] || FALLBACK[business]?.() || business;
+}
+
+/** 某模式的菜单（按声明的 order 排，没给照清单原顺序）。 */
+export function menuOf(offered: Offered | null, mode: "chat" | "operator"): Business[] {
+  const list = [...(offered?.[mode] ?? [])];
+  const order = offered?.order ?? {};
+  return list.map((id, i) => ({ id, i })).sort((a, b) => (order[a.id] ?? a.i) - (order[b.id] ?? b.i) || a.i - b.i).map((row) => row.id);
 }
