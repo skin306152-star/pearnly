@@ -72,6 +72,7 @@ Account set,Account set
 Account signed in elsewhere,Account signed in elsewhere
 Accrual basis,Accrual basis
 Ack Digest,Ack Digest
+Action,Action
 Active,Active
 Active Attempt,Active Attempt
 Active Key,Active Key
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,Choose a day and time for the monthly
 Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
 Choose an Express account set first,Choose an Express account set first
+Choose an action.,Choose an action.
 Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
@@ -645,6 +647,7 @@ Discount Amount,Discount Amount
 Display Path,Display Path
 Display text (optional),Display text (optional)
 Dividends,Dividends
+Document,Document
 Document Key,Document Key
 Document No.,Document No.
 Document Policy,Document Policy
@@ -653,6 +656,7 @@ Document no.,Document no.
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
+Documents,Documents
 Documents to handle,Documents to handle
 Does account {0} belong in this reconciliation?,Does account {0} belong in this reconciliation?
 Does {0} post in batches?,Does {0} post in batches?
@@ -699,6 +703,7 @@ Edit Count,Edit Count
 Edit History,Edit History
 Edit card,Edit card
 Edit dates,Edit dates
+Edit document,Edit document
 Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
@@ -766,6 +771,7 @@ Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
+Export review workbook,Export review workbook
 Exported a reconciliation,Exported a reconciliation
 Exported a stock count,Exported a stock count
 Exported the review workbook,Exported the review workbook
@@ -865,6 +871,7 @@ Goods documents,Goods documents
 Gray,Gray
 Green,Green
 Group,Group
+Handle,Handle
 Handle these the same way every time,Handle these the same way every time
 Has GL Match,Has GL Match
 Head office,Head office
@@ -3440,10 +3447,18 @@ erp.target_projection_value_required,The ERP data report is missing a required v
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
+guide.business.pending,Pending
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.open.pending,Choose an action.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
+guide.option.pending.export,Export review workbook
+guide.option.pending.handle,Handle
+guide.option.pending.review,Edit document
+guide.step.pending.action,Action
+guide.step.pending.item,Document
+guide.step.pending.items,Documents
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

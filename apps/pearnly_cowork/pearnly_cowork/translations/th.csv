@@ -72,6 +72,7 @@ Account set,ชุดบัญชี
 Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Accrual basis,เกณฑ์สิทธิ
 Ack Digest,แฮชผลตอบรับ
+Action,การดำเนินการ
 Active,ใช้งาน
 Active Attempt,การพยายามส่งปัจจุบัน
 Active Key,คีย์ป้องกันรายการซ้ำที่ใช้งาน
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,กรุณาเลือกวั�
 Choose a file,เลือกไฟล์
 "Choose a folder inside the allowed root, without system folders.",กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 Choose an Express account set first,กรุณาเลือกชุดบัญชี Express ก่อน
+Choose an action.,เลือกการดำเนินการ
 Choose an allowed root reported by CC Desktop.,กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
@@ -645,6 +647,7 @@ Discount Amount,จำนวนส่วนลด
 Display Path,พาธที่แสดง
 Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
 Dividends,เงินปันผล
+Document,เอกสาร
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document No.,เลขที่เอกสาร
 Document Policy,กฎการบันทึกเอกสาร
@@ -653,6 +656,7 @@ Document no.,เลขที่เอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
+Documents,เอกสาร
 Documents to handle,เอกสารรอดำเนินการ
 Does account {0} belong in this reconciliation?,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
 Does {0} post in batches?,{0} ลงบัญชีแบบรวมยอดหรือไม่
@@ -699,6 +703,7 @@ Edit Count,จำนวนครั้งที่แก้ไข
 Edit History,ประวัติการแก้ไข
 Edit card,แก้ไขการ์ด
 Edit dates,แก้ไขวันที่
+Edit document,แก้ไขเอกสาร
 Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
@@ -766,6 +771,7 @@ Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
+Export review workbook,ส่งออกสมุดงานตรวจทาน
 Exported a reconciliation,ส่งออกผลการกระทบยอดแล้ว
 Exported a stock count,ส่งออกผลต่างการตรวจนับแล้ว
 Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
@@ -865,6 +871,7 @@ Goods documents,เอกสารสินค้า
 Gray,เทา
 Green,เขียว
 Group,กลุ่ม
+Handle,ดำเนินการ
 Handle these the same way every time,จัดการแบบนี้ทุกครั้ง
 Has GL Match,มีรายการ GL ที่ตรงกัน
 Head office,สำนักงานใหญ่
@@ -3440,10 +3447,18 @@ erp.target_projection_value_required,รายงานข้อมูล ERP �
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
+guide.business.pending,รอดำเนินการ
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
+guide.open.pending,เลือกการดำเนินการ
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
+guide.option.pending.export,ส่งออกสมุดงานตรวจทาน
+guide.option.pending.handle,ดำเนินการ
+guide.option.pending.review,แก้ไขเอกสาร
+guide.step.pending.action,การดำเนินการ
+guide.step.pending.item,เอกสาร
+guide.step.pending.items,เอกสาร
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

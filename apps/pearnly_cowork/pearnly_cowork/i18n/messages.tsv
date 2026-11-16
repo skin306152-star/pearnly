@@ -2445,3 +2445,11 @@ General ledger	总账	บัญชีแยกประเภททั่วไ�
 Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	guide.step.recon.sales_vat
 Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	guide.step.recon.invoices
 From Express readback	从 Express 回读	อ่านข้อมูลกลับจาก Express	Express から読み戻し	cowork.recon.fromReadback
+Pending	待处理	รอดำเนินการ	処理待ち	guide.business.pending
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.pending
+Action	操作	การดำเนินการ	操作	guide.step.pending.action
+Document	单据	เอกสาร	書類	guide.step.pending.item
+Documents	单据	เอกสาร	書類	guide.step.pending.items
+Handle	处理	ดำเนินการ	処理	guide.option.pending.handle
+Edit document	修改票面	แก้ไขเอกสาร	書類を修正	guide.option.pending.review
+Export review workbook	导出复核工作簿	ส่งออกสมุดงานตรวจทาน	確認用ブックを書き出し	guide.option.pending.export
