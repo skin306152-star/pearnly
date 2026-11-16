@@ -183,7 +183,8 @@ def statement_facts(ctx) -> list:
 def _files(file_ids) -> list:
     from pearnly_core.assistant import files as chat_files
 
-    return [chat_files.attachment(file_id) for file_id in file_ids or ()]
+    return [chat_files.attachment(file_id)  # loop-query: 一步最多 20 份（引擎 steps.FILES_MAX）
+            for file_id in file_ids or ()]
 
 
 def files_check(ctx, value) -> str:
@@ -229,7 +230,7 @@ def confirm(ctx, values, draft, consent) -> dict:
     kind, _how = _source(values)
     with _conversation(ctx):
         try:
-            sides = {side: _side(values, role) for side, role in SIDES[kind].items()}
+            sides = {side: _side(values, role) for side, role in SIDES[kind].items()}  # loop-query: 两侧
             started = jobs.start(kind, "", sides, {"lang": frappe.local.lang or "th"})
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()
@@ -312,7 +313,8 @@ def follow(ctx, draft, answers) -> dict:
         job = done["job"]
         for key, value in answers.items():
             item = asked[key]
-            made = presets.answer(kind, state["task"], item["rule"], str(value), item.get("subject"), frappe.local.lang or "th")
+            made = presets.answer(kind, state["task"], item["rule"], str(value), item.get("subject"),  # loop-query: 一次只答结果里的几题
+                                  frappe.local.lang or "th")
             if isinstance(made, dict) and made.get("job"):
                 job = made["job"]
     return {"status": "queued", "kind": kind, "job": job}
