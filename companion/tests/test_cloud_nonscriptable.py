@@ -1,6 +1,7 @@
 """远程桌面控件非脚本两项（``companion.cloud_link.nonscriptable``）。
 
-守住：开 CredSSP、关动态盘、重扫一次；逐个盘只让隧道盘为真、其余全部为假；找不到隧道盘或找到不止一个、任何一步 HRESULT 失败都抛错（不连）；
+守住：开 CredSSP、关动态盘、重扫一次；逐个盘只让隧道盘为真、其余全部为假；每项设完读回核对；找不到隧道盘或找到不止一个、
+任何一步 HRESULT 失败、读回不符都抛错（不连）；
 拿到的指针全部 Release；vtable 下标与 IID 钉死（取自 mstsax.idl，并与 mstscax.dll 类型库核对过）；非 Windows 建不出真调用。"""
 from __future__ import annotations
 
@@ -23,6 +24,7 @@ class FakeCalls:
         self.log = []
         self.states = {}
         self.refs = {}
+        self.credssp = False
 
     def _hr(self, key):
         return self.fail.get(key, 0)
@@ -43,9 +45,24 @@ class FakeCalls:
 
     def put_bool(self, ptr, index, value):
         self.log.append(("put", ptr, index, value))
-        if ptr >= 0x4000 and index == ns.V_PUT_REDIRECTION_STATE:
+        hr = self._hr(("put", index))
+        if not hr and ptr >= 0x4000 and index == ns.V_PUT_REDIRECTION_STATE:
             self.states[ptr - 0x4000] = value
-        return self._hr(("put", index))
+        if not hr and ptr == NS3 and index == ns.V_PUT_ENABLE_CREDSSP:
+            self.credssp = value
+        return hr
+
+    def get_bool(self, ptr, index):
+        self.log.append(("read", ptr, index))
+        if ptr == NS3:
+            assert index == ns.V_GET_ENABLE_CREDSSP
+            value = self.credssp if not self.fail.get("ignore_credssp") else False
+            return self._hr(("read", index)), value
+        assert index == ns.V_GET_REDIRECTION_STATE
+        value = self.states.get(ptr - 0x4000, False)
+        if self.fail.get("stuck_drive") == ptr - 0x4000:
+            value = not value
+        return self._hr(("read", index)), value
 
     def get_ulong(self, ptr, index):
         assert (ptr, index) == (DRIVES, ns.V_GET_DRIVE_COUNT)
@@ -97,6 +114,11 @@ def test_missing_or_ambiguous_tunnel_drive_refuses(names):
     {"name": 0x80004005},
     {("put", ns.V_PUT_REDIRECTION_STATE): 0x80070005},
     {"query": True},
+    {("read", ns.V_GET_ENABLE_CREDSSP): 0x80004005},
+    {("read", ns.V_GET_REDIRECTION_STATE): 0x80004005},
+    {"ignore_credssp": True},                                # 控件不认 CredSSP：读回仍是假
+    {"stuck_drive": 0},                                      # 某个盘设了不生效：读回不符
+    {"stuck_drive": 1},                                      # 隧道盘本身没打开
 ])
 def test_any_failed_step_refuses_and_releases(fail):
     calls = FakeCalls(["C:", "X:"], fail=fail)
@@ -129,9 +151,10 @@ def test_drive_letter(name, letter):
 
 def test_pinned_layout():
     assert ns.IID_NONSCRIPTABLE3 == "{B3378D90-0728-45C7-8ED7-B6159FB92219}"
-    assert (ns.V_PUT_ENABLE_CREDSSP, ns.V_PUT_REDIRECT_DYNAMIC_DRIVES, ns.V_GET_DRIVE_COLLECTION) == (23, 25, 30)
+    assert (ns.V_PUT_ENABLE_CREDSSP, ns.V_GET_ENABLE_CREDSSP) == (23, 24)
+    assert (ns.V_PUT_REDIRECT_DYNAMIC_DRIVES, ns.V_GET_DRIVE_COLLECTION) == (25, 30)
     assert (ns.V_RESCAN_DRIVES, ns.V_GET_DRIVE_BY_INDEX, ns.V_GET_DRIVE_COUNT) == (3, 4, 5)
-    assert (ns.V_GET_NAME, ns.V_PUT_REDIRECTION_STATE) == (3, 4)
+    assert (ns.V_GET_NAME, ns.V_PUT_REDIRECTION_STATE, ns.V_GET_REDIRECTION_STATE) == (3, 4, 5)
 
 
 def test_never_touches_send_keys_or_warning_switches():
@@ -142,13 +165,40 @@ def test_never_touches_send_keys_or_warning_switches():
     assert indexes == {ns.V_PUT_ENABLE_CREDSSP, ns.V_PUT_REDIRECT_DYNAMIC_DRIVES}
 
 
-def test_for_widget_releases_control_pointer(monkeypatch):
-    calls = FakeCalls(["X:"])
-    monkeypatch.setattr(ns, "control_unknown", lambda ax: calls._take(CONTROL))
-    run = ns.for_widget(lambda: calls)
-    run(object(), window.NonScriptable(enable_credssp=True, drive="X"))
+def test_every_setting_is_read_back():
+    calls = FakeCalls(["C:", "X:"])
+    ns.apply(CONTROL, drive="X", calls=calls)
+    reads = [entry for entry in calls.log if entry[0] == "read"]
+    assert reads == [("read", NS3, ns.V_GET_ENABLE_CREDSSP), ("read", 0x4000, ns.V_GET_REDIRECTION_STATE),
+                     ("read", 0x4001, ns.V_GET_REDIRECTION_STATE)]
+
+
+def test_read_back_reports_without_changing_anything():
+    calls = FakeCalls(["Local Disk (C:)", "Pearnly (X:)"])
+    ns.apply(CONTROL, drive="X", calls=calls)
+    before = len([e for e in calls.log if e[0] == "put"])
+    assert ns.read_back(CONTROL, calls=calls) == {"credssp": True, "drives": [("C", False), ("X", True)]}
+    assert len([e for e in calls.log if e[0] == "put"]) == before
     assert balanced(calls)
-    assert calls.states == {0: True}
+
+
+class FakeControl:
+    def __init__(self, address):
+        self.address = address
+
+    def unknown_address(self):
+        return self.address
+
+
+def test_for_widget_uses_the_borrowed_control_pointer_and_does_not_release_it():
+    calls = FakeCalls(["X:"])
+    run = ns.for_widget(lambda: calls)
+    run(FakeControl(CONTROL), window.NonScriptable(enable_credssp=True, drive="X"))
+    assert calls.log[0] == ("query", CONTROL, ns.IID_NONSCRIPTABLE3)
+    assert ("release", CONTROL) not in calls.log             # 控件指针归 ax_host.AxHost 持有
+    assert balanced(calls) and calls.states == {0: True}
+    with pytest.raises(ns.NonScriptableError):
+        run(FakeControl(0), window.NonScriptable(enable_credssp=True, drive="X"))
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="只在非 Windows 上核")

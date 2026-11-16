@@ -442,15 +442,150 @@ def test_window_construct_raises_off_windows():
         window.CloudWindow(PARAMS, password_provider=lambda: "pw", nonscriptable=None)
 
 
-# ---------------- window：只在 Windows（有 QtAxContainer 与 MsTscAx）上跑 ----------------
-
-windows_only = pytest.mark.skipif(not window.available(), reason="需要 Windows 与 PySide6.QtAxContainer")
-
-
 @pytest.fixture
 def qt_app():
+    pytest.importorskip("PySide6")
     from PySide6.QtWidgets import QApplication
     return QApplication.instance() or QApplication([])
+
+
+# ---------------- window：假的控件宿主（任何平台都跑，核窗口与宿主之间的调用） ----------------
+
+class FakeControl(FakeAx):
+    def __init__(self, log, **kw):
+        super().__init__(**kw)
+        self.log = log
+        self.connected = 0
+
+    def property(self, name):
+        self.log.append(("get", name))
+        return {"Connected": self.connected, "ExtendedDisconnectReason": 5}.get(name)
+
+    def call(self, name, *args):
+        self.log.append(("call", name) + args)
+        if name == "Connect":
+            self.connected = 1
+        if name == "GetErrorDescription":
+            return "desc %d/%d" % args
+        return None
+
+
+class FakeHost:
+    def __init__(self, hwnd, width, height, *, router, log, refuse=()):
+        self.args = (hwnd, width, height)
+        self.router = router
+        self.log = log
+        self.control = FakeControl(log, refuse=refuse)
+        self.closed = 0
+        self.sizes = []
+
+    def resize(self, width, height):
+        self.sizes.append((width, height))
+
+    def close(self):
+        self.closed += 1
+        self.control = None
+        self.log.append(("host-close",))
+
+
+def _fake_window(monkeypatch, *, nonscriptable=lambda c, ns: None, refuse=(), changes=None):
+    monkeypatch.setattr(window, "available", lambda: True)
+    log, hosts = [], []
+
+    def factory(hwnd, width, height, *, router):
+        hosts.append(FakeHost(hwnd, width, height, router=router, log=log, refuse=refuse))
+        return hosts[-1]
+
+    w = window.CloudWindow(PARAMS, password_provider=lambda: log.append(("password",)) or "pw-1",
+                           nonscriptable=nonscriptable, host_factory=factory,
+                           on_change=(lambda s, d: changes.append((s.state, d))) if changes is not None else None)
+    return w, hosts[0], log
+
+
+def test_window_builds_the_host_on_its_own_native_window(qt_app, monkeypatch):
+    w, host, _ = _fake_window(monkeypatch)
+    hwnd, width, height = host.args
+    assert hwnd == int(w.winId()) and width >= 1 and height >= 1
+    assert host.router is w.events
+    w.close()
+
+
+def test_window_connects_only_after_every_setting_went_in(qt_app, monkeypatch):
+    seen = []
+    w, host, log = _fake_window(monkeypatch, nonscriptable=lambda c, ns: seen.append((c, ns)))
+    control = host.control
+    assert w.connect_now() is True
+    assert seen == [(control, window.NonScriptable(enable_credssp=True, drive="X"))]
+    assert control.subs["AdvancedSettings9"].props["ClearTextPassword"] == "pw-1"
+    assert log[-1] == ("call", "Connect")
+    w.close()
+
+
+@pytest.mark.parametrize("case", ["property", "nonscriptable"])
+def test_window_does_not_connect_when_a_setting_fails(qt_app, monkeypatch, case):
+    def refuse_ns(c, ns):
+        raise window.NonScriptableUnavailable("drive")
+
+    kwargs = {"refuse": {"RedirectDrives"}} if case == "property" else {"nonscriptable": refuse_ns}
+    w, host, log = _fake_window(monkeypatch, **kwargs)
+    with pytest.raises((window.ControlSettingError, window.NonScriptableUnavailable)):
+        w.connect_now()
+    assert ("call", "Connect") not in log
+    assert "ClearTextPassword" not in host.control.subs["AdvancedSettings9"].props
+    assert w.session.state is State.IDLE
+    w.close()
+
+
+def test_window_events_reach_the_session_and_read_the_control(qt_app, monkeypatch):
+    changes = []
+    w, host, log = _fake_window(monkeypatch, changes=changes)
+    w.connect_now()
+    host.router.on_connected()
+    host.router.on_login_complete()
+    assert w.session.state is State.CONNECTED
+    host.router.on_disconnected(3)                           # 扩展原因 5：被挤
+    assert w.session.snapshot().halt is Outcome.REPLACED
+    assert ("get", "ExtendedDisconnectReason") in log and ("call", "GetErrorDescription", 3, 5) in log
+    assert w.last_description == "desc 3/5" and changes[-1] == (State.HALTED, "desc 3/5")
+    w.close()
+
+
+def test_closing_the_window_disconnects_then_closes_the_host(qt_app, monkeypatch):
+    w, host, log = _fake_window(monkeypatch)
+    w.connect_now()
+    host.router.on_login_complete()
+    w.close()
+    assert log[-3:] == [("get", "Connected"), ("call", "Disconnect"), ("host-close",)]
+    assert host.closed == 1 and w.session.snapshot().last_outcome is Outcome.USER_CLOSED
+    with pytest.raises(window.WindowUnavailable):           # 控件已放掉：不会再碰它，也不连
+        w.connect_now()
+    assert ("call", "Connect") not in log[log.index(("host-close",)):]
+
+
+def test_window_resize_moves_the_control(qt_app, monkeypatch):
+    w, host, _ = _fake_window(monkeypatch)
+    w.show()
+    w.resize(900, 700)
+    qt_app.processEvents()
+    assert host.sizes and host.sizes[-1][0] >= 900
+    w.close()
+
+
+def test_host_failure_is_window_unavailable(qt_app, monkeypatch):
+    from companion.cloud_link import ax_host
+
+    monkeypatch.setattr(window, "available", lambda: True)
+
+    def factory(*a, **kw):
+        raise ax_host.AxUnavailable("AtlAxGetControl 80004005")
+
+    with pytest.raises(window.WindowUnavailable, match="AtlAxGetControl"):
+        window.CloudWindow(PARAMS, password_provider=lambda: "pw", nonscriptable=None, host_factory=factory)
+
+
+# ---------------- window：只在 Windows（有 comtypes 与远程桌面控件）上跑 ----------------
+
+windows_only = pytest.mark.skipif(not window.available(), reason="需要 Windows、PySide6 与 comtypes")
 
 
 @windows_only
@@ -465,6 +600,7 @@ def test_window_minimized_titled_and_closing_is_disconnect(qt_app):
     assert w.session.state is State.IDLE
     w.close()
     assert w.session.snapshot().last_outcome is Outcome.USER_CLOSED
+    assert w._host.closed
 
 
 @windows_only
@@ -482,7 +618,6 @@ def test_window_events_drive_session(qt_app):
 
 
 def test_module_imports_off_windows():
-    assert window.CONTROL == "MsTscAx.MsTscAx"
     assert "云端 Express" in window.WINDOW_TITLE
     if sys.platform != "win32":
         assert not window.available()

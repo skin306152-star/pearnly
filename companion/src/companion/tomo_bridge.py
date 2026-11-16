@@ -519,7 +519,7 @@ class TomoBridge(QObject):
                 host.request_forget(connection)
             self._cloud_forgets.clear()
         except HostUnavailable:
-            log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 QtAxContainer）")
+            log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 PySide6、comtypes）")
         except Exception as exc:
             log.warning("起云端连接失败：%s", type(exc).__name__)
         session = self._cloud_session()
