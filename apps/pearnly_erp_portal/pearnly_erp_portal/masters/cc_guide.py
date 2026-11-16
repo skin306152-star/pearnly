@@ -2,7 +2,7 @@
 ``GUIDES`` 是纯字面量，闸门按源码读。产品函数在 `masters.guide`，只转调公司页同一组函数（`masters.cc_service`）。
 
 - 公司资料：业务 id `company` 与 Cowork 的公司资料同一个（菜单字、图标、步骤 key 相同）；做什么（加 / 改 / 删笔记）→ 笔记 → 正文。
-  公司 = 本对话公司。删笔记要画成允许卡：等引擎按答案区分确定样式（约定 11-16）后在这里补 ``consent``。
+  公司 = 本对话公司。删笔记画成允许卡（``consent`` 按「做什么」的答案区分，约定 11-16）。
 - 添加公司：连接里还没接进 ERP 的公司（多选，服务端搜索）→ 复核 → 确定（同公司页「从连接添加」）；只给能建公司的人。
 """
 
@@ -35,6 +35,7 @@ GUIDES = [
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_erp_portal.masters.cc_guide.allowed_notes",
      "opening_key": "guide.open.company", "source": "form", "writes": True,
+     "consent": {"key": "action", "value": "note_delete"},
      "steps": [
          {"key": "action", "input": "choice", "rule": "always", "options": "pearnly_erp_portal.masters.guide.action_options"},
          {"key": "note", "input": "choice", "rule": "always", "after": ["action"],

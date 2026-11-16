@@ -6,7 +6,7 @@
 只转调 CC 工具同一组函数（`assistant.company_tools` 的 ``note_save / note_remove / choice_save``（带 key = 设为全公司）/
 ``choice_remove``，它们调 `companies` 的公开入口，按本对话公司认、写时只认本对话公司），选项来自公司资料（`companies.service.detail`）
 与公司规则（`companies.rules.listing`）。从一张单据新建规则属于采购 / 销售判定卡（主会话 11-16），不在这里。
-删笔记、删规则要画成允许卡：等引擎按答案区分确定样式（约定 11-16）后补 ``consent``。
+删笔记、删规则画成允许卡（``consent`` 按「做什么」的答案区分，约定 11-16）。
 """
 from __future__ import annotations
 
@@ -184,6 +184,7 @@ GUIDES = [
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_cowork.assistant.guided.company.allowed",
      "opening_key": "guide.open.company", "source": "form", "writes": True,
+     "consent": {"key": "action", "in": ["note_delete", "rule_delete"]},
      "steps": [
          {"key": "action", "input": "choice", "rule": "always", "options": "pearnly_cowork.assistant.guided.company.action_options"},
          {"key": "note", "input": "choice", "rule": "always", "search": True, "after": ["action"],

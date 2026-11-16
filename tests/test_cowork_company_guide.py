@@ -171,6 +171,13 @@ class Declaration(Base):
         self.assertEqual(registry.offered()["chat"], [])
 
 
+class Consent(Base):
+    def test_deleting_draws_the_allow_card(self):
+        name = run.start(SESSION, "company")["run"]
+        for action, consent in (("note_delete", "allow"), ("rule_delete", "allow"), ("note_add", "confirm"), ("rule_promote", "confirm")):
+            self.assertEqual(run.answer(name, {"action": action})["consent"], consent, action)
+
+
 class Notes(Base):
     def test_adding_a_note_goes_through_the_cc_tool_in_this_conversation(self):
         name, found = self.walk({"action": "note_add"})
