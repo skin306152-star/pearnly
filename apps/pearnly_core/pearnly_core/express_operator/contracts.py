@@ -114,10 +114,26 @@ def _operator_guided_floor(payload: dict) -> int:
 
 PAY_ROUTES = ("cash", "transfer")  # ``operator.pay_route`` 的取值（``menu_choice.pay_route``）
 FORM_CHOICE_MAX = 200
+# 中途配方外业务选择框的记住答案（``operator.dialog_answers`` = {框指纹: 按钮原文}，CC 桌面版 1.12.23 起读、旧版忽略）：同 CC
+# ``draft.dialog_answers`` 的收法——16 位小写十六进制指纹、按钮 1–60 字、最多 50 条
+DIALOG_ANSWERS_MAX, DIALOG_BUTTON_MAX = 50, 60
+
+
+def dialog_answers(value) -> dict:
+    if not isinstance(value, dict):
+        return {}
+    out = {}
+    for digest, button in value.items():
+        key, text = str(digest or "").strip().lower(), str(button or "").strip()
+        if len(key) == 16 and all(c in "0123456789abcdef" for c in key) and 0 < len(text) <= DIALOG_BUTTON_MAX:
+            out[key] = text
+        if len(out) >= DIALOG_ANSWERS_MAX:
+            break
+    return out
 
 
 def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, target: str = TARGET_EXPRESS,
-                 form_choice: str = "", pay_route: str = "") -> dict:
+                 form_choice: str = "", pay_route: str = "", dialog_answers_by_digest=None) -> dict:
     """直写载荷 → 代录载荷：加 ``entry_mode = operator`` 与批次信息，版本至少 16（旧版 CC 诚实拒收，不会被当直写写进 DBF）。
     ``batch``：``{"id", "index", "total", "start_at", "doc", "company"}``（第几张从 1 数；``start_at`` 为 0 = 现在开始；``doc`` 是站点上
     这张单的编号，CC 用它当批次里的单据号，页面才对得上是哪一张）。
@@ -148,6 +164,9 @@ def for_operator(payload: dict, batch: dict, *, vat_included: bool = False, targ
             operator["form_choice"] = choice
         if route in PAY_ROUTES:
             operator["pay_route"] = route
+        answers = dialog_answers(dialog_answers_by_digest)
+        if answers:  # 空的不写键：载荷与以前逐字节相同
+            operator["dialog_answers"] = answers
     return {**payload, "entry_mode": ENTRY_MODE, "operator": operator,
             "payload_version": max(int(payload.get("payload_version") or 1), floor)}
 
