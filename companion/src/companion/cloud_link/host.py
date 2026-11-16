@@ -20,8 +20,11 @@
   ``pearnly_core.cc_desktop.machine.*``），桥按这台云端电脑在各站点登记的令牌所属通道对上站点；令牌每个请求现取（start 之后
   才登记的站点也能用）。**限制**：同一通道登记了不止一个站点时（例如两个 Cowork 站点）只用第一个，其余站点的请求发不到——
   要分站点得改协议，本次不改。多个 ``TunnelRelay`` 同读一个 ``in\\`` 会抢同一个请求再发错站点，所以不按站点各起一个。
-  后台线程每 0.5 秒看一遍 ``in\\``，请求交给几条工作线程并发处理（站点慢的请求不挡别的）；每 60 秒清理一次没人取的文件。
-- 代录凭据交接（``cred_handoff``，做法页 11-16 第二版）：中转循环每一遍顺带看 ``ctl\\``——``cred-req.json`` 用当前会话号与
+  后台线程平时阻塞在目录监视上（``dir_watch``：Windows 用 ``ReadDirectoryChangesW`` 监视隧道根目录含子目录的文件名变化），
+  有变化才看一遍 ``in\\`` 与 ``ctl\\``，空闲时不做任何处理（CC 桌面版要轻量，空闲 CPU 近 0）；另每 60 秒兜底扫描一次（防漏通知，
+  远程桌面重定向盘 / subst 盘上的通知要 Windows 真机实测）并清理没人取的文件；兜底删、配对过期这类定时事到点才醒。
+  监视打不开时退回每 0.5 秒看一遍。请求交给几条工作线程并发处理（站点慢的请求不挡别的）。
+- 代录凭据交接（``cred_handoff``，做法页 11-16 第二版）：中转每看一遍顺带看 ``ctl\\``——``cred-req.json`` 用当前会话号与
   ``LinkStore.device_key`` 校验，本机存有 ``Pearnly CC/cloud-express/<主机>/<连接>`` 才加密写 ``cred-resp.json``，10 秒后兜底再删；
   ``request_forget`` 写 ``cred-forget.json``，收到云端回执才算完，没收到的在下次换会话时按新会话号补发（只在内存，桥重启即丢）。
   已见的请求编号放内存。
@@ -50,6 +53,7 @@ from .. import channel as channels
 from ..logger import get_logger
 from . import cred_handoff as handoff
 from . import device_pairing as pairing
+from . import dir_watch
 from . import rdp
 from . import tunnel_protocol as protocol
 from .session import State
@@ -58,7 +62,7 @@ log = get_logger(__name__)
 
 # 隧道盘从 Z 往 D 找
 LETTERS = "ZYXWVUTSRQPONMLKJIHGFED"
-POLL_SECONDS = 0.5
+FALLBACK_SECONDS = 60.0   # 兜底扫描（防漏通知）的间隔
 CLEANUP_SECONDS = 60.0
 WORKERS = 4
 SUBST_TIMEOUT = 15
@@ -221,6 +225,8 @@ class CloudHost:
                  wall: Callable[[], float] = time.time,
                  read_credential: Optional[Callable[[str, str], Any]] = None,
                  set_title: Optional[Callable[[Any, str], None]] = None,
+                 watch_factory: Optional[Callable[[Path], Any]] = None,
+                 fallback_seconds: float = FALLBACK_SECONDS,
                  run_thread: bool = True) -> None:
         self.host = rdp.host(host)
         self._links = links
@@ -251,6 +257,11 @@ class CloudHost:
         self._inflight_lock = threading.Lock()
         self._fresh = False
         self._next_cleanup = 0.0
+        # 目录监视（dir_watch）：有变化才处理；兜底扫描间隔
+        self._watch_factory = watch_factory or dir_watch.open_watcher
+        self._fallback = float(fallback_seconds)
+        self._watcher: Any = None
+        self._next_scan = 0.0
         self.drive = ""
         # 凭据交接（cred_handoff）：当前会话、已见的请求编号、10 秒兜底删、待云端回执的撤销（连接号 → PendingForget / None）
         self._session: Optional[protocol.Session] = None
@@ -341,6 +352,9 @@ class CloudHost:
             if hasattr(window, "deleteLater"):
                 _step("delete window", window.deleteLater)
         self._halt.set()
+        watcher = self._watcher
+        if watcher is not None:
+            _step("wake relay thread", watcher.interrupt)
         thread, self._thread = self._thread, None
         if thread is not None and thread is not threading.current_thread():
             _step("join relay thread", lambda: thread.join(timeout=5))
@@ -350,6 +364,9 @@ class CloudHost:
         client, self._client, self._forward = self._client, None, None
         if client is not None and hasattr(client, "close"):
             _step("close client", client.close)
+        if watcher is not None and (thread is None or not thread.is_alive()):
+            _step("close directory watch", watcher.close)   # 线程没起 / 已退出：这里收；否则线程退出时自己收
+        self._watcher = None
         self._relay = None
         self._fresh = False
         _step("remove session file", self._remove_ctl)
@@ -477,15 +494,69 @@ class CloudHost:
 
     def _start_relay_thread(self) -> None:
         self._next_cleanup = self._clock()
+        self._next_scan = self._clock() + self._fallback
         if not self._run_thread:
             return
+        self._watcher = self._watch_factory(self.root)
         self._pool = ThreadPoolExecutor(max_workers=WORKERS, thread_name_prefix="cloud-relay")
-        self._thread = threading.Thread(target=self._loop, args=(self._halt,), name="cloud-tunnel", daemon=True)
+        self._thread = threading.Thread(target=self._loop, args=(self._halt, self._watcher), name="cloud-tunnel",
+                                        daemon=True)
         self._thread.start()
 
-    def _loop(self, halt: threading.Event) -> None:
-        while not halt.wait(POLL_SECONDS):
-            self.pump()
+    def _poke(self) -> None:
+        watcher = self._watcher
+        if watcher is not None:
+            try:
+                watcher.poke()
+            except Exception as exc:  # noqa: BLE001
+                log.info("叫醒隧道中转失败：%s", type(exc).__name__)
+
+    def _next_wake(self) -> float:
+        """下一个到点要醒的时刻（单调时钟）：兜底扫描、凭据交接兜底删、配对过期 / 等回执 / 兜底删，取最早。"""
+        times = [self._next_scan]
+        due = self._sweeper.next_due
+        if due is not None:
+            times.append(due)
+        current = self._pairing
+        if current is not None:
+            due = current.next_due()
+            if due is not None:
+                times.append(due)
+        return min(times)
+
+    def _loop(self, halt: threading.Event, watcher) -> None:
+        """有变化才 :meth:`pump`；到兜底扫描时刻也 pump 一次；只有定时事到点时只做定时事（不看 ``in\\``）。"""
+        try:
+            while not halt.is_set():
+                timeout = max(0.0, min(self._next_wake() - self._clock(), self._fallback))
+                try:
+                    changed = watcher.wait(timeout)
+                except Exception:
+                    log.exception("隧道目录监视出错，改为定时查看")
+                    watcher.close()
+                    watcher = dir_watch.PollingWatcher()
+                    self._watcher = watcher
+                    if halt.is_set():
+                        break
+                    continue
+                if halt.is_set():
+                    break
+                now = self._clock()
+                if changed or now >= self._next_scan:
+                    self._next_scan = now + self._fallback
+                    self.pump()
+                else:
+                    self._timers()
+        finally:
+            _step("close directory watch", watcher.close)
+
+    def _timers(self) -> None:
+        """到点的定时事：凭据交接的兜底删、配对的过期 / 等回执超时 / 兜底删。"""
+        try:
+            self._sweeper.run_due(self.ctl_dir, self._clock())
+        except Exception:
+            log.exception("凭据交接兜底删失败")
+        self.pump_pairing()
 
     def pump(self) -> int:
         """看一遍 ``in\\``：新请求交给工作线程（没起线程时就地处理）；到点清理一次。回交出去几个。"""
@@ -596,6 +667,7 @@ class CloudHost:
                 self._pairing = pairing.BridgePairing(self.host, self._device_key, clock=self._clock, wall=self._wall)
             ticket = self._pairing.begin()
         self._title(paired=False, lang=lang)
+        self._poke()   # 中转线程按新的过期时刻重算等多久
         return ticket
 
     def pairing_status(self) -> dict:
@@ -697,5 +769,5 @@ def _remove(path: Path) -> None:
         pass
 
 
-__all__ = ["CLEANUP_SECONDS", "CloudHost", "HostError", "HostUnavailable", "LETTERS", "POLL_SECONDS", "TunnelDriveError",
+__all__ = ["CLEANUP_SECONDS", "CloudHost", "HostError", "HostUnavailable", "FALLBACK_SECONDS", "LETTERS", "TunnelDriveError",
            "WindowsDrives", "candidates", "channel_of_path", "run_subst", "same_path", "tunnel_root"]

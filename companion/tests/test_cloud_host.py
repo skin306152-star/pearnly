@@ -620,3 +620,133 @@ def test_bridge_pair_actions_return_only_the_token_and_the_status(tmp_path, vaul
     assert json.loads(bridge.call("cloud_pair_status", "{}")) == {"ok": True, "state": "waiting", "code": "",
                                                                   "expires": 123}
     bridge.shutdown()
+
+
+# ── 有请求才触发（dir_watch） ────────────────────────────────────────────────
+
+def _watched(tmp_path, *, fallback=60.0):
+    from companion.cloud_link import dir_watch
+
+    _saved(tmp_path).set_token(HOST, "erp.pearnly.com", "https://erp.pearnly.com", CORE_TOKEN)
+    host, _, _, _, seen = _host(tmp_path)
+    watchers = []
+
+    def factory(root):
+        watcher = dir_watch.ManualWatcher()
+        watchers.append((root, watcher))
+        return watcher
+
+    host._watch_factory = factory
+    host._fallback = fallback
+    host._run_thread = True
+    calls = []
+    real = host.pump
+
+    def counted():
+        calls.append(time.monotonic())
+        return real()
+
+    host.pump = counted
+    return host, watchers, calls, seen
+
+
+def _drop_request(host, session, seq=1):
+    request_id = protocol.new_id()
+    data = protocol.encode_request(session, seq=seq, request_id=request_id, method="POST", path=HEARTBEAT_CORE,
+                                   headers={"content-type": "application/json"}, body=b"{}")
+    (host.root / "in" / protocol.request_name(seq, request_id)).write_bytes(data)
+    return host.root / "out" / protocol.reply_name(request_id)
+
+
+def _until(check, seconds=2.0):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        if check():
+            return True
+        time.sleep(0.01)
+    return check()
+
+
+def test_idle_relay_never_enters_the_handler(tmp_path):
+    host, watchers, calls, _ = _watched(tmp_path)
+    host.start()
+    try:
+        assert [root for root, _ in watchers] == [host.root]
+        time.sleep(0.4)
+        assert calls == []
+    finally:
+        host.stop()
+
+
+def test_a_change_notification_handles_the_request(tmp_path):
+    host, watchers, calls, seen = _watched(tmp_path)
+    host.start()
+    try:
+        session = protocol.decode_session(host.ctl_file.read_bytes())
+        reply = _drop_request(host, session)
+        time.sleep(0.2)
+        assert calls == [] and not reply.exists()     # 没通知、没到兜底扫描：不碰
+        watchers[0][1].notify()
+        assert _until(reply.exists)
+        assert len(calls) == 1 and len(seen) == 1
+    finally:
+        host.stop()
+
+
+def test_stop_wakes_the_relay_thread_within_a_second(tmp_path):
+    host, _, _, _ = _watched(tmp_path)
+    host.start()
+    thread = host._thread
+    started = time.monotonic()
+    host.stop()
+    assert time.monotonic() - started < 1.0
+    assert not thread.is_alive()
+
+
+def test_the_fallback_scan_picks_up_a_missed_request(tmp_path):
+    host, _, calls, seen = _watched(tmp_path, fallback=0.3)
+    host.start()
+    try:
+        session = protocol.decode_session(host.ctl_file.read_bytes())
+        reply = _drop_request(host, session)      # 不发通知（模拟漏掉）
+        assert _until(reply.exists, 2.0)
+        assert calls and len(seen) == 1
+    finally:
+        host.stop()
+
+
+def test_due_timers_run_without_entering_the_handler(tmp_path):
+    host, _, calls, _ = _watched(tmp_path)
+    host.start()
+    try:
+        ctl = host.ctl_dir
+        (ctl / "cred-resp.json").write_bytes(b"{}")
+        host._sweeper.schedule(time.monotonic() + 0.2, ("cred-resp.json",))
+        host._watcher.poke()                    # 让线程按新的兜底删时刻重算（poke 本身算一次变化）
+        assert _until(lambda: len(calls) == 1)
+        assert _until(lambda: not (ctl / "cred-resp.json").exists(), 2.0)
+        assert len(calls) == 1                  # 兜底删到点只做定时事，不再进处理函数
+    finally:
+        host.stop()
+
+
+def test_manual_and_polling_watchers():
+    from companion.cloud_link import dir_watch
+
+    manual = dir_watch.ManualWatcher()
+    assert manual.wait(0.01) is False
+    manual.notify()
+    assert manual.wait(1) is True and manual.wait(0.01) is False
+    manual.interrupt()
+    started = time.monotonic()
+    assert manual.wait(5) is False and time.monotonic() - started < 0.5
+    polling = dir_watch.PollingWatcher(0.05)
+    assert polling.wait(1) is True and polling.wait(0.01) is False
+    polling.interrupt()
+    assert polling.wait(1) is False
+
+
+def test_off_windows_the_default_watcher_only_waits():
+    from companion.cloud_link import dir_watch
+
+    assert isinstance(dir_watch.open_watcher("."), dir_watch.ManualWatcher) == (sys.platform != "win32")
