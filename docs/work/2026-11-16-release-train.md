@@ -32,6 +32,8 @@
 | **最终被测头 f7d403580**（并 origin/main b30469eda，11-16 12:0x） | 全闸门 257 项过，只差两行真机记录（预期）；候选离线 111 组 LANE EXIT 0；`run.py --changed --base origin/main --jobs 3`（自建小栈清卷重起）19 条流程 60/61 格过，唯一不过 erp.exports new/mobile 为无头浏览器断开（「debug connection closed」），`--rerun-failed` 立刻补跑仍是浏览器断开（栈刚起 20 秒），栈起稳后单跑该格**通过**（39 秒）；new/desktop、old/mobile 同流程首轮即过 | ~/pearnly-devtools/integ1116-gate-3.log、-cand-3.log、-flows-3.log / -3b / -3c |
 | 产品地图连带的其余 22 条流程（`check-product-map.py` 的「要跑的流程」35 条减去 `--changed` 已跑的；主要是搜索统一改 selection 连带的盘点 / 物料流程） | f7d403580：73 格首轮过 72；唯一不过 erp.stocktake.scan new/desktop 为浏览器侧（「Inspected target navigated or closed」、驱动脚本 cur_dialog 未定义；同流程另 3 格过），栈起稳后单跑两次均**通过**（46 / 45 秒）| ~/pearnly-devtools/integ1116-flows-4.log、-4b-1 / -4b-2 |
 | 产品地图（真机记录贴入后） | `check-product-map.py` exit 0 | 本地 |
+| 7e3409cf1（再并 main 290bc368b） | 全闸门 GATE EXIT 0（260 项）；候选离线 111 组 LANE EXIT 0；`--changed` 20 条 65/65；地图连带 22 条 72/73（erp.stocktake.gs1 new/mobile 假摄像头 Data Matrix 未认出，下一轮复跑通过） | ~/pearnly-devtools/integ1116-gate-5、-cand-5、-flows-5 / -5x |
+| **55b1652da**（再并 main baa9c709e，第三列车 26 个文件） | 全闸门 GATE EXIT 0（261 项）；候选离线 111 组 LANE EXIT 0；26 个文件影响的流程并集 24 条（含 gs1 复跑、9 个前端文件先重建）**76/76**；GitHub architecture-and-offline success；新 main 段命中只能真机的行 0 个（第三列车命中的 erp-transactions、cc-company-picker 12 个手工入口属第三列车自己的连带回归，不是本分支进 main 的条件） | ~/pearnly-devtools/integ1116-gate-6、-cand-6、-flows-6 |
 
 ### 共用件连带回归（8d415ba14，`erp-masters-selection`）
 
@@ -132,4 +134,5 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | 11-15 22:4x | 合 collection-date-no-period 9d9f0c109（无冲突；收款三组离线测试 OK） | 79e38eccc |
 | 11-15 22:5x | 合 page-company d9207ed4c（无冲突；带进 main 到 9c1e783ad；作者已过全闸门、候选离线、受影响流程 17 条 56/56） | 7a2e73226 |
 | 11-16 12:0x | 并 origin/main b30469eda：冲突 6 个文件（registry.toml / messages.tsv / copy-approved.tsv 两边都留；cc_tools.py 取 main 的「its label」并保留 DAY_NEEDED_NOTE；purchase.js / sales.js 保留 page-company 的 page_company.enter，main 的 switched_company 整页重载已被取代） | f7d403580 |
+| 11-16 14:5x | 再并 origin/main baa9c709e（第三列车）：tests/acceptance/rows.toml、owed_baseline.txt 两边都留（rerere 自动；check-acceptance 通过，无重复行） | 55b1652da |
 | 11-16 13:3x | 再并 origin/main 290bc368b（+39 提交：MR.ERP 三条、CC 1.12.22 服务端、月份代录等）：冲突 2 个文件——tests/test_master_search_rules.py 两边都留但删掉 main 那条测 `search_rules.or_filters` 的过时测试（该函数已被搜索统一 0672c530e 换成 link_search 删除，全分支无调用方）；collection/cc_tools.py `_fresh_invoices(company, customer, day=None, docnums=())` 合两边参数，并给 draft 里 INVOICE_NOT_FOUND 的按单号即时读补上 `tool_input.get("date")`（收款负责窗口核对：必须补，否则老账期按今天选账套）；新 main 段命中只能真机的行 0 个，f7d403580 上的真机记录沿用。待补：draft 按单号重读带日期的离线测试（收款负责窗口下一条小分支，不进本车） | 7e3409cf1 |
