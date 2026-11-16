@@ -178,7 +178,9 @@ def judge(params, results, camera_code=None):
          "ok": pending.get("entry") == f"/desk/pearnly-stock-{params['entry_direction']}/{params['entry']}"
          and pending.get("day") == f"/desk/pearnly-pos-receipts/{params['day']}"},
         {"case": "页面不调 Cowork 接口、公司接口走 ERP 声明的前缀", "seen": pending,
-         "ok": not pending.get("cowork") and (pending.get("erp") or 0) >= 3},
+         # 只核前缀：这一步调没调到 ERP 声明的公司接口、没碰 Cowork 的；调几次随有没有这个月的对话而变（11-16 新对话默认当月起，
+         # 前面几步建的对话在本月，待处理那个月是新开的一段，少读一次会话）
+         "ok": not pending.get("cowork") and (pending.get("erp") or 0) >= 1},
     ]
 
 
