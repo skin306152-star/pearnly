@@ -37,7 +37,7 @@ try:
     from pearnly_core.cc_desktop import books
     from pearnly_core.execution.replay import TEST_SITES
     from pearnly_erp_portal.cashier import sales, shifts
-    from pearnly_erp_portal.express import pos_day, push
+    from pearnly_erp_portal.express import pos_day
     from pearnly_erp_portal.masters import company as companies
 
     if not (TEST_SITES.fullmatch(site) or site.endswith(".maclab.localhost")):
@@ -95,11 +95,9 @@ try:
         companies.active_company = active
     if not name:
         raise SystemExit("no receipt was summarised (sold before the company was linked?)")
-    try:
-        push.send(DOCTYPE, name)
-        frappe.db.commit()
-    except Exception:  # noqa: BLE001 —— 提交时已经排过；重复推由服务端自己挡
-        frappe.db.rollback()
+    # 不再自己同步调 push.send：合成日汇总时产品已经排了一次后台写账（pos_day._summarize → push.queue），这里再同步调一次会和后台那次
+    # 同时准备、互相覆盖（11-16 新路径 pos.day：后台那次答题前算出「要问」，晚落库盖掉了答题后的账套，单据写成却 ledger_book 空、
+    # 旧题目残留）。照产品的正路等后台那次。
     fields = ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job", "ledger_book", "ledger_needed", "doc_kind", "sales_count",
               "grand_total", "day"]
     def wait():
@@ -152,12 +150,7 @@ try:
             companies.active_company = active
         if second:
             first_name, name = name, second
-            try:
-                push.send(DOCTYPE, name)
-                frappe.db.commit()
-            except Exception:  # noqa: BLE001
-                frappe.db.rollback()
-            seen = wait()
+            seen = wait()   # 同上：第二张也等产品自己排的后台写账
             need = frappe.parse_json(seen.get("ledger_needed")) if isinstance(seen.get("ledger_needed"), str) else seen.get("ledger_needed")
             result["second"] = {"doc": name, "state": seen, "asked": [item.get("kind") for item in need or [] if isinstance(item, dict)],
                                 "receipts": sold_two, "sold_total": qty * price * count,
