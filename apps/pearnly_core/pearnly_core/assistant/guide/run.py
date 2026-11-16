@@ -95,10 +95,10 @@ def _conversation(session_id: str) -> Dict[str, Any]:
 def _commit_files(session_id: str, by_step: Mapping[str, List[str]]) -> str:
     """引导卡上交的文件（``{步骤 key: 文件编号}``）：登记成用户在这段对话里交出的（`assistant.files.commit`，唯一入口）；
     本对话只取一次。回第一个有文件没认下的步骤 key（都认下回空串）。"""
-    from pearnly_core.assistant import files, sessions
-
     if not by_step:
         return ""
+    from pearnly_core.assistant import files, sessions
+
     row = sessions.owned(session_id)
     for key, ids in by_step.items():
         accepted = files.commit(row, list(ids), via="guide")  # loop-query: 一张卡上交文件的步骤（声明里有界，通常一步），每步一次登记

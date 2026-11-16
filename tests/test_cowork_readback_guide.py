@@ -55,7 +55,7 @@ def _throw(message, exc=ValueError):
 
 frappe.throw = _throw
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=datetime.datetime.now)  # 放太久失效（run._idle）
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.cache = types.SimpleNamespace(get_value=lambda key: CACHE.get(key),
                                      set_value=lambda key, value, expires_in_sec=None: CACHE.__setitem__(key, value))
 frappe.publish_realtime = lambda *args, **kwargs: None

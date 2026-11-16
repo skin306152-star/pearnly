@@ -53,7 +53,7 @@ def _throw(message, exc=ValueError):
 
 frappe.throw = _throw
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=datetime.datetime.now)  # 放太久失效（run._idle）
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.cache = types.SimpleNamespace(get_value=lambda key: CACHE.get(key),
                                      set_value=lambda key, value, expires_in_sec=None: CACHE.__setitem__(key, value))
 frappe.publish_realtime = lambda *args, **kwargs: None
@@ -193,6 +193,9 @@ class Base(unittest.TestCase):
         run._insert, run._locked, run._save, run._open_runs, run._conversation, run._announce = (
             self.insert, lambda name: self.docs.get(name), self.save, self.open_runs, lambda session_id: dict(self.now),
             lambda doc: None)
+        # 交文件的步骤登记成用户交出的（`assistant.files.commit`）：本对话的附件才认
+        run._commit_files = lambda session_id, by_step: next(
+            (key for key, ids in by_step.items() if any(i not in STATE["attachments"] for i in ids)), "")
 
     def insert(self, values):
         self.clock[0] += 1
