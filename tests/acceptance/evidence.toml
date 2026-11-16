@@ -62,6 +62,18 @@ ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PDS-2026-00812"
 
 [[pass]]
+scenario = "acc.erp.pos.day.vat.remembered"
+sha = "8708c99ce8af63171e3f628ef798c187439a7522"
+date = "2026-11-16"
+env = "B"
+run = "20261116-142209-8708c99ce"
+retried = true
+covers = "fdb0479de274cbad"
+docnums = ["HS691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PDS-2026-00844"
+
+[[pass]]
 scenario = "acc.erp.purchase.cancel.express"
 sha = "d00f28a43e59c47e0e2cfe404c1fc8a11cb9279a"
 date = "2026-11-16"

@@ -24,7 +24,7 @@ HERE = Path(__file__).resolve().parent
 NEED, GAP, LIMIT = 5, 15, 600
 PRODUCTION = os.environ.get("PEARNLY_ACC_PROD_IP", "107.155.65.74")
 ROOT_DIR = os.environ.get("PEARNLY_ACC_ROOT_DIR", r"C:\PearnlyAcceptance\root")
-LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
+LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\ACCOUNT\69EXP\TEST2")
 
 
 def _lib(name: str):

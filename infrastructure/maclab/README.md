@@ -74,7 +74,7 @@ python3 scripts/acceptance/maclab_pc.py status  --host testpc2
    ③ 以桌面用户（`win/maclab_reach.py`）看两个站点解析到的地址、各 ping 一次，栈没起的标 `down`，不算失败。
 2. **attach**：第一次启用前在测试机 `C:\PearnlyAcceptance\maclab\before\` 记下 `companion.json` 的逐字节备份与哈希（已有不覆盖，
    `win/cfg_guard.py snapshot`）→ 本机 `maclab.sh mint` 取配对码（只在内存和 600 的临时文件里）→ 拷到测试机 `maclab\codes\<随机>.code`
-   → 以桌面用户 `pair_profile.py add <名字> <码文件> C:\PearnlyAcceptance\root \\accserver\d$\ACCOUNT\69EXP\TEST2`（读完即删，
+   → 以桌面用户 `pair_profile.py add <名字> <码文件> C:\PearnlyAcceptance\root \\accserver\ACCOUNT\69EXP\TEST2`（11-16 起用命名共享 ACCOUNT，与 Express 程序登记表的映射盘同一个共享，代录选公司才认得出；旧的 d$ 数据根留在 root-dshare-20261116）（读完即删，
    调 CC 自己的 `pairing.pair()` 加一份**新档案**，再按下节让出位置）→ 回读确认码文件已不在（还在就删掉并报错）。
 3. **release**：状态里每份 maclab 档案 `remove`（能连上 Mac 栈就让服务端作废密钥）→ `cfg_guard.py check`：字节等于启用前（与 `--expect`）
    就过；不等但 JSON 语义相同 → 停 CC、逐字节拷回、启动、隔 10 秒再核两次；语义也不同 → 停下列出差异键路径（不带值），不硬拷 →

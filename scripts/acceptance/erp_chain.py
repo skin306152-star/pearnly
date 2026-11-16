@@ -18,7 +18,7 @@ SITE_DIR = ROOT / "scripts" / "acceptance" / "site"
 Unmet = sys.modules["acc_errors"].Unmet
 Infra = sys.modules["acc_errors"].Infra
 
-LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
+LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\ACCOUNT\69EXP\TEST2")
 HOST = os.environ.get("PEARNLY_ACC_LEDGER_HOST", "testpc2")
 SITE_TARGET = os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
 SITE = os.environ.get("PEARNLY_ACC_ERP_SITE", "erp.maclab.localhost" if SITE_TARGET == "maclab" else "testerp.pearnly.com")

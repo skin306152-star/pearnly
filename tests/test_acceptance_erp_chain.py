@@ -109,7 +109,7 @@ class World:
         return {"name": name, "status": "written", "docnum": docnum, "source": source, "customer": self.customer, "cash": f"{cash:.2f}",
                 "total": f"{amount:.2f}", "methods": methods, "invoices": [{"docnum": self.invoice, "amount": f"{amount:.2f}"}],
                 "balances": {self.invoice: f"{self.total - self.received:.2f}"}, "job": {"status": "success", "verify_state": ""},
-                "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"]}
+                "book_paths": [r"\\accserver\ACCOUNT\69EXP\TEST2"]}
 
     def erp_collection_post(self, params):
         spoken = params["customer"].replace(NBSP, " ") if params.get("spoken") else params["customer"]
@@ -248,7 +248,7 @@ class World:
         kind = getattr(self, "pushing", "purchase")
         docnum = "HP691115-001" if kind == "purchase" else self.invoice
         operator = (self.break_at == "operator-job") != bool(getattr(self, "operating", False))
-        return {"ok": True, "state": {"ledger_state": "written", "ledger_docnum": docnum}, "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"],
+        return {"ok": True, "state": {"ledger_state": "written", "ledger_docnum": docnum}, "book_paths": [r"\\accserver\ACCOUNT\69EXP\TEST2"],
                 "job": {"status": "success", "verify_state": "ok", "request_key": "erp:operator:T:x" if operator else f"erp:{kind}:DOC-1#2"},
                 "party": {"express_code": "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 1 if getattr(self, "operating", False) else 2}
 

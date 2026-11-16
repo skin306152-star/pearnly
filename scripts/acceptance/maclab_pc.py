@@ -52,7 +52,7 @@ STATE = MACLAB
 BEFORE = MACLAB + r"\before"
 CODES = MACLAB + r"\codes"
 ROOT_DIR = os.environ.get("PEARNLY_ACC_ROOT_DIR", r"C:\PearnlyAcceptance\root")
-LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
+LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\ACCOUNT\69EXP\TEST2")
 HEARTBEAT_WAIT = 150
 
 

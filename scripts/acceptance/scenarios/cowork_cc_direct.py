@@ -24,7 +24,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 Unmet = sys.modules["acc_errors"].Unmet
 Infra = sys.modules["acc_errors"].Infra
-LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\d$\ACCOUNT\69EXP\TEST2")
+LEDGER = os.environ.get("PEARNLY_ACC_LEDGER", r"\\accserver\ACCOUNT\69EXP\TEST2")
 HOST = os.environ.get("PEARNLY_ACC_LEDGER_HOST", "testpc2")
 TOOLS = ["cowork_push_documents", "pearnly_write_plan", "pearnly_write_start", "cowork_recognize_attachments"]
 SAY = {"th": "บันทึกให้หน่อย", "zh": "录一下"}
