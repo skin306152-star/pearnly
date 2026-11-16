@@ -72,6 +72,7 @@ Account set,会計データ
 Account signed in elsewhere,アカウントは別の場所でログイン中です
 Accrual basis,発生主義
 Ack Digest,確認応答ダイジェスト
+Action,操作
 Active,正常
 Active Attempt,現在の試行
 Active Key,有効な重複防止キー
@@ -93,6 +94,7 @@ Add an item,項目を追加
 Add another list,リストを追加
 Add label,ラベルを追加
 Add member,メンバーを追加
+Add note,メモを追加
 Add photo,写真を追加
 Add photos,写真を追加
 Add time,時間を追加
@@ -350,6 +352,7 @@ Choose a day and time for the monthly run.,毎月の実行日と時刻を選ん�
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
 Choose an Express account set first,先に Express の会計データを選んでください
+Choose an action.,操作を選択してください。
 Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
@@ -404,6 +407,7 @@ Comments and activity,コメントとアクティビティ
 Commission,手数料
 Company,会社
 Company Branch,会社の支店
+Company Details,会社情報
 Company Name,会社名
 Company choices are full,会社の選択が上限です
 Company not found,会社が見つかりません
@@ -583,6 +587,8 @@ Default Sell Unit,既定の販売単位
 Default board,既定のボード
 Default handling for this folder,既定の処理
 Defaults,既定値
+Delete note,メモを削除
+Delete rule,ルールを削除
 Delete selected ({0}),選択を削除（{0}）
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
@@ -701,6 +707,7 @@ Edit dates,日付を編集
 Edit folder rule,ルールを編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
+Edit note,メモを編集
 Edited a document,書類を修正しました
 Editing a document,書類を修正しています
 Electronic,電子版
@@ -1123,6 +1130,7 @@ No attachments were given.,添付ファイルが指定されていません。
 No cards are assigned to you,割り当てられたカードはありません
 No cash account is set in Express,Express に現金勘定が設定されていません
 No changes were given.,変更内容が指定されていません。
+No company selected,会社が未選択です
 No computer can reach the account set for the document date.,書類の日付の会計データにアクセスできるパソコンがありません。
 No computer can write,書き込めるパソコンがありません
 No computer with CC Desktop can write to this account set,この会計データに書き込める CC デスクトップのパソコンがありません
@@ -1620,6 +1628,7 @@ Set as the account set in use?,使用中の会計データに設定しますか�
 Set by {0} on {1},{0}（{1}）が設定
 Set document handling,書類の処理方法を設定
 Set due date,期日を N 日後に設定
+Set for whole company,会社全体に設定
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。
 Set reminder,リマインダー
 Set the POS export columns,POS エクスポートの列を設定しました
@@ -3433,10 +3442,21 @@ erp.target_projection_value_required,ERP データレポートに必須の値が
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
+guide.business.company,会社情報
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
+guide.fact.company.none,会社が未選択です
+guide.open.company,操作を選択してください。
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
+guide.option.company.note_add,メモを追加
+guide.option.company.note_delete,メモを削除
+guide.option.company.note_edit,メモを編集
+guide.option.company.rule_delete,ルールを削除
+guide.option.company.rule_promote,会社全体に設定
+guide.step.company.action,操作
+guide.step.company.note,対象
+guide.step.company.text,内容
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書

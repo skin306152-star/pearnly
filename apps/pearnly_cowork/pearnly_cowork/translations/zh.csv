@@ -72,6 +72,7 @@ Account set,账套
 Account signed in elsewhere,账号已在别处登录
 Accrual basis,权责制
 Ack Digest,回执摘要
+Action,操作
 Active,正常
 Active Attempt,当前尝试
 Active Key,活动防重键
@@ -93,6 +94,7 @@ Add an item,添加项目
 Add another list,添加另一个列表
 Add label,添加标签
 Add member,添加成员
+Add note,添加笔记
 Add photo,添加照片
 Add photos,添加照片
 Add time,添加时间
@@ -350,6 +352,7 @@ Choose a day and time for the monthly run.,请选择每月运行的日期和时�
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 Choose an Express account set first,请先选择 Express 账套
+Choose an action.,选择操作。
 Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少选择一个功能权限
@@ -404,6 +407,7 @@ Comments and activity,评论和活动
 Commission,佣金
 Company,公司
 Company Branch,公司分店
+Company Details,公司资料
 Company Name,公司名称
 Company choices are full,公司选择已满
 Company not found,未找到公司
@@ -583,6 +587,8 @@ Default Sell Unit,默认销售单位
 Default board,默认看板
 Default handling for this folder,默认处理
 Defaults,默认值
+Delete note,删除笔记
+Delete rule,删除规则
 Delete selected ({0}),删除所选（{0}）
 Delete these documents?,确定要删除以下单据吗？
 Delete these reconciliations?,确定要删除以下对账任务吗？
@@ -701,6 +707,7 @@ Edit dates,编辑日期
 Edit folder rule,编辑规则
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
+Edit note,编辑笔记
 Edited a document,修改了单据
 Editing a document,正在修改单据
 Electronic,电子版
@@ -1123,6 +1130,7 @@ No attachments were given.,没有指定附件。
 No cards are assigned to you,暂无分配给您的卡片
 No cash account is set in Express,Express 未设置现金科目
 No changes were given.,没有指定要改的内容。
+No company selected,未选公司
 No computer can reach the account set for the document date.,没有电脑能访问单据日期所在的账套。
 No computer can write,没有能写的电脑
 No computer with CC Desktop can write to this account set,没有可写入该账套的电脑
@@ -1620,6 +1628,7 @@ Set as the account set in use?,设为现用账套？
 Set by {0} on {1},{0} 于 {1} 设定
 Set document handling,设置单据处理方式
 Set due date,到期日设为 N 天后
+Set for whole company,设为全公司
 Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。
 Set reminder,设置提醒
 Set the POS export columns,设定了 POS 导出的列
@@ -3433,10 +3442,21 @@ erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
 excel,Excel
 failed,失败
+guide.business.company,公司资料
 guide.business.readback,回读
 guide.business.recon,对账中心
+guide.fact.company.none,未选公司
+guide.open.company,选择操作。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
+guide.option.company.note_add,添加笔记
+guide.option.company.note_delete,删除笔记
+guide.option.company.note_edit,编辑笔记
+guide.option.company.rule_delete,删除规则
+guide.option.company.rule_promote,设为全公司
+guide.step.company.action,操作
+guide.step.company.note,对象
+guide.step.company.text,内容
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
