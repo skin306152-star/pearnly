@@ -67,6 +67,52 @@ def businesses():
     return guided.offered()
 
 
+# 按表单的引导（引导式 P0 接线，`guide.run`）：点菜单上的业务开一次、页面按 run 取卡、作答、确定、取消、搜索选项。
+# 只认本人（`run` 里核会话主人、行锁抢占、版本、幂等）；读用 GET，写只收 POST
+@frappe.whitelist(methods=["POST"])
+def guide_start(session_id, business):
+    from pearnly_core.assistant.guide import run
+
+    return run.start(str(session_id or ""), str(business or ""))
+
+
+@frappe.whitelist(methods=["GET"])
+def guide_view(run_name):
+    from pearnly_core.assistant.guide import run
+
+    return run.view_of(str(run_name or ""))
+
+
+@frappe.whitelist(methods=["POST"])
+def guide_answer(run_name, answers, version=None):
+    from pearnly_core.assistant.guide import run
+
+    given = json.loads(answers) if isinstance(answers, str) else answers
+    return run.answer(str(run_name or ""), given or {}, None if version in (None, "") else frappe.utils.cint(version))
+
+
+@frappe.whitelist(methods=["POST"])
+def guide_confirm(run_name, version):
+    from pearnly_core.assistant.guide import run
+
+    return run.confirm(str(run_name or ""), frappe.utils.cint(version))
+
+
+@frappe.whitelist(methods=["POST"])
+def guide_cancel(run_name):
+    from pearnly_core.assistant.guide import run
+
+    return run.cancel(str(run_name or ""))
+
+
+@frappe.whitelist(methods=["GET"])
+def guide_search(run_name, key, txt="", start=0, page_length=20):
+    from pearnly_core.assistant.guide import run
+
+    return run.search(str(run_name or ""), str(key or ""), str(txt or ""), frappe.utils.cint(start),
+                      frappe.utils.cint(page_length) or 20)
+
+
 @frappe.whitelist(methods=["POST"])
 def business(session_id, business="", from_start=0):
     return sessions.set_business(session_id, business, from_start=frappe.utils.cint(from_start) == 1)

@@ -152,6 +152,12 @@ _write_plan = sys.modules["pearnly_core.assistant.write_plan"]
 WRITE_PLAN_FEED, WRITE_PLAN_FORGET = _write_plan.feed, _write_plan.forget
 _write_plan.feed = lambda conversation, since=None: []
 _write_plan.forget = lambda conversation: None
+# 引导运行（assistant/guide/run.py）：同上，会话读写的替身库不认它的表；它自己的测试在 test_cc_guide_run.py
+_guide = sys.modules.setdefault("pearnly_core.assistant.guide", types.ModuleType("pearnly_core.assistant.guide"))
+_guide_run = sys.modules["pearnly_core.assistant.guide.run"] = types.ModuleType("pearnly_core.assistant.guide.run")
+_guide_run.feed = lambda conversation, since=None: []
+_guide_run.forget = lambda conversation: None
+_guide.run = _guide_run
 engines = sys.modules["pearnly_core.assistant.engines"]
 claude = sys.modules["pearnly_core.assistant.engines.anthropic_managed_agents"]
 config = sys.modules["pearnly_core.assistant.config"]

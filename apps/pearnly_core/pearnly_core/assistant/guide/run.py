@@ -626,6 +626,27 @@ def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     return view(doc)
 
 
+def view_of(name: str) -> Dict[str, Any]:
+    """页面按 run 取这次引导此刻的卡（只读，GET：不在这里标失效——对话上下文变了只回 ``stale``，下一次作答 / 确定时由
+    :func:`_checked` 标失效并告诉页面）。只给本人。"""
+    found = frappe.db.get_value(DOCTYPE, {"name": str(name or ""), "user": frappe.session.user}, "name")
+    if not found:
+        frappe.throw(_("Not found"), frappe.DoesNotExistError)
+    doc = frappe.get_doc(DOCTYPE, found)
+    out = view(doc)
+    if doc.status in OPEN:
+        guide = registry.find(doc.business)
+        if guide and _stale(guide, doc, _conversation(doc.session_id)) and not _fill_context_needed(doc):
+            out["stale"] = True
+    return out
+
+
+def _fill_context_needed(doc) -> bool:
+    """开始时没定、现在定下了的上下文（引导里选了账套）不算变了：作答时会补进记录。"""
+    now = _conversation(doc.session_id)
+    return any(not str(doc.get(column) or "") and str(now.get(column) or "") for column in CONTEXT_FIELDS.values())
+
+
 def search(name: str, key: str, txt: str = "", start: int = 0, page_length: int = PAGE) -> Dict[str, Any]:
     """卡上一题的选项搜索 / 翻页（服务端分页，不一次取全）。只读，不锁。"""
     found = frappe.db.get_value(DOCTYPE, {"name": str(name or ""), "user": frappe.session.user}, "name")
@@ -688,6 +709,6 @@ def forget(session_id: str) -> None:
     frappe.db.delete(DOCTYPE, {"session_id": session_id})
 
 
-__all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DOCUMENT_HOOKS", "DONE", "EXPIRED", "FAILED", "OPEN", "REFUSED",
-           "REVIEWING", "STOPPED", "TYPE", "answer", "cancel", "confirm", "edit", "event", "feed", "follow", "forget", "search", "start",
-           "view"]
+__all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DOCUMENT_HOOKS", "DONE", "EXPIRED", "FAILED", "OPEN",
+           "REFUSED", "REVIEWING", "STOPPED", "TYPE", "answer", "cancel", "confirm", "edit", "event", "feed", "follow",
+           "forget", "search", "start", "view", "view_of"]
