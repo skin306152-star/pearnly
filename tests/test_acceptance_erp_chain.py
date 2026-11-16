@@ -179,7 +179,7 @@ class World:
             for sign in ((-1, 1) if kind == "transfer" else (-1,) if kind == "out" else (1,)):
                 self.add("STCRD", DOCNUM=docnum, STKCOD="P001", TRNQTY=sign * (qty + (1 if self.break_at == "qty" else 0)))
             doc = {"kind": kind, "qty": qty, "name": f"SE-{index}", "state": {"ledger_state": "written", "ledger_docnum": docnum},
-                   "job": {"verify_state": "ok"}, "book_paths": [params["ledger"]]}
+                   "job": {"status": "success", "verify_state": ""}, "book_paths": [params["ledger"]]}   # 库存 / 调拨写入时逐表读回，不交 verify
             if kind == "transfer":
                 doc["to_warehouse_code"] = "02"
             if kind == "count":

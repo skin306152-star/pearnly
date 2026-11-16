@@ -69,7 +69,11 @@ def run(ctx):
             ctx.require(f"{doc['kind']} 的写账状态", "written", state.get("ledger_state"))
             ctx.check(f"{doc['kind']} 回显的 Express 单号是 {PREFIX[doc['kind']]} 开头", True,
                       str(state.get("ledger_docnum") or "").startswith(PREFIX[doc["kind"]]))
-            ctx.check(f"{doc['kind']} CC 桌面版写后读回", "ok", (doc.get("job") or {}).get("verify_state"))
+            # 库存单（dbf_stock._verify）、调拨单（dbf_transfer._verify）是 CC 在写入过程里逐表读回核对的，核不上整单失败，不像采购 /
+            # 销售另报 verify 元数据：写账件成功即读回过，verify_state 只许空或 ok（同收款，11-16 首跑按 ok 写错了）
+            job = doc.get("job") or {}
+            ctx.check(f"{doc['kind']} CC 桌面版写账件成功（写入时已逐表读回）", ["success", True],
+                      [job.get("status"), job.get("verify_state") in ("", "ok")])
             chain.only_ledger(ctx, doc["book_paths"])
             ctx.facts.setdefault("docnums", []).append(state.get("ledger_docnum") or "")
         ctx.require("每一步都做到了", len(STEPS[kind]), len(docs))
