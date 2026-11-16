@@ -310,6 +310,30 @@ class Walk(Base):
         self.assertEqual(self.recorded, [])
 
 
+class HandOver(Base):
+    """公开入口：别的引导（待处理改票面、收银日汇总建好的票）/ 代录开始前把已有单据交进来，从判定或复核接着走。"""
+
+    def test_handed_documents_go_straight_to_the_card_without_files_or_the_business_question(self):
+        self.directions["I:2"] = "sales"
+        found = run.start("S1", "purchase", doc_ids=["I:1", "I:2", "I:1"])
+        self.assertEqual(found["stage"], documents.ASKING)
+        self.assertEqual([q["kind"] for q in found["card"]["questions"]], ["payment"])  # 不是按菜单交的票：不问业务对不上
+        self.assertEqual(COMMITTED, [])
+
+    def test_handed_documents_at_review_skip_the_card_and_hold_what_is_undecided(self):
+        self.items["I:2"] = [dict(PAY, subject="erp-intake-pay:purchase|0999", source=c.REMEMBERED)]  # 另一个对方、记住过
+        found = run.start("S1", "purchase", doc_ids=["I:1", "I:2"], at="review")
+        self.assertEqual(found["stage"], documents.REVIEW)
+        self.assertEqual(([row["doc_id"] for row in found["review"]["rows"]], found["review"]["held"]), (["I:2"], ["I:1"]))
+
+    def test_bad_hand_overs_are_refused_before_anything_is_replaced(self):
+        first = run.start("S1", "purchase")["run"]
+        self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=[])
+        self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=["I:1"], at="files")
+        self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=[f"I:{n}" for n in range(201)])
+        self.assertEqual(self.docs[first].status, "asking")  # 核不过不作废开着的那次
+
+
 class Declaration(unittest.TestCase):
     def test_a_documents_guide_names_all_six_product_functions_or_none(self):
         self.assertEqual(declaration.problems(PURCHASE), [])

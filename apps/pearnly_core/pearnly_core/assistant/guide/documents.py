@@ -222,9 +222,23 @@ def held_on_card(card: Mapping[str, Any]) -> List[str]:
 # ── 引导运行里的一次 ───────────────────────────────────────────────────────────
 
 
-def initial() -> str:
-    """新开一次的 ``documents`` 列：文件、识别批次、问过的题、留下的单、业务题答了什么。"""
-    return json.dumps({"files": [], "batches": [], "asked": [], "held": [], "mismatch": ""})
+AT = (ASKING, REVIEW)            # 已有单据交进来时从哪一步接着走（:func:`initial` 的 ``at``）
+DOCS_MAX = 200                   # 一次引导最多几张（同写入计划 DIRECT_MAX）
+
+
+def initial(doc_ids=None, at: str = ASKING) -> str:
+    """新开一次的 ``documents`` 列：文件、识别批次、问过的题、留下的单、业务题答了什么。
+
+    ``doc_ids``（公开入口，别的引导 / 代录开始前交来已有的单：待处理改票面、收银日汇总建好的票、这个月的待录清单）：不交文件、
+    不等识别，从判定（``at=asking``：出题卡）或复核（``at=review``：不出题，题没定的那几张这次留下）接着走；不出「业务对不上」题
+    （单据不是这次按菜单交的票）。"""
+    found = {"files": [], "batches": [], "asked": [], "held": [], "mismatch": ""}
+    if doc_ids is not None:
+        ids = list(dict.fromkeys(str(doc_id) for doc_id in doc_ids if doc_id))
+        if not ids or len(ids) > DOCS_MAX or at not in AT:
+            frappe.throw(_("Invalid request"))
+        found.update(doc_ids=ids, at=at, mismatch=SKIP)
+    return json.dumps(found)
 
 
 def state(doc) -> Dict[str, Any]:
@@ -253,19 +267,22 @@ def _fingerprint(review_rows: List[Mapping[str, Any]], versions: Mapping[str, st
 def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, Any]:
     """这次此刻走到哪（现算，不写库）：``{stage, uploads?, doc_ids, card?, found?, review_docs?, held}``。"""
     st = state(doc)
-    if not st["batches"]:
+    if st.get("doc_ids"):
+        uploads, doc_ids = None, list(st["doc_ids"])   # 别的引导交来的已有单据：不交文件、不等识别
+    elif not st["batches"]:
         return {"stage": FILES, "doc_ids": [], "held": []}
-    uploads = _call(guide_decl["uploads"], ctx, st["batches"]) or {}
-    doc_ids = [str(item) for item in uploads.get("doc_ids") or () if item]
-    if uploads.get("wait") or not doc_ids:
-        return {"stage": READING, "uploads": uploads, "doc_ids": doc_ids, "held": []}
+    else:
+        uploads = _call(guide_decl["uploads"], ctx, st["batches"]) or {}
+        doc_ids = [str(item) for item in uploads.get("doc_ids") or () if item]
+        if uploads.get("wait") or not doc_ids:
+            return {"stage": READING, "uploads": uploads, "doc_ids": doc_ids, "held": []}
     held = [doc_id for doc_id in st["held"] if doc_id in doc_ids]
     found, built = card_for(ctx["company"], doc_ids, ctx["session"], ctx["business"],
                             mismatch_answered=bool(st.get("mismatch")))
     # 还有没问过的题就接着问：记录自己的题（付款、行、仓）定了以后账本那边的题（科目、对方……）才判得出来，会是第二轮新题；
     # 问过、这次没点的题不再追问（第 1 期口径：没点过的那几张这次留下）
     fresh = [q for q in built["questions"] if q["key"] not in set(st["asked"])]
-    if fresh and needs_card(built):
+    if fresh and needs_card(built) and st.get("at") != REVIEW:
         return {"stage": ASKING, "uploads": uploads, "doc_ids": doc_ids, "card": built, "found": found, "held": held}
     writable = [doc_id for doc_id in guide.writable(found, []) if doc_id in doc_ids and doc_id not in held]
     return {"stage": REVIEW, "uploads": uploads, "doc_ids": doc_ids, "card": built, "found": found,

@@ -373,7 +373,9 @@ def _checked(name: str):
 
 
 # ── 走法 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def start(session_id: str, business: str) -> Dict[str, Any]:
+def start(session_id: str, business: str, doc_ids=None, at: str = "asking") -> Dict[str, Any]:
+    """点菜单上的业务开一次引导。``doc_ids``（只对按单据的业务，公开入口）：别的引导 / 代录开始前把已有单据交进来，不交文件、不等识别，
+    从判定（``at="asking"``）或复核（``at="review"``）接着走（`documents.initial`）。"""
     now = _conversation(session_id)
     guide = registry.find(business)
     if not guide or guide["source"] not in (d.FORM, d.DOCUMENTS) or now["mode"] not in guide["modes"] \
@@ -381,13 +383,16 @@ def start(session_id: str, business: str) -> Dict[str, Any]:
         frappe.throw(_("Invalid request"))
     if _documents(guide) and not all(guide.get(key) for key in DOCUMENT_HOOKS):
         frappe.throw(_("Invalid request"))  # 声明还没点名 documents 源要的产品函数（这一格还不能在页面上办）
+    if doc_ids is not None and not _documents(guide):
+        frappe.throw(_("Invalid request"))
+    documents_column = _docs().initial(doc_ids, at) if _documents(guide) else None  # 先核单据，核不过不作废旧的
     for name in _open_runs(now["session_id"]):
         old = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
         if old is not None and old.status in OPEN:
             _end(old, CANCELLED, "replaced")
     doc = _insert({"session_id": now["session_id"], "user": frappe.session.user, "business": business, "status": ASKING,
                    "company": now["company"], "ledger": now["ledger"], "period": now["period"], "answers": "{}", "version": 1,
-                   **({"documents": _docs().initial()} if _documents(guide) else {})})
+                   **({"documents": documents_column} if documents_column else {})})
     _announce(doc)
     return view(doc)
 
