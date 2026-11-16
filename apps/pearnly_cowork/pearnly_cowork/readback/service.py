@@ -17,6 +17,7 @@
 - ``status(name)``：还在读就看请求：电脑做完了就当场处理（gunzip → `contracts.parse` → 推送记录再按本月的单据、凭证与
   税务记录的单号补查 → `diff.compare` → 四份工作簿 → 留存 → ready，删掉同一份的旧回读），失败 / 过期 / 处理出错记 failed；
   电脑没来领回 waiting_for_cc。
+- ``latest(connection, account_set_key, period)``：这本账套这个月最近的一份（本人在读的先推进，没有取最近读完的；对账引导用）。
 - ``file(name, kind)`` → (文件名, 内容)；``data(name)``：校验过的读账结果；``delete(name)``：连文件一起删。
 - ``vat_records(connection, account_set_key, year, month)``：给税务草稿（L4 / L5）的进销项记录，这本账套这个月最近一次完成的
   回读（谁发起的都算）；没有回 None（调用方提示先回读）。
@@ -272,6 +273,24 @@ def status(name) -> dict:
         if waiting:
             out.update(waiting)
     return out
+
+
+def latest(connection, account_set_key, period):
+    """这本账套这个月最近的一份回读（对账引导「从 Express 读回」一侧用）：本人还在读的那份先推进（同 :func:`status`）；
+    没有就取最近一次读完的（谁发起的都算，同税务草稿 :func:`vat_records`）；都没有回 None。只读，不请电脑读。"""
+    scope.require("intake")
+    try:
+        when = contracts.period(period)
+    except contracts.ContractError as error:
+        _error(error.code)
+    if not isinstance(connection, str) or not connection or len(connection) > 140:
+        _error("cowork.readback.invalid")
+    key = normalize_express_account_key(account_set_key)
+    mine = _latest(_lookup(frappe.session.user, connection, key, when), ("reading", "ready"))
+    if mine:
+        return status(mine)
+    ready = _newest_ready(connection, key, when)
+    return view(_visible(ready)) if ready else None
 
 
 def _gunzip(content):

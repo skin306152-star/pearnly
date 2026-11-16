@@ -367,6 +367,7 @@ Choose the inventory account group for this account set first.,กรุณา�
 Choose the inventory account group for this account set. Tap the number:,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ (แตะหมายเลขเพื่อเลือก):
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the receiving account of each payment method,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
+Choose the reconciliation type.,เลือกประเภทการกระทบยอด
 Choose the sales returns account,กรุณาเลือกบัญชีรับคืนสินค้า
 Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
@@ -827,6 +828,7 @@ Formula Diff,ผลต่างตามสูตร
 Formula Statement Closing,ยอดปลายงวดรายการเดินบัญชีตามสูตร
 Found {0} · new {1} · skipped {2} · upload failed {3},พบ {0} · ใหม่ {1} · ข้าม {2} · อัปโหลดไม่สำเร็จ {3}
 Found {0}. Tap the number to choose:,พบ {0} ชุดบัญชี กรุณาแตะหมายเลขเพื่อเลือก:
+From Express readback,อ่านข้อมูลกลับจาก Express
 From Routine Report,จากรายงานตามรอบ
 Full Report Due,รอรายงานฉบับเต็ม
 GL Account Code,รหัสบัญชี GL
@@ -1406,6 +1408,7 @@ Recognized with high confidence,อ่านข้อมูลด้วยคว
 "Recognized, waiting to enter",อ่านแล้ว
 Recognizing documents,กำลังอ่านเอกสาร
 Reconciled,นำมากระทบยอด
+Reconciliation,ศูนย์กระทบยอด
 Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation completed: {0},กระทบยอดเสร็จสิ้น: {0}
 Reconciliation failed,กระทบยอดไม่สำเร็จ
@@ -2684,6 +2687,7 @@ cowork.recon.filter.pending,ผลต่าง
 cowork.recon.filter.unmatched,ไม่พบคู่
 cowork.recon.finished,กระทบยอดเสร็จสิ้น: {0}
 cowork.recon.finishedFailed,กระทบยอดไม่สำเร็จ: {0}
+cowork.recon.fromReadback,อ่านข้อมูลกลับจาก Express
 cowork.recon.income.left,บัญชีแยกประเภททั่วไป
 cowork.recon.income.right,รายงานภาษีขาย
 cowork.recon.kpi.matched,จับคู่แล้ว
@@ -3430,9 +3434,19 @@ erp.target_projection_value_too_long,ค่าในรายงานข้อ�
 excel,Excel
 failed,ล้มเหลว
 guide.business.readback,อ่านข้อมูลกลับ
+guide.business.recon,ศูนย์กระทบยอด
 guide.open.readback,เลือกชุดบัญชีและเดือน
+guide.open.recon,เลือกประเภทการกระทบยอด
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
+guide.step.recon.invoices,ใบกำกับภาษีขาย
+guide.step.recon.kind,ประเภท
+guide.step.recon.ledger,บัญชีแยกประเภททั่วไป
+guide.step.recon.period,เดือน
+guide.step.recon.readback,การอ่านข้อมูลกลับ
+guide.step.recon.sales_vat,รายงานภาษีขาย
+guide.step.recon.source,แหล่งที่มา
+guide.step.recon.statement,รายการเดินบัญชีธนาคาร
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

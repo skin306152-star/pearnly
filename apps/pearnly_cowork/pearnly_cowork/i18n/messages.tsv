@@ -2428,3 +2428,14 @@ Choose the account set and month.	选择账套和月份。	เลือกชุ
 Account Set	账套	ชุดบัญชี	会計データ	guide.step.readback.book
 Month	月份	เดือน	月	guide.step.readback.period
 None of your computers with CC Desktop can open this account set	装有 CC 桌面版的电脑都打不开此账套	คอมพิวเตอร์ของคุณที่มี CC เดสก์ท็อปเปิดชุดบัญชีนี้ไม่ได้	CC デスクトップのあるお使いのパソコンではこの会計データを開けません	cowork.readback.unreachable
+Reconciliation	对账中心	ศูนย์กระทบยอด	照合センター	guide.business.recon
+Choose the reconciliation type.	选择对账类型。	เลือกประเภทการกระทบยอด	照合の種別を選択してください。	guide.open.recon
+Type	类型	ประเภท	種別	guide.step.recon.kind
+Source	来源	แหล่งที่มา	取得元	guide.step.recon.source
+Month	月份	เดือน	月	guide.step.recon.period
+Readback	回读	การอ่านข้อมูลกลับ	読み戻し	guide.step.recon.readback
+Bank statement	银行账单	รายการเดินบัญชีธนาคาร	銀行明細	guide.step.recon.statement
+General ledger	总账	บัญชีแยกประเภททั่วไป	総勘定元帳	guide.step.recon.ledger
+Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	guide.step.recon.sales_vat
+Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	guide.step.recon.invoices
+From Express readback	从 Express 回读	อ่านข้อมูลกลับจาก Express	Express から読み戻し	cowork.recon.fromReadback

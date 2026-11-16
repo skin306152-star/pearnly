@@ -908,6 +908,18 @@ class Service(unittest.TestCase):
         self.assertEqual(self.service.status(made["readback"])["status"], "ready")
         self.assertEqual(set(self.h.rows), {made["readback"], whole["readback"]})
 
+    def test_latest_finds_this_months_readback_without_asking_the_computer_to_read(self):
+        """对账引导「从 Express 读回」一侧（11-16）：有本人在读的先推进它，读完了就是它；没有回 None，不建请求。"""
+        self.assertIsNone(self.service.latest("EXP1", "S:\\EXP69\\T9SINCER", "2026-05"))
+        self.assertNotIn("create", [call[0] for call in self.h.calls])
+        made, row = self._start()
+        self.assertEqual(self.service.latest("EXP1", "s:/exp69/t9sincer/", "2026-05")["readback"], made["readback"])
+        self.h.finish(row.request, raw())
+        found = self.service.latest("EXP1", "S:\\EXP69\\T9SINCER", "2026-05")
+        self.assertEqual((found["readback"], found["status"]), (made["readback"], "ready"))
+        self.assertIsNone(self.service.latest("EXP1", "S:\\EXP69\\T9SINCER", "2026-04"))
+        self.assertEqual(len([call for call in self.h.calls if call[0] == "create"]), 1)
+
     def test_an_open_request_is_found_before_asking_whether_the_computer_is_there(self):
         """电脑正读、传一件长回读时可能好一阵不来领（在线记录过期）：同一份再请求先 find 到那一件接着等，不判离线、不另建。"""
         made, row = self._start()

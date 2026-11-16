@@ -140,7 +140,7 @@ def draft(ctx, values) -> dict:
     return {"draft": f"{values['book']}{DRAFT_SEP}{values['period']}"}
 
 
-def _place(ctx, book):
+def place(ctx, book):
     """本对话账套此刻写在哪一处 (连接, 账套键)；已不是卡上选的那本回 None。"""
     from pearnly_cowork.assistant import write_scope
 
@@ -157,12 +157,12 @@ def confirm(ctx, values, draft, consent) -> dict:
     from pearnly_cowork.readback import service as readback
 
     book, period = values["book"], values["period"]
-    place = _place(ctx, book)
-    if place is None:
+    found = place(ctx, book)
+    if found is None:
         return {"returned": {"book": {"reason": "not_this_conversation_book"}}}
     with _conversation(ctx):
         try:
-            made = readback.request(place[0], place[1], period, None)
+            made = readback.request(found[0], found[1], period, None)
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()
             frappe.clear_messages()

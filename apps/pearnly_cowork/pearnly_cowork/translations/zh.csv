@@ -367,6 +367,7 @@ Choose the inventory account group for this account set first.,请先为此账�
 Choose the inventory account group for this account set. Tap the number:,请为此账套选择存货科目组（点击序号选择）：
 Choose the payment method,选择付款方式
 Choose the receiving account of each payment method,请为每种付款方式选择收款科目
+Choose the reconciliation type.,选择对账类型。
 Choose the sales returns account,请选择销货退回科目
 Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
@@ -827,6 +828,7 @@ Formula Diff,公式差额
 Formula Statement Closing,按公式计算的对账单期末余额
 Found {0} · new {1} · skipped {2} · upload failed {3},扫描到 {0} · 新文件 {1} · 跳过 {2} · 上传失败 {3}
 Found {0}. Tap the number to choose:,找到 {0} 个账套，请点击序号选择：
+From Express readback,从 Express 回读
 From Routine Report,来自定期上报
 Full Report Due,待整份上报
 GL Account Code,总账科目编码
@@ -1406,6 +1408,7 @@ Recognized with high confidence,高置信识别
 "Recognized, waiting to enter",已识别
 Recognizing documents,正在识别单据
 Reconciled,参与对账
+Reconciliation,对账中心
 Reconciliation Type,对账类型
 Reconciliation completed: {0},对账已完成：{0}
 Reconciliation failed,对账失败
@@ -2684,6 +2687,7 @@ cowork.recon.filter.pending,差异
 cowork.recon.filter.unmatched,未匹配
 cowork.recon.finished,对账已完成：{0}
 cowork.recon.finishedFailed,对账失败：{0}
+cowork.recon.fromReadback,从 Express 回读
 cowork.recon.income.left,总账
 cowork.recon.income.right,销项税报告
 cowork.recon.kpi.matched,已匹配
@@ -3430,9 +3434,19 @@ erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度
 excel,Excel
 failed,失败
 guide.business.readback,回读
+guide.business.recon,对账中心
 guide.open.readback,选择账套和月份。
+guide.open.recon,选择对账类型。
 guide.step.readback.book,账套
 guide.step.readback.period,月份
+guide.step.recon.invoices,销售发票
+guide.step.recon.kind,类型
+guide.step.recon.ledger,总账
+guide.step.recon.period,月份
+guide.step.recon.readback,回读
+guide.step.recon.sales_vat,销项税报告
+guide.step.recon.source,来源
+guide.step.recon.statement,银行账单
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
