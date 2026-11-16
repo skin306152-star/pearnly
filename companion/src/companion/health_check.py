@@ -11,9 +11,7 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import httpx
-
-from . import http_tls
+from . import http_tls, net
 from .config import CompanionConfig
 from .logger import get_logger
 
@@ -44,7 +42,7 @@ def _check_backend(cfg: CompanionConfig) -> CheckItem:
     heartbeat = channel.path(cfg.bearer_token, "heartbeat") or _HEARTBEAT
 
     try:
-        with httpx.Client(timeout=3.0, verify=http_tls.context()) as c:
+        with net.client(timeout=3.0, verify=http_tls.context()) as c:
             r = c.post(
                 f"{cfg.backend_url}{heartbeat}",
                 headers={"Authorization": f"Bearer {cfg.bearer_token}"},

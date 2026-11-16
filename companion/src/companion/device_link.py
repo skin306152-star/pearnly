@@ -31,7 +31,7 @@ from typing import Callable, Optional
 
 import httpx
 
-from . import channel, device_facts, http_tls
+from . import channel, device_facts, http_tls, net
 from .logger import get_logger
 from .queue_client import _device_name, unwrap
 
@@ -72,8 +72,8 @@ def new_device_key() -> str:
 
 
 def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -> dict:
-    with httpx.Client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
-                      timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
+    with net.client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
+                    timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
         response = client.post(path, json=body)
     if response.status_code in REJECTED:
         raise KeyRejected(f"device key rejected: {response.status_code}")

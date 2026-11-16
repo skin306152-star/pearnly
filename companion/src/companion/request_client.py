@@ -14,7 +14,7 @@ from typing import Optional
 
 import httpx
 
-from . import channel, http_tls
+from . import channel, http_tls, net
 from .queue_client import unwrap
 
 _METHOD = "/api/method/pearnly_cowork.companion.request_api."
@@ -40,7 +40,7 @@ class RequestClient:
         # 共用机器通道的成员（``pcc_`` 密钥，ADR-025）换成 pearnly_core 的路径
         self._next = channel.path(bearer_token, "request_next") or NEXT
         self._complete = channel.path(bearer_token, "request_complete") or COMPLETE
-        self._client = httpx.Client(
+        self._client = net.client(
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
             timeout=httpx.Timeout(timeout, connect=min(10.0, timeout)),

@@ -2142,5 +2142,72 @@ class BookQuestions(unittest.TestCase):
         self.assertEqual(set(B.OPERATOR_KINDS), {B.UNIT, B.NEGATIVE})
 
 
+class OneNetworkExit(unittest.TestCase):
+    """CC 桌面版所有 HTTP 客户端只由 `net.client` 建（2026-11-16 统一联网客户端，为以后云端模式的自定义 transport 收口）。
+    默认零行为变化：除 net.py 外不直接构造 httpx 客户端、不用 httpx 的模块级请求；10 处调用传给 net.client 的关键字
+    与改动前逐处相同（不加、不减，也没有位置参数）；net.client 原样交给 httpx.Client，不自带任何默认值。"""
+
+    NET = COMPANION / "net.py"
+    DIRECT = {"Client", "AsyncClient", "get", "post", "put", "patch", "delete", "head", "options", "request", "stream"}
+    # 改动前 `httpx.Client(` 每处的关键字名（按函数，源码顺序）
+    BEFORE = {
+        ("device_link.py", "_post"): [{"base_url", "headers", "timeout", "verify"}],
+        ("folder_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
+        ("folder_client.py", "put_direct"): [{"follow_redirects", "timeout", "verify"}],
+        ("health_check.py", "_check_backend"): [{"timeout", "verify"}],
+        ("mrerp_login.py", "_post"): [{"base_url", "headers", "timeout", "verify"}],
+        ("operator_ai.py", "transport"): [{"base_url", "headers", "verify", "timeout"}],
+        ("queue_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
+        ("request_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
+        ("updater.py", "check_update"): [{"timeout", "follow_redirects", "verify"}],
+        ("updater.py", "download_installer"): [{"timeout", "follow_redirects", "verify"}],
+    }
+
+    def _sources(self):
+        for path in sorted(COMPANION.rglob("*.py")):
+            yield path, ast.parse(path.read_text(encoding="utf-8"))
+
+    def test_only_net_builds_an_httpx_client_or_calls_httpx_directly(self):
+        found = []
+        for path, tree in self._sources():
+            if path == self.NET:
+                continue
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) \
+                        and ast.unparse(node.func.value) == "httpx" and node.func.attr in self.DIRECT:
+                    found.append(f"{path.name}:{node.lineno} {ast.unparse(node.func)}")
+                if isinstance(node, ast.ImportFrom) and node.module == "httpx" \
+                        and {alias.name for alias in node.names} & (self.DIRECT | {"*"}):
+                    found.append(f"{path.name}:{node.lineno} from httpx import")
+        self.assertEqual(found, [])
+
+    def test_each_call_passes_net_client_the_same_keywords_as_before(self):
+        calls = {}
+        for path, tree in self._sources():
+            for function in ast.walk(tree):
+                if not isinstance(function, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                for node in ast.walk(function):
+                    if isinstance(node, ast.Call) and ast.unparse(node.func) == "net.client":
+                        self.assertEqual(node.args, [], f"{path.name}:{node.lineno}")
+                        self.assertTrue(all(k.arg for k in node.keywords), f"{path.name}:{node.lineno} **kwargs")
+                        key = (path.name, function.name)
+                        # 嵌套函数会被外层再走到一次：只记最内层
+                        if not any(isinstance(inner, (ast.FunctionDef, ast.AsyncFunctionDef)) and inner is not function
+                                   and node in ast.walk(inner) for inner in ast.walk(function)):
+                            calls.setdefault(key, []).append({k.arg for k in node.keywords})
+        self.assertEqual(calls, self.BEFORE)
+
+    def test_net_client_hands_the_keywords_to_httpx_unchanged(self):
+        tree = ast.parse(self.NET.read_text(encoding="utf-8"))
+        client = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "client")
+        built = [n for n in ast.walk(client) if isinstance(n, ast.Call) and ast.unparse(n.func) == "httpx.Client"]
+        self.assertEqual([ast.unparse(n) for n in built], ["httpx.Client(**kwargs)"])
+        # 只有设了 transport 工厂、调用方又没给 transport 时才动 kwargs
+        writes = [ast.unparse(n) for n in ast.walk(client)
+                  if isinstance(n, ast.Assign) and any(ast.unparse(t).startswith("kwargs") for t in n.targets)]
+        self.assertEqual(writes, ["kwargs['transport'] = factory(dict(kwargs))"])
+
+
 if __name__ == "__main__":
     unittest.main()

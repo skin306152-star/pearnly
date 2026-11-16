@@ -37,11 +37,11 @@ def valid_ticket(value) -> bool:
 def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -> tuple[int, dict]:
     import httpx
 
-    from . import http_tls
+    from . import http_tls, net
     from .queue_client import unwrap
 
-    with httpx.Client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
-                      timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
+    with net.client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
+                    timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
         response = client.post(path, json=body)
     if response.status_code != 200:
         return response.status_code, {}

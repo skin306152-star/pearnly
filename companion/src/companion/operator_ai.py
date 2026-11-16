@@ -35,11 +35,11 @@ def transport_for(settings, batch_id: str) -> Optional[Callable[[str, Dict], Dic
     def transport(kind: str, request: Dict) -> Dict:
         import httpx  # 用到时才加载：代录真碰到认不出的画面才连站点
 
-        from . import http_tls
+        from . import http_tls, net
 
         try:
-            with httpx.Client(base_url=base, headers={"Authorization": f"Bearer {token}"}, verify=http_tls.context(),
-                              timeout=httpx.Timeout(TIMEOUT_S, connect=10.0)) as client:
+            with net.client(base_url=base, headers={"Authorization": f"Bearer {token}"}, verify=http_tls.context(),
+                            timeout=httpx.Timeout(TIMEOUT_S, connect=10.0)) as client:
                 response = client.post(path, json={"batch": batch_id, "kind": kind, "request": request})
         except httpx.HTTPError:
             return {"error": "unreachable"}
