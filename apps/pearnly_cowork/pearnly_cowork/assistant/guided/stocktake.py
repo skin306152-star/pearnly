@@ -12,7 +12,7 @@
 - 删除：盘点单（多选）→ `stocktake.upload.delete`（真删，同盘点页）。
 
 盘点不按公司隔开（用户 11-16：Cowork 工作空间对象不分公司），选项列本工作空间全部盘点单。不写账本。
-结束、删除要画成允许卡：等引擎按动作区分确定样式（评估第 12 节第 1 条，主会话定后在声明里补 ``consent``）。
+结束、删除画成允许卡（只有「拒绝 / 允许」，``consent`` 按「做什么」的答案区分，约定 11-16），其余是「确定」。
 """
 from __future__ import annotations
 
@@ -337,6 +337,7 @@ GUIDES = [
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_cowork.assistant.guided.stocktake.allowed",
      "opening_key": "guide.open.stocktake", "source": "form", "writes": True,
+     "consent": {"key": "action", "in": ["close", "delete"]},
      "steps": [
          {"key": "action", "input": "choice", "rule": "always", "options": "pearnly_cowork.assistant.guided.stocktake.action_options"},
          {"key": "file", "input": "file", "rule": "always", "after": ["action"], "when": {"key": "action", "value": "new"},

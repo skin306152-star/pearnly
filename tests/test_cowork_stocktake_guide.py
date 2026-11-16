@@ -237,6 +237,12 @@ class Declaration(Base):
         STATE["stocktake"] = False
         self.assertEqual(registry.offered(), {"chat": [], "operator": []})
 
+    def test_close_and_delete_draw_the_allow_card_and_the_rest_confirm(self):
+        name = run.start(SESSION, "stocktake")["run"]
+        self.assertEqual(run.view(self.docs[name])["consent"], "confirm")
+        for action, consent in (("delete", "allow"), ("close", "allow"), ("count", "confirm"), ("new", "confirm")):
+            self.assertEqual(run.answer(name, {"action": action})["consent"], consent, action)
+
     def test_the_first_card_asks_only_what_to_do(self):
         found = run.start(SESSION, "stocktake")
         self.assertEqual(list(self.questions(found)), ["action"])

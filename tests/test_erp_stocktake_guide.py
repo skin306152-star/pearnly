@@ -209,6 +209,11 @@ class Declaration(Base):
         for key in ("label_key", "icon", "order", "opening_key"):
             self.assertIn(f'"{key}": {found[key]!r}'.replace("'", '"'), source)
 
+    def test_close_and_delete_draw_the_allow_card_and_the_rest_confirm(self):
+        name = run.start(SESSION, "stocktake")["run"]
+        for action, consent in (("delete", "allow"), ("close", "allow"), ("adjust", "confirm"), ("count", "confirm")):
+            self.assertEqual(run.answer(name, {"action": action})["consent"], consent, action)
+
     def test_the_menu_lists_stocktake_only_for_people_with_the_stocktake_function(self):
         self.assertEqual(registry.offered(), {"chat": ["stocktake"], "operator": []})
         STATE["count_write"] = False
