@@ -68,6 +68,11 @@ try:
         raise SystemExit(f"test data missing in {company}: no ledger product")
     count, qty, price = int(params.get("receipts", 2)), float(params.get("qty", 1)), float(params.get("price", 50))
     today = frappe.utils.today()
+    if params.get("forget_vat"):
+        # 「问一次 → 记住」那一格：先把公司上记的「是不是增值税登记户」清空，造出第一次写日汇总的现场（只动测试租户的站点数据）
+        result["vat_before"] = frappe.db.get_value("ERP Company", company, "vat_registered") or ""
+        frappe.db.set_value("ERP Company", company, "vat_registered", "", update_modified=False)
+        frappe.db.commit()
     active = companies.active_company
     companies.active_company = lambda user=None: company
     try:
@@ -128,6 +133,40 @@ try:
     result.update(ok=True, company=company, doc=name, again=again, state=state, job=job, book_paths=written, receipts=sold,
                   expected={"item_code": product.express_code, "receipts": count, "in_summary": in_summary, "qty": qty * count,
                             "grand_total": float(state.get("grand_total") or 0), "sold_total": qty * price * count})
+    if params.get("second_round") and state.get("ledger_state") == "written":
+        # 第二张日汇总（同一天再卖、再合）：公司上已记了答案，这一张不该再问，直接写成
+        companies.active_company = lambda user=None: company
+        try:
+            frappe.set_user(params["user"])
+            sold_two = []
+            for _index in range(count):
+                made = sales.create_sale(lines=[{"product": product.name, "qty": qty, "unit_price": price}],
+                                         payments=[{"method": "cash", "amount": qty * price}],
+                                         client_uuid=f"acc-{params['run']}-b-{secrets.token_hex(4)}")
+                frappe.db.commit()
+                sold_two.append(made["name"])
+            frappe.set_user("Administrator")
+            second = pos_day.summarize(company, today)
+            frappe.db.commit()
+        finally:
+            companies.active_company = active
+        if second:
+            first_name, name = name, second
+            try:
+                push.send(DOCTYPE, name)
+                frappe.db.commit()
+            except Exception:  # noqa: BLE001
+                frappe.db.rollback()
+            seen = wait()
+            need = frappe.parse_json(seen.get("ledger_needed")) if isinstance(seen.get("ledger_needed"), str) else seen.get("ledger_needed")
+            result["second"] = {"doc": name, "state": seen, "asked": [item.get("kind") for item in need or [] if isinstance(item, dict)],
+                                "receipts": sold_two, "sold_total": qty * price * count,
+                                "job": frappe.db.get_value("Pearnly CC Job", seen.get("ledger_job"), ["status", "verify_state", "reason"],
+                                                           as_dict=True) if seen.get("ledger_job") else None}
+            name = first_name
+        else:
+            result["second"] = {"doc": None}
+    result["vat_after"] = frappe.db.get_value("ERP Company", company, "vat_registered") or ""
 except SystemExit as stop:
     result["why"] = str(stop)
 except Exception:

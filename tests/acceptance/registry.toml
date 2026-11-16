@@ -505,6 +505,30 @@ budget_usd = 0
 tier = "gate"
 
 [[scenario]]
+id = "acc.erp.pos.day.vat.remembered"
+title = "ERP 收银：公司上没记是不是增值税登记户 → 第一张日汇总只问这一项、答了写成 → 第二张不再问直接写成（问一次记住）"
+class = "variant"
+chain = "erp.pos-day-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_more_express.py"
+rows = ["erp.desk.pearnly-pos-receipts"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/sales.py",
+  "companion/src/companion/dbf_sales.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
 id = "acc.erp.purchase.cancel.express"
 title = "ERP 已写进 Express 的采购单作废：ERP 作废、不再排写账件、账套与作废前逐文件一致"
 class = "variant"

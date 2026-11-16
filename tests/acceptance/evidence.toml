@@ -62,6 +62,18 @@ ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PDS-2026-00812"
 
 [[pass]]
+scenario = "acc.erp.purchase.cancel.express"
+sha = "d00f28a43e59c47e0e2cfe404c1fc8a11cb9279a"
+date = "2026-11-16"
+env = "B"
+run = "20261116-140416-d00f28a43"
+retried = false
+covers = "67d7002c763606e4"
+docnums = ["HP691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00821"
+
+[[pass]]
 scenario = "acc.erp.purchase.express"
 sha = "942b0024324e05c1204699ee22b3800ab043540e"
 date = "2026-11-16"
@@ -84,6 +96,18 @@ covers = "e5596ccadcdc6953"
 docnums = ["HP691116-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00751"
+
+[[pass]]
+scenario = "acc.erp.sales.cancel.express"
+sha = "d00f28a43e59c47e0e2cfe404c1fc8a11cb9279a"
+date = "2026-11-16"
+env = "B"
+run = "20261116-140925-d00f28a43"
+retried = false
+covers = "953b2dd093e2d07f"
+docnums = ["IV691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00825"
 
 [[pass]]
 scenario = "acc.erp.stock.adjust.express"

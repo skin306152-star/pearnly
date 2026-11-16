@@ -2,6 +2,7 @@
 
 编排 B（实验栈挂候选源码 + 测试机2 的 CC 桌面版 + 验收账套）。模型不参与，费用 0。前置：公司已从连接添加并同步过主档。
 
+  acc.erp.pos.day.vat.remembered   公司上没记「是不是增值税登记户」：第一张日汇总只问这一项、答了写成；第二张不再问直接写成
   acc.erp.pos.day.express          开班 → 两张现金小票 → 合成当天的日汇总（再合一次没有第二张）→ 现销单 HS → 账本读回
   acc.erp.purchase.cancel.express  采购单写成后作废：ERP 里作废、不再排写账件；账套与作废前逐文件一致（Express 那张由财务处理）
   acc.erp.sales.cancel.express     赊销单写成后作废：同上
@@ -93,6 +94,34 @@ def cancel(ctx, chain, conf, book, kind):
         ctx.check("作废前后没有任何文件变化", [], change.get("stray"))
 
 
+def pos_day_remembered(ctx, chain, conf, book):
+    """问一次 → 记住 → 第二张不再问（主会话 11-16）：先清掉公司上记的「是不是增值税登记户」，第一张日汇总停下只问这一项，
+    照用户的正路答「是」后写成；同一天再卖、再合第二张，不再问、直接写成。"""
+    with ctx.step("第一张：只问一次「是不是增值税登记户」，答了写成", "公司上没记时第一张日汇总停下只问这一项；答「是」后写成现销单"):
+        out = chain.site(ctx, "erp_pos_day.py", {**conf, "run": chain.tag(ctx), "vat_registered": "yes", "forget_vat": True,
+                                                 "second_round": True}, timeout=1200)
+        ctx.save("vat-registered-asked.json", out.get("answered") or {})
+        ctx.require("第一张问了、且只问了这一项", ["vat_registered"], (out.get("answered") or {}).get("asked"))
+        first = written(ctx, chain, out, "第一张日汇总")
+        ctx.check("答案记在公司上", "yes", out.get("vat_after"))
+    with ctx.step("第二张：不再问，直接写成", "同一天再卖、再合的第二张日汇总不停下、不问，写成现销单"):
+        second = out.get("second") or {}
+        ctx.save("second.json", second)
+        ctx.require("合出了第二张日汇总", True, bool(second.get("doc")))
+        ctx.check("第二张没有问任何事", [], second.get("asked"))
+        ctx.require("第二张写账状态", "written", (second.get("state") or {}).get("ledger_state"))
+        two = str((second.get("state") or {}).get("ledger_docnum") or "")
+        ctx.check("第二张是另一张现销单", [True, True], [two.startswith("HS"), two != first])
+        ctx.check("第二张 CC 桌面版写后读回", "ok", (second.get("job") or {}).get("verify_state"))
+    with ctx.step("账本读回", "两张现销单各一行、已收清；预期以外的表逐字节不变"):
+        after, _summary = chain.copy_and_diff(ctx, book, conf, chain.sales_tables())
+        for docnum in (first, two):
+            head = chain.rows(book, after, "ARTRN", f"DOCNUM={docnum}")
+            ctx.save(f"artrn-{docnum}.json", head)
+            ctx.require(f"ARTRN 里 {docnum} 恰好一行", 1, len(head))
+            ctx.check(f"{docnum} 已收清（未收余额 0）", 0.0, chain.money(head[0].get("REMAMT")))
+
+
 def run(ctx):
     chain = _chain()
     conf = chain.settings()
@@ -101,6 +130,8 @@ def run(ctx):
     chain.baseline(ctx, book, conf)
     if kind == "pos.day":
         pos_day(ctx, chain, conf, book)
+    elif kind == "pos.day.vat.remembered":
+        pos_day_remembered(ctx, chain, conf, book)
     elif kind in ("purchase.cancel", "sales.cancel"):
         cancel(ctx, chain, conf, book, kind.split(".")[0])
     else:
