@@ -17,7 +17,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # (DocType, 字段) → 不会存空的依据（11-16 逐个核：写入点都显式给值，或 validate 自己处理空值）。
-# 「待核」的是拿不准、已报主会话的，改掉或核实后更新这里。新增字段别往这里加，优先在选项首行留空。
+# 新增字段别往这里加，优先在选项首行留空。框架规则（Frappe 16.33）：model/create_new.py 取 options 第一项作模板值，
+# document._set_defaults 在新建（子表为新行）时只补值为 None 的字段，传 "" 原样保留。
 ALLOW = {
     ("Pearnly AI Usage", "purpose"): "记账入口按调用方显式给（pearnly_core.ai_usage）",
     ("Pearnly Assistant Write Plan", "mode"): "建计划时按代录 / 直写显式给（assistant.write_plan.make）",
@@ -36,9 +37,9 @@ ALLOW = {
     ("ERP Collection Payment", "role"): "collection.contracts.method_of 只回 transfer / discount，认不出就报错",
     ("ERP Customer", "branch_type"): "erp_customer.py validate 在补默认之后按税号清回空",
     ("ERP Serial Movement", "action"): "过账时按入 / 出显式给（inventory.serials）",
-    ("ERP LINE Intake", "item_kind"): "待核：按行选的新流程可能写空被补成 goods（integrations/intake.py:69），只影响改版前的票",
-    ("Pearnly Express Operator Task Document", "doc_group"): "待核：tasks.py:213 可能写空，子行在已有父单上追加、按理不补默认",
-    ("ERP Purchase Payment", "method"): "待核：purchasing/service.py:425 旧计算路径可能写空，新路径默认 cash",
+    ("ERP LINE Intake", "item_kind"): "会补成 goods 但新票不读：识别后 line_items.prepare 必写按行的选择（intake.py:236/566），item_kind 只在改版前的旧票上读（intake.py:286）",
+    ("Pearnly Express Operator Task Document", "doc_group"): "会补成 purchase 但只用于展示（feed.py:211/253），前端 operator-shared.ts groupOf 对空值的回退本来就是 purchase",
+    ("ERP Purchase Payment", "method"): "新路径总给值（service.py:404-408 method or cash、entry.py 校验）；只有直接调旧接口的 v1 单不传 method 时补成 cash，与默认现金相符",
 }
 
 

@@ -16,9 +16,12 @@ Express 写账不受影响；读单处（CC 工具、LINE 卡片、接口、sale
   除非在 `ALLOW` 写明不会存空的依据。
 
 ## 全仓同类（208 个 Select，命中 21 个）
-确有同样问题的只有销售单这一个。17 个写入点总给值或 validate 自处理（登记在 ALLOW）。3 个「待核」：
-ERP LINE Intake.item_kind、Pearnly Express Operator Task Document.doc_group、ERP Purchase Payment.method——本条合入后逐个只读核实，
-确有问题另开小分支修，没有的把登记改成有依据的结论。
+确有同样问题的只有销售单这一个。17 个写入点总给值或 validate 自处理（登记在 ALLOW）。原登记「待核」的 3 个已核实（11-16，Frappe 16.33
+源码：create_new.py 取 options 第一项作模板值，document._set_defaults 在新建 / 子表新行时只补值为 None 的字段），都会被补成第一项、
+但都没有实际影响，不改代码，ALLOW 已改成有依据的结论：
+- ERP LINE Intake.item_kind（补成 goods）：新票识别后 line_items.prepare 必写按行的选择，item_kind 只在改版前的旧票上读。
+- Pearnly Express Operator Task Document.doc_group（补成 purchase）：只用于展示，前端对空值的回退本来就是 purchase。
+- ERP Purchase Payment.method（补成 cash）：新路径总给值；只有直接调旧接口的 v1 单不传 method 时补成 cash，与默认现金相符。
 
 ## 未处理（主会话 11-16 定：这次不改）
 - 采购单 Purchase Document.payment_method：字段默认 cash，开单 `purchasing/entry.py:231`（`payload.get("payment_method") or "cash"`）与
