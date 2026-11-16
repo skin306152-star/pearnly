@@ -52,7 +52,9 @@ if os.path.exists(path):
 # 这份账套：供应商同税号只有一个（服务端按税号认得准，开始前不问）——电脑写时另在 Express 里认出一个名字相近、没填税号的旧档，
 # 以「疑似重复」拦下（服务端判不出的那种停法，同 H5 的存货科目组）；存货科目组两个合格（DM 在用 4 件、P002 在用 1 件）、
 # 一个不合格（ST01 办公设备）
-facts.save(key, {{"version": 2, "customers": [], "departments": [], "products": [],
+facts.save(key, {{"version": 2, "customers": [], "departments": [],
+                 # 存货表读到了（一件无关的库存品）：新物料按品名认不到，开始前问「新建 / 对应已有」
+                 "products": [{{"code": "OTHER-{tag}", "name": "สินค้าอื่น {tag}", "kind": "stock"}}],
                  "suppliers": [{{"code": "SUP-A-{tag}", "name": "ผู้ขาย H5 {tag}", "tax_id": {SUPPLIER_TAX!r}, "branch": "00000"}},
                                {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": "", "branch": ""}}],
                  "facts": {{"accounts": [{{"code": "11-04-01-00", "name": "วัตถุดิบคงเหลือ", "type": "1"}}], "mapping": {{}},
