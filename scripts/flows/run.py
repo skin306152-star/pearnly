@@ -468,7 +468,7 @@ print("{{}}")
         return json.loads(result.stdout.strip().splitlines()[-1])
 
     def sweep(self, site, start_print):
-        """这一格新建的行和文件删掉（`SWEEP_CODE`），回 {swept: {表: 行数}, kept: {行: 原因}, rebuilt, files}。"""
+        """这一格新建的行和文件删掉（`SWEEP_CODE`），回 {swept: {表: 行数}, kept: {行: 原因}, forced: {行: 产品拒删的原因}, rebuilt, files}。"""
         files = sorted(key for key in start_print if key.startswith("file: "))
         return self.python(site, SWEEP_CODE.format(since=start_print["_now"], before_files=files, extra=FOOTPRINT_EXTRA,
                                                    skip=FOOTPRINT_SKIP_DIRS))
@@ -534,7 +534,7 @@ if frappe.db.exists("DocType", "ERP Stock Movement"):
         row = frappe.db.get_value("ERP Stock Movement", name, ["product", "warehouse", "location"], as_dict=True)
         if row:
             stock.add((row.product, row.warehouse, row.location or ""))
-swept, kept = {{}}, {{}}
+swept, kept, forced = {{}}, {{}}, {{}}
 for _, t, name in made:
     if not frappe.db.exists(t, name):
         continue  # 跟着父行一起删掉了
@@ -544,6 +544,8 @@ for _, t, name in made:
             frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=skip_trash, delete_permanently=True)
             frappe.db.commit()
             swept[t] = swept.get(t, 0) + 1
+            if skip_trash:
+                forced[t + " " + name] = error  # 产品拒删、跳过 on_trash 才删掉的：照样列出，不悄悄吞掉
             error = None
             break
         except frappe.LinkExistsError as e:
@@ -577,7 +579,7 @@ for folder, dirs, files in os.walk(root):
         if "file: " + os.path.relpath(path, root) not in before_files:
             os.remove(path)
             removed += 1
-print(json.dumps({{"swept": swept, "kept": kept, "rebuilt": rebuilt, "files": removed}}))
+print(json.dumps({{"swept": swept, "kept": kept, "forced": forced, "rebuilt": rebuilt, "files": removed}}))
 """
 
 # 登记过的「跑完不一样也不算留数据」：写明为什么不影响后面的格
@@ -1102,6 +1104,12 @@ def main(argv=None) -> int:
         print(f"留下了数据的格 {len(left)} 个（跑完和跑前不一样；各格的 left_data 字段）：", flush=True)
         for r in left:
             print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(r['left_data'], ensure_ascii=False)[:400]}", flush=True)
+    forced = [r for r in results if (r.get("swept") or {}).get("forced") or (r.get("swept") or {}).get("error")]
+    if forced:
+        print(f"收尾时产品拒删、跳过 on_trash 才删掉，或收尾本身出错的格 {len(forced)} 个（各格的 swept 字段）：", flush=True)
+        for r in forced:
+            what = r["swept"].get("forced") or {"error": r["swept"].get("error")}
+            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(what, ensure_ascii=False)[:400]}", flush=True)
     if lab.fallbacks:
         print(f"常驻 Python 退回每段新起进程 {len(lab.fallbacks)} 次（各格的 lab_python 字段）：{lab.fallbacks[0][:200]}", flush=True)
     if args.out:
