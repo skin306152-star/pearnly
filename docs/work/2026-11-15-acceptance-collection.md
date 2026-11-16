@@ -328,3 +328,27 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 
 首跑要校准的：H3 收单记录里供应商按名称 + 税号认回（产品认不回会新建供应商，读回的供应商编码断言会报出来）；卡片作答规则（已定不动、
 预选照预选、物料 / 对方「新建」、其余第一项）是否覆盖 TEST2 实际出的题（答不了的列在 `unanswered`，断言会报）；挂码那条主档同步的等待时长。
+
+## 新路径补跑（11-16 17:08–18:20，主会话：只在旧路径跑过的格按新路径补）
+
+环境：站点重置（首次添加那格可重跑）、`\\accserver\ACCOUNT\69EXP\TEST2`、基线 `TEST2@2026-11-16`，被测代码 a1cf24198（= main 9e0e102ab + 本分支）及 cea84e06b。
+
+- 通过 18 格：company.connect.fresh / connect / twice、denied、purchase.express / .twice、stock.in / out / adjust / transfer / void / count、
+  pos.day、pos.day.vat.remembered、purchase.cancel、sales.cancel、operator.purchase（复跑）。证据 `acceptance-runs/20261116-17*-a1cf24198`、`20261116-18*-cea84e06b`。
+- 不通过 6 格：sales.credit、collection.three / nbsp / web.twice / line.edit / line.refused —— 只差产品缺陷 1（payment_method）。
+- 于是旧路径跑过的格在新路径上全部补齐；operator.sales 新路径证据在 14:34（缺陷 2）。
+- pos.day 第一次不通过（落点为空）：查出**可疑产品竞态**（报主会话）——`pos_day._summarize` 已 `push.queue` 排后台写账，站点脚本又同步 `push.send`，
+  `push._send` 无行锁，答题前算出「要问」的那次晚落库，盖掉答题后写下的 `ledger_book` 并把旧题写回；回执只改状态 → 写成但字段不一致。
+  产品里 `push.poll`（每分钟）与用户答题（`express.api.answer` 也 send）同样能撞上。站点脚本已改成等产品自己的后台写账（cea84e06b），复跑通过。
+
+## 第 5 批首跑（修复前红，11-16 18:1x）
+
+| 场景 | 结果 | 红在哪 | 转绿要等 |
+|---|---|---|---|
+| acc.erp.operator.intake.purchase（H3） | 不通过 | 开始前卡片认不出收单记录（not_found） | `pearnly/erp-operator-intake` |
+| acc.erp.operator.stock.group（H5） | 不通过 | 没问物料组；写时 STOCK_ACC_GROUP_UNFIT（ST01 → 14-01-03-00 不像存货）停下且无可选项 | `pearnly/cc-stop-exits-h5` |
+| acc.erp.operator.masters.link（缺陷 2） | 不通过 | 被 H5 先拦（新物料）走不到挂码 | H5 **和** `pearnly/operator-masters-link` 都进 main |
+| acc.erp.operator.no.computer | 没跑 | 要另配一家「电脑上没有它的员工」的公司和一个没登录过 CC 的员工（环境变量见场景文件头） | 现场 + 341e08624 |
+| acc.erp.office.actor.purchase | 没跑 | 要配一个只用手机的员工（`PEARNLY_ACC_ERP_PHONE_USER`） | 现场 + office_actor 修复 |
+
+证据 `acceptance-runs/20261116-1814*`–`1817*-cea84e06b`。H5 现场在 TEST2 上原样复现，说明验收账套就能守这条。
