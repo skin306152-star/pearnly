@@ -133,6 +133,8 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.untouched(result, ["APTRN"]), ["changed:STMAS.DBF"])
         self.assertEqual(ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN"]), 1)
         self.assertEqual(ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN,STMAS"]), 0)
+        # 一张表都不许变（作废后与作废前比）：写成一个参数 --allow=，经 ssh 不会丢（11-16 首跑 purchase.cancel）
+        self.assertEqual(ledger.main(["diff", str(self.snap), str(self.book), "--allow="]), 1)
         # --show：场景要按新增行核单号、金额，指定的表的逐行变化直接带在结果那一行里
         import contextlib, io, json
         printed = io.StringIO()

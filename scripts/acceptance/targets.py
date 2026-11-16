@@ -151,7 +151,9 @@ class Ledger:
         if out:
             args += ["--out", out]
         if allow is not None:
-            args += ["--allow", ",".join(allow)]
+            # 一个参数写成 --allow=…：allow=[]（一张表都不许变）时是空串，分成两个参数经 ssh 到测试机会丢掉那个空串、argparse 报缺参数
+            # （11-16 首跑 purchase.cancel）；ledger.py 把空串当「一张都不许变」
+            args += [f"--allow={','.join(allow)}"]
         return self.call(*args)
 
 

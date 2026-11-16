@@ -50,6 +50,18 @@ retried = false
 covers = "7725738405d8cd16"
 
 [[pass]]
+scenario = "acc.erp.pos.day.express"
+sha = "56938b89d5c27604f24b2fdef901d0f96af41b8c"
+date = "2026-11-16"
+env = "B"
+run = "20261116-135053-56938b89d"
+retried = false
+covers = "fdb0479de274cbad"
+docnums = ["HS691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PDS-2026-00812"
+
+[[pass]]
 scenario = "acc.erp.purchase.express"
 sha = "942b0024324e05c1204699ee22b3800ab043540e"
 date = "2026-11-16"
