@@ -20,6 +20,7 @@ import sys
 import time
 
 import frappe
+from frappe.utils import nowdate
 
 sys.argv = [base64.b64decode(a[4:]).decode("utf-8") if a.startswith("b64:") else a for a in sys.argv]
 PROBE_COMPANY = "ACC switch probe"   # 切换当前公司要两家：只有一家时建的陪跑公司（不接账本、没有税号）
@@ -113,14 +114,18 @@ try:
             break
         time.sleep(5)
     by_code = {"express_company": name, "is_active": 1, "express_code": ["is", "set"]}
-    data = facts.load(view["express_book"]) if view.get("express_book") else None
+    # 资料按 40 位账套键存（express.facts），公司上的 express_book 只是账套显示名：按产品写账同一条规则（express.target.pick）取这家今天的账套
+    from pearnly_erp_portal.express import target
+    picked = target.pick(frappe.db.get_value(COMPANY, name, ["name", "company_name", "tax_id", "branch"], as_dict=True), nowdate(), None)
+    book_key = (picked.get("book") or {}).get("key")
+    data = facts.load(book_key) if book_key else None
     result["company"] = view
     result["sync"] = {"states": seen,
                       "customers": frappe.db.count("ERP Customer", by_code), "suppliers": frappe.db.count("ERP Supplier", by_code),
                       "products": frappe.db.count("ERP Product", by_code),
                       "nbsp_customers": len([code for code in frappe.get_all("ERP Customer", filters=by_code, pluck="express_code",
                                                                               limit_page_length=20000) if "\xa0" in str(code)]),
-                      "facts": bool(data), "stale_for_collection": bool(facts.stale_for_collection(data)) if data else None,
+                      "book_key": book_key, "pick_reason": picked.get("reason"), "facts": bool(data), "stale_for_collection": bool(facts.stale_for_collection(data)) if data else None,
                       "receipt_types": len((data or {}).get("receipt_types") or []), "cash_account": bool((data or {}).get("cash_account"))}
 
     # ── 停用后从连接再添加：重新启用同一家，不另建

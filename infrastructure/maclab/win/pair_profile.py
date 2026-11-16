@@ -148,6 +148,12 @@ def deactivate(doc: dict, profile_id: str, channel: str, root: str, undo: dict, 
     out = json.loads(json.dumps(doc))
     box = out["global"]
     mine = _profile(out, profile_id)
+    # 配对时 CC 把全局 backend_url 改成了这份档案的地址（11-16 首跑 release 只差这一项）：还指着它就还回配对前的值
+    if drop and "global_backend_url" in undo and box.get("backend_url") == mine.get("backend_url"):
+        if undo["global_backend_url"] is None:
+            box.pop("backend_url", None)
+        else:
+            box["backend_url"] = undo["global_backend_url"]
     if drop:
         out["profiles"] = [item for item in out["profiles"] if item is not mine]
     else:
@@ -288,6 +294,7 @@ def add(state_dir: Path, name: str, code_file: Path, root: str, ledger: str) -> 
     if len(chosen) != 1:
         raise SystemExit(f"数据根 {root} 下认出 {len(sets)} 本账套，其中是 {ledger} 的有 {len(chosen)} 本，要恰好一本")
     with Box(state_dir, name):
+        global_url = (_read(CFG).get("global") or {}).get("backend_url")   # 配对会把它改成本栈地址，删档案时还回去
         store = ProfileStore.load(CFG)
         cfg = store.new_runtime_config()
         result = pairing.pair(token=code, chosen=chosen[0], all_sets=sets, express_root=root, enable_autostart=False,
@@ -295,6 +302,7 @@ def add(state_dir: Path, name: str, code_file: Path, root: str, ledger: str) -> 
         if not result.ok:
             raise SystemExit(f"配对没成：{result.error_key}")
         changed, undo = activate(_read(CFG), cfg.profile_id, channel, root)
+        undo["global_backend_url"] = global_url
         _write(CFG, changed)
     state[name] = {"profile_id": cfg.profile_id, "channel": channel, "site": site, "root": root, "ledger": ledger,
                    "active": True, "undo": undo}

@@ -141,6 +141,21 @@ class ProfileTransform(unittest.TestCase):
         self.assertEqual([item["profile_id"] for item in back["profiles"]], ["cw", "erp", "fold", "old"])
         self.assertFalse(back["profiles"][1]["paused"])
 
+    def test_remove_gives_back_the_global_backend_url(self):
+        # 11-16 首跑：配对把全局 backend_url 改成本栈地址，删档案后只差这一项、release 停下；配对前记的值要还回去
+        before = _config()
+        before["global"]["backend_url"] = "https://testerp.pearnly.com"
+        out, undo = pair_profile.activate(before, "mac", "core", ACC)
+        undo["global_backend_url"] = "https://testerp.pearnly.com"
+        out["global"]["backend_url"] = "http://erp.maclab.localhost:18991"
+        out["profiles"][4]["backend_url"] = "http://erp.maclab.localhost:18991"
+        back = pair_profile.deactivate(out, "mac", "core", ACC, undo, drop=True)
+        self.assertEqual(back["global"]["backend_url"], "https://testerp.pearnly.com")
+        # 全局地址已不指着这份档案（人或 CC 改过）：不动
+        out["global"]["backend_url"] = "https://testcowork.pearnly.com"
+        back = pair_profile.deactivate(out, "mac", "core", ACC, undo, drop=True)
+        self.assertEqual(back["global"]["backend_url"], "https://testcowork.pearnly.com")
+
     def test_resume_after_pause_is_the_same_activation(self):
         first, undo = pair_profile.activate(_config(), "mac", "core", ACC)
         paused = pair_profile.deactivate(first, "mac", "core", ACC, undo)
