@@ -31,7 +31,15 @@ export type GuideCard = {
   returned?: GuideReturned;
 };
 export type GuideReviewLine = { key: string; label: string; value: string; step?: string };
-export type GuideReviewTable = { key: string; label: string; step?: string; rows: { code: string; name?: string; note?: string; amount?: string }[] };
+/** 表格里能就地改的一格（P3 预扣税逐行复核，11-16）：选项类给 options，其余按输入方式一格。 */
+export type GuideCellEdit = { input: "choice" | "number" | "date" | "text"; options?: { code: string; name: string }[] };
+export type GuideTableRow = {
+  code: string; name?: string; note?: string; amount?: string;
+  /** 各列的值（按 columns 的 key） */ cells?: Record<string, string>;
+  /** 能改的格；不在里面的只读。改了走 guide_edit(run, row.code, 格, 值, version) */ editable?: Record<string, GuideCellEdit>;
+  /** 这一行要人看的问题（已翻译的句子） */ issues?: string[];
+};
+export type GuideReviewTable = { key: string; label: string; step?: string; columns?: { key: string; label: string }[]; rows: GuideTableRow[] };
 export type GuideReview = {
   version: number; ready: boolean; problem?: string; problem_text?: string; total?: string;
   lines?: GuideReviewLine[]; tables?: GuideReviewTable[];

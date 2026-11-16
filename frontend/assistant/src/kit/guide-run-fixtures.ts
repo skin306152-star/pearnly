@@ -207,6 +207,29 @@ function editFace(face: DocFace, field: string, value: string): DocFace {
   return { ...face, lines: fixed, subtotal: subtotal.toFixed(2), vat: (subtotal * 0.07).toFixed(2), total: (subtotal * 1.07).toFixed(2) };
 }
 
+/** 预扣税待确认行（P3，表单 review 里逐行可改的表）。 */
+const WHT_ROWS = [
+  { code: "W-1", name: "บจก. ขนส่งไทย", note: "2026-10-05", amount: "30.00",
+    cells: { include: "yes", income_type: "transport", payment_date: "2026-10-05", rate: "1", base: "3000.00", tax: "30.00", payee_tax_id: "0105551234567", form: "53" },
+    issues: [] as string[] },
+  { code: "W-2", name: "นายสมชาย ใจดี", note: "2026-10-12", amount: "150.00",
+    cells: { include: "yes", income_type: "service", payment_date: "2026-10-12", rate: "3", base: "5000.00", tax: "150.00", payee_tax_id: "123", form: "3" },
+    issues: [L("税号不是 13 位", "เลขประจำตัวผู้เสียภาษีไม่ครบ 13 หลัก", "Tax ID is not 13 digits", "納税者番号が 13 桁ではありません")] },
+];
+function whtReview(rows = WHT_ROWS): GuideReview {
+  const choice = (options: [string, string][]) => ({ input: "choice" as const, options: options.map(([code, name]) => ({ code, name })) });
+  const editable = { include: choice([["yes", L("算", "นับ", "Include", "含める")], ["no", L("不算", "ไม่นับ", "Exclude", "含めない")]]),
+    income_type: choice([["transport", L("运输费", "ค่าขนส่ง", "Transport", "運送費")], ["service", L("服务费", "ค่าบริการ", "Service", "役務費")], ["rent", L("租金", "ค่าเช่า", "Rent", "賃料")]]),
+    payment_date: { input: "date" as const }, rate: { input: "number" as const }, base: { input: "number" as const }, tax: { input: "number" as const },
+    payee_tax_id: { input: "text" as const }, form: choice([["3", "ภ.ง.ด.3"], ["53", "ภ.ง.ด.53"]]) };
+  return { version: 1, ready: true, total: "180.00", tables: [{ key: "wht", label: L("待确认的预扣税", "ภาษีหัก ณ ที่จ่ายที่รอยืนยัน", "Withholding tax to confirm", "確認待ちの源泉税"),
+    columns: [["include", L("算入", "นับรวม", "Include", "計上")], ["income_type", L("收入类型", "ประเภทเงินได้", "Income type", "所得区分")],
+      ["payment_date", L("付款日", "วันที่จ่าย", "Payment date", "支払日")], ["rate", L("税率", "อัตรา", "Rate", "税率")], ["base", L("计税额", "ฐานภาษี", "Base", "課税標準")],
+      ["tax", L("税额", "ภาษี", "Tax", "税額")], ["payee_tax_id", L("收款方税号", "เลขผู้รับเงิน", "Payee tax ID", "受取人番号")], ["form", L("申报表", "แบบ", "Form", "様式")]]
+      .map(([key, label]) => ({ key, label })),
+    rows: rows.map((row) => ({ ...row, editable })) }] };
+}
+
 /** 允许卡式确定（N5）的替身：删一个定时任务。 */
 function allowReview(): GuideReview {
   return { version: 1, ready: true, lines: [
@@ -220,6 +243,7 @@ function view(run: Run): GuideView {
     consent: run.consent ?? "confirm" } as GuideView;
   if (run.status === "cancelled" || run.status === "expired") return { ...base, reason: run.status };
   if (run.flow === "purchase") return documentsView(run, base);
+  if (run.flow === "wht") return run.status === "reviewing" ? { ...base, review: whtReview() } : { ...base, result: { status: "entered" } };
   if (run.flow === "allow") {
     if (run.status === "reviewing") return { ...base, review: allowReview() };
     return { ...base, result: { status: "entered", reason_text: L("已删除", "ลบแล้ว", "Deleted", "削除しました") } };
@@ -267,6 +291,7 @@ export function seed(scenario: string): string {
     Object.assign(run, { flow: "purchase", business: "purchase", operator: true, loginSet: scenario === "operator-login",
       docs: { files: ["I:1", "I:2"], readLeft: 0, answered: false, faces: { ...FACES }, versions: {} } });
   }
+  if (scenario === "wht") Object.assign(run, { flow: "wht", business: "withholding_tax", status: "reviewing" });
   if (scenario === "allow") Object.assign(run, { flow: "allow", business: "scheduled_task_delete", status: "reviewing", consent: "allow" });
   if (scenario === "follow") Object.assign(run, { flow: "follow", business: "recon", status: "done" });
   if (scenario === "expired" || scenario === "cancelled") Object.assign(run, { status: scenario });
@@ -309,6 +334,17 @@ export const fixtureTransport: GuideTransport = {
   edit: (name, docId, field, value, version) => {
     const run = runs.get(name)!;
     if (version !== run.version) return delay({ ...view(run), outcome: "changed" as const });
+    if (run.flow === "wht") {
+      // 表单表格的就地改（P3）：税号不是 13 位就拒，带译文
+      if (field === "payee_tax_id" && value.replace(/\D/g, "").length !== 13) {
+        return delay({ ...view(run), outcome: "refused" as const, refused: { payee_tax_id: "tax_id" }, refused_text: { payee_tax_id: L("税号要 13 位", "ต้องมี 13 หลัก", "Tax ID needs 13 digits", "13 桁が必要です") } });
+      }
+      const row = WHT_ROWS.find((r) => r.code === docId)!;
+      row.cells = { ...row.cells, [field]: value };
+      if (field === "payee_tax_id") row.issues = [];
+      run.version += 1;
+      return delay(view(run));
+    }
     const column = field.replace(/^lines\.\d+\./, "lines.*.");
     if (COMPUTED.includes(column)) return delay({ ...view(run), outcome: "refused" as const, refused: { [field]: T2.computed } });
     const d = run.docs!;

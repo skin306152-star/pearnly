@@ -14,12 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Spinner } from "@/components/ui/spinner";
 import { co, guide, op, run as runWords, t } from "@/i18n";
 import { fileUrl } from "@/lib/managed-agents/api";
 import {
   canEdit, cancelGuide, cellValue, confirmGuide, type DocMark, type DocRow, editGuide, followGuide, type GuideDocResult, type GuideDocReview,
-  type GuideResult, type GuideReview as FormReviewData, type GuideUploads, type GuideView, HEAD_FIELDS, isDocResult, isDocReview,
+  type GuideResult, type GuideReview as FormReviewData, type GuideReviewTable, type GuideTableRow, type GuideUploads, type GuideView, HEAD_FIELDS, isDocResult, isDocReview,
   LINE_FIELDS, refusedText, reopenGuide, subsAnswered,
 } from "@/lib/guide-run";
 import { SubQuestionsField } from "./guide-inputs";
@@ -55,6 +56,83 @@ const Decide: FC<Props & { ready: boolean; seen?: string }> = ({ view, busy, act
   );
 };
 
+// ── 表单复核里逐行可改的表（P3 预扣税待确认行，11-16）：每行一块（名称 · 说明 · 金额 + 问题句），下面按 columns 一格一行；
+//    editable 里的格就地改（选项用原生下拉、其余一格输入，失焦 / 回车 / 选中即交 guide_edit），其余只读；被拒时在那一格下显示译文。──
+
+const TableCell: FC<{
+  row: GuideTableRow; column: { key: string; label: string }; disabled: boolean; refused: string;
+  onCommit: (field: string, value: string) => void;
+}> = ({ row, column, disabled, refused, onCommit }) => {
+  const shown = row.cells?.[column.key] ?? "";
+  const edit = row.editable?.[column.key];
+  const [draft, setDraft] = useState<string | null>(null);
+  const commit = (value: string) => {
+    if (value !== shown) onCommit(column.key, value);
+    setDraft(null);
+  };
+  let body;
+  if (!edit) {
+    body = <span data-slot="cc-guide-cell" data-field={column.key} data-readonly>{shown}</span>;
+  } else if (edit.input === "choice") {
+    body = (
+      <NativeSelect data-slot="cc-guide-cell" data-field={column.key} aria-label={column.label} value={shown} disabled={disabled}
+        onChange={(event) => commit(event.currentTarget.value)}>
+        {(edit.options ?? []).map((option) => <NativeSelectOption key={option.code} value={option.code}>{option.name}</NativeSelectOption>)}
+      </NativeSelect>
+    );
+  } else {
+    body = (
+      <Input data-slot="cc-guide-cell" data-field={column.key} aria-label={column.label} value={draft ?? shown} disabled={disabled}
+        type={edit.input === "date" ? "date" : "text"} inputMode={edit.input === "number" ? "decimal" : undefined} aria-invalid={!!refused || undefined}
+        className={edit.input === "number" ? "cc-guide-amount w-(--cc-guide-amount-w) shrink-0" : undefined}
+        onChange={(event) => setDraft(event.currentTarget.value)} onBlur={() => draft !== null && commit(draft)}
+        onKeyDown={(event) => { if (event.key === "Enter" && draft !== null) { event.preventDefault(); commit(draft); } }} />
+    );
+  }
+  return (
+    <Item size="sm" data-field={column.key}>
+      <ItemContent>
+        <ItemDescription>{column.label}</ItemDescription>
+        {refused ? <ItemDescription data-slot="cc-guide-cell-refused">{refused}</ItemDescription> : null}
+      </ItemContent>
+      <ItemActions>{body}</ItemActions>
+    </Item>
+  );
+};
+
+const EditableTable: FC<Props & { table: GuideReviewTable }> = ({ view, busy, act, table }) => {
+  const [last, setLast] = useState<{ code: string; field: string } | null>(null);
+  const columns = table.columns ?? [];
+  const edit = (code: string, field: string, value: string) => {
+    setLast({ code, field });
+    act(() => editGuide(view.run, code, field, value, view.version));
+  };
+  return (
+    <ItemGroup data-key={table.key} data-slot="cc-guide-table" className="cc-guide-body">
+      <Item size="sm"><ItemContent><ItemTitle>{table.label}</ItemTitle></ItemContent></Item>
+      {table.rows.map((row) => (
+        <Collapsible key={row.code} defaultOpen={(row.issues ?? []).length > 0} data-slot="cc-guide-table-row" data-code={row.code}>
+          <CollapsibleTrigger asChild>
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start">
+              <ChevronRightIcon />
+              <span className="min-w-0 flex-1 truncate text-start">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</span>
+              {(row.issues ?? []).length > 0 && <Badge variant="destructive">{row.issues!.length}</Badge>}
+              {row.amount ? <span className="tabular-nums">{row.amount}</span> : null}
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            {(row.issues ?? []).map((issue) => <p key={issue} className="cc-askq-desc" data-slot="cc-guide-issue">{issue}</p>)}
+            {columns.map((column) => (
+              <TableCell key={column.key} row={row} column={column} disabled={busy} onCommit={(field, value) => edit(row.code, field, value)}
+                refused={last?.code === row.code && last.field === column.key && view.outcome === "refused" ? refusedText(view, column.key) : ""} />
+            ))}
+          </CollapsibleContent>
+        </Collapsible>
+      ))}
+    </ItemGroup>
+  );
+};
+
 // ── 表单复核 ──────────────────────────────────────────────────────────────────────────────────────────
 
 const FormReview: FC<Props & { review: FormReviewData }> = (props) => {
@@ -76,7 +154,8 @@ const FormReview: FC<Props & { review: FormReviewData }> = (props) => {
           </Item>
         ))}
       </ItemGroup>
-      {(review.tables ?? []).map((table) => (
+      {(review.tables ?? []).filter((table) => table.columns?.length).map((table) => <EditableTable key={table.key} {...props} table={table} />)}
+      {(review.tables ?? []).filter((table) => !table.columns?.length).map((table) => (
         <ItemGroup key={table.key} data-key={table.key} className="cc-guide-body">
           <Item size="sm">
             <ItemContent><ItemTitle>{table.label}</ItemTitle></ItemContent>

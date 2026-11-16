@@ -275,6 +275,18 @@ const result = resultFrom([q], [{ ...state, entries: { F: "6" } }]);
 assert.deepEqual(guideAnswersOf(card, result), [{ key: "unit|D-1|0", value: "factor:6" }]);
 assert.deepEqual(guideAnswersOf(card, resultFrom([q], [{ labels: ["S"], other: null }])), [{ key: "unit|D-1|0", value: "same" }]);
 
+// 表单复核里逐行可改的表（P3 预扣税）：改错被拒带译文，改对写进行里、问题句消失
+const wht = seed("wht");
+let w = await t.view(wht);
+const table = (w.review as any).tables[0];
+assert.ok(table.columns.length && table.rows[1].editable.payee_tax_id);
+w = await t.edit(wht, "W-2", "payee_tax_id", "123", w.version);
+assert.equal(w.outcome, "refused");
+assert.ok(refusedText(w, "payee_tax_id"));
+w = await t.edit(wht, "W-2", "payee_tax_id", "0105559876543", w.version);
+assert.equal((w.review as any).tables[0].rows[1].cells.payee_tax_id, "0105559876543");
+assert.deepEqual((w.review as any).tables[0].rows[1].issues, []);
+
 // 代录开始前（A4）：operator 块、事实行、做不做的「再录一次」
 const opRun = seed("operator");
 const ov = await t.view(opRun);
@@ -320,6 +332,10 @@ assert.match(follow, /data-slot="cc-guide-follow"/);
 const opHead = await html("operator");
 assert.match(opHead, /data-slot="cc-op-target"/);
 assert.match(opHead, /data-slot="cc-guide-fact"/);
+const whtHtml = await html("wht");
+assert.match(whtHtml, /data-slot="cc-guide-table"/);
+assert.match(whtHtml, /data-slot="cc-guide-issue"/);
+assert.match(whtHtml, /<select[^>]*data-field="form"/);                 // 选项类的格是原生下拉
 const formReview = await html("review");
 assert.match(formReview, /data-slot="cc-guide-back"[^>]*data-step="invoices"/);
 console.log(JSON.stringify({ allow: allow.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), review: review.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) }));
