@@ -12,6 +12,7 @@
 | 前端翻译键检查 | `check-frontend-i18n.py --strict` | 静态检查，不代替界面语言验收 |
 | CC 前端标准闸门 | `check-frontend-tokens.py [--report]` | 静态检查：`frontend/assistant` 组件不写死颜色 / 圆角 / 阴影（R1–R3，全仓失败）；尺寸、间距、字号、层级、动效等 R4–R15 同样全仓失败（[标准化记录](../docs/work/2026-10-17-cc-frontend-standards.md) 第 3 节；分批迁移用的收紧清单 B8 已删）；`--report` 按规则、文件报数；不代替截图核对 |
 | CC 标准组件库闸门 | `check-frontend-kit.py [--list] [--update]` | 静态检查：`frontend/assistant` 里手写的按钮、输入、表格、弹窗、交互角色、直接引底层件、直接写通用外观类，按文件计数登记在 `frontend-kit-baseline.json`，只许减少（[标准组件库](../docs/development/cc-ui-kit.md)） |
+| CC 对话卡片闸门 | `check-frontend-cards.py`、`check-cc-card-render.mjs [--quick] [--shots DIR]` | 源码：卡片外框只在登记的外框件里写、卡里不写「正在加载」、标准组件不在调用处改外观，无基线；渲染：`cc-card-scenarios.json` 登记的预览页场景按四语 × 电脑 / 手机触屏 × 浅深色用真 Chrome 量报错、横滚、越界、截断、触屏快捷键、标题栏、按钮行、推荐项排第一与不预选（[标准组件库](../docs/development/cc-ui-kit.md) 规则 8） |
 | CC 画面比对 | `cc-visual/shoot.mjs` → `cc-visual/compare.mjs` | 离线：本机假服务端（`cc-visual/server.mjs`，假数据、不连真实服务）+ 本机无界面 Chrome，按 `cc-visual/scenes.mjs` 的 7 种环境 × 浅深色 × 场景对两个构建产物各取计算样式快照与截图，逐项 / 逐像素比；产物用 `vite build --outDir <临时目录>` 构建，不写进仓库；有差异退出码 1。做法见记录 5.2 |
 | Cowork 录入演示数据 | `sample-cowork-intake-demo.py` | 只写本地样板 `cowork-a.localhost`：建原件与识别记录（固定识别结果，不调模型、不计费），请求键固定、重跑幂等 |
 | 定向业务验证 | `sample-verify-*` | 有离线、本地写入、外部读取和外部真写，不能通配符全跑 |

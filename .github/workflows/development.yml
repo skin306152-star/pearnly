@@ -434,6 +434,8 @@ jobs:
         run: python3 tests/test_cc_frontend_gate.py
       - name: Take CC generic controls from the standard component library only (hand-written ones are a shrink-only baseline)
         run: python3 scripts/check-frontend-kit.py && python3 tests/test_check_frontend_kit.py && python3 tests/test_cc_ui_kit.py
+      - name: CC cards have one frame, no loading word inside a card and no appearance override on standard components (11-16 audit)
+        run: python3 scripts/check-frontend-cards.py && python3 tests/test_check_frontend_cards.py
       - name: Keep CC idle when nothing happens (decorative animations stop after a few rounds, infinite ones only while working)
         run: python3 tests/test_cc_idle_motion.py
       - name: Keep dvh / svh / lvh behind a vh fallback (Chrome and Android WebView before 108 drop the whole declaration)

@@ -1,0 +1,6 @@
+{
+  "_说明": "check-cc-card-render.mjs 量的预览页场景（kit.html 的查询串）。每种对话卡至少一个场景；新加卡片或新状态时在这里补一行，替身数据放四语最长的名称与金额（编造值）。nocard：这一页本来就不画卡片。",
+  "scenarios": [
+    { "name": "allow", "q": "page=allow" }
+  ]
+}

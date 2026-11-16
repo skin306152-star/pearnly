@@ -56,6 +56,12 @@ CC 对话页（`frontend/assistant`）的通用控件只从 `frontend/assistant/
 6. **库在最底层**。`components/ui` 不引业务组件、不引对话状态层（`lib/managed-agents`）、不引 `assistant.tsx`（`tests/test_cc_ui_kit.py` 核对）。
 7. **对话视口的滚动仍归 assistant-ui**。`Message`、`Bubble` 这些件只管外观；对话区的滚动、跟随、「回到最新」仍由 assistant-ui 的 Viewport 和 `lib/follow-scroll.ts` 负责。
    message-scroller 等到换状态层时再搬，不在同一个视口里叠两套滚动。
+8. **对话卡片只有一套**（2026-11-16 独立验收后加）。卡片外框用 `components/tool-uis/card-frame.tsx` 的 `CardFrame`（标题栏 + 内容 + 按钮行），
+   按钮只有 `Button size="xs"` 主 / 次两档、靠右、次在左（`tests/test_cc_card_buttons.py`）；卡里等待用 `Skeleton`，不写「正在加载」；
+   标准组件不在调用处写圆角、底色、阴影、边框色、字色。源码闸门 `python3 scripts/check-frontend-cards.py`（无基线，现有违规先修）。
+   渲染闸门 `node scripts/check-cc-card-render.mjs`：`scripts/cc-card-scenarios.json` 登记的预览页场景按四语 × 电脑 / 手机触屏 × 浅深色
+   用真 Chrome 量报错、横滚、越界、截断、触屏快捷键、标题栏、按钮行、推荐项排第一与不预选。**新加卡片或状态时在场景表补一行**，
+   替身数据放四语最长的名称与金额（编造值）。
 
 ## 3. 例子
 
