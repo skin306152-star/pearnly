@@ -152,3 +152,24 @@
 - 「归引导式 / 在途」只说明有窗口认领或有分支，不等于做完；进 main 前不算交付。B24、B25 在 A2 分支上没见到实现，已请 A2 确认。
 - 「已在 main 未上线」只说明代码在 main；线上仍 72516d120。
 - 没逐行比对旧分支内容，只按文件与提交说明判断。
+
+## 7. 第二件进度（11-16 晚）
+
+| 批 | 分支 | 条目 | 状态 |
+|---|---|---|---|
+| 1 上传 | `pearnly/cc-upload-tiles` ed8445c09 | B32 B34 B33 | 本地全闸门过、CI success；已交验收窗口 |
+| 2 小界面 | `pearnly/cc-small-ui` | B30 B38 B61 B62 B31 | 闸门复跑中 |
+| 5 外壳（先做快捷键） | `pearnly/cc-shell-keys` 018473e2c | B29 | 相关测试过、已推，CI 待查 |
+| 核对 | — | B72 | **已满足**：网页 icon-32/192/512、maskable、apple-touch、favicon、CC 桌面版 cc.ico 16–256 都是带胡须原版（都由 `src/brand/cc-icon.svg` 出图） |
+| 改列口径待定 | — | B35 | 和 B33 冲突（大方块 vs 小图标位），已问主会话 |
+
+### B60 改已有文案清单（待主会话 / 用户同意后施工）
+
+依据：user-decisions-2026-10-18「未连接电脑文案」，Cowork 已用共用层词条 `intake.agent.state.missing`。ERP 现在仍写「CC 桌面版未连接」。
+
+| 出现处 | 现在（中 / 泰 / 日 / 英） | 改成（同 Cowork 那一条） |
+|---|---|---|
+| ERP 待处理与单据页原因 `express/pending.py:73`、`public/desk/transactions.js:137` | CC 桌面版未连接 / CC เดสก์ท็อปไม่ได้เชื่อมต่อ / CC デスクトップが接続されていません / CC Desktop not connected | 未连接电脑 / ยังไม่ได้เชื่อมต่อคอมพิวเตอร์ / パソコン未接続 / No computer connected |
+| ERP 公司页「同步 Express」没电脑 `public/desk/company.js:291`、`public/desk/company-connect.js:166`（词条 `company.syncExpress.offline`） | 同上 | 同上 |
+| ERP 收款引导读账套时 `collection/guide.py:43` | 同上 | 同上 |
+| ERP 收款 LINE 回复 `integrations/line_collection.py:461` | 同上 | 同上 |
