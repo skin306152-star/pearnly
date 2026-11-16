@@ -4769,16 +4769,16 @@ assert.deepEqual(text(html(SetsSection, { sets, branches })),
 // 10-19 lab：MR.ERP 年度标签就是账套名（不写两遍），刷新读到的起止同 Express 写出来；只高亮覆盖这个月的那份，
 // 都不覆盖就不高亮（原先退到最新可写的那份也高亮）。覆盖不覆盖看服务端标的 covers（A 线 11-12，页面不按日期现算：
 // TEST2020 的起止也含 2026-10，服务端没标就不高亮）
-const mrerp = [{ connection: "M", key: "6:1", label: "TEST2019", year_label: "TEST2019", period_start: "2026-01-01", period_end: "2026-12-31", covers: true },
+const mrerp = [{ connection: "M", key: "6:1", label: "BOOK-A", year_label: "BOOK-A", period_start: "2026-01-01", period_end: "2026-12-31", covers: true },
   { connection: "M", key: "5:1", label: "TEST2020", year_label: "TEST2020", period_start: "2020-01-01", period_end: "2026-12-31" },
   { connection: "M", key: "4:1", label: "TEST2018", year_label: "TEST2018" }];
 const mrerpHtml = html(SetsSection, { sets: mrerp, branches: [] });
-assert.deepEqual(text(mrerpHtml).slice(2), ["TEST2019", new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric",
+assert.deepEqual(text(mrerpHtml).slice(2), ["BOOK-A", new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric",
   timeZone: "UTC" }).formatRange(new Date(Date.UTC(2026, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2020",
   new Intl.DateTimeFormat("en-US", { month: "short", year: "numeric", timeZone: "UTC" })
     .formatRange(new Date(Date.UTC(2020, 0, 15)), new Date(Date.UTC(2026, 11, 15))), "TEST2018"]);
-assert.equal(mrerpHtml.split("data-covering").length, 2);   // 只有 TEST2019 一行
-assert.ok(mrerpHtml.indexOf("data-covering") < mrerpHtml.indexOf("TEST2019"));
+assert.equal(mrerpHtml.split("data-covering").length, 2);   // 只有 BOOK-A 一行
+assert.ok(mrerpHtml.indexOf("data-covering") < mrerpHtml.indexOf("BOOK-A"));
 assert.ok(!html(SetsSection, { sets: mrerp.map((set) => ({ ...set, covers: false })), branches: [] }).includes("data-covering"));
 // 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目写「科目码 科目名」，用户 11-14）
 const pay = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment",
@@ -4820,15 +4820,15 @@ assert.deepEqual(text(policyRow(book, true)), ["Current year · Head office", "A
 // MR.ERP 账套记住的导入菜单 / 默认值（2026-10-19）：各自一组，菜单写菜单名、默认值收起时写「代码 名称」（用户 11-14）；点开是下拉（可选值点开时现取，
 // 先转圈），只能改、不能删、不能设为全公司
 const menu = { key: "m1", source: "mrerp", kind: "mrerp_menu", subject_label: "Purchase (goods)", value: "68", value_label: "ซื้อ",
-  editable: true, year_label: "TEST2019", mrerp: { connection: "M1", account_set_key: "12:3", part: "menu", field: "purchase" } };
+  editable: true, year_label: "BOOK-A", mrerp: { connection: "M1", account_set_key: "12:3", part: "menu", field: "purchase" } };
 const dept = { key: "m2", source: "mrerp", kind: "mrerp_default", subject_label: "Department", value: "D001", value_label: "บัญชี",
-  editable: true, year_label: "TEST2019", mrerp: { connection: "M1", account_set_key: "12:3", part: "default", field: "dept" } };
+  editable: true, year_label: "BOOK-A", mrerp: { connection: "M1", account_set_key: "12:3", part: "default", field: "dept" } };
 assert.deepEqual([choiceSection(menu), choiceSection(dept)], ["mrerp_menu", "mrerp_default"]);
 assert.deepEqual([co.kind.mrerp_menu, co.kind.mrerp_default], ["MR.ERP import menu", "MR.ERP settings"]);
 assert.deepEqual(text(policyRow(menu, false)), ["Purchase (goods)", "ซื้อ"]);
 assert.deepEqual(text(policyRow(dept, false)), ["Department", "D001", "บัญชี"]);
 const opened = policyRow(dept, true);
-assert.deepEqual(text(opened), ["Department", "D001", "บัญชี", "TEST2019", "Department", "D001 บัญชี"]);
+assert.deepEqual(text(opened), ["Department", "D001", "บัญชี", "BOOK-A", "Department", "D001 บัญชี"]);
 assert.ok(opened.includes("cc-spinner"));
 assert.ok(!opened.includes("cc-choice-forget") && !opened.includes("cc-choice-promote"));
 assert.equal(setChoiceShown([menu], "m1", "454", "ซื้อ2")[0].value_label, "ซื้อ2");
