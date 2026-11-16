@@ -16,6 +16,12 @@ MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点�
 打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
 这把密钥不再用，对话页重新登记，前者带 ``rekey``）。设备密钥只交给本站自己的对话页（``allowed``），不进任何地址栏参数。
 
+云端 Express 配对代登记（评估 2026-11-11 第 4.2 节，步 G）：桥本机存了云端连接（``cloud_link/link_store.py``）时 ``state()``
+多一项 ``cloud_link: true``（没有云端连接的电脑 state() 逐字节不变、不导入 cloud_link）。对话页据此调 ``cloud_pending``：
+回本站还没登记的云端电脑 ``[{host, device: {key, name}}]``（设备密钥是桥为云端那台生成的，设备名是云端主机名），对话页照
+登记这台电脑的同一个接口登记，新发的令牌经 ``cloud_token {host, token}`` 交回桥只存本机（不配对、不进地址栏）。两个动作都只认
+对话页所在、这台电脑连着的站点；令牌的通道要与本站成员相同。
+
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
 
@@ -62,7 +68,8 @@ class TomoBridge(QObject):
 
     def __init__(self, settings: DesktopSettings, *, allowed: Callable[[], bool], window: Callable[[], object],
                  set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "",
-                 pick: Optional[Callable[[str, str], str]] = None) -> None:
+                 pick: Optional[Callable[[str, str], str]] = None,
+                 cloud_links: Optional[Callable[[], object]] = None) -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
@@ -72,6 +79,8 @@ class TomoBridge(QObject):
         # pick(标题, 从哪打开) → 选好的文件夹（没选是空串）：默认在本进程弹（以窗口为父）；托盘里经窗口进程弹（WindowHost.pick）
         self._pick = pick or (lambda title, start: QFileDialog.getExistingDirectory(self._window(), title, start))
         self._probes = Probes()
+        # 本机的云端连接（cloud_link.link_store.LinkStore，没有云端连接回 None）；测试注入
+        self._cloud_links = cloud_links or _cloud_store
 
     @Slot(result=str)
     def state(self) -> str:
@@ -79,8 +88,9 @@ class TomoBridge(QObject):
             return REFUSED
         try:
             # window.frameless：本版窗口没有系统标题栏，对话页要自己画（旧版桌面端没有这一项，页面就不画，免得两层标题栏）
-            return json.dumps({**self._settings.snapshot(), "window": {"frameless": True}, "features": list(FEATURES)},
-                              ensure_ascii=False)
+            extra = {"cloud_link": True} if self._has_cloud() else {}
+            return json.dumps({**self._settings.snapshot(), "window": {"frameless": True}, "features": list(FEATURES),
+                               **extra}, ensure_ascii=False)
         except Exception:
             log.exception("读取本机设置失败")
             return json.dumps({"ok": False})
@@ -185,6 +195,10 @@ class TomoBridge(QObject):
             return self._operator(method, args, lang)
         if method == "mrerp_authorize":
             return self._mrerp_authorize(args, lang)
+        if method == "cloud_pending":
+            return self._cloud_pending()
+        if method == "cloud_token":
+            return self._cloud_token(args)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -276,6 +290,44 @@ class TomoBridge(QObject):
         return self._job(lambda: mrerp_login.authorize(site=site, backend_url=backend_url, token=token, ticket=ticket,
                                                        username=username, password=password))
 
+    def _has_cloud(self) -> bool:
+        try:
+            store = self._cloud_links()
+            return bool(store is not None and store.links)
+        except Exception:
+            log.exception("读本机的云端连接失败")
+            return False
+
+    def _cloud_pending(self) -> dict:
+        """本站还没登记的云端电脑（设备密钥 + 设备名），只交给这台电脑连着的站点自己的对话页。"""
+        member = self._settings.member_for(self._page_host())
+        if member is None:
+            return {"ok": False, "code": "not_connected"}
+        store = self._cloud_links()
+        if store is None:
+            return {"ok": True, "links": []}
+        return {"ok": True, "links": [{"host": link.host, "device": {"key": store.device_key(link.host),
+                                                                     "name": link.device_name}}
+                                      for link in store.pending(member[0])]}
+
+    def _cloud_token(self, args: dict) -> dict:
+        """对话页登记云端电脑后交回的令牌：通道与本站成员相同才存（link_store，只存本机）。从不回令牌。"""
+        from . import channel
+
+        member = self._settings.member_for(self._page_host())
+        if member is None:
+            return {"ok": False, "code": "not_connected"}
+        site, backend_url, own_token = member
+        token = str(args.get("token") or "")
+        if not channel.known(token) or channel.of_token(token) != channel.of_token(own_token):
+            return {"ok": False, "code": "token_invalid"}
+        store = self._cloud_links()
+        host = str(args.get("host") or "")
+        if store is None or store.get(host) is None:
+            return {"ok": False, "code": "not_found"}
+        store.set_token(host, site, backend_url, token)
+        return {"ok": True}
+
     @staticmethod
     def _start(current: list) -> str:
         return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation),
@@ -317,3 +369,14 @@ class TomoBridge(QObject):
 
     def shutdown(self) -> None:
         self._probes.shutdown()
+
+
+def _cloud_store():
+    """本机的云端连接；没有那个文件（没连云端的电脑）回 None，不导入 cloud_link。"""
+    from .config import CLOUD_LINK_FILE
+
+    if not CLOUD_LINK_FILE.exists():
+        return None
+    from .cloud_link.link_store import LinkStore
+
+    return LinkStore.load()

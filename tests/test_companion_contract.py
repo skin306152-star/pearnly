@@ -228,6 +228,26 @@ class DeviceMethods(unittest.TestCase):
         self.assertIn("if (!membersHere(state).length || thisComputer(state)) await connectComputer(api);", hook)
         self.assertIn("off = api.onChanged(", hook)
 
+    def test_the_chat_page_registers_the_cloud_computer_through_the_same_register_calls(self):
+        """云端 Express 配对代登记（评估 2026-11-11 第 4.2 节，步 G）：桥有云端连接时 state() 带 ``cloud_link``，对话页取
+        ``cloud_pending`` 的设备密钥与设备名，照登记这台电脑的同一个接口登记（Cowork 带 express、ERP 走共用通道），
+        新令牌经 ``cloud_token`` 交回桥只存本机，不配对；桥一侧两个动作只认这台电脑连着的站点。"""
+        page = (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8")
+        bridge = (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8")
+        cloud = page[page.index("async function registerCloud"):page.index("/** 对话页打开时")]
+        self.assertIn('api.call("cloud_pending")', cloud)
+        self.assertIn('channelOf(pageProduct) === "core" ? registerCore(device, { rekey }) : register(true, { device, rekey })',
+                      cloud)
+        self.assertIn('api.call("cloud_token", { host, token: found.token })', cloud)
+        self.assertNotIn('"pair"', cloud)
+        self.assertIn("if (alive && state.cloud_link) await registerCloud(api, tried)",
+                      page[page.index("export function useAutoConnect"):])
+        for name in ('"cloud_pending"', '"cloud_token"', '"cloud_link": True'):
+            self.assertIn(name, bridge)
+        for method in ("_cloud_pending", "_cloud_token"):
+            self.assertIn("self._settings.member_for(self._page_host())",
+                          method_source(COMPANION / "tomo_bridge.py", "TomoBridge", method))
+
     def test_replacing_a_members_key_lets_the_old_key_say_hello_not_leave(self):
         """第 6 批审查第 5 条：配对按端点换掉成员的旧密钥前先拿旧密钥认一次电脑（服务端回 superseded 才吊销它、把旧电脑并进这台），
         用的是 device_hello、不是 device_leave（同一配对码抄到两台时 leave 会吊销另一台正在用的密钥）；被说过不能再用的不发。"""

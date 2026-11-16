@@ -40,6 +40,8 @@ def _appdata_root() -> Path:
 APPDATA_DIR = _appdata_root()
 APPDATA_DIR.mkdir(parents=True, exist_ok=True)
 CONFIG_FILE = APPDATA_DIR / "companion.json"
+# 云端 Express 连接（桥本机，cloud_link/link_store.py）：只有连了云端才有这个文件，没连的电脑不读不写
+CLOUD_LINK_FILE = APPDATA_DIR / "cloud_link.json"
 LOG_DIR = APPDATA_DIR / "logs"
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
