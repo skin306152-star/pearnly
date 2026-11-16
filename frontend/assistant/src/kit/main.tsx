@@ -8,9 +8,11 @@ const dark = params.get("theme") === "dark";
 document.documentElement.lang = lang;
 document.documentElement.classList.toggle("dark", dark);
 
-void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery")]).then(
-  ([{ createRoot }, { installVariant }, { Gallery }]) => {
+void Promise.all([import("react-dom/client"), import("@/lib/variant"), import("./gallery"), import("./allow-card")]).then(
+  ([{ createRoot }, { installVariant }, { Gallery }, { AllowCardPreview }]) => {
     installVariant();
-    createRoot(document.getElementById("root") as HTMLElement).render(<Gallery lang={lang} dark={dark} />);
+    // ?page=allow：允许 / 拒绝卡（kit/allow-card.tsx）
+    const page = params.get("page") === "allow" ? <AllowCardPreview /> : <Gallery lang={lang} dark={dark} />;
+    createRoot(document.getElementById("root") as HTMLElement).render(page);
   },
 );

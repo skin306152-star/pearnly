@@ -36,6 +36,8 @@ export function ApprovalSheet() {
           <XIcon />
         </button>
       </div>
+      {/* 事实行（这一步会动到哪家公司、哪本账套；服务端给了才出），同电脑上的允许卡 */}
+      {approval.note ? <p className="cc-ask-note">{approval.note}</p> : null}
       <ChangeList preview={approval.preview} />
       <div className="cc-ask-foot">
         <ApprovalFailure message={approval.failure} />

@@ -239,7 +239,7 @@ const Choices: FC<{ reload: { current: () => void } }> = ({ reload }) => {
       )}
       <div className="min-h-0 flex-1 overflow-y-auto px-(--cc-space-12) pb-(--cc-space-12)" data-slot="cc-candidates">
         {recents && (
-          <button type="button" className="cc-list-row" data-slot="cc-company-picker-recents" disabled={!!busy} onClick={() => finish("", "")}>
+          <button type="button" className="cc-list-row" data-slot="cc-company-picker-recents" disabled={!!busy || rows === null} onClick={() => finish("", "")}>
             <Marquee className="min-w-0 flex-1 truncate text-ink">{t("recents")}</Marquee>
             {current === "" && <CheckIcon className="shrink-0 text-ink-3" />}
           </button>
