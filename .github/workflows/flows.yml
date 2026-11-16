@@ -1,0 +1,223 @@
+name: Flows
+
+# 流程用例（tests/flows/README.md）在 GitHub 的标准 x86 机器上分份并行跑（11-16 用户定仓库公开：公开仓库的标准机器免费、同时最多 20 台）。
+# plan 用本机同一套选法（scripts/flows/run.py：分支 = 改动涉及的流程，产品地图并集；手动 = 受影响 / 全套 / 指定流程）按站点切份；
+# 每份一台机器：构建两个前端 → 拉生产镜像（私有包，自带令牌）→ 起回归实验室 → 只建本份的站点 → 跑；
+# finish 汇总，不通过的格在一台机器上依次补跑一次，回写提交状态 pearnly/flows（与本机 run.py --post-status 同名同格式，
+# 合入钩子、列车与部署闸 scripts/production/deploy.sh 照认；部署闸只认说明以 all flows 开头的全套）。
+# 仓库仍私有时 push 不跑（标准机器要计费），只有提交说明带 [flows-on-github] 的才跑（校准用）；公开后自动生效。
+# 不跟 pull_request：外人的 PR 不在这里跑、也写不了提交状态。main 不自动跑全套：发布提交上手动触发 scope=all。
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'changed = flows touched since origin/main, all = the whole suite (the deploy gate needs it), flows = only the flows listed below (status not posted)'
+        type: choice
+        options: [changed, all, flows]
+        default: changed
+      flows:
+        description: 'scope=flows only, flow ids from tests/flows/registry.toml separated by commas or spaces'
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  # 同一分支新 push 取消旧的（旧提交的状态停在 pending，新提交另有自己的状态）
+  group: flows-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # 与 run.py 的默认一致；plan、各份、补跑都按这两个数切，才对得上
+  PEARNLY_FLOWS_PER_SHARD: '14'
+  PEARNLY_FLOWS_MAX_SHARDS: '20'
+  # 补跑上限：不通过的格比这多，多半是真坏了或环境整体出了问题，不补跑、直接回写不通过
+  RERUN_CAP: '30'
+
+jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || !github.event.repository.private || contains(github.event.head_commit.message, '[flows-on-github')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      statuses: write
+    outputs:
+      args: ${{ steps.decide.outputs.args }}
+      post: ${{ steps.decide.outputs.post }}
+      run: ${{ steps.decide.outputs.run }}
+      cells: ${{ steps.decide.outputs.cells }}
+      matrix: ${{ steps.decide.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0  # --changed 要找与 origin/main 的分叉点，产品地图要比对两边
+      - name: Pick the flows and split them into shards
+        id: decide
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_SCOPE: ${{ inputs.scope }}
+          INPUT_FLOWS: ${{ inputs.flows }}
+        run: python3 scripts/flows/github.py decide
+      - name: Mark the commit pending
+        if: steps.decide.outputs.run == 'true' && steps.decide.outputs.post != '' && steps.decide.outputs.cells != '0'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SCOPE: ${{ steps.decide.outputs.scope }}
+          CELLS: ${{ steps.decide.outputs.cells }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/statuses/$GITHUB_SHA" -f state=pending -f context=pearnly/flows \
+            -f "description=running on GitHub: $SCOPE; $CELLS runs" \
+            -f "target_url=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > /dev/null
+
+  shard:
+    needs: plan
+    if: needs.plan.outputs.run == 'true' && needs.plan.outputs.cells != '0'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read  # 拉私有的生产镜像
+    strategy:
+      fail-fast: false
+      max-parallel: 20
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: shard ${{ matrix.shard }} (${{ matrix.cells }} runs)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: '22.14.0'  # ui_steps.mjs 用 Node 自带的 WebSocket
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/assistant/package-lock.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install what the flow scripts read on the host (same pins as the production image)
+        run: python -m pip install --quiet "openpyxl==3.1.5" "et-xmlfile==2.0.0"
+      - name: Build the two frontends (built files are not in git; the flows test this commit's build)
+        run: |
+          npm ci --prefix frontend --no-audit --no-fund && npm run build --prefix frontend
+          npm ci --prefix frontend/assistant --no-audit --no-fund && npm run build --prefix frontend/assistant
+      - name: Start the regression lab on the production image and create this shard's sites
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash scripts/flows/github-lab.sh ${{ matrix.sites }}
+      - name: Run shard ${{ matrix.shard }}
+        env:
+          SMOKE_CHROME: /usr/bin/google-chrome
+          ARGS: ${{ needs.plan.outputs.args }}
+          SHARD: ${{ matrix.shard }}
+        run: |
+          # Ubuntu 24.04 默认不许普通用户建命名空间，Chrome 的沙箱起不来
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 > /dev/null
+          mkdir -p results
+          python3 scripts/flows/run.py $ARGS --shard "$SHARD" --jobs 3 --out "results/shard-${SHARD%%/*}.json"
+      - name: Lab log on failure
+        if: failure()
+        run: docker logs --tail 300 pearnly-regression-lab-bench-1 2>&1 || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: flows-shard-${{ strategy.job-index }}
+          path: results/
+          if-no-files-found: ignore
+          retention-days: 3
+
+  finish:
+    needs: [plan, shard]
+    if: always() && needs.plan.result == 'success' && needs.plan.outputs.run == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
+      statuses: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ARGS: ${{ needs.plan.outputs.args }}
+      POST: ${{ needs.plan.outputs.post }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        if: needs.plan.outputs.cells != '0'
+        with:
+          pattern: flows-shard-*
+          path: results
+          merge-multiple: true
+      - name: Merge the shards
+        id: merge
+        run: |
+          shopt -s nullglob
+          files=(results/shard-*.json)
+          python3 scripts/flows/run.py $ARGS --merge "${files[@]}" --out merged.json || true
+          failed=$(python3 -c 'import json; print(sum(not r["ok"] for r in json.load(open("merged.json"))["results"]))')
+          echo "failed=$failed" >> "$GITHUB_OUTPUT"
+          echo "failed runs: $failed (rerun cap $RERUN_CAP)"
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        if: steps.merge.outputs.failed != '0' && fromJSON(steps.merge.outputs.failed) <= fromJSON(env.RERUN_CAP)
+        with:
+          node-version: '22.14.0'
+          cache: npm
+          cache-dependency-path: |
+            frontend/package-lock.json
+            frontend/assistant/package-lock.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7.0.0
+        if: steps.merge.outputs.failed != '0' && fromJSON(steps.merge.outputs.failed) <= fromJSON(env.RERUN_CAP)
+        with:
+          python-version: '3.12'
+      - name: Rerun the failed runs once, one at a time on one machine
+        id: rerun
+        if: steps.merge.outputs.failed != '0' && fromJSON(steps.merge.outputs.failed) <= fromJSON(env.RERUN_CAP)
+        env:
+          SMOKE_CHROME: /usr/bin/google-chrome
+        run: |
+          python -m pip install --quiet "openpyxl==3.1.5" "et-xmlfile==2.0.0"
+          npm ci --prefix frontend --no-audit --no-fund && npm run build --prefix frontend
+          npm ci --prefix frontend/assistant --no-audit --no-fund && npm run build --prefix frontend/assistant
+          sites=$(python3 scripts/flows/github.py failed-sites merged.json)
+          bash scripts/flows/github-lab.sh $sites
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 > /dev/null
+          python3 scripts/flows/run.py --rerun-failed merged.json --jobs 1 --out final.json $POST || true
+          # 补跑写出了结果才算补跑过（它回写了状态）；没写出（实验室没起来等）由下一步按汇总结果回写
+          if [ -f final.json ]; then echo "done=1" >> "$GITHUB_OUTPUT"; fi
+      - name: Post pearnly/flows without a rerun
+        if: always() && steps.rerun.outputs.done != '1' && env.POST != ''
+        run: |
+          shopt -s nullglob
+          files=(results/shard-*.json)
+          python3 scripts/flows/run.py $ARGS --merge "${files[@]}" --post-status || true
+      - name: Summary
+        if: always()
+        run: |
+          if [ -f final.json ]; then
+            python3 scripts/flows/github.py summary final.json merged.json >> "$GITHUB_STEP_SUMMARY"
+            python3 -c 'import json, sys; sys.exit(0 if json.load(open("final.json"))["ok"] else 1)'
+          else
+            python3 scripts/flows/github.py summary merged.json >> "$GITHUB_STEP_SUMMARY"
+            python3 -c 'import json, sys; sys.exit(0 if json.load(open("merged.json"))["ok"] else 1)'
+          fi
+      - name: Lab log on failure
+        if: failure() && steps.rerun.outputs.done == '1'
+        run: docker logs --tail 300 pearnly-regression-lab-bench-1 2>&1 || true
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        if: always()
+        with:
+          name: flows-result
+          path: |
+            merged.json
+            final.json
+          if-no-files-found: ignore
+          retention-days: 14

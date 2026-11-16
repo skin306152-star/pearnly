@@ -134,10 +134,11 @@ step_conclusion() {  # step_conclusion <run id> <步骤名前缀>
 }
 
 # 流程用例闸：这个提交的 GitHub 状态 pearnly/flows 要是 success，且是全套（说明以 all flows 开头）。
-# 状态只由本机回归实验室回写（scripts/flows/run.py），本机睡眠或实验室没起来就没有状态，照样拦；没有绕过开关。
+# 状态由 GitHub 的 Flows 工作流（.github/workflows/flows.yml，11-16 起）或本机回归实验室（scripts/flows/run.py）回写，同名同格式；
+# 没有状态照样拦；没有绕过开关。
 flows_gate() {
   local line rerun
-  rerun="在挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本。跑过全套但没带 --post-status 的不算：结果没登记到这个提交；集成头还会变时别跑全套，只跑受影响的 run.py --changed --base <上一个头>，头冻结后再跑这一条"
+  rerun="在 GitHub 上跑全套并回写（约半小时，不占本机）：gh workflow run flows.yml --ref <发布标记> -f scope=all，跑完重跑本脚本；或在挂本提交源码的回归实验室跑全套并回写：git worktree add <目录> $sha && cd <目录> && PEARNLY_REGRESSION_SRC=\$PWD docker compose -p pearnly-regression-lab -f infrastructure/compose/regression-lab.yml up -d --wait && python3 scripts/flows/run.py --all --post-status（详见 tests/flows/README.md），通过后重跑本脚本。跑过全套但没带 --post-status 的不算：结果没登记到这个提交；集成头还会变时别跑全套，只跑受影响的 run.py --changed --base <上一个头>，头冻结后再跑这一条"
   line=$(cd "$REPO" && gh api "repos/{owner}/{repo}/commits/$sha/status" \
     --jq '[.statuses[] | select(.context == "pearnly/flows")][0] | select(. != null) | "\(.state) \(.description)"') || line=
   if [[ -n "$line" && "${line%% *}" != success ]]; then

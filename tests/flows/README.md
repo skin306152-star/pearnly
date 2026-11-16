@@ -45,7 +45,25 @@ docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.ym
 - 新开户报上 Express 账套后要在公司上勾「接 Express」才算接上（连上且勾了才推送 / 同步），`datasets.py` 照正式做法勾上。
 - 开户自动建的公司自带一个默认仓（同「新建公司」表单）；第一次 Express 主档同步时它被认作 Express 主仓，所以新开户仍是 7 个仓。
 
-## 为什么在本机跑
+## 在 GitHub 上跑（11-16 起，仓库公开后自动生效）
+
+`.github/workflows/flows.yml`：推分支就在 GitHub 的标准 x86 机器上跑受影响的流程（同 `run.py --changed --base origin/main`，产品地图并集），
+按站点切份（`run.py --plan`，每份约 14 格、最多 20 份同时跑），每份一台机器起一套回归实验室、只建本份的站点（`scripts/flows/github-lab.sh`）；
+汇总（`run.py --merge`）后不通过的格在一台机器上依次补跑一次（`--rerun-failed`），回写同一个 `pearnly/flows`（部署闸、合入钩子、列车照认）。
+运行页摘要列出不通过的格、补跑才过的格、留下了数据的格。
+
+| 想做的 | 怎么做 |
+| --- | --- |
+| 分支受影响的 | 推分支即可；结果看提交状态 `pearnly/flows` 或 Actions 里的 Flows 运行 |
+| 发布提交上的全套（部署闸要） | `gh workflow run flows.yml --ref <发布标记或分支> -f scope=all` |
+| 只跑几条（不回写状态） | `gh workflow run flows.yml --ref <分支> -f scope=flows -f flows=erp.stocktake.scan,cc.operator` |
+| 失败了重跑 | Actions 页面 Re-run failed jobs（只重跑失败的份），或推一个新提交 |
+
+不跑的时候：这个提交已在 `origin/main` 上（main 不自动跑全套）；这个提交已有同范围或全套通过的 `pearnly/flows`（本机跑过再推上来，不覆盖）；
+仓库仍私有时（标准机器计费）只有提交说明带 `[flows-on-github]` 的才跑。不跟 `pull_request`，不用自有机器。
+生产镜像是私有包，工作流用自带令牌（`packages: read`）拉，拉完登出。本机跑法照旧可用，是 GitHub 出问题时的后备。
+
+## 为什么以前在本机跑
 
 生产镜像只有 linux/amd64；回归实验室在本机 Mac 上跑的就是线上同一个 amd64 镜像（colima 里经 Rosetta 转译；10-31 之前没装 Rosetta，走的是 qemu，慢三十多倍）。放到 free-arm-2 上同样要模拟，
 还要给 CI 的 runner 加 root 级的 docker 权限。所以流程套件不在 GitHub 的 runner 上跑，结果由本机回写成提交状态。

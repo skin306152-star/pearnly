@@ -1,0 +1,54 @@
+name: Candidate checks on the production image
+
+# 候选镜像检查（scripts/ci-candidate-checks.sh，build-production.yml 在新镜像上跑的那一套）提前到分支与列车上跑：
+# 用线上同版的生产镜像（digest 与回归实验室同一个：infrastructure/compose/regression-lab.yml），把这个提交五个 App 的源码挂进去
+# （CANDIDATE_APPS=1）。改共用层（pearnly_core 等）的分支合入前要它通过——以前只有构建生产镜像时才跑，分支 CI 不跑（09-27、10-16 都因此构建失败）。
+# 仓库仍私有时 push 不跑（标准机器计费），提交说明带 [flows-on-github] 的才跑；公开后自动生效。不跟 pull_request。
+on:
+  push:
+    branches-ignore: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'offline = offline checks only; parallel = offline plus the DMS flow and snapshot labs'
+        type: choice
+        options: [offline, parallel]
+        default: offline
+
+permissions:
+  contents: read
+
+concurrency:
+  group: candidate-offline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  candidate:
+    if: github.event_name == 'workflow_dispatch' || !github.event.repository.private || contains(github.event.head_commit.message, '[flows-on-github')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: read  # 拉私有的生产镜像
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Pull the production image (private package, workflow token only)
+        id: image
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          image=$(grep -oE 'ghcr\.io/[a-z0-9./_-]+@sha256:[0-9a-f]{64}' infrastructure/compose/regression-lab.yml | head -1)
+          [ -n "$image" ] || { echo "no production image digest in regression-lab.yml"; exit 1; }
+          printf '%s' "$REGISTRY_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin > /dev/null
+          docker pull --quiet "$image" || { docker logout ghcr.io; exit 1; }
+          docker logout ghcr.io > /dev/null
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+      - name: Candidate checks with this commit's apps mounted into the production image
+        env:
+          IMAGE: ${{ steps.image.outputs.image }}
+          CANDIDATE_APPS: '1'
+          LANE: ${{ inputs.lane || 'offline' }}
+        run: bash scripts/ci-candidate-checks.sh "$LANE"

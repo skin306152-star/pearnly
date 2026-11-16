@@ -19,7 +19,15 @@ export PEARNLY_FLOW_LAB_IMAGE="$IMAGE" PEARNLY_SNAPSHOT_LAB_IMAGE="$IMAGE"
 # Every command is timed, so a slow lane shows where its time went.
 run() { local start=$SECONDS; "$@"; echo "  (+$((SECONDS - start))s) ${*: -1}"; }
 
-offline_py() { run docker run --rm --network none --entrypoint "$PY" "$@"; }
+# CANDIDATE_APPS=1：镜像是线上那版（不是这次构建的候选），把本工作树五个 App 的源码挂进镜像，测到的才是这个提交
+# （分支与列车用生产镜像跑，见 .github/workflows/candidate-offline.yml；build-production.yml 不设，测的就是候选镜像本身）
+APP_MOUNTS=()
+if [ "${CANDIDATE_APPS:-}" = 1 ]; then
+  for app in pearnly_core pearnly_cowork pearnly_dms pearnly_erp_portal pearnly_control; do
+    [ -d "apps/$app/$app" ] && APP_MOUNTS+=(-v "$PWD/apps/$app/$app:/home/frappe/frappe-bench/apps/$app/$app:ro")
+  done
+fi
+offline_py() { run docker run --rm --network none ${APP_MOUNTS[@]+"${APP_MOUNTS[@]}"} --entrypoint "$PY" "$@"; }
 
 offline() {
   # CC 工具一致检查（ADR-027 标准二）：要导入两个产品的工具声明，只能在镜像里跑

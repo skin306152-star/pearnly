@@ -248,6 +248,8 @@ class Lab:
         self._workers = threading.local()
         self._all_workers, self._workers_lock = [], threading.Lock()
         self.fallbacks = []  # (什么时候, 原因)：结果里写明哪些格退回了老路
+        # 重启后用哪个站点探网页起来没有：GitHub 上每份只建自己那几个站点（`--shard`），没有基础站点 erp.regression.localhost
+        self.ping_site = "erp.regression.localhost"
 
     def _worker(self):
         state = self._workers
@@ -418,7 +420,7 @@ print("{{}}")
         self.close_workers()
         subprocess.run(["docker", "restart", CONTAINER], capture_output=True, check=True, timeout=300)
         for _ in range(120):
-            ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", "Host: erp.regression.localhost",
+            ping = subprocess.run(["curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", "-H", f"Host: {self.ping_site}",
                                    f"http://127.0.0.1:{PORT}/api/method/ping"], capture_output=True, text=True)
             if ping.stdout == "200":
                 return
@@ -751,6 +753,96 @@ def previous_failures(path, flows, post):
     return previous, [(by_id[r["flow"]], r["dataset"], r["viewport"]) for r in previous["results"] if not r["ok"]]
 
 
+# GitHub 上分份跑（`.github/workflows/flows.yml`，11-16 仓库公开、标准机器免费）：每份一台机器、一套实验室，只建本份的站点。
+# 每份大约几格、最多几份（公开仓库一个账号同时最多 20 台；Development checks 等也占位，留一点余量由 GitHub 排队）
+PER_SHARD = int(os.environ.get("PEARNLY_FLOWS_PER_SHARD", "14"))
+MAX_SHARDS = int(os.environ.get("PEARNLY_FLOWS_MAX_SHARDS", "20"))
+
+
+def dataset_site(product, dataset):
+    """这套数据的站点（同 `scripts/regression/datasets.py` 的 SITES / COWORK_SITES / DMS_SITES）。"""
+    return f"{product}-{dataset}.regression.localhost"
+
+
+def cell_site(cell):
+    return dataset_site(cell[0].get("product", "erp"), cell[1])
+
+
+def shards(cells, per_shard=None, max_shards=None):
+    """把格切成几份，每份是一串格（登记表顺序）。同一站点的格依次跑，所以先按站点分组：
+    比一份还小的组装在一起（一份里几个站点，`--jobs` 并行），大组按格数比例分到余下的份、组内连续切（每份只建一个站点）；
+    余下的份不够每个大组一份时，整组装进格数最少的那份。同一参数总切出同一结果：`--plan` 和各台机器上的 `--shard I/N` 各算一遍、对得上。"""
+    per_shard, max_shards = per_shard or PER_SHARD, max_shards or MAX_SHARDS
+    if not cells:
+        return []
+    groups = {}
+    for cell in cells:
+        groups.setdefault(cell_site(cell), []).append(cell)
+    order = sorted(groups, key=lambda site: (-len(groups[site]), site))
+    count = max(1, min(max_shards, -(-len(cells) // max(1, per_shard))))
+    target = -(-len(cells) // count)
+    small = [site for site in order if len(groups[site]) < target]
+    big = [site for site in order if site not in small]
+    packed = []
+    for site in small:  # 从大到小，放进第一份还装得下的
+        room = next((b for b in packed if len(b) + len(groups[site]) <= target), None)
+        if room is None:
+            packed.append(room := [])
+        room.extend(groups[site])
+    spare = count - len(packed)
+    if spare < len(big):
+        bins = [[] for _ in range(count)]
+        for site in order:
+            min(bins, key=len).extend(groups[site])
+        return [b for b in bins if b]
+    share = {site: 1 for site in big}
+    for _ in range(spare - len(big)):  # 每次给「每份格数」最多的那组再加一份
+        site = max(big, key=lambda site: (len(groups[site]) / share[site], site))
+        share[site] += 1
+    out = []
+    for site in big:
+        group, k = groups[site], min(share[site], len(groups[site]))
+        out += [group[i * len(group) // k:(i + 1) * len(group) // k] for i in range(k)]
+    return out + packed
+
+
+def plan_of(scope, flow_count, cells):
+    """`--plan`：范围、格数、各份的格数与要建的站点（工作流的矩阵）。"""
+    parts = shards(cells)
+    return {"scope": scope, "flows": flow_count, "cells": len(cells),
+            "shards": [{"shard": f"{i}/{len(parts)}", "cells": len(part), "sites": " ".join(sorted({cell_site(c) for c in part}))}
+                       for i, part in enumerate(parts, 1)]}
+
+
+def merge_parts(scope, flow_count, cells, files):
+    """`--merge`：汇总各份的 --out。份要齐、都是这个提交和这个范围；没报上来的格记不通过（`error: not reported`），
+    好让 `--rerun-failed` 照常补跑它们。回与普通 --out 同样形状的结果。"""
+    sha, problems = head(), []
+    parts = [json.loads(Path(f).read_text(encoding="utf-8")) for f in files]
+    wanted = {key(cell): cell for cell in cells}
+    got = {}
+    for part in parts:
+        if part.get("sha") != sha or part.get("scope") != scope:
+            problems.append(f"shard {part.get('shard')} ran {str(part.get('sha'))[:12]} {part.get('scope')}")
+            continue
+        for result in part.get("results", []):
+            if key(result) in wanted:
+                got[key(result)] = result
+    missing = [k for k in wanted if k not in got]
+    if missing:
+        problems.append(f"{len(missing)} runs not reported")
+    results = [got.get(k) or {"flow": k[0], "dataset": k[1], "viewport": k[2], "ok": False, "checks": [],
+                              "error": "not reported (shard missing or cancelled)"} for k in wanted]
+    ok = all(r["ok"] for r in results) and not problems
+    datasets = ",".join(sorted({r["dataset"] for r in results})) or "-"
+    seconds = max((part.get("seconds", 0) for part in parts), default=0)
+    summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
+               f"{seconds}s in {len(parts)} shards" + (f"; {'; '.join(problems)}" if problems else ""))
+    return {"ok": ok, "summary": summary, "sha": sha, "dirty": any(part.get("dirty") for part in parts), "scope": scope,
+            "flow_count": flow_count, "seconds": seconds, "shards": len(parts), "problems": problems,
+            "lab_python_fallbacks": [f for part in parts for f in part.get("lab_python_fallbacks", [])], "results": results}
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--all", action="store_true")
@@ -766,6 +858,9 @@ def main(argv=None) -> int:
     parser.add_argument("--out")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--migrate", action="store_true", help="先重启实验室网页进程、把全部站点迁移到挂上来的源码（--post-status 时总是做）")
+    parser.add_argument("--plan", action="store_true", help="只打印范围、格数和各份要建的站点（JSON，GitHub 工作流分份用），不连实验室")
+    parser.add_argument("--shard", metavar="I/N", help="只跑第 I 份（共 N 份，切法同 --plan）；结果用 --out 交给 --merge")
+    parser.add_argument("--merge", nargs="*", metavar="份.json", help="汇总各份的 --out（同范围参数）；配 --out 写合并结果、--post-status 回写")
     parser.add_argument("--jobs", type=int, default=1, help="同时跑几个站点（同一站点的格依次跑；每一路占实验室一个网页进程，共 3 个，超过 3 路两路共用一个）")
     args = parser.parse_args(argv)
     flows = registry()
@@ -795,12 +890,35 @@ def main(argv=None) -> int:
         elif not args.all:
             parser.error("--all, --flow, --changed or --rerun-failed")
         cells, flow_count = expand(flows, args.dataset, args.viewport), len(flows)
-    if args.post_status:
+    if (args.plan or args.shard or args.merge is not None) and previous:
+        parser.error("--plan / --shard / --merge 不配 --rerun-failed（补跑在汇总之后做）")
+    if args.shard and (args.post_status or args.merge is not None or args.plan):
+        parser.error("--shard 只跑一份，汇总与回写由 --merge 做")
+    if args.plan:
+        print(json.dumps(plan_of(scope, flow_count, cells), ensure_ascii=False))
+        return 0
+    if args.merge is not None:
+        merged = merge_parts(scope, flow_count, cells, args.merge)
+        print(("流程用例：通过 " if merged["ok"] else "流程用例：不通过 ") + merged["summary"])
+        if args.out:
+            Path(args.out).write_text(json.dumps(merged, ensure_ascii=False, indent=1))
+        if args.post_status:
+            print("status posted for", post_status(merged["ok"], merged["summary"]))
+        return 0 if merged["ok"] else 1
+    if args.shard:
+        index, _, count = args.shard.partition("/")
+        parts = shards(cells)
+        if not count.isdigit() or int(count) != len(parts) or not index.isdigit() or not 1 <= int(index) <= len(parts):
+            raise SystemExit(f"--shard {args.shard} 对不上：这个范围切成 {len(parts)} 份")
+        cells = parts[int(index) - 1]
+    if args.post_status or args.shard:
         lab_runs_this_tree()
-    note = unposted_note(scope, args.post_status) if cells else ""
+    note = unposted_note(scope, args.post_status) if cells and not args.shard else ""
     if note:
         print(note, flush=True)   # 开跑前说一次：几小时的全套别白跑
     lab, results, started = Lab(persistent=True), [], time.monotonic()
+    if cells:
+        lab.ping_site = cell_site(cells[0])  # 本次一定建了的站点（分份时没有基础站点）
     held = lab_lock() if cells else None  # noqa: F841 —— 进程退出时放锁
     if cells:
         spa_fresh()
@@ -895,7 +1013,7 @@ def main(argv=None) -> int:
     if args.out:
         Path(args.out).write_text(json.dumps({
             "ok": ok, "summary": summary, "sha": head(), "dirty": bool(product_dirty()), "scope": scope, "flow_count": flow_count,
-            "seconds": seconds, "order": args.order, "jobs": args.jobs, "ports": PORTS[:max(1, min(args.jobs, len(PORTS)))], "lab_python_fallbacks": lab.fallbacks, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
+            "seconds": seconds, "shard": args.shard or "1/1", "order": args.order, "jobs": args.jobs, "ports": PORTS[:max(1, min(args.jobs, len(PORTS)))], "lab_python_fallbacks": lab.fallbacks, **({"merged_from": str(Path(args.rerun_failed).resolve()), "reran": reran} if previous else {}),
             "results": results}, ensure_ascii=False, indent=1))
     if args.post_status:
         print("status posted for", post_status(ok, summary))

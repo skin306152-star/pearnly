@@ -22,6 +22,8 @@
 | 验收场景与登记（`tests/acceptance/`、`scripts/acceptance/`、地图行的验收属性） | `python3 scripts/check-acceptance.py`；改到场景的 `covers` 文件后，这条场景的证据自动过期，要重跑并登记；见 [验收测试标准](acceptance-testing.md) | 真环境运行的时间与费用先报主会话；动测试机、手机、测试账套先拿占用锁 |
 | 需要在真实环境确认的改动 | 在 [Windows 测试环境](test-environment.md) 用**同一镜像 digest** 起环境，并用测试租户走一遍受影响路径 | 涉及电话/手机、真实 LINE 消息、第三方落单时，要在切换状态下做真机验收并单独记录 |
 
+流程用例在哪跑（11-16）：仓库公开后推分支即在 GitHub 标准机器上分份跑受影响的（`.github/workflows/flows.yml`），发布提交上的全套 `gh workflow run flows.yml --ref <发布标记> -f scope=all`；本机实验室是后备，回写同一个 `pearnly/flows`。改共用层的分支另有「Candidate checks on the production image」（生产镜像里跑 `ci-candidate-checks.sh offline`，挂本提交源码）。见 [流程用例](../../tests/flows/README.md)。
+
 发布日怎么跑流程用例（11-15）：集成头未冻结时只跑受影响的（`run.py --changed --base <上一个头>`），头冻结后在发布提交上只跑一次
 `run.py --all --post-status`，不在未冻结的头上跑 `--all`；全套不带 `--post-status` 的结果不登记、部署闸不认（`run.py` 开跑前与结束时各提醒一次）。
 细则见 [流程](workflow.md#6-发布与收尾)。
