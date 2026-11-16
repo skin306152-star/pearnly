@@ -1,0 +1,63 @@
+# 等接线的流程用例（11-16，P3 窗口）：模块已写好、还没在实验栈跑过，因为页面上的引导卡（分支 3 cc-guided-wire）与新输入
+# （A2 guided-frontend：交文件、子题、结果文件）还没进 main。接线一进 main：搬进 registry.toml（同样的字段），单跑
+# `run.py --flow <id>` 调好页面标记再提交。run.py 不读本文件。字段同 registry.toml，另有 waits（等什么）。
+
+[[flow]]
+id = "cowork.cc.guide.readback"
+title = "Cowork CC 回读引导：账套 = 本对话 T.8 不问，只问月份 → 确定 → 结果卡（在读 / 电脑没来领），请求记在 T.8"
+module = "scripts/flows/cowork_cc_guide_readback.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+waits = ["cc-guided-wire"]
+covers = ["apps/pearnly_cowork/pearnly_cowork/assistant/guided/readback.py", "apps/pearnly_cowork/pearnly_cowork/assistant/readback_files.py"]
+
+[[flow]]
+id = "cowork.cc.guide.recon"
+title = "Cowork CC 对账引导：银行对账 → 交文件 → 两侧各一份 → 确定 → 结果（任务交出）"
+module = "scripts/flows/cowork_cc_guide_recon.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+waits = ["cc-guided-wire", "guided-frontend: 交文件"]
+covers = ["apps/pearnly_cowork/pearnly_cowork/assistant/guided/recon.py"]
+
+[[flow]]
+id = "cowork.cc.guide.vat"
+title = "Cowork CC 增值税引导：月份 → 本月没有回读时出卡请读一次、题目下一行在读、确定不了"
+module = "scripts/flows/cowork_cc_guide_vat.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+waits = ["cc-guided-wire"]
+covers = ["apps/pearnly_cowork/pearnly_cowork/assistant/guided/vat.py"]
+
+[[flow]]
+id = "cowork.cc.guide.pos"
+title = "Cowork CC 收银日汇总引导：交 POS 导出 → 复核每天一行 → 写入 → 建好两张日汇总票（推送目标 T.8）"
+module = "scripts/flows/cowork_cc_guide_pos.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+waits = ["cc-guided-wire", "guided-frontend: 交文件、子题"]
+covers = ["apps/pearnly_cowork/pearnly_cowork/assistant/guided/pos.py"]
+
+[[flow]]
+id = "cowork.cc.guide.wht"
+title = "Cowork CC 预扣税引导：月份 → 确定 → 本对话公司的草稿与工作簿"
+module = "scripts/flows/cowork_cc_guide_wht.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+waits = ["cc-guided-wire", "guided-frontend: 结果卡文件、追问子题"]
+covers = ["apps/pearnly_cowork/pearnly_cowork/assistant/guided/wht.py"]
