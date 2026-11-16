@@ -41,7 +41,7 @@
  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py": 16,
  "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py": 2,
  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py": 15,
- "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py": 41,
+ "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py": 39,
  "apps/pearnly_cowork/pearnly_cowork/assistant/write_scope.py": 2,
  "apps/pearnly_cowork/pearnly_cowork/companies/automation.py": 1,
  "apps/pearnly_cowork/pearnly_cowork/companies/choices.py": 8,

@@ -200,7 +200,8 @@ def result(ctx, draft):
         if state["status"] != "ready":
             return {"status": "failed", "reason_text": _(state.get("code") or "failed")}
         added = readback_files.into_conversation(state, str(ctx.get("session") or ""))
-        files = [{"file": chat_files.resolve(path), "name": path.rsplit("/", 1)[-1]} for path in added.values()]
+        files = [{"file": chat_files.resolve(path), "name": path.rsplit("/", 1)[-1]}  # loop-query: 最多四本表
+                 for path in added.values()]
     return {"status": "ready", "account_set": state.get("account_set") or "", "period": state.get("period") or "",
             "files": files}
 

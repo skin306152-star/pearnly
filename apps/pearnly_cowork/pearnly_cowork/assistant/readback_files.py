@@ -17,7 +17,7 @@ def into_conversation(state, conversation) -> dict:
     added = dict(added) if isinstance(added, dict) else {}
     for kind in state.get("files") or ():
         if kind not in added:
-            filename, content = readback.file(state["readback"], kind)
-            added[kind] = chat_files.add_to_conversation(filename, content, XLSX, origin="tool")
+            filename, content = readback.file(state["readback"], kind)  # loop-query: 一份回读最多四本表（FILE_KINDS）
+            added[kind] = chat_files.add_to_conversation(filename, content, XLSX, origin="tool")  # loop-query: 同上，最多四本
             frappe.cache.set_value(key, added, expires_in_sec=FILES_TTL)
     return added
