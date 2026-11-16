@@ -111,7 +111,19 @@ export type WritePlanEvent = {
   processed_at: string;
 };
 
-export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent;
+/** 一次按表单的引导（assistant/guide/run.py 的 event）：点业务开一次，每走一步一条（编号带版本 pgd_<运行>_<版本>）；页面按 run 取卡。 */
+export type GuideRunStatus = "asking" | "reviewing" | "confirmed" | "done" | "failed" | "cancelled" | "expired";
+export type GuideEvent = {
+  type: "pearnly.guide";
+  id: string;
+  run: string;
+  business: string;
+  status: GuideRunStatus;
+  version: number;
+  processed_at: string;
+};
+
+export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent | GuideEvent;
 
 /** 代录的工具（方案 14.10：站点内部的显示用名，不交给模型、不进工具表）：由代录事件源投影进同一段对话。卡片（operator_start /
  *  operator_choose / operator_resume）的结果由站点以 user.custom_tool_result 交来；停着等它们时页面不走自动答复、run_tool、confirm

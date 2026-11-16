@@ -10,7 +10,7 @@ import { get, post } from "@/lib/frappe";
 import { withReport } from "./caught";
 
 export type Business = "purchase" | "sales" | "collection";
-export type Offered = { chat: Business[]; operator: Business[] };
+export type Offered = { chat: Business[]; operator: Business[]; /** 按表单走的业务：点了开一次引导运行（guide_start） */ forms?: string[] };
 
 
 type State = { offered: Offered | null; bySession: Record<string, string>; atBySession: Record<string, number>; draft: string;
@@ -27,7 +27,7 @@ let loading: Promise<void> | null = null;
 /** 读一次这个产品能做的业务（读不到当没有，不出菜单）。 */
 export function loadOffered(): Promise<void> {
   loading ??= get<Offered>("businesses")
-    .then((out) => useBusiness.setState({ offered: { chat: out?.chat ?? [], operator: out?.operator ?? [] } }))
+    .then((out) => useBusiness.setState({ offered: { chat: out?.chat ?? [], operator: out?.operator ?? [], forms: out?.forms ?? [] } }))
     .catch(withReport(() => useBusiness.setState({ offered: { chat: [], operator: [] } }), "business-offered"));
   return loading;
 }
@@ -86,4 +86,11 @@ export function useBusinessCarry(sessionId: string | null) {
     useBusiness.setState({ draft: "", draftAt: 0 });
     chooseBusiness(sessionId, draft, true);
   }, [sessionId]);
+}
+
+/** 本页刚开的引导运行（实验栈与推送断开时，事件要等下一次补拉才到）：开了就先画，事件到了按版本取更新的那一份。 */
+export type StartedRun = { run: string; business: string; status: string; version: number; startedAt: string };
+export const useStartedRuns = create<{ bySession: Record<string, StartedRun[]> }>(() => ({ bySession: {} }));
+export function noteStartedRun(sessionId: string, run: StartedRun) {
+  useStartedRuns.setState((s) => ({ bySession: { ...s.bySession, [sessionId]: [...(s.bySession[sessionId] ?? []).filter((r) => r.run !== run.run), run] } }));
 }

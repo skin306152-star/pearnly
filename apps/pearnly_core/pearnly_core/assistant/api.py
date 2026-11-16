@@ -63,8 +63,10 @@ def guide_card(session_id, tool_use_id):
 @frappe.whitelist(methods=["GET"])
 def businesses():
     from pearnly_core.assistant import guided
+    from pearnly_core.assistant.guide import declaration, registry
 
-    return guided.offered()
+    # forms：按表单走的业务（点了开一次引导运行，`guide_start`）；其余照第 1 期（选业务、CC 说一句）
+    return {**guided.offered(), "forms": [guide["id"] for guide in registry.declared() if guide.get("source") == declaration.FORM]}
 
 
 # 按表单的引导（引导式 P0 接线，`guide.run`）：点菜单上的业务开一次、页面按 run 取卡、作答、确定、取消、搜索选项。

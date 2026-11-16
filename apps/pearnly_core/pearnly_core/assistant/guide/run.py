@@ -302,7 +302,8 @@ def view(doc) -> Dict[str, Any]:
         out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided) for step in asked],
                        "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}",
                                     "title": _t(f"guide.step.{guide['id']}.{item['key']}")} for item in settled],
-                       "ready": steps.state(guide, answers, decided) == steps.READY}
+                       "ready": steps.state(guide, answers, decided) == steps.READY,
+                       "answers": dict(answers)}  # 已答的值（分摊那一步的合计等由页面按它算；页面只回显，值以服务端为准）
         returned = _returned(doc)
         if returned:
             out["card"]["returned"] = returned

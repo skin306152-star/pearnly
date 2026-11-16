@@ -60,7 +60,11 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type Business, chooseBusiness, loadOffered, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness } from "@/lib/business";
+import { type Business, chooseBusiness, loadOffered, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
+import { startGuide } from "@/lib/guide-run";
+import { withReport } from "@/lib/caught";
+import type { GuideRun } from "@/lib/managed-agents/reducer";
+import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
 import { useModePlace } from "@/lib/nav";
 import {
   createContext,
@@ -178,6 +182,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
             </ThreadPrimitive.Messages>
             <PendingSendBubble />
             <BusinessPrompt />
+            <GuideRuns />
             {Tail && <Tail />}
           </div>
 
@@ -223,6 +228,36 @@ const PendingSendBubble: FC = () => {
 /** 选了业务之后 CC 这一侧的一句「请上传采购票据 / 销售票据」「请告诉我客户和收款金额」（用户 11-14：要文件是 CC 在对话里说，
  *  不是只换输入框的提示字）。页面按词条画，不进模型上下文（模型从系统说明知道，contracts.business_note）；去重见 lib/business promptOf：
  *  选的时刻之后交过文件 / 说过话、输入框挂着附件、正在发带文件的一句时都不出；取消就收起、换业务换成那一句，同一段只一条。 */
+/** 点菜单上的业务：按表单走的（收款）在有会话时开一次引导运行，卡出在对话里；其余照第 1 期（记本对话业务、CC 说一句）。 */
+function pickBusiness(sessionId: string | null, business: string, forms: readonly string[]) {
+  if (!sessionId || !forms.includes(business)) {
+    chooseBusiness(sessionId, business);
+    return;
+  }
+  void startGuide(sessionId, business)
+    .then((view) => noteStartedRun(sessionId, { run: view.run, business: view.business, status: view.status, version: view.version,
+      startedAt: new Date().toISOString() }))
+    .catch(withReport(() => undefined, "guide-start"));
+}
+
+/** 这段对话的引导卡（按开始先后）：事件里的与本页刚开的合在一起，同一次取版本大的那份。 */
+// map: guide-run
+const GuideRuns: FC = () => {
+  const snapshot = useActiveSessionSnapshot();
+  const started = useStartedRuns((s) => (snapshot.sessionId ? s.bySession[snapshot.sessionId] : undefined));
+  const runs = useMemo(() => {
+    const byRun = new Map<string, GuideRun>();
+    for (const run of started ?? []) byRun.set(run.run, run as GuideRun);
+    for (const run of snapshot.guides.values()) {
+      const was = byRun.get(run.run);
+      if (!was || was.version <= run.version) byRun.set(run.run, run);
+    }
+    return [...byRun.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
+  }, [snapshot.guides, started]);
+  if (!runs.length) return null;
+  return <>{runs.map((run) => <GuideRunCard key={run.run} run={run} />)}</>;
+};
+
 const BusinessPrompt: FC = () => {
   const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
   const business = useCurrentBusiness(sessionId);
@@ -436,7 +471,7 @@ const BusinessMenu: FC = () => {
       {list.map((business) => {
         const Icon = BUSINESS_ICONS[business];
         return (
-          <Button key={business} variant="outline" size="sm" onClick={() => chooseBusiness(sessionId, business)}>
+          <Button key={business} variant="outline" size="sm" onClick={() => pickBusiness(sessionId, business, offered?.forms ?? [])}>
             <Icon />
             {businessLabel(business)}
           </Button>

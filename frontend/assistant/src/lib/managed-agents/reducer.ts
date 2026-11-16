@@ -41,7 +41,7 @@
 // 还没重新开跑的那段空档，同服务端读回的状态一样算在跑（2026-10-13 iPhone：两段工具之间约 10 秒显示成已结束、出现复制按钮、
 // 发送键变回空闲）。
 
-import type { FeedEvent, NoticeEvent, OperatorEnd, ProgressEvent, RunStatus, ToolRunStatus, ToolUseEvent, WritePlanStatus } from "./events";
+import type { FeedEvent, GuideRunStatus, NoticeEvent, OperatorEnd, ProgressEvent, RunStatus, ToolRunStatus, ToolUseEvent, WritePlanStatus } from "./events";
 import { operatorEndText } from "./progress";
 import { isOperatorTool, isPersisted, splitAttachmentNote } from "./events";
 import { stepDenied } from "@/lib/step-summary";
@@ -203,7 +203,11 @@ export type Projection = {
   waitingIds: string[];
   /** 写入计划的状态，按计划编号（pearnly.write_plan）：只进不退（awaiting → started / replaced），推送与补拉谁先到都一样。 */
   writePlans: ReadonlyMap<string, WritePlanStatus>;
+  /** 引导运行，按运行号（pearnly.guide）：只收版本更大的那条，推送与补拉谁先到都一样；开始的时刻定卡在对话里的先后。 */
+  guides: ReadonlyMap<string, GuideRun>;
 };
+
+export type GuideRun = { run: string; business: string; status: GuideRunStatus; version: number; startedAt: string };
 
 export const initialProjection = (): Projection => ({
   messages: [],
@@ -227,6 +231,7 @@ export const initialProjection = (): Projection => ({
   toolRuns: new Map(),
   progress: new Map(),
   writePlans: new Map(),
+  guides: new Map(),
 });
 
 // ---------------------------------------------------------------------------
@@ -917,6 +922,14 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
 
     case "pearnly.stopped":
       return keepStopped(state, event);
+
+    case "pearnly.guide": {
+      const was = state.guides.get(event.run);
+      if (was && was.version >= event.version) return state;
+      const next: GuideRun = { run: event.run, business: event.business, status: event.status, version: event.version,
+        startedAt: was?.startedAt ?? event.processed_at };
+      return { ...state, guides: new Map(state.guides).set(event.run, next) };
+    }
 
     case "pearnly.write_plan": {
       // 一份计划只往前走：已开始 / 已替掉的不会再回到等点头（晚到的旧 awaiting 只记已见）
