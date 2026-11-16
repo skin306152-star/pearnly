@@ -279,3 +279,11 @@ reason = "标准组件库展示页里的引导卡预览（kit.html?page=guide）
 [[file]]
 file = "frontend/assistant/src/kit/guide-inputs.tsx"
 reason = "标准组件库的开发用展示页（kit.html?page=guide-inputs，引导卡几种输入的示例数据）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
+
+[[file]]
+file = "frontend/assistant/src/kit/guide-run.tsx"
+reason = "标准组件库展示页里的引导运行卡预览（kit.html?page=guide-run，替身引擎驱动）：只在开发服务器与 CC_KIT=1 构建里、不进生产；卡本身由流程 erp.cc.guide.collection 与 tests/test_cc_guide_run_ui.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/kit/guide-run-fixtures.ts"
+reason = "引导运行卡展示页与前端测试用的替身引擎（形状照共享笔记几份约定）：只在开发服务器、CC_KIT=1 构建与离线测试里用，不进生产；由 tests/test_cc_guide_run_ui.py 守住"
