@@ -480,6 +480,14 @@ class Runner:
         except Exception:  # noqa: BLE001
             return ""
 
+    def answer(self, doc_id: str, digest: str, button: str) -> Dict:
+        """对话里答了留着的框（1.12.23 ④）：只认这一批正留着、还在等人的那一张；点了以后由 ``still_held`` 读账套判存完没有。"""
+        s = self.state
+        d = s.doc(doc_id) if s.held == doc_id else None
+        if d is None or d.status != K.WAITING or not hasattr(self.engine, "answer_held"):
+            return {"state": "not_held"}
+        return self.engine.answer_held(d.doc_type, digest, button)
+
     def still_held(self) -> bool:
         """Express 还留着等人答框吗（只读，不点）。认不出的框还开着 → 真（不读账套：框没答完，单不会存完）。框没了 / Express 没了
         → 读一次账套：那张存完了记已写入（带原单号，等补报）；没存完放手，那张仍等人（再交来先读账套），不补报。"""
