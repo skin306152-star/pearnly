@@ -21,6 +21,7 @@
     python ledger.py copy     <账套目录> <目标目录>           # 只读拷一份现场
     python ledger.py rows     <目录> <表名> [--where 字段=值]  # 按单号读回
     python ledger.py diff     <前> <后> [--out 结果.json] [--allow 表名,表名] [--show 表名,表名]
+    python ledger.py hold     <账套目录> <秒数>               # 像 Express 开着窗口那样共享开着 ISRUN 等几张表（造「Express 开着」现场）
 退出码：0 = 成功 / 一致；1 = 不一致、被占用或保护拦下；2 = 用法错。输出一行 JSON（给运行器读）。
 """
 from __future__ import annotations
@@ -253,6 +254,30 @@ def rows(folder: Path, table: str, where: str = "") -> dict:
     return {"ok": True, "rows": found}
 
 
+HOLD_TABLES = ("ISRUN.DBF", "ARTRN.DBF", "ARRCPIT.DBF")
+HOLD_MAX = 900
+
+
+def hold(ledger: Path, seconds: int, sleep=time.sleep) -> dict:
+    """造「Express 开着这本账套」的现场：照 Express 开着单据窗口时的样子**共享**打开几张表（Express 除主界面外的窗口都开着
+    ISRUN，CC 桌面版写前逐张独占试开、拿不到就按「等账套」回报，`companion/account_lock.py`），开够 ``seconds`` 秒再关。
+    只读、不改任何字节；只认测试账套；最长 :data:`HOLD_MAX` 秒（忘了关也会自己放开）。"""
+    if not is_test_ledger(ledger):
+        raise Refused(f"{ledger} 不在测试账套白名单里，不开")
+    seconds = max(1, min(int(seconds), HOLD_MAX))
+    names = [name for name in HOLD_TABLES if (ledger / name).is_file()]
+    if not names:
+        raise Refused(f"{ledger} 里没有 {HOLD_TABLES[0]}：不像一本 Express 账套")
+    handles = [open(ledger / name, "rb") for name in names]  # noqa: SIM115 —— 要一直开着到时限，Python 默认共享读写打开（同 Express）
+    started = time.time()
+    try:
+        sleep(seconds)
+    finally:
+        for handle in handles:
+            handle.close()
+    return {"ok": True, "held": names, "seconds": round(time.time() - started, 1)}
+
+
 def copy(ledger: Path, target: Path) -> dict:
     """只读拷一份现场（跑完后对比、留证据用）；不要求没人开着，不动账套。"""
     if not is_test_ledger(ledger):
@@ -289,6 +314,9 @@ def main(argv=None) -> int:
     six.add_argument("folder", type=Path)
     six.add_argument("table")
     six.add_argument("--where", default="")
+    seven = sub.add_parser("hold")
+    seven.add_argument("ledger", type=Path)
+    seven.add_argument("seconds", type=int)
     four = sub.add_parser("diff")
     four.add_argument("before", type=Path)
     four.add_argument("after", type=Path)
@@ -310,6 +338,8 @@ def main(argv=None) -> int:
             out = copy(args.ledger, args.target)
         elif args.command == "rows":
             out = rows(args.folder, args.table, args.where)
+        elif args.command == "hold":
+            out = hold(args.ledger, args.seconds)
         else:
             result = diff(args.before, args.after)
             if args.out:

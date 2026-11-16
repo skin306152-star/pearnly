@@ -379,3 +379,52 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 ### d$ 写法回归（11-16 19:0x 前，CC 桌面版接手窗口 local_27c53845 借验收设施跑）
 测试机2 装 CC 1.12.23 测试包（按目录 uid 认同一账套），用 d$ 写法的数据根 `root-dshare-20261116` 登记 TEST2，跑 `acc.erp.operator.purchase.express`：
 **通过**，代录写入 HP0000090，场景还原、逐文件与基线一致（该窗口记录）。即「两种共享写法认不出」修好后的真机证据；转正式版后本窗口用 d$ 写法再跑一次登记。
+
+## 第 6 批：收款不正常使用、MR.ERP 剩余（11-16，本地分支 `pearnly/acceptance-batch6`，基点 batch5 29c4187a3）
+
+只改验收脚本、登记、单测与本记录，不改产品代码。**都写好未跑**（不连测试机 / 实验栈 / 生产），模型费 0。登记 45 → 56 条；
+欠账基线 984 → 976（还上 8 项：收款网页新建、LINE 按钮、CC 写入工具三行的 M07、M08，LINE 按钮的 M02、M16）。
+替身单测（`tests/test_acceptance_erp_chain.py` 新增 4 个用例）：假世界正确时每条通过、产品出错时各自不通过且原因指到那一条、造不出现场时记没测到。
+
+### A. 收款的不正常使用（模块 `scenarios/erp_collection_misuse.py`，站点脚本 `site/erp_collection_misuse.py`）
+
+每条先开一张赊销发票（复用 `erp_collection_express.open_sale`），再在造出来的现场里收它；都从服务端函数走（via = "api"）、跑完恢复基线。
+
+| 场景 id | 怎么造现场 | 断言 | 组 |
+|---|---|---|---|
+| `acc.erp.collection.busy`（M08） | 测试机上 `ledger.py hold`（新子命令）像 Express 开着窗口那样**共享**开着 ISRUN / ARTRN / ARRCPIT 300 秒，探测确认 ISRUN 独占打不开（CC 写前就是这样判 Express 开着，`companion/account_lock.py`） | 占着时网页 / LINE / CC 三笔都没写成、停在待写入、各只一件写账件、都判成「在等 Express 关闭」（`service.express_waiting`，收款员看到的那句）；占着时拷的现场里没有收款单；放开后三笔都补写成、三张 RE 各不相同、名下仍各一件写账件；账本读回同 `collection.three` | erp |
+| `acc.erp.collection.offline`（M07） | 新脚本 `win/cc_power.py` 经桌面用户通道停掉测试机2 的 CC 桌面版；收完再起、等起来之后的心跳 | 停着时三笔都没写成、待写入、写账件没被领走、账本没有收款单；起来后都补写成、只各一张；半路不通过收尾先把 CC 起回来 | offline（新组） |
+| `acc.erp.collection.line.redelivered`（M02） | 假 LINE 号（`Uacc…`）绑验收员工 → LINE 草稿 → 出确认卡 → 同一个【确认】按 webhook 那套函数投三次：首投、同一事件号重投（LINE 补发）、新事件号同一按钮（连点） | 首投领到并处理；补发的同一事件号不再处理；连点那次不回话；只一件写账件、同意记的是首投事件号；写成、账本只多一张 RE | erp |
+| `acc.erp.collection.line.unbound`（M16） | 同上出卡 → 解绑 → 用旧卡点【确认】；另一个从没绑过的号点「收款」、打「ยืนยัน」 | 点按钮的两次只回「请先绑定」、打字那次当绑定码试回「码不对」（按产品原句比，zh）；草稿原样（还是草稿、版本没变）、没有写账件 / 单号 / 同意；收款记录一条没多；没绑过的号没留会话；最后作废草稿；账本只有那张发票 | erp |
+| `acc.erp.collection.books`（同期两份账套） | **留桩**（模块里走到就记前置条件不满足，没登记）：验收公司只报一本账套，站点脚本的防护就是「报上来的必须全是验收账套」；要第二本同期测试账套（如 69EXP\TEST 与 TEST2 期间重叠）、它的整本基线、测试机 CC 对这家公司报两本，再把防护放开成「都在这两本里」 | — | — |
+
+LINE 两条**不发任何 LINE 消息**：只在站点脚本进程里把共用层的回复 / 推送 / 加载动画换成记录器、把 `pearnly_core.line` 的 HTTP 挡掉、绑定变更钩子不跑、
+LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了别的 LINE 号就拒绝（不顶掉真绑定），假号跑完解绑。验签那一步不在这里（真 LINE 在真机清单 2）。
+
+首跑要校准的：
+- 占着 / 停着时看 90 秒够不够 CC 去试一次并回报「等账套」（`express_waiting` 只在 CC 回报过之后为真）；放开后服务端多久再派（settle 等 300 秒）。
+- `ledger.py hold` 在 SMB 共享上由同一台电脑另一个进程共享打开，CC 的独占试开是否同样被拒（Windows 共享模式按句柄判，预期是拒；没实测过，首跑看）。
+- 停 CC 后服务端多久判这台电脑离线、三笔是否一直不被领；`cc_power.py start` 在一次性计划任务里起的 CC 任务结束后是否还在（cfg_guard 同一做法已用过）。
+- 验收员工要有 LINE（`integration.read`）与收款写入权限，没有就记前置条件不满足。
+- offline 会停 / 起测试机2 的 CC：跑前先问主会话；占 `testpc2-desktop`，与代录不同时跑。
+
+### B. MR.ERP 剩下的（同模块 `scenarios/erp_mrerp.py`、站点脚本 `site/erp_mrerp_post.py`，都每周跑、占 `mrerp:test01`）
+
+| 场景 id | 怎么造现场（站点脚本 kind） | 断言 |
+|---|---|---|
+| `acc.erp.mrerp.menu.choice`（T9） | `menu_choice`：提交前去掉公司在这本账套下记的「采购」导入菜单 → 导入 → 以开单人 `express.api.answer` 选回原来那个 → 再导入；没记回就按原样写回 | 第一次停在 `choice_needed:mrerp`、没单号；选项里有原来那个菜单；选后写成、公司上又记着它；读回同 T1。只有一个可选菜单时自动选了 → 记没测到 |
+| `acc.erp.mrerp.retry`（T10） | `retry`：第一次导入只在进程里让 `connection.lease` 回空登录名（不改存的凭据）→ 停在没登录 → 以开单人 `express.api.retry` | 第一次停在 `mrerp.login_missing`、没单号；单据页可「再写一次」；点了写成、读回 |
+| `acc.erp.mrerp.cc.push`（T11，真模型，budget_usd = 1，组 chat） | `held_kicked`：记这个账号「被踢」→ 提交 → 自动导入快速失败停下（不清标记）→ ERP 的 CC 对话说「把采购单 X 写进 MR.ERP」→ 写入计划 → 点写入 → `readback` 等导入落定 → 读回；没写成收尾 `clear_kick` | 自动导入没写成；一张写入计划、一张单；点了写成（= 人点的推送清掉了被踢标记）；读回同 T1；底线 b1 / b6 / b7（MR.ERP 单号 `PG/PN/SI/SE……-……`）。**被测站点源码里写账开关关着时记没测到**（对话在网页进程里跑，只在站点脚本进程里打开不算数）：开关怎么在实验栈打开要主会话定 |
+| `acc.erp.mrerp.void.importing`（T12，M03） | `void_importing`：包一层 `pearnly_core.mrerp.push.execute.execute`，真导入回来、记结论之前以开单人 `sales.entry.cancel` | 导入其实写进去了；单据作废、账本栏 `held` + `express.voided_after_write`、单号留着；MR.ERP 列表里恰好一张、分录对得上 |
+| `acc.erp.mrerp.switch.off`（T16） | `switch_off`：开着开关提交（排队）→ 关开关跑 `mrerp.push.poll` 与 `express.push.mrerp_run` → 开回再导入 | 关着时 `handles` 假、仍排着没单号、公司的 express_enabled / mrerp_enabled / 账套键不变；开回认得、写成、读回 |
+| `acc.erp.mrerp.tax.purchase` / `.tax.sales`（T18） | `tax_purchase` / `tax_sales`：写成后在 MR.ERP 归期页（进项 acvatdsel 210 / 销项 acvatsaledsel 214）只勾这一张、报税日期 = 今天佛历 → 取税报告 xlsx（进项 226/43、销项 232/45） | 归期前这张税票恰好一条待归期；提交后不再待归期；报告里恰好一行列着它的税票号、那一行有一格 = 单据税额。**会改 MR.ERP 测试账套里本次这张单的归期**（TEST2019 专属测试） |
+| 称谓分栏读回（改现有 `purchase.goods`、`sales.credit`） | 读回时另取 MR.ERP 对方档查看页（`apmas` / `armas`，按单据页对方代码找档）；`sales.credit` 的客户名改成「ห้างหุ้นส่วนจำกัด …」 | 供应商档称谓栏 = บริษัท、名称栏「เอซีซี … จำกัด」；客户档称谓栏 = หจก.（全称落成称谓表里的简称，11-15 T3 缺陷 84facae90）、名称栏不带它 |
+
+首跑要校准的：归期页与税报告的提交字段、报告列位（只核「有一格 = 税额」）、佛历日期格式（照写账窗口 11-15 实测 `15/11/2569`）；
+销项税票号取单据页 `txtvatnum`（进项是我方单据号）；`void.importing` 作废时机靠包住导入函数，真导入耗时几十秒；
+称谓下拉的选中项文字（`selprefix` 选中的 option）。MR.ERP 里的单与归期都不删，数据累积。
+
+### 留桩与没做
+
+- 留桩：`acc.erp.collection.books`（见上，没登记、不还欠账）。
+- 没做：收款 M03 / M04 / M05 / M11 / M12（CC 草稿 / 写入工具、LINE 按钮那几项）——要对话或界面驱动；MR.ERP 同期两本选一次（test01 下只有一份同期库）。

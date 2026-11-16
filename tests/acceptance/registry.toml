@@ -1117,3 +1117,248 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+
+# ---- 第二期第 6 批：收款的不正常使用（服务端函数走，零费用）。写好未跑，首跑通过才有证据。
+# offline 那条会停 / 起测试机2 的 CC 桌面版：跑前先问主会话，占 testpc2-desktop（与代录不同时跑）。
+# 同期两份账套（acc.erp.collection.books）是留桩、没登记：验收公司只报一本账套，造不出。
+
+[[scenario]]
+id = "acc.erp.collection.busy"
+title = "ERP 收款时 Express 开着验收账套：网页 / LINE / CC 三笔都停在待写入、判成等 Express 关闭、账本不动 → 放开后各补写一张收款单"
+class = "misuse"
+misuse = ["M08"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/account_lock.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/dbf_receipt.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "companion/src/companion/dbf_sales.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.offline"
+title = "ERP 收款时 CC 桌面版离线：三笔都停在待写入、写账件没人领、账本不动 → 起 CC 后各补写一张收款单、只一张"
+class = "misuse"
+misuse = ["M07"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_push"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/dbf_receipt.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+  "companion/src/companion/dbf_sales.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.line.redelivered"
+title = "ERP LINE 收款的【确认】首投、LINE 补发同一事件、连点：只放行一次、一件写账件、账本只多一张收款单"
+class = "misuse"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
+rows = ["erp.line.postback.col"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py",
+  "apps/pearnly_core/pearnly_core/line.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "companion/src/companion/dbf_receipt.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.collection.line.unbound"
+title = "ERP LINE 收款：解绑后点旧卡【确认】、没绑过的号点收款 / 打确认 → 只回先绑定 / 码不对，草稿原样、不写账"
+class = "misuse"
+misuse = ["M16"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
+rows = ["erp.line.postback.col"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py",
+  "apps/pearnly_core/pearnly_core/line_binding.py",
+  "apps/pearnly_core/pearnly_core/line.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+# ---- 第二期第 6 批：MR.ERP 剩下的（T9–T12、T16、T18）。写好未跑；同第 4 批依赖三条没进 main 的分支、每周跑、占 mrerp:test01。
+# tax.* 会在 MR.ERP 测试账套里对本次的单归期（TEST2019 专属测试，归期写入 11-14 批过）。cc.push 是真模型，被测站点源码里写账开关关着时记没测到。
+
+[[scenario]]
+id = "acc.erp.mrerp.menu.choice"
+title = "ERP 单据第一次导入 MR.ERP、导入菜单没选过：停在要选一次 → 单据上选 → 写成、公司记住"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit", "erp.desk.pearnly-purchase.action.Express"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.retry"
+title = "ERP 导入 MR.ERP 停在没登录 → 单据页「再写一次」→ 写成"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Express"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.cc.push"
+title = "ERP 的 CC 对话把一张账号被踢后停下的单推进 MR.ERP → 写入计划 → 点写入 → 清掉被踢标记写成 → 读回"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.tool.erp_push_documents"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 1
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.void.importing"
+title = "ERP 赊销单导入 MR.ERP 的那几十秒里作废：转人工「作废后写进了」、单号留着、MR.ERP 里恰好一张"
+class = "misuse"
+misuse = ["M03"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-sales.action.Cancel"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.switch.off"
+title = "ERP 的 MR.ERP 单排着时关写账开关：巡检与导入都不动、公司账本设置不变 → 开回后写成"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.tax.purchase"
+title = "ERP 采购单写进 MR.ERP → 归期 → 进项税报告恰好一行列着它的税票号"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"
+
+[[scenario]]
+id = "acc.erp.mrerp.tax.sales"
+title = "ERP 赊销单写进 MR.ERP → 归期 → 销项税报告恰好一行列着它的税票号"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_mrerp.py"
+rows = ["erp.desk.pearnly-sales.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/*.py",
+  "apps/pearnly_core/pearnly_core/mrerp/push/*.py",
+]
+resources = ["mrerp:test01"]
+budget_usd = 0
+tier = "weekly"

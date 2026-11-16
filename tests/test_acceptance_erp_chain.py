@@ -205,6 +205,18 @@ class World:
 
     def erp_mrerp_post(self, params):
         kind, total, vat = params["kind"], 321.0, 21.0
+        if params.get("need_switch") and self.break_at == "switch-in-code-off":
+            return {"ok": False, "why": "refuse-switch: MRERP_LEDGER_ENABLED is off in the tested source"}
+        if kind == "clear_kick":
+            self.kick_cleared = True
+            return {"ok": True, "cleared": True}
+        if kind == "held_kicked":
+            self.pushing = "mrerp"
+            first = {"ledger_state": "failed", "ledger_reason": "ERR_ACCOUNT_IN_USE", "ledger_docnum": ""}
+            return {"ok": True, "doc": "PUR-7", "number": "PE2569-000007", "company": params["company"], "first": first, "state": first}
+        shapes = {"menu_choice": "purchase_goods", "retry": "purchase_goods", "switch_off": "purchase_goods", "tax_purchase": "purchase_goods",
+                  "readback": "purchase_goods", "void_importing": "sales_credit", "tax_sales": "sales_credit"}
+        shape = shapes.get(kind, kind)
         if kind == "purchase_nobook":
             held = self.break_at != "imported-anyway"
             return {"ok": True, "doc": "PUR-9", "company": params["company"],
@@ -212,6 +224,7 @@ class World:
                               "ledger_docnum": "" if held else "PG1", "ledger_target": "mrerp", "grand_total": total, "vat_amount": vat}}
         if kind == "purchase_novat":
             vat = 0.0
+        kind = shape
         journal = {"purchase_goods": [("5110-01", 300, 0), ("1161-11", vat, 0), ("2120-03", 0, total)],
                    "purchase_expense": [("5390-09", total, 0), ("2120-03", 0, total)],
                    "sales_credit": [("1130-01", total, 0), ("2160-12", 0, vat), ("4110-01", 0, 300)],
@@ -230,6 +243,42 @@ class World:
                                     for code, debit, credit in journal]}}
         if params.get("resend"):
             out["resend"] = {"send": "already_queued", "state": dict(state, ledger_docnum="PG691115-000002" if self.break_at == "renumbered" else docnum)}
+        if params["kind"] in ("purchase_goods", "sales_credit"):   # 称谓分栏读回
+            prefix, core = ("บริษัท", "เอซีซี 1 จำกัด") if params["kind"] == "purchase_goods" else ("หจก.", "เอซีซี 1")
+            out["party"] = {"name": "x", "tax_id": "1", "prefix": prefix, "core": core}
+            out["read"]["party"] = {"found": True, "prefix": "" if self.break_at == "prefix-lost" else prefix,
+                                    "name": core if self.break_at != "prefix-lost" else "บริษัท " + core}
+        return self._mrerp_more(params, out, state, total, vat)
+
+    def _mrerp_more(self, params, out, state, total, vat):
+        """第 6 批各种类在替身里的样子（正确世界 + 各自的缺陷开关）。"""
+        kind = params["kind"]
+        if kind == "menu_choice":
+            if self.break_at == "not-held":
+                out["first"] = dict(state)
+                return out
+            out["first"] = {"ledger_state": "held", "ledger_reason": "choice_needed:mrerp", "ledger_docnum": ""}
+            out["menu"] = "68"
+            out["choice"] = {"offered": ["68", "454"], "menu_after": None if self.break_at == "menu-forgotten" else "68"}
+        elif kind == "retry":
+            out["first"] = {"ledger_state": "held", "ledger_reason": "mrerp.login_missing", "ledger_docnum": ""}
+            out["retry"] = {"can_retry": self.break_at != "retry-hidden"}
+        elif kind == "switch_off":
+            queued = {"ledger_state": "written" if self.break_at == "switch-ignored" else "queued",
+                      "ledger_docnum": "PG1" if self.break_at == "switch-ignored" else ""}
+            company = {"express_enabled": 0, "mrerp_enabled": 1, "mrerp_account_set": "6:1"}
+            out["off"] = {"handles": False, "state": queued, "company_before": company, "company_after": company}
+            out["on_again"] = {"handles": True}
+        elif kind == "void_importing":
+            out["import_outcome"] = {"status": "imported", "docnum": state["ledger_docnum"]}
+            if self.break_at != "void-clean":
+                state.update(status="void", ledger_state="held", ledger_reason="express.voided_after_write")
+        elif kind in ("tax_purchase", "tax_sales"):
+            invoice_no = "ACC-1-0"
+            out["read"]["tax"] = {"invoice_no": invoice_no, "pending": [[invoice_no]], "passed": 200, "left_pending": 0,
+                                  "report": [] if self.break_at == "tax-missing" else [["1", invoice_no, f"{total - vat:,.2f}", f"{vat:,.2f}"]]}
+        elif kind == "readback" and getattr(self, "pushing", "") == "mrerp":
+            out["doc"] = params["doc"]
         return out
 
     def erp_push_held(self, params):
@@ -254,6 +303,8 @@ class World:
 
     def push_written(self):
         """替身「CC 桌面版」：对话里点了写入之后把那张停下的单写进替身账套。"""
+        if self.pushing == "mrerp":
+            return   # MR.ERP 不是 Express 账套：替身里导入由 readback 那一步交回
         if self.pushing == "purchase":
             self.add("APTRN", DOCNUM="HP691115-001", SUPCOD="V001", NETAMT=10.7, VATAMT=0.7)
             self.add("GLJNL", VOUCHER="HP691115-001")
@@ -285,6 +336,8 @@ class World:
                 reply = "已写入 Express：RE0000001（发票 IV691115-001）" if Talk.clicked else "计划如下"
                 if getattr(world, "pushing", "") and Talk.clicked:
                     reply = "已写入 Express：" + ("HP691115-001" if world.pushing == "purchase" else world.invoice)
+                    if world.pushing == "mrerp":
+                        reply = "已写入 MR.ERP：PG691115-000001"
                 if world.break_at == "wrong-reply" and Talk.clicked:
                     reply = "已写入 Express：RE0000009"
                 tools = [] if world.break_at == "no-draft" or getattr(world, "pushing", "") else [{"id": "t1", "name": "erp_collection_draft", "at": 2.0, "input": {}, "status": "ok"}]
@@ -450,6 +503,81 @@ class World:
                 "switch": {"allowed": 2, "rounds": rounds}}
 
 
+class MisuseWorld(World):
+    """收款不正常使用的替身：账套能被「占着」（ledger.py hold）、测试机的 CC 桌面版能停 / 起；站点脚本 erp_collection_misuse.py 的四种 mode。"""
+
+    def __init__(self, break_at=""):
+        super().__init__(break_at)
+        self.holding, self.cc_running, self.pending = False, True, []
+
+    def book(self):
+        book, world = super().book(), self
+
+        def probe():
+            return {"ok": True, "busy": ["ISRUN.DBF"] if world.holding else []}
+
+        def hold(seconds):
+            world.holding = world.break_at != "no-hold"
+            return {"ok": True, "held": ["ISRUN.DBF"], "seconds": seconds}
+
+        book.probe, book.hold = probe, hold
+        return book
+
+    def windows(self):
+        world = self
+
+        def cc(mode, *args, timeout=300):
+            world.calls.append(f"cc-{mode}")
+            world.cc_running = mode == "start" or (mode == "state" and world.cc_running)
+            return {"ok": True, "mode": mode, "running": world.cc_running, "beat": "[heartbeat] ok" if world.cc_running else ""}
+
+        return types.SimpleNamespace(work="C:/PearnlyAcceptance", cc=cc)
+
+    def erp_collection_misuse(self, params):
+        mode = params["mode"]
+        if mode == "submit":
+            blocked = self.holding or not self.cc_running
+            records = []
+            for index, item in enumerate(params["entries"]):
+                name = f"COL-{index + 1}"
+                self.pending.append((name, float(item["cash"]), item["entry"]))
+                leaked = not blocked or self.break_at == "written-while-blocked"
+                records.append({"name": name, "entry": item["entry"], "cash": item["cash"], "looks": 30, "written_seen": leaked,
+                                "waiting_seen": self.holding and self.break_at != "not-waiting", "leased_seen": False,
+                                "last": {"status": "written" if leaked else "queued", "docnum": "", "jobs": 1, "waiting": self.holding}})
+            return {"ok": True, "company": "CO-1", "records": records}
+        if mode == "settle":
+            self.holding = False
+            out = []
+            for name, cash, entry in self.pending:
+                record = self._receipt(name, cash, 0.0, entry)
+                record["jobs"] = 2 if self.break_at == "two-jobs" else 1
+                out.append(record)
+            return {"ok": True, "company": "CO-1", "records": out}
+        if mode == "line_redelivered":
+            again = self.break_at == "redelivered-twice"
+            record = self._receipt("COL-LINE", 300.0, 0.0, "line")
+            if again:
+                self._receipt("COL-LINE", 300.0, 0.0, "line")
+            record["jobs"] = 2 if again else 1
+            return {"ok": True, "company": "CO-1", "card": {"name": "COL-LINE", "version": 1}, "jobs_after_taps": record["jobs"],
+                    "consent": "line:e1", "record": record,
+                    "deliveries": [{"event": "e1", "claimed": True, "handled": True, "replies": [{"kind": "reply"}]},
+                                   {"event": "e1", "claimed": again, "handled": True if again else None, "replies": []},
+                                   {"event": "e2", "claimed": True, "handled": True, "replies": []}]}
+        if mode == "line_unbound":
+            wrote = self.break_at == "unbound-wrote"
+            taps = [{"event": event, "handled": True, "replies": [{"kind": "reply"}], "texts": [text], "expect": text}
+                    for event, text in (("old", "请先绑定 ERP 账号"), ("start", "请先绑定 ERP 账号"), ("text", "码不对"))]
+            if self.break_at == "unbound-silent":
+                taps[0].update(texts=[], replies=[])
+            return {"ok": True, "company": "CO-1", "taps": taps, "card": {"name": "COL-LINE", "version": 1},
+                    "after": {"status": "queued" if wrote else "draft", "version": 1, "job": "J-1" if wrote else "", "docnum": "",
+                              "consent": "line:old" if wrote else "", "jobs": 1 if wrote else 0},
+                    "collections": {"before": 1, "after": 1}, "stranger_session": False, "record": {"status": "withdrawn"}}
+        raise AssertionError(mode)
+
+
 class ChainScenarioTest(unittest.TestCase):
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
@@ -539,6 +667,63 @@ class ChainScenarioTest(unittest.TestCase):
         self.assertIn("not a fresh site", result["detail"])
         result, _ = self.go("acc.erp.company.connect", "not-fresh")
         self.assertEqual((result["outcome"], result["facts"]["add_branch"]), (self.runner.PASS, "added"))
+
+    def go_misuse(self, scenario_id, break_at=""):
+        world = MisuseWorld(break_at)
+        targets = types.SimpleNamespace(ledger=lambda host, path: world.book(), site=lambda target: world, windows=lambda host: world.windows())
+        scenario = {"id": scenario_id, "module": "scripts/acceptance/scenarios/erp_collection_misuse.py", "resources": [], "budget_usd": 0}
+        return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), world
+
+    def test_collection_misuse_scenarios_pass_on_a_correct_world_and_restore_the_baseline(self):
+        for scenario_id, docs in (("acc.erp.collection.busy", 4), ("acc.erp.collection.offline", 4),
+                                  ("acc.erp.collection.line.redelivered", 2), ("acc.erp.collection.line.unbound", 1)):
+            result, world = self.go_misuse(scenario_id)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
+            self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (docs, "restore"), scenario_id)
+        result, world = self.go_misuse("acc.erp.collection.offline")
+        self.assertEqual([call for call in world.calls if call.startswith("cc-")], ["cc-stop", "cc-start"])   # 停了就起回来
+        self.assertTrue(world.cc_running)
+
+    def test_collection_misuse_scenarios_fail_when_the_product_misbehaves(self):
+        cases = [("acc.erp.collection.busy", "written-while-blocked", "没有写成"), ("acc.erp.collection.busy", "not-waiting", "等 Express 关闭"),
+                 ("acc.erp.collection.offline", "written-while-blocked", "没有写成"), ("acc.erp.collection.offline", "two-jobs", "只一件写账件"),
+                 ("acc.erp.collection.line.redelivered", "redelivered-twice", "补发的同一事件号"),
+                 ("acc.erp.collection.line.unbound", "unbound-wrote", "没有写账件"),
+                 ("acc.erp.collection.line.unbound", "unbound-silent", "只回了那一句")]
+        for scenario_id, break_at, words in cases:
+            result, world = self.go_misuse(scenario_id, break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))
+            self.assertIn(words, result["detail"], (scenario_id, break_at))
+            self.assertEqual(world.calls[-1], "restore", (scenario_id, break_at))
+        result, world = self.go_misuse("acc.erp.collection.offline", "two-jobs")
+        self.assertTrue(world.cc_running)   # 半路不通过也把 CC 桌面版起回来了
+
+    def test_collection_misuse_without_its_scene_is_not_run(self):
+        result, _ = self.go_misuse("acc.erp.collection.busy", "no-hold")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("占用没造起来", result["detail"])
+        result, _ = self.go_misuse("acc.erp.collection.books")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("留桩", result["detail"])
+
+    def test_the_rest_of_mrerp_passes_on_a_correct_world_and_fails_on_each_defect(self):
+        for kind in ("menu.choice", "retry", "void.importing", "switch.off", "tax.purchase", "tax.sales", "cc.push"):
+            result, world = self.go(f"acc.erp.mrerp.{kind}")
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
+            self.assertEqual(result["facts"]["docnums"], ["PG691115-000001"], kind)
+        for kind, break_at, words in (("menu.choice", "menu-forgotten", "又记着原来那个"), ("retry", "retry-hidden", "再写一次"),
+                                      ("switch.off", "switch-ignored", "仍排着"), ("void.importing", "void-clean", "作废后写进了"),
+                                      ("purchase.goods", "prefix-lost", "称谓栏"), ("sales.credit", "prefix-lost", "称谓栏"),
+                                      ("tax.purchase", "tax-missing", "税报告"), ("tax.sales", "tax-missing", "税报告")):
+            result, _ = self.go(f"acc.erp.mrerp.{kind}", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (kind, break_at, result["detail"]))
+            self.assertIn(words, result["detail"], (kind, break_at))
+        result, _ = self.go("acc.erp.mrerp.menu.choice", "not-held")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        result, world = self.go("acc.erp.mrerp.cc.push", "switch-in-code-off")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("refuse-switch", result["detail"])
+        self.assertFalse(getattr(world, "kick_cleared", False))   # 没造单就没记被踢，收尾不用清
 
     def test_documents_imported_into_mrerp_are_read_back_by_number(self):
         for kind in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice", "purchase.cash", "sales.discount",
