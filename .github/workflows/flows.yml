@@ -26,8 +26,9 @@ permissions:
   contents: read
 
 concurrency:
-  # 同一分支新 push 取消旧的（旧提交的状态停在 pending，新提交另有自己的状态）
-  group: flows-${{ github.ref }}
+  # 同一分支新 push 取消旧的（旧提交的状态停在 pending，新提交另有自己的状态）；手动触发按范围各成一组，
+  # 不与 push 互相取消（11-16 校准：手动全套把同分支 push 的那次取消了）
+  group: flows-${{ github.ref }}-${{ github.event_name }}-${{ inputs.scope }}
   cancel-in-progress: true
 
 env:
