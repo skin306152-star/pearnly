@@ -45,3 +45,10 @@ ERP 网页建采购单（新供应商、新物料、第二个仓、赊购）→ 
 - 本分支原来的 `for_new_items`（mapper / sales_mapper 里另判、Cowork 推送准备另停、Cowork 预选卡另出一题）是同一问题的第二套规则，变基到 main 6b641f42f 时整段去掉，用 main 的版本；对应的 Cowork 单测改动也去掉（main 已有同一判据的测试）。
 - 保留：电脑写到一半以「要人选一次」的码停下（对方档疑似重复 / 分店、存货科目组、服务品进项口径）时，ERP 开始卡与代录卡列出那一项（`api.blocked_needed`、`precheck._with_blocked`），代录卡上说产品那一句原因（`feed` 的 `reason_text`）。
 - 流程 `cc.operator.stop-choice` 按新规则改断言：账套报了库存品总数，能证明挂得最多的组合格 → 开始前不问、载荷不带组；证明不了 → 问一次，只列合格的，推荐挂得最多的。
+
+## 1.12.23 一侧（分支 `pearnly/cc-1123-desktop`，叠在本分支上）
+- `07e08524e` 按目录文件号认同一本账套（d$ 与 ACCOUNT 两个共享名）；`b020a7232` 人选的存货科目组照写（等原生实录）；
+  `d57c04c2e` 代录回执顶层报对方码与逐行物料码；`4f74ff032` 凭证稽核栏照原生补齐（等 62 套回放）。
+- **凭证单头 GLJNL.CREBY 与原生不同是有意的**：原生记 Express 登录名，我们记机器标记 `PEARNLY`。商品主档清理等处靠它认出「CC 写的凭证」
+  （`writer_id.cc_vouchers` → `product_master` 认单），改成登录名就认不出了。主会话 11-16 认可。录入人照原生记在 GLJNL.USERID
+  （同单头 APTRN / ARTRN 的 USERID）；CREDAT / CHGDAT / 明细 CHGDAT / CHGTIM 照原生。
