@@ -178,3 +178,19 @@
 | ERP 公司页「同步 Express」没电脑 `public/desk/company.js:291`、`public/desk/company-connect.js:166`（词条 `company.syncExpress.offline`） | 同上 | 同上 |
 | ERP 收款引导读账套时 `collection/guide.py:43` | 同上 | 同上 |
 | ERP 收款 LINE 回复 `integrations/line_collection.py:461` | 同上 | 同上 |
+
+### 主会话 11-16 晚已定（口径待定那几条）
+
+| # | 定了什么 |
+|---|---|
+| B42 | 不做 |
+| B52 | 做（同 Cowork），归本窗口，排在第 4 批 ERP 对齐里 |
+| B59 | 等用户建令牌，先放 |
+| B66 | 问公司接入窗口 local_3709c091 是否已取代（已问，等回复） |
+| B68 | 按上传研究文档做，没有依据的部分标「没依据」，不猜 |
+| B69 | 按现状 |
+| B71 | 视为被 11-14 第 1 条取代 |
+| B04 / B12 / B13 | 主会话派缺陷窗口 |
+| B58 | 主会话派 CC 桌面版窗口 |
+
+流程：每条做完自己截图 + 对照用户原话自查 → 验收窗口 local_13d1e45b 复验 → 合入队列 local_17aea6a6。
