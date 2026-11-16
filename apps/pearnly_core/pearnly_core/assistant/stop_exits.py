@@ -121,6 +121,55 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "no_account_set": act("company_link", "p2"),
     "account_period_mismatch": ask("ledger", SERVER, "p2"),
     "ledger_needed": ask("ledger", SERVER, live=True),
+    # ── S3（11-16）：原先只在基线里的 41 个码，逐个归类、基线清零（代录停下出口 H5 方案第 ② 节的五类）──────────────────
+    # 要人选一项（A 类）：开始前就该问到；写到一半才回的，回到对应那一题
+    "STOCK_ACC_GROUP_UNFIT": ask("precheck:stock_group", SERVER, "p2"),  # 新物料挂的存货科目组不合格（S1 改成开始前问）
+    "SERVICE_VAT_BASIS_CHOICE": ask("precheck:service_vat", SERVER, "p2"),  # 赊购服务品进项税口径定不了
+    # 要人改单 / 核对（B 类）：回复核卡改那一格
+    "PAYLOAD_INVALID": act("ours_retry", "p2"),                          # 载荷不合格是我们的问题：我们修、再试
+    "STOCK_ITEM_NOT_FOUND": ask("review", SERVER, "p4"),                 # 库存单认不出 Express 的库存品
+    "receipt_type_invalid": ask("review", SERVER, "p1"),                 # 收款方式没有可用科目（CC 桌面版回执，同 collection.receipt_type_invalid）
+    "collection.consent_missing": ask("review", SERVER, "p1"),           # 没有同意就放行：回复核卡再确定
+    # 要人在账本里做（C 类）：一句「要在 Express 做哪一件」+ 做完再试
+    "ITEM_GROUP_ACCOUNT_MISSING": act("ledger_setting", "p2"),           # 物料科目组的科目不在科目表（原生 1155）
+    "PERIOD_LOCKED": act("period_locked", "p2"),                         # 写进已关账的会计期
+    "JOURNAL_BOOK_NOT_FOUND": act("ledger_setting", "p3"),               # POS 日汇总：没有可用的普通日记账单据簿
+    "ACCOUNT_NOT_POSTABLE": act("ledger_setting", "p3"),                 # POS 日汇总：选的收款科目不能记账
+    "cash_account_missing": act("ledger_setting", "p1"),                 # 收款：账套没设现金科目（同 collection.cash_account_missing）
+    "REFUND_CUSTOMER_NOT_COPIED": act("ledger_setting", "p3"),           # 跨年退货：新年度账套没有现金客户档
+    "REFUND_ORIGINAL_NOT_FOUND": act("check_in_ledger", "p3"),           # 收银退货：原单找不到 / 改过 / 没有这一行 / 退得比原单多
+    "REFUND_ORIGINAL_CHANGED": act("check_in_ledger", "p3"),
+    "REFUND_LINE_NOT_FOUND": act("check_in_ledger", "p3"),
+    "REFUND_EXCEEDS_ORIGINAL": act("check_in_ledger", "p3"),
+    "express.pos_refund_cross_year": act("check_in_ledger", "p3"),
+    "express.pos_refund_original_manual": act("check_in_ledger", "p3"),  # 原单是人手工处理的：退货也要手工处理
+    "VOID_DOCUMENT_CHANGED": act("check_in_ledger", "p4"),               # 作废库存单：原单被改过 / 找不到
+    "VOID_DOCUMENT_NOT_FOUND": act("check_in_ledger", "p4"),
+    "express.voided_after_write": act("check_in_ledger", "p2"),          # ERP 已作废但 Express 里已写成：人去 Express 处理
+    "collection.not_withdrawable": act("check_in_ledger", "p1"),         # 已写进 Express 的收款撤不了：在 Express 原生作废
+    # 电脑 / 设置（D 类）：一句「在哪台电脑、哪里设」+ 再试
+    "ACCOUNT_COMPANY_MISMATCH": act("company_link", "p2"),               # 这份账套属于另一家公司
+    "ACCOUNT_DIR_NOT_ALLOWED": act("desktop_folder", "p2"),              # 这台电脑上这个文件夹不可写
+    "NO_ACCOUNT_SELECTION": act("desktop_folder", "p2"),                 # 这台电脑的 CC 桌面版里没有这份账套
+    "REINDEX_UNAVAILABLE": act("desktop_reinstall", "p2"),               # 正式包里的索引重建程序跑不起来：重装 CC 桌面版
+    "POS_INVALID": act("desktop_update", "p3"),                          # 这台电脑的 CC 桌面版不收 POS 块：更新
+    "express.disconnected": act("company_link", "p2"),                   # 断开 Express 时还没写进去：重新连接
+    # 等（不用人做事）
+    "express.operator_owned": wait("operator_done"),                     # 交给代录、还没录成：等代录录完，直写不接
+    "collection.not_draft": wait("reported"),                            # 已放行、不是草稿了：看结果即可
+    # 写入计划跳过（assistant.write_plan）
+    "not_found": act("not_yours", "p2"),                                 # 不是本人能写的单 / 找不到：说清楚，不编
+    # MR.ERP 用户数据错（mrerp.push.user_data.USER_DATA_ERROR_CODES）
+    "ERR_NO_CLIENT": ask("precheck:party", SERVER, "mrerp"),
+    "ERR_NO_CUSTOMER_MAPPING": ask("precheck:party", SERVER, "mrerp"),
+    "ERR_CUSTOMER_NAME_MISMATCH": ask("precheck:party", SERVER, "mrerp"),  # 名字复核对不上：重选对方
+    "ERR_PRODUCT_NAME_MISMATCH": ask("precheck:new_item", SERVER, "mrerp"),
+    "ERR_CUSTOMER_CODE_TOO_LONG": ask("review", SERVER, "mrerp"),
+    "ERR_NEGATIVE_AMOUNT": ask("review", SERVER, "mrerp"),
+    "ERR_DUPLICATE_INVOICE": ask("fixed", SERVER, "mrerp"),              # 同号已在 MR.ERP：跳过 / 改号再录，不预选
+    "ERR_NO_SEED_CUSTOMER": act("ledger_setting", "mrerp"),              # MR.ERP 里缺种子客户 / 物料：先在 MR.ERP 建
+    "ERR_NO_SEED_PRODUCT": act("ledger_setting", "mrerp"),
+    "ERR_MRERP_MASTER_UNREADABLE": wait("masters_read"),                 # 读不到 MR.ERP 主档：等读到
     # ── MR.ERP（pearnly_erp_portal.mrerp.contracts.CHOICE_CODES）──────────────────────────────────────────────
     "ERR_MRERP_MENU_CHOICE_REQUIRED": ask("precheck:any", SERVER, live=True),
     "ERR_MRERP_MENU_CHANGED": ask("precheck:any", SERVER, live=True),
