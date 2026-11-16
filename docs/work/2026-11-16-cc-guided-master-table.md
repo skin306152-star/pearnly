@@ -39,7 +39,7 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | 真模型通过 | 2（Cowork 直写 采购 / 销售 × 本地 Express；第 1 期，11-14 真模型，在合入列车上、未进 main） |
 | 流程通过 | 0 |
 | 接线 | 0（分支 3 接线未开工；第 1 期那两格走的是 `pearnly_guide` 工具卡，不是引导运行） |
-| 服务端 | 24（C2 / D 组 11-16 18:05 报 9 格：Cowork / ERP 盘点、MR.ERP 设置、科目组 × 本地、Cowork / ERP 公司资料、公司接入、库存报表、看板，其中 5 格未闭环；Cowork / ERP 代录 采购 / 销售 × 本地 Express 4 格：引导卡出题、开始卡未并；ERP 收款 × 本地 Express 1 格：分支 4 未进 main；Cowork 读回 × 本地 1 格、对账三类 × 本地 / MR.ERP 6 格、增值税 × 本地 1 格、收银日汇总 × 本地 1 格（未闭环：推送接单据引导要等 documents 源进 main）、预扣税 1 格（未闭环：待确认行逐行改）：11-16 分支已推） |
+| 服务端 | 24（C2 / D 组 11-16 18:05 报 9 格：Cowork / ERP 盘点、MR.ERP 设置、科目组 × 本地、Cowork / ERP 公司资料、公司接入、库存报表、看板，其中 2 格未闭环（MR.ERP 设置、看板）；Cowork / ERP 代录 采购 / 销售 × 本地 Express 4 格：引导卡出题、开始卡未并；ERP 收款 × 本地 Express 1 格：分支 4 未进 main；Cowork 读回 × 本地 1 格、对账三类 × 本地 / MR.ERP 6 格、增值税 × 本地 1 格、收银日汇总 × 本地 1 格（未闭环：推送接单据引导要等 documents 源进 main）、预扣税 1 格（未闭环：待确认行逐行改）：11-16 分支已推） |
 | 没做 | 39（其中云端 Express 19 格整列 ⇢ 云端线；MR.ERP 18 格里 12 格 ⇢ MR.ERP 线） |
 | 范围外（不计入 65） | 第 2 节逐条写依据 |
 
@@ -73,7 +73,7 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | CW-D-POS-L | 收银日汇总 | 本 | 收银日汇总 · store | POS 导出（file）→ 认列（动态题：每列从表头选、日月顺序、含不含税、状态值；按公司记住，`pos_import/service.preview` → `contracts.apply_answers`）→ 走库存 / 记费用（有明细时） | 账套 = 本对话账套；记过的版式不再问 | 每天一行：日期、首末票号、金额、税额；收款科目题（kind receipt，判定卡已有） | 每天一张：已入账 / 留下 | **服务端（未闭环）**（`pearnly/cc-guided-pos` 7418018a8，`assistant/guided/pos.py`，11 条离线测试；建好票后接单据引导推送，等 documents 源进 main） | 声明 + 服务函数；认列题由模型填 `answers` 改成卡上选（P3 盘点 #31）；动态题 N1 | 接线；N1 | 6–8 / 2 | 本窗口 |
 | CW-D-POS-C | 收银日汇总 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端写账 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
 | CW-D-POS-M | 收银日汇总 | MR | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | POS 推送现在只接 Express（`cowork_pos_import` 说明） | MR.ERP 线（MR.ERP 的日汇总单型未定） | 待 MR.ERP 线估 | 本窗口 ← MR.ERP 线 |
-| CW-D-ST | 盘点 | — | 盘点 · clipboard-list | 新建：模板（结果卡给模板文件）→ Excel（file）→ 标题（text，可空）；记数：盘点单（choice）→ 物料（choice，搜索码 / 条码）+ 数量（number）可连续多行；结束 / 删除走允许卡 | 仓 / 库位默认账面位置 | 差异表（账面、实盘、差异，只列有差异的） | 差异工作簿进对话 | **服务端（未闭环：按动作区分的允许卡已在 engine-n 502c6f9bf、待它变基接上）**（`pearnly/cc-guided-stocktake`，CI 通过） | 连续录多行（引擎新能力 N4）；删除 / 结束走允许卡（N5）；不写账本 | 接线；N4、N5 | 6–8 / 2 | guided-cowork-2 local_3b58bd71 |
+| CW-D-ST | 盘点 | — | 盘点 · clipboard-list | 新建：模板（结果卡给模板文件）→ Excel（file）→ 标题（text，可空）；记数：盘点单（choice）→ 物料（choice，搜索码 / 条码）+ 数量（number）可连续多行；结束 / 删除走允许卡 | 仓 / 库位默认账面位置 | 差异表（账面、实盘、差异，只列有差异的） | 差异工作簿进对话 | **服务端**（`pearnly/cc-guided-stocktake` 7e43c8d67：结束、删除用允许卡） | 连续录多行（引擎新能力 N4）；删除 / 结束走允许卡（N5）；不写账本 | 接线；N4、N5 | 6–8 / 2 | guided-cowork-2 local_3b58bd71 |
 | CW-D-VAT-L | 增值税 ภ.พ.30 | 本 | 增值税 · percent | 月份 → 免税销售（number，可空）→ 上期留抵（number，默认上月草稿第 12 格）→ 零税额行去向（choice） | 账套 = 本对话账套；没有读回时先跑读回（同一张卡里「等」） | 第 1–12 格 + 检查项（不能抵的行） | 草稿工作簿进对话；「草稿」不说已申报 | **服务端**（`pearnly/cc-guided-vat` 845ee1b08，`assistant/guided/vat.py`，9 条离线测试；CI 待查） | 声明 + 服务函数（转调 `tax.service.vat_draft`）；结果带文件 N2 | 读回 RB-L；接线 | 4–6 / 1.5 | 本窗口 |
 | CW-D-VAT-C | 增值税 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端读回 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
 | CW-D-VAT-M | 增值税 | MR | 同上 | 同上 | — | 同上 | 同上 | 没做 | MR.ERP 侧没有销项 / 进项来源（工具说明「not MR.ERP」） | MR.ERP 线 | 待 MR.ERP 线估 | 本窗口 ← MR.ERP 线 |
@@ -86,10 +86,10 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | CW-D-PD-L | 待处理 / 结果核对 | 本 | 待处理 · list-checks | 哪一项（choice，待处理清单）→ 按类：结果不明「已入账 / 没入账」+ 单号；改票面（复核卡）；删单（允许卡）；导出复核工作簿（multi） | 清单来自 `companies/api.pending`（同侧栏） | 单据版复核卡（同 P / S） | 每项一行 | 没做 | `cowork_resolve_push_result`、`cowork_delete_documents`、`cowork_edit_document` 现在没有允许卡、值经模型（#10、#26、#28）；改走卡上 | 接线；P2-1 复核卡；N5 | 6–8 / 2 | guided-cowork-2 local_3b58bd71 |
 | CW-D-PD-C | 待处理 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端推送结果 | 云端线 | 0.5 / 0.5 | guided-cowork-2 local_3b58bd71 |
 | CW-D-PD-M | 待处理 | MR | 同上 | 同上 + MR.ERP 设置类待处理（`pending_api.mrerp_needs`） | 同上 | 同上 | 同上 | 没做 | 同 PD-L | 无 | 计入 PD-L | guided-cowork-2 local_3b58bd71 |
-| CW-D-CO | 公司资料 / 知识库 / 记住的选择 | — | 公司资料 · building | 做什么（choice：加 / 改 / 删笔记、存 / 删一条规则）→ 笔记（text）或规则类（choice）+ 值（choice 搜索，按工作月份那本账套主档） | 公司 = 对话公司 | — | 已保存 | **服务端**（`pearnly/cc-guided-erp-company`） | 声明 + 服务函数；删除允许卡 N5 | 接线；N5 | 4–6 / 1 | guided-cowork-2 local_3b58bd71 |
+| CW-D-CO | 公司资料 / 知识库 / 记住的选择 | — | 公司资料 · building | 做什么（choice：加 / 改 / 删笔记、存 / 删一条规则）→ 笔记（text）或规则类（choice）+ 值（choice 搜索，按工作月份那本账套主档） | 公司 = 对话公司 | — | 已保存 | **服务端**（`pearnly/cc-guided-erp-company` fadcde975：删笔记、删规则用允许卡） | 声明 + 服务函数；删除允许卡 N5 | 接线；N5 | 4–6 / 1 | guided-cowork-2 local_3b58bd71 |
 | CW-D-WK | 任务看板 | — | 看板 · kanban | 看板（choice）→ 做什么（建卡 / 改 / 移动 / 完成 / 评论）→ 卡片（choice 搜索）→ 字段（text / date / choice） | 默认看板 | — | 已保存 | **服务端（未闭环：清单、标签、成员、附件，约 3–4 h）**（`pearnly/cc-guided-work`） | 声明 + 服务函数（转调 `work/api`） | 接线 | 6–8 / 1.5 | guided-cowork-2 local_3b58bd71 |
-| CW-D-MS | MR.ERP 设置 | MR | （不上菜单，推送时冒出来）· settings | 每类单的导入菜单（choice）、主档默认值（choice 搜索） | 记住的按账套不再问 | — | 已保存 | **服务端（未闭环：`precheck_source` 接一行，待定由 A3 或 guided-erp 接）**（`pearnly/cc-guided-push-setup`，`assistant/guided/push_setup.py`） | 判定卡补题类 `mrerp_menu / mrerp_default`（ERP 判定卡已有）；现在是模型 + 允许卡 | 引导式（判定卡题类在 `precheck_source`） | 3–4 / 1 | guided-cowork-2 local_3b58bd71 |
-| CW-D-SG-L | 存货科目组 | 本 | （不上菜单，推送时冒出来）· boxes | 科目组（choice，`connections/service.stock_acc_group`） | 记住的按账套不再问 | — | 已保存 | **服务端（未闭环：同 CW-D-MS）**（`pearnly/cc-guided-push-setup`） | 判定卡补 `stock_group` 题类（ERP 已有）；现在是模型 + 允许卡 | 同 MS | 2–3 / 0.5 | guided-cowork-2 local_3b58bd71 |
+| CW-D-MS | MR.ERP 设置 | MR | （不上菜单，推送时冒出来）· settings | 每类单的导入菜单（choice）、主档默认值（choice 搜索） | 记住的按账套不再问 | — | 已保存 | **服务端（未闭环：`precheck_source` 接一行，H5 进 main 后由先动它的人接）**（`pearnly/cc-guided-push-setup`） | 判定卡补题类 `mrerp_menu / mrerp_default`（ERP 判定卡已有）；现在是模型 + 允许卡 | 引导式（判定卡题类在 `precheck_source`） | 3–4 / 1 | guided-cowork-2 local_3b58bd71 |
+| CW-D-SG-L | 存货科目组 | 本 | （不上菜单，推送时冒出来）· boxes | 科目组（choice，`connections/service.stock_acc_group`） | 记住的按账套不再问 | — | 已保存 | **服务端**（判定卡的存货科目组题在 H5 `cc-stop-exits-h5` 的 `precheck_source`，进 main 后算数；`push_setup` 里的科目组只给定时任务用） | 判定卡补 `stock_group` 题类（ERP 已有）；现在是模型 + 允许卡 | 同 MS | 2–3 / 0.5 | guided-cowork-2 local_3b58bd71 |
 | CW-D-SG-C | 存货科目组 | 云 | 同上 | 同上 | 同上 | — | 同上 | 没做 | 云端账套主档 | 云端线 | 0.5 / 0.5 | guided-cowork-2 local_3b58bd71 |
 | CW-D-CN | 连接与账套 | — | 连接 · settings | 哪个连接（choice）→ 重读账套（确定） | — | — | 电脑在线 / 账套数 / 读到哪天 | 没做 | 声明 + 服务函数（`cowork_companion_status`、`cowork_refresh_account_sets`） | 接线 | 2 / 0.5 | guided-cowork-2 local_3b58bd71 |
 
@@ -117,12 +117,12 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | ERP-D-COL-L | 收款 | 本 | 收款 · wallet | 公司 → 日期（能录就不问）→ 账套 → 客户（搜索）→ 未收发票（金额多选）→ 现金 / 转账 / 折扣分摊 → 每种转账一张凭证 | 公司、日期、账套、销售员 / 部门 | 收款复核卡（`collection/guide.review`） | RE 号 / 排队 / 未入账 | **服务端**（分支 4 e590f7fb4，未进 main） | 接线；打字收款改走引导（用户 11-16 定，分支 3 之后） | 接线 | 已做；余项在分支 3 | 引导式 local_38ec22a7 |
 | ERP-D-COL-C | 收款 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端 RE 写法 | 云端线 | 1 / 1 | 云端线 → 引导式 |
 | ERP-D-COL-M | 收款 | MR | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | MR.ERP 收款写法未定 | MR.ERP 线 | 待 MR.ERP 线估 | MR.ERP 线 → 引导式 |
-| ERP-D-ST | 盘点 | — | 盘点 · clipboard-list | 新建：仓（choice）→ 标题；记数：盘点单 → 物料（搜索码 / 条码）+ 数量，连续多行；结束（允许卡）→ 生成调整单（确定） | 仓位默认账面位置 | 差异表 | 调整单草稿号；调整单写账走 ERP 单据直写（采购 / 销售同一条推送） | **服务端（未闭环：允许卡同上；扫到未知码当场新建物料下一条分支）**（`pearnly/cc-guided-stocktake`，加了删除，CI 通过） | N4、N5 | 接线 | 6–8 / 2 | guided-cowork-2 local_3b58bd71 |
+| ERP-D-ST | 盘点 | — | 盘点 · clipboard-list | 新建：仓（choice）→ 标题；记数：盘点单 → 物料（搜索码 / 条码）+ 数量，连续多行；结束（允许卡）→ 生成调整单（确定） | 仓位默认账面位置 | 差异表 | 调整单草稿号；调整单写账走 ERP 单据直写（采购 / 销售同一条推送） | **服务端**（`pearnly/cc-guided-stocktake` 7e43c8d67 + `cc-guided-stocktake-new-product` bd343663f：允许卡、扫到未知码当场新建物料） | N4、N5 | 接线 | 6–8 / 2 | guided-cowork-2 local_3b58bd71 |
 | ERP-D-SC | 库存收发报表 | — | 库存报表 · file-spreadsheet | 期间（month）→ 仓（choice，可空） | — | — | 报表文件进对话 | **服务端**（`pearnly/cc-guided-stock-card`） | N2 | 接线 | 2 / 0.5 | guided-cowork-2 local_3b58bd71 |
 | ERP-D-PD-L | 待处理 / 结果核对 | 本 | 待处理 · list-checks | 哪一项（choice，`erp_pending`）→ 再写一次 / 结果不明「已入账 / 没入账」 | — | 单据版复核卡 | 每项一行 | 没做 | `erp_resolve_push_result` 值经模型；改走卡上 | 接线；P2-1 | 4–6 / 1.5 | guided-cowork-2 local_3b58bd71（11-16 从 guided-erp 转来；依赖 cc-guide-documents 进 main：交给单据源 run.start(doc_ids)） |
 | ERP-D-PD-C | 待处理 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端推送结果 | 云端线 | 0.5 / 0.5 | guided-cowork-2 local_3b58bd71（11-16 从 guided-erp 转来；依赖 cc-guide-documents 进 main：交给单据源 run.start(doc_ids)） |
 | ERP-D-PD-M | 待处理 | MR | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | ERP 的 MR.ERP 开关未开 | MR.ERP 线 | 计入 | guided-cowork-2 local_3b58bd71（11-16 从 guided-erp 转来；依赖 cc-guide-documents 进 main：交给单据源 run.start(doc_ids)） |
-| ERP-D-CO | 公司资料 / 知识库 | — | 公司资料 · building | 加 / 改 / 删笔记（text；删走允许卡） | 公司 = 对话公司 | — | 已保存 | **服务端**（`pearnly/cc-guided-erp-company`） | N5 | 接线 | 2–3 / 0.5 | guided-cowork-2 local_3b58bd71 |
+| ERP-D-CO | 公司资料 / 知识库 | — | 公司资料 · building | 加 / 改 / 删笔记（text；删走允许卡） | 公司 = 对话公司 | — | 已保存 | **服务端**（`pearnly/cc-guided-erp-company` fadcde975：删笔记、删规则用允许卡） | N5 | 接线 | 2–3 / 0.5 | guided-cowork-2 local_3b58bd71 |
 | ERP-D-ADD | 公司接入（从连接添加） | — | 添加公司 · building-plus | 连接里还没进 ERP 的公司（multi，`erp_connection_companies`） | 主档随公司带入 | 勾选清单 | 已添加 / 同步中 | **服务端**（`pearnly/cc-guided-erp-company`） | — | 接线；公司接入线（`erp_company_add`） | 2–3 / 0.5 | guided-cowork-2 local_3b58bd71（与 local_3709c091 对齐） |
 
 ### 1.4 ERP · 代录（6 格）
