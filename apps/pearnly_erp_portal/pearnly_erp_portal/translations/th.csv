@@ -46,6 +46,7 @@ Account name matches,ชื่อบัญชีตรงกัน
 Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Accounting period: {0},งวดบัญชี: {0}
 Accrual basis,เกณฑ์สิทธิ
+Action,การดำเนินการ
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
@@ -282,6 +283,7 @@ Choices,ตัวเลือก
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
 Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง
+Choose an action.,เลือกการดำเนินการ
 Choose an existing product for opening stock,กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one invoice,กรุณาเลือกใบแจ้งหนี้อย่างน้อย 1 ใบ
@@ -2515,6 +2517,8 @@ express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
+guide.business.stocktake,ตรวจนับสินค้า
+guide.open.stocktake,เลือกการดำเนินการ
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2524,6 +2528,12 @@ guide.step.collection.day,วันที่รับเงิน
 guide.step.collection.invoices,ใบแจ้งหนี้
 guide.step.collection.methods,วิธีรับเงิน
 guide.step.collection.voucher,สลิปการโอน
+guide.step.stocktake.action,การดำเนินการ
+guide.step.stocktake.count,ตรวจนับสินค้า
+guide.step.stocktake.mode,วิธี
+guide.step.stocktake.rows,จำนวนที่นับครั้งนี้
+guide.step.stocktake.title,ชื่อ
+guide.step.stocktake.warehouse,คลังสินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

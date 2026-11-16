@@ -46,6 +46,7 @@ Account name matches,Account name matches
 Account signed in elsewhere,Account signed in elsewhere
 Accounting period: {0},Accounting period: {0}
 Accrual basis,Accrual basis
+Action,Action
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
@@ -282,6 +283,7 @@ Choices,Choices
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
 Choose a local opening stock file,Choose a local opening stock file
+Choose an action.,Choose an action.
 Choose an existing product for opening stock,Choose an existing product for opening stock
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one invoice,Choose at least one invoice
@@ -2515,6 +2517,8 @@ express.state.written,Written
 express.summary.extra,Late receipts
 express.void,Cancel in Express
 goods,goods
+guide.business.stocktake,Stock Count
+guide.open.stocktake,Choose an action.
 guide.review.department,Department
 guide.review.salesman,Salesman
 guide.step.collection.book,Account Set
@@ -2524,6 +2528,12 @@ guide.step.collection.day,Collection Date
 guide.step.collection.invoices,Invoices
 guide.step.collection.methods,Collection Method
 guide.step.collection.voucher,Transfer Slip
+guide.step.stocktake.action,Action
+guide.step.stocktake.count,Stock count
+guide.step.stocktake.mode,Method
+guide.step.stocktake.rows,Quantity counted this time
+guide.step.stocktake.title,Name
+guide.step.stocktake.warehouse,Warehouse
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
