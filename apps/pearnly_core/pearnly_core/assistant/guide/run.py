@@ -92,11 +92,19 @@ def _conversation(session_id: str) -> Dict[str, Any]:
 
 
 # ── 产品函数 ─────────────────────────────────────────────────────────────────────────────────────────────────
-def _commit_files(session_id: str, file_ids: List[str]) -> List[str]:
-    """引导卡上交的文件：登记成用户在这段对话里交出的（`assistant.files.commit`，唯一入口），回认下的编号。"""
+def _commit_files(session_id: str, by_step: Mapping[str, List[str]]) -> str:
+    """引导卡上交的文件（``{步骤 key: 文件编号}``）：登记成用户在这段对话里交出的（`assistant.files.commit`，唯一入口）；
+    本对话只取一次。回第一个有文件没认下的步骤 key（都认下回空串）。"""
     from pearnly_core.assistant import files, sessions
 
-    return files.commit(sessions.owned(session_id), file_ids, via="guide")
+    if not by_step:
+        return ""
+    row = sessions.owned(session_id)
+    for key, ids in by_step.items():
+        accepted = files.commit(row, list(ids), via="guide")  # loop-query: 一张卡上交文件的步骤（声明里有界，通常一步），每步一次登记
+        if set(accepted) != set(ids):
+            return key
+    return ""
 
 
 def _call(path: str, *args, **kwargs):
@@ -483,11 +491,10 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
         return {**view(doc), "outcome": REFUSED, "refused": refused}
     # 交文件的步骤：别的题都收下了，才把这几份登记成用户交出的（唯一入口 `files.commit(via="guide")`，幂等）；
     # 不是这段对话里本人上传的，这一步不收
-    for key, value in given.items():
-        if by_key[key]["input"] == "file":
-            accepted = _commit_files(doc.session_id, list(value))
-            if set(accepted) != set(value):
-                return {**view(doc), "outcome": REFUSED, "refused": {key: "not in this conversation"}}
+    not_here = _commit_files(doc.session_id, {key: list(value) for key, value in given.items()
+                                              if by_key[key]["input"] == "file"})
+    if not_here:
+        return {**view(doc), "outcome": REFUSED, "refused": {not_here: "not in this conversation"}}
     changed = [key for key, value in given.items() if answers.get(key) != value]
     answers = steps.without_dependents(guide, answers, changed)
     answers.update(given)

@@ -93,7 +93,7 @@ class Base(unittest.TestCase):
             "app.release": self.release, "app.status": lambda ctx, draft: {"status": "entered", "docnum": "RE0001"},
         })
         original = run._commit_files
-        run._commit_files = lambda session_id, ids: list(ids)  # 交文件的登记（`assistant.files.commit`）：这里都认下
+        run._commit_files = lambda session_id, by_step: ""  # 交文件的登记（`assistant.files.commit`）：这里都认下
         self.addCleanup(setattr, run, "_commit_files", original)
         run._insert, run._locked, run._save, run._open_runs, run._conversation = (
             self.insert, self.locked, self.save, self.open_runs, lambda session_id: dict(self.now))
@@ -380,7 +380,7 @@ class WritingGuideTests(Base):
 
     def test_a_file_step_registers_the_files_as_handed_over_and_refuses_files_from_elsewhere(self):
         committed = []
-        run._commit_files = lambda session_id, ids: committed.append((session_id, ids)) or [i for i in ids if i.startswith("upl_")]
+        run._commit_files = lambda session_id, by_step: committed.extend((session_id, ids) for ids in by_step.values()) or next((k for k, ids in by_step.items() if any(not i.startswith("upl_") for i in ids)), "")
         name, found = self.walk([{"code": "transfer:T1", "amount": "600"}])
         refused = run.answer(name, {"voucher": ["upl_1", "other_9"]})
         self.assertEqual(refused["refused"], {"voucher": "not in this conversation"})

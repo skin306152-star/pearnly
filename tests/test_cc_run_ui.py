@@ -168,9 +168,9 @@ class ReuseChatStandard(unittest.TestCase):
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         self.assertIn("  Tail?: ComponentType | undefined;", thread)
         self.assertIn("const { Welcome, Loading, Tail } = useContext(ThreadComponentsContext);", thread)
-        # 在消息组里、发送中的气泡之后（中间是选了业务后 CC 那一句，引导式 11-14）；消息组新对话时也在（不在 isEmpty 的分支里）
+        # 在消息组里、发送中的气泡之后（中间是选了业务后 CC 那一句，引导式 11-14，与本对话开着的引导卡）；消息组新对话时也在（不在 isEmpty 的分支里）
         self.assertIn("<ThreadPrimitive.Messages>\n              {() => <ThreadMessage />}\n            </ThreadPrimitive.Messages>\n"
-                      "            <PendingSendBubble />\n            <BusinessPrompt />\n            {Tail && <Tail />}\n          </div>", thread)
+                      "            <PendingSendBubble />\n            <BusinessPrompt />\n            <GuideRuns />\n            {Tail && <Tail />}\n          </div>", thread)
 
     def test_no_second_run_ui(self):
         # 用户 11-04 更正：任务清单、结束框、侧栏「等你处理」新标记、另一套出错显示都不做
