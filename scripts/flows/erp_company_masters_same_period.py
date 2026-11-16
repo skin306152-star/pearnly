@@ -63,7 +63,7 @@ def steps(params, camera_code=None):
          "const f=form(); if(!f) return {error:'no express section'};"
          "const c=f.fields_dict.express_book_choice; const note=f.fields_dict.express_sync_note;"
          "return {choice: !!(c&&c.$wrapper.is(':visible')), label: c?c.df.label:'',"
-         " options: c?[...c.$wrapper.find('option')].map(o=>({value:o.value, text:o.textContent.trim()})).filter(o=>o.value):[],"
+         " options: c?(Array.isArray(c.df.options)?c.df.options:[]).map(o=>({value:o.value, text:String(o.label||'').trim()})).filter(o=>o.value):[],"
          " note: note?String(note.get_value()||''):''};"},
         {"name": "选服务器那份", "shot": True, "js": IDLE + FORM +
          "const f=form(); const c=f&&f.fields_dict.express_book_choice; if(!c) return {error:'no choice field'};"
