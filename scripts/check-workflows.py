@@ -10,6 +10,7 @@
    - 不加引号的值里出现「冒号 + 空格」（``name: a: b``）——YAML 把它当成又一层键值，整份文件作废；
    - 不加引号的值以保留字符开头（`` ` @ * & ! % ``）；
    - 用制表符缩进；
+   - 同一层映射里同一个键出现两次（例：一步里两个 ``run:``，11-16 变基「保留两边」留下的）——PyYAML 与 ruby 都默默取后一个，GitHub 拒收；
    ``|`` / ``>`` 块里的行（shell 命令）不查。
 2. 装了 PyYAML 就再整份解析一遍，并核顶层有 ``on`` 与 ``jobs``、每个任务有 ``steps`` 或 ``uses``。
 
@@ -40,6 +41,7 @@ def problems(name: str, text: str, parse: bool = True) -> list[str]:
     """逐行查（第一层）；``parse`` 为真且装了 PyYAML 时再整份解析（第二层）。"""
     out: list[str] = []
     block = None  # 正在 | / > 块里：块所属键的缩进
+    maps: list[tuple[int, set]] = []  # 当前所在的各层映射：(缩进, 已出现的键)，查同一层重复的键
     for number, line in enumerate(text.splitlines(), 1):
         if "\t" in line[: len(line) - len(line.lstrip())]:
             out.append(f"{name}:{number}: indented with a tab")
@@ -55,6 +57,16 @@ def problems(name: str, text: str, parse: bool = True) -> list[str]:
         found = _KEY.match(line)
         if not found:
             continue
+        key, item = found.group("key"), line.lstrip().startswith("- ")
+        level = len(found.group("indent")) + (2 if item else 0)
+        while maps and (maps[-1][0] > level or (item and maps[-1][0] == level)):
+            maps.pop()
+        if maps and maps[-1][0] == level:
+            if key in maps[-1][1]:
+                out.append(f"{name}:{number}: {key} appears twice in the same mapping (GitHub refuses the file)")
+            maps[-1][1].add(key)
+        else:
+            maps.append((level, {key}))
         value = (found.group("value") or "").strip()
         if _BLOCK.match(value):
             block = len(found.group("indent")) + (2 if line.lstrip().startswith("- ") else 0)

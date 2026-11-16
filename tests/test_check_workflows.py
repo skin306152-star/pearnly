@@ -58,6 +58,14 @@ class WorkflowGateTests(unittest.TestCase):
         self.assertTrue(any("tab" in item for item in found))
         self.assertTrue(any("starts with '*'" in item for item in found))
 
+    def test_a_key_repeated_in_one_step_is_caught_and_the_same_key_in_another_step_is_not(self):
+        bad = GOOD.replace("        run: python3 tests/test_cc_guide_run.py\n",
+                           "        run: python3 tests/test_cc_guide_run.py\n        run: python3 tests/test_cc_ask.py\n")
+        self.assertEqual(gate.problems("bad.yml", bad, parse=False),
+                         ["bad.yml:12: run appears twice in the same mapping (GitHub refuses the file)"])
+        self.assertEqual(gate.problems("good.yml", GOOD, parse=False), [])  # 每一步各有自己的 name / run
+
+
     @unittest.skipUnless(HAS_YAML, "PyYAML not installed (the line checks above still run)")
     def test_with_pyyaml_the_whole_file_is_parsed_too(self):
         """装了 PyYAML（GitHub 的 runner 上有）：坏样例另被整份解析报出来，好样例照过、缺 jobs 的也报。"""
