@@ -25,10 +25,17 @@ def prepare(lab, manifest):
     # 这一格开着收银；格结束时 run_flow 还原原值（`Lab.set_fields`，成功、失败、超时都还原）
     lab.set_fields(manifest["site"], "ERP Company", company, {"pos_enabled": 1})
     out = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.cashier import terminals
 from pearnly_erp_portal.inventory import documents, warehouses
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("admin@erp.regression")
 companies.set_active_company({company!r})
+# 开班框要有收银台可选：同 erp_pos_shift 备一台（接 Express 的公司没有自带收银台，照用户在公司页「收银台」里那样挂第一个仓）。
+# 以前靠同站点前面的收银流程留下的那台；11-16 GitHub 分份补跑时这一格单独跑，开班框收银台一栏空着、开不了班
+till = terminals.ensure_default(company={company!r})
+if not frappe.db.get_value("ERP POS Terminal", till, "warehouse"):
+    first = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="express_code asc, creation asc")[0]
+    terminals.update_terminal(till, warehouse=first)
 for shift in frappe.get_all("ERP Shift", filters={{"status": "open", "cashier": "cashier@erp.regression"}}, pluck="name"):
     frappe.db.set_value("ERP Shift", shift, "status", "closed", update_modified=False)
 main = warehouses.main_of({company!r})
