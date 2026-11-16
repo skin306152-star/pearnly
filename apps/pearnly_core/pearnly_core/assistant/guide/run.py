@@ -41,6 +41,7 @@ PAGE = 20
 # 交回页面的状态（不是记录的状态）
 CHANGED, REFUSED, STOPPED = "changed", "refused", "stopped"
 CONTEXT_FIELDS = {"company": "company", "ledger": "ledger", "period": "period"}   # 声明的 expires 名 → 记录的列
+DOCUMENT_HOOKS = d.DOCUMENT_HOOKS     # documents 源要声明点名的产品函数
 
 
 # ── 存取（测试换成内存里的一份）────────────────────────────────────────────────────────────────────────────────
@@ -96,9 +97,20 @@ def _call(path: str, *args, **kwargs):
 
 def _guide(doc) -> Dict[str, Any]:
     found = registry.find(doc.business)
-    if not found or found["source"] != d.FORM:
+    if not found or found["source"] not in (d.FORM, d.DOCUMENTS):
         frappe.throw(_("Invalid request"))
     return found
+
+
+def _documents(guide: Mapping[str, Any]) -> bool:
+    """按单据办的业务（采购、销售）：走 :mod:`documents` 出题源（交文件 → 识别 → 题卡 → 复核 → 确定按模式分叉）。"""
+    return guide.get("source") == d.DOCUMENTS
+
+
+def _docs():
+    from pearnly_core.assistant.guide import documents
+
+    return documents
 
 
 def _answers(doc) -> Dict[str, Any]:
@@ -269,6 +281,12 @@ def view(doc) -> Dict[str, Any]:
         return out
     answers = _answers(doc)
     ctx = _ctx(doc, answers)
+    if _documents(guide):
+        if doc.status in OPEN:
+            return {**out, "source": d.DOCUMENTS, **_docs().view(guide, doc, ctx)}
+        stored = json.loads(doc.result or "null") or {}
+        return {**out, "source": d.DOCUMENTS,
+                "result": _docs().result(guide, doc, ctx, stored) if doc.status != FAILED else stored}
     out["consent"] = _consent(guide, doc, answers)
     if doc.status == ASKING:
         decided = _decided(guide, doc, answers)
@@ -358,15 +376,18 @@ def _checked(name: str):
 def start(session_id: str, business: str) -> Dict[str, Any]:
     now = _conversation(session_id)
     guide = registry.find(business)
-    if not guide or guide["source"] != d.FORM or now["mode"] not in guide["modes"] \
+    if not guide or guide["source"] not in (d.FORM, d.DOCUMENTS) or now["mode"] not in guide["modes"] \
             or business not in registry.offered().get(now["mode"], []):
         frappe.throw(_("Invalid request"))
+    if _documents(guide) and not all(guide.get(key) for key in DOCUMENT_HOOKS):
+        frappe.throw(_("Invalid request"))  # 声明还没点名 documents 源要的产品函数（这一格还不能在页面上办）
     for name in _open_runs(now["session_id"]):
         old = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
         if old is not None and old.status in OPEN:
             _end(old, CANCELLED, "replaced")
     doc = _insert({"session_id": now["session_id"], "user": frappe.session.user, "business": business, "status": ASKING,
-                   "company": now["company"], "ledger": now["ledger"], "period": now["period"], "answers": "{}", "version": 1})
+                   "company": now["company"], "ledger": now["ledger"], "period": now["period"], "answers": "{}", "version": 1,
+                   **({"documents": _docs().initial()} if _documents(guide) else {})})
     _announce(doc)
     return view(doc)
 
@@ -401,6 +422,8 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
         return {**view(doc), "outcome": CHANGED}
     if not isinstance(given, Mapping) or not given:
         frappe.throw(_("Invalid request"))
+    if _documents(guide):
+        return _answer_documents(guide, doc, given)
     answers = _answers(doc)
     decided = _decided(guide, doc, answers)
     refused = steps.problems_in(guide, answers, decided, given)
@@ -433,7 +456,67 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     return view(doc)
 
 
-def confirm(name: str, version: int) -> Dict[str, Any]:
+def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -> Dict[str, Any]:
+    """按单据的一次作答（交文件或题卡）：收下了版本 +1、存、推事件；不收回 ``refused``（卡不变，页面可重答）。"""
+    found = _docs().answer(guide, doc, _ctx(doc, _answers(doc)), given)
+    if found.get("refused"):
+        return {**view(doc), "outcome": REFUSED, "refused": found["refused"],
+                **({"errors": found["errors"]} if found.get("errors") else {})}
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return view(doc)
+
+
+def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[str, Any]:
+    """复核卡就地改一格（按单据的业务）：本人、版本与看到的一致、运行没失效；产品写回自己的单，版本 +1。"""
+    doc, guide, _now = _checked(name)
+    if not _documents(guide) or doc.status not in OPEN:
+        return {**view(doc), "outcome": REFUSED}
+    if int(version) != int(doc.version or 0):
+        return {**view(doc), "outcome": CHANGED}
+    found = _docs().edit(guide, doc, _ctx(doc, _answers(doc)), str(doc_id or ""), str(field or ""), value)
+    if isinstance(found, Mapping) and found.get("refused"):
+        return {**view(doc), "outcome": REFUSED, "refused": {str(field or ""): found["refused"]}}
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return view(doc)
+
+
+def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dict[str, Any]:
+    """按单据的确定（引擎的核对已过）：先落下「已确定」，再放行、按模式分叉（:func:`documents.confirm`）。"""
+    doc.status, doc.consent = CONFIRMED, consent
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    frappe.db.commit()      # 先落下「已确定」再办：办到一半出错，这次确定不会被当成没点过而办第二次
+    name = doc.name
+    doc = _locked(name)
+    try:
+        result = _docs().confirm(guide, doc, _ctx(doc, _answers(doc)), consent, seen)
+        if isinstance(result, Mapping) and result.get("outcome") in (CHANGED, REFUSED):
+            # 复核之后票在别处改过、或此刻已不在复核：不办，回到复核（页面刷新复核卡再让人确定）
+            doc.status, doc.consent = REVIEWING, ""
+            doc.version = int(doc.version or 0) + 1
+            _save(doc)
+            _announce(doc)
+            return {**view(doc), "outcome": result["outcome"]}
+        doc.status = DONE
+    except Exception as exc:  # noqa: BLE001 — 放行 / 产品函数拒了、出错：记失败与原因码，交回页面（结果卡说明）
+        frappe.db.rollback()
+        doc = _locked(name)
+        result = {"status": "failed", "reason": str(getattr(exc, "code", "") or type(exc).__name__)}
+        doc.status = FAILED
+        frappe.log_error(title="Assistant guide confirm failed")
+    doc.result = json.dumps(result, ensure_ascii=False, default=str)
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return view(doc)
+
+
+def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
+    """``seen``：按单据的业务，页面带回复核卡上的指纹（``review.seen``）；与此刻不一致（票在别处改过）不办。表单业务不用。"""
     doc, guide, now = _checked(name)
     consent = f"guide:{doc.name}:{int(version)}"
     if doc.status in (CONFIRMED, DONE, FAILED):
@@ -447,6 +530,8 @@ def confirm(name: str, version: int) -> Dict[str, Any]:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     if now.get("stopped_at") and doc.modified and now["stopped_at"] >= frappe.utils.get_datetime(doc.modified):
         return {**view(doc), "outcome": STOPPED}
+    if _documents(guide):
+        return _confirm_documents(guide, doc, consent, seen)
     answers = _answers(doc)
     decided = _decided(guide, doc, answers)
     if steps.state(guide, answers, decided) != steps.READY or (guide.get("review") and doc.status != REVIEWING):
@@ -531,6 +616,11 @@ def search(name: str, key: str, txt: str = "", start: int = 0, page_length: int 
         frappe.throw(_("Not found"), frappe.DoesNotExistError)
     doc = frappe.get_doc(DOCTYPE, found)
     guide = _guide(doc)
+    if _documents(guide):
+        if doc.status not in OPEN:
+            frappe.throw(_("Invalid request"))
+        return _docs().search(guide, doc, _ctx(doc, _answers(doc)), str(key or ""), txt, int(start or 0),
+                              min(int(page_length or PAGE), 50))
     step = next((s for s in guide["steps"] if s["key"] == str(key or "") and s["input"] in d.OPTION_INPUTS), None)
     if step is None or doc.status not in OPEN:
         frappe.throw(_("Invalid request"))
@@ -581,5 +671,6 @@ def forget(session_id: str) -> None:
     frappe.db.delete(DOCTYPE, {"session_id": session_id})
 
 
-__all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DONE", "EXPIRED", "FAILED", "OPEN", "REFUSED", "REVIEWING",
-           "STOPPED", "TYPE", "answer", "cancel", "confirm", "event", "feed", "follow", "forget", "search", "start", "view"]
+__all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DOCUMENT_HOOKS", "DONE", "EXPIRED", "FAILED", "OPEN", "REFUSED",
+           "REVIEWING", "STOPPED", "TYPE", "answer", "cancel", "confirm", "edit", "event", "feed", "follow", "forget", "search", "start",
+           "view"]

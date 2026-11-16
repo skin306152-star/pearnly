@@ -317,6 +317,45 @@ def start(tool_input) -> dict:
     return {**out, "note": DIRECT_START_NOTE}
 
 
+def from_page(session_id: str, company: str, doc_ids: list, consent: str) -> dict:
+    """引导运行页面上点「确定」（``guide.documents.confirm``）：同意凭证是本人在页面上点的这一下（``guide:<运行>:<版本>``），
+    代替三道保险里「复述之后用户又说了一句」；另两道照旧由同一份代码执行——逐张重算写账判定（只写此刻可写的）、停过不放行
+    （引擎点确定前已核）、本对话账套记进计划（之后推送门 `permit` 照它核）。直写：计划直接是已开始，推送工具 / 产品提交照
+    `permit` 放行；代录：调用方按本次的单交 `hand_in`（不取整月待录清单）。回
+    ``{status: started, plan, mode, operator_task, documents, skipped}``；一张都写不了回 ``nothing_to_write``（不存计划）。"""
+    consent = str(consent or "")
+    if not consent.startswith("guide:"):
+        frappe.throw(_("Invalid request"))
+    row = _conversation(session_id)
+    mode, planned_company, task, _period = _mode_and_company(row, {})
+    if not company or planned_company != company:
+        frappe.throw(_("Invalid request"))
+    _contracts, precheck_products = _precheck()
+    if not precheck_products.allowed(frappe.session.user, company):
+        frappe.throw(_("Not permitted"), frappe.PermissionError)
+    ids = list(dict.fromkeys(str(doc_id) for doc_id in doc_ids or () if doc_id))
+    if not ids or len(ids) > DIRECT_MAX:
+        frappe.throw(_("Invalid request"))
+    card, versions = _judge(company, ids)
+    write, skipped = _sorted_out(card, ids, versions)
+    _replace_open(row.session_id)
+    if not write:
+        return {"status": "nothing_to_write", "plan": "", "mode": mode, "operator_task": task, "documents": [],
+                "skipped": skipped}
+    doc = frappe.get_doc({"doctype": DOCTYPE, "session_id": row.session_id, "user": frappe.session.user, "mode": mode,
+                          "company": company, "operator_task": task, "ledger": _ledger(row)[0],
+                          "user_turn": _turn(row), "status": STARTED, "started_at": frappe.utils.now_datetime(),
+                          "consent": consent,
+                          "documents": json.dumps([{"doc_id": doc_id, "version": versions[doc_id]} for doc_id in write]),
+                          "skipped": json.dumps(skipped, ensure_ascii=False),
+                          "started": json.dumps(write)}).insert(ignore_permissions=True)
+    # 先提交「已开始」再交单 / 推送（同 :func:`start`：产品交单途中会回滚当前事务重读）
+    frappe.db.commit()
+    _announce(doc)
+    return {"status": STARTED, "plan": doc.name, "mode": mode, "operator_task": task, "documents": write,
+            "skipped": skipped}
+
+
 def _to_utc(moment):
     """表里的时刻（站点时区的裸时间）→ UTC 的裸时间（同 `sessions.last_stop` 记法）。"""
     from datetime import timezone

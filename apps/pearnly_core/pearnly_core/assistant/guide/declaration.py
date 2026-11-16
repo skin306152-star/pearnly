@@ -36,12 +36,16 @@ ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store
                    "building-plus"})
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
-                        "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow"})
+                        "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow", "intake", "uploads", "edit"})
 # ``consent: "allow"``：确定画成允许卡（只有「拒绝 / 允许」；删除、结束这类，要 ``writes: True``）。没写 = 「确定」。
 # 也可以写成与 ``when`` 同形的字典（``{"key": 前面某一步, 一个测试}``）：那一步此刻的值让条件成立时用允许卡，否则「确定」
 # （一张卡里「做什么」既有新建 / 记数又有结束 / 删除，guided-cowork-2 11-16 约定）
 CONSENTS = ("allow",)
 # ``follow(ctx, draft, answers) -> 新的结果``：确定之后结果里冒出来的问题（结果带 ``questions``，同 ``questions`` 输入的子题）的作答
+# 按单据办、会写账本的业务要点名的产品函数（documents 出题源，约定「引导式-documents源-约定-11-16」）：交识别、识别到哪、复核、
+# 复核里改一格、直写的确定、结果。还没点名的声明照旧只有菜单（页面上开不了这一格的引导）
+DOCUMENT_HOOKS = ("intake", "uploads", "review", "edit", "confirm", "result")
+PATH_KEYS = ("allowed", "draft", "review", "confirm", "result", "follow", "intake", "uploads", "edit")
 STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required",
                        "check", "apply", "facts", "zero"})
 # ``check(ctx, value) -> 原因码 | ""``：作答时服务端再核一遍（选项里有、形状对之外的业务规则：金额合计、日期在期间里）；
@@ -135,9 +139,14 @@ def problems(guide: Any) -> List[str]:
     source = guide.get("source")
     if source not in SOURCES:
         out.append(f"source {source!r} is not one of {SOURCES}")
-    for key in ("allowed", "draft", "review", "confirm", "result", "follow"):
+    for key in PATH_KEYS:
         if key in guide and not _is_path(guide[key]):
             out.append(f"{key} is not a dotted path")
+    if source != DOCUMENTS and any(key in guide for key in ("intake", "uploads", "edit")):
+        out.append("intake, uploads and edit are for documents guides")
+    named = [key for key in DOCUMENT_HOOKS if key in guide]
+    if source == DOCUMENTS and named and len(named) != len(DOCUMENT_HOOKS):
+        out.append(f"a documents guide names all of {DOCUMENT_HOOKS} or none")
     if "tool" in guide and not (isinstance(guide["tool"], str) and _ID.match(guide["tool"])):
         out.append("tool is a tool name")
     if not isinstance(guide.get("writes"), bool):
@@ -181,7 +190,7 @@ def problems(guide: Any) -> List[str]:
 
 def paths(guide: Mapping[str, Any]) -> List[str]:
     """声明里出现的全部点路径（闸门按源码核它们指向的函数在不在）。"""
-    found = [guide[key] for key in ("allowed", "draft", "review", "confirm", "result", "follow") if _is_path(guide.get(key))]
+    found = [guide[key] for key in PATH_KEYS if _is_path(guide.get(key))]
     for step in guide.get("steps") or ():
         found.extend(step[key] for key in STEP_PATHS if isinstance(step, Mapping) and _is_path(step.get(key)))
     return found
@@ -192,7 +201,7 @@ def complete(guide: Mapping[str, Any]) -> bool:
     return guide.get("source") in (DOCUMENTS, FORM)
 
 
-__all__ = ["ALWAYS", "ASK", "AUTO", "CHAT", "CONSENTS", "DOCUMENTS", "EXPIRES", "FORM", "GUIDE_KEYS", "ICONS", "INPUTS", "LEDGERS",
-           "MODES", "OPTION_INPUTS", "QUESTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS",
+__all__ = ["ALWAYS", "ASK", "AUTO", "CHAT", "CONSENTS", "DOCUMENT_HOOKS", "DOCUMENTS", "EXPIRES", "FORM", "GUIDE_KEYS", "ICONS", "INPUTS", "LEDGERS",
+           "MODES", "OPTION_INPUTS", "PATH_KEYS", "QUESTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS",
            "STEP_PATHS", "SUB_INPUTS", "TIERS", "WHEN_TESTS",
            "complete", "paths", "problems"]

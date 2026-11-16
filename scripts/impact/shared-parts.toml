@@ -247,7 +247,7 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # express.operator → express.precheck）、收银日汇总三项（express.pos_day）、待处理与卡片取数作答（hooks.pearnly_write_precheck）
 entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push",
            "erp.cc.write", "erp.cc.pos-day", "erp.cc.companies"]
-not_entries = { "apps/pearnly_core/pearnly_core/assistant/guide_tool.py" = "CC 引导卡工具 pearnly_guide（引导式录入第 1 期）出卡与作答走写账前置判定；用户看到的入口是 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide，由 test_cc_guide_tool 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py" = "ERP 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上 documents 源前没有入口，入口随引导接线登记为 erp.cc.guide.purchase / erp.cc.guide.sales，由 test_erp_guide_documents 守住" }
+not_entries = { "apps/pearnly_core/pearnly_core/assistant/guide_tool.py" = "CC 引导卡工具 pearnly_guide（引导式录入第 1 期）出卡与作答走写账前置判定；用户看到的入口是 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide，由 test_cc_guide_tool 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py" = "ERP 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上 documents 源前没有入口，入口随引导接线登记为 erp.cc.guide.purchase / erp.cc.guide.sales，由 test_erp_guide_documents 守住", "apps/pearnly_core/pearnly_core/assistant/guide/documents.py" = "引导的 documents 出题源（共用引擎 assistant.guide.run 按声明的 source 分来；出卡与记答走 write_precheck.api / guide，打字路径 assistant.guide_tool 也调它）；用户看到的入口随引导接线登记为 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide 与业务菜单，由 test_cc_guide_documents、test_cc_guide_tool 守住" }
 
 [[part]]
 id = "mrerp-rules"

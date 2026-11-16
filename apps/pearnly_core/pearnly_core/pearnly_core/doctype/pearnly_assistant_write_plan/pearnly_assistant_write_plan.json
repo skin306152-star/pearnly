@@ -17,7 +17,8 @@
   "documents",
   "skipped",
   "started",
-  "started_at"
+  "started_at",
+  "consent"
  ],
  "fields": [
   {
@@ -96,11 +97,17 @@
    "fieldtype": "Datetime",
    "label": "Started At",
    "read_only": 1
+  },
+  {
+   "fieldname": "consent",
+   "fieldtype": "Data",
+   "label": "Approval",
+   "read_only": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-12 18:00:00.000000",
+ "modified": "2026-11-16 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Write Plan",

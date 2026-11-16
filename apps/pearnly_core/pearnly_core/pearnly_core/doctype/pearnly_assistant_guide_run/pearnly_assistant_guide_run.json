@@ -14,6 +14,7 @@
   "ledger",
   "period",
   "answers",
+  "documents",
   "draft",
   "version",
   "consent",
@@ -75,6 +76,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "documents",
+   "fieldtype": "Long Text",
+   "label": "Documents",
+   "read_only": 1
+  },
+  {
    "fieldname": "draft",
    "fieldtype": "Data",
    "label": "Draft",
@@ -109,7 +116,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-14 00:00:00.000000",
+ "modified": "2026-11-16 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Guide Run",
