@@ -18,7 +18,7 @@ import time
 from typing import Callable, Dict, List, Optional, Protocol
 
 from .desk import CC_INPUT_MARK
-from .engine import Stopped
+from .engine import Interrupted, Stopped
 
 
 class Signals(Protocol):
@@ -31,6 +31,9 @@ class Signals(Protocol):
 
 WH_KEYBOARD_LL, WH_MOUSE_LL, WM_QUIT, WM_APP = 13, 14, 0x0012, 0x8000
 KEY_DOWNS = (0x0100, 0x0104)  # WM_KEYDOWN、WM_SYSKEYDOWN
+BUTTON_DOWNS = (0x0201, 0x0204, 0x0207, 0x020B)  # 左 / 右 / 中 / 侧键按下（移动、滚轮、抬起都不算点）
+QUIET_S = 3  # 人在本批 Express 上停手这么久就接着录（1.12.23 ⑥）
+CAP_S = 60  # 最多等这么久；人还在点 → 这张转人工（interrupted），对话里给「继续 / 停止」
 HOOK_LOST_MS = 1000  # 系统记到的输入比钩子看到的最后一个事件还晚这么多：钩子被摘了（超时会被系统悄悄摘掉）
 
 
@@ -39,8 +42,10 @@ class HardwareInput:
     签名的（CC 自己 ``SendInput`` 发的）只记进 ``last_any``，其余都算有人。钩子在自己的线程里收消息（低级钩子要求装它的
     线程有消息循环），``stop`` 时发 ``WM_QUIT`` 退出并摘掉。"""
 
-    def __init__(self, user32, kernel32):
+    def __init__(self, user32, kernel32, target: Callable[[], Optional[int]] = lambda: None):
         self.user32, self.kernel32 = user32, kernel32
+        self.target = target  # 本批绑定的 Express 进程号（没绑定回 None）
+        self.last_express = 0  # 最后一次落在本批 Express 上的点击 / 按键（1.12.23 ⑥：移动、滚轮、切前后台都不算）
         self.last_human = 0  # 最后一次不是 CC 自己发的输入（GetTickCount 毫秒）
         self.last_any = 0  # 最后一次任何输入（含 CC 自己的），用来看钩子是否还活着
         self.active = False
@@ -89,14 +94,39 @@ class HardwareInput:
         k.GetModuleHandleW.restype = W.HMODULE
         k.GetModuleHandleW.argtypes = [W.LPCWSTR]
 
+        u.WindowFromPoint.restype = W.HWND
+        u.WindowFromPoint.argtypes = [W.POINT]
+        u.GetForegroundWindow.restype = W.HWND
+        u.GetWindowThreadProcessId.argtypes = [W.HWND, ctypes.POINTER(W.DWORD)]
+
+        def pid_of(hwnd) -> int:
+            found = W.DWORD(0)
+            if hwnd:
+                u.GetWindowThreadProcessId(hwnd, ctypes.byref(found))
+            return int(found.value)
+
+        def on_express(struct, msg, data) -> bool:
+            """这一下落在本批的 Express 上：按键看前台窗口属于谁，点击看点到的窗口属于谁。"""
+            target = self.target()
+            if not target:
+                return False
+            if struct is KBD:
+                return msg in KEY_DOWNS and pid_of(u.GetForegroundWindow()) == int(target)
+            return msg in BUTTON_DOWNS and pid_of(u.WindowFromPoint(data.pt)) == int(target)
+
         def handler(struct, counts):
             def proc(code, wparam, lparam):
                 if code >= 0:
                     now = int(k.GetTickCount())
                     self.last_any = now
-                    if counts(int(wparam)) and \
-                            ctypes.cast(lparam, ctypes.POINTER(struct)).contents.dwExtraInfo != CC_INPUT_MARK:
+                    data = ctypes.cast(lparam, ctypes.POINTER(struct)).contents
+                    if counts(int(wparam)) and data.dwExtraInfo != CC_INPUT_MARK:
                         self.last_human = now
+                        try:
+                            if on_express(struct, int(wparam), data):
+                                self.last_express = now
+                        except Exception:  # noqa: BLE001 — 钩子里不能抛：认不出算没点到 Express
+                            pass
                 return u.CallNextHookEx(None, code, wparam, lparam)
             return proc_type(proc)
 
@@ -130,9 +160,10 @@ class HardwareInput:
 
 
 class WindowsSignals:
-    def __init__(self):
+    def __init__(self, target: Callable[[], Optional[int]] = lambda: None):
         from ctypes import wintypes as W
 
+        self.target = target
         self.user32 = ctypes.WinDLL("user32", use_last_error=True)
         self.kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
         self.user32.OpenInputDesktop.restype = W.HANDLE
@@ -143,7 +174,7 @@ class WindowsSignals:
             _fields_ = [("cbSize", W.UINT), ("dwTime", W.DWORD)]
 
         self._info_type = LASTINPUTINFO
-        self.hooks = HardwareInput(self.user32, self.kernel32)
+        self.hooks = HardwareInput(self.user32, self.kernel32, target)
 
     def start(self) -> None:
         self.hooks.start()
@@ -169,6 +200,12 @@ class WindowsSignals:
             return True
         self.user32.CloseDesktop(desk)
         return False
+
+    def last_express_tick(self) -> Optional[int]:
+        """最后一次落在本批 Express 上的点击 / 按键；钩子没挂上、还没绑定 Express 回 None（照旧按任何输入判）。"""
+        if not self.hooks.active or not self.target():
+            return None
+        return self.hooks.last_express
 
     def last_input_tick(self) -> int:
         if self.hooks.active:
@@ -199,13 +236,15 @@ class Presence:
                  on_pause: Callable[[str], None] = lambda _r: None, on_resume: Callable[[], None] = lambda: None,
                  idle_s: float = 30, poll_s: float = 3, sleep: Callable[[float], None] = time.sleep,
                  background: bool = False, foreground: Callable[[], Dict] = lambda: {},
-                 clock: Callable[[], float] = time.time):
+                 clock: Callable[[], float] = time.time, quiet_s: float = QUIET_S, cap_s: float = CAP_S):
         self.signals, self.own_tick = signals, own_tick
         self.stop_requested, self.on_pause, self.on_resume = stop_requested, on_pause, on_resume
         self.idle_ms, self.poll_s, self.sleep = int(idle_s * 1000), poll_s, sleep
         self.background, self.foreground, self.clock = background, foreground, clock
+        self.quiet_ms, self.cap_s = int(quiet_s * 1000), cap_s
         self._resume_now = False
         self._seen: Optional[int] = None  # 已经处理过的输入（开局、恢复时记下，之后只看新的）
+        self._seen_express: Optional[int] = None  # 已经处理过的、落在本批 Express 上的点击 / 按键
         self._source = "last_input"  # 这次判定用的是钩子（不含 CC 自己发的）还是系统最后输入时间，进证据
         self.evidence: List[Dict] = []  # 每次暂停的证据，进汇报
 
@@ -229,7 +268,14 @@ class Presence:
     def close(self) -> None:
         """批次录完：摘钩子。下一批开局再挂。"""
         getattr(self.signals, "stop", lambda: None)()
-        self._seen = None
+        self._seen = self._seen_express = None
+
+    def _express_tick(self) -> Optional[int]:
+        """后台做法、钩子挂着、已绑定 Express 时：最后一次落在本批 Express 上的点击 / 按键；别的情形回 None（照旧口径）。"""
+        if not self.background:
+            return None
+        read = getattr(self.signals, "last_express_tick", None)
+        return read() if callable(read) else None
 
     def reason(self) -> Optional[Dict]:
         fg = self.foreground() or {}
@@ -238,6 +284,14 @@ class Presence:
         if not self.background and self.signals.locked():
             return self._evidence("screen_locked", None, fg)
         new = self._new_input()
+        express = self._express_tick()
+        if express is not None:  # 1.12.23 ⑥：只认点到 / 按在本批 Express 上的，移动鼠标、滚轮、切前后台都不算
+            if self._seen_express is None:
+                self._seen_express = express
+                return None
+            if express > self._seen_express:
+                return self._evidence("user_active", express, fg)
+            return None
         if new is None:
             return None
         if self.background and not express_front:
@@ -262,6 +316,21 @@ class Presence:
         while True:
             if self.stop_requested():
                 raise Stopped()
+            express = self._express_tick() if found["reason"] == "user_active" else None
+            if express is not None:  # 人停手 3 秒接着录；等满上限人还在点 → 这张转人工
+                if self._resume_now or self.signals.now_tick() - express >= self.quiet_ms:
+                    self._seen_express = express
+                    self._seen = self.signals.last_input_tick()
+                    found["paused_s"] = round(self.clock() - found["at"], 1)
+                    self.on_resume()
+                    return True
+                if self.clock() - found["at"] >= self.cap_s:
+                    self._seen_express = express
+                    found["paused_s"] = round(self.clock() - found["at"], 1)
+                    self.on_resume()
+                    raise Interrupted("", "kept using Express")
+                self.sleep(min(self.poll_s, 1))
+                continue
             if self.background or not self.signals.locked():
                 idle = self.signals.now_tick() - self.signals.last_input_tick()
                 if self._resume_now or idle >= self.idle_ms:

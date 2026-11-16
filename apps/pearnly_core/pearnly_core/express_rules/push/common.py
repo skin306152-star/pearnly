@@ -543,6 +543,8 @@ OPERATOR_OPTION_LEN = 120
 OPERATOR_DIALOG_STAGES = ("editing", "saving")
 OPERATOR_DIALOG_TEXT, OPERATOR_DIALOG_TITLE, OPERATOR_DIALOG_BUTTON, OPERATOR_DIALOG_BUTTONS = 600, 120, 60, 8
 _DIGEST = re.compile(r"^[0-9a-f]{16}$")
+# 有人在本批的 Express 里动过（原因 interrupted，1.12.23 ⑥）：``interrupt`` = {stage: editing|saving, where, what}
+OPERATOR_INTERRUPT_WHERE, OPERATOR_INTERRUPT_WHAT = 60, 200
 
 
 def clean_operator_meta(raw: Any) -> Dict[str, Any]:
@@ -574,6 +576,10 @@ def clean_operator_meta(raw: Any) -> Dict[str, Any]:
     masters = _clean_masters(raw.get("masters"))
     if masters:
         out["masters"] = masters  # 随单新建的主档（:func:`written_codes`）
+    interrupt = raw.get("interrupt")
+    if isinstance(interrupt, dict) and interrupt.get("stage") in OPERATOR_DIALOG_STAGES:
+        out["interrupt"] = {"stage": interrupt["stage"], "where": _short(interrupt.get("where"), OPERATOR_INTERRUPT_WHERE),
+                            "what": _short(interrupt.get("what"), OPERATOR_INTERRUPT_WHAT)}
     dialog = raw.get("dialog")
     if isinstance(dialog, dict) and isinstance(dialog.get("digest"), str) and _DIGEST.match(dialog["digest"]):
         buttons = [b.strip()[:OPERATOR_DIALOG_BUTTON] for b in (dialog.get("buttons") or [])[:_META_MAX_LIST]

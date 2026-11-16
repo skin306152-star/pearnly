@@ -79,6 +79,9 @@ REASONS = {
     # 中途配方外的业务选择框（1.12.23 ③）：不点、单据窗口不关、Express 留着（held），结果 meta.dialog 带
     # {digest, title, text, buttons, doc_type, stage: editing|saving}；人在对话里选了，站点记住、下回按 operator.dialog_answers 照点
     "dialog_choice": HUMAN,
+    # 有人在本批的 Express 里点过 / 打过字（1.12.23 ⑥，移动鼠标、滚轮、切前后台不算）：停手 3 秒后核对画面对不上，或等满 60 秒
+    # 人还在点。不交 AI 改人的操作，这张转人工，结果 meta.interrupt 带 {stage, where, what}
+    "interrupted": HUMAN,
     "placeholder_left": HUMAN,  # 崩在录明细之后：Express 留了金额 0 的空单头占号，要人作废（不自动改已存的单）
     "network_down": HUMAN,  # 服务器连不上超过等待时间（整批暂停）
     "budget": HUMAN,  # 到了每张 / 每批费用上限
