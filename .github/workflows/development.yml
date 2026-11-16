@@ -519,7 +519,7 @@ jobs:
       - name: Verify the Revenue Department tax ID lookup (real responses, shared by ERP and CC)
         run: python3 tests/test_erp_tax_lookup.py
       - name: Check generated translations
-        run: python3 scripts/i18n-build.py --check
+        run: python3 scripts/i18n-build.py --check && python3 tests/test_i18n_build.py
       - name: Block hard-coded Chinese or Thai interface text
         run: python3 scripts/check-i18n.py --strict
       - name: Verify the interface copy gate catches known explanatory copy and passes official copy

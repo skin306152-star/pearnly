@@ -96,7 +96,8 @@ test('five service error codes resolve to readable product translations in all l
     }
   }
   assert.equal(helpers.snapshotErrorKey('dms.err.PRIVATE_UNEXPECTED'), '');
-  assert.equal(page.explain(new ApiError('unknown', 409)), 'dms.edit.expired');
+  // 认不出的错按「草稿已过期」说（11-16 这条从翻译包手工行搬进术语表，这里才取得到译文；页面上一直是这句译文）
+  assert.equal(page.explain(new ApiError('unknown', 409)), table['dms.edit.expired'][locale.value]);
 });
 test('no timestamp line is bound into the edit page, and query notes are declared in all languages', () => {
   assert.doesNotMatch(source, /snapshotNote|addressSnapshotNote/);
