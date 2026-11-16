@@ -22,15 +22,37 @@ remember 抛「没有权限」（H3 的 403），check 静默丢掉（写入计�
    （标题 `Write precheck: unknown document kind`）；remember / search 对 `unknown` 记同一条日志、回「Invalid request」；`missing` 照旧「没有权限」/ 不回。
    停下码、原因码都是给模型与日志的，不新增界面文案。H5 的「停下码 → 原因 + 卡片」若要给 `unknown_document` 配话，走 `reason_text` 那条，不在这里加。
 
-## 证据
+## 施工中查出的同链路问题（一并修）
 
-（施工中补：新流程修前红、修后绿；全闸门、候选离线、并集流程、CI）
+- 收单记录的行物料或仓库还没定时，写入那条准备先抛「请选择仓库」，整张卡片 / 写入计划直接报错：改为先问记录自己的题，定了再判 Express 那几项（`operator.intake_found`）。
+- 还没提交的销售收单记录载荷里没有单号，含税销售票预检一律判「缺票号」（H4 会卡在这里）：判定时用将分配的号（`numbering.preview`，不占号）。
+- 付款按对方记住过的，卡片上标「已记住」而不是预选。
 
-## 连带回归（check-impact）
+## 未连接一态（主会话 11-16 追加，两产品一套）
 
-| 入口 | 结果 |
-|---|---|
-| erp.cc.write | 待测 |
-| cc.operator.page | 待测 |
-| erp.cc.collection | 待测 |
-| cc.operator.thread | 待测 |
+- 产品钩子 `computer_state(company, user)`（ERP 按 `cc_desktop.jobs.writers`，Cowork 按电脑池按人）回单据页 / 去向已有的原因码，经 `reason_text` 出词条，不新增文案。
+- 代录进度（整段状态行与每张排队单的步骤行）写「等待电脑 · CC 桌面版未连接」等；`express_operator_status` 回 `no_computer`；写入计划开始后没有可用电脑时不再对模型说「已交给电脑」。
+- 流程 `erp.cc.operator.no-computer`：发单人没有电脑 → 开始后单据行显示「等待电脑 · CC 桌面版未连接」、CC 拿到未连接那句。Cowork 侧由单测覆盖（`test_cowork_companies.py`）。
+
+## 证据（全部在本机自建实验栈 pearnly-lab-co8，镜像 = 线上 02eebaa4）
+
+- 修前红（应用代码退回 290bc368b、流程为最终版）：`erp.cc.operator.intake` 卡片作答报「没有权限」、写入计划跳过 `I:LI-…` 原因 not_found；`erp.cc.operator.intake.sales` 卡片不出题、写入计划 not_found。0/2。
+- 修后绿：两条 2/2；加上 `erp.cc.operator.no-computer` 与同站点先跑的 `erp.cc.conversation-ledger`，5/5。截图与结果在主会话共享笔记「H3-流程证据-11-16」。
+- 全闸门（a726c3e63）：GATE EXIT 0，260 步。
+- 候选离线（124d53078，之后只改了流程脚本）：LANE EXIT 0，111 组。
+- 受影响流程 `--changed --base origin/main`（124d53078）：10 条 21 格，18 过；3 格不过是新流程在同站点取到了别家公司的物料（流程问题，a726c3e63 修），修后重跑 5/5。产品地图多列的 4 条（两产品个人资料保存、团队批量停用）16/16。
+- 实验栈污染一事：施工中一次探测脚本出错留下了账套主档，使 `cc.operator` 的单被排进写账队列（2 格不过）；已删栈重建，干净栈上 `cc.operator` 4/4。
+
+## 连带回归（check-impact，本分支全部改动）
+
+| 入口 | 类别 | 结果 |
+|---|---|---|
+| erp.cc.chat-push、erp.cc.stocktake、erp.cc.collection、cc.operator.page | offline | 通过（全闸门 / 候选离线里的离线用例） |
+| cc.operator、cc.operator.replay、cc.sidebar-modes、erp.cc.conversation-ledger 等 --changed 选中的流程 | 流程 | 通过（见上） |
+| erp.cc.write、erp.page.collections、cowork.express.push | auto | 没测到：自动冒烟要对测试租户跑，本次不碰测试机 |
+| control.assistant、shared.assistant、cowork.assistant、cc.assistant、cc.operator.thread、erp.cc.companies、cowork.cc-chat.push、cowork.cc.troubleshooting、erp.line.chat、cowork.line.chat、erp.cc.connect、shared.navigation、erp.masters.scope、cowork.execution、erp.execution、erp.provisioning | manual | 没测到：真机清单，H3 / H4 真机复验由主会话排 |
+
+## 没做 / 待查
+
+- CC 问答卡上「只有搜索」的物料题（行没认出物料时）在卡片上不出预选项、搜索框不出候选：服务端搜索接口实测正常，前端问答卡另有问题，未查，不在本次范围（H3 真机那张票的行已认出物料，没问到这题）。
+- ERP 代录交单不带 `route_device`、普通单据写账人：另一条分支按「写账人改走 office_actor」评估施工。
