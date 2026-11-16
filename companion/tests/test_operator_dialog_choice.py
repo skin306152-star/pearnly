@@ -120,3 +120,18 @@ def test_the_lease_reply_controls_are_taken_once_and_run_through_the_host(monkey
     assert [o["state"] for o in out] == ["pressed", "not_held"]  # 认不出的指令不执行
     assert worker.operator_controls(qc) == []  # 取一次就没了
     assert worker.operator_controls(object()) == []  # 旧的领单客户端没有这个方法
+
+
+def test_an_answer_to_a_box_met_while_entering_cleans_the_document_up_and_lets_it_be_handed_in_again(tmp_path):
+    from test_operator_batch import make
+
+    from companion.express_operator import contract as K
+
+    r, sim, *_ = make(tmp_path, [samples()[0]], inject={"choice_mid_save": True})
+    r.run()
+    d = r.state.docs[0]
+    d.dialog = dict(d.dialog, stage="editing")  # 当成录入中途出的框
+    result = r.answer(d.doc_id, d.dialog["digest"], "แบบ ข")
+    assert result == {"state": "pressed", "redo": True}
+    assert r.state.held == "" and not d.held and d.recheck and d.status == K.WAITING
+    assert sim.dialogs == [] and not sim.editing  # 框点了、单据收拾掉了，Express 不留在编辑中
