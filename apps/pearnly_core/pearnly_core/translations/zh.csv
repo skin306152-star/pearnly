@@ -340,11 +340,13 @@ Express Number,Express 单号
 Express Push Guide,Express 推送手册
 Express closed twice,Express 连续关闭
 Express history,Express 历史
+Express is waiting for a choice,Express 有提示框待选择
 Express license limit reached,Express 授权名额已满
 Express no.,Express 单号
 Express reopened,Express 已重新打开
 Express sign-in failed,Express 登录失败
 Express sign-in not set,Express 登录未设置
+Express was used during entry,Express 被人操作过
 External Doc No,外部单据号
 External ERP Push,对外 ERP 推送
 External IDs & Dedupe,外部标识与去重
@@ -1447,8 +1449,10 @@ operator.report.reason.cc_restarted,CC 桌面版已重启
 operator.report.reason.company_mismatch,公司与任务不符
 operator.report.reason.company_pick,请在 Express 中选择公司
 operator.report.reason.crash_repeated,Express 连续关闭
+operator.report.reason.dialog_choice,Express 有提示框待选择
 operator.report.reason.duplicate_ref,对方单号重复
 operator.report.reason.express_restarted,Express 已重新打开
+operator.report.reason.interrupted,Express 被人操作过
 operator.report.reason.item_missing,Express 中没有此商品
 operator.report.reason.license,Express 授权名额已满
 operator.report.reason.login_failed,Express 登录失败
