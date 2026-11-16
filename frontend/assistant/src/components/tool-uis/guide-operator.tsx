@@ -45,7 +45,7 @@ export const GuideOperatorHead: FC<{ view: GuideView; busy: boolean; act: Act }>
       {block && (
         <Item size="sm" data-slot="cc-op-target">
           <ItemContent>
-            <ItemTitle className="break-all">
+            <ItemTitle className="wrap-break-word">
               {writeLine({ company: view.company ?? "", company_title: block.targets[0]?.connection_title }, block.targets)}
             </ItemTitle>
           </ItemContent>

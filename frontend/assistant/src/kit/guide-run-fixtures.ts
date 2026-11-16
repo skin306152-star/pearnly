@@ -58,7 +58,7 @@ type Run = { name: string; business: string; status: string; version: number; an
   /** 按单据（采购）：交了的文件、识别还要等几次、题答了没有、票面 */
   docs?: { files: string[]; readLeft: number; answered: boolean; faces: Record<string, DocFace>; versions: Record<string, number> };
   /** 代录开始前（A4）：带 operator 块与事实行、多一道「再录一次」 */
-  operator?: boolean; loginSet?: boolean };
+  operator?: boolean; loginSet?: boolean; noComputer?: boolean };
 
 const runs = new Map<string, Run>();
 
@@ -157,7 +157,8 @@ function marks(face: DocFace): Pick<DocRow, "marks" | "cells" | "blocking"> {
 function documentsView(run: Run, base: GuideView): GuideView {
   const d = run.docs!;
   const out: GuideView = { ...base, source: "documents" as const,
-    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: "ACC-PC01", count: 2 }] } } : {}) };
+    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: run.noComputer ? undefined : "ACC-PC01", count: 2 }],
+      ...(run.noComputer ? { computer: L("没有能写这本账套的电脑：ACC-PC01 未连接", "ไม่มีคอมพิวเตอร์ที่บันทึกชุดบัญชีนี้ได้: ACC-PC01 ไม่ได้เชื่อมต่อ", "No computer can write this account set: ACC-PC01 is not connected", "この帳簿に書き込めるパソコンがありません：ACC-PC01 未接続") } : {}) } } : {}) };
   if (run.status === "confirmed" || run.status === "done") {
     const done = run.status === "done";
     run.status = "done";
@@ -190,7 +191,13 @@ function documentsView(run: Run, base: GuideView): GuideView {
       // 原开始卡上的「已写过」变成做不做的一题（不预选）；停下 / 等待的单是事实行
       card.questions.push({ key: "again|D-9", kind: "again", tier: "whether", title: L("IV2026-0099 已写进 Express", "IV2026-0099 บันทึกใน Express แล้ว", "IV2026-0099 is already in Express", "IV2026-0099 は Express に記帳済み"), count: 1,
         options: [{ code: "skip", label: L("跳过", "ข้าม", "Skip", "スキップ") }, { code: "again", label: L("再录一次", "บันทึกอีกครั้ง", "Record again", "もう一度記帳") }] } as never);
-      Object.assign(card, { facts: { waiting: [L("IV2026-0101 · 等电脑读主档", "IV2026-0101 · รอคอมพิวเตอร์อ่านข้อมูลหลัก", "IV2026-0101 · waiting for the computer to read the master", "IV2026-0101 · パソコンのマスタ読込待ち")] } });
+      // A3 负库存题：设为允许负库存 / 这张先留下，不预选（做不做）
+      card.questions.push({ key: "negative|D-1|0", kind: "negative_stock", tier: "whether", title: L("ข้าวสาร 5 กก. 库存不足时", "เมื่อ ข้าวสาร 5 กก. สต็อกไม่พอ", "When ข้าวสาร 5 กก. is short", "ข้าวสาร 5 กก. の在庫不足時"), count: 1,
+        options: [{ code: "Y", label: L("设为允许负库存", "ตั้งให้ติดลบได้", "Allow negative stock", "マイナス在庫を許可") }, { code: "hold", label: L("这张先留下", "เก็บใบนี้ไว้ก่อน", "Hold this document", "この伝票は保留") }] } as never);
+      Object.assign(card, { facts: {
+        waiting: [L("IV2026-0101 · 等电脑读主档", "IV2026-0101 · รอคอมพิวเตอร์อ่านข้อมูลหลัก", "IV2026-0101 · waiting for the computer to read the master", "IV2026-0101 · パソコンのマスタ読込待ち")],
+        not_writable: [L("IV2026-0102 · ถุงพลาสติก @ 01 库存不够：要 50 / 有 12，先留下", "IV2026-0102 · ถุงพลาสติก @ 01 สต็อกไม่พอ: ต้องการ 50 / มี 12 เก็บไว้ก่อน",
+          "IV2026-0102 · ถุงพลาสติก @ 01 short: need 50 / have 12, held", "IV2026-0102 · ถุงพลาสติก @ 01 在庫不足：必要 50 / 在庫 12、保留")] } });
     }
     return { ...out, stage: "asking", uploads: run.operator ? undefined : uploads, card: card as unknown as GuideView["card"] };
   }
@@ -243,6 +250,17 @@ function view(run: Run): GuideView {
     consent: run.consent ?? "confirm" } as GuideView;
   if (run.status === "cancelled" || run.status === "expired") return { ...base, reason: run.status };
   if (run.flow === "purchase") return documentsView(run, base);
+  if (run.flow === "stock") {
+    // 盘点（第二线）：确定按钮按此刻的「做什么」切换——结束 / 删除是允许卡，记数是普通写入
+    const action = String(run.answers.action);
+    const word: Record<string, string> = { count: L("记数", "บันทึกจำนวน", "Record count", "数量を記録"), close: L("结束盘点", "ปิดการนับสต็อก", "Close stocktake", "棚卸を締める"),
+      delete: L("删除这次盘点", "ลบการนับครั้งนี้", "Delete this stocktake", "この棚卸を削除") };
+    return { ...base, consent: action === "count" ? "confirm" : "allow", review: { version: run.version, ready: true, lines: [
+      { key: "stocktake", label: L("盘点", "การนับสต็อก", "Stocktake", "棚卸"), value: "ST-2611-01 · 01 คลังหลัก" },
+      { key: "action", label: L("做什么", "ทำอะไร", "Action", "操作"), value: word[action], step: "action" },
+      { key: "items", label: L("已数物料", "รายการที่นับแล้ว", "Items counted", "棚卸済み品目"), value: "38 / 40" },
+    ] } };
+  }
   if (run.flow === "wht") return run.status === "reviewing" ? { ...base, review: whtReview() } : { ...base, result: { status: "entered" } };
   if (run.flow === "allow") {
     if (run.status === "reviewing") return { ...base, review: allowReview() };
@@ -287,10 +305,11 @@ export function seed(scenario: string): string {
       answered: step === "-review" || step === "-done", faces: { ...FACES }, versions: {} } });
     if (step === "-done") run.status = "done";
   }
-  if (scenario === "operator" || scenario === "operator-login") {
-    Object.assign(run, { flow: "purchase", business: "purchase", operator: true, loginSet: scenario === "operator-login",
+  if (scenario === "operator" || scenario === "operator-login" || scenario === "operator-nocomputer") {
+    Object.assign(run, { flow: "purchase", business: "purchase", operator: true, loginSet: scenario === "operator-login", noComputer: scenario === "operator-nocomputer",
       docs: { files: ["I:1", "I:2"], readLeft: 0, answered: false, faces: { ...FACES }, versions: {} } });
   }
+  if (scenario.startsWith("stock-")) Object.assign(run, { flow: "stock", business: "stocktake", status: "reviewing", answers: { action: scenario.slice(6) } });
   if (scenario === "wht") Object.assign(run, { flow: "wht", business: "withholding_tax", status: "reviewing" });
   if (scenario === "allow") Object.assign(run, { flow: "allow", business: "scheduled_task_delete", status: "reviewing", consent: "allow" });
   if (scenario === "follow") Object.assign(run, { flow: "follow", business: "recon", status: "done" });

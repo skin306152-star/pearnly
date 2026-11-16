@@ -389,7 +389,7 @@ export const GuideResultCard: FC<Props> = (props) => {
         <ItemGroup className="cc-guide-body" data-slot="cc-guide-files-out">
           {form.files!.map((file) => (
             <Item key={file.file} size="sm" data-slot="cc-guide-result-file" data-file-name={file.name}>
-              <ItemContent><ItemTitle className="break-all">{file.name}</ItemTitle></ItemContent>
+              <ItemContent><ItemTitle className="wrap-break-word">{file.name}</ItemTitle></ItemContent>
               <ItemActions>
                 <Button asChild variant="ghost" size="icon-xs" aria-label={`${t("download")} ${file.name}`}>
                   <a href={fileUrl(sessionId, file.file)} download={file.name}><DownloadIcon /></a>
