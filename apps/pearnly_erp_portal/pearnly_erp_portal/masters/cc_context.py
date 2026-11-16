@@ -33,8 +33,10 @@ def month_line(period: str) -> str:
 
 def _set_line(item: Mapping[str, Any], covering: set, ledger: str) -> str:
     span = ""
+    # 能录的日期段 = 本年起 ~ 次年止（Express ISPRD 的 CY + NY，与写账判期间 `account_match.conflict` 同一段）；只写本年段
+    # CC 会把次年的单说成「不在期间里」（11-16 NLTTEST：期间 2024-01-01..2025-12-31，CC 说成 2024 全年）
     if item.get("period_start") and item.get("period_end"):
-        span = f", {safe(item['period_start'])}..{safe(item['period_end'])}"
+        span = f", {safe(item['period_start'])}..{safe(item.get('next_end') or item['period_end'])}"
     covers = " ← covers the work month" if item.get("key") in covering else ""
     synced = " (masters synced from this one)" if ledger and item.get("key") == ledger else ""
     return f'- "{safe(item.get("label"))}" — account_set_key "{safe(item.get("key"))}"{span}{covers}{synced}'

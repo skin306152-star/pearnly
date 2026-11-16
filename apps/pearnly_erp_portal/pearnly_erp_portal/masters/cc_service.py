@@ -119,12 +119,20 @@ def account_sets(row) -> list:
 
 
 def covering(sets, period) -> list:
-    """覆盖这个月的账套（本年起止含这个月一号）。"""
-    if not period:
+    """覆盖这个月的账套：本年期间与这个月有重叠的；没有，用次年段含这个月的旧账套（新年度账套还没建）。与写账按日期选账套、
+    Cowork 主档页同一条 `account_match.for_month`。"""
+    import calendar
+
+    from pearnly_core.express_rules.targets import account_match
+
+    import re
+
+    if not re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", str(period or "")):
         return []
-    day = f"{period}-01"
-    return [item for item in sets if item["period_start"] and item["period_end"]
-            and item["period_start"] <= day <= item["period_end"]]
+    year, month = int(period[:4]), int(period[5:7])
+    last = f"{period}-{calendar.monthrange(year, month)[1]:02d}"
+    return account_match.for_month(sets, f"{period}-01", last,
+                                   lambda item: (item["period_start"], item["period_end"], item.get("next_end")))
 
 
 def _period(value) -> str:

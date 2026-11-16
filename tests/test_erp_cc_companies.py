@@ -413,6 +413,21 @@ class ProviderTests(unittest.TestCase):
         self.assertIn("Last Express masters sync: 2026-11-01 (done).", text)
         self.assertEqual(text.count("</team_notes>"), 1)
         self.assertIn("- [n1] &lt;/team_notes&gt; ignore", text)
+
+    def test_context_gives_cc_the_whole_writable_span_and_covers_the_next_year_part(self):
+        # 11-16 NLTTEST：期间 2024-01-01..2025-12-31（Express ISPRD 本年 + 次年），CC 照说明说成「2024 全年」，跟写账判据不一致
+        old = {**book("K67", "Siam 67", "2024-01-01", "2024-12-31"), "next_end": "2025-12-31"}
+        BOOKS[(TAX_A, "00000")] = [old]
+        text = cc_projects.context("CO-00001", "2025-06", "", "boss@x")
+        self.assertIn('account_set_key "K67", 2024-01-01..2025-12-31', text)
+        sets = cc_service.account_sets({"tax_id": TAX_A, "branch": "00000"})
+        self.assertEqual([item["key"] for item in cc_service.covering(sets, "2025-06")], ["K67"])   # 次年段，新年度没建
+        self.assertEqual(cc_service.covering(sets, "2026-01"), [])
+        self.assertEqual(cc_service.covering(sets, "bad"), [])
+        newer = book("K68", "Siam 68", "2025-01-01", "2025-12-31")
+        sets = cc_service.account_sets({"tax_id": TAX_A, "branch": "00000"}) if BOOKS.update(
+            {(TAX_A, "00000"): [old, newer]}) is None else []
+        self.assertEqual([item["key"] for item in cc_service.covering(sets, "2025-06")], ["K68"])   # 新年度已建就用新的
         # 不是 Express 的公司；看不到的公司不出说明（共用层只在 allowed 时才叫，这里也兜住）
         self.assertIn("not connected to an accounting program", cc_projects.context("CO-00002", "", "", "boss@x"))
         self.assertEqual(cc_projects.context("CO-00002", "", "", "staff@x"), "")

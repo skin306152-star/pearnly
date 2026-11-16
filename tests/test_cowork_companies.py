@@ -686,6 +686,10 @@ class ContextTests(unittest.TestCase):
         self.assertIn('- "ABC 69" \u2014 connection "C1", account_set_key "s:\\69\\hq", 2026-01-01..2026-12-31 '
                       "\u2190 covers the work month", text)
         self.assertLess(text.index('"ABC 69"'), text.index('"ABC 68"'))
+        # 次年段也写出来（能录的日期段 = 本年起 ~ 次年止，与写账判期间同一段，11-16 NLTTEST）
+        old = identity.book("express", "C1", express_row("S:\\67\\HQ", "ABC 67", year="67EXP", start="2024-01-01",
+                                                         end="2024-12-31", next_end="2025-12-31"))
+        self.assertIn("2024-01-01..2025-12-31", context.company_note(note_data(account_sets=[old], branches=[])))
         self.assertIn('Documents folder on "OFFICE-PC": "D:\\Clients\\ABC" \u2014 reader "C1", root_id "R1", folder "ABC".',
                       text)
         self.assertIn('  Month folder: folder "ABC\\2569-09"', text)
