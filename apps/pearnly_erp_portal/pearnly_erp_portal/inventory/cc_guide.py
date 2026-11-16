@@ -3,8 +3,8 @@
 
 业务 id、菜单字、图标、顺序、步骤 key 与 Cowork 的盘点引导（`pearnly_cowork.assistant.guided.stocktake`）相同。第一题「做什么」：
 新建（仓 → 名称）/ 记数（盘点单 → 物料 + 数量，一行一行加，0 有效 → 记法）/ 结束 / 按盘点结果调整物料（只建草稿）/ 删除（只限进行中）。
-产品函数在 `inventory.guide`，只转调盘点页同一组服务函数。结束、删除要画成允许卡：等引擎按动作区分确定样式
-（评估 docs/work/2026-11-16-cc-guided-stocktake-评估.md 第 12 节第 1 条，主会话定后在这里补 ``consent``）。
+产品函数在 `inventory.guide`，只转调盘点页同一组服务函数。结束、删除画成允许卡
+（``consent`` 按「做什么」的答案区分，约定 11-16），其余是「确定」。
 """
 
 WRITE = "count.write"  # 同 `count.create_count / add_entry / close_count`：勾了「盘点」功能的人（与管理员）
@@ -22,6 +22,7 @@ GUIDES = [
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_erp_portal.inventory.cc_guide.allowed",
      "opening_key": "guide.open.stocktake", "source": "form", "writes": True,
+     "consent": {"key": "action", "in": ["close", "delete"]},
      "steps": [
          {"key": "action", "input": "choice", "rule": "always", "options": "pearnly_erp_portal.inventory.guide.action_options"},
          {"key": "warehouse", "input": "choice", "rule": "auto", "search": True, "after": ["action"],
