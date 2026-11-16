@@ -33,7 +33,7 @@ ROOT = HERE.parents[1]
 ERP = ["company.connect.fresh", "company.connect", "company.connect.twice", "denied", "purchase.express", "purchase.express.twice",
        "sales.credit.express", "collection.three", "collection.nbsp", "collection.web.twice", "collection.line.edit",
        "collection.line.refused", "stock.in.express", "stock.out.express", "stock.adjust.express", "stock.transfer.express",
-       "stock.void.express", "stock.count.express", "pos.day.express", "purchase.cancel.express", "sales.cancel.express"]
+       "stock.void.express", "stock.count.express", "pos.day.express", "pos.day.vat.remembered", "purchase.cancel.express", "sales.cancel.express"]
 GROUPS = {
     "erp": [f"acc.erp.{name}" for name in ERP],
     "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express"],
