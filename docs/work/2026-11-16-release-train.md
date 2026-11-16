@@ -120,6 +120,26 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 手工入口数按 `check-impact.py --files` 算（同上），命中 assistant 的几条分支（月份代录、引导式、允许卡等）的手工入口大部分重合，统一点一次即可。
 （11-15 23:1x 一度记「--batch 全报 0 项」：是拼车在 zsh 里没把文件名拆开，工具无误。）
 
+
+### 11-16 下午补（新主会话 local_fd30e74c 列；集成分支 9e0e102ab 已进 main 后的部署条件）
+
+| 项 | 要过的 | 现状 / 证据 | 负责 |
+|---|---|---|---|
+| 第三列车命中的共用件 erp-transactions、cc-company-picker 的 12 个手工入口（erp.place.header、erp.products.new-dialog.opening、erp.inventory.opening.row-warehouse、erp.warehouses.express-new-hidden、erp.report.stock-count-variance、cc.assistant、erp.stock-in.item-scan、erp.stock-out.item-scan、erp.scan.pick-product、erp.cc.companies、cc.desktop.bridge、erp.trade.line-stock） | 每个记「通过 / 不通过 / 没测到（原因）」 | **缺** | 主会话指派 |
+| cc-reply-fixes 真模型复验（含 11-16 真机看到的「中文对话里夹一句英文」） | 真模型对话复验，回复语言跟用户 | **缺** | 主会话指派 |
+| select-blank 存量回读 | 生产只读回读存量 | **缺** | 主会话指派（连生产先排队） |
+| 代录挂码存量计数 | 只读命令见共享笔记「代录挂码-存量计数-只读命令-11-16.md」 | **缺** | 主会话指派（连生产先排队） |
+| 代录 H3（ERP × CC 对话放票）复验 | 11-16 f7d403580 **不通过**：票识别了却没成 ERP 单据，CC 找不到，开始前卡提交 403 | 待修后复验 | 代录相关窗口 |
+| 代录 H5（ERP × 网页建单 → 交代录）复验 | 11-16 **不通过**：CC 桌面版以 STOCK_ACC_GROUP_UNFIT 拦下，页面无可选科目的卡（方案见共享笔记「代录停下出口-H5方案-11-16.md」） | 待修后复验 | 代录相关窗口 |
+| 代录 H10（月份外）复验 | cc-operator-other-months 已在 main（290bc368b 段）；11-16 记「没测到：分支未进头」 | **缺** | 真机执行人 |
+| 代录 H1（Cowork × 对话放票，线上 testcowork） | 11-16 未完成：写入计划正确、已交单，任务一直 queued、没有电脑领取 | 查清为何无人领后复验 | 代录相关窗口 |
+| 代录 H4、H7、H8（代录路径） | 11-16 没测到（H4 同 H3 路径；H7 撞 STOCK_ACC_GROUP_UNFIT / NLTTEST 期间选不到；H8 提交即自动直写，代录说「已录入」） | **缺** | 随 H3 / H5 修复后 |
+| ERP 写账人改走 office_actor：排队中的写账件（即「排队写账件统计」） | 生产只读统计切换前已排队、仍按旧写账人的件数；部署说明写清切换后这些件怎么走（重排 / 照旧） | **缺** | 主会话指派（连生产先排队） |
+| 验收 16 格按新路径补跑 | 写账人改走 office_actor 后，相关验收场景按新路径重跑并登记证据 | **缺** | 验收窗口 |
+| CC 桌面版 1.12.22 真机 12 行（「CC桌面版1.12.22-真机待测-11-15.md」；⑫ 旧 CC 1.12.21 不受影响为部署前必须） | 测试机2 装 staging 后逐行 | **缺** | 真机执行人 |
+
+11-16 真机全部原始记录：共享笔记「真机-记录-f7d403580-11-16.md」。
+
 ## 部署预演与回滚
 
 部署由主会话执行，步骤同 [11-15 上线车](2026-11-14-release-train.md)「部署预演步骤」。本车是否有新增 DocType / 补丁：collection-date 给 ERP Collection 加一个隐藏字段 `date_chosen`（只增不删，回旧镜像不需要反向迁移）；其余待分支到齐后核。
@@ -134,5 +154,6 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | 11-15 22:4x | 合 collection-date-no-period 9d9f0c109（无冲突；收款三组离线测试 OK） | 79e38eccc |
 | 11-15 22:5x | 合 page-company d9207ed4c（无冲突；带进 main 到 9c1e783ad；作者已过全闸门、候选离线、受影响流程 17 条 56/56） | 7a2e73226 |
 | 11-16 12:0x | 并 origin/main b30469eda：冲突 6 个文件（registry.toml / messages.tsv / copy-approved.tsv 两边都留；cc_tools.py 取 main 的「its label」并保留 DAY_NEEDED_NOTE；purchase.js / sales.js 保留 page-company 的 page_company.enter，main 的 switched_company 整页重载已被取代） | f7d403580 |
+| 11-16 16:1x | 主会话把 main 快进到集成分支头 9e0e102ab 并推送、回读一致；本集成分支收车 | 9e0e102ab |
 | 11-16 14:5x | 再并 origin/main baa9c709e（第三列车）：tests/acceptance/rows.toml、owed_baseline.txt 两边都留（rerere 自动；check-acceptance 通过，无重复行） | 55b1652da |
 | 11-16 13:3x | 再并 origin/main 290bc368b（+39 提交：MR.ERP 三条、CC 1.12.22 服务端、月份代录等）：冲突 2 个文件——tests/test_master_search_rules.py 两边都留但删掉 main 那条测 `search_rules.or_filters` 的过时测试（该函数已被搜索统一 0672c530e 换成 link_search 删除，全分支无调用方）；collection/cc_tools.py `_fresh_invoices(company, customer, day=None, docnums=())` 合两边参数，并给 draft 里 INVOICE_NOT_FOUND 的按单号即时读补上 `tool_input.get("date")`（收款负责窗口核对：必须补，否则老账期按今天选账套）；新 main 段命中只能真机的行 0 个，f7d403580 上的真机记录沿用。待补：draft 按单号重读带日期的离线测试（收款负责窗口下一条小分支，不进本车） | 7e3409cf1 |
