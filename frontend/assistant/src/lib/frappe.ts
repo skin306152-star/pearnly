@@ -130,8 +130,11 @@ export async function post<T>(method: string, args: Record<string, unknown> = {}
   return parse<T>(res);
 }
 
-export async function upload<T>(method: string, args: Record<string, string>, file: File): Promise<T> {
-  return postForm<T>(`${BASE}${method}`, args, file);
+/** 上传进度：已传给服务器的字节占整份请求的比例（0–1，浏览器给的真数，不估算）。 */
+export type UploadProgress = (fraction: number) => void;
+
+export async function upload<T>(method: string, args: Record<string, string>, file: File, onProgress?: UploadProgress): Promise<T> {
+  return postForm<T>(`${BASE}${method}`, args, file, onProgress);
 }
 
 /** 人交来的一份文件最多多大：服务端写进页面的那个数（同 Frappe 请求体上限、租户站 nginx 一个来源）；页面没写就是 0，不在页面先拦。 */
@@ -154,19 +157,43 @@ export function tooLargeText(): string {
 
 /** 上传一个文件（字段 file，其余参数同表单一起交）：附件与「实操」资料都走这里。超限的先在页面拦下、不白传；
  *  网关或站点回 413（请求体超限，回的是网页、没有原文）也照实说超限，不说「出了点问题」（11-10 压测）。 */
-async function postForm<T>(url: string, args: Record<string, string>, file: File): Promise<T> {
+async function postForm<T>(url: string, args: Record<string, string>, file: File, onProgress?: UploadProgress): Promise<T> {
   const max = uploadMaxBytes();
   if (max && file.size > max) throw new SiteError(tooLargeText());
   const form = new FormData();
   for (const [k, v] of Object.entries(args)) form.set(k, v);
   form.set("file", file, file.name);
-  const res = await siteFetch(url, {
-    method: "POST",
-    headers: { "X-Frappe-CSRF-Token": window.csrf_token ?? "" },
-    body: form,
-  });
+  const headers = { "X-Frappe-CSRF-Token": window.csrf_token ?? "" };
+  // 没有 XMLHttpRequest 的环境（单测的 node）照旧走 fetch，只是没有进度
+  const res = onProgress && typeof XMLHttpRequest !== "undefined"
+    ? await postWithProgress(url, headers, form, onProgress)
+    : await siteFetch(url, { method: "POST", headers, body: form });
   if (res.status === 413) throw new SiteError(tooLargeText());
   return parse<T>(res);
+}
+
+/** 同 siteFetch 的 POST（同源带登录、同样的语言头），换成 XMLHttpRequest：fetch 拿不到上传了多少字节，XHR 的 upload.onprogress
+ *  给真数（上传研究 U1，docs/work/2026-11-08-cc-upload-ux-研究.md）。回包照样做成 Response 交给 parse，错误处理同一套；
+ *  连不上 / 断线同 fetch 抛 TypeError。 */
+function postWithProgress(url: string, headers: Record<string, string>, body: FormData, onProgress: UploadProgress): Promise<Response> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    for (const [k, v] of Object.entries({ ...headers, [LANG_HEADER]: lang })) xhr.setRequestHeader(k, v);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && e.total > 0) onProgress(Math.min(1, e.loaded / e.total));
+    };
+    const failed = () => reject(new TypeError("Failed to fetch"));
+    xhr.onerror = failed;
+    xhr.onabort = failed;
+    xhr.ontimeout = failed;
+    xhr.onload = () => {
+      // Response 只收 200–599；别的（0 等）当连不上
+      if (xhr.status < 200 || xhr.status > 599) return failed();
+      resolve(new Response(xhr.status === 204 ? null : xhr.responseText, { status: xhr.status, statusText: xhr.statusText }));
+    };
+    xhr.send(body);
+  });
 }
 
 /** 其他 App 的白名单方法（例如 Cowork 的定时任务 `pearnly_cowork.folder_intake.api.*`），同一套登录与错误处理。 */

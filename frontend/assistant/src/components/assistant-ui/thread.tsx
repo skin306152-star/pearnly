@@ -212,7 +212,7 @@ const PendingSendBubble: FC = () => {
   return (
     <div>
       <div data-role="user" className="cc-user-row">
-        <PendingAttachments names={pending.files} />
+        <PendingAttachments names={pending.files} ids={pending.ids} />
         {pending.text && <div className="cc-bubble-user" data-enter="">{pending.text}</div>}
       </div>
       <RunIndicator className="px-(--cc-space-8) pt-(--cc-run-gap)" />

@@ -11,6 +11,7 @@ import {
   PlusIcon,
   Loader2Icon,
   AlertCircleIcon,
+  RotateCcwIcon,
 } from "lucide-react";
 import {
   AttachmentPrimitive,
@@ -35,7 +36,16 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { FileTypeIcon, fileTypeLabel, kindOf, useResults, type Results } from "@/components/results-panel";
 import { fileUrl, pageUrl, type SessionFile } from "@/lib/managed-agents/api";
-import { ACCEPT, localMeta, localPreview, uploadFileId } from "@/lib/managed-agents/attachments";
+import {
+  ACCEPT,
+  canRetry,
+  composerPageThumb,
+  localMeta,
+  localPreview,
+  takeRetry,
+  uploadFileId,
+  useUploadProgress,
+} from "@/lib/managed-agents/attachments";
 import { withReport } from "@/lib/caught";
 import { cn } from "@/lib/utils";
 import { t } from "@/i18n";
@@ -47,7 +57,9 @@ import {
   AttachmentDescription,
   AttachmentMedia,
   AttachmentTitle,
+  AttachmentTrigger,
 } from "@/components/ui/attachment";
+import { Progress } from "@/components/ui/progress";
 import { Marquee } from "@/components/ui/marquee";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -140,12 +152,22 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
 };
 
 /** 方块里面：图片整张放进方块（不裁，同 Claude）；其他文件（或图片载不出）左上文件名、左下类型图标 + 类型。 */
-const AttachmentThumb: FC<{ name: string }> = ({ name }) => {
-  const src = useAttachmentSrc();
+const AttachmentThumb: FC<{ name: string; page?: string }> = ({ name, page }) => {
+  const src = useAttachmentSrc() ?? page;
   const [failed, setFailed] = useState(false);
   useEffect(() => setFailed(false), [src]);
   if (src && !failed) {
-    return <img src={src} alt="" draggable={false} className="aui-attachment-tile-image" onError={() => setFailed(true)} />;
+    // PDF 传完：服务端画的第一页小图（同 Claude，上传研究 U1b），从页顶显示；载不出退回文件名 + 类型
+    return (
+      <img
+        src={src}
+        alt=""
+        draggable={false}
+        className="aui-attachment-tile-image"
+        data-page={page && src === page ? "" : undefined}
+        onError={() => setFailed(true)}
+      />
+    );
   }
   return (
     <span className="cc-compose-file aui-attachment-tile-fallback">
@@ -160,7 +182,13 @@ const AttachmentThumb: FC<{ name: string }> = ({ name }) => {
 
 /** 输入框里的一个附件：方块 + 移除。 */
 const ComposerAttachment: FC = () => {
+  const aui = useAui();
   const name = useAuiState((s) => s.attachment.name);
+  const id = useAuiState((s) => s.attachment.id);
+  // 上传进度是真数（已传字节 / 整份，lib/frappe.ts 的 XMLHttpRequest）：没传完方块底部一条细进度条，传完等服务端回话时中间转圈
+  const progress = useAuiState((s) =>
+    s.attachment.status.type === "running" ? (s.attachment.status as { progress?: number }).progress : undefined,
+  );
 
   const uploadState = useAuiState((s) =>
     s.attachment.status.type === "running"
@@ -171,6 +199,8 @@ const ComposerAttachment: FC = () => {
         : undefined,
   );
   const isUploading = uploadState === "uploading";
+  // 字节还没传完（< 1）：细进度条；= 1 是传完了在等服务端回话：转圈
+  const bytesLeft = isUploading && (progress ?? 0) < 1;
 
   const errorMessage = useAuiState((s) =>
     s.attachment.status.type === "incomplete" &&
@@ -181,12 +211,23 @@ const ComposerAttachment: FC = () => {
 
   // 没传上（断网、服务端拒收）：标准附件卡的出错样子（components/ui/attachment），卡上直接看得出是哪份文件、为什么，
   // 右边 × 移除；不用悬停才看得到（11-12）。输入框里只有上传的状态：识别等点了发送才开始，进度在对话里的上传卡片（11-14）。
+  // 断线、超时、服务端出错（能再传）：整张卡点一下重试，图标是重试箭头（上传研究 U5，不加字）；服务端说了原因拒收的只能移除
   if (uploadState === "error") {
+    const retry = canRetry(id);
+    const again = () => {
+      const file = takeRetry(id);
+      if (!file) return;
+      // 组件库没有「同一项重新上传」：移除这一项、用同一份文件重新放进输入框（重新传、重新出进度）
+      void Promise.resolve(aui.attachment().remove())
+        .then(() => aui.composer().addAttachment(file))
+        .catch(withReport(() => undefined, "attachments"));
+    };
     return (
       <AttachmentPrimitive.Root className="aui-attachment-root relative">
         <Attachment state="error" size="sm">
+          {retry && <AttachmentTrigger aria-label={`${t("retry")} · ${name}`} title={t("retry")} onClick={again} />}
           <AttachmentMedia>
-            <AlertCircleIcon />
+            {retry ? <RotateCcwIcon /> : <AlertCircleIcon />}
           </AttachmentMedia>
           <AttachmentContent>
             <AttachmentTitle>{name}</AttachmentTitle>
@@ -213,18 +254,27 @@ const ComposerAttachment: FC = () => {
               className="aui-attachment-tile cc-compose-tile"
               role="button"
               tabIndex={0}
-              aria-label={[t("attachment").replace("{0}", name), isUploading ? t("uploading") : ""]
+              aria-label={[
+                t("attachment").replace("{0}", name),
+                isUploading ? (bytesLeft ? `${t("uploading")} ${Math.round((progress ?? 0) * 100)}%` : t("uploading")) : "",
+              ]
                 .filter(Boolean)
                 .join(" · ")}
+              data-uploading={isUploading || undefined}
             >
-              <AttachmentThumb name={name} />
-              {isUploading && (
+              <AttachmentThumb name={name} page={isUploading ? undefined : composerPageThumb(id)} />
+              {isUploading && !bytesLeft && (
                 <div
                   aria-hidden="true"
                   className="aui-attachment-tile-uploading bg-app/60 absolute inset-0 flex items-center justify-center"
                 >
                   <Loader2Icon className="cc-spinner size-(--cc-icon) text-muted-foreground" />
                 </div>
+              )}
+              {bytesLeft && (
+                <span aria-hidden="true" className="cc-compose-progress">
+                  <Progress value={(progress ?? 0) * 100} />
+                </span>
               )}
             </div>
           </TooltipTrigger>
@@ -388,12 +438,35 @@ export const UserMessageAttachments: FC = () => {
 };
 
 /** 「发送中」临时气泡里的附件（thread.tsx 的 PendingSendBubble）：与发出后的那一排同一个位置、同一种卡片，缩略图位置是骨架。 */
-export const PendingAttachments: FC<{ names: readonly string[] }> = ({ names }) => {
+export const PendingAttachments: FC<{ names: readonly string[]; ids?: readonly string[] }> = ({ names, ids }) => {
   return (
     <div className="aui-user-message-attachments-end cc-attach-list col-span-full col-start-1 row-start-1">
       {names.map((name, i) => (
-        <AttachmentCard key={i} name={name} label={t("attachment").replace("{0}", name)} typeLine={attachmentTypeLine(name)} loading />
+        <PendingAttachment key={i} name={name} id={ids?.[i]} />
       ))}
+    </div>
+  );
+};
+
+/** 临时气泡里的一张卡：还在传的接着显示同一份上传进度（输入框里点了发送时没传完的，上传研究 U1 / U4）。 */
+const PendingAttachment: FC<{ name: string; id?: string }> = ({ name, id }) => {
+  const progress = useUploadProgress(id || undefined);
+  const uploading = progress !== undefined && progress < 1;
+  return (
+    <div className="cc-attach-pending">
+      <AttachmentCard
+        name={name}
+        label={[t("attachment").replace("{0}", name), uploading ? `${t("uploading")} ${Math.round(progress * 100)}%` : ""]
+          .filter(Boolean)
+          .join(" · ")}
+        typeLine={attachmentTypeLine(name)}
+        loading
+      />
+      {uploading && (
+        <span aria-hidden="true" className="cc-attach-progress">
+          <Progress value={progress * 100} />
+        </span>
+      )}
     </div>
   );
 };

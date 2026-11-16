@@ -1,6 +1,6 @@
 // 对话页用到的全部接口（`pearnly_core.assistant.api`）。会话归属、工具执行都在服务端判定。
 
-import { get, post, upload } from "@/lib/frappe";
+import { get, post, upload, type UploadProgress } from "@/lib/frappe";
 import type { FeedEvent, RunStatus, SessionSummary, ToolRunStatus } from "./events";
 import { listMode, type ListMode } from "./list-mode";
 
@@ -171,8 +171,8 @@ export type SessionFile = {
 };
 
 /** 附件：传到本站，服务端校验后存进会话（HEIC 照片会转成 JPEG）。 */
-export function uploadFile(id: string, file: File): Promise<UploadedFile> {
-  return upload("upload", { session_id: id }, file);
+export function uploadFile(id: string, file: File, onProgress?: UploadProgress): Promise<UploadedFile> {
+  return upload("upload", { session_id: id }, file, onProgress);
 }
 
 /** 输入框里移除了还没发出的附件：服务端删掉留存的这份，代录会话另删那一行「待发送」（不识别、不扣费）。 */

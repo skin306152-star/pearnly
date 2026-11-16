@@ -7,9 +7,10 @@
 // 改自 Anthropic 官方示例的 attachments.ts（MIT，见 NOTICE.md）。
 
 import type { AttachmentAdapter, CompleteAttachment, PendingAttachment } from "@assistant-ui/react";
-import { dropUpload, uploadFile, type UploadedFile } from "./api";
+import { dropUpload, pageUrl, uploadFile, type UploadedFile } from "./api";
 import { beginPending } from "./pending-send";
-import { shownError, tooLargeText, uploadExtensions, uploadMaxBytes } from "@/lib/frappe";
+import { SiteError, shownError, tooLargeText, uploadExtensions, uploadMaxBytes } from "@/lib/frappe";
+import { useSyncExternalStore } from "react";
 import { t } from "@/i18n";
 import { reportCaught, withReport } from "../caught";
 
@@ -29,6 +30,63 @@ const unsent = new Map<string, unknown>();
 const previews = new Map<string, string>();
 /** 本页上传的文件的大小与 PDF 页数，按沙箱位置记：刚发出、本会话文件列表还没重取时，气泡里的附件卡片先用它。 */
 const metas = new Map<string, { size: number; pages?: number }>();
+/** 输入框里已移除的附件：上传晚到时不再把它放回输入框，传上的那份告诉服务端删掉（组件库按编号「有就换、没有就加」）。 */
+const dropped = new Set<string>();
+/** 没传上、可以再传一次的附件（编号 → 原文件）：方块点一下重试（上传研究 U5）。服务端说了原因拒收的（类型、大小）不在这里。 */
+const retryable = new Map<string, File>();
+/** 正在上传的字节进度（编号 → 0–1）：发送后临时气泡里的附件卡片接着显示（输入框方块读组件库状态里的 progress）。 */
+const progress = new Map<string, number>();
+const progressListeners = new Set<() => void>();
+
+function setProgress(id: string, value: number | undefined) {
+  if (value === undefined) progress.delete(id);
+  else progress.set(id, value);
+  for (const listener of progressListeners) listener();
+}
+
+/** 这一项上传到哪了（0–1）；没在传回 undefined。 */
+export function useUploadProgress(id: string | undefined): number | undefined {
+  return useSyncExternalStore(
+    (listener) => {
+      progressListeners.add(listener);
+      return () => progressListeners.delete(listener);
+    },
+    () => (id ? progress.get(id) : undefined),
+  );
+}
+
+/** 这一项没传上、能再传一次：交回原文件并清掉记录（方块点重试时，attachment.tsx 移除这一项再用同一份文件重新放进输入框）。 */
+export function takeRetry(id: string): File | undefined {
+  const file = retryable.get(id);
+  retryable.delete(id);
+  return file;
+}
+
+/** 这一项没传上、能再传一次（方块显示成可点重试）。 */
+export function canRetry(id: string): boolean {
+  return retryable.has(id);
+}
+
+/** 进度回调只在多走了一截（2%）或传完时才交给组件库，免得每个网络包都重画一次输入框。 */
+function progressFeed() {
+  let latest: number | undefined;
+  let shown = 0;
+  let wake: (() => void) | undefined;
+  return {
+    push(value: number) {
+      if (value < 1 && value - shown < 0.02) return;
+      shown = value;
+      latest = value;
+      wake?.();
+    },
+    async next(): Promise<number> {
+      while (latest === undefined) await new Promise<void>((resolve) => (wake = resolve));
+      const value = latest;
+      latest = undefined;
+      return value;
+    },
+  };
+}
 
 export function localPreview(mountPath: string): string | undefined {
   return previews.get(mountPath);
@@ -41,6 +99,17 @@ export function localMeta(mountPath: string): { size: number; pages?: number } |
 /** 沙箱位置（`/mnt/session/uploads/<文件编号>/<文件名>`）里的文件编号：右侧面板按它打开这个附件；认不出给 null。 */
 export function uploadFileId(mountPath: string): string | null {
   return /\/uploads\/([A-Za-z0-9_.:-]+)\/[^/]+$/.exec(mountPath)?.[1] ?? null;
+}
+
+/** 附件传进的是哪段会话（编号 → 会话编号）：输入框方块取 PDF 第一页小图要它。 */
+const sessionOf = new Map<string, string>();
+
+/** 输入框方块里 PDF 传完后显示的第一页小图（服务端画的，同发出后的卡片，上传研究 U1b）；还没传完、不是 PDF 回 undefined。 */
+export function composerPageThumb(attachmentId: string): string | undefined {
+  const info = uploaded.get(attachmentId);
+  const session = sessionOf.get(attachmentId);
+  if (!info || !session || !/\.pdf$/i.test(info.filename)) return undefined;
+  return pageUrl(session, info.fileId, 1, "thumb");
 }
 
 /** 这一项已传进会话的信息（输入框草稿存它，drafts.ts）。 */
@@ -99,9 +168,11 @@ export function refusalOf(file: File): string {
 export function createAttachmentAdapter(getSessionId: () => Promise<string>, refused?: (message: string) => void,
                                         held?: () => boolean): AttachmentAdapter {
   /** 传进会话并记下位置、大小、本地预览（选中文件时、发送时重传都走这里）。 */
-  const store = async (id: string, file: File): Promise<UploadedFile> => {
-    const stored = await uploadFile(await getSessionId(), file);
+  const store = async (id: string, file: File, onProgress?: (fraction: number) => void): Promise<UploadedFile> => {
+    const session = await getSessionId();
+    const stored = await uploadFile(session, file, onProgress);
     uploaded.set(id, stored);
+    sessionOf.set(id, session);
     metas.set(stored.mountPath, { size: stored.size_bytes ?? file.size, ...(stored.pages ? { pages: stored.pages } : {}) });
     if (/^image\/(png|jpe?g|gif|webp)$/.test(file.type)) previews.set(stored.mountPath, URL.createObjectURL(file));
     return stored;
@@ -121,14 +192,28 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>, ref
       const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
       const type = file.type.startsWith("image/") ? ("image" as const) : ("document" as const);
       const base = { id, type, name: file.name, contentType: file.type, file };
-      const upload = store(id, file);
+      const feed = progressFeed();
+      const upload = store(id, file, (fraction) => {
+        setProgress(id, fraction);
+        feed.push(fraction);
+      });
       uploading.set(id, upload);
-      yield { ...base, status: { type: "running", reason: "uploading", progress: 0.3 } };
+      // 已点了发送（消息带着它发出去了，见 send）或已从输入框移除：不再交给输入框，否则组件库会把它加回去
+      const gone = () => sent.has(id) || dropped.has(id);
+      // 进度是真数（已传字节 / 整份），一开始是 0；字节传完到服务端回话之间停在 1（方块中间转圈）
+      yield { ...base, status: { type: "running", reason: "uploading", progress: 0 } };
+      const settled = upload.then(() => true, () => true);
+      while (!(await Promise.race([settled, feed.next().then(() => false)]))) {
+        if (gone()) break;
+        yield { ...base, status: { type: "running", reason: "uploading", progress: progress.get(id) ?? 0 } };
+      }
       try {
         await upload;
       } catch (err) { reportCaught(err, "attachments");
         // 已点了发送：这一项归发送管（send 重传一次，仍没传上就整条放回输入框、重新传），这里不再动它
-        if (sent.has(id)) return;
+        if (gone()) return;
+        // 服务端说了原因拒收的（SiteError：类型、大小等）再传也一样，只能移除；断线、超时、服务端出错可以点方块重试
+        if (!(err instanceof SiteError)) retryable.set(id, file);
         yield {
           ...base,
           status: { type: "incomplete", reason: "error", message: shownError(err) },
@@ -136,15 +221,24 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>, ref
         return;
       } finally {
         uploading.delete(id);
+        setProgress(id, undefined);
       }
-      // 还在上传时就点了发送：消息已带着它发出去（见 send），这里不再把它放回输入框
       if (sent.has(id)) return;
+      if (dropped.has(id)) {
+        // 传的时候就移除了：服务端留的那份删掉（同 remove），不识别、不扣费
+        const info = uploaded.get(id);
+        uploaded.delete(id);
+        if (info) await dropUpload(await getSessionId(), info.fileId).catch(withReport(() => undefined, "attachments"));
+        return;
+      }
       yield { ...base, status: { type: "requires-action", reason: "composer-send" } };
     },
 
     async remove(attachment) {
       // 已挂进沙箱的文件只读、只属于本会话，留着无害；这里把输入框里的这一项去掉，还没发出的告诉服务端删掉本站留的那份
       // （两种会话都是；代录另删任务上那一行「待发送」：发出后才交识别，移除的不识别、不扣费）。删不掉只报错，不挡移除
+      dropped.add(attachment.id);
+      retryable.delete(attachment.id);
       const info = uploaded.get(attachment.id);
       uploaded.delete(attachment.id);
       if (info && !sent.has(attachment.id)) {
@@ -161,16 +255,18 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>, ref
       unsent.delete(attachment.id);
       let info = uploaded.get(attachment.id);
       if (!info) {
-        beginPending(attachment.name);
+        beginPending(attachment.name, attachment.id);
         const waiting = uploading.get(attachment.id);
         try {
           if (waiting) info = await waiting.catch(withReport(() => undefined, "attachments"));
           if (!info) {
             if (!attachment.file) throw new Error(`attachment not uploaded: ${attachment.name}`);
-            info = await store(attachment.id, attachment.file);
+            info = await store(attachment.id, attachment.file, (fraction) => setProgress(attachment.id, fraction));
           }
         } catch (err) { reportCaught(err, "attachments");
           unsent.set(attachment.id, err);
+        } finally {
+          setProgress(attachment.id, undefined);
         }
       }
       return {

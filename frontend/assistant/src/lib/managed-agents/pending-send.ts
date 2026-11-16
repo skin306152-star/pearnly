@@ -6,7 +6,8 @@
 
 import { useSyncExternalStore } from "react";
 
-export type PendingSend = { text: string; files: string[]; shownAs?: string } | null;
+/** files：附件名；ids：同序的附件编号（临时气泡里的附件卡片按它读上传进度）。 */
+export type PendingSend = { text: string; files: string[]; ids?: string[]; shownAs?: string } | null;
 
 let pending: PendingSend = null;
 let draft = "";
@@ -24,15 +25,19 @@ export function setDraft(text: string) {
 }
 
 /** 附件还在上传时就发送了：先显示发送中的气泡。 */
-export function beginPending(filename: string) {
+export function beginPending(filename: string, attachmentId = "") {
   if (!pending) sentAt = Date.now();
-  pending = { text: pending?.text ?? draft, files: [...(pending?.files ?? []), filename] };
+  pending = {
+    text: pending?.text ?? draft,
+    files: [...(pending?.files ?? []), filename],
+    ids: [...(pending?.ids ?? pending?.files.map(() => "") ?? []), attachmentId],
+  };
   emit();
 }
 
 /** 新对话的第一条消息：建会话期间先显示发送中的气泡。 */
 export function beginPendingText(text: string) {
-  pending = { text, files: pending?.files ?? [] };
+  pending = { text, files: pending?.files ?? [], ...(pending?.ids ? { ids: pending.ids } : {}) };
   sentAt = Date.now();
   emit();
 }

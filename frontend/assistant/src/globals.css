@@ -1880,6 +1880,13 @@
   .cc-compose-tile:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-compose-tile[data-error] { border-color: var(--cc-danger-line); }
   .cc-compose-tile > img { width: 100%; height: 100%; padding: var(--cc-compose-img-inset); object-fit: contain; }
+  /* 上传中（上传研究 U1，11-09 调整）：图片发灰，底部一条细进度条（真数，不写百分比）；PDF 传完是第一页小图，铺满方块、从页顶显示（同 Claude，U1b） */
+  .cc-compose-tile[data-uploading] > img { opacity: var(--cc-disabled-opacity); }
+  .cc-compose-tile > img[data-page] { padding: 0; object-fit: cover; object-position: top; }
+  .cc-compose-progress { position: absolute; inset-inline: 0; bottom: 0; display: flex; }
+  /* 发送后临时气泡里的卡片：没传完的同一条进度条压在缩略图底部 */
+  .cc-attach-pending { position: relative; display: flex; }
+  .cc-attach-progress { position: absolute; inset-inline: var(--cc-space-8); top: calc(var(--cc-attach-thumb-h) - var(--cc-space-12)); display: flex; }
   .cc-compose-x { top: var(--cc-space-6); inset-inline-end: var(--cc-space-6); }
   .cc-compose-file {
     display: flex; width: 100%; min-width: 0; flex-direction: column; justify-content: space-between; gap: var(--cc-space-4); padding: var(--cc-attach-pad);

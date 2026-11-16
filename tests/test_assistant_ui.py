@@ -5200,6 +5200,94 @@ assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pd
 assert.equal(attachmentCard("/mnt/session/uploads/file_011CNew/new.pdf", "new.pdf", results([])).page, true);
 """)
 
+    def test_upload_progress_is_the_real_bytes_and_the_pdf_tile_takes_the_first_page(self):
+        # 上传研究 U1 / U1b（B32、B33）：XMLHttpRequest 的 upload.onprogress 是真数，每多走 2% 交一次给输入框，传完停在 1 等回话；
+        # 回包后 PDF 方块取服务端画的第一页小图（同发出后的卡片）
+        self.run_page(r"""
+import { composerPageThumb } from "@/lib/managed-agents/attachments";
+class FakeXHR {
+  static last: any;
+  upload: any = {}; status = 0; statusText = ""; responseText = ""; url = ""; headers: Record<string, string> = {};
+  onload: any; onerror: any; onabort: any; ontimeout: any;
+  open(_method: string, url: string) { this.url = url; }
+  setRequestHeader(k: string, v: string) { this.headers[k] = v; }
+  send(_body: any) { FakeXHR.last = this; }
+}
+g.XMLHttpRequest = FakeXHR;
+const adapter = createAttachmentAdapter(async () => "s9");
+const file = new File([new Uint8Array(1000)], "big.pdf", { type: "application/pdf" });
+const it = adapter.add!({ file }) as any;
+const first = (await it.next()).value;
+assert.deepEqual(first.status, { type: "running", reason: "uploading", progress: 0 });
+await g.sleep(0);
+const xhr = FakeXHR.last;
+assert.match(xhr.url, /pearnly_core\.assistant\.api\.upload$/);
+assert.equal(xhr.headers["X-Pearnly-Lang"], "en");
+assert.ok("X-Frappe-CSRF-Token" in xhr.headers);
+const step = it.next();
+xhr.upload.onprogress({ lengthComputable: true, loaded: 450, total: 1000 });
+assert.equal((await step).value.status.progress, 0.45);
+xhr.upload.onprogress({ lengthComputable: true, loaded: 460, total: 1000 });   // 不到 2%：不重画
+xhr.upload.onprogress({ lengthComputable: true, loaded: 1000, total: 1000 });
+assert.equal((await it.next()).value.status.progress, 1);
+assert.equal(composerPageThumb(first.id), undefined);                            // 没传完不取小图
+xhr.status = 200;
+xhr.responseText = JSON.stringify({ message: { fileId: "upl_9", filename: "big.pdf", mountPath: "/mnt/session/uploads/upl_9/big.pdf", size_bytes: 1000, pages: 1 } });
+const last = it.next();
+xhr.onload();
+assert.equal((await last).value.status.type, "requires-action");
+assert.equal(composerPageThumb(first.id), "/api/method/pearnly_core.assistant.api.page_image?session_id=s9&file_id=upl_9&page=1&size=thumb");
+delete g.XMLHttpRequest;
+""")
+
+    def test_a_dropped_line_can_be_retried_but_a_refused_file_cannot(self):
+        # 上传研究 U5（B34）：断线、超时、服务端出错 → 方块点一下重试（交回原文件，只交一次）；服务端说了原因拒收的只能移除
+        self.run_page(r"""
+import { canRetry, takeRetry } from "@/lib/managed-agents/attachments";
+const run = async (name: string) => {
+  const adapter = createAttachmentAdapter(async () => "s1");
+  const file = new File([new Uint8Array(10)], name, { type: "application/pdf" });
+  let last: any;
+  for await (const step of adapter.add!({ file }) as any) last = step;
+  return { last, file };
+};
+g.fetch = async () => { throw new TypeError("Failed to fetch"); };
+const lost = await run("lost.pdf");
+assert.equal(lost.last.status.type, "incomplete");
+assert.equal(canRetry(lost.last.id), true);
+assert.equal(takeRetry(lost.last.id), lost.file);
+assert.equal(canRetry(lost.last.id), false);
+assert.equal(takeRetry(lost.last.id), undefined);
+g.fetch = async () => ({ ok: false, status: 417, json: async () => ({
+  _server_messages: JSON.stringify([JSON.stringify({ message: "This file type is not supported." })]) }) });
+const refused = await run("bad.pdf");
+assert.equal(refused.last.status.message, "This file type is not supported.");
+assert.equal(canRetry(refused.last.id), false);
+""")
+
+    def test_a_tile_removed_while_uploading_does_not_come_back_and_its_copy_is_dropped(self):
+        # 传的时候就移除：组件库按编号「有就换、没有就加」，晚到的进度和完成都不能再交给输入框；传上的那份告诉服务端删掉
+        self.run_page(r"""
+let finish: (v: any) => void = () => {};
+const calls: string[] = [];
+g.fetch = async (url: string) => {
+  const method = String(url).split("pearnly_core.assistant.api.")[1]?.split("?")[0];
+  calls.push(method);
+  if (method === "upload") return new Promise((resolve) => (finish = resolve));
+  return { ok: true, status: 200, json: async () => ({ message: { dropped: true } }) };
+};
+const adapter = createAttachmentAdapter(async () => "s1");
+const file = new File([new Uint8Array(10)], "gone.pdf", { type: "application/pdf" });
+const it = adapter.add!({ file }) as any;
+const first = (await it.next()).value;
+await adapter.remove!(first);
+const rest = it.next();
+await g.sleep(0);
+finish({ ok: true, status: 200, json: async () => ({ message: { fileId: "upl_g", filename: "gone.pdf", mountPath: "/mnt/session/uploads/upl_g/gone.pdf", size_bytes: 10 } }) });
+assert.equal((await rest).done, true);
+assert.deepEqual(calls, ["upload", "drop_upload"]);
+""")
+
 
 # 假站点加上个人排列（layout / save_layout，服务端按项合并、交 null 的项删掉）与公司列表（projects）
 PIN_RACE_SITE = r"""

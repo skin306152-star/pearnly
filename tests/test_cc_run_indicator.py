@@ -2040,7 +2040,7 @@ g.setTimeout = realSetTimeout;
         adapter = (SRC / "lib/managed-agents/attachments.ts").read_text(encoding="utf-8")
         send = adapter.split("async send(attachment): Promise<CompleteAttachment> {", 1)[1]
         self.assertNotIn("throw err", send)                 # 发送这一步不抛：组件库不接，抛了就是未捕获的错误
-        self.assertIn("info = await store(attachment.id, attachment.file);", send)
+        self.assertIn("info = await store(attachment.id, attachment.file, (fraction) => setProgress(attachment.id, fraction));", send)
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         # 引导式录入第 1 期：业务菜单与「写入」同一行，排在它后面（有意变化）
         self.assertIn("<SendFailure />\n            <ApprovalSheet />\n            <RecordQuickReply />\n            <BusinessMenu />\n            <Composer />", thread)
