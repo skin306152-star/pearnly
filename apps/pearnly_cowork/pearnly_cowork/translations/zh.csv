@@ -1091,6 +1091,7 @@ Mapping Key,映射键
 Mapping Kind,映射类型
 Mark all as read,全部标为已读
 Mark complete,标记完成
+Mark complete or incomplete,标记完成或未完成
 Mark each balance break as a missing page or a known difference before saving.,请将每处余额差异标记为「此处缺页」或「已知差异」后再保存。
 Mark incomplete,标记未完成
 Match Layer,匹配层级
@@ -1121,6 +1122,7 @@ Monthly on {0} at {1},每月 {0} {1}
 More than one account set of this company covers the document date.,该公司有多份账套覆盖单据日期
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
+Move card,移动卡片
 Move list,移动列表
 Moved a task,移动了任务
 Moving a task,正在移动任务
@@ -1219,6 +1221,7 @@ Note is empty or too long,说明为空或过长
 Note not found,未找到该说明
 Notes,备注
 Notes are full,知识库已满
+Nothing to change,没有要改的项
 Nothing withheld on the invoice,票面未扣税
 Notifications,提醒
 Number,数字
@@ -3548,6 +3551,12 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
+guide.business.work,任务管理
+guide.fact.work.nothing,没有要改的项
+guide.open.work,选择操作。
+guide.option.work.done,标记完成或未完成
+guide.option.work.move,移动卡片
+guide.option.work.update,编辑卡片
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
@@ -3571,6 +3580,19 @@ guide.step.vat.period,税务月份
 guide.step.vat.readback,回读
 guide.step.vat.zero_vat_as,税额为零的行
 guide.step.wht.period,税务月份
+guide.step.work.action,操作
+guide.step.work.board,看板
+guide.step.work.card,卡片
+guide.step.work.content,评论
+guide.step.work.description,描述
+guide.step.work.due_date,到期日
+guide.step.work.due_time,到期时间
+guide.step.work.list,列表
+guide.step.work.recurrence,重复性
+guide.step.work.reminder,设置提醒
+guide.step.work.rename,标题
+guide.step.work.start_date,开始日期
+guide.step.work.title,标题
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。

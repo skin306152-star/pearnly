@@ -1091,6 +1091,7 @@ Mapping Key,คีย์การจับคู่
 Mapping Kind,ประเภทการจับคู่
 Mark all as read,ทำเครื่องหมายว่าอ่านแล้วทั้งหมด
 Mark complete,ทำเครื่องหมายว่าเสร็จ
+Mark complete or incomplete,ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ
 Mark each balance break as a missing page or a known difference before saving.,"กรุณาระบุทุกจุดที่ยอดคงเหลือไม่ต่อเนื่องว่าเป็น ""หน้าขาดหาย"" หรือ ""ผลต่างที่ทราบแล้ว"" ก่อนบันทึก"
 Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
 Match Layer,ลำดับขั้นการจับคู่
@@ -1121,6 +1122,7 @@ Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 More than one account set of this company covers the document date.,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
+Move card,ย้ายการ์ด
 Move list,ย้ายรายการ
 Moved a task,ย้ายงานแล้ว
 Moving a task,กำลังย้ายงาน
@@ -1219,6 +1221,7 @@ Note is empty or too long,บันทึกว่างหรือยาวเ
 Note not found,ไม่พบบันทึกนี้
 Notes,หมายเหตุ
 Notes are full,บันทึกเต็มแล้ว
+Nothing to change,ไม่มีรายการที่จะแก้ไข
 Nothing withheld on the invoice,ใบกำกับภาษีไม่ได้หักภาษี ณ ที่จ่าย
 Notifications,การแจ้งเตือน
 Number,ตัวเลข
@@ -3548,6 +3551,12 @@ guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
+guide.business.work,จัดการงาน
+guide.fact.work.nothing,ไม่มีรายการที่จะแก้ไข
+guide.open.work,เลือกการดำเนินการ
+guide.option.work.done,ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ
+guide.option.work.move,ย้ายการ์ด
+guide.option.work.update,แก้ไขการ์ด
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย
@@ -3571,6 +3580,19 @@ guide.step.vat.period,เดือนภาษี
 guide.step.vat.readback,การอ่านข้อมูลกลับ
 guide.step.vat.zero_vat_as,รายการที่ภาษีเป็นศูนย์
 guide.step.wht.period,เดือนภาษี
+guide.step.work.action,การดำเนินการ
+guide.step.work.board,บอร์ด
+guide.step.work.card,การ์ด
+guide.step.work.content,ความคิดเห็น
+guide.step.work.description,รายละเอียด
+guide.step.work.due_date,วันครบกำหนด
+guide.step.work.due_time,เวลาครบกำหนด
+guide.step.work.list,รายการ
+guide.step.work.recurrence,การทำซ้ำ
+guide.step.work.reminder,ตั้งการแจ้งเตือน
+guide.step.work.rename,ชื่อ
+guide.step.work.start_date,วันเริ่ม
+guide.step.work.title,ชื่อ
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

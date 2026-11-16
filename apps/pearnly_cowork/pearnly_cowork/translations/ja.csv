@@ -1091,6 +1091,7 @@ Mapping Key,マッピングキー
 Mapping Kind,マッピング種類
 Mark all as read,すべて既読にする
 Mark complete,完了にする
+Mark complete or incomplete,完了・未完了を切り替え
 Mark each balance break as a missing page or a known difference before saving.,残高が合わない各箇所を「ページ欠落」または「既知の差異」にしてから保存してください。
 Mark incomplete,未完了に戻す
 Match Layer,照合レイヤー
@@ -1121,6 +1122,7 @@ Monthly on {0} at {1},毎月 {0} {1}
 More than one account set of this company covers the document date.,この会社には書類の日付を含む会計データが複数あります。
 Move,移動
 Move all cards in this list,このリストのカードをすべて移動
+Move card,カードを移動
 Move list,リストを移動
 Moved a task,タスクを移動しました
 Moving a task,タスクを移動しています
@@ -1219,6 +1221,7 @@ Note is empty or too long,ノートが空か長すぎます
 Note not found,ノートが見つかりません
 Notes,備考
 Notes are full,ノートが上限です
+Nothing to change,変更する項目がありません
 Nothing withheld on the invoice,インボイスに源泉徴収なし
 Notifications,通知
 Number,数値
@@ -3548,6 +3551,12 @@ guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
+guide.business.work,タスク管理
+guide.fact.work.nothing,変更する項目がありません
+guide.open.work,操作を選択してください。
+guide.option.work.done,完了・未完了を切り替え
+guide.option.work.move,カードを移動
+guide.option.work.update,カードを編集
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
@@ -3571,6 +3580,19 @@ guide.step.vat.period,課税月
 guide.step.vat.readback,読み戻し
 guide.step.vat.zero_vat_as,税額ゼロの行
 guide.step.wht.period,課税月
+guide.step.work.action,操作
+guide.step.work.board,ボード
+guide.step.work.card,カード
+guide.step.work.content,コメント
+guide.step.work.description,説明
+guide.step.work.due_date,期日
+guide.step.work.due_time,期限時刻
+guide.step.work.list,リスト
+guide.step.work.recurrence,繰り返し
+guide.step.work.reminder,リマインダー
+guide.step.work.rename,タイトル
+guide.step.work.start_date,開始日
+guide.step.work.title,タイトル
 held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
