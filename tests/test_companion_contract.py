@@ -1869,5 +1869,54 @@ class GuidedPayload(unittest.TestCase):
         self.assertEqual(problem(doctype="IV", cash_account="11-01-02-00")[0], "PAYLOAD_INVALID")
         self.assertEqual(problem(doctype="HS", cash_account="11-01-02-00", pos={})[0], "PAYLOAD_INVALID")
 
+
+class BookQuestions(unittest.TestCase):
+    """开始前四题（A3 / P2-2，``express_rules.push.book_questions``）与 CC 桌面版写时的同一判法：常量逐个相同；代录单只带 CC 代录认的键
+    （带了表头 ``guided`` / ``cash_account`` 或成本键，CC 整单拒收），所以代录不出成本、现金科目两题；直写下发的键都是载荷 21 的键。
+    两边拿同一本合成账套真跑比结论在 ``companion/tests/test_seam_book_questions.py``。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import importlib
+
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(ROOT / "companion" / "src"))
+        try:
+            cls.keys = importlib.import_module("companion.guided_keys")  # 纯函数，不依赖 dbf
+        finally:
+            sys.path.remove(str(ROOT / "companion" / "src"))
+        from pearnly_core.express_rules.push import book_questions
+
+        cls.server = book_questions
+
+    def test_the_constants_match_cc(self):
+        for name in ("STOCK_IN", "STOCK_OUT", "CASH_DOCTYPES", "COST_GIVEN", "COST_NONE"):
+            self.assertEqual(getattr(self.server, name), getattr(self.keys, name), name)
+        self.assertEqual(self.server.UNIT_FALLBACK, module_constants(COMPANION / "dbf_schema.py")["_UNIT_MAP"])
+        self.assertEqual(self.server.ALL_LOCATIONS, module_constants(COMPANION / "stock_guard.py")["ALL_LOCATIONS"])
+        self.assertEqual(self.server.ALLOW, "Y")
+        self.assertIn(self.server.ALLOW, self.keys.NEGALLOW_VALUES)
+
+    @staticmethod
+    def _payload(doctype="HS"):
+        return {"direction": "sales", "doctype": doctype, "items_status": "ok", "payload_version": 21,
+                "items": [{"name": "ใหม่", "code": "", "qty": "1", "unit": "x", "item_mode": "stock_sale"}]}
+
+    def test_an_operator_payload_with_every_answer_still_passes_cc_operator_gate(self):
+        B = self.server
+        decided = {B.UNIT: {B.unit_subject("sales", {"name": "ใหม่", "unit": "x"}): "ชน"}, B.NEGATIVE: {"ใหม่": "Y"},
+                   B.COST: {"line-1": "given:3"}, B.CASH: {"cash": "11-01-01-00"}}
+        operator = B.apply(self._payload(), decided, mode=B.OPERATOR)
+        self.assertTrue(self.keys.operator_allowed(operator))
+        self.assertEqual(operator["items"][0]["unit_code"], "ชน")
+        self.assertNotIn("guided", operator)
+        self.assertNotIn("cash_account", operator)
+        self.assertNotIn("cost_choice", operator["items"][0])
+        direct = B.apply(self._payload(), decided)
+        self.assertFalse(self.keys.operator_allowed(direct), "直写下发了成本、现金科目与 guided：这份不能当代录单交")
+        self.assertEqual(self.keys.shape_problem(direct, "HS", "customer"), None)
+        self.assertEqual(set(B.OPERATOR_KINDS), {B.UNIT, B.NEGATIVE})
+
+
 if __name__ == "__main__":
     unittest.main()

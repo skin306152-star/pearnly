@@ -123,6 +123,8 @@ jobs:
         run: python3 tests/test_express_operator_feed.py
       - name: Express operator submenu choice, the payment text read as cash or transfer, the remembered menu text and pay route in the operator payload, and the submenu item in the precheck card
         run: python3 tests/test_express_operator_menu_choice.py
+      - name: The four questions asked before a write start (unit, negative stock, sale cost, cash account) follow the same rules CC Desktop stops on, write only payload 21 keys, are remembered per book where agreed, and the operator mode never asks cost or cash
+        run: python3 tests/test_express_book_questions.py
       - name: ERP master records synced from Express keep their identity fields
         run: python3 tests/test_erp_express_locks.py
       - name: ERP product internal code (typed for local products, the Express code for synced ones; scans, stocktake and the product template read it)
