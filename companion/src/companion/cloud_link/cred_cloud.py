@@ -3,10 +3,9 @@
 的凭据管理器（Generic，系统 DPAPI 加密），目标名与本地代录同格式 ``express_operator.credentials.target(连接)``；以后代录照
 本地做法从本机凭据取、填登录框。收到桥的撤销就删掉那条并写回执。
 
-现在还没有调用方（云端模式的代录宿主接上时调）。``device_key`` 与 ``epoch`` 由调用方给：``epoch`` 是云端读到的
-``ctl\\session.json``（``tunnel_protocol.decode_session``）里的会话号；``device_key`` 是桥为这台云端电脑生成、存在桥本机的
-那把（``link_store.LinkStore.device_key``）——**本分支里云端那份 CC 还拿不到它**（桥只拿它去站点登记，不交给云端），
-交给云端的那一步要另做。
+现在还没有调用方（云端模式的代录宿主接上时调）。``epoch`` 由调用方给，是云端读到的 ``ctl\\session.json``
+（``tunnel_protocol.decode_session``）里的会话号。``device_key`` 是桥为这台云端电脑生成的那把（``link_store.LinkStore.device_key``）：
+默认从云端本用户凭据管理器取（``device_pairing.load_device_key(host)``，到场那一次用一次性令牌配对存下的），调用方也可直接给。
 
 凭据管理器、时钟、等待都可注入；日志只有事件名、原因码、连接号。
 """
@@ -38,12 +37,26 @@ def _forget(connection: str) -> bool:
     return credentials.forget(credentials.target(connection))
 
 
-def fetch(ctl_dir: Path, *, device_key, epoch: str, connection: str, timeout: float = DEFAULT_TIMEOUT,
+def _device_key(device_key, host: str):
+    """调用方给了就用；没给按主机从本用户凭据管理器取（``device_pairing.load_device_key``）；都没有回空串。"""
+    if device_key is not None:
+        return device_key
+    if not host:
+        return ""
+    from .device_pairing import load_device_key
+
+    return load_device_key(host)
+
+
+def fetch(ctl_dir: Path, *, epoch: str, connection: str, device_key=None, host: str = "",
+          timeout: float = DEFAULT_TIMEOUT,
           poll: float = POLL_SECONDS, now: Callable[[], float] = time.time, sleep: Callable[[float], None] = time.sleep,
           seen_ids: Optional[MutableSet] = None, store: Callable[[str, str, str], None] = _store) -> str:
     """写 ``cred-req.json``，等桥写回 ``cred-resp.json``（最多 ``timeout`` 秒），解开后 ``store(连接, 用户名, 密码)``。
-    回原因码：``ok``，桥不回应（没授权、不在）是 ``timeout``，其余见 ``cred_handoff.CODES``。结束时请求、回应两个文件都删掉并回读。"""
+    回原因码：``ok``，桥不回应（没授权、不在）是 ``timeout``，没有设备密钥（还没配对）是 ``unpaired``，其余见
+    ``cred_handoff.CODES``。结束时请求、回应两个文件都删掉并回读。``device_key`` 不给就按 ``host`` 从本机凭据管理器取。"""
     ctl_dir = Path(ctl_dir)
+    device_key = _device_key(device_key, host)
     try:
         pending, data = handoff.make_request(device_key, epoch, connection, now())
     except handoff.Refused as exc:
@@ -76,13 +89,15 @@ def fetch(ctl_dir: Path, *, device_key, epoch: str, connection: str, timeout: fl
         handoff.sweep(ctl_dir, (handoff.REQUEST_FILE, handoff.RESPONSE_FILE))
 
 
-def handle_forget(ctl_dir: Path, *, device_key, epoch: str, seen_ids: MutableSet,
+def handle_forget(ctl_dir: Path, *, epoch: str, seen_ids: MutableSet, device_key=None, host: str = "",
                   now: Callable[[], float] = time.time, forget: Callable[[str], object] = _forget) -> Optional[str]:
-    """看一眼 ``cred-forget.json``：有就校验、删本机那条凭据、写 ``cred-forget-ack.json``。没有回 None，否则回原因码。"""
+    """看一眼 ``cred-forget.json``：有就校验、删本机那条凭据、写 ``cred-forget-ack.json``。没有回 None，否则回原因码。
+    ``device_key`` 不给就按 ``host`` 从本机凭据管理器取。"""
     ctl_dir = Path(ctl_dir)
     data = handoff.take(ctl_dir / handoff.FORGET_FILE)
     if data is None:
         return None
+    device_key = _device_key(device_key, host)
     code, _, ack = handoff.answer_forget(data, device_key, epoch, now(), seen_ids, forget)
     if ack is not None:
         handoff.write_atomic(ctl_dir / handoff.FORGET_ACK_FILE, ack)
