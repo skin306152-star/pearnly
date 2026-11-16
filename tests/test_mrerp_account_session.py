@@ -29,7 +29,7 @@ except (ImportError, unittest.SkipTest) as exc:  # 需要 Frappe 环境（bench 
     raise unittest.SkipTest(f"needs the Frappe bench environment: {exc}")
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-LEASE = {"system_url": BASE, "username": "test01", "password": "test01"}
+LEASE = {"system_url": BASE, "username": "fakeuser", "password": "fakepw"}
 
 
 @contextlib.contextmanager
@@ -56,7 +56,7 @@ def site_calls(site):
 class SharedSession(_StateRedis):
     def pushed(self):
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         self.assertEqual(execute(site, [sales("r1")])["status"], "success")
         self.assertEqual(len(self.logins(site)), 1)
         return site

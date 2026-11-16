@@ -272,7 +272,7 @@ class SamePreparation(unittest.TestCase):
         with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
                 patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
                 patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
-            importer = transport.MrErpImport(system_url=BASE, username="test01", password="test01", comidyear="15",
+            importer = transport.MrErpImport(system_url=BASE, username="fakeuser", password="fakepw", comidyear="15",
                                              seldb="1")
             with importer:
                 blocks, failed = operator_draft.stage(importer, histories, {"_own_tax_id": OWN,

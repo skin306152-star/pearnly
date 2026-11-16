@@ -62,7 +62,7 @@ def report(rows):
     return out.getvalue()
 
 
-# 默认的导入页菜单（照 test01 · TEST2019 的形态，号是合成的）：采购有一个已关联、一个未关联；销项各一个。
+# 默认的导入页菜单（照 MR.ERP 测试账套的形态，号是合成的）：采购有一个已关联、一个未关联；销项各一个。
 MENUS = {"impaptran": [("67", "ซื้อ-เดิม", False), ("68", "ซื้อ", True)],
          "impartran": [("119", "ขายเชื่อ", True)], "imparse": [("126", "ใบขายเงินสด", True)]}
 LISTING = {"impaptran": "aptran", "impartran": "artran", "imparse": "arse"}
@@ -108,7 +108,7 @@ class FakeMrErp:
     `listed`：{菜单: [已有单号]}；`unlinked_listing`：列表页提示未关联日记账的菜单；`menus`：导入页选项。
     """
 
-    def __init__(self, password="test01", importpc="1", notes=None, upload_error="", importpc_raises=False,
+    def __init__(self, password="fakepw", importpc="1", notes=None, upload_error="", importpc_raises=False,
                  menus=None, lands=True, prefix=None, listed=None, unlinked_listing=(), change_menus_after=None,
                  lists=None, records=None, head="00000", company_tax="", listed_amount="1,070.00"):
         self.password, self.importpc, self.notes = password, importpc, notes
@@ -232,7 +232,7 @@ def push(site, histories, mappings=None):
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
             patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
-        importer = transport.MrErpImport(system_url=BASE, username="test01", password="test01",
+        importer = transport.MrErpImport(system_url=BASE, username="fakeuser", password="fakepw",
                                          comidyear="15", seldb="1")
         with importer:
             return importer, importer.upload_routed_batch(
@@ -250,7 +250,7 @@ def execute(site, histories):
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
             patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)):
         return runner.execute({"histories": histories, "mappings": {"_own_tax_id": OWN, "_mrerp_defaults": dict(CHOSEN)}},
-                              {"account_set": "15:1"}, {"username": "test01", "password": site.password_used},
+                              {"account_set": "15:1"}, {"username": "fakeuser", "password": site.password_used},
                               BASE, TODAY)
 
 
@@ -447,7 +447,7 @@ class _StateRedis(unittest.TestCase):
     def account():
         from pearnly_core.mrerp.session import lock_key
 
-        return lock_key(BASE, "test01")
+        return lock_key(BASE, "fakeuser")
 
     def cached(self):
         return {k: v for k, v in self.redis.data.items() if k.startswith("pearnly:mrerp-session:")}
@@ -459,7 +459,7 @@ class SessionReuse(_StateRedis):
 
     def test_the_second_push_reuses_the_session_without_logging_in(self):
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         self.assertEqual(execute(site, [sales("s1")])["status"], "success")
         self.assertEqual(len(self.logins(site)), 1)
         self.assertEqual(list(self.cached().values()), ["abc"])
@@ -469,7 +469,7 @@ class SessionReuse(_StateRedis):
 
     def test_an_expired_session_logs_in_once_more(self):
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         with patch.object(self.sessions, "get", lambda name: "old"):
             out = execute(site, [sales("s3")])
         self.assertEqual(out["status"], "success")
@@ -477,7 +477,7 @@ class SessionReuse(_StateRedis):
 
     def test_a_kicked_session_stops_without_logging_in_and_is_dropped(self):
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         execute(site, [sales("s4")])
         self.assertTrue(self.cached())
         site.kick = True  # 会计本人在浏览器里登录了同一账号
@@ -495,12 +495,12 @@ class SessionReuse(_StateRedis):
 
         account = self.account()
         with patch.object(frappe.local, "site", "cowork.test", create=True):
-            cowork = self.sessions.key(account, "test01")
+            cowork = self.sessions.key(account, "fakeuser")
         with patch.object(frappe.local, "site", "erp.test", create=True):
-            erp = self.sessions.key(account, "test01")
+            erp = self.sessions.key(account, "fakeuser")
         self.assertEqual(cowork, erp)
         self.assertNotEqual(cowork, self.sessions.key(account, "guess"))
-        self.assertNotIn("test01", cowork)  # 账号、密码原文不进键名
+        self.assertNotIn("fakeuser", cowork)  # 账号、密码原文不进键名
         self.assertLessEqual(self.sessions.TTL_SECONDS, 24 * 60)
 
 
@@ -509,7 +509,7 @@ class KickedMark(_StateRedis):
     不碰网络，原因 ``ERR_MRERP_ACCOUNT_IN_USE`` 进待处理；只有人点的推送入口清了标记，这次才重新登录。"""
 
     def kicked_once(self, site):
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         execute(site, [sales("k1")])
         site.kick = True
         return execute(site, [sales("k2", date="2026-09-13")])
@@ -525,13 +525,13 @@ class KickedMark(_StateRedis):
         self.assertEqual(mark["site"], "cowork.test")
         self.assertEqual([item["event"] for item in mark["history"]], ["kicked"])
         name = next(k for k in self.redis.data if k.startswith("pearnly:mrerp-kicked:"))
-        self.assertNotIn("test01", name)
+        self.assertNotIn("fakeuser", name)
         self.assertTrue(self.redis.ttl[name])  # 状态 Redis 的键都带过期时间
 
     def test_a_marked_account_fails_fast_without_touching_the_network(self):
         self.kick.mark(self.account())
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         locks = []
 
         def no_dns(*args, **kwargs):
@@ -542,7 +542,7 @@ class KickedMark(_StateRedis):
                              side_effect=AssertionError("sent a request while the account is marked")), \
                 patch.object(socket, "getaddrinfo", side_effect=no_dns):
             out = runner.execute({"histories": [sales("k3")], "mappings": {"_own_tax_id": OWN}},
-                                 {"account_set": "15:1"}, {"username": "test01", "password": "test01"}, BASE, TODAY)
+                                 {"account_set": "15:1"}, {"username": "fakeuser", "password": "fakepw"}, BASE, TODAY)
         self.assertEqual(out["status"], "failed")  # 没发出导入：确定没写入，进待处理（不是结果不明）
         self.assertTrue(out["reason"].startswith("ERR_MRERP_ACCOUNT_IN_USE"), out["reason"])
         self.assertEqual((site.calls, locks), ([], []))
@@ -630,13 +630,13 @@ class ManualEntries(unittest.TestCase):
         loaded = type("Loaded", (), {"endpoint": {"config": {"system_url": BASE}}})()
         with patch.object(connections, "adapter_of", lambda name: {"M": "mrerp", "E": "express"}[name]), \
                 patch.object(connections, "read_for_push", connection_doubles.read_for_push_returning(loaded)), \
-                patch.object(connections, "credentials_for_use", lambda value: {"username": "test01"}), \
+                patch.object(connections, "credentials_for_use", lambda value: {"username": "fakeuser"}), \
                 patch.object(account_kick, "clear", lambda key: cleared.append(key) or True):
             self.assertFalse(runner.release_kick("E", "W1"))
             self.assertTrue(runner.release_kick("M", "W1"))
         from pearnly_core.mrerp.session import lock_key
 
-        self.assertEqual(cleared, [lock_key(BASE, "test01")])
+        self.assertEqual(cleared, [lock_key(BASE, "fakeuser")])
 
     def test_the_strict_double_matches_the_real_read_for_push(self):
         """MR.ERP 测试用的连接读取替身（`tests/connection_doubles.py`）与真接口同一签名、同一条「不加锁就抛」，真接口改了这里先红。"""
@@ -778,7 +778,7 @@ class Defaults(unittest.TestCase):
 
     def test_masters_read_during_the_push_are_returned_for_the_choice_dialog(self):
         site = FakeMrErp()
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         outcome = execute(site, [purchase()])
         self.assertEqual(outcome["status"], "success", outcome)
         self.assertEqual(outcome["masters"]["dept"], [{"code": "D001", "name": "บัญชี"}])
@@ -883,7 +883,7 @@ class Menu(unittest.TestCase):
     def test_menu_failure_reaches_the_ledger_as_the_bare_code(self):
         from pearnly_core.mrerp import menus as mrerp_menus
         site = FakeMrErp(menus={"impaptran": [("68", "ซื้อ", True), ("454", "ซื้อ-ค่าใช้จ่าย", True)]})
-        site.password_used = "test01"
+        site.password_used = "fakepw"
         out = execute(site, [purchase()])
         self.assertEqual((out["status"], out["reason"]), ("failed", mrerp_menus.CHOICE_REQUIRED))
 
@@ -891,7 +891,7 @@ class Menu(unittest.TestCase):
 class Outcome(unittest.TestCase):
     """落到账本的结果：成功 / 已推过 / 转人工 / 结果不明。"""
 
-    def run_case(self, site, histories, password="test01"):
+    def run_case(self, site, histories, password="fakepw"):
         site.password_used = password
         return execute(site, histories)
 
@@ -936,7 +936,7 @@ class Outcome(unittest.TestCase):
 
     def test_definite_failures_before_sending_are_not_unknown(self):
         for site, password, code in ((FakeMrErp(), "wrong", "ERR_AUTH"),
-                                     (FakeMrErp(upload_error="ผิดพลาด"), "test01", "ERR_BUSINESS")):
+                                     (FakeMrErp(upload_error="ผิดพลาด"), "fakepw", "ERR_BUSINESS")):
             with self.subTest(code=code):
                 out = self.run_case(site, [purchase()], password)
                 self.assertEqual(out["status"], "failed")
