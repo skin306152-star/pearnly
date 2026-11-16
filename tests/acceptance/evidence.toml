@@ -3,12 +3,12 @@
 
 [[pass]]
 scenario = "acc.erp.company.connect"
-sha = "942b0024324e05c1204699ee22b3800ab043540e"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-123142-942b00243"
+run = "20261116-171043-a1cf24198"
 retried = false
-covers = "84318fab41b1f1c5"
+covers = "d50b557f44474d38"
 add_branch = "added"
 company = "CO-00001"
 nbsp_customers = 1
@@ -16,12 +16,12 @@ receipt_types = 20
 
 [[pass]]
 scenario = "acc.erp.company.connect.fresh"
-sha = "942b0024324e05c1204699ee22b3800ab043540e"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-123142-942b00243"
+run = "20261116-170820-a1cf24198"
 retried = false
-covers = "84318fab41b1f1c5"
+covers = "d50b557f44474d38"
 add_branch = "adopted"
 company = "CO-00001"
 nbsp_customers = 1
@@ -29,12 +29,12 @@ receipt_types = 20
 
 [[pass]]
 scenario = "acc.erp.company.connect.twice"
-sha = "942b0024324e05c1204699ee22b3800ab043540e"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-123142-942b00243"
+run = "20261116-171246-a1cf24198"
 retried = false
-covers = "84318fab41b1f1c5"
+covers = "d50b557f44474d38"
 add_branch = "added"
 company = "CO-00001"
 nbsp_customers = 1
@@ -42,160 +42,160 @@ receipt_types = 20
 
 [[pass]]
 scenario = "acc.erp.denied"
-sha = "942b0024324e05c1204699ee22b3800ab043540e"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-123142-942b00243"
+run = "20261116-171445-a1cf24198"
 retried = false
-covers = "7725738405d8cd16"
+covers = "fd3c0fc48b8bd707"
 
 [[pass]]
 scenario = "acc.erp.operator.purchase.express"
-sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-143210-011ae64eb"
+run = "20261116-180626-a1cf24198"
 retried = false
-covers = "38abe2622f156dcc"
+covers = "20dbcad78fe64cee"
 docnums = ["HP0000090"]
 ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-00850"
-task = "s1fpjsi149"
+erp_doc = "PUR-2026-00816"
+task = "pinj38jie5"
 
 [[pass]]
 scenario = "acc.erp.pos.day.express"
-sha = "56938b89d5c27604f24b2fdef901d0f96af41b8c"
+sha = "cea84e06b989130cb23a748417f60614b1973a59"
 date = "2026-11-16"
 env = "B"
-run = "20261116-135053-56938b89d"
+run = "20261116-181210-cea84e06b"
 retried = false
-covers = "fdb0479de274cbad"
+covers = "a2ae4f683e0cf539"
 docnums = ["HS691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PDS-2026-00812"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PDS-2026-00832"
 
 [[pass]]
 scenario = "acc.erp.pos.day.vat.remembered"
-sha = "8708c99ce8af63171e3f628ef798c187439a7522"
+sha = "cea84e06b989130cb23a748417f60614b1973a59"
 date = "2026-11-16"
 env = "B"
-run = "20261116-142209-8708c99ce"
-retried = true
-covers = "fdb0479de274cbad"
+run = "20261116-180947-cea84e06b"
+retried = false
+covers = "a2ae4f683e0cf539"
 docnums = ["HS691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PDS-2026-00844"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PDS-2026-00822"
 
 [[pass]]
 scenario = "acc.erp.purchase.cancel.express"
-sha = "d00f28a43e59c47e0e2cfe404c1fc8a11cb9279a"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-140416-d00f28a43"
+run = "20261116-180036-a1cf24198"
 retried = false
-covers = "67d7002c763606e4"
+covers = "d3500ebe4305b20c"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-00821"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00811"
 
 [[pass]]
 scenario = "acc.erp.purchase.express"
-sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-143948-011ae64eb"
+run = "20261116-171538-a1cf24198"
 retried = false
-covers = "e5596ccadcdc6953"
+covers = "3e7064d070aba147"
 docnums = ["HP691116-001"]
 ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-00856"
+erp_doc = "PUR-2026-00749"
 
 [[pass]]
 scenario = "acc.erp.purchase.express.twice"
-sha = "0309abf12cdf8bc48b0f00a720c76f4c0d4818d8"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-124458-0309abf12"
+run = "20261116-171743-a1cf24198"
 retried = false
-covers = "e5596ccadcdc6953"
+covers = "3e7064d070aba147"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00751"
 
 [[pass]]
 scenario = "acc.erp.sales.cancel.express"
-sha = "d00f28a43e59c47e0e2cfe404c1fc8a11cb9279a"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-140925-d00f28a43"
+run = "20261116-180336-a1cf24198"
 retried = false
-covers = "953b2dd093e2d07f"
+covers = "ec842463c8007a6d"
 docnums = ["IV691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "SD-00825"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00815"
 
 [[pass]]
 scenario = "acc.erp.stock.adjust.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-133310-4ae7502df"
+run = "20261116-174649-a1cf24198"
 retried = false
-covers = "4d14cf330e963822"
+covers = "e1473b3751730077"
 docnums = ["TK691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.count.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-134427-4ae7502df"
+run = "20261116-175332-a1cf24198"
 retried = false
-covers = "0e38364c4cef97d0"
+covers = "d2f5c17797e54114"
 docnums = ["TK691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.in.express"
-sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-144443-011ae64eb"
+run = "20261116-174216-a1cf24198"
 retried = false
-covers = "4d14cf330e963822"
+covers = "e1473b3751730077"
 docnums = ["JU691116-001"]
 ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.out.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-132918-4ae7502df"
+run = "20261116-174417-a1cf24198"
 retried = false
-covers = "4d14cf330e963822"
+covers = "e1473b3751730077"
 docnums = ["JU691116-001", "OU691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.transfer.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-133551-4ae7502df"
+run = "20261116-174845-a1cf24198"
 retried = false
-covers = "0fd60815ce079360"
+covers = "0c5661fcf8f07ee9"
 docnums = ["JU691116-001", "RL691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.void.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"
 env = "B"
-run = "20261116-134009-4ae7502df"
+run = "20261116-175121-a1cf24198"
 retried = false
-covers = "ca6ea882d250e893"
+covers = "47a17df54ef185b3"
 docnums = ["JU691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
