@@ -36,7 +36,7 @@ def prepare(lab, manifest, case: str, body: str) -> dict:
     lab.keep_fields(manifest["site"], "ERP Company", company, ["express_sync_state"])
     script = f"""
 import os
-from pearnly_erp_portal.express import api, book_answers, choices, facts, precheck, push, target
+from pearnly_erp_portal.express import api, choices, facts, precheck, push, target
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.masters import customers
 from pearnly_erp_portal.products import service as products

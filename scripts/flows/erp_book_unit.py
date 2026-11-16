@@ -49,7 +49,8 @@ def verify(lab, manifest, params, camera_code=None):
     unit = next((row for row in first if row["kind"] == "unit"), {})
     return [
         {"case": "票面单位对不上：提交前问单位，选项是物料的单位与「填换算」（带数字输入），按采购单位预选", "seen": first,
-         "ok": unit.get("options", [])[:2] == ["ถง", "ลง"] and unit.get("entry") == ["factor"] and unit.get("value") == "ลง"},
+         "ok": sorted(unit.get("options", [])) == sorted(["ถง", "ลง", "factor"]) and unit.get("entry") == ["factor"]
+         and unit.get("value") == "ลง"},
         {"case": "没答前后台直写不新增停下、照旧不带单位键", "seen": params.get("before"),
          "ok": bool(params.get("before")) and "unit_code" not in params["before"] and "factor" not in params["before"]},
         {"case": "答「填换算 6」后不再问；后台直写的载荷带 factor 6", "seen": [params.get("after_answer"), params.get("written")],

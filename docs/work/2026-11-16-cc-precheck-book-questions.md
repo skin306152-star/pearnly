@@ -72,3 +72,15 @@ mapper / sales_mapper 先后：H5 先合（等 erp-operator-intake 进 main 后�
   等回执转题接上再开（单据页 `api._party_blocked` 加三种码、代录卡同一出口）。
 - Cowork 不改：四题资料（物料单位、结存、负库存设置、ACCNUM00）Cowork 心跳都没有，等 CC 桌面版补上（cc-desktop-takeover 已认领）。
 - 测试：`tests/test_erp_book_questions.py`（内存替身 7 条）；流程 `erp.express.book-unit / -negative / -cost / -cash`（待排回归实验室：先红后绿）。
+
+## 入口覆盖现状（11-16，接线分支；别当成已全覆盖）
+| 入口 | 现在问哪几题 | 缺什么 |
+|---|---|---|
+| ERP · CC 直写开始前确认卡片（`precheck.collect_document`） | 四题全问 | 题目名词条在 guided-frontend `pearnly/cc-guided-ui-review` 336d991c9（未合入） |
+| ERP · 网页采购 / 销售提交前弹窗（`api.preflight` → `collect_form`） | 单位、负库存（只给「允许」）、现金科目 | 出库成本不问（表单还没存，答案挂不到单上）：网页直接提交的销售单照旧不结转 |
+| ERP · 代录开始前（`operator.precheck`，含收单记录 `I:`） | 单位、负库存 | 成本、现金科目由 Express 界面自己定（按口径不问）；代录里单位框还没按答案点（CC 桌面版 `choice_points.NOT_WIRED` → 1.12.23 / 1.12.24） |
+| ERP · 后台直写（网页直接提交没经过确认卡片、定时、自动推） | 不问；只套用这本账套记住的答案 | 没记住的照旧：CC 静默默认（单位、成本、现金科目）或写时拦（负库存）。要靠 `guided: true` + CC 回执 `*_CHOICE` 转成题（单据页 / 代录卡同一出口），都还没接 |
+| ERP · LINE 录单 | 不问（主会话 11-16 定这次不做） | 总表已记缺口，估 6–8 h / 2 h |
+| ERP · CC 写时停下（`UNIT_CHOICE` / `COST_BASIS_CHOICE` / `CASH_ACCOUNT_CHOICE`） | 不会发生（ERP 不发 `guided`） | 开 `guided` 前先把三种码接进 `api._party_blocked` |
+| Cowork · 全部入口（直写、代录、放票、文件夹、LINE） | 不问 | 心跳目录没有物料单位 / 结存 / 负库存设置 / ACCNUM00（CC 桌面版补，已认领）；之后 Cowork 判定卡接线（排在 H5、盘点窗口之后） |
+| MR.ERP 账本 | 不涉及（四题是 Express 账套的规则） | — |

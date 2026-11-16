@@ -11,6 +11,7 @@ B5（识别完的实时事件）沿用共用识别队列已有的 ``pearnly_ocr_
     python3 tests/test_express_operator_code_cc.py
 """
 import ast
+import contextlib
 import datetime
 import importlib
 import importlib.util
@@ -779,6 +780,8 @@ class PrecheckTargetTests(Base):
         express.contracts, express.push = contracts, push
         express.api, express.facts = stubs["pearnly_erp_portal.express.api"], stubs["pearnly_erp_portal.express.facts"]
         express.precheck = precheck
+        # 开始前四题的代录开关（`book_answers.operating`，A3）：这里只看写进哪份账套，换成空上下文
+        express.book_answers = types.SimpleNamespace(operating=contextlib.nullcontext)
         stubs["pearnly_erp_portal.masters"].company = stubs["pearnly_erp_portal.masters.company"]
         stubs["pearnly_core.cc_desktop"].jobs = stubs["pearnly_core.cc_desktop.jobs"]
         operator = _load("erp_operator_code_cc", ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",

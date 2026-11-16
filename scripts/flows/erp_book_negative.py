@@ -26,6 +26,7 @@ book([{{"code": "OTHER-" + tag, "name": "สินค้าอื่น " + tag,
 def form(product):
     return {{"company": company, "customer": customer, "doc_date": frappe.utils.nowdate(), "has_vat": 1, "vat_rate": 7,
              "source": "manual", "doc_kind": "receipt", "is_paid": 0, "paid_amount": 0, "warehouse": warehouse,
+             "system_no": "BQ-N-" + tag + "-" + product[-4:],
              "lines": [{{"product": product, "item_type": "goods", "description": frappe.db.get_value("ERP Product", product, "product_name"),
                         "qty": 2, "unit": "ถัง", "unit_price": 50, "vat_applicable": 1, "warehouse": warehouse, "location": ""}}]}}
 
@@ -40,6 +41,8 @@ picked = answer_items(first)
 first = api.preflight("ERP Sales Document", json.dumps(form(items[0])), json.dumps(picked))["needed"] if picked else first
 first = settle("ERP Sales Document", form(items[0]), first)
 out["first"] = mine(first)
+out["first_all"] = asked(first)
+out["form_hold"] = str(precheck.collect_form("ERP Sales Document", form(items[0]), company)["result"].get("hold") or "")[:200]
 negative = next((i for i in first if i["kind"] == "negative_stock"), None)
 if negative:
     out["after_answer"] = mine(api.preflight("ERP Sales Document", json.dumps(form(items[0])),
@@ -59,7 +62,8 @@ def verify(lab, manifest, params, camera_code=None):
     first = params.get("first") or []
     negative = next((row for row in first if row["kind"] == "negative_stock"), {})
     return [
-        {"case": "不许负库存的账套卖新物料：提交前问，只给「允许负库存」、不预选（弹窗关掉就是不提交）", "seen": first,
+        {"case": "不许负库存的账套卖新物料：提交前问，只给「允许负库存」、不预选（弹窗关掉就是不提交）",
+         "seen": {"four": first, "all": params.get("first_all"), "hold": params.get("form_hold")},
          "ok": negative.get("options") == ["Y"] and not negative.get("value")},
         {"case": "选允许后不再问负库存（网页弹窗不问成本）；后台直写的那一行 negallow = Y", "seen": [params.get("after_answer"), params.get("written")],
          "ok": params.get("after_answer") == [] and (params.get("written") or {}).get("negallow") == "Y"},
