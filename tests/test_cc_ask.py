@@ -46,7 +46,7 @@ PURE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import {
-  answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
+  answered, answeredLine, askActions, confirmAnswers, docAnswers, docItemQuestion, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
   itemsOfNeeded, keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, shownQuestions, toggle, toggleOther,
 } from "@/components/tool-uis/ask-shared";
 import { ask, op } from "@/i18n";
@@ -126,6 +126,11 @@ const g = globalThis as any;
   assert.equal(isRecommended(nq[0]!.options[0]), false);           // 没有预选：不默认选
   assert.deepEqual(docAnswers(needed, nq, { answers: [{ header: "", question: "", labels: [nq[0]!.options[1]!.label] }] }), {
     A: [{ kind: "item", subject: "S1", value: "P1", label: "Paper" }], B: [{ kind: "item", subject: "S1", value: "P1", label: "Paper" }] });
+  // 欠账 B70：题前面带单据标题（单号 · 对方）；题目说明就是那个对方名时不写第二遍，别的照写
+  const party = { key: "p1", kind: "party", subject: "purchase|TAX9", label: "Shop C", state: "open", value: "", docs: ["D9"], options: [] } as any;
+  assert.equal(docItemQuestion(party, "CO-1", "IV-009 · Shop C").question, "IV-009 · Shop C · " + itemQuestion(party, "CO-1").header);
+  assert.equal(docItemQuestion(needed[0]!, "CO-1", "IV-009 · Shop C").question, "IV-009 · Shop C · " + nq[0]!.question);
+  assert.equal(docItemQuestion(party, "CO-1", "").question, itemQuestion(party, "CO-1").question);
 
   // 测试机 11-09（shots/12）：选了「按服务录入」还问从哪个仓库出库。show_if：前面那一题选中其中之一才问，否则藏起、交回 not_asked
   const cond = questionsOf({ questions: [

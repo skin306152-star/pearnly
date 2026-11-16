@@ -13,7 +13,7 @@ import { op } from "@/i18n";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught } from "@/lib/caught";
 import { AskCard } from "./ask-card";
-import { type AskItem, type AskResult, docAnswers, itemQuestion, itemsOfNeeded } from "./ask-shared";
+import { type AskItem, type AskResult, docAnswers, docItemQuestion, itemsOfNeeded } from "./ask-shared";
 import { type CardButton, OperatorCard, useCardAction } from "./operator-card";
 import { cardPhase, type ChooseInput, docTitle, operatorActions, reasonText, RESULT_UNKNOWN } from "./operator-shared";
 
@@ -64,7 +64,7 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
   // 中途这一张：问题前面带上是哪张单（几张合成一张时写张数）
   const title = docIds.length > 1 ? op.docCount(docIds.length) : docTitle(input, "");
   const questions = useMemo(
-    () => (items ?? []).map((item) => itemQuestion(item, input.company)).map((q) => (title ? { ...q, question: `${title} · ${q.question}` } : q)),
+    () => (items ?? []).map((item) => docItemQuestion(item, input.company, title)),
     [items, input.company, title],
   );
   if (following) return null;  // 合进排第一的那张卡（所有 hook 之后再返回）

@@ -327,3 +327,12 @@ export const askActions = {
     return { options, more: !!reply?.more };
   },
 };
+
+/** 代录中途那一张的题：前面带单据标题（单号 · 对方）；题目自己的说明就是那个对方名时不再写第二遍（欠账 B70：选项卡一行里
+ *  供应商名连写两遍）。 */
+export function docItemQuestion(item: AskItem, company: string, title: string): AskQuestion {
+  const q = itemQuestion(item, company);
+  if (!title) return q;
+  const repeated = !!item.label && title.split(" · ").includes(item.label);
+  return { ...q, question: `${title} · ${repeated ? kindName(item) : q.question}` };
+}
