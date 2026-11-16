@@ -261,3 +261,43 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 ```
 
 它只检查占用锁，不替人排时间：测试机、test01 的时间窗照旧先问主会话。
+
+## 首跑结果（11-16，验收首跑窗口接手；环境：本机 Mac 实验栈 erp + 测试机2 CC 正式版 1.12.21，模型费 0）
+
+两段证据，账套路径不同：
+- **旧路径**：`\\accserver\d$\ACCOUNT\69EXP\TEST2`，基线 `TEST2@2026-11-13`（12:2x–14:2x）。
+- **新路径**：`\\accserver\ACCOUNT\69EXP\TEST2`，基线 `TEST2@2026-11-16`（14:3x 起，主会话 11-16 选 A）。两份基线内容逐文件相同；验收数据根按新路径重建，旧的留在测试机2 `C:\PearnlyAcceptance\root-dshare-20261116`。
+  换路径的原因：代录在 Express 程序（`P:\69EXP`，P: = `\\accserver\ACCOUNT`）的公司登记表里按路径找账套，d$ 写法认不出（产品侧已转 CC 桌面版窗口评估按 uid 认，见共享笔记「验收首跑-代录选公司-11-16.md」）。
+
+| 场景 | 结果 | 路径 | 证据（`~/pearnly-devtools/acceptance-runs/`） |
+|---|---|---|---|
+| erp.company.connect.fresh / connect / twice | 通过 | 旧 | 20261116-123142-942b00243 |
+| erp.denied | 通过 | 旧 | 同上 |
+| erp.purchase.express | 通过 | 旧、新 | 同上；20261116-143948-011ae64eb |
+| erp.purchase.express.twice | 通过 | 旧 | 20261116-124458-0309abf12 |
+| erp.sales.credit.express | 不通过（产品缺陷 1） | 旧、新 | 20261116-124458-0309abf12；20261116-144225-011ae64eb |
+| erp.collection.three / nbsp / web.twice / line.edit / line.refused | 不通过（产品缺陷 1，其余断言全过） | 旧（three 另有新） | 20261116-125905 / 130425 / 130742 / 131059-b3a07e794、131859-fd599332b；20261116-144636-011ae64eb |
+| erp.stock.in / out / adjust / transfer / void / count | 通过 | 旧（in 另有新） | 20261116-132624 … 134427-4ae7502df；20261116-144443-011ae64eb |
+| erp.pos.day.express | 通过 | 旧 | 20261116-135053-56938b89d |
+| erp.pos.day.vat.remembered（新格） | 通过 | 旧 | 20261116-142209-8708c99ce |
+| erp.purchase.cancel / sales.cancel | 通过 | 旧 | 20261116-140416 / 140925-d00f28a43 |
+| erp.operator.purchase.express | 通过 | 新 | 20261116-143210-011ae64eb |
+| erp.operator.sales.express | 不通过（产品缺陷 2） | 新 | 20261116-143426-011ae64eb |
+| erp.operator.talk.purchase | 没测到（Mac 栈没接模型；驱动变量未配） | — | 20261116-143852-011ae64eb |
+
+产品缺陷（报主会话，不在本分支修）：
+1. 未付款 ERP 销售单的 `payment_method` 存成 `cash`（`sales/entry.py:317` 给 None，Select 无空选项被 Frappe 补成第一项；6321901ab 只修了前端）。修复在 `pearnly/select-blank-first`。
+2. 代录写成的单不把新建的客户 / 商品码挂回 ERP 档：CC 的代录回执把码放在 `meta.operator.masters`，服务端 `cc_desktop/jobs.py:69` 只读顶层 `party_code`，`express/push.py:691` 的 `link_party` / `link_products` 不执行 → 主档同步回来会另建一条。
+
+首跑校准改掉的场景 / 工具问题（只改验收脚本、maclab 测试机脚本与单测，不改产品代码）：
+- 账套资料按 40 位账套键读（公司上的 express_book 只是显示名）；重报轮询清 Frappe 进程内缓存；release 还原 CC 配对改掉的全局 `backend_url`。
+- 一组共用运行编号：`erp_chain.tag` 与采购单号带场景校验码（否则同一趟里撞单号 / 客户名）。站点脚本崩溃时把报错尾巴带回。
+- 收款：银行流水按账本 ISRUN 的 SHORTNAM 是否指到 BKMAS 户头判（同 `dbf_receipt.plan_bank`）；收款 / 库存 / 调拨写账件不交 verify 元数据（写入时已逐表自核），按「成功且 verify_state 空或 ok」判。
+- 每格还原基线后发票号 / 客户编码会重用：销售站点脚本开单前清测试站点上这本账套的未收快照与没取走的读回。
+- 库存单只挑 Express 库存品（`express_stock = 1`）；收银第一次写日汇总照用户正路答一次「是不是增值税登记户」；`ledger diff --allow=` 写成一个参数。
+- maclab 档案沿用被暂停的同通道档案的 Express 程序路径（验收数据根下没有 ExpressI.exe）。
+
+缺口（主会话定，后面排）：
+- 收款「转账方式经 SHORTNAM 指到户头 → 记银行流水」那一支：TEST2 的转账方式 SHORTNAM 都是空的，测不到；要测需在 Express 里给一种方式设 SHORTNAM 并重取基线。
+- operator.talk.purchase：Mac 栈没接模型，改在测试机1 实验栈或 testerp 上跑。
+- 旧路径证据的格（除抽查过的 4 格）明天按新路径补跑一遍。

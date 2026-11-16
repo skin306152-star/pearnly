@@ -50,6 +50,19 @@ retried = false
 covers = "7725738405d8cd16"
 
 [[pass]]
+scenario = "acc.erp.operator.purchase.express"
+sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
+date = "2026-11-16"
+env = "B"
+run = "20261116-143210-011ae64eb"
+retried = false
+covers = "38abe2622f156dcc"
+docnums = ["HP0000090"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00850"
+task = "s1fpjsi149"
+
+[[pass]]
 scenario = "acc.erp.pos.day.express"
 sha = "56938b89d5c27604f24b2fdef901d0f96af41b8c"
 date = "2026-11-16"
@@ -87,15 +100,15 @@ erp_doc = "PUR-2026-00821"
 
 [[pass]]
 scenario = "acc.erp.purchase.express"
-sha = "942b0024324e05c1204699ee22b3800ab043540e"
+sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
 date = "2026-11-16"
 env = "B"
-run = "20261116-123142-942b00243"
+run = "20261116-143948-011ae64eb"
 retried = false
 covers = "e5596ccadcdc6953"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-00749"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00856"
 
 [[pass]]
 scenario = "acc.erp.purchase.express.twice"
@@ -145,14 +158,14 @@ ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.in.express"
-sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+sha = "011ae64ebae66257d8c82490d1b407eecc11d7bf"
 date = "2026-11-16"
 env = "B"
-run = "20261116-132624-4ae7502df"
+run = "20261116-144443-011ae64eb"
 retried = false
 covers = "4d14cf330e963822"
 docnums = ["JU691116-001"]
-ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.out.express"
