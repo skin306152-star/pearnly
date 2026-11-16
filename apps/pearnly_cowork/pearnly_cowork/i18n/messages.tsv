@@ -2532,3 +2532,9 @@ Edit card	编辑卡片	แก้ไขการ์ด	カードを編集	guide.o
 Move card	移动卡片	ย้ายการ์ด	カードを移動	guide.option.work.move
 Mark complete or incomplete	标记完成或未完成	ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ	完了・未完了を切り替え	guide.option.work.done
 Nothing to change	没有要改的项	ไม่มีรายการที่จะแก้ไข	変更する項目がありません	guide.fact.work.nothing
+Members	成员	สมาชิก	メンバー	guide.step.work.assignees
+Labels	标签	ป้ายกำกับ	ラベル	guide.step.work.label_ids
+Done	完成	เสร็จ	完了	guide.step.work.checked
+Item	项目	รายการ	項目	guide.step.work.new_item
+Checklist	清单	รายการตรวจสอบ	チェックリスト	guide.step.work.new_group
+Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.work.files

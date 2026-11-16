@@ -67,6 +67,8 @@ _module("pearnly_core.assistant.write_plan", _iso=lambda moment: moment.isoforma
 
 
 CARDS = {"C1": {"name": "C1", "title": "VAT for ABC", "board_list": "L1", "modified": "2026-11-16 09:00:00", "description": "",
+                "assignees": ["a@x"], "labels": ["G1"],
+                "checklists": [{"title": "Docs", "items": [{"title": "Bank statement", "done": 1}, {"title": "Sales report", "done": 0}]}],
                 "start_date": None, "due_date": "2026-11-20", "due_time": "17:00:00", "reminder": "1d", "recurrence": "never"},
          "C2": {"name": "C2", "title": "Payroll", "board_list": "L2", "modified": "2026-11-16 09:30:00"}}
 
@@ -81,12 +83,17 @@ def _call(name):
 
 
 _module("pearnly_cowork.work")
+_module("pearnly_cowork.work.service", attach=lambda name, upload: STATE["attached"].append((name, upload.filename, upload.stream.read())))
+_module("pearnly_core.assistant.files", attachment=lambda file_id: (STATE["files"][file_id], b"pdf") if file_id in STATE["files"]
+        else (_ for _ in ()).throw(ValueError("not here")))
 _module("pearnly_cowork.work.access", allowed=lambda user=None: STATE["work"])
 _module("pearnly_cowork.work.api",
         boards_list=lambda: [{"name": "B1", "title": "Team board", "is_default": 1}, {"name": "B2", "title": "Payroll", "is_default": 0}],
         board_lists=lambda board: [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done"}],
         board=lambda board=None: {"lists": [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done"}],
-                                  "cards": [dict(card) for card in CARDS.values()]},
+                                  "cards": [dict(card) for card in CARDS.values()],
+                                  "members": [{"user": "a@x", "name": "Aom"}, {"user": "b@x", "name": "Bee"}],
+                                  "labels": [{"name": "G1", "title": "Urgent", "color": "red"}, {"name": "G2", "title": "", "color": "blue"}]},
         card=lambda name: dict(CARDS[name]), create=_call("create"), update=_call("update"), move=_call("move"),
         toggle_done=_call("toggle_done"), comment=_call("comment"))
 
@@ -106,7 +113,7 @@ class Doc(dict):
 class Base(unittest.TestCase):
     def setUp(self):
         STATE.clear()
-        STATE.update(work=True, calls=[], rollbacks=[])
+        STATE.update(work=True, calls=[], rollbacks=[], attached=[], files={"F1": "receipt.pdf"})
         HOOKS["pearnly_guides"] = ["pearnly_cowork.assistant.guided.work.GUIDES"]
         self.docs, self.clock = {}, [0]
         self.now = {"session_id": SESSION, "mode": "chat", "company": "CO-1", "ledger": "BOOK", "period": "2026-11",
@@ -200,6 +207,40 @@ class Work(Base):
         name, found = self.walk({"action": "update"}, {"card": "C1"}, {"rename": "VAT ABC"})
         back = run.confirm(name, found["version"])
         self.assertEqual(back["card"]["returned"]["card"]["text"], "cowork.work.error.changed")
+
+    def test_members_and_labels_suggest_the_current_ones_and_replace_them(self):
+        name, found = self.walk({"action": "members"}, {"card": "C1"})
+        self.assertEqual(self.questions(found)["assignees"]["preselected"], ["a@x"])
+        found = run.answer(name, {"assignees": ["a@x", "b@x"]})
+        self.assertEqual([row["name"] for row in found["review"]["tables"][0]["rows"]], ["Aom", "Bee"])
+        run.confirm(name, found["version"])
+        self.assertEqual(json.loads(STATE["calls"][0][1][2]), {"assignees": ["a@x", "b@x"]})
+        STATE["calls"].clear()
+        name, found = self.walk({"action": "labels"}, {"card": "C1"}, {"label_ids": ["G2"]})
+        run.confirm(name, found["version"])
+        self.assertEqual(json.loads(STATE["calls"][0][1][2]), {"labels": ["G2"]})
+
+    def test_checklist_ticks_and_a_new_item_keep_the_other_items(self):
+        name, found = self.walk({"action": "checklist"}, {"card": "C1"})
+        self.assertEqual(self.questions(found)["checked"]["preselected"], ["0:0"])
+        found = run.answer(name, {"checked": ["0:1"], "new_item": "Payroll"})
+        run.confirm(name, found["version"])
+        self.assertEqual(json.loads(STATE["calls"][0][1][2]), {"checklists": [{"title": "Docs", "items": [
+            {"title": "Bank statement", "done": 0}, {"title": "Sales report", "done": 1}, {"title": "Payroll", "done": 0}]}]})
+
+    def test_a_new_checklist_holds_the_new_item_and_ticks_stay_when_not_answered(self):
+        name, found = self.walk({"action": "checklist"}, {"card": "C1"}, {"new_group": "Tax", "new_item": "PP30"})
+        run.confirm(name, found["version"])
+        groups = json.loads(STATE["calls"][0][1][2])["checklists"]
+        self.assertEqual((groups[0]["items"][0]["done"], groups[1]), (1, {"title": "Tax", "items": [{"title": "PP30", "done": 0}]}))
+
+    def test_attaching_puts_conversation_files_on_the_card(self):
+        name, found = self.walk({"action": "attach"}, {"card": "C1"})
+        self.assertEqual(run.answer(name, {"files": ["F9"]})["refused"], {"files": "cowork.work.error.file"})
+        found = run.answer(name, {"files": ["F1"]})
+        self.assertEqual(found["review"]["tables"][0]["rows"][0]["name"], "receipt.pdf")
+        run.confirm(name, found["version"])
+        self.assertEqual(STATE["attached"], [("C1", "receipt.pdf", b"pdf")])
 
     def test_cards_search_by_title_and_list(self):
         found = guide.card_options({"answers": {"board": "B1"}}, txt="done")

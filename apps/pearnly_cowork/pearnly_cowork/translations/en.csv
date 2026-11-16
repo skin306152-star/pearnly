@@ -3581,13 +3581,19 @@ guide.step.vat.readback,Readback
 guide.step.vat.zero_vat_as,Rows with zero VAT
 guide.step.wht.period,Tax Month
 guide.step.work.action,Action
+guide.step.work.assignees,Members
 guide.step.work.board,Board
 guide.step.work.card,Card
+guide.step.work.checked,Done
 guide.step.work.content,Comment
 guide.step.work.description,Description
 guide.step.work.due_date,Due date
 guide.step.work.due_time,Due time
+guide.step.work.files,Attachments
+guide.step.work.label_ids,Labels
 guide.step.work.list,List
+guide.step.work.new_group,Checklist
+guide.step.work.new_item,Item
 guide.step.work.recurrence,Recurring
 guide.step.work.reminder,Set reminder
 guide.step.work.rename,Title
