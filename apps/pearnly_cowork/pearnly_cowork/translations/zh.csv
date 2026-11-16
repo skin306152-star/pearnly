@@ -75,6 +75,7 @@ Account set,账套
 Account signed in elsewhere,账号已在别处登录
 Accrual basis,权责制
 Ack Digest,回执摘要
+Action,操作
 Active,正常
 Active Attempt,当前尝试
 Active Key,活动防重键
@@ -356,6 +357,7 @@ Choose a day and time for the monthly run.,请选择每月运行的日期和时�
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 Choose an Express account set first,请先选择 Express 账套
+Choose an action.,选择操作。
 Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少选择一个功能权限
@@ -1090,6 +1092,7 @@ Member,成员
 Member management,成员管理权限
 Members,成员
 Members and observers,成员和观察者
+Method,方式
 Minimum Stock,最低库存
 Mirror,镜像
 Mismatched,不一致
@@ -1725,6 +1728,7 @@ Stock,库存
 Stock (goods from now on),走库存（商品单据均走库存）
 Stock (this kind from now on),走库存（同类单据均走库存）
 Stock Account Group per Account Set,各账套的存货科目组
+Stock Count,盘点
 Stock changed; recount,库存已变动，需重新盘点
 Stock count,库存盘点
 Stock count closed,盘点已结束
@@ -1732,6 +1736,7 @@ Stock count closed,盘点已结束
 Stock count photos are not yet supported. Remove the photos before saving.,暂不支持盘点照片，请移除照片后保存。
 Stock count template,盘点表模板
 Stock count workbench,盘点工作台
+Stock counts,库存盘点
 Stock item,存货
 Stock item not found in Express,Express 中无对应存货
 Stock or expense for this company's documents like this?,本公司这类单据走库存还是记费用？
@@ -3500,6 +3505,8 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
+guide.business.stocktake,盘点
+guide.open.stocktake,选择操作。
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
@@ -3516,6 +3523,13 @@ guide.step.vat.period,税务月份
 guide.step.vat.readback,回读
 guide.step.vat.zero_vat_as,税额为零的行
 guide.step.wht.period,税务月份
+guide.step.stocktake.action,操作
+guide.step.stocktake.count,库存盘点
+guide.step.stocktake.counts,库存盘点
+guide.step.stocktake.file,表格文件
+guide.step.stocktake.mode,方式
+guide.step.stocktake.rows,本次实盘数量
+guide.step.stocktake.title,名称
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。

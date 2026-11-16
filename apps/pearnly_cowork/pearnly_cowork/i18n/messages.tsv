@@ -2480,3 +2480,12 @@ With Stock	走库存	บันทึกพร้อมสต็อก	在庫で�
 Withholding Tax	预扣税申报表	แบบ ภ.ง.ด.3 / ภ.ง.ด.53	源泉徴収税申告書	guide.business.wht
 Choose the tax month.	选择税务月份。	เลือกเดือนภาษี	課税月を選択してください。	guide.open.wht
 Tax Month	税务月份	เดือนภาษี	課税月	guide.step.wht.period
+Stock Count	盘点	ตรวจนับสินค้า	棚卸	guide.business.stocktake
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.stocktake
+Action	操作	การดำเนินการ	操作	guide.step.stocktake.action
+Sheet	表格文件	ไฟล์	シート	guide.step.stocktake.file
+Name	名称	ชื่อ	名前	guide.step.stocktake.title
+Stock count	库存盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.count
+Stock counts	库存盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.counts
+Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.rows
+Method	方式	วิธี	方法	guide.step.stocktake.mode
