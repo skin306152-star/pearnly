@@ -3466,13 +3466,19 @@ guide.step.recon.sales_vat,Output VAT report
 guide.step.recon.source,Source
 guide.step.recon.statement,Bank statement
 guide.step.work.action,Action
+guide.step.work.assignees,Members
 guide.step.work.board,Board
 guide.step.work.card,Card
+guide.step.work.checked,Done
 guide.step.work.content,Comment
 guide.step.work.description,Description
 guide.step.work.due_date,Due date
 guide.step.work.due_time,Due time
+guide.step.work.files,Attachments
+guide.step.work.label_ids,Labels
 guide.step.work.list,List
+guide.step.work.new_group,Checklist
+guide.step.work.new_item,Item
 guide.step.work.recurrence,Recurring
 guide.step.work.reminder,Set reminder
 guide.step.work.rename,Title
