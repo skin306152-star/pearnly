@@ -519,8 +519,25 @@ print(json.dumps(out))
 # 删掉的库存流水所在的「商品 + 仓库 + 仓位」原来就有结存的，用产品的 rebuild_balance 按剩下的流水重算。
 # private 下这格新出现的文件（守护的文件清单里跑前没有的）删掉；跑前就有、被改了的文件内容没法还原，照样列出。
 SWEEP_CODE = """
-import os
+import os, time
 since, before_files = {since!r}, set({before_files!r})
+site = frappe.local.site
+# 先等这个站点排着、在跑的后台任务做完（最多 60 秒）：任务在收尾之后才建的行会漏到下一格（11-16 GitHub 全套：导出、AI 记账）
+from frappe.utils.background_jobs import get_queues
+from rq.job import Job
+from rq.registry import StartedJobRegistry
+def busy():
+    n = 0
+    for q in get_queues():
+        ids = list(q.job_ids) + list(StartedJobRegistry(queue=q).get_job_ids())
+        for job in Job.fetch_many(ids, connection=q.connection):
+            if job and (job.kwargs or {{}}).get("site") == site:
+                n += 1
+    return n
+waited = 0
+while waited < 60 and busy():
+    time.sleep(1)
+    waited += 1
 modules = frappe.get_all("Module Def", filters={{"app_name": ["like", "pearnly%"]}}, pluck="name")
 rows = frappe.get_all("DocType", filters={{"module": ["in", modules], "istable": 0, "is_virtual": 0, "issingle": 0}}, pluck="name")
 tables = sorted({{t for t in rows if not t.endswith(" Log")}} | set({extra!r}) - {{"Has Role"}})
@@ -536,41 +553,94 @@ if frappe.db.exists("DocType", "ERP Stock Movement"):
         row = frappe.db.get_value("ERP Stock Movement", name, ["product", "warehouse", "location"], as_dict=True)
         if row:
             stock.add((row.product, row.warehouse, row.location or ""))
+# 每删一行框架都排一个 delete_dynamic_links 后台任务；一格删上千行（开户默认分类等）会把队列撑满（QueueOverloaded），
+# 收尾这段改成当场做，结束还原
+enqueue = frappe.enqueue
+def inline(method, *args, **kwargs):
+    if method == "frappe.model.delete_doc.delete_dynamic_links":
+        from frappe.model.delete_doc import delete_dynamic_links
+        return delete_dynamic_links(kwargs["doctype"], kwargs["name"])
+    return enqueue(method, *args, **kwargs)
+def raw_delete(t, name):
+    # 最后一档：产品在 on_trash 以外（附件的 File 钩子、权限钩子等）拒删的测试数据，直接删本行与子表；本行的附件 File 是这一格建的，下一轮按 File 删
+    for df in frappe.get_meta(t).get_table_fields():
+        frappe.db.delete(df.options, {{"parent": name, "parenttype": t}})
+    frappe.db.delete(t, {{"name": name}})
 swept, kept, forced = {{}}, {{}}, {{}}
-for _, t, name in made:
-    if not frappe.db.exists(t, name):
-        continue  # 跟着父行一起删掉了
-    error = None
-    for skip_trash in (False, True):
-        try:
-            frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=skip_trash, delete_permanently=True)
-            frappe.db.commit()
-            swept[t] = swept.get(t, 0) + 1
-            if skip_trash:
-                forced[t + " " + name] = error  # 产品拒删、跳过 on_trash 才删掉的：照样列出，不悄悄吞掉
+frappe.enqueue = inline
+try:
+    pending, stalled = list(made), False
+    # 按新到旧删；前一轮因为被这一格别的行链着删不掉的，下一轮再试（附件 File 比单据新、单据又链着它）；
+    # 一轮什么都没删掉（或到第 6 轮）就做最后一轮，那一轮才用 raw
+    for attempt in range(6):
+        final = stalled or attempt == 5
+        progress, left = 0, []
+        for row in pending:
+            _, t, name = row
+            if not frappe.db.exists(t, name):
+                continue  # 跟着父行一起删掉了
             error = None
+            for tier in ("normal", "skip on_trash", "raw") if final else ("normal", "skip on_trash"):
+                try:
+                    if tier == "raw":
+                        raw_delete(t, name)
+                    else:
+                        frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=tier != "normal", delete_permanently=True)
+                    frappe.db.commit()
+                    swept[t] = swept.get(t, 0) + 1
+                    progress += 1
+                    if tier != "normal":
+                        forced[t + " " + name] = tier + ": " + str(error)  # 产品拒删、绕过才删掉的：照样列出，不悄悄吞掉
+                    error = None
+                    break
+                except frappe.LinkExistsError as e:
+                    frappe.db.rollback()
+                    error = "linked: " + str(e)[:160]
+                    if tier != "normal":
+                        break  # 跳过 on_trash 还被链着：真有别的行连着它，raw 也不删
+                except Exception as e:  # noqa: BLE001
+                    frappe.db.rollback()
+                    error = type(e).__name__ + ": " + str(e)[:160]
+            if error:
+                left.append(row)
+                kept[t + " " + name] = error
+            else:
+                kept.pop(t + " " + name, None)
+        pending = left
+        if not pending or final:
             break
-        except frappe.LinkExistsError as e:
-            frappe.db.rollback()
-            error = "linked: " + str(e)[:160]
-            break
-        except Exception as e:  # noqa: BLE001
-            frappe.db.rollback()
-            error = type(e).__name__ + ": " + str(e)[:160]
-    if error:
-        kept[t + " " + name] = error
+        stalled = not progress
+    # 这一格给原有用户加的岗位（Has Role 是 User 的子表，不在上面）：删掉，清这些人的缓存
+    for role in frappe.get_all("Has Role", filters={{"creation": [">=", since], "parenttype": "User"}}, fields=["name", "parent"]):
+        if frappe.db.exists("User", role.parent):
+            frappe.db.delete("Has Role", {{"name": role.name}})
+            frappe.clear_cache(user=role.parent)
+            swept["Has Role"] = swept.get("Has Role", 0) + 1
+    frappe.db.commit()
+finally:
+    frappe.enqueue = enqueue
 rebuilt = 0
 if stock:
     from pearnly_erp_portal.inventory import stock as inventory
+    from pearnly_erp_portal.masters import company as companies
+    was = companies.active_company()
     for product, warehouse, location in sorted(stock):
-        if frappe.db.exists("ERP Stock Balance", {{"product": product, "warehouse": warehouse, "location": location}}):
-            try:
-                inventory.rebuild_balance(product, warehouse, location)
-                frappe.db.commit()
-                rebuilt += 1
-            except Exception as e:  # noqa: BLE001
-                frappe.db.rollback()
-                kept["rebuild " + product + " " + warehouse] = type(e).__name__ + ": " + str(e)[:160]
+        if not frappe.db.exists("ERP Stock Balance", {{"product": product, "warehouse": warehouse, "location": location}}):
+            continue  # 这一格新建的结存行，已经删掉
+        company = frappe.db.get_value("ERP Warehouse", warehouse, "company")
+        if not company:
+            continue
+        try:
+            companies.set_active_company(company)  # 仓库按当前公司认（warehouses.required）：别家公司的仓要先切过去
+            inventory.rebuild_balance(product, warehouse, location)
+            frappe.db.commit()
+            rebuilt += 1
+        except Exception as e:  # noqa: BLE001
+            frappe.db.rollback()
+            kept["rebuild " + product + " " + warehouse] = type(e).__name__ + ": " + str(e)[:160]
+    if was:
+        companies.set_active_company(was)
+        frappe.db.commit()
 root = frappe.get_site_path("private")
 removed = 0
 for folder, dirs, files in os.walk(root):
@@ -581,7 +651,7 @@ for folder, dirs, files in os.walk(root):
         if "file: " + os.path.relpath(path, root) not in before_files:
             os.remove(path)
             removed += 1
-print(json.dumps({{"swept": swept, "kept": kept, "forced": forced, "rebuilt": rebuilt, "files": removed}}))
+print(json.dumps({{"swept": swept, "kept": kept, "forced": forced, "rebuilt": rebuilt, "files": removed, "waited": waited}}))
 """
 
 # 登记过的「跑完不一样也不算留数据」：写明为什么不影响后面的格
