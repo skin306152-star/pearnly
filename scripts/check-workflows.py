@@ -36,7 +36,8 @@ def _plain(value: str) -> bool:
     return bool(value) and value[0] not in "'\"[{|>"
 
 
-def problems(name: str, text: str) -> list[str]:
+def problems(name: str, text: str, parse: bool = True) -> list[str]:
+    """逐行查（第一层）；``parse`` 为真且装了 PyYAML 时再整份解析（第二层）。"""
     out: list[str] = []
     block = None  # 正在 | / > 块里：块所属键的缩进
     for number, line in enumerate(text.splitlines(), 1):
@@ -65,7 +66,8 @@ def problems(name: str, text: str) -> list[str]:
             out.append(f"{name}:{number}: unquoted value of {found.group('key')} contains ': ' (quote it or rephrase)")
         elif body[0] in RESERVED:
             out.append(f"{name}:{number}: unquoted value of {found.group('key')} starts with {body[0]!r} (quote it)")
-    out.extend(_parsed(name, text))
+    if parse:
+        out.extend(_parsed(name, text))
     return out
 
 

@@ -12,6 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("check_workflows", ROOT / "scripts/check-workflows.py")
 gate = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(gate)
+try:
+    import yaml  # noqa: F401
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 GOOD = """name: Development checks
 on:
@@ -38,20 +43,27 @@ jobs:
 
 class WorkflowGateTests(unittest.TestCase):
     def test_the_good_sample_passes(self):
-        self.assertEqual(gate.problems("good.yml", GOOD), [])
+        self.assertEqual(gate.problems("good.yml", GOOD), [])  # 两层都过（装了 PyYAML 的 runner 上也整份解析）
 
     def test_a_colon_and_space_in_an_unquoted_step_name_is_caught_with_its_line(self):
         bad = GOOD.replace("Guide engine (decided steps", "Guide engine (shared engine: decided steps")
-        self.assertEqual(gate.problems("bad.yml", bad),
+        self.assertEqual(gate.problems("bad.yml", bad, parse=False),
                          ["bad.yml:10: unquoted value of name contains ': ' (quote it or rephrase)"])
 
     def test_a_value_ending_in_a_colon_a_reserved_first_character_and_a_tab_are_caught(self):
         bad = GOOD.replace("Folded\n", "Folded:\n").replace("python3 y.py", "*not an alias").replace(
             "      - uses: actions/checkout@v4", "\t- uses: actions/checkout@v4")
-        found = gate.problems("bad.yml", bad)
+        found = gate.problems("bad.yml", bad, parse=False)
         self.assertEqual(len(found), 3, found)
         self.assertTrue(any("tab" in item for item in found))
         self.assertTrue(any("starts with '*'" in item for item in found))
+
+    @unittest.skipUnless(HAS_YAML, "PyYAML not installed (the line checks above still run)")
+    def test_with_pyyaml_the_whole_file_is_parsed_too(self):
+        """装了 PyYAML（GitHub 的 runner 上有）：坏样例另被整份解析报出来，好样例照过、缺 jobs 的也报。"""
+        bad = GOOD.replace("Guide engine (decided steps", "Guide engine (shared engine: decided steps")
+        self.assertTrue(any("not valid YAML" in item for item in gate.problems("bad.yml", bad)))
+        self.assertIn("nojobs.yml: no jobs", gate.problems("nojobs.yml", "name: x\non: push\n"))
 
     def test_every_workflow_in_the_repository_passes(self):
         self.assertEqual(gate.main([]), 0)
