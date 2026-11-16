@@ -122,8 +122,8 @@ class Base(unittest.TestCase):
     def setUp(self):
         STATE.clear()
         STATE.update(write=True, build=True, notes=[dict(note) for note in NOTES], saved=[], deleted=[], created=[], rollbacks=[],
-                     catalog=[{"identity": f"express:010555{n:07d}:00000", "title": f"Client {n}", "tax_id": f"010555{n:07d}",
-                               "years": ["2026"], "connection": "", "account_set_key": f"010555{n:07d}:00000"}
+                     catalog=[{"identity": f"express:999000{n:07d}:00000", "title": f"Client {n}", "tax_id": f"999000{n:07d}",
+                               "years": ["2026"], "connection": "", "account_set_key": f"999000{n:07d}:00000"}
                               for n in range(60)])
         HOOKS["pearnly_guides"] = ["pearnly_erp_portal.masters.cc_guide.GUIDES"]
         self.docs, self.clock = {}, [0]
@@ -239,8 +239,8 @@ class AddCompanies(Base):
         self.assertEqual([row["name"] for row in found["review"]["tables"][0]["rows"]], ["Client 1", "Client 55"])
         done = run.confirm(name, found["version"])
         run.confirm(name, found["version"])
-        self.assertEqual(STATE["created"], [[{"connection": "", "account_set_key": "0105550000001:00000"},
-                                             {"connection": "", "account_set_key": "0105550000055:00000"}]])
+        self.assertEqual(STATE["created"], [[{"connection": "", "account_set_key": "9990000000001:00000"},
+                                             {"connection": "", "account_set_key": "9990000000055:00000"}]])
         self.assertEqual(len(done["result"]["companies"]), 2)
 
     def test_a_company_not_in_the_catalog_is_not_accepted(self):
