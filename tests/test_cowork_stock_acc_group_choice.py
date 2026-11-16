@@ -54,19 +54,22 @@ class ChoiceTest(unittest.TestCase):
             self.assertEqual(stock_groups.chosen(raw, ACCOUNT), "")
 
 
-def _purchase(config, kind="stock"):
+def _item(code=""):
+    return {"name": "Synthetic item", "qty": "1", "subtotal": "100.00", **({"code": code} if code else {})}
+
+
+def _purchase(config, kind="stock", code=""):
     fields = {"seller_name": "Synthetic Supplier", "seller_tax": "0105550000001", "subtotal": "100.00", "vat": "7.00",
-              "invoice_number": "SYN-1", "posting_item_type_manual": "goods",
-              "items": [{"name": "Synthetic item", "qty": "1", "subtotal": "100.00"}]}
+              "invoice_number": "SYN-1", "posting_item_type_manual": "goods", "items": [_item(code)]}
     history = {"id": "h1", "invoice_date": "2026-09-28", "invoice_no": "SYN-1", "total_amount": "107.00", "fields": fields}
     return build_express_payload(history, config={"account_set": "TEST", "fallback_acc": "11-04-02-00",
                                                   "vat_input_acc": "11-05-04-01", "ap_acc": "21-02-01-00", **config},
                                  posting_kind=kind, today=TODAY)
 
 
-def _sale(config, kind="stock"):
+def _sale(config, kind="stock", code=""):
     fields = {"buyer_name": "Synthetic Buyer", "buyer_tax": "0105550000002", "subtotal": "100.00", "vat": "7.00",
-              "invoice_number": "SYN-2", "items": [{"name": "Synthetic item", "qty": "1", "subtotal": "100.00"}]}
+              "invoice_number": "SYN-2", "items": [_item(code)]}
     history = {"id": "h2", "invoice_date": "2026-09-28", "invoice_no": "SYN-2", "total_amount": "107.00", "fields": fields}
     return build_express_sales_payload(history, config={"account_set": "TEST", "revenue_acc": "41-01-00-00",
                                                         "vat_output_acc": "11-05-04-02", "ar_acc": "11-02-01-00", **config},
@@ -82,11 +85,24 @@ class PayloadTest(unittest.TestCase):
             self.assertTrue(result.ok, result.reason)
             self.assertEqual(result.payload["stock_acccod"], "SB")
 
-    def test_without_a_choice_an_account_with_stock_items_still_clones_as_before(self):
+    def test_an_account_with_stock_items_decides_the_group_for_a_new_item_from_the_fit_list(self):
+        """账套里已有库存品、这张单的库存行没带物料码（CC 桌面版会新建）：同零库存品账套一份合格名单定组，不再交 CC 按众数选
+        （11-16 真机 H5：众数组 ST01 是办公设备，写到一半才拦）。两个合格的开始前问一次，一个合格的自动用它。"""
         for build in (_purchase, _sale):
-            result = build({"catalog_fingerprint": STOCKED, "reported_stock_acc_groups": GROUPS})
-            self.assertTrue(result.ok, result.reason)
-            self.assertNotIn("stock_acccod", result.payload)
+            self.assertEqual(build({"catalog_fingerprint": STOCKED, "reported_stock_acc_groups": GROUPS}).reason,
+                             "stock_acc_group_required")
+            one = build({"catalog_fingerprint": STOCKED, "reported_stock_acc_groups": [GROUPS[1], GROUPS[2]]})
+            self.assertTrue(one.ok, one.reason)
+            self.assertEqual(one.payload["stock_acccod"], "SB")
+
+    def test_an_account_with_stock_items_goes_on_as_before_when_there_is_nothing_to_decide(self):
+        """库存行都带了物料码（不新建）、心跳没报组、一个合格的都没有：不另判、不拦，照旧交给 CC 桌面版（它按品名找到现成的品照写）。"""
+        for build in (_purchase, _sale):
+            for config in ({"reported_stock_acc_groups": GROUPS}, {}, {"reported_stock_acc_groups": GROUPS[2:]}):
+                coded = config if config.get("reported_stock_acc_groups") is GROUPS else None
+                result = build({"catalog_fingerprint": STOCKED, **config}, code="P001" if coded else "")
+                self.assertTrue(result.ok, result.reason)
+                self.assertNotIn("stock_acccod", result.payload)
 
     def test_an_account_without_stock_items_uses_the_choice_or_stops(self):
         for build in (_purchase, _sale):

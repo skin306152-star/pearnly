@@ -855,6 +855,32 @@ class OperatorMastersReachTheProduct(unittest.TestCase):
         self.assertIn("codes = written_codes(meta)", channel)
 
 
+class StockGroupDecidedByTheServer(unittest.TestCase):
+    """新建库存品挂哪个存货科目组（11-16 真机 H5）：服务端在账套已有库存品时也按合格名单定（`stock_acc_group.for_new_items`），
+    定下的组随载荷 ``stock_acccod`` 交给 CC 桌面版；各版 CC 都先用它、不再按众数选。两端的键名、库存行模式值、「没带物料码 = 新建」
+    这三处对上，服务端定的组才真的落到新建的品上。"""
+
+    PUSH = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_rules" / "push"
+
+    def test_the_group_the_server_decides_is_the_one_the_desktop_builds_with(self):
+        for adapter in ("purchase_adapter.py", "sales_adapter.py"):
+            self.assertIn('stock_acccod=str(payload.get("stock_acccod") or "").strip()',
+                          (COMPANION / adapter).read_text(encoding="utf-8"), adapter)
+        # 选过的（服务端带来的）先用，没带才看众数
+        self.assertIn('code = (acccod or "").strip() or dominant', (COMPANION / "stock_template.py").read_text(encoding="utf-8"))
+        for mapper in ("mapper.py", "sales_mapper.py"):
+            self.assertIn('payload["stock_acccod"] = stock_acccod', (self.PUSH / mapper).read_text(encoding="utf-8"), mapper)
+
+    def test_stock_line_modes_and_new_items_mean_the_same_on_both_ends(self):
+        modes = number_constants(self.PUSH / "common.py", ("ITEM_MODE_STOCK",))["ITEM_MODE_STOCK"]
+        sale = number_constants(self.PUSH / "sales_mapper.py", ("ITEM_MODE_STOCK_SALE",))["ITEM_MODE_STOCK_SALE"]
+        self.assertIn(f'"{modes}"', (COMPANION / "dbf_detail.py").read_text(encoding="utf-8"))
+        self.assertIn(f'"{sale}"', (COMPANION / "stock_sale.py").read_text(encoding="utf-8"))
+        # 服务端按「库存行没带物料码」判这张单要新建：CC 桌面版对没带码的库存行先按品名找、找不到才建档（建档时挂上面那个组）
+        rule = (self.PUSH / "stock_acc_group.py").read_text(encoding="utf-8")
+        self.assertIn('not str(item.get("code") or "").strip()', rule)
+
+
 class Release1122Edges(unittest.TestCase):
     """CC 桌面版 1.12.22 那一批的三条接缝（11-15）：服务端先上线，旧版（1.12.21）与新版都要对。各条按「仓库里这版 CC 认不认」
     分两种写法核：认了就两端同名同值；还不认时服务端不能把它交给这版。"""

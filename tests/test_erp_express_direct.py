@@ -275,6 +275,27 @@ class Prepare(Base):
         choices.remember(COMPANY["name"], needed["kind"], needed["subject"], "DM")
         self.assertEqual(self.prepare(doc())["payload"]["stock_acccod"], "DM")
 
+    def test_a_book_with_stock_items_decides_the_group_for_new_items_before_the_computer_does(self):
+        """11-16 真机 H5：账套里已有库存品时，以前不判组、交给 CC 桌面版按众数选，众数组 ST01（办公设备）写到一半才拦、
+        单据上只剩「重试」。现在同零库存品账套一份合格名单：合格的只有一个就直接带它，两个以上开始前问一次（同一题、同一记法）。"""
+        from pearnly_erp_portal.express import contracts as K
+        key, = self.computer([book()])
+        new = [{"name": "D1116 H5 Item", "code": "", "unit": "ถุง", "qty": "3", "price": "100", "amount": "300.00",
+                "loccod": "02", "stock": True}]
+        one = [{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True},
+               {"code": "ST01", "desc": "อุปกรณ์", "inv_acc": "14-01-03-00", "fit": False}]
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": one}})
+        item, = self.prepare(doc(items=new))["needed"]  # 新物料先答「新建」（H5 当时选的）
+        choices.remember(COMPANY["name"], item["kind"], item["subject"], C.NEW)
+        self.assertEqual(self.prepare(doc(items=new))["payload"]["stock_acccod"], "DM")
+        two = one + [{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True}]
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": two}})
+        held = self.prepare(doc(items=new))
+        self.assertEqual(held["hold"], K.CHOICE + ":stock_group")
+        self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["DM", "P002"])
+        choices.remember(COMPANY["name"], held["needed"][0]["kind"], held["needed"][0]["subject"], "P002")
+        self.assertEqual(self.prepare(doc(items=new))["payload"]["stock_acccod"], "P002")
+
     def test_service_vat_basis_is_asked_only_when_the_books_history_cannot_decide(self):
         """10-29：赊购单服务品的进项税口径按这本账套的历史（CC 随供应商主档报的 ``srv``）定；这家两种都有才问一次，
         按「这本账套 × 这家供应商」记在公司名下，再准备时写进载荷 ``srv_vattyp``（载荷 13）。电脑写时才拦下的（主档是旧的），

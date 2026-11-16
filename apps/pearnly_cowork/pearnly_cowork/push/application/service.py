@@ -13,6 +13,7 @@ from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_core.assistant import guided as assistant_guided
+from pearnly_core.express_rules.push import stock_acc_group
 from pearnly_core.express_rules.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_core.express_rules.contracts import codes as code_rules
@@ -232,6 +233,17 @@ def prepare(history, connection, request_key, expected_history_version, expected
             tenant_id=loaded.access.tenant_id, mappings=preparation["mappings"],
             supplier_profile=preparation["supplier_profiles"].get(seller_tax),
             bank_index=preparation["bank_index"], prior_docnum=prior_docnum))
+    if prepared.disposition != "ready" and prepared.reason == stock_acc_group.REASON_ACC_GROUP_REQUIRED:
+        # 要新建库存品、这份账套合格的存货科目组有几个、还没选过（写账规则 `stock_acc_group.for_new_items`）：停成「要人选」、
+        # 带上候选（同上面写账规则问的项），不留一条只有原因、没得选的转人工（11-16 真机 H5）
+        needed = [stock_group_needed(selected['config'], target.account_set)]
+        row = ledger.reserve(context=context, request_key=request_key, frozen_target={**asdict(target),
+            "request_intent": intent, "connection_revision": loaded.revision, "original_history": prior,
+            "preparation_date": today.isoformat(), "own_tax_id": own_tax, "preparation_evidence": evidence,
+            **ledger.writer_scope(loaded.doc.name, target.account_set)},
+            frozen_payload={"adapter": "express", "choice_needed": needed},
+            disposition="manual", reason="choice_needed:stock_group", checks=[], route_device=route_device)
+        return _view(row)
     payload = prepared.payload or {}
     if confirm_duplicate and payload:
         # 小助手的查重闸认这个键：Express 已有同号不同内容 / 上一版还在时，会计确认过就照写（`duplicate_gate`）。
@@ -371,6 +383,16 @@ def _posting_history(connection, account_set, fields, direction, posting_from):
         if isinstance(found, dict) and found.get("kind") in policy_rules.GOODS_POSTING_VALUES:
             return found["kind"]
     return ""
+
+
+def stock_group_needed(config, account_set) -> dict:
+    """新建库存品要人选的存货科目组那一项（``kind = stock_group``，归类键 = 规范化账套键）：候选是这份账套合格的组，按在用的
+    库存品数排（`stock_groups.view`）。预选卡的同一题（`precheck_source._stock_group_item`）与推送准备停下时同一份。"""
+    account = normalize_express_account_key(account_set)
+    view = stock_groups.view(None, account, (config or {}).get("reported_stock_acc_groups"))
+    return {"kind": "stock_group", "subject": account, "label": str(account_set or ""),
+            "options": [{"code": group["acccod"], "name": group["label"], "used_by": group.get("used_by")}
+                        for group in view["groups"]]}
 
 
 def _apply_stock_group(config, connection, account_set):
