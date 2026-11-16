@@ -243,7 +243,7 @@
    "fieldname": "payment_method",
    "fieldtype": "Select",
    "label": "Collection Method",
-   "options": "cash\ntransfer\npromptpay\nother"
+   "options": "\ncash\ntransfer\npromptpay\nother"
   },
   {
    "fieldname": "payment_date",
@@ -423,7 +423,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-03 18:00:00.000000",
+ "modified": "2026-11-16 10:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document",
  "owner": "Administrator",
