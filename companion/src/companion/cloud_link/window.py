@@ -14,7 +14,7 @@
 
 驱动器只映射隧道盘、开网络级身份验证（CredSSP）这两项在控件的**非脚本接口**上（``IMsRdpClientNonScriptable3``
 的 ``DriveCollection``、``IMsRdpClientNonScriptable5`` 的 ``EnableCredSspSupport``），IDispatch 够不着，由注入的
-``nonscriptable`` 函数做；没给就不连（绝不退回「映射全部盘」）。这一块要在 Windows 真机上写定、实测。
+``nonscriptable`` 函数做（实现见 ``nonscriptable.for_widget``）；没给就不连（绝不退回「映射全部盘」）。还没在 Windows 真机上实测。
 
 不是 Windows、没有 ``PySide6.QtAxContainer``：导入本模块不报错，构造窗口时抛 :class:`WindowUnavailable`。
 现有代码还没有地方导入本模块。
@@ -128,7 +128,7 @@ def apply_settings(ax: Any, params: ConnectParams, password: str, *,
     _set(adv, "RedirectPrinters", False)
     _set(adv, "RedirectPorts", False)
     _set(adv, "RedirectSmartCards", False)
-    _set(adv, "RedirectDrives", True)         # 总开关开着，具体只留隧道盘由 nonscriptable 做
+    _set(adv, "RedirectDrives", False)        # 不整体映射；隧道盘由 nonscriptable 在 DriveCollection 里单独打开
     nonscriptable(ax, NonScriptable(enable_credssp=True, drive=params.tunnel_drive))
     _set(adv, "ClearTextPassword", password)
 
