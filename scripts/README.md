@@ -23,6 +23,7 @@
 | 简式税票拆税回放（离线、只读） | `cowork-vat-included-replay.py <目录> [--all] [--json]` | 递归读目录里已存的识别结果 JSON / JSONL（`results.jsonl`、识别记录 `pages`、`PipelineResult`），列出含税价拆税规则会改的票与改前改后数；不连站点、不调模型、不写文件，输入格式见文件头 |
 | 识别金标评测（只在生产机一次性容器） | `eval-invoices.py` | `run` 按真实入口提交、真实识别、按页计费；`gold` / `subset` / `l1` 在已有结果上零费用打分；用法与闸门见 [识别改动上线闸门](../docs/development/verification.md#识别改动上线闸门) |
 | 数字会计员两层回放（离线、只读、零费用） | `da-replay.py inventory / judge / gate / report` | 只读语料答案（Express 原表副本）、测试机本地测试账套的 ISPRD 与金标已有识别结果，导入推送同一套纯函数判 A / B / C、计分、比三套阈值；不连站点、不调识别与模型、不写账套，拒绝 `\\` / `S:` 开头的路径；语料只在测试机，源码复制到 WSL `/tmp` 跑、跑完删；用法见文件头 |
+| 云端 Express 只读实测（T1–T6） | `express-cloud-probe/probe.sh` | 驱动测试机1 当桥连云端：`dist` / `parse` / `status` / `pull` 只读或只在本机；`push` / `build` / `as` / `bg` / `ctl` / `cleanup` 会在测试机1 建删 `C:\PearnlyCloudProbe` 与 `PearnlyCloudProbe-*` 计划任务；云端只写用户自己的 `%LOCALAPPDATA%\PearnlyProbe` 并在 stop 时删掉。用前登记测试机占用、问主会话，步骤见[实测清单](../docs/work/2026-11-11-express-cloud-probe-checklist.md) |
 | DMS LINE 图文菜单画图 | `draw-dms-line-menu-originals.py` → `render-dms-line-menus.py` | 离线、幂等：前者重画泰文原版 `rich-{basic,query}.png` 与菜单 6 图标，后者据此生成 en / zh / ja 版；改完 `dms.card.rich.*` 词条后按此顺序重跑，再重新发布菜单 |
 
 Compose project 默认固定为 `pearnly-sample`。工作树独立不代表运行环境独立，执行前核对 context、project、Site、卷与源码挂载；不要接管其他任务正在使用的栈。
