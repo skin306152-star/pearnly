@@ -197,6 +197,8 @@ jobs:
         run: node tests/test-link-options.cjs
       - name: Endpoints reachable by GET do not write (Frappe does not commit GET requests; the mobile stocktake lookup lost its rows this way)
         run: python3 scripts/check-get-writes.py && python3 tests/test_check_get_writes.py
+      - name: List queries use only arguments the locked Frappe takes (get_all / get_list with for_update raised TypeError and broke deleting documents, 11-16)
+        run: python3 tests/test_frappe_list_kwargs.py
       - name: Pages call whitelisted endpoints with the HTTP method the endpoint declares (the Express connect dialog posted to a GET-only endpoint and popped no-permission every 3 seconds)
         run: python3 scripts/check-http-methods.py && python3 tests/test_check_http_methods.py && node --test tests/test-intake-targets-online.cjs
       - name: A ternary's else branch that uses || or ?? is parenthesised (unit registration lost scanned numbers to this precedence)

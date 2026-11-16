@@ -27,9 +27,11 @@ _IN_FLIGHT = ("prepared", "leased")
 
 
 def _pushing(doc):
-    # 锁住这张票的推送记录再判（领单先锁记录再判 pending，两边互斥：判成排队中的，删完之前电脑领不走）
-    records = frappe.get_all(RECORD, filters={"history": doc.name}, fields=["name", "status", "result_unknown"],
-                             ignore_permissions=True, for_update=True)
+    # 锁住这张票的推送记录再判（领单先锁记录再判 pending，两边互斥：判成排队中的，删完之前电脑领不走）。锁行用本仓一贯的
+    # 原生 SQL ``FOR UPDATE``（`companion/credentials.py` 同写法）：锁定版 Frappe 的 ``get_all`` 不收 ``for_update``（11-16 实验室：
+    # 删单据抛 TypeError，`tests/test_frappe_list_kwargs.py` 拦住同类写法）
+    records = frappe.db.sql("""SELECT name, status, result_unknown FROM `tabCowork Push Record`
+        WHERE history=%s FOR UPDATE""", (doc.name,), as_dict=True)
     return any(row.status in _IN_FLIGHT or row.result_unknown for row in records) or bool(
         records and frappe.db.exists("Cowork Push Writer Lock", {"holder": ["in", [row.name for row in records]]}))
 

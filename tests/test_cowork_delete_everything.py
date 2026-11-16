@@ -59,11 +59,19 @@ class FakeDB:
             return picked if as_dict else tuple(picked.values())
         return row.get(fields)
 
+    def sql(self, query, values=(), as_dict=False):
+        """只认 `removal._pushing` 那一句：按票锁它的推送记录。"""
+        assert "FROM `tabCowork Push Record`" in query and "FOR UPDATE" in query, query
+        rows = self.rows("Cowork Push Record", {"history": values[0]})
+        return [Row({key: row.get(key) for key in ("name", "status", "result_unknown")}) for row in rows]
+
     def delete(self, doctype, filters=None):
         for row in self.rows(doctype, filters):
             del self.tables[doctype][row.name]
 
-    def get_all(self, doctype, filters=None, fields=None, pluck=None, **_ignored):
+    def get_all(self, doctype, filters=None, fields=None, pluck=None, ignore_permissions=False, limit_page_length=None,
+                order_by=None, limit=None):
+        # 只收锁定版 Frappe 的 get_all 收的参数：多给（如 for_update）照真库抛 TypeError（11-16 实验室删单据就是这样坏的）
         found = self.rows(doctype, filters)
         if pluck:
             return [row.get(pluck) for row in found]
