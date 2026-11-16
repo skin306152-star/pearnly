@@ -65,7 +65,10 @@ _module("pearnly_erp_portal")
 _module("pearnly_erp_portal.express")
 _module("pearnly_erp_portal.integrations")
 intake = _module("pearnly_erp_portal.integrations.intake", DOCTYPE="ERP LINE Intake", READY="ready", CONFIRMED="confirmed",
-                 FAILED="failed")
+                 FAILED="failed", SOURCE_CC="cc", DIRECTION_CAPABILITY={"purchase": "purchase.write", "sales": "sales.write"})
+_module("pearnly_erp_portal.access")
+CAPABLE = {"purchase.write", "sales.write"}
+sys.modules["pearnly_erp_portal.access"].guard = _module("pearnly_erp_portal.access.guard", has=lambda capability: capability in CAPABLE)
 operator = _module("pearnly_erp_portal.express.operator", UNDECIDED_LINES_TEXT="Some lines have no product yet",
                    NO_PAYMENT_TEXT="Payment not chosen yet")
 _module("pearnly_core.assistant.files", attachment=lambda file_id: (f"{file_id}.pdf", b"%PDF"))
@@ -102,7 +105,10 @@ RESULT = {"doc_no": "IV-1", "doc_date": "2026-11-01", "supplier_name": "ISUZU", 
 class Base(unittest.TestCase):
     def setUp(self):
         RECEIVED.clear(), SUBMITTED.clear(), SESSIONS.clear(), COMMITS.clear(), STATE["saved"].clear(), OUTCOMES.clear()
+        frappe.session = types.SimpleNamespace(user="u@x")
+        frappe.get_all = self.get_all
         self.records = {"LI-1": Record(name="LI-1", status="ready", direction="purchase", company="CO-1", modified="t1",
+                                       source="cc", sent_by="u@x",
                                        result=json.dumps(RESULT), purchase=None, sales_document=None,
                                        line_choices=json.dumps({"lines": [{"decided": True}], "payment_decided": True}))}
         self.settled = True
@@ -113,10 +119,15 @@ class Base(unittest.TestCase):
         intake.receive_chat = self.receive
         intake.submit_chat = self.submit
         operator._intake = lambda company, doc_id: self.records.get(doc_id.partition(":")[2]) if company == "CO-1" else None
-        operator.settle_payment = lambda company, name: self.settled
+        operator.settle_payment = lambda company, name, record=None: self.settled
         operator.uploads = lambda company, period, batches: {
             "LI-1": {"state": "done", "code": "", "documents": [{"doc_id": "I:LI-1"}, {"doc_id": "I:LI-2"}]},
             "LI-3": {"state": "reading", "code": ""}}
+
+    def get_all(self, doctype, filters=None, fields=None, limit_page_length=None, **kw):
+        names = set(filters["name"][1])
+        return [row for row in self.records.values() if row.name in names and row.source == filters["source"]
+                and row.sent_by == filters["sent_by"] and row.company == filters["company"]]
 
     def get_value(self, doctype, name, fields=None, as_dict=False, **kw):
         row = self.records[name]

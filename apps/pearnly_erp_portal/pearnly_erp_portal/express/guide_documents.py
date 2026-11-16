@@ -78,6 +78,28 @@ def _ids(doc_ids) -> list:
     return list(dict.fromkeys(str(doc_id) for doc_id in doc_ids or () if doc_id))[:DOCS_MAX]
 
 
+# 一次取回的列：判据 + 复核票面与合计（`intake.build_payload` 读的那几列）+ 提交前的付款 / 行
+RECORD_FIELDS = ["name", "source", "sent_by", "company", "direction", "status", "purchase", "sales_document", "modified",
+                 "result", "line_choices", "is_paid", "payment_method", "warehouse", "item_kind", "party", "source_file_name"]
+
+
+def _records(ctx, doc_ids) -> dict:
+    """这批 ``I:<记录>`` 一次取回（同 `operator._intake` 的判据：本人、对话来的、这家公司的、有这类单据的开单权）：
+    ``{doc_id: 记录}``；别的不在里面。"""
+    from pearnly_erp_portal.access import guard
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    names = {str(doc_id).partition(":")[2]: str(doc_id) for doc_id in _ids(doc_ids)
+             if str(doc_id).partition(":")[0] == INTAKE and str(doc_id).partition(":")[2]}
+    if not names:
+        return {}
+    allowed = {direction for direction, capability in chat_intake.DIRECTION_CAPABILITY.items() if guard.has(capability)}
+    rows = frappe.get_all(chat_intake.DOCTYPE, filters={"name": ["in", list(names)], "source": chat_intake.SOURCE_CC,
+                                                        "sent_by": frappe.session.user, "company": _company(ctx)},
+                          fields=RECORD_FIELDS, limit_page_length=len(names))
+    return {names[row.name]: row for row in rows if row.direction in allowed}
+
+
 # ── 交文件 / 识别 ────────────────────────────────────────────────────────────
 
 
@@ -91,8 +113,9 @@ def intake(ctx, file_ids) -> dict:
     batches, refused = [], {}
     with _conversation(ctx):
         for file_id in list(dict.fromkeys(str(item) for item in file_ids or () if item))[:FILES_MAX]:
-            filename, content = files.attachment(file_id)
-            found = chat_intake.receive_chat(company=_company(ctx), direction=direction, filename=filename,
+            filename, content = files.attachment(file_id)  # loop-query: 卡上一次交的文件，最多 FILES_MAX 份
+            # 每份文件一条收单记录交识别（同代录放文件）
+            found = chat_intake.receive_chat(company=_company(ctx), direction=direction, filename=filename,  # loop-query: 最多 FILES_MAX 份
                                              content=content, request_key=file_id, session_id=str(ctx.get("session") or ""))
             if found.get("status") == chat_intake.FAILED:
                 refused[file_id] = str(found.get("reason") or "failed")
@@ -159,12 +182,13 @@ def review(ctx, doc_ids) -> dict:
     """复核卡：每张一行票面与标记（标记不拦，``blocking`` 那几格写不进账本、这一张这次不写）。不是本人的 / 已提交的 / 识别没成的不列。"""
     from pearnly_erp_portal.integrations import intake as chat_intake
 
+    found = _records(ctx, doc_ids)
     rows = []
     for doc_id in _ids(doc_ids):
-        row = _record(ctx, doc_id)
+        row = found.get(doc_id)
         if row is None or row.status != chat_intake.READY:
             continue
-        rows.append(_row(doc_id, frappe.get_doc(chat_intake.DOCTYPE, row.name)))
+        rows.append(_row(doc_id, row))  # loop-query: 合计按网页同一个算法逐张算（intake.totals），一次引导最多 DOCS_MAX 张
     return {"rows": rows}
 
 
@@ -211,19 +235,21 @@ def confirm(ctx, doc_ids, consent) -> dict:
     from pearnly_erp_portal.integrations import intake as chat_intake
 
     docs = []
+    found = _records(ctx, doc_ids)
     with _conversation(ctx), conversation.for_session(str(ctx.get("session") or "")):
         for doc_id in _ids(doc_ids):
-            row = _record(ctx, doc_id)
+            row = found.get(doc_id)
             if row is None:
                 docs.append({"doc_id": doc_id, "status": HELD, "reason": "not_permitted"})
                 continue
-            problem = _not_ready(row)
+            problem = _not_ready(row)  # loop-query: 付款按对方记住的要查记忆（每张一次），一次引导最多 DOCS_MAX 张
             if problem:
                 frappe.db.commit()  # 记住的付款写回了记录也留着
-                docs.append({"doc_id": doc_id, "status": HELD, "reason": problem, "reason_text": _held_text(row.name)})
+                docs.append({"doc_id": doc_id, "status": HELD, "reason": problem, "reason_text": _held_text(row)})
                 continue
             try:
-                created = chat_intake.submit_chat(row.name)
+                # 逐张用网页同一个入账函数提交、一张一事务（同代录开录 `operator._submit_intake`）
+                created = chat_intake.submit_chat(row.name)  # loop-query: 一张一事务提交，最多 DOCS_MAX 张
             except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
                 frappe.db.rollback()
                 frappe.clear_messages()
@@ -238,9 +264,12 @@ UNDECIDED_LINES = "undecided_lines"
 PAYMENT_UNDECIDED = "payment_undecided"
 
 
-def _lines_open(name) -> bool:
-    choices = json.loads(frappe.db.get_value("ERP LINE Intake", name, "line_choices") or "null") or {}
-    return any(line and not line.get("decided") for line in choices.get("lines") or [])
+def _choices(row) -> dict:
+    return json.loads(row.line_choices or "null") or {}
+
+
+def _lines_open(row) -> bool:
+    return any(line and not line.get("decided") for line in _choices(row).get("lines") or [])
 
 
 def _not_ready(row) -> str:
@@ -248,23 +277,18 @@ def _not_ready(row) -> str:
     卡上点过的，或对这个对方点过一次记住了的才算；只是预选、没点过的这一张留下）。"""
     from pearnly_erp_portal.express import operator
 
-    if _lines_open(row.name):
+    if _lines_open(row):
         return UNDECIDED_LINES
-    return "" if operator.settle_payment(_company_of(row), row.name) else PAYMENT_UNDECIDED
+    return "" if operator.settle_payment(row.company, row.name, row) else PAYMENT_UNDECIDED
 
 
-def _company_of(row) -> str:
-    return str(getattr(row, "company", "") or frappe.db.get_value("ERP LINE Intake", row.name, "company") or "")
-
-
-def _held_text(name) -> str:
+def _held_text(row) -> str:
     """没提交的这一张为什么留下（结果行那一句，沿用代录开录同一组词条）。"""
     from pearnly_erp_portal.express import operator
 
-    if _lines_open(name):
+    if _lines_open(row):
         return _(operator.UNDECIDED_LINES_TEXT)
-    choices = json.loads(frappe.db.get_value("ERP LINE Intake", name, "line_choices") or "null") or {}
-    return "" if choices.get("payment_decided") else _(operator.NO_PAYMENT_TEXT)
+    return "" if _choices(row).get("payment_decided") else _(operator.NO_PAYMENT_TEXT)
 
 
 def result(ctx, doc_ids) -> dict:
@@ -272,25 +296,26 @@ def result(ctx, doc_ids) -> dict:
     from pearnly_erp_portal.express import cc_tools
     from pearnly_erp_portal.integrations import intake as chat_intake
 
+    found = _records(ctx, doc_ids)
     rows, wait = [], False
     for doc_id in _ids(doc_ids):
-        row = _record(ctx, doc_id)
-        if row is None:
+        record = found.get(doc_id)
+        if record is None:
             rows.append({"doc_id": doc_id, "status": FAILED, "reason": "not_permitted"})
             continue
-        record = frappe.db.get_value(chat_intake.DOCTYPE, row.name, ["status", "direction", "purchase", "sales_document"],
-                                     as_dict=True)
         document = record.purchase if record.direction == "purchase" else record.sales_document
         if record.status != chat_intake.CONFIRMED or not document:
-            text = _held_text(row.name) if record.status == chat_intake.READY else ""
+            text = _held_text(record) if record.status == chat_intake.READY else ""
             rows.append({"doc_id": doc_id, "status": HELD, **({"reason_text": text} if text else {})})
             continue
-        found = cc_tools._outcome(cc_tools.KINDS[record.direction], document)
-        status = {"entered": ENTERED, "queued": QUEUED}.get(found.get("status"), HELD if found.get("status") != "failed" else FAILED)
+        # 每张单的写账状态同对话推送结果逐张判（`cc_tools._outcome`）
+        outcome = cc_tools._outcome(cc_tools.KINDS[record.direction], document)  # loop-query: 逐张判写账状态，最多 DOCS_MAX 张
+        status = {"entered": ENTERED, "queued": QUEUED}.get(outcome.get("status"),
+                                                            FAILED if outcome.get("status") == "failed" else HELD)
         wait = wait or status == QUEUED
         rows.append({"doc_id": doc_id, "status": status, "document": document,
-                     **({"docnum": found["docnum"]} if found.get("docnum") else {}),
-                     **({"reason_text": found["reason"]} if found.get("reason") else {})})
+                     **({"docnum": outcome["docnum"]} if outcome.get("docnum") else {}),
+                     **({"reason_text": outcome["reason"]} if outcome.get("reason") else {})})
     return {"rows": rows, "wait": wait}
 
 
