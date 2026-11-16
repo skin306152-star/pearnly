@@ -335,11 +335,13 @@ Express Number,Express 番号
 Express Push Guide,Express プッシュガイド
 Express closed twice,Express が続けて終了しました
 Express history,Express の履歴
+Express is waiting for a choice,Express が選択を待っています
 Express license limit reached,Express のライセンス数の上限です
 Express no.,Express 番号
 Express reopened,Express を再度開きました
 Express sign-in failed,Express のログインに失敗しました
 Express sign-in not set,Express のログインが未設定です
+Express was used during entry,入力中に Express が操作されました
 External Doc No,外部伝票番号
 External ERP Push,外部ERP連携
 External IDs & Dedupe,外部IDと重複排除
@@ -1414,8 +1416,10 @@ operator.report.reason.cc_restarted,CC デスクトップが再起動しまし�
 operator.report.reason.company_mismatch,会社がタスクと一致しません
 operator.report.reason.company_pick,Express で会社を選択してください
 operator.report.reason.crash_repeated,Express が続けて終了しました
+operator.report.reason.dialog_choice,Express が選択を待っています
 operator.report.reason.duplicate_ref,取引先の番号が重複しています
 operator.report.reason.express_restarted,Express を再度開きました
+operator.report.reason.interrupted,入力中に Express が操作されました
 operator.report.reason.item_missing,Express に商品がありません
 operator.report.reason.license,Express のライセンス数の上限です
 operator.report.reason.login_failed,Express のログインに失敗しました

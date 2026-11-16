@@ -335,11 +335,13 @@ Express Number,เลขที่ Express
 Express Push Guide,คู่มือการส่งเข้า Express
 Express closed twice,Express ปิดตัวซ้ำ
 Express history,ประวัติใน Express
+Express is waiting for a choice,Express รอการเลือก
 Express license limit reached,สิทธิ์ใช้งาน Express เต็ม
 Express no.,เลขที่ใน Express
 Express reopened,เปิด Express ใหม่แล้ว
 Express sign-in failed,เข้าสู่ระบบ Express ไม่สำเร็จ
 Express sign-in not set,ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express
+Express was used during entry,มีการใช้งาน Express ระหว่างบันทึก
 External Doc No,เลขเอกสารภายนอก
 External ERP Push,ส่งข้อมูลเข้า ERP ภายนอก
 External IDs & Dedupe,รหัสภายนอกและการป้องกันรายการซ้ำ
@@ -1414,8 +1416,10 @@ operator.report.reason.cc_restarted,CC รีสตาร์ตแล้ว
 operator.report.reason.company_mismatch,บริษัทไม่ตรงกับงาน
 operator.report.reason.company_pick,เลือกบริษัทใน Express
 operator.report.reason.crash_repeated,Express ปิดตัวซ้ำ
+operator.report.reason.dialog_choice,Express รอการเลือก
 operator.report.reason.duplicate_ref,เลขที่อ้างอิงซ้ำ
 operator.report.reason.express_restarted,เปิด Express ใหม่แล้ว
+operator.report.reason.interrupted,มีการใช้งาน Express ระหว่างบันทึก
 operator.report.reason.item_missing,ไม่มีสินค้านี้ใน Express
 operator.report.reason.license,สิทธิ์ใช้งาน Express เต็ม
 operator.report.reason.login_failed,เข้าสู่ระบบ Express ไม่สำเร็จ

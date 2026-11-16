@@ -335,11 +335,13 @@ Express Number,Express Number
 Express Push Guide,Express Push Guide
 Express closed twice,Express closed twice
 Express history,Express history
+Express is waiting for a choice,Express is waiting for a choice
 Express license limit reached,Express license limit reached
 Express no.,Express no.
 Express reopened,Express reopened
 Express sign-in failed,Express sign-in failed
 Express sign-in not set,Express sign-in not set
+Express was used during entry,Express was used during entry
 External Doc No,External Doc No
 External ERP Push,External ERP Push
 External IDs & Dedupe,External IDs & Dedupe
@@ -1412,8 +1414,10 @@ operator.report.reason.cc_restarted,CC restarted
 operator.report.reason.company_mismatch,Company does not match the task
 operator.report.reason.company_pick,Choose the company in Express
 operator.report.reason.crash_repeated,Express closed twice
+operator.report.reason.dialog_choice,Express is waiting for a choice
 operator.report.reason.duplicate_ref,Duplicate party reference
 operator.report.reason.express_restarted,Express reopened
+operator.report.reason.interrupted,Express was used during entry
 operator.report.reason.item_missing,Item not in Express
 operator.report.reason.license,Express license limit reached
 operator.report.reason.login_failed,Express sign-in failed
