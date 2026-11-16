@@ -26,7 +26,8 @@ def _draft(connection, key, period, options=None):
     if STATE.get("no_readback"):
         return {"status": "readback_needed"}
     return {"status": "drafted", "draft": "VAT-1", "period": period, "outcome": "pay",
-            "boxes": {"5": "700.00", "7": "300.00", "11": "400.00"}, "issues": [{"code": "x"}, {"code": "y"}]}
+            "boxes": {"5": "700.00", "7": "300.00", "11": "400.00"}, "issues": [{"code": "x"}, {"code": "y"}],
+            "issues_by_code": {"input_duplicate": 1, "input_abbreviated": 1}}
 
 
 def _previous(connection, key, period):
@@ -120,6 +121,8 @@ class Confirm(Base):
         self.assertEqual((result["status"], result["outcome"], result["boxes"]["11"], result["issues_total"]),
                          ("ready", "pay", "400.00", 2))
         self.assertEqual(result["files"], [{"file": "F1", "name": "PP30-2026-10.xlsx"}])
+        self.assertEqual(result["issues"], [{"code": "input_abbreviated", "text": "cowork.tax.issue.input_abbreviated", "count": 1},
+                                            {"code": "input_duplicate", "text": "cowork.tax.issue.input_duplicate", "count": 1}])
         run.confirm(name, found["version"])
         self.assertEqual(len(STATE["drafts"]), 1)
 
