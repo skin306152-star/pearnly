@@ -66,6 +66,38 @@ def sales_tables() -> list[str]:
     return [name for name in base if name not in ("APTRN", "APBAL", "APMAS")] + ["STLOC", "ARTRNRM", "GLBAL"]
 
 
+def purchase_tables() -> list[str]:
+    """采购直写 / 代录允许变化的表（同示范 1：总清单去掉应收三张），另加分仓、附加说明、科目余额标记。"""
+    base = tuple_of("companion/src/companion/dbf_schema.py", "BACKUP_TABLES")
+    return [name for name in base if name not in ("ARTRN", "ARBAL", "ARMAS")] + ["STLOC", "ARTRNRM", "GLBAL"]
+
+
+def purchase_readback(ctx, book, conf, docnum: str, expected: dict, new_masters: bool = False) -> dict:
+    """现购单（一行货品）在账本里的样子：APTRN 一行（供应商编码、含税合计、税额）、STCRD 明细一行（物料与数量）、进项税一行、
+    凭证一张、预期以外的表逐字节不变。``new_masters``：单上的供应商 / 物料是这一轮新建的，编码由电脑定——不按期望核编码，回读到的码
+    交给调用方核挂码。回 ``{after, summary, supplier_code, item_code}``。"""
+    after, summary = copy_and_diff(ctx, book, conf, purchase_tables())
+    head = rows(book, after, "APTRN", f"DOCNUM={docnum}")
+    ctx.save(f"aptrn-{docnum}.json", head)
+    ctx.require("APTRN 里这张单恰好一行", 1, len(head))
+    supplier_code = str(head[0].get("SUPCOD") or "").strip()
+    if not new_masters:
+        ctx.check("供应商编码", expected["supplier_code"], supplier_code)
+    ctx.check("含税合计", money(expected["totals"]["grand_total"]), money(head[0].get("NETAMT")))
+    ctx.check("税额", money(expected["totals"]["vat_amount"]), money(head[0].get("VATAMT")))
+    lines = rows(book, after, "STCRD", f"DOCNUM={docnum}")
+    ctx.save(f"stcrd-{docnum}.json", lines)
+    ctx.require("STCRD 里这张单的明细恰好一行", 1, len(lines))
+    item_code = str(lines[0].get("STKCOD") or "").strip()
+    ctx.check("明细的数量", float(expected["qty"]), abs(float(lines[0].get("TRNQTY") or 0)))
+    if not new_masters:
+        ctx.check("明细的物料", expected["item_code"], item_code)
+    ctx.check("APTRN 只多一行", 1, grew(summary, "APTRN"))
+    ctx.check("进项税登记恰好一行", 1, len(rows(book, after, "ISVAT", f"DOCNUM={docnum}")))
+    ctx.check("凭证多一张", 1, grew(summary, "GLJNL"))
+    return {"after": after, "summary": summary, "supplier_code": supplier_code, "item_code": item_code}
+
+
 def receipt_tables() -> list[str]:
     """收款直写允许变化的表（`dbf_receipt.BACKUP_TABLES` = 写入表 + 客户主档 + 科目余额标记 + 银行流水）。"""
     return tuple_of("companion/src/companion/dbf_receipt.py", "WRITE_TABLES") + ["ARMAS", "GLBAL", "BKTRN"]
