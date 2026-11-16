@@ -136,7 +136,8 @@ function view(run: Run): GuideView {
   return { ...base, result: run.result ?? { status: "entered", docnum: "RE6911-0042", total: review(run)?.total, customer: String(run.answers.customer) } };
 }
 
-/** 一个场景：collection（整条）、collection-wait（发票在读）、collection-returned（退回发票那一步）、review、inputs、expired、cancelled。 */
+/** 一个场景：collection（整条）、collection-wait（发票在读）、collection-invoices、collection-returned（退回发票那一步）、collection-methods、
+ *  review、queued、done、inputs、expired、cancelled。 */
 export function seed(scenario: string): string {
   const name = `kit-${scenario}`;
   const run: Run = { name, business: "collection", status: "asking", version: 1, answers: {}, stage: 0, flow: "collection", waitLeft: 0 };
@@ -145,6 +146,8 @@ export function seed(scenario: string): string {
   if (scenario === "collection-returned") Object.assign(run, { answers: { customer: "2100883" }, returned: { invoices: { reason: "over_collected", text: T.taken } } });
   if (scenario === "collection-methods") Object.assign(run, { answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }] } });
   if (scenario === "review") Object.assign(run, { status: "reviewing", answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }, { code: "IV6900140", amount: "500.00" }], methods: [{ code: "cash", amount: "700.00" }, { code: "transfer:KB", amount: "10500.00" }] } });
+  if (scenario === "queued" || scenario === "done") Object.assign(run, { status: scenario === "queued" ? "confirmed" : "done",
+    answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }], methods: [{ code: "cash", amount: "10700.00" }] } });
   if (scenario === "inputs") Object.assign(run, { flow: "inputs", business: "stock_count" });
   if (scenario === "expired" || scenario === "cancelled") Object.assign(run, { status: scenario });
   runs.set(name, run);
