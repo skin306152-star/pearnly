@@ -1065,6 +1065,12 @@ Enter again	再写一次	บันทึกอีกครั้ง	もう一度
 Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.q.operator_resolve
 Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.option.operator_resolve.entered
 Not posted	没有入账	ยังไม่บันทึกบัญชี	記帳されていません	guide.option.operator_resolve.not_entered
+Number, date or amount is invalid	单号、日期或金额有误	เลขที่ วันที่ หรือจำนวนเงินไม่ถูกต้อง	番号・日付・金額に誤り	guide.reason.blocking
+Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.held
+Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.reason.already_entered
+Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.reason.last_write_result_unknown
+Waiting	等待	รอคิว	待機中	guide.reason.waiting_for_computer
+Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.undecided_items
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
 Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
 Post	是否入账	บันทึกบัญชีหรือไม่	記帳	guide.q.document_policy

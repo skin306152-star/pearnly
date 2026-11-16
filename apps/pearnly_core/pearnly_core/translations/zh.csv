@@ -483,6 +483,7 @@ Month,月份
 My Profile,个人信息
 Name,名称
 Namespace is not allowed: {0},不允许的命名空间：{0}
+Needs a choice,待选择
 Needs handling,需要处理
 Net Amount,不含税金额
 Net Payable,应付净额
@@ -535,6 +536,7 @@ Note,备注
 Notes,备注
 Nothing to save,没有需要保存的更改
 Nothing to show,没有可显示的内容
+"Number, date or amount is invalid",单号、日期或金额有误
 OK,确定
 Once disabled its DMS pushes stop and the LINE binding is released,停用后其 DMS 推送停止并解除 LINE 绑定
 One default connection per account and system type.,每个账号同一系统类型只能有一条默认连接
@@ -1154,6 +1156,12 @@ guide.q.payment,付款方式
 guide.q.service_vat,服务税口径
 guide.q.unit,单位
 guide.q.vat,进项税
+guide.reason.already_entered,已入账
+guide.reason.blocking,单号、日期或金额有误
+guide.reason.held,待选择
+guide.reason.last_write_result_unknown,结果不明
+guide.reason.undecided_items,待选择
+guide.reason.waiting_for_computer,等待
 guide.source.book_setting,账套设置
 guide.source.company_rule,公司规则
 guide.source.document,本单

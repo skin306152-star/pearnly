@@ -80,6 +80,11 @@ def _translate(built: Dict[str, Any]) -> Dict[str, Any]:
     return built
 
 
+def reason_text(code: str) -> str:
+    """留下 / 不收的原因码 → 按本轮语言的一句（``guide.reason.<码>``）；没有现成说法回空（页面只显示状态，不按码造字）。"""
+    return _text(f"guide.reason.{code}", {}) if code else ""
+
+
 # ── 卡前两题 ─────────────────────────────────────────────────────────────────
 
 
@@ -169,13 +174,35 @@ def check_answers(card: Mapping[str, Any], answers) -> List[Dict[str, str]]:
         if item is None or not value:
             raise AnswerError("answer not on the card")
         codes = {str(o.get("code") or "") for o in item.get("options") or ()}
-        if codes and not item.get("search") and value not in codes:
+        entries = {str(o.get("code") or ""): o["entry"] for o in item.get("options") or () if isinstance(o.get("entry"), Mapping)}
+        plain = codes - set(entries)        # 带 entry 的选项必须连数一起答（「码:数」）
+        if codes and not item.get("search") and value not in plain and not _entry_ok(entries, value):
             raise AnswerError("value not offered")
         row = {"key": key, "value": value}
         if answer.get("doc_id"):
             row["doc_id"] = str(answer["doc_id"])
         out.append(row)
     return out
+
+
+def _entry_ok(entries: Mapping[str, Mapping[str, Any]], value: str) -> bool:
+    """选项带 ``entry``（选它还要填一个数，例：单位题「填换算」、成本题「填单位成本」）：答案编码「码:数」，数要是数字、
+    合 ``min_exclusive`` / ``min``。业务上的核对（例：换算合不合理）由出题方在记答时再核。"""
+    from decimal import Decimal, InvalidOperation
+
+    code, sep, number = value.partition(":")
+    entry = entries.get(code)
+    if not sep or entry is None or entry.get("input", "number") != "number":
+        return False
+    try:
+        amount = Decimal(number.strip().replace(",", ""))
+    except InvalidOperation:
+        return False
+    if not amount.is_finite():
+        return False
+    if entry.get("min_exclusive") not in (None, "") and not amount > Decimal(str(entry["min_exclusive"])):
+        return False
+    return not (entry.get("min") not in (None, "") and amount < Decimal(str(entry["min"])))
 
 
 def record(card: Mapping[str, Any], company: str, doc_ids: List[str], rows: List[Dict[str, str]]) -> Dict[str, Any]:
@@ -455,6 +482,11 @@ def result(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], stored: Mapp
     for item in stored.get("held") or ():
         rows.setdefault(str(item["doc_id"]), {"doc_id": str(item["doc_id"]), "status": "held",
                                                "reason": str(item.get("reason") or "")})
+    for row in rows.values():
+        if not row.get("reason_text") and row.get("reason"):
+            text = reason_text(str(row["reason"]))
+            if text:
+                row["reason_text"] = text
     return {"status": stored.get("status") or "", "rows": [rows[doc_id] for doc_id in docs if doc_id in rows],
             "wait": bool(found.get("wait"))}
 

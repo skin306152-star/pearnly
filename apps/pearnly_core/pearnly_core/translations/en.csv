@@ -482,6 +482,7 @@ Month,Month
 My Profile,My Profile
 Name,Name
 Namespace is not allowed: {0},Namespace is not allowed: {0}
+Needs a choice,Needs a choice
 Needs handling,Needs handling
 Net Amount,Net Amount
 Net Payable,Net Payable
@@ -533,6 +534,7 @@ Not subscribed,Not subscribed
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
+"Number, date or amount is invalid","Number, date or amount is invalid"
 OK,OK
 Once disabled its DMS pushes stop and the LINE binding is released,Once disabled its DMS pushes stop and the LINE binding is released
 One default connection per account and system type.,One default connection per account and system type.
@@ -1152,6 +1154,12 @@ guide.q.payment,Payment
 guide.q.service_vat,Service VAT basis
 guide.q.unit,Unit
 guide.q.vat,Input VAT
+guide.reason.already_entered,Posted
+guide.reason.blocking,"Number, date or amount is invalid"
+guide.reason.held,Needs a choice
+guide.reason.last_write_result_unknown,Result unknown
+guide.reason.undecided_items,Needs a choice
+guide.reason.waiting_for_computer,Waiting
 guide.source.book_setting,Account set setting
 guide.source.company_rule,Company rule
 guide.source.document,This document

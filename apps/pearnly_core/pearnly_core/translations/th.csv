@@ -483,6 +483,7 @@ Month,เดือน
 My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
 Namespace is not allowed: {0},เนมสเปซที่ไม่อนุญาต: {0}
+Needs a choice,ต้องเลือก
 Needs handling,ต้องดำเนินการ
 Net Amount,ยอดก่อนภาษี
 Net Payable,ยอดสุทธิที่ต้องชำระ
@@ -535,6 +536,7 @@ Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
 Nothing to show,ไม่มีข้อมูลให้แสดง
+"Number, date or amount is invalid",เลขที่ วันที่ หรือจำนวนเงินไม่ถูกต้อง
 OK,ตกลง
 Once disabled its DMS pushes stop and the LINE binding is released,เมื่อปิดใช้งาน การส่งไป DMS ของพนักงานรายนี้จะหยุดและยกเลิกการผูก LINE
 One default connection per account and system type.,แต่ละบัญชีมีการเชื่อมต่อเริ่มต้นได้หนึ่งรายการต่อประเภทระบบ
@@ -1154,6 +1156,12 @@ guide.q.payment,การชำระเงิน
 guide.q.service_vat,เกณฑ์ภาษีบริการ
 guide.q.unit,หน่วย
 guide.q.vat,ภาษีซื้อ
+guide.reason.already_entered,บันทึกบัญชีแล้ว
+guide.reason.blocking,เลขที่ วันที่ หรือจำนวนเงินไม่ถูกต้อง
+guide.reason.held,ต้องเลือก
+guide.reason.last_write_result_unknown,ไม่ทราบผล
+guide.reason.undecided_items,ต้องเลือก
+guide.reason.waiting_for_computer,รอคิว
 guide.source.book_setting,การตั้งค่าชุดบัญชี
 guide.source.company_rule,กฎของบริษัท
 guide.source.document,เอกสารนี้

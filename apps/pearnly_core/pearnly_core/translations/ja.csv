@@ -483,6 +483,7 @@ Month,月
 My Profile,個人プロフィール
 Name,名称
 Namespace is not allowed: {0},名前空間は許可されていません: {0}
+Needs a choice,選択待ち
 Needs handling,対応が必要
 Net Amount,税抜金額
 Net Payable,支払純額
@@ -535,6 +536,7 @@ Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
 Nothing to show,表示する項目がありません
+"Number, date or amount is invalid",番号・日付・金額に誤り
 OK,OK
 Once disabled its DMS pushes stop and the LINE binding is released,無効にするとDMSへの送信が止まり、LINE連携も解除されます
 One default connection per account and system type.,アカウントごと・システム種別ごとに既定の接続は1件のみ
@@ -1154,6 +1156,12 @@ guide.q.payment,支払方法
 guide.q.service_vat,サービス消費税の基準
 guide.q.unit,単位
 guide.q.vat,仮払消費税
+guide.reason.already_entered,記帳済み
+guide.reason.blocking,番号・日付・金額に誤り
+guide.reason.held,選択待ち
+guide.reason.last_write_result_unknown,結果不明
+guide.reason.undecided_items,選択待ち
+guide.reason.waiting_for_computer,待機中
 guide.source.book_setting,帳簿の設定
 guide.source.company_rule,会社ルール
 guide.source.document,この伝票

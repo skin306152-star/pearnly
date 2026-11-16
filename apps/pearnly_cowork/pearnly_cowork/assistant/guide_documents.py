@@ -134,8 +134,9 @@ def _row(doc_id, doc) -> dict:
     fields = (pages[index].get("fields") or {}) if index is not None else {}
     face = card.face(_face(fields))
     marks = card.check(face)
+    editable = [*card.EDITABLE, *(f"lines.{index}.{column}" for index in range(len(face["lines"])) for column in card.LINE_FIELDS)]
     return {"doc_id": doc_id, "direction": _direction(fields), "version": str(doc.get("record_version") or ""), "face": face,
-            "marks": marks["marks"], "cells": marks["cells"], "blocking": marks["blocking"]}
+            "marks": marks["marks"], "cells": marks["cells"], "blocking": marks["blocking"], "editable": sorted(editable)}
 
 
 def review(ctx, doc_ids) -> dict:

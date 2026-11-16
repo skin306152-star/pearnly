@@ -174,8 +174,9 @@ def _row(doc_id, doc) -> dict:
     result = json.loads(doc.result or "{}")
     face = card.face(_fields(doc, result))
     marks = card.check(face)
+    editable = [*FACE_KEYS[doc.direction], *(f"lines.{index}.{column}" for index in range(len(face["lines"])) for column in LINE_KEYS)]
     return {"doc_id": doc_id, "direction": doc.direction, "version": _version(doc), "face": face, "marks": marks["marks"],
-            "cells": marks["cells"], "blocking": marks["blocking"]}
+            "cells": marks["cells"], "blocking": marks["blocking"], "editable": editable}
 
 
 def review(ctx, doc_ids) -> dict:

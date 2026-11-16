@@ -170,6 +170,10 @@ class Review(Base):
                                                                                             "2026-11-01", "107.00"))
         self.assertEqual(face["lines"][0]["amount"], "100")
         self.assertEqual(row["blocking"], [])
+        self.assertIn("doc_no", row["editable"])
+        self.assertIn("lines.0.qty", row["editable"])
+        self.assertNotIn("total", row["editable"])  # 合计按网页算法算，页面画成只读
+        self.assertNotIn("lines.0.amount", row["editable"])
 
     def test_edits_go_back_onto_the_record_and_computed_cells_do_not_change(self):
         G.edit(CTX, "I:LI-1", "doc_no", "IV-9")

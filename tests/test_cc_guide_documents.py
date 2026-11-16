@@ -252,6 +252,7 @@ class Walk(Base):
         self.assertEqual((rows["I:1"]["status"], rows["I:2"]["status"]), ("queued", "held"))  # 留下的那张结果行可见
         self.assertEqual(self.confirmed[0][0], ["I:1"])
         self.assertEqual(self.asked_results, ["I:1"])  # 结果只向产品要交出去的那几张
+        self.assertEqual(rows["I:2"]["reason"], "held")
 
     def test_review_edits_go_to_the_product_and_computed_cells_do_not_change(self):
         name, found = self.to_review()
@@ -308,6 +309,20 @@ class Walk(Base):
         found = self.answer_card(name, [{"key": "payment|nope", "value": "cash"}])
         self.assertEqual(found["outcome"], run.REFUSED)
         self.assertEqual(self.recorded, [])
+
+
+class Entries(unittest.TestCase):
+    """选项带 entry（A3：单位题「填换算」、成本题「填单位成本」）：答案「码:数」，数要合 entry 的下限。"""
+
+    CARD = {"questions": [{"key": "unit|1", "options": [{"code": "same"},
+                                                       {"code": "factor", "entry": {"input": "number", "min_exclusive": "0"}}]}]}
+
+    def test_a_number_after_an_entry_option_is_taken_and_a_bad_one_is_refused(self):
+        self.assertEqual(documents.check_answers(self.CARD, [{"key": "unit|1", "value": "factor:6"}]),
+                         [{"key": "unit|1", "value": "factor:6"}])
+        self.assertEqual(documents.check_answers(self.CARD, [{"key": "unit|1", "value": "same"}])[0]["value"], "same")
+        for bad in ("factor:0", "factor:x", "same:3", "factor", "factor:nan"):
+            self.assertRaises(documents.AnswerError, documents.check_answers, self.CARD, [{"key": "unit|1", "value": bad}])
 
 
 class HandOver(Base):
