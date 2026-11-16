@@ -59,7 +59,8 @@ class Session:
                  launch: Optional[Callable[[str], None]] = None, sleep: Callable[[float], None] = time.sleep,
                  registry: Optional[Callable[[], Tuple[int, str]]] = None,
                  on_claim: Callable[[int], None] = lambda _pid: None, on_gone: Callable[[int], None] = lambda _pid: None,
-                 share: Optional[Callable[[str], str]] = None, own_pids: Callable[[], Iterable[int]] = lambda: ()):
+                 share: Optional[Callable[[str], str]] = None, own_pids: Callable[[], Iterable[int]] = lambda: (),
+                 ensure_login: Optional[Callable[[], object]] = None):
         self.desk, self.recipe = desk, recipe
         self.share = share or _share_path
         self.registry = registry or self._registry_target
@@ -77,6 +78,8 @@ class Session:
         self.on_claim, self.on_gone = on_claim, on_gone
         # CC 自己启动过的 Express 进程号（宿主本机记下的）：只认这些，人自己开的 Express 一律不碰（主会话 10-30）
         self.own_pids = own_pids
+        # 云端模式：本机凭据管理器里没有 Express 登录时先经隧道向桥要（cloud_link.cloud_side.ensure_express_login）；本地为 None
+        self.ensure_login = ensure_login
 
     @staticmethod
     def _launch(exe: str) -> int:
@@ -220,6 +223,8 @@ class Session:
 
     def _start_express(self) -> None:
         login = self.recipe.login
+        if self.ensure_login is not None and login.get("verified"):
+            self.ensure_login()
         if not login.get("verified") or not credentials.exists(self.credential_target):
             raise NeedHuman("login_missing", "auto login not set up")
         if not (self.express_exe and Path(self.express_exe).is_file()):
@@ -273,6 +278,8 @@ class Session:
     def _login(self, login: Dict) -> None:
         """登录窗（「เข้าสู่ระบบ/LogIn」，10-27 实机）：按标签找到用户名格、密码格直接填，按「OK」。只试一次，失败就停（防锁账号）。
         用户名密码只从这台电脑的凭据管理器取，填完马上丢掉引用；回复里没有内容。"""
+        if self.ensure_login is not None:
+            self.ensure_login()
         found = credentials.read(self.credential_target)
         if found is None:
             raise NeedHuman("login_missing", "no stored login")

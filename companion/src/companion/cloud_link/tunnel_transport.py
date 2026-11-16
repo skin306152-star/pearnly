@@ -9,6 +9,8 @@
 - 出错一律是 httpx 的网络错误：写不进 / 桥没取走 / 隧道拒绝 / 回复不对 → ``ConnectError``，桥取走了却没回 → ``ReadTimeout``，
   正文超过上限 → ``TunnelTooLarge``（``TransportError`` 的子类，不写文件）。**绝不伪造 401 / 403 / 404**：CC 把 401 当密钥吊销、
   403 / 404 当旧服务端（1.9.1），伪造会把成员停用。
+- 桥每次重连换一个会话：``set_session`` 换上新的（云端 ``cloud_side`` 从 ``ctl\\session.json`` 读到新会话时调）；每个请求从写到核回复
+  都用发出时那一份，换会话不影响已在路上的请求怎么核对。
 """
 
 from __future__ import annotations
@@ -55,6 +57,10 @@ class TunnelTransport(httpx.BaseTransport):
         self._grace, self._first, self._most = grace, poll_first, poll_most
         self._clock, self._sleep = clock, sleep
 
+    def set_session(self, session: protocol.Session) -> None:
+        """换会话（桥重连后的新会话号与密钥）；之后的请求用新的。"""
+        self.session = session
+
     def _next_seq(self) -> int:
         with self._seq_lock:
             return next(self._seq)
@@ -75,9 +81,10 @@ class TunnelTransport(httpx.BaseTransport):
     def _exchange(self, request: httpx.Request, body: bytes, timeout: float, deadline: float) -> httpx.Response:
         request_id = protocol.new_id()
         seq = self._next_seq()
+        session = self.session
         try:
             data = protocol.encode_request(
-                self.session, seq=seq, request_id=request_id, method=request.method, path=request.url.path,
+                session, seq=seq, request_id=request_id, method=request.method, path=request.url.path,
                 query=request.url.query.decode("ascii", "replace"), headers=request.headers.multi_items(), body=body,
                 timeout=timeout)
         except protocol.TunnelError as error:
@@ -98,7 +105,7 @@ class TunnelTransport(httpx.BaseTransport):
         while True:
             raw = _read_reply(reply_path)
             if raw is not None:
-                return self._response(request, raw, request_id)
+                return self._response(request, raw, request_id, session)
             left = deadline - self._clock()
             if left <= 0:
                 break
@@ -109,9 +116,10 @@ class TunnelTransport(httpx.BaseTransport):
             raise httpx.ConnectError("tunnel: the bridge did not pick up the request", request=request)
         raise httpx.ReadTimeout(f"tunnel: no reply within {timeout + self._grace:.0f} s", request=request)
 
-    def _response(self, request: httpx.Request, raw: bytes, request_id: str) -> httpx.Response:
+    def _response(self, request: httpx.Request, raw: bytes, request_id: str,
+                  session: protocol.Session) -> httpx.Response:
         try:
-            reply = protocol.decode_reply(raw, self.session, request_id)
+            reply = protocol.decode_reply(raw, session, request_id)
         except protocol.TunnelError as error:
             raise httpx.ConnectError(f"tunnel: {error.code}", request=request) from None
         if reply.refused:

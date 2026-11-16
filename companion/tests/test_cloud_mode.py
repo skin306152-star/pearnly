@@ -143,9 +143,24 @@ def test_the_cloud_loop_runs_the_write_loop_and_on_demand_requests(cloud):
 
     cloud.setattr(request_worker, "RequestWorker", FakeRequests)
     cloud.setattr(main, "step_poll_loop", lambda configs: events.append(("poll", [c.profile_id for c in configs])))
+    from src.companion.cloud_link import cloud_side
+
+    cloud.setattr(cloud_side, "start", lambda stop: (events.append(("tunnel",)) or
+                                                    SimpleNamespace(stop=lambda: events.append(("tunnel-stopped",)))))
 
     main.step_cloud_loop([_member("p-express")])
-    assert events == [("requests", ["p-express"]), ("poll", ["p-express"]), ("requests-stopped",)]
+    assert events == [("tunnel",), ("requests", ["p-express"]), ("poll", ["p-express"]), ("requests-stopped",),
+                      ("tunnel-stopped",)]
+
+
+def test_the_cloud_loop_stopped_while_waiting_for_the_tunnel_starts_nothing(cloud):
+    from src.companion import request_worker
+    from src.companion.cloud_link import cloud_side
+
+    cloud.setattr(cloud_side, "start", lambda stop: None)
+    cloud.setattr(request_worker, "RequestWorker", lambda *_a: pytest.fail("requests started without a tunnel"))
+    cloud.setattr(main, "step_poll_loop", lambda configs: pytest.fail("poll started without a tunnel"))
+    main.step_cloud_loop([_member("p-express")])
 
 
 def _stub_main_entry(monkeypatch, store):
