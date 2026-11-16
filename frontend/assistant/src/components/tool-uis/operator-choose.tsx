@@ -1,4 +1,4 @@
-// 中途要人处理的那一张（方案 14.10，工具 operator_choose，input {task, company, doc_id, ref, party, reason, level, result_unknown}）：
+// 中途要人处理的那一张（方案 14.10，工具 operator_choose，input {task, company, doc_id, ref, party, reason, reason_text, level, result_unknown}）：
 // 每张没做成、要人处理的单一张。
 //   - 结果不明：样子同「允许」卡片（operator-card.tsx），问话是这张单（单号 · 对方），下面一行原因，〔没有入账〕〔已入账〕→ 站点 resolve，
 //     再 task_settle（以站点为准收尾）；
@@ -99,7 +99,8 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
       answer={buttons[buttons.length - 1]!.label}
       body={
         <div className="cc-op-before-body">
-          <span className="text-ink-3 text-caption" data-slot="cc-op-reason">{reasonText(input.reason)}</span>
+          {/* 产品给这条原因的那一句（同单据页、模型拿到的那句，11-16 真机 H5）；旧事件没带时照码说 */}
+          <span className="text-ink-3 text-caption" data-slot="cc-op-reason">{input.reason_text || reasonText(input.reason)}</span>
           {input.detail ? <span className="cc-op-detail" data-slot="cc-op-detail">{input.detail}</span> : null}
         </div>
       }

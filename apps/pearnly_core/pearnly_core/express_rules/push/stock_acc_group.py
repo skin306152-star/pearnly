@@ -63,6 +63,31 @@ def resolve_stock_acc_group(config: Optional[Dict[str, Any]]) -> StockAccGroupCh
     )
 
 
+def for_new_items(config: Optional[Dict[str, Any]], items: Any, stock_modes) -> Optional[StockAccGroupChoice]:
+    """账套里已有库存品、这张单有库存行没带 Express 物料码（CC 桌面版会按品名找，找不到就新建）时，新建的品挂哪个组。
+
+    以前这种情形服务端不判、交给 CC 桌面版按账套里用得最多的组建档，再由它的存货科目判据拦——用得最多的组可能根本不是存货科目
+    （11-16 真机 H5：69EXP\\TEST 两个库存品都挂 ST01 = 办公设备，CC 写到一半回 STOCK_ACC_GROUP_UNFIT，开始前没人问）。改成与
+    零库存品账套同一份名单（:func:`fit_stock_acc_groups`）：
+      选过（``stock_acccod``）→ 不另判（回 None，调用方照用选过的）；
+      合格的 1 个 → 自动用它（CC 桌面版收到 ``stock_acccod`` 优先用它，各版都一样）；
+      合格的 ≥2 个 → :data:`REASON_ACC_GROUP_REQUIRED`，开始前问一次、按账套记住；
+      合格的 0 个 / 心跳没报组 / 没有要新建的行 → 回 None，照旧交给 CC 桌面版（它按品名找到现成的品照样能写，不在这里多拦）。
+    """
+    cfg = config or {}
+    if str(cfg.get("stock_acccod") or "").strip() or not isinstance(cfg.get("reported_stock_acc_groups"), list):
+        return None
+    if not any(isinstance(item, dict) and item.get("item_mode") in stock_modes and not str(item.get("code") or "").strip()
+               for item in items or ()):
+        return None
+    groups = fit_stock_acc_groups(cfg)
+    if len(groups) == 1:
+        return StockAccGroupChoice(str(groups[0]["acccod"]).strip(), "", True)
+    if len(groups) >= 2:
+        return StockAccGroupChoice("", REASON_ACC_GROUP_REQUIRED, False)
+    return None
+
+
 def describe_from_request(request_body: Any, reported: Any) -> Dict[str, str]:
     """从推送载荷直接反查这一组的存货科目号/名。推送日志卡与导出复核表共用一个入口。
 

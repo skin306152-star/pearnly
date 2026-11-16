@@ -78,7 +78,7 @@ from pearnly_core.express_rules.push.posting_profile import (
     account_set_has_no_stock_master,
     profile_from_config,
 )
-from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.push.stock_acc_group import for_new_items, resolve_stock_acc_group
 from pearnly_core.express_rules.push.field_clean import (
     clean_address,
     clean_branch_no,
@@ -313,6 +313,13 @@ def build_express_payload(
             total=total,
             item_mode=(lambda idx, _it: line_modes[idx]) if line_modes is not None else item_mode,
         )
+    if not is_expense and has_stock_mode and not stock_acccod:
+        # 账套里已有库存品、这张单有要新建的库存品：同零库存品账套一份合格名单定组，不再交 CC 桌面版按众数选（11-16 真机 H5）
+        choice = for_new_items(config, detail["items"], (ITEM_MODE_STOCK,))
+        if choice is not None:
+            if choice.fail_reason:
+                return fail(choice.fail_reason, line_item_names(fields))
+            stock_acccod, acc_group_auto = choice.acccod, choice.auto
     if detail["status"] == ITEMS_OK and any(item.get("account") for item in detail["items"]):
         split = split_by_account(detail["items"], purchase_acc, base, "D", name or "ซื้อสินค้า/บริการ")
         if split is None:

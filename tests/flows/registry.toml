@@ -506,6 +506,22 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.operator.stop-choice"
+title = "代录 / 直写被电脑拦下后有路可走（11-16 真机 H5）：开始前问存货科目组（已有库存品的账套也问）、电脑以要人选的码拦下后卡片出原因与选项、选了带上再交"
+module = "scripts/flows/cc_operator_stop_choice.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_rules/push/stock_acc_group.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/feed.py",
+  "frontend/assistant/src/components/tool-uis/operator-choose.tsx",
+]
+
+[[flow]]
 id = "cc.operator.upload-on-send"
 title = "ERP CC 代录会话选中就上传、发送后才识别（11-14）：没发出时任务里没有上传、不识别不扣费；移除的不识别、留存删掉；上传失败留失败卡；发出后才交识别"
 module = "scripts/flows/cc_operator_upload_on_send.py"

@@ -4,7 +4,8 @@
 ``ERP Express Choice`` 按「公司 + 哪一类 + 对象」一行（对象就是写账规则给的 ``subject``）。另加两类 ERP 自己的：
 
 - ``account_set``：这家公司同期有两份账套时用哪一份（按公司 + 会计年度记，用户 10-17「两份同期账套按公司按年度问一次」）；
-- ``stock_group``：账套一个库存品都没有、要建第一个时挂哪个存货科目组（写账规则回 ``stock_acc_group_required``）；
+- ``stock_group``：要新建库存品时挂哪个存货科目组（账套一个库存品都没有，或已有库存品、这张单有要新建的、合格的组两个以上，写账规则回
+  ``stock_acc_group_required``，11-16 真机 H5 起后一种也问）；
 - ``operator_form``：代录停在定制菜单的子菜单、里面几个命令时这份账套这种单走哪一个（对象 = 「账套 | 单据种类」，值 = 菜单文字，
   `pearnly_core.express_operator.menu_choice`，评估 2026-11-05 修法 D）。它不是写账规则：不进 :func:`remembered`（写账准备的输入照旧），
   交代录时经 :func:`operator_form` 读、带进载荷 ``operator.form_choice``。
