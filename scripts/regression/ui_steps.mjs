@@ -5,11 +5,14 @@
 // 实验室站点的域名：SMOKE_CHROME_RULES="MAP erp.regression.localhost 127.0.0.1"
 import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "../smoke/devtools.mjs";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-const job = JSON.parse(process.argv[2] || "{}");
+// `@<文件>`：JSON 放在文件里（run.py 这样传）。Linux 单个命令行参数最长 128 KB，步骤多的流程（cowork.recon.run）直接传会报
+// Argument list too long（11-16 GitHub 机器上；Mac 没有单参数上限才没暴露）
+const arg = process.argv[2] || "{}";
+const job = JSON.parse(arg.startsWith("@") ? readFileSync(arg.slice(1), "utf8") : arg);
 const chromePath = process.env.SMOKE_CHROME || "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const profile = mkdtempSync(join(process.env.TMPDIR || tmpdir(), "steps-"));
 // 假摄像头：job.video 是 make_barcode_video.py 写的 y4m（条码画面）；不给就用 Chrome 自带的测试画面

@@ -543,8 +543,11 @@ def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shot
            "video": video or "", "steps": steps, **({"ready": ready} if ready else {}), **({"preload": preload} if preload else {}),
            **({"shots": shots} if shots else {})}
     env = dict(os.environ, SMOKE_CHROME_RULES=f"MAP {site} 127.0.0.1")
+    # 步骤放文件里传（`@文件`）：Linux 单个命令行参数最长 128 KB，步骤多的流程直接传会 Argument list too long（11-16）
+    with tempfile.NamedTemporaryFile("w", suffix=".json", prefix="flow-job-", delete=False, encoding="utf-8") as handle:
+        json.dump(job, handle)
     # 自成进程组：超时连同它拉起的无头 Chrome 一起结束，不留残留进程
-    proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), json.dumps(job)], stdout=subprocess.PIPE,
+    proc = subprocess.Popen(["node", str(ROOT / "scripts/regression/ui_steps.mjs"), "@" + handle.name], stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True, env=env, start_new_session=True)
     try:
         out, _ = proc.communicate(timeout=900)
@@ -557,6 +560,8 @@ def drive(site, sid, start, steps, mobile, video, ready=None, preload=None, shot
         error = StepsTimeout(f"page steps timed out after 900s{f' in step {stuck[-1]!r}' if stuck else ' before the first step'}")
         error.steps = [line for line in lines if "progress" not in line]  # 已跑完的各步结果照样写进这一格（11-13）
         raise error
+    finally:
+        os.unlink(handle.name)
     return [json.loads(line) for line in out.splitlines() if line.startswith("{") and not line.startswith('{"progress"')]
 
 
