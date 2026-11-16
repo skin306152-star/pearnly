@@ -65,7 +65,10 @@ try:
         raise SystemExit("refuse: no company whose reported books are exactly the acceptance ledger")
     frappe.set_user(params["user"])
     by_code = {"express_company": company, "is_active": 1, "express_code": ["is", "set"]}
-    product = frappe.db.get_value("ERP Product", by_code, ["name", "product_name", "express_code"], order_by="express_code asc", as_dict=True)
+    # 库存单据只能用 Express 里的库存品（express_stock = 1）：按编码排第一的常是服务品（11-16 首跑 TEST2：53-05-07-00「ค่าบริการ」，
+    # CC 拒收 STOCK_ITEM_NOT_FOUND「不存在或不是库存品」；TEST2 的库存品只有「น้ำแข็งหลอด」）
+    product = frappe.db.get_value("ERP Product", {**by_code, "express_stock": 1}, ["name", "product_name", "express_code"],
+                                  order_by="express_code asc", as_dict=True)
     places = frappe.get_all("ERP Warehouse", filters={"company": company, "is_active": 1, "express_code": ["is", "set"]},
                             fields=["name", "express_code"], order_by="express_code asc", limit_page_length=20)
     if not (product and places):
