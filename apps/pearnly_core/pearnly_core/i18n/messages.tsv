@@ -1132,3 +1132,6 @@ Enter conversion	填换算	กรอกอัตราแปลง	換算を入�
 Enter unit cost	填单位成本	กรอกต้นทุนต่อหน่วย	単位原価を入力	guide.option.cost_basis.given
 No cost posting	不结转	ไม่ลงต้นทุนขาย	原価振替なし	guide.option.cost_basis.none
 This operator task has expired. Start a new one.	此实操任务已失效，请新建一个。	งานทำใน Express นี้หมดอายุแล้ว กรุณาสร้างใหม่	この代行入力タスクは期限切れです。新しく作成してください。	
+Purchases	采购	ซื้อ	仕入	guide.business.purchase
+Sales	销售	ขาย	売上	guide.business.sales
+Collection	收款	รับชำระ	入金	guide.business.collection

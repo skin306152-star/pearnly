@@ -149,6 +149,7 @@ Client ID is required,クライアントIDは必須です
 Close,閉じる
 Collaboration Boards (WeKan),コラボボード（WeKan）
 Collapse,閉じる
+Collection,入金
 Company,会社情報
 Company List,会社一覧
 Company Master,会社マスタ
@@ -628,6 +629,7 @@ Purchase (bills received),仕入（受領した請求書）
 Purchase / Sale,仕入 / 売上
 Purchase order created: {0},伝票を作成しました：{0}
 "Purchase records, suppliers and purchasing settings",購買記録、仕入先、購買設定
+Purchases,仕入
 Purchases (confirmed and above),仕入合計（確認済み以上）
 Purchasing (Records / Suppliers / Settings),購買（記録/仕入先/設定）
 Push,送信
@@ -1115,6 +1117,9 @@ connect.title,DMSに接続
 connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
+guide.business.collection,入金
+guide.business.purchase,仕入
+guide.business.sales,売上
 guide.desc.detail.amount_only,見出しと仕訳のみ、在庫に入れない
 guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成

@@ -65,8 +65,16 @@ def businesses():
     from pearnly_core.assistant import guided
     from pearnly_core.assistant.guide import declaration, registry
 
-    # forms：按表单走的业务（点了开一次引导运行，`guide_start`）；其余照第 1 期（选业务、CC 说一句）
-    return {**guided.offered(), "forms": [guide["id"] for guide in registry.declared() if guide.get("source") == declaration.FORM]}
+    # forms：按表单走的业务（点了开一次引导运行，`guide_start`）；其余照第 1 期（选业务、CC 说一句）。
+    # labels / icons / order：菜单上的字（按本次请求的语言翻好，页面不认术语表键）、图标名、顺序，都来自产品的引导声明
+    declared = registry.declared()
+    labels = {}
+    for guide in declared:
+        found = _(guide["label_key"])
+        labels[guide["id"]] = "" if found == guide["label_key"] else found
+    return {**guided.offered(), "forms": [guide["id"] for guide in declared if guide.get("source") == declaration.FORM],
+            "labels": labels, "icons": {guide["id"]: guide["icon"] for guide in declared},
+            "order": {guide["id"]: guide["order"] for guide in declared}}
 
 
 # 按表单的引导（引导式 P0 接线，`guide.run`）：点菜单上的业务开一次、页面按 run 取卡、作答、确定、取消、搜索选项。

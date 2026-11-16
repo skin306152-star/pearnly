@@ -40,7 +40,8 @@ def _throw(message, exc=ValueError):
 
 frappe.throw = _throw
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: NOW[0])
+NOW = [datetime.datetime(2026, 11, 14, 10, 30)]
 frappe.publish_realtime = lambda event, message, user=None, after_commit=False: SENT.append(message["event"])
 sys.modules["frappe"] = frappe
 _contracts = types.ModuleType("pearnly_core.assistant.contracts")
@@ -91,6 +92,9 @@ class Base(unittest.TestCase):
             "app.review": lambda ctx, draft: {"draft": draft, "rows": [ctx["answers"]["customer"]]},
             "app.release": self.release, "app.status": lambda ctx, draft: {"status": "entered", "docnum": "RE0001"},
         })
+        original = run._commit_files
+        run._commit_files = lambda session_id, ids: list(ids)  # 交文件的登记（`assistant.files.commit`）：这里都认下
+        self.addCleanup(setattr, run, "_commit_files", original)
         run._insert, run._locked, run._save, run._open_runs, run._conversation = (
             self.insert, self.locked, self.save, self.open_runs, lambda session_id: dict(self.now))
 
@@ -374,6 +378,15 @@ class WritingGuideTests(Base):
         run.answer(name, {"customer": "C002"})
         self.assertEqual(self.applied, ["C001", "C002"])
 
+    def test_a_file_step_registers_the_files_as_handed_over_and_refuses_files_from_elsewhere(self):
+        committed = []
+        run._commit_files = lambda session_id, ids: committed.append((session_id, ids)) or [i for i in ids if i.startswith("upl_")]
+        name, found = self.walk([{"code": "transfer:T1", "amount": "600"}])
+        refused = run.answer(name, {"voucher": ["upl_1", "other_9"]})
+        self.assertEqual(refused["refused"], {"voucher": "not in this conversation"})
+        self.assertEqual(run.answer(name, {"voucher": ["upl_1"]})["status"], "reviewing")
+        self.assertEqual(committed[-1], ("S1", ["upl_1"]))
+
     def test_the_voucher_is_asked_only_when_a_method_code_starts_with_transfer(self):
         name, found = self.walk([{"code": "transfer:T1", "amount": "600"}])
         self.assertEqual([q["key"] for q in found["card"]["questions"]], ["voucher"])
@@ -437,6 +450,15 @@ class WritingGuideTests(Base):
         found = run.answer(name, {"customer": "C001"})
         self.assertIn("staff", [item["key"] for item in found["card"]["decided"]])
         self.assertNotIn("staff", [q["key"] for q in found["card"]["questions"]])
+
+    def test_a_run_left_alone_for_two_hours_expires_and_takes_nothing_more(self):
+        name = run.start("S1", "collection")["run"]
+        NOW[0] = datetime.datetime(2026, 11, 14, 12, 1)  # 开始约在 10:00，过了 120 分钟
+        try:
+            found = run.answer(name, {"customer": "C001"})
+            self.assertEqual((found["status"], found["reason"]), ("expired", "idle"))
+        finally:
+            NOW[0] = datetime.datetime(2026, 11, 14, 10, 30)
 
     def test_fact_lines_of_a_step_come_from_its_facts_function(self):
         ATTRS["app.today"] = lambda ctx: None

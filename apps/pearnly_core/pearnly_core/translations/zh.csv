@@ -149,6 +149,7 @@ Client ID is required,客户端 ID 不能为空
 Close,关闭
 Collaboration Boards (WeKan),协作看板（WeKan）
 Collapse,收起
+Collection,收款
 Company,公司
 Company List,公司列表
 Company Master,公司主档
@@ -628,6 +629,7 @@ Purchase (bills received),进项（收到的发票）
 Purchase / Sale,进项 / 销项
 Purchase order created: {0},采购单已创建：{0}
 "Purchase records, suppliers and purchasing settings",采购记录、供应商与采购设置
+Purchases,采购
 Purchases (confirmed and above),进项合计（已确认及以上）
 Purchasing (Records / Suppliers / Settings),采购（记录/供应商/设置）
 Push,推送
@@ -1115,6 +1117,9 @@ connect.title,连接 DMS
 connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
+guide.business.collection,收款
+guide.business.purchase,采购
+guide.business.sales,销售
 guide.desc.detail.amount_only,只记表头与分录，不入库
 guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建

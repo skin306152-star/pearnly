@@ -60,6 +60,8 @@ class Base(CC.Base):
                 d.name for d in self.runs.values() if d.session_id == sid and d.status in run.OPEN]),
             mock.patch.object(run, "_conversation", side_effect=lambda sid: dict(self.now)),
             mock.patch.object(run, "_announce", side_effect=lambda doc: None),
+            # 交文件登记（`assistant.files.commit(via="guide")`）：对话附件替身里有的才认下
+            mock.patch.object(run, "_commit_files", side_effect=lambda sid, ids: [i for i in ids if i in self.attached]),
         ]
         for patch in patches:
             patch.start()

@@ -149,6 +149,7 @@ Client ID is required,ต้องระบุ Client ID
 Close,ปิด
 Collaboration Boards (WeKan),กระดานทำงานร่วม (WeKan)
 Collapse,ย่อ
+Collection,รับชำระ
 Company,ข้อมูลบริษัท
 Company List,รายชื่อบริษัท
 Company Master,ข้อมูลหลักบริษัท
@@ -628,6 +629,7 @@ Purchase (bills received),ซื้อ (ใบกำกับภาษีที�
 Purchase / Sale,ซื้อ / ขาย
 Purchase order created: {0},สร้างเอกสารซื้อแล้ว: {0}
 "Purchase records, suppliers and purchasing settings",บันทึกการจัดซื้อ ผู้จำหน่าย และการตั้งค่าจัดซื้อ
+Purchases,ซื้อ
 Purchases (confirmed and above),ยอดรวมซื้อ (สถานะยืนยันแล้วขึ้นไป)
 Purchasing (Records / Suppliers / Settings),การจัดซื้อ (บันทึก/ผู้จำหน่าย/ตั้งค่า)
 Push,การส่ง
@@ -1115,6 +1117,9 @@ connect.title,เชื่อมต่อ DMS
 connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
+guide.business.collection,รับชำระ
+guide.business.purchase,ซื้อ
+guide.business.sales,ขาย
 guide.desc.detail.amount_only,บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
 guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express

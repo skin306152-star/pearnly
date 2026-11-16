@@ -59,6 +59,7 @@ class GuideRunCardTests(unittest.TestCase):
         api = (ROOT / "apps/pearnly_core/pearnly_core/assistant/api.py").read_text(encoding="utf-8")
         for name in ("guide_start", "guide_answer", "guide_confirm", "guide_cancel"):
             self.assertIn(f'@frappe.whitelist(methods=["POST"])\ndef {name}(', api)
+        self.assertIn('"labels": labels, "icons": {guide["id"]: guide["icon"] for guide in declared}', api)
         for name in ("guide_view", "guide_search"):
             self.assertIn(f'@frappe.whitelist(methods=["GET"])\ndef {name}(', api)
 

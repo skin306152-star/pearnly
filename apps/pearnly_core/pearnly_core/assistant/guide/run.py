@@ -38,6 +38,7 @@ ASKING, REVIEWING, CONFIRMED, DONE, FAILED, CANCELLED, EXPIRED = (
     "asking", "reviewing", "confirmed", "done", "failed", "cancelled", "expired")
 OPEN = (ASKING, REVIEWING)
 PAGE = 20
+IDLE_MINUTES = 120  # 放了这么久没人动就失效（同 LINE 收款确认卡 `line_collection.CARD_MINUTES`，开工方案 11-15 定）
 # 交回页面的状态（不是记录的状态）
 CHANGED, REFUSED, STOPPED = "changed", "refused", "stopped"
 CONTEXT_FIELDS = {"company": "company", "ledger": "ledger", "period": "period"}   # 声明的 expires 名 → 记录的列
@@ -91,6 +92,13 @@ def _conversation(session_id: str) -> Dict[str, Any]:
 
 
 # ── 产品函数 ─────────────────────────────────────────────────────────────────────────────────────────────────
+def _commit_files(session_id: str, file_ids: List[str]) -> List[str]:
+    """引导卡上交的文件：登记成用户在这段对话里交出的（`assistant.files.commit`，唯一入口），回认下的编号。"""
+    from pearnly_core.assistant import files, sessions
+
+    return files.commit(sessions.owned(session_id), file_ids, via="guide")
+
+
 def _call(path: str, *args, **kwargs):
     return frappe.get_attr(path)(*args, **kwargs)
 
@@ -352,8 +360,16 @@ def _send_back(guide: Mapping[str, Any], doc, answers: Dict[str, Any], returned:
 
 
 # ── 失效 ─────────────────────────────────────────────────────────────────────────────────────────────────────
+def _idle(doc) -> bool:
+    """这次引导放太久没人动（:data:`IDLE_MINUTES`）。"""
+    moment = frappe.utils.get_datetime(doc.modified) if doc.get("modified") else None
+    return bool(moment) and (frappe.utils.now_datetime() - moment).total_seconds() > IDLE_MINUTES * 60
+
+
 def _stale(guide: Mapping[str, Any], doc, now: Mapping[str, Any]) -> str:
-    """这次引导开始之后，本对话的公司 / 账套 / 月份变了没有（按声明的 ``expires``）；变了回是哪一项。"""
+    """这次引导开始之后，本对话的公司 / 账套 / 月份变了没有（按声明的 ``expires``），或放太久了；回是哪一项。"""
+    if _idle(doc):
+        return "idle"
     for name in guide.get("expires") or ():
         column = CONTEXT_FIELDS.get(name)
         if column and str(doc.get(column) or "") != str(now.get(column) or ""):
@@ -465,6 +481,13 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
                 refused[key] = str(code)
     if refused:
         return {**view(doc), "outcome": REFUSED, "refused": refused}
+    # 交文件的步骤：别的题都收下了，才把这几份登记成用户交出的（唯一入口 `files.commit(via="guide")`，幂等）；
+    # 不是这段对话里本人上传的，这一步不收
+    for key, value in given.items():
+        if by_key[key]["input"] == "file":
+            accepted = _commit_files(doc.session_id, list(value))
+            if set(accepted) != set(value):
+                return {**view(doc), "outcome": REFUSED, "refused": {key: "not in this conversation"}}
     changed = [key for key, value in given.items() if answers.get(key) != value]
     answers = steps.without_dependents(guide, answers, changed)
     answers.update(given)
