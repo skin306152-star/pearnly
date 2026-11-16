@@ -576,6 +576,35 @@ def operator_idle(cfg=None, qc=None) -> None:
                 module._HOST.late_done(item["batch"], item["doc"])  # 服务端不收（已再派 / 单号对不上）：不再试
 
 
+OPERATOR_CONTROL_ACTIONS = ("answer",)
+
+
+def operator_controls(qc) -> list:
+    """领单回复带来的代录指令（``operator_controls``，1.12.23 ④）在取任务线程里执行、与录单不并发：现在只有 ``answer``
+    （对话里人选了留着的业务选择框的某个钮 → 核框没变、按钮还在才点）。代录宿主没起过（这台没留着等人的单）就什么都不做、不导入。
+    回每条的结果（只记日志）。"""
+    take = getattr(qc, "take_operator_controls", None)
+    controls = take() if callable(take) else []
+    if not controls:
+        return []
+    module = sys.modules.get(__name__.rsplit(".", 1)[0] + ".express_operator.host")
+    host = getattr(module, "_HOST", None) if module is not None else None
+    out = []
+    for item in controls:
+        action = str(item.get("action") or "")
+        if action not in OPERATOR_CONTROL_ACTIONS or host is None:
+            out.append({"action": action, "state": "not_held"})
+            continue
+        try:
+            result = host.answer_dialog(str(item.get("batch") or ""), str(item.get("doc") or ""),
+                                        str(item.get("digest") or ""), str(item.get("button") or ""))
+        except Exception as exc:  # noqa: BLE001 — 点不了照实记，不影响领单
+            result = {"state": "error", "error": type(exc).__name__}
+        log.info(f"operator control · {action} · batch={item.get('batch')} · doc={item.get('doc')} · {result.get('state')}")
+        out.append({"action": action, **result})
+    return out
+
+
 def places_of(cfg) -> tuple:
     """这台电脑的「Express 位置」（全局设置，express_places，用户 10-24）。"""
     return tuple(place for place in (getattr(cfg, "express_places", None) or ()) if str(place or "").strip())
@@ -1241,6 +1270,7 @@ def run_poll_loop(
             try:
                 _run_periodic(cfg, qc, state, on_update_available)
                 task = qc.poll()
+                operator_controls(qc)
                 take_refresh = getattr(qc, "take_master_refresh", None)
                 refresh_command = take_refresh() if callable(take_refresh) else None
                 if projection_refresh.remember(state, refresh_command):

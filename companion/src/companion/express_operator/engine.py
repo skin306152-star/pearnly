@@ -583,6 +583,28 @@ class Engine:
         if found:
             raise ChoiceBox(self._text(found[0])[:200])
 
+    def answer_held(self, doc_type: str, digest: str, button: str) -> Dict:
+        """对话里人选了留着的那个业务选择框的某个钮（领单回复 ``operator_controls``，1.12.23 ④）：先核框还在、指纹没变、
+        按钮还在，都对才点。回 ``{"state": pressed}``；框已不在回 ``gone``；Express 上是别的框回 ``changed`` 带新框的样子；
+        按钮不在回 ``no_button``。只点这一下，不碰别的（保存途中的那张由空闲时的「留着等人」检查读账套、补报原回执号）。"""
+        try:
+            self.act([{"do": "wait", "ms": 0}])
+        except Crash:
+            return {"state": "gone"}
+        boxes = [w for w in self.windows if w.get("owned") and self._match(w) is None and is_choice(w)]
+        if not boxes:
+            return {"state": "gone"}
+        stage = "saving" if getattr(self, "_save_pressed", False) else "editing"
+        for w in boxes:
+            info = dialog_info(w, doc_type, stage)
+            if info["digest"] != digest:
+                continue
+            if button not in info["buttons"]:
+                return {"state": "no_button", "dialog": info}
+            self.desk.act([{"do": "dialog_button", "text": button}, {"do": "wait", "ms": 900}], False)
+            return {"state": "pressed"}
+        return {"state": "changed", "dialog": dialog_info(boxes[0], doc_type, stage)}
+
     def open_unknown(self) -> Optional[List[Dict]]:
         """这时 Express 上开着的、配方认不出的框（只读，不点）。Express 已经没了回 None。"""
         try:

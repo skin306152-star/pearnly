@@ -30,6 +30,7 @@ _HEARTBEAT = _METHOD + "heartbeat.report"
 _LEASE = _METHOD + "queue_api.lease"
 _ACK = _METHOD + "queue_api.acknowledge"
 MAX_INDEX_PENDING = 500  # 与服务端 queue_contracts.MAX_INDEX_PENDING 相同（多了服务端当没报）
+MAX_OPERATOR_CONTROLS = 20  # 一次领单回复最多执行几条代录指令（多的下一拍再领）
 _NOT_SENT = object()  # health() 的 update_blocked 没传：不带这个键（None 是「没被拦」，要照发）
 # 带整份账套名单的心跳（配对、刚启动、名单变了、每 30 分钟一次）的读超时。服务端头一回收这台电脑的名单时逐行登记账套与
 # 可达行，几百份要十来秒（教程问题第 10 条，10-20 生产：679 份 heartbeat.report 9.1 秒、另一次超过 10 秒被这边断开 499）；
@@ -82,6 +83,7 @@ class QueueClient:
     def __init__(self, cfg: QueueClientConfig) -> None:
         self.cfg = cfg
         self._master_refresh: Optional[dict] = None
+        self._operator_controls: list = []
         # 共用机器通道的成员（``pcc_`` 密钥，ERP 站点，ADR-025）换成 pearnly_core 的路径；请求体与回复两边相同
         self._paths = {op: channel.path(cfg.bearer_token, op) for op in ("heartbeat", "lease", "ack")}
         self._client = httpx.Client(
@@ -216,6 +218,10 @@ class QueueClient:
         command = response.get("master_refresh")
         if isinstance(command, dict) and command.get("request_id"):
             self._master_refresh = command
+        controls = response.get("operator_controls")
+        if isinstance(controls, list):
+            # 对话里人对留着等人的代录单做的选择（1.12.23 ④）：领单线程取走、在这条线程里执行（与录单不并发）
+            self._operator_controls = [c for c in controls[:MAX_OPERATOR_CONTROLS] if isinstance(c, dict)]
         if response.get("requests_waiting") is True:
             # 服务端刚建了这台能领的按需请求（1.12.22）：叫醒按需请求线程马上去领，不等它空闲的 15 秒
             request_wake.ring()
@@ -232,6 +238,10 @@ class QueueClient:
             attended=attended if isinstance(attended, bool) else None,
             key=str(key) if isinstance(key, str) and key else None,
         )
+
+    def take_operator_controls(self) -> list:
+        controls, self._operator_controls = self._operator_controls, []
+        return controls
 
     def take_master_refresh(self) -> Optional[dict]:
         command = self._master_refresh

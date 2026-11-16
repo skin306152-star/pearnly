@@ -272,6 +272,17 @@ class Host:
         doc.late_ack, doc.late_profile = str(ack_id or ""), str(profile or "")
         store.save(state)
 
+    def answer_dialog(self, batch_id: str, doc_id: str, digest: str, button: str) -> Dict:
+        """领单回复 ``operator_controls`` 里的 answer（1.12.23 ④）：在取任务线程里跑，与录单不并发。点上了就让下一次空闲马上看一眼
+        留着的单（存完就用原回执号补报）。这一批不在本机内存里（CC 重启过）回 not_held：看不到框，不点。"""
+        runner = self.runners.get(batch_id)
+        if runner is None or not hasattr(runner, "answer"):
+            return {"state": "not_held"}
+        result = runner.answer(doc_id, digest, button)
+        if result.get("state") == "pressed":
+            self._held_checked = 0.0
+        return result
+
     def late_results(self, profile: str) -> list:
         """（写账线空闲时，隔 ``HELD_CHECK_S`` 一次）留着等人的单现在怎样：框答完、单存完的回 ``[{batch, doc, ack, docnum}]``，
         由写账线用原回执号补报「已写入」；只读、不碰 Express。"""

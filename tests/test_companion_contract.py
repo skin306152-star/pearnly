@@ -971,6 +971,19 @@ class Release1123Edges(unittest.TestCase):
         self.assertEqual(dialog_answers(["not", "a", "dict"]), {})
         self.assertIn('options.get("dialog_answers")', (COMPANION / "express_operator" / "draft.py").read_text(encoding="utf-8"))
 
+    def test_operator_controls_are_read_by_name_and_the_server_sends_the_same_keys(self):
+        # 领单回复的 operator_controls（④）：CC 按名字取、只执行认得的动作；旧服务端不发就什么都不做。服务端开始发时，每条的键
+        # （action / batch / doc / digest / button）两边同名，且只发给版本够的电脑
+        poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
+        self.assertIn("response.get('operator_controls')", poll)
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        for key in ("action", "batch", "doc", "digest", "button"):
+            self.assertIn(f'item.get("{key}")', worker)
+        wire = (WIRE / "queue_contracts.py").read_text(encoding="utf-8")
+        if "operator_controls" in wire:
+            for key in ("action", "batch", "doc", "digest", "button"):
+                self.assertIn(f'"{key}"', wire)
+
 
 class PosPayload(unittest.TestCase):
     """载荷 3（POS 导出的日汇总票）：版本、`pos` 块的键、拒收码与摘要字样两边一致。"""
