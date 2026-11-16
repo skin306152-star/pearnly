@@ -46,10 +46,10 @@ PURE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import {
-  answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
+  answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck, kindName,
   itemsOfNeeded, keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, shownQuestions, toggle, toggleOther,
 } from "@/components/tool-uis/ask-shared";
-import { ask } from "@/i18n";
+import { ask, op } from "@/i18n";
 
 const g = globalThis as any;
 """ + INPUT + r"""
@@ -108,6 +108,13 @@ const g = globalThis as any;
   assert.equal(questions[1]!.options.length, 1);                  // 未定：只有「新建」，其余去「其他」搜
   assert.ok(!isRecommended(questions[1]!.options[0]));
   assert.deepEqual(questions[1]!.search, { company: "CO-1", doc_id: "D4", kind: "accounts" });
+  // 欠账 B39：科目一项不再写「其他」，按归类键说成费用 / 收入 / 存货科目
+  assert.equal(kindName({ kind: "account", subject: "purchase|Kerry" }), op.precheck.kind.expense);
+  assert.equal(kindName({ kind: "account", subject: "Kerry" }), op.precheck.kind.expense);
+  assert.equal(kindName({ kind: "account", subject: "sales|1" }), op.precheck.kind.income);
+  assert.equal(kindName({ kind: "account", subject: "stock:OU" }), op.precheck.kind.stockAccount);
+  assert.equal(kindName({ kind: "operator_form", subject: "B1|HP" }), op.precheck.kind.operator_form);
+  assert.notEqual(questions[1]!.header, op.kind.other);
   const picked = { answers: [{ header: "", question: "", labels: [questions[0]!.options[1]!.label] }, { header: "", question: "", labels: [], other: "5310 Power", code: "5310" }] };
   assert.deepEqual(keyAnswers(items, questions, picked as any), [{ key: "k1", value: "V0019" }, { key: "k3", value: "5310" }]);
   assert.deepEqual(keyAnswers(items, questions, { answers: [{ header: "", question: "", labels: [], skipped: true }, { header: "", question: "", labels: [], skipped: true }] }), []);
@@ -262,6 +269,25 @@ def read(rel):
 
 
 class SourceRules(unittest.TestCase):
+    def test_every_precheck_kind_has_words_in_every_language(self):
+        # 欠账 B39（乱用设计 3.4：题目和选项四语、不出代码原值，缺词条就红）：服务端出题的每一类（write_precheck.contracts.KINDS）
+        # 在四种语言的题卡词表 op.precheck.kind 里都有说法；对方、科目两类按方向在 kindName 里分（客户 / 供应商、费用 / 收入 / 存货科目）
+        import re
+        sys.path.insert(0, ROOT + "/apps/pearnly_core")
+        from pearnly_core.write_precheck import contracts
+        text = read("i18n.ts")
+        blocks = [text[m.start():text.index("} as Record<string, string>", m.start())]
+                  for m in re.finditer(r"\n    precheck: \{\n      kind: \{", text)]
+        self.assertEqual(len(blocks), 4)   # en zh th ja
+        by_direction = {"party": ("supplier", "customer"), "account": ("expense", "income", "stockAccount")}
+        for block in blocks:
+            keys = set(re.findall(r"(\w+):", block))
+            for kind in contracts.KINDS:
+                for key in by_direction.get(kind, (kind,)):
+                    self.assertIn(key, keys, kind)
+        shared = read("components/tool-uis/ask-shared.ts")
+        self.assertIn('if (item.kind === "account") {', shared)
+
     def test_ask_user_is_a_card_tool(self):
         kit = read("components/tool-uis/index.tsx")
         # 作答随「允许」交给服务端（confirm 的 answers），不另开接口；手机上不浮成允许卡

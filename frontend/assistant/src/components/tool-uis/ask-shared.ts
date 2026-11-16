@@ -166,6 +166,13 @@ const NEW = "__new__";
 /** 一项的分类名：对方按方向写客户 / 供应商（主题以 sales| / purchase| 开头），判不出写「供应商 / 客户」；没有译名的才写「其他」
  *  （11-08 生产：对方一项的题目写成「อื่นๆ · บมจ.บิ๊กซี…」）。 */
 export function kindName(item: { kind: string; subject?: string }): string {
+  // 科目一项按归类键分：stock: 开头是存货科目，sales| 开头是收入科目，其余是费用科目（同服务端 write_precheck.contracts.group_of；
+  // 欠账 B39：以前没有译名，题目写成「其他」）
+  if (item.kind === "account") {
+    const subject = String(item.subject ?? "");
+    if (subject.startsWith("stock:")) return op.precheck.kind.stockAccount!;
+    return subject.split("|")[0] === "sales" ? op.precheck.kind.income! : op.precheck.kind.expense!;
+  }
   if (item.kind === "party") {
     const side = String(item.subject ?? "").split("|")[0];
     return side === "sales" ? op.precheck.kind.customer! : side === "purchase" ? op.precheck.kind.supplier! : op.kind.party!;
