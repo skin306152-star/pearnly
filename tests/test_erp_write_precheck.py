@@ -593,13 +593,13 @@ class MrErp(Precheck):
     def test_the_card_names_the_account_set_the_document_goes_into(self):
         """MR.ERP 单的判定带上按日期选出的那本（同 Express 单的 target）：写入计划不再说「没有指定账套」（11-16 testerp T11）。"""
         self.switch(True)
-        self.picked = {"book": {"key": "12:3", "label": "TEST2019", "connection": "MR1"}, "reason": "", "options": [],
+        self.picked = {"book": {"key": "12:3", "label": "DEMO-A", "connection": "MR1"}, "reason": "", "options": [],
                        "subject": ""}
         found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]
         self.assertEqual({key: found["target"][key] for key in ("account_set", "account_set_title", "connection")},
-                         {"account_set": "12:3", "account_set_title": "TEST2019", "connection": "MR1"})
+                         {"account_set": "12:3", "account_set_title": "DEMO-A", "connection": "MR1"})
         self.assertEqual([(t["account_set"], t["account_set_title"]) for t in card.merge([found])["targets"]],
-                         [("12:3", "TEST2019")])
+                         [("12:3", "DEMO-A")])
         # 没有覆盖单据日期的那本：不编一本出来
         self.picked = {"book": None, "reason": E.NO_BOOK, "options": [], "subject": ""}
         found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]

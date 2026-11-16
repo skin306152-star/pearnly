@@ -242,7 +242,9 @@
 			};
 		} else if (doc.status === "submitted" && state.can_write) {
 			if (doc.ledger_state)
-				page.add_inner_button(__("Express"), () => p.express("ERP Sales Document", doc.name, reload));
+				// 按钮名跟单据记的账本（MR.ERP 公司的单写进 MR.ERP；用户 11-16 定沿用现成「MR.ERP」词条）
+				// entry: Express
+				page.add_inner_button(doc.ledger_target === "mrerp" ? __("MR.ERP") : __("Express"), () => p.express("ERP Sales Document", doc.name, reload));
 			// 收满之后不再给收款入口（用户 2026-09-23：「已收不可更改」）。
 			if (doc.doc_kind === "receipt" && doc.payment_status !== "paid")
 				page.set_primary_action(__("Collection"), () => u.payment(doc, reload));

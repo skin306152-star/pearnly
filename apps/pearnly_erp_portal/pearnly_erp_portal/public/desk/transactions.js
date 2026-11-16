@@ -162,7 +162,12 @@
 				: [option.code, option.name, option.branch].filter(Boolean).join(" · ")}));
 		// 选项多（科目表、整张对方档表）用官方可输入搜索的下拉，少的用普通下拉
 		return {fieldtype: options.length > 20 ? "Autocomplete" : "Select", fieldname: `pick_${index}`, reqd: 1,
-			label: __(kind?.[direction] || kind || item.kind), description: item.label || "", default: item.current || "",
+			// MR.ERP 的导入菜单 / 主档默认值：同类几项一起问时，标题用这一项自己的名字（ซื้อ (สินค้า)、บัญชีเจ้าหนี้…），
+			// 同类总称挪进说明（用户 11-16 定，沿用现成词条；Express 各项不变）
+			...(item.kind.startsWith("mrerp_") && item.label
+				? {label: item.label, description: __(kind?.[direction] || kind || item.kind)}
+				: {label: __(kind?.[direction] || kind || item.kind), description: item.label || ""}),
+			default: item.current || "",
 			options: options.length > 20 ? options : [{value: "", label: ""}, ...options]};
 	});
 	const answers_of = (needed, values) => needed.map((item, index) =>
