@@ -375,3 +375,7 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 ### 报数口径
 - 每次汇报给：登记 / 有证据 / 跑过未过 / 没跑 四个数，加上「会写外部账本的行有新鲜证据的条数」。
 - 修复进 main 后由本窗口复跑对应的格并回填（缺陷 1 → sales.credit + 收款 6 格；缺陷 2 → operator.sales、masters.link；H3 / H5 → intake、stock.group；office_actor → no.computer、office.actor）。
+
+### d$ 写法回归（11-16 19:0x 前，CC 桌面版接手窗口 local_27c53845 借验收设施跑）
+测试机2 装 CC 1.12.23 测试包（按目录 uid 认同一账套），用 d$ 写法的数据根 `root-dshare-20261116` 登记 TEST2，跑 `acc.erp.operator.purchase.express`：
+**通过**，代录写入 HP0000090，场景还原、逐文件与基线一致（该窗口记录）。即「两种共享写法认不出」修好后的真机证据；转正式版后本窗口用 d$ 写法再跑一次登记。
