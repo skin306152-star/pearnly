@@ -669,6 +669,23 @@ class ChainScenarioTest(unittest.TestCase):
             if old is not None:
                 os.environ["PEARNLY_ACC_SITE_TARGET"] = old
 
+    def test_tags_differ_across_runs_on_one_commit_and_across_scenarios(self):
+        # 11-16：标记曾取运行编号末尾数字（= 提交号），同一提交跑两次同一格开出同一个单号；一组共用运行编号时各格也要不同
+        from pathlib import Path
+        from types import SimpleNamespace
+        load("acceptance_run_for_chain_tags", "scripts/acceptance/run.py")
+        chain = load("acc_erp_chain_tags", "scripts/acceptance/erp_chain.py")
+
+        def ctx(run, scenario):
+            return SimpleNamespace(folder=Path("/x") / run / scenario, attempt=1, scenario={"id": scenario})
+
+        one = chain.tag(ctx("20261116-183802-29c4187a3", "acc.erp.operator.purchase.express"))
+        two = chain.tag(ctx("20261116-184511-29c4187a3", "acc.erp.operator.purchase.express"))
+        other = chain.tag(ctx("20261116-183802-29c4187a3", "acc.erp.purchase.express"))
+        self.assertNotEqual(one, two)
+        self.assertNotEqual(one, other)
+        self.assertTrue(one.isdigit())
+
     def test_allowed_tables_come_from_the_desktop_write_lists(self):
         load("acceptance_run_for_chain_tables", "scripts/acceptance/run.py")
         chain = load("acc_erp_chain_tables", "scripts/acceptance/erp_chain.py")
