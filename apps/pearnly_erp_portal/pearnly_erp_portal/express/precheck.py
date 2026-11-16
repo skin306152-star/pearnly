@@ -639,8 +639,8 @@ def save(company, found, answers, seen=None) -> int:
             companies.set_vat_registered(company, value)
         elif item["kind"] in book_answers.KINDS:
             if book_answers.keep(item, value):  # 负库存答「先留下」不记：这次不写、下次再问
-                choices.remember(company, item["kind"], item["subject"], value, label)
-                book_answers.remember_extra(company, item, value, choices.remember)
+                choices.remember(company, item["kind"], item["subject"], value, label)  # loop-query: 一张卡片答的几项，同一项只记一次
+                book_answers.remember_extra(company, item, value, choices.remember)  # loop-query: 负库存答「允许」时另记一条账套默认，每项至多一条
         else:
             choices.remember(company, item["kind"], item["subject"], value, label)
     return len(checked)
