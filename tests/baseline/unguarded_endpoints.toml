@@ -73,3 +73,8 @@ reason = "本人发起的那次识别进度（键里带 session.user）"
 method = "pearnly_core.assistant.api.businesses"
 kind = "public"
 reason = "这个产品各模式能做的业务清单（hooks 声明的 pearnly_guide_businesses，输入框上方的业务菜单用），站点配置、不含任何人的数据"
+
+[[endpoint]]
+method = "pearnly_core.assistant.api.guide_view"
+kind = "own"
+reason = "本人这次引导此刻的卡（guide.run.view_of 按 name + user = 当前登录人取，不是本人的回未找到；只读，不标失效）"
