@@ -72,6 +72,9 @@ class Draft:
     # 载荷表头 ``srv_vattyp``（服务品税口径 1 权责 / 2 收付实现，别的值当没带）：存档途中 Express 问销项税 / 进项税口径时按它答（配方
     # ``button_by_srv_vattyp``），不带就按配方默认钮——行为同没有这个键时（11-13）
     srv_vattyp: str = ""
+    # 载荷 ``operator.dialog_answers``（1.12.23）：中途配方外的业务选择框，人在对话里答过、站点按公司记住的答案
+    # ``{框指纹 digest: 按钮原文}``。录到同一个框（指纹相同、按钮还在）就照点，不再停；没带 / 对不上照旧停下带回对话
+    dialog_answers: Dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         self.doc_type = self.doc_type.upper()
@@ -172,7 +175,25 @@ def from_payload(doc_id: str, payload: Dict) -> Draft:
                  vat_included=options.get("vat_included") is True, expected=expected,
                  form_choice=str(options.get("form_choice") or "").strip()[:200],
                  pay_route=_pay_route(options.get("pay_route")),
-                 srv_vattyp=_srv_vattyp(payload.get("srv_vattyp")))
+                 srv_vattyp=_srv_vattyp(payload.get("srv_vattyp")),
+                 dialog_answers=dialog_answers(options.get("dialog_answers")))
+
+
+MAX_DIALOG_ANSWERS = 50
+
+
+def dialog_answers(value) -> Dict[str, str]:
+    """``operator.dialog_answers`` 只收「16 位小写十六进制指纹 → 不空的按钮原文（≤60 字）」，最多 50 条；别的形状一律不认。"""
+    if not isinstance(value, dict):
+        return {}
+    out: Dict[str, str] = {}
+    for digest, button in value.items():
+        key, text = str(digest or "").strip().lower(), str(button or "").strip()
+        if len(key) == 16 and all(c in "0123456789abcdef" for c in key) and text and len(text) <= 60:
+            out[key] = text
+        if len(out) >= MAX_DIALOG_ANSWERS:
+            break
+    return out
 
 
 def _srv_vattyp(value) -> str:

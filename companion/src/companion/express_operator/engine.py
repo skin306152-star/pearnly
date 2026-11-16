@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import time
 from decimal import Decimal
@@ -71,6 +72,33 @@ class ChoiceBox(Exception):
     def __init__(self, text: str):
         super().__init__(f"business choice box: {text}")
         self.text = text
+
+
+DIALOG_CHOICE = "dialog_choice"
+DIALOG_TEXT_MAX, DIALOG_BUTTONS_MAX, DIALOG_BUTTON_MAX = 600, 8, 60
+
+
+def dialog_info(w: Dict, doc_type: str, stage: str) -> Dict:
+    """配方外业务选择框带回对话的样子（1.12.23 ③）：标题、正文（去掉按钮字）、按钮原文、单种、在哪一步（editing 录入中 /
+    saving 保存途中），加指纹 ``digest``（标题 + 正文 + 按钮 + 单种的 sha1 前 16 位）。站点按指纹记住答案（``dialog_answers``）、
+    CC 照点前也按它核对框没变。"""
+    buttons = [b[:DIALOG_BUTTON_MAX] for b in _buttons(w)][:DIALOG_BUTTONS_MAX]
+    title = str(w.get("title") or "").strip()[:DIALOG_BUTTON_MAX * 2]
+    raw = set(b.replace("&", "").strip() for b in (w.get("buttons") or []))
+    text = " ".join(t for t in (w.get("texts") or []) if t.replace("&", "").strip() not in raw).strip()[:DIALOG_TEXT_MAX]
+    doc_type = str(doc_type or "").upper()
+    digest = hashlib.sha1("\x1f".join([title, text, "\x1e".join(buttons), doc_type]).encode("utf-8")).hexdigest()[:16]
+    return {"digest": digest, "title": title, "text": text, "buttons": buttons, "doc_type": doc_type,
+            "stage": stage if stage in ("editing", "saving") else "editing"}
+
+
+class DialogHeld(NeedHuman):
+    """配方外的业务选择框、没有记住的答案：不点、单据窗口不关、Express 留着（``held``），回执原因 ``dialog_choice`` 带
+    ``meta.operator.dialog``，对话里出卡让人选（1.12.23 ③）。"""
+
+    def __init__(self, dialog: Dict):
+        super().__init__(DIALOG_CHOICE, f"business choice box: {dialog.get('title', '')} {dialog.get('text', '')}"[:300])
+        self.dialog = dict(dialog)
 
 
 class MenuChoice(NeedHuman):
@@ -356,9 +384,15 @@ class Engine:
     def _recover(self, where: str, problem: str, expect_text: str, expect: Dict, reverify=None) -> None:
         self.rec["fallbacks"].append({"where": where, "problem": problem[:200]})
         choice = [w for w in self.windows if w.get("owned") and self._match(w) is None and is_choice(w)]
-        if choice:  # 配方外的业务选择：不交 AI（它只能看不能点），直接留给人
+        if choice:  # 配方外的业务选择：不交 AI（它只能看不能点）；有人答过的照点，没有就原样留给人、带回对话
+            if self._answer_choice(choice[0], where):
+                ok = reverify() if reverify else None
+                if ok is None:
+                    ok = self.checkpoint(f"{where}.answered", expect_text, expect, recover=False)
+                if ok:
+                    return
             self._event("takeover", where=where, status="need_human", note="business choice box")
-            raise NeedHuman("unknown_screen", f"business choice box · {where}: {self._text(choice[0])[:200]}")
+            raise DialogHeld(self._dialog(choice[0]))
         if len(self.rec["fallbacks"]) > MAX_TAKEOVERS_PER_DOC:
             raise NeedHuman("unknown_screen", f"{where}: {problem}")  # 同一张反复出意外：不再烧钱，交给人
         goal = (f"固定流程在「{where}」这一步出了意外：{problem}\n你的目标：处理掉意外，让画面达到「{expect_text}」。\n"
@@ -370,8 +404,11 @@ class Engine:
             else:
                 self._fit()  # AI 看画面前：超出屏幕的窗口（报表、弹窗）挪回屏内，按钮看得到
                 status, note = self.helper.take_over(goal, self)
-        except ChoiceBox as box:  # AI 想在业务选择框上动手：拦下，框原样留给人
+        except ChoiceBox as box:  # AI 想在业务选择框上动手：拦下，框原样留给人、带回对话
             self._event("takeover", where=where, status="need_human", note="business choice box")
+            found = self.choice_boxes()
+            if found:
+                raise DialogHeld(self._dialog(found[0])) from None
             raise NeedHuman("unknown_screen", f"business choice box · {where}: {box.text}"[:K.DETAIL_MAX]) from None
         except RuntimeError as error:  # 站点没接上 / 出错：交给人（预算用完是 BudgetStop，照旧往上抛）
             status, note = "need_human", self._ai_note(self._ai_unavailable(where, error))
@@ -511,6 +548,21 @@ class Engine:
             rule = self._match(w)
             if rule and rule.get("outcome") == "blocked":
                 raise Blocked(self._reason(rule), self._text(w)[:200])
+
+    def _dialog(self, w: Dict) -> Dict:
+        return dialog_info(w, self.draft.doc_type if self.draft else "", "saving" if self._save_pressed else "editing")
+
+    def _answer_choice(self, w: Dict, where: str) -> bool:
+        """这个框人答过（载荷 ``dialog_answers`` 里有同一指纹、那个按钮还在框上）就照点，回真；否则回假、什么都不点。"""
+        answers = getattr(self.draft, "dialog_answers", None) or {}
+        info = self._dialog(w)
+        button = answers.get(info["digest"])
+        if not button or button not in info["buttons"]:
+            return False
+        self._event("dialog_answered", where=where, digest=info["digest"], button=button)
+        self._report("dialog_answered", digest=info["digest"], button=button)
+        self.act([{"do": "dialog_button", "text": button}, {"do": "wait", "ms": 900}])
+        return True
 
     def choice_boxes(self) -> List[Dict]:
         """Express 上开着的、配方认不出的业务选择框（见 :func:`is_choice`）。"""
@@ -1012,6 +1064,8 @@ class Engine:
         self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
         if isinstance(e, MenuChoice):
             self.rec["menu_options"] = list(e.options)
+        if isinstance(e, DialogHeld):
+            self.rec["dialog"] = dict(e.dialog)
         self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
         self.rec["voided"] = self.abandon()
 
@@ -1036,6 +1090,10 @@ class Engine:
         self.rec.update(outcome="need_human", reason=reason, detail=detail[:K.DETAIL_MAX], recheck=True, held=True)
         if found.get("partial"):
             self.rec.update(reason=PARTIAL, partial=dict(found["partial"][-1]))
+        if isinstance(e, DialogHeld):  # 保存途中的业务选择框：框的样子照带；账套里已留半截单仍按 partial_saved（1.12.22 的补报照旧）
+            self.rec["dialog"] = dict(e.dialog)
+            if not found.get("partial"):
+                self.rec["reason"] = DIALOG_CHOICE
         self._event("held", partial=(found.get("partial") or [{}])[-1].get("docnum", ""))
         self._need_human_shot(draft.doc_id)
         return ""
