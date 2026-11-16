@@ -239,11 +239,18 @@ def _fill_context(doc, now: Mapping[str, Any]) -> bool:
     return filled
 
 
+def _t(key: str) -> str:
+    """术语表键按本次请求的语言翻成字（页面不认键）；没有译文回空串。"""
+    found = _(key) if key else ""
+    return "" if found == key else found
+
+
 # ── 给页面的样子 ─────────────────────────────────────────────────────────────────────────────────────────────
 def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, Any], answers: Mapping[str, Any],
               decided: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
     out = {"key": step["key"], "input": step["input"], "rule": step["rule"], "tier": step.get("tier") or "how",
            "title_key": f"guide.step.{guide['id']}.{step['key']}", "required": step.get("required", True)}
+    out["title"] = _t(out["title_key"])
     facts: List[str] = []
     if step["input"] in d.QUESTION_INPUTS:
         found = _call(step["options"], ctx) or {}
@@ -293,13 +300,18 @@ def view(doc) -> Dict[str, Any]:
         asked = steps.to_ask(guide, answers, decided)
         settled = steps.settled(guide, answers, decided)
         out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided) for step in asked],
-                       "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}"} for item in settled],
+                       "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}",
+                                    "title": _t(f"guide.step.{guide['id']}.{item['key']}")} for item in settled],
                        "ready": steps.state(guide, answers, decided) == steps.READY}
         returned = _returned(doc)
         if returned:
             out["card"]["returned"] = returned
     elif doc.status == REVIEWING and guide.get("review"):
-        out["review"] = _call(guide["review"], ctx, doc.draft or "")
+        review = dict(_call(guide["review"], ctx, doc.draft or "") or {})
+        for part in ("lines", "tables"):
+            if part in review:
+                review[part] = [{**item, "label": _t(item.get("label_key") or "")} for item in review[part] or ()]
+        out["review"] = review
     elif doc.status in (CONFIRMED, DONE, FAILED):
         out["result"] = json.loads(doc.result or "null")
         if guide.get("result") and doc.status != FAILED:
