@@ -53,7 +53,7 @@ def test_the_ai_channel_is_built_from_the_member_config_not_the_express_settings
     monkeypatch.setattr(bg_desk, "BackgroundDesk", lambda exe: sim)
     monkeypatch.setattr(book, "DbfBook", lambda account_dir: FakeBook(sim))
     monkeypatch.setattr(presence, "Presence", _Presence)
-    monkeypatch.setattr(presence, "WindowsSignals", lambda: None)
+    monkeypatch.setattr(presence, "WindowsSignals", lambda **_kw: None)
     monkeypatch.setattr(session, "Session", _Session)
     monkeypatch.setattr(masters, "prepare", lambda payload, st, before_create: masters.Prepared(True, payload))
 
