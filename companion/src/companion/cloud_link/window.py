@@ -2,9 +2,10 @@
 """云端 Express 连接窗口（只在 Windows 上用）：CC 自己的一个**可见**窗口，任务栏有图标，标题写明是云端 Express 连接，
 默认最小化；人随时可以还原查看、随时关掉——关掉就是断开，不自动重开（用户 11-16）。
 
-窗口里放 Windows 自带的远程桌面 ActiveX 控件（``MsTscAx.MsTscAx``，PySide6 ``QtAxContainer.QAxWidget``）：
+窗口里放 Windows 自带的远程桌面 ActiveX 控件，由 ``ax_host`` 用系统 ATL 宿主（atl.dll 的 ``AtlAxWin``）建在本窗口的
+原生子窗口里（不用 ``QAxWidget``：它拿不到控件的 IUnknown，非脚本两项做不了，原因见 ``ax_host``）：
 - 连接参数只经控件的正式属性给（``Server``、``UserName``、``Domain``、``AdvancedSettingsN`` 的 ``RDPPort`` /
-  ``ClearTextPassword`` / 各项重定向 / ``AuthenticationLevel``），不写、不打开 .rdp 文件；
+  ``ClearTextPassword`` / 各项重定向 / ``AuthenticationLevel``，comtypes IDispatch 动态调用），不写、不打开 .rdp 文件；
 - 控件自己弹的任何确认框（重定向确认、证书、会话争用……）照常弹给人看，本模块不去点；
 - 断开、登录失败、被挤只看控件自己的事件（``OnConnected`` / ``OnLoginComplete`` / ``OnDisconnected`` /
   ``OnLogonError`` / ``OnFatalError``，加 ``ExtendedDisconnectReason`` 与 ``GetErrorDescription``），判定见 ``reasons``，
@@ -13,11 +14,12 @@
   不写日志、不存成员变量。
 
 驱动器只映射隧道盘、开网络级身份验证（CredSSP）这两项在控件的**非脚本接口**上（``IMsRdpClientNonScriptable3``
-的 ``DriveCollection``、``IMsRdpClientNonScriptable5`` 的 ``EnableCredSspSupport``），IDispatch 够不着，由注入的
-``nonscriptable`` 函数做（实现见 ``nonscriptable.for_widget``）；没给就不连（绝不退回「映射全部盘」）。还没在 Windows 真机上实测。
+的 ``DriveCollection``、``EnableCredSspSupport``），IDispatch 够不着，由注入的 ``nonscriptable`` 函数拿控件的 IUnknown
+按 vtable 做并读回核对（实现见 ``nonscriptable.for_widget``）；没给、没做成就不连（绝不退回「映射全部盘」）。
 
-不是 Windows、没有 ``PySide6.QtAxContainer``：导入本模块不报错，构造窗口时抛 :class:`WindowUnavailable`。
-现有代码还没有地方导入本模块。
+本模块与 ``ax_host`` / ``nonscriptable`` / comtypes 都只在打开云端连接时才导入（``host.start``）；CC 启动、空闲、托盘、
+对话页都不导入（tests/test_cloud_lazy_import.py）。不是 Windows、没有 comtypes：导入本模块不报错，构造窗口时抛
+:class:`WindowUnavailable`。
 """
 from __future__ import annotations
 
@@ -32,25 +34,21 @@ from .session import CloudSession, Snapshot
 
 log = get_logger(__name__)
 
-CONTROL = "MsTscAx.MsTscAx"
 # 窗口标题（还没有四语词条；接进界面前登记进 companion i18n，这里先只留常量）
 WINDOW_TITLE = "CC · 云端 Express 连接"
 # 依次试的高级设置子对象：要 RedirectClipboard（第 6 版起）与 AuthenticationLevel（第 4 版起）
 ADVANCED_SETTINGS = ("AdvancedSettings9", "AdvancedSettings8", "AdvancedSettings7", "AdvancedSettings6")
 
-try:  # pragma: no cover - 只在 Windows 的 PySide6 里有
-    from PySide6.QtAxContainer import QAxWidget as _QAxWidget
-    from PySide6.QtCore import SIGNAL as _SIGNAL
+try:
     from PySide6.QtCore import QTimer as _QTimer
-    from PySide6.QtWidgets import QVBoxLayout as _QVBoxLayout
     from PySide6.QtWidgets import QWidget as _QWidget
-except Exception:  # noqa: BLE001 - 非 Windows / 没装 Addons：只是不能用
-    _QAxWidget = None
+except Exception:  # noqa: BLE001 - 没装 PySide6（云端精简包）：只是不能用
+    _QTimer = None
     _QWidget = object  # type: ignore[assignment,misc]
 
 
 class WindowUnavailable(RuntimeError):
-    """这台电脑上建不了云端连接窗口（不是 Windows、没有 QtAxContainer、控件建不出来）。"""
+    """这台电脑上建不了云端连接窗口（不是 Windows、没有 PySide6 / comtypes、控件建不出来）。"""
 
 
 class ControlSettingError(RuntimeError):
@@ -62,7 +60,12 @@ class NonScriptableUnavailable(RuntimeError):
 
 
 def available() -> bool:
-    return sys.platform == "win32" and _QAxWidget is not None
+    """只看平台、PySide6 与 comtypes 是否装着（不导入 comtypes）。"""
+    if sys.platform != "win32" or _QTimer is None:
+        return False
+    import importlib.util
+
+    return importlib.util.find_spec("comtypes") is not None
 
 
 @dataclass(frozen=True)
@@ -101,7 +104,7 @@ def _set(obj: Any, name: str, value: Any) -> None:
 
 def apply_settings(ax: Any, params: ConnectParams, password: str, *,
                    nonscriptable: Optional[Callable[[Any, NonScriptable], None]]) -> None:
-    """把参数写进控件（``ax`` 需有 ``setProperty`` / ``querySubObject``，即 QAxBase）。任何一项设不进去就抛错、不连。
+    """把参数写进控件（``ax`` 需有 ``setProperty`` / ``querySubObject``，即 ``ax_host.Control``）。任何一项设不进去就抛错、不连。
 
     密码只进 ``ClearTextPassword``；本函数不记日志、不留引用。"""
     if not isinstance(password, str) or not password:
@@ -190,15 +193,19 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
     """云端 Express 连接窗口。构造后调 :meth:`start` 以最小化显示并开始连接。
 
     ``password_provider``：每次起连接时调一次，回这次要用的密码（例如请人输入，或由上层从它自己的保管处取）。
-    ``nonscriptable``：见模块说明。``on_change(snapshot, description)``：状态变了时通知上层（托盘、对话页）。"""
+    ``nonscriptable``：见模块说明。``on_change(snapshot, description)``：状态变了时通知上层（托盘、对话页）。
+    ``host_factory``：建控件宿主（默认 ``ax_host.AxHost``；测试注入假的）。"""
 
     def __init__(self, params: ConnectParams, *, password_provider: Callable[[], str],
                  nonscriptable: Optional[Callable[[Any, NonScriptable], None]],
                  on_change: Optional[Callable[[Snapshot, str], None]] = None,
-                 clock: Callable[[], float] = time.monotonic, icon: Any = None):
+                 clock: Callable[[], float] = time.monotonic, icon: Any = None,
+                 host_factory: Optional[Callable[..., Any]] = None):
         if not available():
-            raise WindowUnavailable("cloud Express window needs Windows with PySide6.QtAxContainer")
+            raise WindowUnavailable("cloud Express window needs Windows with PySide6 and comtypes")
         super().__init__()
+        from . import ax_host
+
         self._params = params
         self._password_provider = password_provider
         self._nonscriptable = nonscriptable
@@ -209,28 +216,19 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
             from ..gui_icon import pearnly_icon
             icon = pearnly_icon()
         self.setWindowIcon(icon)
-        self._ax = _QAxWidget(self)
-        if not self._ax.setControl(CONTROL):
-            raise WindowUnavailable("MsTscAx control")
-        layout = _QVBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.addWidget(self._ax)
         self.resize(params.width, params.height)
         self.session = CloudSession(self._open, self._close, clock)
-        self.events = EventRouter(self.session, read_extended=lambda: self._ax.property("ExtendedDisconnectReason"),
+        self.events = EventRouter(self.session,
+                                  read_extended=lambda: self._control().property("ExtendedDisconnectReason"),
                                   describe=self._error_description, on_change=self._on_change)
+        width, height = self._pixels()
+        try:
+            self._host = (host_factory or ax_host.AxHost)(int(self.winId()), width, height, router=self.events)
+        except ax_host.AxUnavailable as error:
+            raise WindowUnavailable(str(error)) from None
         self._timer = _QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.timeout.connect(self._retry_due)
-        for signature, handler in (
-            ("OnConnecting()", self.events.on_connecting),
-            ("OnConnected()", self.events.on_connected),
-            ("OnLoginComplete()", self.events.on_login_complete),
-            ("OnDisconnected(int)", self.events.on_disconnected),
-            ("OnLogonError(int)", self.events.on_logon_error),
-            ("OnFatalError(int)", self.events.on_fatal_error),
-        ):
-            self._ax.connect(self._ax, _SIGNAL(signature), handler)
 
     # ---- 对外 ----
     def start(self) -> None:
@@ -249,23 +247,37 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
 
     # ---- 注入 session 的两个动作 ----
     def _open(self) -> None:
+        control = self._control()
         password = self._password_provider()
         try:
-            apply_settings(self._ax, self._params, password, nonscriptable=self._nonscriptable)
+            apply_settings(control, self._params, password, nonscriptable=self._nonscriptable)
         finally:
             del password
-        self._ax.dynamicCall("Connect()")
+        control.call("Connect")
 
     def _close(self) -> None:
+        control = self._host.control
+        if control is None:
+            return
         try:
-            if int(self._ax.property("Connected") or 0):
-                self._ax.dynamicCall("Disconnect()")
+            if int(control.property("Connected") or 0):
+                control.call("Disconnect")
         except Exception:  # noqa: BLE001 - 控件已经不在了
             pass
 
     # ---- 内部 ----
+    def _control(self) -> Any:
+        control = self._host.control
+        if control is None:
+            raise WindowUnavailable("control closed")
+        return control
+
+    def _pixels(self) -> tuple:
+        ratio = float(self.devicePixelRatioF() or 1.0)
+        return max(1, round(self.width() * ratio)), max(1, round(self.height() * ratio))
+
     def _error_description(self, disc_reason: int, extended: int) -> str:
-        return str(self._ax.dynamicCall("GetErrorDescription(uint,uint)", disc_reason, extended) or "")
+        return str(self._control().call("GetErrorDescription", disc_reason, extended) or "")
 
     def _on_change(self, snapshot: Snapshot, description: str) -> None:
         if description:
@@ -290,9 +302,16 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
         if not started:
             self._schedule()
 
+    def resizeEvent(self, event: Any) -> None:  # noqa: N802 - Qt 命名
+        super().resizeEvent(event)
+        host = getattr(self, "_host", None)   # 构造中途（宿主还没建好）的尺寸事件不管
+        if host is not None:
+            host.resize(*self._pixels())
+
     def closeEvent(self, event: Any) -> None:  # noqa: N802 - Qt 命名
-        """关窗 = 断开，不重连。"""
+        """关窗 = 断开，不重连；随后退订控件事件、销毁控件。"""
         self._timer.stop()
         self.session.user_close()
+        self._host.close()
         self._notify(self.session.snapshot(), "")
         super().closeEvent(event)

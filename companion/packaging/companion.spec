@@ -4,8 +4,8 @@
 2026-10-10 起打成文件夹(onedir):Tomo 窗口带网页内核(QtWebEngineProcess + 资源约两百 MB),
 onefile 每次启动都要先解包到临时目录,打开慢;装进程序目录后直接启动。
 
-DBF 直写 + 后台 CDX 索引重建即全部录入路径,无 GUI 自动化 → exclude pywinauto/comtypes
-(也免 64 位未装的 warn)。从 repo 根跑:python -m PyInstaller packaging/companion.spec
+DBF 直写 + 后台 CDX 索引重建即全部录入路径,无 GUI 自动化 → exclude pywinauto
+(也免 64 位未装的 warn)。comtypes 只给云端 Express 连接窗口用(见下),随包带上、点「连接」才导入。从 repo 根跑:python -m PyInstaller packaging/companion.spec
 """
 
 import os  # noqa: E402
@@ -45,11 +45,12 @@ _datas_operator = [("../src/companion/express_operator/recipes/*.json", "src/com
 _hidden += [f"src.companion.mrerp_operator.{name}" for name in (
     "draft", "recipe", "web_desk", "web_driver", "session", "book", "engine", "presence", "host", "login")]
 _datas_operator += [("../src/companion/mrerp_operator/recipes/*.json", "src/companion/mrerp_operator/recipes")]
-# 云端 Express（src/companion/cloud_link）：设置页点「连接」才按需导入；连接窗口用 Windows 自带的远程桌面 ActiveX 控件
-# （PySide6.QtAxContainer），非脚本接口只用 ctypes，排除名单不动。
-_hidden += ["PySide6.QtAxContainer"]
+# 云端 Express（src/companion/cloud_link）：设置页点「连接」才按需导入；连接窗口用 Windows 自带的远程桌面 ActiveX 控件，
+# 由系统 ATL 宿主（atl.dll）承载、经 comtypes 做 IDispatch 与事件（ax_host.py），非脚本接口只用 ctypes。
+# comtypes 只列用到的子模块（client / server / tools 不用）。
+_hidden += ["comtypes", "comtypes.automation", "comtypes.connectionpoints"]
 _hidden += [f"src.companion.cloud_link.{name}" for name in (
-    "host", "window", "nonscriptable", "session", "reasons", "tunnel_relay", "tunnel_protocol")]
+    "host", "window", "ax_host", "nonscriptable", "session", "reasons", "tunnel_relay", "tunnel_protocol")]
 
 a = Analysis(
     ["launcher_companion.py"],
@@ -61,7 +62,7 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        "pywinauto", "comtypes",  # 无 GUI 自动化(DBF 直写 + 后台 CDX 索引)
+        "pywinauto",  # 无 GUI 自动化(DBF 直写 + 后台 CDX 索引)
         # T6 瘦身:cv2/numpy(~60MB)+ 纯模拟录入(RPA)/校准依赖 —— 直录(DBF)主路不用,
         # 已懒加载、启动不触发(故可排除);RPA 上线用另一套 build profile 重新 include。
         "cv2", "numpy", "pyautogui", "pytesseract", "mss",

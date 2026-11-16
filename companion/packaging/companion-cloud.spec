@@ -36,9 +36,10 @@ _CLOUD_EXCLUDES = [
     "src.companion.render_safety", "src.companion.tomo_bridge", "src.companion.tomo_hotkey",
     "src.companion.visibility_watch", "src.companion.window_link", "src.companion.window_main",
     "src.companion.mrerp_operator",
-    # 云端 Express 桥侧（连接窗口、非脚本设置、宿主、设置页动作）只在客户自己的电脑上跑，云端那份用不上，且会尝试导入 Qt
-    "src.companion.cloud_link.host", "src.companion.cloud_link.window", "src.companion.cloud_link.nonscriptable",
-    "src.companion.cloud_link.settings_link",
+    # 云端 Express 桥侧（连接窗口、控件宿主、非脚本设置、宿主、设置页动作）只在客户自己的电脑上跑，云端那份用不上，
+    # 且会尝试导入 Qt / comtypes（comtypes 已在上面排除）
+    "src.companion.cloud_link.host", "src.companion.cloud_link.window", "src.companion.cloud_link.ax_host",
+    "src.companion.cloud_link.nonscriptable", "src.companion.cloud_link.settings_link",
 ]
 
 a = Analysis(

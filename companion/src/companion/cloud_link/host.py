@@ -35,7 +35,7 @@
 - 连接窗口：``window.CloudWindow`` + ``ConnectParams.make(..., tunnel_drive=盘符)`` + ``link_store.password_provider`` +
   ``nonscriptable.for_widget()``，状态变化转给上层的 ``on_change``。
 
-不是 Windows、没有 ``QtAxContainer``（``window.available()`` 为假）时 :meth:`start` 不做任何事，抛 :class:`HostUnavailable`。
+不是 Windows、没有 PySide6 或 comtypes（``window.available()`` 为假）时 :meth:`start` 不做任何事，抛 :class:`HostUnavailable`。
 所有 Windows 专属调用（subst、盘符、窗口、代发客户端、线程）都可注入，Mac 上离线测。还没在 Windows 真机上实测。
 """
 from __future__ import annotations
@@ -72,7 +72,7 @@ _LIVE = (State.CONNECTING, State.CONNECTED)
 
 
 class HostUnavailable(RuntimeError):
-    """这台电脑起不了云端连接（不是 Windows、没有 ``QtAxContainer``）。start 前抛，没有任何副作用。"""
+    """这台电脑起不了云端连接（不是 Windows、没有 PySide6 或 comtypes）。start 前抛，没有任何副作用。"""
 
 
 class HostError(RuntimeError):
@@ -295,7 +295,7 @@ class CloudHost:
             if self._running:
                 return
             if not self._available():
-                raise HostUnavailable("cloud Express connection needs Windows with PySide6.QtAxContainer")
+                raise HostUnavailable("cloud Express connection needs Windows with PySide6 and comtypes")
             store = self._links()
             link = store.get(self.host) if store is not None else None
             if link is None:
