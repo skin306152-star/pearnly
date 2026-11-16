@@ -489,7 +489,8 @@ def _handle_operator_task(cfg, qc, task, st):
         qc.ack_failure(task.id, f"{type(exc).__name__}: {exc}"[:OPERATOR_DETAIL_MAX], error_code="OPERATOR_ERROR",
                        outcome="needs_review")
         return "needs_review"
-    meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})}}
+    meta = {"operator": {**(result.get("meta") or {}), **({"masters": ready.created} if ready.created else {})},
+            **operator_masters.written_codes(ready.payload)}  # 顶层同直写：实际用的对方码与逐行存货码（1.12.23）
     return _ack_operator(cfg, qc, task, result, meta)
 
 

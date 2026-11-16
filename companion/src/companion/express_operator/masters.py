@@ -206,6 +206,24 @@ def _with_codes(payload: Dict, plan: _Plan) -> Dict:
     return out
 
 
+def written_codes(payload: Dict) -> Dict:
+    """这张单交给 Express 时实际用的对方码与逐行存货码（随单新建的、按名字认到的现有档都算）：回执顶层同直写的 ``party_code`` /
+    ``line_codes``（``{seq, name, code}``），服务端据此把单上的对方档、随单建的本地物料挂上 Express 码（11-16 验收：以前只在
+    ``meta.operator.masters`` 里报新建的，认到的现有档挂不上）。没有的键不带。"""
+    side = _side(payload)
+    party = (payload.get("supplier" if side == "purchase" else "customer") or {}) if side else {}
+    out: Dict = {}
+    code = str(party.get("code") or "").strip() if isinstance(party, dict) else ""
+    if code:
+        out["party_code"] = code
+    lines = [{"seq": index, "name": str(item.get("name") or "").strip(), "code": str(item.get("code") or "").strip()}
+             for index, item in enumerate(payload.get("items") or [], start=1)
+             if isinstance(item, dict) and str(item.get("code") or "").strip()]
+    if lines:
+        out["line_codes"] = lines
+    return out
+
+
 def prepare(payload: Dict, settings, *, before_create: Callable[[], None] = lambda: None) -> Prepared:
     """代录前把这张单要的主档备齐。``settings`` 是写账线选好的账套（目录、账套名、公司），``before_create`` 在真要建档前调
     （宿主借此退出这一批开着的 Express）。不认识的单种、什么都不用建：原样或只补上找到的码，不碰账套。"""
