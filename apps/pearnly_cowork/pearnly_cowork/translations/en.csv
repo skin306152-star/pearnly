@@ -241,6 +241,7 @@ Buyer is another company,Buyer is another company
 Buyer not on the invoice,Buyer not on the invoice
 Buyer tax ID,Buyer tax ID
 Buyer tax ID invalid,Buyer tax ID invalid
+By Amount,By Amount
 "By preset, ledger account {0} is used for this bank account","By preset, ledger account {0} is used for this bank account"
 "By preset, these accounts are left out: {0}","By preset, these accounts are left out: {0}"
 By preset: {0} groups matched by total,By preset: {0} groups matched by total
@@ -396,6 +397,7 @@ Code or barcode,Code or barcode
 Collapse list,Collapse list
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
 Color,Color
+Columns,Columns
 Combined VAT Filing,Combined VAT Filing
 Comment,Comment
 Commented on a task,Commented on a task
@@ -564,15 +566,18 @@ Customer,Customer
 Customer type,Customer type
 Cyan,Cyan
 Daily,Daily
+Daily Totals,Daily Totals
 Data Version,Data Version
 Date,Date
 Date Diff Days,Date Diff Days
+Date Order,Date Order
 Date created (newest first),Date created (newest first)
 Date created (oldest first),Date created (oldest first)
 Date paid,Date paid
 Dates,Dates
 Day before,Day before
 Day {0},Day {0}
+Day/Month/Year,Day/Month/Year
 Days,Days
 Days later,Days later
 Debit,Debit
@@ -753,6 +758,7 @@ Examples Json,Examples Json
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again
 Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
+Excludes VAT,Excludes VAT
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express
 Exempt sales,Exempt sales
 Existing item,Existing item
@@ -898,6 +904,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,Inactive
 Include Existing Files,Include Existing Files
 Included in total,Included in total
+Includes VAT,Includes VAT
 Income Description,Income Description
 Income Reconciliation,Income Reconciliation
 Income Type,Income Type
@@ -963,6 +970,7 @@ Issues,Issues
 It was entered,It was entered
 It was not entered,It was not entered
 Item,Item
+Item Name,Item Name
 Items,Items
 Job,Job
 Job Roles,Job Roles
@@ -1084,6 +1092,7 @@ Missing page,Missing page
 Modified at (UTC),Modified at (UTC)
 Month,Month
 Month paid,Month paid
+Month/Day/Year,Month/Day/Year
 Monthly,Monthly
 Monthly on {0} at {1},Monthly on {0} at {1}
 More than one account set of this company covers the document date.,More than one account set of this company covers the document date.
@@ -1164,6 +1173,7 @@ No.,No.
 Non-life insurance premiums,Non-life insurance premiums
 None,None
 None of your computers with CC Desktop can open this account set,None of your computers with CC Desktop can open this account set
+Normal sale,Normal sale
 Not Permitted,Not Permitted
 Not a tax invoice,Not a tax invoice
 Not an invoice file,Not an invoice file
@@ -1255,6 +1265,8 @@ P.N.D.53,P.N.D.53
 P.N.D.53 attachment,P.N.D.53 attachment
 P.P.30,P.P.30
 PDF files must contain between 1 and 50 pages.,PDF files must contain between 1 and 50 pages.
+POS Daily Sales,POS Daily Sales
+POS Export,POS Export
 POS daily sales can only be sent to Express,POS daily sales can only be sent to Express
 POS export columns to choose,POS export columns to choose
 POS exports can only be entered into Express,POS exports can only be entered into Express
@@ -1390,6 +1402,8 @@ Ready for the next product,Ready for the next product
 Ready to push,Ready to push
 Reason,Reason
 Receipt,Receipt
+Receipt No.,Receipt No.
+Receipt Type,Receipt Type
 Receivable account,Receivable account
 Received Bytes,Received Bytes
 Receiving account,Receiving account
@@ -1443,6 +1457,7 @@ Refresh Status,Refresh Status
 Refresh the account directory before continuing.,Refresh the account directory before continuing.
 Refreshed account sets,Refreshed account sets
 Refreshing account sets,Refreshing account sets
+Refund,Refund
 Registered At,Registered At
 Registered At (UTC),Registered At (UTC)
 Registered By,Registered By
@@ -2166,6 +2181,7 @@ Upload Failed,Upload Failed
 Upload a sheet,Upload a sheet
 Upload both files.,Upload both files.
 Upload files,Upload files
+Upload the POS export.,Upload the POS export.
 Upload the stock count sheet as an .xlsx file.,Upload the stock count sheet as an .xlsx file.
 Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
@@ -2232,6 +2248,7 @@ Void · no invoice needed,Void · no invoice needed
 Voided,Voided
 Voided (excluded from total),Voided (excluded from total)
 Voided in Express,Voided in Express
+Voided receipt,Voided receipt
 "Voided, not in the total","Voided, not in the total"
 Voucher no.,Voucher no.
 WHT amount,WHT amount
@@ -2255,6 +2272,7 @@ Who can comment,Who can comment
 Whole company,Whole company
 Why it is not in the review sheet,Why it is not in the review sheet
 Wire Attempt,Wire Attempt
+With Stock,With Stock
 With differences,With differences
 Withdraw,Withdraw
 Withdrawal,Withdrawal
@@ -2273,6 +2291,7 @@ Write Route,Write Route
 Writing now. Cannot withdraw.,Writing now. Cannot withdraw.
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written By Computer,Written By Computer
+Year/Month/Day,Year/Month/Day
 Yearly,Yearly
 Yellow,Yellow
 "Yes, keep reconciling it","Yes, keep reconciling it"
@@ -2595,6 +2614,20 @@ cowork.policy.service,Expense (this kind from now on)
 cowork.policy.skip,Don't enter (this kind from now on)
 cowork.policy.skipped,Not entered
 cowork.policy.stock,Stock (this kind from now on)
+cowork.pos.basis.exclusive,Excludes VAT
+cowork.pos.basis.inclusive,Includes VAT
+cowork.pos.dateOrder,Date Order
+cowork.pos.dateOrder.dmy,Day/Month/Year
+cowork.pos.dateOrder.mdy,Month/Day/Year
+cowork.pos.dateOrder.ymd,Year/Month/Day
+cowork.pos.field.item,Item Name
+cowork.pos.field.kind,Receipt Type
+cowork.pos.field.receipt,Receipt No.
+cowork.pos.posting.service,By Amount
+cowork.pos.posting.stock,With Stock
+cowork.pos.status.refund,Refund
+cowork.pos.status.sale,Normal sale
+cowork.pos.status.void,Voided receipt
 cowork.push.withdraw,Withdraw
 cowork.quality.confirmed,Recognized with high confidence
 cowork.quality.failed,No invoice summary found
@@ -3439,12 +3472,18 @@ erp.target_projection_value_required,The ERP data report is missing a required v
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
+guide.business.pos,POS Daily Sales
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
 guide.business.vat,VAT Return
+guide.open.pos,Upload the POS export.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.vat,Choose the tax month.
+guide.step.pos.columns,Columns
+guide.step.pos.days,Daily Totals
+guide.step.pos.export,POS Export
+guide.step.pos.posting_kind,Posting
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

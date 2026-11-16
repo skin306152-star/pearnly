@@ -2447,3 +2447,23 @@ Exempt sales	免税销售额	ยอดขายที่ได้รับยก
 Excess tax brought forward	上期结转的多缴税额	ภาษีที่ชำระเกินยกมา	繰越超過納付額	guide.step.vat.excess_brought_forward
 Rows with zero VAT	税额为零的行	รายการที่ภาษีเป็นศูนย์	税額ゼロの行	guide.step.vat.zero_vat_as
 Box 12 of the {0} draft: {1}	{0} 草稿第 12 栏：{1}	ช่อง 12 ของร่างเดือน {0}: {1}	{0} の下書きの第 12 欄：{1}	cowork.tax.previousExcess
+POS Daily Sales	收银日汇总	ยอดขายรายวันจาก POS	POS 日次売上	guide.business.pos
+Upload the POS export.	请上传 POS 导出。	กรุณาอัปโหลดไฟล์ส่งออก POS	POS のエクスポートをアップロードしてください。	guide.open.pos
+POS Export	POS 导出	ไฟล์ส่งออก POS	POS エクスポート	guide.step.pos.export
+Columns	列	คอลัมน์	列	guide.step.pos.columns
+Posting	入账方式	วิธีบันทึกบัญชี	記帳方法	guide.step.pos.posting_kind
+Daily Totals	每日合计	ยอดรวมรายวัน	日次合計	guide.step.pos.days
+Receipt No.	票号	เลขที่ใบเสร็จ	レシート番号	cowork.pos.field.receipt
+Receipt Type	单据类型	ประเภทใบเสร็จ	レシート種別	cowork.pos.field.kind
+Item Name	品名	ชื่อสินค้า	品名	cowork.pos.field.item
+Date Order	日期顺序	ลำดับวันที่	日付の順序	cowork.pos.dateOrder
+Day/Month/Year	日/月/年	วัน/เดือน/ปี	日/月/年	cowork.pos.dateOrder.dmy
+Month/Day/Year	月/日/年	เดือน/วัน/ปี	月/日/年	cowork.pos.dateOrder.mdy
+Year/Month/Day	年/月/日	ปี/เดือน/วัน	年/月/日	cowork.pos.dateOrder.ymd
+Includes VAT	含增值税	รวมภาษีมูลค่าเพิ่ม	税込	cowork.pos.basis.inclusive
+Excludes VAT	不含增值税	ไม่รวมภาษีมูลค่าเพิ่ม	税抜	cowork.pos.basis.exclusive
+Normal sale	正常销售	ขายปกติ	通常売上	cowork.pos.status.sale
+Voided receipt	作废单	ใบเสร็จที่ยกเลิก	取消レシート	cowork.pos.status.void
+Refund	退货	คืนสินค้า	返品	cowork.pos.status.refund
+By Amount	按金额记	บันทึกตามยอดเงิน	金額で記帳	cowork.pos.posting.service
+With Stock	走库存	บันทึกพร้อมสต็อก	在庫で記帳	cowork.pos.posting.stock

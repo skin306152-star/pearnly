@@ -241,6 +241,7 @@ Buyer is another company,ผู้ซื้อเป็นบริษัทอ�
 Buyer not on the invoice,ไม่มีชื่อผู้ซื้อในใบกำกับภาษี
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีผู้ซื้อ
 Buyer tax ID invalid,เลขประจำตัวผู้เสียภาษีของผู้ซื้อไม่ถูกต้อง
+By Amount,บันทึกตามยอดเงิน
 "By preset, ledger account {0} is used for this bank account",ตามค่าที่ตั้งไว้ บัญชีนี้ใช้บัญชีแยกประเภท {0}
 "By preset, these accounts are left out: {0}",ตามค่าที่ตั้งไว้ บัญชีเหล่านี้ไม่นำมากระทบยอด: {0}
 By preset: {0} groups matched by total,ตามค่าที่ตั้งไว้: จับคู่ตามยอดรวมแล้ว {0} กลุ่ม
@@ -396,6 +397,7 @@ Code or barcode,รหัสหรือบาร์โค้ด
 Collapse list,ย่อรายการ
 Collection is not connected for this ERP data type.,ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Color,สี
+Columns,คอลัมน์
 Combined VAT Filing,ยื่นภาษีมูลค่าเพิ่มรวม
 Comment,ความคิดเห็น
 Commented on a task,แสดงความคิดเห็นในงานแล้ว
@@ -564,15 +566,18 @@ Customer,ลูกค้า
 Customer type,ประเภทลูกค้า
 Cyan,ฟ้า
 Daily,ทุกวัน
+Daily Totals,ยอดรวมรายวัน
 Data Version,เวอร์ชันข้อมูล
 Date,วันที่
 Date Diff Days,จำนวนวันที่ต่างกัน
+Date Order,ลำดับวันที่
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
 Date paid,วัน เดือน ปี ที่จ่าย
 Dates,วันที่
 Day before,ล่วงหน้า 1 วัน
 Day {0},วันที่ {0}
+Day/Month/Year,วัน/เดือน/ปี
 Days,จำนวนวัน
 Days later,วันหลังจากนั้น
 Debit,เดบิต
@@ -753,6 +758,7 @@ Examples Json,ข้อมูลตัวอย่างการแก้ไข
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,ไม่รองรับไฟล์ Excel รุ่นเก่า (.xls) กรุณาบันทึกเป็น .xlsx หรือ .csv แล้วส่งใหม่
 Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
+Excludes VAT,ไม่รวมภาษีมูลค่าเพิ่ม
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
 Exempt sales,ยอดขายที่ได้รับยกเว้น
 Existing item,เลือกสินค้าที่มี
@@ -898,6 +904,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,ปิดใช้งาน
 Include Existing Files,ประมวลผลไฟล์ที่มีอยู่
 Included in total,รวมยอด
+Includes VAT,รวมภาษีมูลค่าเพิ่ม
 Income Description,รายละเอียดเงินได้
 Income Reconciliation,กระทบยอดรายได้
 Income Type,ประเภทเงินได้
@@ -963,6 +970,7 @@ Issues,ปัญหา
 It was entered,ลงบัญชีแล้ว
 It was not entered,ยังไม่ลงบัญชี
 Item,รายการ
+Item Name,ชื่อสินค้า
 Items,รายการ
 Job,งาน
 Job Roles,สิทธิ์การใช้งาน
@@ -1084,6 +1092,7 @@ Missing page,หน้าขาดหาย
 Modified at (UTC),เวลาแก้ไข (UTC)
 Month,เดือน
 Month paid,เดือนที่จ่ายเงินได้
+Month/Day/Year,เดือน/วัน/ปี
 Monthly,ทุกเดือน
 Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 More than one account set of this company covers the document date.,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
@@ -1164,6 +1173,7 @@ No.,ลำดับที่
 Non-life insurance premiums,เบี้ยประกันวินาศภัย
 None,ไม่มี
 None of your computers with CC Desktop can open this account set,คอมพิวเตอร์ของคุณที่มี CC เดสก์ท็อปเปิดชุดบัญชีนี้ไม่ได้
+Normal sale,ขายปกติ
 Not Permitted,ไม่ได้รับอนุญาต
 Not a tax invoice,ไม่ใช่ใบกำกับภาษี
 Not an invoice file,ไม่ใช่ใบกำกับภาษี
@@ -1255,6 +1265,8 @@ P.N.D.53,ภ.ง.ด.53
 P.N.D.53 attachment,ใบแนบ ภ.ง.ด.53
 P.P.30,ภ.พ.30
 PDF files must contain between 1 and 50 pages.,ไฟล์ PDF ต้องมี 1 ถึง 50 หน้า
+POS Daily Sales,ยอดขายรายวันจาก POS
+POS Export,ไฟล์ส่งออก POS
 POS daily sales can only be sent to Express,ยอดขายรายวันจาก POS ส่งได้เฉพาะไปยัง Express
 POS export columns to choose,รอกำหนดคอลัมน์ไฟล์ส่งออก POS
 POS exports can only be entered into Express,ไฟล์ส่งออก POS บันทึกได้เฉพาะใน Express
@@ -1390,6 +1402,8 @@ Ready for the next product,พร้อมตรวจนับสินค้�
 Ready to push,รอส่ง
 Reason,เหตุผล
 Receipt,ใบเสร็จรับเงิน
+Receipt No.,เลขที่ใบเสร็จ
+Receipt Type,ประเภทใบเสร็จ
 Receivable account,บัญชีลูกหนี้
 Received Bytes,จำนวนไบต์ที่ได้รับ
 Receiving account,บัญชีรับเงิน
@@ -1443,6 +1457,7 @@ Refresh Status,สถานะการรีเฟรช
 Refresh the account directory before continuing.,กรุณารีเฟรชไดเรกทอรีชุดบัญชีก่อนดำเนินการต่อ
 Refreshed account sets,รีเฟรชชุดบัญชีแล้ว
 Refreshing account sets,กำลังรีเฟรชชุดบัญชี
+Refund,คืนสินค้า
 Registered At,เวลาที่ลงทะเบียน
 Registered At (UTC),เวลาลงทะเบียน (UTC)
 Registered By,ผู้ลงทะเบียน
@@ -2166,6 +2181,7 @@ Upload Failed,จำนวนที่อัปโหลดไม่สำเร
 Upload a sheet,อัปโหลดไฟล์
 Upload both files.,กรุณาอัปโหลดไฟล์ทั้งสอง
 Upload files,อัปโหลดไฟล์
+Upload the POS export.,กรุณาอัปโหลดไฟล์ส่งออก POS
 Upload the stock count sheet as an .xlsx file.,กรุณาอัปโหลดใบตรวจนับสินค้าเป็นไฟล์ .xlsx
 Upload · Review · Choose destination,อัปโหลด · ตรวจทาน · เลือกปลายทาง
 Uploaded By,ผู้อัปโหลด
@@ -2232,6 +2248,7 @@ Void · no invoice needed,ยกเลิก · ไม่ต้องมีใ�
 Voided,ยกเลิกแล้ว
 Voided (excluded from total),ยกเลิก (ไม่รวมยอด)
 Voided in Express,ยกเลิกใน Express
+Voided receipt,ใบเสร็จที่ยกเลิก
 "Voided, not in the total",ยกเลิกแล้ว ไม่รวมในยอด
 Voucher no.,เลขที่ใบสำคัญ
 WHT amount,จำนวนภาษีหัก ณ ที่จ่าย
@@ -2255,6 +2272,7 @@ Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole company,ทั้งบริษัท
 Why it is not in the review sheet,สาเหตุที่ไม่มีตารางตรวจทาน
 Wire Attempt,จำนวนครั้งที่พยายามส่ง
+With Stock,บันทึกพร้อมสต็อก
 With differences,มีผลต่าง
 Withdraw,ถอนรายการ
 Withdrawal,ถอน
@@ -2273,6 +2291,7 @@ Write Route,การมอบหมายการเขียน
 Writing now. Cannot withdraw.,กำลังบันทึก ถอนไม่ได้
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written By Computer,คอมพิวเตอร์ที่เขียน
+Year/Month/Day,ปี/เดือน/วัน
 Yearly,ทุกปี
 Yellow,เหลือง
 "Yes, keep reconciling it",นำมากระทบยอด
@@ -2595,6 +2614,20 @@ cowork.policy.service,ค่าใช้จ่าย (เอกสารปร�
 cowork.policy.skip,ไม่บันทึก (เอกสารประเภทนี้ทั้งหมด)
 cowork.policy.skipped,ไม่บันทึก
 cowork.policy.stock,สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
+cowork.pos.basis.exclusive,ไม่รวมภาษีมูลค่าเพิ่ม
+cowork.pos.basis.inclusive,รวมภาษีมูลค่าเพิ่ม
+cowork.pos.dateOrder,ลำดับวันที่
+cowork.pos.dateOrder.dmy,วัน/เดือน/ปี
+cowork.pos.dateOrder.mdy,เดือน/วัน/ปี
+cowork.pos.dateOrder.ymd,ปี/เดือน/วัน
+cowork.pos.field.item,ชื่อสินค้า
+cowork.pos.field.kind,ประเภทใบเสร็จ
+cowork.pos.field.receipt,เลขที่ใบเสร็จ
+cowork.pos.posting.service,บันทึกตามยอดเงิน
+cowork.pos.posting.stock,บันทึกพร้อมสต็อก
+cowork.pos.status.refund,คืนสินค้า
+cowork.pos.status.sale,ขายปกติ
+cowork.pos.status.void,ใบเสร็จที่ยกเลิก
 cowork.push.withdraw,ถอนรายการ
 cowork.quality.confirmed,อ่านข้อมูลด้วยความมั่นใจสูง
 cowork.quality.failed,ไม่พบข้อมูลสรุปจากการอ่าน
@@ -3439,12 +3472,18 @@ erp.target_projection_value_required,รายงานข้อมูล ERP �
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
+guide.business.pos,ยอดขายรายวันจาก POS
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
 guide.business.vat,แบบ ภ.พ.30
+guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.vat,เลือกเดือนภาษี
+guide.step.pos.columns,คอลัมน์
+guide.step.pos.days,ยอดรวมรายวัน
+guide.step.pos.export,ไฟล์ส่งออก POS
+guide.step.pos.posting_kind,วิธีบันทึกบัญชี
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

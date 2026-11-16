@@ -241,6 +241,7 @@ Buyer is another company,購入者が別の会社
 Buyer not on the invoice,インボイスに購入者なし
 Buyer tax ID,買い手税番号
 Buyer tax ID invalid,購入者の納税者番号が無効
+By Amount,金額で記帳
 "By preset, ledger account {0} is used for this bank account",プリセットにより、この口座には総勘定元帳の科目 {0} を使用
 "By preset, these accounts are left out: {0}",プリセットにより次の科目は照合に含めていません：{0}
 By preset: {0} groups matched by total,プリセットにより {0} 組を合計で照合済み
@@ -396,6 +397,7 @@ Code or barcode,コードまたはバーコード
 Collapse list,リストを折りたたむ
 Collection is not connected for this ERP data type.,この ERP データの種類には収集機能が接続されていません。
 Color,色
+Columns,列
 Combined VAT Filing,付加価値税の一括申告
 Comment,コメント
 Commented on a task,タスクにコメントしました
@@ -564,15 +566,18 @@ Customer,顧客
 Customer type,顧客区分
 Cyan,水色
 Daily,毎日
+Daily Totals,日次合計
 Data Version,データバージョン
 Date,日付
 Date Diff Days,日付差（日数）
+Date Order,日付の順序
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
 Date paid,支払日
 Dates,日付
 Day before,前日
 Day {0},{0} 日
+Day/Month/Year,日/月/年
 Days,日数
 Days later,日後
 Debit,借方
@@ -753,6 +758,7 @@ Examples Json,修正例データ（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,旧形式の Excel（.xls）は使えません。.xlsx か .csv で保存して送り直してください
 Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
+Excludes VAT,税抜
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
 Exempt sales,免税の売上高
 Existing item,既存の品目
@@ -898,6 +904,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,無効
 Include Existing Files,既存のファイルも処理
 Included in total,合計に含める
+Includes VAT,税込
 Income Description,所得の説明
 Income Reconciliation,収益照合
 Income Type,所得の種類
@@ -963,6 +970,7 @@ Issues,指摘
 It was entered,計上されている
 It was not entered,計上されていない（再送信可）
 Item,項目
+Item Name,品名
 Items,品目
 Job,案件
 Job Roles,機能権限
@@ -1084,6 +1092,7 @@ Missing page,ページ欠落
 Modified at (UTC),更新日時（UTC）
 Month,月
 Month paid,支払月
+Month/Day/Year,月/日/年
 Monthly,毎月
 Monthly on {0} at {1},毎月 {0} {1}
 More than one account set of this company covers the document date.,この会社には書類の日付を含む会計データが複数あります。
@@ -1164,6 +1173,7 @@ No.,番号
 Non-life insurance premiums,損害保険料
 None,なし
 None of your computers with CC Desktop can open this account set,CC デスクトップのあるお使いのパソコンではこの会計データを開けません
+Normal sale,通常売上
 Not Permitted,適切な権限がありません
 Not a tax invoice,税務インボイスではない
 Not an invoice file,請求書以外
@@ -1255,6 +1265,8 @@ P.N.D.53,ภ.ง.ด.53
 P.N.D.53 attachment,ภ.ง.ด.53 添付書類
 P.P.30,ภ.พ.30
 PDF files must contain between 1 and 50 pages.,PDF ファイルのページ数は 1～50 ページにしてください。
+POS Daily Sales,POS 日次売上
+POS Export,POS エクスポート
 POS daily sales can only be sent to Express,POS の日計は Express にのみ送信できます
 POS export columns to choose,POS エクスポートの列の指定待ち
 POS exports can only be entered into Express,POS エクスポートは Express にのみ入力できます
@@ -1390,6 +1402,8 @@ Ready for the next product,次の商品を棚卸できます
 Ready to push,送信待ち
 Reason,理由
 Receipt,領収書
+Receipt No.,レシート番号
+Receipt Type,レシート種別
 Receivable account,売掛金勘定
 Received Bytes,受信バイト数
 Receiving account,入金勘定
@@ -1443,6 +1457,7 @@ Refresh Status,更新状態
 Refresh the account directory before continuing.,先に会計データのディレクトリを更新してください。
 Refreshed account sets,会計データを更新しました
 Refreshing account sets,会計データを更新しています
+Refund,返品
 Registered At,登録日時
 Registered At (UTC),登録日時 (UTC)
 Registered By,登録者
@@ -2166,6 +2181,7 @@ Upload Failed,アップロード失敗数
 Upload a sheet,取り込み
 Upload both files.,両方のファイルをアップロードしてください。
 Upload files,ファイルのアップロード
+Upload the POS export.,POS のエクスポートをアップロードしてください。
 Upload the stock count sheet as an .xlsx file.,棚卸表は .xlsx 形式でアップロードしてください。
 Upload · Review · Choose destination,アップロード · 確認 · 送信先選択
 Uploaded By,アップロードしたユーザー
@@ -2232,6 +2248,7 @@ Void · no invoice needed,取消 · 請求書不要
 Voided,無効化済み
 Voided (excluded from total),取消（合計に含めない）
 Voided in Express,Express で取消
+Voided receipt,取消レシート
 "Voided, not in the total",取消済み（合計に含まない）
 Voucher no.,伝票番号
 WHT amount,源泉税額
@@ -2255,6 +2272,7 @@ Who can comment,コメントできる人
 Whole company,会社全体
 Why it is not in the review sheet,確認表がない理由
 Wire Attempt,送信試行回数
+With Stock,在庫で記帳
 With differences,差異あり
 Withdraw,取り下げ
 Withdrawal,出金
@@ -2273,6 +2291,7 @@ Write Route,書き込みの割り当て
 Writing now. Cannot withdraw.,書き込み中のため取り下げできません。
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written By Computer,書き込んだパソコン
+Year/Month/Day,年/月/日
 Yearly,毎年
 Yellow,黄
 "Yes, keep reconciling it",照合に含める
@@ -2595,6 +2614,20 @@ cowork.policy.service,費用に計上（以後も同様）
 cowork.policy.skip,入力しない（以後も同様）
 cowork.policy.skipped,入力しない
 cowork.policy.stock,在庫に計上（以後も同様）
+cowork.pos.basis.exclusive,税抜
+cowork.pos.basis.inclusive,税込
+cowork.pos.dateOrder,日付の順序
+cowork.pos.dateOrder.dmy,日/月/年
+cowork.pos.dateOrder.mdy,月/日/年
+cowork.pos.dateOrder.ymd,年/月/日
+cowork.pos.field.item,品名
+cowork.pos.field.kind,レシート種別
+cowork.pos.field.receipt,レシート番号
+cowork.pos.posting.service,金額で記帳
+cowork.pos.posting.stock,在庫で記帳
+cowork.pos.status.refund,返品
+cowork.pos.status.sale,通常売上
+cowork.pos.status.void,取消レシート
 cowork.push.withdraw,取り下げ
 cowork.quality.confirmed,高い信頼度で認識
 cowork.quality.failed,請求書の概要情報なし
@@ -3439,12 +3472,18 @@ erp.target_projection_value_required,ERP データレポートに必須の値が
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
+guide.business.pos,POS 日次売上
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
 guide.business.vat,付加価値税申告書
+guide.open.pos,POS のエクスポートをアップロードしてください。
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
 guide.open.vat,課税月を選択してください。
+guide.step.pos.columns,列
+guide.step.pos.days,日次合計
+guide.step.pos.export,POS エクスポート
+guide.step.pos.posting_kind,記帳方法
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書

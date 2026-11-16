@@ -241,6 +241,7 @@ Buyer is another company,买方是其他公司
 Buyer not on the invoice,票面无买方
 Buyer tax ID,买方税号
 Buyer tax ID invalid,买方税号无效
+By Amount,按金额记
 "By preset, ledger account {0} is used for this bank account",按预设，此账户使用总账科目 {0}
 "By preset, these accounts are left out: {0}",按预设，以下科目不参与对账：{0}
 By preset: {0} groups matched by total,按预设：已按合计匹配 {0} 组多笔对一笔
@@ -396,6 +397,7 @@ Code or barcode,编码或条码
 Collapse list,收起列表
 Collection is not connected for this ERP data type.,此 ERP 数据类型暂不支持采集。
 Color,颜色
+Columns,列
 Combined VAT Filing,合并申报增值税
 Comment,评论
 Commented on a task,评论了任务
@@ -564,15 +566,18 @@ Customer,客户
 Customer type,客户类型
 Cyan,青
 Daily,每天
+Daily Totals,每日合计
 Data Version,数据版本
 Date,日期
 Date Diff Days,日期相差天数
+Date Order,日期顺序
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
 Date paid,支付日期
 Dates,日期
 Day before,前 1 天
 Day {0},{0} 日
+Day/Month/Year,日/月/年
 Days,天数
 Days later,天后
 Debit,借方
@@ -753,6 +758,7 @@ Examples Json,修正例数据（JSON）
 Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send again,不支持旧版 Excel（.xls）文件，请另存为 .xlsx 或 .csv 后重新发送
 Excel/CSV from online banking or electronic PDF,网银导出的 Excel/CSV 或电子版 PDF
 Excess tax brought forward,上期结转的多缴税额
+Excludes VAT,不含增值税
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
 Exempt sales,免税销售额
 Existing item,选已有存货
@@ -898,6 +904,7 @@ In-stock: freeze the current balances. Import: take the rows and counted quantit
 Inactive,已停用
 Include Existing Files,处理已有文件
 Included in total,计入合计
+Includes VAT,含增值税
 Income Description,所得说明
 Income Reconciliation,收入对账
 Income Type,所得类型
@@ -963,6 +970,7 @@ Issues,问题
 It was entered,已入账
 It was not entered,未入账
 Item,项目
+Item Name,品名
 Items,物料
 Job,项目
 Job Roles,功能权限
@@ -1084,6 +1092,7 @@ Missing page,此处缺页
 Modified at (UTC),修改时间（UTC）
 Month,月份
 Month paid,支付月份
+Month/Day/Year,月/日/年
 Monthly,每月
 Monthly on {0} at {1},每月 {0} {1}
 More than one account set of this company covers the document date.,该公司有多份账套覆盖单据日期
@@ -1164,6 +1173,7 @@ No.,序号
 Non-life insurance premiums,财产保险费
 None,无
 None of your computers with CC Desktop can open this account set,装有 CC 桌面版的电脑都打不开此账套
+Normal sale,正常销售
 Not Permitted,没有权限
 Not a tax invoice,不是税票
 Not an invoice file,不是发票
@@ -1255,6 +1265,8 @@ P.N.D.53,ภ.ง.ด.53
 P.N.D.53 attachment,ภ.ง.ด.53 附表
 P.P.30,ภ.พ.30
 PDF files must contain between 1 and 50 pages.,PDF 文件必须为 1 至 50 页。
+POS Daily Sales,收银日汇总
+POS Export,POS 导出
 POS daily sales can only be sent to Express,POS 日汇总只能推送到 Express
 POS export columns to choose,待确认 POS 导出的列
 POS exports can only be entered into Express,POS 导出只能录入 Express
@@ -1390,6 +1402,8 @@ Ready for the next product,可以盘下一个商品了
 Ready to push,待推送
 Reason,原因
 Receipt,收据
+Receipt No.,票号
+Receipt Type,单据类型
 Receivable account,应收科目
 Received Bytes,已收字节数
 Receiving account,收款科目
@@ -1443,6 +1457,7 @@ Refresh Status,刷新状态
 Refresh the account directory before continuing.,请先刷新账套目录。
 Refreshed account sets,刷新了账套
 Refreshing account sets,正在刷新账套
+Refund,退货
 Registered At,登记时间
 Registered At (UTC),登记时间（UTC）
 Registered By,登记人
@@ -2166,6 +2181,7 @@ Upload Failed,上传失败数
 Upload a sheet,上传导入
 Upload both files.,请上传两份文件。
 Upload files,上传文件
+Upload the POS export.,请上传 POS 导出。
 Upload the stock count sheet as an .xlsx file.,请上传 .xlsx 格式的盘点表。
 Upload · Review · Choose destination,上传 · 复核 · 选择目标
 Uploaded By,上传人
@@ -2232,6 +2248,7 @@ Void · no invoice needed,作废（无需发票）
 Voided,已作废
 Voided (excluded from total),已作废（不计入合计）
 Voided in Express,Express 中已作废
+Voided receipt,作废单
 "Voided, not in the total",已撤销，不计入合计
 Voucher no.,凭证号
 WHT amount,预扣税额
@@ -2255,6 +2272,7 @@ Who can comment,评论权限
 Whole company,全公司
 Why it is not in the review sheet,未生成复核表的原因
 Wire Attempt,发送尝试次数
+With Stock,走库存
 With differences,有差异
 Withdraw,撤回
 Withdrawal,提款
@@ -2273,6 +2291,7 @@ Write Route,写入分派
 Writing now. Cannot withdraw.,正在写入，无法撤回。
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written By Computer,写入的电脑
+Year/Month/Day,年/月/日
 Yearly,每年
 Yellow,黄
 "Yes, keep reconciling it",参与对账
@@ -2595,6 +2614,20 @@ cowork.policy.service,记费用（同类单据均记费用）
 cowork.policy.skip,不录入（同类单据均不录入）
 cowork.policy.skipped,不录入
 cowork.policy.stock,走库存（同类单据均走库存）
+cowork.pos.basis.exclusive,不含增值税
+cowork.pos.basis.inclusive,含增值税
+cowork.pos.dateOrder,日期顺序
+cowork.pos.dateOrder.dmy,日/月/年
+cowork.pos.dateOrder.mdy,月/日/年
+cowork.pos.dateOrder.ymd,年/月/日
+cowork.pos.field.item,品名
+cowork.pos.field.kind,单据类型
+cowork.pos.field.receipt,票号
+cowork.pos.posting.service,按金额记
+cowork.pos.posting.stock,走库存
+cowork.pos.status.refund,退货
+cowork.pos.status.sale,正常销售
+cowork.pos.status.void,作废单
 cowork.push.withdraw,撤回
 cowork.quality.confirmed,高置信识别
 cowork.quality.failed,未识别到摘要
@@ -3439,12 +3472,18 @@ erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
 excel,Excel
 failed,失败
+guide.business.pos,收银日汇总
 guide.business.readback,回读
 guide.business.recon,对账中心
 guide.business.vat,增值税申报表
+guide.open.pos,请上传 POS 导出。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
 guide.open.vat,选择税务月份。
+guide.step.pos.columns,列
+guide.step.pos.days,每日合计
+guide.step.pos.export,POS 导出
+guide.step.pos.posting_kind,入账方式
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
