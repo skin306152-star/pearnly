@@ -467,6 +467,12 @@ print("{{}}")
             raise SystemExit(f"读不到实验室站点配置（{CONTAINER} 起来了吗）：{result.stderr[-400:]}")
         return json.loads(result.stdout.strip().splitlines()[-1])
 
+    def sweep(self, site, start_print):
+        """这一格新建的行和文件删掉（`SWEEP_CODE`），回 {swept: {表: 行数}, kept: {行: 原因}, rebuilt, files}。"""
+        files = sorted(key for key in start_print if key.startswith("file: "))
+        return self.python(site, SWEEP_CODE.format(since=start_print["_now"], before_files=files, extra=FOOTPRINT_EXTRA,
+                                                   skip=FOOTPRINT_SKIP_DIRS))
+
     def footprint(self, site):
         """这个站点里后面的流程看得到的那部分（`FOOTPRINT_CODE`）：本仓 App 的单据表与 Single、用户与岗位的行数，站点私有目录
         （账套读回的资料等，不含上传原件与备份）每个文件的摘要。一格跑前跑后各取一次，不一样就是这条流程留下了数据。"""
@@ -501,8 +507,83 @@ for folder, dirs, files in os.walk(root):
         path = os.path.join(folder, name)
         with open(path, "rb") as handle:
             out["file: " + os.path.relpath(path, root)] = hashlib.sha1(handle.read()).hexdigest()[:12]
+out["_now"] = str(frappe.utils.now_datetime())
 print(json.dumps(out))
 """
+
+# 一格结束后的通用收尾（11-16 列车 D：79 / 137 格跑完和跑前不一样，前一格的单、公司、权限被后面的格看到）：
+# 本格期间新建的行（守护数的那些表，creation 不早于这一格开始）按新到旧用框架的 delete_doc 删——查链接（原有数据还连着它的不删、
+# 照样列进 left_data）、连子表和附件一起删；产品自己的 on_trash 拒删的（已作废的单据等，流程已冲回库存）跳过 on_trash 再删一次。
+# 删掉的库存流水所在的「商品 + 仓库 + 仓位」原来就有结存的，用产品的 rebuild_balance 按剩下的流水重算。
+# private 下这格新出现的文件（守护的文件清单里跑前没有的）删掉；跑前就有、被改了的文件内容没法还原，照样列出。
+SWEEP_CODE = """
+import os
+since, before_files = {since!r}, set({before_files!r})
+modules = frappe.get_all("Module Def", filters={{"app_name": ["like", "pearnly%"]}}, pluck="name")
+rows = frappe.get_all("DocType", filters={{"module": ["in", modules], "istable": 0, "is_virtual": 0, "issingle": 0}}, pluck="name")
+tables = sorted({{t for t in rows if not t.endswith(" Log")}} | set({extra!r}) - {{"Has Role"}})
+frappe.set_user("Administrator")
+made = []
+for t in tables:
+    made += [(r.creation, t, r.name) for r in frappe.get_all(t, filters={{"creation": [">=", since]}}, fields=["name", "creation"],
+                                                             limit_page_length=0)]
+made.sort(key=lambda r: str(r[0]), reverse=True)
+stock = set()
+if frappe.db.exists("DocType", "ERP Stock Movement"):
+    for name in [n for _, t, n in made if t == "ERP Stock Movement"]:
+        row = frappe.db.get_value("ERP Stock Movement", name, ["product", "warehouse", "location"], as_dict=True)
+        if row:
+            stock.add((row.product, row.warehouse, row.location or ""))
+swept, kept = {{}}, {{}}
+for _, t, name in made:
+    if not frappe.db.exists(t, name):
+        continue  # 跟着父行一起删掉了
+    error = None
+    for skip_trash in (False, True):
+        try:
+            frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=skip_trash, delete_permanently=True)
+            frappe.db.commit()
+            swept[t] = swept.get(t, 0) + 1
+            error = None
+            break
+        except frappe.LinkExistsError as e:
+            frappe.db.rollback()
+            error = "linked: " + str(e)[:160]
+            break
+        except Exception as e:  # noqa: BLE001
+            frappe.db.rollback()
+            error = type(e).__name__ + ": " + str(e)[:160]
+    if error:
+        kept[t + " " + name] = error
+rebuilt = 0
+if stock:
+    from pearnly_erp_portal.inventory import stock as inventory
+    for product, warehouse, location in sorted(stock):
+        if frappe.db.exists("ERP Stock Balance", {{"product": product, "warehouse": warehouse, "location": location}}):
+            try:
+                inventory.rebuild_balance(product, warehouse, location)
+                frappe.db.commit()
+                rebuilt += 1
+            except Exception as e:  # noqa: BLE001
+                frappe.db.rollback()
+                kept["rebuild " + product + " " + warehouse] = type(e).__name__ + ": " + str(e)[:160]
+root = frappe.get_site_path("private")
+removed = 0
+for folder, dirs, files in os.walk(root):
+    if folder == root:
+        dirs[:] = [d for d in dirs if d not in {skip!r}]
+    for name in files:
+        path = os.path.join(folder, name)
+        if "file: " + os.path.relpath(path, root) not in before_files:
+            os.remove(path)
+            removed += 1
+print(json.dumps({{"swept": swept, "kept": kept, "rebuilt": rebuilt, "files": removed}}))
+"""
+
+# 登记过的「跑完不一样也不算留数据」：写明为什么不影响后面的格
+FOOTPRINT_ALLOWED = {
+    "settings: Pearnly Assistant Push Key": "助手推送密钥在站点第一次用到时生成一次，之后不再变（每个站点只在第一格出现一次）",
+}
 
 
 def footprint_diff(before, after):
@@ -510,7 +591,7 @@ def footprint_diff(before, after):
     changed = {}
     for key in sorted(set(before) | set(after)):
         old, new = before.get(key), after.get(key)
-        if old == new:
+        if old == new or key.startswith("_") or key in FOOTPRINT_ALLOWED:
             continue
         if key.startswith("rows: "):
             changed[key] = f"{(new or 0) - (old or 0):+d}"
@@ -955,6 +1036,14 @@ def main(argv=None) -> int:
         except Exception as error:  # noqa: BLE001 - 一格出错记不通过，其余照跑
             result = {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": False, "error": str(error)[:600],
                       "checks": [], **({"steps": getattr(error, "steps")} if getattr(error, "steps", None) else {})}
+        # 收尾：这一格新建的行和文件删掉（流程自己的 cleanup / verify 之后）；删不掉的留在 left_data 里
+        if start_print is not None and start_print.get("_now"):
+            try:
+                swept = lab.sweep(site, start_print)
+                if swept.get("swept") or swept.get("files") or swept.get("kept"):
+                    result["swept"] = swept
+            except Exception as error:  # noqa: BLE001 - 收尾出错记下，不挡别的格
+                result["swept"] = {"error": str(error)[:300]}
         # 留下了数据：只记不判（后面的流程看得到、可能被它带歪；判过与否仍只看这一格自己的检查项）
         try:
             left = (footprint_diff(start_print, lab.footprint(site)) if start_print is not None

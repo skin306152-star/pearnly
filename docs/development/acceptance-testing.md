@@ -155,7 +155,7 @@ L3 模块：run(ctx)（用 ctx.step、ctx.check、ctx.require、ctx.save、ctx.s
 
 | 对象 | 起点 | 还原 |
 | --- | --- | --- |
-| 实验栈站点 | `scripts/regression/datasets.py` 的两套固定数据；上线前全套在新起的栈上跑 | 场景自己备的数据可重复建；改过的设置格结束时写回（`set_fields`） |
+| 实验栈站点 | `scripts/regression/datasets.py` 的两套固定数据；上线前全套在新起的栈上跑 | 场景自己备的数据可重复建；改过的设置格结束时写回（`set_fields`）；流程用例每格结束后 `run.py` 删掉这一格新建的行和 private 下新出现的文件（`SWEEP_CODE`：按新到旧走 `delete_doc`，原有数据还链着的不删，删掉流水的结存按剩下的流水重算），再比跑前跑后，删不掉的、改了原有内容的记进 `left_data`；登记的例外在 `FOOTPRINT_ALLOWED` |
 | 线上测试租户 | 专用 e2e 账号、专用测试公司；场景建的单带本次运行编号 | 场景收尾删掉自己建的；不动别人的数据 |
 | Express 测试账套 | **整本快照**：每本验收账套有一份带哈希清单的基线快照；场景开跑前先探测没人开着，再恢复到基线并逐文件核哈希 | 跑完把现场只读拷出来留证据，再恢复基线并核对；工具 `scripts/acceptance/ledger.py`（probe / snapshot / verify / restore / copy / rows / diff；只认测试账套、还原不能串账套、多出的文件挪走不删） |
 | MR.ERP 测试公司 | 不能还原。每张单带本次运行编号，按单号读回 | 写成的单保留、记单号；不删 |

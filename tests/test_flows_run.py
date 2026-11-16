@@ -340,6 +340,49 @@ class RerunFailed(unittest.TestCase):
         self.assertTrue(wanted <= set(module.map_flows(files=list(found[row.anchor].files))))
         self.assertEqual(module.map_flows(files=[]), [])
 
+    def test_each_cell_sweeps_what_it_made_before_the_footprint(self):
+        # 每格结束后先收尾（删这一格新建的行与文件），再比跑前跑后；收掉的记在 swept，删不掉的仍列进 left_data（11-16 列车 D 79 格）
+        state = {"rows: ERP Company": 2, "settings: Pearnly Assistant Push Key": "k1"}
+        swept = []
+
+        class Lab(FakeLab):
+            def dataset(self, which, product="erp"):
+                return {"site": f"{product}-{which}.site"}
+
+            def footprint(self, site):
+                return {**state, "_now": "2026-11-16 10:00:00.000001"}
+
+            def sweep(self, site, start_print):
+                swept.append((site, start_print["_now"], sorted(k for k in start_print if k.startswith("file: "))))
+                state["rows: ERP Company"] = 3  # 只删掉了一行，剩一行删不掉
+                return {"swept": {"ERP Company": 1}, "kept": {"ERP Company CO-9": "linked: x"}, "rebuilt": 0, "files": 0}
+        run.Lab = Lab
+
+        def run_flow(lab, flow, dataset, viewport):
+            if flow["id"] == "a.one":
+                state.update({"rows: ERP Company": 4, "settings: Pearnly Assistant Push Key": "k2"})
+            return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": True, "checks": []}
+        run.run_flow = run_flow
+        out = self.tmp / "swept.json"
+        self.main("--all", "--out", str(out))
+        data = json.loads(out.read_text())
+        first = data["results"][0]
+        self.assertEqual(first["flow"], "a.one")
+        self.assertEqual(first["swept"]["swept"], {"ERP Company": 1})
+        # 推送密钥第一次生成（登记过）不算留数据；删不掉的那一行照样算
+        self.assertEqual(first["left_data"], {"rows: ERP Company": "+1"})
+        self.assertTrue(swept and all(when == "2026-11-16 10:00:00.000001" for _, when, _ in swept))
+
+    def test_sweep_code_is_valid_python_and_keeps_its_rules(self):
+        import ast
+
+        code = run.SWEEP_CODE.format(since="2026-11-16 10:00:00", before_files=["file: a"], extra=run.FOOTPRINT_EXTRA,
+                                     skip=run.FOOTPRINT_SKIP_DIRS)
+        ast.parse(code)
+        for rule in ('reverse=True', 'frappe.LinkExistsError', 'ignore_on_trash=skip_trash', 'rebuild_balance', '"creation": [">=", since]'):
+            self.assertIn(rule, code)
+        self.assertIn("_now", run.FOOTPRINT_CODE)
+
     def test_footprint_diff(self):
         self.assertEqual(run.footprint_diff({"rows: A": 2, "file: x": "1", "settings: S": "a"},
                                             {"rows: A": 1, "file: y": "2", "settings: S": "b"}),
