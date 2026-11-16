@@ -29,6 +29,7 @@
 | 共用件连带回归 | 7a2e73226：命中 erp-masters-selection、erp-originals、erp-company-menu、cowork-intake-upload，40 个入口（下表是 8d415ba14 时的 14 个，白天并 main 后重出全表） | `check-impact.py --markdown` |
 | 受影响流程 | 1f2b2de62：交叠的 4 条收款流程（erp.line.collection、erp.web.collection、erp.collection.date、erp.collections.refused）5/5 格通过，404 秒，自建小栈 pearnly-integ1116-lab（跑完已 stop）；其余 33 条中的另外 29 条等白天并 main 后 `--changed` 跑（主会话 11-15 晚定） | ~/pearnly-devtools/integ1116-flows-1.log |
 | 全闸门（合并头） | 1f2b2de62：251 项过，同上只差两行真机记录 | ~/pearnly-devtools/integ1116-gate-2.log |
+| **最终被测头 f7d403580**（并 origin/main b30469eda，11-16 12:0x） | 全闸门 257 项过，只差两行真机记录（预期）；候选离线 111 组 LANE EXIT 0；`run.py --changed --base origin/main --jobs 3`（自建小栈清卷重起）19 条流程 60/61 格过，唯一不过 erp.exports new/mobile 为无头浏览器断开（「debug connection closed」），`--rerun-failed` 立刻补跑仍是浏览器断开（栈刚起 20 秒），栈起稳后单跑该格**通过**（39 秒）；new/desktop、old/mobile 同流程首轮即过 | ~/pearnly-devtools/integ1116-gate-3.log、-cand-3.log、-flows-3.log / -3b / -3c |
 
 ### 共用件连带回归（8d415ba14，`erp-masters-selection`）
 
@@ -108,3 +109,4 @@ CC 桌面版 1.12.22 那 12 行、A 线两行（月份代录、Cowork 撤回）*
 | 11-15 21:5x | 合 collection-date 1fe229338（无冲突） | 52105b5cc |
 | 11-15 22:4x | 合 collection-date-no-period 9d9f0c109（无冲突；收款三组离线测试 OK） | 79e38eccc |
 | 11-15 22:5x | 合 page-company d9207ed4c（无冲突；带进 main 到 9c1e783ad；作者已过全闸门、候选离线、受影响流程 17 条 56/56） | 7a2e73226 |
+| 11-16 12:0x | 并 origin/main b30469eda：冲突 6 个文件（registry.toml / messages.tsv / copy-approved.tsv 两边都留；cc_tools.py 取 main 的「its label」并保留 DAY_NEEDED_NOTE；purchase.js / sales.js 保留 page-company 的 page_company.enter，main 的 switched_company 整页重载已被取代） | f7d403580 |
