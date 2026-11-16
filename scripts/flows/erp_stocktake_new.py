@@ -14,7 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from desk_list import ACTION  # noqa: E402
-from erp_lib import JS, js_value, warehouses  # noqa: E402
+from erp_lib import JS, codes, company, js_value, warehouses  # noqa: E402
 
 TITLE = "ERP 盘点：列表新建盘点、旧盘点的 Express 弹窗"
 USER = "stock@erp.regression"
@@ -24,9 +24,21 @@ API = "pearnly_erp_portal.express.api.document_express"
 def prepare(lab, manifest):
     wh = warehouses(manifest)[0]["name"]
     tag = uuid.uuid4().hex[:6]
+    product = codes(manifest)["by_code"]["product"]
     out = lab.python(manifest["site"], f"""
+from pearnly_erp_portal.inventory import api, documents
+from pearnly_erp_portal.masters import company as companies
+# 快照要有在库物料：仓里一件都没有时先按正式入库记一笔（新开户数据本来没货，以前靠前面别的流程留下的入库；11-16 GitHub 分份后暴露，
+# 每格收尾后也一样），收尾时连流水一起删掉
+if not frappe.db.count("ERP Stock Balance", {{"warehouse": {wh!r}, "qty_on_hand": ["!=", 0]}}):
+    frappe.set_user("admin@erp.regression")
+    companies.set_active_company({company(manifest)!r})
+    shelf = (frappe.get_all("ERP Warehouse Location", filters={{"parent": {wh!r}, "parenttype": "ERP Warehouse"}}, pluck="location_name",
+                            order_by="idx asc", limit=1) or [""])[0]
+    documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse={wh!r}, reason="flow seed", submit=True,
+                           lines=[{{"product": {product!r}, "qty": 5, "unit_cost": 10, "location": shelf}}])
+    frappe.db.commit()
 frappe.set_user({USER!r})
-from pearnly_erp_portal.inventory import api
 made = api.api_create_stock_count(title="flow legacy {tag}", warehouse={wh!r})
 frappe.db.commit()
 # 只在实验室：把它标成以前那种已结束、整份写进 Express 的盘点（现在差异改走物料调整单，新盘点不再有写账状态）
@@ -83,7 +95,7 @@ print(json.dumps({{"rows": rows, "items": items, "legacy": legacy}}, default=str
     rows = got["rows"]
     return [
         {"case": "one count with this name in this warehouse, its snapshot holds the stocked products", "saved": got,
-         "ok": len(rows) == 1 and rows[0]["warehouse"] == params["warehouse"] and got["items"] >= 1 and got["items"] >= min(params["stocked"], 1)},
+         "ok": len(rows) == 1 and rows[0]["warehouse"] == params["warehouse"] and got["items"] >= 1},
         {"case": "opening the Express dialog left the legacy count's ledger state alone", "saved": got["legacy"],
          "ok": got["legacy"] == {"ledger_state": "written", "ledger_docnum": params["docnum"]}},
     ]
