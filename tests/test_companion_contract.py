@@ -1909,6 +1909,8 @@ class OneNetworkExit(unittest.TestCase):
         ("request_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
         ("updater.py", "check_update"): [{"timeout", "follow_redirects", "verify"}],
         ("updater.py", "download_installer"): [{"timeout", "follow_redirects", "verify"}],
+        # 云端 Express 桥侧代发（cloud_link/host.py）：新调用方，不跟随重定向、超时按每个请求自带
+        ("host.py", "_default_forward"): [{"verify", "follow_redirects"}],
     }
 
     def _sources(self):
