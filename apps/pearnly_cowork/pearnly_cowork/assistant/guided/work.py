@@ -347,7 +347,7 @@ def confirm(ctx, values, draft, consent) -> dict:
             with _conversation(ctx):
                 for file_id in values["files"]:
                     filename, content = chat_files.attachment(str(file_id))  # loop-query: 交的几份，一份一个原生 File
-                    service.attach(card, _Upload(filename, content))
+                    service.attach(card, _Upload(filename, content))  # loop-query: 交的几份（引擎上限 20），一份一次
         elif action == MOVE:
             api.move(card, values["list"])
         elif action == DONE:
