@@ -85,7 +85,10 @@ def collect(ctx, chain, conf, sale, entry, title, **params) -> dict:
         record = out["record"]
         ctx.require("收款状态", "written", record["status"])
         ctx.check("回显了 Express 收款单号", True, str(record.get("docnum") or "").startswith("RE"))
-        ctx.check("CC 桌面版写后读回", "ok", (record.get("job") or {}).get("verify_state"))
+        # 收款单是 CC 在写入过程里自己读回核对的（`dbf_receipt._verify`，核不上整单失败），不像采购 / 销售另报 verify 元数据：
+        # 写账件成功即读回过，verify_state 只许空或 ok（11-16 首跑按 ok 写错了）
+        job = record.get("job") or {}
+        ctx.check("CC 桌面版写账件成功（收款单写入时已逐表读回）", ["success", True], [job.get("status"), job.get("verify_state") in ("", "ok")])
         ctx.check("来源", entry, record["source"])
         chain.only_ledger(ctx, record["book_paths"])
         ctx.facts.setdefault("docnums", []).append(record["docnum"])

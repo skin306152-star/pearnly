@@ -86,7 +86,9 @@ def run(ctx):
         ctx.check("回显了 Express 收款单号", True, str(receipt.get("docnum") or "").startswith("RE"))
         ctx.check("草稿里的客户编码是账本里的原样", customer, receipt["customer"])
         ctx.check("收的是说的那个数", chain.money(CASH), chain.money(receipt["total"]))
-        ctx.check("CC 桌面版写后读回", "ok", (receipt.get("job") or {}).get("verify_state"))
+        # 收款单写入时 CC 已逐表读回（`dbf_receipt._verify`），不另报 verify 元数据：写账件成功、verify_state 空或 ok（同 erp_collection_express）
+        job = receipt.get("job") or {}
+        ctx.check("CC 桌面版写账件成功（收款单写入时已逐表读回）", ["success", True], [job.get("status"), job.get("verify_state") in ("", "ok")])
         ctx.check("放行记的是对话里的那次同意", True, str(receipt.get("consent_ref") or "").startswith("cc:"))
         chain.only_ledger(ctx, receipt["book_paths"])
         talk.wait_idle(120)

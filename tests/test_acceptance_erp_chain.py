@@ -99,13 +99,16 @@ class World:
         methods = []
         if transfer:
             self.add("ARRCPCQ", RCPNUM=docnum, CHQNUM="TR" + docnum, RCVAMT=transfer)
+            if not self.tables.get("ISRUN"):   # 转账方式经 SHORTNAM 指到 BKMAS 的户头，才记银行流水（同原生、同 CC plan_bank）
+                self.add("ISRUN", DOCTYP="ZR", PREFIX="TR", SHORTNAM="BB")
+                self.add("BKMAS", BNKACC="BB")
             self.add("BKTRN", VOUCHER=docnum, AMOUNT=transfer)
             methods = [{"prefix": "TR", "role": "transfer", "amount": f"{transfer:.2f}"}]
         head = self.tables["ARTRN"][0]
         head.update(RCVAMT=self.received, REMAMT=self.total - self.received, CMPLAPP="Y" if self.received == self.total else "")
         return {"name": name, "status": "written", "docnum": docnum, "source": source, "customer": self.customer, "cash": f"{cash:.2f}",
                 "total": f"{amount:.2f}", "methods": methods, "invoices": [{"docnum": self.invoice, "amount": f"{amount:.2f}"}],
-                "balances": {self.invoice: f"{self.total - self.received:.2f}"}, "job": {"verify_state": "ok"},
+                "balances": {self.invoice: f"{self.total - self.received:.2f}"}, "job": {"status": "success", "verify_state": ""},
                 "book_paths": [r"\\accserver\d$\ACCOUNT\69EXP\TEST2"]}
 
     def erp_collection_post(self, params):

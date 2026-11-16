@@ -194,18 +194,31 @@ def receipt_readback(ctx, book, folder: str, record: dict, remaining_after: dict
               sorted([str(item.get("CHQNUM") or "").strip(), money(item.get("RCVAMT"))] for item in lines))
     bank = rows(book, folder, "BKTRN", f"VOUCHER={docnum}")
     ctx.save(f"bktrn-{docnum}.json", bank)
+    # 记不记银行流水按账本自己的设置判（同原生、同 CC `dbf_receipt.plan_bank`）：收款方式（ISRUN ZR）的 SHORTNAM 指到 BKMAS 里有的户头
+    # 才记一行；只按科目对得上户头的不记（11-16 首跑：TEST2 的转账方式 SHORTNAM 都是空的，期望「每种转账都记」写错了）
     transfers = [item for item in record["methods"] if item.get("role") == "transfer"]
-    if transfers:
-        ctx.check(f"{docnum} 的转账进了银行流水（每种一行，金额一致）", sorted(money(item["amount"]) for item in transfers),
+    to_bank = [item for item in transfers if bank_account_of(book, folder, item["prefix"])]
+    if to_bank:
+        ctx.check(f"{docnum} 指到银行户头的转账进了银行流水（每种一行，金额一致）", sorted(money(item["amount"]) for item in to_bank),
                   sorted(money(item.get("AMOUNT")) for item in bank))
     else:
-        ctx.check(f"{docnum} 只收现金不记银行流水", 0, len(bank))
+        label = "只收现金" if not transfers else "转账方式没有经 SHORTNAM 指到银行户头"
+        ctx.check(f"{docnum} {label}，不记银行流水", 0, len(bank))
     ctx.check(f"{docnum} 的凭证恰好一张", 1, len(rows(book, folder, "GLJNL", f"VOUCHER={docnum}")))
     for item in record["invoices"]:
         if remaining_after and item["docnum"] in remaining_after:
             ctx.check(f"{docnum} 回执带回的 {item['docnum']} 余额", money(remaining_after[item["docnum"]]),
                       money((record.get("balances") or {}).get(item["docnum"])))
     return row
+
+
+def bank_account_of(book, folder: str, prefix: str) -> str:
+    """账本里这种收款方式（ISRUN DOCTYP=ZR、这个前缀）经 SHORTNAM 指到的、BKMAS 里有的户头；同前缀几行取第一行指到户头的；没有回空。"""
+    for row in rows(book, folder, "ISRUN", "DOCTYP=ZR"):
+        short = str(row.get("SHORTNAM") or "").strip()
+        if str(row.get("PREFIX") or "").strip() == prefix and short and rows(book, folder, "BKMAS", f"BNKACC={short}"):
+            return short
+    return ""
 
 
 def invoice_balance(ctx, book, folder: str, docnum: str, total, received) -> None:
