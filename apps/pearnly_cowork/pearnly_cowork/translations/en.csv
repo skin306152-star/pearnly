@@ -2277,6 +2277,7 @@ With differences,With differences
 Withdraw,Withdraw
 Withdrawal,Withdrawal
 Withdrawn.,Withdrawn.
+Withholding Tax,Withholding Tax
 Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
@@ -3476,10 +3477,12 @@ guide.business.pos,POS Daily Sales
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
 guide.business.vat,VAT Return
+guide.business.wht,Withholding Tax
 guide.open.pos,Upload the POS export.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.vat,Choose the tax month.
+guide.open.wht,Choose the tax month.
 guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
@@ -3499,6 +3502,7 @@ guide.step.vat.exempt_sales,Exempt sales
 guide.step.vat.period,Tax Month
 guide.step.vat.readback,Readback
 guide.step.vat.zero_vat_as,Rows with zero VAT
+guide.step.wht.period,Tax Month
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.

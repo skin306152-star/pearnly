@@ -2277,6 +2277,7 @@ With differences,มีผลต่าง
 Withdraw,ถอนรายการ
 Withdrawal,ถอน
 Withdrawn.,ถอนแล้ว
+Withholding Tax,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
 Withholding agent,ผู้มีหน้าที่หักภาษี ณ ที่จ่าย
 Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
@@ -3476,10 +3477,12 @@ guide.business.pos,ยอดขายรายวันจาก POS
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
 guide.business.vat,แบบ ภ.พ.30
+guide.business.wht,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
 guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.vat,เลือกเดือนภาษี
+guide.open.wht,เลือกเดือนภาษี
 guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
@@ -3499,6 +3502,7 @@ guide.step.vat.exempt_sales,ยอดขายที่ได้รับยก�
 guide.step.vat.period,เดือนภาษี
 guide.step.vat.readback,การอ่านข้อมูลกลับ
 guide.step.vat.zero_vat_as,รายการที่ภาษีเป็นศูนย์
+guide.step.wht.period,เดือนภาษี
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

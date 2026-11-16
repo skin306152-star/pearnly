@@ -2467,3 +2467,6 @@ Voided receipt	作废单	ใบเสร็จที่ยกเลิก	取消
 Refund	退货	คืนสินค้า	返品	cowork.pos.status.refund
 By Amount	按金额记	บันทึกตามยอดเงิน	金額で記帳	cowork.pos.posting.service
 With Stock	走库存	บันทึกพร้อมสต็อก	在庫で記帳	cowork.pos.posting.stock
+Withholding Tax	预扣税申报表	แบบ ภ.ง.ด.3 / ภ.ง.ด.53	源泉徴収税申告書	guide.business.wht
+Choose the tax month.	选择税务月份。	เลือกเดือนภาษี	課税月を選択してください。	guide.open.wht
+Tax Month	税务月份	เดือนภาษี	課税月	guide.step.wht.period
