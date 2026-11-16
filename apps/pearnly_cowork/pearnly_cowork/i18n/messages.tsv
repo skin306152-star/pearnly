@@ -2445,3 +2445,22 @@ General ledger	总账	บัญชีแยกประเภททั่วไ�
 Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	guide.step.recon.sales_vat
 Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	guide.step.recon.invoices
 From Express readback	从 Express 回读	อ่านข้อมูลกลับจาก Express	Express から読み戻し	cowork.recon.fromReadback
+Task Management	任务管理	จัดการงาน	タスク管理	guide.business.work
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.work
+Action	操作	การดำเนินการ	操作	guide.step.work.action
+Board	看板	บอร์ด	ボード	guide.step.work.board
+List	列表	รายการ	リスト	guide.step.work.list
+Card	卡片	การ์ด	カード	guide.step.work.card
+Title	标题	ชื่อ	タイトル	guide.step.work.title
+Title	标题	ชื่อ	タイトル	guide.step.work.rename
+Description	描述	รายละเอียด	説明	guide.step.work.description
+Start date	开始日期	วันเริ่ม	開始日	guide.step.work.start_date
+Due date	到期日	วันครบกำหนด	期日	guide.step.work.due_date
+Due time	到期时间	เวลาครบกำหนด	期限時刻	guide.step.work.due_time
+Set reminder	设置提醒	ตั้งการแจ้งเตือน	リマインダー	guide.step.work.reminder
+Recurring	重复性	การทำซ้ำ	繰り返し	guide.step.work.recurrence
+Comment	评论	ความคิดเห็น	コメント	guide.step.work.content
+Edit card	编辑卡片	แก้ไขการ์ด	カードを編集	guide.option.work.update
+Move card	移动卡片	ย้ายการ์ด	カードを移動	guide.option.work.move
+Mark complete or incomplete	标记完成或未完成	ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ	完了・未完了を切り替え	guide.option.work.done
+Nothing to change	没有要改的项	ไม่มีรายการที่จะแก้ไข	変更する項目がありません	guide.fact.work.nothing

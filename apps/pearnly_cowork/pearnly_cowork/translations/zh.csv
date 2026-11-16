@@ -72,6 +72,7 @@ Account set,账套
 Account signed in elsewhere,账号已在别处登录
 Accrual basis,权责制
 Ack Digest,回执摘要
+Action,操作
 Active,正常
 Active Attempt,当前尝试
 Active Key,活动防重键
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,请选择每月运行的日期和时�
 Choose a file,选择文件
 "Choose a folder inside the allowed root, without system folders.",请选择允许读取的根目录下的文件夹，不能选择系统文件夹。
 Choose an Express account set first,请先选择 Express 账套
+Choose an action.,选择操作。
 Choose an allowed root reported by CC Desktop.,请选择 CC 桌面版上报的根目录。
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one job role,请至少选择一个功能权限
@@ -1059,6 +1061,7 @@ Mapping Key,映射键
 Mapping Kind,映射类型
 Mark all as read,全部标为已读
 Mark complete,标记完成
+Mark complete or incomplete,标记完成或未完成
 Mark each balance break as a missing page or a known difference before saving.,请将每处余额差异标记为「此处缺页」或「已知差异」后再保存。
 Mark incomplete,标记未完成
 Match Layer,匹配层级
@@ -1087,6 +1090,7 @@ Monthly on {0} at {1},每月 {0} {1}
 More than one account set of this company covers the document date.,该公司有多份账套覆盖单据日期
 Move,移动
 Move all cards in this list,移动此列表中的所有卡片
+Move card,移动卡片
 Move list,移动列表
 Moved a task,移动了任务
 Moving a task,正在移动任务
@@ -1183,6 +1187,7 @@ Note is empty or too long,说明为空或过长
 Note not found,未找到该说明
 Notes,备注
 Notes are full,知识库已满
+Nothing to change,没有要改的项
 Nothing withheld on the invoice,票面未扣税
 Notifications,提醒
 Number,数字
@@ -3442,8 +3447,14 @@ excel,Excel
 failed,失败
 guide.business.readback,回读
 guide.business.recon,对账中心
+guide.business.work,任务管理
+guide.fact.work.nothing,没有要改的项
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
+guide.open.work,选择操作。
+guide.option.work.done,标记完成或未完成
+guide.option.work.move,移动卡片
+guide.option.work.update,编辑卡片
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
@@ -3454,6 +3465,19 @@ guide.step.recon.readback,回读
 guide.step.recon.sales_vat,销项税报告
 guide.step.recon.source,来源
 guide.step.recon.statement,银行账单
+guide.step.work.action,操作
+guide.step.work.board,看板
+guide.step.work.card,卡片
+guide.step.work.content,评论
+guide.step.work.description,描述
+guide.step.work.due_date,到期日
+guide.step.work.due_time,到期时间
+guide.step.work.list,列表
+guide.step.work.recurrence,重复性
+guide.step.work.reminder,设置提醒
+guide.step.work.rename,标题
+guide.step.work.start_date,开始日期
+guide.step.work.title,标题
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。

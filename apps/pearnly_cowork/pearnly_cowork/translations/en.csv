@@ -72,6 +72,7 @@ Account set,Account set
 Account signed in elsewhere,Account signed in elsewhere
 Accrual basis,Accrual basis
 Ack Digest,Ack Digest
+Action,Action
 Active,Active
 Active Attempt,Active Attempt
 Active Key,Active Key
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,Choose a day and time for the monthly
 Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
 Choose an Express account set first,Choose an Express account set first
+Choose an action.,Choose an action.
 Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
@@ -1059,6 +1061,7 @@ Mapping Key,Mapping Key
 Mapping Kind,Mapping Kind
 Mark all as read,Mark all as read
 Mark complete,Mark complete
+Mark complete or incomplete,Mark complete or incomplete
 Mark each balance break as a missing page or a known difference before saving.,Mark each balance break as a missing page or a known difference before saving.
 Mark incomplete,Mark incomplete
 Match Layer,Match Layer
@@ -1087,6 +1090,7 @@ Monthly on {0} at {1},Monthly on {0} at {1}
 More than one account set of this company covers the document date.,More than one account set of this company covers the document date.
 Move,Move
 Move all cards in this list,Move all cards in this list
+Move card,Move card
 Move list,Move list
 Moved a task,Moved a task
 Moving a task,Moving a task
@@ -1183,6 +1187,7 @@ Note is empty or too long,Note is empty or too long
 Note not found,Note not found
 Notes,Notes
 Notes are full,Notes are full
+Nothing to change,Nothing to change
 Nothing withheld on the invoice,Nothing withheld on the invoice
 Notifications,Notifications
 Number,Number
@@ -3442,8 +3447,14 @@ excel,excel
 failed,Failed
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.business.work,Task Management
+guide.fact.work.nothing,Nothing to change
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
+guide.open.work,Choose an action.
+guide.option.work.done,Mark complete or incomplete
+guide.option.work.move,Move card
+guide.option.work.update,Edit card
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
@@ -3454,6 +3465,19 @@ guide.step.recon.readback,Readback
 guide.step.recon.sales_vat,Output VAT report
 guide.step.recon.source,Source
 guide.step.recon.statement,Bank statement
+guide.step.work.action,Action
+guide.step.work.board,Board
+guide.step.work.card,Card
+guide.step.work.content,Comment
+guide.step.work.description,Description
+guide.step.work.due_date,Due date
+guide.step.work.due_time,Due time
+guide.step.work.list,List
+guide.step.work.recurrence,Recurring
+guide.step.work.reminder,Set reminder
+guide.step.work.rename,Title
+guide.step.work.start_date,Start date
+guide.step.work.title,Title
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.
