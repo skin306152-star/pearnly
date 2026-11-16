@@ -287,3 +287,7 @@ reason = "标准组件库展示页里的引导运行卡预览（kit.html?page=gu
 [[file]]
 file = "frontend/assistant/src/kit/guide-run-fixtures.ts"
 reason = "引导运行卡展示页与前端测试用的替身引擎（形状照共享笔记几份约定）：只在开发服务器、CC_KIT=1 构建与离线测试里用，不进生产；由 tests/test_cc_guide_run_ui.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/components/cloud-express.tsx"
+reason = "CC 设置 → 连接里「云端 Express」一行：只在 CC 桌面版窗口里出现（靠桌面版桥动作 cloud_prefill / cloud_connect / cloud_status），回归实验室的浏览器里没有桌面版桥，这一行不渲染；行的各状态、预填可改、页面没有密码框、按钮调的桥动作由 tests/test_cc_cloud_express.py 离线守住，真机见产品地图 cc.desktop.cloud-express"
