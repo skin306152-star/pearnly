@@ -2169,3 +2169,13 @@ Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.ste
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
 Not saved: {0}	没有记下：{0}	ยังไม่ได้บันทึก: {0}	保存されていません：{0}	
+Stock Card Report	收发存报表	รายงานรับ-จ่าย-คงเหลือ	受払在庫表	guide.business.stock_card
+Choose the report and dates.	选择报表和日期。	เลือกรายงานและวันที่	レポートと日付を選択してください。	guide.open.stock_card
+Report	报表	รายงาน	レポート	guide.step.stock_card.report
+Format	格式	รูปแบบ	形式	guide.step.stock_card.format
+From Date	开始日期	ตั้งแต่วันที่	開始日	guide.step.stock_card.date_from
+To Date	结束日期	ถึงวันที่	終了日	guide.step.stock_card.date_to
+From Product	起始物料	รหัสสินค้า	開始品目	guide.step.stock_card.product_from
+To Product	截止物料	ถึงรหัสสินค้า	終了品目	guide.step.stock_card.product_to
+From Warehouse Code	起始仓库	รหัสคลังสินค้า	開始倉庫	guide.step.stock_card.warehouse_from
+To Warehouse Code	截止仓库	ถึงรหัสคลังสินค้า	終了倉庫	guide.step.stock_card.warehouse_to

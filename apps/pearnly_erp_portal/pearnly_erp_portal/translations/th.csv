@@ -298,6 +298,7 @@ Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 Choose the location,กรุณาเลือกตำแหน่ง
 Choose the payment method,กรุณาเลือกวิธีชำระเงิน
+Choose the report and dates.,เลือกรายงานและวันที่
 Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the supplier,กรุณาเลือกผู้จำหน่าย
@@ -1430,6 +1431,7 @@ Status,สถานะ
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",ยังปิดอยู่: ตารางสต็อกต้องเข้าเป็นชุดงานของฝ่ายสต็อก และการลงบัญชีห้ามข้ามไปเงียบ ๆ
 Stock,สต็อก
 Stock Account Group,กลุ่มบัญชีสินค้าคงเหลือ
+Stock Card Report,รายงานรับ-จ่าย-คงเหลือ
 Stock Count,ตรวจนับสต็อก
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
@@ -2515,6 +2517,8 @@ express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
+guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
+guide.open.stock_card,เลือกรายงานและวันที่
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2524,6 +2528,14 @@ guide.step.collection.day,วันที่รับเงิน
 guide.step.collection.invoices,ใบแจ้งหนี้
 guide.step.collection.methods,วิธีรับเงิน
 guide.step.collection.voucher,สลิปการโอน
+guide.step.stock_card.date_from,ตั้งแต่วันที่
+guide.step.stock_card.date_to,ถึงวันที่
+guide.step.stock_card.format,รูปแบบ
+guide.step.stock_card.product_from,รหัสสินค้า
+guide.step.stock_card.product_to,ถึงรหัสสินค้า
+guide.step.stock_card.report,รายงาน
+guide.step.stock_card.warehouse_from,รหัสคลังสินค้า
+guide.step.stock_card.warehouse_to,ถึงรหัสคลังสินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

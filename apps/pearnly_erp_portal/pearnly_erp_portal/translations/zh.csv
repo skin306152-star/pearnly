@@ -298,6 +298,7 @@ Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
 Choose the location,请选择仓位
 Choose the payment method,请选择付款方式
+Choose the report and dates.,选择报表和日期。
 Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
 Choose the supplier,请选择供应商
@@ -1430,6 +1431,7 @@ Status,状态
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
 Stock,库存
 Stock Account Group,存货科目组
+Stock Card Report,收发存报表
 Stock Count,盘点
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
@@ -2515,6 +2517,8 @@ express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废
 goods,货物
+guide.business.stock_card,收发存报表
+guide.open.stock_card,选择报表和日期。
 guide.review.department,部门
 guide.review.salesman,销售员
 guide.step.collection.book,账套
@@ -2524,6 +2528,14 @@ guide.step.collection.day,收款日期
 guide.step.collection.invoices,发票
 guide.step.collection.methods,收款方式
 guide.step.collection.voucher,转账凭证
+guide.step.stock_card.date_from,开始日期
+guide.step.stock_card.date_to,结束日期
+guide.step.stock_card.format,格式
+guide.step.stock_card.product_from,起始物料
+guide.step.stock_card.product_to,截止物料
+guide.step.stock_card.report,报表
+guide.step.stock_card.warehouse_from,起始仓库
+guide.step.stock_card.warehouse_to,截止仓库
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出
