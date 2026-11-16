@@ -114,6 +114,14 @@ class Windows:
             text = raw.decode("utf-16") if raw[:2] in (b"\xff\xfe", b"\xfe\xff") else raw.decode("utf-8", "replace")
         return int(status.split()[2]), text
 
+    def cc(self, mode: str, *args: str, timeout: int = 300) -> dict:
+        """停 / 起 / 看这台测试机上的 CC 桌面版（`win/cc_power.py`，桌面用户通道）：造「电脑离线」现场用。回那一行 JSON。"""
+        code, out = self.python(HERE / "win" / "cc_power.py", mode, *args, timeout=timeout)
+        lines = [line for line in out.splitlines() if line.strip().startswith("{")]
+        if not lines:
+            raise Infra(f"{self.name}：cc_power.py {mode} 没有回结果（退出码 {code}）：{out[-300:]}")
+        return json.loads(lines[-1])
+
 
 class Ledger:
     """测试机上的一本验收账套。所有子命令的结果是 `ledger.py` 打印的那一行 JSON。"""
@@ -139,6 +147,10 @@ class Ledger:
 
     def restore(self, snap: str) -> dict:
         return self.call("restore", snap, self.path)
+
+    def hold(self, seconds: int) -> dict:
+        """像 Express 开着窗口那样共享开着账套里的几张表 ``seconds`` 秒（造「Express 开着」现场，`ledger.py hold`）；阻塞到放开。"""
+        return self.call("hold", self.path, str(int(seconds)), timeout=int(seconds) + 300)
 
     def copy(self, to: str) -> dict:
         """跑完后的现场：整本只读拷到证据目录旁（对比用），不动账套。"""

@@ -63,5 +63,23 @@ class DesktopUserChannelTest(unittest.TestCase):
         self.assertFalse(any("acc-run.ps1" in argv[-1] for argv in fake.calls))
 
 
+class CcPowerTest(unittest.TestCase):
+    """测试机上停 / 起 CC 桌面版的小脚本（scripts/acceptance/win/cc_power.py）：只认起来之后的心跳 INFO 行。"""
+
+    def test_only_heartbeats_after_the_start_count(self):
+        from datetime import datetime
+
+        spec = importlib.util.spec_from_file_location("acc_cc_power", ROOT / "scripts" / "acceptance" / "win" / "cc_power.py")
+        power = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(power)
+        lines = ["2026-11-16 10:00:00,001 [INFO] companion.heartbeat :: [heartbeat] ok (old)",
+                 "2026-11-16 10:05:00,001 [WARNING] companion.heartbeat :: [heartbeat] failed",
+                 "2026-11-16 10:05:03,001 [INFO] companion.worker :: polling",
+                 "2026-11-16 10:05:09,001 [INFO] companion.heartbeat :: [heartbeat] ok"]
+        beats = power.beats_since(lines, datetime(2026, 11, 16, 10, 5, 0))
+        self.assertEqual(len(beats), 1)
+        self.assertIn("10:05:09", beats[0])
+
+
 if __name__ == "__main__":
     unittest.main()

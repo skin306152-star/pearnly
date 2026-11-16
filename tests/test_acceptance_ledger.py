@@ -153,6 +153,22 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.digest(self.book), before)
         self.assertEqual(ledger.main(["rows", "b64:" + __import__("base64").b64encode(str(self.book).encode()).decode(), "STMAS"]), 0)
 
+    def test_hold_keeps_the_tables_open_read_only_and_only_on_test_ledgers(self):
+        (self.book / "ISRUN.DBF").write_bytes(dbf([("DOCTYP", 2)], [(False, ["ZR"])]))
+        before, slept = ledger.digest(self.book), []
+        out = ledger.hold(self.book, 5000, sleep=slept.append)
+        self.assertEqual((out["held"], slept), (["ISRUN.DBF"], [ledger.HOLD_MAX]))   # 只开账套里有的；最长 HOLD_MAX 秒
+        self.assertEqual(ledger.digest(self.book), before)
+        other = self.root / "70EXP" / "REAL"
+        other.mkdir(parents=True)
+        (other / "ISRUN.DBF").write_bytes(b"x")
+        with self.assertRaises(ledger.Refused):
+            ledger.hold(other, 5, sleep=slept.append)
+        empty = self.root / "69EXP" / "NLTTEST"
+        empty.mkdir()
+        with self.assertRaises(ledger.Refused):
+            ledger.hold(empty, 5, sleep=slept.append)
+
 
 if __name__ == "__main__":
     unittest.main()
