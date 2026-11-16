@@ -177,21 +177,23 @@ def own_scripts(flow) -> set[str]:
     return found
 
 
-def product_map_flows(base) -> set[str]:
-    """产品地图连带出的要跑的流程（`check-product-map.py` 的影响清单：入口文件、它调用的接口函数、共用件、读到的配置键）。"""
+def product_map_flows(base, files=None) -> set[str]:
+    """产品地图连带出的要跑的流程（`check-product-map.py` 的影响清单：入口文件、它调用的接口函数、共用件、读到的配置键）。
+    给了 base 按相对它的分叉点算（接口按函数算）；没给 base 就按 files 整个文件算。"""
     spec = importlib.util.spec_from_file_location("check_product_map", ROOT / "scripts" / "check-product-map.py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    return set(module.map_flows(base, root=ROOT))
+    return set(module.map_flows(base, root=ROOT) if base else module.map_flows(files=list(files or []), root=ROOT))
 
 
 def changed_flows(flows, files, base=None) -> list[dict]:
     """改动涉及的流程，两套规则取并集（11-16：只用第一套，集成分支漏 22 条、第二列车漏 13 条，靠人工对照影响清单补跑）：
     ① registry 的 covers，加上流程自己的脚本与它引用到的流程辅助脚本（`own_scripts`）——改流程脚本、改到 covers 写的产品文件；
-    ② 给了 ``base`` 时再加产品地图按连带算出的流程（同 `check-product-map.py` 的「要跑的流程」，相对 base 的分叉点）——
-       改到页面调用的接口、共用件、配置键，covers 没写到的也选上。
+    ② 再加产品地图按连带算出的流程（同 `check-product-map.py` 的「要跑的流程」，相对 base 的分叉点）——
+       改到页面调用的接口、共用件、配置键，covers 没写到的也选上。没给 base（模块里单独调用）就按 files 整个文件算地图，
+       同样取并集（11-16 合入队列：单独调用只算了第一套，列车 E 比地图少 4 条）。
     --changed、补跑范围、部署闸认范围都用这一个函数。"""
-    mapped = product_map_flows(base) if base else set()
+    mapped = product_map_flows(base, files) if (base or files) else set()
     return [flow for flow in flows
             if any(covers(flow, path) for path in files) or own_scripts(flow) & set(files) or flow["id"] in mapped]
 

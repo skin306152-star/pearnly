@@ -104,7 +104,7 @@ class RerunFailed(unittest.TestCase):
         self.saved = {name: getattr(run, name) for name in ("registry", "head", "product_dirty", "Lab", "run_flow", "spa_fresh",
                                                             "product_map_flows")}
         run.registry = lambda: FLOWS
-        run.product_map_flows = lambda base: set()  # 地图连带另有测试（test_product_map_flows_follow_the_real_map）
+        run.product_map_flows = lambda base, files=None: set()  # 地图连带另有测试（test_product_map_flows_follow_the_real_map）
         run.head = lambda: "f" * 40
         run.product_dirty = lambda: ""
         run.Lab = FakeLab
@@ -321,11 +321,12 @@ class RerunFailed(unittest.TestCase):
                  {"id": "c.neither", "module": "scripts/flows/none_c.py", "covers": []}]
         saved = run.product_map_flows
         asked = []
-        run.product_map_flows = lambda base: asked.append(base) or {"b.mapped"}
+        run.product_map_flows = lambda base, files=None: asked.append((base, list(files or []))) or {"b.mapped"}
         try:
             self.assertEqual([f["id"] for f in run.changed_flows(flows, ["apps/x/page.js"], "abc123")], ["a.covered", "b.mapped"])
-            self.assertEqual(asked, ["abc123"])
-            self.assertEqual([f["id"] for f in run.changed_flows(flows, ["apps/x/page.js"])], ["a.covered"])  # 没给基线：只看文件
+            # 没给基线（模块里单独调用）：地图按这些文件算，照样取并集（11-16 列车 E 少 4 条）
+            self.assertEqual([f["id"] for f in run.changed_flows(flows, ["apps/x/page.js"])], ["a.covered", "b.mapped"])
+            self.assertEqual(asked, [("abc123", ["apps/x/page.js"]), (None, ["apps/x/page.js"])])
         finally:
             run.product_map_flows = saved
 
@@ -620,7 +621,7 @@ class ChangedFlows(unittest.TestCase):
     def setUp(self):
         self.flows = run.registry()
         self.saved = run.changed_files, run.product_map_flows
-        run.product_map_flows = lambda base: set()  # 这里只看第一套规则；并集见 RerunFailed.test_changed_takes_the_product_map_flows_too
+        run.product_map_flows = lambda base, files=None: set()  # 这里只看第一套规则；并集见 RerunFailed.test_changed_takes_the_product_map_flows_too
 
     def tearDown(self):
         run.changed_files, run.product_map_flows = self.saved
