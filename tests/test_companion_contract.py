@@ -962,6 +962,19 @@ class Release1123Edges(unittest.TestCase):
         self.assertEqual((engine.DIALOG_TEXT_MAX, engine.DIALOG_BUTTONS_MAX, engine.DIALOG_BUTTON_MAX),
                          (common.OPERATOR_DIALOG_TEXT, common.OPERATOR_DIALOG_BUTTONS, common.OPERATOR_DIALOG_BUTTON))
 
+    def test_the_interrupted_reason_and_where_it_stopped_match(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(COMPANION.parent))
+        from companion.express_operator import contract as client
+        from companion.express_operator.engine import Interrupted
+        from pearnly_core.express_operator import contracts as server
+        from pearnly_core.express_rules.push import common
+
+        self.assertEqual((client.REASONS.get("interrupted"), server.REASONS.get("interrupted")), (client.HUMAN, server.HUMAN))
+        stop = Interrupted("line2.price", "cell is '9', want '10'", "editing")
+        self.assertEqual(stop.reason, "interrupted")
+        self.assertEqual(common.clean_operator_meta({"interrupt": stop.interrupt})["interrupt"], stop.interrupt)
+
     def test_remembered_answers_ride_in_operator_dialog_answers(self):
         sys.path.insert(0, str(COMPANION.parent))
         from companion.express_operator.draft import dialog_answers

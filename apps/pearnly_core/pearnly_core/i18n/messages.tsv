@@ -1006,6 +1006,8 @@ Choose document menu	选择单据菜单	เลือกเมนูเอกส�
 Express closed twice	Express 连续关闭	Express ปิดตัวซ้ำ	Express が続けて終了しました	operator.report.reason.crash_repeated
 CC restarted	CC 桌面版已重启	CC รีสตาร์ตแล้ว	CC デスクトップが再起動しました	operator.report.reason.cc_restarted
 Document partly saved in Express	Express 里有一张未存完的单	มีเอกสารบันทึกไม่ครบใน Express	Express に保存が完了していない伝票があります	operator.report.reason.partial_saved
+Express is waiting for a choice	Express 有提示框待选择	Express รอการเลือก	Express が選択を待っています	operator.report.reason.dialog_choice
+Express was used during entry	Express 被人操作过	มีการใช้งาน Express ระหว่างบันทึก	入力中に Express が操作されました	operator.report.reason.interrupted
 Blank document left to void	Express 留有空单待作废	มีเอกสารว่างรอยกเลิก	取消待ちの空伝票があります	operator.report.reason.placeholder_left
 Server unreachable	服务器无法连接	เชื่อมต่อเซิร์ฟเวอร์ไม่ได้	サーバーに接続できません	operator.report.reason.network_down
 Task cost limit reached	已达本任务费用上限	ถึงวงเงินค่าใช้จ่ายของงานแล้ว	このタスクの費用上限に達しました	operator.report.reason.budget

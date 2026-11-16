@@ -129,6 +129,19 @@ class Stopped(Exception):
     """人点了停止（等电脑空出来的时候）。"""
 
 
+INTERRUPTED = "interrupted"
+
+
+class Interrupted(NeedHuman):
+    """有人在本批的 Express 里点过 / 打过字（1.12.23 ⑥）：人停手后核对画面对不上，或等满上限人还在点。不交 AI 去「修」人的操作，
+    这张转人工（原因 ``interrupted``），结果 meta.interrupt 带 {stage, where, what}；对话里给「继续 / 停止」。"""
+
+    def __init__(self, where: str, what: str, stage: str = "editing"):
+        super().__init__(INTERRUPTED, f"{where}: {what}"[:300])
+        self.interrupt = {"stage": stage if stage in ("editing", "saving") else "editing", "where": str(where)[:60],
+                          "what": str(what)[:200]}
+
+
 class Unexpected(Exception):
     """固定流程这一步之后状态不对：交给 AI 接手。"""
 
@@ -199,8 +212,15 @@ class Engine:
         if not self.presence:
             return False
         started = time.monotonic()
-        paused = bool(self.presence())
+        try:
+            paused = bool(self.presence())
+        except Interrupted as stop:  # 等满上限人还在点：带上这张停在哪
+            stop.interrupt["stage"] = "saving" if self._save_pressed else "editing"
+            stop.interrupt["where"] = stop.interrupt["where"] or str(self._stage or "")[:60]
+            raise
         self._time("paused", time.monotonic() - started)
+        if paused:
+            self._touched = True  # 人碰过本批的 Express：之后核对不上就是人改的，不交 AI 去改回（⑥）
         return paused
 
     def _wait_for(self, check: Callable[[], Any], seconds: float) -> Any:
@@ -383,6 +403,9 @@ class Engine:
 
     def _recover(self, where: str, problem: str, expect_text: str, expect: Dict, reverify=None) -> None:
         self.rec["fallbacks"].append({"where": where, "problem": problem[:200]})
+        if getattr(self, "_touched", False):  # 人在 Express 里动过、等人停手后画面对不上：如实交人，不让 AI 改人的操作
+            self._event("interrupted", where=where, problem=problem[:200])
+            raise Interrupted(where, problem, "saving" if self._save_pressed else "editing")
         choice = [w for w in self.windows if w.get("owned") and self._match(w) is None and is_choice(w)]
         if choice:  # 配方外的业务选择：不交 AI（它只能看不能点）；有人答过的照点，没有就原样留给人、带回对话
             if self._answer_choice(choice[0], where):
@@ -1071,6 +1094,7 @@ class Engine:
         """开始一段记录（一张单，或探路时 ``draft=None``）。"""
         self.draft = draft
         self._save_pressed = False
+        self._touched = False
         doc_type = draft.doc_type if draft else doc_type
         self.form = self.recipe.form(doc_type) if doc_type else None
         self._t0 = time.monotonic()
@@ -1088,6 +1112,8 @@ class Engine:
             self.rec["menu_options"] = list(e.options)
         if isinstance(e, DialogHeld):
             self.rec["dialog"] = dict(e.dialog)
+        if isinstance(e, Interrupted):
+            self.rec["interrupt"] = dict(e.interrupt)
         self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
         self.rec["voided"] = self.abandon()
 
@@ -1112,6 +1138,10 @@ class Engine:
         self.rec.update(outcome="need_human", reason=reason, detail=detail[:K.DETAIL_MAX], recheck=True, held=True)
         if found.get("partial"):
             self.rec.update(reason=PARTIAL, partial=dict(found["partial"][-1]))
+        if isinstance(e, Interrupted):  # 保存途中人动过：账套里存完了上面已回单号；没存完照实交人
+            self.rec["interrupt"] = dict(e.interrupt, stage="saving")
+            if not found.get("partial"):
+                self.rec["reason"] = INTERRUPTED
         if isinstance(e, DialogHeld):  # 保存途中的业务选择框：框的样子照带；账套里已留半截单仍按 partial_saved（1.12.22 的补报照旧）
             self.rec["dialog"] = dict(e.dialog)
             if not found.get("partial"):

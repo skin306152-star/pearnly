@@ -423,6 +423,9 @@ class Host:
         dialog = getattr(doc, "dialog", None)  # 别的目标（MR.ERP）的单据状态没有这一项
         if dialog:  # 配方外业务选择框（dialog_choice，或保存途中留了半截单的 partial_saved）：原文与按钮带回对话出卡（1.12.23 ③）
             meta["dialog"] = dict(dialog)
+        interrupt = getattr(doc, "interrupt", None)
+        if interrupt:  # 有人在本批的 Express 里动过：停在哪一步、哪一格（1.12.23 ⑥），对话里给「继续 / 停止」
+            meta["interrupt"] = dict(interrupt)
         if doc.evidence:  # 转人工那一刻的截图（本机路径）：站点单独处理，不在说明里
             meta["evidence"] = doc.evidence
         partial = getattr(doc, "partial", None)  # 别的目标（MR.ERP）的单据状态没有这两项
@@ -605,7 +608,7 @@ def express_factory(state, store, settings, root: Path, notify, member=None):
     evidence_root = root / "evidence"
     evidence = Evidence(evidence_root, state.id)
     holder: Dict = {}
-    presence = Presence(WindowsSignals(), lambda: desk.last_input_tick,
+    presence = Presence(WindowsSignals(target=lambda: desk.pid), lambda: desk.last_input_tick,
                         stop_requested=lambda: holder["runner"].stop_requested(),
                         on_pause=lambda r: holder["runner"].presence_paused(r),
                         on_resume=lambda: holder["runner"].presence_resumed(),
