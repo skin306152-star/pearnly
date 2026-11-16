@@ -51,6 +51,7 @@ Account name matches,勘定科目名が一致
 Account signed in elsewhere,アカウントは別の場所でログイン中です
 Accounting period: {0},会計期間：{0}
 Accrual basis,発生主義
+Action,操作
 Actual position,実際の棚番
 Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
@@ -291,6 +292,7 @@ Choices,選択肢
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
 Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
+Choose an action.,操作を選択してください。
 Choose an existing product for opening stock,登録済みの商品を選択してください
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one invoice,請求書を1件以上選択してください
@@ -2569,6 +2571,8 @@ express.state.written,書き込み済み
 express.summary.extra,追加分
 express.void,Express で取消
 goods,物品
+guide.business.stocktake,棚卸
+guide.open.stocktake,操作を選択してください。
 guide.review.department,部門
 guide.review.salesman,営業担当
 guide.step.collection.book,会計データ
@@ -2578,6 +2582,12 @@ guide.step.collection.day,入金日
 guide.step.collection.invoices,請求書
 guide.step.collection.methods,入金方法
 guide.step.collection.voucher,振込明細
+guide.step.stocktake.action,操作
+guide.step.stocktake.count,棚卸
+guide.step.stocktake.mode,方法
+guide.step.stocktake.rows,今回の実地数量
+guide.step.stocktake.title,名前
+guide.step.stocktake.warehouse,倉庫
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

@@ -2191,3 +2191,11 @@ A required account is not set	缺少所需科目	ยังไม่ได้ต�
 A required account is not set	缺少所需科目	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้	必要な勘定科目が設定されていません	express.fail.no_output_vat_account
 A required account is not set	缺少所需科目	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้	必要な勘定科目が設定されていません	express.fail.no_purchase_account
 A required account is not set	缺少所需科目	ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้	必要な勘定科目が設定されていません	express.fail.no_revenue_account
+Stock Count	盘点	ตรวจนับสินค้า	棚卸	guide.business.stocktake
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.stocktake
+Action	操作	การดำเนินการ	操作	guide.step.stocktake.action
+Warehouse	仓库	คลังสินค้า	倉庫	guide.step.stocktake.warehouse
+Name	名称	ชื่อ	名前	guide.step.stocktake.title
+Stock count	盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.count
+Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.rows
+Method	方式	วิธี	方法	guide.step.stocktake.mode

@@ -51,6 +51,7 @@ Account name matches,科目名称对得上
 Account signed in elsewhere,账号已在别处登录
 Accounting period: {0},会计期间：{0}
 Accrual basis,权责制
+Action,操作
 Actual position,实际仓位
 Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
@@ -291,6 +292,7 @@ Choices,选项
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
+Choose an action.,选择操作。
 Choose an existing product for opening stock,请选择已有的物料录入期初
 Choose an image attached to this card,请选择此卡片的图片附件
 Choose at least one invoice,请至少选择一张发票
@@ -2569,6 +2571,8 @@ express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废
 goods,货物
+guide.business.stocktake,盘点
+guide.open.stocktake,选择操作。
 guide.review.department,部门
 guide.review.salesman,销售员
 guide.step.collection.book,账套
@@ -2578,6 +2582,12 @@ guide.step.collection.day,收款日期
 guide.step.collection.invoices,发票
 guide.step.collection.methods,收款方式
 guide.step.collection.voucher,转账凭证
+guide.step.stocktake.action,操作
+guide.step.stocktake.count,盘点
+guide.step.stocktake.mode,方式
+guide.step.stocktake.rows,本次实盘数量
+guide.step.stocktake.title,名称
+guide.step.stocktake.warehouse,仓库
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出
