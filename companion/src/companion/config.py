@@ -56,6 +56,8 @@ def _local_appdata_root() -> Path:
 # 云端 Express 文件隧道（桥本机，cloud_link/host.py）：每条云端连接一个子目录 <主机>\（in、out、ctl），subst 成隧道盘。
 # 只在起云端连接时才建，没连云端的电脑不建
 CLOUD_TUNNEL_DIR = _local_appdata_root() / "cloud-tunnel"
+# 云端精简包的本机缓存（cloud_link/cloud_package.py）：<版本>\CC-Cloud.zip + cloud.json；只在要放进隧道盘时才建
+CLOUD_PACKAGE_DIR = _local_appdata_root() / "cloud-package"
 
 
 def _default_backend_url() -> str:

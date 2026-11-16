@@ -2171,6 +2171,8 @@ class OneNetworkExit(unittest.TestCase):
     DIRECT = {"Client", "AsyncClient", "get", "post", "put", "patch", "delete", "head", "options", "request", "stream"}
     # 改动前 `httpx.Client(` 每处的关键字名（按函数，源码顺序）
     BEFORE = {
+        # 桥下载云端精简包（2026-11-16，cloud_link/cloud_package.py）：同 updater 跟随重定向
+        ("cloud_package.py", "_client"): [{"timeout", "follow_redirects", "verify"}],
         ("device_link.py", "_post"): [{"base_url", "headers", "timeout", "verify"}],
         ("folder_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
         ("folder_client.py", "put_direct"): [{"follow_redirects", "timeout", "verify"}],
