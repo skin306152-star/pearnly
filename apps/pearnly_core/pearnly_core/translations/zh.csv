@@ -41,7 +41,6 @@ All directions,全部方向
 All statuses,全部状态
 All three fields are required,请填写全部三项
 Allow DMS queries from LINE,允许在 LINE 使用查询功能
-Allow LINE to use the camera,允许 LINE 使用相机
 Allowed,允许
 Amount,金额
 Amount and VAT differ,金额和税不一致
@@ -56,7 +55,6 @@ Attempt,尝试次数
 Attempts,尝试次数
 Authoritative push status.,推送状态以此为准。
 Authorize in CC Desktop,在 CC 桌面版中授权
-Authorized: {0},已授权：{0}
 Auto Push,自动推送
 Automatic (by DMS account),自动匹配（按 DMS 账号）
 Automatic push is not supported for this connection; confirm manually.,该连接不支持自动推送，须手动确认。
@@ -69,7 +67,6 @@ Begin typing for results.,输入内容以显示结果
 Billing,计费
 Billing is not configured on this site (pearnly_billing_*),计费服务暂不可用，请联系客服。
 "Billing is not wired up on this site, please contact the platform",计费服务暂不可用，请联系客服。
-Billing is unavailable. Please contact support.,计费服务暂不可用，请联系客服。
 Bind Code,绑定码
 Bind LINE,绑定 LINE
 Bind code,绑定码
@@ -98,7 +95,6 @@ CC is only available on product sites.,CC 仅在产品站点可用。
 CC restarted,CC 桌面版已重启
 Cache Read Tokens,缓存读取 Token
 Cache Write Tokens,缓存写入 Token
-"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",相机权限被拒绝。请在浏览器的网站设置和手机设置里允许相机，然后重试。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",相机权限已关闭。请点击地址栏左侧的图标，将相机设为「允许」，然后重试。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",相机权限已关闭。请点击地址栏左侧的图标 → 权限 → 相机 → 允许，仍无法打开时，请前往手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选择「允许」。返回本页后将自动重试。
@@ -139,7 +135,6 @@ Collapse,收起
 Company,公司
 Company List,公司列表
 Company Master,公司主档
-Company Profile,公司资料
 Company Tax ID,本方税号
 Company Title,公司名称
 Company does not match the task,公司与任务不符
@@ -192,7 +187,6 @@ Could not send the invitation email: {0} {1},邀请邮件发送失败：{0} {1}
 Could not set the password: {0} {1},设置密码失败：{0} {1}
 Could not update the OIDC client: {0} {1},更新 OIDC 客户端失败：{0} {1}
 Could not update the account language.,无法更新账户语言，请稍后重试。
-Could not update your account. Please reload and try again.,无法更新账户，请刷新后重试。
 Count tasks and variance records,盘点任务与差异记录
 Counterparty,对方名称
 Counterparty Tax ID,对方税号
@@ -246,12 +240,10 @@ Delete {0} selected operators? Their LINE bindings and DMS connections are remov
 Delete {0} selected push records from this list? Sent business documents will not be affected.,确定要删除选中的 {0} 条推送记录吗？已推送的业务单据不受影响。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,确定要删除所选 {0} 条记录吗？此操作不会更改余额或取消充值申请。
 Delete {0} selected records?,确定要删除选中的 {0} 条记录吗？
-Delete {0} selected records? Pushed ones cannot be deleted.,确定要删除选中的 {0} 条记录吗？已推送的记录无法删除。
 Deleted,已删除
 Deleted {0},已删除 {0} 条
 Deleted {0} operators,已删除 {0} 名操作员
 Deleted {0} push records,已删除 {0} 条推送记录
-Deleted {0}. {1} already pushed were kept,已删除 {0} 条，已保留 {1} 条已推送记录
 Deleted {0}. {1} being pushed were not deleted,已删除 {0} 条，{1} 条正在推送，未删除
 Deleting the OIDC client failed: {0} {1},删除 OIDC 客户端失败：{0} {1}
 Deleting the account failed: {0} {1},删除账号失败：{0} {1}
@@ -400,9 +392,7 @@ LINE Login,LINE 登录
 LINE Login Link,LINE 登录关联
 LINE Login Link Updated,LINE 登录关联更新时间
 LINE User ID,LINE 用户 ID
-"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE 无法使用相机。请在手机设置里允许 LINE 使用相机后重试，或手动输入编码。
 LINE could not be reached; please try again,无法连接 LINE，请稍后重试
-LINE does not have permission to use the camera yet.,LINE 还没有使用相机的权限。
 LINE status,LINE 状态
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE 的相机权限已关闭。请前往 iPhone「设置 → LINE」开启「相机」，返回 LINE 后将自动重试。
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE 的相机权限已关闭。请前往手机「设置 → 应用程序 → LINE → 权限 → 相机」选择「允许」，返回 LINE 后将自动重试。
@@ -490,7 +480,6 @@ No sign-in credentials configured,未配置登录凭据
 No such local account: {0},本地账号不存在：{0}
 No.,单号
 None deleted: the {0} selected records are being pushed.,未删除任何记录：选中的 {0} 条记录正在推送。
-"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",未删除任何记录：选中的 {0} 条记录均已推送。
 Not Permitted,没有权限
 Not allowed,不允许
 Not authorized,未授权
@@ -518,8 +507,6 @@ Only the configuration was checked; the connection was not tested,仅检查了�
 Only the owner can manage it,仅责任人可管理
 Open View,打开视图
 Open in browser,用浏览器打开
-"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。
-"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
 Operator,操作员
 Operator Ledgers,实操账本
 Operator Roster,操作员花名册
@@ -694,7 +681,6 @@ Session ID,会话 ID
 Session Payload,会话载荷
 Set the conversation's account set,已设定对话的账套
 Setting the conversation's account set,正在设定对话的账套
-Sign in again before changing your username.,请重新登录后再更改用户名。
 Sign out,退出登录
 Sign out and sign in again,退出并重新登录
 Sign-in Credentials,登录凭据
@@ -773,7 +759,6 @@ The balance grows once the platform confirms the transfer.,平台确认到账后
 The barcode reader could not load. Refresh the page and try again.,扫码组件加载失败。请刷新页面后重试。
 The billing service returned HTTP {0},计费服务返回 HTTP {0}
 The bind code has expired — please regenerate,绑定码已过期，请重新生成
-"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",在 LINE 里打不开相机。请点「用浏览器打开」，或在手机设置里允许 LINE 使用相机后重试。
 "The camera could not start. Try again, or enter the code.",相机无法启动。请重试，或手动输入编码。
 The camera is being used by another app. Close that app and try again.,相机正被其他应用占用。请关闭该应用后重试。
 The control plane is not affected,控制面不受影响
@@ -784,13 +769,9 @@ The export could not be created.,导出文件生成失败。
 The file is ready,文件已准备好
 The identity service refused the password change: {0} {1},身份服务拒绝修改密码：{0} {1}
 The identity service returned an error: {0},身份服务返回错误：{0}
-The legacy system's product identifier; it becomes a link once product master data lands,旧系统的物料标识；物料主数据落地后再换成链接
-The name is resolved server-side when pinning; the client's value is not trusted,名字在钉的时候由服务端解出，不信客户端传来的值
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",用于识别操作员的名称，例如：阿明（销售）
 The new password cannot be the same as the current one,新密码不能与当前密码相同
 The new password is required,新密码不能为空
-"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新平台还没有 DMS 顾问名册来源，暂时只能自动匹配
-The old key stops working right away.,原配对码将立即失效。
 The plan quota is used first; anything over is charged per plan rate from the balance,优先使用套餐额度，超出部分按套餐单价从余额扣除
 The provisioning target {0} has no account pool for {1},开户目标 {0} 未配置 {1} 的账号池
 The push channel must be companion or cloud,推送渠道只能是 companion 或 cloud
@@ -839,7 +820,6 @@ This site has no product manifest installed; it cannot run as a business site.,�
 This site has no product workspace yet,本站点尚未创建产品工作区
 This system address is not allowed; only public addresses can be used.,不允许使用此系统地址，仅支持公网地址。
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?",确定要删除「{0}」吗？将解除 LINE 绑定并移除 DMS 连接，推送记录将保留。
-This username is already in use.,该用户名已被使用。
 This year,今年
 Time,时间
 Title Source,标题来源
@@ -898,7 +878,6 @@ Used {0} pages this month · pay-as-you-go,本月已用 {0} 页 · 按量计费
 User,用户
 User Agent,浏览器标识
 User Turn,用户消息序号
-"Username must contain 3–30 letters, digits, dots, underscores or hyphens.",用户名须为 3–30 位字母、数字、点、下划线或短横线。
 VAT,增值税
 VAT %,税率%
 VAT Amount,税额
@@ -941,7 +920,6 @@ Wrong ERP username or password. Check it under Connect and try again.,目标 ERP
 Yes,是
 You're offline,无法连接网络
 Your access domain,您的访问域名
-Your account was updated elsewhere. Sign in again to load the current username.,账户已在其它地方更新，请重新登录以读取当前用户名。
 account.cancel,取消
 account.changePassword,更改密码
 account.error.http,请求失败（HTTP {0}）
@@ -975,22 +953,10 @@ cc_desktop.job_busy,此 Express 写入正在进行中。
 cc_desktop.job_invalid,Express 写入内容无效。
 cc_desktop.request_invalid,CC 桌面版请求无效。
 cc_desktop.unauthorized,CC 桌面版认证失败。
-common.backHome,回到首页
 common.cancel,取消
-common.col.date,日期
-common.col.grandTotal,价税合计
-common.col.name,单号
-common.col.status,状态
-common.collapse,收起
-common.error.http,请求失败（HTTP {0}）
-common.field.docDate,单据日期
-common.field.docNo,单据号
 common.loading,加载中…
-common.no,否
-common.placeholder.optional,可留空
 common.processing,处理中…
 common.refresh,刷新
-common.save,保存
 common.saving,提交中…
 common.scan.allow_android,打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。
 common.scan.allow_ios,打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。
@@ -1009,7 +975,6 @@ common.scan.missing,此设备上没有找到相机。请手动输入编码。
 common.scan.open_browser,用浏览器打开
 common.scan.retry,重试
 common.scan.unsupported,此浏览器无法使用相机。请用 Chrome 或 Safari 打开本页，或手动输入编码。
-common.yes,是
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = 由 CC 桌面版在本机拉取后写入
 connect.action.connect,连接 DMS
 connect.action.connectSave,连接并保存

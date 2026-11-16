@@ -45,7 +45,6 @@ A reported ERP field is invalid.,A reported ERP field is invalid.
 A request key of 1 to 128 characters is required.,A request key of 1 to 128 characters is required.
 A required text field is empty. Fill it in and try again,A required text field is empty. Fill it in and try again
 A review workbook must contain between 1 and 500 invoices.,A review workbook must contain between 1 and 500 invoices.
-A rule cannot move to another PC. Turn it off and create a new one.,A rule cannot move to another PC. Turn it off and create a new one.
 A same-day reminder must be earlier than the run time.,A same-day reminder must be earlier than the run time.
 A scheduled task cannot move to another PC. Turn it off and create a new one.,A scheduled task cannot move to another PC. Turn it off and create a new one.
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
@@ -78,7 +77,6 @@ Active Key,Active Key
 Active Since,Active Since
 Actor,Actor
 Actual Qty,Actual Qty
-Actual location,Actual location
 Actual position,Actual position
 Actual positions and quantities,Actual positions and quantities
 Actual warehouse,Actual warehouse
@@ -93,7 +91,6 @@ Add an item,Add an item
 Add another list,Add another list
 Add label,Add label
 Add member,Add member
-Add photo,Add photo
 Add photos,Add photos
 Add time,Add time
 Add watcher,Add watcher
@@ -106,10 +103,8 @@ All,All
 All Members,All Members
 All as expense,All as expense
 All labels,All labels
-All members,All members
 All new stock items,All new stock items
 Allowed Users,Allowed Users
-Allowed root folder on the PC,Allowed root folder on the PC
 Already exists,Already exists
 Already recorded:,Already recorded:
 Amount,Amount
@@ -129,7 +124,6 @@ An item group's account is not in the Express chart of accounts,An item group's 
 An option in the ERP data report is invalid.,An option in the ERP data report is invalid.
 An original file is already stored for this source.,An original file is already stored for this source.
 Anchor Date,Anchor Date
-Another active rule already uses this folder or a folder containing it.,Another active rule already uses this folder or a folder containing it.
 Another computer is writing to this account set. It is sent automatically once it is done,Another computer is writing to this account set. It is sent automatically once it is done
 Another push holds the writer lock.,Another push holds the writer lock.
 Answered a reconciliation question,Answered a reconciliation question
@@ -145,7 +139,6 @@ Archived,Archived
 Archived At,Archived At
 Archived at,Archived at
 Archived boards,Archived boards
-Archived cards,Archived cards
 Archived items,Archived items
 Archived lists,Archived lists
 Area,Area
@@ -183,7 +176,6 @@ Bank withdrawal only,Bank withdrawal only
 Bank {0}: one line {1},Bank {0}: one line {1}
 Bank {0}: received {1},Bank {0}: received {1}
 Barcode,Barcode
-Barcode / QR code,Barcode / QR code
 "Barcode, QR code or product code","Barcode, QR code or product code"
 Batch,Batch
 Batched: match by total,Batched: match by total
@@ -268,7 +260,6 @@ CC Desktop was not connected when this invoice was ready to push; it will try ag
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again","CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again"
 Calendar,Calendar
 Camera,Camera
-"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.","Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 Cancelled,Cancelled
 Card,Card
 Card archived,Card archived
@@ -294,7 +285,6 @@ Change list color,Change list color
 Change members,Change members
 Change the MR.ERP import settings?,Change the MR.ERP import settings?
 Change the inventory account group?,Change the inventory account group?
-Change the stock account group?,Change the stock account group?
 Change these scheduled tasks?,Change these scheduled tasks?
 Change this scheduled task?,Change this scheduled task?
 Changed,Changed
@@ -366,7 +356,6 @@ Choose the inventory account group for this account set. Tap the number:,Choose 
 Choose the payment method,Choose the payment method
 Choose the receiving account of each payment method,Choose the receiving account of each payment method
 Choose the sales returns account,Choose the sales returns account
-Choose the service input VAT for this supplier and submit again,Choose the service input VAT for this supplier and submit again
 Choose the sheet to import,Choose the sheet to import
 Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
@@ -387,7 +376,6 @@ Closed At,Closed At
 Closed By,Closed By
 Code,Code
 Code expired,Code expired
-Code or barcode,Code or barcode
 Collapse list,Collapse list
 Collection is not connected for this ERP data type.,Collection is not connected for this ERP data type.
 Color,Color
@@ -406,8 +394,6 @@ Company choices are full,Company choices are full
 Company not found,Company not found
 Company tax ID,Company tax ID
 Company tax ID not on the document,Company tax ID not on the document
-CompanyA-purchase-service,CompanyA-purchase-service
-CompanyA-sales,CompanyA-sales
 Complete,Complete
 Complete statement review before exporting the result.,Complete statement review before exporting the result.
 Completed,Completed
@@ -449,7 +435,6 @@ Corrected Value,Corrected Value
 Cost of goods sold not set,Cost of goods sold not set
 Could not connect to MR.ERP,Could not connect to MR.ERP
 Could not create the cash supplier in MR.ERP.,Could not create the cash supplier in MR.ERP.
-Could not finish,Could not finish
 Could not read the MR.ERP master data.,Could not read the MR.ERP master data.
 Could not read the MR.ERP menus. Try again later.,Could not read the MR.ERP menus. Try again later.
 Could not read this document. Please send it again.,Could not read this document. Please send it again.
@@ -461,7 +446,6 @@ Count closed,Count closed
 Count details,Count details
 Count result,Count result
 Count saved,Count saved
-Count sheet,Count sheet
 Count summary,Count summary
 Counted,Counted
 Counted At,Counted At
@@ -572,7 +556,6 @@ Days,Days
 Days later,Days later
 Debit,Debit
 Decide once ({0}),Decide once ({0})
-Decimal summary; pages retain the original amount.,Decimal summary; pages retain the original amount.
 Default Cost,Default Cost
 Default Item Type,Default Item Type
 Default Payment,Default Payment
@@ -593,7 +576,6 @@ Delete {0},Delete {0}
 Delete {0} item permanently?,Delete {0} item permanently?
 Delete {0} items permanently?,Delete {0} items permanently?
 Delete {0} reconciliation(s)?,Delete {0} reconciliation(s)?
-Delete {0} stock count(s)?,Delete {0} stock count(s)?
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
 Deleted,Deleted
 Deleted a readback,Deleted a readback
@@ -686,7 +668,6 @@ ERP Token,ERP Token
 ERP Username,ERP Username
 ERP document number,ERP document number
 ERP records cannot be saved in Cowork.,ERP records cannot be saved in Cowork.
-Each invoice's result sheet is written to _Pearnly结果 for checking the next day.,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
 Each record must have a name and revision.,Each record must have a name and revision.
 Each record must have a valid name.,Each record must have a valid name.
 Each returned line must be an Express stock item,Each returned line must be an Express stock item
@@ -695,7 +676,6 @@ Edit Count,Edit Count
 Edit History,Edit History
 Edit card,Edit card
 Edit dates,Edit dates
-Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
 Edited a document,Edited a document
@@ -725,17 +705,12 @@ Entered By,Entered By
 Entered by,Entered by
 Entered in Express,Entered in Express
 "Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.","Entered in MR.ERP, but the amount MR.ERP recorded differs from the document."
-Entered into Express,Entered into Express
 Entered {0},Entered {0}
-Entered {0} · in progress {1},Entered {0} · in progress {1}
-Entered {0} · in progress {1} · failed {2} · not invoices {3},Entered {0} · in progress {1} · failed {2} · not invoices {3}
 Entered {0} · to check {1},Entered {0} · to check {1}
 Entering into Express,Entering into Express
 Entries,Entries
-Entries · {0},Entries · {0}
 Entries — {0},Entries — {0}
 Entry,Entry
-Entry saved,Entry saved
 Entry status,Entry status
 Error Code,Error Code
 Event Key,Event Key
@@ -752,7 +727,6 @@ Exempt and taxable lines cannot be mixed in this account set. Enter this documen
 Existing item,Existing item
 Expected VAT,Expected VAT
 Expense,Expense
-Expense (goods from now on),Expense (goods from now on)
 Expense (this kind from now on),Expense (this kind from now on)
 Expense account,Expense account
 Expense account when no category matches,Expense account when no category matches
@@ -768,16 +742,13 @@ Exported the review workbook,Exported the review workbook
 Exporting a reconciliation,Exporting a reconciliation
 Exporting a stock count,Exporting a stock count
 Exporting the review workbook,Exporting the review workbook
-"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.","Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total."
 Express Index Tool,Express Index Tool
-Express PC,Express PC
 Express Root,Express Root
 Express Root Key,Express Root Key
 "Express already has this invoice number with different content. Check it, or choose Send anyway","Express already has this invoice number with different content. Check it, or choose Send anyway"
 "Express could not index the invoice, so it was undone. It is retried automatically","Express could not index the invoice, so it was undone. It is retried automatically"
 "Express did not read back what was written, so it was undone. It is retried automatically","Express did not read back what was written, so it was undone. It is retried automatically"
 Express document,Express document
-Express has this account set open. It is sent automatically once Express is closed,Express has this account set open. It is sent automatically once Express is closed
 Express has this account set open. It is written automatically once Express is closed,Express has this account set open. It is written automatically once Express is closed
 Express record,Express record
 External Docnum,External Docnum
@@ -792,13 +763,10 @@ File,File
 File Hash,File Hash
 Filename,Filename
 Files,Files
-Files already in the folder when the rule is turned on are not processed.,Files already in the folder when the rule is turned on are not processed.
 Filter,Filter
 Find,Find
-Find product,Find product
 Fingerprint,Fingerprint
 Finish,Finish
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
 "Finish this count? {0} counted, {1} uncounted; the task becomes read-only.","Finish this count? {0} counted, {1} uncounted; the task becomes read-only."
 Finish this stock count?,Finish this stock count?
 Finished a stock count,Finished a stock count
@@ -810,13 +778,8 @@ Fiscal year {0},Fiscal year {0}
 Fix,Fix
 Folder,Folder
 Folder ID,Folder ID
-Folder and schedule,Folder and schedule
-Folder auto-intake is not turned on for this site.,Folder auto-intake is not turned on for this site.
-Folder auto-intake rules,Folder auto-intake rules
 Folder not available,Folder not available
 Folder results,Folder results
-Folder rule name,Folder rule name
-Folder rules work with Express connections only.,Folder rules work with Express connections only.
 Folder to read,Folder to read
 Follows the company's account set for the year,Follows the company's account set for the year
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.","For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame."
@@ -855,12 +818,10 @@ General ledger detail,General ledger detail
 Generation Key,Generation Key
 Give a file path inside this folder.,Give a file path inside this folder.
 Give the month as YYYY-MM.,Give the month as YYYY-MM.
-Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on
 Goods documents,Goods documents
 Gray,Gray
 Green,Green
 Group,Group
-Handle these the same way every time,Handle these the same way every time
 Has GL Match,Has GL Match
 Head office,Head office
 Head office / branch,Head office / branch
@@ -873,21 +834,17 @@ History Version,History Version
 Holder,Holder
 Holder Fence,Holder Fence
 Host Names,Host Names
-How to put documents in the folders,How to put documents in the folders
 IN,IN
 Identity,Identity
 "If you have the electronic statement, upload it instead","If you have the electronic statement, upload it instead"
-Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.
 Import result,Import result
 Imported POS sales,Imported POS sales
-"Imported {0} rows, {1} counted","Imported {0} rows, {1} counted"
 Importing POS sales,Importing POS sales
 In Express,In Express
 In another tax month,In another tax month
 In progress,In progress
 In progress ({0}),In progress ({0})
 In progress {0},In progress {0}
-In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
 Include Existing Files,Include Existing Files
 Included in total,Included in total
@@ -959,7 +916,6 @@ Item,Item
 Items,Items
 Job,Job
 Job Roles,Job Roles
-Just read,Just read
 Keep,Keep
 Known difference,Known difference
 LINE is not enabled for this account,LINE is not enabled for this account
@@ -1021,7 +977,6 @@ Listing task boards,Listing task boards
 Local To Computer,Local To Computer
 Location,Location
 Location check,Location check
-Location mismatch,Location mismatch
 Lock Credential,Lock Credential
 Lock Expires At,Lock Expires At
 Lock Expires At (UTC),Lock Expires At (UTC)
@@ -1031,7 +986,6 @@ Lock Kind,Lock Kind
 Lock the connection before reading the push target.,Lock the connection before reading the push target.
 Lookup Key,Lookup Key
 Lookup failed,Lookup failed
-Lookup failed. Try again.,Lookup failed. Try again.
 MR.ERP Company,MR.ERP Company
 MR.ERP Import Menu Options Seen,MR.ERP Import Menu Options Seen
 MR.ERP Import Menu per Account Set,MR.ERP Import Menu per Account Set
@@ -1044,7 +998,6 @@ MR.ERP does not support this tax rate. Check it and submit again,MR.ERP does not
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.
 MR.ERP import menu,MR.ERP import menu
-MR.ERP purchases can only be entered on credit.,MR.ERP purchases can only be entered on credit.
 MR.ERP returned an error. Check in MR.ERP,MR.ERP returned an error. Check in MR.ERP
 MR.ERP settings,MR.ERP settings
 Make template,Make template
@@ -1064,7 +1017,6 @@ Matched,Matched
 Matched Count,Matched Count
 "Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger","Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger"
 Matches,Matches
-Matching and saving,Matching and saving
 Max Push Data Version,Max Push Data Version
 Member,Member
 Member management,Member management
@@ -1078,7 +1030,6 @@ Modified at (UTC),Modified at (UTC)
 Month,Month
 Month paid,Month paid
 Monthly,Monthly
-Monthly on {0} at {1},Monthly on {0} at {1}
 More than one account set of this company covers the document date.,More than one account set of this company covers the document date.
 Move,Move
 Move all cards in this list,Move all cards in this list
@@ -1098,7 +1049,6 @@ Never,Never
 New Files,New Files
 New code,New code
 New files are recognized (charged) and pushed,New files are recognized (charged) and pushed
-New folder rule,New folder rule
 New items:,New items:
 New records must start as drafts.,New records must start as drafts.
 New scheduled task,New scheduled task
@@ -1114,7 +1064,6 @@ No POS sales export headers were found in this file,No POS sales export headers 
 No account set matches “{0}”,No account set matches “{0}”
 No account set of this company covers the document date.,No account set of this company covers the document date.
 No account set of this company covers this month,No account set of this company covers this month
-No account sets yet. Use Reload in New Intake first.,No account sets yet. Use Reload in New Intake first.
 No attachments were given.,No attachments were given.
 No cards are assigned to you,No cards are assigned to you
 No cash account is set in Express,No cash account is set in Express
@@ -1125,7 +1074,6 @@ No computer with CC Desktop can write to this account set,No computer with CC De
 No documents were given.,No documents were given.
 No due date,No due date
 No files were given.,No files were given.
-No folder rules yet. Create one and put the documents into its folder.,No folder rules yet. Create one and put the documents into its folder.
 No folders on this PC yet. Add them in CC Desktop on that PC.,No folders on this PC yet. Add them in CC Desktop on that PC.
 No folders to choose yet. Add them in CC Desktop on the PC.,No folders to choose yet. Add them in CC Desktop on the PC.
 No invoice could be read.,No invoice could be read.
@@ -1138,12 +1086,10 @@ No new files,No new files
 No notifications,No notifications
 No number_,No number_
 No presets yet,No presets yet
-No product in this count matches that code,No product in this count matches that code
 No product matches that code,No product matches that code
 No push target,No push target
 No recognition record,No recognition record
 No recognition tasks were given.,No recognition tasks were given.
-No rules yet,No rules yet
 No runs yet,No runs yet
 No sales were found in this POS export,No sales were found in this POS export
 No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.,No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.
@@ -1161,7 +1107,6 @@ Not a tax invoice,Not a tax invoice
 Not an invoice file,Not an invoice file
 Not bound,Not bound
 Not card deposits net of fee,Not card deposits net of fee
-Not counted,Not counted
 Not enough stock in Express,Not enough stock in Express
 Not entered,Not entered
 Not found,Not found
@@ -1188,8 +1133,6 @@ Old Value,Old Value
 On,On
 On schedule,On schedule
 One by one,One by one
-"One folder = one rule = one company, one year's account set, purchase or sales, service or stock.","One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
-One folder per rule. PDF and image files only.,One folder per rule. PDF and image files only.
 One folder per scheduled task. PDF and image files only.,One folder per scheduled task. PDF and image files only.
 One of the default choices is not valid for this account set.,One of the default choices is not valid for this account set.
 Only Express account sets can be read back.,Only Express account sets can be read back.
@@ -1253,7 +1196,6 @@ POS exports can only be entered into Express,POS exports can only be entered int
 Page,Page
 Page Count,Page Count
 Page preview is available only for PDF and image originals.,Page preview is available only for PDF and image originals.
-Page {0}/{1},Page {0}/{1}
 Parameters,Parameters
 Parent Refresh Request,Parent Refresh Request
 Parse Info Json,Parse Info Json
@@ -1341,11 +1283,9 @@ Pushing documents,Pushing documents
 "Pushing is not enabled for this site, so nothing was sent.","Pushing is not enabled for this site, so nothing was sent."
 Pushing to this ERP is not supported.,Pushing to this ERP is not supported.
 Quantity,Quantity
-Quantity counted this time,Quantity counted this time
 Quantity differences,Quantity differences
 Questions,Questions
 Queued,Queued
-"Queued, {0} ahead","Queued, {0} ahead"
 "Queued, {0} tasks ahead","Queued, {0} tasks ahead"
 Rate %,Rate %
 Rate differs from the usual rate,Rate differs from the usual rate
@@ -1368,16 +1308,10 @@ Readback ID,Readback ID
 Reader,Reader
 Reader Device,Reader Device
 Reading back the accounting books,Reading back the accounting books
-Reading files,Reading files
 Reading the MR.ERP menus…,Reading the MR.ERP menus…
-Reading the VAT report,Reading the VAT report
-Reading the bank statement,Reading the bank statement
 Reading the company list from the ERP. Tap the menu again in a moment.,Reading the company list from the ERP. Tap the menu again in a moment.
-Reading the general ledger,Reading the general ledger
-Reading the invoices,Reading the invoices
 Reading the scanned or photographed document took too long. Try again later.,Reading the scanned or photographed document took too long. Try again later.
 Ready At (UTC),Ready At (UTC)
-Ready for the next product,Ready for the next product
 Ready to push,Ready to push
 Reason,Reason
 Receipt,Receipt
@@ -1406,7 +1340,6 @@ Reconciliation Type,Reconciliation Type
 Reconciliation completed: {0},Reconciliation completed: {0}
 Reconciliation failed,Reconciliation failed
 Reconciliation failed: {0},Reconciliation failed: {0}
-Reconciliation finished: {0},Reconciliation finished: {0}
 Record,Record
 Record ID,Record ID
 Record Id,Record Id
@@ -1442,7 +1375,6 @@ Relative Path,Relative Path
 Reload,Reload
 Remarks,Remarks
 Remind me,Remind me
-Remind me the day before,Remind me the day before
 Reminder,Reminder
 Reminder Since,Reminder Since
 Reminder Times,Reminder Times
@@ -1525,7 +1457,6 @@ Run Owner,Run Owner
 Run Request,Run Request
 Run Requested At,Run Requested At
 Run Time,Run Time
-Run at (Bangkok time),Run at (Bangkok time)
 Run history,Run history
 Run now,Run now
 Run now (tasks: {0}):,Run now (tasks: {0}):
@@ -1545,7 +1476,6 @@ Same as,Same as
 Same as row,Same as row
 Same day,Same day
 Sample Key,Sample Key
-Save and next,Save and next
 Save these scheduled tasks?,Save these scheduled tasks?
 Save this choice for the company?,Save this choice for the company?
 Save this scheduled task?,Save this scheduled task?
@@ -1561,7 +1491,6 @@ Saving a company choice,Saving a company choice
 Saving a scheduled task,Saving a scheduled task
 Saving push choices,Saving push choices
 Saving scheduled tasks,Saving scheduled tasks
-Scan barcode or QR code,Scan barcode or QR code
 Scan barcodes · Record quantities,Scan barcodes · Record quantities
 "Scan, enter the actual position and quantity, then save to continue.","Scan, enter the actual position and quantity, then save to continue."
 Scanned At,Scanned At
@@ -1608,12 +1537,10 @@ Service input VAT basis not set,Service input VAT basis not set
 Service or stock?,Service or stock?
 Set At,Set At
 Set By,Set By
-Set a local folder once; documents are read and entered every month,Set a local folder once; documents are read and entered every month
 Set as the account set in use?,Set as the account set in use?
 Set by {0} on {1},Set by {0} on {1}
 Set document handling,Set document handling
 Set due date,Set due date
-Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.
 Set reminder,Set reminder
 Set the POS export columns,Set the POS export columns
 Setting the POS export columns,Setting the POS export columns
@@ -1634,14 +1561,12 @@ Signed-in Users,Signed-in Users
 Since (UTC),Since (UTC)
 Site,Site
 Site Name,Site Name
-Skipped {0} row(s) (row: reason),Skipped {0} row(s) (row: reason)
 Sold by Weight,Sold by Weight
 Some fields are uncertain. Check them against the original and submit again,Some fields are uncertain. Check them against the original and submit again
 Some files are still in progress.,Some files are still in progress.
 Some line items have no name or amount. Fix the lines and submit again,Some line items have no name or amount. Fix the lines and submit again
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Some rows in the file could not be understood. Check the file format,Some rows in the file could not be understood. Check the file format
-Some rows were skipped,Some rows were skipped
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
 Someone else changed this reconciliation. Reload it before saving.,Someone else changed this reconciliation. Reload it before saving.
 Sort by,Sort by
@@ -1688,12 +1613,10 @@ Statement Withdrawal Only Amount,Statement Withdrawal Only Amount
 Statement review is not available for this task.,Statement review is not available for this task.
 Status,Status
 Stock,Stock
-Stock (goods from now on),Stock (goods from now on)
 Stock (this kind from now on),Stock (this kind from now on)
 Stock Account Group per Account Set,Stock Account Group per Account Set
 Stock changed; recount,Stock changed; recount
 Stock count,Stock count
-Stock count closed,Stock count closed
 "Stock count created, {0} rows","Stock count created, {0} rows"
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
 Stock count template,Stock count template
@@ -1704,13 +1627,11 @@ Stock or expense for this company's documents like this?,Stock or expense for th
 Stop and let me choose,Stop and let me choose
 Stop watching,Stop watching
 Stored Page Previews,Stored Page Previews
-Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
 Subject Label,Subject Label
 Submit,Submit
 Suggested,Suggested
 Summary,Summary
 Summary Json,Summary Json
-Summary table import,Summary table import
 Supplier type,Supplier type
 Surcharge,Surcharge
 Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.,Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.
@@ -1799,7 +1720,6 @@ The answer is not valid.,The answer is not valid.
 The bank statement could not be read.,The bank statement could not be read.
 The billing receipt cannot be reverted.,The billing receipt cannot be reverted.
 The buyer on these invoices is this company: {0},The buyer on these invoices is this company: {0}
-The camera could not start,The camera could not start
 The card is already in that list,The card is already in that list
 The card no longer exists,The card no longer exists
 The cash customer could not be copied from the original year,The cash customer could not be copied from the original year
@@ -1809,7 +1729,6 @@ The chosen value is not in this account set. Choose again,The chosen value is no
 The client fields are invalid.,The client fields are invalid.
 "The company, client and type of a connection cannot be changed.","The company, client and type of a connection cannot be changed."
 The completed recognition result cannot be replaced.,The completed recognition result cannot be replaced.
-"The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set.","The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set."
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.
 The computer on this connection does not support this action.,The computer on this connection does not support this action.
 The connection has changed. Reload and try again.,The connection has changed. Reload and try again.
@@ -1848,7 +1767,6 @@ The file is empty or too large.,The file is empty or too large.
 The file is larger than 25 MB,The file is larger than 25 MB
 The file is larger than 5 MB.,The file is larger than 5 MB.
 The file size or page metadata is invalid.,The file size or page metadata is invalid.
-The folder rule is incomplete or invalid.,The folder rule is incomplete or invalid.
 The frozen push target does not match the authorized target.,The frozen push target does not match the authorized target.
 The general ledger could not be read.,The general ledger could not be read.
 The general ledger has no revenue account rows.,The general ledger has no revenue account rows.
@@ -1942,7 +1860,6 @@ The review workbook contains no invoice rows to import.,The review workbook cont
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.
 The review worksheet name contains extra spaces. Restore the original name.,The review worksheet name contains extra spaces. Restore the original name.
 The row has no product code or barcode,The row has no product code or barcode
-The rule owner can no longer enter documents with this connection.,The rule owner can no longer enter documents with this connection.
 The scheduled task is incomplete or invalid.,The scheduled task is incomplete or invalid.
 The source page number must be a positive integer.,The source page number must be a positive integer.
 The start date is after the due date,The start date is after the due date
@@ -1986,7 +1903,6 @@ These worksheets repeat another worksheet in the same file line for line and wer
 This ERP connection is disabled.,This ERP connection is disabled.
 This MR.ERP account is in use. Send again later,This MR.ERP account is in use. Send again later
 This MR.ERP menu cannot be chosen for this account set.,This MR.ERP menu cannot be chosen for this account set.
-This PC already has the maximum number of folder rules.,This PC already has the maximum number of folder rules.
 This PC already has the maximum number of scheduled tasks.,This PC already has the maximum number of scheduled tasks.
 This POS export has a status value that is not chosen yet,This POS export has a status value that is not chosen yet
 This account cannot send documents,This account cannot send documents
@@ -2026,7 +1942,6 @@ This file record was not found.,This file record was not found.
 This file type cannot be brought into the chat.,This file type cannot be brought into the chat.
 This file type is not supported.,This file type is not supported.
 "This file type is not supported. Use PDF, Excel or CSV.","This file type is not supported. Use PDF, Excel or CSV."
-This folder overlaps the folder of rule «{0}».,This folder overlaps the folder of rule «{0}».
 This folder overlaps the folder of scheduled task «{0}».,This folder overlaps the folder of scheduled task «{0}».
 This import request ID has already been used for different content.,This import request ID has already been used for different content.
 This inventory account group cannot be chosen for this account set.,This inventory account group cannot be chosen for this account set.
@@ -2060,8 +1975,6 @@ This request key was used for another credential operation.,This request key was
 This request key was used for different content.,This request key was used for different content.
 This request key was used for different push content.,This request key was used for different push content.
 This request was already used for different content.,This request was already used for different content.
-This rule is turned off.,This rule is turned off.
-This rule no longer exists for this PC.,This rule no longer exists for this PC.
 This saved choice no longer exists,This saved choice no longer exists
 This scanned or photographed document could not be read. Check the file and try again.,This scanned or photographed document could not be read. Check the file and try again.
 This scheduled task is turned off.,This scheduled task is turned off.
@@ -2070,7 +1983,6 @@ This scheduled task no longer exists for this PC.,This scheduled task no longer 
 "This statement shows no running balance, so balances cannot be checked line by line.","This statement shows no running balance, so balances cannot be checked line by line."
 This stock count task is closed.,This stock count task is closed.
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,This supplier is not in Express and could not be created. Check the supplier name and tax ID
-This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID
 This supplier is not in MR.ERP. Check the supplier name and tax ID,This supplier is not in MR.ERP. Check the supplier name and tax ID
 This task uses the previous count format and cannot accept scan entries.,This task uses the previous count format and cannot accept scan entries.
 This tax ID is already used by another company.,This tax ID is already used by another company.
@@ -2110,8 +2022,6 @@ Transfer slips are not entered; this one is not sent,Transfer slips are not ente
 Transport,Transport
 Turn off,Turn off
 Turn on,Turn on
-Turn this rule off? Documents already entered stay as they are.,Turn this rule off? Documents already entered stay as they are.
-Turn this rule on? Only files added to the folder from now on are processed.,Turn this rule on? Only files added to the folder from now on are processed.
 Turn this scheduled task off? Documents already entered stay as they are.,Turn this scheduled task off? Documents already entered stay as they are.
 Turn this scheduled task on or off?,Turn this scheduled task on or off?
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.
@@ -2121,8 +2031,6 @@ Type a few letters of the company or account set name to find it,Type a few lett
 Type a word from the inventory account group name to find it,Type a word from the inventory account group name to find it
 Type not found in Express,Type not found in Express
 Type of income paid,Type of income paid
-"Type or scan, then press Enter","Type or scan, then press Enter"
-Type the inventory account group name or account code to find it,Type the inventory account group name or account code to find it
 Type the item name or code,Type the item name or code
 Unbind LINE,Unbind LINE
 Unbind Pearnly Cowork LINE?,Unbind Pearnly Cowork LINE?
@@ -2160,7 +2068,6 @@ Upload · Review · Choose destination,Upload · Review · Choose destination
 Uploaded By,Uploaded By
 Uploaded from the PC,Uploaded from the PC
 Uploading,Uploading
-Uploading files,Uploading files
 Uploading from the PC,Uploading from the PC
 Use Count,Use Count
 Use the CC Desktop credential service to access credentials.,Use the CC Desktop credential service to access credentials.
@@ -2198,7 +2105,6 @@ Value,Value
 Value Label,Value Label
 Value of goods or services,Value of goods or services
 Version,Version
-View differences,View differences
 View photo,View photo
 View the ones to check,View the ones to check
 Viewed a document,Viewed a document
@@ -2228,16 +2134,13 @@ Waiting for recognition,Waiting for recognition
 Waiting for the recognition charge to complete.,Waiting for the recognition charge to complete.
 Waiting for this account set's stock purchases to be entered first.,Waiting for this account set's stock purchases to be entered first.
 "Waiting in line, will submit automatically","Waiting in line, will submit automatically"
-Waiting to start,Waiting to start
 Warehouse,Warehouse
 Warehouse check,Warehouse check
 Watch,Watch
 Watchers,Watchers
 Weekly,Weekly
 When a card enters,When a card enters
-"When a new fiscal year starts, change the rule's account set.","When a new fiscal year starts, change the rule's account set."
 When the document does not show cash or credit,When the document does not show cash or credit
-Where the documents go,Where the documents go
 Who can add and remove members,Who can add and remove members
 Who can comment,Who can comment
 Whole company,Whole company
@@ -2248,7 +2151,6 @@ Withdrawal,Withdrawal
 Withholding agent,Withholding agent
 Withholding tax certificates,Withholding tax certificates
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,Withholding tax certificates (50 Tawi) are not entered; this one is not sent
-Work Coordination,Work Coordination
 Work Name,Work Name
 Workbook Revision,Workbook Revision
 Workspace,Workspace
@@ -2451,18 +2353,6 @@ cowork.folder.field.title,Task name
 cowork.folder.folderHint,One folder per scheduled task. PDF and image files only.
 cowork.folder.folderMissing,Folder not available
 cowork.folder.followCompany,Follows the company's account set for the year
-cowork.folder.guide.oneRule,"One folder = one rule = one company, one year's account set, purchase or sales, service or stock."
-cowork.folder.guide.result,"made by the system, do not put documents here"
-cowork.folder.guide.resultRule,Each invoice's result sheet is written to _Pearnly结果 for checking the next day.
-cowork.folder.guide.rule,rule {0}
-cowork.folder.guide.sampleA,CompanyA-purchase-service
-cowork.folder.guide.sampleB,CompanyA-sales
-cowork.folder.guide.sinceRule,Files already in the folder when the rule is turned on are not processed.
-cowork.folder.guide.sub,subfolders are scanned too
-cowork.folder.guide.subRule,Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.
-cowork.folder.guide.title,How to put documents in the folders
-cowork.folder.guide.typesRule,Only PDF and image files are read.
-cowork.folder.guide.yearRule,"When a new fiscal year starts, change the rule's account set."
 cowork.folder.inspect_busy,The file check is busy. It will be retried.
 cowork.folder.invalid,The scheduled task is incomplete or invalid.
 cowork.folder.item.ask,Stop and let me choose
@@ -2844,10 +2734,6 @@ cowork.stock.export,Export
 cowork.stock.field.search,Search name or barcode
 cowork.stock.file,Count sheet
 cowork.stock.filter,Show
-cowork.stock.filter.all,All
-cowork.stock.filter.differences,Differences
-cowork.stock.filter.locations,Location mismatch
-cowork.stock.filter.uncounted,Not counted
 cowork.stock.find,Find
 cowork.stock.headline,{0} · counted {1}/{2} · differences {3}
 cowork.stock.importSkipped,Skipped {0} row(s) (row: reason)
@@ -2862,10 +2748,6 @@ cowork.stock.pick,Choose file
 cowork.stock.record,Record
 cowork.stock.recount,Recount
 cowork.stock.removePhoto,Remove
-cowork.stock.result.matched,Matched
-cowork.stock.result.not_counted,Not counted
-cowork.stock.result.over,Over
-cowork.stock.result.short,Short
 cowork.stock.review,View differences
 cowork.stock.rows,Rows
 cowork.stock.saveNext,Save and next
@@ -3618,7 +3500,6 @@ leased,leased
 legacy,legacy
 logical_section,logical_section
 low balance,low balance
-"made by the system, do not put documents here","made by the system, do not put documents here"
 manual,Manual
 member,member
 none,none
@@ -3873,8 +3754,6 @@ stocktake.request_invalid,The stock count request is invalid. Reload and try aga
 stocktake.row_invalid,The import row is invalid or has missing required values.
 stocktake.too_many_rows,"The import exceeds the limit of 10,000 rows."
 stocktake.warehouse_required,Check the warehouse and location. A warehouse is required.
-subfolders are scanned too,subfolders are scanned too
-summary_table_batch,Summary table import
 task off or no access,task off or no access
 tax.answer_invalid,The answer is not valid.
 tax.company_invalid,Enter the company's 13-digit tax ID.
@@ -3899,7 +3778,6 @@ vat_check.status.void_match,Void match
 vat_check.status.void_no_invoice,Void · no invoice needed
 waiting for purchases,waiting for purchases
 workspace.tax_id_duplicate,This tax ID is already used by another company.
-{0} ({1} files),{0} ({1} files)
 {0} ({1} matching lines),{0} ({1} matching lines)
 {0} ({1} not processed yet),{0} ({1} not processed yet)
 {0} ({1}),{0} ({1})
@@ -3913,7 +3791,6 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} documents pending ({1}),{0} documents pending ({1})
 {0} files,{0} files
 "{0} files in the folder now, processed at the run time","{0} files in the folder now, processed at the run time"
-{0} files in the folder now.,{0} files in the folder now.
 "{0} files not processed yet, processed at the run time","{0} files not processed yet, processed at the run time"
 {0} files not processed yet.,{0} files not processed yet.
 {0} h {1} min left,{0} h {1} min left
@@ -3937,8 +3814,6 @@ workspace.tax_id_duplicate,This tax ID is already used by another company.
 {0} statement rows were read with low confidence. Check them against the original,{0} statement rows were read with low confidence. Check them against the original
 {0} such groups this period,{0} such groups this period
 {0} · counted {1} / {2} · differences {3},{0} · counted {1} / {2} · differences {3}
-{0} · counted {1}/{2} · differences {3},{0} · counted {1}/{2} · differences {3}
-{0}/{1} files,{0}/{1} files
 {0}/{1} pages,{0}/{1} pages
 {0}: are the card deposits paid in net of a card fee?,{0}: are the card deposits paid in net of a card fee?
 {0}: page {1} balance does not follow; all rows on the page are marked for review,{0}: page {1} balance does not follow; all rows on the page are marked for review

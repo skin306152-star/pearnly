@@ -17,8 +17,10 @@ DocType JSON 的 label），各写一份必然对不上。所以**术语表是�
   `pearnly_control`，但工作台卡片渲染在**租户站点**上，而租户站点不装
   `pearnly_control` —— 所以那条译文必须落在 `pearnly_core`（每个站点都装）。
   拆表之后，"放哪个 App"就是"把这一行写进谁的术语表"。
-· **不删已有的行**：CSV 里可能有脚本之外手工加的条目（例如沿用老产品的译文），
-  生成时合并保留，只覆盖术语表里出现过的键。
+· **翻译包 = 术语表**：生成时只写术语表里的行，翻译包里术语表没有的行一律删掉；
+  `--check` 遇到术语表外的行直接报错。以前是「合并保留手工行」，结果改了术语表
+  旧写法删不掉、手工行越积越多（11-16 盘点约 770 行），2026-11-16 把在用的手工行
+  原样搬进术语表、没人用的删掉后改成这样。要加译文就加进术语表。
 · **带 key 的词条同时按英文原文再落一行**：界面按 key 取词（`t("trade.shiftNo")`），
   而服务端 `_()` 和 DocType 字段标签认的是**英文原文**。只落 key 那一行的话，同一句话
   在界面上是中文、在导出件/Desk 表单里却是英文 —— 2026-09-23 用户口径：
@@ -107,12 +109,12 @@ def _aliases(items: list[dict], skip: set = frozenset()) -> list[dict]:
 
 
 def tables(by_app: dict[str, list[dict]]) -> dict[tuple[str, str], dict]:
-    """按术语表算出每个 App 每种语言的翻译包应有的样子（在已有内容上覆盖，不删手工行）。"""
+    """按术语表算出每个 App 每种语言的翻译包应有的样子：只有术语表里的行（加按英文原文补的别名行）。"""
     out = {}
     for app, items in sorted(by_app.items()):
         extra = _aliases(items, no_alias(app))
         for lang in (EN,) + LANGS:
-            table = existing(app, lang)
+            table = {}
             for item in items + extra:
                 msgid = item["msgid"]
                 # 别名单行：msgid 用英文原文（`key` 为空的那种写法）
@@ -137,6 +139,10 @@ def stale(expected: dict[tuple[str, str], dict]) -> list[str]:
         if wrong:
             shown = ", ".join(wrong[:5]) + (" …" if len(wrong) > 5 else "")
             problems.append("%s/%s.csv 有 %d 条与术语表不一致：%s" % (app, lang, len(wrong), shown))
+        extra = sorted(msgid for msgid in current if msgid not in table)
+        if extra:
+            shown = ", ".join(extra[:5]) + (" …" if len(extra) > 5 else "")
+            problems.append("%s/%s.csv 有 %d 条术语表里没有的行（加进术语表或删掉）：%s" % (app, lang, len(extra), shown))
     return problems
 
 

@@ -31,11 +31,7 @@ Billing Month,计费月份
 Billing Units,计费单位
 Billing service unavailable; please retry,计费服务不可用，请重试
 Build the workspace,创建工作台
-"By continuing, you agree to Pearnly's {0} and {1}.",继续即表示您已阅读并同意 Pearnly 的{0}和{1}。
 "By logging in, you agree to Pearnly's {0} and {1}.",登录即表示您已阅读并同意 Pearnly 的{0}和{1}。
-CC API Key,CC API 密钥
-CC Engine,CC 引擎
-CC Model,CC 模型
 "Cannot read the provisioning target, so the identity service URL is unknown",无法读取开户目标，身份服务地址未知
 Channel Access Token,频道访问令牌
 Channel ID,频道 ID
@@ -55,7 +51,6 @@ Connect cloud billing,连接云端计费
 Contact Name,联系人
 Contact Phone,联系电话
 Contact us,联系我们
-Contact us to open an account or book a demo,联系我们开通账号或预约演示
 Continue,继续
 Control API URL,控制接口地址
 Control-plane records,控制面记录
@@ -79,7 +74,6 @@ Create the site,创建站点
 Create the tenant account,创建租户账号
 Created and kept correct by provisioning on the shared LINE Login channel.,由开通流程在共用 LINE Login 频道下自动创建并维护。
 Created on the tenant site and granted at provisioning. Leave empty for no permission control.,开通时在租户站点创建并授予该角色。留空表示不控制权限。
-Creating a channel requires both secret and access token,新建渠道必须同时给 secret 与 access token
 Creating a channel requires the channel secret and the Channel ID,新建频道须同时填写 Channel ID 与 Channel secret
 Credential Delivery,凭据交付方式
 Credentials,凭据
@@ -87,7 +81,6 @@ Credited ฿{0}; {1} now has ฿{2},已入账 ฿{0}，{1} 当前余额 ฿{2}
 Crediting…,入账中…
 Cycle End,本周期结束
 Cycle Start,本周期开始
-DMS is the one already proven; ERP and Cowork use the same API surface.,存量已跑通的是 DMS；ERP 与 Cowork 走同一套接口
 Date the page count was last reconciled with the ledger (Bangkok time),页数最后一次与流水核对的日期（曼谷时间）
 "Dear customer,",尊敬的用户，您好！
 Default On,常规开通
@@ -110,7 +103,6 @@ Enable HTTPS access,开启 HTTPS 访问
 Enabled Features,已开通功能
 Enabled — {0} steps,已开通（{0} 步）
 Enforcement,权限控制
-Enter the CC API key.,请填写 CC API 密钥。
 Enter your password.,请输入密码。
 Enter your username or email.,请输入用户名或邮箱。
 External Reference,外部单号
@@ -121,7 +113,6 @@ Feature Code,功能代码
 Feature Name,功能名称
 Features,功能
 Fill in only if a LIFF app exists; otherwise leave empty.,仅在已有 LIFF 应用时填写。
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,填了就在本次开通里把这个租户自己的 LINE 渠道一起下发；留空则之后再配。
 Finalize the site,完成站点配置
 Finished At,结束时间
 For example acme,例如 acme
@@ -133,7 +124,6 @@ For example: somchai,例如：somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",为了您的账户安全，请在登录后前往账户设置修改初始密码。请勿向他人透露密码，也不要转发本邮件。
 Forgot password ?,忘记密码 ?
 From the issue.,来自发号单。
-Get your work done in conversation,让工作在对话中完成
 Google or Claude. A change applies from the next document.,谷歌或 Claude，改了从下一份单据起生效。
 Grant feature roles,授予功能权限
 Granted DocTypes,授予的 DocType
@@ -249,7 +239,6 @@ Provisioning Progress,开通进度
 Provisioning Target,开户目标
 Provisioning failed,开通失败
 Provisioning must be complete before sending the welcome email.,开通完成后才能发送欢迎邮件。
-Provisioning progress,开通进度
 Provisioning {0}/{1},开通中 {0}/{1}
 Queued for provisioning; building the site now,已排入开通队列，正在建站
 Queueing provisioning…,正在排入开通队列…
@@ -282,11 +271,9 @@ Reviewed By,审核人
 Role,对应角色
 Row {0} on the issue has no domain; cannot build the site,发号单第 {0} 行缺少域名，无法建站
 Row {0}: a LINE channel needs both the Channel ID and the Channel secret,第 {0} 行：LINE 频道须同时填写 Channel ID 与 Channel secret
-Row {0}: a LINE channel needs both the channel secret and the access token,第 {0} 行：LINE 渠道要同时填 channel secret 与 access token
 Run provisioning,执行开通
 Running,进行中
 Same as the deployment domain.,与部署域名相同。
-Select the CC engine.,请选择 CC 引擎。
 Service URL is required,服务地址必填
 Set up CC,配置 CC
 Set up OCR,设置 OCR

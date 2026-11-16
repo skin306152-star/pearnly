@@ -1,9 +1,7 @@
-1 = January,1 = 1月
 1 day before,1日前
 1 hour before,1時間前
 1-12; Thai companies commonly start in January,1〜12。タイ企業は1月開始が一般的です
 10 minutes before,10分前
-13 digits; a branch adds its 5-digit branch number,13桁。支店は5桁の支店番号を続けます
 15 minutes before,15分前
 2 days before,2日前
 2 hours before,2時間前
@@ -76,7 +74,6 @@ Add member,メンバーを追加
 Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
-Add terminal,レジを追加
 Add these companies?,これらの会社を追加しますか？
 Add watcher,ウォッチャーを追加
 Added,追加
@@ -112,7 +109,6 @@ Amended,修正済み
 Amended From,修正元
 Amount,金額
 Amount Payable,支払金額
-Amount Received,受取額
 Amounts,金額
 An account used is not in the MR.ERP chart of accounts. Check the account settings,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 An error occurred while sending to MR.ERP,MR.ERP への送信中にエラーが発生しました
@@ -205,7 +201,6 @@ Buyer Type,顧客種類
 Buyer address,買い手住所
 Buyer branch,買い手支店
 Buyer tax ID,買い手税番号
-By Payment Method,支払方法別
 By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
@@ -219,8 +214,6 @@ CC Desktop needs an update,CC デスクトップの更新が必要です
 CC Desktop not connected,CC デスクトップが接続されていません
 Calculation Version,計算バージョン
 Calendar,カレンダー
-"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
-Camera permission was refused; allow it and try again,カメラの許可が拒否されました。許可してから再試行してください
 Cancel,キャンセル
 Cancel in Express,Express で取消
 Cancel {0},{0}件をキャンセル
@@ -298,7 +291,6 @@ Choose the customer,顧客を選んでください
 Choose the inventory account group for this account set first.,先にこの会計データの在庫勘定グループを選んでください。
 Choose the location,保管場所を選んでください
 Choose the payment method,支払方法を選んでください
-Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払付加価値税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
 Choose the warehouse,倉庫を選んでください
@@ -308,7 +300,6 @@ Claim,控除
 Clear,クリア
 Clear Link,リンクを解除
 Clear cart,カートを空にする
-Clear customer,顧客をクリア
 Clear the cart?,カートを空にしますか
 Click to add email / phone,メール・電話を追加
 Click to choose a customer,顧客を選んでください
@@ -339,7 +330,6 @@ Collector,集金担当
 Color,色
 Colour Tag,カラータグ
 Columns,列
-Comes from the terminal; set it there if it is empty,レジの設定によります。空の場合はレジ側で倉庫を設定してください
 Comment,コメント
 Comments,コメント
 Comments and activity,コメントとアクティビティ
@@ -356,7 +346,6 @@ Complete Payment,支払完了
 Completed,完了
 Computer offline,パソコンがオフライン
 Confirm,確認
-Confirm and record,確定して記録
 Confirm collection,入金の確認
 Confirm opening stock,期首在庫を確定
 Confirm the document before recording a payment,支払を記録する前に伝票を提出してください
@@ -384,8 +373,6 @@ Could not create the cash supplier in MR.ERP.,MR.ERP に現金仕入先を作成
 Could not read the MR.ERP master data.,MR.ERP のマスターデータを読み取れません。
 Could not read this document. Please send it again.,読み取れませんでした。もう一度送ってください
 Could not record this collection,この入金を記録できません
-Could not record this document. Please try again.,記録できませんでした。もう一度お試しください
-Could not record: {0},記録できません：{0}
 Could not sign in to MR.ERP. Check the connection's username and password,MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください
 Could not store this document,書類を保存できませんでした。再送してください
 Count at least one item before finishing,終了する前に少なくとも1件を棚卸してください
@@ -415,7 +402,6 @@ Create card,カードを作成
 Create from template,テンプレートから作成
 Create the warehouse in Express,Express で倉庫を作成してください
 "Create the warehouse in Express, then use Sync Express on the company page",Express で倉庫を作成し、会社ページで「Express と同期」を押してください
-Create the warehouse in Express. It is added here at the next sync,Express で倉庫を作成してください。次回の同期でここに追加されます
 Created,作成日時
 Created a stock count,棚卸を作成しました
 Created an adjustment from a stock count,棚卸結果から調整伝票を作成しました
@@ -455,7 +441,6 @@ Daily,毎日
 Damaged / written off,破損・廃棄
 Date,日付
 Date  {0}  to  {1},日付  {0}  ～  {1}
-Date (BE),日付（仏暦）
 Date created (newest first),作成日（新しい順）
 Date created (oldest first),作成日（古い順）
 Date must be in ascending order,「日付」は昇順で指定してください
@@ -520,7 +505,6 @@ Document has already been submitted,伝票は提出済みです
 Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
 Document no.,書類番号
-Document prefix,書類プレフィックス
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
@@ -550,7 +534,6 @@ ERP purchase recognition,仕入書類の読み取り
 ERP sales recognition,売上書類の読み取り
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
 Each returned line must be an Express stock item,返品明細は Express の在庫品である必要があります
-Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
 Edit,編集
 Edit Cart,カートに戻る
 Edit Receipt,領収書を編集
@@ -570,7 +553,6 @@ Enable POS cashier,POS レジを有効にする
 Enable {0},{0}件を有効化
 Enable {0} selected,選択した{0}件を有効化
 Enabled,有効
-"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件。終了後は修正できません。
 "End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",棚卸を終了しますか？棚卸済み {0} 件、未棚卸 {1} 件、終了後は修正できません。
 Engine No,エンジン番号
 Enter a board name,ボード名を入力してください
@@ -645,7 +627,6 @@ Express Void Reason,Express 取消の理由
 Express code,Express コード
 "Express could not index the invoice, so it was undone. It is retried automatically",Express の索引を作れず元に戻しました。自動で再試行します
 "Express did not read back what was written, so it was undone. It is retried automatically",書き込み後の確認が合わず元に戻しました。自動で再試行します
-Express has this account set open. It is sent automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で送信されます
 Express has this account set open. It is written automatically once Express is closed,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 External System Reference,外部システム参照
 Factor to Base Unit,基準単位への換算係数
@@ -663,16 +644,13 @@ Filter,絞り込み
 Filter by invoice status,伝票ステータスで絞り込み
 Filters,フィルタ
 Find,検索
-Find product,商品を検索
 Finish,完了
-Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,確認済みの差異を在庫に反映して終了しますか？棚卸済み {0} 件、未棚卸 {1} 件は変更せず、終了後は閲覧・出力のみです。
 Finish this stock count?,この棚卸を終了しますか？
 Finished a stock count,棚卸を終了しました
 Finishing a stock count,棚卸を終了しています
 First Receipt,最初のレシート
 First warehouse of this company (more on the Warehouses page),この会社の最初の倉庫（追加は「倉庫」ページから）
 Fiscal Year Starts In,会計年度の開始月
-Fiscal year start month,会計年度の開始月
 Fix all opening stock errors before submitting,期首明細のエラーをすべて修正してから確定してください
 Focus on Item Group filter,品目グループ絞り込みにフォーカス
 Focus on search input,検索欄にフォーカス
@@ -778,9 +756,7 @@ Item is disabled,品目は無効です
 Item is removed since no serial / batch no selected.,シリアル・ロットが未選択のため商品を削除しました
 Items,品目
 Items are required,品目を入力してください
-Items found at a different place,違う場所で見つかった商品
 Items not found.,商品が見つかりません
-"Items with a difference, largest first",差異のある商品（大きい順）
 Job,案件
 Job Roles,機能権限
 Keep,引き継ぐ
@@ -804,9 +780,7 @@ Last page,最終ページ
 Last transacted,最終取引
 Late receipts,追加分
 Leave all unchecked to allow every company,未チェックの場合は全社を許可します
-Leave blank to use the default terminal,空欄なら既定のレジを使います
 Leave board,ボードから退出
-"Legacy used head office / branch, with the branch number when it is a branch",旧システムは本店／支店を使い、支店の場合は支店番号を伴います
 Light,ライト
 Line Amount,行金額
 Line Discount,行値引
@@ -839,7 +813,6 @@ Location code,ロケーションコード
 Locations,ロケーション一覧
 Lookup failed,検索できませんでした
 "Lookup failed, please fill in manually",照会に失敗しました。手入力してください
-Lookup failed. Try again.,検索できませんでした。もう一度お試しください。
 Low (≤{0}),在庫少（≤{0}）
 Low Stock Threshold,低在庫しきい値
 Low stock,在庫少
@@ -854,7 +827,6 @@ MR.ERP No.,MR.ERP 番号
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 MR.ERP import menu,MR.ERP 取込メニュー
-MR.ERP purchases can only be entered on credit.,MR.ERP の仕入は掛けでのみ登録できます。
 MR.ERP returned an error. Check in MR.ERP,MR.ERP がエラーを返しました。MR.ERP で確認してください
 MR.ERP settings,MR.ERP 設定
 MR.ERP sign-in is not authorized,MR.ERP のログインが未許可です
@@ -888,7 +860,6 @@ Move,移動
 Move all cards in this list,このリストのカードをすべて移動
 Move list,リストを移動
 My cards,自分のカード
-My collections,自分の入金
 Name,名前
 Net,純額
 Net Total,正味合計
@@ -941,7 +912,6 @@ No receipts in this shift,このシフトのレシートはありません
 No recent transactions found,最近の取引はありません
 No stock count in progress,進行中の棚卸はありません
 No templates yet,テンプレートはまだありません
-No terminal yet,レジはまだありません
 No units of this product are registered in this warehouse,この倉庫にこの商品の登録済み個体はありません
 No warehouse is available for this company,この会社に使用できる倉庫がありません
 No warehouse matches that name,その倉庫名は存在しません
@@ -953,7 +923,6 @@ Normal,正常
 Not Available,在庫なし
 Not Posted,未計上
 Not bound,未連携
-Not counted,未棚卸
 Not enough stock in Express,Express の在庫が足りません
 Not enough stock on hand,在庫が足りません
 Not found in the Revenue Department records,税務局に登録がありません
@@ -987,16 +956,13 @@ Only an active count can be deleted,進行中の棚卸のみ削除できます
 Only an image or a PDF can be recognised,画像または PDF のみ認識できます
 Only board admins can do this,ボード管理者のみ実行できます
 Only invoices in Thai baht can be sent to MR.ERP,MR.ERP に送れるのはタイバーツの伝票だけです
-Only low or out of stock,在庫少・在庫切れのみ
 Only one with this tax number,この税番号はこの1件のみ
 Only purchase documents can be sent in for now,現時点では仕入書類のみ受け付けます
-Only the checked features are visible to this employee,チェックした機能だけがこの従業員に表示されます
 Only the checked features are visible to this user,チェックした機能だけがこのユーザーに表示されます
 Only the product admin can change this,製品管理者のみ変更できます
 Open Form View,フォーム表示を開く
 Open Shift,シフト開始
 Open a shift before selling,販売前にシフトを開始してください
-Open a shift on the cashier page first.,先にレジでシフトを開始してください
 Open card,カードを開く
 Open that product,その商品を開く
 "Open this page from LINE, or sign in to the site first",このページは LINE から開くか、先にサイトへログインしてください
@@ -1182,8 +1148,6 @@ Quantity Available,在庫数
 Quantity cannot be 0,数量は 0 にできません
 Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
 Quantity must be greater than zero,数量は 0 より大きい必要があります
 Query,照会
 Querying the Revenue Department...,税務局に照会中…
@@ -1309,7 +1273,6 @@ Sales returns account,売上返品勘定
 Salesman,営業担当
 Save,保存
 Save Draft,下書きを保存
-Save and next,保存して次へ
 Save this to the company's notes?,会社のノートに保存しますか？
 Saved,保存しました
 Saved a collection draft,入金の下書きを保存しました
@@ -1321,7 +1284,6 @@ Saving a collection draft,入金の下書きを保存しています
 Saving push choices,送信の選択を保存しています
 Scan,スキャン
 Scan a code,コードをスキャン
-Scan barcode or QR code,バーコード・QRコードを読む
 Scan or enter a code,コードをスキャンまたは入力してください
 "Scan, enter the actual position and quantity, then save to continue.",読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。
 Scanned,読み取りました
@@ -1331,11 +1293,9 @@ Search by customer name or phone,顧客名か電話で検索
 "Search by customer name, phone, email.",顧客名・電話・メールで検索
 Search by invoice id or customer name,伝票番号または顧客名で検索
 "Search by item code, serial number or barcode",商品コード・シリアル番号・バーコードで検索
-Search by name or phone,名前か電話で検索
 Search by receipt number,レシート番号で検索
 Search cards,カードを検索
 Search name or barcode,名前・バーコードで検索
-"Search name, code or barcode",名前・コード・バーコードで検索
 Searched customers for a collection,入金の顧客を検索しました
 Searching customers for a collection,入金の顧客を検索しています
 Second No,第二番号
@@ -1365,7 +1325,6 @@ Seller branch,売り手支店
 Seller tax ID,売り手税番号
 Selling Units,販売単位
 Selling price,販売価格
-Selling warehouse,販売する倉庫
 Send,送信
 Send a photo of the transfer slip,振込明細の写真を送ってください
 Send the code from the ERP page to bind,ERP 画面のコードを送信して連携してください
@@ -1378,7 +1337,6 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,サービス
 Service input VAT,サービスの仮払付加価値税
 Service input VAT basis not set,サービスの仮払付加価値税の基準が未設定です
-Service or stock item?,サービスですか、在庫品ですか？
 Set as current,現在の会社にする
 Set due date,期日を N 日後に設定
 Set reminder,リマインダー
@@ -1388,7 +1346,6 @@ Setup Auto Email,自動メールを設定
 Several Express customers have this tax ID. Choose the customer and submit again,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
 Several matches found for {0}. Please select a record.,「{0}」に複数の候補があります。レコードを選択してください。
-Several matches found. Please select a record.,複数の候補があります。レコードを選択してください。
 Sheet,シート
 Shelf,棚番
 Shift,シフト
@@ -1405,10 +1362,8 @@ Short Name,略称
 Short by {0},{0} 不足
 Short name,略称
 Show details,詳細を表示
-Show disabled,無効も表示
 Show on card,カードに表示
 Show only,表示のみ
-Show zero stock,在庫 0 も表示
 Skipped {0} row(s); the first ones are listed above,{0}行をスキップしました（先頭のみ表示）
 Sold,販売済み
 Sold At,販売日時
@@ -1426,7 +1381,6 @@ Split exempt items (recommended),免税品を分けて記帳（推奨）
 Start counting,棚卸を開始
 Start date,開始日
 Status,ステータス
-"Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
 Stock Account Group,在庫勘定グループ
 Stock Count,棚卸
@@ -1454,10 +1408,8 @@ Stock is counted in this unit; other units convert into it. Leave it empty to us
 Stock item,在庫品
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,在庫はこの倉庫から出ます（同じ会社の倉庫であること）。空欄はその会社の唯一の倉庫
 Stock ledger,在庫の受け払いを開く
-Stock of {0} is now {1},{0} の在庫は {1} になりました
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,商品 {0} は倉庫 {1} の在庫が足りません。利用可能 {2} {3}
 Stop watching,ウォッチをやめる
-Stored here for now; document numbers still come from the numbering rules,いまは記録のみ。書類番号は採番ルールで発行します
 Subcategory,サブカテゴリ
 Submit,提出
 Submit and Receive Stock,確定して入庫
@@ -1481,7 +1433,6 @@ Supplier not found. Please select the supplier again.,仕入先が見つかり�
 Supplier type,仕入先区分
 Suppliers,仕入先数
 Switch Between Payment Modes,支払方法を切り替え
-Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
 Sync Express,Express と同期
 Sync failed,同期に失敗しました
@@ -1511,7 +1462,6 @@ Team board,チームボード
 Team visible,チームに公開
 Template,テンプレート
 Terminal,レジ
-Terminal name,レジ名
 Terminal not found,レジが見つかりません
 Terminals,レジ
 Text,テキスト
@@ -1536,7 +1486,6 @@ The Revenue Department replied in an unreadable format,税務局の応答形式�
 The VAT does not match the 7% rate. Check it and submit again,付加価値税額が 7% と合いません。確認して再送信してください
 The account set cannot be reached right now. It will be sent automatically once connected.,現在この会計データにアクセスできません。接続後に自動で送信します
 The account set on this computer is not the registered one. Waiting for another computer.,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
-The account you give customers for transfers,入金時に相手へ伝える口座
 The accounting period is closed in Express,会計期間は Express で締め済みです
 The amount is invalid,金額が無効です
 The amount payable cannot be negative,支払額はマイナスにできません
@@ -1555,7 +1504,6 @@ The chosen account set belongs to another company. Check the account set,選ん�
 The collection changed. Check it again,入金内容が変更されました。もう一度確認してください
 The company has no 13-digit tax ID,会社に 13 桁の納税者番号がありません
 The company has no MR.ERP account set,会社に MR.ERP の会計データが設定されていません
-The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The customer is missing. Choose the customer and submit again.,顧客がありません。顧客を選択して再送信してください
@@ -1575,7 +1523,6 @@ The invoice date looks wrong. Correct it and submit again,伝票日付がおか�
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,請求書番号が MR.ERP の上限を超えています。短くして再送信してください
 The invoice number is missing. Add it and submit again.,請求書番号がありません。追加して再送信してください
 The item is not in Express,この商品は Express にありません
-The item is not in Express yet,この商品はまだ Express にありません
 The lines cannot be written to Express. Check them and submit again.,明細を Express に書き込めません。確認して再送信してください
 The matching stock item is missing. Choose it and submit again.,対応する在庫品目がありません。選択して再送信してください
 The number of units does not match the quantity,個体数が数量と一致しません
@@ -1636,12 +1583,8 @@ This account code is already a stock item code in Express,この勘定コード�
 This account set has no book for this kind of document. Set it up in Express,この会計データにはこの種類の伝票帳がありません。Express で設定してください
 This barcode already exists,このバーコードは既に存在します
 This board no longer exists,このボードはもう存在しません
-This browser cannot scan with the camera,このブラウザーはカメラでスキャンできません
 This browser cannot scan with the camera; use a scanner or type the code,このブラウザーはカメラでスキャンできません。スキャナーか手入力を使ってください
-This card expires in {0} minutes,このカードは {0} 分で期限切れになります
-This card has expired. Please upload the document again.,カードの期限が切れました。もう一度アップロードしてください
 This card has expired. Use the latest card in LINE.,このカードは期限切れです。LINE の最新のカードを使ってください。
-This card is no longer valid,このカードは無効です
 This category already exists,このカテゴリは既に存在します
 This channel is not open yet,このチャンネルはまだ開放していません
 This code is already in use,このコードは使用されています
@@ -1653,13 +1596,11 @@ This collection method is not available,この入金方法は使えません
 This company does not use Express,この会社は Express を使用していません
 This company has no connected Express account set,この会社に接続済みの Express 会計データはありません
 This company has no connected MR.ERP account set,この会社に接続済みの MR.ERP 会計データはありません
-"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。
 This computer cannot enter documents into Express,このパソコンでは Express の代行入力ができません
 This counter sells for this company; stock leaves its warehouse,このレジはこの会社の販売を行い、その倉庫から在庫が出ます
 This customer has no match in MR.ERP. Choose the customer and submit again,この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
 This department is not available,この部門は使えません
-This device cannot scan,この端末ではスキャンできません
 This device has no camera to scan with,この端末にはスキャンに使えるカメラがありません
 This document cannot be recorded yet,この伝票はまだ記録できません
 This document has no content,この書類は中身がありません
@@ -1671,7 +1612,6 @@ This document is too large,この書類は大きすぎます
 This document is void,この伝票は無効です
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This document type cannot be written to MR.ERP,この種類の伝票は MR.ERP に書き込めません
-This document was already recorded,この書類は記録済みです
 This document was changed in Express. Check it in Express,この伝票は Express で変更されています。Express で確認してください
 "This document was issued by this company, not a purchase document",この書類は自社が発行したもので、仕入書類ではありません
 This draft was already confirmed or discarded,この下書きは確認済みか破棄済みです
@@ -1694,7 +1634,6 @@ This member cannot be assigned,このメンバーには割り当てられませ�
 This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
 This product code already exists,この品目コードは既に存在します
-This receipt is in a daily summary sent to Express. Refund it instead,このレシートは Express に送った日次集計に入っています。返品にしてください
 This receipt is in a daily summary. Refund it instead,このレシートは日次集計に入っています。返品にしてください
 This request was already recorded,このリクエストは登録済みです
 This sale is already voided,この売上はすでに無効です
@@ -1706,8 +1645,6 @@ This status change is not allowed,このステータス変更は許可されて�
 This stock count already has an adjustment,この棚卸には調整伝票があります
 This stock count is already posted,この棚卸はすでに計上済みです
 This stock count is closed,この棚卸は終了しています
-This stock entry comes from a stock count sent to Express. It cannot be voided on its own,この入出庫は Express に送った棚卸から作られたため、単独で取り消せません
-This stock entry comes from a stock count. It cannot be voided on its own,この入出庫は棚卸から作られたため、単独で取り消せません
 This stock position already has stock movements; use a stock adjustment,この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
 This stock position is already initialized; use a stock adjustment,この保管場所の商品は期首登録済みです。在庫調整を使用してください
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
@@ -1715,15 +1652,12 @@ This supplier is not in MR.ERP. Check the supplier name and tax ID,この仕入�
 This terminal already has an open shift,このレジにはすでに開いているシフトがあります
 This terminal has no warehouse; set one in the terminal settings,このレジには倉庫が未設定です。レジ設定で倉庫を選んでください
 This unit has been counted,この個体は棚卸済みです
-This unit is not defined on the product,この単位はこの商品に定義されていません
 This unit is not in stock in this warehouse,この個体はこの倉庫に在庫がありません
 This unit number is already registered,この番号は登録済みです
 This warehouse already exists,この倉庫は既に存在します
-This warehouse belongs to the company above,この倉庫は上の会社に属します
 This warehouse code already exists,この倉庫コードは既に存在します
 This warehouse has no active location,この倉庫には有効なロケーションがありません
 This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
-"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
 Time left {0},残り {0}
 Title,タイトル
@@ -1738,11 +1672,9 @@ Too many matches; type a few more letters to narrow it down,候補が多すぎ�
 Total,請求額
 Total  {0}  rows,合計  {0}  件
 Total Amount,合計金額
-Total Due,請求額
 Total Items,合計点数
 Total Quantity,合計数量
 Total Taxes and Charges,税金および諸費用合計
-Total items,合計点数
 Total opening value,期首金額合計
 Total {0} does not match {1},合計 {0} が受領額 {1} と一致しません
 Total · {0} row(s),合計 · {0} 明細
@@ -1757,15 +1689,10 @@ Type a word from the customer name to find it,顧客名の一部を入力して�
 Type a word from the location name to find it,保管場所名の一部を入力して検索
 Type a word from the supplier name to find it,仕入先名の一部を入力して検索
 Type a word from the warehouse name to find it,倉庫名の一部を入力して検索
-Type any warehouse name; a new warehouse is created if that name is new,倉庫名は自由入力です。新しい名前なら自動作成します
 Type not found in Express,Express にこの種別がありません
-Type the company name or number to find it,会社名または番号を入力して検索
 "Type the company name, tax ID or account set to find it",会社名・納税者番号・会計データ名を入力して検索
 Type the customer code or part of the name,顧客コードまたは名前を入力してください
-Type the customer name or code to find it,顧客名またはコードを入力して検索
 Type the item name or code,品目名かコードを入力してください
-Type the supplier name or code to find it,仕入先名またはコードを入力して検索
-Type the warehouse name or code to find it,倉庫名またはコードを入力して検索
 UOM,単位
 Unable to load preview,プレビューを読み込めません
 Unbind LINE,LINE 連携を解除
@@ -1801,7 +1728,6 @@ Update this company note?,この会社メモを更新しますか？
 Updated,更新しました
 Updated {0},{0} を更新しました
 Updated {0} customer(s),顧客 {0}件を更新しました
-Updated {0} employee(s),従業員{0}件を更新しました
 Updated {0} product(s),{0}件を更新しました
 Updated {0} record(s),{0}件を更新しました
 Updated {0} supplier(s),仕入先 {0}件を更新しました
@@ -2366,35 +2292,6 @@ erp.work.view.calendar,カレンダー
 erp.work.view.mine,自分のカード
 erp.work.view.table,テーブル
 express.action.markHandled,Express で処理済みにする
-express.code.ACCOUNT_BUSY_LOCKED,Express でこの帳簿が開かれています。Express を閉じると自動で送信されます
-express.code.ACCOUNT_COMPANY_MISMATCH,選んだ帳簿は別の会社のものです。帳簿を確認してください
-express.code.ACCOUNT_DIR_NOT_ALLOWED,CC デスクトップはこの帳簿に書き込めません。CC デスクトップの帳簿設定を確認してください
-express.code.ACCOUNT_SET_UNREACHABLE,現在この帳簿にアクセスできません。接続後に自動で送信します
-express.code.ACCOUNT_WRITER_BUSY,別のパソコンがこの帳簿に書き込み中です。完了後に自動で送信します
-express.code.BAD_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
-express.code.BAD_SALES_DOCTYPE,この書類の種類は Express に書き込めません。確認して再送信してください
-express.code.CDX_REINDEX_FAILED,Express の索引を作れず元に戻しました。自動で再試行します
-express.code.CUSTOMER_BRANCH_AMBIGUOUS,Express にこの納税者番号の得意先が複数あります。得意先を選んで再送信してください
-express.code.CUSTOMER_DUP_SUSPECTED,Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
-express.code.CUSTOMER_NOT_IN_ARMAS,Express にこの得意先がなく、作成もできませんでした。名称と納税者番号を確認してください
-express.code.DBF_WRITE_FAILED,Express への書き込みに失敗し、元に戻しました。自動で再試行します
-express.code.EMPTY_ITEMS,この請求書には明細がありません。追加して再送信してください
-express.code.ERR_ACCOUNT_UID_MISMATCH,このパソコンの会計データは登録されたものではありません。別のパソコンを待っています
-express.code.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください
-express.code.INVALID_DOC_DATE,書類の日付が無効です。修正して再送信してください
-express.code.INVALID_INVOICE_DATE,書類の日付が無効です。修正して再送信してください
-express.code.INVALID_QUANTITY,明細の数量が無効です。修正して再送信してください
-express.code.ITEMS_INVALID,明細を Express に書き込めません。確認して再送信してください
-express.code.MISSING_CUSTOMER,顧客がありません。顧客を選択して再送信してください
-express.code.MISSING_REF_NO,請求書番号がありません。追加して再送信してください
-express.code.MISSING_SUPPLIER,仕入先がありません。追加して再送信してください
-express.code.PAYLOAD_INVALID,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
-express.code.READBACK_VERIFY_FAILED,書き込み後の確認が合わず元に戻しました。自動で再試行します
-express.code.STOCK_ACC_GROUP_UNFIT,先にこの帳簿の在庫勘定グループを選んでください。
-express.code.STOCK_IN_FAILED,在庫明細を記帳できません。品名・数量・単価を確認してください
-express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express にこの納税者番号の仕入先が複数あります。仕入先を選んで再送信してください
-express.code.SUPPLIER_DUP_SUSPECTED,Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
-express.code.SUPPLIER_NOT_IN_APMAS,Express にこの仕入先がなく、作成もできませんでした。名称と納税者番号を確認してください
 express.error.ACCOUNT_BUSY_LOCKED,Express でこの会計データが開かれています。Express を閉じると自動で書き込まれます
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,この勘定コードは Express の在庫品コードです
 express.error.ACCOUNT_COMPANY_MISMATCH,選んだ会計データは別の会社のものです。会計データを確認してください
@@ -2578,7 +2475,6 @@ mrerp.reason.accountBusy,この MR.ERP アカウントは代行入力中です
 mrerp.reason.importing,MR.ERP に取込中
 mrerp.reason.loginMissing,MR.ERP のログインが未許可です
 mrerp.reason.notConfigured,会社に MR.ERP の会計データが設定されていません
-mrerp.reason.purchaseCash,MR.ERP の仕入は掛けでのみ登録できます。
 mrerp.reason.resultUnknown,結果は未確認です。再送信する前に MR.ERP で確認してください
 nav.posReceipts,レジ記録
 nav.posShifts,シフト記録
@@ -2588,7 +2484,6 @@ nav.stockTransfer,倉庫間移動
 none,なし
 opening,期首
 paid,支払済み
-pending_approval,承認待ち
 person,個人
 product.action.bulkDisable,選択した{0}件を無効化
 product.action.bulkEnable,選択した{0}件を有効化
@@ -2748,7 +2643,6 @@ stock.col.status,状態
 stock.col.unit,単位
 stock.col.value,金額
 stock.col.warehouse,倉庫
-stock.count.action.delete,選択した{0}件を削除
 stock.count.addEntry,カウントを記録
 stock.count.addEntryHint,帳簿数量 {0} {1}
 stock.count.addEntryTitle,カウントを記録 — {0}

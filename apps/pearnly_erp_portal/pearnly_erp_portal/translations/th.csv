@@ -1,9 +1,7 @@
-1 = January,1 = มกราคม
 1 day before,ก่อน 1 วัน
 1 hour before,ก่อน 1 ชั่วโมง
 1-12; Thai companies commonly start in January,1–12 โดยทั่วไปบริษัทในประเทศไทยเริ่มต้นเดือนมกราคม
 10 minutes before,ก่อน 10 นาที
-13 digits; a branch adds its 5-digit branch number,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 15 minutes before,ก่อน 15 นาที
 2 days before,ก่อน 2 วัน
 2 hours before,ก่อน 2 ชั่วโมง
@@ -76,7 +74,6 @@ Add member,เพิ่มสมาชิก
 Add opening item,เพิ่มรายการ
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
-Add terminal,เพิ่มเครื่องขาย
 Add these companies?,เพิ่มบริษัทเหล่านี้หรือไม่
 Add watcher,เพิ่มผู้ติดตาม
 Added,เพิ่มระหว่างนับ
@@ -112,7 +109,6 @@ Amended,แก้ไขแล้ว
 Amended From,แก้ไขจาก
 Amount,จำนวนเงิน
 Amount Payable,ยอดที่ต้องชำระ
-Amount Received,รับชำระ
 Amounts,จำนวนเงิน
 An account used is not in the MR.ERP chart of accounts. Check the account settings,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 An error occurred while sending to MR.ERP,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
@@ -205,7 +201,6 @@ Buyer Type,ประเภทลูกค้า
 Buyer address,ที่อยู่ผู้ซื้อ
 Buyer branch,สาขาผู้ซื้อ
 Buyer tax ID,เลขประจำตัวผู้เสียภาษีของผู้ซื้อ
-By Payment Method,แยกตามวิธีรับเงิน
 By Warehouse,แยกคลัง
 By location,ตามตำแหน่ง
 By product,ตามสินค้า
@@ -219,8 +214,6 @@ CC Desktop needs an update,CC เดสก์ท็อปต้องอัป�
 CC Desktop not connected,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
 Calculation Version,เวอร์ชันการคำนวณ
 Calendar,ปฏิทิน
-"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
-Camera permission was refused; allow it and try again,ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่
 Cancel,ยกเลิก
 Cancel in Express,ยกเลิกใน Express
 Cancel {0},ยกเลิก {0} รายการ
@@ -298,7 +291,6 @@ Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
 Choose the location,กรุณาเลือกตำแหน่ง
 Choose the payment method,กรุณาเลือกวิธีชำระเงิน
-Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the supplier,กรุณาเลือกผู้จำหน่าย
 Choose the warehouse,กรุณาเลือกคลังสินค้า
@@ -308,7 +300,6 @@ Claim,ขอคืน
 Clear,ล้าง
 Clear Link,ล้างการเชื่อมโยง
 Clear cart,ล้างตะกร้า
-Clear customer,ล้างลูกค้า
 Clear the cart?,ต้องการล้างตะกร้าใช่หรือไม่
 Click to add email / phone,คลิกเพื่อเพิ่มอีเมล / เบอร์โทรศัพท์
 Click to choose a customer,คลิกเพื่อเลือกลูกค้า
@@ -339,7 +330,6 @@ Collector,พนักงานเก็บเงิน
 Color,สี
 Colour Tag,ป้ายสี
 Columns,คอลัมน์
-Comes from the terminal; set it there if it is empty,มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน
 Comment,ความคิดเห็น
 Comments,ความคิดเห็น
 Comments and activity,ความคิดเห็นและกิจกรรม
@@ -356,7 +346,6 @@ Complete Payment,รับชำระเงิน
 Completed,เสร็จสิ้น
 Computer offline,เครื่องออฟไลน์
 Confirm,ยืนยัน
-Confirm and record,ยืนยันบันทึก
 Confirm collection,ยืนยันการรับชำระ
 Confirm opening stock,ยืนยันบันทึกสต็อกยกมา
 Confirm the document before recording a payment,กรุณายืนยันเอกสารก่อนบันทึกการชำระเงิน
@@ -384,8 +373,6 @@ Could not create the cash supplier in MR.ERP.,สร้างผู้จำห�
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารได้ กรุณาส่งใหม่อีกครั้ง
 Could not record this collection,บันทึกการรับชำระนี้ไม่ได้
-Could not record this document. Please try again.,บันทึกเอกสารไม่สำเร็จ กรุณาลองใหม่
-Could not record: {0},บันทึกไม่สำเร็จ: {0}
 Could not sign in to MR.ERP. Check the connection's username and password,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
 Could not store this document,บันทึกเอกสารไม่สำเร็จ กรุณาส่งใหม่
 Count at least one item before finishing,กรุณาตรวจนับอย่างน้อยหนึ่งรายการก่อนสิ้นสุดการตรวจนับ
@@ -415,7 +402,6 @@ Create card,สร้างการ์ด
 Create from template,สร้างจากเทมเพลต
 Create the warehouse in Express,สร้างคลังใน Express
 "Create the warehouse in Express, then use Sync Express on the company page",สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท
-Create the warehouse in Express. It is added here at the next sync,สร้างคลังใน Express แล้วคลังจะปรากฏที่นี่หลังซิงก์ครั้งถัดไป
 Created,สร้างเมื่อ
 Created a stock count,สร้างการตรวจนับสต็อกแล้ว
 Created an adjustment from a stock count,สร้างใบปรับปรุงสินค้าจากผลการตรวจนับแล้ว
@@ -455,7 +441,6 @@ Daily,ทุกวัน
 Damaged / written off,ตัดชำรุด / เสียหาย
 Date,วันที่
 Date  {0}  to  {1},วันที่  {0}  ถึง  {1}
-Date (BE),วันที่ พ.ศ.
 Date created (newest first),วันที่สร้าง (ใหม่สุดก่อน)
 Date created (oldest first),วันที่สร้าง (เก่าสุดก่อน)
 Date must be in ascending order,วันที่ ต้องเรียงลำดับจากน้อยไปมาก
@@ -520,7 +505,6 @@ Document has already been submitted,ยืนยันเอกสารแล�
 Document has been cancelled,เอกสารถูกยกเลิกแล้ว
 Document must be submitted,กรุณายืนยันเอกสารก่อน
 Document no.,เลขที่เอกสาร
-Document prefix,คำนำหน้าเอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
@@ -550,7 +534,6 @@ ERP purchase recognition,อ่านเอกสารซื้อ
 ERP sales recognition,อ่านเอกสารขาย
 Each product and location may appear only once,สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว
 Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
-Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
 Edit Cart,กลับไปที่ตะกร้า
 Edit Receipt,แก้ไขใบเสร็จ
@@ -570,7 +553,6 @@ Enable POS cashier,เปิดใช้เครื่องขาย POS
 Enable {0},เปิดใช้งาน {0}
 Enable {0} selected,เปิดใช้งาน {0} รายการที่เลือก
 Enabled,เปิดใช้งานแล้ว
-"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",ต้องการสิ้นสุดการตรวจนับใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังสิ้นสุดแก้ไขไม่ได้
 "End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",ต้องการสิ้นสุดการตรวจนับใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังสิ้นสุดแก้ไขไม่ได้
 Engine No,เลขเครื่องยนต์
 Enter a board name,กรุณากรอกชื่อบอร์ด
@@ -645,7 +627,6 @@ Express Void Reason,เหตุผลการยกเลิกใน Express
 Express code,รหัส Express
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
-Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 Express has this account set open. It is written automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 External System Reference,รหัสอ้างอิงระบบภายนอก
 Factor to Base Unit,ตัวคูณแปลงเป็นหน่วยฐาน
@@ -663,16 +644,13 @@ Filter,ตัวกรอง
 Filter by invoice status,กรองตามสถานะเอกสาร
 Filters,ตัวกรอง
 Find,ค้นหา
-Find product,ค้นหาสินค้า
 Finish,เสร็จสิ้น
-Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,ต้องการสิ้นสุดการตรวจนับและปรับสต็อกตามผลต่างที่ยืนยันแล้วใช่หรือไม่ นับแล้ว {0} รายการ อีก {1} รายการไม่เปลี่ยนแปลง หลังสิ้นสุดดูและส่งออกได้เท่านั้น
 Finish this stock count?,ปิดการตรวจนับนี้หรือไม่
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
 Finishing a stock count,กำลังปิดการตรวจนับสต็อก
 First Receipt,ใบเสร็จแรก
 First warehouse of this company (more on the Warehouses page),คลังแรกของบริษัทนี้ (เพิ่มเติมได้ที่หน้าคลังสินค้า)
 Fiscal Year Starts In,เดือนที่เริ่มปีบัญชี
-Fiscal year start month,เดือนเริ่มปีบัญชี
 Fix all opening stock errors before submitting,กรุณาแก้ไขข้อผิดพลาดทั้งหมดก่อนบันทึก
 Focus on Item Group filter,ไปที่ตัวกรองกลุ่มสินค้า
 Focus on search input,ไปที่ช่องค้นหา
@@ -778,9 +756,7 @@ Item is disabled,สินค้าถูกปิดใช้งาน
 Item is removed since no serial / batch no selected.,นำสินค้าออกแล้ว เนื่องจากไม่ได้เลือกหมายเลขเครื่อง / เลขล็อต
 Items,รายการสินค้า
 Items are required,กรุณาระบุรายการสินค้า
-Items found at a different place,สินค้าที่พบคนละตำแหน่ง
 Items not found.,ไม่พบสินค้า
-"Items with a difference, largest first",สินค้าที่มีผลต่าง เรียงจากมากไปน้อย
 Job,งาน
 Job Roles,สิทธิ์การใช้งาน
 Keep,คงไว้
@@ -804,9 +780,7 @@ Last page,หน้าสุดท้าย
 Last transacted,ทำรายการล่าสุด
 Late receipts,ใบเพิ่มเติม
 Leave all unchecked to allow every company,หากไม่เลือก จะเห็นได้ทุกบริษัท
-Leave blank to use the default terminal,เว้นว่างเพื่อใช้เครื่องขายเริ่มต้น
 Leave board,ออกจากบอร์ด
-"Legacy used head office / branch, with the branch number when it is a branch",ระบบเดิมใช้ สำนักงานใหญ่ / สาขา และระบุเลขสาขาเมื่อเป็นสาขา
 Light,ไฟแฟลช
 Line Amount,จำนวนเงินรายบรรทัด
 Line Discount,ส่วนลดรายบรรทัด
@@ -839,7 +813,6 @@ Location code,รหัสตำแหน่ง
 Locations,รายการตำแหน่ง
 Lookup failed,ค้นหาไม่สำเร็จ
 "Lookup failed, please fill in manually",ค้นหาไม่สำเร็จ กรุณากรอกข้อมูลด้วยตนเอง
-Lookup failed. Try again.,ค้นหาไม่สำเร็จ กรุณาลองอีกครั้ง
 Low (≤{0}),สต็อกต่ำ (≤{0})
 Low Stock Threshold,เกณฑ์สต็อกต่ำ
 Low stock,สต็อกต่ำ
@@ -854,7 +827,6 @@ MR.ERP No.,เลขที่ MR.ERP
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 MR.ERP import menu,เมนูนำเข้า MR.ERP
-MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
 MR.ERP returned an error. Check in MR.ERP,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
 MR.ERP settings,การตั้งค่า MR.ERP
 MR.ERP sign-in is not authorized,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
@@ -888,7 +860,6 @@ Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
 Move list,ย้ายรายการ
 My cards,การ์ดของฉัน
-My collections,การรับชำระของฉัน
 Name,ชื่อ
 Net,ยอดสุทธิ
 Net Total,ยอดรวมสุทธิ
@@ -941,7 +912,6 @@ No receipts in this shift,กะนี้ยังไม่มีใบเสร
 No recent transactions found,ไม่พบธุรกรรมล่าสุด
 No stock count in progress,ไม่มีการตรวจนับที่กำลังดำเนินการ
 No templates yet,ยังไม่มีเทมเพลต
-No terminal yet,ยังไม่มีเครื่องขาย
 No units of this product are registered in this warehouse,คลังนี้ยังไม่มีชิ้นที่ลงทะเบียนของสินค้านี้
 No warehouse is available for this company,บริษัทนี้ไม่มีคลังสินค้าที่ใช้งานได้
 No warehouse matches that name,ไม่พบคลังสินค้าชื่อนี้
@@ -953,7 +923,6 @@ Normal,ปกติ
 Not Available,สินค้าหมด
 Not Posted,ยังไม่บันทึกสต็อก
 Not bound,ยังไม่ได้ผูกบัญชี
-Not counted,ยังไม่นับ
 Not enough stock in Express,สินค้าคงเหลือใน Express ไม่พอ
 Not enough stock on hand,สินค้าคงเหลือไม่เพียงพอ
 Not found in the Revenue Department records,ไม่พบข้อมูลการจดทะเบียนของเลขประจำตัวผู้เสียภาษีนี้ในกรมสรรพากร
@@ -987,16 +956,13 @@ Only an active count can be deleted,ลบได้เฉพาะงานต�
 Only an image or a PDF can be recognised,รองรับการอ่านเฉพาะรูปภาพหรือ PDF
 Only board admins can do this,เฉพาะผู้ดูแลบอร์ดเท่านั้นที่ดำเนินการนี้ได้
 Only invoices in Thai baht can be sent to MR.ERP,ส่งเข้า MR.ERP ได้เฉพาะเอกสารสกุลเงินบาท
-Only low or out of stock,เฉพาะใกล้หมดหรือหมด
 Only one with this tax number,เลขผู้เสียภาษีนี้มีเพียงรายเดียว
 Only purchase documents can be sent in for now,ขณะนี้รับเฉพาะเอกสารจัดซื้อเท่านั้น
-Only the checked features are visible to this employee,พนักงานคนนี้จะเห็นเฉพาะฟังก์ชันที่ติ๊ก
 Only the checked features are visible to this user,ผู้ใช้นี้จะเห็นเฉพาะฟังก์ชันที่เลือกไว้
 Only the product admin can change this,แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์
 Open Form View,เปิดมุมมองฟอร์ม
 Open Shift,เปิดกะ
 Open a shift before selling,กรุณาเปิดกะก่อน
-Open a shift on the cashier page first.,กรุณาเปิดกะที่หน้าจุดขายก่อน
 Open card,เปิดการ์ด
 Open that product,เปิดสินค้ารายการนี้
 "Open this page from LINE, or sign in to the site first",กรุณาเปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน
@@ -1182,8 +1148,6 @@ Quantity Available,จำนวนคงเหลือ
 Quantity cannot be 0,จำนวนต้องไม่เป็น 0
 Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",ผลต่างจำนวน เรียงจากมากไปน้อย แท่งเทาคือจำนวนตามบัญชี แท่งสีคือจำนวนที่นับได้ วางเมาส์บนแท่งเพื่อดูสินค้า ตำแหน่ง และจำนวน
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",ผลต่างจำนวน เรียงจากมากไปน้อย แถบเทาคือจำนวนตามบัญชี แถบสีคือจำนวนที่นับได้ นับได้น้อยจะสั้นกว่าแถบเทา นับได้เกินจะล้นออกไป
 Quantity must be greater than zero,จำนวนต้องมากกว่า 0
 Query,ค้นหา
 Querying the Revenue Department...,กำลังค้นหาจากกรมสรรพากร…
@@ -1309,7 +1273,6 @@ Sales returns account,บัญชีรับคืนสินค้า
 Salesman,พนักงานขาย
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
-Save and next,บันทึกและรายการถัดไป
 Save this to the company's notes?,บันทึกข้อนี้ลงในบันทึกของบริษัทไหม
 Saved,บันทึกแล้ว
 Saved a collection draft,บันทึกฉบับร่างรับชำระแล้ว
@@ -1321,7 +1284,6 @@ Saving a collection draft,กำลังบันทึกฉบับร่า
 Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 Scan,สแกน
 Scan a code,สแกนโค้ด
-Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan or enter a code,กรุณาสแกนหรือกรอกรหัส
 "Scan, enter the actual position and quantity, then save to continue.",สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป
 Scanned,สแกนแล้ว
@@ -1331,11 +1293,9 @@ Search by customer name or phone,ค้นหาด้วยชื่อลู�
 "Search by customer name, phone, email.",ค้นหาด้วยชื่อลูกค้า เบอร์โทร อีเมล
 Search by invoice id or customer name,ค้นหาด้วยเลขที่เอกสารหรือชื่อลูกค้า
 "Search by item code, serial number or barcode",ค้นหาด้วยรหัสสินค้า หมายเลขเครื่อง หรือบาร์โค้ด
-Search by name or phone,ค้นหาด้วยชื่อหรือโทรศัพท์
 Search by receipt number,ค้นหาด้วยเลขที่ใบเสร็จ
 Search cards,ค้นหาการ์ด
 Search name or barcode,ค้นหาชื่อหรือบาร์โค้ด
-"Search name, code or barcode",ค้นหาชื่อ รหัส หรือบาร์โค้ด
 Searched customers for a collection,ค้นหาลูกค้าสำหรับรับชำระแล้ว
 Searching customers for a collection,กำลังค้นหาลูกค้าสำหรับรับชำระ
 Second No,หมายเลขที่สอง
@@ -1365,7 +1325,6 @@ Seller branch,สาขาผู้ขาย
 Seller tax ID,เลขประจำตัวผู้เสียภาษีของผู้ขาย
 Selling Units,หน่วยขาย
 Selling price,ราคาขาย
-Selling warehouse,คลังที่ขาย
 Send,ส่ง
 Send a photo of the transfer slip,กรุณาส่งรูปสลิปการโอน
 Send the code from the ERP page to bind,กรุณาส่งรหัสผูกบัญชีจากหน้า ERP
@@ -1378,7 +1337,6 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,บริการ
 Service input VAT,ภาษีซื้อของสินค้าบริการ
 Service input VAT basis not set,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
-Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
 Set as current,ตั้งเป็นปัจจุบัน
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set reminder,ตั้งการแจ้งเตือน
@@ -1388,7 +1346,6 @@ Setup Auto Email,ตั้งค่าอีเมลอัตโนมัติ
 Several Express customers have this tax ID. Choose the customer and submit again,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
 Several Express suppliers have this tax ID. Choose the supplier and submit again,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
 Several matches found for {0}. Please select a record.,พบหลายรายการที่ตรงกับ「{0}」 กรุณาเลือกรายการ
-Several matches found. Please select a record.,พบหลายรายการที่ตรงกัน กรุณาเลือกรายการ
 Sheet,ไฟล์
 Shelf,ตำแหน่ง
 Shift,กะ
@@ -1405,10 +1362,8 @@ Short Name,ชื่อย่อ
 Short by {0},เงินขาด {0}
 Short name,ชื่อย่อ
 Show details,แสดงรายละเอียด
-Show disabled,แสดงที่ปิดใช้งาน
 Show on card,แสดงบนการ์ด
 Show only,แสดงเฉพาะ
-Show zero stock,แสดงของที่ไม่มีสต็อก
 Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว รายการแรกแสดงด้านบน
 Sold,ขายแล้ว
 Sold At,เวลาขาย
@@ -1426,7 +1381,6 @@ Split exempt items (recommended),แยกสินค้ายกเว้น�
 Start counting,เริ่มตรวจนับ
 Start date,วันเริ่ม
 Status,สถานะ
-"Still off: the stock tables land in the inventory batch, and posting must not silently skip them",ยังปิดอยู่: ตารางสต็อกต้องเข้าเป็นชุดงานของฝ่ายสต็อก และการลงบัญชีห้ามข้ามไปเงียบ ๆ
 Stock,สต็อก
 Stock Account Group,กลุ่มบัญชีสินค้าคงเหลือ
 Stock Count,ตรวจนับสต็อก
@@ -1454,10 +1408,8 @@ Stock is counted in this unit; other units convert into it. Leave it empty to us
 Stock item,สินค้าคงคลัง
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,คลังสินค้าที่จ่ายออก (ต้องเป็นของบริษัทเดียวกัน) หากเว้นว่างไว้ จะใช้คลังสินค้าเพียงแห่งเดียวของบริษัทนี้
 Stock ledger,ดูบัญชีสต็อก
-Stock of {0} is now {1},สต๊อก {0} คงเหลือ {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,สินค้า {0} ในคลังสินค้า {1} มีไม่เพียงพอ ใช้ได้ {2} {3}
 Stop watching,เลิกติดตาม
-Stored here for now; document numbers still come from the numbering rules,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข
 Subcategory,หมวดหมู่ย่อย
 Submit,ยืนยัน
 Submit and Receive Stock,ยืนยันและรับเข้าสต็อก
@@ -1481,7 +1433,6 @@ Supplier not found. Please select the supplier again.,ไม่พบผู้�
 Supplier type,ประเภทผู้จำหน่าย
 Suppliers,ผู้จำหน่าย
 Switch Between Payment Modes,สลับวิธีชำระเงิน
-Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
 Sync Express,ซิงค์ Express
 Sync failed,ซิงค์ไม่สำเร็จ
@@ -1511,7 +1462,6 @@ Team board,บอร์ดทีม
 Team visible,ทีมมองเห็นได้
 Template,เทมเพลต
 Terminal,จุดขาย
-Terminal name,ชื่อเครื่องขาย
 Terminal not found,ไม่พบจุดขายนี้
 Terminals,เครื่องขาย
 Text,ข้อความ
@@ -1536,7 +1486,6 @@ The Revenue Department replied in an unreadable format,ไม่สามาร�
 The VAT does not match the 7% rate. Check it and submit again,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 The account set cannot be reached right now. It will be sent automatically once connected.,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
 The account set on this computer is not the registered one. Waiting for another computer.,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
-The account you give customers for transfers,บัญชีที่ให้ลูกค้าโอนเข้า
 The accounting period is closed in Express,งวดบัญชีนี้ปิดแล้วใน Express
 The amount is invalid,จำนวนเงินไม่ถูกต้อง
 The amount payable cannot be negative,ยอดที่ต้องชำระต้องไม่ติดลบ
@@ -1555,7 +1504,6 @@ The chosen account set belongs to another company. Check the account set,ชุ�
 The collection changed. Check it again,รายการรับชำระเปลี่ยนแปลงแล้ว กรุณาตรวจสอบอีกครั้ง
 The company has no 13-digit tax ID,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก
 The company has no MR.ERP account set,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
-The company on your documents,ข้อมูลบริษัทที่ใช้บนเอกสาร
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
 The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
@@ -1575,7 +1523,6 @@ The invoice date looks wrong. Correct it and submit again,วันที่เ�
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 The invoice number is missing. Add it and submit again.,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 The item is not in Express,ไม่มีสินค้านี้ใน Express
-The item is not in Express yet,สินค้านี้ยังไม่มีใน Express
 The lines cannot be written to Express. Check them and submit again.,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 The matching stock item is missing. Choose it and submit again.,ไม่มีสินค้าที่จับคู่ไว้ กรุณาเลือกแล้วส่งใหม่
 The number of units does not match the quantity,จำนวนรายชิ้นไม่ตรงกับจำนวน
@@ -1636,12 +1583,8 @@ This account code is already a stock item code in Express,รหัสบัญ�
 This account set has no book for this kind of document. Set it up in Express,ชุดบัญชีนี้ไม่มีสมุดสำหรับเอกสารประเภทนี้ กรุณาตั้งค่าใน Express
 This barcode already exists,บาร์โค้ดนี้มีอยู่แล้ว
 This board no longer exists,ไม่พบบอร์ดนี้
-This browser cannot scan with the camera,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง
 This browser cannot scan with the camera; use a scanner or type the code,เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง กรุณาใช้เครื่องสแกนหรือพิมพ์รหัสเอง
-This card expires in {0} minutes,การ์ดนี้หมดอายุใน {0} นาที
-This card has expired. Please upload the document again.,การ์ดหมดอายุแล้ว กรุณาอัปโหลดเอกสารใหม่
 This card has expired. Use the latest card in LINE.,การ์ดนี้หมดอายุแล้ว กรุณาใช้การ์ดล่าสุดใน LINE
-This card is no longer valid,การ์ดนี้ใช้ไม่ได้แล้ว
 This category already exists,มีหมวดหมู่นี้แล้ว
 This channel is not open yet,ช่องทางนี้ยังไม่เปิดใช้งาน
 This code is already in use,รหัสนี้ถูกใช้แล้ว
@@ -1653,13 +1596,11 @@ This collection method is not available,วิธีรับชำระนี�
 This company does not use Express,บริษัทนี้ไม่ได้ใช้ Express
 This company has no connected Express account set,บริษัทนี้ไม่มีชุดบัญชี Express ที่เชื่อมต่อ
 This company has no connected MR.ERP account set,บริษัทนี้ไม่มีชุดบัญชี MR.ERP ที่เชื่อมต่อ
-"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้
 This computer cannot enter documents into Express,คอมพิวเตอร์เครื่องนี้บันทึกแทนใน Express ไม่ได้
 This counter sells for this company; stock leaves its warehouse,จุดขายนี้ออกเอกสารขายในนามบริษัทนี้ และจ่ายสินค้าออกจากคลังสินค้าของบริษัทนี้
 This customer has no match in MR.ERP. Choose the customer and submit again,ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่
 This customer is not in Express and could not be created. Check the customer name and tax ID,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
 This department is not available,แผนกนี้ใช้ไม่ได้
-This device cannot scan,อุปกรณ์นี้สแกนไม่ได้
 This device has no camera to scan with,อุปกรณ์นี้ไม่มีกล้องที่ใช้งานได้
 This document cannot be recorded yet,ยังไม่สามารถลงบัญชีเอกสารนี้ได้
 This document has no content,ไฟล์นี้ไม่มีเนื้อหา
@@ -1671,7 +1612,6 @@ This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This document type cannot be written to MR.ERP,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
-This document was already recorded,เอกสารนี้บันทึกแล้ว
 This document was changed in Express. Check it in Express,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 "This document was issued by this company, not a purchase document",เอกสารนี้ออกโดยบริษัทนี้ ไม่ใช่เอกสารซื้อ
 This draft was already confirmed or discarded,แบบร่างนี้ถูกยืนยันหรือยกเลิกแล้ว
@@ -1694,7 +1634,6 @@ This member cannot be assigned,ไม่สามารถมอบหมาย�
 This option is no longer current,ตัวเลือกนี้ใช้ไม่ได้แล้ว กรุณาเลือกตามขั้นตอนล่าสุด
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
-This receipt is in a daily summary sent to Express. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
 This receipt is in a daily summary. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
 This sale is already voided,เอกสารขายนี้ถูกยกเลิกแล้ว
@@ -1706,8 +1645,6 @@ This status change is not allowed,ไม่อนุญาตให้เปล�
 This stock count already has an adjustment,การตรวจนับนี้มีใบปรับปรุงสินค้าแล้ว
 This stock count is already posted,เอกสารตรวจนับนี้ลงบัญชีแล้ว
 This stock count is closed,การตรวจนับนี้ปิดแล้ว
-This stock entry comes from a stock count sent to Express. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับที่ส่งเข้า Express แล้ว ยกเลิกแยกไม่ได้
-This stock entry comes from a stock count. It cannot be voided on its own,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 This stock position already has stock movements; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This stock position is already initialized; use a stock adjustment,สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
@@ -1715,15 +1652,12 @@ This supplier is not in MR.ERP. Check the supplier name and tax ID,ไม่ม�
 This terminal already has an open shift,จุดขายนี้มีกะที่ยังเปิดอยู่แล้ว
 This terminal has no warehouse; set one in the terminal settings,จุดขายนี้ยังไม่ได้กำหนดคลังสินค้า กรุณาเลือกคลังสินค้าในการตั้งค่าจุดขาย
 This unit has been counted,รายการนี้นับแล้ว
-This unit is not defined on the product,ไม่ได้กำหนดหน่วยนี้ไว้ในสินค้านี้
 This unit is not in stock in this warehouse,รายการนี้ไม่มีในคลังนี้
 This unit number is already registered,หมายเลขนี้ลงทะเบียนแล้ว
 This warehouse already exists,คลังสินค้านี้มีอยู่แล้ว
-This warehouse belongs to the company above,คลังนี้อยู่ในบริษัทด้านบน
 This warehouse code already exists,รหัสคลังนี้มีอยู่แล้ว
 This warehouse has no active location,คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน
 This warehouse is not in the Express account set,ไม่มีคลังสินค้านี้ในชุดบัญชี Express
-"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้
 Time,เวลา
 Time left {0},เหลือเวลา {0}
 Title,ชื่อ
@@ -1738,11 +1672,9 @@ Too many matches; type a few more letters to narrow it down,ผลลัพธ�
 Total,ยอดรวม
 Total  {0}  rows,รวม  {0}  รายการ
 Total Amount,จำนวนเงินรวม
-Total Due,ยอดชำระ
 Total Items,จำนวนชิ้น
 Total Quantity,จำนวนรวม
 Total Taxes and Charges,รวมภาษีและค่าธรรมเนียม
-Total items,จำนวนชิ้น
 Total opening value,มูลค่ายกมารวม
 Total {0} does not match {1},ยอดรวม {0} ไม่ตรงกับยอดรับ {1}
 Total · {0} row(s),รวม · {0} รายการ
@@ -1757,15 +1689,10 @@ Type a word from the customer name to find it,พิมพ์คำในชื�
 Type a word from the location name to find it,พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา
 Type a word from the supplier name to find it,พิมพ์คำในชื่อผู้จำหน่ายเพื่อค้นหา
 Type a word from the warehouse name to find it,พิมพ์คำในชื่อคลังสินค้าเพื่อค้นหา
-Type any warehouse name; a new warehouse is created if that name is new,พิมพ์ชื่อคลังได้เอง ถ้าชื่อใหม่ระบบจะสร้างให้
 Type not found in Express,ไม่พบประเภทนี้ใน Express
-Type the company name or number to find it,พิมพ์ชื่อหรือรหัสบริษัทเพื่อค้นหา
 "Type the company name, tax ID or account set to find it",พิมพ์ชื่อบริษัท เลขประจำตัวผู้เสียภาษี หรือชุดบัญชีเพื่อค้นหา
 Type the customer code or part of the name,พิมพ์รหัสหรือชื่อลูกค้า
-Type the customer name or code to find it,พิมพ์ชื่อหรือรหัสลูกค้าเพื่อค้นหา
 Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
-Type the supplier name or code to find it,พิมพ์ชื่อหรือรหัสผู้จำหน่ายเพื่อค้นหา
-Type the warehouse name or code to find it,พิมพ์ชื่อหรือรหัสคลังสินค้าเพื่อค้นหา
 UOM,หน่วยวัด
 Unable to load preview,ไม่สามารถโหลดตัวอย่างได้
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
@@ -1801,7 +1728,6 @@ Update this company note?,แก้ไขบันทึกบริษัทน
 Updated,อัปเดตแล้ว
 Updated {0},อัปเดต {0} แล้ว
 Updated {0} customer(s),อัปเดตลูกค้า {0} รายแล้ว
-Updated {0} employee(s),อัปเดตพนักงาน {0} คน
 Updated {0} product(s),อัปเดต {0} รายการแล้ว
 Updated {0} record(s),อัปเดต {0} รายการแล้ว
 Updated {0} supplier(s),อัปเดตผู้จำหน่าย {0} รายแล้ว
@@ -2366,35 +2292,6 @@ erp.work.view.calendar,ปฏิทิน
 erp.work.view.mine,การ์ดของฉัน
 erp.work.view.table,ตาราง
 express.action.markHandled,ทำเครื่องหมายว่าจัดการใน Express แล้ว
-express.code.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
-express.code.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
-express.code.ACCOUNT_DIR_NOT_ALLOWED,CC เดสก์ท็อปไม่มีสิทธิ์บันทึกข้อมูลลงชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีที่เลือกใน CC เดสก์ท็อป
-express.code.ACCOUNT_SET_UNREACHABLE,ไม่สามารถเข้าถึงชุดบัญชีนี้ได้ในขณะนี้ ระบบจะส่งให้อัตโนมัติเมื่อเชื่อมต่อได้
-express.code.ACCOUNT_WRITER_BUSY,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
-express.code.BAD_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
-express.code.BAD_SALES_DOCTYPE,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
-express.code.CDX_REINDEX_FAILED,Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
-express.code.CUSTOMER_BRANCH_AMBIGUOUS,มีลูกค้าหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกลูกค้าแล้วส่งใหม่
-express.code.CUSTOMER_DUP_SUSPECTED,มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
-express.code.CUSTOMER_NOT_IN_ARMAS,ไม่มีลูกค้ารายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อลูกค้าและเลขประจำตัวผู้เสียภาษี
-express.code.DBF_WRITE_FAILED,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
-express.code.EMPTY_ITEMS,เอกสารนี้ไม่มีรายการ กรุณาเพิ่มแล้วส่งใหม่
-express.code.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
-express.code.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
-express.code.INVALID_DOC_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
-express.code.INVALID_INVOICE_DATE,วันที่เอกสารไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
-express.code.INVALID_QUANTITY,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
-express.code.ITEMS_INVALID,รายการบันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
-express.code.MISSING_CUSTOMER,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
-express.code.MISSING_REF_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
-express.code.MISSING_SUPPLIER,ไม่มีข้อมูลผู้จำหน่าย กรุณาเพิ่มแล้วส่งใหม่
-express.code.PAYLOAD_INVALID,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
-express.code.READBACK_VERIFY_FAILED,ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
-express.code.STOCK_ACC_GROUP_UNFIT,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
-express.code.STOCK_IN_FAILED,ไม่สามารถบันทึกรายการสินค้าคงคลังได้ กรุณาตรวจสอบชื่อสินค้า จำนวน และราคาต่อหน่วย
-express.code.SUPPLIER_BRANCH_AMBIGUOUS,มีผู้จำหน่ายหลายรายใน Express ใช้เลขประจำตัวผู้เสียภาษีนี้ กรุณาเลือกผู้จำหน่ายแล้วส่งใหม่
-express.code.SUPPLIER_DUP_SUSPECTED,มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
-express.code.SUPPLIER_NOT_IN_APMAS,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
 express.error.ACCOUNT_BUSY_LOCKED,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,รหัสบัญชีนี้เป็นรหัสสินค้าคงคลังใน Express แล้ว
 express.error.ACCOUNT_COMPANY_MISMATCH,ชุดบัญชีที่เลือกเป็นของบริษัทอื่น กรุณาตรวจสอบชุดบัญชี
@@ -2578,7 +2475,6 @@ mrerp.reason.accountBusy,บัญชี MR.ERP นี้กำลังบั�
 mrerp.reason.importing,กำลังนำเข้า MR.ERP
 mrerp.reason.loginMissing,ยังไม่ได้อนุญาตการเข้าสู่ระบบ MR.ERP
 mrerp.reason.notConfigured,บริษัทยังไม่ได้ตั้งค่าชุดบัญชี MR.ERP
-mrerp.reason.purchaseCash,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
 mrerp.reason.resultUnknown,ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่
 nav.posReceipts,บันทึกการรับเงิน
 nav.posShifts,ประวัติกะ
@@ -2588,7 +2484,6 @@ nav.stockTransfer,โอนย้ายระหว่างคลัง
 none,ไม่มี
 opening,ยอดยกมา
 paid,ชำระแล้ว
-pending_approval,รออนุมัติ
 person,บุคคล
 product.action.bulkDisable,ปิดใช้งาน {0} รายการที่เลือก
 product.action.bulkEnable,เปิดใช้งาน {0} รายการที่เลือก
@@ -2748,7 +2643,6 @@ stock.col.status,สถานะ
 stock.col.unit,หน่วย
 stock.col.value,มูลค่า
 stock.col.warehouse,คลังสินค้า
-stock.count.action.delete,ลบ {0} รายการที่เลือก
 stock.count.addEntry,บันทึกการนับ
 stock.count.addEntryHint,จำนวนตามบัญชี {0} {1}
 stock.count.addEntryTitle,บันทึกการนับ — {0}

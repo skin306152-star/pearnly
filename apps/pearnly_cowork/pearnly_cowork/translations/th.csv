@@ -45,7 +45,6 @@ A reported ERP field is invalid.,ฟิลด์ ERP ที่รายงาน
 A request key of 1 to 128 characters is required.,รหัสคำขอต้องมีความยาว 1 ถึง 128 อักขระ
 A required text field is empty. Fill it in and try again,มีช่องข้อความที่จำเป็นว่างอยู่ กรุณากรอกแล้วลองใหม่
 A review workbook must contain between 1 and 500 invoices.,สมุดงานตรวจทานต้องมีใบกำกับภาษี 1 ถึง 500 ใบ
-A rule cannot move to another PC. Turn it off and create a new one.,ไม่สามารถย้ายกฎไปยังเครื่องอื่นได้ กรุณาปิดใช้กฎนี้แล้วสร้างกฎใหม่
 A same-day reminder must be earlier than the run time.,การแจ้งเตือนในวันเดียวกันต้องก่อนเวลาทำงาน
 A scheduled task cannot move to another PC. Turn it off and create a new one.,ไม่สามารถย้ายงานตามกำหนดเวลาไปยังเครื่องอื่นได้ กรุณาปิดใช้งานนี้แล้วสร้างงานใหม่
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
@@ -78,7 +77,6 @@ Active Key,คีย์ป้องกันรายการซ้ำที่
 Active Since,เริ่มใช้ตั้งแต่
 Actor,ผู้ดำเนินการ
 Actual Qty,จำนวนที่ตรวจนับจริง
-Actual location,ตำแหน่งจริง
 Actual position,ตำแหน่งที่พบจริง
 Actual positions and quantities,ตำแหน่งจริงและจำนวน
 Actual warehouse,คลังที่พบจริง
@@ -93,7 +91,6 @@ Add an item,เพิ่มรายการ
 Add another list,เพิ่มรายการอื่น
 Add label,เพิ่มป้ายกำกับ
 Add member,เพิ่มสมาชิก
-Add photo,เพิ่มรูปภาพ
 Add photos,เพิ่มรูปภาพ
 Add time,เพิ่มเวลา
 Add watcher,เพิ่มผู้ติดตาม
@@ -106,10 +103,8 @@ All,ทั้งหมด
 All Members,ทุกคนในสำนักงานใช้ได้
 All as expense,ค่าใช้จ่ายทั้งหมด
 All labels,ป้ายกำกับทั้งหมด
-All members,สมาชิกทั้งหมด
 All new stock items,สร้างใหม่ทั้งหมด
 Allowed Users,ผู้ใช้ที่ได้รับอนุญาต
-Allowed root folder on the PC,โฟลเดอร์หลักที่อนุญาต
 Already exists,มีอยู่แล้ว
 Already recorded:,บันทึกไว้แล้ว:
 Amount,จำนวนเงิน
@@ -129,7 +124,6 @@ An item group's account is not in the Express chart of accounts,บัญชี�
 An option in the ERP data report is invalid.,ตัวเลือกในรายงานข้อมูล ERP ไม่ถูกต้อง
 An original file is already stored for this source.,ข้อมูลต้นทางนี้มีไฟล์ต้นฉบับบันทึกไว้แล้ว
 Anchor Date,วันที่อ้างอิง
-Another active rule already uses this folder or a folder containing it.,มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว
 Another computer is writing to this account set. It is sent automatically once it is done,เครื่องอื่นกำลังบันทึกลงชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อเสร็จ
 Another push holds the writer lock.,การส่งอื่นกำลังใช้ล็อกการเขียน
 Answered a reconciliation question,ตอบคำถามการกระทบยอดแล้ว
@@ -145,7 +139,6 @@ Archived,เก็บถาวรแล้ว
 Archived At,เวลาที่เก็บถาวร
 Archived at,เวลาที่เก็บถาวร
 Archived boards,บอร์ดที่เก็บถาวร
-Archived cards,การ์ดที่เก็บถาวร
 Archived items,รายการที่เก็บถาวร
 Archived lists,รายการที่เก็บถาวร
 Area,พื้นที่
@@ -183,7 +176,6 @@ Bank withdrawal only,มีเฉพาะรายการถอนในธ�
 Bank {0}: one line {1},ธนาคาร {0}: 1 รายการ {1}
 Bank {0}: received {1},ธนาคาร {0}: รับเงิน {1}
 Barcode,บาร์โค้ด
-Barcode / QR code,บาร์โค้ด / คิวอาร์โค้ด
 "Barcode, QR code or product code",บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
 Batch,ชุดงาน
 Batched: match by total,ลงบัญชีแบบรวมยอด: จับคู่ตามยอดรวม
@@ -268,7 +260,6 @@ CC Desktop was not connected when this invoice was ready to push; it will try ag
 "CC Desktop was offline or had not reported this account set when the push was prepared. Make sure CC Desktop is running, then push again",ขณะเตรียมส่ง CC เดสก์ท็อปออฟไลน์หรือยังไม่ได้รายงานชุดบัญชีนี้ กรุณาตรวจสอบว่า CC เดสก์ท็อปกำลังทำงานแล้วส่งใหม่
 Calendar,ปฏิทิน
 Camera,กล้อง
-"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
 Cancelled,ยกเลิกแล้ว
 Card,บัตร
 Card archived,เก็บถาวรแล้ว
@@ -294,7 +285,6 @@ Change list color,เปลี่ยนสีรายการ
 Change members,เปลี่ยนสมาชิก
 Change the MR.ERP import settings?,เปลี่ยนการตั้งค่านำเข้า MR.ERP หรือไม่
 Change the inventory account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
-Change the stock account group?,เปลี่ยนกลุ่มบัญชีสินค้าคงคลังหรือไม่
 Change these scheduled tasks?,เปลี่ยนงานตามกำหนดเวลาเหล่านี้หรือไม่
 Change this scheduled task?,เปลี่ยนงานตามกำหนดเวลานี้หรือไม่
 Changed,แก้ไขแล้ว
@@ -366,7 +356,6 @@ Choose the inventory account group for this account set. Tap the number:,กร�
 Choose the payment method,เลือกวิธีชำระเงิน
 Choose the receiving account of each payment method,กรุณาเลือกบัญชีรับเงินของแต่ละวิธีชำระเงิน
 Choose the sales returns account,กรุณาเลือกบัญชีรับคืนสินค้า
-Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
 Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
@@ -387,7 +376,6 @@ Closed At,เวลาปิด
 Closed By,ผู้ปิด
 Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
-Code or barcode,รหัสหรือบาร์โค้ด
 Collapse list,ย่อรายการ
 Collection is not connected for this ERP data type.,ยังไม่รองรับการเก็บข้อมูลสำหรับข้อมูล ERP ประเภทนี้
 Color,สี
@@ -406,8 +394,6 @@ Company choices are full,ตัวเลือกของบริษัทเ�
 Company not found,ไม่พบบริษัท
 Company tax ID,เลขประจำตัวบริษัท
 Company tax ID not on the document,ไม่มีเลขประจำตัวผู้เสียภาษีของบริษัทในเอกสาร
-CompanyA-purchase-service,บริษัทA-ซื้อ-บริการ
-CompanyA-sales,บริษัทA-ขาย
 Complete,เสร็จ
 Complete statement review before exporting the result.,กรุณาตรวจทานรายการเดินบัญชีให้เสร็จก่อนส่งออกผล
 Completed,เสร็จสิ้น
@@ -449,7 +435,6 @@ Corrected Value,ค่าที่แก้ไข
 Cost of goods sold not set,ยังไม่ได้กำหนดต้นทุนขาย
 Could not connect to MR.ERP,เชื่อมต่อ MR.ERP ไม่ได้
 Could not create the cash supplier in MR.ERP.,สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ
-Could not finish,ไม่สำเร็จ
 Could not read the MR.ERP master data.,ไม่สามารถอ่านข้อมูลหลักจาก MR.ERP ได้
 Could not read the MR.ERP menus. Try again later.,ไม่สามารถอ่านเมนู MR.ERP ได้ กรุณาลองใหม่ภายหลัง
 Could not read this document. Please send it again.,ไม่สามารถอ่านเอกสารนี้ได้ กรุณาส่งใหม่
@@ -461,7 +446,6 @@ Count closed,ปิดการตรวจนับแล้ว
 Count details,รายละเอียดการนับ
 Count result,ผลการตรวจนับ
 Count saved,บันทึกแล้ว
-Count sheet,ไฟล์ตรวจนับ
 Count summary,สรุปผลตรวจนับ
 Counted,นับแล้ว
 Counted At,เวลาตรวจนับ
@@ -572,7 +556,6 @@ Days,จำนวนวัน
 Days later,วันหลังจากนั้น
 Debit,เดบิต
 Decide once ({0}),รอยืนยัน ({0})
-Decimal summary; pages retain the original amount.,ยอดสรุปใช้เลขทศนิยมที่แม่นยำ โดยข้อมูลแต่ละหน้ายังคงยอดเดิมไว้
 Default Cost,ต้นทุนเริ่มต้น
 Default Item Type,ประเภทสินค้าเริ่มต้น
 Default Payment,วิธีชำระเงินเริ่มต้น
@@ -593,7 +576,6 @@ Delete {0},ลบ {0} รายการ
 Delete {0} item permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
 Delete {0} items permanently?,ต้องการลบ {0} รายการถาวรใช่หรือไม่
 Delete {0} reconciliation(s)?,ต้องการลบงานกระทบยอด {0} รายการใช่หรือไม่
-Delete {0} stock count(s)?,ลบการตรวจนับ {0} รายการ?
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับที่เลือก {0} รายการใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
 Deleted,ลบแล้ว
 Deleted a readback,ลบผลการอ่านข้อมูลกลับแล้ว
@@ -686,7 +668,6 @@ ERP Token,โทเค็น ERP
 ERP Username,ชื่อผู้ใช้ ERP
 ERP document number,เลขที่เอกสารใน ERP
 ERP records cannot be saved in Cowork.,ไม่สามารถบันทึกรายการ ERP ใน Cowork ได้
-Each invoice's result sheet is written to _Pearnly结果 for checking the next day.,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
 Each record must have a name and revision.,แต่ละรายการต้องมีรหัสและเวอร์ชันของรายการ
 Each record must have a valid name.,แต่ละรายการต้องมีรหัสที่ถูกต้อง
 Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
@@ -695,7 +676,6 @@ Edit Count,จำนวนครั้งที่แก้ไข
 Edit History,ประวัติการแก้ไข
 Edit card,แก้ไขการ์ด
 Edit dates,แก้ไขวันที่
-Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
 Edited a document,แก้ไขเอกสารแล้ว
@@ -725,17 +705,12 @@ Entered By,ผู้บันทึก
 Entered by,ผู้บันทึก
 Entered in Express,บันทึกใน Express โดยตรง
 "Entered in MR.ERP, but the amount MR.ERP recorded differs from the document.",บันทึกใน MR.ERP แล้ว แต่ยอดเงินที่ MR.ERP บันทึกไม่ตรงกับเอกสาร
-Entered into Express,ส่งแล้ว
 Entered {0},ส่งแล้ว {0}
-Entered {0} · in progress {1},บันทึกแล้ว {0} · กำลังทำ {1}
-Entered {0} · in progress {1} · failed {2} · not invoices {3},บันทึกแล้ว {0} · กำลังทำ {1} · ล้มเหลว {2} · ไม่ใช่ใบกำกับ {3}
 Entered {0} · to check {1},ส่งแล้ว {0} · รอดำเนินการ {1}
 Entering into Express,กำลังส่ง
 Entries,รายการ
-Entries · {0},รายการบันทึก · {0}
 Entries — {0},รายการ — {0}
 Entry,รายการ
-Entry saved,บันทึกแล้ว
 Entry status,สถานะรายการ
 Error Code,รหัสข้อผิดพลาด
 Event Key,รหัสเหตุการณ์
@@ -752,7 +727,6 @@ Exempt and taxable lines cannot be mixed in this account set. Enter this documen
 Existing item,เลือกสินค้าที่มี
 Expected VAT,ภาษีที่ควรเป็น
 Expense,บันทึกเป็นค่าใช้จ่าย
-Expense (goods from now on),ค่าใช้จ่าย (เอกสารสินค้าทั้งหมด)
 Expense (this kind from now on),ค่าใช้จ่าย (เอกสารประเภทนี้ทั้งหมด)
 Expense account,บัญชีค่าใช้จ่าย
 Expense account when no category matches,บัญชีค่าใช้จ่ายเมื่อไม่ตรงหมวด
@@ -768,16 +742,13 @@ Exported the review workbook,ส่งออกสมุดงานตรวจ
 Exporting a reconciliation,กำลังส่งออกผลการกระทบยอด
 Exporting a stock count,กำลังส่งออกผลต่างการตรวจนับ
 Exporting the review workbook,กำลังส่งออกสมุดงานตรวจทาน
-"Exporting this invoice would change its amounts on reimport. Check the line amounts, tax base, VAT and total.",การส่งออกใบแจ้งหนี้นี้จะทำให้จำนวนเงินเปลี่ยนเมื่อนำเข้ากลับ กรุณาตรวจสอบยอดรายการ ยอดก่อนภาษี ภาษีมูลค่าเพิ่ม และยอดรวม
 Express Index Tool,โปรแกรมดัชนี Express
-Express PC,เครื่อง Express
 Express Root,โฟลเดอร์โปรแกรม Express
 Express Root Key,คีย์โฟลเดอร์โปรแกรม Express
 "Express already has this invoice number with different content. Check it, or choose Send anyway","ใน Express มีเลขที่เอกสารนี้แล้วแต่เนื้อหาต่างกัน กรุณาตรวจสอบ หากต้องการบันทึกเป็นอีกรายการ กรุณาเลือก ""ยืนยันการส่ง"""
 "Express could not index the invoice, so it was undone. It is retried automatically",Express สร้างดัชนีไม่สำเร็จ จึงยกเลิกแล้ว ระบบจะลองใหม่อัตโนมัติ
 "Express did not read back what was written, so it was undone. It is retried automatically",ข้อมูลที่ตรวจสอบหลังบันทึกไม่ตรงกัน ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Express document,เลขที่เอกสาร Express
-Express has this account set open. It is sent automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะส่งให้อัตโนมัติเมื่อปิด Express
 Express has this account set open. It is written automatically once Express is closed,Express กำลังเปิดชุดบัญชีนี้อยู่ ระบบจะบันทึกให้อัตโนมัติเมื่อปิด Express
 Express record,ข้อมูลคู่ค้าใน Express
 External Docnum,เลขที่เอกสาร ERP
@@ -792,13 +763,10 @@ File,ไฟล์
 File Hash,ค่าแฮชของไฟล์
 Filename,ชื่อไฟล์
 Files,ไฟล์
-Files already in the folder when the rule is turned on are not processed.,ไฟล์ที่อยู่ในโฟลเดอร์ก่อนเปิดใช้กฎจะไม่ถูกประมวลผล
 Filter,ตัวกรอง
 Find,ค้นหา
-Find product,ค้นหาสินค้า
 Fingerprint,ลายนิ้วมือข้อมูล
 Finish,เสร็จสิ้น
-Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,จบและปรับสต็อกตามผลต่างที่ยืนยันหรือไม่? นับแล้ว {0} รายการ ยังไม่ได้นับ {1} รายการจะไม่เปลี่ยน งานจะเป็นแบบอ่านอย่างเดียว
 "Finish this count? {0} counted, {1} uncounted; the task becomes read-only.",ต้องการปิดการตรวจนับนี้ใช่หรือไม่ นับแล้ว {0} รายการ ยังไม่นับ {1} รายการ หลังปิดแล้วดูและส่งออกได้เท่านั้น
 Finish this stock count?,ปิดการตรวจนับนี้หรือไม่
 Finished a stock count,ปิดการตรวจนับสต็อกแล้ว
@@ -810,13 +778,8 @@ Fiscal year {0},ปีบัญชี {0}
 Fix,ต้องแก้
 Folder,โฟลเดอร์
 Folder ID,รหัสโฟลเดอร์
-Folder and schedule,โฟลเดอร์และเวลา
-Folder auto-intake is not turned on for this site.,ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์
-Folder auto-intake rules,กฎบันทึกอัตโนมัติจากโฟลเดอร์
 Folder not available,ไม่พบโฟลเดอร์
 Folder results,ผลลัพธ์
-Folder rule name,ชื่อกฎ
-Folder rules work with Express connections only.,การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น
 Folder to read,โฟลเดอร์
 Follows the company's account set for the year,ตามชุดบัญชีของบริษัทในแต่ละปี
 "For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.",เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น
@@ -855,12 +818,10 @@ General ledger detail,รายละเอียดบัญชีแยกป�
 Generation Key,คีย์เวอร์ชันข้อมูลรับรอง
 Give a file path inside this folder.,กรุณาระบุพาธของไฟล์ภายในโฟลเดอร์นี้
 Give the month as YYYY-MM.,กรุณาระบุเดือนเป็น YYYY-MM
-Goods document. Enter this company's goods to stock or as expense? Choose once and its goods documents follow it from now on,เอกสารนี้เป็นเอกสารสินค้า บริษัทนี้บันทึกสินค้าเข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย เมื่อเลือกแล้ว เอกสารสินค้าต่อจากนี้จะดำเนินการตามนี้
 Goods documents,เอกสารสินค้า
 Gray,เทา
 Green,เขียว
 Group,กลุ่ม
-Handle these the same way every time,จัดการแบบนี้ทุกครั้ง
 Has GL Match,มีรายการ GL ที่ตรงกัน
 Head office,สำนักงานใหญ่
 Head office / branch,สถานประกอบการ
@@ -873,21 +834,17 @@ History Version,เวอร์ชันประวัติเอกสาร
 Holder,ผู้ถือล็อก
 Holder Fence,ลำดับการพยายามที่ถือล็อก
 Host Names,ชื่อโฮสต์
-How to put documents in the folders,วิธีวางเอกสารในโฟลเดอร์
 IN,เงินเข้า
 Identity,ตัวระบุ
 "If you have the electronic statement, upload it instead",หากมีรายการเดินบัญชีแบบอิเล็กทรอนิกส์ แนะนำให้อัปโหลดแทน
-Image and PDF invoices are not supported yet. Upload the invoices as Excel or CSV for now.,ยังไม่รองรับใบกำกับแบบรูปภาพและ PDF กรุณาใช้ไฟล์ Excel หรือ CSV ก่อน
 Import result,ผลการนำเข้า
 Imported POS sales,นำเข้ายอดขาย POS แล้ว
-"Imported {0} rows, {1} counted",นำเข้า {0} รายการ มียอดนับจริง {1} รายการ
 Importing POS sales,กำลังนำเข้ายอดขาย POS
 In Express,ใน Express ตอนนี้
 In another tax month,อยู่ในเดือนภาษีอื่น
 In progress,กำลังดำเนินการ
 In progress ({0}),กำลังดำเนินการ ({0})
 In progress {0},กำลังดำเนินการ {0}
-In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: ตรึงยอดคงเหลือปัจจุบัน นำเข้า: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
 Include Existing Files,ประมวลผลไฟล์ที่มีอยู่
 Included in total,รวมยอด
@@ -959,7 +916,6 @@ Item,รายการ
 Items,รายการ
 Job,งาน
 Job Roles,สิทธิ์การใช้งาน
-Just read,เพิ่งอ่านได้
 Keep,คงไว้
 Known difference,ผลต่างที่ทราบแล้ว
 LINE is not enabled for this account,บัญชีนี้ยังไม่ได้เปิดใช้ LINE
@@ -1021,7 +977,6 @@ Listing task boards,กำลังดูบอร์ดงาน
 Local To Computer,เฉพาะคอมพิวเตอร์
 Location,ตำแหน่ง
 Location check,ผลเทียบตำแหน่ง
-Location mismatch,ตำแหน่งไม่ตรง
 Lock Credential,ข้อมูลรับรองการล็อก
 Lock Expires At,เวลาหมดอายุการล็อก
 Lock Expires At (UTC),เวลาหมดอายุการล็อก (UTC)
@@ -1031,7 +986,6 @@ Lock Kind,ประเภทล็อก
 Lock the connection before reading the push target.,ต้องล็อกการเชื่อมต่อก่อนอ่านปลายทางการส่ง
 Lookup Key,คีย์ค้นหา
 Lookup failed,ค้นหาไม่สำเร็จ
-Lookup failed. Try again.,ค้นหาไม่สำเร็จ กรุณาลองอีกครั้ง
 MR.ERP Company,บริษัท MR.ERP
 MR.ERP Import Menu Options Seen,เมนูนำเข้า MR.ERP ที่พบ
 MR.ERP Import Menu per Account Set,เมนูนำเข้า MR.ERP ของแต่ละชุดบัญชี
@@ -1044,7 +998,6 @@ MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม�
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 MR.ERP has several import menus linked to a journal for this kind of document. Choose one before pushing.,MR.ERP มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันแล้วหลายเมนูสำหรับเอกสารประเภทนี้ กรุณาเลือกหนึ่งเมนูก่อนส่ง
 MR.ERP import menu,เมนูนำเข้า MR.ERP
-MR.ERP purchases can only be entered on credit.,รายการซื้อใน MR.ERP บันทึกได้เฉพาะแบบซื้อเงินเชื่อเท่านั้น
 MR.ERP returned an error. Check in MR.ERP,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
 MR.ERP settings,การตั้งค่า MR.ERP
 Make template,ตั้งเป็นเทมเพลต
@@ -1064,7 +1017,6 @@ Matched,จับคู่แล้ว
 Matched Count,จำนวนที่จับคู่แล้ว
 "Matched {0} card deposits by the preset fee rate; fees of {1} are listed as bank-deducted, not in the ledger",จับคู่ยอดบัตร {0} รายการตามอัตราที่ตั้งไว้ ค่าธรรมเนียม {1} แสดงเป็นยอดที่ธนาคารหัก ยังไม่บันทึกบัญชี
 Matches,ตรงกัน
-Matching and saving,กำลังจับคู่และบันทึก
 Max Push Data Version,เวอร์ชันข้อมูลงานสูงสุด
 Member,สมาชิก
 Member management,สิทธิ์จัดการสมาชิก
@@ -1078,7 +1030,6 @@ Modified at (UTC),เวลาแก้ไข (UTC)
 Month,เดือน
 Month paid,เดือนที่จ่ายเงินได้
 Monthly,ทุกเดือน
-Monthly on {0} at {1},ทุกเดือน {0} เวลา {1}
 More than one account set of this company covers the document date.,มีชุดบัญชีของบริษัทนี้มากกว่าหนึ่งชุดที่ครอบคลุมวันที่ในเอกสาร
 Move,ย้าย
 Move all cards in this list,ย้ายการ์ดทั้งหมดในรายการนี้
@@ -1098,7 +1049,6 @@ Never,ไม่ซ้ำ
 New Files,จำนวนไฟล์ใหม่
 New code,สร้างรหัสใหม่
 New files are recognized (charged) and pushed,ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ
-New folder rule,สร้างกฎ
 New items:,สินค้าใหม่:
 New records must start as drafts.,รายการใหม่ต้องเริ่มต้นเป็นฉบับร่าง
 New scheduled task,สร้างงานตามกำหนดเวลา
@@ -1114,7 +1064,6 @@ No POS sales export headers were found in this file,ไม่พบหัวค�
 No account set matches “{0}”,ไม่พบชุดบัญชีที่ตรงกับ “{0}”
 No account set of this company covers the document date.,ไม่มีชุดบัญชีของบริษัทนี้ที่ครอบคลุมวันที่ในเอกสาร
 No account set of this company covers this month,บริษัท (หรือสาขา) นี้ไม่มีชุดบัญชีของเดือนนี้
-No account sets yet. Use Reload in New Intake first.,ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน
 No attachments were given.,ไม่ได้ระบุไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No cash account is set in Express,ยังไม่ได้ตั้งบัญชีเงินสดใน Express
@@ -1125,7 +1074,6 @@ No computer with CC Desktop can write to this account set,ไม่มีคอ�
 No documents were given.,ไม่ได้ระบุเอกสาร
 No due date,ไม่มีวันครบกำหนด
 No files were given.,ไม่ได้ระบุไฟล์
-No folder rules yet. Create one and put the documents into its folder.,ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น
 No folders on this PC yet. Add them in CC Desktop on that PC.,เครื่องนี้ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่องนั้น
 No folders to choose yet. Add them in CC Desktop on the PC.,ยังไม่มีโฟลเดอร์ให้เลือก กรุณาเพิ่มใน CC เดสก์ท็อปบนเครื่อง
 No invoice could be read.,ไม่พบใบกำกับภาษีที่อ่านได้
@@ -1138,12 +1086,10 @@ No new files,ไม่มีไฟล์ใหม่
 No notifications,ไม่มีการแจ้งเตือน
 No number_,ไม่มีเลขที่_
 No presets yet,ยังไม่มีค่าที่ตั้งไว้
-No product in this count matches that code,ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้
 No product matches that code,ไม่พบสินค้าที่ตรงกับรหัสนี้
 No push target,ยังไม่ได้เลือกปลายทางการส่ง
 No recognition record,ไม่มีบันทึกการอ่านเอกสาร
 No recognition tasks were given.,ไม่ได้ระบุงานอ่านเอกสาร
-No rules yet,ยังไม่มีกฎ
 No runs yet,ยังไม่มีประวัติการทำงาน
 No sales were found in this POS export,ไม่พบรายการขายในไฟล์ส่งออก POS นี้
 No statement lines fall in the ledger period ({1} to {2}); all were reconciled. Check the periods of both files.,ไม่มีรายการเดินบัญชีในช่วงบัญชีแยกประเภท ({1} ถึง {2}) จึงนำมากระทบยอดทั้งหมด กรุณาตรวจสอบช่วงเวลาของทั้งสองไฟล์
@@ -1161,7 +1107,6 @@ Not a tax invoice,ไม่ใช่ใบกำกับภาษี
 Not an invoice file,ไม่ใช่ใบกำกับภาษี
 Not bound,ยังไม่ได้ผูกบัญชี
 Not card deposits net of fee,ไม่ใช่ยอดสุทธิจากบัตร
-Not counted,ยังไม่นับ
 Not enough stock in Express,สินค้าคงเหลือใน Express ไม่พอ
 Not entered,ไม่บันทึก
 Not found,ไม่พบ
@@ -1188,8 +1133,6 @@ Old Value,ค่าเดิม
 On,เปิด
 On schedule,ตามกำหนดเวลา
 One by one,เลือกทีละรายการ
-"One folder = one rule = one company, one year's account set, purchase or sales, service or stock.",หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
-One folder per rule. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งกฎ รองรับเฉพาะไฟล์ PDF และรูปภาพ
 One folder per scheduled task. PDF and image files only.,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 One of the default choices is not valid for this account set.,มีค่าเริ่มต้นบางรายการที่ไม่สามารถใช้กับชุดบัญชีนี้ได้
 Only Express account sets can be read back.,อ่านข้อมูลกลับได้เฉพาะชุดบัญชี Express
@@ -1253,7 +1196,6 @@ POS exports can only be entered into Express,ไฟล์ส่งออก POS 
 Page,หน้า
 Page Count,จำนวนหน้า
 Page preview is available only for PDF and image originals.,ดูตัวอย่างหน้าได้เฉพาะไฟล์ต้นฉบับ PDF และรูปภาพเท่านั้น
-Page {0}/{1},หน้า {0}/{1}
 Parameters,พารามิเตอร์
 Parent Refresh Request,คำขอรีเฟรชหลัก
 Parse Info Json,ข้อมูลการแยกวิเคราะห์
@@ -1341,11 +1283,9 @@ Pushing documents,กำลังส่งเอกสาร
 "Pushing is not enabled for this site, so nothing was sent.",ไซต์นี้ยังไม่ได้เปิดใช้การส่งข้อมูล จึงไม่มีการส่งข้อมูลใด ๆ
 Pushing to this ERP is not supported.,ไม่รองรับการส่งไปยัง ERP นี้
 Quantity,จำนวน
-Quantity counted this time,จำนวนที่นับครั้งนี้
 Quantity differences,ผลต่างจำนวน
 Questions,คำถาม
 Queued,รอคิว
-"Queued, {0} ahead",กำลังรอคิว · ก่อนหน้ายังมี {0} ไฟล์
 "Queued, {0} tasks ahead",อยู่ในคิว มีงานก่อนหน้า {0} งาน
 Rate %,อัตราร้อยละ
 Rate differs from the usual rate,อัตราไม่ตรงกับอัตราปกติ
@@ -1368,16 +1308,10 @@ Readback ID,รหัสการอ่านข้อมูลกลับ
 Reader,เครื่องที่อ่าน
 Reader Device,คอมพิวเตอร์ที่อ่านโฟลเดอร์
 Reading back the accounting books,กำลังอ่านข้อมูลบัญชีกลับมา
-Reading files,กำลังอ่านไฟล์
 Reading the MR.ERP menus…,กำลังอ่านเมนู MR.ERP…
-Reading the VAT report,กำลังอ่านรายงานภาษี
-Reading the bank statement,กำลังอ่านรายการเดินบัญชี
 Reading the company list from the ERP. Tap the menu again in a moment.,กำลังอ่านรายชื่อบริษัทจาก ERP กรุณากดเมนูอีกครั้งในอีกสักครู่
-Reading the general ledger,กำลังอ่านบัญชีแยกประเภท
-Reading the invoices,กำลังอ่านใบกำกับ
 Reading the scanned or photographed document took too long. Try again later.,การอ่านเอกสารสแกนหรือรูปถ่ายใช้เวลานานเกินไป กรุณาลองใหม่ภายหลัง
 Ready At (UTC),เวลาเสร็จ (UTC)
-Ready for the next product,พร้อมตรวจนับสินค้าถัดไป
 Ready to push,รอส่ง
 Reason,เหตุผล
 Receipt,ใบเสร็จรับเงิน
@@ -1406,7 +1340,6 @@ Reconciliation Type,ประเภทการกระทบยอด
 Reconciliation completed: {0},กระทบยอดเสร็จสิ้น: {0}
 Reconciliation failed,กระทบยอดไม่สำเร็จ
 Reconciliation failed: {0},กระทบยอดไม่สำเร็จ: {0}
-Reconciliation finished: {0},กระทบยอดเสร็จแล้ว: {0}
 Record,บันทึก
 Record ID,รหัสรายการ
 Record Id,รหัสรายการ
@@ -1442,7 +1375,6 @@ Relative Path,พาธสัมพัทธ์
 Reload,โหลดใหม่
 Remarks,หมายเหตุ
 Remind me,แจ้งเตือน
-Remind me the day before,แจ้งเตือนล่วงหน้าหนึ่งวัน
 Reminder,การแจ้งเตือน
 Reminder Since,แจ้งเตือนตั้งแต่
 Reminder Times,เวลาแจ้งเตือน
@@ -1525,7 +1457,6 @@ Run Owner,ผู้รับผิดชอบการทำงาน
 Run Request,คำขอให้ทำงานทันที
 Run Requested At,เวลาที่ขอให้ทำงาน
 Run Time,เวลาทำงาน
-Run at (Bangkok time),เวลาทำงาน (เวลากรุงเทพฯ)
 Run history,ประวัติการทำงาน
 Run now,เรียกใช้ทันที
 Run now (tasks: {0}):,ทำงานทันที ({0} งาน):
@@ -1545,7 +1476,6 @@ Same as,ซ้ำกับ
 Same as row,ซ้ำกับลำดับที่
 Same day,วันเดียวกัน
 Sample Key,รหัสตัวอย่างการแก้ไข
-Save and next,บันทึกและรายการถัดไป
 Save these scheduled tasks?,บันทึกงานตามกำหนดเวลาเหล่านี้หรือไม่
 Save this choice for the company?,บันทึกตัวเลือกนี้ให้บริษัทไหม
 Save this scheduled task?,บันทึกงานตามกำหนดเวลานี้หรือไม่
@@ -1561,7 +1491,6 @@ Saving a company choice,กำลังบันทึกตัวเลือ�
 Saving a scheduled task,กำลังบันทึกงานตามกำหนดเวลา
 Saving push choices,กำลังบันทึกตัวเลือกการส่ง
 Saving scheduled tasks,กำลังบันทึกงานตามกำหนดเวลาหลายงาน
-Scan barcode or QR code,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 Scan barcodes · Record quantities,สแกนบาร์โค้ด · บันทึกจำนวน
 "Scan, enter the actual position and quantity, then save to continue.",สแกนแล้วระบุตำแหน่งจริงและจำนวน เมื่อบันทึกแล้วระบบจะไปยังรายการถัดไปโดยอัตโนมัติ
 Scanned At,เวลาที่สแกน
@@ -1608,12 +1537,10 @@ Service input VAT basis not set,ยังไม่ได้กำหนดเก
 Service or stock?,กรุณาเลือกบริการหรือสินค้า
 Set At,เวลาที่ตั้ง
 Set By,ตั้งโดย
-Set a local folder once; documents are read and entered every month,ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน
 Set as the account set in use?,ตั้งเป็นชุดบัญชีที่ใช้อยู่หรือไม่
 Set by {0} on {1},ตั้งโดย {0} เมื่อ {1}
 Set document handling,ตั้งค่าวิธีจัดการเอกสาร
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
-Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.,ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง
 Set reminder,ตั้งการแจ้งเตือน
 Set the POS export columns,กำหนดคอลัมน์ไฟล์ส่งออก POS แล้ว
 Setting the POS export columns,กำลังกำหนดคอลัมน์ไฟล์ส่งออก POS
@@ -1634,14 +1561,12 @@ Signed-in Users,ผู้ใช้ที่เคยลงชื่อเข้�
 Since (UTC),ตั้งแต่ (UTC)
 Site,ไซต์
 Site Name,ชื่อไซต์
-Skipped {0} row(s) (row: reason),ข้าม {0} แถว (แถว: เหตุผล)
 Sold by Weight,ขายตามน้ำหนัก
 Some fields are uncertain. Check them against the original and submit again,ข้อมูลบางช่องยังยืนยันไม่ได้ กรุณาตรวจสอบกับต้นฉบับแล้วส่งใหม่
 Some files are still in progress.,บางไฟล์ยังอยู่ระหว่างดำเนินการ
 Some line items have no name or amount. Fix the lines and submit again,บางรายการไม่มีชื่อหรือจำนวนเงิน กรุณาแก้ไขแล้วส่งใหม่
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาเปิดแถวที่ระบุและตรวจนับสินค้านั้นใหม่ก่อนปิดการตรวจนับ
 Some rows in the file could not be understood. Check the file format,มีบางแถวในไฟล์ที่ไม่สามารถแปลความได้ กรุณาตรวจสอบรูปแบบไฟล์
-Some rows were skipped,บางแถวไม่ได้นำเข้า
 Someone else changed this card. Close it and open it again.,มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
 Someone else changed this reconciliation. Reload it before saving.,งานกระทบยอดนี้ถูกแก้ไขโดยผู้อื่น กรุณารีเฟรชก่อนบันทึก
 Sort by,เรียงตาม
@@ -1688,12 +1613,10 @@ Statement Withdrawal Only Amount,ยอดถอนที่มีเฉพา�
 Statement review is not available for this task.,งานนี้ไม่มีรายการตรวจทานรายการเดินบัญชี
 Status,สถานะ
 Stock,สินค้าคงคลัง
-Stock (goods from now on),สินค้าคงเหลือ (เอกสารสินค้าทั้งหมด)
 Stock (this kind from now on),สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
 Stock Account Group per Account Set,กลุ่มรหัสบัญชีสินค้าคงเหลือของแต่ละชุดบัญชี
 Stock changed; recount,สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่
 Stock count,ตรวจนับสินค้า
-Stock count closed,ปิดการตรวจนับแล้ว
 "Stock count created, {0} rows",สร้างการตรวจนับแล้ว จำนวน {0} แถว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสินค้า กรุณานำรูปภาพออกก่อนบันทึก
 Stock count template,เทมเพลตตรวจนับ
@@ -1704,13 +1627,11 @@ Stock or expense for this company's documents like this?,บริษัทน�
 Stop and let me choose,หยุดเพื่อเลือกเอง
 Stop watching,เลิกติดตาม
 Stored Page Previews,ภาพตัวอย่างหน้าที่จัดเก็บไว้
-Subfolders can be named freely; file names can be anything; one PDF may hold several invoices.,ตั้งชื่อโฟลเดอร์ย่อยและไฟล์ได้อิสระ PDF หนึ่งไฟล์มีหลายใบกำกับได้
 Subject Label,ชื่อรายการ
 Submit,ยืนยัน
 Suggested,ที่แนะนำ
 Summary,สรุป
 Summary Json,ข้อมูลสรุป
-Summary table import,นำเข้าตารางสรุป
 Supplier type,ประเภทผู้จำหน่าย
 Surcharge,เงินเพิ่ม
 Suspected misreading on these VAT report pages; lines not agreeing with the ledger: {0}. Check against the original.,หน้ารายงานภาษีขายต่อไปนี้สงสัยว่าอ่านผิด จำนวนรายการที่ไม่ตรงกับบัญชีแยกประเภท: {0} กรุณาตรวจสอบกับต้นฉบับ
@@ -1799,7 +1720,6 @@ The answer is not valid.,คำตอบไม่ถูกต้อง
 The bank statement could not be read.,ไม่สามารถอ่านรายการเดินบัญชีได้
 The billing receipt cannot be reverted.,ไม่สามารถย้อนกลับผลยืนยันการเรียกเก็บเงินได้
 The buyer on these invoices is this company: {0},ผู้ซื้อในใบกำกับภาษีต่อไปนี้คือบริษัทนี้: {0}
-The camera could not start,ไม่สามารถเปิดกล้องได้
 The card is already in that list,การ์ดอยู่ในรายการนั้นแล้ว
 The card no longer exists,ไม่พบการ์ดนี้
 The cash customer could not be copied from the original year,คัดลอกลูกค้าเงินสดจากชุดบัญชีปีเดิมไม่ได้
@@ -1809,7 +1729,6 @@ The chosen value is not in this account set. Choose again,รายการท�
 The client fields are invalid.,ข้อมูลลูกค้าไม่ถูกต้อง
 "The company, client and type of a connection cannot be changed.",ไม่สามารถเปลี่ยนบริษัท ลูกค้า และประเภทของการเชื่อมต่อได้
 The completed recognition result cannot be replaced.,ไม่สามารถแทนที่ผลการอ่านเอกสารที่เสร็จแล้วได้
-"The computer could not read this account set ({0}). It may have been removed or renamed in Express, or its folder is offline. Choose another account set.",คอมพิวเตอร์อ่านชุดบัญชีนี้ไม่ได้ ({0}) อาจถูกลบหรือเปลี่ยนชื่อใน Express หรือโฟลเดอร์ออฟไลน์อยู่ กรุณาเลือกชุดบัญชีอื่น
 The computer could not read this account set's chart of accounts. Check that the account set opens in Express on that computer.,คอมพิวเตอร์อ่านผังบัญชีของชุดบัญชีนี้ไม่ได้ กรุณาตรวจสอบว่าเปิดชุดบัญชีนี้ใน Express บนคอมพิวเตอร์เครื่องนั้นได้
 The computer on this connection does not support this action.,คอมพิวเตอร์ของการเชื่อมต่อนี้ไม่รองรับรายการนี้
 The connection has changed. Reload and try again.,การเชื่อมต่อมีการเปลี่ยนแปลง กรุณาโหลดใหม่แล้วลองอีกครั้ง
@@ -1848,7 +1767,6 @@ The file is empty or too large.,ไฟล์ว่างหรือใหญ่
 The file is larger than 25 MB,ไฟล์ใหญ่เกิน 25 MB
 The file is larger than 5 MB.,ไฟล์มีขนาดเกิน 5 MB
 The file size or page metadata is invalid.,ข้อมูลขนาดไฟล์หรือจำนวนหน้าไม่ถูกต้อง
-The folder rule is incomplete or invalid.,ข้อมูลกฎไม่ครบถ้วนหรือไม่ถูกต้อง
 The frozen push target does not match the authorized target.,ปลายทางการส่งที่ล็อกไว้ไม่ตรงกับปลายทางที่ได้รับอนุญาต
 The general ledger could not be read.,ไม่สามารถอ่านบัญชีแยกประเภทได้
 The general ledger has no revenue account rows.,ไม่พบรายการบัญชีรายได้ในบัญชีแยกประเภท
@@ -1942,7 +1860,6 @@ The review workbook contains no invoice rows to import.,สมุดงานต
 The review workbook has data after 50 consecutive blank rows. Remove the blank gap before importing.,สมุดงานตรวจทานยังมีข้อมูลหลังแถวว่างติดต่อกัน 50 แถว กรุณาลบช่วงแถวว่างก่อนนำเข้ากลับ
 The review worksheet name contains extra spaces. Restore the original name.,ชื่อแผ่นงานตรวจทานมีช่องว่างเกินมา กรุณาคืนชื่อแผ่นงานเดิม
 The row has no product code or barcode,แถวนี้ไม่มีรหัสสินค้าหรือบาร์โค้ด
-The rule owner can no longer enter documents with this connection.,ผู้รับผิดชอบกฎไม่มีสิทธิ์บันทึกด้วยการเชื่อมต่อนี้แล้ว
 The scheduled task is incomplete or invalid.,ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง
 The source page number must be a positive integer.,หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก
 The start date is after the due date,วันเริ่มต้นต้องไม่อยู่หลังวันครบกำหนด
@@ -1986,7 +1903,6 @@ These worksheets repeat another worksheet in the same file line for line and wer
 This ERP connection is disabled.,การเชื่อมต่อ ERP นี้ปิดใช้งานแล้ว
 This MR.ERP account is in use. Send again later,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 This MR.ERP menu cannot be chosen for this account set.,ไม่สามารถเลือกเมนู MR.ERP นี้สำหรับชุดบัญชีนี้ได้
-This PC already has the maximum number of folder rules.,เครื่องนี้มีจำนวนกฎถึงขีดจำกัดแล้ว
 This PC already has the maximum number of scheduled tasks.,เครื่องนี้มีจำนวนงานตามกำหนดเวลาถึงขีดจำกัดแล้ว
 This POS export has a status value that is not chosen yet,ไฟล์ส่งออก POS นี้มีค่าสถานะที่ยังไม่ได้กำหนด
 This account cannot send documents,บัญชีนี้ไม่มีสิทธิ์ส่งเอกสาร
@@ -2026,7 +1942,6 @@ This file record was not found.,ไม่พบรายการไฟล์น
 This file type cannot be brought into the chat.,ไม่สามารถนำไฟล์ประเภทนี้เข้ามาในแชตได้
 This file type is not supported.,ไม่รองรับไฟล์ประเภทนี้
 "This file type is not supported. Use PDF, Excel or CSV.","ไม่รองรับไฟล์ประเภทนี้ กรุณาใช้ PDF, Excel หรือ CSV"
-This folder overlaps the folder of rule «{0}».,โฟลเดอร์ซ้อนกับกฎ «{0}»
 This folder overlaps the folder of scheduled task «{0}».,โฟลเดอร์ซ้อนกับงานตามกำหนดเวลา «{0}»
 This import request ID has already been used for different content.,รหัสคำขอนำเข้านี้ถูกใช้กับเนื้อหาอื่นแล้ว
 This inventory account group cannot be chosen for this account set.,ไม่สามารถเลือกกลุ่มบัญชีสินค้าคงเหลือนี้สำหรับชุดบัญชีนี้ได้
@@ -2060,8 +1975,6 @@ This request key was used for another credential operation.,คีย์คำ�
 This request key was used for different content.,รหัสคำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
 This request key was used for different push content.,รหัสคำขอนี้ถูกใช้กับข้อมูลส่งอื่นแล้ว
 This request was already used for different content.,คำขอนี้ถูกใช้กับข้อมูลอื่นแล้ว
-This rule is turned off.,กฎนี้ปิดใช้งานอยู่
-This rule no longer exists for this PC.,ไม่พบกฎนี้ในเครื่องนี้
 This saved choice no longer exists,ไม่พบตัวเลือกที่จำไว้นี้แล้ว
 This scanned or photographed document could not be read. Check the file and try again.,ไม่สามารถอ่านเอกสารสแกนหรือรูปถ่ายนี้ได้ กรุณาตรวจสอบไฟล์แล้วลองใหม่
 This scheduled task is turned off.,งานตามกำหนดเวลานี้ปิดใช้งานอยู่
@@ -2070,7 +1983,6 @@ This scheduled task no longer exists for this PC.,ไม่พบงานตา
 "This statement shows no running balance, so balances cannot be checked line by line.",รายการเดินบัญชีนี้ไม่มียอดคงเหลือรายรายการ จึงไม่สามารถตรวจสอบยอดคงเหลือทีละรายการได้
 This stock count task is closed.,งานตรวจนับสินค้านี้ปิดแล้ว
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายรายนี้ใน Express และไม่สามารถสร้างได้ กรุณาตรวจสอบชื่อผู้จำหน่ายและเลขประจำตัวผู้เสียภาษี
-This supplier is not in MR.ERP and could not be created. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP และสร้างไม่ได้ กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This supplier is not in MR.ERP. Check the supplier name and tax ID,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 This task uses the previous count format and cannot accept scan entries.,งานนี้ใช้รูปแบบตรวจนับเดิม จึงไม่สามารถรับรายการสแกนได้
 This tax ID is already used by another company.,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
@@ -2110,8 +2022,6 @@ Transfer slips are not entered; this one is not sent,ไม่บันทึก
 Transport,ค่าขนส่ง
 Turn off,ปิดใช้งาน
 Turn on,เปิดใช้งาน
-Turn this rule off? Documents already entered stay as they are.,ต้องการปิดใช้กฎนี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
-Turn this rule on? Only files added to the folder from now on are processed.,ต้องการเปิดใช้กฎนี้ใช่หรือไม่ ระบบจะประมวลผลเฉพาะไฟล์ที่วางในโฟลเดอร์หลังจากนี้
 Turn this scheduled task off? Documents already entered stay as they are.,ต้องการปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Turn this scheduled task on or off?,เปิดหรือปิดงานตามกำหนดเวลานี้หรือไม่
 Turn this scheduled task on? Files in the folder not processed yet are processed at the run time.,ต้องการเปิดใช้งานตามกำหนดเวลานี้ใช่หรือไม่ ไฟล์ในโฟลเดอร์ที่ยังไม่ได้ประมวลผลจะถูกประมวลผลเมื่อถึงเวลา
@@ -2121,8 +2031,6 @@ Type a few letters of the company or account set name to find it,พิมพ์
 Type a word from the inventory account group name to find it,พิมพ์คำในชื่อกลุ่มบัญชีสินค้าคงเหลือเพื่อค้นหา
 Type not found in Express,ไม่พบประเภทนี้ใน Express
 Type of income paid,ประเภทเงินได้พึงประเมินที่จ่าย
-"Type or scan, then press Enter",พิมพ์หรือสแกน แล้วกด Enter
-Type the inventory account group name or account code to find it,พิมพ์ชื่อกลุ่มบัญชีสินค้าคงเหลือหรือรหัสบัญชีเพื่อค้นหา
 Type the item name or code,พิมพ์ชื่อหรือรหัสสินค้า
 Unbind LINE,ยกเลิกการเชื่อมต่อ LINE
 Unbind Pearnly Cowork LINE?,ต้องการยกเลิกการเชื่อมต่อ LINE ของ Pearnly Cowork ใช่หรือไม่
@@ -2160,7 +2068,6 @@ Upload · Review · Choose destination,อัปโหลด · ตรวจท�
 Uploaded By,ผู้อัปโหลด
 Uploaded from the PC,อัปโหลดแล้ว
 Uploading,กำลังอัปโหลด
-Uploading files,กำลังอัปโหลดไฟล์
 Uploading from the PC,กำลังอัปโหลด
 Use Count,จำนวนครั้งที่ใช้
 Use the CC Desktop credential service to access credentials.,กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป
@@ -2198,7 +2105,6 @@ Value,ค่า
 Value Label,ชื่อค่า
 Value of goods or services,มูลค่าสินค้าหรือบริการ
 Version,เวอร์ชัน
-View differences,ดูผลต่าง
 View photo,ดูรูปภาพ
 View the ones to check,ดูรายการรอดำเนินการ
 Viewed a document,ดูเอกสารแล้ว
@@ -2228,16 +2134,13 @@ Waiting for recognition,รอการอ่าน
 Waiting for the recognition charge to complete.,กำลังรอการตัดค่าบริการให้เสร็จสิ้น
 Waiting for this account set's stock purchases to be entered first.,รอบันทึกรายการซื้อสินค้าของชุดบัญชีนี้ก่อน
 "Waiting in line, will submit automatically",อยู่ในคิว ระบบจะส่งให้อัตโนมัติ
-Waiting to start,รอเริ่ม
 Warehouse,คลังสินค้า
 Warehouse check,ผลเทียบคลังสินค้า
 Watch,ติดตาม
 Watchers,ผู้ติดตาม
 Weekly,ทุกสัปดาห์
 When a card enters,เมื่อการ์ดเข้ารายการ
-"When a new fiscal year starts, change the rule's account set.",เมื่อเริ่มปีบัญชีใหม่ ให้เปลี่ยนชุดบัญชีในกฎ
 When the document does not show cash or credit,เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ
-Where the documents go,ปลายทางของเอกสาร
 Who can add and remove members,สิทธิ์จัดการสมาชิก
 Who can comment,สิทธิ์แสดงความคิดเห็น
 Whole company,ทั้งบริษัท
@@ -2248,7 +2151,6 @@ Withdrawal,ถอน
 Withholding agent,ผู้มีหน้าที่หักภาษี ณ ที่จ่าย
 Withholding tax certificates,หนังสือรับรองการหักภาษี ณ ที่จ่าย
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,ไม่บันทึกหนังสือรับรองการหักภาษี ณ ที่จ่าย (50 ทวิ) จึงไม่ส่งเอกสารนี้
-Work Coordination,ประสานงาน
 Work Name,รหัสงานเบื้องหลัง
 Workbook Revision,รุ่นของเวิร์กบุ๊ก
 Workspace,ชุดบัญชีบริษัท
@@ -2451,18 +2353,6 @@ cowork.folder.field.title,ชื่องาน
 cowork.folder.folderHint,หนึ่งโฟลเดอร์ต่อหนึ่งงานตามกำหนดเวลา รองรับเฉพาะไฟล์ PDF และรูปภาพ
 cowork.folder.folderMissing,ไม่พบโฟลเดอร์
 cowork.folder.followCompany,ตามชุดบัญชีของบริษัทในแต่ละปี
-cowork.folder.guide.oneRule,หนึ่งโฟลเดอร์ = หนึ่งกฎ = หนึ่งบริษัท + ชุดบัญชีหนึ่งปี + ซื้อหรือขาย + บริการหรือสต็อก
-cowork.folder.guide.result,ระบบสร้างเอง ห้ามวางเอกสาร
-cowork.folder.guide.resultRule,ตารางผลของแต่ละใบกำกับอยู่ใน _Pearnly结果 ไว้ตรวจวันถัดไป
-cowork.folder.guide.rule,กฎ {0}
-cowork.folder.guide.sampleA,บริษัทA-ซื้อ-บริการ
-cowork.folder.guide.sampleB,บริษัทA-ขาย
-cowork.folder.guide.sinceRule,ไฟล์ที่อยู่ในโฟลเดอร์ก่อนเปิดใช้กฎจะไม่ถูกประมวลผล
-cowork.folder.guide.sub,สแกนโฟลเดอร์ย่อยด้วย
-cowork.folder.guide.subRule,ตั้งชื่อโฟลเดอร์ย่อยและไฟล์ได้อิสระ PDF หนึ่งไฟล์มีหลายใบกำกับได้
-cowork.folder.guide.title,วิธีวางเอกสารในโฟลเดอร์
-cowork.folder.guide.typesRule,อ่านเฉพาะ PDF และรูปภาพ
-cowork.folder.guide.yearRule,เมื่อเริ่มปีบัญชีใหม่ ให้เปลี่ยนชุดบัญชีในกฎ
 cowork.folder.inspect_busy,ระบบตรวจไฟล์ไม่ว่าง ระบบจะลองใหม่ภายหลัง
 cowork.folder.invalid,ข้อมูลงานตามกำหนดเวลาไม่ครบถ้วนหรือไม่ถูกต้อง
 cowork.folder.item.ask,หยุดเพื่อเลือกเอง
@@ -2844,10 +2734,6 @@ cowork.stock.export,ส่งออก
 cowork.stock.field.search,ค้นหาชื่อหรือบาร์โค้ด
 cowork.stock.file,ไฟล์ตรวจนับ
 cowork.stock.filter,แสดง
-cowork.stock.filter.all,ทั้งหมด
-cowork.stock.filter.differences,มีผลต่าง
-cowork.stock.filter.locations,ตำแหน่งไม่ตรง
-cowork.stock.filter.uncounted,ยังไม่นับ
 cowork.stock.find,ค้นหา
 cowork.stock.headline,{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
 cowork.stock.importSkipped,ข้าม {0} แถว (แถว: เหตุผล)
@@ -2862,10 +2748,6 @@ cowork.stock.pick,เลือกไฟล์
 cowork.stock.record,บันทึก
 cowork.stock.recount,นับใหม่
 cowork.stock.removePhoto,นำออก
-cowork.stock.result.matched,ตรงกัน
-cowork.stock.result.not_counted,ยังไม่นับ
-cowork.stock.result.over,เกิน
-cowork.stock.result.short,ขาด
 cowork.stock.review,ดูผลต่าง
 cowork.stock.rows,จำนวนรายการ
 cowork.stock.saveNext,บันทึกและถัดไป
@@ -3618,7 +3500,6 @@ leased,รับไปดำเนินการแล้ว
 legacy,ระบบเดิม
 logical_section,ส่วนข้อมูลของเอกสาร
 low balance,ยอดคงเหลือไม่พอ
-"made by the system, do not put documents here",ระบบสร้างเอง ห้ามวางเอกสาร
 manual,กรอกเอง
 member,สมาชิก
 none,ไม่มี
@@ -3873,8 +3754,6 @@ stocktake.request_invalid,คำขอตรวจนับสินค้าไ
 stocktake.row_invalid,แถวนำเข้าไม่ถูกต้องหรือขาดค่าที่จำเป็น
 stocktake.too_many_rows,"ข้อมูลนำเข้ามีจำนวนเกินขีดจำกัด 10,000 แถว"
 stocktake.warehouse_required,กรุณาตรวจสอบคลังสินค้าและตำแหน่ง โดยต้องระบุคลังสินค้า
-subfolders are scanned too,สแกนโฟลเดอร์ย่อยด้วย
-summary_table_batch,นำเข้าตารางสรุป
 task off or no access,งานปิดอยู่หรือไม่มีสิทธิ์
 tax.answer_invalid,คำตอบไม่ถูกต้อง
 tax.company_invalid,กรุณาระบุเลขประจำตัวผู้เสียภาษี 13 หลักของบริษัท
@@ -3899,7 +3778,6 @@ vat_check.status.void_match,ยกเลิก · ตรงกัน
 vat_check.status.void_no_invoice,ยกเลิก · ไม่ต้องมีใบกำกับภาษี
 waiting for purchases,รอบันทึกรายการซื้อก่อน
 workspace.tax_id_duplicate,เลขประจำตัวผู้เสียภาษีนี้ถูกใช้กับบริษัทอื่นแล้ว
-{0} ({1} files),{0} (มี {1} ไฟล์)
 {0} ({1} matching lines),{0} (ตรงกัน {1} รายการ)
 {0} ({1} not processed yet),{0} (ยังไม่ได้ประมวลผล {1} ไฟล์)
 {0} ({1}),{0} ({1})
@@ -3913,7 +3791,6 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} documents pending ({1}),เอกสาร {0} รายการรอดำเนินการ ({1})
 {0} files,{0} ไฟล์
 "{0} files in the folder now, processed at the run time",ขณะนี้มี {0} ไฟล์ในโฟลเดอร์ จะประมวลผลพร้อมกันเมื่อถึงเวลา
-{0} files in the folder now.,ขณะนี้มี {0} ไฟล์ในโฟลเดอร์
 "{0} files not processed yet, processed at the run time",ยังไม่ได้ประมวลผล {0} ไฟล์ จะประมวลผลเมื่อถึงเวลา
 {0} files not processed yet.,ยังไม่ได้ประมวลผล {0} ไฟล์
 {0} h {1} min left,อีก {0} ชั่วโมง {1} นาที
@@ -3937,8 +3814,6 @@ workspace.tax_id_duplicate,เลขประจำตัวผู้เสี�
 {0} statement rows were read with low confidence. Check them against the original,ใบแจ้งยอดมี {0} รายการที่อ่านได้ไม่แน่ชัด กรุณาตรวจกับต้นฉบับ
 {0} such groups this period,งวดนี้มี {0} กลุ่มที่จับคู่ตามยอดรวมได้
 {0} · counted {1} / {2} · differences {3},{0} · นับแล้ว {1} / {2} · ผลต่าง {3}
-{0} · counted {1}/{2} · differences {3},{0} · นับแล้ว {1}/{2} · ผลต่าง {3}
-{0}/{1} files,{0}/{1} ไฟล์
 {0}/{1} pages,{0}/{1} หน้า
 {0}: are the card deposits paid in net of a card fee?,{0}: ยอดเข้าบัญชีจากบัตรเป็นยอดสุทธิหลังหักค่าธรรมเนียมหรือไม่
 {0}: page {1} balance does not follow; all rows on the page are marked for review,{0}: หน้า {1} ยอดคงเหลือไม่ต่อเนื่อง ทุกรายการในหน้านี้ถูกทำเครื่องหมายรอตรวจทาน

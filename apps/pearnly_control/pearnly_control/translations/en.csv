@@ -31,11 +31,7 @@ Billing Month,Billing Month
 Billing Units,Billing Units
 Billing service unavailable; please retry,Billing service unavailable; please retry
 Build the workspace,Build the workspace
-"By continuing, you agree to Pearnly's {0} and {1}.","By continuing, you agree to Pearnly's {0} and {1}."
 "By logging in, you agree to Pearnly's {0} and {1}.","By logging in, you agree to Pearnly's {0} and {1}."
-CC API Key,CC API Key
-CC Engine,CC Engine
-CC Model,CC Model
 "Cannot read the provisioning target, so the identity service URL is unknown","Cannot read the provisioning target, so the identity service URL is unknown"
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -55,7 +51,6 @@ Connect cloud billing,Connect cloud billing
 Contact Name,Contact Name
 Contact Phone,Contact Phone
 Contact us,Contact us
-Contact us to open an account or book a demo,Contact us to open an account or book a demo
 Continue,Continue
 Control API URL,Control API URL
 Control-plane records,Control-plane records
@@ -79,7 +74,6 @@ Create the site,Create the site
 Create the tenant account,Create the tenant account
 Created and kept correct by provisioning on the shared LINE Login channel.,Created and kept correct by provisioning on the shared LINE Login channel.
 Created on the tenant site and granted at provisioning. Leave empty for no permission control.,Created on the tenant site and granted at provisioning. Leave empty for no permission control.
-Creating a channel requires both secret and access token,Creating a channel requires both secret and access token
 Creating a channel requires the channel secret and the Channel ID,Creating a channel requires the channel secret and the Channel ID
 Credential Delivery,Credential Delivery
 Credentials,Credentials
@@ -87,7 +81,6 @@ Credited ฿{0}; {1} now has ฿{2},Credited ฿{0}; {1} now has ฿{2}
 Crediting…,Crediting…
 Cycle End,Cycle End
 Cycle Start,Cycle Start
-DMS is the one already proven; ERP and Cowork use the same API surface.,DMS is the one already proven; ERP and Cowork use the same API surface.
 Date the page count was last reconciled with the ledger (Bangkok time),Date the page count was last reconciled with the ledger (Bangkok time)
 "Dear customer,","Dear customer,"
 Default On,Default On
@@ -110,7 +103,6 @@ Enable HTTPS access,Enable HTTPS access
 Enabled Features,Enabled Features
 Enabled — {0} steps,Enabled — {0} steps
 Enforcement,Enforcement
-Enter the CC API key.,Enter the CC API key.
 Enter your password.,Enter your password.
 Enter your username or email.,Enter your username or email.
 External Reference,External Reference
@@ -121,7 +113,6 @@ Feature Code,Feature Code
 Feature Name,Feature Name
 Features,Features
 Fill in only if a LIFF app exists; otherwise leave empty.,Fill in only if a LIFF app exists; otherwise leave empty.
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.
 Finalize the site,Finalize the site
 Finished At,Finished At
 For example acme,For example acme
@@ -133,7 +124,6 @@ For example: somchai,For example: somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.","For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email."
 Forgot password ?,Forgot password ?
 From the issue.,From the issue.
-Get your work done in conversation,Get your work done in conversation
 Google or Claude. A change applies from the next document.,Google or Claude. A change applies from the next document.
 Grant feature roles,Grant feature roles
 Granted DocTypes,Granted DocTypes
@@ -281,11 +271,9 @@ Reviewed By,Reviewed By
 Role,Role
 Row {0} on the issue has no domain; cannot build the site,Row {0} on the issue has no domain; cannot build the site
 Row {0}: a LINE channel needs both the Channel ID and the Channel secret,Row {0}: a LINE channel needs both the Channel ID and the Channel secret
-Row {0}: a LINE channel needs both the channel secret and the access token,Row {0}: a LINE channel needs both the channel secret and the access token
 Run provisioning,Run provisioning
 Running,Running
 Same as the deployment domain.,Same as the deployment domain.
-Select the CC engine.,Select the CC engine.
 Service URL is required,Service URL is required
 Set up CC,Set up CC
 Set up OCR,Set up OCR

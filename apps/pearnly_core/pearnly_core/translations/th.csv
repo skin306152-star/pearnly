@@ -41,7 +41,6 @@ All directions,ทุกทิศทาง
 All statuses,ทุกสถานะ
 All three fields are required,กรุณากรอกให้ครบทั้งสามช่อง
 Allow DMS queries from LINE,อนุญาตให้ใช้ฟังก์ชันค้นหาผ่าน LINE
-Allow LINE to use the camera,อนุญาตให้ LINE ใช้กล้อง
 Allowed,อนุญาต
 Amount,จำนวนเงิน
 Amount and VAT differ,ยอดเงินและภาษีไม่ตรงกัน
@@ -56,7 +55,6 @@ Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
 Authoritative push status.,สถานะการส่งยึดตามค่านี้
 Authorize in CC Desktop,อนุญาตใน CC เดสก์ท็อป
-Authorized: {0},อนุญาตแล้ว: {0}
 Auto Push,ส่งอัตโนมัติ
 Automatic (by DMS account),อัตโนมัติ (ตามบัญชี DMS)
 Automatic push is not supported for this connection; confirm manually.,การเชื่อมต่อนี้ไม่รองรับการส่งอัตโนมัติ ต้องยืนยันด้วยตนเอง
@@ -69,7 +67,6 @@ Begin typing for results.,พิมพ์เพื่อแสดงผลลั
 Billing,การคิดค่าบริการ
 Billing is not configured on this site (pearnly_billing_*),บริการเรียกเก็บเงินไม่พร้อมใช้งานชั่วคราว กรุณาติดต่อฝ่ายบริการลูกค้า
 "Billing is not wired up on this site, please contact the platform",ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
-Billing is unavailable. Please contact support.,ระบบเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาติดต่อฝ่ายสนับสนุน
 Bind Code,รหัสผูกบัญชี
 Bind LINE,ผูก LINE
 Bind code,รหัสผูก
@@ -98,7 +95,6 @@ CC is only available on product sites.,CC ใช้ได้เฉพาะใ�
 CC restarted,CC รีสตาร์ตแล้ว
 Cache Read Tokens,โทเค็นอ่านแคช
 Cache Write Tokens,โทเค็นเขียนแคช
-"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",การเข้าถึงกล้องถูกปิดกั้น กรุณาอนุญาตกล้องสำหรับเว็บไซต์นี้ในการตั้งค่าเบราว์เซอร์และการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาคลิกไอคอนทางซ้ายของแถบที่อยู่ เปลี่ยนกล้องเป็น อนุญาต แล้วลองอีกครั้ง
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",กล้องถูกปิด แตะไอคอนซ้ายแถบที่อยู่ → การอนุญาต → กล้อง → อนุญาต หากเปิดไม่ได้ ไปที่ การตั้งค่า → แอปพลิเคชัน → เบราว์เซอร์ → การอนุญาต → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
@@ -139,7 +135,6 @@ Collapse,ย่อ
 Company,ข้อมูลบริษัท
 Company List,รายชื่อบริษัท
 Company Master,ข้อมูลหลักบริษัท
-Company Profile,ข้อมูลบริษัท
 Company Tax ID,เลขประจำตัวผู้เสียภาษีของบริษัท
 Company Title,ชื่อบริษัท
 Company does not match the task,บริษัทไม่ตรงกับงาน
@@ -192,7 +187,6 @@ Could not send the invitation email: {0} {1},ส่งอีเมลเชิ�
 Could not set the password: {0} {1},ตั้งรหัสผ่านไม่สำเร็จ: {0} {1}
 Could not update the OIDC client: {0} {1},อัปเดต OIDC client ไม่สำเร็จ: {0} {1}
 Could not update the account language.,ไม่สามารถเปลี่ยนภาษาของบัญชีได้ กรุณาลองใหม่ภายหลัง
-Could not update your account. Please reload and try again.,อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง
 Count tasks and variance records,งานตรวจนับและบันทึกส่วนต่าง
 Counterparty,ชื่อคู่ค้า
 Counterparty Tax ID,เลขประจำตัวผู้เสียภาษีของคู่ค้า
@@ -246,12 +240,10 @@ Delete {0} selected operators? Their LINE bindings and DMS connections are remov
 Delete {0} selected push records from this list? Sent business documents will not be affected.,ต้องการลบบันทึกการส่งที่เลือก {0} รายการใช่หรือไม่ เอกสารที่ส่งแล้วจะไม่ได้รับผลกระทบ
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,ต้องการลบรายการที่เลือก {0} รายการใช่หรือไม่ การดำเนินการนี้จะไม่เปลี่ยนแปลงยอดคงเหลือหรือยกเลิกคำขอเติมเงิน
 Delete {0} selected records?,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่
-Delete {0} selected records? Pushed ones cannot be deleted.,ต้องการลบ {0} รายการที่เลือกใช่หรือไม่ รายการที่ส่งแล้วไม่สามารถลบได้
 Deleted,ลบแล้ว
 Deleted {0},ลบ {0} รายการแล้ว
 Deleted {0} operators,ลบพนักงานแล้ว {0} คน
 Deleted {0} push records,ลบบันทึกการส่งแล้ว {0} รายการ
-Deleted {0}. {1} already pushed were kept,ลบ {0} รายการแล้ว และเก็บรายการที่ส่งแล้วไว้ {1} รายการ
 Deleted {0}. {1} being pushed were not deleted,ลบ {0} รายการแล้ว {1} รายการกำลังส่ง ไม่ได้ลบ
 Deleting the OIDC client failed: {0} {1},ลบ OIDC client ไม่สำเร็จ: {0} {1}
 Deleting the account failed: {0} {1},ลบบัญชีไม่สำเร็จ: {0} {1}
@@ -400,9 +392,7 @@ LINE Login,เข้าสู่ระบบด้วย LINE
 LINE Login Link,การเชื่อมโยงการเข้าสู่ระบบด้วย LINE
 LINE Login Link Updated,อัปเดตการเชื่อมโยง LINE เมื่อ
 LINE User ID,LINE User ID
-"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE ใช้กล้องไม่ได้ กรุณาอนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์ แล้วลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 LINE could not be reached; please try again,ไม่สามารถเชื่อมต่อ LINE ได้ กรุณาลองใหม่ภายหลัง
-LINE does not have permission to use the camera yet.,LINE ยังไม่ได้รับอนุญาตให้ใช้กล้อง
 LINE status,สถานะ LINE
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → LINE แล้วเปิด กล้อง กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,การเข้าถึงกล้องของ LINE ถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง แล้วเลือก อนุญาต กลับมาที่ LINE แล้วระบบจะลองใหม่เอง
@@ -490,7 +480,6 @@ No sign-in credentials configured,ยังไม่ได้ตั้งค่�
 No such local account: {0},ไม่พบบัญชีภายในระบบ: {0}
 No.,เลขที่
 None deleted: the {0} selected records are being pushed.,ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง
-"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
 Not Permitted,ไม่ได้รับอนุญาต
 Not allowed,ไม่อนุญาต
 Not authorized,ยังไม่ได้อนุญาต
@@ -518,8 +507,6 @@ Only the configuration was checked; the connection was not tested,ตรวจ�
 Only the owner can manage it,เฉพาะผู้รับผิดชอบเท่านั้นที่จัดการได้
 Open View,มุมมองที่เปิด
 Open in browser,เปิดในเบราว์เซอร์
-"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",เปิด การตั้งค่า → LINE เปิด กล้อง แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
-"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
 Operator,พนักงาน
 Operator Ledgers,ระบบบัญชีที่บันทึกแทนได้
 Operator Roster,ทะเบียนพนักงาน
@@ -694,7 +681,6 @@ Session ID,รหัสเซสชัน
 Session Payload,เพย์โหลดเซสชัน
 Set the conversation's account set,ตั้งชุดบัญชีของบทสนทนาแล้ว
 Setting the conversation's account set,กำลังตั้งชุดบัญชีของบทสนทนา
-Sign in again before changing your username.,กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้
 Sign out,ออกจากระบบ
 Sign out and sign in again,ออกจากระบบแล้วเข้าสู่ระบบอีกครั้ง
 Sign-in Credentials,ข้อมูลรับรองเข้าสู่ระบบ
@@ -773,7 +759,6 @@ The balance grows once the platform confirms the transfer.,ยอดคงเห
 The barcode reader could not load. Refresh the page and try again.,โหลดตัวอ่านบาร์โค้ดไม่สำเร็จ กรุณารีเฟรชหน้าแล้วลองอีกครั้ง
 The billing service returned HTTP {0},ระบบเรียกเก็บเงินตอบกลับ HTTP {0}
 The bind code has expired — please regenerate,รหัสผูกหมดอายุแล้ว กรุณาสร้างใหม่
-"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",เปิดกล้องใน LINE ไม่ได้ กรุณาแตะ เปิดในเบราว์เซอร์ หรืออนุญาตให้ LINE ใช้กล้องในการตั้งค่าโทรศัพท์แล้วลองอีกครั้ง
 "The camera could not start. Try again, or enter the code.",ไม่สามารถเปิดกล้องได้ กรุณาลองอีกครั้ง หรือป้อนรหัสด้วยตนเอง
 The camera is being used by another app. Close that app and try again.,กล้องกำลังถูกใช้งานโดยแอปอื่น กรุณาปิดแอปนั้นแล้วลองอีกครั้ง
 The control plane is not affected,คอนโทรลเพลนไม่ได้รับผลกระทบ
@@ -784,13 +769,9 @@ The export could not be created.,ไม่สามารถสร้างไ�
 The file is ready,ไฟล์พร้อมแล้ว
 The identity service refused the password change: {0} {1},บริการตัวตนปฏิเสธการเปลี่ยนรหัสผ่าน: {0} {1}
 The identity service returned an error: {0},บริการตัวตนตอบกลับข้อผิดพลาด: {0}
-The legacy system's product identifier; it becomes a link once product master data lands,รหัสสินค้าของระบบเดิม จะเปลี่ยนเป็นลิงก์เมื่อข้อมูลหลักสินค้าเสร็จ
-The name is resolved server-side when pinning; the client's value is not trusted,ชื่อถูกถอดฝั่งเซิร์ฟเวอร์ตอนตรึง ไม่เชื่อค่าที่ไคลเอนต์ส่งมา
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",ชื่อสำหรับระบุพนักงาน เช่น มิ่ง (ฝ่ายขาย)
 The new password cannot be the same as the current one,รหัสผ่านใหม่ต้องไม่เหมือนรหัสผ่านปัจจุบัน
 The new password is required,ต้องระบุรหัสผ่านใหม่
-"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น
-The old key stops working right away.,รหัสจับคู่เดิมจะใช้ไม่ได้ทันที
 The plan quota is used first; anything over is charged per plan rate from the balance,ใช้โควตาของแพ็กเกจก่อน ส่วนที่เกินจะหักจากยอดคงเหลือตามราคาต่อหน่วยของแพ็กเกจ
 The provisioning target {0} has no account pool for {1},เป้าหมายการเปิดใช้ {0} ยังไม่มีกลุ่มบัญชีผู้ใช้สำหรับ {1}
 The push channel must be companion or cloud,ช่องทางส่งต้องเป็น companion หรือ cloud
@@ -839,7 +820,6 @@ This site has no product manifest installed; it cannot run as a business site.,�
 This site has no product workspace yet,เว็บไซต์นี้ยังไม่ได้สร้างพื้นที่ทำงานของผลิตภัณฑ์
 This system address is not allowed; only public addresses can be used.,ไม่อนุญาตให้ใช้ที่อยู่ระบบนี้ รองรับเฉพาะที่อยู่สาธารณะ
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?","ต้องการลบ ""{0}"" ใช่หรือไม่ ระบบจะยกเลิกการผูก LINE และลบการเชื่อมต่อ DMS โดยยังเก็บบันทึกการส่งไว้"
-This username is already in use.,ชื่อผู้ใช้นี้ถูกใช้งานแล้ว
 This year,ปีนี้
 Time,เวลา
 Title Source,ที่มาของชื่อ
@@ -898,7 +878,6 @@ Used {0} pages this month · pay-as-you-go,เดือนนี้ใช้ไ�
 User,ผู้ใช้
 User Agent,User Agent
 User Turn,ลำดับข้อความผู้ใช้
-"Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง
 VAT,ภาษีมูลค่าเพิ่ม
 VAT %,อัตราภาษี %
 VAT Amount,ภาษีมูลค่าเพิ่ม
@@ -941,7 +920,6 @@ Wrong ERP username or password. Check it under Connect and try again.,ชื่�
 Yes,ใช่
 You're offline,ไม่มีการเชื่อมต่ออินเทอร์เน็ต
 Your access domain,โดเมนสำหรับเข้าใช้งาน
-Your account was updated elsewhere. Sign in again to load the current username.,บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน
 account.cancel,ยกเลิก
 account.changePassword,เปลี่ยนรหัสผ่าน
 account.error.http,คำขอไม่สำเร็จ (HTTP {0})
@@ -975,22 +953,10 @@ cc_desktop.job_busy,กำลังบันทึกลง Express อยู่
 cc_desktop.job_invalid,ข้อมูลที่จะบันทึกลง Express ไม่ถูกต้อง
 cc_desktop.request_invalid,คำขอของ CC เดสก์ท็อปไม่ถูกต้อง
 cc_desktop.unauthorized,การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ
-common.backHome,กลับหน้าหลัก
 common.cancel,ยกเลิก
-common.col.date,วันที่
-common.col.grandTotal,รวมภาษี
-common.col.name,เลขที่
-common.col.status,สถานะ
-common.collapse,ย่อ
-common.error.http,คำขอล้มเหลว (HTTP {0})
-common.field.docDate,วันที่เอกสาร
-common.field.docNo,เลขที่เอกสาร
 common.loading,กำลังโหลด…
-common.no,ไม่
-common.placeholder.optional,เว้นว่างได้
 common.processing,กำลังดำเนินการ…
 common.refresh,รีเฟรช
-common.save,บันทึก
 common.saving,กำลังบันทึก…
 common.scan.allow_android,เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
 common.scan.allow_ios,เปิด การตั้งค่า → LINE เปิด กล้อง แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง
@@ -1009,7 +975,6 @@ common.scan.missing,ไม่พบกล้องในอุปกรณ์น
 common.scan.open_browser,เปิดในเบราว์เซอร์
 common.scan.retry,ลองอีกครั้ง
 common.scan.unsupported,เบราว์เซอร์นี้ใช้กล้องไม่ได้ กรุณาเปิดหน้านี้ใน Chrome หรือ Safari หรือป้อนรหัสด้วยตนเอง
-common.yes,ใช่
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC เดสก์ท็อปดึงข้อมูลบนเครื่องแล้วบันทึกที่นี่
 connect.action.connect,เชื่อมต่อ DMS
 connect.action.connectSave,เชื่อมต่อและบันทึก

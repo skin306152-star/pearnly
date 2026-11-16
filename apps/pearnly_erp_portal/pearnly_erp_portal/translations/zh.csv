@@ -1,9 +1,7 @@
-1 = January,1 = 一月
 1 day before,1 天前
 1 hour before,1 小时前
 1-12; Thai companies commonly start in January,1–12；泰国公司一般从 1 月开始
 10 minutes before,10 分钟前
-13 digits; a branch adds its 5-digit branch number,税号 13 位；有分店再带 5 位分店编号
 15 minutes before,15 分钟前
 2 days before,2 天前
 2 hours before,2 小时前
@@ -76,7 +74,6 @@ Add member,添加成员
 Add opening item,添加明细
 Add photos,添加照片
 Add row,添加明细
-Add terminal,新增收银台
 Add these companies?,确定要添加以下公司吗？
 Add watcher,添加关注人
 Added,补盘
@@ -112,7 +109,6 @@ Amended,已修订
 Amended From,修订自
 Amount,金额
 Amount Payable,应付金额
-Amount Received,实收金额
 Amounts,金额
 An account used is not in the MR.ERP chart of accounts. Check the account settings,所用科目不在 MR.ERP 科目表中，请检查科目设置
 An error occurred while sending to MR.ERP,推送至 MR.ERP 时出错
@@ -205,7 +201,6 @@ Buyer Type,客户类型
 Buyer address,买方地址
 Buyer branch,买方分支机构
 Buyer tax ID,买方税号
-By Payment Method,按收款方式
 By Warehouse,分仓
 By location,按位置
 By product,按物料
@@ -219,8 +214,6 @@ CC Desktop needs an update,CC 桌面版需更新
 CC Desktop not connected,CC 桌面版未连接
 Calculation Version,计算版本
 Calendar,日历
-"Camera could not start. Allow camera access on an HTTPS page, or enter the code below.",摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
-Camera permission was refused; allow it and try again,摄像头权限被拒绝，请允许后重试
 Cancel,取消
 Cancel in Express,Express 作废
 Cancel {0},取消选中的 {0} 条
@@ -298,7 +291,6 @@ Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
 Choose the location,请选择仓位
 Choose the payment method,请选择付款方式
-Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
 Choose the supplier,请选择供应商
 Choose the warehouse,请选择仓库
@@ -308,7 +300,6 @@ Claim,抵扣
 Clear,清除
 Clear Link,清除关联
 Clear cart,清空购物车
-Clear customer,清除客户
 Clear the cart?,确定要清空购物车吗？
 Click to add email / phone,点击添加邮箱 / 电话
 Click to choose a customer,点击选择客户
@@ -339,7 +330,6 @@ Collector,收款员
 Color,颜色
 Colour Tag,颜色标记
 Columns,列
-Comes from the terminal; set it there if it is empty,来自收银台；这里空的话要先去收银台上配一个仓
 Comment,评论
 Comments,评论
 Comments and activity,评论和活动
@@ -356,7 +346,6 @@ Complete Payment,完成收款
 Completed,已完成
 Computer offline,电脑离线
 Confirm,确认
-Confirm and record,确定入账
 Confirm collection,确认收款
 Confirm opening stock,确认入账
 Confirm the document before recording a payment,记录付款前请先提交单据
@@ -384,8 +373,6 @@ Could not create the cash supplier in MR.ERP.,未能在 MR.ERP 中建立现金�
 Could not read the MR.ERP master data.,无法读取 MR.ERP 主档。
 Could not read this document. Please send it again.,识别失败，请重新发送
 Could not record this collection,无法录入此收款
-Could not record this document. Please try again.,入账失败，请重试
-Could not record: {0},无法入账：{0}
 Could not sign in to MR.ERP. Check the connection's username and password,MR.ERP 登录失败，请检查连接的账号和密码
 Could not store this document,单据保存失败，请重新发送
 Count at least one item before finishing,请至少盘点一项后再结束
@@ -415,7 +402,6 @@ Create card,创建卡片
 Create from template,从模板创建
 Create the warehouse in Express,请在 Express 中建仓库
 "Create the warehouse in Express, then use Sync Express on the company page",请在 Express 中建仓库，再在公司页点「同步 Express」
-Create the warehouse in Express. It is added here at the next sync,请在 Express 中建仓库，下次同步后自动出现
 Created,创建时间
 Created a stock count,新建了盘点
 Created an adjustment from a stock count,按盘点结果生成了物料调整单
@@ -455,7 +441,6 @@ Daily,每天
 Damaged / written off,报损
 Date,日期
 Date  {0}  to  {1},日期  {0}  至  {1}
-Date (BE),日期（佛历）
 Date created (newest first),创建时间（最新优先）
 Date created (oldest first),创建时间（最早优先）
 Date must be in ascending order,“日期”必须从小到大
@@ -520,7 +505,6 @@ Document has already been submitted,单据已提交
 Document has been cancelled,单据已取消
 Document must be submitted,请先提交单据
 Document no.,单据号
-Document prefix,单据前缀
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
@@ -550,7 +534,6 @@ ERP purchase recognition,采购单据识别
 ERP sales recognition,销售单据识别
 Each product and location may appear only once,同一物料和仓位只能填写一次
 Each returned line must be an Express stock item,退货明细须为 Express 库存商品
-Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
 Edit Cart,返回购物车
 Edit Receipt,编辑收据
@@ -570,7 +553,6 @@ Enable POS cashier,启用 POS 收银台
 Enable {0},启用 {0}
 Enable {0} selected,启用选中的 {0} 个
 Enabled,已启用
-"End this stock count? {0} counted, {1} not counted. It can't be edited afterwards.",确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。
 "End this stock count? {0} counted, {1} not counted; it can't be edited afterwards.",确定要结束盘点吗？已盘点 {0} 项，未盘点 {1} 项，结束后不能再修改。
 Engine No,发动机号
 Enter a board name,请输入看板名称
@@ -645,7 +627,6 @@ Express Void Reason,Express 作废原因
 Express code,Express 编码
 "Express could not index the invoice, so it was undone. It is retried automatically",Express 索引重建失败，已撤回，将自动重试
 "Express did not read back what was written, so it was undone. It is retried automatically",写入后校验不一致，已撤回，将自动重试
-Express has this account set open. It is sent automatically once Express is closed,Express 正在使用此账套，关闭后将自动推送
 Express has this account set open. It is written automatically once Express is closed,Express 正在使用此账套，关闭后将自动写入
 External System Reference,外部系统引用
 Factor to Base Unit,换算到库存单位的系数
@@ -663,16 +644,13 @@ Filter,筛选
 Filter by invoice status,按单据状态筛选
 Filters,筛选条件
 Find,查询
-Find product,查找物料
 Finish,完成
-Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,确定要结束盘点并将已确认的差异写入库存吗？已盘点 {0} 项，未盘点 {1} 项保持不变，结束后仅可查看和导出。
 Finish this stock count?,确定要结束此盘点吗？
 Finished a stock count,结束了盘点
 Finishing a stock count,正在结束盘点
 First Receipt,首张小票
 First warehouse of this company (more on the Warehouses page),公司的首个仓库（其他仓库可在「仓库」页面添加）
 Fiscal Year Starts In,会计年度起始月份
-Fiscal year start month,财年起月
 Fix all opening stock errors before submitting,请修正全部期初明细错误后再入账
 Focus on Item Group filter,定位到物料组筛选
 Focus on search input,定位到搜索框
@@ -778,9 +756,7 @@ Item is disabled,物料已停用
 Item is removed since no serial / batch no selected.,未选择序列号 / 批号，已移除该物料
 Items,物料
 Items are required,物料明细不能为空
-Items found at a different place,位置不一样的商品
 Items not found.,未找到物料
-"Items with a difference, largest first",有差异的商品，差得最多的排在最前
 Job,项目
 Job Roles,功能权限
 Keep,保留
@@ -804,9 +780,7 @@ Last page,末页
 Last transacted,最近交易时间
 Late receipts,补单
 Leave all unchecked to allow every company,不勾选则可查看全部公司
-Leave blank to use the default terminal,留空使用默认收银台
 Leave board,离开看板
-"Legacy used head office / branch, with the branch number when it is a branch",旧系统用「总店 / 分支」，是分支时另带分支号
 Light,闪光灯
 Line Amount,行金额
 Line Discount,行折扣
@@ -839,7 +813,6 @@ Location code,仓位编码
 Locations,仓位清单
 Lookup failed,查找失败
 "Lookup failed, please fill in manually",查询失败，请手动填写
-Lookup failed. Try again.,查找失败，请重试。
 Low (≤{0}),低库存（≤{0}）
 Low Stock Threshold,低库存阈值
 Low stock,低库存
@@ -854,7 +827,6 @@ MR.ERP No.,MR.ERP 单号
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP 不支持此税率，请核对税率后重新提交
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 MR.ERP import menu,MR.ERP 导入菜单
-MR.ERP purchases can only be entered on credit.,MR.ERP 的进项只能按赊购录入。
 MR.ERP returned an error. Check in MR.ERP,MR.ERP 返回错误，请在 MR.ERP 中核对
 MR.ERP settings,MR.ERP 设置
 MR.ERP sign-in is not authorized,MR.ERP 登录未授权
@@ -888,7 +860,6 @@ Move,移动
 Move all cards in this list,移动此列表中的所有卡片
 Move list,移动列表
 My cards,我的卡片
-My collections,我的收款
 Name,名称
 Net,净额
 Net Total,净总计
@@ -941,7 +912,6 @@ No receipts in this shift,当班暂无小票
 No recent transactions found,暂无最近交易
 No stock count in progress,无进行中的盘点
 No templates yet,暂无模板
-No terminal yet,还没有收银台
 No units of this product are registered in this warehouse,此仓库未登记该商品的台
 No warehouse is available for this company,该公司无可用仓库
 No warehouse matches that name,该仓库名不存在
@@ -953,7 +923,6 @@ Normal,正常
 Not Available,无货
 Not Posted,未记入库存
 Not bound,未绑定
-Not counted,未盘点
 Not enough stock in Express,Express 库存不足
 Not enough stock on hand,库存不足
 Not found in the Revenue Department records,税务局未查到该税号的登记信息
@@ -987,16 +956,13 @@ Only an active count can be deleted,仅可删除进行中的盘点
 Only an image or a PDF can be recognised,仅支持识别图片或 PDF
 Only board admins can do this,仅看板管理员可执行此操作
 Only invoices in Thai baht can be sent to MR.ERP,仅泰铢发票可推送至 MR.ERP
-Only low or out of stock,只看低库存或缺货
 Only one with this tax number,此税号仅此一家
 Only purchase documents can be sent in for now,目前仅支持接收采购单据
-Only the checked features are visible to this employee,只勾选的功能，这个员工才看得到
 Only the checked features are visible to this user,该用户仅可查看已勾选的功能
 Only the product admin can change this,仅产品管理员可修改
 Open Form View,打开表单视图
 Open Shift,开班
 Open a shift before selling,请先开班
-Open a shift on the cashier page first.,请先在收银台开班（旧页面那条路）
 Open card,打开卡片
 Open that product,打开该物料
 "Open this page from LINE, or sign in to the site first",请从 LINE 打开本页，或先登录站点
@@ -1182,8 +1148,6 @@ Quantity Available,可用数量
 Quantity cannot be 0,数量不能为 0
 Quantity counted this time,本次实盘数量
 Quantity differences,数量差异
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。
-"Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差异，差得最多的排在最前。灰条是账面数量，彩条是实盘数量：少了比灰条短，多了会压过灰条。
 Quantity must be greater than zero,数量必须大于 0
 Query,查询
 Querying the Revenue Department...,正在向税务局查询…
@@ -1309,7 +1273,6 @@ Sales returns account,销货退回科目
 Salesman,销售员
 Save,保存
 Save Draft,保存草稿
-Save and next,保存并下一项
 Save this to the company's notes?,确定要将此内容记入公司知识库吗？
 Saved,已保存
 Saved a collection draft,保存了收款草稿
@@ -1321,7 +1284,6 @@ Saving a collection draft,正在保存收款草稿
 Saving push choices,正在保存推送选项
 Scan,扫码
 Scan a code,扫码
-Scan barcode or QR code,扫描条形码或二维码
 Scan or enter a code,请扫码或输入编码
 "Scan, enter the actual position and quantity, then save to continue.",扫码后填写实际仓位和数量，保存后进入下一项。
 Scanned,已扫描
@@ -1331,11 +1293,9 @@ Search by customer name or phone,通过客户名称、电话进行搜索
 "Search by customer name, phone, email.",按客户名称、电话、邮箱搜索
 Search by invoice id or customer name,按单据编号或客户名称搜索
 "Search by item code, serial number or barcode",按物料号、序列号或条码搜索
-Search by name or phone,按名称或电话搜
 Search by receipt number,按小票编号搜索
 Search cards,搜索卡片
 Search name or barcode,搜索名称或条码
-"Search name, code or barcode",搜索名称、编码或条码
 Searched customers for a collection,查找了收款客户
 Searching customers for a collection,正在查找收款客户
 Second No,第二个号
@@ -1365,7 +1325,6 @@ Seller branch,卖方分支机构
 Seller tax ID,卖方税号
 Selling Units,销售单位
 Selling price,售价
-Selling warehouse,卖货的仓库
 Send,发送
 Send a photo of the transfer slip,请发送转账凭证照片
 Send the code from the ERP page to bind,请发送 ERP 页面上的绑定码
@@ -1378,7 +1337,6 @@ Serial numbers unavailable for Item {0} under warehouse {1}. Please try changing
 Service,服务
 Service input VAT,服务品进项税
 Service input VAT basis not set,服务品进项税口径未定
-Service or stock item?,请选择服务或库存商品
 Set as current,设为当前
 Set due date,到期日设为 N 天后
 Set reminder,设置提醒
@@ -1388,7 +1346,6 @@ Setup Auto Email,设置自动邮件
 Several Express customers have this tax ID. Choose the customer and submit again,Express 中有多个客户使用此税号，请选择客户后重新提交
 Several Express suppliers have this tax ID. Choose the supplier and submit again,Express 中有多个供应商使用此税号，请选择供应商后重新提交
 Several matches found for {0}. Please select a record.,「{0}」找到多个匹配结果，请选择一条记录。
-Several matches found. Please select a record.,找到多个匹配结果，请选择一条记录。
 Sheet,表格文件
 Shelf,仓位
 Shift,班次
@@ -1405,10 +1362,8 @@ Short Name,简称
 Short by {0},短款 {0}
 Short name,简称
 Show details,显示详情
-Show disabled,显示已停用
 Show on card,显示在卡片正面
 Show only,仅显示
-Show zero stock,显示零库存
 Skipped {0} row(s); the first ones are listed above,已跳过 {0} 行，部分明细见上方
 Sold,已售
 Sold At,销售时间
@@ -1426,7 +1381,6 @@ Split exempt items (recommended),按商品免税拆开写（建议）
 Start counting,开始盘点
 Start date,开始日期
 Status,状态
-"Still off: the stock tables land in the inventory batch, and posting must not silently skip them",仍然是关的：库存表要进库存那批，过账不能悄悄把它们跳过
 Stock,库存
 Stock Account Group,存货科目组
 Stock Count,盘点
@@ -1454,10 +1408,8 @@ Stock is counted in this unit; other units convert into it. Leave it empty to us
 Stock item,库存商品
 Stock leaves this warehouse (must belong to the same company). Blank means the only warehouse of this company,出库仓库（须属于同一公司）。留空则使用该公司唯一的仓库。
 Stock ledger,查看流水
-Stock of {0} is now {1},{0} 的库存现为 {1}
 Stock quantity not enough for Item Code: {0} under warehouse {1}. Available quantity {2} {3}.,物料 {0} 在仓库 {1} 库存不足，可用 {2} {3}
 Stop watching,取消关注
-Stored here for now; document numbers still come from the numbering rules,先存着：单号仍按编号定义自动发
 Subcategory,子分类
 Submit,提交
 Submit and Receive Stock,提交并入库
@@ -1481,7 +1433,6 @@ Supplier not found. Please select the supplier again.,供应商不存在，请�
 Supplier type,供应商类型
 Suppliers,供应商
 Switch Between Payment Modes,切换支付方式
-Switch company,切换公司
 Switching company...,正在切换公司…
 Sync Express,同步 Express
 Sync failed,同步失败
@@ -1511,7 +1462,6 @@ Team board,团队看板
 Team visible,团队可见
 Template,模板
 Terminal,收银台
-Terminal name,收银台名称
 Terminal not found,收银台不存在
 Terminals,收银台
 Text,文本
@@ -1536,7 +1486,6 @@ The Revenue Department replied in an unreadable format,税务局返回的数据�
 The VAT does not match the 7% rate. Check it and submit again,增值税额与 7% 税率不符，请核对后重新提交
 The account set cannot be reached right now. It will be sent automatically once connected.,暂时无法访问此账套，连接后将自动推送
 The account set on this computer is not the registered one. Waiting for another computer.,此电脑上的账套与登记的不一致，等待其他电脑
-The account you give customers for transfers,收款时给对方看的账号
 The accounting period is closed in Express,会计期间已在 Express 关账
 The amount is invalid,金额无效
 The amount payable cannot be negative,应付金额不能为负数
@@ -1555,7 +1504,6 @@ The chosen account set belongs to another company. Check the account set,所选�
 The collection changed. Check it again,收款内容已变更，请重新确认
 The company has no 13-digit tax ID,公司没有 13 位税号
 The company has no MR.ERP account set,公司未设置 MR.ERP 账套
-The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
@@ -1575,7 +1523,6 @@ The invoice date looks wrong. Correct it and submit again,票面日期可能有�
 The invoice number is longer than MR.ERP allows. Shorten it and submit again,发票号超出 MR.ERP 允许的长度，请缩短后重新提交
 The invoice number is missing. Add it and submit again.,缺少发票号，请补充后重新提交
 The item is not in Express,Express 中没有这件商品
-The item is not in Express yet,这件商品 Express 里还没有
 The lines cannot be written to Express. Check them and submit again.,明细无法写入 Express，请核对后重新提交
 The matching stock item is missing. Choose it and submit again.,缺少对应存货，请选择后重新提交
 The number of units does not match the quantity,台数与数量不符
@@ -1636,12 +1583,8 @@ This account code is already a stock item code in Express,此科目码已是 Exp
 This account set has no book for this kind of document. Set it up in Express,此账套没有这种单据的单据簿，请在 Express 中设置
 This barcode already exists,该条码已存在
 This board no longer exists,该看板不存在
-This browser cannot scan with the camera,当前浏览器不支持摄像头扫码
 This browser cannot scan with the camera; use a scanner or type the code,当前浏览器不支持摄像头扫码，请使用扫码枪或手动输入
-This card expires in {0} minutes,本卡片 {0} 分钟内有效
-This card has expired. Please upload the document again.,卡片已过期，请重新上传
 This card has expired. Use the latest card in LINE.,此卡片已失效，请使用 LINE 中最新的卡片。
-This card is no longer valid,这张卡片已失效
 This category already exists,该分类已存在
 This channel is not open yet,该通道尚未开放
 This code is already in use,该码已被占用
@@ -1653,13 +1596,11 @@ This collection method is not available,此收款方式不可用
 This company does not use Express,此公司未使用 Express
 This company has no connected Express account set,此公司没有已连接的 Express 账套
 This company has no connected MR.ERP account set,此公司没有已连接的 MR.ERP 账套
-"This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.",这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。
 This computer cannot enter documents into Express,此电脑不能代录 Express
 This counter sells for this company; stock leaves its warehouse,此收银台以该公司名义开单，并从该公司仓库出库
 This customer has no match in MR.ERP. Choose the customer and submit again,MR.ERP 中没有此客户的对应档案，请选择客户后重新提交
 This customer is not in Express and could not be created. Check the customer name and tax ID,Express 中不存在此客户且无法创建，请核对客户名称和税号
 This department is not available,此部门不可用
-This device cannot scan,这台设备不能扫码
 This device has no camera to scan with,当前设备没有可用的摄像头
 This document cannot be recorded yet,该单据暂无法入账
 This document has no content,文件内容为空
@@ -1671,7 +1612,6 @@ This document is too large,文件过大
 This document is void,该单据已作废
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This document type cannot be written to MR.ERP,此单据类型无法写入 MR.ERP
-This document was already recorded,这张单据已经入账
 This document was changed in Express. Check it in Express,此单在 Express 中已被修改，请在 Express 中核对
 "This document was issued by this company, not a purchase document",该文件由本公司开出，不是采购单据
 This draft was already confirmed or discarded,该草稿已确认或已作废
@@ -1694,7 +1634,6 @@ This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
 This product code already exists,该物料编码已存在
-This receipt is in a daily summary sent to Express. Refund it instead,此小票已计入写进 Express 的收银日汇总，请改用退货
 This receipt is in a daily summary. Refund it instead,此小票已计入收银日汇总，请改用退货
 This request was already recorded,该请求已记录
 This sale is already voided,该销售单已作废
@@ -1706,8 +1645,6 @@ This status change is not allowed,不允许此状态变更
 This stock count already has an adjustment,此盘点已有物料调整单
 This stock count is already posted,该盘点单已过账
 This stock count is closed,该盘点已结束
-This stock entry comes from a stock count sent to Express. It cannot be voided on its own,此单由已写进 Express 的盘点生成，不能单独作废
-This stock entry comes from a stock count. It cannot be voided on its own,此单由盘点生成，不能单独作废
 This stock position already has stock movements; use a stock adjustment,该物料在此仓位已有出入库记录，请使用库存调整
 This stock position is already initialized; use a stock adjustment,该物料在此仓位已录入期初，请使用库存调整
 This supplier is not in Express and could not be created. Check the supplier name and tax ID,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
@@ -1715,15 +1652,12 @@ This supplier is not in MR.ERP. Check the supplier name and tax ID,MR.ERP 中没
 This terminal already has an open shift,该收银台已有未交班的班次
 This terminal has no warehouse; set one in the terminal settings,该收银台未设置仓库，请在收银台设置中选择仓库
 This unit has been counted,该台已盘
-This unit is not defined on the product,该单位未在此物料中定义
 This unit is not in stock in this warehouse,该台不在此仓库存中
 This unit number is already registered,该号码已登记
 This warehouse already exists,该仓库已存在
-This warehouse belongs to the company above,这个仓挂在上面那家公司名下
 This warehouse code already exists,仓库编号已存在
 This warehouse has no active location,此仓库没有启用的仓位
 This warehouse is not in the Express account set,Express 账套中无此仓库
-"Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。
 Time,时间
 Time left {0},剩余 {0}
 Title,标题
@@ -1738,11 +1672,9 @@ Too many matches; type a few more letters to narrow it down,匹配结果过多�
 Total,总计
 Total  {0}  rows,合计  {0}  笔
 Total Amount,总金额
-Total Due,应收金额
 Total Items,总数量
 Total Quantity,总数量
 Total Taxes and Charges,总税费
-Total items,总件数
 Total opening value,期初总金额
 Total {0} does not match {1},合计 {0} 与已收 {1} 不符
 Total · {0} row(s),合计 · {0} 条明细
@@ -1757,15 +1689,10 @@ Type a word from the customer name to find it,输入客户名称关键字查找
 Type a word from the location name to find it,输入仓位名称关键字查找
 Type a word from the supplier name to find it,输入供应商名称关键字查找
 Type a word from the warehouse name to find it,输入仓库名称关键字查找
-Type any warehouse name; a new warehouse is created if that name is new,仓库可以自由填写，名字没见过的会自动新建一个
 Type not found in Express,Express 中没有此类型
-Type the company name or number to find it,输入公司名称或编号查找
 "Type the company name, tax ID or account set to find it",输入公司名称、税号或账套名查找
 Type the customer code or part of the name,输入客户编号或名称
-Type the customer name or code to find it,输入客户名称或编号查找
 Type the item name or code,请输入物料名称或编码
-Type the supplier name or code to find it,输入供应商名称或编号查找
-Type the warehouse name or code to find it,输入仓库名称或编号查找
 UOM,单位
 Unable to load preview,无法加载预览
 Unbind LINE,解绑 LINE
@@ -1801,7 +1728,6 @@ Update this company note?,确定要修改此公司说明吗？
 Updated,已更新
 Updated {0},已更新 {0}
 Updated {0} customer(s),已更新 {0} 位客户
-Updated {0} employee(s),已更新 {0} 位员工
 Updated {0} product(s),已更新 {0} 个物料
 Updated {0} record(s),已更新 {0} 条记录
 Updated {0} supplier(s),已更新 {0} 家供应商
@@ -2366,35 +2292,6 @@ erp.work.view.calendar,日历
 erp.work.view.mine,我的卡片
 erp.work.view.table,表格
 express.action.markHandled,标记为已在 Express 手工处理
-express.code.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动推送
-express.code.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
-express.code.ACCOUNT_DIR_NOT_ALLOWED,CC 桌面版没有此账套的写入权限，请检查 CC 桌面版所选账套
-express.code.ACCOUNT_SET_UNREACHABLE,暂时无法访问此账套，连接后将自动推送
-express.code.ACCOUNT_WRITER_BUSY,另一台电脑正在写入此账套，完成后将自动推送
-express.code.BAD_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
-express.code.BAD_SALES_DOCTYPE,此单据类型无法写入 Express，请核对后重新提交
-express.code.CDX_REINDEX_FAILED,Express 索引重建失败，已撤回，将自动重试
-express.code.CUSTOMER_BRANCH_AMBIGUOUS,Express 中有多个客户使用此税号，请选择客户后重新提交
-express.code.CUSTOMER_DUP_SUSPECTED,Express 中已存在相似客户，请选择该客户或确认为新客户
-express.code.CUSTOMER_NOT_IN_ARMAS,Express 中不存在此客户且无法创建，请核对客户名称和税号
-express.code.DBF_WRITE_FAILED,写入 Express 失败，已撤回，将自动重试
-express.code.EMPTY_ITEMS,此发票没有明细，请补充后重新提交
-express.code.ERR_ACCOUNT_UID_MISMATCH,此电脑上的账套与登记的不一致，等待其他电脑
-express.code.FIELD_TOO_LONG,部分字段超出 Express 允许的长度，请缩短后重新提交
-express.code.INVALID_DOC_DATE,单据日期无效，请修改后重新提交
-express.code.INVALID_INVOICE_DATE,单据日期无效，请修改后重新提交
-express.code.INVALID_QUANTITY,明细数量无效，请修改后重新提交
-express.code.ITEMS_INVALID,明细无法写入 Express，请核对后重新提交
-express.code.MISSING_CUSTOMER,缺少客户，请选择客户后重新提交
-express.code.MISSING_REF_NO,缺少发票号，请补充后重新提交
-express.code.MISSING_SUPPLIER,缺少供应商，请补充后重新提交
-express.code.PAYLOAD_INVALID,CC 桌面版无法读取此发票，请核对字段后重新提交
-express.code.READBACK_VERIFY_FAILED,写入后校验不一致，已撤回，将自动重试
-express.code.STOCK_ACC_GROUP_UNFIT,请先为此账套选择存货科目组。
-express.code.STOCK_IN_FAILED,无法记录库存明细，请核对品名、数量和单价
-express.code.SUPPLIER_BRANCH_AMBIGUOUS,Express 中有多个供应商使用此税号，请选择供应商后重新提交
-express.code.SUPPLIER_DUP_SUSPECTED,Express 中已存在相似供应商，请选择该供应商或确认为新供应商
-express.code.SUPPLIER_NOT_IN_APMAS,Express 中不存在此供应商且无法创建，请核对供应商名称和税号
 express.error.ACCOUNT_BUSY_LOCKED,Express 正在使用此账套，关闭后将自动写入
 express.error.ACCOUNT_CODE_IS_STOCK_ITEM,此科目码已是 Express 库存品的编码
 express.error.ACCOUNT_COMPANY_MISMATCH,所选账套属于其他公司，请核对账套
@@ -2578,7 +2475,6 @@ mrerp.reason.accountBusy,此 MR.ERP 账号正在代录
 mrerp.reason.importing,正在导入 MR.ERP
 mrerp.reason.loginMissing,MR.ERP 登录未授权
 mrerp.reason.notConfigured,公司未设置 MR.ERP 账套
-mrerp.reason.purchaseCash,MR.ERP 的进项只能按赊购录入。
 mrerp.reason.resultUnknown,结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送
 nav.posReceipts,收银记录
 nav.posShifts,班次记录
@@ -2588,7 +2484,6 @@ nav.stockTransfer,调拨
 none,无
 opening,期初
 paid,已付款
-pending_approval,待审批
 person,个人
 product.action.bulkDisable,停用选中的 {0} 个
 product.action.bulkEnable,启用选中的 {0} 个
@@ -2748,7 +2643,6 @@ stock.col.status,状态
 stock.col.unit,单位
 stock.col.value,金额
 stock.col.warehouse,仓库
-stock.count.action.delete,删除选中的 {0} 个
 stock.count.addEntry,新增盘点记录
 stock.count.addEntryHint,账面数量 {0} {1}
 stock.count.addEntryTitle,新增盘点记录 — {0}

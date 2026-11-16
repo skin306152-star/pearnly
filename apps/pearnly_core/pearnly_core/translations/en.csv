@@ -41,7 +41,6 @@ All directions,All directions
 All statuses,All statuses
 All three fields are required,All three fields are required
 Allow DMS queries from LINE,Allow DMS queries from LINE
-Allow LINE to use the camera,Allow LINE to use the camera
 Allowed,Allowed
 Amount,Amount
 Amount and VAT differ,Amount and VAT differ
@@ -56,7 +55,6 @@ Attempt,Attempt
 Attempts,Attempts
 Authoritative push status.,Authoritative push status.
 Authorize in CC Desktop,Authorize in CC Desktop
-Authorized: {0},Authorized: {0}
 Auto Push,Auto Push
 Automatic (by DMS account),Automatic (by DMS account)
 Automatic push is not supported for this connection; confirm manually.,Automatic push is not supported for this connection; confirm manually.
@@ -69,7 +67,6 @@ Begin typing for results.,Begin typing for results.
 Billing,Billing
 Billing is not configured on this site (pearnly_billing_*),Billing is unavailable. Please contact support.
 "Billing is not wired up on this site, please contact the platform",Billing is unavailable. Please contact support.
-Billing is unavailable. Please contact support.,Billing is unavailable. Please contact support.
 Bind Code,Bind Code
 Bind LINE,Bind LINE
 Bind code,Bind code
@@ -98,7 +95,6 @@ CC is only available on product sites.,CC is only available on product sites.
 CC restarted,CC restarted
 Cache Read Tokens,Cache Read Tokens
 Cache Write Tokens,Cache Write Tokens
-"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.","Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again."
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.","Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again."
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.","Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.","Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return."
@@ -139,7 +135,6 @@ Collapse,Collapse
 Company,Company
 Company List,Company List
 Company Master,Company Master
-Company Profile,Company Profile
 Company Tax ID,Company Tax ID
 Company Title,Company Title
 Company does not match the task,Company does not match the task
@@ -192,7 +187,6 @@ Could not send the invitation email: {0} {1},Could not send the invitation email
 Could not set the password: {0} {1},Could not set the password: {0} {1}
 Could not update the OIDC client: {0} {1},Could not update the OIDC client: {0} {1}
 Could not update the account language.,Could not update the account language.
-Could not update your account. Please reload and try again.,Could not update your account. Please reload and try again.
 Count tasks and variance records,Count tasks and variance records
 Counterparty,Counterparty
 Counterparty Tax ID,Counterparty Tax ID
@@ -246,12 +240,10 @@ Delete {0} selected operators? Their LINE bindings and DMS connections are remov
 Delete {0} selected push records from this list? Sent business documents will not be affected.,Delete {0} selected push records from this list? Sent business documents will not be affected.
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.
 Delete {0} selected records?,Delete {0} selected records?
-Delete {0} selected records? Pushed ones cannot be deleted.,Delete {0} selected records? Pushed ones cannot be deleted.
 Deleted,Deleted
 Deleted {0},Deleted {0}
 Deleted {0} operators,Deleted {0} operators
 Deleted {0} push records,Deleted {0} push records
-Deleted {0}. {1} already pushed were kept,Deleted {0}. {1} already pushed were kept
 Deleted {0}. {1} being pushed were not deleted,Deleted {0}. {1} being pushed were not deleted
 Deleting the OIDC client failed: {0} {1},Deleting the OIDC client failed: {0} {1}
 Deleting the account failed: {0} {1},Deleting the account failed: {0} {1}
@@ -400,9 +392,7 @@ LINE Login,LINE Login
 LINE Login Link,LINE Login Link
 LINE Login Link Updated,LINE Login Link Updated
 LINE User ID,LINE User ID
-"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.","LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code."
 LINE could not be reached; please try again,LINE could not be reached; please try again
-LINE does not have permission to use the camera yet.,LINE does not have permission to use the camera yet.
 LINE status,LINE status
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.
@@ -490,7 +480,6 @@ No sign-in credentials configured,No sign-in credentials configured
 No such local account: {0},No such local account: {0}
 No.,No.
 None deleted: the {0} selected records are being pushed.,None deleted: the {0} selected records are being pushed.
-"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice","None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice"
 Not Permitted,Not Permitted
 Not allowed,Not allowed
 Not authorized,Not authorized
@@ -518,8 +507,6 @@ Only the configuration was checked; the connection was not tested,Only the confi
 Only the owner can manage it,Only the owner can manage it
 Open View,Open View
 Open in browser,Open in browser
-"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.","Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself."
-"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.","Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
 Operator,Operator
 Operator Ledgers,Operator Ledgers
 Operator Roster,Operator Roster
@@ -694,7 +681,6 @@ Session ID,Session ID
 Session Payload,Session Payload
 Set the conversation's account set,Set the conversation's account set
 Setting the conversation's account set,Setting the conversation's account set
-Sign in again before changing your username.,Sign in again before changing your username.
 Sign out,Sign out
 Sign out and sign in again,Sign out and sign in again
 Sign-in Credentials,Sign-in Credentials
@@ -773,7 +759,6 @@ The balance grows once the platform confirms the transfer.,The balance grows onc
 The barcode reader could not load. Refresh the page and try again.,The barcode reader could not load. Refresh the page and try again.
 The billing service returned HTTP {0},The billing service returned HTTP {0}
 The bind code has expired — please regenerate,The bind code has expired — please regenerate
-"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.","The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again."
 "The camera could not start. Try again, or enter the code.","The camera could not start. Try again, or enter the code."
 The camera is being used by another app. Close that app and try again.,The camera is being used by another app. Close that app and try again.
 The control plane is not affected,The control plane is not affected
@@ -784,13 +769,9 @@ The export could not be created.,The export could not be created.
 The file is ready,The file is ready
 The identity service refused the password change: {0} {1},The identity service refused the password change: {0} {1}
 The identity service returned an error: {0},The identity service returned an error: {0}
-The legacy system's product identifier; it becomes a link once product master data lands,The legacy system's product identifier; it becomes a link once product master data lands
-The name is resolved server-side when pinning; the client's value is not trusted,The name is resolved server-side when pinning; the client's value is not trusted
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).","The name the owner uses to tell people apart on this table, e.g. Ming (sales)."
 The new password cannot be the same as the current one,The new password cannot be the same as the current one
 The new password is required,The new password is required
-"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available","The new platform has no DMS advisor roster source yet, so for now only automatic matching is available"
-The old key stops working right away.,The old key stops working right away.
 The plan quota is used first; anything over is charged per plan rate from the balance,The plan quota is used first; anything over is charged per plan rate from the balance
 The provisioning target {0} has no account pool for {1},The provisioning target {0} has no account pool for {1}
 The push channel must be companion or cloud,The push channel must be companion or cloud
@@ -839,7 +820,6 @@ This site has no product manifest installed; it cannot run as a business site.,T
 This site has no product workspace yet,This site has no product workspace yet
 This system address is not allowed; only public addresses can be used.,This system address is not allowed; only public addresses can be used.
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?","This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?"
-This username is already in use.,This username is already in use.
 This year,This year
 Time,Time
 Title Source,Title Source
@@ -898,7 +878,6 @@ Used {0} pages this month · pay-as-you-go,Used {0} pages this month · pay-as-y
 User,User
 User Agent,User Agent
 User Turn,User Turn
-"Username must contain 3–30 letters, digits, dots, underscores or hyphens.","Username must contain 3–30 letters, digits, dots, underscores or hyphens."
 VAT,VAT
 VAT %,VAT %
 VAT Amount,VAT Amount
@@ -941,7 +920,6 @@ Wrong ERP username or password. Check it under Connect and try again.,Wrong ERP 
 Yes,Yes
 You're offline,You're offline
 Your access domain,Your access domain
-Your account was updated elsewhere. Sign in again to load the current username.,Your account was updated elsewhere. Sign in again to load the current username.
 account.cancel,Cancel
 account.changePassword,Change password
 account.error.http,Request failed (HTTP {0})
@@ -975,22 +953,10 @@ cc_desktop.job_busy,This Express write is in progress.
 cc_desktop.job_invalid,The Express write is invalid.
 cc_desktop.request_invalid,The CC Desktop request is invalid.
 cc_desktop.unauthorized,CC Desktop authentication failed.
-common.backHome,Back to home
 common.cancel,Cancel
-common.col.date,Date
-common.col.grandTotal,Total incl. VAT
-common.col.name,No.
-common.col.status,Status
-common.collapse,Collapse
-common.error.http,Request failed (HTTP {0})
-common.field.docDate,Document date
-common.field.docNo,Document no.
 common.loading,Loading…
-common.no,No
-common.placeholder.optional,Optional
 common.processing,Processing…
 common.refresh,Refresh
-common.save,Save
 common.saving,Saving…
 common.scan.allow_android,"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself."
 common.scan.allow_ios,"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself."
@@ -1009,7 +975,6 @@ common.scan.missing,No camera was found on this device. Enter the code instead.
 common.scan.open_browser,Open in browser
 common.scan.retry,Try again
 common.scan.unsupported,"This browser cannot use the camera. Open this page in Chrome or Safari, or enter the code."
-common.yes,Yes
 "companion = pulled outbound by CC Desktop on the local machine, then stored here","companion = pulled outbound by CC Desktop on the local machine, then stored here"
 connect.action.connect,Connect DMS
 connect.action.connectSave,Connect and save

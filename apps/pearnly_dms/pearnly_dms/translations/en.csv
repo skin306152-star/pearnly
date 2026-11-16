@@ -1,22 +1,17 @@
 1 Sales records,1 Sales records
 "A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.","A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary."
-Account & password,Account & password
-Account busy — click Read later to continue,Account busy — click Read later to continue
-Account busy — click Update data later to continue,Account busy — click Update data later to continue
 Account busy; resuming shortly,Account busy; resuming shortly
 Action,Action
 Add,Add
 Add a channel,Add a channel
 Add and edit customers,Add and edit customers
 Add read account,Add read account
-Add system account,Add system account
 Add transfer,Add transfer
 Add write accounts,Add write accounts
 Added {0},Added {0}
 Address,Address
 Address data as of {time}; refreshed manually,Address data as of {time}; refreshed manually
 Address directory,Address directory
-Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
 Advisor,Advisor
 Advisor: {name},Advisor: {name}
 Allocated,Allocated
@@ -54,7 +49,6 @@ Booking no.: {booking_no},Booking no.: {booking_no}
 Booking number: {booking_no},Booking number: {booking_no}
 Booking summary — check before confirming,Booking summary — check before confirming
 Booking updated in DMS,Booking updated in DMS
-"Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Click Read / refresh to update. Data as of"
 "Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of","Branches and teams visible to this account; saved native DMS totals, not draft revenue. Data as of"
 Brand,Brand
 Building,Building
@@ -83,7 +77,6 @@ Choose a status,Choose a status
 Choose a topic to play its video,Choose a topic to play its video
 Choose an item to continue,Choose an item to continue
 Choose one main condition; the search runs right away.,Choose one main condition; the search runs right away.
-"Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue.","Choose the data to read. Reading runs in the background only after you click. Status checks do not contact DMS. If the account is busy, retry later to continue."
 Choose the matching customer,Choose the matching customer
 Colour,Colour
 Company information,Company information
@@ -91,7 +84,6 @@ Complete Snapshot,Complete Snapshot
 Confirm,Confirm
 Confirm booking,Confirm booking
 Confirm saving a new customer,Confirm saving a new customer
-Connection account,Connection account
 "Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread.","Connects to DMS and reads data: the first full read, the every-minute daytime sync and the nightly reread."
 Continue booking,Continue booking
 Contract not opened,Contract not opened
@@ -104,14 +96,12 @@ Could not send the photo. Please try again.,Could not send the photo. Please try
 Count,Count
 Create a booking,Create a booking
 "Create a car booking: choose the model and colour, then save","Create a car booking: choose the model and colour, then save"
-"Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website.","Create a few extra DMS accounts used only by this system, with the same rights as the connection's account. When many people work at once, each request takes a free account instead of queueing on one. Do not sign in to these accounts on the DMS website."
 "Create a new customer from an ID card, or update an existing customer","Create a new customer from an ID card, or update an existing customer"
 Create and track bookings,Create and track bookings
 Create customer data,Create customer data
 Credit/debit card,Credit/debit card
 Custom 1–30,Custom 1–30
 Customer,Customer
-Customer data,Customer data
 Customer data differs,Customer data differs
 Customer data matches,Customer data matches
 Customer data saved. Type menu for other tasks.,Customer data saved. Type menu for other tasks.
@@ -125,12 +115,10 @@ DMS already has a customer with this name.,DMS already has a customer with this 
 DMS check: Matched,DMS check: Matched
 DMS data has not been read yet. The system reads it automatically; please try again after it finishes.,DMS data has not been read yet. The system reads it automatically; please try again after it finishes.
 "DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account.","DMS data is being read; try again later. If it never loads, ask an admin to check the DMS read account."
-DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.,DMS data is being synced. Please retry shortly. A first query for a date range starts a background sync.
 "DMS has no customer branch 00000 (head office). Ask the admin to add it in DMS, then try again.","DMS has no customer branch 00000 (head office). Ask the admin to add it in DMS, then try again."
 "DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again.","DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again."
 "DMS returned incomplete data, so nothing was published. Try again after the nightly read.","DMS returned incomplete data, so nothing was published. Try again after the nightly read."
 DMS sign-in did not finish. Try again later.,DMS sign-in did not finish. Try again later.
-DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.,DMS sync did not return complete data. No partial data was published. Please retry after sync succeeds.
 Data as of {time},Data as of {time}
 Data captured at,Data captured at
 Data updated,Data updated
@@ -164,8 +152,6 @@ First setup,First setup
 First-time setup,First-time setup
 Fit the ID card inside the frame,Fit the ID card inside the frame
 Floor,Floor
-Full address directory,Full address directory
-Full customer records,Full customer records
 Gear,Gear
 Generation,Generation
 Glare on the card. Tilt it slightly,Glare on the card. Tilt it slightly
@@ -197,11 +183,9 @@ Last successful record count,Last successful record count
 Latest 10,Latest 10
 Latest error code,Latest error code
 Latest sales from DMS,Latest sales from DMS
-Manage system accounts,Manage system accounts
 Manual,Manual
 Manual Read Request,Manual Read Request
 "Many people are using DMS, so the request timed out in the queue and nothing was submitted. Try again shortly.","Many people are using DMS, so the request timed out in the queue and nothing was submitted. Try again shortly."
-Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
 Model year,Model year
 Model/colour,Model/colour
@@ -220,16 +204,12 @@ No active DMS account found. Ask the owner to check the operator data.,No active
 No matching model. Please try typing again.,No matching model. Please try typing again.
 No records for this condition · Last read from DMS at,No records for this condition · Last read from DMS at
 No sales in this period,No sales in this period
-None (the connection's own account is used),None (the connection's own account is used)
 Not all files were attached. Please add them in DMS.,Not all files were attached. Please add them in DMS.
 Not allocated yet,Not allocated yet
 Not done yet. Please tap View result again in a moment.,Not done yet. Please tap View result again in a moment.
 Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 Not read yet,Not read yet
 Not set,Not set
-Not set (data is read only at night),Not set (data is read only at night)
-Not set (no daytime sync),Not set (no daytime sync)
-Not set (the connection account is used),Not set (the connection account is used)
 Not set (the read account is used for writes),Not set (the read account is used for writes)
 Not sharp yet. Hold the phone steady,Not sharp yet. Hold the phone steady
 Number of cars,Number of cars
@@ -251,7 +231,6 @@ Please choose the type of data to search,Please choose the type of data to searc
 Please correct it in DMS.,Please correct it in DMS.
 Please send a photo of the customer's ID card,Please send a photo of the customer's ID card
 Please send the customer's ID card photo and phone number,Please send the customer's ID card photo and phone number
-"Please sign out of DMS elsewhere, then tap Retry within 30 minutes","Please sign out of DMS elsewhere, then tap Retry within 30 minutes"
 "Please sign out of DMS on other devices, then tap Retry within 30 minutes.","Please sign out of DMS on other devices, then tap Retry within 30 minutes."
 Please take the ID card photo again,Please take the ID card photo again
 Please tap Edit to review and update the customer's information on the edit page.,Please tap Edit to review and update the customer's information on the edit page.
@@ -267,14 +246,9 @@ Query Requested,Query Requested
 Queued,Queued
 Rank by number of cars or amount?,Rank by number of cars or amount?
 Rank sales by what?,Rank sales by what?
-Read / refresh selected data,Read / refresh selected data
-Read / refresh this query,Read / refresh this query
 Read Completed,Read Completed
 Read account,Read account
-Read completed,Read completed
-Read completed. Click View result.,Read completed. Click View result.
 Read completed. Sending the result now.,Read completed. Sending the result now.
-Read failed — click Read to retry,Read failed — click Read to retry
 Read failed — it will be retried automatically,Read failed — it will be retried automatically
 Read progress,Read progress
 Read status,Read status
@@ -282,10 +256,8 @@ Read time unknown,Read time unknown
 Reader Scope,Reader Scope
 Reading,Reading
 Reading DMS master data…,Reading DMS master data…
-"Reading data, please wait…","Reading data, please wait…"
 Reading the latest data from DMS,Reading the latest data from DMS
 Reading this query now. The result arrives as soon as it is ready.,Reading this query now. The result arrives as soon as it is ready.
-Reading this query.,Reading this query.
 Ready for pickup,Ready for pickup
 Receiving bank — choose the bank the company received the money in,Receiving bank — choose the bank the company received the money in
 Recognition could not finish. Please try again shortly.,Recognition could not finish. Please try again shortly.
@@ -299,7 +271,6 @@ Remove,Remove
 Remove the account and add it again to change its name,Remove the account and add it again to change its name
 Removed {0},Removed {0}
 Requested Query,Requested Query
-Resumed {0},Resumed {0}
 Retry,Retry
 Road,Road
 Room,Room
@@ -329,8 +300,6 @@ Select one or more DMS data groups to read,Select one or more DMS data groups to
 Sending…,Sending…
 Sent. You can go back to the chat.,Sent. You can go back to the chat.
 "Separate fields with | , / or ·","Separate fields with | , / or ·"
-Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
-Similar customers found. Choose the one that matches.,Similar customers found. Choose the one that matches.
 Soi,Soi
 Something went wrong. Please try again.,Something went wrong. Please try again.
 Source Read Started,Source Read Started
@@ -338,32 +307,23 @@ Start over,Start over
 Started over. Take a photo of the ID card to start a customer record.,Started over. Take a photo of the ID card to start a customer record.
 Status not given,Status not given
 "Still working on it. When it is done, tap View result.","Still working on it. When it is done, tap View result."
-Stop / resume,Stop / resume
-Stopped {0},Stopped {0}
 Subdistrict,Subdistrict
 Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
 Subtype,Subtype
-Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
-System accounts,System accounts
 THB,THB
 Take a photo of the customer's ID card to start a new customer record.,Take a photo of the customer's ID card to start a new customer record.
 Take photo,Take photo
 Tap Confirm or Discard on the summary above,Tap Confirm or Discard on the summary above
-Tap Retry within 30 minutes,Tap Retry within 30 minutes
-Test and add,Test and add
 Test and save,Test and save
 That's all,That's all
 "The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible.","The 13-digit ID number was read, but its check digit does not match. Please check the number on the card, then retake the photo so the number is clearly visible."
 The DMS account can only be switched before the session starts,The DMS account can only be switched before the session starts
-The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.,The DMS account is busy or a submission is waiting. No read will retry automatically. Click Read later to continue.
 The DMS account is busy. The read retries automatically; please wait.,The DMS account is busy. The read retries automatically; please wait.
 The DMS account stayed busy; automatic retries did not get through. Please try again later.,The DMS account stayed busy; automatic retries did not get through. Please try again later.
 "The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved.","The DMS connection interrupted this read. It resumes from where it stopped, not from the beginning; completed groups stay saved."
 The DMS connection is not set up yet. Please contact the admin.,The DMS connection is not set up yet. Please contact the admin.
 "The DMS connection or account changed, so the previous data cannot be used. Reopen this page after the new account's data is read.","The DMS connection or account changed, so the previous data cannot be used. Reopen this page after the new account's data is read."
-The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.,The DMS connection or account changed. Data from the previous connection cannot be used. Please wait for the new sync and reopen this page.
-The account is busy. Click Read later to continue.,The account is busy. Click Read later to continue.
 The booking cannot be opened yet · The DMS account in use is «{username}»,The booking cannot be opened yet · The DMS account in use is «{username}»
 The booking cannot be opened yet · The DMS account of this user cannot be read,The booking cannot be opened yet · The DMS account of this user cannot be read
 The booking could not be created,The booking could not be created
@@ -374,7 +334,6 @@ The card could not be read clearly. Please take the photo again.,The card could 
 The check could not start. Please try again.,The check could not start. Please try again.
 The check failed. Please try again.,The check failed. Please try again.
 The check stopped before it finished. Please try again.,The check stopped before it finished. Please try again.
-"The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again.","The customer address is incomplete. Open Edit and select the province, district, subdistrict and postal code, then save again."
 The customer record changed after you edited it. Review the current differences before confirming again.,The customer record changed after you edited it. Review the current differences before confirming again.
 "The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again.","The customer's address information is incomplete. Please tap Edit, complete the province, district, subdistrict and postal code, and save again."
 The customer's title is not selected.,The customer's title is not selected.
@@ -384,17 +343,13 @@ The photo is too large. Please try again.,The photo is too large. Please try aga
 The read status changed. Refresh the page to check before trying again.,The read status changed. Refresh the page to check before trying again.
 The recognition queue is busy. Please send the image again shortly.,The recognition queue is busy. Please send the image again shortly.
 The recognition result needs checking. Please do not resend this image yet.,The recognition result needs checking. Please do not resend this image yet.
-"The saved DMS data is too old to use safely. Please wait for sync to finish, then retry.","The saved DMS data is too old to use safely. Please wait for sync to finish, then retry."
 The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.,The saved DMS data is too old to use safely. The system re-reads DMS data automatically every night; please try again after that read.
 The saved credentials cannot be read back; check the site encryption key,The saved credentials cannot be read back; check the site encryption key
 "The submission was sent, but its result is unconfirmed. Do not submit again; check the result first.","The submission was sent, but its result is unconfirmed. Do not submit again; check the result first."
 There are more colours. Type a colour name to search.,There are more colours. Type a colour name to search.
 There is a transfer payment. Please send the transfer slip before viewing the summary.,There is a transfer payment. Please send the transfer slip before viewing the summary.
 There is more. Tap View result to see the rest.,There is more. Tap View result to see the rest.
-These conditions have not been read. Click Read this query.,These conditions have not been read. Click Read this query.
 This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.,This account cannot search data in LINE yet. Ask the owner to enable it on the Operators page.
-This account is already in use by the connection or another system account,This account is already in use by the connection or another system account
-This account is already the connection's own account,This account is already the connection's own account
 This account is already used by an operator or another system account,This account is already used by an operator or another system account
 This booking can no longer be changed here. Please correct it in DMS.,This booking can no longer be changed here. Please correct it in DMS.
 This card has expired. Use the latest card in LINE.,This card has expired. Use the latest card in LINE.
@@ -406,23 +361,18 @@ This month Top 10,This month Top 10
 This month Top 20,This month Top 20
 This month Top 30,This month Top 30
 This month Top 5,This month Top 5
-This query is queued.,This query is queued.
 This read account sees only {seen} customers ({reference} sees {total}). Use an account that can see every customer.,This read account sees only {seen} customers ({reference} sees {total}). Use an account that can see every customer.
-This read failed. Click Read to retry.,This read failed. Click Read to retry.
 This read failed. Please try again later.,This read failed. Please try again later.
 "This read was interrupted; previously completed data was kept. The system will read again, so please try later.","This read was interrupted; previously completed data was kept. The system will read again, so please try later."
 This request has already been handled,This request has already been handled
 This step does not need a picture. Please follow the question above.,This step does not need a picture. Please follow the question above.
 This step has expired. Go back to the chat and start again.,This step has expired. Go back to the chat and start again.
 "This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer.","This step needs a picture of the slip. Send it as an image, or type cash if there was no transfer."
-This system account is already registered,This system account is already registered
 This system account no longer exists; reload the page,This system account no longer exists; reload the page
-"This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again.","This tenant has more records than the current read limit allows, so this group was not read. The connection itself is fine; an administrator has to raise the limit and read again."
 This tutorial video is not available yet. Please check back later.,This tutorial video is not available yet. Please check back later.
 This year Top 10,This year Top 10
 Title,Title
 Too dark or too bright. Move to better light,Too dark or too bright. Move to better light
-"Too many new date ranges are waiting to sync. Please wait, then retry the same query.","Too many new date ranges are waiting to sync. Please wait, then retry the same query."
 Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.,Too many query conditions are registered. Please retry the same conditions later instead of adding new ones.
 Top sales,Top sales
 Top sales from DMS,Top sales from DMS
@@ -446,22 +396,17 @@ Type the sales document number,Type the sales document number
 Type what you want to search for,Type what you want to search for
 Unable to confirm the read result. Refresh the page to check.,Unable to confirm the read result. Refresh the page to check.
 Update data,Update data
-Update failed — click Update data to retry,Update failed — click Update data to retry
 Update failed. Please ask the admin to check the admin password in Pearnly.,Update failed. Please ask the admin to check the admin password in Pearnly.
 Update the DMS username and password saved in Pearnly,Update the DMS username and password saved in Pearnly
 Update your DMS sign-in,Update your DMS sign-in
-Updating data…,Updating data…
 Use name on card,Use name on card
 Use the back office,Use the back office
-"Used only for the every-minute sync, 6:00–22:00.","Used only for the every-minute sync, 6:00–22:00."
-Used only to read data: the first full read and the every-minute daytime sync.,Used only to read data: the first full read and the every-minute daytime sync.
 Used to create and edit customers. Leave a saved account's password empty to keep it.,Used to create and edit customers. Leave a saved account's password empty to keep it.
 User manual,User manual
 Vehicle master data,Vehicle master data
 Verified Write Results,Verified Write Results
 Video guides,Video guides
 View result,View result
-View result / status,View result / status
 View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
 Village,Village
 Watch step-by-step video guides,Watch step-by-step video guides
@@ -844,25 +789,6 @@ dms.connect.cache.state.succeeded,Data updated
 dms.connect.cache.state.waiting,Account busy; resuming shortly
 dms.connect.cache.title,Saved DMS data
 dms.connect.cache.unconfirmed,Unable to confirm the read result. Refresh the page to check.
-dms.connect.pool.action,Action
-dms.connect.pool.add,Add system account
-dms.connect.pool.added,Added {0}
-dms.connect.pool.apply,Apply
-dms.connect.pool.disabled,Stopped {0}
-dms.connect.pool.enabled,Resumed {0}
-dms.connect.pool.errDuplicate,This system account is already registered
-dms.connect.pool.errOwn,This account is already the connection's own account
-dms.connect.pool.field,System accounts
-dms.connect.pool.help,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
-dms.connect.pool.manage,Manage system accounts
-dms.connect.pool.none,None (the connection's own account is used)
-dms.connect.pool.off,stopped
-dms.connect.pool.on,in use
-dms.connect.pool.remove,Remove
-dms.connect.pool.removed,Removed {0}
-dms.connect.pool.summary,"{0} registered, {1} in use"
-dms.connect.pool.testAndAdd,Test and add
-dms.connect.pool.toggle,Stop / resume
 dms.connect.read.scope,This read account sees only {seen} customers ({reference} sees {total}). Use an account that can see every customer.
 dms.doctype.system_account,DMS System Account
 dms.doctype.system_account.description,Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.
@@ -1039,7 +965,6 @@ usage log,usage log
 {0} lacks access to: {1},{0} lacks access to: {1}
 {0} processed; total not yet known,{0} processed; total not yet known
 {0} records,{0} records
-"{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {n} latest sales records from DMS,{n} latest sales records from DMS
 {text} ({fields}),{text} ({fields})

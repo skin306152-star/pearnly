@@ -1,4 +1,4 @@
-"""翻译包生成器（`scripts/i18n-build.py`）：no-alias 登记的键不补英文别名行；仓库里的翻译包与术语表一致。
+"""翻译包生成器（`scripts/i18n-build.py`）：翻译包 = 术语表；术语表外的行 `--check` 报错；no-alias 登记的键不补英文别名行。
 
 11-16：改了术语表的写法后旧行留在翻译包里（生成器原先合并保留手工行），靠人工清；手工行积到约 770 行。
 """
@@ -42,6 +42,20 @@ class BuildTests(unittest.TestCase):
     def no_alias(self, *keys):
         with open(os.path.join(self.tmp.name, "apps", APP, APP, "i18n", "no-alias.txt"), "w", encoding="utf-8") as handle:
             handle.write("# 注释\n" + "".join(key + "\n" for key in keys))
+
+    def test_the_pack_is_exactly_the_glossary_and_old_rows_go(self):
+        self.pack("zh", [["Save draft", "存草稿"], ["Old wording", "旧写法"]])
+        tables = build.tables({APP: [item("Save draft", "保存草稿")]})
+        self.assertEqual(tables[(APP, "zh")], {"Save draft": "保存草稿"})   # 旧行不留，译文以术语表为准
+
+    def test_check_reports_rows_the_glossary_does_not_have(self):
+        self.pack("zh", [["Save draft", "保存草稿"], ["Old wording", "旧写法"]])
+        for lang in ("en", "th", "ja"):
+            self.pack(lang, [["Save draft", {"en": "Save draft", "th": "保存草稿-th", "ja": "保存草稿-ja"}[lang]]])
+        problems = build.stale(build.tables({APP: [item("Save draft", "保存草稿")]}))
+        self.assertEqual(len(problems), 1)
+        self.assertIn("zh.csv 有 1 条术语表里没有的行", problems[0])
+        self.assertIn("Old wording", problems[0])
 
     def test_keyed_rows_get_an_english_alias_unless_registered(self):
         rows = [item("Bank", "银行", key="demo.bank"), item("Count", "盘点", key="demo.count")]

@@ -31,11 +31,7 @@ Billing Month,เดือนที่คิดค่าบริการ
 Billing Units,หน่วยคิดค่าบริการ
 Billing service unavailable; please retry,บริการเรียกเก็บเงินไม่พร้อมใช้งาน กรุณาลองใหม่
 Build the workspace,สร้างพื้นที่ทำงาน
-"By continuing, you agree to Pearnly's {0} and {1}.",การดำเนินการต่อถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly
 "By logging in, you agree to Pearnly's {0} and {1}.",การเข้าสู่ระบบถือว่าคุณยอมรับ{0}และ{1}ของ Pearnly
-CC API Key,คีย์ API ของ CC
-CC Engine,เอนจิน CC
-CC Model,โมเดล CC
 "Cannot read the provisioning target, so the identity service URL is unknown",ไม่สามารถอ่านเป้าหมายการเปิดใช้ได้ จึงไม่ทราบที่อยู่บริการตัวตน
 Channel Access Token,Channel Access Token
 Channel ID,Channel ID
@@ -55,7 +51,6 @@ Connect cloud billing,เชื่อมต่อการเรียกเก�
 Contact Name,ชื่อผู้ติดต่อ
 Contact Phone,เบอร์ติดต่อ
 Contact us,ติดต่อเรา
-Contact us to open an account or book a demo,ติดต่อเราเพื่อเปิดบัญชีหรือนัดชมเดโม
 Continue,ดำเนินการต่อ
 Control API URL,ที่อยู่ Control API
 Control-plane records,บันทึกในระบบควบคุม
@@ -79,7 +74,6 @@ Create the site,สร้างเว็บไซต์
 Create the tenant account,สร้างบัญชีพื้นที่ทำงาน
 Created and kept correct by provisioning on the shared LINE Login channel.,สร้างและดูแลโดยอัตโนมัติผ่านขั้นตอนการเปิดบัญชีบนช่องทาง LINE Login ที่ใช้ร่วมกัน
 Created on the tenant site and granted at provisioning. Leave empty for no permission control.,สร้างและมอบบทบาทนี้บนเว็บไซต์ของพื้นที่ทำงานเมื่อเปิดใช้งาน เว้นว่างหมายถึงไม่ควบคุมสิทธิ์
-Creating a channel requires both secret and access token,การสร้างช่องทางต้องระบุทั้ง secret และ access token
 Creating a channel requires the channel secret and the Channel ID,การสร้างช่องทางต้องระบุทั้ง Channel secret และ Channel ID
 Credential Delivery,วิธีส่งมอบข้อมูลรับรอง
 Credentials,ข้อมูลรับรอง
@@ -87,7 +81,6 @@ Credited ฿{0}; {1} now has ฿{2},บันทึก ฿{0} เข้าบั
 Crediting…,กำลังบันทึกเข้าบัญชี…
 Cycle End,สิ้นสุดรอบนี้
 Cycle Start,เริ่มรอบนี้
-DMS is the one already proven; ERP and Cowork use the same API surface.,ตัวที่พิสูจน์แล้วคือ DMS ส่วน ERP และ Cowork ใช้ API ชุดเดียวกัน
 Date the page count was last reconciled with the ledger (Bangkok time),วันที่กระทบยอดจำนวนหน้ากับบัญชีรายการครั้งล่าสุด (เวลากรุงเทพฯ)
 "Dear customer,",เรียน ผู้ใช้งาน
 Default On,เปิดใช้โดยค่าเริ่มต้น
@@ -110,7 +103,6 @@ Enable HTTPS access,เปิดการเข้าถึงผ่าน HTTPS
 Enabled Features,ฟีเจอร์ที่เปิดใช้
 Enabled — {0} steps,เปิดใช้งานแล้ว ({0} ขั้นตอน)
 Enforcement,การควบคุมสิทธิ์
-Enter the CC API key.,โปรดกรอกคีย์ API ของ CC
 Enter your password.,กรุณากรอกรหัสผ่าน
 Enter your username or email.,กรุณากรอกชื่อผู้ใช้หรืออีเมล
 External Reference,เลขที่อ้างอิงภายนอก
@@ -121,7 +113,6 @@ Feature Code,รหัสฟีเจอร์
 Feature Name,ชื่อฟีเจอร์
 Features,ฟีเจอร์
 Fill in only if a LIFF app exists; otherwise leave empty.,กรอกเฉพาะเมื่อมีแอป LIFF แล้ว
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,กรอกส่วนนี้เพื่อส่งมอบช่องทาง LINE ของผู้เช่ารายนี้ตั้งแต่ตอนเปิดใช้งาน ถ้าเว้นว่างไว้ค่อยกำหนดภายหลัง
 Finalize the site,ตั้งค่าเว็บไซต์ให้เสร็จสมบูรณ์
 Finished At,สิ้นสุดเมื่อ
 For example acme,เช่น acme
@@ -133,7 +124,6 @@ For example: somchai,เช่น somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",เพื่อความปลอดภัยของบัญชี หลังเข้าสู่ระบบ โปรดไปที่การตั้งค่าบัญชีเพื่อเปลี่ยนรหัสผ่านเริ่มต้น อย่าเปิดเผยรหัสผ่านหรือส่งต่ออีเมลฉบับนี้ให้ผู้อื่น
 Forgot password ?,ลืมรหัสผ่าน ?
 From the issue.,มาจากใบเปิดใช้งาน
-Get your work done in conversation,ทำงานให้เสร็จได้ในบทสนทนา
 Google or Claude. A change applies from the next document.,Google หรือ Claude เปลี่ยนแล้วมีผลตั้งแต่เอกสารถัดไป
 Grant feature roles,มอบสิทธิ์ตามฟีเจอร์
 Granted DocTypes,DocType ที่อนุญาต
@@ -249,7 +239,6 @@ Provisioning Progress,ความคืบหน้าการเปิดใ�
 Provisioning Target,เป้าหมายการเปิดใช้
 Provisioning failed,เปิดใช้งานไม่สำเร็จ
 Provisioning must be complete before sending the welcome email.,ต้องเปิดใช้งานให้เสร็จก่อนส่งอีเมลต้อนรับ
-Provisioning progress,ความคืบหน้าการเปิดใช้งาน
 Provisioning {0}/{1},กำลังเปิดใช้งาน {0}/{1}
 Queued for provisioning; building the site now,เข้าคิวการเปิดใช้งานแล้ว กำลังสร้างเว็บไซต์
 Queueing provisioning…,กำลังเข้าคิวการเปิดใช้งาน…
@@ -282,11 +271,9 @@ Reviewed By,ตรวจสอบโดย
 Role,บทบาท
 Row {0} on the issue has no domain; cannot build the site,แถวที่ {0} ในใบเปิดใช้งานไม่มีโดเมน ไม่สามารถสร้างเว็บไซต์ได้
 Row {0}: a LINE channel needs both the Channel ID and the Channel secret,แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง Channel ID และ Channel secret
-Row {0}: a LINE channel needs both the channel secret and the access token,แถวที่ {0}: ช่องทาง LINE ต้องมีทั้ง channel secret และ access token
 Run provisioning,เริ่มเปิดใช้งาน
 Running,กำลังดำเนินการ
 Same as the deployment domain.,ใช้ค่าเดียวกับโดเมนของการติดตั้ง
-Select the CC engine.,โปรดเลือกเอนจิน CC
 Service URL is required,ต้องระบุที่อยู่บริการ
 Set up CC,ตั้งค่า CC
 Set up OCR,ตั้งค่า OCR

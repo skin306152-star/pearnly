@@ -41,7 +41,6 @@ All directions,全ての区分
 All statuses,全てのステータス
 All three fields are required,3項目とも入力が必要です
 Allow DMS queries from LINE,LINEでの照会機能を許可
-Allow LINE to use the camera,LINE にカメラを許可
 Allowed,許可
 Amount,金額
 Amount and VAT differ,金額と税が不一致
@@ -56,7 +55,6 @@ Attempt,試行回数
 Attempts,試行回数
 Authoritative push status.,送信ステータスの正本です。
 Authorize in CC Desktop,CC デスクトップで承認
-Authorized: {0},承認済み：{0}
 Auto Push,自動送信
 Automatic (by DMS account),自動照合（DMSアカウント基準）
 Automatic push is not supported for this connection; confirm manually.,この接続は自動送信に対応していません。手動で確認してください。
@@ -69,7 +67,6 @@ Begin typing for results.,入力すると結果が表示されます
 Billing,課金
 Billing is not configured on this site (pearnly_billing_*),課金サービスを利用できません。サポートにお問い合わせください。
 "Billing is not wired up on this site, please contact the platform",課金サービスを利用できません。サポートにお問い合わせください。
-Billing is unavailable. Please contact support.,課金サービスを利用できません。サポートにお問い合わせください。
 Bind Code,連携コード
 Bind LINE,LINEを連携
 Bind code,連携コード
@@ -98,7 +95,6 @@ CC is only available on product sites.,CC は製品サイトでのみ利用で�
 CC restarted,CC デスクトップが再起動しました
 Cache Read Tokens,キャッシュ読み取りトークン
 Cache Write Tokens,キャッシュ書き込みトークン
-"Camera access is blocked. Allow the camera for this site in the browser settings and in the phone settings, then try again.",カメラへのアクセスがブロックされています。ブラウザのサイト設定とスマートフォンの設定でカメラを許可してから、もう一度お試しください。
 "Camera access is turned off. Click the icon at the left of the address bar, allow the camera, then try again.",カメラへのアクセスがオフになっています。アドレスバー左のアイコンからカメラを「許可」にして、もう一度お試しください。
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」、開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
@@ -139,7 +135,6 @@ Collapse,閉じる
 Company,会社情報
 Company List,会社一覧
 Company Master,会社マスタ
-Company Profile,会社情報
 Company Tax ID,自社の税番号
 Company Title,会社名
 Company does not match the task,会社がタスクと一致しません
@@ -192,7 +187,6 @@ Could not send the invitation email: {0} {1},招待メールの送信に失敗: 
 Could not set the password: {0} {1},パスワードの設定に失敗: {0} {1}
 Could not update the OIDC client: {0} {1},OIDCクライアントの更新に失敗: {0} {1}
 Could not update the account language.,アカウントの言語を更新できませんでした。
-Could not update your account. Please reload and try again.,アカウントを更新できませんでした。再読み込みしてお試しください。
 Count tasks and variance records,棚卸タスクと差異記録
 Counterparty,取引先名
 Counterparty Tax ID,取引先の税番号
@@ -246,12 +240,10 @@ Delete {0} selected operators? Their LINE bindings and DMS connections are remov
 Delete {0} selected push records from this list? Sent business documents will not be affected.,選択した{0}件の送信記録をこの一覧から削除しますか？送信済みの業務伝票には影響しません。
 Delete {0} selected record(s)? This does not change your balance or cancel top-up requests.,選択した{0}件を削除しますか？残高の変更やチャージ申請の取り消しは行われません。
 Delete {0} selected records?,選択した {0} 件を削除しますか？
-Delete {0} selected records? Pushed ones cannot be deleted.,選択した {0} 件を削除しますか？送信済みは削除できません。
 Deleted,削除しました
 Deleted {0},{0} 件を削除しました
 Deleted {0} operators,{0}名の操作員を削除しました
 Deleted {0} push records,{0}件の送信記録を削除しました
-Deleted {0}. {1} already pushed were kept,{0} 件を削除しました。送信済みの {1} 件は残しました
 Deleted {0}. {1} being pushed were not deleted,{0} 件を削除しました。送信中の {1} 件は削除していません
 Deleting the OIDC client failed: {0} {1},OIDCクライアントの削除に失敗: {0} {1}
 Deleting the account failed: {0} {1},アカウントの削除に失敗: {0} {1}
@@ -400,9 +392,7 @@ LINE Login,LINEログイン
 LINE Login Link,LINEログイン連携
 LINE Login Link Updated,LINEログイン連携の更新日時
 LINE User ID,LINEユーザーID
-"LINE cannot use the camera. Allow the camera for LINE in the phone settings, then try again, or enter the code.",LINE でカメラを使えません。スマートフォンの設定で LINE のカメラを許可してから再試行するか、コードを入力してください。
 LINE could not be reached; please try again,LINE に接続できませんでした。しばらくしてからお試しください
-LINE does not have permission to use the camera yet.,LINE にカメラの使用が許可されていません。
 LINE status,LINEステータス
 LINE's camera access is turned off. Go to the iPhone Settings → LINE and turn on Camera. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。iPhone の「設定 → LINE」で「カメラ」をオンにしてください。LINE に戻ると自動で再試行します。
 LINE's camera access is turned off. Go to the phone Settings → Apps → LINE → Permissions → Camera and choose Allow. Come back to LINE and it tries again by itself.,LINE のカメラへのアクセスがオフになっています。「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選んでください。LINE に戻ると自動で再試行します。
@@ -490,7 +480,6 @@ No sign-in credentials configured,ログイン資格情報が未設定です
 No such local account: {0},ローカルアカウントがありません: {0}
 No.,番号
 None deleted: the {0} selected records are being pushed.,削除していません: 選んだ {0} 件は送信中です。
-"None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します
 Not Permitted,権限がありません
 Not allowed,不許可
 Not authorized,未承認
@@ -518,8 +507,6 @@ Only the configuration was checked; the connection was not tested,設定のみ�
 Only the owner can manage it,責任者のみ管理可能
 Open View,開く画面
 Open in browser,ブラウザで開く
-"Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.",iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
-"Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.",スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
 Operator,ユーザー
 Operator Ledgers,代行入力先の帳簿
 Operator Roster,オペレーター名簿
@@ -694,7 +681,6 @@ Session ID,セッションID
 Session Payload,セッションのペイロード
 Set the conversation's account set,会話の会計データを設定しました
 Setting the conversation's account set,会話の会計データを設定しています
-Sign in again before changing your username.,ユーザー名を変更する前に再ログインしてください。
 Sign out,ログアウト
 Sign out and sign in again,ログアウトして再ログイン
 Sign-in Credentials,ログイン資格情報
@@ -773,7 +759,6 @@ The balance grows once the platform confirms the transfer.,プラットフォー
 The barcode reader could not load. Refresh the page and try again.,バーコードリーダーを読み込めませんでした。ページを再読み込みしてから、もう一度お試しください。
 The billing service returned HTTP {0},課金基盤が HTTP {0} を返しました
 The bind code has expired — please regenerate,連携コードの期限が切れました。再生成してください
-"The camera cannot open inside LINE. Tap Open in browser, or allow the camera for LINE in the phone settings and try again.",LINE 内ではカメラを開けません。「ブラウザで開く」をタップするか、スマートフォンの設定で LINE のカメラを許可してから再試行してください。
 "The camera could not start. Try again, or enter the code.",カメラを起動できません。もう一度お試しいただくか、コードを入力してください。
 The camera is being used by another app. Close that app and try again.,カメラが他のアプリで使用中です。そのアプリを閉じてから、もう一度お試しください。
 The control plane is not affected,コントロールプレーンは影響を受けません
@@ -784,13 +769,9 @@ The export could not be created.,エクスポートファイルを作成でき�
 The file is ready,ファイルの準備ができました
 The identity service refused the password change: {0} {1},アイデンティティサービスがパスワード変更を拒否しました: {0} {1}
 The identity service returned an error: {0},アイデンティティサービスがエラーを返しました: {0}
-The legacy system's product identifier; it becomes a link once product master data lands,旧システムの商品識別子。商品マスタが入ったらリンクに置き換えます
-The name is resolved server-side when pinning; the client's value is not trusted,名前は固定時にサーバー側で解決します。クライアントの値は信用しません
 "The name the owner uses to tell people apart on this table, e.g. Ming (sales).",オーナーがこの表で人を見分けるための名前（例: ミン（営業））。
 The new password cannot be the same as the current one,新しいパスワードは現在のものと同じにできません
 The new password is required,新しいパスワードは必須です
-"The new platform has no DMS advisor roster source yet, so for now only automatic matching is available",新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです
-The old key stops working right away.,古いキーはすぐに使えなくなります。
 The plan quota is used first; anything over is charged per plan rate from the balance,登録後はプラン枠を先に消費し、超過分はプラン単価で残高から引きます
 The provisioning target {0} has no account pool for {1},開通ターゲット {0} に {1} のアカウントプールがありません
 The push channel must be companion or cloud,送信チャネルは companion または cloud のみです
@@ -839,7 +820,6 @@ This site has no product manifest installed; it cannot run as a business site.,�
 This site has no product workspace yet,このサイトにはまだ製品ワークスペースがありません
 This system address is not allowed; only public addresses can be used.,このシステムアドレスは使用できません。公開アドレスのみ使用できます。
 "This unlinks ""{0}"" from LINE and removes the DMS connection; push records are kept. Delete?",「{0}」のLINE連携を解除しDMS接続も削除します。送信ログは残ります。削除しますか。
-This username is already in use.,このユーザー名は使用されています。
 This year,今年
 Time,日時
 Title Source,タイトルの由来
@@ -898,7 +878,6 @@ Used {0} pages this month · pay-as-you-go,今月 {0} 枚使用 · 未登録の�
 User,ユーザー
 User Agent,ユーザーエージェント
 User Turn,ユーザーメッセージ番号
-"Username must contain 3–30 letters, digits, dots, underscores or hyphens.",ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。
 VAT,付加価値税（VAT）
 VAT %,税率%
 VAT Amount,税額
@@ -941,7 +920,6 @@ Wrong ERP username or password. Check it under Connect and try again.,ERP のユ
 Yes,はい
 You're offline,オフラインです
 Your access domain,アクセスドメイン
-Your account was updated elsewhere. Sign in again to load the current username.,別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。
 account.cancel,キャンセル
 account.changePassword,パスワード変更
 account.error.http,リクエスト失敗（HTTP {0}）
@@ -975,22 +953,10 @@ cc_desktop.job_busy,この Express への書き込みは処理中です。
 cc_desktop.job_invalid,Express への書き込み内容が無効です。
 cc_desktop.request_invalid,CC デスクトップのリクエストが無効です。
 cc_desktop.unauthorized,CC デスクトップの認証に失敗しました。
-common.backHome,ホームに戻る
 common.cancel,キャンセル
-common.col.date,日付
-common.col.grandTotal,税込合計
-common.col.name,番号
-common.col.status,ステータス
-common.collapse,閉じる
-common.error.http,リクエスト失敗（HTTP {0}）
-common.field.docDate,伝票日付
-common.field.docNo,伝票番号
 common.loading,読み込み中…
-common.no,いいえ
-common.placeholder.optional,空欄可
 common.processing,処理中…
 common.refresh,更新
-common.save,保存
 common.saving,保存中…
 common.scan.allow_android,スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。
 common.scan.allow_ios,iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。
@@ -1009,7 +975,6 @@ common.scan.missing,このデバイスにカメラが見つかりません。コ
 common.scan.open_browser,ブラウザで開く
 common.scan.retry,再試行
 common.scan.unsupported,このブラウザではカメラを使えません。Chrome または Safari で開くか、コードを入力してください。
-common.yes,はい
 "companion = pulled outbound by CC Desktop on the local machine, then stored here",companion = CC デスクトップがローカルで取得して保存
 connect.action.connect,DMSに接続
 connect.action.connectSave,接続して保存

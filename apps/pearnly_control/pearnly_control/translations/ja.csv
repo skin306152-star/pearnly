@@ -31,11 +31,7 @@ Billing Month,課金対象月
 Billing Units,課金単位
 Billing service unavailable; please retry,課金サービスが利用できません。再試行してください
 Build the workspace,ワークスペースを作成
-"By continuing, you agree to Pearnly's {0} and {1}.",続行すると、Pearnly の{0}と{1}に同意したものとみなされます。
 "By logging in, you agree to Pearnly's {0} and {1}.",ログインすると、Pearnly の{0}と{1}に同意したものとみなされます。
-CC API Key,CC API キー
-CC Engine,CC エンジン
-CC Model,CC モデル
 "Cannot read the provisioning target, so the identity service URL is unknown",開通ターゲットを取得できないため、アイデンティティサービスURLが特定できません
 Channel Access Token,チャネルアクセストークン
 Channel ID,チャネルID
@@ -55,7 +51,6 @@ Connect cloud billing,クラウド課金を接続
 Contact Name,担当者名
 Contact Phone,連絡先電話
 Contact us,お問い合わせ
-Contact us to open an account or book a demo,アカウント開設やデモのご予約はお問い合わせください
 Continue,続ける
 Control API URL,制御APIのURL
 Control-plane records,コントロールプレーンの記録
@@ -79,7 +74,6 @@ Create the site,サイトを作成
 Create the tenant account,テナントアカウントを作成
 Created and kept correct by provisioning on the shared LINE Login channel.,開通処理が共用の LINE Login チャネルに自動作成し、正しい設定に保ちます。
 Created on the tenant site and granted at provisioning. Leave empty for no permission control.,開通時にテナントサイトで作成・付与します。空欄は権限制御なし。
-Creating a channel requires both secret and access token,チャネル作成には secret と access token の両方が必要です
 Creating a channel requires the channel secret and the Channel ID,チャネル作成には Channel secret と Channel ID の両方が必要です
 Credential Delivery,資格情報の受け渡し方法
 Credentials,資格情報
@@ -87,7 +81,6 @@ Credited ฿{0}; {1} now has ฿{2},฿{0} を入金しました。{1} の残高
 Crediting…,入金処理中…
 Cycle End,今サイクル終了
 Cycle Start,今サイクル開始
-DMS is the one already proven; ERP and Cowork use the same API surface.,DMSが実績あり。ERPとCoworkも同じAPIを使います。
 Date the page count was last reconciled with the ledger (Bangkok time),ページ数を台帳と最後に照合した日（バンコク時間）
 "Dear customer,",お客様各位
 Default On,既定で有効
@@ -110,7 +103,6 @@ Enable HTTPS access,HTTPS アクセスを有効にする
 Enabled Features,有効な機能
 Enabled — {0} steps,開通済み {0} ステップ
 Enforcement,権限の適用
-Enter the CC API key.,CC API キーを入力してください。
 Enter your password.,パスワードを入力してください。
 Enter your username or email.,ユーザー名またはメールアドレスを入力してください。
 External Reference,外部参照番号
@@ -121,7 +113,6 @@ Feature Code,機能コード
 Feature Name,機能名
 Features,機能
 Fill in only if a LIFF app exists; otherwise leave empty.,LIFFアプリがある場合のみ入力。なければ空欄。
-Fill these to hand this tenant its own LINE channel during provisioning. Leave empty to assign a channel later.,入力すると開通時にこのテナント専用のLINEチャネルを配信します。空欄なら後から設定できます。
 Finalize the site,サイトを仕上げ
 Finished At,終了日時
 For example acme,例：acme
@@ -133,7 +124,6 @@ For example: somchai,例：somchai
 "For your account security, please change your initial password in account settings after signing in. Do not share your password or forward this email.",安全のため、ログイン後にアカウント設定で初期パスワードを変更してください。パスワードの共有や本メールの転送はお控えください。
 Forgot password ?,パスワードをお忘れですか？
 From the issue.,発行伝票から取得。
-Get your work done in conversation,会話で仕事を完了
 Google or Claude. A change applies from the next document.,Google または Claude。変更は次の書類から反映されます。
 Grant feature roles,機能ロールを付与
 Granted DocTypes,付与するDocType
@@ -249,7 +239,6 @@ Provisioning Progress,開通の進捗
 Provisioning Target,開通ターゲット
 Provisioning failed,開通に失敗
 Provisioning must be complete before sending the welcome email.,開設完了後にウェルカムメールを送信できます。
-Provisioning progress,開通の進捗
 Provisioning {0}/{1},開通中 {0}/{1}
 Queued for provisioning; building the site now,開通キューに入りました。サイトを構築中です。
 Queueing provisioning…,開通をキューに追加しています…
@@ -282,11 +271,9 @@ Reviewed By,審査者
 Role,対応ロール
 Row {0} on the issue has no domain; cannot build the site,発行伝票の {0} 行にドメインがなく、サイトを構築できません
 Row {0}: a LINE channel needs both the Channel ID and the Channel secret,{0} 行目: LINE チャネルには Channel ID と Channel secret の両方が必要です
-Row {0}: a LINE channel needs both the channel secret and the access token,{0} 行目: LINE チャネルにはチャネルシークレットとアクセストークンの両方が必要です
 Run provisioning,開通を実行
 Running,実行中
 Same as the deployment domain.,デプロイのドメインと同じです。
-Select the CC engine.,CC エンジンを選択してください。
 Service URL is required,サービスURLは必須です
 Set up CC,CC を設定
 Set up OCR,OCR を設定
