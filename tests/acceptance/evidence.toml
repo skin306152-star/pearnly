@@ -2,25 +2,73 @@
 # check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。
 
 [[pass]]
-scenario = "acc.erp.purchase.express"
-sha = "483c1c7c93dab450f084766b78674f4f5934cd88"
-date = "2026-11-14"
+scenario = "acc.erp.company.connect"
+sha = "942b0024324e05c1204699ee22b3800ab043540e"
+date = "2026-11-16"
 env = "B"
-run = "20261114-132707-483c1c7c9"
-covers = "9fa192059da47bf4"
+run = "20261116-123142-942b00243"
 retried = false
-docnums = ["HP691114-001"]
+covers = "84318fab41b1f1c5"
+add_branch = "added"
+company = "CO-00001"
+nbsp_customers = 1
+receipt_types = 20
+
+[[pass]]
+scenario = "acc.erp.company.connect.fresh"
+sha = "942b0024324e05c1204699ee22b3800ab043540e"
+date = "2026-11-16"
+env = "B"
+run = "20261116-123142-942b00243"
+retried = false
+covers = "84318fab41b1f1c5"
+add_branch = "adopted"
+company = "CO-00001"
+nbsp_customers = 1
+receipt_types = 20
+
+[[pass]]
+scenario = "acc.erp.company.connect.twice"
+sha = "942b0024324e05c1204699ee22b3800ab043540e"
+date = "2026-11-16"
+env = "B"
+run = "20261116-123142-942b00243"
+retried = false
+covers = "84318fab41b1f1c5"
+add_branch = "added"
+company = "CO-00001"
+nbsp_customers = 1
+receipt_types = 20
+
+[[pass]]
+scenario = "acc.erp.denied"
+sha = "942b0024324e05c1204699ee22b3800ab043540e"
+date = "2026-11-16"
+env = "B"
+run = "20261116-123142-942b00243"
+retried = false
+covers = "7725738405d8cd16"
+
+[[pass]]
+scenario = "acc.erp.purchase.express"
+sha = "942b0024324e05c1204699ee22b3800ab043540e"
+date = "2026-11-16"
+env = "B"
+run = "20261116-123142-942b00243"
+retried = false
+covers = "e5596ccadcdc6953"
+docnums = ["HP691116-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-170186"
+erp_doc = "PUR-2026-00749"
 
 [[pass]]
 scenario = "acc.erp.purchase.express.twice"
-sha = "c5719bed05d73129bbe27ea7dd0220909c3b8315"
-date = "2026-11-14"
+sha = "0309abf12cdf8bc48b0f00a720c76f4c0d4818d8"
+date = "2026-11-16"
 env = "B"
-run = "20261114-133022-c5719bed0"
-covers = "9fa192059da47bf4"
+run = "20261116-124458-0309abf12"
 retried = false
-docnums = ["HP691114-001"]
+covers = "e5596ccadcdc6953"
+docnums = ["HP691116-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-170188"
+erp_doc = "PUR-2026-00751"

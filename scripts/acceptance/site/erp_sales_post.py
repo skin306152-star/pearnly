@@ -54,6 +54,22 @@ try:
             break
     if not company:
         raise SystemExit("refuse: no company whose reported books are exactly the acceptance ledger")
+    # 场景开头刚把验收账套还原到基线（发票号、客户编码会被重新用一遍）：站点上这本账套残留的未收快照、读好还没落的按需读回、
+    # 「已收清」记号都是上一格那份账本的，清掉（只在测试站点；正式账本不回滚，没有这回事。11-16 首跑 line.refused：
+    # 上一格写后排的按客户重读读好没落，这一格开收时被当成「已读好」落下，发票带着上一格的已收 500）
+    from pearnly_core.cc_desktop import requests as cc_requests
+    from pearnly_erp_portal.collection import snapshot
+    from pearnly_erp_portal.express import target
+    picked = target.pick(frappe.db.get_value("ERP Company", company, ["name", "company_name", "tax_id", "branch"], as_dict=True),
+                         frappe.utils.today(), None)
+    book_key = (picked.get("book") or {}).get("key")
+    if book_key:
+        result["cleared"] = {"snapshot": frappe.db.count(snapshot.DOCTYPE, {"book_key": book_key}),
+                             "reads": frappe.db.count(cc_requests.REQUEST, {"kind": snapshot.KIND, "book_key": book_key})}
+        frappe.db.delete(snapshot.DOCTYPE, {"book_key": book_key})
+        frappe.db.delete(cc_requests.REQUEST, {"kind": snapshot.KIND, "book_key": book_key})
+        frappe.cache.delete_value(snapshot.GONE + str(book_key))
+        frappe.db.commit()
     frappe.set_user(params["user"])
     by_code = {"express_company": company, "is_active": 1, "express_code": ["is", "set"]}
     price = params.get("price", 1000)
