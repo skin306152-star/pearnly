@@ -16,5 +16,8 @@
 - ``link_store``：桥本机的云端连接配置（主机、端口、用户名、域、云端设备密钥与各站点令牌的 DPAPI 密文；密码在凭据管理器），
   配对代登记由对话页经 ``tomo_bridge`` 的 ``cloud_pending`` / ``cloud_token`` 做（步 G）。
 
-云端 CC 的部署不在这里（后续步骤）。
+- ``cloud_side``：云端那份 CC 自己的接线（``--cloud``）：找隧道盘 ``\\\\tsclient\\<盘符>``、``--pair`` 一次性配对、读 ``ctl`` 会话、
+  经 ``net.set_transport_factory`` 装隧道 transport（桥重连换会话不重启）、代录要 Express 登录时向桥要凭据、处理撤销。
+
+云端精简包的安装命令见 ``packaging/cloud_install.ps1``（桥把它与精简包放进隧道盘的 ``cc\\``；桥放置那部分还没做）。
 """

@@ -588,6 +588,17 @@ def front_of(desk) -> Dict:
     return fg
 
 
+def cloud_login():
+    """云端模式下代录要 Express 登录时先调的函数（本机凭据管理器没有就经隧道向桥要）；本地模式回 None（行为不变）。"""
+    from .. import runtime_mode
+
+    if not runtime_mode.cloud():
+        return None
+    from ..cloud_link import cloud_side
+
+    return cloud_side.ensure_express_login
+
+
 def express_factory(state, store, settings, root: Path, notify, member=None):
     """Express 的装配（Windows 上的真实组装）：后台做法（不碰真键盘鼠标）+ 真账套 + 本机截图。``settings`` 是 Express 设置，
     ``member`` 是成员配置（AI 通道用它的站点与令牌；没有就不接 AI，认不出的画面交人）。"""
@@ -611,7 +622,8 @@ def express_factory(state, store, settings, root: Path, notify, member=None):
                       credential_target=credentials.target("default"),  # 这个 Windows 用户的 Express 登录，一份
                       on_claim=lambda pid: mark_opened(root, pid, state.id, exe, str(settings.account_dir)),
                       on_gone=lambda pid: unmark(root, pid),
-                      own_pids=lambda: [int(pid) for pid in read_marks(root)])
+                      own_pids=lambda: [int(pid) for pid in read_marks(root)],
+                      ensure_login=cloud_login())
     evidence_root = root / "evidence"
     evidence = Evidence(evidence_root, state.id)
     holder: Dict = {}

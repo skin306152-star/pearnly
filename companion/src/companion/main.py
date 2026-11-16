@@ -15,6 +15,7 @@ CLI:
   python -m src.companion.main --debug      # 调试日志
   python -m src.companion.main --window     # CC 窗口进程(只由托盘拉起,window_main.py;不占单实例锁)
   python -m src.companion.main --cloud      # 云端那份 CC(runtime_mode):无托盘/窗口/通知/更新/自启/防睡眠,只跑直写 + 按需请求 + 代录
+  python -m src.companion.main --cloud --pair <令牌>  # 云端设备配对(只在云端安装命令里带一次;配完退出)
 """
 
 from __future__ import annotations
@@ -155,15 +156,21 @@ def step_poll_loop(configs) -> None:
 def step_cloud_loop(configs) -> None:
     """云端那份 CC（``--cloud``，runtime_mode）：取任务直写（代录单照常交代录宿主，在云端会话里开 Express）+ 按需请求。
     托盘、窗口、通知、自动更新、开机自启、防睡眠、文件夹自动录入一样都不起；MR.ERP 成员调用前已去掉（runtime_mode.serves）。"""
+    from .cloud_link import cloud_side
     from .request_worker import RequestWorker
 
     configs = list(configs)
+    # 先等隧道盘与桥交来的会话（没有就退避等，最多 15 分钟看一次，不退出），装上隧道 transport：之后所有联网请求都走隧道
+    tunnel = cloud_side.start(lambda: _STOP)
+    if tunnel is None:
+        return
     requests = RequestWorker(lambda: configs)
     requests.start()
     try:
         step_poll_loop(configs)
     finally:
         requests.stop()
+        tunnel.stop()
 
 
 def _run_dbf(store, args) -> int:
@@ -204,6 +211,16 @@ def _run_dbf(store, args) -> int:
     return TrayApp(configs, open_tomo=not args.background).run()
 
 
+def _pair(token: str, cloud: bool) -> int:
+    """``--cloud --pair <令牌>``:只配对、不跑直写,配完以退出码报结果。不占单实例锁(云端 CC 可能已在跑)。令牌不进日志。"""
+    if not cloud:
+        return 2
+    setup_logging()
+    from .cloud_link import cloud_side
+
+    return cloud_side.run_pair(token)
+
+
 # ── 入口 ─────────────────────────────────────────────────────
 def main() -> int:
     parser = argparse.ArgumentParser(description="Pearnly Companion")
@@ -225,6 +242,8 @@ def main() -> int:
     )
     # 桥电脑的显示名(心跳 link.via);也可经环境变量 PEARNLY_CLOUD_VIA 交过来
     parser.add_argument("--cloud-via", default=None, help=argparse.SUPPRESS)
+    # 云端设备配对的一次性令牌(只在云端安装命令里带一次;配完即退出,退出码见 cloud_link.cloud_side.run_pair)
+    parser.add_argument("--pair", default=None, help=argparse.SUPPRESS)
     parser.add_argument("--window", action="store_true", help=argparse.SUPPRESS)  # CC 窗口进程(托盘拉起)
     # MR.ERP 代录的网页窗口进程(ADR-026:每批由代录宿主拉起、录完退出;网页内核只在这里,托盘不加载)
     parser.add_argument("--mrerp-desk", action="store_true", help=argparse.SUPPRESS)
@@ -232,6 +251,8 @@ def main() -> int:
     if args.cloud:
         runtime_mode.enable(args.cloud_via)   # 进入云端模式：之后各处只问 runtime_mode.cloud()
     cloud = runtime_mode.cloud()
+    if args.pair is not None:
+        return _pair(args.pair, cloud)
     if args.mrerp_desk:
         from .mrerp_operator.web_driver import child_main
 
