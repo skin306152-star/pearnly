@@ -6,7 +6,7 @@
 //               第 6 批（ADR-021）：登记人或管理员可在「···」移除一台电脑；管理员另有 Express 的「全所可用」开关，
 //               关掉以后按成员名单（MR.ERP 没有这个开关）
 //   此电脑    — 只在 CC 桌面端出现（lib/desktop.ts 的 desktop()）：
-//     连接    — 最上面「MR.ERP」一行（同浏览器）；这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）；
+//     连接    — 最上面「MR.ERP」一行（同浏览器）；Express 位置下面「云端 Express」一行（components/cloud-express.tsx）；这台电脑连的公司（登录的账号自动连上，不用配对码）、Express 数据文件夹（Express 授权留在这里）；
 //               下面「电脑」同浏览器里的「连接」（池里每台电脑、移除、全所可用）
 //
 // 单据文件夹改在公司主档页按公司选（ADR-020，只在 CC 桌面版里经原生选择框）：桌面版声明了 company_folders 时这里不再有
@@ -39,6 +39,7 @@ import {
   textSize,
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
+import { CloudExpressRow } from "@/components/cloud-express";
 import { MrerpRow } from "@/components/mrerp-connect";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
@@ -587,6 +588,9 @@ function Connections({ api }: { api: Desktop }) {
             </div>
           );
         })}
+
+      {/* 「云端 Express」（步 E，用户 11-16）：Express 那一组下面一行；旧版桌面端没有这几个桥动作，不出 */}
+      <CloudExpressRow api={api} />
 
       {companyFolders && legacy.length > 0 && (
         <>

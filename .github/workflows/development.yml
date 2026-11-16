@@ -91,6 +91,8 @@ jobs:
         run: python3 tests/test_mrerp_login_pages.py
       - name: MR.ERP masters are read whole from its own export pages and stock-by-warehouse report into the Express masters shape (fixed request count, unreadable is an error)
         run: python3 tests/test_mrerp_master_export.py
+      - name: CC settings cloud Express row (states, editable prefill, no password on the page, bridge actions)
+        run: python3 tests/test_cc_cloud_express.py
       - name: MR.ERP operator draft golden samples (four document kinds, fixed input to fixed block) and the staging that shares direct-write preparation
         run: python3 tests/test_mrerp_operator_draft.py
       - name: MR.ERP import sheets keep the printed line amounts, the tax rate of a goods purchase and the document discount, and the listed amount is checked after the write

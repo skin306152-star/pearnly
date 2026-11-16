@@ -357,8 +357,8 @@ name = "CC 对话页与桌面版的桥"
 paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_bridge.py"]
 markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
 search = ["frontend/assistant/src/**", "companion/src/**"]
-entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator", "cc.mrerp-login"]
-not_entries = { "companion/src/companion/mrerp_operator/login.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（实操页 MR.ERP 登录 operator_authorize / operator_forget，开关打开才用），不调用桥；入口 cc.mrerp-login、cc.desktop.operator.mrerp 已登记" }
+entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator", "cc.mrerp-login", "cc.desktop.cloud-express"]
+not_entries = { "companion/src/companion/mrerp_operator/login.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（实操页 MR.ERP 登录 operator_authorize / operator_forget，开关打开才用），不调用桥；入口 cc.mrerp-login、cc.desktop.operator.mrerp 已登记", "companion/src/companion/cloud_link/__init__.py" = "包说明里提到 tomo_bridge 的 cloud_pending / cloud_token，本身不调用桥；云端 Express 的桥动作入口是 cc.desktop.cloud-express" }
 
 [[part]]
 id = "cc-sidebar-list"
@@ -390,7 +390,7 @@ name = "CC 标准组件库（shadcn/ui 搬入的 components/ui，docs/developmen
 paths = ["frontend/assistant/src/components/ui/alert.tsx", "frontend/assistant/src/components/ui/alert-dialog.tsx", "frontend/assistant/src/components/ui/attachment.tsx", "frontend/assistant/src/components/ui/avatar.tsx", "frontend/assistant/src/components/ui/badge.tsx", "frontend/assistant/src/components/ui/bubble.tsx", "frontend/assistant/src/components/ui/button.tsx", "frontend/assistant/src/components/ui/button-group.tsx", "frontend/assistant/src/components/ui/card.tsx", "frontend/assistant/src/components/ui/checkbox.tsx", "frontend/assistant/src/components/ui/code-block.tsx", "frontend/assistant/src/components/ui/collapsible.tsx", "frontend/assistant/src/components/ui/dropdown-menu.tsx", "frontend/assistant/src/components/ui/empty.tsx", "frontend/assistant/src/components/ui/field.tsx", "frontend/assistant/src/components/ui/input.tsx", "frontend/assistant/src/components/ui/input-group.tsx", "frontend/assistant/src/components/ui/item.tsx", "frontend/assistant/src/components/ui/kbd.tsx", "frontend/assistant/src/components/ui/label.tsx", "frontend/assistant/src/components/ui/marker.tsx", "frontend/assistant/src/components/ui/message.tsx", "frontend/assistant/src/components/ui/native-select.tsx", "frontend/assistant/src/components/ui/popover.tsx", "frontend/assistant/src/components/ui/progress.tsx", "frontend/assistant/src/components/ui/questionnaire.tsx", "frontend/assistant/src/components/ui/radio-group.tsx", "frontend/assistant/src/components/ui/select.tsx", "frontend/assistant/src/components/ui/separator.tsx", "frontend/assistant/src/components/ui/sheet.tsx", "frontend/assistant/src/components/ui/spinner.tsx", "frontend/assistant/src/components/ui/switch.tsx", "frontend/assistant/src/components/ui/table.tsx", "frontend/assistant/src/components/ui/tabs.tsx", "frontend/assistant/src/components/ui/textarea.tsx", "frontend/assistant/src/components/ui/toggle.tsx", "frontend/assistant/src/components/ui/toggle-group.tsx", "frontend/assistant/src/components/ui/trace.tsx"]
 markers = ["@/components/ui/alert\"", "@/components/ui/alert-dialog\"", "@/components/ui/attachment\"", "@/components/ui/avatar\"", "@/components/ui/badge\"", "@/components/ui/bubble\"", "@/components/ui/button\"", "@/components/ui/button-group\"", "@/components/ui/card\"", "@/components/ui/checkbox\"", "@/components/ui/code-block\"", "@/components/ui/collapsible\"", "@/components/ui/dropdown-menu\"", "@/components/ui/empty\"", "@/components/ui/field\"", "@/components/ui/input\"", "@/components/ui/input-group\"", "@/components/ui/item\"", "@/components/ui/kbd\"", "@/components/ui/label\"", "@/components/ui/marker\"", "@/components/ui/message\"", "@/components/ui/native-select\"", "@/components/ui/popover\"", "@/components/ui/progress\"", "@/components/ui/questionnaire\"", "@/components/ui/radio-group\"", "@/components/ui/select\"", "@/components/ui/separator\"", "@/components/ui/sheet\"", "@/components/ui/spinner\"", "@/components/ui/switch\"", "@/components/ui/table\"", "@/components/ui/tabs\"", "@/components/ui/textarea\"", "@/components/ui/toggle\"", "@/components/ui/toggle-group\"", "@/components/ui/trace\""]
 search = ["frontend/assistant/src/**"]
-entries = ["cc.assistant"]
+entries = ["cc.assistant", "cc.desktop.cloud-express"]
 not_entries = { "frontend/assistant/src/kit/gallery.tsx" = "开发用展示页（kit.html），只在开发服务器与 CC_KIT=1 构建里，不进生产", "frontend/assistant/src/components/tool-uis/approval-bar.tsx" = "允许 / 拒绝卡（拒绝、允许两个按钮用组件库 Button，11-14 照 Claude 桌面应用的决定框）；用户看到的入口是 cc.assistant 对话页里的允许卡，由 test_assistant_ui 与流程 cowork.cc.approval-cards 守住", "frontend/assistant/src/kit/allow-card.tsx" = "开发用展示页（kit.html?page=allow），不进生产" }
 
 [[part]]
@@ -1897,6 +1897,15 @@ steps = "Windows 测试机 CC：公司行暂停 / 断开、重新查找、添加
 expect = "每项生效；只剩一个位置时 × 灰"
 check = "manual"
 files = ["frontend/assistant/src/assistant.tsx", "frontend/assistant/src/components/company-picker.tsx", "frontend/assistant/src/components/settings.tsx", "frontend/assistant/src/components/company-cards.tsx", "frontend/assistant/src/components/scheduled-tasks.tsx", "frontend/assistant/src/components/shortcut.tsx", "frontend/assistant/src/lib/back-stack.ts", "frontend/assistant/src/lib/install.ts", "frontend/assistant/src/lib/push.ts", "frontend/assistant/src/lib/variant.ts", "companion/src/companion/tomo_bridge.py", "companion/src/companion/desktop_settings.py", "companion/src/companion/window_link.py", "companion/src/companion/window_main.py", "companion/src/companion/device_link.py", "companion/src/companion/folder_plan.py", "companion/src/companion/gui_tomo.py", "companion/src/companion/gui_tray.py", "companion/src/companion/pairing_flow.py"]
+
+[[entry]]
+id = "cc.desktop.cloud-express"
+product = "CC"
+where = "桌面版 设置 → 连接 →「Express 位置」下面「云端 Express」一行（步 E，用户 11-16）"
+steps = "离线：tests/test_cc_cloud_express.py（行的各状态、预填可改、页面没有密码框、按钮调的桥动作）、companion/tests/test_cloud_settings_link.py（预填不含密码、connect 存好两条本机凭据与连接、断开清干净、没有云端连接时 state() 逐字节不变）；Windows 真机 CC：设置 → 连接看到「云端 Express」→ 点「连接」，地址 / 账号由本机 TSplus 的 Session.rdp 预填、可改 → 点「连接」弹 CC 原生小窗输账号密码 → 「···」重新查找、断开连接"
+expect = "行显示主机与「未连接」；凭据管理器多 Pearnly CC/cloud/<主机> 与 TERMSRV/<主机> 两条、%APPDATA%\\Pearnly\\cloud_link.json 有这条连接且没有密码；原生小窗取消不报错；断开后两条凭据与文件都没了；旧版桌面端不出这一行；连接窗口还没接进来，不会真连云端"
+check = "manual"
+files = ["frontend/assistant/src/components/cloud-express.tsx", "companion/src/companion/cloud_link/settings_link.py"]
 
 [[entry]]
 id = "cc.desktop.places"

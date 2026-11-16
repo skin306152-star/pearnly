@@ -565,6 +565,7 @@ const SETTINGS = {
     failed: "Could not update. Try again.",
     mrerpAuthorized: (detail: string) => `Authorized: ${detail}`, mrerpNotAuthorized: "Not authorized",
     mrerpAuthorize: "Authorize in CC Desktop", mrerpAuthorizeFailed: "Authorization failed",
+    cloudExpress: "Cloud Express", address: "Address", account: "Account",
   },
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
@@ -595,6 +596,7 @@ const SETTINGS = {
     failed: "无法更新，请重试。",
     mrerpAuthorized: (detail: string) => `已授权：${detail}`, mrerpNotAuthorized: "未授权",
     mrerpAuthorize: "在 CC 桌面版中授权", mrerpAuthorizeFailed: "授权失败",
+    cloudExpress: "云端 Express", address: "地址", account: "账号",
   },
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
@@ -625,6 +627,7 @@ const SETTINGS = {
     failed: "ไม่สามารถอัปเดตได้ กรุณาลองใหม่",
     mrerpAuthorized: (detail: string) => `อนุญาตแล้ว: ${detail}`, mrerpNotAuthorized: "ยังไม่ได้อนุญาต",
     mrerpAuthorize: "อนุญาตใน CC เดสก์ท็อป", mrerpAuthorizeFailed: "อนุญาตไม่สำเร็จ",
+    cloudExpress: "Express บนคลาวด์", address: "ที่อยู่", account: "บัญชี",
   },
   ja: {
     settings: "設定", general: "一般", thisComputer: "このパソコン", connections: "接続", system: "システム",
@@ -655,6 +658,7 @@ const SETTINGS = {
     failed: "更新できませんでした。もう一度お試しください。",
     mrerpAuthorized: (detail: string) => `許可済み：${detail}`, mrerpNotAuthorized: "未許可",
     mrerpAuthorize: "CC デスクトップで許可", mrerpAuthorizeFailed: "許可できませんでした",
+    cloudExpress: "クラウド Express", address: "アドレス", account: "アカウント",
   },
 };
 
