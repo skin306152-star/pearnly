@@ -758,8 +758,12 @@ def link_products(doctype, name, company, codes):
         label = str(row.get("name") or "").strip()
         if isinstance(lines, dict):
             line = lines.get(label)  # 收银日汇总：一行是几张小票合起来的，按品名认
+        elif isinstance(seq, int):
+            line = lines[seq - 1] if 1 <= seq <= len(lines) else None
         else:
-            line = lines[seq - 1] if isinstance(seq, int) and 1 <= seq <= len(lines) else None
+            # 代录回执只报随单新建的存货 {name, code}、没有序号（`common.written_codes`）：按品名认，品名唯一的那一行才认
+            same = [entry for entry in lines if entry[1] == label]
+            line = same[0] if label and len(same) == 1 else None
         if not code or not line or not line[0]:
             continue
         product = frappe.db.get_value("ERP Product", line[0], ["product_name", "express_code", "express_company"],

@@ -538,7 +538,7 @@ OPERATOR_OPTION_LEN = 120
 
 def clean_operator_meta(raw: Any) -> Dict[str, Any]:
     """``meta.operator`` → 只留 ``doc_type``（短字符串）、``menu_options``（字符串列表，空白归一、去空）、``partial``
-    （半截单 {docnum, missing}）与 ``held``（{computer, account_set}），认不出的回空。"""
+    （半截单 {docnum, missing}）、``held``（{computer, account_set}）与 ``masters``（随单新建的主档），认不出的回空。"""
     if not isinstance(raw, dict):
         return {}
     out: Dict[str, Any] = {}
@@ -562,7 +562,43 @@ def clean_operator_meta(raw: Any) -> Dict[str, Any]:
                      if isinstance(held.get(key), str) and held[key].strip()}
         if kept_held:
             out["held"] = kept_held
+    masters = _clean_masters(raw.get("masters"))
+    if masters:
+        out["masters"] = masters  # 随单新建的主档（:func:`written_codes`）
     return out
+
+
+OPERATOR_MASTER_KINDS = ("party", "item")
+OPERATOR_CODE_MAX = 40
+OPERATOR_NAME_MAX = 140
+
+
+def _clean_masters(raw: Any) -> List[Dict[str, str]]:
+    """代录在 Express 里随单新建的主档（CC 桌面版回执 ``meta.operator.masters``：``[{kind: party / item, code, name?}]``，1.12.x 起）：
+    只留对方档与存货两类、带码的，限长限量；别的（``repaired`` 等）不放行。"""
+    out: List[Dict[str, str]] = []
+    for row in raw[:_META_MAX_LIST] if isinstance(raw, list) else ():
+        if not isinstance(row, dict) or row.get("kind") not in OPERATOR_MASTER_KINDS:
+            continue
+        code = str(row.get("code") or "").strip()[:OPERATOR_CODE_MAX]
+        if code:
+            out.append({"kind": row["kind"], "code": code,
+                        **({"name": str(row["name"]).strip()[:OPERATOR_NAME_MAX]} if str(row.get("name") or "").strip() else {})})
+    return out
+
+
+def written_codes(meta: Any) -> Dict[str, Any]:
+    """电脑写这张单实际用的对方码与逐行存货码（产品据此把单上的对方档、随单新建的物料挂上 Express 码，10-24 link_party 修的那件）：
+    ``{party_code, line_codes}``。直写回执在顶层（``party_code``；``line_codes`` 由逐行回执拼，带 ``seq``）；代录回执只在
+    ``meta.operator.masters`` 里报随单新建的（11-16 验收：代录新建客户 เ001 写成 IV0000030，ERP 客户的码一直空、同步回来另建一条），
+    顶层没有的照它补：对方档取第一条 party，存货按 ``{name, code}``（没有序号，产品按品名对行）。已发出去的版本照样认。"""
+    meta = meta if isinstance(meta, dict) else {}
+    masters = _clean_masters((meta.get(OPERATOR_META) or {}).get("masters") if isinstance(meta.get(OPERATOR_META), dict) else None)
+    party = str(meta.get("party_code") or "").strip()[:OPERATOR_CODE_MAX] or next(
+        (row["code"] for row in masters if row["kind"] == "party"), "")
+    lines = meta.get("line_codes") if isinstance(meta.get("line_codes"), list) and meta.get("line_codes") else [
+        {"name": row.get("name", ""), "code": row["code"]} for row in masters if row["kind"] == "item"]
+    return {"party_code": party, "line_codes": lines}
 
 
 def operator_partial_docnum(meta: Any) -> str:
@@ -693,6 +729,11 @@ def sanitize_push_meta(raw: Any) -> Dict[str, Any]:
     operator = clean_operator_meta(raw.get(OPERATOR_META))
     if operator:
         out[OPERATOR_META] = operator
+        if not out.get("party_code"):
+            # 代录回执顶层没有对方码：照随单新建的那条补（:func:`written_codes`），读 ``party_code`` 的各处不用分直写 / 代录
+            party = written_codes({OPERATOR_META: operator})["party_code"]
+            if party:
+                out["party_code"] = party
     revenue = clean_revenue_meta(raw.get(REVENUE_META))
     if revenue:
         out[REVENUE_META] = revenue

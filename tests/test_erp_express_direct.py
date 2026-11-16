@@ -2728,6 +2728,17 @@ class LinkProducts(PushModule):
                                   "express_code": "ST-0099", "is_active": 1}
         self.assertEqual(self.link([{"seq": 2, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
 
+    def test_an_operator_code_without_a_line_number_is_matched_by_the_line_name(self):
+        """代录回执只报随单新建的存货 {name, code}、没有序号（`common.written_codes`，11-16 验收）：按品名认，品名唯一的那一行才挂；
+        同名两行认不准、不挂。"""
+        self.assertEqual(self.link([{"name": "อื่น", "code": "ST-0099"}]), (None, None))
+        self.assertEqual(self.link([{"name": "น้ำแข็งก้อน", "code": "ST-0099"}]), ("CO-1", "ST-0099"))
+        self.products["PRD-1"].pop("express_code")
+        self.products["PRD-1"].pop("express_company")
+        self.lines["L3"] = {"name": "L3", "parent": "PUR-1", "parenttype": "Purchase Document", "idx": 3,
+                            "product": "PRD-1", "description": "น้ำแข็งก้อน"}
+        self.assertEqual(self.link([{"name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
+
     def test_a_line_that_does_not_line_up_is_left_alone(self):
         self.assertEqual(self.link([{"seq": 2, "name": "อื่น", "code": "ST-0099"}]), (None, None))
         self.assertEqual(self.link([{"seq": 3, "name": "น้ำแข็งก้อน", "code": "ST-0099"}]), (None, None))
