@@ -219,5 +219,15 @@ class OptionalTests(unittest.TestCase):
         self.assertEqual(steps.state(GUIDE, {"customer": "C1"}, TODAY), steps.ASKING)
 
 
+    def test_a_step_whose_condition_already_fails_does_not_wait_for_its_after(self):
+        guide = {**OPTIONAL, "steps": [{"key": "source", "input": "choice", "rule": "always", "options": "app.mod.s"},
+                                       {"key": "month", "input": "month", "rule": "always", "when": {"key": "source", "value": "rb"}},
+                                       {"key": "pick", "input": "choice", "rule": "always", "after": ["month"],
+                                        "when": {"key": "source", "value": "rb"}, "options": "app.mod.p"},
+                                       {"key": "files", "input": "file", "rule": "always", "when": {"key": "source", "value": "up"}}]}
+        self.assertEqual(steps.state(guide, {"source": "up", "files": ["f1"]}, {}), steps.READY)
+        self.assertEqual(steps.blocked(guide, {"source": "rb"}, {}), ["pick"])   # 读回那条路上照旧要先有月份
+        self.assertEqual(steps.blocked(guide, {}, {}), ["month", "pick", "files"])
+
 if __name__ == "__main__":
     unittest.main()

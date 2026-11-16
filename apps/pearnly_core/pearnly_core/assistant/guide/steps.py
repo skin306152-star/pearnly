@@ -107,7 +107,14 @@ def blocked(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mappi
     values = _values(guide, answers, decided)
     optional = _optional_keys(guide)
     return [step["key"] for step in guide.get("steps") or ()
-            if not all(_has(values.get(name)) for name in _needs(step, optional))]
+            if not _ruled_out(step, values) and not all(_has(values.get(name)) for name in _needs(step, optional))]
+
+
+def _ruled_out(step: Mapping[str, Any], values: Mapping[str, Any]) -> bool:
+    """``when`` 依赖的那一步已有值、条件不成立：这一步不适用，它 ``after`` 的步骤没值也不算「没轮到」（11-16 对账引导查出：
+    选了交文件，读回那一步的 ``after: 月份`` 让整张卡一直确定不了）。"""
+    when = step.get("when")
+    return bool(when) and _has(values.get(when["key"])) and not applies(step, values)
 
 
 def settled(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[Dict[str, Any]]:
