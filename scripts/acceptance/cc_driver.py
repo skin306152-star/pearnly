@@ -79,7 +79,7 @@ Unmet, Infra = _Late("Unmet"), _Late("Infra")
 
 # Opus 5.5 每百万 token 美元（输入 / 输出 / 写缓存 / 读缓存）；用量取会话事件 span.model_request_end（同 scripts/e2e/stress.py 的 PRICE）
 PRICE = {"input_tokens": 5.0, "output_tokens": 25.0, "cache_creation_input_tokens": 6.25, "cache_read_input_tokens": 0.5}
-REAL_TARGETS = ("local", "lab")  # 本机实验栈 / 测试机实验栈；生产不连
+REAL_TARGETS = ("local", "lab", "maclab")  # 本机实验栈 / 测试机实验栈 / 本机 Mac 实验栈；生产不连
 # 「写入」快捷回复的字（frontend/assistant/src/i18n.ts 的 recordNow）：点了等同打出这句发出（thread.tsx RecordQuickReply）
 RECORD_NOW = {"en": "Write", "zh": "写入", "th": "บันทึก", "ja": "書き込む"}
 TOOL_USES = ("agent.custom_tool_use", "agent.tool_use", "agent.mcp_tool_use")
