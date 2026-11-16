@@ -284,7 +284,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
             stopped.append(item)
             continue
         card = f"{p}c{item['key']}_{_ms(item['done'])}"
+        # 卡上照产品的那一句说原因（同单据页、模型拿到的那句，`products.reason_text`；11-16 真机 H5：卡上只有「重试」不说为什么）
         out.tool(card, CHOOSE, {**base, **view, "reason": code, "detail": detail, "level": contracts.level(code),
+                                "reason_text": products.reason_text(item["raw"]) if item["raw"] else "",
                                 "result_unknown": unknown}, item["done"], custom=True, bump=1)
         out.run(card, "awaiting_approval", item["done"], bump=1)
         awaiting.append(card)
