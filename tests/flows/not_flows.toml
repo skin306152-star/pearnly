@@ -271,3 +271,7 @@ reason = "标准组件库的开发用展示页（kit.html）：只在开发服�
 [[file]]
 file = "frontend/assistant/src/kit/allow-card.tsx"
 reason = "标准组件库的开发用展示页（kit.html?page=allow，允许卡示例数据）：只在开发服务器与 CC_KIT=1 构建里，生产构建没有（tests/test_cc_ui_kit.py 核对）"
+
+[[file]]
+file = "frontend/assistant/src/components/cloud-express.tsx"
+reason = "CC 设置 → 连接里「云端 Express」一行：只在 CC 桌面版窗口里出现（靠桌面版桥动作 cloud_prefill / cloud_connect / cloud_status），回归实验室的浏览器里没有桌面版桥，这一行不渲染；行的各状态、预填可改、页面没有密码框、按钮调的桥动作由 tests/test_cc_cloud_express.py 离线守住，真机见产品地图 cc.desktop.cloud-express"
