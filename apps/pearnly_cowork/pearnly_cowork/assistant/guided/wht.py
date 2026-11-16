@@ -162,10 +162,15 @@ def review(ctx, draft) -> dict:
                       *[{"key": form, "label_key": f"cowork.tax.form.{form}", "value": str((forms.get(form) or {}).get("tax") or "0.00")}
                         for form in ("pnd53", "pnd3")]],
             "tables": [{"key": PAYEES, "label_key": "cowork.tax.review.questions", "rows": payees,
-                        "columns": [{"key": "income_type", "label_key": "cowork.tax.col.income_type"}]},
+                        "columns": [{"key": "income_type", "label": _("cowork.tax.col.income_type")}]},
                        {"key": PENDING, "label_key": "cowork.tax.review.excluded", "rows": pending,
-                        "columns": [{"key": key, "label_key": label} for key, label in COLUMNS]}],
+                        "columns": [{"key": key, "label": _(label)} for key, label in COLUMNS]}],
             "total": str((summary.get("totals") or {}).get("tax") or "0.00")}
+
+
+def _refused(field, code="tax.edit_invalid", text="") -> dict:
+    """被拒：码 + 已翻译的一句（前端显示在那一格下）。"""
+    return {"refused": {field: code}, "refused_text": {field: text or _("tax.option_invalid")}}
 
 
 def edit(ctx, draft, row, field, value) -> dict:
@@ -177,27 +182,27 @@ def edit(ctx, draft, row, field, value) -> dict:
     period, row, field = _period_of(draft), str(row or ""), str(field or "")
     if row.startswith(PAYEE):
         if field != "income_type":
-            return {"refused": {field: "tax.edit_invalid"}}
+            return _refused(field)
         with recon._conversation(ctx):
             try:
                 service.answer([{"payee_tax_id": row[len(PAYEE):], "income_type": value}], draft.split(DRAFT_SEP)[0])
             except (frappe.ValidationError, frappe.PermissionError):
                 frappe.db.rollback()
                 frappe.clear_messages()
-                return {"refused": {field: "tax.edit_invalid"}}
+                return _refused(field)
         summary = _summary(ctx, period)
         return {"draft": _next_draft({**ctx, "draft": draft}, summary, period)}
     if field not in ROW_FIELDS:
-        return {"refused": {field: "tax.edit_invalid"}}
+        return _refused(field)
     given = (str(value) == "1") if field == "include" else value
     try:
         summary = _summary(ctx, period, [{"row": row, field: given}])
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         frappe.clear_messages()
-        return {"refused": {field: "tax.edit_invalid"}, "refused_text": {field: str(error)[:300]}}
+        return _refused(field, text=str(error)[:300])
     if summary.get("edits_rejected"):
-        return {"refused": {field: str(summary["edits_rejected"][0].get("reason") or "tax.edit_invalid")}}
+        return _refused(field, str(summary["edits_rejected"][0].get("reason") or "tax.edit_invalid"))
     return {"draft": _next_draft({**ctx, "draft": draft}, summary, period)}
 
 
