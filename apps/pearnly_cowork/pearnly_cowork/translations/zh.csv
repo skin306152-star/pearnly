@@ -2288,6 +2288,7 @@ Withdrawal,提款
 Withdrawing pushes,正在撤回推送
 Withdrawn.,已撤回。
 Withdrew pushes,已撤回推送
+Withholding Tax,预扣税申报表
 Withholding agent,扣缴义务人
 Withholding tax certificates,预扣税凭证
 Withholding tax certificates (50 Tawi) are not entered; this one is not sent,预扣税凭证（50 ทวิ）不录入，此单据不推送
@@ -3489,10 +3490,12 @@ guide.business.pos,收银日汇总
 guide.business.readback,回读
 guide.business.recon,对账中心
 guide.business.vat,增值税申报表
+guide.business.wht,预扣税申报表
 guide.open.pos,请上传 POS 导出。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
 guide.open.vat,选择税务月份。
+guide.open.wht,选择税务月份。
 guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
@@ -3512,6 +3515,7 @@ guide.step.vat.exempt_sales,免税销售额
 guide.step.vat.period,税务月份
 guide.step.vat.readback,回读
 guide.step.vat.zero_vat_as,税额为零的行
+guide.step.wht.period,税务月份
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。
