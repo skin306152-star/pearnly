@@ -177,6 +177,16 @@ class WantedTests(_Conversation):
         self.assertIsNone(conversation.wanted(COMPANY))
 
 
+    def test_a_background_write_carried_from_a_guide_confirm_uses_that_conversation(self):
+        # 引导「确定」时提交、排进后台的那件（`push.queue` 带来的对话）：后台没有请求上下文，照样按那段对话的本对话账套
+        frappe.local.pearnly_assistant = None
+        with conversation.for_session("sesn_1"):
+            self.assertEqual(conversation.session(), "sesn_1")
+            self.assertEqual(conversation.wanted(COMPANY), self.t8)
+        self.assertEqual(conversation.session(), "")
+        self.assertIsNone(conversation.wanted(COMPANY))
+
+
 class R2_5ReplayTests(_Conversation):
     """ERP 版 R2-5：本对话账套 T.8、同期 T.9、票据日期落在 T.8 的次年段（2026-06）→ 写进 T.8，不问哪套。"""
 
@@ -335,6 +345,35 @@ class PlanGateTests(base.PushModule):
             frappe.local.pearnly_assistant = None
             self.push.send("Purchase Document", "PUR-1", operator={"id": "b1", "task": "TK1"})
         self.assertEqual(seen, ["TK1"])
+
+    def test_a_document_submitted_from_a_guided_intake_passes_by_the_intake_record_in_the_plan(self):
+        # 引导「确定」的写入计划记的是收单记录 ``I:<记录>``；提交出的采购单按它认
+        fake.STATE.db.table("ERP LINE Intake")["INT-1"] = {"name": "INT-1", "source": "cc", "purchase": "PUR-1"}
+        self.permitted.add("I:INT-1")
+        self.assertNotEqual(self.push.send("Purchase Document", "PUR-1")["status"], "not_pushed")
+        self.assertIn("I:INT-1", self.asked[-1])
+
+    def test_queue_carries_the_guide_conversation_into_the_background_send(self):
+        queued = []
+        with mock.patch.object(frappe, "enqueue", lambda method, **kwargs: queued.append(kwargs), create=True), \
+                mock.patch.object(self.push, "_eligible", lambda doctype, doc: True):
+            fake.STATE.db.table("Purchase Document")["PUR-1"].update(ledger_state="")
+            with conversation.for_session("sesn_1"):
+                self.push.queue("Purchase Document", "PUR-1")
+            fake.STATE.db.table("Purchase Document")["PUR-1"].update(ledger_state="")
+            self.push.queue("Purchase Document", "PUR-1")  # 网页 / LINE / 代录开录时提交的：不带
+        self.assertEqual([item.get("session") for item in queued], ["sesn_1", None])
+        seen = []
+        frappe.local.pearnly_assistant = None
+        self.permitted.add("P:PUR-1")
+        with mock.patch.object(self.push, "_prepare_body", lambda doctype, company, body: seen.append(
+                conversation.session()) or ({"hold": E.READING, "book": {}}, None, None)):
+            fake.STATE.db.table("Purchase Document")["PUR-1"].update(ledger_state=E.QUEUED)
+            self.push.send("Purchase Document", "PUR-1", session="sesn_1")
+        self.assertEqual(seen, ["sesn_1"])          # 后台按那段对话准备（本对话账套）
+        self.assertIn("P:PUR-1", self.asked[-1])  # 也过写入计划的门
+        self.assertEqual(conversation.session(), "")
+
 
 class PrintedTotalTests(base.Base):
     """B3：对话里改票面合计只改数，不当场推（推送交回计划）；网页照旧当场重新写账。"""

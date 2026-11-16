@@ -139,8 +139,9 @@ def queue(doctype, name):
         return
     frappe.db.set_value(doctype, name, {"ledger_state": contracts.QUEUED, "ledger_reason": "",
                                         "ledger_target": contracts.LEDGER_EXPRESS}, update_modified=False)
+    carried = conversation.carried()  # CC 引导确定时提交的：后台按那段对话写（本对话账套、写入计划）
     frappe.enqueue("pearnly_erp_portal.express.push.send", queue="short", enqueue_after_commit=True,
-                   doctype=doctype, name=name)
+                   doctype=doctype, name=name, **({"session": carried} if carried else {}))
 
 
 def ref(name, creation) -> str:
@@ -389,6 +390,15 @@ def release_operator(doctype, name) -> bool:
 PLAN_PREFIXES = {PURCHASE: ("P",), SALES: ("S",), STOCK: ("M", "T"), POS_DAY: ("D",), COUNT: ("C",)}
 
 
+def intake_ids(doctype, name) -> list:
+    """这张单是 CC 对话收单记录提交出来的：那条记录的编号（``I:<记录>``，引导「确定」时写入计划里记的是它）。"""
+    link = {PURCHASE: "purchase", SALES: "sales_document"}.get(doctype)
+    if not link:
+        return []
+    return [f"I:{record}" for record in frappe.get_all("ERP LINE Intake", filters={link: name, "source": "cc"}, pluck="name",
+                                                       limit_page_length=5)]
+
+
 def plan_refusal(doctype, name) -> dict | None:
     """CC 对话里直写（非代录）推之前问写入计划（`write_plan.permit`，A 线 B：写入只走计划，下沉到推送入口）：在本对话已开始的
     计划里回 None；不在回 ``{"status": "not_pushed", "reason", "note"}``，单据不动。不在 CC 对话里执行（网页、LINE、每分钟重试、
@@ -398,6 +408,7 @@ def plan_refusal(doctype, name) -> dict | None:
     from pearnly_core.assistant import write_plan
 
     ids = [f"{prefix}:{name}" for prefix in PLAN_PREFIXES.get(doctype, ())]
+    ids += intake_ids(doctype, name)
     allowed, refused = write_plan.permit(ids)
     if allowed or not refused:
         return None
@@ -405,7 +416,7 @@ def plan_refusal(doctype, name) -> dict | None:
     return {"status": "not_pushed", "reason": reason, "note": write_plan.PERMIT_NOTES.get(reason, "")}
 
 
-def send(doctype, name, operator=None):
+def send(doctype, name, operator=None, session=""):
     """准备并交进写账队列（后台任务；停下的单每分钟由 :func:`poll` 再叫）。已经交进去的不再交。
 
     ``operator``：代录 Express 的批次信息（共用层 ``pearnly_core.express_operator``，CC「代录」里交的）：同一份载荷加代录标记
@@ -414,6 +425,10 @@ def send(doctype, name, operator=None):
     （:func:`plan_refusal`）。"""
     if doctype not in DIRECTIONS:
         return
+    if session and not operator:
+        # CC 引导确定时提交、排进后台的（`queue` 带来的对话）：照那段对话的本对话账套与写入计划写
+        with conversation.for_session(session):
+            return send(doctype, name)
     if not operator:
         refused = plan_refusal(doctype, name)
         if refused:
