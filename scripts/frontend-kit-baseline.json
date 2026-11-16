@@ -119,10 +119,6 @@
     "K1": 3,
     "K4": 2
   },
-  "components/tool-uis/operator-card.tsx": {
-    "K1": 1,
-    "K4": 2
-  },
   "components/tool-uis/operator-start.tsx": {
     "K1": 4,
     "K4": 3

@@ -153,7 +153,8 @@ const ChoiceRows: FC<{
   onToggle: (code: string) => void;
 }> = ({ options, picked, multi, recommended, disabled, label, files, onToggle }) => (
   <QuestionnaireChoices aria-label={label}>
-    {options.map((option) => (
+    {/* 推荐项排第一（同第 1 期卡 askQuestionsOf；验收 B11），只标徽章、不预选 */}
+    {[...options].sort((a, b) => Number(!multi && b.code === recommended) - Number(!multi && a.code === recommended)).map((option) => (
       <QuestionnaireChoice key={option.code} value={option.code} checked={picked.includes(option.code)} disabled={disabled}
         data-slot="cc-guide-option" data-code={option.code} data-file-name={files ? option.name : undefined} onChange={() => onToggle(option.code)}>
         <span className="flex flex-wrap items-center gap-(--cc-space-8)">
@@ -213,7 +214,7 @@ const SearchBox: FC<{ value: string; label: string; disabled?: boolean; onChange
 );
 
 const MoreButton: FC<{ onClick: () => void }> = ({ onClick }) => (
-  <Button type="button" variant="ghost" size="sm" className="cc-show-more justify-start rounded-none" data-slot="cc-guide-more" onClick={onClick}>
+  <Button type="button" variant="ghost" size="sm" className="self-start" data-slot="cc-guide-more" onClick={onClick}>
     {co.showMore}
   </Button>
 );

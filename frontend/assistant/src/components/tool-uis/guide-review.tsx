@@ -13,7 +13,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
-import { Marquee } from "@/components/ui/marquee";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Spinner } from "@/components/ui/spinner";
@@ -25,6 +24,7 @@ import {
   type GuideResult, type GuideReview as FormReviewData, type GuideReviewTable, type GuideTableRow, type GuideUploads, type GuideView, HEAD_FIELDS, isDocResult, isDocReview,
   LINE_FIELDS, refusedText, reopenGuide, subsAnswered,
 } from "@/lib/guide-run";
+import { ChangeList } from "./approval-bar";
 import { CardFrame, type FrameButton } from "./card-frame";
 import { operatorTitle } from "./guide-operator";
 import { SubQuestionsField } from "./guide-inputs";
@@ -35,13 +35,14 @@ export const runAttrs = (view: GuideView) => ({ "data-run": view.run, "data-stat
 type Act = (call: () => Promise<GuideView>) => void;
 type Props = { view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act };
 
-/** 脚上的按钮（卡片骨架 card-frame.tsx）：确定是「取消 / 写入」，允许卡式确定（N5）是「拒绝 / 允许」；拒绝 = 取消这次引导。 */
+/** 脚上的按钮（卡片骨架 card-frame.tsx）：次按钮照线上允许卡叫「拒绝」（灰底，在主按钮左边；= 取消这次引导），主按钮确定是「写入」、
+ *  允许卡式确定（N5）是「允许」（主会话 11-16 定）。 */
 function decideButtons({ view, act }: Props, ready: boolean, seen?: string): FrameButton[] {
   const confirm = () => act(() => confirmGuide(view.run, view.version, seen));
   const cancel = () => act(() => cancelGuide(view.run));
   const allow = view.consent === "allow";
   return [
-    { slot: "cc-guide-cancel", label: allow ? t("deny") : t("cancel"), onClick: cancel },
+    { slot: "cc-guide-cancel", label: t("deny"), onClick: cancel },
     { slot: "cc-guide-confirm", label: allow ? t("allow") : t("recordNow"), primary: true, disabled: !ready, onClick: confirm },
   ];
 }
@@ -124,13 +125,15 @@ const EditableTable: FC<Props & { table: GuideReviewTable }> = ({ view, busy, ac
       <Item size="sm"><ItemContent><ItemTitle>{table.label}</ItemTitle></ItemContent></Item>
       {table.rows.map((row) => (
         <Collapsible key={row.code} defaultOpen={(row.issues ?? []).length > 0} data-slot="cc-guide-table-row" data-code={row.code}>
-          <CollapsibleTrigger asChild>
-            <Button type="button" variant="ghost" size="sm" className="w-full justify-start">
+          <CollapsibleTrigger className="cc-guide-doc-head" data-slot="cc-guide-doc-head">
               <ChevronRightIcon />
-              <Marquee className="min-w-0 flex-1 truncate text-start">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</Marquee>
-              {(row.issues ?? []).length > 0 && <Badge variant="destructive">{row.issues!.length}</Badge>}
-              {row.amount ? <span className="tabular-nums">{row.amount}</span> : null}
-            </Button>
+              <span className="flex min-w-0 flex-1 flex-col items-start gap-(--cc-space-4)">
+                <span className="wrap-break-word text-start">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</span>
+                <span className="flex w-full flex-wrap items-center gap-(--cc-space-6)">
+                  {(row.issues ?? []).length > 0 && <Badge variant="destructive">{row.issues!.length}</Badge>}
+                  {row.amount ? <span className="ms-auto tabular-nums">{row.amount}</span> : null}
+                </span>
+              </span>
           </CollapsibleTrigger>
           <CollapsibleContent>
             {(row.issues ?? []).map((issue) => <p key={issue} className="cc-askq-desc" data-slot="cc-guide-issue">{issue}</p>)}
@@ -154,7 +157,12 @@ const FormReview: FC<Props & { review: FormReviewData; head?: ReactNode }> = (pr
     <CardFrame title={businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} buttons={decideButtons(props, review.ready)}
       failure={props.failure} busy={busy}>
       {head}
-      <div data-slot="cc-guide-review" data-source="form" className="cc-op-before-body">
+      {view.consent === "allow" ? (
+        // 允许式确定（删除 / 结束类）：照线上允许卡——标题栏 + 带框的内容块（ChangeList）+ 拒绝 / 允许
+        <ChangeList preview={[...(review.lines ?? []).map((line) => ({ field: line.label, before: "", after: line.value })),
+          ...(review.tables ?? []).flatMap((table) => table.rows.map((row) => ({ field: row.name || row.code, before: "", after: row.amount ?? "" })))]} />
+      ) : null}
+      <div data-slot="cc-guide-review" data-source="form" className="cc-op-before-body" hidden={view.consent === "allow"}>
         {(review.lines ?? []).map((line) => (
           <StepRow key={line.key} label={line.label} value={line.value} step={line.step} busy={busy} onBack={back} />
         ))}
@@ -199,8 +207,8 @@ const LINE_LABEL: Record<(typeof LINE_FIELDS)[number], () => string> = {
 const NUMERIC = new Set(["subtotal", "vat", "total", "qty", "unit_price", "amount"]);
 
 /** 一格：能改的是输入框（失焦或回车时值变了才交），不能改的是只读字；有标记的标红，写不进账本的同样标红。 */
-const Cell: FC<{ row: DocRow; field: string; label: string; disabled: boolean; onCommit: (field: string, value: string) => void }> = ({
-  row, field, label, disabled, onCommit,
+const Cell: FC<{ row: DocRow; field: string; label: string; disabled: boolean; onCommit: (field: string, value: string) => void; fill?: boolean }> = ({
+  row, field, label, disabled, onCommit, fill,
 }) => {
   const shown = cellValue(row.face, field);
   const [draft, setDraft] = useState<string | null>(null);
@@ -213,14 +221,15 @@ const Cell: FC<{ row: DocRow; field: string; label: string; disabled: boolean; o
   if (!canEdit(row, field)) {
     return (
       <span data-slot="cc-guide-cell" data-field={field} data-readonly aria-invalid={wrong || undefined}
-        className={NUMERIC.has(column) ? "tabular-nums" : undefined}>
+        className={NUMERIC.has(column) ? (fill ? "tabular-nums text-end" : "tabular-nums") : undefined}>
         {shown}
       </span>
     );
   }
   return (
     <Input data-slot="cc-guide-cell" data-field={field} aria-label={label} value={draft ?? shown} disabled={disabled} aria-invalid={wrong || undefined}
-      inputMode={NUMERIC.has(column) ? "decimal" : undefined} className={NUMERIC.has(column) ? "cc-guide-amount w-(--cc-guide-amount-w) shrink-0" : undefined}
+      inputMode={NUMERIC.has(column) ? "decimal" : undefined}
+      className={fill ? "cc-guide-amount" : NUMERIC.has(column) ? "cc-guide-amount w-(--cc-guide-amount-w) shrink-0" : undefined}
       onChange={(event) => setDraft(event.currentTarget.value)} onBlur={commit}
       onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); commit(); } }} />
   );
@@ -234,41 +243,38 @@ const DocBlock: FC<{ row: DocRow; open: boolean; disabled: boolean; onCommit: (d
   const commit = (field: string, value: string) => onCommit(row.doc_id, field, value);
   return (
     <Collapsible open={shown} onOpenChange={setShown} data-slot="cc-guide-doc" data-doc={row.doc_id} data-blocking={row.blocking.length > 0 || undefined}>
-      <CollapsibleTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="w-full justify-start">
+      {/* 行头两行（验收 C5：手机泰 / 英 / 日下对方名被挤没、金额越出卡外）：第一行单号 · 对方完整换行，第二行标记与合计 */}
+      <CollapsibleTrigger className="cc-guide-doc-head" data-slot="cc-guide-doc-head">
           {shown ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          <Marquee className="min-w-0 flex-1 truncate text-start">{[face.doc_no, face.party_name].filter(Boolean).join(" · ")}</Marquee>
-          {row.marks.map((mark) => <Badge key={mark} variant="destructive" data-mark={mark}>{MARK_WORD[mark]?.() ?? mark}</Badge>)}
-          <span className="tabular-nums">{face.total}</span>
-        </Button>
+          <span className="flex min-w-0 flex-1 flex-col items-start gap-(--cc-space-4)">
+            <span className="wrap-break-word text-start">{[face.doc_no, face.party_name].filter(Boolean).join(" · ")}</span>
+            <span className="flex w-full flex-wrap items-center gap-(--cc-space-6)">
+              {row.marks.map((mark) => <Badge key={mark} variant="destructive" data-mark={mark}>{MARK_WORD[mark]?.() ?? mark}</Badge>)}
+              <span className="ms-auto tabular-nums">{face.total}</span>
+            </span>
+          </span>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <ItemGroup className="cc-guide-body">
+        <ItemGroup>
           {HEAD_FIELDS.map((field) => (
             <Item key={field} size="sm" data-field={field}>
               <ItemContent><ItemDescription>{HEAD_LABEL[field]()}</ItemDescription></ItemContent>
               <ItemActions><Cell row={row} field={field} label={HEAD_LABEL[field]()} disabled={disabled} onCommit={commit} /></ItemActions>
             </Item>
           ))}
-          {face.lines.length > 0 && (
-            <Item size="sm" data-line="head">
-              <ItemContent><ItemDescription>{LINE_LABEL.description()}</ItemDescription></ItemContent>
-              <ItemActions data-slot="cc-guide-line-head">
-                {(["qty", "unit_price", "amount"] as const).map((column) => <span key={column} className="cc-askq-desc">{LINE_LABEL[column]()}</span>)}
-              </ItemActions>
-            </Item>
-          )}
+          {/* 明细一行一块：说明占整行，下面数量 / 单价 / 金额三格等宽一排，每格上面写自己的列名（验收 D5：列名与格子不同列） */}
           {face.lines.map((_line, index) => (
-            <Item key={index} size="sm" data-line={index} className="flex-wrap">
-              <ItemContent className="basis-full">
-                <Cell row={row} field={`lines.${index}.description`} label={LINE_LABEL.description()} disabled={disabled} onCommit={commit} />
-              </ItemContent>
-              <ItemActions className="ms-auto">
+            <div key={index} data-line={index} className="flex min-w-0 flex-col gap-(--cc-space-6)" data-slot="cc-guide-line">
+              <Cell row={row} field={`lines.${index}.description`} label={LINE_LABEL.description()} disabled={disabled} onCommit={commit} />
+              <div className="grid grid-cols-3 gap-(--cc-space-8)">
                 {(["qty", "unit_price", "amount"] as const).map((column) => (
-                  <Cell key={column} row={row} field={`lines.${index}.${column}`} label={LINE_LABEL[column]()} disabled={disabled} onCommit={commit} />
+                  <label key={column} className="flex min-w-0 flex-col gap-(--cc-space-4)">
+                    <span className="cc-askq-desc">{LINE_LABEL[column]()}</span>
+                    <Cell row={row} field={`lines.${index}.${column}`} label={LINE_LABEL[column]()} disabled={disabled} onCommit={commit} fill />
+                  </label>
                 ))}
-              </ItemActions>
-            </Item>
+              </div>
+            </div>
           ))}
         </ItemGroup>
       </CollapsibleContent>
@@ -283,7 +289,7 @@ const DocReview: FC<Props & { review: GuideDocReview; head?: ReactNode }> = (pro
     <CardFrame title={operatorTitle(view) ?? businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)}
       buttons={decideButtons(props, review.ready, review.seen)} failure={refusedText(view) || props.failure} busy={busy}>
       {head}
-      <div data-slot="cc-guide-review" data-source="documents" className="flex min-w-0 flex-col">
+      <div data-slot="cc-guide-review" data-source="documents" className="cc-op-before-body">
         {review.rows.map((row) => (
           <DocBlock key={row.doc_id} row={row} open={review.rows.length === 1} disabled={busy} onCommit={edit} />
         ))}

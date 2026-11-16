@@ -3126,11 +3126,21 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   }
   :root[data-cc-touch] .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) { min-height: var(--cc-tap); }
   [data-slot="cc-guide-cell"][data-readonly][aria-invalid], [data-slot="cc-guide-cell-refused"], [data-slot="cc-guide-issue"] { color: var(--cc-danger); }
-  [data-slot="cc-guide-table-row"] [data-slot="cc-guide-issue"] { padding: 0 var(--cc-space-12); }
   [data-slot="cc-guide-table-row"][data-state="open"] > button svg:first-child { transform: rotate(90deg); }
-  [data-slot="cc-guide-line-head"] { flex-wrap: nowrap; }
-  [data-slot="cc-guide-line-head"] > span { width: var(--cc-guide-amount-w); text-align: end; }
-  [data-slot="cc-guide-line-head"] > span:last-child { width: auto; min-width: max-content; }
+  /* 单据 / 表格行头（两行：名称完整换行；标记与金额第二行）：按钮自带的一行高、不换行在这里放开 */
+  .cc-guide-doc-head {
+    display: flex; align-items: flex-start; gap: var(--cc-space-8); width: calc(100% + 2 * var(--cc-space-8)); margin-inline: calc(-1 * var(--cc-space-8));
+    min-height: var(--cc-panel-row); padding: var(--cc-space-6) var(--cc-space-8); border-radius: var(--cc-radius-row-ctl); background: transparent;
+    color: var(--cc-ink); font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); text-align: start; outline: none;
+  }
+  .cc-guide-doc-head:hover { background: var(--cc-bg-hover); }
+  .cc-guide-doc-head:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-guide-doc-head > svg { flex-shrink: 0; width: var(--cc-icon-sm); height: var(--cc-icon-sm); margin-top: var(--cc-space-2); }
+  :root[data-cc-touch] .cc-guide-doc-head { min-height: var(--cc-tap); }
+  /* 卡体只有一层左右内边距（.cc-op-before-body）：卡里的 Item 不再自带左右内边距，标题、普通行、表格行、字段行左边对齐（验收 B5） */
+  .cc-steps-card .cc-op-before-body [data-slot="item"] { padding-inline: 0; }
+  [data-slot="cc-guide-line"] { padding: var(--cc-space-6) 0; }
+  [data-slot="cc-guide-line"] [data-readonly] { display: flex; align-items: center; justify-content: flex-end; min-height: var(--cc-control); }
   :is(.cc-ui-questionnaire-card, .cc-steps-card) .cc-guide-body .cc-alert, .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-more"], .cc-ui-questionnaire-card .cc-guide-body + .cc-menu-label { border-top: var(--cc-ring-w) solid var(--cc-line); }
   [data-slot="cc-guide-run"][data-ended] .cc-ask { opacity: var(--cc-disabled-opacity); }

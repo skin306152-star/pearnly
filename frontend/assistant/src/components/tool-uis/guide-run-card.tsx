@@ -18,8 +18,8 @@ import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/co
 import {
   Questionnaire, QuestionnaireActions, QuestionnaireDescription, QuestionnaireItem, QuestionnaireTitle,
 } from "@/components/ui/questionnaire";
-import { Spinner } from "@/components/ui/spinner";
-import { ask, guide, steps, t, ui } from "@/i18n";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ask, guide, steps, t } from "@/i18n";
 import { businessName } from "@/lib/business";
 import { reportCaught } from "@/lib/caught";
 import { shownError } from "@/lib/frappe";
@@ -38,6 +38,13 @@ import { GuideOperatorHead, operatorTitle } from "./guide-operator";
 import { GuideResultCard, GuideReview, GuideUploadsLine, runAttrs } from "./guide-review";
 
 type Values = Record<string, unknown>;
+
+/** 卡里加载占位（ccs：卡里加载用骨架，不写字、不转圈）：三条字高的条。 */
+const GuideSkeleton: FC = () => (
+  <div className="cc-guide-body flex min-w-0 flex-col gap-(--cc-space-8)" data-slot="cc-guide-wait" aria-busy>
+    <Skeleton /><Skeleton /><Skeleton className="w-1/2" />
+  </div>
+);
 type Act = (call: () => Promise<GuideView>) => void;
 
 /** 一题的输入（按 input 选组件）。 */
@@ -96,7 +103,7 @@ const DecidedEdit: FC<{ run: string; item: GuideDecided; value: unknown; disable
         value={typeof value === "string" ? value : typeof item.value === "string" ? item.value : ""} onChange={onChange} />
     );
   }
-  if (!page) return <Spinner />;
+  if (!page) return <GuideSkeleton />;
   return (
     <ChoiceField options={page.options} more={page.more} search={(txt, start) => searchGuide(run, item.key, txt, start)} multi={false}
       label={item.title} disabled={disabled} value={(value as string | undefined) ?? (typeof item.value === "string" ? item.value : undefined)}
@@ -204,19 +211,19 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
             </div>
           )}
           {(q.facts ?? []).map((fact) => <QuestionnaireDescription key={fact} data-slot="cc-guide-fact">{fact}</QuestionnaireDescription>)}
-          {q.wait && (
-            <QuestionnaireDescription data-slot="cc-guide-wait" className="flex items-center gap-(--cc-space-8)">
-              <Spinner />
-              {ui.loading}
-            </QuestionnaireDescription>
-          )}
+
           {(returned || refused) && (
             <Alert variant="destructive" data-slot="cc-guide-returned">
               <AlertDescription>{returned?.text || refused}</AlertDescription>
             </Alert>
           )}
-          <QuestionBody run={view.run} sessionId={sessionId} question={q} all={questions} values={all} disabled={busy}
-            onChange={(value) => setValues((s) => ({ ...s, [q.key]: value }))} />
+          {/* 还在读（服务端 wait）：题下那行事实就是服务端的说法，选项处只放骨架占位，不再写「正在加载」（验收 B8：同一件事说两遍） */}
+          {q.wait && !(q.options ?? []).length ? (
+            <GuideSkeleton />
+          ) : (
+            <QuestionBody run={view.run} sessionId={sessionId} question={q} all={questions} values={all} disabled={busy}
+              onChange={(value) => setValues((s) => ({ ...s, [q.key]: value }))} />
+          )}
         </QuestionnaireItem>
         <Decided run={view.run} items={card.decided} open={decidedOpen} values={decidedValues} disabled={busy}
           onChange={(key, value) => setDecided((s) => ({ ...s, [key]: value }))} />
