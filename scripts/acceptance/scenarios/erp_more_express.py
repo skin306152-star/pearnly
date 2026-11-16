@@ -42,7 +42,11 @@ def written(ctx, chain, out, what):
 
 def pos_day(ctx, chain, conf, book):
     with ctx.step("开班卖货、合成日汇总并等写入", "当天的小票合成一张日汇总，CC 桌面版写成现销单并回执"):
-        out = chain.site(ctx, "erp_pos_day.py", {**conf, "run": chain.tag(ctx)}, timeout=600)
+        # 验收账套 TEST2 是增值税登记户（它的发票带 7% 税、ISVAT 有行）：第一次写日汇总时产品问一次就答「是」（用户的正路，记在公司上）
+        out = chain.site(ctx, "erp_pos_day.py", {**conf, "run": chain.tag(ctx), "vat_registered": "yes"}, timeout=900)
+        if out.get("answered"):
+            ctx.save("vat-registered-asked.json", out["answered"])
+            ctx.check("第一次写日汇总只问了一次性的「是不是增值税登记户」", ["vat_registered"], out["answered"]["asked"])
         docnum, expected = written(ctx, chain, out, "日汇总"), out["expected"]
         ctx.check("单别是现销单", ["HS", True], [out["state"].get("doc_kind") or "HS", docnum.startswith("HS")])
         ctx.check("卖的小票都进了这张日汇总", expected["receipts"], expected["in_summary"])

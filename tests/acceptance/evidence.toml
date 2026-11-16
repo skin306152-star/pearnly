@@ -72,3 +72,69 @@ covers = "e5596ccadcdc6953"
 docnums = ["HP691116-001"]
 ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00751"
+
+[[pass]]
+scenario = "acc.erp.stock.adjust.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-133310-4ae7502df"
+retried = false
+covers = "4d14cf330e963822"
+docnums = ["TK691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.stock.count.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-134427-4ae7502df"
+retried = false
+covers = "0e38364c4cef97d0"
+docnums = ["TK691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.stock.in.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-132624-4ae7502df"
+retried = false
+covers = "4d14cf330e963822"
+docnums = ["JU691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.stock.out.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-132918-4ae7502df"
+retried = false
+covers = "4d14cf330e963822"
+docnums = ["JU691116-001", "OU691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.stock.transfer.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-133551-4ae7502df"
+retried = false
+covers = "0fd60815ce079360"
+docnums = ["JU691116-001", "RL691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.stock.void.express"
+sha = "4ae7502df89ecafa019a2c733d843df148a70c40"
+date = "2026-11-16"
+env = "B"
+run = "20261116-134009-4ae7502df"
+retried = false
+covers = "ca6ea882d250e893"
+docnums = ["JU691116-001"]
+ledger = "\\\\accserver\\d$\\ACCOUNT\\69EXP\\TEST2"

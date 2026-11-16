@@ -97,13 +97,29 @@ try:
         frappe.db.rollback()
     fields = ["ledger_state", "ledger_docnum", "ledger_reason", "ledger_job", "ledger_book", "ledger_needed", "doc_kind", "sales_count",
               "grand_total", "day"]
-    deadline, state = time.monotonic() + int(params.get("wait", 300)), {}
-    while time.monotonic() < deadline:
-        frappe.db.rollback()
-        state = frappe.db.get_value(DOCTYPE, name, fields, as_dict=True) or {}
-        if state.get("ledger_state") in ("written", "mismatch", "held", "failed"):
-            break
-        time.sleep(5)
+    def wait():
+        deadline, seen = time.monotonic() + int(params.get("wait", 300)), {}
+        while time.monotonic() < deadline:
+            frappe.db.rollback()
+            seen = frappe.db.get_value(DOCTYPE, name, fields, as_dict=True) or {}
+            if seen.get("ledger_state") in ("written", "mismatch", "held", "failed"):
+                break
+            time.sleep(5)
+        return seen
+
+    state = wait()
+    # 这家公司第一次写日汇总时，产品在单据上问一次「是不是增值税登记户」（express.pos_day.VAT_REGISTERED，记在公司上，之后不再问）：
+    # 场景给了答案（params.vat_registered）就照用户的正路在单据上回答（express.api.answer），再等写入
+    needed = frappe.parse_json(state.get("ledger_needed")) if isinstance(state.get("ledger_needed"), str) else state.get("ledger_needed")
+    asked = [item.get("kind") for item in needed or [] if isinstance(item, dict)]
+    if state.get("ledger_state") == "held" and asked == ["vat_registered"] and params.get("vat_registered"):
+        from pearnly_erp_portal.express import api as express_api
+        frappe.set_user(params["user"])
+        express_api.answer(DOCTYPE, name, [{"kind": "vat_registered", "subject": "company", "value": params["vat_registered"]}])
+        frappe.db.commit()
+        frappe.set_user("Administrator")
+        result["answered"] = {"asked": asked, "vat_registered": params["vat_registered"], "held": dict(state)}
+        state = wait()
     job = frappe.db.get_value("Pearnly CC Job", state.get("ledger_job"), ["status", "verify_state", "reason"], as_dict=True) \
         if state.get("ledger_job") else None
     written = [row.path for row in frappe.get_all(books.BOOK, filters={"book_key": state.get("ledger_book")}, fields=["path"])] \
