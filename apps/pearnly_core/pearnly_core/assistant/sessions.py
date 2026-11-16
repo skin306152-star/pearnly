@@ -1224,7 +1224,11 @@ def run_tool(session_id, tool_use_id) -> dict:
         before = getattr(frappe.local, "pearnly_assistant", None)
         frappe.local.pearnly_assistant = {**(before or {}), "session_id": row.session_id}
         try:
-            view = tools.approval_view(call.get("name"), call.get("input"))
+            # 允许卡预览（产品按本对话现算，可能加锁读连接行）撞 1020 / 1213 整笔回滚重来：执行记录已在 `toolrun.execute` 里提交，
+            # 这里只读，重来不丢写入、不重发（11-16）
+            from pearnly_core.transaction import conflicts
+
+            view = conflicts.retried(lambda: tools.approval_view(call.get("name"), call.get("input")))
         finally:
             frappe.local.pearnly_assistant = before
         return {"status": status, **view}

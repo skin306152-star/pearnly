@@ -6632,6 +6632,82 @@ class AskUserTests(unittest.TestCase):
         status, row, handed, calls = self._decide_guide(None, allow=False)
         self.assertEqual((status, calls), ("done", ["skipped"]))
 
+    def test_saving_guide_answers_is_redone_after_a_snapshot_conflict(self):
+        """11-16：记答案时产品加锁读连接行撞 1020，整笔回滚重来一次就记上了，卡照常答完、只交回一次（不是交回出错）。"""
+        ask = self.ask()
+        tries = []
+
+        def result(tool_input, rows):
+            tries.append("result")
+            if len(tries) == 1:
+                raise _Deadlock("1020 Record has changed since last read")
+            return '{"status": "answered"}'
+
+        fake = types.SimpleNamespace(TOOL="pearnly_guide", check=lambda tool_input, given: given, result=result,
+                                     skipped=lambda tool_input: '{"status": "skipped"}')
+        package = sys.modules["pearnly_core.assistant"]
+        conflicts = sys.modules["pearnly_core.transaction.conflicts"]
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant.guide_tool": fake}), \
+                mock.patch.object(package, "guide_tool", fake, create=True), \
+                mock.patch.object(conflicts.frappe, "QueryDeadlockError", _Deadlock, create=True), \
+                mock.patch.object(conflicts.time, "sleep", lambda seconds: None):
+            status, row, handed, published, ran = self._decide(answers=[{"key": "k1", "value": "cash"}], tool="pearnly_guide")
+        self.assertIsNotNone(ask)
+        self.assertEqual((status, row["status"], tries), ("done", "done", ["result", "result"]))
+        self.assertEqual([h[1] for h in handed], ['{"status": "answered"}'])
+
+    def _before_card(self, fn_name, tools_attr):
+        """出卡前的核对 / 准备（`toolrun._refused_before_card` / `_prepare_before_card`）：产品函数第一次撞 1020，回滚后再来一次。"""
+        toolrun = sys.modules["pearnly_core.assistant.toolrun"]
+        conflicts = sys.modules["pearnly_core.transaction.conflicts"]
+        tries, rolled = [], []
+
+        def product(name, tool_input):
+            tries.append(name)
+            if len(tries) == 1:
+                raise _Deadlock("1020 Record has changed since last read")
+            return {"input": {"card": "ok"}} if tools_attr == "prepare" else None
+
+        db = types.SimpleNamespace(rollback=lambda *a, **k: rolled.append(1), commit=lambda: None)
+        with contextlib.ExitStack() as stack:
+            for patch in (mock.patch.object(toolrun.tools, tools_attr, product),
+                          mock.patch.object(toolrun.tools, "prepares", lambda name: True, create=True),
+                          mock.patch.object(toolrun, "_use_lang", lambda conversation: None, create=True),
+                          mock.patch.object(conflicts.frappe, "db", db, create=True),
+                          mock.patch.object(conflicts.frappe, "QueryDeadlockError", _Deadlock, create=True),
+                          mock.patch.object(conflicts.time, "sleep", lambda seconds: None)):
+                stack.enter_context(patch)
+            found = getattr(toolrun, fn_name)("conv", {"name": "pearnly_guide", "input": {"doc_ids": ["d1"]}})
+        return found, tries, rolled
+
+    def test_preparing_the_guide_card_is_redone_after_a_snapshot_conflict(self):
+        """11-16 实验栈（Cowork 推送准备加锁读连接行时心跳刚改过它）：卡照常出，不是交回 failed。"""
+        found, tries, rolled = self._before_card("_prepare_before_card", "prepare")
+        self.assertEqual((found, len(tries), rolled), ({"input": {"card": "ok"}}, 2, [1]))
+
+    def test_the_check_before_the_card_is_redone_after_a_snapshot_conflict(self):
+        found, tries, rolled = self._before_card("_refused_before_card", "refusal")
+        self.assertEqual((found, len(tries), rolled), (None, 2, [1]))
+
+    def test_the_allow_card_preview_is_redone_after_a_snapshot_conflict(self):
+        source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8")
+        body = source[source.index("def run_tool"):][:4000]
+        self.assertIn('conflicts.retried(lambda: tools.approval_view(call.get("name"), call.get("input")))', body)
+        conflicts = sys.modules["pearnly_core.transaction.conflicts"]
+        tries, rolled = [], []
+
+        def view(name, tool_input):
+            tries.append(name)
+            if len(tries) == 1:
+                raise _Deadlock("1020")
+            return {"ask": "Run it?"}
+
+        with mock.patch.object(conflicts.frappe, "db", types.SimpleNamespace(rollback=lambda *a, **k: rolled.append(1)), create=True), \
+                mock.patch.object(conflicts.frappe, "QueryDeadlockError", _Deadlock, create=True), \
+                mock.patch.object(conflicts.time, "sleep", lambda seconds: None):
+            self.assertEqual(conflicts.retried(view, "p_run", {}), {"ask": "Run it?"})
+        self.assertEqual((len(tries), rolled), (2, [1]))
+
     def test_the_answer_is_the_result_kept_on_the_record_and_handed_back(self):
         status, row, handed, published, ran = self._decide(answers=[{"labels": ["Cash"]}, {"skipped": True}])
         self.assertEqual((status, row["status"], published, ran), ("done", "done", ["done"], []))

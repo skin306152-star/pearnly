@@ -24,6 +24,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.assistant import ask, contracts, engine, tools, waits
+from pearnly_core.transaction import conflicts
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
@@ -207,7 +208,9 @@ def _refused_before_card(conversation: str, call: dict) -> str | None:
     before = getattr(frappe.local, "pearnly_assistant", None)
     frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
     try:
-        return tools.refusal(call.get("name"), call.get("input"))
+        # 撞 1020 / 1213（产品核对里加锁读连接行时心跳刚改过它）整笔回滚重来：这里在 `execute` 开头回滚之后、插执行记录之前，只读，
+        # 重来不丢任何写入、不重发任何东西（11-16，conflicts.retried）
+        return conflicts.retried(tools.refusal, call.get("name"), call.get("input"))
     finally:
         frappe.local.pearnly_assistant = before
 
@@ -223,7 +226,9 @@ def _prepare_before_card(conversation: str, call: dict) -> dict | None:
     frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
     _use_lang(conversation)  # 卡上的题目、选项、说明由服务端按这段对话的语言出（同工具执行，`_finish`）
     try:
-        return tools.prepare(call.get("name"), call.get("input"))
+        # 出卡前准备（引导卡：写账前置判定 `write_precheck.card`，Cowork 推送准备里加锁读连接行）撞 1020 / 1213 整笔回滚重来：
+        # 只读、在插执行记录之前，重来不丢写入、不重发（11-16 实验栈与 11-08 生产同一类；网页那条 `write_precheck.api.check` 已有重试）
+        return conflicts.retried(tools.prepare, call.get("name"), call.get("input"))
     finally:
         frappe.local.pearnly_assistant = before
 
@@ -273,7 +278,9 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
         before = getattr(frappe.local, "pearnly_assistant", None)
         frappe.local.pearnly_assistant = {**(before or {}), "session_id": conversation}
         try:
-            asked = guide_tool.result(guide_input, guide_rows) if allow else guide_tool.skipped(guide_input)
+            # 记答案（写账前置判定的记住，产品里可能加锁读连接行）撞 1020 / 1213 整笔回滚重来：「抢到这次作答」已在上面提交，
+            # 回滚的只是这次还没提交的记答案；推送等提交后的动作随回滚一起清掉（`db.rollback` 重置 after_commit），不会重发
+            asked = conflicts.retried(guide_tool.result, guide_input, guide_rows) if allow else guide_tool.skipped(guide_input)
         finally:
             frappe.local.pearnly_assistant = before
     if asked is not None:
