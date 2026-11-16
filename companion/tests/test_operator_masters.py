@@ -324,6 +324,18 @@ class OperatorMastersTest(unittest.TestCase):
         self.assertTrue(ready.ok)
         self.assertIs(ready.payload, payload)
 
+    def test_the_codes_used_go_to_the_top_of_the_receipt_like_a_direct_write(self):
+        """回执顶层同直写的 party_code / line_codes（1.12.23）：新建的、按名字认到的现有档都报，服务端据此挂码（11-16 验收：
+        以前只在 meta.operator.masters 里报新建的，认到的现有档挂不上）。"""
+        self._prepare(_purchase())
+        found = self._prepare(_purchase(ref_no="INV-2"))  # 第二张：都是按名字认到的现有档，created 为空
+        self.assertEqual(found.created, [])
+        codes = masters.written_codes(found.payload)
+        self.assertEqual(codes["party_code"], found.payload["supplier"]["code"])
+        self.assertEqual(codes["line_codes"], [{"seq": 1, "name": "ค่าบริการ", "code": found.payload["items"][0]["code"]}])
+        self.assertEqual(masters.written_codes(_purchase()), {})  # 还没码：什么都不带
+        self.assertEqual(masters.written_codes({"doctype": "JU", "items": []}), {})
+
 
 if __name__ == "__main__":
     unittest.main()
