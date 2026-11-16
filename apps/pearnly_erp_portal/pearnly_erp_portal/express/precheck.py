@@ -192,7 +192,26 @@ def collect_document(doctype, name, given=None) -> dict:
     stop = printed.hold(doctype, name)
     if stop:
         return {"result": {"hold": stop}, "items": [], "data": None}
-    return collect(doctype, push.company_of(doctype, name), lambda: push.document(doctype, name), given, name)
+    company = push.company_of(doctype, name)
+    found = collect(doctype, company, lambda: push.document(doctype, name), given, name)
+    if found["items"]:
+        return found
+    return _with_blocked(doctype, name, company, found)
+
+
+def _with_blocked(doctype, name, company, found) -> dict:
+    """写账规则这遍判不出要选的、但上次电脑写的时候以「要人选一次」拦下了（对方档疑似重复 / 分店认不准、存货科目组、服务品进项
+    口径，`api.blocked_needed`）：把那一项照单据页同一份选项列进卡片，选了记住、再交（11-16 真机 H5：代录对话里只剩「重试」）。"""
+    from pearnly_erp_portal.express import api
+
+    blocked = api.blocked_needed(doctype, name)
+    if not blocked:
+        return found
+    book = (found.get("result") or {}).get("book") or {}
+    data = found.get("data") or (facts.load(book["key"]) if book.get("key") else None)
+    body = push.document(doctype, name)
+    company_row = push._company(company)
+    return {**found, "data": data, "items": [_item(raw, data, company_row, body, doctype, name) for raw in blocked]}
 
 
 def collect_form(doctype, payload, company, given=None) -> dict:

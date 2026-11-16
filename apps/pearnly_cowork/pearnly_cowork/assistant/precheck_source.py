@@ -35,6 +35,9 @@ GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
+# 新建库存品挂哪个存货科目组（每个账套选一次，记在连接的 ``stock_acc_groups``，同网页上传那一问 `targets.stock_group_needed`）：
+# 走库存、合格的组两个以上、这份账套还没选过才问（11-16 真机 H5：不问就交给 CC 桌面版按众数选，众数组可能不是存货科目）
+STOCK_GROUP = "stock_group"
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
               "express_history": card.EXPRESS_HISTORY}
@@ -181,6 +184,12 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
         asked = [{**item, "when": dict(when)} if (item["kind"], item["subject"]) not in asked_before else item
                  for item in asked]
     items.extend(asked)
+    if ((goods or {}).get("value") or kind) == "stock":
+        group = _stock_group_item(loaded, found)
+        if group and goods:
+            group["when"] = {"kind": GOODS_POSTING, "subject": goods["subject"], "value": "stock"}
+        if group:
+            items.append(group)
     items.extend(decided_items(decision, found["fields"], found["direction"]))
     own = document_payment_item(doc, found["fields"], found["direction"])
     if own:
@@ -190,6 +199,23 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
         # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
         out["planned"] = view["planned"]
     return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
+
+
+def _stock_group_item(loaded, found):
+    """这份账套要不要问存货科目组（:data:`STOCK_GROUP`）：合格的组已知、两个以上、还没选过才问，按在用的库存品数预选；
+    选项是 CC 桌面版判过「确是存货科目」的组（同网页上传与写账规则的一份名单，`stock_groups.fit`）。不用问回 None。"""
+    from pearnly_core.express_rules.targets import stock_groups
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+    account = normalize_express_account_key(found["target"].account_set)
+    view = stock_groups.view(getattr(loaded.doc, "stock_acc_groups", None), account,
+                             found["selected"]["config"].get("reported_stock_acc_groups"))
+    if not view["known"] or view["chosen"] or len(view["groups"]) < 2:
+        return None
+    value = preselect.most_used({group["acccod"]: group.get("used_by") or 0 for group in view["groups"]})
+    return {"kind": STOCK_GROUP, "subject": account, "label": str(found["target"].account_set or ""), "value": value,
+            "source": card.HISTORY if value else "",
+            "options": [{"code": group["acccod"], "name": group["label"]} for group in view["groups"]]}
 
 
 def _menu_stop(doc) -> dict:
@@ -572,6 +598,17 @@ def remember(company, answers) -> dict:
                 goods_posting.choose(name, value)
             elif kind == CURRENT_BOOK:
                 _choose_book(doc, value)
+            elif kind == STOCK_GROUP:
+                from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+                from pearnly_cowork.connections import service as connections
+
+                # 只记这张单推往的那份账套（归类键是它的规范化账套键；对不上的是别的单的答案，跳过、不拒）；
+                # 不在合格名单里的值照连接那边的校验拒
+                subject = normalize_express_account_key(str(row.get("subject") or ""))
+                account = normalize_express_account_key(doc.push_account_set or "") or subject
+                if not account or account != subject:
+                    continue
+                connections.choose_stock_acc_group(doc.push_connection, account, value)
             else:
                 frappe.throw(_("connection.config_invalid"))
             saved += 1

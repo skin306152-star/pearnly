@@ -226,6 +226,7 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
     products.waiting_on = lambda company, user: state.get("waiting_on", {}).get((company, user), "")
     # 本人此刻没有能写的电脑时那一句（产品 computer_state + reason_text；默认能写，回空串）
     products.computer_words = lambda company, user: state.get("computer", {}).get((company, user), "")
+    products.reason_text = lambda reason: "words:" + str(reason)[:20]  # 产品给原因的那一句（替身：带上原因开头便于核）
     products.uploads = lambda company, period, batches: dict(state.get("ocr") or {})
 
     sessions = types.ModuleType("pearnly_core.assistant.sessions")
@@ -572,6 +573,8 @@ class DetailTests(unittest.TestCase):
         self.assertEqual(task["documents"][0]["reason"], "[OPERATOR_UNKNOWN_SCREEN] " + conclusion)
         card = next(e for e in events if e.get("name") == self.feed.CHOOSE)
         self.assertEqual((card["input"]["reason"], card["input"]["detail"]), ("unknown_screen", conclusion))
+        # 卡上照产品那一句说原因（11-16 真机 H5：卡上只有「重试」不说为什么）
+        self.assertEqual(card["input"]["reason_text"], "words:[OPERATOR_UNKNOWN_SC")
         result = next(e for e in events if e["type"] == "agent.tool_result" and "_rnot_done_" in e["id"])
         self.assertEqual(json.loads(result["content"][0]["text"])["detail"], conclusion)
 

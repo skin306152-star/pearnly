@@ -65,7 +65,7 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None):
+         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None, stock_chosen=None):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
     calls = []
@@ -120,6 +120,11 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     choice_store = ns(operator_form=lambda connection, account_set, doc_type: memory.get((connection, account_set, doc_type),
                                                                                          ""),
                       record=record)
+    # 连接：这份账套选过的存货科目组（``stock_chosen``，{账套键: 组码}）；选组记到 calls
+    chosen_raw = json.dumps({key: {"acccod": code} for key, code in (stock_chosen or {}).items()})
+    connection_service = ns(
+        read_for_push=lambda *a, **k: ns(endpoint={"adapter": "express"}, doc=ns(name="C1", stock_acc_groups=chosen_raw)),
+        choose_stock_acc_group=lambda name, key, code: calls.append(("stock_group", name, key, code)))
     modules = {
         "frappe": frappe_stub(calls),
         "pearnly_cowork": ns(), "pearnly_cowork.access": ns(scope=ns(require=lambda *a: None)),
@@ -141,10 +146,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         "pearnly_cowork.history.storage": storage,
         "pearnly_cowork.history.document_policy": ns(choose=lambda name, value: calls.append(("policy", name, value))),
         "pearnly_cowork.history.push_state": ns(retarget=lambda *a: calls.append(("retarget",) + a)),
-        "pearnly_cowork.connections": ns(service=ns(read_for_push=lambda *a, **k: ns(
-            endpoint={"adapter": "express"}, doc=ns(name="C1")))),
-        "pearnly_cowork.connections.service": ns(read_for_push=lambda *a, **k: ns(
-            endpoint={"adapter": "express"}, doc=ns(name="C1"))),
+        "pearnly_cowork.connections": ns(service=connection_service),
+        "pearnly_cowork.connections.service": connection_service,
         "pearnly_cowork.contracts": ns(document_policy=policy), "pearnly_cowork.contracts.document_policy": policy,
         "pearnly_cowork.companies": ns(pending=pending, rules=ns(groups=lambda company: {})),
         "pearnly_cowork.companies.pending": pending, "pearnly_cowork.companies.rules": ns(groups=lambda company: {}),
@@ -211,6 +214,33 @@ class Collect(unittest.TestCase):
         self.assertEqual(found["legacy"], {"state": "blocked", "message": "document_policy_needed_payment_evidence"})
         # 入账方式预选走库存后按它再判一次，存货对照这些一并列出
         self.assertEqual([c[1] for c in calls if c[0] == "choices"], [None, "stock"])
+
+    def test_a_stock_document_asks_the_stock_group_once_for_the_book(self):
+        """走库存、这份账套合格的存货科目组两个以上、还没选过：同一张卡问挂哪个组，按在用的库存品数预选（11-16 真机 H5：
+        不问就交给 CC 桌面版按众数选，众数组 ST01 是办公设备）。选过的、只有一个合格的、心跳没报组的都不问。"""
+        groups = [{"fit": True, "acccod": "ST01", "stock_acc": "11-04-02-00", "stock_acc_name": "Goods", "used_by": 1},
+                  {"fit": True, "acccod": "DM", "stock_acc": "11-04-01-00", "stock_acc_name": "Raw", "used_by": 4},
+                  {"fit": False, "acccod": "ST04", "stock_acc": "14-01-05-00"}]
+        config = {"reported_stock_acc_groups": groups}
+        found, _calls, _m = self.run_document(goods=True, config=config)
+        item = self.by_kind(found)["stock_group"]
+        self.assertEqual((item["value"], item["source"], [row["code"] for row in item["options"]]),
+                         ("DM", card.HISTORY, ["ST01", "DM"]))  # 顺序照 CC 桌面版报的（它按合格、用量排）
+        self.assertEqual(item["when"]["value"], "stock")  # 入账方式答成走库存才问、才算数
+        for kwargs in ({"stock_chosen": {item["subject"]: "DM"}}, {"config": {"reported_stock_acc_groups": groups[1:]}},
+                       {"config": {}}):
+            found, _calls, _m = self.run_document(goods=True, **{"config": config, **kwargs})
+            self.assertNotIn("stock_group", self.by_kind(found), kwargs)
+
+    def test_the_stock_group_answer_is_kept_for_the_book_the_document_goes_to(self):
+        module, calls, patcher = load(goods=True)
+        self.addCleanup(patcher.stop)
+        from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+
+        key = normalize_express_account_key(BOOK)
+        module.remember("ABC Co", {"h1": [{"kind": "stock_group", "subject": key, "value": "DM"},
+                                          {"kind": "stock_group", "subject": "p:\\other", "value": "ST01"}]})
+        self.assertEqual([c for c in calls if c[0] == "stock_group"], [("stock_group", "C1", key, "DM")])
 
     def test_preselects_follow_the_shared_rules(self):
         found, _calls, _m = self.run_document(block="document_policy_needed_payment_evidence", goods=True,
