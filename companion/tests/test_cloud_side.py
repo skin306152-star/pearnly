@@ -126,7 +126,8 @@ def test_listing_the_share_is_injectable_and_errors_are_none():
     dirs = {os.path.join("\\\\tsclient", "Z", sub) for sub in ("in", "out", "ctl")}
     found = cloud_side.find_tunnel_root(listdir=lambda path: seen.append(path) or ["Z", "C", "share"],
                                         is_dir=lambda path: path in dirs)
-    assert seen == ["\\\\tsclient"] and found is not None and str(found).endswith("Z")
+    # Windows 上 Path("\\\\tsclient\\Z") 是 UNC 根，str 会带结尾的反斜杠
+    assert seen == ["\\\\tsclient"] and found is not None and str(found).rstrip("\\/").endswith("Z")
 
 
 def test_the_host_comes_from_the_bridge_manifest(tmp_path):

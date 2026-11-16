@@ -5,6 +5,7 @@
 设置控件只经正式属性、密码只进 ClearTextPassword、没有非脚本接口设置就不连；非 Windows 构造窗口抛明确错误。"""
 from __future__ import annotations
 
+import os
 import sys
 
 import pytest
@@ -585,7 +586,11 @@ def test_host_failure_is_window_unavailable(qt_app, monkeypatch):
 
 # ---------------- window：只在 Windows（有 comtypes 与远程桌面控件）上跑 ----------------
 
-windows_only = pytest.mark.skipif(not window.available(), reason="需要 Windows、PySide6 与 comtypes")
+# 真窗口要有交互桌面：CI（QT_QPA_PLATFORM=offscreen，runner 不在交互会话里）的窗口句柄是假的，原生子窗口建不出来（CreateWindowEx 1400）。
+# 这两条只在交互会话里手动跑；真机验证见预检脚本。
+windows_only = pytest.mark.skipif(
+    not window.available() or os.environ.get("QT_QPA_PLATFORM", "") == "offscreen",
+    reason="需要 Windows 交互桌面、PySide6 与 comtypes")
 
 
 @windows_only
