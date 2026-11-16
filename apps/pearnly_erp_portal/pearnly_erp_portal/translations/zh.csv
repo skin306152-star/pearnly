@@ -2587,10 +2587,17 @@ guide.step.collection.invoices,发票
 guide.step.collection.methods,收款方式
 guide.step.collection.voucher,转账凭证
 guide.step.stocktake.action,操作
+guide.step.stocktake.category,分类
+guide.step.stocktake.code,条码/二维码
 guide.step.stocktake.count,盘点
+guide.step.stocktake.default_cost,参考成本
 guide.step.stocktake.mode,方式
+guide.step.stocktake.product_name,物料名称
+guide.step.stocktake.qty,本次实盘数量
 guide.step.stocktake.rows,本次实盘数量
 guide.step.stocktake.title,名称
+guide.step.stocktake.unit,单位
+guide.step.stocktake.unit_price,售价
 guide.step.stocktake.warehouse,仓库
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）

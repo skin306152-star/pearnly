@@ -2587,10 +2587,17 @@ guide.step.collection.invoices,Invoices
 guide.step.collection.methods,Collection Method
 guide.step.collection.voucher,Transfer Slip
 guide.step.stocktake.action,Action
+guide.step.stocktake.category,Category
+guide.step.stocktake.code,Barcode / QR code
 guide.step.stocktake.count,Stock count
+guide.step.stocktake.default_cost,Reference cost
 guide.step.stocktake.mode,Method
+guide.step.stocktake.product_name,Product name
+guide.step.stocktake.qty,Quantity counted this time
 guide.step.stocktake.rows,Quantity counted this time
 guide.step.stocktake.title,Name
+guide.step.stocktake.unit,Unit
+guide.step.stocktake.unit_price,Selling price
 guide.step.stocktake.warehouse,Warehouse
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"

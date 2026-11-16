@@ -2,7 +2,8 @@
 ``GUIDES`` 是纯字面量：闸门脚本不导入本模块，直接按源码读它。
 
 业务 id、菜单字、图标、顺序、步骤 key 与 Cowork 的盘点引导（`pearnly_cowork.assistant.guided.stocktake`）相同。第一题「做什么」：
-新建（仓 → 名称）/ 记数（盘点单 → 物料 + 数量，一行一行加，0 有效 → 记法）/ 结束 / 按盘点结果调整物料（只建草稿）/ 删除（只限进行中）。
+新建（仓 → 名称）/ 记数（盘点单 → 物料 + 数量，一行一行加，0 有效 → 记法）/ 扫到系统没有的码：当场新建物料并记数（码 → 品名 →
+单位、售价、参考成本、分类（可空）→ 数量；来由记这份盘点，同盘点页与 LINE 手机页）/ 结束 / 按盘点结果调整物料（只建草稿）/ 删除（只限进行中）。
 产品函数在 `inventory.guide`，只转调盘点页同一组服务函数。结束、删除画成允许卡
 （``consent`` 按「做什么」的答案区分，约定 11-16），其余是「确定」。
 """
@@ -30,12 +31,24 @@ GUIDES = [
           "default": "pearnly_erp_portal.inventory.guide.warehouse_default"},
          {"key": "title", "input": "text", "rule": "always", "after": ["action"], "when": {"key": "action", "value": "new"}},
          {"key": "count", "input": "choice", "rule": "always", "search": True, "after": ["action"],
-          "when": {"key": "action", "in": ["count", "close", "adjust", "delete"]},
+          "when": {"key": "action", "in": ["count", "new_product", "close", "adjust", "delete"]},
           "options": "pearnly_erp_portal.inventory.guide.count_options"},
          {"key": "rows", "input": "amounts", "rule": "always", "search": True, "zero": True, "after": ["count"],
           "when": {"key": "action", "value": "count"}, "options": "pearnly_erp_portal.inventory.guide.item_options"},
          {"key": "mode", "input": "choice", "rule": "auto", "after": ["count"], "when": {"key": "action", "value": "count"},
           "options": "pearnly_erp_portal.inventory.guide.mode_options", "default": "pearnly_erp_portal.inventory.guide.mode_default"},
+         {"key": "code", "input": "text", "rule": "always", "after": ["count"], "when": {"key": "action", "value": "new_product"}},
+         {"key": "product_name", "input": "text", "rule": "always", "after": ["count"], "when": {"key": "action", "value": "new_product"}},
+         {"key": "unit", "input": "text", "rule": "always", "required": False, "after": ["count"],
+          "when": {"key": "action", "value": "new_product"}},
+         {"key": "unit_price", "input": "number", "rule": "always", "required": False, "after": ["count"],
+          "when": {"key": "action", "value": "new_product"}},
+         {"key": "default_cost", "input": "number", "rule": "always", "required": False, "after": ["count"],
+          "when": {"key": "action", "value": "new_product"}},
+         {"key": "category", "input": "text", "rule": "always", "required": False, "after": ["count"],
+          "when": {"key": "action", "value": "new_product"}},
+         {"key": "qty", "input": "number", "rule": "always", "after": ["count"], "when": {"key": "action", "value": "new_product"},
+          "check": "pearnly_erp_portal.inventory.guide.qty_check"},
      ],
      "draft": "pearnly_erp_portal.inventory.guide.draft", "review": "pearnly_erp_portal.inventory.guide.review",
      "confirm": "pearnly_erp_portal.inventory.guide.confirm",
