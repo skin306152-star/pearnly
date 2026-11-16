@@ -72,6 +72,7 @@ Account set,Account set
 Account signed in elsewhere,Account signed in elsewhere
 Accrual basis,Accrual basis
 Ack Digest,Ack Digest
+Action,Action
 Active,Active
 Active Attempt,Active Attempt
 Active Key,Active Key
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,Choose a day and time for the monthly
 Choose a file,Choose a file
 "Choose a folder inside the allowed root, without system folders.","Choose a folder inside the allowed root, without system folders."
 Choose an Express account set first,Choose an Express account set first
+Choose an action.,Choose an action.
 Choose an allowed root reported by CC Desktop.,Choose an allowed root reported by CC Desktop.
 Choose an image attached to this card,Choose an image attached to this card
 Choose at least one job role,Choose at least one job role
@@ -1075,6 +1077,7 @@ Member,Member
 Member management,Member management
 Members,Members
 Members and observers,Members and observers
+Method,Method
 Minimum Stock,Minimum Stock
 Mirror,Mirror
 Mismatched,Mismatched
@@ -1701,6 +1704,7 @@ Stock,Stock
 Stock (goods from now on),Stock (goods from now on)
 Stock (this kind from now on),Stock (this kind from now on)
 Stock Account Group per Account Set,Stock Account Group per Account Set
+Stock Count,Stock Count
 Stock changed; recount,Stock changed; recount
 Stock count,Stock count
 Stock count closed,Stock count closed
@@ -1708,6 +1712,7 @@ Stock count closed,Stock count closed
 Stock count photos are not yet supported. Remove the photos before saving.,Stock count photos are not yet supported. Remove the photos before saving.
 Stock count template,Stock count template
 Stock count workbench,Stock count workbench
+Stock counts,Stock counts
 Stock item,Stock item
 Stock item not found in Express,Stock item not found in Express
 Stock or expense for this company's documents like this?,Stock or expense for this company's documents like this?
@@ -3442,8 +3447,10 @@ excel,excel
 failed,Failed
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.business.stocktake,Stock Count
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
+guide.open.stocktake,Choose an action.
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
@@ -3454,6 +3461,13 @@ guide.step.recon.readback,Readback
 guide.step.recon.sales_vat,Output VAT report
 guide.step.recon.source,Source
 guide.step.recon.statement,Bank statement
+guide.step.stocktake.action,Action
+guide.step.stocktake.count,Stock count
+guide.step.stocktake.counts,Stock counts
+guide.step.stocktake.file,Sheet
+guide.step.stocktake.mode,Method
+guide.step.stocktake.rows,Quantity counted this time
+guide.step.stocktake.title,Name
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.

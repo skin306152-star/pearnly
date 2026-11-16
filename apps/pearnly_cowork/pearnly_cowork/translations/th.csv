@@ -72,6 +72,7 @@ Account set,ชุดบัญชี
 Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
 Accrual basis,เกณฑ์สิทธิ
 Ack Digest,แฮชผลตอบรับ
+Action,การดำเนินการ
 Active,ใช้งาน
 Active Attempt,การพยายามส่งปัจจุบัน
 Active Key,คีย์ป้องกันรายการซ้ำที่ใช้งาน
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,กรุณาเลือกวั�
 Choose a file,เลือกไฟล์
 "Choose a folder inside the allowed root, without system folders.",กรุณาเลือกโฟลเดอร์ภายใต้โฟลเดอร์หลักที่อนุญาต และต้องไม่ใช่โฟลเดอร์ระบบ
 Choose an Express account set first,กรุณาเลือกชุดบัญชี Express ก่อน
+Choose an action.,เลือกการดำเนินการ
 Choose an allowed root reported by CC Desktop.,กรุณาเลือกโฟลเดอร์หลักที่ CC เดสก์ท็อปรายงานไว้
 Choose an image attached to this card,กรุณาเลือกรูปภาพที่แนบในการ์ดนี้
 Choose at least one job role,กรุณาเลือกสิทธิ์การใช้งานอย่างน้อยหนึ่งรายการ
@@ -1075,6 +1077,7 @@ Member,สมาชิก
 Member management,สิทธิ์จัดการสมาชิก
 Members,สมาชิก
 Members and observers,สมาชิกและผู้สังเกตการณ์
+Method,วิธี
 Minimum Stock,สต็อกขั้นต่ำ
 Mirror,มิเรอร์
 Mismatched,ไม่ตรงกัน
@@ -1701,6 +1704,7 @@ Stock,สินค้าคงคลัง
 Stock (goods from now on),สินค้าคงเหลือ (เอกสารสินค้าทั้งหมด)
 Stock (this kind from now on),สินค้าคงเหลือ (เอกสารประเภทนี้ทั้งหมด)
 Stock Account Group per Account Set,กลุ่มรหัสบัญชีสินค้าคงเหลือของแต่ละชุดบัญชี
+Stock Count,ตรวจนับสินค้า
 Stock changed; recount,สต็อกมีการเปลี่ยนแปลง ต้องตรวจนับใหม่
 Stock count,ตรวจนับสินค้า
 Stock count closed,ปิดการตรวจนับแล้ว
@@ -1708,6 +1712,7 @@ Stock count closed,ปิดการตรวจนับแล้ว
 Stock count photos are not yet supported. Remove the photos before saving.,ยังไม่รองรับรูปภาพการตรวจนับสินค้า กรุณานำรูปภาพออกก่อนบันทึก
 Stock count template,เทมเพลตตรวจนับ
 Stock count workbench,หน้าปฏิบัติงานตรวจนับ
+Stock counts,ตรวจนับสินค้า
 Stock item,สินค้าคงเหลือ
 Stock item not found in Express,ไม่พบสินค้าใน Express
 Stock or expense for this company's documents like this?,บริษัทนี้บันทึกเอกสารประเภทนี้เข้าสินค้าคงเหลือหรือเป็นค่าใช้จ่าย
@@ -3442,8 +3447,10 @@ excel,Excel
 failed,ล้มเหลว
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
+guide.business.stocktake,ตรวจนับสินค้า
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
+guide.open.stocktake,เลือกการดำเนินการ
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย
@@ -3454,6 +3461,13 @@ guide.step.recon.readback,การอ่านข้อมูลกลับ
 guide.step.recon.sales_vat,รายงานภาษีขาย
 guide.step.recon.source,แหล่งที่มา
 guide.step.recon.statement,รายการเดินบัญชีธนาคาร
+guide.step.stocktake.action,การดำเนินการ
+guide.step.stocktake.count,ตรวจนับสินค้า
+guide.step.stocktake.counts,ตรวจนับสินค้า
+guide.step.stocktake.file,ไฟล์
+guide.step.stocktake.mode,วิธี
+guide.step.stocktake.rows,จำนวนที่นับครั้งนี้
+guide.step.stocktake.title,ชื่อ
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

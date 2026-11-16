@@ -72,6 +72,7 @@ Account set,会計データ
 Account signed in elsewhere,アカウントは別の場所でログイン中です
 Accrual basis,発生主義
 Ack Digest,確認応答ダイジェスト
+Action,操作
 Active,正常
 Active Attempt,現在の試行
 Active Key,有効な重複防止キー
@@ -351,6 +352,7 @@ Choose a day and time for the monthly run.,毎月の実行日と時刻を選ん�
 Choose a file,ファイルを選択
 "Choose a folder inside the allowed root, without system folders.",許可されたルート内の、システム以外のフォルダーを選んでください。
 Choose an Express account set first,先に Express の会計データを選んでください
+Choose an action.,操作を選択してください。
 Choose an allowed root reported by CC Desktop.,CC デスクトップが報告したルートを選んでください。
 Choose an image attached to this card,このカードに添付した画像を選んでください
 Choose at least one job role,機能権限を1つ以上選んでください
@@ -1075,6 +1077,7 @@ Member,メンバー
 Member management,メンバー管理権限
 Members,メンバー
 Members and observers,メンバーとオブザーバー
+Method,方法
 Minimum Stock,最低在庫
 Mirror,ミラー
 Mismatched,不一致
@@ -1701,6 +1704,7 @@ Stock,在庫
 Stock (goods from now on),在庫に計上（以後も同様）
 Stock (this kind from now on),在庫に計上（以後も同様）
 Stock Account Group per Account Set,会計データ別在庫勘定グループ
+Stock Count,棚卸
 Stock changed; recount,在庫変動・再棚卸
 Stock count,棚卸
 Stock count closed,棚卸を終了しました
@@ -1708,6 +1712,7 @@ Stock count closed,棚卸を終了しました
 Stock count photos are not yet supported. Remove the photos before saving.,棚卸写真にはまだ対応していません。写真を削除してから保存してください。
 Stock count template,棚卸テンプレート
 Stock count workbench,棚卸作業台
+Stock counts,棚卸
 Stock item,在庫品目
 Stock item not found in Express,Express に在庫品目がない場合
 Stock or expense for this company's documents like this?,この会社のこの種類の伝票は在庫と費用のどちらに計上しますか
@@ -3442,8 +3447,10 @@ excel,Excel
 failed,失敗
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
+guide.business.stocktake,棚卸
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
+guide.open.stocktake,操作を選択してください。
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
@@ -3454,6 +3461,13 @@ guide.step.recon.readback,読み戻し
 guide.step.recon.sales_vat,売上税報告
 guide.step.recon.source,取得元
 guide.step.recon.statement,銀行明細
+guide.step.stocktake.action,操作
+guide.step.stocktake.count,棚卸
+guide.step.stocktake.counts,棚卸
+guide.step.stocktake.file,シート
+guide.step.stocktake.mode,方法
+guide.step.stocktake.rows,今回の実地数量
+guide.step.stocktake.title,名前
 held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。

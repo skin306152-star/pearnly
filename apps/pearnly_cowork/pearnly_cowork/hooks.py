@@ -725,4 +725,5 @@ pearnly_ledger_check = {"express": "pearnly_cowork.readback.ledger_check.check",
 pearnly_guide_businesses = {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]}
 # 引导声明（总设计 docs/work/2026-11-14-cc-guided-master-design.md 2.2）：每项业务一份声明，共用引擎 `pearnly_core.assistant.guide` 据此出菜单与卡
 pearnly_guides = ["pearnly_cowork.assistant.guides.GUIDES", "pearnly_cowork.assistant.guided.readback.GUIDES",
-                  "pearnly_cowork.assistant.guided.recon.GUIDES"]
+                  "pearnly_cowork.assistant.guided.recon.GUIDES",
+                  "pearnly_cowork.assistant.guided.stocktake.GUIDES"]

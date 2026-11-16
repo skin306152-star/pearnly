@@ -2445,3 +2445,12 @@ General ledger	总账	บัญชีแยกประเภททั่วไ�
 Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	guide.step.recon.sales_vat
 Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	guide.step.recon.invoices
 From Express readback	从 Express 回读	อ่านข้อมูลกลับจาก Express	Express から読み戻し	cowork.recon.fromReadback
+Stock Count	盘点	ตรวจนับสินค้า	棚卸	guide.business.stocktake
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.stocktake
+Action	操作	การดำเนินการ	操作	guide.step.stocktake.action
+Sheet	表格文件	ไฟล์	シート	guide.step.stocktake.file
+Name	名称	ชื่อ	名前	guide.step.stocktake.title
+Stock count	库存盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.count
+Stock counts	库存盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.counts
+Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.rows
+Method	方式	วิธี	方法	guide.step.stocktake.mode
