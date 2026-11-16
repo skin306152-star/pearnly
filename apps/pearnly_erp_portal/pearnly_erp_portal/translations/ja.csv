@@ -314,6 +314,7 @@ Choose the customer,顧客を選んでください
 Choose the inventory account group for this account set first.,先にこの会計データの在庫勘定グループを選んでください。
 Choose the location,保管場所を選んでください
 Choose the payment method,支払方法を選んでください
+Choose the report and dates.,レポートと日付を選択してください。
 Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払付加価値税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
 Choose the supplier,仕入先を選んでください
@@ -1472,6 +1473,7 @@ Status,ステータス
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them",まだオフです。在庫テーブルは在庫バッチに入る前提で、転記が黙って飛ばしてはいけません
 Stock,在庫
 Stock Account Group,在庫勘定グループ
+Stock Card Report,受払在庫表
 Stock Count,棚卸
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
@@ -2594,6 +2596,8 @@ guide.open.stocktake,操作を選択してください。
 guide.option.company.note_add,メモを追加
 guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
+guide.business.stock_card,受払在庫表
+guide.open.stock_card,レポートと日付を選択してください。
 guide.review.department,部門
 guide.review.salesman,営業担当
 guide.step.collection.book,会計データ
@@ -2620,6 +2624,14 @@ guide.step.stocktake.title,名前
 guide.step.stocktake.unit,単位
 guide.step.stocktake.unit_price,販売価格
 guide.step.stocktake.warehouse,倉庫
+guide.step.stock_card.date_from,開始日
+guide.step.stock_card.date_to,終了日
+guide.step.stock_card.format,形式
+guide.step.stock_card.product_from,開始品目
+guide.step.stock_card.product_to,終了品目
+guide.step.stock_card.report,レポート
+guide.step.stock_card.warehouse_from,開始倉庫
+guide.step.stock_card.warehouse_to,終了倉庫
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

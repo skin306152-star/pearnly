@@ -314,6 +314,7 @@ Choose the customer,Choose the customer
 Choose the inventory account group for this account set first.,Choose the inventory account group for this account set first.
 Choose the location,Choose the location
 Choose the payment method,Choose the payment method
+Choose the report and dates.,Choose the report and dates.
 Choose the service input VAT for this supplier and submit again,Choose the service input VAT for this supplier and submit again
 Choose the sheet to import,Choose the sheet to import
 Choose the supplier,Choose the supplier
@@ -1472,6 +1473,7 @@ Status,Status
 "Still off: the stock tables land in the inventory batch, and posting must not silently skip them","Still off: the stock tables land in the inventory batch, and posting must not silently skip them"
 Stock,Stock
 Stock Account Group,Stock Account Group
+Stock Card Report,Stock Card Report
 Stock Count,Stock Count
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
@@ -2594,6 +2596,8 @@ guide.open.stocktake,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
+guide.business.stock_card,Stock Card Report
+guide.open.stock_card,Choose the report and dates.
 guide.review.department,Department
 guide.review.salesman,Salesman
 guide.step.collection.book,Account Set
@@ -2620,6 +2624,14 @@ guide.step.stocktake.title,Name
 guide.step.stocktake.unit,Unit
 guide.step.stocktake.unit_price,Selling price
 guide.step.stocktake.warehouse,Warehouse
+guide.step.stock_card.date_from,From Date
+guide.step.stock_card.date_to,To Date
+guide.step.stock_card.format,Format
+guide.step.stock_card.product_from,From Product
+guide.step.stock_card.product_to,To Product
+guide.step.stock_card.report,Report
+guide.step.stock_card.warehouse_from,From Warehouse Code
+guide.step.stock_card.warehouse_to,To Warehouse Code
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
