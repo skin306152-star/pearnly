@@ -493,10 +493,13 @@ dms.card.BTN_SCAN_CARD,身分証をスキャン
 dms.card.BTN_SHOW_RESULT,結果を見る
 dms.card.BTN_UPDATE,データを更新
 dms.card.MSG_BIND_BAD_CODE,この連携コードは無効か期限切れです。Webページで作り直してください。
-dms.card.MSG_BIND_GREETING,こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。
-dms.card.MSG_BIND_HELP,連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。
+dms.card.MSG_BIND_GREETING,"こんにちは、DMSアシスタントです。
+Webページで発行した連携コードを送ってください。アカウントを連携します。"
+dms.card.MSG_BIND_HELP,"連携中のアカウント: {0}
+「{1}」と送ると連携を解除します。"
 dms.card.MSG_BIND_NEED,まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。
-dms.card.MSG_BIND_OK,連携しました。アカウント: {0}\nこれで仕事を任せられます。
+dms.card.MSG_BIND_OK,"連携しました。アカウント: {0}
+これで仕事を任せられます。"
 dms.card.MSG_BIND_UNBOUND,連携を解除しました。必要になったら新しい連携コードを発行してください。
 dms.card.REVIEW_BIRTHDAY,生年月日
 dms.card.REVIEW_FIRST_NAME,名

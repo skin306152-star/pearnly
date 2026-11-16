@@ -2420,3 +2420,121 @@ Finish this stock count?	确定要结束此盘点吗？	ปิดการตร
 Delete these stock counts?	确定要删除以下盘点吗？	ลบการตรวจนับเหล่านี้หรือไม่	これらの棚卸を削除しますか？
 Run this scheduled task now?	确定要立即运行此定时任务吗？	เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่	この定期タスクを今すぐ実行しますか？
 New files are recognized (charged) and pushed	新文件将识别（扣费）并推送	ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ	新しいファイルを認識（課金）して送信します	cowork.folder.runNow.charge
+Camera	摄像头	กล้อง	カメラ	
+Category	分类	หมวด	カテゴリ	
+Choose a file	选择文件	เลือกไฟล์	ファイルを選択	
+Completed	已完成	เสร็จสิ้น	完了	
+Counted	已盘点	นับแล้ว	棚卸済み	
+Counted by	盘点人	ผู้ตรวจนับ	担当者	
+Date	日期	วันที่	日付	
+Description	摘要	คำอธิบาย	摘要	
+Difference	有差异	มีผลต่าง	差異あり	
+Done	已完成	เสร็จสิ้น	完了	
+Download template	下载模板	ดาวน์โหลดแม่แบบ	テンプレートをダウンロード	
+Electronic	电子版	อิเล็กทรอนิกส์	電子版	
+Entries	记录	รายการ	記録	
+Find	查找	ค้นหา	検索	
+In progress	进行中	กำลังดำเนินการ	進行中	
+Matched	已匹配	จับคู่แล้ว	一致	
+Name	名称	ชื่อ	名前	
+Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません	
+Not permitted	没有权限	ไม่มีสิทธิ์	権限がありません	
+Note	说明	คำอธิบาย	メモ	
+Notes	备注	หมายเหตุ	備考	
+Over	盘盈	เกิน	過剰	
+Product	商品	สินค้า	商品	
+Product name	商品名称	ชื่อสินค้า	商品名	
+Record	记录	บันทึก	記録	
+Recount	重盘	นับใหม่	再棚卸	
+Remove	移除	ลบ	削除	
+Result	结果	ผลการนับ	結果	
+Rows	行数	จำนวนแถว	行数	
+Sheet	表格文件	ไฟล์	シート	
+Short	盘亏	ขาด	不足	
+Since (UTC)	起始时间（UTC）	ตั้งแต่ (UTC)	開始日時（UTC）	
+Status	状态	สถานะ	状態	
+Total	含税	ยอดรวมทั้งสิ้น	税込	
+Type	类型	ประเภท	種別	
+Unit	单位	หน่วย	単位	
+Uploading	上传中	กำลังอัปโหลด	アップロード中	
+VAT	VAT	VAT	VAT	
+Valid	有效	ใช้งาน	有効	
+Waiting	等待中	รอ	待機中	
+Set a local folder once; documents are read and entered every month	设一个本机文件夹，每月自动识别推送	ตั้งโฟลเดอร์ในเครื่องครั้งเดียว ระบบอ่านและบันทึกเอกสารทุกเดือน	ローカルフォルダーを一度設定すると毎月自動で読み取り・登録	cowork.folder.cardHint
+No account sets yet. Use Reload in New Intake first.	还没有账套目录。请先在新建录入里点重新读取。	ยังไม่มีรายการชุดบัญชี ให้กดโหลดใหม่ในการบันทึกใหม่ก่อน	帳簿一覧がまだありません。先に新規取込で再読み込みしてください。	cowork.folder.catalogEmpty
+Set once; every later document of this kind follows it. Leave empty to stop and ask once instead.	设一次，以后同类单据都照这个走；留空则遇到时停下来问一次。	ตั้งครั้งเดียว เอกสารประเภทเดียวกันจะทำตามนี้ ถ้าเว้นว่างระบบจะหยุดถามหนึ่งครั้ง	一度設定すれば同じ種類の書類はこれに従います。空欄なら一度だけ確認します。	cowork.folder.defaultsHint
+Folder auto-intake is not turned on for this site.	本站没有开通文件夹自动录入。	ไซต์นี้ยังไม่ได้เปิดการบันทึกอัตโนมัติจากโฟลเดอร์	このサイトではフォルダー自動取込が有効になっていません。	cowork.folder.disabled
+Edit folder rule	编辑规则	แก้ไขกฎ	ルールを編集	cowork.folder.edit
+No folder rules yet. Create one and put the documents into its folder.	还没有规则。新建一条，把单据放进对应的文件夹即可。	ยังไม่มีกฎ สร้างกฎแล้ววางเอกสารลงในโฟลเดอร์นั้น	ルールはまだありません。作成して、そのフォルダーに書類を入れてください。	cowork.folder.empty
+Folder rules work with Express connections only.	自动录入只用于 Express 连接。	การบันทึกอัตโนมัติใช้ได้เฉพาะการเชื่อมต่อ Express เท่านั้น	Express 接続でのみ使えます。	cowork.folder.express_only
+Express PC	Express 电脑	เครื่อง Express	Express の PC	cowork.folder.field.connection
+Allowed root folder on the PC	允许读取的根目录	โฟลเดอร์หลักที่อนุญาต	許可されたルートフォルダー	cowork.folder.field.root
+Another active rule already uses this folder or a folder containing it.	已有启用中的规则使用此文件夹或其上级文件夹。	มีกฎที่เปิดใช้งานอยู่ใช้โฟลเดอร์นี้หรือโฟลเดอร์ระดับบนแล้ว	有効なルールがこのフォルダー、またはそれを含むフォルダーを使っています。	cowork.folder.overlap
+Monthly on {0} at {1}	每月 {0} {1}	ทุกเดือน {0} เวลา {1}	毎月 {0} {1}	cowork.folder.schedule
+Folder and schedule	文件夹与时间	โฟลเดอร์และเวลา	フォルダーとスケジュール	cowork.folder.section.folder
+Where the documents go	去向	ปลายทางของเอกสาร	書類の登録先	cowork.folder.section.target
+Actual location	实际仓位	ตำแหน่งจริง	実際の棚番	cowork.stock.actualLocation
+Actual warehouse	实际仓库	คลังสินค้าจริง	実際の倉庫	cowork.stock.actualWarehouse
+Add photo	添加照片	เพิ่มรูปภาพ	写真を追加	cowork.stock.addPhoto
+Camera	摄像头	กล้อง	カメラ	cowork.stock.camera
+The camera could not start	摄像头无法启动	ไม่สามารถเปิดกล้องได้	カメラを起動できません	cowork.stock.cameraFailed
+Close count	结束盘点	ปิดการตรวจนับ	棚卸を終了	cowork.stock.close
+Stock count closed	盘点已结束	ปิดการตรวจนับแล้ว	棚卸を終了しました	cowork.stock.closed
+Code or barcode	编码或条码	รหัสหรือบาร์โค้ด	コードまたはバーコード	cowork.stock.code
+Counted	实盘	นับได้	実数	cowork.stock.col.actual
+Book	账面	ตามบัญชี	帳簿	cowork.stock.col.book
+Difference	差异	ผลต่าง	差異	cowork.stock.col.difference
+Book location	账面仓位	ตำแหน่งตามบัญชี	帳簿上の棚番	cowork.stock.col.position
+Result	结果	ผลการนับ	結果	cowork.stock.col.result
+Continuous counting	连续盘点	ตรวจนับต่อเนื่อง	連続棚卸	cowork.stock.continuous
+Counted at	盘点时间	เวลาที่นับ	棚卸日時	cowork.stock.countedAt
+Counted by	盘点人	ผู้ตรวจนับ	棚卸担当	cowork.stock.countedBy
+Counted	已盘	นับแล้ว	棚卸済み	cowork.stock.countedRows
+Imported {0} rows, {1} counted	已导入 {0} 行，其中 {1} 行有实盘	นำเข้า {0} รายการ มียอดนับจริง {1} รายการ	{0}行を取り込み、{1}行に実数あり	cowork.stock.created
+Created	创建时间	สร้างเมื่อ	作成日時	cowork.stock.createdAt
+Delete {0} stock count(s)?	删除这 {0} 个盘点？	ลบการตรวจนับ {0} รายการ?	{0}件の棚卸を削除しますか？	cowork.stock.deleteConfirm
+Delete {0}	删除 {0} 项	ลบ {0} รายการ	{0}件を削除	cowork.stock.deleteSelected
+Deleted {0}	已删除 {0} 项	ลบแล้ว {0} รายการ	{0}件を削除しました	cowork.stock.deleted
+Differences	差异	ผลต่าง	差異	cowork.stock.differenceRows
+Done	完成	เสร็จสิ้น	完了	cowork.stock.done
+Edit	修改	แก้ไข	修正	cowork.stock.editEntry
+Entries · {0}	逐笔记录 · {0}	รายการบันทึก · {0}	記録 · {0}	cowork.stock.entriesTitle
+Valid	有效	ใช้งาน	有効	cowork.stock.entryLive
+Quantity	数量	จำนวน	数量	cowork.stock.entryQty
+Entry saved	已记录	บันทึกแล้ว	記録しました	cowork.stock.entrySaved
+Voided	已作废	ยกเลิกแล้ว	取消済み	cowork.stock.entryVoided
+Export	导出	ส่งออก	エクスポート	cowork.stock.export
+Count sheet	盘点表	ไฟล์ตรวจนับ	棚卸表	cowork.stock.file
+Show	显示	แสดง	表示	cowork.stock.filter
+Find	查找	ค้นหา	検索	cowork.stock.find
+{0} · counted {1}/{2} · differences {3}	{0} · 已盘 {1}/{2} · 差异 {3}	{0} · นับแล้ว {1}/{2} · ผลต่าง {3}	{0} · 棚卸済み {1}/{2} · 差異 {3}	cowork.stock.headline
+Skipped {0} row(s) (row: reason)	跳过 {0} 行（行号: 原因）	ข้าม {0} แถว (แถว: เหตุผล)	{0}行をスキップ（行: 理由）	cowork.stock.importSkipped
+Some rows were skipped	部分行未导入	บางแถวไม่ได้นำเข้า	一部の行を取り込めませんでした	cowork.stock.importTitle
+No product in this count matches that code	这个盘点里没有这个编码的商品	ไม่พบสินค้ารหัสนี้ในการตรวจนับนี้	この棚卸にそのコードの商品はありません	cowork.stock.lookupFailed
+Name	盘点名称	ชื่อการตรวจนับ	棚卸名	cowork.stock.name
+New stock count	新建盘点	สร้างการตรวจนับ	新規棚卸	cowork.stock.new
+Ready for the next product	可以盘下一个商品了	พร้อมตรวจนับสินค้าถัดไป	次の商品を棚卸できます	cowork.stock.nextReady
+At most 5 photos per entry	每条记录最多 5 张照片	บันทึกละไม่เกิน 5 รูป	1件の記録につき写真は5枚まで	cowork.stock.photoLimit
+Photos	照片	รูปภาพ	写真	cowork.stock.photos
+Choose file	选择文件	เลือกไฟล์	ファイルを選択	cowork.stock.pick
+Record	记录	บันทึก	記録	cowork.stock.record
+Recount	重盘	นับใหม่	再棚卸	cowork.stock.recount
+Remove	移除	นำออก	削除	cowork.stock.removePhoto
+View differences	查看差异	ดูผลต่าง	差異を見る	cowork.stock.review
+Rows	行数	จำนวนรายการ	行数	cowork.stock.rows
+Save and next	保存并下一条	บันทึกและถัดไป	保存して次へ	cowork.stock.saveNext
+Type or scan, then press Enter	输入或扫码后按回车	พิมพ์หรือสแกน แล้วกด Enter	入力またはスキャンして Enter	cowork.stock.scanHint
+Start counting	开始盘点	เริ่มตรวจนับ	棚卸を開始	cowork.stock.start
+Status	状态	สถานะ	状態	cowork.stock.status
+In progress	进行中	กำลังตรวจนับ	進行中	cowork.stock.statusActive
+Closed	已结束	ปิดแล้ว	終了	cowork.stock.statusClosed
+Download template	下载模板	ดาวน์โหลดแม่แบบ	テンプレートをダウンロード	cowork.stock.template
+Void	作废	ยกเลิก	取消	cowork.stock.void
+Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	cowork.stock.workbench.camera
+Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许相机权限，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	cowork.stock.workbench.cameraFailed
+Find product	查找物料	ค้นหาสินค้า	商品を検索	cowork.stock.workbench.find
+No rules yet	还没有规则	ยังไม่มีกฎ	ルールはまだありません	cowork.work.rules.empty
+Page {0}/{1}	第 {0}/{1} 页	หน้า {0}/{1}	{0}/{1} ページ目	intake.wait.page
+Queued	排队中	รอคิว	順番待ち	intake.wait.queued
+Uploading	上传中	กำลังอัปโหลด	アップロード中	intake.wait.uploading
+rule {0}	规则 {0}	กฎ {0}	ルール {0}	

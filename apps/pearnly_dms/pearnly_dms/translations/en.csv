@@ -494,9 +494,11 @@ dms.card.BTN_SHOW_RESULT,View result
 dms.card.BTN_UPDATE,Update data
 dms.card.MSG_BIND_BAD_CODE,That bind code is invalid or has expired. Please generate a new one on the web page.
 dms.card.MSG_BIND_GREETING,Hello
-dms.card.MSG_BIND_HELP,Linked account: {0}\nSend “{1}” to unlink.
+dms.card.MSG_BIND_HELP,"Linked account: {0}
+Send “{1}” to unlink."
 dms.card.MSG_BIND_NEED,No account is linked yet. Send me the bind code from the web page.
-dms.card.MSG_BIND_OK,Account linked: {0}\nYou can hand work to me now.
+dms.card.MSG_BIND_OK,"Account linked: {0}
+You can hand work to me now."
 dms.card.MSG_BIND_UNBOUND,Unlinked. Generate a new bind code when you need it again.
 dms.card.REVIEW_BIRTHDAY,Date of birth
 dms.card.REVIEW_FIRST_NAME,First name

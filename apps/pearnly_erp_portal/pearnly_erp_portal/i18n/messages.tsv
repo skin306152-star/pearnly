@@ -2159,3 +2159,102 @@ Product group	物料分类	กลุ่มสินค้า	商品グループ	
 Unit	单位	หน่วยนับ	単位	mrerp.default.unit
 Expense account	费用科目	บัญชีค่าใช้จ่าย	費用勘定	mrerp.default.expense_account
 MR.ERP No.	MR.ERP 单号	เลขที่ MR.ERP	MR.ERP 番号
+Add Employee	添加员工	เพิ่มพนักงาน	従業員を追加	
+Added	补盘	เพิ่มระหว่างนับ	追加	
+Card	银行卡	บัตร	カード	
+Chart	图表	แผนภูมิ	グラフ	
+Choose a file	选择文件	เลือกไฟล์	ファイルを選択	
+Completed	已完成	เสร็จสิ้น	完了	
+Counted	已盘点	นับแล้ว	棚卸済み	
+Create the warehouse in Express	请在 Express 中建仓库	สร้างคลังใน Express	Express で倉庫を作成してください	
+Created	创建时间	สร้างเมื่อ	作成日時	
+Disable	停用	ปิดใช้งาน	無効化	
+Disabled	已停用	ปิดใช้งาน	無効	
+Discard	丢弃	ทิ้ง	破棄	
+Discarded	已丢弃	ทิ้งรายการแล้ว	破棄しました	
+Enable	启用	เปิดใช้งาน	有効化	
+Enable POS cashier	启用 POS 收银台	เปิดใช้เครื่องขาย POS	POS レジを有効にする	
+Full Name	姓名	ชื่อ-นามสกุล	氏名	
+In progress	进行中	กำลังดำเนินการ	進行中	
+In stock	正常	มีสินค้า	在庫あり	
+Issued	出库数量	จ่ายออก	出庫数量	
+Net	净额	ยอดสุทธิ	純額	
+Normal	正常	ปกติ	正常	
+Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません	
+Over	多货	เกิน	過剰	
+POS cashier	POS 收银台	POS เครื่องขาย	POS レジ	
+PromptPay QR	扫码（PromptPay）	สแกน (PromptPay)	コード決済（PromptPay）	
+Recorded	已入账	บันทึกแล้ว	記録しました	
+Remove	移除	นำออก	削除	
+Set as current	设为当前	ตั้งเป็นปัจจุบัน	現在の会社にする	
+Short	少货	ขาด	不足	
+Stock item	库存商品	สินค้าคงคลัง	在庫品	
+Terminals	收银台	เครื่องขาย	レジ	
+This is not a product barcode	这不是商品条码	นี่ไม่ใช่บาร์โค้ดสินค้า	これは商品バーコードではありません	
+Type a word from the company name to find it	输入公司名称关键字查找	พิมพ์คำในชื่อบริษัทเพื่อค้นหา	会社名の一部を入力して検索	
+Warehouses	仓库	คลังสินค้า	倉庫	
+Stored here for now; document numbers still come from the numbering rules	先存着：单号仍按编号定义自动发	บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข	いまは記録のみ。書類番号は採番ルールで発行します	company.docPrefixHint
+Company	公司	บริษัท	会社	company.field.company
+Document prefix	单据前缀	คำนำหน้าเอกสาร	書類プレフィックス	company.field.docPrefix
+Fiscal year start month	财年起月	เดือนเริ่มปีบัญชี	会計年度の開始月	company.field.fiscalYearStart
+Enable POS cashier	启用 POS 收银台	เปิดใช้เครื่องขาย POS	POS レジを有効にする	company.field.posEnabled
+Terminal name	收银台名称	ชื่อเครื่องขาย	レジ名	company.field.terminalName
+Selling warehouse	卖货的仓库	คลังที่ขาย	販売する倉庫	company.field.terminalWarehouse
+Warehouse name	仓库名称	ชื่อคลัง	倉庫名	company.field.warehouseName
+1 = January	1 = 一月	1 = มกราคม	1 = 1月	company.fiscalHint
+Card	刷卡	บัตร	カード	company.method.card
+Cash	现金	เงินสด	現金	company.method.cash
+PromptPay QR	扫码（PromptPay）	สแกน (PromptPay)	コード決済（PromptPay）	company.method.promptpay
+Transfer	转账	โอนเงิน	振込	company.method.transfer
+Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.	勾选后这家公司才有收银台、收银记录、交班记录与「收银」岗位；不勾选这些入口都不出现。	เมื่อเปิดใช้แล้วบริษัทนี้จึงมีเครื่องขาย บันทึกการรับเงิน บันทึกกะ และตำแหน่งพนักงานเก็บเงิน ถ้าไม่เปิดจะไม่แสดงรายการเหล่านี้	有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。	company.posHint
+The account you give customers for transfers	收款时给对方看的账号	บัญชีที่ให้ลูกค้าโอนเข้า	入金時に相手へ伝える口座	company.promptpayHint
+Only the product admin can change this	只有产品管理员能改，这里是只读	แก้ไขได้เฉพาะผู้ดูแลผลิตภัณฑ์ ที่นี่อ่านอย่างเดียว	変更できるのは製品管理者のみ（ここは読み取り専用）	company.readOnly
+Documents	单据	เอกสาร	書類	company.section.documents
+POS cashier	POS 收银台	POS เครื่องขาย	POS レジ	company.section.pos
+Terminals	收银台	เครื่องขาย	レジ	company.section.terminals
+Warehouses	仓库	คลังสินค้า	倉庫	company.section.warehouses
+Set as current	设为当前	ตั้งเป็นปัจจุบัน	現在の会社にする	company.setCurrent
+The company on your documents	单据上用的本公司资料	ข้อมูลบริษัทที่ใช้บนเอกสาร	書類に使う自社情報	company.subtitle
+13 digits; a branch adds its 5-digit branch number	税号 13 位；有分店再带 5 位分店编号	13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก	13桁。支店は5桁の支店番号を続けます	company.taxHint
+Edit	编辑	แก้ไข	編集	company.terminalEdit
+Add terminal	新增收银台	เพิ่มเครื่องขาย	レジを追加	company.terminalNew
+No terminal yet	还没有收银台	ยังไม่มีเครื่องขาย	レジはまだありません	company.terminalNone
+Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).	每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。	เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)	レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。	company.terminalsHint
+This warehouse belongs to the company above	这个仓挂在上面那家公司名下	คลังนี้อยู่ในบริษัทด้านบน	この倉庫は上の会社に属します	company.warehouseCompanyHint
+This company's warehouses — add as many as you need. Stock, counting and the cashier all post against these.	这家公司的仓，可以加多个；出入库、盘点与收银都按这些仓记账。	คลังของบริษัทนี้ เพิ่มได้หลายคลัง สต็อก การนับ และเครื่องขายบันทึกตามคลังเหล่านี้	この会社の倉庫です。複数追加できます。入出庫・棚卸・レジはすべてこの倉庫で記帳されます。	company.warehousesHint
+My collections	我的收款	การรับชำระของฉัน	自分の入金	erp.nav.myCollections
+issued	已开出	ออกเอกสารแล้ว	発行済み	
+Barcode	条码	บาร์โค้ด	バーコード	product.col.barcode
+English name	英文名	ชื่อภาษาอังกฤษ	英語名	product.field.nameEn
+Chinese name	中文名	ชื่อภาษาจีน	中国語名	product.field.nameZh
+Sold by weight	称重物料	ขายตามน้ำหนัก	量り売り	product.field.weighed
+Identify barcode or QR code	扫码识别	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRを読み取る	product.scan.auto
+Camera permission was refused; allow it and try again	摄像头权限被拒绝，请允许后重试	ไม่ได้รับอนุญาตให้ใช้กล้อง กรุณาอนุญาตแล้วลองใหม่	カメラの許可が拒否されました。許可してから再試行してください	product.scan.denied
+The code type could not be identified. Enter it in the barcode or QR field.	无法识别码类型，请填入条码或二维码对应字段。	ไม่สามารถระบุชนิดโค้ดได้ กรุณากรอกในช่องบาร์โค้ดหรือคิวอาร์โค้ด	コードの種類を判別できません。バーコードまたはQR欄に入力してください。	product.scan.unknownType
+Count	盘点	ตรวจนับ	棚卸	stock.action.count
+Freeze column	冻结列	ตรึงคอลัมน์	列を固定	stock.board.freezeColumn
+Unfreeze column	取消冻结列	ยกเลิกการตรึงคอลัมน์	列の固定を解除	stock.board.unfreezeColumn
+Chart	图表	แผนภูมิ	グラフ	stock.count.chart
+Deleted {0}	已删除 {0} 个	ลบ {0} รายการแล้ว	{0}件を削除しました	stock.count.deleteNotice
+Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.	数量差异，差得最多的排在最前。灰柱是账面数量、彩柱是实盘数量；鼠标放到柱子上能看到商品、仓位和具体数量。	ผลต่างจำนวน เรียงจากมากไปน้อย แท่งเทาคือจำนวนตามบัญชี แท่งสีคือจำนวนที่นับได้ วางเมาส์บนแท่งเพื่อดูสินค้า ตำแหน่ง และจำนวน	数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。	stock.count.diffRankHint
+{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	{0} · {1} · {2}	stock.count.entryOption
+Items found at a different place	位置不一样的商品	สินค้าที่พบคนละตำแหน่ง	違う場所で見つかった商品	stock.count.locationHint
+No entries	无记录	ไม่มีรายการ	記録なし	stock.count.noEntries
+Over	多货	เกิน	過剰	stock.count.over
+Reason	原因	เหตุผล	理由	stock.count.reason
+Short	少货	ขาด	不足	stock.count.short
+In {0}: system shows {1} {2}	{0}：系统数 {1} {2}	{0}: ในระบบมี {1} {2}	{0}：システム上 {1} {2}	stock.count.system
+Stock count — {0}	盘点 — {0}	ตรวจนับ — {0}	棚卸 — {0}	stock.count.title
+Select an entry to void	选择要撤销的记录	เลือกรายการที่จะยกเลิก	取消する記録を選択	stock.count.voidPick
+This browser cannot scan with the camera	当前浏览器不支持摄像头扫码	เบราว์เซอร์นี้ไม่รองรับการสแกนด้วยกล้อง	このブラウザーはカメラでスキャンできません	stock.mobile.noCamera
+Counted; difference {0} → {1}	已盘点：差异 {0} → {1}	นับแล้ว: ผลต่าง {0} → {1}	棚卸しました：差異 {0} → {1}	stock.notice.counted
+Scan barcode or QR code	扫描条形码或二维码	สแกนบาร์โค้ดหรือคิวอาร์โค้ด	バーコード・QRコードを読む	stock.workbench.camera
+Camera could not start. Allow camera access on an HTTPS page, or enter the code below.	摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。	ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง	カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。	stock.workbench.cameraFailed
+Find product	查找物料	ค้นหาสินค้า	商品を検索	stock.workbench.find
+Clear customer	清除客户	ล้างลูกค้า	顧客をクリア	trade.customerClear
+Customer	客户	ลูกค้า	顧客	trade.customerLabel
+Issue Document	开出单据	ออกเอกสาร	伝票発行	trade.issue
+Scan	扫码	สแกน	スキャン	trade.scan
+This device cannot scan	这台设备不能扫码	อุปกรณ์นี้สแกนไม่ได้	この端末ではスキャンできません	trade.scanUnsupported
+Tax invoice number	税务发票号	เลขที่ใบกำกับภาษี	適格請求書番号	trade.taxNo
+Comes from the terminal; set it there if it is empty	来自收银台；这里空的话要先去收银台上配一个仓	มาจากเครื่องขาย ถ้าว่างต้องไปตั้งคลังที่เครื่องขายก่อน	レジの設定によります。空の場合はレジ側で倉庫を設定してください	trade.warehouseHint

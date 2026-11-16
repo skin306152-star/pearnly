@@ -1,0 +1,23 @@
+# 不按英文原文补别名行的键（scripts/i18n-build.py 文件头）。2026-11-16 从翻译包手工行原样搬进术语表的带 key 词条，
+# 搬之前没有别名行；补了会按英文改掉全站通用词（Save、Bank…）的显示。
+account.profileChanged
+account.profileUpdateFailed
+account.signInToRename
+account.usernameFormat
+account.usernameTaken
+common.cancel
+common.loading
+common.processing
+common.refresh
+common.saving
+common.scan.allow_android
+common.scan.allow_ios
+common.scan.allow_title
+common.scan.in_line
+common.scan.open_browser
+common.scan.retry
+intake.agent.copy
+intake.agent.key
+intake.agent.reset
+intake.agent.resetConfirm
+roster.advisor.note

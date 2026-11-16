@@ -493,10 +493,13 @@ dms.card.BTN_SCAN_CARD,扫描身份证
 dms.card.BTN_SHOW_RESULT,查看结果
 dms.card.BTN_UPDATE,更新资料
 dms.card.MSG_BIND_BAD_CODE,这个绑定码无效或已过期，请回到网页重新生成。
-dms.card.MSG_BIND_GREETING,你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。
-dms.card.MSG_BIND_HELP,已绑定账号：{0}\n发「{1}」可以解除绑定。
+dms.card.MSG_BIND_GREETING,"你好，这里是 DMS 助手。
+请把网页上生成的绑定码发给我，完成账号绑定。"
+dms.card.MSG_BIND_HELP,"已绑定账号：{0}
+发「{1}」可以解除绑定。"
 dms.card.MSG_BIND_NEED,还没有绑定账号。请把网页上生成的绑定码发给我。
-dms.card.MSG_BIND_OK,绑定成功，账号：{0}\n现在可以直接把工作交给我。
+dms.card.MSG_BIND_OK,"绑定成功，账号：{0}
+现在可以直接把工作交给我。"
 dms.card.MSG_BIND_UNBOUND,已解除绑定。需要时请用新的绑定码重新绑定。
 dms.card.REVIEW_BIRTHDAY,出生日期
 dms.card.REVIEW_FIRST_NAME,名

@@ -201,6 +201,7 @@ No such step: {0},No such step: {0}
 No such tenant: {0},No such tenant: {0}
 No transfer slip is attached,No transfer slip is attached
 Not issued,Not issued
+Not permitted,Not permitted
 Not provisioned,Not provisioned
 Notes,Notes
 OIDC Client ID,OIDC Client ID
@@ -260,6 +261,7 @@ Received Amount,Received Amount
 Received amount (as actually credited by the bank),Received amount (as actually credited by the bank)
 Recognition Engine,Recognition Engine
 Recognition engine must be Google or Claude,Recognition engine must be Google or Claude
+Reference,Reference
 Reject,Reject
 Reject top-up,Reject top-up
 Rejected,Rejected

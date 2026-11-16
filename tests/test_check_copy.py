@@ -956,6 +956,25 @@ class TempRepo(unittest.TestCase):
         self.assertEqual(kinds["pearnly_cowork:cowork.name.previous"], "moved")
         self.assertFalse(self.blocked(findings))
 
+    def test_hand_row_moved_into_the_glossary_unchanged_is_a_move(self):
+        """基线翻译包里的手工行原样搬进术语表算移动、不按新增查；改一个字就照新增查（11-16 翻译包 = 术语表）。"""
+        folder = "apps/pearnly_cowork/pearnly_cowork/translations/"
+        texts = {"en": "Hand row", "zh": "这家的手工行", "th": "แถวทำมือ", "ja": "手作業の行"}
+        for lang, text in texts.items():
+            self.write(folder + lang + ".csv", "Hand row,%s\n" % text)
+        self.commit("hand rows")
+        self.base = self.git("rev-parse", "HEAD")
+        tsv = "apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv"
+        row = "\t".join(texts[lang] for lang in ("en", "zh", "th", "ja")) + "\t\n"
+        self.edit(tsv, "Old name\t", row + "Old name\t")
+        kinds, findings = self.run_gate()
+        self.assertEqual(kinds.get("pearnly_cowork:Hand row"), "moved")
+        self.assertNotIn(("R-TALK", "pearnly_cowork:Hand row"), self.blocked(findings))
+        self.edit(tsv, "这家的手工行", "这家的手工行。")   # 改一个字：不再算移动
+        kinds, findings = self.run_gate()
+        self.assertEqual(kinds.get("pearnly_cowork:Hand row"), "new")
+        self.assertIn(("R-TALK", "pearnly_cowork:Hand row"), self.blocked(findings))
+
     def test_i18n_ts_reflow_is_not_a_change(self):
         self.write("frontend/assistant/src/i18n.ts", I18N_TS_MULTI)
         kinds, findings = self.run_gate()

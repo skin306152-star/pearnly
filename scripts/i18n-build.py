@@ -27,6 +27,9 @@ DocType JSON 的 label），各写一份必然对不上。所以**术语表是�
   两种情况**不补**：已经有了同英文的无 key 行（那行才是准的，例如 `Items` 既有无 key
   的「物料」又有 `trade.lines` 的「物料明细」）；同英文的几条带 key 词条译文不一致
   （谁覆盖谁说不清，例如 `Not set` 有「未设」也有「未填」）。
+  另外，登记在 `apps/<app>/<app>/i18n/no-alias.txt` 的键不补、也不参与上面的判断
+  （11-16 从手工行搬进来的带 key 词条：Frappe 把各 App 译文合成一份字典，按它们的英文
+  再补一行会改掉 `Save`、`Bank` 这类全站通用词的显示）。
 
 用法：
 
@@ -50,6 +53,15 @@ def translations_dir(app: str) -> str:
     return os.path.join(ROOT, "apps", app, app, "translations")
 
 
+def no_alias(app: str) -> set:
+    """不按英文原文补行的键（见文件头）：一行一个，`#` 起是注释。"""
+    path = os.path.join(ROOT, "apps", app, app, "i18n", "no-alias.txt")
+    if not os.path.exists(path):
+        return set()
+    with open(path, encoding="utf-8") as handle:
+        return {line.split("#", 1)[0].strip() for line in handle} - {""}
+
+
 def existing(app: str, lang: str) -> dict:
     path = os.path.join(translations_dir(app), lang + ".csv")
     if not os.path.exists(path):
@@ -69,12 +81,13 @@ def write(app: str, lang: str, table: dict) -> str:
     return os.path.relpath(path, ROOT)
 
 
-def _aliases(items: list[dict]) -> list[dict]:
+def _aliases(items: list[dict], skip: set = frozenset()) -> list[dict]:
     """带 key 的词条里，能安全按英文原文再补一行的那些。
 
     返回 `[{en, zh, th, ja, ...}]`（就是术语表那种行，只是 mdgid 用英文原文）。
     规则见文件头：无同英文的无 key 行、且同英文的带 key 行译文一致。
     """
+    items = [item for item in items if item["msgid"] not in skip or not item["key"]]
     plain = {item[EN] for item in items if not item["key"]}
     msgids = {item["msgid"] for item in items}
     grouped: dict[str, list[dict]] = defaultdict(list)
@@ -97,7 +110,7 @@ def tables(by_app: dict[str, list[dict]]) -> dict[tuple[str, str], dict]:
     """按术语表算出每个 App 每种语言的翻译包应有的样子（在已有内容上覆盖，不删手工行）。"""
     out = {}
     for app, items in sorted(by_app.items()):
-        extra = _aliases(items)
+        extra = _aliases(items, no_alias(app))
         for lang in (EN,) + LANGS:
             table = existing(app, lang)
             for item in items + extra:
@@ -127,6 +140,22 @@ def stale(expected: dict[tuple[str, str], dict]) -> list[str]:
     return problems
 
 
+def stale_no_alias(by_app: dict[str, list[dict]]) -> list[str]:
+    """no-alias.txt 里登记的键必须是术语表里带 key 的词条（改了键、删了词条要同步删登记）。"""
+    problems = []
+    for app in sorted(set(by_app) | {app for app in glossary_apps()}):
+        keyed = {item["msgid"] for item in by_app.get(app, ()) if item["key"]}
+        for key in sorted(no_alias(app) - keyed):
+            problems.append("%s/i18n/no-alias.txt 登记的 %s 不是术语表里带 key 的词条" % (app, key))
+    return problems
+
+
+def glossary_apps() -> tuple:
+    from i18n_glossary import APPS
+
+    return APPS
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true",
@@ -146,6 +175,10 @@ def main() -> int:
         print("  %-22s %d 条" % (app, len(items)))
 
     expected = tables(by_app)
+    unregistered = stale_no_alias(by_app)
+    for problem in unregistered:
+        print("  [no-alias] %s" % problem)
+    problems = list(problems) + unregistered
     if args.check:
         outdated = stale(expected)
         for problem in outdated:

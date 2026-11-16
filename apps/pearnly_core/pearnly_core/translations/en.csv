@@ -330,6 +330,7 @@ Failed,Failed
 Failed to start (HTTP {0}): {1},Failed to start (HTTP {0}): {1}
 Failed to start: {0},Failed to start: {0}
 Failure Reason,Failure Reason
+Failure reason,Failure reason
 Failures,Failures
 File,File
 File Key,File Key
@@ -500,6 +501,7 @@ Not linked,Not linked
 Not permitted,Not permitted
 Not signed in,Not signed in
 Not subscribed,Not subscribed
+Note,Note
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show

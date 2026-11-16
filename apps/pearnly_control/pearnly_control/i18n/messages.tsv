@@ -352,3 +352,18 @@ Cowork sites sign in with accounts in this realm. Leave empty and Cowork cannot 
 For example pearnly-cowork	例如 pearnly-cowork	เช่น pearnly-cowork	例：pearnly-cowork
 Month of the pay-as-you-go page count (Bangkok time, YYYY-MM)	按量计费页数所属月份（曼谷时间，YYYY-MM）	เดือนของจำนวนหน้าแบบจ่ายตามใช้ (เวลากรุงเทพฯ, YYYY-MM)	従量課金ページ数の対象月（バンコク時間、YYYY-MM）
 Date the page count was last reconciled with the ledger (Bangkok time)	页数最后一次与流水核对的日期（曼谷时间）	วันที่กระทบยอดจำนวนหน้ากับบัญชีรายการครั้งล่าสุด (เวลากรุงเทพฯ)	ページ数を台帳と最後に照合した日（バンコク時間）
+Don't have an account?	还没有账号？	ยังไม่มีบัญชีใช่ไหม	アカウントをお持ちでない場合	
+LINE Channel Access Token	LINE 渠道访问令牌	LINE Channel Access Token	LINEチャネルアクセストークン	
+LINE Channel ID	LINE 渠道 ID	LINE Channel ID	LINEチャネルID	
+LINE Channel Secret	LINE 渠道密钥	LINE Channel Secret	LINEチャネルシークレット	
+LINE LIFF ID	LINE LIFF ID	LINE LIFF ID	LINE LIFF ID	
+LINE channel (optional)	LINE 渠道（可选）	ช่องทาง LINE (ไม่บังคับ)	LINEチャネル（任意）	
+Not permitted	无权操作	ไม่มีสิทธิ์ดำเนินการ	操作する権限がありません	
+Open the LINE channel	打开 LINE 渠道	เปิดช่องทาง LINE	LINEチャネルを開く	
+Pearnly Credit Transaction	余额流水	รายการเดินบัญชี	残高の履歴	
+Pearnly Subscription	套餐订阅	การสมัครแพ็กเกจ	プラン契約	
+Pearnly Topup Request	充值申请	คำขอเติมเงิน	チャージ申請	
+Pearnly Wallet	余额账户	กระเป๋าเงิน	残高アカウント	
+Reference	外部单号	เลขที่อ้างอิงภายนอก	外部参照番号	
+Site URL	站点地址	ที่อยู่เว็บไซต์	サイトのURL	
+The address this tenant is reached at.	这个租户的访问地址	ที่อยู่ที่เข้าถึงผู้เช่ารายนี้	このテナントのアクセス先アドレス	

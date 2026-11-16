@@ -14,6 +14,9 @@
   移动       换了键、四种语言文字都没变：不算改动
              换键同时改字：同一来源里删一条加一条，权威语言相似度 ≥ 0.5 或其他任一语言一字不差的，配对成改动 / 译文改动
              （所有来源都配，不只术语表）—— 防止靠换键名绕开「改已有文案要登记」
+  移动       另一种：基线翻译包里的手工行（术语表生成不出的 msgid）搬进术语表，键与四种语言译文逐字节相同
+             （术语表的 `\\n` 与翻译包里的换行同一写法；英文包没有这一行时，无键行的英文就是 msgid 本身）。
+             改一个字就不算，照新增查（11-16 翻译包改成「翻译包 = 术语表」时原样搬入约 400 条老译文）
   删除       只列出，不拦
   译文改动   权威语言没变、其他语言变了：不需要登记，但变了的那门语言照样过内容判据
 """
@@ -109,6 +112,39 @@ def _pair(old, new) -> Change:
     return Change(kind, new, old, langs)
 
 
+def _raw(text: str) -> str:
+    """术语表一格与翻译包一格比原文：两边的换行都按术语表的 `\\n` 写法比（术语表读入时把 `\\n` 还原成了换行）。"""
+    return (text or "").replace("\r\n", "\n").replace("\n", "\\n")
+
+
+def _adopted(base, entry):
+    """``entry``（当前术语表新增的一条）是不是基线翻译包里那条手工行原样搬来的：是则回基线那条（来源记成翻译包），否则 None。"""
+    path = (entry.loc or "").rpartition(":")[0]
+    found = sources.GLOSSARY.match(path)
+    if not found:
+        return None
+    app = found.group(1)
+    if entry.key in base.glossary_msgids.get(app, set()):
+        return None
+    folder = path.rsplit("/i18n/", 1)[0] + "/translations/"
+    texts = {}
+    for lang in sources.LANGS:
+        mine = entry.texts.get(lang)
+        if not mine:
+            return None
+        rows = base.translation_texts.get(folder + lang + ".csv", {})
+        if entry.key not in rows:
+            # 英文包没有这一行：Frappe 原样回 msgid；只有无键行（英文 = msgid）才算同一句
+            if lang == "en" and not entry.extra.get("keyed") and mine == entry.key:
+                texts[lang] = mine
+                continue
+            return None
+        if _raw(rows[entry.key]) != _raw(mine):
+            return None
+        texts[lang] = rows[entry.key]
+    return sources.Entry("%s/translations" % app, entry.key, texts, loc=folder)
+
+
 def classify(base, cur) -> list:
     """base / cur：sources.Snapshot。"""
     changes = []
@@ -135,6 +171,12 @@ def classify(base, cur) -> list:
             old_id = bucket.pop(0)
             changes.append(Change("moved", entry, removed.pop(old_id), set()))
             del added[ident]
+
+    # 移动（搬入）：基线翻译包手工行原样搬进术语表
+    for ident in sorted(added):
+        adopted = _adopted(base, added[ident])
+        if adopted is not None:
+            changes.append(Change("moved", added.pop(ident), adopted, set()))
 
     # 字典文件：同一 diff 段里一减一加、文字相近的配对（msgid 改写、换键改字都在这里接住）。
     # 术语表以外（i18n.ts、CC 桌面版、Keycloak、四语表）一行换一行的小段直接按位置配对：同一位置换了键又换了字，

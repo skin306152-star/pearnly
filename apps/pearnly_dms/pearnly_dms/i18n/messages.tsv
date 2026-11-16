@@ -432,3 +432,148 @@ Requested Query	请求的查询	เงื่อนไขการสอบถา
 Source Read Started	源读取开始时间	เวลาเริ่มดึงข้อมูลจากต้นทาง	ソース読み取り開始日時	
 Verified Write Results	已核实的写入结果	ผลการบันทึกที่ตรวจสอบแล้ว	検証済みの書き込み結果	
 ID card recognition (tier A)	身份证识别	อ่านบัตรประชาชน	身分証の読み取り	
+Action	操作	การดำเนินการ	操作	
+Added {0}	已添加 {0}	เพิ่ม {0} แล้ว	{0} を追加しました	
+Apply	执行	ดำเนินการ	実行	
+Approve	批准	อนุมัติ	承認	
+Reject	拒绝	ปฏิเสธ	却下	
+Removed {0}	已移除 {0}	ลบ {0} แล้ว	{0} を削除しました	
+Salesperson	销售	พนักงานขาย	営業担当	
+This request has already been handled	此申请已被处理	คำขอนี้ถูกดำเนินการไปแล้ว	この申請はすでに処理されています	
+This link expired. Open it from the LINE menu again.	链接已失效，请从 LINE 菜单重新打开。	ลิงก์หมดอายุ กรุณาเปิดจากเมนู LINE อีกครั้ง	リンクの期限が切れました。LINE メニューから開き直してください。	dms.account.expired
+Could not complete this action. Try again or reopen the menu.	操作未完成，请重试或重新打开菜单。	ไม่สำเร็จ กรุณาลองอีกครั้งหรือเปิดเมนูใหม่	完了できませんでした。再試行するかメニューから開き直してください。	dms.account.failed
+Open DMS	打开 DMS	เปิด DMS	DMS を開く	dms.account.open
+DMS password	DMS 密码	รหัสผ่าน DMS	DMS パスワード	dms.account.password
+Open DMS	进入 DMS	เข้าสู่ระบบ DMS	DMS を開く	dms.account.portal
+Open DMS with your own account	使用本人的账号进入 DMS	เปิด DMS ด้วยบัญชีของคุณ	自分のアカウントで DMS を開きます	dms.account.portalHint
+Save	保存	บันทึก	保存	dms.account.save
+Saved. The next DMS login will use these credentials.	已保存，下次连接 DMS 时使用这些凭据。	บันทึกแล้ว การเข้าสู่ DMS ครั้งถัดไปจะใช้ข้อมูลนี้	保存しました。次回の DMS ログインに使用します。	dms.account.saved
+My DMS account	我的 DMS 账号	บัญชี DMS ของฉัน	自分の DMS アカウント	dms.account.title
+DMS username	DMS 用户名	ชื่อผู้ใช้ DMS	DMS ユーザー名	dms.account.username
+That bind code is invalid or has expired. Please generate a new one on the web page.	这个绑定码无效或已过期，请回到网页重新生成。	รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ	この連携コードは無効か期限切れです。Webページで作り直してください。	dms.card.MSG_BIND_BAD_CODE
+Hello	你好，这里是 DMS 助手。\n请把网页上生成的绑定码发给我，完成账号绑定。	สวัสดีครับ นี่คือผู้ช่วย DMS\nกรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม เพื่อผูกบัญชีให้เสร็จ	こんにちは、DMSアシスタントです。\nWebページで発行した連携コードを送ってください。アカウントを連携します。	dms.card.MSG_BIND_GREETING
+Linked account: {0}\nSend “{1}” to unlink.	已绑定账号：{0}\n发「{1}」可以解除绑定。	บัญชีที่ผูกแล้ว: {0}\nพิมพ์ «{1}» เพื่อยกเลิกการผูก	連携中のアカウント: {0}\n「{1}」と送ると連携を解除します。	dms.card.MSG_BIND_HELP
+No account is linked yet. Send me the bind code from the web page.	还没有绑定账号。请把网页上生成的绑定码发给我。	ยังไม่ได้ผูกบัญชี กรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม	まだアカウントが連携されていません。Webページで発行した連携コードを送ってください。	dms.card.MSG_BIND_NEED
+Account linked: {0}\nYou can hand work to me now.	绑定成功，账号：{0}\n现在可以直接把工作交给我。	ผูกบัญชีสำเร็จ บัญชี: {0}\nตอนนี้ส่งงานให้ผมได้เลย	連携しました。アカウント: {0}\nこれで仕事を任せられます。	dms.card.MSG_BIND_OK
+Unlinked. Generate a new bind code when you need it again.	已解除绑定。需要时请用新的绑定码重新绑定。	ยกเลิกการผูกแล้ว หากต้องการใช้ใหม่ กรุณาสร้างรหัสผูกใหม่	連携を解除しました。必要になったら新しい連携コードを発行してください。	dms.card.MSG_BIND_UNBOUND
+The edit page could not be opened. Please start again from LINE.	暂时打不开编辑页，请从 LINE 重新进入。	ยังเปิดหน้าแก้ไขไม่ได้ กรุณาลงใหม่อีกครั้งครับ	編集ページを開けませんでした。LINE からもう一度お試しください。	dms.card.TXT_EDIT_UNAVAILABLE
+Read again	重新读取	อ่านใหม่	再読み取り	dms.card.query.NAV_REFRESH
+Connection account	连接账号	บัญชีการเชื่อมต่อ	接続アカウント	dms.connect.acct.connectionField
+Master data and all vehicle colors	主档与全部车型颜色	ข้อมูลหลักและสีรถทุกรุ่น	マスターデータと全車種の色	dms.connect.cache.dataset.masters
+Add payment method	添加支付方式	เพิ่มช่องทาง	支払方法を追加	dms.edit.addPayment
+Sales adviser (system assigned)	销售顾问（系统指定）	ที่ปรึกษาการขาย (ระบบกำหนด)	販売担当者（システム指定）	dms.edit.advisor
+Amount	金额	จำนวนเงิน	金額	dms.edit.amount
+Keep this attachment	保留此附件	เก็บไฟล์แนบนี้	この添付を保持	dms.edit.attached
+Bank	银行	ธนาคาร	銀行	dms.edit.bankName
+Birth date (DD/MM/B.E.)	出生日期（DD/MM/佛历）	วันเกิด (วว/ดด/พ.ศ.)	生年月日（DD/MM/仏暦）	dms.edit.birth
+Booking	订车资料	ข้อมูลการจอง	予約情報	dms.edit.booking
+Building	大楼	อาคาร	建物	dms.edit.building
+Back to LINE	返回 LINE	กลับ LINE	LINE に戻る	dms.edit.cancel
+Vehicle model	车型	รุ่นรถ	車種	dms.edit.car
+Credit/debit card	信用卡/借记卡	บัตรเครดิต/เดบิต	クレジット/デビットカード	dms.edit.card
+Card type	卡类型	ประเภทบัตร	カード種別	dms.edit.cardType
+Cash	现金	เงินสด	現金	dms.edit.cash
+Cashier's cheque book number (optional)	银行本票簿号	เล่มที่แคชเชียร์เช็ค	銀行小切手帳番号	dms.edit.cashierBookNo
+Cashier's cheque number	银行本票号码	เลขที่แคชเชียร์เช็ค	銀行小切手番号	dms.edit.cashierNo
+Cashier's cheque	银行本票	แคชเชียร์เช็ค	銀行小切手	dms.edit.cashier_cheque
+Method	方式	ช่องทาง	方法	dms.edit.channel
+Cheque	支票	เช็ค	小切手	dms.edit.cheque
+Cheque book number	支票簿号	เล่มที่เช็ค	小切手帳番号	dms.edit.chequeBookNo
+Cheque number	支票号码	เลขที่เช็ค	小切手番号	dms.edit.chequeNo
+Choose a bank	请选择银行	เลือกธนาคาร	銀行を選択	dms.edit.chooseBank
+Please choose	请选择	กรุณาเลือก	選択してください	dms.edit.chooseOption
+National ID	身份证号	เลขบัตรประชาชน	国民ID	dms.edit.confirmId
+Customer	客户资料	ข้อมูลลูกค้า	顧客情報	dms.edit.customer
+Save to send a new customer card to LINE. Review it and tap Update details to write to DMS.	保存后会发送新版客户卡到 LINE；请核对后点击“更新资料”，才会写入 DMS。	บันทึกแล้วระบบจะส่งบัตรข้อมูลใหม่ไปที่ LINE กรุณาตรวจสอบและกดอัปเดตข้อมูลเพื่อบันทึกลง DMS	保存すると新しい確認カードを LINE に送信します。確認後に情報更新を押すと DMS に登録されます。	dms.edit.customerSub
+Edit customer details	修改客户资料	แก้ไขข้อมูลลูกค้า	顧客情報を編集	dms.edit.customerTitle
+Expected delivery date	预计交车日期	วันที่คาดว่าจะส่งมอบ	納車予定日	dms.edit.delivery
+Receiving bank	收款银行	ธนาคารที่รับเงิน	受取銀行	dms.edit.destination
+Receiving account number	实际收款账号	เลขบัญชีที่รับเงิน	受取口座番号	dms.edit.destinationAccount
+Receiving bank branch	收款银行分行	สาขาธนาคารที่รับเงิน	受取銀行支店	dms.edit.destinationBranch
+Receiving company account name	公司收款户名	ชื่อบัญชีบริษัทที่รับเงิน	会社の受取口座名義	dms.edit.destinationName
+Details	详情	รายละเอียด	詳細	dms.edit.detail
+District	县/区	อำเภอ/เขต	郡・区	dms.edit.district
+Each payment method can only be added once.	每种付款方式只能添加一次。	ช่องทางชำระเงินแต่ละแบบเพิ่มได้เพียงครั้งเดียว	各支払方法は1回のみ追加できます。	dms.edit.duplicatePayment
+This draft expired or was changed. Use the latest preview in LINE.	此草稿已过期或已被修改，请使用 LINE 中最新的预览卡。	รายการนี้หมดอายุหรือถูกแก้ไขแล้ว กรุณาใช้สรุปล่าสุดใน LINE	この下書きは期限切れ、または変更済みです。LINE の最新プレビューを使用してください。	dms.edit.expired
+Could not save. Check the fields and try again.	保存失败，请检查字段后重试。	บันทึกไม่สำเร็จ กรุณาตรวจสอบข้อมูลแล้วลองใหม่	保存できませんでした。入力内容を確認して再試行してください。	dms.edit.failed
+Turn this off to exclude the file from the booking.	取消勾选后，此文件不会附到订车单。	ยกเลิกเครื่องหมายเพื่อไม่นำไฟล์นี้ไปแนบกับใบจอง	オフにすると予約票に添付されません。	dms.edit.fileHint
+Attachments	附件	ไฟล์แนบ	添付ファイル	dms.edit.files
+Floor	楼层	ชั้น	階	dms.edit.floor
+Address data is unavailable right now. Try again shortly.	地址数据暂时不可用，请稍后重试。	ข้อมูลที่อยู่ยังโหลดไม่ได้ กรุณาลองใหม่สักครู่	住所データを取得できませんでした。しばらくして再試行してください。	dms.edit.geoUnavailable
+House no.	门牌号	เลขที่	番地	dms.edit.house
+ID card copy	身份证复印件	สำเนาบัตรประชาชน	身分証明書の写し	dms.edit.idCard
+Changing customer fields will update the DMS customer record when you confirm.	修改客户资料后，最终确认时会同步更新 DMS 客户主档。	หากแก้ไขข้อมูลลูกค้า ระบบจะอัปเดตข้อมูลลูกค้าใน DMS เมื่อกดยืนยัน	顧客情報を変更すると、確定時に DMS の顧客台帳が更新されます。	dms.edit.idWarn
+Enter a valid payment amount greater than zero.	请填写有效的正数付款金额。	กรุณาระบุจำนวนเงินที่ถูกต้องและมากกว่าศูนย์	支払金額はゼロより大きい有効な数値を入力してください。	dms.edit.invalidAmount
+Check the value for {0}.	请检查“{0}”的填写内容。	กรุณาตรวจสอบข้อมูลในช่อง {0}	「{0}」の入力内容を確認してください。	dms.edit.invalidField
+Select a valid payment method.	请选择有效的付款方式。	กรุณาเลือกช่องทางชำระเงินที่ถูกต้อง	有効な支払方法を選択してください。	dms.edit.invalidPayment
+This editor is not enabled for this LINE OA. Reopen the DMS menu from LINE.	此入口尚未为这个 LINE OA 开通，请从 LINE 重新打开 DMS 菜单。	หน้าสำหรับ OA นี้ยังไม่เปิดใช้งาน กรุณาเปิดเมนู DMS ใหม่จาก LINE	この画面はこのLINE OAでは利用できません。LINEからDMSメニューを開き直してください。	dms.edit.liffUnavailable
+Loading details…	正在加载资料…	กำลังโหลดข้อมูล…	情報を読み込み中…	dms.edit.loading
+An option changed since this draft was created. Use the latest preview in LINE and try again.	可选项目已更新，请使用 LINE 中的最新预览卡后重试。	ตัวเลือกเปลี่ยนไปแล้ว กรุณาใช้สรุปล่าสุดใน LINE แล้วลองอีกครั้ง	選択肢が更新されました。LINE の最新プレビューで再試行してください。	dms.edit.masterChanged
+The latest DMS options are unavailable. Try again shortly.	暂时无法读取 DMS 最新选项，请稍后重试。	ยังโหลดตัวเลือกล่าสุดจาก DMS ไม่ได้ กรุณาลองใหม่อีกครั้ง	DMS の最新選択肢を取得できません。しばらくして再試行してください。	dms.edit.masterUnavailable
+Moo	村组	หมู่ที่	ムー	dms.edit.moo
+Full name	客户姓名	ชื่อ นามสกุล	氏名	dms.edit.name
+No options available	暂无可选项	ไม่มีตัวเลือก	選択肢がありません	dms.edit.noOptions
+Not attached	未附文件	ยังไม่ได้แนบไฟล์	未添付	dms.edit.notAttached
+Other	其他	อื่นๆ	その他	dms.edit.other
+Colour	车色	สีรถ	色	dms.edit.paint
+Payment methods	订金支付方式	ช่องทางชำระเงิน	支払方法	dms.edit.payment
+Complete the required payment details.	请填写完整的必填付款信息。	กรุณากรอกรายละเอียดการชำระเงินที่จำเป็นให้ครบ	必須の支払情報を入力してください。	dms.edit.paymentDetailRequired
+Add at least one payment method.	请至少填写一种付款方式。	กรุณาระบุช่องทางชำระเงินอย่างน้อยหนึ่งช่องทาง	支払方法を一つ以上入力してください。	dms.edit.paymentRequired
+Phone	电话	เบอร์โทร	電話番号	dms.edit.phone
+Booking location	接收订车地点	สถานที่รับจอง	予約受付場所	dms.edit.place
+Postcode	邮编	รหัสไปรษณีย์	郵便番号	dms.edit.postcode
+Choose a postcode from the list.	请从列表中选择邮编。	กรุณาเลือกรหัสไปรษณีย์จากรายการที่กำหนด	リストから郵便番号を選択してください。	dms.edit.postcodeMissing
+Title	称谓	คำนำหน้า	敬称	dms.edit.prefix
+Could not send the revised preview to LINE. Try again.	新版预览发送到 LINE 失败，请重试。	ส่งสรุปใหม่ไปที่ LINE ไม่สำเร็จ กรุณาลองอีกครั้ง	新しいプレビューを LINE に送信できませんでした。再試行してください。	dms.edit.previewSendFailed
+Province	府	จังหวัด	県	dms.edit.province
+Register in the name of	登记名义	จดทะเบียนในนาม	登録名義	dms.edit.regis
+Registered owner name	登记人姓名	ชื่อผู้จดทะเบียน	登録者名	dms.edit.regisName
+Remove	删除	ลบ	削除	dms.edit.remove
+Road	道路	ถนน	道路	dms.edit.road
+Room	房间	ห้อง	部屋	dms.edit.room
+Save	保存	บันทึก	保存	dms.edit.save
+Draft saved. A revised preview was sent to LINE.	草稿已保存，新版预览已发送到 LINE。	บันทึกฉบับร่างแล้ว ส่งสรุปใหม่ไปที่ LINE เรียบร้อย	下書きを保存し、新しいプレビューを LINE に送信しました。	dms.edit.saved
+Transfer slip	订金转账凭证	ใบโอนเงินจอง	振込票	dms.edit.slip
+A transfer slip is attached, but there is no transfer payment. Add a transfer payment or remove the slip.	已附转账凭证，但没有转账付款。请添加转账方式或删除凭证。	มีสลิปโอนเงินแนบอยู่ แต่ไม่มีช่องทางเงินโอน กรุณาเพิ่มช่องทางเงินโอนหรือนำสลิปออก	振込票が添付されていますが、振込支払いがありません。振込を追加するか、振込票を削除してください。	dms.edit.slipConflict
+Transfer requires a receipt. This draft has none. Remove this payment method or start the booking again in LINE and upload the receipt.	转账付款需要附上转账凭证。当前草稿没有凭证，请先移除此付款方式，或返回 LINE 重新录入并上传凭证。	การโอนเงินต้องมีสลิป ร่างนี้ยังไม่มีสลิป กรุณานำช่องทางเงินโอนออก หรือเริ่มทำใบจองใหม่ใน LINE และแนบสลิป	振込には振込票が必要です。この下書きには添付されていません。振込を削除するか、LINE で予約を入力し直して振込票を添付してください。	dms.edit.slipRequired
+Soi	巷	ตรอก/ซอย	ソイ	dms.edit.soi
+Source account	付款账户	บัญชีต้นทาง	振込元口座	dms.edit.source
+Source account number	付款账号	เลขบัญชีต้นทาง	振込元口座番号	dms.edit.sourceAccount
+Source account name	付款账户名	ชื่อบัญชีต้นทาง	振込元口座名義	dms.edit.sourceAccountName
+Source bank	付款银行	ธนาคารต้นทาง	振込元銀行	dms.edit.sourceBank
+Source branch	付款分行	สาขาต้นทาง	振込元支店	dms.edit.sourceBranch
+Save your changes and a revised preview will be sent to LINE before anything is recorded.	保存修改后，系统会先把新版预览发回 LINE，确认后才真正录入。	แก้ข้อมูลแล้วบันทึก ระบบจะส่งสรุปใหม่กลับไปที่ LINE ก่อนบันทึกจริง	変更を保存すると、確定前に新しいプレビューが LINE に送信されます。	dms.edit.sub
+Subdistrict	镇/街道	ตำบล/แขวง	町・地区	dms.edit.subdistrict
+Sales terms	销售条件	เงื่อนไขการขาย	販売条件	dms.edit.term
+Edit booking	编辑订车单	แก้ไขใบจอง	予約票を編集	dms.edit.title
+Booking deposit total	订金合计	ยอดเงินจองรวม	予約金合計	dms.edit.total
+Transfer	转账	เงินโอน	振込	dms.edit.transfer
+Village	村/小区	หมู่บ้าน	村・住宅地	dms.edit.village
+Credential decrypt failed — please re-enter username and password	凭据解密失败 · 请重新输入用户名和密码	ถอดรหัสข้อมูลรับรองไม่สำเร็จ	認証情報の復号に失敗しました · ユーザー名とパスワードを再入力してください	dms.err.ERR_CRED_DECRYPT
+DMS admin credential login failed — check the admin username and password	DMS 管理员凭据登录失败 · 请检查管理员用户名和密码	เข้าสู่ระบบด้วยบัญชีผู้ดูแล DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่านผู้ดูแล	DMS 管理者資格情報でのログインに失敗しました · 管理者のユーザー名とパスワードをご確認ください	dms.err.ERR_DMS_ADMIN_AUTH
+This booking has no sales advisor assigned — ask your admin to set the advisor for this DMS account, then start the booking again	这张订车单还没定销售顾问 · 请联系管理员为该 DMS 账号配置销售顾问后重开单	ใบจองนี้ยังไม่ได้กำหนดที่ปรึกษาการขาย กรุณาให้ผู้ดูแลกำหนดที่ปรึกษาให้บัญชี DMS นี้ แล้วเปิดใบจองใหม่	この予約には販売アドバイザーが設定されていません · 管理者に該当 DMS アカウントのアドバイザー設定を依頼してから、予約を作成し直してください	dms.err.ERR_DMS_ADVISOR_REQUIRED
+The advisor is not in the DMS advisor list — ask your admin to add this account to the DMS advisor list, or contact Pearnly to configure it	在 DMS 销售顾问名册里找不到该顾问 · 请让管理员在 DMS 顾问名册补上这个账号,或联系 Pearnly 配置归属	ไม่พบที่ปรึกษาการขายรายนี้ในรายชื่อที่ปรึกษาของ DMS กรุณาให้ผู้ดูแลเพิ่มบัญชีนี้ในรายชื่อที่ปรึกษาการขาย หรือติดต่อทีม Pearnly เพื่อกำหนดให้	このアドバイザーは DMS のアドバイザー名簿に存在しません · 管理者に当該アカウントの追加を依頼するか、Pearnly にご連絡ください	dms.err.ERR_DMS_ADVISOR_UNMATCHED
+DMS login failed — check username and password	DMS 登录失败 · 请检查用户名和密码	เข้าสู่ระบบ DMS ไม่สำเร็จ — ตรวจสอบชื่อผู้ใช้และรหัสผ่าน	DMS へのログインに失敗しました · ユーザー名とパスワードをご確認ください	dms.err.ERR_DMS_AUTH
+This booking draft changed or already has a submission attempt. No new request was sent. Check the current draft and push history.	本次订车草稿已改变，或已有提交记录，已停止再次发送。请查看当前草稿和推送记录。	ร่างใบจองนี้เปลี่ยนไปหรือมีประวัติส่งแล้ว จึงไม่ได้ส่งคำขอใหม่ กรุณาตรวจสอบร่างปัจจุบันและประวัติการส่ง	下書きが変更されたか、既に送信記録があるため、新たなリクエストは送信していません。現在の下書きと送信履歴をご確認ください。	dms.err.ERR_DMS_BOOKING_ATTEMPT_BLOCKED
+The booking request was sent, but the DMS result is unverified. Do not submit again. Ask an administrator to check this booking number.	订车请求已发送，但尚未核实 DMS 单据结果。请勿重复提交，请联系管理员按本次单号核对。	ส่งคำขอจองแล้ว แต่ยังตรวจสอบผลใน DMS ไม่ได้ กรุณาอย่าส่งซ้ำ ให้ผู้ดูแลตรวจสอบตามเลขที่รายการนี้	予約リクエストは送信されましたが、DMS の登録結果を確認できません。再送信せず、管理者に今回の番号で確認を依頼してください。	dms.err.ERR_DMS_BOOKING_OUTCOME_UNKNOWN
+Failed to fill in the booking details — please retry	回填订车单资料失败 · 请稍后重试	เติมข้อมูลใบจองไม่สำเร็จ — กรุณาลองใหม่	予約情報の入力に失敗しました · 再試行してください	dms.err.ERR_DMS_BOOKING_PATCH
+This DMS account is being used elsewhere — sign out there and retry	DMS 账号正在其他地方使用 · 请退出其他登录后重试	บัญชี DMS นี้กำลังถูกใช้งานที่อื่น · กรุณาออกจากระบบที่อื่นแล้วลองใหม่	この DMS アカウントは別の場所で使用中です · 他の場所からログアウトして再試行してください	dms.err.ERR_DMS_CONCURRENT_LOGIN
+Booking has not been submitted: DMS customer details could not be verified. Check the customer details and account access, then retry without creating another customer.	订车尚未提交：无法核验 DMS 客户资料。请检查客户资料及账号访问权限后重试，无需重新建档。	ยังไม่ได้ส่งใบจอง: ตรวจสอบข้อมูลลูกค้าใน DMS ไม่สำเร็จ กรุณาตรวจสอบข้อมูลลูกค้าและสิทธิ์เข้าถึงของบัญชี แล้วลองใหม่โดยไม่ต้องสร้างลูกค้าใหม่	予約は未送信です。DMS の顧客情報を確認できませんでした。顧客情報とアカウントのアクセス権を確認して再試行してください。顧客の再登録は不要です。	dms.err.ERR_DMS_CUSTOMER_LOOKUP
+Failed to save the customer to DMS — check the fields and retry	保存客户到 DMS 失败 · 请检查字段后重试	บันทึกลูกค้าเข้า DMS ไม่สำเร็จ — ตรวจสอบข้อมูลแล้วลองใหม่	DMS への顧客保存に失敗しました · 項目を確認して再試行してください	dms.err.ERR_DMS_CUSTOMER_SAVE
+Failed to create the booking — please retry	建订车单失败 · 请稍后重试	สร้างใบจองรถไม่สำเร็จ — กรุณาลองใหม่	予約の作成に失敗しました · 再試行してください	dms.err.ERR_DMS_IMPORT
+DMS rejected the booking import — check the booking details	订车单导入被 DMS 拒绝 · 请检查订车资料	DMS ปฏิเสธการนำเข้าใบจอง — ตรวจสอบรายละเอียดการจอง	DMS が予約取込を拒否しました · 予約内容をご確認ください	dms.err.ERR_DMS_IMPORT_REPORT
+DMS master data just changed. The summary has been updated; review it and confirm again.	DMS 主档刚刚发生变化 · 系统已更新摘要 · 请重新核对并再次确认	ข้อมูลหลักของ DMS เพิ่งมีการเปลี่ยนแปลง ระบบอัปเดตสรุปแล้ว กรุณาตรวจสอบและยืนยันอีกครั้ง	DMS マスターデータが変更されました。更新後の概要を確認し、もう一度確定してください	dms.err.ERR_DMS_MASTER_CHANGED
+This DMS master option has not been configured. Ask an admin to add it in DMS, then retry.	DMS 尚未配置这个主档选项 · 请让管理员在 DMS 添加后重试	ยังไม่ได้ตั้งค่าตัวเลือกข้อมูลหลักนี้ใน DMS กรุณาให้ผู้ดูแลเพิ่มข้อมูลใน DMS แล้วลองใหม่อีกครั้ง	この DMS マスター項目は未設定です。管理者が DMS に追加してから再試行してください	dms.err.ERR_DMS_MASTER_EMPTY
+DMS master data is temporarily unavailable — please retry	DMS 主档暂时无法读取 · 请稍后重试	อ่านข้อมูลหลักของ DMS ไม่ได้ชั่วคราว — กรุณาลองใหม่อีกครั้ง	DMS のマスターデータを一時的に読み取れません · しばらくしてから再試行してください	dms.err.ERR_DMS_MASTER_UNAVAILABLE
+The selected item is no longer in the DMS master data — go back, re-select it, and retry	所选项目在 DMS 主档里已变更或不存在 · 请返回重新选择后重试	รายการที่เลือกไม่อยู่ในข้อมูลหลักของ DMS แล้ว กรุณากลับไปเลือกใหม่ แล้วลองอีกครั้ง	選択した項目は DMS のマスターデータに存在しなくなりました · 戻って選択し直してから再試行してください	dms.err.ERR_DMS_MASTER_UNMATCHED
+Booking was not submitted: payment details are incomplete. Your draft is saved. Complete the account details and confirm again.	订车尚未提交：收款资料不完整。草稿已保留，请补齐账户信息后重新确认。	ยังไม่ได้ส่งใบจอง: ข้อมูลรับเงินไม่ครบ เก็บร่างไว้แล้ว กรุณากรอกข้อมูลบัญชีให้ครบและยืนยันอีกครั้ง	予約は未送信です。入金情報が不足しています。下書きは保存されています。口座情報を補完して再度確認してください。	dms.err.ERR_DMS_PAYMENT_INCOMPLETE
+Sales rankings are not available to this DMS account. Contact your DMS administrator.	当前 DMS 账号未开放销售排行，请联系 DMS 管理员。	บัญชี DMS นี้ยังไม่มีสิทธิ์ดูอันดับยอดขาย กรุณาติดต่อผู้ดูแล DMS	この DMS アカウントでは販売ランキングを利用できません。DMS 管理者にお問い合わせください。	dms.err.ERR_DMS_QUERY_SCOPE
+DMS connection timed out — please retry	连接 DMS 超时或网络异常 · 请稍后重试	การเชื่อมต่อ DMS หมดเวลา — กรุณาลองใหม่	DMS への接続がタイムアウトまたはネットワーク異常です · しばらくしてから再試行してください	dms.err.ERR_DMS_TECHNICAL
+Failed to download the booking template — please retry	下载订车单模板失败 · 请稍后重试	ดาวน์โหลดเทมเพลตใบจองไม่สำเร็จ — กรุณาลองใหม่	予約テンプレートのダウンロードに失敗しました · 再試行してください	dms.err.ERR_DMS_TEMPLATE
+Cannot reach the third-party DMS system. Please contact your administrator.	连不上第三方 DMS 系统，请联系管理员	เชื่อมต่อระบบ DMS ของบุคคลที่สามไม่ได้ กรุณาติดต่อผู้ดูแลระบบ	サードパーティの DMS システムに接続できません。管理者に連絡してください。	dms.err.ERR_DMS_UNREACHABLE
+Server KMS key is not configured	服务器加密密钥未配置,请联系运维	เซิร์ฟเวอร์ยังไม่ตั้งค่าคีย์เข้ารหัส	サーバーの暗号化キーが設定されていません。運用担当者にお問い合わせください	dms.err.ERR_KMS_MISSING
+Username and password required	请输入用户名和密码	กรุณากรอกชื่อผู้ใช้และรหัสผ่าน	ユーザー名とパスワードを入力してください	dms.err.ERR_NO_CREDS
+Server is missing the Playwright dependency	服务器缺少 Playwright 依赖,请联系运维	เซิร์ฟเวอร์ขาดไลบรารี Playwright	サーバーに Playwright 依存関係がありません。運用担当者にお問い合わせください	dms.err.ERR_PLAYWRIGHT_MISSING
+Internal server error, please contact admin	服务器内部错误,请联系管理员	ข้อผิดพลาดของเซิร์ฟเวอร์ภายใน กรุณาติดต่อผู้ดูแล	サーバー内部エラーが発生しました。管理者にお問い合わせください	dms.err.ERR_UNEXPECTED
+in use	启用	ใช้งาน	使用中	
+stopped	停用	หยุดใช้	停止中	

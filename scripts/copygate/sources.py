@@ -191,6 +191,15 @@ def glossary_entries(path: str, text: str) -> list:
     return out
 
 
+def translation_rows(text: str) -> dict:
+    """翻译包一行一条：{msgid: 译文原文}（不去空白、不还原转义；同一 msgid 取第一行）。"""
+    found: dict = {}
+    for row in csv.reader(io.StringIO(text)):
+        if len(row) >= 2 and row[0].strip():
+            found.setdefault(row[0], row[1])
+    return found
+
+
 def translation_msgids(text: str) -> set:
     found = set()
     for row in csv.reader(io.StringIO(text)):
@@ -1197,6 +1206,7 @@ class Snapshot:
     admin_values: set = field(default_factory=set)  # 只出现在 System Manager 专用 DocType 里的 label / description / 选项
     email_msgids: set = field(default_factory=set)  # 邮件模板用到的 msgid
     term_words: set = field(default_factory=set)  # CC 网页 tr() 词条里直接列出的 msgid（TERMS_FILE 的 TERM_WORDS）
+    translation_texts: dict = field(default_factory=dict)  # 翻译包路径 -> {msgid: 译文原文}（判「手工行原样搬进术语表」）
 
 
 def term_words(text: str) -> set:
@@ -1227,6 +1237,7 @@ def snapshot(tree) -> Snapshot:
     msgids: set = set()
     glossary_msgids: dict = {}
     translations: dict = {}
+    translation_texts: dict = {}
     roles: dict = {}
     admin_seen: dict = {}  # 文字 -> 是否每次都出现在管理员专用 DocType 里
     keycloak_files: dict = {}
@@ -1257,6 +1268,7 @@ def snapshot(tree) -> Snapshot:
         elif TRANSLATION.match(path):
             found = translation_msgids(text)
             translations[path] = found
+            translation_texts[path] = translation_rows(text)
             msgids |= found
         elif KEYCLOAK.match(path):
             keycloak_files[path] = text
@@ -1304,7 +1316,7 @@ def snapshot(tree) -> Snapshot:
     msgids.discard("")
     return Snapshot(entries, msgids, glossary_msgids, translations, assistant_keys, roles,
                     glossary_lines, glossary_line_ids, companion_keys, admin_values, in_email,
-                    term_words(tree.read(TERMS_FILE)) if TERMS_FILE in paths else set())
+                    term_words(tree.read(TERMS_FILE)) if TERMS_FILE in paths else set(), translation_texts)
 
 
 # ── 调用点角色 ───────────────────────────────────────────────────────────────

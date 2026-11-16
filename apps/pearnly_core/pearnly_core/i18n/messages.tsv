@@ -1045,3 +1045,34 @@ Cache Read Tokens	缓存读取 Token	โทเค็นอ่านแคช	キ
 Active Seconds	运行秒数	วินาทีที่ทำงาน	稼働秒数
 USD	美元	ดอลลาร์สหรัฐ	米ドル
 USD Source	美元来源	แหล่งที่มาของยอดดอลลาร์	米ドルの出所
+Authorize in CC Desktop	在 CC 桌面版中授权	อนุญาตใน CC เดสก์ท็อป	CC デスクトップで承認	
+CC Desktop not connected	CC 桌面版未连接	CC เดสก์ท็อปยังไม่เชื่อมต่อ	CC デスクトップ未接続	
+Copy	复制	คัดลอก	コピー	
+Failure reason	失败原因	สาเหตุที่ล้มเหลว	失敗理由	
+Key	密钥	คีย์	キー	
+No records	暂无记录	ไม่มีรายการ	記録はありません	
+Not authorized	未授权	ยังไม่ได้อนุญาต	未承認	
+Note	备注	หมายเหตุ	備考	
+Open in browser	用浏览器打开	เปิดในเบราว์เซอร์	ブラウザで開く	
+Pairing code	配对码	รหัสจับคู่	ペアリングコード	
+Your account was updated elsewhere. Sign in again to load the current username.	账户已在其它地方更新，请重新登录以读取当前用户名。	บัญชีถูกเปลี่ยนจากที่อื่น กรุณาเข้าสู่ระบบอีกครั้งเพื่อโหลดชื่อผู้ใช้ปัจจุบัน	別の場所でアカウントが更新されました。再ログインして現在のユーザー名を取得してください。	account.profileChanged
+Could not update your account. Please reload and try again.	无法更新账户，请刷新后重试。	อัปเดตบัญชีไม่สำเร็จ กรุณาโหลดใหม่แล้วลองอีกครั้ง	アカウントを更新できませんでした。再読み込みしてお試しください。	account.profileUpdateFailed
+Sign in again before changing your username.	请重新登录后再更改用户名。	กรุณาเข้าสู่ระบบอีกครั้งก่อนเปลี่ยนชื่อผู้ใช้	ユーザー名を変更する前に再ログインしてください。	account.signInToRename
+Username must contain 3–30 letters, digits, dots, underscores or hyphens.	用户名须为 3–30 位字母、数字、点、下划线或短横线。	ชื่อผู้ใช้ต้องมี 3–30 ตัว เป็นตัวอักษรอังกฤษ ตัวเลข จุด ขีดล่าง หรือขีดกลาง	ユーザー名は英数字・ピリオド・アンダースコア・ハイフンの3〜30文字で入力してください。	account.usernameFormat
+This username is already in use.	该用户名已被使用。	ชื่อผู้ใช้นี้ถูกใช้งานแล้ว	このユーザー名は使用されています。	account.usernameTaken
+Cancel	取消	ยกเลิก	キャンセル	common.cancel
+Loading…	加载中…	กำลังโหลด…	読み込み中…	common.loading
+Processing…	处理中…	กำลังดำเนินการ…	処理中…	common.processing
+Refresh	刷新	รีเฟรช	更新	common.refresh
+Saving…	提交中…	กำลังบันทึก…	保存中…	common.saving
+Open the phone Settings → Apps → LINE → Permissions → Camera, choose Allow, then come back to LINE. Scanning starts again by itself.	打开手机「设置 → 应用程序 → LINE → 权限 → 相机」，选「允许」，然后回到 LINE，会自动重新开始扫码。	เปิด การตั้งค่า → แอปพลิเคชัน → LINE → การอนุญาต → กล้อง เลือก อนุญาต แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง	スマートフォンの「設定 → アプリ → LINE → 権限 → カメラ」で「許可」を選び、LINE に戻ると自動でスキャンが再開します。	common.scan.allow_android
+Open the iPhone Settings → LINE, turn on Camera, then come back to LINE. Scanning starts again by itself.	打开 iPhone「设置 → LINE」，打开「相机」，然后回到 LINE，会自动重新开始扫码。	เปิด การตั้งค่า → LINE เปิด กล้อง แล้วกลับมาที่ LINE ระบบจะเริ่มสแกนใหม่เอง	iPhone の「設定 → LINE」で「カメラ」をオンにして LINE に戻ると、自動でスキャンが再開します。	common.scan.allow_ios
+Allow LINE to use the camera	允许 LINE 使用相机	อนุญาตให้ LINE ใช้กล้อง	LINE にカメラを許可	common.scan.allow_title
+LINE does not have permission to use the camera yet.	LINE 还没有使用相机的权限。	LINE ยังไม่ได้รับอนุญาตให้ใช้กล้อง	LINE にカメラの使用が許可されていません。	common.scan.in_line
+Open in browser	用浏览器打开	เปิดในเบราว์เซอร์	ブラウザで開く	common.scan.open_browser
+Try again	重试	ลองอีกครั้ง	再試行	common.scan.retry
+Copy	复制	คัดลอก	コピー	intake.agent.copy
+Pairing code	配对码	รหัสจับคู่	ペアリングコード	intake.agent.key
+Regenerate	重新生成	สร้างใหม่	再生成	intake.agent.reset
+The old key stops working right away.	原配对码将立即失效。	รหัสจับคู่เดิมจะใช้ไม่ได้ทันที	古いキーはすぐに使えなくなります。	intake.agent.resetConfirm
+The new platform has no DMS advisor roster source yet, so for now only automatic matching is available	新平台还没有 DMS 顾问名册来源，暂时只能自动匹配	แพลตฟอร์มใหม่ยังไม่มีแหล่งทะเบียนที่ปรึกษา DMS ตอนนี้จึงจับคู่อัตโนมัติได้เท่านั้น	新プラットフォームにはDMSアドバイザー名簿の供給元がまだないため、現状は自動照合のみです	roster.advisor.note
