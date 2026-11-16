@@ -317,6 +317,7 @@ Enable,เปิดใช้งาน
 Enabled,เปิดใช้งาน
 Enabled features,ฟังก์ชันที่เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
+Enter again,บันทึกอีกครั้ง
 "Enter the display name, DMS account and password. Issue bind codes after saving.",กรอกชื่อที่แสดง บัญชีและรหัสผ่าน DMS ของพนักงานรายนี้ แล้วสร้างรหัสผูกแยกแต่ละรายหลังบันทึก
 Enter the first name,กรุณากรอกชื่อ
 Entering,กำลังบันทึก
@@ -478,6 +479,7 @@ Match result must be unmatched / existing customer / new customer,ผลกา�
 Max Payload Version,เวอร์ชันข้อมูลสูงสุด
 Max Retries,จำนวนครั้งลองใหม่สูงสุด
 Missing code or state,ขาด code หรือ state
+Month,เดือน
 My Profile,ข้อมูลส่วนตัว
 Name,ชื่อ
 Namespace is not allowed: {0},เนมสเปซที่ไม่อนุญาต: {0}
@@ -526,6 +528,7 @@ Not done,ยังไม่เสร็จ
 Not enough stock,สต็อกไม่พอ
 Not linked,ยังไม่ผูก
 Not permitted,ไม่ได้รับอนุญาต
+Not posted,ยังไม่บันทึกบัญชี
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
 Note,หมายเหตุ
@@ -1118,6 +1121,11 @@ guide.option.goods_posting.service,ค่าใช้จ่าย
 guide.option.goods_posting.stock,สต็อก
 guide.option.item.__expense__,ค่าใช้จ่าย
 guide.option.new,สร้างใหม่
+guide.option.operator_again.again,บันทึกอีกครั้ง
+guide.option.operator_again.skip,ไม่บันทึกบัญชี
+guide.option.operator_month.stay,เดือนนี้
+guide.option.operator_resolve.entered,บันทึกบัญชีแล้ว
+guide.option.operator_resolve.not_entered,ยังไม่บันทึกบัญชี
 guide.option.payment.cash,เงินสด
 guide.option.payment.credit,เงินเชื่อ
 guide.option.service_vat.accrual,เกณฑ์สิทธิ
@@ -1138,6 +1146,9 @@ guide.q.item,สินค้า
 guide.q.location,คลังสินค้า
 guide.q.new_item,สินค้าใหม่
 guide.q.new_party,คู่ค้าใหม่
+guide.q.operator_again,บันทึกบัญชีแล้ว
+guide.q.operator_month,เดือน
+guide.q.operator_resolve,ไม่ทราบผล
 guide.q.party,คู่ค้า
 guide.q.payment,การชำระเงิน
 guide.q.service_vat,เกณฑ์ภาษีบริการ

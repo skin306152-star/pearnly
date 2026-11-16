@@ -317,6 +317,7 @@ Enable,启用
 Enabled,启用
 Enabled features,已开通功能
 Endpoint,连接端点
+Enter again,再写一次
 "Enter the display name, DMS account and password. Issue bind codes after saving.",填写显示名及该操作员的 DMS 账号和密码，保存后分别生成绑定码
 Enter the first name,请填写名
 Entering,录入中
@@ -478,6 +479,7 @@ Match result must be unmatched / existing customer / new customer,匹配结果�
 Max Payload Version,最高载荷版本
 Max Retries,最大重试次数
 Missing code or state,缺少 code 或 state
+Month,月份
 My Profile,个人信息
 Name,名称
 Namespace is not allowed: {0},不允许的命名空间：{0}
@@ -526,6 +528,7 @@ Not done,未完成
 Not enough stock,库存不够
 Not linked,未绑定
 Not permitted,没有权限
+Not posted,没有入账
 Not signed in,未登录
 Not subscribed,未订阅
 Note,备注
@@ -1118,6 +1121,11 @@ guide.option.goods_posting.service,记费用
 guide.option.goods_posting.stock,走库存
 guide.option.item.__expense__,记费用
 guide.option.new,新建
+guide.option.operator_again.again,再写一次
+guide.option.operator_again.skip,不入账
+guide.option.operator_month.stay,本月
+guide.option.operator_resolve.entered,已入账
+guide.option.operator_resolve.not_entered,没有入账
 guide.option.payment.cash,现金
 guide.option.payment.credit,赊账
 guide.option.service_vat.accrual,权责发生制
@@ -1138,6 +1146,9 @@ guide.q.item,物料
 guide.q.location,仓位
 guide.q.new_item,新物料
 guide.q.new_party,新建对方
+guide.q.operator_again,已入账
+guide.q.operator_month,月份
+guide.q.operator_resolve,结果不明
 guide.q.party,对方
 guide.q.payment,付款方式
 guide.q.service_vat,服务税口径

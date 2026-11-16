@@ -317,6 +317,7 @@ Enable,有効化
 Enabled,有効
 Enabled features,有効な機能
 Endpoint,接続先
+Enter again,もう一度入力
 "Enter the display name, DMS account and password. Issue bind codes after saving.",表示名と DMS アカウント・パスワードを入力し、保存後に連携コードを発行します
 Enter the first name,名を入力してください
 Entering,入力中
@@ -478,6 +479,7 @@ Match result must be unmatched / existing customer / new customer,照合結果�
 Max Payload Version,最大ペイロードバージョン
 Max Retries,最大再試行
 Missing code or state,code または state がありません
+Month,月
 My Profile,個人プロフィール
 Name,名称
 Namespace is not allowed: {0},名前空間は許可されていません: {0}
@@ -526,6 +528,7 @@ Not done,未完了
 Not enough stock,在庫が足りません
 Not linked,未連携
 Not permitted,権限がありません
+Not posted,記帳されていません
 Not signed in,未ログイン
 Not subscribed,未登録
 Note,備考
@@ -1118,6 +1121,11 @@ guide.option.goods_posting.service,費用
 guide.option.goods_posting.stock,在庫
 guide.option.item.__expense__,費用
 guide.option.new,新規
+guide.option.operator_again.again,もう一度入力
+guide.option.operator_again.skip,記帳しない
+guide.option.operator_month.stay,今月
+guide.option.operator_resolve.entered,記帳済み
+guide.option.operator_resolve.not_entered,記帳されていません
 guide.option.payment.cash,現金
 guide.option.payment.credit,掛け
 guide.option.service_vat.accrual,発生主義
@@ -1138,6 +1146,9 @@ guide.q.item,商品
 guide.q.location,倉庫
 guide.q.new_item,新規商品
 guide.q.new_party,新規取引先
+guide.q.operator_again,記帳済み
+guide.q.operator_month,月
+guide.q.operator_resolve,結果不明
 guide.q.party,取引先
 guide.q.payment,支払方法
 guide.q.service_vat,サービス消費税の基準

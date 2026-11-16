@@ -30,6 +30,7 @@ READY = "ready"  # 工具结果：有要写的（页面据此在输入框上方�
 STATUSES = (AWAITING, STARTED, REPLACED)
 CHECK_MAX = 200  # 一次交给写账前置判定几张（同 `write_precheck.api.BATCH_MAX`）
 DIRECT_MAX = 200  # 直写一份计划最多几张
+OPERATOR_MAX = 1000  # 代录一份计划最多几张（这个月的完整待录清单，同 `express_operator.api.SOURCES_MAX`）
 SKIPPED_SHOWN = 50  # 回给 CC 的跳过清单最多列几张（其余只给张数）
 
 # 跳过的原因（给模型，不经 _()）
@@ -334,7 +335,7 @@ def from_page(session_id: str, company: str, doc_ids: list, consent: str) -> dic
     if not precheck_products.allowed(frappe.session.user, company):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     ids = list(dict.fromkeys(str(doc_id) for doc_id in doc_ids or () if doc_id))
-    if not ids or len(ids) > DIRECT_MAX:
+    if not ids or len(ids) > (OPERATOR_MAX if mode == "operator" else DIRECT_MAX):
         frappe.throw(_("Invalid request"))
     card, versions = _judge(company, ids)
     write, skipped = _sorted_out(card, ids, versions)

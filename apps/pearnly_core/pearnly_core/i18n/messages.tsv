@@ -1057,6 +1057,14 @@ Unit	单位	หน่วย	単位	guide.q.unit
 Cost of goods sold	出库成本	ต้นทุนขาย	売上原価	guide.q.cost_basis
 Line items	明细	รายการ	明細	guide.q.detail
 Cash account	收付款科目	บัญชีรับจ่ายเงิน	入出金勘定	guide.q.cash_account
+Month	月份	เดือน	月	guide.q.operator_month
+This month	本月	เดือนนี้	今月	guide.option.operator_month.stay
+Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.q.operator_again
+Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.operator_again.skip
+Enter again	再写一次	บันทึกอีกครั้ง	もう一度入力	guide.option.operator_again.again
+Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.q.operator_resolve
+Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.option.operator_resolve.entered
+Not posted	没有入账	ยังไม่บันทึกบัญชี	記帳されていません	guide.option.operator_resolve.not_entered
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
 Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
 Post	是否入账	บันทึกบัญชีหรือไม่	記帳	guide.q.document_policy

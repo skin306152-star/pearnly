@@ -224,20 +224,25 @@ def held_on_card(card: Mapping[str, Any]) -> List[str]:
 
 AT = (ASKING, REVIEW)            # 已有单据交进来时从哪一步接着走（:func:`initial` 的 ``at``）
 DOCS_MAX = 200                   # 一次引导最多几张（同写入计划 DIRECT_MAX）
+OPERATOR_DOCS_MAX = 1000         # 代录开始前：这个月的完整待录清单（同 `express_operator.api.SOURCES_MAX`）
 
 
-def initial(doc_ids=None, at: str = ASKING) -> str:
+def initial(doc_ids=None, at: str = ASKING, operator: Mapping[str, Any] | None = None) -> str:
     """新开一次的 ``documents`` 列：文件、识别批次、问过的题、留下的单、业务题答了什么。
 
     ``doc_ids``（公开入口，别的引导 / 代录开始前交来已有的单：待处理改票面、收银日汇总建好的票、这个月的待录清单）：不交文件、
     不等识别，从判定（``at=asking``：出题卡）或复核（``at=review``：不出题，题没定的那几张这次留下）接着走；不出「业务对不上」题
-    （单据不是这次按菜单交的票）。"""
+    （单据不是这次按菜单交的票）。
+
+    ``operator``（代录开始前那张卡，`express_operator.guide_start`）：``{task, period}``；单据可以是空的（这个月没有可录的，卡上问月份）。"""
     found = {"files": [], "batches": [], "asked": [], "held": [], "mismatch": ""}
     if doc_ids is not None:
         ids = list(dict.fromkeys(str(doc_id) for doc_id in doc_ids if doc_id))
-        if not ids or len(ids) > DOCS_MAX or at not in AT:
+        if (not ids and not operator) or len(ids) > (OPERATOR_DOCS_MAX if operator else DOCS_MAX) or at not in AT:
             frappe.throw(_("Invalid request"))
-        found.update(doc_ids=ids, at=at, mismatch=SKIP)
+        found.update(doc_ids=ids, preset=True, at=at, mismatch=SKIP)
+    if operator:
+        found.update(operator={"task": str(operator.get("task") or ""), "period": str(operator.get("period") or "")}, again=[])
     return json.dumps(found)
 
 
@@ -267,7 +272,7 @@ def _fingerprint(review_rows: List[Mapping[str, Any]], versions: Mapping[str, st
 def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, Any]:
     """这次此刻走到哪（现算，不写库）：``{stage, uploads?, doc_ids, card?, found?, review_docs?, held}``。"""
     st = state(doc)
-    if st.get("doc_ids"):
+    if st.get("preset"):
         uploads, doc_ids = None, list(st["doc_ids"])   # 别的引导交来的已有单据：不交文件、不等识别
     elif not st["batches"]:
         return {"stage": FILES, "doc_ids": [], "held": []}
@@ -277,14 +282,25 @@ def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, 
         if uploads.get("wait") or not doc_ids:
             return {"stage": READING, "uploads": uploads, "doc_ids": doc_ids, "held": []}
     held = [doc_id for doc_id in st["held"] if doc_id in doc_ids]
-    found, built = card_for(ctx["company"], doc_ids, ctx["session"], ctx["business"],
-                            mismatch_answered=bool(st.get("mismatch")))
+    if doc_ids:
+        found, built = card_for(ctx["company"], doc_ids, ctx["session"], ctx["business"],
+                                mismatch_answered=bool(st.get("mismatch")))
+    else:
+        found, built = {}, {"questions": [], "decided": [], "counts": {"questions": 0}, "facts": {"waiting": [], "not_writable": []}}
+    if st.get("operator"):
+        # 代录开始前：这次代录自己的题（再录不录、入没入账、这个月没单时改月份）排最前；还挂着这几题的单这次先不录
+        from pearnly_core.express_operator import guide_start
+
+        own = guide_start.questions(ctx, doc_ids, st["operator"], st.get("again") or [])
+        built["questions"][:0] = own
+        built["counts"]["questions"] = len(built["questions"])
+        held = list(dict.fromkeys([*held, *(d for q in own for d in q["docs"])]))
     # 还有没问过的题就接着问：记录自己的题（付款、行、仓）定了以后账本那边的题（科目、对方……）才判得出来，会是第二轮新题；
     # 问过、这次没点的题不再追问（第 1 期口径：没点过的那几张这次留下）
     fresh = [q for q in built["questions"] if q["key"] not in set(st["asked"])]
-    if fresh and needs_card(built) and st.get("at") != REVIEW:
+    if fresh and (needs_card(built) or built["questions"]) and st.get("at") != REVIEW:
         return {"stage": ASKING, "uploads": uploads, "doc_ids": doc_ids, "card": built, "found": found, "held": held}
-    writable = [doc_id for doc_id in guide.writable(found, []) if doc_id in doc_ids and doc_id not in held]
+    writable = [doc_id for doc_id in guide.writable(found, []) if doc_id in doc_ids and doc_id not in held] if found else []
     return {"stage": REVIEW, "uploads": uploads, "doc_ids": doc_ids, "card": built, "found": found,
             "review_docs": writable, "held": [doc_id for doc_id in doc_ids if doc_id not in writable]}
 
@@ -297,6 +313,11 @@ def view(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, A
     """给页面的那一段（``guide.run.view`` 并进去）：交文件 / 识别中 / 题卡 / 复核。"""
     now = stage(guide_decl, doc, ctx)
     out: Dict[str, Any] = {"stage": now["stage"]}
+    operator = state(doc).get("operator")
+    if operator:
+        from pearnly_core.express_operator import guide_start
+
+        out["operator"] = guide_start.card_head(ctx, now["doc_ids"], operator)
     if now["stage"] == FILES:
         out["card"] = {"version": 2, "source": "documents", "ready": False, "decided": [],
                        "questions": [{"key": FILE_KEY, "input": "file", "rule": "always", "tier": "how", "required": True,
@@ -307,7 +328,7 @@ def view(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, A
     if now["stage"] == READING:
         out["card"] = {"version": 2, "source": "documents", "ready": False, "decided": [], "questions": [], "wait": True}
         return out
-    facts = _facts(now["found"])
+    facts = _facts(now.get("found") or {})
     if now["stage"] == ASKING:
         out["card"] = {**now["card"], "version": 2, "source": "documents", "ready": False}
         return out
@@ -350,11 +371,24 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
         rows = check_answers(now["card"], given.get("answers") or [])
     except AnswerError as error:
         return {"refused": {"answers": str(error)}}
-    found = record(now["card"], ctx["company"], now["doc_ids"], rows)
+    extra: Dict[str, Any] = {"again": [], "held": []}
+    if st.get("operator"):
+        from pearnly_core.express_operator import guide_start
+
+        mine = [row for row in rows if guide_start.own(row["key"])]
+        rows = [row for row in rows if not guide_start.own(row["key"])]
+        extra = guide_start.apply(ctx, mine, st["operator"])
+        if extra.get("month"):
+            return {"restart": True}  # 改了月份：按新月份重开这张卡（引擎重开）
+    card = {**now["card"], "questions": [q for q in now["card"].get("questions") or ()
+                                          if not str(q.get("key") or "").startswith(("operator-", ))]}
+    found = record(card, ctx["company"], now["doc_ids"], rows) if now["doc_ids"] else {"status": "answered", "held": []}
     if found["status"] == "refused":
         return {"refused": {"answers": "changed"}, "errors": found["errors"]}
     asked = list(dict.fromkeys([*st["asked"], *(q["key"] for q in now["card"].get("questions") or ())]))
-    _save_state(doc, {**st, "asked": asked, "held": found["held"], "mismatch": found.get("mismatch") or st.get("mismatch")})
+    _save_state(doc, {**st, "asked": asked, "held": list(dict.fromkeys([*found["held"], *extra["held"]])),
+                      "again": list(dict.fromkeys([*(st.get("again") or []), *extra["again"]])),
+                      "mismatch": found.get("mismatch") or st.get("mismatch")})
     return {}
 
 
@@ -383,9 +417,9 @@ def confirm(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], consent: st
     _card, versions = _judge(ctx["company"], now["review_docs"])
     if seen is not None and str(seen) != _fingerprint(rows, versions):
         return {"outcome": "changed"}
+    # 复核里有写不进账本的格的这次不写；产品没给票面的（例如代录里已经是 ERP 单据的 P: / S:，票面在单据上）照写
     blocked = [row["doc_id"] for row in rows if row.get("blocking")]
-    shown = {row["doc_id"] for row in rows}
-    docs = [doc_id for doc_id in now["review_docs"] if doc_id in shown and doc_id not in blocked]
+    docs = [doc_id for doc_id in now["review_docs"] if doc_id not in blocked]
     held = [{"doc_id": doc_id, "reason": BLOCKING} for doc_id in blocked]
     held += [{"doc_id": doc_id, "reason": "held"} for doc_id in now["held"]]
     if not docs:
@@ -403,7 +437,8 @@ def confirm(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], consent: st
     if plan["mode"] == "operator":
         from pearnly_core.express_operator import api as operator_api
 
-        out["handed"] = operator_api.hand_in(ctx["company"], plan["operator_task"], write)
+        again = [doc_id for doc_id in state(doc).get("again") or () if doc_id in write]
+        out["handed"] = operator_api.hand_in(ctx["company"], plan["operator_task"], write, again=again)
     else:
         out["confirmed"] = _call(guide_decl["confirm"], ctx, write, consent)
     return out

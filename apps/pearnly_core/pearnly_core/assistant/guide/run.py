@@ -373,9 +373,10 @@ def _checked(name: str):
 
 
 # ── 走法 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def start(session_id: str, business: str, doc_ids=None, at: str = "asking") -> Dict[str, Any]:
+def start(session_id: str, business: str, doc_ids=None, at: str = "asking", operator=None) -> Dict[str, Any]:
     """点菜单上的业务开一次引导。``doc_ids``（只对按单据的业务，公开入口）：别的引导 / 代录开始前把已有单据交进来，不交文件、不等识别，
-    从判定（``at="asking"``）或复核（``at="review"``）接着走（`documents.initial`）。"""
+    从判定（``at="asking"``）或复核（``at="review"``）接着走（`documents.initial`）。``operator``：代录开始前那张卡
+    （`express_operator.guide_start.start` 调，``{task, period}``）。"""
     now = _conversation(session_id)
     guide = registry.find(business)
     if not guide or guide["source"] not in (d.FORM, d.DOCUMENTS) or now["mode"] not in guide["modes"] \
@@ -385,7 +386,7 @@ def start(session_id: str, business: str, doc_ids=None, at: str = "asking") -> D
         frappe.throw(_("Invalid request"))  # 声明还没点名 documents 源要的产品函数（这一格还不能在页面上办）
     if doc_ids is not None and not _documents(guide):
         frappe.throw(_("Invalid request"))
-    documents_column = _docs().initial(doc_ids, at) if _documents(guide) else None  # 先核单据，核不过不作废旧的
+    documents_column = _docs().initial(doc_ids, at, operator) if _documents(guide) else None  # 先核单据，核不过不作废旧的
     for name in _open_runs(now["session_id"]):
         old = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
         if old is not None and old.status in OPEN:
@@ -464,6 +465,13 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
 def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -> Dict[str, Any]:
     """按单据的一次作答（交文件或题卡）：收下了版本 +1、存、推事件；不收回 ``refused``（卡不变，页面可重答）。"""
     found = _docs().answer(guide, doc, _ctx(doc, _answers(doc)), given)
+    if found.get("restart"):
+        # 代录开始前改了月份：对话月份变了，这次失效；按新月份重开这张卡
+        from pearnly_core.express_operator import guide_start
+
+        operator = _docs().state(doc).get("operator") or {}
+        _end(doc, EXPIRED, "period")
+        return guide_start.start(operator.get("task") or "")
     if found.get("refused"):
         return {**view(doc), "outcome": REFUSED, "refused": found["refused"],
                 **({"errors": found["errors"]} if found.get("errors") else {})}

@@ -67,7 +67,7 @@ LEDGER = {"view": {"current": "B1", "options": []}}
 _module("pearnly_core.assistant.ledger", SET="set", view=lambda session: LEDGER["view"],
         choose=lambda session, ledger_id, by="page": {"status": "set"})
 _plan = _module("pearnly_core.assistant.write_plan", STARTED="started", _iso=lambda moment: moment.isoformat() + "Z")
-_module("pearnly_core.express_operator")
+_module("pearnly_core.express_operator", __path__=[str(ROOT / "apps/pearnly_core/pearnly_core/express_operator")])
 _module("pearnly_core.express_operator.api",
         hand_in=lambda company, task, doc_ids, again=None: HANDED.append((company, task, list(doc_ids))) or {"handed": len(doc_ids)})
 
@@ -332,6 +332,88 @@ class HandOver(Base):
         self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=["I:1"], at="files")
         self.assertRaises(ValueError, run.start, "S1", "purchase", doc_ids=[f"I:{n}" for n in range(201)])
         self.assertEqual(self.docs[first].status, "asking")  # 核不过不作废开着的那次
+
+
+class OperatorStart(Base):
+    """A4：代录开始前那张卡并进引导（`express_operator.guide_start`）：这个月的完整待录清单开一次引导；写过的问再录不录、结果不明的
+    问入没入账、没单时问月份；三张卡的题在同一张卡上；确定后带「再录一次」交 `hand_in`。"""
+
+    def setUp(self):
+        super().setUp()
+        self.now["mode"] = "operator"
+        self.pre = {"I:1": {"state": "ready"}, "I:2": {"state": "written", "docnum": "RR0007", "ref": "IV2"}}
+        self.months, self.moved, self.resolved, self.sources = [], [], [], ["I:1", "I:2"]
+        tasks = _module("pearnly_core.express_operator.tasks", RESULT_UNKNOWN="push.result_unknown",
+                        read=lambda name: {"company": "CO1", "period": self.now["period"], "status": "preparing", "session_id": "S1"})
+        products = _module("pearnly_core.express_operator.products",
+                           sources=lambda company, period, offset, limit: {
+                               "documents": [{"doc_id": d, "kind": "purchase"} for d in self.sources] if offset == 0 else [],
+                               "next_offset": None},
+                           precheck=lambda company, ids: {"documents": [{"doc_id": d, **self.pre.get(d, {"state": "ready"})} for d in ids]},
+                           elsewhere=lambda company, period: list(self.months),
+                           computer_words=lambda company, user: "")
+        api = sys.modules["pearnly_core.express_operator.api"]
+        api.SOURCES_MAX, api.BATCH_MAX = 1000, 200
+        api.precheck = lambda company, ids, task="": {"targets": [{"account_set_title": "T.8", "count": len(ids)}]}
+        api.resolve = lambda company, doc_id, entered: self.resolved.append((doc_id, entered))
+        sys.modules["pearnly_core.express_operator"].tasks = tasks
+        sys.modules["pearnly_core.express_operator"].products = products
+        sys.modules["pearnly_core.express_operator"].api = api
+        sessions = sys.modules["pearnly_core.assistant.sessions"]
+        sessions.SESSION = "Pearnly Assistant Session"
+
+        def move(session, project, period="", scope=""):
+            self.moved.append(period)
+            self.now["period"] = period
+            return {"period": period}
+
+        sessions.move = move
+        frappe.db.get_value = lambda doctype, filters, fields=None, as_dict=False: {"project": "CO1", "project_scope": ""}
+        from pearnly_core.express_operator import guide_start
+        self.guide_start = guide_start
+
+    def test_one_card_asks_again_or_skip_for_a_written_ticket_before_the_write_questions(self):
+        found = self.guide_start.start("TK1")
+        kinds = [q["kind"] for q in found["card"]["questions"]]
+        self.assertEqual(kinds, ["operator_again", "payment"])  # 代录自己的题在前，写账判定的题在后，同一张卡
+        again = found["card"]["questions"][0]
+        self.assertEqual((again["docs"], again["tier"], again["preselected"]), (["I:2"], "whether", ""))
+        self.assertEqual(found["operator"]["targets"][0]["account_set_title"], "T.8")
+        pay = found["card"]["questions"][1]
+        found = self.answer_card(found["run"], [{"key": again["key"], "value": "again"},
+                                                {"key": pay["key"], "value": "credit"}])
+        self.assertEqual(found["stage"], documents.REVIEW)
+        found = run.confirm(found["run"], found["version"], found["review"]["seen"])
+        self.assertEqual(HANDED, [("CO1", "TK1", ["I:1", "I:2"])])
+        self.assertEqual(self.confirmed, [])
+
+    def test_a_written_ticket_left_as_skip_is_not_handed_in(self):
+        found = self.guide_start.start("TK1")
+        again, pay = found["card"]["questions"]
+        found = self.answer_card(found["run"], [{"key": again["key"], "value": "skip"}, {"key": pay["key"], "value": "cash"}])
+        self.assertEqual(found["review"]["held"], ["I:2"])
+        run.confirm(found["run"], found["version"], found["review"]["seen"])
+        self.assertEqual(HANDED[-1][2], ["I:1"])
+
+    def test_a_result_unknown_ticket_is_resolved_on_the_card(self):
+        self.pre["I:2"] = {"state": "blocked", "reason": "push.result_unknown", "ref": "IV2"}
+        found = self.guide_start.start("TK1")
+        unknown = found["card"]["questions"][0]
+        self.assertEqual(unknown["kind"], "operator_resolve")
+        self.answer_card(found["run"], [{"key": unknown["key"], "value": "entered"}])
+        self.assertEqual(self.resolved, [("I:2", True)])
+
+    def test_an_empty_month_asks_for_another_month_and_reopens_the_card_there(self):
+        self.sources, self.months = [], [{"month": "2026-08", "count": 25}, {"month": "2026-07", "count": 3}]
+        found = self.guide_start.start("TK1")
+        [month] = found["card"]["questions"]
+        self.assertEqual([o["code"] for o in month["options"]], ["2026-08", "2026-07", "stay"])
+        self.assertEqual(month["options"][0]["name"], "2026-08 · 25")
+        self.sources = ["I:1"]
+        found = self.answer_card(found["run"], [{"key": month["key"], "value": "2026-08"}])
+        self.assertEqual(self.moved, ["2026-08"])
+        self.assertEqual((found["period"], found["stage"]), ("2026-08", documents.ASKING))  # 按新月份重开的那次
+        self.assertEqual(self.docs["RUN1"].status, run.EXPIRED)
 
 
 class Declaration(unittest.TestCase):
