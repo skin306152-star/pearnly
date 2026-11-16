@@ -473,7 +473,7 @@ jobs:
       - name: CC Express operator frontend (prepare, run, report) on a mock source in three languages, reason codes identical to CC Desktop
         run: python3 tests/test_cc_operator.py
       - name: CC question card (ask_user, like the Claude Code question card) pages one question at a time with a recommended option preselected, Other with server search, skip and submit, and the answers it hands back
-        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py
+        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py && python3 tests/test_cc_guide_run_card.py
       - name: CC start card asks, saves and hands in again in one conversation, and every question kind has a name in four languages
         run: python3 tests/test_cc_card_same_basis.py
       - name: CC guide declarations (one declaration per business, shape, registry menu by mode and permission, every dotted path and tool exists, same entry across products)

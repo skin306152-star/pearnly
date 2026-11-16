@@ -1903,6 +1903,16 @@ group = "cc.action.record-reply"
 
 
 [[row]]
+id = "cowork.cc.action.guide-run"
+product = "Cowork"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-action"
+anchor = "ccaction:cowork:guide-run"
+where = "CC 对话里的引导卡（按表单的业务，例 ERP 收款：点菜单上的业务开一次，卡上一步步选填、复核后「写入」、结果一行；引导式 P0 接线）"
+tests = ["unit:tests/test_cc_guide_run_card.py::test_the_menu_opens_a_form_guide_only_for_form_businesses_in_a_conversation", "unit:tests/test_cc_guide_run_card.py::test_the_card_sends_only_chosen_values_and_confirms_with_the_shown_version"]
+group = "cc.action.guide-run"
+[[row]]
 id = "cowork.cc.action.guide-menu"
 product = "Cowork"
 channel = "cc-chat"
