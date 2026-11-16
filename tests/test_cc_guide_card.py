@@ -66,6 +66,9 @@ assert.equal(nothingAsked('{"status": "nothing_to_ask", "writable": []}'), true)
 assert.equal(nothingAsked({ text: '{"status": "nothing_to_ask"}' }), true);
 assert.equal(nothingAsked('{"status": "answered", "answered": 1}'), false);
 assert.equal(nothingAsked(undefined), false);
+// 结果还没到全（补拉时先给空正文）：当作还没有，不解析也不当错误上报（11-16 实验栈手机格偶发 Unexpected end of JSON input）
+assert.equal(nothingAsked(""), false);
+assert.equal(nothingAsked({ text: "  " }), false);
 (globalThis as any).done();
 """
 
@@ -156,6 +159,13 @@ class GuideCardTests(unittest.TestCase):
         self.assertIn("@/components/ui/questionnaire", card)
         self.assertNotIn('className="cc-askq-opt"', card)
 
+
+
+class EmptyResultTests(unittest.TestCase):
+    def test_an_empty_result_is_not_parsed_and_not_reported(self):
+        source = (Path(ROOT) / "frontend/assistant/src/components/tool-uis/guide-card.tsx").read_text(encoding="utf-8")
+        body = source[source.index("function answeredCount"):]
+        self.assertLess(body.index("if (!text.trim()) return null;"), body.index("JSON.parse(text)"))
 
 if __name__ == "__main__":
     unittest.main()

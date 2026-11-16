@@ -73,6 +73,8 @@ export function answersFrom(card: GuideCardData, values: Record<string, string>,
 function answeredCount(result: unknown): { status: string; answered: number } | null {
   if (result === undefined || result === null) return null;
   const text = typeof result === "object" && "text" in (result as object) ? String((result as { text: unknown }).text) : String(result);
+  // 结果还没到全（补拉时先给空正文）：当作还没有，不解析、不报错（11-16 实验栈：手机格偶发 Unexpected end of JSON input）
+  if (!text.trim()) return null;
   try {
     const parsed = JSON.parse(text) as { status?: string; answered?: number };
     return { status: String(parsed.status ?? ""), answered: Number(parsed.answered ?? 0) };
