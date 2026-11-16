@@ -841,6 +841,21 @@ def previous_failures(path, flows, post):
     return previous, [(by_id[r["flow"]], r["dataset"], r["viewport"]) for r in previous["results"] if not r["ok"]]
 
 
+def report_leftovers(results):
+    """结束汇总后列出留下了数据的格（left_data）与收尾时产品拒删 / 收尾出错的格（swept）。本机一次跑完和 GitHub 分份汇总（`--merge`）共用。"""
+    left = [r for r in results if r.get("left_data")]
+    if left:
+        print(f"留下了数据的格 {len(left)} 个（跑完和跑前不一样；各格的 left_data 字段）：", flush=True)
+        for r in left:
+            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(r['left_data'], ensure_ascii=False)[:400]}", flush=True)
+    forced = [r for r in results if (r.get("swept") or {}).get("forced") or (r.get("swept") or {}).get("error")]
+    if forced:
+        print(f"收尾时产品拒删、跳过 on_trash 才删掉，或收尾本身出错的格 {len(forced)} 个（各格的 swept 字段）：", flush=True)
+        for r in forced:
+            what = r["swept"].get("forced") or {"error": r["swept"].get("error")}
+            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(what, ensure_ascii=False)[:400]}", flush=True)
+
+
 # GitHub 上分份跑（`.github/workflows/flows.yml`，11-16 仓库公开、标准机器免费）：每份一台机器、一套实验室，只建本份的站点。
 # 每份大约几格、最多几份（公开仓库一个账号同时最多 20 台；Development checks 等也占位，留一点余量由 GitHub 排队）
 PER_SHARD = int(os.environ.get("PEARNLY_FLOWS_PER_SHARD", "14"))
@@ -988,6 +1003,7 @@ def main(argv=None) -> int:
     if args.merge is not None:
         merged = merge_parts(scope, flow_count, cells, args.merge)
         print(("流程用例：通过 " if merged["ok"] else "流程用例：不通过 ") + merged["summary"])
+        report_leftovers(merged["results"])
         if args.out:
             Path(args.out).write_text(json.dumps(merged, ensure_ascii=False, indent=1))
         if args.post_status:
@@ -1099,17 +1115,7 @@ def main(argv=None) -> int:
     summary = (f"{scope}; {flow_count} flows; datasets {datasets}; {sum(r['ok'] for r in results)}/{len(results)} runs passed; "
                f"{seconds}s" + (f"; reran {len(reran)}: {', '.join(reran)}" if reran else ""))
     print(("流程用例：通过 " if ok else "流程用例：不通过 ") + summary)
-    left = [r for r in results if r.get("left_data")]
-    if left:
-        print(f"留下了数据的格 {len(left)} 个（跑完和跑前不一样；各格的 left_data 字段）：", flush=True)
-        for r in left:
-            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(r['left_data'], ensure_ascii=False)[:400]}", flush=True)
-    forced = [r for r in results if (r.get("swept") or {}).get("forced") or (r.get("swept") or {}).get("error")]
-    if forced:
-        print(f"收尾时产品拒删、跳过 on_trash 才删掉，或收尾本身出错的格 {len(forced)} 个（各格的 swept 字段）：", flush=True)
-        for r in forced:
-            what = r["swept"].get("forced") or {"error": r["swept"].get("error")}
-            print(f"  {r['flow']} [{r['dataset']} / {r['viewport']}] {json.dumps(what, ensure_ascii=False)[:400]}", flush=True)
+    report_leftovers(results)
     if lab.fallbacks:
         print(f"常驻 Python 退回每段新起进程 {len(lab.fallbacks)} 次（各格的 lab_python 字段）：{lab.fallbacks[0][:200]}", flush=True)
     if args.out:

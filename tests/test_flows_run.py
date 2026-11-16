@@ -383,6 +383,25 @@ class RerunFailed(unittest.TestCase):
             self.assertIn(rule, code)
         self.assertIn("_now", run.FOOTPRINT_CODE)
 
+    def test_report_leftovers_names_left_data_and_forced_deletes(self):
+        # 本机一次跑完与 GitHub 分份汇总共用：留数据的格、产品拒删才删掉 / 收尾出错的格都要列出来，不能只记在 json 里
+        import contextlib
+        import io
+
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            run.report_leftovers([
+                {"flow": "a", "dataset": "new", "viewport": "desktop", "left_data": {"rows: X": "+1"}},
+                {"flow": "b", "dataset": "old", "viewport": "mobile", "swept": {"forced": {"ERP Document D-1": "ValidationError: x"}}},
+                {"flow": "c", "dataset": "old", "viewport": "desktop", "swept": {"error": "boom"}},
+                {"flow": "d", "dataset": "old", "viewport": "desktop", "swept": {"swept": {"X": 1}, "forced": {}}},
+            ])
+        out = buf.getvalue()
+        self.assertIn("a [new / desktop]", out)
+        self.assertIn("ERP Document D-1", out)
+        self.assertIn("boom", out)
+        self.assertNotIn("d [old", out)
+
     def test_footprint_diff(self):
         self.assertEqual(run.footprint_diff({"rows: A": 2, "file: x": "1", "settings: S": "a"},
                                             {"rows: A": 1, "file: y": "2", "settings: S": "b"}),
