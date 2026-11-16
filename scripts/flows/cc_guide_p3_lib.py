@@ -8,9 +8,10 @@
 页面标记（与引导式窗口分支 3 的引导卡、guided-frontend 的新输入约定，见共享笔记「引导式-引擎通用能力N1-N9-约定-11-16.md」）：
   [data-slot=cc-business-menu] 按钮              业务菜单（按钮文字 = 菜单字）
   [data-slot=cc-guide-run][data-status][data-business]   这次引导的卡
-  [data-slot=cc-guide-question][data-key]        一题；选项是 label 里的按钮（同收款流程），月份 / 数字 / 文字是 [data-slot=cc-guide-value]
-  [data-slot=cc-guide-file] [data-file-name]     交文件那一题：对话里的附件一行一个，点了选中
-  [data-slot=cc-guide-subquestion][data-key]     子题（认列题、结果里的追问），选项同上
+  [data-slot=cc-guide-question][data-key]        一题；选项是通栏行 [data-slot=cc-guide-option][data-code]（点行即选，A2 前端 11-16），
+                                                 月份 / 数字 / 文字是 [data-slot=cc-guide-value]；「下一步 / 提交」是 [data-slot=cc-askq-next]
+  [data-slot=cc-guide-file] [data-file-name]     交文件那一题：对话里的附件一行一个（也是 cc-guide-option），点了选中
+  [data-slot=cc-guide-subquestion][data-key]     子题（认列题、结果里的追问）：标准单选行 role=radio，文字即选项名；追问提交钮「发送」
   [data-slot=cc-guide-review]、[data-slot=cc-guide-total]   复核卡与合计
   [data-slot=cc-guide-result][data-result]       结果；[data-slot=cc-guide-result-file] 结果里的文件
   卡上按钮文字：「提交」「确定」「写入」（确定那一下）、允许卡「允许」
@@ -30,17 +31,19 @@ JS = BASE_JS + (
     "const qk=k=>card()?.querySelector(`[data-slot=\"cc-guide-question\"][data-key=\"${k}\"]`); "
     "const setVal=(el,v)=>{const d=Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value'); d.set.call(el,v); "
     "el.dispatchEvent(new Event('input',{bubbles:true})); el.dispatchEvent(new Event('change',{bubbles:true}));}; "
-    # 一题点一个选项（按文字含 want；没给点第一个）
-    "const pick=async(box,want)=>{const items=[...(box?.querySelectorAll('label')||[])]; "
-    "const hit=want?items.find(l=>l.innerText.includes(want)):items[0]; hit?.querySelector('button')?.click(); await sleep(200); return !!hit;}; "
+    # 一题点一个选项（按码或文字含 want；没给点第一个）：通栏行 cc-guide-option；子题里是 role=radio 行
+    "const pick=async(box,want)=>{const items=[...(box?.querySelectorAll('[data-slot=\"cc-guide-option\"],[role=\"radio\"]')||[])]; "
+    "const hit=want?items.find(e=>e.dataset.code===want||(e.innerText||e.closest('label')?.innerText||'').includes(want)):items[0]; "
+    "hit?.click(); await sleep(200); return !!hit;}; "
     # 交文件：在这一题里点对话附件那一行
     "const files=async(k,names)=>{const box=qk(k)?.querySelector('[data-slot=\"cc-guide-file\"]'); if(!box) return false; "
-    "for(const n of names){const row=[...box.querySelectorAll('[data-file-name]')].find(r=>r.dataset.fileName===n); row?.click(); await sleep(150);} return true;}; "
+    "for(const n of names){const row=[...box.querySelectorAll('[data-file-name]')].find(r=>r.dataset.fileName===n); if(!row) return false; row.click(); await sleep(150);} return true;}; "
     # 子题：{子题 key: 选项文字}
     "const subs=async(root,answers)=>{const out={}; for(const [k,want] of Object.entries(answers)){"
     "const box=root?.querySelector(`[data-slot=\"cc-guide-subquestion\"][data-key=\"${k}\"]`); out[k]=await pick(box,want);} return out;}; "
     # 点卡上一个按钮（按文字），等卡换样子
-    "const tap=async label=>{const before=card()?.innerText||''; const b=[...(card()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()===label); "
+    "const tap=async label=>{const before=card()?.innerText||''; const b=label==='提交'?card()?.querySelector('[data-slot=\"cc-askq-next\"]')"
+    ":[...(card()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()===label); "
     "if(!b||b.disabled) return false; b.click(); await until(()=>card()&&card().innerText!==before,120); await sleep(800); return true;}; "
     # 打开业务菜单上的一项，等卡出来
     "const openBusiness=async label=>{const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),120); "

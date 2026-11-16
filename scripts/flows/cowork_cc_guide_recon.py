@@ -19,7 +19,7 @@ def steps(params, camera_code=None):
          f"const b=await attach({json.dumps(gl)},{json.dumps(LEDGER)},'text/csv'); const sent=await say({json.dumps(params['tag'] + ' 文件')}); await turnDone(); return {{a,b,sent}};"},
         {"name": "点对账", "js": JS + "return await openBusiness('对账中心');"},
         {"name": "选银行对账与交文件", "js": JS + "await pick(qk('kind'),'银行对账'); await tap('提交'); "
-         "const sources=[...(qk('source')?.querySelectorAll('label')||[])].map(l=>l.innerText.trim()); await pick(qk('source'),'上传文件'); await tap('提交'); "
+         "const sources=[...(qk('source')?.querySelectorAll('[data-slot=\"cc-guide-option\"]')||[])].map(l=>l.dataset.code); await pick(qk('source'),'上传文件'); await tap('提交'); "
          "return {sources, keys: keys()};"},
         {"name": "交两侧文件", "js": JS + f"const a=await files('statement',[{json.dumps(stmt)}]); const b=await files('ledger',[{json.dumps(gl)}]); "
          "const ok=await tap('提交'); return {a,b,ok,status: card()?.dataset.status||''};"},
