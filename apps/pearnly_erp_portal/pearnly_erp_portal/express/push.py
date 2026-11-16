@@ -423,11 +423,26 @@ def send(doctype, name, operator=None):
         return _send(doctype, name, operator)
 
 
+LEDGER_SEEN = ("ledger_state", "ledger_job", "ledger_reason", "ledger_book", "ledger_needed")  # 写回前再核的账本栏
+
+
+def _ledger_seen_of(row) -> tuple:
+    return tuple(str(row.get(field) or "") for field in LEDGER_SEEN)
+
+
+def _ledger_seen(doctype, name) -> tuple:
+    """锁内（SELECT … FOR UPDATE）重读这张单此刻的账本栏。"""
+    return _ledger_seen_of(frappe.db.get_value(doctype, name, list(LEDGER_SEEN), as_dict=True, for_update=True) or {})
+
+
 def _send(doctype, name, operator):
     if not operator and operator_owned(doctype, name):
         return {"status": "held", "reason": contracts.OPERATOR_OWNED}
-    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", "ledger_state",
-                                              "ledger_job", "ledger_reason", "ledger_target"], as_dict=True)
+    # 行锁（原生 SELECT … FOR UPDATE，锁到这次准备写回、提交为止）：同一张单的几次准备（提交后的后台一轮、每分钟 poll、答题后
+    # `api.answer`、代录交单、收银日汇总合成后的同步交）一次只进一个，后来的在锁里读到已排的件就退出（11-16 验收：两次准备并行，
+    # 晚落库的那次把答题后的账套与要问的项盖回去；按件数现算请求号时还会排出第二件、写两次账）
+    row = frappe.db.get_value(doctype, name, ["name", "creation", "status", "owner", *LEDGER_SEEN, "ledger_target"],
+                              as_dict=True, for_update=True)
     if row and row.ledger_target == mrerp_contracts.LEDGER_MRERP and mrerp.enabled():
         return mrerp_push.send(doctype, name)  # 账本是 MR.ERP 的单（「再写一次」、对话直写）：走 MR.ERP 导入直写
     if not row or row.status != ready(doctype) or row.ledger_job or row.ledger_state not in contracts.OPEN_STATES:
@@ -456,6 +471,15 @@ def _send(doctype, name, operator):
         frappe.db.commit()
         return {"status": "nothing_to_write"}
     result, vat_fields, unmapped = _prepare_body(doctype, company, body)
+    # 写回前再核：准备途中可能提交过（主档落地「不带着事务等」，`masters`），行锁随之放开；锁内重读，账本栏与开始时不一样
+    # （这期间有人答了题、另一次准备已排件或停下）就放弃这次的结论，以后到的为准，不盖回旧的「停下、要问」、不再排一件
+    if _ledger_seen(doctype, name) != _ledger_seen_of(row):
+        frappe.db.rollback()
+        now = frappe.db.get_value(doctype, name, ["ledger_state", "ledger_job", "ledger_reason"], as_dict=True) or {}
+        if now.get("ledger_job"):
+            return {"status": "already_queued"}
+        return {"status": "held" if now.get("ledger_state") == contracts.HELD else "not_ready",
+                "reason": str(now.get("ledger_reason") or "")[:300]}
     book = result.get("book") or {}
     if "failed" in result:
         _set(doctype, name, {"ledger_state": contracts.FAILED, "ledger_reason": result["failed"][:500],
@@ -486,10 +510,19 @@ def _send(doctype, name, operator):
             # 混有免税商品的现销日汇总 / 混合税率的采购：税记录的应税基数按规则交（载荷 9，旧版 CC 诚实拒收）
             payload = {**payload, "vat_fields": vat_fields,
                        "payload_version": max(int(payload.get("payload_version") or 1), pos_day.VAT_FIELDS_PAYLOAD_VERSION)}
-        # 再写一次（`api.retry`）撤掉的那件占着原来的请求号：后面的按第几件编号
-        earlier = len(jobs.of_source(doctype, name))
+        # 一张单同时最多一件没撤销的写账件（作废件另算）：清掉 `ledger_job` 重交的路径（再写一次、改选对方档、代录再录）
+        # 都先撤旧件；锁里仍见没撤销的就不再排（接回它），不会因并发或漏撤排出第二件、写两次账
+        earlier = jobs.of_source(doctype, name)
+        live = [job for job in earlier if job["status"] != "cancelled"
+                and not str(job.get("request_key") or "").startswith(stock_entry.VOID_REQUEST)]
+        if live:
+            _set(doctype, name, {"ledger_job": live[-1]["job"]})
+            frappe.db.commit()
+            return {"status": "already_queued"}
+        # 撤掉的那几件（与作废件）占着原来的请求号：后面的按第几件编号。锁里、且已核过没有没撤销的件，这个数只在显式撤旧件
+        # 再交时增加，不会因并发现算成下一件（编号算法与线上已排的件一致）
         key = (f"{OPERATOR_KEY}{operator['id']}:" if operator else f"erp:{DIRECTIONS[doctype]}:") + body['ref'] \
-            + (f"#{earlier + 1}" if earlier else "")
+            + (f"#{len(earlier) + 1}" if earlier else "")
         job = jobs.enqueue(source_doctype=doctype, source_name=name, request_key=key,
                            actor=actor_of(doctype, row, book["key"]), book_key=book["key"], payload=payload, payload_version=int(payload.get("payload_version") or 1),
                            label=body["number"])

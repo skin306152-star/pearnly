@@ -1537,6 +1537,53 @@ class LinkStates(PushModule):
             self.push.poll()
         self.assertEqual((len(made), row["ledger_job"]), (1, "J1"))
 
+    def test_two_preparations_of_one_document_never_queue_a_second_job_or_write_back_a_stale_stop(self):
+        """11-16 管钱缺陷（验收首跑 PDS-2026-00798）：同一张单的两次准备交错——后台那次在答题前算出「停下、要问」、晚落库，
+        把答题后那次写下的账套盖空、要问的项写回；按此刻件数现算请求号时还排出第二件（#2）、写两次账。现在：开头行锁读
+        （for_update），写回前锁内重读账本栏、变了就放弃；锁里仍见没撤销的件就接回它、不再排；请求号按撤过的件编号。"""
+        self.company()
+        self.documents(self.AFTER)
+        self.push.queue("Purchase Document", "PUR-1")
+        row = fake.STATE.db.table("Purchase Document")["PUR-1"]
+        locked, made, earlier = [], [], []
+        real_get = frappe.db.get_value
+
+        def get_value(doctype, name, fields="name", as_dict=False, for_update=False):
+            if doctype == "Purchase Document" and for_update:
+                locked.append(name)
+            return real_get(doctype, name, fields, as_dict=as_dict, for_update=for_update)
+
+        outcome = {"payload": {"payload_version": 4}, "book": {"key": "BK"}}
+        prepared = lambda *a, **k: outcome
+        with mock.patch.object(self.push, "document", lambda doctype, name: {"ref": "PUR-1@x", "number": "IV-1"}), \
+                mock.patch.object(self.push, "_company", lambda name: COMPANY), \
+                mock.patch.object(frappe.db, "get_value", get_value), \
+                mock.patch.object(self.push, "actor_of", lambda *a: "a@x"), \
+                mock.patch.object(self.push.jobs, "of_source", lambda *a: list(earlier)), \
+                mock.patch.object(self.push.jobs, "enqueue", lambda **kw: made.append(kw) or {"job": f"J{len(made)}"}), \
+                mock.patch.object(self.push.prepare, "prepare", lambda *a, **k: prepared()):
+            # 另一次准备已排了一件（锁里看得到它，单据上的 ledger_job 还没写上）：不再排，接回那一件
+            earlier[:] = [{"job": "J0", "status": "queued", "request_key": "erp:purchase:PUR-1@x"}]
+            self.assertEqual(self.push.send("Purchase Document", "PUR-1"), {"status": "already_queued"})
+            self.assertEqual((made, row["ledger_job"]), ([], "J0"))
+            self.assertIn("PUR-1", locked)  # 开头就是行锁读
+            # 准备途中有人答了题、另一次准备已排件（账本栏变了）：放弃这次的结论，不写回、不排
+            row.update(ledger_job=None, ledger_state="held", ledger_reason="choice_needed:vat_registered",
+                       ledger_needed='[{"kind": "vat_registered"}]', ledger_book=None)
+            earlier[:] = []
+            def answered_meanwhile():
+                row.update(ledger_job="J9", ledger_state="queued", ledger_reason="", ledger_needed=None, ledger_book="BK")
+                return {"hold": "choice_needed:vat_registered", "needed": [{"kind": "vat_registered"}]}
+            prepared = answered_meanwhile
+            self.assertEqual(self.push.send("Purchase Document", "PUR-1")["status"], "already_queued")
+            self.assertEqual((made, row["ledger_job"], row["ledger_book"], row["ledger_needed"]), ([], "J9", "BK", None))
+            # 用户「再写一次」撤了旧件后再交：请求号按撤过的件编号 #2（不按此刻件数现算出又一件）
+            row.update(ledger_job=None, ledger_state="queued", ledger_reason="", ledger_needed=None)
+            earlier[:] = [{"job": "J9", "status": "cancelled", "request_key": "erp:purchase:PUR-1@x"}]
+            prepared = lambda *a, **k: outcome
+            self.assertEqual(self.push.send("Purchase Document", "PUR-1"), {"status": "sent"})
+            self.assertEqual([kw["request_key"] for kw in made], ["erp:purchase:PUR-1@x#2"])
+
     def detach_fixture(self):
         db = fake.STATE.db
         rows = {"SE-Q": ("queued", "J1"), "SE-H": ("held", None), "SE-M": ("held", "J2"), "SE-L": ("queued", "J3"),

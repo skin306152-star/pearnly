@@ -146,7 +146,7 @@
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py": 16,
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py": 2,
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/ledger_check.py": 2,
- "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py": 24,
+ "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py": 23,
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py": 27,
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py": 2,
  "apps/pearnly_erp_portal/pearnly_erp_portal/express/pos_day.py": 7,

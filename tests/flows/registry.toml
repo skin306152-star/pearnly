@@ -2225,3 +2225,17 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
 ]
+
+[[flow]]
+id = "erp.express.send-concurrency"
+title = "ERP 写账准备并发（11-16 管钱缺陷）：poll 与答题同时以答案为准、不丢账套与要问的项；两次交单交错只排一件写账件（两条线程各自连库）"
+module = "scripts/flows/erp_express_send_concurrency.py"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+]
