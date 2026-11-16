@@ -57,7 +57,12 @@ facts.save(key, {{"version": 2, "customers": [], "departments": [],
                  "products": [{{"code": "OTHER-{tag}", "name": "สินค้าอื่น {tag}", "kind": "stock"}}],
                  "suppliers": [{{"code": "SUP-A-{tag}", "name": "ผู้ขาย H5 {tag}", "tax_id": {SUPPLIER_TAX!r}, "branch": "00000"}},
                                {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": "", "branch": ""}}],
-                 "facts": {{"accounts": [{{"code": "11-04-01-00", "name": "วัตถุดิบคงเหลือ", "type": "1"}}], "mapping": {{}},
+                 # 科目表与默认科目对照（同 ERP 单测的一套）：采购单要采购 / 进项税 / 应付科目才准备得出来
+                 "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (
+                               "11-01-01-00", "11-02-01-00", "11-04-01-00", "11-04-02-00", "52-08-00-00", "41-01-00-00",
+                               "11-03-01-00", "21-04-01-00", "51-03-00-00", "21-01-01-00", "11-06-01-00")],
+                           "mapping": {{"revenue_acc": "41-01-00-00", "ar_acc": "11-03-01-00", "vat_output_acc": "21-04-01-00",
+                                       "fallback_acc": "51-03-00-00", "ap_acc": "21-01-01-00", "vat_input_acc": "11-06-01-00"}},
                            "catalog": {{"isacc_candidates": [
                                {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 4}},
                                {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 1}},
@@ -88,6 +93,7 @@ for item in first["items"]:
 frappe.db.commit()
 second = precheck.collect_document(push.PURCHASE, name)
 out["s1_group"] = kinds(second)
+out["s1_second_hold"] = str(second["result"].get("hold") or ("payload" if second["result"].get("payload") else second["result"]))[:300]
 group = next((item for item in second["items"] if item["kind"] == choices.STOCK_GROUP), None)
 if group:
     choices.remember(company, choices.STOCK_GROUP, group["subject"], "P002")
@@ -95,9 +101,10 @@ if group:
 frappe.db.commit()
 ready = precheck.collect_document(push.PURCHASE, name)
 out["s1_payload_group"] = (ready["result"].get("payload") or {{}}).get("stock_acccod")
+out["s1_ready_hold"] = str(ready["result"].get("hold") or "")[:300]
 
 # S2：交进写账队列，电脑以「同税号两个供应商档」拦下（同电脑回执：写账件转人工带码、单据记成停下）
-push.send(push.PURCHASE, name)
+push.send(push.PURCHASE, name, operator={{"id": "flow-{tag}", "index": 1, "total": 1}})  # 按代录交（H5 的路径）
 frappe.db.commit()
 job = frappe.db.get_value(push.PURCHASE, name, "ledger_job")
 out["job"] = job
@@ -108,6 +115,7 @@ if job:
     frappe.db.commit()
 blocked = precheck.collect_document(push.PURCHASE, name)
 out["s2_items"] = kinds(blocked)
+out["s2_ledger"] = frappe.db.get_value(push.PURCHASE, name, ["ledger_state", "ledger_reason", "ledger_job"], as_dict=True)
 # 代录会话里这张停下的单：卡片带原因那一句；代录预检列出要选的那一项
 made = sessions.create(project=company, period=frappe.utils.nowdate()[:7], mode="operator")
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "title", "{tag} H5")
@@ -124,6 +132,12 @@ out["card_reason_text"] = ((card or {{}}).get("input") or {{}}).get("reason_text
 checked = operator.precheck(company, ["P:" + name])["documents"][0]
 out["operator_items"] = [item["kind"] for item in (checked.get("precheck") or {{}}).get("items") or []]
 out["session"], out["task"] = made["id"], made["task"]
+from pearnly_core.express_operator import api as operator_api
+try:  # 页面那张卡调的同一个共用接口（带任务号：按这段对话的账套准备）
+    page = operator_api.precheck(company, ["P:" + name], made["task"])
+    out["page_precheck"] = [{{k: d.get(k) for k in ("state", "reason", "needed")}} for d in page.get("documents") or []]
+except Exception as error:  # noqa: BLE001
+    out["page_precheck"] = repr(error)[:300]
 print(json.dumps(out, default=str))
 """), "tag": tag}
 
@@ -159,7 +173,9 @@ print("{{}}")
 
 def steps(params, camera_code=None):
     return [{"name": "打开代录会话", "js": JS +
-             "const card=await until(()=>q('[data-slot=\"cc-askq-question\"]')||q('[data-slot=\"cc-op-choose\"]'),160); await sleep(500); "
+             "const card=await until(()=>q('[data-slot=\"cc-askq-question\"]')||q('[data-slot=\"cc-op-choose\"]'),160); "
+             # 卡片先画出来、预检回包到了才换成提问卡：等提问卡（最多约 30 秒），没等到就照当时的样子记
+             "await until(()=>q('[data-slot=\"cc-askq-question\"]'),120); await sleep(500); "
              "return {card: !!card, question: q('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
              "choices: qa('[data-slot=\"cc-askq-choice\"], .cc-askq-opt').map(e=>e.innerText.trim()).slice(0,10), "
              "retryOnly: !!q('[data-slot=\"cc-op-retry\"]') && !q('[data-slot=\"cc-askq-question\"]'), "
@@ -168,7 +184,8 @@ def steps(params, camera_code=None):
 
 def judge(params, results, camera_code=None):
     seen = next((r.get("value") for r in results if r.get("step") == "打开代录会话"), None) or {}
-    return [{"case": "代录会话里停下的那张是提问卡（有可选项），不再只有「重试」", "seen": seen,
+    return [{"case": "代录会话里停下的那张是提问卡（有可选项），不再只有「重试」",
+             "seen": {**seen, "page_precheck": params.get("page_precheck")},
              "ok": bool(seen.get("card")) and bool(seen.get("question")) and not seen.get("retryOnly")}]
 
 
@@ -177,12 +194,14 @@ def verify(lab, manifest, params, camera_code=None):
     return [
         {"case": "S1：新物料先问新建还是对应已有", "seen": params.get("s1_first"),
          "ok": any(row[0] == "item" for row in params.get("s1_first") or [])},
-        {"case": "S1：账套已有库存品、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，按在用数预选 DM", "seen": group,
+        {"case": "S1：账套已有库存品、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，按在用数预选 DM",
+         "seen": {"group": group, "all": params.get("s1_group"), "hold": params.get("s1_second_hold")},
          "ok": bool(group) and group[1] == "DM" and sorted(group[2]) == ["DM", "P002"]},
         {"case": "S1：选了 P002 后再准备，载荷带 stock_acccod = P002（不再交给 CC 桌面版按众数选）",
-         "seen": params.get("s1_payload_group"), "ok": params.get("s1_payload_group") == "P002"},
+         "seen": {"group": params.get("s1_payload_group"), "hold": params.get("s1_ready_hold")},
+         "ok": params.get("s1_payload_group") == "P002"},
         {"case": "S2：电脑以疑似重复拦下（服务端开始前判不出）→ 卡片列出选对方档那一项，选项有同税号的那个档",
-         "seen": params.get("s2_items"),
+         "seen": {"items": params.get("s2_items"), "job": params.get("job"), "ledger": params.get("s2_ledger")},
          "ok": any(row[0] == "party" and "SUP-A-" + params["tag"] in row[2] for row in params.get("s2_items") or [])},
         {"case": "S2：代录预检同样列出这一项（中途那张卡照它出题）", "seen": params.get("operator_items"),
          "ok": "party" in (params.get("operator_items") or [])},
