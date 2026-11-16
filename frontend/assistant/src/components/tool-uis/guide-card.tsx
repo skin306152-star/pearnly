@@ -185,8 +185,10 @@ export const GuideCardBody: FC<{
   decidedOpen?: boolean;
   /** 一开始停在第几题（展示页截图用）。 */
   startAt?: number;
+  /** 自己带外框（默认）；嵌在别的卡里（代录卡头下面）时 false */
+  framed?: boolean;
   onSubmit: (answers: GuideAnswer[]) => void;
-}> = ({ card, company, phase, answered, busy, decidedOpen, startAt, onSubmit }) => {
+}> = ({ card, company, phase, answered, busy, decidedOpen, startAt, framed = true, onSubmit }) => {
   const questions = useMemo(() => askQuestionsOf(card, company), [card, company]);
   const changed = useRef<Record<string, string>>({});
   // 已结束、不说结果（执行记录是不认识的状态）：不画空框，同允许卡收起
@@ -209,6 +211,7 @@ export const GuideCardBody: FC<{
       <AskCard
         questions={questions}
         preselect={false}
+        framed={framed}
         phase="ask"
         busy={!!busy}
         failure=""

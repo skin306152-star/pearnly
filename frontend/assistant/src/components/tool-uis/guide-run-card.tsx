@@ -8,7 +8,7 @@
 // 卡上交回的值都是服务端给的选项码、对话文件 id 或用户在卡上填的数，按键交回（answerGuide），页面不拼、不改、不经模型。
 // 标题、选项名、事实行由服务端按本页语言翻好。只用标准组件（问卷部件、按钮、徽章、折叠）与 globals.css 的令牌。
 
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import { type FC, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shortcut } from "@/components/shortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -32,9 +32,10 @@ import type { GuideRun } from "@/lib/managed-agents/reducer";
 import {
   AmountsField, ChoiceField, FileField, SearchAmountsField, SplitField, SubQuestionsField, ValueField,
 } from "./guide-inputs";
+import { CardFoot, CardFrame } from "./card-frame";
 import { GuideCardBody, guideCardOf } from "./guide-card";
-import { GuideOperatorHead } from "./guide-operator";
-import { GuideResultCard, GuideReview, GuideUploadsLine } from "./guide-review";
+import { GuideOperatorHead, operatorTitle } from "./guide-operator";
+import { GuideResultCard, GuideReview, GuideUploadsLine, runAttrs } from "./guide-review";
 
 type Values = Record<string, unknown>;
 type Act = (call: () => Promise<GuideView>) => void;
@@ -121,18 +122,14 @@ const Decided: FC<{
       <CollapsibleContent>
         {items.map((item) => (
           <div key={item.key} data-key={item.key} className="flex min-w-0 flex-col">
-            <Item size="sm">
-              <ItemContent>
-                <ItemTitle>{item.title}</ItemTitle>
-                <ItemDescription>{item.value_label ?? (typeof item.value === "string" ? item.value : "")}</ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Button type="button" variant="ghost" size="icon-xs" aria-label={t("edit")} aria-pressed={editing === item.key} disabled={disabled}
-                  data-slot="cc-guide-decided-edit" onClick={() => setEditing(editing === item.key ? null : item.key)}>
-                  <PencilIcon />
-                </Button>
-              </ItemActions>
-            </Item>
+            {/* 整行是按钮（同复核卡能回到某一步的那一行），点了展开改值 */}
+            <Button type="button" variant="ghost" size="sm" className="w-full justify-start" aria-label={`${t("edit")} ${item.title}`}
+              aria-expanded={editing === item.key} disabled={disabled} data-slot="cc-guide-decided-edit"
+              onClick={() => setEditing(editing === item.key ? null : item.key)}>
+              <span className="min-w-0 flex-1 text-start text-(--cc-ink-3)">{item.title}</span>
+              <span className="text-end">{item.value_label ?? (typeof item.value === "string" ? item.value : "")}</span>
+              {editing === item.key ? <ChevronDownIcon /> : <ChevronRightIcon />}
+            </Button>
             {editing === item.key && (
               <DecidedEdit run={run} item={item} value={values[item.key]} disabled={disabled} onChange={(value) => onChange(item.key, value)} />
             )}
@@ -229,10 +226,6 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
           </Alert>
         )}
         <QuestionnaireActions>
-          <Button type="button" variant="ghost" size="xs" className="col-start-1" data-slot="cc-guide-cancel" disabled={busy}
-            onClick={() => act(() => cancelGuide(view.run))}>
-            {t("cancel")}
-          </Button>
           {skippable(q) && (
             <Button type="button" variant="secondary" size="xs" className="col-start-2" data-slot="cc-askq-skip" disabled={busy} onClick={skip}>
               {ask.skip}
@@ -268,60 +261,67 @@ export const GuideClosed: FC<{ view: GuideView }> = ({ view }) => (
   </div>
 );
 
-/** 按单据的题卡（documents 源的题卡段）：就是第 1 期那张卡（同一组件、同一种答案 [{key, value}]），交给这次引导。 */
-const DocumentsCard: FC<{ view: GuideView; busy: boolean; failure: string; act: Act }> = ({ view, busy, failure, act }) => (
-  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking"
-    className="flex min-w-0 flex-col gap-(--cc-space-8)">
-    {view.operator || view.card?.facts ? (
-      <div className="cc-steps-card cc-ui-questionnaire-card"><GuideOperatorHead view={view} busy={busy} act={act} /></div>
-    ) : null}
-    <GuideCardBody card={guideCardOf({ card: view.card })} company={view.company} phase="ask" busy={busy}
+/** 按单据的题卡（documents 源的题卡段）：就是第 1 期那张卡（同一组件、同一种答案 [{key, value}]），交给这次引导。代录时卡头
+ *  （写入 公司 · 账套 · 电脑）与登录 / 事实行在同一张卡的上半截，题目接在下面（一张卡，不另起一张）。 */
+const DocumentsCard: FC<{ view: GuideView; busy: boolean; failure: string; act: Act }> = ({ view, busy, failure, act }) => {
+  const title = operatorTitle(view);
+  const body = (
+    <GuideCardBody card={guideCardOf({ card: view.card })} company={view.company} phase="ask" busy={busy} framed={!title}
       onSubmit={(answers) => act(() => answerGuide(view.run, { answers }, view.version))} />
-    {failure && (
-      <Alert variant="destructive" data-slot="cc-ask-failure">
-        <AlertDescription className="line-clamp-(--cc-alert-lines)">{failure}</AlertDescription>
-      </Alert>
-    )}
-  </div>
-);
+  );
+  return (
+    <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking"
+      className={title ? "cc-steps-card" : "flex min-w-0 flex-col"}>
+      {title ? (
+        <div className="aui-step cc-ask" data-phase="ask">
+          <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
+          <GuideOperatorHead view={view} busy={busy} act={act} />
+        </div>
+      ) : (view.card?.facts ? <CardFrame title={businessName(view.business)}><GuideOperatorHead view={view} busy={busy} act={act} /></CardFrame> : null)}
+      {body}
+      <CardFoot buttons={[]} failure={failure} />
+    </div>
+  );
+};
 
-/** 一张卡此刻的样子（只画，不取）：展示页与对话页共用。 */
+/** 一张卡此刻的样子（只画，不取）：展示页与对话页共用。卡片骨架一套（card-frame.tsx）：问答是问卷版式，复核 / 结果 / 识别中是头体脚。 */
 export const GuideRunView: FC<{
   view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act; decidedOpen?: boolean;
 }> = ({ view, sessionId, busy, failure, act, decidedOpen }) => {
   if (isClosed(view)) return <GuideClosed view={view} />;
   const props = { view, sessionId, busy, failure, act };
-  if (view.result) return <Frame view={view}><GuideResultCard {...props} /></Frame>;
-  if (view.source === "documents") {
-    const head = <GuideOperatorHead view={view} busy={busy} act={act} />;
-    if (view.stage === "asking" && view.card) return <DocumentsCard view={view} busy={busy} failure={failure} act={act} />;
-    if (view.stage === "reading" && view.uploads) return <Frame view={view}>{head}<GuideUploadsLine uploads={view.uploads} /></Frame>;
-    if (view.stage === "review" && view.review) {
-      return (
-        <Frame view={view}>
-          {head}
-          {view.uploads ? <GuideUploadsLine uploads={view.uploads} /> : null}
-          <GuideReview {...props} />
-        </Frame>
-      );
-    }
-    if (view.stage === "files" && view.card) {
-      return (
-        <Frame view={view}>
-          {head}
-          <Asking key={`${view.run}:${view.version}`} view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} decidedOpen={decidedOpen} />
-        </Frame>
-      );
-    }
+  const documents = view.source === "documents";
+  const head = documents ? (
+    <>
+      <GuideOperatorHead view={view} busy={busy} act={act} />
+      {view.uploads && view.stage !== "reading" ? <GuideUploadsLine uploads={view.uploads} /> : null}
+    </>
+  ) : null;
+  if (view.result) return <GuideResultCard {...props} head={documents ? <GuideOperatorHead view={view} busy={busy} act={act} /> : null} />;
+  if (documents && view.stage === "asking" && view.card) return <DocumentsCard view={view} busy={busy} failure={failure} act={act} />;
+  if (documents && view.stage === "reading" && view.uploads) {
+    return (
+      <CardFrame title={operatorTitle(view) ?? businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} failure={failure}>
+        <GuideOperatorHead view={view} busy={busy} act={act} />
+        <GuideUploadsLine uploads={view.uploads} />
+      </CardFrame>
+    );
   }
-  if (view.status === "asking" && view.card) {
+  if (view.review && (documents ? view.stage === "review" : view.status === "reviewing")) return <GuideReview {...props} head={head} />;
+  if (view.card && (view.status === "asking" || (documents && view.stage === "files"))) {
+    const title = documents ? operatorTitle(view) : null;
     return (
       <Frame view={view}>
+        {title ? (
+          <div className="aui-step cc-ask" data-phase="ask">
+            <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
+            <GuideOperatorHead view={view} busy={busy} act={act} />
+          </div>
+        ) : null}
         <Asking key={`${view.run}:${view.version}`} view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} decidedOpen={decidedOpen} />
       </Frame>
     );
   }
-  if (view.status === "reviewing" && view.review) return <Frame view={view}><GuideReview {...props} /></Frame>;
   return null;
 };
 

@@ -3113,19 +3113,25 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
      金额格与「填入差额」整组换到下一行靠右；日期这类短说明不在字中间折 */
   :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-content"] { min-width: var(--cc-guide-label-min-w); overflow-wrap: anywhere; }
   :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-actions"] { margin-inline-start: auto; }
-  .cc-ui-questionnaire-card .cc-guide-body { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
+  :is(.cc-ui-questionnaire-card, .cc-steps-card) .cc-guide-body { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-cancel"] { margin-inline-end: auto; }
   /* 复核 / 结果卡底部按钮同问卷的按钮区；单据复核里只读的格有标记时标红（能改的格由输入框的 aria-invalid 标）；明细列名与金额格同宽、靠右 */
   .cc-ui-questionnaire-card [data-slot="cc-guide-decide"], .cc-ui-questionnaire-card [data-slot="cc-guide-follow"] .cc-card-actions {
     padding: var(--cc-space-8) var(--cc-space-12) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line);
   }
+  /* 卡片里整行可点的那一行（复核卡回到某一步、已定项改值）：文字与普通行（.cc-op-line）对齐、同字号同行高，只是整行有悬停底色 */
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) {
+    width: calc(100% + 2 * var(--cc-space-8)); margin-inline: calc(-1 * var(--cc-space-8)); min-height: var(--cc-panel-row); height: auto;
+    font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); font-weight: var(--cc-weight-regular); color: var(--cc-ink);
+  }
+  :root[data-cc-touch] .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) { min-height: var(--cc-tap); }
   [data-slot="cc-guide-cell"][data-readonly][aria-invalid], [data-slot="cc-guide-cell-refused"], [data-slot="cc-guide-issue"] { color: var(--cc-danger); }
   [data-slot="cc-guide-table-row"] [data-slot="cc-guide-issue"] { padding: 0 var(--cc-space-12); }
   [data-slot="cc-guide-table-row"][data-state="open"] > button svg:first-child { transform: rotate(90deg); }
   [data-slot="cc-guide-line-head"] { flex-wrap: nowrap; }
   [data-slot="cc-guide-line-head"] > span { width: var(--cc-guide-amount-w); text-align: end; }
   [data-slot="cc-guide-line-head"] > span:last-child { width: auto; min-width: max-content; }
-  .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }
+  :is(.cc-ui-questionnaire-card, .cc-steps-card) .cc-guide-body .cc-alert, .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-more"], .cc-ui-questionnaire-card .cc-guide-body + .cc-menu-label { border-top: var(--cc-ring-w) solid var(--cc-line); }
   [data-slot="cc-guide-run"][data-ended] .cc-ask { opacity: var(--cc-disabled-opacity); }
 

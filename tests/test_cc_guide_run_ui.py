@@ -324,13 +324,12 @@ assert.match(review, /data-mark="number"/);
 assert.match(review, /data-field="total"[^>]*data-readonly/);               // 算出来的格只读
 assert.match(review, /data-slot="cc-guide-confirm"/);
 const allow = await html("allow");
-assert.match(allow, /data-consent="allow"/);
+assert.match(allow, /data-slot="cc-card-foot"/);                        // 同一套卡片脚（拒绝 / 允许）
 const follow = await html("follow");
-assert.match(follow, /data-slot="cc-guide-files-out"/);
 assert.match(follow, /download="recon-2026-10.xlsx"/);
 assert.match(follow, /data-slot="cc-guide-follow"/);
 const opHead = await html("operator");
-assert.match(opHead, /data-slot="cc-op-target"/);
+assert.match(opHead, /data-slot="cc-card-head">[^<]*ACC-PC01/);          // 卡头 = 写入 公司 · 账套 · 电脑（同一张卡的头）
 assert.match(opHead, /data-slot="cc-guide-fact"/);
 const whtHtml = await html("wht");
 assert.match(whtHtml, /data-slot="cc-guide-table"/);

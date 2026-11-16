@@ -6,7 +6,7 @@
 
 import { type FC, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Marquee } from "@/components/ui/marquee";
 import { op } from "@/i18n";
 import { reportCaught } from "@/lib/caught";
 import { type GuideView, viewGuide } from "@/lib/guide-run";
@@ -20,6 +20,13 @@ import { writeLine } from "./operator-start";
 
 type Act = (call: () => Promise<GuideView>) => void;
 
+/** 代录卡的卡头（卡片骨架的头一行）：写入 公司 · 账套 · 电脑；不是代录回 null（用业务名）。 */
+export function operatorTitle(view: GuideView): string | null {
+  const block = view.operator;
+  return block ? writeLine({ company: view.company ?? "", company_title: block.targets[0]?.connection_title }, block.targets) : null;
+}
+
+/** 卡头下面那几行：Express 登录、没电脑那句、事实行（卡头本身由卡片骨架画，见 operatorTitle）。 */
 export const GuideOperatorHead: FC<{ view: GuideView; busy: boolean; act: Act }> = ({ view, busy, act }) => {
   const block = view.operator;
   const facts = Object.values(view.card?.facts ?? {}).flat().filter(Boolean);
@@ -31,7 +38,7 @@ export const GuideOperatorHead: FC<{ view: GuideView; busy: boolean; act: Act }>
     void askLogin().then((found) => alive && setLogin(found), (err) => reportCaught(err, "guide-login"));
     return () => { alive = false; };
   }, [operator]);
-  if (!block && !facts.length) return null;
+  if (!(block && login) && !block?.computer && !facts.length) return null;
   const setUp = () => act(async () => {
     try {
       if (await authorizeHere()) setLogin(await askLogin());
@@ -41,36 +48,25 @@ export const GuideOperatorHead: FC<{ view: GuideView; busy: boolean; act: Act }>
     return viewGuide(view.run);
   });
   return (
-    <ItemGroup data-slot="cc-guide-operator" className="cc-guide-body">
-      {block && (
-        <Item size="sm" data-slot="cc-op-target">
-          <ItemContent>
-            <ItemTitle className="wrap-break-word">
-              {writeLine({ company: view.company ?? "", company_title: block.targets[0]?.connection_title }, block.targets)}
-            </ItemTitle>
-          </ItemContent>
-        </Item>
-      )}
+    <div data-slot="cc-guide-operator" className="cc-op-before-body">
       {block && login?.set && login.user && (
-        <Item size="sm" data-slot="cc-op-login-user">
-          <ItemContent><ItemDescription>{op.expressLogin}</ItemDescription></ItemContent>
-          <ItemActions><span>{login.user}</span></ItemActions>
-        </Item>
+        <div className="cc-op-line" data-slot="cc-op-login-user">
+          <Marquee className="min-w-0 flex-1 truncate">{op.expressLogin}</Marquee>
+          <span>{login.user}</span>
+        </div>
       )}
       {block && login?.set === false && (
-        <Item size="sm" data-slot="cc-op-login">
-          <ItemContent><ItemDescription>{op.reason.login_missing}</ItemDescription></ItemContent>
-          <ItemActions>
-            <Button type="button" variant="outline" size="xs" data-slot="cc-op-authorize" disabled={busy} onClick={setUp}>{op.setUp}</Button>
-          </ItemActions>
-        </Item>
+        <div className="cc-op-line" data-slot="cc-op-login">
+          <Marquee className="min-w-0 flex-1 truncate">{op.reason.login_missing}</Marquee>
+          <Button type="button" variant="secondary" size="xs" data-slot="cc-op-authorize" disabled={busy} onClick={setUp}>{op.setUp}</Button>
+        </div>
       )}
       {block?.computer && (
-        <Item size="sm" data-slot="cc-op-computer"><ItemContent><ItemDescription>{block.computer}</ItemDescription></ItemContent></Item>
+        <div className="cc-op-line" data-slot="cc-op-computer"><span className="min-w-0 flex-1 wrap-break-word">{block.computer}</span></div>
       )}
       {facts.map((fact) => (
-        <Item key={fact} size="sm" data-slot="cc-guide-fact"><ItemContent><ItemDescription>{fact}</ItemDescription></ItemContent></Item>
+        <div key={fact} className="cc-op-line" data-slot="cc-guide-fact"><span className="min-w-0 flex-1 wrap-break-word">{fact}</span></div>
       ))}
-    </ItemGroup>
+    </div>
   );
 };

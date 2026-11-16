@@ -484,7 +484,7 @@ class SourceRules(unittest.TestCase):
         self.assertIn('<div className="cc-steps-card" data-slot={slot}>', card)
         self.assertIn('<div className="aui-step cc-ask" data-phase={phase}>', card)
         self.assertIn('<div className="cc-ask-q">{question}</div>', card)
-        self.assertIn('className="cc-card-btn"', card)
+        self.assertIn("<CardFoot busy={busy} failure={failure}", card)  # 按钮行经共用的卡片脚（card-frame.tsx，11-16 统一一套）
         self.assertIn("{phase === \"expired\" ? guide.expired : steps.cancelled}", card)  # 代录任务失效（执行记录 expired，B04 11-17）写「已失效」
         phase = read("components/tool-uis/card-phase.ts")
         self.assertIn('if (part.run === "expired") return "expired";', phase)

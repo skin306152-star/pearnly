@@ -6,8 +6,8 @@
 //   结果：表单一行（状态 · 单号 / 原因），带文件的可下载（N2），带追问的就地答（N1b）；单据每张一行（已入账带单号 / 进行中 / 已跳过 / 未完成）。
 // 卡上的字：标签与说明由服务端翻好；状态与格名沿用已上线的词。只用标准组件与令牌。
 
-import { ChevronDownIcon, ChevronRightIcon, DownloadIcon, PencilIcon } from "lucide-react";
-import { type FC, useState } from "react";
+import { ChevronDownIcon, ChevronRightIcon, DownloadIcon } from "lucide-react";
+import { type FC, type ReactNode, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,43 +17,54 @@ import { Marquee } from "@/components/ui/marquee";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Spinner } from "@/components/ui/spinner";
-import { co, guide, op, run as runWords, t } from "@/i18n";
+import { ask, co, guide, op, run as runWords, t } from "@/i18n";
+import { businessName } from "@/lib/business";
 import { fileUrl } from "@/lib/managed-agents/api";
 import {
   canEdit, cancelGuide, cellValue, confirmGuide, type DocMark, type DocRow, editGuide, followGuide, type GuideDocResult, type GuideDocReview,
   type GuideResult, type GuideReview as FormReviewData, type GuideReviewTable, type GuideTableRow, type GuideUploads, type GuideView, HEAD_FIELDS, isDocResult, isDocReview,
   LINE_FIELDS, refusedText, reopenGuide, subsAnswered,
 } from "@/lib/guide-run";
+import { CardFrame, type FrameButton } from "./card-frame";
+import { operatorTitle } from "./guide-operator";
 import { SubQuestionsField } from "./guide-inputs";
+
+/** 卡外框上给流程脚本认的属性（同运行卡）。 */
+export const runAttrs = (view: GuideView) => ({ "data-run": view.run, "data-status": view.status, "data-business": view.business });
 
 type Act = (call: () => Promise<GuideView>) => void;
 type Props = { view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act };
 
-const Failure: FC<{ text?: string; slot?: string }> = ({ text, slot = "cc-ask-failure" }) =>
-  text ? (
-    <Alert variant="destructive" data-slot={slot}>
-      <AlertDescription className="line-clamp-(--cc-alert-lines)">{text}</AlertDescription>
-    </Alert>
-  ) : null;
-
-/** 底部按钮：确定（写入）或允许卡（拒绝 / 允许）。拒绝 = 取消这次引导。 */
-const Decide: FC<Props & { ready: boolean; seen?: string }> = ({ view, busy, act, ready, seen }) => {
+/** 脚上的按钮（卡片骨架 card-frame.tsx）：确定是「取消 / 写入」，允许卡式确定（N5）是「拒绝 / 允许」；拒绝 = 取消这次引导。 */
+function decideButtons({ view, act }: Props, ready: boolean, seen?: string): FrameButton[] {
   const confirm = () => act(() => confirmGuide(view.run, view.version, seen));
   const cancel = () => act(() => cancelGuide(view.run));
+  const allow = view.consent === "allow";
+  return [
+    { slot: "cc-guide-cancel", label: allow ? t("deny") : t("cancel"), onClick: cancel },
+    { slot: "cc-guide-confirm", label: allow ? t("allow") : t("recordNow"), primary: true, disabled: !ready, onClick: confirm },
+  ];
+}
+
+/** 复核里能回到某一步的一行：整行是按钮（同「已定 n 项」那一行的写法：ghost 小按钮通栏），右边一个箭头。 */
+const StepRow: FC<{ label: string; value?: string; step?: string; busy: boolean; onBack: (step: string) => void; strong?: boolean }> = ({
+  label, value, step, busy, onBack, strong,
+}) => {
+  const body = (
+    <>
+      <span className={strong ? "min-w-0 flex-1 text-start" : "min-w-0 flex-1 text-start text-(--cc-ink-3)"}>{label}</span>
+      {value ? <span className="text-end">{value}</span> : null}
+    </>
+  );
+  if (!step) {
+    return <div className="cc-op-line" data-slot="cc-guide-line">{body}</div>;
+  }
   return (
-    <div className="cc-card-actions" data-slot="cc-guide-decide" data-consent={view.consent ?? "confirm"}>
-      {view.consent === "allow" ? (
-        <>
-          <Button type="button" variant="secondary" size="xs" disabled={busy} onClick={cancel}>{t("deny")}</Button>
-          <Button type="button" size="xs" data-slot="cc-guide-confirm" disabled={busy || !ready} onClick={confirm}>{t("allow")}</Button>
-        </>
-      ) : (
-        <>
-          <Button type="button" variant="ghost" size="xs" data-slot="cc-guide-cancel" disabled={busy} onClick={cancel}>{t("cancel")}</Button>
-          <Button type="button" size="xs" data-slot="cc-guide-confirm" disabled={busy || !ready} onClick={confirm}>{t("recordNow")}</Button>
-        </>
-      )}
-    </div>
+    <Button type="button" variant="ghost" size="sm" className="w-full justify-start" data-slot="cc-guide-back" data-step={step} disabled={busy}
+      aria-label={`${t("edit")} ${label}`} onClick={() => onBack(step)}>
+      {body}
+      <ChevronRightIcon />
+    </Button>
   );
 };
 
@@ -109,7 +120,7 @@ const EditableTable: FC<Props & { table: GuideReviewTable }> = ({ view, busy, ac
     act(() => editGuide(view.run, code, field, value, view.version));
   };
   return (
-    <ItemGroup data-key={table.key} data-slot="cc-guide-table" className="cc-guide-body">
+    <ItemGroup data-key={table.key} data-slot="cc-guide-table">
       <Item size="sm"><ItemContent><ItemTitle>{table.label}</ItemTitle></ItemContent></Item>
       {table.rows.map((row) => (
         <Collapsible key={row.code} defaultOpen={(row.issues ?? []).length > 0} data-slot="cc-guide-table-row" data-code={row.code}>
@@ -136,53 +147,38 @@ const EditableTable: FC<Props & { table: GuideReviewTable }> = ({ view, busy, ac
 
 // ── 表单复核 ──────────────────────────────────────────────────────────────────────────────────────────
 
-const FormReview: FC<Props & { review: FormReviewData }> = (props) => {
-  const { view, busy, act, review } = props;
-  const back = (step?: string) =>
-    step ? (
-      <Button type="button" variant="ghost" size="icon-xs" aria-label={t("edit")} disabled={busy} data-slot="cc-guide-back" data-step={step}
-        onClick={() => act(() => reopenGuide(view.run, step, view.version))}>
-        <PencilIcon />
-      </Button>
-    ) : null;
+const FormReview: FC<Props & { review: FormReviewData; head?: ReactNode }> = (props) => {
+  const { view, busy, act, review, head } = props;
+  const back = (step: string) => act(() => reopenGuide(view.run, step, view.version));
   return (
-    <div data-slot="cc-guide-review" data-source="form" className="flex min-w-0 flex-col">
-      <ItemGroup className="cc-guide-body">
+    <CardFrame title={businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} buttons={decideButtons(props, review.ready)}
+      failure={props.failure} busy={busy}>
+      {head}
+      <div data-slot="cc-guide-review" data-source="form" className="cc-op-before-body">
         {(review.lines ?? []).map((line) => (
-          <Item key={line.key} size="sm" data-key={line.key}>
-            <ItemContent><ItemDescription>{line.label}</ItemDescription></ItemContent>
-            <ItemActions><span className="text-end">{line.value}</span>{back(line.step)}</ItemActions>
-          </Item>
+          <StepRow key={line.key} label={line.label} value={line.value} step={line.step} busy={busy} onBack={back} />
         ))}
-      </ItemGroup>
-      {(review.tables ?? []).filter((table) => table.columns?.length).map((table) => <EditableTable key={table.key} {...props} table={table} />)}
-      {(review.tables ?? []).filter((table) => !table.columns?.length).map((table) => (
-        <ItemGroup key={table.key} data-key={table.key} className="cc-guide-body">
-          <Item size="sm">
-            <ItemContent><ItemTitle>{table.label}</ItemTitle></ItemContent>
-            <ItemActions>{back(table.step)}</ItemActions>
-          </Item>
-          {table.rows.map((row) => (
-            <Item key={row.code} size="sm" data-code={row.code}>
-              <ItemContent>
-                <ItemTitle>{row.name || row.code}</ItemTitle>
-                {row.note ? <ItemDescription>{row.note}</ItemDescription> : null}
-              </ItemContent>
-              <ItemActions><span className="tabular-nums">{row.amount}</span></ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
-      ))}
-      {review.total ? (
-        <Item size="sm" data-slot="cc-guide-total" className="cc-guide-body">
-          <ItemContent><ItemTitle>{guide.total}</ItemTitle></ItemContent>
-          <ItemActions><span className="tabular-nums">{review.total}</span></ItemActions>
-        </Item>
-      ) : null}
-      <Failure text={review.problem_text} slot="cc-guide-problem" />
-      <Failure text={props.failure} />
-      <Decide {...props} ready={review.ready} />
-    </div>
+        {(review.tables ?? []).filter((table) => table.columns?.length).map((table) => <EditableTable key={table.key} {...props} table={table} />)}
+        {(review.tables ?? []).filter((table) => !table.columns?.length).map((table) => (
+          <div key={table.key} data-key={table.key} className="flex min-w-0 flex-col">
+            <StepRow label={table.label} step={table.step} busy={busy} onBack={back} strong />
+            {table.rows.map((row) => (
+              <div key={row.code} data-code={row.code} className="cc-op-line">
+                <span className="min-w-0 flex-1">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</span>
+                <span className="tabular-nums">{row.amount}</span>
+              </div>
+            ))}
+          </div>
+        ))}
+        {review.total ? (
+          <div className="cc-op-line" data-slot="cc-guide-total">
+            <span className="min-w-0 flex-1 font-medium">{guide.total}</span>
+            <span className="tabular-nums font-medium">{review.total}</span>
+          </div>
+        ) : null}
+        {review.problem_text ? <Alert variant="destructive" data-slot="cc-guide-problem"><AlertDescription>{review.problem_text}</AlertDescription></Alert> : null}
+      </div>
+    </CardFrame>
   );
 };
 
@@ -280,29 +276,29 @@ const DocBlock: FC<{ row: DocRow; open: boolean; disabled: boolean; onCommit: (d
   );
 };
 
-const DocReview: FC<Props & { review: GuideDocReview }> = (props) => {
-  const { view, busy, act, review } = props;
+const DocReview: FC<Props & { review: GuideDocReview; head?: ReactNode }> = (props) => {
+  const { view, busy, act, review, head } = props;
   const edit = (docId: string, field: string, value: string) => act(() => editGuide(view.run, docId, field, value, view.version));
-  const refused = refusedText(view);
   return (
-    <div data-slot="cc-guide-review" data-source="documents" className="flex min-w-0 flex-col">
-      {review.rows.map((row) => (
-        <DocBlock key={row.doc_id} row={row} open={review.rows.length === 1} disabled={busy} onCommit={edit} />
-      ))}
-      {review.held.length > 0 && (
-        <Item size="sm" data-slot="cc-guide-held" className="cc-guide-body">
-          <ItemContent><ItemDescription>{op.doc.skipped}</ItemDescription></ItemContent>
-          <ItemActions><span className="tabular-nums">{review.held.length}</span></ItemActions>
-        </Item>
-      )}
-      <Failure text={refused} slot="cc-guide-refused" />
-      <Failure text={props.failure} />
-      <Decide {...props} ready={review.ready} seen={review.seen} />
-    </div>
+    <CardFrame title={operatorTitle(view) ?? businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)}
+      buttons={decideButtons(props, review.ready, review.seen)} failure={refusedText(view) || props.failure} busy={busy}>
+      {head}
+      <div data-slot="cc-guide-review" data-source="documents" className="flex min-w-0 flex-col">
+        {review.rows.map((row) => (
+          <DocBlock key={row.doc_id} row={row} open={review.rows.length === 1} disabled={busy} onCommit={edit} />
+        ))}
+        {review.held.length > 0 && (
+          <div className="cc-op-line" data-slot="cc-guide-held">
+            <span className="min-w-0 flex-1">{op.doc.skipped}</span>
+            <span className="tabular-nums">{review.held.length}</span>
+          </div>
+        )}
+      </div>
+    </CardFrame>
   );
 };
 
-export const GuideReview: FC<Props> = (props) => {
+export const GuideReview: FC<Props & { head?: ReactNode }> = (props) => {
   const review = props.view.review!;
   return isDocReview(review) ? <DocReview {...props} review={review} /> : <FormReview {...props} review={review} />;
 };
@@ -335,73 +331,67 @@ const STATUS_WORD: Record<string, () => string> = {
   failed: () => op.doc.notDone, withdrawn: () => op.doc.skipped,
 };
 
-/** 结果里的追问（N1b）：答了交 guide_follow，服务端重算结果。 */
-const Follow: FC<Props & { result: GuideResult }> = ({ view, busy, act, result }) => {
-  const [value, setValue] = useState<Record<string, unknown>>({});
-  const subs = result.questions ?? [];
-  return (
-    <div data-slot="cc-guide-follow" className="flex min-w-0 flex-col">
-      <SubQuestionsField questions={subs} value={value} disabled={busy} onChange={setValue} />
-      <div className="cc-card-actions">
-        <Button type="button" size="xs" disabled={busy || !subsAnswered(subs, value)} onClick={() => act(() => followGuide(view.run, value, view.version))}>
-          {t("send")}
-        </Button>
-      </div>
-    </div>
-  );
-};
-
 const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
-  <ItemGroup data-slot="cc-guide-result" data-result={result.status} className="cc-guide-body">
+  <div data-slot="cc-guide-result" data-result={result.status} className="cc-op-before-body">
     {result.rows.map((row) => (
-      <Item key={row.doc_id} size="sm" data-doc={row.doc_id} data-status={row.status}>
-        <ItemContent>
-          <ItemTitle className="wrap-break-word">{row.doc_no || row.doc_id}</ItemTitle>
-          {row.reason_text ? <ItemDescription>{row.reason_text}</ItemDescription> : null}
-        </ItemContent>
-        <ItemActions>
-          {row.status === "queued" ? <Spinner /> : null}
-          <span>{STATUS_WORD[row.status]?.() ?? row.status}</span>
-          {row.docnum ? <span className="tabular-nums">{row.docnum}</span> : null}
-        </ItemActions>
-      </Item>
+      <div key={row.doc_id} className="cc-op-line" data-doc={row.doc_id} data-status={row.status}>
+        <span className="min-w-0 flex-1 wrap-break-word">
+          {row.doc_no || row.doc_id}
+          {row.reason_text ? <span className="block text-(--cc-ink-3)">{row.reason_text}</span> : null}
+        </span>
+        {row.status === "queued" ? <Spinner /> : null}
+        <span>{STATUS_WORD[row.status]?.() ?? row.status}</span>
+        {row.docnum ? <span className="tabular-nums">{row.docnum}</span> : null}
+      </div>
     ))}
-  </ItemGroup>
+  </div>
 );
 
-export const GuideResultCard: FC<Props> = (props) => {
-  const { view, sessionId } = props;
+/** 结果卡（同一骨架）：表单一行状态（· 单号 / 合计 · 原因）、文件下载（N2）、追问（N1b，脚上「提交」交 guide_follow）；单据每张一行。 */
+export const GuideResultCard: FC<Props & { head?: ReactNode }> = (props) => {
+  const { view, sessionId, busy, act, head } = props;
   const result = view.result!;
-  if (isDocResult(result)) return <DocResultRows result={result} />;
+  const [answers, setAnswers] = useState<Record<string, unknown>>({});
+  const title = operatorTitle(view) ?? businessName(view.business);
+  if (isDocResult(result)) {
+    return (
+      <CardFrame title={title} slot="cc-guide-run" attrs={runAttrs(view)} phase="answered" failure={props.failure}>
+        {head}
+        <DocResultRows result={result} />
+      </CardFrame>
+    );
+  }
   const form = result as GuideResult;
+  const subs = form.questions ?? [];
+  const buttons: FrameButton[] = subs.length
+    ? [{ slot: "cc-guide-follow-submit", label: ask.submit, primary: true, disabled: !subsAnswered(subs, answers),
+      onClick: () => act(() => followGuide(view.run, answers, view.version)) }]
+    : [];
   return (
-    <div data-slot="cc-guide-result" data-result={form.status} className="flex min-w-0 flex-col">
-      <Item size="sm" className="cc-guide-body">
-        <ItemContent>
-          <ItemTitle>{STATUS_WORD[form.status]?.() ?? form.status}</ItemTitle>
-          {form.reason_text ? <ItemDescription>{form.reason_text}</ItemDescription> : null}
-        </ItemContent>
-        <ItemActions>
+    <CardFrame title={title} slot="cc-guide-run" attrs={runAttrs(view)} phase={subs.length ? "ask" : "answered"} buttons={buttons}
+      failure={props.failure} busy={busy}>
+      {head}
+      <div data-slot="cc-guide-result" data-result={form.status} className="cc-op-before-body">
+        <div className="cc-op-line">
+          <span className="min-w-0 flex-1 wrap-break-word">
+            {STATUS_WORD[form.status]?.() ?? form.status}
+            {form.reason_text ? <span className="block text-(--cc-ink-3)">{form.reason_text}</span> : null}
+          </span>
           {form.wait ? <Spinner /> : null}
           <span className="tabular-nums">{[form.docnum, form.total].filter(Boolean).join(" · ")}</span>
-        </ItemActions>
-      </Item>
-      {(form.files ?? []).length > 0 && sessionId && (
-        <ItemGroup className="cc-guide-body" data-slot="cc-guide-files-out">
-          {form.files!.map((file) => (
-            <Item key={file.file} size="sm" data-slot="cc-guide-result-file" data-file-name={file.name}>
-              <ItemContent><ItemTitle className="wrap-break-word">{file.name}</ItemTitle></ItemContent>
-              <ItemActions>
-                <Button asChild variant="ghost" size="icon-xs" aria-label={`${t("download")} ${file.name}`}>
-                  <a href={fileUrl(sessionId, file.file)} download={file.name}><DownloadIcon /></a>
-                </Button>
-              </ItemActions>
-            </Item>
-          ))}
-        </ItemGroup>
+        </div>
+        {sessionId && (form.files ?? []).map((file) => (
+          <div key={file.file} className="cc-op-line" data-slot="cc-guide-result-file" data-file-name={file.name}>
+            <span className="min-w-0 flex-1 wrap-break-word">{file.name}</span>
+            <Button asChild variant="secondary" size="xs" aria-label={`${t("download")} ${file.name}`}>
+              <a href={fileUrl(sessionId, file.file)} download={file.name}><DownloadIcon />{t("download")}</a>
+            </Button>
+          </div>
+        ))}
+      </div>
+      {subs.length > 0 && (
+        <div data-slot="cc-guide-follow"><SubQuestionsField questions={subs} value={answers} disabled={busy} onChange={setAnswers} /></div>
       )}
-      {(form.questions ?? []).length > 0 && <Follow {...props} result={form} />}
-      <Failure text={props.failure} />
-    </div>
+    </CardFrame>
   );
 };

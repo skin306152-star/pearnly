@@ -49,7 +49,7 @@ class GuideRunCardTests(unittest.TestCase):
         self.assertIn('if (question.input === "amounts" || question.input === "split") return rowsToSend(value as AmountRow[]);', lib)
         self.assertIn("answerGuide(view.run, given, view.version)", card)
         self.assertIn("confirmGuide(view.run, view.version, seen)", read("components/tool-uis/guide-review.tsx"))  # 单据复核另带复核指纹（documents 源）
-        self.assertIn('{t("recordNow")}', read("components/tool-uis/guide-review.tsx"))  # 已上线的词，不新增文案
+        self.assertIn('label: allow ? t("allow") : t("recordNow")', read("components/tool-uis/guide-review.tsx"))  # 已上线的词，不新增文案
         for kit in ('from "@/components/ui/button"', 'from "@/components/ui/questionnaire"', 'from "./guide-inputs"'):
             self.assertIn(kit, card)
         self.assertNotIn("<button", card)  # 不手写通用控件

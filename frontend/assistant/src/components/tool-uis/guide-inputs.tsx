@@ -111,7 +111,7 @@ export const SplitField: FC<{
             </ItemContent>
             <ItemActions>
               {value.trim() === "" && rest > 0n && !disabled ? (
-                <Button variant="ghost" size="xs" type="button" onClick={() => onChange(fillRest(all, total, option.code))}>
+                <Button variant="secondary" size="xs" type="button" data-slot="cc-guide-fill-rest" onClick={() => onChange(fillRest(all, total, option.code))}>
                   {guide.fillRest}
                 </Button>
               ) : null}
@@ -316,7 +316,7 @@ export const FileField: FC<{
           disabled={disabled || busy} onToggle={toggle} />
       )}
       <Input ref={pick} type="file" multiple accept={ACCEPT} hidden onChange={(event) => { void add(event.currentTarget.files); event.currentTarget.value = ""; }} />
-      <Button type="button" variant="outline" size="sm" className="w-fit" disabled={disabled || busy || !source} data-slot="cc-guide-add-file"
+      <Button type="button" variant="secondary" size="xs" className="w-fit" disabled={disabled || busy || !source} data-slot="cc-guide-add-file"
         onClick={() => pick.current?.click()}>
         {busy ? <Spinner /> : <PaperclipIcon />}
         {t("attach")}

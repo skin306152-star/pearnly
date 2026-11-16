@@ -8,6 +8,7 @@ import { type FC, type ReactNode, useState } from "react";
 import { guide, steps } from "@/i18n";
 import { shownError } from "@/lib/frappe";
 import { reportCaught } from "@/lib/caught";
+import { CardFoot } from "./card-frame";
 import type { CardPart } from "@/lib/approval-card";
 import { cardFailed, type CardPhase, cardPhase, settleCard } from "./card-phase";
 
@@ -81,28 +82,8 @@ export const OperatorCard: FC<{
         )}
         {after}
         {phase === "ask" && buttons.length > 0 && (
-          <div className="cc-ask-foot">
-            {failure && (
-              <div role="alert" data-slot="cc-ask-failure" className="cc-alert">
-                <p className="line-clamp-(--cc-alert-lines)">{failure}</p>
-              </div>
-            )}
-            <div className="cc-card-actions">
-              {buttons.map((button) => (
-                <button
-                  key={button.slot}
-                  type="button"
-                  className="cc-card-btn"
-                  data-slot={button.slot}
-                  data-primary={button.primary ? "" : undefined}
-                  disabled={busy}
-                  onClick={button.onClick}
-                >
-                  {button.label}
-                </button>
-              ))}
-            </div>
-          </div>
+          <CardFoot busy={busy} failure={failure}
+            buttons={buttons.map((button) => ({ slot: button.slot, label: button.label, primary: button.primary, onClick: button.onClick }))} />
         )}
       </div>
     </div>
