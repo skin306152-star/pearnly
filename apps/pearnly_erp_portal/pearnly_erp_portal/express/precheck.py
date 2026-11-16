@@ -486,6 +486,13 @@ def mrerp_view(doc_id, doctype, name) -> dict:
     if head["ledger_state"] == contracts.QUEUED:
         return {**view, "state": card.NOT_WRITABLE, "reason": ALREADY_QUEUED}
     picked = mrerp_picked(doctype, name)
+    book = (picked or {}).get("book") or {}
+    if book.get("key"):
+        # 写进哪本：按单据日期选出的那本年度账套（同 Express 单的 `operator.book_target` 形状）；不给时写入计划说「没有指定账套」
+        # （11-16 testerp T11）
+        view["target"] = {"account_set": str(book["key"]), "account_set_title": str(book.get("label") or book["key"]),
+                          "account_set_path": "", "connection": str(book.get("connection") or ""), "connection_title": "",
+                          "writers": []}
     if picked and picked["reason"] == contracts.NO_BOOK:
         return {**view, "state": card.NOT_WRITABLE, "reason": NO_ACCOUNT_SET}  # 没有覆盖单据日期的年度账套（同 Express）
     items = mrerp_needed(push.company_of(doctype, name), doctype, picked)

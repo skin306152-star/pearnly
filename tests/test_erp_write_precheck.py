@@ -590,6 +590,21 @@ class MrErp(Precheck):
                          [{"doc_id": "P:PI-1", "status": "sent", "reason": ""}])
         self.assertEqual(self.sent, ["PI-1"])
 
+    def test_the_card_names_the_account_set_the_document_goes_into(self):
+        """MR.ERP 单的判定带上按日期选出的那本（同 Express 单的 target）：写入计划不再说「没有指定账套」（11-16 testerp T11）。"""
+        self.switch(True)
+        self.picked = {"book": {"key": "12:3", "label": "TEST2019", "connection": "MR1"}, "reason": "", "options": [],
+                       "subject": ""}
+        found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]
+        self.assertEqual({key: found["target"][key] for key in ("account_set", "account_set_title", "connection")},
+                         {"account_set": "12:3", "account_set_title": "TEST2019", "connection": "MR1"})
+        self.assertEqual([(t["account_set"], t["account_set_title"]) for t in card.merge([found])["targets"]],
+                         [("12:3", "TEST2019")])
+        # 没有覆盖单据日期的那本：不编一本出来
+        self.picked = {"book": None, "reason": E.NO_BOOK, "options": [], "subject": ""}
+        found, = self.precheck.check("CO-1", ["P:PI-1"])["documents"]
+        self.assertNotIn("target", found)
+
     def test_two_account_sets_for_the_date_ask_which_one_first_and_no_set_is_not_writable(self):
         """一家公司挂多本年度账套：同期两本没选过，卡片只问选哪本（同 Express 那项、记在同一个记忆）；没有覆盖单据日期的写不了。"""
         self.switch(True)

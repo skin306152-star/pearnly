@@ -942,6 +942,33 @@ class ResolveTests(unittest.TestCase):
                          direct_push.not_found("P:NOPE"))
 
 
+class PushAgainTests(unittest.TestCase):
+    """MR.ERP 单停在会随再推重试的原因上（登录没授权、账号被占……原因可能早已不在）：工具输出带 ``push_again``，说明里告诉 CC 照常建计划
+    推送、不按旧原因拒（11-16 testerp T11：登录已补回，CC 照存着的「未授权登录」先拒、再多问一次，第三轮才推）。"""
+
+    def setUp(self):
+        reset()
+        patcher = mock.patch.object(tools.mrerp_push, "handles", lambda company: company == "CO-M")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_retryable_stops_are_marked_and_the_others_are_not(self):
+        held = tools.contracts.HELD
+        mrerp = tools.mrerp_contracts
+        for reason in (mrerp.NO_LOGIN, mrerp.NOT_CONFIGURED, "ERR_MRERP_ACCOUNT_IN_USE: signed in elsewhere",
+                       "express.account_set_missing"):
+            self.assertTrue(tools.push_again("CO-M", held, reason), reason)
+        for reason in (mrerp.UNKNOWN, mrerp.UNKNOWN + ": readback", mrerp.CHOICE, tools.contracts.VOIDED_AFTER_WRITE, ""):
+            self.assertFalse(tools.push_again("CO-M", held, reason), reason)
+        # 不是停住、不是 MR.ERP 账本的公司：不带
+        self.assertFalse(tools.push_again("CO-M", tools.contracts.QUEUED, mrerp.NO_LOGIN))
+        self.assertFalse(tools.push_again("CO-1", held, mrerp.NO_LOGIN))
+
+    def test_the_list_note_tells_the_model_to_push_instead_of_refusing(self):
+        self.assertIn("push_again", tools.ROW_NOTE)
+        self.assertIn("without asking again", tools.ROW_NOTE)
+
+
 class TimeTests(unittest.TestCase):
     def test_push_times_are_local(self):
         reset()

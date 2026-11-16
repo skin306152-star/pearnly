@@ -195,6 +195,16 @@ def _reason(state, reason) -> dict:
     return {"reason": reason_words(reason, state), "reason_code": str(reason)[:300]}
 
 
+def push_again(company, state, reason) -> bool:
+    """MR.ERP 账本的一张停住的单，再推一次就会重试（连接没授权登录、账号被占、连不上之类，原因可能早已不在）：不是结果不明、不是要人选、
+    不是作废后写进了。CC 见到它就照常建计划推送，不按单据上存的旧原因说推不了（11-16 testerp T11：登录已补回，CC 照旧原因三轮才推）。"""
+    if state != contracts.HELD or not reason or not mrerp_push.handles(company):
+        return False
+    reason = str(reason)
+    return not (reason.startswith(mrerp_contracts.UNKNOWN) or reason.startswith(contracts.CHOICE)
+                or reason == contracts.VOIDED_AFTER_WRITE)
+
+
 def _waiting(names) -> dict:
     """这几件写账此刻在等 Express 关闭的（有人开着这本账套，`jobs.express_wait_many`：读的时候算、一次查完）→
     ``{任务名: 给人看的那一句}``（现成的 ``express.error.ACCOUNT_BUSY_LOCKED``，按用户语言，同单据页）。单据的原因栏不动。"""
@@ -232,7 +242,8 @@ def _outcome(kind, name) -> dict:
             return {"status": direct_push.UNCONFIRMED, **_reason(state, reason)}
         if reason == mrerp_contracts.CHOICE:
             return {"status": direct_push.NEEDS_CHOICE, **_reason(state, reason)}
-        return {"status": direct_push.FAILED, **_reason(state, reason)}
+        return {"status": direct_push.FAILED, **_reason(state, reason),
+                **({"push_again": True} if push_again(row.company, state, reason) else {})}
     job = _job(row)
     if state == contracts.HELD:
         if push.operator_owned(kind.doctype, name):
@@ -385,6 +396,8 @@ def _list_row(kind, row, waiting=None) -> dict:
         out["waiting"] = waiting[row.ledger_job]
     if state == contracts.HELD and row.ledger_job and _unknown(jobs.find_by_name(row.ledger_job)):
         out["result_unknown"] = True
+    if push_again(row.get("company"), state, row.ledger_reason):
+        out["push_again"] = True
     if LAST_STATUS.get(state) == "success":
         out["written"] = direct_push.filled({"docnum": row.ledger_docnum or "", "mismatch": state == contracts.MISMATCH or None,
                                              "handled": state == contracts.HANDLED or None})
@@ -544,6 +557,8 @@ def document_detail(tool_input) -> str:
            "url": pending._url({"doctype": kind.doctype, "name": name, "direction": ""})}
     if reason:
         out["push_reason_code"] = reason[:300]
+    if push_again(doc.get("company"), state, reason):
+        out["push_again"] = True
     if doc.get("ocr_review"):
         hold = contracts.printed_hold(True, doc.get("printed_total"), doc.get("grand_total"), doc.get("net_payable"))
         out["checks"] = {key: value for key, value in {
@@ -729,7 +744,10 @@ ROW_NOTE = ("name is the document id for the other tools (P purchase, S sales, M
             "after writing did not match; handled means a person handled it in Express), manual (stopped: reason says "
             "why; result_unknown means Express may or may not have it) or failed. A document of a company whose books "
             "are kept in Express is sent to Express by itself when it is submitted in ERP: one listed as pending needs "
-            "nothing from the user. " + EXPRESS_WAIT_NOTE)
+            "nothing from the user. push_again means the stop clears when the document is pushed again (for "
+            "example the MR.ERP sign-in was set up afterwards): when the user wants it entered, make the plan and push "
+            "it without asking again or refusing because of the old reason; the push says whether it still stops. "
+            + EXPRESS_WAIT_NOTE)
 SCOPE_PROPS = direct_push.scope_props("erp_companies", "documents", "documents")
 KIND_PROP = {"type": "string", "enum": list(KINDS)}
 COMPANY_PROP = {"type": "string", "description": "Only when the document belongs to another company than the one this "
