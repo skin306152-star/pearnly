@@ -14,6 +14,11 @@
   ``refused`` 非空 = 隧道拒绝（不合规、站点连不上、超时），``status`` 为 0；云端把它变成网络错误，**从不变成 4xx**。
 
 签名：每次会话桥生成 ``epoch`` 与 32 字节密钥 K（经 ``ctl\\`` 交给云端，只放内存）。
+
+- 会话交接（桥写 ``ctl\\session.json.part``，写完改名 ``session.json``；云端读完删除，桥在会话结束时也删）::
+
+    {v:1, epoch, key}      # key 是 K 的 base64（``encode_session`` / ``decode_session``）
+
 请求 ``mac = HMAC-SHA256(K, epoch|seq|id|method|path|body_sha256|query|headers)``：前六项照评估，后面追加查询串与规范化的
 白名单头，免得有人改查询参数而签名不变。回复同样签名（``resp|…``），云端核对，免得别人往 ``out\\`` 塞假回复（比如假 401）。
 不靠两边时钟：防重放只看本会话 ``epoch``、``seq`` 在窗口内、``id`` 没见过。
@@ -21,13 +26,15 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 import collections
 import hashlib
 import hmac
 import json
 import re
 import secrets
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Iterable, Mapping, Optional
 
 VERSION = 1
@@ -106,7 +113,7 @@ class Session:
     """一次会话：``epoch`` 会话号（32 位十六进制），``key`` 32 字节签名密钥。"""
 
     epoch: str
-    key: bytes
+    key: bytes = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -133,6 +140,40 @@ class Reply:
 
 def new_session() -> Session:
     return Session(epoch=secrets.token_hex(16), key=secrets.token_bytes(32))
+
+
+SESSION_FILE = "session.json"
+_KEY_BYTES = 32
+
+
+def encode_session(session: Session) -> bytes:
+    """会话交接文件的内容（``ctl\\session.json``）：只有版本、会话号、密钥的 base64。"""
+    if not _HEX32.match(str(session.epoch)) or len(session.key) != _KEY_BYTES:
+        raise TunnelError(BAD_FORMAT, "session")
+    return (json.dumps({"v": VERSION, "epoch": session.epoch, "key": base64.b64encode(session.key).decode("ascii")},
+                       separators=(",", ":")) + "\n").encode("ascii")
+
+
+def decode_session(data: bytes) -> Session:
+    """云端读会话交接文件；不合规抛 :class:`TunnelError`（文本不带密钥）。"""
+    try:
+        head = json.loads(bytes(data).decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        raise TunnelError(BAD_FORMAT, "session") from None
+    if not isinstance(head, dict):
+        raise TunnelError(BAD_FORMAT, "session")
+    if head.get("v") != VERSION:
+        raise TunnelError(BAD_VERSION, "session")
+    epoch, key = head.get("epoch"), head.get("key")
+    if not isinstance(epoch, str) or not _HEX32.match(epoch) or not isinstance(key, str):
+        raise TunnelError(BAD_FORMAT, "session")
+    try:
+        raw = base64.b64decode(key.encode("ascii"), validate=True)
+    except (binascii.Error, UnicodeEncodeError, ValueError):
+        raise TunnelError(BAD_FORMAT, "session") from None
+    if len(raw) != _KEY_BYTES:
+        raise TunnelError(BAD_FORMAT, "session")
+    return Session(epoch=epoch, key=raw)
 
 
 def new_id() -> str:

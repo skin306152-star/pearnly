@@ -10,10 +10,14 @@
   第 7 条：网页不收密码；页面上填的账号只作小窗的预填）。密码只存进本机凭据管理器两处——Generic ``Pearnly CC/cloud/<主机>``
   （``link_store.store_password``，给连接窗口的 ``password_provider``）与域凭据 ``TERMSRV/<主机>``（``credentials.store``，
   网络级身份验证用）；不写文件、不传服务器、不进日志、不回页面。然后存连接配置（新连接生成云端那台电脑的设备密钥）。
-  换了另一台主机：先删旧的那条（吊销令牌、删两条本机凭据），一个桥只有一条。**这一步不打开连接窗口**（非脚本接口的
-  Windows 真机写法还没定），只回「未连接」，等窗口接上后由会话状态机接手。
-- ``disconnect``：有会话先按人断开（``CloudSession.user_close``，不重连），再 ``LinkStore.remove``（吊销令牌、删配置与两条凭据）。
-- ``status``：连接（主机、端口、用户名、云端电脑名）与状态词；状态来自 ``session.CloudSession``，窗口还没接时一律「未连接」。
+  换了另一台主机：先删旧的那条（吊销令牌、删两条本机凭据），一个桥只有一条。本函数只存、回「未连接」；存好后由
+  ``tomo_bridge`` 在界面线程起这条连接的宿主（``host.CloudHost.start``：隧道盘、会话交接、中转、连接窗口），回包里的状态
+  换成宿主会话的实况。起不来（不是 Windows、没有 ``QtAxContainer``、映射不上隧道盘）照样存着、回「未连接」。
+  CC 启动时就算存有云端连接也不自动连，等人再点「连接」。
+- ``disconnect``：``tomo_bridge`` 先停宿主（关窗即断开、停中转、删会话交接、撤隧道盘）；这里有会话再按人断开一次
+  （``CloudSession.user_close``，不重连），再 ``LinkStore.remove``（吊销令牌、删配置与两条凭据）。
+- ``status``：连接（主机、端口、用户名、云端电脑名）与状态词；状态来自宿主窗口的 ``session.CloudSession``，宿主没起（没点过
+  「连接」、窗口已关）时是「未连接」。
   ``places`` 是云端那份 CC 报上来的 Express 位置——现在还没有这条数据来源，回空列表（不造数据）。
 
 状态词只有五个：``idle`` 未连接 / ``connecting`` 正在连接 / ``connected`` 已连接 / ``login_failed`` 登录失败 /
@@ -39,7 +43,7 @@ STATES = (IDLE, CONNECTING, CONNECTED, LOGIN_FAILED, REPLACED)
 
 
 def status_of(snapshot) -> str:
-    """会话快照（``session.Snapshot``）→ 状态词；没有会话（窗口还没接）是「未连接」。"""
+    """会话快照（``session.Snapshot``）→ 状态词；没有会话（宿主没起、窗口已关）是「未连接」。"""
     if snapshot is None:
         return IDLE
     if snapshot.state is State.CONNECTING:

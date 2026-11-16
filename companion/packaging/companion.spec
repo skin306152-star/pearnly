@@ -45,6 +45,11 @@ _datas_operator = [("../src/companion/express_operator/recipes/*.json", "src/com
 _hidden += [f"src.companion.mrerp_operator.{name}" for name in (
     "draft", "recipe", "web_desk", "web_driver", "session", "book", "engine", "presence", "host", "login")]
 _datas_operator += [("../src/companion/mrerp_operator/recipes/*.json", "src/companion/mrerp_operator/recipes")]
+# 云端 Express（src/companion/cloud_link）：设置页点「连接」才按需导入；连接窗口用 Windows 自带的远程桌面 ActiveX 控件
+# （PySide6.QtAxContainer），非脚本接口只用 ctypes，排除名单不动。
+_hidden += ["PySide6.QtAxContainer"]
+_hidden += [f"src.companion.cloud_link.{name}" for name in (
+    "host", "window", "nonscriptable", "session", "reasons", "tunnel_relay", "tunnel_protocol")]
 
 a = Analysis(
     ["launcher_companion.py"],
