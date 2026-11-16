@@ -57,6 +57,7 @@ Actual positions and quantities,实际仓位及数量
 Actual warehouse,实际仓库
 Add,添加
 Add Column,添加列
+Add Company,添加公司
 Add Discount,添加折扣
 Add Employee,添加员工
 Add Order Discount,添加整单折扣
@@ -79,6 +80,7 @@ Add from connections,从连接添加
 Add label,添加标签
 Add locations in stock,带入有库存的仓位
 Add member,添加成员
+Add note,添加笔记
 Add opening item,添加明细
 Add photos,添加照片
 Add row,添加明细
@@ -306,6 +308,7 @@ Choose purchase or sales for this invoice and submit again,请选择此发票为
 Choose the MR.ERP collection menu,选择 MR.ERP 收款菜单
 Choose the account set,选择账套
 Choose the collection method,选择收款方式
+Choose the companies to add.,选择要添加的公司。
 Choose the company,选择公司
 Choose the customer,请选择客户
 Choose the inventory account group for this account set first.,请先为此账套选择存货科目组。
@@ -360,6 +363,7 @@ Comments,评论
 Comments and activity,评论和活动
 Companies,公司
 Company,公司
+Company Details,公司资料
 Company details,公司信息
 Company name,公司名称
 Company not found,公司不存在
@@ -489,6 +493,7 @@ Default VAT Rate (%),默认 VAT 税率（%）
 Default WHT Rate for Services (%),服务类默认预扣税率（%）
 Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
+Delete note,删除笔记
 Delete selected ({0}),删除所选（{0}）
 Delete the stock count?,要删除盘点吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
@@ -577,6 +582,7 @@ Edit card,编辑卡片
 Edit dates,编辑日期
 Edit in Full Page,在完整页面编辑
 Edit labels,修改标签
+Edit note,编辑笔记
 Editing {0} is not allowed as per POS Profile settings,按收银台配置，不允许修改 {0}
 Email,邮箱
 Email Receipt,邮件发送收据
@@ -947,6 +953,7 @@ No account set chosen,未选择账套
 No attachments,无附件
 No cards are assigned to you,暂无分配给您的卡片
 No company is available for this account,此账号无可用公司
+No company selected,未选公司
 No computer can write this account set,没有能写此账套的电脑
 No computer connected,未连接电脑
 No due date,无到期日
@@ -2577,6 +2584,14 @@ guide.business.stocktake,盘点
 guide.consent.stocktake.close,要结束盘点吗？
 guide.consent.stocktake.delete,要删除盘点吗？
 guide.open.stocktake,选择操作。
+guide.business.company,公司资料
+guide.business.company_add,添加公司
+guide.fact.company.none,未选公司
+guide.open.company,选择操作。
+guide.open.company_add,选择要添加的公司。
+guide.option.company.note_add,添加笔记
+guide.option.company.note_delete,删除笔记
+guide.option.company.note_edit,编辑笔记
 guide.review.department,部门
 guide.review.salesman,销售员
 guide.step.collection.book,账套
@@ -2599,6 +2614,10 @@ guide.step.stocktake.title,名称
 guide.step.stocktake.unit,单位
 guide.step.stocktake.unit_price,售价
 guide.step.stocktake.warehouse,仓库
+guide.step.company.action,操作
+guide.step.company.note,笔记
+guide.step.company.text,内容
+guide.step.company_add.companies,公司
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出

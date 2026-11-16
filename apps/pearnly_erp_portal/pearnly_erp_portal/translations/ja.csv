@@ -57,6 +57,7 @@ Actual positions and quantities,実際の棚番と数量
 Actual warehouse,実際の倉庫
 Add,追加
 Add Column,列を追加
+Add Company,会社を追加
 Add Discount,割引を追加
 Add Employee,従業員を追加
 Add Order Discount,伝票割引を追加
@@ -79,6 +80,7 @@ Add from connections,接続から追加
 Add label,ラベルを追加
 Add locations in stock,在庫のあるロケーションを追加
 Add member,メンバーを追加
+Add note,メモを追加
 Add opening item,明細を追加
 Add photos,写真を追加
 Add row,明細を追加
@@ -306,6 +308,7 @@ Choose purchase or sales for this invoice and submit again,この伝票が仕入
 Choose the MR.ERP collection menu,MR.ERP の入金メニューを選択してください
 Choose the account set,会計データを選択
 Choose the collection method,入金方法を選択してください
+Choose the companies to add.,追加する会社を選択してください。
 Choose the company,会社を選んでください
 Choose the customer,顧客を選んでください
 Choose the inventory account group for this account set first.,先にこの会計データの在庫勘定グループを選んでください。
@@ -360,6 +363,7 @@ Comments,コメント
 Comments and activity,コメントとアクティビティ
 Companies,会社
 Company,会社
+Company Details,会社情報
 Company details,会社情報
 Company name,会社名
 Company not found,会社が見つかりません
@@ -489,6 +493,7 @@ Default VAT Rate (%),既定のVAT率（%）
 Default WHT Rate for Services (%),サービス既定の源泉徴収率（%）
 Default withholding for service documents,サービス伝票の既定の源泉徴収
 Delete,削除
+Delete note,メモを削除
 Delete selected ({0}),選択を削除（{0}）
 Delete the stock count?,棚卸を削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
@@ -577,6 +582,7 @@ Edit card,カードを編集
 Edit dates,日付を編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
+Edit note,メモを編集
 Editing {0} is not allowed as per POS Profile settings,レジ設定により {0} は編集できません
 Email,メール
 Email Receipt,領収書をメール送信
@@ -947,6 +953,7 @@ No account set chosen,会計データが選ばれていません
 No attachments,添付ファイルなし
 No cards are assigned to you,割り当てられたカードはありません
 No company is available for this account,このアカウントで使える会社がありません
+No company selected,会社が未選択です
 No computer can write this account set,この会計データに書き込めるパソコンがありません
 No computer connected,パソコン未接続
 No due date,期日なし
@@ -2577,6 +2584,14 @@ guide.business.stocktake,棚卸
 guide.consent.stocktake.close,棚卸を終了しますか？
 guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.open.stocktake,操作を選択してください。
+guide.business.company,会社情報
+guide.business.company_add,会社を追加
+guide.fact.company.none,会社が未選択です
+guide.open.company,操作を選択してください。
+guide.open.company_add,追加する会社を選択してください。
+guide.option.company.note_add,メモを追加
+guide.option.company.note_delete,メモを削除
+guide.option.company.note_edit,メモを編集
 guide.review.department,部門
 guide.review.salesman,営業担当
 guide.step.collection.book,会計データ
@@ -2599,6 +2614,10 @@ guide.step.stocktake.title,名前
 guide.step.stocktake.unit,単位
 guide.step.stocktake.unit_price,販売価格
 guide.step.stocktake.warehouse,倉庫
+guide.step.company.action,操作
+guide.step.company.note,メモ
+guide.step.company.text,内容
+guide.step.company_add.companies,会社
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

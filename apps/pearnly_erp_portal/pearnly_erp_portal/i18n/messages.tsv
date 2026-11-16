@@ -2208,3 +2208,15 @@ Selling price	售价	ราคาขาย	販売価格	guide.step.stocktake.uni
 Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	guide.step.stocktake.default_cost
 Category	分类	หมวดหมู่	カテゴリ	guide.step.stocktake.category
 Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.qty
+Company Details	公司资料	ข้อมูลบริษัท	会社情報	guide.business.company
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.company
+Action	操作	การดำเนินการ	操作	guide.step.company.action
+Note	笔记	บันทึก	メモ	guide.step.company.note
+Text	内容	ข้อความ	内容	guide.step.company.text
+Add note	添加笔记	เพิ่มบันทึก	メモを追加	guide.option.company.note_add
+Edit note	编辑笔记	แก้ไขบันทึก	メモを編集	guide.option.company.note_edit
+Delete note	删除笔记	ลบบันทึก	メモを削除	guide.option.company.note_delete
+No company selected	未选公司	ยังไม่ได้เลือกบริษัท	会社が未選択です	guide.fact.company.none
+Add Company	添加公司	เพิ่มบริษัท	会社を追加	guide.business.company_add
+Choose the companies to add.	选择要添加的公司。	เลือกบริษัทที่จะเพิ่ม	追加する会社を選択してください。	guide.open.company_add
+Companies	公司	บริษัท	会社	guide.step.company_add.companies

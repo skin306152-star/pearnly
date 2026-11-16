@@ -57,6 +57,7 @@ Actual positions and quantities,ตำแหน่งจริงและจำ
 Actual warehouse,คลังที่พบจริง
 Add,เพิ่ม
 Add Column,เพิ่มคอลัมน์
+Add Company,เพิ่มบริษัท
 Add Discount,เพิ่มส่วนลด
 Add Employee,เพิ่มพนักงาน
 Add Order Discount,เพิ่มส่วนลดท้ายบิล
@@ -79,6 +80,7 @@ Add from connections,เพิ่มจากการเชื่อมต่�
 Add label,เพิ่มป้ายกำกับ
 Add locations in stock,เพิ่มตำแหน่งที่มีสต็อก
 Add member,เพิ่มสมาชิก
+Add note,เพิ่มบันทึก
 Add opening item,เพิ่มรายการ
 Add photos,เพิ่มรูปภาพ
 Add row,เพิ่มรายการ
@@ -306,6 +308,7 @@ Choose purchase or sales for this invoice and submit again,กรุณาเล
 Choose the MR.ERP collection menu,เลือกเมนูรับชำระ MR.ERP
 Choose the account set,เลือกชุดบัญชี
 Choose the collection method,เลือกวิธีรับชำระ
+Choose the companies to add.,เลือกบริษัทที่จะเพิ่ม
 Choose the company,เลือกบริษัท
 Choose the customer,กรุณาเลือกลูกค้า
 Choose the inventory account group for this account set first.,กรุณาเลือกกลุ่มบัญชีสินค้าคงเหลือสำหรับชุดบัญชีนี้ก่อน
@@ -360,6 +363,7 @@ Comments,ความคิดเห็น
 Comments and activity,ความคิดเห็นและกิจกรรม
 Companies,บริษัท
 Company,บริษัท
+Company Details,ข้อมูลบริษัท
 Company details,ข้อมูลบริษัท
 Company name,ชื่อบริษัท
 Company not found,ไม่พบบริษัทนี้
@@ -489,6 +493,7 @@ Default VAT Rate (%),อัตรา VAT เริ่มต้น (%)
 Default WHT Rate for Services (%),อัตราภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับงานบริการ (%)
 Default withholding for service documents,ภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับเอกสารงานบริการ
 Delete,ลบ
+Delete note,ลบบันทึก
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete the stock count?,ลบการตรวจนับหรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
@@ -577,6 +582,7 @@ Edit card,แก้ไขการ์ด
 Edit dates,แก้ไขวันที่
 Edit in Full Page,แก้ไขในหน้าเต็ม
 Edit labels,แก้ไขป้ายกำกับ
+Edit note,แก้ไขบันทึก
 Editing {0} is not allowed as per POS Profile settings,ไม่อนุญาตให้แก้ไข {0} ตามการตั้งค่าจุดขาย
 Email,อีเมล
 Email Receipt,ส่งใบเสร็จทางอีเมล
@@ -947,6 +953,7 @@ No account set chosen,ยังไม่ได้เลือกชุดบั�
 No attachments,ไม่มีไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
+No company selected,ยังไม่ได้เลือกบริษัท
 No computer can write this account set,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
 No computer connected,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 No due date,ไม่มีวันครบกำหนด
@@ -2577,6 +2584,14 @@ guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.open.stocktake,เลือกการดำเนินการ
+guide.business.company,ข้อมูลบริษัท
+guide.business.company_add,เพิ่มบริษัท
+guide.fact.company.none,ยังไม่ได้เลือกบริษัท
+guide.open.company,เลือกการดำเนินการ
+guide.open.company_add,เลือกบริษัทที่จะเพิ่ม
+guide.option.company.note_add,เพิ่มบันทึก
+guide.option.company.note_delete,ลบบันทึก
+guide.option.company.note_edit,แก้ไขบันทึก
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2599,6 +2614,10 @@ guide.step.stocktake.title,ชื่อ
 guide.step.stocktake.unit,หน่วย
 guide.step.stocktake.unit_price,ราคาขาย
 guide.step.stocktake.warehouse,คลังสินค้า
+guide.step.company.action,การดำเนินการ
+guide.step.company.note,บันทึก
+guide.step.company.text,ข้อความ
+guide.step.company_add.companies,บริษัท
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว
