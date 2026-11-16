@@ -496,6 +496,42 @@ class TaskTests(unittest.TestCase):
         self.tasks.products.reason_text = lambda reason: ""
         self.assertEqual(json.loads(tools.status({"task": name}))["documents"][2]["reason"], "needs_choice")
 
+    def test_before_the_task_starts_the_status_lists_what_it_will_enter_and_the_dropped_files(self):
+        # 11-16 H3：准备中的任务里 CC 只看得到「还没录」，不知道放进来的票已识别，叫用户去采购页上传。准备中的状态带上待录的单
+        # （产品 sources，同写入计划那份清单）与对话里放进来的每一份此刻识别到哪（uploads.read）
+        import json
+
+        sys.modules["pearnly_core.express_operator"].tasks = self.tasks
+        asked = []
+        self.tasks.products.sources = lambda company, period, offset, limit: asked.append((company, period, offset, limit)) or {
+            "documents": [{"doc_id": "I:LI-1", "kind": "purchase", "group": "purchase", "date": "2026-10-03", "party": "Siam",
+                           "ref": "INV-1", "total": "107.00", "stopped": ""},
+                          {"doc_id": "P:PI-9", "kind": "purchase", "group": "skip", "ref": "X"}],
+            "total": 2}
+        uploads = types.ModuleType("pearnly_core.express_operator.uploads")
+        uploads.read = lambda name: {"task": name, "uploads": [
+            {"filename": "h3.jpg", "state": "done", "batch": "B1",
+             "documents": [{"doc_id": "I:LI-1", "ref": "INV-1", "party": "Siam", "date": "2026-10-03", "waiting": True}]}]}
+        sys.modules["pearnly_core.express_operator.uploads"] = uploads
+        self.package.uploads = uploads
+        self.addCleanup(sys.modules.pop, "pearnly_core.express_operator.uploads", None)
+        spec = importlib.util.spec_from_file_location(
+            "op_tools", ROOT / "apps/pearnly_core/pearnly_core/express_operator/tools.py")
+        tools = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(tools)
+        made = self.tasks.create("CO-1", "2026-10")
+        seen = json.loads(tools.status({"task": made["name"]}))
+        self.assertEqual(asked, [("CO-1", "2026-10", 0, tools.WAITING_SHOWN)])
+        self.assertEqual(seen["waiting"], [{"doc_id": "I:LI-1", "kind": "purchase", "date": "2026-10-03", "party": "Siam",
+                                            "ref": "INV-1", "total": "107.00"}])  # 移到「不入账」的不列
+        self.assertEqual(seen["waiting_total"], 2)
+        self.assertEqual(seen["uploads"], [{"filename": "h3.jpg", "state": "done", "documents": [
+            {"doc_id": "I:LI-1", "ref": "INV-1", "party": "Siam", "date": "2026-10-03"}]}])
+        self.assertIn("never send the user elsewhere to upload", seen["next"])
+        # 开始以后不再带这两项（任务里的单以 documents 为准）
+        name = self._started()
+        self.assertNotIn("waiting", json.loads(tools.status({"task": name})))
+
     def test_attention_lists_tasks_that_need_you_counting_each_document_once(self):
         # 主会话 11-03：「待处理」里的代录一组只算「需要你处理」的任务；任务里没录成的单都已在产品自己的待处理里列着的不另算
         first = self.tasks.create("CO-1", "2026-10")

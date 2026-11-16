@@ -97,6 +97,38 @@ def _collection():
     return plan
 
 
+# 写账判定里本产品认的编号种类（:func:`target_of`）：单据（采购 ``P:`` / 销售 ``S:`` / 收银日汇总 ``D:`` / 出入库 ``T:`` / 盘点 ``C:``）、
+# CC 代录放进来还没提交的收单记录（``I:``，`operator._intake`）、收款（``R:``，`collection.plan`）。新加一种在这里登记，
+# check / remember / search / resume 都经 :func:`target_of`，不在各函数里各判一次（11-16 H3：``I:`` 只接进了代录钩子）。
+INTAKE_PREFIX = "I"
+DOCUMENT, INTAKE, COLLECTION, MISSING, UNKNOWN = "document", "intake", "collection", "missing", "unknown"
+# 编号种类本产品不认（契约缺口）：写账判定回这个原因（给模型、写入计划的跳过原因）并记错误日志，与「不是本人的单」（不回、不报存在与否）分开
+UNKNOWN_DOCUMENT = "unknown_document"
+UNKNOWN_LOG = "Write precheck: unknown document kind"
+
+
+def target_of(company, doc_id) -> tuple:
+    """一张单的编号 → ``(种类, 值)``：``(DOCUMENT, (doctype, 名))``、``(INTAKE, 收单记录行)``、``(COLLECTION, 编号)``；本人不能写的、
+    找不到的 ``(MISSING, None)``；编号种类本产品不认 ``(UNKNOWN, None)``。"""
+    text = str(doc_id or "")
+    prefix, _sep, name = text.partition(":")
+    if _collection().mine(text):
+        return COLLECTION, text
+    if prefix == INTAKE_PREFIX and name:
+        from pearnly_erp_portal.express import operator
+
+        row = operator._intake(company, text)
+        return (INTAKE, row) if row else (MISSING, None)
+    if prefix in PREFIXES and name:
+        found = resolve_target(company, text)
+        return (DOCUMENT, found) if found else (MISSING, None)
+    return UNKNOWN, None
+
+
+def _unknown(company, doc_id) -> None:
+    frappe.log_error(title=UNKNOWN_LOG, message=f"company={company} doc_id={str(doc_id)[:200]}")
+
+
 def resolve_target(company, doc_id):
     """``P:<名>`` 等 → ``(doctype, 名)``；不是这家公司的、本人没有这类单据开单权的、员工不是本人录入的回 None。"""
     prefix, _sep, name = str(doc_id or "").partition(":")
@@ -504,10 +536,23 @@ def check(company, doc_ids) -> dict:
     collections = _collection()
     documents = collections.check(company, [doc_id for doc_id in doc_ids if collections.mine(doc_id)])["documents"]
     for doc_id in doc_ids:
-        if collections.mine(doc_id):
-            continue  # 收款（``R:``）：上面已判
-        found = resolve_target(company, doc_id)
-        if found is None:
+        kind, found = target_of(company, doc_id)
+        if kind in (COLLECTION, MISSING):
+            continue  # 收款（``R:``）上面已判；本人不能写的不回、也不报存在与否
+        if kind == UNKNOWN:
+            _unknown(company, doc_id)
+            documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": UNKNOWN_DOCUMENT})
+            continue
+        if kind == INTAKE:
+            # CC 代录放进来、还没提交的收单记录：与代录预检同一份判定（开录时才提交成单据，`operator.submit`）；只写 Express
+            if not linked:
+                documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
+                continue
+            from pearnly_erp_portal.express import operator
+
+            view = operator.intake_view(company, doc_id)
+            if view:
+                documents.append(view)
             continue
         if ledger_mrerp:
             documents.append(mrerp_view(doc_id, *found))
@@ -566,9 +611,19 @@ def remember(company, answers) -> dict:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     seen, saved, ledger_mrerp = set(), 0, mrerp_push.handles(company)
     for doc_id, given in answers.items():
-        found = resolve_target(company, doc_id)
-        if found is None:
+        kind, found = target_of(company, doc_id)
+        if kind == UNKNOWN:
+            _unknown(company, doc_id)
+            frappe.throw(_("Invalid request"))
+        if kind == COLLECTION:
+            frappe.throw(_("Invalid request"))  # 收款的判定没有要人答的项（`collection.plan`）
+        if kind == MISSING:
             frappe.throw(_("Not Permitted"), frappe.PermissionError)
+        if kind == INTAKE:
+            from pearnly_erp_portal.express import operator
+
+            saved += operator.remember_intake(company, found, given, seen)
+            continue
         doctype, name = found
         if ledger_mrerp:
             saved += save_mrerp(company, doctype, given, seen, name)
@@ -600,15 +655,18 @@ def search(company, doc_id, search, txt="", start=0, page_length=20) -> dict:
     """大列表的项服务端分页搜索（共用层 ``write_precheck.api.search`` 调的钩子）：``search`` 是项上给的搜索类型（``accounts`` /
     ``products`` / ``parties``），``doc_id`` 定账套（这张单写进的那份）；按编码或名称包含 ``txt``，回 ``{options: [{code, name}], more}``，
     存货、对方第一条是「新建」。这张单本人要能写（同 :func:`check`）。"""
-    if str(doc_id or "").startswith("I:") and _company_ok(company):
+    kind, found = target_of(company, doc_id) if _company_ok(company) else (MISSING, None)
+    if kind == UNKNOWN:
+        _unknown(company, doc_id)
+        frappe.throw(_("Invalid request"))
+    if kind == INTAKE:
         # 代录放文件识别出、还没提交的收单记录（A 批 1b）：物料按 ERP 物料搜，Express 那些按它会写进的账套搜
         from pearnly_erp_portal.express import operator
 
         if search not in {*SEARCH.values(), "own_products"}:
             frappe.throw(_("Invalid request"))
         return operator.intake_search(company, doc_id, search, txt, start, page_length)
-    found = resolve_target(company, doc_id) if _company_ok(company) else None
-    if found is None:
+    if kind != DOCUMENT:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     try:
         start, page_length = max(0, int(start or 0)), max(1, min(int(page_length or 20), SEARCH_MAX))
@@ -661,7 +719,7 @@ def resume(company, doc_ids) -> list:
         return []
     results = []
     for doc_id in doc_ids:
-        found = resolve_target(company, doc_id)
+        found = _resumable(company, doc_id)
         if found is None:
             continue
         doctype, name = found
@@ -677,12 +735,21 @@ def resume(company, doc_ids) -> list:
     return results
 
 
+def _resumable(company, doc_id):
+    """待处理里能按原来写入路径重排的单 ``(doctype, 名)``：只有已存的单据；收单记录（代录交单时才提交）、收款不在这里重推，
+    认不出的种类记日志。"""
+    kind, found = target_of(company, doc_id)
+    if kind == UNKNOWN:
+        _unknown(company, doc_id)
+    return found if kind == DOCUMENT else None
+
+
 def _resume_mrerp(company, doc_ids) -> list:
     """MR.ERP 账本：停在要人选导入菜单 / 默认值（``choice_needed:mrerp``）的单，记下后排一次导入（同单据上「选一次」后
     `mrerp.push.answer` 的 `send`）；归代录的不动。"""
     results = []
     for doc_id in doc_ids:
-        found = resolve_target(company, doc_id)
+        found = _resumable(company, doc_id)
         if found is None:
             continue
         doctype, name = found
@@ -696,6 +763,7 @@ def _resume_mrerp(company, doc_ids) -> list:
     return results
 
 
-__all__ = ["OPERATOR_FORM", "PREFIXES", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
+__all__ = ["COLLECTION", "DOCUMENT", "INTAKE", "INTAKE_PREFIX", "MISSING", "OPERATOR_FORM", "PREFIXES", "UNKNOWN",
+           "UNKNOWN_DOCUMENT", "UNKNOWN_LOG", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
            "allowed", "full_options", "given_of", "menu_item", "menu_stop", "mrerp_needed", "mrerp_view", "remember",
-           "resolve_target", "resume", "save", "save_answers", "search"]
+           "resolve_target", "resume", "save", "save_answers", "search", "target_of"]

@@ -2175,3 +2175,37 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/sales.js",
   "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/erp-originals.js",
 ]
+
+[[flow]]
+id = "erp.cc.operator.intake"
+title = "ERP CC 代录放进来的采购票（收单记录 I:）：开始前卡片作答记下、写入计划列入、开始后提交成 ERP 采购单并交进写账（H3，11-16 真机：作答 403、计划判未找到）"
+module = "scripts/flows/erp_cc_operator_intake.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tools.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/api.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "frontend/assistant/src/components/tool-uis/operator-start.tsx",
+]
+
+[[flow]]
+id = "erp.cc.operator.intake.sales"
+title = "ERP CC 代录放进来的销售票（收单记录 I:）：同采购那条，提交成 ERP 销售单（H4）"
+module = "scripts/flows/erp_cc_operator_intake_sales.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tools.py",
+]

@@ -22,7 +22,7 @@ ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:intake"
 where = "代录 intake"
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction", "flow:erp.cc.operator.intake", "flow:erp.cc.operator.intake.sales"]
 
 [[row]]
 id = "erp.cc.operator.uploads"
@@ -75,7 +75,7 @@ kind = "cc-operator-hook"
 anchor = "operator:erp:precheck"
 group = "cc.operator.precheck"
 where = "代录 precheck"
-tests = ["flow:cc.operator", "flow:cc.sidebar-modes", "unit:tests/test_cc_ask.py::test_questions_answers_and_requests", "unit:tests/test_cc_ask.py::test_card_renders_like_the_code_question_card"]
+tests = ["flow:cc.operator", "flow:cc.sidebar-modes", "unit:tests/test_cc_ask.py::test_questions_answers_and_requests", "unit:tests/test_cc_ask.py::test_card_renders_like_the_code_question_card", "flow:erp.cc.operator.intake", "unit:tests/test_erp_write_precheck.py::DroppedTicket"]
 
 [[row]]
 id = "erp.cc.operator.sources"

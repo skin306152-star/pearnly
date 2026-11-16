@@ -42,15 +42,37 @@ def status(tool_input) -> str:
            "status": view["status"], "computer": view["computer"], "counts": counts, "documents": docs}
     if view["status"] == "preparing":
         out["next"] = NEXT_PREPARING  # 11-08 生产：CC 只说了「准备中、没有单据」，没说要人做什么
+        out.update(_preparing(view))
     elif view["status"] == "attention":
         out["next"] = NEXT_ATTENTION
     return json.dumps(out, ensure_ascii=False, default=str)
 
 
+WAITING_SHOWN = 20  # 准备中给模型的待录单最多这么多张（总数另给）
+DOC_KEYS = ("doc_id", "kind", "date", "party", "ref", "total", "other_month")
+
+
+def _preparing(view: dict) -> dict:
+    """还没开始的任务：这次代录待录的单（产品 ``sources``，同写入计划取的那份清单的前几张）与对话里放进来的每一份此刻识别到哪
+    （``uploads.read``，同页面上传卡片）。11-16 H3：CC 只看得到「还没录」，不知道票已放进来、已识别，叫用户去别的页面上传。"""
+    from pearnly_core.express_operator import products, uploads
+
+    found = products.sources(view["company"], view.get("period") or "", 0, WAITING_SHOWN)
+    waiting = [{key: row[key] for key in DOC_KEYS if row.get(key) not in (None, "")}
+               for row in found.get("documents") or [] if isinstance(row, dict) and row.get("doc_id") and row.get("group") != "skip"]
+    sent = [{"filename": row.get("filename") or "", "state": row.get("state") or "",
+             "documents": [{key: doc[key] for key in ("doc_id", "ref", "party", "date") if doc.get(key)}
+                           for doc in row.get("documents") or [] if isinstance(doc, dict)]}
+            for row in uploads.read(view["name"]).get("uploads") or []]
+    return {"waiting": waiting, "waiting_total": int(found.get("total") or len(waiting)), "uploads": sent}
+
+
 # 状态之外给模型的下一步（只给模型读，不是界面文案）：不提内部名词
-NEXT_PREPARING = ("Nothing has been entered yet. When the user wants them entered: settle the open questions, make the "
-                  "write plan (pearnly_write_plan), say it back in one sentence and start it (pearnly_write_start) only "
-                  "after the user agrees in a new message.")
+NEXT_PREPARING = ("Nothing has been entered yet. waiting lists the documents this task will enter (files the user put in "
+                  "this conversation are recognized here and appear there once read; uploads shows each file's state), so "
+                  "never send the user elsewhere to upload. When the user wants them entered: settle the open questions, "
+                  "make the write plan (pearnly_write_plan), say it back in one sentence and start it (pearnly_write_start) "
+                  "only after the user agrees in a new message.")
 NEXT_ATTENTION = ("Some documents need the user: the cards in this conversation ask what is missing (one question covers "
                   "every document that needs the same answer). Point the user to them; do not ask the same thing again.")
 
@@ -82,7 +104,8 @@ TOOLS = [
                     "skipped), the Express document number once saved, and the reason it was not entered (in the user's words; reason_code is for you only). Use it to answer "
                     "questions such as how many were entered today or why document 2 was not entered. task is the id given "
                     "in the express_task note. next, when present, is what the user has to do now: tell them in plain "
-                    "words.",
+                    "words. Before the task starts it also gives waiting (the documents it will enter, waiting_total in all) "
+                    "and uploads (each file put in this conversation and what it was read as).",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_core.express_operator.tools.status"},
     {"name": "express_operator_control", "modes": ["operator"],

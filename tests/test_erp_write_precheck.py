@@ -223,14 +223,67 @@ class Access(Precheck):
                 mock.patch.object(self.precheck.guard, "scope_filters", lambda user=None: {"owner": "staff@x"}), \
                 mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
                 mock.patch.object(self.precheck, "document_view",
-                                  lambda doc_id, doctype, name, found=None: seen.append(doc_id) or {"doc_id": doc_id}):
+                                  lambda doc_id, doctype, name, found=None: seen.append(doc_id) or {"doc_id": doc_id}), \
+                mock.patch.object(frappe, "log_error", lambda title=None, message=None, **kw: None, create=True):
             out = self.precheck.check("CO-1", ["P:PI-1", "P:PI-2", "P:PI-3", "S:SI-1", "X:1"])
             self.assertEqual(out["company_title"], "นิภา")
-            self.assertEqual(seen, ["P:PI-1"])  # 别家公司、别人录入的、没有开单权的、认不得的单号：不回
+            self.assertEqual(seen, ["P:PI-1"])  # 别家公司、别人录入的、没有开单权的：不回、不报存在与否
+            # 认不得的编号种类（契约缺口）单独报码，不混进「不回」（11-16 H3，见下一条测试）
+            self.assertEqual([doc["doc_id"] for doc in out["documents"]], ["P:PI-1", "X:1"])
             with self.assertRaises(frappe.PermissionError):
                 self.precheck.remember("CO-1", {"P:PI-3": [{"kind": "account", "subject": "x", "value": "1"}]})
         with mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-2"]):
             self.assertEqual(self.precheck.check("CO-1", ["P:PI-1"]), {"company_title": "", "documents": []})
+
+    def test_dropped_tickets_are_judged_and_remembered_like_documents(self):
+        # 11-16 H3：CC 代录放进来、还没提交的收单记录（I:）只接进了代录钩子；写账判定不认它——作答报「没有权限」（403）、
+        # 写入计划判 not_found。现在 check 与代录预检同一份判定，remember 交给收单记录自己的记法
+        from pearnly_erp_portal.express import operator
+
+        self.rows()
+        row = types.SimpleNamespace(name="LI-1")
+        remembered = []
+        with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.precheck.guard, "scope_filters", lambda user=None: {}), \
+                mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
+                mock.patch.object(self.push, "enabled", lambda company: True), \
+                mock.patch.object(operator, "_intake", lambda company, doc_id: row if doc_id == "I:LI-1" else None), \
+                mock.patch.object(operator, "intake_view", lambda company, doc_id: {
+                    "doc_id": doc_id, "state": card.CHECK, "direction": "purchase", "items": []}), \
+                mock.patch.object(operator, "remember_intake", lambda company, found, given, seen=None:
+                                  remembered.append((company, found.name, given)) or 1), \
+                mock.patch.object(self.precheck, "document_view",
+                                  lambda doc_id, doctype, name, found=None: {"doc_id": doc_id}):
+            out = self.precheck.check("CO-1", ["I:LI-1", "I:LI-2", "P:PI-1"])
+            self.assertEqual([doc["doc_id"] for doc in out["documents"]], ["I:LI-1", "P:PI-1"])  # 别人的记录不回
+            self.assertEqual(out["documents"][0]["direction"], "purchase")
+            answer = [{"kind": "payment", "subject": "erp-intake-pay:purchase|1", "value": "cash"}]
+            self.assertEqual(self.precheck.remember("CO-1", {"I:LI-1": answer}), {"saved": 1})
+            self.assertEqual(remembered, [("CO-1", "LI-1", answer)])
+            with self.assertRaises(frappe.PermissionError):
+                self.precheck.remember("CO-1", {"I:LI-2": answer})  # 不是本人的：照旧没有权限
+        with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
+                mock.patch.object(self.push, "enabled", lambda company: False):
+            with mock.patch.object(operator, "_intake", lambda company, doc_id: row):
+                out = self.precheck.check("CO-1", ["I:LI-1"])
+        self.assertEqual(out["documents"], [{"doc_id": "I:LI-1", "state": card.NOT_WRITABLE, "reason": E.DISCONNECTED}])
+
+    def test_a_document_kind_this_product_does_not_know_is_reported_and_logged_not_refused(self):
+        # 「找不到就报没有权限」盖住了真因（H3）：编号种类本产品不认是契约缺口，回 unknown_document、记错误日志，作答回「请求无效」
+        logged = []
+        with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True), \
+                mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
+                mock.patch.object(frappe, "log_error", lambda title=None, message=None, **kw: logged.append(title), create=True):
+            out = self.precheck.check("CO-1", ["X:1"])
+            self.assertEqual(out["documents"], [{"doc_id": "X:1", "state": card.NOT_WRITABLE,
+                                                 "reason": self.precheck.UNKNOWN_DOCUMENT}])
+            with self.assertRaises(frappe.ValidationError) as raised:
+                self.precheck.remember("CO-1", {"X:1": [{"kind": "account", "subject": "x", "value": "1"}]})
+            self.assertNotIsInstance(raised.exception, frappe.PermissionError)
+            with self.assertRaises(frappe.ValidationError):
+                self.precheck.search("CO-1", "X:1", "accounts")
+        self.assertEqual(logged, [self.precheck.UNKNOWN_LOG] * 3)
 
     def test_the_guard_needs_the_company_and_any_ledger_write_capability(self):
         with mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]):
@@ -319,6 +372,77 @@ class Access(Precheck):
         self.assertEqual(pending._item(row)["action"], "open")
         self.assertNotIn("doc_id", pending._item({**row, "ledger_reason": E.NO_WRITER}))
         self.assertEqual(self.precheck.doc_id_of(self.push.POS_DAY, "D1"), "D:D1")
+
+
+class DroppedTicket(Precheck):
+    """CC 代录放进来、还没提交的收单记录（I:，`express.operator`）在写账判定里（11-16 H3 / H4）。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.express import operator
+        self.operator = operator
+
+    def test_own_questions_come_first_while_a_line_or_the_warehouse_is_open(self):
+        # 仓库没定时写入那条准备先报「请选择仓库」：先问记录自己的几项（定了再判 Express 那几项），不当成整张单出错
+        doc = types.SimpleNamespace(direction="purchase", name="LI-1")
+
+        def refuse(*args, **kwargs):
+            raise frappe.ValidationError("Pick a warehouse")
+
+        with mock.patch.object(self.precheck, "collect_form", refuse), \
+                mock.patch.object(frappe, "clear_messages", lambda: None, create=True), \
+                mock.patch.object(self.operator, "intake_payload", lambda doc: {}):
+            self.assertIsNone(self.operator.intake_found("CO-1", doc, [{"kind": "location", "subject": "erp-intake:LI-1:warehouse"}]))
+            with self.assertRaises(frappe.ValidationError):  # 记录自己的都定了还报：照常是这张单的问题
+                self.operator.intake_found("CO-1", doc, [{"kind": "payment", "subject": "erp-intake-pay:purchase|1"}])
+
+    def test_an_unsubmitted_sales_ticket_is_judged_with_the_number_it_will_get(self):
+        # H4：销售单号提交时才分配，判定时载荷没有号，含税销售票一律判「缺票号」；用将分配的那个号（不占号的预览）判
+        previews = []
+        intake = types.SimpleNamespace(build_payload=lambda doc: {"doc_date": "2026-11-16", "buyer_name": "B"})
+        numbering = types.SimpleNamespace(preview=lambda direction, on=None: previews.append((direction, on)) or "SI2569-000007")
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": intake,
+                                           "pearnly_erp_portal.numbering.service": numbering}), \
+                mock.patch("pearnly_erp_portal.integrations.intake", intake, create=True), \
+                mock.patch("pearnly_erp_portal.numbering.service", numbering, create=True):
+            sales = self.operator.intake_payload(types.SimpleNamespace(direction="sales"))
+            purchase = self.operator.intake_payload(types.SimpleNamespace(direction="purchase"))
+        self.assertEqual(sales["system_no"], "SI2569-000007")
+        self.assertEqual(previews, [("sales", "2026-11-16")])
+        self.assertNotIn("system_no", purchase)  # 采购按票面号判（同网页）
+
+    def test_answers_go_back_onto_the_record_and_express_items_are_checked_like_a_document(self):
+        row = types.SimpleNamespace(name="LI-1", direction="purchase", purchase=None, sales_document=None)
+        own = [{"kind": "payment", "subject": "erp-intake-pay:purchase|1", "value": "cash"}]
+        express = [{"kind": "account", "subject": "purchase|x", "value": "51-01"}]
+        written, saved = [], []
+        intake = types.SimpleNamespace(DOCTYPE="ERP LINE Intake")
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": intake}), \
+                mock.patch("pearnly_erp_portal.integrations.intake", intake, create=True), \
+                mock.patch.object(self.operator, "apply_intake_answers",
+                                  lambda company, name, answers: written.append((name, answers)) or
+                                  [a for a in answers if a["kind"] != "payment"]), \
+                mock.patch.object(frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(
+                    name=name, direction="purchase", result="{}"), create=True), \
+                mock.patch.object(self.operator, "intake_items", lambda company, doc, result: []), \
+                mock.patch.object(self.operator, "intake_found", lambda company, doc, asked, given=None: {"given": given}), \
+                mock.patch.object(self.precheck, "save", lambda company, found, answers, seen=None:
+                                  saved.append((found, answers)) or len(answers)):
+            self.assertEqual(self.operator.remember_intake("CO-1", row, own + express), 1)
+            self.assertEqual(written, [("LI-1", own + express)])
+            self.assertEqual(saved, [({"given": {"account": {"purchase|x": "51-01"}}}, express)])
+            written.clear()
+            self.assertEqual(self.operator.remember_intake("CO-1", row, own), 0)  # 只有记录自己的：不判 Express
+            self.assertEqual(written, [("LI-1", own)])
+        # 已提交的：记在提交出的单据上，记录自己的那几项不再写回
+        done = types.SimpleNamespace(name="LI-1", direction="purchase", purchase="PI-7", sales_document=None)
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": intake}), \
+                mock.patch("pearnly_erp_portal.integrations.intake", intake, create=True), \
+                mock.patch.object(self.precheck, "save_answers", lambda company, doctype, name, answers, seen=None:
+                                  saved.append((doctype, name, answers)) or len(answers)):
+            saved.clear()
+            self.assertEqual(self.operator.remember_intake("CO-1", done, own + express), 1)
+        self.assertEqual(saved, [(self.push.PURCHASE, "PI-7", express)])
 
 
 def mrerp_views(menus=("purchase",), defaults=("supplier_type",)):

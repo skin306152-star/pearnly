@@ -248,6 +248,11 @@ def precheck(company, doc_ids) -> dict:
         if str(doc_id).startswith(INTAKE + ":"):
             documents.append(_intake_precheck(company, doc_id))
             continue
+        if str(doc_id).partition(":")[0] not in KINDS:
+            # 代录只收采购、销售与收单记录：别的种类是契约缺口（同写账判定 `precheck.UNKNOWN_DOCUMENT`），记日志，不当成没有权限
+            write_precheck._unknown(company, doc_id)
+            documents.append({"doc_id": doc_id, "state": "blocked", "reason": write_precheck.UNKNOWN_DOCUMENT})
+            continue
         target = _target(company, doc_id)
         if target is None:
             documents.append({"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")})
@@ -301,9 +306,11 @@ def written_twin(company, direction, result, grand_total) -> dict:
     return {}
 
 
-def _intake_precheck(company, doc_id) -> dict:
-    """一条待提交的收单记录：按它提交时的入参（`intake.build_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
-    有定不了物料的行先停（开始前卡片问这几行在下一步加，A 批 1b）；已提交的按提交出的单据判。"""
+def _intake_precheck(company, doc_id, twins=True) -> dict:
+    """一条待提交的收单记录：按它提交时的入参（:func:`intake_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
+    记录自己要人定的（付款、各行物料、仓库，:func:`intake_items`）与 Express 那几项一起问；行或仓库还没定、写入那条准备先报的，
+    先只问记录自己的（定了再判 Express 那几项）。已提交的按提交出的单据判。``twins``：同一张票已写进 Express 的标 ``written``
+    （代录资料与交单用）；写账判定（`precheck.check`）不判这一项，由代录的待录清单定（「再录一次」照交）。"""
     import json
 
     from pearnly_erp_portal.express import precheck as write_precheck
@@ -320,7 +327,8 @@ def _intake_precheck(company, doc_id) -> dict:
         return {"doc_id": doc_id, "state": "blocked", "reason": "not_ready", "message": _("This document is no longer available")}
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
     result = json.loads(doc.result or "{}")
-    twin = written_twin(company, row.direction, result, lambda: chat_intake.totals(doc, result).get("grand_total"))
+    twin = written_twin(company, row.direction, result, lambda: chat_intake.totals(doc, result).get("grand_total")) \
+        if twins else {}
     if twin:
         # 同一张票已写进 Express（直写或网页）：默认不再交，开始前卡片标出它在 Express 里的单号，人可以勾回再录（同 Cowork，用户 11-09 定）
         return {"doc_id": doc_id, "state": "written", "docnum": twin["docnum"], "twin": twin["doc"]}
@@ -328,16 +336,18 @@ def _intake_precheck(company, doc_id) -> dict:
     view = {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
             **({"party": party} if party else {})}
     asked = intake_items(company, doc, result)
-    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
-    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    found = intake_found(company, doc, asked)
+    own = [{"kind": item["kind"], "subject": item["subject"], "label": item["label"], "options": item.get("options") or [],
+            "current": item.get("value") or ""} for item in asked]
+    if found is None:
+        check = {**view, "state": "check", "items": asked}
+        return {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment", "needed": own, "precheck": check}
     state, reason = write_precheck._state(found["result"])
     shown = book_target(found["result"].get("book"))
     view = {**view, **({"target": shown} if shown else {})}
     check = {**view, "state": state, **({"reason": reason} if reason else {}),
              **({"items": [*asked, *found["items"]]} if state == "check" else {})}
     legacy = legacy_row(doc_id, found)
-    own = [{"kind": item["kind"], "subject": item["subject"], "label": item["label"], "options": item.get("options") or [],
-            "current": item.get("value") or ""} for item in asked]
     if legacy["state"] == "ready" and own:
         legacy = {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment", "needed": own}
     elif legacy["state"] == "choose" and own:
@@ -345,6 +355,74 @@ def _intake_precheck(company, doc_id) -> dict:
         # 付款没问，交单按默认「已付、现金」，赊销票记成了已付）
         legacy = {**legacy, "needed": [*own, *(legacy.get("needed") or [])]}
     return {**legacy, **({"target": shown} if shown else {}), "precheck": check}
+
+
+def intake_payload(doc) -> dict:
+    """交写账判定的表单入参（同提交时 `intake.build_payload`）。销售单号提交时才分配（`numbering.allocate`）：判定时用将分配的那个号
+    （`numbering.preview`，不占号，同网页表单上显示的号），否则还没提交的含税销售票一律判「缺票号」（H4）。"""
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    payload = chat_intake.build_payload(doc)
+    if doc.direction == "sales" and not payload.get("system_no"):
+        from pearnly_erp_portal.numbering import service as numbering
+
+        payload["system_no"] = numbering.preview("sales", on=payload.get("doc_date") or None)
+    return payload
+
+
+def intake_found(company, doc, asked, given=None):
+    """收单记录写进 Express 那一侧收齐的项（`precheck.collect_form`）；记录自己的行或仓库还没定（``asked`` 里有物料 / 仓库那几题）、
+    写入那条准备先报的（例如「请选择仓库」），回 None：先问记录自己的，定了再判。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
+
+    doctype = push.PURCHASE if doc.direction == "purchase" else push.SALES
+    try:
+        return write_precheck.collect_form(doctype, intake_payload(doc), company, given)
+    except frappe.ValidationError:
+        if not any(item.get("kind") in ("item", "location") for item in asked):
+            raise
+        frappe.clear_messages()
+        return None
+
+
+def intake_view(company, doc_id) -> dict | None:
+    """写账判定（`precheck.check`）里这条收单记录的一张卡片输入：与代录预检同一份（:func:`_intake_precheck` 的 ``precheck``，带
+    ``direction``）。不是本人的回 None（不报存在与否）；已不在待提交（例如被删、识别失败）的写不了。"""
+    found = _intake_precheck(company, doc_id, twins=False)
+    if "precheck" in found:
+        return found["precheck"]
+    if found.get("reason") == "not_permitted":
+        return None
+    from pearnly_core.write_precheck import contracts as card
+
+    return {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": str(found.get("reason") or "not_ready")}
+
+
+def remember_intake(company, row, answers, seen=None) -> int:
+    """开始前卡片对这条收单记录答的记下（写账判定 `precheck.remember` 调）：记录自己的几项（付款、各行物料、仓库）写回记录
+    （:func:`apply_intake_answers`），其余 Express 那几项按它将成为的单据重新收齐后核值、记下（`precheck.save`，同单据）。
+    已提交的按提交出的单据记。回 Express 那边记了几项。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    if not isinstance(answers, list) or any(not isinstance(answer, dict) for answer in answers):
+        frappe.throw(_("Invalid request"))
+    done = _submitted(row)
+    if done:
+        own = INTAKE_SUBJECT + row.name
+        rest = [answer for answer in answers if not str(answer.get("subject") or "").startswith((own, INTAKE_PAY))]
+        return write_precheck.save_answers(company, *done, rest, seen) if rest else 0
+    rest = apply_intake_answers(company, row.name, answers)
+    if not rest:
+        return 0
+    doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
+    import json
+
+    asked = intake_items(company, doc, json.loads(doc.result or "{}"))
+    found = intake_found(company, doc, asked, write_precheck.given_of(rest))
+    if found is None:
+        frappe.throw(_("Invalid request"))  # 记录自己的还没定齐时卡片不问 Express 那几项
+    return write_precheck.save(company, found, rest, seen)
 
 
 # ---------------- 收单记录在开始前卡片里要人定的（A 批 1b）----------------
@@ -380,9 +458,13 @@ def intake_items(company, doc, result) -> list:
     subject = INTAKE_SUBJECT + doc.name
     label = (result.get("supplier_name") if doc.direction == "purchase" else result.get("buyer_name")) \
         or result.get("doc_no") or doc.name
+    from pearnly_erp_portal.express import choices
+
     value = payment_default(company, doc.direction, result)
+    # 按对方记住过的（卡片上答过一次）是已定的，不再当预选；只按票面判出的是预选
+    kept = bool(value) and choices.chosen(company, PAYMENT_KIND, payment_subject(doc.direction, result)) == value
     items = [{"kind": "payment", "subject": payment_subject(doc.direction, result), "label": label, "value": value,
-              "source": card.RULE if value else "", "direction": doc.direction,
+              "source": card.REMEMBERED if kept else card.RULE if value else "", "direction": doc.direction,
               "options": [{"code": code, "name": _(METHOD_LABELS[code])} for code in _methods(doc.direction)]
               + [{"code": UNPAID, "name": _("Unpaid")}]}]
     chosen = json.loads(doc.line_choices or "null") or {}
@@ -520,9 +602,8 @@ def intake_search(company, doc_id, search, txt="", start=0, page_length=20) -> d
         fixed = [{"code": card_new(), "name": _new_label(row.direction)}, {"code": RECORD_ONLY, "name": _("Record only")}] \
             if not start and not str(txt or "").strip() else []
         return {"options": fixed + options[:size], "more": len(options) > size}
-    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
     doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
-    found = write_precheck.collect_form(doctype, chat_intake.build_payload(doc), company)
+    found = write_precheck.collect_form(push.PURCHASE if row.direction == "purchase" else push.SALES, intake_payload(doc), company)
     key = (found["result"].get("book") or {}).get("key") or ""
     return write_precheck.search_rows(key, row.direction, search, txt, start, size)
 
