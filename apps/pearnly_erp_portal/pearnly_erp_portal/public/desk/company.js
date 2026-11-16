@@ -348,26 +348,30 @@
 		// 还没写进 Express 的退货小票（退货单在排队、等原日汇总写入或停下）
 		const pending_refunds = express => (express.pending_refunds ? [{fieldname: "express_pending_refunds",
 			label: __("express.pendingRefunds"), fieldtype: "Int", read_only: 1, default: express.pending_refunds}] : []);
+		// 同期几份账套没选过：主档同步停下，在公司页选一次（与写单同一份记忆；11-15 不再默认读第一份，可能是 C 盘副本）
+		const book_choice = (express, company) => ((express.book_options || []).length ? [{fieldname: "express_book_choice",
+			label: __("Account Set"), fieldtype: "Select",
+			options: [{value: "", label: ""}, ...express.book_options.map(row => ({value: row.code, label: row.name}))],
+			change: async () => {
+				const key = form?.get_value?.("express_book_choice");
+				if (!key) return;
+				await p.call("pearnly_erp_portal.express.api.choose_masters_book", {company, key}, "POST");
+				p.success(t("company.notice.saved"), "click");
+				await show();
+			}}] : []);
 		const express_fields = (express, company) => [
 			// 两栏成行（11-01）：账套 | 同步时间，状态 | 原因；待写退货放在短的那一栏（原来左二格、右最多四格）
 			{fieldname: "express_book", label: __("Account Set"), fieldtype: "Data", read_only: 1,
 				default: express.express_book || ""},
-			// 同期几份账套没选过：主档同步停下，在这里选一次（与写单同一份记忆；11-15 不再默认读第一份，可能是 C 盘副本）
-			...((express.book_options || []).length ? [{fieldname: "express_book_choice", label: __("Account Set"),
-				fieldtype: "Select", options: [{value: "", label: ""}, ...express.book_options.map(row => ({value: row.code, label: row.name}))],
-				change: async () => {
-					const key = form?.get_value?.("express_book_choice");
-					if (!key) return;
-					await p.call("pearnly_erp_portal.express.api.choose_masters_book", {company, key}, "POST");
-					p.success(t("company.notice.saved"), "click");
-					await show();
-				}}] : []),
+			// 同期几份账套没选过：在短的那一栏出「账套」下拉（有原因时原因占右栏两行，下拉放左栏；没原因时放右栏）
+			...(express.express_sync_note ? book_choice(express, company) : []),
 			{fieldname: "express_sync_state", label: __("Status"), fieldtype: "Data", read_only: 1,
 				default: express.express_sync_state ? t(`company.syncExpress.${sync_key(express.express_sync_state)}`) : ""},
 			...(express.express_sync_note ? pending_refunds(express) : []),
 			{fieldtype: "Column Break"},
 			{fieldname: "express_synced_at", label: __("Express Synced At"), fieldtype: "Datetime", read_only: 1,
 				default: express.express_synced_at || ""},
+			...(express.express_sync_note ? [] : book_choice(express, company)),
 			...(express.express_sync_note ? [{fieldname: "express_sync_note", label: __("Reason"), fieldtype: "Small Text",
 				read_only: 1, default: SYNC_NOTES[express.express_sync_note]
 					? __(SYNC_NOTES[express.express_sync_note]) : express.express_sync_note}] : pending_refunds(express)),
