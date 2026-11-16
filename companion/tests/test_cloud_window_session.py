@@ -359,7 +359,7 @@ def test_apply_settings_properties_and_password_only_in_cleartext():
     adv = ax.subs["AdvancedSettings9"]
     assert adv.props == {"RDPPort": 3390, "AuthenticationLevel": 0, "EnableAutoReconnect": False,
                          "RedirectClipboard": False, "RedirectPrinters": False, "RedirectPorts": False,
-                         "RedirectSmartCards": False, "RedirectDrives": True, "ClearTextPassword": "s3cret!"}
+                         "RedirectSmartCards": False, "RedirectDrives": False, "ClearTextPassword": "s3cret!"}
     assert calls == [(ax, window.NonScriptable(enable_credssp=True, drive="X"))]
     leaked = [k for k, v in ax.props.items() if v == "s3cret!"]
     assert leaked == []
