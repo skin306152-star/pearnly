@@ -352,3 +352,26 @@ PEARNLY_ACC_SITE_TARGET=maclab PEARNLY_ACC_ERP_USER=acc.erp@maclab.test PEARNLY_
 | acc.erp.office.actor.purchase | 没跑 | 要配一个只用手机的员工（`PEARNLY_ACC_ERP_PHONE_USER`） | 现场 + office_actor 修复 |
 
 证据 `acceptance-runs/20261116-1814*`–`1817*-cea84e06b`。H5 现场在 TEST2 上原样复现，说明验收账套就能守这条。
+
+## 验收总表（产品 × 入口 × 场景；11-16 18:3x，按这张表报数）
+
+目标（用户）：覆盖整个产品、上线前必过。下表只算 **L3 真环境场景**（真账本 / 真 CC 桌面版）；L2 流程（实验栈）133 条另算。
+「有证据」= 当前登记里有新鲜的真环境证据（全部在新路径 `\\accserver\ACCOUNT\69EXP\TEST2` 上，被测提交 a1cf24198 / cea84e06b）。证据只登记通过的格；修复前红的格只有运行目录。
+
+| 产品 | 入口 | 登记场景 | 有证据（通过） | 跑过未过（产品缺陷 / 修复前红） | 没跑 |
+|---|---|---|---|---|---|
+| ERP | 网页 / 服务端（公司接入、权限、采购、销售、库存、收银、作废、收款网页） | 20 | 16 | 4（缺陷 1：sales.credit、collection.three / nbsp / web.twice） | 0 |
+| ERP | LINE 收款 | 2 | 0 | 2（缺陷 1：line.edit / line.refused） | 0 |
+| ERP | CC 代录 | 8 | 1（operator.purchase） | 4（缺陷 2：operator.sales；修复前红：intake H3、stock.group H5、masters.link） | 3（talk：Mac 栈没接模型；no.computer、office.actor：要另备现场） |
+| ERP | CC 对话直写（真模型） | 4 | 0 | 0 | 4（真模型，费用待批；Mac 栈没接模型） |
+| ERP | MR.ERP 直写 | 9 | 0 | 0 | 9（每周跑；要 test01 时段与三条依赖分支） |
+| Cowork | 录入页 → Express | 2 | 0 | 0 | 2（只在测试机1 实验栈跑，主会话排） |
+| **合计** | | **45** | **17** | **10** | **18** |
+
+全产品入口盘点（`check-acceptance --report`，11-12 快照，动作级）：787 个动作，其中有断言到业务结果的自动测试 399、只到页面或只有单测 269、只有部署检查或手工 25、完全没有 94；
+会写外部账本的产品地图行 57 条。L3 验收目前只覆盖 ERP 写 Express 这一条主链和收款；**没覆盖到的大块**：Cowork（除录入页 2 条）、DMS 与各 LINE 官方号、管理后台、登录与身份、订阅计费、CC 桌面版本体（只经代录 / 直写间接覆盖）。
+下一步对齐：引导式全覆盖总表（窗口 guided-cowork 在出）出来后，按它的「格」给每条验收场景标格号，没有场景的格列成欠账。
+
+### 报数口径
+- 每次汇报给：登记 / 有证据 / 跑过未过 / 没跑 四个数，加上「会写外部账本的行有新鲜证据的条数」。
+- 修复进 main 后由本窗口复跑对应的格并回填（缺陷 1 → sales.credit + 收款 6 格；缺陷 2 → operator.sales、masters.link；H3 / H5 → intake、stock.group；office_actor → no.computer、office.actor）。
