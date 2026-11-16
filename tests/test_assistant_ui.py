@@ -2557,6 +2557,26 @@ await core.delete("sesn_bbb001");
 assert.deepEqual(writes().at(-1).body, { session_id: "sesn_bbb001" });
 """)
 
+    def test_a_window_that_gets_focus_back_checks_the_list_once(self):
+        # 欠账 B62：电脑上一直开着、只被别的窗口挡住的页面拿到焦点不触发 visibilitychange；切回来也核对一次（别处刚置顶的即时进
+        # 「已置顶」），来回切窗口 5 秒内只读一次
+        self.run_page(r"""
+site.sessions = [row("sesn_aaa001", "First", 1), row("sesn_bbb001", "Second", 2)];
+const { core, threads } = sidebar();
+core.__internal_load();
+await core.getLoadThreadsPromise();
+watchList(() => threads);
+const before = listings().length;
+site.sessions = [row("sesn_aaa001", "First", 1), row("sesn_bbb001", "Second", 2, { starred: true })];
+g.fire("focus");
+await g.sleep(30);
+assert.equal(listings().length, before + 1);
+assert.equal(core.getItemById("sesn_bbb001").custom.starred, true);
+g.fire("focus");
+await g.sleep(30);
+assert.equal(listings().length, before + 1);
+""")
+
     def test_deleting_here_then_the_deleted_echo_reports_nothing(self):
         # 11-09 部署后 e2e（testcowork）：删开着的对话，Browser error「Entry not available in the store」两条。本页新建的对话
         # 有两行（本页那一行 + 重拉后服务端给的那一行），删掉后服务端那一行的数据还在组件库的列表快照里、编号已不在它的映射里，
@@ -4440,7 +4460,7 @@ assert.deepEqual(itemsOfCheck({ groups: [{ group: "payment", items: [{ key: "k",
         # 用户 10-17「记住的选择照这个样子改」：收起时一条一行、值在右、不常驻按钮；整行是开合按钮（原生按钮，回车 / 空格开合），
         # 一张卡一次只开一条；点开后两段式改现 / 赊（调 onSet，点已选的那段不调）、删除调 onForget、设为全公司只在能提升时出现
         self.run_page(r"""
-import { accountFull, choiceAfter, choiceFullLine, choiceValue, toggleChoice } from "@/components/company-cards";
+import { accountFull, choiceAfter, choiceFullLine, choiceValue, choiceValueParts, toggleChoice } from "@/components/company-cards";
 // 不经渲染直接拿元素树（ChoiceRow 不用 hook），找出按钮按下去
 const walk = (node: any, out: any[] = []): any[] => {
   if (Array.isArray(node)) node.forEach((n) => walk(n, out));
@@ -4459,7 +4479,11 @@ const pay = { key: "k1", source: "express", kind: "payment", subject_label: "ACM
 const closed = renderToStaticMarkup(createElement(ChoiceRow, props(pay, false)));
 assert.match(closed, /^<div class="cc-choice" data-slot="cc-choice" data-source="express" data-choice-key="k1"><button type="button" class="cc-choice-row" data-slot="cc-choice-row" aria-expanded="false">/);
 // 值也是渐隐的单行（同左边的对方名，Marquee）
-assert.ok(closed.indexOf("ACME") < closed.indexOf('<span class="cc-marquee cc-choice-value" data-slot="cc-choice-value"><span class="cc-marquee-text">Cash</span>'));
+assert.ok(closed.indexOf("ACME") < closed.indexOf('<span class="cc-choice-value" data-slot="cc-choice-value"><span class="cc-marquee cc-choice-codename"><span class="cc-marquee-text">Cash</span>'));
+// 代码类收起写「代码 名称」（用户 11-14）：代码一段写全，名称一段渐隐截断
+const coded = renderToStaticMarkup(createElement(ChoiceRow, props({ key: "k3", source: "express", kind: "party", subject_label: "ACME",
+  value: "S001", value_label: "S001 ACME TRADING" }, false)));
+assert.ok(coded.includes('<span class="cc-choice-value" data-slot="cc-choice-value"><span class="cc-choice-code">S001</span><span class="cc-marquee cc-choice-codename"><span class="cc-marquee-text">ACME TRADING</span>'), coded);
 assert.ok(!closed.includes("cc-choice-detail") && !closed.includes("<select"));
 assert.equal(walk((ChoiceRow as any)(props(pay, false))).length, 1);
 // 点开：整块填底（data-open）、aria-expanded=true；按钮依次是两段式、设为全公司、删除
@@ -4476,12 +4500,16 @@ assert.deepEqual(walk((ChoiceRow as any)(props(pay, true, false))).map(label).sl
 const history = { key: "k2", source: "history", kind: "account", subject_label: "", supplier_name: "ACME", value: "53-05-25-00",
   value_label: "53-05-25-00 Repairs", account_label: "53-05-25-00 Repairs", count: 6, last_date: "2026-09-30", promotable: true };
 assert.deepEqual(walk((ChoiceRow as any)(props(history, true))).map(label).slice(1), ["Set for whole company", "Delete"]);
-// 值：科目（含 Express 历史）只写科目码，现 / 赊写选项名；完整写法「科目码 科目名」（名称没带码的补上，没有名称只写码）
-assert.equal(choiceValue(history), "53-05-25-00");
+// 值：代码类（科目含 Express 历史、对方档、存货、部门、收款科目）收起时写「代码 名称」（用户 11-14：代码写全、名称放不下截断），
+// 现 / 赊写选项名；完整写法「科目码 科目名」（名称没带码的补上，没有名称只写码）
+assert.equal(choiceValue(history), "53-05-25-00 Repairs");
+assert.deepEqual(choiceValueParts(history), { code: "53-05-25-00", name: "Repairs" });
+assert.equal(choiceValue({ kind: "account", value: "53-05-25-00", value_label: "53-05-25-00" }), "53-05-25-00");
 assert.equal(choiceValue({ kind: "payment", value: "credit", value_label: "credit" }), "Credit");
-// 代码类（对方档、存货、部门、收款科目）收起时也只写代码，完整的「代码 名称」放在点开后的说明（第 10 轮审查：280 宽里对方名被挤到约 90）
+assert.deepEqual(choiceValueParts({ kind: "payment", value: "credit", value_label: "credit" }), { code: "", name: "Credit" });
 for (const kind of ["party", "item", "department", "receipt"]) {
-  assert.equal(choiceValue({ kind, value: "S001", value_label: "S001 ACME" }), "S001", kind);
+  assert.equal(choiceValue({ kind, value: "S001", value_label: "S001 ACME" }), "S001 ACME", kind);
+  assert.deepEqual(choiceValueParts({ kind, value: "S001", value_label: "ACME" }), { code: "S001", name: "ACME" }, kind);
   assert.equal(choiceFullLine({ kind, value: "S001", value_label: "S001 ACME" }), "S001 ACME", kind);
 }
 // POS 版式的值是内部的 auto / person：不写
@@ -4752,7 +4780,7 @@ assert.deepEqual(text(mrerpHtml).slice(2), ["TEST2019", new Intl.DateTimeFormat(
 assert.equal(mrerpHtml.split("data-covering").length, 2);   // 只有 TEST2019 一行
 assert.ok(mrerpHtml.indexOf("data-covering") < mrerpHtml.indexOf("TEST2019"));
 assert.ok(!html(SetsSection, { sets: mrerp.map((set) => ({ ...set, covers: false })), branches: [] }).includes("data-covering"));
-// 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目只写科目码）
+// 付款方式能直接改（点开后两段式）；从 Express 历史学到的只读、可删，写明来源；收起时一行 = 对方名 + 值（科目写「科目码 科目名」，用户 11-14）
 const pay = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k1", source: "express", kind: "payment",
   subject_label: "ACME", value: "credit", editable: true, year_label: "69" }, open, onSet() {}, onForget() {} }));
 assert.deepEqual(text(pay(false)), ["ACME", "Credit"]);
@@ -4761,8 +4789,8 @@ assert.ok(pay(true).includes('aria-pressed="true">Credit</button>'));
 const learned = (open: boolean) => renderToStaticMarkup(createElement(ChoiceRow, { choice: { key: "k2", source: "history", kind: "account",
   subject_label: "", supplier_name: "ACME", value: "5320", account_label: "5320 Utilities", count: 9, last_date: "2026-09-30" },
   open, onSet() {}, onForget() {} }));
-assert.deepEqual(text(learned(false)), ["ACME", "5320"]);
-assert.deepEqual(text(learned(true)), ["ACME", "5320", "From Express history · 9 · Sep 30, 2026", "ACME", "5320 Utilities", "Delete"]);
+assert.deepEqual(text(learned(false)), ["ACME", "5320", "Utilities"]);
+assert.deepEqual(text(learned(true)), ["ACME", "5320", "Utilities", "From Express history · 9 · Sep 30, 2026", "ACME", "5320 Utilities", "Delete"]);
 assert.match(learned(true), /<span class="cc-choice-full">ACME<svg[^>]*lucide-arrow-right/);
 // 按公司记的入账方式（可改、可删）、现用账套（只删，改选走待处理 / CC）与 Express 历史定下的入账方式（只删）：用户 2026-10-17
 // 「加上，方便看和删」。行样式以外壳为准：展开的入账方式行出两段按钮，现用账套行没有分段、只有删除
@@ -4789,7 +4817,7 @@ assert.deepEqual(text(policyRow(posting, true)), ["Goods documents", "Post to st
 assert.ok(policyRow(posting, true).includes('aria-pressed="true">Post to stock</button>'));
 assert.ok(!policyRow(book, true).includes("cc-choice-seg"));
 assert.deepEqual(text(policyRow(book, true)), ["Current year · Head office", "ABC 69", "69EXP", "Delete"]);
-// MR.ERP 账套记住的导入菜单 / 默认值（2026-10-19）：各自一组，菜单写菜单名、默认值收起时只写代码；点开是下拉（可选值点开时现取，
+// MR.ERP 账套记住的导入菜单 / 默认值（2026-10-19）：各自一组，菜单写菜单名、默认值收起时写「代码 名称」（用户 11-14）；点开是下拉（可选值点开时现取，
 // 先转圈），只能改、不能删、不能设为全公司
 const menu = { key: "m1", source: "mrerp", kind: "mrerp_menu", subject_label: "Purchase (goods)", value: "68", value_label: "ซื้อ",
   editable: true, year_label: "TEST2019", mrerp: { connection: "M1", account_set_key: "12:3", part: "menu", field: "purchase" } };
@@ -4798,9 +4826,9 @@ const dept = { key: "m2", source: "mrerp", kind: "mrerp_default", subject_label:
 assert.deepEqual([choiceSection(menu), choiceSection(dept)], ["mrerp_menu", "mrerp_default"]);
 assert.deepEqual([co.kind.mrerp_menu, co.kind.mrerp_default], ["MR.ERP import menu", "MR.ERP settings"]);
 assert.deepEqual(text(policyRow(menu, false)), ["Purchase (goods)", "ซื้อ"]);
-assert.deepEqual(text(policyRow(dept, false)), ["Department", "D001"]);
+assert.deepEqual(text(policyRow(dept, false)), ["Department", "D001", "บัญชี"]);
 const opened = policyRow(dept, true);
-assert.deepEqual(text(opened), ["Department", "D001", "TEST2019", "Department", "D001 บัญชี"]);
+assert.deepEqual(text(opened), ["Department", "D001", "บัญชี", "TEST2019", "Department", "D001 บัญชี"]);
 assert.ok(opened.includes("cc-spinner"));
 assert.ok(!opened.includes("cc-choice-forget") && !opened.includes("cc-choice-promote"));
 assert.equal(setChoiceShown([menu], "m1", "454", "ซื้อ2")[0].value_label, "ซื้อ2");
@@ -11550,6 +11578,48 @@ assert.deepEqual([opened, closed], [0, 0]);
 assert.deepEqual(f.log, ["start", "cancel"]);
 """)
 
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class SameNameCompanyGroupTests(unittest.TestCase):
+    def test_same_name_groups_say_the_branch_or_the_tax_id(self):
+        # 欠账 B31（11-09 对照审计「顺手看到」）：两个同名公司组，同一税号补分店（「分店 00012」/「总公司」），税号不同补税号；
+        # 不同名的不补；只用已有词条（co.branchN / co.headOffice）
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { projectTell } from "@/lib/managed-agents/projects";
+const head = { id: "CO-1", title: "นิภา เอ็กเช้นจ์ จำกัด", subtitle: "0105500000001" };
+const branch = { id: "CO-2", title: "นิภา เอ็กเช้นจ์ จำกัด", subtitle: "0105500000001 · 00012" };
+const other = { id: "CO-3", title: "Green Leaf Co., Ltd.", subtitle: "0105500000003" };
+assert.equal(projectTell(head, [head, branch, other]), "Head office");
+assert.equal(projectTell(branch, [head, branch, other]), "Branch 00012");
+assert.equal(projectTell(other, [head, branch, other]), "");
+assert.equal(projectTell(head, [head, other]), "");
+const twin = { id: "CO-4", title: "Green Leaf Co., Ltd.", subtitle: "0105500000004" };
+assert.equal(projectTell(other, [other, twin]), "0105500000003");
+assert.equal(projectTell(twin, [other, twin]), "0105500000004");
+(globalThis as any).done();
+""")
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { projectTell } from "@/lib/managed-agents/projects";
+const head = { id: "CO-1", title: "A", subtitle: "0105500000001" };
+const branch = { id: "CO-2", title: "A", subtitle: "0105500000001 · 00012" };
+assert.equal(projectTell(head, [head, branch]), "总公司");
+assert.equal(projectTell(branch, [head, branch]), "分店 00012");
+(globalThis as any).done();
+""", lang="zh")
+        source = read("components/assistant-ui/projects.tsx")
+        self.assertIn("const tell = useProjects((s) => projectTell(project, s.projects));", source)
+        self.assertIn("suffix={tell || undefined}", source)
+        self.assertIn("{suffix && <span className=\"cc-group-suffix\">· {suffix}</span>}", read("components/assistant-ui/sidebar-group.tsx"))
+
+    def test_row_buttons_have_the_standard_disabled_look(self):
+        # 欠账 B61（10-26 待办）：只剩一个位置时「×」（.cc-row-btn）禁用要有标准禁用样，同其他按钮
+        css = read("globals.css")
+        self.assertIn(".cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }", css)
 
 if __name__ == "__main__":
     unittest.main()

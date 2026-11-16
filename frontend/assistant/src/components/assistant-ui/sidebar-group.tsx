@@ -47,6 +47,8 @@ type HeaderProps = {
   icon?: ReactNode;
   /** 名字超长时的完整名称（悬停提示、读屏）。 */
   title?: string;
+  /** 名字后面不截断的一小段（同名公司组的「分店 00012」/ 税号）：名字放不下时只截名字。 */
+  suffix?: ReactNode;
   open: boolean;
   onToggle: () => void;
   /** 收起时名字后的点（组里有在跑、没看过的）。 */
@@ -63,7 +65,7 @@ type HeaderProps = {
   editing?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">;
 
-export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggle, dot, onMenuKey, handle, onMove, children, editing, className, ...rest }) => (
+export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, suffix, open, onToggle, dot, onMenuKey, handle, onMove, children, editing, className, ...rest }) => (
   <div data-slot="cc-group" data-marquee-host="" {...rest} className={cn("cc-group-row", className)}>
     {editing ? (
       <div className="cc-group-toggle" data-slot="cc-group-rename">
@@ -95,6 +97,7 @@ export const GroupHeader: FC<HeaderProps> = ({ label, icon, title, open, onToggl
     >
       {icon}
       <Marquee className="cc-group-name">{label}</Marquee>
+      {suffix && <span className="cc-group-suffix">· {suffix}</span>}
       <ChevronRightIcon className="cc-group-caret" aria-hidden />
       {dot}
     </button>

@@ -13,6 +13,7 @@
 
 import { create } from "zustand";
 import { get } from "@/lib/frappe";
+import { co } from "@/i18n";
 import { clock } from "@/lib/prefs-sync";
 import { type Filing, moveSession } from "./api";
 import { withReport } from "../caught";
@@ -452,3 +453,13 @@ export function resetProjects() {
   });
 }
 
+/** 侧栏里有同名的公司组时，组头名字后面补一段分得开的（11-09 对照审计「顺手看到」：testerp 两个同名组其实是同一税号的
+ *  两个分店，组头只写名字看着像重复建档）：税号不同就补税号，同一税号补分店（「分店 00012」/「总公司」）；没有同名的回 ""。
+ *  副标题是服务端给的「税号」或「税号 · 分店号」（总公司不带分店号，ERP masters/cc_service.subtitle）。 */
+export function projectTell(project: ProjectRow, all: readonly ProjectRow[]): string {
+  const twins = all.filter((p) => p.id !== project.id && p.title === project.title);
+  if (!twins.length) return "";
+  const [tax = "", branch = ""] = (project.subtitle ?? "").split(" · ");
+  if (twins.some((p) => (p.subtitle ?? "").split(" · ")[0] !== tax)) return tax;
+  return branch ? co.branchN(branch) : co.headOffice;
+}

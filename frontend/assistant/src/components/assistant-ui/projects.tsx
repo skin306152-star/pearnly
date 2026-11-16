@@ -57,6 +57,7 @@ import {
   type ProjectRow,
   setDraft,
   setError,
+  projectTell,
   useProjects,
 } from "@/lib/managed-agents/projects";
 import { useModePlace, useView } from "@/lib/nav";
@@ -266,6 +267,7 @@ export function CompanyHeaderView({
   editing?: ReactNode;
   children?: ReactNode;
 } & Omit<HTMLAttributes<HTMLDivElement>, "title" | "children">) {
+  const tell = useProjects((s) => projectTell(project, s.projects));
   return (
     <GroupHeader
       {...rest}
@@ -274,7 +276,8 @@ export function CompanyHeaderView({
       className="group/project cc-project-row"
       icon={<Building2Icon className="cc-group-icon" aria-hidden />}
       label={project.title}
-      title={project.title}
+      title={[project.title, tell].filter(Boolean).join(" · ")}
+      suffix={tell || undefined}
       open={open}
       onToggle={onToggle}
       onMenuKey={onMenuKey}

@@ -50,6 +50,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { Marquee } from "@/components/ui/marquee";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, SubMenu, menuOffset } from "@/components/ui/menu";
 import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useState, type ReactNode } from "react";
 import { ModeSwitch, useOperatorBridge } from "@/components/operator";
@@ -203,16 +204,33 @@ function Welcome() {
   );
 }
 
-/** 打开已有对话、消息还没取回时（同 Claude 手机端：形象居中轻轻浮动，下面一行「正在加载消息」） */
+/** 打开已有对话、消息还没取回时。手机同 Claude 手机端：形象居中轻轻浮动，下面一行「正在加载消息」；
+ *  电脑同 Claude 网页（11-09 对照审计 #12，截图 docs/work/2026-11-09-cc-vs-claude-ux-audit/claude-08）：按消息的位置画灰色骨架——
+ *  右边一条提问气泡、下面三段回复的细条，内容到了原地换掉。两种都画，按外壳变体只显示一种（globals.css .cc-loading）。 */
 function ThreadLoading() {
   const mascot = assistantMascot();
   return (
     <div className="cc-loading" role="status">
-      {mascot && <Mascot src={mascot} className="pearnly-mascot-host" />}
-      {t("loadingMessages")}
+      <div className="cc-loading-mascot">
+        {mascot && <Mascot src={mascot} className="pearnly-mascot-host" />}
+        {t("loadingMessages")}
+      </div>
+      <div className="cc-loading-skeleton" aria-hidden="true">
+        <Skeleton className="cc-loading-ask h-(--cc-control-lg) rounded-(--cc-radius-lg)" />
+        {LOADING_LINES.map((lines, i) => (
+          <div key={i} className="cc-loading-para">
+            {lines.map((w, j) => (
+              <Skeleton key={j} className="cc-loading-line h-(--cc-space-8) rounded-full" data-w={w} />
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
+
+/** 骨架三段回复每行的长短（占栏宽的百分比档，globals.css 的 .cc-loading-line[data-w]），照 Claude 那张截图的样子。 */
+const LOADING_LINES = [["96", "100", "92", "58"], ["100", "94", "41"], ["97", "90", "66"]] as const;
 
 function SessionStatusBar() {
   const snapshot = useActiveSessionSnapshot();

@@ -660,18 +660,27 @@ export function setChoiceShown(choices: readonly Choice[], key: string, value: s
 /** 一张卡一次只展开一条：点开着的那条收起，点别的换成它。 */
 export const toggleChoice = (open: string, key: string) => (open === key ? "" : key);
 
-/** 值是主档代码的几类：科目（含 Express 历史）、收款科目、对方档、存货、部门。收起时只写代码（280 宽右侧栏里「代码 名称」长串会把
- *  左边的对方名挤得看不见，对方档的名称又常就是对方名本身），完整的「代码 名称」在点开后的说明里（第 10 轮审查）。 */
+/** 值是主档代码的几类：科目（含 Express 历史）、收款科目、对方档、存货、部门。收起时写「代码 名称」，与 CC 说的一致
+ *  （用户 11-14：代码 + 名称，放不下时名称截断、代码完整；取代 10-17 第 10 轮「收起只写代码」）。 */
 const CODE_KINDS = new Set(["account", "receipt", "party", "item", "department", "location", "mrerp_default"]);
 
-/** 行尾的值（收起时 12px 淡色、不换行，放不下渐隐）：能改的写选项名（现购 / 赊购），代码类只写代码，POS 版式不写（值是内部的
- *  auto / person，没有给人看的说法），其余写显示名。 */
-export function choiceValue(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">): string {
+/** 行尾的值拆成两段：code 是代码类的代码（放不下也写全），name 是其余部分（放不下就截断）。能改的写选项名（现购 / 赊购），
+ *  代码类写「代码 名称」（不知道名称只写代码），POS 版式不写（值是内部的 auto / person，没有给人看的说法），其余写显示名。 */
+export function choiceValueParts(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">): { code: string; name: string } {
   const option = EDITABLE[choice.kind]?.find((o) => o.value === choice.value);
-  if (option) return option.label();
-  if (CODE_KINDS.has(choice.kind)) return choice.value;
-  if (choice.kind === "pos_layout") return "";
-  return choice.value_label || choice.account_label || choice.value;
+  if (option) return { code: "", name: option.label() };
+  if (CODE_KINDS.has(choice.kind)) {
+    const full = accountFull(choice);
+    return { code: choice.value, name: full.startsWith(choice.value) ? full.slice(choice.value.length).trim() : "" };
+  }
+  if (choice.kind === "pos_layout") return { code: "", name: "" };
+  return { code: "", name: choice.value_label || choice.account_label || choice.value };
+}
+
+/** 行尾的值（收起时 12px 淡色、不换行）：同 choiceValueParts 两段连起来。 */
+export function choiceValue(choice: Pick<Choice, "kind" | "value" | "value_label" | "account_label">): string {
+  const { code, name } = choiceValueParts(choice);
+  return [code, name].filter(Boolean).join(" ");
 }
 
 /** 代码的完整写法「代码 名称」（名称里已带码的照原样；没有名称只写码）。 */
@@ -844,14 +853,19 @@ export const ChoiceRow: FC<ChoiceRowProps> = ({ choice, open = false, busy = fal
     : rule
       ? [ruleScope(choice), choice.set_by_name ?? "", formatWhen(choice.set_at)]
       : [choice.year_label ?? "", choice.set_by_name ?? "", formatWhen(choice.set_at)];
-  const value = choiceValue(choice);
+  const value = choiceValueParts(choice);
   const full = choiceFullLine(choice);
   const alert = error ? <p role="alert" className="cc-choice-error text-danger" data-slot="cc-choice-error">{error}</p> : null;
   return (
     <div className="cc-choice" data-slot="cc-choice" data-source={choice.source} data-choice-key={choice.key} data-open={open ? "" : undefined}>
       <button type="button" className="cc-choice-row" data-slot="cc-choice-row" aria-expanded={open} onClick={onToggle}>
         {open ? <span className="cc-choice-name">{subject}</span> : <Marquee className="min-w-0 flex-1 truncate">{subject}</Marquee>}
-        {value && <Marquee className="cc-choice-value" data-slot="cc-choice-value">{value}</Marquee>}
+        {(value.code || value.name) && (
+          <span className="cc-choice-value" data-slot="cc-choice-value">
+            {value.code && <span className="cc-choice-code">{value.code}</span>}
+            {value.name && <Marquee className="cc-choice-codename">{value.name}</Marquee>}
+          </span>
+        )}
       </button>
       {open && (
         <div className="cc-choice-detail" data-slot="cc-choice-detail">

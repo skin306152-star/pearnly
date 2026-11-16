@@ -658,6 +658,15 @@
   /* 你发的消息里的附件卡片（同 Claude）：宽 120、缩略图 128 高（整张约 2:3）；圆角、内环同会话栏卡片 */
   --cc-attach-w: 7.5rem;          /* 外壳实测 */
   --cc-attach-thumb-h: 8rem;      /* 外壳实测 */
+  --cc-skel-w-97: 97%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-96: 96%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-94: 94%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-92: 92%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-90: 90%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-66: 66%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-58: 58%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-41: 41%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
+  --cc-skel-w-40: 40%;   /* 外壳实测：Claude 网页加载骨架各行长短（审计 #12 claude-08） */
   /* 输入框里的附件方块（照 Claude 桌面版 7.webp：约 128×128、圆角 8、图片整张放进方块）；手机同样的方块缩到 72（390 宽一行放得下 4 个） */
   --cc-attach-tile: 8rem;         /* 外壳实测：7.webp */
   --cc-attach-tile-phone: 4.5rem; /* 现有值·CC 自定：390 宽一行放得下 4 个 */
@@ -1151,6 +1160,8 @@
   }
   .cc-row-btn:hover, .cc-row-btn[data-state="open"] { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-row-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  /* 不能点时同其他按钮的标准禁用样（例：设置里只剩一个位置时的「×」，10-26 待办） */
+  .cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-row-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
 
   /* 手机顶栏的圆形按钮（同 Claude 手机端） */
@@ -1203,6 +1214,8 @@
   .cc-group-row:hover .cc-group-toggle, .cc-group-toggle:focus-visible { color: var(--cc-ink-2); }
   .cc-group-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-group-name { min-width: 0; overflow: hidden; white-space: nowrap; }
+  /* 同名公司组名字后的「· 分店 00012」/ 税号（欠账 B31）：不截断，名字放不下只截名字 */
+  .cc-group-suffix { flex-shrink: 0; white-space: nowrap; color: var(--cc-ink-3); }
   .cc-group-caret {
     flex-shrink: 0; width: var(--cc-group-chevron); height: var(--cc-group-chevron); opacity: var(--cc-reveal-rest);
     transition: opacity var(--cc-reveal) var(--cc-ease), transform var(--cc-dur-fast) var(--cc-ease);
@@ -1641,7 +1654,6 @@
     font-weight: var(--cc-weight-medium); overflow-wrap: anywhere;
   }
   .cc-askq-pager { display: flex; flex-shrink: 0; align-items: center; gap: var(--cc-space-2); color: var(--cc-ink-3); font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); }
-  .cc-askq-pager .cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
   .cc-askq-pager svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
   .cc-askq-nth { font-variant-numeric: tabular-nums; white-space: nowrap; }
   .cc-askq-options { display: flex; flex-direction: column; border-top: var(--cc-ring-w) solid var(--cc-line); }
@@ -1711,7 +1723,23 @@
   .cc-logo { flex-shrink: 0; border-radius: 22%; }
 
   /* 打开对话、消息取回前的加载（同 Claude：形象居中轻轻上下浮动 + 一行灰字） */
-  .cc-loading { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: var(--cc-space-12); color: var(--cc-ink-3); font-size: var(--cc-text-subhead); }
+  .cc-loading { display: flex; flex: 1; flex-direction: column; }
+  .cc-loading-mascot { display: flex; flex: 1; flex-direction: column; align-items: center; justify-content: center; gap: var(--cc-space-12); color: var(--cc-ink-3); font-size: var(--cc-text-subhead); }
+  /* 电脑：同 Claude 网页的骨架（审计 #12）——右边一条提问气泡，下面三段细条；手机仍是形象 + 一行字（同 Claude 手机端） */
+  .cc-loading-skeleton { display: none; flex: 1; flex-direction: column; gap: var(--cc-space-16); }
+  :root:not([data-cc-variant="phone"]) .cc-loading-mascot { display: none; }
+  :root:not([data-cc-variant="phone"]) .cc-loading-skeleton { display: flex; }
+  .cc-loading-ask { align-self: flex-end; width: var(--cc-skel-w-40); }
+  .cc-loading-para { display: flex; flex-direction: column; gap: var(--cc-space-8); }
+  .cc-loading-line[data-w="100"] { width: 100%; }
+  .cc-loading-line[data-w="97"] { width: var(--cc-skel-w-97); }
+  .cc-loading-line[data-w="96"] { width: var(--cc-skel-w-96); }
+  .cc-loading-line[data-w="94"] { width: var(--cc-skel-w-94); }
+  .cc-loading-line[data-w="92"] { width: var(--cc-skel-w-92); }
+  .cc-loading-line[data-w="90"] { width: var(--cc-skel-w-90); }
+  .cc-loading-line[data-w="66"] { width: var(--cc-skel-w-66); }
+  .cc-loading-line[data-w="58"] { width: var(--cc-skel-w-58); }
+  .cc-loading-line[data-w="41"] { width: var(--cc-skel-w-41); }
   .cc-loading .pearnly-mascot-host { height: var(--cc-mascot-h-sm); animation: cc-bob var(--cc-bob-dur) var(--cc-ease) infinite alternate; }
 
   /* 欢迎页「把 CC 装到这台设备」的小提示（components/install-prompt.tsx）：卡片按钮（.cc-card-btn）——「添加」主要，右边 × 关掉 */
@@ -2426,9 +2454,12 @@
   .cc-choice-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .cc-choice-row:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-choice-value {
-    flex-shrink: 0; max-width: var(--cc-choice-value-max); overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
+    display: flex; flex-shrink: 0; min-width: 0; max-width: var(--cc-choice-value-max); gap: var(--cc-space-4); overflow: hidden; white-space: nowrap; color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh); font-variant-numeric: tabular-nums;
   }
+  /* 「代码 名称」（用户 11-14）：代码写全，名称放不下就截断渐隐 */
+  .cc-choice-code { flex-shrink: 0; }
+  .cc-choice-codename { min-width: 0; flex: 1; }
   .cc-choice-detail {
     display: flex; flex-direction: column; padding: 0 var(--cc-space-4) var(--cc-space-6); color: var(--cc-ink-3);
     font-size: var(--cc-text-caption); line-height: var(--cc-text-caption-lh);

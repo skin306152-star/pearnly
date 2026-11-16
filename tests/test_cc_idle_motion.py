@@ -58,6 +58,8 @@ WORKING_CSS = {
 BUSY_MARKER = re.compile(r"animate-(?:spin|pulse|ping|bounce)\b|\banimate-cc-pulse\b|\bcc-spinner\b|<TypingDots\b|<Skeleton\b|\"cc-loading\"")
 BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
+    # 电脑上的加载骨架（审计 #12）：同一个 ThreadLoading 里，只在 isLoading 时挂载
+    ("assistant.tsx", "<Skeleton", "function ThreadLoading()", 16),
     # 标准组件库的转圈：组件本身就是「在忙」的标记，调用方只在忙时挂（docs/development/cc-ui-kit.md）
     ("components/ui/spinner.tsx", "cc-spinner", "function Spinner(", 8),
     # 开发用展示页（只在开发服务器与 CC_KIT=1 构建里）：骨架摆出来看样子

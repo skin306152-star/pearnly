@@ -13,7 +13,7 @@
 // 之前，「显示更多」翻不到它，只能重拉。
 // 本页自己刚改过的对话（这次请求发出之后改的）不按这一页改。不另开定时。第一页带全部置顶的：本页标着置顶、却不在这一页里的
 // （很旧，在别处取消了置顶）照服务端换成没置顶。核对完、推来的置顶有变化时，记给侧栏按数据收拾手排顺序时判断依据新不新
-// （sidebar-order.ts 的 noteListRead）。拿到焦点（电脑上一直开着的窗口不触发 visibilitychange）不核对。
+// （sidebar-order.ts 的 noteListRead）。拿到焦点（电脑上一直开着的窗口不触发 visibilitychange）也核对，5 秒内只一次。
 // 一段对话在本页可能有两行数据（本页新建的那行 + 重拉列表后服务端给的那行：组件库按编号各存一份），都改。
 //
 // 公司分组（projects.ts）走同一个通道：pearnly.project 的改名（upsert）、删公司（delete）、对话改月份分店或删公司时回到最近（move）
@@ -35,6 +35,8 @@ import { reportCaught, withReport } from "../caught";
 
 // 推来的几条合成一次重拉
 const RELOAD_MS = 1000;
+// 拿到焦点时的核对：来回切窗口时最多这么久读一次
+const FOCUS_GAP_MS = 5000;
 
 type ItemData = {
   readonly id: string;
@@ -239,6 +241,15 @@ export function watchList(threads: () => ListThreads): () => void {
   const onVisible = () => document.visibilityState === "visible" && void check();
   const onPageShow = (event: { persisted?: boolean }) => event.persisted && void check();
   const onOnline = () => void check();
+  // 拿到焦点：电脑上一直开着、只是被别的窗口挡住的页面不触发 visibilitychange，切回来也核对一次（别处刚置顶的即时进「已置顶」，
+  // 欠账 B62）；来回切窗口不连着读，同一页 FOCUS_GAP_MS 内只读一次
+  let focusedAt = 0;
+  const onFocus = () => {
+    const now = Date.now();
+    if (now - focusedAt < FOCUS_GAP_MS) return;
+    focusedAt = now;
+    void check();
+  };
   const offConnection = onConnectionChange((connected) => {
     if (!connected) lost = true;
     else if (lost) {
@@ -249,6 +260,7 @@ export function watchList(threads: () => ListThreads): () => void {
   document.addEventListener("visibilitychange", onVisible);
   window.addEventListener("pageshow", onPageShow);
   window.addEventListener("online", onOnline);
+  window.addEventListener("focus", onFocus);
   return () => {
     offChange();
     offMessage();
@@ -261,5 +273,6 @@ export function watchList(threads: () => ListThreads): () => void {
     document.removeEventListener("visibilitychange", onVisible);
     window.removeEventListener("pageshow", onPageShow);
     window.removeEventListener("online", onOnline);
+    window.removeEventListener("focus", onFocus);
   };
 }
