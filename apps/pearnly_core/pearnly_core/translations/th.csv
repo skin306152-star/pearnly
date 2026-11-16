@@ -56,7 +56,6 @@ Approved amounts are credited to your balance.,ยอดที่อนุมั
 Are you sure you want to sign out?,ต้องการออกจากระบบใช่หรือไม่
 Arguments,อาร์กิวเมนต์
 Asked before posting,ถามก่อนบันทึกบัญชีแล้ว
-Asked before writing,ถามก่อนบันทึกแล้ว
 Asked questions,ถามคำถามแล้ว
 Attempt,จำนวนครั้งที่พยายาม
 Attempts,จำนวนครั้งที่พยายาม
@@ -527,10 +526,8 @@ Not done,ยังไม่เสร็จ
 Not enough stock,สต็อกไม่พอ
 Not linked,ยังไม่ผูก
 Not permitted,ไม่ได้รับอนุญาต
-Not posted this time,ครั้งนี้ไม่บันทึกบัญชี
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
-Not written this time,ครั้งนี้ไม่บันทึก
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
@@ -977,7 +974,6 @@ Work Scope,ขอบเขตงาน
 Work together,ทำงานร่วมกัน
 Worker currently processing this row.,ผู้ที่กำลังประมวลผลรายการนี้
 Workspace,พื้นที่ทำงาน
-Write as on the document,บันทึกตามเอกสาร
 Writing Key,ชุดบัญชีที่กำลังบันทึก
 Written At,เวลาบันทึก
 Written By,เครื่องที่บันทึก
@@ -1105,8 +1101,6 @@ connect.yes,ใช่
 e.g. Ming (sales),เช่น สมชาย (ฝ่ายขาย)
 google-auth is missing (the image should have it): {0},ขาด google-auth (อิมเมจควรมีให้แล้ว): {0}
 guide.desc.detail.amount_only,บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก
-guide.desc.detail.skip,ครั้งนี้ไม่บันทึกบัญชี
-guide.desc.document_policy.skip,ครั้งนี้ไม่บันทึกบัญชี
 guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express
 guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด

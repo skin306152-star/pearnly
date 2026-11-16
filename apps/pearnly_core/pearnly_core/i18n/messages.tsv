@@ -1101,8 +1101,6 @@ Account set setting	账套设置	การตั้งค่าชุดบั�
 Recorded as a cash purchase or sale	记为现购 / 现销	บันทึกเป็นซื้อ / ขายเงินสด	現金仕入・現金売上として記帳	guide.desc.payment.cash
 Recorded as a credit purchase or sale	记为赊购 / 赊销	บันทึกเป็นซื้อ / ขายเงินเชื่อ	掛仕入・掛売上として記帳	guide.desc.payment.credit
 Header and journal only, no stock	只记表头与分录，不入库	บันทึกหัวเอกสารและบัญชี ไม่เข้าสต็อก	見出しと仕訳のみ、在庫に入れない	guide.desc.detail.amount_only
-Not posted this time	本次不入账	ครั้งนี้ไม่บันทึกบัญชี	今回は記帳しない	guide.desc.detail.skip
-Not posted this time	本次不入账	ครั้งนี้ไม่บันทึกบัญชี	今回は記帳しない	guide.desc.document_policy.skip
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.party.__new__
 Create it in Express	在 Express 新建	สร้างใหม่ใน Express	Express で新規作成	guide.desc.item.__new__
 {count} documents are {label}	{count} 张票面是{label}	เอกสาร {count} ใบเป็น{label}	{count} 件の書類は{label}	guide.q.business_mismatch

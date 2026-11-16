@@ -56,7 +56,6 @@ Approved amounts are credited to your balance.,Approved amounts are credited to 
 Are you sure you want to sign out?,Are you sure you want to sign out?
 Arguments,Arguments
 Asked before posting,Asked before posting
-Asked before writing,Asked before writing
 Asked questions,Asked questions
 Attempt,Attempt
 Attempts,Attempts
@@ -526,10 +525,8 @@ Not done,Not done
 Not enough stock,Not enough stock
 Not linked,Not linked
 Not permitted,Not permitted
-Not posted this time,Not posted this time
 Not signed in,Not signed in
 Not subscribed,Not subscribed
-Not written this time,Not written this time
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
@@ -975,7 +972,6 @@ Work Scope,Work Scope
 Work together,Work together
 Worker currently processing this row.,Worker currently processing this row.
 Workspace,Workspace
-Write as on the document,Write as on the document
 Writing Key,Writing Key
 Written At,Written At
 Written By,Written By
@@ -1103,8 +1099,6 @@ connect.yes,Yes
 e.g. Ming (sales),e.g. Ming (sales)
 google-auth is missing (the image should have it): {0},google-auth is missing (the image should have it): {0}
 guide.desc.detail.amount_only,"Header and journal only, no stock"
-guide.desc.detail.skip,Not posted this time
-guide.desc.document_policy.skip,Not posted this time
 guide.desc.item.__new__,Create it in Express
 guide.desc.party.__new__,Create it in Express
 guide.desc.payment.cash,Recorded as a cash purchase or sale

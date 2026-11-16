@@ -353,8 +353,8 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 | guide.option.document_policy.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
 | guide.option.detail.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
 | guide.option.business.skip | 不写入 → 不入账 | Skip | ไม่บันทึกบัญชี | 記帳しない |
-| guide.desc.detail.skip | 本次不写入 → 本次不入账 | Not posted this time | ครั้งนี้ไม่บันทึกบัญชี | 今回は記帳しない |
-| guide.desc.document_policy.skip | 本次不写入 → 本次不入账 | Not posted this time | ครั้งนี้ไม่บันทึกบัญชี | 今回は記帳しない |
+| guide.desc.detail.skip | **已删除**（用户 11-16：选项「不入账」下面的说明与选项本身重复，不再有说明行） | — | — | — |
+| guide.desc.document_policy.skip | **已删除**（用户 11-16：选项「不入账」下面的说明与选项本身重复，不再有说明行） | — | — | — |
 | guide.option.business.follow | 按票面写入 → 按票面入账 | Post as on the document | บันทึกบัญชีตามเอกสาร | 書類どおりに記帳 |
 | （步骤名，源串 Asked before writing → Asked before posting） | 写入前已询问 → 入账前已询问 | Asked before posting | ถามก่อนบันทึกบัญชีแล้ว | 記帳前に確認しました |
 
@@ -368,3 +368,12 @@ Cowork 判定源（`assistant/precheck_source.py`）：CC 对话里（引导模�
 - 业务菜单改用单独的 `data-slot="cc-business-menu"`（不再占 `cc-quick-replies`），`cc_guide.py` 与 `test_cc_guide_menu.py` 同步。
 - 本机实验栈 `pearnly-guided-p0-lab`（线上镜像 02eebaa4，头 055a46369）：`cowork.cc.record-reply` + 六条流程 `--jobs 2` 合跑 **18/18**（record-reply 新旧数据都过）。
 - `cowork.cc.guide [new/desktop]` 与 `cowork.cc.ask` 并行（`--jobs 2`）连跑 4 轮，4/4 通过，「第二次调用为空」没有复现；不改代码。
+
+
+### 文案：11-16 用户过目结果
+
+- 9 处「写入 → 入账」同意。
+- 选项说明行删掉与选项本身重复的两处：`guide.desc.detail.skip`、`guide.desc.document_policy.skip`（「本次不入账」）；选项「不入账」下面不再有说明行（没有词条时说明行本来就不出）。
+  其余保留：只记表头与分录不入库、在 Express 新建（对方 / 物料各一）、记为现购 / 现销、记为赊购 / 赊销。登记表 `copy-approved.tsv` 同步删两行。
+- 文案闸报的「标黄 12 处」不是说明行：是四种语言翻译包里各 3 行「写入」旧写法的残留（Asked before writing / Not written this time / Write as on the document，术语表里已改成「入账」，生成器不删旧行），已删，标黄 0。
+- 截图 `docs/work/2026-11-12-cc-guided-phase1/` 里明细题「不入账」下面那行「本次不入账」是旧样子，展示页 `kit/guide.tsx` 已同步去掉。

@@ -56,7 +56,6 @@ Approved amounts are credited to your balance.,审核通过后计入账户余额
 Are you sure you want to sign out?,确定要退出登录吗？
 Arguments,参数
 Asked before posting,入账前已询问
-Asked before writing,写入前已询问
 Asked questions,已提问
 Attempt,尝试次数
 Attempts,尝试次数
@@ -527,10 +526,8 @@ Not done,未完成
 Not enough stock,库存不够
 Not linked,未绑定
 Not permitted,没有权限
-Not posted this time,本次不入账
 Not signed in,未登录
 Not subscribed,未订阅
-Not written this time,本次不写入
 Note,备注
 Notes,备注
 Nothing to save,没有需要保存的更改
@@ -977,7 +974,6 @@ Work Scope,工作范围
 Work together,工作协作
 Worker currently processing this row.,当前处理该记录的执行者。
 Workspace,工作区
-Write as on the document,按票面写入
 Writing Key,写入中的账套
 Written At,写入时间
 Written By,写入的电脑
@@ -1105,8 +1101,6 @@ connect.yes,是
 e.g. Ming (sales),如：阿明（销售）
 google-auth is missing (the image should have it): {0},缺少 google-auth（镜像里应已安装）：{0}
 guide.desc.detail.amount_only,只记表头与分录，不入库
-guide.desc.detail.skip,本次不入账
-guide.desc.document_policy.skip,本次不入账
 guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建
 guide.desc.payment.cash,记为现购 / 现销

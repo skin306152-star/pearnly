@@ -56,7 +56,6 @@ Approved amounts are credited to your balance.,承認後、残高に反映され
 Are you sure you want to sign out?,ログアウトしますか？
 Arguments,引数
 Asked before posting,記帳前に確認しました
-Asked before writing,書き込み前に確認しました
 Asked questions,質問しました
 Attempt,試行回数
 Attempts,試行回数
@@ -527,10 +526,8 @@ Not done,未完了
 Not enough stock,在庫が足りません
 Not linked,未連携
 Not permitted,権限がありません
-Not posted this time,今回は記帳しない
 Not signed in,未ログイン
 Not subscribed,未登録
-Not written this time,今回は書き込まない
 Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
@@ -977,7 +974,6 @@ Work Scope,作業範囲
 Work together,コラボレーション
 Worker currently processing this row.,現在この行を処理している実行者。
 Workspace,ワークスペース
-Write as on the document,書類どおりに書き込む
 Writing Key,書き込み中の会計データ
 Written At,書き込み日時
 Written By,書き込んだパソコン
@@ -1105,8 +1101,6 @@ connect.yes,はい
 e.g. Ming (sales),例：ミン（営業）
 google-auth is missing (the image should have it): {0},google-auth がありません（イメージには入っているはず）: {0}
 guide.desc.detail.amount_only,見出しと仕訳のみ、在庫に入れない
-guide.desc.detail.skip,今回は記帳しない
-guide.desc.document_policy.skip,今回は記帳しない
 guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成
 guide.desc.payment.cash,現金仕入・現金売上として記帳
