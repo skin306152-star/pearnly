@@ -412,14 +412,13 @@ class GuideRunSourceTests(unittest.TestCase):
         self.assertIn("return viewGuide(view.run);", head)
         self.assertNotIn("block.login", head)
 
-    def test_stop_ends_an_open_guide_and_allow_cards_ask_a_question(self):
-        # 主会话 11-16：题卡不放取消，退出走对话——引导进行中、模型没在跑、输入框空着时输入框旁是停止键，点了 / Esc 调 guide_cancel；
-        # 允许式确定的标题栏是服务端给的问句（consent_title），没有退回业务名
+    def test_idle_composer_keeps_send_and_allow_cards_ask_a_question(self):
+        # 主会话 11-16 更正（守用户 11-08「模型空闲就是发送，模型在工作就是停止」）：引导开着时空闲的输入框照旧是发送键，
+        # 不出停止键、Esc 不结束引导；退出靠用户说「不做了」由服务端结束（卡读回失效）。允许式标题栏是 consent_title
         thread = read("components/assistant-ui/thread.tsx")
-        self.assertIn('const open = runs.filter((run) => run.status === "asking" || run.status === "reviewing");', thread)
-        self.assertIn("const endGuide = (run: string) => void cancelGuide(run)", thread)
-        self.assertIn("<StopButton onStop={() => endGuide(guideRun)} />", thread)
-        self.assertIn("else if (guideStop) endGuide(guideRun);", thread)
+        self.assertNotIn("guideStop", thread)
+        self.assertNotIn("cancelGuide", thread)
+        self.assertIn("<AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>{send}</AuiIf>", thread)
         review = read("components/tool-uis/guide-review.tsx")
         self.assertIn("title={view.consent_title || businessName(view.business)}", review)
 
