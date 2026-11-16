@@ -255,7 +255,9 @@ function view(run: Run): GuideView {
     const action = String(run.answers.action);
     const word: Record<string, string> = { count: L("记数", "บันทึกจำนวน", "Record count", "数量を記録"), close: L("结束盘点", "ปิดการนับสต็อก", "Close stocktake", "棚卸を締める"),
       delete: L("删除这次盘点", "ลบการนับครั้งนี้", "Delete this stocktake", "この棚卸を削除") };
-    return { ...base, consent: action === "count" ? "confirm" : "allow", review: { version: run.version, ready: true, lines: [
+    return { ...base, consent: action === "count" ? "confirm" : "allow",
+      ...(action === "count" ? {} : { consent_title: action === "close" ? L("结束这次盘点？", "ปิดการนับสต็อกครั้งนี้?", "Close this stocktake?", "この棚卸を締めますか？")
+        : L("删除这次盘点？", "ลบการนับครั้งนี้?", "Delete this stocktake?", "この棚卸を削除しますか？") }), review: { version: run.version, ready: true, lines: [
       { key: "stocktake", label: L("盘点", "การนับสต็อก", "Stocktake", "棚卸"), value: "ST-2611-01 · 01 คลังหลัก" },
       { key: "action", label: L("做什么", "ทำอะไร", "Action", "操作"), value: word[action], step: "action" },
       { key: "items", label: L("已数物料", "รายการที่นับแล้ว", "Items counted", "棚卸済み品目"), value: "38 / 40" },
@@ -263,7 +265,7 @@ function view(run: Run): GuideView {
   }
   if (run.flow === "wht") return run.status === "reviewing" ? { ...base, review: whtReview() } : { ...base, result: { status: "entered" } };
   if (run.flow === "allow") {
-    if (run.status === "reviewing") return { ...base, review: allowReview() };
+    if (run.status === "reviewing") return { ...base, consent_title: L("删除这个定时任务？", "ลบงานตามกำหนดเวลานี้?", "Delete this scheduled task?", "この定期タスクを削除しますか？"), review: allowReview() };
     return { ...base, result: { status: "entered", reason_text: L("已删除", "ลบแล้ว", "Deleted", "削除しました") } };
   }
   if (run.flow === "follow") {

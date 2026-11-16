@@ -157,8 +157,8 @@ class ReuseChatStandard(unittest.TestCase):
         thread = (SRC / "components/assistant-ui/thread.tsx").read_text(encoding="utf-8")
         # 调用方给 stop 时：按它的在跑状态换 ■，停止与 Esc 都交给它；不给时照旧按这一轮、走 stopRun
         self.assertIn("stop?: ComposerStop }> = ({ placeholder: fixed, draft = true, chin, stop })", thread)
-        self.assertIn("const running = stop ? stop.running : threadRunning;", thread)
-        self.assertIn("if (stop) stop.onStop();\n    else void stopRun(thread);", thread)
+        self.assertIn("const running = stop ? stop.running : threadRunning || guideStop;", thread)  # 引导进行中停止键结束这次引导（主会话 11-16）
+        self.assertIn("if (stop) stop.onStop();\n    else if (guideStop) endGuide(guideRun);\n    else void stopRun(thread);", thread)
         self.assertIn("stop.running ? <StopButton onStop={stop.onStop} /> : send", thread)
         self.assertIn("onClick={() => (onStop ? onStop() : void stopRun(thread))}", thread)
         # 只有一个停止键（不另造一套）

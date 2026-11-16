@@ -61,7 +61,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
-import { startGuide } from "@/lib/guide-run";
+import { cancelGuide, startGuide } from "@/lib/guide-run";
 import { withReport } from "@/lib/caught";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
 import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
@@ -240,6 +240,25 @@ function pickBusiness(sessionId: string | null, business: string, forms: readonl
       startedAt: new Date().toISOString() }))
     .catch(withReport(() => undefined, "guide-start"));
 }
+
+/** 这段对话里还开着的那一次引导（在问 / 复核中，最新开始的那次）：输入框旁的「停止」此时可用，点了结束它（主会话 11-16：题卡不放取消，退出走对话）。 */
+function useOpenGuideRun(): string {
+  const snapshot = useActiveSessionSnapshot();
+  const started = useStartedRuns((s) => (snapshot.sessionId ? s.bySession[snapshot.sessionId] : undefined));
+  return useMemo(() => {
+    const byRun = new Map<string, GuideRun>();
+    for (const run of started ?? []) byRun.set(run.run, run as GuideRun);
+    for (const run of snapshot.guides.values()) {
+      const was = byRun.get(run.run);
+      if (!was || was.version <= run.version) byRun.set(run.run, run);
+    }
+    const open = [...byRun.values()].filter((run) => run.status === "asking" || run.status === "reviewing");
+    return open.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]?.run ?? "";
+  }, [snapshot.guides, started]);
+}
+
+/** 结束开着的那次引导（guide_cancel；卡随 pearnly.guide 事件变成失效一行）。 */
+const endGuide = (run: string) => void cancelGuide(run).catch(withReport(() => undefined, "guide-end"));
 
 /** 这段对话的引导卡（按开始先后）：事件里的与本页刚开的合在一起，同一次取版本大的那份。 */
 // map: guide-run
@@ -535,12 +554,16 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   // 在跑时输入框里按 Esc 停止（同停止键，stop-run.ts）；选字中的 Esc 归输入法
   const thread = useAuiState((s) => s.threadListItem.id);
   const threadRunning = useAuiState((s) => s.thread.isRunning);
-  const running = stop ? stop.running : threadRunning;
+  // 引导进行中（模型没在跑）：停止键结束这次引导（同停止键的位置与样子，Esc 同）
+  const guideRun = useOpenGuideRun();
+  const guideStop = !stop && !threadRunning && !!guideRun;
+  const running = stop ? stop.running : threadRunning || guideStop;
   const keyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
     holdImeEnter(event); // Safari 选字结束的回车（keyCode 229）不发送，lib/ime.ts
     if (event.key !== "Escape" || !running || event.nativeEvent.isComposing || event.defaultPrevented) return;
     event.preventDefault();
     if (stop) stop.onStop();
+    else if (guideStop) endGuide(guideRun);
     else void stopRun(thread);
   };
   return (
@@ -582,6 +605,7 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
 
 // map: attach
 const ComposerAction: FC<{ onSend: () => void; stop?: ComposerStop | undefined }> = ({ onSend, stop }) => {
+  const guideRun = useOpenGuideRun();
   const send = (
     <ComposerPrimitive.Send asChild>
       <button type="button" className="aui-composer-send cc-send" aria-label={t("send")} title={t("send")} onClick={onSend}>
@@ -601,9 +625,13 @@ const ComposerAction: FC<{ onSend: () => void; stop?: ComposerStop | undefined }
         ) : (
           <>
             {/* 回复中输入框里有字：发送键（这一句先排着，本轮完了自动发，批 A ⑤）；空着才是停止键（同 Claude 11-09 实测） */}
-            <AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>{send}</AuiIf>
+            {/* 引导进行中、模型没在跑、输入框空着：停止键结束这次引导（题卡不放取消，主会话 11-16）；有字照常是发送键 */}
+            <AuiIf condition={(s) => (!s.thread.isRunning && !(guideRun && s.composer.isEmpty)) || !s.composer.isEmpty}>{send}</AuiIf>
             <AuiIf condition={(s) => s.thread.isRunning && s.composer.isEmpty}>
               <StopButton />
+            </AuiIf>
+            <AuiIf condition={(s) => !s.thread.isRunning && !!guideRun && s.composer.isEmpty}>
+              <StopButton onStop={() => endGuide(guideRun)} />
             </AuiIf>
           </>
         )}

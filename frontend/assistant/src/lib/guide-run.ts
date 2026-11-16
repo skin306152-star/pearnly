@@ -82,6 +82,8 @@ export type GuideView = {
   run: string; business: string; status: GuideStatus | string; version: number; company?: string; ledger?: string; period?: string;
   /** N5：confirm = 「确定」；allow = 允许卡样式（拒绝 / 允许） */
   consent?: "confirm" | "allow";
+  /** 允许式确定的问句（同线上允许卡「要……吗」，服务端按本页语言翻好；引擎窗口 11-16 约定）；没有时标题栏写业务名 */
+  consent_title?: string; consent_title_key?: string;
   stale?: boolean; reason?: string; outcome?: "changed" | "refused" | "stopped" | "";
   /** 不收的原因：引擎回 {键: {code, text}}（text 已翻译，11-16 定）；documents 的 guide_edit 回 {格: 码} + refused_text {格: 已翻译} */
   refused?: Record<string, string | { code: string; text?: string }>; refused_text?: Record<string, string>;

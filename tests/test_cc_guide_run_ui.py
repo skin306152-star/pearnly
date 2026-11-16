@@ -324,6 +324,7 @@ assert.match(review, /data-mark="number"/);
 assert.match(review, /data-field="total"[^>]*data-readonly/);               // 算出来的格只读
 assert.match(review, /data-slot="cc-guide-confirm"/);
 const allow = await html("allow");
+assert.match(allow, /data-slot="cc-card-head">[^<]*[?？]/);               // 标题栏是问句（consent_title）
 assert.match(allow, /data-slot="cc-card-foot"/);                        // 同一套卡片脚（拒绝 / 允许）
 const follow = await html("follow");
 assert.match(follow, /download="recon-2026-10.xlsx"/);
@@ -401,6 +402,17 @@ class GuideRunSourceTests(unittest.TestCase):
         self.assertIn("if (await authorizeHere()) setLogin(await askLogin());", head)
         self.assertIn("return viewGuide(view.run);", head)
         self.assertNotIn("block.login", head)
+
+    def test_stop_ends_an_open_guide_and_allow_cards_ask_a_question(self):
+        # 主会话 11-16：题卡不放取消，退出走对话——引导进行中、模型没在跑、输入框空着时输入框旁是停止键，点了 / Esc 调 guide_cancel；
+        # 允许式确定的标题栏是服务端给的问句（consent_title），没有退回业务名
+        thread = read("components/assistant-ui/thread.tsx")
+        self.assertIn('const open = [...byRun.values()].filter((run) => run.status === "asking" || run.status === "reviewing");', thread)
+        self.assertIn("const endGuide = (run: string) => void cancelGuide(run)", thread)
+        self.assertIn("<StopButton onStop={() => endGuide(guideRun)} />", thread)
+        self.assertIn("else if (guideStop) endGuide(guideRun);", thread)
+        review = read("components/tool-uis/guide-review.tsx")
+        self.assertIn("title={view.consent_title || businessName(view.business)}", review)
 
     def test_menu_reads_labels_icons_order_from_the_server(self):
         thread = read("components/assistant-ui/thread.tsx")

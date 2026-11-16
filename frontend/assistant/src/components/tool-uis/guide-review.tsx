@@ -154,7 +154,7 @@ const FormReview: FC<Props & { review: FormReviewData; head?: ReactNode }> = (pr
   const { view, busy, act, review, head } = props;
   const back = (step: string) => act(() => reopenGuide(view.run, step, view.version));
   return (
-    <CardFrame title={businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} buttons={decideButtons(props, review.ready)}
+    <CardFrame title={view.consent_title || businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)} buttons={decideButtons(props, review.ready)}
       failure={props.failure} busy={busy}>
       {head}
       {view.consent === "allow" ? (
@@ -286,7 +286,7 @@ const DocReview: FC<Props & { review: GuideDocReview; head?: ReactNode }> = (pro
   const { view, busy, act, review, head } = props;
   const edit = (docId: string, field: string, value: string) => act(() => editGuide(view.run, docId, field, value, view.version));
   return (
-    <CardFrame title={operatorTitle(view) ?? businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)}
+    <CardFrame title={view.consent_title || operatorTitle(view) || businessName(view.business)} slot="cc-guide-run" attrs={runAttrs(view)}
       buttons={decideButtons(props, review.ready, review.seen)} failure={refusedText(view) || props.failure} busy={busy}>
       {head}
       <div data-slot="cc-guide-review" data-source="documents" className="cc-op-before-body">
