@@ -209,6 +209,7 @@ export type DesktopState = {
   features?: string[]; // "company_folders"：文件夹随公司选（pick_folder）；1.6.0 以前的桌面端没有；"devices"：多台电脑（1.7.0）
   legacy_roots?: LegacyRoot[];
   device?: { key?: string; name?: string }; // 这台电脑的设备密钥与电脑名（1.7.0，features 含 devices），对话页登记时带上
+  cloud_link?: boolean; // 这台电脑存了云端 Express 连接（cloud_link/link_store.py）：对话页代云端那台电脑登记；没有就不出现
 };
 /** 以前在设置里授权、现在没有公司和任务在用的根目录（设置里「以前授权的文件夹」一行清理用）。 */
 export type LegacyRoot = { member: string; id: string; path: string };
@@ -621,6 +622,23 @@ async function connectCore(api: Desktop, state: DesktopState, options: { switchS
   setLink(paired.ok ? { kind: "idle" } : { kind: "failed", message: paired.message ?? "" });
 }
 
+/** 云端 Express（评估 2026-11-11 第 4.2 节「配对」）：桥为云端那台电脑生成了设备密钥，本站还没登记的由对话页照登记这台电脑
+ *  的同一个接口登记（设备名是云端主机名），新发的令牌只交回桥存本机（cloud_token），不配对、不进地址栏。桥上没有这个站点的
+ *  令牌，所以回 exists 时带 rekey 换新（同 needsKey）。每台云端电脑每个页面只自动试一次。 */
+async function registerCloud(api: Desktop, tried: Set<string>) {
+  const pending = (await api.call("cloud_pending")) as unknown as { links?: { host?: string; device?: { key?: string; name?: string } }[] };
+  for (const item of pending.links ?? []) {
+    const host = String(item.host ?? "");
+    const device = { key: String(item.device?.key ?? ""), name: String(item.device?.name ?? "") };
+    if (!host || !device.key || tried.has(`cloud:${host}`)) continue;
+    tried.add(`cloud:${host}`);
+    const send = (rekey: boolean) => (channelOf(pageProduct) === "core" ? registerCore(device, { rekey }) : register(true, { device, rekey }));
+    let found = await send(false);
+    if (!("kind" in found) && found.status === "exists") found = await send(true);
+    if (!("kind" in found) && found.status === "created" && found.token) await api.call("cloud_token", { host, token: found.token });
+  }
+}
+
 /** 对话页打开时（Cowork 站点、在桌面端里）：这台电脑还没连别家公司就登记一次。
  *
  * - 旧版（没有 devices）：照旧只在一个成员都没有时自动连；
@@ -644,10 +662,12 @@ export function useAutoConnect(product: string | undefined) {
       if (elsewhere) return setLink({ kind: "other_site", site: elsewhere });
       for (const member of membersHere(state)) if (member.device_state) tried.add(`${member.id}:${member.device_state}`);
       if (!membersHere(state).length || thisComputer(state)) await connectComputer(api);
+      if (alive && state.cloud_link) await registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
       if (!alive || !thisComputer(state)) return;
       off = api.onChanged(() => {
         void api.state().then((next) => {
           if (!alive || !next || !("members" in next) || otherSite(next, product)) return;
+          if (next.cloud_link) void registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
           const fresh = membersHere(next).filter((m) => m.device_state && !tried.has(`${m.id}:${m.device_state}`));
           if (!fresh.length) return;
           for (const member of fresh) tried.add(`${member.id}:${member.device_state}`);
