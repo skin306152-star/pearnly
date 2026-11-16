@@ -494,6 +494,11 @@ class Sweeper:
     def pending(self) -> int:
         return len(self._due)
 
+    @property
+    def next_due(self):
+        """最早一次兜底删的时刻；没有回 None（宿主据此决定中转线程等多久）。"""
+        return min((item[0] for item in self._due), default=None)
+
 
 __all__ = ["Answer", "CODES", "EXPIRED", "FILES", "FORGET_ACK_FILE", "FORGET_FILE", "MALFORMED", "NOT_AUTHORIZED", "OK",
            "PendingForget", "PendingRequest", "REPLAYED", "REQUEST_FILE", "RESPONSE_FILE", "Refused", "SWEEP_DELAY",

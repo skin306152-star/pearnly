@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """桥那一侧（评估第 4.3 节）：处理云端写进 ``in\\`` 的请求，代发到配对时记下的站点，回复写进 ``out\\``。
 
-处理逻辑（``process`` 一个 ``.req``）与监视方式分开：现在由 ``host.CloudHost`` 的后台线程每 0.5 秒看一遍 ``pending``、
-交给工作线程 ``process``；以后要换成 ``ReadDirectoryChangesW`` 事件驱动，只换「什么时候叫 ``process``」。
+处理逻辑（``process`` 一个 ``.req``）与监视方式分开：``host.CloudHost`` 的后台线程在目录有变化时（``dir_watch``，Windows 上
+``ReadDirectoryChangesW``）或每 60 秒兜底时看一遍 ``pending``、交给工作线程 ``process``。
 
 - 先把 ``.req`` 改名 ``.work`` 认领（几条线并发处理时同一个请求只处理一次；云端据此分清「桥不在」与「桥慢」）；
 - 核对签名、会话号、防重放、路径与方法白名单、大小（``tunnel_protocol.decode_request``）；
