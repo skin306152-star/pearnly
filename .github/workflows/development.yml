@@ -456,8 +456,6 @@ jobs:
         run: python3 scripts/check-cc-coverage.py && python3 tests/test_cc_coverage.py
       - name: CC allow card fact line (carried from the run reply to the card, kept when a confirmation is put back, the same on reopening)
         run: python3 tests/test_cc_allow_card_note.py
-        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py
-        run: python3 tests/test_cc_ask.py && python3 tests/test_cc_guide_card.py && python3 tests/test_cc_guide_menu.py
       - name: Verify the CC title bar, right session panel, company page and list pages (shell line B)
         run: python3 tests/test_cc_session_panel.py
       - name: Verify the month-end ledger card and company page section (digital accountant phase 1)
