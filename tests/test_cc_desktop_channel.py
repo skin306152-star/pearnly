@@ -686,6 +686,23 @@ class Requests(Base):
         self.assertIs(jobs.lease(office, body)["requests_waiting"], True)
         self.assertNotIn("requests_waiting", jobs.lease(office, body))  # 一次性：叫过就清
 
+    def test_a_choice_for_a_held_operator_box_reaches_only_a_cc_that_reads_it_once(self):
+        # 1.12.23 ④：人在对话里选了留着的框的某个钮 → 那台电脑下一次领单带 operator_controls；1.12.22 不认，不发
+        from pearnly_core.cc_desktop import operator_controls
+
+        made = self.register("staff@x", KEY_A)
+        office = self.context(made["device"], "staff@x")
+        self.report(office)
+        body = {"max": 1, "agent_id": "c", "index_pending": []}
+        item = {"action": "answer", "batch": "b-1", "doc": "PUR-1", "digest": "0123456789abcdef", "button": "แบบ ข"}
+        frappe.db.set_value(documents.DEVICE, office.device, "companion_version", "1.12.22")
+        self.assertTrue(operator_controls.send(office.device, "b-1", "PUR-1", "answer", "0123456789abcdef", "แบบ ข"))
+        self.assertNotIn("operator_controls", jobs.lease(office, body))
+        frappe.db.set_value(documents.DEVICE, office.device, "companion_version", "1.12.23")
+        self.assertEqual(jobs.lease(office, body)["operator_controls"], [item])
+        self.assertNotIn("operator_controls", jobs.lease(office, body))  # 取过就清
+        self.assertFalse(operator_controls.send(office.device, "b-1", "PUR-1", "answer", "short", "แบบ ข"))
+
 
 class Machine(unittest.TestCase):
     def test_only_exact_pcc_requests_are_machine_requests(self):

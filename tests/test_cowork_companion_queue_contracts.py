@@ -120,6 +120,15 @@ class QueueContractTests(unittest.TestCase):
         self.assertNotIn("requests_waiting", lease_response([], None, False))
         self.assertIs(lease_response([], None, True)["requests_waiting"], True)
 
+    def test_lease_response_carries_only_well_formed_operator_controls(self):
+        # 1.12.23 ④：对话里对留着等人的代录单做的选择；没有时不多这个键（旧版照旧），形状不对的那条不发
+        good = {"action": "answer", "batch": "b-1", "doc": "PUR-1", "digest": "0123456789abcdef", "button": "แบบ ข"}
+        self.assertNotIn("operator_controls", lease_response([]))
+        self.assertNotIn("operator_controls", lease_response([], None, False, []))
+        bad = [dict(good, action="reboot"), dict(good, digest="XYZ"), dict(good, button=""), dict(good, doc="d" * 81), "x"]
+        self.assertNotIn("operator_controls", lease_response([], None, False, bad))
+        self.assertEqual(lease_response([], None, False, bad + [good])["operator_controls"], [good])
+
     def test_lease_response_retains_source_shape_and_optional_refresh(self):
         self.assertEqual(lease_response([]), {"ok": True, "lease_seconds": 120, "jobs": []})
         self.assertEqual(lease_response([], {}), lease_response([]))

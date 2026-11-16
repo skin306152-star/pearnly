@@ -34,7 +34,7 @@ from pearnly_core.cc_desktop.wire.ack_rules import error_code
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
-from pearnly_core.cc_desktop import request_wake, writer_rule
+from pearnly_core.cc_desktop import operator_controls, request_wake, writer_rule
 from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, request_contracts, route_contracts
 from pearnly_core.express_operator import contracts as operator_target
 from . import credentials, delivery_store, devices, mrerp_jobs, queue_heads, receipt_auth, request_service
@@ -375,9 +375,12 @@ def lease(context, body):
         # 电脑行在加锁顺序的最后：这次报的「主档索引还没重建的账套」
         devices.note_index_pending(device if device != credential.credential_id else None,
                                    request.get('index_pending'))
-        # 刚建了这条连接上的按需请求（`request_wake`）：带 requests_waiting，电脑马上去领
+        # 刚建了这条连接上的按需请求（`request_wake`）：带 requests_waiting，电脑马上去领；对话里对这台留着等人的代录单
+        # 做的选择（`operator_controls`，1.12.23 起，按连接 + 电脑记）：带下去由电脑核框后点
+        version = frappe.db.get_value(devices.DOCTYPE, device, 'companion_version') if device else ''
         return _value(queue_contracts.lease_response, jobs, requested_refresh,
-                      request_wake.take("cw:" + credential.connection))
+                      request_wake.take("cw:" + credential.connection),
+                      operator_controls.take(f"cw:{credential.connection}:{device}", version or ''))
 
 
 def acknowledge(context, body):
