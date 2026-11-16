@@ -5250,9 +5250,11 @@ const core = await open([row("s1", "One", 1, { starred: true }), row("s2", "Two"
 site.sessions = site.sessions.map((s: any) => ({ ...s, starred: true }));
 server.order.pinned = ["s3", "s1", "s5", "s2", "s4"];
 await later("focus");
-assert.equal(g.calls.filter((c: any) => c.method === "listing").length, 1);   // 拿到焦点只重取布局，对话列表不重读
+// 拿到焦点：布局与对话列表都重取一次（欠账 B62：以前只重取布局，本页 s2–s5 要等切标签页才标成置顶）
+assert.equal(g.calls.filter((c: any) => c.method === "listing").length, 2);
+assert.deepEqual(["s1", "s2", "s3", "s4", "s5"].map((id) => core.getItemById(id).custom.starred), [true, true, true, true, true]);
 assert.deepEqual(useSidebarOrder.getState().pinned, ["s3", "s1", "s5", "s2", "s4"]);
-tidy(core);                                                                   // 本页 s2–s5 还标着没置顶
+tidy(core);                                                                   // 依据与布局一样新：没有要去掉的
 await g.sleep(SAVE_DELAY + 100);
 assert.deepEqual(saves(), []);                                                // 不存
 assert.deepEqual(server.order.pinned, ["s3", "s1", "s5", "s2", "s4"]);        // 服务端的置顶顺序不被缩短
