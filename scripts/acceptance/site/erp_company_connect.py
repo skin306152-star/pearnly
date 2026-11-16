@@ -77,6 +77,9 @@ try:
     while asked["devices"] and time.monotonic() - started < int(params.get("rescan_wait", 40)):
         time.sleep(2)
         frappe.db.rollback()
+        # 回执记在站点缓存里：同一进程里 frappe.cache 先读进程内那份（frappe.local.cache），不清就一直是下发时的旧值
+        # （11-16 首跑：电脑 7 秒就回执了，这里 40 秒都看成没回）；页面每次轮询是新请求，没有这层
+        frappe.local.cache = {}
         state = cc_service.rescan_pending(asked["devices"])
         polls.append({"at": round(time.monotonic() - started, 1), **state})
         if not state["pending"] or not state["online"]:
