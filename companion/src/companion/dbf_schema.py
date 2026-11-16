@@ -186,6 +186,24 @@ def append_native(table, row: dict) -> None:
 append_stcrd = append_native  # STCRD 明细（以前的名字）
 
 
+def journal_stamp(table, row: dict, *, userid=None, now=None) -> dict:
+    """凭证稽核栏照原生补（11-16 原生取样：NLTTEST / 69EXP\\TEST 原生凭证每张都写「谁、哪天、几点录的」，我们写的这几栏全空）：
+
+    - 单头 GLJNL（给了 ``userid``）：``CREDAT`` / ``CHGDAT`` = 录入当天，``USERID`` = 录入人（同单头 ARTRN / APTRN 的 USERID，
+      ``writer_id`` 定的 Express 账户名，定不了记 PEARNLY）；``CREBY`` 不动——它是认 CC 写的凭证的机器标记（``writer_id.cc_vouchers``）；
+    - 明细 GLJNLIT（没给 ``userid``）：``CHGDAT`` = 录入当天，``CHGTIM`` = 录入时刻 ``HHMM``（C(4)，同原生 ``1940``）。
+
+    只补这张表有、``row`` 里没给的栏（老账套没有这一栏就不写）；回新的一份，不改传进来的。"""
+    moment = now or _dt.datetime.now()
+    names = {name.upper() for name in table.field_names}
+    if userid is not None:
+        extra = {"CREDAT": moment.date(), "CHGDAT": moment.date(), "USERID": str(userid or PEARNLY_USERID)[:8]}
+    else:
+        extra = {"CHGDAT": moment.date(), "CHGTIM": moment.strftime("%H%M")}
+    given = {key.upper() for key in row}
+    return {**row, **{key: value for key, value in extra.items() if key in names and key not in given}}
+
+
 def with_salesman(row: dict, slmcod: str, fields) -> dict:
     """销货明细行带上单头的销售员（``STCRD.SLMCOD``）：S 盘副本 1033 套里单头有销售员的销货单，明细行 1024 万行与单头相同、
     约 4 千行空（11-12 只读统计）；没给销售员、账套没有这一栏都不动（同以前）。"""

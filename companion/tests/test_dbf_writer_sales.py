@@ -771,3 +771,16 @@ def test_creating_the_missing_cash_customer_counts_as_a_new_master(datat):
     assert res.ok, res.error
     assert res.created_party is True
     assert [(r.CUSCOD or "").strip() for r in _rows(datat, "ARMAS")] == [MC.CASH_CUSTOMER]
+
+
+def test_the_sale_journal_carries_who_and_when_like_a_native_voucher(datat):
+    """销货凭证稽核栏同采购（``dbf_schema.journal_stamp``）：单头当天 + 录入人，明细当天 + HHMM；CREBY 仍是机器标记。"""
+    import datetime as dt
+
+    res = WS.write_sale(_sale(), datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False, userid="KIK")
+    assert res.ok, res.error
+    head, = _rows(datat, "GLJNL", VOUCHER=res.docnum)
+    today = dt.date.today()
+    assert (head.CREBY.strip(), head.USERID.strip(), head.CREDAT, head.CHGDAT) == (S.PEARNLY_USERID, "KIK", today, today)
+    lines = _rows(datat, "GLJNLIT", VOUCHER=res.docnum)
+    assert lines and all(r.CHGDAT == today and len(r.CHGTIM.strip()) == 4 and r.CHGTIM.strip().isdigit() for r in lines)

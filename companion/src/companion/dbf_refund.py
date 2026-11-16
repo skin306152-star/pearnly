@@ -592,8 +592,9 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
     descrp = _fit(f"{DESCRIPTION} {name}", 50)
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
-        journal.append(_filtered(journal, {"JNLTYP": jnltyp, "VOUDAT": docdat, "VOUCHER": docnum, "DESCRP": descrp,
-                                           "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID}))
+        journal.append(S.journal_stamp(journal, _filtered(journal, {
+            "JNLTYP": jnltyp, "VOUDAT": docdat, "VOUCHER": docnum, "DESCRP": descrp, "TRNSTAT": "P", "DOCSTAT": "N",
+            "CREBY": S.PEARNLY_USERID}), userid=userid))  # 稽核栏照原生（``dbf_schema.journal_stamp``）
     finally:
         journal.close()
     departmental = _department_accounts(account_dir) if depcod else frozenset()
@@ -601,7 +602,7 @@ def _write_all(account_dir, entry, cuscod: str, lines: List[_Line], docdate_be: 
     written = [_gl_line(docnum, seqit, docdat, acc, descrp, side, value, depcod, departmental) for seqit, acc, side, value in gl_rows]
     try:
         for line in written:
-            S.append_native(entries, _filtered(entries, line))
+            S.append_native(entries, S.journal_stamp(entries, _filtered(entries, line)))
     finally:
         entries.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）

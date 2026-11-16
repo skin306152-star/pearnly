@@ -239,6 +239,10 @@
     **这一条等测试机原生实录（原生建一件挂不合格组的品录一张）后才合**，实录结论是原生也拦就把开关改回 True。
   - 代录回执顶层同直写带 `party_code` / `line_codes`（实际用的对方码与逐行存货码，新建的、按名字认到的都报）；以前只在
     `meta.operator.masters` 里报新建的，服务端认到的现有档挂不上码（11-16 验收；服务端另在 `pearnly/operator-masters-link` 认 masters，旧版也能用）。
+  - 凭证稽核栏照原生补齐（`dbf_schema.journal_stamp`，采购 RR / HP、销售 IV / HS、收款 RE、退货、库存单与收银付款方式凭证同一处）：
+    单头 GLJNL 的 CREDAT / CHGDAT = 录入当天、USERID = 单头录入人（同 APTRN / ARTRN 的 USERID）；明细 GLJNLIT 的 CHGDAT = 当天、
+    CHGTIM = HHMM（C(4)）。CREBY 仍是机器标记 PEARNLY（认 CC 写的凭证靠它）。只补表里有的栏，老账套缺栏不写。
+    62 套离线回放（逐字段比新旧写法、只有这几栏变化）要在测试机上跑，**跑过才合**。
 
 ## 本机测试
 

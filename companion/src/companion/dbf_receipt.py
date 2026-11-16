@@ -611,8 +611,9 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
     descrp = description(account_dir, run.get("jnlexp", ""), receipt.customer)
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
-        journal.append(_filtered(journal, {"JNLTYP": run.get("jnltyp") or JNLTYP, "VOUDAT": docdat, "VOUCHER": docnum,
-                                           "DESCRP": descrp, "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID}))
+        journal.append(S.journal_stamp(journal, _filtered(journal, {
+            "JNLTYP": run.get("jnltyp") or JNLTYP, "VOUDAT": docdat, "VOUCHER": docnum, "DESCRP": descrp, "TRNSTAT": "P",
+            "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID}), userid=plan.userid))  # 稽核栏照原生（``dbf_schema.journal_stamp``）
     finally:
         journal.close()
     departmental = _department_accounts(account_dir) if plan.department else frozenset()
@@ -621,7 +622,7 @@ def _write_all(account_dir: Path, plan: _Plan) -> Tuple[str, List[Tuple[str, str
                for seqit, acc, side, amount in gl_rows]
     try:
         for line in written:
-            S.append_native(entries, _filtered(entries, line))
+            S.append_native(entries, S.journal_stamp(entries, _filtered(entries, line)))
     finally:
         entries.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）

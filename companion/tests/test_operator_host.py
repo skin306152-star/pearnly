@@ -222,7 +222,8 @@ def test_masters_are_prepared_before_the_operator_and_failures_ack_like_direct_w
     assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) is None
     assert handled == [{"doctype": "RR", "supplier": {"code": "S0001"}}] and closed == [{"doctype": "RR"}]
     assert qc.acks[0] == ("success", "t1", "RR0000008",
-                          {"operator": {"batch": "b", "masters": [{"kind": "party", "code": "S0001"}]}})
+                          {"operator": {"batch": "b", "masters": [{"kind": "party", "code": "S0001"}]},
+                           "party_code": "S0001"})  # 顶层同直写：实际用的对方码（1.12.23）
     assert worker._handle_operator_task(SimpleNamespace(ui_lang="zh"), qc, task, st) == "needs_review"
     assert len(handled) == 1 and qc.acks[1] == ("failed", "t1", "SUPPLIER_DUP_SUSPECTED", "needs_review")
 
