@@ -43,6 +43,7 @@ def sync_roles():
                             ("ERP Purchase", read), ("ERP Sales", read), ("ERP Cashier", read)):
             if frappe.db.exists("Role", role):
                 _grant("ERP Product Category", role, perms)
+    _grant_admin_opened(read, write, dependencies)
     # LINE 开关就是这个角色（团队管理逐人勾选），不带任何单据权限。
     _ensure_role(rules.LINE_ROLE)
     # 收款（11-11 / 11-14）：有「收款」权限的读本公司的（行由 `collection.access` 按公司过滤）；写只走服务层
@@ -58,6 +59,36 @@ def sync_roles():
 
     remove_legacy_shares()
     frappe.clear_cache()
+
+
+def _grant_admin_opened(read, write, dependencies):
+    """管理员拥有本租户已开通的全部功能（`rules.admin_held`，用户 11-15）：列表取数走原生 `frappe.get_list`，
+    所以原生表权限也要跟上——已开通功能的每张表，管理员没有任何权限行的补一条（同那一页菜单岗位的读 / 写）。
+    只补缺的、不改已有行：开户发的管理员权限（如公司资料可写）原样保留。已有行（自定义与标准两张表）循环外一次取回。"""
+    from pearnly_core.shell import entitlements
+
+    features = set(entitlements())
+    wanted = {}
+    for key, (feature, _legacy, _caps, writable, readable) in menu.CATALOG.items():
+        if not feature or feature not in features:
+            continue
+        lookup = ("ERP Company",) if key in menu.NON_BUSINESS else dependencies  # 同上面菜单岗位的口径
+        for doctype in set(lookup + readable + writable):
+            perms = write if doctype in writable else read
+            wanted[doctype] = write if wanted.get(doctype) == write else perms
+    if not wanted:
+        return
+    names = sorted(wanted)
+    present = set(frappe.get_all("DocType", filters={"name": ["in", names]}, pluck="name"))  # bounded: 菜单目录里的几张表
+    held = {(row.parent, row.permlevel) for table in ("Custom DocPerm", "DocPerm")
+            for row in frappe.get_all(table, filters={"parent": ["in", names], "role": rules.ADMIN_ROLE, "if_owner": 0},  # loop-query: 两张权限表各一次
+                                      fields=["parent", "permlevel"], limit_page_length=len(names) * 4)}
+    for doctype in names:
+        if doctype in present and (doctype, 0) not in held:
+            _grant(doctype, rules.ADMIN_ROLE, wanted[doctype])  # loop-query: 只补缺的表（菜单目录里那几张），补过之后迁移不再写
+    # 盘点明细的账面数是 permlevel 1（同上面库存各页的菜单岗位）
+    if "ERP Stock Count Item" in present and ("ERP Stock Count Item", 1) not in held:
+        _grant("ERP Stock Count Item", rules.ADMIN_ROLE, {"read": 1}, permlevel=1)
 
 
 def migrate_members():

@@ -129,7 +129,12 @@ class Declarations(unittest.TestCase):
         for tool in cc_tools.TOOLS:
             self.assertTrue(tool["name"].startswith("erp_collection_"), tool["name"])
             self.assertEqual(tool.get("modes"), ["chat"], tool["name"])  # 只在直写对话（用户 11-11：代录不做收款）
-            self.assertNotIn("approval", tool)  # 不加「允许」卡片：放行由写入计划 + 用户下一句定
+            if tool["name"] == "erp_collection_withdraw":
+                # 撤回先出「允许」卡片（用户 11-12：删除、撤回类在对话里点一次「允许」）
+                self.assertIs(tool["approval"], True)
+                self.assertEqual(len([cell for cell in words.get(tool["ask"], []) if cell.strip()]), 3, tool["ask"])
+            else:
+                self.assertNotIn("approval", tool)  # 不加「允许」卡片：放行由写入计划 + 用户下一句定
             module, _dot, function = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.collection.cc_tools")
             self.assertTrue(callable(getattr(cc_tools, function)), tool["handler"])
@@ -333,6 +338,19 @@ class Withdraw(Base):
         self.assertEqual(self.call(cc_tools.status, collection=queued["name"])["result"], "withdrawn")
         self.assertEqual(self.jobs.rows["J-" + queued["name"]]["status"], "cancelled")
 
+    def test_the_allow_card_lists_the_customer_invoices_and_amount_and_changes_nothing(self):
+        """撤回先出「允许」卡片（用户 11-12）：卡上是客户、哪几张发票、多少钱；出卡片只读，不撤回。"""
+        made = self.make("100")
+        rows = cc_tools.preview_withdraw({"collection": made["name"]})
+        self.assertEqual([row["after"] for row in rows], ["2100883 · ร้านป้าแดง", "IV1", "100.00"])
+        self.assertEqual(self.call(cc_tools.status, collection=made["name"])["status"], "draft")
+        # 问句下面那一行事实：公司与账套的名字（不写公司编号）
+        fact = cc_tools.note_withdraw({"collection": made["name"]})
+        view = service.status(made["name"])
+        self.assertEqual(fact, " · ".join(p for p in (view["company_name"], view["book"]) if p))
+        self.assertTrue(fact)
+        self.assertNotIn(view["company"], fact.split(" · "))
+
 
 class ConversationBook(Base, T.TwoBooks):
     """CC 对话里收款三步一律用本对话账套（A10 / A11，11-12）：列发票、列方式、建草稿同一本，不按今天、不按单据日期各算各的。"""
@@ -370,7 +388,11 @@ class ConversationBook(Base, T.TwoBooks):
         refused = self.call(cc_tools.invoices, customer="2100883")
         self.assertEqual((refused["status"], refused["reason"]), ("not_saved", "ledger_needed"))
         self.assertIn("pearnly_conversation_ledger", refused["note"])
-        self.assertEqual([row["id"] for row in refused["allowed_account_sets"]], [T.TEST26["key"], T.TEST26_COPY["key"]])
+        self.assertEqual(len(refused["allowed_account_sets"]), 2)
+        # 只给名称，不给账套键（book_key 是内部编号，CC 会复述给人；A 线 11-15）
+        self.assertFalse(any(T.TEST26["key"] in str(row) or T.TEST26_COPY["key"] in str(row)
+                             for row in refused["allowed_account_sets"]))
+        self.assertTrue(all(row["label"] for row in refused["allowed_account_sets"]))
         self.assertEqual(self.call(cc_tools.methods)["reason"], "ledger_needed")
         self.assertEqual(self.make("100")["reason"], "ledger_needed")
         self.ledger[0] = self.ledger_of(T.TEST26_COPY, [T.TEST26, T.TEST26_COPY])  # 用户在提问卡上选了、记在会话上

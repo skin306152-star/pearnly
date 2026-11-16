@@ -7,7 +7,7 @@
 
 11-15（主会话，照 CC「选择公司」弹窗）：再报两份——一份的公司已停用、一份的公司已在用。选择窗把连接上报的全部列出：右上有刷新，
 每行第二行是「税号 · 总部 · 账套文件夹」；已在用的那行勾选框禁用、标「已添加」；停用的那行可勾、标「已停用」，勾了就是重新启用那家
-（不另建）。左上角公司名下拉里有同一项「从连接添加」。右上刷新请在线电脑立刻整份重报（`cc_service.rescan`）；实验栈的电脑
+（不另建）。左上角公司名下拉里不放「从连接添加」（用户 11-15 定去掉）。右上刷新请在线电脑立刻整份重报（`cc_service.rescan`）；实验栈的电脑
 不在线，刷新直接显示「CC 桌面版未连接」（在线电脑的下发与回执由 tests/test_cc_desktop_channel.py 守）。
 """
 from __future__ import annotations
@@ -86,18 +86,15 @@ def steps(params, camera_code=None):
          "await idle(); await new Promise(r=>setTimeout(r,800)); "
          "const alerts=[...document.querySelectorAll('.alert-message, .desk-alert')].map(e=>e.innerText.trim()); "
          f"return {{closed: !document.querySelector('.modal.show [data-fieldname=items]'), alerts, listed: document.body.innerText.includes({tag})}};"},
-        {"name": "左上角公司名下拉里有从连接添加", "js": IDLE +
+        {"name": "左上角公司名下拉里没有从连接添加", "js": IDLE +
          "const head=document.querySelector('.sidebar-header'); if(!head) return {error:'no sidebar header'}; head.click(); "
          "await new Promise(r=>setTimeout(r,600)); "
-         # 原生 `frappe.ui.create_menu` 画的菜单：按文字找看得见的那一项，点它所在的菜单项
-         "const leaf=[...document.querySelectorAll('.frappe-menu *, .dropdown-menu *')].find(e=>e.offsetParent&&!e.children.length"
-         "&&e.textContent.trim()==='从连接添加'); "
-         "if(!leaf) return {found:false}; (leaf.closest('.dropdown-menu-item')||leaf).click(); "
-         "let d=null; for(let k=0;k<40&&!(d=document.querySelector('.modal.show [data-fieldname=items]'));k++) await new Promise(r=>setTimeout(r,250)); "
-         "const ok=!!d; document.querySelector('.modal.show .btn-modal-close')?.click(); await new Promise(r=>setTimeout(r,400)); "
-         "return {found:true, opened: ok};"},
-        {"name": "只有一家公司时下拉里也有从连接添加", "js": IDLE +
-         # 实验栈这个账号有好几家：把启动数据里的公司清单换成一家、重画左上角下拉，看「从连接添加」还在、「公司」切换组不出
+         # 原生 `frappe.ui.create_menu` 画的菜单：按文字找看得见的那一项
+         "const leaf=[...document.querySelectorAll('.frappe-menu *, .dropdown-menu *')].find(e=>e.getClientRects().length&&!e.children.length"
+         "&&e.textContent.trim()==='从连接添加'); const opened=[...document.querySelectorAll('.frappe-menu')].some(e=>getComputedStyle(e).display!=='none'&&e.childElementCount>0); "
+         "head.click(); await new Promise(r=>setTimeout(r,300)); return {found: !!leaf, opened};"},
+        {"name": "只有一家公司时下拉里也没有从连接添加", "js": IDLE +
+         # 实验栈这个账号有好几家：把启动数据里的公司清单换成一家，下拉里本产品加的项一项都没有
          "const keep=frappe.boot.pearnly_companies; frappe.boot.pearnly_companies=(keep||[]).slice(0,1); "
          "const items=(frappe.pearnly.header_menu_items?.()||[]).map(i=>i.name); frappe.boot.pearnly_companies=keep; "
          "return {items, count: 1};"},
@@ -121,7 +118,7 @@ def judge(params, results, camera_code=None):
     mine = auto.get("mine") or []
     used = [text for text in mine if "ใช้อยู่" in text]
     stopped = [text for text in mine if "หยุด" in text]
-    menu = by.get("左上角公司名下拉里有从连接添加") or {}
+    menu = by.get("左上角公司名下拉里没有从连接添加") or {}
     return [
         {"case": "打开 ERP 自动弹「选择要用的公司」，连接上报的四份都列出（新税号、手工同税号、已停用、已在用），右上有刷新与关闭",
          "seen": auto,
@@ -133,10 +130,10 @@ def judge(params, results, camera_code=None):
          and len(stopped) == 1 and "已停用" in stopped[0]},
         {"case": "关掉后公司页「从连接添加」照样打开同一个选择窗", "seen": opened,
          "ok": bool(opened.get("opened")) and len(opened.get("mine") or []) == 4},
-        {"case": "左上角公司名下拉里的「从连接添加」打开同一个选择窗", "seen": menu,
-         "ok": bool(menu.get("found")) and bool(menu.get("opened"))},
-        {"case": "只有一家公司的账号：左上角下拉里有「从连接添加」、没有切换组", "seen": by.get("只有一家公司时下拉里也有从连接添加"),
-         "ok": (by.get("只有一家公司时下拉里也有从连接添加") or {}).get("items") == ["pearnly-company-connect"]},
+        {"case": "左上角公司名下拉打得开、里面没有「从连接添加」（用户 11-15 定去掉，公司页按钮与授权后自动弹窗照旧）", "seen": menu,
+         "ok": bool(menu.get("opened")) and menu.get("found") is False},
+        {"case": "只有一家公司的账号：左上角下拉里本产品不加任何项", "seen": by.get("只有一家公司时下拉里也没有从连接添加"),
+         "ok": (by.get("只有一家公司时下拉里也没有从连接添加") or {}).get("items") == []},
         {"case": "刷新时没有在线电脑：不干等，直接显示「CC 桌面版未连接」", "seen": by.get("刷新：没有在线电脑时显示未连接"),
          "ok": (by.get("刷新：没有在线电脑时显示未连接") or {}).get("text") == "CC 桌面版未连接"
          and (by.get("刷新：没有在线电脑时显示未连接") or {}).get("took", 99999) < 5000},

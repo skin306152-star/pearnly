@@ -41,6 +41,8 @@
   等页面点停止（`user.interrupt`）；最多等 60 秒，没人停就照常出正式回复（末尾 ``[lab-cut-end]``）。流程 `cc.chat` 用它量停止后半段还在。
 - 长回复（批 A ①，11-09）：``[lab-long]N[/lab-long]`` 回 N 段文字、末尾 ``[lab-long-end]``，流程 `cc.chat` 用它量回复超出一屏时跟不跟到底。
 - 慢回复（批 A ⑤，11-09）：``[lab-slow]N[/lab-slow]`` 照普通的一句回，只是多等 N 秒。
+- 回复后晚收尾（11-14）：``[lab-idle-delay]N[/lab-idle-delay]`` 回一段 30 段的长文字（末尾 ``[lab-long-end]``），之后隔 N 秒（最多 30）
+  才记 ``session.status_idle``：把「回复已在事件记录里、这一轮还没结束」这一段拉开，流程 `cc.reply-whole` 量这段时间里回复只增不减。
 - 挂住的回复（11-12）：``[lab-hold]K[/lab-hold]`` 一直不回，直到任一会话收到 ``[lab-release]K[/lab-release]``（或被停、最多 120 秒），
   流程 `cc.chat` 用它在「回复进行中」确定地做完排队、说停，再放行——不靠慢 N 秒赶时间。
 - 通用提问卡片（主会话 11-05，只为流程 `cc.ask`）：用户原文里有 ``[lab-ask]{…}[/lab-ask]`` 时不回文字，照真实引擎发一条
@@ -75,6 +77,7 @@ ASK_OPEN, ASK_CLOSE = "[lab-ask]", "[/lab-ask]"  # 用户原文里这一段 = �
 TOOL_OPEN, TOOL_CLOSE = "[lab-tool]", "[/lab-tool]"
 LONG_OPEN, LONG_CLOSE = "[lab-long]", "[/lab-long]"  # 用户原文里这一段 = 回一段 N 段长的文字（流程 cc.chat 量跟随滚动）
 LONG_END = "[lab-long-end]"
+IDLE_DELAY_OPEN, IDLE_DELAY_CLOSE = "[lab-idle-delay]", "[/lab-idle-delay]"  # 回复后隔 N 秒才记这一轮结束（流程 cc.reply-whole）
 SLOW_OPEN, SLOW_CLOSE = "[lab-slow]", "[/lab-slow]"  # 用户原文里这一段 = 这一条多等 N 秒再回（流程 cc.chat 量回复中排队）
 # 挂住的回复（11-12）：``[lab-hold]K[/lab-hold]`` 这一条一直不回，直到任一会话收到 ``[lab-release]K[/lab-release]``（或被停、
 # 会话删了、最多 HOLD_WAIT 秒）。流程在确定「这一轮正在进行」之后要做的事做完了才放行，不靠「慢 N 秒」赶时间（满载时 N 秒不够就偶发）
@@ -286,6 +289,15 @@ def _turns(state: dict) -> None:
     """一个会话一条回复线程：按收到的顺序逐条回复，回完全部就记 idle。"""
     while True:
         time.sleep(OPTIONS["delay"])
+        # 上一条回复要求晚收尾（[lab-idle-delay]N）：锁外再等这么久，才往下看还有没有要回的、记这一轮结束
+        late = state.pop("_idle_delay", 0)
+        if late:
+            # 这一轮还在接着做（同真实引擎：写完一段又想下一步）：中途记一条 agent.thinking，页面这时会重画这条回复
+            time.sleep(late / 2)
+            with LOCK:
+                if not state["_deleted"]:
+                    publish(state, {"id": new_id("sevt"), "type": "agent.thinking"})
+            time.sleep(late / 2)
         # 慢回复（[lab-slow]N[/lab-slow]）：这一条先多等 N 秒再回（锁外等，不挡别的会话）
         with LOCK:
             head = state["_pending"][0] if state["_pending"] else None
@@ -312,6 +324,7 @@ def _turns(state: dict) -> None:
                 publish(state, {"id": use_id, "type": "agent.custom_tool_use", "name": name, "input": data})
                 state["status"] = "idle"
                 state["_asked"], state["_asked_name"] = use_id, name
+                state["_asked_delay"] = item.get("idle_delay") or 0
                 publish(state, {"id": new_id("sevt"), "type": "session.status_idle",
                                 "stop_reason": {"type": "requires_action", "event_ids": [use_id]}})
                 state["_pending"].clear()
@@ -321,6 +334,8 @@ def _turns(state: dict) -> None:
                 reply = item["say"] if isinstance(item, dict) else f"{OPTIONS['prefix']} {item[:REPLY_CHARS]}"
                 publish(state, {"id": new_id("sevt"), "type": "agent.message",
                                 "content": [{"type": "text", "text": reply}]}, preview=True)
+                if isinstance(item, dict) and item.get("idle_delay"):
+                    state["_idle_delay"] = item["idle_delay"]
                 continue
             state["_cut"] = False
         _cut_turn(state, item["cut"])
@@ -371,6 +386,10 @@ def _asked(text: str):
         count = min(int(text[start + len(LONG_OPEN):end]), 200)
         return {"say": "\n\n".join(f"{OPTIONS['prefix']} 第 {i} 段：盘点、对账、入库、出库都按顺序记一遍。" for i in range(1, count + 1))
                 + "\n\n" + LONG_END}
+    delay = _between(text, IDLE_DELAY_OPEN, IDLE_DELAY_CLOSE)
+    if delay.strip().isdigit() and ASK_OPEN not in text and TOOL_OPEN not in text:
+        return {"say": "\n\n".join(f"{OPTIONS['prefix']} 第 {i} 段：盘点、对账、入库、出库都按顺序记一遍。" for i in range(1, 31))
+                + "\n\n" + LONG_END, "idle_delay": min(int(delay), 30)}
     held = _between(text, HOLD_OPEN, HOLD_CLOSE)
     if held:
         return {"say": f"{OPTIONS['prefix']} {text[:REPLY_CHARS]}", "hold": held}
@@ -384,7 +403,8 @@ def _asked(text: str):
         if start < 0 or end < 0:
             continue
         try:
-            return {key: json.loads(text[start + len(opening):end])}
+            # 带 [lab-idle-delay]N：工具结果交回后的那段回复同样晚收尾（流程 cc.reply-whole：卡片作答后的回复）
+            return {key: json.loads(text[start + len(opening):end]), **({"idle_delay": min(int(delay), 30)} if delay.isdigit() else {})}
         except ValueError:
             return text
     return text
@@ -434,7 +454,13 @@ def receive(state: dict, events: list) -> list:
                 publish(state, event)
                 set_status(state, "running")
                 text = "".join(b.get("text", "") for b in event.get("content") or [] if isinstance(b, dict) and b.get("type") == "text")
-                state["_pending"].append({"say": f"{OPTIONS['prefix']} {name} {text}"})
+                late = state.pop("_asked_delay", 0)
+                if late:
+                    say = "\n\n".join([f"{OPTIONS['prefix']} {name} {text}"] + [f"{OPTIONS['prefix']} 第 {i} 段：盘点、对账、入库、出库都按顺序记一遍。"
+                                                                               for i in range(1, 31)] + [LONG_END])
+                    state["_pending"].append({"say": say, "idle_delay": late})
+                else:
+                    state["_pending"].append({"say": f"{OPTIONS['prefix']} {name} {text}"})
                 _start(state)
             else:
                 publish(state, event)

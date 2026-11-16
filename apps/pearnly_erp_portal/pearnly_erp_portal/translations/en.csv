@@ -658,6 +658,7 @@ Find,Find
 Find product,Find product
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.,Finish and apply the confirmed differences to stock? {0} counted; {1} uncounted rows stay unchanged and the task becomes read-only.
+Finish this stock count?,Finish this stock count?
 Finished a stock count,Finished a stock count
 Finishing a stock count,Finishing a stock count
 First Receipt,First Receipt
@@ -1858,6 +1859,7 @@ Who can comment,Who can comment
 Whole document taxed,Whole document taxed
 With differences,With differences
 Withdraw,Withdraw
+Withdraw this collection?,Withdraw this collection?
 Withdrawing a collection,Withdrawing a collection
 Withdrawn,Withdrawn
 Withdrew a collection,Withdrew a collection

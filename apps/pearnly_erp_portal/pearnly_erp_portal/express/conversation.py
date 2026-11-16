@@ -61,7 +61,7 @@ def pinned(company_row, task=None) -> dict | None:
     if project != company or not found:
         return None
     key = str(found.get("id") or "") if found.get("status") == "set" else ""
-    return {"status": "set" if key else "needed", "key": key, "label": str(found.get("label") or key),
+    return {"status": "set" if key else "needed", "key": key, "label": str(found.get("label") or ""),
             "options": list(found.get("options") or ())}
 
 

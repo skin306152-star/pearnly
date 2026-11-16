@@ -49,7 +49,7 @@ EXPRESS_OPEN_NOTE = (" Express has this account set open on the computer that wr
 LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not decided yet, so nothing was saved. Ask the "
                       "user once with ask_user which account set to record collections in (one question, each option "
                       "label exactly the label of one of allowed_account_sets), set it with pearnly_conversation_ledger "
-                      "(ledger = its id), then go on; do not ask again after that.")
+                      "(ledger = its label), then go on; do not ask again after that.")
 DAY_NEEDED_NOTE = ("date_needed: the collection date is outside the periods this conversation's account set can record "
                    "(periods: start–end), so nothing was saved. Ask the user once with ask_user for the collection date "
                    "(options: the last day of each period, the user may type another date inside a period), then call "
@@ -92,7 +92,7 @@ def _refused(error) -> dict:
     if isinstance(error, contracts.CollectionError) and error.code == service.LEDGER_NEEDED:
         # 本对话账套未定（A 线 11-12）：形状同单据推送的 ``ledger_needed``（`express.cc_tools._ledger_refusal`）
         return {"status": "not_saved", "reason": error.code, "note": LEDGER_NEEDED_NOTE,
-                "allowed_account_sets": [{"id": item["code"], "label": item["name"]}
+                "allowed_account_sets": [{"label": item["name"]}
                                          for item in (error.detail or {}).get("options") or ()]}
     if isinstance(error, contracts.CollectionError) and error.code == service.DAY_NEEDED:
         # 收款日期不在本对话账套的期间里：问日期（用户 11-15「人在 Express 改工作日期就能录」），换账套走对话的账套选择
@@ -374,6 +374,21 @@ def push(tool_input) -> str:
     return _json(_refusal_note(out, view))
 
 
+def preview_withdraw(tool_input) -> list:
+    """「撤回收款」卡片上列的（只读）：客户、各张发票、金额（用户 11-12：撤回类在对话里先点「允许」）。"""
+    view = service.status(str(tool_input.get("collection") or ""))
+    customer = " · ".join(str(part) for part in (view.get("customer"), view.get("customer_name")) if part)
+    return [{"field": _("trade.customer"), "before": "", "after": customer},
+            {"field": _("Invoices"), "before": "", "after": ", ".join(row["docnum"] for row in view.get("invoices") or [])},
+            {"field": _("Amount"), "before": "", "after": str(view.get("total") or "")}]
+
+
+def note_withdraw(tool_input) -> str:
+    """卡片问句下面那一行事实：这笔收款的公司与账套（名字）。"""
+    view = service.status(str(tool_input.get("collection") or ""))
+    return " · ".join(str(part) for part in (view.get("company_name"), view.get("book")) if part)
+
+
 def withdraw(tool_input) -> str:
     found = _call(service.withdraw, str(tool_input.get("collection") or ""))
     return _json({"status": "withdrawn", "collection": found["result"]} if "result" in found else found)
@@ -474,8 +489,13 @@ TOOLS = [
      "handler": "pearnly_erp_portal.collection.cc_tools.recent"},
     {"name": "erp_collection_withdraw", "label": "Withdrew a collection", "modes": ["chat"],
      "description": "Withdraw one of the user's collections before CC Desktop picks it up (a draft, queued or failed "
-                    "one), only when the user asks. One being written or already in Express cannot be withdrawn.",
+                    "one), only when the user asks; the user sees Allow / Deny first. One being written or already in Express cannot "
+                    "be withdrawn.",
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
+     "approval": True,
+     "ask": "Withdraw this collection?",
+     "note": "pearnly_erp_portal.collection.cc_tools.note_withdraw",
+     "preview": "pearnly_erp_portal.collection.cc_tools.preview_withdraw",
      "handler": "pearnly_erp_portal.collection.cc_tools.withdraw"},
 ]
 

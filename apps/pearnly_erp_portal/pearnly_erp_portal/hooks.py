@@ -697,3 +697,6 @@ doc_events["ERP Company"] = {"on_update": "pearnly_erp_portal.masters.cc_service
 # MR.ERP 一侧按公司的 MR.ERP 连接直读 MR.ERP 列表（D 线 11-11，`mrerp.ledger_check`；MR.ERP 账本开关关着时回空）
 pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.check",
                         "mrerp": "pearnly_erp_portal.mrerp.ledger_check.check"}
+
+# 引导声明（总设计 docs/work/2026-11-14-cc-guided-master-design.md 2.2）：每项业务一份声明，共用引擎 `pearnly_core.assistant.guide` 据此出菜单与卡
+pearnly_guides = ["pearnly_erp_portal.express.cc_guides.GUIDES", "pearnly_erp_portal.collection.cc_guide.GUIDES"]

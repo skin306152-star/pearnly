@@ -11,7 +11,7 @@
  * 一行都没有时：没连电脑也没 MR.ERP 连接显示「CC 桌面版未连接」，否则「无数据」。
  *
  * 两个入口用同一个对话框：
- *   · 公司页列表「从连接添加」（`desk/company.js`）与左上角公司名下拉里的同一项（`desk/company-menu.js`）；
+ *   · 公司页列表「从连接添加」（`desk/company.js`）（左上角公司名下拉里不放，用户 11-15）；
  *   · 授权之后自动弹：服务端算出连接里有还没接进 ERP 的公司（`express.companies.announce`）就推 `pearnly_erp_new_ledgers`，
  *     不在线的下次打开 ERP 时由启动数据 `pearnly_new_ledgers` 带出；只对能建公司的人（`pearnly_can_build`）。
  *     关掉或建好都记「看过这一批」（`api_new_ledgers_seen`），同一批不再弹。

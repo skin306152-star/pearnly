@@ -285,7 +285,6 @@ cowork.cc.tool.cowork_run_folder_task|misuse:M08
 cowork.cc.tool.cowork_run_folder_task|misuse:M09
 cowork.cc.tool.cowork_run_folder_task|misuse:M11
 cowork.cc.tool.cowork_run_folder_task|misuse:M12
-cowork.cc.tool.cowork_run_folder_task|normal
 cowork.cc.tool.cowork_run_folder_task|variant:new+old
 cowork.cc.tool.pearnly_write_start|L3:normal
 cowork.cc.tool.pearnly_write_start|chain

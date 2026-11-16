@@ -670,7 +670,7 @@ class PrecheckTargetTests(Base):
         self.assertNotIn("target", out["documents"][2])  # 判不出的单不带
 
     def test_several_account_sets_are_listed_and_target_is_none(self):
-        one = {"account_set": "A", "account_set_title": "", "connection": "C1"}
+        one = {"account_set": "A", "account_set_title": "", "account_set_path": "S:\\A", "connection": "C1"}
         two = {"account_set": "B", "account_set_title": "Book B", "connection": "C1", "writers": ["pc-2", "pc-1", "pc-2"]}
         self.product.precheck_rows = [{"doc_id": "h1", "state": "ready", "target": one},
                                       {"doc_id": "h2", "state": "ready", "target": two},
@@ -679,7 +679,7 @@ class PrecheckTargetTests(Base):
         out = api.precheck("CO-1", ["h1", "h2", "h3", "h4"])
         self.assertIsNone(out["target"])
         self.assertEqual([(t["account_set"], t["account_set_title"], t["count"]) for t in out["targets"]],
-                         [("B", "Book B", 2), ("A", "A", 1)])
+                         [("B", "Book B", 2), ("A", "S:\\A", 1)])  # 没有名称写位置，不写账套键（内部编号）
         self.assertEqual(out["targets"][0]["writers"], ["pc-1", "pc-2"])
         self.assertIsNone(out["documents"][3]["target"])
 
@@ -753,7 +753,9 @@ class PrecheckTargetTests(Base):
         self.assertNotIn("target", by["P:PUR-3"])  # 没选出账套
         self.assertEqual((by["X:bad"]["state"], by["X:bad"]["reason"]), ("blocked", "not_permitted"))
         self.assertIsNone(operator.book_target({"label": "no key"}))
-        self.assertEqual(operator.book_target({"key": "K"})["account_set_title"], "K")
+        # 没有账套名写位置，没有位置就空着；账套键（book_key）是内部编号，不当名称（测试机1 11-13）
+        self.assertEqual(operator.book_target({"key": "K", "path": "S:\\K"})["account_set_title"], "S:\\K")
+        self.assertEqual(operator.book_target({"key": "K"})["account_set_title"], "")
 
     def test_cowork_takes_the_account_set_its_push_preparation_froze(self):
         """代录预检（`assistant.precheck_source.operator_check`）的账套与推送准备同一个 `_express_context`；每种结论都带上，挡下的（如票面税号与账套不符）也带。"""
@@ -786,7 +788,10 @@ class PrecheckTargetTests(Base):
                                 "connection_title": "Office Express"})
         bare = namespace["_operator_target"](doc, types.SimpleNamespace(doc=Row()), {
             "target": types.SimpleNamespace(account_set="K"), "account_row": None})
-        self.assertEqual((bare["account_set_title"], bare["account_set_path"], bare["connection_title"]), ("K", "", ""))
+        self.assertEqual((bare["account_set_title"], bare["account_set_path"], bare["connection_title"]), ("", "", ""))
+        pathed = namespace["_operator_target"](doc, types.SimpleNamespace(doc=Row()), {
+            "target": types.SimpleNamespace(account_set="K"), "account_row": {"label": "", "attributes": {"path": "S:\\K"}}})
+        self.assertEqual(pathed["account_set_title"], "S:\\K")  # 没有名称写位置，不写账套键
 
 
 class PendingMonthTests(unittest.TestCase):

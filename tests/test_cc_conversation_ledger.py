@@ -143,18 +143,31 @@ class LedgerTests(unittest.TestCase):
         self.row["project_ledger"] = T9
         text2, noted2 = self.projects.note(self.row, self.OWNER)
         self.assertIn("This conversation's account set is T.9", text2)
+        self.assertNotIn(T9, text2)  # 已定时也只说名称（A 线 11-15）
         self.assertNotEqual(noted2, noted)
         # 未定：列出这个月的几本、问一次再用工具设
         self.row.update(period="2026-10", project_ledger="", project_noted="")
         text3, _noted = self.projects.note(self.row, self.OWNER)
         self.assertIn("not decided yet", text3)
         self.assertIn("pearnly_conversation_ledger", text3)
-        self.assertIn("T.8 (id " + T8 + ", covers this month)", text3)
+        self.assertIn("T.8 (covers this month)", text3)
+        self.assertNotIn(T8, text3)  # 给 CC 的说明只给名称，不给账套编号（内部编号，CC 会复述给人；A 线 11-15）
         # provider 出错：只带产品说明，不挡发话
         self.provider.broken = True
         text4, _noted = self.projects.note(self.row, self.OWNER)
         self.assertNotIn("conversation_account_set", text4)
         self.assertIn("<company>ABC", text4)
+
+    def test_an_account_set_without_a_name_is_not_offered_by_its_id(self):
+        """没有名称的账套不列：账套编号是内部编号，既不当名称显示，也不进给 CC 的说明（A 线 11-15）。"""
+        self.provider.books[("co_abc1", "2026-11")] = ([(T8, "T.8", True), (T9, "", True), (T7, "  ", False)], "")
+        found = self.ledger.options_of("co_abc1", "2026-11", "", self.OWNER, self.provider)
+        self.assertEqual([(item["id"], item["label"]) for item in found["options"]], [(T8, "T.8")])
+        self.row.update(period="2026-11", project_ledger="", project_noted="")
+        text, _noted = self.projects.note(self.row, self.OWNER)
+        self.assertIn("Account sets: T.8 (covers this month)", text)
+        for key in (T8, T9, T7):
+            self.assertNotIn(key, text)
 
     # ── 建、移 ────────────────────────────────────────────────────────────────
     def test_a_new_conversation_stores_the_ledger_when_one_can_be_decided(self):

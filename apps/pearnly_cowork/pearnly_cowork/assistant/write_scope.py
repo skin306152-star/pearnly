@@ -41,7 +41,7 @@ NOTES = {
     LEDGER_NEEDED: ("ledger_needed: this conversation's account set is not decided yet, so nothing was written. Ask the "
                     "user once with ask_user which account set to write to (one question, each option label exactly "
                     "the label of one of allowed_account_sets), set it with pearnly_conversation_ledger (ledger = its "
-                    "id), then do this again; do not ask again after that."),
+                    "label), then do this again; do not ask again after that."),
     NO_COMPANY: ("no_company: this conversation is not filed under a company, so nothing was written. Ask the user "
                  "with ask_user which company to enter it into, offering the companies listed here (each option label "
                  "exactly the company's title), then file this conversation under the one they chose with "
@@ -235,7 +235,8 @@ def needed(found, pin) -> dict:
     for item in (pin.get("options") or ())[:SHOWN_MAX]:
         book = books.get(item["id"])
         connection, key = _places(book)[0] if book else provider.ledger_parts(item["id"])
-        shown.append({"id": item["id"], "connection": connection, "key": key, "label": item.get("label"),
+        # 不带本对话账套编号（内部编号）：CC 按名称设本对话账套（`ledger.choose` 认名称），A 线 11-15
+        shown.append({"connection": connection, "key": key, "label": item.get("label"),
                       "covers": bool(item.get("covers"))})
     return {"reason": LEDGER_NEEDED, "note": NOTES[LEDGER_NEEDED], "company": found["company"],
             "allowed_account_sets": shown}

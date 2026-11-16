@@ -72,7 +72,10 @@ def options_of(project, period, scope, user, found=None) -> dict | None:
         if not ledger or ledger in seen:
             continue
         seen.add(ledger)
-        options.append({"id": ledger, "label": str(item.get("label") or ledger), "covers": bool(item.get("covers"))})
+        label = str(item.get("label") or "").strip()
+        if not label:
+            continue  # 没有名称的不列：账套编号是内部编号，不当名称给人看、给 CC 复述（A 线 11-15）
+        options.append({"id": ledger, "label": label, "covers": bool(item.get("covers"))})
         if len(options) >= OPTIONS_MAX:
             break
     default = _ledger_id(raw.get("default"))
@@ -264,7 +267,7 @@ def tool_choose(tool_input) -> str:
 
 
 # 给 CC 的说明（只给模型，不经 _()）
-SET_NOTE = ("<conversation_account_set>This conversation's account set is {label} (id {id}). Every write in this "
+SET_NOTE = ("<conversation_account_set>This conversation's account set is {label}. Every write in this "
             "conversation goes into it: recognizing, pushing, read-backs and drafts use it unless the user names "
             "another. Never choose an account set by the document date and never ask which account set to write to; "
             "the server refuses any other account set. The user changes it in the conversation's side panel; if the "
@@ -273,14 +276,15 @@ SET_NOTE = ("<conversation_account_set>This conversation's account set is {label
 NEEDED_NOTE = ("<conversation_account_set>This conversation's account set is not decided yet. Before the first write, "
                "ask the user once with ask_user which one to write to (one question, each option label exactly one of "
                "these names; at most 4, Other lets them type another), then set it with pearnly_conversation_ledger "
-               "(ledger = its id); after that every write goes into it and you do not ask again. Account sets: "
+               "(ledger = its name exactly as listed); after that every write goes into it and you do not ask again. "
+               "Account sets: "
                "{options}</conversation_account_set>")
 NONE_NOTE = ("<conversation_account_set>This company has no account set this conversation can write to, so nothing "
              "can be written yet.</conversation_account_set>")
 
 
 def _listed(options) -> str:
-    return "; ".join(f"{item['label']} (id {item['id']}{', covers this month' if item['covers'] else ''})"
+    return "; ".join(f"{item['label']}{' (covers this month)' if item['covers'] else ''}"
                      for item in options)
 
 
@@ -290,7 +294,7 @@ def note(found) -> str:
         return ""
     if found["status"] == SET:
         others = [item for item in found["options"] if item["id"] != found["id"]]
-        return SET_NOTE.format(label=found["label"] or found["id"], id=found["id"],
+        return SET_NOTE.format(label=found["label"],
                                others=f" Other account sets: {_listed(others)}." if others else "")
     if not found["options"]:
         return NONE_NOTE

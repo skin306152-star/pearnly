@@ -10,7 +10,8 @@ received, remaining}]}`` 落进快照表（一本账套一行一张发票）。
   账套整本读一次；
 - 写进 Express 后：回执里每张发票写后的余额直接改快照（:func:`apply_balances`），再按客户读一次。
 
-旧的不盖新的：每行记读取时刻（``read_at``），晚到的旧读取不覆盖、不删比它新的行（整本读与按客户读交错时）。发起的读取记在缓存里，
+旧的不盖新的：每行记读取时刻（``read_at``），晚到的旧读取不覆盖、不删比它新的行（整本读与按客户读交错时）。删掉的发票（收清 / 作废）记一下
+删的时刻（缓存 ``GONE``，两天），比它旧的读取不把它插回。发起的读取记在缓存里，
 每分钟 :func:`advance` 把读好的落库（缓存丢了也不要紧：下一次同一请求号发起时，读好没取的那件先落）。
 """
 import gzip
@@ -30,6 +31,8 @@ COLLECTION = "ERP Collection"
 KIND = "express_ar_open"
 PENDING = "erp-ar-open-pending"   # 缓存：请求号 → {company, book_key, customer}
 MARK = "erp-ar-mark:"            # 缓存：账套键 → 上次看到的 ar_mark
+GONE = "erp-ar-gone:"            # 缓存：账套键 → {发票号: 读到它已不在（收清 / 作废）的时刻}
+GONE_DAYS = 2                    # 记这么久：比它更旧的读取早就落完了
 ROWS_MAX = 20000                 # 一本账套的未收清发票（几千行）
 IN_USE_DAYS = 30
 
@@ -148,6 +151,7 @@ def replace(company, book_key, items, read_at=None, customer=""):
         DOCTYPE, filters=filters, fields=["name", "docnum", "remaining", "received", "net", "read_at", "customer"],
         limit_page_length=ROWS_MAX) if not customer or row.customer == customer}
     seen, written = set(), 0
+    gone = _gone(book_key)
     for item in items[:ROWS_MAX]:
         try:
             values = _row_values(item)
@@ -157,6 +161,9 @@ def replace(company, book_key, items, read_at=None, customer=""):
             continue
         seen.add(values["docnum"])
         row = current.get(values["docnum"])
+        gone_at = gone.get(values["docnum"])
+        if row is None and gone_at is not None and gone_at > at:
+            continue  # 更新的读取已确认这张不在了（按客户读 / 写后回执删的）：旧的整本结果不插回（11-15）
         if row is None:
             frappe.get_doc({"doctype": DOCTYPE, "company": company, "book_key": book_key, "read_at": at,
                             **values}).insert(ignore_permissions=True)
@@ -167,7 +174,29 @@ def replace(company, book_key, items, read_at=None, customer=""):
     for docnum, row in current.items():
         if docnum not in seen and (not row.read_at or get_datetime(row.read_at) <= at):
             frappe.db.delete(DOCTYPE, {"name": row.name})
+            _bury(book_key, docnum, at)
     return written
+
+
+def _gone(book_key) -> dict:
+    """这本账套近两天确认已不在的发票：``{发票号: 时刻}``；过期的顺手清掉。缓存丢了就是空（退回原样：CC 写前仍按
+    already_collected 拒收）。"""
+    out, oldest = {}, now_datetime() - timedelta(days=GONE_DAYS)
+    for docnum, value in (frappe.cache.hgetall(GONE + str(book_key)) or {}).items():
+        docnum = docnum.decode() if isinstance(docnum, bytes) else str(docnum)
+        try:
+            moment = get_datetime(value)
+        except (TypeError, ValueError):
+            moment = None
+        if moment is None or moment < oldest:
+            frappe.cache.hdel(GONE + str(book_key), docnum)
+            continue
+        out[docnum] = moment
+    return out
+
+
+def _bury(book_key, docnum, at):
+    frappe.cache.hset(GONE + str(book_key), str(docnum), at.isoformat())
 
 
 def apply_balances(book_key, found, at=None):
@@ -179,6 +208,7 @@ def apply_balances(book_key, found, at=None):
             continue
         if remaining <= 0:
             frappe.db.delete(DOCTYPE, {"name": name})
+            _bury(book_key, docnum, at)
             continue
         net = contracts.money(frappe.db.get_value(DOCTYPE, name, "net") or 0)
         frappe.db.set_value(DOCTYPE, name, {"remaining": remaining, "received": max(contracts.ZERO, net - remaining),

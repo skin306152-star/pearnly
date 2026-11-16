@@ -6,7 +6,8 @@
    走产品自己的「添加成员」（`team.service.add_member`：先在统一身份里建号、再建站点用户并绑定），不手工改库；
    已有就用 `set_member_password` 把密码对齐到本机文件（本机文件是唯一一份）。权限只给 14 个场景要用的：
    - ERP：岗位 ERP Menu company（添加成员至少要一个岗位；ERP 能发的岗位按菜单分，11-05 第二次 --apply 时「ERP Purchase」已不在可发放的角色里被拒）+ ERP Admin（「添加公司」只有产品管理员能用，`rules.COMPANY_MANAGE_ROLES`；
-     添加成员不外发管理员角色，所以单独加，只在测试租户）；
+     添加成员不外发管理员角色，所以单独加，只在测试租户）。11-15 起管理员拥有本租户已开通的全部功能（`rules.admin_held`），
+     所以这个账号实际是全功能管理员，场景不依赖它「只有部分功能」；
    - Cowork：Cowork Intake（添加公司、代录都按它判）。
    不绑 LINE（脚本核对没有有效 LINE 绑定，有就报出来，不动它）；不碰正式租户、不碰别人的账号。
 2. Keycloak 两个账号池的只读客户端 `pearnly-config-reader`：机密客户端、只开服务账号（client_credentials），只给 realm-management 的

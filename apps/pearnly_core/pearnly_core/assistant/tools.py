@@ -8,6 +8,8 @@
 - 改全公司共用设置、定时安排的工具声明 `"approval"`：`True` 每次都要用户在对话里点「允许」才执行；
   也可以是参数名列表，带了其中任一个（即要写）才要（ADR-019，用户 2026-10-10：经授权后代为操作）。
   卡片上的问句是 `"ask"`；问法随参数变时另写 `"ask_when": {参数名: 问句}`，给了该参数就用那句。
+  问句下面那一行事实另写 `"note": "<函数路径>"`（函数(参数) → 这一步会动到哪家公司、哪本账套，没有就回空）：只写名字、不写说明句，
+  回空就不出那一行（用户 11-14：允许卡照 Claude 桌面应用的权限确认框，问句 → 一行事实 → 内容块 → 拒绝 / 允许）。
   只属于一种会话的工具写 `"modes"`：`["chat"]` 直写会话（例如直写推送）、`["operator"]` 代录会话；不符的调用在服务端拒绝
   （`toolrun._wrong_mode`，11-05 测试机：代录会话里 CC 用了直写推送，两种模式就没区别了）。
   出卡片前要先核对的另写 `"refuse": "<函数路径>"`（函数(参数) → 交回模型的拒绝结果文本或 None）：核出要拒绝的不出卡片、
@@ -178,13 +180,13 @@ CORE_TOOLS = [
                     "so, or a write came back with reason ledger_needed) or the user asked here to switch. Ask first "
                     "with ask_user: one question listing the account sets the note or the refusal gives, each option "
                     "label exactly the account set's name (at most 4; Other lets the user type another). Then call "
-                    "this with ledger = that account set's id. The server accepts only the account set the user picked "
+                    "this with ledger = that account set's name exactly as given. The server accepts only the account set the user picked "
                     "or typed on the latest ask_user card: refused reasons are not_chosen_by_user (ask again; never "
                     "choose for the user), not_an_option and not_available (this conversation has no account set to "
                     "choose: it is not filed under a company, or the product has none). After status set, every write "
                     "in this conversation goes into it: continue with the write the user asked for.",
      "input_schema": {"type": "object", "properties": {
-         "ledger": {"type": "string", "description": "The id of the account set the user chose."}},
+         "ledger": {"type": "string", "description": "The name of the account set the user chose."}},
          "required": ["ledger"]},
      "handler": "pearnly_core.assistant.ledger.tool_choose"},
     {"name": "ask_user",
@@ -311,9 +313,25 @@ def needs_approval(name: str, tool_input) -> bool:
 PREVIEW_ROWS = 100
 
 
+def _note(tool: dict, values: dict) -> str:
+    """卡片问句下面那一行事实（工具声明的 `note`）：会动到哪家公司、哪本账套。没声明、算不出或回空都是空串（那一行不出）。"""
+    if not tool.get("note"):
+        return ""
+    try:
+        with _context():
+            text = frappe.get_attr(tool["note"])(values)
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Assistant approval note failed")
+        return ""
+    return str(text or "").strip()
+
+
 def approval_view(name: str, tool_input) -> dict:
-    """等「允许」时卡片上显示的：这一步要做什么（`ask_when` 里给了参数的那句，否则 `ask`，没写就用步骤名）和要改哪几项（`preview`：
-    [{field, before, after}]，由工具的 `preview` 按当前设置现算；没写或算不出就列参数）。不写任何东西。"""
+    """等「允许」时卡片上显示的：这一步要做什么（`ask_when` 里给了参数的那句，否则 `ask`，没写就用步骤名）、一行事实（`note`，
+    会动到哪家公司、哪本账套；没有就不给）和要改哪几项（`preview`：[{field, before, after}]，由工具的 `preview` 按当前设置现算；
+    没写或算不出就列参数）。不写任何东西。"""
     tool = next((t for t in declared() if t["name"] == str(name or "")), None) or {}
     values = tool_input if isinstance(tool_input, dict) else {}
     rows = None
@@ -332,7 +350,8 @@ def approval_view(name: str, tool_input) -> dict:
     # 都没给才用 `ask`。例：定时任务只改提醒时刻，不该问「启用还是停用」（2026-10-13）。
     ask = next((text for key, text in (tool.get("ask_when") or {}).items() if _given(values, key)), None)
     ask = ask or tool.get("ask") or tool.get("label") or str(name or "")
-    return {"ask": _(ask), "preview": rows[:PREVIEW_ROWS]}
+    note = _note(tool, values)
+    return {"ask": _(ask), **({"note": note} if note else {}), "preview": rows[:PREVIEW_ROWS]}
 
 
 def refusal(name: str, tool_input) -> str | None:

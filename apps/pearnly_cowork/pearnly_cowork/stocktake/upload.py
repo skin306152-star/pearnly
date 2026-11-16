@@ -137,6 +137,22 @@ def records(start=0, limit=20, sort_by="created_at", sort_order="desc"):
                        "differences": int(row.differences)} for row in rows], "total": total}
 
 
+def summaries(task_ids) -> dict:
+    """{编号: {title, status, total, counted}}：本工作空间里的这几份盘点（CC「结束 / 删除」前的「允许」卡片用；只读，同列表口径）。"""
+    workspace = scope.existing_workspace()
+    access.require(workspace or None)
+    names = [str(name) for name in task_ids or [] if name][:200]
+    if not workspace or not names:
+        return {}
+    rows = frappe.db.sql("""SELECT t.name, t.title, t.status, COUNT(i.name) AS total,
+        COUNT(NULLIF(i.actual_qty,'')) AS counted
+        FROM `tabCowork Stocktake Task` t LEFT JOIN `tabCowork Stocktake Item` i
+            ON i.task=t.name AND i.workspace=t.workspace
+        WHERE t.workspace=%s AND t.name IN %s GROUP BY t.name""", (workspace, tuple(names)), as_dict=True)
+    return {row.name: {"title": row.title or row.name, "status": row.status, "total": int(row.total),
+                       "counted": int(row.counted)} for row in rows}
+
+
 def delete(task_ids):
     task_ids = service.parse(task_ids)
     if not isinstance(task_ids, list) or not task_ids or len(task_ids) > 200:

@@ -70,7 +70,6 @@ The printed invoice date cannot be read. Check the date shown on the document.	�
 The source page number must be a positive integer.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。	history.page_index_invalid
 The date reference year is missing. Reload and try again.	缺少日期参考年份，请重新加载后重试。	ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年がありません。再読み込みしてから再試行してください。	history.date_anchor_required
 The date reference year is invalid. Reload and try again.	日期参考年份无效，请重新加载后重试。	ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง	日付の基準年が無効です。再読み込みしてから再試行してください。	history.date_anchor_invalid
-Not Permitted	没有权限	ไม่ได้รับอนุญาต	適切な権限がありません	
 A positive source page number is required.	源文件页码必须是正整数。	หมายเลขหน้าไฟล์ต้นฉบับต้องเป็นจำนวนเต็มบวก	元ファイルのページ番号には正の整数が必要です。	
 Actor	操作人	ผู้ดำเนินการ	実行者	
 Actual Qty	实盘数量	จำนวนที่ตรวจนับจริง	実棚数量	
@@ -1145,7 +1144,6 @@ Document total	总金额	ยอดรวมทั้งสิ้น	合計
 Document type	单据类型	ประเภทเอกสาร	書類種類	
 For the best reading, photograph the document upright and straight, with the text the right way up and the whole page in frame.	拍摄提示：请将单据摆正、文字朝上，完整拍入画面。	เพื่อให้อ่านได้แม่นยำ กรุณาถ่ายเอกสารให้ตรง ตัวหนังสือหันขึ้นด้านบน และให้เห็นครบทั้งแผ่น	読み取り精度のため、書類をまっすぐ正しい向きで、文字が上向きになるよう全体を写してください。	
 No items were read	未识别到明细	ไม่พบรายการ	明細を読み取れませんでした	
-Not permitted	没有权限	ไม่มีสิทธิ์	権限がありません	
 Payment method	付款方式	วิธีชำระเงิน	支払方法	
 PromptPay	PromptPay	พร้อมเพย์	PromptPay	
 Receipt	收据	ใบเสร็จรับเงิน	領収書	
@@ -2412,3 +2410,11 @@ Checking pending items	正在查看待处理	กำลังตรวจสอ�
 Cowork invoice recognition	发票识别	อ่านใบแจ้งหนี้	請求書の読み取り	
 Cowork VAT check invoice recognition	增值税核对发票识别	อ่านใบกำกับภาษีเพื่อตรวจภาษีมูลค่าเพิ่ม	消費税照合の請求書読み取り	
 Cowork reconciliation document recognition	对账单据识别	อ่านเอกสารกระทบยอด	照合書類の読み取り	
+Delete these documents?	确定要删除以下单据吗？	ลบเอกสารเหล่านี้หรือไม่	これらの書類を削除しますか？
+Delete this readback?	确定要删除此回读吗？	ลบการอ่านข้อมูลกลับนี้หรือไม่	この読み戻しを削除しますか？
+Delete these reconciliations?	确定要删除以下对账任务吗？	ลบงานกระทบยอดเหล่านี้หรือไม่	これらの照合を削除しますか？
+Delete these tax drafts?	确定要删除以下申报草稿吗？	ลบร่างแบบภาษีเหล่านี้หรือไม่	これらの申告下書きを削除しますか？
+Finish this stock count?	确定要结束此盘点吗？	ปิดการตรวจนับนี้หรือไม่	この棚卸を終了しますか？
+Delete these stock counts?	确定要删除以下盘点吗？	ลบการตรวจนับเหล่านี้หรือไม่	これらの棚卸を削除しますか？
+Run this scheduled task now?	确定要立即运行此定时任务吗？	เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่	この定期タスクを今すぐ実行しますか？
+New files are recognized (charged) and pushed	新文件将识别（扣费）并推送	ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ	新しいファイルを認識（課金）して送信します	cowork.folder.runNow.charge

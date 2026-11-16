@@ -206,6 +206,20 @@ class WritePlanTests(unittest.TestCase):
         self.assertIn("say back to the user in one sentence", out["note"])
         self.assertEqual(FAKE.published[-1]["status"], "awaiting")  # 页面据此出「录吧」
 
+    def test_the_plan_names_come_from_the_server_and_carry_no_note_text(self):
+        """11-15 线上：CC 复述计划时账套那行夹了英文「(This conversation's account set)」——给模型的说明句被照抄。计划结果里给人看的
+        名字只有服务端的公司名 / 账套名，说明句另放在 note；note 要求按 company_title / account_set_title 原样说、不加任何东西。"""
+        out = self.plan()
+        shown = [out["company_title"], *[item.get("account_set_title", "") for item in out["account_sets"]]]
+        notes = [(CORE / "assistant/ledger.py").read_text(encoding="utf-8"), self.plan_module.PLAN_NOTE]  # 给模型的说明句
+        for name in shown:
+            self.assertNotIn("account set is", name)
+            self.assertNotIn("conversation", name.lower())
+            for note in notes:
+                self.assertNotIn(name.strip() or "x" * 40, note)  # 名字不是说明句的一段
+        self.assertIn("exactly as company_title and account_set_title give them", out["note"])
+        self.assertIn("no explanation in brackets", out["note"])
+
     def test_writing_starts_only_after_the_user_answered_the_plan(self):
         out = self.plan()
         refused = self.start(out["plan"])  # CC 复述后没等用户回话就开始

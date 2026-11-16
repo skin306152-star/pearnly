@@ -7524,6 +7524,31 @@ assert.deepEqual(replies(done), [{ text: "好", stopped: false }]);
         for code in ("en", "zh", "th", "ja"):
             self.assertIn("stopped:", read("i18n.ts"))
 
+    def test_only_a_reply_streamed_by_previews_is_typed_out(self):
+        # 11-14（共享笔记「CC对话轮询停在半截-调查」）：组件库的逐字动画对所有回复都开着，补拉一次带回的整条也要零点几秒到一秒才画完，
+        # 只靠轮询时这段时间里页面是半截。逐字预览打开的那条记 custom.streamed（只有它用逐字动画）；补拉 / 重放整条带回的不记，直接显示全文
+        self.run_page(r"""
+import { applyEvent, project } from "@/lib/managed-agents/reducer";
+const at = (s: number) => `2026-11-14T10:00:${String(s).padStart(2, "0")}Z`;
+const marks = (state: any) => state.messages.filter((m: any) => m.role === "assistant").map((m: any) => ({
+  text: m.content.filter((p: any) => p.type === "text").map((p: any) => p.text).join(""), streamed: !!m.metadata?.custom?.streamed }));
+const user = { id: "u1", type: "user.message", processed_at: at(1), content: [{ type: "text", text: "盘点" }] } as any;
+const run = { id: "r1", type: "session.status_running", processed_at: at(2) } as any;
+const reply = { id: "m1", type: "agent.message", processed_at: at(3), content: [{ type: "text", text: "三号仓盘点完了" }] } as any;
+// 逐字推来：预览打开、逐字填、正式事件收口——这一条用逐字动画
+let live = project([user, run] as any);
+live = applyEvent(live, { type: "event_start", event: { id: "m1", type: "agent.message" } } as any);
+live = applyEvent(live, { type: "event_delta", event_id: "m1", delta: { type: "content_delta", content: { type: "text", text: "三号仓" } } } as any);
+live = applyEvent(live, reply);
+assert.deepEqual(marks(live), [{ text: "三号仓盘点完了", streamed: true }]);
+// 补拉一次带回整条（这一轮还在跑）、重放：不用逐字动画
+assert.deepEqual(marks(applyEvent(project([user, run] as any), reply)), [{ text: "三号仓盘点完了", streamed: false }]);
+assert.deepEqual(marks(project([user, run, reply] as any)), [{ text: "三号仓盘点完了", streamed: false }]);
+""")
+        source = read("components/assistant-ui/markdown-text.tsx")
+        self.assertIn("smooth={streamed}", source)
+        self.assertIn("?.streamed);", source)
+
     def test_a_repeated_preview_start_reuses_its_part_and_a_retry_drops_half_lines(self):
         # 第 4 项「การ」残句：同一条回复的预览从头再推一遍（推送线程重接）时，原来那段接着用、清空重写，不另开一段留下前几个字；
         # 出错重试（status_rescheduled）时还没写完的预览不会再有正式事件收口，清掉

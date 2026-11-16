@@ -1,7 +1,7 @@
 """ERP 版 CC 的盘点工具（盘点 2026-11-08 P1-1，`pearnly_erp_portal.inventory.cc_tools`）的离线检查：
 
 - 声明：ERP 自己在 hooks 声明（ADR-009），名字 ``erp_stocktake_*``，形状照 Cowork 的 ``cowork_stocktake_*``（同名工具同一个步骤名、
-  同一份译文），都不要「允许」（主会话 11-08 第 4 条）；步骤名有四语译文。
+  同一份译文）；只有结束盘点先出「允许」卡片（用户 11-12），其余不要（主会话 11-08 第 4 条）；步骤名有四语译文。
 - 只调 ERP 盘点页同一组服务函数（``inventory.count``），不自己读写库；公司按对话挂的那家，给了别家照 ``masters.cc_tools.resolve`` 认。
 - 结束先取审阅令牌再结束；调整单只生成草稿；按码记数遇到几件同码的回候选、码不在系统里回原因；recount 先作废再记；
   业务拒绝回 not_saved 不抛。
@@ -15,6 +15,7 @@ import pathlib
 import sys
 import types
 import unittest
+from unittest import mock
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 ERP = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal"
@@ -178,6 +179,22 @@ class Behaviour(unittest.TestCase):
         self.assertEqual(CALLS[1][2]["review_token"], "tok-1")
         self.assertEqual(out["status"], "Closed")
 
+    def test_the_close_card_lists_the_count_and_what_is_counted_and_changes_nothing(self):
+        """结束先出「允许」卡片（用户 11-12）：卡上是哪份盘点、已盘几项、未盘几项；出卡片只读，不结束。"""
+        count.get_count = _record("get_count", {"name": "SC-1", "title": "Nov", "item_total": 5, "counted_total": 3})
+        with mock.patch.object(frappe, "_", lambda text: text, create=True):
+            rows = tools.preview_stocktake_close({"count": "SC-1"})
+        self.assertEqual([(row["field"], row["after"]) for row in rows],
+                         [("nav.stockCount", "Nov"), ("stock.count.countedRows", "3"), ("stock.count.rowUncounted", "2")])
+        self.assertEqual([c[0] for c in CALLS], ["get_count"])  # 只读，不调结束
+        # 问句下面那一行事实：这份盘点所在仓的公司名（不写公司、仓的编号）
+        count.get_count = _record("get_count", {"name": "SC-1", "title": "Nov", "warehouse": "WH-0001"})
+        names = {("ERP Warehouse", "WH-0001", "company"): "CO-0001", ("ERP Company", "CO-0001", "company_name"): "T9 Sincer Co."}
+        with mock.patch.object(frappe.db, "get_value", lambda doctype, name, field: names.get((doctype, name, field)), create=True):
+            self.assertEqual(tools.note_stocktake_close({"count": "SC-1"}), "T9 Sincer Co.")
+            count.get_count = _record("get_count", {"name": "SC-1", "title": "Nov", "warehouse": ""})
+            self.assertEqual(tools.note_stocktake_close({"count": "SC-1"}), "")
+
     def test_adjust_only_makes_a_draft(self):
         out = run("stocktake_adjust", count="SC-1")
         self.assertEqual(out, {"name": "SE-9", "state": "draft"})
@@ -270,7 +287,13 @@ class Declaration(unittest.TestCase):
         erp, cowork = terms(ERP), terms(COWORK)
         source = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
         for tool in tools.TOOLS:
-            self.assertNotIn("approval", tool)
+            # 只有「结束盘点」先出「允许」卡片（用户 11-12：删除、结束类各一张卡）；其余照旧不加
+            if tool["name"] == "erp_stocktake_close":
+                self.assertIs(tool["approval"], True)
+                self.assertEqual(tool["preview"], "pearnly_erp_portal.inventory.cc_tools.preview_stocktake_close")
+                self.assertEqual(len([c for c in erp.get(tool["ask"], []) if c.strip()]), 3, tool["ask"])
+            else:
+                self.assertNotIn("approval", tool)
             module, _sep, func = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.inventory.cc_tools")
             self.assertTrue(callable(getattr(tools, func)))
@@ -281,7 +304,8 @@ class Declaration(unittest.TestCase):
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)
-            self.assertNotIn('"approval"', source[start:end], twin)
+            # 两边同一个口径：ERP 要「允许」的（结束），Cowork 同名工具也要；ERP 不要的，Cowork 也不要
+            self.assertEqual('"approval"' in source[start:end], "approval" in tool, twin)
             for text in (tool["label"], tools.STEP_NAMES[tool["name"]]):
                 self.assertEqual(erp[text], cowork[text], text)  # 译文与 Cowork 同一份
         props = {tool["name"]: tool["input_schema"]["properties"] for tool in tools.TOOLS}

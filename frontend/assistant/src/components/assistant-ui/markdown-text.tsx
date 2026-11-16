@@ -10,6 +10,7 @@ import {
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
+import { useAuiState } from "@assistant-ui/react";
 import remarkGfm from "remark-gfm";
 import { type FC, memo, useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
@@ -19,11 +20,15 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 
 const MarkdownTextImpl = () => {
+  // 逐字动画只给真正逐字推来的回复（逐字预览打开的那条，reducer 记的 custom.streamed）。补拉 / 重放一次带回的整条直接显示全文：
+  // 组件库默认对所有回复都开动画，已到齐的整条也要零点几秒到一秒才画完，只靠轮询（实时通道断开）时这段时间里页面是半截（11-14）
+  const streamed = useAuiState((s) => !!(s.message.metadata?.custom as { streamed?: boolean } | undefined)?.streamed);
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={defaultComponents}
+      smooth={streamed}
       // 不延后解析：逐字出字时延后的那份一直被新字打断，慢的手机上几秒都只看到空白（教程第 8 条 b）
     />
   );

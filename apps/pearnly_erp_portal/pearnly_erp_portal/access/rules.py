@@ -31,7 +31,7 @@ FEATURE_ROLES = {
     "cashier": "ERP Cashier",
     # 任务管理（看板，2026-10-23 从 Cowork 复制）：开通时发给租户管理员；员工在团队管理里逐人勾「任务管理」菜单。
     "tasks": "ERP Tasks",
-    # 收款岗位（2026-11-11，收款写进 Express RE）：团队管理里逐人勾；管理员默认就有（ADMIN_FEATURE_CAPABILITIES）。
+    # 收款岗位（2026-11-11，收款写进 Express RE）：团队管理里逐人勾；管理员随功能开通就有（admin_held）。
     # 用户 11-14：只有一个「收款」权限——勾了的人在 LINE / CC / 网页「销售 → 收款」录、看本公司全部、改 / 撤回还没写进 Express 的，
     # 不分是谁录的；`collection.view` 与 `collection.write` 同一判据（保留两个码只为调用处读得清楚）。
     "collection": "ERP Collector",
@@ -75,9 +75,6 @@ CAPABILITY_FEATURES = {
 # 只有管理员能用的能力（不经功能角色发放）。
 ADMIN_CAPABILITIES = ("team.manage",)
 
-# 管理员默认就有、但仍跟着功能开通走的能力：能力 → 功能码。功能没开通时管理员也没有（`guard.has` 判）。
-# 收款（主会话 11-14）：团队管理把管理员画成全勾，网页 / LINE / CC 三处录收款与之一致；看与录同一判据。
-ADMIN_FEATURE_CAPABILITIES = {"collection.write": "collection", "collection.view": "collection"}
 
 # LINE（本租户官方号）：团队管理里**逐人勾选**才开通（用户 2026-09-25），不再随业务岗位自动给；
 # 租户管理员本人默认可用。绑定仍是**自己绑自己**（码只发给当前登录账号，见 integrations/binding.py），
@@ -120,12 +117,21 @@ def required_roles(capability: str) -> tuple[str, ...]:
                "receipts.read": "cashier.read", "receipts.write": "cashier.write", "shifts.read": "cashier.read"}
     capability = aliases.get(capability, capability)
     roles = [FEATURE_ROLES.get(code) for code in CAPABILITY_FEATURES.get(capability, ())]
-    if capability in ADMIN_FEATURE_CAPABILITIES:
-        roles += [ADMIN_ROLE]  # 11-14：管理员默认有收款（看、录同一判据）
     if capability == "company.read":
         # 能改公司资料的人当然读得到（主会话 11-09：只拿 ERP Admin 的账号能改公司、却打不开公司页）
         roles += list(COMPANY_MANAGE_ROLES)
     return tuple(role for role in roles if role)
+
+
+def admin_held(roles, features) -> set:
+    """管理员拥有本租户已开通的全部功能（用户 11-15）：持有产品管理员角色，就视为持有每个已开通功能的功能角色。
+
+    团队管理把管理员画成全勾、不可改；开户时发齐当时已有的功能角色，之后新增的功能（如 11-11 收款）只补了功能码、
+    没给管理员补角色，于是「画着勾却没有」。判据在这里一处补齐，以后新增功能对管理员自动生效；未开通的功能照旧没有。"""
+    held = set(roles)
+    if ADMIN_ROLE in held:
+        held.update(role for code, role in FEATURE_ROLES.items() if code in set(features))
+    return held
 
 
 def can(roles, capability: str) -> bool:

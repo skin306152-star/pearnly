@@ -74,6 +74,18 @@ def tasks(kind, start=0, limit=20, sort_by=None, sort_order=None):
     return _tasks(kind).records(workspace, start, limit, sort_by, sort_order)
 
 
+def titles(kind, task_ids) -> dict:
+    """{编号: 标题}：本工作空间里的这几份对账（CC 删除前的「允许」卡片列名字用；只读，不在本工作空间的不列）。"""
+    workspace = scope.existing_workspace()
+    names = [str(name) for name in task_ids or [] if name][:200]
+    if not workspace or not names:
+        return {}
+    doctype = vat_check_service.TASK if kind == "vat" else _tasks(kind).task
+    rows = frappe.get_all(doctype, filters={"workspace": workspace, "name": ["in", names]}, fields=["name", "title"],
+                          limit_page_length=len(names))
+    return {row.name: row.title or row.name for row in rows}
+
+
 @frappe.whitelist()
 def detail(kind, task_id, start=0, limit=200):
     return _tasks(kind).detail(task_id, start, limit)

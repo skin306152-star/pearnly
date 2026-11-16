@@ -4413,6 +4413,140 @@ def preview_delete_folder_tasks(tool_input) -> list:
     return [_change("Delete", "", names.get(str(n)) or n) for n in tool_input.get("tasks") or []]
 
 
+# ---------------- 删除、结束与立即运行：先出「允许」卡片，卡上列清这一次动的是哪几条（用户 11-12） ----------------
+# 只读、不写；读不到名字的照编号列（卡片只是给人看，不因为读不到就整张退回列参数）。执行仍走各工具原来的 handler，拒绝就不执行（共用层）。
+
+def _named_rows(names, titles) -> list:
+    return [_change("Delete", "", titles.get(name) or name) for name in names]
+
+
+def _document_line(row) -> str:
+    """单据一行：单号（没有就文件名）· 对方（进项是卖方、销项是买方）· 金额。"""
+    party = row.get("buyer_name") if row.get("direction") == "sales" else row.get("seller_name")
+    parts = (row.get("invoice_no") or row.get("filename"), party, row.get("total_amount"))
+    return " · ".join(_shown(part) for part in parts if _shown(part))
+
+
+def preview_delete_documents(tool_input) -> list:
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("documents") or []))[:DELETE_MAX]
+    if not names:
+        return []
+    anchors = direction_anchors()
+    # 走 DocType 自己的权限查询条件（同录入列表）：看不见的行取不到，照编号列
+    found = frappe.get_list(HISTORY, filters={"name": ["in", names]}, fields=DOC_FIELDS + ["pages", "workspace"],
+                            limit_page_length=len(names))
+    lines = {row["name"]: _document_line(_with_page(dict(row), anchors)) for row in found}
+    return _named_rows(names, lines)
+
+
+def preview_express_readback_delete(tool_input) -> list:
+    from pearnly_cowork.readback import service as readback
+
+    name = str(tool_input.get("readback") or "")
+    found = readback.label(name)
+    return [_change("Delete", "", " · ".join(p for p in (found["account_set"], found["period"]) if p) or name)]
+
+
+def preview_recon_delete(tool_input) -> list:
+    from pearnly_cowork.recon_center import api as recon_api
+
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("tasks") or []))
+    return _named_rows(names, recon_api.titles(_recon_kind(tool_input), names))
+
+
+def _draft_line(draft) -> str:
+    from pearnly_cowork.tax import access as tax_access
+
+    form = (_("cowork.tax.sheet.pp30") if draft.get("kind") == tax_access.VAT
+            else f"{_('cowork.tax.form.pnd3')} / {_('cowork.tax.form.pnd53')}")
+    company = " ".join(p for p in (draft.get("company"), draft.get("branch")) if p)
+    return " · ".join(p for p in (company, form, draft.get("period")) if p)
+
+
+def preview_tax_draft_delete(tool_input) -> list:
+    from pearnly_cowork.tax import service as tax_service
+
+    raw = tool_input.get("drafts") or []
+    names = list(dict.fromkeys([str(raw)] if isinstance(raw, str) else [str(n) for n in raw]))
+    found = tax_service.labels(names)
+    return _named_rows(names, {name: _draft_line(row) for name, row in found.items()})
+
+
+def preview_stocktake_delete(tool_input) -> list:
+    from pearnly_cowork.stocktake import upload
+
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("counts") or []))
+    return _named_rows(names, {name: row["title"] for name, row in upload.summaries(names).items()})
+
+
+def preview_stocktake_close(tool_input) -> list:
+    """「结束盘点」卡片：哪份盘点、已盘几项、未盘几项（同盘点页结束前的确认；结束后只能查看与导出）。"""
+    from pearnly_cowork.stocktake import upload
+
+    name = str(tool_input.get("count") or "")
+    row = upload.summaries([name]).get(name) or {"title": name, "total": 0, "counted": 0}
+    return [_change("Stock count", "", row["title"]),
+            _change("cowork.stock.count.countedRows", "", row["counted"]),
+            _change("cowork.stock.count.rowUncounted", "", max(row["total"] - row["counted"], 0))]
+
+
+# 问句下面那一行事实（`note`，用户 11-14 照 Claude 桌面应用的权限确认框）：这一次会动到哪家公司、哪本账套，只写名字；
+# 没有就回空串（那一行不出）。对账、盘点在工作空间里、不分公司，不给。
+
+def _joined(names) -> str:
+    return ", ".join(dict.fromkeys(_shown(n) for n in names if _shown(n)))
+
+
+def note_delete_documents(tool_input) -> str:
+    """这几张单要推往的账套（名字，账套名带公司）；还没定去向的不算。"""
+    names = list(dict.fromkeys(str(n) for n in tool_input.get("documents") or []))[:DELETE_MAX]
+    if not names:
+        return ""
+    rows = frappe.get_list(HISTORY, filters={"name": ["in", names]}, fields=["push_connection", "push_account_set"],
+                           limit_page_length=len(names))
+    cache = {}
+    return _joined(_account_names(cache, row["push_connection"]).get(_account_key(row["push_account_set"]))
+                   for row in rows if row.get("push_connection") and row.get("push_account_set"))
+
+
+def note_express_readback_delete(tool_input) -> str:
+    from pearnly_cowork.readback import service as readback
+
+    return readback.label(str(tool_input.get("readback") or ""))["account_set"]
+
+
+def note_tax_draft_delete(tool_input) -> str:
+    from pearnly_cowork.tax import service as tax_service
+
+    raw = tool_input.get("drafts") or []
+    names = list(dict.fromkeys([str(raw)] if isinstance(raw, str) else [str(n) for n in raw]))
+    return _joined(row.get("company") for row in tax_service.labels(names).values())
+
+
+def note_run_folder_task(tool_input) -> str:
+    """这个任务会识别并推进的公司与账套。"""
+    row = _task_row(str(tool_input.get("task") or ""))
+    if not row:
+        return ""
+    company = frappe.db.get_value("Cowork Company", row["company"], "title") if row.get("company") else ""
+    return " · ".join(_shown(p) for p in (company, row.get("account_label")) if _shown(p))
+
+
+RUN_NOW_FACT = "cowork.folder.runNow.charge"
+
+
+def preview_run_folder_task(tool_input) -> list:
+    """「立即运行」卡片：任务名、账套（公司）、方向、文件夹，和这次会识别扣费并推送这件事。"""
+    name = str(tool_input.get("task") or "")
+    row = _task_row(name)
+    if not row:
+        return [_change("cowork.folder.field.title", "", name), {"field": "", "before": "", "after": _(RUN_NOW_FACT)}]
+    shown = _task_shown(row)
+    fields = ("cowork.folder.field.title", "intake.target.accountSet", "intake.field.direction", "cowork.folder.field.folder")
+    rows = [_change(field, "", shown[field]) for field in fields if _shown(shown[field])]
+    return rows + [{"field": "", "before": "", "after": _(RUN_NOW_FACT)}]
+
+
 def preview_choose_document_policy(tool_input) -> list:
     from pearnly_cowork.contracts import document_policy as policy_rules
     from pearnly_core.express_rules.contracts.history import primary_page_fields
@@ -4929,12 +5063,16 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.resolve_push_result"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
-                    "in the list; documents already pushed are skipped. When the user clearly named the documents, "
-                    "delete them right away (no extra confirmation step); only when it is unclear which ones they "
-                    "mean, list them by number, seller and amount and ask first. Returns deleted and skipped counts.",
+                    "in the list; documents already pushed are skipped. The user sees the documents listed with Allow / "
+                    "Deny first, so do not ask again before calling it; only when it is unclear which ones they mean, "
+                    "list them by number, seller and amount and ask first. Returns deleted and skipped counts.",
      "input_schema": {"type": "object", "properties": {
          "documents": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": DELETE_MAX}},
          "required": ["documents"]},
+     "approval": True,
+     "ask": "Delete these documents?",
+     "note": "pearnly_cowork.assistant.tools.note_delete_documents",
+     "preview": "pearnly_cowork.assistant.tools.preview_delete_documents",
      "handler": "pearnly_cowork.assistant.tools.delete_documents"},
     {"name": "cowork_export_review_workbook", "label": "Exported the review workbook",
      "description": "Export documents (up to 100) to the review workbook, the Excel file accountants check and send "
@@ -5018,9 +5156,13 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
      "handler": "pearnly_cowork.assistant.tools.express_readback_status"},
     {"name": "cowork_express_readback_delete", "label": "Deleted a readback",
-     "description": "Delete a readback and its stored workbooks when the user asks. Files already added to a chat stay "
-                    "there.",
+     "description": "Delete a readback and its stored workbooks when the user asks; the user sees Allow / Deny first. "
+                    "Files already added to a chat stay there.",
      "input_schema": {"type": "object", "properties": {"readback": {"type": "string"}}, "required": ["readback"]},
+     "approval": True,
+     "ask": "Delete this readback?",
+     "note": "pearnly_cowork.assistant.tools.note_express_readback_delete",
+     "preview": "pearnly_cowork.assistant.tools.preview_express_readback_delete",
      "handler": "pearnly_cowork.assistant.tools.express_readback_delete"},
     {"name": "cowork_save_folder_task", "label": "Saved a scheduled task",
      "description": "Create or change one scheduled folder task: on run_day at run_time it recognizes, with these "
@@ -5167,9 +5309,13 @@ TOOLS = [
                       "required": ["kind", "task"]},
      "handler": "pearnly_cowork.assistant.tools.recon_export"},
     {"name": "cowork_recon_delete", "label": "Deleted reconciliations",
-     "description": "Delete reconciliations the user clearly named (ask only when it is unclear which).",
+     "description": "Delete reconciliations the user clearly named (ask only when it is unclear which); the user sees "
+                    "Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {"kind": {"type": "string", "enum": ["bank", "income", "vat"], "description": "bank = bank reconciliation, income = income reconciliation, vat = output VAT report check."},
          "tasks": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["kind", "tasks"]},
+     "approval": True,
+     "ask": "Delete these reconciliations?",
+     "preview": "pearnly_cowork.assistant.tools.preview_recon_delete",
      "handler": "pearnly_cowork.assistant.tools.recon_delete"},
     {"name": "cowork_vat_draft", "label": "Drafted a VAT return",
      "description": "Draft the P.P.30 VAT return of one Express account set (not MR.ERP) and tax month from that month's "
@@ -5251,10 +5397,15 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.wht_answer"},
     {"name": "cowork_tax_draft_delete", "label": "Deleted tax drafts",
      "description": "Delete VAT or withholding tax drafts the user clearly named (the draft from cowork_vat_draft or "
-                    "cowork_wht_draft) with their kept options and row edits; ask only when unclear which.",
+                    "cowork_wht_draft) with their kept options and row edits; ask only when unclear which. The user "
+                    "sees Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {
          "drafts": {"type": "array", "items": {"type": "string"}, "minItems": 1, "maxItems": 50}},
          "required": ["drafts"]},
+     "approval": True,
+     "ask": "Delete these tax drafts?",
+     "note": "pearnly_cowork.assistant.tools.note_tax_draft_delete",
+     "preview": "pearnly_cowork.assistant.tools.preview_tax_draft_delete",
      "handler": "pearnly_cowork.assistant.tools.tax_draft_delete"},
     {"name": "cowork_stocktake_list", "label": "Listed stock counts",
      "description": "The company's stock counts (stocktakes), newest first.",
@@ -5277,16 +5428,24 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}, "code": {"type": "string"}, "qty": {"type": "number", "minimum": 0}, "warehouse": {"type": "string"}, "location": {"type": "string"}, "recount": {"type": "boolean"}}, "required": ["count", "code"]},
      "handler": "pearnly_cowork.assistant.tools.stocktake_count"},
     {"name": "cowork_stocktake_close", "label": "Finished a stock count",
-     "description": "Finish a stock count; it becomes read-only (export only). Only when the user says counting is done.",
+     "description": "Finish a stock count; it becomes read-only (export only). Only when the user says counting is "
+                    "done; the user sees Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
+     "approval": True,
+     "ask": "Finish this stock count?",
+     "preview": "pearnly_cowork.assistant.tools.preview_stocktake_close",
      "handler": "pearnly_cowork.assistant.tools.stocktake_close"},
     {"name": "cowork_stocktake_export", "label": "Exported a stock count",
      "description": "The variance workbook of a stock count, added to this conversation; copy it into the results folder for the user.",
      "input_schema": {"type": "object", "properties": {"count": {"type": "string"}}, "required": ["count"]},
      "handler": "pearnly_cowork.assistant.tools.stocktake_export"},
     {"name": "cowork_stocktake_delete", "label": "Deleted stock counts",
-     "description": "Delete stock counts the user clearly named (ask only when unclear which).",
+     "description": "Delete stock counts the user clearly named (ask only when unclear which); the user sees Allow / "
+                    "Deny first.",
      "input_schema": {"type": "object", "properties": {"counts": {"type": "array", "items": {"type": "string"}, "minItems": 1}}, "required": ["counts"]},
+     "approval": True,
+     "ask": "Delete these stock counts?",
+     "preview": "pearnly_cowork.assistant.tools.preview_stocktake_delete",
      "handler": "pearnly_cowork.assistant.tools.stocktake_delete"},
     {"name": "cowork_work_boards", "label": "Listed task boards",
      "description": "The team task boards the user can see.",
@@ -5343,8 +5502,13 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": dict(SCOPE_PROPS)},
      "handler": "pearnly_cowork.assistant.tools.folder_tasks"},
     {"name": "cowork_run_folder_task", "label": "Started a scheduled task",
-     "description": "Run one folder task now. Only when the user asked.",
+     "description": "Run one folder task now: new files in its folder are recognized (charged) and pushed. Only when "
+                    "the user asked; the user sees the task with Allow / Deny first.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
+     "approval": True,
+     "ask": "Run this scheduled task now?",
+     "note": "pearnly_cowork.assistant.tools.note_run_folder_task",
+     "preview": "pearnly_cowork.assistant.tools.preview_run_folder_task",
      "handler": "pearnly_cowork.assistant.tools.run_folder_task"},
     {"name": "cowork_folder_task_runs", "label": "Checked scheduled task runs",
      "description": "Show the recent runs of one folder task: files found, uploaded, skipped and failed, and per run "

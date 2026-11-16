@@ -475,6 +475,12 @@ def data(name) -> dict:
     return {**contracts.parse(stored["readback"], row.period), "history": stored.get("history") or {}}
 
 
+def label(name) -> dict:
+    """看得到的一份回读是哪本账套、哪个月（CC 删除前的「允许」卡片用；只读）。"""
+    row = _visible(name)
+    return {"account_set": row.account_label or row.account_set_key or "", "period": row.period or ""}
+
+
 def delete(name) -> dict:
     """发起人删掉一份回读（连同四份工作簿与读账结果）。已经放进对话的文件留在对话里。"""
     row = _own(name)

@@ -45,7 +45,7 @@ def allowed(user=None):
     user = user or frappe.session.user
     if not user or user == "Guest" or not entitled() or not frappe.db.get_value("User", user, "enabled"):
         return False
-    return administrator(user) or guard.has(CAPABILITY, user)
+    return guard.has(CAPABILITY, user)
 
 
 def require():

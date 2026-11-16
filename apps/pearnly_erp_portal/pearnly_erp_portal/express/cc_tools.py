@@ -131,7 +131,7 @@ LEDGER_SHOWN = 10
 LEDGER_NEEDED_NOTE = ("ledger_needed: this conversation's account set is not decided yet, so nothing was written. Ask the "
                       "user once with ask_user which account set to write to (one question, each option label exactly "
                       "the label of one of allowed_account_sets), set it with pearnly_conversation_ledger (ledger = its "
-                      "id), then make the write plan again; do not ask again after that.")
+                      "label), then make the write plan again; do not ask again after that.")
 
 
 def _ledger_refusal(document, row) -> dict | None:
@@ -147,7 +147,7 @@ def _ledger_refusal(document, row) -> dict | None:
         return None
     return {"document": document, "status": direct_push.FAILED, "reason": LEDGER_NEEDED, "reason_code": LEDGER_NEEDED,
             "note": LEDGER_NEEDED_NOTE, "company": row.company,
-            "allowed_account_sets": [{"id": item["id"], "key": item["id"], "label": item.get("label") or item["id"],
+            "allowed_account_sets": [{"label": item.get("label") or "",
                                       "covers": bool(item.get("covers"))} for item in pin["options"][:LEDGER_SHOWN]]}
 
 

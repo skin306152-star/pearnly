@@ -579,9 +579,14 @@ Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
 Delete selected ({0}),Delete selected ({0})
+Delete these documents?,Delete these documents?
+Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
+Delete these stock counts?,Delete these stock counts?
+Delete these tax drafts?,Delete these tax drafts?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
+Delete this readback?,Delete this readback?
 Delete {0},Delete {0}
 Delete {0} item permanently?,Delete {0} item permanently?
 Delete {0} items permanently?,Delete {0} items permanently?
@@ -793,6 +798,7 @@ Fingerprint,Fingerprint
 Finish,Finish
 Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.,Finish and apply the confirmed differences to stock? {0} rows counted; {1} uncounted rows will stay unchanged. This task becomes read-only.
 "Finish this count? {0} counted, {1} uncounted; the task becomes read-only.","Finish this count? {0} counted, {1} uncounted; the task becomes read-only."
+Finish this stock count?,Finish this stock count?
 Finished a stock count,Finished a stock count
 Finishing a stock count,Finishing a stock count
 First Recognition Snapshot,First Recognition Snapshot
@@ -1089,6 +1095,7 @@ Network Path,Network Path
 Never,Never
 New Files,New Files
 New code,New code
+New files are recognized (charged) and pushed,New files are recognized (charged) and pushed
 New folder rule,New folder rule
 New items:,New items:
 New records must start as drafts.,New records must start as drafts.
@@ -1522,6 +1529,7 @@ Run now,Run now
 Run now (tasks: {0}):,Run now (tasks: {0}):
 Run on day,Run on day
 Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop starts within a few minutes.
+Run this scheduled task now?,Run this scheduled task now?
 Run time,Run time
 SHA-256,SHA-256
 SKU,SKU
@@ -2498,6 +2506,7 @@ cowork.folder.root_invalid,Choose an allowed root reported by CC Desktop.
 cowork.folder.rule_disabled,This scheduled task is turned off.
 cowork.folder.rule_missing,This scheduled task no longer exists for this PC.
 cowork.folder.runNow,Run now
+cowork.folder.runNow.charge,New files are recognized (charged) and pushed
 cowork.folder.runRequested,Run requested. CC Desktop starts within a few minutes.
 cowork.folder.runScan,Found {0} · new {1} · skipped {2} · upload failed {3}
 cowork.folder.runs,Run history

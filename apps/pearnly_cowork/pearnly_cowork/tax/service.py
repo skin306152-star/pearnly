@@ -358,6 +358,20 @@ def month_drafts(tax_id, period) -> dict:
     return {"drafts": out, "deadlines": due}
 
 
+def labels(drafts) -> dict:
+    """{草稿名: {kind, period, company, branch}}：本工作空间里的这几份申报草稿（CC 删除前的「允许」卡片用；只读）。"""
+    workspace = _workspace()
+    names = [str(name or "").strip()[:140] for name in list(drafts or [])[:DELETE_MAX]]
+    names = [name for name in dict.fromkeys(names) if name]
+    if not names:
+        return {}
+    rows = frappe.get_all(DOCTYPE, filters={"workspace": workspace, "name": ["in", names]},
+                          fields=["name", "kind", "period", "company_name", "company_branch"], ignore_permissions=True,
+                          limit_page_length=len(names))
+    return {row.name: {"kind": row.kind, "period": row.period or "", "company": row.company_name or "",
+                       "branch": row.company_branch or ""} for row in rows}
+
+
 def delete(drafts) -> dict:
     """删草稿（连同存着的选项与逐行改动）：[草稿名]；ภ.ง.ด. 草稿同读一样要读识别记录的权限。回删掉的与没找到的。"""
     workspace = _workspace()

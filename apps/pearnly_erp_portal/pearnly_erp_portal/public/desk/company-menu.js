@@ -126,15 +126,12 @@
 	};
 	p.header_menu_items = () => {
 		const rows = frappe.boot.pearnly_companies || [];
-		// 从连接添加（主会话 11-15）：能建公司的人在这里常驻一项（只有一家公司时也有），不用绕头像 → 公司页
-		const connect = frappe.boot.pearnly_can_build ? [{name: "pearnly-company-connect", label: __("company.connect.add"),
-			icon: "add", onClick: () => p.connect_companies?.()}] : [];
-		if (rows.length <= 1) return connect;
+		if (rows.length <= 1) return [];
 		return [{name: "pearnly-company", label: __("Company"), icon: "building-2",
 			items: [...(rows.length > SEARCH_FROM ? [{name: "pearnly-company-search", label: __("Search"), icon: "search",
 				onClick: search_company}] : []),
 			...rows.map(row => ({name: "pearnly-company-" + row.name,
 				label: p.escape(p.company_name_of(row, rows)) + (row.is_current ? " ✓" : ""),
-				onClick: () => switch_company(row.name, row.is_current)}))]}, ...connect];
+				onClick: () => switch_company(row.name, row.is_current)}))]}];
 	};
 })();
