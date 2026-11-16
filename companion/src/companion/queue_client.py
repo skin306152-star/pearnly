@@ -20,7 +20,7 @@ from typing import Optional
 
 import httpx
 
-from . import channel, http_tls, request_wake
+from . import channel, http_tls, net, request_wake
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -84,7 +84,7 @@ class QueueClient:
         self._master_refresh: Optional[dict] = None
         # 共用机器通道的成员（``pcc_`` 密钥，ERP 站点，ADR-025）换成 pearnly_core 的路径；请求体与回复两边相同
         self._paths = {op: channel.path(cfg.bearer_token, op) for op in ("heartbeat", "lease", "ack")}
-        self._client = httpx.Client(
+        self._client = net.client(
             base_url=cfg.backend_url,
             headers={"Authorization": f"Bearer {cfg.bearer_token}"},
             # 显式分项超时:连接/读/写/连接池取用都封顶。任一处卡住即抛(被 poll loop 的

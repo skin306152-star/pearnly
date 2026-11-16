@@ -19,7 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
-from . import http_tls
+from . import http_tls, net
 from .logger import get_logger
 from .queue_client import unwrap
 
@@ -47,7 +47,7 @@ class Refused(Exception):
 class FolderClient:
     def __init__(self, backend_url: str, bearer_token: str, timeout: float = 30.0) -> None:
         self.backend_url = backend_url
-        self._client = httpx.Client(
+        self._client = net.client(
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
             timeout=httpx.Timeout(timeout, connect=min(10.0, timeout)),
@@ -87,8 +87,8 @@ def put_direct(url: str, headers: dict, path, backend_url: str, timeout: float =
     if not target or target == (urlsplit(backend_url).netloc or "").lower():
         raise ValueError("refusing to upload to the tenant site")
     clean = {str(k): str(v) for k, v in (headers or {}).items() if str(k).lower() != "authorization"}
-    with httpx.Client(follow_redirects=False, timeout=httpx.Timeout(timeout, connect=15.0),
-                      verify=http_tls.context()) as client, \
+    with net.client(follow_redirects=False, timeout=httpx.Timeout(timeout, connect=15.0),
+                    verify=http_tls.context()) as client, \
             open(path, "rb") as handle:
         response = client.put(url, content=handle.read(), headers=clean)
     if response.status_code == 412:

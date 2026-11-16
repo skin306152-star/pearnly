@@ -36,7 +36,7 @@ def _patch_get(monkeypatch, *, json_data=None, raise_exc=None):
                 raise raise_exc
             return _Resp()
 
-    monkeypatch.setattr(updater.httpx, "Client", _Client)
+    monkeypatch.setattr(updater.net.httpx, "Client", _Client)
 
 
 def test_check_update_returns_newer(monkeypatch):

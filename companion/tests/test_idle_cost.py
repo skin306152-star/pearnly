@@ -32,8 +32,10 @@ def test_one_ssl_context_is_shared_by_every_thread():
 def test_every_https_client_uses_the_shared_context():
     missing = []
     for path in sorted(SRC.glob("*.py")):
+        if path.name == "net.py":   # 唯一出口，原样转交调用方给的 verify
+            continue
         for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
-            if isinstance(node, ast.Call) and ast.unparse(node.func) in ("httpx.Client", "httpx.AsyncClient"):
+            if isinstance(node, ast.Call) and ast.unparse(node.func) in ("httpx.Client", "httpx.AsyncClient", "net.client"):
                 verify = next((k.value for k in node.keywords if k.arg == "verify"), None)
                 if verify is None or ast.unparse(verify) not in ("http_tls.context()", "tls_context()"):
                     missing.append(f"{path.name}:{node.lineno}")
