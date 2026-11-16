@@ -278,7 +278,7 @@ assert.deepEqual(guideAnswersOf(card, resultFrom([q], [{ labels: ["S"], other: n
 // 代录开始前（A4）：operator 块、事实行、做不做的「再录一次」
 const opRun = seed("operator");
 const ov = await t.view(opRun);
-assert.equal(ov.operator!.login!.set, false);
+assert.equal((ov.operator as any).login, undefined);                  // 登录不在回包里（页面问本机 CC 桌面版）
 assert.equal(ov.operator!.targets[0].computer, "ACC-PC01");
 assert.ok(Object.values(ov.card!.facts!).flat().length > 0);
 assert.ok((ov.card!.questions as any[]).some((x) => x.kind === "again" && x.tier === "whether" && !x.preselected));
@@ -319,7 +319,6 @@ assert.match(follow, /download="recon-2026-10.xlsx"/);
 assert.match(follow, /data-slot="cc-guide-follow"/);
 const opHead = await html("operator");
 assert.match(opHead, /data-slot="cc-op-target"/);
-assert.match(opHead, /data-slot="cc-op-authorize"/);
 assert.match(opHead, /data-slot="cc-guide-fact"/);
 const formReview = await html("review");
 assert.match(formReview, /data-slot="cc-guide-back"[^>]*data-step="invoices"/);
@@ -379,6 +378,14 @@ class GuideRunSourceTests(unittest.TestCase):
         inputs = read("components/tool-uis/guide-inputs.tsx")
         self.assertIn("onChange(code)", inputs)                         # 单选交码
         self.assertIn("guideFiles(sessionId)", inputs)                  # 文件 id 来自本对话的文件
+
+    def test_operator_head_asks_the_local_desktop_for_the_express_login(self):
+        # A4 更正（ERP 直写窗口 11-16）：Express 登录服务端拿不到，卡头照旧问本机 CC 桌面版；「设置」authorizeHere 后再问、重取
+        head = read("components/tool-uis/guide-operator.tsx")
+        self.assertIn("let askLogin: () => Promise<Login> = loginHere;", head)
+        self.assertIn("if (await authorizeHere()) setLogin(await askLogin());", head)
+        self.assertIn("return viewGuide(view.run);", head)
+        self.assertNotIn("block.login", head)
 
     def test_menu_reads_labels_icons_order_from_the_server(self):
         thread = read("components/assistant-ui/thread.tsx")

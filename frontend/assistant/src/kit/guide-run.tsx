@@ -4,10 +4,15 @@
 import { useState } from "react";
 import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
 import { setGuideTransport } from "@/lib/guide-run";
-import { fixtureTransport, seed } from "./guide-run-fixtures";
+import { setGuideLogin } from "@/components/tool-uis/guide-operator";
+import { fixtureLogin, fixtureTransport, seed } from "./guide-run-fixtures";
 
 export function GuideRunPreview({ state }: { state: string }) {
-  const [run] = useState(() => { setGuideTransport(fixtureTransport); return seed(state || "collection"); });
+  const [run] = useState(() => {
+    setGuideTransport(fixtureTransport);
+    setGuideLogin(fixtureLogin(state));
+    return seed(state || "collection");
+  });
   return (
     <main className="mx-auto flex max-w-(--cc-dialog-w-lg) flex-col gap-(--cc-space-16) p-(--cc-space-16)" data-slot="kit-guide-run">
       <GuideRunCard run={{ run, business: "collection", status: "asking", version: 1, startedAt: "" }} sessionId="kit" />

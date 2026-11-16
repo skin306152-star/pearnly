@@ -79,9 +79,10 @@ export type GuideView = {
   refused?: Record<string, string | { code: string; text?: string }>; refused_text?: Record<string, string>;
   card?: GuideCard & { source?: "documents"; wait?: boolean;
     /** documents：停下 / 等待的单（带原因的那句，已翻译），事实行不是题（A4 约定） */ facts?: Record<string, string[]> };
-  /** 代录开始前（A4，共享笔记「A4-代录开始前题卡-约定」）：卡头写进哪 · 登录 · 没电脑能写时那句 */
+  /** 代录开始前（A4，共享笔记「A4-代录开始前题卡-约定」）：卡头写进哪 · 没电脑能写时那句。Express 登录不在这里（服务端拿不到，
+   *  页面照旧问本机 CC 桌面版，operator-shared.loginHere；ERP 直写窗口 11-16 更正） */
   operator?: { targets: { account_set?: string; account_set_title?: string; account_set_path?: string; connection_title?: string; computer?: string; count?: number }[];
-    login?: { set: boolean; user: string }; computer?: string };
+    computer?: string };
   review?: GuideReview | GuideDocReview; result?: GuideResult | GuideDocResult;
   /** 按单据办的业务（采购、销售）回 "documents"：卡按 stage 分段 */
   source?: "documents";

@@ -157,8 +157,7 @@ function marks(face: DocFace): Pick<DocRow, "marks" | "cells" | "blocking"> {
 function documentsView(run: Run, base: GuideView): GuideView {
   const d = run.docs!;
   const out: GuideView = { ...base, source: "documents" as const,
-    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: "ACC-PC01", count: 2 }],
-      login: run.loginSet ? { set: true, user: "skin3" } : { set: false, user: "" } } } : {}) };
+    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: "ACC-PC01", count: 2 }] } } : {}) };
   if (run.status === "confirmed" || run.status === "done") {
     const done = run.status === "done";
     run.status = "done";
@@ -353,3 +352,6 @@ export const fixtureTransport: GuideTransport = {
     upload: (file) => delay({ fileId: `UPL-${Date.now()}`, filename: file.name }),
   }),
 };
+
+/** 展示页问本机登录的替身：operator-login 场景当已设置，其余当没设置。 */
+export const fixtureLogin = (scenario: string) => async () => (scenario === "operator-login" ? { set: true, user: "skin3" } : { set: false, user: "" });
