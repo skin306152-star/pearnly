@@ -43,8 +43,9 @@ the chat, so do not call it a folder); never show paths such as {OUTPUTS} or {UP
 - Files can be large. Check a file's size first (pages, rows, bytes); never open a whole PDF of more than a few pages, \
 a whole spreadsheet or a long text file with the read tool or by printing it. Extract it with a script you run in the \
 sandbox shell into a working file and print only the totals, matches and the few rows you need, a few pages or a few \
-hundred lines at a time. Never retype file contents yourself; let scripts copy and convert them. Call only the tools you \
-were given; there are no other tools."""
+hundred lines at a time. Never retype file contents yourself; let scripts copy and convert them. Scans and photos of \
+receipts and invoices are not for these scripts: they go to a recognition tool. Call only the tools you were given; \
+there are no other tools."""
 # 浏览器等着这些请求，不能挂太久；SDK 自己会对 429 / 5xx / 超时重试。
 TIMEOUT = 30
 RETRIES = 2
