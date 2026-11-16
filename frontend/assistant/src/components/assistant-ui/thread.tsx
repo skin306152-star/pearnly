@@ -61,7 +61,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
-import { cancelGuide, startGuide } from "@/lib/guide-run";
+import { cancelGuide, guidePlacement, startGuide } from "@/lib/guide-run";
 import { withReport } from "@/lib/caught";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
 import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
@@ -178,8 +178,14 @@ const ThreadRoot: FC<{ isEmpty: boolean; isLoading: boolean }> = ({ isEmpty, isL
             data-slot="aui_message-group"
             className="mb-(--cc-thread-tail) flex flex-col gap-y-(--cc-turn-gap) empty:hidden"
           >
+            {/* 引导卡按时间插进对话（主会话 11-16）：每次引导排在它开始之后的第一条消息前面；比所有消息都晚开始的排在末尾 */}
             <ThreadPrimitive.Messages>
-              {() => <ThreadMessage />}
+              {({ message }) => (
+                <>
+                  <GuideRuns before={message.id} />
+                  <ThreadMessage />
+                </>
+              )}
             </ThreadPrimitive.Messages>
             <PendingSendBubble />
             <BusinessPrompt />
@@ -243,6 +249,18 @@ function pickBusiness(sessionId: string | null, business: string, forms: readonl
 
 /** 这段对话里还开着的那一次引导（在问 / 复核中，最新开始的那次）：输入框旁的「停止」此时可用，点了结束它（主会话 11-16：题卡不放取消，退出走对话）。 */
 function useOpenGuideRun(): string {
+  const runs = useGuideRunList();
+  return useMemo(() => {
+    const open = runs.filter((run) => run.status === "asking" || run.status === "reviewing");
+    return open.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]?.run ?? "";
+  }, [runs]);
+}
+
+/** 结束开着的那次引导（guide_cancel；卡随 pearnly.guide 事件变成失效一行）。 */
+const endGuide = (run: string) => void cancelGuide(run).catch(withReport(() => undefined, "guide-end"));
+
+/** 这段对话的引导运行（按开始先后）：事件里的与本页刚开的合在一起，同一次取版本大的那份。 */
+function useGuideRunList(): GuideRun[] {
   const snapshot = useActiveSessionSnapshot();
   const started = useStartedRuns((s) => (snapshot.sessionId ? s.bySession[snapshot.sessionId] : undefined));
   return useMemo(() => {
@@ -252,30 +270,20 @@ function useOpenGuideRun(): string {
       const was = byRun.get(run.run);
       if (!was || was.version <= run.version) byRun.set(run.run, run);
     }
-    const open = [...byRun.values()].filter((run) => run.status === "asking" || run.status === "reviewing");
-    return open.sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0]?.run ?? "";
+    return [...byRun.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
   }, [snapshot.guides, started]);
 }
 
-/** 结束开着的那次引导（guide_cancel；卡随 pearnly.guide 事件变成失效一行）。 */
-const endGuide = (run: string) => void cancelGuide(run).catch(withReport(() => undefined, "guide-end"));
-
-/** 这段对话的引导卡（按开始先后）：事件里的与本页刚开的合在一起，同一次取版本大的那份。 */
+/** 这段对话的引导卡：before = 某条消息的编号时，画排在那条消息前面的；不给时画排在末尾的。 */
 // map: guide-run
-const GuideRuns: FC = () => {
+const GuideRuns: FC<{ before?: string }> = ({ before = "" }) => {
   const snapshot = useActiveSessionSnapshot();
-  const started = useStartedRuns((s) => (snapshot.sessionId ? s.bySession[snapshot.sessionId] : undefined));
-  const runs = useMemo(() => {
-    const byRun = new Map<string, GuideRun>();
-    for (const run of started ?? []) byRun.set(run.run, run as GuideRun);
-    for (const run of snapshot.guides.values()) {
-      const was = byRun.get(run.run);
-      if (!was || was.version <= run.version) byRun.set(run.run, run);
-    }
-    return [...byRun.values()].sort((a, b) => a.startedAt.localeCompare(b.startedAt));
-  }, [snapshot.guides, started]);
-  if (!runs.length) return null;
-  return <>{runs.map((run) => <GuideRunCard key={run.run} run={run} sessionId={snapshot.sessionId} />)}</>;
+  const runs = useGuideRunList();
+  const messages = useAuiState((s) => s.thread.messages);
+  const placement = useMemo(() => guidePlacement(runs, messages), [runs, messages]);
+  const here = runs.filter((run) => (placement.get(run.run) ?? "") === before);
+  if (!here.length) return null;
+  return <>{here.map((run) => <GuideRunCard key={run.run} run={run} sessionId={snapshot.sessionId} />)}</>;
 };
 
 const BusinessPrompt: FC = () => {

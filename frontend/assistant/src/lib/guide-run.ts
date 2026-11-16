@@ -269,3 +269,14 @@ export function refusedText(view: Pick<GuideView, "refused" | "refused_text">, k
   return "";
 }
 export const isRefused = (view: Pick<GuideView, "refused">, key: string) => !!view.refused?.[key];
+
+/** 每次引导该排在哪条消息前面（开始时刻之后的第一条消息的编号；比所有消息都晚的为 ""，排在末尾）。纯函数。 */
+export function guidePlacement(runs: readonly { run: string; startedAt: string }[], messages: readonly { id: string; createdAt?: Date }[]): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const run of runs) {
+    const at = run.startedAt ? new Date(run.startedAt).getTime() : Number.POSITIVE_INFINITY;
+    const next = messages.find((m) => (m.createdAt?.getTime() ?? 0) > at);
+    out.set(run.run, next?.id ?? "");
+  }
+  return out;
+}

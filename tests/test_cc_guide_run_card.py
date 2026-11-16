@@ -32,8 +32,8 @@ class GuideRunCardTests(unittest.TestCase):
 
     def test_the_conversation_draws_each_run_once_with_the_newest_version_in_start_order(self):
         thread = read("components/assistant-ui/thread.tsx")
-        body = thread[thread.index("const GuideRuns: FC"):]
-        body = body[:body.index("\n};\n")]
+        body = thread[thread.index("function useGuideRunList(): GuideRun[]"):]
+        body = body[:body.index("\n}\n")]
         self.assertIn("if (!was || was.version <= run.version) byRun.set(run.run, run);", body)
         self.assertIn("a.startedAt.localeCompare(b.startedAt)", body)
         self.assertIn("<BusinessPrompt />\n            <GuideRuns />", thread)

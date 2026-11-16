@@ -169,7 +169,9 @@ class ReuseChatStandard(unittest.TestCase):
         self.assertIn("  Tail?: ComponentType | undefined;", thread)
         self.assertIn("const { Welcome, Loading, Tail } = useContext(ThreadComponentsContext);", thread)
         # 在消息组里、发送中的气泡之后（中间是选了业务后 CC 那一句，引导式 11-14，与本对话开着的引导卡）；消息组新对话时也在（不在 isEmpty 的分支里）
-        self.assertIn("<ThreadPrimitive.Messages>\n              {() => <ThreadMessage />}\n            </ThreadPrimitive.Messages>\n"
+        # 引导卡按时间插进对话（主会话 11-16）：排在某条消息前面的随那条消息画，比所有消息都晚开始的仍在末尾
+        self.assertIn("<ThreadPrimitive.Messages>\n              {({ message }) => (\n                <>\n                  <GuideRuns before={message.id} />\n"
+                      "                  <ThreadMessage />\n                </>\n              )}\n            </ThreadPrimitive.Messages>\n"
                       "            <PendingSendBubble />\n            <BusinessPrompt />\n            <GuideRuns />\n            {Tail && <Tail />}\n          </div>", thread)
 
     def test_no_second_run_ui(self):

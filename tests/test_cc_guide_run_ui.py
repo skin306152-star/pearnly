@@ -37,6 +37,7 @@ import assert from "node:assert/strict";
 import { answeredOk, firstPosition, initialValue, isClosed, isWaiting, splitTotal, toSend, WAIT_TRIES, waitDelay,
   type GuideQuestion } from "@/lib/guide-run";
 import { menuOf, businessName, useBusiness } from "@/lib/business";
+import { guidePlacement } from "@/lib/guide-run";
 
 const q = (input: string, extra: Partial<GuideQuestion> = {}): GuideQuestion =>
   ({ key: input, input: input as GuideQuestion["input"], rule: "always", tier: "how", title: input, required: true, ...extra });
@@ -109,6 +110,14 @@ const offered = { chat: ["collection", "recon", "purchase"], operator: [], forms
 assert.deepEqual(menuOf(offered, "chat"), ["recon", "collection", "purchase"]);
 assert.deepEqual(menuOf({ chat: ["sales", "purchase"], operator: [] }, "chat"), ["sales", "purchase"]);
 useBusiness.setState({ offered });
+
+// 引导卡按时间插进对话：排在开始时刻之后的第一条消息前面，比所有消息都晚的为 ""（末尾）
+const at = (m: number) => new Date(Date.UTC(2026, 10, 16, 10, m));
+const msgs = [{ id: "m1", createdAt: at(0) }, { id: "m2", createdAt: at(5) }, { id: "m3", createdAt: at(10) }];
+const placed = guidePlacement([{ run: "A", startedAt: at(3).toISOString() }, { run: "B", startedAt: at(12).toISOString() }, { run: "C", startedAt: "" }], msgs);
+assert.equal(placed.get("A"), "m2");
+assert.equal(placed.get("B"), "");
+assert.equal(placed.get("C"), "");
 assert.equal(businessName("recon"), "对账");
 assert.equal(businessName("collection"), "Collection");
 assert.equal(businessName("unknown_biz"), "unknown_biz");
@@ -407,7 +416,7 @@ class GuideRunSourceTests(unittest.TestCase):
         # 主会话 11-16：题卡不放取消，退出走对话——引导进行中、模型没在跑、输入框空着时输入框旁是停止键，点了 / Esc 调 guide_cancel；
         # 允许式确定的标题栏是服务端给的问句（consent_title），没有退回业务名
         thread = read("components/assistant-ui/thread.tsx")
-        self.assertIn('const open = [...byRun.values()].filter((run) => run.status === "asking" || run.status === "reviewing");', thread)
+        self.assertIn('const open = runs.filter((run) => run.status === "asking" || run.status === "reviewing");', thread)
         self.assertIn("const endGuide = (run: string) => void cancelGuide(run)", thread)
         self.assertIn("<StopButton onStop={() => endGuide(guideRun)} />", thread)
         self.assertIn("else if (guideStop) endGuide(guideRun);", thread)
