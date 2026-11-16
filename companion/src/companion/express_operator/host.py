@@ -409,6 +409,9 @@ class Host:
                 "reports": doc.reports, "seconds": doc.seconds, "reason": doc.reason}
         if doc.reason == "menu_choice":  # 站点据此问一次走哪个菜单、记住后按 operator.form_choice 再交
             meta.update(doc_type=doc.doc_type, menu_options=list(doc.menu_options))
+        dialog = getattr(doc, "dialog", None)  # 别的目标（MR.ERP）的单据状态没有这一项
+        if dialog:  # 配方外业务选择框（dialog_choice，或保存途中留了半截单的 partial_saved）：原文与按钮带回对话出卡（1.12.23 ③）
+            meta["dialog"] = dict(dialog)
         if doc.evidence:  # 转人工那一刻的截图（本机路径）：站点单独处理，不在说明里
             meta["evidence"] = doc.evidence
         partial = getattr(doc, "partial", None)  # 别的目标（MR.ERP）的单据状态没有这两项

@@ -538,11 +538,16 @@ OPERATOR_DOCNUM_MAX = 20
 OPERATOR_HELD_TEXT = 60
 OPERATOR_OPTIONS_MAX = 10
 OPERATOR_OPTION_LEN = 120
+# 中途配方外的业务选择框（原因 dialog_choice，CC 桌面版 1.12.23 起，``engine.dialog_info``）：``dialog`` = {digest（16 位十六进制指纹）,
+# title, text, buttons, doc_type, stage: editing|saving}，对话里照原文出卡；答案按指纹记住、经载荷 operator.dialog_answers 下发。
+OPERATOR_DIALOG_STAGES = ("editing", "saving")
+OPERATOR_DIALOG_TEXT, OPERATOR_DIALOG_TITLE, OPERATOR_DIALOG_BUTTON, OPERATOR_DIALOG_BUTTONS = 600, 120, 60, 8
+_DIGEST = re.compile(r"^[0-9a-f]{16}$")
 
 
 def clean_operator_meta(raw: Any) -> Dict[str, Any]:
     """``meta.operator`` → 只留 ``doc_type``（短字符串）、``menu_options``（字符串列表，空白归一、去空）、``partial``
-    （半截单 {docnum, missing}）、``held``（{computer, account_set}）与 ``masters``（随单新建的主档），认不出的回空。"""
+    （半截单 {docnum, missing}）、``held``（{computer, account_set}）、``masters``（随单新建的主档）与 ``dialog``（配方外业务选择框），认不出的回空。"""
     if not isinstance(raw, dict):
         return {}
     out: Dict[str, Any] = {}
@@ -569,6 +574,16 @@ def clean_operator_meta(raw: Any) -> Dict[str, Any]:
     masters = _clean_masters(raw.get("masters"))
     if masters:
         out["masters"] = masters  # 随单新建的主档（:func:`written_codes`）
+    dialog = raw.get("dialog")
+    if isinstance(dialog, dict) and isinstance(dialog.get("digest"), str) and _DIGEST.match(dialog["digest"]):
+        buttons = [b.strip()[:OPERATOR_DIALOG_BUTTON] for b in (dialog.get("buttons") or [])[:_META_MAX_LIST]
+                   if isinstance(b, str) and b.strip()][:OPERATOR_DIALOG_BUTTONS] if isinstance(dialog.get("buttons"), list) else []
+        if buttons:
+            stage = dialog.get("stage") if dialog.get("stage") in OPERATOR_DIALOG_STAGES else "editing"
+            out["dialog"] = {"digest": dialog["digest"], "buttons": buttons, "stage": stage,
+                             "title": _short(dialog.get("title"), OPERATOR_DIALOG_TITLE),
+                             "text": _short(dialog.get("text"), OPERATOR_DIALOG_TEXT),
+                             "doc_type": _short(dialog.get("doc_type"), OPERATOR_DOC_TYPE_MAX)}
     return out
 
 
