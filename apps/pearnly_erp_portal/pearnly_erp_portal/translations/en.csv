@@ -279,6 +279,7 @@ Checkout,Checkout
 Checkout Order / Submit Order / New Order,Checkout Order / Submit Order / New Order
 Cheque,Cheque
 Choices,Choices
+Choose a document.,Choose a document.
 Choose a file,Choose a file
 Choose a file to import,Choose a file to import
 Choose a local opening stock file,Choose a local opening stock file
@@ -2515,6 +2516,8 @@ express.state.written,Written
 express.summary.extra,Late receipts
 express.void,Cancel in Express
 goods,goods
+guide.business.pending,Pending
+guide.open.pending,Choose a document.
 guide.review.department,Department
 guide.review.salesman,Salesman
 guide.step.collection.book,Account Set
@@ -2524,6 +2527,7 @@ guide.step.collection.day,Collection Date
 guide.step.collection.invoices,Invoices
 guide.step.collection.methods,Collection Method
 guide.step.collection.voucher,Transfer Slip
+guide.step.pending.item,Document
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued

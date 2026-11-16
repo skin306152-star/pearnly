@@ -279,6 +279,7 @@ Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
 Cheque,小切手
 Choices,選択肢
+Choose a document.,書類を選択してください。
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
 Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
@@ -2515,6 +2516,8 @@ express.state.written,書き込み済み
 express.summary.extra,追加分
 express.void,Express で取消
 goods,物品
+guide.business.pending,処理待ち
+guide.open.pending,書類を選択してください。
 guide.review.department,部門
 guide.review.salesman,営業担当
 guide.step.collection.book,会計データ
@@ -2524,6 +2527,7 @@ guide.step.collection.day,入金日
 guide.step.collection.invoices,請求書
 guide.step.collection.methods,入金方法
 guide.step.collection.voucher,振込明細
+guide.step.pending.item,書類
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

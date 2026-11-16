@@ -2169,3 +2169,6 @@ Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.ste
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
 Not saved: {0}	没有记下：{0}	ยังไม่ได้บันทึก: {0}	保存されていません：{0}	
+Pending	待处理	รอดำเนินการ	処理待ち	guide.business.pending
+Choose a document.	选择单据。	เลือกเอกสาร	書類を選択してください。	guide.open.pending
+Document	单据	เอกสาร	書類	guide.step.pending.item

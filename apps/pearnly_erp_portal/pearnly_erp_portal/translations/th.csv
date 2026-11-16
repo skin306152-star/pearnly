@@ -279,6 +279,7 @@ Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่
 Cheque,เช็ค
 Choices,ตัวเลือก
+Choose a document.,เลือกเอกสาร
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
 Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง
@@ -2515,6 +2516,8 @@ express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
+guide.business.pending,รอดำเนินการ
+guide.open.pending,เลือกเอกสาร
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2524,6 +2527,7 @@ guide.step.collection.day,วันที่รับเงิน
 guide.step.collection.invoices,ใบแจ้งหนี้
 guide.step.collection.methods,วิธีรับเงิน
 guide.step.collection.voucher,สลิปการโอน
+guide.step.pending.item,เอกสาร
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

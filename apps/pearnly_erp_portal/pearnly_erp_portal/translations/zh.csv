@@ -279,6 +279,7 @@ Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
 Choices,选项
+Choose a document.,选择单据。
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
@@ -2515,6 +2516,8 @@ express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废
 goods,货物
+guide.business.pending,待处理
+guide.open.pending,选择单据。
 guide.review.department,部门
 guide.review.salesman,销售员
 guide.step.collection.book,账套
@@ -2524,6 +2527,7 @@ guide.step.collection.day,收款日期
 guide.step.collection.invoices,发票
 guide.step.collection.methods,收款方式
 guide.step.collection.voucher,转账凭证
+guide.step.pending.item,单据
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出
