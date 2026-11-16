@@ -791,13 +791,13 @@ class CompanySection(_SiteFakes):
     def setUp(self):
         super().setUp()
         DB.table("ERP MRERP Connection")["C1"]["catalog_json"] = json.dumps(
-            [{"source_id": "15:1", "label": "TEST2019"}, {"source_id": "16:1", "label": "TEST2020"}])
+            [{"source_id": "15:1", "label": "DEMO-A"}, {"source_id": "16:1", "label": "DEMO-B"}])
         from pearnly_erp_portal.mrerp import catalog
         self.catalog = catalog
 
     def test_a_linked_company_shows_its_account_set_by_name(self):
         self.assertEqual(self.catalog.company_view("CO-1"),
-                         {"connection": "C1", "account_set": "15:1", "label": "TEST2019", "linked": True})
+                         {"connection": "C1", "account_set": "15:1", "label": "DEMO-A", "linked": True})
 
     def test_an_unlinked_company_offers_the_main_connection(self):
         DB.table("ERP Company")["CO-1"]["mrerp_enabled"] = 0
@@ -844,7 +844,7 @@ class PureRules(unittest.TestCase):
                                            "meta": {"verify": {"state": "ok"}}})["ledger_docnum"], "SI1")
 
     def test_the_document_face_carries_payment_method_party_record_branch_and_currency(self):
-        """11-14 TEST2019 真写：转账收款的销售记进了现金栏（SE691114-861564）、没税号客户的未收款销售被改成现销挂「เงินสด」
+        """11-14 测试账套真写：转账收款的销售记进了现金栏、没税号客户的未收款销售被改成现销挂「เงินสด」
         （SE691114-614656）——ERP 票面没带付款方式与对方记录号。"""
         body = {"ref": "SD-1@1", "direction": "sales", "date": "2026-11-14", "number": "SD-1", "paid": True,
                 "company": {"tax_id": "0105989581512", "branch": "00000"},

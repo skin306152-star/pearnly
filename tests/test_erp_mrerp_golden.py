@@ -69,8 +69,9 @@ def canonical():
             for name, doc, kind, menus, defaults, _site in DOCS}
 
 
-def recorded(fn, site, payload, password="test01"):
+def recorded(fn, site, payload, password="fakepw"):
     """``fn``（某一边的执行）对假站点推一份载荷：（发出的每个请求, 回执），记法同 Cowork 黄金样本。"""
+    site.password = "fakepw"  # 假站点认的密码：仓库里只放假值（11-16 仓库公开）；wrong_password 一格照旧交错的
     sent = []
 
     def send(session, method, url, **kwargs):
@@ -78,6 +79,10 @@ def recorded(fn, site, payload, password="test01"):
         for key in ("params", "data", "headers"):
             if kwargs.get(key) is not None:
                 entry[key] = golden._plain(kwargs[key])
+        if isinstance(entry.get("data"), dict) and "txtpasswords" in entry["data"]:
+            # 登录表单的密码不进黄金样本（11-16 仓库公开）：只记交的对不对
+            entry["data"] = {k: v for k, v in entry["data"].items() if k != "txtpasswords"}
+            entry["data"]["login_matches"] = kwargs["data"]["txtpasswords"] == site.password
         if kwargs.get("files"):
             files = kwargs["files"]
             entry["files"] = [[name, golden._file_part(part)]
@@ -91,7 +96,7 @@ def recorded(fn, site, payload, password="test01"):
     with patch.object(requests.Session, "request", autospec=True, side_effect=send), \
             patch.object(socket, "getaddrinfo", return_value=PUBLIC), \
             patch.object(mrerp_account, "account_lock", lambda *a, **k: contextlib.nullcontext(True)), golden.fixed_clock():
-        out = fn(copy.deepcopy(payload), {"account_set": "15:1"}, {"username": "test01", "password": password},
+        out = fn(copy.deepcopy(payload), {"account_set": "15:1"}, {"username": "fakeuser", "password": password},
                  BASE, golden.TODAY)
     out = golden._plain(out)
     (out.get("meta") or {}).pop("elapsed_ms", None)

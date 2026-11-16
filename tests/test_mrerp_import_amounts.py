@@ -1,6 +1,6 @@
 """MR.ERP 导入表的金额三件事与写后核对（共用层 `pearnly_core.mrerp.push`，直写与代录同一份；Cowork、ERP 同一份）。
 
-11-14 在 test01 · TEST2019 经 Cowork 推送真写查出（单号在 `docs/work/2026-11-14-mrerp-write-grid.md`），三张都报「已写入」：
+11-14 在 MR.ERP 测试账套经 Cowork 推送真写查出（单号在 `docs/work/2026-11-14-mrerp-write-grid.md`），三张都报「已写入」：
 
 1. 行金额：Cowork 识别的明细金额记在 ``subtotal``（同 Express 的读法），生成器只读 ``amount``，行折扣被改成「数量 × 单价」——
    票 288.90 记成 321.00（SI691114-865946）；
@@ -208,7 +208,7 @@ class WrittenCheck(unittest.TestCase):
 
 
 class CashPurchase(unittest.TestCase):
-    """现购（11-14）：导入第 9 列记账用写现金供应商、第 10 列开票用写卖家；没定下现金供应商不写（TEST2019 真写 PG691114-571007：
+    """现购（11-14）：导入第 9 列记账用写现金供应商、第 10 列开票用写卖家；没定下现金供应商不写（测试账套真写：
     记账用 CODE_NOAP、开票用卖家，日记账贷 1111-02 现金）。"""
 
     def test_cash_purchase_sheet_books_the_cash_supplier_and_bills_the_seller(self):

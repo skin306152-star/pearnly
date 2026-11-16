@@ -43,8 +43,8 @@ class LedgerCheck(_StateRedis):
         return [call for call in site.calls if call[1].endswith("/allview.php")]
 
     def test_a_document_still_listed_is_present_by_its_mrerp_number(self):
-        site = FakeMrErp(listed={"454": ["PN691110-948431"]})
-        site.password_used = "test01"
+        site = FakeMrErp(password=LEASE["password"], listed={"454": ["PN691110-948431"]})
+        site.password_used = LEASE["password"]  # 与共用假会话同一份假凭据
         out = self.run_check(site, [item(menu="454")])
         self.assertEqual(out, {"H1": {"state": "present", "docnum": "PN691110-948431"}})
         self.assertEqual(len(self.lists(site)), 1)  # 带来的菜单先查，查到就停
@@ -80,8 +80,8 @@ class LedgerCheck(_StateRedis):
         self.assertIn(("GET", "/arse/allview.php"), site.calls)
 
     def test_it_reuses_the_push_session_and_never_clears_a_kicked_mark(self):
-        site = FakeMrErp(listed={"68": ["PG691110-000001"]})
-        site.password_used = "test01"
+        site = FakeMrErp(password=LEASE["password"], listed={"68": ["PG691110-000001"]})
+        site.password_used = LEASE["password"]  # 与共用假会话同一份假凭据
         self.assertEqual(execute(site, [sales("c1")])["status"], "success")
         before = len(self.logins(site))
         self.run_check(site, [item(docnum="PG691110-000001")])
@@ -93,8 +93,8 @@ class LedgerCheck(_StateRedis):
         self.assertTrue(self.kick.state(self.account()))  # 核账本不是人点的：标记留着
 
     def test_a_kick_while_checking_stops_and_marks_the_account(self):
-        site = FakeMrErp(listed={"454": ["PN691110-948431"]})
-        site.password_used = "test01"
+        site = FakeMrErp(password=LEASE["password"], listed={"454": ["PN691110-948431"]})
+        site.password_used = LEASE["password"]  # 与共用假会话同一份假凭据
         execute(site, [sales("c2")])
         site.kick = True
         self.assertEqual(self.run_check(site, [item()]), {})
