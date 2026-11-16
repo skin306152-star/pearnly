@@ -35,6 +35,11 @@
                                  # 的代录一组按单据去重用（``tasks.attention``）：任务里没录成的单都已在那里列着的，任务不另算一条
         "reason_text": "<点路径>",  # 可选：(reason) -> str：任务里一张单没录成的原因（产品记的码）→ 按当前语言给人看的一句，
                                  # ``express_operator_status`` 交给模型时用（模型照话转述，不说码；测试机1 11-12）；给不出回空串
+        "computer_state": "<点路径>",  # 可选：(company, user) -> 码：``user`` 此刻有没有自己的电脑能写这家公司的账本——能写（含
+                                 # 关着、排队等它开机）回空串；一台登录过 CC 的电脑都没有、都够不到账套、只有同事的在线等回产品
+                                 # 已有的原因码（ERP ``express.cc_desktop_not_connected`` 等、Cowork ``intake.agent.state.*``），
+                                 # 经 ``reason_text`` 出话。代录排着等电脑时进度行与 ``express_operator_status`` 用（11-16 H 组：
+                                 # 没有电脑时只写「等待电脑」、模型说「已交给电脑」）
     }
 回执照产品原来的写账回执走（Cowork 推送记录、ERP 单据的 express_state），``meta.operator`` 带作废单号、空单头、自动处理的事。
 
@@ -173,6 +178,25 @@ def waiting_on(company, user) -> str:
     except Exception:
         frappe.log_error(title="Express operator waiting computer failed")
         return ""
+
+
+def computer_state(company, user) -> str:
+    """``user`` 此刻能不能由自己的电脑写这家公司的账本（``computer_state`` 钩子）：能写回空串；不能回产品的原因码。没声明、出错回空串
+    （页面照旧「等待电脑」）。"""
+    path = _path("computer_state")
+    if not path or not company or not user:
+        return ""
+    try:
+        return str(frappe.get_attr(path)(company, user) or "")[:120]
+    except Exception:
+        frappe.log_error(title="Express operator computer state failed")
+        return ""
+
+
+def computer_words(company, user) -> str:
+    """:func:`computer_state` 的码 → 按当前语言给人看的一句（产品 ``reason_text``，同单据页 / 直写的词条）；能写或给不出回空串。"""
+    code = computer_state(company, user)
+    return (reason_text(code) or "") if code else ""
 
 
 STATUS_STATES = ("saved", "queued", "not_done", "cancelled", "unknown")

@@ -2875,6 +2875,31 @@ class BookIdentityTests(unittest.TestCase):
         self.assertEqual(sorted(asked), [("C1", "a@example.com"), ("C2", "a@example.com")])
         sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
 
+    def test_an_operator_task_says_why_no_computer_of_the_owner_can_enter_it(self):
+        # 11-16 H 组：任务主人一台能写的电脑都没有时，代录进度行与 CC 说清为什么（网页去向同一组词条），不只写「等待电脑」；
+        # 任一条连接上本人有在线能写的电脑就不报；几条结论不同报最接近能写的那个
+        company = self._company()
+        states = {}
+        destinations = types.SimpleNamespace(owner_state=lambda connection, user: dict(states.get(connection) or {}))
+        intake = types.ModuleType("pearnly_cowork.folder_intake")
+        intake.destinations = destinations
+        with mock.patch.dict(sys.modules, {"pearnly_cowork.folder_intake": intake,
+                                           "pearnly_cowork.folder_intake.destinations": destinations}):
+            sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
+            module = importlib.import_module("pearnly_cowork.assistant.operator_source")
+            fresh_request()
+            states.update(C1={"computers": False}, C2={"computers": False})
+            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.missing")
+            states.update(C2={"computers": True, "writers_known": False})
+            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.noWriter")
+            states.update(C1={"computers": True, "writers_known": True, "not_yours": True})
+            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.notYours")
+            states.update(C2={"computers": True, "writers_known": True})
+            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.offline")
+            states.update(C2={"computers": True, "writers_known": True, "online": True})
+            self.assertEqual(module.computer_state(company, "a@example.com"), "")
+        sys.modules.pop("pearnly_cowork.assistant.operator_source", None)
+
     def test_an_old_id_is_mapped_to_the_new_one_when_read(self):
         company = self._company()
         fresh_request()

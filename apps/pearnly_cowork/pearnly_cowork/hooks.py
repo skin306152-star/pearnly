@@ -702,6 +702,8 @@ pearnly_express_operator = {
     "reason_text": "pearnly_cowork.push.export_facts.reason_text",
     # 任务排着等电脑时在等的本人电脑名称（页面「等待电脑 · 名称」，A 线 11-12）
     "waiting_on": "pearnly_cowork.assistant.operator_source.waiting_on",
+    # 本人电脑此刻能不能写（没电脑 / 够不到 / 只有同事在线 / 关着 → 已有原因码，经 reason_text 出话；11-16 H 组）
+    "computer_state": "pearnly_cowork.assistant.operator_source.computer_state",
 }
 
 # 写账前置判定（共用层 pearnly_core.write_precheck，评估 docs/work/2026-11-04-precheck-card.md）：开始前确认卡片的取数、作答与

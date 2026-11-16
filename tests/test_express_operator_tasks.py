@@ -129,6 +129,7 @@ class TaskTests(unittest.TestCase):
         products.allowed = lambda user, company: company in self.allowed
         products.pending_documents = lambda: set(self.listed)
         products.reason_text = lambda reason: ""  # 产品没声明 reason_text（同真模块：回空串）
+        products.computer_words = lambda company, user: ""  # 本人有能写的电脑（同真模块：能写回空串）
         products.status = lambda company, ids: [{"doc_id": i, **self.statuses.get(i, {"state": "queued"})} for i in ids]
         products.submit = lambda company, ids, batch, computer, answers: self.submitted.append(
             (company, list(ids), batch, computer, answers)) or [{"doc_id": i, "status": "sent"} for i in ids]
@@ -528,6 +529,11 @@ class TaskTests(unittest.TestCase):
         self.assertEqual(seen["uploads"], [{"filename": "h3.jpg", "state": "done", "documents": [
             {"doc_id": "I:LI-1", "ref": "INV-1", "party": "Siam", "date": "2026-10-03"}]}])
         self.assertIn("never send the user elsewhere to upload", seen["next"])
+        self.assertNotIn("no_computer", seen)  # 本人有能写的电脑
+        # 本人一台能写的电脑都没有：给模型单据页同一句，照话告诉用户，不说「已交给电脑」（11-16 H 组）
+        self.tasks.products.computer_words = lambda company, user: "CC Desktop not connected"
+        self.assertEqual(json.loads(tools.status({"task": made["name"]}))["no_computer"], "CC Desktop not connected")
+        self.tasks.products.computer_words = lambda company, user: ""
         # 开始以后不再带这两项（任务里的单以 documents 为准）
         name = self._started()
         self.assertNotIn("waiting", json.loads(tools.status({"task": name})))

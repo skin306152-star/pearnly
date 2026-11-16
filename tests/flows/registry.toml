@@ -2209,3 +2209,19 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
   "apps/pearnly_core/pearnly_core/express_operator/tools.py",
 ]
+
+[[flow]]
+id = "erp.cc.operator.no-computer"
+title = "ERP CC 代录放票、发单人没有自己的电脑：开始后 CC 被告知「CC 桌面版未连接」、不说已交给电脑，对话进度写明未连接（11-16 H 组）"
+module = "scripts/flows/erp_cc_operator_intake_no_computer.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/feed.py",
+  "apps/pearnly_core/pearnly_core/express_operator/products.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tools.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+]

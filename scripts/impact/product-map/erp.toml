@@ -2189,3 +2189,14 @@ anchor = "operator:erp:waiting_on"
 group = "cc.operator.waiting_on"
 where = "代录 waiting_on（任务排着等电脑时在等的本人电脑名称，页面「等待电脑 · 名称」，A 线 11-12）"
 tests = ["unit:tests/test_cc_desktop_channel.py::test_the_computers_a_job_waits_for_are_the_owners_offline_ones", "unit:tests/test_express_operator_feed.py::test_a_task_waiting_for_the_computer_names_the_owners_computer"]
+
+[[row]]
+id = "erp.cc.operator.computer-state"
+product = "ERP"
+channel = "cc-operator"
+ends = ["desktop"]
+kind = "cc-operator-hook"
+anchor = "operator:erp:computer_state"
+group = "cc.operator.computer_state"
+where = "代录 computer_state（任务排着等电脑、任务主人没有能写的电脑时为什么：未连接 / 够不到账套 / 只有同事的在线 / 关着，单据页同一句；11-16 H 组）"
+tests = ["unit:tests/test_erp_write_precheck.py::ComputerState", "unit:tests/test_express_operator_feed.py::test_a_task_waiting_for_the_computer_names_the_owners_computer", "unit:tests/test_write_plan.py::test_an_operator_start_with_no_computer_of_the_user_does_not_say_handed_to_a_computer"]

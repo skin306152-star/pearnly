@@ -102,6 +102,16 @@ def waiting_on(connection, user) -> list:
         return []
 
 
+def owner_state(connection, user) -> dict:
+    """``user`` 自己的电脑在这条连接上此刻怎样（`companion.pool.state` 按人：``online`` / ``computers`` / ``writers_known`` /
+    ``not_yours``）；代录任务按任务主人问（11-16 H 组：没有电脑时说清为什么）。读不出回空 dict。"""
+    try:
+        return dict(pool.state(connection, user=user) or {})
+    except Exception:
+        frappe.clear_messages()
+        return {}
+
+
 def writer_state(adapter, connection, *, device=""):
     """定时任务的票现在能不能确认、排队（ADR-021 第 4 批 D4；10-16 第 51、53 条与审查）：
 

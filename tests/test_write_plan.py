@@ -164,6 +164,8 @@ class WritePlanTests(unittest.TestCase):
         # 这个月以外还等着录的单按月计数（产品 `elsewhere`，A 线 11-15）：``self.elsewhere`` 是此刻的
         self.elsewhere, self.elsewhere_calls = [], []
         operator_products = types.ModuleType("pearnly_core.express_operator.products")
+        self.computer = ""  # 本人此刻没有能写的电脑时产品给的那句（默认能写）
+        operator_products.computer_words = lambda company, user: self.computer
         operator_products.elsewhere = lambda company, period: self.elsewhere_calls.append((company, period)) or self.elsewhere
         express_operator = types.ModuleType("pearnly_core.express_operator")
         express_operator.api, express_operator.tasks = operator_api, tasks
@@ -237,6 +239,18 @@ class WritePlanTests(unittest.TestCase):
         self.assertEqual(self.handed, [("CO-1", "OPT-1", out["documents"], [])])
         self.assertEqual(self.committed_at_hand_in, ["started"])  # 先提交「已开始」再交单
         self.assertEqual(self.start(out["plan"])["status"], "not_awaiting")  # 同一份计划只开始一次
+        self.assertEqual(started["note"], self.plan_module.OPERATOR_START_NOTE)
+
+    def test_an_operator_start_with_no_computer_of_the_user_does_not_say_handed_to_a_computer(self):
+        # 11-16 H 组（测试机1 H5）：交单了，任务主人却没有能写的电脑，CC 照「已交给电脑」说。改成照产品那句（单据页同一句）说清
+        self.computer = "CC Desktop not connected"
+        out = self.plan()
+        self.turn[0] += 1
+        started = self.start(out["plan"])
+        self.assertEqual(started["status"], "started")
+        self.assertEqual(started["no_computer"], "CC Desktop not connected")
+        self.assertIn("CC Desktop not connected", started["note"])
+        self.assertNotEqual(started["note"], self.plan_module.OPERATOR_START_NOTE)
 
     def test_a_document_changed_after_the_plan_is_left_out(self):
         out = self.plan()

@@ -667,6 +667,8 @@ pearnly_express_operator = {
     "reason_text": "pearnly_erp_portal.express.cc_tools.reason_words",
     # 任务排着等电脑时在等的本人电脑名称（页面「等待电脑 · 名称」，A 线 11-12）
     "waiting_on": "pearnly_erp_portal.express.operator.waiting_on",
+    # 本人电脑此刻能不能写（没电脑 / 够不到 / 只有同事在线 / 关着 → 已有原因码，经 reason_text 出话；11-16 H 组）
+    "computer_state": "pearnly_erp_portal.express.operator.computer_state",
 }
 # 写账前置判定（共用层 pearnly_core.write_precheck，开始前确认卡片，评估 docs/work/2026-11-04-precheck-card.md W3）：一批单写进
 # Express 前要人定的项一次收齐（账套、选择项、存货科目组、收银三项、库存单科目），记下走单据页「选一次」同一套核对

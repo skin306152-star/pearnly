@@ -247,6 +247,11 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
 
     # E8 / E9 每张单；E11 要人处理的单；中途交回的卡片收口
     awaiting, requeued, stopped = [], [], []
+    # 任务排着、主人一台能写的电脑都没有（未连接 / 够不到账套 / 只有同事的在线）：排队的单写「等待电脑 · 为什么」（单据页同一句），
+    # 不只写「排队」（11-16 H 组）；本人有电脑（含关着的）照旧
+    owner = str(_get(task, "owner") or "")
+    no_computer = (products.computer_words(company, owner)[:120]
+                   if status == "queued" and not products.waiting_on(company, owner) else "")
     for item in docs:
         row, use = item["row"], f"{p}d{item['key']}"
         view = _doc_view(item)
@@ -256,8 +261,11 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
             # 等电脑（科目表还没读到 / 电脑不在线，`tasks.WAITING_FOR_CC`）：步骤行写明在等什么，交上以后换回「排队」
             waiting = item["raw"] == tasks.WAITING_FOR_CC
             label = "blocked" if blocked else tasks.WAITING_FOR_CC if waiting else "queued"
-            out.progress(f"{use}_q{_ms(item['queued'])}" + ("_w" if waiting else ""), use, 0, 0, label, item["queued"],
-                         detail=blocked, bump=1)
+            if not blocked and no_computer:
+                label = "waiting_computer"  # 页面「等待电脑 · 原因」（同整段状态行的写法）
+            out.progress(f"{use}_q{_ms(item['queued'])}" + ("_w" if waiting else "") + ("_n" if label == "waiting_computer" else ""),
+                         use, 0, 0, label, item["queued"], detail=blocked or (no_computer if label == "waiting_computer" else ""),
+                         bump=1)
             if item["done"] and item["done"] < item["queued"]:
                 requeued.append(item)
                 out.answer(f"{p}c{item['key']}_{_ms(item['done'])}", {"answered": True}, item["queued"], bump=2)
@@ -309,6 +317,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         label = "waiting_computer" if status == "queued" else "entering"
         # 排着等电脑：带上在等的本人电脑名称（产品钩子，按任务主人；页面「等待电脑 · 名称」，A 线 11-12）
         waiting_on = products.waiting_on(company, str(_get(task, "owner") or "")) if status == "queued" else ""
+        if status == "queued" and not waiting_on:
+            # 没有本人的电脑在等（一台都没有 / 够不到账套 / 只有同事的在线）：写明为什么，用单据页同一句（11-16 H 组：只写「等待电脑」）
+            waiting_on = no_computer
         out.progress(f"{p}pg_{label}_{concluded}_{_ms(last)}", "", concluded, len(docs), label, last,
                      detail=waiting_on, bump=6 if status == "queued" else 7)
     else:

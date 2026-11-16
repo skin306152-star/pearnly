@@ -28,9 +28,22 @@ DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Document"}
 CARD = "q('[data-slot=\"cc-op-before-ask\"]')"  # 有要人定的题时开始前卡片就是这张问答卡
 
 
-def prepare(lab, manifest, direction=None):
+NOT_CONNECTED = "CC 桌面版未连接"  # 单据页同一句（ERP 词条 CC Desktop not connected 的中文）
+OTHER_USER = "flow.other.person@erp.regression"
+
+
+def prepare(lab, manifest, direction=None, no_computer=False):
     direction = direction or DIRECTION
     co, tag = company(manifest), "opi" + uuid.uuid4().hex[:6]
+    if no_computer:
+        # 发单人自己一台登录过 CC 的电脑都没有：实验栈里的电脑只算别人登录过（格结束时 `restore_fields` 还原）
+        found = lab.python(manifest["site"], f"""
+from pearnly_core.cc_desktop import contracts
+print(json.dumps({{"devices": frappe.get_all("Pearnly CC Device", filters={{"retired_at": ["is", "not set"]}}, pluck="name",
+                                             limit_page_length=20), "users": contracts.with_user(None, {OTHER_USER!r})}}))
+""")
+        for device in found["devices"]:
+            lab.set_fields(manifest["site"], "Pearnly CC Device", device, {"signed_in_users": found["users"]})
     out = lab.python(manifest["site"], f"""
 import base64, hashlib
 from pearnly_core.assistant import sessions
@@ -44,12 +57,13 @@ pixel = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQV
 file = frappe.get_doc({{"doctype": "File", "file_name": "{tag}.png", "is_private": 1, "content": pixel}}).insert()
 day = frappe.utils.today()
 lines = [{{"item_type": "goods", "description": "ของใหม่ {tag}", "qty": 2, "unit_price": 100, "vat_rate": 7}}]
+printed = {{"total": "214.00"}}  # 票面印的合计（同真识别读出的；写账前按它核，`express.contracts.printed_hold`）
 if {direction!r} == "purchase":
     result = {{"doc_no": "{tag.upper()}-1", "doc_date": day, "doc_kind": "purchase_invoice", "has_vat": 1,
-              "supplier_name": "flow intake supplier {tag}", "lines": lines}}
+              "supplier_name": "flow intake supplier {tag}", "lines": lines, "printed": printed}}
 else:
     result = {{"doc_no": "{tag.upper()}-1", "doc_date": day, "doc_kind": "receipt", "has_vat": 1,
-              "buyer_name": "flow intake buyer {tag}", "party_type": "company", "lines": lines}}
+              "buyer_name": "flow intake buyer {tag}", "party_type": "company", "lines": lines, "printed": printed}}
 doc = frappe.get_doc({{"doctype": intake.DOCTYPE, "status": intake.READY, "direction": {direction!r}, "owner": frappe.session.user,
                        "sent_by": frappe.session.user, "source": intake.SOURCE_CC, "session_id": made["id"],
                        "request_key": "flow-{tag}", "language": "zh", "media_type": "image", "company": {co!r},
@@ -79,7 +93,8 @@ if seeded:
 frappe.db.commit()
 print(json.dumps({{"session": made["id"], "task": made["task"], "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
 """)
-    return {**out, "company": co, "tag": tag, "direction": direction, "doc_id": "I:" + out["intake"], "cases": []}
+    return {**out, "company": co, "tag": tag, "direction": direction, "doc_id": "I:" + out["intake"], "no_computer": no_computer,
+            "cases": []}
 
 
 def cleanup(lab, manifest, params):
@@ -93,14 +108,22 @@ print(json.dumps({{"made": row.get("purchase") if {params['direction']!r} == "pu
     lab.python(manifest["site"], f"""
 import os
 from pearnly_core.assistant import sessions
-frappe.set_user({USER!r})
-if frappe.db.exists("Pearnly Assistant Session", {{"session_id": {params['session']!r}}}):
-    sessions.delete({params['session']!r})
+from pearnly_core.express_operator import tasks
+# 先删准备时放的主档种子：后面哪一步出错也不留给同一站点的下一格（11-16：留下的主档让 cc.operator 的单被排进写账队列）
 if {bool(params.get('seeded'))!r}:
     from pearnly_erp_portal.express import facts
     path = facts._path({params.get('book', '')!r})
     if os.path.exists(path):
         os.remove(path)
+frappe.set_user({USER!r})
+# 排着等电脑的任务不能删（`tasks.delete`）：单据已作废，先按站点收尾；仍在排队的（实验栈没有电脑来领）标停止
+if frappe.db.exists(tasks.DOCTYPE, {params['task']!r}):
+    tasks.settle({params['task']!r})
+    if frappe.db.get_value(tasks.DOCTYPE, {params['task']!r}, "status") in ("queued", "running"):
+        frappe.db.set_value(tasks.DOCTYPE, {params['task']!r}, "status", "stopped", update_modified=False)
+    frappe.db.commit()
+if frappe.db.exists("Pearnly Assistant Session", {{"session_id": {params['session']!r}}}):
+    sessions.delete({params['session']!r})
 frappe.set_user("Administrator")
 if frappe.db.exists("ERP LINE Intake", {params['intake']!r}):
     frappe.delete_doc("ERP LINE Intake", {params['intake']!r}, ignore_permissions=True, force=True)
@@ -151,8 +174,17 @@ def steps(params, camera_code=None):
          f"const line={json.dumps(tag + ' 录吧 [lab-tool]')}+JSON.stringify({{name:'pearnly_write_start', input:{{plan:planId}}}})+'[/lab-tool]'; "
          "const sent=await say(line); await until(()=>!!toolResult('pearnly_write_start'),240); const r=toolResult('pearnly_write_start')||{}; "
          "return {sent, status: r.status||'', count: r.count||0, documents: r.documents||[], "
-         "handed: ((r.handed||{}).results||[]).map(x=>({doc_id:x.doc_id, status:x.status, reason:String(x.reason||'').slice(0,120)}))};"},
-    ]
+         "handed: ((r.handed||{}).results||[]).map(x=>({doc_id:x.doc_id, status:x.status, reason:String(x.reason||'').slice(0,120)})), "
+         "no_computer: r.no_computer||'', note: String(r.note||'').slice(0,200)};"},
+    ] + ([
+        # 发单人没有自己的电脑：对话里的代录进度写明「CC 桌面版未连接」（单据页同一句），不只「等待电脑」（页面靠补拉，等一会儿）
+        {"name": "未连接", "shot": True, "file": "4-not-connected", "js": JS +
+         # 只看这张单的代录步骤行（展开「填写了单据」），不看对话正文（假智能体会把工具结果原样回显）；页面靠补拉，等一会儿
+         "const row=()=>qa('[data-slot=\"cc-op-row\"]').map(e=>e.innerText.trim()).join(' | '); "
+         "let shown=false; for(let k=0;k<30&&!shown;k++){ await openSteps('cc-op-row'); "
+         f"shown=row().includes({json.dumps(NOT_CONNECTED)}); if(!shown) await sleep(2000); }} "
+         "return {seen: shown, row: row().slice(0,300)};"},
+    ] if params.get("no_computer") else [])
 
 
 def judge(params, results, camera_code=None):
@@ -170,7 +202,13 @@ def judge(params, results, camera_code=None):
         {"case": "starting hands the ticket in as an ERP document", "seen": started,
          "ok": started.get("status") == "started" and doc_id in (started.get("documents") or [])
          and handed.get(doc_id, {}).get("status") not in (None, "", "failed", "not_permitted")},
-    ]
+    ] + ([
+        {"case": "with no computer of the sender, CC is told it is not connected instead of handed to a computer",
+         "seen": {k: started.get(k) for k in ("no_computer", "note")},
+         "ok": started.get("no_computer") == NOT_CONNECTED and "handed to the computer" not in (started.get("note") or "").lower()},
+        {"case": "the conversation shows CC Desktop not connected", "seen": by.get("未连接"),
+         "ok": (by.get("未连接") or {}).get("seen") is True},
+    ] if params.get("no_computer") else [])
 
 
 def verify(lab, manifest, params, camera_code=None):

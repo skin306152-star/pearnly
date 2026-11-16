@@ -76,6 +76,9 @@ CHANGED_NOTE = ("These documents changed after the plan was said back (changed),
 DIRECT_START_NOTE = ("Started: push exactly these documents (documents) now with the push tool, at most 5 per call, in this "
                      "order; report what was written only from the push results. Stop at once if a push says stopped.")
 OPERATOR_START_NOTE = "Handed to the computer that enters them; progress shows in this conversation."
+# 交单了但任务主人此刻没有能写的电脑（未连接 / 够不到账套 / 只有同事的在线 / 关着）：不说「已交给电脑」，照这句告诉用户（11-16 H 组）
+OPERATOR_NO_COMPUTER_NOTE = ("Queued, but no computer of the user can enter them now: {reason}. Tell the user exactly that in "
+                             "plain words; do not say they were handed to a computer. They are entered once that is fixed.")
 LEDGER_CHANGED_NOTE = ("This conversation's account set changed after the plan was said back (now {label}), so nothing was "
                        "written. Make a new plan, which writes into the account set the conversation has now, and say it "
                        "back again.")
@@ -306,7 +309,11 @@ def start(tool_input) -> dict:
 
         again = [item["doc_id"] for item in planned if item.get("again") and item["doc_id"] in write]
         handed = operator_api.hand_in(doc.company, doc.operator_task, write, again=again)
-        return {**out, "handed": handed, "note": OPERATOR_START_NOTE}
+        from pearnly_core.express_operator import products
+
+        computer = products.computer_words(doc.company, frappe.session.user)
+        note = OPERATOR_NO_COMPUTER_NOTE.format(reason=computer) if computer else OPERATOR_START_NOTE
+        return {**out, "handed": handed, "note": note, **({"no_computer": computer} if computer else {})}
     return {**out, "note": DIRECT_START_NOTE}
 
 

@@ -45,6 +45,13 @@ def status(tool_input) -> str:
         out.update(_preparing(view))
     elif view["status"] == "attention":
         out["next"] = NEXT_ATTENTION
+    if view["status"] in ("preparing", "queued"):
+        # 任务主人此刻没有能写的电脑（未连接 / 够不到账套 / 只有同事的在线 / 关着）：给模型单据页同一句，照话告诉用户（11-16 H 组）
+        from pearnly_core.express_operator import products
+
+        missing = products.computer_words(view["company"], tasks._user())
+        if missing:
+            out["no_computer"] = missing
     return json.dumps(out, ensure_ascii=False, default=str)
 
 
@@ -105,7 +112,9 @@ TOOLS = [
                     "questions such as how many were entered today or why document 2 was not entered. task is the id given "
                     "in the express_task note. next, when present, is what the user has to do now: tell them in plain "
                     "words. Before the task starts it also gives waiting (the documents it will enter, waiting_total in all) "
-                    "and uploads (each file put in this conversation and what it was read as).",
+                    "and uploads (each file put in this conversation and what it was read as). no_computer, when present, "
+                    "says why no computer of the user can enter them now (not connected, offline, ...): tell the user in "
+                    "those words and never say they were handed to a computer.",
      "input_schema": {"type": "object", "properties": {"task": {"type": "string"}}, "required": ["task"]},
      "handler": "pearnly_core.express_operator.tools.status"},
     {"name": "express_operator_control", "modes": ["operator"],

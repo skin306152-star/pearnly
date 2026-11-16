@@ -445,6 +445,34 @@ class DroppedTicket(Precheck):
         self.assertEqual(saved, [(self.push.PURCHASE, "PI-7", express)])
 
 
+class ComputerState(Precheck):
+    def test_an_operator_task_says_why_no_computer_of_the_owner_can_enter_it(self):
+        # 11-16 H 组：代录排着等电脑、任务主人没有能写的电脑时，用单据页同一个原因码（`push._queued_note`）说清为什么；
+        # 任一本账套有在线的不报；几本结论不同报最接近能写的那个
+        from pearnly_erp_portal.express import operator
+
+        found = {}
+        books = types.SimpleNamespace(for_company=lambda tax, branch: [{"key": "BK-1"}, {"key": "BK-2"}])
+        package = sys.modules["pearnly_core.cc_desktop"]
+        with mock.patch.object(package, "books", books, create=True), \
+                mock.patch.dict(sys.modules, {"pearnly_core.cc_desktop.books": books}), \
+                mock.patch.object(operator.jobs, "writers", lambda user, key: {"state": found[key]}), \
+                mock.patch.object(frappe.db, "get_value", lambda *a, **k: types.SimpleNamespace(tax_id=base.OWN, branch="00000")):
+            found.update({"BK-1": "missing", "BK-2": "missing"})
+            self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NOT_CONNECTED)
+            found["BK-2"] = "unreachable"
+            self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NO_WRITER)
+            found["BK-1"] = "not_yours"
+            self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NOT_YOURS)
+            found["BK-2"] = "offline"
+            self.assertEqual(operator.computer_state("CO-1", "b@x"), E.OFFLINE)
+            found["BK-1"] = "ok"
+            self.assertEqual(operator.computer_state("CO-1", "b@x"), "")
+        # 这几个码都有单据页同一句（词条表 `pending.REASONS`），代录经 reason_text 出话
+        from pearnly_erp_portal.express import pending
+        self.assertTrue(all(getattr(E, name) in pending.REASONS for name in operator.COMPUTER_REASONS.values()))
+
+
 def mrerp_views(menus=("purchase",), defaults=("supplier_type",)):
     """MR.ERP 菜单 / 主档视图（`mrerp.choices.views` 的形状）：``menus`` / ``defaults`` 里的要人选，其余已选好。"""
     kinds = {kind: {"options": [{"idmenu": "68", "label": "ซื้อ"}, {"idmenu": "454", "label": "ซื้อ2"}],

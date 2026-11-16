@@ -224,6 +224,8 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
 
     products.status, products.submit = status, submit
     products.waiting_on = lambda company, user: state.get("waiting_on", {}).get((company, user), "")
+    # 本人此刻没有能写的电脑时那一句（产品 computer_state + reason_text；默认能写，回空串）
+    products.computer_words = lambda company, user: state.get("computer", {}).get((company, user), "")
     products.uploads = lambda company, period, batches: dict(state.get("ocr") or {})
 
     sessions = types.ModuleType("pearnly_core.assistant.sessions")
@@ -419,6 +421,17 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual([e["detail"] for e in whole("running")], [""])
         self.state["waiting_on"] = {}
         self.assertEqual([e["detail"] for e in whole("queued")], [""])
+        # 11-16 H 组：任务主人一台能写的电脑都没有（未连接 / 够不到账套 / 只有同事的在线）时不只写「等待电脑」，带上单据页同一句
+        self.state["computer"] = {("CO-1", "a@example.com"): "CC Desktop not connected"}
+        self.assertEqual([e["detail"] for e in whole("queued")], ["CC Desktop not connected"])
+        # 排队的那张单的步骤行同样写「等待电脑 · 为什么」（页面 progressText 的 waiting_computer），不只「排队」
+        rows = [e for e in self.project(_task("queued", [_doc(1, "queued")]))
+                if e["type"] == "pearnly.progress" and e["tool_use_id"]]
+        self.assertEqual([(e["label"], e["detail"]) for e in rows], [("waiting_computer", "CC Desktop not connected")])
+        self.assertEqual([(e["label"], e["detail"]) for e in self.project(_task("running", [_doc(1, "queued")]))
+                          if e["type"] == "pearnly.progress" and e["tool_use_id"]], [("queued", "")])  # 在录时照旧
+        self.state["waiting_on"] = {("CO-1", "a@example.com"): "PC-ME"}  # 本人有电脑在等（关着）：照旧写电脑名
+        self.assertEqual([e["detail"] for e in whole("queued")], ["PC-ME"])
 
     def test_the_same_record_projects_to_the_same_events_twice(self):
         task = _task("attention", [_doc(1, "saved", docnum="HP01"), _doc(2, "not_done", REASONS["batch"]),

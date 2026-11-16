@@ -34,6 +34,34 @@ def waiting_on(company, user) -> str:
     return ", ".join(dict.fromkeys(names))
 
 
+COMPUTER_ORDER = ("intake.agent.state.offline", "intake.agent.state.notYours", "intake.agent.state.noWriter",
+                  "intake.agent.state.missing")  # 几条连接结论不同时报最接近能写的那个
+
+
+def computer_state(company, user) -> str:
+    """代录排着等电脑时，``user`` 自己的电脑能不能写这家账套（共用层 ``products.computer_state``，同 ERP）：任一条连接有在线的、
+    能写的回空串；否则回网页去向同一个词条键（`public/desk/targets.js`）——电脑关着 ``intake.agent.state.offline``、只有同事的在线
+    ``…notYours``、有电脑却都够不到 ``…noWriter``、一台都没有 ``…missing``（未连接电脑）。没有连接的回空串（另有原因）。"""
+    from pearnly_cowork.companies import service
+    from pearnly_cowork.folder_intake import destinations
+
+    if not service.exists(company):
+        return ""
+    connections = sorted({place[0] for book in service.listed_books(service.get(company), None)
+                          for place in book.get("places") or [(book.get("connection"), book.get("key"))] if place[0]})
+    found = set()
+    for connection in connections:
+        state = destinations.owner_state(connection, user)  # loop-query: 这家账套所在的几条连接
+        if not state:
+            continue  # 读不出这条：不凭它下结论
+        if state.get("online"):
+            return ""
+        found.add("intake.agent.state.missing" if not state.get("computers") else
+                  "intake.agent.state.noWriter" if not state.get("writers_known") else
+                  "intake.agent.state.notYours" if state.get("not_yours") else "intake.agent.state.offline")
+    return next((code for code in COMPUTER_ORDER if code in found), "")
+
+
 def target(company) -> str:
     """这家公司代录录到哪种账本（ADR-026 第 6 条，共用层 ``products.target_of``）：账本是 MR.ERP 的公司在 MR.ERP 代录开了
     （全平台常量 ``contracts.MRERP_OPERATOR_ENABLED``，不按站点开）时回 ``mrerp``；其余（含常量关着时的 MR.ERP 公司）回 Express，
