@@ -572,3 +572,51 @@ def test_bridge_host_shutdown_stops_the_running_host(tmp_path, vault):
     _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 4490, "user": "u"})))
     bridge.shutdown()
     assert log[-1] == ("stop", HOST)
+
+
+# ── 设备密钥的一次性配对 ─────────────────────────────────────────────────────
+
+def test_host_pairing_hands_the_device_key_over_and_restores_the_title(tmp_path, caplog):
+    pytest.importorskip("cryptography")
+    from companion.cloud_link import device_pairing as pairing
+    from companion.cloud_link.window import WINDOW_TITLE
+    from companion.i18n import t
+
+    caplog.set_level(logging.DEBUG)
+    store = _saved(tmp_path)
+    device_key = store.device_key(HOST)
+    host, *_ = _host(tmp_path)
+    titles = []
+    host._set_title = lambda window, text: titles.append(text)
+    with pytest.raises(host_mod.HostError):
+        host.begin_pairing("zh")
+    host.start()
+    ticket = host.begin_pairing("zh")
+    assert titles == [WINDOW_TITLE + " · " + t("btn_pair", "zh")]
+    assert host.pairing_status()["state"] == pairing.WAITING
+    vault = {}
+    code = pairing.pair(host.ctl_dir, ticket.token, HOST, timeout=0.5, poll=0, now=time.time,
+                        sleep=lambda _: host.pump(), store=lambda h, key: vault.__setitem__(h, key),
+                        read_back=lambda h: vault.get(h, ""))
+    host.pump()
+    assert code == pairing.OK and vault == {HOST: device_key}
+    assert host.pairing_status()["state"] == pairing.PAIRED
+    assert titles[-1] == WINDOW_TITLE
+    assert ticket.token not in caplog.text and device_key not in caplog.text
+    host.stop()
+    assert host.pairing_status()["state"] == pairing.IDLE
+
+
+def test_bridge_pair_actions_return_only_the_token_and_the_status(tmp_path, vault):
+    log, holder = [], {}
+    bridge = _bridge(tmp_path, holder, log)
+    assert json.loads(bridge.call("cloud_pair_begin", "{}")) == {"ok": False, "code": "not_running"}
+    _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 4490, "user": "u"})))
+    fake = bridge._cloud_host
+    fake.running = True
+    fake.begin_pairing = lambda lang: types.SimpleNamespace(token="ABCD-EFGH", expires=123)
+    fake.pairing_status = lambda: {"state": "waiting", "code": "", "expires": 123}
+    assert json.loads(bridge.call("cloud_pair_begin", "{}")) == {"ok": True, "token": "ABCD-EFGH", "expires": 123}
+    assert json.loads(bridge.call("cloud_pair_status", "{}")) == {"ok": True, "state": "waiting", "code": "",
+                                                                  "expires": 123}
+    bridge.shutdown()

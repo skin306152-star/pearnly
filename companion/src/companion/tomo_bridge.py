@@ -37,6 +37,10 @@ MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点�
 （宿主 ``cloud_link/host.py`` 处理）。``cloud_operator_forget {connection}`` 删本机这条，并经 ``ctl`` 请云端删掉它那条（宿主没起
 时先记着，下次起宿主补发）。前端按钮另做；旧版桥回 ``{ok: false}``。
 
+设备密钥的一次性配对（``cloud_link/device_pairing.py``）：``cloud_pair_begin`` 请正在运行的宿主生成一次性令牌（2 分钟、一次、
+失败即作废），回包只有 ``token`` 与 ``expires``（墙上时钟秒），供设置页显示给人抄到云端；令牌不进日志。``cloud_pair_status``
+回 ``{state, code, expires}``（idle / waiting / answered / paired / failed），不含令牌。宿主没起回 ``not_running``。
+
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
 
@@ -242,6 +246,8 @@ class TomoBridge(QObject):
             return self._cloud_settings(method, args, lang)
         if method in ("cloud_operator_authorize", "cloud_operator_forget"):
             return self._cloud_operator(method, args, lang)
+        if method in ("cloud_pair_begin", "cloud_pair_status"):
+            return self._cloud_pair(method, lang)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -416,6 +422,21 @@ class TomoBridge(QObject):
             self._cloud_forgets.add(connection)
         log.info("云端代录登录已取消授权 · 连接=%s", connection)
         return {"ok": True, "removed": removed}
+
+    def _cloud_pair(self, method: str, lang: str) -> dict:
+        """设备密钥的一次性配对：生成令牌（只回令牌与过期时间）/ 查状态（不含令牌）。宿主没起回 ``not_running``。"""
+        host = self._cloud_host
+        if host is None or not getattr(host, "running", False):
+            return {"ok": False, "code": "not_running"}
+        if method == "cloud_pair_status":
+            return {"ok": True, **host.pairing_status()}
+        try:
+            ticket = host.begin_pairing(normalize(lang))
+        except Exception as exc:
+            log.warning("生成云端配对令牌失败：%s", type(exc).__name__)
+            return {"ok": False, "code": "not_running"}
+        log.info("云端配对令牌已生成")
+        return {"ok": True, "token": ticket.token, "expires": ticket.expires}
 
     def _cloud_settings(self, method: str, args: dict, lang: str) -> dict:
         """「云端 Express」一行的四个动作。``cloud_connect`` 只收地址与预填的账号（args 里的密码一概不看）：地址不合规直接回，

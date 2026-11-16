@@ -25,6 +25,10 @@
   ``LinkStore.device_key`` 校验，本机存有 ``Pearnly CC/cloud-express/<主机>/<连接>`` 才加密写 ``cred-resp.json``，10 秒后兜底再删；
   ``request_forget`` 写 ``cred-forget.json``，收到云端回执才算完，没收到的在下次换会话时按新会话号补发（只在内存，桥重启即丢）。
   已见的请求编号放内存。
+- 设备密钥的一次性配对（``device_pairing``）：人在设置里点「配对」→ :meth:`CloudHost.begin_pairing` 生成一次性令牌，只回给可见
+  界面显示（不进日志）；配对进行中连接窗口标题改成「窗口标题常量 · 配对」（``i18n`` 已有词条 ``btn_pair``），结束（成功、失败、
+  过期）改回。中转循环每一遍顺带看 ``ctl\\pair-req.json`` / ``pair-ack.json``；回应写 ``pair-resp.json``，10 秒后兜底再删。
+  成功 / 失败都写本地日志（事件、原因码；时间由日志带）。
 - 连接窗口：``window.CloudWindow`` + ``ConnectParams.make(..., tunnel_drive=盘符)`` + ``link_store.password_provider`` +
   ``nonscriptable.for_widget()``，状态变化转给上层的 ``on_change``。
 
@@ -45,6 +49,7 @@ from typing import Any, Callable, Optional
 from .. import channel as channels
 from ..logger import get_logger
 from . import cred_handoff as handoff
+from . import device_pairing as pairing
 from . import rdp
 from . import tunnel_protocol as protocol
 from .session import State
@@ -215,6 +220,7 @@ class CloudHost:
                  clock: Callable[[], float] = time.monotonic,
                  wall: Callable[[], float] = time.time,
                  read_credential: Optional[Callable[[str, str], Any]] = None,
+                 set_title: Optional[Callable[[Any, str], None]] = None,
                  run_thread: bool = True) -> None:
         self.host = rdp.host(host)
         self._links = links
@@ -252,6 +258,10 @@ class CloudHost:
         self._sweeper = handoff.Sweeper()
         self._forgets: dict = {}
         self._cred_lock = threading.Lock()
+        # 设备密钥的一次性配对（device_pairing）；窗口标题怎么改（默认排进界面线程，测试注入）
+        self._pairing: Optional[pairing.BridgePairing] = None
+        self._set_title = set_title or _queued_title
+        self._title_lang = ""
 
     # ---- 路径 ----
     @property
@@ -345,6 +355,10 @@ class CloudHost:
         _step("remove session file", self._remove_ctl)
         self._session = None
         _step("remove credential handoff files", lambda: handoff.sweep(self.root / "ctl"))
+        current, self._pairing = self._pairing, None
+        if current is not None:
+            _step("cancel pairing", current.cancel)
+        _step("remove pairing files", lambda: handoff.sweep(self.root / "ctl", pairing.FILES))
         drive, self.drive = self.drive, ""
         if drive:
             _step("remove tunnel drive", lambda: self._unmount(drive))
@@ -570,6 +584,60 @@ class CloudHost:
             self._forget_acked(ack)
         self._send_forgets()
         self._sweeper.run_due(ctl, self._clock())
+        self.pump_pairing()
+
+    # ---- 内部：设备密钥的一次性配对（device_pairing；只在 ctl\\） ----
+    def begin_pairing(self, lang: str = "") -> pairing.Ticket:
+        """生成一次性令牌（2 分钟、一次、失败即作废；再点一次旧的作废）。只回给可见界面显示，不进日志。没起连接抛 HostError。"""
+        if not self._running or self._session is None:
+            raise HostError("cloud link is not running")
+        with self._lock:
+            if self._pairing is None:
+                self._pairing = pairing.BridgePairing(self.host, self._device_key, clock=self._clock, wall=self._wall)
+            ticket = self._pairing.begin()
+        self._title(paired=False, lang=lang)
+        return ticket
+
+    def pairing_status(self) -> dict:
+        """``{state, code, expires}``：idle / waiting / answered / paired / failed；不含令牌。"""
+        current = self._pairing
+        if current is None:
+            return {"state": pairing.IDLE, "code": "", "expires": 0}
+        return current.status()
+
+    def pump_pairing(self) -> None:
+        current = self._pairing
+        if current is None:
+            return
+        was_active = current.active
+        try:
+            changed = current.pump(self.ctl_dir)
+        except Exception:
+            log.exception("云端设备配对处理失败")
+            return
+        if was_active and not current.active:
+            self._title(paired=True)
+        if changed:
+            try:
+                self._on_change(None, "")
+            except Exception:
+                log.exception("云端连接状态通知失败")
+
+    def _title(self, *, paired: bool, lang: str = "") -> None:
+        """连接窗口标题：配对进行中 = 「窗口标题常量 · 配对」（已有词条），结束改回窗口标题常量。"""
+        window = self._window
+        if window is None:
+            return
+        from ..i18n import normalize, t
+        from .window import WINDOW_TITLE
+
+        if not paired:
+            self._title_lang = normalize(lang)
+        text = WINDOW_TITLE if paired else WINDOW_TITLE + " · " + t("btn_pair", self._title_lang)
+        try:
+            self._set_title(window, text)
+        except Exception as exc:  # noqa: BLE001 - 改不了标题不挡配对
+            log.info("改连接窗口标题失败：%s", type(exc).__name__)
 
     def _forget_acked(self, ack: bytes) -> None:
         try:
@@ -593,6 +661,13 @@ class CloudHost:
     def _done(self, path) -> None:
         with self._inflight_lock:
             self._inflight.discard(path)
+
+
+def _queued_title(window, text: str) -> None:
+    """改连接窗口标题：中转线程里调也安全（排进窗口所在的界面线程）。"""
+    from PySide6.QtCore import Q_ARG, QMetaObject, Qt
+
+    QMetaObject.invokeMethod(window, "setWindowTitle", Qt.ConnectionType.QueuedConnection, Q_ARG(str, text))
 
 
 def _read_bridge_credential(host: str, connection: str):
