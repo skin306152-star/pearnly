@@ -78,7 +78,7 @@ class FeedTests(unittest.TestCase):
         self.assertIn('return typeof id === "string" && (id.startsWith("pop_") || id.startsWith("local-"));', events)
         # 卡片的回答（pearnly.answer，第 11 轮 C22）同样是本站事件：只走推送，不当锚点
         # 执行记录（pearnly.tool_run，第 11 轮 A 段）也是：推来、并在读事件那页最后，都不当锚点
-        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent;", events)
+        self.assertIn("export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent | GuideEvent;", events)
         self.assertIn('type: "pearnly.answer";', events)
         self.assertIn('type: "pearnly.tool_run";', events)
         poll = read("lib/managed-agents/poll-source.ts")
