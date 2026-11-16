@@ -146,6 +146,20 @@ def _previous_excess(workspace, tax_id, branch, year, month) -> str:
     return value if pp30.money(value) and pp30.money(value) > 0 else ""
 
 
+def previous_excess(connection, account_set_key, period) -> dict:
+    """第 10 栏的推荐值（CC 增值税引导，11-16）：这本账套这个月回读里的本公司（税号 + 分店）上月草稿第 12 栏，
+    ``{"value", "period"}``（``period`` = 那份草稿的月份）；没有回读或上月没有草稿回 ``{}``。只读，不存草稿。"""
+    workspace = _workspace()
+    year, month = _period(period)
+    data = sources.vat_readback(str(connection or "").strip(), str(account_set_key or "").strip(), year, month)
+    if data is None:
+        return {}
+    header = data.get("header") or {}
+    tax_id, branch = wht.tax_id(header.get("tax_id")), str(header.get("branch") or "").strip()[:10]
+    value = _previous_excess(workspace, tax_id, branch, year, month)
+    return {"value": value, "period": periods.text(*periods.shift(year, month, -1))} if value else {}
+
+
 def vat_draft(connection, account_set_key, period, options=None) -> dict:
     workspace = _workspace()
     year, month = _period(period)

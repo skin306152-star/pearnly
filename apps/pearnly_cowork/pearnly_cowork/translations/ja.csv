@@ -224,6 +224,7 @@ Bound Invoice Records,関連付け済みの請求書記録
 Bound Profile Key,関連付け設定キー
 Bound at,連携日時
 Bound to {0},{0} に連携しました
+Box 12 of the {0} draft: {1},{0} の下書きの第 12 欄：{1}
 Branch,実行分岐
 Branch No,支店番号
 Branch When Added,追加時の支店
@@ -375,6 +376,7 @@ Choose the reconciliation type.,照合の種別を選択してください。
 Choose the sales returns account,売上返品勘定を選んでください
 Choose the service input VAT for this supplier and submit again,この仕入先のサービスの仮払付加価値税を選んで再送信してください
 Choose the sheet to import,取り込むシートを選択してください
+Choose the tax month.,課税月を選択してください。
 Choose the year,年度を選択
 Choose the year and account set first,先に年度と会計データを選んでください
 Choose the year and account set first.,先に年度と会計データを選択してください。
@@ -757,6 +759,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,ネットバンキングの Excel/CSV または電子版 PDF
 Excess tax brought forward,繰越超過納付額
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,この会計データでは免税明細と課税明細を同じ伝票に入れられません。Express で入力してください
+Exempt sales,免税の売上高
 Existing item,既存の品目
 Expected VAT,想定税額
 Expense,経費に計上
@@ -1527,6 +1530,7 @@ Row not read,読めない行
 Row {0}: {1},{0} 行目：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,表の行と実数を登録します。実数を空欄にすると、後でオンラインで棚卸できます。
+Rows with zero VAT,税額ゼロの行
 Rule,ルール
 Rule Owner,ルール所有者
 Rule Revision,ルール改訂番号
@@ -2198,6 +2202,7 @@ VAT File Name,売上税報告ファイル名
 VAT Only Negative,売上税報告のみ（マイナス）
 VAT Only Positive,売上税報告のみ（プラス）
 VAT Report Check,売上税報告チェック
+VAT Return,付加価値税申告書
 VAT Total,売上税報告合計
 VAT differs from the rate,税額が税率と合わない
 VAT is not 7% of the base,税額が課税標準の7%でない
@@ -3119,6 +3124,7 @@ cowork.tax.pp30.box.8,当月の納付税額（5 が 7 より大きい場合）
 cowork.tax.pp30.box.9,当月の超過納付額（5 が 7 より小さい場合）
 cowork.tax.pp30.claimable,指摘行を除いた仕入税
 cowork.tax.pp30.previous_excess,前月下書きの超過納付額
+cowork.tax.previousExcess,{0} の下書きの第 12 欄：{1}
 cowork.tax.review.excluded,未計上
 cowork.tax.review.notes,その他の記録
 cowork.tax.review.questions,選ぶ必要がある所得の種類
@@ -3448,8 +3454,10 @@ excel,Excel
 failed,失敗
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
+guide.business.vat,付加価値税申告書
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
+guide.open.vat,課税月を選択してください。
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
@@ -3460,6 +3468,11 @@ guide.step.recon.readback,読み戻し
 guide.step.recon.sales_vat,売上税報告
 guide.step.recon.source,取得元
 guide.step.recon.statement,銀行明細
+guide.step.vat.excess_brought_forward,繰越超過納付額
+guide.step.vat.exempt_sales,免税の売上高
+guide.step.vat.period,課税月
+guide.step.vat.readback,読み戻し
+guide.step.vat.zero_vat_as,税額ゼロの行
 held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。

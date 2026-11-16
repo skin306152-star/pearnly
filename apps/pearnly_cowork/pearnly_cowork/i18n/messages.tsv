@@ -2449,3 +2449,11 @@ General ledger	总账	บัญชีแยกประเภททั่วไ�
 Output VAT report	销项税报告	รายงานภาษีขาย	売上税報告	guide.step.recon.sales_vat
 Sales invoices	销售发票	ใบกำกับภาษีขาย	売上請求書	guide.step.recon.invoices
 From Express readback	从 Express 回读	อ่านข้อมูลกลับจาก Express	Express から読み戻し	cowork.recon.fromReadback
+VAT Return	增值税申报表	แบบ ภ.พ.30	付加価値税申告書	guide.business.vat
+Choose the tax month.	选择税务月份。	เลือกเดือนภาษี	課税月を選択してください。	guide.open.vat
+Tax Month	税务月份	เดือนภาษี	課税月	guide.step.vat.period
+Readback	回读	การอ่านข้อมูลกลับ	読み戻し	guide.step.vat.readback
+Exempt sales	免税销售额	ยอดขายที่ได้รับยกเว้น	免税の売上高	guide.step.vat.exempt_sales
+Excess tax brought forward	上期结转的多缴税额	ภาษีที่ชำระเกินยกมา	繰越超過納付額	guide.step.vat.excess_brought_forward
+Rows with zero VAT	税额为零的行	รายการที่ภาษีเป็นศูนย์	税額ゼロの行	guide.step.vat.zero_vat_as
+Box 12 of the {0} draft: {1}	{0} 草稿第 12 栏：{1}	ช่อง 12 ของร่างเดือน {0}: {1}	{0} の下書きの第 12 欄：{1}	cowork.tax.previousExcess

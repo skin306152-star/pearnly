@@ -363,6 +363,19 @@ class VatDraft(Base):
         frappe.store[("Cowork Tax Draft", previous)] = Doc(frappe, {"summary_json": json.dumps({"boxes": {"12": "55.50"}})})
         self.assertEqual(self.draft([isvat()])["previous_excess"], "55.50")
 
+    def test_the_guide_reads_last_months_box_12_without_writing_a_draft(self):
+        """CC 增值税引导第 10 栏的推荐值（11-16）：按这个月回读里的本公司找上月草稿第 12 栏，写明是哪个月的；只读。"""
+        def previous(records):
+            with mock.patch.dict(sys.modules, readback_module(records, None)):
+                return service.previous_excess("CONN-1", "ACC-2026", "2026-09")
+
+        self.assertEqual(previous([isvat()]), {})
+        self.assertEqual(previous(None), {})
+        last = service.record_id("WS1", "vat_return", COMPANY, "00000", "2026-08")
+        frappe.store[("Cowork Tax Draft", last)] = Doc(frappe, {"summary_json": json.dumps({"boxes": {"12": "55.50"}})})
+        self.assertEqual(previous([isvat()]), {"value": "55.50", "period": "2026-08"})
+        self.assertEqual(frappe.writes, [])
+
     def test_bad_requests_are_refused(self):
         with self.assertRaises(frappe.ValidationError):
             self.draft([isvat()], period="2026-13")

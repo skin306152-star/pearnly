@@ -163,7 +163,9 @@ def readback_options(ctx, txt="", start=0, page_length=20, codes=None):
         return _page([{"code": found["readback"], "name": f"{found.get('account_set') or ''} {found.get('period') or ''}".strip()}],
                      codes)
     out = {"options": [], "more": False}
-    if found.get("status") == "reading":
+    if _express_book(ctx) is None:
+        out["facts"] = [_("Only Express account sets can be read back.")]
+    elif found.get("status") == "reading":
         out.update(wait=True, facts=[_(readback.READING)])
     elif found.get("status") == "waiting_for_cc":
         out["facts"] = [_(readback.WAITING.get(found.get("reason"), readback.WAITING["offline"]))]

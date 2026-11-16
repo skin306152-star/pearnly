@@ -224,6 +224,7 @@ Bound Invoice Records,Bound Invoice Records
 Bound Profile Key,Bound Profile Key
 Bound at,Bound at
 Bound to {0},Bound to {0}
+Box 12 of the {0} draft: {1},Box 12 of the {0} draft: {1}
 Branch,Branch
 Branch No,Branch No
 Branch When Added,Branch When Added
@@ -375,6 +376,7 @@ Choose the reconciliation type.,Choose the reconciliation type.
 Choose the sales returns account,Choose the sales returns account
 Choose the service input VAT for this supplier and submit again,Choose the service input VAT for this supplier and submit again
 Choose the sheet to import,Choose the sheet to import
+Choose the tax month.,Choose the tax month.
 Choose the year,Choose the year
 Choose the year and account set first,Choose the year and account set first
 Choose the year and account set first.,Choose the year and account set first.
@@ -757,6 +759,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,Excel/CSV from online banking or electronic PDF
 Excess tax brought forward,Excess tax brought forward
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express
+Exempt sales,Exempt sales
 Existing item,Existing item
 Expected VAT,Expected VAT
 Expense,Expense
@@ -1527,6 +1530,7 @@ Row not read,Row not read
 Row {0}: {1},Row {0}: {1}
 Rows,Rows
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.
+Rows with zero VAT,Rows with zero VAT
 Rule,Rule
 Rule Owner,Rule Owner
 Rule Revision,Rule Revision
@@ -2198,6 +2202,7 @@ VAT File Name,VAT File Name
 VAT Only Negative,VAT Only Negative
 VAT Only Positive,VAT Only Positive
 VAT Report Check,VAT Report Check
+VAT Return,VAT Return
 VAT Total,VAT Total
 VAT differs from the rate,VAT differs from the rate
 VAT is not 7% of the base,VAT is not 7% of the base
@@ -3119,6 +3124,7 @@ cowork.tax.pp30.box.8,Tax payable this month (if 5 is more than 7)
 cowork.tax.pp30.box.9,Tax overpaid this month (if 5 is less than 7)
 cowork.tax.pp30.claimable,Input tax without flagged rows
 cowork.tax.pp30.previous_excess,Overpaid in last month's draft
+cowork.tax.previousExcess,Box 12 of the {0} draft: {1}
 cowork.tax.review.excluded,Not included
 cowork.tax.review.notes,Other records
 cowork.tax.review.questions,Income type to choose
@@ -3448,8 +3454,10 @@ excel,excel
 failed,Failed
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.business.vat,VAT Return
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
+guide.open.vat,Choose the tax month.
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
@@ -3460,6 +3468,11 @@ guide.step.recon.readback,Readback
 guide.step.recon.sales_vat,Output VAT report
 guide.step.recon.source,Source
 guide.step.recon.statement,Bank statement
+guide.step.vat.excess_brought_forward,Excess tax brought forward
+guide.step.vat.exempt_sales,Exempt sales
+guide.step.vat.period,Tax Month
+guide.step.vat.readback,Readback
+guide.step.vat.zero_vat_as,Rows with zero VAT
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.
