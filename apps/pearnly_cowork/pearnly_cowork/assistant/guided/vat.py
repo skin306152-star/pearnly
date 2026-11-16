@@ -117,7 +117,11 @@ def confirm(ctx, values, draft, consent) -> dict:
         files = [{"file": chat_files.resolve(path), "name": path.rsplit("/", 1)[-1]}]
     return {"status": "ready", "draft": summary.get("draft") or "", "period": summary.get("period") or "",
             "outcome": summary.get("outcome") or "", "boxes": dict(summary.get("boxes") or {}),
-            "issues_total": len(summary.get("issues") or []), "files": files}
+            "issues_total": len(summary.get("issues") or []),
+            # 检查项只读（第 1–12 栏等于 Express 记录，检查不改它们；要改在 Express 里改、再回读重出，用户 11-16「都按建议」）
+            "issues": [{"code": code, "text": _(f"cowork.tax.issue.{code}"), "count": count}
+                       for code, count in sorted((summary.get("issues_by_code") or {}).items())],
+            "files": files}
 
 
 # ── 声明 ─────────────────────────────────────────────────────────────────────
