@@ -28,6 +28,9 @@ TEXT_MAX = 500           # 一格输入最长
 ROWS_MAX = 200           # 多选 / 金额多选 / 分摊最多几行
 FILES_MAX = 20           # 一步最多交几份
 _MONTH = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
+_TIME = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
+_SUB_KEY = re.compile(r"^[A-Za-z0-9_.:\-]{1,80}$")   # 子题 key（产品给的问题编号，如对账的 rule、POS 的列名编号）
+QUESTIONS_MAX = 50
 _FILE = re.compile(r"^[A-Za-z0-9_\-]{1,80}$")
 
 
@@ -156,14 +159,16 @@ def amount(value: Any) -> Decimal | None:
     return found if found.is_finite() else None
 
 
-def _rows_problem(value: Any) -> str:
+def _rows_problem(value: Any, zero: bool = False) -> str:
+    """金额多选 / 分摊的行：``{code, amount}``，金额为正（声明 ``zero: True`` 的金额多选可以是 0：盘点数到 0 是有效的）。"""
     if not isinstance(value, (list, tuple)) or not value or len(value) > ROWS_MAX:
         return "a non-empty list of rows"
     codes = []
     for row in value:
         found = amount(row.get("amount")) if isinstance(row, Mapping) else None
-        if not isinstance(row, Mapping) or not isinstance(row.get("code"), str) or not row["code"] or found is None or found <= 0:
-            return "each row is {code, amount} with a positive amount"
+        if not isinstance(row, Mapping) or not isinstance(row.get("code"), str) or not row["code"] or found is None \
+                or found < 0 or (found == 0 and not zero):
+            return "each row is {code, amount} with a positive amount" + (" or zero" if zero else "")
         codes.append(row["code"])
     return "a code appears twice" if len(set(codes)) != len(codes) else ""
 
@@ -178,7 +183,7 @@ def value_problem(step: Mapping[str, Any], value: Any) -> str:
             and all(isinstance(v, str) and v for v in value)
         return "" if ok else "a non-empty list of distinct option codes"
     if kind in ("amounts", "split"):
-        return _rows_problem(value)
+        return _rows_problem(value, zero=kind == "amounts" and step.get("zero") is True)
     if kind == "file":
         ok = isinstance(value, (list, tuple)) and 0 < len(value) <= FILES_MAX and len(set(value)) == len(value) \
             and all(isinstance(v, str) and _FILE.match(v) for v in value)
@@ -187,6 +192,12 @@ def value_problem(step: Mapping[str, Any], value: Any) -> str:
         return "" if isinstance(value, str) and _MONTH.match(value) else "a month as YYYY-MM"
     if kind == "number":
         return "" if isinstance(value, (str, int)) and not isinstance(value, bool) and amount(value) is not None else "a number"
+    if kind == "time":
+        return "" if isinstance(value, str) and _TIME.match(value) else "a time as HH:MM"
+    if kind == "questions":
+        ok = isinstance(value, Mapping) and 0 < len(value) <= QUESTIONS_MAX \
+            and all(isinstance(key, str) and _SUB_KEY.match(key) and _has(item) for key, item in value.items())
+        return "" if ok else "answers to the questions by their keys"
     if kind == "date":
         try:
             date.fromisoformat(value if isinstance(value, str) else "")
@@ -218,5 +229,5 @@ def problems_in(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: M
     return out
 
 
-__all__ = ["ASKING", "FILES_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "amount", "applies", "blocked", "dependents", "final_values",
+__all__ = ["ASKING", "FILES_MAX", "QUESTIONS_MAX", "READY", "ROWS_MAX", "TEXT_MAX", "amount", "applies", "blocked", "dependents", "final_values",
            "problems_in", "settled", "state", "to_ask", "value_problem", "without_dependents"]

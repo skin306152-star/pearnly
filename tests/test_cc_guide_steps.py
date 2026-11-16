@@ -152,6 +152,20 @@ class ValueTests(unittest.TestCase):
         self.assertNotEqual(steps.value_problem(self.step("text"), "   "), "")
         self.assertNotEqual(steps.value_problem(self.step("text"), "x" * (steps.TEXT_MAX + 1)), "")
 
+    def test_time_counted_rows_and_question_answers(self):
+        """N8 时刻、N4 盘点数到 0 的行、N1a 子题的答案（约定 11-16）。"""
+        self.assertEqual(steps.value_problem(self.step("time"), "08:30"), "")
+        for bad in ("8:30", "24:00", "08:60", "0830"):
+            self.assertNotEqual(steps.value_problem(self.step("time"), bad), "", bad)
+        counted = {"key": "rows", "input": "amounts", "zero": True}
+        self.assertEqual(steps.value_problem(counted, [{"code": "P1", "amount": "0"}, {"code": "P2", "amount": "3"}]), "")
+        self.assertNotEqual(steps.value_problem(counted, [{"code": "P1", "amount": "-1"}]), "")
+        self.assertNotEqual(steps.value_problem(self.step("amounts"), [{"code": "P1", "amount": "0"}]), "")   # 没声明 zero 照旧
+        self.assertNotEqual(steps.value_problem({"key": "m", "input": "split", "zero": True}, [{"code": "c", "amount": "0"}]), "")
+        self.assertEqual(steps.value_problem(self.step("questions"), {"col.date": "C2", "gl_account": "1100"}), "")
+        for bad in ({}, {"a": ""}, {"a b": "x"}, ["x"], {f"k{i}": "x" for i in range(steps.QUESTIONS_MAX + 1)}):
+            self.assertNotEqual(steps.value_problem(self.step("questions"), bad), "", bad)
+
     def test_every_declared_input_has_a_value_rule(self):
         for kind in d.INPUTS:
             self.assertNotEqual(steps.value_problem(self.step(kind), None), "", kind)

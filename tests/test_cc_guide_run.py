@@ -445,5 +445,101 @@ class WritingGuideTests(Base):
         self.assertEqual(dated["facts"], ["Accounting period: 2026-01-01–2026-12-31"])
 
 
+LAYOUT = {"id": "layout", "label_key": "guide.business.layout", "icon": "store", "order": 60, "modes": ["chat"],
+          "ledgers": ["express_local"], "opening_key": "guide.open.layout", "source": "form", "writes": True, "consent": "allow",
+          "steps": [{"key": "export", "input": "file", "rule": "always"},
+                    {"key": "columns", "input": "questions", "rule": "always", "after": ["export"], "options": "app.columns"}],
+          "draft": "app.layout_draft", "review": "app.layout_review", "confirm": "app.layout_confirm",
+          "result": "app.layout_result", "follow": "app.layout_follow"}
+
+
+class CapabilityTests(Base):
+    """引擎通用能力（约定 11-16）：N1a 子题、N1b 结果里的追问、N5 允许卡、N10 结果函数拿到确定时的回包。"""
+
+    def setUp(self):
+        super().setUp()
+        self.followed, self.seen = [], []
+        ATTRS["app.GUIDES"] = [GUIDE, LAYOUT]
+        ATTRS.update({
+            "app.columns": lambda ctx: {"questions": [
+                {"key": "date", "input": "choice", "title": "Date", "options": [{"code": "C1", "name": "A"}, {"code": "C2", "name": "B"}],
+                 "preselected": "C1"},
+                {"key": "vat_included", "input": "choice", "title": "VAT", "options": [{"code": "yes"}, {"code": "no"}]},
+                {"key": "note", "input": "text", "title": "Note", "required": False},
+                {"key": "broken", "input": "dropdown", "title": "x"}],
+                "facts": ["2 sample rows"]} if ctx["answers"].get("export") else {"questions": []},
+            "app.layout_draft": lambda ctx, values: f"L:{ctx['run']}",
+            "app.layout_review": lambda ctx, draft: {"lines": [], "ready": True},
+            "app.layout_confirm": lambda ctx, values, draft, consent: {"status": "queued", "job": "J1"},
+            "app.layout_result": self.layout_result,
+            "app.layout_follow": self.layout_follow,
+        })
+
+    def layout_result(self, ctx, draft):
+        self.seen.append(ctx.get("done"))
+        if not self.followed:
+            return {"status": "ready", "job": ctx["done"]["job"],
+                    "questions": [{"key": "gl_account", "input": "choice", "title": "Account",
+                                   "options": [{"code": "1100"}, {"code": "1110"}]}]}
+        return None
+
+    def layout_follow(self, ctx, draft, answers):
+        self.followed.append((ctx["done"], answers))
+        return {"status": "ready", "job": "J2"}
+
+    def confirmed(self):
+        name = run.start("S1", "layout")["run"]
+        run.answer(name, {"export": ["upl_1"]})
+        found = run.answer(name, {"columns": {"date": "C2", "vat_included": "no"}})
+        return name, run.confirm(name, found["version"])
+
+    def test_questions_come_from_the_earlier_answers_and_a_malformed_one_is_left_out(self):
+        name = run.start("S1", "layout")["run"]
+        found = run.answer(name, {"export": ["upl_1"]})
+        question = next(q for q in found["card"]["questions"] if q["key"] == "columns")
+        self.assertEqual([sub["key"] for sub in question["questions"]], ["date", "vat_included", "note"])
+        self.assertEqual(question["questions"][0]["preselected"], "C1")
+        self.assertEqual(question["questions"][1]["options"], [{"code": "yes", "name": "yes"}, {"code": "no", "name": "no"}])
+        self.assertEqual(question["facts"], ["2 sample rows"])
+        self.assertIn("Assistant guide question rejected", LOGGED)
+
+    def test_question_answers_are_checked_one_by_one(self):
+        name = run.start("S1", "layout")["run"]
+        run.answer(name, {"export": ["upl_1"]})
+        for given, reason in (({"date": "C9", "vat_included": "no"}, "not offered"),
+                              ({"date": "C2"}, "incomplete"),
+                              ({"date": "C2", "vat_included": "no", "other": "x"}, "not offered"),
+                              ({"date": ["C2"], "vat_included": "no"}, "one option code")):
+            self.assertEqual(run.answer(name, {"columns": given})["refused"], {"columns": reason}, given)
+        found = run.answer(name, {"columns": {"date": "C2", "vat_included": "no"}})   # 可不答的 note 不答也收
+        self.assertEqual(found["status"], run.REVIEWING)
+
+    def test_a_guide_that_deletes_asks_with_the_allow_card_and_others_with_confirm(self):
+        name = run.start("S1", "layout")["run"]
+        self.assertEqual(run.view(self.docs[name])["consent"], "allow")
+        self.assertEqual(run.start("S1", "collection")["consent"], "confirm")
+
+    def test_the_result_function_gets_what_the_confirm_returned(self):
+        name, done = self.confirmed()
+        self.assertEqual(self.seen[-1], {"status": "queued", "job": "J1"})
+        self.assertEqual(done["result"]["job"], "J1")
+
+    def test_a_question_in_the_result_is_answered_once_and_the_new_result_is_kept(self):
+        name, done = self.confirmed()
+        self.assertEqual([sub["key"] for sub in done["result"]["questions"]], ["gl_account"])
+        refused = run.follow(name, {"gl_account": "9999"}, done["version"])
+        self.assertEqual((refused["outcome"], refused["refused"]), (run.REFUSED, {"questions": "not offered"}))
+        stale = run.follow(name, {"gl_account": "1100"}, done["version"] - 1)
+        self.assertEqual(stale["outcome"], run.CHANGED)
+        after = run.follow(name, {"gl_account": "1100"}, done["version"])
+        self.assertEqual(self.followed, [({"status": "queued", "job": "J1"}, {"gl_account": "1100"})])
+        self.assertEqual((after["result"], after["version"]), ({"status": "ready", "job": "J2"}, done["version"] + 1))
+        self.assertEqual(run.follow(name, {"gl_account": "1100"}, after["version"])["outcome"], run.REFUSED)   # 不再有问题
+
+    def test_a_guide_without_follow_or_not_done_takes_no_follow_up(self):
+        name, _found = self.to_review()
+        self.assertEqual(run.follow(name, {"x": "y"})["outcome"], run.REFUSED)
+
+
 if __name__ == "__main__":
     unittest.main()

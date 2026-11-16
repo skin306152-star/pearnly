@@ -9,6 +9,9 @@
 - :func:`confirm`：复核后点「确定」。**同意凭证是本人在页面上点的这一下**（``guide:<运行>:<版本>``）：点的人是会话本人、此刻仍有这项功能、
   版本与看到的一致（不一致回 ``changed`` 与最新的卡，不办）、上下文没失效、点过停止不办；同一确定再来一次回上次的结果，不办第二次。
 - :func:`cancel`、失效（:func:`_stale`：本对话的公司 / 账套 / 月份变了，按声明的 ``expires``）。
+- :func:`follow`：确定之后结果里冒出来的问题（结果带 ``questions``，例：对账结果要定一次的事）作答，交声明的 ``follow`` 重算结果。
+- 子题（输入 ``questions``，约定 11-16 N1a）：题目由 ``options`` 函数按前面步骤的值算出（``{"questions": [子题…]}``），逐个子题按它的
+  输入核形状、按它的选项核码；结果里的追问（N1b）是同一个子题形状。
 
 每个写操作都先锁这一行再核（两台设备同时点，后到的拿到最新状态）。选项函数的统一签名::
 
@@ -16,7 +19,8 @@
 
 ``ctx = {session, user, business, company, ledger, period, answers, run}``；``codes`` 给了就只回这几个里还在的（核答案用）。
 默认值函数 ``default(ctx) -> {value, value_label?, source?} | None``；``draft(ctx, values) -> 草稿号``；``review(ctx, draft) -> 复核视图``；
-``confirm(ctx, values, draft, consent) -> 结果``；``result(ctx, draft) -> 结果行``。
+``confirm(ctx, values, draft, consent) -> 结果``；``result(ctx, draft) -> 结果行``（``ctx["done"]`` = 确定时存下的回包：没有草稿的
+业务据此找到确定时才建的对象，约定 N10；回 None 照存下的显示）；``follow(ctx, draft, answers) -> 新的结果``。
 """
 from __future__ import annotations
 
@@ -173,6 +177,46 @@ def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> st
     return ""
 
 
+def _subs(raw: Any) -> List[Dict[str, Any]]:
+    """产品给的子题（``{key, input, title, options?, preselected?, required?, facts?}``）：形状不对的那一题不出、记一笔日志。"""
+    out: List[Dict[str, Any]] = []
+    for item in raw or ():
+        ok = isinstance(item, Mapping) and isinstance(item.get("key"), str) and item.get("input") in d.SUB_INPUTS \
+            and isinstance(item.get("title"), str) and item["key"] not in {sub["key"] for sub in out}
+        if not ok:
+            frappe.log_error(title="Assistant guide question rejected", message=repr(item)[:500])
+            continue
+        sub = {"key": item["key"], "input": item["input"], "title": item["title"], "required": item.get("required", True) is not False}
+        if item.get("options") is not None:
+            sub["options"] = [{"code": str(row["code"]), "name": str(row.get("name") or row["code"])}
+                              for row in item["options"] if isinstance(row, Mapping) and row.get("code") not in (None, "")]
+        for key in ("preselected", "facts", "note"):
+            if item.get(key) not in (None, "", [], {}):
+                sub[key] = item[key]
+        out.append(sub)
+    return out
+
+
+def _sub_problem(subs: List[Dict[str, Any]], given: Any) -> str:
+    """一组子题的答案哪里不收（空串 = 都收）：问的里没有这一题、形状不对、码不在这一题的选项里、要答的没答。"""
+    found = steps.value_problem({"input": "questions"}, given)
+    if found:
+        return found
+    by_key = {sub["key"]: sub for sub in subs}
+    for key, value in given.items():
+        sub = by_key.get(key)
+        if sub is None:
+            return "not offered"
+        found = steps.value_problem({"input": sub["input"]}, value)
+        if found:
+            return found
+        if "options" in sub and any(code not in {row["code"] for row in sub["options"]} for code in _codes_of(value)):
+            return "not offered"
+    if any(sub["required"] and sub["key"] not in given for sub in subs):
+        return "incomplete"
+    return ""
+
+
 def _fill_context(doc, now: Mapping[str, Any]) -> bool:
     """开始时还没定、之后定下了的上下文（例：引导里选了账套、记进本对话）：补进这次引导，不算失效。回有没有补。"""
     filled = False
@@ -189,6 +233,12 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
     out = {"key": step["key"], "input": step["input"], "rule": step["rule"], "tier": step.get("tier") or "how",
            "title_key": f"guide.step.{guide['id']}.{step['key']}", "required": step.get("required", True)}
     facts: List[str] = []
+    if step["input"] in d.QUESTION_INPUTS:
+        found = _call(step["options"], ctx) or {}
+        out["questions"] = _subs(found.get("questions"))
+        facts.extend(str(item) for item in found.get("facts") or () if str(item or "").strip())
+        if found.get("wait"):
+            out["wait"] = True
     if step["input"] in d.OPTION_INPUTS:
         found = _options(step, ctx)
         out.update(options=found["options"], more=found["more"], search=bool(step.get("search")))
@@ -217,6 +267,7 @@ def view(doc) -> Dict[str, Any]:
     guide = registry.find(doc.business)
     if not guide:
         return out
+    out["consent"] = guide.get("consent") or "confirm"
     answers = _answers(doc)
     ctx = _ctx(doc, answers)
     if doc.status == ASKING:
@@ -234,7 +285,9 @@ def view(doc) -> Dict[str, Any]:
     elif doc.status in (CONFIRMED, DONE, FAILED):
         out["result"] = json.loads(doc.result or "null")
         if guide.get("result") and doc.status != FAILED:
-            out["result"] = _call(guide["result"], ctx, doc.draft or "") or out["result"]
+            out["result"] = _call(guide["result"], {**ctx, "done": out["result"]}, doc.draft or "") or out["result"]
+        if isinstance(out["result"], Mapping) and out["result"].get("questions") is not None:
+            out["result"] = {**out["result"], "questions": _subs(out["result"]["questions"])}
     return out
 
 
@@ -345,6 +398,10 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     by_key = {step["key"]: step for step in guide["steps"]}
     ctx = _ctx(doc, answers)
     for key, value in given.items():
+        if key not in refused and by_key[key]["input"] in d.QUESTION_INPUTS:
+            missing = _sub_problem(_subs((_call(by_key[key]["options"], ctx) or {}).get("questions")), value)
+            if missing:
+                refused[key] = missing
         if key not in refused:
             missing = _not_offered(by_key[key], ctx, value)
             if missing:
@@ -427,6 +484,37 @@ def cancel(name: str) -> Dict[str, Any]:
     return view(doc)
 
 
+def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> Dict[str, Any]:
+    """结果里的问题作答（约定 N1b）：本人、已办完、版本与看到的一致、答案合结果里此刻的子题，交声明的 ``follow``（``ctx["done"]`` =
+    此刻存下的结果）算出新的结果存下。业务函数拒了（``{"returned": …}`` 或抛错）回 ``refused``、什么都不改。"""
+    doc, guide, _now = _checked(name)
+    if doc.status != DONE or not guide.get("follow"):
+        return {**view(doc), "outcome": REFUSED}
+    if version is not None and int(version) != int(doc.version or 0):
+        return {**view(doc), "outcome": CHANGED}
+    current = view(doc)
+    asked = _subs(((current.get("result") or {}) if isinstance(current.get("result"), Mapping) else {}).get("questions"))
+    problem = _sub_problem(asked, given) if asked else "not asked now"
+    if problem:
+        return {**current, "outcome": REFUSED, "refused": {"questions": problem}}
+    ctx = {**_ctx(doc, _answers(doc)), "done": json.loads(doc.result or "null")}
+    try:
+        made = _call(guide["follow"], ctx, doc.draft or "", dict(given))
+    except Exception as exc:  # noqa: BLE001 — 业务函数拒了：原因码交回页面，结果不动
+        frappe.db.rollback()
+        frappe.log_error(title="Assistant guide follow failed")
+        return {**view(_locked(name)), "outcome": REFUSED,
+                "refused": {"questions": str(getattr(exc, "code", "") or type(exc).__name__)}}
+    if not isinstance(made, Mapping) or made.get("returned"):
+        reason = next(iter((made or {}).get("returned") or {"questions": {"reason": "refused"}}.values()), {})
+        return {**current, "outcome": REFUSED, "refused": {"questions": str((reason or {}).get("reason") or "refused")}}
+    doc.result = json.dumps(dict(made), ensure_ascii=False, default=str)
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return view(doc)
+
+
 def search(name: str, key: str, txt: str = "", start: int = 0, page_length: int = PAGE) -> Dict[str, Any]:
     """卡上一题的选项搜索 / 翻页（服务端分页，不一次取全）。只读，不锁。"""
     found = frappe.db.get_value(DOCTYPE, {"name": str(name or ""), "user": frappe.session.user}, "name")
@@ -485,4 +573,4 @@ def forget(session_id: str) -> None:
 
 
 __all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DONE", "EXPIRED", "FAILED", "OPEN", "REFUSED", "REVIEWING",
-           "STOPPED", "TYPE", "answer", "cancel", "confirm", "event", "feed", "forget", "search", "start", "view"]
+           "STOPPED", "TYPE", "answer", "cancel", "confirm", "event", "feed", "follow", "forget", "search", "start", "view"]

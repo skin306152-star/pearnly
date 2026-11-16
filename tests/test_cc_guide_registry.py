@@ -73,8 +73,8 @@ class ShapeTests(unittest.TestCase):
         self.assertTrue(any("writes" in p for p in d.problems(changed(FORM, writes=None))))
         self.assertEqual(d.problems({"id": "Bad Id"}), ["id 'Bad Id' is not an id"])
 
-    def test_a_step_takes_one_of_the_nine_inputs_and_names_only_earlier_steps(self):
-        self.assertEqual(len(d.INPUTS), 9)
+    def test_a_step_takes_one_of_the_eleven_inputs_and_names_only_earlier_steps(self):
+        self.assertEqual(len(d.INPUTS), 11)
         bad = changed(FORM, steps=[{"key": "customer", "input": "dropdown", "rule": "always"}])
         self.assertTrue(any("input 'dropdown'" in p for p in d.problems(bad)))
         later = changed(FORM, steps=[{"key": "first", "input": "month", "rule": "always", "after": ["second"]},
@@ -91,7 +91,7 @@ class ShapeTests(unittest.TestCase):
         self.assertTrue(any("needs options" in p for p in d.problems(no_options)))
         stray = changed(FORM, steps=[{"key": "first", "input": "month", "rule": "always", "options": "app.mod.fn"}])
         self.assertTrue(any("takes no options" in p for p in d.problems(stray)))
-        search = changed(FORM, steps=[{"key": "first", "input": "amounts", "rule": "always", "options": "app.mod.fn", "search": True}])
+        search = changed(FORM, steps=[{"key": "first", "input": "split", "rule": "always", "options": "app.mod.fn", "search": True}])
         self.assertTrue(any("search" in p for p in d.problems(search)))
         auto = changed(FORM, steps=[{"key": "first", "input": "month", "rule": "auto"}])
         self.assertTrue(any("rule auto needs default" in p for p in d.problems(auto)))
@@ -99,6 +99,29 @@ class ShapeTests(unittest.TestCase):
         self.assertTrue(any("rule remember needs remember" in p for p in d.problems(remember)))
         ok = changed(FORM, steps=[{"key": "first", "input": "month", "rule": "remember", "remember": "company"}])
         self.assertEqual(d.problems(ok), [])
+
+    def test_n_capabilities_of_11_16_are_shaped(self):
+        """引擎通用能力 N1–N10（约定 11-16）：子题输入要选项来源、零只在金额多选、记住范围有工作空间、允许卡只给写的、追问要有结果。"""
+        questions = changed(FORM, steps=[{"key": "layout", "input": "questions", "rule": "always", "options": "app.mod.layout"}])
+        self.assertEqual(d.problems(questions), [])
+        self.assertTrue(any("needs options" in p for p in d.problems(
+            changed(FORM, steps=[{"key": "layout", "input": "questions", "rule": "always"}]))))
+        counted = changed(FORM, steps=[{"key": "rows", "input": "amounts", "rule": "always", "options": "app.mod.items",
+                                        "search": True, "zero": True}])
+        self.assertEqual(d.problems(counted), [])
+        self.assertTrue(any("zero" in p for p in d.problems(
+            changed(FORM, steps=[{"key": "rows", "input": "split", "rule": "always", "options": "app.mod.x", "zero": True}]))))
+        self.assertEqual(d.problems(changed(FORM, steps=[{"key": "at", "input": "time", "rule": "always"}])), [])
+        self.assertEqual(d.problems(changed(FORM, steps=[{"key": "kind", "input": "month", "rule": "remember",
+                                                          "remember": "workspace"}])), [])
+        self.assertEqual(d.problems(changed(FORM, consent="allow")), [])
+        self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent="allow", writes=False))))
+        self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent="sure"))))
+        followed = changed(FORM, follow="app.mod.answer")
+        self.assertEqual(d.problems(followed), [])
+        self.assertIn("app.mod.answer", d.paths(followed))
+        self.assertTrue(any("follow needs result" in p for p in d.problems(
+            {key: value for key, value in followed.items() if key != "result"})))
 
     def test_a_form_guide_needs_steps_a_confirm_and_a_review_when_it_writes(self):
         self.assertTrue(any("needs steps" in p for p in d.problems(changed(FORM, steps=[]))))

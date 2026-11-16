@@ -5,7 +5,7 @@
 
 - ``source``：``documents`` 按单据出题（题目由写账前置判定与必填登记表算，声明不列步骤）；``form`` 按表单出题（题目就是 ``steps``）；
   ``chat`` 只有菜单与 CC 的开场一句、之后走打字（还没有表单的业务的现状，覆盖总表里算「做了一半」）。
-- ``steps``：每步一个输入（:data:`INPUTS` 九种，前端各实现一次）；何时问 ``rule``（:data:`ASK`：``auto`` 自动定 / ``remember`` 问一次记住 /
+- ``steps``：每步一个输入（:data:`INPUTS` 十一种，前端各实现一次；``questions`` = 一组由前面步骤的值算出的子题，``time`` = 时刻）；何时问 ``rule``（:data:`ASK`：``auto`` 自动定 / ``remember`` 问一次记住 /
   ``always`` 每次问）；菜单上的字与开场一句是术语表键（``label_key`` / ``opening_key``，不在声明里写文案）；选项来源、默认值、复核、确定后的动作都是点路径，指向产品已有的服务函数。
 - 点路径这里只核写法；指向的函数在不在由闸门脚本按源码核。
 """
@@ -18,13 +18,17 @@ MODES = ("chat", "operator")                                   # chat = 直写�
 LEDGERS = ("express_local", "express_cloud", "mrerp")          # 这项业务面向哪几种账本
 DOCUMENTS, FORM, CHAT = "documents", "form", "chat"
 SOURCES = (DOCUMENTS, FORM, CHAT)
-INPUTS = ("choice", "multi", "amounts", "split", "file", "month", "number", "text", "date")
+INPUTS = ("choice", "multi", "amounts", "split", "file", "month", "number", "text", "date", "time", "questions")
 OPTION_INPUTS = frozenset({"choice", "multi", "amounts", "split"})   # 要选项来源的输入
-SEARCH_INPUTS = frozenset({"choice", "multi"})                       # 能带服务端搜索的输入
+SEARCH_INPUTS = frozenset({"choice", "multi", "amounts"})            # 能带服务端搜索的输入（金额多选带搜索 = 一行一行加，盘点记数）
+# ``questions``：题目本身由 ``options(ctx, …)`` 按前面步骤的值算出（``{"questions": [子题…]}``：POS 认列、预扣税收入类型）；
+# 子题的输入只能是 :data:`SUB_INPUTS` 之一，值 = ``{子题 key: 值}``
+QUESTION_INPUTS = frozenset({"questions"})
+SUB_INPUTS = ("choice", "multi", "number", "text", "date", "month", "time")
 AUTO, REMEMBER, ALWAYS = "auto", "remember", "always"
 ASK = (AUTO, REMEMBER, ALWAYS)
 TIERS = ("how", "whether")                                     # 怎么办（推荐预选、点了才算）/ 做不做（不预选）
-REMEMBER_SCOPES = ("company", "company_party", "ledger")
+REMEMBER_SCOPES = ("company", "company_party", "ledger", "workspace")   # workspace = 整个工作空间（预扣税收款方类别、录不录政策）
 EXPIRES = ("ledger", "company", "period", "master")            # 哪些变化让这次引导失效（放太久、同业务重开对所有业务都适用，不用声明）
 # 菜单图标白名单（lucide 的名字，前端按名字取；加图标 = 这里与前端图标表同一提交各加一项）
 ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store", "clipboard-list", "receipt", "percent",
@@ -32,9 +36,12 @@ ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store
                    "building-plus"})
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
-                        "draft", "review", "confirm", "result", "tool", "expires", "judge"})
+                        "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow"})
+# ``consent: "allow"``：确定画成允许卡（只有「拒绝 / 允许」；删除、结束这类，要 ``writes: True``）。没写 = 「确定」
+CONSENTS = ("allow",)
+# ``follow(ctx, draft, answers) -> 新的结果``：确定之后结果里冒出来的问题（结果带 ``questions``，同 ``questions`` 输入的子题）的作答
 STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required",
-                       "check", "apply", "facts"})
+                       "check", "apply", "facts", "zero"})
 # ``check(ctx, value) -> 原因码 | ""``：作答时服务端再核一遍（选项里有、形状对之外的业务规则：金额合计、日期在期间里）；
 # ``apply(ctx, value)``：答案收下之后要落的一步（例：选了账套记进本对话）；``facts(ctx) -> [一行事实]``：题目下的事实行（已翻译的字，
 # 只陈述事实：可录的日期段、在读、电脑没连），没有就不出。三个都是点路径、都可选
@@ -72,10 +79,12 @@ def _step_problems(step: Any, seen: List[str]) -> List[str]:
         out.append(f"step {key}: rule {ask!r} is not one of {ASK}")
     if "tier" in step and step["tier"] not in TIERS:
         out.append(f"step {key}: tier {step['tier']!r} is not one of {TIERS}")
-    if kind in OPTION_INPUTS and not _is_path(step.get("options")):
+    if kind in OPTION_INPUTS | QUESTION_INPUTS and not _is_path(step.get("options")):
         out.append(f"step {key}: {kind} needs options (a dotted path)")
-    if kind not in OPTION_INPUTS and "options" in step:
+    if kind not in OPTION_INPUTS | QUESTION_INPUTS and "options" in step:
         out.append(f"step {key}: {kind} takes no options")
+    if "zero" in step and (step["zero"] is not True or kind != "amounts"):
+        out.append(f"step {key}: zero is True and only on amounts")
     if "search" in step and (step["search"] is not True or kind not in SEARCH_INPUTS):
         out.append(f"step {key}: search is True and only on {sorted(SEARCH_INPUTS)}")
     if ask == AUTO and not _is_path(step.get("default")):
@@ -124,13 +133,15 @@ def problems(guide: Any) -> List[str]:
     source = guide.get("source")
     if source not in SOURCES:
         out.append(f"source {source!r} is not one of {SOURCES}")
-    for key in ("allowed", "draft", "review", "confirm", "result"):
+    for key in ("allowed", "draft", "review", "confirm", "result", "follow"):
         if key in guide and not _is_path(guide[key]):
             out.append(f"{key} is not a dotted path")
     if "tool" in guide and not (isinstance(guide["tool"], str) and _ID.match(guide["tool"])):
         out.append("tool is a tool name")
     if not isinstance(guide.get("writes"), bool):
         out.append("writes is a bool (does it change a ledger or delete something)")
+    if "consent" in guide and (guide["consent"] not in CONSENTS or guide.get("writes") is not True):
+        out.append(f"consent is one of {CONSENTS} and only on a guide that writes")
     if "expires" in guide and not _subset(guide["expires"], EXPIRES):
         out.append(f"expires is a non-empty subset of {EXPIRES}")
     steps = guide.get("steps", [])
@@ -150,8 +161,10 @@ def problems(guide: Any) -> List[str]:
             out.append("a form guide that writes needs review")
     if source == DOCUMENTS and any(isinstance(s, Mapping) and s.get("input") != "file" for s in steps):
         out.append("a documents guide only declares file steps (the questions come from the write precheck)")
-    if source == CHAT and (steps or any(key in guide for key in ("draft", "review", "confirm", "result"))):
-        out.append("a chat guide has no steps, draft, review, confirm or result")
+    if source == CHAT and (steps or any(key in guide for key in ("draft", "review", "confirm", "result", "follow", "consent"))):
+        out.append("a chat guide has no steps, draft, review, confirm, result, follow or consent")
+    if "follow" in guide and "result" not in guide:
+        out.append("follow needs result (the questions come with the result)")
     judge = guide.get("judge")
     if judge is not None and not (isinstance(judge, (list, tuple)) and judge and all(isinstance(j, str) and _ID.match(j) for j in judge)):
         out.append("judge is a list of ids")
@@ -160,7 +173,7 @@ def problems(guide: Any) -> List[str]:
 
 def paths(guide: Mapping[str, Any]) -> List[str]:
     """声明里出现的全部点路径（闸门按源码核它们指向的函数在不在）。"""
-    found = [guide[key] for key in ("allowed", "draft", "review", "confirm", "result") if _is_path(guide.get(key))]
+    found = [guide[key] for key in ("allowed", "draft", "review", "confirm", "result", "follow") if _is_path(guide.get(key))]
     for step in guide.get("steps") or ():
         found.extend(step[key] for key in STEP_PATHS if isinstance(step, Mapping) and _is_path(step.get(key)))
     return found
@@ -171,6 +184,7 @@ def complete(guide: Mapping[str, Any]) -> bool:
     return guide.get("source") in (DOCUMENTS, FORM)
 
 
-__all__ = ["ALWAYS", "ASK", "AUTO", "CHAT", "DOCUMENTS", "EXPIRES", "FORM", "GUIDE_KEYS", "ICONS", "INPUTS", "LEDGERS", "MODES",
-           "OPTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS", "STEP_PATHS", "TIERS", "WHEN_TESTS",
+__all__ = ["ALWAYS", "ASK", "AUTO", "CHAT", "CONSENTS", "DOCUMENTS", "EXPIRES", "FORM", "GUIDE_KEYS", "ICONS", "INPUTS", "LEDGERS",
+           "MODES", "OPTION_INPUTS", "QUESTION_INPUTS", "REMEMBER", "REMEMBER_SCOPES", "SEARCH_INPUTS", "SOURCES", "STEP_KEYS",
+           "STEP_PATHS", "SUB_INPUTS", "TIERS", "WHEN_TESTS",
            "complete", "paths", "problems"]
