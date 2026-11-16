@@ -519,6 +519,17 @@ class CapabilityTests(Base):
         self.assertEqual(run.view(self.docs[name])["consent"], "allow")
         self.assertEqual(run.start("S1", "collection")["consent"], "confirm")
 
+    def test_consent_may_follow_an_answer(self):
+        """guided-cowork-2 11-16 约定：一张卡里删除 / 结束用允许卡、其余用确定，按那一步此刻的值判。"""
+        LAYOUT["consent"] = {"key": "export", "has": "upl_del"}
+        try:
+            name = run.start("S1", "layout")["run"]
+            self.assertEqual(run.view(self.docs[name])["consent"], "confirm")   # 还没答：条件不成立
+            self.assertEqual(run.answer(name, {"export": ["upl_del"]})["consent"], "allow")
+            self.assertEqual(run.answer(name, {"export": ["upl_1"]})["consent"], "confirm")
+        finally:
+            LAYOUT["consent"] = "allow"
+
     def test_the_result_function_gets_what_the_confirm_returned(self):
         name, done = self.confirmed()
         self.assertEqual(self.seen[-1], {"status": "queued", "job": "J1"})

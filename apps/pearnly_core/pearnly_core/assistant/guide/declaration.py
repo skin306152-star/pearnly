@@ -37,7 +37,9 @@ ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
                         "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow"})
-# ``consent: "allow"``：确定画成允许卡（只有「拒绝 / 允许」；删除、结束这类，要 ``writes: True``）。没写 = 「确定」
+# ``consent: "allow"``：确定画成允许卡（只有「拒绝 / 允许」；删除、结束这类，要 ``writes: True``）。没写 = 「确定」。
+# 也可以写成与 ``when`` 同形的字典（``{"key": 前面某一步, 一个测试}``）：那一步此刻的值让条件成立时用允许卡，否则「确定」
+# （一张卡里「做什么」既有新建 / 记数又有结束 / 删除，guided-cowork-2 11-16 约定）
 CONSENTS = ("allow",)
 # ``follow(ctx, draft, answers) -> 新的结果``：确定之后结果里冒出来的问题（结果带 ``questions``，同 ``questions`` 输入的子题）的作答
 STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required",
@@ -140,8 +142,9 @@ def problems(guide: Any) -> List[str]:
         out.append("tool is a tool name")
     if not isinstance(guide.get("writes"), bool):
         out.append("writes is a bool (does it change a ledger or delete something)")
-    if "consent" in guide and (guide["consent"] not in CONSENTS or guide.get("writes") is not True):
-        out.append(f"consent is one of {CONSENTS} and only on a guide that writes")
+    consent = guide.get("consent")
+    if "consent" in guide and (not (consent in CONSENTS or isinstance(consent, Mapping)) or guide.get("writes") is not True):
+        out.append(f"consent is one of {CONSENTS} or a when-shaped mapping, and only on a guide that writes")
     if "expires" in guide and not _subset(guide["expires"], EXPIRES):
         out.append(f"expires is a non-empty subset of {EXPIRES}")
     steps = guide.get("steps", [])
@@ -152,6 +155,11 @@ def problems(guide: Any) -> List[str]:
         out.extend(_step_problems(step, seen))
         if isinstance(step, Mapping) and isinstance(step.get("key"), str):
             seen.append(step["key"])
+    if isinstance(consent, Mapping):
+        tests = [name for name in WHEN_TESTS if name in consent]
+        if consent.get("key") not in seen or len(tests) != 1 or set(consent) - {"key", *WHEN_TESTS} \
+                or (tests[0] == "in" and not (isinstance(consent["in"], (list, tuple)) and consent["in"])):
+            out.append(f"consent as a mapping is {{key: a step, one of {WHEN_TESTS}}}")
     if source == FORM:
         if not steps:
             out.append("a form guide needs steps")

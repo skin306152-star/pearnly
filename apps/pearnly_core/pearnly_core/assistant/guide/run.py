@@ -267,9 +267,9 @@ def view(doc) -> Dict[str, Any]:
     guide = registry.find(doc.business)
     if not guide:
         return out
-    out["consent"] = guide.get("consent") or "confirm"
     answers = _answers(doc)
     ctx = _ctx(doc, answers)
+    out["consent"] = _consent(guide, doc, answers)
     if doc.status == ASKING:
         decided = _decided(guide, doc, answers)
         asked = steps.to_ask(guide, answers, decided)
@@ -289,6 +289,15 @@ def view(doc) -> Dict[str, Any]:
         if isinstance(out["result"], Mapping) and out["result"].get("questions") is not None:
             out["result"] = {**out["result"], "questions": _subs(out["result"]["questions"])}
     return out
+
+
+def _consent(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> str:
+    """确定画成什么：``allow``（拒绝 / 允许）或 ``confirm``。声明写成与 ``when`` 同形的字典时按那一步此刻的值判。"""
+    consent = guide.get("consent")
+    if not isinstance(consent, Mapping):
+        return consent or "confirm"
+    values = steps._values(guide, answers, _decided(guide, doc, answers))
+    return "allow" if steps.applies({"when": consent}, values) else "confirm"
 
 
 def _returned(doc) -> Dict[str, Any]:

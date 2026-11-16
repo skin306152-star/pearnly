@@ -117,6 +117,12 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(d.problems(changed(FORM, consent="allow")), [])
         self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent="allow", writes=False))))
         self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent="sure"))))
+        by_action = {"key": "customer", "in": ["C9"]}
+        self.assertEqual(d.problems(changed(FORM, consent=by_action)), [])
+        for bad in ({"key": "nowhere", "in": ["x"]}, {"key": "customer"}, {"key": "customer", "in": []},
+                    {"key": "customer", "value": "x", "has": "y"}, {"key": "customer", "in": ["x"], "extra": 1}):
+            self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent=bad))), bad)
+        self.assertTrue(any("consent" in p for p in d.problems(changed(FORM, consent=by_action, writes=False))))
         followed = changed(FORM, follow="app.mod.answer")
         self.assertEqual(d.problems(followed), [])
         self.assertIn("app.mod.answer", d.paths(followed))
