@@ -134,6 +134,8 @@ class Review(Base):
         self.assertEqual((row["code"], row["cells"]["include"], row["issues"]), ("H9", "0", ["cowork.tax.issue.pairing_unclear"]))
         self.assertEqual(set(row["editable"]), {"include", "payment_date", "income_type", "rate", "base", "tax", "payee_tax_id", "form"})
         self.assertEqual(row["editable"]["rate"], {"input": "number"})
+        columns = self.table(found, "pending")["columns"]
+        self.assertEqual(columns[0], {"key": "payee_name", "label": "cowork.tax.col.payee_name"})   # 前端要已翻译的 label
 
     def test_setting_a_payees_income_type_remembers_it_by_tax_id_and_drafts_again(self):
         name, found = self.reviewed()
@@ -158,9 +160,10 @@ class Review(Base):
         name, _found = self.reviewed()
         draft = self.docs[name].draft
         ctx = {"session": SESSION, "run": name, "answers": {"period": "2026-10"}, "draft": draft}
-        self.assertEqual(wht.edit(ctx, draft, "H9", "rate", "-1"), {"refused": {"rate": "edit_invalid"}})
-        self.assertEqual(wht.edit(ctx, draft, "H9", "address", "x"), {"refused": {"address": "tax.edit_invalid"}})
-        self.assertEqual(wht.edit(ctx, draft, "payee.0105546015062", "rate", "3"), {"refused": {"rate": "tax.edit_invalid"}})
+        self.assertEqual(wht.edit(ctx, draft, "H9", "rate", "-1"),
+                         {"refused": {"rate": "edit_invalid"}, "refused_text": {"rate": "tax.option_invalid"}})
+        self.assertEqual(wht.edit(ctx, draft, "H9", "address", "x")["refused"], {"address": "tax.edit_invalid"})
+        self.assertEqual(wht.edit(ctx, draft, "payee.0105546015062", "rate", "3")["refused"], {"rate": "tax.edit_invalid"})
 
     def test_confirming_puts_the_workbook_in_the_conversation_once(self):
         name, found = self.reviewed()
