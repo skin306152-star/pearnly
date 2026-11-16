@@ -19,8 +19,8 @@ from companion.cloud_link import credentials as rdp_credentials
 from companion.cloud_link import link_store
 from companion.cloud_link.link_store import LinkStore, LinkStoreError, PasswordMissing
 
-PASSWORD = "Cloud-Pass-9!x"
-TOKEN = "exp_CWEC-7_secrettokenvalue"
+PASSWORD = "Cloud-Pass-9!x"  # scan: fake
+TOKEN = "exp_CWEC-7_secrettokenvalue"  # scan: fake
 CORE_TOKEN = "pcc_ABCD_secretcorevalue"
 
 

@@ -20,7 +20,7 @@ from companion.cloud_link.tunnel_relay import Incoming, SiteTimeout, SiteUnreach
 from companion.cloud_link.tunnel_transport import TunnelTooLarge, TunnelTransport
 
 SITE = "https://erp.test"
-TOKEN = "pcc_real_token_on_the_bridge"
+TOKEN = "pcc_real_token_on_the_bridge"  # scan: fake
 HEARTBEAT = "/api/method/pearnly_core.cc_desktop.machine.heartbeat"
 LEASE = "/api/method/pearnly_cowork.companion.queue_api.lease"
 COMPLETE = "/api/method/pearnly_core.cc_desktop.machine.complete_request"

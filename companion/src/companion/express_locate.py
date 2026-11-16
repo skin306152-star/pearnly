@@ -539,7 +539,7 @@ def _client_side(path: str) -> bool:
 def candidate_roots(local_only: Optional[bool] = None) -> List[str]:
     r"""按优先级返回候选根:环境变量 → 注册表 → Express 快捷方式 → 有界扫描。
 
-    ``local_only``：只找本机盘（云端那份 CC，默认按 :func:`runtime_mode.cloud` 定）：不扫局域网共享（``\\accserver``、
+    ``local_only``：只找本机盘（云端那份 CC，默认按 :func:`runtime_mode.cloud` 定）：不扫局域网共享（``\\fileserver``、
     这台登记过的网络共享），映射进来的客户电脑的盘（``\\tsclient\*`` 与映射到它的盘符）一律不碰；本机盘照常扫。
     本地模式（默认）与原来一样。"""
     if local_only is None:

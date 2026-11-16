@@ -30,7 +30,7 @@ from src.companion.express_operator import credentials  # noqa: E402
 
 HOST = "cloud.example.test"
 SITE = "https://erp.example.test"
-TOKEN = "pcc_bridge_side_token"
+TOKEN = "pcc_bridge_side_token"  # scan: fake
 HEARTBEAT = "/api/method/pearnly_core.cc_desktop.machine.heartbeat"
 DEVICE_KEY = "dk_" + "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g"
 FAST = dict(poll_first=0.005, poll_most=0.02, grace=0.3)

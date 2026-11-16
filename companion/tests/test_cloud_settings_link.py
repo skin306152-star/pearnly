@@ -22,7 +22,7 @@ from companion.cloud_link.link_store import LinkStore
 from companion.cloud_link.reasons import Outcome
 from companion.cloud_link.session import Snapshot, State
 
-PASSWORD = "Cloud-Pass-9!x"
+PASSWORD = "Cloud-Pass-9!x"  # scan: fake
 HOST = "198.51.100.7"
 SESSION_RDP = "\r\n".join([
     "full address:s:198.51.100.7",

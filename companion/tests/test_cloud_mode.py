@@ -369,7 +369,7 @@ def _scan_setup(monkeypatch, tmp_path, *, client_drive: Path, share: Path, local
 
 
 def test_cloud_scans_only_this_hosts_drives(cloud, tmp_path):
-    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "accserver"
+    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "fileserver"
     _registry(local_drive / "CLOUDUSER" / "ExpressI-Cloud", 3)
     _registry(client_drive / "70EXP", 5)
     _registry(share / "69EXP", 4)
@@ -395,7 +395,7 @@ def test_cloud_drops_tsclient_paths_from_every_source(cloud, tmp_path):
 
 
 def test_local_mode_still_scans_shares_and_mapped_drives(local, tmp_path):
-    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "accserver"
+    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "fileserver"
     _registry(local_drive / "EXP70", 3)
     _registry(client_drive / "70EXP", 5)
     _registry(share / "69EXP", 4)
@@ -407,7 +407,7 @@ def test_local_mode_still_scans_shares_and_mapped_drives(local, tmp_path):
 
 
 def test_the_parameter_overrides_the_mode(local, tmp_path):
-    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "accserver"
+    local_drive, client_drive, share = tmp_path / "D", tmp_path / "client", tmp_path / "fileserver"
     _registry(local_drive / "EXP70", 3)
     _registry(share / "69EXP", 4)
     _scan_setup(local, tmp_path, client_drive=client_drive, share=share, local_drive=local_drive)
@@ -418,7 +418,7 @@ def test_client_side_paths_are_recognised():
     assert express_locate._client_side(r"\\tsclient\C\70EXP")
     assert express_locate._client_side("//TSCLIENT/x/dist")
     assert not express_locate._client_side(r"D:\CLOUDUSER\ExpressI-Cloud")
-    assert not express_locate._client_side(r"\\accserver\ACCOUNT")
+    assert not express_locate._client_side(r"\\fileserver\ACCOUNT")
 
 
 # ── 心跳 link ──────────────────────────────────────────────────────────

@@ -23,7 +23,7 @@ OTHER_KEY = "dk_" + "Z9y8X7w6V5u4T3s2R1q0P9o8N7m6L5k4J3i2H1g"
 EPOCH = "0123456789abcdef0123456789abcdef"
 OTHER_EPOCH = "fedcba9876543210fedcba9876543210"
 USER = "EXPRESS-USER-77"
-PASSWORD = "S3cret-Pass!word#9"
+PASSWORD = "S3cret-Pass!word#9"  # scan: fake
 NOW = 1_800_000_000.0
 CONNECTION = "default"
 

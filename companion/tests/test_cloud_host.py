@@ -24,7 +24,7 @@ from companion.cloud_link.session import CloudSession, State
 from companion.cloud_link.tunnel_relay import Incoming
 
 HOST = "198.51.100.7"
-PASSWORD = "Cloud-Pass-9!x"
+PASSWORD = "Cloud-Pass-9!x"  # scan: fake
 COWORK_TOKEN = "exp_CWEC-7_secrettokenvalue"
 CORE_TOKEN = "pcc_ABCD_secretcorevalue"
 HEARTBEAT_CORE = "/api/method/pearnly_core.cc_desktop.machine.heartbeat"
@@ -614,7 +614,7 @@ def test_bridge_pair_actions_return_only_the_token_and_the_status(tmp_path, vaul
     _wait(bridge, bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 3390, "user": "u"})))
     fake = bridge._cloud_host
     fake.running = True
-    fake.begin_pairing = lambda lang: types.SimpleNamespace(token="ABCD-EFGH", expires=123)
+    fake.begin_pairing = lambda lang: types.SimpleNamespace(token="ABCD-EFGH", expires=123)  # scan: fake
     fake.pairing_status = lambda: {"state": "waiting", "code": "", "expires": 123}
     assert json.loads(bridge.call("cloud_pair_begin", "{}")) == {"ok": True, "token": "ABCD-EFGH", "expires": 123}
     assert json.loads(bridge.call("cloud_pair_status", "{}")) == {"ok": True, "state": "waiting", "code": "",
