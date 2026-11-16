@@ -71,6 +71,7 @@ import { ResultsContext, ResultsPanel, useResultFiles } from "@/components/resul
 import { type PanelMode, SessionPanel, useFiledCompany } from "@/components/session-panel";
 import { InstallBanner, InstallMenuItem, InstallProvider } from "@/components/install-prompt";
 import { Shortcut } from "@/components/shortcut";
+import { AppShortcuts } from "@/components/app-shortcuts";
 import { MobileShell } from "@/components/mobile-shell";
 import { SplitHandle, sidebarSize, useStoredSize } from "@/components/split-handle";
 import { ScheduledTasks } from "@/components/scheduled-tasks";
@@ -1020,6 +1021,14 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   // 手机返回键（lib/back-stack.ts）：先关抽屉、盖满屏的结果面板与会话栏；组件库的弹窗与菜单不用登记
   useBackLayer(isMobile && openMobile, () => setOpenMobile(false));
   useBackLayer(isMobile && view === "chat" && results.open, () => results.setOpen(false));
+  // 快捷键「新建会话」（components/app-shortcuts.tsx）：同左上菜单那一项，代录模式下主栏留在代录
+  const layoutAui = useAui();
+  const newChat = useCallback(() => {
+    if (operator) return newInOperator(layoutAui, view, setView);
+    setView("chat");
+    setDraft({});
+    void layoutAui.threads().switchToNewThread();
+  }, [layoutAui, operator, view, setView]);
   useBackLayer(panelShown && mode !== "docked", () => setPanelOverlay(false));
   // 本对话产出的文件（同 claude.ai 右上角）：面板关着时显示，点开右侧面板。手机上不放（同 Claude 手机端，对话里的文件卡片点开即可）
   const filesButton =
@@ -1087,6 +1096,7 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   if (isMobile) return <MobileShell open={openMobile} onOpenChange={setOpenMobile} drawer={<MobileDrawer />} main={main} />;
   return (
     <div className="flex h-(--cc-vh) w-full bg-app">
+      <AppShortcuts onNew={newChat} />
       <div className="cc-dropzone" aria-hidden>
         <div className="cc-dropzone-box">
           <FileUpIcon />

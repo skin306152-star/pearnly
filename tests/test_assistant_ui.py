@@ -11907,6 +11907,53 @@ assert.equal(sent.length, 3);
         source = read("lib/stall-report.ts")
         self.assertIn('reportCaught(new Error(`CC ${kind}: ${detail}`), kind)', source)   # 统一出口，只带位置名与数
         self.assertIn('if (timer || document.visibilityState !== "visible" || !document.querySelector(BUSY)) return;', source)   # 空闲不跑
+class AppShortcutTests(unittest.TestCase):
+    """欠账 B29（11-09 对照审计 #9，截图 claude-15）：一小组快捷键 + 快捷键表，照 Claude 的键与表的样子。"""
+
+    def test_keys_caps_search_and_last_message(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { chord, filterRows, keyCaps, textOf } from "@/lib/shortcut-keys";
+const key = (code: string, extra: any = {}) => ({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, code, ...extra });
+// Ctrl（Windows）与 ⌘（苹果）两边都认；Alt 组合不认；Shift 只在新建那一个
+assert.equal(chord(key("KeyK", { ctrlKey: true })), "search");
+assert.equal(chord(key("KeyK", { metaKey: true })), "search");
+assert.equal(chord(key("KeyO", { metaKey: true, shiftKey: true })), "new");
+assert.equal(chord(key("KeyO", { metaKey: true })), null);
+assert.equal(chord(key("KeyU", { ctrlKey: true })), "attach");
+assert.equal(chord(key("Slash", { metaKey: true })), "table");
+assert.equal(chord(key("KeyK", { metaKey: true, altKey: true })), null);
+assert.equal(chord(key("KeyK")), null);
+// 按键一格一格：苹果 ⌘ ⇧ ↵，其他设备 Ctrl Shift，回车一律 ↵
+assert.deepEqual(keyCaps("Ctrl Shift O", true), ["⌘", "⇧", "O"]);
+assert.deepEqual(keyCaps("Ctrl Shift O", false), ["Ctrl", "Shift", "O"]);
+assert.deepEqual(keyCaps("Shift Enter", false), ["Shift", "↵"]);
+assert.deepEqual(keyCaps("↑", true), ["↑"]);
+// 表里按说明搜，不分大小写；空的全部
+const rows = [{ label: () => "New chat", keys: "Ctrl Shift O" }, { label: () => "Search", keys: "Ctrl K" }];
+assert.deepEqual(filterRows(rows, "").map((r) => r.keys), ["Ctrl Shift O", "Ctrl K"]);
+assert.deepEqual(filterRows(rows, " sea ").map((r) => r.keys), ["Ctrl K"]);
+assert.deepEqual(filterRows(rows, "xyz"), []);
+// ↑ 放回的是上一句的字（附件说明等别的段不要）
+assert.equal(textOf({ content: [{ type: "text", text: " 九月的发票 " }, { type: "image" }] }), "九月的发票");
+assert.equal(textOf(undefined), "");
+(globalThis as any).done();
+""")
+
+    def test_mounted_once_with_the_same_new_chat_and_four_languages(self):
+        page = read("assistant.tsx")
+        self.assertIn("<AppShortcuts onNew={newChat} />", page)
+        self.assertIn("if (operator) return newInOperator(layoutAui, view, setView);", page)
+        source = read("components/app-shortcuts.tsx")
+        self.assertIn("const enabled = showShortcuts() && !isMobile;", source)   # 触屏、手机不注册
+        self.assertIn('<Dialog open={open} onOpenChange={onOpenChange}>', source)   # 标准组件
+        self.assertIn("<Kbd key={i}>{cap}</Kbd>", source)
+        messages = block(read("i18n.ts"), "const MESSAGES = {")
+        for lang in ("en", "zh", "th", "ja"):
+            words = block(messages, f"  {lang}: {{")
+            for word in ("shortcutsTitle", "shortcutsSearch", "shortcutsGeneral", "shortcutsInChat", "newline", "reuseLast"):
+                self.assertRegex(words, rf"\n    {word}: \"[^\"]+\"", (lang, word))
 
 if __name__ == "__main__":
     unittest.main()

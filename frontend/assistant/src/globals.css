@@ -1165,6 +1165,16 @@
   .cc-row-btn:focus-visible { box-shadow: var(--cc-shadow-focus); }
   /* 不能点时同其他按钮的标准禁用样（例：设置里只剩一个位置时的「×」，10-26 待办） */
   .cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }
+  /* 快捷键表（11-09 审计 #9，照 Claude 截图 claude-15）：标题、搜索框、两组「说明 … 按键」 */
+  .cc-shortcuts-list { display: flex; flex-direction: column; gap: var(--cc-space-16); }
+  .cc-shortcuts-group { display: flex; flex-direction: column; }
+  .cc-shortcuts-head { padding-bottom: var(--cc-space-4); color: var(--cc-ink-3); font-size: var(--cc-text-caption); font-weight: var(--cc-weight-medium); }
+  .cc-shortcuts-row {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--cc-space-12); min-height: var(--cc-control-sm);
+    border-bottom: var(--cc-ring-w) solid var(--cc-line); color: var(--cc-ink-2); font-size: var(--cc-row-font);
+  }
+  .cc-shortcuts-row:last-child { border-bottom: 0; }
+  .cc-shortcuts-empty { color: var(--cc-ink-3); font-size: var(--cc-row-font); }
   .cc-row-btn svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
 
   /* 手机顶栏的圆形按钮（同 Claude 手机端） */
