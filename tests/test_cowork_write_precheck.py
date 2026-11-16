@@ -225,7 +225,7 @@ class Collect(unittest.TestCase):
         found, _calls, _m = self.run_document(goods=True, config=config)
         item = self.by_kind(found)["stock_group"]
         self.assertEqual((item["value"], item["source"], [row["code"] for row in item["options"]]),
-                         ("DM", card.HISTORY, ["ST01", "DM"]))  # 顺序照 CC 桌面版报的（它按合格、用量排）
+                         ("DM", card.HISTORY, ["ST01", "DM", "ST04"]))  # 合格的在前（照 CC 报的顺序），不合格的也列、不预选
         self.assertEqual(item["when"]["value"], "stock")  # 入账方式答成走库存才问、才算数
         for kwargs in ({"stock_chosen": {item["subject"]: "DM"}}, {"config": {"reported_stock_acc_groups": groups[1:]}},
                        {"config": {}}):

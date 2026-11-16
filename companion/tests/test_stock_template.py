@@ -134,11 +134,15 @@ def test_empty_account_still_builds_with_just_the_account_group(acct):
     assert ST.pick(acct, CLONE, acccod="ST10") == {"ACCCOD": "ST10"}
 
 
-def test_passed_in_acccod_goes_through_the_same_gate(acct):
-    """回落路不是守门的后门:传进来的科目组照样过 GLACC 判定。"""
+def test_passed_in_acccod_is_written_as_chosen_unless_the_guard_is_on(acct, monkeypatch):
+    """回落路：人选的组（载荷带来的）照写，只核它在账套里真有（1.12.23，Express 原生不拦）；开关打开恢复原来的 GLACC 判定。"""
     _service(acct, "SRV1", "003U")
+    assert ST.pick(acct, CLONE, acccod="ST02")["ACCCOD"] == "ST02"  # 费用科目：人明确选了照写
     with pytest.raises(ST.InventoryAccountUnfit):
-        ST.pick(acct, CLONE, acccod="ST02")  # 费用科目
+        ST.pick(acct, CLONE, acccod="NOPE")  # 账套里没有的组：照旧拦
+    monkeypatch.setattr(ST, "GUARD_CHOSEN_GROUP", True)
+    with pytest.raises(ST.InventoryAccountUnfit):
+        ST.pick(acct, CLONE, acccod="ST02")
 
 
 def test_the_chosen_group_wins_over_the_dominant_one(acct):
@@ -157,9 +161,11 @@ def test_a_chosen_group_without_items_borrows_the_dominant_structure(acct):
     assert tpl == {"STKGRP": "AA", "QUCOD": "ลต", "ACCCOD": "ST10"}
 
 
-def test_the_chosen_group_goes_through_the_same_gate(acct):
-    """所选的组照样过 GLACC 判定:选中费用科目的组也不建档。"""
+def test_the_chosen_group_is_written_as_chosen_unless_the_guard_is_on(acct, monkeypatch):
+    """所选的组照写（只核在账套里真有）；开关打开恢复 GLACC 判定：选中费用科目的组也不建档。没选、按众数取的照旧守门。"""
     _stock(acct, "OIL01", "ST01")
+    assert ST.pick(acct, CLONE, acccod="ST02")["ACCCOD"] == "ST02"
+    monkeypatch.setattr(ST, "GUARD_CHOSEN_GROUP", True)
     with pytest.raises(ST.InventoryAccountUnfit):
         ST.pick(acct, CLONE, acccod="ST02")
 

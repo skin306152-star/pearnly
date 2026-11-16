@@ -213,9 +213,10 @@ def _stock_group_item(loaded, found):
     account = normalize_express_account_key(found["target"].account_set)
     view = stock_groups.view(getattr(loaded.doc, "stock_acc_groups", None), account,
                              found["selected"]["config"].get("reported_stock_acc_groups"))
-    if not view["known"] or view["chosen"] or len(view["groups"]) < 2:
+    fit = [group for group in view["groups"] if group.get("fit")]
+    if not view["known"] or view["chosen"] or len(fit) < 2:
         return None
-    value = preselect.most_used({group["acccod"]: group.get("used_by") or 0 for group in view["groups"]})
+    value = preselect.most_used({group["acccod"]: group.get("used_by") or 0 for group in fit})  # 只在合格的里预选
     return {"kind": STOCK_GROUP, "subject": account, "label": str(found["target"].account_set or ""), "value": value,
             "source": card.HISTORY if value else "",
             "options": [{"code": group["acccod"], "name": group["label"]} for group in view["groups"]]}
