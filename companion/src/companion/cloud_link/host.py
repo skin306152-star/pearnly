@@ -21,6 +21,10 @@
   才登记的站点也能用）。**限制**：同一通道登记了不止一个站点时（例如两个 Cowork 站点）只用第一个，其余站点的请求发不到——
   要分站点得改协议，本次不改。多个 ``TunnelRelay`` 同读一个 ``in\\`` 会抢同一个请求再发错站点，所以不按站点各起一个。
   后台线程每 0.5 秒看一遍 ``in\\``，请求交给几条工作线程并发处理（站点慢的请求不挡别的）；每 60 秒清理一次没人取的文件。
+- 代录凭据交接（``cred_handoff``，做法页 11-16 第二版）：中转循环每一遍顺带看 ``ctl\\``——``cred-req.json`` 用当前会话号与
+  ``LinkStore.device_key`` 校验，本机存有 ``Pearnly CC/cloud-express/<主机>/<连接>`` 才加密写 ``cred-resp.json``，10 秒后兜底再删；
+  ``request_forget`` 写 ``cred-forget.json``，收到云端回执才算完，没收到的在下次换会话时按新会话号补发（只在内存，桥重启即丢）。
+  已见的请求编号放内存。
 - 连接窗口：``window.CloudWindow`` + ``ConnectParams.make(..., tunnel_drive=盘符)`` + ``link_store.password_provider`` +
   ``nonscriptable.for_widget()``，状态变化转给上层的 ``on_change``。
 
@@ -40,6 +44,7 @@ from typing import Any, Callable, Optional
 
 from .. import channel as channels
 from ..logger import get_logger
+from . import cred_handoff as handoff
 from . import rdp
 from . import tunnel_protocol as protocol
 from .session import State
@@ -208,6 +213,8 @@ class CloudHost:
                  nonscriptable: Optional[Callable[[], Any]] = None,
                  new_session: Callable[[], protocol.Session] = protocol.new_session,
                  clock: Callable[[], float] = time.monotonic,
+                 wall: Callable[[], float] = time.time,
+                 read_credential: Optional[Callable[[str, str], Any]] = None,
                  run_thread: bool = True) -> None:
         self.host = rdp.host(host)
         self._links = links
@@ -221,6 +228,8 @@ class CloudHost:
         self._nonscriptable = nonscriptable or _default_nonscriptable
         self._new_session = new_session
         self._clock = clock
+        self._wall = wall
+        self._read_credential = read_credential or _read_bridge_credential
         self._run_thread = run_thread
         self._lock = threading.RLock()
         self._running = False
@@ -237,6 +246,12 @@ class CloudHost:
         self._fresh = False
         self._next_cleanup = 0.0
         self.drive = ""
+        # 凭据交接（cred_handoff）：当前会话、已见的请求编号、10 秒兜底删、待云端回执的撤销（连接号 → PendingForget / None）
+        self._session: Optional[protocol.Session] = None
+        self._cred_seen: set = set()
+        self._sweeper = handoff.Sweeper()
+        self._forgets: dict = {}
+        self._cred_lock = threading.Lock()
 
     # ---- 路径 ----
     @property
@@ -328,6 +343,8 @@ class CloudHost:
         self._relay = None
         self._fresh = False
         _step("remove session file", self._remove_ctl)
+        self._session = None
+        _step("remove credential handoff files", lambda: handoff.sweep(self.root / "ctl"))
         drive, self.drive = self.drive, ""
         if drive:
             _step("remove tunnel drive", lambda: self._unmount(drive))
@@ -416,7 +433,13 @@ class CloudHost:
             _step("remove session part", lambda: _remove(part))
             raise
         self._relay = relay
+        self._session = session
         log.info("云端连接换了新会话 · 主机=%s", self.host)
+        with self._cred_lock:
+            # 换了会话号：没收到回执的撤销按新会话补发（云端会话不在时，下次连上先补发）
+            for connection in list(self._forgets):
+                self._forgets[connection] = None
+        _step("resend credential forget", self._send_forgets)
 
     def _remove_ctl(self) -> None:
         _remove(self.ctl_file)
@@ -455,6 +478,10 @@ class CloudHost:
         relay = self._relay
         if relay is None:
             return 0
+        try:
+            self.pump_credentials()
+        except Exception:
+            log.exception("凭据交接处理失败")
         handed = 0
         for path in relay.pending():
             with self._inflight_lock:
@@ -480,6 +507,81 @@ class CloudHost:
                 log.exception("隧道清理失败")
         return handed
 
+    # ---- 内部：凭据交接（cred_handoff；只在 ctl\\ 里，与中转的 in\\ / out\\ 无关） ----
+    @property
+    def ctl_dir(self) -> Path:
+        return self.root / "ctl"
+
+    def request_forget(self, connection: str) -> None:
+        """请云端删掉这条连接的凭据：记下，有会话就写 ``cred-forget.json``，没有就等下次会话补发；收到回执才算完。"""
+        connection = handoff.connection_of(connection)
+        with self._cred_lock:
+            self._forgets[connection] = None
+        self._send_forgets()
+
+    @property
+    def pending_forgets(self) -> tuple:
+        with self._cred_lock:
+            return tuple(sorted(self._forgets))
+
+    def _device_key(self) -> str:
+        store = self._links()
+        if store is None or store.get(self.host) is None:
+            raise handoff.Refused(handoff.UNPAIRED)
+        return store.device_key(self.host)
+
+    def _send_forgets(self) -> None:
+        """把没发过、或发过已过期的撤销写进 ``ctl``（一次一份：上一份云端还没取走就先不写）。"""
+        session = self._session
+        if session is None or not self._running:
+            return
+        now = self._wall()
+        with self._cred_lock:
+            wanted = [connection for connection, sent in self._forgets.items() if sent is None or now > sent.expires]
+            if not wanted or (self.ctl_dir / handoff.FORGET_FILE).exists():
+                return
+            connection = wanted[0]
+            pending, data = handoff.make_forget(self._device_key(), session.epoch, connection, now)
+            handoff.write_atomic(self.ctl_dir / handoff.FORGET_FILE, data)
+            self._forgets[connection] = pending
+
+    def pump_credentials(self) -> None:
+        """看一遍 ``ctl``：回应凭据请求、收撤销回执、补发撤销、到点兜底删。"""
+        session = self._session
+        if session is None:
+            return
+        ctl = self.ctl_dir
+        request = handoff.take(ctl / handoff.REQUEST_FILE)
+        if request is not None:
+            try:
+                device_key = self._device_key()
+            except Exception as exc:  # noqa: BLE001 - 没有设备密钥：不回应
+                log.info("云端凭据交接 · 事件=request_refused 原因=%s 连接=-", type(exc).__name__)
+                device_key = None
+            if device_key is not None:
+                result = handoff.answer(request, device_key, session.epoch, self._wall(), self._cred_seen,
+                                        lambda connection: self._read_credential(self.host, connection))
+                if result.response is not None:
+                    handoff.write_atomic(ctl / handoff.RESPONSE_FILE, result.response)
+                    self._sweeper.schedule(self._clock() + handoff.SWEEP_DELAY,
+                                           (handoff.REQUEST_FILE, handoff.RESPONSE_FILE))
+        ack = handoff.take(ctl / handoff.FORGET_ACK_FILE)
+        if ack is not None:
+            self._forget_acked(ack)
+        self._send_forgets()
+        self._sweeper.run_due(ctl, self._clock())
+
+    def _forget_acked(self, ack: bytes) -> None:
+        try:
+            device_key = self._device_key()
+        except Exception:  # noqa: BLE001
+            return
+        with self._cred_lock:
+            for connection, sent in list(self._forgets.items()):
+                if sent is not None and handoff.open_forget_ack(ack, sent, device_key) == handoff.OK:
+                    del self._forgets[connection]
+                    return
+
     def _process(self, relay, path) -> None:
         try:
             relay.process(path)
@@ -491,6 +593,13 @@ class CloudHost:
     def _done(self, path) -> None:
         with self._inflight_lock:
             self._inflight.discard(path)
+
+
+def _read_bridge_credential(host: str, connection: str):
+    """桥本机为这条云端连接存的代录凭据（``Pearnly CC/cloud-express/<主机>/<连接>``）；没有 / 不是 Windows 回 None。"""
+    from ..express_operator import credentials
+
+    return credentials.read(handoff.bridge_target(host, connection))
 
 
 def _link_password_provider(host: str) -> Callable[[], str]:

@@ -35,6 +35,12 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 = 断开，宿主随之停。**CC 启动时就算存有云端连接也不自动连**，等人在设置里点「连接」。
 旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
 
+云端代录的 Express 登录（做法页 11-16 第二版，``cloud_link/cred_handoff.py``）：``cloud_operator_authorize {connection}`` 弹 CC
+原生小窗（``login_dialog.ask``，同本地代录的「授权登录」），用户本人输 Express 用户名和密码，只存桥本机凭据管理器
+``Pearnly CC/cloud-express/<云端主机>/<连接>``（页面不收密码，回包不含密码）；云端那份 CC 要用时经隧道 ``ctl\\`` 加密交过去
+（宿主 ``cloud_link/host.py`` 处理）。``cloud_operator_forget {connection}`` 删本机这条，并经 ``ctl`` 请云端删掉它那条（宿主没起
+时先记着，下次起宿主补发）。前端按钮另做；旧版桥回 ``{ok: false}``。
+
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
 
@@ -98,6 +104,9 @@ class TomoBridge(QObject):
                  session_rdp: Optional[Callable[[], object]] = None,
                  cloud_session: Optional[Callable[[], object]] = None,
                  cloud_host: Optional[Callable[[str, Callable], object]] = None,
+                 ask_express_login: Optional[Callable[[str], object]] = None,
+                 cloud_cred_store: Optional[Callable[[str, str, str], None]] = None,
+                 cloud_cred_forget: Optional[Callable[[str], object]] = None,
                  ask_login: Optional[Callable[[str, str, str], Optional[Tuple[str, str]]]] = None) -> None:
         super().__init__()
         self._settings = settings
@@ -123,6 +132,12 @@ class TomoBridge(QObject):
         self._cloud_host = None
         # 连接窗口的会话：默认取宿主的（宿主没起是 None = 未连接）；测试注入
         self._cloud_session = cloud_session or self._host_session
+        # 云端代录的 Express 登录：原生小窗（语言）→ (用户名, 密码) 或 None；桥本机凭据的存 / 删（目标名, …）；测试注入
+        self._ask_express_login = ask_express_login or _ask_express_login
+        self._cloud_cred_store = cloud_cred_store or _cloud_cred_store
+        self._cloud_cred_forget = cloud_cred_forget or _cloud_cred_forget
+        # 宿主没起时点了「取消授权」的连接号：下次起宿主时请云端删
+        self._cloud_forgets: set = set()
 
     @Slot(result=str)
     def state(self) -> str:
@@ -247,6 +262,8 @@ class TomoBridge(QObject):
             return self._cloud_token(args)
         if method in ("cloud_prefill", "cloud_connect", "cloud_disconnect", "cloud_status"):
             return self._cloud_settings(method, args, lang)
+        if method in ("cloud_operator_authorize", "cloud_operator_forget"):
+            return self._cloud_operator(method, args, lang)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -381,6 +398,52 @@ class TomoBridge(QObject):
         store.set_token(host, site, backend_url, token)
         return {"ok": True}
 
+    def _cloud_operator(self, method: str, args: dict, lang: str) -> dict:
+        """云端代录的 Express 登录：授权 = 原生小窗收用户名和密码、只存桥本机；取消授权 = 删本机这条并请云端删。
+        args 里只看 ``connection``（用户名、密码一概不看）；回包从不含密码。"""
+        from .cloud_link import cred_handoff
+
+        try:
+            connection = cred_handoff.connection_of(args.get("connection") or "default")
+        except cred_handoff.Refused:
+            return {"ok": False, "code": "invalid"}
+        store = self._cloud_links()
+        link = store.links[0] if store is not None and store.links else None   # 一个桥最多一条云端连接
+        if link is None:
+            return {"ok": False, "code": "not_found"}
+        target = cred_handoff.bridge_target(link.host, connection)
+        if method == "cloud_operator_authorize":
+            found = self._ask_express_login(normalize(lang))
+            if not found:
+                return {"ok": False, "cancelled": True}
+            user, password = found
+            found = None
+            try:
+                self._cloud_cred_store(target, user, password)
+            except Exception as exc:
+                log.warning("存云端代录登录失败 · 连接=%s: %s", connection, type(exc).__name__)
+                return {"ok": False, "code": "credential_failed"}
+            finally:
+                password = ""
+            log.info("云端代录登录已授权 · 连接=%s", connection)
+            return {"ok": True}
+        try:
+            removed = bool(self._cloud_cred_forget(target))
+        except Exception as exc:
+            log.warning("删云端代录登录失败 · 连接=%s: %s", connection, type(exc).__name__)
+            removed = False
+        host = self._cloud_host
+        if host is not None and getattr(host, "host", "") == link.host and getattr(host, "running", False):
+            try:
+                host.request_forget(connection)
+            except Exception as exc:
+                log.warning("请云端删登录失败（下次起连接补发） · 连接=%s: %s", connection, type(exc).__name__)
+                self._cloud_forgets.add(connection)
+        else:
+            self._cloud_forgets.add(connection)
+        log.info("云端代录登录已取消授权 · 连接=%s", connection)
+        return {"ok": True, "removed": removed}
+
     def _cloud_settings(self, method: str, args: dict, lang: str) -> dict:
         """「云端 Express」一行的四个动作。``cloud_connect`` 只收地址与预填的账号（args 里的密码一概不看）：地址不合规直接回，
         合规才在界面线程弹原生小窗收账号和密码，再在后台存本机凭据与连接配置（回 job）；删连接要连网吊销令牌，也在后台。"""
@@ -431,6 +494,9 @@ class TomoBridge(QObject):
             host = self._cloud_host_new(result["host"], self._cloud_changed)
             self._cloud_host = host
             host.start()
+            for connection in sorted(self._cloud_forgets):
+                host.request_forget(connection)
+            self._cloud_forgets.clear()
         except HostUnavailable:
             log.info("这台电脑起不了云端连接窗口（不是 Windows 或没有 QtAxContainer）")
         except Exception as exc:
@@ -534,6 +600,30 @@ def _cloud_host_new(host: str, on_change):
     from .cloud_link.link_store import LinkStore
 
     return CloudHost(host, links=LinkStore.load, on_change=on_change)
+
+
+def _ask_express_login(lang: str):
+    """云端代录的 Express 用户名和密码：CC 原生小窗（同本地代录「授权登录」，``login_dialog.ask``），页面拿不到密码。"""
+    from .express_operator import login_dialog
+
+    return login_dialog.ask(lang)
+
+
+def _cloud_cred_store(target: str, user: str, password: str) -> None:
+    """存进桥本机凭据管理器（Generic，DPAPI）；不是 Windows 抛 RuntimeError。"""
+    import sys
+
+    from .express_operator import credentials
+
+    if sys.platform != "win32":
+        raise RuntimeError("credential store needs Windows")
+    credentials.store(target, user, password)
+
+
+def _cloud_cred_forget(target: str) -> bool:
+    from .express_operator import credentials
+
+    return credentials.forget(target)
 
 
 def _session_rdp():
