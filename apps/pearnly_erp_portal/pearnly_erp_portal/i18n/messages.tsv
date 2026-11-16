@@ -2231,3 +2231,6 @@ From Product	起始物料	รหัสสินค้า	開始品目	guide.step
 To Product	截止物料	ถึงรหัสสินค้า	終了品目	guide.step.stock_card.product_to
 From Warehouse Code	起始仓库	รหัสคลังสินค้า	開始倉庫	guide.step.stock_card.warehouse_from
 To Warehouse Code	截止仓库	ถึงรหัสคลังสินค้า	終了倉庫	guide.step.stock_card.warehouse_to
+Pending	待处理	รอดำเนินการ	処理待ち	guide.business.pending
+Choose a document.	选择单据。	เลือกเอกสาร	書類を選択してください。	guide.open.pending
+Document	单据	เอกสาร	書類	guide.step.pending.item

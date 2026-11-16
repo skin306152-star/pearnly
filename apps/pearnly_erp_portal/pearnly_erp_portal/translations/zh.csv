@@ -292,6 +292,7 @@ Checkout,结账
 Checkout Order / Submit Order / New Order,结账 / 提交订单 / 新订单
 Cheque,支票
 Choices,选项
+Choose a document.,选择单据。
 Choose a file,选择文件
 Choose a file to import,请选择要导入的文件
 Choose a local opening stock file,请选择本地期初库存文件
@@ -2585,6 +2586,7 @@ express.void,Express 作废
 goods,货物
 guide.business.company,公司资料
 guide.business.company_add,添加公司
+guide.business.pending,待处理
 guide.business.stock_card,收发存报表
 guide.business.stocktake,盘点
 guide.consent.company.note_delete,要删除笔记吗？
@@ -2593,6 +2595,7 @@ guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.open.company,选择操作。
 guide.open.company_add,选择要添加的公司。
+guide.open.pending,选择单据。
 guide.open.stock_card,选择报表和日期。
 guide.open.stocktake,选择操作。
 guide.option.company.note_add,添加笔记
@@ -2611,6 +2614,7 @@ guide.step.company.action,操作
 guide.step.company.note,笔记
 guide.step.company.text,内容
 guide.step.company_add.companies,公司
+guide.step.pending.item,单据
 guide.step.stock_card.date_from,开始日期
 guide.step.stock_card.date_to,结束日期
 guide.step.stock_card.format,格式

@@ -292,6 +292,7 @@ Checkout,会計
 Checkout Order / Submit Order / New Order,会計 / 注文確定 / 新規注文
 Cheque,小切手
 Choices,選択肢
+Choose a document.,書類を選択してください。
 Choose a file,ファイルを選択
 Choose a file to import,取り込むファイルを選択してください
 Choose a local opening stock file,アップロード済みの期首在庫ファイルを選択してください
@@ -2585,6 +2586,7 @@ express.void,Express で取消
 goods,物品
 guide.business.company,会社情報
 guide.business.company_add,会社を追加
+guide.business.pending,処理待ち
 guide.business.stock_card,受払在庫表
 guide.business.stocktake,棚卸
 guide.consent.company.note_delete,メモを削除しますか？
@@ -2593,6 +2595,7 @@ guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.fact.company.none,会社が未選択です
 guide.open.company,操作を選択してください。
 guide.open.company_add,追加する会社を選択してください。
+guide.open.pending,書類を選択してください。
 guide.open.stock_card,レポートと日付を選択してください。
 guide.open.stocktake,操作を選択してください。
 guide.option.company.note_add,メモを追加
@@ -2611,6 +2614,7 @@ guide.step.company.action,操作
 guide.step.company.note,メモ
 guide.step.company.text,内容
 guide.step.company_add.companies,会社
+guide.step.pending.item,書類
 guide.step.stock_card.date_from,開始日
 guide.step.stock_card.date_to,終了日
 guide.step.stock_card.format,形式

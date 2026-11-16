@@ -292,6 +292,7 @@ Checkout,ชำระเงิน
 Checkout Order / Submit Order / New Order,ชำระเงิน / ยืนยันคำสั่งซื้อ / คำสั่งซื้อใหม่
 Cheque,เช็ค
 Choices,ตัวเลือก
+Choose a document.,เลือกเอกสาร
 Choose a file,เลือกไฟล์
 Choose a file to import,กรุณาเลือกไฟล์ที่จะนำเข้า
 Choose a local opening stock file,กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง
@@ -2585,6 +2586,7 @@ express.void,ยกเลิกใน Express
 goods,สินค้า
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
+guide.business.pending,รอดำเนินการ
 guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
 guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
@@ -2593,6 +2595,7 @@ guide.consent.stocktake.delete,ลบการตรวจนับหรือ�
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.company_add,เลือกบริษัทที่จะเพิ่ม
+guide.open.pending,เลือกเอกสาร
 guide.open.stock_card,เลือกรายงานและวันที่
 guide.open.stocktake,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
@@ -2611,6 +2614,7 @@ guide.step.company.action,การดำเนินการ
 guide.step.company.note,บันทึก
 guide.step.company.text,ข้อความ
 guide.step.company_add.companies,บริษัท
+guide.step.pending.item,เอกสาร
 guide.step.stock_card.date_from,ตั้งแต่วันที่
 guide.step.stock_card.date_to,ถึงวันที่
 guide.step.stock_card.format,รูปแบบ
