@@ -203,14 +203,13 @@ class Host:
         return {"computer": platform.node()[:60], **({"account_set": account_set[:60]} if account_set else {})}
 
     def _held_elsewhere(self, batch_id: str, account_dir: str) -> bool:
-        """同一本账套别的批次的 Express 正留着等人答框：这一批先不开、不接管、不关（等人处理完）。"""
-        import ntpath
-
-        def key(path) -> str:
-            return ntpath.normpath(str(path or "")).lower().rstrip("\\/")
+        """同一本账套别的批次的 Express 正留着等人答框：这一批先不开、不接管、不关（等人处理完）。同一本按 `session.same_book` 认
+        （映射盘、两个共享名指着同一个目录也算，11-16）。"""
+        from .session import same_book
 
         for other, runner in list(self.runners.items()):
-            if other == batch_id or not account_dir or key(getattr(runner.state, "account_dir", "")) != key(account_dir):
+            mine = str(getattr(runner.state, "account_dir", "") or "")
+            if other == batch_id or not account_dir or not mine or not same_book(mine, account_dir):
                 continue
             if getattr(runner.state, "held", "") and runner.still_held():
                 return True
@@ -219,19 +218,16 @@ class Host:
     def _stored_held(self, account_dir: str, skip: str = "") -> bool:
         """CC 重启后（内存里没有那一批）：本机记着、进程还在的 Express 属于一个「留着等人答框」的批次、同一本账套 → 还占着。
         那一张在账套里已经存完了（人答完存好）就放手、记下（批次文件 held 清掉）；Express 进程没了也放手（记录照旧删）。"""
-        import ntpath
-
         from .batch import BatchStore
-
-        def key(path) -> str:
-            return ntpath.normpath(str(path or "")).lower().rstrip("\\/")
+        from .session import same_book
 
         if not account_dir:
             return False
         store = BatchStore(self.root / "batches")
         for pid, info in read_marks(self.root).items():
             batch_id = str(info.get("batch") or "")
-            if batch_id == skip or batch_id in self.runners or key(info.get("account_dir")) != key(account_dir):
+            marked = str(info.get("account_dir") or "")
+            if batch_id == skip or batch_id in self.runners or not marked or not same_book(marked, account_dir):
                 continue
             try:
                 state = store.load(batch_id)
