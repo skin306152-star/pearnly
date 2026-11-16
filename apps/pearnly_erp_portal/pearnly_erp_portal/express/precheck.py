@@ -315,7 +315,8 @@ def _preselect(raw, rows, data, company_row, body, doctype="", name=""):
         return preselect.service_vat(row.get("srv") for row in suppliers if row.get("srv")), card.RULE, NOTE_BOOK_BASIS
     if kind == choices.STOCK_GROUP:
         groups = facts.reported(data).get("reported_stock_acc_groups") or []
-        counts = {str(row.get("acccod") or "").strip(): row.get("used_by") or 0 for row in groups if isinstance(row, dict)}
+        counts = {str(row.get("acccod") or "").strip(): row.get("used_by") or 0 for row in groups
+                  if isinstance(row, dict) and row.get("fit")}  # 只在合格的里预选（名单里也列不合格的，1.12.23）
         value = preselect.most_used(counts, [row["code"] for row in rows])
         return (value, card.HISTORY, NOTE_MOST_USED) if value else ("", "", "")
     if kind == pos_day.VAT_REGISTERED:

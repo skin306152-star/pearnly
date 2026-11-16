@@ -867,8 +867,19 @@ class StockGroupDecidedByTheServer(unittest.TestCase):
         for adapter in ("purchase_adapter.py", "sales_adapter.py"):
             self.assertIn('stock_acccod=str(payload.get("stock_acccod") or "").strip()',
                           (COMPANION / adapter).read_text(encoding="utf-8"), adapter)
-        # 选过的（服务端带来的）先用，没带才看众数
-        self.assertIn('code = (acccod or "").strip() or dominant', (COMPANION / "stock_template.py").read_text(encoding="utf-8"))
+        # 选过的（服务端带来的）先用，没带才看众数；带来的组按一个开关决定要不要再过存货科目判据（原生实录前不合 main）
+        template = (COMPANION / "stock_template.py").read_text(encoding="utf-8")
+        self.assertIn("code = chosen or dominant", template)
+        self.assertIn("if not chosen or GUARD_CHOSEN_GROUP:", template)
+
+    def test_unfit_groups_are_offered_only_when_the_desktop_reports_them(self):
+        # 服务端能记住的组 = 小助手报上来的全部组（合格的在前）；自动定组只数合格的。CC 桌面版上报时不再只报合格的
+        rule = (ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_rules" / "targets" / "stock_groups.py").read_text(
+            encoding="utf-8")
+        self.assertIn("for g in choosable(groups)}", rule)
+        for path in ("catalog_probe.py", "express_masters.py"):
+            self.assertNotIn('if c["fit"]]', (COMPANION / path).read_text(encoding="utf-8"), path)
+            self.assertNotIn('if row["fit"]]', (COMPANION / path).read_text(encoding="utf-8"), path)
         for mapper in ("mapper.py", "sales_mapper.py"):
             self.assertIn('payload["stock_acccod"] = stock_acccod', (self.PUSH / mapper).read_text(encoding="utf-8"), mapper)
 
