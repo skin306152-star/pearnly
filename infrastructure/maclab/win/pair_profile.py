@@ -141,6 +141,19 @@ def activate(doc: dict, profile_id: str, channel: str, root: str) -> tuple[dict,
     return out, {"added_root": added_root, "root_had_channel": root_had_channel, "stripped": stripped, "paused": paused}
 
 
+def express_program(doc: dict, profile_id: str, paused: list) -> str:
+    """这份档案的 Express 程序：CC 按主根推成 ``<数据根>\\ExpressI.exe``，验收数据根下没有程序（11-16 首跑代录
+    OPERATOR_LOGIN_MISSING「Express program not found」）；沿用启用时让出的同通道档案的程序（这台电脑上真有这个文件才用）。"""
+    mine = _profile(doc, profile_id)
+    if Path(str(mine.get("express_exe") or "")).is_file():
+        return ""
+    for item in doc.get("profiles") or []:
+        program = str(item.get("express_exe") or "")
+        if item.get("profile_id") in set(paused) and program and Path(program).is_file():
+            return program
+    return ""
+
+
 def deactivate(doc: dict, profile_id: str, channel: str, root: str, undo: dict, *, drop: bool = False) -> dict:
     """把 :func:`activate` 让出来的还回去（不改传入的那份）：本档案暂停（``drop`` 时删掉），暂停过的同通道档案恢复，
     去掉过这条通道的位置加回来；验收数据根上这条通道是启用时加的就拿掉，拿掉后一种通道都不剩就把这个位置去掉、也从别的档案的
@@ -303,6 +316,10 @@ def add(state_dir: Path, name: str, code_file: Path, root: str, ledger: str) -> 
             raise SystemExit(f"配对没成：{result.error_key}")
         changed, undo = activate(_read(CFG), cfg.profile_id, channel, root)
         undo["global_backend_url"] = global_url
+        program = express_program(changed, cfg.profile_id, undo.get("paused") or [])
+        if program:
+            _profile(changed, cfg.profile_id)["express_exe"] = program
+            undo["express_exe"] = program
         _write(CFG, changed)
     state[name] = {"profile_id": cfg.profile_id, "channel": channel, "site": site, "root": root, "ledger": ledger,
                    "active": True, "undo": undo}

@@ -9,6 +9,7 @@
 """
 import ast
 import copy
+import os
 import importlib.util
 import json
 import re
@@ -155,6 +156,19 @@ class ProfileTransform(unittest.TestCase):
         out["global"]["backend_url"] = "https://testcowork.pearnly.com"
         back = pair_profile.deactivate(out, "mac", "core", ACC, undo, drop=True)
         self.assertEqual(back["global"]["backend_url"], "https://testcowork.pearnly.com")
+
+    def test_the_new_profile_borrows_the_real_express_program(self):
+        # 11-16 首跑代录：验收数据根下没有 ExpressI.exe，沿用被让出的同通道档案的程序（文件真在才用）
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            program = os.path.join(folder, "ExpressI.exe")
+            open(program, "w").close()
+            doc, undo = pair_profile.activate(_config(), "mac", "core", ACC)
+            doc["profiles"][1]["express_exe"] = program
+            doc["profiles"][4]["express_exe"] = ACC + r"\ExpressI.exe"
+            self.assertEqual(pair_profile.express_program(doc, "mac", undo["paused"]), program)
+            doc["profiles"][1]["express_exe"] = os.path.join(folder, "missing.exe")
+            self.assertEqual(pair_profile.express_program(doc, "mac", undo["paused"]), "")
 
     def test_resume_after_pause_is_the_same_activation(self):
         first, undo = pair_profile.activate(_config(), "mac", "core", ACC)
