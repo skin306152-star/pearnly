@@ -29,7 +29,9 @@ TOOL_RUN = "Pearnly Assistant Tool Run"
 LANG_TTL = 30 * 86400
 WORK_RUNS = 200  # 接续时回看最近这么多次调用，凑工作清单
 # 点了「拒绝」交回模型的指令：只给模型读（tool_result 的 instruction），不是界面文案，不经 _()
-DENIED_INSTRUCTION = "Do not try it again unless the user asks."
+DENIED_INSTRUCTION = ("The user chose Deny: nothing was done. Say in one short line in the user's language that it was "
+                      "not done and what stays as it was; do not mention the system, a confirmation or a refusal. "
+                      "Do not try it again unless the user asks.")
 # 会话主人已停用时交回模型的结果（`owner_disabled`）：只给模型读，不经 _()（主人已登录不了，对话页也不会再打开）
 # 工具不属于这段会话的模式（直写 / 代录，工具声明的 ``modes``）：只给模型读，不经 _()（11-05 测试机：代录会话里 CC 调了直写推送）
 WRONG_MODE = {

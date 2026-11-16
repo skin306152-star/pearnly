@@ -347,9 +347,12 @@ class Withdraw(Base):
         # 问句下面那一行事实：公司与账套的名字（不写公司编号）
         fact = cc_tools.note_withdraw({"collection": made["name"]})
         view = service.status(made["name"])
-        self.assertEqual(fact, " · ".join(p for p in (view["company_name"], view["book"]) if p))
+        book = view["book"]
+        expected = book if book.startswith(view["company_name"]) else " · ".join(p for p in (view["company_name"], book) if p)
+        self.assertEqual(fact, expected)  # 账套名里已带公司名的不重复（11-16）
         self.assertTrue(fact)
         self.assertNotIn(view["company"], fact.split(" · "))
+        self.assertEqual(cc_tools.note_withdraw({"collection": "NOPE"}), "")  # 没有这一笔：那一行不出，不报错
 
 
 class ConversationBook(Base, T.TwoBooks):

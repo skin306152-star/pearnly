@@ -413,9 +413,16 @@ def preview_withdraw(tool_input) -> list:
 
 
 def note_withdraw(tool_input) -> str:
-    """卡片问句下面那一行事实：这笔收款的公司与账套（名字）。"""
-    view = service.status(str(tool_input.get("collection") or ""))
-    return " · ".join(str(part) for part in (view.get("company_name"), view.get("book")) if part)
+    """卡片问句下面那一行事实：这笔收款的公司与账套（名字，同 Cowork 的卡）。直接读这一笔记的公司与账套名（只是名字，撤回本身照旧由
+    `service.withdraw` 判权限）：11-16 真机这一行没出，经确认卡的读法一出错就整行不显示。账套名里已带公司名的不再重复。"""
+    row = frappe.db.get_value("ERP Collection", str(tool_input.get("collection") or ""), ["company", "book_label"], as_dict=True)
+    if not row:
+        return ""
+    company = str(frappe.db.get_value("ERP Company", row.company, "company_name") or row.company or "")
+    book = str(row.book_label or "")
+    if company and book.startswith(company):
+        return book
+    return " · ".join(part for part in (company, book) if part)
 
 
 def withdraw(tool_input) -> str:

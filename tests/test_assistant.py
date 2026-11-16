@@ -592,7 +592,10 @@ class RelayTests(unittest.TestCase):
         self.assertEqual((rows["r2"]["status"], denied["status"]), ("denied", "denied"))
         # 步骤详情给用户看的走术语键（按用户语言）；给模型的指令另放 instruction、不经 _()（对话页不显示）
         self.assertEqual((denied["message"], denied["instruction"]),
-                         (toolrun._("assistant.tool.declined"), "Do not try it again unless the user asks."))
+                         (toolrun._("assistant.tool.declined"), toolrun.DENIED_INSTRUCTION))
+        # 拒绝后的说法（11-16 真机：「系统要求确认，操作被拒绝了」偏机器）：一句话说没做、什么保持原样，不提系统 / 确认 / 拒绝
+        self.assertIn("do not mention the system, a confirmation or a refusal", toolrun.DENIED_INSTRUCTION)
+        self.assertIn("Do not try it again unless the user asks.", toolrun.DENIED_INSTRUCTION)
         # 卡片在点之前说清改什么：工具的 preview 现算；没写就列参数；ask 没写用步骤名
         declared = [{"name": "always", "label": "Saved", "ask": "Save?", "approval": True, "preview": "x.preview"},
                     {"name": "plain", "label": "Did", "approval": True}]
@@ -1873,6 +1876,9 @@ class ToolAndDefinitionTests(unittest.TestCase):
         # 10-19 测试：中文提问夹着泰文公司名、单号，CC 按「最新消息的语言」整段答成泰文。改按 <language>（界面语言）回复
         system = definition.brief("cowork")["system"]
         self.assertNotIn("language of the user's latest message", system)
+        # 11-16 真机：工具说明里的英文原句被照搬进中文对话；三选一写成了文字
+        self.assertIn("Never copy their sentences into a reply", " ".join(definition.SYSTEM.split()))
+        self.assertIn("ask with one ask_user card instead of listing the options in text", " ".join(definition.SYSTEM.split()))
         # 11-10 线上压测 S6 起：<language> 是用户这句话自己的语言（服务端判），判不出才是界面语言
         for words in ("Reply in the language given in <language> tags with each user message",
                       "the language of the user's own words in that message, or their interface language when it has none",
