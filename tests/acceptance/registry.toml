@@ -997,3 +997,123 @@ covers = [
 resources = ["mrerp:test01"]
 budget_usd = 0
 tier = "weekly"
+
+# ── 第 5 批：真机线 11-16 问题补成场景（修复前红：修复在别的窗口、还没进 main；按修好后的正确行为断言）──
+
+[[scenario]]
+id = "acc.erp.operator.intake.purchase"
+title = "ERP 代录放票（H3）：收单记录 I: 进开始前卡片、作答记下不报没有权限、交单后提交成采购单并由代录录成 → 账本读回"
+class = "chain"
+chain = "erp.operator-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_fixes.py"
+rows = ["erp.cc.operator.submit", "erp.cc.operator.intake", "erp.cc.operator.precheck"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
+  "apps/pearnly_core/pearnly_core/write_precheck/*.py",
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.operator.stock.group"
+title = "代录新库存品（H5）：开始前问一次记哪个物料组、按账套记住、照选的组建档写成；停下时单据带原因与可选项"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_fixes.py"
+rows = ["erp.cc.operator.submit", "erp.cc.operator.precheck"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "companion/src/companion/stock_template.py",
+  "companion/src/companion/express_operator/*.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.operator.masters.link"
+title = "代录回执挂码：新供应商 + 新物料的现购单由代录写成后，ERP 档挂上账本实际用的码，主档同步不另建一条"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_fixes.py"
+rows = ["erp.cc.operator.submit"]
+covers = [
+  "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/common.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py",
+  "companion/src/companion/express_operator/*.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.operator.no.computer"
+title = "没有电脑、公司里也没有办公室电脑兜底的员工交代录：单据页、代录进度、给模型的状态都说 CC 桌面版未连接（不写账套）"
+class = "misuse"
+misuse = ["M07"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_fixes.py"
+rows = ["erp.cc.operator.submit", "erp.cc.operator.status"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+]
+resources = []
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+budget_usd = 0
+tier = "gate"
+
+[[scenario]]
+id = "acc.erp.office.actor.purchase"
+title = "只用手机的员工开现购单提交 → 写账件归办公室电脑上登录 CC 的员工 → 那台电脑写进 Express → 账本读回，单据仍是发单人的"
+class = "misuse"
+misuse = ["M07"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_office_actor.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"

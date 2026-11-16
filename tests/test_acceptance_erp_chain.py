@@ -333,6 +333,87 @@ class World:
                 "task_view": {"status": "finished", "documents": [{"doc_id": doc_id, "state": "not_done" if self.break_at == "task-open" else "saved",
                                                                    "docnum": docnum, "reason": ""}]}}
 
+    # ── 第 5 批（修复前红）：break_at 是「还没修」的那种世界
+    def _purchase(self, docnum, supplier, item, new=False, group="DM"):
+        self.add("APTRN", DOCNUM=docnum, SUPCOD=supplier, NETAMT=10.7, VATAMT=0.7)
+        self.add("STCRD", DOCNUM=docnum, STKCOD=item, TRNQTY=1.0)
+        self.add("ISVAT", DOCNUM=docnum)
+        self.add("GLJNL", VOUCHER=docnum)
+        if new:
+            self.add("STMAS", STKCOD=item, ACCCOD="ST01" if self.break_at == "h5-unasked" else group)
+            self.add("APMAS", SUPCOD=supplier)
+
+    def erp_operator_card(self, params):
+        kind, docnum = params["kind"], "HP691116-001"
+        if kind == "stock_group" and self.break_at == "h5-fit-one":
+            return {"ok": False, "why": "unmet: the acceptance book has 1 fit stock account group(s); asking before the start needs two or more"}
+        doc_id = "I:LI-1" if kind == "intake" else "P:PUR-9"
+        items = [{"kind": "payment", "subject": "pay", "state": "proposed", "value": "cash", "options": ["cash", "transfer"]}]
+        if kind != "intake":
+            items.append({"kind": "item", "subject": "ACC Item", "state": "proposed", "value": "__new__", "options": []})
+        asked_group = kind != "intake" and self.break_at != "h5-unasked"
+        rounds = [{"listed": self.break_at != "h3-drop", "not_writable": [], "waiting": [], "items": items}]
+        if asked_group:
+            rounds.append({"listed": True, "not_writable": [], "waiting": [],
+                           "items": [{"kind": "stock_group", "subject": "BOOK", "state": "proposed", "value": "DM", "options": ["DM", "P002", "ST01"]}]})
+        out = {"ok": True, "company": "CO-1", "task": "TASK-1", "doc_id": doc_id, "book": "B", "rounds": rounds, "card": rounds[0],
+               "unanswered": [], "expand_errors": [], "fit_groups": ["DM", "P002"],
+               "remembered": {"ok": False, "error": "PermissionError"} if self.break_at == "h3-403" else {"ok": True, "saved": 1},
+               "card_after": {"listed": True, "items": []}, "group_chosen": "DM" if asked_group else "",
+               "handed": {"batch": "TASK-1", "results": [{"doc_id": doc_id, "status": "queued"}]}}
+        if kind == "intake":
+            out["intake"] = "LI-1"
+        if self.break_at in ("h3-drop", "h3-403"):
+            return {**out, "doc": "", "state": {}}
+        if self.break_at == "h5-unasked":
+            # 修复前：开始前不问，电脑按用得最多的组建档、不合格就写到一半停下，卡上只有「重试」
+            return {**out, "doc": "PUR-9", "state": {"ledger_state": "held", "ledger_reason": "[STOCK_ACC_GROUP_UNFIT] ST01", "ledger_job": "J-1"},
+                    "stopped_card": {"listed": True, "items": []}, "job": {"status": "manual"}}
+        new = kind != "intake"
+        supplier, item = ("V900", "N900") if kind == "new_masters" else ("V001", "N900" if new else "P001")
+        self._purchase(docnum, supplier, item, new=new)
+        linked = self.break_at != "unlinked"
+        out.update(doc="PUR-9", state={"ledger_state": "written", "ledger_docnum": docnum}, book_paths=[params["ledger"]], jobs=1,
+                   job={"status": "success", "verify_state": "ok", "request_key": "erp:operator:TASK-1:x"},
+                   task_view={"status": "finished", "documents": [{"doc_id": doc_id, "state": "saved", "docnum": docnum, "reason": ""}]},
+                   expected={"supplier_code": supplier, "item_code": item, "qty": 1, "price": 10,
+                             "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}})
+        if kind == "new_masters":
+            # 修复前：回执的码在 meta.operator.masters，服务端不读 → 单上的档没挂码，主档同步按码另建一条
+            out.update(made_supplier="SUP-9", made_item="PRD-9", sync_state="ready",
+                       made_codes={"supplier": "V900" if linked else "", "item": "N900" if linked else ""},
+                       suppliers_new=[{"name": "SUP-9", "express_code": "V900" if linked else None}]
+                       + ([] if linked else [{"name": "SUP-10", "express_code": "V900"}]),
+                       products_new=[{"name": "PRD-9", "express_code": "N900" if linked else None}]
+                       + ([] if linked else [{"name": "PRD-10", "express_code": "N900"}]))
+        return out
+
+    def erp_operator_no_computer(self, params):
+        if self.break_at == "has-office":
+            return {"ok": False, "why": "unmet: an office computer covers this company (acc.erp@maclab.test)"}
+        fixed, words = self.break_at != "no-hook", "CC 桌面版未连接"
+        return {"ok": True, "company": "CO-NOPC", "doc": "PUR-N", "state": {"ledger_state": "queued", "ledger_job": "J-N"},
+                "job": {"name": "J-N", "status": "queued", "actor": params["user"]}, "words": words,
+                "doc_note": "express.cc_desktop_not_connected",
+                "computer_state": "express.cc_desktop_not_connected" if fixed else "<no computer_state hook>",
+                "status": {"status": "queued", "no_computer": words if fixed else None},
+                "feed": {"says_not_connected": fixed, "waiting_computer": fixed}, "cleaned": {"doc": "PUR-N", "job": "J-N", "task": "T"}}
+
+    def erp_office_actor(self, params):
+        office, phone = params["user"], params["phone_user"]
+        if self.break_at == "owner-actor":
+            # 修复前：actor_of 对采购单回开单人，没有电脑会来领，一直「CC 桌面版未连接」
+            return {"ok": True, "company": "CO-1", "doc": "PUR-M", "stuck": True, "expected_actor": office,
+                    "first_job": {"name": "J-M", "status": "queued", "actor": phone}, "note": "express.cc_desktop_not_connected",
+                    "state": {"ledger_state": "queued", "ledger_job": "J-M"}}
+        self._purchase("HP691116-002", "V001", "P001")
+        return {"ok": True, "company": "CO-1", "doc": "PUR-M", "expected_actor": office, "note": "",
+                "first_job": {"name": "J-M", "status": "queued", "actor": office}, "owner": phone,
+                "state": {"ledger_state": "written", "ledger_docnum": "HP691116-002"}, "book_paths": [params["ledger"]],
+                "job": {"status": "success", "verify_state": "ok", "actor": office},
+                "expected": {"supplier_code": "V001", "item_code": "P001", "qty": 1, "price": 10,
+                             "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}}}
+
     def erp_denied(self, params):
         names = ["web.submit", "line.draft", "cc.draft", "collection.invoices", "collection.methods", "connect.list", "connect.rescan",
                  "connect.add"]
@@ -375,7 +456,9 @@ class ChainScenarioTest(unittest.TestCase):
         self.addCleanup(self.folder.cleanup)
         keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_ERP_USER": "acc.erp@maclab.test",
                 "PEARNLY_ACC_ERP_TAX": "1234567890123", "PEARNLY_ACC_COWORK_USER": "acc@cowork.test",
-                "PEARNLY_ACC_COWORK_CONNECTION": "CONN-1", "PEARNLY_ACC_MRERP_COMPANY": "CO-MR", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+                "PEARNLY_ACC_COWORK_CONNECTION": "CONN-1", "PEARNLY_ACC_MRERP_COMPANY": "CO-MR",
+                "PEARNLY_ACC_ERP_NOPC_USER": "nopc@maclab.test", "PEARNLY_ACC_ERP_NOPC_TAX": "9999999999994",
+                "PEARNLY_ACC_ERP_PHONE_USER": "phone@maclab.test", "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
         self.old = {key: os.environ.get(key) for key in keys}
         os.environ.update(keys)
         self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
@@ -384,7 +467,10 @@ class ChainScenarioTest(unittest.TestCase):
 
     def go(self, scenario_id, break_at=""):
         world = World(break_at)
-        module = "cowork_intake_express.py" if ".cowork." in scenario_id else \
+        fixes = (".operator.intake.", ".operator.stock.", ".operator.masters.", ".operator.no.")
+        module = "erp_operator_fixes.py" if any(part in scenario_id for part in fixes) else \
+            "erp_office_actor.py" if ".office.actor." in scenario_id else \
+            "cowork_intake_express.py" if ".cowork." in scenario_id else \
             "erp_operator_talk.py" if ".operator.talk." in scenario_id else "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_cc_push.py" if ".cc.push." in scenario_id else "erp_cc_collection.py" if ".cc." in scenario_id else \
             "erp_company_connect.py" if ".company." in scenario_id or scenario_id.endswith(".denied") else \
@@ -520,6 +606,46 @@ class ChainScenarioTest(unittest.TestCase):
             result, _ = self.go("acc.erp.operator.talk.purchase", break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
             self.assertIn(words, result["detail"], break_at)
+
+    def test_the_1116_fix_scenarios_pass_once_fixed_and_fail_while_not(self):
+        """第 5 批（修复前红）：假世界里「修好」时通过、「没修」时不通过（断言指到那个缺陷）；写账套的跑完恢复基线。"""
+        for scenario_id, docs in (("acc.erp.operator.intake.purchase", 1), ("acc.erp.operator.stock.group", 1),
+                                  ("acc.erp.operator.masters.link", 1), ("acc.erp.office.actor.purchase", 1)):
+            result, world = self.go(scenario_id)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
+            self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (docs, "restore"), scenario_id)
+        result, world = self.go("acc.erp.operator.no.computer")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertNotIn("restore", world.calls)   # 不写账套：不碰基线
+        for scenario_id, break_at, words in (("acc.erp.operator.intake.purchase", "h3-drop", "认得这张单"),
+                                             ("acc.erp.operator.intake.purchase", "h3-403", "没有权限"),
+                                             ("acc.erp.operator.stock.group", "h5-unasked", "写账状态"),
+                                             ("acc.erp.operator.masters.link", "unlinked", "挂上了账本里实际用的码"),
+                                             ("acc.erp.operator.no.computer", "no-hook", "未连接"),
+                                             ("acc.erp.office.actor.purchase", "owner-actor", "不归发单人")):
+            result, world = self.go(scenario_id, break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))
+            self.assertIn(words, result["detail"], (scenario_id, break_at))
+            if ".no.computer" not in scenario_id:
+                self.assertEqual(world.calls[-1], "restore", (scenario_id, break_at))
+        result, _ = self.go("acc.erp.operator.stock.group", "h5-unasked")
+        failed = [check["name"] for step in result["steps"] for check in step["checks"] if not check["ok"]]
+        for name in ("开始前问了物料组", "停下的件带可选项"):
+            self.assertIn(name, failed)
+
+    def test_the_1116_fix_scenarios_are_not_run_without_their_scene(self):
+        for scenario_id, break_at, words in (("acc.erp.operator.stock.group", "h5-fit-one", "fit stock account group"),
+                                             ("acc.erp.operator.no.computer", "has-office", "office computer")):
+            result, _ = self.go(scenario_id, break_at)
+            self.assertEqual(result["outcome"], self.runner.NOT_RUN, scenario_id)
+            self.assertIn(words, result["detail"], scenario_id)
+        for scenario_id, name in (("acc.erp.operator.no.computer", "PEARNLY_ACC_ERP_NOPC_USER"),
+                                  ("acc.erp.office.actor.purchase", "PEARNLY_ACC_ERP_PHONE_USER")):
+            os.environ.pop(name)
+            result, world = self.go(scenario_id)
+            self.assertEqual(result["outcome"], self.runner.NOT_RUN, scenario_id)
+            self.assertIn(name, result["detail"], scenario_id)
+            self.assertEqual([call for call in world.calls if call.endswith(".py")], [], scenario_id)
 
     def test_an_employee_without_any_role_is_refused_everywhere(self):
         result, world = self.go("acc.erp.denied")

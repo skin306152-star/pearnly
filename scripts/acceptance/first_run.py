@@ -17,6 +17,8 @@
   chat      CC 对话（真模型）：收款、推送、代录对话。要接了模型的实验栈。
   mrerp     MR.ERP 九条（占 mrerp:test01，会踢掉别处登录；依赖三条没进 main 的分支）。
   cowork    Cowork 录入提交两条（只在测试机实验栈，testcowork 域名切过去）。
+  fixes     真机线 11-16 问题补的五条（修复前红：对应修复进 main 并部署前应不通过）：未连接（不写账套）→ 只用手机的员工由办公室
+            电脑写 → 代录放票 H3 → 代录问物料组 H5 → 代录回执挂码（后三条占测试机桌面）。
 跑之前照规矩先问主会话要测试机与账号的时间窗；这个脚本只检查占用锁，不替人排时间。
 """
 import argparse
@@ -42,6 +44,8 @@ GROUPS = {
     "mrerp": [f"acc.erp.mrerp.{name}" for name in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice",
                                                    "purchase.cash", "sales.discount", "purchase.novat", "purchase.nobook")],
     "cowork": ["acc.cowork.intake.express", "acc.cowork.intake.express.twice"],
+    "fixes": ["acc.erp.operator.no.computer", "acc.erp.office.actor.purchase", "acc.erp.operator.intake.purchase",
+              "acc.erp.operator.stock.group", "acc.erp.operator.masters.link"],
 }
 NEEDS = {  # 每组要配的环境变量（值不进这里；缺了说名字）
     "erp": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
@@ -49,6 +53,8 @@ NEEDS = {  # 每组要配的环境变量（值不进这里；缺了说名字）
     "chat": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE", "PEARNLY_ACC_REAL_BASE", "PEARNLY_ACC_REAL_USER"],
     "mrerp": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_MRERP_COMPANY"],
     "cowork": ["PEARNLY_ACC_COWORK_USER", "PEARNLY_ACC_COWORK_CONNECTION", "PEARNLY_ACC_BASELINE"],
+    # 未连接那条另要 PEARNLY_ACC_ERP_NOPC_USER / _TAX、办公室电脑那条另要 PEARNLY_ACC_ERP_PHONE_USER：缺了只那一格记没测到
+    "fixes": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
 }
 SKIP_PAID = "会花模型费（上限 {budget} 美元），没给 --paid"
 AFTER_FAIL = "前面不通过，没往下跑"

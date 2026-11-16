@@ -610,7 +610,6 @@ erp.cc.operator.submit|misuse:M02
 erp.cc.operator.submit|misuse:M03
 erp.cc.operator.submit|misuse:M04
 erp.cc.operator.submit|misuse:M05
-erp.cc.operator.submit|misuse:M07
 erp.cc.operator.submit|misuse:M08
 erp.cc.operator.submit|misuse:M09
 erp.cc.operator.submit|misuse:M12
@@ -685,7 +684,6 @@ erp.desk.pearnly-purchase.action.Express|misuse:M09
 erp.desk.pearnly-purchase.action.Express|misuse:M11
 erp.desk.pearnly-purchase.action.Submit|misuse:M02
 erp.desk.pearnly-purchase.action.Submit|misuse:M04
-erp.desk.pearnly-purchase.action.Submit|misuse:M07
 erp.desk.pearnly-purchase.action.Submit|misuse:M08
 erp.desk.pearnly-purchase.action.Submit|misuse:M09
 erp.desk.pearnly-purchase.action.Submit|misuse:M10
