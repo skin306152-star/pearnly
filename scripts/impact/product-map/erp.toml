@@ -1829,6 +1829,18 @@ tests = ["flow:cc.settings"]
 group = "cc.action.settings"
 
 [[row]]
+id = "erp.cc.action.cloud-express"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop"]
+kind = "cc-action"
+anchor = "ccaction:erp:cloud-express"
+where = "CC 桌面版 设置 → 连接：「Express 位置」下面「云端 Express」一行（主机 + 状态、「连接」弹窗收地址与账号、密码在 CC 原生小窗、「···」重新查找 / 断开连接）；只在 CC 桌面版里，旧版桌面端不出"
+note = "11-16 步 E：离线只验源码与桥动作；真连云端（打开连接窗口）要 Windows 真机，连接窗口还没接进来"
+tests = ["unit:tests/test_cc_cloud_express.py::CloudExpressRow"]
+group = "cc.action.cloud-express"
+
+[[row]]
 id = "erp.cc.action.sidebar-modes"
 product = "ERP"
 channel = "cc-chat"

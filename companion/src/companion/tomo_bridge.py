@@ -26,6 +26,12 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 登记这台电脑的同一个接口登记，新发的令牌经 ``cloud_token {host, token}`` 交回桥只存本机（不配对、不进地址栏）。两个动作都只认
 对话页所在、这台电脑连着的站点；令牌的通道要与本站成员相同。
 
+「设置 → 连接」的「云端 Express」一行（步 E，用户 11-16；逻辑在 ``cloud_link/settings_link.py``，只在调到时导入）：
+``cloud_prefill``（连接弹窗预填主机、端口、用户名，不含任何密码）、``cloud_connect {host, port, user}``（同 MR.ERP 授权
+（ADR-026 第 7 条）：密码不经页面，桥弹 CC 原生小窗（``login_dialog.ask``，账号预填页面上那个）收账号和密码，只存本机凭据管理器；
+存连接配置、生成云端设备密钥；还不打开连接窗口，回「未连接」）、``cloud_disconnect``（``LinkStore.remove``）、
+``cloud_status``（连接与状态词）。旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
+
 窗口在自己的进程里（2026-10-18 轻量化，window_link.py / window_main.py）：这个桥在托盘进程里照旧应答，窗口进程的
 ``RemoteBridge`` 把页面的调用转过来；选择文件夹框经 ``pick`` 请窗口进程弹（以 CC 窗口为父），窗口按钮在窗口进程里做。
 
@@ -85,6 +91,9 @@ class TomoBridge(QObject):
                  pick: Optional[Callable[[str, str], str]] = None,
                  on_attention: Callable[[str, bool], None] = lambda _session, _visible: None,
                  cloud_links: Optional[Callable[[], object]] = None,
+                 cloud_new: Optional[Callable[[], object]] = None,
+                 session_rdp: Optional[Callable[[], object]] = None,
+                 cloud_session: Optional[Callable[[], object]] = None,
                  ask_login: Optional[Callable[[str, str, str], Optional[Tuple[str, str]]]] = None) -> None:
         super().__init__()
         self._settings = settings
@@ -102,6 +111,10 @@ class TomoBridge(QObject):
         self._on_attention = on_attention
         # 本机的云端连接（cloud_link.link_store.LinkStore，没有云端连接回 None）；测试注入
         self._cloud_links = cloud_links or _cloud_store
+        # 还没有云端连接时新建一份（不建文件，存的时候才写）、本机 TSplus 的 Session.rdp、连接窗口的会话（还没接：None）；测试注入
+        self._cloud_new = cloud_new or _cloud_store_new
+        self._session_rdp = session_rdp or _session_rdp
+        self._cloud_session = cloud_session or (lambda: None)
 
     @Slot(result=str)
     def state(self) -> str:
@@ -224,6 +237,8 @@ class TomoBridge(QObject):
             return self._cloud_pending()
         if method == "cloud_token":
             return self._cloud_token(args)
+        if method in ("cloud_prefill", "cloud_connect", "cloud_disconnect", "cloud_status"):
+            return self._cloud_settings(method, args, lang)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -358,6 +373,51 @@ class TomoBridge(QObject):
         store.set_token(host, site, backend_url, token)
         return {"ok": True}
 
+    def _cloud_settings(self, method: str, args: dict, lang: str) -> dict:
+        """「云端 Express」一行的四个动作。``cloud_connect`` 只收地址与预填的账号（args 里的密码一概不看）：地址不合规直接回，
+        合规才在界面线程弹原生小窗收账号和密码，再在后台存本机凭据与连接配置（回 job）；删连接要连网吊销令牌，也在后台。"""
+        from .cloud_link import settings_link
+
+        if method == "cloud_prefill":
+            return settings_link.prefill(self._cloud_links(), self._session_rdp())
+        if method == "cloud_status":
+            return settings_link.status(self._cloud_links(), self._cloud_session())
+        if method == "cloud_disconnect":
+            store, session = self._cloud_links(), self._cloud_session()
+            return self._job(lambda: settings_link.disconnect(store, session))
+        if method == "cloud_connect":
+            return self._cloud_connect(settings_link, args, lang)
+        return {"ok": False}
+
+    def _cloud_connect(self, settings_link, args: dict, lang: str) -> dict:
+        host, port = str(args.get("host") or ""), args.get("port")
+        failed = settings_link.check_address(host, port)
+        if failed is not None:
+            return failed
+        found = self._ask_login(normalize(lang), "cloud_login_title", str(args.get("user") or ""))
+        if not found:
+            return {"ok": False, "cancelled": True}
+        user, password = found
+        found = None
+        store, session_rdp, via = self._cloud_links(), self._session_rdp(), self._device_name()
+
+        def work() -> dict:
+            nonlocal password
+            try:
+                return settings_link.connect(store, new_store=self._cloud_new, session_rdp=session_rdp, host=host,
+                                             port=port, user=user, password=password, via=via)
+            finally:
+                password = ""
+
+        return self._job(work)
+
+    def _device_name(self) -> str:
+        try:
+            device = self._settings.snapshot().get("device") or {}
+            return str(device.get("name") or "") if isinstance(device, dict) else ""
+        except Exception:
+            return ""
+
     @staticmethod
     def _start(current: list) -> str:
         return picker_start(current, QStandardPaths.writableLocation(QStandardPaths.StandardLocation.DocumentsLocation),
@@ -410,3 +470,19 @@ def _cloud_store():
     from .cloud_link.link_store import LinkStore
 
     return LinkStore.load()
+
+
+def _cloud_store_new():
+    """还没有云端连接时新建一份空的（不建文件，``save_link`` 时才写）。"""
+    from .cloud_link.link_store import LinkStore
+
+    return LinkStore.load()
+
+
+def _session_rdp():
+    """本机 TSplus 便携客户端的 ``Session.rdp``（``%USERPROFILE%\\RDP6``）；没有回 None。"""
+    from pathlib import Path
+
+    from .cloud_link.rdp import find_session_rdp
+
+    return find_session_rdp(Path.home())
