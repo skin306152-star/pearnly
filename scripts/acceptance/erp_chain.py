@@ -41,8 +41,12 @@ def run_id(ctx) -> str:
 def tag(ctx) -> str:
     """写进客户名 / 请求号的短标记：同一轮几条场景、同一条重跑都不撞名。一条命令跑一组（first_run）时各场景共用一个运行编号，
     所以再带场景编号的三位校验码（11-16 首跑：采购 .twice 与上一格开出同一个单号 ACC-<运行编号>，被产品按重复单号拒掉）。"""
-    digits = "".join(ch for ch in run_id(ctx) if ch.isdigit())
-    return f"{digits[-6:] or '0'}{scenario_code(ctx)}{ctx.attempt}"
+    # 取运行编号里「日期-时刻」那两段的数字（编号是 YYYYMMDD-HHMMSS-<提交号>）：只取末尾数字会落在提交号上，同一提交跑两次同一格
+    # 开出同一个单号、第二次被产品按重复拒（11-16 CC 桌面版接手窗口 18:38 代录采购）
+    parts = run_id(ctx).split("-")
+    stamp = "".join(ch for ch in "".join(parts[:2]) if ch.isdigit()) if len(parts) >= 2 else ""
+    digits = stamp or "".join(ch for ch in run_id(ctx) if ch.isdigit())
+    return f"{digits[-8:] or '0'}{scenario_code(ctx)}{ctx.attempt}"
 
 
 def scenario_code(ctx) -> str:
