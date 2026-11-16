@@ -11622,6 +11622,53 @@ assert.equal(projectTell(branch, [head, branch]), "分店 00012");
         # 欠账 B61（10-26 待办）：只剩一个位置时「×」（.cc-row-btn）禁用要有标准禁用样，同其他按钮
         css = read("globals.css")
         self.assertIn(".cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }", css)
+class StallReportTests(unittest.TestCase):
+    """欠账 B40（乱用设计 6.1）：转圈 60 秒那一块的字没变、同一张卡 5 秒内连点 3 次以上，报给站点错误日志；同一种每分钟最多 1 条，
+    只带位置名、秒数、次数。"""
+
+    def test_stalls_and_rapid_clicks_are_reported_once_a_minute(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { StallJudge } from "@/lib/stall-report";
+const sent: string[] = [];
+const judge = new StallJudge((kind, detail) => sent.push(`${kind} ${detail}`));
+const el = (slot: string) => ({ closest: (sel: string) => (sel === "[data-slot]" ? { getAttribute: () => slot } : null) }) as any;
+const spinner = el("cc-op-upload");
+// 字一直在变（进度在动）：不报
+judge.scan(0, [{ el: spinner, text: "1/9" }]);
+judge.scan(30_000, [{ el: spinner, text: "2/9" }]);
+judge.scan(80_000, [{ el: spinner, text: "3/9" }]);
+assert.deepEqual(sent, []);
+// 60 秒字没变：报一次，同一个标记不再报
+judge.scan(140_000, [{ el: spinner, text: "3/9" }]);
+judge.scan(400_000, [{ el: spinner, text: "3/9" }]);
+assert.deepEqual(sent, ["stall cc-op-upload 60s"]);
+// 页面到后台：计时作废
+const other = el("cc-guide-run");
+judge.scan(500_000, [{ el: other, text: "x" }]);
+judge.reset();
+judge.scan(540_000, [{ el: other, text: "x" }]);
+judge.scan(580_000, [{ el: other, text: "x" }]);
+assert.equal(sent.length, 1);
+// 同一张卡 5 秒内 3 次：报；隔得开的不算
+const card = el("cc-op-choose");
+judge.click(600_000, card); judge.click(603_000, card); judge.click(609_000, card);
+assert.equal(sent.length, 1);
+judge.click(610_000, card); judge.click(611_000, card);
+assert.deepEqual(sent.slice(1), ["rapid_clicks cc-op-choose 3x"]);
+// 同一种一分钟内只报一条
+judge.click(620_000, card); judge.click(620_500, card); judge.click(621_000, card);
+assert.equal(sent.length, 2);
+judge.click(700_000, card); judge.click(700_100, card); judge.click(700_200, card);
+assert.equal(sent.length, 3);
+(globalThis as any).done();
+""")
+        page = read("assistant.tsx")
+        self.assertIn("useEffect(() => watchStalls(), []);", page)
+        source = read("lib/stall-report.ts")
+        self.assertIn('reportCaught(new Error(`CC ${kind}: ${detail}`), kind)', source)   # 统一出口，只带位置名与数
+        self.assertIn('if (timer || document.visibilityState !== "visible" || !document.querySelector(BUSY)) return;', source)   # 空闲不跑
 
 if __name__ == "__main__":
     unittest.main()

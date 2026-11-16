@@ -60,6 +60,8 @@ BUSY_SITES = [
     ("assistant.tsx", '"cc-loading"', "function ThreadLoading()", 3),
     # 电脑上的加载骨架（审计 #12）：同一个 ThreadLoading 里，只在 isLoading 时挂载
     ("assistant.tsx", "<Skeleton", "function ThreadLoading()", 16),
+    # 转圈上报（欠账 B40）：选择器里写着在忙标记的类名，不是动画
+    ("lib/stall-report.ts", "cc-spinner", "const BUSY =", 0),
     # 标准组件库的转圈：组件本身就是「在忙」的标记，调用方只在忙时挂（docs/development/cc-ui-kit.md）
     ("components/ui/spinner.tsx", "cc-spinner", "function Spinner(", 8),
     # 开发用展示页（只在开发服务器与 CC_KIT=1 构建里）：骨架摆出来看样子
@@ -110,6 +112,7 @@ INTERVAL_SITES = [
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),
     ("lib/company-panel.ts", "export function useMinuteClock()", "挂着的组件每分钟刷新相对时间（11-07 公司页删了以后没有组件挂它）", 4),
     ("components/operator/bridge.ts", "const start = () => {", "有代录的产品、页面看得见时每 3 秒读一次桥（只有支持实操的 CC 桌面版才真读）；切到后台即停", 4),
+    ("lib/stall-report.ts", "const maybeStart = () => {", "页面看得见、且有在忙标记时每 10 秒看转圈有没有进展（欠账 B40）；没有标记或到后台即停", 3),
 ]
 # 自己反复排 requestAnimationFrame 的循环：(文件, 函数名, 停下的条件——函数体里的原文)
 RAF_LOOPS = [

@@ -98,6 +98,7 @@ import { modeForKey, noteViewMode, openOperator, switchMode, useAddressTracksCon
 import { OPEN_LAYERS } from "@/lib/layers";
 import { useBackLayer } from "@/lib/back-stack";
 import { useSidebarKeys } from "@/lib/sidebar-keys";
+import { watchStalls } from "@/lib/stall-report";
 import { APP_NAME, assistantLogo, assistantMascot, loadProfile, useProfile, type Profile } from "@/lib/profile";
 import { forgetDevice, syncPush, usePush } from "@/lib/push";
 import { Mascot } from "@/components/mascot";
@@ -987,6 +988,8 @@ function Layout({ results, onSidebarResize }: { results: ReturnType<typeof useRe
   useEffect(() => loadPanelPrefs(profile?.user ?? ""), [profile?.user]);
   // 个人排列（侧栏手排顺序、分组和排序、会话栏卡片顺序与开合）按人存在服务端：知道是谁了就取，本机记下的先顶着（lib/prefs-sync.ts）
   useEffect(() => void syncPrefs(profile?.user ?? ""), [profile?.user]);
+  // 转圈 60 秒没进展、同一张卡连点：报给站点错误日志（乱用设计 6.1，lib/stall-report.ts）
+  useEffect(() => watchStalls(), []);
   const [area, setArea] = useState<HTMLDivElement | null>(null);
   const fits = useDockFits(area);
   const filing = useFiledCompany();
