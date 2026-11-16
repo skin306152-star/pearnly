@@ -30,6 +30,8 @@
 | 受影响流程 | 1f2b2de62：交叠的 4 条收款流程（erp.line.collection、erp.web.collection、erp.collection.date、erp.collections.refused）5/5 格通过，404 秒，自建小栈 pearnly-integ1116-lab（跑完已 stop）；其余 33 条中的另外 29 条等白天并 main 后 `--changed` 跑（主会话 11-15 晚定） | ~/pearnly-devtools/integ1116-flows-1.log |
 | 全闸门（合并头） | 1f2b2de62：251 项过，同上只差两行真机记录 | ~/pearnly-devtools/integ1116-gate-2.log |
 | **最终被测头 f7d403580**（并 origin/main b30469eda，11-16 12:0x） | 全闸门 257 项过，只差两行真机记录（预期）；候选离线 111 组 LANE EXIT 0；`run.py --changed --base origin/main --jobs 3`（自建小栈清卷重起）19 条流程 60/61 格过，唯一不过 erp.exports new/mobile 为无头浏览器断开（「debug connection closed」），`--rerun-failed` 立刻补跑仍是浏览器断开（栈刚起 20 秒），栈起稳后单跑该格**通过**（39 秒）；new/desktop、old/mobile 同流程首轮即过 | ~/pearnly-devtools/integ1116-gate-3.log、-cand-3.log、-flows-3.log / -3b / -3c |
+| 产品地图连带的其余 22 条流程（`check-product-map.py` 的「要跑的流程」35 条减去 `--changed` 已跑的；主要是搜索统一改 selection 连带的盘点 / 物料流程） | f7d403580：73 格首轮过 72；唯一不过 erp.stocktake.scan new/desktop 为浏览器侧（「Inspected target navigated or closed」、驱动脚本 cur_dialog 未定义；同流程另 3 格过），栈起稳后单跑两次均**通过**（46 / 45 秒）| ~/pearnly-devtools/integ1116-flows-4.log、-4b-1 / -4b-2 |
+| 产品地图（真机记录贴入后） | `check-product-map.py` exit 0 | 本地 |
 
 ### 共用件连带回归（8d415ba14，`erp-masters-selection`）
 
@@ -84,7 +86,7 @@
 
 | 必须 | 内容 | 状态 |
 |---|---|---|
-| 必须 | 搜索统一：`erp.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item` 两行真机记录「通过」，绑最终集成头 | 待 11-16 真机（A 组） |
+| 必须 | 搜索统一：`erp.scan.line.stocktake.liff-camera`、`erp.line.postback.erp_item` 两行真机记录「通过」，绑最终集成头 | **两行都通过**（f7d403580；erp_item 13:26 补测 PE2569-000020） |
 | 必须 | 共用件连带回归：每个 manual 入口记「通过 / 不通过 / 没测到（原因）」 | 待 11-16（A、C 组）；白天并 main 后重出全表 |
 | 必须 | 收款日期：NLTTEST 原生对照通过（作者判定）；LINE / 网页改日期；no-period 核点 | **原生对照 11-16 作者判定通过**（唯一差异 GLJNLIT 的 CHGDAT / CHGTIM 为空，是四类单据共用写法的存量差异，另案；关账期间拒绝没测到，判可接受）；LINE / 网页改日期、no-period 待 A 组真机 |
 | 必须 | 验收第 0 批首跑（验收窗口，E 组） | 待 11-16 |
