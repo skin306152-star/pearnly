@@ -37,7 +37,13 @@
 
 手动全套与分支 push 原来同一并发组会互相取消，aa08cb2e9 改为按事件与范围分组。
 
+## 暂停（11-16 18:4x）
+
+公开约 40 分钟后，全仓清查查出真实账号口令与客户个人信息（H1–H4，清单在本机 `~/pearnly-devtools/public-scan/full-audit-1116.md`），
+主会话把仓库改回私有。自建 runner 已重新注册、两个仓库变量已恢复，Development / Companion checks 回到自建机器。
+本分支保留、不合入：私有时 Flows 与候选检查 push 不跑（只认 `[flows-on-github` 标记），等清理完、用户决定是否再公开。
+
 ## 待办
 
-- 私有分钟数校准一次（待主会话批）；公开后跑一次全套校准墙钟。
-- 公开后主会话通知再删 `DEV_RUNS_ON` / `COMPANION_RUNS_ON`（本窗口不动）。
+- 再公开前：H1–H4 清理；本分支变基、本地闸门、合入；按共享笔记「GitHub免费机器-切换步骤-11-16.md」切换。
+- erp.cashier.camera 新开户手机格开班失败（流程工具窗口查）。
