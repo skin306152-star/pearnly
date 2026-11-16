@@ -307,6 +307,9 @@ class MultiProfileWorker:
                     update_callback,
                 )
                 task = qc.poll(index_pending=self.index_pending())
+                from .worker import operator_controls
+
+                operator_controls(qc)  # 对话里对留着等人的代录单做的选择：在这条线程里点（与录单不并发）
                 take_refresh = getattr(qc, "take_master_refresh", None)
                 refresh_command = take_refresh() if callable(take_refresh) else None
                 if projection_refresh.remember(state.periodic, refresh_command):
