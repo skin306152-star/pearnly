@@ -540,9 +540,9 @@ class ShortcutTests(unittest.TestCase):
                     continue
                 if name == "components/shortcut.tsx":
                     # 只有苹果设备的换字表（第 7 轮：Mac 上 Ctrl 显示成 ⌘），这里不写提示
-                    self.assertEqual(line, 'const APPLE: Record<string, string> = { Ctrl: "⌘", Alt: "⌥" };', number)
+                    self.assertEqual(line, 'const APPLE: Record<string, string> = { Ctrl: "⌘", Alt: "⌥", Shift: "⇧", Enter: "↵" };', number)
                     continue
-                self.assertRegex(line, r'<Shortcut keys="[^"]+"( kbd)? />', f"{name}:{number} 快捷键提示要经 <Shortcut>")
+                self.assertRegex(line, r'<Shortcut keys="[^"]+"( kbd| caps)? />', f"{name}:{number} 快捷键提示要经 <Shortcut>")
                 hints.append(re.search(r'keys="([^"]+)"', line).group(1))
             # 快捷键提示只经 <Shortcut>；标准组件库的 Kbd（components/ui/kbd.tsx，11-10 起）是它底下的通用键帽件
             if name not in ("components/shortcut.tsx", "components/ui/kbd.tsx"):
@@ -556,7 +556,9 @@ class ShortcutTests(unittest.TestCase):
                                                 # 引导卡 pearnly_guide 用的就是这张卡（同一个组件，引导式录入第 1 期），不另有快捷键
                                                 "Ctrl↵",
                                                 # 按表单的引导运行卡（tool-uis/guide-run-card.tsx，A2 线 11-16）同一版式的「下一步 / 提交」
-                                                "Ctrl↵"]))
+                                                "Ctrl↵",
+                                                # 快捷键表（欠账 B29，照 Claude 截图 claude-15；Esc 停止、Shift 回车换行同输入框现有行为）
+                                                "Ctrl K", "Ctrl B", "Ctrl Shift O", "Ctrl /", "Ctrl ,", "Ctrl U", "Esc"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
         # 三种触屏判定各管各的（标准化记录 3.4）：lib/touch.ts 的 touchOnly()（hover: none）管「没有悬停」时的行为；
@@ -1267,6 +1269,10 @@ assert.equal(html(Shortcut, { keys: "Ctrl ," }), '<span class="cc-menu-key">Ctrl
 assert.match(html(Shortcut, { keys: "Ctrl + Alt + Space", kbd: true }), />Ctrl \+ Alt \+ Space<\/kbd>$/);
 assert.equal(keysFor("Ctrl R", true), "⌘ R");
 assert.equal(keysFor("Ctrl + Alt + Space", true), "⌘ + ⌥ + Space");
+// 快捷键表（B29）：苹果设备 Shift → ⇧、Enter → ↵（同 Claude 的表），其他设备原样
+assert.equal(keysFor("Ctrl Shift O", true), "⌘ ⇧ O");
+assert.equal(keysFor("Ctrl Shift O", false), "Ctrl Shift O");
+assert.equal(keysFor("Shift Enter", true), "⇧ ↵");
 assert.equal(keysFor("Ctrl =", false), "Ctrl =");
 (navigator as any).userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/129.0.0.0 Safari/537.36";
 assert.equal(appleKeys(), true);
@@ -11914,7 +11920,7 @@ class AppShortcutTests(unittest.TestCase):
         run_ts(r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { chord, filterRows, keyCaps, textOf } from "@/lib/shortcut-keys";
+import { chord, filterRows, textOf } from "@/lib/shortcut-keys";
 const key = (code: string, extra: any = {}) => ({ ctrlKey: false, metaKey: false, altKey: false, shiftKey: false, code, ...extra });
 // Ctrl（Windows）与 ⌘（苹果）两边都认；Alt 组合不认；Shift 只在新建那一个
 assert.equal(chord(key("KeyK", { ctrlKey: true })), "search");
@@ -11925,15 +11931,10 @@ assert.equal(chord(key("KeyU", { ctrlKey: true })), "attach");
 assert.equal(chord(key("Slash", { metaKey: true })), "table");
 assert.equal(chord(key("KeyK", { metaKey: true, altKey: true })), null);
 assert.equal(chord(key("KeyK")), null);
-// 按键一格一格：苹果 ⌘ ⇧ ↵，其他设备 Ctrl Shift，回车一律 ↵
-assert.deepEqual(keyCaps("Ctrl Shift O", true), ["⌘", "⇧", "O"]);
-assert.deepEqual(keyCaps("Ctrl Shift O", false), ["Ctrl", "Shift", "O"]);
-assert.deepEqual(keyCaps("Shift Enter", false), ["Shift", "↵"]);
-assert.deepEqual(keyCaps("↑", true), ["↑"]);
 // 表里按说明搜，不分大小写；空的全部
-const rows = [{ label: () => "New chat", keys: "Ctrl Shift O" }, { label: () => "Search", keys: "Ctrl K" }];
-assert.deepEqual(filterRows(rows, "").map((r) => r.keys), ["Ctrl Shift O", "Ctrl K"]);
-assert.deepEqual(filterRows(rows, " sea ").map((r) => r.keys), ["Ctrl K"]);
+const rows = [{ label: () => "New chat", id: 1 }, { label: () => "Search", id: 2 }];
+assert.deepEqual(filterRows(rows, "").map((r) => r.id), [1, 2]);
+assert.deepEqual(filterRows(rows, " sea ").map((r) => r.id), [2]);
 assert.deepEqual(filterRows(rows, "xyz"), []);
 // ↑ 放回的是上一句的字（附件说明等别的段不要）
 assert.equal(textOf({ content: [{ type: "text", text: " 九月的发票 " }, { type: "image" }] }), "九月的发票");
@@ -11948,7 +11949,7 @@ assert.equal(textOf(undefined), "");
         source = read("components/app-shortcuts.tsx")
         self.assertIn("const enabled = showShortcuts() && !isMobile;", source)   # 触屏、手机不注册
         self.assertIn('<Dialog open={open} onOpenChange={onOpenChange}>', source)   # 标准组件
-        self.assertIn("<Kbd key={i}>{cap}</Kbd>", source)
+        self.assertIn('{ label: () => t("newChat"), keys: <Shortcut keys="Ctrl Shift O" caps /> },', source)   # 键经共用组件
         messages = block(read("i18n.ts"), "const MESSAGES = {")
         for lang in ("en", "zh", "th", "ja"):
             words = block(messages, f"  {lang}: {{")

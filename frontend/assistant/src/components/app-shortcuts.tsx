@@ -4,16 +4,34 @@
 // 快捷键表照 Claude：标题、搜快捷键、「常规」「在会话中」两组，每行左边说明、右边按键（苹果设备显示 ⌘ ⇧ ↵）。
 // 触屏设备没有这些键：不注册、不出表（同 components/shortcut.tsx）。
 
-import { useEffect, useMemo, useState, type FC } from "react";
+import { useEffect, useMemo, useState, type FC, type ReactNode } from "react";
 import { useAui } from "@assistant-ui/react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useSidebar } from "@/components/ui/sidebar";
-import { appleKeys, showShortcuts } from "@/components/shortcut";
+import { Shortcut, showShortcuts } from "@/components/shortcut";
 import { OPEN_LAYERS } from "@/lib/layers";
 import { t } from "@/i18n";
-import { GENERAL, IN_CHAT, chord, filterRows, keyCaps, textOf } from "@/lib/shortcut-keys";
+import { chord, filterRows, textOf } from "@/lib/shortcut-keys";
+
+type Row = { label: () => string; keys: ReactNode };
+
+// 快捷键表的两组（键的写法经 <Shortcut caps />：苹果设备显示 ⌘ ⇧ ↵）
+const GENERAL: readonly Row[] = [
+  { label: () => t("search"), keys: <Shortcut keys="Ctrl K" caps /> },
+  { label: () => t("sidebar"), keys: <Shortcut keys="Ctrl B" caps /> },
+  { label: () => t("newChat"), keys: <Shortcut keys="Ctrl Shift O" caps /> },
+  { label: () => t("shortcutsTitle"), keys: <Shortcut keys="Ctrl /" caps /> },
+  { label: () => t("settings"), keys: <Shortcut keys="Ctrl ," caps /> },
+];
+
+const IN_CHAT: readonly Row[] = [
+  { label: () => t("send"), keys: <Shortcut keys="Enter" caps /> },
+  { label: () => t("newline"), keys: <Shortcut keys="Shift Enter" caps /> },
+  { label: () => t("attach"), keys: <Shortcut keys="Ctrl U" caps /> },
+  { label: () => t("reuseLast"), keys: <Shortcut keys="↑" caps /> },
+  { label: () => t("stop"), keys: <Shortcut keys="Esc" caps /> },
+];
 
 /** 挂在主框架里一次：注册快捷键、画快捷键表。onNew：两种模式各自的「新建会话」（同左上菜单那一项）。 */
 export const AppShortcuts: FC<{ onNew: () => void }> = ({ onNew }) => {
@@ -89,13 +107,9 @@ export const ShortcutsDialog: FC<{ open: boolean; onOpenChange: (open: boolean) 
             <section key={group.title} className="cc-shortcuts-group">
               <h3 className="cc-shortcuts-head">{group.title}</h3>
               {group.rows.map((row) => (
-                <div key={row.keys} className="cc-shortcuts-row">
+                <div key={row.label()} className="cc-shortcuts-row">
                   <span>{row.label()}</span>
-                  <KbdGroup>
-                    {keyCaps(row.keys, appleKeys()).map((cap, i) => (
-                      <Kbd key={i}>{cap}</Kbd>
-                    ))}
-                  </KbdGroup>
+                  {row.keys}
                 </div>
               ))}
             </section>

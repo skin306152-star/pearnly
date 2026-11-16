@@ -1,36 +1,9 @@
 // 快捷键表与按键判断的纯函数（components/app-shortcuts.tsx 用；不碰页面，测试直接调）。依据见那个文件开头。
 
-import { t } from "@/i18n";
-
-export type Row = { label: () => string; keys: string };
-
-export const GENERAL: readonly Row[] = [
-  { label: () => t("search"), keys: "Ctrl K" },
-  { label: () => t("sidebar"), keys: "Ctrl B" },
-  { label: () => t("newChat"), keys: "Ctrl Shift O" },
-  { label: () => t("shortcutsTitle"), keys: "Ctrl /" },
-  { label: () => t("settings"), keys: "Ctrl ," },
-];
-
-export const IN_CHAT: readonly Row[] = [
-  { label: () => t("send"), keys: "Enter" },
-  { label: () => t("newline"), keys: "Shift Enter" },
-  { label: () => t("attach"), keys: "Ctrl U" },
-  { label: () => t("reuseLast"), keys: "↑" },
-  { label: () => t("stop"), keys: "Esc" },
-];
-
-const APPLE: Record<string, string> = { Ctrl: "⌘", Shift: "⇧", Alt: "⌥", Enter: "↵" };
-const OTHER: Record<string, string> = { Enter: "↵" };
-
-/** 一个组合键拆成一格一格（苹果设备 Ctrl → ⌘、Shift → ⇧，Enter 一律 ↵，同 Claude 的表）。 */
-export function keyCaps(keys: string, apple: boolean): string[] {
-  const map = apple ? APPLE : OTHER;
-  return keys.split(" ").map((key) => map[key] ?? key);
-}
+export type Row = { label: () => string };
 
 /** 表里按说明文字搜（不分大小写）；空的显示全部。 */
-export function filterRows(rows: readonly Row[], query: string): Row[] {
+export function filterRows<T extends Row>(rows: readonly T[], query: string): T[] {
   const q = query.trim().toLowerCase();
   return q ? rows.filter((row) => row.label().toLowerCase().includes(q)) : [...rows];
 }

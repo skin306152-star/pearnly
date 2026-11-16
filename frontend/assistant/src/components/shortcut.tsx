@@ -4,6 +4,7 @@
 // 源码里一律按 Windows / Linux 的写法给（Ctrl、Alt）；苹果设备（Mac、接键盘的 iPad）上显示成 ⌘、⌥（测试窗口第 7 轮：Mac 上用户
 // 菜单的设置写成「Ctrl ,」）。这些快捷键的处理本来就两边都认（ctrlKey || metaKey，如设置的 Ctrl / ⌘ + ,）。
 
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { isDesktopApp } from "@/lib/desktop";
 import { touchOnly } from "@/lib/touch";
 
@@ -19,17 +20,27 @@ export function appleKeys(): boolean {
   return /Mac|iPhone|iPad|iPod/i.test(platform);
 }
 
-const APPLE: Record<string, string> = { Ctrl: "⌘", Alt: "⌥" };
+const APPLE: Record<string, string> = { Ctrl: "⌘", Alt: "⌥", Shift: "⇧", Enter: "↵" };
 
-/** 按这台设备显示的按键文字：苹果设备上 Ctrl → ⌘、Alt → ⌥，其余原样。 */
+/** 按这台设备显示的按键文字：苹果设备上 Ctrl → ⌘、Alt → ⌥、Shift → ⇧、Enter → ↵（同 Claude 的快捷键表），其余原样。 */
 export function keysFor(keys: string, apple = appleKeys()): string {
   return apple ? keys.replace(/\w+/g, (key) => APPLE[key] ?? key) : keys;
 }
 
-/** 菜单项右边的灰字（.cc-menu-key，与会话行菜单的单字母快捷键同一类）；kbd：设置里那一格（.cc-kbd）。 */
-export function Shortcut({ keys, kbd }: { keys: string; kbd?: boolean }) {
+/** 菜单项右边的灰字（.cc-menu-key，与会话行菜单的单字母快捷键同一类）；kbd：设置里那一格（.cc-kbd）；
+ *  caps：一个键一格（标准 Kbd，快捷键表用，同 Claude）。 */
+export function Shortcut({ keys, kbd, caps }: { keys: string; kbd?: boolean; caps?: boolean }) {
   if (!showShortcuts()) return null;
   const shown = keysFor(keys);
+  if (caps) {
+    return (
+      <KbdGroup>
+        {shown.split(" ").map((cap, i) => (
+          <Kbd key={i}>{cap}</Kbd>
+        ))}
+      </KbdGroup>
+    );
+  }
   if (kbd) return <kbd className="cc-kbd">{shown}</kbd>;
   return <span className="cc-menu-key">{shown}</span>;
 }
