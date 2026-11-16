@@ -428,3 +428,35 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 
 - 留桩：`acc.erp.collection.books`（见上，没登记、不还欠账）。
 - 没做：收款 M03 / M04 / M05 / M11 / M12（CC 草稿 / 写入工具、LINE 按钮那几项）——要对话或界面驱动；MR.ERP 同期两本选一次（test01 下只有一份同期库）。
+
+## 晚间一轮（11-16 19:1x–19:50，被测 = main 0fe…（含 H3 修复 erp-operator-intake、写账并发锁 847fc020c）+ 本分支）
+
+| 场景 | 结果 | 说明 | 证据 |
+|---|---|---|---|
+| acc.erp.operator.intake.purchase（H3） | 不通过（**主流程已转绿**，差 1 条） | 卡片认出 `I:`、记下不 403、交单成采购单、代录写成 HP0000090、账本读回全过；只差「代录任务里这张已录入带单号」：任务视图里这张仍是 `I:LI-…` / queued / 单号空。待查：交单后任务条目不跟随提交出的 P: 单（报主会话转 H3 修复窗口） | 20261116-191454-eef4b4c34 |
+| acc.erp.collection.offline（M07） | **通过** | 先在线把发票读进快照（场景修正 574d61f9b），停 CC → 网页 / LINE / CC 三处都停在待写、写账件没人领、账本不动 → 起 CC → 写成、各只一张 | 20261116-19*-574d61f9b |
+| acc.erp.operator.talk.purchase（真模型） | 不通过（产品：收尾不报单号） | 第 1 次站点有前几格残留的待写单（计划 4 张、两张选择卡），作废残留后第 2 次：计划只这一张、无要人处理的卡、写成 HP0000090、账本读回一致；**最后的回复没提写成的单号**。「回复语言」那条是判定误判（中文回复里有泰文公司名被判成 th），已修判定（13b34adf5），不重跑 | 20261116-193723-574d61f9b、第 2 次同日 19:44 |
+| acc.erp.mrerp.cc.push（真模型） | 没跑 | maclab 站点上没有接 MR.ERP 测试账套的公司；test01 登录会踢掉别处会话，MR.ERP 写账窗口今晚在用。要先在 maclab 配 MR.ERP 公司接入，排写账窗口错开的时段 | — |
+
+模型花费台账（11-16）：operator.talk 两次 0.138 + 0.114 = **0.252 美元**（批的上限两格合计 2 美元）；mrerp.cc.push 0。密钥只临时写进 maclab 站点配置，跑完已删并回读（engine / key 都为空）。
+
+## 验收场景 × 引导式全覆盖总表的格（11-16 19:5x 对齐；总表见共享笔记「引导式-全覆盖总表-11-16.md」）
+
+引导式总表的格是「产品 × 直写 / 代录 × 业务 × 账本」（范围内 65 格），验收 L3 场景守的是格背后同一条写账链（网页 / LINE / CC 交进去的单写进真账本并读回）。对得上的：
+
+| 格 | 验收场景（L3） | 状态 |
+|---|---|---|
+| ERP-D-P-L 采购·直写·本地 | purchase.express / .twice、purchase.cancel、operator.intake.purchase（放票这条入口） | 有证据 3；intake 差 1 条 |
+| ERP-D-S-L 销售·直写·本地 | sales.credit、sales.cancel | cancel 有证据；credit 缺陷 1 |
+| ERP-D-COL-L 收款·直写·本地 | collection.three / nbsp / web.twice / line.edit / line.refused / offline / busy / line.redelivered / line.unbound、cc.collection / .nbsp | offline 通过；5 格缺陷 1；其余没跑 |
+| ERP-D-ADD 公司接入 | company.connect.fresh / connect / twice、denied | 有证据 4 |
+| ERP-D-ST 盘点 | stock.count | 有证据 |
+| ERP-D-SC 库存收发报表 | （无：只读报表，L2 流程管） | — |
+| ERP-D-PD-L 待处理 / 结果核对 | cc.push.purchase / .sales（停下的单再写一次） | 没跑（真模型） |
+| ERP-D-P-M / S-M MR.ERP | mrerp.* 16 条 | 没跑（每周 + test01 时段） |
+| ERP-O-P-L 采购·代录·本地 | operator.purchase、operator.talk.purchase、operator.stock.group、operator.masters.link、office.actor.purchase、operator.no.computer | purchase 有证据；talk 产品缺陷（不报单号）；H5 / 挂码修复前红；两格要备现场 |
+| ERP-O-S-L 销售·代录·本地 | operator.sales | 缺陷 2 |
+| Cowork-D-P-L 采购·直写·本地 | cowork.intake.express / .twice | 没跑（测试机1 实验栈） |
+| 其余 Cowork 直写 / 代录、所有 云端 Express 列、ERP 盘点外的库存单（入库 / 出库 / 调整 / 调拨 / 作废 / 收银日汇总） | 库存 6 格、pos.day ×2 有证据，但引导式总表没有单列这几类格（在「范围外」或归入盘点）；云端列 19 格、Cowork 37+6 格中除录入页外**没有验收场景** | 欠账 |
+
+数：总表 65 格里有对应 L3 场景的 11 格（ERP 9、Cowork 1、MR.ERP 合 1 行算 2 格 → 共 12 格），其中**至少一条场景有新鲜真环境证据的 7 格**（ERP-D-P-L、S-L、COL-L、ADD、ST、O-P-L 及库存收发外的公司接入）；其余 53 格没有验收场景，排进第二期后续批次（先 Cowork 直写采购 / 销售本地、ERP 代录销售、云端列等云端线出写法后）。
