@@ -221,7 +221,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
     const submit = (answered: AskResult) => remember(docAnswers(items, questions, answered), () => setSent(answered));
     return (
       <div data-slot="cc-op-before-ask">
-        <AskCard questions={questions} phase={sent ? "answered" : "ask"} result={sent} busy={action.busy || !prep}
+        <AskCard questions={questions} preselect={false} phase={sent ? "answered" : "ask"} result={sent} busy={action.busy || !prep}
           failure={notice || action.failure} onSubmit={submit} />
       </div>
     );

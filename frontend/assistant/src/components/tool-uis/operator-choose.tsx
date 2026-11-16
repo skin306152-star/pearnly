@@ -77,7 +77,7 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
         else await operatorActions.answer(input.task, input.doc_id, answers);
         setSent(result);
       });
-    return <AskCard questions={questions} phase={sent ? "answered" : phase} result={sent} busy={action.busy} failure={action.failure} onSubmit={submit} />;
+    return <AskCard questions={questions} preselect={false} phase={sent ? "answered" : phase} result={sent} busy={action.busy} failure={action.failure} onSubmit={submit} />;
   }
 
   const resolve = (entered: boolean) =>

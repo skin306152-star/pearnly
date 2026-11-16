@@ -452,6 +452,7 @@ export const PendingAsk: FC<{
   ) : (
     <AskCard
       questions={questions}
+      preselect={false}
       phase={sent ? "answered" : "ask"}
       result={sent}
       busy={action.busy}

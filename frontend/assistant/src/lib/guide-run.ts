@@ -228,14 +228,9 @@ export function toSend(question: GuideQuestion, value: unknown): unknown {
   return value;
 }
 
-/** 一题开头的值：答过的（服务端带回的 value）> 后台推荐（只有怎么办的题有 preselected，点「提交」才算）> 空。 */
+/** 一题开头的值：只有答过的（服务端带回的 value）；后台推荐（preselected）只在选项上标「推荐」，不预选、点了才算（用户口径 11-16）。 */
 export function initialValue(question: GuideQuestion): unknown {
   if (!isEmpty(question.value)) return question.value;
-  if (question.tier === "how" && !isEmpty(question.preselected)) return question.preselected;
-  if (question.input === "questions") {
-    const pre = Object.fromEntries((question.questions ?? []).filter((s) => !isEmpty(s.preselected)).map((s) => [s.key, s.preselected]));
-    return pre;
-  }
   return undefined;
 }
 

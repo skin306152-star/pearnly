@@ -94,9 +94,10 @@ export function shownQuestions(questions: readonly AskQuestion[], states: readon
   return questions.map((_, i) => i).filter((i) => shown[i]);
 }
 
-/** 初始的答：推荐项（第一个、带「(推荐)」）默认选中，其余空着。 */
-export function initialStates(questions: readonly AskQuestion[]): AskState[] {
-  return questions.map((q) => ({ labels: isRecommended(q.options[0]) ? [q.options[0]!.label] : [], other: null }));
+/** 初始的答：preselect 时推荐项（第一个、带「(推荐)」）默认选中（模型提的 ask_user，同 Claude）；写账前要人定的题（引导卡、代录开始 /
+ *  中途卡、待处理）preselect=false：推荐项只排第一、标「推荐」，不预选，点了才算（用户口径 11-16：钱的事不做默认勾选）。 */
+export function initialStates(questions: readonly AskQuestion[], preselect = true): AskState[] {
+  return questions.map((q) => ({ labels: preselect && isRecommended(q.options[0]) ? [q.options[0]!.label] : [], other: null }));
 }
 
 /** 点了一个选项：单选换成它（并取消「其他」），多选加上或去掉。 */

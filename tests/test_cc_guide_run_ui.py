@@ -3,7 +3,7 @@
 断言的是应有状态：
 - 何时算答好：单选要有码、多选 / 交文件要非空、金额多选每行是正数且不超上限（声明 ``zero`` 时 0 也算）、分摊合计等于总额
   （题目没带总额时取本卡金额多选那一步的合计）、月份 / 日期 / 时刻（HH:MM 24 小时）/ 数字 / 文字、子题要答的都答了；
-- 交回的形状：金额两位小数只带填了的、数字去空白、子题只带答了的；开头的值：答过的 > 怎么办题的推荐 > 空（做不做的题不预选）；
+- 交回的形状：金额两位小数只带填了的、数字去空白、子题只带答了的；开头的值只有答过的，推荐只标徽章不预选；
 - 等读取时退避再取（3、5、8、13 秒……封顶 30 秒），有次数上限；结束 / 失效 / 上下文变了（stale）只剩一行；
 - 退回的题：卡停在第一道退回的题；
 - 菜单：按声明的 order 排、菜单字用服务端翻好的、没给退回第 1 期的三个；
@@ -81,9 +81,9 @@ assert.deepEqual(toSend(inv, [{ code: "IV1", amount: "1,000" }, { code: "IV2", a
 assert.equal(toSend(q("number"), " 12 "), "12");
 assert.deepEqual(toSend(subs, { kind: "sales", from: "" }), { kind: "sales" });
 
-// 开头的值：答过的 > 推荐（只有怎么办的题）> 空
+// 开头的值：只有答过的；推荐（preselected）只标徽章、不预选（用户口径 11-16）
 assert.equal(initialValue(q("choice", { value: "A", preselected: "B" })), "A");
-assert.equal(initialValue(q("choice", { preselected: "B" })), "B");
+assert.equal(initialValue(q("choice", { preselected: "B" })), undefined);
 assert.equal(initialValue(q("choice", { tier: "whether", preselected: "B" })), undefined);
 
 // 等待退避有上限

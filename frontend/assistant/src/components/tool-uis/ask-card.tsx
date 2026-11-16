@@ -152,11 +152,13 @@ export const AskCard: FC<{
   extra?: ReactNode;
   /** 一开始停在第几题（展示页截图用）。 */
   startAt?: number;
-}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0 }) => {
+  /** 推荐项默认选中（ask_user 照 Claude 是）；写账前要人定的题传 false：只标「推荐」不预选，点了才算。 */
+  preselect?: boolean;
+}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0, preselect = true }) => {
   // pos：此刻要问的题里的第几题（带 show_if 的题随前面的回答收起，不占位置）
   const [pos, setPos] = useState(startAt);
-  const [states, setStates] = useState<AskState[]>(() => initialStates(questions));
-  useEffect(() => setStates((before) => (before.length === questions.length ? before : initialStates(questions))), [questions]);
+  const [states, setStates] = useState<AskState[]>(() => initialStates(questions, preselect));
+  useEffect(() => setStates((before) => (before.length === questions.length ? before : initialStates(questions, preselect))), [questions, preselect]);
   const shown = shownQuestions(questions, states);
   const place = Math.min(pos, Math.max(shown.length - 1, 0));
   const at = shown[place] ?? 0;

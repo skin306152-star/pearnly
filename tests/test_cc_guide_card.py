@@ -2,7 +2,7 @@
 
 断言的是应有状态：
 - 卡由服务端出（调用的输入 ``card``）：页面只照它画——题目文字、选项文字是服务端翻好的；
-- 三档：「怎么录」的题推荐项带「推荐」徽章并默认选中；「做不做」的题不预选、不带徽章；已定的不出题、收进「已定 n 项」，展开可改；
+- 三档：「怎么录」的题推荐项带「推荐」徽章、排第一，不预选（11-16 用户口径：点了才算，没点「下一步」不可用、可跳过）；「做不做」的题不预选、不带徽章；已定的不出题、收进「已定 n 项」，展开可改；
 - 交回 ``[{key, value}]``：跳过的题不交，已定项只交改过的；
 - 用标准组件库（Card / Questionnaire / Badge / Collapsible / NativeSelect），四语词条齐；
 - 单独成卡（不进步骤组）、手机上不浮成允许卡。
@@ -87,12 +87,12 @@ const out = html();
 assert.ok(out.includes('data-slot="cc-askq-question"') && out.includes("PAY-TITLE") && !out.includes("DETAIL-TITLE"));
 assert.ok(out.includes(ask.nth(1, 2)) && out.includes("cc-ui-questionnaire-card"));
 assert.match(out, new RegExp(`<button(?=[^>]*aria-label="${ask.prev}")(?=[^>]*disabled="")`));
-// 题目下一行：这一题管哪家几张；选项名、灰色说明；推荐徽章只一个、推荐项默认选中
+// 题目下一行：这一题管哪家几张；选项名、灰色说明；推荐徽章只一个、推荐项排第一但不预选（用户口径 11-16：钱的事点了才算）
 assert.ok(out.includes(guide.documents("ABC", 5)));
 assert.ok(out.includes("CREDIT") && out.includes("CASH") && out.includes("NOTE-CREDIT"));
 assert.equal(out.split(`>${guide.recommended}<`).length - 1, 1);
 const checked = [...out.matchAll(/<input[^>]* checked=""[^>]*value="([^"]+)"/g)].map((m) => m[1]);
-assert.deepEqual(checked, ["credit"]);
+assert.deepEqual(checked, []);
 // 「其他」只在服务端标了 free 的题
 assert.ok(!out.includes('data-slot="cc-askq-other-option"'));
 // 第二题（做不做）：不预选、不带徽章；末项右箭头禁用、主按钮「提交」

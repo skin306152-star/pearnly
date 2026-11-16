@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
+import { Marquee } from "@/components/ui/marquee";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Spinner } from "@/components/ui/spinner";
@@ -115,7 +116,7 @@ const EditableTable: FC<Props & { table: GuideReviewTable }> = ({ view, busy, ac
           <CollapsibleTrigger asChild>
             <Button type="button" variant="ghost" size="sm" className="w-full justify-start">
               <ChevronRightIcon />
-              <span className="min-w-0 flex-1 truncate text-start">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</span>
+              <Marquee className="min-w-0 flex-1 truncate text-start">{[row.name || row.code, row.note].filter(Boolean).join(" · ")}</Marquee>
               {(row.issues ?? []).length > 0 && <Badge variant="destructive">{row.issues!.length}</Badge>}
               {row.amount ? <span className="tabular-nums">{row.amount}</span> : null}
             </Button>
@@ -240,7 +241,7 @@ const DocBlock: FC<{ row: DocRow; open: boolean; disabled: boolean; onCommit: (d
       <CollapsibleTrigger asChild>
         <Button type="button" variant="ghost" size="sm" className="w-full justify-start">
           {shown ? <ChevronDownIcon /> : <ChevronRightIcon />}
-          <span className="min-w-0 flex-1 truncate text-start">{[face.doc_no, face.party_name].filter(Boolean).join(" · ")}</span>
+          <Marquee className="min-w-0 flex-1 truncate text-start">{[face.doc_no, face.party_name].filter(Boolean).join(" · ")}</Marquee>
           {row.marks.map((mark) => <Badge key={mark} variant="destructive" data-mark={mark}>{MARK_WORD[mark]?.() ?? mark}</Badge>)}
           <span className="tabular-nums">{face.total}</span>
         </Button>
@@ -355,7 +356,7 @@ const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
     {result.rows.map((row) => (
       <Item key={row.doc_id} size="sm" data-doc={row.doc_id} data-status={row.status}>
         <ItemContent>
-          <ItemTitle className="truncate">{row.doc_no || row.doc_id}</ItemTitle>
+          <ItemTitle className="wrap-break-word">{row.doc_no || row.doc_id}</ItemTitle>
           {row.reason_text ? <ItemDescription>{row.reason_text}</ItemDescription> : null}
         </ItemContent>
         <ItemActions>

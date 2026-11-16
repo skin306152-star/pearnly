@@ -208,6 +208,7 @@ export const GuideCardBody: FC<{
     <div data-slot="cc-guide-card" data-phase={phase}>
       <AskCard
         questions={questions}
+        preselect={false}
         phase="ask"
         busy={!!busy}
         failure=""

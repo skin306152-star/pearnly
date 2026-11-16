@@ -554,6 +554,8 @@ class ShortcutTests(unittest.TestCase):
                                                 "Ctrl -", "Ctrl 0", "Ctrl + Alt + Space",
                                                 # 通用提问卡片 ask_user 的「下一步 / 提交」（照 Claude Code 写 ⌘↵，tests/test_cc_ask.py）
                                                 # 引导卡 pearnly_guide 用的就是这张卡（同一个组件，引导式录入第 1 期），不另有快捷键
+                                                "Ctrl↵",
+                                                # 按表单的引导运行卡（tool-uis/guide-run-card.tsx，A2 线 11-16）同一版式的「下一步 / 提交」
                                                 "Ctrl↵"]))
 
     def test_one_touch_detection_for_the_whole_page(self):
@@ -4972,7 +4974,7 @@ class PendingChoiceDefaultTests(unittest.TestCase):
         self.assertIn("<AskCard", page)
         self.assertIn("itemsOfCheck(reply)", page)
         card = read("components/tool-uis/ask-card.tsx")
-        self.assertIn('data-slot="cc-askq-next" disabled={busy || !answered(state)}>', card)
+        self.assertIn('data-slot="cc-askq-next" disabled={busy || !answered(state, q)}>', card)  # 带 entry 的选项还要填好数（A3 四题 11-16）
         shared = read("components/tool-uis/ask-shared.ts")
         self.assertIn("isRecommended(q.options[0]) ? [q.options[0]!.label] : []", shared)
 
