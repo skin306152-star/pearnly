@@ -2423,3 +2423,8 @@ Finish this stock count?	确定要结束此盘点吗？	ปิดการตร
 Delete these stock counts?	确定要删除以下盘点吗？	ลบการตรวจนับเหล่านี้หรือไม่	これらの棚卸を削除しますか？
 Run this scheduled task now?	确定要立即运行此定时任务吗？	เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่	この定期タスクを今すぐ実行しますか？
 New files are recognized (charged) and pushed	新文件将识别（扣费）并推送	ไฟล์ใหม่จะถูกอ่าน (มีค่าบริการ) และส่งเข้าระบบ	新しいファイルを認識（課金）して送信します	cowork.folder.runNow.charge
+Read Back	回读	อ่านข้อมูลกลับ	読み戻し	guide.business.readback
+Choose the account set and month.	选择账套和月份。	เลือกชุดบัญชีและเดือน	会計データと月を選択してください。	guide.open.readback
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.readback.book
+Month	月份	เดือน	月	guide.step.readback.period
+None of your computers with CC Desktop can open this account set	装有 CC 桌面版的电脑都打不开此账套	คอมพิวเตอร์ของคุณที่มี CC เดสก์ท็อปเปิดชุดบัญชีนี้ไม่ได้	CC デスクトップのあるお使いのパソコンではこの会計データを開けません	cowork.readback.unreachable

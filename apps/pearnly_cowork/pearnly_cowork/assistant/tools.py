@@ -3768,8 +3768,6 @@ def folder_fetch(tool_input) -> str:
 
 READBACK_WAIT_SECONDS = 90
 READBACK_ROWS_SHOWN = 20
-# 回读的工作簿放进对话后记 7 天：同一段对话再查同一份回读不再放一遍
-READBACK_FILES_TTL = 7 * 86400
 READBACK_STILL_READING = ("Still reading the books on the computer. Check again with cowork_express_readback_status "
                           "when the user asks; do not wait with sleep.")
 READBACK_WAITING = {"offline": "The computer with this account set is offline. Nothing was read; ask the user to turn "
@@ -3817,20 +3815,10 @@ def _readback_wait(name) -> dict:
 
 
 def _readback_files(state) -> dict:
-    """四份工作簿放进这段对话（同一段对话、同一份回读只放一次）：{kind: 智能体读到的位置}；之后的工具像附件一样取用。"""
-    from pearnly_core.assistant import files as chat_files
+    """四份工作簿放进这段对话（`assistant.readback_files`，读回引导同一个）：{kind: 智能体读到的位置}。"""
+    from pearnly_cowork.assistant import readback_files
 
-    from pearnly_cowork.readback import service as readback
-
-    key = f"pearnly_assistant:readback:{frappe.local.site}:{_conversation() or ''}:{state['readback']}"
-    added = frappe.cache.get_value(key)
-    added = dict(added) if isinstance(added, dict) else {}
-    for kind in state.get("files") or ():
-        if kind not in added:
-            filename, content = readback.file(state["readback"], kind)
-            added[kind] = chat_files.add_to_conversation(filename, content, XLSX, origin="tool")
-            frappe.cache.set_value(key, added, expires_in_sec=READBACK_FILES_TTL)
-    return added
+    return readback_files.into_conversation(state, _conversation())
 
 
 def _readback_out(state) -> dict:

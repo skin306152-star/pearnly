@@ -4250,6 +4250,12 @@ class ReadbackTests(unittest.TestCase):
         package = sys.modules.setdefault("pearnly_cowork.readback", types.ModuleType("pearnly_cowork.readback"))
         package.service = service
         sys.modules["pearnly_cowork.readback.service"] = service
+        # 放进对话的那一段在 `assistant.readback_files`（工具与读回引导共用）：用真模块，它取上面的替身服务与对话文件
+        spec = importlib.util.spec_from_file_location(
+            "pearnly_cowork.assistant.readback_files", ROOT / "apps/pearnly_cowork/pearnly_cowork/assistant/readback_files.py")
+        shared = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(shared)
+        sys.modules["pearnly_cowork.assistant.readback_files"] = shared
         chat = sys.modules.setdefault("pearnly_core.assistant.files", types.ModuleType("pearnly_core.assistant.files"))
         chat.add_to_conversation = lambda name, content, mime, origin="tool": self.calls.append(
             ("attach", name, mime, origin)) or f"/mnt/session/uploads/file_{len(self.calls)}/{name}"

@@ -359,6 +359,7 @@ Choose once for this account set,Choose once for this account set
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
 Choose service or stock for this invoice and submit again,Choose service or stock for this invoice and submit again
 "Choose the Express records for this invoice first, then submit again","Choose the Express records for this invoice first, then submit again"
+Choose the account set and month.,Choose the account set and month.
 Choose the columns of this POS export once,Choose the columns of this POS export once
 Choose the company,Choose the company
 Choose the destination for these documents,Choose the destination for these documents
@@ -1157,6 +1158,7 @@ No warehouse matches that name,No warehouse matches that name
 No.,No.
 Non-life insurance premiums,Non-life insurance premiums
 None,None
+None of your computers with CC Desktop can open this account set,None of your computers with CC Desktop can open this account set
 Not Permitted,Not Permitted
 Not a tax invoice,Not a tax invoice
 Not an invoice file,Not an invoice file
@@ -1354,6 +1356,7 @@ Rate not confirmed for this date,Rate not confirmed for this date
 Reach State,Reach State
 Read,Read
 Read At (UTC),Read At (UTC)
+Read Back,Read Back
 Read By Computer,Read By Computer
 Read VAT report,Read VAT report
 Read again,Read again
@@ -2615,6 +2618,7 @@ cowork.readback.not_ready,The readback is not finished.
 cowork.readback.period_invalid,Give the month as YYYY-MM.
 cowork.readback.sheet.changes,Changes
 cowork.readback.sheet.direct,Entered in Express
+cowork.readback.unreachable,None of your computers with CC Desktop can open this account set
 cowork.readback.version_unsupported,Update this site before reading back with this CC Desktop.
 cowork.recon.bank.gl_credit_only,Ledger credit only
 cowork.recon.bank.gl_debit_only,Ledger debit only
@@ -3425,6 +3429,10 @@ erp.target_projection_value_required,The ERP data report is missing a required v
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
+guide.business.readback,Read Back
+guide.open.readback,Choose the account set and month.
+guide.step.readback.book,Account Set
+guide.step.readback.period,Month
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.

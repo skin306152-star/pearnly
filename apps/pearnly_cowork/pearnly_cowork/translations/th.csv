@@ -359,6 +359,7 @@ Choose once for this account set,เลือกครั้งเดียว�
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
 Choose service or stock for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นบริการหรือสินค้าคงเหลือ แล้วส่งใหม่
 "Choose the Express records for this invoice first, then submit again",กรุณาเลือกข้อมูลใน Express สำหรับเอกสารนี้ก่อน แล้วส่งใหม่
+Choose the account set and month.,เลือกชุดบัญชีและเดือน
 Choose the columns of this POS export once,กรุณากำหนดคอลัมน์ของไฟล์ส่งออก POS นี้หนึ่งครั้ง
 Choose the company,เลือกบริษัท
 Choose the destination for these documents,เลือกปลายทางสำหรับเอกสารชุดนี้
@@ -1157,6 +1158,7 @@ No warehouse matches that name,ไม่พบคลังสินค้าช�
 No.,ลำดับที่
 Non-life insurance premiums,เบี้ยประกันวินาศภัย
 None,ไม่มี
+None of your computers with CC Desktop can open this account set,คอมพิวเตอร์ของคุณที่มี CC เดสก์ท็อปเปิดชุดบัญชีนี้ไม่ได้
 Not Permitted,ไม่ได้รับอนุญาต
 Not a tax invoice,ไม่ใช่ใบกำกับภาษี
 Not an invoice file,ไม่ใช่ใบกำกับภาษี
@@ -1354,6 +1356,7 @@ Rate not confirmed for this date,ยังไม่ยืนยันอัต�
 Reach State,สถานะการเข้าถึง
 Read,อ่านแล้ว
 Read At (UTC),เวลาอ่านข้อมูล (UTC)
+Read Back,อ่านข้อมูลกลับ
 Read By Computer,คอมพิวเตอร์ที่อ่าน
 Read VAT report,อ่านรายงานภาษีขาย
 Read again,อ่านใหม่
@@ -2615,6 +2618,7 @@ cowork.readback.not_ready,การอ่านข้อมูลกลับย
 cowork.readback.period_invalid,กรุณาระบุเดือนเป็น YYYY-MM
 cowork.readback.sheet.changes,การเปลี่ยนแปลง
 cowork.readback.sheet.direct,บันทึกใน Express โดยตรง
+cowork.readback.unreachable,คอมพิวเตอร์ของคุณที่มี CC เดสก์ท็อปเปิดชุดบัญชีนี้ไม่ได้
 cowork.readback.version_unsupported,กรุณาอัปเดตเว็บไซต์นี้ก่อนอ่านข้อมูลกลับด้วย CC เดสก์ท็อปเวอร์ชันนี้
 cowork.recon.bank.gl_credit_only,มีเฉพาะเครดิตในบัญชีแยกประเภท
 cowork.recon.bank.gl_debit_only,มีเฉพาะเดบิตในบัญชีแยกประเภท
@@ -3425,6 +3429,10 @@ erp.target_projection_value_required,รายงานข้อมูล ERP �
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
+guide.business.readback,อ่านข้อมูลกลับ
+guide.open.readback,เลือกชุดบัญชีและเดือน
+guide.step.readback.book,ชุดบัญชี
+guide.step.readback.period,เดือน
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

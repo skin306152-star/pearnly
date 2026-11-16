@@ -359,6 +359,7 @@ Choose once for this account set,この会計データで一度だけ選択
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
 Choose service or stock for this invoice and submit again,この伝票がサービスか在庫かを選んで再送信してください
 "Choose the Express records for this invoice first, then submit again",先にこの伝票の Express 側の項目を選んでから再送信してください
+Choose the account set and month.,会計データと月を選択してください。
 Choose the columns of this POS export once,この POS エクスポートの列を一度指定してください
 Choose the company,会社を選択
 Choose the destination for these documents,この書類の送信先を選択
@@ -1157,6 +1158,7 @@ No warehouse matches that name,その倉庫名は存在しません
 No.,番号
 Non-life insurance premiums,損害保険料
 None,なし
+None of your computers with CC Desktop can open this account set,CC デスクトップのあるお使いのパソコンではこの会計データを開けません
 Not Permitted,適切な権限がありません
 Not a tax invoice,税務インボイスではない
 Not an invoice file,請求書以外
@@ -1354,6 +1356,7 @@ Rate not confirmed for this date,この日付の税率は未確認
 Reach State,アクセス状態
 Read,読み取り済み
 Read At (UTC),読み取り日時（UTC）
+Read Back,読み戻し
 Read By Computer,読み取ったパソコン
 Read VAT report,売上税報告の読み取り
 Read again,再読み込み
@@ -2615,6 +2618,7 @@ cowork.readback.not_ready,読み戻しはまだ終わっていません。
 cowork.readback.period_invalid,月は YYYY-MM で指定してください。
 cowork.readback.sheet.changes,変更
 cowork.readback.sheet.direct,Express で直接入力
+cowork.readback.unreachable,CC デスクトップのあるお使いのパソコンではこの会計データを開けません
 cowork.readback.version_unsupported,この CC デスクトップで読み戻す前にサイトを更新してください。
 cowork.recon.bank.gl_credit_only,元帳貸方のみ
 cowork.recon.bank.gl_debit_only,元帳借方のみ
@@ -3425,6 +3429,10 @@ erp.target_projection_value_required,ERP データレポートに必須の値が
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
+guide.business.readback,読み戻し
+guide.open.readback,会計データと月を選択してください。
+guide.step.readback.book,会計データ
+guide.step.readback.period,月
 held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。
