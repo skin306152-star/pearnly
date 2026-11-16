@@ -44,13 +44,44 @@ export type GuideResult = {
   /** N1b：确定之后冒出来的追问 */
   questions?: GuideSub[];
 };
+// ── 按单据（documents 源，共享笔记「引导式-documents源-约定」；服务端 assistant/guide/documents.py · view）──────────────
+/** 票面（write_precheck/review.py · face）：金额是字符串，原样保留人填的值。 */
+export type DocFace = {
+  doc_no: string; party_name: string; party_tax: string; party_branch: string; date: string; subtotal: string; vat: string; total: string;
+  lines: { description: string; qty: string; unit_price: string; amount: string }[];
+};
+/** 标记码（review.MARKS）：number 单号、duplicate 重复、tax_id 税号、amount 金额、date 日期。 */
+export type DocMark = "number" | "duplicate" | "tax_id" | "amount" | "date";
+export type DocRow = {
+  doc_id: string; version?: string | number; face: DocFace; marks: DocMark[]; cells: Record<string, DocMark>; blocking: string[];
+  /** 待定（已问 guided-erp）：这一行能改的格；没带时按 review.EDITABLE（表头八格 + 明细四列）都能改 */
+  editable?: string[];
+};
+export type GuideDocReview = {
+  rows: DocRow[]; held: string[]; seen: string; ready: boolean; facts?: Record<string, string[]>;
+};
+export type GuideUploads = { files: { batch: string; state: "reading" | "done" | "failed" | string; reason?: string; reason_text?: string }[]; wait: boolean };
+export type GuideDocResult = {
+  status: string; wait?: boolean;
+  rows: { doc_id: string; status: "entered" | "queued" | "held" | "failed" | string; docnum?: string; reason?: string; reason_text?: string;
+    /** 待定：结果行要带单据自己的号（票面 doc_no），没带时显示 doc_id */ doc_no?: string }[];
+};
+export const isDocReview = (review: unknown): review is GuideDocReview => !!review && Array.isArray((review as GuideDocReview).rows);
+export const isDocResult = (result: unknown): result is GuideDocResult => !!result && Array.isArray((result as GuideDocResult).rows);
+
 export type GuideStatus = "asking" | "reviewing" | "confirmed" | "done" | "failed" | "cancelled" | "expired";
 export type GuideView = {
   run: string; business: string; status: GuideStatus | string; version: number; company?: string; ledger?: string; period?: string;
   /** N5：confirm = 「确定」；allow = 允许卡样式（拒绝 / 允许） */
   consent?: "confirm" | "allow";
   stale?: boolean; reason?: string; outcome?: "changed" | "refused" | "stopped" | ""; refused?: Record<string, string>;
-  card?: GuideCard; review?: GuideReview; result?: GuideResult;
+  card?: GuideCard & { source?: "documents"; wait?: boolean };
+  review?: GuideReview | GuideDocReview; result?: GuideResult | GuideDocResult;
+  /** 按单据办的业务（采购、销售）回 "documents"：卡按 stage 分段 */
+  source?: "documents";
+  /** documents：此刻在哪一段（files 交文件 / reading 识别中 / asking 题卡 / review 复核） */
+  stage?: "files" | "reading" | "asking" | "review";
+  uploads?: GuideUploads;
 };
 export type GuidePage = { options: GuideOption[]; more: boolean };
 
@@ -58,7 +89,13 @@ export type GuideTransport = {
   start: (sessionId: string, business: string) => Promise<GuideView>;
   view: (run: string) => Promise<GuideView>;
   answer: (run: string, answers: Record<string, unknown>, version?: number) => Promise<GuideView>;
-  confirm: (run: string, version: number) => Promise<GuideView>;
+  confirm: (run: string, version: number, seen?: string) => Promise<GuideView>;
+  /** documents 复核就地改一格（guided-erp 加 guide_edit；回整份 view，改不了带 outcome refused） */
+  edit: (run: string, docId: string, field: string, value: string, version: number) => Promise<GuideView>;
+  /** 复核卡点一行回那一步（待定：已问引擎窗口，接口名暂定 guide_reopen） */
+  reopen: (run: string, step: string, version: number) => Promise<GuideView>;
+  /** N1b：确定之后结果里的追问（P3 加 guide_follow） */
+  follow: (run: string, answers: Record<string, unknown>, version: number) => Promise<GuideView>;
   cancel: (run: string) => Promise<GuideView>;
   search: (run: string, key: string, txt: string, start: number) => Promise<GuidePage>;
   /** 交文件那一题：本对话已交的文件、当场添加（传进本对话） */
@@ -76,7 +113,10 @@ const real: GuideTransport = {
   view: (run) => get<GuideView>("guide_view", { run_name: run }),
   answer: (run, answers, version) =>
     post<GuideView>("guide_answer", { run_name: run, answers: JSON.stringify(answers), ...(version === undefined ? {} : { version }) }),
-  confirm: (run, version) => post<GuideView>("guide_confirm", { run_name: run, version }),
+  confirm: (run, version, seen) => post<GuideView>("guide_confirm", { run_name: run, version, ...(seen === undefined ? {} : { seen }) }),
+  edit: (run, docId, field, value, version) => post<GuideView>("guide_edit", { run_name: run, doc_id: docId, field, value, version }),
+  reopen: (run, step, version) => post<GuideView>("guide_reopen", { run_name: run, step, version }),
+  follow: (run, answers, version) => post<GuideView>("guide_follow", { run_name: run, answers: JSON.stringify(answers), version }),
   cancel: (run) => post<GuideView>("guide_cancel", { run_name: run }),
   search: (run, key, txt, start) =>
     get<GuidePage>("guide_search", { run_name: run, key, txt, start, page_length: SEARCH_PAGE }),
@@ -93,7 +133,10 @@ export const setGuideTransport = (next: GuideTransport) => { transport = next; }
 export const startGuide = (sessionId: string, business: string) => transport.start(sessionId, business);
 export const viewGuide = (run: string) => transport.view(run);
 export const answerGuide = (run: string, answers: Record<string, unknown>, version?: number) => transport.answer(run, answers, version);
-export const confirmGuide = (run: string, version: number) => transport.confirm(run, version);
+export const confirmGuide = (run: string, version: number, seen?: string) => transport.confirm(run, version, seen);
+export const editGuide = (run: string, docId: string, field: string, value: string, version: number) => transport.edit(run, docId, field, value, version);
+export const reopenGuide = (run: string, step: string, version: number) => transport.reopen(run, step, version);
+export const followGuide = (run: string, answers: Record<string, unknown>, version: number) => transport.follow(run, answers, version);
 export const cancelGuide = (run: string) => transport.cancel(run);
 export const guideFiles = (sessionId: string | null): GuideFiles | null => (sessionId ? transport.files(sessionId) : null);
 export const searchGuide = (run: string, key: string, txt: string, start = 0) => transport.search(run, key, txt, start);
@@ -111,7 +154,7 @@ export function waitDelay(attempt: number): number {
 
 /** 这张卡要不要过一会儿再取：有题在等读取，或结果还在等。 */
 export const isWaiting = (view: GuideView | null) =>
-  !!view && !isClosed(view) && (!!view.card?.questions.some((q) => q.wait) || !!view.result?.wait);
+  !!view && !isClosed(view) && (!!view.card?.wait || !!view.card?.questions.some((q) => q.wait) || !!view.result?.wait || !!view.uploads?.wait);
 
 /** 一开始停在哪一题：有退回的停在第一道退回的题，否则第一道。 */
 export function firstPosition(questions: readonly GuideQuestion[], returned: GuideReturned | undefined): number {
@@ -179,4 +222,24 @@ export function initialValue(question: GuideQuestion): unknown {
     return pre;
   }
   return undefined;
+}
+
+// ── 单据复核的格 ─────────────────────────────────────────────────────────────────────────────────────
+export const HEAD_FIELDS = ["doc_no", "party_name", "party_tax", "party_branch", "date", "subtotal", "vat", "total"] as const;
+export const LINE_FIELDS = ["description", "qty", "unit_price", "amount"] as const;
+const ALL_EDITABLE = new Set<string>([...HEAD_FIELDS, ...LINE_FIELDS.map((f) => `lines.*.${f}`)]);
+
+/** 这一格能不能改：行上带了 editable 就照它（明细格写 lines.<行>.<列> 或 lines.*.<列>）；没带按 review.EDITABLE。 */
+export function canEdit(row: DocRow, field: string): boolean {
+  const line = /^lines\.(\d+)\.(\w+)$/.exec(field);
+  const wild = line ? `lines.*.${line[2]}` : field;
+  if (row.editable) return row.editable.includes(field) || row.editable.includes(wild);
+  return ALL_EDITABLE.has(wild);
+}
+
+/** 一格此刻的值（表头或明细）。 */
+export function cellValue(face: DocFace, field: string): string {
+  const line = /^lines\.(\d+)\.(\w+)$/.exec(field);
+  if (line) return String((face.lines[Number(line[1])] as Record<string, string> | undefined)?.[line[2]] ?? "");
+  return String((face as unknown as Record<string, string>)[field] ?? "");
 }

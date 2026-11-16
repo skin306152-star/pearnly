@@ -32,7 +32,8 @@ import type { GuideRun } from "@/lib/managed-agents/reducer";
 import {
   AmountsField, ChoiceField, FileField, SearchAmountsField, SplitField, SubQuestionsField, ValueField,
 } from "./guide-inputs";
-import { GuideReview, GuideResultCard } from "./guide-review";
+import { GuideCardBody, guideCardOf } from "./guide-card";
+import { GuideResultCard, GuideReview, GuideUploadsLine } from "./guide-review";
 
 type Values = Record<string, unknown>;
 type Act = (call: () => Promise<GuideView>) => void;
@@ -143,7 +144,7 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
     <div className="cc-askq-wrap" onKeyDown={onKey}>
       <Questionnaire noValidate onSubmit={(e) => { e.preventDefault(); primary(); }} data-phase="ask">
         <QuestionnaireItem key={q.key} name={q.key} multiple={multi} data-slot="cc-guide-question" data-key={q.key} data-input={q.input}>
-          <QuestionnaireTitle data-slot="cc-askq-question">{q.title}</QuestionnaireTitle>
+          <QuestionnaireTitle data-slot="cc-askq-question">{q.title || businessName(view.business)}</QuestionnaireTitle>
           {questions.length > 1 && (
             <div className="cc-ui-questionnaire-pager" data-slot="cc-askq-pager">
               <Button type="button" variant="ghost" size="icon-xs" aria-label={ask.prev} disabled={place === 0} onClick={() => setPos(place - 1)}>
@@ -216,11 +217,38 @@ export const GuideClosed: FC<{ view: GuideView }> = ({ view }) => (
   </div>
 );
 
+/** 按单据的题卡（documents 源的题卡段）：就是第 1 期那张卡（同一组件、同一种答案 [{key, value}]），交给这次引导。 */
+const DocumentsCard: FC<{ view: GuideView; busy: boolean; failure: string; act: Act }> = ({ view, busy, failure, act }) => (
+  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking">
+    <GuideCardBody card={guideCardOf({ card: view.card })} company={view.company} phase="ask" busy={busy}
+      onSubmit={(answers) => act(() => answerGuide(view.run, { answers }, view.version))} />
+    {failure && (
+      <Alert variant="destructive" data-slot="cc-ask-failure">
+        <AlertDescription className="line-clamp-(--cc-alert-lines)">{failure}</AlertDescription>
+      </Alert>
+    )}
+  </div>
+);
+
 /** 一张卡此刻的样子（只画，不取）：展示页与对话页共用。 */
 export const GuideRunView: FC<{
   view: GuideView; sessionId: string | null; busy: boolean; failure: string; act: Act; decidedOpen?: boolean;
 }> = ({ view, sessionId, busy, failure, act, decidedOpen }) => {
   if (isClosed(view)) return <GuideClosed view={view} />;
+  const props = { view, sessionId, busy, failure, act };
+  if (view.result) return <Frame view={view}><GuideResultCard {...props} /></Frame>;
+  if (view.source === "documents") {
+    if (view.stage === "asking" && view.card) return <DocumentsCard view={view} busy={busy} failure={failure} act={act} />;
+    if (view.stage === "reading" && view.uploads) return <Frame view={view}><GuideUploadsLine uploads={view.uploads} /></Frame>;
+    if (view.stage === "review" && view.review) {
+      return (
+        <Frame view={view}>
+          {view.uploads ? <GuideUploadsLine uploads={view.uploads} /> : null}
+          <GuideReview {...props} />
+        </Frame>
+      );
+    }
+  }
   if (view.status === "asking" && view.card) {
     return (
       <Frame view={view}>
@@ -228,10 +256,7 @@ export const GuideRunView: FC<{
       </Frame>
     );
   }
-  if (view.status === "reviewing" && view.review) {
-    return <Frame view={view}><GuideReview view={view} busy={busy} failure={failure} act={act} /></Frame>;
-  }
-  if (view.result) return <Frame view={view}><GuideResultCard view={view} /></Frame>;
+  if (view.status === "reviewing" && view.review) return <Frame view={view}><GuideReview {...props} /></Frame>;
   return null;
 };
 

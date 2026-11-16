@@ -3115,6 +3115,12 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   }
   .cc-ui-questionnaire-card .cc-guide-body { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-cancel"] { margin-inline-end: auto; }
+  /* 复核 / 结果卡底部按钮同问卷的按钮区；单据复核里只读的格有标记时标红（能改的格由输入框的 aria-invalid 标）；明细列名与金额格同宽、靠右 */
+  .cc-ui-questionnaire-card [data-slot="cc-guide-decide"], .cc-ui-questionnaire-card [data-slot="cc-guide-follow"] .cc-card-actions {
+    padding: var(--cc-space-8) var(--cc-space-12) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line);
+  }
+  [data-slot="cc-guide-cell"][data-readonly][aria-invalid] { color: var(--cc-danger); }
+  [data-slot="cc-guide-line-head"] > span { width: var(--cc-guide-amount-w); text-align: end; }
   .cc-ui-questionnaire-card .cc-alert { margin: var(--cc-space-8) var(--cc-space-12); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-more"], .cc-ui-questionnaire-card .cc-guide-body + .cc-menu-label { border-top: var(--cc-ring-w) solid var(--cc-line); }
   [data-slot="cc-guide-run"][data-ended] .cc-ask { opacity: var(--cc-disabled-opacity); }

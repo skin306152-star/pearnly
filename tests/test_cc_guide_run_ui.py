@@ -21,6 +21,10 @@ SRC = ROOT / "frontend/assistant/src"
 sys.path.insert(0, str(ROOT / "tests"))
 
 from test_assistant_ui import ESBUILD, NODE, run_ts  # noqa: E402
+from test_cc_ask import STUBS as ASK_STUBS  # noqa: E402
+
+# 复核 / 题卡引了第 1 期引导卡（→ 提问卡 → 会话控制器、快捷键 → profile 用 Vite 的 import.meta.glob）：同第 1 期卡的测试桩掉
+STUBS = {**ASK_STUBS, "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
 
 
 def read(rel):
@@ -183,6 +187,116 @@ console.log(JSON.stringify({ ended: gone.replace(/<[^>]+>/g, " ").replace(/\s+/g
 (globalThis as any).done();
 """
 
+DOCS = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { canEdit, cellValue, isDocResult, isDocReview, type DocRow } from "@/lib/guide-run";
+import { fixtureTransport as t, seed } from "@/kit/guide-run-fixtures";
+
+// 可改的格：行上带 editable 照它（明细按列 lines.*.<列>）；没带按 review.EDITABLE（表头八格 + 明细四列）
+const face = { doc_no: "A", party_name: "P", party_tax: "", party_branch: "", date: "2026-11-03", subtotal: "1", vat: "0.07", total: "1.07",
+  lines: [{ description: "x", qty: "1", unit_price: "1", amount: "1" }] };
+const row: DocRow = { doc_id: "D", face, marks: [], cells: {}, blocking: [], editable: ["doc_no", "lines.*.qty"] };
+assert.equal(canEdit(row, "doc_no"), true);
+assert.equal(canEdit(row, "total"), false);
+assert.equal(canEdit(row, "lines.0.qty"), true);
+assert.equal(canEdit(row, "lines.0.amount"), false);
+assert.equal(canEdit({ ...row, editable: undefined }, "total"), true);
+assert.equal(canEdit({ ...row, editable: undefined }, "lines.0.amount"), true);
+assert.equal(canEdit({ ...row, editable: undefined }, "lines.0.bogus"), false);
+assert.equal(cellValue(face, "lines.0.description"), "x");
+assert.equal(cellValue(face, "total"), "1.07");
+
+// 按单据整条（替身）：交文件 → 识别中 → 第 1 期题卡 → 复核（改一格、算出来的格拒）→ 指纹不对回 changed → 写入 → 每张一行
+const run = seed("purchase");
+let v = await t.view(run);
+assert.equal(v.source, "documents");
+assert.equal(v.stage, "files");
+assert.equal(v.card!.questions[0].input, "file");
+v = await t.answer(run, { documents: ["UPL-1", "UPL-2"] }, v.version);
+assert.equal(v.stage, "reading");
+assert.equal(v.uploads!.wait, true);
+assert.deepEqual(v.uploads!.files.map((f) => f.state), ["reading", "reading"]);
+v = await t.view(run);
+assert.equal(v.stage, "asking");
+assert.equal((v.card!.questions[0] as any).kind, "payment");          // 第 1 期卡的形状
+v = await t.answer(run, { answers: [{ key: "pay|D-1", value: "credit" }] }, v.version);
+assert.equal(v.stage, "review");
+assert.ok(isDocReview(v.review));
+const review = v.review as any;
+assert.deepEqual(review.rows.map((r: any) => r.doc_id), ["D-1", "D-2"]);
+assert.deepEqual(review.rows[1].blocking, ["doc_no"]);                // 没单号：这一张这次不写
+assert.ok(review.rows[1].marks.includes("number"));
+v = await t.edit(run, "D-1", "total", "9", v.version);
+assert.equal(v.outcome, "refused");                                    // 算出来的格不收
+assert.ok(Object.values(v.refused!)[0]);
+v = await t.edit(run, "D-1", "lines.0.qty", "12", v.version);
+const d1 = (v.review as any).rows[0];
+assert.equal(d1.face.subtotal, "1200.00");
+assert.equal(d1.face.total, "1284.00");
+v = await t.confirm(run, v.version, "old-seen");
+assert.equal(v.outcome, "changed");                                    // 复核看到的样子变了：不写
+v = await t.confirm(run, v.version, (v.review as any).seen);
+assert.ok(isDocResult(v.result));
+assert.deepEqual((v.result as any).rows.map((r: any) => r.status), ["queued", "held"]);
+assert.equal(v.result!.wait, true);
+v = await t.view(run);
+assert.deepEqual((v.result as any).rows.map((r: any) => r.status), ["entered", "held"]);
+assert.equal((v.result as any).rows[0].docnum, "PO6911-0007");
+
+// 表单复核点一行回那一步：那一步与之后的答案作废，回到问
+const back = seed("review");
+let r = await t.view(back);
+r = await t.reopen(back, "invoices", r.version);
+assert.equal(r.status, "asking");
+assert.equal(r.card!.questions[0].key, "invoices");
+// 结果里的追问（N1b）：答了重算结果
+const fol = seed("follow");
+let f = await t.view(fol);
+assert.equal((f.result as any).questions[0].key, "fee");
+f = await t.follow(fol, { fee: "5310" }, f.version);
+assert.equal((f.result as any).questions, undefined);
+(globalThis as any).done();
+"""
+
+RENDER2 = r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server.browser";
+import { GuideRunView } from "@/components/tool-uis/guide-run-card";
+import { fixtureTransport as t, seed } from "@/kit/guide-run-fixtures";
+
+const html = async (name: string, steps: (n: string, v: any) => Promise<any> = async (_n, v) => v) => {
+  const run = seed(name);
+  const view = await steps(run, await t.view(run));
+  return renderToStaticMarkup(createElement(GuideRunView, { view, sessionId: "S", busy: false, failure: "", act: () => {} }));
+};
+const files = await html("purchase");
+assert.match(files, /data-input="file"/);
+assert.match(files, /data-slot="cc-guide-add-file"/);
+const reading = await html("purchase-reading");
+assert.match(reading, /data-slot="cc-guide-uploads"/);
+const asking = await html("purchase-asking", async (n) => { await t.view(n); return t.view(n); });
+assert.match(asking, /data-slot="cc-guide-card"/);                    // 第 1 期那张卡
+const review = await html("purchase-review");
+assert.match(review, /data-source="documents"/);
+assert.match(review, /data-blocking="true"/);
+assert.match(review, /data-mark="number"/);
+assert.match(review, /data-field="total"[^>]*data-readonly/);               // 算出来的格只读
+assert.match(review, /data-slot="cc-guide-confirm"/);
+const allow = await html("allow");
+assert.match(allow, /data-consent="allow"/);
+const follow = await html("follow");
+assert.match(follow, /data-slot="cc-guide-files-out"/);
+assert.match(follow, /download="recon-2026-10.xlsx"/);
+assert.match(follow, /data-slot="cc-guide-follow"/);
+const formReview = await html("review");
+assert.match(formReview, /data-slot="cc-guide-back"[^>]*data-step="invoices"/);
+console.log(JSON.stringify({ allow: allow.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), review: review.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) }));
+(globalThis as any).done();
+"""
+
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class GuideRunBehaviourTests(unittest.TestCase):
@@ -197,8 +311,21 @@ class GuideRunBehaviourTests(unittest.TestCase):
         for lang, word in words.items():
             with self.subTest(lang=lang):
                 # 快捷键提示经 shortcut → lib/desktop → lib/profile（Vite 的 import.meta.glob）：同别的页面测试桩掉 profile
-                out = run_ts(RENDER, lang=lang, stubs={"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+                out = run_ts(RENDER, lang=lang, stubs=STUBS)
                 self.assertIn(word, out)
+
+
+    def test_documents_review_edit_confirm_and_follow(self):
+        run_ts(DOCS)
+
+    def test_review_allow_and_result_draw_in_four_languages(self):
+        words = {"zh": ("允许", "拒绝", "税号"), "th": ("อนุญาต", "ปฏิเสธ", "เลขประจำตัวผู้เสียภาษี"), "en": ("Allow", "Deny", "Tax ID"),
+                 "ja": ("許可", "拒否", "納税者番号")}
+        for lang, expect in words.items():
+            with self.subTest(lang=lang):
+                out = run_ts(RENDER2, lang=lang, stubs=STUBS)
+                for word in expect:
+                    self.assertIn(word, out)
 
 
 class GuideRunSourceTests(unittest.TestCase):
