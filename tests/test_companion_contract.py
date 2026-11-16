@@ -975,6 +975,21 @@ class Release1123Edges(unittest.TestCase):
         self.assertEqual(stop.reason, "interrupted")
         self.assertEqual(common.clean_operator_meta({"interrupt": stop.interrupt})["interrupt"], stop.interrupt)
 
+    def test_the_server_sends_remembered_answers_in_the_shape_the_desktop_reads(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(COMPANION.parent))
+        from companion.express_operator.draft import MAX_DIALOG_ANSWERS, dialog_answers as client
+        from pearnly_core.express_operator import contracts as server
+
+        batch = {"id": "b-1", "index": 1, "total": 1}
+        plain = server.for_operator({"doctype": "RR"}, batch)
+        self.assertNotIn("dialog_answers", plain["operator"])  # 没记住的：载荷与以前相同
+        given = {"0123456789ABCDEF": " แบบ ข ", "bad": "x", "fedcba9876543210": ""}
+        sent = server.for_operator({"doctype": "RR"}, batch, dialog_answers_by_digest=given)["operator"]["dialog_answers"]
+        self.assertEqual(sent, {"0123456789abcdef": "แบบ ข"})
+        self.assertEqual(client(sent), sent)  # CC 按同样的规矩收下
+        self.assertEqual(server.DIALOG_ANSWERS_MAX, MAX_DIALOG_ANSWERS)
+
     def test_remembered_answers_ride_in_operator_dialog_answers(self):
         sys.path.insert(0, str(COMPANION.parent))
         from companion.express_operator.draft import dialog_answers
