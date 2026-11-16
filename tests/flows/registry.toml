@@ -2256,6 +2256,7 @@ datasets = ["new"]
 viewports = ["desktop", "mobile"]
 covers = [
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/components/tool-uis/card-frame.tsx",
   "frontend/assistant/src/components/business-icon.tsx",
   "frontend/assistant/src/lib/guide-run.ts",
   "frontend/assistant/src/components/tool-uis/guide-inputs.tsx",
