@@ -1042,7 +1042,7 @@ class CardRuleTests(unittest.TestCase):
         pending = thread.split("const PendingSendBubble: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertNotIn("animate-spin", pending)
         # 发送中的附件：同发出后的卡片，缩略图位置是骨架（V31，attachment.tsx 的 PendingAttachments）
-        self.assertIn("<PendingAttachments names={pending.files} />", pending)
+        self.assertIn("<PendingAttachments names={pending.files} ids={pending.ids} />", pending)
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
         self.assertIn('{loading ? <Skeleton className="size-full rounded-none" /> : <AttachmentThumbnail', attachment)
         files = thread.split("const MessageFiles: FC = () => {", 1)[1].split("\n};", 1)[0]
