@@ -220,6 +220,7 @@ Bound Invoice Records,已关联发票记录
 Bound Profile Key,绑定配置键
 Bound at,绑定时间
 Bound to {0},已绑定到 {0}
+Box 12 of the {0} draft: {1},{0} 草稿第 12 栏：{1}
 Branch,执行分支
 Branch No,分支机构编号
 Branch When Added,添加时分店
@@ -371,6 +372,7 @@ Choose the reconciliation type.,选择对账类型。
 Choose the sales returns account,请选择销货退回科目
 Choose the service input VAT for this supplier and submit again,请为此供应商选择服务品进项税后重新提交
 Choose the sheet to import,请先选择要导入的表格
+Choose the tax month.,选择税务月份。
 Choose the year,选择年度
 Choose the year and account set first,请先选年度和账套
 Choose the year and account set first.,请先选择年度和账套。
@@ -752,6 +754,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,网银导出的 Excel/CSV 或电子版 PDF
 Excess tax brought forward,上期结转的多缴税额
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,此账套的单据不能同时有免税行和应税行，请在 Express 中录入
+Exempt sales,免税销售额
 Existing item,选已有存货
 Expected VAT,应为税额
 Expense,记费用
@@ -1519,6 +1522,7 @@ Row not read,无法读取的行
 Row {0}: {1},第 {0} 行：{1}
 Rows,行数
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,按表格导入物料行与实盘数量；实盘数量可留空，稍后在线盘点。
+Rows with zero VAT,税额为零的行
 Rule,规则
 Rule Owner,规则负责人
 Rule Revision,规则版本
@@ -2190,6 +2194,7 @@ VAT File Name,销项税报告文件名
 VAT Only Negative,仅销项税报告负数金额
 VAT Only Positive,仅销项税报告正数金额
 VAT Report Check,销项税报告核查
+VAT Return,增值税申报表
 VAT Total,销项税报告合计
 VAT differs from the rate,税额与税率不符
 VAT is not 7% of the base,税额≠税基×7%
@@ -3106,6 +3111,7 @@ cowork.tax.pp30.box.8,本月应纳税额（5 大于 7 时）
 cowork.tax.pp30.box.9,本月多缴税额（5 小于 7 时）
 cowork.tax.pp30.claimable,剔除标出行后的进项税
 cowork.tax.pp30.previous_excess,上月草稿的多缴税额
+cowork.tax.previousExcess,{0} 草稿第 12 栏：{1}
 cowork.tax.review.excluded,未计入
 cowork.tax.review.notes,其他记录
 cowork.tax.review.questions,待选所得类型
@@ -3435,8 +3441,10 @@ excel,Excel
 failed,失败
 guide.business.readback,回读
 guide.business.recon,对账中心
+guide.business.vat,增值税申报表
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
+guide.open.vat,选择税务月份。
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
@@ -3447,6 +3455,11 @@ guide.step.recon.readback,回读
 guide.step.recon.sales_vat,销项税报告
 guide.step.recon.source,来源
 guide.step.recon.statement,银行账单
+guide.step.vat.excess_brought_forward,上期结转的多缴税额
+guide.step.vat.exempt_sales,免税销售额
+guide.step.vat.period,税务月份
+guide.step.vat.readback,回读
+guide.step.vat.zero_vat_as,税额为零的行
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。

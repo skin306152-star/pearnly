@@ -220,6 +220,7 @@ Bound Invoice Records,รายการใบกำกับภาษีที�
 Bound Profile Key,คีย์โปรไฟล์ที่ผูกไว้
 Bound at,เวลาที่ผูกบัญชี
 Bound to {0},ผูกบัญชีกับ {0} แล้ว
+Box 12 of the {0} draft: {1},ช่อง 12 ของร่างเดือน {0}: {1}
 Branch,เส้นทางการดำเนินการ
 Branch No,เลขที่สาขา
 Branch When Added,สาขาเมื่อเพิ่ม
@@ -371,6 +372,7 @@ Choose the reconciliation type.,เลือกประเภทการกร
 Choose the sales returns account,กรุณาเลือกบัญชีรับคืนสินค้า
 Choose the service input VAT for this supplier and submit again,กรุณาเลือกภาษีซื้อของสินค้าบริการสำหรับผู้จำหน่ายรายนี้แล้วส่งใหม่
 Choose the sheet to import,กรุณาเลือกไฟล์ที่ต้องการนำเข้า
+Choose the tax month.,เลือกเดือนภาษี
 Choose the year,เลือกปี
 Choose the year and account set first,กรุณาเลือกปีและชุดบัญชีก่อน
 Choose the year and account set first.,กรุณาเลือกปีบัญชีและชุดบัญชีก่อน
@@ -752,6 +754,7 @@ Excel 97-2003 (.xls) files are not supported. Save as .xlsx or .csv and send aga
 Excel/CSV from online banking or electronic PDF,Excel/CSV จากอินเทอร์เน็ตแบงกิ้ง หรือ PDF อิเล็กทรอนิกส์
 Excess tax brought forward,ภาษีที่ชำระเกินยกมา
 Exempt and taxable lines cannot be mixed in this account set. Enter this document in Express,ชุดบัญชีนี้ใส่รายการยกเว้นภาษีและรายการที่มีภาษีในเอกสารเดียวกันไม่ได้ กรุณาบันทึกใน Express
+Exempt sales,ยอดขายที่ได้รับยกเว้น
 Existing item,เลือกสินค้าที่มี
 Expected VAT,ภาษีที่ควรเป็น
 Expense,บันทึกเป็นค่าใช้จ่าย
@@ -1519,6 +1522,7 @@ Row not read,อ่านรายการไม่ได้
 Row {0}: {1},แถว {0}: {1}
 Rows,จำนวนแถว
 Rows and counted quantities come from the sheet; leave a counted quantity blank to count it online later.,นำเข้ารายการสินค้าและจำนวนที่นับได้จากไฟล์ เว้นจำนวนที่นับได้ว่างไว้เพื่อตรวจนับออนไลน์ภายหลังได้
+Rows with zero VAT,รายการที่ภาษีเป็นศูนย์
 Rule,กฎ
 Rule Owner,เจ้าของกฎ
 Rule Revision,รุ่นของกฎ
@@ -2190,6 +2194,7 @@ VAT File Name,ชื่อไฟล์รายงานภาษีขาย
 VAT Only Negative,ยอดติดลบที่มีเฉพาะในรายงานภาษีขาย
 VAT Only Positive,ยอดบวกที่มีเฉพาะในรายงานภาษีขาย
 VAT Report Check,ตรวจสอบรายงานภาษีขาย
+VAT Return,แบบ ภ.พ.30
 VAT Total,ยอดรวมรายงานภาษีขาย
 VAT differs from the rate,ภาษีไม่ตรงกับอัตรา
 VAT is not 7% of the base,ภาษีไม่เท่ากับ 7% ของฐานภาษี
@@ -3106,6 +3111,7 @@ cowork.tax.pp30.box.8,ภาษีที่ต้องชำระเดือ�
 cowork.tax.pp30.box.9,ภาษีที่ชำระเกินเดือนนี้ (ถ้า 5. น้อยกว่า 7.)
 cowork.tax.pp30.claimable,ภาษีซื้อหลังตัดรายการที่ตรวจพบ
 cowork.tax.pp30.previous_excess,ภาษีที่ชำระเกินในร่างเดือนก่อน
+cowork.tax.previousExcess,ช่อง 12 ของร่างเดือน {0}: {1}
 cowork.tax.review.excluded,ไม่ได้รวมในแบบ
 cowork.tax.review.notes,รายการอื่น
 cowork.tax.review.questions,ประเภทเงินได้ที่ต้องระบุ
@@ -3435,8 +3441,10 @@ excel,Excel
 failed,ล้มเหลว
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
+guide.business.vat,แบบ ภ.พ.30
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
+guide.open.vat,เลือกเดือนภาษี
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย
@@ -3447,6 +3455,11 @@ guide.step.recon.readback,การอ่านข้อมูลกลับ
 guide.step.recon.sales_vat,รายงานภาษีขาย
 guide.step.recon.source,แหล่งที่มา
 guide.step.recon.statement,รายการเดินบัญชีธนาคาร
+guide.step.vat.excess_brought_forward,ภาษีที่ชำระเกินยกมา
+guide.step.vat.exempt_sales,ยอดขายที่ได้รับยกเว้น
+guide.step.vat.period,เดือนภาษี
+guide.step.vat.readback,การอ่านข้อมูลกลับ
+guide.step.vat.zero_vat_as,รายการที่ภาษีเป็นศูนย์
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง
