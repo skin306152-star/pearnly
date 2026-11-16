@@ -74,8 +74,14 @@ export type GuideView = {
   run: string; business: string; status: GuideStatus | string; version: number; company?: string; ledger?: string; period?: string;
   /** N5：confirm = 「确定」；allow = 允许卡样式（拒绝 / 允许） */
   consent?: "confirm" | "allow";
-  stale?: boolean; reason?: string; outcome?: "changed" | "refused" | "stopped" | ""; refused?: Record<string, string>;
-  card?: GuideCard & { source?: "documents"; wait?: boolean };
+  stale?: boolean; reason?: string; outcome?: "changed" | "refused" | "stopped" | "";
+  /** 不收的原因：引擎回 {键: {code, text}}（text 已翻译，11-16 定）；documents 的 guide_edit 回 {格: 码} + refused_text {格: 已翻译} */
+  refused?: Record<string, string | { code: string; text?: string }>; refused_text?: Record<string, string>;
+  card?: GuideCard & { source?: "documents"; wait?: boolean;
+    /** documents：停下 / 等待的单（带原因的那句，已翻译），事实行不是题（A4 约定） */ facts?: Record<string, string[]> };
+  /** 代录开始前（A4，共享笔记「A4-代录开始前题卡-约定」）：卡头写进哪 · 登录 · 没电脑能写时那句 */
+  operator?: { targets: { account_set?: string; account_set_title?: string; account_set_path?: string; connection_title?: string; computer?: string; count?: number }[];
+    login?: { set: boolean; user: string }; computer?: string };
   review?: GuideReview | GuideDocReview; result?: GuideResult | GuideDocResult;
   /** 按单据办的业务（采购、销售）回 "documents"：卡按 stage 分段 */
   source?: "documents";
@@ -243,3 +249,15 @@ export function cellValue(face: DocFace, field: string): string {
   if (line) return String((face.lines[Number(line[1])] as Record<string, string> | undefined)?.[line[2]] ?? "");
   return String((face as unknown as Record<string, string>)[field] ?? "");
 }
+
+/** 某个键（不给就取第一个）不收的说明：只用服务端翻好的字（text / refused_text），没有就回 ""（不把码给人看）。 */
+export function refusedText(view: Pick<GuideView, "refused" | "refused_text">, key?: string): string {
+  const keys = key ? [key] : Object.keys(view.refused ?? {});
+  for (const k of keys) {
+    const found = view.refused?.[k];
+    const text = (typeof found === "object" && found ? found.text : "") || view.refused_text?.[k] || "";
+    if (text) return text;
+  }
+  return "";
+}
+export const isRefused = (view: Pick<GuideView, "refused">, key: string) => !!view.refused?.[key];

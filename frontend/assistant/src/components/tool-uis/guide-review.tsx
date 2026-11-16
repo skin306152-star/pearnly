@@ -20,7 +20,7 @@ import { fileUrl } from "@/lib/managed-agents/api";
 import {
   canEdit, cancelGuide, cellValue, confirmGuide, type DocMark, type DocRow, editGuide, followGuide, type GuideDocResult, type GuideDocReview,
   type GuideResult, type GuideReview as FormReviewData, type GuideUploads, type GuideView, HEAD_FIELDS, isDocResult, isDocReview,
-  LINE_FIELDS, reopenGuide, subsAnswered,
+  LINE_FIELDS, refusedText, reopenGuide, subsAnswered,
 } from "@/lib/guide-run";
 import { SubQuestionsField } from "./guide-inputs";
 
@@ -203,7 +203,7 @@ const DocBlock: FC<{ row: DocRow; open: boolean; disabled: boolean; onCommit: (d
 const DocReview: FC<Props & { review: GuideDocReview }> = (props) => {
   const { view, busy, act, review } = props;
   const edit = (docId: string, field: string, value: string) => act(() => editGuide(view.run, docId, field, value, view.version));
-  const refused = Object.values(view.refused ?? {})[0];
+  const refused = refusedText(view);
   return (
     <div data-slot="cc-guide-review" data-source="documents" className="flex min-w-0 flex-col">
       {review.rows.map((row) => (
@@ -309,8 +309,8 @@ export const GuideResultCard: FC<Props> = (props) => {
       {(form.files ?? []).length > 0 && sessionId && (
         <ItemGroup className="cc-guide-body" data-slot="cc-guide-files-out">
           {form.files!.map((file) => (
-            <Item key={file.file} size="sm">
-              <ItemContent><ItemTitle className="truncate">{file.name}</ItemTitle></ItemContent>
+            <Item key={file.file} size="sm" data-slot="cc-guide-result-file" data-file-name={file.name}>
+              <ItemContent><ItemTitle className="break-all">{file.name}</ItemTitle></ItemContent>
               <ItemActions>
                 <Button asChild variant="ghost" size="icon-xs" aria-label={`${t("download")} ${file.name}`}>
                   <a href={fileUrl(sessionId, file.file)} download={file.name}><DownloadIcon /></a>

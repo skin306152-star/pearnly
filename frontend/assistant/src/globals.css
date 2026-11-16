@@ -982,6 +982,7 @@
   --cc-op-seg-btn: 30px;          /* 现有值·CC 自定：左上「直写 / 实操」图标按钮的点按区（照 Claude 分段，图标 18 用 --cc-icon-md） */
   --cc-op-seg-stroke: 2;          /* 现有值·CC 自定：「直写 / 实操」两个图标的线宽（24 网格） */
   --cc-op-select-w: 150px;        /* 现有值·CC 自定：实操「开始前」框每项下拉的宽（设计稿 BeforeEntry） */
+  --cc-guide-label-min-w: 9rem;  /* 新增·CC 自定：引导卡金额行名称栏最窄（再窄就把金额格换到下一行，不截断名称） */
   --cc-guide-amount-w: 120px;     /* 新增·CC 自定：引导卡金额格的宽（金额多选、分摊；放得下 12 位整数带两位小数） */
   --cc-title-max-w: 28rem;        /* 现有值·CC 自定：电脑顶栏对话名最宽 */
   --cc-title-edit-w: 18rem;       /* 现有值·CC 自定：顶栏就地改名框宽 */
@@ -3108,11 +3109,10 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
   [data-slot="cc-guide-total"] [data-rest="over"] { color: var(--cc-danger); }
   /* 按表单的引导卡（tool-uis/guide-run-card.tsx）：卡里不是通栏选项的输入（搜索框、金额行、一格输入、文件、子题）同问卷输入框的边距与分隔线；
      「取消」靠左，其余按钮靠右；提示条与「显示更多」照提问卡的边距 */
-  /* 金额行：单号 / 日期这类说明不折行（手机上金额格占去一截，日期被拆成三行），放不下省略 */
-  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-content"] { min-width: 0; }
-  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) :is([data-slot="item-title"], [data-slot="item-description"]) {
-    max-width: 100%; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
-  }
+  /* 金额行（金额多选、分摊）：名称、单号、账户名不截断（主会话 11-16：手机上「KBANK (…」被截）——名称栏至少留一截宽，放不下时
+     金额格与「填入差额」整组换到下一行靠右；日期这类短说明不在字中间折 */
+  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-content"] { min-width: var(--cc-guide-label-min-w); overflow-wrap: anywhere; }
+  :is([data-slot="cc-guide-amounts"], [data-slot="cc-guide-split"]) [data-slot="item-actions"] { margin-inline-start: auto; }
   .cc-ui-questionnaire-card .cc-guide-body { padding: var(--cc-space-8) var(--cc-space-12); border-top: var(--cc-ring-w) solid var(--cc-line); }
   .cc-ui-questionnaire-card [data-slot="cc-guide-cancel"] { margin-inline-end: auto; }
   /* 复核 / 结果卡底部按钮同问卷的按钮区；单据复核里只读的格有标记时标红（能改的格由输入框的 aria-invalid 标）；明细列名与金额格同宽、靠右 */

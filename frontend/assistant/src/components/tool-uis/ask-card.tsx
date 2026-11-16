@@ -19,6 +19,7 @@ import { Marquee } from "@/components/ui/marquee";
 import { ask, co, guide, op, steps, t } from "@/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Questionnaire,
   QuestionnaireActions,
@@ -38,6 +39,7 @@ import { useToolLabels } from "@/lib/tool-labels";
 import {
   answered,
   answeredLine,
+  entryOk,
   askActions,
   type AskQuestion,
   confirmAnswers,
@@ -236,6 +238,13 @@ export const AskCard: FC<{
                 </QuestionnaireChoice>
               )}
             </QuestionnaireChoices>
+            {q.options.filter((o) => o.entry && state.labels.includes(o.label)).map((o) => (
+              <div key={o.label} className="cc-guide-body" data-slot="cc-askq-entry">
+                <Input inputMode="decimal" aria-label={shownLabel(o.label)} value={state.entries?.[o.label] ?? ""} disabled={busy}
+                  aria-invalid={(!!state.entries?.[o.label] && !entryOk(o.entry!, state.entries?.[o.label])) || undefined}
+                  onChange={(e) => set({ ...state, entries: { ...state.entries, [o.label]: e.target.value } })} />
+              </div>
+            ))}
             {!q.noOther && state.other !== null && (
               <OtherInput key={at} question={q} state={state} onChange={(other, code) => set({ ...state, other, otherCode: code, skipped: false })} />
             )}
@@ -250,7 +259,7 @@ export const AskCard: FC<{
             <Button type="button" variant="secondary" size="xs" className="col-start-2" data-slot="cc-askq-skip" disabled={busy} onClick={skip}>
               {ask.skip}
             </Button>
-            <Button type="submit" size="xs" className="col-start-3" data-slot="cc-askq-next" disabled={busy || !answered(state)}>
+            <Button type="submit" size="xs" className="col-start-3" data-slot="cc-askq-next" disabled={busy || !answered(state, q)}>
               {last ? ask.submit : ask.next}
               <Shortcut keys="Ctrl↵" />
             </Button>

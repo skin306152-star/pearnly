@@ -23,7 +23,8 @@ import { useSessionId } from "./operator-card";
 
 export { GUIDE_TOOL } from "./guide-shared";
 
-export type GuideOption = { code: string; label?: string; name?: string; note?: string; recommended?: boolean };
+export type GuideOption = { code: string; label?: string; name?: string; note?: string; recommended?: boolean;
+  /** 选它还要填一个数，交「码:数」（A3 四题 11-16） */ entry?: { input: "number"; min_exclusive?: string } };
 export type GuideQuestion = {
   key: string;
   kind: string;
@@ -140,6 +141,7 @@ export function askQuestionsOf(card: GuideCardData, company = ""): AskQuestion[]
       value: option.code,
       ...(option.note ? { description: option.note } : {}),
       ...(option.code === preselect ? { recommended: true } : {}),
+      ...(option.entry ? { entry: option.entry } : {}),
     }));
     // 推荐项排第一（AskCard 按第一个是不是推荐项定默认选中）
     options.sort((a, b) => Number(!!b.recommended) - Number(!!a.recommended));
@@ -162,7 +164,10 @@ export function guideAnswersOf(card: GuideCardData, result: AskResult): GuideAns
     if (!answer || answer.skipped || answer.not_asked) return;
     const picked = (question.options ?? []).find((option) => answer.labels.includes(optionText(option)));
     // 大列表题在「其他」里从服务端搜出来选的交编码；允许自己填的题交填的字
-    const value = picked?.code ?? (question.search && answer.code ? answer.code : question.free ? (answer.other ?? "").trim() : "");
+    // 带 entry 的选项交「码:数」（光交码服务端拒）
+    const entered = picked?.entry ? answer.entries?.[optionText(picked)] : undefined;
+    const value = picked ? (picked.entry ? (entered ? `${picked.code}:${entered}` : "") : picked.code)
+      : (question.search && answer.code ? answer.code : question.free ? (answer.other ?? "").trim() : "");
     if (value) out.push({ key: question.key, value });
   });
   return out;

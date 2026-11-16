@@ -24,7 +24,7 @@ from test_assistant_ui import ESBUILD, NODE, run_ts  # noqa: E402
 from test_cc_ask import STUBS as ASK_STUBS  # noqa: E402
 
 # 复核 / 题卡引了第 1 期引导卡（→ 提问卡 → 会话控制器、快捷键 → profile 用 Vite 的 import.meta.glob）：同第 1 期卡的测试桩掉
-STUBS = {**ASK_STUBS, "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+STUBS = ASK_STUBS
 
 
 def read(rel):
@@ -190,7 +190,9 @@ console.log(JSON.stringify({ ended: gone.replace(/<[^>]+>/g, " ").replace(/\s+/g
 DOCS = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { canEdit, cellValue, isDocResult, isDocReview, type DocRow } from "@/lib/guide-run";
+import { canEdit, cellValue, isDocResult, isDocReview, refusedText, type DocRow } from "@/lib/guide-run";
+import { askQuestionsOf, guideAnswersOf } from "@/components/tool-uis/guide-card";
+import { answered, resultFrom } from "@/components/tool-uis/ask-shared";
 import { fixtureTransport as t, seed } from "@/kit/guide-run-fixtures";
 
 // 可改的格：行上带 editable 照它（明细按列 lines.*.<列>）；没带按 review.EDITABLE（表头八格 + 明细四列）
@@ -256,6 +258,30 @@ let f = await t.view(fol);
 assert.equal((f.result as any).questions[0].key, "fee");
 f = await t.follow(fol, { fee: "5310" }, f.version);
 assert.equal((f.result as any).questions, undefined);
+
+// 拒绝原因只显示服务端翻好的字：引擎 {键: {code, text}}、documents 的 refused_text；只有码时不给人看
+assert.equal(refusedText({ refused: { invoices: { code: "over_collected", text: "已被收" } } }, "invoices"), "已被收");
+assert.equal(refusedText({ refused: { total: "computed" }, refused_text: { total: "自动计算" } }), "自动计算");
+assert.equal(refusedText({ refused: { total: "computed" } }), "");
+
+// 选项带 entry（A3）：交「码:数」，没填数不算答好
+const card = { questions: [{ key: "unit|D-1|0", kind: "unit", tier: "how", title: "u",
+  options: [{ code: "same", label: "S" }, { code: "factor", label: "F", entry: { input: "number", min_exclusive: "0" } }] }], decided: [] } as any;
+const [q] = askQuestionsOf(card);
+const state = { labels: ["F"], other: null, entries: { F: "0" } };
+assert.equal(answered(state, q), false);                                // 不大于 0
+assert.equal(answered({ ...state, entries: { F: "6" } }, q), true);
+const result = resultFrom([q], [{ ...state, entries: { F: "6" } }]);
+assert.deepEqual(guideAnswersOf(card, result), [{ key: "unit|D-1|0", value: "factor:6" }]);
+assert.deepEqual(guideAnswersOf(card, resultFrom([q], [{ labels: ["S"], other: null }])), [{ key: "unit|D-1|0", value: "same" }]);
+
+// 代录开始前（A4）：operator 块、事实行、做不做的「再录一次」
+const opRun = seed("operator");
+const ov = await t.view(opRun);
+assert.equal(ov.operator!.login!.set, false);
+assert.equal(ov.operator!.targets[0].computer, "ACC-PC01");
+assert.ok(Object.values(ov.card!.facts!).flat().length > 0);
+assert.ok((ov.card!.questions as any[]).some((x) => x.kind === "again" && x.tier === "whether" && !x.preselected));
 (globalThis as any).done();
 """
 
@@ -291,6 +317,10 @@ const follow = await html("follow");
 assert.match(follow, /data-slot="cc-guide-files-out"/);
 assert.match(follow, /download="recon-2026-10.xlsx"/);
 assert.match(follow, /data-slot="cc-guide-follow"/);
+const opHead = await html("operator");
+assert.match(opHead, /data-slot="cc-op-target"/);
+assert.match(opHead, /data-slot="cc-op-authorize"/);
+assert.match(opHead, /data-slot="cc-guide-fact"/);
 const formReview = await html("review");
 assert.match(formReview, /data-slot="cc-guide-back"[^>]*data-step="invoices"/);
 console.log(JSON.stringify({ allow: allow.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim(), review: review.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400) }));
@@ -301,10 +331,10 @@ console.log(JSON.stringify({ allow: allow.replace(/<[^>]+>/g, " ").replace(/\s+/
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class GuideRunBehaviourTests(unittest.TestCase):
     def test_values_waiting_menu_logic(self):
-        run_ts(LOGIC)
+        run_ts(LOGIC, stubs=STUBS)
 
     def test_the_fixture_engine_walks_the_whole_collection(self):
-        run_ts(FLOW)
+        run_ts(FLOW, stubs=STUBS)
 
     def test_the_card_draws_in_four_languages(self):
         words = {"zh": "已失效", "th": "หมดอายุ", "en": "Expired", "ja": "期限切れ"}
@@ -316,7 +346,7 @@ class GuideRunBehaviourTests(unittest.TestCase):
 
 
     def test_documents_review_edit_confirm_and_follow(self):
-        run_ts(DOCS)
+        run_ts(DOCS, stubs=STUBS)
 
     def test_review_allow_and_result_draw_in_four_languages(self):
         words = {"zh": ("允许", "拒绝", "税号"), "th": ("อนุญาต", "ปฏิเสธ", "เลขประจำตัวผู้เสียภาษี"), "en": ("Allow", "Deny", "Tax ID"),

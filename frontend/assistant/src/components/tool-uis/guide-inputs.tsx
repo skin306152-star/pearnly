@@ -148,12 +148,14 @@ const ChoiceRows: FC<{
   recommended?: string;
   disabled?: boolean;
   label: string;
+  /** 交文件题：每行带 data-file-name（流程脚本按文件名点） */
+  files?: boolean;
   onToggle: (code: string) => void;
-}> = ({ options, picked, multi, recommended, disabled, label, onToggle }) => (
+}> = ({ options, picked, multi, recommended, disabled, label, files, onToggle }) => (
   <QuestionnaireChoices aria-label={label}>
     {options.map((option) => (
       <QuestionnaireChoice key={option.code} value={option.code} checked={picked.includes(option.code)} disabled={disabled}
-        data-slot="cc-guide-option" data-code={option.code} onChange={() => onToggle(option.code)}>
+        data-slot="cc-guide-option" data-code={option.code} data-file-name={files ? option.name : undefined} onChange={() => onToggle(option.code)}>
         <span className="flex flex-wrap items-center gap-(--cc-space-8)">
           <span className="cc-askq-label">{option.name || option.code}</span>
           {!multi && recommended === option.code && <Badge variant="secondary">{guide.recommended}</Badge>}
@@ -308,9 +310,9 @@ export const FileField: FC<{
   };
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((v) => v !== id) : [...value, id]);
   return (
-    <div className="cc-guide-body flex min-w-0 flex-col gap-(--cc-space-8)" data-slot="cc-guide-files">
+    <div className="cc-guide-body flex min-w-0 flex-col gap-(--cc-space-8)" data-slot="cc-guide-file">
       {listed.length > 0 && (
-        <ChoiceRows options={listed.map((row) => ({ code: row.id, name: row.filename }))} picked={[...value]} multi label={label}
+        <ChoiceRows options={listed.map((row) => ({ code: row.id, name: row.filename }))} picked={[...value]} multi label={label} files
           disabled={disabled || busy} onToggle={toggle} />
       )}
       <Input ref={pick} type="file" multiple accept={ACCEPT} hidden onChange={(event) => { void add(event.currentTarget.files); event.currentTarget.value = ""; }} />
@@ -374,7 +376,7 @@ export const SubQuestionsField: FC<{
       const set = (next: unknown) => onChange({ ...value, [sub.key]: next });
       const current = value[sub.key];
       return (
-        <div key={sub.key} className="flex min-w-0 flex-col gap-(--cc-space-4)" data-slot="cc-guide-sub" data-key={sub.key}>
+        <div key={sub.key} className="flex min-w-0 flex-col gap-(--cc-space-4)" data-slot="cc-guide-subquestion" data-key={sub.key}>
           <div className="cc-askq-label">{sub.title}</div>
           {(sub.facts ?? []).map((fact) => <p key={fact} className="cc-askq-desc">{fact}</p>)}
           {sub.input === "choice" || sub.input === "multi" ? (

@@ -56,7 +56,9 @@ const q = (key: string, input: GuideQuestion["input"], title: string, extra: Par
 type Run = { name: string; business: string; status: string; version: number; answers: Record<string, unknown>; stage: number; flow: string;
   waitLeft: number; returned?: Record<string, { reason: string; text?: string }>; result?: GuideView["result"]; consent?: "confirm" | "allow";
   /** 按单据（采购）：交了的文件、识别还要等几次、题答了没有、票面 */
-  docs?: { files: string[]; readLeft: number; answered: boolean; faces: Record<string, DocFace>; versions: Record<string, number> } };
+  docs?: { files: string[]; readLeft: number; answered: boolean; faces: Record<string, DocFace>; versions: Record<string, number> };
+  /** 代录开始前（A4）：带 operator 块与事实行、多一道「再录一次」 */
+  operator?: boolean; loginSet?: boolean };
 
 const runs = new Map<string, Run>();
 
@@ -154,7 +156,9 @@ function marks(face: DocFace): Pick<DocRow, "marks" | "cells" | "blocking"> {
 
 function documentsView(run: Run, base: GuideView): GuideView {
   const d = run.docs!;
-  const out = { ...base, source: "documents" as const };
+  const out: GuideView = { ...base, source: "documents" as const,
+    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: "ACC-PC01", count: 2 }],
+      login: run.loginSet ? { set: true, user: "skin3" } : { set: false, user: "" } } } : {}) };
   if (run.status === "confirmed" || run.status === "done") {
     const done = run.status === "done";
     run.status = "done";
@@ -176,9 +180,20 @@ function documentsView(run: Run, base: GuideView): GuideView {
     // 第 1 期那张卡的形状（kind / options.label / recommended / preselected / count），不是表单题
     const card = { version: 2, source: "documents", ready: false,
       questions: [{ key: "pay|D-1", kind: "payment", tier: "how", title: T2.pay, count: 2, preselected: "credit",
-        options: [{ code: "credit", label: T2.credit, recommended: true, note: T2.byType }, { code: "cash", label: T2.cash }] }],
+        options: [{ code: "credit", label: T2.credit, recommended: true, note: T2.byType }, { code: "cash", label: T2.cash }] },
+        // A3 单位题：选「填换算」还要填一个数，交「factor:6」
+        { key: "unit|D-1|0", kind: "unit", tier: "how", title: L("单位换算", "การแปลงหน่วย", "Unit conversion", "単位換算"), count: 1,
+          title_params: { label: "ข้าวสาร 5 กก." },
+          options: [{ code: "same", label: L("与库存单位相同", "เหมือนหน่วยสต็อก", "Same as stock unit", "在庫単位と同じ") },
+            { code: "factor", label: L("填换算", "ระบุอัตราแปลง", "Enter factor", "換算を入力"), entry: { input: "number", min_exclusive: "0" } }] }],
       decided: [{ key: "loc", kind: "location", title: T2.warehouse, value: "01", value_label: "01 คลังหลัก" }] };
-    return { ...out, stage: "asking", uploads, card: card as unknown as GuideView["card"] };
+    if (run.operator) {
+      // 原开始卡上的「已写过」变成做不做的一题（不预选）；停下 / 等待的单是事实行
+      card.questions.push({ key: "again|D-9", kind: "again", tier: "whether", title: L("IV2026-0099 已写进 Express", "IV2026-0099 บันทึกใน Express แล้ว", "IV2026-0099 is already in Express", "IV2026-0099 は Express に記帳済み"), count: 1,
+        options: [{ code: "skip", label: L("跳过", "ข้าม", "Skip", "スキップ") }, { code: "again", label: L("再录一次", "บันทึกอีกครั้ง", "Record again", "もう一度記帳") }] } as never);
+      Object.assign(card, { facts: { waiting: [L("IV2026-0101 · 等电脑读主档", "IV2026-0101 · รอคอมพิวเตอร์อ่านข้อมูลหลัก", "IV2026-0101 · waiting for the computer to read the master", "IV2026-0101 · パソコンのマスタ読込待ち")] } });
+    }
+    return { ...out, stage: "asking", uploads: run.operator ? undefined : uploads, card: card as unknown as GuideView["card"] };
   }
   const rows: DocRow[] = ["D-1", "D-2"].map((id) => ({ doc_id: id, version: d.versions[id] ?? 1, face: d.faces[id], editable: EDITABLE, ...marks(d.faces[id]) }));
   return { ...out, stage: "review", review: { rows, held: [], seen: `seen-${run.version}`, ready: rows.some((r) => !r.blocking.length) } };
@@ -249,6 +264,10 @@ export function seed(scenario: string): string {
       answered: step === "-review" || step === "-done", faces: { ...FACES }, versions: {} } });
     if (step === "-done") run.status = "done";
   }
+  if (scenario === "operator" || scenario === "operator-login") {
+    Object.assign(run, { flow: "purchase", business: "purchase", operator: true, loginSet: scenario === "operator-login",
+      docs: { files: ["I:1", "I:2"], readLeft: 0, answered: false, faces: { ...FACES }, versions: {} } });
+  }
   if (scenario === "allow") Object.assign(run, { flow: "allow", business: "scheduled_task_delete", status: "reviewing", consent: "allow" });
   if (scenario === "follow") Object.assign(run, { flow: "follow", business: "recon", status: "done" });
   if (scenario === "expired" || scenario === "cancelled") Object.assign(run, { status: scenario });
@@ -317,6 +336,12 @@ export const fixtureTransport: GuideTransport = {
     return delay(view(run));
   },
   search: (name, key, txt, start): Promise<GuidePage> => {
+    // 已定项改值也走这里（11-16 引擎定）：公司 / 账套各给一小页
+    const decided: Record<string, { code: string; name: string }[]> = {
+      company: [{ code: "C001", name: "C001 บจก. ข้าวหอมมะลิ" }, { code: "C002", name: "C002 ร้านข้าวทอง" }],
+      book: [{ code: "69EXP", name: "69EXP · 2569" }, { code: "70EXP", name: "70EXP · 2570" }],
+    };
+    if (decided[key]) return delay({ options: decided[key], more: false });
     const source = key === "items" ? ITEMS : CUSTOMERS;
     const needle = txt.toLocaleLowerCase();
     const hit = source.filter((row) => !needle || row.name.toLocaleLowerCase().includes(needle));

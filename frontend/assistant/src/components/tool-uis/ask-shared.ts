@@ -18,7 +18,9 @@ import { type ChoiceOption, optionLabel } from "./operator-words";
 // ── 形状（AskUserQuestion）──────────────────────────────────────────────────
 export const ASK_TOOL = "ask_user";
 /** 一个选项。value：编码（页面 / 服务端出题时给，交回时按它换回）；recommended：推荐项（显示「推荐」徽章、默认选中，引导卡由服务端标）。 */
-export type AskOption = { label: string; description?: string; value?: string; recommended?: boolean };
+export type AskOption = { label: string; description?: string; value?: string; recommended?: boolean;
+  /** 选它还要填一个数（A3 四题 11-16：单位题「填换算」、成本题「填单位成本」）：交回「码:数」，数要大于 min_exclusive */
+  entry?: { input: "number"; min_exclusive?: string } };
 /** 「其他」接服务端搜索：搜哪类（accounts / products …）、按哪家公司哪张单定账套。 */
 export type AskSearch = { company: string; doc_id?: string; kind: string };
 export type AskQuestion = {
@@ -39,10 +41,12 @@ export type AskQuestion = {
 export type AskInput = { questions: AskQuestion[] };
 
 /** 一题此刻的答：选了的 label（单选至多一个）；other：选了「其他」时打的字或选的值（null = 没选「其他」）；skipped：点了「跳过」。 */
-export type AskState = { labels: string[]; other: string | null; otherCode?: string; skipped?: boolean };
+export type AskState = { labels: string[]; other: string | null; otherCode?: string; skipped?: boolean;
+  /** 带 entry 的选项填的数（按选项 label 记） */ entries?: Record<string, string> };
 /** 交回的一题。other：选「其他」时打的字，或选的条目「编码 名称」（给模型看的，W2 约定）；code：选的条目的编码（页面自己出题时
  *  存答案用，不交给模型）；skipped：跳过（含没答的）。 */
-export type AskAnswer = { header: string; question: string; labels: string[]; other?: string; code?: string; skipped?: true; not_asked?: true };
+export type AskAnswer = { header: string; question: string; labels: string[]; other?: string; code?: string; skipped?: true; not_asked?: true;
+  entries?: Record<string, string> };
 export type AskResult = { answers: AskAnswer[] };
 
 /** 推荐项：服务端 / 页面标了 recommended，或模型照旧在名字后面写了「(推荐)」（四语，大小写不论；日文「おすすめ」以前认不出，审计 D-4）。
@@ -97,7 +101,7 @@ export function initialStates(questions: readonly AskQuestion[]): AskState[] {
 
 /** 点了一个选项：单选换成它（并取消「其他」），多选加上或去掉。 */
 export function toggle(question: AskQuestion, state: AskState, label: string): AskState {
-  if (!question.multiSelect) return { labels: [label], other: null };
+  if (!question.multiSelect) return { labels: [label], other: null, ...(state.entries ? { entries: state.entries } : {}) };
   const has = state.labels.includes(label);
   return { ...state, skipped: false, labels: has ? state.labels.filter((l) => l !== label) : [...state.labels, label] };
 }
@@ -108,8 +112,17 @@ export function toggleOther(question: AskQuestion, state: AskState): AskState {
   return { ...state, skipped: false, other: state.other === null ? "" : null, otherCode: undefined };
 }
 
-/** 这一题答了没有（选了选项，或「其他」填了字 / 选了值）。 */
-export const answered = (state: AskState | undefined) => !!state && !state.skipped && (state.labels.length > 0 || !!(state.other ?? "").trim());
+/** 带 entry 的选项填的数对不对：是数、且大于 min_exclusive（没给就只要是数）。 */
+export function entryOk(entry: NonNullable<AskOption["entry"]>, text: string | undefined): boolean {
+  const clean = String(text ?? "").trim();
+  if (!/^\d+(\.\d+)?$/.test(clean)) return false;
+  return entry.min_exclusive === undefined || Number(clean) > Number(entry.min_exclusive);
+}
+
+/** 这一题答了没有（选了选项，或「其他」填了字 / 选了值）；给了题目时，选中的带 entry 的选项还要填好数。 */
+export const answered = (state: AskState | undefined, question?: AskQuestion) =>
+  !!state && !state.skipped && (state.labels.length > 0 || !!(state.other ?? "").trim())
+  && !(question?.options ?? []).some((o) => o.entry && state.labels.includes(o.label) && !entryOk(o.entry, state.entries?.[o.label]));
 
 /** 提交：按题序，没答的算跳过。 */
 export function resultFrom(questions: readonly AskQuestion[], states: readonly AskState[]): AskResult {
@@ -119,10 +132,12 @@ export function resultFrom(questions: readonly AskQuestion[], states: readonly A
       const s = states[i];
       const base = { header: q.header ?? "", question: q.question };
       if (!shown.has(i)) return { ...base, labels: [], not_asked: true as const };
-      if (!answered(s)) return { ...base, labels: [], skipped: true as const };
+      if (!answered(s, q)) return { ...base, labels: [], skipped: true as const };
       const other = (s!.other ?? "").trim();
       const code = (s!.otherCode ?? "").trim();
-      return { ...base, labels: [...s!.labels], ...(other ? { other } : {}), ...(other && code ? { code } : {}) };
+      const entries = Object.fromEntries(q.options.filter((o) => o.entry && s!.labels.includes(o.label)).map((o) => [o.label, (s!.entries?.[o.label] ?? "").trim()]));
+      return { ...base, labels: [...s!.labels], ...(other ? { other } : {}), ...(other && code ? { code } : {}),
+        ...(Object.keys(entries).length ? { entries } : {}) };
     }),
   };
 }

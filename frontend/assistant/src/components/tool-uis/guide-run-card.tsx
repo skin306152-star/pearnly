@@ -8,13 +8,13 @@
 // 卡上交回的值都是服务端给的选项码、对话文件 id 或用户在卡上填的数，按键交回（answerGuide），页面不拼、不改、不经模型。
 // 标题、选项名、事实行由服务端按本页语言翻好。只用标准组件（问卷部件、按钮、徽章、折叠）与 globals.css 的令牌。
 
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon } from "lucide-react";
 import { type FC, type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Shortcut } from "@/components/shortcut";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Item, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import {
   Questionnaire, QuestionnaireActions, QuestionnaireDescription, QuestionnaireItem, QuestionnaireTitle,
 } from "@/components/ui/questionnaire";
@@ -25,7 +25,7 @@ import { reportCaught } from "@/lib/caught";
 import { shownError } from "@/lib/frappe";
 import type { AmountRow } from "@/lib/guide-inputs";
 import {
-  answerGuide, answeredOk, cancelGuide, firstPosition, type GuideDecided, type GuideQuestion, type GuideView, initialValue, isClosed, isEmpty,
+  answerGuide, answeredOk, cancelGuide, refusedText, firstPosition, type GuideDecided, type GuideOption, type GuideQuestion, type GuideView, initialValue, isClosed, isEmpty,
   isWaiting, searchGuide, splitTotal, toSend, viewGuide, WAIT_TRIES, waitDelay,
 } from "@/lib/guide-run";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
@@ -33,6 +33,7 @@ import {
   AmountsField, ChoiceField, FileField, SearchAmountsField, SplitField, SubQuestionsField, ValueField,
 } from "./guide-inputs";
 import { GuideCardBody, guideCardOf } from "./guide-card";
+import { GuideOperatorHead } from "./guide-operator";
 import { GuideResultCard, GuideReview, GuideUploadsLine } from "./guide-review";
 
 type Values = Record<string, unknown>;
@@ -76,9 +77,38 @@ const QuestionBody: FC<{
   }
 };
 
-/** 「已定 n 项」：后台能定的、不用问的（照服务端给的显示名），收在折叠里。 */
-const Decided: FC<{ items: readonly GuideDecided[]; open?: boolean }> = ({ items, open }) => {
+/** 已定项改值（11-16 引擎定：选项走 guide_search 取第一页，decided 不带选项）：选项类用单选，其余按输入方式一格。 */
+const DecidedEdit: FC<{ run: string; item: GuideDecided; value: unknown; disabled: boolean; onChange: (value: unknown) => void }> = ({
+  run, item, value, disabled, onChange,
+}) => {
+  const [page, setPage] = useState<{ options: GuideOption[]; more: boolean } | null>(null);
+  const choice = !item.input || item.input === "choice";
+  useEffect(() => {
+    if (!choice) return;
+    let alive = true;
+    void searchGuide(run, item.key, "", 0).then((found) => alive && setPage(found), (err) => reportCaught(err, "guide-decided"));
+    return () => { alive = false; };
+  }, [run, item.key, choice]);
+  if (!choice) {
+    return (
+      <ValueField kind={item.input as "month" | "date" | "time" | "number" | "text"} label={item.title} disabled={disabled}
+        value={typeof value === "string" ? value : typeof item.value === "string" ? item.value : ""} onChange={onChange} />
+    );
+  }
+  if (!page) return <Spinner />;
+  return (
+    <ChoiceField options={page.options} more={page.more} search={(txt, start) => searchGuide(run, item.key, txt, start)} multi={false}
+      label={item.title} disabled={disabled} value={(value as string | undefined) ?? (typeof item.value === "string" ? item.value : undefined)}
+      onChange={onChange} />
+  );
+};
+
+/** 「已定 n 项」：后台能定的、不用问的（照服务端给的显示名），收在折叠里；每项可点「编辑」改，改了随这一轮一起交。 */
+const Decided: FC<{
+  run: string; items: readonly GuideDecided[]; open?: boolean; values: Values; disabled: boolean; onChange: (key: string, value: unknown) => void;
+}> = ({ run, items, open, values, disabled, onChange }) => {
   const [shown, setShown] = useState(!!open);
+  const [editing, setEditing] = useState<string | null>(null);
   if (!items.length) return null;
   return (
     <Collapsible open={shown} onOpenChange={setShown} data-slot="cc-guide-decided">
@@ -90,12 +120,23 @@ const Decided: FC<{ items: readonly GuideDecided[]; open?: boolean }> = ({ items
       </CollapsibleTrigger>
       <CollapsibleContent>
         {items.map((item) => (
-          <Item key={item.key} size="sm" data-key={item.key}>
-            <ItemContent>
-              <ItemTitle>{item.title}</ItemTitle>
-              <ItemDescription>{item.value_label ?? (typeof item.value === "string" ? item.value : "")}</ItemDescription>
-            </ItemContent>
-          </Item>
+          <div key={item.key} data-key={item.key} className="flex min-w-0 flex-col">
+            <Item size="sm">
+              <ItemContent>
+                <ItemTitle>{item.title}</ItemTitle>
+                <ItemDescription>{item.value_label ?? (typeof item.value === "string" ? item.value : "")}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Button type="button" variant="ghost" size="icon-xs" aria-label={t("edit")} aria-pressed={editing === item.key} disabled={disabled}
+                  data-slot="cc-guide-decided-edit" onClick={() => setEditing(editing === item.key ? null : item.key)}>
+                  <PencilIcon />
+                </Button>
+              </ItemActions>
+            </Item>
+            {editing === item.key && (
+              <DecidedEdit run={run} item={item} value={values[item.key]} disabled={disabled} onChange={(value) => onChange(item.key, value)} />
+            )}
+          </div>
         ))}
       </CollapsibleContent>
     </Collapsible>
@@ -117,9 +158,15 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
   const skippable = (question: GuideQuestion) => !question.required && isEmpty(values[question.key]);
   const last = place >= questions.length - 1;
   const ready = questions.every((question) => ok(question) || skippable(question));
+  const [decidedValues, setDecided] = useState<Values>({});
   const submit = () => {
     const given: Values = {};
     for (const question of questions) if (ok(question)) given[question.key] = toSend(question, values[question.key]);
+    // 已定项只交改过的（同第 1 期卡）
+    for (const item of card.decided) {
+      const changed = decidedValues[item.key];
+      if (!isEmpty(changed) && changed !== item.value) given[item.key] = changed;
+    }
     act(() => answerGuide(view.run, given, view.version));
   };
   const primary = () => (last ? ready && submit() : setPos(place + 1));
@@ -133,11 +180,14 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
       primary();
     }
   };
-  const refused = view.refused?.[q?.key ?? ""];
+  const refused = refusedText(view, q?.key ?? "");
   const returned = card.returned?.[q?.key ?? ""];
   if (!q) {
     // 没有要问的（全都定了、等服务端生成草稿）：只留已定项
-    return <Decided items={card.decided} open={decidedOpen} />;
+    return (
+      <Decided run={view.run} items={card.decided} open={decidedOpen} values={decidedValues} disabled={busy}
+        onChange={(key, value) => setDecided((s) => ({ ...s, [key]: value }))} />
+    );
   }
   const multi = q.input === "multi" || q.input === "file";
   return (
@@ -171,7 +221,8 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
           <QuestionBody run={view.run} sessionId={sessionId} question={q} all={questions} values={all} disabled={busy}
             onChange={(value) => setValues((s) => ({ ...s, [q.key]: value }))} />
         </QuestionnaireItem>
-        <Decided items={card.decided} open={decidedOpen} />
+        <Decided run={view.run} items={card.decided} open={decidedOpen} values={decidedValues} disabled={busy}
+          onChange={(key, value) => setDecided((s) => ({ ...s, [key]: value }))} />
         {failure && (
           <Alert variant="destructive" data-slot="cc-ask-failure">
             <AlertDescription className="line-clamp-(--cc-alert-lines)">{failure}</AlertDescription>
@@ -219,7 +270,11 @@ export const GuideClosed: FC<{ view: GuideView }> = ({ view }) => (
 
 /** 按单据的题卡（documents 源的题卡段）：就是第 1 期那张卡（同一组件、同一种答案 [{key, value}]），交给这次引导。 */
 const DocumentsCard: FC<{ view: GuideView; busy: boolean; failure: string; act: Act }> = ({ view, busy, failure, act }) => (
-  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking">
+  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking"
+    className="flex min-w-0 flex-col gap-(--cc-space-8)">
+    {view.operator || view.card?.facts ? (
+      <div className="cc-steps-card cc-ui-questionnaire-card"><GuideOperatorHead view={view} busy={busy} act={act} /></div>
+    ) : null}
     <GuideCardBody card={guideCardOf({ card: view.card })} company={view.company} phase="ask" busy={busy}
       onSubmit={(answers) => act(() => answerGuide(view.run, { answers }, view.version))} />
     {failure && (
@@ -238,13 +293,23 @@ export const GuideRunView: FC<{
   const props = { view, sessionId, busy, failure, act };
   if (view.result) return <Frame view={view}><GuideResultCard {...props} /></Frame>;
   if (view.source === "documents") {
+    const head = <GuideOperatorHead view={view} busy={busy} act={act} />;
     if (view.stage === "asking" && view.card) return <DocumentsCard view={view} busy={busy} failure={failure} act={act} />;
-    if (view.stage === "reading" && view.uploads) return <Frame view={view}><GuideUploadsLine uploads={view.uploads} /></Frame>;
+    if (view.stage === "reading" && view.uploads) return <Frame view={view}>{head}<GuideUploadsLine uploads={view.uploads} /></Frame>;
     if (view.stage === "review" && view.review) {
       return (
         <Frame view={view}>
+          {head}
           {view.uploads ? <GuideUploadsLine uploads={view.uploads} /> : null}
           <GuideReview {...props} />
+        </Frame>
+      );
+    }
+    if (view.stage === "files" && view.card) {
+      return (
+        <Frame view={view}>
+          {head}
+          <Asking key={`${view.run}:${view.version}`} view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} decidedOpen={decidedOpen} />
         </Frame>
       );
     }
