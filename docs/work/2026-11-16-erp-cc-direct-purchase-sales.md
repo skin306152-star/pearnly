@@ -17,6 +17,8 @@
 | 6d664a92b | 付款「点了才算」（直写、代录同改，主会话 11-16 批）；**顺带修的缺陷**见下 |
 | dac2df497 | 共用层 documents 出题源 `assistant/guide/documents.py`；`run.py` 按 source 分派、新 `edit`、`confirm(seen)`；`write_plan.from_page`（凭证存计划 `consent` 列）；第 1 期 `guide_tool` 改调同一份；声明加 `intake / uploads / edit` |
 | 1aa4c1c0a | Cowork 产品函数 `assistant/guide_documents.py`，Cowork 声明点名；ERP 产品函数改为一次取回收单记录 |
+| 后续 | 公开入口 `run.start(..., doc_ids, at)`（别的引导交已有单据从判定 / 复核接着走）；合并丢失的 `not_flows.toml` 表头补回 |
+| 931d4c2bd | A4 服务端：代录开始前那张卡并进引导（`express_operator/guide_start.py`）——整月待录清单开一次引导，写过的问再录不录、结果不明的问入没入账、没单时问月份（改了月份按新月份重开），卡头带写入目标与没电脑那句，确定带 again 交 `hand_in`；词条沿用现成的，新增一个「月份」 |
 
 ## 缺陷（单列，6d664a92b 修）
 
@@ -36,7 +38,9 @@ Cowork 第 1 期本来就是这口径（共用写账规则 `_payment_question`�
 - 受影响老测试照过：`test_cc_guide_tool`（第 1 期 22 条不改断言）、`test_cc_guide_run`、`test_erp_collection_guide`、`test_write_plan`、
   `test_cc_conversation_ledger_erp`（+3）、`test_erp_write_precheck`（+1）、`test_write_precheck_guide`、`test_express_rules_guided` 等。
 - 检查：architecture、check-impact（新模块登记 not_entries）、check-copy、unbounded / loop queries、check-cc-guides 通过。
-- 未跑：全闸门 `gate.sh`、候选离线（`express/test_operator_intake.py` 在 Frappe 运行时跑，本机不能直接跑）、实验栈流程、真模型、真机。
+- 本地全闸门（f0337fa9e 那版）：266 组过、1 组失败（`not_flows.toml` 合并丢表头，已修）；生产镜像候选离线（镜像 02eebaa4，f0337fa9e）：111 组、LANE EXIT 0。
+- A4：`test_cc_guide_documents.OperatorStart` 4 条（同一张卡、再录 / 跳过、结果不明、空月份改月份重开）。
+- 未跑：实验栈流程、真模型、真机。
 
 ## 待做
 
@@ -47,6 +51,9 @@ Cowork 第 1 期本来就是这口径（共用写账规则 `_payment_question`�
 3. 打字路径 `pearnly_guide` 输入加 `files`（从交文件开运行）。
 4. 真模型一段（费用先报主会话）、真机（主会话排）。
 5. 最后单独一个提交：ERP 声明 `modes` 加 `chat`（放出直写菜单），先发主会话给用户看。
+6. A4 剩下：页面入口（`assistant/api.py` 加 `guide_operator_start(task)` 调 `guide_start.start`，等 cc-guided-wire 进 main）；两产品代录提示词与
+   `pearnly_guide` / `pearnly_precheck_answer` 的说法（开始前不再用 ask_user，打字答案落到卡上那一题）——**与 guided-frontend 换掉
+   operator-start 卡同一批上**，提前改会让现在的开始卡流程断；前端约定见共享笔记「A4-代录开始前题卡-约定-11-16.md」。
 
 ## 接缝
 
