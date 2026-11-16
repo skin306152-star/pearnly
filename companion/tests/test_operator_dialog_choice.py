@@ -1,0 +1,61 @@
+# -*- coding: utf-8 -*-
+"""中途配方外的业务选择框带回对话（CC 桌面版 1.12.23 ③）：
+
+1. 框不点、单据窗口不关、Express 留着；结果带框的样子 ``dialog``（标题、正文、按钮、单种、在哪一步、指纹）；
+2. 录入中出的框回 ``dialog_choice``；保存途中出的、账套已留半截单的照旧 ``partial_saved``（1.12.22 补报不变），另带 ``dialog``；
+3. 载荷带了人答过的答案（``dialog_answers`` 指纹 → 按钮）且按钮还在：照点、接着存完，汇报里记一条 ``dialog_answered``；
+   指纹对不上 / 按钮不在：不点，照旧停下。"""
+from __future__ import annotations
+
+from dataclasses import replace
+
+import pytest
+from _fake_express import FakeBook, FakeExpress, samples
+from test_operator_engine import RECIPE, run_docs
+
+from companion.express_operator.engine import DialogHeld, Engine
+
+
+def test_a_choice_mid_save_carries_the_box_and_keeps_the_half_document_reason():
+    recs, sim, site, _ = run_docs([samples()[0]], inject={"choice_mid_save": True})
+    rec = recs[0]
+    assert rec["reason"] == "partial_saved" and rec["held"]
+    box = rec["dialog"]
+    assert box["buttons"] == ["แบบ ก", "แบบ ข"] and box["stage"] == "saving" and box["doc_type"] == "RR"
+    assert "เลือกวิธีบันทึกรายการนี้" in box["text"] and len(box["digest"]) == 16
+    assert [d["name"] for d in sim.dialogs] == ["choice"]  # 一下都没点
+
+
+def test_a_remembered_answer_is_pressed_and_the_document_saves():
+    first, *_ = run_docs([samples()[0]], inject={"choice_mid_save": True})
+    digest = first[0]["dialog"]["digest"]
+    draft = replace(samples()[0], dialog_answers={digest: "แบบ ข"})
+    recs, sim, site, _ = run_docs([draft], inject={"choice_mid_save": True})
+    rec = recs[0]
+    assert rec["outcome"] == "saved" and rec["readback"]["ok"], rec
+    assert {"reason": "dialog_answered", "digest": digest, "button": "แบบ ข"} in rec["reports"]
+    assert sim.dialogs == [] and site.calls == []
+
+
+@pytest.mark.parametrize("answers", [{"0123456789abcdef": "แบบ ข"}, None])
+def test_a_wrong_fingerprint_or_a_missing_button_is_not_pressed(answers):
+    first, *_ = run_docs([samples()[0]], inject={"choice_mid_save": True})
+    digest = first[0]["dialog"]["digest"]
+    draft = replace(samples()[0], dialog_answers=answers or {digest: "แบบ ค"})
+    recs, sim, *_ = run_docs([draft], inject={"choice_mid_save": True})
+    assert recs[0]["outcome"] == "need_human" and recs[0]["dialog"]["digest"] == digest
+    assert [d["name"] for d in sim.dialogs] == ["choice"]
+
+
+def test_a_choice_while_entering_stops_as_dialog_choice_on_the_editing_stage():
+    sim = FakeExpress(RECIPE.data)
+    engine = Engine(sim, RECIPE, FakeBook(sim), sleep=lambda _s: None)
+    engine.begin(samples()[0])
+    sim.dialog("x", "ExpressI", "เลือกคลัง", buttons=("คลัง 1", "คลัง 2"))
+    engine.act([{"do": "wait", "ms": 0}])
+    with pytest.raises(DialogHeld) as held:
+        engine._recover("head", "box", "header filled", {})
+    box = held.value.dialog
+    assert held.value.reason == "dialog_choice" and box["stage"] == "editing" and box["buttons"] == ["คลัง 1", "คลัง 2"]
+    assert sim.dialogs  # 没点
+

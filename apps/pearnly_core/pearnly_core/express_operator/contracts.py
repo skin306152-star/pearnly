@@ -39,6 +39,7 @@ REASONS = {
     "crash_repeated": HUMAN,
     "cc_restarted": HUMAN,  # 录到一半 CC 重启：上次留下的 Express 已按放弃收拾，这张没录成
     "partial_saved": HUMAN,  # 保存途中停住：账套里留了这张的半截单（结果 meta.operator.partial 带单号与缺什么），不重录、不作废
+    "dialog_choice": HUMAN,  # 中途配方外的业务选择框（CC 桌面版 1.12.23）：Express 留着，结果 meta.operator.dialog 带原文、按钮与指纹，对话里出卡
     "placeholder_left": HUMAN,
     "network_down": HUMAN,
     "budget": HUMAN,

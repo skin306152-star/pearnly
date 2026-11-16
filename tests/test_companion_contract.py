@@ -934,6 +934,43 @@ class Release1122Edges(unittest.TestCase):
             self.assertIn('"PRENAM"', pick)
 
 
+class Release1123Edges(unittest.TestCase):
+    """CC 桌面版 1.12.23 代录中途的框（③）：回执带框的原文、按钮与指纹，服务端放行；人答过的答案经载荷下发、按指纹照点。
+    旧版（1.12.22 及以前）遇到同样的框照旧回 unknown_screen、不带 dialog；载荷里多出的 dialog_answers 被忽略。"""
+
+    def test_the_dialog_choice_reason_and_its_receipt_shape_match(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(COMPANION.parent))
+        from companion.express_operator import contract as client
+        from companion.express_operator.engine import dialog_info
+        from pearnly_core.express_operator import contracts as server
+        from pearnly_core.express_rules.push import common
+
+        self.assertEqual(client.REASONS.get("dialog_choice"), client.HUMAN)
+        self.assertEqual(server.REASONS.get("dialog_choice"), server.HUMAN)
+        box = {"title": "ExpressI", "texts": ["เลือกวิธีคำนวณ", "แบบ A", "แบบ B", "ยกเลิก"], "buttons": ["แบบ &A", "แบบ B", "ยกเลิก"]}
+        dialog = dialog_info(box, "rr", "saving")
+        self.assertEqual(dialog["buttons"], ["แบบ A", "แบบ B", "ยกเลิก"])
+        self.assertEqual(dialog["doc_type"], "RR")
+        self.assertEqual(len(dialog["digest"]), 16)
+        self.assertEqual(dialog_info(box, "RR", "editing")["digest"], dialog["digest"])  # 指纹不含在哪一步
+        kept = common.clean_operator_meta({"dialog": dialog, "reason": "dialog_choice"})["dialog"]
+        self.assertEqual(kept, dialog)  # 服务端原样放行 CC 给的形状（长度上限两边相同）
+        from companion.express_operator import engine
+
+        self.assertEqual((engine.DIALOG_TEXT_MAX, engine.DIALOG_BUTTONS_MAX, engine.DIALOG_BUTTON_MAX),
+                         (common.OPERATOR_DIALOG_TEXT, common.OPERATOR_DIALOG_BUTTONS, common.OPERATOR_DIALOG_BUTTON))
+
+    def test_remembered_answers_ride_in_operator_dialog_answers(self):
+        sys.path.insert(0, str(COMPANION.parent))
+        from companion.express_operator.draft import dialog_answers
+
+        good = "0123456789abcdef"
+        self.assertEqual(dialog_answers({good: "แบบ B", "short": "x", good.upper()[:15] + "g": "y"}), {good: "แบบ B"})
+        self.assertEqual(dialog_answers(["not", "a", "dict"]), {})
+        self.assertIn('options.get("dialog_answers")', (COMPANION / "express_operator" / "draft.py").read_text(encoding="utf-8"))
+
+
 class PosPayload(unittest.TestCase):
     """载荷 3（POS 导出的日汇总票）：版本、`pos` 块的键、拒收码与摘要字样两边一致。"""
 

@@ -60,6 +60,8 @@ class DocState:
     held: bool = False
     # 账套里留下的半截单 ``{"docnum", "missing"}``（回执 meta.partial）。旧批次文件没有，按空读
     partial: Dict = field(default_factory=dict)
+    # 原因 dialog_choice：配方外业务选择框的样子 ``engine.dialog_info``（回执 meta.dialog，对话里出卡）。旧批次文件没有，按空读
+    dialog: Dict = field(default_factory=dict)
     # 留着等人的这张按「未完成」回过的回执号与成员档案（``Host.note_late``）：人答完框、单在账套里存完后，用同一个回执号补报
     # 「已写入 + 原单号」（服务端只收这一种迟到终态）。补报成功或放手时没存完就清空。旧批次文件没有，按空读
     late_ack: str = ""
@@ -652,6 +654,7 @@ class Runner:
             if rec.get("recheck"):  # 保存键按下之后出的事：再交来时先读账套判断存没存，不从头重录（11-12）
                 d.recheck = True
             d.partial = dict(rec.get("partial") or {})
+            d.dialog = dict(rec.get("dialog") or {})
             if rec.get("held"):  # Express 原样留着等人答框：收尾不退出，这本账套的别的单等着
                 d.held, self.state.held = True, d.doc_id
             readback = rec.get("readback") or {}
