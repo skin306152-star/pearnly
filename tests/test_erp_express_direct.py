@@ -2684,10 +2684,45 @@ class PosDayActor(PushModule):
                 mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"] if user != "amy@x" else []):
             # 在线的 PC-A 上的 amy 没有这家公司 → 离线的 PC-B 上按名字排的 bob；PC-C 够不到账套不算
             self.assertEqual(self.push.actor_of("ERP POS Day Summary", row, "BK"), "bob@x")
-            self.assertEqual(self.push.actor_of("ERP Stock Entry", row, "BK"), "Administrator")  # 人开的单归开单人
+            # 用户 11-16「按建议」：出入库等人开的单与收银日汇总同一口径（开单人名下没有电脑就由办公室电脑兜底）
+            self.assertEqual(self.push.actor_of("ERP Stock Entry", row, "BK"), "bob@x")
         with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "ok", "devices": ["PC-A"]}):
             self.assertEqual(self.push.actor_of("ERP POS Day Summary", types.SimpleNamespace(name="PDS-2", owner="amy@x"),
                                                 "BK"), "amy@x")
+
+class PhoneOnlySeller(PushModule):
+    """用户 11-16「按建议」：采购 / 销售 / 出入库 / 盘点的写账件归谁与收款同一口径（`office_actor`）。办公室一台电脑只有 A 登录过 CC，
+    销售员 B 只用手机：B 的单归 A（A 的电脑领得走），ERP 单据上仍记 B；B 自己有电脑（哪怕关着）照旧归 B；够不到这本账套的电脑
+    （另一家公司的）上的人不算；兜底也没人时仍归 B（页面「CC 桌面版未连接」）。"""
+
+    def test_a_phone_only_sellers_documents_go_to_the_office_computer_that_reaches_the_book(self):
+        import types
+        from unittest import mock
+        peers = {"PC-OFFICE": types.SimpleNamespace(users=frozenset({"a@x"}), online=True),
+                 "PC-OTHER-CO": types.SimpleNamespace(users=frozenset({"z@y"}), online=True)}
+        reach = {"BK": ["PC-OFFICE"]}  # 另一家公司的电脑够不到这本账套
+        row = types.SimpleNamespace(name="SD-1", owner="b@x")
+        mine = lambda actor, book: {"state": "ok" if actor in {u for n in reach[book] for u in peers[n].users} else "missing",
+                                    "devices": []}
+        with mock.patch.object(self.push.jobs, "writers", mine), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
+                mock.patch.object(self.push.devices, "peers", lambda: peers), \
+                mock.patch.object(self.push.books, "reachers", lambda keys: reach), \
+                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
+                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"] if user != "z@y" else ["CO-9"]):
+            for doctype in (self.push.SALES, self.push.PURCHASE, self.push.STOCK, self.push.COUNT):
+                self.assertEqual(self.push.actor_of(doctype, row, "BK"), "a@x")
+            # 兜底的人也要能看这家公司：A 不在这家的可见公司里就不给 A，仍归 B（不跨公司）
+            with mock.patch.object(self.push.companies, "allowed_companies", lambda user: []):
+                self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
+            # 只有另一家公司的电脑在：够不到这本账套，不算
+            reach["BK"] = []
+            self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
+        # B 自己有登录过 CC 的电脑（关着）：照旧归 B，等他的电脑
+        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "offline", "devices": ["PC-B"]}), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"):
+            self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
+
 
 class CollectionNotYours(PushModule):
     """收款写账件 × not_yours（集成 1113 跨边，A 线 × 收款）：收款员自己有登录过 CC 的电脑、此刻关着，办公室同事够得到这本的电脑在线
