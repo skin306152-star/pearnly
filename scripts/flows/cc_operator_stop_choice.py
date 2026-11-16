@@ -22,7 +22,7 @@ from erp_lib import void_documents
 TITLE = "代录 / 直写被电脑拦下后有路可走：开始前问存货科目组、拦下的码出原因与选项卡、选了带上再交"
 READY = "document.readyState === 'complete' && !!document.querySelector('[data-mode=\"operator\"]')"
 USER = "admin@erp.regression"
-SUPPLIER_TAX = "0105561116005"
+SUPPLIER_TAX = "0105561116001"  # 校验位正确（ERP 建供应商要核）
 
 
 def prepare(lab, manifest):
