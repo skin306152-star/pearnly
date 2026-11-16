@@ -172,6 +172,10 @@ class Workflow(unittest.TestCase):
     def test_private_repository_does_not_run_on_push(self):
         self.assertIn("!github.event.repository.private", self.TEXT)
 
+    def test_leaves_machines_for_other_checks(self):
+        self.assertIn("max-parallel: 12", self.TEXT, "一次运行最多占 12 台，账号上限 20")
+        self.assertIn("'flows-whole-suite'", self.TEXT, "全套全仓一次一套")
+
     def test_same_shard_settings_everywhere(self):
         self.assertIn(f"PEARNLY_FLOWS_PER_SHARD: '{run.PER_SHARD}'", self.TEXT)
         self.assertIn(f"PEARNLY_FLOWS_MAX_SHARDS: '{run.MAX_SHARDS}'", self.TEXT)

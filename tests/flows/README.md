@@ -48,7 +48,7 @@ docker compose -p $PEARNLY_FLOWS_LAB -f infrastructure/compose/regression-lab.ym
 ## 在 GitHub 上跑（11-16 起，仓库公开后自动生效）
 
 `.github/workflows/flows.yml`：推分支就在 GitHub 的标准 x86 机器上跑受影响的流程（同 `run.py --changed --base origin/main`，产品地图并集），
-按站点切份（`run.py --plan`，每份约 14 格、最多 20 份同时跑），每份一台机器起一套回归实验室、只建本份的站点（`scripts/flows/github-lab.sh`）；
+按站点切份（`run.py --plan`，每份约 14 格、最多 20 份；一次运行最多同时占 12 台，全套全仓一次只跑一套，给别的检查留机器），每份一台机器起一套回归实验室、只建本份的站点（`scripts/flows/github-lab.sh`）；
 汇总（`run.py --merge`）后不通过的格在一台机器上依次补跑一次（`--rerun-failed`），回写同一个 `pearnly/flows`（部署闸、合入钩子、列车照认）。
 运行页摘要列出不通过的格、补跑才过的格、留下了数据的格。
 

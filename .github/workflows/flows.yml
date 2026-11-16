@@ -27,9 +27,10 @@ permissions:
 
 concurrency:
   # 同一分支新 push 取消旧的（旧提交的状态停在 pending，新提交另有自己的状态）；手动触发按范围各成一组，
-  # 不与 push 互相取消（11-16 校准：手动全套把同分支 push 的那次取消了）
-  group: flows-${{ github.ref }}-${{ github.event_name }}-${{ inputs.scope }}
-  cancel-in-progress: true
+  # 不与 push 互相取消（11-16 校准：手动全套把同分支 push 的那次取消了）。
+  # 全套（scope=all）全仓同一时刻只跑一套、不取消：账号同时最多 20 台机器，两套全套会把各窗口的 Development checks 挤去排队
+  group: ${{ inputs.scope == 'all' && 'flows-whole-suite' || format('flows-{0}-{1}-{2}', github.ref, github.event_name, inputs.scope) }}
+  cancel-in-progress: ${{ inputs.scope != 'all' }}
 
 env:
   # 与 run.py 的默认一致；plan、各份、补跑都按这两个数切，才对得上
@@ -85,7 +86,8 @@ jobs:
       packages: read  # 拉私有的生产镜像
     strategy:
       fail-fast: false
-      max-parallel: 20
+      # 一次运行最多同时占 12 台，给别的窗口的检查留 8 台（账号上限 20）；全套 20 份分两轮跑
+      max-parallel: 12
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     name: shard ${{ matrix.shard }} (${{ matrix.cells }} runs)
     steps:

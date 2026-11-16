@@ -20,6 +20,7 @@ permissions:
   contents: read
 
 concurrency:
+  # 同一分支只留最新一次（每次一台机器，账号同时最多 20 台）
   group: candidate-offline-${{ github.ref }}
   cancel-in-progress: true
 
