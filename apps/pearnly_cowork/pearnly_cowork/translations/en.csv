@@ -665,6 +665,7 @@ Discount Amount,Discount Amount
 Display Path,Display Path
 Display text (optional),Display text (optional)
 Dividends,Dividends
+Document,Document
 Document Key,Document Key
 Document No.,Document No.
 Document Policy,Document Policy
@@ -674,6 +675,7 @@ Document summary,Document summary
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
+Documents,Documents
 Documents to handle,Documents to handle
 Does account {0} belong in this reconciliation?,Does account {0} belong in this reconciliation?
 Does {0} post in batches?,Does {0} post in batches?
@@ -720,6 +722,7 @@ Edit Count,Edit Count
 Edit History,Edit History
 Edit card,Edit card
 Edit dates,Edit dates
+Edit document,Edit document
 Edit folder rule,Edit folder rule
 Edit in Full Page,Edit in Full Page
 Edit labels,Edit labels
@@ -790,6 +793,7 @@ Expires At,Expires At
 Export,Export
 Export Excel,Export Excel
 Export records from the same company and client together.,Export records from the same company and client together.
+Export review workbook,Export review workbook
 Exported a reconciliation,Exported a reconciliation
 Exported a stock count,Exported a stock count
 Exported the review workbook,Exported the review workbook
@@ -889,6 +893,7 @@ Goods documents,Goods documents
 Gray,Gray
 Green,Green
 Group,Group
+Handle,Handle
 Handle these the same way every time,Handle these the same way every time
 Has GL Match,Has GL Match
 Head office,Head office
@@ -3533,6 +3538,14 @@ guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
+guide.business.pending,Pending
+guide.open.pending,Choose an action.
+guide.option.pending.export,Export review workbook
+guide.option.pending.handle,Handle
+guide.option.pending.review,Edit document
+guide.step.pending.action,Action
+guide.step.pending.item,Document
+guide.step.pending.items,Documents
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

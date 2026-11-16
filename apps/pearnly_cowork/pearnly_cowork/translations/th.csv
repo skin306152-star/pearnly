@@ -665,6 +665,7 @@ Discount Amount,จำนวนส่วนลด
 Display Path,พาธที่แสดง
 Display text (optional),ข้อความที่แสดง (ไม่บังคับ)
 Dividends,เงินปันผล
+Document,เอกสาร
 Document Key,คีย์ป้องกันเอกสารซ้ำ
 Document No.,เลขที่เอกสาร
 Document Policy,กฎการบันทึกเอกสาร
@@ -674,6 +675,7 @@ Document summary,สรุปเอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
+Documents,เอกสาร
 Documents to handle,เอกสารรอดำเนินการ
 Does account {0} belong in this reconciliation?,บัญชี {0} ต้องนำมากระทบยอดหรือไม่
 Does {0} post in batches?,{0} ลงบัญชีแบบรวมยอดหรือไม่
@@ -720,6 +722,7 @@ Edit Count,จำนวนครั้งที่แก้ไข
 Edit History,ประวัติการแก้ไข
 Edit card,แก้ไขการ์ด
 Edit dates,แก้ไขวันที่
+Edit document,แก้ไขเอกสาร
 Edit folder rule,แก้ไขกฎ
 Edit in Full Page,แก้ไขแบบเต็มหน้าจอ
 Edit labels,แก้ไขป้ายกำกับ
@@ -790,6 +793,7 @@ Expires At,เวลาหมดอายุ
 Export,ส่งออก
 Export Excel,ส่งออก Excel
 Export records from the same company and client together.,การส่งออกแต่ละครั้งต้องเป็นประวัติของบริษัทและลูกค้ารายเดียวกัน
+Export review workbook,ส่งออกสมุดงานตรวจทาน
 Exported a reconciliation,ส่งออกผลการกระทบยอดแล้ว
 Exported a stock count,ส่งออกผลต่างการตรวจนับแล้ว
 Exported the review workbook,ส่งออกสมุดงานตรวจทานแล้ว
@@ -889,6 +893,7 @@ Goods documents,เอกสารสินค้า
 Gray,เทา
 Green,เขียว
 Group,กลุ่ม
+Handle,ดำเนินการ
 Handle these the same way every time,จัดการแบบนี้ทุกครั้ง
 Has GL Match,มีรายการ GL ที่ตรงกัน
 Head office,สำนักงานใหญ่
@@ -3533,6 +3538,14 @@ guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
+guide.business.pending,รอดำเนินการ
+guide.open.pending,เลือกการดำเนินการ
+guide.option.pending.export,ส่งออกสมุดงานตรวจทาน
+guide.option.pending.handle,ดำเนินการ
+guide.option.pending.review,แก้ไขเอกสาร
+guide.step.pending.action,การดำเนินการ
+guide.step.pending.item,เอกสาร
+guide.step.pending.items,เอกสาร
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

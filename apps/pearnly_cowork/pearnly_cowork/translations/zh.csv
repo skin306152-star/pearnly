@@ -665,6 +665,7 @@ Discount Amount,折扣金额
 Display Path,显示路径
 Display text (optional),显示文本（可选）
 Dividends,股息
+Document,单据
 Document Key,单据防重键
 Document No.,单据号
 Document Policy,单据录入规则
@@ -674,6 +675,7 @@ Document summary,单据摘要
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
+Documents,单据
 Documents to handle,待处理单据
 Does account {0} belong in this reconciliation?,科目 {0} 是否参与对账？
 Does {0} post in batches?,{0} 是否汇总入账？
@@ -720,6 +722,7 @@ Edit Count,修改次数
 Edit History,修改记录
 Edit card,编辑卡片
 Edit dates,编辑日期
+Edit document,修改票面
 Edit folder rule,编辑规则
 Edit in Full Page,全屏编辑
 Edit labels,修改标签
@@ -790,6 +793,7 @@ Expires At,到期时间
 Export,导出
 Export Excel,导出 Excel
 Export records from the same company and client together.,同次导出只能包含同一公司、同一客户的记录。
+Export review workbook,导出复核工作簿
 Exported a reconciliation,导出了对账结果
 Exported a stock count,导出了盘点差异
 Exported the review workbook,导出了复核工作簿
@@ -889,6 +893,7 @@ Goods documents,商品单
 Gray,灰
 Green,绿
 Group,组
+Handle,处理
 Handle these the same way every time,这一类以后都这样处理
 Has GL Match,有总账匹配
 Head office,总公司
@@ -3533,6 +3538,14 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
+guide.business.pending,待处理
+guide.open.pending,选择操作。
+guide.option.pending.export,导出复核工作簿
+guide.option.pending.handle,处理
+guide.option.pending.review,修改票面
+guide.step.pending.action,操作
+guide.step.pending.item,单据
+guide.step.pending.items,单据
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票

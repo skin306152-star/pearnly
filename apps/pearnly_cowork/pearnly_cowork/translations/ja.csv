@@ -665,6 +665,7 @@ Discount Amount,割引額
 Display Path,表示パス
 Display text (optional),表示テキスト（任意）
 Dividends,配当
+Document,書類
 Document Key,伝票重複防止キー
 Document No.,伝票番号
 Document Policy,書類の取扱ルール
@@ -674,6 +675,7 @@ Document summary,書類の概要
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
+Documents,書類
 Documents to handle,処理待ちの書類
 Does account {0} belong in this reconciliation?,科目 {0} を照合に含めますか
 Does {0} post in batches?,{0} はまとめて入金されますか
@@ -720,6 +722,7 @@ Edit Count,編集回数
 Edit History,編集履歴
 Edit card,カードを編集
 Edit dates,日付を編集
+Edit document,書類を修正
 Edit folder rule,ルールを編集
 Edit in Full Page,全画面で編集
 Edit labels,ラベルを編集
@@ -790,6 +793,7 @@ Expires At,有効期限
 Export,エクスポート
 Export Excel,Excel に出力
 Export records from the same company and client together.,同じ会社・顧客の履歴をまとめてエクスポートしてください。
+Export review workbook,確認用ブックを書き出し
 Exported a reconciliation,照合結果を書き出しました
 Exported a stock count,棚卸差異を書き出しました
 Exported the review workbook,確認用ワークブックを書き出しました
@@ -889,6 +893,7 @@ Goods documents,商品の伝票
 Gray,グレー
 Green,緑
 Group,グループ
+Handle,処理
 Handle these the same way every time,毎回この方法で処理
 Has GL Match,元帳一致あり
 Head office,本店
@@ -3533,6 +3538,14 @@ guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
+guide.business.pending,処理待ち
+guide.open.pending,操作を選択してください。
+guide.option.pending.export,確認用ブックを書き出し
+guide.option.pending.handle,処理
+guide.option.pending.review,書類を修正
+guide.step.pending.action,操作
+guide.step.pending.item,書類
+guide.step.pending.items,書類
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
