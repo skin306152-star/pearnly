@@ -339,6 +339,7 @@ def _intake_precheck(company, doc_id, twins=True) -> dict:
     （代录资料与交单用）；写账判定（`precheck.check`）不判这一项，由代录的待录清单定（「再录一次」照交）。"""
     import json
 
+    from pearnly_core.write_precheck import contracts as card
     from pearnly_erp_portal.express import precheck as write_precheck
     from pearnly_erp_portal.integrations import intake as chat_intake
 
@@ -369,6 +370,9 @@ def _intake_precheck(company, doc_id, twins=True) -> dict:
         check = {**view, "state": "check", "items": asked}
         return {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment", "needed": own, "precheck": check}
     state, reason = write_precheck._state(found["result"])
+    if state == "ready" and any(item.get("source") != card.REMEMBERED for item in asked):
+        # Express 那边可写、记录自己还有没定的（付款只有预选没点过、行、仓）：照样出这几题，点了才算（主会话 11-16）
+        state, reason = "check", ""
     shown = book_target(found["result"].get("book"))
     view = {**view, **({"target": shown} if shown else {})}
     check = {**view, "state": state, **({"reason": reason} if reason else {}),
@@ -486,14 +490,16 @@ def intake_items(company, doc, result) -> list:
         or result.get("doc_no") or doc.name
     from pearnly_erp_portal.express import choices
 
+    chosen = json.loads(doc.line_choices or "null") or {}
     value = payment_default(company, doc.direction, result)
-    # 按对方记住过的（卡片上答过一次）是已定的，不再当预选；只按票面判出的是预选
+    # 卡上点过的（这一张写回了记录）、按对方记住过的（点过一次）是已定的，不再问；只按票面判出的是预选，点了才算（主会话 11-16）
     kept = bool(value) and choices.chosen(company, PAYMENT_KIND, payment_subject(doc.direction, result)) == value
+    if chosen.get("payment_decided"):
+        value, kept = (UNPAID if not doc.is_paid else str(doc.payment_method or "")), True
     items = [{"kind": "payment", "subject": payment_subject(doc.direction, result), "label": label, "value": value,
               "source": card.REMEMBERED if kept else card.RULE if value else "", "direction": doc.direction,
               "options": [{"code": code, "name": _(METHOD_LABELS[code])} for code in _methods(doc.direction)]
               + [{"code": UNPAID, "name": _("Unpaid")}]}]
-    chosen = json.loads(doc.line_choices or "null") or {}
     lines = result.get("lines") or []
     for index, line in enumerate(chosen.get("lines") or []):
         if not line or line.get("decided"):
@@ -543,6 +549,26 @@ def payment_default(company, direction, result) -> str:
         return ""
     due, day = str(result.get("due_date") or ""), str(result.get("doc_date") or "")
     return UNPAID if due and day and due > day else "cash"
+
+
+def settle_payment(company, name, record=None) -> bool:
+    """提交前付款定没定（代录开录、引导直写确定同一个判法）：卡上点过的；没点过、但对这个对方点过一次记住了的，写回记录也算定了。
+    只按票面判出的预选（采购按到期日、否则「已付、现金」）没点过不算，这一张留下要人定（卡上没点过的预选不生效，主会话 11-16）。"""
+    import json
+
+    from pearnly_erp_portal.express import choices
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    record = record or frappe.db.get_value(chat_intake.DOCTYPE, name, ["line_choices", "result", "direction"], as_dict=True)
+    chosen = json.loads(record.line_choices or "null") or {}
+    if chosen.get("payment_decided"):
+        return True
+    value = choices.chosen(company, PAYMENT_KIND, payment_subject(record.direction, json.loads(record.result or "{}")))
+    if value != UNPAID and value not in _methods(record.direction):
+        return False
+    frappe.db.set_value(chat_intake.DOCTYPE, name, {**_payment_values(record.direction, value),
+                                                     "line_choices": json.dumps({**chosen, "payment_decided": True})})
+    return True
 
 
 def _payment_values(direction, value) -> dict:
@@ -793,13 +819,9 @@ def _submit_intake(company, doc_id, answers=None):
             if any(line and not line.get("decided") for line in chosen.get("lines") or []):
                 frappe.db.commit()
                 return {"doc_id": doc_id, "status": "failed", "reason": _(UNDECIDED_LINES_TEXT)}
-            if not chosen.get("payment_decided"):
-                # 付款没人定：按对方记住的或票面判得出的定；都没有就停下要人定，不按默认「已付、现金」交单（管钱的底线）
-                value = payment_default(company, record.direction, json.loads(record.result or "{}"))
-                if not value:
-                    frappe.db.commit()
-                    return {"doc_id": doc_id, "status": "failed", "reason": _(NO_PAYMENT_TEXT)}
-                frappe.db.set_value(chat_intake.DOCTYPE, row.name, _payment_values(record.direction, value))
+            if not settle_payment(company, row.name, record):
+                frappe.db.commit()
+                return {"doc_id": doc_id, "status": "failed", "reason": _(NO_PAYMENT_TEXT)}
             chat_intake.submit_chat(row.name)
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()

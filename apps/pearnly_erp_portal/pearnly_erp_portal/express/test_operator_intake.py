@@ -267,7 +267,23 @@ class Submit(Base):
         with patch.object(intake, "submit_chat", side_effect=frappe.ValidationError("stop here")), \
                 patch("pearnly_erp_portal.express.choices.chosen", return_value=operator.UNPAID):
             operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
-        self.assertIn({"is_paid": 0}, written)  # 记住的「未付」写回记录后才提交
+        # 记住的「未付」写回记录（同时记成已定）后才提交
+        self.assertEqual([(values["is_paid"], json.loads(values["line_choices"])["payment_decided"]) for values in written],
+                         [(0, True)])
+
+    def test_a_purchase_preselect_nobody_clicked_is_not_written(self):
+        """主会话 11-16「卡上没点过的预选不生效」：采购按票面能推出预选（没有到期日 = 已付、现金），但没人点过、这个对方也没记过：
+        这一张留下要人定，不再按预选提交（直写、代录同一个判法 `settle_payment`）。"""
+        self.choices = {"lines": [{"decided": True}]}
+        self.db.get_value.side_effect = lambda doctype, name, fields=None, as_dict=False, **kw: (
+            SimpleNamespace(line_choices=json.dumps(self.choices), direction="purchase",
+                            result=json.dumps({"supplier_name": "ISUZU", "doc_date": "2026-11-01"}))
+            if isinstance(fields, list) and "line_choices" in fields else self.get_value(doctype, name, fields, as_dict))
+        with patch.object(intake, "submit_chat") as chat, \
+                patch("pearnly_erp_portal.express.choices.chosen", return_value=""):
+            results = operator.submit("CO-1", ["I:LI-1"], {"task": "T1"}, "PC-1")
+        self.assertEqual(results, [{"doc_id": "I:LI-1", "status": "failed", "reason": operator.NO_PAYMENT_TEXT}])
+        chat.assert_not_called()
 
     def test_submitted_once_then_handed_to_the_operator(self):
         def submit_chat(name):

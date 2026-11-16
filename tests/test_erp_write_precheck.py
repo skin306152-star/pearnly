@@ -396,6 +396,32 @@ class DroppedTicket(Precheck):
             with self.assertRaises(frappe.ValidationError):  # 记录自己的都定了还报：照常是这张单的问题
                 self.operator.intake_found("CO-1", doc, [{"kind": "payment", "subject": "erp-intake-pay:purchase|1"}])
 
+    def test_a_payment_preselect_nobody_clicked_is_asked_even_when_express_is_ready(self):
+        # 主会话 11-16「卡上没点过的预选不生效」：Express 那边可写，记录自己的付款只有票面推出的预选（rule）——卡上照样出这题；
+        # 对这个对方点过一次、记住了（remembered）的不再问，这张可写
+        from pearnly_core.write_precheck import contracts as card
+        row = types.SimpleNamespace(name="LI-1", direction="purchase", status="ready", purchase=None, sales_document=None)
+        intake = types.SimpleNamespace(DOCTYPE="ERP LINE Intake", READY="ready")
+        pay = {"kind": "payment", "subject": "erp-intake-pay:purchase|1", "label": "ISUZU", "value": "cash",
+               "source": card.RULE, "options": [{"code": "cash"}, {"code": "credit"}]}
+        asked = [pay]
+        with mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": intake}), \
+                mock.patch("pearnly_erp_portal.integrations.intake", intake, create=True), \
+                mock.patch.object(self.operator, "_intake", lambda company, doc_id: row), \
+                mock.patch.object(self.operator, "_submitted", lambda row: None), \
+                mock.patch.object(frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(
+                    name=name, direction="purchase", result='{"supplier_name": "ISUZU"}'), create=True), \
+                mock.patch.object(self.operator, "intake_items", lambda company, doc, result: list(asked)), \
+                mock.patch.object(self.operator, "intake_found", lambda company, doc, asked, given=None: {
+                    "result": {"book": {}}, "items": []}), \
+                mock.patch.object(self.precheck, "_state", lambda result: ("ready", "")), \
+                mock.patch.object(self.operator, "legacy_row", lambda doc_id, found: {"doc_id": doc_id, "state": "ready"}):
+            view = self.operator.intake_view("CO-1", "I:LI-1")
+            self.assertEqual(view["state"], "check")
+            self.assertEqual([item["kind"] for item in view["items"]], ["payment"])
+            asked[:] = [{**pay, "source": card.REMEMBERED}]
+            self.assertEqual(self.operator.intake_view("CO-1", "I:LI-1")["state"], "ready")
+
     def test_an_unsubmitted_sales_ticket_is_judged_with_the_number_it_will_get(self):
         # H4：销售单号提交时才分配，判定时载荷没有号，含税销售票一律判「缺票号」；用将分配的那个号（不占号的预览）判
         previews = []

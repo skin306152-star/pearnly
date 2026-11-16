@@ -219,7 +219,8 @@ def confirm(ctx, doc_ids, consent) -> dict:
                 continue
             problem = _not_ready(row)
             if problem:
-                docs.append({"doc_id": doc_id, "status": HELD, "reason": problem})
+                frappe.db.commit()  # 记住的付款写回了记录也留着
+                docs.append({"doc_id": doc_id, "status": HELD, "reason": problem, "reason_text": _held_text(row.name)})
                 continue
             try:
                 created = chat_intake.submit_chat(row.name)
@@ -237,25 +238,33 @@ UNDECIDED_LINES = "undecided_lines"
 PAYMENT_UNDECIDED = "payment_undecided"
 
 
-def _not_ready(row) -> str:
-    """提交前还差人定的（同代录开录前 `operator._submit_intake` 的两条底线）：有没定的行、付款没定。付款在卡上点过，或对这个对方
-    点过一次、记住了（卡上算已定）都算定了——记住的这里写回记录；只有票面判出的预选、没点过的，这张留下（卡上没点过的预选不生效）。"""
-    from pearnly_erp_portal.express import choices as remembered
-    from pearnly_erp_portal.express import operator
-    from pearnly_erp_portal.integrations import intake as chat_intake
+def _lines_open(name) -> bool:
+    choices = json.loads(frappe.db.get_value("ERP LINE Intake", name, "line_choices") or "null") or {}
+    return any(line and not line.get("decided") for line in choices.get("lines") or [])
 
-    record = frappe.db.get_value(chat_intake.DOCTYPE, row.name, ["line_choices", "result", "direction", "company"], as_dict=True)
-    chosen = json.loads(record.line_choices or "null") or {}
-    if any(line and not line.get("decided") for line in chosen.get("lines") or []):
+
+def _not_ready(row) -> str:
+    """提交前还差人定的（同代录开录前 `operator._submit_intake` 的两条底线）：有没定的行、付款没定（`operator.settle_payment`：
+    卡上点过的，或对这个对方点过一次记住了的才算；只是预选、没点过的这一张留下）。"""
+    from pearnly_erp_portal.express import operator
+
+    if _lines_open(row.name):
         return UNDECIDED_LINES
-    if chosen.get("payment_decided"):
-        return ""
-    subject = operator.payment_subject(record.direction, json.loads(record.result or "{}"))
-    value = remembered.chosen(record.company, operator.PAYMENT_KIND, subject)
-    if value == operator.UNPAID or value in operator._methods(record.direction):
-        frappe.db.set_value(chat_intake.DOCTYPE, row.name, operator._payment_values(record.direction, value))
-        return ""
-    return PAYMENT_UNDECIDED
+    return "" if operator.settle_payment(_company_of(row), row.name) else PAYMENT_UNDECIDED
+
+
+def _company_of(row) -> str:
+    return str(getattr(row, "company", "") or frappe.db.get_value("ERP LINE Intake", row.name, "company") or "")
+
+
+def _held_text(name) -> str:
+    """没提交的这一张为什么留下（结果行那一句，沿用代录开录同一组词条）。"""
+    from pearnly_erp_portal.express import operator
+
+    if _lines_open(name):
+        return _(operator.UNDECIDED_LINES_TEXT)
+    choices = json.loads(frappe.db.get_value("ERP LINE Intake", name, "line_choices") or "null") or {}
+    return "" if choices.get("payment_decided") else _(operator.NO_PAYMENT_TEXT)
 
 
 def result(ctx, doc_ids) -> dict:
@@ -273,7 +282,8 @@ def result(ctx, doc_ids) -> dict:
                                      as_dict=True)
         document = record.purchase if record.direction == "purchase" else record.sales_document
         if record.status != chat_intake.CONFIRMED or not document:
-            rows.append({"doc_id": doc_id, "status": HELD})
+            text = _held_text(row.name) if record.status == chat_intake.READY else ""
+            rows.append({"doc_id": doc_id, "status": HELD, **({"reason_text": text} if text else {})})
             continue
         found = cc_tools._outcome(cc_tools.KINDS[record.direction], document)
         status = {"entered": ENTERED, "queued": QUEUED}.get(found.get("status"), HELD if found.get("status") != "failed" else FAILED)
