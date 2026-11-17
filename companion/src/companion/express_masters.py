@@ -6,7 +6,7 @@
   ``snapshot``），只复制这里要读的几张表；复制途中有表变了整份重读，读满次数仍在变就照交，并在 meta 报 ``snapshot_changed``。
 - 参数只收 ``{account_set, account_root}``（与 ``account_history`` 去掉 ``since`` 相同），多一个键回 ``params_invalid``。
 - 读什么（软删的行一律跳过，同 ``catalog_probe``）：
-  - settings：ISINFO 的主仓 MAINLOC、允许负库存 NEGALLOW、成本法 COSMTD、用不用部门 USEDEP；
+  - settings：ISINFO 的主仓 MAINLOC、允许负库存 NEGALLOW、成本法 COSMTD、用不用部门 USEDEP；1.12.23 起另带 NEGAUTH、CHKNEGLEV；
   - customers / suppliers：ARMAS / APMAS 的代码、名称、税号、分店号（ORGNUM 归一 5 位）、地址（ADDR01–03 与邮编用空格接起来）、
     电话 TELNUM、付款期天数 PAYTRM；供应商另带赊购单服务品进项税口径串 ``srv``（读账套原表 APTRN，``service_vat``，10-29），
     客户另带赊销单服务品销项税口径串 ``srv``（ARTRN，11-12 晚）；
@@ -57,7 +57,9 @@ UNIT_TABTYP = "20"
 WAREHOUSE_TABTYP = "21"
 DEPARTMENT_TABTYP = "50"
 PRICE_SLOTS = ("SELLPR1", "SELLPR2", "SELLPR3", "SELLPR4", "SELLPR5")
-SETTINGS = {"mainloc": "MAINLOC", "negallow": "NEGALLOW", "cosmtd": "COSMTD", "usedep": "USEDEP"}
+# negauth / chkneglev（1.12.23，A3 四题：服务端开始前判负库存与 stock_guard 一致）：扣成负库存要不要批准、检查到哪一级，原样字符串
+SETTINGS = {"mainloc": "MAINLOC", "negallow": "NEGALLOW", "cosmtd": "COSMTD", "usedep": "USEDEP", "negauth": "NEGAUTH",
+            "chkneglev": "CHKNEGLEV"}
 # 主档变没变看这几张表（大小 + 修改时间）：客户、供应商、商品、代码表（单位 / 仓库 / 部门）、各仓结存、账套设置、销售员、银行主档
 # （ISRUN 不进：每写一张单计数器就变，进了会让每张单都触发整套重读；收款类型改了随下一次别的主档变化一起读到）
 MARK_TABLES = ("ARMAS", "APMAS", "STMAS", "ISTAB", "STLOC", "ISINFO", "OESLM", "BKMAS")
@@ -146,6 +148,9 @@ def _product(rec, columns, _gone):
             "prices": [number(get(rec, columns, slot)) for slot in PRICE_SLOTS],
             "barcode": text(get(rec, columns, "BARCOD")), "vatcod": text(get(rec, columns, "VATCOD")),
             "negallow": text(get(rec, columns, "NEGALLOW")),
+            # 标准成本 STNPR、盘点单位 CQUCOD 与换算 CFACTOR（1.12.23，A3 四题：服务端成本口径与单位判据同 guided 的写法）
+            "std_cost": number(get(rec, columns, "STNPR")), "count_unit": _code(get(rec, columns, "CQUCOD")),
+            "count_factor": number(get(rec, columns, "CFACTOR")),
             # 全仓结存（出入库第一期，10-25）：ERP 对齐前核「STMAS 结存 = 各仓 STLOC 合计」，对不上的不抹 ERP、进差异清单。
             # 总结存是 TOTBAL（MREMBAL 是批次链，S 盘 18% 的品两者不等，11-07 改）；老表没有 TOTBAL 时按 MREMBAL
             "balance": number(get(rec, columns, "TOTBAL" if "TOTBAL" in columns else "MREMBAL"))}
@@ -157,7 +162,8 @@ def _code_table(rec, columns, _gone):
     if not code:
         return None
     return (_code(get(rec, columns, "TABTYP")),
-            {"code": code, "name": text(get(rec, columns, "TYPDES")) or text(get(rec, columns, "SHORTNAM"))})
+            {"code": code, "name": text(get(rec, columns, "TYPDES")) or text(get(rec, columns, "SHORTNAM")),
+             "short": text(get(rec, columns, "SHORTNAM"))})  # 简称原样另给（1.12.23，A3：单位按简称认）
 
 
 def _stock(rec, columns, _gone):
