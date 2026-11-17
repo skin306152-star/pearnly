@@ -117,16 +117,30 @@ export function useDraftKeeper(uploadedOf: (id: string) => UploadedFile | undefi
   }, [composer, thread]);
 
   // 字、附件变了：稍后存（打字时不每个字都写一次）。拿回之前不存，免得空输入框先把存着的那份删掉
+  const save = (at: string, words: string, items: readonly ComposerAttachment[]) => {
+    const files: DraftFile[] = [];
+    for (const a of items) {
+      const info = uploadedOf(a.id);
+      if (info) files.push({ id: a.id, type: (a.type as DraftFile["type"]) || "file", name: a.name, contentType: a.contentType ?? "", info });
+    }
+    saveDraft(at, words, files);
+  };
   useEffect(() => {
     if (restoredFor.current !== thread) return;
-    const timer = setTimeout(() => {
-      const files: DraftFile[] = [];
-      for (const a of attachments) {
-        const info = uploadedOf(a.id);
-        if (info) files.push({ id: a.id, type: (a.type as DraftFile["type"]) || "file", name: a.name, contentType: a.contentType ?? "", info });
-      }
-      saveDraft(thread, text, files);
-    }, SAVE_DELAY);
+    const timer = setTimeout(() => save(thread, text, attachments), SAVE_DELAY);
     return () => clearTimeout(timer);
   }, [thread, text, attachments, uploadedOf]);
+
+  // 换对话（点通知、托盘、侧栏切走）时当场把旧的那段存一次，不等 SAVE_DELAY：切走前最后打的字也进本机草稿（主会话 11-17）。
+  // latest 在提交后才换成这一次的值，换对话时的清理先于它跑，读到的是旧那段的字和附件
+  const latest = useRef({ thread, text, attachments });
+  useEffect(() => {
+    latest.current = { thread, text, attachments };
+  });
+  const saveRef = useRef(save);
+  saveRef.current = save;
+  useEffect(() => () => {
+    const last = latest.current;
+    if (restoredFor.current === last.thread) saveRef.current(last.thread, last.text, last.attachments);
+  }, [thread]);
 }

@@ -283,6 +283,63 @@ assert.ok(store["cc.draft:b@x.com:sesn_9"]);
         self.assertIn("clearDrafts();", app[app.index("async function signOut"):])
 
 
+    def test_switching_conversation_saves_the_old_draft_at_once(self):
+        # 主会话 11-17（链接打开闸的连带）：本机草稿稍后才存（SAVE_DELAY），点通知 / 托盘 / 侧栏切走时最后打的字还没存，刷新就丢；
+        # 现在换对话时当场把旧那段存一次。用 react、组件库的替身按 React 的提交顺序（依赖变了的清理先跑，再跑新的副作用）跑这个钩子
+        if not (NODE and ESBUILD.is_file()):
+            self.skipTest("要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+        react = r"""
+const g = globalThis as any;
+g.hooks = g.hooks ?? { slots: [], i: 0, effects: [] };
+export function useRef(v: any) { const h = g.hooks; const k = h.i++; if (!(k in h.slots)) h.slots[k] = { current: v }; return h.slots[k]; }
+export function useEffect(fn: any, deps?: any[]) {
+  const h = g.hooks; const k = h.i++; const old = h.slots[k];
+  const changed = !old || !deps || deps.some((d: any, n: number) => d !== old.deps[n]);
+  h.slots[k] = { deps, cleanup: old?.cleanup, fn: changed ? fn : null };
+  if (changed) h.effects.push(k);
+}
+export const useSyncExternalStore = (_sub: any, get: any) => get();
+export const useDebugValue = () => {};
+export const useMemo = (fn: any) => fn();
+export const useCallback = (fn: any) => fn;
+export const useState = (v: any) => [typeof v === "function" ? v() : v, () => {}];
+export const createElement = () => null;
+export default { useSyncExternalStore, useDebugValue, useMemo, useCallback, useState, useRef, useEffect, createElement };
+export function render(component: () => void) {
+  const h = g.hooks; h.i = 0; h.effects = []; component();
+  for (const k of h.effects) { const slot = h.slots[k]; if (slot.cleanup) slot.cleanup(); }
+  for (const k of h.effects) { const slot = h.slots[k]; const out = slot.fn(); slot.cleanup = typeof out === "function" ? out : undefined; }
+}
+"""
+        aui = r"""
+const g = globalThis as any;
+export const useAuiState = (select: any) => select(g.aui);
+export const useComposerRuntime = () => ({ getState: () => g.aui.composer, setText() {}, addAttachment: async () => {} });
+"""
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { render } from "react";
+import { loadDraft } from "@/lib/managed-agents/drafts";
+import { useDraftKeeper } from "@/lib/managed-agents/drafts";
+const store: Record<string, string> = {};
+(globalThis as any).localStorage = { getItem: (k: string) => store[k] ?? null, setItem: (k: string, v: string) => { store[k] = String(v); },
+  removeItem: (k: string) => { delete store[k]; }, key: (i: number) => Object.keys(store)[i] ?? null, get length() { return Object.keys(store).length; } };
+store["cc.sidebar.user"] = "a@x.com";
+const g = globalThis as any;
+const at = (id: string, text: string) => { g.aui = { threadListItem: { remoteId: id }, composer: { text, attachments: [] } }; };
+at("sesn_one111", "");
+render(() => useDraftKeeper(() => undefined));
+at("sesn_one111", "盘点一下三");                  // 打了字，还没到稍后存的时间
+render(() => useDraftKeeper(() => undefined));
+assert.equal(loadDraft("sesn_one111"), null);
+at("sesn_two222", "");                             // 点通知切走
+render(() => useDraftKeeper(() => undefined));
+assert.equal(loadDraft("sesn_one111")?.text, "盘点一下三");
+assert.equal(loadDraft("sesn_two222"), null);
+(globalThis as any).done();
+""", stubs={"react": react, "@assistant-ui/react": aui})
+
 class DeepLinkTests(unittest.TestCase):
     def test_the_address_follows_the_open_conversation(self):
         # 批 A ③（对照文档第 1 项，11-09 实测）：以前地址一直是 /assistant，刷新回到新建页、刚才那段要去侧栏找；Claude 是 /chat/<编号>。
