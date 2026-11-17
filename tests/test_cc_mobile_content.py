@@ -18,7 +18,7 @@ from test_assistant_ui import (  # noqa: E402
 )
 
 PAGE_STUBS = {"socket.io-client": SOCKET_STUB,
-              "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+              "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'}
 
 
 # 打开对话对位置的假视口：questions 按消息编号放提问（offset = 在滚动内容里的上沿），state 是会话状态（这一轮的提问、核对过没有）；

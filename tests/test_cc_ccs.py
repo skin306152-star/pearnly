@@ -997,7 +997,7 @@ vars["--cc-tooltip-delay"] = "300ms";
 assert.equal(fixedMs("--cc-tooltip-delay", 300), 0);
 g.done();
 """, stubs={"socket.io-client": "export const io = () => ({ on() {}, off() {}, emit() {}, connect() {}, disconnect() {} });",
-            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'})
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
     def test_tooltip_delay_comes_from_globals_css(self):

@@ -16,6 +16,8 @@ export type Profile = {
   assistant_unavailable?: string;
   /** 产品声明的分区（共用层 projects 的 SECTIONS，同公司列表回包里的那份）：侧栏首屏就要的入口（定时任务 tasks）不等公司列表 */
   sections?: string[];
+  /** 账户静音（User.mute_sounds，Desk 同一个开关）：CC 的系统通知不出声（lib/notify.ts，C-7） */
+  mute_sounds?: boolean;
 };
 
 let cached: Promise<Profile> | null = null;

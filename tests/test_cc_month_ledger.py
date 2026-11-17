@@ -172,7 +172,7 @@ class LedgerSourceTests(unittest.TestCase):
 
 
 STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-         "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+         "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});',
          "cc-ma-setup": MA_SETUP, "cc-month-fixture": "export default " + FIXTURE + ";"}
 
 RENDER = r"""

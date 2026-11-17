@@ -435,6 +435,7 @@ viewports = ["desktop", "mobile"]
 covers = [
   "frontend/assistant/src/assistant.tsx",
   "frontend/assistant/src/main.tsx",
+  "frontend/assistant/src/lib/attention.ts",
   "frontend/assistant/src/i18n.ts",
   "frontend/assistant/src/components/assistant-ui/thread.tsx",
   "frontend/assistant/src/components/assistant-ui/thread-list.tsx",

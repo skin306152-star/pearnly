@@ -7446,11 +7446,19 @@ class SetupSignalTests(unittest.TestCase):
     def _describe(self):
         shell = _load("pearnly_core.shell", CORE / "shell.py")
         fake = types.SimpleNamespace(get_csrf_token=lambda: "csrf")
+        # 账户静音（C-7）：describe 读 User.mute_sounds 交给页面
+        db = types.SimpleNamespace(get_value=lambda doctype, name, field: 1 if (doctype, field) == ("User", "mute_sounds") else None)
         with mock.patch.object(frappe, "sessions", fake, create=True), \
+                mock.patch.object(frappe, "db", db, create=True), \
                 mock.patch.object(frappe, "throw", mock.Mock(side_effect=AssertionError("must not throw"))), \
                 mock.patch.object(frappe, "msgprint", mock.Mock(side_effect=AssertionError("no message")), create=True), \
                 mock.patch.object(config, "_", lambda text: "th:" + text):
             return shell.describe()
+
+    def test_describe_carries_the_account_mute(self):
+        # 弹窗通知并进对话 C-7（AGENTS.md「提示音遵守账户静音」）：页面拿到账户静音，系统通知照弹不出声
+        _configure()
+        self.assertIs(self._describe()["mute_sounds"], True)
 
     def test_describe_carries_the_declared_sections_for_the_first_screen(self):
         # 主会话 11-03：侧栏首屏就要的入口（定时任务 tasks）按产品声明出，声明随外壳启动数据一起回，不等公司列表那次请求

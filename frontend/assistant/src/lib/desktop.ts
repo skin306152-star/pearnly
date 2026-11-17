@@ -18,7 +18,7 @@ import { lang } from "@/i18n";
 import { isViewing, onNotice } from "@/lib/managed-agents/activity";
 import { setDraft } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
-import { APP_NAME, useProfile } from "@/lib/profile";
+import { APP_NAME, loadProfile, useProfile } from "@/lib/profile";
 import { reportCaught, withReport } from "./caught";
 
 type Message = { role?: string; content?: unknown };
@@ -53,6 +53,9 @@ export function useHasConnections(): boolean {
   }, []);
   return app || product === "cowork";
 }
+
+/** 账户静音（User.mute_sounds）：系统通知照弹、不出声（C-7）；取不到当没静音。 */
+const muted = () => loadProfile().then((profile) => !!profile.mute_sounds, () => false);
 
 /** 打开某段对话（target 是对话编号，空串 = 定时任务页，「/assistant?…」是深链接）；lib/nav.ts 的 useDeepLinks 听这个事件。 */
 export function openTarget(target: string) {
@@ -116,7 +119,8 @@ export function useDesktopBridge(
     wasRunning.current = isRunning;
     // 人正看着这段对话（当前对话、对话页开着、页面在前台）就不叫（C-1）；以前看整窗焦点：并排时焦点在 Express 也照弹
     if (!finished || (sessionId && isViewing(sessionId)) || (!sessionId && document.hasFocus())) return;
-    void showNote(title || APP_NAME, lastReply(messages), "tomo-reply", sessionId ? deepLink(sessionId) : "/assistant");
+    void muted().then((silent) =>
+      showNote(title || APP_NAME, lastReply(messages), "tomo-reply", sessionId ? deepLink(sessionId) : "/assistant", undefined, silent));
   }, [isRunning, messages, title, sessionId]);
 
   useEffect(
@@ -128,7 +132,8 @@ export function useDesktopBridge(
         const desktopApp = isDesktopApp();
         if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;
         const link = deepLink(notice.session || "", notice.view || "");
-        void showNote(notice.title || APP_NAME, notice.text, `notice:${notice.id}`, link, () => openTarget(notice.session || link));
+        void muted().then((silent) =>
+          showNote(notice.title || APP_NAME, notice.text, `notice:${notice.id}`, link, () => openTarget(notice.session || link), silent));
       }),
     [],
   );
