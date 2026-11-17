@@ -225,12 +225,15 @@ def _compact(fields: dict) -> bytes:
     return json.dumps(fields, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def push_payload(title, body, url, tag) -> bytes:
-    """后台脚本收到的报文；超过 PAYLOAD_MAX 字节时截短正文（末尾加省略号）。"""
+def push_payload(title, body, url, tag, silent=False) -> bytes:
+    """后台脚本收到的报文；超过 PAYLOAD_MAX 字节时截短正文（末尾加省略号）。``silent``：收件人开了账户静音（``User.mute_sounds``，
+    与页面上的提示音同一位），通知不出声不振动；只在静音时带这一键，不静音的报文字节不变。"""
     url = str(url or "")
     if not ASSISTANT_PATH.match(url):
         raise ValueError("push url must open the assistant page")
     fields = {"title": str(title or "")[:TITLE_MAX], "body": str(body or ""), "url": url, "tag": str(tag or "")[:TAG_MAX]}
+    if silent:
+        fields["silent"] = True
     data = _compact(fields)
     if len(data) <= PAYLOAD_MAX:
         return data

@@ -251,6 +251,10 @@ class PayloadTests(unittest.TestCase):
             with self.assertRaises(ValueError, msg=url):
                 webpush.push_payload("t", "b", url, "x")
 
+    def test_silent_is_only_carried_when_muted(self):
+        self.assertEqual(json.loads(webpush.push_payload("t", "b", "/assistant", "x", silent=True))["silent"], True)
+        self.assertNotIn("silent", json.loads(webpush.push_payload("t", "b", "/assistant", "x", silent=False)))
+
     def test_long_thai_text_is_cut_to_the_limit(self):
         body = "แจ้งเตือนไฟล์ใหม่ในโฟลเดอร์ " * 300  # 每字 3 字节，远超上限
         data = webpush.push_payload("งาน", body, "/assistant?view=tasks", "notice:pnotice_9")
@@ -311,6 +315,7 @@ class _Frappe(types.ModuleType):
         self.threshold = "2026-10-02 12:00:00"
         self.rows, self.singles, self.passwords, self.notices = {}, {}, {}, {}
         self.users = {"a@example.com": 1, "b@example.com": 1, "off@example.com": 0}
+        self.muted = set()  # 开了账户静音（User.mute_sounds）的人
         self.logs, self.locks, self.commits, self.saves, self.tick = [], [], 0, 0, 0
         self.stale_public = None  # 本事务快照里的公钥（None = 与已提交的一致）
         self.undecryptable = False
@@ -379,8 +384,10 @@ class _Frappe(types.ModuleType):
 
     def _get_value(self, doctype, name, fields, as_dict=False):
         if doctype == "User":
-            assert fields == "enabled"
-            return self.users.get(name)
+            assert fields == ["enabled", "mute_sounds"] and as_dict, fields
+            if name not in self.users:
+                return None
+            return _Row({"enabled": self.users[name], "mute_sounds": 1 if name in self.muted else 0}, name=name)
         assert doctype == NOTICE and as_dict
         found = self.notices.get(name)
         return _Row({f: found.get(f) for f in fields}, name=name) if found else None
@@ -631,6 +638,18 @@ class SendTests(_Service):
         row = frappe.rows[hashlib.sha256(FCM.encode()).hexdigest()]
         self.assertEqual((row["last_ok"], row["last_error"]), ("2026-10-12 12:00:00", ""))
         self.assertEqual(frappe.logs, [])
+
+    def test_a_muted_account_gets_a_silent_notification(self):
+        """账户静音（`User.mute_sounds`，同页面提示音）的人照收推送，通知不出声：报文带 ``silent``；没静音的报文不带这一键。"""
+        key, secret = self.subscribe()
+        frappe.muted.add("a@example.com")
+        push.send("a@example.com", title="Reminder", body="2 files", url="/assistant?c=s_1", tag="notice:pnotice_1")
+        [call] = requests.calls
+        self.assertEqual(json.loads(receive(call["data"], key, secret)),
+                         {"title": "Reminder", "body": "2 files", "url": "/assistant?c=s_1", "tag": "notice:pnotice_1",
+                          "silent": True})
+        worker = (pathlib.Path(push.__file__).with_name("service_worker.js")).read_text(encoding="utf-8")
+        self.assertIn("silent: data.silent === true,", worker)
 
     def test_gone_devices_are_removed_other_failures_kept_without_addresses_in_logs(self):
         endpoints = {404: FCM + "-404", 410: FCM + "-410", 403: self.APPLE, 500: FCM + "-500", 201: FCM + "-ok"}

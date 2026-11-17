@@ -205,7 +205,11 @@ def send(user, *, title, body, url, tag, ttl=DEFAULT_TTL, urgency="high") -> dic
     `url` 只能是对话页（`contracts.deep_link`）；`tag` 相同的通知在设备上互相覆盖；`ttl` 是推送服务替离线设备
     保留的秒数（0 = 不保留，设备不在线就不送）。认领它的登录已结束的设备删掉、算在 `gone` 里。"""
     result = {"sent": 0, "gone": 0, "failed": 0}
-    if not user or user == "Guest" or not frappe.db.get_value("User", user, "enabled"):
+    if not user or user == "Guest":
+        return result
+    # 停用的不发；开了账户静音（`User.mute_sounds`，同页面提示音）的照发、通知不出声（欠账：服务端推送读账户静音）
+    account = frappe.db.get_value("User", user, ["enabled", "mute_sounds"], as_dict=True)
+    if not account or not account.get("enabled"):
         return result
     rows = frappe.get_all(SUBSCRIPTION, filters={"user": user}, fields=["name", "endpoint", "p256dh", "auth", "sid"])
     if not rows:
@@ -222,7 +226,7 @@ def send(user, *, title, body, url, tag, ttl=DEFAULT_TTL, urgency="high") -> dic
     keys = _keys()
     if not keys:
         return result
-    payload = webpush.push_payload(title, body, url, tag)
+    payload = webpush.push_payload(title, body, url, tag, silent=bool(account.get("mute_sounds")))
     headers = {"TTL": str(max(0, min(int(ttl), TTL_MAX))), "Content-Encoding": "aes128gcm",
                "Content-Type": "application/octet-stream", "Urgency": urgency if urgency in URGENCIES else "normal"}
     problems = []

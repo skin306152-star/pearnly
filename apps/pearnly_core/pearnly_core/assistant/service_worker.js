@@ -39,6 +39,7 @@ self.addEventListener("push", (event) => {
     self.registration.showNotification(text(data.title) || "CC", {
       body: text(data.body),
       tag: text(data.tag) || undefined,
+      silent: data.silent === true, // 账户静音（User.mute_sounds）：不出声不振动，服务端只在静音时带
       data: { url: target(data.url) },
     }),
   );
