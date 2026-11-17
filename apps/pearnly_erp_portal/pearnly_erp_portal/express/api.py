@@ -330,6 +330,31 @@ def answer(doctype, name, answers):
     return _view(doctype, _document(doctype, name))
 
 
+def remember_party_account(doctype, row, value) -> dict:
+    """按公司记住「这家对方的单记到某科目」（CC ``erp_party_account_save``，欠账 B52）。调用方已按单据页的写权限取到 ``row``、
+    过了公司闸。科目码按这张单所在账套报来的科目表核过才记；归类键 = 共用写账规则的 `supplier_subject`（税号，没有按名称），
+    之后这家对方的单准备写账时规则直接用它（`prepare` → `choice_rules.resolve`）。"""
+    if doctype != push.PURCHASE:  # 记住的对方科目只有进项的费用科目用（`choice_rules`：销项收入科目按任务默认 / 账套记一个）
+        return {"status": "not_saved", "reason": "purchase_only: only a purchase document's party account is remembered"}
+    company_row = frappe.db.get_value(push.COMPANY, row.company, ["name", "tax_id", "branch"], as_dict=True) or {}
+    book = target.pick(company_row, str(row.doc_date)).get("book")
+    data = facts.load(book["key"]) if book else None
+    if not book or data is None:
+        return {"status": "not_saved", "reason": "account_set_not_read: the account set's chart of accounts is not read yet"}
+    value = str(value or "").strip()
+    found = next((account for account in facts.reported(data).get("reported_accounts") or ()
+                  if str(account.get("code") or "").strip() == value), None)
+    if not value or not found:
+        return {"status": "not_saved", "reason": "account_not_in_book: pass an account code from this account set"}
+    party = push._party(doctype, row)
+    subject = choice_rules.supplier_subject(push.DIRECTIONS[doctype], party.get("tax_id"), party.get("name"))
+    label = str(found.get("name") or "")
+    choices.remember(row.company, "account", subject, value, label)
+    frappe.db.commit()
+    return {"status": "saved", "company": row.company, "party": party.get("name") or party.get("tax_id") or "",
+            "subject": subject, "account": value, "account_name": label}
+
+
 @frappe.whitelist(methods=["POST"])
 def retry(doctype, name):
     """转人工的写账再写一次（人看过、处理好了）。电脑写失败会整笔回滚，所以按单据此刻的内容重新准备一件（重新取编码、

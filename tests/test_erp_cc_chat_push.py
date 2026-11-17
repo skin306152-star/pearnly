@@ -268,8 +268,15 @@ def _answer(doctype, name, answers):
     _send(doctype, name)
 
 
+def _remember_party_account(doctype, row, value):
+    """同 `express.api.remember_party_account` 的出口（真的核科目、记下在 test_erp_express_direct.PartyAccount 测）。"""
+    CALLS.append(("remember_party_account", doctype, row.name, value))
+    return {"status": "saved", "company": row.company, "party": row.supplier_name, "subject": "purchase|x",
+            "account": str(value).strip(), "account_name": "Freight"}
+
+
 api = _module("pearnly_erp_portal.express.api", CAPABILITIES=CAPABILITIES, _document=_document, _view=_view,
-              retry=_retry, answer=_answer)
+              retry=_retry, answer=_answer, remember_party_account=_remember_party_account)
 _module("pearnly_erp_portal.inventory.warehouses",
         names_of=lambda company=None: [name for name, owner in WAREHOUSES.items() if owner == company])
 
@@ -356,7 +363,7 @@ class DeclarationTests(unittest.TestCase):
         self.assertEqual(sorted(names), sorted(tools.STEP_NAMES))
         self.assertEqual(set(names), {"erp_list_documents", "erp_push_documents", "erp_resolve_push_result", "erp_push_results",
                                       "erp_pending", "erp_document_detail", "erp_document_original",
-                                      "erp_set_printed_total"})
+                                      "erp_set_printed_total", "erp_party_account_save"})
         for tool in tools.TOOLS:
             module, _sep, func = tool["handler"].rpartition(".")
             self.assertEqual(module, "pearnly_erp_portal.express.cc_tools")
@@ -375,8 +382,8 @@ class DeclarationTests(unittest.TestCase):
         source = "\n".join((COWORK / path).read_text(encoding="utf-8")
                             for path in ("assistant/tools.py", "assistant/company_tools.py"))
         for tool in tools.TOOLS:
-            if tool["name"] == "erp_set_printed_total":
-                continue  # 只有 ERP 有（Cowork 改票面用 cowork_edit_document）
+            if tool["name"] in ("erp_set_printed_total", "erp_party_account_save"):
+                continue  # 只有 ERP 有（Cowork 改票面用 cowork_edit_document、记公司选择用 cowork_company_choice_save）
             twin = "cowork_" + tool["name"][len("erp_"):]
             start = source.index(f'{{"name": "{twin}", "label": "{tool["label"]}"')  # 同名工具、同一个步骤名
             end = source.find('{"name": "cowork_', start + 10)
@@ -548,6 +555,38 @@ class PrintedTotalToolTests(unittest.TestCase):
         out = call(tools.set_printed_total, document="P:PUR-8", value="1070", basis="x")
         self.assertEqual(out["status"], "not_saved")
         self.assertEqual(STATE.db.table(PURCHASE)["PUR-8"]["printed_total"], 100)
+
+
+class PartyAccountToolTests(unittest.TestCase):
+    """欠账 B52：用户在 CC 里说「这家供应商的单记到某科目」，CC 照单据页的写权限与公司闸取单，核科目、记下交
+    `api.remember_party_account`（与单据上「选一次」同一张选择表）；要「允许」；别家的单、没有开单权的不记。"""
+
+    def setUp(self):
+        reset()
+        patcher = mock.patch.object(frappe, "get_doc", lambda doctype, name: Row(STATE.db.table(doctype)[name]), create=True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def test_cc_saves_the_account_through_the_document_service_after_allow(self):
+        doc(PURCHASE, "PUR-7", reason=E.PRINTED_TOTAL_MISSING)
+        by_name = {tool["name"]: tool for tool in tools.TOOLS}
+        self.assertTrue(by_name["erp_party_account_save"]["approval"])
+        self.assertEqual(call(tools.party_account_save, document="P:PUR-7")["status"], "not_saved")  # 没给科目
+        out = call(tools.party_account_save, document="P:PUR-7", value="52-08-00-00")
+        self.assertEqual((out["document"], out["status"], out["account"], out["account_name"]),
+                         ("P:PUR-7", "saved", "52-08-00-00", "Freight"))
+        self.assertNotIn("subject", out)
+        self.assertEqual(CALLS, [("remember_party_account", PURCHASE, "PUR-7", "52-08-00-00")])
+
+    def test_another_companys_or_a_read_only_users_document_is_not_remembered(self):
+        doc(PURCHASE, "PUR-9", company="CO-2")
+        out = call(tools.party_account_save, document="P:PUR-9", value="52-08-00-00")
+        self.assertEqual((out["status"], out["reason"], out["company"]), ("not_saved", "other_company", "CO-2"))
+        frappe.session.user = "viewer@x"  # 只有查看权
+        doc(PURCHASE, "PUR-7")
+        self.assertEqual(call(tools.party_account_save, document="P:PUR-7", value="52-08-00-00")["status"],
+                         direct_push.FAILED)
+        self.assertEqual(CALLS, [])
 
 
 class ListTests(unittest.TestCase):

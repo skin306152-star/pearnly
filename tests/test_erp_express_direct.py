@@ -1057,6 +1057,39 @@ class PushModule(Base):
                                                       "express_linked_at": "2026-10-01 00:00:00"}
 
 
+class PartyAccount(PushModule):
+    def test_cc_remembers_a_supplier_s_expense_account_checked_against_the_account_set(self):
+        """欠账 B52：用户在 CC 里说「这家的单记到某科目」（`erp_party_account_save` → `api.remember_party_account`）。科目码按这张单
+        所在账套报来的科目表核过才记，记在单据上「选一次」同一个归类键上：之后这家的服务类进项不再停下问科目。销售单、账套里
+        没有的码不记。"""
+        utils = sys.modules["frappe.utils"]
+        for name, value in (("now", lambda: "2026-10-24 00:00:00"), ("flt", lambda v, *a: float(v or 0)),
+                            ("cint", lambda v: int(v or 0)), ("getdate", lambda v=None: v), ("add_days", lambda d, n: d)):
+            setattr(utils, name, getattr(utils, name, value))
+        sys.modules.pop("pearnly_erp_portal.express.api", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.api", None)
+        from pearnly_erp_portal.express import api
+        key, = self.computer([book()])
+        self.masters(key)
+        fake.STATE.db.table("ERP Company")[COMPANY["name"]] = dict(COMPANY)
+        row = types.SimpleNamespace(company=COMPANY["name"], doc_date="2026-10-20", supplier=None, supplier_name="BANGCHAK",
+                                    supplier_tax_id=SUPPLIER, supplier_branch_no="00000")
+        service = [{"name": "ค่าขนส่ง", "code": "", "unit": "", "qty": "1", "price": "300", "amount": "300.00",
+                    "loccod": "", "stock": False}]
+        self.assertEqual(self.prepare(doc(items=service))["hold"], "choice_needed:account")
+        with mock.patch.object(frappe.db, "commit", lambda: None, create=True):
+            missing = api.remember_party_account("Purchase Document", row, "99-99-99-99")
+            sales = api.remember_party_account("ERP Sales Document", row, "52-08-00-00")
+            saved = api.remember_party_account("Purchase Document", row, " 52-08-00-00 ")
+        self.assertEqual(missing["status"], "not_saved")
+        self.assertTrue(missing["reason"].startswith("account_not_in_book"))
+        self.assertTrue(sales["reason"].startswith("purchase_only"))
+        self.assertEqual((saved["status"], saved["account"], saved["subject"]),
+                         ("saved", "52-08-00-00", C.supplier_subject("purchase", SUPPLIER, "BANGCHAK")))
+        payload = self.prepare(doc(items=service))["payload"]
+        self.assertIn("52-08-00-00", [line["acc"] for line in payload["lines"] if line["side"] == "D"])
+
+
 class Row(dict):
     """单据 / 明细行的替身：属性和 `.get` 都能取（同 Frappe Document）。"""
     __getattr__ = dict.get

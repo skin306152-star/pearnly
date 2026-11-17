@@ -610,6 +610,26 @@ def document_original(tool_input) -> str:
     return direct_push.dumps({**out, "files_added_to_chat": True, "files_note": FILES_NOTE} if shown else out)
 
 
+def party_account_save(tool_input) -> str:
+    """按公司记住「这家供应商的采购单记到某费用科目」（欠账 B52，同 Cowork 的 cowork_company_choice_save）：从一张采购单取
+    对方，按单据页的写权限与公司闸取单，核科目、记下交 `api.remember_party_account`（与单据上「选一次」同一张选择表）。"""
+    if not str(tool_input.get("value") or "").strip():
+        return direct_push.dumps({"status": "not_saved", "reason": "Pass value: the account code to remember."})
+    kind, name, failed = _readable(tool_input, write=True)
+    if not kind:
+        return direct_push.dumps(failed)
+    doc = failed
+    refused = _other_company(Owner(doc.company), tool_input)
+    if refused:
+        out = direct_push.not_saved(_doc_id(kind, name), refused)
+        if refused == OTHER_COMPANY:
+            out.update(company=doc.company, company_title=_company_title(doc.company))
+        return direct_push.dumps(out)
+    out = api.remember_party_account(kind.doctype, doc, tool_input.get("value"))
+    out.pop("subject", None)
+    return direct_push.dumps({"document": _doc_id(kind, name), **out})
+
+
 def set_printed_total(tool_input) -> str:
     """补 / 改票面合计（已提交的单也能改，只这一栏）：必须带依据；只改数（`printed.set_total(release=False)`，B3：写入只走计划，
     推送由写入计划来），不过公司闸的别家单照拒。"""
@@ -872,6 +892,17 @@ TOOLS = [
          "basis": {"type": "string", "description": "What the value is based on, in a few words."}},
          "required": ["document", "value", "basis"]},
      "handler": "pearnly_erp_portal.express.cc_tools.set_printed_total"},
+    {"name": "erp_party_account_save", "label": "Saved a supplier's expense account", "approval": True,
+     "description": "Remember for this company which expense account a supplier's purchase documents are posted to, "
+                    "when the user says so (for example \"post this supplier's bills to 5310\"). Pass a purchase "
+                    "document of that supplier (P: from erp_list_documents or erp_pending) and value, an account code "
+                    "of that document's account set; the code is checked against the account set. Later purchase "
+                    "documents of the same supplier use it when they are written into Express. Only what the user "
+                    "asked for.",
+     "input_schema": {"type": "object", "properties": {
+         "document": {"type": "string"}, "value": {"type": "string", "description": "The account code."}},
+         "required": ["document", "value"]},
+     "handler": "pearnly_erp_portal.express.cc_tools.party_account_save"},
     {"name": "erp_push_results", "label": "Checked push results",
      "description": "Show recent push results of ERP documents: those that failed or stopped (with the reason), are "
                     "pending (on their way to Express), or succeeded (entered, with the Express number). In a "
@@ -890,6 +921,7 @@ STEP_NAMES = {
     "erp_document_detail": "Viewing a document",
     "erp_document_original": "Opening the original",
     "erp_set_printed_total": "Setting the printed total",
+    "erp_party_account_save": "Saving a supplier's expense account",
     "erp_push_documents": "Pushing documents",
     "erp_resolve_push_result": "Confirming a push result",
     "erp_push_results": "Checking push results",

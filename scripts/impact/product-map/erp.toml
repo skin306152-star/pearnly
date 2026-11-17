@@ -273,6 +273,16 @@ where = "CC 工具 erp_set_printed_total"
 tests = ["unit:tests/test_erp_cc_chat_push.py::erp_set_printed_total"]
 
 [[row]]
+id = "erp.cc.tool.erp_party_account_save"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_party_account_save"
+where = "CC 工具 erp_party_account_save"
+tests = ["unit:tests/test_erp_cc_chat_push.py::PartyAccountToolTests", "unit:tests/test_erp_express_direct.py::PartyAccount"]
+
+[[row]]
 id = "erp.cc.tool.erp_stocktake_adjust"
 product = "ERP"
 channel = "cc-chat"

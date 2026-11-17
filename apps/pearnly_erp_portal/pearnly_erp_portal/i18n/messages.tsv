@@ -1946,6 +1946,8 @@ Viewing a document	正在查看单据详情	กำลังดูเอกสา
 Opening the original	正在打开原件	กำลังเปิดต้นฉบับ	原本を開いています
 Set the printed total	改了票面合计	แก้ยอดรวมตามเอกสารแล้ว	伝票の合計を設定しました
 Setting the printed total	正在改票面合计	กำลังแก้ยอดรวมตามเอกสาร	伝票の合計を設定しています
+Saved a supplier's expense account	记下了供应商的费用科目	บันทึกบัญชีค่าใช้จ่ายของผู้จำหน่ายแล้ว	仕入先の費用勘定を保存しました
+Saving a supplier's expense account	正在记供应商的费用科目	กำลังบันทึกบัญชีค่าใช้จ่ายของผู้จำหน่าย	仕入先の費用勘定を保存しています
 Tax number and branch match	税号和分店都对得上	เลขผู้เสียภาษีและสาขาตรงกัน	税番号と支店が一致	express.precheck.note.sameBranch
 Only one with this tax number	此税号仅此一家	เลขผู้เสียภาษีนี้มีเพียงรายเดียว	この税番号はこの1件のみ	express.precheck.note.onlyRecord
 Not in the account set yet	账套中未建	ยังไม่มีในชุดบัญชี	会計データにまだありません	express.precheck.note.notInBook
