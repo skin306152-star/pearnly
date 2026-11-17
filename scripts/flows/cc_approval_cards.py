@@ -63,6 +63,7 @@ connections.install_snapshot(conn["name"], dict(observation, account_sets=observ
      "supplier_profiles": {{}}, "bank_index": [], "reported_config": {{}}}})
 pool.ensure_registered(frappe.get_doc("Cowork ERP Connection", conn["name"]), "flowo2", root="D:\\\\FLOWOP",
                        now=frappe.utils.now_datetime())
+companies.forget_cache()  # 账套目录按请求缓存着：第一家公司建时读的是只有一个账套的那份
 other = companies.create(conn["name"], "FLOWO2")
 frappe.db.commit()
 print(json.dumps({{"docs": docs, "rule": rule.name, "company": company["id"], "title": company["title"],
