@@ -2116,6 +2116,7 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
   "frontend/assistant/src/components/tool-uis/approval-bar.tsx",
   "frontend/assistant/src/components/tool-uis/approval-sheet.tsx",
+  "frontend/assistant/src/lib/approval-card.ts",
 ]
 
 [[flow]]
