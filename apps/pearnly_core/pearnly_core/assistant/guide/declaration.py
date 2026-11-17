@@ -33,7 +33,7 @@ EXPIRES = ("ledger", "company", "period", "master")            # 哪些变化让
 # 菜单图标白名单（lucide 的名字，前端按名字取；加图标 = 这里与前端图标表同一提交各加一项）
 ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store", "clipboard-list", "receipt", "percent",
                    "download", "folder-clock", "list-checks", "building", "kanban", "settings", "boxes", "file-spreadsheet",
-                   "building-plus"})
+                   "building-2"})
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
                         "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow", "intake", "uploads", "edit", "note"})
