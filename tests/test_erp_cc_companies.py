@@ -358,17 +358,18 @@ class ProviderTests(unittest.TestCase):
             self.assertTrue(callable(getattr(cc_companies, method)), method)
         for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind", "candidates"):
             self.assertFalse(hasattr(cc_companies, method), method)
-        # 设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时声明（主会话 11-07 定案 #13）：关着回 {}，页面就不出这一行
+        # 设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时声明（主会话 11-07 定案 #13）：关着不出这一行；电脑列表（只读，
+        # 欠账 B50）总是声明，浏览器里「连接」那一栏按它出
         mrerp = importlib.import_module("pearnly_erp_portal.mrerp")
         self.assertFalse(mrerp.MRERP_LEDGER_ENABLED)
-        self.assertEqual(cc_projects.connect(), {})
+        self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
         roles = lambda user=None: ["ERP Admin"] if (user or frappe.session.user) == "boss@x" else []  # noqa: E731
         with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True), mock.patch.object(frappe, "get_roles", roles, create=True):
-            self.assertEqual(cc_projects.connect(), {"mrerp": "pearnly_erp_portal.mrerp.api."})
+            self.assertEqual(cc_projects.connect(), {**{"computers": "pearnly_erp_portal.masters.cc_companies.computers"}, "mrerp": "pearnly_erp_portal.mrerp.api."})
             # 开着也只给 ERP 管理员：这一行调的接口只限管理员，别人不出这一行
             frappe.session.user = "staff@x"
             try:
-                self.assertEqual(cc_projects.connect(), {})
+                self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
             finally:
                 frappe.session.user = "boss@x"
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")
@@ -541,6 +542,28 @@ class CompanyApiTests(unittest.TestCase):
             with self.assertRaises(PermissionError_):
                 cc_companies.choice_forget("CO-00001", "EXC-1")     # 没权限的不删
         self.assertEqual(deleted, ["EXC-2"])
+
+    def test_settings_connections_lists_the_computers_read_only(self):
+        # 欠账 B50：ERP 浏览器里也有只读「连接」，电脑一台一行（形状同 Cowork），不在网页上移除；看不了公司的人不给
+        import datetime as dt
+        from unittest import mock
+        from pearnly_erp_portal.express import companies as express_companies
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        table = STATE.db.table(express_companies.DEVICE)
+        table["DEV-1"] = {"name": "DEV-1", "device_label": "OFFICE-PC", "companion_version": "1.12.21", "last_seen_at": now}
+        table["DEV-2"] = {"name": "DEV-2", "device_label": "", "companion_version": "1.12.20",
+                          "last_seen_at": now - dt.timedelta(days=2)}
+        with mock.patch.object(express_companies, "devices", lambda: ["DEV-1", "DEV-2"]):
+            rows = cc_companies.computers()
+            self.assertEqual(sorted((row["device"], row["online"], row["version"], row["can_remove"]) for row in rows),
+                             [("DEV-2", False, "1.12.20", False), ("OFFICE-PC", True, "1.12.21", False)])
+            self.assertTrue(all(row["adapter"] == "express" and row["folders"] == [] for row in rows))
+            frappe.session.user = "nobody@x"
+            with self.assertRaises(PermissionError_):
+                cc_companies.computers()
+        with mock.patch.object(express_companies, "devices", lambda: []):
+            frappe.session.user = "boss@x"
+            self.assertEqual(cc_companies.computers(), [])
 
     def test_company_changes_reach_the_people_who_can_see_it(self):
         self.assertEqual(cc_service.viewers("CO-00001"), ["boss@x", "staff@x"])

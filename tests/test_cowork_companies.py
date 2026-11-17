@@ -2741,7 +2741,8 @@ class TaskOverviewTests(unittest.TestCase):
 
     def test_the_connect_row_points_at_the_cowork_connections_api(self):
         # 设置 → 连接最上面的 MR.ERP 一行（11-07）：Cowork 声明自己的连接接口（谁能改网址、授权由它判），页面不写死产品
-        self.assertEqual(provider.connect(), {"mrerp": "pearnly_cowork.connections.api."})
+        self.assertEqual(provider.connect(), {"mrerp": "pearnly_cowork.connections.api.",
+                                              "computers": "pearnly_cowork.folder_intake.api.computers"})   # 电脑列表按声明（欠账 B50）
         api = (APP / "connections/api.py").read_text(encoding="utf-8")
         for name in ("def records(", "def configure(", "def request_refresh("):
             self.assertIn(name, api)

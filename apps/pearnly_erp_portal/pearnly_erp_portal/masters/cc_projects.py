@@ -37,12 +37,16 @@ def sections() -> tuple:
 
 
 def connect() -> dict:
-    """设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时出（`MRERP_LEDGER_ENABLED`，主会话 11-07 定案 #13）；关着不声明，页面就不出。
-    开着也只给 ERP 管理员（这一行调的连接接口只限管理员，服务端判；别人不出这一行）。"""
+    """设置 → 连接：电脑列表（`computers`，只读，欠账 B50）都声明；MR.ERP 一行只在 MR.ERP 账本开着时出（`MRERP_LEDGER_ENABLED`，
+    主会话 11-07 定案 #13），开着也只给 ERP 管理员（这一行调的连接接口只限管理员，服务端判；别人不出这一行）。"""
     from pearnly_erp_portal import mrerp
     from pearnly_erp_portal.mrerp import connection
 
-    return {"mrerp": "pearnly_erp_portal.mrerp.api."} if mrerp.enabled() and connection.is_admin() else {}
+    # 浏览器里「连接」那一栏的电脑列表（只读，欠账 B50）：能看公司的人都有，按声明出、不按产品名写死
+    found = {"computers": API + "computers"}
+    if mrerp.enabled() and connection.is_admin():
+        found["mrerp"] = "pearnly_erp_portal.mrerp.api."
+    return found
 
 
 def _visible(user) -> set:

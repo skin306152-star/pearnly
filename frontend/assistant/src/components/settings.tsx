@@ -45,6 +45,7 @@ import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme }
 import { chooseLanguage, postMethod, shownError, siteFetch } from "@/lib/frappe";
 import { giveFocusBack, opener } from "@/lib/focus-return";
 import { useProfile } from "@/lib/profile";
+import { useProjects } from "@/lib/managed-agents/projects";
 import { syncPush, usePush } from "@/lib/push";
 import { cn } from "@/lib/utils";
 import { co, dayLabel, lang, LANGUAGES, st, t } from "../i18n";
@@ -109,9 +110,9 @@ export function Settings() {
     };
   }, []);
 
-  // 浏览器里打开（没有桌面端）：Cowork 站点只给只读的「连接」看连着哪台电脑；改只在电脑上的 CC 里（用户 2026-10-10）
-  const product = useProfile()?.product;
-  const web = !api && product === "cowork";
+  // 浏览器里打开（没有桌面端）：产品声明了电脑列表（connect.computers）才给只读的「连接」看连着哪台电脑；改只在电脑上的 CC 里
+  // （用户 2026-10-10；按声明不按产品名，欠账 B50）
+  const web = !api && !!useProjects((s) => s.connect.computers);
   const current = !api && !(web && section === "connections") && section !== "general" ? "general" : section;
   const titles: Record<Section, string> = { general: st.general, connections: st.connections, system: st.system };
 
@@ -786,7 +787,6 @@ function WebConnections() {
 // 只给管理员（`connections.api.member_choices`；第 6 批审查第 6 条：不再借团队成员接口）
 const MEMBER_CHOICES = "pearnly_cowork.connections.api.member_choices";
 
-const COMPUTERS = "pearnly_cowork.folder_intake.api.computers";
 const REMOVE_COMPUTER = "pearnly_cowork.companion.api.remove_device";
 
 /** 池里的电脑（一台一行，服务端 `folder_intake.rules.computers`）：在不在线、自动更新被拦；登记人或管理员「···」移除
@@ -797,7 +797,9 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   const [rows, setRows] = useState<Computer[] | null>(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const load = useCallback(() => void getJson<Computer[]>(COMPUTERS).then((r) => setRows(r ?? [])), []);
+  // 电脑列表的接口按产品声明（connect.computers：Cowork 是 folder_intake.api.computers，ERP 是 masters.cc_companies.computers）
+  const computers = useProjects((s) => s.connect.computers ?? "");
+  const load = useCallback(() => void (computers ? getJson<Computer[]>(computers).then((r) => setRows(r ?? [])) : setRows([])), [computers]);
   useEffect(() => {
     load();
     const timer = setInterval(load, 10000);

@@ -270,6 +270,29 @@ def choice_forget(company, key) -> dict:
     return {"forgotten": True}
 
 
+# ---------------- 设置「连接」里的电脑（欠账 B50：同 Cowork 浏览器那一栏，只读） ----------------
+
+
+def computers() -> list:
+    """给本站报账套的电脑，一台一行（形状同 Cowork `folder_intake.rules.computers`）：名字、在不在线、CC 桌面版版本；
+    ERP 不读文件夹（``folders`` 空），网页上不移除电脑（``can_remove`` 假）。能看公司的人可看。"""
+    from datetime import datetime, timezone
+
+    from pearnly_core.cc_desktop import contracts as desktop_contracts
+    from pearnly_erp_portal.express import companies as express_companies
+
+    require_read()
+    names = express_companies.devices()
+    if not names:
+        return []
+    moment = datetime.now(timezone.utc).replace(tzinfo=None)  # 表里的时间存 UTC（同 `express.companies.online_devices`）
+    rows = frappe.get_all(express_companies.DEVICE, filters={"name": ["in", names]},
+                          fields=["name", "device_label", "companion_version", "last_seen_at"],
+                          order_by="device_label asc", limit_page_length=express_companies.DEVICES_MAX)
+    return [{"adapter": "express", "device": row.device_label or row.name, "online": bool(desktop_contracts.online(row.last_seen_at, moment)),
+             "version": row.companion_version or "", "folders": [], "id": row.name, "can_remove": False} for row in rows]
+
+
 # ---------------- 添加公司（从账套建，同 Cowork 的弹窗） ----------------
 
 

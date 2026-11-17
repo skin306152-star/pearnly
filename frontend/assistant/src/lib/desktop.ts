@@ -16,7 +16,7 @@ import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { lang } from "@/i18n";
 import { onNotice } from "@/lib/managed-agents/activity";
-import { setDraft } from "@/lib/managed-agents/projects";
+import { setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME, useProfile } from "@/lib/profile";
 import { reportCaught, withReport } from "./caught";
@@ -39,11 +39,12 @@ export function openSettings(section = "") {
   window.dispatchEvent(new CustomEvent("tomo-settings", { detail: section }));
 }
 
-/** 设置里有没有「连接」一栏（同 components/settings.tsx：CC 桌面版都有「此电脑 → 连接」；浏览器里只有 Cowork 站点有只读的「连接」）。
- *  选公司弹窗一家都没有时的「连接」按钮跟着它，没有这一栏的地方不出按钮。 */
+/** 设置里有没有「连接」一栏（同 components/settings.tsx：CC 桌面版都有「此电脑 → 连接」；浏览器里产品声明了电脑列表
+ *  `connect.computers` 才有只读的「连接」——按声明，不按产品名写死，欠账 B50）。选公司弹窗一家都没有时的「连接」按钮跟着它，
+ *  没有这一栏的地方不出按钮。 */
 export function useHasConnections(): boolean {
   const [app, setApp] = useState(false);
-  const product = useProfile()?.product;
+  const declared = useProjects((s) => !!s.connect.computers);
   useEffect(() => {
     let alive = true;
     void desktop().then((found) => alive && setApp(!!found));
@@ -51,7 +52,7 @@ export function useHasConnections(): boolean {
       alive = false;
     };
   }, []);
-  return app || product === "cowork";
+  return app || declared;
 }
 
 /** 打开某段对话（target 是对话编号，空串 = 定时任务页，「/assistant?…」是深链接）；lib/nav.ts 的 useDeepLinks 听这个事件。 */

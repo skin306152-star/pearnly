@@ -43,6 +43,12 @@ def note_delete(company, note):
     return found
 
 
+@frappe.whitelist(methods=["GET"])
+def computers():
+    """设置「连接」里的电脑（只读，欠账 B50）。"""
+    return service.computers()
+
+
 @frappe.whitelist(methods=["POST"])
 def choice_forget(company, key):
     """公司页「记住的选择」删一条（欠账 B51，同 Cowork 的 choice_forget）。"""
