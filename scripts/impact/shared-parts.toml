@@ -372,7 +372,7 @@ paths = ["frontend/assistant/src/lib/desktop.ts", "companion/src/companion/tomo_
 markers = ["from \"@/lib/desktop\"", "tomo_bridge"]
 search = ["frontend/assistant/src/**", "companion/src/**"]
 entries = ["cc.desktop.bridge", "cc.settings.connection", "cc.operator.page", "cc.desktop.operator", "cc.mrerp-login", "cc.desktop.cloud-express"]
-not_entries = { "companion/src/companion/mrerp_operator/login.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（实操页 MR.ERP 登录 operator_authorize / operator_forget，开关打开才用），不调用桥；入口 cc.mrerp-login、cc.desktop.operator.mrerp 已登记", "companion/src/companion/cloud_link/__init__.py" = "包说明里提到 tomo_bridge 的 cloud_pending / cloud_token，本身不调用桥；云端 Express 的桥动作入口是 cc.desktop.cloud-express" }
+not_entries = { "companion/src/companion/cloud_link/cloud_package.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（cloud_pair_begin 时备好隧道盘 cc\\ 的三个安装文件），本身不调用桥；入口 cc.desktop.cloud-express 已登记", "companion/src/companion/mrerp_operator/login.py" = "只在说明里提到 tomo_bridge：它是桥调用的一方（实操页 MR.ERP 登录 operator_authorize / operator_forget，开关打开才用），不调用桥；入口 cc.mrerp-login、cc.desktop.operator.mrerp 已登记", "companion/src/companion/cloud_link/__init__.py" = "包说明里提到 tomo_bridge 的 cloud_pending / cloud_token，本身不调用桥；云端 Express 的桥动作入口是 cc.desktop.cloud-express" }
 
 [[part]]
 id = "cc-sidebar-list"
