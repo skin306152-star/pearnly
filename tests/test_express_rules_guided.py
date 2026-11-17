@@ -135,6 +135,58 @@ class A12SalesPayment(unittest.TestCase):
         self.assertEqual(result["applied"].get("payment"), "cash")
 
 
+class RememberedEveryBasis(unittest.TestCase):
+    """主会话 11-17 定 C：口径只管问不问，记下的所有口径都用——对话里答过的，网页 / LINE / 后台再推（push.poll、再写一次、
+    待处理重推、代录重交）也照用；没记过的照旧（网页口径不问、落默认）。改前这三处网页口径一律不读记忆。"""
+    CONFIG = {"revenue_acc": "41-01", "reported_accounts": [{"code": "41-01"}, {"code": "41-02"}]}
+    CUSTOMER = choices.supplier_subject("sales", "0105550000002", "Synthetic Customer")
+
+    def test_a_remembered_revenue_account_is_used_outside_the_conversation(self):
+        result = resolve(sales(), "sales", config=self.CONFIG, remembered={"account": {choices.REVENUE_SUBJECT: "41-02"}})
+        self.assertEqual((result["applied"].get("account"), result["applied"].get("account_from")), ("41-02", "remembered"))
+        self.assertNotIn("account", kinds(result))
+
+    def test_a_remembered_revenue_account_no_longer_in_the_chart_falls_back_to_the_default(self):
+        result = resolve(sales(), "sales", config=self.CONFIG, remembered={"account": {choices.REVENUE_SUBJECT: "41-99"}})
+        self.assertNotIn("account", result["applied"])  # 照旧交 mapper 落连接默认 41-01
+        self.assertNotIn("account", kinds(result))       # 网页口径不问
+
+    def test_a_remembered_cash_or_credit_sale_is_used_outside_the_conversation(self):
+        result = resolve(sales(), "sales", remembered={"payment": {self.CUSTOMER: "cash"}})
+        self.assertEqual(result["applied"].get("payment"), "cash")
+        self.assertNotIn("payment", kinds(resolve(sales(), "sales")))  # 没记过：网页口径照旧不问
+
+    def test_a_remembered_sales_service_vat_is_used_outside_the_conversation(self):
+        fields = sales(vat="7.00", items=[{"name": "Service", "amount": "100"}])
+        subject = choices.sales_service_vat_subject("BK1")
+        config = {"reported_customers": [{"code": "C1", "srv": "1"}, {"code": "C2", "srv": "2"}]}
+        guided = resolve(fields, "sales", config=config, guided=True, book="BK1")
+        self.assertIn(choices.service_vat.KIND, kinds(guided))
+        remembered = {choices.service_vat.KIND: {subject: "accrual"}}
+        web = resolve(fields, "sales", config=config, book="BK1", remembered=remembered)
+        self.assertEqual(web["applied"].get(choices.service_vat.KIND), "accrual")
+        self.assertNotIn(choices.service_vat.KIND, kinds(resolve(fields, "sales", config=config, book="BK1")))
+
+
+class GuidedOnlyGatesAsking(unittest.TestCase):
+    """守门（主会话 11-17 定 C）：``resolve`` 里条件带 ``guided`` 的分支只许决定出不出题，不许在里面读记忆（``chosen(``）——
+    读记忆在引导分支里 = 别的口径用不上对话里答过的，后台再推落默认值（记错科目）。"""
+
+    def test_no_memory_read_sits_under_a_guided_condition(self):
+        import ast
+
+        source = (ROOT / "apps/pearnly_core/pearnly_core/express_rules/push/choices.py").read_text(encoding="utf-8")
+        resolve_fn = next(node for node in ast.parse(source).body
+                          if isinstance(node, ast.FunctionDef) and node.name == "resolve")
+        found = []
+        for node in ast.walk(resolve_fn):
+            if isinstance(node, ast.If) and "guided" in ast.unparse(node.test):
+                for inner in (n for stmt in node.body for n in ast.walk(stmt)):
+                    if isinstance(inner, ast.Call) and ast.unparse(inner.func) == "chosen":
+                        found.append(f"line {inner.lineno}: {ast.unparse(node.test)}")
+        self.assertEqual(found, [])
+
+
 class A14Revenue(unittest.TestCase):
     CONFIG = {"revenue_acc": "41-01", "reported_accounts": [{"code": "41-01"}, {"code": "41-02"}]}
 

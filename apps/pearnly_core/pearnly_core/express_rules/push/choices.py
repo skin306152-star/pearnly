@@ -310,8 +310,9 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
                      explicit, book,
                      name, tax, branch)
 
-    elif guided:
-        # A12：销项没有付款信号（人定的 / 票面写明的）时问现销还是赊销，不静默默认赊销；这家记过的照用
+    else:
+        # A12：销项没有付款信号（人定的 / 票面写明的）时，这家记过的现销 / 赊销**所有口径都用**（主会话 11-17 定 C）；没记过：
+        # 引导模式问，不静默默认赊销；别的口径照旧（交 mapper 按票面）
         explicit = str(fields.get("posting_payment_manual") or "").strip()
         value = chosen("payment", party_key)
         if explicit in PAYMENT_VALUES or payment_written(fields):
@@ -320,9 +321,10 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             applied["payment"] = value
             used("payment", party_key)
             applied["payment_from"] = "task_default" if str((fixed or {}).get("payment") or "").strip() else "remembered"
-        else:
+        elif guided:
             needed.append(_payment_question(party_key, name, fields, guided))
-        _sales_service_vat(fields, posting_kind, config, applied, needed, chosen, used, explicit, book)
+        # 销项服务品税口径：记过的所有口径都用，没记过只有引导模式问
+        _sales_service_vat(fields, posting_kind, config, applied, needed if guided else [], chosen, used, explicit, book)
 
     # ── 存货对照：库存行落哪个存货；没声明过账类型的行顺带定它动不动库存（11-06 按行选）──
     catalog = _rows(config.get("reported_products"))
@@ -420,15 +422,16 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             applied["account"] = value
             applied["account_from"] = "task_default"
             used("account", party_key)
-    elif direction == "sales" and guided and not account_resolved:
-        # A14：引导模式下收入科目按账套记一个；没记过就问，连接的默认收入科目只作预选（以前静默落默认只打「待核」）
+    elif direction == "sales" and not account_resolved:
+        # A14：收入科目按账套记一个。**记过的所有口径都用**（网页 / LINE / 后台再推也用 CC 里记下的，主会话 11-17 定 C：口径只管
+        # 问不问，不管已答的用不用）；没记过：引导模式问（连接的默认收入科目只作预选），别的口径照旧落连接默认
         accounts = _rows(config.get("reported_accounts"))
         value = chosen("account", REVENUE_SUBJECT)
         if value and (not accounts or value in _codes(accounts)):
             applied["account"] = value
             applied["account_from"] = "remembered"
             used("account", REVENUE_SUBJECT)
-        else:
+        elif guided:
             default = str(config.get("revenue_acc") or "").strip()
             needed.append({"kind": "account", "subject": REVENUE_SUBJECT, "label": "",
                            "current": default if default and (not accounts or default in _codes(accounts)) else ""})
