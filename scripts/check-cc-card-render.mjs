@@ -14,7 +14,8 @@
 //   R7 卡片按钮一行最多 2 个、主按钮在最右                      B74
 //   R8 有「推荐」的那一题：推荐项排第一、打开时一个都没选        B77（写账前的题不预选，主会话 11-16）
 //
-//   node scripts/check-cc-card-render.mjs                              # 构建预览页（CC_KIT=1）后全量量
+//   node scripts/check-cc-card-render.mjs                              # 构建预览页（CC_KIT=1）后全量量（Development checks 里就是这一句；
+//                                                                       11-17 本机连跑 3 次 27 场景 × 12 种结果逐字节一致后接入）
 //   node scripts/check-cc-card-render.mjs --dist DIR                   # 用已构建好的产物（不再构建）
 //   node scripts/check-cc-card-render.mjs --root DIR                   # 量别的仓库目录（默认本仓）
 //   node scripts/check-cc-card-render.mjs --scenarios FILE             # 场景表（默认 scripts/cc-card-scenarios.json）
