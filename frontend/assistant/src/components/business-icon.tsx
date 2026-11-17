@@ -1,6 +1,5 @@
 // 业务菜单的图标：声明里写的 lucide 名（pearnly_core/assistant/guide/declaration.py 的 ICONS 白名单）→ 组件。
 // 白名单加图标时这里同时加（引擎窗口管白名单）；不认识的名字退回按业务 id 的老三个，再退回空。
-// 白名单原有的 building-plus 本版 lucide 没有，引擎窗口 11-16 定换成 building-2。
 import {
   BoxesIcon, Building2Icon, BuildingIcon, ClipboardListIcon, DownloadIcon, FileSpreadsheetIcon, FolderClockIcon, KanbanIcon, LandmarkIcon,
   ListChecksIcon, type LucideIcon, PercentIcon, ReceiptIcon, ScaleIcon, SettingsIcon, ShoppingCartIcon, StoreIcon, TagIcon, WalletIcon,
@@ -11,7 +10,7 @@ export const BUSINESS_ICONS: Record<string, LucideIcon> = {
   "shopping-cart": ShoppingCartIcon, tag: TagIcon, wallet: WalletIcon, landmark: LandmarkIcon, scale: ScaleIcon, store: StoreIcon,
   "clipboard-list": ClipboardListIcon, receipt: ReceiptIcon, percent: PercentIcon, download: DownloadIcon, "folder-clock": FolderClockIcon,
   "list-checks": ListChecksIcon, building: BuildingIcon, kanban: KanbanIcon, settings: SettingsIcon, boxes: BoxesIcon,
-  "file-spreadsheet": FileSpreadsheetIcon, "building-2": Building2Icon, "building-plus": Building2Icon,
+  "file-spreadsheet": FileSpreadsheetIcon, "building-2": Building2Icon,
 };
 const BY_BUSINESS: Record<string, string> = { purchase: "shopping-cart", sales: "tag", collection: "wallet" };
 
