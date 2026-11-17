@@ -43,6 +43,14 @@ def note_delete(company, note):
     return found
 
 
+@frappe.whitelist(methods=["POST"])
+def choice_forget(company, key):
+    """公司页「记住的选择」删一条（欠账 B51，同 Cowork 的 choice_forget）。"""
+    found = service.choice_forget(company, key)
+    frappe.db.commit()
+    return found
+
+
 @frappe.whitelist(methods=["GET"])
 def pending(company=None, limit=None, search=None):
     from pearnly_erp_portal.express import pending as pending_items

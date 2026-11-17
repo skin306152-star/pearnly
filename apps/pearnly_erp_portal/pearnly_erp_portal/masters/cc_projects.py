@@ -11,7 +11,8 @@
   名称 = 账套名 · 位置（`target.option_name`）。不接 Express 的公司（MR.ERP 账本、纯 ERP）回 None：不用本对话账套。写入见
   `express.conversation`。
 - `API` / `SECTIONS`：给页面的声明（共用层 `projects.listing` 原样转交）：公司接口前缀与 ERP 有的分区——待处理、知识库、
-  从账套添加公司（`create`，同 Cowork 的弹窗）、公司在 ERP 里改（`desk`：公司页「在浏览器中打开」）。Cowork 的月结台账、单据文件夹、定时任务、记住的选择、申报草稿、改名、删除、
+  从账套添加公司（`create`，同 Cowork 的弹窗）、公司在 ERP 里改（`desk`：公司页「在浏览器中打开」）、记住的选择（`choices`：能看能删，
+  欠账 B51）。Cowork 的月结台账、单据文件夹、定时任务、申报草稿、改名、删除、
   刷新账套 ERP 没有，页面就不出。
 """
 import frappe
@@ -24,7 +25,7 @@ SCOPE = False
 LEDGER = True
 LEDGER_OPTIONS_MAX = 50
 API = "pearnly_erp_portal.masters.cc_companies."
-SECTIONS = ("pending", "notes", "create", "desk")
+SECTIONS = ("pending", "notes", "choices", "create", "desk")
 REFS_MAX = 500
 
 

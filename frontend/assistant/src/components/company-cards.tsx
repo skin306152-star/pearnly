@@ -102,7 +102,7 @@ export function choiceSection(choice: Pick<Choice, "source" | "kind">): string {
 }
 
 const SECTION_ORDER = ["party", "account", "payment", "vat", "posting", "group", "item", "department", "location", "receipt", "current_book", "pos", "income",
-  "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default", "operator_form"];
+  "vatCheck", "history", "posting_history", "mrerp_menu", "mrerp_default", "operator_form", "stock_group"];
 
 // ---------------------------------------------------------------- 卡片外框
 /** 会话栏给卡片的控制：折叠（记在本机）、调顺序（Alt+↑/↓；拖动由会话栏的共用拖动负责）、登记看得见的卡片

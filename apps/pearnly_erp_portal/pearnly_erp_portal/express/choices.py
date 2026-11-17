@@ -107,3 +107,22 @@ def operator_form(company, book_key, doc_type) -> str:
     if not company or not str(book_key or "").strip() or not str(doc_type or "").strip():
         return ""
     return frappe.db.get_value(CHOICE, _name(company, OPERATOR_FORM, operator_subject(book_key, doc_type)), "value") or ""
+
+
+SHOWN = 50  # 公司页「记住的选择」一次最多列几条（新改的在前）
+
+
+def listing(company) -> list:
+    """这家公司记住的选择（公司页「记住的选择」卡，欠账 B51，同 Cowork 能看能删）：原样的行，新改的在前；显示的写法在
+    `masters.cc_service._choice_rows` 里换成人看得懂的。"""
+    return frappe.get_all(CHOICE, filters={"company": company},
+                          fields=["name", "kind", "subject", "value", "label", "chosen_by", "modified"],
+                          order_by="modified desc, name desc", limit_page_length=SHOWN)
+
+
+def forget(company, name) -> bool:
+    """删掉这家公司记住的一条（``name`` 是 :func:`listing` 给的行名；不是这家的不删）。下次遇到同一问题重新问人。"""
+    if not name or frappe.db.get_value(CHOICE, name, "company") != company:
+        return False
+    frappe.delete_doc(CHOICE, name, ignore_permissions=True)
+    return True

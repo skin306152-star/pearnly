@@ -184,8 +184,8 @@ def period_book(row, sets, period, found=None) -> dict | None:
 
 
 def detail(company, period=None) -> dict:
-    """公司页要的：公司、账套（新年度在前）、这个月的那份（:func:`period_book`）、知识库；ERP 没有的分区（文件夹、记住的选择、
-    定时任务、草稿）给空。`desk_url` 是这家在 ERP 里的公司页。"""
+    """公司页要的：公司、账套（新年度在前）、这个月的那份（:func:`period_book`）、知识库、记住的选择（:func:`_choice_rows`）；
+    ERP 没有的分区（文件夹、定时任务、草稿）给空。`desk_url` 是这家在 ERP 里的公司页。"""
     require_read()
     period = _period(period)
     row = get(company)
@@ -201,13 +201,73 @@ def detail(company, period=None) -> dict:
         "period_set": period_book(row, sets, period, month or {}),
         "folders": [],
         "notes": company_notes.listing(row.name),
-        "choices": [],
+        "choices": _choice_rows(row, sets),
         "tasks": None,
         "drafts": None,
     }
     for item in found["notes"]:
         item["updated_at"] = when(item.get("updated_at"))
     return found
+
+
+# ---------------- 记住的选择（欠账 B51：同 Cowork 公司页能看能删） ----------------
+
+# ERP 记忆的类别 → 页面的类别（页面按它分组、出标题，四语在页面 co.kind）
+CHOICE_KINDS = {"account_set": "current_book", "intake_payment": "payment", "stock_group": "stock_group"}
+
+
+def _choice_subject(kind, subject, names) -> str:
+    """对象换成人看得懂的写法（页面不出内部键）：账套记「会计年度」、存货科目组与代录子菜单记「账套名（· 单据种类）」、
+    收单付款方式记对方税号或名称；认不出的照原样。"""
+    from pearnly_erp_portal.express import choices
+
+    subject = str(subject or "")
+    if kind == choices.ACCOUNT_SET and subject.startswith("year:"):
+        return subject[5:9]
+    if kind == choices.STOCK_GROUP:
+        return names.get(subject, subject)
+    if kind == choices.OPERATOR_FORM and "|" in subject:
+        book, doc_type = subject.rsplit("|", 1)
+        return " · ".join(part for part in (names.get(book, book), doc_type) if part)
+    if kind == "intake_payment" and "|" in subject:
+        party = subject.rsplit("|", 1)[1]
+        return party[5:] if party.startswith("name:") else party
+    return subject
+
+
+def _choice_rows(row, sets) -> list:
+    """公司页「记住的选择」卡的行（形状同 Cowork：``source`` express、只能删）。"""
+    from pearnly_erp_portal.express import choices
+
+    names = {item["key"]: item.get("label") or item["key"] for item in sets or () if item.get("key")}
+    people = {}
+    out = []
+    for item in choices.listing(row.name):
+        kind = CHOICE_KINDS.get(item.kind, item.kind)
+        by = item.chosen_by or ""
+        if by and by not in people:
+            people[by] = frappe.db.get_value("User", by, "full_name") or by
+        value = item.value or ""
+        label = item.label or ""
+        if item.kind == choices.ACCOUNT_SET:
+            label = names.get(value, label or value)
+        out.append({"key": item.name, "source": "express", "kind": kind,
+                    "subject_label": _choice_subject(item.kind, item.subject, names), "value": value,
+                    "value_label": label or value, "editable": False, "set_by": by, "set_by_name": people.get(by, ""),
+                    "set_at": when(item.modified)})
+    return out
+
+
+def choice_forget(company, key) -> dict:
+    """删掉一条记住的选择：同删知识库的权限（:func:`require_write`），只删这家公司的。"""
+    from pearnly_erp_portal.express import choices
+
+    require_write()
+    row = get(company)
+    if not choices.forget(row.name, str(key or "")):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    announce(row.name, part="choices")
+    return {"forgotten": True}
 
 
 # ---------------- 添加公司（从账套建，同 Cowork 的弹窗） ----------------

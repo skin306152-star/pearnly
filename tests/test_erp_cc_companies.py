@@ -346,14 +346,15 @@ class ProviderTests(unittest.TestCase):
     def test_declares_kind_period_no_scope_the_api_and_its_sections(self):
         self.assertEqual((cc_projects.KIND, cc_projects.PERIOD, cc_projects.SCOPE), ("company", True, False))
         self.assertEqual(cc_projects.API, "pearnly_erp_portal.masters.cc_companies.")
-        self.assertEqual(cc_projects.SECTIONS, ("pending", "notes", "create", "desk"))
-        # 「添加公司」只给能管公司的人（共用层 projects.declared 用产品的 sections()）
-        self.assertEqual(cc_projects.sections(), ("pending", "notes", "create", "desk"))
+        self.assertEqual(cc_projects.SECTIONS, ("pending", "notes", "choices", "create", "desk"))
+        # 「添加公司」只给能管公司的人（共用层 projects.declared 用产品的 sections()）；记住的选择（欠账 B51）大家都看得到
+        self.assertEqual(cc_projects.sections(), ("pending", "notes", "choices", "create", "desk"))
         frappe.session.user = "staff@x"
-        self.assertEqual(cc_projects.sections(), ("pending", "notes", "desk"))
+        self.assertEqual(cc_projects.sections(), ("pending", "notes", "choices", "desk"))
         frappe.session.user = "boss@x"
         # 前缀指向的模块真有页面要调的那几个方法，没有 Cowork 才有的改名、删；新建公司页的地址（desk）已删
-        for method in ("companies", "choices", "detail", "create", "note_save", "note_delete", "pending", "pending_counts"):
+        for method in ("companies", "choices", "detail", "create", "note_save", "note_delete", "choice_forget", "pending",
+                       "pending_counts"):
             self.assertTrue(callable(getattr(cc_companies, method)), method)
         for method in ("desk", "rename", "delete", "month", "task_overview", "folder_bind", "candidates"):
             self.assertFalse(hasattr(cc_companies, method), method)
@@ -505,6 +506,41 @@ class CompanyApiTests(unittest.TestCase):
             cc_companies.detail("CO-00002")       # 看不到的公司当不存在
         with self.assertRaises(DoesNotExistError):
             cc_companies.detail("CO-00003")       # 停用的
+
+    def test_saved_choices_show_readable_and_can_be_forgotten(self):
+        # 欠账 B51（ERP-Cowork-CC 差异盘点 #9）：ERP 公司页也有「记住的选择」卡，能看能删；对象不出内部键（年度、账套名、税号）
+        BOOKS[(TAX_A, "00000")] = [book("K69", "Siam 69", "2026-01-01", "2026-12-31")]
+        table = STATE.db.table("ERP Express Choice")
+        rows = [
+            ("EXC-1", "account_set", "year:2026-01-01", "K69", "", "2026-11-10 09:00:00"),
+            ("EXC-2", "stock_group", "K69", "ST01", "Stock group 1", "2026-11-11 09:00:00"),
+            ("EXC-3", "operator_form", "K69|HP", "1. Cash purchase", "", "2026-11-12 09:00:00"),
+            ("EXC-4", "intake_payment", "erp-intake-pay:purchase|0105500000009", "credit", "Credit", "2026-11-13 09:00:00"),
+        ]
+        for name, kind, subject, value, label, modified in rows:
+            table[name] = {"name": name, "company": "CO-00001", "kind": kind, "subject": subject, "value": value,
+                           "label": label, "chosen_by": "boss@x", "modified": modified}
+        table["EXC-9"] = {"name": "EXC-9", "company": "CO-00002", "kind": "account_set", "subject": "year:2026-01-01",
+                          "value": "X", "label": "", "chosen_by": "boss@x", "modified": "2026-11-14 09:00:00"}
+        found = cc_companies.detail("CO-00001", "2026-10")["choices"]
+        self.assertEqual([(row["key"], row["kind"], row["subject_label"], row["value_label"]) for row in found], [
+            ("EXC-4", "payment", "0105500000009", "Credit"),
+            ("EXC-3", "operator_form", "Siam 69 · HP", "1. Cash purchase"),
+            ("EXC-2", "stock_group", "Siam 69", "Stock group 1"),
+            ("EXC-1", "current_book", "2026", "Siam 69"),
+        ])
+        self.assertTrue(all(row["source"] == "express" and row["editable"] is False for row in found))
+        from unittest import mock
+        deleted = []
+        with mock.patch.object(frappe, "delete_doc", lambda doctype, name, **kw: deleted.append(table.pop(name)["name"]),
+                               create=True):
+            self.assertEqual(cc_companies.choice_forget("CO-00001", "EXC-2"), {"forgotten": True})
+            with self.assertRaises(PermissionError_):
+                cc_companies.choice_forget("CO-00001", "EXC-9")     # 别家的不删
+            frappe.session.user = "nobody@x"
+            with self.assertRaises(PermissionError_):
+                cc_companies.choice_forget("CO-00001", "EXC-1")     # 没权限的不删
+        self.assertEqual(deleted, ["EXC-2"])
 
     def test_company_changes_reach_the_people_who_can_see_it(self):
         self.assertEqual(cc_service.viewers("CO-00001"), ["boss@x", "staff@x"])
