@@ -325,6 +325,9 @@ const g = globalThis as any;
   assert.equal((operatorActions as any).start, undefined);
   await operatorActions.remember("CO-1", answers);
   assert.deepEqual(posts.at(-1), [API + "remember", { company: "CO-1", answers: JSON.stringify(answers) }]);
+  // 开始卡带上任务：与预检同一段对话记（引导口径才问的题才记得下，11-17）
+  await operatorActions.remember("CO-1", answers, "OPT-1");
+  assert.deepEqual(posts.at(-1), [API + "remember", { company: "CO-1", answers: JSON.stringify(answers), task: "OPT-1" }]);
   await operatorActions.answer("OPT-1", "A", answers);
   assert.deepEqual(posts.at(-1), [API + "task_answer", { name: "OPT-1", doc_id: "A", answers: JSON.stringify(answers.A) }]);
   await operatorActions.answer("OPT-1", "Z", {});

@@ -160,12 +160,18 @@ export type AskItem = {
   docs: string[];
   /** 只在 key 那一项最后选成 value 时才成立（共用判定的 when）。 */
   when?: { key: string; value: string };
+  /** 共用判定给的分组（科目题按它叫费用科目 / 收入科目 / 存货科目，`write_precheck.contracts.group_of`）。 */
+  group?: string;
 };
 
 const NEW = "__new__";
 /** 一项的分类名：对方按方向写客户 / 供应商（主题以 sales| / purchase| 开头），判不出写「供应商 / 客户」；没有译名的才写「其他」
  *  （11-08 生产：对方一项的题目写成「อื่นๆ · บมจ.บิ๊กซี…」）。 */
-export function kindName(item: { kind: string; subject?: string }): string {
+const ACCOUNT_KIND: Record<string, string> = { sales: "income", stock: "stockAccount" };
+
+export function kindName(item: { kind: string; subject?: string; group?: string }): string {
+  // 科目题按分组叫（销项收入科目、存货科目，其余费用科目）：类名表里没有 account 这一类，以前显示成「其他」（11-17）
+  if (item.kind === "account") return op.precheck.kind[ACCOUNT_KIND[item.group ?? ""] ?? "expense"] ?? op.kind.other!;
   if (item.kind === "party") {
     const side = String(item.subject ?? "").split("|")[0];
     return side === "sales" ? op.precheck.kind.customer! : side === "purchase" ? op.precheck.kind.supplier! : op.kind.party!;
@@ -247,13 +253,16 @@ export function itemsOfCheck(reply: unknown): AskItem[] {
   const groups = (reply && typeof reply === "object" ? (reply as { groups?: unknown }).groups : null) ?? [];
   if (!Array.isArray(groups)) return [];
   return groups
-    .flatMap((g) => (g && Array.isArray((g as { items?: unknown }).items) ? (g as { items: Record<string, unknown>[] }).items : []))
+    .flatMap((g) => (g && Array.isArray((g as { items?: unknown }).items)
+      ? (g as { group?: unknown; items: Record<string, unknown>[] }).items.map((i) => ({ group: (g as { group?: unknown }).group, ...i }))
+      : []))
     .filter((i) => i && i.state !== "decided" && typeof i.key === "string")
     .map((i) => ({
       key: String(i.key), kind: String(i.kind ?? ""), subject: String(i.subject ?? ""), label: String(i.label ?? ""),
       value: i.state === "proposed" ? String(i.value ?? "") : "", value_label: String(i.value_label ?? ""),
       options: Array.isArray(i.options) ? (i.options as ChoiceOption[]) : [], ...(i.search ? { search: String(i.search) } : {}),
       docs: Array.isArray(i.docs) ? (i.docs as unknown[]).map(String) : [],
+      ...(i.group ? { group: String(i.group) } : {}),
       ...whenOf(i.when),
     }))
     .reduce<AskItem[]>(afterWhatTheyNeed, []);

@@ -49,7 +49,7 @@ import {
   answered, answeredLine, askActions, confirmAnswers, docAnswers, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
   itemsOfNeeded, keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, shownQuestions, toggle, toggleOther,
 } from "@/components/tool-uis/ask-shared";
-import { ask } from "@/i18n";
+import { ask, op } from "@/i18n";
 
 const g = globalThis as any;
 """ + INPUT + r"""
@@ -108,6 +108,10 @@ const g = globalThis as any;
   assert.equal(questions[1]!.options.length, 1);                  // 未定：只有「新建」，其余去「其他」搜
   assert.ok(!isRecommended(questions[1]!.options[0]));
   assert.deepEqual(questions[1]!.search, { company: "CO-1", doc_id: "D4", kind: "accounts" });
+  // 科目题按分组叫（11-17：以前显示成「其他」）：服务类进项是费用科目，销项是收入科目
+  assert.ok(questions[1]!.question.startsWith(op.precheck.kind.expense!), questions[1]!.question);
+  const income = itemsOfCheck({ groups: [{ group: "sales", items: [{ key: "r", kind: "account", subject: "revenue", label: "", state: "open", docs: ["D9"], options: [{ code: "41", name: "Sales" }] }] }] });
+  assert.equal(itemQuestion(income[0]!, "CO-1").question, op.precheck.kind.income);
   const picked = { answers: [{ header: "", question: "", labels: [questions[0]!.options[1]!.label] }, { header: "", question: "", labels: [], other: "5310 Power", code: "5310" }] };
   assert.deepEqual(keyAnswers(items, questions, picked as any), [{ key: "k1", value: "V0019" }, { key: "k3", value: "5310" }]);
   assert.deepEqual(keyAnswers(items, questions, { answers: [{ header: "", question: "", labels: [], skipped: true }, { header: "", question: "", labels: [], skipped: true }] }), []);
@@ -281,7 +285,7 @@ class SourceRules(unittest.TestCase):
         start = read("components/tool-uis/operator-start.tsx")
         self.assertNotIn("<select", start)
         # 没定的项开始前在这张卡里用提问卡一次问完（11-08 生产事故）；11-11 一句话下令：答了只记下，卡上没有开始（开始走写入计划）
-        self.assertIn("await operatorActions.remember(input.company, answers);", start)
+        self.assertIn("await operatorActions.remember(input.company, answers, input.task);", start)  # 与预检同一段对话（11-17）
         self.assertNotIn("operatorActions.start", start)
         self.assertIn("<AskCard questions={questions}", start)
         choose = read("components/tool-uis/operator-choose.tsx")

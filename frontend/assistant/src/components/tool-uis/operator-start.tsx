@@ -154,7 +154,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   // 卡里答的题只记下（同写账前置判定的记法），不开始写；写不写、写哪几张由写入计划定（再录一次也在对话里说）
   const remember = (answers: Parameters<typeof operatorActions.remember>[1], done?: () => void) =>
     void action.run(async () => {
-      await operatorActions.remember(input.company, answers);
+      await operatorActions.remember(input.company, answers, input.task);  // 与预检同一段对话（同一口径）
       done?.();
       await refresh();
     }, false);

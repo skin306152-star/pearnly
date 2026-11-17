@@ -13,6 +13,7 @@
 进度在执行的那台电脑上（CC 窗口经桥看）；每张的结论照产品原来的写账回执回到单据上。
 """
 import uuid
+from contextlib import contextmanager
 from datetime import datetime
 
 import frappe
@@ -52,6 +53,28 @@ def _ids(doc_ids) -> list:
     return doc_ids
 
 
+@contextmanager
+def _in_task_conversation(company, task=""):
+    """开始卡的判定与记答案都在这个代录任务的对话里做（同对话里的工具：本对话账套、共用写账规则走引导口径）；没给任务照网页口径。
+    只认本人这个任务、同一家公司。预检和记答案必须同一口径：引导口径才问的题（收入科目 A14、明细对不上 A7），按网页口径重判
+    没有这一题，答案会被当成没问过而丢掉（11-17 回归 erp.cc.operator.intake.sales）。"""
+    session = ""
+    if task:
+        found_task = tasks.read(task)
+        if found_task["company"] != company:
+            frappe.throw(_("Invalid request"))
+        session = str(found_task.get("session_id") or "")
+    if not session:
+        yield
+        return
+    before = getattr(frappe.local, "pearnly_assistant", None)
+    frappe.local.pearnly_assistant = {**(before or {}), "session_id": session}
+    try:
+        yield
+    finally:
+        frappe.local.pearnly_assistant = before
+
+
 @frappe.whitelist(methods=["POST"])
 def precheck(company, doc_ids, task=""):
     """开录前预检（主会话 10-27）：产品按自己的写账准备逐张判，要人选的项连同可选值一次列出；不排写账件。
@@ -60,20 +83,8 @@ def precheck(company, doc_ids, task=""):
     ``task``（开始卡带上）：在这个代录任务的对话里预检——产品按本对话账套准备（同对话里的工具），本对话账套已定就不再出「账套」
     那一题（测试机1 11-13：原来按单据日期判，还问账套、选项露内部编号）。只认本人这个任务、同一家公司。"""
     _require(company)
-    session = ""
-    if task:
-        found_task = tasks.read(task)
-        if found_task["company"] != company:
-            frappe.throw(_("Invalid request"))
-        session = str(found_task.get("session_id") or "")
-    before = getattr(frappe.local, "pearnly_assistant", None) if session else None
-    if session:
-        frappe.local.pearnly_assistant = {**(before or {}), "session_id": session}
-    try:
+    with _in_task_conversation(company, task):
         found = products.precheck(company, _ids(doc_ids))
-    finally:
-        if session:
-            frappe.local.pearnly_assistant = before
     documents = []
     for doc in found.get("documents") or []:
         target = shapes.target_view(doc.get("target")) if isinstance(doc, dict) else None
@@ -148,16 +159,17 @@ SOURCES_MAX = 1000  # 一个月的待录单交一次的上限（超过照实拒�
 
 
 @frappe.whitelist(methods=["POST"])
-def remember(company, answers):
+def remember(company, answers, task=""):
     """开始卡里答的题只记下（``{doc_id: [{kind, subject, value, label}]}``，写账前置判定同一套记法，`write_precheck.products.remember`），
-    不开始写：开始只由用户在对话里一句话下令（写入计划）。"""
+    不开始写：开始只由用户在对话里一句话下令（写入计划）。``task``：同 :func:`precheck`，在这个任务的对话里记（与出题同一口径）。"""
     _require(company)
     answers = frappe.parse_json(answers) if isinstance(answers, str) else answers
     if not isinstance(answers, dict) or not all(isinstance(rows, list) for rows in answers.values()):
         frappe.throw(_("Invalid request"))
     from pearnly_core.write_precheck import products as precheck_products
 
-    return precheck_products.remember(company, {str(doc_id): rows for doc_id, rows in answers.items() if rows})
+    with _in_task_conversation(company, task):
+        return precheck_products.remember(company, {str(doc_id): rows for doc_id, rows in answers.items() if rows})
 
 
 def waiting(company, period, again) -> tuple[list, dict, list]:

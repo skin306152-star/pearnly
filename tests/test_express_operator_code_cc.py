@@ -747,6 +747,28 @@ class PrecheckTargetTests(Base):
         self.assertEqual([item.get("session_id") for item in seen], ["op_t1", None])
         self.assertEqual(getattr(frappe.local, "pearnly_assistant", None), before)  # 用完还原
 
+    def test_the_start_card_answers_are_saved_in_the_same_task_conversation(self):
+        # 11-17 回归（erp.cc.operator.intake.sales）：开始卡在任务对话里预检，引导口径出了收入科目题；记答案时不在那段对话里，
+        # 按网页口径重判没有这一题，答案静默丢掉，写入计划仍判未定。记答案与预检同一段对话
+        seen = []
+        if not hasattr(frappe, "local"):
+            frappe.local = types.SimpleNamespace()
+            self.addCleanup(delattr, frappe, "local")
+        stub = types.ModuleType("pearnly_core.write_precheck.products")
+        stub.remember = lambda company, answers: seen.append(
+            dict(getattr(frappe.local, "pearnly_assistant", None) or {})) or {"saved": 1}
+        package = sys.modules.get("pearnly_core.write_precheck") or types.ModuleType("pearnly_core.write_precheck")
+        before = getattr(frappe.local, "pearnly_assistant", None)
+        with mock.patch.dict(sys.modules, {"pearnly_core.write_precheck": package, "pearnly_core.write_precheck.products": stub}), \
+                mock.patch.object(package, "products", stub, create=True), \
+                mock.patch.object(api.tasks, "read", lambda name: {"company": "CO-1", "session_id": "op_" + name}):
+            api.remember("CO-1", {"h1": [{"kind": "account", "subject": "revenue", "value": "41-01"}]}, task="t1")
+            api.remember("CO-1", {"h1": [{"kind": "account", "subject": "revenue", "value": "41-01"}]})  # 网页口径照旧
+            with self.assertRaises(Throw):
+                api.remember("CO-2", {"h1": []}, task="t1")  # 任务不是这家公司的
+        self.assertEqual([item.get("session_id") for item in seen], ["op_t1", None])
+        self.assertEqual(getattr(frappe.local, "pearnly_assistant", None), before)
+
     def test_erp_takes_the_account_set_its_preparation_picked(self):
         stubs = {name: types.ModuleType(name) for name in (
             "pearnly_erp_portal", "pearnly_erp_portal.access", "pearnly_erp_portal.access.guard",

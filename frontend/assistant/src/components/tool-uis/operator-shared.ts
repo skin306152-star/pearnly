@@ -252,7 +252,8 @@ export const operatorActions = {
   },
   /** 开始卡里答的题只记下（{单据: [{kind, subject, value, label}]}，同写账前置判定的记法），不开始写：开始只由用户在对话里一句话下令
    *  （写入计划，用户 11-10；页面没有开始接口）。 */
-  remember: (company: string, answers: Answers) => site.post(API + "remember", { company, answers: JSON.stringify(answers) }),
+  remember: (company: string, answers: Answers, task = "") =>
+    site.post(API + "remember", { company, answers: JSON.stringify(answers), ...(task ? { task } : {}) }),
   answer: (task: string, docId: string, answers: Answers) =>
     site.post(API + "task_answer", { name: task, doc_id: docId, answers: JSON.stringify(answers[docId] ?? []) }),
   /** 几张合成一张卡后的一次作答（{单据: [{kind, subject, value, label}]}）。 */

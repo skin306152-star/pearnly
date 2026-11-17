@@ -2212,6 +2212,10 @@ covers = [
   "apps/pearnly_core/pearnly_core/write_precheck/api.py",
   "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
   "frontend/assistant/src/components/tool-uis/operator-start.tsx",
+  "apps/pearnly_core/pearnly_core/express_rules/push/choices.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+  "apps/pearnly_core/pearnly_core/assistant/guided.py",
+  "frontend/assistant/src/components/tool-uis/ask-shared.ts",
 ]
 
 [[flow]]
@@ -2227,6 +2231,12 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py",
   "apps/pearnly_core/pearnly_core/express_operator/tools.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/choices.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
+  "apps/pearnly_core/pearnly_core/assistant/guided.py",
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "frontend/assistant/src/components/tool-uis/operator-start.tsx",
+  "frontend/assistant/src/components/tool-uis/ask-shared.ts",
 ]
 
 [[flow]]
