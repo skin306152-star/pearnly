@@ -388,6 +388,7 @@ Claimed in,Claimed in
 Client,Client
 Client Name,Client Name
 Close count,Close count
+Close the stock count?,Close the stock count?
 Closed,Closed
 Closed At,Closed At
 Closed By,Closed By
@@ -587,6 +588,7 @@ Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
 Delete selected ({0}),Delete selected ({0})
+Delete the stock counts?,Delete the stock counts?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3448,6 +3450,8 @@ failed,Failed
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
 guide.business.stocktake,Stock Count
+guide.consent.stocktake.close,Close the stock count?
+guide.consent.stocktake.delete,Delete the stock counts?
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.stocktake,Choose an action.

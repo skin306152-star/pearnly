@@ -388,6 +388,7 @@ Claimed in,控除月
 Client,顧客
 Client Name,顧客名
 Close count,棚卸を終了
+Close the stock count?,棚卸を終了しますか？
 Closed,終了
 Closed At,クローズ日時
 Closed By,クローズしたユーザー
@@ -587,6 +588,7 @@ Default board,既定のボード
 Default handling for this folder,既定の処理
 Defaults,既定値
 Delete selected ({0}),選択を削除（{0}）
+Delete the stock counts?,棚卸を削除しますか？
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
@@ -3448,6 +3450,8 @@ failed,失敗
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
 guide.business.stocktake,棚卸
+guide.consent.stocktake.close,棚卸を終了しますか？
+guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
 guide.open.stocktake,操作を選択してください。

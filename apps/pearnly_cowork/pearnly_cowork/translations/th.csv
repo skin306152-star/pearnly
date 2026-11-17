@@ -388,6 +388,7 @@ Claimed in,เดือนที่ใช้สิทธิ
 Client,ลูกค้า
 Client Name,ชื่อลูกค้า
 Close count,ปิดการตรวจนับ
+Close the stock count?,ปิดการตรวจนับหรือไม่
 Closed,ปิดแล้ว
 Closed At,เวลาปิด
 Closed By,ผู้ปิด
@@ -587,6 +588,7 @@ Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3448,6 +3450,8 @@ failed,ล้มเหลว
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
 guide.business.stocktake,ตรวจนับสินค้า
+guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
+guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.stocktake,เลือกการดำเนินการ

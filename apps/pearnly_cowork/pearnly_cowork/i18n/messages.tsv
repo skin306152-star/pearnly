@@ -2454,3 +2454,5 @@ Stock count	库存盘点	ตรวจนับสินค้า	棚卸	guide.st
 Stock counts	库存盘点	ตรวจนับสินค้า	棚卸	guide.step.stocktake.counts
 Quantity counted this time	本次实盘数量	จำนวนที่นับครั้งนี้	今回の実地数量	guide.step.stocktake.rows
 Method	方式	วิธี	方法	guide.step.stocktake.mode
+Close the stock count?	要结束盘点吗？	ปิดการตรวจนับหรือไม่	棚卸を終了しますか？	guide.consent.stocktake.close
+Delete the stock counts?	要删除盘点吗？	ลบการตรวจนับหรือไม่	棚卸を削除しますか？	guide.consent.stocktake.delete

@@ -320,6 +320,7 @@ Close Shift,シフト終了
 Close camera,カメラを閉じる
 Close count,棚卸を終了
 Close the POS,レジを閉じる
+Close the stock count?,棚卸を終了しますか？
 Closed At,終了時刻
 Closed at,終了日時
 Closed by,終了者
@@ -477,6 +478,7 @@ Default WHT Rate for Services (%),サービス既定の源泉徴収率（%）
 Default withholding for service documents,サービス伝票の既定の源泉徴収
 Delete,削除
 Delete selected ({0}),選択を削除（{0}）
+Delete the stock count?,棚卸を削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
@@ -2518,6 +2520,8 @@ express.summary.extra,追加分
 express.void,Express で取消
 goods,物品
 guide.business.stocktake,棚卸
+guide.consent.stocktake.close,棚卸を終了しますか？
+guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.open.stocktake,操作を選択してください。
 guide.review.department,部門
 guide.review.salesman,営業担当
