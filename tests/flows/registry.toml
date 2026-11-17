@@ -522,6 +522,23 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.operator.dialog-choice"
+title = "代录中途配方外的业务选择框带回对话（CC 桌面版 1.12.23）：判定出一题（选项是框上的按钮）、页面出提问卡、答了按公司 + 指纹记住并只给 1.12.23 起的电脑排一条「点这个钮」"
+module = "scripts/flows/cc_operator_dialog_choice.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/operator_controls.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/common.py",
+  "frontend/assistant/src/components/tool-uis/operator-choose.tsx",
+]
+
+[[flow]]
 id = "cc.operator.upload-on-send"
 title = "ERP CC 代录会话选中就上传、发送后才识别（11-14）：没发出时任务里没有上传、不识别不扣费；移除的不识别、留存删掉；上传失败留失败卡；发出后才交识别"
 module = "scripts/flows/cc_operator_upload_on_send.py"
