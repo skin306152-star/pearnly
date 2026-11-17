@@ -177,6 +177,10 @@ def _options(step: Mapping[str, Any], ctx: Dict[str, Any], txt="", start=0, page
     out = _call(step["options"], ctx, txt=str(txt or ""), start=int(start or 0), page_length=int(page_length or PAGE), codes=codes)
     rows = [dict(row) for row in (out or {}).get("options") or () if isinstance(row, Mapping) and row.get("code")]
     found = {"options": rows, "more": bool((out or {}).get("more"))}
+    # ``max_rows``：多行输入（金额多选 / 分摊）一次最多几行（按此刻的上下文给，例：MR.ERP 账本 1 行，折扣选项带 ``free`` 不占名额）
+    max_rows = (out or {}).get("max_rows")
+    if isinstance(max_rows, int) and not isinstance(max_rows, bool) and max_rows > 0 and step["input"] in ("amounts", "split"):
+        found["max_rows"] = max_rows
     # 选项函数可以带两样：``facts``（题目下的事实行，例：读回还没到、电脑没连）、``wait``（选项还在读，页面过一会儿再取这张卡）
     facts = [str(item) for item in (out or {}).get("facts") or () if str(item or "").strip()]
     if facts:
@@ -198,7 +202,8 @@ def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> st
     if step["input"] not in d.OPTION_INPUTS:
         return ""
     wanted = _codes_of(value)
-    offered = {row["code"]: row for row in _options(step, ctx, codes=wanted, page_length=len(wanted) or 1)["options"]}
+    found = _options(step, ctx, codes=wanted, page_length=len(wanted) or 1)
+    offered = {row["code"]: row for row in found["options"]}
     if any(code not in offered for code in wanted):
         return "not offered"
     if step["input"] in ("amounts", "split"):
@@ -206,7 +211,15 @@ def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> st
             top = offered[str(row["code"])].get("max")
             if top not in (None, "") and steps.amount(row["amount"]) > steps.amount(top):
                 return "over max"
+        # 一次最多几行（选项函数此刻给，例：MR.ERP 账本一笔只收一种方式）；带 ``free`` 的选项不占名额（折扣）
+        if found.get("max_rows") is not None:
+            counted = [row for row in value if not offered[str(row["code"])].get("free") and steps.amount(row["amount"]) != 0]
+            if len(counted) > int(found["max_rows"]):
+                return TOO_MANY_ROWS
     return ""
+
+
+TOO_MANY_ROWS = "too_many_rows"
 
 
 def _subs(raw: Any) -> List[Dict[str, Any]]:
@@ -283,6 +296,8 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         found = _options(step, ctx)
         rows = _recommended_first(step, ctx, found["options"], hint if out["tier"] == "how" else None)
         out.update(options=rows, more=found["more"], search=bool(step.get("search")))
+        if "max_rows" in found:
+            out["max_rows"] = found["max_rows"]
         facts.extend(found.get("facts") or ())
         if found.get("wait"):
             out["wait"] = True

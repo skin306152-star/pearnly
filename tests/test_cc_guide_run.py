@@ -583,6 +583,33 @@ class CapabilityTests(Base):
         self.assertEqual(run.follow(name, {"x": "y"})["outcome"], run.REFUSED)
 
 
+class MaxRowsTests(Base):
+    """多行输入一次最多几行（选项函数此刻给 ``max_rows``；带 ``free`` 的选项不占名额）：MR.ERP 账本一笔只收一种方式、折扣可另加。"""
+
+    def setUp(self):
+        super().setUp()
+        ATTRS["app.methods"] = lambda ctx, txt="", start=0, page_length=20, codes=None: {
+            "options": [{"code": c, "name": c, **({"free": True} if c == "discount" else {})}
+                        for c in ("cash", "transfer", "discount") if codes is None or c in codes],
+            "more": False, "max_rows": 1}
+
+    def to_methods(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        return name, run.answer(name, {"invoices": IV})
+
+    def test_the_question_carries_max_rows(self):
+        _name, found = self.to_methods()
+        self.assertEqual(found["card"]["questions"][0]["max_rows"], 1)
+
+    def test_two_paying_rows_are_refused_and_a_free_row_does_not_count(self):
+        name, _found = self.to_methods()
+        refused = run.answer(name, {"method": [{"code": "cash", "amount": "500"}, {"code": "transfer", "amount": "500"}]})
+        self.assertEqual(refused["refused"], {"method": run.TOO_MANY_ROWS})
+        ok = run.answer(name, {"method": [{"code": "cash", "amount": "900"}, {"code": "discount", "amount": "100"}]})
+        self.assertNotIn("refused", ok)
+
+
 class StopEndTests(Base):
     """引导进行中的退出（主会话 11-16）：点停止 → 失效 / stopped；说不做了 → 模型调 pearnly_guide_end → 取消 / user。"""
 
