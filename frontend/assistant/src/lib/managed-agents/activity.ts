@@ -37,6 +37,24 @@ let active: string | null = null;
 let chatView = true;
 
 const changed = () => listeners.forEach((listener) => listener());
+// 换了在看的对话 / 对话页开合：叫人判据要重报一次（lib/attention.ts）
+const viewListeners = new Set<() => void>();
+
+/** 换对话、对话页开合时通知（叫人判据，lib/attention.ts）。回撤掉的函数。 */
+export function onViewChange(listener: () => void): () => void {
+  viewListeners.add(listener);
+  return () => viewListeners.delete(listener);
+}
+
+/** 此刻打开着的对话（对话页开着才算，不看前后台）；没有回 ""。 */
+export function openSession(): string {
+  return active && chatView ? active : "";
+}
+
+/** 正看着这段对话（当前对话、对话页开着、页面在前台）：回复完成、提醒都不叫人（C-1 / C-3，用户 11-14 弹窗通知口径）。 */
+export function isViewing(sessionId: string): boolean {
+  return !!sessionId && sessionId === active && chatView && document.visibilityState === "visible";
+}
 
 function set(sessionId: string, next: "running" | "unread" | null) {
   if ((state.get(sessionId) ?? null) === next) return;
@@ -168,6 +186,7 @@ export function clearUnread(sessionId: string, since = Number.POSITIVE_INFINITY)
 /** 正在看的对话：它的圆点立即消失，之后跑完也不再留点；对话里的提醒算看过了。 */
 export function setActiveSession(sessionId: string | null) {
   active = sessionId;
+  viewListeners.forEach((listener) => listener());
   if (!sessionId) return;
   if (state.get(sessionId) === "unread") set(sessionId, null);
   flush(sessionId);
@@ -176,6 +195,7 @@ export function setActiveSession(sessionId: string | null) {
 /** 对话页开着没有（切到定时任务页时为假）：不在对话页时推来的提醒不算看过，回到对话页才算。 */
 export function setChatView(open: boolean) {
   chatView = open;
+  viewListeners.forEach((listener) => listener());
   if (open && active) flush(active);
 }
 

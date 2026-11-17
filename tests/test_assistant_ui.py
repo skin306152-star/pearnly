@@ -11551,5 +11551,40 @@ assert.deepEqual(f.log, ["start", "cancel"]);
 """)
 
 
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class AttentionPageTests(unittest.TestCase):
+    """弹窗通知并进对话 C-4（用户 11-14：人正看着那段对话就不响不通知）：页面报在看哪段、看不看得见；回复完成与提醒按这段对话判。"""
+
+    def test_device_id_is_kept_and_server_safe(self):
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { deviceId } from "@/lib/attention";
+const box: Record<string, string> = {};
+const store = { getItem: (k: string) => box[k] ?? null, setItem: (k: string, v: string) => { box[k] = v; } };
+const first = deviceId(store);
+assert.match(first, /^[A-Za-z0-9_-]{1,64}$/);           // 同服务端 attention._DEVICE
+assert.equal(deviceId(store), first);                    // 记住，下次同一个
+box["cc-attention-device"] = "bad id!";
+assert.notEqual(deviceId(store), "bad id!");             // 认不出的换一个
+assert.match(deviceId(null), /^[A-Za-z0-9_-]{1,64}$/);   // 存不了也给一个
+(globalThis as any).done();
+""", stubs={"./desktop": "export const desktop = async () => null;"})
+
+    def test_reply_and_notice_popups_skip_the_conversation_being_viewed(self):
+        desktop = read("lib/desktop.ts")
+        self.assertIn("if (!finished || (sessionId && isViewing(sessionId)) || (!sessionId && document.hasFocus())) return;", desktop)
+        self.assertIn("if (notice.session && isViewing(notice.session)) return;", desktop)
+        activity = read("lib/managed-agents/activity.ts")
+        self.assertIn('return !!sessionId && sessionId === active && chatView && document.visibilityState === "visible";', activity)
+        attention = read("lib/attention.ts")
+        self.assertIn('api?.call("attention_seen", look)', attention)   # CC 桌面版桥：{session, visible}（11-17 约定）
+        self.assertIn('const visible = document.visibilityState === "visible" && document.hasFocus();', attention)
+        self.assertIn("useEffect(() => watchAttention(), []);", read("assistant.tsx"))
+        api = (ROOT / "apps/pearnly_core/pearnly_core/assistant/api.py").read_text(encoding="utf-8")
+        self.assertIn("def attention_seen(session_id=\"\", visible=0, device=\"\"):", api)
+        self.assertIn("return attention.seen(str(session_id or \"\"), seen, str(device or \"\"))", api)
+
 if __name__ == "__main__":
     unittest.main()
