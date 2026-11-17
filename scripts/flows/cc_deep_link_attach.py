@@ -9,6 +9,9 @@
 取单段会话（``assistant.api.get``）各拖慢 5 秒。输入框一出现就点「+」加一张图（加不上——例如产品做成切过去之前不可用——
 每 0.5 秒再试，最多 30 秒，同人会再点一次），等它传完、页面切过去，再发一句。
 
+桌面端托盘 / 页面通知点开（``tomo-open`` 事件，``window.tomo.open``）走同一段 openConversation：另一条流程
+``cc_tomo_open_attach.py`` 从空白新对话页起，页面一出来就派发 ``tomo-open``（窗口刚开就点了通知），再同样加附件、发送。
+
 判据：链接那段对话在服务端的附件目录里有这张图；整格没有多出别的会话；切过去以后附件还在输入框里，
 这句出现在对话里，地址仍指向链接那段对话。
 """
@@ -22,6 +25,7 @@ from cc_operator_upload_on_send import FILE, PICK, TILES
 from cowork_operator_lib import BASE, CLEANUP
 
 TITLE = "CC 从链接打开对话、切过去之前就加附件和发送：附件与消息都进链接那段对话，不另建会话"
+VIA = "link"  # link：地址带 ?c=；tomo：页面出来后派发 tomo-open（cc_tomo_open_attach.py）
 DELAY_MS = 5000
 WINDOW_MS = 15000
 PRELOAD = (
@@ -60,7 +64,7 @@ frappe.db.commit()
 print(json.dumps({{"session": made["id"], "now": now,
                   "row": frappe.db.get_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "name")}}))
 """)
-    return {**out, "tag": tag, "admin": admin, "cases": []}
+    return {**out, "tag": tag, "admin": admin, "via": VIA, "cases": []}
 
 
 def steps(params, camera_code=None):
@@ -68,6 +72,8 @@ def steps(params, camera_code=None):
     head = JS + PICK + TILES
     return [
         {"name": "马上加附件", "shot": True, "file": "1-attached-while-opening", "js": head +
+         # tomo：窗口刚开就点了通知（侧栏第一页还没回来），打开那段对话
+         (f"window.dispatchEvent(new CustomEvent('tomo-open',{{detail:{session}}})); " if params.get("via") == "tomo" else "") +
          "const at=Date.now(); let tries=0; "
          # 加不上（输入框还不可用）就过 0.5 秒再点一次，最多 30 秒
          f"while(tiles().count===0&&Date.now()-at<30000){{ tries++; await pick([[{tag}+'.png',{FILE},'image/png']]); "
@@ -81,7 +87,8 @@ def steps(params, camera_code=None):
          f"const said=await say({tag}+' 看看这张'); if(!said) return {{error:'could not send', tiles: tiles()}}; "
          f"const bubble=await until(()=>qa('[data-role=\"user\"]').some(e=>e.innerText.includes({tag})),80); "
          "const cleared=await until(()=>tiles().count===0,40); "
-         f"return {{said, bubble, cleared, url: location.search, here: new URLSearchParams(location.search).get('c')==={session}}};"},
+         "const active=qa('[data-slot=\"aui_thread-list-item\"][aria-current=\"true\"]').map(e=>e.innerText.trim()).join(' | '); "
+         f"return {{said, bubble, cleared, url: location.search, active, here: new URLSearchParams(location.search).get('c')==={session}||active.includes({tag})}};"},
     ]
 
 
