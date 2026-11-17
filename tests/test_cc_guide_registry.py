@@ -4,14 +4,13 @@
 - 一份声明只认登记过的键与取值：多一个键、少一个必填、输入方式不在九种里、依赖了后面的步骤，都说得出哪里不对；
 - 按表单的引导必须有步骤与确定后的动作，会改账本的还要有复核；只有开场一句的（chat）不许带步骤，也不算完整引导；
 - 注册表：只列这个模式能办、这个人有权限的；坏声明不上菜单也不拖垮别的；同一个 id 声明两次算坏；
-- 仓库里现有的声明全部过闸；与第 1 期的 hooks ``pearnly_guide_businesses`` 逐产品逐模式一致（菜单改读注册表前后不变）；
+- 仓库里现有的声明全部过闸；菜单只来自这些声明（第 1 期的 hooks ``pearnly_guide_businesses`` 已删，主会话 11-17）；
 - 闸门认得出：点路径指向不存在的函数、工具不在这个产品里、两个产品同名业务的菜单字不一致。
 
 替身 frappe，不连库。
 
     python3 tests/test_cc_guide_registry.py
 """
-import ast
 import importlib.util
 import sys
 import tempfile
@@ -193,39 +192,22 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(registry.offered(), {"chat": [], "operator": []})
 
 
-# 第 1 期菜单（`pearnly_guide_businesses`）还没进 main 时的应有菜单；它进来后两处必须一致（菜单改读注册表前后不变）
-PHASE_ONE_MENU = {"pearnly_cowork": {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]},
-                  "pearnly_erp_portal": {"chat": ["purchase", "sales", "collection"], "operator": ["purchase", "sales"]}}
-
-
-PHASE_ONE_IDS = {"purchase", "sales", "collection"}
-
-
-def _phase_one_businesses(app):
-    tree = ast.parse((ROOT / "apps" / app / app / "hooks.py").read_text(encoding="utf-8"))
-    try:
-        return ast.literal_eval(gate._assigned(tree, "pearnly_guide_businesses"))
-    except (TypeError, ValueError, AttributeError):
-        return PHASE_ONE_MENU[app]
-
-
 class RepositoryTests(unittest.TestCase):
     def test_every_declared_guide_passes_the_gate(self):
         self.assertEqual(gate.check(), [])
 
-    def test_the_declarations_offer_exactly_what_phase_one_hooks_offer(self):
+    def test_the_declarations_are_the_menu(self):
+        # 菜单只有这一处来源（主会话 11-17：不再写死第 1 期三项）：每个产品各模式上菜单的 = 声明里这个模式的全部
         guides, errors = gate.load()
         self.assertEqual(errors, [])
         self.assertEqual(sorted(guides), ["pearnly_cowork", "pearnly_erp_portal"])
-        for app, items in guides.items():
-            for mode, wanted in _phase_one_businesses(app).items():
-                if (app, mode) == ("pearnly_erp_portal", "chat"):
-                    # 主会话 11-14：ERP 直写的采购 / 销售整链没走通过，从菜单拿掉、只留收款（P2 验过再放）。第 1 期的 hook 由它的窗口改，
-                    # 改完这一条与别的组合一样逐项相同
-                    wanted = [w for w in wanted if w == "collection"]
-                # 第 1 期之后新加的业务（P3 起，总表 docs/work/2026-11-16-cc-guided-master-table.md）不在第 1 期的 hook 里：只比第 1 期那几项
-                offered = sorted(g["id"] for g in items if mode in g["modes"] and g["id"] in PHASE_ONE_IDS)
-                self.assertEqual(offered, sorted(wanted), (app, mode))
+        menus = {app: {mode: sorted(g["id"] for g in items if mode in g["modes"]) for mode in ("chat", "operator")}
+                 for app, items in guides.items()}
+        # ERP 直写的采购 / 销售整链没走通过，不上直写菜单（主会话 11-14，P2 验过再放）
+        self.assertNotIn("purchase", menus["pearnly_erp_portal"]["chat"])
+        self.assertIn("collection", menus["pearnly_erp_portal"]["chat"])
+        self.assertEqual(menus["pearnly_erp_portal"]["operator"], ["purchase", "sales"])
+        self.assertTrue({"purchase", "sales"} <= set(menus["pearnly_cowork"]["chat"]))
 
     def test_collection_is_only_in_erp_direct_write_and_asks_for_the_collection_function(self):
         guides, _ = gate.load()

@@ -221,29 +221,16 @@ class AskUserRefusal(Fakes):
 class Businesses(unittest.TestCase):
     """输入框上方的业务菜单：只列这个产品 × 这个模式真能做的（Cowork 两种模式、ERP 代录没有收款；ERP 直写只有收款：采购 / 销售等第 2 期整链验过再放出，主会话 11-14）。"""
 
-    def offered(self, hooks):
-        import frappe
-        from pearnly_core.assistant import guided
-        saved = frappe.get_hooks
-        frappe.get_hooks = lambda name: hooks if name == guided.BUSINESS_HOOK else {}
-        try:
-            return guided.offered()
-        finally:
-            frappe.get_hooks = saved
-
-    def test_reads_the_declared_lists_and_drops_unknown(self):
-        self.assertEqual(self.offered({"chat": ["purchase", "sales", "collection"], "operator": ["purchase", "payment"]}),
-                         {"chat": ["purchase", "sales", "collection"], "operator": ["purchase"]})
-        self.assertEqual(self.offered({}), {"chat": [], "operator": []})
-
-    def test_products_declare_what_they_can_do(self):
-        import ast
-        for app, chat, operator in (("pearnly_cowork", ["purchase", "sales"], ["purchase", "sales"]),
-                                    ("pearnly_erp_portal", ["collection"], ["purchase", "sales"])):
-            tree = ast.parse((ROOT / f"apps/{app}/{app}/hooks.py").read_text(encoding="utf-8"))
-            found = next(ast.literal_eval(n.value) for n in tree.body if isinstance(n, ast.Assign)
-                         and getattr(n.targets[0], "id", "") == "pearnly_guide_businesses")
-            self.assertEqual(found, {"chat": chat, "operator": operator}, app)
+    def test_the_menu_comes_only_from_the_guide_declarations(self):
+        # 主会话 11-17：菜单按产品的引导声明（guide.registry）出，第 1 期写死三项的 pearnly_guide_businesses 已删
+        source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/guided.py").read_text(encoding="utf-8")
+        body = source[source.index("def offered("):source.index("\ndef ", source.index("def offered(") + 5)]
+        self.assertIn("return registry.offered()", body)
+        self.assertNotIn("get_hooks", body)
+        for app in ("pearnly_cowork", "pearnly_erp_portal"):
+            hooks = (ROOT / f"apps/{app}/{app}/hooks.py").read_text(encoding="utf-8")
+            self.assertNotIn("pearnly_guide_businesses", hooks, app)
+            self.assertIn("pearnly_guides = [", hooks, app)
 
     def test_setting_checks_the_mode_list(self):
         source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8")

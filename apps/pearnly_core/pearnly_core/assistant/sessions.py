@@ -670,7 +670,7 @@ def move(session_id, project, period=None, scope=None, ledger_id=None) -> dict:
 
 def set_business(session_id, business, from_start=False) -> dict:
     """本对话业务（输入框上方的业务菜单，引导式录入第 1 期）：只动本人的会话；``business`` 要在这个产品 × 这个模式声明的清单里
-    （`guided.offered`），"" = 取消。只是记下（这一批上传的票默认按它定方向、占位文字按它换、页面在对话里请用户交票据），
+    （`guided.offered`，即产品的引导声明），"" = 取消。只是记下（这一批上传的票默认按它定方向、占位文字按它换、页面在对话里请用户交票据），
     不改最后活动时间。``business_at`` 记选的时刻：页面那句「请上传…」只在这之后用户还没交过文件（收款：还没说过话）时出；
     ``from_start``：新建页先选、会话随第一句建好后补交的，按会话建立时刻算（第一句带的文件也算交过）。"""
     from pearnly_core.assistant import guided

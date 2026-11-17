@@ -16,12 +16,6 @@ from contextlib import contextmanager
 import frappe
 
 
-BUSINESSES = ("purchase", "sales", "collection")
-# 产品在 hooks.py 声明这个产品 × 这个模式真能做的业务（输入框上方的业务菜单只列这些；评估 6.1、12 节第 3 问）：
-#     pearnly_guide_businesses = {"chat": ["purchase", "sales"], "operator": ["purchase", "sales"]}
-BUSINESS_HOOK = "pearnly_guide_businesses"
-
-
 @contextmanager
 def within(session_id: str):
     """这个范围里的判定与写入按这段对话做（同工具调用：本对话账套、共用写账规则走引导口径）；对话号空时不变。用完还原。"""
@@ -37,16 +31,12 @@ def within(session_id: str):
 
 
 def offered() -> dict:
-    """本站产品声明的业务清单 ``{chat: [...], operator: [...]}``（只留认得的；没声明 = 空，不出菜单）。一个站点一个产品，取最后声明的。"""
-    found = frappe.get_hooks(BUSINESS_HOOK) or {}
-    found = found[-1] if isinstance(found, list) and found else found
-    found = found if isinstance(found, dict) else {}
-    out = {}
-    for mode in ("chat", "operator"):
-        values = found.get(mode) or []
-        values = values[-1] if values and isinstance(values[0], list) else values
-        out[mode] = [value for value in values if value in BUSINESSES]
-    return out
+    """本站产品声明的业务清单 ``{chat: [...], operator: [...]}``：只有一处来源——产品的引导声明（``pearnly_guides``，
+    ``guide.registry``：这个模式能办 + 这个人有权限的）。第 1 期另写的 ``pearnly_guide_businesses`` 已删（主会话 11-17：
+    菜单按声明出，不再写死三项）。"""
+    from pearnly_core.assistant.guide import registry
+
+    return registry.offered()
 
 
 def business_of(session_id: str) -> str:
@@ -61,4 +51,4 @@ def active() -> bool:
     return bool((getattr(local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-__all__ = ["BUSINESSES", "BUSINESS_HOOK", "active", "business_of", "offered", "within"]
+__all__ = ["active", "business_of", "offered", "within"]
