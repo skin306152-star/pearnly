@@ -35,7 +35,13 @@ CODES = {
     "collection.customer_not_found": "Customer not found",
     contracts.INVOICES_TOO_MANY: "At most {0} invoices",
     contracts.METHODS_TOO_MANY: "At most {0} collection methods",
+    # 账本是 MR.ERP 的公司（`collection.mrerp`）
+    "collection.mrerp_reading": "Reading from MR.ERP",
+    "collection.mrerp_one_method": "Choose one collection method",
+    "collection.mrerp_menu_needed": "Choose the MR.ERP collection menu",
 }
+# 只有写进 MR.ERP 这条会记进收款原因的几个码（Express 那条的原因照旧原样给，一字不变）
+MRERP_CODES = ("collection.mrerp_reading", "collection.mrerp_one_method", "collection.mrerp_menu_needed")
 LIMITS = {contracts.INVOICES_TOO_MANY: contracts.MAX_INVOICES, contracts.METHODS_TOO_MANY: contracts.MAX_METHODS}
 
 
@@ -67,6 +73,15 @@ def reason(value) -> str:
 
     if ack_rules.error_code(value) == "PERIOD_LOCKED":
         return _("express.reason.periodLocked")
+    text = str(value or "")
+    if text in MRERP_CODES:
+        return _(CODES[text])
+    if text.startswith(("mrerp.", "ERR_MRERP", "ERR_AUTH", "ERR_TECHNICAL", "ERR_BUSINESS", "ERR_UNEXPECTED",
+                        "express.voided_after_write")):
+        # 写进 MR.ERP 的结论（`collection.mrerp.settle`）：同 ERP 单据待处理的说法（`express.pending.reason_label`）
+        from pearnly_erp_portal.express import pending
+
+        return pending.reason_label("failed", text)
     return re.sub(r"^\[[A-Za-z0-9_]+\]\s*", "", str(value or ""))
 
 
@@ -76,6 +91,10 @@ def explain(error) -> str:
         return " · ".join(filter(None, (_("Collection Date"), periods_text(detail.get("periods")) if detail.get("periods")
                                         else "")))
     if code == "express.account_set_missing" and isinstance(detail, dict) and detail.get("company") and detail.get("day"):
+        if detail.get("ledger") == "mrerp":
+            from pearnly_erp_portal.collection import mrerp
+
+            return mrerp.no_book_text(detail["company"], detail["day"])
         return no_book(detail["company"], detail["day"])
     if code == contracts.AMOUNT_MISMATCH:
         return _(CODES[code]).format(money(detail.get("paid")), money(detail.get("invoices")))

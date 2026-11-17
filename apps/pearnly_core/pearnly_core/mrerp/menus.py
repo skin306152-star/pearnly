@@ -20,13 +20,19 @@ import re
 from typing import Any, Dict, List, Optional, Tuple
 
 # 单据类型 → 读哪个导入页（采购的货品 / 费用在同一个导入页里选）。
-PAGE_OF = {"purchase": "impaptran", "purchase_expense": "impaptran",
-           "sales_credit": "impartran", "sales_cash": "imparse"}
-# 导入页 → formupload 的路由号（MR.ERP 固定的程序页号，不是各公司的菜单号）。
+DOCUMENT_PAGE_OF = {"purchase": "impaptran", "purchase_expense": "impaptran",
+                    "sales_credit": "impartran", "sales_cash": "imparse"}
+# 收款（รับชำระหนี้，ERP 收款直写，11-17）：导入页 impfarev（路由号 375），菜单同样按公司选一次记住
+RECEIPT, RECEIPT_PAGE = "receipt", "impfarev"
+PAGE_OF = {**DOCUMENT_PAGE_OF, RECEIPT: RECEIPT_PAGE}
+# 导入页 → formupload 的路由号（MR.ERP 固定的程序页号，不是各公司的菜单号）。读菜单（`menu_read`）只读单据这三页；
+# 收款页由收款的导入与未收读取读到后存回（`ALL_PAGES`）。
 PAGES = {"impaptran": 363, "impartran": 370, "imparse": 371}
-KINDS = tuple(PAGE_OF)
+ALL_PAGES = {**PAGES, RECEIPT_PAGE: 375}
+KINDS = tuple(DOCUMENT_PAGE_OF)  # 单据（发票）的几类；方向没定时只问这几类
 # 按票面方向，推送时可能用到的单据类型（录入时只问会用到的）。
-KINDS_FOR_DIRECTION = {"purchase": ("purchase", "purchase_expense"), "sales": ("sales_credit", "sales_cash")}
+KINDS_FOR_DIRECTION = {"purchase": ("purchase", "purchase_expense"), "sales": ("sales_credit", "sales_cash"),
+                       "receipt": (RECEIPT,)}
 
 CHOICE_REQUIRED = "ERR_MRERP_MENU_CHOICE_REQUIRED"   # 有多个已关联的菜单，还没选
 CHANGED = "ERR_MRERP_MENU_CHANGED"                   # 选过的菜单不在了或不再关联日记账
@@ -127,7 +133,7 @@ def observe(raw: Any, account: str, pages: Optional[Dict[str, Optional[List[Dict
         entry.update(error=str(error)[:80], error_at=at)
     else:
         entry["pages"] = {**entry["pages"], **{page: options for page, options in (pages or {}).items()
-                                                if page in PAGES}}
+                                                if page in ALL_PAGES}}
         entry.update(observed_at=at, error=None, error_at=None)
     value[account] = entry
     if len(value) > _MAX_ACCOUNTS:  # 满了丢掉最久没读过的
@@ -172,6 +178,7 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
             "error": entry.get("error"), "error_at": entry.get("error_at"), "kinds": kinds}
 
 
-__all__ = ["CHANGED", "CHOICE_REQUIRED", "KINDS", "KINDS_FOR_DIRECTION", "NOT_LINKED", "PAGES", "PAGE_OF",
+__all__ = ["ALL_PAGES", "CHANGED", "CHOICE_REQUIRED", "KINDS", "KINDS_FOR_DIRECTION", "NOT_LINKED", "PAGES", "PAGE_OF",
+           "RECEIPT", "RECEIPT_PAGE",
            "UNREADABLE", "chosen_map", "choices", "choose", "linked", "observe", "options_for", "parse_options",
            "resolve", "view"]

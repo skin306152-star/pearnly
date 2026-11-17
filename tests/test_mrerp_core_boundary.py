@@ -32,6 +32,9 @@ EXTRA = {
     "collect.py": {"time", "pearnly_core.session_lock"},
     # 11-14 公司接入第 3 批：整读主档（导出页与结存报表的 xlsx 用标准库读），经共用会话入口
     "master_export.py": {"time", "xml.etree", "pearnly_core.session_lock"},
+    # 11-17 ERP 收款直写：收款导入（经导入 5 步与共用会话入口）与读一位客户的未收单（经共用会话入口）
+    "push/receipt.py": {"pearnly_core.session_lock"},
+    "receivables.py": {"pearnly_core.session_lock"},
     "push/report_parser.py": {"openpyxl"},
     "push/xlsx/generator.py": {"openpyxl", "openpyxl.styles"},
 }

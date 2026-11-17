@@ -362,7 +362,9 @@ scheduler_events = {
                            # 排着的 Express 主档同步：按顺序发起读取、读好了排后台任务落库（没有排着的就一条查询）
                            "pearnly_erp_portal.express.masters.advance",
                            # 收款：发起过的未收清发票读取读好了就落进快照（没有发起过就一次缓存读）
-                           "pearnly_erp_portal.collection.snapshot.advance"],
+                           "pearnly_erp_portal.collection.snapshot.advance",
+                           # 收款写进 MR.ERP：等账号的再排、进程死掉的「写入中」转结果不明（开关关着直接返回）
+                           "pearnly_erp_portal.collection.mrerp.poll"],
              # Express 主档有改动就跟上：请电脑看一眼主档表的文件属性，变了才整套同步（每家一件很轻的请求）
              "*/10 * * * *": ["pearnly_erp_portal.express.masters.check_marks"],
              # 任务管理：按卡片的提醒时间发到期提醒、到期后发一次过期提醒（同一到期时刻每人各一次）

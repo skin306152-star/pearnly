@@ -14,8 +14,8 @@ from pearnly_core.mrerp import masters as master_rules, menus as menu_rules
 def used(direction: Optional[str] = None) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
     """推这个方向的票会用到的（单据类型, 主档字段）；方向没定两边都算。"""
     kinds = menu_rules.KINDS_FOR_DIRECTION.get(direction) or menu_rules.KINDS
-    fields = master_rules.FIELDS_FOR_DIRECTION.get(direction) or tuple(
-        dict.fromkeys(field for group in master_rules.FIELDS_FOR_DIRECTION.values() for field in group))
+    fields = master_rules.FIELDS_FOR_DIRECTION.get(direction) or tuple(dict.fromkeys(
+        field for name in master_rules.DOCUMENT_DIRECTIONS for field in master_rules.FIELDS_FOR_DIRECTION[name]))
     return tuple(kinds), tuple(fields)
 
 

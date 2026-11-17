@@ -61,6 +61,9 @@ MODULES: Dict[str, MrErpModule] = {
         verified=True,
         expense=True,
     ),
+    # 收款(รับชำระหนี้)· ERP 收款服务端直写(2026-11-17)· 3-sheet:表头 20 列 + 冲哪几张应收 + 支票(只表头)·
+    # 回读列表 farev · 菜单照单据按公司选一次(menus.RECEIPT)· 11-16 测试账套真写确认(收款单前缀 FR、记日记账)
+    "receipt": MrErpModule("receipt", "impfarev", 375, "receipt", "farev", verified=True),
     # 主数据自建(走导入,非 Playwright 表单)· S2
     "master_customer": MrErpModule(
         "master_customer", "imparmas", 367, "customer_master", "armas", verified=False

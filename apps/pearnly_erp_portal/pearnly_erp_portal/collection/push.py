@@ -44,6 +44,10 @@ def send(name):
     from pearnly_erp_portal.express import contracts as express_contracts, push as express_push
 
     doc = frappe.get_doc(DOCTYPE, name)
+    from pearnly_erp_portal.collection import mrerp as ledger
+
+    if ledger.handles(doc.company):
+        return ledger.send(name)  # 账本是 MR.ERP：服务端导入（不经 CC 桌面版）
     book = service._book_row(doc)
     if not book.get("path"):
         _set(name, {"status": contracts.FAILED, "reason": express_contracts.NO_BOOK})

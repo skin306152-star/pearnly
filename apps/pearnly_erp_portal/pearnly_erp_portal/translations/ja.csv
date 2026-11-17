@@ -289,8 +289,10 @@ Choose at least one job role,機能権限を1つ以上選んでください
 Choose before writing to Express,Express に書き込む前に選択が必要です
 Choose file,ファイルを選択
 Choose invoices,請求書を選択
+Choose one collection method,入金方法を1つ選択してください
 Choose purchase or sales first,先に仕入か売上を選んでください
 Choose purchase or sales for this invoice and submit again,この伝票が仕入か売上かを選んで再送信してください
+Choose the MR.ERP collection menu,MR.ERP の入金メニューを選択してください
 Choose the account set,会計データを選択
 Choose the collection method,入金方法を選択してください
 Choose the company,会社を選んでください
@@ -1197,6 +1199,7 @@ Reactivated by stock count {0},棚卸で再有効化 · {0}
 Read company details,会社情報を確認
 Reading,読み込み中
 Reading from Express,Express から読み込み中
+Reading from MR.ERP,MR.ERP から読み込み中
 Reading the Express account set,Express 会計データを読み取り中
 Ready to post,登録可能
 Reason,理由

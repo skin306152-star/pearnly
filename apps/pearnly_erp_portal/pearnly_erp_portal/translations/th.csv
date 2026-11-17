@@ -289,8 +289,10 @@ Choose at least one job role,กรุณาเลือกสิทธิ์ก
 Choose before writing to Express,ต้องเลือกก่อนบันทึกเข้า Express
 Choose file,เลือกไฟล์
 Choose invoices,เลือกใบแจ้งหนี้
+Choose one collection method,เลือกวิธีรับชำระเพียงวิธีเดียว
 Choose purchase or sales first,กรุณาเลือก ซื้อ หรือ ขาย ก่อน
 Choose purchase or sales for this invoice and submit again,กรุณาเลือกว่าเอกสารนี้เป็นรายการซื้อหรือรายการขาย แล้วส่งใหม่
+Choose the MR.ERP collection menu,เลือกเมนูรับชำระ MR.ERP
 Choose the account set,เลือกชุดบัญชี
 Choose the collection method,เลือกวิธีรับชำระ
 Choose the company,เลือกบริษัท
@@ -1197,6 +1199,7 @@ Reactivated by stock count {0},เปิดใช้จากการตรว�
 Read company details,อ่านข้อมูลบริษัท
 Reading,กำลังอ่าน
 Reading from Express,กำลังอ่านข้อมูลจาก Express
+Reading from MR.ERP,กำลังอ่านข้อมูลจาก MR.ERP
 Reading the Express account set,กำลังอ่านชุดบัญชี Express
 Ready to post,พร้อมบันทึก
 Reason,เหตุผล

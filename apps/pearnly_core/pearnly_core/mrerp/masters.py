@@ -49,7 +49,8 @@ SOURCES: Dict[str, Tuple[str, ...]] = {
     "customer_branch": ("txtothcombrhcus",),
 }
 CHART = "txtacfile"  # 科目表：几个科目字段共用
-ACCOUNT_FIELDS = ("ar_account", "ap_account", "bank_account", "expense_account")
+# ``discount_account``：收款折扣记进的科目（MR.ERP 收款单「รับอื่นๆ 2」，ERP 收款直写 11-17）
+ACCOUNT_FIELDS = ("ar_account", "ap_account", "bank_account", "expense_account", "discount_account")
 FIELDS = (*(k for k in SOURCES if k != "customer_branch"), *ACCOUNT_FIELDS)
 
 # 没选过、又有多个可用值时，跟 MR.ERP 网页新建单据的默认（按代码排序的第一条）走，不问人。
@@ -68,7 +69,10 @@ FIELDS_FOR_DIRECTION = {
               "bank_account", "product_group", "unit"),
     "purchase": ("branch", "dept", "job", "store", "employee", "supplier_type", "ap_account", "product_group",
                  "unit", "expense_account"),
+    # 收款单表头（impfarev）：科目不问——现金 / 零用金 / 其他三格照 MR.ERP 收款新单的参考科目，转账科目与折扣科目由收款人选的方式带
+    "receipt": ("branch", "dept", "job", "employee"),
 }
+DOCUMENT_DIRECTIONS = ("sales", "purchase")  # 方向没定时（发票）只问这两组
 
 # MR.ERP 导入对长度的硬要求（importpc.php）：不合的值导入必拒，不给人选。
 _EXACT = {"branch": 5, "customer_branch": 5, "store": 4, "customer_type": 4, "supplier_type": 4}
@@ -79,6 +83,9 @@ _RANGE = {"dept": (2, 20), "job": (2, 20), "product_group": (1, 6), "unit": (1, 
 # farev/allform.php:65-104）。
 REFERENCE = {"cash": 2, "acc_inv": 4, "acc_rev": 15, "acc_ret": 17, "acc_dis": 18, "acc_cost": 21, "acc_pur": 22,
              "acc_purret": 23, "acc_purdis": 24}
+
+DISCOUNT_ACCOUNT_NAME = "ส่วนลดจ่าย"
+DEPOSIT_ACCOUNT_NAME = "เงินฝาก"
 
 CHOICE_REQUIRED = "ERR_MRERP_DEFAULT_CHOICE_REQUIRED"  # 有多个可用值，还没选
 CHANGED = "ERR_MRERP_DEFAULT_CHANGED"                  # 选过的值在 MR.ERP 主档里已经没有了
@@ -284,8 +291,12 @@ def rule_default(observed: Dict[str, Any], field: str, suggested: Optional[Dict[
         head = str((observed or {}).get("head_branch") or "")
         return head if head in codes else ("00000" if "00000" in codes else "")
     if field == "bank_account":
-        deposits = [v["code"] for v in values if v["name"].startswith("เงินฝาก")]
+        deposits = [v["code"] for v in values if v["name"].startswith(DEPOSIT_ACCOUNT_NAME)]
         return deposits[0] if len(deposits) == 1 else ""
+    if field == "discount_account":
+        # 科目表里只有一个「ส่วนลดจ่าย…」（MR.ERP 收款新单「รับอื่นๆ 2」的参考科目 18 就叫这个）就用它
+        found = [v["code"] for v in values if v["name"].startswith(DISCOUNT_ACCOUNT_NAME)]
+        return found[0] if len(found) == 1 else ""
     if field in SUGGESTED:
         return str((suggested if suggested is not None else (observed or {}).get("suggested") or {}).get(field) or "")
     return ""
@@ -444,7 +455,8 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
             "error_at": entry.get("error_at"), "fields": fields}
 
 
-__all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
+__all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "DEPOSIT_ACCOUNT_NAME", "DISCOUNT_ACCOUNT_NAME",
+           "DOCUMENT_DIRECTIONS", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
            "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "head_branch_id", "parse_company_tax", "parse_head_branch",
            "rule_default", "sampled", "suggest",
            "UNREADABLE", "choices", "choose", "chosen_map", "customer_defaults", "known_codes", "masters",

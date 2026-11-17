@@ -2071,6 +2071,9 @@ Choose at least one invoice	请至少选择一张发票	กรุณาเลื
 Received {0} · due {1}	已收 {0} · 未收 {1}	รับแล้ว {0} · ค้างชำระ {1}	受領 {0} · 未入金 {1}
 Choose the account set	选择账套	เลือกชุดบัญชี	会計データを選択
 Choose the collection method	选择收款方式	เลือกวิธีรับชำระ	入金方法を選択してください
+Reading from MR.ERP	正在读取 MR.ERP	กำลังอ่านข้อมูลจาก MR.ERP	MR.ERP から読み込み中
+Choose one collection method	只选一种收款方式	เลือกวิธีรับชำระเพียงวิธีเดียว	入金方法を1つ選択してください
+Choose the MR.ERP collection menu	选择 MR.ERP 收款菜单	เลือกเมนูรับชำระ MR.ERP	MR.ERP の入金メニューを選択してください
 Enter the amount for {0}	输入{0}的金额	พิมพ์จำนวนเงินของ {0}	{0} の金額を入力してください
 Enter a valid amount	请输入有效金额	กรุณาพิมพ์จำนวนเงินที่ถูกต้อง	正しい金額を入力してください
 More than the amount due {0}. Enter the amount again	超过未收金额 {0}，请重新输入	เกินยอดค้างชำระ {0} กรุณาพิมพ์ใหม่	未入金額 {0} を超えています。もう一度入力してください

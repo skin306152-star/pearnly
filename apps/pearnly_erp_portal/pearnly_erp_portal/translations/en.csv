@@ -289,8 +289,10 @@ Choose at least one job role,Choose at least one job role
 Choose before writing to Express,Choose before writing to Express
 Choose file,Choose file
 Choose invoices,Choose invoices
+Choose one collection method,Choose one collection method
 Choose purchase or sales first,Choose purchase or sales first
 Choose purchase or sales for this invoice and submit again,Choose purchase or sales for this invoice and submit again
+Choose the MR.ERP collection menu,Choose the MR.ERP collection menu
 Choose the account set,Choose the account set
 Choose the collection method,Choose the collection method
 Choose the company,Choose the company
@@ -1197,6 +1199,7 @@ Reactivated by stock count {0},Reactivated by stock count {0}
 Read company details,Read company details
 Reading,Reading
 Reading from Express,Reading from Express
+Reading from MR.ERP,Reading from MR.ERP
 Reading the Express account set,Reading the Express account set
 Ready to post,Ready to post
 Reason,Reason

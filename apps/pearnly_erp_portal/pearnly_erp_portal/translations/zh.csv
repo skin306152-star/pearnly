@@ -289,8 +289,10 @@ Choose at least one job role,请至少勾选一个功能权限
 Choose before writing to Express,写入 Express 前需要选择
 Choose file,选择文件
 Choose invoices,选择发票
+Choose one collection method,只选一种收款方式
 Choose purchase or sales first,请先选择采购或销售
 Choose purchase or sales for this invoice and submit again,请选择此发票为进项或销项后重新提交
+Choose the MR.ERP collection menu,选择 MR.ERP 收款菜单
 Choose the account set,选择账套
 Choose the collection method,选择收款方式
 Choose the company,选择公司
@@ -1197,6 +1199,7 @@ Reactivated by stock count {0},盘点启用 · {0}
 Read company details,读取了公司资料
 Reading,读取中
 Reading from Express,正在读取 Express
+Reading from MR.ERP,正在读取 MR.ERP
 Reading the Express account set,正在读取 Express 账套
 Ready to post,待入账
 Reason,原因

@@ -19,6 +19,7 @@ from pearnly_core.cc_desktop import requests
 from pearnly_core.express_rules.contracts import codes
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts, snapshot, texts
+from pearnly_erp_portal.collection import mrerp as ledger
 from pearnly_erp_portal.express import choices, contracts as express_contracts, facts, target
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.masters import access as master_access
@@ -56,13 +57,13 @@ def _not_permitted():
 
 
 def _company(company):
-    """本人能用、接了 Express 的公司（公司行）。"""
+    """本人能用、接了 Express 或账本是 MR.ERP（`collection.mrerp.handles`，开关关着不查库）的公司（公司行）。"""
     from pearnly_erp_portal.express import push as express_push
 
     if not company or company not in companies.allowed_companies():
         _not_permitted()
     row = frappe.db.get_value(COMPANY, company, ["name", "company_name", "tax_id", "branch"], as_dict=True)
-    if not row or not express_push.linked(company):
+    if not row or not (express_push.linked(company) or ledger.handles(company)):
         raise contracts.CollectionError(NO_COMPANY)
     return row
 
@@ -75,7 +76,7 @@ def companies_for() -> list:
     guard.require(WRITE)
     out = []
     for name in companies.allowed_companies():
-        if not express_push.linked(name):
+        if not express_push.linked(name) and not ledger.handles(name):  # loop-query: 本人可用的几家
             continue
         row = frappe.db.get_value(COMPANY, name, ["name", "company_name", "tax_id", "branch"], as_dict=True)  # loop-query: 本人可用的几家
         if row and periods(row):
@@ -88,6 +89,8 @@ def _picked(company_row, day):
     不按日期另判：列发票、列方式、建草稿三步同一本（A 线审计 A11，11-12）；网页、LINE 按单据日期选。"""
     from pearnly_erp_portal.express import conversation
 
+    if ledger.handles(company_row.get("name")):
+        return ledger.pick(company_row, day)  # 账本是 MR.ERP：按收款日期选这家的年度账套（同 ERP 单据）
     return target.pick(company_row, day, conversation.wanted(company_row))
 
 
@@ -109,6 +112,8 @@ def periods(company_row, only=None) -> list:
     """这家公司已连接各本账套能录收款的日期段（本年起 ~ 次年止，与选账套、期间判据同一条 `account_match`），早的在前：
     ``[{key, label, short, start, end, last}]``；``last`` 是本年段最后一天（LINE 快捷回复给的那个日期）。``only``：只要这一本
     （CC 对话账套、草稿冻结的那本）。"""
+    if ledger.handles(company_row.get("name")):
+        return ledger.periods(company_row, only)
     every = [item for item in target.books_of(company_row) if only is None or item["key"] == only]
     rows = []
     for item in every:
@@ -147,8 +152,9 @@ def book_for(company_row, day):
         asked = _day_needed(company_row, day, (picked.get("book") or {}).get("key") if picked.get("book") else None)
         if asked is not None:
             raise asked
-        raise contracts.CollectionError(express_contracts.NO_BOOK, {"company": company_row.get("name") or "",
-                                                                     "day": str(day)[:10]})
+        raise contracts.CollectionError(express_contracts.NO_BOOK, {
+            "company": company_row.get("name") or "", "day": str(day)[:10],
+            **({"ledger": "mrerp"} if ledger.handles(company_row.get("name")) else {})})
     if picked["reason"] and picked["reason"] != express_contracts.NO_WRITER:
         raise contracts.CollectionError(picked["reason"])
     return picked["book"]  # 没有电脑能写也照样记（排队，电脑上线补写）
@@ -218,7 +224,12 @@ def choose_book(company, key, day=None) -> dict:
     guard.require(WRITE)
     row = _company(company)
     day = str(day or nowdate())[:10]
-    picked = target.pick(row, day)
+    if ledger.handles(company):
+        from pearnly_erp_portal.mrerp import catalog as mrerp_catalog
+
+        picked = mrerp_catalog.pick(company, day)  # 同一份「同期两本选一次」记忆
+    else:
+        picked = target.pick(row, day)
     if picked["reason"] == express_contracts.SEVERAL_BOOKS:
         found = next((item for item in picked["options"] if item["code"] == key), None)
         if found is None:
@@ -273,7 +284,10 @@ def _customer_name(company, code):
 
 def _catalog(company, book):
     """这本账套的收款方式（`contracts.catalog`）。主档还没读过、或只有旧版读回（`facts.stale_for_collection`）就请电脑重读
-    （抛 ``express.masters_reading``）；够得到这本的在线电脑都比带收款的版本旧才抛 :data:`CC_UPDATE`。"""
+    （抛 ``express.masters_reading``）；够得到这本的在线电脑都比带收款的版本旧才抛 :data:`CC_UPDATE`。账本是 MR.ERP 的按 MR.ERP
+    主档列（`collection.mrerp.catalog`）。"""
+    if ledger.handles(company):
+        return ledger.catalog(company, book)
     data = facts.load(book["key"])
     if facts.stale_for_collection(data):
         if (requests.waiting(snapshot.KIND, book["key"]) or {}).get("reason") == "update_needed":
@@ -353,6 +367,8 @@ def warm(company, day=None) -> None:
     （已有的整本读回请求，同一请求号在读的不重发）；等人选好客户时多半已读好，列发票前落库（:func:`open_invoices`）。
     读不到照旧回「正在读取 + 刷新」。任何问题都不挡收款流程。"""
     try:
+        if ledger.handles(company):
+            return  # MR.ERP 没有整本读：选好客户时按客户读（`collection.mrerp.request`）
         book = book_for(_company(company), day or nowdate())
         # 只给还没有任何快照的账套整本读一次（新接的公司、第一次收款）；读过的平常由标记刷新与按客户读跟上（`snapshot.marks_seen`）
         if not frappe.db.exists(snapshot.DOCTYPE, {"book_key": book["key"]}):
@@ -371,9 +387,13 @@ def open_invoices(company, customer, day=None, refresh=True, exclude=None, book=
     customer = customer_code(company, customer)
     _customer_name(company, customer)
     book = book or book_for(row, day or nowdate())
-    if refresh:
-        snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
-    state = snapshot.request(company, book, customer, docnums) if refresh else ""
+    if ledger.handles(company):
+        state = ledger.request(company, book, customer) if refresh else ""  # 后台登录 MR.ERP 按客户读
+        docnums = ()  # 按单号查状态只有 CC 桌面版读 Express 时有
+    else:
+        if refresh:
+            snapshot.land_ready(company, book)  # LINE 选公司时预热的整本读回（`warm`）读好了就先落，首次也能直接列出
+        state = snapshot.request(company, book, customer, docnums) if refresh else ""
     rows = _open_rows(book["key"], customer, exclude=exclude)
     items = [{**value, **{key: contracts.text(value[key]) for key in ("net", "received", "remaining", "reserved",
                                                                        "available")}}
@@ -425,6 +445,8 @@ def _vouchers_ok(methods_value, record=None):
 def _checked(company, book, customer, draft, record=None, *, require_vouchers=False):
     open_rows = _open_rows(book["key"], customer, exclude=record)
     checked = contracts.check(draft, open_rows, _catalog(company, book), require_vouchers=require_vouchers)
+    if ledger.handles(company):
+        ledger.check_methods(checked)  # MR.ERP 收款单只有一格记收到的钱
     _vouchers_ok(checked["methods"], record)
     return checked
 
@@ -619,6 +641,8 @@ def _book_row(doc):
     """记录冻结的那本账套此刻的登记（位置、公司名）；电脑都不报了回只有键的一项（载荷准备时再停下）。"""
     from pearnly_core.cc_desktop import books
 
+    if ledger.handles(doc.company):
+        return ledger.book_row(doc.company, doc.book_key)  # MR.ERP 年度账套（连接、期间）
     row = frappe.db.get_value(COMPANY, doc.company, ["tax_id", "branch"], as_dict=True) or {}
     tax = express_contracts.tax13(row.get("tax_id"))
     for item in books.for_company(tax, row.get("branch")) if tax else []:
@@ -681,7 +705,9 @@ def _view(doc) -> dict:
             "salesman": doc.salesman or "", "department": doc.department or "",
             "balances": frappe.parse_json(doc.balances) if doc.balances else {},
             # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
-            "returned": doc.status == contracts.DRAFT and bool(int(doc.get("attempt") or 0)) and bool(doc.reason)}
+            "returned": doc.status == contracts.DRAFT and bool(int(doc.get("attempt") or 0)) and bool(doc.reason),
+            # 已写进 MR.ERP 后在 ERP 撤回（转人工）：在 MR.ERP 里作废要的事实（单号、收款菜单、冲过的发票与金额）
+            **({"mrerp_voided": ledger.voided_facts(doc)} if ledger.voided(doc) else {})}
 
 
 def _draft_of(doc):
@@ -754,6 +780,8 @@ def withdraw(name) -> dict:
     """撤回（没被电脑领走前）：草稿、待写入、失败的可以；电脑正在写的回 ``busy``，已写入的不行（由财务在 Express 原生作废）。
     记录不删、凭证保留，标「已撤回」。"""
     doc = _own(name, for_update=True)
+    if ledger.handles(doc.company) and ledger.withdraw(doc):
+        return _view(doc)  # 已写进 MR.ERP：转人工、单号留着（写入中的抛 busy）
     if doc.status not in contracts.WITHDRAWABLE:
         raise contracts.CollectionError(contracts.NOT_WITHDRAWABLE, {"status": doc.status})
     from pearnly_erp_portal.collection import push
