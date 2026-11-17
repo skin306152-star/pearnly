@@ -68,8 +68,3 @@ reason = "本人发起的那次识别进度（键里带 session.user）"
 method = "pearnly_erp_portal.sales.api.api_recognise_progress"
 kind = "own"
 reason = "本人发起的那次识别进度（键里带 session.user）"
-
-[[endpoint]]
-method = "pearnly_core.assistant.api.businesses"
-kind = "public"
-reason = "这个产品各模式能做的业务清单（产品的引导声明 pearnly_guides，输入框上方的业务菜单用），站点配置、不含任何人的数据"

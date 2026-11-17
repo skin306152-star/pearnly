@@ -17,7 +17,7 @@ def allowed(user) -> bool:
 
 
 GUIDES = [
-    {"id": "collection", "label_key": "guide.business.collection", "icon": "wallet", "order": 10,
+    {"id": "collection", "label_key": "guide.business.collection", "icon": "wallet", "order": 35,
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_erp_portal.collection.cc_guide.allowed",
      "opening_key": "guide.open.collection", "source": "form", "writes": True,

@@ -42,6 +42,8 @@ import {
   FileSpreadsheetIcon,
   SquareIcon,
   XIcon,
+  ChevronDownIcon,
+  EllipsisIcon,
   ShoppingCartIcon,
   TagIcon,
   WalletIcon,
@@ -61,8 +63,9 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
-import { guidePlacement, startGuide } from "@/lib/guide-run";
+import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteRunView, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
+import { cancelGuide, guidePlacement, startGuide } from "@/lib/guide-run";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ensureSessionOf, type SessionItem } from "@/lib/managed-agents/ensure-session";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { withReport } from "@/lib/caught";
@@ -74,6 +77,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -82,6 +86,7 @@ import {
   type KeyboardEvent,
   type PropsWithChildren,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { Marquee } from "@/components/ui/marquee";
 import type { ComposerStop } from "@/components/run/types";
@@ -464,10 +469,15 @@ const RecordQuickReply: FC = () => {
 };
 
 
-/** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1）：与「写入」同一行、同一种按钮，同一刻只出一种——有写入计划在等时出「写入」，
- *  在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式真能做的（服务端 businesses，产品声明）；选中的一项实底带「×」，点了取消。
+/** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1；样子照用户 11-17 定稿）：与「写入」同一行、同一种按钮（标准 Button outline sm：
+ *  白底细边框、图标 + 业务名），同一刻只出一种——有写入计划在等时出「写入」，在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式
+ *  真能做的（服务端 businesses，产品声明，顺序按声明的 order）。
+ *  - 前几项直接摆出（最多 MENU_FIRST 项），其余收进最后一个「更多」（标准下拉菜单，每行图标 + 业务名）；一行放不下就少摆，不换行、不横滚。
+ *  - 选中一项：只留这一项，实底（主按钮那档）带「×」，点 × 取消。按表单走的业务选中 = 本对话有一张引导卡开着，× 取消这次引导。
  *  不是必经之路：没点也照常上传（评估 6.3）。选的记在会话上（新建页先记本页，会话建好补交）。 */
 // map: guide-menu
+const MENU_FIRST = 4;
+
 const BusinessMenu: FC = () => {
   const offered = useBusiness((s) => s.offered);
   const mode = useModePlace((s) => s.mode);
@@ -475,37 +485,105 @@ const BusinessMenu: FC = () => {
   const running = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
   const record = useRecordOffered();
-  // 本对话有一张引导卡还在问 / 复核：菜单不出（再点会另开一张；不做了在对话里说，主会话 11-17）
-  const guiding = useGuideRunList().some((run) => OPEN_GUIDE.has(run.status));
+  // 本对话开着的引导卡（卡上等人答 / 复核）：它的业务就是选中的那一项，× 取消这次引导（不再开第二张）
+  const open = useGuideRunList().filter((run) => OPEN_GUIDE.has(run.status)).pop();
   const current = useCurrentBusiness(sessionId) as Business | "";
   useBusinessCarry(sessionId);
   useEffect(() => void loadOffered(), []);
   const list = menuOf(offered, mode);
-  if (record || running || guiding || !list.length) return null;
-  if (current && list.includes(current)) {
+  const row = useRef<HTMLDivElement>(null);
+  const measure = useRef<HTMLDivElement>(null);
+  const fit = useMenuFit(row, measure, list, MENU_FIRST);
+  if (record || running || !list.length) return null;
+  const chosen = open?.business ?? (current && list.includes(current) ? current : "");
+  if (chosen) {
+    const clear = open
+      ? () => void cancelGuide(open.run).then((view) => sessionId && noteRunView(sessionId, view)).catch(withReport(() => undefined, "guide-cancel"))
+      : () => chooseBusiness(sessionId, "");
     return (
-      <div data-slot="cc-business-menu" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
-        <Button variant="secondary" size="sm" aria-pressed onClick={() => chooseBusiness(sessionId, "")}>
-          <BusinessIcon business={current} icon={offered?.icons?.[current]} />
-          {businessName(current)}
+      <div data-slot="cc-business-menu" data-business={chosen} className="flex min-w-0 gap-(--cc-space-8)">
+        <Button size="sm" aria-pressed onClick={clear}>
+          <BusinessIcon business={chosen} icon={offered?.icons?.[chosen]} />
+          {businessName(chosen)}
           <XIcon />
         </Button>
       </div>
     );
   }
+  const pick = (business: string) => void pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem());
+  const item = (business: string) => (
+    <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => pick(business)}>
+      <BusinessIcon business={business} icon={offered?.icons?.[business]} />
+      {businessName(business)}
+    </Button>
+  );
+  const more = (
+    <Button variant="outline" size="sm" data-slot="cc-business-more">
+      <EllipsisIcon />
+      {t("more")}
+      <ChevronDownIcon />
+    </Button>
+  );
+  const rest = list.slice(fit);
   return (
-    <div data-slot="cc-business-menu" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
-      {list.map((business) => {
-        return (
-          <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => void pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem())}>
+    <div ref={row} data-slot="cc-business-menu" data-business="" className="relative flex min-w-0 gap-(--cc-space-8)">
+      {list.slice(0, fit).map(item)}
+      {rest.length > 0 && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>{more}</DropdownMenuTrigger>
+          <DropdownMenuContent align="start" data-slot="cc-business-more-menu">
+            {rest.map((business) => (
+              <DropdownMenuItem key={business} data-business={business} onSelect={() => pick(business)}>
+                <BusinessIcon business={business} icon={offered?.icons?.[business]} />
+                {businessName(business)}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
+      {/* 量宽度用（看不见、读屏与 Tab 都跳过）：每项与「更多」各自的自然宽度，决定这一行摆几项 */}
+      <div ref={measure} aria-hidden inert className="cc-business-measure">
+        {list.map((business) => (
+          <Button key={business} tabIndex={-1} variant="outline" size="sm">
             <BusinessIcon business={business} icon={offered?.icons?.[business]} />
             {businessName(business)}
           </Button>
-        );
-      })}
+        ))}
+        {more}
+      </div>
     </div>
   );
 };
+
+/** 业务菜单这一行摆几项：最多 first 项；放不下就少摆（剩下的进「更多」，「更多」自己也要放得下）。量的是看不见的那一排里每颗的宽度。 */
+function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HTMLDivElement | null>, list: readonly string[], first: number): number {
+  const [fit, setFit] = useState(Math.min(first, list.length));
+  const key = list.join("\n");
+  useLayoutEffect(() => {
+    const box = row.current;
+    const ruler = measure.current;
+    if (!box || !ruler) return;
+    const count = () => {
+      const widths = [...ruler.children].map((el) => (el as HTMLElement).getBoundingClientRect().width);
+      const gap = parseFloat(getComputedStyle(box).columnGap) || 0;
+      const moreW = widths[list.length] ?? 0;
+      const room = box.getBoundingClientRect().width;
+      let n = Math.min(first, list.length);
+      for (; n > 0; n--) {
+        const used = widths.slice(0, n).reduce((a, b) => a + b, 0) + gap * (n - 1) + (n < list.length ? gap + moreW : 0);
+        if (used <= room) break;
+      }
+      setFit(n);
+    };
+    count();
+    const watch = new ResizeObserver(count);
+    watch.observe(box);
+    watch.observe(ruler);
+    return () => watch.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, first]);
+  return fit;
+}
 
 /** 下面还有内容时在输入框上方居中出 ↓，点了平滑滚到最新（同 Claude，13.webp / 12.webp）。
  *  40 的圆、箭头 20，离输入框 12（量 Claude 手机截图约 39pt 圆、约 12pt 间距），样子是共用的 .cc-scroll-btn（V70）；在底部时组件库把它禁用，

@@ -1941,6 +1941,11 @@
   .cc-btn-sm[data-primary] { background: var(--cc-ink); color: var(--cc-bg-app); }
   .cc-btn-sm[data-primary]:hover { opacity: 0.88; }
   .cc-btn-sm svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); flex-shrink: 0; }
+  /* 描边小按钮（Button variant="outline" size="sm"，输入框上方的业务菜单与「写入」）：白底细边框，同文字按钮 .cc-btn */
+  .cc-btn-sm[data-outline] { border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface); }
+  .cc-btn-sm[data-outline]:hover, .cc-btn-sm[data-outline][data-state="open"] { background: var(--cc-bg-hover); }
+  /* 业务菜单量宽度的那一排：看不见、不占位，只给每颗按钮自然宽度（thread.tsx useMenuFit） */
+  .cc-business-measure { position: absolute; inset-inline-start: 0; top: 0; display: flex; gap: var(--cc-space-8); visibility: hidden; pointer-events: none; }
   /* 手机（按钮排查 G10）：44 高、左右 14、全圆、14px、图标 16；电脑 24 不变 */
   :root[data-cc-touch] .cc-btn-sm {
     height: var(--cc-tap); padding-inline: var(--cc-btn-sm-px-phone); border-radius: var(--cc-radius-full); font-size: var(--cc-row-font); line-height: var(--cc-row-lh);

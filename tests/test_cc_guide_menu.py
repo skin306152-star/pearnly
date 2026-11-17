@@ -91,13 +91,26 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn("<RecordQuickReply />\n            <BusinessMenu />", thread)
         self.assertIn('data-slot="cc-business-menu"', body)
         self.assertNotIn('cc-quick-replies', body)  # 业务菜单不是快捷回复：流程按 cc-quick-replies 找「写入」那颗
-        self.assertIn("if (record || running || guiding || !list.length) return null;", body)
+        self.assertIn("if (record || running || !list.length) return null;", body)
         self.assertIn("const list = menuOf(offered, mode);", body)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
-        # 选中的实底带 ×，点了取消；没选的是描边按钮
-        self.assertIn('variant="secondary"', body)
+        # 用户 11-17 定稿：没选的是描边小按钮（图标 + 业务名）；选中只留这一项、实底（主按钮那档）带 ×，点 × 取消
+        # （按表单走的业务 = 本对话开着的引导，× 取消这次引导）
+        self.assertIn('variant="outline" size="sm" data-business={business}', body)
+        self.assertIn('<Button size="sm" aria-pressed onClick={clear}>', body)
+        self.assertNotIn('variant="secondary"', body)
         self.assertIn("<XIcon />", body)
         self.assertIn('chooseBusiness(sessionId, "")', body)
-        self.assertIn('variant="outline"', body)
+        self.assertIn("const chosen = open?.business ?? (current && list.includes(current) ? current : \"\");", body)
+        # 前 4 项摆出、其余进「更多」（标准下拉菜单）；一行放不下少摆（量宽度）、不换行
+        self.assertIn("const MENU_FIRST = 4;", thread)
+        self.assertIn("const fit = useMenuFit(row, measure, list, MENU_FIRST);", body)
+        self.assertIn('<DropdownMenuTrigger asChild>{more}</DropdownMenuTrigger>', body)
+        self.assertIn('{t("more")}', body)
+        self.assertIn('aria-hidden inert className="cc-business-measure"', body)
+        # 描边小按钮有边框（以前 outline 没落到样式上，看着像纯文字）
+        self.assertIn('"data-outline": variant === "outline"', read("components/ui/button.tsx"))
+        self.assertIn(".cc-btn-sm[data-outline] { border: var(--cc-hairline) solid var(--cc-line); background: var(--cc-bg-surface); }",
+                      read("globals.css"))
         # 占位字按业务换
         self.assertIn("(guide.placeholder as Record<string, string>)[business]", thread)
 

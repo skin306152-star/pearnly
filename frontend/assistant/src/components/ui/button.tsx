@@ -38,6 +38,8 @@ function toneProps(variant: ButtonVariant, size: ButtonSize) {
     "data-danger": variant === "destructive" ? "" : undefined,
     "data-ghost": variant === "ghost" && !size.startsWith("icon") ? "" : undefined,
     "data-secondary": variant === "secondary" && size !== "xs" ? "" : undefined,
+    // 描边（白底细边框）：文字按钮 .cc-btn 本来就有边框，列表小按钮 .cc-btn-sm 靠它加上（业务菜单，用户 11-17）
+    "data-outline": variant === "outline" && !size.startsWith("icon") ? "" : undefined,
     "data-icon": size === "icon-xs" ? "" : undefined,
   };
 }

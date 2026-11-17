@@ -417,7 +417,10 @@ class GuideRunSourceTests(unittest.TestCase):
         # 不出停止键、Esc 不结束引导；退出靠用户说「不做了」由服务端结束（卡读回失效）。允许式标题栏是 consent_title
         thread = read("components/assistant-ui/thread.tsx")
         self.assertNotIn("guideStop", thread)
-        self.assertNotIn("cancelGuide", thread)
+        # 取消引导只在业务菜单选中那一项的「×」上（用户 11-17 菜单定稿②），输入框与 Esc 不碰引导
+        menu = thread[thread.index("const BusinessMenu: FC"):thread.index("\n};", thread.index("const BusinessMenu: FC"))]
+        self.assertEqual(thread.count("cancelGuide("), menu.count("cancelGuide("))
+        self.assertEqual(menu.count("cancelGuide("), 1)
         self.assertIn("<AuiIf condition={(s) => !s.thread.isRunning || !s.composer.isEmpty}>{send}</AuiIf>", thread)
         review = read("components/tool-uis/guide-review.tsx")
         self.assertIn("title={view.consent_title || businessName(view.business)}", review)
