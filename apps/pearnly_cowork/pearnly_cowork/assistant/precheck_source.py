@@ -37,6 +37,7 @@ DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
+OPERATOR_DIALOG = "operator_dialog"  # 代录停在 Express 中途配方外的业务选择框（CC 桌面版 1.12.23）：这份账套这个框（指纹）点哪个钮
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 新建库存品挂哪个存货科目组（每个账套选一次，记在连接的 ``stock_acc_groups``，同网页上传那一问 `targets.stock_group_needed`）：
 # 走库存、合格的组两个以上、这份账套还没选过才问（11-16 真机 H5：不问就交给 CC 桌面版按众数选，众数组可能不是存货科目）
@@ -118,6 +119,7 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
                 "legacy": legacy}
     items, target, found, loaded, legacy = [], None, None, None, None
     menu = _menu_item(doc)
+    dialog = _dialog_item(doc)
     try:
         if not doc.push_connection:
             frappe.throw(_("cowork.company.pending.no_target"))
@@ -170,7 +172,7 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
         if subject:
             items.append({"kind": DIRECTION, "subject": subject, "label": name,
                           "options": [{"code": code} for code in ("purchase", "expense", "sales")]})
-        return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
+        return _with_menu(_with_menu({**out, "state": card.CHECK, "items": items}, menu), dialog)
     goods = _goods_item(doc, loaded, found, decision, kind, posting_from, today)
     asked_before = None
     if goods:
@@ -201,7 +203,7 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
             and getattr(doc, "last_push_status", None) not in ("pending", "success"):
         # 什么都不用定（全部已定）才给：还有预选 / 未定的项时写法要等人答完、重判后再看
         out["planned"] = view["planned"]
-    return _with_menu({**out, "state": card.CHECK, "items": items}, menu)
+    return _with_menu(_with_menu({**out, "state": card.CHECK, "items": items}, menu), dialog)
 
 
 def _stock_group_item(loaded, found):
@@ -256,6 +258,61 @@ def _menu_item(doc):
     value = remembered if remembered in stop["codes"] else ""
     return {"kind": OPERATOR_FORM, "subject": stop["doc_type"], "label": stop["doc_type"], "value": value,
             "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in stop["codes"]]}
+
+
+def _dialog_stop(doc) -> dict:
+    """这张单停在 Express 中途一个配方外的业务选择框（最近一次推送转人工，那条推送记录存下的回执 ``meta.operator.dialog``，读时过
+    共用净化）：``{digest, title, text, buttons, stage, connection, account_set, device, batch, doc}``；不是回空 dict。"""
+    from pearnly_core.express_rules.push.common import clean_operator_meta
+
+    record = str(getattr(doc, "last_push_record", "") or "")
+    if str(getattr(doc, "last_push_status", "") or "") != "manual" or not record:
+        return {}
+    found = frappe.db.get_value("Cowork Push Record", record, ["connection", "account_key", "response_json",
+                                                              "written_by_device", "route_device"], as_dict=True)
+    if not isinstance(found, dict) or not found.get("connection") or not found.get("account_key"):
+        return {}
+    try:
+        response = json.loads(found.get("response_json") or "{}")
+    except ValueError:
+        return {}
+    meta = response.get("meta") if isinstance(response, dict) and isinstance(response.get("meta"), dict) else {}
+    raw = meta.get("operator") if isinstance(meta.get("operator"), dict) else {}
+    dialog = clean_operator_meta(raw).get("dialog")
+    if not dialog:
+        return {}
+    return {**dialog, "connection": str(found["connection"]), "account_set": str(found["account_key"]),
+            "device": str(found.get("written_by_device") or found.get("route_device") or ""),
+            "batch": str(raw.get("batch") or ""), "doc": str(raw.get("doc") or "")}
+
+
+def _dialog_item(doc):
+    """停在业务选择框的单要人定的那一项（没有回 None）：问框的原文，选项是框上的按钮；这份账套答过同一个框、那个钮仍在的是已定。"""
+    stop = _dialog_stop(doc)
+    if not stop:
+        return None
+    from pearnly_cowork.push import choices as choice_store
+
+    remembered = choice_store.operator_dialogs(stop["connection"], stop["account_set"]).get(stop["digest"], "")
+    value = remembered if remembered in stop["buttons"] else ""
+    label = " · ".join(part for part in (stop.get("title"), stop.get("text")) if part)[:200]
+    return {"kind": OPERATOR_DIALOG, "subject": stop["digest"], "label": label, "value": value,
+            "source": card.REMEMBERED if value else "", "options": [{"code": button, "name": button} for button in stop["buttons"]]}
+
+
+def _remember_dialog(stop, value, label) -> int:
+    """记下这份账套这个框点哪个钮（值须是框上的按钮），再给留着框的那台电脑发一条「点这个钮」（下一次领单带下去，核框没变才点）。"""
+    from pearnly_core.cc_desktop import operator_controls
+    from pearnly_cowork.push import choices as choice_store
+
+    if value not in stop["buttons"]:
+        frappe.throw(_("cowork.choice.invalid"))
+    choice_store.record(stop["connection"], stop["account_set"], OPERATOR_DIALOG, stop["digest"], value,
+                        label or stop.get("text") or "")
+    if stop["device"] and stop["batch"] and stop["doc"]:
+        operator_controls.send(f"cw:{stop['connection']}:{stop['device']}", stop["batch"], stop["doc"], "answer",
+                               stop["digest"], value)
+    return 1
 
 
 def _with_menu(found, menu) -> dict:
@@ -578,6 +635,15 @@ def remember(company, answers) -> dict:
                 if kind != PAYMENT:
                     frappe.throw(_("cowork.choice.invalid"))
                 saved += _set_document_payment(doc, value)
+                continue
+            if kind == OPERATOR_DIALOG:
+                stop = _dialog_stop(doc)
+                if not stop or str(row.get("subject") or "").strip().lower() != stop["digest"]:
+                    continue  # 这张没停在这个框上（批里别的单的答案）：跳过、不拒
+                key = (*once, stop["connection"], stop["account_set"])
+                if key not in done:
+                    done.add(key)
+                    saved += _remember_dialog(stop, value, str(row.get("label") or ""))
                 continue
             if kind == OPERATOR_FORM:
                 stop = _menu_stop(doc)

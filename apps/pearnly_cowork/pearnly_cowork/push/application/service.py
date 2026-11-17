@@ -285,7 +285,9 @@ def prepare(history, connection, request_key, expected_history_version, expected
         payload = operator_contracts.for_operator(
             payload, operator, form_choice=choice_store.operator_form(loaded.doc.name, target.account_set,
                                                                       payload.get("doctype")),
-            pay_route=operator_pay_route(fields))
+            pay_route=operator_pay_route(fields),
+            # 中途配方外的业务选择框这份账套答过的（CC 桌面版 1.12.23 照点，旧版忽略）
+            dialog_answers_by_digest=choice_store.operator_dialogs(loaded.doc.name, target.account_set))
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
         disposition="prepared" if prepared.disposition == "ready" else "manual",

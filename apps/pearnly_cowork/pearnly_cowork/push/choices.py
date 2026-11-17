@@ -27,7 +27,11 @@ from pearnly_core.express_rules.targets.identity import normalize_express_accoun
 # 记得住的类：写账规则那几类（`express_rules.push.choices.KINDS`）+ 代录子菜单选哪一项（``operator_form``，归类键 = 单据种类、
 # 值 = 菜单文字，评估 2026-11-05 修法 D）。``operator_form`` 不是写账规则：不进 `remembered`（推送判定、自动推指纹的输入照旧），
 # 交代录时经 `operator_form` 读；公司主档页「记住的选择」经 `of_sets` 列出、可删可改（改值的可选项见 `menu_stops`）
-KINDS = RULE_KINDS + (OPERATOR_FORM, DETAIL)
+# 代录中途配方外的业务选择框（CC 桌面版 1.12.23）：对象 = 框指纹，值 = 人选的按钮原文；按这份账套记，交代录时经
+# :func:`operator_dialogs` 带进载荷 ``operator.dialog_answers``。同子菜单不是写账规则，不进 :func:`remembered`。
+OPERATOR_DIALOG = "operator_dialog"
+OPERATOR_DIALOGS_MAX = 50
+KINDS = RULE_KINDS + (OPERATOR_FORM, DETAIL, OPERATOR_DIALOG)
 MENU_STOP_PREFIX = "[OPERATOR_MENU_CHOICE]"  # CC 回执的原因码写在推送记录原因开头（``worker._ack_operator``）
 MENU_SCAN_MAX = 50
 DOCTYPE = "Cowork Express Choice"
@@ -66,8 +70,8 @@ def remembered(connection, account_set) -> dict:
     """这份账套里记过的写账规则选择：`{kind: {subject: value}}`（值为空的不算；代录子菜单 ``operator_form`` 不在内）。"""
     account_set = normalize_express_account_key(account_set)
     rows = frappe.db.sql(f"""SELECT kind, subject, value FROM `tab{DOCTYPE}`
-        WHERE connection=%s AND account_set=%s AND kind!=%s AND COALESCE(value, '')!=''""",
-                         (connection, account_set, OPERATOR_FORM), as_dict=True)
+        WHERE connection=%s AND account_set=%s AND kind!=%s AND kind!=%s AND COALESCE(value, '')!=''""",
+                         (connection, account_set, OPERATOR_FORM, OPERATOR_DIALOG), as_dict=True)
     found = {kind: {} for kind in RULE_KINDS}
     for row in rows:
         found.setdefault(row.kind, {})[row.subject] = row.value
@@ -83,6 +87,16 @@ def operator_form(connection, account_set, doc_type) -> str:
         AND subject=%s AND COALESCE(value, '')!='' LIMIT 1""",
                           (connection, normalize_express_account_key(account_set), OPERATOR_FORM, doc_type))
     return str(found[0][0] or "") if found else ""
+
+
+def operator_dialogs(connection, account_set) -> dict:
+    """这份账套答过的代录中途选择框 ``{指纹: 按钮原文}``（最近答的 50 个）；没答过回空。"""
+    if not connection or not account_set:
+        return {}
+    rows = frappe.db.sql(f"""SELECT subject, value FROM `tab{DOCTYPE}` WHERE connection=%s AND account_set=%s AND kind=%s
+        AND COALESCE(value, '')!='' ORDER BY chosen_at DESC LIMIT {OPERATOR_DIALOGS_MAX}""",
+                         (connection, normalize_express_account_key(account_set), OPERATOR_DIALOG), as_dict=True)
+    return {str(row.subject or ""): str(row.value or "") for row in rows if row.subject}
 
 
 def chosen_at(connection, account_set, kind, subject):
