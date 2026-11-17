@@ -961,6 +961,7 @@ Not found on the document,書類に記載がありません
 Not in the account set yet,会計データにまだありません
 Not in the list,一覧にありません
 Not permitted,権限がありません
+Not saved: {0},保存されていません：{0}
 Not written to Express (disconnected),Express 未書き込み（接続解除済み）
 Not written to Express: {0},Express に書き込めませんでした：{0}
 Note,備考

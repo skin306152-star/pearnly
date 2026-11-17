@@ -2168,3 +2168,4 @@ Collection Method	收款方式	วิธีรับเงิน	入金方法	gu
 Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.step.collection.voucher
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
+Not saved: {0}	没有记下：{0}	ยังไม่ได้บันทึก: {0}	保存されていません：{0}	

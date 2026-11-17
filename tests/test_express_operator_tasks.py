@@ -3,6 +3,7 @@
 
     python3 tests/test_express_operator_tasks.py
 """
+import contextlib
 import datetime
 import importlib.util
 import sys
@@ -131,7 +132,8 @@ class TaskTests(unittest.TestCase):
         products.reason_text = lambda reason: ""  # 产品没声明 reason_text（同真模块：回空串）
         products.computer_words = lambda company, user: ""  # 本人有能写的电脑（同真模块：能写回空串）
         products.status = lambda company, ids: [{"doc_id": i, **self.statuses.get(i, {"state": "queued"})} for i in ids]
-        products.submit = lambda company, ids, batch, computer, answers: self.submitted.append(
+        self.submitted_in = []
+        products.submit = lambda company, ids, batch, computer, answers: self.submitted_in.append(self.within[0]) or self.submitted.append(
             (company, list(ids), batch, computer, answers)) or [{"doc_id": i, "status": "sent"} for i in ids]
         package = types.ModuleType("pearnly_core.express_operator")
         package.products = products
@@ -166,17 +168,33 @@ class TaskTests(unittest.TestCase):
             slice(None), [row for row in self.state["sessions"] if row["session_id"] != sid])
         assistant = types.ModuleType("pearnly_core.assistant")
         assistant.sessions = sessions
+        # 重交在任务的对话里做（`assistant.guided.within`）：记下交单时所在的对话
+        self.within = [""]
+        guided = types.ModuleType("pearnly_core.assistant.guided")
+
+        @contextlib.contextmanager
+        def within(session_id):
+            before, self.within[0] = self.within[0], str(session_id or "")
+            try:
+                yield
+            finally:
+                self.within[0] = before
+
+        guided.within = within
+        assistant.guided = guided
         assistant.titles = types.SimpleNamespace(PLACEHOLDER="placeholder")
         self.saved = {k: sys.modules.get(k) for k in ("frappe", "frappe.utils", "pearnly_core", "pearnly_core.express_operator",
                                                        "pearnly_core.express_operator.products",
                                                        "pearnly_core.express_operator.contracts", "pearnly_core.assistant",
                                                        "pearnly_core.express_operator.feed",
-                                                       "pearnly_core.assistant.sessions", "pearnly_core.express_operator.tasks")}
+                                                       "pearnly_core.assistant.sessions", "pearnly_core.assistant.guided",
+                                                       "pearnly_core.express_operator.tasks")}
         sys.modules.update({"frappe": frappe, "frappe.utils": utils, "pearnly_core": types.ModuleType("pearnly_core"),
                             "pearnly_core.express_operator": package, "pearnly_core.express_operator.products": products,
                             "pearnly_core.express_operator.contracts": package.contracts,
                             "pearnly_core.express_operator.feed": feed,
-                            "pearnly_core.assistant": assistant, "pearnly_core.assistant.sessions": sessions})
+                            "pearnly_core.assistant": assistant, "pearnly_core.assistant.sessions": sessions,
+                            "pearnly_core.assistant.guided": guided})
         spec = importlib.util.spec_from_file_location(
             "op_tasks", ROOT / "apps/pearnly_core/pearnly_core/express_operator/tasks.py")
         self.tasks = importlib.util.module_from_spec(spec)
@@ -359,6 +377,9 @@ class TaskTests(unittest.TestCase):
         out = self.tasks.answer(name, "h3", choice)
         self.assertEqual(self.submitted, [("CO-1", ["h3"], {"id": name, "total": 1, "start_at": 0, "task": name}, "CCD-1", {"h3": choice})])
         self.assertEqual((out["status"], out["documents"][2]["state"], out["finished_at"]), ("queued", "queued", ""))
+        # 重交进任务的对话（与开始卡出题、写入计划判定同一口径，11-17）
+        self.assertEqual(self.submitted_in, [self.tasks.read(name)["session_id"]])
+        self.assertTrue(self.submitted_in[0])
 
     def test_starting_names_every_document_even_those_held_on_the_spot(self):
         """11-08 生产：当场停下等人选的单一直没有单号与对方，任务卡只能写内部编号。交单时就向产品要一次单号与对方。"""

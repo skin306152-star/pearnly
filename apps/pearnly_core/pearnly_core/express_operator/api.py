@@ -13,7 +13,6 @@
 进度在执行的那台电脑上（CC 窗口经桥看）；每张的结论照产品原来的写账回执回到单据上。
 """
 import uuid
-from contextlib import contextmanager
 from datetime import datetime
 
 import frappe
@@ -53,26 +52,19 @@ def _ids(doc_ids) -> list:
     return doc_ids
 
 
-@contextmanager
 def _in_task_conversation(company, task=""):
-    """开始卡的判定与记答案都在这个代录任务的对话里做（同对话里的工具：本对话账套、共用写账规则走引导口径）；没给任务照网页口径。
-    只认本人这个任务、同一家公司。预检和记答案必须同一口径：引导口径才问的题（收入科目 A14、明细对不上 A7），按网页口径重判
-    没有这一题，答案会被当成没问过而丢掉（11-17 回归 erp.cc.operator.intake.sales）。"""
+    """开始卡的判定与记答案都在这个代录任务的对话里做（`assistant.guided.within`：本对话账套、共用写账规则走引导口径）；没给任务照
+    网页口径。只认本人这个任务、同一家公司。预检和记答案必须同一口径：引导口径才问的题（收入科目 A14、明细对不上 A7），按网页口径
+    重判没有这一题，答案会被当成没问过（11-17 回归 erp.cc.operator.intake.sales）。"""
+    from pearnly_core.assistant import guided
+
     session = ""
     if task:
         found_task = tasks.read(task)
         if found_task["company"] != company:
             frappe.throw(_("Invalid request"))
         session = str(found_task.get("session_id") or "")
-    if not session:
-        yield
-        return
-    before = getattr(frappe.local, "pearnly_assistant", None)
-    frappe.local.pearnly_assistant = {**(before or {}), "session_id": session}
-    try:
-        yield
-    finally:
-        frappe.local.pearnly_assistant = before
+    return guided.within(session)
 
 
 @frappe.whitelist(methods=["POST"])

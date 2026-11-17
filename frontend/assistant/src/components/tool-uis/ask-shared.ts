@@ -254,7 +254,7 @@ export function itemsOfCheck(reply: unknown): AskItem[] {
   if (!Array.isArray(groups)) return [];
   return groups
     .flatMap((g) => (g && Array.isArray((g as { items?: unknown }).items)
-      ? (g as { group?: unknown; items: Record<string, unknown>[] }).items.map((i) => ({ group: (g as { group?: unknown }).group, ...i }))
+      ? (g as { group?: unknown; items: Record<string, unknown>[] }).items.map((i): Record<string, unknown> => ({ group: (g as { group?: unknown }).group, ...i }))
       : []))
     .filter((i) => i && i.state !== "decided" && typeof i.key === "string")
     .map((i) => ({

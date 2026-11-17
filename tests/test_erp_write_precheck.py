@@ -100,6 +100,20 @@ class Collect(Precheck):
         self.assertEqual(self.write_prepare(body)["payload"], via_card["payload"])
         self.assertIn("52-08-00-00", [line["acc"] for line in via_card["payload"]["lines"] if line["side"] == "D"])
 
+    def test_an_answer_to_a_question_this_judgment_does_not_ask_is_refused_not_skipped(self):
+        # 11-17 回归：卡上出了这一题（另一口径判的），这里重判没有——以前静默跳过、回「记了 0 项」，写入计划仍判未定；
+        # 现在整批拒、说没记下哪一题，同批答对的也不记
+        first, second = self.two_books()
+        body = base.doc(items=SERVICE)
+        found = self.collect(body)
+        answers = [{"kind": item["kind"], "subject": item["subject"],
+                    "value": second if item["kind"] == "account_set" else "52-08-00-00"} for item in found["items"]]
+        ghost = {"kind": "account", "subject": "revenue", "value": "41-01-00-00", "label": "Revenue"}
+        with self.assertRaises(frappe.ValidationError) as caught:
+            self.precheck.save("CO-1", self.collect(body, self.precheck.given_of(answers)), [*answers, ghost])
+        self.assertIn("Revenue", str(caught.exception))
+        self.assertEqual(choices.remembered("CO-1"), {})
+
     def test_a_record_already_remembered_is_not_asked_and_a_ready_document_has_no_items(self):
         key, = self.computer([base.book()])
         self.masters(key)

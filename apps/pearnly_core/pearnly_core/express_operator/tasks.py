@@ -386,9 +386,14 @@ def take_controls(name) -> list:
 
 def _resubmit(doc, rows, answers=None) -> None:
     """把这几张按原批次号（任务号）交回产品、派给原来那台电脑；交上的转「排队」、任务回「等电脑空闲」，没交上的记原因。"""
+    from pearnly_core.assistant import guided
+
     batch = {"id": doc.name, "total": len(rows), "start_at": 0, "task": doc.name}
-    results = {str(r.get("doc_id")): r for r in products.submit(doc.company, [row.doc_id for row in rows], batch,
-                                                                doc.computer or "", answers or {})}
+    # 重交在页面（继续 / 中途作答）或后台（收尾）里发生，不在工具调用里：进任务的对话再交，与开始卡出题、写入计划判定同一口径
+    # （否则按网页口径重新准备，开始卡上答的收入科目等引导口径的答案被连接默认值顶掉）
+    with guided.within(doc.session_id or ""):
+        results = {str(r.get("doc_id")): r for r in products.submit(doc.company, [row.doc_id for row in rows], batch,
+                                                                    doc.computer or "", answers or {})}
     for row in rows:
         result = results.get(row.doc_id) or {}
         if str(result.get("status") or "") in ("sent", "queued"):

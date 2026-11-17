@@ -579,17 +579,23 @@ def given_of(answers) -> dict:
 
 def save(company, found, answers, seen=None) -> int:
     """按一张单收齐的项记下人答的值（``answers`` = ``[{kind, subject, value, label?, remember?}]``）：只认这一项能选的值（不是就整批
-    拒），``remember`` 为假的不记。增值税登记户记在公司上（收银小票按它拆税额），其余记进这家公司的选择。同一项（``seen``）只记一次；
-    这张单此刻不再问的项（前一张已记下、或换了账套后不再问的）跳过。回记了几项。"""
+    拒），``remember`` 为假的不记。增值税登记户记在公司上（收银小票按它拆税额），其余记进这家公司的选择。同一项（``seen``）只记一次
+    （前一张已记下的跳过）。这张单此刻不再问的项（出题与记答案不同口径，或卡片过期：换了账套后不再问）整批拒、回「没记下」哪几题，
+    不静默跳过（11-17 回归 erp.cc.operator.intake.sales）。回记了几项。"""
     seen = seen if seen is not None else set()
     asked = {(item["kind"], item["subject"]): item for item in found["items"]}
-    checked = []
+    checked, missed = [], []
     for answer in answers or ():  # 先全部核完再记：有一项不对，一项都不记
         if not isinstance(answer, dict):
             frappe.throw(_("Invalid request"))
         key = (answer.get("kind"), answer.get("subject"))
         item = asked.get(key)
-        if item is None or key in seen or answer.get("remember") is False:
+        if key in seen or answer.get("remember") is False:
+            continue
+        if item is None:
+            # 卡上出了这一题、这里重判却没有（出题与记答案不同口径，11-17 回归）：不能当记下了——回明确的「没记下」，
+            # 调用方报给人，不让写入计划再判未定时人还以为答过了
+            missed.append(str(answer.get("label") or answer.get("subject") or answer.get("kind") or ""))
             continue
         options = {row["code"]: row.get("name") or "" for row in full_options(item, found["data"])}
         value = code_rules.choose(answer.get("value"), options)  # 复述时空白变了的编码换回主档原样
@@ -597,6 +603,8 @@ def save(company, found, answers, seen=None) -> int:
             frappe.throw(_("Invalid request"))
         seen.add(key)
         checked.append((item, value, options[value] or item.get("label") or ""))
+    if missed:
+        frappe.throw(_("Not saved: {0}").format(", ".join(dict.fromkeys(missed))))
     for item, value, label in checked:
         if item["kind"] == pos_day.VAT_REGISTERED:
             companies.set_vat_registered(company, value)
