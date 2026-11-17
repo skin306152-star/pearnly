@@ -496,6 +496,7 @@ Delete,ลบ
 Delete note,ลบบันทึก
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete the stock count?,ลบการตรวจนับหรือไม่
+Delete the note?,ลบบันทึกหรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
@@ -2586,6 +2587,7 @@ guide.consent.stocktake.delete,ลบการตรวจนับหรือ�
 guide.open.stocktake,เลือกการดำเนินการ
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
+guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.company_add,เลือกบริษัทที่จะเพิ่ม

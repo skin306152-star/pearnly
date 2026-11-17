@@ -496,6 +496,7 @@ Delete,Delete
 Delete note,Delete note
 Delete selected ({0}),Delete selected ({0})
 Delete the stock count?,Delete the stock count?
+Delete the note?,Delete the note?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
@@ -2586,6 +2587,7 @@ guide.consent.stocktake.delete,Delete the stock count?
 guide.open.stocktake,Choose an action.
 guide.business.company,Company Details
 guide.business.company_add,Add Company
+guide.consent.company.note_delete,Delete the note?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
 guide.open.company_add,Choose the companies to add.

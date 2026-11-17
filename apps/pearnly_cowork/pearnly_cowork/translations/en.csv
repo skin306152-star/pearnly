@@ -603,6 +603,8 @@ Delete note,Delete note
 Delete rule,Delete rule
 Delete selected ({0}),Delete selected ({0})
 Delete the stock counts?,Delete the stock counts?
+Delete the note?,Delete the note?
+Delete the rule?,Delete the rule?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3509,6 +3511,10 @@ guide.open.pos,Upload the POS export.
 guide.business.stocktake,Stock Count
 guide.consent.stocktake.close,Close the stock count?
 guide.consent.stocktake.delete,Delete the stock counts?
+guide.consent.company.note_delete,Delete the note?
+guide.consent.company.rule_delete,Delete the rule?
+guide.fact.company.none,No company selected
+guide.open.company,Choose an action.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.vat,Choose the tax month.

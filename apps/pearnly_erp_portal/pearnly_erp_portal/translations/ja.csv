@@ -496,6 +496,7 @@ Delete,削除
 Delete note,メモを削除
 Delete selected ({0}),選択を削除（{0}）
 Delete the stock count?,棚卸を削除しますか？
+Delete the note?,メモを削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
@@ -2586,6 +2587,7 @@ guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.open.stocktake,操作を選択してください。
 guide.business.company,会社情報
 guide.business.company_add,会社を追加
+guide.consent.company.note_delete,メモを削除しますか？
 guide.fact.company.none,会社が未選択です
 guide.open.company,操作を選択してください。
 guide.open.company_add,追加する会社を選択してください。

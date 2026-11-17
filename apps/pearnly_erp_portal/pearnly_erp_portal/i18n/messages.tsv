@@ -2220,3 +2220,4 @@ No company selected	未选公司	ยังไม่ได้เลือกบ�
 Add Company	添加公司	เพิ่มบริษัท	会社を追加	guide.business.company_add
 Choose the companies to add.	选择要添加的公司。	เลือกบริษัทที่จะเพิ่ม	追加する会社を選択してください。	guide.open.company_add
 Companies	公司	บริษัท	会社	guide.step.company_add.companies
+Delete the note?	要删除笔记吗？	ลบบันทึกหรือไม่	メモを削除しますか？	guide.consent.company.note_delete

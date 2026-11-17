@@ -603,6 +603,8 @@ Delete note,メモを削除
 Delete rule,ルールを削除
 Delete selected ({0}),選択を削除（{0}）
 Delete the stock counts?,棚卸を削除しますか？
+Delete the note?,メモを削除しますか？
+Delete the rule?,ルールを削除しますか？
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
@@ -3509,6 +3511,10 @@ guide.open.pos,POS のエクスポートをアップロードしてください�
 guide.business.stocktake,棚卸
 guide.consent.stocktake.close,棚卸を終了しますか？
 guide.consent.stocktake.delete,棚卸を削除しますか？
+guide.consent.company.note_delete,メモを削除しますか？
+guide.consent.company.rule_delete,ルールを削除しますか？
+guide.fact.company.none,会社が未選択です
+guide.open.company,操作を選択してください。
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
 guide.open.vat,課税月を選択してください。

@@ -603,6 +603,8 @@ Delete note,ลบบันทึก
 Delete rule,ลบกฎ
 Delete selected ({0}),ลบที่เลือก ({0})
 Delete the stock counts?,ลบการตรวจนับหรือไม่
+Delete the note?,ลบบันทึกหรือไม่
+Delete the rule?,ลบกฎหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3509,6 +3511,10 @@ guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออ�
 guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
+guide.consent.company.note_delete,ลบบันทึกหรือไม่
+guide.consent.company.rule_delete,ลบกฎหรือไม่
+guide.fact.company.none,ยังไม่ได้เลือกบริษัท
+guide.open.company,เลือกการดำเนินการ
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.vat,เลือกเดือนภาษี
