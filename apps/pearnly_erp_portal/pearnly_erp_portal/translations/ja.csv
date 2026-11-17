@@ -91,6 +91,7 @@ Address,住所
 Address and notes,住所と備考
 Adjust products from count results,棚卸結果で商品を調整
 Admins only,管理者のみ
+"After voiding it in MR.ERP, enter this collection again in ERP?",MR.ERP で取り消した後、ERP でこの入金を再入力しますか？
 Against Payment,関連支払
 All,すべて
 All Items,すべての商品
@@ -1903,6 +1904,7 @@ Writing to Express failed and was undone. It is retried automatically,Express �
 Written,書き込み済み
 Written to Express after it was voided,取消後に Express に書き込まれました
 Written to Express: {0},Express に書き込みました：{0}
+Written to MR.ERP: {0}. Void it in MR.ERP under {1},MR.ERP に書き込み済み：{0}。MR.ERP の「{1}」で取り消してください
 "Year, year-month or ALL, per the reset policy",年・年月・ALL のいずれか（リセット方針に従う）
 Yearly,毎年
 Yellow,黄

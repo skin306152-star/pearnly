@@ -91,6 +91,7 @@ Address,地址
 Address and notes,地址与备注
 Adjust products from count results,按盘点结果调整物料
 Admins only,仅管理员
+"After voiding it in MR.ERP, enter this collection again in ERP?",在 MR.ERP 作废后，要在 ERP 重录这笔收款吗？
 Against Payment,关联付款
 All,全部
 All Items,所有物料
@@ -1903,6 +1904,7 @@ Writing to Express failed and was undone. It is retried automatically,写入 Exp
 Written,已写入
 Written to Express after it was voided,作废后已写进 Express
 Written to Express: {0},已写入 Express：{0}
+Written to MR.ERP: {0}. Void it in MR.ERP under {1},已写进 MR.ERP：{0}，请在 MR.ERP「{1}」里作废
 "Year, year-month or ALL, per the reset policy",年、年月或 ALL，按重置策略
 Yearly,每年
 Yellow,黄

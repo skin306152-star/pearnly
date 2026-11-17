@@ -38,6 +38,10 @@ READ_SECONDS = 300
 READING = "collection.mrerp_reading"          # 这份账套的主档还没从 MR.ERP 读到（已排读取）
 ONE_METHOD = "collection.mrerp_one_method"    # MR.ERP 一笔收款只记一种钱（现金或一种转账）
 MENU_NEEDED = "collection.mrerp_menu_needed"  # 收款导入菜单不止一个已关联日记账、还没选过
+# 已写进 MR.ERP 后在 ERP 撤回：给人看的两句（收款页、CC 收款工具 / 引导卡同一组）
+VOIDED_TEXT = "Written to MR.ERP: {0}. Void it in MR.ERP under {1}"
+VOIDED_QUESTION = "After voiding it in MR.ERP, enter this collection again in ERP?"
+READING_TEXT = "Reading from MR.ERP"
 
 
 def handles(company) -> bool:
@@ -149,6 +153,24 @@ def catalog(company, book) -> dict:
     discount = fields.get("discount_account") or {}
     found = next((o for o in discount.get("options") or () if o["code"] == discount.get("chosen")), None)
     return {"cash": True, "transfers": transfers, "discount": method(found) if found else None, "excluded": []}
+
+
+def menu_needed(company, book) -> dict | None:
+    """收款导入菜单此刻要不要人选（读到过、不止一个已关联日记账、还没选过或选过的没了）：要选回 ``{"options": [{code, name}]}``，
+    不用选回 None（唯一一个已关联的、选过还在的、还没读到过的——导入时 MR.ERP 那边再核）。"""
+    _row, (menu_view, _master_view) = _views(company, book)
+    receipt = ((menu_view or {}).get("kinds") or {}).get(SUBJECT) or {}
+    if not receipt.get("needed"):
+        return None
+    return {"options": [{"code": str(o["idmenu"]), "name": o.get("label") or ""} for o in receipt.get("options") or ()]}
+
+
+def choose_menu(company, value, book) -> bool:
+    """收款入口里选一次收款导入菜单：记在这家公司这份账套名下（同 ERP 单据 ``mrerp_menu``，`mrerp.choices.choose`，只收最近读到、
+    已关联日记账的）。权限由调用方核（``collection.write``）。"""
+    from pearnly_erp_portal.mrerp import choices
+
+    return choices.choose(company, choices.MENU, SUBJECT, value, book) is not None
 
 
 def check_methods(checked) -> None:
@@ -403,9 +425,12 @@ def voided_facts(doc) -> dict:
         menu = menu_label(doc.company, doc.book_key)
     except Exception:  # noqa: BLE001 — 菜单名读不到不挡页面
         menu = ""
+    from frappe import _
+
     return {"docnum": doc.docnum or "", "menu": menu,
             "invoices": [{"docnum": row.docnum, "amount": contracts.text(row.amount or 0)} for row in doc.invoices],
-            "total": contracts.text(doc.total or 0)}
+            "total": contracts.text(doc.total or 0),
+            "text": _(VOIDED_TEXT).format(doc.docnum or "", menu), "question": _(VOIDED_QUESTION)}
 
 
 def poll():
@@ -434,6 +459,6 @@ def poll():
     frappe.db.commit()
 
 
-__all__ = ["MENU_NEEDED", "ONE_METHOD", "READING", "book_row", "books", "catalog", "check_methods", "dispatch",
+__all__ = ["MENU_NEEDED", "READING_TEXT", "VOIDED_QUESTION", "VOIDED_TEXT", "choose_menu", "menu_needed", "ONE_METHOD", "READING", "book_row", "books", "catalog", "check_methods", "dispatch",
            "handles", "no_book_text", "periods", "pick", "poll", "prepare", "request", "run", "run_read", "send",
            "settle", "voided", "voided_facts", "wanted", "withdraw"]

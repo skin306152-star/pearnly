@@ -255,7 +255,7 @@ name = "MR.ERP 规则（会话、目录、主档、菜单、方向、导入文�
 paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters"]
+entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters", "erp.collection.mrerp"]
 not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）" }
 
 [[part]]
@@ -2647,6 +2647,15 @@ steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12�
 expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入（带查看结果）；写成不推送、写失败推一条；确认卡一卡一个确认号、旧卡与过期卡回已过期、连点不回话；单据日期按放行当天；今天不在这家任何一本账套的期间里时选公司后先问收款日期（账套跟着日期走、佛历快捷回复与打字都认），确认卡写出收款日期，照选的写"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py"]
+
+[[entry]]
+id = "erp.collection.mrerp"
+product = "ERP"
+where = "账本是 MR.ERP 的公司录收款（网页新建 / 改草稿、LINE、CC 引导卡与工具 → 服务端导入 MR.ERP 收款 impfarev；总开关 MRERP_LEDGER_ENABLED 关着）"
+steps = "离线：tests/test_erp_mrerp_collection.py（开关关着全挡；导入表 20 列、平衡、折扣记负数；选单页读未收；一笔一种钱；收款菜单多个问一次记住；读回单号、结果不明；已写入撤回留单号与事实）+ test_erp_collection_guide / test_erp_collection_line 的 MrErpLedger；候选检查里对假 MR.ERP 站点跑导入执行；实机：MR.ERP 测试账套各写一笔全额转账、部分现金、转账加折扣"
+expect = "开关关着时 Express 收款一字不变；开着时收款单记 FR 单号、未收余额清零、日记账平衡；现金与转账不能同在一笔；菜单不止一个时三处入口都问一次、记在公司上；撤回已写入的转人工、给单号、菜单与冲过的发票"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py", "apps/pearnly_core/pearnly_core/mrerp/push/receipt.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/receipt.py", "apps/pearnly_core/pearnly_core/mrerp/receivables.py"]
 
 [[entry]]
 id = "erp.cc.collection"

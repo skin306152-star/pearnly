@@ -257,7 +257,10 @@ def status(tool_input) -> str:
     if "result" not in found:
         return _json(found)
     view = found["result"]
-    return _json(_refusal_note({**view, "result": RESULT.get(view["status"], view["status"])}, view))
+    out = _refusal_note({**view, "result": RESULT.get(view["status"], view["status"])}, view)
+    if view.get("mrerp_voided"):
+        out["note"] = VOIDED_NOTE
+    return _json(out)
 
 
 def recent(tool_input) -> str:
@@ -425,9 +428,20 @@ def note_withdraw(tool_input) -> str:
     return " · ".join(part for part in (company, book) if part)
 
 
+# 已写进 MR.ERP 后撤回（`collection.mrerp.withdraw`）：照给的两句说，下一步用收款引导卡（用户说要重录才开）
+VOIDED_NOTE = ("mrerp_voided: this collection was already written into MR.ERP, so it is handed to a person. Say mrerp_voided.text "
+               "as given (MR.ERP number and the menu to void it in, with the invoices it settled), then ask "
+               "mrerp_voided.question. Only if the user says yes, start the Collection guide card for a new collection.")
+
+
 def withdraw(tool_input) -> str:
     found = _call(service.withdraw, str(tool_input.get("collection") or ""))
-    return _json({"status": "withdrawn", "collection": found["result"]} if "result" in found else found)
+    if "result" not in found:
+        return _json(found)
+    out = {"status": "withdrawn", "collection": found["result"]}
+    if found["result"].get("mrerp_voided"):
+        out["note"] = VOIDED_NOTE
+    return _json(out)
 
 
 # ── 声明 ─────────────────────────────────────────────────────────────────────

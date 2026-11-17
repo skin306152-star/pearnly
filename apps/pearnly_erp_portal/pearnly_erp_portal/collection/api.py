@@ -112,7 +112,10 @@ def api_collection_new_options(company=None, day=None):
             return out
         out["book"] = _explained(service.book_options, company, day or None)
         if not out["book"]:
-            out["methods"] = _explained(service.methods, company, day or None)
+            # 账本是 MR.ERP、收款导入菜单不止一个已关联的：先选一次（`service.choose_menu`），选好再给方式
+            out["menu"] = _explained(service.menu_options, company, day or None)
+            if not out["menu"]:
+                out["methods"] = _explained(service.methods, company, day or None)
     return out
 
 
@@ -121,6 +124,14 @@ def api_collection_choose_book(company, key, day=None):
     from pearnly_erp_portal.collection import service
 
     return _explained(service.choose_book, company, key, day or None)
+
+
+@frappe.whitelist(methods=["POST"])
+def api_collection_choose_menu(company, value, day=None):
+    """新建弹窗里选一次 MR.ERP 收款导入菜单（同 ERP 单据「问一次记住」，记在公司这份账套名下）。"""
+    from pearnly_erp_portal.collection import service
+
+    return _explained(service.choose_menu, company, value, day or None)
 
 
 @frappe.whitelist()

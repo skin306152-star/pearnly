@@ -29,6 +29,7 @@ DISCOUNT = "discount:"
 DRAFT_SEP = "@"          # 草稿号带复核时的版本：``COL…@3``（别处改过之后点确定回 changed、刷新复核卡）
 SEVERAL_BOOKS = "express.account_set_several"
 MASTERS_READING = "express.masters_reading"
+MENU_SEP = "|"           # 账本是 MR.ERP、收款导入菜单要选一次时，账套那一步的选项是「账套 | 菜单」（选一次记在公司上）
 
 # 业务拒绝的原因码 → 退回哪一步重问（其余答案保留）；没列的退回收款方式那一步（金额、方式、折扣类）
 STEP_OF = {
@@ -158,6 +159,15 @@ def _pinned(ctx):
         return conversation.pinned(_row(_company(ctx)))
 
 
+def _menu_needed(ctx) -> dict | None:
+    """账本是 MR.ERP、收款导入菜单不止一个已关联的、还没选过：``{"options": [...]}``；其余（含 Express 公司）None。"""
+    with _conversation(ctx):
+        try:
+            return service.menu_options(_company(ctx), _day(ctx))
+        except contracts.CollectionError:
+            return None
+
+
 def book_default(ctx):
     from pearnly_erp_portal.express import target
 
@@ -166,6 +176,8 @@ def book_default(ctx):
             book = service.book_for(_row(_company(ctx)), _day(ctx))
         except contracts.CollectionError:
             return None
+    if _menu_needed(ctx):
+        return None  # 收款导入菜单要选一次：账套这一步连同菜单问
     return {"value": book["key"], "value_label": target.option_name(book),
             "source": "conversation" if _pinned(ctx) else "date"}
 
@@ -186,12 +198,27 @@ def book_options(ctx, txt="", start=0, page_length=20, codes=None):
                         for item in service._with_short(row, error.detail["options"])]
             else:
                 return {"options": [], "more": False, "facts": _explained(error)}
+    menu = _menu_needed(ctx)
+    if menu:
+        # 账本是 MR.ERP、收款导入菜单不止一个已关联的：每本账套 × 每个菜单一项，选一次记住（同 ERP 单据「问一次记住」）
+        rows = [{"code": f"{row['code']}{MENU_SEP}{option['code']}", "name": f"{row['name']} · {option['name']}",
+                 **({"note": row["note"]} if row.get("note") else {})} for row in rows for option in menu["options"]]
     return _page(rows, txt, start, page_length, codes)
 
 
 def book_apply(ctx, value) -> None:
     """选了账套：对话里定账套的那家记进本对话（同右栏账套选择器，`assistant.ledger.choose(by="page")`）；不按对话账套的
-    记成这家这一年的选择（同网页 / LINE，`service.choose_book`）。"""
+    记成这家这一年的选择（同网页 / LINE，`service.choose_book`）。带了收款导入菜单（``账套|菜单``）的另记一次菜单。"""
+    value, _sep, menu = str(value or "").partition(MENU_SEP)
+    if menu:
+        _apply_book(ctx, value)
+        with _conversation(ctx):
+            service.choose_menu(_company(ctx), menu, _day(ctx))
+        return
+    _apply_book(ctx, value)
+
+
+def _apply_book(ctx, value) -> None:
     if _pinned(ctx) is not None:
         from pearnly_core.assistant import ledger
 
@@ -243,7 +270,8 @@ def invoice_options(ctx, txt="", start=0, page_length=20, codes=None):
     out = _page(rows, txt, start, page_length, codes, fields=("code", "note"))
     state = found.get("refresh") or ""
     if state in READ_FACTS:
-        out["facts"] = [_(READ_FACTS[state])]
+        # 「正在读取」按账本说（MR.ERP 的不说 Express，`service.reading_text`）
+        out["facts"] = [service.reading_text(_company(ctx)) if state == snapshot.READING else _(READ_FACTS[state])]
         if state == snapshot.READING:
             out["wait"] = True
     elif fresh and not found["items"]:
@@ -264,19 +292,30 @@ def method_options(ctx, txt="", start=0, page_length=20, codes=None):
             found = service.methods(_company(ctx), _day(ctx))
         except contracts.CollectionError as error:
             out = {"options": [], "more": False, "facts": _explained(error)}
-            if error.code == MASTERS_READING:
+            if error.code in (MASTERS_READING, "collection.mrerp_reading"):
                 out["wait"] = True
             return out
     rows = [{"code": CASH, "name": _("Cash"), "kind": "cash"}] if found["cash"] else []
     rows += [{"code": TRANSFER + item["prefix"], "name": item["label"], "kind": "transfer"} for item in found["transfers"]]
     if found["discount"]:
         rows.append({"code": DISCOUNT + found["discount"]["prefix"], "name": _("Discount"), "kind": "discount"})
-    return _page(rows, txt, start, page_length, codes)
+    out = _page(rows, txt, start, page_length, codes)
+    if found.get("single") and codes is None:
+        out["facts"] = [_("Choose one collection method")]  # MR.ERP：一笔只收一种钱，折扣另算
+    return out
 
 
 def method_check(ctx, value) -> str:
     paid = sum((contracts.money(row["amount"]) for row in value or ()), contracts.ZERO)
-    return "" if paid == _invoice_total(_answers(ctx)) else contracts.AMOUNT_MISMATCH
+    if paid != _invoice_total(_answers(ctx)):
+        return contracts.AMOUNT_MISMATCH
+    money = [row for row in value or () if not str(row.get("code") or "").startswith(DISCOUNT)]
+    if len(money) > 1:
+        from pearnly_erp_portal.collection import mrerp as ledger
+
+        if ledger.handles(_company(ctx)):
+            return ledger.ONE_METHOD  # MR.ERP 收款单只有一格记收到的钱
+    return ""
 
 
 # ── 凭证（每种转账一张，按分摊卡上转账的先后对应）────────────────────────────────────────────
@@ -417,4 +456,8 @@ def result(ctx, draft) -> dict:
         out.update(wait=True, express_wait=bool(waiting))
     if status == "failed":
         out["reason_text"] = view.get("reason_text") or ""
+    if view.get("mrerp_voided"):
+        # 已写进 MR.ERP 后撤回：单号、在哪个菜单作废、冲过的发票，与要不要重录那一问（同收款页、CC 收款工具）
+        out.update(docnum=view["mrerp_voided"]["docnum"], reason_text=view["mrerp_voided"]["text"],
+                   voided=view["mrerp_voided"])
     return out

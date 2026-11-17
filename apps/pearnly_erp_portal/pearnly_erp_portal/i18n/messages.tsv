@@ -2074,6 +2074,8 @@ Choose the collection method	选择收款方式	เลือกวิธีร�
 Reading from MR.ERP	正在读取 MR.ERP	กำลังอ่านข้อมูลจาก MR.ERP	MR.ERP から読み込み中
 Choose one collection method	只选一种收款方式	เลือกวิธีรับชำระเพียงวิธีเดียว	入金方法を1つ選択してください
 Choose the MR.ERP collection menu	选择 MR.ERP 收款菜单	เลือกเมนูรับชำระ MR.ERP	MR.ERP の入金メニューを選択してください
+Written to MR.ERP: {0}. Void it in MR.ERP under {1}	已写进 MR.ERP：{0}，请在 MR.ERP「{1}」里作废	บันทึกเข้า MR.ERP แล้ว: {0} กรุณายกเลิกใน MR.ERP เมนู「{1}」	MR.ERP に書き込み済み：{0}。MR.ERP の「{1}」で取り消してください
+After voiding it in MR.ERP, enter this collection again in ERP?	在 MR.ERP 作废后，要在 ERP 重录这笔收款吗？	หลังยกเลิกใน MR.ERP แล้ว ต้องการบันทึกรับชำระนี้ใน ERP ใหม่หรือไม่？	MR.ERP で取り消した後、ERP でこの入金を再入力しますか？
 Enter the amount for {0}	输入{0}的金额	พิมพ์จำนวนเงินของ {0}	{0} の金額を入力してください
 Enter a valid amount	请输入有效金额	กรุณาพิมพ์จำนวนเงินที่ถูกต้อง	正しい金額を入力してください
 More than the amount due {0}. Enter the amount again	超过未收金额 {0}，请重新输入	เกินยอดค้างชำระ {0} กรุณาพิมพ์ใหม่	未入金額 {0} を超えています。もう一度入力してください

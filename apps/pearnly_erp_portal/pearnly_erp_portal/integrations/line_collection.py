@@ -336,9 +336,17 @@ def _after_company(line_user_id, payload, reply_token, note="", day_note=""):
                        book_short={row["code"]: row.get("short") or row["name"] for row in rows})
         _save(line_user_id, payload)
         return _ask_book(reply_token, payload, note=note)
-    payload.update(step="customer")
     payload.pop("books", None)
     payload.pop("book_short", None)
+    menu = service.menu_options(payload["company"], payload.get("day"))
+    if menu:
+        # 账本是 MR.ERP、收款导入菜单不止一个已关联的：选一次记住（同账套那一步的按钮选法，`service.choose_menu`）
+        rows = menu["options"][:MAX_CHOICES]
+        payload.update(step="menu", menus={row["code"]: row["name"] for row in rows})
+        _save(line_user_id, payload)
+        return _ask_menu(reply_token, payload, note=note)
+    payload.pop("menus", None)
+    payload.update(step="customer")
     _save(line_user_id, payload)
     _ask_customer(reply_token, note=note)
     service.warm(payload["company"], payload.get("day"))  # 先回问句再预热：整本读回请求排给电脑，选好客户时多半已读好
@@ -389,6 +397,21 @@ def _answer_book(line_user_id, payload, value, reply_token):
     if value not in (payload.get("books") or {}):
         return _text(reply_token, _("This option is no longer current"))
     _service().choose_book(payload["company"], value, payload.get("day"))
+    _after_company(line_user_id, payload, reply_token)
+
+
+def _ask_menu(reply_token, payload, note=""):
+    rows = list(payload["menus"].items())
+    labels = choice_labels([label for _key, label in rows])
+    _ask(reply_token, "\n".join([note] * bool(note) + [_("Choose the MR.ERP collection menu")]
+                                + [f"{index}. {label}" for index, (_key, label) in enumerate(rows, 1)]),
+         [_button(text, _data("menu", key)) for text, (key, _label) in zip(labels, rows)])
+
+
+def _answer_menu(line_user_id, payload, value, reply_token):
+    if value not in (payload.get("menus") or {}):
+        return _text(reply_token, _("This option is no longer current"))
+    _service().choose_menu(payload["company"], value, payload.get("day"))
     _after_company(line_user_id, payload, reply_token)
 
 
@@ -456,7 +479,8 @@ def _pick_customer(line_user_id, payload, value, reply_token, note=""):
         payload["step"] = "customer"
         _save(line_user_id, payload)
         if found.get("refresh") == "reading":
-            return _ask(reply_token, _("Reading from Express"), [_button(_("Refresh"), _data("customer", value))])
+            return _ask(reply_token, service.reading_text(payload["company"]),  # 按账本说（MR.ERP / Express）
+                        [_button(_("Refresh"), _data("customer", value))])
         if found.get("refresh") == "offline":  # 读不到不是「没有」：照实说电脑没连
             return _ask_customer(reply_token, note=_("No computer connected"))
         if found.get("refresh") == "outdated":
@@ -529,6 +553,9 @@ def _catalog(payload) -> dict:
 def _unused(payload) -> list:
     """还能加的方式：``[(值, 名称)]``（现金一次、每种转账一次）。"""
     found, used = _catalog(payload), {row["prefix"] for row in payload.get("methods") or []}
+    if found.get("single") and (_amount(payload.get("cash") or 0) or any(
+            row.get("role") == contracts.TRANSFER for row in payload.get("methods") or [])):
+        return []  # 账本是 MR.ERP：一笔只收一种钱（现金或一个银行），选过就不再加；折扣另算
     out = [(CASH, _("Cash"))] if found.get("cash") and not _amount(payload.get("cash") or 0) else []
     return out + [(row["prefix"], row.get("label") or row["name"]) for row in found.get("transfers") or []
                   if row["prefix"] not in used]
@@ -855,6 +882,8 @@ def _repeat(line_user_id, payload, reply_token):
         return _show_card(line_user_id, payload, _service().card(payload["name"]), reply_token)
     if step == "book":
         return _ask_book(reply_token, payload)
+    if step == "menu":
+        return _ask_menu(reply_token, payload)
     if step == "day":
         return _ask_day(reply_token, payload)
     if step == "invoices":
@@ -1193,6 +1222,7 @@ _STEP_OF = {"inv": "invoices"}
 _ANSWERS = {
     "company": _pick_company,
     "book": _answer_book,
+    "menu": _answer_menu,
     "day": _answer_day,
     "customer": _answer_customer,
     "inv": _answer_invoice,

@@ -310,8 +310,34 @@ def methods(company, day=None, book=None, every=False) -> dict:
     found = _catalog(company, book or book_for(row, day or nowdate()))
     shape = lambda item: {"prefix": item["prefix"], "code": item["code"], "name": item["name"],  # noqa: E731
                           "label": item.get("label") or item["name"]}
-    return {"cash": found["cash"], "transfers": [shape(item) for item in (found["transfers"] if every else contracts.listed(found["transfers"]))],
-            "discount": shape(found["discount"]) if found["discount"] else None}
+    out = {"cash": found["cash"], "transfers": [shape(item) for item in (found["transfers"] if every else contracts.listed(found["transfers"]))],
+           "discount": shape(found["discount"]) if found["discount"] else None}
+    if ledger.handles(company):
+        out["single"] = True  # MR.ERP 一笔只收一种钱（现金或一个银行），折扣另算：三处入口按它只给选一种
+    return out
+
+
+def menu_options(company, day=None) -> dict | None:
+    """账本是 MR.ERP、收款导入菜单此刻要人选：``{"options": [{code, name}]}``（网页 / LINE / 引导问一次，:func:`choose_menu`）；
+    Express 公司、不用选的回 None。"""
+    guard.require(WRITE)
+    if not ledger.handles(company):
+        return None
+    return ledger.menu_needed(company, book_for(_company(company), day or nowdate()))
+
+
+def choose_menu(company, value, day=None) -> dict:
+    """选一次收款导入菜单（记在公司这份账套名下，同 ERP 单据的「问一次记住」）。只认此刻可选的那几个。"""
+    guard.require(WRITE)
+    row = _company(company)
+    if not ledger.handles(company) or not ledger.choose_menu(company, str(value or "").strip(), book_for(row, day or nowdate())):
+        frappe.throw(_("Invalid value"))
+    return {"chosen": str(value)}
+
+
+def reading_text(company) -> str:
+    """「正在读取」按账本说：MR.ERP 的说 MR.ERP，其余照旧 Express。"""
+    return _(ledger.READING_TEXT) if ledger.handles(company) else _("Reading from Express")
 
 
 # ── 未收清发票与预留 ─────────────────────────────────────────────────────────
@@ -707,7 +733,8 @@ def _view(doc) -> dict:
             # 写前被电脑拒、退回草稿（带原因，改了再放行；`push.job_changed`）
             "returned": doc.status == contracts.DRAFT and bool(int(doc.get("attempt") or 0)) and bool(doc.reason),
             # 已写进 MR.ERP 后在 ERP 撤回（转人工）：在 MR.ERP 里作废要的事实（单号、收款菜单、冲过的发票与金额）
-            **({"mrerp_voided": ledger.voided_facts(doc)} if ledger.voided(doc) else {})}
+            **({"mrerp_voided": ledger.voided_facts(doc)} if ledger.voided(doc) else {}),
+            **({"ledger": "mrerp"} if ledger.handles(doc.company) else {})}
 
 
 def _draft_of(doc):
@@ -859,7 +886,7 @@ def listed(company, start=0, limit=20, collector=None) -> dict:
 
 
 __all__ = ["DAY_NEEDED", "book_for", "book_options", "can_read", "card", "choose_book", "companies_for", "create_draft", "customers", "day_options", "parse_day", "periods",
-           "submit_web",
+           "submit_web", "menu_options", "choose_menu", "reading_text",
            "discard_draft",
            "edit_choices", "express_waiting", "listed", "methods",
            "open_invoices", "release", "reserved", "set_voucher", "staff_choices", "status", "store_voucher", "update_draft",

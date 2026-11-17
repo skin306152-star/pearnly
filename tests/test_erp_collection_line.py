@@ -1144,5 +1144,33 @@ class BookButtons(Base, T.TwoBooks):
         self.assertEqual([item["label"] for item in self.buttons()], ["1. TEST", "2. TEST2", "Cancel"])
 
 
+class MrErpLedger(Base):
+    """账本是 MR.ERP 的公司：收款导入菜单在账套之后按按钮问一次；一笔只收一种钱（选过现金或一个银行就不再加），折扣照旧。"""
+
+    def test_several_receipt_menus_are_asked_once_and_remembered(self):
+        chosen = []
+        menus = {"options": [{"code": "169", "name": "รับชำระหนี้"}, {"code": "171", "name": "รับชำระ-2"}]}
+        with mock.patch.object(service, "menu_options", side_effect=lambda c, d=None: None if chosen else menus), \
+                mock.patch.object(service, "choose_menu", side_effect=lambda c, v, d=None: chosen.append(v) or {"chosen": v}):
+            self.tap("a=col&s=start")
+            self.assertEqual(self.step(), "menu")
+            self.assertIn("Choose the MR.ERP collection menu", self.last_text())
+            self.tap("a=col&s=menu&v=999")
+            self.assertEqual((self.step(), chosen), ("menu", []))  # 没给的不收
+            self.tap("a=col&s=menu&v=171")
+            self.assertEqual((self.step(), chosen), ("customer", ["171"]))
+
+    def test_one_money_method_then_no_more_methods(self):
+        payload = {"catalog": {"cash": True, "transfers": [{"prefix": "1112-01", "name": "กรุงเทพ"}], "discount": None,
+                               "single": True}, "cash": "100.00", "methods": []}
+        self.assertEqual(flow._unused(payload), [])
+        payload["cash"] = "0"
+        self.assertEqual([key for key, _label in flow._unused(payload)], [flow.CASH, "1112-01"])
+        payload["methods"] = [{"prefix": "1112-01", "role": C.TRANSFER, "amount": "1.00"}]
+        self.assertEqual(flow._unused(payload), [])
+        payload["catalog"].pop("single")  # Express：照旧还能加现金
+        self.assertEqual([key for key, _label in flow._unused(payload)], [flow.CASH])
+
+
 if __name__ == "__main__":
     unittest.main()

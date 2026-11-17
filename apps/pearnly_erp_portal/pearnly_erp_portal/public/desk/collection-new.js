@@ -56,6 +56,8 @@
 			{fieldtype: "Date", fieldname: "doc_date", label: __("Collection Date"), reqd: 1, default: frappe.datetime.get_today(),
 				change: () => void settle(pick_company())},
 			{fieldtype: "Select", fieldname: "book", label: __("Account Set"), hidden: 1, change: () => void settle(pick_book())},
+			// 账本是 MR.ERP、收款导入菜单不止一个已关联的：选一次记住（同 ERP 单据，`service.choose_menu`）
+			{fieldtype: "Select", fieldname: "menu", label: __("mrerp.menu.title"), hidden: 1, change: () => void settle(pick_menu())},
 			{fieldtype: "Column Break"},
 			{fieldtype: "Autocomplete", fieldname: "customer", label: __("Customer"), reqd: 1, ignore_validation: true,
 				get_query: () => ({query: "pearnly_erp_portal.collection.api.api_collection_customer_search",
@@ -93,6 +95,25 @@
 				extra[df.fieldname] = control;
 				return control;
 			};
+			if (found.single) {
+				// MR.ERP：一笔只收一种钱（现金或一个银行，`service.methods` 的 single），折扣另算
+				const kinds = [...(found.cash ? [{value: "cash", label: __("Cash")}] : []),
+					...(found.transfers || []).map(row => ({value: row.prefix, label: row.label || row.name}))];
+				let button = null;
+				const pick = add({fieldtype: "Select", fieldname: "single_method", label: __("Collection Method"),
+					options: kinds, default: kinds[0]?.value || "",
+					change: () => button?.$wrapper.toggle(pick.get_value() !== "cash")});
+				add({fieldtype: "Currency", fieldname: "single_amount", label: __("Amount")});
+				button = add({fieldtype: "Button", fieldname: "single_voucher", label: __("Attachments"),
+					click: () => void settle(upload_voucher(stored => {
+						vouchers[pick.get_value()] = stored.file;
+						button.$input.text(stored.file_name || __("Attachments"));
+					}))});
+				pick.set_value(kinds[0]?.value || "");
+				button.$wrapper.toggle((kinds[0]?.value || "cash") !== "cash");
+				if (found.discount) add({fieldtype: "Currency", fieldname: "discount", label: __("Discount")});
+				return;
+			}
 			if (found.cash) add({fieldtype: "Currency", fieldname: "cash", label: __("Cash")});
 			(found.transfers || []).forEach((row, index) => {
 				add({fieldtype: "Currency", fieldname: `transfer_${index}`, label: row.label || row.name});
@@ -127,6 +148,7 @@
 			clear_methods(); reset_customer();
 			dialog.set_value("customer", "");
 			dialog.set_df_property("book", "hidden", 1);
+			dialog.set_df_property("menu", "hidden", 1);
 			if (!company) return;
 			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company, day}, "POST");
 			limit_day(found.day_needed);
@@ -140,6 +162,23 @@
 				dialog.set_df_property("book", "hidden", 0);
 				return;
 			}
+			if (ask_menu(found.menu)) return;
+			show_methods(found.methods || {});
+		}
+		const ask_menu = menu => {
+			if (!menu?.options?.length) return false;
+			dialog.set_df_property("menu", "options", [{value: "", label: ""},
+				...menu.options.map(row => ({value: row.code, label: row.name}))]);
+			dialog.set_df_property("menu", "hidden", 0);
+			return true;
+		};
+		async function pick_menu() {
+			const company = dialog.get_value("company"), value = dialog.get_value("menu");
+			if (!company || !value) return;
+			const day = dialog.get_value("doc_date") || "";
+			await p.call("pearnly_erp_portal.collection.api.api_collection_choose_menu", {company, value, day}, "POST");
+			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company, day}, "POST");
+			dialog.set_df_property("menu", "hidden", 1);
 			show_methods(found.methods || {});
 		}
 		async function pick_book() {
@@ -149,6 +188,7 @@
 			await p.call("pearnly_erp_portal.collection.api.api_collection_choose_book", {company, key, day}, "POST");
 			const found = await p.call("pearnly_erp_portal.collection.api.api_collection_new_options", {company, day}, "POST");
 			dialog.set_df_property("book", "hidden", 1);
+			if (ask_menu(found.menu)) return;
 			show_methods(found.methods || {});
 		}
 		async function pick_customer() {
@@ -181,7 +221,12 @@
 			// 读表格自己的行（在格子里改的「本次收」在这里），不读打开时塞进去的那份
 			const invoices = (dialog.fields_dict.invoices.grid.get_data() || [])
 				.filter(row => amount(row.amount) > 0).map(row => ({docnum: row.docnum, amount: row.amount}));
-			const chosen = [
+			const single = methods?.single ? extra.single_method?.get_value() || "" : "";
+			const paid = methods?.single ? extra.single_amount?.get_value() || 0 : 0;
+			const chosen = methods?.single ? [
+				...(single && single !== "cash" ? [{prefix: single, amount: paid, voucher: vouchers[single] || ""}] : []),
+				...(methods.discount ? [{prefix: methods.discount.prefix, amount: extra.discount?.get_value() || 0}] : []),
+			].filter(row => amount(row.amount) > 0) : [
 				...(methods?.transfers || []).map((row, index) => ({prefix: row.prefix,
 					amount: extra[`transfer_${index}`]?.get_value() || 0, voucher: vouchers[row.prefix] || ""})),
 				...(methods?.discount ? [{prefix: methods.discount.prefix, amount: extra.discount?.get_value() || 0}] : []),
@@ -189,7 +234,8 @@
 			dialog.disable_primary_action();
 			try {
 				await p.call("pearnly_erp_portal.collection.api.api_collection_submit", {company: values.company, customer: values.customer,
-					invoices: JSON.stringify(invoices), cash: extra.cash?.get_value() || 0, methods: JSON.stringify(chosen),
+					invoices: JSON.stringify(invoices), cash: methods?.single ? (single === "cash" ? paid : 0) : (extra.cash?.get_value() || 0),
+					methods: JSON.stringify(chosen),
 					request, doc_date: values.doc_date || ""}, "POST");
 			} finally {
 				dialog.enable_primary_action();

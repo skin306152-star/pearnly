@@ -277,5 +277,43 @@ def service_draft(amount):
     return T.service.create_draft("CO-1", "2100883", [{"docnum": "IV1", "amount": amount}], cash=amount)
 
 
+class MrErpLedger(Base):
+    """账本是 MR.ERP 的公司（`collection.mrerp.handles` 打补丁为真）：一笔只收一种钱、收款导入菜单在账套那一步问一次、「正在读取」
+    说 MR.ERP。Express 公司照旧（上面各组）。"""
+
+    TWO = [{"code": guide.CASH, "amount": "300"}, {"code": guide.TRANSFER + "1112-01", "amount": "300"}]
+
+    def test_one_money_method_on_mrerp_only(self):
+        from pearnly_erp_portal.collection import mrerp as ledger
+
+        ctx = {"answers": {"company": "CO-1", "invoices": IV1_600}}
+        self.assertEqual(guide.method_check(ctx, self.TWO), "")  # Express：现金加转账照旧可以
+        with mock.patch.object(ledger, "handles", return_value=True):
+            self.assertEqual(guide.method_check(ctx, self.TWO), ledger.ONE_METHOD)
+            self.assertEqual(guide.method_check(ctx, [{"code": guide.TRANSFER + "1112-01", "amount": "550"},
+                                                      {"code": guide.DISCOUNT + "5300-09", "amount": "50"}]), "")
+
+    def test_the_receipt_menu_is_asked_with_the_book_and_remembered(self):
+        menus = {"options": [{"code": "169", "name": "รับชำระหนี้"}, {"code": "171", "name": "รับชำระ-2"}]}
+        chosen, books = [], []
+        ctx = {"answers": {"company": "CO-1"}, "session": SESSION}
+        with mock.patch.object(guide.service, "menu_options", return_value=menus), \
+                mock.patch.object(guide.service, "choose_menu", side_effect=lambda c, v, d=None: chosen.append(v)), \
+                mock.patch.object(guide, "_apply_book", side_effect=lambda ctx, value: books.append(value)):
+            self.assertIsNone(guide.book_default(ctx))
+            codes = [row["code"] for row in guide.book_options(ctx)["options"]]
+            self.assertEqual(codes, [T.BOOK["key"] + "|169", T.BOOK["key"] + "|171"])
+            guide.book_apply(ctx, T.BOOK["key"] + "|171")
+        self.assertEqual((books, chosen), ([T.BOOK["key"]], ["171"]))
+        self.assertIsNotNone(guide.book_default(ctx))  # 不用选菜单时照旧按本对话账套定
+
+    def test_reading_is_said_for_the_ledger(self):
+        from pearnly_erp_portal.collection import mrerp as ledger
+
+        self.assertEqual(guide.service.reading_text("CO-1"), "Reading from Express")
+        with mock.patch.object(ledger, "handles", return_value=True):
+            self.assertEqual(guide.service.reading_text("CO-1"), "Reading from MR.ERP")
+
+
 if __name__ == "__main__":
     unittest.main()

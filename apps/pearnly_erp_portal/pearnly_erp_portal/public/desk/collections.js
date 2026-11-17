@@ -50,7 +50,9 @@
 				default: value ?? ""});
 			const vouchers = (data.methods || []).filter(item => item.file);
 			// 还没被电脑领走的（待写入、失败）可以撤回（同 LINE【撤回】）
-			const can_withdraw = ["queued", "failed"].includes(data.status);
+			// 账本是 MR.ERP 的、已写入的也能撤回：MR.ERP 没有删除导入，撤回后转人工、单号留着（`collection.mrerp.withdraw`）
+			const can_withdraw = ["queued", "failed"].includes(data.status) || (data.ledger === "mrerp" && data.status === "written");
+			const voided = data.mrerp_voided;
 			const dialog = new frappe.ui.Dialog({title: data.name, size: "large", fields: [
 				...(from_card ? [{fieldtype: "HTML", fieldname: "expired",
 					options: `<p>${frappe.utils.escape_html(__("This card has expired. Use the latest card in LINE."))}</p>`}] : []),
@@ -61,10 +63,10 @@
 				shown("source", __("Source"), source_label(data.source)),
 				{fieldtype: "Column Break"},
 				shown("status", __("Status"), [status_label(data.status), waiting(data)].filter(Boolean).join(" · ")),
-				shown("docnum", __("Express No."), data.docnum),
+				shown("docnum", data.ledger === "mrerp" ? __("MR.ERP No.") : __("Express No."), data.docnum),
 				shown("book", __("Account Set"), data.book),
 				shown("total", __("Total"), money(data.total)),
-				...(data.reason ? [shown("reason", __("Reason"), data.reason_text || data.reason, "Small Text")] : []),
+				...(data.reason ? [shown("reason", __("Reason"), voided?.text || data.reason_text || data.reason, "Small Text")] : []),
 				{fieldtype: "Section Break"},
 				{fieldtype: "Table", fieldname: "invoices", label: __("Invoices"), cannot_add_rows: true,
 					cannot_delete_rows: true, in_place_edit: false, read_only: 1, data: data.invoices || [], fields: [
@@ -87,6 +89,9 @@
 			]});
 			if (can_withdraw) {
 				dialog.set_primary_action(__("Withdraw"), () => void settle(withdraw(data.name, dialog)));
+			} else if (voided) {
+				// 已写进 MR.ERP 后撤回：在 MR.ERP 作废后要不要在 ERP 重录（原生确认框）
+				dialog.set_primary_action(__("New"), () => ask_again(voided, dialog));
 			}
 			const viewer = vouchers.length
 				? p.document_viewer(dialog.fields_dict.voucher_preview.$wrapper, {load: viewer_load}) : null;
@@ -110,6 +115,18 @@
 			const current = Object.fromEntries((card.methods || []).map(row => [row.prefix, row]));
 			const kinds = [...(methods.transfers || []).map(row => ({...row, role: "transfer"})),
 				...(methods.discount ? [{...methods.discount, role: "discount"}] : [])];
+			// MR.ERP：一笔只收一种钱（现金或一个银行），折扣另算（`service.methods` 的 single）
+			const paid_row = (card.methods || []).find(row => row.role === "transfer");
+			const single_fields = () => [
+				{fieldtype: "Select", fieldname: "single_method", label: __("Collection Method"),
+					default: paid_row ? paid_row.prefix : "cash",
+					options: [...(methods.cash ? [{value: "cash", label: __("Cash")}] : []),
+						...(methods.transfers || []).map(row => ({value: row.prefix, label: row.label || row.name}))]},
+				{fieldtype: "Currency", fieldname: "single_amount", label: __("Amount"),
+					default: paid_row ? amount(paid_row.amount) : amount(card.cash)},
+				...(methods.discount ? [{fieldtype: "Currency", fieldname: "discount", label: __("Discount"),
+					default: amount(current[methods.discount.prefix]?.amount)}] : []),
+			];
 			const choice = (rows, current) => [...(rows || []).map(row => ({value: row.code, label: `${row.code} ${row.name}`.trim()})),
 				...(current && !(rows || []).some(row => row.code === current) ? [{value: current, label: current}] : [])];
 			// 写前被电脑拒、退回草稿（`collection.push`，11-14）：原因放最前（同 LINE 还回的卡），改了再放行
@@ -133,21 +150,29 @@
 					label: row.docnum, default: amount(row.amount),
 					description: __("Due {0}", [money(data.available?.[row.docnum] ?? row.remaining)])})),
 				{fieldtype: "Section Break", label: __("Collection Method")},
-				...(methods.cash || amount(card.cash) ? [{fieldtype: "Currency", fieldname: "cash", label: __("Cash"),
-					default: amount(card.cash)}] : []),
-				...kinds.map((row, index) => ({fieldtype: "Currency", fieldname: `method_${index}`,
-					label: row.role === "discount" ? __("Discount") : row.name, default: amount(current[row.prefix]?.amount)})),
+				...(methods.single ? single_fields() : [
+					...(methods.cash || amount(card.cash) ? [{fieldtype: "Currency", fieldname: "cash", label: __("Cash"),
+						default: amount(card.cash)}] : []),
+					...kinds.map((row, index) => ({fieldtype: "Currency", fieldname: `method_${index}`,
+						label: row.role === "discount" ? __("Discount") : row.name, default: amount(current[row.prefix]?.amount)})),
+				]),
 			];
 			const dialog = new frappe.ui.Dialog({title: card.name, fields, primary_action_label: __("Save"),
 				primary_action: values => void settle((async () => {
 					const invoices = card.invoices.map((row, index) => ({docnum: row.docnum, amount: values[`invoice_${index}`] || 0}))
 						.filter(row => amount(row.amount) > 0);
-					const chosen = kinds.map((row, index) => ({prefix: row.prefix, amount: values[`method_${index}`] || 0,
-						voucher: current[row.prefix]?.voucher || ""})).filter(row => amount(row.amount) > 0);
+					const single = methods.single ? values.single_method || "" : "";
+					const chosen = (methods.single ? [
+						...(single && single !== "cash" ? [{prefix: single, amount: values.single_amount || 0,
+							voucher: current[single]?.voucher || paid_row?.voucher || ""}] : []),
+						...(methods.discount ? [{prefix: methods.discount.prefix, amount: values.discount || 0}] : []),
+					] : kinds.map((row, index) => ({prefix: row.prefix, amount: values[`method_${index}`] || 0,
+						voucher: current[row.prefix]?.voucher || ""}))).filter(row => amount(row.amount) > 0);
+					const cash = methods.single ? (single === "cash" ? (values.single_amount || 0) : 0) : (values.cash || 0);
 					dialog.disable_primary_action();
 					try {
 						await p.call(api + "api_collection_save", {name: card.name, version: card.version,
-							invoices: JSON.stringify(invoices), cash: values.cash || 0, methods: JSON.stringify(chosen),
+							invoices: JSON.stringify(invoices), cash, methods: JSON.stringify(chosen),
 						salesman: values.salesman || "", department: values.department || "",
 						// 只在改了日期时带：没改的草稿照旧按放行当天记
 						...(values.doc_date && values.doc_date !== card.doc_date ? {doc_date: values.doc_date} : {})}, "POST");
@@ -166,11 +191,22 @@
 		}
 
 		async function withdraw(name, shown) {
-			await p.call(api + "api_collection_withdraw", {name}, "POST");
+			const view = await p.call(api + "api_collection_withdraw", {name}, "POST");
 			frappe.utils.play_sound("cancel");
 			frappe.show_alert({message: status_label("withdrawn"), indicator: "orange"});
 			shown?.hide();
 			void list?.reload();
+			if (view?.mrerp_voided) ask_again(view.mrerp_voided);
+		}
+
+		// 已写进 MR.ERP 后撤回：先说单号与在哪个菜单作废，再问要不要在 ERP 重录（是 → 新建收款）
+		function ask_again(voided, shown) {
+			// 两句都是服务端按当前语言出的（`collection.mrerp.voided_facts`）
+			const message = [voided.text, voided.question].map(line => frappe.utils.escape_html(line)).join("<br>");
+			frappe.confirm(message, () => {
+				shown?.hide();
+				void p.collection_new({on_done: () => void list?.reload()});
+			});
 		}
 
 		list = p.list({page, doctype: "ERP Collection", compact_columns: true,

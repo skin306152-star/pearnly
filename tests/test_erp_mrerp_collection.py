@@ -342,7 +342,7 @@ def reset(menu_pages=None, masters=True):
 
     for item in (DB.tables, CACHE.values, ENQUEUED, SNAPSHOT, PUSHED, TOLD):
         item.clear()
-    DB.table("ERP Company")["CO-1"] = {"name": "CO-1", "company_name": "บริษัท เรา จำกัด", "tax_id": "0105559000001",
+    DB.table("ERP Company")["CO-1"] = {"name": "CO-1", "company_name": "บริษัท เรา จำกัด", "tax_id": "",
                                       "branch": "00000", "express_enabled": 0, "mrerp_enabled": 1,
                                       "mrerp_connection": "C1", "mrerp_account_set": "15:1", "mrerp_company": "tax:x",
                                       "mrerp_linked_at": datetime.datetime(2026, 11, 1), "mrerp_menus": None,
@@ -538,12 +538,27 @@ class SwitchedOn(unittest.TestCase):
         self.assertEqual((saved["status"], saved["reason"], saved["docnum"]),
                          (contracts.WITHDRAWN, "express.voided_after_write", "FR1116-COL261116-AB12"))
         facts = ledger.voided_facts(_get_doc("ERP Collection", "COL261116-AB12"))
-        self.assertEqual(facts, {"docnum": "FR1116-COL261116-AB12", "menu": "รับชำระหนี้",
-                                 "invoices": [{"docnum": "SI000001-1", "amount": "100.00"}], "total": "100.00"})
+        self.assertEqual({k: facts[k] for k in ("docnum", "menu", "invoices", "total")},
+                         {"docnum": "FR1116-COL261116-AB12", "menu": "รับชำระหนี้",
+                          "invoices": [{"docnum": "SI000001-1", "amount": "100.00"}], "total": "100.00"})
+        self.assertEqual(facts["text"], "Written to MR.ERP: FR1116-COL261116-AB12. Void it in MR.ERP under รับชำระหนี้")
+        self.assertEqual(facts["question"], ledger.VOIDED_QUESTION)
         with self.assertRaises(contracts.CollectionError) as caught:
             ledger.withdraw(collection(name="COL4", status=contracts.WRITING))
         self.assertEqual(caught.exception.code, contracts.BUSY)
         self.assertIsNone(ledger.withdraw(collection(name="COL5", status=contracts.QUEUED)))
+
+
+    def test_the_receipt_menu_is_asked_only_when_several_are_linked_and_is_remembered(self):
+        self.assertIsNone(ledger.menu_needed("CO-1", dict(BOOK)))  # 一个已关联的：直接用
+        reset({"impfarev": [{"idmenu": "169", "label": "A", "linked": True}, {"idmenu": "171", "label": "B", "linked": True},
+                            {"idmenu": "170", "label": "C", "linked": False}]})
+        self.assertEqual(ledger.menu_needed("CO-1", dict(BOOK)),
+                         {"options": [{"code": "169", "name": "A"}, {"code": "171", "name": "B"}]})
+        self.assertFalse(ledger.choose_menu("CO-1", "170", dict(BOOK)))  # 没关联的不收
+        self.assertTrue(ledger.choose_menu("CO-1", "171", dict(BOOK)))
+        self.assertIsNone(ledger.menu_needed("CO-1", dict(BOOK)))
+        self.assertEqual(ledger.prepare(collection(cash="100.00"))["payload"]["menu"], "171")
 
 
 class _network:

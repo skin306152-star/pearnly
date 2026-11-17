@@ -91,6 +91,7 @@ Address,ที่อยู่
 Address and notes,ที่อยู่และหมายเหตุ
 Adjust products from count results,ปรับปรุงสินค้าตามผลการตรวจนับ
 Admins only,เฉพาะผู้ดูแล
+"After voiding it in MR.ERP, enter this collection again in ERP?",หลังยกเลิกใน MR.ERP แล้ว ต้องการบันทึกรับชำระนี้ใน ERP ใหม่หรือไม่？
 Against Payment,อ้างอิงการชำระเงิน
 All,ทั้งหมด
 All Items,สินค้าทั้งหมด
@@ -1903,6 +1904,7 @@ Writing to Express failed and was undone. It is retried automatically,บัน�
 Written,บันทึกแล้ว
 Written to Express after it was voided,บันทึกเข้า Express หลังยกเลิก
 Written to Express: {0},บันทึกลง Express แล้ว: {0}
+Written to MR.ERP: {0}. Void it in MR.ERP under {1},บันทึกเข้า MR.ERP แล้ว: {0} กรุณายกเลิกใน MR.ERP เมนู「{1}」
 "Year, year-month or ALL, per the reset policy",ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่
 Yearly,ทุกปี
 Yellow,เหลือง

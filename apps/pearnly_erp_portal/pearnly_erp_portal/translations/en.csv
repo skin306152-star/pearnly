@@ -91,6 +91,7 @@ Address,Address
 Address and notes,Address and notes
 Adjust products from count results,Adjust products from count results
 Admins only,Admins only
+"After voiding it in MR.ERP, enter this collection again in ERP?","After voiding it in MR.ERP, enter this collection again in ERP?"
 Against Payment,Against Payment
 All,All
 All Items,All Items
@@ -1903,6 +1904,7 @@ Writing to Express failed and was undone. It is retried automatically,Writing to
 Written,Written
 Written to Express after it was voided,Written to Express after it was voided
 Written to Express: {0},Written to Express: {0}
+Written to MR.ERP: {0}. Void it in MR.ERP under {1},Written to MR.ERP: {0}. Void it in MR.ERP under {1}
 "Year, year-month or ALL, per the reset policy","Year, year-month or ALL, per the reset policy"
 Yearly,Yearly
 Yellow,Yellow
