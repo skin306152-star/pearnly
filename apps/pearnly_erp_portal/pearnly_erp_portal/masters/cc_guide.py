@@ -47,7 +47,7 @@ GUIDES = [
      "draft": "pearnly_erp_portal.masters.guide.draft", "review": "pearnly_erp_portal.masters.guide.review",
      "confirm": "pearnly_erp_portal.masters.guide.confirm",
      "tool": "erp_company_note_save", "expires": ["company"]},
-    {"id": "company_add", "label_key": "guide.business.company_add", "icon": "building-plus", "order": 90,
+    {"id": "company_add", "label_key": "guide.business.company_add", "icon": "building-2", "order": 90,
      "modes": ["chat"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_erp_portal.masters.cc_guide.allowed_add",
      "opening_key": "guide.open.company_add", "source": "form", "writes": True,
