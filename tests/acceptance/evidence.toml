@@ -62,6 +62,200 @@ retried = false
 covers = "fd3c0fc48b8bd707"
 
 [[pass]]
+scenario = "acc.erp.mrerp.cc.push"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094915-5def7f3c3"
+retried = false
+covers = "40124fe9c60f9e74"
+docnums = ["PG691117-583524"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-01016"
+session = "sesn_01CsWqGnP2zW1TqUprL3bnt4"
+site = "erp.maclab.localhost"
+
+[[pass]]
+scenario = "acc.erp.mrerp.menu.choice"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094718-5def7f3c3"
+retried = false
+covers = "9e64a7a8264ad45e"
+docnums = ["PG691117-348542"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00978"
+
+[[pass]]
+scenario = "acc.erp.mrerp.purchase.cash"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094806-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["PG691117-073837"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00992"
+
+[[pass]]
+scenario = "acc.erp.mrerp.purchase.expense"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094736-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["PN691117-822270"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00985"
+
+[[pass]]
+scenario = "acc.erp.mrerp.purchase.goods"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094727-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["PG691117-554448"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00982"
+
+[[pass]]
+scenario = "acc.erp.mrerp.purchase.nobook"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094832-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = []
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-01000"
+
+[[pass]]
+scenario = "acc.erp.mrerp.purchase.novat"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094821-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["PG691117-293863"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00996"
+
+[[pass]]
+scenario = "acc.erp.mrerp.retry"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094837-5def7f3c3"
+retried = false
+covers = "9e64a7a8264ad45e"
+docnums = ["PG691117-969334"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-01004"
+
+[[pass]]
+scenario = "acc.erp.mrerp.sales.cash"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-095025-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["SE691117-830852"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "SD-01055"
+
+[[pass]]
+scenario = "acc.erp.mrerp.sales.credit"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-095016-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["SI691117-892678"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "SD-01051"
+
+[[pass]]
+scenario = "acc.erp.mrerp.sales.discount"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-095032-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["SI691117-393076"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "SD-01059"
+
+[[pass]]
+scenario = "acc.erp.mrerp.switch.off"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094852-5def7f3c3"
+retried = false
+covers = "60faf2e708cde0d1"
+docnums = ["PG691117-596919"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-01008"
+
+[[pass]]
+scenario = "acc.erp.mrerp.tax.purchase"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094901-5def7f3c3"
+retried = false
+covers = "08722e205dd4d976"
+docnums = ["PG691117-061902"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-01012"
+
+[[pass]]
+scenario = "acc.erp.mrerp.tax.sales"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-095045-5def7f3c3"
+retried = false
+covers = "08722e205dd4d976"
+docnums = ["SI691117-596744"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "SD-01068"
+
+[[pass]]
+scenario = "acc.erp.mrerp.twice"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-094756-5def7f3c3"
+retried = false
+covers = "6422def3ea592d20"
+docnums = ["PG691117-695748"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "PUR-2026-00988"
+
+[[pass]]
+scenario = "acc.erp.mrerp.void.importing"
+sha = "5def7f3c3b786068c3a64a5355983067a1d4c6f4"
+date = "2026-11-17"
+env = "B"
+run = "20261117-095038-5def7f3c3"
+retried = false
+covers = "71f468eba65cc3bd"
+docnums = ["SI691117-942185"]
+ledger = "MR.ERP TEST2019 6:1"
+erp_doc = "SD-01063"
+
+[[pass]]
 scenario = "acc.erp.operator.purchase.express"
 sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"

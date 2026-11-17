@@ -504,3 +504,10 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
   采购票 purchase-a1 是一行货品（น้ำแข็งหลอด）：账套里没有这个物料时会问新建物料或停下，必要时换 purchase-a2（服务）；
   允许变化的表沿用采购 / 销售直写那两份清单。
 - 代录销售：首跑缺陷 2（代录回执的码不挂回 ERP 客户）没修好前，这条停在「新客户在 ERP 档上挂回了 Express 客户编码」；最后的回复报不报单号（采购那条 11-16 晚就差这一条）。
+
+## MR.ERP 组首跑（11-17 09:4x–09:51，maclab erp + MR.ERP 测试账套 test01 · TEST2019；写账窗口让出 test01 到 13:00）
+- 现场：maclab 站点新建测试公司 CO-00864（บริษัท ทดสอบ ACC-MRERP，0105989581512），按写账窗口 erp_lab.py 的 cmd_setup 接 MR.ERP（连接、选 6:1、读菜单与默认；默认 2120-03 / 1112-01 / 5390-09，菜单 68 / 454 / 119 / 126）。
+  MR.ERP 写账开关只在临时工作树挂上去的源码里改 True（不提交）；凭据只经标准输入进容器。跑完删临时工作树、模型密钥并回读。
+- 结果：**16 格全部通过**（menu.choice、purchase.goods / expense / cash / novat / nobook、sales.credit / cash / discount、twice、retry、void.importing、switch.off、tax.purchase / sales、cc.push 真模型）。证据 `acceptance-runs/20261117-094*`–`0951*-5def7f3c3`。
+- 首跑校准（脚本问题）：单据页单号拆在 txtdoctype + txtdocnum 两栏；多仓公司开单要带仓；第一次导入碰 ERR_MRERP_ACCOUNT_IN_USE（接入时的登录与第一格互踢），单独重跑即过；销售菜单要正式选过（预选值不算）。
+- 花费台账：cc.push 两次 0.2545 + 约 0.25 美元（最后一次以运行目录为准）；11-17 累计（含代 frontend 验证 0.288）约 0.79 美元。
