@@ -24,7 +24,7 @@ import { ArrowRightIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { CardState } from "@/lib/approval-card";
-import { steps, t } from "@/i18n";
+import { guide, steps, t } from "@/i18n";
 
 type Change = { field: string; before: string; after: string };
 type Approval = {
@@ -118,7 +118,7 @@ export function ApprovalBar({
   if (state.phase === "cancelled") {
     return (
       <div data-slot="cc-ask-answer" className="cc-ask-answer">
-        {steps.cancelled}
+        {state.expired ? guide.expired : steps.cancelled}
       </div>
     );
   }

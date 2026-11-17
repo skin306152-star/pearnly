@@ -184,10 +184,12 @@ export const GuideCardBody: FC<{
 }> = ({ card, company, phase, answered, busy, decidedOpen, startAt, onSubmit }) => {
   const questions = useMemo(() => askQuestionsOf(card, company), [card, company]);
   const changed = useRef<Record<string, string>>({});
+  // 已结束、不说结果（执行记录是不认识的状态）：不画空框，同允许卡收起
+  if (phase === "ended") return null;
   if (phase !== "ask") {
     return (
       <div data-slot="cc-guide-card" data-phase={phase} className="cc-steps-card cc-ui-questionnaire-card">
-        <div className="cc-ui-questionnaire-done">{phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : phase === "ended" ? "" : steps.cancelled}</div>
+        <div className="cc-ui-questionnaire-done">{phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : steps.cancelled}</div>
       </div>
     );
   }

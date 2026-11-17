@@ -8762,7 +8762,8 @@ for (const status of ["frozen_by_server", "superseded"]) {
 }
 // 认识的照旧：done = 已允许，expired = 一行（已失效），cancelled = 已取消
 assert.equal((approvalCard(part(applyEvent(live, record("done", 5) as any)), gates) as any).approved, true);
-assert.equal(approvalCard(part(applyEvent(live, record("expired", 5) as any)), gates)?.phase, "cancelled");
+assert.deepEqual(approvalCard(part(applyEvent(live, record("expired", 5) as any)), gates), { phase: "cancelled", expired: true });  // 允许卡也写「已失效」
+assert.deepEqual(approvalCard(part(applyEvent(live, record("cancelled", 5) as any)), gates), { phase: "cancelled" });
 assert.equal(cardPhase({ run: "expired" } as any), "expired");
 """)
 

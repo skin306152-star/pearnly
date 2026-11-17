@@ -483,6 +483,8 @@ class SourceRules(unittest.TestCase):
         self.assertIn("{phase === \"expired\" ? guide.expired : steps.cancelled}", card)  # 代录任务失效（执行记录 expired，B04 11-17）写「已失效」
         phase = read("components/tool-uis/card-phase.ts")
         self.assertIn('if (part.run === "expired") return "expired";', phase)
+        self.assertIn('if (phase === "ended") return null;', read("components/tool-uis/guide-card.tsx"))  # 不说结果的不画空框
+        self.assertIn("{state.expired ? guide.expired : steps.cancelled}", read("components/tool-uis/approval-bar.tsx"))  # 允许卡同叫「已失效」
         self.assertIn("cancelled: 2, expired: 2,", read("lib/managed-agents/reducer.ts"))
         self.assertIn('if (status === "cancelled" || status === "expired") {', read("lib/managed-agents/reducer.ts"))
         kit = read("components/tool-uis/index.tsx")

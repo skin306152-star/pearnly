@@ -47,7 +47,8 @@ export type Gates = {
 export type CardState =
   | { phase: "ask" }
   | { phase: "answered"; approved: boolean; failed: boolean; sending?: boolean }
-  | { phase: "cancelled" }
+  /** expired：代录任务失效（执行记录 expired，B04 11-17）：同已取消收起，那一行写「已失效」（各卡同一个叫法） */
+  | { phase: "cancelled"; expired?: boolean }
   /** 执行记录是前端不认识的状态（服务端新加的）：已结束，但不说放没放行、做没做成（管钱界面不按「已允许」兜底，主会话 11-17） */
   | { phase: "ended" };
 
@@ -91,8 +92,9 @@ function fromRun(run: CardPart["run"], result: unknown): CardState | null | unde
     case "denied":
       return { phase: "answered", approved: false, failed: false };
     case "cancelled":
-    case "expired":
       return { phase: "cancelled" };
+    case "expired":
+      return { phase: "cancelled", expired: true };
     case "running":
       return { phase: "answered", approved: true, failed: false, sending: true };
     case "awaiting_approval":
