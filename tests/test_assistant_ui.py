@@ -11578,10 +11578,11 @@ assert.match(deviceId(null), /^[A-Za-z0-9_-]{1,64}$/);   // 存不了也给一�
         self.assertIn("if (!finished || (sessionId && isViewing(sessionId)) || (!sessionId && document.hasFocus())) return;", desktop)
         self.assertIn("if (notice.session && isViewing(notice.session)) return;", desktop)
         activity = read("lib/managed-agents/activity.ts")
-        self.assertIn('return !!sessionId && sessionId === active && chatView && document.visibilityState === "visible";', activity)
+        self.assertIn("return !!sessionId && sessionId === active && chatView && lookingHere();", activity)
+        self.assertIn('return document.visibilityState === "visible" && document.hasFocus();', activity)   # 两边同一个判据（主会话 11-17 乙）
         attention = read("lib/attention.ts")
         self.assertIn('api?.call("attention_seen", look)', attention)   # CC 桌面版桥：{session, visible}（11-17 约定）
-        self.assertIn('const visible = document.visibilityState === "visible" && document.hasFocus();', attention)
+        self.assertIn("return { session: openSession(), visible: lookingHere() };", attention)
         self.assertIn("useEffect(() => watchAttention(), []);", read("assistant.tsx"))
         api = (ROOT / "apps/pearnly_core/pearnly_core/assistant/api.py").read_text(encoding="utf-8")
         self.assertIn("def attention_seen(session_id=\"\", visible=0, device=\"\"):", api)
