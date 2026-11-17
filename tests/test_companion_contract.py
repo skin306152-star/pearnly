@@ -989,6 +989,16 @@ class Release1123Edges(unittest.TestCase):
         self.assertEqual(client(sent), sent)  # CC 按同样的规矩收下
         self.assertEqual(server.DIALOG_ANSWERS_MAX, MAX_DIALOG_ANSWERS)
 
+    def test_the_page_reports_the_open_conversation_with_the_bridge_method_cc_reads(self):
+        # ⑨：对话页经本机设置桥 call("attention_seen", {session, visible}) 报开着哪段对话、看不看得见；页面开始调时名字与参数两边一致
+        bridge = (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8")
+        self.assertIn('method == "attention_seen"', bridge)
+        self.assertIn('args.get("session")', bridge)
+        self.assertIn('args.get("visible")', bridge)
+        page = "\n".join(path.read_text(encoding="utf-8") for path in (ROOT / "frontend" / "assistant" / "src").rglob("*.ts*"))
+        if '"attention_seen"' in page:
+            self.assertRegex(page, r'"attention_seen",\s*\{[^}]*session[^}]*visible|"attention_seen",\s*\{[^}]*visible[^}]*session')
+
     def test_remembered_answers_ride_in_operator_dialog_answers(self):
         sys.path.insert(0, str(COMPANION.parent))
         from companion.express_operator.draft import dialog_answers

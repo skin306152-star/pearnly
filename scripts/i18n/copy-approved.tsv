@@ -239,3 +239,5 @@ pearnly_core:Asked before posting	zh	入账前已询问	2026-11-14	docs/work/202
 assistant:OPERATOR.precheck.kind.operator_form	zh	单据菜单	2026-11-17	docs/work/2026-11-17-cc-start-card-same-basis.md
 pearnly_erp_portal:MR.ERP	zh	MR.ERP	2026-11-16	docs/work/2026-11-16-mrerp-ui-fixes.md（F1：MR.ERP 公司单据页按钮改用现成词条，用户 11-16 同意）
 pearnly_erp_portal:mrerp.menu.title	zh	MR.ERP 导入菜单	2026-11-16	docs/work/2026-11-16-mrerp-ui-fixes.md（F2：MR.ERP 要选的几项标题用项名、总称进说明，用户 11-16 同意）
+companion:notif_failed_body	zh	本批 {fail} 张录入失败。	2026-11-17	docs/work/2026-11-17-cc-desktop-1123-operator.md「文案改动」节（用户 11-16 同意，主会话转达「文案同意」）
+companion:notif_partial_body	zh	本批 {ok} 张已录入，{fail} 张录入失败。	2026-11-17	docs/work/2026-11-17-cc-desktop-1123-operator.md「文案改动」节（用户 11-16 同意，主会话转达「文案同意」）
