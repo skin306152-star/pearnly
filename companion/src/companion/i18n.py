@@ -398,17 +398,17 @@ _M = {
     # 本批有失败 → 同样弹原生通知(诚实反馈·不拿失败冒充成功)
     "notif_partial_title": ("本批部分录入", "ชุดนี้บันทึกได้บางส่วน", "Batch partly entered", "今回の一部を入力しました"),
     "notif_partial_body": (
-        "本批 {ok} 张已录入，{fail} 张录入失败，请在网页中处理。",
-        "ชุดนี้บันทึกแล้ว {ok} ใบ ไม่สำเร็จ {fail} ใบ กรุณาดำเนินการบนเว็บ",
-        "{ok} entered and {fail} failed in this batch. Handle them on the website.",
-        "今回 {ok} 件を入力し、{fail} 件は入力できませんでした。ウェブで処理してください。",
+        "本批 {ok} 张已录入，{fail} 张录入失败。",
+        "ชุดนี้บันทึกแล้ว {ok} ใบ ไม่สำเร็จ {fail} ใบ",
+        "{ok} entered and {fail} failed in this batch.",
+        "今回 {ok} 件を入力し、{fail} 件は入力できませんでした。",
     ),
     "notif_failed_title": ("本批录入失败", "ชุดนี้บันทึกไม่สำเร็จ", "Batch entry failed", "今回の入力に失敗しました"),
     "notif_failed_body": (
-        "本批 {fail} 张录入失败，请在网页日志中查看原因。",
-        "ชุดนี้บันทึกไม่สำเร็จ {fail} ใบ กรุณาดูสาเหตุในบันทึกการทำงานบนเว็บ",
-        "{fail} in this batch failed. See the reason in the website log.",
-        "今回 {fail} 件を入力できませんでした。理由はウェブのログで確認してください。",
+        "本批 {fail} 张录入失败。",
+        "ชุดนี้บันทึกไม่สำเร็จ {fail} ใบ",
+        "{fail} in this batch failed.",
+        "今回 {fail} 件を入力できませんでした。",
     ),
     "update_avail_title": ("有新版本", "มีเวอร์ชันใหม่", "New version available", "新しいバージョンがあります"),
     "update_avail_body": (

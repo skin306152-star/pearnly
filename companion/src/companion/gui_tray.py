@@ -391,6 +391,12 @@ class TrayApp(QObject):
                 body = t("notif_failed_body", self.lang, fail=n_fail)
             if len([cfg for cfg in self.configs if not cfg.paused]) > 1:
                 title = f"{self._profile_label(profile_id)} · {title}"
+            if n_fail:
+                # 有没录成的（1.12.23 ⑨）：点通知打开 CC 窗口的待处理页，原因在那里（不再叫人去网页看）
+                site = next((str(getattr(cfg, "backend_url", "") or "") for cfg in self.configs
+                             if str(getattr(cfg, "profile_id", "") or "") == profile_id), "")
+                self._show(title, body, lambda s=site: self.open_conversation(s, "", "pending"))
+                return
             self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
             self._pop(title, body)
         except Exception:
@@ -650,7 +656,8 @@ class TrayApp(QObject):
         fresh = []
         for item in items or []:
             try:
-                if self._first_time(NOTICE_TAG + item["id"]):
+                # 人正看着那段对话（1.12.23 ⑨）：不弹（页面上已经看得到），仍记作弹过、之后不再补弹
+                if self._first_time(NOTICE_TAG + item["id"]) and not self._watching(str(item.get("session") or "")):
                     fresh.append(item)
             except Exception:
                 log.exception("对话提醒通知失败")
@@ -777,11 +784,21 @@ class TrayApp(QObject):
         self._bridge = TomoBridge(
             settings,
             allowed=lambda: host.connected and tomo_links.is_chat(self._page_url()),
-            window=lambda: None, set_lang=self._set_lang, page_url=self._page_url, pick=host.pick)
+            window=lambda: None, set_lang=self._set_lang, page_url=self._page_url, pick=host.pick,
+            on_attention=self._attention_seen)
         # 桥的两个信号交给窗口进程里的页面（窗口没开就不发）
         self._bridge.changed.connect(lambda: host.send("changed"))
         self._bridge.done.connect(lambda job, result: host.send("done", job=job, result=result))
         return self._bridge
+
+    def _attention_seen(self, session: str, visible: bool) -> None:
+        """对话页报来的「开着哪段对话、看不看得见」（1.12.23 ⑨）。"""
+        self._seen_session, self._seen_visible = session, visible
+
+    def _watching(self, session: str) -> bool:
+        """人正看着这段对话：CC 窗口开着、在最前面，页面报的就是这段对话且看得见（锁屏时窗口不在最前面）。正看着就不弹这条对话提醒。"""
+        return bool(session) and _window_open() and getattr(self, "_seen_visible", False) \
+            and getattr(self, "_seen_session", "") == session
 
     def _page_url(self) -> str:
         """Tomo 窗口里当前页面的地址（窗口进程每次调桥都带上，状态变了也报）；窗口没开是空串。"""
