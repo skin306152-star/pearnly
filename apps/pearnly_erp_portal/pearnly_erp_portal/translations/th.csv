@@ -331,6 +331,7 @@ Close Shift,ปิดกะ
 Close camera,ปิดกล้อง
 Close count,ปิดการตรวจนับ
 Close the POS,ปิดจุดขาย
+Close the stock count?,ปิดการตรวจนับหรือไม่
 Closed At,เวลาปิดกะ
 Closed at,เวลาปิด
 Closed by,ผู้ปิด
@@ -489,6 +490,7 @@ Default WHT Rate for Services (%),อัตราภาษีหัก ณ ท�
 Default withholding for service documents,ภาษีหัก ณ ที่จ่ายเริ่มต้นสำหรับเอกสารงานบริการ
 Delete,ลบ
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete the stock count?,ลบการตรวจนับหรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
@@ -2572,6 +2574,8 @@ express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
 guide.business.stocktake,ตรวจนับสินค้า
+guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
+guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.open.stocktake,เลือกการดำเนินการ
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย

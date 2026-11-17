@@ -331,6 +331,7 @@ Close Shift,交班
 Close camera,关闭相机
 Close count,结束盘点
 Close the POS,关闭收银台
+Close the stock count?,要结束盘点吗？
 Closed At,交班时间
 Closed at,结束时间
 Closed by,结束人
@@ -489,6 +490,7 @@ Default WHT Rate for Services (%),服务类默认预扣税率（%）
 Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
 Delete selected ({0}),删除所选（{0}）
+Delete the stock count?,要删除盘点吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
@@ -2572,6 +2574,8 @@ express.summary.extra,补单
 express.void,Express 作废
 goods,货物
 guide.business.stocktake,盘点
+guide.consent.stocktake.close,要结束盘点吗？
+guide.consent.stocktake.delete,要删除盘点吗？
 guide.open.stocktake,选择操作。
 guide.review.department,部门
 guide.review.salesman,销售员
