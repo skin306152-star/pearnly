@@ -8,10 +8,16 @@
 // 密码不在网页上收（ADR-026 第 7 条，同 MR.ERP / Express 授权；tests/test_mrerp_login_pages.py 守着「对话页没有密码框」）：
 // 点「连接」后桥（cloud_connect）弹 CC 桌面版原生小窗收账号和密码（账号预填这里的），只存这台电脑的凭据管理器；
 // 页面只拿到成没成。旧版 CC 桌面版没有这几个桥动作（cloud_status 回 ok: false），不出这一行。
+//   CloudPairing        — 连接成功后（或「···」→ 云端安装命令）行下面一块：桥 cloud_pair_begin 回的那一行命令（等宽、整行可选、框内换行）、
+//                         复制、剩余时间（按 expires 倒计时）；到 0 或配对被拒显示「已过期」+「重新生成」（再调 cloud_pair_begin）；
+//                         cloud_pair_status 报 paired 即收起。命令（含一次性令牌）只在这块的 state 里，不存、不记日志、不发服务端，卸载即丢。
 
 import { CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useState } from "react";
+import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
+import {
+  CodeBlock, CodeBlockActions, CodeBlockContent, CodeBlockCopyButton, CodeBlockFooter,
+} from "@/components/ui/code-block";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -19,6 +25,7 @@ import {
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Marquee } from "@/components/ui/marquee";
+import { Spinner } from "@/components/ui/spinner";
 import { op, st, t } from "@/i18n";
 import type { Desktop } from "@/lib/desktop";
 
@@ -62,12 +69,39 @@ export function splitAddress(value: string): { host: string; port: number | "" }
   return found ? { host: found[1], port: Number(found[2]) } : { host: text, port: "" };
 }
 
+/** 配对块的几种样子：准备中 / 命令就绪 / 已过期（到时或被拒，令牌已作废）/ 准备失败（桥的 code）。 */
+export type Pair =
+  | { phase: "preparing" }
+  | { phase: "ready"; command: string; expires: number }
+  | { phase: "expired" }
+  | { phase: "failed"; code: string };
+
+/** 桥的 cloud_pair_begin 回包 → 配对块；令牌只随命令走，不单独留。 */
+export function pairOutcome(raw: unknown): Pair {
+  const value = (raw ?? {}) as { ok?: boolean; command?: unknown; expires?: unknown; code?: unknown };
+  if (value.ok && typeof value.command === "string" && value.command && typeof value.expires === "number") {
+    return { phase: "ready", command: value.command, expires: value.expires };
+  }
+  return { phase: "failed", code: typeof value.code === "string" ? value.code : "" };
+}
+
+/** 准备失败的一行：宿主没起 = 未连接；no_package / download_failed / checksum / write_failed（及其他）= 安装文件备不好。 */
+export const pairFailure = (code: string) => (code === "not_running" ? st.notConnected : st.cloudPackageFailed);
+
+/** 剩余秒数（expires 是墙上时钟秒，同一台电脑）。 */
+export const secondsLeft = (expires: number, now: number) => Math.max(0, Math.ceil(expires - now / 1000));
+
+/** 「1:05」。 */
+export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+
 // map: cloud-express
 /** 设置 → 连接里 Express 那一组下面的「云端 Express」一行（只在 CC 桌面版里）。 */
 export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   const [status, setStatus] = useState<CloudStatus | null>(null);
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
+  // 配对块：null = 不显示；数字变了 = 重新挂一块（重新生成命令）
+  const [pairing, setPairing] = useState<number | null>(null);
   const reload = useCallback(() => void api.call("cloud_status").then((raw) => setStatus(cloudStatus(raw))), [api]);
   useEffect(() => {
     reload();
@@ -76,7 +110,9 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   if (!status) return null;
   const { link, state, places } = status;
   const line = cloudStatusLine(state);
+  const pair = () => setPairing((n) => (n ?? 0) + 1);
   const disconnect = () => {
+    setPairing(null);
     setBusy(true);
     void api.call("cloud_disconnect").then(() => {
       setBusy(false);
@@ -111,6 +147,11 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
             {/* 同设置里其他菜单：盖在设置弹窗（z 71）上面 */}
             <DropdownMenuContent align="end" className="z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
               <DropdownMenuItem onSelect={reload}>{st.findAgain}</DropdownMenuItem>
+              {state === "connected" && (
+                <DropdownMenuItem onSelect={pair} data-slot="cc-cloud-express-pair">
+                  {st.installCommand}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={disconnect}>
                 {st.disconnect}
@@ -119,6 +160,7 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
           </DropdownMenu>
         )}
       </div>
+      {pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}
       {/* 云端那份 CC 报上来的 Express 位置：只读（位置在云端那台电脑上改） */}
       {state === "connected" &&
         places.map((path) => (
@@ -132,8 +174,9 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
       {open && (
         <CloudExpressConnect
           api={api}
-          onClose={() => {
+          onClose={(connected) => {
             setOpen(false);
+            if (connected) pair();
             reload();
           }}
         />
@@ -142,8 +185,93 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   );
 };
 
+/** 行下面的配对块：挂上即调 cloud_pair_begin；只有命令、复制、剩余时间，过期后「重新生成」。 */
+export const CloudPairing: FC<{ api: Desktop; onDone: () => void }> = ({ api, onDone }) => {
+  const [pair, setPair] = useState<Pair>({ phase: "preparing" });
+  const [now, setNow] = useState(() => Date.now());
+  const alive = useRef(true);
+  const done = useRef(onDone);
+  done.current = onDone;
+  const begin = useCallback(() => {
+    setPair({ phase: "preparing" });
+    void api.call("cloud_pair_begin").then((raw) => {
+      if (!alive.current) return;
+      setNow(Date.now());
+      setPair(pairOutcome(raw));
+    });
+  }, [api]);
+  useEffect(() => {
+    alive.current = true;
+    begin();
+    return () => {
+      alive.current = false;
+    };
+  }, [begin]);
+  // 配对有进展时桥发 changed：配好了收起；被拒（令牌已作废）按过期
+  useEffect(
+    () =>
+      api.onChanged(() => {
+        void api.call("cloud_pair_status").then((raw) => {
+          const found = raw as unknown as { ok?: boolean; state?: string };
+          if (!alive.current || !found.ok) return;
+          if (found.state === "paired") done.current();
+          else if (found.state === "failed") setPair((p) => (p.phase === "ready" ? { phase: "expired" } : p));
+        });
+      }),
+    [api],
+  );
+  const left = pair.phase === "ready" ? secondsLeft(pair.expires, now) : 0;
+  // 倒计时：只在命令就绪时每秒走一次，到 0 丢掉命令
+  useEffect(() => {
+    if (pair.phase !== "ready") return;
+    if (left === 0) return setPair({ phase: "expired" });
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [pair.phase, left]);
+  return (
+    <div className="cc-cloud-pair" data-slot="cc-cloud-express-pairing" data-phase={pair.phase}>
+      {pair.phase === "preparing" && <Spinner />}
+      {pair.phase === "failed" && (
+        <div className="cc-cloud-pair-line">
+          <span role="alert" className="min-w-0 flex-1 text-danger text-body" data-slot="cc-cloud-express-pair-error">
+            {pairFailure(pair.code)}
+          </span>
+          <Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-retry">
+            {st.retry}
+          </Button>
+        </div>
+      )}
+      {pair.phase === "expired" && (
+        <div className="cc-cloud-pair-line">
+          <span className="min-w-0 flex-1 text-muted-foreground text-body" data-slot="cc-cloud-express-expired">
+            {st.expired}
+          </span>
+          <Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-regenerate">
+            {st.regenerate}
+          </Button>
+        </div>
+      )}
+      {pair.phase === "ready" && (
+        <CodeBlock size="sm">
+          <CodeBlockContent wrap className="select-all">
+            {pair.command}
+          </CodeBlockContent>
+          <CodeBlockFooter>
+            <span className="cc-cloud-pair-left" data-slot="cc-cloud-express-left">
+              {clock(left)}
+            </span>
+            <CodeBlockActions>
+              <CodeBlockCopyButton value={pair.command} />
+            </CodeBlockActions>
+          </CodeBlockFooter>
+        </CodeBlock>
+      )}
+    </div>
+  );
+};
+
 /** 「连接 云端 Express」弹窗：地址、账号由桥预填；密码由桥弹的原生小窗收，页面不经手。 */
-export const CloudExpressConnect: FC<{ api: Desktop; onClose: () => void }> = ({ api, onClose }) => {
+export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolean) => void }> = ({ api, onClose }) => {
   const [address, setAddress] = useState("");
   const [user, setUser] = useState("");
   const [busy, setBusy] = useState(false);
@@ -170,10 +298,10 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: () => void }> = ({
     // 原生小窗里点了取消：留在弹窗，不报错
     if (result.cancelled) return;
     if (!result.ok) return setError(st.linkFailed);
-    onClose();
+    onClose(true);
   };
   return (
-    <Dialog open onOpenChange={(v) => !v && onClose()}>
+    <Dialog open onOpenChange={(v) => !v && onClose(false)}>
       <DialogContent
         aria-describedby={undefined}
         data-slot="cc-cloud-express-dialog"
@@ -204,7 +332,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: () => void }> = ({
         </Field>
         <DialogFooter>
           {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onClose(false)}>
             {t("cancel")}
           </Button>
           <Button disabled={busy || !address.trim()} onClick={() => void submit()}>

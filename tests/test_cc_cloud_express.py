@@ -5,6 +5,9 @@
 - 「连接」弹窗：地址、账号由桥预填（cloud_prefill）、能改；**页面没有密码框、不把密码交给桥**（ADR-026 第 7 条，密码由桥弹 CC 原生小窗收）；
 - 按钮调对桥动作：cloud_status / cloud_prefill / cloud_connect {host, port, user} / cloud_disconnect；失败不自动重试；
 - 不往 localStorage、偏好、对话状态写任何东西；云端位置只读、没有「添加文件夹」；四语词条齐全。
+- 配对块（CloudPairing）：连接成功或「···」→ 云端安装命令时挂上、调 cloud_pair_begin；只放命令（框内换行、整行可选）、复制、
+  剩余时间，到 0 或被拒显示「已过期」+「重新生成」（再调 cloud_pair_begin）；准备失败按 code 一行事实；cloud_pair_status 报 paired
+  即收起；命令（含一次性令牌）只在组件 state 里，不存、不打日志、不发服务端；长命令在 375 宽也不撑破布局。
 """
 import pathlib
 import re
@@ -64,11 +67,16 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim() })', text)
         self.assertIn('api.call("cloud_disconnect")', text)
         self.assertEqual(set(re.findall(r'api\.call\("(\w+)"', text)),
-                         {"cloud_status", "cloud_prefill", "cloud_connect", "cloud_disconnect"})
+                         {"cloud_status", "cloud_prefill", "cloud_connect", "cloud_disconnect",
+                          "cloud_pair_begin", "cloud_pair_status"})
         # 失败照实写在弹窗里，不排重试；原生小窗取消不报错
         self.assertIn("if (result.cancelled) return;", text)
         self.assertIn("if (!result.ok) return setError(st.linkFailed);", text)
-        self.assertNotRegex(text, r"setTimeout|setInterval")
+        # 唯一的计时器是配对块的倒计时（每秒一次、只在命令就绪时）；没有延时重试
+        self.assertNotIn("setTimeout", text)
+        self.assertEqual(text.count("setInterval("), 1)
+        self.assertIn("const tick = setInterval(() => setNow(Date.now()), 1000);", text)
+        self.assertIn('if (pair.phase !== "ready") return;', text)
 
     def test_prefill_is_shown_and_editable(self):
         text = read(ROW)
@@ -120,6 +128,121 @@ class CloudExpressRow(unittest.TestCase):
                     'cloudExpress: "云端 Express", address: "地址", account: "账号",',
                     'cloudExpress: "Express บนคลาวด์", address: "ที่อยู่", account: "บัญชี",',
                     'cloudExpress: "クラウド Express", address: "アドレス", account: "アカウント",'):
+            self.assertEqual(text.count(row), 1, row)
+
+
+
+def pairing_block(text):
+    return text.split("export const CloudPairing: FC", 1)[1].split("\n};\n", 1)[0]
+
+
+class CloudPairingBlock(unittest.TestCase):
+    def test_shown_after_connect_and_from_the_menu(self):
+        text = read(ROW)
+        self.assertIn("if (connected) pair();", text)
+        self.assertIn("onClose(true);", text)
+        self.assertIn('<Dialog open onOpenChange={(v) => !v && onClose(false)}>', text)
+        self.assertIn("{pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}", text)
+        menu = text.split("<DropdownMenuContent", 1)[1].split("</DropdownMenuContent>", 1)[0]
+        self.assertIn('<DropdownMenuItem onSelect={pair} data-slot="cc-cloud-express-pair">', menu)
+        self.assertIn("{st.installCommand}", menu)
+        # 断开连接即丢掉配对块
+        disconnect = text.split("const disconnect = () => {", 1)[1].split("};", 1)[0]
+        self.assertIn("setPairing(null);", disconnect)
+
+    def test_begin_calls_the_bridge_and_shows_the_command(self):
+        block = pairing_block(read(ROW))
+        self.assertIn('void api.call("cloud_pair_begin").then((raw) => {', block)
+        self.assertIn("setPair(pairOutcome(raw));", block)
+        text = read(ROW)
+        outcome = text.split("export function pairOutcome(", 1)[1].split("\n}\n", 1)[0]
+        self.assertIn('return { phase: "ready", command: value.command, expires: value.expires };', outcome)
+        self.assertNotIn("token", outcome)
+        # 命令：等宽代码块、框内换行、整行可选；只有命令、复制、剩余时间
+        ready = block.split('{pair.phase === "ready" && (', 1)[1]
+        self.assertIn('<CodeBlockContent wrap className="select-all">', ready)
+        self.assertIn("{pair.command}", ready)
+        self.assertIn("<CodeBlockCopyButton value={pair.command} />", ready)
+        self.assertIn("{clock(left)}", ready)
+        self.assertNotIn("st.", ready)
+        self.assertNotIn("t(", ready.replace("select-all", ""))
+
+    def test_copy_copies_the_whole_line(self):
+        kit = read(SPA / "components/ui/code-block.tsx")
+        self.assertIn(".writeText(value)", kit)
+        self.assertIn("aria-label={copied ? ui.copied : t(\"copy\")}", kit)
+
+    def test_countdown_runs_out_into_regenerate(self):
+        text = read(ROW)
+        self.assertIn("export const secondsLeft = (expires: number, now: number) => Math.max(0, Math.ceil(expires - now / 1000));", text)
+        self.assertIn('export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;', text)
+        block = pairing_block(text)
+        self.assertIn('if (left === 0) return setPair({ phase: "expired" });', block)
+        self.assertIn("return () => clearInterval(tick);", block)
+        expired = block.split('{pair.phase === "expired" && (', 1)[1].split("\n      )}", 1)[0]
+        self.assertIn("{st.expired}", expired)
+        self.assertIn('<Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-regenerate">', expired)
+        self.assertIn("{st.regenerate}", expired)
+        # 重新生成 = 再调 cloud_pair_begin（begin 里只有这一个桥动作）
+        begin = block.split("const begin = useCallback(() => {", 1)[1].split("}, [api]);", 1)[0]
+        self.assertEqual(re.findall(r'api\.call\("(\w+)"', begin), ["cloud_pair_begin"])
+        # 配对被拒（令牌作废）按过期
+        self.assertIn('else if (found.state === "failed") setPair((p) => (p.phase === "ready" ? { phase: "expired" } : p));', block)
+
+    def test_failure_codes_have_one_line_each_group(self):
+        text = read(ROW)
+        self.assertIn('export const pairFailure = (code: string) => (code === "not_running" ? st.notConnected : st.cloudPackageFailed);', text)
+        block = pairing_block(text)
+        failed = block.split('{pair.phase === "failed" && (', 1)[1].split("\n      )}", 1)[0]
+        self.assertIn("{pairFailure(pair.code)}", failed)
+        self.assertIn('role="alert"', failed)
+        self.assertIn("{st.retry}", failed)
+        tomo = read(ROOT / "companion/src/companion/tomo_bridge.py")
+        for code in ("no_package", "download_failed", "checksum", "write_failed", "not_running"):
+            self.assertIn(code, tomo)
+
+    def test_paired_collapses_the_block(self):
+        block = pairing_block(read(ROW))
+        self.assertIn('void api.call("cloud_pair_status").then((raw) => {', block)
+        self.assertIn('if (found.state === "paired") done.current();', block)
+        self.assertIn("api.onChanged(() => {", block)
+
+    def test_command_stays_in_memory_and_no_password_box(self):
+        text = read(ROW)
+        code = re.sub(r"//[^\n]*", "", text)
+        self.assertNotRegex(code, r"console\.|fetch\(|localStorage|sessionStorage|navigator\.sendBeacon|reportCaught|withReport")
+        self.assertNotRegex(code.lower(), r"password")
+        self.assertNotRegex(code, r'type=["{]?["\']?password')
+        # 卸载即丢：命令只在 CloudPairing 的 state 里
+        self.assertIn('const [pair, setPair] = useState<Pair>({ phase: "preparing" });', text)
+        self.assertEqual(code.count("pair.command"), 2)
+
+    def test_long_command_wraps_inside_the_box(self):
+        css = read(SPA / "globals.css")
+        rule = css.split(".cc-cloud-pair {", 1)[1].split("}", 1)[0]
+        self.assertIn("min-width: 0;", rule)
+        self.assertIn("max-width: 100%;", rule)
+        # 令牌一长串没有空格：代码块的网格列收成 minmax(0, 1fr)、任意处断行，不按最长一段撑宽
+        self.assertIn(".cc-cloud-pair .cc-ui-code-block-code { grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }", css)
+        self.assertIn(".cc-cloud-pair-line { display: flex; align-items: center; gap: var(--cc-space-12); min-width: 0; }", css)
+        # 代码块自带：wrap 时 pre-wrap + 断词、框内可滚动、不设最小内容宽
+        kit = read(SPA / "components/ui/code-block.tsx")
+        self.assertIn("overflow-auto", kit)
+        self.assertIn("data-wrap:whitespace-pre-wrap", kit)
+        self.assertIn("in-data-wrap:min-w-0", kit)
+        self.assertIn('className="cc-cloud-pair" data-slot="cc-cloud-express-pairing"', read(ROW))
+        self.assertNotIn("white-space: nowrap", rule)
+
+    def test_pairing_words_have_four_languages(self):
+        text = read(I18N)
+        for row in ('installCommand: "Cloud install command", expired: "Expired", regenerate: "Regenerate",',
+                    'installCommand: "云端安装命令", expired: "已过期", regenerate: "重新生成",',
+                    'installCommand: "คำสั่งติดตั้งบนคลาวด์", expired: "หมดอายุแล้ว", regenerate: "สร้างใหม่",',
+                    'installCommand: "クラウドのインストールコマンド", expired: "期限切れ", regenerate: "再生成",',
+                    'cloudPackageFailed: "Could not prepare the cloud install files",',
+                    'cloudPackageFailed: "无法准备云端安装文件",',
+                    'cloudPackageFailed: "เตรียมไฟล์ติดตั้งบนคลาวด์ไม่สำเร็จ",',
+                    'cloudPackageFailed: "クラウドのインストールファイルを準備できませんでした",'):
             self.assertEqual(text.count(row), 1, row)
 
 

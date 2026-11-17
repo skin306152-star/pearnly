@@ -108,6 +108,7 @@ INTERVAL_SITES = [
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),
     ("lib/company-panel.ts", "export function useMinuteClock()", "挂着的组件每分钟刷新相对时间（11-07 公司页删了以后没有组件挂它）", 4),
     ("components/operator/bridge.ts", "const start = () => {", "有代录的产品、页面看得见时每 3 秒读一次桥（只有支持实操的 CC 桌面版才真读）；切到后台即停", 4),
+    ("components/cloud-express.tsx", 'if (pair.phase !== "ready") return;', "「云端 Express」配对块显示命令时每秒走一次剩余时间，到 0、配好收起或关设置即停", 3),
 ]
 # 自己反复排 requestAnimationFrame 的循环：(文件, 函数名, 停下的条件——函数体里的原文)
 RAF_LOOPS = [
