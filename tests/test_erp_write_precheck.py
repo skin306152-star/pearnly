@@ -485,6 +485,29 @@ class DroppedTicket(Precheck):
         self.assertEqual(saved, [(self.push.PURCHASE, "PI-7", express)])
 
 
+class OperatorReceipt(Precheck):
+    def test_a_receipt_of_a_document_made_from_a_dropped_ticket_also_reaches_the_ticket_task_row(self):
+        # 11-17 验收：写成后只把 P:<单> 交给代录回执，任务条目记的是放票时的 I:<记录>，找不到所属任务、一直「排队中」没单号
+        from pearnly_erp_portal.express import operator, pending
+
+        got = []
+        feed = types.SimpleNamespace(receipt=lambda ids: got.append(list(ids)))
+        intakes = {("purchase", "PI-7"): ["LI-3"]}
+        def get_all(doctype, filters=None, pluck=None, **kw):
+            if doctype == operator.INTAKE_DOCTYPE:
+                key = next(((field, value) for field, value in (filters or {}).items() if field in ("purchase", "sales_document")))
+                assert filters.get("source") == "cc"
+                return intakes.get(key, [])
+            return []
+        with mock.patch.dict(sys.modules, {"pearnly_core.express_operator.feed": feed}), \
+                mock.patch("pearnly_core.express_operator.feed", feed, create=True), \
+                mock.patch.object(frappe, "get_all", get_all, create=True):
+            pending._operator_receipt(self.push.PURCHASE, "PI-7")
+            pending._operator_receipt(self.push.PURCHASE, "PI-8")
+            pending._operator_receipt(self.push.SALES, "SD-1")
+        self.assertEqual(got, [["P:PI-7", "I:LI-3"], ["P:PI-8"], ["S:SD-1"]])
+
+
 class ComputerState(Precheck):
     def test_an_operator_task_says_why_no_computer_of_the_owner_can_enter_it(self):
         # 11-16 H 组：代录排着等电脑、任务主人没有能写的电脑时，用单据页同一个原因码（`push._queued_note`）说清为什么；

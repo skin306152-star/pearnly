@@ -330,14 +330,15 @@ def notify(doctype, name, before) -> None:
 
 
 def _operator_receipt(doctype, name) -> None:
-    """代录事件源的只读入口（共用层，统一对话框架 14.2）：代录的单据编号是 ``P:<名>`` / ``S:<名>``（``operator.KINDS``）。"""
+    """代录事件源的只读入口（共用层，统一对话框架 14.2）：代录的单据编号是 ``P:<名>`` / ``S:<名>``（``operator.KINDS``）；CC 放票
+    提交出的单，代录任务里记的是放票时的收单记录 ``I:<记录>``，一并交上（11-17 验收：只交 ``P:`` 时任务按旧编号找不到，一直「排队中」）。"""
     try:
         from pearnly_core.express_operator import feed
         from pearnly_erp_portal.express import operator
 
         prefix = next((key for key, value in operator.KINDS.items() if value[0] == doctype), "")
         if prefix:
-            feed.receipt([f"{prefix}:{name}"])
+            feed.receipt([f"{prefix}:{name}", *operator.intake_ids(doctype, name)])
     except Exception:
         frappe.log_error(title="ERP operator receipt failed")
 

@@ -220,10 +220,28 @@ doctype = {DOCTYPES[params['direction']]!r}
 doc = frappe.db.get_value(doctype, made, ["status", "ledger_state", "ledger_job"], as_dict=True) if made else None
 chosen = json.loads(row.get("line_choices") or "null") or {{}}
 task = frappe.get_doc("Pearnly Express Operator Task", {params['task']!r})
+# 照电脑写好的样子回执（正式回执路径 `push.job_changed` → 代录回执 → 后台按任务主人收尾）：代录任务里这张票（I:）跟着变「已入账」、
+# 带上 Express 单号（11-17 验收：回执只带 P:，任务按 I: 找不到，一直「排队中」没单号）
+receipt = {{}}
+if doc and doc.get("ledger_job") and not {bool(params.get('no_computer'))!r}:
+    import time
+    from pearnly_erp_portal.express import push
+    key = frappe.db.get_value("Pearnly CC Job", doc["ledger_job"], "request_key")
+    push.job_changed({{"source_doctype": doctype, "source_name": made, "status": "success", "job": doc["ledger_job"],
+                      "docnum": "FLOW-{params['tag'][:6]}", "request_key": key}})
+    frappe.db.commit()
+    for _ in range(60):
+        frappe.db.rollback()
+        rows = frappe.get_all("Pearnly Express Operator Task Document", filters={{"parent": {params['task']!r}}},
+                              fields=["doc_id", "state", "docnum"])
+        if rows and all(r.state == "saved" for r in rows):
+            break
+        time.sleep(1)
+    receipt = {{"rows": [dict(r) for r in rows], "status": frappe.db.get_value("Pearnly Express Operator Task", {params['task']!r}, "status")}}
 print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc or {{}},
                   "decided": all(line.get("decided") for line in chosen.get("lines") or [] if line),
                   "payment_decided": bool(chosen.get("payment_decided")), "warehouse": chosen.get("warehouse") or "",
-                  "task_docs": [r.doc_id for r in task.get("documents") or []]}}, default=str))
+                  "task_docs": [r.doc_id for r in task.get("documents") or []], "receipt": receipt}}, default=str))
 """)
     doc = got.get("doc") or {}
     return [
@@ -235,4 +253,9 @@ print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc o
          "ok": bool(got.get("made")) and doc.get("status") == "submitted" and bool(doc.get("ledger_state"))},
         {"case": "the operator task carries the ticket", "saved": got.get("task_docs"),
          "ok": params["doc_id"] in (got.get("task_docs") or [])},
-    ]
+    ] + ([] if params.get("no_computer") else [
+        {"case": "after the computer's receipt the ticket's task row is entered with the Express number",
+         "saved": got.get("receipt"),
+         "ok": [(r.get("doc_id"), r.get("state"), r.get("docnum")) for r in (got.get("receipt") or {}).get("rows") or []]
+         == [(params["doc_id"], "saved", "FLOW-" + params["tag"][:6])]},
+    ])

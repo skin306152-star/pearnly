@@ -232,6 +232,15 @@ def _intake(company, doc_id):
     return row
 
 
+def intake_ids(doctype, name) -> list:
+    """这张单是 CC 代录放票（收单记录）提交出来的：回那条记录的代录编号 ``[I:<记录>]``（代录任务条目按它记）；不是回空。"""
+    field = {push.PURCHASE: "purchase", push.SALES: "sales_document"}.get(doctype)
+    if not field or not name:
+        return []
+    found = frappe.get_all(INTAKE_DOCTYPE, filters={field: name, "source": "cc"}, pluck="name", limit_page_length=5)
+    return [f"{INTAKE}:{record}" for record in found]
+
+
 def _submitted(row):
     """收单记录提交出的 ERP 单据 ``(doctype, 名)``；还没提交回 None。"""
     name = row.purchase if row.direction == "purchase" else row.sales_document
