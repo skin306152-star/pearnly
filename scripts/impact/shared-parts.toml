@@ -488,6 +488,7 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # CC 侧栏标题写回撞上快照冲突整笔重来（11-09 部署后 e2e 两条 1020，`assistant.titles._finish`）
 # ERP 采购凭证挂附件撞上死锁整笔重来（11-08 两张单同时出凭证 QueryDeadlockError，`purchasing.output.voucher`）
 entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher"]
+not_entries = { "apps/pearnly_core/pearnly_core/assistant/toolrun.py" = "CC 工具调用里产品校验 / 准备 / 引导结果 / 允许卡读取碰到快照冲突（1020）或死锁时整段重做（conflicts.retried，都是只读或幂等），用户看到的入口是 cc.assistant 对话页的工具卡，由 test_assistant 的四个冲突用例守住" }
 
 [[part]]
 id = "provisioning"
