@@ -96,14 +96,38 @@ def language_of(text: str) -> str:
     return "th" if thai > han else "zh"
 
 
+# 一句里全是拉丁字母、且带一个小写英文词（三个字母以上）：内部步骤 / 英文说明漏出（如「Run precheck.」）。
+# 只认这种句子，产品名、账套名、单号（Express、CC、TEST2、HP0000090、MR.ERP）不算。
+_SENTENCE = re.compile(r"[^\n。！？!?；;：:]+")
+_LATIN_ONLY = re.compile(r"^[A-Za-z0-9 ,.'’()\-/_*`\"]+$")
+_LOWER_WORD = re.compile(r"\b[a-z]{3,}\b")
+
+
+def english_steps(text: str) -> list[str]:
+    """一段可见文字里的英文步骤句（见上）。"""
+    out = []
+    for piece in _SENTENCE.findall(text or ""):
+        piece = piece.strip(" .*`-")
+        if piece and _LATIN_ONLY.match(piece) and _LOWER_WORD.search(piece) and len(piece.split()) >= 2:
+            out.append(piece)
+    return out
+
+
 def b8_language(record: Record) -> list[str]:
-    """⑧ 回复语言跟用户这句话：每条回复与它前面最近一句用户的话同一种语言。"""
+    """⑧ 回复语言跟用户这句话：每一段可见文字（含工具调用之前 / 之间写出的，不只最后一句）与它前面最近一句用户的话同一种语言；
+    用户不说英文时，可见文字里也不许夹英文的内部步骤句（11-16 operator.talk：中文对话里漏出「Run precheck.」）。"""
     problems, last_user = [], None
     for turn in record.turns:
         if turn["role"] == "user":
             last_user = language_of(turn["text"])
-        elif last_user and turn["text"].strip() and language_of(turn["text"]) != last_user:
-            problems.append(f"用户说 {last_user}，回复是 {language_of(turn['text'])}：{turn['text'][:30]}")
+            continue
+        text = turn["text"] or ""
+        if not last_user or not text.strip():
+            continue
+        if language_of(text) != last_user:
+            problems.append(f"用户说 {last_user}，回复是 {language_of(text)}：{text[:30]}")
+        elif last_user != "en":
+            problems.extend(f"用户说 {last_user}，回复里夹了英文步骤：{piece[:40]}" for piece in english_steps(text))
     return problems
 
 

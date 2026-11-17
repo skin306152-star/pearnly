@@ -74,6 +74,14 @@ class LinesTest(unittest.TestCase):
         self.assertEqual(lines.language_of("我查过了：บริษัท Pearnly จำกัด 这个月只有 1 张单要录，已交给 CC 桌面版去录"), "zh")
         self.assertEqual(lines.language_of("บันทึกใบซื้อเรียบร้อยแล้ว 已"), "th")
         self.assertEqual(lines.language_of("Run precheck."), "en")
+        # 工具调用之前 / 之间写出的每一段可见文字都判；中文对话里夹英文步骤句也算（11-16 operator.talk「Run precheck.」）
+        self.assertEqual(lines.english_steps("好的，我先查一下。\nRun precheck.\n这个月只有 1 张单。"), ["Run precheck"])
+        self.assertEqual(lines.english_steps("已写成 Express 单号 HP0000090，账套 TEST2，CC 桌面版已回执。"), [])
+        self.assertEqual(lines.english_steps("MR.ERP 的 TEST2019 已导入"), [])
+        record = lines.Record(turns=[{"role": "user", "text": "开始录这个月的单"},
+                                     {"role": "assistant", "text": "好的。\nRun precheck."},
+                                     {"role": "assistant", "text": "已写成 HP0000090。"}])
+        self.assertEqual(len(lines.b8_language(record)), 1)
         record = Record(turns=[{"role": "user", "text": "บันทึกให้หน่อย", "at": 1}, {"role": "assistant", "text": "已写入 1 张", "at": 2},
                                {"role": "user", "text": "好", "at": 3}, {"role": "assistant", "text": "完成", "at": 4}])
         self.assertEqual(len(lines.b8_language(record)), 1)
