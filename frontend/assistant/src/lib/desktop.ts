@@ -15,7 +15,7 @@
 import { useAui } from "@assistant-ui/react";
 import { useEffect, useRef, useState } from "react";
 import { lang } from "@/i18n";
-import { onNotice } from "@/lib/managed-agents/activity";
+import { isViewing, onNotice } from "@/lib/managed-agents/activity";
 import { setDraft } from "@/lib/managed-agents/projects";
 import { deepLink, showNote } from "@/lib/notify";
 import { APP_NAME, useProfile } from "@/lib/profile";
@@ -114,14 +114,17 @@ export function useDesktopBridge(
   useEffect(() => {
     const finished = wasRunning.current && !isRunning;
     wasRunning.current = isRunning;
-    if (!finished || document.hasFocus()) return;
+    // 人正看着这段对话（当前对话、对话页开着、页面在前台）就不叫（C-1）；以前看整窗焦点：并排时焦点在 Express 也照弹
+    if (!finished || (sessionId && isViewing(sessionId)) || (!sessionId && document.hasFocus())) return;
     void showNote(title || APP_NAME, lastReply(messages), "tomo-reply", sessionId ? deepLink(sessionId) : "/assistant");
   }, [isRunning, messages, title, sessionId]);
 
   useEffect(
     () =>
       onNotice((notice) => {
-        // 桌面端：一律弹（托盘同一条按 tag 只弹一次）；浏览器：开了推送由后台脚本弹，没开且页面不在前台才弹
+        // 正看着这条提醒挂的那段对话：不弹不响（C-3，用户 11-14：在当前对话框的时候无提示音和通知）。
+        // 桌面端：其余照弹（托盘同一条按 tag 只弹一次）；浏览器：开了推送由后台脚本弹，没开且页面不在前台才弹
+        if (notice.session && isViewing(notice.session)) return;
         const desktopApp = isDesktopApp();
         if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;
         const link = deepLink(notice.session || "", notice.view || "");

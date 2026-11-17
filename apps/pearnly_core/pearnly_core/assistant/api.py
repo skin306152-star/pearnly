@@ -119,6 +119,15 @@ def notices_seen(session_id):
     sessions.notices_seen(session_id)
 
 
+# 叫人判据（弹窗通知并进对话 C-4，总设计 15.2）：页面报这台设备此刻在看哪段对话、看不看得见；只记缓存，不落库
+@frappe.whitelist(methods=["POST"])
+def attention_seen(session_id="", visible=0, device=""):
+    from pearnly_core.assistant import attention
+
+    seen = str(visible) in ("1", "true", "True")
+    return attention.seen(str(session_id or ""), seen, str(device or ""))
+
+
 @frappe.whitelist(methods=["POST"])
 def send(session_id, text):
     return sessions.send(session_id, text)

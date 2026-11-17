@@ -175,6 +175,11 @@ export function uploadFile(id: string, file: File): Promise<UploadedFile> {
   return upload("upload", { session_id: id }, file);
 }
 
+/** 叫人判据（C-4）：这台设备此刻在看哪段对话、看不看得见（pearnly_core.assistant.attention.seen）。 */
+export function attentionSeen(sessionId: string, visible: boolean, device: string): Promise<unknown> {
+  return post("attention_seen", { session_id: sessionId, visible: visible ? 1 : 0, device });
+}
+
 /** 输入框里移除了还没发出的附件：服务端删掉留存的这份，代录会话另删那一行「待发送」（不识别、不扣费）。 */
 export function dropUpload(id: string, fileId: string): Promise<{ dropped: boolean }> {
   return post("drop_upload", { session_id: id, file_id: fileId });
