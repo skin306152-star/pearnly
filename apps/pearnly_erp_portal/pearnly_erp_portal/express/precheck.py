@@ -388,7 +388,9 @@ def document_view(doc_id, doctype, name, found=None) -> dict:
     # 停在子菜单的只有代录交过、转了人工的采购 / 销售单（代录只录这两类）
     menu = menu_item(push.company_of(doctype, name), doctype, name) \
         if doctype in (push.PURCHASE, push.SALES) and job else None
-    items = [*found["items"], {**menu, "direction": view["direction"]}] if menu else found["items"]
+    dialog = dialog_item(push.company_of(doctype, name), doctype, name) \
+        if doctype in (push.PURCHASE, push.SALES) and job else None
+    items = [*found["items"], *[{**extra, "direction": view["direction"]} for extra in (menu, dialog) if extra]]
     return {**view, "state": card.CHECK, "items": items}
 
 
@@ -428,6 +430,77 @@ def menu_item(company, doctype, name, stop=None):
             "source": card.REMEMBERED if value else "", "options": [{"code": code, "name": ""} for code in stop["codes"]]}
 
 
+# ---------------- 代录中途配方外的业务选择框（CC 桌面版 1.12.23）----------------
+
+OPERATOR_DIALOG = choices.OPERATOR_DIALOG
+
+
+def _operator_job(doctype, name):
+    """这张单当前那件写账件：代录交的、转了人工的才回 ``(行, 回执 meta)``，否则 ``(None, {})``。"""
+    current = frappe.db.get_value(doctype, name, "ledger_job") if name else None
+    row = frappe.db.get_value(jobs.JOB, current, ["status", "request_key", "book_key", "meta_json", "written_by_device",
+                                                   "lease_device", "route_device"], as_dict=True) if current else None
+    if not row or row.get("status") != "manual" or not str(row.get("request_key") or "").startswith(push.OPERATOR_KEY):
+        return None, {}
+    try:
+        meta = json.loads(row.get("meta_json") or "{}")
+    except ValueError:
+        return None, {}
+    return row, (meta if isinstance(meta, dict) else {})
+
+
+def dialog_stop(doctype, name) -> dict:
+    """这张单停在 Express 中途一个配方外的业务选择框：回执 ``meta.operator.dialog``（过 `clean_operator_meta`）加上留着框的那台电脑与
+    批次 ``{digest, title, text, buttons, stage, device, batch, doc}``；不是回空 dict。"""
+    row, meta = _operator_job(doctype, name)
+    raw = meta.get("operator") if isinstance(meta.get("operator"), dict) else {}
+    dialog = receipt_rules.clean_operator_meta(raw).get("dialog") if row else None
+    if not dialog:
+        return {}
+    device = row.get("written_by_device") or row.get("lease_device") or row.get("route_device") or ""
+    return {**dialog, "device": str(device), "batch": str(raw.get("batch") or ""), "doc": str(raw.get("doc") or "")}
+
+
+def dialog_item(company, doctype, name, stop=None):
+    """停在业务选择框的单要人定的那一项（不是回 None）：问的是框的原文，选项是框上的按钮；这家公司答过同一个框（指纹）、那个钮
+    仍在框上的是已定。"""
+    stop = stop if stop is not None else dialog_stop(doctype, name)
+    if not stop:
+        return None
+    remembered = choices.chosen(company, OPERATOR_DIALOG, stop["digest"])
+    value = remembered if remembered in stop["buttons"] else ""
+    label = " · ".join(part for part in (stop.get("title"), stop.get("text")) if part)[:200]
+    return {"kind": OPERATOR_DIALOG, "subject": stop["digest"], "label": label, "value": value,
+            "source": card.REMEMBERED if value else "", "options": [{"code": button, "name": button} for button in stop["buttons"]]}
+
+
+def _dialog_answers(company, doctype, name, answers, seen) -> int:
+    """人答的业务选择框：值须是这张单停下时框上的按钮、指纹对得上（属于批里别的单的跳过、不拒）；记下（按公司 + 指纹），再给留着框的
+    那台电脑发一条「点这个钮」（`cc_desktop.operator_controls`，下一次领单带下去，电脑核框没变才点）。回记了几项。"""
+    rows = [answer for answer in answers if answer.get("remember") is not False]
+    stop = dialog_stop(doctype, name) if rows else {}
+    if not stop:
+        return 0
+    from pearnly_core.cc_desktop import operator_controls
+
+    saved = 0
+    for answer in rows:
+        value = str(answer.get("value") or "").strip()
+        if str(answer.get("subject") or "").strip().lower() != stop["digest"]:
+            continue
+        if value not in stop["buttons"]:
+            frappe.throw(_("Invalid request"))
+        key = (OPERATOR_DIALOG, stop["digest"])
+        if key in seen:
+            continue
+        seen.add(key)
+        choices.remember(company, OPERATOR_DIALOG, stop["digest"], value, stop.get("text") or stop.get("title") or "")
+        if stop["device"] and stop["batch"] and stop["doc"]:
+            operator_controls.send(stop["device"], stop["batch"], stop["doc"], "answer", stop["digest"], value)
+        saved += 1
+    return saved
+
+
 def _menu_answers(doctype, name, answers, seen) -> list:
     """人答的子菜单项核一遍（单种对上的，值须是这张单停下时 CC 读到的候选，不是整批拒）→ ``[(对象, 值, 单种)]``，同一项只记一次。
     这张单没停在子菜单、或答案的单种不是这张单停下的那种（属于批里别的单），跳过、不拒：代录交单逐张记，旧前端把同一份答案带给
@@ -458,12 +531,13 @@ def save_answers(company, doctype, name, answers, seen=None) -> int:
     if not isinstance(answers, list) or any(not isinstance(answer, dict) for answer in answers):
         frappe.throw(_("Invalid request"))
     menu = [answer for answer in answers if answer.get("kind") == OPERATOR_FORM]
-    rest = [answer for answer in answers if answer.get("kind") != OPERATOR_FORM]
+    boxes = [answer for answer in answers if answer.get("kind") == OPERATOR_DIALOG]
+    rest = [answer for answer in answers if answer.get("kind") not in (OPERATOR_FORM, OPERATOR_DIALOG)]
     checked = _menu_answers(doctype, name, menu, seen)
     saved = save(company, collect_document(doctype, name, given_of(rest)), rest, seen) if rest else 0
     for subject, value, label in checked:
         choices.remember(company, OPERATOR_FORM, subject, value, label)
-    return saved + len(checked)
+    return saved + len(checked) + _dialog_answers(company, doctype, name, boxes, seen)
 
 
 # ---------------- MR.ERP 账本（公司选了 MR.ERP 账套、总开关开着，`mrerp.push.handles`） ----------------
@@ -813,5 +887,5 @@ def _resume_mrerp(company, doc_ids) -> list:
 
 __all__ = ["COLLECTION", "DOCUMENT", "INTAKE", "INTAKE_PREFIX", "MISSING", "OPERATOR_FORM", "PREFIXES", "UNKNOWN",
            "UNKNOWN_DOCUMENT", "UNKNOWN_LOG", "check", "collect", "collect_document", "collect_form", "doc_id_of", "document_view",
-           "allowed", "full_options", "given_of", "menu_item", "menu_stop", "mrerp_needed", "mrerp_view", "remember",
+           "allowed", "dialog_item", "dialog_stop", "full_options", "given_of", "menu_item", "menu_stop", "mrerp_needed", "mrerp_view", "remember",
            "resolve_target", "resume", "save", "save_answers", "search", "target_of"]
