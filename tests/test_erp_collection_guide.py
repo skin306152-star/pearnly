@@ -38,6 +38,11 @@ IV1_600 = [{"code": "IV1", "amount": "600"}]
 CASH_600 = [{"code": guide.CASH, "amount": "600"}]
 
 
+
+def _codes(found):
+    """拒收结果里的码（`run._refusal`：{key: {code, text}}）。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -192,20 +197,20 @@ class Checks(Base):
     def test_a_customer_code_differing_only_in_blank_space_is_not_the_customer(self):
         name = run.start(SESSION, "collection")["run"]
         refused = run.answer(name, {"customer": "2100883 "})
-        self.assertEqual(refused["refused"], {"customer": "not offered"})
+        self.assertEqual(_codes(refused), {"customer": "not offered"})
 
     def test_an_amount_over_what_can_be_collected_now_is_refused(self):
         name, _found = self.to_invoices()
         self.read_back()
         refused = run.answer(name, {"invoices": [{"code": "IV2", "amount": "500.01"}]})
-        self.assertEqual(refused["refused"], {"invoices": "over max"})
+        self.assertEqual(_codes(refused), {"invoices": "over max"})
 
     def test_the_methods_must_add_up_to_the_invoices(self):
         name, _found = self.to_invoices()
         self.read_back()
         run.answer(name, {"invoices": IV1_600})
         refused = run.answer(name, {"methods": [{"code": guide.CASH, "amount": "500"}]})
-        self.assertEqual(refused["refused"], {"methods": C.AMOUNT_MISMATCH})
+        self.assertEqual(_codes(refused), {"methods": C.AMOUNT_MISMATCH})
 
     def test_a_transfer_asks_for_one_slip_per_transfer_and_the_slip_goes_on_the_draft(self):
         name, _found = self.to_invoices()
@@ -217,7 +222,7 @@ class Checks(Base):
                         if row["code"].startswith(guide.TRANSFER))
         found = run.answer(name, {"methods": [{"code": transfer, "amount": "600"}]})
         self.assertEqual(list(self.questions(found)), ["voucher"])
-        self.assertEqual(run.answer(name, {"voucher": ["upl_1", "upl_2"]})["refused"], {"voucher": C.VOUCHER_MISSING})
+        self.assertEqual(_codes(run.answer(name, {"voucher": ["upl_1", "upl_2"]})), {"voucher": C.VOUCHER_MISSING})
         self.attached["upl_1"] = b"%PDF-1.4 slip"
         reviewed = run.answer(name, {"voucher": ["upl_1"]})
         self.assertEqual(reviewed["status"], "reviewing")
@@ -280,7 +285,7 @@ class Dates(Base):
             self.assertEqual(question["input"], "date")
             self.assertTrue(question["facts"][0].startswith("Accounting period"))
             name = found["run"]
-            self.assertEqual(run.answer(name, {"day": "2027-01-02"})["refused"], {"day": T.service.DAY_NEEDED})
+            self.assertEqual(_codes(run.answer(name, {"day": "2027-01-02"})), {"day": T.service.DAY_NEEDED})
             after = run.answer(name, {"day": "2026-12-30"})
             self.assertEqual(list(self.questions(after)), ["customer"])
 

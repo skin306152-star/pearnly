@@ -1137,3 +1137,7 @@ This operator task has expired. Start a new one.	此实操任务已失效，请�
 Purchases	采购	ซื้อ	仕入	guide.business.purchase
 Sales	销售	ขาย	売上	guide.business.sales
 Collection	收款	รับชำระ	入金	guide.business.collection
+Too many rows	超出可填行数	จำนวนแถวเกินกำหนด	行数が上限を超えています	guide.refused.too_many_rows
+No longer available	已不可选	ไม่มีให้เลือกแล้ว	選択できなくなりました	guide.refused.not offered
+Over the limit	超出上限	เกินจำนวนที่กำหนด	上限を超えています	guide.refused.over max
+Not a file in this conversation	不是本对话的文件	ไม่ใช่ไฟล์ในบทสนทนานี้	この会話のファイルではありません	guide.refused.not in this conversation

@@ -516,6 +516,7 @@ No connection to test,No connection to test
 No cost posting,No cost posting
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
 No file was received.,No file was received.
+No longer available,No longer available
 No operators yet — add one above,No operators yet — add one above
 No provisioning target is available; configure one under “Provisioning Target” first,No provisioning target is available; configure one under “Provisioning Target” first
 No purchase orders,No purchase orders
@@ -527,6 +528,7 @@ No.,No.
 None deleted: the {0} selected records are being pushed.,None deleted: the {0} selected records are being pushed.
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice","None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice"
 Not Permitted,Not Permitted
+Not a file in this conversation,Not a file in this conversation
 Not allowed,Not allowed
 Not authorized,Not authorized
 Not connected,Not connected
@@ -569,6 +571,7 @@ Order Discount,Order Discount
 Original document,Original document
 Output Tokens,Output Tokens
 Outstanding,Outstanding
+Over the limit,Over the limit
 Overage: {0}/page,Overage: {0}/page
 Overage: {0}/page · Expires: {1},Overage: {0}/page · Expires: {1}
 Owner Account,Owner Account
@@ -900,6 +903,7 @@ To confirm,To confirm
 To verify,To verify
 Today,Today
 Token Last 4,Token Last 4
+Too many rows,Too many rows
 Tool,Tool
 Tool Input,Tool Input
 Tool Use ID,Tool Use ID
@@ -1184,6 +1188,10 @@ guide.reason.held,Needs a choice
 guide.reason.last_write_result_unknown,Result unknown
 guide.reason.undecided_items,Needs a choice
 guide.reason.waiting_for_computer,Waiting
+guide.refused.not in this conversation,Not a file in this conversation
+guide.refused.not offered,No longer available
+guide.refused.over max,Over the limit
+guide.refused.too_many_rows,Too many rows
 guide.source.book_setting,Account set setting
 guide.source.company_rule,Company rule
 guide.source.document,This document

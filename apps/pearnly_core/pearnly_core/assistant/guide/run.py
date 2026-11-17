@@ -219,7 +219,13 @@ def _not_offered(step: Mapping[str, Any], ctx: Dict[str, Any], value: Any) -> st
     return ""
 
 
-TOO_MANY_ROWS = "too_many_rows"
+TOO_MANY_ROWS, NOT_HERE = "too_many_rows", "not in this conversation"
+
+
+def _refusal(found: Mapping[str, str]) -> Dict[str, Dict[str, str]]:
+    """拒收的那几题 → ``{key: {code, text}}``：码照给（页面 / 测试按码认），``text`` 是按本次请求语言翻好的一句事实（术语表
+    ``guide.refused.<码>``，引擎自己的码在 pearnly_core，产品核对函数的码由产品在自己的术语表写）；没有译文回空串。"""
+    return {key: {"code": str(code), "text": _t(f"guide.refused.{code}")} for key, code in found.items()}
 
 
 def _subs(raw: Any) -> List[Dict[str, Any]]:
@@ -563,13 +569,13 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
             if code:
                 refused[key] = str(code)
     if refused:
-        return {**view(doc), "outcome": REFUSED, "refused": refused}
+        return {**view(doc), "outcome": REFUSED, "refused": _refusal(refused)}
     # 交文件的步骤：别的题都收下了，才把这几份登记成用户交出的（唯一入口 `files.commit(via="guide")`，幂等）；
     # 不是这段对话里本人上传的，这一步不收
     not_here = _commit_files(doc.session_id, {key: list(value) for key, value in given.items()
                                               if by_key[key]["input"] == "file"})
     if not_here:
-        return {**view(doc), "outcome": REFUSED, "refused": {not_here: "not in this conversation"}}
+        return {**view(doc), "outcome": REFUSED, "refused": _refusal({not_here: NOT_HERE})}
     changed = [key for key, value in given.items() if answers.get(key) != value]
     answers = steps.without_dependents(guide, answers, changed)
     answers.update(given)
@@ -752,7 +758,7 @@ def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     asked = _subs(((current.get("result") or {}) if isinstance(current.get("result"), Mapping) else {}).get("questions"))
     problem = _sub_problem(asked, given) if asked else "not asked now"
     if problem:
-        return {**current, "outcome": REFUSED, "refused": {"questions": problem}}
+        return {**current, "outcome": REFUSED, "refused": _refusal({"questions": problem})}
     ctx = {**_ctx(doc, _answers(doc)), "done": json.loads(doc.result or "null")}
     try:
         made = _call(guide["follow"], ctx, doc.draft or "", dict(given))
@@ -760,10 +766,10 @@ def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> D
         frappe.db.rollback()
         frappe.log_error(title="Assistant guide follow failed")
         return {**view(_locked(name)), "outcome": REFUSED,
-                "refused": {"questions": str(getattr(exc, "code", "") or type(exc).__name__)}}
+                "refused": _refusal({"questions": str(getattr(exc, "code", "") or type(exc).__name__)})}
     if not isinstance(made, Mapping) or made.get("returned"):
         reason = next(iter((made or {}).get("returned") or {"questions": {"reason": "refused"}}.values()), {})
-        return {**current, "outcome": REFUSED, "refused": {"questions": str((reason or {}).get("reason") or "refused")}}
+        return {**current, "outcome": REFUSED, "refused": _refusal({"questions": str((reason or {}).get("reason") or "refused")})}
     doc.result = json.dumps(dict(made), ensure_ascii=False, default=str)
     doc.version = int(doc.version or 0) + 1
     _save(doc)

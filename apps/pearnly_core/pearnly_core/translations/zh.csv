@@ -517,6 +517,7 @@ No connection to test,缺少要测试的连接
 No cost posting,不结转
 No existing customer matched and no DMS customer reference was given: confirm manually first,未匹配到已有客户，且未提供 DMS 客户引用，请先人工确认
 No file was received.,未收到文件。
+No longer available,已不可选
 No operators yet — add one above,暂无操作员，请在上方新增
 No provisioning target is available; configure one under “Provisioning Target” first,没有可用的开户目标，请先在「开户目标」中配置
 No purchase orders,暂无采购单
@@ -528,6 +529,7 @@ No.,单号
 None deleted: the {0} selected records are being pushed.,未删除任何记录：选中的 {0} 条记录正在推送。
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",未删除任何记录：选中的 {0} 条记录均已推送。
 Not Permitted,没有权限
+Not a file in this conversation,不是本对话的文件
 Not allowed,不允许
 Not authorized,未授权
 Not connected,未连接
@@ -571,6 +573,7 @@ Order Discount,整单折扣
 Original document,原件
 Output Tokens,输出 Token
 Outstanding,未付
+Over the limit,超出上限
 Overage: {0}/page,超额单价：{0}/页
 Overage: {0}/page · Expires: {1},超额单价：{0}/页 · 到期时间：{1}
 Owner Account,归属账号
@@ -902,6 +905,7 @@ To confirm,待确认
 To verify,待复核
 Today,今天
 Token Last 4,密钥末 4 位
+Too many rows,超出可填行数
 Tool,工具
 Tool Input,工具输入
 Tool Use ID,工具调用 ID
@@ -1186,6 +1190,10 @@ guide.reason.held,待选择
 guide.reason.last_write_result_unknown,结果不明
 guide.reason.undecided_items,待选择
 guide.reason.waiting_for_computer,等待
+guide.refused.not in this conversation,不是本对话的文件
+guide.refused.not offered,已不可选
+guide.refused.over max,超出上限
+guide.refused.too_many_rows,超出可填行数
 guide.source.book_setting,账套设置
 guide.source.company_rule,公司规则
 guide.source.document,本单

@@ -69,6 +69,11 @@ IV = [{"code": "IV001", "amount": "1000"}]
 CASH = [{"code": "cash", "amount": "1000"}]
 
 
+
+def _codes(found):
+    """拒收结果里的码（`run._refusal`：{key: {code, text}}）。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -168,11 +173,11 @@ class AnswerTests(Base):
     def test_a_step_not_asked_now_or_a_value_not_offered_is_refused_and_nothing_is_saved(self):
         name = run.start("S1", "collection")["run"]
         early = run.answer(name, {"invoices": IV})
-        self.assertEqual((early["outcome"], early["refused"]), ("refused", {"invoices": "not asked now"}))
+        self.assertEqual((early["outcome"], _codes(early)), ("refused", {"invoices": "not asked now"}))
         gone = run.answer(name, {"customer": "C999"})
-        self.assertEqual(gone["refused"], {"customer": "not offered"})
+        self.assertEqual(_codes(gone), {"customer": "not offered"})
         shape = run.answer(name, {"customer": ["C001"]})
-        self.assertEqual(shape["refused"], {"customer": "one option code"})
+        self.assertEqual(_codes(shape), {"customer": "one option code"})
         self.assertEqual(self.docs[name].answers, "{}")
         self.assertEqual(self.docs[name].version, 1)
 
@@ -369,7 +374,7 @@ class WritingGuideTests(Base):
         name = run.start("S1", "collection")["run"]
         run.answer(name, {"customer": "C001"})
         over = run.answer(name, {"invoices": [{"code": "IV001", "amount": "1000.01"}]})
-        self.assertEqual(over["refused"], {"invoices": "over max"})
+        self.assertEqual(_codes(over), {"invoices": "over max"})
         self.assertNotIn("invoices", json.loads(self.docs[name].answers))
 
     def test_a_step_check_refuses_with_its_reason_and_keeps_nothing(self):
@@ -377,7 +382,7 @@ class WritingGuideTests(Base):
         run.answer(name, {"customer": "C001"})
         run.answer(name, {"invoices": [{"code": "IV001", "amount": "600"}]})
         short = run.answer(name, {"method": [{"code": "cash", "amount": "500"}]})
-        self.assertEqual(short["refused"], {"method": "collection.amount_mismatch"})
+        self.assertEqual(_codes(short), {"method": "collection.amount_mismatch"})
         self.assertEqual(self.made, [])
 
     def test_the_action_runs_once_when_the_answer_is_taken_and_again_only_when_it_changes(self):
@@ -392,7 +397,7 @@ class WritingGuideTests(Base):
         run._commit_files = lambda session_id, by_step: committed.extend((session_id, ids) for ids in by_step.values()) or next((k for k, ids in by_step.items() if any(not i.startswith("upl_") for i in ids)), "")
         name, found = self.walk([{"code": "transfer:T1", "amount": "600"}])
         refused = run.answer(name, {"voucher": ["upl_1", "other_9"]})
-        self.assertEqual(refused["refused"], {"voucher": "not in this conversation"})
+        self.assertEqual(_codes(refused), {"voucher": "not in this conversation"})
         self.assertEqual(run.answer(name, {"voucher": ["upl_1"]})["status"], "reviewing")
         self.assertEqual(committed[-1], ("S1", ["upl_1"]))
 
@@ -541,7 +546,7 @@ class CapabilityTests(Base):
                               ({"date": "C2"}, "incomplete"),
                               ({"date": "C2", "vat_included": "no", "other": "x"}, "not offered"),
                               ({"date": ["C2"], "vat_included": "no"}, "one option code")):
-            self.assertEqual(run.answer(name, {"columns": given})["refused"], {"columns": reason}, given)
+            self.assertEqual(_codes(run.answer(name, {"columns": given})), {"columns": reason}, given)
         found = run.answer(name, {"columns": {"date": "C2", "vat_included": "no"}})   # 可不答的 note 不答也收
         self.assertEqual(found["status"], run.REVIEWING)
 
@@ -570,7 +575,7 @@ class CapabilityTests(Base):
         name, done = self.confirmed()
         self.assertEqual([sub["key"] for sub in done["result"]["questions"]], ["gl_account"])
         refused = run.follow(name, {"gl_account": "9999"}, done["version"])
-        self.assertEqual((refused["outcome"], refused["refused"]), (run.REFUSED, {"questions": "not offered"}))
+        self.assertEqual((refused["outcome"], _codes(refused)), (run.REFUSED, {"questions": "not offered"}))
         stale = run.follow(name, {"gl_account": "1100"}, done["version"] - 1)
         self.assertEqual(stale["outcome"], run.CHANGED)
         after = run.follow(name, {"gl_account": "1100"}, done["version"])
@@ -605,7 +610,12 @@ class MaxRowsTests(Base):
     def test_two_paying_rows_are_refused_and_a_free_row_does_not_count(self):
         name, _found = self.to_methods()
         refused = run.answer(name, {"method": [{"code": "cash", "amount": "500"}, {"code": "transfer", "amount": "500"}]})
-        self.assertEqual(refused["refused"], {"method": run.TOO_MANY_ROWS})
+        self.assertEqual(_codes(refused), {"method": run.TOO_MANY_ROWS})
+        original = run._
+        run._ = lambda text: {"guide.refused.too_many_rows": "Too many rows"}.get(text, text)
+        self.addCleanup(setattr, run, "_", original)
+        again = run.answer(name, {"method": [{"code": "cash", "amount": "500"}, {"code": "transfer", "amount": "500"}]})
+        self.assertEqual(again["refused"]["method"], {"code": run.TOO_MANY_ROWS, "text": "Too many rows"})  # 一句事实，按本次语言
         ok = run.answer(name, {"method": [{"code": "cash", "amount": "900"}, {"code": "discount", "amount": "100"}]})
         self.assertNotIn("refused", ok)
 

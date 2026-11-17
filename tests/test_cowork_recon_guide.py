@@ -130,6 +130,11 @@ _module("pearnly_cowork.readback.service", latest=_latest, request=_request,
         file=lambda name, kind: (f"{kind}.xlsx", f"{name}:{kind}".encode()))
 
 
+
+def _codes(found):
+    """拒收结果里的码（`run._refusal`：{key: {code, text}}）。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
 class Access:
     def __init__(self, kind):
         self.kind = kind
@@ -323,13 +328,13 @@ class Files(Base):
         run.answer(name, {"kind": "bank"})
         run.answer(name, {"source": "bank:upload"})
         found = run.answer(name, {"statement": ["F9"]})
-        self.assertEqual(found["refused"], {"statement": "attachment_not_in_conversation"})
+        self.assertEqual(_codes(found), {"statement": "attachment_not_in_conversation"})
 
     def test_the_income_ledger_takes_one_file_and_the_bank_ledger_several(self):
         name = run.start(SESSION, "recon")["run"]
         run.answer(name, {"kind": "income"})
         run.answer(name, {"source": "income:upload"})
-        self.assertEqual(run.answer(name, {"ledger": ["F1", "F2"]})["refused"], {"ledger": "reconciliation.files_required"})
+        self.assertEqual(_codes(run.answer(name, {"ledger": ["F1", "F2"]})), {"ledger": "reconciliation.files_required"})
         _name, found = self.bank_upload()
         self.assertTrue(found["card"]["ready"])
 
@@ -387,7 +392,7 @@ class Follow(Base):
     def test_an_answer_not_among_the_options_is_not_taken(self):
         name, found = self.bank_done()
         refused = run.follow(name, {"q1": "9999", "q2": "yes"}, found["version"])
-        self.assertEqual(refused["refused"], {"questions": "not offered"})
+        self.assertEqual(_codes(refused), {"questions": "not offered"})
         self.assertEqual(STATE["answered"], [])
 
 

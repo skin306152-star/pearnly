@@ -517,6 +517,7 @@ No connection to test,テストする接続が指定されていません
 No cost posting,原価振替なし
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No file was received.,ファイルを受信していません。
+No longer available,選択できなくなりました
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
 No provisioning target is available; configure one under “Provisioning Target” first,利用可能な開通ターゲットがありません。「開通ターゲット」で先に設定してください
 No purchase orders,仕入伝票がありません
@@ -528,6 +529,7 @@ No.,番号
 None deleted: the {0} selected records are being pushed.,削除していません: 選んだ {0} 件は送信中です。
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",削除していません: 選んだ {0} 件はすべて送信済みです。送信済みの記録は、どの請求書を送ったか追えるよう残します
 Not Permitted,権限がありません
+Not a file in this conversation,この会話のファイルではありません
 Not allowed,不許可
 Not authorized,未承認
 Not connected,未接続
@@ -571,6 +573,7 @@ Order Discount,伝票全体の値引
 Original document,原本
 Output Tokens,出力トークン
 Outstanding,未払い
+Over the limit,上限を超えています
 Overage: {0}/page,超過料金：{0}/ページ
 Overage: {0}/page · Expires: {1},超過料金：{0}/ページ · 有効期限：{1}
 Owner Account,所属アカウント
@@ -902,6 +905,7 @@ To confirm,確認待ち
 To verify,要確認
 Today,今日
 Token Last 4,キー末尾 4 桁
+Too many rows,行数が上限を超えています
 Tool,ツール
 Tool Input,ツール入力
 Tool Use ID,ツール呼び出しID
@@ -1186,6 +1190,10 @@ guide.reason.held,選択待ち
 guide.reason.last_write_result_unknown,結果不明
 guide.reason.undecided_items,選択待ち
 guide.reason.waiting_for_computer,待機中
+guide.refused.not in this conversation,この会話のファイルではありません
+guide.refused.not offered,選択できなくなりました
+guide.refused.over max,上限を超えています
+guide.refused.too_many_rows,行数が上限を超えています
 guide.source.book_setting,帳簿の設定
 guide.source.company_rule,会社ルール
 guide.source.document,この伝票

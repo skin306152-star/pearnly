@@ -517,6 +517,7 @@ No connection to test,ไม่ได้ระบุการเชื่อม�
 No cost posting,ไม่ลงต้นทุนขาย
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
 No file was received.,ไม่ได้รับไฟล์
+No longer available,ไม่มีให้เลือกแล้ว
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
 No provisioning target is available; configure one under “Provisioning Target” first,"ไม่มีเป้าหมายการเปิดใช้ที่ใช้ได้ กรุณาตั้งค่าที่ ""เป้าหมายการเปิดใช้"" ก่อน"
 No purchase orders,ไม่มีเอกสารซื้อ
@@ -528,6 +529,7 @@ No.,เลขที่
 None deleted: the {0} selected records are being pushed.,ไม่ได้ลบรายการใด: {0} รายการที่เลือกกำลังส่ง
 "None deleted: the {0} selected records have been pushed, and pushed records are kept so each push can be traced to its invoice",ไม่ได้ลบรายการใด: {0} รายการที่เลือกส่งแล้วทั้งหมด
 Not Permitted,ไม่ได้รับอนุญาต
+Not a file in this conversation,ไม่ใช่ไฟล์ในบทสนทนานี้
 Not allowed,ไม่อนุญาต
 Not authorized,ยังไม่ได้อนุญาต
 Not connected,ยังไม่เชื่อมต่อ
@@ -571,6 +573,7 @@ Order Discount,ส่วนลดทั้งใบ
 Original document,ต้นฉบับ
 Output Tokens,โทเค็นขาออก
 Outstanding,ค้างชำระ
+Over the limit,เกินจำนวนที่กำหนด
 Overage: {0}/page,ราคาส่วนเกิน: {0}/หน้า
 Overage: {0}/page · Expires: {1},ราคาส่วนเกิน: {0}/หน้า · วันหมดอายุ: {1}
 Owner Account,บัญชีเจ้าของ
@@ -902,6 +905,7 @@ To confirm,รอยืนยัน
 To verify,รอตรวจทาน
 Today,วันนี้
 Token Last 4,4 ตัวท้ายของคีย์
+Too many rows,จำนวนแถวเกินกำหนด
 Tool,เครื่องมือ
 Tool Input,ข้อมูลที่ส่งให้เครื่องมือ
 Tool Use ID,รหัสการเรียกใช้เครื่องมือ
@@ -1186,6 +1190,10 @@ guide.reason.held,ต้องเลือก
 guide.reason.last_write_result_unknown,ไม่ทราบผล
 guide.reason.undecided_items,ต้องเลือก
 guide.reason.waiting_for_computer,รอคิว
+guide.refused.not in this conversation,ไม่ใช่ไฟล์ในบทสนทนานี้
+guide.refused.not offered,ไม่มีให้เลือกแล้ว
+guide.refused.over max,เกินจำนวนที่กำหนด
+guide.refused.too_many_rows,จำนวนแถวเกินกำหนด
 guide.source.book_setting,การตั้งค่าชุดบัญชี
 guide.source.company_rule,กฎของบริษัท
 guide.source.document,เอกสารนี้

@@ -146,6 +146,11 @@ SESSION = "S1"
 NAME = "a" * 32
 
 
+
+def _codes(found):
+    """拒收结果里的码（`run._refusal`：{key: {code, text}}）。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -250,7 +255,7 @@ class Book(Base):
         self.now["ledger"] = ""
         name = run.start(SESSION, "readback")["run"]
         found = run.answer(name, {"book": MRERP_ID})
-        self.assertEqual((found["outcome"], found["refused"]), (run.REFUSED, {"book": "not offered"}))
+        self.assertEqual((found["outcome"], _codes(found)), (run.REFUSED, {"book": "not offered"}))
         self.assertEqual(STATE["chosen"], [])
 
     def test_a_company_without_express_books_says_so_under_the_question(self):
@@ -265,7 +270,7 @@ class Month(Base):
         name = run.start(SESSION, "readback")["run"]
         found = run.answer(name, {"period": "10/2026"})
         self.assertEqual(found["outcome"], run.REFUSED)
-        self.assertIn("period", found["refused"])
+        self.assertIn("period", _codes(found))
 
     def test_answering_the_month_makes_the_guide_ready_without_reading_anything(self):
         _name, found = self.answered()
