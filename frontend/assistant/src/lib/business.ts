@@ -99,6 +99,16 @@ export function useBusinessCarry(sessionId: string | null) {
 /** 本页刚开的引导运行（实验栈与推送断开时，事件要等下一次补拉才到）：开了就先画，事件到了按版本取更新的那一份。 */
 export type StartedRun = { run: string; business: string; status: string; version: number; startedAt: string };
 export const useStartedRuns = create<{ bySession: Record<string, StartedRun[]> }>(() => ({ bySession: {} }));
+/** 卡片取到这次运行更新的一版（作答、写入后）：本页记的那份跟上状态与版本（开始时刻不变，卡在对话里的位置不动）；本页没记的不加。 */
+export function noteRunView(sessionId: string, view: { run: string; status: string; version: number }) {
+  useStartedRuns.setState((s) => {
+    const runs = s.bySession[sessionId];
+    const was = runs?.find((r) => r.run === view.run);
+    if (!runs || !was || was.version >= view.version) return s;
+    return { bySession: { ...s.bySession, [sessionId]: runs.map((r) => (r.run === view.run ? { ...r, status: view.status, version: view.version } : r)) } };
+  });
+}
+
 export function noteStartedRun(sessionId: string, run: StartedRun) {
   useStartedRuns.setState((s) => ({ bySession: { ...s.bySession, [sessionId]: [...(s.bySession[sessionId] ?? []).filter((r) => r.run !== run.run), run] } }));
 }

@@ -317,7 +317,9 @@ class OfficialValuesTests(unittest.TestCase):
         })
         # 触屏（手机变体，或粗指针且不是桌面窗口：data-cc-touch，标准化记录 B1 合成一份）的菜单项、搜索框 44；触屏平板（网页布局，
         # 第 11 轮 D26）的对话顶栏高也在这个不分层的变量块里（写在 components 层敌不过 :root，合并审查）
-        self.assertIn(':root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }\n'
+        # 引导卡金额框触屏加宽到放得下九位数带分隔与分（A2 11-17，同一块不分层的变量）
+        self.assertIn(':root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); '
+                      '--cc-guide-amount-w: var(--cc-guide-amount-w-touch); }\n'
                       ':root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }', self.css)
         self.assertNotIn("@media (pointer: coarse) {\n  :root", self.css)
         # 桌面窗口与网页同一个外壳：侧栏整张贴边、靠右边 1px 分隔线隔开主栏，不浮成卡片（用户 10-27：照 Claude 整张铺开、区域之间划线）

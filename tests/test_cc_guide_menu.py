@@ -91,7 +91,7 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn("<RecordQuickReply />\n            <BusinessMenu />", thread)
         self.assertIn('data-slot="cc-business-menu"', body)
         self.assertNotIn('cc-quick-replies', body)  # 业务菜单不是快捷回复：流程按 cc-quick-replies 找「写入」那颗
-        self.assertIn("if (record || running || !list.length) return null;", body)
+        self.assertIn("if (record || running || guiding || !list.length) return null;", body)
         self.assertIn("const list = menuOf(offered, mode);", body)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
         # 选中的实底带 ×，点了取消；没选的是描边按钮
         self.assertIn('variant="secondary"', body)

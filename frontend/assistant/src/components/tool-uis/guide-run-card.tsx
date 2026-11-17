@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/questionnaire";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ask, guide, steps, t } from "@/i18n";
-import { businessName } from "@/lib/business";
+import { businessName, noteRunView } from "@/lib/business";
 import { reportCaught } from "@/lib/caught";
 import { shownError } from "@/lib/frappe";
 import type { AmountRow } from "@/lib/guide-inputs";
@@ -341,6 +341,8 @@ export const GuideRunCard: FC<{ run: GuideRun; sessionId: string | null }> = ({ 
     return () => window.clearTimeout(timer);
   }, [view, load]);
   useEffect(() => { tries.current = 0; }, [view?.version, view?.status]);
+  // 本页记的运行状态跟上（菜单在引导开着时不出，推送断开时也按卡上这一版判）
+  useEffect(() => { if (view && sessionId) noteRunView(sessionId, view); }, [view, sessionId]);
   const act: Act = useMemo(() => (call) => {
     setBusy(true);
     setFailure("");

@@ -28,6 +28,7 @@ import {
   QueueItemPrimitive,
   ThreadPrimitive,
   type ToolCallMessagePartComponent,
+  useAui,
   useAuiState,
   useThreadRuntime,
 } from "@assistant-ui/react";
@@ -62,6 +63,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
 import { guidePlacement, startGuide } from "@/lib/guide-run";
+import { ensureSessionOf, type SessionItem } from "@/lib/managed-agents/ensure-session";
+import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { withReport } from "@/lib/caught";
 import type { GuideRun } from "@/lib/managed-agents/reducer";
 import { GuideRunCard } from "@/components/tool-uis/guide-run-card";
@@ -124,7 +127,9 @@ const isNewChatView = (s: AssistantState) =>
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const pending = usePendingSend();
-  const isEmpty = useAuiState(isNewChatView) && !pending;
+  // 点菜单开的引导卡（还没说过话）也是这段对话的内容：不再出欢迎语、输入框落到底部
+  const guides = useGuideRunList().length > 0;
+  const isEmpty = useAuiState(isNewChatView) && !pending && !guides;
   const isLoading =
     useAuiState((s) => s.thread.messages.length === 0 && s.thread.isLoading && !s.threads.isLoading) && !pending;
 
@@ -235,17 +240,23 @@ const PendingSendBubble: FC = () => {
 /** 选了业务之后 CC 这一侧的一句「请上传采购票据 / 销售票据」「请告诉我客户和收款金额」（用户 11-14：要文件是 CC 在对话里说，
  *  不是只换输入框的提示字）。页面按词条画，不进模型上下文（模型从系统说明知道，contracts.business_note）；去重见 lib/business promptOf：
  *  选的时刻之后交过文件 / 说过话、输入框挂着附件、正在发带文件的一句时都不出；取消就收起、换业务换成那一句，同一段只一条。 */
-/** 点菜单上的业务：按表单走的（收款）在有会话时开一次引导运行，卡出在对话里；其余照第 1 期（记本对话业务、CC 说一句）。 */
-function pickBusiness(sessionId: string | null, business: string, forms: readonly string[]) {
-  if (!sessionId || !forms.includes(business)) {
+/** 点菜单上的业务：按表单走的（收款）开一次引导运行，卡出在对话里——新建页还没有会话时先建（同发第一句、加附件：ensureSessionOf，
+ *  带上下巴选的公司 / 月份 / 账套），再开；其余照第 1 期（记本对话业务、CC 说一句）。 */
+async function pickBusiness(sessionId: string | null, business: string, forms: readonly string[], item: SessionItem) {
+  if (!forms.includes(business)) {
     chooseBusiness(sessionId, business);
     return;
   }
-  void startGuide(sessionId, business)
-    .then((view) => noteStartedRun(sessionId, { run: view.run, business: view.business, status: view.status, version: view.version,
+  const id = sessionId ?? (await ensureSessionOf(item, getSessionController).catch(withReport(() => null, "guide-session")));
+  if (!id) return;
+  return startGuide(id, business)
+    .then((view) => noteStartedRun(id, { run: view.run, business: view.business, status: view.status, version: view.version,
       startedAt: new Date().toISOString() }))
     .catch(withReport(() => undefined, "guide-start"));
 }
+
+/** 引导运行还开着（卡上等人答 / 复核）的状态。 */
+const OPEN_GUIDE: ReadonlySet<string> = new Set(["asking", "reviewing"]);
 
 /** 这段对话的引导运行（按开始先后）：事件里的与本页刚开的合在一起，同一次取版本大的那份。 */
 function useGuideRunList(): GuideRun[] {
@@ -462,12 +473,15 @@ const BusinessMenu: FC = () => {
   const mode = useModePlace((s) => s.mode);
   const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
   const running = useAuiState((s) => s.thread.isRunning);
+  const aui = useAui();
   const record = useRecordOffered();
+  // 本对话有一张引导卡还在问 / 复核：菜单不出（再点会另开一张；不做了在对话里说，主会话 11-17）
+  const guiding = useGuideRunList().some((run) => OPEN_GUIDE.has(run.status));
   const current = useCurrentBusiness(sessionId) as Business | "";
   useBusinessCarry(sessionId);
   useEffect(() => void loadOffered(), []);
   const list = menuOf(offered, mode);
-  if (record || running || !list.length) return null;
+  if (record || running || guiding || !list.length) return null;
   if (current && list.includes(current)) {
     return (
       <div data-slot="cc-business-menu" data-business={current} className="flex flex-wrap gap-(--cc-space-8)">
@@ -483,7 +497,7 @@ const BusinessMenu: FC = () => {
     <div data-slot="cc-business-menu" data-business="" className="flex flex-wrap gap-(--cc-space-8)">
       {list.map((business) => {
         return (
-          <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => pickBusiness(sessionId, business, offered?.forms ?? [])}>
+          <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => void pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem())}>
             <BusinessIcon business={business} icon={offered?.icons?.[business]} />
             {businessName(business)}
           </Button>

@@ -24,10 +24,16 @@ class GuideRunCardTests(unittest.TestCase):
         thread = read("components/assistant-ui/thread.tsx")
         body = thread[thread.index("function pickBusiness"):]
         body = body[:body.index("\n}\n")]
-        self.assertIn("if (!sessionId || !forms.includes(business)) {\n    chooseBusiness(sessionId, business);", body)
-        self.assertIn("startGuide(sessionId, business)", body)
-        self.assertIn("noteStartedRun(sessionId", body)
-        self.assertIn("pickBusiness(sessionId, business, offered?.forms ?? [])", thread)
+        self.assertIn("if (!forms.includes(business)) {\n    chooseBusiness(sessionId, business);", body)
+        # 新建页（还没有会话）点按表单的业务：先建会话（同发第一句，带下巴选的公司 / 月份 / 账套），再开引导（实验栈 11-17：以前只记业务、卡不出）
+        self.assertIn("const id = sessionId ?? (await ensureSessionOf(item, getSessionController)", body)
+        self.assertIn("startGuide(id, business)", body)
+        self.assertIn("noteStartedRun(id", body)
+        self.assertIn("pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem())", thread)
+        # 点菜单开的卡也是对话内容：不出欢迎语；卡还开着时菜单不出（不再开第二张）；卡取到的新一版跟进本页记的状态
+        self.assertIn("const isEmpty = useAuiState(isNewChatView) && !pending && !guides;", thread)
+        self.assertIn('const OPEN_GUIDE: ReadonlySet<string> = new Set(["asking", "reviewing"]);', thread)
+        self.assertIn("noteRunView(sessionId, view)", read("components/tool-uis/guide-run-card.tsx"))
         self.assertIn('forms: out?.forms ?? []', read("lib/business.ts"))
 
     def test_the_conversation_draws_each_run_once_with_the_newest_version_in_start_order(self):

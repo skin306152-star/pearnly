@@ -37,15 +37,20 @@ HELP = (
 
 
 def steps(params, camera_code=None):
+    # 每步自己的代码包进一个块：与公用片段 JS 里同名的 card / q / row… 各在各的作用域（不包时「点收款」起就报重复声明，整条跑不通）
+    return [{**step, "js": JS + "{" + step["js"][len(JS):] + "}"} if step["js"].startswith(JS) else step for step in _steps(params)]
+
+
+def _steps(params):
     code = json.dumps(params["customer"])
     first = json.dumps(params["invoices"][0])
     # 一轮：照此刻卡上的题逐个答（客户按码搜、发票勾第一张收 600、方式现金 600、其余点第一个），点「提交」，等卡换版本
     answer = (HELP + "const q=(k)=>card()?.querySelector(`[data-slot=\"cc-guide-question\"][data-key=\"${k}\"]`); "
-              "const radio=async(k,want)=>{const box=q(k); const items=[...box.querySelectorAll('label')]; "
-              "const hit=want?items.find(l=>l.innerText.includes(want)):items[0]; hit?.querySelector('button')?.click(); await sleep(200); return !!hit;}; "
+              "const radio=async(k,want)=>{const box=q(k); const items=[...box.querySelectorAll('[data-slot=\"cc-guide-option\"]')]; "
+              "const hit=want?items.find(l=>l.innerText.includes(want)):items[0]; (hit?.querySelector('input')||hit)?.click(); await sleep(200); return !!hit;}; "
               "const done=[]; for(const k of keys()){ const box=q(k); "
               f"if(k==='customer'){{ setVal(box.querySelector('input'), {code}); "
-              f"  await until(()=>[...q(k).querySelectorAll('label')].some(l=>l.innerText.includes({code})), 40); done.push([k, await radio(k,{code})]); }}"
+              f"  await until(()=>[...q(k).querySelectorAll('[data-slot=\"cc-guide-option\"]')].some(l=>l.innerText.includes({code})), 40); done.push([k, await radio(k,{code})]); }}"
               f" else if(k==='invoices'){{ await until(()=>q(k).querySelectorAll('[role=\"checkbox\"]').length, 40); "
               f"  const rows=[...q(k).querySelectorAll('[data-slot=\"item\"]')]; const row=rows.find(r=>r.innerText.includes({first}))||rows[0]; "
               "  row?.querySelector('[role=\"checkbox\"]')?.click(); await sleep(300); const inp=row?.querySelector('input.cc-guide-amount'); if(inp) setVal(inp,'600'); "
@@ -54,7 +59,7 @@ def steps(params, camera_code=None):
               "  const inp=q(k).querySelector('input.cc-guide-amount'); setVal(inp,'600'); await sleep(200); done.push([k, true]); }"
               " else if(k==='day'){ const inp=q(k).querySelector('input'); if(!inp.value) setVal(inp, new Date().toISOString().slice(0,10)); done.push([k,true]); }"
               " else { done.push([k, await radio(k)]); } } "
-              "const before=card()?.innerText||''; const submit=[...card().querySelectorAll('button')].find(b=>b.innerText.trim()==='提交'); "
+              "const before=card()?.innerText||''; const submit=[...card().querySelectorAll('button')].find(b=>b.innerText.split('\\n')[0].trim()==='提交'); "
               "const enabled=!!submit&&!submit.disabled; submit?.click(); "
               "await until(()=>card()&&card().innerText!==before, 60); await sleep(800); "
               "return {done, enabled, status: card()?.dataset.status||'', next: keys()};")
@@ -73,7 +78,7 @@ def steps(params, camera_code=None):
          "await until(()=>card()?.dataset.status==='reviewing', 60); const r=card()?.querySelector('[data-slot=\"cc-guide-review\"]'); "
          "return {status: card()?.dataset.status||'', text: r?.innerText||'', total: r?.querySelector('[data-slot=\"cc-guide-total\"]')?.innerText||''};"},
         {"name": "写入", "shot": True, "file": "2-result", "js": JS + HELP +
-         "const b=[...(card()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()==='写入'); b?.click(); "
+         "const b=[...(card()?.querySelectorAll('button')||[])].find(x=>x.innerText.split('\\n')[0].trim()==='写入'); b?.click(); "
          "await until(()=>card()?.querySelector('[data-slot=\"cc-guide-result\"]'), 60); "
          "const res=card()?.querySelector('[data-slot=\"cc-guide-result\"]'); return {clicked: !!b, status: card()?.dataset.status||'', "
          "result: res?.dataset.result||'', text: res?.innerText||''};"},
