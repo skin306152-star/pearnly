@@ -30,6 +30,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from "node:os";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEVTOOLS_PORT_FLAG, devtoolsVersion } from "./smoke/devtools.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const argv = process.argv.slice(2);
@@ -106,13 +107,12 @@ const send = (method, params = {}, sessionId) => {
 };
 
 async function startChrome() {
-  const port = 9300 + Math.floor(Math.random() * 600);
-  chrome = spawn(chromePath, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${join(work, "profile")}`,
+  // 调试端口由系统分配、从本次新建的 profile 里读（scripts/smoke/devtools.mjs，同各冒烟 / 流程驱动），连上的一定是自己起的 Chrome
+  const profile = join(work, "profile");
+  mkdirSync(profile, { recursive: true });
+  chrome = spawn(chromePath, ["--headless=new", DEVTOOLS_PORT_FLAG, `--user-data-dir=${profile}`,
     "--no-first-run", "--no-default-browser-check", "--hide-scrollbars", "about:blank"], { stdio: "ignore" });
-  let info;
-  for (let i = 0; i < 150 && !info; i++) {
-    try { info = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json(); } catch { await sleep(200); }
-  }
+  const info = await devtoolsVersion(profile, chrome);
   if (!info) throw new Error(`Chrome 没起来：${chromePath}`);
   ws = new WebSocket(info.webSocketDebuggerUrl);
   await new Promise((ok) => ws.addEventListener("open", ok));
