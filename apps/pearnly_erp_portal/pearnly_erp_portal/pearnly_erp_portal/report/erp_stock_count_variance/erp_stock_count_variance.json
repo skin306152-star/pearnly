@@ -12,6 +12,7 @@
  "roles": [
   {"role": "ERP Stock"},
   {"role": "ERP Menu stock-count"},
+  {"role": "ERP Admin"},
   {"role": "System Manager"}
  ]
 }
