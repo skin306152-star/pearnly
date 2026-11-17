@@ -613,6 +613,49 @@ class StopEndTests(Base):
         self.assertEqual(json.loads(run.tool_end({})), {"status": "no_open_guide"})
 
 
+class RecommendedFirstTests(Base):
+    """推荐项服务端排第一（主会话 11-16）：第一页第一个是它；不在第一页从产品按码取回插最前；后面的页不再出现。"""
+
+    def setUp(self):
+        super().setUp()
+        self.codes = [f"C{n:03d}" for n in range(1, 46)]   # 45 个客户，一页 20 个
+        self.recommended = "C044"                             # 在第 3 页
+        guide = {**GUIDE, "steps": [{**GUIDE["steps"][0], "default": "app.customer_default"}, *GUIDE["steps"][1:]]}
+        ATTRS["app.GUIDES"] = [guide]
+        ATTRS["app.customer_default"] = lambda ctx: {"value": self.recommended}
+        ATTRS["app.customers"] = self.paged
+
+    def paged(self, ctx, txt="", start=0, page_length=20, codes=None):
+        found = [c for c in self.codes if (codes is None or c in codes) and txt in c]
+        return {"options": [{"code": c, "name": c} for c in found[start:start + page_length]],
+                "more": start + page_length < len(found)}
+
+    def test_the_recommended_option_comes_first_on_the_first_page_even_when_it_is_further_down(self):
+        name = run.start("S1", "collection")["run"]
+        question = run.view(self.docs[name])["card"]["questions"][0]
+        self.assertEqual(question["preselected"], "C044")
+        self.assertNotIn("value", question)  # 推荐只作标记，不当已答
+        self.assertEqual([o["code"] for o in question["options"]][:3], ["C044", "C001", "C002"])
+
+    def test_paging_and_search_do_not_repeat_it(self):
+        frappe.db.get_value = lambda doctype, filters, field, **kw: filters["name"] if self.locked(filters["name"]) else None
+        frappe.get_doc = lambda doctype, found: self.docs[found]
+        name = run.start("S1", "collection")["run"]
+        first = [o["code"] for o in run.search(name, "customer", "", 0)["options"]]
+        third = [o["code"] for o in run.search(name, "customer", "", 40)["options"]]
+        self.assertEqual(first[0], "C044")
+        self.assertNotIn("C044", third)
+        self.assertEqual([o["code"] for o in run.search(name, "customer", "C04", 0)["options"]][0], "C044")
+        self.assertEqual([o["code"] for o in run.search(name, "customer", "C01", 0)["options"]][0], "C010")  # 搜不到它就照原序
+
+    def test_a_recommended_option_on_the_first_page_moves_to_the_front(self):
+        self.recommended = "C005"
+        name = run.start("S1", "collection")["run"]
+        codes = [o["code"] for o in run.view(self.docs[name])["card"]["questions"][0]["options"]]
+        self.assertEqual(codes[:2], ["C005", "C001"])
+        self.assertEqual(len(codes), 20)
+
+
 class ConsentCardTests(Base):
     """确定卡的问句与下面那行事实（同线上允许卡；主会话 11-16 批）。"""
 

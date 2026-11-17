@@ -278,9 +278,11 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         facts.extend(str(item) for item in found.get("facts") or () if str(item or "").strip())
         if found.get("wait"):
             out["wait"] = True
+    hint = (decided.get(step["key"]) or {}).get("value")
     if step["input"] in d.OPTION_INPUTS:
         found = _options(step, ctx)
-        out.update(options=found["options"], more=found["more"], search=bool(step.get("search")))
+        rows = _recommended_first(step, ctx, found["options"], hint if out["tier"] == "how" else None)
+        out.update(options=rows, more=found["more"], search=bool(step.get("search")))
         facts.extend(found.get("facts") or ())
         if found.get("wait"):
             out["wait"] = True
@@ -288,13 +290,27 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         facts.extend(str(item) for item in _call(step["facts"], ctx) or () if str(item or "").strip())
     if facts:
         out["facts"] = facts
-    # ``always`` 的步骤后台给了值：只作推荐预选，点了才算
-    hint = (decided.get(step["key"]) or {}).get("value")
+    # ``always`` 的步骤后台给了值：只作推荐（页面标「推荐」、排第一，不当初始值；钱的事不做默认勾选），点了才算
     if hint not in (None, "", [], {}) and out["tier"] == "how":
         out["preselected"] = hint
     if answers.get(step["key"]) not in (None, "", [], {}):
         out["value"] = answers[step["key"]]
     return out
+
+
+def _recommended_first(step: Mapping[str, Any], ctx: Dict[str, Any], rows: List[Dict[str, Any]], hint: Any,
+                       start: int = 0, txt: str = "") -> List[Dict[str, Any]]:
+    """推荐项（后台给的单选值）排在第一页第一个；不在这一页的从产品按码取回来插到最前（搜索时只在结果里有它才挪）；
+    翻到后面的页不再出现它（第一页已经有了）。不是单选码的推荐值（多选、金额）照产品的顺序。"""
+    if not isinstance(hint, str) or not hint:
+        return rows
+    others = [row for row in rows if str(row.get("code")) != hint]
+    if start:
+        return others
+    found = next((row for row in rows if str(row.get("code")) == hint), None)
+    if found is None and not txt:
+        found = next(iter(_options(step, ctx, codes=[hint])["options"]), None)
+    return [found, *others] if found is not None else rows
 
 
 def view(doc) -> Dict[str, Any]:
@@ -765,7 +781,11 @@ def search(name: str, key: str, txt: str = "", start: int = 0, page_length: int 
     step = next((s for s in guide["steps"] if s["key"] == str(key or "") and s["input"] in d.OPTION_INPUTS), None)
     if step is None or doc.status not in OPEN:
         frappe.throw(_("Invalid request"))
-    return _options(step, _ctx(doc, _answers(doc)), txt, start, min(int(page_length or PAGE), 50))
+    answers = _answers(doc)
+    ctx = _ctx(doc, answers)
+    found = _options(step, ctx, txt, start, min(int(page_length or PAGE), 50))
+    hint = (_decided(guide, doc, answers).get(step["key"]) or {}).get("value") if (step.get("tier") or "how") == "how" else None
+    return {**found, "options": _recommended_first(step, ctx, found["options"], hint, int(start or 0), str(txt or ""))}
 
 
 # ── 事件 ─────────────────────────────────────────────────────────────────────────────────────────────────────
