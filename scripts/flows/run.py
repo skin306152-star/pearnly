@@ -472,7 +472,9 @@ print("{{}}")
     def sweep(self, site, start_print):
         """这一格新建的行和文件删掉（`SWEEP_CODE`），回 {swept: {表: 行数}, kept: {行: 原因}, forced: {行: 产品拒删的原因}, rebuilt, files}。"""
         files = sorted(key for key in start_print if key.startswith("file: "))
-        return self.python(site, SWEEP_CODE.format(since=start_print["_now"], before_files=files, extra=FOOTPRINT_EXTRA,
+        counts = {key[6:]: n for key, n in start_print.items() if key.startswith("rows: ")}
+        return self.python(site, SWEEP_CODE.format(since=start_print["_now"], db_since=start_print.get("_db_now"), counts=counts,
+                                                   roles=start_print.get("_roles"), before_files=files, extra=FOOTPRINT_EXTRA,
                                                    skip=FOOTPRINT_SKIP_DIRS))
 
     def footprint(self, site):
@@ -510,6 +512,8 @@ for folder, dirs, files in os.walk(root):
         with open(path, "rb") as handle:
             out["file: " + os.path.relpath(path, root)] = hashlib.sha1(handle.read()).hexdigest()[:12]
 out["_now"] = str(frappe.utils.now_datetime())
+out["_db_now"] = str(frappe.db.sql("SELECT NOW(6)")[0][0])  # 产品有用 SQL NOW() 写 creation 的（数据库时区，与站点时区可能差几小时）
+out["_roles"] = sorted(p + "|" + r for p, r in frappe.db.sql("SELECT parent, role FROM `tabHas Role` WHERE parenttype='User'"))
 print(json.dumps(out))
 """
 
@@ -519,8 +523,8 @@ print(json.dumps(out))
 # 删掉的库存流水所在的「商品 + 仓库 + 仓位」原来就有结存的，用产品的 rebuild_balance 按剩下的流水重算。
 # private 下这格新出现的文件（守护的文件清单里跑前没有的）删掉；跑前就有、被改了的文件内容没法还原，照样列出。
 SWEEP_CODE = """
-import os, time
-since, before_files = {since!r}, set({before_files!r})
+import os, re, time, urllib.parse
+since, db_since, counts, roles, before_files = {since!r}, {db_since!r}, {counts!r}, {roles!r}, set({before_files!r})
 site = frappe.local.site
 # 先等这个站点排着、在跑的后台任务做完（最多 60 秒）：任务在收尾之后才建的行会漏到下一格（11-16 GitHub 全套：导出、AI 记账）
 from frappe.utils.background_jobs import get_queues
@@ -544,8 +548,16 @@ tables = sorted({{t for t in rows if not t.endswith(" Log")}} | set({extra!r}) -
 frappe.set_user("Administrator")
 made = []
 for t in tables:
-    made += [(r.creation, t, r.name) for r in frappe.get_all(t, filters={{"creation": [">=", since]}}, fields=["name", "creation"],
-                                                             limit_page_length=0)]
+    mine = frappe.get_all(t, filters={{"creation": [">=", since]}}, fields=["name", "creation"], limit_page_length=0)
+    grown = frappe.db.count(t) - counts.get(t, 0)
+    if db_since and db_since[:16] != since[:16] and grown > len(mine):
+        # 产品用 SQL NOW() 写的行，creation 是数据库时钟（11-16 GitHub：Cowork Recon View 缓存，库是 UTC、站点是曼谷时间）：
+        # 只补这张表比跑前多出来、站点时钟又没认到的那几行，按数据库时钟从新到旧取，不会多删原有的行
+        seen = {{r.name for r in mine}}
+        extra_rows = frappe.get_all(t, filters={{"creation": [">=", db_since]}}, fields=["name", "creation"], order_by="creation desc",
+                                    limit_page_length=grown - len(mine) + len(seen))
+        mine += [r for r in extra_rows if r.name not in seen][:grown - len(mine)]
+    made += [(r.creation, t, r.name) for r in mine]
 made.sort(key=lambda r: str(r[0]), reverse=True)
 stock = set()
 if frappe.db.exists("DocType", "ERP Stock Movement"):
@@ -570,52 +582,71 @@ swept, kept, forced = {{}}, {{}}, {{}}
 frappe.enqueue = inline
 try:
     pending, stalled = list(made), False
+    names = {{name for _, _, name in made}}
+    def linked_to_mine(error):
+        # 「… is linked with <DocType> <a href=".../<name>">」：链着它的是这一格自己建的行（两张单互相链着）才强删
+        found = re.findall(r'is linked with [^<]*<a href="[^"]*/([^/"]+)"', error)
+        return bool(found) and all(urllib.parse.unquote(n) in names for n in found)
+    def attempt_row(t, name, tiers):
+        # normal → skip on_trash → linked（只在被这一格自己的行链着时：force 跳过链接检查）/ raw（只在拒删与链接无关时）
+        error, link = None, None
+        for tier in tiers:
+            if tier == "linked" and not (link and linked_to_mine(link)):
+                continue
+            if tier == "raw" and link:
+                break  # 有行链着它：不绕过链接检查直接删表
+            try:
+                if tier == "raw":
+                    raw_delete(t, name)
+                else:
+                    frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=tier != "normal", delete_permanently=True,
+                                      force=tier == "linked")
+                frappe.db.commit()
+                swept[t] = swept.get(t, 0) + 1
+                if tier != "normal":
+                    forced[t + " " + name] = tier + ": " + str(error)[:200]  # 产品拒删、绕过才删掉的：照样列出，不悄悄吞掉
+                return None
+            except frappe.LinkExistsError as e:
+                frappe.db.rollback()
+                error = link = "linked: " + str(e)[:400]
+            except Exception as e:  # noqa: BLE001
+                frappe.db.rollback()
+                error = type(e).__name__ + ": " + str(e)[:160]
+                if tier == "linked":
+                    break
+        return error
     # 按新到旧删；前一轮因为被这一格别的行链着删不掉的，下一轮再试（附件 File 比单据新、单据又链着它）；
-    # 一轮什么都没删掉（或到第 6 轮）就做最后一轮，那一轮才用 raw
-    for attempt in range(6):
-        final = stalled or attempt == 5
+    # 一轮什么都没删掉（或到第 6 轮）做最后一轮：互相链着的强删、on_trash 以外拒删的 raw；最后一轮放出来的行（raw 删掉单据后它的附件）再补一轮
+    rounds = []
+    for attempt in range(8):
+        final = stalled or attempt >= 5
+        tiers = ("normal", "skip on_trash", "linked", "raw") if final and "final" not in rounds else ("normal", "skip on_trash")
+        rounds.append("final" if len(tiers) > 2 else "normal")
         progress, left = 0, []
         for row in pending:
             _, t, name = row
             if not frappe.db.exists(t, name):
+                kept.pop(t + " " + name, None)
                 continue  # 跟着父行一起删掉了
-            error = None
-            for tier in ("normal", "skip on_trash", "raw") if final else ("normal", "skip on_trash"):
-                try:
-                    if tier == "raw":
-                        raw_delete(t, name)
-                    else:
-                        frappe.delete_doc(t, name, ignore_permissions=True, ignore_on_trash=tier != "normal", delete_permanently=True)
-                    frappe.db.commit()
-                    swept[t] = swept.get(t, 0) + 1
-                    progress += 1
-                    if tier != "normal":
-                        forced[t + " " + name] = tier + ": " + str(error)  # 产品拒删、绕过才删掉的：照样列出，不悄悄吞掉
-                    error = None
-                    break
-                except frappe.LinkExistsError as e:
-                    frappe.db.rollback()
-                    error = "linked: " + str(e)[:160]
-                    if tier != "normal":
-                        break  # 跳过 on_trash 还被链着：真有别的行连着它，raw 也不删
-                except Exception as e:  # noqa: BLE001
-                    frappe.db.rollback()
-                    error = type(e).__name__ + ": " + str(e)[:160]
+            error = attempt_row(t, name, tiers)
             if error:
                 left.append(row)
-                kept[t + " " + name] = error
+                kept[t + " " + name] = error[:200]
             else:
                 kept.pop(t + " " + name, None)
+                progress += 1
         pending = left
-        if not pending or final:
+        if not pending or (rounds[-1] == "normal" and "final" in rounds and not progress):
             break
         stalled = not progress
-    # 这一格给原有用户加的岗位（Has Role 是 User 的子表，不在上面）：删掉，清这些人的缓存
-    for role in frappe.get_all("Has Role", filters={{"creation": [">=", since], "parenttype": "User"}}, fields=["name", "parent"]):
-        if frappe.db.exists("User", role.parent):
-            frappe.db.delete("Has Role", {{"name": role.name}})
-            frappe.clear_cache(user=role.parent)
-            swept["Has Role"] = swept.get("Has Role", 0) + 1
+    # 这一格给原有用户加的岗位（Has Role 是 User 的子表，不在上面；跟用户一起存，creation 不可靠）：比跑前的清单，多出来的删掉
+    if roles is not None:
+        before_roles = set(roles)
+        for role in frappe.get_all("Has Role", filters={{"parenttype": "User"}}, fields=["name", "parent", "role"], limit_page_length=0):
+            if role.parent + "|" + role.role not in before_roles and frappe.db.exists("User", role.parent):
+                frappe.db.delete("Has Role", {{"name": role.name}})
+                frappe.clear_cache(user=role.parent)
+                swept["Has Role"] = swept.get("Has Role", 0) + 1
     frappe.db.commit()
 finally:
     frappe.enqueue = enqueue

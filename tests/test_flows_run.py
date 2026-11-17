@@ -377,10 +377,11 @@ class RerunFailed(unittest.TestCase):
     def test_sweep_code_is_valid_python_and_keeps_its_rules(self):
         import ast
 
-        code = run.SWEEP_CODE.format(since="2026-11-16 10:00:00", before_files=["file: a"], extra=run.FOOTPRINT_EXTRA,
+        code = run.SWEEP_CODE.format(since="2026-11-16 10:00:00", db_since="2026-11-16 03:00:00", counts={"A": 1}, roles=["a|b"],
+                                     before_files=["file: a"], extra=run.FOOTPRINT_EXTRA,
                                      skip=run.FOOTPRINT_SKIP_DIRS)
         ast.parse(code)
-        for rule in ('reverse=True', 'frappe.LinkExistsError', 'ignore_on_trash=tier != "normal"', 'forced[t + " " + name]', 'raw_delete', 'delete_dynamic_links', 'set_active_company', 'Has Role', 'rebuild_balance', '"creation": [">=", since]'):
+        for rule in ('reverse=True', 'frappe.LinkExistsError', 'ignore_on_trash=tier != "normal"', 'forced[t + " " + name]', 'raw_delete', 'delete_dynamic_links', 'set_active_company', 'Has Role', 'linked_to_mine', 'force=tier == "linked"', 'db_since', 'rebuild_balance', '"creation": [">=", since]'):
             self.assertIn(rule, code)
         self.assertIn("_now", run.FOOTPRINT_CODE)
 
