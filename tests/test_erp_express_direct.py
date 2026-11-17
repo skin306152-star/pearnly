@@ -2566,6 +2566,7 @@ class OperatorPrecheck(PushModule):
                 mock.patch.object(api, "_options", lambda item, data: [{"code": "BK1", "name": "TEST"}]), \
                 mock.patch.object(choices, "remember", lambda company, kind, subject, *rest: remembered.add(subject) or
                                   calls.append(("remember", subject))), \
+                mock.patch.object(choices, "chosen", lambda company, kind, subject: "BK1" if subject in remembered else ""), \
                 mock.patch.object(self.push, "release_operator", lambda doctype, name: None), \
                 mock.patch.object(self.push, "send", lambda doctype, name, operator=None: calls.append(("send", name))
                                   or {"status": "sent"}), \

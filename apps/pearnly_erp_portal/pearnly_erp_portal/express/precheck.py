@@ -593,9 +593,11 @@ def save(company, found, answers, seen=None) -> int:
         if key in seen or answer.get("remember") is False:
             continue
         if item is None:
-            # 卡上出了这一题、这里重判却没有（出题与记答案不同口径，11-17 回归）：不能当记下了——回明确的「没记下」，
-            # 调用方报给人，不让写入计划再判未定时人还以为答过了
-            missed.append(str(answer.get("label") or answer.get("subject") or answer.get("kind") or ""))
+            # 这一题此刻不再问：已经记成同一个值的（同一批前一张记下了，10-30）照算记下；否则是卡上出了这一题、这里重判却没有
+            # （出题与记答案不同口径，11-17 回归）——不能当记下了，回明确的「没记下」，调用方报给人
+            remembered = choices.chosen(company, str(key[0] or ""), str(key[1] or ""))  # loop-query: 一张卡上此刻不再问的那几题（有界），只读一行
+            if str(remembered or "") != str(answer.get("value") or ""):
+                missed.append(str(answer.get("label") or answer.get("subject") or answer.get("kind") or ""))
             continue
         options = {row["code"]: row.get("name") or "" for row in full_options(item, found["data"])}
         value = code_rules.choose(answer.get("value"), options)  # 复述时空白变了的编码换回主档原样

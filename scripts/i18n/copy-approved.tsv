@@ -236,3 +236,4 @@ pearnly_core:guide.option.document_policy.enter	zh	入账	2026-11-14	docs/work/2
 pearnly_core:guide.option.document_policy.skip	zh	不入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
 pearnly_core:guide.q.document_policy	zh	是否入账	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
 pearnly_core:Asked before posting	zh	入账前已询问	2026-11-14	docs/work/2026-11-12-cc-guided-phase1.md
+assistant:OPERATOR.precheck.kind.operator_form	zh	单据菜单	2026-11-17	docs/work/2026-11-17-cc-start-card-same-basis.md

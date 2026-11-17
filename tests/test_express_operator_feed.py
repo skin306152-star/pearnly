@@ -241,7 +241,8 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
         slice(None), [row for row in state["sessions"] if row["session_id"] != sid])
 
     names = ("frappe", "frappe.utils", "pearnly_core", "pearnly_core.express_operator", "pearnly_core.assistant",
-             "pearnly_core.assistant.contracts", "pearnly_core.assistant.sessions", "pearnly_core.express_operator.contracts",
+             "pearnly_core.assistant.contracts", "pearnly_core.assistant.guided", "pearnly_core.assistant.sessions",
+             "pearnly_core.express_operator.contracts",
              "pearnly_core.express_operator.products", "pearnly_core.express_operator.shapes",
              "pearnly_core.express_operator.tasks", "pearnly_core.express_operator.feed")
     saved = {k: sys.modules.get(k) for k in names}
@@ -262,6 +263,7 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
     assistant.sessions = sessions
     package.products = products
     assistant.contracts = _load("pearnly_core.assistant.contracts", CORE / "assistant/contracts.py")
+    assistant.guided = _load("pearnly_core.assistant.guided", CORE / "assistant/guided.py")  # 任务重交进任务的对话
     package.contracts = _load("pearnly_core.express_operator.contracts", CORE / "express_operator/contracts.py")
     package.shapes = _load("pearnly_core.express_operator.shapes", CORE / "express_operator/shapes.py")
     package.tasks = _load("pearnly_core.express_operator.tasks", tasks_path)

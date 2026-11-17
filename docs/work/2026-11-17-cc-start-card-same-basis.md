@@ -40,3 +40,12 @@ main 803f0da84 上，ERP 代录放销售票，开始卡第二题显示「其他 
 - `tests/test_erp_write_precheck.py::test_an_answer_to_a_question_this_judgment_does_not_ask_is_refused_not_skipped`：改前不拒。
 - `tests/test_cc_card_same_basis.py`：旧类名表上 1 failure。
 - 流程 erp.cc.operator.intake.sales：发现窗口 local_3709c091 复验（红证据在共享笔记「销售放票undecided-证据-11-17/」）。
+
+## 题类名定稿（用户 11-17 经主会话确认，类名定稿不再变）
+唯一定稿处为本分支 `frontend/assistant/src/i18n.ts` 的 `op.precheck.kind`；依据（MR.ERP 源码叫法、术语表 guide.q.*）见共享笔记「定稿-开始卡题类名-11-17.md」。
+本分支内相对上一提交的改动（check-copy --report 第 1、4 节）：
+| 键 | 中文 旧 → 新 | English | ไทย | 日本語 |
+|---|---|---|---|---|
+| precheck.kind.operator_form | Express 菜单 → 单据菜单 | Express menu → Document menu | เมนู Express → เมนูเอกสาร | Express メニュー → 伝票メニュー |
+| precheck.kind.unit（只改泰文） | 单位 | Unit | หน่วย → หน่วยนับ | 単位 |
+cash_account 保持术语表现有「收付款科目 / บัญชีรับจ่ายเงิน」（用户选定）。
