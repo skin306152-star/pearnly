@@ -254,3 +254,4 @@ pearnly_erp_portal:stock.view.position	zh	按仓库	2026-11-19	docs/work/2026-11
 assistant:GUIDE.fillRest	zh	填入差额	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
 assistant:GUIDE.over	zh	超出 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
 assistant:GUIDE.remaining	zh	差额 {x}	2026-11-14	docs/work/2026-11-14-cc-guided-p0.md（用户 11-14 晚确认，主会话转：按 MR.ERP 源码用词改，日文用「差額」）
+assistant:OPERATOR.precheck.kind.cash_account	zh	收付款科目	2026-11-17	docs/work/2026-11-14-cc-guided-p0.md（用户 11-17 确认的开始卡题类名定稿，A1 转达；定稿记录 docs/work/2026-11-17-cc-start-card-same-basis.md）
