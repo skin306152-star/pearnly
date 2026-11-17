@@ -37,7 +37,7 @@ POS_FIELDS = ("name", "receipt_no", "sold_at", "creation", "sale_type", "status"
 FIELDS = ("name", "system_no", "doc_date", "creation", "customer", "buyer_name", "party_type",
           "summary", "doc_kind", "source", "status", "payment_status", "payment_method",
           "payment_date", "subtotal", "vat_amount", "grand_total", "paid_amount",
-          "stock_posted_at", "ledger_state", "ledger_docnum", "ledger_target")
+          "stock_posted_at", "ledger_state", "ledger_docnum")
 
 # 原生筛选里「等于 / 介于」以外的条件（不等于、包含、在…之中…）可用的字段（页面 sales.js 的 filter_fields）。
 CONDITION_FIELDS = ("doc_kind", "payment_status", "source")
