@@ -542,6 +542,39 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.deep-link-attach"
+title = "ERP CC 从链接打开对话（?c=），切过去之前就加附件、发送：附件与消息进链接那段对话、不另建会话（11-17 upload-on-send 首轮挂的根因；侧栏与取会话拖慢 5 秒稳定复现）"
+module = "scripts/flows/cc_deep_link_attach.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/lib/nav.ts",
+  "frontend/assistant/src/lib/managed-agents/runtime-provider.tsx",
+  "frontend/assistant/src/lib/managed-agents/ensure-session.ts",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+]
+
+[[flow]]
+id = "cowork.cc.deep-link-attach"
+title = "Cowork CC 从链接打开对话，切过去之前就加附件、发送：同 ERP"
+module = "scripts/flows/cc_deep_link_attach.py"
+product = "cowork"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/lib/nav.ts",
+  "frontend/assistant/src/lib/managed-agents/runtime-provider.tsx",
+  "frontend/assistant/src/lib/managed-agents/ensure-session.ts",
+  "frontend/assistant/src/lib/managed-agents/attachments.ts",
+  "apps/pearnly_core/pearnly_core/assistant/files.py",
+]
+
+[[flow]]
 id = "cc.operator.replay"
 title = "CC 代录会话回放一致（统一对话框架）：第一次打开、刷新、换设备，事件逐条相同、画出来相同，且与服务端以会话主人身份读到的一致（不碰引擎）"
 module = "scripts/flows/cc_operator_replay.py"
