@@ -347,7 +347,7 @@ const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
           {row.reason_text ? <span className="block text-(--cc-ink-3)">{row.reason_text}</span> : null}
         </span>
         {row.status === "queued" ? <Spinner /> : null}
-        <span>{STATUS_WORD[row.status]?.() ?? row.status}</span>
+        <span>{STATUS_WORD[row.status]?.() ?? ""}</span>
         {row.docnum ? <span className="tabular-nums">{row.docnum}</span> : null}
       </div>
     ))}
@@ -381,7 +381,7 @@ export const GuideResultCard: FC<Props & { head?: ReactNode }> = (props) => {
       <div data-slot="cc-guide-result" data-result={form.status} className="cc-op-before-body">
         <div className="cc-op-line">
           <span className="min-w-0 flex-1 wrap-break-word">
-            {STATUS_WORD[form.status]?.() ?? form.status}
+            {STATUS_WORD[form.status]?.() ?? ""}
             {form.reason_text ? <span className="block text-(--cc-ink-3)">{form.reason_text}</span> : null}
           </span>
           {form.wait ? <Spinner /> : null}

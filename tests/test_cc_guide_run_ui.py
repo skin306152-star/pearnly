@@ -422,6 +422,14 @@ class GuideRunSourceTests(unittest.TestCase):
         review = read("components/tool-uis/guide-review.tsx")
         self.assertIn("title={view.consent_title || businessName(view.business)}", review)
 
+    def test_unknown_result_status_is_not_shown_as_a_result(self):
+        # 主会话 11-17：不认识的状态不兜底成已写入，也不把服务端的原始码给人看
+        review = read("components/tool-uis/guide-review.tsx")
+        self.assertIn('{STATUS_WORD[row.status]?.() ?? ""}', review)
+        self.assertIn('{STATUS_WORD[form.status]?.() ?? ""}', review)
+        self.assertNotIn("?? row.status}", review)
+        self.assertNotIn("?? form.status}", review)
+
     def test_menu_reads_labels_icons_order_from_the_server(self):
         thread = read("components/assistant-ui/thread.tsx")
         self.assertIn("const list = menuOf(offered, mode);", thread)

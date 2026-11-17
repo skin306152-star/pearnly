@@ -283,7 +283,7 @@ export const AskCard: FC<{
 export function askPhase(part: CardPart, gates: Gates): CardPhase | null {
   const card = approvalCard(part, gates);
   if (!card) return null;
-  return card.phase === "answered" ? "answered" : card.phase;
+  return card.phase === "answered" ? "answered" : card.phase === "ended" ? "ended" : card.phase;
 }
 
 /** 工具结果的正文 → 交回的答（读不出回 null）。 */
