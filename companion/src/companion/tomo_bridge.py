@@ -62,7 +62,8 @@ class TomoBridge(QObject):
 
     def __init__(self, settings: DesktopSettings, *, allowed: Callable[[], bool], window: Callable[[], object],
                  set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "",
-                 pick: Optional[Callable[[str, str], str]] = None) -> None:
+                 pick: Optional[Callable[[str, str], str]] = None,
+                 on_attention: Callable[[str, bool], None] = lambda _session, _visible: None) -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
@@ -72,6 +73,8 @@ class TomoBridge(QObject):
         # pick(标题, 从哪打开) → 选好的文件夹（没选是空串）：默认在本进程弹（以窗口为父）；托盘里经窗口进程弹（WindowHost.pick）
         self._pick = pick or (lambda title, start: QFileDialog.getExistingDirectory(self._window(), title, start))
         self._probes = Probes()
+        # 对话页报「现在开着哪段对话、看不看得见」（1.12.23 ⑨）：托盘据此判这条对话提醒要不要弹
+        self._on_attention = on_attention
 
     @Slot(result=str)
     def state(self) -> str:
@@ -104,6 +107,10 @@ class TomoBridge(QObject):
     def _dispatch(self, method: str, args: dict, lang: str) -> dict:
         s = self._settings
         member = str(args.get("id") or "")
+        if method == "attention_seen":
+            # 页面切换对话、可见性 / 焦点变化时各报一次（不轮询）：session 是当前对话编号（没开对话为空），visible 是看得见且有焦点
+            self._on_attention(str(args.get("session") or "")[:200], args.get("visible") is True)
+            return {"ok": True}
         if method == "lang":
             if lang in LANGS:
                 self._set_lang(lang)

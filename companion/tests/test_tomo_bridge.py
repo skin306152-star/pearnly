@@ -117,3 +117,16 @@ def test_window_buttons_drawn_by_the_chat_page_reach_the_window():
     refused = TomoBridge(_Settings(), allowed=lambda: False, window=lambda: window, set_lang=lambda _l: None)
     assert json.loads(refused.call("window", json.dumps({"action": "close"})))["refused"] is True
     assert window.calls == [("maximize", None), ("zoom", -1)]
+
+
+def test_the_page_tells_which_conversation_is_open_and_whether_it_is_seen():
+    # 1.12.23 ⑨：对话页切换对话、可见性 / 焦点变化时报一次，托盘据此判对话提醒要不要弹
+    from PySide6.QtWidgets import QApplication
+
+    QApplication.instance() or QApplication([])
+    seen = []
+    bridge = TomoBridge(_Settings(), allowed=lambda: True, window=lambda: None, set_lang=lambda _l: None,
+                        on_attention=lambda session, visible: seen.append((session, visible)))
+    assert json.loads(bridge.call("attention_seen", json.dumps({"session": "s-1", "visible": True}))) == {"ok": True}
+    bridge.call("attention_seen", json.dumps({"session": "", "visible": "yes"}))  # 不是真布尔的当看不见
+    assert seen == [("s-1", True), ("", False)]

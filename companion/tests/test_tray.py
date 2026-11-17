@@ -540,3 +540,55 @@ def test_a_folder_member_with_a_rejected_key_shows_the_reconnect_prompt():
     app._on_folder_status("m1", "idle")
     assert seen[0][:2] == ("m1", "offline") and isinstance(seen[0][2], MessageSpec) and seen[0][2].key == "off_auth"
     assert seen[1] == ("m1", "idle", "")
+
+
+def test_a_reminder_for_the_conversation_the_person_is_looking_at_does_not_pop_up(monkeypatch):
+    # 1.12.23 ⑨：CC 窗口开着、在最前面，页面报的就是这段对话且看得见 → 这条提醒不弹（之后也不补弹）；别的对话照弹
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion import gui_tray
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    shown = []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda *a: None
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", SimpleNamespace(connected=True, visible=True, active=True))
+    app._attention_seen("s-1", True)
+    site = "https://acme.pearnly.com"
+    app._on_folder_notices(site, [{"id": "a", "title": "", "text": "seen", "created": 1.0, "session": "s-1"}])
+    assert shown == []
+    app._on_folder_notices(site, [{"id": "a", "title": "", "text": "seen", "created": 1.0, "session": "s-1"}])
+    assert shown == []  # 记作弹过：之后不补弹
+    app._on_folder_notices(site, [{"id": "b", "title": "", "text": "other", "created": 2.0, "session": "s-2"}])
+    assert shown == [("CC", "other")]
+    app._attention_seen("s-1", False)  # 页面看不见了（切走、最小化）
+    app._on_folder_notices(site, [{"id": "c", "title": "", "text": "now", "created": 3.0, "session": "s-1"}])
+    assert shown[-1] == ("CC", "now")
+    monkeypatch.setattr(gui_tray, "WINDOW_HOST", SimpleNamespace(connected=True, visible=True, active=False))
+    app._attention_seen("s-1", True)
+    app._on_folder_notices(site, [{"id": "d", "title": "", "text": "behind", "created": 4.0, "session": "s-1"}])
+    assert shown[-1] == ("CC", "behind")  # 窗口不在最前面：照弹
+
+
+def test_a_batch_with_failures_opens_the_pending_page_and_no_longer_sends_people_to_the_website():
+    # 1.12.23 ⑨（文案 11-16 用户同意）：有没录成的批次通知不再写「请在网页中处理」，点开 CC 窗口的待处理页
+    from PySide6.QtWidgets import QApplication
+
+    from src.companion.gui_tray import TrayApp
+
+    QApplication.instance() or QApplication([])
+    app = TrayApp.__new__(TrayApp)
+    app.lang = "zh"
+    app.configs = [SimpleNamespace(profile_id="p1", backend_url="https://acme.pearnly.com", paused=False)]
+    shown, opened = [], []
+    app.tray = SimpleNamespace(showMessage=lambda *args: shown.append(args[:2]))
+    app.open_conversation = lambda site, session, view="": opened.append((site, session, view))
+    app._on_batch_done("p1", 2, 1, "")
+    app._on_batch_done("p1", 0, 3, "")
+    assert [body for _t, body in shown] == ["本批 2 张已录入，1 张录入失败。", "本批 3 张录入失败。"]
+    app._on_message_clicked()
+    assert opened == [("https://acme.pearnly.com", "", "pending")]
+    app._on_batch_done("p1", 4, 0, "")
+    assert app._message_action is None  # 全录成的照旧点了不做事
