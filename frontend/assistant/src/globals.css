@@ -1445,6 +1445,16 @@
   }
   .cc-settings-row:last-child { border-bottom: 0; }
   .cc-settings-row[data-field] { flex-wrap: wrap; justify-content: space-between; column-gap: var(--cc-space-24); row-gap: var(--cc-space-8); }
+  /* 「云端 Express」行下面的配对块（cloud-express.tsx 的 CloudPairing）：命令框占满行宽、框内换行（长命令不撑破设置窗，375 宽也不横向滚动），
+     下边细线同一行 */
+  .cc-cloud-pair {
+    display: flex; flex-direction: column; gap: var(--cc-space-8); min-width: 0; max-width: 100%; padding-block: var(--cc-space-12);
+    border-bottom: var(--cc-hairline) solid var(--cc-line);
+  }
+  .cc-cloud-pair:last-child { border-bottom: 0; }
+  .cc-cloud-pair .cc-ui-code-block-code { grid-template-columns: minmax(0, 1fr); overflow-wrap: anywhere; }
+  .cc-cloud-pair-line { display: flex; align-items: center; gap: var(--cc-space-12); min-width: 0; }
+  .cc-cloud-pair-left { font-variant-numeric: tabular-nums; }
   .cc-dialog-head {
     display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: var(--cc-space-12);
     padding: var(--cc-dialog-head-pt) var(--cc-dialog-px) var(--cc-space-8);
