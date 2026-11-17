@@ -2450,3 +2450,5 @@ Delete note	删除笔记	ลบบันทึก	メモを削除	guide.option.c
 Set for whole company	设为全公司	ตั้งเป็นทั้งบริษัท	会社全体に設定	guide.option.company.rule_promote
 Delete rule	删除规则	ลบกฎ	ルールを削除	guide.option.company.rule_delete
 No company selected	未选公司	ยังไม่ได้เลือกบริษัท	会社が未選択です	guide.fact.company.none
+Delete the note?	要删除笔记吗？	ลบบันทึกหรือไม่	メモを削除しますか？	guide.consent.company.note_delete
+Delete the rule?	要删除规则吗？	ลบกฎหรือไม่	ルールを削除しますか？	guide.consent.company.rule_delete
