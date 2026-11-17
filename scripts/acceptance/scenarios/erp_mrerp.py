@@ -94,7 +94,10 @@ def readback(ctx, out, state, shape) -> None:
     """按单号在所选菜单的列表里恰好一张；单据页单号一致；日记账借贷相等、金额与单据一致；称谓分栏与税报告（有就核）。"""
     read, total, vat = out.get("read") or {}, amount(state.get("grand_total")), amount(state.get("vat_amount"))
     ctx.require("列表里按单号恰好一张", 1, read.get("listed"))
-    ctx.check("单据页的单号", state["ledger_docnum"], str((read.get("form") or {}).get("txtdocnum") or "").strip())
+    form = read.get("form") or {}
+    # 单据页把单号拆成两栏：txtdoctype 是前缀（PG / PN / SI / SE），txtdocnum 是号（11-17 maclab：读成 691117-289308）
+    number, prefix = str(form.get("txtdocnum") or "").strip(), str(form.get("txtdoctype") or "").strip()
+    ctx.check("单据页的单号", state["ledger_docnum"], number if not prefix or number.startswith(prefix) else prefix + number)
     lines = read.get("journal") or []
     ctx.require("日记账里有这张单的分录", True, bool(lines))
     ctx.check("日记账里这张单只有一张凭证", 1, read.get("journals"))

@@ -190,6 +190,11 @@ try:
         party = f"ห้างหุ้นส่วนจำกัด เอซีซี {tag}" if kind == "sales_credit" else f"บริษัท เอซีซี {tag} จำกัด"
         line = {"description": f"ACC {kind} {tag}", "qty": "2", "unit_price": "150", "vat_rate": 7, "vat_applicable": 1, "unit": "ชิ้น",
                 "item_type": "service" if kind == "purchase_expense" else "goods"}
+        # 公司有几个启用仓时产品要求单上写明仓（inventory.warehouses.required，不替人猜）：带上参数给的仓，没给就取这家公司第一个启用仓
+        # （11-17 maclab：主档整读落了 MR.ERP 的 3 个仓，开单报「Pick a warehouse」）
+        if line["item_type"] == "goods":
+            line["warehouse"] = params.get("warehouse") or frappe.db.get_value(
+                "ERP Warehouse", {"company": row.name, "is_active": 1}, "name", order_by="name asc") or ""
         payload = {"company": row.name, "doc_date": today, "has_vat": 0 if kind == "purchase_novat" else 1, "lines": [line]}
         if kind == "purchase_novat":
             line.update(vat_rate=0, vat_applicable=0)

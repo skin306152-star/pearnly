@@ -238,7 +238,7 @@ class World:
         state = {"status": "submitted", "ledger_state": "written", "ledger_target": "mrerp", "ledger_docnum": docnum,
                  "ledger_book": None if self.break_at == "no-book" else params["account_set"], "grand_total": total, "vat_amount": vat}
         out = {"ok": True, "doc": "PUR-1", "state": state, "company": params["company"],
-               "read": {"listed": 2 if self.break_at == "listed-twice" else 1, "form": {"txtdocnum": docnum}, "journals": 1, "journal_menu": 248,
+               "read": {"listed": 2 if self.break_at == "listed-twice" else 1, "form": {"txtdoctype": docnum[:2], "txtdocnum": docnum[2:]}, "journals": 1, "journal_menu": 248,
                         "journal": [{"account": code, "debit": f"{debit:,.2f}" if debit else "", "credit": f"{credit:,.2f}" if credit else ""}
                                     for code, debit, credit in journal]}}
         if params.get("resend"):
