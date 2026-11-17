@@ -117,7 +117,7 @@ export function useDesktopBridge(
   useEffect(() => {
     const finished = wasRunning.current && !isRunning;
     wasRunning.current = isRunning;
-    // 人正看着这段对话（当前对话、对话页开着、页面在前台）就不叫（C-1）；以前看整窗焦点：并排时焦点在 Express 也照弹
+    // 人正看着这段对话（当前对话、对话页开着、页面看得见且有焦点，同报给服务端的判据）就不叫（C-1）
     if (!finished || (sessionId && isViewing(sessionId)) || (!sessionId && document.hasFocus())) return;
     void muted().then((silent) =>
       showNote(title || APP_NAME, lastReply(messages), "tomo-reply", sessionId ? deepLink(sessionId) : "/assistant", undefined, silent));

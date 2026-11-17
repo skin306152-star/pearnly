@@ -51,9 +51,15 @@ export function openSession(): string {
   return active && chatView ? active : "";
 }
 
-/** 正看着这段对话（当前对话、对话页开着、页面在前台）：回复完成、提醒都不叫人（C-1 / C-3，用户 11-14 弹窗通知口径）。 */
+/** 页面看得见且有焦点：叫人判据里「人在这里」的唯一写法（页面不弹与报给服务端 / CC 桌面版的同一个，主会话 11-17 定乙：
+ *  CC 被别的窗口整个盖住时浏览器仍报 visible，按露着算会吞掉该叫的提醒；并排时多响一声可接受）。 */
+export function lookingHere(): boolean {
+  return document.visibilityState === "visible" && document.hasFocus();
+}
+
+/** 正看着这段对话（当前对话、对话页开着、页面看得见且有焦点）：回复完成、提醒都不叫人（C-1 / C-3，用户 11-14 弹窗通知口径）。 */
 export function isViewing(sessionId: string): boolean {
-  return !!sessionId && sessionId === active && chatView && document.visibilityState === "visible";
+  return !!sessionId && sessionId === active && chatView && lookingHere();
 }
 
 function set(sessionId: string, next: "running" | "unread" | null) {

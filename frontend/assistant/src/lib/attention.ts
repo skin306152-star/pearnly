@@ -7,7 +7,7 @@
 // 设备编号：这台浏览器自己记的一串随机字（服务端按它分设备，同一个人几台设备各报各的）。
 
 import { attentionSeen } from "./managed-agents/api";
-import { onViewChange, openSession } from "./managed-agents/activity";
+import { lookingHere, onViewChange, openSession } from "./managed-agents/activity";
 import { desktop } from "./desktop";
 import { reportCaught, withReport } from "./caught";
 
@@ -37,10 +37,9 @@ function safeStorage(): Storage | null {
   }
 }
 
-/** 此刻报什么：打开着的对话，看得见 = 页面在前台且有焦点。 */
+/** 此刻报什么：打开着的对话，看得见 = 页面在前台且有焦点（activity.lookingHere，页面不弹用的同一个）。 */
 export function currentLook(): { session: string; visible: boolean } {
-  const visible = document.visibilityState === "visible" && document.hasFocus();
-  return { session: openSession(), visible };
+  return { session: openSession(), visible: lookingHere() };
 }
 
 /** 页面挂一次：变化时报（合并 300ms），看得见期间每 30 秒续服务端。回撤掉的函数。 */
