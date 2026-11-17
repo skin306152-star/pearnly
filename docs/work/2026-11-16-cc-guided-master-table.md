@@ -42,6 +42,7 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | 服务端 | 26（ERP 直写采购 / 销售 × 本地 2 格 11-16 18:30 guided-erp 报（未闭环）；C2 / D 组 11-16 18:05 报 9 格：Cowork / ERP 盘点、MR.ERP 设置、科目组 × 本地、Cowork / ERP 公司资料、公司接入、库存报表、看板，其中 2 格未闭环（MR.ERP 设置、看板）；Cowork / ERP 代录 采购 / 销售 × 本地 Express 4 格：引导卡出题、开始卡未并；ERP 收款 × 本地 Express 1 格：分支 4 未进 main；Cowork 读回 × 本地 1 格、对账三类 × 本地 / MR.ERP 6 格、增值税 × 本地 1 格、收银日汇总 × 本地 1 格（未闭环：推送接单据引导要等 documents 源进 main）、预扣税 1 格（未闭环：待确认行逐行改）：11-16 分支已推） |
 | 没做 | 37（其中云端 Express 19 格整列 ⇢ 云端线；MR.ERP 18 格里 12 格 ⇢ MR.ERP 线） |
 | 范围外（不计入 65） | 第 2 节逐条写依据 |
+| 有验收场景（另一列，不改档） | 11（其中新鲜通过证据 6），见第 1.7 节 |
 
 状态只取一档，取已达到的最高一档：没做 → 服务端（声明 + 服务函数 + 离线测试）→ 接线（对话页能点着走完）→ 流程通过（实验栈假智能体）→ 真模型通过 → 真机通过（测试机 / 真 Express / 真 MR.ERP）。
 「列车上」= 已推分支、CI 绿、排在合入列车，未进 main；进 main 之前不算交付。
@@ -167,6 +168,29 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 
 复用不了、要从服务函数起做卡的只有四类：读回、日汇总、增值税、预扣税（网页 / LINE 都没有入口，但服务函数与服务端出题都已有，只差声明）。
 **C 组顺序按「已有成熟流程优先」调整**（读回仍第一，主会话已定）：读回 → 对账三类 → 盘点（Cowork + ERP 一起，共用 N4）→ 定时任务 → 待处理 → 公司资料 / 看板 / MR.ERP 设置 / 科目组 / 连接 → 增值税 → 日汇总 → 预扣税 → D 组其余（库存报表、公司接入）。
+
+### 1.7 验收场景列（验收首跑窗口 local_5097f6f5 11-17 对齐，**只加一列，不改格的状态档**）
+
+验收 L3 场景守的是格背后同一条写账链（单写进真账本 TEST2 并读回），不等于测了引导卡片本身。环境：本机 Mac 实验栈 erp + 测试机2 CC 正式版 1.12.21 +
+`\\accserver\ACCOUNT\69EXP\TEST2`（基线 TEST2@2026-11-16）；证据登记在 `tests/acceptance/evidence.toml`（分支 `pearnly/acceptance-batch5`）。原表：共享笔记「验收场景-引导总表格对照-11-17.md」。
+
+**数：65 格里有验收场景 11 格，至少一条新鲜通过证据 6 格**（ERP-D-P-L、ERP-D-S-L、ERP-D-COL-L、ERP-D-ADD、ERP-D-ST、ERP-O-P-L）。验收窗口今天在补 Cowork 直写采购、Cowork 直写销售、ERP 代录销售（对话）三格。
+
+| 格 | 验收场景 id | 新鲜证据（通过） | 跑过未过 / 没跑 |
+|---|---|---|---|
+| ERP-D-P-L | acc.erp.purchase.express、.purchase.express.twice、.purchase.cancel.express、.operator.intake.purchase（放票入口） | purchase.express 11-16 17:15（a1cf24198）、.twice 17:17（a1cf24198）、purchase.cancel 18:00（a1cf24198） | operator.intake.purchase：不通过，主流程已通，只差「交单后代录任务仍按 I: 记 queued」（11-16 19:14，eef4b4c34，main 847fc020c） |
+| ERP-D-S-L | acc.erp.sales.credit.express、.sales.cancel.express | sales.cancel 11-16 18:03（a1cf24198） | sales.credit：不通过，缺陷「未付款单 payment_method 存成 cash」（修复 select-blank-first） |
+| ERP-D-COL-L | acc.erp.collection.three / .nbsp / .web.twice / .line.edit / .line.refused / .offline / .busy / .line.redelivered / .line.unbound、acc.erp.cc.collection / .cc.collection.nbsp | collection.offline 11-16 19:3x（574d61f9b，main 847fc020c） | 5 格不通过（同上 payment_method 缺陷，其余断言全过）；busy / line.redelivered / line.unbound / cc.collection ×2 没跑 |
+| ERP-D-ADD | acc.erp.company.connect.fresh / .connect / .twice、acc.erp.denied | 4 条都通过：11-16 17:08 / 17:10 / 17:12 / 17:14（a1cf24198） | — |
+| ERP-D-ST | acc.erp.stock.count.express | 11-16 17:53（a1cf24198） | — |
+| ERP-D-PD-L | acc.erp.cc.push.purchase / .cc.push.sales（停下的单再写一次） | — | 没跑（真模型） |
+| ERP-D-P-M / ERP-D-S-M | acc.erp.mrerp.*（16 条） | — | 没跑（每周 + test01 时段；cc.push 今天约） |
+| ERP-O-P-L | acc.erp.operator.purchase.express、.operator.talk.purchase、.operator.stock.group、.operator.masters.link、.office.actor.purchase、.operator.no.computer | operator.purchase 11-16 18:06（a1cf24198） | talk.purchase：不通过，代录全通、只差「最后回复不报写成单号」（11-16 19:44，真模型 0.114 美元）；stock.group / masters.link：修复前红（H5 / 挂码）；office.actor / no.computer：要另备现场，没跑 |
+| ERP-O-S-L | acc.erp.operator.sales.express（另在写 acc.erp.operator.talk.sales） | — | operator.sales：不通过，缺陷「代录回执不挂码」（修复 operator-masters-link + H5） |
+| CW-D-P-L | acc.cowork.intake.express / .intake.express.twice（录入页）；另在登记 Cowork CC 直写采购 | — | 没跑（测试机1 实验栈 / maclab cowork） |
+| CW-D-S-L | 在写 Cowork CC 直写销售 | — | 没写完 |
+
+不在总表单列、但验收有证据的：ERP 库存入库 / 出库 / 调整 / 调拨 / 作废、ERP 收银日汇总（acc.erp.stock.* / acc.erp.pos.day.*）。
 
 ### 1.6 写账四题（单位、负库存、出库成本、现金科目）各入口现状（A3 四题窗口 11-16，**不因此升档**）
 
