@@ -510,4 +510,4 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
   MR.ERP 写账开关只在临时工作树挂上去的源码里改 True（不提交）；凭据只经标准输入进容器。跑完删临时工作树、模型密钥并回读。
 - 结果：**16 格全部通过**（menu.choice、purchase.goods / expense / cash / novat / nobook、sales.credit / cash / discount、twice、retry、void.importing、switch.off、tax.purchase / sales、cc.push 真模型）。证据 `acceptance-runs/20261117-094*`–`0951*-5def7f3c3`。
 - 首跑校准（脚本问题）：单据页单号拆在 txtdoctype + txtdocnum 两栏；多仓公司开单要带仓；第一次导入碰 ERR_MRERP_ACCOUNT_IN_USE（接入时的登录与第一格互踢），单独重跑即过；销售菜单要正式选过（预选值不算）。
-- 花费台账：cc.push 两次 0.2545 + 约 0.25 美元（最后一次以运行目录为准）；11-17 累计（含代 frontend 验证 0.288）约 0.79 美元。
+- 花费台账：cc.push 两次 0.2545 + 0.125 = 0.380 美元；11-17 累计（含代 frontend 验证 0.288）0.668 美元。
