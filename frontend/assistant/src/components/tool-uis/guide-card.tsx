@@ -199,7 +199,7 @@ export const GuideCardBody: FC<{
     return (
       <CardLine slot="cc-guide-card" attrs={{ "data-phase": phase }} phase={phase === "answered" ? "answered" : "cancelled"}
         title={questions.map((q) => q.header || q.question).join(" · ")}
-        answer={phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : phase === "ended" ? "" : steps.cancelled} />
+        answer={phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : steps.cancelled} />
     );
   }
   const submit = (result: AskResult) => {
