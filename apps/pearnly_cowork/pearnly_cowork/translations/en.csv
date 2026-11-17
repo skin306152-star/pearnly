@@ -1363,6 +1363,7 @@ Reach State,Reach State
 Read,Read
 Read At (UTC),Read At (UTC)
 Read Back,Read Back
+Read By,Read By
 Read By Computer,Read By Computer
 Read VAT report,Read VAT report
 Read again,Read again
@@ -2274,6 +2275,7 @@ Writable,Writable
 Write Check,Write Check
 Write Check Detail,Write Check Detail
 Write Route,Write Route
+Writer,Writer
 Writing now. Cannot withdraw.,Writing now. Cannot withdraw.
 Writing to Express failed and was undone. It is retried automatically,Writing to Express failed and was undone. It is retried automatically
 Written By Computer,Written By Computer

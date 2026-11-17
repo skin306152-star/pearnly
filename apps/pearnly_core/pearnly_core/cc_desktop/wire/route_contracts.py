@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Mapping, NamedTuple
 
 
@@ -28,7 +28,9 @@ MAX_HEADS = 50
 
 # 按什么分派（问责记录）：录入人自己的电脑 / 定时任务读文件夹的那台 / 黏住的那台
 OWN, READER, STICKY = "own", "reader", "sticky"
-ROUTES = (OWN, READER, STICKY)
+# 替写：不是提交人自己的电脑、提交人自己没有在线的电脑时替他写（:func:`decide` 的 ``stand_in``，用户 11-17）
+STAND_IN = "stand_in"
+ROUTES = (OWN, READER, STICKY, STAND_IN)
 
 # 不能领的原因（只给日志与测试；不进回复）
 UNREACHABLE, NOT_MINE, STUCK, VERSION, NEEDS_UPDATE = "unreachable", "not_mine", "sticky", "version", "needs_update"
@@ -89,6 +91,80 @@ class Decision(NamedTuple):
     # own / reader / sticky（问责记录）
     route: str = ""
     reason: str = ""
+
+
+# 替写（用户 11-17 定稿「公司里只要有一台开着 CC、够得到那本账套、登录人有权限的电脑，任何成员提交的单就能写」，两产品同一条）：
+# 提交人自己的电脑在线 → 用自己的；否则公司里在线、够得到、登录人有权限的那台替他写；都不在线就排队，谁先上线谁写。
+# 在电脑来领的那一刻判（:func:`decide` 的 ``stand_in``），不在排队时写死；单上的提交人不变。
+
+
+# 旧件闸（主会话 11-17）：替写只对切换时刻之后排的件生效；之前排着的件照旧只等提交人自己的电脑，不让别人的电脑把很久以前排着的件
+# 悄悄写进去（等用户看了统计数字再定写还是作废）。切换时刻是站点配置（两产品同名，`scripts/impact/product-map/config.toml`）：
+# 存量站点由随版本的迁移补丁在迁移那一刻写上（`pearnly_core.cc_desktop.writer_rule.stamp_since`，幂等）；没配 = 新规则对全部件
+# 生效（新开户站点天然如此，不靠人配，用户 10-07「功能对所有租户直接生效」）；用户看过统计定了「旧件写」之后删掉这项即放开。
+WRITER_RULE_SINCE = "pearnly_writer_rule_since"
+
+
+def _utc(value) -> datetime | None:
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+        except ValueError:
+            return None
+    if not isinstance(value, datetime):
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def db_time(since) -> str:
+    """切换时刻换成库里排队时刻的写法（UTC、``YYYY-MM-DD HH:MM:SS``，给排头查询按它筛）：没配回最早的时刻（全部件都能替）；
+    配了却读不出回最晚的时刻（一件都不替，同 :func:`stand_in_open`）。纯函数。"""
+    if since in (None, ""):
+        return "1970-01-01 00:00:00"
+    start = _utc(since)
+    return start.strftime("%Y-%m-%d %H:%M:%S") if start else "9999-12-31 23:59:59"
+
+
+def stand_in_open(queued_at, since) -> bool:
+    """这件（排队时刻 ``queued_at``，库里存 UTC）能不能由别人的电脑替写：没配切换时刻 ``since``（站点配置
+    :data:`WRITER_RULE_SINCE`）→ 能；配了（ISO 时刻，不带时区按 UTC）→ 之后排的才能；配了却读不出、或这件没有排队时刻 → 不能
+    （宁可等提交人自己的电脑）。纯函数。"""
+    if since in (None, ""):
+        return True
+    at, start = _utc(queued_at), _utc(since)
+    return bool(at and start and at >= start)
+
+
+# 排队原因「状态 → 显示」（两产品同一张，主会话 11-17）：按提交人看，替这件活干的电脑（他自己的 + 能替他写的）此刻怎样。
+# 各产品把这几个状态换成自己的现有短句（Cowork `intake.agent.state.*` / `connect.state.connected`，ERP `express.cc_desktop_*`）。
+WRITER_CONNECTED, WRITER_OFFLINE, WRITER_NO_WRITER, WRITER_MISSING, WRITER_NEEDS_UPDATE = (
+    "connected", "offline", "no_writer", "missing", "needs_update")
+
+
+def writer_status(*, online: bool, writers_known: bool, computers: bool, needs_update: bool = False) -> str:
+    """``needs_update``（能写的电脑没有一台支持排头的载荷版本）→ 需更新；有一台能写的在线 → 已连接；有能写的、都不在线 → 电脑离线
+    （仍可选，排队，谁先上线谁写）；有电脑却没有一台能写这本 → 没有能写的电脑；一台都没有 → 未连接电脑。纯函数。"""
+    if needs_update:
+        return WRITER_NEEDS_UPDATE
+    if writers_known:
+        return WRITER_CONNECTED if online else WRITER_OFFLINE
+    return WRITER_NO_WRITER if computers else WRITER_MISSING
+
+
+def pick_user(users: Iterable[str] | None, eligible, inviter: str = "") -> str:
+    """这台电脑替别人写时记谁：在这台上登录过 CC、``eligible(用户)`` 为真（调用方核：此刻仍能用这条连接 / 这家公司、签发有效）
+    的人里，添加提交人的那位（``inviter``）排前，其余按用户名；一个都没有回空串（这台不替别人写）。纯函数。"""
+    found = sorted({user for user in users or () if user})
+    for user in ([inviter] if inviter in found else []) + found:
+        if eligible(user):
+            return user
+    return ""
+
+
+def owner_online_elsewhere(device: str, actor: str, reachers: Iterable[str], peers: Mapping[str, Peer]) -> bool:
+    """提交人自己另有一台够得到这份账套、此刻在线的电脑（不算 ``device``）：那就由它写，这台不替。"""
+    return any(item != device and owns(item, peers.get(item), actor) and (peers.get(item) or Peer()).online
+               for item in reachers)
 
 
 def owns(device: str, peer: Peer | None, actor: str, route_device: str = "") -> bool:
@@ -224,17 +300,21 @@ def sticky_holder(account: Account, reachers: Iterable[str], peers: Mapping[str,
 
 
 def decide(device: str, job: Job, reachers: Iterable[str], peers: Mapping[str, Peer], account: Account,
-           now: datetime) -> Decision:
+           now: datetime, *, stand_in: str = "") -> Decision:
     """``device`` 现在能不能领这份账套的排头 ``job``。``reachers``：够得到它（状态正常、可写）的电脑；``peers``：
-    ``{设备: Peer}``，来领的这台本身就在线。"""
+    ``{设备: Peer}``，来领的这台本身就在线。``stand_in``：这台上能替别人写的登录人（:func:`pick_user`，空 = 这台不替）——
+    不是提交人自己的电脑时，提交人自己没有另一台在线、够得到这本的电脑才替他写（route ``stand_in``，定时任务不替）。"""
     if job.target and job.target != EXPRESS:
         return _decide_chosen(device, job, peers.get(device))
     reachers = sorted(set(reachers))
     if device not in reachers:
         return Decision(False, reason=UNREACHABLE)
     peers = {**peers, device: (peers.get(device) or Peer())._replace(online=True)}
+    standing = False
     if not owns(device, peers[device], job.actor, job.route_device):
-        return Decision(False, reason=NOT_MINE)
+        if not stand_in or job.route_device or owner_online_elsewhere(device, job.actor, reachers, peers):
+            return Decision(False, reason=NOT_MINE)
+        standing = True
     holder = sticky_holder(account, reachers, peers, now, current=device)
     if holder and holder != device:
         return Decision(False, reason=STUCK)
@@ -242,8 +322,8 @@ def decide(device: str, job: Job, reachers: Iterable[str], peers: Mapping[str, P
         mine = [item for item in reachers if owns(item, peers.get(item), job.actor, job.route_device)]
         return Decision(False, reason=NEEDS_UPDATE if needs_update(job.payload_version, mine, peers) else VERSION)
     if holder == device:
-        return Decision(True, STICKY)
-    return Decision(True, READER if job.route_device else OWN)
+        return Decision(True, STAND_IN if standing else STICKY)
+    return Decision(True, STAND_IN if standing else (READER if job.route_device else OWN))
 
 
 def _decide_chosen(device: str, job: Job, peer: Peer | None) -> Decision:
@@ -283,5 +363,7 @@ def attended(job: Job, peer: Peer | None) -> bool:
 
 
 __all__ = ["Account", "Decision", "EXPRESS", "Job", "MAX_HEADS", "MAX_TARGETS", "NEEDS_UPDATE", "NOT_MINE", "NO_TARGET", "OWN",
-           "Peer", "READER", "ROUTES", "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "attended", "decide",
-           "heads", "needs_update", "operates", "owns", "serves", "stored_targets", "sticky_holder", "supports", "targets_of"]
+           "Peer", "READER", "ROUTES", "STAND_IN", "STICKY", "STICKY_SECONDS", "STUCK", "UNREACHABLE", "VERSION", "WRITER_CONNECTED", "WRITER_MISSING",
+           "WRITER_NEEDS_UPDATE", "WRITER_NO_WRITER", "WRITER_OFFLINE", "WRITER_RULE_SINCE", "attended", "db_time", "decide",
+           "heads", "needs_update", "operates", "owner_online_elsewhere", "owns", "pick_user", "serves", "stand_in_open",
+           "stored_targets", "sticky_holder", "supports", "targets_of", "writer_status"]

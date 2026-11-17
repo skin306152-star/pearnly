@@ -23,6 +23,7 @@ from frappe import _
 
 from pearnly_core.express_rules.targets import identity as rules
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key as identity
+from pearnly_core.cc_desktop.wire import route_contracts
 from pearnly_core.cc_desktop.wire.route_contracts import serves
 from pearnly_cowork.targets.projection import MAX_ACCOUNT_SETS
 from . import access, model, state
@@ -271,6 +272,30 @@ def writers(doc, account_key=None, *, peers=None):
 
     return [device for device in sorted(devices)
             if device in peers and any(valid(issuer) for issuer in sorted(peers[device].get("issuers") or ()))]
+
+
+def stand_in_user(doc, users, actor):
+    """这台电脑（登录过 CC 的人 ``users``）替 ``actor`` 写时记谁（用户 11-17 定稿，`route_contracts.pick_user`）：不是 ``actor``、
+    此刻仍能用这条连接（:func:`access.usable_by`）；没有回空串（这台不替别人写）。"""
+    return route_contracts.pick_user(users, lambda user: user != actor and access.usable_by(doc, user))
+
+
+def stand_ins(doc, account_key, actor, *, peers=None, readable=False):
+    """池里能替 ``actor`` 做这件活的别人的电脑：``{设备: 替写的人}``——不是他自己的电脑（:func:`owned`）、够得到这份账套（写账要能写
+    :func:`writers`；``readable`` 为真时只要够得到，回读这类只读的）、上面有能替写的登录人（:func:`stand_in_user`）。在不在线都算
+    （排队等，谁先上线谁做；他自己的电脑在线时由他自己的做，在领的那一刻判，`route_contracts.decide`）。只读。"""
+    peers = presence(doc.name) if peers is None else peers
+    key = identity(account_key) if account_key else ""
+    mine = owned(peers, actor)
+    devices = [device for device in reachers(doc.name, key) if device in peers] if readable and key \
+        else writers(doc, key or None, peers=peers)
+    found = {}
+    for device in devices:
+        if device not in mine:
+            user = stand_in_user(doc, (peers[device] or {}).get("users"), actor)
+            if user:
+                found[device] = user
+    return found
 
 
 def any_reach(connection):
@@ -973,4 +998,4 @@ __all__ = ["ACCOUNT_SET", "FACTS", "FACTS_PER_CONNECTION", "FACT_KEYS", "OK", "P
            "facts_name", "forget_device", "has_pending", "listing", "local_keys", "local_paths", "mark_stale", "masters",
            "move_device", "note_written", "owned", "presence", "put_facts", "readable_reach", "writable_reach", "writer_devices",
            "reach_name", "reachers", "reachers_of", "reaches", "reconsider", "registration", "registration_name",
-           "registrations_of", "retain", "touch", "union_observation", "writers"]
+           "registrations_of", "retain", "stand_in_user", "stand_ins", "touch", "union_observation", "writers"]

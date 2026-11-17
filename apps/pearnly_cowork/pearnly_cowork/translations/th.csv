@@ -1363,6 +1363,7 @@ Reach State,สถานะการเข้าถึง
 Read,อ่านแล้ว
 Read At (UTC),เวลาอ่านข้อมูล (UTC)
 Read Back,อ่านข้อมูลกลับ
+Read By,ผู้อ่านบัญชี
 Read By Computer,คอมพิวเตอร์ที่อ่าน
 Read VAT report,อ่านรายงานภาษีขาย
 Read again,อ่านใหม่
@@ -2274,6 +2275,7 @@ Writable,เขียนได้
 Write Check,ตรวจการบันทึก
 Write Check Detail,รายละเอียดการตรวจการบันทึก
 Write Route,การมอบหมายการเขียน
+Writer,ผู้บันทึกเข้าบัญชี
 Writing now. Cannot withdraw.,กำลังบันทึก ถอนไม่ได้
 Writing to Express failed and was undone. It is retried automatically,บันทึกลง Express ไม่สำเร็จ ระบบยกเลิกรายการแล้วและจะลองใหม่อัตโนมัติ
 Written By Computer,คอมพิวเตอร์ที่เขียน

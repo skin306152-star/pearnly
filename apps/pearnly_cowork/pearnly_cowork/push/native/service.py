@@ -357,17 +357,19 @@ def basis_hash(facts, payload):
 
 
 def has_writer(connection, account_key, *, actor, route_device=''):
-    """替这张单干活的电脑里至少一台能写这份 Express 账套（不要求在线，D4）：确认与「这份准备还能不能确认」的判据。
-
-    谁的活谁的电脑做（ADR-021 第 51–53 条，用户 10-16）：给了 ``route_device``（定时任务读文件夹的那台）只看它；否则只看
-    ``actor`` 自己登录过 CC 的电脑（`connections.pool.owned`）。同事的电脑够得到不算——它不会替他写。与池的状态
-    （`companion.pool.state` 的 ``writers_known``，同样按人）同一个判据 `connections.pool.writers`：登记着、可达可写、
-    密钥没吊销、签发人此刻仍能用这条连接。只读。"""
+    """有没有一台电脑会写这张单（不要求在线，D4，排队等开机）：确认与「这份准备还能不能确认」的判据。给了 ``route_device``
+    （定时任务读文件夹的那台）只看它；否则是 ``actor`` 自己登录过 CC 的电脑（`connections.pool.owned`），或公司里别人的电脑——
+    够得到这份账套、上面有此刻仍能用这条连接的登录人（`connections.pool.stand_ins`，用户 11-17 定稿：任何成员提交的单，公司里
+    有这样一台就能写；谁先上线谁写，在领的那一刻判）。与池的状态（`companion.pool.state`）同一个判据 `connections.pool.writers`：
+    登记着、可达可写、密钥没吊销、签发人此刻仍能用这条连接。只读。"""
     if not connection or not account_key:
         return False
     doc = frappe.get_doc('Cowork ERP Connection', connection)
-    mine = account_pool.owned(account_pool.presence(doc.name), actor, device=route_device or '')
-    return bool(mine) and bool(account_pool.writers(doc, account_key, peers=mine))
+    peers = account_pool.presence(doc.name)
+    mine = account_pool.owned(peers, actor, device=route_device or '')
+    if mine and account_pool.writers(doc, account_key, peers=mine):
+        return True
+    return not route_device and bool(account_pool.stand_ins(doc, account_key, actor, peers=peers))
 
 
 def _still_confirmable(row, context, loaded):
@@ -560,8 +562,8 @@ def confirm(name, *, context, expected_revision, request_key):
                 fail('push.native_target_changed')
             if not has_writer(context.connection, context.account, actor=row.entered_by or row.actor,
                               route_device=row.route_device or ''):
-                # 录入人自己的电脑（定时任务：读文件夹的那台）没有一台够得到这份账套：排上也没人写，不转给同事的电脑
-                # （第 53 条）。电脑关着不算（D4，开机后写）
+                # 录入人的电脑（定时任务：读文件夹的那台）与公司里能替写的电脑都没有一台够得到这份账套：排上也没人写。
+                # 电脑关着不算（D4，开机后写）
                 fail('push.no_writer')
         _dispatch_target(context, loaded, target, mode='confirm')
         row.confirmation_request, row.confirmation_revision = operation, expected_revision
@@ -614,7 +616,7 @@ def redeliverable(row, device):
     return row.status == 'manual' and bool(row.result_unknown) and row.reason == UNKNOWN_REASON
 
 
-def lease(name, *, context, adapter, now=None, redeliver=False):
+def lease(name, *, context, adapter, now=None, redeliver=False, writer=''):
     """Claim one known pending record. Never scans or executes an ERP queue.
 
     ``redeliver``：把丢在原电脑手里的这条重发给它（:func:`redeliverable`）。写者锁一直由这条记录持有、不放（同账套别的单照样
@@ -665,6 +667,8 @@ def lease(name, *, context, adapter, now=None, redeliver=False):
         row.lease_owner, row.lease_expires_at = adapter.owner, attempt.lease_expires_at
         # 由哪台电脑写、按哪一档分派（问责；推送记录的 actor 仍是录入人）。每台同时只领一件按它判（`companion.transport`）
         row.written_by_device, row.write_route = adapter.device or None, adapter.route or None
+        # 替写（route stand_in，用户 11-17）时这台上替提交人写的人；本人的电脑写为空。只作记录与排查，不对用户显示
+        row.writer = writer or (row.writer if redeliver else None) or None  # 重发给原电脑：照旧
         _save_record(row, timestamp)
         return {'leased': True, 'record': project(row), 'fence': fence, 'attempt_token': token,
                 'payload': deepcopy(json.loads(row.payload_json)), 'target': deepcopy(json.loads(row.target_json))}

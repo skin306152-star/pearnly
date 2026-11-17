@@ -34,7 +34,7 @@ from pearnly_core.cc_desktop.wire.ack_rules import error_code
 from pearnly_cowork.push.native import service as ledger
 from pearnly_cowork.push.native.contracts import ReservationContext
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
-from pearnly_core.cc_desktop import request_wake
+from pearnly_core.cc_desktop import request_wake, writer_rule
 from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, request_contracts, route_contracts
 from pearnly_core.express_operator import contracts as operator_target
 from . import credentials, delivery_store, devices, mrerp_jobs, queue_heads, receipt_auth, request_service
@@ -165,7 +165,7 @@ def _redeliver(credential, device, request, now):
             if row.status == 'leased':
                 ledger.recover_expired(row.name, context=reservation, adapter=lost, now=now, lost=True)
             continue
-        job = route_contracts.Job(row.name, key, row.entered_by or row.actor, 1, row.route_device or '')
+        job = route_contracts.Job(row.name, key, row.writer or row.entered_by or row.actor, 1, row.route_device or '')
         peer = _peers(credential.connection, device, request, now).get(device)
         if mrerp:
             return [_deliver(credential, claim, None, '', job._replace(target=operator_target.TARGET_MRERP), peer,
@@ -243,8 +243,14 @@ def _claim(credential, device, request, now):
         return []  # 这台电脑够不到任何可写的账套（没装 Express、只读文件夹的成员）：领不到写入
     # 只在这台能写的单里取各账套的排头：冻结给它的定时任务 + 录入人在它上面登录过 CC 的（没有登录记录的电脑谁的都写）
     users = devices.signed_in_of(device) if device != credential.credential_id else frozenset()
+    # 这台上能替别人写的登录人（用户 11-17 定稿：公司里有一台开着、够得到、登录人有权限的电脑，任何成员的单都能写）：有就看
+    # 所有不是定时任务的单，替不替哪一张由 `route_contracts.decide` 判（提交人自己的电脑在线就不替）
+    stand_in = account_pool.stand_in_user(frappe.get_doc('Cowork ERP Connection', credential.connection), users, '') \
+        if users else ''
+    # 旧件闸（主会话 11-17）：配了切换时刻（站点配置，存量站点迁移时写上）只替那之后排的件；没配全部能替
+    since = route_contracts.db_time(writer_rule.current()) if stand_in else ''
     heads = queue_heads.heads(credential.connection, credential.workspace, credential.client, reach,
-                              device=device, users=users)
+                              device=device, users=users, since=since)
     if not heads:
         return []
     keys = [head.account_key for head in heads]
@@ -261,7 +267,10 @@ def _claim(credential, device, request, now):
         job = route_contracts.Job(head.name, key, head.entered_by or head.actor, versions[head.name],
                                   head.route_device or '')
         account = _account(registered.get(key))
-        decision = route_contracts.decide(device, job, reachers.get(key) or [], peers, account, clock)
+        # 旧件闸（主会话 11-17）：切换时刻（站点配置）之前排的件不替写，照旧只等提交人自己的电脑
+        helper = stand_in if stand_in and stand_in != job.actor and route_contracts.stand_in_open(
+            head.created_at, writer_rule.current()) else ''
+        decision = route_contracts.decide(device, job, reachers.get(key) or [], peers, account, clock, stand_in=helper)
         if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
             continue  # 黏在别的电脑上、要更新的 CC 桌面版在录入人的另一台电脑上：跳过，看下一份账套（不隔离）
         row = frappe.get_doc(ledger.RECORD, head.name)
@@ -278,7 +287,8 @@ def _claim(credential, device, request, now):
         if ledger.lock_busy(row.name, context=reservation):
             continue  # 不加锁先看一眼：锁被占、该让着别的单。省掉注定等锁的整份重核
         try:
-            claim = ledger.lease(row.name, context=reservation, adapter=adapter, now=now)
+            claim = ledger.lease(row.name, context=reservation, adapter=adapter, now=now,
+                                 writer=helper if decision.route == route_contracts.STAND_IN else '')
         except ledger.LeaseUnavailable:
             # A pre-existing RR snapshot can select an already-taken row;
             # the locked ledger state wins. No mutation or generic catch.

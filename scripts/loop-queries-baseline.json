@@ -48,7 +48,7 @@
  "apps/pearnly_cowork/pearnly_cowork/companies/pending.py": 7,
  "apps/pearnly_cowork/pearnly_cowork/companies/service.py": 6,
  "apps/pearnly_cowork/pearnly_cowork/companion/credentials.py": 2,
- "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py": 7,
+ "apps/pearnly_cowork/pearnly_cowork/companion/request_service.py": 6,
  "apps/pearnly_cowork/pearnly_cowork/companion/transport.py": 20,
  "apps/pearnly_cowork/pearnly_cowork/connections/pool.py": 10,
  "apps/pearnly_cowork/pearnly_cowork/connections/refresh.py": 7,

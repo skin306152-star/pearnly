@@ -122,7 +122,7 @@ class MrErpLease(Harness):
         self.records[name] = {"connection": MRERP_CONN, "route_device": device}
         return row
 
-    def lease(self, name, *, context, adapter, now=None, redeliver=False):
+    def lease(self, name, *, context, adapter, now=None, redeliver=False, writer=""):
         self.leased_on.append((name, adapter.connection, getattr(context, "connection", None)))
         if name.startswith("CWP-M"):
             self.calls.append(("lease", name, adapter.route, adapter.device) + (("redeliver",) if redeliver else ()))

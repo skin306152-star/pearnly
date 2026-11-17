@@ -126,14 +126,19 @@ def _pool():
 
 
 def _serving(places, user) -> tuple:
-    """同一本账套有几处（几台电脑各配一条连接）时写进哪一处（谁的活谁的电脑做，用户 10-16）：只看这位用户自己登录 CC 的电脑
-    （`connections.pool.owned`），能写这本且此刻在线的那一处在前；都不在线取第一处它能写的（单子排在那条连接上等它）；
-    哪一处都没有它的电脑回第一处（推送那边照旧回没有能写的电脑）。别人的电脑在线也不挑。只读。"""
+    """同一本账套有几处（几台电脑各配一条连接）时写进哪一处：替这件活干的电脑——这位用户自己登录 CC 的电脑
+    （`connections.pool.owned`），加上公司里能替他写的别人的电脑（`connections.pool.stand_ins`，用户 11-17 定稿）——能写这本、
+    此刻在线的那一处在前；都不在线取第一处有能写的电脑的（单子排在那条连接上，谁先上线谁写）；哪一处都没有回第一处
+    （推送那边照旧回没有能写的电脑）。只读。"""
     pool, first = _pool(), None
     for connection, key in places:
-        mine = pool.owned(pool.presence(connection), user)
-        writers = pool.writers(frappe.get_doc("Cowork ERP Connection", connection), key, peers=mine) if mine else []
-        if any((mine.get(device) or {}).get("online") for device in writers):
+        doc, peers = frappe.get_doc("Cowork ERP Connection", connection), pool.presence(connection)
+        mine = pool.owned(peers, user)
+        writers = set(pool.writers(doc, key, peers=mine) if mine else [])
+        helpers = pool.stand_ins(doc, key, user, peers=peers)  # loop-query: 同一本账套的几处
+        working = {**mine, **{name: peers[name] for name in helpers}}
+        writers |= set(helpers)
+        if any((working.get(device) or {}).get("online") for device in writers):
             return connection, key
         if writers and first is None:
             first = (connection, key)

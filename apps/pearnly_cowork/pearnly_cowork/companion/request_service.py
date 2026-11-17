@@ -33,12 +33,13 @@ from frappe.utils import get_datetime
 from pearnly_core.execution import state as pearnly_state
 
 from pearnly_cowork.companion import credentials
-from pearnly_core.cc_desktop import request_wake
+from pearnly_core.cc_desktop import request_wake, writer_rule
 from pearnly_core.cc_desktop.wire import request_contracts as contracts
 from pearnly_cowork.companion import request_store as store
 from pearnly_cowork.companion.request_access import REQUEST, read, write
 from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import pool as account_pool
+from pearnly_core.cc_desktop.wire import route_contracts
 from pearnly_core.cc_desktop.wire.route_contracts import serves
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
@@ -288,17 +289,23 @@ def _candidates(connection, device=None, account_key=None, user=None):
         names = [device] if device else []
     elif account_key:
         names = [name for name in account_pool.reachers(connection, account_key) if not user or name in owned]
+        if user:
+            # 公司里能替他读的别人的电脑也问（用户 11-17 定稿，`connections.pool.stand_ins`）：谁先来谁读
+            helpers = account_pool.stand_ins(frappe.get_doc(CONNECTION, connection), account_key, user, peers=peers,
+                                             readable=True)
+            names = sorted(set(names) | set(helpers))
+            owned = {**owned, **{name: peers[name] for name in helpers}}
     else:
         names = sorted(owned)
     return {name: str((peers.get(name) or {}).get("version") or "") for name in names}, bool(owned)
 
 
 def waiting(connection, kind, known_version="", *, device=None, account_key=None, user=None) -> dict:
-    """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" | "not_yours" |
-    "update_needed" | "unreachable" | "missing", ...}``（``not_yours``：他自己的电脑都没来，同事够得到这本的电脑在）（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
-    ``account_key``：够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）；``user``：只问他自己的电脑（回读只由
-    发起人的电脑做，第 54 条），他有电脑、却没有一台够得到这份账套回 ``unreachable``（不转给同事的电脑），一台登录过 CC 的电脑
-    都没有回 ``missing``（「未连接电脑」）。
+    """此刻有没有电脑能领这种请求：能就回 ``{}``；不能回 ``{"status": "waiting_for_cc", "reason": "offline" |
+    "update_needed" | "unreachable" | "missing", ...}``（业务域据此不建请求、照实告诉用户）。``device``：定向的那台（读文件夹）；
+    ``account_key``：够得到这份账套的各台里有一台能领就行（读账套，ADR-021 第 4 批）；``user``：问替他做的电脑——他自己的，
+    加上公司里能替他读的别人的（用户 11-17 定稿，`connections.pool.stand_ins`）；这些电脑都够不到这份账套回 ``unreachable``，
+    一台都没有回 ``missing``（「未连接电脑」）。
     ``known_version`` 是别处报过的 CC 桌面端版本（文件夹同步），电脑从没来领过按需请求时与电脑行上的版本一起分辨「离线」与
     「要升级」。调用方先核过连接权限。"""
     candidates, has_own = _candidates(connection, device, account_key, user)
@@ -319,21 +326,7 @@ def waiting(connection, kind, known_version="", *, device=None, account_key=None
     if seen_any or (version and not contracts.supports(version)):
         return {"status": "waiting_for_cc", "reason": "update_needed", "version": version,
                 "minimum": contracts.MIN_COMPANION}
-    if user and account_key and device is None and _colleague_here(connection, account_key, candidates, kind):
-        # 他自己的电脑都没来、同事够得到这本的电脑在：不转给同事，照实说是他的电脑离线（A 线 11-12 测试机1）
-        return {"status": "waiting_for_cc", "reason": "not_yours"}
     return {"status": "waiting_for_cc", "reason": "offline"}
-
-
-def _colleague_here(connection, account_key, mine, kind) -> bool:
-    """别人（不在 ``mine`` 里）够得到这份账套的电脑此刻来过、领得了这种请求。"""
-    for name in account_pool.reachers(connection, account_key):
-        if name in mine:
-            continue
-        seen = presence(connection, name)
-        if seen["seen"] and kind in seen["kinds"]:
-            return True
-    return False
 
 
 # ── 机器一侧 ────────────────────────────────────────────────────────────────
@@ -383,17 +376,34 @@ def _actor_ready(row) -> bool:
 
 
 def _turns(connection, device, rows):
-    """这几件读账套的请求里归这台电脑做的：``{请求名: 这台电脑那份账套的可达行}``（ADR-021 第 54 条，用户 10-16）。
-    这台够得到那份账套（状态正常，读不要求能写），而且：回读（属于发起人）只由发起人自己登录过 CC 的电脑做
-    （`connections.member.serves`，没有登录记录的电脑过渡期照旧算）；科目历史（``SHARED_KINDS``，账套的公共资料，同一请求号
-    谁建都是同一件）够得到的电脑先来先做。没有档位、不等更合适的电脑、不看载荷版本、不黏住（只读）。"""
+    """这几件读账套的请求里归这台电脑做的：``{请求名: (这台电脑那份账套的可达行, 替发起人读的人)}``（ADR-021 第 54 条；
+    用户 11-17 定稿）。这台够得到那份账套（状态正常，读不要求能写），而且：回读（属于发起人）由发起人自己登录过 CC 的电脑做
+    （`route_contracts.serves`，没有登录记录的电脑过渡期照旧算），发起人自己没有另一台在线、够得到这本的电脑时，公司里别人的电脑
+    也替他读（上面有此刻仍能用这条连接的登录人，`connections.pool.stand_in_user`，替读的人记在请求上）；科目历史
+    （``SHARED_KINDS``，账套的公共资料）够得到的电脑先来先做。没有档位、不看载荷版本、不黏住（只读）。"""
     keys = {row.account_key for row in rows if row.account_key}
     mine = account_pool.readable_reach(connection, device, keys)
     if not mine:
         return {}
-    users = (credentials.pool_peers(connection).get(device) or {}).get("users") or ()
-    return {row.name: mine[row.account_key] for row in rows
-            if row.account_key in mine and (contracts.shared(row.kind) or serves(users, row.actor))}
+    peers = credentials.pool_peers(connection)
+    users = (peers.get(device) or {}).get("users") or ()
+    doc = frappe.get_doc(CONNECTION, connection)
+    found = {}
+    for row in rows:
+        if row.account_key not in mine:
+            continue
+        if contracts.shared(row.kind) or serves(users, row.actor):
+            found[row.name] = (mine[row.account_key], "")
+            continue
+        if not route_contracts.stand_in_open(row.requested_at, writer_rule.current()):
+            continue  # 旧件闸（主会话 11-17）：切换时刻之前建的请求不替读
+        helper = account_pool.stand_in_user(doc, users, row.actor)  # loop-query: 一次扫描最多 LEASE_SCAN 件
+        others = [name for name in account_pool.reachers(connection, row.account_key)  # loop-query: 同上
+                  if name != device and serves((peers.get(name) or {}).get("users"), row.actor)
+                  and (peers.get(name) or {}).get("online")]
+        if helper and not others:
+            found[row.name] = (mine[row.account_key], helper)
+    return found
 
 
 def lease_next(context, body) -> dict:
@@ -429,12 +439,12 @@ def lease_next(context, body) -> dict:
             continue
         handle = secrets.token_hex(16)
         seconds = contracts.LEASE_SECONDS[row.kind]
+        reach, reader = turns.get(row.name) or (None, "")
         row.update({"status": "leased", "lease_handle": handle, "lease_credential": context.credential_id,
                     "lease_device": device, "leased_at": now, "lease_expires_at": now + timedelta(seconds=seconds),
-                    "companion_version": wanted["version"], "received_bytes": 0})
+                    "companion_version": wanted["version"], "received_bytes": 0, "reader": reader})
         write(row)
         params = _json(row.params_json)
-        reach = turns.get(row.name)
         if reach is not None:
             params = contracts.localize(params, reach.path, reach.root)
         return {"request": {"id": row.name, "kind": row.kind, "params": params, "handle": handle,

@@ -1363,6 +1363,7 @@ Reach State,可达状态
 Read,已读取
 Read At (UTC),读取时间（UTC）
 Read Back,回读
+Read By,读账人
 Read By Computer,读取的电脑
 Read VAT report,读取销项税报告
 Read again,重新读取
@@ -2274,6 +2275,7 @@ Writable,可写
 Write Check,写入核对
 Write Check Detail,写入核对明细
 Write Route,写入分派
+Writer,写账人
 Writing now. Cannot withdraw.,正在写入，无法撤回。
 Writing to Express failed and was undone. It is retried automatically,写入 Express 失败，已撤回，将自动重试
 Written By Computer,写入的电脑

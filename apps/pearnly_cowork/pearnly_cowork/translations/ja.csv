@@ -1363,6 +1363,7 @@ Reach State,アクセス状態
 Read,読み取り済み
 Read At (UTC),読み取り日時（UTC）
 Read Back,読み戻し
+Read By,読み取り担当者
 Read By Computer,読み取ったパソコン
 Read VAT report,売上税報告の読み取り
 Read again,再読み込み
@@ -2274,6 +2275,7 @@ Writable,書き込み可
 Write Check,書き込み確認
 Write Check Detail,書き込み確認の詳細
 Write Route,書き込みの割り当て
+Writer,書き込み担当者
 Writing now. Cannot withdraw.,書き込み中のため取り下げできません。
 Writing to Express failed and was undone. It is retried automatically,Express への書き込みに失敗し、元に戻しました。自動で再試行します
 Written By Computer,書き込んだパソコン

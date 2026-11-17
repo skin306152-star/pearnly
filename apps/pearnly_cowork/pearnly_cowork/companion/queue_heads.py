@@ -24,7 +24,8 @@ _QUEUED = ("{r}.connection=%(connection)s AND {r}.workspace=%(workspace)s AND CO
 # ``anyone`` = 这台电脑没有登录记录（过渡期谁的单都写，`route_contracts.serves`）
 _OWNED = ("(%(everyone)s=1 OR ({r}.route_device=%(device)s AND %(device)s<>'') "
           "OR (COALESCE({r}.route_device,'')='' AND (%(anyone)s=1 "
-          "OR COALESCE(NULLIF({r}.entered_by,''),{r}.actor) IN %(users)s)))")
+          "OR COALESCE(NULLIF({r}.entered_by,''),{r}.actor) IN %(users)s "
+          "OR (%(since)s<>'' AND {r}.created_at>=%(since)s))))")
 
 # 先按账套取最早的建立时间（一次分组），再取那一刻的那几张（同一时刻建的由 `route_contracts.heads` 按名字取第一张）。
 # 内外两层同一套过滤：排头是「这台能写的单」里最早的那张
@@ -39,32 +40,35 @@ Q_HEADS = ("SELECT r.name, r.account_key, r.actor, r.entered_by, r.route_device,
            "ORDER BY r.created_at, r.name")
 
 
-def scope(*, device='', users=None, user=None):
+def scope(*, device='', users=None, user=None, since=''):
     """排头取谁的单：
 
     - ``device`` + ``users``（电脑来领）：冻结给这台的定时任务，加上录入人在这台电脑上登录过 CC 的单；``users`` 为空
-      （没有登录记录的电脑）是所有不是定时任务的单；
+      （没有登录记录的电脑）是所有不是定时任务的单；给了 ``since``（这台上有能替别人写的登录人，用户 11-17；值是替写的切换时刻，
+      库里的写法）再加上切换时刻之后排的别人的单（之前排的别人的单不替，旧件闸，也就不让它挡在排头）——替不替哪一张由
+      `route_contracts.decide` 在领的那一刻判（提交人自己的电脑在线就不替）；
     - ``user``（池的状态按人）：这个人自己录的、不是定时任务的单；
     - ``device`` 不给 ``users``、也不给 ``user``（池的状态按电脑，定时任务）：冻结给这台的单；
     - 都不给：不筛。"""
     if user:
-        return {'everyone': 0, 'device': '', 'anyone': 0, 'users': (user,)}
+        return {'everyone': 0, 'device': '', 'anyone': 0, 'users': (user,), 'since': ''}
     if device and users is not None:
         members = tuple(sorted({item for item in users if item}))
-        return {'everyone': 0, 'device': device, 'anyone': 0 if members else 1, 'users': members or ('',)}
+        return {'everyone': 0, 'device': device, 'anyone': 0 if members else 1, 'users': members or ('',),
+                'since': since or ''}
     if device:
-        return {'everyone': 0, 'device': device, 'anyone': 0, 'users': ('',)}
-    return {'everyone': 1, 'device': '', 'anyone': 0, 'users': ('',)}
+        return {'everyone': 0, 'device': device, 'anyone': 0, 'users': ('',), 'since': ''}
+    return {'everyone': 1, 'device': '', 'anyone': 0, 'users': ('',), 'since': ''}
 
 
-def heads(connection, workspace, client, account_keys, *, device='', users=None, user=None):
+def heads(connection, workspace, client, account_keys, *, device='', users=None, user=None, since=''):
     """``account_keys`` 里每份账套的排头（按排头的先后），只取分派要用的几列，只在 :func:`scope` 筛出的单里取。
     同一时刻建的按名字取第一张。"""
     keys = tuple(sorted({key for key in account_keys or () if key}))
     if not connection or not keys:
         return []
     rows = frappe.db.sql(Q_HEADS, {'connection': connection, 'workspace': workspace, 'client': client or '',
-                                   'keys': keys, **scope(device=device, users=users, user=user)}, as_dict=True)
+                                   'keys': keys, **scope(device=device, users=users, user=user, since=since)}, as_dict=True)
     return route_contracts.heads(rows, limit=max(1, len(keys)))
 
 

@@ -2040,9 +2040,9 @@ MRERP_READ_WAIT_SECONDS = 60
 
 # 不能选的 Express 状态给模型的说明（不是界面文案）：分清「没有能写的电脑」与「未连接电脑」（ADR-021 第 53 条，10-16 审查）
 TARGET_NOTES = {
-    "no_writer": "None of the user's own computers with CC Desktop can open this program's account sets (documents "
-                 "are written only by the user's own computers, never a colleague's). Tell the user and ask them to "
-                 "sign in to CC Desktop on a computer that can open the account set.",
+    "no_writer": "No computer with CC Desktop in the company can open this program's account sets (the user's own "
+                 "or a colleague's who may use this connection). Tell the user and ask them to sign in to CC Desktop "
+                 "on a computer that can open the account set.",
     "cc_desktop_not_connected": "The user has not connected CC Desktop on any computer yet. Tell the user to install "
                                 "CC Desktop on their own computer and sign in there.",
 }
@@ -2050,7 +2050,8 @@ TARGET_NOTES = {
 
 def _target_state(row) -> str:
     """同 LINE `flow._state`：没连、停用、当前用户自己的电脑一台都没有（``cc_desktop_not_connected``）、有电脑却都够不到
-    能写的账套（``no_writer``，不转给同事的电脑），都不能选。能写的电脑关着照样能选（排队，开机后写，D4，ADR-021）。"""
+    能写的账套（``no_writer``），公司里也没有能替他写的电脑（用户 11-17 定稿，`companion.pool.state` 已一并算），都不能选。
+    能写的电脑关着照样能选（排队，开机后写，D4，ADR-021）。"""
     if not row:
         return "not_connected"
     if not row.get("enabled"):

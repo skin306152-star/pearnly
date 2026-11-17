@@ -8,7 +8,7 @@
  "owner": "Administrator",
  "modified_by": "Administrator",
  "creation": "2026-09-21 00:00:00.000000",
- "modified": "2026-11-06 17:00:00.000000",
+ "modified": "2026-11-17 12:00:00.000000",
  "sort_field": "creation",
  "sort_order": "DESC",
  "actions": [],
@@ -55,6 +55,7 @@
   "confirmation_revision",
   "completion_json",
   "entered_by",
+  "writer",
   "route_device",
   "payload_version",
   "written_by_device",
@@ -358,6 +359,14 @@
    "fieldtype": "Link",
    "options": "User",
    "read_only": 1
+  },
+  {
+   "fieldname": "writer",
+   "label": "Writer",
+   "fieldtype": "Link",
+   "options": "User",
+   "read_only": 1,
+   "no_copy": 1
   },
   {
    "fieldname": "route_device",

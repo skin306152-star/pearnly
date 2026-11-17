@@ -275,3 +275,8 @@ class = "shape"
 where = "local"
 check = "C2：租户域名、fatcc.com、auth.pearnly.com 的证书剩余少于 7 天拦部署，少于 21 天只报告"
 reads = "本机 TLS 握手读证书"
+
+# 替写的切换时刻（ISO UTC，两产品同名，`pearnly_core.cc_desktop.wire.route_contracts.WRITER_RULE_SINCE`；主会话 11-17）：
+# 之前排的件不由别人的电脑替写；没配 = 还没切换。各租户在自己上线那一刻配，值本来不同
+[key.pearnly_writer_rule_since]
+class = "varies"

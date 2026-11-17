@@ -605,6 +605,26 @@ class Dispatch(Base):
         self.assertEqual(pool.writers(self.doc, self.KEY, peers=pool.owned(
             {"CCD-A": {"users": {"me@x.com"}, "issuers": {"owner@example.com"}}}, "other@x.com")), [])
 
+    def test_the_computers_that_may_stand_in_for_a_member_are_other_peoples_that_reach_the_account_set(self):
+        """用户 11-17 定稿「公司里只要有一台开着 CC、够得到那本账套、登录人有权限的电脑，任何成员提交的单就能写」：`stand_ins`
+        是别人的、够得到这份账套能写的电脑，上面有此刻仍能用这条连接的登录人（在不在线都算，谁先上线谁写，领单时判）。"""
+        self.a.report(body(self.S_BOOK), NOW)
+        self.b.report(body(self.Z_BOOK), NOW)  # 两台都够得到这份账套
+        here = fake.PRESENCE["CONN"]
+        here["CCD-A"]["users"], here["CCD-B"]["users"] = frozenset({"zed@x.com", "ann@x.com"}), frozenset({"bob@x.com"})
+        here["CCD-A"]["online"] = False
+        self.assertEqual(pool.stand_ins(self.doc, self.KEY, "phone@x.com"), {"CCD-A": "ann@x.com", "CCD-B": "bob@x.com"})
+        self.assertEqual(pool.stand_ins(self.doc, self.KEY, "ann@x.com"), {"CCD-B": "bob@x.com"})  # 自己的不算替写
+        fake.LOST_ACCESS.add("ann@x.com")  # 失了这条连接的使用权：换同一台上的下一个
+        self.assertEqual(pool.stand_ins(self.doc, self.KEY, "phone@x.com")["CCD-A"], "zed@x.com")
+        fake.LOST_ACCESS.update({"zed@x.com", "bob@x.com"})
+        self.assertEqual(pool.stand_ins(self.doc, self.KEY, "phone@x.com"), {})
+        fake.LOST_ACCESS.clear()
+        self.assertEqual(pool.stand_ins(self.doc, r"\\srv\none", "phone@x.com"), {})
+        self.assertEqual(pool.stand_in_user(self.doc, {"bob@x.com", "phone@x.com"}, "phone@x.com"), "bob@x.com")
+        self.assertEqual(pool.stand_ins(self.doc, self.KEY, "phone@x.com", readable=True),
+                         {"CCD-A": "ann@x.com", "CCD-B": "bob@x.com"})  # 只读（回读）：够得到就算
+
     def test_a_write_is_noted_on_the_registration_and_a_uid_mismatch_goes_stale_until_a_full_report(self):
         self.a.report(body(self.S_BOOK), NOW)
         self.assertTrue(pool.note_written("CONN", self.KEY, "CCD-A", NOW))

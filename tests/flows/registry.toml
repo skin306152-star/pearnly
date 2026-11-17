@@ -2380,3 +2380,21 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
 ]
+
+[[flow]]
+id = "cowork.office-writer"
+title = "Cowork 替写（11-17 定稿）：公司里在线、够得到、登录人有权限的电脑写任何成员的单，提交人自己的在线时用自己的；录入人不变；迁移前排的旧件不替；没人有权限照旧没有能写的电脑"
+module = "scripts/flows/cowork_office_writer.py"
+product = "cowork"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/connections/pool.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/native/service.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/queue_heads.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/pool.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/transport.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py",
+]

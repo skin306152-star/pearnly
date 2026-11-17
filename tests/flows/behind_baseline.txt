@@ -45,7 +45,6 @@ apps/pearnly_cowork/pearnly_cowork/companion/request_store.py
 apps/pearnly_cowork/pearnly_cowork/connections/collector.py
 apps/pearnly_cowork/pearnly_cowork/connections/desktop_update.py
 apps/pearnly_cowork/pearnly_cowork/connections/model.py
-apps/pearnly_cowork/pearnly_cowork/connections/pool.py
 apps/pearnly_cowork/pearnly_cowork/connections/reports.py
 apps/pearnly_cowork/pearnly_cowork/folder_intake/inbox.py
 apps/pearnly_cowork/pearnly_cowork/folder_intake/live.py

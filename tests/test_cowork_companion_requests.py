@@ -233,6 +233,7 @@ class FakeState:
 
 def _frappe():
     frappe = types.ModuleType("frappe")
+    frappe.conf = {}  # 没配替写的切换时刻（新开户站点）：替读对全部请求生效
 
     class ValidationError(Exception):
         pass
@@ -300,6 +301,25 @@ class Pool:
         return {key: self.reachers(connection, key) for key in keys}
 
     @staticmethod
+    def usable(doc, user):
+        return True
+
+    def stand_in_user(self, doc, users, actor):
+        return route.pick_user(users, lambda user: user != actor and self.usable(doc, user))
+
+    def stand_ins(self, doc, account_key, actor, *, peers=None, readable=False):
+        """同 `connections.pool.stand_ins`（真函数在 `test_cowork_express_account_sets` 里守着）。"""
+        peers = self.peers.get(doc.name, {}) if peers is None else peers
+        mine = self.owned(peers, actor)
+        found = {}
+        for device in (self.reachers(doc.name, account_key) if account_key else sorted(peers)):
+            if device in peers and device not in mine:
+                user = self.stand_in_user(doc, (peers[device] or {}).get("users"), actor)
+                if user:
+                    found[device] = user
+        return found
+
+    @staticmethod
     def owned(peers, actor, *, device=""):
         """同 `connections.pool.owned`（纯函数那一段，按真的 `route_contracts.serves`）。"""
         if device:
@@ -315,6 +335,7 @@ def _service(clock):
     allowed = {("acc@x.com", "C1"), ("acc@x.com", "M1"), ("other@x.com", "C1")}
     db = frappe.db
     pool = Pool()
+    pool.usable = lambda doc, user: (user, doc.name) in allowed  # 兜底的人此刻仍能用这条连接（同 `access.usable_by`）
 
     def require_connection(doc, actor=None, **kwargs):
         actor = actor or frappe.session.user
@@ -345,7 +366,9 @@ def _service(clock):
                "pearnly_cowork.companion": types.ModuleType("pearnly_cowork.companion"),
                # 建请求后叫醒这条连接上的电脑（`request_wake`，1.12.22）：这里只记下叫了谁
                "pearnly_core.cc_desktop": types.SimpleNamespace(request_wake=types.SimpleNamespace(
-                   ring=lambda scopes: rings.append(list(scopes)), take=lambda scope: False)),
+                   ring=lambda scopes: rings.append(list(scopes)), take=lambda scope: False),
+                   # 替写的切换时刻（`writer_rule.current`）：读这份替身的站点配置
+                   writer_rule=types.SimpleNamespace(current=lambda: str(frappe.conf.get("pearnly_writer_rule_since") or ""))),
                "pearnly_core.cc_desktop.wire": types.SimpleNamespace(request_contracts=contracts, route_contracts=route),
                "pearnly_core.cc_desktop.wire.request_contracts": contracts,
                "pearnly_core.cc_desktop.wire.route_contracts": route,
@@ -740,20 +763,20 @@ class PoolRequestTests(unittest.TestCase):
         self.assertFalse(self.service.presence("C1", "PC1")["seen"])
         self.assertEqual(self.db.rows[made["request"]].lease_device, "PC2")
 
-    def test_a_readback_is_done_only_by_the_askers_own_computer_with_its_own_writing(self):
-        # 用户 10-16（ADR-021 第 54 条）：回读只由发起人自己登录过 CC 的电脑做，同事的电脑等多久都不领
+    def test_a_readback_is_done_by_the_askers_own_computer_while_it_is_on_with_its_own_writing(self):
+        # ADR-021 第 54 条，用户 11-17 定稿：发起人自己的电脑在线时只由它做；同事的电脑不替（替读见下一条）
+        self.pool.peers["C1"]["PC1"]["online"] = True
         params = {"account_set": self.KEY, "account_root": "\\\\nas\\exp", "period": "2026-09", "docnums": []}
         made = self.service.create("express_read", "C1", params, "readback:k1", account_key=self.KEY.upper())
         self.assertEqual(self.db.rows[made["request"]].account_key, self.KEY)  # 存规范键
-        self.assertIsNone(self.lease("CRED-2")["request"])  # PC2 是同事的电脑：不领
-        self.clock.now += timedelta(seconds=contracts.SEEN_SECONDS + 300)
-        self.assertIsNone(self.lease("CRED-2")["request"])  # 发起人的电脑不在、等了很久：照样不领
+        self.assertIsNone(self.lease("CRED-2")["request"])  # PC2 是同事的电脑、发起人的在线：不替
         self.assertIsNone(self.lease("CRED-3")["request"])  # PC3 够不到这份账套，永远领不到
         leased = self.lease("CRED-1")["request"]  # 发起人自己的电脑
         self.assertEqual(leased["id"], made["request"])
         self.assertEqual((leased["params"]["account_set"], leased["params"]["account_root"]),
                          ("S:\\EXP\\DATA\\ACME69", "S:\\EXP"))  # 换成 PC1 自己的写法
         self.assertEqual(json.loads(self.db.rows[made["request"]].params_json)["account_set"], self.KEY)  # 存着的不改
+        self.assertEqual(self.db.rows[made["request"]].reader, "")  # 本人的电脑读：不记替读的人
 
     def test_account_history_is_shared_so_whichever_computer_reaches_it_first_reads_it(self):
         # 第 54 条：科目历史是账套的公共资料（同一请求号谁建都是同一件），够得到它的电脑谁先来谁读，不等发起人的电脑
@@ -764,6 +787,26 @@ class PoolRequestTests(unittest.TestCase):
         leased = self.lease("CRED-2")["request"]
         self.assertEqual(leased["id"], made["request"])
         self.assertEqual(leased["params"]["account_set"], "\\\\nas\\exp\\data\\acme69")
+
+    def test_a_readback_is_read_by_a_colleagues_computer_while_the_askers_own_is_off(self):
+        # 用户 11-17 定稿：发起人自己的电脑都不在线（或一台都没有）→ 公司里够得到这本、登录人能用这条连接的电脑替他读，
+        # 替读的人记在请求上（领的那一刻判）；发起人照旧是他
+        self.allowed.add(("phone@x.com", "C1"))
+        self.frappe.session.user = "phone@x.com"
+        params = {"account_set": self.KEY, "account_root": "", "period": "2026-09", "docnums": []}
+        made = self.service.create("express_read", "C1", params, "readback:phone", account_key=self.KEY)
+        self.frappe.session.user = "acc@x.com"
+        self.frappe.conf["pearnly_writer_rule_since"] = "2999-01-01T00:00:00Z"  # 旧件闸：切换前建的请求不替读
+        self.assertIsNone(self.lease("CRED-2")["request"])
+        self.frappe.conf.clear()  # 没配（新开户站点）：全部都能替
+        self.assertEqual(self.lease("CRED-2")["request"]["id"], made["request"])
+        row = self.db.rows[made["request"]]
+        self.assertEqual((row.actor, row.reader), ("phone@x.com", "other@x.com"))
+        self.allowed.discard(("other@x.com", "C1"))  # 能替读的人不能用这条连接：不替
+        again = self.service.create("express_read", "C1", params, "readback:acc-off", account_key=self.KEY)
+        self.pool.peers["C1"]["PC1"]["online"] = False
+        self.assertIsNone(self.lease("CRED-2")["request"])
+        self.assertEqual(self.db.rows[again["request"]].status, "requested")
 
     def test_a_readback_goes_to_a_computer_nobody_signed_in_on_during_the_transition(self):
         self.pool.peers["C1"]["PC2"]["users"] = set()
@@ -781,21 +824,26 @@ class PoolRequestTests(unittest.TestCase):
                          "offline")  # 没有电脑够得到
 
     def test_waiting_for_a_readback_asks_only_the_askers_own_computers(self):
-        # 第 54 条：回读按人问。同事的电脑在线不算；自己有电脑、却都够不到这份账套 → unreachable（不转给同事）
+        # 回读按替他做的电脑问（他自己的，加上能替他读的同事的，用户 11-17 定稿）
         wait = lambda user, key=self.KEY: self.service.waiting("C1", "express_read", account_key=key, user=user)
         self.assertEqual(wait("acc@x.com")["reason"], "offline")   # 谁的电脑都没来领：离线
         self.lease("CRED-2")
-        # 自己的 PC1 够得到、此刻没来领，同事够得到这本的电脑在：not_yours（「您的电脑离线」，不转给同事，A 线 11-12）
-        self.assertEqual(wait("acc@x.com")["reason"], "not_yours")
+        # 自己的 PC1 此刻没来领，同事够得到这本的电脑在：能读（由它替）
+        self.assertEqual(wait("acc@x.com"), {})
         self.assertEqual(wait("other@x.com"), {})
         self.lease("CRED-1")
         self.assertEqual(wait("acc@x.com"), {})
         self.pool.reach.pop(("C1", "PC1", self.KEY))
+        # 自己有电脑、却都够不到这份账套：同事够得到的电脑替他读（用户 11-17 定稿）——PC2 在，不用等
+        self.assertEqual(wait("acc@x.com"), {})
+        self.allowed.discard(("other@x.com", "C1"))  # 同事此刻不能用这条连接：谁都不能兜底 → unreachable
         self.assertEqual(wait("acc@x.com"), {"status": "waiting_for_cc", "reason": "unreachable"})
-        # 一台登录过 CC 的电脑都没有：「CC 桌面版未连接」（missing），不说哪台电脑离线（规则 4，10-16 审查）；不给账套时同样
+        # 一台登录过 CC 的电脑都没有、也没有能兜底的人：「CC 桌面版未连接」（missing），不说哪台电脑离线（规则 4）；不给账套时同样
         self.pool.peers["C1"]["PC3"]["users"] = {"third@x.com"}
         self.assertEqual(wait("new@x.com"), {"status": "waiting_for_cc", "reason": "missing"})
         self.assertEqual(wait("new@x.com", None), {"status": "waiting_for_cc", "reason": "missing"})
+        self.allowed.add(("other@x.com", "C1"))
+        self.assertEqual(wait("new@x.com"), {})  # 同事的 PC2 够得到这本：兜底读
         # 给了定向的电脑（读文件夹）不按人判
         self.assertNotEqual(self.service.waiting("C1", "express_read", device="PC1", user="new@x.com").get("reason"),
                             "missing")

@@ -463,6 +463,8 @@ Computer Owner	电脑登记人	ผู้ลงทะเบียนคอมพ�
 Index Rebuild Pending Folder IDs	索引待重建的文件夹编号	รหัสโฟลเดอร์ที่รอสร้างดัชนีใหม่	インデックス再構築待ちのフォルダー ID
 All Members	全所可用	ทุกคนในสำนักงานใช้ได้	事務所全員が利用可
 Reader Device	读文件夹的电脑	คอมพิวเตอร์ที่อ่านโฟลเดอร์	フォルダーを読み取るパソコン
+Writer	写账人	ผู้บันทึกเข้าบัญชี	書き込み担当者
+Read By	读账人	ผู้อ่านบัญชี	読み取り担当者
 Target Computer	指定电脑	คอมพิวเตอร์ที่ระบุ	指定のパソコン
 Lease Computer	领取的电脑	คอมพิวเตอร์ที่รับงาน	受け取ったパソコン
 Use the CC Desktop credential service to access credentials.	请通过 CC 桌面版凭据服务访问凭据。	กรุณาเข้าถึงข้อมูลรับรองผ่านบริการข้อมูลรับรองของ CC เดสก์ท็อป	CC デスクトップの認証情報サービスから認証情報にアクセスしてください。	Use the Cowork Companion credential service to access credentials.

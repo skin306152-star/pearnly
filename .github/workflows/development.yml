@@ -239,6 +239,10 @@ jobs:
         run: python3 scripts/production/test-site-step-purge.py
       - name: Verify which identity pool a site may sign in to (old Cowork sites move and roll back)
         run: python3 scripts/production/test-site-step-oidc.py
+      - name: Verify the read-only count of Cowork documents stopped for no computer to write them
+        run: python3 scripts/production/test-count-cowork-no-writer.py
+      - name: Verify the stand-in switch time is stamped once by the migration and old jobs keep waiting for their submitter
+        run: python3 tests/test_cc_writer_rule.py
       - name: Verify a new tenant runs the after migrate initializers once its features are written
         run: python3 tests/test_site_initializers.py
       - name: Verify production memory admission budgets

@@ -158,6 +158,57 @@ class Routing(unittest.TestCase):
 # ── 下发副本的位置、锁口径、本单用到的主档 ─────────────────────────────────────────────
 
 
+class StandIn(unittest.TestCase):
+    """替写的共用判据（用户 11-17 定稿「公司里只要有一台开着 CC、够得到那本账套、登录人有权限的电脑，任何成员提交的单就能写」，
+    `route_contracts.decide` 的 ``stand_in`` / `pick_user`）：两产品同一条。"""
+
+    def test_a_colleagues_online_computer_writes_only_while_the_submitter_has_none_online(self):
+        peers = {A: Peer(users=MINE, online=False), B: Peer(users=THEIRS, online=True)}
+        reach = [A, B]
+        # 我的 A 关着：B 来领、上面有能替写的人 → 替我写（route stand_in）
+        self.assertEqual(rc.decide(B, job(), reach, peers, Account(), NOW, stand_in=OTHER), (True, rc.STAND_IN, ""))
+        # B 上没有能替写的人：不领
+        self.assertEqual(rc.decide(B, job(), reach, peers, Account(), NOW), (False, "", rc.NOT_MINE))
+        # 我的 A 在线：由 A 写，B 不替
+        peers[A] = peers[A]._replace(online=True)
+        self.assertEqual(rc.decide(B, job(), reach, peers, Account(), NOW, stand_in=OTHER), (False, "", rc.NOT_MINE))
+        self.assertEqual(rc.decide(A, job(), reach, peers, Account(), NOW), (True, rc.OWN, ""))
+        # 定时任务只归读文件夹的那台，不替
+        self.assertEqual(rc.decide(B, job(route_device=C), [A, B, C], peers, Account(), NOW, stand_in=OTHER)[0], False)
+
+    def test_the_one_who_stands_in_is_the_inviter_first_then_by_name_among_people_who_may(self):
+        users = {"zed@x.com", "ann@x.com", "bob@x.com"}
+        self.assertEqual(rc.pick_user(users, lambda user: True), "ann@x.com")
+        self.assertEqual(rc.pick_user(users, lambda user: True, inviter="zed@x.com"), "zed@x.com")
+        self.assertEqual(rc.pick_user(users, lambda user: user != "ann@x.com"), "bob@x.com")
+        self.assertEqual(rc.pick_user(users, lambda user: False), "")
+        self.assertEqual(rc.pick_user(set(), lambda user: True), "")
+
+
+class WriterRuleShared(unittest.TestCase):
+    """旧件闸与「状态 → 显示」（两产品同一份，主会话 11-17）。"""
+
+    def test_only_jobs_queued_after_the_switch_may_be_written_by_someone_else(self):
+        since = "2026-11-18T00:00:00Z"
+        self.assertTrue(rc.stand_in_open(datetime(2026, 11, 18, 1, 0), since))   # 库里存 UTC、不带时区
+        self.assertTrue(rc.stand_in_open("2026-11-18 00:00:00", since))
+        self.assertFalse(rc.stand_in_open(datetime(2026, 11, 17, 23, 59), since))
+        self.assertTrue(rc.stand_in_open(datetime(2026, 11, 18, 1, 0), None))    # 没配（新开户站点）：全部件都能替
+        self.assertTrue(rc.stand_in_open(None, ""))
+        self.assertFalse(rc.stand_in_open(None, since))
+        self.assertFalse(rc.stand_in_open(datetime(2026, 11, 18, 1, 0), "not a time"))  # 配了却读不出：宁可不替
+        self.assertEqual((rc.db_time(None), rc.db_time(since), rc.db_time("x")),
+                         ("1970-01-01 00:00:00", "2026-11-18 00:00:00", "9999-12-31 23:59:59"))
+
+    def test_the_state_to_text_table(self):
+        status = lambda **kw: rc.writer_status(**{"online": False, "writers_known": False, "computers": False, **kw})
+        self.assertEqual(status(online=True, writers_known=True, computers=True), rc.WRITER_CONNECTED)
+        self.assertEqual(status(writers_known=True, computers=True), rc.WRITER_OFFLINE)
+        self.assertEqual(status(computers=True), rc.WRITER_NO_WRITER)
+        self.assertEqual(status(), rc.WRITER_MISSING)
+        self.assertEqual(status(writers_known=True, computers=True, needs_update=True), rc.WRITER_NEEDS_UPDATE)
+
+
 class Location(unittest.TestCase):
     FROZEN = {"account_set": r"\\srv\s\X\BOOK", "account_dir": r"\\srv\s\X\BOOK", "account_root": r"\\srv\s\X",
               "account_company": "ABC", "account_set_row": 3, "lines": [{"acc": "1100"}]}
@@ -359,6 +410,7 @@ class Transport(unittest.TestCase):
         frappe.db = types.SimpleNamespace(savepoint=lambda name: None, rollback=lambda **kw: None, sql=self.sql,
                                           get_value=lambda doctype, name, field, as_dict=False: types.SimpleNamespace(
                                               device_owner="owner@example.com", companion_version=self.version))
+        frappe.conf = {}  # 没配替写的切换时刻（`route_contracts.WRITER_RULE_SINCE`）：谁的件都不替写
         frappe.get_doc = lambda doctype, name, for_update=False: Record(
             name=name, connection="CONN", workspace="WS", client="", branch="legacy", binding_generation=0,
             actor=ME, history="H-" + name, history_version=1, account_key=self.key_of(name), connection_revision=1,
@@ -383,7 +435,11 @@ class Transport(unittest.TestCase):
                                         member=lambda *a, **k: types.SimpleNamespace(selected=""),
                                         note_index_pending=lambda device, uids: self.calls.append(("index", device, uids)))
         # 领取时连接行锁着：每份账套的可达与登记一次批量取回，不逐份查（第 3 批审查）
+        # 替写（用户 11-17 定稿）：``self.stand_in_ok`` 里的人此刻能用这条连接（默认没有：不替）
+        self.stand_in_ok = set()
         pool = types.SimpleNamespace(
+            stand_in_user=lambda doc, users, actor: next(
+                (user for user in sorted(users or ()) if user != actor and user in self.stand_in_ok), ""),
             writable_reach=lambda connection, device: dict(self.reach) if device == A else {},
             reachers_of=lambda connection, keys, writable=False: (
                 self.queries.append("reachers_of") or {key: list(self.reachers.get(key, [])) for key in keys}),
@@ -412,6 +468,9 @@ class Transport(unittest.TestCase):
                 presence=lambda connection, device: {"seen": device in self.present}),
         }
         self.transport = _load("pearnly_cowork.companion._transport_under_test", APP / "companion/transport.py", modules)
+        # 替写的切换时刻（`writer_rule.current`）：读这份替身的站点配置
+        self.transport.writer_rule = types.SimpleNamespace(
+            current=lambda: str(self.transport.frappe.conf.get(rc.WRITER_RULE_SINCE) or ""))
         self.credential = types.SimpleNamespace(connection="CONN", workspace="WS", client="", credential_id="KEY-A",
                                                 token_generation=1, issuer=ME)
 
@@ -428,11 +487,13 @@ class Transport(unittest.TestCase):
         if "MIN(r2.created_at)" in q:
             # 每份账套在这台能写的单里各取排头（真查询的语义在 `QueueHeadsQuery` 里用 SQLite 跑过）
             self.queries.append("heads")
-            self.scopes.append({key: values[key] for key in ("everyone", "device", "anyone", "users")})
+            self.scopes.append({key: values[key] for key in ("everyone", "device", "anyone", "users", "since")})
             wanted, first = set(values["keys"]), {}
             for row in sorted(self.pending, key=lambda r: (r.created_at, r.name)):
+                created = str(getattr(row, "created_at", "") or "")
                 owned = (row.route_device == values["device"] if row.route_device
-                         else values["anyone"] or row.entered_by in values["users"])
+                         else values["anyone"] or row.entered_by in values["users"]
+                         or bool(values.get("since")) and created >= values["since"])
                 if row.account_key in wanted and owned:
                     first.setdefault(row.account_key, row)
             return sorted(first.values(), key=lambda r: (r.created_at, r.name))
@@ -442,8 +503,9 @@ class Transport(unittest.TestCase):
             return [Record(row) for row in self.expired]
         raise AssertionError("unexpected query: " + q)
 
-    def lease(self, name, *, context, adapter, now=None, redeliver=False):
-        self.calls.append(("lease", name, adapter.route, adapter.device) + (("redeliver",) if redeliver else ()))
+    def lease(self, name, *, context, adapter, now=None, redeliver=False, writer=""):
+        self.calls.append(("lease", name, adapter.route, adapter.device) + (("redeliver",) if redeliver else ())
+                          + ((("writer", writer),) if writer else ()))
         outcome = self.outcome.get(name, "leased")
         if outcome == "waiting":
             return {"leased": False, "reason": "waiting_lock", "record": {}}
@@ -477,7 +539,7 @@ class Transport(unittest.TestCase):
                         _row("CWP-3", "s2", created=2)]
         reply = self.run_lease()
         self.assertEqual([call[:3] for call in self.calls if call[0] == "lease"], [("lease", "CWP-2", rc.OWN)])
-        self.assertEqual(self.scopes[-1], {"everyone": 0, "device": A, "anyone": 0, "users": (ME,)})
+        self.assertEqual(self.scopes[-1], {"everyone": 0, "device": A, "anyone": 0, "users": (ME,), "since": ""})
         self.assertTrue(reply["jobs"][0]["attended"])
 
     def test_a_book_waiting_for_express_to_close_rests_while_other_books_are_handed_out(self):
@@ -494,6 +556,26 @@ class Transport(unittest.TestCase):
         self.records["CWP-1"]["updated_at"] = NOW - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)
         self.assertEqual(len(self.run_lease()["jobs"]), 1)           # 歇够了照常派
         self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-1"])
+
+    def test_a_colleagues_job_is_written_here_while_his_own_computer_is_off(self):
+        # 用户 11-17 定稿：这台上我能替同事写、同事自己够得到这本的电脑都关着 → 这台替他写（route stand_in，记下替写的我）；
+        # 他自己的电脑在线 → 不替，等它写；单上的录入人不变（推送记录的 actor / entered_by 不改）
+        self.stand_in_ok = {ME}
+        self.reachers = {"s1": [A, B]}
+        self.peers[B]["online"] = False
+        self.pending = [_row("CWP-1", "s1", actor=OTHER)]
+        # 旧件闸（主会话 11-17）：这件排在切换时刻（存量站点迁移时写上）之前 → 不替，照旧等他自己的电脑
+        self.transport.frappe.conf = {rc.WRITER_RULE_SINCE: "2999-01-01T00:00:00Z"}
+        self.assertEqual(self.run_lease()["jobs"], [])
+        self.transport.frappe.conf = {}  # 没配（新开户站点）：全部件都能替
+        self.calls.clear()
+        self.assertEqual(len(self.run_lease()["jobs"]), 1)
+        self.assertEqual([call for call in self.calls if call[0] == "lease"],
+                         [("lease", "CWP-1", rc.STAND_IN, A, ("writer", ME))])
+        self.assertEqual((self.scopes[-1]["anyone"], self.scopes[-1]["since"]), (0, "1970-01-01 00:00:00"))
+        self.calls.clear()
+        self.peers[B]["online"] = True
+        self.assertEqual(self.run_lease()["jobs"], [])
 
     def test_a_colleagues_job_is_never_taken_however_long_it_has_waited(self):
         self.pending = [_row("CWP-1", "s1", actor=OTHER, created=-86400)]
@@ -685,7 +767,7 @@ class QueueHeadsQuery(unittest.TestCase):
                            {"frappe": frappe, "pearnly_core.cc_desktop.wire.route_contracts": rc})
         self.db = sqlite3.connect(":memory:")
         self.db.row_factory = sqlite3.Row
-        self.db.execute("CREATE TABLE `tabCowork Push Record` (name, account_key, actor, entered_by, route_device, created_at, "
+        self.db.execute("CREATE TABLE `tabCowork Push Record` (name, account_key, actor, entered_by, writer, route_device, created_at, "
                         "payload_version, payload_json, connection, workspace, client, branch, binding_generation, "
                         "status, result_unknown, history)")
         self.db.execute("CREATE TABLE `tabCowork OCR History` (name, source)")
@@ -711,12 +793,12 @@ class QueueHeadsQuery(unittest.TestCase):
         return [Record(dict(row)) for row in self.db.execute(query, args).fetchall()]
 
     def add(self, key, *, created, source="", status="pending", connection="CONN", client="", unknown=0, version=1,
-            actor=ME, entered_by=None, route_device=None):
+            actor=ME, entered_by=None, route_device=None, writer=""):
         self.serial += 1
         name = f"CWP-{self.serial:05d}"
         self.db.execute("INSERT INTO `tabCowork OCR History` VALUES (?, ?)", ("H" + name, source))
-        self.db.execute("INSERT INTO `tabCowork Push Record` VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (name, key, actor, actor if entered_by is None else entered_by, route_device,
+        self.db.execute("INSERT INTO `tabCowork Push Record` VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        (name, key, actor, actor if entered_by is None else entered_by, writer, route_device,
                          f"2026-10-16 03:{created // 60:02d}:{created % 60:02d}", version,
                          json.dumps({"payload_version": 3}), connection, "WS", client, "legacy", 0, status, unknown,
                          "H" + name))
@@ -760,6 +842,16 @@ class QueueHeadsQuery(unittest.TestCase):
         self.assertEqual(names(device="CCD-R"), [scheduled])                          # 池的状态按电脑：只看冻结给它的
         self.assertEqual(names(user=ME), [mine])                                       # 池的状态按人：只看他自己的
         self.assertEqual(names(user=OTHER), [theirs, legacy])
+
+    def test_a_computer_that_may_stand_in_sees_everyones_jobs_but_not_other_computers_folder_tasks(self):
+        # 用户 11-17 定稿：这台上有能替别人写的登录人（``stand_in``）就看所有不是定时任务的单，替不替由 decide 在领单时判
+        theirs = self.add("s1", created=1, actor="phone@example.com")
+        self.add("s1", created=2, actor=OTHER, route_device="CCD-R")
+        names = lambda **kw: [row.name for row in self.heads.heads("CONN", "WS", "", ["s1"], **kw)]
+        self.assertEqual(names(device=B, users={OTHER}), [])
+        self.assertEqual(names(device=B, users={OTHER}, since="2026-10-16 03:00:00"), [theirs])
+        self.assertEqual(names(device=B, users={OTHER}, since="2026-10-16 03:00:02"), [])  # 切换前排的别人的单：不替，也不挡排头
+        self.assertEqual(names(user=OTHER), [])  # 池的状态按人：只看他自己的单
 
 
 # ── 推送账本的判据（替身模块上加载真 `push/native/service.py`）──────────────────────────────
@@ -840,6 +932,22 @@ def account_pool_owned(peers, actor, *, device=""):
     return {name: peer for name, peer in peers.items() if serves((peer or {}).get("users"), actor)}
 
 
+def stand_ins_of(writers, lost=()):
+    """`connections.pool.stand_ins` 的替身（真函数在 `test_cowork_express_account_sets` 里守着；同一口径：不是本人的、能写这份账套的
+    电脑，上面有能替写的登录人——不是本人、不在 ``lost``（此刻不能用这条连接）里，按共用层 `route_contracts.pick_user` 取）。"""
+    def stand_ins(doc, key, actor, *, peers=None, readable=False):
+        peers = peers or {}
+        mine = account_pool_owned(peers, actor)
+        found = {}
+        for device in writers(doc, key, peers=peers):
+            if device not in mine:
+                user = rc.pick_user((peers[device] or {}).get("users"), lambda u: u != actor and u not in lost)
+                if user:
+                    found[device] = user
+        return found
+    return stand_ins
+
+
 class Ledger(unittest.TestCase):
     """确认不要密钥、有电脑够得到才能确认；证据 v1 一律不再成立；领取只核本单用到的；锁口径 v2 还让着同账套的旧单；
     问责记在写入尝试与记录上；进入排队的时刻。"""
@@ -882,6 +990,12 @@ class Ledger(unittest.TestCase):
             self.revalidated.append((mode, used(self.facts) if used else None))
 
         stub = types.SimpleNamespace
+        self.lost = set()
+
+        def writers(doc, key, peers=None):
+            self.writer_calls.append((doc.name, key, tuple(sorted(peers or ()))))
+            return [d for d in self.reach.get(key, []) if d in peers] if self.registered.get(key) else []
+
         modules = {
             "frappe": frappe,
             "pearnly_cowork.access": stub(scope=stub()), "pearnly_cowork.access.scope": stub(),
@@ -896,9 +1010,8 @@ class Ledger(unittest.TestCase):
                 # 只在替这张单干活的电脑里找（`owned`，真函数）
                 presence=lambda connection: self.presence,
                 owned=account_pool_owned,
-                writers=lambda doc, key, peers=None: (
-                    self.writer_calls.append((doc.name, key, tuple(sorted(peers or ()))))
-                    or ([d for d in self.reach.get(key, []) if d in peers] if self.registered.get(key) else []))),
+                writers=writers,
+                stand_ins=stand_ins_of(writers, self.lost)),
             "pearnly_cowork.connections.preparation": stub(revalidate=revalidate,
                                                            basis=lambda used: json.dumps(used, sort_keys=True)),
             "pearnly_cowork.push.native.documents": stub(TYPES=("Cowork Push Record", "Cowork Push Attempt",
@@ -954,8 +1067,11 @@ class Ledger(unittest.TestCase):
     def test_a_writer_is_one_of_the_entry_users_own_computers_that_reaches_the_account_set(self):
         self.assertTrue(self.ledger.has_writer("CONN", "k1", actor=ME))
         self.assertEqual(self.writer_calls[-1], ("CONN", "k1", (A,)))  # 与池的状态同一个判据，只在他的电脑里找
-        # 只有同事的电脑够得到（账套只在别人电脑的 C 盘上）：不算，不转给同事（第 53 条）
+        # 他的电脑都够不到这份账套，公司里我的电脑够得到、我能用这条连接：能写（用户 11-17 定稿，谁先上线谁写，领单时判）
+        self.assertTrue(self.ledger.has_writer("CONN", "k1", actor=OTHER))
+        self.lost.add(ME)  # 能替写的人此刻不能用这条连接：谁都写不了
         self.assertFalse(self.ledger.has_writer("CONN", "k1", actor=OTHER))
+        self.lost.clear()
         self.reach = {"k1": [A, B]}
         self.assertTrue(self.ledger.has_writer("CONN", "k1", actor=OTHER))
         # 定时任务：只看读文件夹的那台
@@ -978,9 +1094,13 @@ class Ledger(unittest.TestCase):
         row = Record(target_json=json.dumps(self.target()), actor=ME, entered_by=ME)
         with mock.patch.object(self.ledger, "_validate_target", return_value=None):
             self.assertTrue(self.ledger._still_confirmable(row, self.context, self.loaded))
-            # 同事的那份准备：只有我的电脑够得到，他的确认不了
+            # 同事的那份准备：只有我的电脑够得到，他自己一台能写的都没有 → 兜底交给我（用户 11-17），能确认
+            self.assertTrue(self.ledger._still_confirmable(Record(row, actor=OTHER, entered_by=OTHER), self.context,
+                                                           self.loaded))
+            self.lost.add(ME)  # 兜底的人不能用这条连接：确认不了
             self.assertFalse(self.ledger._still_confirmable(Record(row, actor=OTHER, entered_by=OTHER), self.context,
                                                             self.loaded))
+            self.lost.clear()
             # 定时任务冻结的读文件夹电脑够不到
             self.assertFalse(self.ledger._still_confirmable(Record(row, route_device=B), self.context, self.loaded))
             self.reach = {}
@@ -1094,6 +1214,7 @@ class Ledger(unittest.TestCase):
                 mock.patch.object(self.ledger, "project", side_effect=lambda r: dict(r)), \
                 mock.patch.object(self.ledger, "_save_record", side_effect=lambda r, t, **k: saved.append(t)):
             result = self.ledger.confirm("CWP-1", context=self.context, expected_revision=1, request_key="rk")
+        self.confirmed = row
         return result, dispatch, saved
 
     def test_confirm_needs_no_key_only_one_of_the_entry_users_computers_that_reaches_the_account_set(self):
@@ -1102,10 +1223,15 @@ class Ledger(unittest.TestCase):
         self.assertNotIn("queued_at", result)   # 没有 120 秒换手，不再记排队时刻
         self.assertEqual(len(saved), 1)
         self.assertEqual(dispatch.call_args.kwargs, {"mode": "confirm"})
-        # 只有同事的电脑够得到：拒（push.no_writer：「没有可写入该账套的电脑」）
+        # 我的电脑都够不到、只有同事的够得到：照样排队（用户 11-17 定稿），谁写在领单时判，排队时不记写账人
         self.reach = {"k1": [B]}
+        self.assertEqual(self._confirm(self.target())[0]["status"], "pending")
+        self.assertFalse(getattr(self.confirmed, "writer", ""))
+        # 能替写的人不能用这条连接：拒（push.no_writer：「没有可写入该账套的电脑」）
+        self.lost.add(OTHER)
         with self.assertRaisesRegex(_Fail, "push.no_writer"):
             self._confirm(self.target())
+        self.lost.clear()
         # 定时任务：按读文件夹的那台判，不看负责人自己的电脑
         self.assertEqual(self._confirm(self.target(), route_device=B)[0]["status"], "pending")
         self.reach = {"k1": [A]}
@@ -1199,7 +1325,8 @@ class PoolState(unittest.TestCase):
             devices = self.reachers.get(key, []) if key else {d for ds in self.reachers.values() for d in ds}
             return [d for d in sorted(devices) if d in peers and peers[d]["issuers"] & self.valid]
 
-        pool = types.SimpleNamespace(writers=writers, owned=account_pool_owned)
+        self.lost = set()
+        pool = types.SimpleNamespace(writers=writers, owned=account_pool_owned, stand_ins=stand_ins_of(writers, self.lost))
         credentials = types.SimpleNamespace(pool_peers=lambda c, now=None: self.peers)
         heads = _load("pearnly_cowork.companion.queue_heads", APP / "companion/queue_heads.py",
                       {"frappe": frappe, "pearnly_core.cc_desktop.wire.route_contracts": rc})
@@ -1210,33 +1337,45 @@ class PoolState(unittest.TestCase):
         self.pool = _load("pearnly_cowork.companion._pool_under_test", APP / "companion/pool.py", modules)
 
     def state(self, key=None, user=ME, **kw):
-        return self.pool.state("CONN", key, user=user, **kw)
+        found = dict(self.pool.state("CONN", key, user=user, **kw))
+        status = found.pop("status")  # 两产品同一张「状态 → 显示」（`route_contracts.writer_status`）：与其余几项一致
+        self.assertEqual(status, rc.writer_status(**{k: found[k] for k in ("online", "writers_known", "computers",
+                                                                          "needs_update")}))
+        return found
 
-    def test_my_own_computer_offline_reads_as_offline_but_still_selectable(self):
-        # 自己的电脑关着 → 「电脑离线（仍可选）」，排队等它开机；同事的电脑在线也不算自己在线。
-        # A 线 11-12 测试机1：同事够得到这本的电脑在线时另带 not_yours（界面说「您的电脑离线」，不说成电脑离线），
-        # waiting_on 是在等的本人电脑（名称，没名称用编号；界面「等待电脑 · 名称」）
+    def test_my_own_computer_offline_and_a_colleagues_online_means_it_can_be_written_now(self):
+        # 用户 11-17 定稿：我的电脑关着、同事够得到这本的电脑在线 → 由它替我写（在线，不再说「您的电脑离线」）；
+        # 都关着 → 「电脑离线（仍可选）」，waiting_on 是在等的电脑（我的与能替我写的，哪台先上线谁写）
         self.peers[A]["label"] = "PC-ME"
-        self.assertEqual(self.state("s1"), {"online": False, "writers_known": True, "needs_update": False,
-                                            "computers": True, "not_yours": True, "waiting_on": ["PC-ME"]})
+        self.assertEqual(self.state("s1"), {"online": True, "writers_known": True, "needs_update": False,
+                                            "computers": True})
         self.assertEqual(self.state("s2"), {"online": False, "writers_known": True, "needs_update": False,
                                             "computers": True, "waiting_on": ["PC-ME"]})  # 同事够不到 s2：只是离线
         self.peers[B]["online"] = False
-        self.assertNotIn("not_yours", self.state("s1"))  # 谁的电脑都不在线：照旧离线
+        self.assertEqual(self.state("s1")["waiting_on"], ["CCD-B", "PC-ME"])  # 谁的电脑都不在线：离线，等先上线的
+        self.lost.add(OTHER)  # 同事此刻不能用这条连接：不替我写
+        self.peers[B]["online"] = True
+        self.assertFalse(self.state("s1")["online"])
+        self.lost.clear()
         self.peers[A]["online"] = True
         self.assertTrue(self.state("s1")["online"])
         self.assertEqual(self.state("s1"), {"online": True, "writers_known": True, "needs_update": False,
                                             "computers": True})
 
-    def test_only_a_colleagues_computer_reaches_it_means_no_writer_not_offline(self):
-        # 账套只在别人电脑上（s3 只有 B 够得到）：我有电脑，但没有能写的 → 「没有能写的电脑」，确认按 push.no_writer 拒
-        self.assertEqual(self.state("s3"), {"online": False, "writers_known": False, "needs_update": False,
+    def test_only_a_colleagues_computer_reaches_it_goes_to_that_office_computer(self):
+        # 账套只在别人电脑上（s3 只有 B 够得到）：我有电脑，但没有能写的 → 兜底交给同事的电脑（用户 11-17），按那台说状态
+        self.assertEqual(self.state("s3"), {"online": True, "writers_known": True, "needs_update": False,
                                             "computers": True})
+        self.peers[B]["online"] = False
+        self.assertEqual(self.state("s3"), {"online": False, "writers_known": True, "needs_update": False,
+                                            "computers": True, "waiting_on": ["CCD-B"]})  # 那台关着：离线，等它上线
         self.assertEqual(self.state("s3", user=OTHER)["writers_known"], True)
 
-    def test_no_computer_of_my_own_reads_as_not_connected(self):
-        # 我一台登录过 CC 的电脑都没有（同事的有）→ 「CC 桌面版未连接」
+    def test_no_computer_of_my_own_goes_to_an_office_computer_or_reads_as_not_connected(self):
+        # 我一台登录过 CC 的电脑都没有（同事的有）→ 兜底交给同事够得到这本的电脑（用户 11-17）
         self.assertEqual(self.state("s1", user="new@example.com"),
+                         {"online": True, "writers_known": True, "needs_update": False, "computers": True})
+        self.assertEqual(self.state("s-none", user="new@example.com"),
                          {"online": False, "writers_known": False, "needs_update": False, "computers": False})
         self.peers = {}
         self.assertEqual(self.state(), {"online": False, "writers_known": False, "needs_update": False,
@@ -1258,9 +1397,10 @@ class PoolState(unittest.TestCase):
 
     def test_needs_update_when_none_of_my_writers_supports_my_heads_payload_version(self):
         self.head = 2
-        self.assertTrue(self.state("s1")["needs_update"])   # 只有我的 A（v1）：等不来；B 是同事的，不算
-        self.peers[B]["users"] = {ME, OTHER}
-        self.assertFalse(self.state("s1")["needs_update"])  # 我的另一台 B 没报过最高版本：不拦
+        self.lost.add(OTHER)  # 同事不能替我写
+        self.assertTrue(self.state("s1")["needs_update"])   # 只有我的 A（v1）：等不来
+        self.lost.clear()
+        self.assertFalse(self.state("s1")["needs_update"])  # 能替我写的 B 没报过最高版本：不拦
         # 与电脑领取时看同一张排头（`queue_heads.Q_HEADS`，同一套过滤），只看我自己的单
         self.assertTrue(all(q == self.pool.queue_heads.Q_HEADS for q, _v in self.queries))
         self.assertEqual(self.queries[-1][1]["users"], (ME,))
@@ -1268,7 +1408,8 @@ class PoolState(unittest.TestCase):
         self.assertEqual((self.queries[-1][1]["device"], self.queries[-1][1]["users"]), (B, ("",)))
 
     def test_for_user_asks_for_the_signed_in_user(self):
-        self.assertEqual(self.pool.for_user("CONN", "s3")["writers_known"], False)
+        self.assertEqual(self.pool.for_user("CONN", "s3")["writers_known"], True)  # 兜底交给同事的电脑（11-17）
+        self.assertEqual(self.pool.for_user("CONN", "s3")["online"], self.peers[B]["online"])
         self.pool.frappe.session.user = OTHER
         self.assertEqual(self.pool.for_user("CONN", "s3")["writers_known"], True)
         self.assertEqual(self.pool.for_user("CONN", "s2", device=B)["writers_known"], False)
