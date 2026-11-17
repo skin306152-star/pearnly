@@ -136,6 +136,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
 
     choice_store = ns(operator_form=lambda connection, account_set, doc_type: memory.get((connection, account_set, doc_type),
                                                                                          ""),
+                      operator_dialogs=lambda connection, account_set: {
+                          subject: value for (c, a, subject), value in memory.items() if (c, a) == (connection, account_set)},
                       record=record)
     modules = {
         "frappe": frappe_stub(calls),
@@ -1048,6 +1050,49 @@ class ConversationBook(unittest.TestCase):
         found = module.check("CO1", ["h1"])["documents"][0]
         self.assertNotIn("retargeted", found)
         self.assertEqual(self.aims, [])
+
+
+DIGEST = "0123456789abcdef"
+BOX = {"batch": "b1", "doc": "h1", "dialog": {"digest": DIGEST, "title": "ExpressI", "text": "เลือกวิธีบันทึกรายการนี้",
+                                              "buttons": ["แบบ ก", "แบบ ข"], "doc_type": "RR", "stage": "saving"}}
+
+
+class DialogChoice(unittest.TestCase):
+    """代录停在 Express 中途配方外的业务选择框（CC 桌面版 1.12.23）：同子菜单一套——判定报一项 ``operator_dialog``（问框的原文、
+    选项是框上的按钮），这份账套答过的已定；记住按这份账套 + 指纹，值须是框上的按钮，批里别的单的答案跳过不拒。"""
+
+    def stopped(self, **kwargs):
+        module, calls, patcher = load(menu_stop(), menu=BOX, **kwargs)
+        self.addCleanup(patcher.stop)
+        return module, calls
+
+    def test_the_box_is_one_item_and_the_old_answer_lists_it(self):
+        module, _calls = self.stopped()
+        found = module.document("h1")
+        box = {item["kind"]: item for item in found["items"]}["operator_dialog"]
+        self.assertEqual((box["subject"], box["value"]), (DIGEST, ""))
+        self.assertIn("เลือกวิธีบันทึกรายการนี้", box["label"])
+        self.assertEqual(box["options"], [{"code": "แบบ ก", "name": "แบบ ก"}, {"code": "แบบ ข", "name": "แบบ ข"}])
+        self.assertEqual(found["legacy"]["state"], "choose")
+        self.assertEqual([need["kind"] for need in found["legacy"]["needed"]], ["operator_dialog"])
+        module, _calls = self.stopped(menu_memory={("C9", "K9", DIGEST): "แบบ ข"})
+        box = {item["kind"]: item for item in module.document("h1")["items"]}["operator_dialog"]
+        self.assertEqual((box["value"], box["source"]), ("แบบ ข", card.REMEMBERED))
+
+    def test_remember_keeps_the_button_for_the_book_and_skips_other_boxes(self):
+        module, calls = self.stopped()
+        from pearnly_core.cc_desktop import operator_controls  # 在替身装好之后导入（它导入 frappe）
+
+        sent = []
+        row = {"kind": "operator_dialog", "subject": DIGEST, "value": "แบบ ข", "label": "x", "remember": True}
+        with mock.patch.object(operator_controls, "send", lambda *a: sent.append(a) or True):
+            out = module.remember("CO1", {"h1": [row, {**row, "subject": "f" * 16}]})
+        self.assertEqual([c for c in calls if c[0] == "record"], [("record", "C9", "K9", "operator_dialog", DIGEST, "แบบ ข", "x")])
+        self.assertEqual(out["saved"], 1)
+        self.assertEqual(sent, [])  # 测试替身的推送记录没有执行电脑：不发指令
+        module, calls = self.stopped()
+        with self.assertRaises(Exception):
+            module.remember("CO1", {"h1": [{**row, "value": "แบบ ค"}]})
 
 
 if __name__ == "__main__":
