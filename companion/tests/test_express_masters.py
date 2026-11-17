@@ -20,6 +20,7 @@ from companion.request_contract import KINDS, LEASE_SECONDS, MAX_BYTES, RequestF
 
 _SCCOMP = "COMPNAM C(60); COMPCOD C(10); PATH C(150); GENDAT D; CANDEL C(1)"
 _ISINFO = "THINAM C(60); MAINLOC C(4); NEGALLOW C(1); COSMTD C(1); USEDEP C(1)"
+_ISINFO_NEG = "; NEGAUTH C(10); CHKNEGLEV C(1)"  # 1.12.23 起读（A3 四题）
 # 真表的商品主档另有这些列（合成规格只建写入器要碰的）
 _STMAS_EXTRA = "BARCOD C(20); SELLPR1 B; SELLPR2 B; SELLPR3 B; SELLPR4 B; SELLPR5 B"
 _PARTY_EXTRA = "ZIPCOD C(5); TELNUM C(50); PAYTRM N(3,0)"
@@ -63,12 +64,13 @@ def books(tmp_path):
     acct = _synth_account.build(root / "DAOWNUEA")
     (root / "secure").mkdir()
     _table(root / "secure" / "SCCOMP.DBF", _SCCOMP, [{"COMPNAM": "ดาวเหนือ", "COMPCOD": "DN", "PATH": "DAOWNUEA"}])
-    _table(acct / "ISINFO.DBF", _ISINFO, [{"THINAM": "ดาวเหนือ", "MAINLOC": "01", "NEGALLOW": "Y", "COSMTD": "F",
-                                           "USEDEP": "Y"}])
+    _table(acct / "ISINFO.DBF", _ISINFO + _ISINFO_NEG, [{"THINAM": "ดาวเหนือ", "MAINLOC": "01", "NEGALLOW": "Y", "COSMTD": "F",
+                                                        "USEDEP": "Y", "NEGAUTH": "BOSS", "CHKNEGLEV": "1"}])
     _table(acct / "STMAS.DBF", S.TABLE_SPECS["STMAS"] + "; " + _STMAS_EXTRA, [
         {"STKCOD": "P01", "STKDES": "น้ำแข็งหลอด", "STKTYP": "0", "STKGRP": "ICE", "QUCOD": "ถง", "SQUCOD": "ถง",
          "SFACTOR": 1.0, "PQUCOD": "กล", "PFACTOR": 12.0, "SELLPR1": 0.1 + 0.2, "SELLPR2": 35.5, "SELLPR5": 1.23456789,
-         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N", "TOTBAL": 0.1 + 0.2, "MREMBAL": 7.0},
+         "BARCOD": "8850001", "VATCOD": "1", "NEGALLOW": "N", "TOTBAL": 0.1 + 0.2, "MREMBAL": 7.0,
+         "STNPR": 12.5, "CQUCOD": "ถง", "CFACTOR": 1.0},
         {"STKCOD": "S01", "STKDES": "ค่าขนส่ง", "STKTYP": "4"},
         {"STKCOD": "OLD", "STKDES": "ลบแล้ว", "STKTYP": "0"},
     ])
@@ -134,7 +136,8 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
                              "vat_initem": "", "stock_books": {}, "stock_books_checked": ["JU", "OU", "RL", "TK"],
                              "catalog": {"isacc_candidates": []}}
     assert data["read_at"].endswith("Z")
-    assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "address": "", "phone": ""}
+    assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "negauth": "BOSS",
+                                "chkneglev": "1", "address": "", "phone": ""}
     # prename：PRENAM（1.12.22 起报；这份合成账套没有这一栏 → 空）
     assert data["customers"] == [{"code": "C01", "name": "ร้านป้าแดง", "prename": "", "tax_id": "0105560000001", "branch": "00002",
                                   "address": "1 ถนนหนึ่ง เมือง 31000", "phone": "044-111111", "payterm": "30",
@@ -145,12 +148,13 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     assert ice == {"code": "P01", "name": "น้ำแข็งหลอด", "kind": "stock", "group": "ICE", "unit": "ถง",
                    "sale_unit": "ถง", "sale_factor": "1", "purchase_unit": "กล", "purchase_factor": "12",
                    "prices": ["0.3", "35.5", "0", "0", "1.234568"], "barcode": "8850001", "vatcod": "1",
-                   "negallow": "N", "balance": "0.3"}  # 全仓结存（出入库第一期：服务端核 STMAS = Σ STLOC）
+                   "negallow": "N", "std_cost": "12.5", "count_unit": "ถง", "count_factor": "1", "balance": "0.3"}  # 全仓结存（出入库第一期：服务端核 STMAS = Σ STLOC）
     # 合成表没有的列（BARCOD 等在 S01 那行是空）照样给键
     assert freight["kind"] == "non_stock" and freight["barcode"] == "" and freight["prices"] == ["0"] * 5
     assert {row["code"] for row in data["units"]} == {code for code, _s, _d in _synth_account.ISTAB_UNITS}
-    assert data["warehouses"] == [{"code": "01", "name": "คลังสำนักงานใหญ่"}, {"code": "02", "name": "สาขา"}]
-    assert data["departments"] == [{"code": "SUTI", "name": "ฝ่ายขาย"}]
+    assert data["warehouses"] == [{"code": "01", "name": "คลังสำนักงานใหญ่", "short": "สนญ."},
+                                  {"code": "02", "name": "สาขา", "short": "สาขา"}]
+    assert data["departments"] == [{"code": "SUTI", "name": "ฝ่ายขาย", "short": ""}]
     assert data["stock"] == [{"code": "P01", "loccod": "01", "qty": "405747.8", "value": "1234.57"},
                              {"code": "P01", "loccod": "02", "qty": "-3", "value": "0.00"}]
     assert result.meta["counts"] == {"customers": 1, "suppliers": 1, "products": 2, "units": 7, "warehouses": 2,
@@ -176,7 +180,8 @@ def test_missing_tables_give_empty_lists_but_not_a_folder_without_the_masters(bo
         (books.acct / f"{name}.DBF").unlink()
     _result, data = _read(books)
     assert data["customers"] == data["suppliers"] == data["stock"] == []
-    assert data["settings"] == {"mainloc": "", "negallow": "", "cosmtd": "", "usedep": "", "address": "", "phone": ""}
+    assert data["settings"] == {"mainloc": "", "negallow": "", "cosmtd": "", "usedep": "", "negauth": "", "chkneglev": "",
+                                "address": "", "phone": ""}
     (books.acct / "STMAS.DBF").unlink()
     with pytest.raises(RequestFailed) as error:
         _read(books)
