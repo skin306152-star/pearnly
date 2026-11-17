@@ -736,7 +736,7 @@ def save_choices(history, connection, account_set_key, items):
         "department": {r.get("code") for r in config.get("reported_departments") or [] if isinstance(r, dict)},
         choice_rules.LOCATION: {r.get("code") for r in choice_rules.warehouses_in_use(config.get("reported_warehouses"))},
         "payment": set(choice_rules.PAYMENT_VALUES), "vat": set(choice_rules.VAT_VALUES),
-        service_vat.KIND: set(service_vat.OPTIONS)}
+        service_vat.KIND: set(service_vat.OPTIONS), "detail": set(choice_rules.DETAIL_VALUES)}
     parties = {r.get("code") for key in ("reported_customers", "reported_suppliers")
                for r in config.get(key) or [] if isinstance(r, dict)}
     saved = 0
@@ -751,7 +751,7 @@ def save_choices(history, connection, account_set_key, items):
             pass
         elif kind == "item" and value == choice_rules.EXPENSE:
             pass  # 这一行记费用（不建存货，11-06 按行选）
-        elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND, choice_rules.LOCATION)
+        elif not value or (options and value not in options) or (kind in ("payment", "vat", service_vat.KIND, choice_rules.LOCATION, "detail")
                                                                  and value not in options):
             frappe.throw(_("cowork.choice.invalid"))
         subject = str(item.get("subject") or "").strip() or _own_subject(kind, fields, direction)

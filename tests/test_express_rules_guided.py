@@ -202,6 +202,80 @@ class RememberedEveryBasis(unittest.TestCase):
         self.assertNotIn(choices.service_vat.KIND, kinds(resolve(fields, "sales", config=config, book="BK1")))
 
 
+class A7DetailAnswerOnEveryBasis(unittest.TestCase):
+    """A7 明细对不上：答过的存在记忆里（键带票号），所有口径都用，不再出题；「只记金额」交 apply_to_payload 写成表头。
+    改前：引导口径只出题、从不读已答的值（答完写账又停在「要人选」），网页口径不读。"""
+    FIELDS = sales(invoice_number="IV-9", subtotal="100.00", total_amount="107.00",
+                   items=[{"name": "A", "amount": "60"}])  # 明细合计 60 对不上税前 100 → mismatch
+
+    def subject(self):
+        found = resolve(self.FIELDS, "sales", guided=True)
+        return next(item["subject"] for item in found["needed"] if item["kind"] == "detail")
+
+    def test_an_amount_only_answer_is_used_on_every_basis_and_not_asked_again(self):
+        remembered = {"detail": {self.subject(): choices.DETAIL_AMOUNT_ONLY}}
+        for guided in (True, False):
+            result = resolve(self.FIELDS, "sales", guided=guided, remembered=remembered)
+            self.assertNotIn("detail", kinds(result), guided)
+            self.assertEqual(result["applied"].get("detail"), choices.DETAIL_AMOUNT_ONLY, guided)
+
+    def test_a_skip_answer_is_kept_and_the_payload_is_left_to_stop(self):
+        remembered = {"detail": {self.subject(): choices.DETAIL_SKIP}}
+        result = resolve(self.FIELDS, "sales", remembered=remembered)
+        self.assertEqual(result["applied"].get("detail"), choices.DETAIL_SKIP)
+        payload = {"items": [{"name": "A"}], "items_status": "mismatch"}
+        choices.apply_to_payload(payload, result["applied"])
+        self.assertEqual(payload["items_status"], "mismatch")  # 不动：准备那一步照旧按 items_mismatch 停下
+
+    def test_the_card_remembers_a_detail_answer_but_it_stays_a_per_document_kind(self):
+        from pearnly_core.write_precheck import contracts as card
+
+        item = card.normalize_item({"kind": "detail", "subject": self.subject(), "options": [{"code": "skip"}]})
+        self.assertTrue(item["remember"])
+        self.assertIn("detail", card.PER_DOCUMENT_KINDS)
+
+
+class EveryKindAnswerIsUsed(unittest.TestCase):
+    """守门（主会话 11-17：「题有出、答案没人用」）：共用规则 ``resolve`` 会问的每一类，造一张会问它的单，答一次（记下第一个选项）
+    再判——引导口径、网页口径都不再问。新加一类没在这里造场景，测试失败（不允许只断言出题）。"""
+    ACCOUNTS = [{"code": "41-01"}, {"code": "52-01"}, {"code": "11-01"}]
+    SCENARIOS = {
+        "party": (purchase(), "purchase", {"config": {"reported_suppliers": [
+            {"code": "S1", "name": NAME, "tax_id": TAX, "branch": "00000"},
+            {"code": "S2", "name": NAME, "tax_id": TAX, "branch": "00000"}]}}),
+        "account": (purchase(), "purchase", {"config": {"reported_accounts": ACCOUNTS}}),
+        "payment": (sales(), "sales", {}),
+        "vat": (purchase(document_type="receipt", vat="7.00", payment_status="paid"), "purchase", {}),
+        "receipt": (purchase(), "purchase", {"config": {"reported_accounts": ACCOUNTS}, "receipts": [("promptpay", "PromptPay")]}),
+        "service_vat": (sales(vat="7.00", items=[{"name": "Service", "amount": "100"}]), "sales",
+                        {"config": {"reported_customers": [{"code": "C1", "srv": "1"}, {"code": "C2", "srv": "2"}]}, "book": "BK1"}),
+        "detail": (sales(invoice_number="IV-9", subtotal="100.00", total_amount="107.00", items=[{"name": "A", "amount": "60"}]),
+                   "sales", {}),
+    }
+    # 不经 resolve 出题的类（只读记忆、从不问；或由别的通道问）
+    NOT_ASKED = {"department": "整份账套一个，只读不问（用户 10-08）",
+                 "item": "存货对照要账套目录，另有 test_express_rules_line_choice 从作答到载荷",
+                 "location": "多仓定仓另有 test_express_rules_line_choice / 仓位用例"}
+
+    def answer(self, item):
+        options = [o.get("code") for o in item.get("options") or () if o.get("code")]
+        return options[0] if options else (item.get("current") or "41-01")
+
+    def test_every_kind_has_a_scenario(self):
+        self.assertEqual(set(choices.KINDS), set(self.SCENARIOS) | set(self.NOT_ASKED))
+
+    def test_an_answered_question_is_not_asked_again_on_any_basis(self):
+        for kind, (fields, direction, extra) in self.SCENARIOS.items():
+            with self.subTest(kind=kind):
+                first = resolve(fields, direction, guided=True, **dict(extra))
+                asked = [item for item in first["needed"] if item["kind"] == kind]
+                self.assertTrue(asked, f"{kind}: the scenario does not ask it")
+                remembered = {kind: {item["subject"]: self.answer(item) for item in asked}}
+                for guided in (True, False):
+                    again = resolve(fields, direction, guided=guided, remembered=remembered, **dict(extra))
+                    self.assertNotIn(kind, kinds(again), (kind, guided))
+
+
 class GuidedOnlyGatesAsking(unittest.TestCase):
     """守门（主会话 11-17 定 C）：``resolve`` 里条件带 ``guided`` 的分支只许决定出不出题，不许在里面读记忆（``chosen(``）——
     读记忆在引导分支里 = 别的口径用不上对话里答过的，后台再推落默认值（记错科目）。"""

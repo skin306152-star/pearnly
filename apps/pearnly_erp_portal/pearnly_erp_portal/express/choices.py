@@ -82,6 +82,19 @@ def remember(company, kind, subject, value, label=""):
                           **values})
     doc.flags.name_set = True
     doc.insert(ignore_permissions=True, set_name=name)
+    if kind in PER_DOCUMENT:
+        _prune_per_document(company, kind)
+
+
+# 只管一张单的答案（A7 明细对不上，键带票号）：存着供再准备时用；记一条新的时顺手删掉这家公司 90 天前的同类，不越积越多
+# （不开定时任务；还没写的旧单到时重问一次）
+PER_DOCUMENT, PER_DOCUMENT_DAYS = ("detail",), 90
+
+
+def _prune_per_document(company, kind) -> None:
+    from frappe.utils import add_days, now_datetime
+
+    frappe.db.delete(CHOICE, {"company": company, "kind": kind, "modified": ["<", add_days(now_datetime(), -PER_DOCUMENT_DAYS)]})
 
 
 def operator_subject(book_key, doc_type) -> str:

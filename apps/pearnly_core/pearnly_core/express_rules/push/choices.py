@@ -41,7 +41,7 @@ NEW = "__new__"
 # 存货对照的一个值：这一行不建存货、写成费用 / 服务行（不动库存；11-06 按行选）
 EXPENSE = "__expense__"
 KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat",  # 第 8 项 = service_vat.KIND
-         "location")
+         "location", "detail")  # detail：A7 明细对不上的答案（只管这一张，键带票号；不进「记住的选择」清单）
 LOCATION = "location"
 # 整份账套的默认仓（同部门）
 LOCATION_DEFAULT = "*"
@@ -437,13 +437,20 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
             needed.append({"kind": "account", "subject": REVENUE_SUBJECT, "label": "",
                            "current": default if default and (not accounts or default in _codes(accounts)) else ""})
 
-    # ── 明细对不上（A7，引导模式）：怎么录由人定一次，只管这一张，不预选 ──
-    if guided and not items_status:
-        items_status = _detail_status(fields)
-    if guided and str(items_status or "") in ("mismatch", "incomplete"):
+    # ── 明细对不上（A7）：怎么录由人定一次，只管这一张（键带票号），不预选。答过的**所有口径都用**（主会话 11-17 定 C）：
+    # 「只记金额」交 `apply_to_payload` 写成表头、不入库；「这次不录」不动载荷，照旧按 items_mismatch / items_incomplete 停下。
+    # 没答过：引导模式问；别的口径照旧（准备那一步停下交人）
+    status = str(items_status or "") or _detail_status(fields)
+    if status in ("mismatch", "incomplete"):
         ref = str(fields.get("invoice_number") or fields.get("invoice_no") or "").strip()
-        needed.append({"kind": "detail", "subject": f"detail|{direction}|{digits(tax)}|{norm_name(name)}|{ref}"[:1000],
-                       "label": name, "current": "", "options": [{"code": code} for code in DETAIL_VALUES]})
+        subject = f"detail|{direction}|{digits(tax)}|{norm_name(name)}|{ref}"[:1000]
+        value = chosen("detail", subject)
+        if value in DETAIL_VALUES:
+            applied["detail"] = value
+            used("detail", subject)
+        elif guided:
+            needed.append({"kind": "detail", "subject": subject, "label": name, "current": "",
+                           "options": [{"code": code} for code in DETAIL_VALUES]})
 
     # ── POS 日汇总：非现金付款方式的收款科目 ──
     accounts = _rows(config.get("reported_accounts"))

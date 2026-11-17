@@ -137,7 +137,19 @@ def record(connection, account_set, kind, subject, value, label=""):
     else:
         doc.insert(ignore_permissions=True)
     _log_override(connection, account_set, kind, subject, before, value, "choice")
+    if kind in PER_DOCUMENT:
+        _prune_per_document(connection, kind)
     return True
+
+
+PER_DOCUMENT_DAYS = 90
+
+
+def _prune_per_document(connection, kind) -> None:
+    """只管一张单的答案（A7）不越积越多：记一条新的时，顺手删掉这条连接 90 天前的同类（不开定时任务；还没写的旧单到时重问一次）。"""
+    from frappe.utils import add_days
+
+    frappe.db.delete(DOCTYPE, {"connection": connection, "kind": kind, "chosen_at": ["<", add_days(now_datetime(), -PER_DOCUMENT_DAYS)]})
 
 
 def _log_override(connection, account_set, kind, subject, before, after, source):
@@ -178,6 +190,10 @@ def overrides(connection, account_set, values, since=None) -> list:
 CHOICE_FIELDS = ["name", "account_set", "kind", "subject", "label", "value", "chosen_by", "chosen_at"]
 
 
+# 只管一张单的答案（A7 明细对不上，键带单号）：存在账套记忆里供再准备时用，但不是给人看的长期选择——不进「记住的选择」
+PER_DOCUMENT = ("detail",)
+
+
 def of_sets(connection, account_sets, limit=200) -> list:
     """一家公司各年度账套（公司主档，ADR-020）里记过的选择（含代录子菜单），新 → 旧，最多 `limit` 条（值为空的不算）。只读；调用方已核过
     这条连接的推送权限，合并同类（同一类别、同一归类键只留最新一条）由调用方做。"""
@@ -185,8 +201,8 @@ def of_sets(connection, account_sets, limit=200) -> list:
     if not connection or not sets:
         return []
     return frappe.db.sql(f"""SELECT {", ".join(CHOICE_FIELDS)} FROM `tab{DOCTYPE}`
-        WHERE connection=%s AND account_set IN %s AND COALESCE(value, '')!=''
-        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), int(limit)), as_dict=True)
+        WHERE connection=%s AND account_set IN %s AND COALESCE(value, '')!='' AND kind NOT IN %s
+        ORDER BY chosen_at DESC LIMIT %s""", (connection, tuple(sets), tuple(sorted(PER_DOCUMENT)), int(limit)), as_dict=True)
 
 
 def menu_stops(connection, account_sets, limit=MENU_SCAN_MAX) -> dict:

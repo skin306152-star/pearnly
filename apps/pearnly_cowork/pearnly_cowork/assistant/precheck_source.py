@@ -31,7 +31,7 @@ from pearnly_core.write_precheck import preselect
 from pearnly_cowork.access import scope
 
 # 写账规则问的类（记在账套记忆，`service.save_choices` 认得的那几类）
-CHOICE_KINDS = ("party", "item", "account", "receipt", "department", "payment", "vat", "service_vat", "location")
+CHOICE_KINDS = ("party", "item", "account", "receipt", "department", "payment", "vat", "service_vat", "location", "detail")
 DIRECTION = "direction"
 DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"

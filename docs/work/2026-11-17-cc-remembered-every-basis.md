@@ -23,6 +23,17 @@
 ## 先红后绿
 `tests/test_express_rules_guided.py::RememberedEveryBasis`：网页口径下记过的收入科目 / 现赊 / 服务品口径照用；改前 3 failures，改后过。
 
-## 未做（另报主会话）
-A7「明细对不上」：`resolve` 判到明细对不上时**永远出题、从不读已答的值**，「只记金额」也没有落进载荷的写法——引导口径里答完写账时会再停在「要人选」。
-按 C 存进记忆需要：resolve 读到 `amount_only` 落成只记金额、读到 `skip` 按单停下；先与 guided-erp（A7 归属）对 mapper 现有写法。
+## A7 明细对不上（主会话 11-17 列为部署前条件，同批交；载荷一半是 guided-erp 的 29e6ec3c6，已摘入）
+- 缺陷：`resolve` 判到明细对不上时永远出题、从不读已答的值，「只记金额」也没落进载荷——引导口径里答完写账又停在「要人选」，这类单永远写不成。
+- 存法：`detail` 答案存进同一份记忆（ERP `ERP Express Choice`、Cowork 账套记忆；键 `detail|方向|税号|名称|票号` = 只管这一张）。
+  `write_precheck.contracts.KEPT_PER_DOCUMENT_KINDS = {"detail"}`：仍是按单类，但卡片答案 `remember=True`。
+  不进「记住的选择」：Cowork `push.choices.of_sets` 排除；ERP 没有把这份记忆列给人看的清单。Cowork 记忆表 `kind` 选项加 `detail`（随 DocType JSON，迁移原生加）。
+- 清理：**不挂单据写成 / 作废的回执**（回执里拿不到这张单的明细键，要改载荷与回执两端）。改为记一条新的时顺手删掉这家公司 / 这条连接 90 天前的同类（不开定时任务）；还没写的旧单到时重问一次。
+- 用法：`resolve` 所有口径先读——「只记金额」→ `applied["detail"]`，`apply_to_payload` 写成表头、不入库；「这次不录」→ 载荷不动，准备那一步照旧按 `items_mismatch` / `items_incomplete` 停下（现有状态与文案，单据页 / 待处理照「留下」显示原因）；没答过：引导口径问，别的口径照旧停下。
+- 守门：`tests/test_express_rules_guided.py::EveryKindAnswerIsUsed` 共用规则每一类造一张会问它的单、答一次后引导与网页口径都不再问；新加一类没造场景就失败。
+
+## 为什么第 1 期没有用例走到「答完 A7 再写账」
+第 1 期用例只断言出题（`kinds(resolve(...))` 有 detail）；引导卡流程用的票明细都对得上；写账准备用例只走网页口径——三层各测一半，「答了以后谁来用」没人测。
+
+## 还要的流程（guided-erp 在实验栈跑；C 盘 T 账套读回由验收 local_5097f6f5 在测试机2 跑）
+答「只记金额」→ 写成、回读账本是只记表头不入库；答「这次不录」→ 这张单停下不写、现有状态与文案。

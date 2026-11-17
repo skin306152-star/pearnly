@@ -87,6 +87,9 @@ STOCK_ACCOUNT_PREFIX = "stock:"
 # 只管这一张单的类：改了不记住
 # 引导式录入：明细对不上怎么录、出库成本、新建对方 / 新物料（建档即定）都只管这一张，不记住（覆盖表 A7、A8、A10、A11）
 PER_DOCUMENT_KINDS = frozenset({"posting_kind", "detail", "cost_basis", "new_party", "new_item"})
+# 其中答案仍要记下的（键里带单号，等于只管这一张）：后台 / 网页再准备时照用（主会话 11-17 定 C，A7 明细对不上）。不进「记住的选择」
+# 清单（Cowork `push.choices.of_sets` 排除；ERP 没有把这份记忆列给人看的清单）
+KEPT_PER_DOCUMENT_KINDS = frozenset({"detail"})
 # 能只答给其中一张单的类（答案带 ``doc_id``）：只写那一张自己的、不记住、不合并（主会话 11-05：「按供应商记住照旧是默认，
 # 单张的例外 CC 在对话里也能改」）。产品把这一张自己定的列成单独一项，来源 :data:`DOCUMENT`
 DOCUMENT_ANSWER_KINDS = frozenset({"payment"})
@@ -170,7 +173,7 @@ def normalize_item(raw: Mapping[str, Any], direction: str = "") -> Dict[str, Any
             "value": value, "value_label": _text(raw.get("value_label"), LABEL_MAX) if value else "",
             "source": source}
     item["state"] = state_of(item)
-    item["remember"] = kind not in PER_DOCUMENT_KINDS and source not in (TASK_DEFAULT, DOCUMENT)
+    item["remember"] = (kind not in PER_DOCUMENT_KINDS or kind in KEPT_PER_DOCUMENT_KINDS) and source not in (TASK_DEFAULT, DOCUMENT)
     if options:
         # 预选 / 已定的值标「推荐」并排第一（卡片照 Claude Code 的提问卡片，推荐项在第一个，主会话 11-05）；``note`` 是这个
         # 选项的依据（一句话，产品给的照带）
@@ -435,7 +438,7 @@ def preview(card: Mapping[str, Any], limit: int = 4) -> Dict[str, Any]:
 __all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DECIDED_SOURCES", "DOCUMENT", "DOCUMENT_ANSWER_KINDS", "DOC_STATES",
            "ERR_DUPLICATE_KEY", "ERR_EMPTY_VALUE", "ERR_NOT_OFFERED", "ERR_NOT_PER_DOCUMENT", "ERR_TOO_MANY", "ERR_UNKNOWN_KEY",
            "EXPRESS_HISTORY", "FACE", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
-           "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
+           "KEPT_PER_DOCUMENT_KINDS", "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
            "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SMALL_LIST", "SOURCES", "STATES", "STOCK",
            "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "applies", "defaults", "expand", "group_of",
            "held_back", "item_key", "items_of", "merge", "needs_card", "normalize_item", "preview", "state_of",
