@@ -73,6 +73,8 @@ def describe() -> dict:
         "assistant_unavailable": _assistant_unavailable(),
         # CC 侧栏首屏就要的产品声明（共用层 projects 的 SECTIONS，如定时任务 tasks）：不等公司列表那次请求，入口不晚出
         "sections": _assistant_sections(),
+        # 账户静音（Desk 的提示音同一个开关）：CC 的系统通知照弹、不出声（AGENTS.md「提示音遵守账户静音」，弹窗通知 C-7）
+        "mute_sounds": bool(frappe.db.get_value("User", user, "mute_sounds")),
     }
 
 

@@ -24,15 +24,16 @@ async function workerRegistration(): Promise<ServiceWorkerRegistration | undefin
 }
 
 /** 弹一条系统通知（要用户已允许通知）；弹出了回 true。url：点通知打开的 /assistant 地址；onClick：桌面端窗口里点了做什么。 */
-export async function showNote(title: string, body: string, tag: string, url: string, onClick?: () => void): Promise<boolean> {
+/** silent：账户静音（Desk 同一个 User.mute_sounds，AGENTS.md「提示音遵守账户静音」，弹窗通知并进对话 C-7）时通知照弹、不出声。 */
+export async function showNote(title: string, body: string, tag: string, url: string, onClick?: () => void, silent = false): Promise<boolean> {
   try {
     if (typeof Notification === "undefined" || Notification.permission !== "granted") return false;
     const registration = await workerRegistration();
     if (registration) {
-      await registration.showNotification(title, { body, tag, data: { url } });
+      await registration.showNotification(title, { body, tag, silent, data: { url } });
       return true;
     }
-    const note = new Notification(title, { body, tag });
+    const note = new Notification(title, { body, tag, silent });
     note.onclick = () => {
       window.focus();
       onClick?.();

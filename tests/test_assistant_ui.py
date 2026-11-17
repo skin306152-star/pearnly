@@ -216,11 +216,12 @@ class PushTests(unittest.TestCase):
         # 浏览器里开了推送由后台脚本弹，不再另弹
         self.assertIn("if (!desktopApp && (pushOnRef.current || document.hasFocus())) return;", alert)
         # 回复完成与提醒都经 showNote：浏览器里由后台脚本弹，安卓 Chrome 不能直接 new Notification（审查 frontend-1/2）
-        self.assertEqual(desktop.count("void showNote("), 2)
+        self.assertEqual(desktop.count("void muted().then((silent) =>"), 2)   # 两处都带账户静音（C-7）
+        self.assertEqual(desktop.count("showNote("), 2)
         self.assertNotIn("new Notification(", desktop)
         notify = read("lib/notify.ts")
         self.assertIn("navigator.serviceWorker.getRegistration(HOME)", notify)
-        self.assertIn("registration.showNotification(title, { body, tag, data: { url } })", notify)
+        self.assertIn("registration.showNotification(title, { body, tag, silent, data: { url } })", notify)   # 账户静音时不出声（C-7）
         # 整页最外层有错误边界：哪里抛错都不整页变白
         main = read("main.tsx")
         self.assertLess(main.index("<ErrorBoundary>"), main.index("<Assistant />"))
@@ -303,7 +304,7 @@ assert.equal(addressFor(base + "?lang=th#x", "sesn_abc123", "chat"), "/assistant
 assert.equal(addressFor(base, "bad id/../x", "chat"), "/assistant");  // 不像对话编号的不写进地址
 (globalThis as any).done();
 """, stubs={"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'})
         nav = read("lib/nav.ts")
         hook = nav[nav.index("export function useAddressTracksConversation"):]
         hook = hook[:hook.index("\n}\n") + 3]
@@ -856,7 +857,7 @@ Object.defineProperty(g, "navigator", { configurable: true, value: { serviceWork
 assert.equal(deepLink("sesn_1"), "/assistant?c=sesn_1");
 assert.equal(deepLink(""), "/assistant?view=tasks");
 assert.equal(await showNote("CC", "done", "tomo-reply", deepLink("sesn_1")), true);
-assert.deepEqual(shown, [{ title: "CC", body: "done", tag: "tomo-reply", data: { url: "/assistant?c=sesn_1" } }]);
+assert.deepEqual(shown, [{ title: "CC", body: "done", tag: "tomo-reply", silent: false, data: { url: "/assistant?c=sesn_1" } }]);
 
 // 后台脚本也弹不出来：回 false，不抛
 worker.getRegistration = async () => ({ showNotification: async () => { throw new TypeError("No active registration"); } });
@@ -878,7 +879,7 @@ worker.getRegistration = async () => { throw new Error("desktop window must not 
 let opened = 0;
 assert.equal(await showNote("T", "B", "notice:pnotice_2", "/assistant?c=sesn_2", () => opened++), true);
 assert.equal(built.length, 1);
-assert.deepEqual(built[0].options, { body: "B", tag: "notice:pnotice_2" });
+assert.deepEqual(built[0].options, { body: "B", tag: "notice:pnotice_2", silent: false });
 built[0].onclick();
 assert.equal(opened, 1);
 delete g.qt;
@@ -1176,7 +1177,7 @@ const toggle = (markup: string) => /<button[^>]*role="switch"[^>]*>/.exec(markup
         run_ts(self.PAGE + checks + "\ng.done();\n", lang=lang, stubs={
             "cc-device": self.DEVICE.replace("__DEVICE__", json.dumps(device)),
             # profile.ts 用 Vite 的 import.meta.glob 取品牌图，这里用不到
-            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});',
         })
 
     def test_touch_devices_show_no_keyboard_shortcuts(self):
@@ -1435,7 +1436,7 @@ const row = (version: string, state: string, next = "1.5.2") => {
 
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class UpdateBlockedBehaviourTests(unittest.TestCase):
-    STUBS = {"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+    STUBS = {"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});',
              "cc-update-env": UPDATE_ENV}
 
     def run_page(self, checks, lang):
@@ -2988,7 +2989,7 @@ class CompanyMasterSourceTests(unittest.TestCase):
 class CompanyHelpersBehaviourTests(unittest.TestCase):
     # 待处理引了提问卡（快捷键提示经 shortcut → lib/desktop → lib/profile，profile 用 Vite 的 import.meta.glob）：同别的页面测试桩掉 profile
     STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'}
 
     def run_page(self, body, lang="en"):
         run_ts('import "cc-test-setup";\nimport assert from "node:assert/strict";\n' + body + "\n(globalThis as any).done();\n",
@@ -4232,7 +4233,7 @@ class MultiDesktopBehaviourTests(unittest.TestCase):
 
     def run_page(self, body):
         stubs = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-                 "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
+                 "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});',
                  "cc-multi-desktop-env": MULTI_DESKTOP_ENV}
         run_ts('import "cc-test-setup";\nimport "cc-multi-desktop-env";\nimport assert from "node:assert/strict";\n'
                'const g = globalThis as any;\n' + body + "\n(globalThis as any).done();\n", stubs=stubs)
@@ -4383,7 +4384,7 @@ assert.equal(taskSeedOf(detail, ["CWEC-1"], true, "ACC-02")!.folder, undefined);
 @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class CompanyPageBehaviourTests(unittest.TestCase):
     STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'}
 
     def run_page(self, body, desktop=None, stubs=None):
         env = "cc-desktop-env" if desktop is not None else "cc-browser-env"
@@ -4908,7 +4909,7 @@ const payment = { key: "p", kind: "payment", subject: "S", label: "S", docs: ["D
 assert.deepEqual(initialStates([itemQuestion(payment, "C1")])[0]!.labels, []);            // 付款方式同样不默认现购
 (globalThis as any).done();
 """, stubs={"socket.io-client": SOCKET_STUB,
-            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+            "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'})
 
 
 # ── 附件卡片与就地改名（2026-10-16 CC 外壳验收，Q 线）──────────────────────────────────────────────────────────
@@ -6883,7 +6884,7 @@ focusComposer();
 assert.equal(focused, 1);           // 点击当下就聚焦（手机上这样才弹键盘）
 await g.sleep(20);
 assert.equal(focused, 2);           // 新对话换上来后再聚焦一次
-""", stubs={"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'})
+""", stubs={"@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'})
 
 class NoAlwaysOnTests(unittest.TestCase):
     """用户 10-16（ADR-021 第 56、58 条）：「常驻模式」从界面拿掉——替别人接活、开机锁屏都没有了，电脑列表不再写「常驻」；
@@ -9392,7 +9393,7 @@ class Round11EFTests(unittest.TestCase):
     """测试窗口第 11 轮 E / F 段（lab 9798f54e）：E37 删除确认读屏念两遍标题、打开时焦点在 ×、关掉后焦点掉到页面最外层；
     F40「记住的选择」出错的原因写在整张卡最底下（右侧栏没滚动时在视区外）。"""
     STUBS = {"socket.io-client": "export function io() { return { on() { return this; }, off() { return this; }, connected: true }; }",
-             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+             "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'}
 
     def run_page(self, body):
         run_ts('import "cc-test-setup";\nimport "cc-ma-setup";\n' + COMPANY_RENDER + body + "\n(globalThis as any).done();\n",

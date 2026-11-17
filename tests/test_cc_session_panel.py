@@ -22,7 +22,7 @@ from test_assistant_ui import ESBUILD, MA_SETUP, NODE, SOCKET_STUB, SRC as SRC_R
 import re  # noqa: E402
 
 STUBS = {"socket.io-client": SOCKET_STUB,
-         "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;'}
+         "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined; export const loadProfile = async () => ({});'}
 NEEDS_NODE = unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 
 
