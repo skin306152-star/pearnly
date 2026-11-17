@@ -135,7 +135,7 @@ assert.equal(v.status, "asking");
 assert.deepEqual(v.card!.questions.map((x) => x.key), ["customer"]);
 assert.equal(v.card!.questions[0].search, true);
 assert.deepEqual(v.card!.decided.map((x) => x.key), ["company", "day", "book"]);
-const page = await t.search(run, "customer", "ป้าแดง", 0);
+const page = await t.search(run, "customer", "ทุ่งกุลา", 0);
 assert.deepEqual(page.options.map((o) => o.code), ["2100883"]);
 // 版本不对：changed，不收
 v = await t.answer(run, { customer: "2100883" }, 99);
@@ -292,8 +292,8 @@ assert.ok(table.columns.length && table.rows[1].editable.payee_tax_id);
 w = await t.edit(wht, "W-2", "payee_tax_id", "123", w.version);
 assert.equal(w.outcome, "refused");
 assert.ok(refusedText(w, "payee_tax_id"));
-w = await t.edit(wht, "W-2", "payee_tax_id", "0105559876543", w.version);
-assert.equal((w.review as any).tables[0].rows[1].cells.payee_tax_id, "0105559876543");
+w = await t.edit(wht, "W-2", "payee_tax_id", "9999999999999", w.version);
+assert.equal((w.review as any).tables[0].rows[1].cells.payee_tax_id, "9999999999999");
 assert.deepEqual((w.review as any).tables[0].rows[1].issues, []);
 
 // 代录开始前（A4）：operator 块、事实行、做不做的「再录一次」

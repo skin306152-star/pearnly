@@ -18,6 +18,7 @@ import { fetchGuideCard } from "@/lib/guide";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import { AskCard, askPhase } from "./ask-card";
+import { CardLine } from "./card-frame";
 import type { AskQuestion, AskResult } from "./ask-shared";
 import { useSessionId } from "./operator-card";
 
@@ -194,10 +195,11 @@ export const GuideCardBody: FC<{
   // 已结束、不说结果（执行记录是不认识的状态）：不画空框，同允许卡收起
   if (phase === "ended") return null;
   if (phase !== "ask") {
+    // 一行态走共用骨架（card-frame.tsx CardLine）：头是这张卡问过的题，下面一行已答几项 / 已取消
     return (
-      <div data-slot="cc-guide-card" data-phase={phase} className="cc-steps-card cc-ui-questionnaire-card">
-        <div className="cc-ui-questionnaire-done">{phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : steps.cancelled}</div>
-      </div>
+      <CardLine slot="cc-guide-card" attrs={{ "data-phase": phase }} phase={phase === "answered" ? "answered" : "cancelled"}
+        title={questions.map((q) => q.header || q.question).join(" · ")}
+        answer={phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : steps.cancelled} />
     );
   }
   const submit = (result: AskResult) => {

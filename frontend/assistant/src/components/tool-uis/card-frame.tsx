@@ -60,3 +60,30 @@ export const CardFrame: FC<{
     </div>
   </div>
 );
+
+/** 一行态（已答 / 已取消 / 已失效）：头一行 + 下面一行淡色状态，同允许卡点完之后的样子（steps.tsx AskStep 的 answered / cancelled）。 */
+export const CardLine: FC<{ title: ReactNode; answer: ReactNode; phase: "answered" | "cancelled"; slot?: string; attrs?: Record<string, string | undefined> }> = ({
+  title, answer, phase, slot, attrs,
+}) => (
+  <div className="cc-steps-card" data-slot={slot} {...attrs}>
+    <div className="aui-step cc-ask" data-phase={phase}>
+      <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
+      <div data-slot="cc-ask-answer" className="cc-ask-answer">{answer}</div>
+    </div>
+  </div>
+);
+
+/** 提问（问卷版式）的外框：同提问卡（ask-card.tsx 的 framed）。head：代录时卡头（写入 公司 · 账套 · 电脑）一行与下面几行，同一张卡里题目接在后面。 */
+export const QuestionFrame: FC<{ head?: ReactNode; headBody?: ReactNode; children: ReactNode; slot?: string; attrs?: Record<string, string | undefined> }> = ({
+  head, headBody, children, slot, attrs,
+}) => (
+  <div className="cc-steps-card cc-ui-questionnaire-card" data-slot={slot} {...attrs}>
+    {head ? (
+      <div className="aui-step cc-ask" data-phase="ask">
+        <div className="cc-ask-q" data-slot="cc-card-head">{head}</div>
+        {headBody}
+      </div>
+    ) : null}
+    {children}
+  </div>
+);

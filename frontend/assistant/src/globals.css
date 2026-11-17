@@ -984,6 +984,7 @@
   --cc-op-select-w: 150px;        /* 现有值·CC 自定：实操「开始前」框每项下拉的宽（设计稿 BeforeEntry） */
   --cc-guide-label-min-w: 9rem;  /* 新增·CC 自定：引导卡金额行名称栏最窄（再窄就把金额格换到下一行，不截断名称） */
   --cc-guide-amount-w: 120px;     /* 新增·CC 自定：引导卡金额格的宽（金额多选、分摊；放得下 12 位整数带两位小数） */
+  --cc-guide-amount-w-touch: 152px; /* 新增·CC 自定：触屏上金额格的宽（16 号字下放得下 9 位整数带千分位与两位小数） */
   --cc-title-max-w: 28rem;        /* 现有值·CC 自定：电脑顶栏对话名最宽 */
   --cc-title-edit-w: 18rem;       /* 现有值·CC 自定：顶栏就地改名框宽 */
   --cc-title-company-max-w: 14rem;   /* 现有值·CC 自定：顶栏「公司名 ›」最宽 */
@@ -1079,7 +1080,7 @@
   --cc-thread-fade: 0px;          /* 现有值·CC 自定：手机顶栏自己往下淡出（--cc-mtopbar-pb），滚动区不再加一层 */
   --cc-thread-top: var(--cc-space-16);
 }
-:root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); }
+:root[data-cc-touch] { --cc-menu-item-h: var(--cc-tap); --cc-search-h: var(--cc-tap); --cc-guide-amount-w: var(--cc-guide-amount-w-touch); }
 :root[data-cc-touch][data-cc-variant="web"] { --cc-topbar-h: var(--cc-tap); }
 
 /* shadcn / assistant-ui 自带组件用的变量，全部接到上面的 CC 变量（不另设一套数值） */
@@ -3125,6 +3126,15 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
     font-size: var(--cc-panel-font); line-height: var(--cc-panel-lh); font-weight: var(--cc-weight-regular); color: var(--cc-ink);
   }
   :root[data-cc-touch] .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) { min-height: var(--cc-tap); }
+  /* 值很长（公司 / 客户全名）时整行按钮跟着换行：标签不被压、值靠右可折行（验收用最长名称量出） */
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) {
+    white-space: normal; align-items: flex-start; padding-block: var(--cc-space-6);
+  }
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) > span { min-width: 0; overflow-wrap: anywhere; }
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) > span:first-child { flex: 0 1 auto; }
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) > span + span { flex: 1 1 0; text-align: end; }
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) > svg { flex-shrink: 0; margin-top: var(--cc-space-2); }
+  .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]), :root[data-cc-touch] .cc-steps-card :is([data-slot="cc-guide-back"], [data-slot="cc-guide-decided-edit"]) { height: auto; }
   [data-slot="cc-guide-cell"][data-readonly][aria-invalid], [data-slot="cc-guide-cell-refused"], [data-slot="cc-guide-issue"] { color: var(--cc-danger); }
   [data-slot="cc-guide-table-row"][data-state="open"] > button svg:first-child { transform: rotate(90deg); }
   /* 单据 / 表格行头（两行：名称完整换行；标记与金额第二行）：按钮自带的一行高、不换行在这里放开 */

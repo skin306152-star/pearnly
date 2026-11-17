@@ -1,0 +1,113 @@
+{
+  "_说明": "check-cc-card-render.mjs 量的预览页场景（kit.html 的查询串）。每种对话卡至少一个场景；新加卡片或新状态时在这里补一行，替身数据放四语最长的名称与金额（编造值）。nocard：这一页本来就不画卡片。",
+  "scenarios": [
+    {
+      "name": "allow",
+      "q": "page=allow"
+    },
+    {
+      "name": "guide",
+      "q": "page=guide"
+    },
+    {
+      "name": "guide-last",
+      "q": "page=guide&item=last"
+    },
+    {
+      "name": "guide-run-collection",
+      "q": "page=guide-run&state=collection"
+    },
+    {
+      "name": "guide-run-collection-wait",
+      "q": "page=guide-run&state=collection-wait"
+    },
+    {
+      "name": "guide-run-collection-invoices",
+      "q": "page=guide-run&state=collection-invoices"
+    },
+    {
+      "name": "guide-run-collection-returned",
+      "q": "page=guide-run&state=collection-returned"
+    },
+    {
+      "name": "guide-run-collection-methods",
+      "q": "page=guide-run&state=collection-methods"
+    },
+    {
+      "name": "guide-run-review",
+      "q": "page=guide-run&state=review"
+    },
+    {
+      "name": "guide-run-queued",
+      "q": "page=guide-run&state=queued"
+    },
+    {
+      "name": "guide-run-done",
+      "q": "page=guide-run&state=done"
+    },
+    {
+      "name": "guide-run-inputs",
+      "q": "page=guide-run&state=inputs"
+    },
+    {
+      "name": "guide-run-expired",
+      "q": "page=guide-run&state=expired"
+    },
+    {
+      "name": "guide-run-cancelled",
+      "q": "page=guide-run&state=cancelled"
+    },
+    {
+      "name": "guide-run-purchase",
+      "q": "page=guide-run&state=purchase"
+    },
+    {
+      "name": "guide-run-purchase-reading",
+      "q": "page=guide-run&state=purchase-reading"
+    },
+    {
+      "name": "guide-run-purchase-asking",
+      "q": "page=guide-run&state=purchase-asking"
+    },
+    {
+      "name": "guide-run-purchase-review",
+      "q": "page=guide-run&state=purchase-review"
+    },
+    {
+      "name": "guide-run-purchase-done",
+      "q": "page=guide-run&state=purchase-done"
+    },
+    {
+      "name": "guide-run-allow",
+      "q": "page=guide-run&state=allow"
+    },
+    {
+      "name": "guide-run-follow",
+      "q": "page=guide-run&state=follow"
+    },
+    {
+      "name": "guide-run-wht",
+      "q": "page=guide-run&state=wht"
+    },
+    {
+      "name": "guide-run-stock-close",
+      "q": "page=guide-run&state=stock-close"
+    },
+    {
+      "name": "guide-run-stock-count",
+      "q": "page=guide-run&state=stock-count"
+    },
+    {
+      "name": "guide-run-operator",
+      "q": "page=guide-run&state=operator"
+    },
+    {
+      "name": "guide-run-operator-login",
+      "q": "page=guide-run&state=operator-login"
+    },
+    {
+      "name": "guide-run-operator-nocomputer",
+      "q": "page=guide-run&state=operator-nocomputer"
+    }
+  ]
+}

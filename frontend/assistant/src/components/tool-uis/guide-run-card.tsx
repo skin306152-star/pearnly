@@ -32,7 +32,7 @@ import type { GuideRun } from "@/lib/managed-agents/reducer";
 import {
   AmountsField, ChoiceField, FileField, SearchAmountsField, SplitField, SubQuestionsField, ValueField,
 } from "./guide-inputs";
-import { CardFoot, CardFrame } from "./card-frame";
+import { CardFoot, CardFrame, CardLine, QuestionFrame } from "./card-frame";
 import { GuideCardBody, guideCardOf } from "./guide-card";
 import { GuideOperatorHead, operatorTitle } from "./guide-operator";
 import { GuideResultCard, GuideReview, GuideUploadsLine, runAttrs } from "./guide-review";
@@ -249,23 +249,18 @@ const Asking: FC<{ view: GuideView; sessionId: string | null; busy: boolean; fai
   );
 };
 
-/** 卡的外框（同提问卡）。 */
-const Frame: FC<{ view: GuideView; children: React.ReactNode }> = ({ view, children }) => (
-  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business}
-    className="cc-steps-card cc-ui-questionnaire-card">
+/** 卡的外框（同提问卡，共用骨架 card-frame.tsx 的 QuestionFrame）。 */
+const Frame: FC<{ view: GuideView; children: React.ReactNode; head?: React.ReactNode; headBody?: React.ReactNode }> = ({ view, children, head, headBody }) => (
+  <QuestionFrame slot="cc-guide-run" attrs={runAttrs(view)} head={head} headBody={headBody}>
     {children}
-  </div>
+  </QuestionFrame>
 );
 
-/** 取消 / 失效（F5）：一行，不能点。 */
+/** 取消 / 失效（F5）：一行，不能点（共用骨架的一行态）。 */
 export const GuideClosed: FC<{ view: GuideView }> = ({ view }) => (
-  <div data-slot="cc-guide-run" data-run={view.run} data-status={view.stale ? "expired" : view.status} data-ended
-    className="cc-steps-card cc-ui-questionnaire-card" aria-disabled>
-    <div className="aui-step cc-ask" data-phase="cancelled">
-      <div className="cc-ask-q">{businessName(view.business)}</div>
-      <div data-slot="cc-ask-answer" className="cc-ask-answer">{view.status === "cancelled" ? steps.cancelled : guide.expired}</div>
-    </div>
-  </div>
+  <CardLine slot="cc-guide-run" phase="cancelled"
+    attrs={{ "data-run": view.run, "data-status": view.stale ? "expired" : view.status, "data-ended": "", "aria-disabled": "true" }}
+    title={businessName(view.business)} answer={view.status === "cancelled" ? steps.cancelled : guide.expired} />
 );
 
 /** 按单据的题卡（documents 源的题卡段）：就是第 1 期那张卡（同一组件、同一种答案 [{key, value}]），交给这次引导。代录时卡头
@@ -276,15 +271,19 @@ const DocumentsCard: FC<{ view: GuideView; busy: boolean; failure: string; act: 
     <GuideCardBody card={guideCardOf({ card: view.card })} company={view.company} phase="ask" busy={busy} framed={!title}
       onSubmit={(answers) => act(() => answerGuide(view.run, { answers }, view.version))} />
   );
+  if (title) {
+    return (
+      <QuestionFrame slot="cc-guide-run" attrs={{ ...runAttrs(view), "data-stage": "asking" }} head={title}
+        headBody={<GuideOperatorHead view={view} busy={busy} act={act} />}>
+        {body}
+        <CardFoot buttons={[]} failure={failure} />
+      </QuestionFrame>
+    );
+  }
   return (
     <div data-slot="cc-guide-run" data-run={view.run} data-status={view.status} data-business={view.business} data-stage="asking"
-      className={title ? "cc-steps-card" : "flex min-w-0 flex-col"}>
-      {title ? (
-        <div className="aui-step cc-ask" data-phase="ask">
-          <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
-          <GuideOperatorHead view={view} busy={busy} act={act} />
-        </div>
-      ) : (view.card?.facts ? <CardFrame title={businessName(view.business)}><GuideOperatorHead view={view} busy={busy} act={act} /></CardFrame> : null)}
+      className="flex min-w-0 flex-col gap-(--cc-turn-gap)">
+      {view.card?.facts ? <CardFrame title={businessName(view.business)}><GuideOperatorHead view={view} busy={busy} act={act} /></CardFrame> : null}
       {body}
       <CardFoot buttons={[]} failure={failure} />
     </div>
@@ -318,13 +317,7 @@ export const GuideRunView: FC<{
   if (view.card && (view.status === "asking" || (documents && view.stage === "files"))) {
     const title = documents ? operatorTitle(view) : null;
     return (
-      <Frame view={view}>
-        {title ? (
-          <div className="aui-step cc-ask" data-phase="ask">
-            <div className="cc-ask-q" data-slot="cc-card-head">{title}</div>
-            <GuideOperatorHead view={view} busy={busy} act={act} />
-          </div>
-        ) : null}
+      <Frame view={view} head={title} headBody={title ? <GuideOperatorHead view={view} busy={busy} act={act} /> : null}>
         <Asking key={`${view.run}:${view.version}`} view={view} sessionId={sessionId} busy={busy} failure={failure} act={act} decidedOpen={decidedOpen} />
       </Frame>
     );

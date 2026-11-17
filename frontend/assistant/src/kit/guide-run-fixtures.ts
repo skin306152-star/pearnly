@@ -33,17 +33,17 @@ const T = {
 };
 
 const CUSTOMERS = [
-  { code: "2100883", name: "2100883 ร้านป้าแดง", note: L("未收 3 张", "ค้างรับ 3 ใบ", "3 open", "未入金 3 件") },
+  { code: "2100883", name: "2100883 บริษัท ข้าวหอมมะลิทุ่งกุลาร้องไห้อุตสาหกรรมเกษตรและการส่งออกระหว่างประเทศ จำกัด (มหาชน)", note: L("未收 3 张", "ค้างรับ 3 ใบ", "3 open", "未入金 3 件") },
   { code: "2100901", name: "2100901 บจก. สยามข้าวทอง", note: L("未收 1 张", "ค้างรับ 1 ใบ", "1 open", "未入金 1 件") },
   { code: "2101002", name: "2101002 ร้านเฮียเส็ง", note: L("未收 5 张", "ค้างรับ 5 ใบ", "5 open", "未入金 5 件") },
   ...Array.from({ length: 30 }, (_x, i) => ({ code: `21020${String(i).padStart(2, "0")}`, name: `21020${String(i).padStart(2, "0")} ร้านค้า ${i + 1}` })),
 ];
 const INVOICES = [
-  { code: "IV6900123", name: "IV6900123", note: "2026-10-03", amount: "10700.00", max: "10700.00" },
+  { code: "IV6900123", name: "IV6900123", note: "2026-10-03", amount: "987654321.99", max: "987654321.99" },
   { code: "IV6900131", name: "IV6900131", note: "2026-10-17", amount: "3210.50", max: "3210.50" },
   { code: "IV6900140", name: "IV6900140", note: "2026-11-02", amount: "856.00", max: "856.00" },
 ];
-const METHODS = [{ code: "cash", name: T.cash }, { code: "transfer:KB", name: "KBANK 012-3-45678-9" }, { code: "discount", name: T.discount }];
+const METHODS = [{ code: "cash", name: T.cash }, { code: "transfer:KB", name: "ธนาคารกสิกรไทย สาขาถนนรัชดาภิเษก-ห้วยขวาง กระแสรายวัน 012-3-45678-9" }, { code: "discount", name: T.discount }];
 const DECIDED = [
   { key: "company", input: "choice", title: T.company, value: "C001", value_label: "C001 บจก. ข้าวหอมมะลิ", source: "conversation" },
   { key: "day", input: "date", title: T.day, value: "2026-11-16", value_label: "2026-11-16", source: "today" },
@@ -126,10 +126,10 @@ const ITEMS = Array.from({ length: 40 }, (_x, i) => ({ code: `RICE-${String(i + 
 
 // ── 按单据（采购，documents 源）替身：交文件 → 识别中（再取一次就好）→ 第 1 期题卡 → 复核（改一格）→ 写入 → 每张一行 ──────────
 const FACES: Record<string, DocFace> = {
-  "D-1": { doc_no: "IV2026-0117", party_name: "บจก. โฟลว์ ซัพพลาย", party_tax: "0105551234567", party_branch: "00000", date: "2026-11-03",
+  "D-1": { doc_no: "IV2026-0117", party_name: "บจก. โฟลว์ ซัพพลาย", party_tax: "1111111111111", party_branch: "00000", date: "2026-11-03",
     subtotal: "1000.00", vat: "70.00", total: "1070.00",
     lines: [{ description: "ข้าวสาร 5 กก.", qty: "10", unit_price: "100.00", amount: "1000.00" }] },
-  "D-2": { doc_no: "", party_name: "ร้านเฮียเส็ง", party_tax: "123", party_branch: "", date: "2026-11-05", subtotal: "500.00", vat: "35.00", total: "540.00",
+  "D-2": { doc_no: "", party_name: "ห้างหุ้นส่วนจำกัด เฮียเส็งพาณิชย์ค้าส่งบรรจุภัณฑ์พลาสติกและกระดาษทุกชนิด", party_tax: "123", party_branch: "", date: "2026-11-05", subtotal: "500.00", vat: "35.00", total: "540.00",
     lines: [{ description: "ถุงพลาสติก", qty: "5", unit_price: "100.00", amount: "500.00" }] },
 };
 const T2 = {
@@ -157,7 +157,7 @@ function marks(face: DocFace): Pick<DocRow, "marks" | "cells" | "blocking"> {
 function documentsView(run: Run, base: GuideView): GuideView {
   const d = run.docs!;
   const out: GuideView = { ...base, source: "documents" as const,
-    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บจก. ข้าวหอมมะลิ", account_set_title: "69EXP · 2569", computer: run.noComputer ? undefined : "ACC-PC01", count: 2 }],
+    ...(run.operator ? { operator: { targets: [{ connection_title: "C001 บริษัท ข้าวหอมมะลิทุ่งกุลาร้องไห้อุตสาหกรรมเกษตร จำกัด", account_set_title: "69EXP · 2569 ปีบัญชีหลัก", computer: run.noComputer ? undefined : "ACC-PC01", count: 2 }],
       ...(run.noComputer ? { computer: L("没有能写这本账套的电脑：ACC-PC01 未连接", "ไม่มีคอมพิวเตอร์ที่บันทึกชุดบัญชีนี้ได้: ACC-PC01 ไม่ได้เชื่อมต่อ", "No computer can write this account set: ACC-PC01 is not connected", "この帳簿に書き込めるパソコンがありません：ACC-PC01 未接続") } : {}) } } : {}) };
   if (run.status === "confirmed" || run.status === "done") {
     const done = run.status === "done";
@@ -217,9 +217,9 @@ function editFace(face: DocFace, field: string, value: string): DocFace {
 /** 预扣税待确认行（P3，表单 review 里逐行可改的表）。 */
 const WHT_ROWS = [
   { code: "W-1", name: "บจก. ขนส่งไทย", note: "2026-10-05", amount: "30.00",
-    cells: { include: "yes", income_type: "transport", payment_date: "2026-10-05", rate: "1", base: "3000.00", tax: "30.00", payee_tax_id: "0105551234567", form: "53" },
+    cells: { include: "yes", income_type: "transport", payment_date: "2026-10-05", rate: "1", base: "3000.00", tax: "30.00", payee_tax_id: "1111111111111", form: "53" },
     issues: [] as string[] },
-  { code: "W-2", name: "นายสมชาย ใจดี", note: "2026-10-12", amount: "150.00",
+  { code: "W-2", name: "นายสมชายเกียรติศักดิ์ ใจดีมีทรัพย์ศรีสวัสดิ์วงศ์ตระกูล", note: "2026-10-12", amount: "150.00",
     cells: { include: "yes", income_type: "service", payment_date: "2026-10-12", rate: "3", base: "5000.00", tax: "150.00", payee_tax_id: "123", form: "3" },
     issues: [L("税号不是 13 位", "เลขประจำตัวผู้เสียภาษีไม่ครบ 13 หลัก", "Tax ID is not 13 digits", "納税者番号が 13 桁ではありません")] },
 ];
@@ -297,10 +297,10 @@ export function seed(scenario: string): string {
   if (scenario === "collection-wait") Object.assign(run, { answers: { customer: "2100883" }, waitLeft: 99 });
   if (scenario === "collection-invoices") Object.assign(run, { answers: { customer: "2100883" } });
   if (scenario === "collection-returned") Object.assign(run, { answers: { customer: "2100883" }, returned: { invoices: { reason: "over_collected", text: T.taken } } });
-  if (scenario === "collection-methods") Object.assign(run, { answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }] } });
-  if (scenario === "review") Object.assign(run, { status: "reviewing", answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }, { code: "IV6900140", amount: "500.00" }], methods: [{ code: "cash", amount: "700.00" }, { code: "transfer:KB", amount: "10500.00" }] } });
+  if (scenario === "collection-methods") Object.assign(run, { answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "987654321.99" }] } });
+  if (scenario === "review") Object.assign(run, { status: "reviewing", answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "987654321.99" }, { code: "IV6900140", amount: "500.00" }], methods: [{ code: "cash", amount: "700.00" }, { code: "transfer:KB", amount: "987654121.99" }] } });
   if (scenario === "queued" || scenario === "done") Object.assign(run, { status: scenario === "queued" ? "confirmed" : "done",
-    answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "10700.00" }], methods: [{ code: "cash", amount: "10700.00" }] } });
+    answers: { customer: "2100883", invoices: [{ code: "IV6900123", amount: "987654321.99" }], methods: [{ code: "cash", amount: "987654321.99" }] } });
   if (scenario === "inputs") Object.assign(run, { flow: "inputs", business: "stock_count" });
   if (scenario.startsWith("purchase")) {
     const step = scenario.slice("purchase".length);
