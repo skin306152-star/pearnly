@@ -26,6 +26,12 @@ def api_list_terminals(**kwargs):
 
 
 @frappe.whitelist(methods=["POST"])
+def api_ensure_terminal(**kwargs):
+    """开班框：一台收银台都没有时建出默认那台（`terminals.ensure_for_shift`）。"""
+    return {"name": terminals.ensure_for_shift()}
+
+
+@frappe.whitelist(methods=["POST"])
 def api_create_terminal(**kwargs):
     # `internal` 只给**服务端自己**（公司页那条路）用，客户端传进来一律丢掉 —— 否则
     # 谁都能借这个开关跳过 `cashier.manage` 那道闸。

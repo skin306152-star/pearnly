@@ -636,7 +636,7 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-cashier"
 where = "侧栏「pearnly-cashier」"
 cc_na = "收银台是当面收款的界面（ADR-027 不适用）；班次与小票查询在班次、小票两页"
-tests = ["flow:erp.cashier.first-sale", "flow:erp.pos.shift", "impact:erp.page.cashier"]
+tests = ["flow:erp.cashier.first-sale", "flow:erp.cashier.open-shift-dialog", "flow:erp.pos.shift", "impact:erp.page.cashier"]
 
 [[row]]
 id = "erp.desk.pearnly-clients"

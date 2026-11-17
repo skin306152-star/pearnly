@@ -67,9 +67,19 @@ frappe.provide("frappe.pearnly.pos_shift");
 		];
 	}
 
-	async function open({ t, on_done } = {}) {
+	const terminal_rows = async () => {
 		const terminals = await p.call(api + "api_list_terminals");
-		const rows = Array.isArray(terminals) ? terminals : (terminals?.terminals || []);
+		return Array.isArray(terminals) ? terminals : (terminals?.terminals || []);
+	};
+
+	async function open({ t, on_done } = {}) {
+		let rows = await terminal_rows();
+		// 一台收银台都没有（开户自动建的默认公司、接 Express 的公司）：按开班同一条规则当场建出默认那台再列，
+		// 否则必填的「收银台」下拉没有选项、点不了开班（11-17）。
+		if (!rows.length) {
+			await p.call(api + "api_ensure_terminal", {}, "POST");
+			rows = await terminal_rows();
+		}
 		// 这家公司收哪几种钱：服务端跟着收银台一起回（建公司时勾的那几种）。
 		const allowed = ((rows[0] || {}).payment_methods || []).map(String).filter(Boolean);
 		active_methods = allowed.length ? METHODS.filter(key => allowed.includes(key)) : METHODS;

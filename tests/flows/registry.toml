@@ -397,6 +397,19 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cashier.open-shift-dialog"
+title = "ERP 收银页点「开班」走开班框：没有收银台的新公司也开得了班（11-17 默认公司 / 接 Express 的公司没有收银台，必填下拉没选项）"
+module = "scripts/flows/erp_cashier_open_shift_dialog.py"
+start = "/desk/pearnly-cashier"
+user = "cashier"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+camera = false
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/pos/pearnly-pos-shift.js",
+]
+
+[[flow]]
 id = "erp.line.stocktake.phone"
 title = "ERP 手机盘点（LINE 里打开的 /stocktake）：查码、记数、抬头计数、撤销、查码只收 POST（10-29 空仓保存 404 事故）"
 module = "scripts/flows/erp_line_stocktake_phone.py"

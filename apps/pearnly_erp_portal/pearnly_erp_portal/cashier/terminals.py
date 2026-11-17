@@ -98,6 +98,16 @@ def resolve(terminal=None, company=None) -> str:
     return ensure_default(company)
 
 
+def ensure_for_shift() -> str:
+    """开班框打开时这家公司一台收银台都没有：按开班同一条规则（`resolve` → `ensure_default`）当场建出默认那台再列出来
+    （11-17：开户自动建的默认公司、接 Express 的公司都没建收银台，开班框必填的「收银台」下拉没有选项，点不了开班）。
+    写路径，只给 POST；判据同开班（``cashier.write``）。"""
+    guard.require("cashier.write")
+    name = resolve()
+    frappe.db.commit()
+    return name
+
+
 def default_of(company=None) -> str | None:
     """这家公司的默认收银台，**只读**：标了默认的那台，没有就最早建的那台；一台都没有回 None。不建、不改标记。"""
     company = company or companies.active_company()
