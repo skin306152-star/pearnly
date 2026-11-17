@@ -587,6 +587,7 @@ Default board,บอร์ดเริ่มต้น
 Default handling for this folder,การจัดการเริ่มต้น
 Defaults,ค่าเริ่มต้น
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete the documents?,ลบเอกสารหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3450,6 +3451,7 @@ failed,ล้มเหลว
 guide.business.pending,รอดำเนินการ
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
+guide.consent.pending.delete,ลบเอกสารหรือไม่
 guide.open.pending,เลือกการดำเนินการ
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด

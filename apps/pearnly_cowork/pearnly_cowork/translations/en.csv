@@ -587,6 +587,7 @@ Default board,Default board
 Default handling for this folder,Default handling for this folder
 Defaults,Defaults
 Delete selected ({0}),Delete selected ({0})
+Delete the documents?,Delete the documents?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3450,6 +3451,7 @@ failed,Failed
 guide.business.pending,Pending
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.consent.pending.delete,Delete the documents?
 guide.open.pending,Choose an action.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.

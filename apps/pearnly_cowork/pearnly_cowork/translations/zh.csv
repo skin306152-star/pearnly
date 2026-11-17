@@ -587,6 +587,7 @@ Default board,默认看板
 Default handling for this folder,默认处理
 Defaults,默认值
 Delete selected ({0}),删除所选（{0}）
+Delete the documents?,要删除单据吗？
 Delete these documents?,确定要删除以下单据吗？
 Delete these reconciliations?,确定要删除以下对账任务吗？
 Delete these scheduled tasks?,确定要删除以下定时任务吗？
@@ -3450,6 +3451,7 @@ failed,失败
 guide.business.pending,待处理
 guide.business.readback,回读
 guide.business.recon,对账中心
+guide.consent.pending.delete,要删除单据吗？
 guide.open.pending,选择操作。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
