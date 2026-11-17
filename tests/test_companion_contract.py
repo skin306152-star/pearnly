@@ -1606,6 +1606,9 @@ class CompanyFolders(unittest.TestCase):
 
     def test_every_method_the_page_calls_is_in_the_bridge(self):
         bridge = set(re.findall(r'method == "(\w+)"', self.bridge))
+        # 也认 ``if method in ("a", "b"):`` 一次分派几个动作的写法（云端 Express 的几组桥动作）
+        for group in re.findall(r'method in \(([^)]*)\)', self.bridge):
+            bridge |= set(re.findall(r'"(\w+)"', group))
         called = set(re.findall(r'\.call\(\s*"(\w+)"', self.page)) | set(re.findall(r'\brun\(\s*"\w+",\s*"(\w+)"', self.page))
         self.assertTrue(called, "frontend bridge calls")
         self.assertEqual(called - bridge, set())
