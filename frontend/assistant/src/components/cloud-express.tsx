@@ -236,7 +236,7 @@ export const CloudPairing: FC<{ api: Desktop; onDone: () => void }> = ({ api, on
           <span role="alert" className="min-w-0 flex-1 text-danger text-body" data-slot="cc-cloud-express-pair-error">
             {pairFailure(pair.code)}
           </span>
-          <Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-retry">
+          <Button variant="outline" onClick={begin} data-slot="cc-cloud-express-retry">
             {st.retry}
           </Button>
         </div>
@@ -246,7 +246,7 @@ export const CloudPairing: FC<{ api: Desktop; onDone: () => void }> = ({ api, on
           <span className="min-w-0 flex-1 text-muted-foreground text-body" data-slot="cc-cloud-express-expired">
             {st.expired}
           </span>
-          <Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-regenerate">
+          <Button variant="outline" onClick={begin} data-slot="cc-cloud-express-regenerate">
             {st.regenerate}
           </Button>
         </div>

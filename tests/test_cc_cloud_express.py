@@ -172,6 +172,11 @@ class CloudPairingBlock(unittest.TestCase):
         self.assertIn(".writeText(value)", kit)
         self.assertIn("aria-label={copied ? ui.copied : t(\"copy\")}", kit)
 
+    def test_pairing_buttons_match_the_page_buttons(self):
+        # 同一页同一套按钮（前端验收 B74 / G01）：「重试」「重新生成」与上面「重新查找」「更换…」一样用默认尺寸的 outline，不用小号
+        for slot in ("cc-cloud-express-retry", "cc-cloud-express-regenerate"):
+            self.assertIn(f'<Button variant="outline" onClick={{begin}} data-slot="{slot}">', read(ROW))
+
     def test_countdown_runs_out_into_regenerate(self):
         text = read(ROW)
         self.assertIn("export const secondsLeft = (expires: number, now: number) => Math.max(0, Math.ceil(expires - now / 1000));", text)
@@ -181,7 +186,7 @@ class CloudPairingBlock(unittest.TestCase):
         self.assertIn("return () => clearInterval(tick);", block)
         expired = block.split('{pair.phase === "expired" && (', 1)[1].split("\n      )}", 1)[0]
         self.assertIn("{st.expired}", expired)
-        self.assertIn('<Button variant="outline" size="sm" onClick={begin} data-slot="cc-cloud-express-regenerate">', expired)
+        self.assertIn('<Button variant="outline" onClick={begin} data-slot="cc-cloud-express-regenerate">', expired)
         self.assertIn("{st.regenerate}", expired)
         # 重新生成 = 再调 cloud_pair_begin（begin 里只有这一个桥动作）
         begin = block.split("const begin = useCallback(() => {", 1)[1].split("}, [api]);", 1)[0]
