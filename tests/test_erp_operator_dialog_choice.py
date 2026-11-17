@@ -88,6 +88,23 @@ class Judge(Case):
         self.assertEqual((item["value"], item["source"]), ("แบบ ข", card.REMEMBERED))
 
 
+    def test_the_operator_precheck_lists_the_box_in_needed_until_it_is_answered(self):
+        from pearnly_erp_portal.express import operator
+
+        self.stopped()
+        legacy = {"doc_id": "P:PI-1", "state": "ready"}
+        with self.ready(), mock.patch.object(operator, "_target", lambda company, doc_id: (self.push.PURCHASE, "PI-1")), \
+                mock.patch.object(operator, "_operator_held", lambda job: True), \
+                mock.patch.object(operator, "legacy_row", lambda doc_id, found: dict(legacy)), \
+                mock.patch.object(self.precheck, "document_view", lambda *a, **k: {}):
+            row, = operator.precheck("CO-1", ["P:PI-1"])["documents"]
+            self.assertEqual((row["state"], row["reason"]), ("choose", "choice_needed:operator_dialog"))
+            self.assertEqual([need["kind"] for need in row["needed"]], ["operator_dialog"])
+            choices.remember("CO-1", choices.OPERATOR_DIALOG, DIGEST, "แบบ ข", "x")
+            row, = operator.precheck("CO-1", ["P:PI-1"])["documents"]
+        self.assertEqual(row["state"], "ready")
+
+
 class Remember(Case):
     def test_the_answer_is_kept_per_company_and_fingerprint_and_the_holding_computer_is_told(self):
         self.stopped()
