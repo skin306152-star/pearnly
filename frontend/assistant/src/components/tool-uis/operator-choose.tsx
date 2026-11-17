@@ -90,7 +90,11 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
         { slot: "cc-op-not-entered", label: op.notEntered, onClick: () => resolve(false) },
         { slot: "cc-op-entered", label: op.doc.saved!, primary: true, onClick: () => resolve(true) },
       ]
-    : [{ slot: "cc-op-retry", label: op.retry, primary: true, onClick: () => void action.run(() => operatorActions.answer(input.task, input.doc_id, {})) }];
+    : [{
+        // 被人在 Express 里打断（CC 桌面版 1.12.23）：这张已按放弃收拾，「继续」= 交回接着录（先读账套、不重复）；停止用对话里的停止
+        slot: "cc-op-retry", label: input.reason === "interrupted" ? op.resume : op.retry, primary: true,
+        onClick: () => void action.run(() => operatorActions.answer(input.task, input.doc_id, {})),
+      }];
   return (
     <OperatorCard
       part={part}
