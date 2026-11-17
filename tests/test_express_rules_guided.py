@@ -104,6 +104,40 @@ class A7Detail(unittest.TestCase):
         self.assertNotIn("detail", kinds(resolve(purchase(), items_status="ok", guided=True)))
 
 
+class A7AmountOnlyInThePayload(unittest.TestCase):
+    """A7 答了「只记金额」（``config["choices"]["detail"]``，resolve 读进 applied）：载荷按 Express 现有的表头写法——不带明细行、
+    不入库，明细状态改成 empty（写账准备不再停在 items_mismatch / items_incomplete），读到的原状态留作追溯；答「不入账」与没答的照旧。"""
+    CONFIG = {"account_set": "DATAT", "revenue_acc": "41-01-01-00", "vat_output_acc": "21-05-01-00",
+                               "ar_acc": "11-03-01-00"}
+    HISTORY = {"id": "s1", "invoice_date": "2015-12-31", "invoice_no": "IV581231-002", "total_amount": "107.00",
+               "fields": {"buyer_name": "Synthetic Customer", "subtotal": "100.00", "vat": "7.00", "invoice_number": "IV581231-002",
+                          "items": [{"name": "Paper", "qty": "1", "price": "40", "subtotal": "40"}]}}  # 行合计 40 ≠ 税前 100
+
+    def build(self, detail=None):
+        from datetime import date
+        from pearnly_core.express_rules.push.sales_mapper import build_express_sales_payload
+        config = dict(self.CONFIG, **({"choices": {"detail": detail}} if detail else {}))
+        result = build_express_sales_payload(self.HISTORY, config=config, today=date(2026, 9, 21))
+        self.assertTrue(result.ok, result.reason)
+        return result.payload
+
+    def test_amount_only_writes_the_header_way(self):
+        self.assertEqual(self.build()["items_status"], "mismatch")
+        payload = self.build("amount_only")
+        self.assertEqual((payload["items_status"], payload["items"], payload["items_status_read"], payload["detail_choice"]),
+                         ("empty", [], "mismatch", "amount_only"))
+        self.assertEqual(payload["base_amount"], self.build()["base_amount"])  # 表头金额不变
+
+    def test_skip_and_unanswered_keep_the_stop(self):
+        self.assertEqual(self.build("skip")["items_status"], "mismatch")
+        self.assertNotIn("detail_choice", self.build())
+
+    def test_a_consistent_detail_is_not_touched_by_the_answer(self):
+        payload = {"items_status": "ok", "items": [{"name": "A"}]}
+        choices.apply_to_payload(payload, {"detail": "amount_only"})
+        self.assertEqual((payload["items_status"], payload["items"]), ("ok", [{"name": "A"}]))
+
+
 class A9SameName(unittest.TestCase):
     CONFIG = {"reported_suppliers": [{"code": "S001", "name": NAME, "tax_id": "", "branch": ""}]}
 

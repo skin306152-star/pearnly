@@ -49,7 +49,8 @@ LOCATION_DEFAULT = "*"
 REFUND = pos_contract.REFUND_KIND
 PAYMENT_VALUES = ("cash", "credit")
 # 引导式录入（覆盖表 A7）：明细对不上时怎么录——只记金额不入库 / 这次不录（「改明细」等第 2 期复核卡）；去留类，不预选
-DETAIL_VALUES = ("amount_only", "skip")
+DETAIL_AMOUNT_ONLY, DETAIL_SKIP = "amount_only", "skip"
+DETAIL_VALUES = (DETAIL_AMOUNT_ONLY, DETAIL_SKIP)
 # 引导式录入（覆盖表 A14）：销项收入科目按账套记一个（归类键固定）
 REVENUE_SUBJECT = "revenue"
 VAT_VALUES = ("claim", "expense")
@@ -611,6 +612,15 @@ def apply_to_payload(payload: Dict[str, Any], applied: Mapping[str, Any]) -> Dic
             block.update(code="", confirmed_new=True, **{f"{side}_new": True})
         else:
             block.update(code=party, **{f"{side}_new": False})
+    from pearnly_core.express_rules.push import common
+
+    if applied.get("detail") == DETAIL_AMOUNT_ONLY and payload.get("items_status") in (common.ITEMS_MISMATCH, common.ITEMS_INCOMPLETE):
+        # A7「明细对不上」人选了「只记金额」（引导卡上点的，`resolve` 读进 ``applied["detail"]``）：按 Express 现有的表头写法录
+        # ——不带明细行、不入库，只记表头金额与分录（同 OCR 没读到明细，`common.ITEMS_EMPTY`）；对不上的原状态留在载荷里追溯
+        payload["items_status_read"] = payload["items_status"]
+        payload["items_status"] = common.ITEMS_EMPTY
+        payload["items"] = []
+        payload["detail_choice"] = DETAIL_AMOUNT_ONLY
     items = applied.get("items") or {}
     version = 1
     if items:
