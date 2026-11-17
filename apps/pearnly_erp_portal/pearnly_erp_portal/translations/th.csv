@@ -925,6 +925,7 @@ No attachments,ไม่มีไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
 No computer can write this account set,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้
+No computer connected,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 No due date,ไม่มีวันครบกำหนด
 No item matches the scanned code {0},ไม่พบสินค้าที่ตรงกับรหัส {0}
 No items found. Scan barcode again.,ไม่พบสินค้า กรุณาสแกนบาร์โค้ดอีกครั้ง
@@ -2038,7 +2039,7 @@ company.status.inactive,ปิดใช้งาน
 company.subtitle,ข้อมูลบริษัทที่ใช้บนเอกสาร
 company.syncExpress,ซิงค์ Express
 company.syncExpress.failed,ซิงค์ไม่สำเร็จ
-company.syncExpress.offline,CC เดสก์ท็อปไม่ได้เชื่อมต่อ
+company.syncExpress.offline,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 company.syncExpress.outdated,CC เดสก์ท็อปต้องอัปเดต
 company.syncExpress.queued,อยู่ในคิว
 company.syncExpress.reading,กำลังอ่าน

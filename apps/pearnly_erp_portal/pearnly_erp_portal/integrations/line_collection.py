@@ -458,7 +458,7 @@ def _pick_customer(line_user_id, payload, value, reply_token, note=""):
         if found.get("refresh") == "reading":
             return _ask(reply_token, _("Reading from Express"), [_button(_("Refresh"), _data("customer", value))])
         if found.get("refresh") == "offline":  # 读不到不是「没有」：照实说电脑没连
-            return _ask_customer(reply_token, note=_("CC Desktop not connected"))
+            return _ask_customer(reply_token, note=_("No computer connected"))
         if found.get("refresh") == "outdated":
             return _ask_customer(reply_token, note=_("CC Desktop needs an update"))
         return _ask_customer(reply_token, note=_("No open invoices"))

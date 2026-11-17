@@ -134,7 +134,7 @@
 		"express.operator_owned": "express.reason.operatorOwned",
 		"express.printed_total_missing": "express.reason.printedTotalMissing",
 		"express.printed_total_mismatch": "express.reason.printedTotalMismatch",
-		"express.cc_desktop_not_connected": "CC Desktop not connected", "express.cc_desktop_offline": "express.reason.offline", "express.cc_desktop_not_yours": "express.reason.notYours", "express.voided_after_write": "express.reason.voidedAfterWrite",
+		"express.cc_desktop_not_connected": "No computer connected", "express.cc_desktop_offline": "express.reason.offline", "express.cc_desktop_not_yours": "express.reason.notYours", "express.voided_after_write": "express.reason.voidedAfterWrite",
 		"mrerp.not_configured": "mrerp.reason.notConfigured", "mrerp.login_missing": "mrerp.reason.loginMissing",
 		"mrerp.account_busy": "mrerp.reason.accountBusy",
 		"mrerp.importing": "mrerp.reason.importing",

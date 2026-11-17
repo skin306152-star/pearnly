@@ -273,7 +273,7 @@ class Steps(Base):
         # 11-12 三星实测：读不到（电脑没连 / 要更新）时说「没有未收清的发票」会误导收款员
         T.S.table("ERP Customer")["X1"] = {"name": "X1", "express_company": "CO-1", "express_code": "99001",
                                           "customer_name": "shop one", "is_active": 1}
-        for state, text in (("offline", "CC Desktop not connected"), ("outdated", "CC Desktop needs an update")):
+        for state, text in (("offline", "No computer connected"), ("outdated", "CC Desktop needs an update")):
             with mock.patch.object(T.snapshot, "request", return_value=state):
                 self.tap("a=col&s=start")
                 self.type("99001")

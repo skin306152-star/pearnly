@@ -925,6 +925,7 @@ No attachments,No attachments
 No cards are assigned to you,No cards are assigned to you
 No company is available for this account,No company is available for this account
 No computer can write this account set,No computer can write this account set
+No computer connected,No computer connected
 No due date,No due date
 No item matches the scanned code {0},No item matches the scanned code {0}
 No items found. Scan barcode again.,No items found. Scan barcode again.
@@ -2038,7 +2039,7 @@ company.status.inactive,Disabled
 company.subtitle,The company on your documents
 company.syncExpress,Sync Express
 company.syncExpress.failed,Sync failed
-company.syncExpress.offline,CC Desktop not connected
+company.syncExpress.offline,No computer connected
 company.syncExpress.outdated,CC Desktop needs an update
 company.syncExpress.queued,Queued
 company.syncExpress.reading,Reading

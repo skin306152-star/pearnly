@@ -40,7 +40,7 @@ STEP_OF = {
     contracts.INVOICE_NOT_FOUND: "invoices", contracts.OVER_COLLECTED: "invoices",
     contracts.VOUCHER_MISSING: "voucher", service.VOUCHER_INVALID: "voucher",
 }
-READ_FACTS = {snapshot.READING: "Reading from Express", "offline": "CC Desktop not connected",
+READ_FACTS = {snapshot.READING: "Reading from Express", "offline": "No computer connected",
               "outdated": "CC Desktop needs an update"}
 RESULT = {contracts.WRITTEN: "entered", contracts.QUEUED: "queued", contracts.WRITING: "queued", contracts.FAILED: "failed",
           contracts.WITHDRAWN: "withdrawn"}

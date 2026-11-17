@@ -925,6 +925,7 @@ No attachments,无附件
 No cards are assigned to you,暂无分配给您的卡片
 No company is available for this account,此账号无可用公司
 No computer can write this account set,没有能写此账套的电脑
+No computer connected,未连接电脑
 No due date,无到期日
 No item matches the scanned code {0},未找到与扫描编码 {0} 匹配的物料
 No items found. Scan barcode again.,未找到物料，请重新扫码
@@ -2038,7 +2039,7 @@ company.status.inactive,已停用
 company.subtitle,单据上用的本公司资料
 company.syncExpress,同步 Express
 company.syncExpress.failed,同步失败
-company.syncExpress.offline,CC 桌面版未连接
+company.syncExpress.offline,未连接电脑
 company.syncExpress.outdated,CC 桌面版需更新
 company.syncExpress.queued,排队中
 company.syncExpress.reading,读取中

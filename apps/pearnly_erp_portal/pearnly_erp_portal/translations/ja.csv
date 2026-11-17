@@ -925,6 +925,7 @@ No attachments,添付ファイルなし
 No cards are assigned to you,割り当てられたカードはありません
 No company is available for this account,このアカウントで使える会社がありません
 No computer can write this account set,この会計データに書き込めるパソコンがありません
+No computer connected,パソコン未接続
 No due date,期日なし
 No item matches the scanned code {0},スキャンしたコード {0} に一致する商品がありません
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
@@ -2038,7 +2039,7 @@ company.status.inactive,無効
 company.subtitle,書類に使う自社情報
 company.syncExpress,Express と同期
 company.syncExpress.failed,同期に失敗しました
-company.syncExpress.offline,CC デスクトップが接続されていません
+company.syncExpress.offline,パソコン未接続
 company.syncExpress.outdated,CC デスクトップの更新が必要です
 company.syncExpress.queued,待機中
 company.syncExpress.reading,読み込み中
