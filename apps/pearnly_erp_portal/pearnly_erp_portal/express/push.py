@@ -520,7 +520,9 @@ def _send(doctype, name, operator):
             # 定制菜单的子菜单多个候选（评估 2026-11-05 修法 D）：这家这份账套这种单记住的菜单文字，与按单据付款方式认的现金 / 转账
             payload = operator_contracts.for_operator(
                 payload, operator, form_choice=choices.operator_form(company, book["key"], payload.get("doctype")),
-                pay_route=operator_pay_route(doctype, name))
+                pay_route=operator_pay_route(doctype, name),
+                # 中途配方外的业务选择框这家公司答过的（CC 桌面版 1.12.23 照点，旧版忽略）
+                dialog_answers_by_digest=choices.operator_dialogs(company))
         if vat_fields:
             # 混有免税商品的现销日汇总 / 混合税率的采购：税记录的应税基数按规则交（载荷 9，旧版 CC 诚实拒收）
             payload = {**payload, "vat_fields": vat_fields,

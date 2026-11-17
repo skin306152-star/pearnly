@@ -24,6 +24,10 @@ import frappe
 from pearnly_core.express_operator.menu_choice import KIND as OPERATOR_FORM
 
 CHOICE = "ERP Express Choice"
+# 代录中途配方外的业务选择框（CC 桌面版 1.12.23）：对象 = 框指纹（16 位十六进制），值 = 人选的按钮原文；按公司记（同一家公司同一个框
+# 答一次），交代录时经 :func:`operator_dialogs` 带进载荷 ``operator.dialog_answers``。同 ``operator_form`` 不是写账规则，不进 :func:`remembered`。
+OPERATOR_DIALOG = "operator_dialog"
+OPERATOR_DIALOGS_MAX = 50
 ACCOUNT_SET = "account_set"
 STOCK_GROUP = "stock_group"
 
@@ -56,7 +60,7 @@ def _name(company, kind, subject):
 def remembered(company) -> dict:
     """``{kind: {subject: value}}``：这家公司选过的（代录子菜单 ``operator_form`` 不在内：不是写账规则）。"""
     found = {}
-    for row in frappe.get_all(CHOICE, filters={"company": company, "kind": ["!=", OPERATOR_FORM]},
+    for row in frappe.get_all(CHOICE, filters={"company": company, "kind": ["not in", [OPERATOR_FORM, OPERATOR_DIALOG]]},
                               fields=["kind", "subject", "value"], limit_page_length=0):
         found.setdefault(row.kind, {})[row.subject or ""] = row.value or ""
     current = _ASSUMED.get()
@@ -108,3 +112,12 @@ def operator_form(company, book_key, doc_type) -> str:
     if not company or not str(book_key or "").strip() or not str(doc_type or "").strip():
         return ""
     return frappe.db.get_value(CHOICE, _name(company, OPERATOR_FORM, operator_subject(book_key, doc_type)), "value") or ""
+
+
+def operator_dialogs(company) -> dict:
+    """这家公司答过的代录中途选择框 ``{指纹: 按钮原文}``（最近答的 50 个），交代录时带进载荷 ``operator.dialog_answers``。"""
+    if not company:
+        return {}
+    rows = frappe.get_all(CHOICE, filters={"company": company, "kind": OPERATOR_DIALOG}, fields=["subject", "value"],
+                          order_by="modified desc", limit_page_length=OPERATOR_DIALOGS_MAX)
+    return {str(row.subject or ""): str(row.value or "") for row in rows if row.subject and row.value}

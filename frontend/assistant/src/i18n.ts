@@ -746,7 +746,7 @@ const COMPANY = {
       group: "Document groups", party: "Party", item: "Stock item", account: "Expense account", payment: "Payment", vat: "Tax on receipts",
       department: "Department", location: "Warehouse", receipt: "Receiving account", pos: "POS layout", income: "Income reconciliation",
       vatCheck: "VAT reconciliation", history: "Express history", posting: "Posting", current_book: "Account set in use",
-      posting_history: "Posting history", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", operator_form: "Document menu",
+      posting_history: "Posting history", mrerp_menu: "MR.ERP import menu", mrerp_default: "MR.ERP settings", operator_form: "Document menu", operator_dialog: "Express prompt",
     } as Record<string, string>,
   },
   zh: {
@@ -831,7 +831,7 @@ const COMPANY = {
       group: "资料分组", party: "对方档", item: "存货", account: "费用科目", payment: "付款方式", vat: "票面税额",
       department: "部门", location: "仓库", receipt: "收款科目", pos: "POS 版式", income: "收入对账",
       vatCheck: "增值税核对", history: "Express 历史", posting: "入账方式", current_book: "现用账套", posting_history: "入账方式历史",
-      mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", operator_form: "单据菜单",
+      mrerp_menu: "MR.ERP 导入菜单", mrerp_default: "MR.ERP 设置", operator_form: "单据菜单", operator_dialog: "Express 提示框",
     } as Record<string, string>,
   },
   th: {
@@ -916,7 +916,7 @@ const COMPANY = {
       group: "กลุ่มเอกสาร", party: "คู่ค้า", item: "สินค้าคงเหลือ", account: "บัญชีค่าใช้จ่าย", payment: "วิธีชำระเงิน", vat: "จำนวนภาษีตามเอกสาร",
       department: "แผนก", location: "คลังสินค้า", receipt: "บัญชีรับเงิน", pos: "รูปแบบ POS", income: "กระทบยอดรายได้",
       vatCheck: "กระทบยอดภาษีมูลค่าเพิ่ม", history: "ประวัติ Express", posting: "วิธีลงบัญชี", current_book: "ชุดบัญชีที่ใช้อยู่",
-      posting_history: "ประวัติวิธีลงบัญชี", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", operator_form: "เมนูเอกสาร",
+      posting_history: "ประวัติวิธีลงบัญชี", mrerp_menu: "เมนูนำเข้า MR.ERP", mrerp_default: "การตั้งค่า MR.ERP", operator_form: "เมนูเอกสาร", operator_dialog: "ข้อความถามของ Express",
     } as Record<string, string>,
   },
   ja: {
@@ -996,7 +996,7 @@ const COMPANY = {
       group: "資料のグループ", party: "取引先", item: "在庫品目", account: "費用勘定", payment: "支払方法", vat: "請求書の税額",
       department: "部門", location: "倉庫", receipt: "入金勘定", pos: "POS 形式", income: "収益照合",
       vatCheck: "付加価値税の照合", history: "Express の履歴", posting: "計上方法", current_book: "使用中の会計データ", posting_history: "計上方法の履歴",
-      mrerp_menu: "MR.ERP の取込メニュー", mrerp_default: "MR.ERP の設定", operator_form: "伝票メニュー",
+      mrerp_menu: "MR.ERP の取込メニュー", mrerp_default: "MR.ERP の設定", operator_form: "伝票メニュー", operator_dialog: "Express の確認画面",
     } as Record<string, string>,
   },
 };
