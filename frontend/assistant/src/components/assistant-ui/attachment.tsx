@@ -390,7 +390,7 @@ export const AttachmentCard: FC<{ name: string; label: string; typeLine: string;
   const body = (
     <>
       <span className="cc-attach-thumb" aria-hidden data-page={page || undefined}>
-        {loading ? <Skeleton className="size-full rounded-none" /> : <AttachmentThumbnail src={image} filename={name} />}
+        {loading ? <Skeleton block /> : <AttachmentThumbnail src={image} filename={name} />}
       </span>
       <span className="cc-attach-meta" aria-hidden>
         <Marquee className="cc-attach-name">{name}</Marquee>

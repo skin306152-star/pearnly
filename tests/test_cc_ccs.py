@@ -951,7 +951,7 @@ class ComponentLibraryTests(unittest.TestCase):
         self.assertEqual(sidebar.count("duration-(--cc-dur) ease-cc"), 2)
         self.assertNotIn("ease-linear", sidebar)
         # V5：骨架的明暗呼吸同运行中的脉冲点（--cc-pulse 1.2s、透明度 0.35↔1），不再是 Tailwind 的 pulse（2s、1↔0.5）
-        self.assertIn('cn("bg-accent animate-cc-pulse rounded-md h-(--cc-skeleton-h)", className)', self.read("components/ui/skeleton.tsx"))
+        self.assertIn('cn("bg-accent animate-cc-pulse", block ? "size-full" : "rounded-md h-(--cc-skeleton-h)", className)', self.read("components/ui/skeleton.tsx"))
         self.assertIn("--animate-cc-pulse: cc-pulse var(--cc-pulse) var(--cc-ease-pulse) infinite;", self.css)
 
     @unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
@@ -1044,7 +1044,7 @@ class CardRuleTests(unittest.TestCase):
         # 发送中的附件：同发出后的卡片，缩略图位置是骨架（V31，attachment.tsx 的 PendingAttachments）
         self.assertIn("<PendingAttachments names={pending.files} ids={pending.ids} />", pending)
         attachment = (SRC / "components/assistant-ui/attachment.tsx").read_text(encoding="utf-8")
-        self.assertIn('{loading ? <Skeleton className="size-full rounded-none" /> : <AttachmentThumbnail', attachment)
+        self.assertIn('{loading ? <Skeleton block /> : <AttachmentThumbnail', attachment)
         files = thread.split("const MessageFiles: FC = () => {", 1)[1].split("\n};", 1)[0]
         self.assertIn('className="cc-icon-btn cc-tap"', files)
         # 提醒卡的「打开通知」在卡片里、底部靠右，用卡片按钮（同允许卡，用户 10-17）；没打开的原因在按钮上方一行
