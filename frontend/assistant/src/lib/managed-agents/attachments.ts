@@ -94,8 +94,10 @@ export function refusalOf(file: File): string {
   return "";
 }
 
-/** refused：选中的文件被当场拒收时带上原因（写在输入框上方那一行，send-failure.ts 的 noteRefusedFile）。 */
-export function createAttachmentAdapter(getSessionId: () => Promise<string>, refused?: (message: string) => void): AttachmentAdapter {
+/** refused：选中的文件被当场拒收时带上原因（写在输入框上方那一行，send-failure.ts 的 noteRefusedFile）。held：此刻不收（链接 / 通知
+ *  正在打开别的对话，lib/opening.ts）——拖放、粘贴绕过「+」按钮时也不建会话、不上传、不出卡片。 */
+export function createAttachmentAdapter(getSessionId: () => Promise<string>, refused?: (message: string) => void,
+                                        held?: () => boolean): AttachmentAdapter {
   /** 传进会话并记下位置、大小、本地预览（选中文件时、发送时重传都走这里）。 */
   const store = async (id: string, file: File): Promise<UploadedFile> => {
     const stored = await uploadFile(await getSessionId(), file);
@@ -110,6 +112,7 @@ export function createAttachmentAdapter(getSessionId: () => Promise<string>, ref
 
     async *add({ file }): AsyncGenerator<PendingAttachment, void> {
       // 永远传不上的（超限、空的、类型不收）当场拒收：什么都不交给输入框（没有附件卡），也不建会话、不上传
+      if (held?.()) return;
       const refusal = refusalOf(file);
       if (refusal) {
         refused?.(refusal);

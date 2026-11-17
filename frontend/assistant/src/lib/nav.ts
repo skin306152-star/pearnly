@@ -35,6 +35,7 @@ import { openCompanyPicker } from "@/components/company-picker";
 import { hasSection, hintTitle, projectsReady, setDraft, useProjects } from "@/lib/managed-agents/projects";
 import { reportCaught, withReport } from "./caught";
 import { isDesktopApp } from "./desktop";
+import { gatedOpen } from "./opening";
 
 export type View = "chat" | "tasks" | "operator";
 type Entry = { view: View; mode: Mode; thread: string };
@@ -276,8 +277,8 @@ async function conversationMode(id: string): Promise<string> {
   return String((session as { mode?: string } | null)?.mode ?? "");
 }
 
-/** 切到这段对话；不是本人的、不存在、已删或已归档都回 false。 */
-async function openConversation(aui: Aui, id: string): Promise<boolean> {
+/** 切到这段对话；不是本人的、不存在、已删或已归档都回 false。live 为假（这次打开已被作废）时不切、回 false。 */
+async function openConversation(aui: Aui, id: string, live: () => boolean = () => true): Promise<boolean> {
   if (!SESSION_ID.test(id)) return false;
   try {
     // 先等侧栏第一页：列表里有的直接切过去，不再多问一次
@@ -288,6 +289,7 @@ async function openConversation(aui: Aui, id: string): Promise<boolean> {
       const session = await getSession(id);
       if (session.archived_at) return false;
     }
+    if (!live()) return false;
     await aui.threads().switchToThread(id);
     return true;
   } catch (caughtError) { reportCaught(caughtError, "nav");
@@ -305,51 +307,51 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
 
   useEffect(() => {
     let alive = true;
-    const fallback = async () => {
+    const fallback = async (live: () => boolean = () => alive) => {
       const tasks = await latest.current.hasTasks().catch(withReport(() => false, "nav"));
-      if (!alive) return;
+      if (!live()) return;
       if (tasks) latest.current.setView("tasks");
       else {
         latest.current.setView("chat");
         void aui.threads().switchToNewThread();
       }
     };
-    const open = async (target: Target) => {
+    const open = async (target: Target, live: () => boolean) => {
       if (target.task && !target.c) {
         // 旧的代录任务链接：查到会话就在代录模式打开（侧栏列代录会话），查不到同「找不到」
         const session = await taskConversation(target.task);
-        if (!alive) return;
+        if (!live()) return;
         if (session) {
           if (useModePlace.getState().mode !== "operator") useModePlace.setState({ mode: "operator", chatView: "chat" });
           latest.current.setView("operator");
-          if (await openConversation(aui, session)) return;
+          if (await openConversation(aui, session, live)) return;
         }
-        if (alive) await fallback();
+        if (live()) await fallback(live);
         return;
       }
       if (target.c) {
         // 代录任务就是一段会话（统一对话框架）：代录会话的链接切到代录模式打开（侧栏列代录会话，同旧的 ?task= 链接），
         // 直写的在代录模式下打开先回对话模式
         const operator = (await conversationMode(target.c)) === "operator";
-        if (!alive) return;
+        if (!live()) return;
         const now = useModePlace.getState().mode;
         if (operator && now !== "operator") useModePlace.setState({ mode: "operator", chatView: "chat" });
         if (!operator && now === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
         latest.current.setView(operator ? "operator" : "chat");
-        if (await openConversation(aui, target.c)) return;
-        if (alive) await fallback();
+        if (await openConversation(aui, target.c, live)) return;
+        if (live()) await fallback(live);
         return;
       }
       const company = target.company ?? "";
       if (target.view === "tasks") {
         useCompanyNav.setState({ taskCompany: company });
-        await fallback();
+        await fallback(live);
         return;
       }
       if (target.view === "companies" || target.view === "pending" || company) {
         // 公司只在有公司分组的产品，待处理还要声明了 pending（共用层 projects()）
         const kind = await projectsReady().catch(withReport(() => null, "nav"));
-        if (!alive) return;
+        if (!live()) return;
         // 公司、待处理都在对话模式里落（提醒点开时在代录就先回对话模式）
         if (useModePlace.getState().mode === "operator") useModePlace.setState({ mode: "chat", operatorView: "operator" });
         const newChat = (project = "", month = "") => {
@@ -360,8 +362,8 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         if (!kind || (target.view === "pending" && !hasSection("pending"))) return newChat();
         if (target.view === "pending") {
           const spot = await pendingSpot(company);
-          if (!alive) return;
-          if (spot.conversation && (await openConversation(aui, spot.conversation))) {
+          if (!live()) return;
+          if (spot.conversation && (await openConversation(aui, spot.conversation, live))) {
             latest.current.setView("chat");
             return;
           }
@@ -379,11 +381,16 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
         }
         // ?company=：定时任务提醒（没挂对话时）的地址——定时任务页只看这家；没有定时任务的产品在这家开新对话
         const tasks = await latest.current.hasTasks().catch(withReport(() => false, "nav"));
-        if (!alive) return;
+        if (!live()) return;
         if (!tasks) return newChat(company);
         useCompanyNav.setState({ taskCompany: company, taskFocus: "" });
         latest.current.setView("tasks");
       }
+    };
+
+    // 「正在打开」闸（主会话 11-17，lib/opening.ts）：打开期间输入框不可用；一次只认最新的一次打开，超时放开时作废这一次
+    const run = (target: Target) => {
+      void gatedOpen((live) => open(target, live), () => void fallback(), () => alive).catch(withReport(() => undefined, "nav"));
     };
 
     // 1) 打开页面时的地址参数：处理完把 c、view 从地址里去掉
@@ -395,7 +402,7 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       url.searchParams.delete("company");
       url.searchParams.delete("task");
       history.replaceState(history.state, "", url.pathname + url.search + url.hash);
-      void open(initial);
+      run(initial);
     }
 
     // 2) 后台脚本点通知：已有 CC 窗口时聚焦它并发来要打开的地址
@@ -403,14 +410,14 @@ export function useDeepLinks(setView: (v: View) => void, hasTasks: () => Promise
       const data = event.data as { type?: string; url?: string } | null;
       if (data?.type !== "pearnly-open" || typeof data.url !== "string") return;
       const target = targetOf(data.url);
-      if (target) void open(target);
+      if (target) run(target);
     };
     // 3) 桌面端托盘 / 页面自己的通知点开：detail 是对话编号，空串 = 定时任务页；「/assistant?…」是深链接（提醒属于某家公司时
     //    点开定时任务页只看这家，lib/notify.ts 的 deepLink）
     const fromDesktop = (event: Event) => {
       const id = String((event as CustomEvent).detail ?? "").trim();
       const link = id.startsWith("/assistant") ? targetOf(id) : null;
-      void open(link ?? (id && !id.startsWith("/") ? { c: id, view: "" } : { c: "", view: "tasks" }));
+      run(link ?? (id && !id.startsWith("/") ? { c: id, view: "" } : { c: "", view: "tasks" }));
     };
     navigator.serviceWorker?.addEventListener("message", fromWorker);
     navigator.serviceWorker?.startMessages();

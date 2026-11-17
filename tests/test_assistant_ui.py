@@ -2981,14 +2981,14 @@ class CompanyMasterSourceTests(unittest.TestCase):
         # operator：代录模式（评估 2026-10-26-express-operator-product-评估.md §10，左上角「对话 | 代录」）；pending 11-04 起不再是视图
         # 公司列表（companies）、公司页（company）11-07 删了，不再是视图
         self.assertIn('export type View = "chat" | "tasks" | "operator";', nav)
-        open_ = nav.split("    const open = async (target: Target) => {", 1)[1].split("\n    };\n", 1)[0]
+        open_ = nav.split("    const open = async (target: Target, live: () => boolean) => {", 1)[1].split("\n    };\n", 1)[0]
         # 落不到公司、待处理时都是新对话（带上公司与月份就是在这家开新对话；产品不按月份时月份空）
         self.assertIn('setDraft(project ? { project, period: useProjects.getState().period ? month || chatMonth() : "", scope: "" } : {});\n'
                       '          latest.current.setView("chat");\n          void aui.threads().switchToNewThread();', open_)
         # ?view=pending 是兼容入口（早上汇总提醒、CC 桌面版托盘还在发）：落到这家待处理最多那个月的对话，没有就在那家那个月开新对话；
         # 多家（或一家都没有）开新对话（侧栏占位行带提醒点），不再落公司页
         self.assertIn("const spot = await pendingSpot(company);", open_)
-        self.assertIn("if (spot.conversation && (await openConversation(aui, spot.conversation))) {", open_)
+        self.assertIn("if (spot.conversation && (await openConversation(aui, spot.conversation, live))) {", open_)
         self.assertIn("return newChat(spot.company, spot.month);", open_)
         self.assertNotIn('setView("pending")', nav)
         # 旧的 ?view=companies：新对话并弹选择公司窗口，选了就把这家放进新对话的下巴（上个月）
@@ -8939,7 +8939,7 @@ assert.deepEqual(users(), ["earlier", "hello"]);
         # 11-11：加附件建的会话也一样，标在共用的 ensureSession 里（ensure-session.ts）
         self.assertIn("else await newChat.run(ensureSession, send, async (id) => {", provider)
         self.assertIn("ensureSessionOf(aui.threadListItem(), getSessionController)", provider)
-        self.assertIn("createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message))", provider)
+        self.assertIn("createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message), opening)", provider)
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("if (!this.state.echoedOptimistic.has(optimisticId)) {", controller)
 

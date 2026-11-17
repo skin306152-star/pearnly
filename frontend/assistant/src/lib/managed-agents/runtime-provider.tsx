@@ -46,6 +46,7 @@ import { holdsSends, initialProjection, isBusy, withNotices } from "./reducer";
 import { loadProfile } from "@/lib/profile";
 import { useListMode, useSessionTask } from "./list-mode";
 import { useProjects } from "./projects";
+import { opening, useOpening } from "@/lib/opening";
 import { loadToolLabels } from "@/lib/tool-labels";
 import { runningTurn, type OpenState } from "@/lib/follow-scroll";
 import { offersRecord } from "@/lib/record-reply";
@@ -121,9 +122,11 @@ function useSessionThreadRuntime() {
   const threadNow = useRef(threadId);
   threadNow.current = threadId;
   const attachments = useMemo(
-    () => createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message)),
+    () => createAttachmentAdapter(ensureSession, (message) => noteRefusedFile(threadNow.current, message), opening),
     [ensureSession],
   );
+  // 链接 / 通知正在打开某段对话（lib/opening.ts）：切到那里之前输入框不可用，加附件、发送都不落进眼前这段
+  const held = useOpening((s) => s.token !== 0);
   // 代录会话（已建的挂着任务；新对话看此刻的模式）：附件同直写（服务端交任务识别），只是新对话要先选好公司、月份
   const task = useSessionTask(sessionId);
   const operatorMode = useListMode((s) => s.mode === "operator");
@@ -223,7 +226,7 @@ function useSessionThreadRuntime() {
     // Busy = the agent is working, or a gate/custom tool is waiting on us,
     // or a brand-new chat is still creating its session to send the first message.
     isRunning: running,
-    isDisabled: snapshot.isDead,
+    isDisabled: snapshot.isDead || held,
     isSendDisabled: operator && !sessionId && !draftReady,
     adapters: { attachments },
     queue: sendQueue.adapter,

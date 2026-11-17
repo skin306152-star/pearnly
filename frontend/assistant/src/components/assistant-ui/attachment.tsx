@@ -412,7 +412,8 @@ export const ComposerAttachments: FC = () => {
  *  （lib/managed-agents/attachments.ts 的 refusalOf：超限、空的、类型不收当场拒收，原因写在输入框上方）。 */
 export const ComposerAddAttachment: FC = () => {
   const aui = useAui();
-  const disabled = useAuiState((s) => !s.composer.isEditing);
+  // 运行时不可用（会话已结束、链接正在打开别的对话）时「+」同输入框一起禁用
+  const disabled = useAuiState((s) => !s.composer.isEditing || s.thread.isDisabled);
   const pick = () => {
     const input = document.createElement("input");
     input.type = "file";
