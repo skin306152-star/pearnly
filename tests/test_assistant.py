@@ -2467,7 +2467,8 @@ class NoticeTests(unittest.TestCase):
         notices.mark_carried("a@example.com", [n["name"] for n in shown])
         self.assertEqual([n["name"] for n in notices.uncarried("sesn_mine1", "a@example.com")], ["m3"])
         self.assertEqual((self.db.row("o1").carried, self.db.row("b1").carried), (0, 0))
-        self.assertEqual([n["name"] for n in notices.uncarried("sesn_xxxx1", "a@example.com")], ["o1", "m3"])
+        # 别的对话（mine1）的 m3 不带进 xxxx1（P-9：内容只在触发它的那段对话里）
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_xxxx1", "a@example.com")], ["o1"])
         # 只带最新 10 条；只把这 10 条标成带过，更早没带上的下次再带（不丢）
         for i in range(12):
             self.db.add(f"c{i:02d}", 20 + i, user="c@example.com")
@@ -2487,20 +2488,15 @@ class NoticeTests(unittest.TestCase):
         notices.detach("", "a@example.com")  # 空编号什么都不动
         self.assertIsNone(self.db.row("u2").session_id)
 
-    def test_recent_notices_of_other_conversations_come_along(self):
-        # 交接 F3：夜里 21:10 的完成简报挂在建任务的对话 A 上；第二天早上在新对话 B 里问「昨晚的结果」，也要带给智能体
+    def test_notices_of_other_conversations_stay_there(self):
+        # 弹窗通知并进对话 P-9（用户 11-14：内容只在触发它的那段对话里）：挂在对话 A 上的提醒，在新对话 B 里发话不带进 B
+        # （取代 10-13 交接 F3「近一天别的对话的也带上」）；回到 A 照常带上，没挂对话的照常哪里发话都带
         self.now = datetime.datetime(2026, 10, 13, 8, 30)
         self.db.add("brief", 13 * 60 + 10, session_id="sesn_aaaa1", kind="cowork.folder.brief")
-        self.db.add("old", -20 * 60, session_id="sesn_aaaa1")  # 10-11 12:00，早于一天：只在 A 里带
+        self.db.add("loose", 13 * 60 + 15)  # 没挂对话
         self.db.add("bob", 13 * 60 + 20, session_id="sesn_aaaa1", user="bob@example.com")  # 别人的
-        self.db.add("done", 13 * 60 + 30, session_id="sesn_aaaa1", carried=1)  # 已带过
-        shown = notices.uncarried("sesn_bbbb1", "a@example.com")
-        self.assertEqual([n["name"] for n in shown], ["brief"])
-        self.assertEqual(shown[0]["at"], "2026-10-12 21:10")
-        notices.mark_carried("a@example.com", [n["name"] for n in shown])
-        self.assertEqual(notices.uncarried("sesn_bbbb1", "a@example.com"), [])
-        # 回到 A：早于一天、没带过的还在（不因在 B 里发话被一起标掉）
-        self.assertEqual([n["name"] for n in notices.uncarried("sesn_aaaa1", "a@example.com")], ["old"])
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_bbbb1", "a@example.com")], ["loose"])
+        self.assertEqual([n["name"] for n in notices.uncarried("sesn_aaaa1", "a@example.com")], ["brief", "loose"])
         self.assertEqual(self.db.row("bob").carried, 0)
 
     def test_only_the_notices_that_fit_are_carried_and_marked(self):

@@ -6,8 +6,8 @@
 - 桌面通知：没挂对话的也推实时事件（`session_id` 为空），电脑上的窗口照样弹通知；小助手同步按记录取（`for_references`）。
 
 提醒不写进引擎会话（写进去会开一轮、要花钱）：用户下次发话时，还没带过的提醒随系统消息告诉智能体
-（`uncarried` / `mark_carried`）：本对话的、没挂对话的，加上挂在别的对话上、`CARRY_WINDOW` 内的（夜里的完成简报
-挂在建任务的对话上，第二天在新对话里问也要带上）；只把真带上的几条按记录名标成带过，别的一条不动。
+（`uncarried` / `mark_carried`）：本对话的、没挂对话的；别的对话的提醒不带进来（用户 11-14：内容只在触发它的那段对话里，
+弹窗通知并进对话 P-9，取代 10-13 交接 F3「近一天别的对话的也带上」）。只把真带上的几条按记录名标成带过，别的一条不动。
 去重键唯一，同一时段的提醒只记一条、只推一次；并发时撞键只退回到本次插入之前（保存点），不动调用方同一事务里的
 其他提醒。产品只经这里发提醒，共用层不认识产品的提醒类型；挑提醒挂哪段对话用 `owned_conversation`（判据同 `post`）。
 """
@@ -26,8 +26,6 @@ FEED_RECENT = 20  # 增量补拉、引擎出错时带回的最近几条
 # 增量补拉按锚点事件的时间取提醒，前推这么多：引擎与站点的时钟可能差几分钟，重复的由对话页按编号去重
 FEED_SLACK = timedelta(minutes=5)
 REFERENCE_SCAN = 200  # 按记录取提醒时一次最多看这么多条
-# 挂在别的对话上的提醒，这么久以内的也在用户下次发话时带上（不论在哪段对话里发话）
-CARRY_WINDOW = timedelta(hours=24)
 SAVEPOINT = "pearnly_assistant_notice"
 
 
@@ -146,12 +144,10 @@ def mark_seen(session_id, user) -> None:
 
 def uncarried(session_id, user) -> list[dict]:
     """还没随话带给智能体、这次能带上的提醒，旧 → 新：本对话的、本用户没挂对话的（负责人换了、来源对话删了时，
-    提醒也要在他下次发话时带上），加上挂在别的对话上、`CARRY_WINDOW` 内的；取最新 `NOTICES_CARRIED` 条，
+    提醒也要在他下次发话时带上）；挂在别的对话上的不带（P-9）。取最新 `NOTICES_CARRIED` 条，
     合计超长时只留放得下的最新几条（`contracts.notices_fit`）。"""
-    since = frappe.utils.now_datetime() - CARRY_WINDOW
     rows = frappe.get_all(NOTICE, filters={"user": user, "carried": 0},
-                          or_filters=[["session_id", "=", session_id], ["session_id", "is", "not set"],
-                                      ["creation", ">=", since]],
+                          or_filters=[["session_id", "=", session_id], ["session_id", "is", "not set"]],
                           fields=FIELDS, order_by="creation desc, name desc", limit=contracts.NOTICES_CARRIED)
     return contracts.notices_fit([
         {"name": row.name, "at": contracts.site_time(row.creation).strftime("%Y-%m-%d %H:%M"),
