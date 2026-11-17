@@ -5240,6 +5240,18 @@ assert.equal(composerPageThumb(first.id), "/api/method/pearnly_core.assistant.ap
 delete g.XMLHttpRequest;
 """)
 
+    def test_a_pdf_brought_back_from_the_draft_still_shows_its_first_page(self):
+        # 验收 11-17（B33）：刷新后从草稿拿回的 PDF 方块也取第一页小图（草稿所在的会话一起记回）；不知道会话时只写文件名
+        self.run_page(r"""
+import { composerPageThumb, rememberUploaded } from "@/lib/managed-agents/attachments";
+const info = { fileId: "upl_d", filename: "draft.pdf", mountPath: "/mnt/session/uploads/upl_d/draft.pdf", size_bytes: 10 };
+rememberUploaded("att-d", info, "s7");
+assert.equal(composerPageThumb("att-d"), "/api/method/pearnly_core.assistant.api.page_image?session_id=s7&file_id=upl_d&page=1&size=thumb");
+rememberUploaded("att-e", { ...info, fileId: "upl_e" });
+assert.equal(composerPageThumb("att-e"), undefined);
+""")
+        self.assertIn("rememberUploaded(file.id, file.info, session ?? undefined);", read("lib/managed-agents/drafts.ts"))
+
     def test_a_dropped_line_can_be_retried_but_a_refused_file_cannot(self):
         # 上传研究 U5（B34）：断线、超时、服务端出错 → 方块点一下重试（交回原文件，只交一次）；服务端说了原因拒收的只能移除
         self.run_page(r"""

@@ -117,9 +117,11 @@ export function uploadedInfo(attachmentId: string): UploadedFile | undefined {
   return uploaded.get(attachmentId);
 }
 
-/** 刷新后从草稿拿回的附件：记回已传好的（服务端位置不变），发送时照常带上、不重传（drafts.ts，批 A ③）。 */
-export function rememberUploaded(attachmentId: string, info: UploadedFile): void {
+/** 刷新后从草稿拿回的附件：记回已传好的（服务端位置不变），发送时照常带上、不重传（drafts.ts，批 A ③）。
+ *  session：草稿所在的会话（有就记下，PDF 方块照样取第一页小图，同刚传完时，验收 11-17 B33）。 */
+export function rememberUploaded(attachmentId: string, info: UploadedFile, session?: string): void {
   uploaded.set(attachmentId, info);
+  if (session) sessionOf.set(attachmentId, session);
   metas.set(info.mountPath, { size: info.size_bytes, ...(info.pages ? { pages: info.pages } : {}) });
 }
 

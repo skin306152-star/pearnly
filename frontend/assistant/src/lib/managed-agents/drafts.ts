@@ -110,7 +110,7 @@ export function useDraftKeeper(uploadedOf: (id: string) => UploadedFile | undefi
     if (!draft) return;
     if (draft.text) composer.setText(draft.text);
     for (const file of draft.files) {
-      rememberUploaded(file.id, file.info);
+      rememberUploaded(file.id, file.info, session ?? undefined);
       const back = composer.addAttachment({ id: file.id, type: file.type, name: file.name, contentType: file.contentType, content: [] } as never);
       void back.catch((caughtError: unknown) => reportCaught(caughtError, "drafts"));
     }
