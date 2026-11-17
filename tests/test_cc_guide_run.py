@@ -49,6 +49,8 @@ _contracts.REALTIME_EVENT = "pearnly_assistant_event"
 sys.modules["pearnly_core.assistant.contracts"] = _contracts
 _plan = types.ModuleType("pearnly_core.assistant.write_plan")
 _plan._iso = lambda moment: moment.isoformat() + "Z"
+# 站点时区当曼谷（+7）：记录的改动时间是本地的，停止时刻是 UTC 的（`write_plan._to_utc`）
+_plan._to_utc = lambda moment: moment - datetime.timedelta(hours=7)
 sys.modules["pearnly_core.assistant.write_plan"] = _plan
 
 from pearnly_core.assistant.guide import run  # noqa: E402
@@ -250,9 +252,16 @@ class ConfirmTests(Base):
 
     def test_a_stop_after_the_review_was_shown_blocks_the_confirm(self):
         name, found = self.to_review()
-        self.now["stopped_at"] = self.docs[name].modified + datetime.timedelta(seconds=5)
+        # 停止时刻是 UTC：复核出来 5 秒之后点的停止（本地时间 +7，以前直接比本地与 UTC，这一下拦不住）
+        self.now["stopped_at"] = self.docs[name].modified - datetime.timedelta(hours=7) + datetime.timedelta(seconds=5)
         self.assertEqual(run.confirm(name, found["version"])["outcome"], "stopped")
         self.assertEqual(self.released, [])
+
+    def test_a_stop_before_the_review_does_not_block_the_confirm(self):
+        name, found = self.to_review()
+        self.now["stopped_at"] = self.docs[name].modified - datetime.timedelta(hours=7) - datetime.timedelta(minutes=1)
+        self.assertNotEqual(run.confirm(name, found["version"]).get("outcome"), "stopped")
+        self.assertEqual(len(self.released), 1)
 
     def test_a_refusal_by_the_business_function_is_recorded_with_its_reason_code(self):
         class Refused(Exception):
@@ -572,6 +581,36 @@ class CapabilityTests(Base):
     def test_a_guide_without_follow_or_not_done_takes_no_follow_up(self):
         name, _found = self.to_review()
         self.assertEqual(run.follow(name, {"x": "y"})["outcome"], run.REFUSED)
+
+
+class StopEndTests(Base):
+    """引导进行中的退出（主会话 11-16）：点停止 → 失效 / stopped；说不做了 → 模型调 pearnly_guide_end → 取消 / user。"""
+
+    def test_a_stop_ends_the_open_guide_and_announces_it(self):
+        name, _found = self.to_review()
+        SENT.clear()
+        self.assertEqual(run.end_open("S1", "stopped"), [name])
+        found = run.view(self.docs[name])
+        self.assertEqual((found["status"], found["reason"]), ("expired", "stopped"))
+        self.assertEqual(len(SENT), 1)
+        self.assertEqual(self.released, [])
+        self.assertEqual(run.end_open("S1", "stopped"), [])  # 再停一次：没有开着的了
+
+    def test_the_end_tool_cancels_the_open_guide_and_writes_nothing(self):
+        name, _found = self.to_review()
+        frappe.local = types.SimpleNamespace(pearnly_assistant={"session_id": "S1"})
+        self.addCleanup(delattr, frappe, "local")
+        self.assertEqual(json.loads(run.tool_end({})), {"status": "ended"})
+        self.assertEqual((self.docs[name].status, self.docs[name].ended_reason), ("cancelled", "user"))
+        self.assertEqual(json.loads(run.tool_end({})), {"status": "no_open_guide"})
+        self.assertEqual(self.released, [])
+        # 结束了的引导点「确定」不办
+        self.assertEqual(run.confirm(name, self.docs[name].version)["outcome"], "refused")
+
+    def test_the_end_tool_without_a_conversation_ends_nothing(self):
+        frappe.local = types.SimpleNamespace(pearnly_assistant=None)
+        self.addCleanup(delattr, frappe, "local")
+        self.assertEqual(json.loads(run.tool_end({})), {"status": "no_open_guide"})
 
 
 class ConsentCardTests(Base):

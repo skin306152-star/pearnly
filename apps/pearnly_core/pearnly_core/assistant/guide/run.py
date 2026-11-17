@@ -416,6 +416,16 @@ def _end(doc, status: str, reason: str = "") -> None:
     _announce(doc)
 
 
+def _stopped_since(doc, now: Mapping[str, Any]) -> bool:
+    """这次引导最后一次改动之后，本对话点过停止（停止时刻是 UTC 的裸时间，记录的改动时间是站点时区的：换成 UTC 再比，
+    同 `write_plan.tool_start`）。"""
+    from pearnly_core.assistant import write_plan
+
+    stopped = now.get("stopped_at")
+    return bool(stopped and doc.get("modified")
+                and frappe.utils.get_datetime(stopped) >= write_plan._to_utc(doc.modified))
+
+
 def _checked(name: str):
     """锁住并核过的 (记录, 声明, 本对话此刻)。不是本人的 / 找不到抛未找到；已失效的当场标失效。"""
     doc = _locked(name)
@@ -611,7 +621,7 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
         return {**view(doc), "outcome": CHANGED}
     if doc.business not in registry.offered().get(now["mode"], []):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
-    if now.get("stopped_at") and doc.modified and now["stopped_at"] >= frappe.utils.get_datetime(doc.modified):
+    if _stopped_since(doc, now):
         return {**view(doc), "outcome": STOPPED}
     if _documents(guide):
         return _confirm_documents(guide, doc, consent, seen)
@@ -652,6 +662,33 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
     _save(doc)
     _announce(doc)
     return view(doc)
+
+
+def end_open(session_id: str, reason: str, status: str = EXPIRED) -> List[str]:
+    """结束本人这段对话里还开着的引导（点了停止 → ``expired / stopped``；说了不做了 → ``cancelled / user``），每条发一次事件，
+    页面把卡读成失效一行。回结束了的那几条。"""
+    ended = []
+    for name in _open_runs(session_id):
+        doc = _locked(name)  # loop-query: 一段对话同一时刻最多一条开着的引导（开新的先把旧的取消），按行锁逐条取
+        if doc is not None and doc.status in OPEN:
+            _end(doc, status, reason)
+            ended.append(doc.name)
+    return ended
+
+
+# 交回模型的结果（只给模型）
+ENDED, NO_OPEN = "ended", "no_open_guide"
+
+
+def tool_end(_tool_input) -> str:
+    """对话工具 ``pearnly_guide_end``：用户在输入框里明确说这一项不做了，结束本对话开着的引导（``cancelled / user``）。
+    只改这次引导自己的状态，什么都不写进账本；没有开着的回 ``no_open_guide``。"""
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    if not session:
+        return json.dumps({"status": NO_OPEN})
+    _conversation(session)  # 只认本人的对话
+    ended = end_open(session, "user", CANCELLED)
+    return json.dumps({"status": ENDED if ended else NO_OPEN})
 
 
 def cancel(name: str) -> Dict[str, Any]:
@@ -776,5 +813,5 @@ def forget(session_id: str) -> None:
 
 
 __all__ = ["ASKING", "CANCELLED", "CHANGED", "CONFIRMED", "DOCTYPE", "DOCUMENT_HOOKS", "DONE", "EXPIRED", "FAILED", "OPEN",
-           "REFUSED", "REVIEWING", "STOPPED", "TYPE", "answer", "cancel", "confirm", "edit", "event", "feed", "follow",
-           "forget", "search", "start", "view", "view_of"]
+           "REFUSED", "REVIEWING", "STOPPED", "TYPE", "answer", "cancel", "confirm", "edit", "end_open", "event", "feed",
+           "follow", "forget", "search", "start", "tool_end", "view", "view_of"]

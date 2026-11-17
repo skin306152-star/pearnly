@@ -157,6 +157,8 @@ _guide = sys.modules.setdefault("pearnly_core.assistant.guide", types.ModuleType
 _guide_run = sys.modules["pearnly_core.assistant.guide.run"] = types.ModuleType("pearnly_core.assistant.guide.run")
 _guide_run.feed = lambda conversation, since=None: []
 _guide_run.forget = lambda conversation: None
+GUIDES_ENDED = []  # 点停止结束开着的引导（`guide.run.end_open`）
+_guide_run.end_open = lambda conversation, reason, status="expired": GUIDES_ENDED.append((conversation, reason)) or []
 _guide.run = _guide_run
 engines = sys.modules["pearnly_core.assistant.engines"]
 claude = sys.modules["pearnly_core.assistant.engines.anthropic_managed_agents"]
@@ -1838,6 +1840,7 @@ class ToolAndDefinitionTests(unittest.TestCase):
                                             "pearnly_guide": "Waiting for answers", "pearnly_file_conversation": "Filing the conversation under a company",
                                             "pearnly_conversation_ledger": "Setting the conversation's account set",
                                             "pearnly_operator_month": "Changing the month",
+                                            "pearnly_guide_end": "Ending the guided entry",
                                             "pearnly_write_plan": "Making a write plan",
                                             "pearnly_write_start": "Starting to write",
                                             "p_read": "Reading it"})
@@ -5937,6 +5940,23 @@ class OperatorSessionTests(unittest.TestCase):
         self.sessions.interrupt("op_task0001")
         self.assertEqual(len(self.stops), 1)
 
+    def test_stop_halts_the_operator_task_first_then_ends_the_open_guide(self):
+        # 主会话 11-16：点停止也结束开着的引导（卡读回已失效）；代录先停住，再结束引导，顺序不能反
+        order = []
+        GUIDES_ENDED.clear()
+        with mock.patch.object(self.sessions, "_operator_stop", lambda row: order.append("operator")), \
+                mock.patch.object(_guide_run, "end_open", lambda sid, reason, status="expired": order.append(("guide", sid, reason))):
+            self.sessions.interrupt("op_task0001")
+        self.assertEqual(order, ["operator", ("guide", "op_task0001", "stopped")])
+
+    def test_stop_still_returns_when_ending_the_guide_fails(self):
+        def broken(sid, reason, status="expired"):
+            raise RuntimeError("boom")
+
+        with mock.patch.object(_guide_run, "end_open", broken):
+            self.sessions.interrupt("op_task0001")
+        self.assertEqual(self.stops, [("task0001", "stop", [])])
+
     def test_the_first_message_opens_the_remote_session_and_keeps_the_local_id(self):
         self.api.open.return_value = ("sesn_remote01", "idle")
         row = self.sessions.owned("op_task0001")
@@ -7131,8 +7151,8 @@ class StopRaceTests(unittest.TestCase):
         self.assertIn("frappe.QueryDeadlockError)", execute)  # 同时登记撞上 1020 按重复处理
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         stop = source.split("def interrupt(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(stop.index('"user.interrupt"'), stop.index("try:"))
-        self.assertLess(stop.index("try:"), stop.index("toolrun.cancel_waiting(row.session_id)"))
+        cancel_try = stop.rindex("try:", 0, stop.index("toolrun.cancel_waiting(row.session_id)"))  # 作废允许卡那一段（结束引导另有一段在前）
+        self.assertLess(stop.index('"user.interrupt"'), cancel_try)
         relay = (CORE / "assistant/relay.py").read_text(encoding="utf-8")
         loop = relay.split("def _run(", 1)[1]
         self.assertIn("_note(conversation, event)", loop)

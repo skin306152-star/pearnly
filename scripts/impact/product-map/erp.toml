@@ -2109,6 +2109,16 @@ group = "cc.tool.pearnly_operator_month"
 where = "CC 工具 pearnly_operator_month（代录对话里用户在提问卡上选了别的月份，CC 改这次代录的月份）"
 tests = ["unit:tests/test_assistant.py::test_cc_changes_the_operator_month_only_to_a_counted_month_the_user_picked"]
 [[row]]
+id = "erp.cc.tool.pearnly_guide_end"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:pearnly_guide_end"
+group = "cc.tool.pearnly_guide_end"
+where = "CC 工具 pearnly_guide_end（引导卡开着时用户在输入框说这一项不做了，CC 结束这次引导，卡读回已取消一行）"
+tests = ["unit:tests/test_cc_guide_run.py::test_the_end_tool_cancels_the_open_guide_and_writes_nothing"]
+[[row]]
 id = "erp.cc.tool.pearnly_precheck"
 product = "ERP"
 channel = "cc-chat"

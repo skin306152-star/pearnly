@@ -151,6 +151,16 @@ CORE_TOOLS = [
          "hint": {"type": "string", "description": "The expense category the user stated, in their words."}},
          "required": ["company", "doc_ids"]},
      "handler": "pearnly_core.assistant.ask.unanswered"},
+    {"name": "pearnly_guide_end",
+     "label": "Ended the guided entry",
+     "description": "End the guided entry card that is open in this conversation (the form the user started from the menu above "
+                    "the input box), only when the user clearly says in a message that they will not do it now (for "
+                    "example: forget it, not now, cancel this). Not for a question about the card or for changing an "
+                    "answer: those stay on the card. Nothing is written to any ledger. Returns status ended, or "
+                    "no_open_guide when no card is open. After ended, say in one short sentence that it was ended; do "
+                    "not ask why.",
+     "input_schema": {"type": "object", "properties": {}},
+     "handler": "pearnly_core.assistant.guide.run.tool_end"},
     {"name": "pearnly_precheck_answer",
      "label": "Saved push choices",
      "description": "Save a decision the user gave in a chat message instead of on the pearnly_guide card: answers is "
@@ -294,6 +304,7 @@ CORE_STEP_NAMES = {
     "pearnly_file_conversation": "Filing the conversation under a company",
     "pearnly_conversation_ledger": "Setting the conversation's account set",
     "pearnly_operator_month": "Changing the month",
+    "pearnly_guide_end": "Ending the guided entry",
     "pearnly_write_plan": "Making a write plan",
     "pearnly_write_start": "Starting to write",
 }

@@ -1184,8 +1184,15 @@ def interrupt(session_id) -> None:
     if row.get("operator_task"):
         _operator_stop(row)
         frappe.db.commit()
-        if not segments(row):
-            return
+    # 点停止也结束这段对话里开着的引导（卡读回「已失效」，主会话 11-16）：代录先停住再结束引导，顺序不能反；
+    # 停止本身已经记下了，结束引导出错只记日志、不回 500（同下面作废允许卡）
+    try:
+        conflicts.retried(lambda: guide_run.end_open(row.session_id, "stopped"))
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="Assistant guide stop failed")
+    if row.get("operator_task") and not segments(row):
+        return
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
     # 停在等「允许」时点了停止：这一轮结束，那张卡片作废（推送线程可能已到时限不在了，这里当场标，`toolrun.cancel_waiting`）。
     # 打断已经交给引擎，这一轮就是停了：作废只是附带的，出错回滚、只记日志，不回 500（第 11 轮重测 A 段：点「允许」后立刻
