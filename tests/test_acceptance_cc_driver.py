@@ -342,7 +342,7 @@ class FactoryTest(unittest.TestCase):
     def test_talk_scenarios_with_lab_fake_report_not_run_when_there_is_no_lab(self):
         runner = load("acceptance_run_for_driver", "scripts/acceptance/run.py")
         os.environ["PEARNLY_ACC_DOCKER"] = self.folder.name + "/no-docker"
-        for module, extra in (("cc_talk.py", {"case": "d03.double-write", "cell": "cowork-direct", "lang": "th"}), ("cowork_cc_direct.py", {})):
+        for module, extra in (("cc_talk.py", {"case": "d03.double-write", "cell": "cowork-direct", "lang": "th"}), ("cowork_cc_direct.py", {"id": "acc.cowork.cc.direct.purchase"})):
             for target, words in (("lab-fake", "没有 docker"), (None, "真模型驱动没配")):
                 scenario = {"id": "acc.draft", "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1,
                             **extra, **({"driver": target} if target else {})}
@@ -353,47 +353,84 @@ class FactoryTest(unittest.TestCase):
 
 
 class DirectWriteScenarioTest(unittest.TestCase):
-    """示范 2（scripts/acceptance/scenarios/cowork_cc_direct.py）整条走一遍，账套与对话都换成替身：只验场景自己的判定——
-    点头之前账套变了判不通过并留会话事件；正常写成一张、金额对得上样票才通过；跑完恢复基线。真环境没跑过。"""
+    """Cowork 的 CC 对话直写（scripts/acceptance/scenarios/cowork_cc_direct.py，引导总表格 CW-D-P-L / CW-D-S-L）整条走一遍，
+    站点、账套与对话都换成替身：只验场景自己的判定——正常写成一张、对方与金额对得上样票才通过；站点上有别的待录单、没有销售样票时记没测到；
+    推了两条、写到别的账套、金额不对判不通过并留会话事件；写账套的跑完恢复基线。真环境没跑过。"""
+
+    LEDGER = r"\\accserver\ACCOUNT\69EXP\TEST2"
+    SALES = {"id": "sales-a1", "direction": "sales", "title": "ใบกำกับภาษี", "number": "ACC-S1-0001", "date": "2026-11-13",
+             "customer": {"code": "C001", "name": "ร้านทดสอบ", "tax_id": "0105500000001", "branch": "สำนักงานใหญ่"},
+             "vat_rate": "7", "lines": [{"description": "ค่าบริการ", "qty": "1", "unit": "งาน", "price": "1000.00"}],
+             "expect": {"customer_code": "C001", "amount": "1000.00", "vat": "70.00", "total": "1070.00"}}
 
     def setUp(self):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         keys = {"PEARNLY_LOCK_DIR": self.folder.name + "/locks", "PEARNLY_ACC_COWORK_COMPANY": "CO-TEST2",
-                "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-13"}
+                "PEARNLY_ACC_REAL_USER": "acc.cowork@maclab.test", "PEARNLY_ACC_COWORK_TARGET": "maclab",
+                "PEARNLY_ACC_BASELINE": r"C:\PearnlyAcceptance\baselines\TEST2@2026-11-16"}
         self.old = {key: os.environ.get(key) for key in keys}
         os.environ.update(keys)
         self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in self.old.items()])
         self.runner = load("acceptance_run_for_direct", "scripts/acceptance/run.py")
+        self.samples = sys.modules.get("samples") or load("samples", "scripts/acceptance/samples.py")
+        real, self.with_sales = self.samples.registry, True
 
-    def go(self, early_write=False, amount="120.0"):
-        lines = sys.modules["cc_lines"]
-        calls = []
+        def registry(*args):
+            data = real(*args)
+            return dict(data, samples={**data["samples"], **({"sales-a1": self.SALES} if self.with_sales else {})})
+
+        self.samples.registry = registry
+        self.addCleanup(setattr, self.samples, "registry", real)
+
+    def go(self, kind="purchase", break_at=""):
+        lines, tables, calls, case = sys.modules["cc_lines"], {}, [], self
+        docnum = "RR691113-002" if kind == "purchase" else "IV691113-002"
+
+        def add(table, **row):
+            tables.setdefault(table, []).append(row)
 
         class Book:
-            written = early_write
-
             def probe(self):
                 return {"ok": True, "busy": []}
 
             def verify(self, snap):
                 calls.append("verify")
-                return {"ok": not Book.written}
+                return {"ok": not tables}
 
             def restore(self, snap):
                 calls.append("restore")
-                Book.written = False
+                tables.clear()
                 return {"ok": True}
 
             def copy(self, to):
                 return {"ok": True}
 
-            def diff(self, before, after, allow=None, out=None, show=None):
-                return {"ok": True, "stray": [], "shown": {"APTRN": [{"row": 189, "deleted": False, "added": {
-                    "DOCNUM": "RR691113-002", "SUPCOD": "V001", "AMOUNT": amount, "VATAMT": "8.4", "NETAMT": "128.4", "REFNUM": "ACC-A1-0001"}}]}}
+            def diff(self, before, after, allow=None, out=None):
+                return {"ok": True, "stray": [], "tables": {name: [0, len(found)] for name, found in tables.items()}}
+
+            def call(self, command, folder, table, flag, where):
+                key, _, value = where.partition("=")
+                return {"ok": True, "rows": [row for row in tables.get(table, []) if str(row.get(key, "")) == value]}
+
+        class Site:
+            def run(self, product, script, site, raw, timeout=600):
+                params = json.loads(raw)
+                calls.append((script.name, params["mode"], product, site))
+                if params["mode"] == "pending":
+                    leftovers = [{"name": "H-OLD", "invoice_no": "ACC-A1-0001", "invoice_date": "2026-11-13", "last_push_status": ""}] \
+                        if break_at == "leftover" else []
+                    out = {"ok": True, "since": "2026-11-17 10:00:00", "waiting": [], "leftovers": leftovers}
+                else:
+                    ledger = r"\\accserver\ACCOUNT\69EXP\TEST" if break_at == "other-ledger" else case.LEDGER
+                    push = {"name": "PR-1", "history": "H-1", "status": "success", "docnum": docnum, "verify": "ok", "written_to": ledger,
+                            "written": True, "duplicate_skipped": False}
+                    pushes = [push, dict(push, name="PR-2", docnum="RR691113-003")] if break_at == "two-pushes" else [push]
+                    out = {"ok": True, "documents": [{"name": "H-1"}], "pushes": pushes}
+                return "noise\nACC " + json.dumps(out, ensure_ascii=False)
 
         class Talk:
-            session_id, site, keep = "S-1", "testcowork.lab", False
+            session_id, site, keep = "S-1", "cowork.maclab.localhost", False
 
             def __init__(self):
                 self.clicked = None
@@ -411,41 +448,69 @@ class DirectWriteScenarioTest(unittest.TestCase):
                 return 0.2 if self.clicked else 0.1
 
             def click(self, card, choice):
-                self.clicked, Book.written = 1.0e9, True
+                self.clicked = 1.0e9
+                amount = 100.0 if break_at == "amount" else (120.0 if kind == "purchase" else 1000.0)
+                if kind == "purchase":
+                    add("APTRN", DOCNUM=docnum, SUPCOD="V001", AMOUNT=amount, VATAMT=8.4, NETAMT=128.4, REFNUM="ACC-A1-0001")
+                else:
+                    add("ARTRN", DOCNUM=docnum, CUSCOD="C001", AMOUNT=amount, VATAMT=70.0, NETAMT=1070.0, YOUREF="ACC-S1-0001")
+                add("ISVAT", DOCNUM=docnum)
+                add("GLJNL", VOUCHER=docnum)
                 return True
 
             def record(self):
                 plan = {"kind": "plan", "id": "P1", "at": 9.0e8, "topic": "P1", "count": 1, "status": "started" if self.clicked else "awaiting",
                         "answer": "write" if self.clicked else None, "answered_at": self.clicked}
                 turns = [{"role": "user", "text": "บันทึกให้หน่อย", "at": 1.0}, {"role": "assistant", "at": 2.0,
-                         "text": "บันทึกแล้ว เลขที่ RR691113-002" if self.clicked else "จะบันทึก 1 ใบ"}]
+                         "text": f"บันทึกแล้ว เลขที่ {docnum}" if self.clicked else "จะบันทึก 1 ใบ"}]
                 return lines.Record(turns=turns, cards=[plan])
 
             def evidence(self):
                 return {"session_id": "S-1", "events": [{"id": "e1"}]}
 
-        targets = types.SimpleNamespace(ledger=lambda host, path: Book(), windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
+        def opening(*args, **kwargs):
+            calls.append(("open", kwargs.get("session")))
+            return Talk()
+
+        targets = types.SimpleNamespace(ledger=lambda host, path: Book(), site=lambda target: Site(),
+                                        windows=lambda host: types.SimpleNamespace(work="C:/PearnlyAcceptance"))
         opened = driver.open_conversation
-        driver.open_conversation = lambda *args, **kwargs: Talk()
+        driver.open_conversation = opening
         try:
-            scenario = {"id": "acc.cowork.cc.direct", "module": "scripts/acceptance/scenarios/cowork_cc_direct.py", "resources": [], "budget_usd": 1}
+            scenario = {"id": f"acc.cowork.cc.direct.{kind}", "module": "scripts/acceptance/scenarios/cowork_cc_direct.py", "resources": [],
+                        "budget_usd": 1, "lang": "th"}
             return self.runner.run_one(scenario, pathlib.Path(self.folder.name) / "run", "win-test", False, targets=targets), calls
         finally:
             driver.open_conversation = opened
 
     def test_one_ticket_written_once_matches_the_sample_and_baseline_is_restored(self):
-        result, calls = self.go()
-        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
-        self.assertEqual((result["facts"]["docnums"], result["spent_usd"], calls[-1]), (["RR691113-002"], 0.2, "restore"))
-        self.assertIn(("attach", ["purchase-a1"]), calls)
+        for kind, docnum, sample in (("purchase", "RR691113-002", "purchase-a1"), ("sales", "IV691113-002", "sales-a1")):
+            result, calls = self.go(kind)
+            self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), kind)
+            self.assertEqual((result["facts"]["docnums"], result["spent_usd"], calls[-1]), ([docnum], 0.2, "restore"), kind)
+            self.assertIn(("attach", [sample]), calls)
+            self.assertIn(("open", {"period": "2026-11"}), calls)   # 对话建在样票那个月
+            sites = {(call[2], call[3]) for call in calls if isinstance(call, tuple) and call[0] == "cowork_cc_state.py"}
+            self.assertEqual(sites, {("cowork", "cowork.maclab.localhost")})
 
-    def test_a_write_before_consent_or_a_wrong_amount_fails_and_keeps_the_conversation(self):
-        result, _ = self.go(early_write=True)   # 开跑时不等于基线 → 先恢复；这里恢复后替身回到基线，所以改用金额不对的情形验失败路径
-        self.assertEqual(result["outcome"], self.runner.PASS)
-        result, calls = self.go(amount="100.0")
-        self.assertEqual(result["outcome"], self.runner.FAIL)
-        self.assertIn("税前金额", result["detail"])
-        self.assertEqual((result["failure_evidence"], calls[-1]), (["failure/conversation.json"], "restore"))
+    def test_leftover_documents_or_a_missing_sales_sample_are_not_run_before_any_conversation(self):
+        result, calls = self.go("purchase", "leftover")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("H-OLD", result["detail"])
+        self.assertFalse([call for call in calls if isinstance(call, tuple) and call[0] in ("open", "attach")])
+        self.with_sales = False
+        result, calls = self.go("sales")
+        self.assertEqual(result["outcome"], self.runner.NOT_RUN)
+        self.assertIn("要补一张销售票", result["detail"])
+        self.assertNotIn("restore", calls)   # 还没碰账套
+
+    def test_a_wrong_amount_two_pushes_or_another_ledger_fail_and_keep_the_conversation(self):
+        for kind, break_at, words in (("purchase", "amount", "税前金额"), ("sales", "amount", "税前金额"),
+                                      ("purchase", "two-pushes", "推送记录恰好一条"), ("purchase", "other-ledger", "落点只有验收账套")):
+            result, calls = self.go(kind, break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, (kind, break_at))
+            self.assertIn(words, result["detail"], (kind, break_at))
+            self.assertEqual((result["failure_evidence"], calls[-1]), (["failure/conversation.json"], "restore"), (kind, break_at))
 
 
 class ReachPlanTest(unittest.TestCase):

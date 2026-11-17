@@ -645,6 +645,64 @@ needs_server = true
 budget_usd = 0
 tier = "gate"
 
+# ---- 第二期第 7 批（11-17）：对齐引导总表补的格。写好未跑；真模型，每遍上限 1 美元（另有一次真识别费，Mac 栈不经回放）。
+[[scenario]]
+id = "acc.cowork.cc.direct.purchase"
+title = "Cowork 的 CC 对话直写：放一张采购票 → 识别 → 写入计划 → 点写入 → CC 桌面版写进 Express 验收账套 → 推送记录与账本读回（格 CW-D-P-L）"
+class = "chain"
+chain = "cowork.cc-direct-to-express"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/cowork_cc_direct.py"
+driver = "real"
+lang = "th"
+rows = ["cowork.cc.tool.cowork_recognize_attachments", "cowork.cc.tool.cowork_push_documents", "cowork.cc.tool.pearnly_write_start"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
+needs_server = true
+budget_usd = 1
+repeat = 1
+tier = "gate"
+
+[[scenario]]
+id = "acc.cowork.cc.direct.sales"
+title = "Cowork 的 CC 对话直写：放一张销售票（卖方是验收公司）→ 识别 → 写入计划 → 点写入 → 写进 Express 验收账套 → 读回（格 CW-D-S-L；样票待补）"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/cowork_cc_direct.py"
+driver = "real"
+lang = "th"
+rows = ["cowork.cc.tool.cowork_recognize_attachments", "cowork.cc.tool.cowork_push_documents", "cowork.cc.tool.pearnly_write_start"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
+needs_server = true
+budget_usd = 1
+repeat = 1
+tier = "gate"
+
 # ---- 第二期第 4 批：ERP 单据导入 MR.ERP 测试账套（test01 · TEST2019）并按单号读回。写好未跑。
 # 依赖三条还没进 main 的分支（公司接入第 3 批、mrerp-ledger-dialog、mrerp-catalog-pick）；MR.ERP 写账开关默认关、只在场景进程里打开。
 # 先登记成每周跑（weekly）：开关对客户打开、三条分支合入后再改成上线前必跑。MR.ERP 里的单不删，数据会累积。
@@ -913,6 +971,32 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 1
+tier = "gate"
+
+
+[[scenario]]
+id = "acc.erp.operator.talk.sales"
+title = "ERP 代录对话里下令录一张赊销单 → 写入计划 → 点写入 → CC 桌面版在 Express 界面录成 → 账本读回（格 ERP-O-S-L）"
+class = "normal"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_operator_talk.py"
+driver = "real"
+lang = "zh"
+rows = ["erp.cc.operator.submit", "erp.cc.view.operator"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py",
   "companion/src/companion/express_operator/*.py",
   "companion/src/companion/worker.py",
 ]

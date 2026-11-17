@@ -70,9 +70,11 @@ def money(value: Decimal) -> str:
 
 
 def page(sample: dict, buyer: dict) -> str:
-    """一张 A4 的税票（HTML）。只放票面该有的字，不放任何给模型的提示。"""
+    """一张 A4 的税票（HTML）。只放票面该有的字，不放任何给模型的提示。销售票（``direction = "sales"``）的卖方是验收公司
+    （登记的 [buyer]），买方是票上的 ``customer``。"""
     cell = html.escape
-    sums, supplier = totals(sample), sample["supplier"]
+    sums = totals(sample)
+    supplier, buyer = (buyer, sample["customer"]) if sample.get("direction") == "sales" else (sample["supplier"], buyer)
     lines = "".join(
         f"<tr><td class=c>{index}</td><td>{cell(line['description'])}</td><td class=r>{cell(line['qty'])}</td><td class=c>{cell(line['unit'])}</td>"
         f"<td class=r>{money(Decimal(line['price']))}</td><td class=r>{money(row)}</td></tr>"
@@ -138,7 +140,8 @@ def main(argv=None) -> int:
     if not args or args[0] == "list":
         for name, sample in data["samples"].items():
             sums = totals(sample)
-            print(f"{name}\t{sample['supplier']['code']}\t{sample['number']}\t{sample['date']}\t{money(sums['total'])}\t{'；'.join(check(sample)) or '合计一致'}")
+            party = sample["customer"] if sample.get("direction") == "sales" else sample["supplier"]
+            print(f"{name}\t{party['code']}\t{sample['number']}\t{sample['date']}\t{money(sums['total'])}\t{'；'.join(check(sample)) or '合计一致'}")
         return 0
     if args[0] == "render":
         for name in args[1:] or list(data["samples"]):

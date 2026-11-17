@@ -40,6 +40,16 @@ class SamplesTest(unittest.TestCase):
         for words in ("V001", "expect", "purchase-a1", "lab-"):  # 账套里的编码、登记的预期、用例名都不在票面上
             self.assertNotIn(words, page)
 
+    def test_a_sales_ticket_has_the_acceptance_company_as_seller_and_the_customer_as_buyer(self):
+        data = samples.registry()
+        sale = {"direction": "sales", "title": "ใบกำกับภาษี", "number": "ACC-S1-0001", "date": "2026-11-13", "vat_rate": "7",
+                "customer": {"code": "C001", "name": "ร้านทดสอบ", "tax_id": "0105500000001", "branch": "สำนักงานใหญ่"},
+                "lines": [{"description": "ค่าบริการ", "qty": "1", "unit": "งาน", "price": "1000.00"}]}
+        page = samples.page(sale, data["buyer"])
+        self.assertLess(page.index(data["buyer"]["tax_id"]), page.index("ลูกค้า"))   # 验收公司在票头（卖方）
+        self.assertGreater(page.index("0105500000001"), page.index("ลูกค้า"))         # 客户在「ลูกค้า」栏
+        self.assertNotIn("C001", page)
+
     def test_rounding_is_decimal_half_up_on_the_net_total(self):
         sample = {"vat_rate": "7", "lines": [{"qty": "3", "price": "0.335"}, {"qty": "1", "price": "10.07"}]}
         self.assertEqual(samples.totals(sample), {"rows": [Decimal("1.01"), Decimal("10.07")], "amount": Decimal("11.08"),

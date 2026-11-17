@@ -38,10 +38,10 @@ class FirstRunTest(unittest.TestCase):
     def test_paid_scenarios_are_skipped_unless_asked_for(self):
         chosen, skipped, problems = self.first.plan(self.scenarios, ["chat"])
         self.assertEqual((chosen, problems), ([], []))
-        self.assertEqual(len(skipped), 6)
+        self.assertEqual(len(skipped), 7)
         self.assertIn("--paid", skipped[0]["detail"])
         chosen, skipped, _ = self.first.plan(self.scenarios, ["chat"], paid=True)
-        self.assertEqual((len(chosen), skipped), (6, []))
+        self.assertEqual((len(chosen), skipped), (7, []))
         chosen, _, _ = self.first.plan(self.scenarios, ["erp"], start="acc.erp.sales.credit.express")
         self.assertEqual(chosen[0]["id"], "acc.erp.sales.credit.express")
         self.assertIn("不在这一趟里", self.first.plan(self.scenarios, ["erp"], start="acc.erp.mrerp.twice")[2][0])

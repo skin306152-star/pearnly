@@ -455,9 +455,10 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 | ERP-D-PD-L 待处理 / 结果核对 | cc.push.purchase / .sales（停下的单再写一次） | 没跑（真模型） |
 | ERP-D-P-M / S-M MR.ERP | mrerp.* 16 条 | 没跑（每周 + test01 时段） |
 | ERP-O-P-L 采购·代录·本地 | operator.purchase、operator.talk.purchase、operator.stock.group、operator.masters.link、office.actor.purchase、operator.no.computer | purchase 有证据；talk 产品缺陷（不报单号）；H5 / 挂码修复前红；两格要备现场 |
-| ERP-O-S-L 销售·代录·本地 | operator.sales | 缺陷 2 |
-| Cowork-D-P-L 采购·直写·本地 | cowork.intake.express / .twice | 没跑（测试机1 实验栈） |
-| 其余 Cowork 直写 / 代录、所有 云端 Express 列、ERP 盘点外的库存单（入库 / 出库 / 调整 / 调拨 / 作废 / 收银日汇总） | 库存 6 格、pos.day ×2 有证据，但引导式总表没有单列这几类格（在「范围外」或归入盘点）；云端列 19 格、Cowork 37+6 格中除录入页外**没有验收场景** | 欠账 |
+| ERP-O-S-L 销售·代录·本地 | operator.sales、operator.talk.sales（第 7 批，对话） | operator.sales 缺陷 2；talk.sales 有场景，没跑 |
+| Cowork-D-P-L 采购·直写·本地 | cowork.intake.express / .twice、cowork.cc.direct.purchase（第 7 批，CC 对话放票） | 有场景，没跑（intake 只在测试机1 实验栈；cc.direct 真模型 + 一次真识别） |
+| Cowork-D-S-L 销售·直写·本地 | cowork.cc.direct.sales（第 7 批） | 有场景，没跑（样票 sales-a1 待补，跑到记没测到） |
+| 其余 Cowork 直写 / 代录、所有 云端 Express 列、ERP 盘点外的库存单（入库 / 出库 / 调整 / 调拨 / 作废 / 收银日汇总） | 库存 6 格、pos.day ×2 有证据，但引导式总表没有单列这几类格（在「范围外」或归入盘点）；云端列 19 格、Cowork 37+6 格中除直写采购 / 销售本地两格外**没有验收场景** | 欠账 |
 
 数：总表 65 格里**有对应 L3 场景的 11 格**（ERP-D-P-L、D-S-L、D-COL-L、D-ADD、D-ST、D-PD-L、D-P-M、D-S-M、O-P-L、O-S-L、Cowork-D-P-L），其中**至少一条场景有新鲜真环境证据的 6 格**（D-P-L、D-S-L、D-COL-L、D-ADD、D-ST、O-P-L）；**其余 54 格没有验收场景**，排进第二期后续批次（先 Cowork 直写采购 / 销售本地、ERP 代录销售补齐，云端列等云端线出写法后）。
 
@@ -465,3 +466,41 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 - frontend-backlog `pearnly/cc-no-self-read-2`（670cd3516）真模型一格：ERP CC 直写对话放 3 页泰文发票 PDF「帮我看看这张发票金额」。
   被测分支：不逐页读、不报金额，一句话指向产品上传页，无「识别引擎」字样（0.185 美元）；main 847fc020c 对照：bash 逐页读、报全部金额并自行推算（0.103 美元）。环境 maclab erp（无测试机、不写账本），PDF 现生成不入库，密钥用完已删并回读。
 - 模型花费台账：11-16 0.252 美元（operator.talk 两次）；11-17 0.288 美元（上面一格两次）。
+
+（第 7 批后：有对应 L3 场景的格 11 → **12**（加 Cowork-D-S-L；Cowork-D-P-L、ERP-O-S-L 各多一条对话场景），没有场景的 54 → **53**；有新鲜证据的仍 6 格。）
+
+## 第 7 批：对齐引导总表补的格（11-17，本地分支 `pearnly/acceptance-batch7`，基点 batch5 015d22b3c）
+
+只改验收脚本、登记、单测与本记录，不改产品代码；**都写好未跑**（不连测试机 / 实验栈 / 生产），模型费 0。登记 56 → 59 条；
+欠账基线 976 → 970（还上 6 项：Cowork 的 `cowork_push_documents`、`pearnly_write_start` 两行的「正常主线」「L3 正常主线」「串联」）。
+新链 `cowork.cc-direct-to-express`；新组 `first_run.py --group cowork-chat`（采购 → 销售），ERP 代录销售排进 `chat` 组、在代录采购之后。
+
+| 场景 id | 格（引导总表） | 走什么 | 状态 |
+|---|---|---|---|
+| `acc.cowork.cc.direct.purchase` | CW-D-P-L | Cowork 的 CC 对话（直写）放样票 purchase-a1、说「บันทึกให้หน่อย」→ 等写入计划（提问卡按每题第一项代答并留证，允许卡不替点）→ 核点头前账套 = 基线 → 点写入 → 只读站点脚本 `cowork_cc_state.py` 等推送记录 → 账本按单号读回 → 底线 ①⑥⑦⑧ | 写成，没跑 |
+| `acc.cowork.cc.direct.sales` | CW-D-S-L | 同上，样票 sales-a1（卖方是验收公司、买方是基线里的客户），读回 ARTRN | **留桩**：样票库没有销售票，跑到记没测到（原因写明要补什么样的票）；其余步骤已写好、替身单测按补好的样票走通 |
+| `acc.erp.operator.talk.sales` | ERP-O-S-L | 照 `talk.purchase`：开一张已提交、没交进写账队列的赊销单（新建「ร้าน…」客户）→ **开对话前核本月待录只有这一张** → 代录对话说「开始录这个月的单」→ 写入计划 → 点写入 → 等录成 → 读回同 `operator.sales.express` | 写成，没跑 |
+
+示范 2（`cowork_cc_direct.py`，11-14 写、没登记）按现在的共用件改过：基线 / 现场目录 / 收尾 / 读回改走 `erp_chain`（与 ERP 各条同一套，重跑不撞目录）；
+单号取 Cowork 推送记录（不再从账本差异里猜新增行）、核「只推了这一张、写的是验收账套、真写不是认作重复跳过」；对话建在样票那个月（`session.period`）；
+站点目标可以是本机 Mac 实验栈；单号格式按 HP / RR / IV / HS 判。代录对话（采购、销售两条）开对话前都核本月待录（只读站点脚本 `erp_operator_sources.py`，
+调产品的 `express.operator.sources`，代录写入计划取的就是它），不是只有本格这一张就记前置条件不满足并列出是哪几张（11-16 晚首跑第 1 次的教训）。
+样票库与生成脚本支持销售票（`direction = "sales"`、`customer`）。替身单测：`tests/test_acceptance_cc_driver.py` 的 `DirectWriteScenarioTest`（重写：采购 / 销售正确时通过并恢复基线；
+站点有残留待录单、没有销售样票时记没测到且不开对话；金额不对、推了两条、写到别的账套时不通过并留会话事件）、
+`tests/test_acceptance_erp_chain.py` 新用例（代录销售正确时通过；代录不是代录交的、多一件写账、客户码没挂回时不通过；采购 / 销售两条有残留待录单时都记没测到）、
+`tests/test_acceptance_samples.py` 销售票票面。
+
+前置条件：
+- **Cowork 两条**：Cowork 站点（本机 `scripts/maclab.sh up cowork`，站点 cowork.maclab.localhost；或测试机实验栈）接真模型（`pearnly_assistant_*` 临时写、跑完删并回读）；
+  识别是真识别（Mac 栈站点名不在产品回放名单里，每遍约 ฿0.2–0.35，不算在 budget_usd 的模型用量里）；测试机2 的 CC 桌面版 `maclab_pc.py attach --host testpc2 --app cowork`、只报验收账套；
+  环境变量 `PEARNLY_ACC_COWORK_COMPANY`（Cowork Company 编号，账套就是验收账套）、`PEARNLY_ACC_REAL_BASE / _SITE / _USER / _TARGET`（_SITE 要等于 Cowork 站点，否则记没测到）、
+  `PEARNLY_ACC_BASELINE`；这家公司在样票那个月没有别的待录单、站点上没有前几轮没推成的 `ACC-` 样票。
+- **销售样票**：要对着验收账套基线 ARMAS 挑一位真有的客户，按 `samples.toml` 文件头的格式登记 `sales-a1`（只记账的一行）。今天不碰测试机，没核基线，所以没登记。
+- **代录销售**：同 `talk.purchase`（占测试机桌面、CC 上的员工做过 Express「授权登录」、20:40 前收尾）；站点上这家公司这个月没有别的待录单。
+
+首跑要校准的：
+- Cowork：识别后 CC 是先出判定卡（录不录、方向、对方、现赊、抵扣……）还是直接出计划——代答按每题第一项，答得不对就会写错（看 `cards-before-plan.json`）；
+  推送记录按「站点时刻之后识别、票号或对方税号对得上」认，识别把票号读歪时只靠税号；票号记在 REFNUM 还是 YOUREF（现为软断言）；
+  采购票 purchase-a1 是一行货品（น้ำแข็งหลอด）：账套里没有这个物料时会问新建物料或停下，必要时换 purchase-a2（服务）；
+  允许变化的表沿用采购 / 销售直写那两份清单。
+- 代录销售：首跑缺陷 2（代录回执的码不挂回 ERP 客户）没修好前，这条停在「新客户在 ERP 档上挂回了 Express 客户编码」；最后的回复报不报单号（采购那条 11-16 晚就差这一条）。

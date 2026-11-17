@@ -115,7 +115,7 @@ class LinesTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             os.environ["PEARNLY_LOCK_DIR"] = folder + "/locks"
             try:
-                for module, extra in (("cc_talk.py", {"case": "d03.double-write", "cell": "cowork-direct", "lang": "th"}), ("cowork_cc_direct.py", {})):
+                for module, extra in (("cc_talk.py", {"case": "d03.double-write", "cell": "cowork-direct", "lang": "th"}), ("cowork_cc_direct.py", {"id": "acc.cowork.cc.direct.purchase"})):
                     scenario = {"id": "acc.draft", "module": f"scripts/acceptance/scenarios/{module}", "resources": [], "budget_usd": 1, **extra}
                     result = runner.run_one(scenario, pathlib.Path(folder) / "run", "win-test", False)
                     self.assertEqual(result["outcome"], runner.NOT_RUN, module)

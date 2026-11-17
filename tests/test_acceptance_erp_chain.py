@@ -293,13 +293,20 @@ class World:
                 "doc_id": "P:DOC-1", "number": "PE2569-000001", "taken": self.break_at == "taken", "expected": expected,
                 "jobs": 0 if queued else 1, "state": {"ledger_state": "queued" if queued else "failed", "ledger_docnum": ""}}
 
+    def erp_operator_sources(self, params):
+        """替身：代录对话开之前这家公司这个月待录的单（leftover：前几格残留了一张）。"""
+        rows = [{"doc_id": "P:DOC-1", "kind": getattr(self, "pushing", "purchase"), "ref": "PE2569-000001", "date": "2026-11-17"}]
+        if self.break_at == "leftover":
+            rows.append({"doc_id": "S:OLD-9", "kind": "sales", "ref": "SI2569-000009", "date": "2026-11-16"})
+        return {"ok": True, "total": len(rows), "documents": rows}
+
     def erp_doc_state(self, params):
         kind = getattr(self, "pushing", "purchase")
         docnum = "HP691115-001" if kind == "purchase" else self.invoice
         operator = (self.break_at == "operator-job") != bool(getattr(self, "operating", False))
         return {"ok": True, "state": {"ledger_state": "written", "ledger_docnum": docnum}, "book_paths": [r"\\accserver\ACCOUNT\69EXP\TEST2"],
                 "job": {"status": "success", "verify_state": "ok", "request_key": "erp:operator:T:x" if operator else f"erp:{kind}:DOC-1#2"},
-                "party": {"express_code": "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 1 if getattr(self, "operating", False) else 2}
+                "party": {"express_code": "" if self.break_at == "masters-unlinked" else "C001", "express_company": "CO-1"}, "jobs": 3 if self.break_at == "extra-job" else 1 if getattr(self, "operating", False) else 2}
 
     def push_written(self):
         """替身「CC 桌面版」：对话里点了写入之后把那张停下的单写进替身账套。"""
@@ -793,6 +800,24 @@ class ChainScenarioTest(unittest.TestCase):
             result, _ = self.go("acc.erp.operator.talk.purchase", break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
             self.assertIn(words, result["detail"], break_at)
+
+    def test_a_sales_order_in_the_operator_chat_is_entered_once_and_read_back(self):
+        """第 7 批 ERP-O-S-L：代录对话录一张赊销单；开对话前这个月有别的待录单记没测到（不开对话、不碰账套之外的东西），
+        代录回执的码没挂回 ERP 客户（首跑缺陷 2）判不通过在客户编码。"""
+        result, world = self.go("acc.erp.operator.talk.sales")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertEqual((result["facts"]["docnums"], world.calls[-1]), (["IV691115-001"], "restore"))
+        self.assertIn("erp_operator_sources.py", world.calls)
+        for break_at, words in (("operator-job", "代录交的"), ("extra-job", "只有这一件"), ("masters-unlinked", "挂回了 Express 客户编码")):
+            result, world = self.go("acc.erp.operator.talk.sales", break_at)
+            self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
+            self.assertIn(words, result["detail"], break_at)
+            self.assertEqual(world.calls[-1], "restore", break_at)
+        for scenario_id in ("acc.erp.operator.talk.sales", "acc.erp.operator.talk.purchase"):
+            result, world = self.go(scenario_id, "leftover")
+            self.assertEqual(result["outcome"], self.runner.NOT_RUN, scenario_id)
+            self.assertIn("S:OLD-9", result["detail"], scenario_id)
+            self.assertNotIn("erp_doc_state.py", world.calls, scenario_id)
 
     def test_the_1116_fix_scenarios_pass_once_fixed_and_fail_while_not(self):
         """第 5 批（修复前红）：假世界里「修好」时通过、「没修」时不通过（断言指到那个缺陷）；写账套的跑完恢复基线。"""

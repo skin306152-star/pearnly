@@ -63,6 +63,11 @@ title = "Cowork 录入：提交 → 推送 → 写进 Express → 单号回显 �
 rows = ["cowork.desk.pearnly-intake.action.Submit"]
 
 [[chain]]
+id = "cowork.cc-direct-to-express"
+title = "Cowork 的 CC 对话直写：放票 → 识别 → 写入计划 → 点写入 → 推送 → 写进 Express → 单号回显 → 账本读回"
+rows = ["cowork.cc.tool.cowork_recognize_attachments", "cowork.cc.tool.cowork_push_documents", "cowork.cc.tool.pearnly_write_start"]
+
+[[chain]]
 id = "erp.purchase-to-mrerp"
 title = "ERP 采购单：提交 → 导入 MR.ERP → 单号回显 → MR.ERP 单据页与日记账读回"
 rows = ["erp.desk.pearnly-purchase.action.Submit"]

@@ -15,10 +15,12 @@
   erp       公司接入 → 权限不足 → 采购（示范 1）→ 赊销 → 收款（含 Express 开着、LINE 重复投递、LINE 未绑定）→ 库存单 → 收银日汇总 → 作废。
             Mac 实验栈（PEARNLY_ACC_SITE_TARGET=maclab）或测试机实验栈。
   operator  代录两条（占测试机桌面，一次一条）。
-  chat      CC 对话（真模型）：收款、推送、代录对话、MR.ERP 推送。要接了模型的实验栈。
+  chat      CC 对话（真模型）：收款、推送、代录对话（采购、销售）、MR.ERP 推送。要接了模型的实验栈。
   mrerp     MR.ERP 十五条（占 mrerp:test01，会踢掉别处登录；依赖三条没进 main 的分支；税报告两条会在测试账套里归期）。
   offline   收款时电脑离线（会停 / 起测试机2 的 CC 桌面版，占测试机桌面；跑前先问主会话）。
   cowork    Cowork 录入提交两条（只在测试机实验栈，testcowork 域名切过去）。
+  cowork-chat  Cowork 的 CC 对话直写（真模型 + 一次真识别）：采购 → 销售（销售样票还没补，记没测到）。本机 Mac 实验栈 cowork
+            （PEARNLY_ACC_SITE_TARGET=maclab）或测试机实验栈；站点上不能有别的待录单。
   fixes     真机线 11-16 问题补的五条（修复前红：对应修复进 main 并部署前应不通过）：未连接（不写账套）→ 只用手机的员工由办公室
             电脑写 → 代录放票 H3 → 代录问物料组 H5 → 代录回执挂码（后三条占测试机桌面）。
 跑之前照规矩先问主会话要测试机与账号的时间窗；这个脚本只检查占用锁，不替人排时间。
@@ -42,11 +44,12 @@ GROUPS = {
     "erp": [f"acc.erp.{name}" for name in ERP],
     "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express"],
     "chat": ["acc.erp.cc.collection", "acc.erp.cc.collection.nbsp", "acc.erp.cc.push.purchase", "acc.erp.cc.push.sales",
-             "acc.erp.operator.talk.purchase", "acc.erp.mrerp.cc.push"],
+             "acc.erp.operator.talk.purchase", "acc.erp.operator.talk.sales", "acc.erp.mrerp.cc.push"],
     "mrerp": [f"acc.erp.mrerp.{name}" for name in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice",
                                                    "purchase.cash", "sales.discount", "purchase.novat", "purchase.nobook",
                                                    "menu.choice", "retry", "void.importing", "switch.off", "tax.purchase", "tax.sales")],
     "cowork": ["acc.cowork.intake.express", "acc.cowork.intake.express.twice"],
+    "cowork-chat": ["acc.cowork.cc.direct.purchase", "acc.cowork.cc.direct.sales"],
     "offline": ["acc.erp.collection.offline"],
     "fixes": ["acc.erp.operator.no.computer", "acc.erp.office.actor.purchase", "acc.erp.operator.intake.purchase",
               "acc.erp.operator.stock.group", "acc.erp.operator.masters.link"],
@@ -57,6 +60,7 @@ NEEDS = {  # 每组要配的环境变量（值不进这里；缺了说名字）
     "chat": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE", "PEARNLY_ACC_REAL_BASE", "PEARNLY_ACC_REAL_USER"],
     "mrerp": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_MRERP_COMPANY"],
     "cowork": ["PEARNLY_ACC_COWORK_USER", "PEARNLY_ACC_COWORK_CONNECTION", "PEARNLY_ACC_BASELINE"],
+    "cowork-chat": ["PEARNLY_ACC_COWORK_COMPANY", "PEARNLY_ACC_BASELINE", "PEARNLY_ACC_REAL_BASE", "PEARNLY_ACC_REAL_USER"],
     # 未连接那条另要 PEARNLY_ACC_ERP_NOPC_USER / _TAX、办公室电脑那条另要 PEARNLY_ACC_ERP_PHONE_USER：缺了只那一格记没测到
     "fixes": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
     "offline": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],

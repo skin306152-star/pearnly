@@ -278,8 +278,6 @@ cowork.cc.tool.cowork_express_readback_delete|misuse:M11
 cowork.cc.tool.cowork_express_readback_delete|misuse:M12
 cowork.cc.tool.cowork_express_readback_delete|normal
 cowork.cc.tool.cowork_express_readback_delete|variant:new+old
-cowork.cc.tool.cowork_push_documents|L3:normal
-cowork.cc.tool.cowork_push_documents|chain
 cowork.cc.tool.cowork_push_documents|misuse:M02
 cowork.cc.tool.cowork_push_documents|misuse:M03
 cowork.cc.tool.cowork_push_documents|misuse:M04
@@ -289,7 +287,6 @@ cowork.cc.tool.cowork_push_documents|misuse:M08
 cowork.cc.tool.cowork_push_documents|misuse:M09
 cowork.cc.tool.cowork_push_documents|misuse:M11
 cowork.cc.tool.cowork_push_documents|misuse:M12
-cowork.cc.tool.cowork_push_documents|normal
 cowork.cc.tool.cowork_push_documents|variant:new+old
 cowork.cc.tool.cowork_recon_delete|misuse:M02
 cowork.cc.tool.cowork_recon_delete|misuse:M03
@@ -339,8 +336,6 @@ cowork.cc.tool.cowork_tax_draft_delete|misuse:M11
 cowork.cc.tool.cowork_tax_draft_delete|misuse:M12
 cowork.cc.tool.cowork_tax_draft_delete|normal
 cowork.cc.tool.cowork_tax_draft_delete|variant:new+old
-cowork.cc.tool.pearnly_write_start|L3:normal
-cowork.cc.tool.pearnly_write_start|chain
 cowork.cc.tool.pearnly_write_start|misuse:M02
 cowork.cc.tool.pearnly_write_start|misuse:M03
 cowork.cc.tool.pearnly_write_start|misuse:M04
@@ -350,7 +345,6 @@ cowork.cc.tool.pearnly_write_start|misuse:M08
 cowork.cc.tool.pearnly_write_start|misuse:M09
 cowork.cc.tool.pearnly_write_start|misuse:M11
 cowork.cc.tool.pearnly_write_start|misuse:M12
-cowork.cc.tool.pearnly_write_start|normal
 cowork.cc.tool.pearnly_write_start|variant:new+old
 cowork.desk.pearnly-intake.action.Submit|misuse:M01
 cowork.desk.pearnly-intake.action.Submit|misuse:M04
