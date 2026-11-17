@@ -216,11 +216,11 @@ function ThreadLoading() {
         {t("loadingMessages")}
       </div>
       <div className="cc-loading-skeleton" aria-hidden="true">
-        <Skeleton className="cc-loading-ask h-(--cc-control-lg) rounded-(--cc-radius-lg)" />
+        <Skeleton className="cc-loading-ask h-(--cc-control-lg)" />
         {LOADING_LINES.map((lines, i) => (
           <div key={i} className="cc-loading-para">
             {lines.map((w, j) => (
-              <Skeleton key={j} className="cc-loading-line h-(--cc-space-8) rounded-full" data-w={w} />
+              <Skeleton key={j} className="cc-loading-line h-(--cc-space-8)" data-w={w} />
             ))}
           </div>
         ))}
