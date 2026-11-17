@@ -41,7 +41,9 @@ NEW = "__new__"
 # 存货对照的一个值：这一行不建存货、写成费用 / 服务行（不动库存；11-06 按行选）
 EXPENSE = "__expense__"
 KINDS = ("party", "item", "account", "payment", "vat", "department", "receipt", "service_vat",  # 第 8 项 = service_vat.KIND
-         "location", "detail")  # detail：A7 明细对不上的答案（只管这一张，键带票号；不进「记住的选择」清单）
+         "location")
+# A7 明细对不上：只管这一张（键带票号）的答案，同样记在记忆里、所有口径照用，但不是给人看的长期选择（不在 KINDS 里）
+DETAIL = "detail"
 LOCATION = "location"
 # 整份账套的默认仓（同部门）
 LOCATION_DEFAULT = "*"
@@ -444,10 +446,10 @@ def resolve(fields: Mapping[str, Any], *, direction: str, posting_kind: Optional
     if status in ("mismatch", "incomplete"):
         ref = str(fields.get("invoice_number") or fields.get("invoice_no") or "").strip()
         subject = f"detail|{direction}|{digits(tax)}|{norm_name(name)}|{ref}"[:1000]
-        value = chosen("detail", subject)
+        value = chosen(DETAIL, subject)
         if value in DETAIL_VALUES:
-            applied["detail"] = value
-            used("detail", subject)
+            applied[DETAIL] = value
+            used(DETAIL, subject)
         elif guided:
             needed.append({"kind": "detail", "subject": subject, "label": name, "current": "",
                            "options": [{"code": code} for code in DETAIL_VALUES]})

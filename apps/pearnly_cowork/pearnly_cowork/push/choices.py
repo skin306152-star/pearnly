@@ -21,13 +21,13 @@ from frappe.utils import now_datetime
 
 from pearnly_cowork.push.express.automation import OVERRIDE_DAYS, OVERRIDE_KINDS
 from pearnly_core.express_operator.menu_choice import KIND as OPERATOR_FORM
-from pearnly_core.express_rules.push.choices import KINDS as RULE_KINDS
+from pearnly_core.express_rules.push.choices import DETAIL, KINDS as RULE_KINDS
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
 
 # 记得住的类：写账规则那几类（`express_rules.push.choices.KINDS`）+ 代录子菜单选哪一项（``operator_form``，归类键 = 单据种类、
 # 值 = 菜单文字，评估 2026-11-05 修法 D）。``operator_form`` 不是写账规则：不进 `remembered`（推送判定、自动推指纹的输入照旧），
 # 交代录时经 `operator_form` 读；公司主档页「记住的选择」经 `of_sets` 列出、可删可改（改值的可选项见 `menu_stops`）
-KINDS = RULE_KINDS + (OPERATOR_FORM,)
+KINDS = RULE_KINDS + (OPERATOR_FORM, DETAIL)
 MENU_STOP_PREFIX = "[OPERATOR_MENU_CHOICE]"  # CC 回执的原因码写在推送记录原因开头（``worker._ack_operator``）
 MENU_SCAN_MAX = 50
 DOCTYPE = "Cowork Express Choice"
@@ -191,7 +191,7 @@ CHOICE_FIELDS = ["name", "account_set", "kind", "subject", "label", "value", "ch
 
 
 # 只管一张单的答案（A7 明细对不上，键带单号）：存在账套记忆里供再准备时用，但不是给人看的长期选择——不进「记住的选择」
-PER_DOCUMENT = ("detail",)
+PER_DOCUMENT = (DETAIL,)
 
 
 def of_sets(connection, account_sets, limit=200) -> list:

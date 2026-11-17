@@ -262,7 +262,7 @@ class EveryKindAnswerIsUsed(unittest.TestCase):
         return options[0] if options else (item.get("current") or "41-01")
 
     def test_every_kind_has_a_scenario(self):
-        self.assertEqual(set(choices.KINDS), set(self.SCENARIOS) | set(self.NOT_ASKED))
+        self.assertEqual(set(choices.KINDS) | {choices.DETAIL}, set(self.SCENARIOS) | set(self.NOT_ASKED))
 
     def test_an_answered_question_is_not_asked_again_on_any_basis(self):
         for kind, (fields, direction, extra) in self.SCENARIOS.items():
