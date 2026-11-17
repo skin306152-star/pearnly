@@ -162,7 +162,7 @@ def expired_sessions(session_ids) -> set:
     rows = frappe.get_all(DOCTYPE, filters={"owner": _user(), "session_id": ["in", ids], "status": ["not in", FINAL]},
                           pluck="name", limit_page_length=LIST_MAX)
     return {doc.session_id for doc in (frappe.get_doc(DOCTYPE, name) for name in rows)  # loop-query: 本人这几段对话的未收尾任务（≤ LIST_MAX）
-            if expired(doc)}
+            if expired(doc)}  # loop-query: 同上，每个任务判一次（调用方只给一段对话，通常一两个任务）
 
 
 def _expired_view(doc) -> dict:
