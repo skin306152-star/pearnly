@@ -2264,6 +2264,25 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.guide.stop"
+title = "ERP 版 CC 收款引导卡进行中点停止：卡读回已失效，没有收款单、没有写入任务（引导式退出路径，主会话 11-16）"
+module = "scripts/flows/erp_cc_guide_stop.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/lib/guide-run.ts",
+  "frontend/assistant/src/components/tool-uis/guide-inputs.tsx",
+  "frontend/assistant/src/lib/guide-inputs.ts",
+  "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/guide.py",
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+]
+
+[[flow]]
 id = "cowork.cc.guide"
 title = "Cowork CC 引导卡 pearnly_guide（假智能体后端调工具）：后台出题、推荐预选点了才算、提交后按供应商记住、第二次不再问、整段对话没有 ask_user（引导式录入第 1 期）"
 module = "scripts/flows/cc_guide.py"
