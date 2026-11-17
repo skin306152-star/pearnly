@@ -49,8 +49,20 @@ def _fake_frappe(state):
     frappe.throw = throw
     frappe._ = lambda text: text
 
+    def test(value, cond):
+        if not isinstance(cond, list):
+            return value == cond
+        op, arg = cond
+        if op == "in":
+            return value in arg
+        if op == "not in":
+            return value not in arg
+        if op == ">":
+            return value is not None and value > arg
+        raise AssertionError(f"filter {op!r} not stubbed")
+
     def match(row, filters):
-        return all(row.get(k) in v[1] if isinstance(v, list) and v[0] == "in" else row.get(k) == v for k, v in filters.items())
+        return all(test(row.get(k), v) for k, v in filters.items())
 
     class Doc(_Row):
         def __init__(self, data):
@@ -91,7 +103,9 @@ def _fake_frappe(state):
         rows = state["sessions"] if doctype == "Pearnly Assistant Session" else state["rows"]
         next(row for row in rows if row["name"] == name).update(values)
 
-    def get_all(doctype, filters=None, fields=None, order_by="", limit_start=0, limit_page_length=20):
+    def get_all(doctype, filters=None, fields=None, order_by="", limit_start=0, limit_page_length=20, pluck=None):
+        if pluck:
+            return [row[pluck] for row in get_all(doctype, filters, [pluck], order_by, limit_start, limit_page_length)]
         if doctype == "Pearnly Express Operator Task Document":  # 子表：每行带 parent / parenttype
             rows = [_Row(parent=row["name"], parenttype="Pearnly Express Operator Task", **doc)
                     for row in state["rows"] for doc in row.get("documents") or []]
@@ -380,6 +394,62 @@ class TaskTests(unittest.TestCase):
         # 重交进任务的对话（与开始卡出题、写入计划判定同一口径，11-17）
         self.assertEqual(self.submitted_in, [self.tasks.read(name)["session_id"]])
         self.assertTrue(self.submitted_in[0])
+
+    def test_a_task_idle_for_seven_days_expires_and_its_cards_cannot_send_anything(self):
+        # 设计 2026-11-09 2.3（主会话 11-09 定）+ 用户 11-13「卡片有效期照 DMS」：还有没处理的单、7 天没有任何动作 → 已失效；
+        # 失效的任务里点卡片（作答 / 重试 / 继续）服务端不交单，回 expired（状态，不是报错）；判定在读的时候做，不加定时任务
+        name = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}}
+        self.tasks.settle(name)
+        self.assertFalse(self.tasks.read(name)["expired"])
+        self.state["now"] += datetime.timedelta(days=7, minutes=1)
+        self.submitted.clear()
+        choice = [{"kind": "party", "subject": "x", "value": "S1", "label": "S1"}]
+        out = self.tasks.answer(name, "h3", choice)
+        self.assertTrue(out["expired"])
+        self.assertEqual(self.submitted, [])
+        self.assertTrue(self.tasks.answer_many(name, {"h3": choice})["expired"])
+        self.assertTrue(self.tasks.read(name)["expired"])
+        self.assertEqual(self.submitted, [])
+
+    def test_a_new_task_holding_the_same_document_expires_the_old_one(self):
+        # 2.3 第二个条件：同一公司开了新的同类代录任务、已包含旧任务里没处理的票 → 旧任务失效（新任务照常）
+        old = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}}
+        self.tasks.settle(old)
+        self.state["now"] += datetime.timedelta(hours=1)
+        new = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(new["name"], [{"doc_id": "h3", "status": "sent"}], {}, "CCD-1", None)
+        self.assertTrue(self.tasks.read(old)["expired"])
+        self.assertFalse(self.tasks.read(new["name"])["expired"])
+        # 新任务只含旧任务已录好的票：旧任务不失效
+        other = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}, "h1": {"state": "saved", "docnum": "RR1"}}
+        self.tasks.settle(other)
+        self.state["now"] += datetime.timedelta(hours=1)
+        later = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(later["name"], [{"doc_id": "h1", "status": "sent"}], {}, "CCD-1", None)
+        self.assertFalse(self.tasks.read(other)["expired"])
+
+    def test_a_conversation_whose_task_expired_is_listed_for_its_waiting_cards(self):
+        # B04：卡片执行记录读的时候按「这段对话挂着的代录任务已失效」现算「已失效」（`sessions._operator_expired`）
+        name = self._started()
+        self.statuses = {"h3": {"state": "not_done", "reason": "choice_needed:party"}}
+        self.tasks.settle(name)
+        session = self.tasks.thread(name)["session_id"]
+        self.assertEqual(self.tasks.expired_sessions([session]), set())
+        self.state["now"] += datetime.timedelta(days=7, minutes=1)
+        self.assertEqual(self.tasks.expired_sessions([session, "other"]), {session})
+        self.assertEqual(self.tasks.expired_sessions([]), set())
+
+    def test_a_finished_task_never_expires(self):
+        made = self.tasks.create("CO-1", "2026-10")
+        name = made["name"]
+        self.tasks.attach(name, [{"doc_id": f"h{i}", "status": "sent"} for i in (1, 2)], {}, "CCD-1", None)
+        self.statuses = {f"h{i}": {"state": "saved", "docnum": f"RR{i}"} for i in (1, 2)}
+        self.assertEqual(self.tasks.settle(name)["status"], "finished")
+        self.state["now"] += datetime.timedelta(days=30)
+        self.assertFalse(self.tasks.read(name)["expired"])
 
     def test_starting_names_every_document_even_those_held_on_the_spot(self):
         """11-08 生产：当场停下等人选的单一直没有单号与对方，任务卡只能写内部编号。交单时就向产品要一次单号与对方。"""

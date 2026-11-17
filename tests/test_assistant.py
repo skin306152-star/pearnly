@@ -6306,6 +6306,31 @@ class ToolRunRecordTests(unittest.TestCase):
             self.assertEqual(toolrun.decide("conv", "sesn", "sevt_1", True), "done")
         self.assertEqual((rows["r1"]["status"], [p["custom_tool_use_id"] for p in posted]), ("done", ["sevt_1"]))
 
+    def test_a_waiting_card_of_an_expired_operator_task_reads_as_expired(self):
+        # B04：这段对话挂着的代录任务已失效，还在等的卡片按「已失效」给页面（读的时候现算，不写库）；别的状态照旧
+        sessions = self._sessions()
+        row = self._row()
+        history = [{"id": "sevt_card", "type": "agent.custom_tool_use", "name": "pearnly_operator_answer", "input": {},
+                    "processed_at": "2026-11-17T03:00:00Z"}]
+        api = types.SimpleNamespace(events=lambda remote, newest_first=False: iter(list(history)))
+        record = {"session_id": row.session_id, "user": "a@example.com", "tool_use_id": "sevt_card",
+                  "status": "awaiting_approval", "modified": datetime.datetime(2026, 11, 17, 10, 0, 0)}
+        operator_tasks = types.ModuleType("pearnly_core.express_operator.tasks")
+        package = sys.modules.setdefault("pearnly_core.express_operator", types.ModuleType("pearnly_core.express_operator"))
+
+        for lapsed, status in (({row.session_id}, "expired"), (set(), "awaiting_approval")):
+            operator_tasks.expired_sessions = lambda ids, lapsed=lapsed: set(lapsed)
+            with mock.patch.object(sessions, "owned", return_value=row), \
+                    mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                    mock.patch.object(sessions.notices, "feed", lambda *a, **k: []), \
+                    mock.patch.object(sessions.frappe, "get_all", self._store([record], []), create=True), \
+                    mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True), \
+                    mock.patch.object(sessions, "_remember_context", lambda row, events: None), \
+                    mock.patch.dict(sys.modules, {"pearnly_core.express_operator.tasks": operator_tasks}), \
+                    mock.patch.object(package, "tasks", operator_tasks, create=True):
+                runs = [e for e in sessions.events(row.session_id)["events"] if e.get("type") == "pearnly.tool_run"]
+            self.assertEqual([e["status"] for e in runs], [status])
+
     def test_a_disabled_owner_gets_no_tool_run(self):
         """H1（存量文案审查 10-18）：推送线程、引擎回调在后台 `set_user(会话主人)` 后执行工具，不经网页登录那道关；主人被停用后
         不再替他执行：不执行工具、不出「允许」卡片，执行记录记 error，交回引擎一个出错结果（给模型的英文指令不经 _()）。"""

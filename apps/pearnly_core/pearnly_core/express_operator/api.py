@@ -216,6 +216,8 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         found = tasks.read(task)
         if found["company"] != company or found["status"] != "preparing":
             frappe.throw(_("Invalid request"))
+        if found.get("expired"):
+            frappe.throw(_(tasks.EXPIRED))  # 已失效的任务不交单（B04）：写入计划的「写入」照这句告诉用户另开一个
         # 交哪些单由服务端按这家公司这个月的完整待录清单定（第 4 项，主会话 11-10：页面只交已加载的那几页，第 51 张起漏掉）；
         # 写入计划给的单是这份清单里用户同意写的那几张（`hand_in`），清单外的不交
         wanted = set(doc_ids)

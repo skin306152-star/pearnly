@@ -174,13 +174,25 @@ def _run_rows(row, ids, since=None) -> list:
     return list({run.tool_use_id: run for run in rows}.values())
 
 
+def _operator_expired(row, runs) -> bool:
+    """这段对话挂着的代录任务已失效（B04）：还在等的卡片按「已失效」给页面（只读现算，`express_operator.tasks.expired_sessions`）。
+    没有在等的卡片就不查。"""
+    if not any(run.status == "awaiting_approval" for run in runs):
+        return False
+    from pearnly_core.express_operator import tasks
+
+    return row.session_id in tasks.expired_sessions([row.session_id])
+
+
 def _with_tool_runs(events, row, since=None) -> list:
     """这页事件里出现过的调用在本站的执行记录，作为本站事件（`contracts.tool_run_event`）接在这页最后：对话页重开、补拉时
     按本站记录定下卡片（执行完、出错、拒绝、作废），不靠引擎那边的结果猜（第 11 轮 A 段）。增量补拉给 `since`：锚点之后
     改过的记录一并带上（`_run_rows`）。读不出来就不带，不挡取事件。"""
     try:
         runs = _run_rows(row, contracts.tool_use_ids(events), since)
-        events = events + [contracts.tool_run_event(run.tool_use_id, run.status, _when(run.modified) if run.modified else None,
+        lapsed = _operator_expired(row, runs)
+        events = events + [contracts.tool_run_event(run.tool_use_id, "expired" if lapsed and run.status == "awaiting_approval"
+                                                    else run.status, _when(run.modified) if run.modified else None,
                                                     waiting=_parked_wait(run))
                            for run in runs if run.status in contracts.TOOL_RUN_STATES]
     except Exception:

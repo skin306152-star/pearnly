@@ -984,6 +984,14 @@ class StartTakesTheWholeListTests(Base):
         api.hand_in("CO-1", self.task, ["D001", "D007", "D200"])
         self.assertEqual(self.submitted[-1][1], ["D001"])
 
+    def test_an_expired_task_is_not_handed_in(self):
+        # B04：已失效的代录任务（7 天没动作 / 新任务已含同一张票）交单服务端拒，一张都不交
+        planned, _groups, _skipped = api.waiting("CO-1", "2026-10", [])
+        with mock.patch.object(tasks, "expired", return_value=True):
+            with self.assertRaises(ValidationError_):
+                api.hand_in("CO-1", self.task, planned)
+        self.assertEqual(self.submitted, [])
+
     def test_the_page_cannot_start_writing(self):
         # 用户 11-10 / 主会话批复②：开始只由用户在对话里一句话下令（写入计划），页面没有开始接口
         source = (ROOT / "apps/pearnly_core/pearnly_core/express_operator/api.py").read_text(encoding="utf-8")
