@@ -1946,10 +1946,15 @@ class ToolAndDefinitionTests(unittest.TestCase):
             for phrase in ("are read only by a Pearnly recognition tool",
                            "Never read one yourself (by looking at its pages, OCR or text extraction in the sandbox)",
                            "Looking at an original page a tool put into the chat to check a field the tools point to is fine",
-                           "CC cannot recognize documents in this chat",
-                           "never say the server lacks a recognition or language engine",
-                           "Scans and photos of receipts and invoices are not for these scripts"):
+                           "first look for a guide card or business menu entry in this conversation",
+                           "that takes documents (pearnly_guide) and open it directly",
+                           "documents cannot be recognized in this conversation",
+                           "Never send the user to another page to upload, never ask them to",
+                           "switch mode, and never say the server lacks a recognition or language engine"):
                 self.assertIn(phrase, system, product)
+            for phrase in ("product's own pages", "can be uploaded on"):   # 主会话 11-17 定乙：不叫用户去别处上传
+                self.assertNotIn(phrase, system, product)
+            self.assertIn("Scans and photos of receipts and invoices are not for these scripts", system, product)
 
     def test_instructions_keep_large_files_out_of_the_conversation(self):
         # 2026-10-10：整本 PDF 用 read 读进上下文，一次加了约 11 万 token，此后每次请求都过 Haiku 的 10 万计价线
