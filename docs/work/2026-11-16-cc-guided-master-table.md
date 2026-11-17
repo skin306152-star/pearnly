@@ -11,9 +11,9 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 - 计划与盘点：`docs/work/2026-11-14-cc-guided-coverage-plan.md`（分支 cc-guided-phase1）、`2026-11-15-cc-guided-p2-choice-points.md`（分支 cc-guided-collection）、
   `2026-11-15-cc-guided-p3-choice-points.md`（分支 cc-guided-p3-choice-points；下文「P3 盘点 #n」指它第 1 节的行号）、共享笔记「代录×引导式-衔接规划-11-16」「引导式-分支3接线方案-11-16」。
 
-## 一句话现状（11-16）
+## 一句话现状（11-16，11-17 更新）
 
-范围内 65 格：真机 0、真模型 2、服务端 26、没做 37；引擎（题卡、复核、确定、失效）已在 main，**所有格进「接线」档都卡在分支 3 接线**（引导式窗口在做）；
+范围内 65 格：真机 0、真模型 2、服务端 26、没做 37（11-17：引擎 N1–N10、读回、对账三类已在 main 803f0da84；增值税、日汇总、预扣税、预扣税复核在列车 G）；引擎（题卡、复核、确定、失效）已在 main，**所有格进「接线」档都卡在分支 3 接线**（引导式窗口在做）；
 大多数格在 LINE 或网页上已有同一流程，CC 这边主要是「转调同一组服务函数 + 卡片」，复用后的估时见第 1.5 节。
 
 **按现在的并行分组，各组做完的时间合计**（写码 h / 机器 h，机器 = 闸门、候选离线、流程、真模型；各组同时跑）：
@@ -61,15 +61,15 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | CW-D-S-L | 销售 | 本 | 销售 · tag | 同采购 | 同采购 | 同采购 | 同采购 | **真模型通过**（列车上）；菜单路径服务端（documents 源）`pearnly/cc-guide-documents` 042f39436，列车 F，未接线 | 同 CW-D-P-L；同 CW-D-P-L 四题现状，见 1.6 | 同 CW-D-P-L | 同上 | 引导式 |
 | CW-D-S-C | 销售 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 同 CW-D-P-C | 云端线 | 1 / 1 | 云端线 → 引导式 |
 | CW-D-S-M | 销售 | MR | 同上 | 同上 + MR.ERP 现销 / 赊销（#24，现在是模型参数） | 同上 | 同上 | 同上 | 没做 | 同 CW-D-P-M | MR.ERP 线 | 计入 CW-D-P-M | 引导式 + MR.ERP 线 |
-| CW-D-BR-L | 银行对账 | 本 | 银行对账 · landmark | 月份（month）→ 银行流水（file，卡上交）→ 总账（choice：「从 Express 读回」/ 交文件）→ 结果出来后的问题（动态题，`recon_center/presets.answer` 的候选） | 账套 = 本对话账套；月份默认当月（用户 11-16）；银行、科目、期间由文件算出 | 开始前一张：两侧文件 + 扫描件按页付费那一行事实 | 对账结果（状态、差异数）+ 工作簿进对话；在跑时「等」 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 声明 + 服务函数（转调 `recon_center/api.start`、`jobs.status`、`presets.answer`）；动态题、结果卡带文件（引擎新能力 N1、N2） | 读回（RB-L）先做；接线；N1 / N2 | 8–10 / 2（三类对账共用一份，见下两行） | **本窗口（P3）** |
+| CW-D-BR-L | 银行对账 | 本 | 银行对账 · landmark | 月份（month）→ 银行流水（file，卡上交）→ 总账（choice：「从 Express 读回」/ 交文件）→ 结果出来后的问题（动态题，`recon_center/presets.answer` 的候选） | 账套 = 本对话账套；月份默认当月（用户 11-16）；银行、科目、期间由文件算出 | 开始前一张：两侧文件 + 扫描件按页付费那一行事实 | 对账结果（状态、差异数）+ 工作簿进对话；在跑时「等」 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 声明 + 服务函数（转调 `recon_center/api.start`、`jobs.status`、`presets.answer`）；动态题、结果卡带文件（引擎新能力 N1、N2） | 读回（RB-L）先做；接线；N1 / N2 | 8–10 / 2（三类对账共用一份，见下两行） | **本窗口（P3）** |
 | CW-D-BR-C | 银行对账 | 云 | 同上 | 同上（总账从云端读回） | 同上 | 同上 | 同上 | 没做 | 云端读回 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
-| CW-D-BR-M | 银行对账 | MR | 同上 | 同上，总账只能交文件（MR.ERP 无读回） | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 「从 Express 读回」选项按账本隐藏 | 无（MR.ERP 线不用动） | 计入 BR-L | 本窗口 |
-| CW-D-IR-L | 收入对账 | 本 | 收入对账 · scale | 月份 → 总账（读回 / 交文件）→ 销项税报表（读回 / 交文件）→ 动态题 | 同银行对账 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 同 BR-L（kind income） | 同 BR-L | 计入 BR-L（+2 / 0.5） | 本窗口 |
+| CW-D-BR-M | 银行对账 | MR | 同上 | 同上，总账只能交文件（MR.ERP 无读回） | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 「从 Express 读回」选项按账本隐藏 | 无（MR.ERP 线不用动） | 计入 BR-L | 本窗口 |
+| CW-D-IR-L | 收入对账 | 本 | 收入对账 · scale | 月份 → 总账（读回 / 交文件）→ 销项税报表（读回 / 交文件）→ 动态题 | 同银行对账 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 同 BR-L（kind income） | 同 BR-L | 计入 BR-L（+2 / 0.5） | 本窗口 |
 | CW-D-IR-C | 收入对账 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端读回 | 云端线 | 计入 BR-C | 本窗口 ← 云端线 |
-| CW-D-IR-M | 收入对账 | MR | 同上 | 两侧都交文件 | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 同 BR-M | 无 | 计入 | 本窗口 |
-| CW-D-VC-L | 销项税核查 | 本 | 销项税核查 · receipt | 月份 → 销项税报表（读回 / 交文件）→ 销售发票（file） | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 同 BR-L（kind vat；`cowork_recon_*` 的第三种，覆盖计划漏列） | 同 BR-L | 计入 BR-L（+2 / 0.5） | 本窗口 |
+| CW-D-IR-M | 收入对账 | MR | 同上 | 两侧都交文件 | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 同 BR-M | 无 | 计入 | 本窗口 |
+| CW-D-VC-L | 销项税核查 | 本 | 销项税核查 · receipt | 月份 → 销项税报表（读回 / 交文件）→ 销售发票（file） | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 同 BR-L（kind vat；`cowork_recon_*` 的第三种，覆盖计划漏列） | 同 BR-L | 计入 BR-L（+2 / 0.5） | 本窗口 |
 | CW-D-VC-C | 销项税核查 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端读回 | 云端线 | 计入 | 本窗口 ← 云端线 |
-| CW-D-VC-M | 销项税核查 | MR | 同上 | 两侧都交文件 | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；CI 待查） | 同 BR-M | 无 | 计入 | 本窗口 |
+| CW-D-VC-M | 销项税核查 | MR | 同上 | 两侧都交文件 | 同上 | 同上 | 同上 | **服务端**（`pearnly/cc-guided-recon` d88ac7a46，`assistant/guided/recon.py`，19 条离线测试；**在 main（803f0da84，11-17）**） | 同 BR-M | 无 | 计入 | 本窗口 |
 | CW-D-POS-L | 收银日汇总 | 本 | 收银日汇总 · store | POS 导出（file）→ 认列（动态题：每列从表头选、日月顺序、含不含税、状态值；按公司记住，`pos_import/service.preview` → `contracts.apply_answers`）→ 走库存 / 记费用（有明细时） | 账套 = 本对话账套；记过的版式不再问 | 每天一行：日期、首末票号、金额、税额；收款科目题（kind receipt，判定卡已有） | 每天一张：已入账 / 留下 | **服务端（未闭环）**（`pearnly/cc-guided-pos` 7418018a8，`assistant/guided/pos.py`，11 条离线测试；建好票后接单据引导推送，等 documents 源进 main） | 声明 + 服务函数；认列题由模型填 `answers` 改成卡上选（P3 盘点 #31）；动态题 N1 | 接线；N1 | 6–8 / 2 | 本窗口 |
 | CW-D-POS-C | 收银日汇总 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端写账 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
 | CW-D-POS-M | 收银日汇总 | MR | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | POS 推送现在只接 Express（`cowork_pos_import` 说明） | MR.ERP 线（MR.ERP 的日汇总单型未定） | 待 MR.ERP 线估 | 本窗口 ← MR.ERP 线 |
@@ -78,7 +78,7 @@ Cowork 的对账、盘点、看板等工作空间对象不按公司隔开（用�
 | CW-D-VAT-C | 增值税 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做 | 云端读回 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
 | CW-D-VAT-M | 增值税 | MR | 同上 | 同上 | — | 同上 | 同上 | 没做 | MR.ERP 侧没有销项 / 进项来源（工具说明「not MR.ERP」） | MR.ERP 线 | 待 MR.ERP 线估 | 本窗口 ← MR.ERP 线 |
 | CW-D-WHT | 预扣税 ภ.ง.ด.3 / 53 | — | 预扣税 · receipt | 月份 → 分店（choice，有分店才问）→ 草稿出来后：收款方收入类型（动态题，按工作空间记住）、待确认的行算不算（multi） | 付款公司 = 对话公司（现在给了税号就不核，P3 盘点 #41，要改成只认对话公司） | 两张表的行（收款方、类型、税率、基数、税额） | 草稿工作簿进对话 | **服务端（未闭环：复核卡改一格要 guided-erp 的 run.edit 对表单源分派 + A2 行内可改复核表，进 main 后在声明加 edit）**（`pearnly/cc-guided-wht` a68f22e7b + `cc-guided-wht-review` b553ac423：出草稿 → 复核卡两张表逐行可改〔未定所得类型的收款方、待确认行 8 格〕→ 确定出工作簿；用户 11-16 定在 CC 里逐行复核、网页不另加页面） | 动态题 N1；记住范围加「整个工作空间」N3；行修改（#43）放复核卡 | 接线；N1、N3 | 6–8 / 2 | 本窗口 |
-| CW-D-RB-L | Express 读回 | 本 | 读回 · download | 账套（本对话账套是 Express 就不问）→ 月份（推荐对话月份、点了才算）；科目前缀不问（主会话 11-16） | 账套 = 本对话账套 | — （只读） | 四本表进对话；在读「等」；电脑没连 / 要更新一行事实 | **服务端**（`pearnly/cc-guided-readback` 5cf37c2d3，`assistant/guided/readback.py`，17 条离线测试；CI 待查） | 接线；结果卡带文件 N2、确定回包 N10（`run.py`）；删除走允许卡 N5 | 接线（A 组分支 3） | 余 1 / 1（接线后流程 + 真模型） | 本窗口 |
+| CW-D-RB-L | Express 读回 | 本 | 读回 · download | 账套（本对话账套是 Express 就不问）→ 月份（推荐对话月份、点了才算）；科目前缀不问（主会话 11-16） | 账套 = 本对话账套 | — （只读） | 四本表进对话；在读「等」；电脑没连 / 要更新一行事实 | **服务端**（`pearnly/cc-guided-readback` 5cf37c2d3，`assistant/guided/readback.py`，17 条离线测试；**在 main（803f0da84，11-17）**） | 接线；结果卡带文件 N2、确定回包 N10（`run.py`）；删除走允许卡 N5 | 接线（A 组分支 3） | 余 1 / 1（接线后流程 + 真模型） | 本窗口 |
 | CW-D-RB-C | Express 读回 | 云 | 同上 | 同上 | 同上 | — | 同上 | 没做 | 云端读回通路 | 云端线 | 0.5 / 0.5 | 本窗口 ← 云端线 |
 | CW-D-FT-L | 文件夹定时任务 | 本 | 定时任务 · folder-clock | 新建 / 改哪个（choice：新建或已有任务）→ 电脑与文件夹（choice ×2，`folder_intake/api.options`）→ 方向、入账类型（choice）→ 默认处理（现赊、抵扣、科目〔搜索〕、存货、部门）→ 日程（number 日、time）→ 提醒 | 账套 = 本对话账套；改任务时各步默认 = 任务现值 | 一张设置卡（各项，点回那一步） | 已保存；启停 / 立即运行 / 删除另走允许卡 | 没做（卡在 `assistant/tools.py` 与 cowork-folder-task-scope 分支交叠，等主会话定） | 声明 + 服务函数；时间输入（N8）；立即运行要过写入闸 + 允许卡（#53 现在都没有）；删除允许卡 N5 | 接线；N5、N8 | 8–10 / 2 | guided-cowork-2 local_3b58bd71 |
 | CW-D-FT-C | 文件夹定时任务 | 云 | 同上 | 同上 | 同上 | 同上 | 同上 | 没做（卡在 `assistant/tools.py` 与 cowork-folder-task-scope 分支交叠，等主会话定） | 云端写账 | 云端线 | 0.5 / 0.5 | guided-cowork-2 local_3b58bd71 |
