@@ -37,6 +37,6 @@ GUIDES = [
          {"key": "voucher", "input": "file", "rule": "always", "when": {"key": "methods", "starts": "transfer:"},
           "check": "pearnly_erp_portal.collection.guide.voucher_check"},
      ],
-     "draft": "pearnly_erp_portal.collection.guide.draft", "review": "pearnly_erp_portal.collection.guide.review", "confirm": "pearnly_erp_portal.collection.guide.confirm", "result": "pearnly_erp_portal.collection.guide.result",
+     "draft": "pearnly_erp_portal.collection.guide.draft", "review": "pearnly_erp_portal.collection.guide.review", "confirm": "pearnly_erp_portal.collection.guide.confirm", "result": "pearnly_erp_portal.collection.guide.result", "note": "pearnly_erp_portal.collection.guide.note",
      "tool": "erp_collection_draft", "expires": ["ledger", "company", "master"]},
 ]

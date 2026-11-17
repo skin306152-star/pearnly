@@ -13,6 +13,10 @@
 - 子题（输入 ``questions``，约定 11-16 N1a）：题目由 ``options`` 函数按前面步骤的值算出（``{"questions": [子题…]}``），逐个子题按它的
   输入核形状、按它的选项核码；结果里的追问（N1b）是同一个子题形状。
 
+记住的选择（``rule: remember``）：引擎不写任何记忆；被取消、失效、停止的引导不留记录。产品要记，原则上在确定成功后记；
+**账套选择是例外**：选了当场记（产品的 ``apply``，例：收款 ``book_apply`` → ``service.choose_book``），与网页 / LINE 是同一份记忆、
+同一口径「问一次按公司记住」，用户确实选过，引导没走完也不算错记（主会话 11-16 定）。
+
 每个写操作都先锁这一行再核（两台设备同时点，后到的拿到最新状态）。选项函数的统一签名::
 
     options(ctx, txt="", start=0, page_length=20, codes=None) -> {"options": [{code, name, ...}], "more": bool}
@@ -311,6 +315,11 @@ def view(doc) -> Dict[str, Any]:
         return {**out, "source": d.DOCUMENTS,
                 "result": _docs().result(guide, doc, ctx, stored) if doc.status != FAILED else stored}
     out["consent"] = _consent(guide, doc, answers)
+    if doc.status in OPEN:
+        # 确定卡的问句与下面那行事实（同线上允许卡）：问句按约定取术语表 ``guide.consent.<id>``，没有译文回空串（页面退回业务名）
+        out["consent_title_key"] = f"guide.consent.{guide['id']}"
+        out["consent_title"] = _t(out["consent_title_key"])
+        out["consent_note"] = _note(guide, ctx)
     if doc.status == ASKING:
         decided = _decided(guide, doc, answers)
         asked = steps.to_ask(guide, answers, decided)
@@ -345,6 +354,20 @@ def _consent(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> str:
         return consent or "confirm"
     values = steps._values(guide, answers, _decided(guide, doc, answers))
     return "allow" if steps.applies({"when": consent}, values) else "confirm"
+
+
+def _note(guide: Mapping[str, Any], ctx: Dict[str, Any]) -> str:
+    """问句下面那一行事实（声明的 ``note(ctx, draft)``：会动到哪家公司、哪本账套）。没声明、算不出或回空都是空串（那一行不出）；
+    出错不挡这张卡（同允许卡 `tools._note`）。"""
+    if not guide.get("note"):
+        return ""
+    try:
+        text = _call(guide["note"], ctx, ctx.get("draft") or "")
+    except Exception:  # noqa: BLE001 — 事实行算不出不挡卡
+        frappe.db.rollback()
+        frappe.log_error(title="Assistant guide note failed")
+        return ""
+    return str(text or "").strip()
 
 
 def _returned(doc) -> Dict[str, Any]:

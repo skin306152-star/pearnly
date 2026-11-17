@@ -265,6 +265,22 @@ class GateTests(unittest.TestCase):
         files = {**_app("one", [DOCS]), **_app("two", [changed(DOCS, label_key="guide.business.buying")])}
         self.assertIn("purchase: label_key differs between one and two", gate.check(_tree(files)))
 
+    def test_an_allow_guide_needs_its_question_in_all_four_languages(self):
+        guide = changed(FORM, consent="allow")
+        files = _app("app", [guide])
+        files["apps/app/app/i18n/messages.tsv"] = "en\tzh\tth\tja\tkey\nRecord it?\t要记下吗\t\t\tguide.consent.collection\n"
+        self.assertIn("app: collection: guide.consent.collection is missing in i18n/messages.tsv for th, ja", gate.check(_tree(files)))
+        files["apps/app/app/i18n/messages.tsv"] = ("en\tzh\tth\tja\tkey\n"
+                                                    "Record it?\t要记下吗\tบันทึกไหม\t記録しますか\tguide.consent.collection\n")
+        self.assertFalse([e for e in gate.check(_tree(files)) if "guide.consent" in e])
+        # 「确定」卡（没写 consent）不要问句
+        self.assertFalse([e for e in gate.check(_tree(_app("app", [FORM]))) if "guide.consent" in e])
+
+    def test_a_note_is_a_dotted_path_listed_with_the_others(self):
+        self.assertIn("app.mod.note", d.paths(changed(FORM, note="app.mod.note")))
+        self.assertTrue(any("note is not a dotted path" in p for p in d.problems(changed(FORM, note="nope"))))
+        self.assertTrue(any("chat guide has no" in p for p in d.problems(changed(CHAT, note="app.mod.note"))))
+
     def test_a_declaration_that_is_not_a_plain_literal_is_refused(self):
         files = _app("app", [])
         files["apps/app/app/guides.py"] = "GUIDES = [make()]\n"

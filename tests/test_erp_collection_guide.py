@@ -249,6 +249,16 @@ class SentBack(Base):
         self.assertEqual(self.runs[name].draft, f"{draft}@{version + 1}")
         self.assertEqual(back["review"]["total"], "500.00")
 
+    def test_the_review_card_carries_the_company_and_book_line_under_its_question(self):
+        _name, found = self.to_review()
+        draft, _version = guide._draft_name(self.runs[_name].draft)
+        from pearnly_erp_portal.collection import cc_tools
+
+        self.assertEqual(found["consent_note"], cc_tools.note_withdraw({"collection": draft}))
+        self.assertTrue(found["consent_note"])
+        self.assertEqual(found["consent_title_key"], "guide.consent.collection")
+        self.assertEqual(guide.note({}, ""), "")  # 还没有草稿：那一行不出
+
     def test_changing_an_answer_under_review_withdraws_the_old_draft(self):
         name, _found = self.to_review()
         old, _version = guide._draft_name(self.runs[name].draft)

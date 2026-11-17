@@ -574,5 +574,43 @@ class CapabilityTests(Base):
         self.assertEqual(run.follow(name, {"x": "y"})["outcome"], run.REFUSED)
 
 
+class ConsentCardTests(Base):
+    """确定卡的问句与下面那行事实（同线上允许卡；主会话 11-16 批）。"""
+
+    def reviewing(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        run.answer(name, {"invoices": IV})
+        return name, run.answer(name, {"method": CASH})
+
+    def test_the_question_comes_from_the_glossary_key_and_the_note_from_the_product(self):
+        ATTRS["app.GUIDES"] = [{**GUIDE, "note": "app.note"}]
+        ATTRS["app.note"] = lambda ctx, draft: f"Company A · Book {draft}"
+        original = run._
+        run._ = lambda text: {"guide.consent.collection": "Record this collection?"}.get(text, text)
+        self.addCleanup(setattr, run, "_", original)
+        name, found = self.reviewing()
+        self.assertEqual(found["status"], "reviewing")
+        self.assertEqual((found["consent_title_key"], found["consent_title"]),
+                         ("guide.consent.collection", "Record this collection?"))
+        self.assertEqual(found["consent_note"], f"Company A · Book R:{name}")
+
+    def test_no_translation_and_no_note_give_empty_strings(self):
+        _name, found = self.reviewing()
+        self.assertEqual((found["consent_title"], found["consent_note"]), ("", ""))
+
+    def test_a_note_that_fails_leaves_the_card_up_with_no_note(self):
+        ATTRS["app.GUIDES"] = [{**GUIDE, "note": "app.note"}]
+        ATTRS["app.note"] = lambda ctx, draft: 1 / 0
+        _name, found = self.reviewing()
+        self.assertEqual((found["status"], found["consent_note"]), ("reviewing", ""))
+        self.assertIn("Assistant guide note failed", LOGGED)
+
+    def test_a_finished_run_carries_no_question(self):
+        name, _found = self.reviewing()
+        done = run.confirm(name, run.view(self.docs[name])["version"])
+        self.assertNotIn("consent_title", done)
+
+
 if __name__ == "__main__":
     unittest.main()

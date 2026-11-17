@@ -36,16 +36,19 @@ ICONS = frozenset({"shopping-cart", "tag", "wallet", "landmark", "scale", "store
                    "building-plus"})
 
 GUIDE_KEYS = frozenset({"id", "label_key", "icon", "order", "modes", "ledgers", "allowed", "opening_key", "source", "steps", "writes",
-                        "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow", "intake", "uploads", "edit"})
+                        "draft", "review", "confirm", "result", "tool", "expires", "judge", "consent", "follow", "intake", "uploads", "edit", "note"})
 # ``consent: "allow"``：确定画成允许卡（只有「拒绝 / 允许」；删除、结束这类，要 ``writes: True``）。没写 = 「确定」。
 # 也可以写成与 ``when`` 同形的字典（``{"key": 前面某一步, 一个测试}``）：那一步此刻的值让条件成立时用允许卡，否则「确定」
 # （一张卡里「做什么」既有新建 / 记数又有结束 / 删除，guided-cowork-2 11-16 约定）
 CONSENTS = ("allow",)
+# 确定卡（允许卡）的问句（同线上允许卡「要……吗」）不写在声明里：按约定取产品术语表的 ``guide.consent.<id>``（四语）；
+# 用允许卡的引导（``consent`` 是 ``allow`` 或字典）四语必须齐（scripts/check-cc-guides.py 拦）。
+# ``note(ctx, draft) -> 一行事实``：问句下面那行浅色事实（会动到哪家公司、哪本账套，同允许卡的 ``note``）；没有就空串
 # ``follow(ctx, draft, answers) -> 新的结果``：确定之后结果里冒出来的问题（结果带 ``questions``，同 ``questions`` 输入的子题）的作答
 # 按单据办、会写账本的业务要点名的产品函数（documents 出题源，约定「引导式-documents源-约定-11-16」）：交识别、识别到哪、复核、
 # 复核里改一格、直写的确定、结果。还没点名的声明照旧只有菜单（页面上开不了这一格的引导）
 DOCUMENT_HOOKS = ("intake", "uploads", "review", "edit", "confirm", "result")
-PATH_KEYS = ("allowed", "draft", "review", "confirm", "result", "follow", "intake", "uploads", "edit")
+PATH_KEYS = ("allowed", "draft", "review", "confirm", "result", "follow", "intake", "uploads", "edit", "note")
 STEP_KEYS = frozenset({"key", "input", "rule", "tier", "options", "search", "default", "after", "when", "remember", "required",
                        "check", "apply", "facts", "zero"})
 # ``check(ctx, value) -> 原因码 | ""``：作答时服务端再核一遍（选项里有、形状对之外的业务规则：金额合计、日期在期间里）；
@@ -178,8 +181,8 @@ def problems(guide: Any) -> List[str]:
             out.append("a form guide that writes needs review")
     if source == DOCUMENTS and any(isinstance(s, Mapping) and s.get("input") != "file" for s in steps):
         out.append("a documents guide only declares file steps (the questions come from the write precheck)")
-    if source == CHAT and (steps or any(key in guide for key in ("draft", "review", "confirm", "result", "follow", "consent"))):
-        out.append("a chat guide has no steps, draft, review, confirm, result, follow or consent")
+    if source == CHAT and (steps or any(key in guide for key in ("draft", "review", "confirm", "result", "follow", "consent", "note"))):
+        out.append("a chat guide has no steps, draft, review, confirm, result, follow, consent or note")
     if "follow" in guide and "result" not in guide:
         out.append("follow needs result (the questions come with the result)")
     judge = guide.get("judge")

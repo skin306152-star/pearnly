@@ -9,7 +9,9 @@
 2. 每份声明过 ``pearnly_core.assistant.guide.declaration.problems``（键、取值、步骤、依赖）；
 3. 声明里的每个点路径（权限、选项来源、默认值、草稿、复核、确定、结果）指向的函数在那个模块的源码里；
 4. ``tool``（打字路径上办同一件事的工具）在这个产品的工具声明里；
-5. 一个产品里同一个 id 只声明一次；两个产品都有的业务（采购、销售）菜单上的字、图标、顺序、出题方式一致。
+5. 用允许卡确定的引导（``consent`` 是 ``allow`` 或字典）在这个产品的术语表 ``i18n/messages.tsv`` 里有 ``guide.consent.<id>``
+   一行、四语都有字（卡上的问句，同线上允许卡「要……吗」）；
+6. 一个产品里同一个 id 只声明一次；两个产品都有的业务（采购、销售）菜单上的字、图标、顺序、出题方式一致。
 
     python3 scripts/check-cc-guides.py            # 检查
     python3 scripts/check-cc-guides.py --list     # 列出每个产品声明了哪些业务
@@ -110,9 +112,38 @@ def load(root: Path = ROOT) -> Tuple[Dict[str, List[Dict[str, Any]]], List[str]]
     return guides, errors
 
 
+LANGS = ("en", "zh", "th", "ja")
+
+
+def _glossary(root: Path, app: str) -> Dict[str, Dict[str, str]]:
+    """``{键: {语言: 字}}``：这个产品的术语表（表头 ``en zh th ja key``）。"""
+    path = root / "apps" / app / app / "i18n" / "messages.tsv"
+    if not path.exists():
+        return {}
+    lines = path.read_text(encoding="utf-8").splitlines()
+    head = lines[0].split("\t") if lines else []
+    found: Dict[str, Dict[str, str]] = {}
+    for line in lines[1:]:
+        cells = dict(zip(head, line.split("\t")))
+        if cells.get("key"):
+            found[cells["key"]] = cells
+    return found
+
+
+def consent_problems(root: Path, app: str, guide: Dict[str, Any], glossary: Dict[str, Dict[str, str]]) -> List[str]:
+    """用允许卡确定的引导缺哪几种语言的问句（``guide.consent.<id>``）。"""
+    consent = guide.get("consent")
+    if consent != "allow" and not isinstance(consent, dict):
+        return []
+    key = f"guide.consent.{guide['id']}"
+    missing = [lang for lang in LANGS if not str((glossary.get(key) or {}).get(lang) or "").strip()]
+    return [f"{app}: {guide['id']}: {key} is missing in i18n/messages.tsv for {', '.join(missing)}"] if missing else []
+
+
 def check(root: Path = ROOT) -> List[str]:
     guides, errors = load(root)
     by_id: Dict[str, List[Tuple[str, Dict[str, Any]]]] = {}
+    _glossaries: Dict[str, Dict[str, Dict[str, str]]] = {}
     for app, items in guides.items():
         tools = None
         seen = set()
@@ -131,6 +162,9 @@ def check(root: Path = ROOT) -> List[str]:
                 tools = _tool_names(root, app) if tools is None else tools
                 if guide["tool"] not in tools:
                     errors.append(f"{app}: {name}: tool {guide['tool']} is not declared in this product")
+            if guide.get("consent") is not None:
+                glossary = _glossaries.setdefault(app, _glossary(root, app))
+                errors.extend(consent_problems(root, app, guide, glossary))
             by_id.setdefault(name, []).append((app, guide))
     for name, owners in by_id.items():
         first_app, first = owners[0]

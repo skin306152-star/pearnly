@@ -422,6 +422,14 @@ def _same_book(name) -> None:
         raise contracts.CollectionError(service.BOOK_NOT_CONVERSATION)
 
 
+def note(ctx, draft) -> str:
+    """确定卡问句下面那行事实：这笔收款的公司与账套（同撤回允许卡 `cc_tools.note_withdraw` 的拼法）；还没有草稿回空串。"""
+    from pearnly_erp_portal.collection import cc_tools
+
+    name, _version = _draft_name(draft)
+    return cc_tools.note_withdraw({"collection": name}) if name else ""
+
+
 def confirm(ctx, values, draft, consent) -> dict:
     """点了「确定」：按复核时的版本放行（`service.release`，同意 = 页面上这一下 ``guide:<运行>:<版本>``）。草稿在别处改过回
     ``changed``（带新版本，复核卡刷新）；规则此刻不过（发票刚被别人收了、凭证不对）回 ``returned``；草稿的账套已不是本对话
