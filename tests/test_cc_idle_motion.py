@@ -88,9 +88,14 @@ BUSY_SITES = [
     ("components/mrerp-login.tsx", "cc-spinner", "{busy &&", 0),  # MR.ERP 登录授权：要票、等 CC 桌面版交给站点时（11-02）
     ("components/run/upload-card.tsx", "<TypingDots", "{busy &&", 0),  # 上传状态卡片：上传中、排队中、识别中才有（11-04）
     ("components/tool-uis/operator-steps.tsx", "<TypingDots", 'row.tone === "running" &&', 0),  # 代录单据行：还没结论、也没排着的那张才有（11-04 统一对话框架）
+    # 引导卡里的加载占位（ccs：卡里加载用骨架）：样子在这里，谁、什么时候挂见 BUSY_MOUNTS（A2 线 11-16）
+    ("components/tool-uis/guide-run-card.tsx", "<Skeleton", "const GuideSkeleton: FC", 4),
 ]
 # 这几个占位组件本身由谁、在什么条件下挂（上面登记的是组件内部）
 BUSY_MOUNTS = [
+    # 引导卡：服务端说这一题还在读（wait）且还没有选项时；已定项展开改值、选项还没取回时
+    ("components/tool-uis/guide-run-card.tsx", "{q.wait && !(q.options ?? []).length ? (\n            <GuideSkeleton />"),
+    ("components/tool-uis/guide-run-card.tsx", "if (!page) return <GuideSkeleton />;"),
     ("components/assistant-ui/thread.tsx", "{isLoading && Loading && <Loading />}"),
     ("components/assistant-ui/thread-list.tsx", "<AuiIf condition={(s) => s.threads.isLoading && !s.threads.threadIds.length}>\n        <ThreadListSkeleton />"),
     ("components/results-panel.tsx", "if (!preview) return <Loading />;"),
