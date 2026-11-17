@@ -256,6 +256,20 @@ ledger = "MR.ERP TEST2019 6:1"
 erp_doc = "SD-01063"
 
 [[pass]]
+scenario = "acc.erp.operator.intake.purchase"
+sha = "a3cb2b7611e3ba0966ef55a1d99ccb7c522b2d58"
+date = "2026-11-17"
+env = "B"
+run = "20261117-113334-a3cb2b761"
+retried = false
+covers = "fdfe021ec08a85a4"
+intake = "LI-01080"
+docnums = ["HP0000090"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-01081"
+task = "v43jaaitvn"
+
+[[pass]]
 scenario = "acc.erp.operator.purchase.express"
 sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
 date = "2026-11-16"

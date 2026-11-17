@@ -511,3 +511,11 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 - 结果：**16 格全部通过**（menu.choice、purchase.goods / expense / cash / novat / nobook、sales.credit / cash / discount、twice、retry、void.importing、switch.off、tax.purchase / sales、cc.push 真模型）。证据 `acceptance-runs/20261117-094*`–`0951*-5def7f3c3`。
 - 首跑校准（脚本问题）：单据页单号拆在 txtdoctype + txtdocnum 两栏；多仓公司开单要带仓；第一次导入碰 ERR_MRERP_ACCOUNT_IN_USE（接入时的登录与第一格互踢），单独重跑即过；销售菜单要正式选过（预选值不算）。
 - 花费台账：cc.push 两次 0.2545 + 0.125 = 0.380 美元；11-17 累计（含代 frontend 验证 0.288）0.668 美元。
+
+## 代录三件修复复跑（11-17 11:33–11:44，maclab erp 挂 pearnly/operator-intake-receipt c6bcde9db + 测试机2 CC 1.12.21）
+| 场景 | 结果 | 说明 |
+|---|---|---|
+| acc.erp.operator.intake.purchase | **通过** | ① 修好：交单后任务视图这张变已录入、带 Express 单号 |
+| acc.erp.operator.talk.purchase ×3 | 不通过 ×3 | ② 没修：三次最后回复都没报写成的单号（HP0000090 / HP691117-001）；③ 没复现：三次可见文字都没有英文步骤句或工具名。第 2 次写账件不是代录交的（单号是直写格式 HP691117-001）：后台直写先领走了这张——场景前置没守住，按规矩应记「没测到」，场景要在交代录前核这张没被直写领走 |
+
+花费：0.100 + 0.248 + 0.131 = 0.479 美元（11-17 累计 1.147 美元）。主会话 11:4x 通知暂停，Cowork A7 两格（被测 cc-remembered-every-basis f32b4325b）与 1.12.21 补 7 格、三条新场景改到明天。
