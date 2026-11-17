@@ -688,6 +688,14 @@ class ConsentCardTests(Base):
         self.assertEqual((found["status"], found["consent_note"]), ("reviewing", ""))
         self.assertIn("Assistant guide note failed", LOGGED)
 
+    def test_a_guide_that_switches_to_the_allow_card_by_answer_asks_the_question_of_that_answer(self):
+        ATTRS["app.GUIDES"] = [{**GUIDE, "consent": {"key": "customer", "in": ["C001"]}}]
+        _name, found = self.reviewing()
+        self.assertEqual((found["consent"], found["consent_title_key"]), ("allow", "guide.consent.collection.C001"))
+        ATTRS["app.GUIDES"] = [{**GUIDE, "consent": {"key": "customer", "in": ["C002"]}}]
+        _name, found = self.reviewing()
+        self.assertEqual((found["consent"], found["consent_title_key"]), ("confirm", "guide.consent.collection"))
+
     def test_a_finished_run_carries_no_question(self):
         name, _found = self.reviewing()
         done = run.confirm(name, run.view(self.docs[name])["version"])

@@ -9,8 +9,8 @@
 2. 每份声明过 ``pearnly_core.assistant.guide.declaration.problems``（键、取值、步骤、依赖）；
 3. 声明里的每个点路径（权限、选项来源、默认值、草稿、复核、确定、结果）指向的函数在那个模块的源码里；
 4. ``tool``（打字路径上办同一件事的工具）在这个产品的工具声明里；
-5. 用允许卡确定的引导（``consent`` 是 ``allow`` 或字典）在这个产品的术语表 ``i18n/messages.tsv`` 里有 ``guide.consent.<id>``
-   一行、四语都有字（卡上的问句，同线上允许卡「要……吗」）；
+5. 用允许卡确定的引导（``consent`` 是 ``allow`` 或字典）在这个产品的术语表 ``i18n/messages.tsv`` 里有问句、四语都有字（卡上的问句，
+   同线上允许卡「要……吗」）：``allow`` 一句 ``guide.consent.<id>``；按答案换的每个值一句 ``guide.consent.<id>.<值>``；
 6. 一个产品里同一个 id 只声明一次；两个产品都有的业务（采购、销售）菜单上的字、图标、顺序、出题方式一致。
 
     python3 scripts/check-cc-guides.py            # 检查
@@ -135,9 +135,20 @@ def consent_problems(root: Path, app: str, guide: Dict[str, Any], glossary: Dict
     consent = guide.get("consent")
     if consent != "allow" and not isinstance(consent, dict):
         return []
-    key = f"guide.consent.{guide['id']}"
-    missing = [lang for lang in LANGS if not str((glossary.get(key) or {}).get(lang) or "").strip()]
-    return [f"{app}: {guide['id']}: {key} is missing in i18n/messages.tsv for {', '.join(missing)}"] if missing else []
+    base = f"guide.consent.{guide['id']}"
+    # 按答案换允许卡的：每个会用允许卡的值一句（``value`` / ``in``）；其它测试（has / starts）用一句通用的
+    if isinstance(consent, dict) and "value" in consent:
+        keys = [f"{base}.{consent['value']}"]
+    elif isinstance(consent, dict) and "in" in consent:
+        keys = [f"{base}.{value}" for value in consent["in"]]
+    else:
+        keys = [base]
+    out = []
+    for key in keys:
+        missing = [lang for lang in LANGS if not str((glossary.get(key) or {}).get(lang) or "").strip()]
+        if missing:
+            out.append(f"{app}: {guide['id']}: {key} is missing in i18n/messages.tsv for {', '.join(missing)}")
+    return out
 
 
 def check(root: Path = ROOT) -> List[str]:

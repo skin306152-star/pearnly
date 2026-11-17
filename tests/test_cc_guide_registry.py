@@ -276,6 +276,14 @@ class GateTests(unittest.TestCase):
         # 「确定」卡（没写 consent）不要问句
         self.assertFalse([e for e in gate.check(_tree(_app("app", [FORM]))) if "guide.consent" in e])
 
+    def test_a_guide_that_switches_to_the_allow_card_by_answer_needs_one_question_per_value(self):
+        guide = changed(FORM, consent={"key": "method", "in": ["close", "delete"]})
+        files = _app("app", [guide])
+        files["apps/app/app/i18n/messages.tsv"] = ("en\tzh\tth\tja\tkey\n"
+                                                    "Close it?\t要关闭吗\tปิดไหม\t閉じますか\tguide.consent.collection.close\n")
+        errors = [e for e in gate.check(_tree(files)) if "guide.consent" in e]
+        self.assertEqual(errors, ["app: collection: guide.consent.collection.delete is missing in i18n/messages.tsv for en, zh, th, ja"])
+
     def test_a_note_is_a_dotted_path_listed_with_the_others(self):
         self.assertIn("app.mod.note", d.paths(changed(FORM, note="app.mod.note")))
         self.assertTrue(any("note is not a dotted path" in p for p in d.problems(changed(FORM, note="nope"))))

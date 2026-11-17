@@ -333,7 +333,7 @@ def view(doc) -> Dict[str, Any]:
     out["consent"] = _consent(guide, doc, answers)
     if doc.status in OPEN:
         # 确定卡的问句与下面那行事实（同线上允许卡）：问句按约定取术语表 ``guide.consent.<id>``，没有译文回空串（页面退回业务名）
-        out["consent_title_key"] = f"guide.consent.{guide['id']}"
+        out["consent_title_key"] = _consent_key(guide, doc, answers)
         out["consent_title"] = _t(out["consent_title_key"])
         out["consent_note"] = _note(guide, ctx)
     if doc.status == ASKING:
@@ -370,6 +370,17 @@ def _consent(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> str:
         return consent or "confirm"
     values = steps._values(guide, answers, _decided(guide, doc, answers))
     return "allow" if steps.applies({"when": consent}, values) else "confirm"
+
+
+def _consent_key(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> str:
+    """问句的术语键：``guide.consent.<id>``；按答案换允许卡的（``consent`` 是字典，例：盘点「关闭」与「删除」问法不同）
+    此刻用允许卡时按那一步的值 ``guide.consent.<id>.<值>``。"""
+    base = f"guide.consent.{guide['id']}"
+    consent = guide.get("consent")
+    if not isinstance(consent, Mapping) or _consent(guide, doc, answers) != "allow":
+        return base
+    value = steps._values(guide, answers, _decided(guide, doc, answers)).get(consent.get("key"))
+    return f"{base}.{value}" if isinstance(value, str) and value else base
 
 
 def _note(guide: Mapping[str, Any], ctx: Dict[str, Any]) -> str:
