@@ -317,6 +317,8 @@ Enable,เปิดใช้งาน
 "Enable ""{0}""? A new bind code is needed to link LINE again.","ต้องการเปิดใช้งาน ""{0}"" ใช่หรือไม่ เมื่อเปิดใช้งานแล้ว ต้องสร้างรหัสผูกใหม่เพื่อเชื่อมต่อ LINE"
 Enabled,เปิดใช้งาน
 Enabled features,ฟังก์ชันที่เปิดใช้งาน
+Ended the guided entry,จบการบันทึกแบบนำทางแล้ว
+Ending the guided entry,กำลังจบการบันทึกแบบนำทาง
 Endpoint,ปลายทางการเชื่อมต่อ
 Enter again,บันทึกอีกครั้ง
 Enter conversion,กรอกอัตราแปลง

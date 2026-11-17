@@ -317,6 +317,8 @@ Enable,启用
 "Enable ""{0}""? A new bind code is needed to link LINE again.",确定要启用「{0}」吗？启用后需重新生成绑定码以连接 LINE。
 Enabled,启用
 Enabled features,已开通功能
+Ended the guided entry,已结束引导录入
+Ending the guided entry,正在结束引导录入
 Endpoint,连接端点
 Enter again,再写一次
 Enter conversion,填换算
