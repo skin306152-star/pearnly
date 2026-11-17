@@ -995,9 +995,12 @@ class Release1123Edges(unittest.TestCase):
         self.assertIn('method == "attention_seen"', bridge)
         self.assertIn('args.get("session")', bridge)
         self.assertIn('args.get("visible")', bridge)
-        page = "\n".join(path.read_text(encoding="utf-8") for path in (ROOT / "frontend" / "assistant" / "src").rglob("*.ts*"))
-        if '"attention_seen"' in page:
-            self.assertRegex(page, r'"attention_seen",\s*\{[^}]*session[^}]*visible|"attention_seen",\s*\{[^}]*visible[^}]*session')
+        # 页面经桥调的那个文件（frontend-backlog C-4：lib/attention.ts 的 ``call("attention_seen", look)``，look = {session, visible}）
+        callers = [path for path in (ROOT / "frontend" / "assistant" / "src").rglob("*.ts*")
+                   if 'call("attention_seen"' in path.read_text(encoding="utf-8")]
+        for path in callers:
+            text = path.read_text(encoding="utf-8")
+            self.assertRegex(text, r"\{\s*session:\s*string;\s*visible:\s*boolean\s*\}|\{\s*session[,:][^}]*visible", path)
 
     def test_remembered_answers_ride_in_operator_dialog_answers(self):
         sys.path.insert(0, str(COMPANION.parent))
