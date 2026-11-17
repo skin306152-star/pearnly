@@ -92,6 +92,7 @@ function fromRun(run: CardPart["run"], result: unknown): CardState | null | unde
     case "denied":
       return { phase: "answered", approved: false, failed: false };
     case "cancelled":
+    case "expired":
       return { phase: "cancelled" };
     case "expired":
       return { phase: "cancelled", expired: true };
