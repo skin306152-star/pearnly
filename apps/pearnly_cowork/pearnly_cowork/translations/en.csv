@@ -605,6 +605,7 @@ Delete selected ({0}),Delete selected ({0})
 Delete the note?,Delete the note?
 Delete the rule?,Delete the rule?
 Delete the stock counts?,Delete the stock counts?
+Delete the documents?,Delete the documents?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3521,6 +3522,8 @@ guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
 guide.open.pos,Upload the POS export.
+guide.consent.pending.delete,Delete the documents?
+guide.open.pending,Choose an action.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.stocktake,Choose an action.

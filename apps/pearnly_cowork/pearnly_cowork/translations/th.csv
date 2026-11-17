@@ -605,6 +605,7 @@ Delete selected ({0}),ลบที่เลือก ({0})
 Delete the note?,ลบบันทึกหรือไม่
 Delete the rule?,ลบกฎหรือไม่
 Delete the stock counts?,ลบการตรวจนับหรือไม่
+Delete the documents?,ลบเอกสารหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3521,6 +3522,8 @@ guide.consent.stocktake.delete,ลบการตรวจนับหรือ�
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
+guide.consent.pending.delete,ลบเอกสารหรือไม่
+guide.open.pending,เลือกการดำเนินการ
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.stocktake,เลือกการดำเนินการ

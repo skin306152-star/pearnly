@@ -605,6 +605,7 @@ Delete selected ({0}),删除所选（{0}）
 Delete the note?,要删除笔记吗？
 Delete the rule?,要删除规则吗？
 Delete the stock counts?,要删除盘点吗？
+Delete the documents?,要删除单据吗？
 Delete these documents?,确定要删除以下单据吗？
 Delete these reconciliations?,确定要删除以下对账任务吗？
 Delete these scheduled tasks?,确定要删除以下定时任务吗？
@@ -3521,6 +3522,8 @@ guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.open.company,选择操作。
 guide.open.pos,请上传 POS 导出。
+guide.consent.pending.delete,要删除单据吗？
+guide.open.pending,选择操作。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
 guide.open.stocktake,选择操作。
