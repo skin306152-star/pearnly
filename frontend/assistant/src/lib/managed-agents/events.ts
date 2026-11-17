@@ -45,7 +45,8 @@ export type AnswerEvent = {
 };
 
 /** 本站执行记录（Pearnly Assistant Tool Run）的状态，同服务端 contracts.TOOL_RUN_STATES。 */
-export type ToolRunStatus = "awaiting_approval" | "running" | "done" | "error" | "denied" | "cancelled";
+/** expired：代录任务失效（过期 / 被新任务接走，B04 11-17）时它还在等的卡片调用，同 cancelled 一样结束，只是那一行写「已失效」。 */
+export type ToolRunStatus = "awaiting_approval" | "running" | "done" | "error" | "denied" | "cancelled" | "expired";
 
 /** 一次本站工具调用在本站的执行状态（pearnly_core.assistant.toolrun，contracts.tool_run_event）：本站拦下等「允许」的卡片
  *  最后什么样子以它为准（第 11 轮 A 段）。状态变了（执行完 / 出错、拒绝、作废）推来；读事件时按这页出现过的调用编号并在

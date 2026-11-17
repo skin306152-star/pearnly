@@ -191,7 +191,7 @@ export const AskCard: FC<{
           {questions.length === 1 ? q.question : questions.filter((_x, i) => !result?.answers[i]?.not_asked).map((x) => x.header || x.question).join(" · ")}
         </div>
         <div data-slot="cc-ask-answer" className="cc-ask-answer">
-          {phase === "answered" ? answeredLine(result) : steps.cancelled}
+          {phase === "answered" ? answeredLine(result) : phase === "expired" ? guide.expired : phase === "ended" ? "" : steps.cancelled}
         </div>
       </div>,
     );

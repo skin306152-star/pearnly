@@ -47,7 +47,9 @@ export type Gates = {
 export type CardState =
   | { phase: "ask" }
   | { phase: "answered"; approved: boolean; failed: boolean; sending?: boolean }
-  | { phase: "cancelled" };
+  | { phase: "cancelled" }
+  /** 执行记录是前端不认识的状态（服务端新加的）：已结束，但不说放没放行、做没做成（管钱界面不按「已允许」兜底，主会话 11-17） */
+  | { phase: "ended" };
 
 /** 这次调用给了这个参数（False / 0 也算给了；空串、空表、空对象不算），同 pearnly_core tools._given。 */
 export function given(value: unknown): boolean {
@@ -89,11 +91,16 @@ function fromRun(run: CardPart["run"], result: unknown): CardState | null | unde
     case "denied":
       return { phase: "answered", approved: false, failed: false };
     case "cancelled":
+    case "expired":
       return { phase: "cancelled" };
     case "running":
       return { phase: "answered", approved: true, failed: false, sending: true };
-    default:
+    case "awaiting_approval":
+    case undefined:
       return undefined;
+    default:
+      // 不认识的状态：结束了，但不显示成已允许（主会话 11-17：服务端每加一个状态都不能被当成放行）
+      return { phase: "ended" };
   }
 }
 

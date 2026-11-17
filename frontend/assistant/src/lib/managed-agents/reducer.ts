@@ -951,7 +951,7 @@ function answered(state: Projection, id: string): boolean {
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
   // 本站已在执行 / 已定下的（执行记录先于引擎事件到）也算答过：不再提醒服务端执行一次
   return part?.type === "tool-call" &&
-    (part.result !== undefined || part.approval?.approved !== undefined || (part.run !== undefined && RUN_RANK[part.run] > 0));
+    (part.result !== undefined || part.approval?.approved !== undefined || (part.run !== undefined && rankOf(part.run) > 0));
 }
 
 /** 一张卡有了回答（确认的回声或重放、本站推来的回答、本页乐观点下的）：定下所选那一项，不再等这边点。 */
@@ -1044,7 +1044,7 @@ function cancelOpenGates(state: Projection): Projection {
     let msgChanged = false;
     const content = msg.content.map((part) => {
       if (part.type !== "tool-call" || part.result !== undefined || part.approval?.approved !== undefined) return part;
-      if (part.run && RUN_RANK[part.run] > 0) return part; // 本站已在执行 / 已定下：照执行记录
+      if (part.run && rankOf(part.run) > 0) return part; // 本站已在执行 / 已定下：照执行记录
       if (!part.approval && !parked.has(part.toolCallId)) return part;
       msgChanged = changed = true;
       cancelled.add(part.toolCallId);
@@ -1067,11 +1067,17 @@ function cancelOpenGates(state: Projection): Projection {
 
 /** 本站执行记录各状态的先后：只往前走（推来的新状态之后，晚到的、读得早的旧状态不再把它改回去）。 */
 const RUN_RANK: Readonly<Record<ToolRunStatus, number>> = {
-  awaiting_approval: 0, running: 1, done: 2, error: 2, denied: 2, cancelled: 2,
+  awaiting_approval: 0, running: 1, done: 2, error: 2, denied: 2, cancelled: 2, expired: 2,
 };
 
 /** 本站已定下这次调用（执行完、出错、拒绝、作废）。 */
-const runSettled = (run: ToolRunStatus | undefined): boolean => run !== undefined && RUN_RANK[run] === 2;
+const runSettled = (run: ToolRunStatus | undefined): boolean => run !== undefined && rankOf(run) === 2;
+/** 状态的先后；前端不认识的状态（服务端新加的）当终态，不倒退。 */
+function rankOf(run: ToolRunStatus): number {
+  return RUN_RANK[run] ?? 2;
+}
+/** 认识的「往前走了」：只有这几种才把「允许」记成已放行（不认识的状态不当放行，主会话 11-17）。 */
+const PROGRESSED: ReadonlySet<string> = new Set(["running", "done", "error"]);
 
 /** 一张卡（本站工具）换成别的样子时不再算等这边点、也不再欠结果。 */
 function dropPending(state: Projection, id: string): Pick<Projection, "pendingApprovals" | "pendingCustomTools"> {
@@ -1086,22 +1092,22 @@ function dropPending(state: Projection, id: string): Pick<Projection, "pendingAp
  *  建这一步时补上。 */
 function applyToolRun(state: Projection, id: string, status: ToolRunStatus, waiting = false): Projection {
   const known = state.toolRuns.get(id);
-  if (known && RUN_RANK[known] > RUN_RANK[status]) return state;
+  if (known && rankOf(known) > rankOf(status)) return state;
   if (waiting && status === "running") return parkWaiting(state, id);
   const toolRuns = new Map(state.toolRuns).set(id, status);
   const found = findToolPart(state.messages, id);
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
   if (!found || part?.type !== "tool-call") return { ...state, toolRuns };
-  if (part.run && RUN_RANK[part.run] > RUN_RANK[status]) return { ...state, toolRuns };
+  if (part.run && rankOf(part.run) > rankOf(status)) return { ...state, toolRuns };
   const messages = draft(state.messages);
   updatePart(messages, found.mi, found.pi, () => {
     const next: ToolPart = { ...part, run: status };
-    if (status === "cancelled") {
+    if (status === "cancelled" || status === "expired") {
       delete next.approval;
       next.cancelled = true;
     } else if (status === "denied") {
       if (part.approval) next.approval = settleApproval(part.approval, false, id, part.approval.reason);
-    } else if (status !== "awaiting_approval" && part.approval &&
+    } else if (PROGRESSED.has(status) && part.approval &&
                (part.approval.approved !== true || part.approval.sending)) {
       next.approval = settleApproval(part.approval, true);
     }
@@ -1128,7 +1134,7 @@ function parkWaiting(state: Projection, id: string): Projection {
   const found = findToolPart(state.messages, id);
   const part = found ? state.messages[found.mi]!.content[found.pi] : undefined;
   let messages = state.messages;
-  if (found && part?.type === "tool-call" && part.run !== "running" && !(part.run && RUN_RANK[part.run] > 1)) {
+  if (found && part?.type === "tool-call" && part.run !== "running" && !(part.run && rankOf(part.run) > 1)) {
     const next = draft(messages);
     updatePart(next, found.mi, found.pi, () => ({ ...part, run: "running" as ToolRunStatus }));
     messages = next;
@@ -1150,7 +1156,7 @@ function interruptedCustomTool(state: Projection, id: string, result: ToolResult
   const messages = draft(state.messages);
   updatePart(messages, found.mi, found.pi, () => {
     const next: ToolPart = { ...part, result, isError: result.isError, interrupted: true };
-    const answered = part.approval?.approved !== undefined || (part.run !== undefined && RUN_RANK[part.run] > 0);
+    const answered = part.approval?.approved !== undefined || (part.run !== undefined && rankOf(part.run) > 0);
     if (!answered) {
       delete next.approval;
       next.cancelled = true;
@@ -1321,7 +1327,7 @@ export function restoreGates(state: Projection, ids: readonly string[], failure?
     if (!found) continue;
     const part = messages[found.mi]!.content[found.pi]!;
     // Likewise if the tool already ran (result present), or this site's record moved past waiting / the gate was cancelled.
-    if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && RUN_RANK[part.run] > 0)) continue;
+    if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && rankOf(part.run) > 0)) continue;
     updatePart(messages, found.mi, found.pi, updateTool((p) => {
       const { approved: _approved, reason: _reason, failure: _failure, sending: _sending, ...kept } = p.approval ?? { id };
       return { approval: { ...kept, id, ...(failure ? { failure } : {}) } };
@@ -1364,7 +1370,7 @@ export function gateCustomTool(
   if (!found) return state;
   const part = state.messages[found.mi]!.content[found.pi]!;
   // 已点了停止（cancelOpenGates）：晚到的问句不再把按钮放回来
-  if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && RUN_RANK[part.run] > 0)) return state;
+  if (part.type !== "tool-call" || part.result !== undefined || part.cancelled || (part.run && rankOf(part.run) > 0)) return state;
   if (part.approval && part.approval.approved !== undefined) return state;
   const messages = draft(state.messages);
   updatePart(messages, found.mi, found.pi, updateTool({ approval: { id, ask: view.ask, preview: view.preview, ...(view.note ? { note: view.note } : {}) } }));

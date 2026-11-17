@@ -8733,6 +8733,39 @@ class Round11CardTests(unittest.TestCase):
                + body.split("\n---\n", 1)[0] + "\nconst g = globalThis as any;\n" + FAKE_SITE
                + body.split("\n---\n", 1)[1] + "\ng.done();\n", stubs=self.STUBS)
 
+    def test_an_unknown_tool_run_status_never_reads_as_allowed(self):
+        # 主会话 11-17：前端不认识的执行记录状态（服务端新加的，如 B04 的 expired 进 main 之前）不能被兜底成「已允许 / 已写入」——
+        # 管钱界面上那是假结果。卡片收起、不说结果（ended）；认识的照旧
+        self.run_page(r"""
+import { applyEvent, gateCustomTool, project } from "@/lib/managed-agents/reducer";
+import { approvalCard } from "@/lib/approval-card";
+import { cardPhase } from "@/components/tool-uis/card-phase";
+---
+const gates = { ask: { pearnly_task_switch: "Turn it on?" } };
+const part = (state: any) => state.messages.flatMap((m: any) => m.content).find((p: any) => p.toolCallId === "tz");
+const head = [ev("u1", "user.message", 1, { content: text("turn T1 on") }), ev("r1", "session.status_running", 2),
+  ev("tz", "agent.custom_tool_use", 3, { name: "pearnly_task_switch", input: { task: "T1", enabled: true } }),
+  ev("p1", "session.status_idle", 4, { stop_reason: { type: "requires_action", event_ids: ["tz"] } })];
+const record = (status: string, s: number) => ev(`ptoolrun_tz_${status}`, "pearnly.tool_run", s, { tool_use_id: "tz", status });
+let live = gateCustomTool(project(head as any), "tz", { ask: "Turn it on?" });
+assert.deepEqual(approvalCard(part(live), gates), { phase: "ask" });
+for (const status of ["frozen_by_server", "superseded"]) {
+  const after = applyEvent(live, record(status, 5) as any);
+  const card = approvalCard(part(after), gates) as any;
+  assert.equal(card.phase, "ended", status);                              // 收起、不说结果
+  assert.notEqual(card.approved, true, status);                           // 不是「已允许」
+  assert.notEqual(part(after).approval?.approved, true, status);          // 投影里也没把「允许」记成已放行
+  assert.equal(cardPhase({ ...part(after), result: undefined } as any), "ended", status);   // 代录卡同口径
+  // 之后再来认识的终态以它为准（同为终态不倒退）；不会退回能点的样子
+  assert.equal(approvalCard(part(applyEvent(after, record("cancelled", 6) as any)), gates)?.phase, "cancelled");
+  assert.notEqual(approvalCard(part(applyEvent(after, record("awaiting_approval", 6) as any)), gates)?.phase, "ask");
+}
+// 认识的照旧：done = 已允许，expired = 一行（已失效），cancelled = 已取消
+assert.equal((approvalCard(part(applyEvent(live, record("done", 5) as any)), gates) as any).approved, true);
+assert.equal(approvalCard(part(applyEvent(live, record("expired", 5) as any)), gates)?.phase, "cancelled");
+assert.equal(cardPhase({ run: "expired" } as any), "expired");
+""")
+
     def test_a_card_left_unanswered_by_stop_reads_cancelled_live_and_reopened(self):
         # 卡片出来后没答、直接点停止：以前当成「允许了却失败」（红字），重开一样；实际没点、也没改。
         # 第 11 轮 A 段改成真实先后（lab 9798f54e 抓的事件）：点停止时引擎先代发一条出错的中断结果（agent.tool_result，不是本站的

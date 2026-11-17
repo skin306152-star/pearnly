@@ -173,7 +173,7 @@ export const GuideCardBody: FC<{
   card: GuideCardData;
   /** 大列表题去服务端搜要按公司（调用参数里的 company） */
   company?: string;
-  phase: "ask" | "answered" | "cancelled";
+  phase: "ask" | "answered" | "cancelled" | "expired" | "ended";
   answered?: number | null;
   busy?: boolean;
   /** 「已定 n 项」一开始就展开（展示页截图用；对话里默认收起）。 */
@@ -187,7 +187,7 @@ export const GuideCardBody: FC<{
   if (phase !== "ask") {
     return (
       <div data-slot="cc-guide-card" data-phase={phase} className="cc-steps-card cc-ui-questionnaire-card">
-        <div className="cc-ui-questionnaire-done">{phase === "answered" ? guide.answered(answered ?? 0) : steps.cancelled}</div>
+        <div className="cc-ui-questionnaire-done">{phase === "answered" ? guide.answered(answered ?? 0) : phase === "expired" ? guide.expired : phase === "ended" ? "" : steps.cancelled}</div>
       </div>
     );
   }

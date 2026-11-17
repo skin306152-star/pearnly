@@ -480,7 +480,11 @@ class SourceRules(unittest.TestCase):
         self.assertIn('<div className="aui-step cc-ask" data-phase={phase}>', card)
         self.assertIn('<div className="cc-ask-q">{question}</div>', card)
         self.assertIn('className="cc-card-btn"', card)
-        self.assertIn("{steps.cancelled}", card)
+        self.assertIn("{phase === \"expired\" ? guide.expired : steps.cancelled}", card)  # 代录任务失效（执行记录 expired，B04 11-17）写「已失效」
+        phase = read("components/tool-uis/card-phase.ts")
+        self.assertIn('if (part.run === "expired") return "expired";', phase)
+        self.assertIn("cancelled: 2, expired: 2,", read("lib/managed-agents/reducer.ts"))
+        self.assertIn('if (status === "cancelled" || status === "expired") {', read("lib/managed-agents/reducer.ts"))
         kit = read("components/tool-uis/index.tsx")
         for name, comp in (("operator_start", "OperatorStartCard"), ("operator_choose", "OperatorChooseCard"), ("operator_resume", "OperatorResumeCard"),
                            ("operator_upload", "OperatorUploadStep"), ("operator_document", "OperatorDocumentStep"), ("operator_sources", "OperatorSourcesStep")):

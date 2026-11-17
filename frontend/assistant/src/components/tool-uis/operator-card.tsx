@@ -5,7 +5,7 @@
 
 import { useAuiState } from "@assistant-ui/react";
 import { type FC, type ReactNode, useState } from "react";
-import { steps } from "@/i18n";
+import { guide, steps } from "@/i18n";
 import { shownError } from "@/lib/frappe";
 import { reportCaught } from "@/lib/caught";
 import type { CardPart } from "@/lib/approval-card";
@@ -74,9 +74,9 @@ export const OperatorCard: FC<{
             )}
           </div>
         )}
-        {phase === "cancelled" && (
+        {(phase === "cancelled" || phase === "expired") && (
           <div data-slot="cc-ask-answer" className="cc-ask-answer">
-            {steps.cancelled}
+            {phase === "expired" ? guide.expired : steps.cancelled}
           </div>
         )}
         {after}

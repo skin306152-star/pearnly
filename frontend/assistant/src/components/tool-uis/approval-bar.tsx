@@ -113,6 +113,7 @@ export function ApprovalBar({
   const state: CardState | null =
     card ?? (approval ? (approval.approved === undefined ? { phase: "ask" } : { phase: "answered", approved: approval.approved, failed: false }) : null);
   if (!state) return null;
+  if (state.phase === "ended") return null;
   if (state.phase === "answered") return <ApprovalAnswer approved={state.approved} failed={state.failed} sending={state.sending} />;
   if (state.phase === "cancelled") {
     return (

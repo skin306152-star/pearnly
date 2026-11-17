@@ -1473,19 +1473,19 @@ const GUIDE = {
   en: { collection: "Collection", prompt: { purchase: "Please upload the purchase documents.", sales: "Please upload the sales documents.", collection: "Please provide the customer and the amount received." },
     placeholder: { purchase: "Upload purchase documents", sales: "Upload sales documents", collection: "Enter a customer name or code" },
     recommended: "Recommended", decided: (n: number) => `${n} decided`, answered: (n: number) => `${n} answered`,
-    documents: (label: string, n: number) => `${label} · ${n} documents` },
+    documents: (label: string, n: number) => `${label} · ${n} documents`, expired: "Expired" },
   zh: { collection: "收款", prompt: { purchase: "请上传采购票据。", sales: "请上传销售票据。", collection: "请提供客户和收款金额。" },
     placeholder: { purchase: "上传采购票据", sales: "上传销售票据", collection: "输入客户名称或编号" },
     recommended: "推荐", decided: (n: number) => `已定 ${n} 项`, answered: (n: number) => `已答 ${n} 项`,
-    documents: (label: string, n: number) => `${label} · ${n} 张` },
+    documents: (label: string, n: number) => `${label} · ${n} 张`, expired: "已失效" },
   th: { collection: "รับชำระ", prompt: { purchase: "กรุณาอัปโหลดเอกสารซื้อ", sales: "กรุณาอัปโหลดเอกสารขาย", collection: "กรุณาระบุลูกค้าและยอดรับชำระ" },
     placeholder: { purchase: "อัปโหลดเอกสารซื้อ", sales: "อัปโหลดเอกสารขาย", collection: "ป้อนชื่อหรือรหัสลูกค้า" },
     recommended: "แนะนำ", decided: (n: number) => `กำหนดแล้ว ${n} รายการ`, answered: (n: number) => `ตอบแล้ว ${n} รายการ`,
-    documents: (label: string, n: number) => `${label} · ${n} ใบ` },
+    documents: (label: string, n: number) => `${label} · ${n} ใบ`, expired: "หมดอายุ" },
   ja: { collection: "入金", prompt: { purchase: "仕入書類をアップロードしてください。", sales: "売上書類をアップロードしてください。", collection: "得意先と入金額をお知らせください。" },
     placeholder: { purchase: "仕入書類をアップロード", sales: "売上書類をアップロード", collection: "得意先名またはコードを入力" },
     recommended: "おすすめ", decided: (n: number) => `決定済み ${n} 件`, answered: (n: number) => `回答済み ${n} 件`,
-    documents: (label: string, n: number) => `${label} · ${n} 件` },
+    documents: (label: string, n: number) => `${label} · ${n} 件`, expired: "期限切れ" },
 };
 
 export const guide = (GUIDE as Record<string, (typeof GUIDE)["en"]>)[lang] ?? GUIDE.en;
