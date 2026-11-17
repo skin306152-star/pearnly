@@ -82,5 +82,21 @@ mapper / sales_mapper 先后：H5 先合（等 erp-operator-intake 进 main 后�
 | ERP · 后台直写（网页直接提交没经过确认卡片、定时、自动推） | 不问；只套用这本账套记住的答案 | 没记住的照旧：CC 静默默认（单位、成本、现金科目）或写时拦（负库存）。要靠 `guided: true` + CC 回执 `*_CHOICE` 转成题（单据页 / 代录卡同一出口），都还没接 |
 | ERP · LINE 录单 | 不问（主会话 11-16 定这次不做） | 总表已记缺口，估 6–8 h / 2 h |
 | ERP · CC 写时停下（`UNIT_CHOICE` / `COST_BASIS_CHOICE` / `CASH_ACCOUNT_CHOICE`） | 不会发生（ERP 不发 `guided`） | 开 `guided` 前先把三种码接进 `api._party_blocked` |
-| Cowork · 全部入口（直写、代录、放票、文件夹、LINE） | 不问 | 心跳目录没有物料单位 / 结存 / 负库存设置 / ACCNUM00（CC 桌面版补，已认领）；之后 Cowork 判定卡接线（排在 H5、盘点窗口之后） |
+| Cowork · 全部入口（直写、代录、放票、文件夹、LINE） | 不问 | 四题资料不进心跳（11-17 与 CC 桌面版窗口定：心跳最多 2 万件物料，再加字段太大）：服务端开始前经按需请求通道请一次 `express_masters`（Cowork 已认这种请求，CC 不用改）、按 `express_marks` 缓存；之后 Cowork 判定卡接线（排在 H5、盘点窗口之后） |
 | MR.ERP 账本 | 不涉及（四题是 Express 账套的规则） | — |
+
+## 共用件连带回归记录（11-17，接线分支 744d77206；`check-impact` 命中 express-rules、write-precheck）
+本分支在共用层只做两处：新文件 `express_rules/push/book_questions.py`（只被 ERP `express/book_answers.py` 调用，Cowork 与 LINE 不调）、
+`write_precheck/contracts.py` 登记四个题类 + 带数字输入选项的答案核法（没有 `entry` 的选项走原来的分支，逐字节不变）。
+| 入口 | 结果 | 证据 / 原因 |
+|---|---|---|
+| erp.cc.write | 通过 | 流程 erp.express.book-unit / -negative / -cost / -cash 4/4 绿（改前 4/4 红）；tests/test_erp_book_questions.py、test_erp_express_direct.py、test_erp_write_precheck.py |
+| erp.cc.stock-entry | 通过（离线） | 库存单走 `stock_entry.prepare`，不经 `book_answers`；test_erp_express_direct.py 全过；流程没测到（未改这条路，没跑） |
+| erp.page.collections、erp.cc.collection | 通过（离线） | 收款不经写账规则准备；test_erp_collection*.py 在本地全闸门里全过 |
+| erp.cc.pos-day、erp.cc.pos-refund | 没测到 | 收银日汇总 / 退货单的载荷也经 `prepare.prepare`：没有四题资料（主档镜像里没有单位表 / 账套设置时不出题），离线 test_erp_express_direct 的收银用例全过；真机写 T 账套待主会话排 |
+| erp.trade.line-stock、erp.place.header | 通过（离线） | 混行单、单头仓的载荷形状不变（四题只在有答案时加键）；test_erp_express_direct LineStockKinds 等全过 |
+| erp.cc.companies、erp.mrerp.masters | 通过（离线） | 不经本改动的代码；MR.ERP 账本不调 `book_answers` |
+| cc.operator.page、cc.operator.thread | 通过（离线） | 代录预检包了 `operating()`：test_express_operator_code_cc.py、test_cc_operator.py、test_express_operator_feed/tasks.py 全过；实机代录没测到（单位框 CC 未接） |
+| cowork.express.push、cowork.cc-chat.push、cowork.cc.channel、cowork.cc.troubleshooting、cowork.companies、cowork.connections、cowork.history、cowork.line.item-questions、cowork.mrerp.push | 通过（离线） | Cowork 不调 `book_questions`；共用卡片契约只多了四个题类与 `entry` 分支：test_cowork_write_precheck.py、test_write_precheck.py 全过；Cowork 人工推送没测到（未改 Cowork 代码） |
+- 本地全闸门（不跳 npm ci）744d77206：GATE EXIT 0，268 项。昨晚没过的 5 项是工作树没装前端依赖，装上后全过。
+- 生产镜像候选离线（02eebaa4，`cand-local.sh offline`，744d77206）：111 组，LANE EXIT 0。
