@@ -424,6 +424,8 @@ jobs:
         run: python3 tests/test_assistant_ui.py
       - name: Verify the CC working line stays until the turn really ends, says when the connection is lost, and scrolling and IME Enter behave
         run: python3 tests/test_cc_run_indicator.py
+      - name: Link opening gate keeps the composer on the linked conversation
+        run: python3 tests/test_cc_open_gate.py
       - name: Verify every upload layer (Frappe body limit, tenant nginx, CC, operator, ERP chat intake) takes one 30 MB file and says too large plainly
         run: python3 tests/test_upload_limits.py
       - name: Verify every web process runs through the pearnly_core.web.wsgi entry (multipart bodies not held in memory, ADR-028) and rolls back with one runtime line
