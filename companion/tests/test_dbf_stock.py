@@ -404,6 +404,19 @@ def test_the_master_read_reports_the_default_account_of_each_stock_book(book):
     assert "ISRUN" in express_masters.TABLES
 
 
+def test_the_master_read_lists_every_issue_and_adjustment_book(book):
+    """ERP 出库按用途选簿、调增选 JU / PI（载荷 22）：读主档时报这份账套领用类 / 调整类的每一本簿（前缀、名称、默认科目）。"""
+    from companion import express_masters
+
+    seed(book, "ISRUN", [{"DOCTYP": "OU", "PREFIX": "ZZ", "POSDES": "ตัดสินค้าชำรุด", "DOCNUM": "0000001", "JNLTYP": "00",
+                          "ACCNUM01": ISSUE_ACC}])
+    facts = express_masters._facts(book)
+    assert facts["stock_books"]["ZZ"] == ISSUE_ACC
+    assert {row["prefix"]: (row["doctype"], row["account"]) for row in facts["stock_book_list"]} == {
+        "OU": ("OU", ISSUE_ACC), "ZZ": ("OU", ISSUE_ACC), "JU": ("JU", OFFSET_ACC), "TK": ("JU", OFFSET_ACC)}
+    assert next(row for row in facts["stock_book_list"] if row["prefix"] == "ZZ")["name"] == "ตัดสินค้าชำรุด"
+
+
 def test_an_issue_that_would_go_negative_stops_when_the_book_needs_approval(book):
     """扣成负库存要批准的账套（ISINFO.NEGAUTH 填了级别，11-12）：领用超过结存、新建物料的领用都不写，回执带 approval 与结构化的不足明细。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", NEGALLOW="Y", NEGAUTH="5")

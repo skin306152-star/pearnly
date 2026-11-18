@@ -201,9 +201,15 @@ def _facts(folder: Path) -> dict:
         # 没有这个单别的单据簿就不报这个键（ERP 据此直接停下说明，不先让人白选一次科目；验收 10-25）
         books = {kind: book_row(folder, kind) for kind in KINDS}
         books[dbf_transfer.TRANSFER] = dbf_transfer.book_row(folder)  # 调拨 RL 没有科目（多仓闭环 P2）
+        # 同类的其他簿（出库 PD / XS / ZZ…、调增 PI…）：ERP 按用途选簿（载荷 22 ``book``），这份账套里有哪几本、各自名称与默认科目
+        listed = _stock_book_list(folder)
+        for item in listed:
+            if item["prefix"] not in books:
+                books[item["prefix"]] = book_row(folder, item["doctype"], item["prefix"])
         facts["stock_books"] = {kind: row.get("account", "") for kind, row in books.items() if row is not None}
         # 核过哪几个单别：ERP 只对报过的单别据「没有这个键」判没有单据簿（旧版不报 RL，ERP 照旧交给电脑核）
         facts["stock_books_checked"] = sorted(books)
+        facts["stock_book_list"] = listed
     except Exception:
         log.info("单据簿读不出（没有 ISRUN？），这份不带库存单默认科目")
     try:
@@ -401,3 +407,25 @@ def read_masters(cfg, params: dict, *, sleep: Callable[[float], None] = time.sle
     if changed:
         meta["snapshot_changed"] = True
     return Result(content, meta)
+
+
+def _stock_book_list(folder) -> list:
+    """ISRUN 里领用类（DOCTYP OU）与调整类（DOCTYP JU）的每一本簿：``[{prefix, doctype, name, account}]``（同前缀几行的只报一次）。"""
+    from . import account_rules
+    from . import dbf_schema as S
+
+    table = account_rules._open(folder, "ISRUN")
+    if table is None:
+        return []
+    out, seen = [], set()
+    try:
+        for row in S.live_rows(table):
+            doctype, prefix = account_rules._gv(row, "DOCTYP"), account_rules._gv(row, "PREFIX")
+            if doctype not in ("OU", "JU") or not prefix or prefix in seen:
+                continue
+            seen.add(prefix)
+            out.append({"prefix": prefix, "doctype": doctype, "name": account_rules._gv(row, "POSDES"),
+                        "account": account_rules._gv(row, "ACCNUM01" if doctype == "OU" else "ACCNUM02")})
+    finally:
+        table.close()
+    return out

@@ -131,7 +131,7 @@ def test_reads_the_whole_master_and_stock_by_warehouse_without_touching_the_book
     # 库存单三个单别的默认科目（出入库第一期 B 段）：这份合成账套没有 ISRUN，都给空
     # 逐行 VAT（ISINFO.VAT_INITEM）：这份合成账套的 ISINFO 没有这一栏 = 没开（空）
     assert data["facts"] == {"accounts": [{"code": "11-01-01-00", "name": "เงินสด", "type": "1"}], "mapping": {},
-                             "vat_initem": "", "stock_books": {}, "stock_books_checked": ["JU", "OU", "RL", "TK"],
+                             "vat_initem": "", "stock_books": {}, "stock_books_checked": ["JU", "OU", "RL", "TK"], "stock_book_list": [],
                              "catalog": {"isacc_candidates": []}}
     assert data["read_at"].endswith("Z")
     assert data["settings"] == {"mainloc": "01", "negallow": "Y", "cosmtd": "F", "usedep": "Y", "address": "", "phone": ""}
