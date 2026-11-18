@@ -4,7 +4,7 @@
 ``finally`` 里还原，不影响同一套数据上的其他流程；记住的科目、排上的写账件、主档同步状态同样还原 / 撤掉。
 
 - new（接了 Express）：库存岗提交前问（`api.preflight`）→ 问「物料」一项、选项里有 Express 的现有存货和「新建」；选新建后再问 → 不再问、
-  记在这家公司「stock|<物料>」名下；建单提交、交进写账队列 → 载荷盖 15、那一行 ``new_ok`` 且不带 ERP 物料；照电脑写好的样子回执
+  记在这家公司「stock|<物料>」名下；建单提交、交进写账队列 → 载荷盖 22（入库写 PI 簿，≥ 新建物料的 15）、那一行 ``new_ok`` 且不带 ERP 物料；照电脑写好的样子回执
   （逐行回报建出的码）→ 物料挂上这家公司与这个码。Express 有同名存货的物料不问。
 - old（没接 Express）：提交前问什么都不问。
 """
@@ -17,7 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from erp_lib import company as dataset_company  # noqa: E402
 
-TITLE = "ERP 出入库单遇 Express 里没有的物料：问一次选新建、载荷 15、写完回填编码"
+TITLE = "ERP 出入库单遇 Express 里没有的物料：问一次选新建、载荷 22（PI）、写完回填编码"
 
 
 def prepare(lab, manifest):
@@ -80,7 +80,7 @@ else:
         job = row.ledger_job
         sent = json.loads(frappe.db.get_value("Pearnly CC Job", job, "payload") or "{{}}") if job else {{}}
         out["entry"] = {{"state": row.ledger_state, "reason": row.ledger_reason, "version": sent.get("payload_version"),
-                        "items": sent.get("items")}}
+                        "book": sent.get("book"), "items": sent.get("items")}}
         # 照电脑写好的样子回执：逐行回报实际用的码（第 1 行是建出来的，第 2 行按同名认到的）
         push.job_changed({{"source_doctype": "ERP Stock Entry", "source_name": name, "status": "success", "job": job,
                           "docnum": "JU-FLOW-{tag}", "request_key": "erp:stock:flow-{tag}",
@@ -131,8 +131,9 @@ def verify(lab, manifest, params, camera_code=None):
          "ok": "__new__" in options and any(code.startswith("EXP-OLD-") for code in options)},
         {"case": "after choosing new nothing more is asked and it is remembered", "seen": [params.get("after"), params.get("remembered")],
          "ok": params.get("after") == [] and params.get("remembered") == "__new__"},
-        {"case": "the job carries payload 15 with the new line marked and no ERP product", "seen": entry,
-         "ok": entry.get("version") == 15 and len(items) == 2 and items[0].get("new_ok") is True
+        # 11-18 起入库写 Express 生产完工收货 PI 簿（用户定 D2）：载荷盖选簿的 22（≥ 新建物料的 15）、带 book PI
+        {"case": "the job carries payload 22 with the PI book, the new line marked and no ERP product", "seen": entry,
+         "ok": entry.get("version") == 22 and entry.get("book") == "PI" and len(items) == 2 and items[0].get("new_ok") is True
          and "new_ok" not in items[1] and all("product" not in line for line in items)},
         {"case": "the codes the computer used are linked back to both products", "seen": codes,
          "ok": all((codes.get(product) or {}).get("express_company") == company for product in codes)
