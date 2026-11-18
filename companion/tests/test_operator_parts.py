@@ -275,6 +275,38 @@ def test_session_recognizes_the_company_from_the_status_bar_and_never_closes_ano
     assert other.alive  # 公司对不上：那是别人在用的 Express，不退
 
 
+@pytest.mark.parametrize("company, shown", [
+    ("บริษัท ทดสอบ (ไทยแลนด์) จำกัด", "บริษัท\xa0ทดสอบ\xa0(ไทยแลนด์)\xa0จำกัด"),  # 一对括号（11-18 实机复现的样子）
+    ("บริษัท เอ (ไทยแลนด์) (สาขา 2) จำกัด", "บริษัท เอ (ไทยแลนด์) (สาขา 2) จำกัด"),            # 两对括号
+    ("Made by Hand Co., Ltd.", "Made by Hand Co., Ltd."),                                          # 名字里含 by
+    ("บริษัท Pearnly จำกัด", "บริษัท Pearnly จำกัด"),                                              # 没有括号
+])
+def test_the_status_bar_is_read_whatever_the_company_name_holds(company, shown):
+    """状态栏「公司名 (账套路径) by 用户」的账套路径取最后一对括号：公司名带括号、两对括号、含 by、没有括号都认得出；
+    名字对、路径换一个仍判不对。"""
+    book = "\\\\fileserver\\ACCOUNT\\69EXP\\TBOOK"
+    ok = Session(FakeExpress(RECIPE.data, company=f"{shown} ({book}) by BIT9"), RECIPE, express_exe="", account_dir=book,
+                 company_name=company, credential_target="t", account_open=lambda _d: False, sleep=lambda _s: None)
+    ok.ensure_open()
+    other = FakeExpress(RECIPE.data, company=f"{shown} ({book}2) by BIT9")
+    s = Session(other, RECIPE, express_exe="", account_dir=book, company_name=company, credential_target="t",
+                account_open=lambda _d: False, sleep=lambda _s: None)
+    with pytest.raises(NeedHuman) as e:
+        s.ensure_open()
+    assert e.value.reason == "company_mismatch"
+
+
+def test_a_company_list_name_starting_with_an_initial_still_matches():
+    """公司列表名去排序前缀时，「J.P. Trading」这类以缩写打头的名字原样也认（去前缀会去成「P. Trading」）。"""
+    sim = FakeExpress(RECIPE.data, inject={"picked": r"J.P. Trading Co., Ltd. (\\fileserver\ACCOUNT\69EXP\TEST) by BIT9"})
+    sim.dialog("companies", "", "ชื่อข้อมูล", buttons=COMPANIES)
+    s = Session(sim, RECIPE, express_exe="", account_dir=r"\\fileserver\ACCOUNT\69EXP\test", company_name="",
+                credential_target="t", account_open=lambda _d: False, sleep=lambda _s: None,
+                registry=lambda: (3, "J.P. Trading Co., Ltd."))
+    s.ensure_open()
+    assert s.attached
+
+
 def _session(sim, **kw):
     return Session(sim, RECIPE, express_exe="", account_dir=r"\\accserver\ACCOUNT\69EXP\test", company_name="บริษัท Pearnly จำกัด",
                    credential_target="t", account_open=lambda _d: False, sleep=lambda _s: None, **kw)

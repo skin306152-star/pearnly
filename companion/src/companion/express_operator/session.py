@@ -31,7 +31,9 @@ def _busy(account_dir) -> bool:
 
 OPEN_SECONDS = 90  # 开到这家公司的总时限（启动、登录、选公司、工作日期框）
 # 状态栏：「公司名 (账套路径) by 用户」（10-26 实机，69EXP 服务器版）
-_STATUS = re.compile(r"^(.+?)\s*\((.+)\)\s*by\s+\S.*$")
+# 状态栏「公司名 (账套路径) by 用户」：账套路径取**最后一对**括号（路径里没有括号）。公司名本身常带括号（「…(ไทยแลนด์) จำกัด」
+# 「…(ประเทศไทย)…」），以前取第一对，把公司名里的括号当成路径，这类公司整批停在 company_mismatch（11-18 实机）
+_STATUS = re.compile(r"^(.+)\s*\(([^()]+)\)\s*by\s+\S.*$")
 
 
 def _plain(text) -> str:
@@ -114,7 +116,9 @@ class Session:
         name, path = found.group(1).strip(), found.group(2).strip()
         if not self.same_place(path, self.account_dir):
             return False
-        names = {_plain(n) for n in (self.company_name, _bare(self.picked.get("name", ""))) if _plain(n)}
+        # 公司列表名去掉排序前缀（「9.」）比；名字本身以「J.P.」这类缩写打头时去前缀会去错，所以原样的也认
+        picked = self.picked.get("name", "")
+        names = {_plain(n) for n in (self.company_name, _bare(picked), picked) if _plain(n)}
         return not names or _plain(name) in names
 
     def same_place(self, a: str, b: str) -> bool:
