@@ -43,6 +43,8 @@ STOCK_BOOK_PAYLOAD_VERSION = 22
 STOCK_BOOK = "stock_book"  # 要人选的那一项：这份账套没有用途对应的那本领用簿，选这份账套里领用类的哪一本（按公司 + 用途记住）
 # 出库用途 → Express 领用类的簿（4-1-1 下的四本，11-18 实录：画面相同、科目随簿）；其他 / 不填是 OU
 PURPOSE_BOOKS = {"internal_use": "OU", "damage": "ZZ", "sample": "XS", "production": "PD"}
+# 入库一律写 4-3-2 生产完工收货 PI（用户 11-18 定 D2：Pearnly 的入库是内部入库，不是采购；采购自动入库照旧不另写），科目随 PI 簿的默认
+RECEIPT_BOOK = "PI"
 ISSUE, ADJUST, COUNT, TRANSFER = "OU", "JU", "TK", "RL"
 COUNT_REF = "count"
 COUNT_DOCTYPE = "ERP Stock Count"
@@ -76,7 +78,7 @@ ADJUST_DIRECTION = "adjust"
 
 def kind(row) -> str:
     """单别：人建的物料调整 → 增减调整 JU（Express 4-3-1，11-18 主会话定 D1）；盘点生成的调整单与历史盘点 → 盘点调整 TK（原生
-    4-1-3-3「ปรับปรุงจากการตรวจนับ」）；出库 → OU 类；调拨 → RL；入库 → JU（入库口径待用户定，D2）。"""
+    4-1-3-3「ปรับปรุงจากการตรวจนับ」）；出库 → OU 类（按用途选簿）；调拨 → RL；入库 → JU 类的 PI 簿（:data:`RECEIPT_BOOK`）。"""
     if (row.get("ref_type") or "") == COUNT_REF or (row.get("direction") == ADJUST_DIRECTION and row.get("stock_count")):
         return COUNT
     if row.get("direction") == ADJUST_DIRECTION:
@@ -212,6 +214,8 @@ def document(name, ref, base=False) -> dict:
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
     if doctype == ISSUE:
         body["purpose"] = str(doc.get("purpose") or "")
+    elif doctype == ADJUST and doc.direction == "in":
+        body["receipt"] = True  # 入库：写 PI 簿
     if doctype == TRANSFER:
         body["to_loccod"] = warehouses.get(doc.to_warehouse, "")
     missing = contracts.unmapped(warehouses)
@@ -373,19 +377,22 @@ def book_subject(purpose) -> str:
 
 
 def _book(body, data, company) -> tuple:
-    """这张单写进哪一本簿（ISRUN 前缀）→ ``(前缀, 要人选的那一项或 None)``。只有出库按用途选（D12）：用途对应的那本这份账套里有就用；
+    """这张单写进哪一本簿（ISRUN 前缀）→ ``(前缀, 要人选的那一项或 None)``。出库按用途选（D12），入库写 PI（D2），做法相同：用途对应的那本这份账套里有就用；
     没有就看这家公司为这个用途选过哪一本（记住的那本还在才算），都没有 → 问一次（选项是这份账套领用类的每一本）。CC 桌面版没报簿清单
     （旧版）时照用途的默认前缀交给电脑（旧版收到 22 诚实拒收）。其余单别就是单别本身。"""
-    if body["doctype"] != ISSUE:
+    if body["doctype"] == ISSUE:
+        purpose = str(body.get("purpose") or "")
+        wanted, subject = PURPOSE_BOOKS.get(purpose, ISSUE), book_subject(purpose)
+    elif body["doctype"] == ADJUST and body.get("receipt"):
+        wanted, subject = RECEIPT_BOOK, book_subject("receipt")
+    else:
         return body["doctype"], None
-    purpose = str(body.get("purpose") or "")
-    wanted = PURPOSE_BOOKS.get(purpose, ISSUE)
     listed = (data.get("facts") or {}).get("stock_book_list") if isinstance(data, dict) else None
     if not isinstance(listed, list):
         return wanted, None
-    issue_books = [row for row in listed if isinstance(row, dict) and row.get("doctype") == ISSUE and row.get("prefix")]
+    issue_books = [row for row in listed
+                   if isinstance(row, dict) and row.get("doctype") == body["doctype"] and row.get("prefix")]
     prefixes = {row["prefix"] for row in issue_books}
-    subject = book_subject(purpose)
     picked = choices.chosen(company, STOCK_BOOK, subject)
     if wanted in prefixes:
         return wanted, None
@@ -468,7 +475,7 @@ def form_body(payload) -> dict:
             lines.append({"code": row.express_code or "", "name": row.product_name or "", "product": product})
     return {"ref": "preflight", "direction": "stock", "doctype": kind({"direction": direction, "stock_count": payload.get("stock_count")}),
             "date": str(payload.get("posting_date") or frappe.utils.nowdate()), "number": "-", "remark": "",
-            "loccod": "", "lines": lines}
+            "loccod": "", "lines": lines, "purpose": str(payload.get("purpose") or ""), "receipt": direction == "in"}
 
 
 __all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "ITEM", "NEW_ITEM_PAYLOAD_VERSION", "PURPOSE_BOOKS",

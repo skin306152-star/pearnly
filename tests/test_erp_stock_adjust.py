@@ -226,6 +226,18 @@ class IssueBook(unittest.TestCase):
     def test_an_old_cc_desktop_without_the_list_gets_the_default_prefix(self):
         self.assertEqual(self.book("production", listed=None), ("PD", None))
 
+    def test_a_stock_receipt_goes_to_the_pi_book_and_asks_once_when_the_ledger_has_none(self):
+        """入库一律写 4-3-2 生产完工收货 PI（用户 11-18 定 D2）；账套没有 PI 簿 → 问一次（选项是调整类的每一本），按公司记住。"""
+        body = {"doctype": stock_entry.ADJUST, "receipt": True, "number": "IR2569-000001"}
+        with_pi = self.LISTED + [{"prefix": "PI", "doctype": "JU", "name": "รับส/คสำเร็จรูปจากการผลิต"}]
+        with mock.patch.object(stock_entry.choices, "chosen", lambda *a: ""):
+            self.assertEqual(stock_entry._book(body, {"facts": {"stock_book_list": with_pi}}, "CO-1"), ("PI", None))
+            prefix, asked = stock_entry._book(body, {"facts": {"stock_book_list": self.LISTED}}, "CO-1")
+        self.assertEqual((asked["kind"], asked["subject"]), (stock_entry.STOCK_BOOK, "stock_book:receipt"))
+        self.assertEqual([row["code"] for row in asked["options"]], ["JU"])  # 只列调整类
+        with mock.patch.object(stock_entry.choices, "chosen", lambda *a: "JU"):
+            self.assertEqual(stock_entry._book(body, {"facts": {"stock_book_list": self.LISTED}}, "CO-1"), ("JU", None))
+
     def test_other_doctypes_keep_their_own_book(self):
         with mock.patch.object(stock_entry.choices, "chosen", lambda *a: ""):
             self.assertEqual(stock_entry._book({"doctype": stock_entry.ADJUST}, {}, "CO-1"), ("JU", None))

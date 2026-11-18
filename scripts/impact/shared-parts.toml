@@ -1586,12 +1586,12 @@ id = "erp.cc.stock-entry"
 product = "ERP"
 where = "ERP 出入库单写 Express"
 steps = "接 Express 的公司提交出库单（用途：内部领用 / 报损 / 样品 / 生产领料）/ 入库单 / 物料调整 / 盘点调整；其中一张带 Express 里没有的物料（多仓闭环 P3x）；一张选了账套里没有那本簿的用途"
-expect = "照 Express 原生录入写（docs/work/2026-11-18-stock-express-parity.md）：出库按用途写领用簿 OU / ZZ / XS / PD（账套没有那本先问一次、按公司记住），入库与人建的物料调整写增减调整 JU（增加行 POSOPR 1 成批），盘点写成 TK，出库成本按批次链，写进 C 盘 T 账套并读回一致；单据上显示 Express 单号；采购自动入库不写；Express 里没有的物料提交前问一次（选现有或新建），选新建的在 Express 建 0 余额存货再写，写完 ERP 物料挂上那个码、下次不再问"
+expect = "照 Express 原生录入写（docs/work/2026-11-18-stock-express-parity.md）：出库按用途写领用簿 OU / ZZ / XS / PD（账套没有那本先问一次、按公司记住），入库写生产完工收货 PI、人建的物料调整写增减调整 JU（增加行 POSOPR 1 成批），单号用 Express 原生流水号，盘点写成 TK，出库成本按批次链，写进 C 盘 T 账套并读回一致；单据上显示 Express 单号；采购自动入库不写；Express 里没有的物料提交前问一次（选现有或新建），选新建的在 Express 建 0 余额存货再写，写完 ERP 物料挂上那个码、下次不再问"
 check = "auto"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/stock_entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/documents.py", "companion/src/companion/dbf_stock.py"]
 smoke = "express"
 site = "erp"
-# 冒烟用入库（JU）：反复跑只加库存，NEGALLOW=N 的 C 盘账套不会因出库扣成负数被拦
+# 冒烟用入库（PI，11-18 起）：反复跑只加库存，NEGALLOW=N 的 C 盘账套不会因出库扣成负数被拦
 args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "kind" = "stock_in" }
 
 [[entry]]
