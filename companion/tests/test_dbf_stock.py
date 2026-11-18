@@ -68,8 +68,9 @@ def test_an_issue_writes_the_header_the_detail_the_balances_and_the_journal_like
     assert head["LOCCOD"].strip() == "01" and head["DOCSTAT"] == "N" and head["NXTSEQ"].strip() == "1"
     line = _rows(book, "STCRD", DOCNUM="OU0000001")[0]
     assert line["POSOPR"] == "6" and line["TRNQTY"] == 2.0 and line["XUNITPR"] == 10.0 and line["XTRNVAL"] == 20.0
-    # 照原生（11-18 实录 D4 / D6 / D7）：明细的批次链结存记写前（5 / 50），品名栏是单头备注
-    assert line["MREMBAL"] == 5.0 and line["MREMVAL"] == 50.0 and line["ACCNUMDR"].strip() == ISSUE_ACC
+    # 减少行照 CC 写销售 IV 的现行口径记写后结存（3 / 30）、不带批次指针（11-18 实测：这样 Express 之后重算得回来）；品名栏是单头备注
+    assert line["MREMBAL"] == 3.0 and line["MREMVAL"] == 30.0 and line["ACCNUMDR"].strip() == ISSUE_ACC
+    assert line["MLOTNUM"].strip() == ""
     assert line["STKDES"].strip() == "เบิกใช้ในสำนักงาน" and line["NETVAL"] == 0.0
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
     assert (master["MREMBAL"], master["MREMVAL"], master["TOTBAL"]) == (3.0, 30.0, 3.0)
@@ -449,7 +450,7 @@ def test_an_issue_on_an_empty_lot_chain_goes_out_at_the_average_and_is_journalle
     res = _write(book, _entry("OU", [_line("ICE01", 1)], remark="ทดสอบ"))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MLOTNUM"].strip()) == (10.0, 10.0, 0.0, "202603010RR0000001     1")
+    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MLOTNUM"].strip()) == (10.0, 10.0, -1.0, "")
     heads, lines = _journal(book, res.docnum)
     assert lines == [("0", ISSUE_ACC, Decimal("10.00"), "1"), ("1", INVENTORY_ACC, Decimal("10.00"), "1")]
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
@@ -543,3 +544,16 @@ def test_a_failed_write_does_not_use_up_a_native_number(book):
     res = _write(book, _entry("OU", [_line("NOPE", 1)]))
     assert not res.ok
     assert _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"] == before
+
+
+def test_an_increase_after_the_chain_went_negative_points_at_the_lot_as_stored_and_keeps_a_zero_balance(book):
+    """出库把批次链扣成负数后（主档批次栏首字符改「-」），之后的调增：明细的批次指针写原样（「-」还原成「2」），写前结存数量记 0
+    （11-18 实录 JU0000001 第 1 行：原生如此，Express 之后才接得上这一批）。"""
+    _set_master(book, MREMBAL=0.0, MREMVAL=0.0, MLOTNUM="202603010RR0000001     1")
+    assert _write(book, _entry("OU", [_line("ICE01", 1)])).ok
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MLOTNUM"].startswith("-")
+    res = _write(book, _entry("JU", [_line("ICE01", 2, unit_cost="12")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["POSOPR"], line["MLOTNUM"].rstrip(), line["MREMBAL"]) == ("1", "202603010RR0000001     1", 0.0)
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MLOTNUM"].rstrip() == f"202603201{res.docnum:<12}  1"

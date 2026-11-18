@@ -223,6 +223,9 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
             head.close()
     lines: List[Dict] = []
     moves: List[stock_location.Move] = []
+    # 原生调拨两行都带批次指针（主档当前那一批，11-18 实录 RL0000004）；Express 之后重算批次链时把调拨算进链里
+    from .dbf_stock import _lot_heads
+    heads = _lot_heads(account_dir, {match["stkcod"] for match in found if match})
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
         for seq, (item, match) in enumerate(zip(items, found), start=1):
@@ -237,6 +240,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "UNITPR": 0.0, "TRNVAL": 0.0, "XTRNQTY": float(units.base_qty),
                     "MREMBAL": float(_dec(match["mrembal"])), "MREMVAL": float(_dec(match["mremval"])),
                     "STKDES": remark or _fit(str(item.get("name") or ""), 50), "REIMBURSE": "\x00",
+                    "MLOTNUM": heads.get(stkcod, ""),
                 }, units.unit, here)
                 stock_units.stamp(row, units)
                 S.append_stcrd(table, _filtered(table, row))

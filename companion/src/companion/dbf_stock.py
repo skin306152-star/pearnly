@@ -239,8 +239,9 @@ def _chain_cost(qty: Decimal, bal: Decimal, val: Decimal, average: Decimal) -> T
     return (value / qty if value else Decimal(0)), value
 
 
-def _lot_heads(account_dir, codes) -> Dict[str, str]:
-    """各存货主档上当前那一批（STMAS.MLOTNUM）：原生领用 / 调整的明细 MLOTNUM 指它。"""
+def _lot_heads(account_dir, codes, marked=None) -> Dict[str, str]:
+    """各存货主档上当前那一批（STMAS.MLOTNUM）：原生调整增加行的明细 MLOTNUM 指它。主档批次栏被标成负（首字符「-」）的，指针还原成原样
+    （「-/F」原样是「B/F」，日期打头的是「2」，11-18 实录），并记进 ``marked``。"""
     out: Dict[str, str] = {}
     if not codes:
         return out
@@ -249,7 +250,12 @@ def _lot_heads(account_dir, codes) -> Dict[str, str]:
         for rec in S.live_rows(table):
             code = (rec.STKCOD or "").strip()
             if code in codes and "MLOTNUM" in table.field_names:
-                out[code] = (rec.MLOTNUM or "").rstrip()
+                raw = (rec.MLOTNUM or "").rstrip()
+                if raw.startswith("-"):
+                    if marked is not None:
+                        marked.add(code)
+                    raw = ("B" if raw[1:3] == "/F" else "2") + raw[1:]
+                out[code] = raw
     finally:
         table.close()
     return out
@@ -521,7 +527,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     # 金额，批次结存 ≤ 0 按 0 成本出、不过账（之后 Express 存单或跑「คำนวณยอดสะสม/คงเหลือ/ลงบัญชี」时它自己回填）；增加用载荷给的单价，没给是 0
     # （原生单价格默认 0）。先进先出账套的批次另有规则，没实录，照旧按均价。
     chain = not count and not fifo
-    lot_heads = _lot_heads(account_dir, {match["stkcod"] for match in found}) if not count else {}
+    marked: set = set()  # 主档批次栏已标「-」的存货
+    lot_heads = _lot_heads(account_dir, {match["stkcod"] for match in found}, marked) if not count else {}
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
         for seq, (item, match) in enumerate(zip(items, found), start=1):
@@ -554,13 +561,17 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_entry_row(
                 docnum, seq, docdat, stkcod, str(item.get("name") or ""), float(trn),
                 float(_q2(unit_cost) if unit_cost else 0), val=float(value if kind == ISSUE else signed_value),
-                rem_bal=float(bal if chain else new_bal), rem_val=float(val if chain else new_val), posopr=line_posopr,
+                # 批次链结存：增加行记写前（原生；写前数量为负时记 0，11-18 实录 JU0000001），减少行记写后、不带批次指针（同 CC 写销售 IV 的
+                # 现行口径——11-18 实测：这样财务之后在 Express 存同日进货时，Express 会把这一行重算到新批价，而带「写前 + 指针」会被重算成 0）
+                rem_bal=float((max(bal, Decimal(0)) if signed > 0 else new_bal) if chain else new_bal),
+                rem_val=float((val if signed > 0 else new_val) if chain else new_val), posopr=line_posopr,
                 unit=unit, depcod=depcod, accnumdr=account if kind == ISSUE else "", accnumcr=account if kind != ISSUE else ""),
                 unit, stock_location.location_at(locations, seq - 1))
             if chain:
                 # 原生：明细的品名栏是单头备注（没写备注时原生写什么待实录，先照旧写品名），批次链指当前那一批、结存记写前；
                 # 增加的行成为新的一批（LOT*），NETVAL = 货值；减少的行 NETVAL 0；单价 0 的行 UNITPR / XUNITPR 空
-                row.update({"STKDES": remark or row["STKDES"], "MLOTNUM": lot_heads.get(stkcod, ""),
+                row.update({"STKDES": remark or row["STKDES"],
+                            "MLOTNUM": lot_heads.get(stkcod, "") if signed > 0 and kind != ISSUE else "",
                             "NETVAL": float(value) if signed > 0 and kind != ISSUE else 0.0})
                 if signed > 0 and kind != ISSUE:
                     row.update({"LOTBAL": float(qty), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})
@@ -587,9 +598,11 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 moves.append(stock_location.move(row, move_kind))
             master = {"LASUPD": docdat} if chain else {}
             head_lot = lot_heads.get(stkcod, "")
-            if chain and signed < 0 and new_bal < 0 and head_lot and not head_lot.startswith("-"):
-                # 原生：批次链结存变成负数时，主档当前批次栏首字符改成「-」（11-18 实录 OU0000002；10-26 RL 实录「B/F → -/F」）
-                lot_heads[stkcod] = master["MLOTNUM"] = "-" + head_lot[1:]
+            if chain and signed < 0 and new_bal < 0 and head_lot and stkcod not in marked:
+                # 原生：批次链结存变成负数时，主档当前批次栏首字符改成「-」（11-18 实录 OU0000002；10-26 RL 实录「B/F → -/F」）；
+                # 明细上的批次指针仍写原样（增加行指它）
+                master["MLOTNUM"] = "-" + head_lot[1:]
+                marked.add(stkcod)
             if chain and signed > 0 and kind != ISSUE:
                 lot_heads[stkcod] = master["MLOTNUM"] = \
                     f"{docdat:%Y%m%d}{S.STCRD_POSOPR_RECEIVE}{docnum:<12}{S.seqnum_text(seq)}"
