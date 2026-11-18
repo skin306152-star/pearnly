@@ -4,7 +4,8 @@
   看不到成本的人给的价不算，按当前均价；服务端自己生成的行（盘点估值）照存、不算人填；
 - 一张单一个仓库：行上的仓一律换成单头的；盘点生成的调整单里在别的仓找到的货保留自己的仓；
 - 单的种类：方向 adjust 与历史盘点 AD 单（ref_type = count）都归物料调整；列表权限按种类拼；
-- Express：物料调整单写 TK，按「存货 × 仓」轧差（仓位挪动净 0 不写），只带人填的单价；表单预检认 TK。
+- Express：人建的物料调整单写增减调整 JU（4-3-1，11-18 主会话定 D1），盘点生成的调整单与历史盘点写盘点调整 TK；都按「存货 × 仓」
+  轧差（仓位挪动净 0 不写）；TK 只带人填的单价，JU 带页面上的单价（原生调增要人填价）；表单预检同样分。
 """
 import pathlib
 import sys
@@ -160,8 +161,9 @@ class ExpressTk(unittest.TestCase):
             item["manual_cost"] = Decimal(manual)
         return item
 
-    def test_adjustments_are_written_as_tk(self):
-        self.assertEqual(stock_entry.kind({"direction": "adjust"}), stock_entry.COUNT)
+    def test_a_manual_adjustment_is_ju_and_a_count_adjustment_is_tk(self):
+        self.assertEqual(stock_entry.kind({"direction": "adjust"}), stock_entry.ADJUST)
+        self.assertEqual(stock_entry.kind({"direction": "adjust", "stock_count": "STC-1"}), stock_entry.COUNT)
         self.assertEqual(stock_entry.kind({"direction": "in", "ref_type": "count"}), stock_entry.COUNT)
         self.assertEqual(stock_entry.kind({"direction": "in"}), stock_entry.ADJUST)
 
@@ -187,10 +189,46 @@ class ExpressTk(unittest.TestCase):
         self.assertEqual([(row["qty"], row["loccod"], row.get("unit_cost")) for row in out],
                          [("-100", "L1", None), ("3", "L2", "9")])
 
-    def test_the_form_preflight_asks_about_tk(self):
+    def test_the_form_preflight_asks_about_the_same_book(self):
         with mock.patch.object(stock_entry.frappe.db, "get_value", lambda *a, **k: None, create=True):
-            body = stock_entry.form_body({"direction": "adjust", "posting_date": "2026-11-06", "lines": []})
-        self.assertEqual(body["doctype"], stock_entry.COUNT)
+            manual = stock_entry.form_body({"direction": "adjust", "posting_date": "2026-11-06", "lines": []})
+            counted = stock_entry.form_body({"direction": "adjust", "stock_count": "STC-1", "posting_date": "2026-11-06",
+                                             "lines": []})
+        self.assertEqual((manual["doctype"], counted["doctype"]), (stock_entry.ADJUST, stock_entry.COUNT))
+
+
+class IssueBook(unittest.TestCase):
+    """出库按用途选领用簿（D12）：内部领用 OU、报损 ZZ、样品 XS、生产领料 PD，其他 / 不填 OU；这份账套没有那一本 → 问一次（选项是
+    这份账套领用类的每一本），选过的那本还在就用它；CC 桌面版没报簿清单（旧版）时照默认前缀交给电脑。"""
+    LISTED = [{"prefix": "OU", "doctype": "OU", "name": "จ่ายสินค้าใช้ภายใน"}, {"prefix": "ZZ", "doctype": "OU", "name": "ตัดสินค้าชำรุด"},
+              {"prefix": "JU", "doctype": "JU", "name": "ปรับปรุงเพิ่ม/ลดสินค้า"}]
+
+    def book(self, purpose, listed=LISTED, chosen=""):
+        body = {"doctype": stock_entry.ISSUE, "purpose": purpose, "number": "IS2569-000001"}
+        data = {"facts": {"stock_book_list": listed}} if listed is not None else {"facts": {}}
+        with mock.patch.object(stock_entry.choices, "chosen", lambda *a: chosen):
+            return stock_entry._book(body, data, "CO-1")
+
+    def test_a_purpose_picks_its_book(self):
+        self.assertEqual(self.book("damage"), ("ZZ", None))
+        self.assertEqual(self.book("internal_use"), ("OU", None))
+        self.assertEqual(self.book(""), ("OU", None))
+        self.assertEqual(self.book("other"), ("OU", None))
+
+    def test_a_missing_book_is_asked_once_among_this_ledgers_issue_books(self):
+        prefix, asked = self.book("sample")
+        self.assertEqual(asked["kind"], stock_entry.STOCK_BOOK)
+        self.assertEqual(asked["subject"], "stock_book:sample")
+        self.assertEqual([row["code"] for row in asked["options"]], ["OU", "ZZ"])  # 只列领用类
+        self.assertEqual(self.book("sample", chosen="ZZ"), ("ZZ", None))
+        self.assertEqual(self.book("sample", chosen="XX")[1]["kind"], stock_entry.STOCK_BOOK)  # 选过的那本不在了：重新问
+
+    def test_an_old_cc_desktop_without_the_list_gets_the_default_prefix(self):
+        self.assertEqual(self.book("production", listed=None), ("PD", None))
+
+    def test_other_doctypes_keep_their_own_book(self):
+        with mock.patch.object(stock_entry.choices, "chosen", lambda *a: ""):
+            self.assertEqual(stock_entry._book({"doctype": stock_entry.ADJUST}, {}, "CO-1"), ("JU", None))
 
 
 if __name__ == "__main__":

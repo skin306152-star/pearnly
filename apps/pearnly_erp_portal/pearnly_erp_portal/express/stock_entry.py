@@ -38,6 +38,11 @@ PAYLOAD_VERSION = 6
 TRANSFER_PAYLOAD_VERSION = 14
 # 行上带 ``new_ok``（Express 里没有、人选了新建的商品）：CC 桌面版认得这一标记、会在库存单里建存货起的版本（规则同上）
 NEW_ITEM_PAYLOAD_VERSION = 15
+# 载荷带 ``book``（出库按用途写 OU 以外的簿：ZZ 报损 / XS 样品 / PD 生产领料）：CC 桌面版认得它起的版本（companion payload_contract 22）
+STOCK_BOOK_PAYLOAD_VERSION = 22
+STOCK_BOOK = "stock_book"  # 要人选的那一项：这份账套没有用途对应的那本领用簿，选这份账套里领用类的哪一本（按公司 + 用途记住）
+# 出库用途 → Express 领用类的簿（4-1-1 下的四本，11-18 实录：画面相同、科目随簿）；其他 / 不填是 OU
+PURPOSE_BOOKS = {"internal_use": "OU", "damage": "ZZ", "sample": "XS", "production": "PD"}
 ISSUE, ADJUST, COUNT, TRANSFER = "OU", "JU", "TK", "RL"
 COUNT_REF = "count"
 COUNT_DOCTYPE = "ERP Stock Count"
@@ -70,8 +75,12 @@ ADJUST_DIRECTION = "adjust"
 
 
 def kind(row) -> str:
-    if (row.get("ref_type") or "") == COUNT_REF or row.get("direction") == ADJUST_DIRECTION:
+    """单别：人建的物料调整 → 增减调整 JU（Express 4-3-1，11-18 主会话定 D1）；盘点生成的调整单与历史盘点 → 盘点调整 TK（原生
+    4-1-3-3「ปรับปรุงจากการตรวจนับ」）；出库 → OU 类；调拨 → RL；入库 → JU（入库口径待用户定，D2）。"""
+    if (row.get("ref_type") or "") == COUNT_REF or (row.get("direction") == ADJUST_DIRECTION and row.get("stock_count")):
         return COUNT
+    if row.get("direction") == ADJUST_DIRECTION:
+        return ADJUST
     if row.get("direction") == "transfer":
         return TRANSFER
     return ISSUE if row.get("direction") == "out" else ADJUST
@@ -185,8 +194,10 @@ def document(name, ref, base=False) -> dict:
             item["unit_cost"] = _plain(cost.quantize(contracts.d("0.0001")))
         if not base:
             item.update(remarks_of(units.get(index), product))
-        if adjust and qty > 0 and line.get("unit_cost_manual") and line.unit_cost not in (None, ""):
-            item["manual_cost"] = cost  # 人填的单价（每个库存单位），轧差时用
+        # 轧差时带的单价（每个库存单位）：盘点 TK 只带人亲手填 / 改过的（其余 CC 按批次取，原生不让填）；人建的调整写 JU，原生调增的
+        # 单价格要人填（不填是 0），页面上这一行显示的单价就是人认的价，照带
+        if adjust and qty > 0 and line.unit_cost not in (None, "") and (doctype == ADJUST or line.get("unit_cost_manual")):
+            item["manual_cost"] = cost
         lines.append(item)
     if doc.warehouse and doc.warehouse not in warehouses:
         warehouses[doc.warehouse] = frappe.db.get_value("ERP Warehouse", doc.warehouse, "express_code") or ""
@@ -199,6 +210,8 @@ def document(name, ref, base=False) -> dict:
     body = {"ref": ref, "direction": "stock", "doctype": doctype, "date": str(doc.posting_date),
             "number": doc.doc_no or doc.name, "remark": str(doc.reason or "").strip(),
             "loccod": warehouses.get(doc.warehouse, ""), "lines": lines}
+    if doctype == ISSUE:
+        body["purpose"] = str(doc.get("purpose") or "")
     if doctype == TRANSFER:
         body["to_loccod"] = warehouses.get(doc.to_warehouse, "")
     missing = contracts.unmapped(warehouses)
@@ -318,16 +331,19 @@ def prepare(body, company_row, ensure_masters) -> dict:
     if body["doctype"] == TRANSFER:
         result = _transfer_payload(body, book, data, items)
         return {**result, "payload": _with_group(result["payload"], company_row["name"], book)} if "payload" in result else result
-    subject = account_subject(body["doctype"])
+    prefix, asked = _book(body, data, company_row["name"])
+    if asked:
+        return _hold(book, [asked, *items])
+    subject = account_subject(prefix)
     account = choices.chosen(company_row["name"], ACCOUNT, subject)
-    if isinstance(stock_books, dict) and stock_books and body["doctype"] not in stock_books:
+    if isinstance(stock_books, dict) and stock_books and prefix not in stock_books:
         # 这份账套没有这个单别的单据簿（ISRUN）：选科目也写不进去，直接停下说明（1.12.3 起 CC 桌面版才区分得出）
         return {"hold": contracts.NO_STOCK_BOOK, "book": book}
     if not account and isinstance(stock_books, dict):
         postable = {str(row.get("code") or "").strip() for row in facts.reported(data).get("reported_accounts") or []}
-        default = str(stock_books.get(body["doctype"]) or "").strip()
+        default = str(stock_books.get(prefix) or "").strip()
         if not default or (postable and default not in postable):
-            return _hold(book, [{"kind": ACCOUNT, "subject": subject, "label": body["doctype"], "options": [], "current": ""},
+            return _hold(book, [{"kind": ACCOUNT, "subject": subject, "label": prefix, "options": [], "current": ""},
                                 *items])
     if items:
         return _hold(book, items)
@@ -344,9 +360,39 @@ def prepare(body, company_row, ensure_masters) -> dict:
         # 单据日期所在的会计期在 Express 里已关账：电脑不写、回 PERIOD_LOCKED（同采购 / 销售）
         "respect_period_lock": True,
     }
+    if prefix != body["doctype"]:
+        payload["book"] = prefix
+        payload["payload_version"] = max(payload["payload_version"], STOCK_BOOK_PAYLOAD_VERSION)
     if account:
         payload["account"] = account
     return {"payload": _with_group(payload, company_row["name"], book), "book": book}
+
+
+def book_subject(purpose) -> str:
+    return f"stock_book:{purpose or 'other'}"
+
+
+def _book(body, data, company) -> tuple:
+    """这张单写进哪一本簿（ISRUN 前缀）→ ``(前缀, 要人选的那一项或 None)``。只有出库按用途选（D12）：用途对应的那本这份账套里有就用；
+    没有就看这家公司为这个用途选过哪一本（记住的那本还在才算），都没有 → 问一次（选项是这份账套领用类的每一本）。CC 桌面版没报簿清单
+    （旧版）时照用途的默认前缀交给电脑（旧版收到 22 诚实拒收）。其余单别就是单别本身。"""
+    if body["doctype"] != ISSUE:
+        return body["doctype"], None
+    purpose = str(body.get("purpose") or "")
+    wanted = PURPOSE_BOOKS.get(purpose, ISSUE)
+    listed = (data.get("facts") or {}).get("stock_book_list") if isinstance(data, dict) else None
+    if not isinstance(listed, list):
+        return wanted, None
+    issue_books = [row for row in listed if isinstance(row, dict) and row.get("doctype") == ISSUE and row.get("prefix")]
+    prefixes = {row["prefix"] for row in issue_books}
+    subject = book_subject(purpose)
+    picked = choices.chosen(company, STOCK_BOOK, subject)
+    if wanted in prefixes:
+        return wanted, None
+    if picked in prefixes:
+        return picked, None
+    return wanted, {"kind": STOCK_BOOK, "subject": subject, "label": str(body.get("number") or ""), "current": "",
+                    "options": [{"code": row["prefix"], "name": str(row.get("name") or "")} for row in issue_books]}
 
 
 def _hold(book, needed) -> dict:
@@ -420,11 +466,12 @@ def form_body(payload) -> dict:
         row = frappe.db.get_value("ERP Product", product, ["product_name", "express_code"], as_dict=True) if product else None
         if row:
             lines.append({"code": row.express_code or "", "name": row.product_name or "", "product": product})
-    return {"ref": "preflight", "direction": "stock", "doctype": kind({"direction": direction}),
+    return {"ref": "preflight", "direction": "stock", "doctype": kind({"direction": direction, "stock_count": payload.get("stock_count")}),
             "date": str(payload.get("posting_date") or frappe.utils.nowdate()), "number": "-", "remark": "",
             "loccod": "", "lines": lines}
 
 
-__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "ITEM", "NEW_ITEM_PAYLOAD_VERSION", "TRANSFER",
+__all__ = ["ACCOUNT", "ADJUST", "COUNT", "COUNT_DOCTYPE", "DOCTYPE", "ISSUE", "ITEM", "NEW_ITEM_PAYLOAD_VERSION", "PURPOSE_BOOKS",
+           "STOCK_BOOK", "STOCK_BOOK_PAYLOAD_VERSION", "TRANSFER", "book_subject",
            "TRANSFER_PAYLOAD_VERSION", "VOID_REQUEST", "account_subject", "company_of", "count_document", "document", "eligible",
            "form_body", "item_subject", "kind", "prepare", "void_payload"]

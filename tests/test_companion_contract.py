@@ -921,6 +921,17 @@ class PosPayload(unittest.TestCase):
             self.assertTrue(quoted(path.read_text(encoding="utf-8"), "stock_books_checked"), path)
         self.assertIn('"RL"', (COMPANION / "worker.py").read_text(encoding="utf-8"))
 
+    def test_the_stock_book_version_and_keys_match(self):
+        """出库按用途选簿（11-18 D12）：ERP 带 `book` 时盖的版本就是 CC 认得 `book` 起的版本；簿清单 `stock_book_list` 两边同名。"""
+        erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"
+        version = _literal(erp / "stock_entry.py", "STOCK_BOOK_PAYLOAD_VERSION")
+        self.assertEqual(version, _literal(COMPANION / "payload_contract.py", "STOCK_BOOK_PAYLOAD_VERSION"))
+        self.assertIn(version, _literal(COMPANION / "payload_contract.py", "SUPPORTED_PAYLOAD_VERSIONS"))
+        for path in (erp / "stock_entry.py", COMPANION / "dbf_stock.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "book"), path)
+        for path in (erp / "stock_entry.py", COMPANION / "express_masters.py"):
+            self.assertTrue(quoted(path.read_text(encoding="utf-8"), "stock_book_list"), path)
+
     def test_the_new_item_version_and_key_match(self):
         """Express 里没有的商品（多仓闭环 P3x）：ERP 标 `new_ok` 时盖的版本 CC 认得，键两边同名，库存单与调拨都会建档。"""
         erp = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express"

@@ -145,6 +145,7 @@
 		party: {sales: "Customer", purchase: "Supplier"}, item: "Item", account: "express.kind.account",
 		department: "Department", payment: "Payment Method", vat: "express.kind.vat", account_set: "Account Set",
 		stock_group: "express.kind.stockGroup", receipt: "express.kind.receipt", vat_registered: "express.kind.vatRegistered",
+		stock_book: "trade.kind",  // 出库用途对应的领用簿这份账套没有：选这份账套里领用类的哪一本
 		refund: "express.kind.refundAccount", exempt_mode: "express.kind.exemptMode", service_vat: "express.kind.serviceVat",
 		// 账本是 MR.ERP 的单（`express.api._mrerp_view`）：导入菜单 / 默认值，选项说明是服务端译好的单据类型 / 字段
 		mrerp_menu: "mrerp.menu.title", mrerp_default: "mrerp.default.title",

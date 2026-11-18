@@ -135,7 +135,7 @@
 			warehouse: values.warehouse, location: values.location || "", purpose: values.purpose || "", reason: values.reason,
 			...(transfer ? { to_warehouse: values.to_warehouse, to_location: values.to_location || "" } : {}),
 			lines: p.trade.clean(values.lines) });
-		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "other"] };
+		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "sample", "production", "other"] };
 		// 这页的 `t` 只加载 `trade.` 前缀；用途的词条走原生 `__()`（键名词条同样认得）。
 		const purpose_options = () => (PURPOSES[direction] || []).map(value => ({ value,
 			label: __(`stock.purpose.${value}`) }));
