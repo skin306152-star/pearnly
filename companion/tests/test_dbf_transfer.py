@@ -182,3 +182,18 @@ def test_negative_stock_is_refused_at_the_source_when_the_book_forbids_it(rl_boo
 
 def test_this_companion_takes_the_transfer_payload_version():
     assert payload_contract.check_payload_version({"payload_version": 14}) is None
+
+
+def test_a_transfer_in_a_book_costed_by_warehouse_carries_the_value_and_makes_a_lot_in(rl_book):
+    """分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价（单头货值 = 合计），调入那一行成为调入仓的新一批
+    （11-18 先进先出、分仓计价测试账套实录）。不分仓计价的账套照旧不带金额（上一条）。"""
+    from account_rules_fixture import isinfo
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", LOC_COST="Y")
+    res = _write(rl_book, _transfer([_line("ICE01", 2)]))
+    assert res.ok, res.error
+    assert _rows(rl_book, "STTRN", DOCNUM=res.docnum)[0]["TRNVAL"] == 20.0
+    rows = {r["POSOPR"]: r for r in _rows(rl_book, "STCRD", DOCNUM=res.docnum)}
+    out, into = rows["4"], rows["3"]
+    assert (out["XUNITPR"], out["XTRNVAL"], out["NETVAL"], out["LOTBAL"]) == (10.0, 20.0, 0.0, 0.0)
+    assert (into["XTRNVAL"], into["NETVAL"], into["LOTBAL"], into["LOTVAL"], into["MREMBAL"]) == (20.0, 20.0, 2.0, 20.0, 2.0)
+    assert into["MLOTNUM"].rstrip() == f"202610303{res.docnum:<12}  1"

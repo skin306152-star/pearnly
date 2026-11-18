@@ -224,14 +224,21 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
     lines: List[Dict] = []
     moves: List[stock_location.Move] = []
     # 原生调拨两行都带批次指针（主档当前那一批，11-18 实录 RL0000004）；Express 之后重算批次链时把调拨算进链里
-    from .dbf_stock import _lot_heads
+    from .dbf_stock import _cost, _lot_heads
     heads = _lot_heads(account_dir, {match["stkcod"] for match in found if match})
+    # 分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价，调入那一行成为调入仓的新一批（11-18 先进先出、分仓计价测试账套
+    # 实录 RL2300610；不分仓计价的 70EXP 实录 RL0000004 两行都不带金额）
+    loc_cost = str((account_rules._first(account_dir, "ISINFO") or {}).get("LOC_COST") or "").strip().upper() == "Y"
+    total = Decimal(0)
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
         for seq, (item, match) in enumerate(zip(items, found), start=1):
             stkcod = match["stkcod"]
             units = stock_units.resolve(account_dir, stkcod, str(item.get("unit") or ""), _dec(item.get("qty")),
                                         item.get("factor"))
+            unit_cost = _cost(account_dir, match) if loc_cost else Decimal(0)
+            value = (abs(units.base_qty) * unit_cost).quantize(Decimal("0.01")) if loc_cost else Decimal(0)
+            total += value
             for posopr, here, other, sign in ((S.STCRD_POSOPR_TRANSFER_OUT, source, target, -1),
                                               (S.STCRD_POSOPR_TRANSFER_IN, target, source, 1)):
                 row = account_rules.localize_stcrd(account_dir, {
@@ -243,6 +250,16 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "MLOTNUM": heads.get(stkcod, ""),
                 }, units.unit, here)
                 stock_units.stamp(row, units)
+                if loc_cost:
+                    priced = {"UNITPR": float(unit_cost.quantize(Decimal("0.01"))), "TRNVAL": float(value),
+                              "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"))), "XTRNVAL": float(value),
+                              "NETVAL": float(value) if sign > 0 else 0.0}
+                    if sign > 0:  # 调入那一行成为新的一批（批号：日期 + 3 + 单号行号）
+                        priced.update({"MLOTNUM": f"{docdat:%Y%m%d}{S.STCRD_POSOPR_TRANSFER_IN}{docnum:<12}{S.seqnum_text(seq)}",
+                                       "MREMBAL": float(units.base_qty), "MREMVAL": float(value),
+                                       "LOTBAL": float(units.base_qty), "LOTVAL": float(value),
+                                       "LUNITPR": float(unit_cost.quantize(Decimal("0.01")))})
+                    row.update(priced)
                 S.append_stcrd(table, _filtered(table, row))
                 moves.append(stock_location.Move(stkcod, here, sign * units.base_qty, Decimal(0), docdat,
                                                  stock_location.KIND_TRANSFER))
@@ -253,7 +270,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
     try:
         S.append_native(head, _filtered(head, {
             "DOCNUM": docnum, "DOCDAT": docdat, "POSOPR": S.STCRD_POSOPR_TRANSFER_OUT, "PEOPLE": target, "REMARK": remark,
-            "LOCCOD": source, "TRNVAL": 0.0, "NXTSEQ": str(len(items)), "DOCSTAT": "N", "USERID": userid, "CHGDAT": today}))
+            "LOCCOD": source, "TRNVAL": float(total), "NXTSEQ": str(len(items)), "DOCSTAT": "N", "USERID": userid, "CHGDAT": today}))
     finally:
         head.close()
     return docnum, lines, moves
