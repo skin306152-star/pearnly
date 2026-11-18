@@ -871,6 +871,7 @@ Mark all as read,全部标为已读
 Mark as handled in Express,标记为已在 Express 手工处理
 Mark complete,标记完成
 Mark incomplete,标记未完成
+Material issue for production,生产领料
 Media Type,文件类型
 Member,成员
 Members,成员
@@ -1313,6 +1314,7 @@ Sales Records,销售记录
 Sales area,销售区域
 Sales returns account,销货退回科目
 Salesman,销售员
+Sample,样品
 Save,保存
 Save Draft,保存草稿
 Save and next,保存并下一项
@@ -2915,7 +2917,9 @@ stock.purpose.damage,报损
 stock.purpose.internal_use,内部领用
 stock.purpose.label,用途
 stock.purpose.other,其他
+stock.purpose.production,生产领料
 stock.purpose.return,退库
+stock.purpose.sample,样品
 stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常

@@ -871,6 +871,7 @@ Mark all as read,すべて既読にする
 Mark as handled in Express,Express で処理済みにする
 Mark complete,完了にする
 Mark incomplete,未完了に戻す
+Material issue for production,製造用払出
 Media Type,メディア種別
 Member,メンバー
 Members,メンバー
@@ -1313,6 +1314,7 @@ Sales Records,売上記録
 Sales area,販売地域
 Sales returns account,売上返品勘定
 Salesman,営業担当
+Sample,サンプル
 Save,保存
 Save Draft,下書きを保存
 Save and next,保存して次へ
@@ -2915,7 +2917,9 @@ stock.purpose.damage,破損・廃棄
 stock.purpose.internal_use,社内使用
 stock.purpose.label,用途
 stock.purpose.other,その他
+stock.purpose.production,製造用払出
 stock.purpose.return,戻り入庫
+stock.purpose.sample,サンプル
 stock.status.low,在庫少
 stock.status.lowWith,在庫少（≤{0}）
 stock.status.ok,在庫あり

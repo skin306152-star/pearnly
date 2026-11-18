@@ -871,6 +871,7 @@ Mark all as read,ทำเครื่องหมายว่าอ่านแ
 Mark as handled in Express,ทำเครื่องหมายว่าจัดการใน Express แล้ว
 Mark complete,ทำเครื่องหมายว่าเสร็จ
 Mark incomplete,ทำเครื่องหมายว่ายังไม่เสร็จ
+Material issue for production,เบิกวัตถุดิบเพื่อผลิต
 Media Type,ประเภทไฟล์
 Member,สมาชิก
 Members,สมาชิก
@@ -1313,6 +1314,7 @@ Sales Records,บันทึกการขาย
 Sales area,พื้นที่การขาย
 Sales returns account,บัญชีรับคืนสินค้า
 Salesman,พนักงานขาย
+Sample,เบิกเป็นตัวอย่าง
 Save,บันทึก
 Save Draft,บันทึกฉบับร่าง
 Save and next,บันทึกและรายการถัดไป
@@ -2915,7 +2917,9 @@ stock.purpose.damage,ตัดชำรุด / เสียหาย
 stock.purpose.internal_use,เบิกใช้ภายใน
 stock.purpose.label,วัตถุประสงค์
 stock.purpose.other,อื่น ๆ
+stock.purpose.production,เบิกวัตถุดิบเพื่อผลิต
 stock.purpose.return,รับคืนเข้าคลัง
+stock.purpose.sample,เบิกเป็นตัวอย่าง
 stock.status.low,สต็อกต่ำ
 stock.status.lowWith,สต็อกต่ำ (≤{0})
 stock.status.ok,มีสินค้า

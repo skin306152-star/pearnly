@@ -871,6 +871,7 @@ Mark all as read,Mark all as read
 Mark as handled in Express,Mark as handled in Express
 Mark complete,Mark complete
 Mark incomplete,Mark incomplete
+Material issue for production,Material issue for production
 Media Type,Media Type
 Member,Member
 Members,Members
@@ -1313,6 +1314,7 @@ Sales Records,Sales Records
 Sales area,Sales area
 Sales returns account,Sales returns account
 Salesman,Salesman
+Sample,Sample
 Save,Save
 Save Draft,Save Draft
 Save and next,Save and next
@@ -2915,7 +2917,9 @@ stock.purpose.damage,Damaged / written off
 stock.purpose.internal_use,Internal use
 stock.purpose.label,Purpose
 stock.purpose.other,Other
+stock.purpose.production,Material issue for production
 stock.purpose.return,Return to stock
+stock.purpose.sample,Sample
 stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock
