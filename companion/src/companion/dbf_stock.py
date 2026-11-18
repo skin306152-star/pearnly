@@ -239,6 +239,79 @@ def _chain_cost(qty: Decimal, bal: Decimal, val: Decimal, average: Decimal) -> T
     return (value / qty if value else Decimal(0)), value
 
 
+_RECEIPT_POSOPR = ("0", "1", ":", "3", "2")  # 进货、调增 / 完工收货、盘盈、调入、退货回仓：先进先出的批
+
+
+def _fifo_prices(account_dir, codes) -> Dict[str, List[Tuple[Decimal, Decimal]]]:
+    """先进先出账套各存货还有剩余的批 → ``[(剩余数量, 单价)]``（按日期由早到晚）：只读这件存货自己的库存卡，所有进来的批按日期排，
+    减去已经出去的总数（= 进来的合计 − 主档总结存），从最早仍有剩余的那一批起算。原生出库就取这一批的单价（11-18 先进先出测试账套
+    4 件物料实录，差在第 4 位小数）。"""
+    out: Dict[str, List[Tuple[Decimal, Decimal]]] = {}
+    if not codes:
+        return out
+    received: Dict[str, List[Tuple[Any, str, str, Decimal, Decimal]]] = {}
+    table = _open(account_dir, "STCRD", dbf.READ_ONLY)
+    try:
+        for rec in S.live_rows(table):
+            code = (rec.STKCOD or "").strip()
+            if code not in codes or (rec.POSOPR or "").strip() not in _RECEIPT_POSOPR:
+                continue
+            qty = _dec(rec.XTRNQTY)
+            if qty > 0 and rec.DOCDAT:
+                received.setdefault(code, []).append((rec.DOCDAT, (rec.DOCNUM or "").strip(), (rec.SEQNUM or "").strip(),
+                                                      qty, _dec(rec.XUNITPR)))
+    finally:
+        table.close()
+    totals = {}
+    master = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        for rec in S.live_rows(master):
+            code = (rec.STKCOD or "").strip()
+            if code in codes:
+                totals[code] = _dec(rec.TOTBAL)
+    finally:
+        master.close()
+    for code, rows in received.items():
+        rows.sort(key=lambda row: (row[0], row[1], row[2]))
+        used = sum((row[3] for row in rows), Decimal(0)) - totals.get(code, Decimal(0))
+        left = []
+        for _day, _doc, _seq, qty, price in rows:
+            if used >= qty:
+                used -= qty
+                continue
+            left.append((qty - max(used, Decimal(0)), price))
+            used = Decimal(0)
+        out[code] = left
+    return out
+
+
+def _fifo_cost(lots: List[Tuple[Decimal, Decimal]], qty: Decimal, average: Decimal) -> Tuple[Decimal, Decimal]:
+    """按最早仍有剩余的批依次摊 ``qty`` → (单价, 货值)；批不够的部分按均价 ``average``。"""
+    value, need = Decimal(0), qty
+    for remaining, price in lots:
+        if need <= 0:
+            break
+        take = min(remaining, need)
+        value += take * price
+        need -= take
+    if need > 0:
+        value += need * average
+    value = _q2(value)
+    return (value / qty if qty else Decimal(0)), value
+
+
+def _fifo_take(lots: List[Tuple[Decimal, Decimal]], qty: Decimal) -> List[Tuple[Decimal, Decimal]]:
+    """从最早的批起扣掉 ``qty``，回剩下的批。"""
+    out, need = [], qty
+    for remaining, price in lots:
+        if need >= remaining:
+            need -= remaining
+            continue
+        out.append((remaining - need, price))
+        need = Decimal(0)
+    return out
+
+
 def _lot_heads(account_dir, codes, marked=None) -> Dict[str, str]:
     """各存货主档上当前那一批（STMAS.MLOTNUM）：原生调整增加行的明细 MLOTNUM 指它。主档批次栏被标成负（首字符「-」）的，指针还原成原样
     （「-/F」原样是「B/F」，日期打头的是「2」，11-18 实录），并记进 ``marked``。"""
@@ -530,6 +603,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     # 不成批的增加行在财务原生存同日进货时被 Express 改值）；只有出库取价按成本法：平均成本账套按批次链，先进先出照旧按均价
     native = not count
     chain = native and not fifo
+    fifo_lots = _fifo_prices(account_dir, {m["stkcod"] for m in found if m}) if native and fifo else {}
     marked: set = set()  # 主档批次栏已标「-」的存货
     lot_heads = _lot_heads(account_dir, {match["stkcod"] for match in found}, marked) if not count else {}
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
@@ -553,7 +627,16 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             if chain:
                 unit_cost, chained = _chain_cost(abs(qty), bal, val, _cost(account_dir, now)) if signed < 0 \
                     else (max(given, Decimal(0)), None)
-            value = _q2(abs(qty) * unit_cost) if not chain or chained is None else chained
+            elif native and fifo:
+                # 先进先出账套：减少按最早仍有剩余的批取价（同一张单前面的行已经用掉的照样扣），增加用给的单价、没给是 0
+                if signed < 0:
+                    lots_left = fifo_lots.get(stkcod, [])
+                    unit_cost, chained = _fifo_cost(lots_left, abs(qty), _cost(account_dir, now))
+                    fifo_lots[stkcod] = _fifo_take(lots_left, abs(qty))
+                else:
+                    unit_cost, chained = max(given, Decimal(0)), None
+                    fifo_lots.setdefault(stkcod, []).append((abs(qty), unit_cost))
+            value = chained if (chain or (native and fifo)) and chained is not None else _q2(abs(qty) * unit_cost)
             signed_value = -value if signed < 0 else value
             new_bal, new_val = bal + signed, _q2(val + signed_value)
             balances[stkcod] = (new_bal, new_val)

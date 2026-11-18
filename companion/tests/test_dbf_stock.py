@@ -570,3 +570,21 @@ def test_an_increase_in_a_fifo_book_is_a_native_lot_too(book):
     res = _write(book, _entry("OU", [_line("ICE01", 1)]))
     assert res.ok, res.error
     assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == ""
+
+
+def test_an_issue_in_a_fifo_book_takes_the_earliest_lot_still_left(book):
+    """先进先出账套的领用按最早仍有剩余的批取价（11-18 先进先出测试账套 4 件物料实录，差在第 4 位小数）：进 3 @10、再进 4 @20，
+    主档总结存 5（已出 2）→ 最早那批剩 1；领 2 = 1 × 10 + 1 × 20 = 30。只读这件存货的库存卡，不改别的行。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    seed(book, "STCRD", [
+        {"STKCOD": "ICE01", "LOCCOD": "01", "DOCNUM": "RR0000001", "SEQNUM": "  1", "DOCDAT": dt.date(2026, 1, 5), "POSOPR": "0",
+         "XTRNQTY": 3.0, "XUNITPR": 10.0, "XTRNVAL": 30.0},
+        {"STKCOD": "ICE01", "LOCCOD": "01", "DOCNUM": "RR0000002", "SEQNUM": "  1", "DOCDAT": dt.date(2026, 2, 5), "POSOPR": "0",
+         "XTRNQTY": 4.0, "XUNITPR": 20.0, "XTRNVAL": 80.0}])
+    _set_master(book, TOTBAL=5.0, TOTVAL=90.0)
+    before = len(_rows(book, "STCRD"))
+    res = _write(book, _entry("OU", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["XTRNVAL"], line["XUNITPR"]) == (30.0, 15.0)
+    assert len(_rows(book, "STCRD")) == before + 1
