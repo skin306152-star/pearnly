@@ -390,8 +390,10 @@ def _book(body, data, company) -> tuple:
     listed = (data.get("facts") or {}).get("stock_book_list") if isinstance(data, dict) else None
     if not isinstance(listed, list):
         return wanted, None
+    # 入库的候选不列盘点调整 TK（那是盘点流程的簿，11-18 网页实录）
     issue_books = [row for row in listed
-                   if isinstance(row, dict) and row.get("doctype") == body["doctype"] and row.get("prefix")]
+                   if isinstance(row, dict) and row.get("doctype") == body["doctype"] and row.get("prefix")
+                   and not (body["doctype"] == ADJUST and row["prefix"] == COUNT)]
     prefixes = {row["prefix"] for row in issue_books}
     picked = choices.chosen(company, STOCK_BOOK, subject)
     if wanted in prefixes:

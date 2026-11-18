@@ -118,7 +118,7 @@
    "fieldname": "purpose",
    "fieldtype": "Select",
    "label": "Purpose",
-   "options": "\nreturn\ninternal_use\ndamage\nother"
+   "options": "\nreturn\ninternal_use\ndamage\nsample\nproduction\nother"
   },
   {
    "fieldname": "reason",
@@ -261,7 +261,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-06 12:00:00.000000",
+ "modified": "2026-11-18 14:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",

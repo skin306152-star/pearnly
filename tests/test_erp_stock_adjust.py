@@ -201,7 +201,8 @@ class IssueBook(unittest.TestCase):
     """出库按用途选领用簿（D12）：内部领用 OU、报损 ZZ、样品 XS、生产领料 PD，其他 / 不填 OU；这份账套没有那一本 → 问一次（选项是
     这份账套领用类的每一本），选过的那本还在就用它；CC 桌面版没报簿清单（旧版）时照默认前缀交给电脑。"""
     LISTED = [{"prefix": "OU", "doctype": "OU", "name": "จ่ายสินค้าใช้ภายใน"}, {"prefix": "ZZ", "doctype": "OU", "name": "ตัดสินค้าชำรุด"},
-              {"prefix": "JU", "doctype": "JU", "name": "ปรับปรุงเพิ่ม/ลดสินค้า"}]
+              {"prefix": "JU", "doctype": "JU", "name": "ปรับปรุงเพิ่ม/ลดสินค้า"},
+              {"prefix": "TK", "doctype": "JU", "name": "ปรับปรุงจากการตรวจนับ"}]
 
     def book(self, purpose, listed=LISTED, chosen=""):
         body = {"doctype": stock_entry.ISSUE, "purpose": purpose, "number": "IS2569-000001"}
@@ -237,6 +238,18 @@ class IssueBook(unittest.TestCase):
         self.assertEqual([row["code"] for row in asked["options"]], ["JU"])  # 只列调整类
         with mock.patch.object(stock_entry.choices, "chosen", lambda *a: "JU"):
             self.assertEqual(stock_entry._book(body, {"facts": {"stock_book_list": self.LISTED}}, "CO-1"), ("JU", None))
+
+    def test_every_purpose_the_page_offers_is_allowed_by_the_doctype(self):
+        """页面的用途选项都在单据类型 ERP Stock Entry 的 Select 选项里（11-18 网页实录：新加样品 / 生产领料时漏改单据类型，提交被拒）。"""
+        import json
+        meta = json.loads((ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/pearnly_erp_portal/doctype/erp_stock_entry/"
+                                  "erp_stock_entry.json").read_text(encoding="utf-8"))
+        options = set(next(f for f in meta["fields"] if f["fieldname"] == "purpose")["options"].split("\n"))
+        for values in documents.PURPOSES.values():
+            self.assertTrue(set(values) <= options, values)
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/stock-entry.js").read_text(encoding="utf-8")
+        for value in documents.PURPOSES["out"]:
+            self.assertIn(f'"{value}"', page)
 
     def test_other_doctypes_keep_their_own_book(self):
         with mock.patch.object(stock_entry.choices, "chosen", lambda *a: ""):
