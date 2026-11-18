@@ -557,3 +557,16 @@ def test_an_increase_after_the_chain_went_negative_points_at_the_lot_as_stored_a
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["POSOPR"], line["MLOTNUM"].rstrip(), line["MREMBAL"]) == ("1", "202603010RR0000001     1", 0.0)
     assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MLOTNUM"].rstrip() == f"202603201{res.docnum:<12}  1"
+
+
+def test_an_increase_in_a_fifo_book_is_a_native_lot_too(book):
+    """先进先出账套的调增也照原生写成批（POSOPR 1、LOT*）：11-18 在先进先出测试账套实测，不成批的增加行在财务原生存同日进货时
+    被 Express 改值（PI 200 → 166.60）。出库取价在先进先出账套照旧按均价。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
+    res = _write(book, _entry("JU", [_line("ICE01", 2, unit_cost="12")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["POSOPR"], line["LOTBAL"], line["LOTVAL"], line["NETVAL"]) == ("1", 2.0, 24.0, 24.0)
+    res = _write(book, _entry("OU", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == ""
