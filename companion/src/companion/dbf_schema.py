@@ -101,6 +101,10 @@ STCRD_DEFAULT_LOCCOD = "01"
 # 库存单（STTRN，出入库第一期 B 段）：领用 OU 类 6、调整 JU 类 8（数量可正可负，S 盘 10-25 样本）
 STCRD_POSOPR_ISSUE = "6"
 STCRD_POSOPR_ADJUST = "8"
+# 调整类（JU / PI）增加的那一行：Express 1.0.1.94 界面原生录入写 "1"，并成为新的一批（LOTBAL / LOTVAL / LUNITPR），减少的行仍是 "8"
+# （11-18 服务器测试账套实录 JU0000001 / PI0000001，docs/work/2026-11-18-stock-express-parity.md 2.4 D3）。10-25 S 盘真账样本里也有
+# 增加行写 "8" 的（来源未查清），以界面原生录入为准。
+STCRD_POSOPR_RECEIVE = "1"
 # 盘点调整 TK：Express 原生「ปรับปรุงยอดสินค้าตามที่ตรวจนับ」写 POSOPR ':'、FLAG 5（实录第 9 条 TK0000001）
 STCRD_POSOPR_COUNT = ":"
 STCRD_FLAG_COUNT = "5"

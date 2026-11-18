@@ -68,7 +68,7 @@ def _journal(acct, docnum):
 
 
 def test_version_21_is_supported_and_the_key_lists_are_fixed():
-    assert payload_contract.GUIDED_PAYLOAD_VERSION == 21 == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)
+    assert payload_contract.GUIDED_PAYLOAD_VERSION == 21 in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
     assert payload_contract.check_payload_version({"payload_version": 21}) is None
     assert payload_contract.GUIDED_KEYS == {
         "header": ("guided", "due_date_be", "cash_account"),

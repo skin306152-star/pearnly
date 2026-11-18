@@ -454,7 +454,7 @@ def test_the_assemblers_match_the_targets_the_heartbeat_reports():
     assert host_module.default_factory is host_module.express_factory
     assert payload_contract.MRERP_OPERATOR_PAYLOAD_VERSION in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
     assert payload_contract.MIXED_LINES_PAYLOAD_VERSION in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
-    assert payload_contract.GUIDED_PAYLOAD_VERSION == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)  # 11-12 起最高是引导录入 21
+    assert payload_contract.STOCK_BOOK_PAYLOAD_VERSION == max(payload_contract.SUPPORTED_PAYLOAD_VERSIONS)  # 11-18 起最高是库存单选簿 22
     assert K.target_of({}) == K.target_of({"operator": {"batch": {}}}) == "express"
     assert K.target_of(mrerp_payload()) == "mrerp"
 

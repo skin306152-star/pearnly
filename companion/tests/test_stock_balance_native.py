@@ -108,10 +108,11 @@ def test_a_cash_sale_leaves_the_customer_balance_alone(apart):
 
 
 def test_a_stock_issue_and_its_void_move_the_total(apart):
+    # 领用照原生按批次链取价（11-18 实录 D4）：批次链 3 / 60 → 每个 20，不是总结存的均价 10
     res = _write(apart, _entry("OU", [_line("ICE01", 2)]))
     assert res.ok, res.error
-    assert _rows(apart, "STCRD", DOCNUM=res.docnum)[0]["XUNITPR"] == 10.0
-    assert _master(apart) == {"TOTBAL": 43.0, "TOTVAL": 430.0, "MREMBAL": 1.0, "MREMVAL": 40.0, "UNITPR": 10.0}
+    assert _rows(apart, "STCRD", DOCNUM=res.docnum)[0]["XUNITPR"] == 20.0
+    assert _master(apart) == {"TOTBAL": 43.0, "TOTVAL": 410.0, "MREMBAL": 1.0, "MREMVAL": 20.0, "UNITPR": 9.5349}
     out = _void(apart, res.docnum, "OU", [{"seq": 1, "code": "ICE01", "loccod": "01", "qty": "2"}])
     assert out.ok, out.error
     assert _master(apart) == {"TOTBAL": 45.0, "TOTVAL": 450.0, "MREMBAL": 3.0, "MREMVAL": 60.0, "UNITPR": 10.0}

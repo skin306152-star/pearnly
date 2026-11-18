@@ -135,17 +135,22 @@ def _validate(payload: Dict[str, Any]) -> Optional[str]:
         qty = _dec(item.get("qty"))
         if qty == 0 or (doctype == ISSUE and qty < 0):
             return f"line {index} qty {item.get('qty')!r} is not valid for {doctype}"
+    book = str(payload.get("book") or "").strip().upper()
+    if book and (doctype == COUNT or not re.fullmatch(r"[A-Z0-9]{1,4}", book)):
+        return f"book {book!r} is not valid for {doctype}"
     return None
 
 
-def book_row(account_dir, doctype: str) -> Optional[Dict[str, str]]:
-    """ISRUN 里这个单别那一行（DOCTYP OU / JU、PREFIX = 单别）：``{prefix, jnltyp, account}``；没有或有几行不同 → None。"""
+def book_row(account_dir, doctype: str, prefix: str = "") -> Optional[Dict[str, str]]:
+    """ISRUN 里这个单别那一行（DOCTYP OU / JU、PREFIX = 簿前缀，没给就是单别本身）：``{prefix, jnltyp, account}``；没有或有几行不同
+    → None。出库按用途选簿（OU 自用 / ZZ 报损 / XS 样品 / PD 生产领料）、调增选 JU 或 PI，都是同一 DOCTYP 下的不同前缀（载荷 22 ``book``）。"""
+    prefix = prefix or doctype
     table = account_rules._open(account_dir, "ISRUN")
     if table is None:
         return None
     try:
         rows = [r for r in S.live_rows(table)
-                if account_rules._gv(r, "DOCTYP") == KINDS[doctype] and account_rules._gv(r, "PREFIX") == doctype]
+                if account_rules._gv(r, "DOCTYP") == KINDS[doctype] and account_rules._gv(r, "PREFIX") == prefix]
         field = "ACCNUM01" if KINDS[doctype] == ISSUE else "ACCNUM02"
         found = {(account_rules._gv(r, "JNLTYP"), account_rules._gv(r, field)) for r in rows}
     finally:
@@ -153,7 +158,7 @@ def book_row(account_dir, doctype: str) -> Optional[Dict[str, str]]:
     if len(found) != 1:
         return None
     jnltyp, account = found.pop()
-    return {"prefix": doctype, "jnltyp": jnltyp or GENERAL_JOURNAL, "account": account}
+    return {"prefix": prefix, "jnltyp": jnltyp or GENERAL_JOURNAL, "account": account}
 
 
 def _perpetual(account_dir) -> bool:
@@ -173,6 +178,34 @@ def _next_docnum(table, prefix: str, docdate_be: str) -> str:
             except ValueError:
                 continue
     return f"{head}{seq + 1:03d}"
+
+
+def _chain_cost(qty: Decimal, bal: Decimal, val: Decimal) -> Tuple[Decimal, Decimal]:
+    """减少库存的一行照原生批次链取价 → (单价, 货值)：批次结存为正时单价 = 结存金额 / 结存数量，出的比结存多只摊现有金额
+    （10-25 实录 4.2：3 个 180 出 5 个，XTRNVAL 180、XUNITPR 36）；结存 ≤ 0 → 0（11-18 实录：按 0 出，不写凭证）。"""
+    if bal <= 0 or qty <= 0:
+        return Decimal(0), Decimal(0)
+    if qty >= bal:
+        value = _q2(max(val, Decimal(0)))
+    else:
+        value = _q2(qty * val / bal)
+    return value / qty, value
+
+
+def _lot_heads(account_dir, codes) -> Dict[str, str]:
+    """各存货主档上当前那一批（STMAS.MLOTNUM）：原生领用 / 调整的明细 MLOTNUM 指它。"""
+    out: Dict[str, str] = {}
+    if not codes:
+        return out
+    table = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        for rec in S.live_rows(table):
+            code = (rec.STKCOD or "").strip()
+            if code in codes and "MLOTNUM" in table.field_names:
+                out[code] = (rec.MLOTNUM or "").rstrip()
+    finally:
+        table.close()
+    return out
 
 
 def _fifo(account_dir) -> bool:
@@ -295,9 +328,10 @@ def write_stock_entry(
     if payload.get("respect_period_lock") and fiscal_period.locked(account_dir, docdat):
         return DbfWriteResult(False, error_code=fiscal_period.ERR_PERIOD_LOCKED,
                               error=f"accounting period of {docdat} is locked in Express")
-    book = book_row(account_dir, doctype)
+    book = book_row(account_dir, doctype, str(payload.get("book") or "").strip().upper())
     if book is None:
-        return DbfWriteResult(False, error_code=ERR_BOOK, error=f"no single {doctype} book (DOCTYP {kind}) in ISRUN")
+        return DbfWriteResult(False, error_code=ERR_BOOK,
+                              error=f"no single {payload.get('book') or doctype} book (DOCTYP {kind}) in ISRUN")
     account = str(payload.get("account") or "").strip() or book["account"]
     if not account_rules.postable_account(account_dir, account):
         return DbfWriteResult(False, error_code=ERR_ACCOUNT,
@@ -337,7 +371,7 @@ def write_stock_entry(
         docnum, lines, total, inventory = _write(account_dir, doctype, kind, docdate_be, docdat, account, remark,
                                                  items, found, locations, moves, depcod=depcod, userid=userid,
                                                  ref_no=str(payload.get("ref_no") or ""), today=today,
-                                                 header_loc=str(payload.get("loccod") or "").strip())
+                                                 header_loc=str(payload.get("loccod") or "").strip(), prefix=book["prefix"])
         posted = _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, depcod=depcod,
                        userid=userid, today=today, doctype=doctype,
                        jnltyp=book["jnltyp"] if doctype == COUNT else "")  # 领用 / 调整照旧 00（已验收），盘点照原生取 ISRUN 的
@@ -404,14 +438,14 @@ def create_new_items(account_dir, items, found, *, userid, acccod="") -> None:
 
 
 def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, items, found, locations, moves, *,
-           depcod, userid, ref_no, today, header_loc) -> Tuple[str, List[Dict], Decimal, Dict[str, Decimal]]:
+           depcod, userid, ref_no, today, header_loc, prefix="") -> Tuple[str, List[Dict], Decimal, Dict[str, Decimal]]:
     """单头 + 明细 + 主档结存 → (单号, 逐行结果, 货值合计（调整带正负号）, 各存货科目的货值（调整带正负号）)。"""
     count = doctype == COUNT
     posopr = S.STCRD_POSOPR_ISSUE if kind == ISSUE else S.STCRD_POSOPR_COUNT if count else S.STCRD_POSOPR_ADJUST
     move_kind = stock_location.KIND_ISSUE if kind == ISSUE else stock_location.KIND_ADJUST
     head = _open(account_dir, "STTRN", dbf.READ_WRITE)
     try:
-        docnum = _next_docnum(head, doctype, docdate_be)
+        docnum = _next_docnum(head, prefix or doctype, docdate_be)
     finally:
         head.close()
     total = Decimal(0)
@@ -430,7 +464,12 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     lots = _lots(account_dir, gains, docdat) if count else {}
     has_stloc = stock_location._file(account_dir, stock_location.TABLE) is not None
     located = _location_states(account_dir, set(places)) if count else {}
-    fifo = count and _fifo(account_dir)
+    fifo = _fifo(account_dir)
+    # 领用 / 调整（不含盘点 TK）照原生批次链（11-18 实录 D4，平均成本账套）：减少按批次链结存 MREMVAL / MREMBAL 取价，超过批次结存只摊现有
+    # 金额，批次结存 ≤ 0 按 0 成本出、不过账（之后 Express 存单或跑「คำนวณยอดสะสม/คงเหลือ/ลงบัญชี」时它自己回填）；增加用载荷给的单价，没给是 0
+    # （原生单价格默认 0）。先进先出账套的批次另有规则，没实录，照旧按均价。
+    chain = not count and not fifo
+    lot_heads = _lot_heads(account_dir, {match["stkcod"] for match in found}) if not count else {}
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
         for seq, (item, match) in enumerate(zip(items, found), start=1):
@@ -449,23 +488,35 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             lot = lots.get(place) if count and signed > 0 else None
             if count and signed > 0 and given <= 0:
                 unit_cost = lot[0] if lot else Decimal(0) if fifo else _cost(account_dir, now)
-            value = _q2(abs(qty) * unit_cost)
+            if chain:
+                unit_cost, chained = _chain_cost(abs(qty), bal, val) if signed < 0 else (max(given, Decimal(0)), None)
+            value = _q2(abs(qty) * unit_cost) if not chain or chained is None else chained
             signed_value = -value if signed < 0 else value
             new_bal, new_val = bal + signed, _q2(val + signed_value)
             balances[stkcod] = (new_bal, new_val)
             totals[stkcod] = (tot_bal + signed, _q2(tot_val + signed_value))
             unit = units.unit
             trn = units.qty if kind == ISSUE else (units.qty if signed >= 0 else -abs(units.qty))
+            line_posopr = S.STCRD_POSOPR_RECEIVE if chain and signed > 0 and kind != ISSUE else posopr
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_entry_row(
                 docnum, seq, docdat, stkcod, str(item.get("name") or ""), float(trn),
                 float(_q2(unit_cost) if unit_cost else 0), val=float(value if kind == ISSUE else signed_value),
-                rem_bal=float(new_bal), rem_val=float(new_val), posopr=posopr, unit=unit, depcod=depcod,
-                accnumdr=account if kind == ISSUE else "", accnumcr=account if kind != ISSUE else ""),
+                rem_bal=float(bal if chain else new_bal), rem_val=float(val if chain else new_val), posopr=line_posopr,
+                unit=unit, depcod=depcod, accnumdr=account if kind == ISSUE else "", accnumcr=account if kind != ISSUE else ""),
                 unit, stock_location.location_at(locations, seq - 1))
+            if chain:
+                # 原生：明细的品名栏是单头备注（没写备注时原生写什么待实录，先照旧写品名），批次链指当前那一批、结存记写前；
+                # 增加的行成为新的一批（LOT*），NETVAL = 货值；减少的行 NETVAL 0；单价 0 的行 UNITPR / XUNITPR 空
+                row.update({"STKDES": remark or row["STKDES"], "MLOTNUM": lot_heads.get(stkcod, ""),
+                            "NETVAL": float(value) if signed > 0 and kind != ISSUE else 0.0})
+                if signed > 0 and kind != ISSUE:
+                    row.update({"LOTBAL": float(qty), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})
             stock_units.stamp(row, units if kind != ISSUE else stock_units.Units(units.unit, units.factor, units.qty,
                                                                                   abs(units.base_qty)))
             if units.factor != 1:
                 row["UNITPR"] = float(_q2(unit_cost * units.factor))  # 交易单位（每包）的单价，同 Express 原生
+            if chain:
+                row["XUNITPR"] = float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP))  # 原生库存单位单价 4 位小数
             if count:
                 place_qty, place_val = located.get(place, (Decimal(0), Decimal(0)))
                 located[place] = (place_qty + signed, place_val + signed_value)
@@ -481,7 +532,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             S.append_stcrd(table, _filtered(table, row))
             if moves is not None:
                 moves.append(stock_location.move(row, move_kind))
-            master = {}
+            master = {"LASUPD": docdat} if chain else {}
+            if chain and signed > 0 and kind != ISSUE:
+                lot_heads[stkcod] = master["MLOTNUM"] = \
+                    f"{docdat:%Y%m%d}{S.STCRD_POSOPR_RECEIVE}{docnum:<12}{S.seqnum_text(seq)}"
             if count:
                 # 原生盘点：主档的最后变动日记这一天，盘盈那一行成了这件品最新的一批（MLOTNUM = 日期 + ':' + 单号行号）
                 master["LASUPD"] = docdat
@@ -502,6 +556,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             "DOCNUM": docnum, "DOCDAT": docdat, "POSOPR": posopr, "REMARK": remark,
             # 盘点调整 TK 原生单头：货值 0、没有参考号与对方科目（实录第 9 条 TK0000001）
             "LOCCOD": header_loc or main, "TRNVAL": 0.0 if count else float(header_value),
+            # REFNUM：原生这几张单界面上没有参考号栏、留空；我们写 ERP 单号，是与原生唯一有意保留的不同（主会话 11-18 认可）
             "REFNUM": "" if count else _fit(ref_no, 15), "NXTSEQ": str(len(items)), "ACCNUMDR": account if kind == ISSUE else "",
             "ACCNUMCR": account if kind != ISSUE and not count else "", "DEPCOD": depcod, "POSTGL": "", "DOCSTAT": "N",
             "USERID": userid, "CHGDAT": today}))
@@ -529,13 +584,18 @@ def _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, 
     departmental = _department_accounts(account_dir)
     journal = _open(account_dir, "GLJNL", dbf.READ_WRITE)
     try:
+        # 领用 / 调整的分录照原生带修改日期与时分（11-18 实录 D10）；盘点 TK 照旧。凭证头建档人仍是 PEARNLY：它是「CC 写的单」的
+        # 机器标记（writer_id.cc_vouchers 据此不把 CC 的单当成人的历史），原生是录单的 Express 用户——有意保留的不同
+        native = doctype != COUNT
         journal.append(_filtered(journal, {"JNLTYP": jnltyp or GENERAL_JOURNAL, "VOUDAT": docdat, "VOUCHER": docnum,
                                            "DESCRP": descrp, "TRNSTAT": "P", "DOCSTAT": "N", "CREBY": S.PEARNLY_USERID,
                                            "CREDAT": today, "USERID": userid, "CHGDAT": today}))
     finally:
         journal.close()
     entries = _open(account_dir, "GLJNLIT", dbf.READ_WRITE)
-    written = [_gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod, departmental) for side, acc, amount in rows]
+    stamp = {"CHGDAT": today, "CHGTIM": _dt.datetime.now().strftime("%H%M")} if native else {}
+    written = [{**_gl_line(docnum, SEQIT, docdat, acc, descrp, side, _q2(amount), depcod, departmental), **stamp}
+               for side, acc, amount in rows]
     try:
         for line in written:
             S.append_native(entries, _filtered(entries, line))

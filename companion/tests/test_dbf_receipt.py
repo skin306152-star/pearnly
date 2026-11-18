@@ -524,7 +524,7 @@ def test_bad_payloads_write_nothing(acct, over):
 def test_payload_20_is_supported_and_newer_is_refused():
     assert payload_contract.RECEIPT_PAYLOAD_VERSION == 20 and 20 in payload_contract.SUPPORTED_PAYLOAD_VERSIONS
     assert payload_contract.check_payload_version({"payload_version": 20}) is None
-    assert payload_contract.check_payload_version({"payload_version": 22}) == payload_contract.ERR_PAYLOAD_VERSION
+    assert payload_contract.check_payload_version({"payload_version": 23}) == payload_contract.ERR_PAYLOAD_VERSION
 
 
 # ── worker 分流与回执 ──

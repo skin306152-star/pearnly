@@ -57,13 +57,16 @@ from typing import Optional
 # ``due_date_be`` / ``cash_account``、明细行 ``unit_code`` / ``acccod`` / ``stkgrp`` / ``cost_choice`` / ``cost`` / ``negallow``、
 # 对方块 ``type`` / ``payterm``。旧版不认这些键（到期日照对方档、现销一律借现金、新物料取众数），所以带了任一新键的载荷盖 21，
 # 旧版诚实拒收；版本 ≤ 20 的载荷不读这些键，与以前逐字节相同。
-SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21})
+# 22：库存单选簿（docs/work/2026-11-18-stock-express-parity-评估.md 4.4 / 4.5；``book``）：出库按用途写 OU / ZZ / XS / PD 哪一簿、调增写 JU 或 PI，
+# 都是同一 DOCTYP 下的另一前缀。旧版不认 ``book``（会照单别写进 OU / JU），所以带了它的载荷盖 22，旧版诚实拒收。
+SUPPORTED_PAYLOAD_VERSIONS = frozenset({1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22})
 OPERATOR_PAYLOAD_VERSION = 16
 REMARKS_PAYLOAD_VERSION = 17
 MRERP_OPERATOR_PAYLOAD_VERSION = 18
 MIXED_LINES_PAYLOAD_VERSION = 19
 RECEIPT_PAYLOAD_VERSION = 20
 GUIDED_PAYLOAD_VERSION = 21
+STOCK_BOOK_PAYLOAD_VERSION = 22
 # 载荷 21 的新键名单（与服务端 ``express_rules.push.common.GUIDED_KEYS`` 逐个相同，tests/test_companion_contract.py 守着）
 GUIDED_KEYS = {
     "header": ("guided", "due_date_be", "cash_account"),

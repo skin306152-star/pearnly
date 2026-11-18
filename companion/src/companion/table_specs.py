@@ -47,11 +47,11 @@ TABLE_SPECS = {
     ),
     "GLJNL": (
         "JNLTYP C(2); VOUDAT D; VOUCHER C(12); DESCRP C(50); TRNSTAT C(1); "
-        "DOCSTAT C(1); CREBY C(8)"
+        "DOCSTAT C(1); CREBY C(8); CREDAT D; USERID C(8); CHGDAT D"
     ),
     "GLJNLIT": (
         "VOUCHER C(12); SEQIT C(2); VOUDAT D; ACCNUM C(15); DESCRP C(50); "
-        "TRNTYP C(1); AMOUNT N(13,2); DEPCOD C(4)"
+        "TRNTYP C(1); AMOUNT N(13,2); DEPCOD C(4); CHGDAT D; CHGTIM C(4)"
     ),
     # 真表 122 列,按单别分桶:HP 现购 / RR 赊购 / CP 付款 / GR 退货 / PS 折让。写错组=月报
     # 错位(BANKREC 真账反证:Express 原生 HP 单精确落 HP 桶、RR 桶为 0)。
@@ -147,7 +147,9 @@ TABLE_SPECS = {
         "NEGALLOW C(1); ISINV C(1); ISSAL C(1); ISPUR C(1); STNPR B; "
         "TOTBAL B; TOTVAL B; OPNBAL B; OPNVAL B; MREMBAL B; MREMVAL B; USERID C(8); "
         # UNITPR：Express 维护的移动均价 = TOTVAL / TOTBAL（S 盘 94%，11-07）
-        "UNITPR B; CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1)"
+        "UNITPR B; CREBY C(8); CREDAT D; CHGDAT D; STATUS C(1); "
+        # LASUPD 最后变动日、MLOTNUM 当前那一批（库存单照原生改，11-18 实录 D4 / D8）
+        "LASUPD D; MLOTNUM C(24)"
     ),
     # 科目映射(ACCCOD→点号账码)。ensure_item 按目标科目反查/新建 ACCCOD 用。列宽照真表 C(50)。
     "ISACC": (

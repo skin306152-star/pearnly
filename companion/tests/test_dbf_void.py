@@ -145,3 +145,33 @@ def test_voiding_an_increase_that_would_go_negative_is_held_like_a_sale(book):
     assert worker._outcome_for(held.error_code) == "needs_review"
     isinfo(book, MAINLOC="01", NEGALLOW="Y")  # 账套允许负库存：照作废
     assert _void(book, res.docnum, "JU", [{"code": "ICE01", "loccod": "01", "qty": "4"}]).ok
+
+
+def test_a_stock_entry_whose_cost_express_later_recalculated_still_voids(book):
+    """库存单的作废核对放开「成本与凭证金额」两项（主会话 11-18 审定）：领用照原生按批次链出，批次链为负时按 0 出、不过账，之后有人在
+    Express 存单或跑「คำนวณยอดสะสม/คงเหลือ/ลงบัญชี」，Express 会回填这一行的成本并改凭证金额（11-18 实录）——那不是人改了单。
+    单据身份（单号、单头单别）、物料、数量、仓照旧核，对不上仍转人工（见上一条）。"""
+    res = _write(book, _entry("OU", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    table = dbf.Table(str(book / "STCRD.DBF"), codepage=S.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for row in table:
+            if str(row["DOCNUM"]).strip() == res.docnum:
+                with row as rec:  # Express 回填的成本
+                    rec["XUNITPR"], rec["XTRNVAL"], rec["UNITPR"], rec["TRNVAL"] = 11.5, 23.0, 11.5, 23.0
+    finally:
+        table.close()
+    journal = dbf.Table(str(book / "GLJNLIT.DBF"), codepage=S.CODEPAGE)
+    journal.open(dbf.READ_WRITE)
+    try:
+        for row in journal:
+            if str(row["VOUCHER"]).strip() == res.docnum:
+                with row as rec:
+                    rec["AMOUNT"] = 23.0
+    finally:
+        journal.close()
+    out = _void(book, res.docnum, "OU", [{"seq": 1, "code": "ICE01", "loccod": "01", "qty": "2"}])
+    assert out.ok, out.error
+    assert _rows(book, "STTRN", DOCNUM=res.docnum)[0]["DOCSTAT"] == "C"
+    assert [row["AMOUNT"] for row in _rows(book, "GLJNLIT", VOUCHER=res.docnum)] == [None, None]
