@@ -30,7 +30,8 @@ import traceback
 from decimal import Decimal
 from pathlib import Path
 
-WRITE_SET = {"STTRN", "STCRD", "STMAS", "STLOC", "GLJNL", "GLJNLIT", "ISRUN"}
+# GLBAL：有凭证时科目余额对应格标待重算（glbal_mark，照 Express 原生，11-12）
+WRITE_SET = {"STTRN", "STCRD", "STMAS", "STLOC", "GLJNL", "GLJNLIT", "ISRUN", "GLBAL"}
 
 
 def main(argv=None) -> int:
@@ -178,7 +179,7 @@ def latest_receipt(acct, code, day=None):
     return found
 
 
-def count_gain(acct, docnum, lot):
+def count_gain(acct, docnum, lot, given=None):
     """盘盈 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；单价取最近一次进货那一批的成本并挂上（RDOCNUM / MLOTNUM），
     挂不上的先进先出账套记 0。不符回原因。"""
     line = [r for r in rows(acct, "STCRD", ("DOCNUM", "POSOPR", "FLAG", "XUNITPR", "RDOCNUM", "MLOTNUM", "PHYBAL"))
@@ -191,6 +192,8 @@ def count_gain(acct, docnum, lot):
     fifo = text((account_rules._first(acct, "ISINFO") or {}).get("COSMTD")).upper() == "F"
     cost = Decimal(repr(float(line["XUNITPR"] or 0))).quantize(Decimal("0.01"))
     want = lot[0].quantize(Decimal("0.01")) if lot else Decimal("0.00") if fifo else None  # 平均成本账套挂不上批次：商品均价（待核）
+    if given is not None:
+        want = Decimal(given).quantize(Decimal("0.01"))  # 载荷带了人填 / 改过的单价就用它（主会话 11-10 定第 5 点）
     if want is not None and cost != want:
         return f"TK {docnum}: unit cost {cost} != lot {lot}"
     # Express 拼 RDOCNUM 是「单号 C(12) + 行号原样 C(3)」（存量 CC 单的行号左对齐）
@@ -250,7 +253,7 @@ def check(acct: Path) -> dict:
     if has_stloc and before_balanced and not balanced(acct, [code])[code]:
         return {"state": "fail", "why": f"STMAS != sum(STLOC) for {code} after writing"}
     # 作废（载荷 8，dbf_void）：倒着逐张作废，单头标 C、明细不在、结存回到写前
-    gain = count_gain(acct, written[-1], lot)
+    gain = count_gain(acct, written[-1], lot, given=steps[-1][2].get("unit_cost"))
     if gain:
         return {"state": "fail", "why": gain}
     detail = native_check.problems(dbf, S, acct, written)  # 明细照原生记法：行号右对齐、单位与倍数（10-26）
