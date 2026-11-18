@@ -56,7 +56,7 @@ def test_a_transfer_writes_a_native_rl_header_and_one_pair_of_lines_per_item(rl_
     master_before = _rows(rl_book, "STMAS", STKCOD="ICE01")[0]
     res = _write(rl_book, _transfer([_line("ICE01", 2)], remark="ย้ายไปสาขา"))
     assert res.ok, res.error
-    assert res.docnum == "RL691030-001"
+    assert res.docnum == "RL0000001"  # Express 原生流水号（用户 11-18 定 D5）
     head = _rows(rl_book, "STTRN", DOCNUM=res.docnum)
     assert len(head) == 1
     head = head[0]

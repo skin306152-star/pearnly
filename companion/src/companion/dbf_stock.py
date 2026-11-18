@@ -166,6 +166,49 @@ def _perpetual(account_dir) -> bool:
     return str(info.get("ISPERPETUA") or "Y").strip().upper() != "N"
 
 
+def native_docnum(account_dir, doctyp: str, prefix: str) -> Tuple[str, str]:
+    """(本张单号, 写完后 ISRUN.DOCNUM 该记的下一个号)：照 Express 原生流水号（用户 11-18 定 D5）= 簿前缀 + ISRUN 这一簿的 DOCNUM
+    （OU0000002；有的账套带年份段，如 2400001，照原样往后数）。账套里已有这个号（含软删行、作废单，号用过就是用过）就往后跳。
+    同一任务重试不会取第二个号：worker 按任务号记了写过的回执（task_journal），写过的照上次的单号回报、不再写。"""
+    table = account_rules._open(account_dir, "ISRUN")
+    if table is None:
+        raise _WriteError(f"no ISRUN for {prefix}", ERR_BOOK)
+    try:
+        current = {account_rules._gv(r, "DOCNUM") for r in S.live_rows(table)
+                   if account_rules._gv(r, "DOCTYP") == doctyp and account_rules._gv(r, "PREFIX") == prefix}
+    finally:
+        table.close()
+    current = current.pop() if len(current) == 1 else ""
+    if not current.isdigit():
+        raise _WriteError(f"ISRUN {doctyp}/{prefix} has no usable running number {current!r}", ERR_BOOK)
+    head = _open(account_dir, "STTRN", dbf.READ_ONLY)
+    try:
+        used = {(r.DOCNUM or "").strip() for r in head}
+    finally:
+        head.close()
+    width, number = len(current), int(current)
+    for _ in range(10000):
+        docnum = f"{prefix}{str(number).zfill(width)}"
+        if len(docnum) > 12:
+            break
+        if docnum not in used:
+            return docnum, str(number + 1).zfill(width)
+        number += 1
+    raise _WriteError(f"no free {prefix} number after {prefix}{current}", ERR_BOOK)
+
+
+def set_running(account_dir, doctyp: str, prefix: str, following: str) -> None:
+    """ISRUN 这一簿的 DOCNUM 记成下一个号（原生存单后就是这样）。"""
+    table = _open(account_dir, "ISRUN", dbf.READ_WRITE)
+    try:
+        for rec in S.live_rows(table):
+            if account_rules._gv(rec, "DOCTYP") == doctyp and account_rules._gv(rec, "PREFIX") == prefix:
+                with rec as fields:
+                    fields["DOCNUM"] = following
+    finally:
+        table.close()
+
+
 def _next_docnum(table, prefix: str, docdate_be: str) -> str:
     """单别 + 佛历年月日 + '-' + 当日序号（3 位）；连软删行一起数（删掉的号在会计手上仍是用过的号）。"""
     head = f"{prefix}{docdate_be}-"
@@ -180,16 +223,20 @@ def _next_docnum(table, prefix: str, docdate_be: str) -> str:
     return f"{head}{seq + 1:03d}"
 
 
-def _chain_cost(qty: Decimal, bal: Decimal, val: Decimal) -> Tuple[Decimal, Decimal]:
-    """减少库存的一行照原生批次链取价 → (单价, 货值)：批次结存为正时单价 = 结存金额 / 结存数量，出的比结存多只摊现有金额
-    （10-25 实录 4.2：3 个 180 出 5 个，XTRNVAL 180、XUNITPR 36）；结存 ≤ 0 → 0（11-18 实录：按 0 出，不写凭证）。"""
-    if bal <= 0 or qty <= 0:
+def _chain_cost(qty: Decimal, bal: Decimal, val: Decimal, average: Decimal) -> Tuple[Decimal, Decimal]:
+    """减少库存的一行取价 → (单价, 货值)，主会话 11-18 定 D4 方案 A（混合）：批次链结存为正时按批次链（单价 = 结存金额 / 结存数量，
+    与原生逐栏一致）；出的比批次结存多，多出的部分、以及批次结存 ≤ 0 时整行，按主档均价 ``average`` 出、照常过账。
+    原生在批次结存 ≤ 0 时按 0 出、不过账，之后在 Express 界面存同日单时回头重算；CC 不复刻那次重算（不改别的单），
+    差异见 docs/work/2026-11-18-stock-express-parity.md「已知差异」。"""
+    if qty <= 0:
         return Decimal(0), Decimal(0)
-    if qty >= bal:
-        value = _q2(max(val, Decimal(0)))
+    if bal <= 0:
+        value = _q2(qty * average)
+    elif qty > bal:
+        value = _q2(max(val, Decimal(0)) + (qty - bal) * average)
     else:
         value = _q2(qty * val / bal)
-    return value / qty, value
+    return (value / qty if value else Decimal(0)), value
 
 
 def _lot_heads(account_dir, codes) -> Dict[str, str]:
@@ -367,15 +414,17 @@ def write_stock_entry(
     moves = [] if locations is not None else None
     try:
         today = today or _dt.date.today()
+        docnum, following = native_docnum(account_dir, kind, book["prefix"])
         create_new_items(account_dir, items, found, userid=userid, acccod=str(payload.get("stock_acccod") or "").strip())
         docnum, lines, total, inventory = _write(account_dir, doctype, kind, docdate_be, docdat, account, remark,
                                                  items, found, locations, moves, depcod=depcod, userid=userid,
                                                  ref_no=str(payload.get("ref_no") or ""), today=today,
-                                                 header_loc=str(payload.get("loccod") or "").strip(), prefix=book["prefix"])
+                                                 header_loc=str(payload.get("loccod") or "").strip(), prefix=book["prefix"],
+                                                 docnum=docnum)
         posted = _post(account_dir, kind, docnum, docdat, account, remark, total, inventory, depcod=depcod,
                        userid=userid, today=today, doctype=doctype,
                        jnltyp=book["jnltyp"] if doctype == COUNT else "")  # 领用 / 调整照旧 00（已验收），盘点照原生取 ISRUN 的
-        _bump_isrun(account_dir, book["prefix"], book["jnltyp"])
+        set_running(account_dir, kind, book["prefix"], following)
         stloc_expected, notes = record_locations(account_dir, moves, None)
         remarks = dbf_remarks.write(account_dir, docnum, enumerate(items, start=1))  # 按台号码：明细行号 = 载荷顺序
         if doctype == COUNT and moves is not None:
@@ -438,16 +487,19 @@ def create_new_items(account_dir, items, found, *, userid, acccod="") -> None:
 
 
 def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, items, found, locations, moves, *,
-           depcod, userid, ref_no, today, header_loc, prefix="") -> Tuple[str, List[Dict], Decimal, Dict[str, Decimal]]:
+           depcod, userid, ref_no, today, header_loc, prefix="", docnum="") -> Tuple[str, List[Dict], Decimal, Dict[str, Decimal]]:
     """单头 + 明细 + 主档结存 → (单号, 逐行结果, 货值合计（调整带正负号）, 各存货科目的货值（调整带正负号）)。"""
     count = doctype == COUNT
     posopr = S.STCRD_POSOPR_ISSUE if kind == ISSUE else S.STCRD_POSOPR_COUNT if count else S.STCRD_POSOPR_ADJUST
     move_kind = stock_location.KIND_ISSUE if kind == ISSUE else stock_location.KIND_ADJUST
-    head = _open(account_dir, "STTRN", dbf.READ_WRITE)
-    try:
-        docnum = _next_docnum(head, prefix or doctype, docdate_be)
-    finally:
-        head.close()
+    if kind != ISSUE and doctype != COUNT and not _fifo(account_dir):
+        move_kind = stock_location.KIND_ADJUST_NATIVE  # JU / PI 原生不改仓库结存的最后变动日
+    if not docnum:
+        head = _open(account_dir, "STTRN", dbf.READ_WRITE)
+        try:
+            docnum = _next_docnum(head, prefix or doctype, docdate_be)
+        finally:
+            head.close()
     total = Decimal(0)
     inventory: Dict[str, Decimal] = {}
     lines: List[Dict] = []
@@ -489,7 +541,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             if count and signed > 0 and given <= 0:
                 unit_cost = lot[0] if lot else Decimal(0) if fifo else _cost(account_dir, now)
             if chain:
-                unit_cost, chained = _chain_cost(abs(qty), bal, val) if signed < 0 else (max(given, Decimal(0)), None)
+                unit_cost, chained = _chain_cost(abs(qty), bal, val, _cost(account_dir, now)) if signed < 0 \
+                    else (max(given, Decimal(0)), None)
             value = _q2(abs(qty) * unit_cost) if not chain or chained is None else chained
             signed_value = -value if signed < 0 else value
             new_bal, new_val = bal + signed, _q2(val + signed_value)
@@ -533,6 +586,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             if moves is not None:
                 moves.append(stock_location.move(row, move_kind))
             master = {"LASUPD": docdat} if chain else {}
+            head_lot = lot_heads.get(stkcod, "")
+            if chain and signed < 0 and new_bal < 0 and head_lot and not head_lot.startswith("-"):
+                # 原生：批次链结存变成负数时，主档当前批次栏首字符改成「-」（11-18 实录 OU0000002；10-26 RL 实录「B/F → -/F」）
+                lot_heads[stkcod] = master["MLOTNUM"] = "-" + head_lot[1:]
             if chain and signed > 0 and kind != ISSUE:
                 lot_heads[stkcod] = master["MLOTNUM"] = \
                     f"{docdat:%Y%m%d}{S.STCRD_POSOPR_RECEIVE}{docnum:<12}{S.seqnum_text(seq)}"

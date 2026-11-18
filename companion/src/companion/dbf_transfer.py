@@ -41,6 +41,7 @@ from . import stock_sale
 from . import stock_units
 from .consistency import account_company_matches
 from .dbf_stock import (ERR_BOOK, ERR_STOCK_ITEM, _creatable, _dec, _filtered, _fit, _next_docnum, _validate_common,
+                        native_docnum, set_running,
                         create_new_items, new_item_shortages)
 from .dbf_writer import (
     ERR_ACCOUNT_DIR,
@@ -176,9 +177,10 @@ def write_transfer(
     try:
         today = today or _dt.date.today()
         create_new_items(account_dir, items, found, userid=userid, acccod=str(payload.get("stock_acccod") or "").strip())
+        docnum, following = native_docnum(account_dir, TRANSFER, TRANSFER)  # 原生流水号（用户 11-18 定 D5）
         docnum, lines, moves = _write(account_dir, docdate_be, docdat, remark, items, found, source, target,
-                                      userid=userid, today=today)
-        _bump_isrun(account_dir, book["prefix"], book["jnltyp"])
+                                      userid=userid, today=today, docnum=docnum)
+        set_running(account_dir, TRANSFER, TRANSFER, following)
         try:
             expected, notes = stock_location.apply(account_dir, moves)
         except stock_location.LocationError as exc:
@@ -211,13 +213,14 @@ def write_transfer(
                               evidence=exc.evidence if isinstance(exc, _WriteError) else None)
 
 
-def _write(account_dir, docdate_be, docdat, remark, items, found, source, target, *, userid, today):
+def _write(account_dir, docdate_be, docdat, remark, items, found, source, target, *, userid, today, docnum=""):
     """单头 + 成对明细 → (单号, 逐行结果, 各仓结存变动)。"""
-    head = _open(account_dir, "STTRN", dbf.READ_WRITE)
-    try:
-        docnum = _next_docnum(head, TRANSFER, docdate_be)
-    finally:
-        head.close()
+    if not docnum:
+        head = _open(account_dir, "STTRN", dbf.READ_WRITE)
+        try:
+            docnum = _next_docnum(head, TRANSFER, docdate_be)
+        finally:
+            head.close()
     lines: List[Dict] = []
     moves: List[stock_location.Move] = []
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)

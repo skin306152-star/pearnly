@@ -59,14 +59,14 @@ def _journal(acct, docnum):
 def test_an_issue_writes_the_header_the_detail_the_balances_and_the_journal_like_express(book):
     res = _write(book, _entry("OU", [_line("ICE01", 2)], remark="เบิกใช้ในสำนักงาน"))
     assert res.ok, res.error
-    assert res.docnum == "OU690320-001"
-    head = _rows(book, "STTRN", DOCNUM="OU690320-001")
+    assert res.docnum == "OU0000001"  # Express 原生流水号：簿前缀 + ISRUN 的号（用户 11-18 定 D5）
+    head = _rows(book, "STTRN", DOCNUM="OU0000001")
     assert len(head) == 1
     head = head[0]
     assert head["POSOPR"] == "6" and head["ACCNUMDR"].strip() == ISSUE_ACC and head["TRNVAL"] == 20.0
     assert head["REMARK"].strip() == "เบิกใช้ในสำนักงาน" and head["REFNUM"].strip() == "IS2569-000001"
     assert head["LOCCOD"].strip() == "01" and head["DOCSTAT"] == "N" and head["NXTSEQ"].strip() == "1"
-    line = _rows(book, "STCRD", DOCNUM="OU690320-001")[0]
+    line = _rows(book, "STCRD", DOCNUM="OU0000001")[0]
     assert line["POSOPR"] == "6" and line["TRNQTY"] == 2.0 and line["XUNITPR"] == 10.0 and line["XTRNVAL"] == 20.0
     # 照原生（11-18 实录 D4 / D6 / D7）：明细的批次链结存记写前（5 / 50），品名栏是单头备注
     assert line["MREMBAL"] == 5.0 and line["MREMVAL"] == 50.0 and line["ACCNUMDR"].strip() == ISSUE_ACC
@@ -76,7 +76,7 @@ def test_an_issue_writes_the_header_the_detail_the_balances_and_the_journal_like
     assert master["LASUPD"] == dt.date(2026, 3, 20)  # 原生：库存单把主档最后变动日改成单据日
     stloc = _stloc(book, "ICE01", "01")
     assert stloc["LOCBAL"] == 3.0 and stloc["LMOVDAT"] == dt.date(2026, 3, 20)
-    heads, lines = _journal(book, "OU690320-001")
+    heads, lines = _journal(book, "OU0000001")
     assert len(heads) == 1 and heads[0]["JNLTYP"] == "00" and heads[0]["DESCRP"].strip() == "เบิกใช้ในสำนักงาน"
     assert lines == [("0", ISSUE_ACC, Decimal("20.00"), "1"), ("1", INVENTORY_ACC, Decimal("20.00"), "1")]
     assert _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"].strip() == "0000002"
@@ -103,7 +103,7 @@ def test_a_count_with_both_signs_nets_the_journal_per_inventory_account(book):
     没有对方科目与品名；单头货值 0、没有参考号与对方科目；凭证摘要「ตรวจนับสินค้า + 单号」。"""
     res = _write(book, _entry("TK", [_line("ICE01", -1), _line("ICE02", 2)], remark="นับสต็อก"))
     assert res.ok, res.error
-    assert res.docnum.startswith("TK690320-")
+    assert res.docnum == "TK0000001"
     rows = {row["STKCOD"].strip(): row for row in _rows(book, "STCRD", DOCNUM=res.docnum)}
     ice01, ice02 = rows["ICE01"], rows["ICE02"]
     assert (ice01["POSOPR"], ice01["FLAG"].strip(), ice01["TRNQTY"], ice01["XTRNVAL"]) == (":", "5", -1.0, -10.0)
@@ -270,11 +270,12 @@ def test_a_periodic_account_set_or_a_zero_value_entry_is_not_journalled(book):
     assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["XTRNVAL"] == 10.0
 
 
-def test_the_same_day_gets_the_next_number_and_the_given_account_wins(book):
+def test_the_next_document_takes_the_next_native_number_and_the_given_account_wins(book):
     glacc(book, ("53-09-00-00", "ค่าเสียหาย"))
-    assert _write(book, _entry("OU", [_line("ICE01", 1)])).docnum == "OU690320-001"
+    assert _write(book, _entry("OU", [_line("ICE01", 1)])).docnum == "OU0000001"
     res = _write(book, _entry("OU", [_line("ICE01", 1)], account="53-09-00-00"))
-    assert res.docnum == "OU690320-002"
+    assert res.docnum == "OU0000002"
+    assert _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"].strip() == "0000003"
     assert _rows(book, "STTRN", DOCNUM=res.docnum)[0]["ACCNUMDR"].strip() == "53-09-00-00"
 
 
@@ -431,21 +432,51 @@ def test_an_issue_that_would_go_negative_stops_when_the_book_needs_approval(book
     assert _write(book, _entry("OU", [_line("ICE01", 5)])).ok
 
 
-def test_an_issue_takes_the_lot_chain_cost_and_goes_out_at_zero_when_the_chain_is_empty(book):
-    """原生领用按批次链取价（11-18 实录 D4）：结存 5 / 50 出 7 个只摊现有 50；批次链已为负的物料按 0 出、不过账，
-    主档总金额不动、批次链继续减成负数（之后 Express 存单或跑计算成本时它自己回填，见评估 4.2）。"""
+def test_an_issue_takes_the_lot_chain_cost_and_the_average_beyond_it(book):
+    """出库取价 D4 方案 A（主会话 11-18）：批次链结存 5 / 50 出 7 个 → 批次内 5 个按批次链 50，多出的 2 个按主档均价 10，共 70。"""
     res = _write(book, _entry("OU", [_line("ICE01", 7)], remark="ทดสอบ"))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XTRNVAL"], line["XUNITPR"]) == (50.0, round(50 / 7, 4))
+    assert (line["XTRNVAL"], line["XUNITPR"]) == (70.0, 10.0)
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
-    assert (master["TOTBAL"], master["TOTVAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, 0.0, -2.0, 0.0)
+    assert (master["TOTBAL"], master["TOTVAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, -20.0, -2.0, -20.0)
+
+
+def test_an_issue_on_an_empty_lot_chain_goes_out_at_the_average_and_is_journalled(book):
+    """批次链结存为 0（总结存还有货，实录 500603 的样子）：原生按 0 出、不过账、等之后界面存单回头重算；方案 A 按均价出、照常过账，
+    不留没人回填的 0 成本单。主档当前批次栏首字符照原生改成「-」（批次链变负）。"""
+    _set_master(book, MREMBAL=0.0, MREMVAL=0.0, MLOTNUM="202603010RR0000001     1")
     res = _write(book, _entry("OU", [_line("ICE01", 1)], remark="ทดสอบ"))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XTRNVAL"], line["XUNITPR"], line["UNITPR"], line["MREMBAL"]) == (0.0, 0.0, 0.0, -2.0)
-    assert _journal(book, res.docnum) == ([], [])
-    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["TOTVAL"] == 0.0
+    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MLOTNUM"].strip()) == (10.0, 10.0, 0.0, "202603010RR0000001     1")
+    heads, lines = _journal(book, res.docnum)
+    assert lines == [("0", ISSUE_ACC, Decimal("10.00"), "1"), ("1", INVENTORY_ACC, Decimal("10.00"), "1")]
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["MREMBAL"], master["MLOTNUM"].rstrip()) == (-1.0, "-02603010RR0000001     1")
+
+
+def test_an_adjustment_does_not_stamp_the_warehouse_movement_date(book):
+    """JU / PI 原生不改仓库结存的最后变动日（11-18 实录），领用 OU 改。"""
+    before = _stloc(book, "ICE01", "01")["LMOVDAT"]
+    assert _write(book, _entry("JU", [_line("ICE01", 1, unit_cost="10")])).ok
+    assert _stloc(book, "ICE01", "01")["LMOVDAT"] == before
+    assert _write(book, _entry("OU", [_line("ICE01", 1)])).ok
+    assert _stloc(book, "ICE01", "01")["LMOVDAT"] == dt.date(2026, 3, 20)
+
+
+def _set_master(acct, **fields):
+    import dbf as _dbf
+    table = _dbf.Table(str(acct / "STMAS.DBF"))
+    table.open(_dbf.READ_WRITE)
+    try:
+        for row in table:
+            if str(row["STKCOD"]).strip() == "ICE01":
+                with row as rec:
+                    for key, value in fields.items():
+                        rec[key] = value
+    finally:
+        table.close()
 
 
 def test_an_increase_without_a_price_is_worth_zero_like_the_native_price_cell(book):
@@ -484,7 +515,7 @@ def test_a_stock_book_other_than_the_doctype_uses_its_own_prefix_and_default_acc
     qty = 1 if doctype == "OU" else 3
     res = _write(book, _entry(doctype, [_line("ICE01", qty, unit_cost="7")], book=book_prefix, payload_version=22))
     assert res.ok, res.error
-    assert res.docnum.startswith(book_prefix + "690320-")
+    assert res.docnum == book_prefix + "0000001"
     head = _rows(book, "STTRN", DOCNUM=res.docnum)[0]
     assert (head["ACCNUMDR"] if doctype == "OU" else head["ACCNUMCR"]).strip() == account
     assert _rows(book, "ISRUN", PREFIX=book_prefix)[0]["DOCNUM"].strip() == "0000002"
@@ -494,3 +525,21 @@ def test_a_book_missing_from_the_account_set_writes_nothing(book):
     res = _write(book, _entry("OU", [_line("ICE01", 1)], book="XS", payload_version=22))
     assert not res.ok and res.error_code == dbf_stock.ERR_BOOK
     assert _rows(book, "STTRN") == []
+
+
+def test_a_native_number_already_in_the_book_is_skipped_and_the_running_number_follows(book):
+    """原生流水号（D5）：ISRUN 记的号在账套里已经用过（例如财务刚在 Express 录了一张、或软删 / 作废过的单）就往后跳，写完 ISRUN
+    记成真正用的号的下一个；账套带年份段的流水号（2400001）照原样往后数。"""
+    seed(book, "STTRN", [{"DOCNUM": "OU0000001", "POSOPR": "6", "DOCSTAT": "C"}])
+    res = _write(book, _entry("OU", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    assert res.docnum == "OU0000002"
+    assert _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"].strip() == "0000003"
+    assert _rows(book, "STTRN", DOCNUM=res.docnum)[0]["REFNUM"].strip() == "IS2569-000001"  # ERP 单号仍写在参考号，用来认单
+
+
+def test_a_failed_write_does_not_use_up_a_native_number(book):
+    before = _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"]
+    res = _write(book, _entry("OU", [_line("NOPE", 1)]))
+    assert not res.ok
+    assert _rows(book, "ISRUN", PREFIX="OU")[0]["DOCNUM"] == before
