@@ -125,6 +125,8 @@ def attention_seen(session_id="", visible=0, device=""):
     from pearnly_core.assistant import attention
 
     seen = str(visible) in ("1", "true", "True")
+    if session_id:
+        sessions.owned(session_id, allow_archived=True)  # 只记本人的对话：别人的、不存在的编号同其它对话接口一样拒
     return attention.seen(str(session_id or ""), seen, str(device or ""))
 
 

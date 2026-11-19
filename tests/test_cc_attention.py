@@ -106,6 +106,13 @@ class PushDecidesBeforeSending(unittest.TestCase):
         body = body[:body.index("\ndef ", 1)] if "\ndef " in body[1:] else body
         self.assertLess(body.index("attention.watching(row.user, row.session_id)"), body.index("return send("))
 
+    def test_the_page_report_only_takes_the_users_own_conversation(self):
+        # 接口守卫：报「在看哪段」时这段对话要是本人的（同 notices_seen 走 sessions.owned），别人的、不存在的编号拒；空编号 = 没在看哪段
+        api = (ROOT / "apps/pearnly_core/pearnly_core/assistant/api.py").read_text(encoding="utf-8")
+        body = api.split("def attention_seen(", 1)[1].split("\n\n\n", 1)[0]
+        self.assertIn("if session_id:\n        sessions.owned(session_id, allow_archived=True)", body)
+        self.assertLess(body.index("sessions.owned("), body.index("return attention.seen("))
+
 
 if __name__ == "__main__":
     unittest.main()
