@@ -57,9 +57,9 @@ def _allowed(guide: Dict[str, Any]) -> bool:
 
 
 # 产品声明「这段对话的账本是哪一种」：``pearnly_guide_ledger = ["<点路径>"]``，函数(对话号) → ``declaration.LEDGERS`` 之一；
-# 公司没接账本回 :data:`NO_LEDGER`；对话还没挂公司（或判不出）回 None（不按账本过滤）。没声明的产品不按账本过滤
+# 公司没接账本回 :data:`NO_LEDGER`；对话还没挂公司回 :data:`NO_COMPANY`；判不出回 None（不按账本过滤）。没声明的产品不按账本过滤
 LEDGER_HOOK = "pearnly_guide_ledger"
-NO_LEDGER = "none"
+NO_LEDGER, NO_COMPANY = "none", "no_company"
 
 
 def ledger_of(session_id: str) -> str | None:
@@ -72,14 +72,19 @@ def ledger_of(session_id: str) -> str | None:
     except Exception:  # noqa: BLE001 — 判不出不挡菜单：按不过滤处理
         frappe.log_error(title="Assistant guide ledger check failed")
         return None
-    return found if found in declaration.LEDGERS or found == NO_LEDGER else None
+    return found if found in declaration.LEDGERS or found in (NO_LEDGER, NO_COMPANY) else None
 
 
 def fits_ledger(guide: Mapping[str, Any], ledger: str | None) -> bool:
-    """这项业务对这种账本出不出现：None（还没挂公司 / 判不出）不过滤；没接账本的一项都不出；其余看声明的 ``ledgers``。"""
+    """这项业务对这种账本出不出现：None（判不出 / 产品没声明）不过滤；没接账本的一项都不出；还没挂公司时只出不挑账本的
+    （声明里三种账本都写了的；只对某几种账本的，选好公司再按账本出——没选公司先露出来、点了又被拒，是给人添堵，主会话 11-19）；
+    其余看声明的 ``ledgers``。"""
     if ledger is None:
         return True
-    return ledger != NO_LEDGER and ledger in (guide.get("ledgers") or ())
+    ledgers = set(guide.get("ledgers") or ())
+    if ledger == NO_COMPANY:
+        return ledgers >= set(declaration.LEDGERS)
+    return ledger != NO_LEDGER and ledger in ledgers
 
 
 def menu(mode: str, ledger: str | None = None) -> List[Dict[str, Any]]:
@@ -95,4 +100,4 @@ def offered(ledger: str | None = None) -> Dict[str, List[str]]:
     return {mode: [item["id"] for item in menu(mode, ledger)] for mode in declaration.MODES}
 
 
-__all__ = ["HOOK", "LEDGER_HOOK", "NO_LEDGER", "declared", "find", "fits_ledger", "ledger_of", "menu", "offered"]
+__all__ = ["HOOK", "LEDGER_HOOK", "NO_COMPANY", "NO_LEDGER", "declared", "find", "fits_ledger", "ledger_of", "menu", "offered"]

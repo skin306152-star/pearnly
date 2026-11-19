@@ -179,8 +179,10 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(chat(), ["collection", "purchase"])
         kind[0] = registry.NO_LEDGER
         self.assertEqual(chat(), [])
-        kind[0] = None
+        kind[0] = None  # 判不出：不过滤
         self.assertEqual(chat(), ["collection", "purchase"])
+        kind[0] = registry.NO_COMPANY  # 还没挂公司：只出不挑账本的（三种都声明了），只对 Express 的选好公司再出（主会话 11-19）
+        self.assertEqual(chat(), ["purchase"])
         ATTRS["app.ledger"] = lambda session_id: 1 / 0
         self.assertIsNone(registry.ledger_of("S1"))
         self.assertIn("Assistant guide ledger check failed", [title for title, _m in LOGGED])
