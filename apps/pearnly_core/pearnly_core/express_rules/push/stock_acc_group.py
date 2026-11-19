@@ -63,6 +63,49 @@ def resolve_stock_acc_group(config: Optional[Dict[str, Any]]) -> StockAccGroupCh
     )
 
 
+def stock_master_count(config: Optional[Dict[str, Any]]) -> Optional[int]:
+    """账套里库存品的总件数(心跳 catalog_fingerprint 报的);没报回 None。"""
+    try:
+        return int(((config or {}).get("catalog_fingerprint") or {})["stock_master_count"])
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
+def most_used_group(config: Optional[Dict[str, Any]]) -> str:
+    """合格组里挂得最多的那个组码(推荐值,点了才算);没有合格组回空。"""
+    groups = fit_stock_acc_groups(config)
+    if not groups:
+        return ""
+    return str(max(groups, key=lambda group: int(group.get("used_by") or 0))["acccod"]).strip()
+
+
+def new_item_group(payload: Optional[Dict[str, Any]], config: Optional[Dict[str, Any]]) -> StockAccGroupChoice:
+    """这张要在 Express 里新建库存品(库存行没有存货码)、账套又没选过存货科目组时,新品挂哪个组(ERP、Cowork 同用,11-19)。
+
+    `resolve_stock_acc_group` 只管零库存主档那一档(mapper 在零主档时调它);账套里已有库存品时 mapper 不带组,电脑照抄挂得最多的
+    那组(CC 桌面版 `stock_template.pick` 的众数),那组的存货科目不像存货科目就在写账时停下(``STOCK_ACC_GROUP_UNFIT``;11-19 真机
+    69EXP\\TEST:ST01 → 14-01-03-00 办公设备)。服务端只拿得到合格的组(心跳只报 fit 的,带各组挂了几件)和库存品总数:
+      · 能证明挂得最多的是合格组(它挂的件数多过不合格的组加起来) → 照旧交电脑,回空;
+      · 证明不了 → 同零主档那一档:合格的 1 个就用它(``auto``),几个 → REASON_ACC_GROUP_REQUIRED(选一次、按账套记住),
+        一个都没有 → REASON_ACC_GROUP_MISSING(要在 Express 里配)。
+    载荷或端点已带组、没有要新建的库存品 → 回空。"""
+    from pearnly_core.express_rules.push.common import ITEM_MODE_STOCK
+
+    payload, cfg = payload or {}, config or {}
+    if str(payload.get("stock_acccod") or "").strip() or str(cfg.get("stock_acccod") or "").strip():
+        return StockAccGroupChoice("", "", False)
+    if not any(isinstance(item, dict) and item.get("item_mode") == ITEM_MODE_STOCK and not str(item.get("code") or "").strip()
+               for item in payload.get("items") or ()):
+        return StockAccGroupChoice("", "", False)
+    groups = fit_stock_acc_groups(cfg)
+    total = stock_master_count(cfg)
+    if groups and total is not None:
+        counts = [int(group.get("used_by") or 0) for group in groups]
+        if max(counts) > total - sum(counts):
+            return StockAccGroupChoice("", "", False)  # 挂得最多的就是合格组:电脑照它抄
+    return resolve_stock_acc_group({"reported_stock_acc_groups": cfg.get("reported_stock_acc_groups")})
+
+
 def describe_from_request(request_body: Any, reported: Any) -> Dict[str, str]:
     """从推送载荷直接反查这一组的存货科目号/名。推送日志卡与导出复核表共用一个入口。
 

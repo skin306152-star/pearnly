@@ -68,7 +68,7 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
          menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None, stock_group=None, company="CO1", catalog=None):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）；
-    ``stock_group``：存货科目组还没选时 `card_save.stock_group_open` 回的样子；``company``：这张票归的公司（`pending.company_for`，
+    ``stock_group``：推送试算判出新建库存品的存货科目组还没定时选择项视图里的 ``stock_group``（`service._choices`）；``company``：这张票归的公司（`pending.company_for`，
     可传函数按单据算）；``catalog``：推送去向连接 C1 的账套目录（行带 ``co`` = 公司身份，``ok`` 为假 = 不能建主档）。"""
     calls = []
     doc = doc or document()
@@ -80,14 +80,19 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     def choices(_doc, _loaded, _found, posting_kind, **kw):
         calls.append(("choices", posting_kind) + ((kw["hint"],) if kw.get("hint") else ()))
         wanted = stock_needed if stock_needed is not None and posting_kind == "stock" else needed
-        view = {"needed": [dict(item) for item in wanted],
+        view = {"needed": [dict(item) for item in wanted], "account_set": BOOK,
                 "options": {"accounts": accounts or [{"code": "5100", "name": "ค่าใช้จ่าย"}]}}
+        if stock_group and not view["needed"]:
+            view["stock_group"] = dict(stock_group)  # 推送试算判出新建库存品的存货科目组还没定（`service._choices`）
+            planned_now = None
+        else:
+            planned_now = planned
         if kw.get("hint") and hinted:
             for item in view["needed"]:
                 if item["kind"] == "account":
                     item["suggested"] = [dict(row) for row in hinted]
-        if planned and not view["needed"]:
-            view["planned"] = dict(planned)
+        if planned_now and not view["needed"]:
+            view["planned"] = dict(planned_now)
         return view, {"needed": view["needed"], "applied": dict((decided or {}).get("applied") or {}),
                       "decided_by": dict((decided or {}).get("decided_by") or {})}, (None, "", None)
 
@@ -111,7 +116,6 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
                  account_set_pick=lambda row, key: {"key": key} if key in ("K1", "K2") else None,
                  current_book_choice=lambda row, key: {"workspace": "W1", "key": "cb", "value": key},
                  company_for=lambda row: company(row) if callable(company) else company)
-    card_save = ns(stock_group_open=lambda d: stock_group)
     storage = ns(read=lambda name: doc)
     identity = ns(usable=lambda adapter, row: row.get("ok", True),
                   company_identity=lambda adapter, connection, row: {"key": row["co"]} if row.get("co") else None,
@@ -141,9 +145,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
                                   choices=choice_store),
         "pearnly_cowork.push.choices": choice_store,
         "pearnly_cowork.push.lifecycle": ns(result_unknown=lambda status, reason: reason == "UNKNOWN"),
-        "pearnly_cowork.push.application": ns(service=service, card_save=card_save, goods_posting=ns(
+        "pearnly_cowork.push.application": ns(service=service, goods_posting=ns(
             choose=lambda name, value: calls.append(("goods", name, value)))),
-        "pearnly_cowork.push.application.card_save": card_save,
         "pearnly_cowork.push.application.service": service,
         "pearnly_cowork.push.application.goods_posting": ns(choose=lambda name, value: calls.append(("goods", name, value))),
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda d: None),
@@ -288,19 +291,30 @@ PLANNED = {"payment": "cash", "payment_from": "remembered", "account": "5100",
 
 
 class StockGroupAndLine(unittest.TestCase):
-    VIEW = {"account_set_key": "s:\\69exp\\test", "known": True, "chosen": None,
-            "groups": [{"acccod": "1", "label": "1 · 1141 · สินค้า"}, {"acccod": "2", "label": "2 · 1142 · วัตถุดิบ"}]}
+    """新建库存品挂哪个存货科目组（11-19 真机：账套已有库存品时电脑照抄挂得最多的组，不合格写账才停）：推送试算判出没定的
+    （共用层 `stock_acc_group.new_item_group` / 零主档那一档）——几个合格的出一题（只列合格的、推荐挂得最多的），一个都没有列成写不了。"""
+    VIEW = {"reason": "stock_acc_group_required", "recommended": "2",
+            "groups": [{"acccod": "1", "label": "1 · 1141 · สินค้า", "used_by": 3},
+                       {"acccod": "2", "label": "2 · 1142 · วัตถุดิบ", "used_by": 17}]}
 
-    def test_an_unchosen_stock_group_is_one_open_item_with_the_qualified_groups(self):
-        """与 LINE 卡片保存停下同一判据（`card_save.stock_group_open`）：出一项，选项是合格的组，没有值（要人选）、不给「会怎么写」。"""
+    def test_several_fit_groups_make_one_item_recommending_the_most_used(self):
         module, _calls, patcher = load(stock_group=self.VIEW, planned={"payment": "cash"})
         self.addCleanup(patcher.stop)
         found = module.document("h1")
         item = {i["kind"]: i for i in found["items"]}["stock_group"]
-        self.assertEqual((item["subject"], item["value"], item["label"]), ("s:\\69exp\\test", "", "Inventory account group"))
+        self.assertEqual((item["subject"], item["value"], item["source"], item["label"]),
+                         (BOOK, "2", card.RULE, "Inventory account group"))
         self.assertEqual(item["options"], [{"code": "1", "name": "1 · 1141 · สินค้า"}, {"code": "2", "name": "2 · 1142 · วัตถุดิบ"}])
         self.assertNotIn("planned", found)
-        self.assertEqual(card.state_of(card.normalize_item(item)), card.OPEN)
+        self.assertEqual(card.state_of(card.normalize_item(item)), card.PROPOSED)  # 推荐，点了才算
+
+    def test_no_fit_group_is_not_writable_and_line_holds_the_card(self):
+        module, _calls, patcher = load(stock_group={"reason": "stock_acc_group_missing", "recommended": "", "groups": []})
+        self.addCleanup(patcher.stop)
+        found = module.document("h1")
+        self.assertEqual((found["state"], found["reason"], found["reason_code"]),
+                         (card.NOT_WRITABLE, "intake.error.STOCK_ACC_GROUP_UNFIT", "stock_acc_group_missing"))
+        self.assertEqual(module.line_ticket("h1", finished=True)["hold"], "intake.error.STOCK_ACC_GROUP_UNFIT")
 
     def test_no_stock_group_item_when_the_rule_says_no(self):
         module, _calls, patcher = load(planned={"payment": "cash"})
@@ -308,6 +322,7 @@ class StockGroupAndLine(unittest.TestCase):
         found = module.document("h1")
         self.assertNotIn("stock_group", {i["kind"] for i in found["items"]})
         self.assertEqual(found["planned"], {"payment": "cash"})
+        self.assertNotIn("hold", module.line_ticket("h1", finished=True))
 
     def test_line_ticket_gives_the_company_and_the_heading(self):
         """LINE 出卡前提问（`line.ask`）只经这一个函数用助手域：票归哪家公司（同待处理）、每题开头那行（对方 · 单据号）。"""

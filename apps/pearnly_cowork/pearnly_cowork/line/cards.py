@@ -118,7 +118,7 @@ def _answered(rows):
     return [_kv(row.get("label") or "-", row.get("value")) for row in rows or () if isinstance(row, dict)]
 
 
-def _card(record, pending, shown, labels=None, answered=()):
+def _card(record, pending, shown, labels=None, answered=(), save=True):
     fields = _primary(json.loads(record.pages or "[]"))
     direction = fields.get("direction") or pending.get("direction") or "purchase"
     accent = COLORS.get(direction, COLORS["purchase"])
@@ -166,32 +166,33 @@ def _card(record, pending, shown, labels=None, answered=()):
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
                 "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [
                     # 三个实底按钮（用户 11-18、11-19，与 ERP 卡片同一个样子）：保存 = 业务色（推往 ERP 的票推送、「仅识别」的票
-                    # 完成，`line.save`）、编辑 = 灰、取消 = 灰（这一张什么都不做、记录删掉）
-                    {"type": "button", "style": "primary", "height": "sm", "color": accent,
-                     "action": {"type": "postback", "label": str(_("Save"))[:20], "displayText": str(_("Save"))[:20],
-                                "data": urlencode({"a": "cowork_save", "n": record.name})}},  # = SAVE_ACTION
-                    {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
+                    # 完成，`line.save`）、编辑 = 灰、取消 = 灰（这一张什么都不做、记录删掉）。写不进又没得选的票不放「保存」（11-19）
+                    *([{"type": "button", "style": "primary", "height": "sm", "color": accent,
+                        "action": {"type": "postback", "label": str(_("Save"))[:20], "displayText": str(_("Save"))[:20],
+                                   "data": urlencode({"a": "cowork_save", "n": record.name})}}] if save else []),  # = SAVE_ACTION
+                    {"type": "button", "style": "secondary", "height": "sm", "margin": "sm" if save else "none",
                      "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}},
                     {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
                      "action": {"type": "postback", "label": str(_("Cancel"))[:20], "displayText": str(_("Cancel"))[:20],
                                 "data": urlencode({"a": "cowork_cancel", "n": record.name})}}]}}}
 
 
-def preview(record, pending, labels=None, answered=()) -> dict:
+def preview(record, pending, labels=None, answered=(), save=True) -> dict:
     items = _primary(json.loads(record.pages or "[]")).get("items") or []
     shown = len(items)
     labels = {} if labels is None else labels
     while True:
-        card = _card(record, pending, shown, labels, answered)
+        card = _card(record, pending, shown, labels, answered, save)
         if shown == 0 or len(json.dumps(card, ensure_ascii=False).encode()) <= MAX_BYTES:
             return card
         shown -= 1
 
 
-def previews(records, pending, answered=None) -> list:
-    """``answered``：``{单号: [{label, value}]}``，出卡前在 LINE 里答过的（`line.ask`）。"""
+def previews(records, pending, answered=None, held=None) -> list:
+    """``answered``：``{单号: [{label, value}]}``，出卡前在 LINE 里答过的（`line.ask`）；``held``：写不进又没得选、卡上不放「保存」的单号。"""
     rows = {row.name: row for row in frappe.get_all(
         "Cowork OCR History", filters={"name": ["in", records]},
         fields=["name", "pages", "total_amount", "intake_target", "push_connection", "push_account_set"])}
     labels = {}  # 同一批的账套名只按连接读一次目录
-    return [preview(rows[name], pending, labels, (answered or {}).get(name) or ()) for name in records if name in rows]
+    return [preview(rows[name], pending, labels, (answered or {}).get(name) or (), name not in (held or ()))
+            for name in records if name in rows]

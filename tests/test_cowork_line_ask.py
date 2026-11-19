@@ -91,6 +91,7 @@ class LineAskTest(unittest.TestCase):
         self.rows = {}  # 按行追问：每张票推送侧给的行
         self.company = "CO-1"
         self.refused = set()  # 一本可写的账套都没有的票
+        self.held = set()  # 题问完写不进又没得选的票（账套里一个合格的存货科目组都没有）
         store = self.store
 
         def set_session(user, state, payload, ttl_minutes=None):
@@ -107,10 +108,13 @@ class LineAskTest(unittest.TestCase):
             mock.patch.object(items, "_side", side_effect=lambda name: getattr(side, name)),
             mock.patch.object(line_ask, "_default", return_value=self.backend),
             mock.patch("pearnly_cowork.assistant.precheck_source.line_ticket",
-                       side_effect=lambda name: {"company": self.company, "heading": "ABC · " + name,
-                                                 **({"refused": "cowork.company.not_in_catalog"} if name in self.refused else {})}),
-            mock.patch.object(cards, "previews", side_effect=lambda records, pending, answered=None: [
-                {"type": "flex", "card": name, "answered": list((answered or {}).get(name) or ())} for name in records]),
+                       side_effect=lambda name, finished=False: {
+                           "company": self.company, "heading": "ABC · " + name,
+                           **({"refused": "cowork.company.not_in_catalog"} if name in self.refused else {}),
+                           **({"hold": "intake.error.STOCK_ACC_GROUP_UNFIT"} if finished and name in self.held else {})}),
+            mock.patch.object(cards, "previews", side_effect=lambda records, pending, answered=None, held=None: [
+                {"type": "flex", "card": name, "answered": list((answered or {}).get(name) or ()),
+                 **({"save": False} if name in (held or ()) else {})} for name in records]),
             mock.patch.object(save, "drop", side_effect=self.dropped.append),
             mock.patch.object(ask.line, "reply_or_push", side_effect=lambda to, messages, token="": self.sent.append(messages)),
             mock.patch.object(ask.line, "push", side_effect=lambda to, messages: self.sent.append(messages)),
@@ -363,6 +367,19 @@ class LineAskTest(unittest.TestCase):
         self.tap("Cash")
         self.assertEqual([m["card"] for m in self.cards_sent()], ["H2"])  # H1 没有带「保存」的卡
         self.assertEqual(self.dropped, [])  # 不删（票照常在网页列表里）
+
+    def test_no_fit_stock_group_says_the_reason_before_a_card_without_save(self):
+        """题问完再判一次（11-19）：账套里一个合格的存货科目组都没有，写不进也没得选 → 出卡前说那句现有原因、卡上不放「保存」；
+        有合格组、要选的出题（推荐挂得最多的，见 test_account_set_stock_group_and_counterparty_are_asked_in_line_before_the_card）。"""
+        self.held = {"H1"}
+        self.backend.docs = {"H1": [PAY]}
+        self.arrive("H1")
+        self.tap("Cash")
+        self.assertEqual(self.sent[-1], [{"type": "text", "text": "intake.error.STOCK_ACC_GROUP_UNFIT"},
+                                         {"type": "flex", "card": "H1", "save": False,
+                                          "answered": [{"label": "Payment · ABC", "value": "Cash"}]}])
+        self.assertEqual([m["card"] for m in self.arrive("H2")], ["H2"])  # 其余照常带「保存」
+        self.assertNotIn("save", self.cards_sent()[-1])
 
     def test_more_than_five_messages_reply_five_and_push_the_rest(self):
         self.arrive(*[f"H{index}" for index in range(7)])

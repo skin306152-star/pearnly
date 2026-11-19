@@ -47,17 +47,11 @@ def _stock(record) -> tuple:
     return "stock" in kinds, fields.get("posting_kind") or record.posting_kind or None
 
 
-def stock_group_open(record):
-    """这张票新建库存品要挂的存货科目组还没定：推往 Express、有库存行、这份账套读过且合格的组不止一个、还没选过 → 回选择入口的
-    样子（`connections.stock_acc_group`：``{account_set_key, known, groups, chosen}``）；不用问回 None。:func:`save` 停下与写账前置判定
-    （`assistant.precheck_source`：LINE 出卡前、CC 卡片里问这一题，用户 11-19）同一判据。"""
-    connection, account_set = record.get("push_connection"), record.get("push_account_set") or ""
-    if not (connection and account_set and _stock(record)[0]) or connections.adapter_of(connection) != "express":
-        return None
-    view = connections.stock_acc_group(connection, account_set)
-    if view and view.get("known") and not view.get("chosen") and len(view.get("groups") or []) >= 2:
-        return view
-    return None
+def stock_group_stop(view):
+    """选择项视图（`service.choices_view`）判出新建库存品挂哪个存货科目组还没定（``stock_group``：零主档那一档或
+    `stock_acc_group.new_item_group`，11-19）→ 停下那句现有原因；没有回空。写账前置判定（`assistant.precheck_source`：LINE 出卡前、
+    CC 卡片里问这一题）与这里同一份。"""
+    return str(_("intake.error.STOCK_ACC_GROUP_UNFIT")) if (view or {}).get("stock_group") else ""
 
 
 def save(name) -> dict:
@@ -79,13 +73,13 @@ def save(name) -> dict:
     adapter = connections.adapter_of(connection)
     posting_kind = _stock(record)[1]
     if adapter == "express":
-        if stock_group_open(record):
-            return {"stop": _("Inventory account group")}
         view = application.choices_view(name, connection, account_set, posting_kind)
         if view.get("wait"):
             return {"stop": view["wait"].get("message") or ""}
         if view.get("needed"):
             return {"stop": export_facts.reason_text("choice_needed")}
+        if stock_group_stop(view):
+            return {"stop": stock_group_stop(view)}
     revision = frappe.db.get_value(connections.CONNECTION, connection, "record_revision")
     key = _key("line-save", name, record.record_version, account_set, record.get("last_push_record") or "")
     result = application.submit(name, connection, key, record.record_version, revision, account_set, None, None,

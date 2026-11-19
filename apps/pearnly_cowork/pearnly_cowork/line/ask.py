@@ -86,10 +86,28 @@ def reattach(line_user_id) -> None:
         pending["messages"].append(prompt)
 
 
+def _hold(ticket) -> str:
+    """题都问完、出卡前再判一次：写不进又没得选（账套里一个合格的存货科目组都没有，11-19）回那句现有原因；判不了回空（照常出卡，
+    保存时照现有兜底）。"""
+    try:
+        from pearnly_cowork.assistant import precheck_source
+
+        return str(precheck_source.line_ticket(ticket["name"], finished=True).get("hold") or "")
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Cowork LINE card check failed", message=frappe.get_traceback()[-1500:])
+        return ""
+
+
 def _card(ticket) -> list:
+    """出卡（带答过的结果）；写不进又没得选的票先说那句原因、卡上不放「保存」。"""
     from pearnly_cowork.line import cards
 
-    return cards.previews([ticket["name"]], ticket["card"], {ticket["name"]: ticket.get("answers") or []})
+    hold = _hold(ticket)
+    said = [{"type": "text", "text": hold[:2000]}] if hold else []
+    return said + cards.previews([ticket["name"]], ticket["card"], {ticket["name"]: ticket.get("answers") or []},
+                                 held={ticket["name"]} if hold else None)
 
 
 def _cancel(ticket) -> list:

@@ -26,7 +26,7 @@ from pearnly_core.transaction import snapshot
 from frappe import _
 
 from pearnly_core.assistant import guided as assistant_guided
-from pearnly_core.express_rules.push import posting_profile
+from pearnly_core.express_rules.push import posting_profile, stock_acc_group
 
 from pearnly_core.write_precheck import contracts as card
 from pearnly_core.write_precheck import preselect
@@ -192,7 +192,11 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
                  for item in asked]
     items.extend(asked)
     items.extend(decided_items(decision, found["fields"], found["direction"]))
-    group = _stock_group_item(doc)
+    if (view.get("stock_group") or {}).get("reason") == stock_acc_group.REASON_ACC_GROUP_MISSING:
+        # 一个合格的存货科目组都没有：没得选，要在 Express 里配（写不了，列事实；LINE 出卡前说这句、卡上不放保存）
+        return _with_menu({**out, "state": card.NOT_WRITABLE, "reason": str(_("intake.error.STOCK_ACC_GROUP_UNFIT")),
+                           "reason_code": stock_acc_group.REASON_ACC_GROUP_MISSING}, menu)
+    group = _stock_group_item(view, doc)
     if group:
         items.append(group)
     own = document_payment_item(doc, found["fields"], found["direction"])
@@ -350,22 +354,17 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
             "options": [{"code": "stock"}, {"code": "service"}]}
 
 
-def _stock_group_item(doc):
-    """新建库存品挂哪个存货科目组还没定（与 LINE 卡片「保存」停下同一判据，`card_save.stock_group_open`：有库存行、这份账套合格的组
-    不止一个、还没选过）：一项，选项是合格的组，按账套记（11-19，LINE 出卡前问完）。不用问、读不到回 None。"""
-    from pearnly_cowork.push.application import card_save
-
-    try:
-        view = card_save.stock_group_open(doc)
-    except (frappe.ValidationError, frappe.PermissionError):
-        frappe.clear_messages()
+def _stock_group_item(view, doc):
+    """新建库存品挂哪个存货科目组还没定、合格的组有几个（推送试算判出的 ``stock_group``，同 LINE 卡片保存停下的那一份：零主档那一档或
+    `stock_acc_group.new_item_group`——账套已有库存品、证明不了挂得最多的组合格，11-19）：一项，只列合格的组，推荐挂得最多的（点了
+    才算），按账套记。没有回 None。"""
+    found = view.get("stock_group") or {}
+    if found.get("reason") != stock_acc_group.REASON_ACC_GROUP_REQUIRED or not found.get("groups"):
         return None
-    if not view:
-        return None
-    return {"kind": STOCK_GROUP, "subject": str(view.get("account_set_key") or doc.push_account_set or "")[:card.SUBJECT_MAX],
-            "label": str(_("Inventory account group")), "value": "", "source": "",
-            "options": [{"code": str(row["acccod"]), "name": str(row.get("label") or row["acccod"])}
-                        for row in view.get("groups") or () if row.get("acccod")]}
+    return {"kind": STOCK_GROUP, "subject": str(view.get("account_set") or doc.push_account_set or "")[:card.SUBJECT_MAX],
+            "label": str(_("Inventory account group")), "value": str(found.get("recommended") or ""),
+            "source": card.RULE if found.get("recommended") else "",
+            "options": [{"code": row["acccod"], "name": row.get("label") or row["acccod"]} for row in found["groups"]]}
 
 
 def _lines_settled(fields, kinds) -> bool:
@@ -654,11 +653,13 @@ def _company_of(doc) -> str:
     return str(pending.company_for(_row(doc)) or "")
 
 
-def line_ticket(history) -> dict:
+def line_ticket(history, finished=False) -> dict:
     """LINE 识别完、出卡前问这张票的题（`line.ask`，用户 11-19）：交给共用出题器的「公司」与每题开头那行（对方 · 单据号）。
     归得上公司主档（:func:`_company_of`）回那家；归不上、但推送去向的连接上有能写这张票的账套：回 ``ticket:<单号>``，判定先问「写进
     哪本账套」（:func:`_ticket`），选了按那本建 / 认公司主档再问剩下的（主会话 11-19：不能有 LINE 问不了）；一本可选的都没有回
-    ``refused``（一句事实，不出卡）。LINE 域只经这一个函数用到助手域（`architecture.md` 的 line → assistant）。"""
+    ``refused``（一句事实，不出卡）。``finished``：题都问完、要出卡时再判一次，写不进又没得选（账套里一个合格的存货科目组都没有，
+    11-19）回 ``hold``（那句现有原因：出卡前说这句、卡上不放「保存」）。LINE 域只经这一个函数用到助手域（`architecture.md` 的
+    line → assistant）。"""
     from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.history import storage
 
@@ -668,6 +669,10 @@ def line_ticket(history) -> dict:
     number = str(fields.get("invoice_number") or getattr(doc, "invoice_no", "") or "")
     heading = " · ".join(part for part in (_party(doc, fields), number) if part)
     company = _company_of(doc)
+    if finished:
+        found = document(history)
+        held = found.get("state") == card.NOT_WRITABLE and found.get("reason_code") == stock_acc_group.REASON_ACC_GROUP_MISSING
+        return {"company": company, "heading": heading, **({"hold": str(found.get("reason") or "")} if held else {})}
     if company:
         return {"company": company, "heading": heading}
     if not _ledger_options(doc):

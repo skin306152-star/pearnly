@@ -13,6 +13,7 @@ from pearnly_cowork.connections import access as connection_access
 from pearnly_cowork.connections import service as connections
 from pearnly_cowork.connections import preparation as preparation_sources
 from pearnly_core.assistant import guided as assistant_guided
+from pearnly_core.express_rules.push import stock_acc_group
 from pearnly_core.express_rules.targets import stock_groups
 from pearnly_cowork.contracts import document_policy as policy_rules
 from pearnly_core.express_rules.contracts import codes as code_rules
@@ -233,6 +234,15 @@ def prepare(history, connection, request_key, expected_history_version, expected
             supplier_profile=preparation["supplier_profiles"].get(seller_tax),
             bank_index=preparation["bank_index"], prior_docnum=prior_docnum))
     payload = prepared.payload or {}
+    disposition, reason = prepared.disposition, prepared.reason or ""
+    if disposition == "ready":
+        # 账套已有库存品、这张要新建库存品又没选过组：写账规则不定组、电脑照抄挂得最多的那组，那组不合格写账时才停（11-19 真机）。
+        # 判据在共用层（ERP 同用）：证明不了众数组合格的，合格 1 个就带上、几个停下选一次、一个都没有停下
+        group = stock_acc_group.new_item_group(payload, selected['config'])
+        if group.acccod:
+            payload = {**payload, "stock_acccod": group.acccod}
+        elif group.fail_reason:
+            disposition, reason = "manual", group.fail_reason
     if confirm_duplicate and payload:
         # 小助手的查重闸认这个键：Express 已有同号不同内容 / 上一版还在时，会计确认过就照写（`duplicate_gate`）。
         payload["duplicate_confirmed"] = True
@@ -266,7 +276,7 @@ def prepare(history, connection, request_key, expected_history_version, expected
                                     lambda: _account_row(loaded, target))
         if outcome:
             frozen["proposal"] = outcome
-    if operator and prepared.disposition == "ready":
+    if operator and disposition == "ready":
         from pearnly_core.express_operator import contracts as operator_contracts
 
         # 定制菜单的子菜单多个候选（评估 2026-11-05 修法 D）：这家这本账套这种单记住的菜单文字，与按票面付款文字认的现金 / 转账
@@ -276,8 +286,8 @@ def prepare(history, connection, request_key, expected_history_version, expected
             pay_route=operator_pay_route(fields))
     row = ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,
         frozen_payload=payload,
-        disposition="prepared" if prepared.disposition == "ready" else "manual",
-        reason=prepared.reason or "", checks=prepared.preflight.checks_json(), route_device=route_device)
+        disposition="prepared" if disposition == "ready" else "manual",
+        reason=reason, checks=prepared.preflight.checks_json(), route_device=route_device)
     return _view(row)
 
 
@@ -587,7 +597,8 @@ def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None, ask_loc
         lambda kind, **more: _decisions(loaded.doc.name, target.account_set, flat, fields, direction, kind, config,
                                 preparation, fixed, **more, ask_location=ask_location, siblings=lambda: _same_company(loaded, target.account_set),
                                 account_row=lambda: _account_row(loaded, target)))
-    planned = None if decision["needed"] else _planned(doc, loaded, found, posting_kind, decision, today)
+    trial = {}
+    planned = None if decision["needed"] else _planned(doc, loaded, found, posting_kind, decision, today, trial=trial)
     frappe.db.rollback()  # 只是看：记付款方式的那一笔不在这里落
     masters = account_masters(loaded.doc.name, target.account_set)
     kinds = {item["kind"] for item in decision["needed"]}
@@ -617,7 +628,13 @@ def _choices(doc, loaded, found, posting_kind, *, fixed=None, hint=None, ask_loc
         result["wait"] = wait
     if fixed:
         result["fixed"] = dict(fixed)  # 这张票已定的（定时任务默认处理），不再问
-    if planned:
+    if trial.get("stock_group"):
+        # 新建库存品挂哪个存货科目组还没定（`stock_acc_group.new_item_group` / 零主档那一档）：写账前置判定出题、LINE 保存兜底照它
+        groups = stock_acc_group.fit_stock_acc_groups(config)
+        result["stock_group"] = {"reason": trial["stock_group"], "recommended": stock_acc_group.most_used_group(config),
+                                 "groups": [{"acccod": str(row["acccod"]).strip(), "label": stock_groups.label(row),
+                                             "used_by": int(row.get("used_by") or 0)} for row in groups]}
+    elif planned:
         result["planned"] = planned  # 没有要选的：推出去会怎么写（与入账后的 written 同一个函数）
     return result, decision, (posting_kind, posting_from, today)
 
@@ -632,10 +649,11 @@ def _operator_target(doc, loaded, found) -> dict:
             "connection_title": str(getattr(loaded.doc, "label", "") or "")}
 
 
-def _planned(doc, loaded, found, posting_kind, decision, today):
+def _planned(doc, loaded, found, posting_kind, decision, today, trial=None):
     """没有要人选的项时，这张票此刻推出去会怎么写（`pushed.planned`）：与准备推送同一套试算（`prepare` 里 ``choices`` 之后那一段，
     同自动推判定 `assess._assess`），只看不记；票面本身指向的现 / 赊按付款判定不带选择再判一次。试算不成（口径没定、预检不过）
-    回 None，照旧推时再说。"""
+    回 None，照旧推时再说。``trial``：给了就把这次试算判出的「新建库存品的存货科目组还没定」记进 ``trial["stock_group"]``
+    （停下原因码，同 `prepare`：零主档那一档或 `stock_acc_group.new_item_group`）。"""
     if _document_block(doc):
         return None
     selected, fields, preparation = found["selected"], found["fields"], found["preparation"]
@@ -654,7 +672,13 @@ def _planned(doc, loaded, found, posting_kind, decision, today):
         frappe.clear_messages()
         return None
     payload = prepared.payload if prepared.disposition == "ready" else None
-    if not payload:
+    reason = str(getattr(prepared, "reason", "") or "")
+    group = (stock_acc_group.new_item_group(payload, selected["config"]).fail_reason if payload
+             else reason if reason in (stock_acc_group.REASON_ACC_GROUP_REQUIRED, stock_acc_group.REASON_ACC_GROUP_MISSING)
+             else "")
+    if trial is not None and group:
+        trial["stock_group"] = group
+    if not payload or group:
         return None
     verdict = None
     if found["direction"] == "purchase":

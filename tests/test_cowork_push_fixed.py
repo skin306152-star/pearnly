@@ -335,6 +335,35 @@ class ServiceEntrypoints(unittest.TestCase):
         service._decisions = lambda *a, **k: {"needed": [], "applied": {}}
         service.prepare_express = lambda *a, **k: types.SimpleNamespace(disposition="manual", payload={"doctype": "RR"})
         self.assertNotIn("planned", service.choices_view("H1", "C1", BOOK, None))
+        # 新建库存品挂哪个存货科目组（11-19 真机：账套已有库存品，电脑照抄挂得最多的组、那组不合格写账才停）：试算判出没定的列进
+        # ``stock_group``（共用层 `new_item_group`），不给「会怎么写」；合格的只有一个照写（推送时带上它）
+        new_item = {**payload, "items": [{"item_mode": "stock_item", "code": "", "name": "Box"}]}
+        service.prepare_express = lambda *a, **k: types.SimpleNamespace(disposition="ready", payload=dict(new_item))
+        context["selected"]["config"] = {"catalog_fingerprint": {"stock_master_count": 37}, "reported_stock_acc_groups": [
+            {"acccod": "DM", "fit": True, "used_by": 17, "stock_acc": "11-04"}, {"acccod": "ST10", "fit": True, "used_by": 1}]}
+        view = service.choices_view("H1", "C1", BOOK, None)
+        self.assertEqual((view["stock_group"]["reason"], view["stock_group"]["recommended"]), ("stock_acc_group_required", "DM"))
+        self.assertEqual([row["acccod"] for row in view["stock_group"]["groups"]], ["DM", "ST10"])
+        self.assertNotIn("planned", view)
+        context["selected"]["config"]["reported_stock_acc_groups"] = []
+        self.assertEqual(service.choices_view("H1", "C1", BOOK, None)["stock_group"]["reason"], "stock_acc_group_missing")
+        context["selected"]["config"]["reported_stock_acc_groups"] = [{"acccod": "DM", "fit": True, "used_by": 17}]
+        self.assertNotIn("stock_group", service.choices_view("H1", "C1", BOOK, None))
+        # 零主档那一档（写账规则自己停在要选组）也照样列
+        service.prepare_express = lambda *a, **k: types.SimpleNamespace(disposition="manual", payload=None,
+                                                                        reason="stock_acc_group_required")
+        self.assertEqual(service.choices_view("H1", "C1", BOOK, None)["stock_group"]["reason"], "stock_acc_group_required")
+
+    def test_prepare_applies_the_new_item_group_before_it_reserves(self):
+        """推送准备同一份判据（不只在判定里问）：载荷带上唯一合格组，几个 / 没有就停成要人处理（原因码同零主档那一档）。"""
+        import ast
+
+        source = (APP / "push/application/service.py").read_text(encoding="utf-8")
+        body = next(ast.get_source_segment(source, node) for node in ast.parse(source).body
+                    if isinstance(node, ast.FunctionDef) and node.name == "prepare")
+        self.assertIn("stock_acc_group.new_item_group(payload, selected['config'])", body)
+        self.assertLess(body.index("new_item_group"), body.index("ledger.reserve(context=context, request_key=request_key, frozen_target=frozen,"))
+        self.assertIn('disposition, reason = "manual", group.fail_reason', body)
 
     def test_save_choices_refuses_kinds_covered_by_the_task_defaults(self):
         service, _frappe_module, calls = _service(hooks=["p.one"], providers={"p.one": {"account": "5300"}})

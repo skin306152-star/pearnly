@@ -13,7 +13,7 @@ from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.prior_doc import prior_history_id
 from pearnly_core.express_rules.push.common import amounts
 from pearnly_core.express_rules.push.account_rules import account_set_allowed, stock_lane_enabled
-from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.push.stock_acc_group import most_used_group, new_item_group, resolve_stock_acc_group
 
 
 class PreflightTests(unittest.TestCase):
@@ -215,6 +215,42 @@ class PreflightTests(unittest.TestCase):
                 else:
                     continue
                 self.assertFalse(any(x.split('.')[0] in {'frappe', 'requests', 'httpx', 'os', 'socket', 'services', 'core'} for x in modules), path)
+
+class NewItemGroupTests(unittest.TestCase):
+    """新建库存品挂哪个存货科目组（共用层 `new_item_group`，ERP、Cowork 同用，11-19 真机 69EXP\\TEST）：账套已有库存品时写账规则
+    不定组、电脑照抄挂得最多的那组；服务端证明不了那组合格的，同零主档那一档定组 / 问一次 / 停下。"""
+
+    NEW = {"items": [{"item_mode": "stock_item", "code": "", "name": "Box"}]}
+
+    @staticmethod
+    def config(groups, total=None, chosen=""):
+        out = {"reported_stock_acc_groups": [{"acccod": code, "fit": True, "used_by": used} for code, used in groups]}
+        if total is not None:
+            out["catalog_fingerprint"] = {"stock_master_count": total}
+        return {**out, **({"stock_acccod": chosen} if chosen else {})}
+
+    def verdict(self, payload, config):
+        found = new_item_group(payload, config)
+        return found.acccod, found.fail_reason
+
+    def test_nothing_to_decide_without_a_new_stock_item_or_with_a_chosen_group(self):
+        known = {"items": [{"item_mode": "stock_item", "code": "P-1"}, {"item_mode": "non_stock_item", "code": ""}]}
+        self.assertEqual(self.verdict(known, self.config([])), ("", ""))
+        self.assertEqual(self.verdict(self.NEW, self.config([], chosen="ST10")), ("", ""))
+        self.assertEqual(self.verdict({**self.NEW, "stock_acccod": "ST10"}, self.config([])), ("", ""))
+
+    def test_the_computer_clones_only_a_provably_fit_most_used_group(self):
+        self.assertEqual(self.verdict(self.NEW, self.config([("ST10", 146)], total=162)), ("", ""))
+        self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17)], total=37)), ("DM", ""))  # ST01（不合格）挂 19 件
+        self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17), ("ST10", 1)], total=37)),
+                         ("", "stock_acc_group_required"))
+        self.assertEqual(self.verdict(self.NEW, self.config([], total=37)), ("", "stock_acc_group_missing"))
+        self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17)])), ("DM", ""))  # 没报总数：不赌众数
+
+    def test_the_recommendation_is_the_most_used_fit_group(self):
+        self.assertEqual(most_used_group(self.config([("ST10", 1), ("DM", 17)])), "DM")
+        self.assertEqual(most_used_group(self.config([])), "")
+
 
 if __name__ == '__main__':
     unittest.main()

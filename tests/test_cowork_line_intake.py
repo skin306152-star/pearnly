@@ -439,7 +439,6 @@ class LineCardSaveTest(unittest.TestCase):
             mock.patch.object(save, "_", side_effect=lambda text, *a, **k: text),
             mock.patch.object(save.storage, "read", side_effect=lambda name: self.record),
             mock.patch.object(save.connections, "adapter_of", return_value="express"),
-            mock.patch.object(save.connections, "stock_acc_group", return_value=None),
             mock.patch.object(save.application, "choices_view", side_effect=lambda *a, **k: self.view),
             mock.patch.object(save.export_facts, "reason_text", side_effect=lambda reason: "T:" + str(reason)),
             mock.patch.object(save.conflicts, "retried", side_effect=lambda function, *a, **k: function(*a, **k)),
@@ -486,19 +485,26 @@ class LineCardSaveTest(unittest.TestCase):
         self.assertEqual(self.confirm.call_args.args[2], "confirm:" + args.args[2])
 
     def test_save_stops_when_the_stock_group_is_not_chosen_the_same_rule_the_questions_use(self):
-        """兜底（旧卡、题没答完）：有库存行、合格的存货科目组不止一个、还没选 → 不推，回原因；出卡前的提问用同一个判据
-        （`stock_group_open`，`assistant.precheck_source`）。"""
-        view = {"account_set_key": "acc-1", "known": True, "chosen": None, "groups": [{"acccod": "1"}, {"acccod": "2"}]}
-        self.record.pages = '[{"fields": {"invoice_number": "IV1", "total_amount": "1", "items": [{"name": "Box", "posting_kind": "stock"}]}}]'
-        with mock.patch.object(self.save.connections, "stock_acc_group", return_value=view):
-            self.assertEqual(self.save.stock_group_open(self.record), view)
-            self.assertEqual(self.save.save("CWH-3"), {"stop": "Inventory account group"})
-            self.record.pages = "[]"  # 没有库存行：不问
-            self.assertIsNone(self.save.stock_group_open(self.record))
-            self.record.pages = '[{"fields": {"invoice_number": "IV1", "total_amount": "1", "items": [{"name": "Box", "posting_kind": "stock"}]}}]'
-            view["chosen"] = "1"
-            self.assertIsNone(self.save.stock_group_open(self.record))
-        self.submit.assert_not_called()
+        """兜底（旧卡、题没答完）：推送试算判出新建库存品的存货科目组还没定（选择项视图的 ``stock_group``：几个合格的要选、一个都没有）
+        → 不推，回那句现有原因；出卡前的提问（`assistant.precheck_source`）照同一份出题 / 说原因。"""
+        for reason in ("stock_acc_group_required", "stock_acc_group_missing"):
+            self.view = {"needed": [], "stock_group": {"reason": reason, "groups": []}}
+            self.assertEqual(self.save.save("CWH-3"), {"stop": "intake.error.STOCK_ACC_GROUP_UNFIT"})
+        self.view = {"needed": []}
+        self.assertEqual(self.save.stock_group_stop(self.view), "")
+        self.submit.reset_mock()
+        self.assertEqual(self.save.save("CWH-3"), {"sent": True})
+
+    def test_a_card_held_for_a_fact_has_no_save_button(self):
+        """写不进又没得选（账套里一个合格的存货科目组都没有，11-19）：卡上不放「保存」，只剩编辑、取消。"""
+        from pearnly_cowork.line import cards
+
+        with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"), \
+                mock.patch("pearnly_cowork.connections.directory.account_label", return_value="69EXP"):
+            buttons = cards.preview(self.record, {"target": "x"}, save=False)["contents"]["footer"]["contents"]
+        self.assertEqual([(b["action"]["type"], b["action"].get("data")) for b in buttons],
+                         [("uri", None), ("postback", "a=cowork_cancel&n=CWH-3")])
 
     def test_save_stops_when_a_choice_is_needed(self):
         self.view = {"needed": [{"kind": "account"}]}
