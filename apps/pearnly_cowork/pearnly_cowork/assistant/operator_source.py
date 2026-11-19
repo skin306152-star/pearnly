@@ -369,6 +369,9 @@ def _settle(doc_id, memory) -> str:
     group, own = _group(row, fields, doc.get("posting_kind"), memory)
     if group != own:
         _write_group(doc_id, group)
+        # 当场提交：接着判卡片的 `precheck_source.document` 「只是看」要回滚，没提交的分组会被冲掉，卡片按新分组判、单据仍是
+        # 旧分组，直写推送照单据推（11-19 回滚审计）
+        frappe.db.commit()
         fields = {**fields, **_FIELDS[group]}
     return _posting(fields, doc.get("posting_kind"))
 

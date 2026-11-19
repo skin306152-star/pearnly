@@ -2083,6 +2083,21 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.cc.remembered-group-direct"
+title = "Cowork CC 直写：公司记住的分组（销售）与票自己的（进项）不同，建计划判卡片时落到单据上并提交，推给 Express 的方向是销项（11-19 回滚审计 P2）"
+module = "scripts/flows/cc_remembered_group_direct.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+  "apps/pearnly_core/pearnly_core/transaction/snapshot.py",
+]
+
+[[flow]]
 id = "cowork.cc.conversation-ledger"
 title = "Cowork CC 本对话账套（R2-5 端到端）：新建页选 T.8 再发第一句、右栏显示 T.8，建计划不问账套、点写入开始，模型在推送里另填同期 T.9 被拒只给 T.8、不填照 T.8 写，库里只有 T.8（A 线 11-12）"
 module = "scripts/flows/cc_conversation_ledger.py"
