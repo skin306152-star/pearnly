@@ -225,6 +225,55 @@ class Precheck(Base):
             row.source = "cc"
             self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"][0]["reason"], precheck.contracts.DISCONNECTED)
 
+    def test_on_mr_erp_a_line_record_also_asks_what_mr_erp_needs_with_the_same_judgment(self):
+        """11-19：MR.ERP 公司的 LINE 收单记录出卡前也问 MR.ERP 导入前要人定的（同已存单据 `precheck.mrerp_needed`），账套按票面日期选。"""
+        from pearnly_erp_portal.express import precheck
+
+        row = SimpleNamespace(name="LI-7", source="line", sent_by="buyer@x", company="CO-1", direction="sales",
+                              status="ready", purchase=None, sales_document=None)
+        own = {"doc_id": "I:LI-7", "ref": "IV1", "direction": "sales", "state": "check",
+               "items": [{"kind": "payment", "subject": "p", "source": "remembered", "value": "cash"}]}
+        menu = {"kind": "mrerp_menu", "subject": "sales", "label": "sales", "value": "", "source": "",
+                "options": [{"code": "IV", "name": ""}, {"code": "CS", "name": ""}]}
+        self.rows["LI-7"] = SimpleNamespace(**vars(row), result=json.dumps({"doc_date": "2026-11-18"}))
+        frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
+            json.dumps({"doc_date": "2026-11-18"}) if (doctype, fields) == (intake.DOCTYPE, "result") else None)
+        picks = []
+        book = {"book": {"key": "B1"}, "reason": "", "options": [], "subject": ""}
+        with patch.object(operator, "intake_own_view", return_value=own), \
+                patch("pearnly_erp_portal.mrerp.push.picked_for", side_effect=lambda company, day: picks.append(day) or book), \
+                patch.object(precheck, "mrerp_needed", side_effect=lambda company, doctype, picked: [menu]
+                             if (doctype, picked) == (precheck.push.SALES, book) else None):
+            view = operator.intake_mrerp_view("CO-1", "I:LI-7", row)
+        self.assertEqual(picks, ["2026-11-18"])
+        self.assertEqual([item["kind"] for item in view["items"]], ["payment", "mrerp_menu"])
+        with patch.object(operator, "intake_own_view", return_value=own), \
+                patch("pearnly_erp_portal.mrerp.push.picked_for", return_value={**book, "reason": precheck.contracts.NO_BOOK}):
+            self.assertEqual(operator.intake_mrerp_view("CO-1", "I:LI-7", row)["state"], "not_writable")  # 同已存单据
+        # 记答：记录自己的写回记录，MR.ERP 那几项按同已存单据的记法、同一本账套记
+        saved = []
+        answers = [{"kind": "payment", "subject": "erp-intake-pay:sales|1", "value": "cash"},
+                   {"kind": "mrerp_menu", "subject": "sales", "value": "IV"}]
+        with patch.object(operator, "apply_intake_answers", return_value=answers[1:]) as written, \
+                patch("pearnly_erp_portal.mrerp.push.picked_for", return_value=book), \
+                patch.object(precheck, "save_mrerp", side_effect=lambda company, doctype, given, seen, name=None, picked=None:
+                             saved.append((doctype, given, name, picked)) or 1):
+            self.assertEqual(operator.remember_intake_mrerp("CO-1", row, answers), 1)
+        written.assert_called_once_with("CO-1", "LI-7", answers)
+        self.assertEqual(saved, [(precheck.push.SALES, answers[1:], None, book)])
+        # 写账判定与记答在 MR.ERP 公司对 LINE 的记录走这一支
+        with patch.object(precheck, "_company_ok", return_value=True), \
+                patch.object(precheck.push, "enabled", return_value=False), \
+                patch.object(precheck.mrerp_push, "handles", return_value=True), \
+                patch.object(precheck, "_collection", return_value=SimpleNamespace(
+                    mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
+                patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \
+                patch.object(operator, "intake_mrerp_view", return_value={"doc_id": "I:LI-7", "state": "check", "items": []}), \
+                patch.object(operator, "remember_intake_mrerp", return_value=1) as remembered:
+            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}])
+            self.assertEqual(precheck.remember("CO-1", {"I:LI-7": answers}), {"saved": 1})
+        self.assertEqual(remembered.call_args.args[:3], ("CO-1", row, answers))
+
 
 class Answers(Base):
     def setUp(self):

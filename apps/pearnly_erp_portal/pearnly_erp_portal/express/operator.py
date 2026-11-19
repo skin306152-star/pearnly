@@ -471,6 +471,60 @@ def intake_own_view(company, doc_id, row) -> dict:
             **({"party": party} if party else {}), "state": card.CHECK, "items": intake_items(company, doc, result)}
 
 
+def _intake_picked(company, row) -> dict:
+    """MR.ERP 公司里这条收单记录提交后写进哪本（`mrerp.push.picked_for`，同已存单据 `mrerp.push.picked`：本对话账套 → 按单据日期；
+    票面没读出日期按今天，同提交时的默认）。"""
+    import json
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from pearnly_erp_portal.mrerp import push as mrerp_push
+
+    raw = frappe.db.get_value(INTAKE_DOCTYPE, row.name, "result")
+    day = str((json.loads(raw) if isinstance(raw, str) and raw else {}).get("doc_date") or "")[:10]
+    return mrerp_push.picked_for(company, day or datetime.now(ZoneInfo("Asia/Bangkok")).date().isoformat())
+
+
+def intake_mrerp_view(company, doc_id, row) -> dict:
+    """账本是 MR.ERP 的公司里 LINE 收单的一条记录（写账判定 `precheck.check`，用户 11-19 出卡前问完）：记录自己要人定的
+    （:func:`intake_own_view`）加 MR.ERP 导入前要人定的（导入菜单、主档默认值、同期两本选哪本）——与已存单据同一份
+    （`precheck.mrerp_needed`，账套按 :func:`_intake_picked`）。没有覆盖单据日期的账套：写不了（同已存单据 `precheck.mrerp_view`）。"""
+    from pearnly_core.write_precheck import contracts as card
+    from pearnly_erp_portal.express import contracts as express_contracts, precheck as write_precheck
+
+    view = intake_own_view(company, doc_id, row)
+    if view.get("state") != card.CHECK:
+        return view
+    picked = _intake_picked(company, row)
+    if picked.get("reason") == express_contracts.NO_BOOK:
+        return {**{key: view[key] for key in ("doc_id", "ref", "direction", "party") if key in view},
+                "state": card.NOT_WRITABLE, "reason": write_precheck.NO_ACCOUNT_SET}
+    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
+    items = write_precheck.mrerp_needed(company, doctype, picked) or []
+    return {**view, "items": [*view["items"], *items]}
+
+
+def remember_intake_mrerp(company, row, answers, seen=None) -> int:
+    """MR.ERP 公司里对 LINE 收单记录答的记下（写账判定 `precheck.remember` 调）：记录自己的几项写回记录（:func:`apply_intake_answers`），
+    MR.ERP 那几项按同已存单据的记法记在公司上那本账套名下（`precheck.save_mrerp`，账套按 :func:`_intake_picked`）。已提交的按提交出的
+    单据记。回 MR.ERP 那边记了几项。"""
+    from pearnly_erp_portal.express import precheck as write_precheck
+
+    if not isinstance(answers, list) or any(not isinstance(answer, dict) for answer in answers):
+        frappe.throw(_("Invalid request"))
+    seen = seen if seen is not None else set()
+    done = _submitted(row)
+    if done:
+        own = INTAKE_SUBJECT + row.name
+        rest = [answer for answer in answers if not str(answer.get("subject") or "").startswith((own, INTAKE_PAY))]
+        return write_precheck.save_mrerp(company, done[0], rest, seen, done[1]) if rest else 0
+    rest = apply_intake_answers(company, row.name, answers)
+    if not rest:
+        return 0
+    doctype = push.PURCHASE if row.direction == "purchase" else push.SALES
+    return write_precheck.save_mrerp(company, doctype, rest, seen, picked=_intake_picked(company, row))
+
+
 def remember_intake(company, row, answers, seen=None) -> int:
     """开始前卡片对这条收单记录答的记下（写账判定 `precheck.remember` 调）：记录自己的几项（付款、各行物料、仓库）写回记录
     （:func:`apply_intake_answers`），其余 Express 那几项按它将成为的单据重新收齐后核值、记下（`precheck.save`，同单据）。

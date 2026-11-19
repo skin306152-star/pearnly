@@ -241,7 +241,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
 
         try:
             # 用户 11-19「所有问题问完 … 一气呵成」：每张要人定的题（物料、仓库、写账前置判定）问完才出卡，逐张；
-            # 正在问别的就排在后面（回空，不出卡）
+            # 正在问别的就排在后面（回「排队中」，不出卡）
             messages = line_questions.begin(line_user_id, [card.name for card, _data in cards])
         except Exception:
             frappe.db.rollback()

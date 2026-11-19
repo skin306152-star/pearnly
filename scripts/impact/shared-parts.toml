@@ -1403,11 +1403,11 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py"
 [[entry]]
 id = "erp.line.precheck-questions"
 product = "ERP"
-where = "LINE 识别后出卡前问完要人定的题（用户 11-19：物料、仓库，再问写账前置判定剩下的项——接 Express 的公司是 Express 要人选的项——全部问完才发卡片；卡片「保存」按同一份判定兜底）"
-steps = "接 Express 的测试公司：富菜单「ซื้อ」→ 上传一张有新物料、会要人选 Express 项（新供应商 / 存货 / 运费科目 / 小票税额）的票 → 先答物料与仓库，再答 Express 的题（推荐排第一个按钮；打字搜索；打一句别的）→ 最后才来卡片 → 「บันทึก」；题答到一半再发一张新票；在题上点「取消」；没接 Express 的公司同走一遍；销售「ขาย」同走一遍；发卡前的旧卡（题没答完）点「บันทึก」"
-expect = "没有题的票直接出卡；有题的问完才出卡、卡在最后；推荐没点不往下走；答错回原因重问；取消 = 这张作废、不出卡；答题中的新票排队、答案不串到别的票；答过的按公司记住、下次同一项不再问；保存后写账不再停下要人选；旧卡题没答完点保存不入账、回原因 + 「แก้ไข」；CC 开始前卡片、代录开始卡、网页待处理照常（同一份判定）"
+where = "LINE 识别后出卡前问完要人定的题（用户 11-19：物料、仓库，再问写账前置判定剩下的项——接 Express 的公司是 Express 要人选的项，账本是 MR.ERP 的是 MR.ERP 导入前要人定的项——全部问完才发卡片；卡片「保存」按同一份判定兜底）"
+steps = "接 Express 的测试公司：富菜单「ซื้อ」→ 上传一张有新物料、会要人选 Express 项（新供应商 / 存货 / 运费科目 / 小票税额）的票 → 先答物料与仓库，再答 Express 的题（推荐排第一个按钮；打字搜索；打一句别的）→ 最后才来卡片 → 「บันทึก」；题答到一半再发一张新票；在题上点「取消」；没接 Express 的公司、MR.ERP 测试公司各走一遍；销售「ขาย」同走一遍；发卡前的旧卡（题没答完）点「บันทึก」"
+expect = "没有题的票直接出卡；有题的问完才出卡、卡在最后；推荐没点不往下走；答错回原因重问；取消 = 这张作废、不出卡；答题中的新票排队并回「排队中」、答案不串到别的票；答过的按公司记住、下次同一项不再问；保存后写账不再停下要人选；旧卡题没答完点保存不入账、回原因 + 「แก้ไข」；CC 开始前卡片、代录开始卡、网页待处理照常（同一份判定）"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/push.py"]
 
 [[entry]]
 id = "erp.trade.line-stock"

@@ -141,7 +141,7 @@ def _drive(payload, messages=()) -> list:
 
 
 def begin(line_user_id, names):
-    """识别完的几张票（`intake.run`）：回这次要发的消息（卡 / 第一题；正在问别的就排在后面、回空）。
+    """识别完的几张票（`intake.run`）：回这次要发的消息（卡 / 第一题；正在问别的就排在后面、回「排队中」）。
     会话已过期或已换成别的流程（收款）回 None：调用方照旧直接出卡（卡片「保存」照判定兜底）。"""
     payload = line_flow.choices(line_user_id)
     if not payload:
@@ -149,6 +149,9 @@ def begin(line_user_id, names):
     waiting = list(payload.get(WAITING) or [])
     payload[WAITING] = waiting + [name for name in names if name not in waiting]
     messages = _drive(payload)
+    if not messages and _busy(payload):
+        # 正在答别的票：这张排在后面，回一句「排队中」（现有词条），问完前一张再问它
+        messages = [_text(_("Queued"))]
     line_flow.keep(line_user_id, payload)
     return messages
 

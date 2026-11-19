@@ -687,7 +687,7 @@ class LineItems(Base):
         self.add("LI-1", [self.row()], warehouse="WH-1")
         self.add("LI-2", [self.row()], warehouse="WH-1")
         self.assertEqual(len(self.begin("LI-1")), 1)
-        self.assertEqual(self.begin("LI-2"), [])               # 排在 LI-1 后面：不出卡、不提问
+        self.assertEqual(self.begin("LI-2"), [{"type": "text", "text": "Queued"}])  # 排在 LI-1 后面：只回「排队中」，不出卡、不提问
         self.tap("a=erp_item&v=all_new&n=LI-2")               # 不是当前这张：无效
         self.assertEqual(self.last_text(), "This option is no longer current")
         self.tap("a=erp_item&v=cancel&n=LI-1")
@@ -724,6 +724,17 @@ class LineItems(Base):
                                                                      "value": "claim"}])])
         self.assertEqual(self.replies[-1], [{"card": "LI-1"}])  # 问完才出卡，卡在最后
         self.assertFalse(line_questions.line_ask.asking(self.sessions["U1"]["payload"]))
+
+    def test_mr_erp_items_are_asked_in_line_before_the_card(self):
+        """11-19：MR.ERP 公司导入前要人定的（导入菜单）同样出卡前在 LINE 里问完。"""
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{"kind": "mrerp_menu", "subject": "purchase", "label": "purchase",
+                                      "options": [{"code": "HP", "name": "HP"}, {"code": "RR", "name": "RR"}]}]
+        question, = self.begin("LI-1")
+        self.assertEqual(self.labels(question), ["HP", "RR", "Cancel"])
+        self.press(question, 1)
+        self.assertEqual(self.judge.records[-1][2], [{"key": precheck_card.item_key("mrerp_menu", "purchase"), "value": "RR"}])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
 
     def test_a_ticket_with_nothing_to_ask_gets_its_card_at_once(self):
         self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
@@ -772,7 +783,7 @@ class LineItems(Base):
         self.judge.docs["I:LI-1"] = [{**VAT, "subject": "one"}]
         self.judge.docs["I:LI-2"] = [{**VAT, "subject": "two"}]
         first, = self.begin("LI-1")
-        self.assertEqual(self.begin("LI-2"), [])          # 答题中来的新票：排队，不出卡、不插题
+        self.assertEqual(self.begin("LI-2"), [{"type": "text", "text": "Queued"}])  # 答题中来的新票：排队，不出卡、不插题
         self.press(first, 0)
         self.assertEqual(self.judge.records[-1][1], ["I:LI-1"])  # 答案只记给 LI-1
         card, second = self.replies[-1]

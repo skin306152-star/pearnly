@@ -148,14 +148,19 @@ def prepare(doctype, name, document) -> dict:
 def picked(doctype, name) -> dict:
     """这张单写进哪本（CC 预选卡用，同 Express 预检 `_book_of` 的取法）：CC 对话 / 代录里是本对话账套；否则单据上记过的
     （``ledger_book``）；都没有按单据日期选。回 `mrerp.catalog.pick` 的结论（``{book, reason, options, subject}``）。"""
-    from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
-
     row = _row(doctype, name, ["company", "doc_date", "ledger_book"]) if doctype in DIRECTIONS else None
     if not row:
         return {"book": None, "reason": contracts.NOT_CONFIGURED, "options": [], "subject": ""}
+    return picked_for(row.company, str(row.doc_date or "")[:10], row.ledger_book)
+
+
+def picked_for(company, day, ledger_book=None) -> dict:
+    """同 :func:`picked`，给还没存成单据的（LINE 收单记录按票面日期，用户 11-19 出卡前问完）：本对话账套 → 记过的 → 按日期选。"""
+    from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
+
     # 都没有给 None（照单据日期选），不给空串（`catalog.pick` 把空串当「对话账套未定」）
-    wanted = _wanted(choices.company_row(row.company)) or row.ledger_book or None
-    return catalog.pick(row.company, str(row.doc_date or "")[:10], wanted)
+    wanted = _wanted(choices.company_row(company)) or ledger_book or None
+    return catalog.pick(company, day, wanted)
 
 
 def send(doctype, name, manual=False):
@@ -346,4 +351,4 @@ def poll():
         frappe.db.commit()
 
 
-__all__ = ["DIRECTIONS", "INVOICES", "STOCK", "answer", "dispatch", "handles", "poll", "prepare", "queue", "release_kick", "run", "send"]
+__all__ = ["DIRECTIONS", "INVOICES", "STOCK", "answer", "dispatch", "handles", "picked", "picked_for", "poll", "prepare", "queue", "release_kick", "run", "send"]

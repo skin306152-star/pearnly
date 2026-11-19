@@ -501,10 +501,11 @@ def mrerp_view(doc_id, doctype, name) -> dict:
     return {**view, "state": card.CHECK, "items": items}
 
 
-def save_mrerp(company, doctype, answers, seen, name=None) -> int:
+def save_mrerp(company, doctype, answers, seen, name=None, picked=None) -> int:
     """记 MR.ERP 的导入菜单 / 主档默认值：只认此刻要选的那几项、最近一次读到的可用值（不是就整批拒），记在公司上这张单那本账套名下
-    （`mrerp.choices.choose`）；同期两本选哪本记进与 Express 同一个记忆（`express.choices`）。同一项（``seen``）只记一次。"""
-    picked = mrerp_picked(doctype, name) if name else None
+    （`mrerp.choices.choose`）；同期两本选哪本记进与 Express 同一个记忆（`express.choices`）。同一项（``seen``）只记一次。
+    ``picked``：还没存成单据的（LINE 收单记录，`operator.remember_intake_mrerp`）按票面日期选好的那本；给了 ``name`` 按单据选。"""
+    picked = mrerp_picked(doctype, name) if name else picked
     book = (picked or {}).get("book")
     asked = {(item["kind"], item["subject"]): item for item in mrerp_needed(company, doctype, picked) or ()}
     checked = []
@@ -556,9 +557,11 @@ def check(company, doc_ids) -> dict:
             from pearnly_erp_portal.express import operator
 
             if not linked:
-                # 没接 Express：CC 代录的写不了；LINE 收单的照样问记录自己要人定的（物料、仓库，用户 11-19 出卡前问完）
+                # 没接 Express：CC 代录的写不了；LINE 收单的照样问记录自己要人定的（物料、仓库），账本是 MR.ERP 的再加 MR.ERP 导入前
+                # 要人定的（导入菜单、主档默认值、同期两本选哪本；同已存单据 :func:`mrerp_view`，用户 11-19 出卡前问完）
                 own = getattr(found, "source", "") == operator.SOURCE_LINE
-                documents.append(operator.intake_own_view(company, doc_id, found) if own else  # loop-query: 收单记录逐张判，一批有上限
+                view = operator.intake_mrerp_view if ledger_mrerp else operator.intake_own_view
+                documents.append(view(company, doc_id, found) if own else  # loop-query: 收单记录逐张判，一批有上限
                                  {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
                 continue
             view = operator.intake_view(company, doc_id)  # loop-query: 收单记录逐张判（同单据 document_view），一批有上限
@@ -643,7 +646,9 @@ def remember(company, answers) -> dict:
         if kind == INTAKE:
             from pearnly_erp_portal.express import operator
 
-            saved += operator.remember_intake(company, found, given, seen)  # loop-query: 一张卡片答到的几条记录，逐条写回
+            line_mrerp = ledger_mrerp and getattr(found, "source", "") == operator.SOURCE_LINE
+            remember_row = operator.remember_intake_mrerp if line_mrerp else operator.remember_intake
+            saved += remember_row(company, found, given, seen)  # loop-query: 一张卡片答到的几条记录，逐条写回
             continue
         doctype, name = found
         if ledger_mrerp:
