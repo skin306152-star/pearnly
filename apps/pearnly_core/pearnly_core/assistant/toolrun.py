@@ -21,6 +21,8 @@ import json
 from datetime import datetime, timezone
 
 import frappe
+
+from pearnly_core.transaction import snapshot
 from frappe import _
 
 from pearnly_core.assistant import ask, contracts, engine, tools, waits
@@ -116,7 +118,7 @@ def fresh():
     """推送线程一轮里连着执行多次工具，用的是同一个 Frappe 上下文：读过的缓存（`frappe.local.cache`）和数据库快照会一直
     停在第一次读到的样子。每次执行工具、工具里每次重新查进度前都要清掉（2026-10-10 测试：对账 9 秒就做完，工具却一直读到
     「排队中」，智能体在沙箱里 sleep 干等）。"""
-    frappe.db.rollback()
+    snapshot.fresh("toolrun.fresh")
     cache = getattr(frappe.local, "cache", None)
     if isinstance(cache, dict):
         cache.clear()
@@ -134,7 +136,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
     use_id = contracts.event_id(call.get("id"))
     # 先结束调用方的读快照（推送线程、页面兜底、引擎回调此前都只读或已提交）：推送线程与页面兜底同时登记同一次调用时，
     # 旧快照里插入撞上对方刚提交的那条会报 1020 而不是重复（同下面按重复处理）
-    frappe.db.rollback()
+    snapshot.fresh("toolrun.execute")
     gated = tools.needs_approval(call.get("name"), call.get("input"))
     asked = gated  # 要「允许」的工具（被拒时结果带「没问过用户」的标记）
     refused = OWNER_DISABLED if owner_disabled() else (
@@ -241,7 +243,7 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
     答案对不上题目抛 `ask.AnswerError`（先核、再抢占，答错不占掉这张卡片）。"""
     # 先结束请求开头的读快照（`sessions.confirm` 此前只读）：同一刻点了停止、刚被作废的这一条，按旧快照还「在等」，
     # 一改就撞 1020（见文件头）
-    frappe.db.rollback()
+    snapshot.fresh("toolrun.decide")
     name = frappe.db.get_value(TOOL_RUN, {"tool_use_id": use_id, "session_id": conversation,
                                           "user": frappe.session.user, "status": "awaiting_approval"}, "name")
     if not name:
@@ -330,10 +332,10 @@ def cancel_waiting(conversation: str) -> int:
     只处理此刻真在等的（见文件头「锁与快照」）：先结束调用方的读快照（`sessions.interrupt` 此前只读、推送线程每步都已
     提交），读出候选后每条一个短事务——第一句 `FOR UPDATE SKIP LOCKED` 当前读：同一刻正被点「允许 / 拒绝」抢占、锁着的
     跳过（归那边），已不在等的不算；个别仍撞 1020 / 死锁的回滚跳过。不等锁，也不会让调用方报错。"""
-    frappe.db.rollback()
+    snapshot.fresh("toolrun.cancel_waiting")
     runs = frappe.db.sql(f"SELECT name, tool_use_id, user FROM `tab{TOOL_RUN}` WHERE session_id=%s "
                          "AND status='awaiting_approval'", (conversation,), as_dict=True)
-    frappe.db.rollback()  # 候选读完就结束这份快照：下面每条从当前读开始
+    snapshot.fresh("toolrun.cancel_waiting")  # 候选读完就结束这份快照：下面每条从当前读开始
     changed = []
     now = frappe.utils.now() if runs else None
     for run in runs:

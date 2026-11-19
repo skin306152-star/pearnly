@@ -19,6 +19,8 @@ from datetime import datetime, timedelta, timezone
 
 import frappe
 
+from pearnly_core.transaction import snapshot
+
 from pearnly_core.assistant import contracts
 
 TOOL_RUN = "Pearnly Assistant Tool Run"
@@ -82,6 +84,7 @@ def _check(row, final):
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant wait check failed")
+        frappe.db.commit()  # 日志随即提交：后面结束读快照的回滚不把它带走（11-19 回滚审计）
         found = None
     if not isinstance(found, dict):
         return {"done": bool(final), "text": row.result or "", "is_error": False} if final else None
@@ -111,7 +114,7 @@ def _settle(name: str, final: str | None = None) -> bool:
     """核对一条挂着的调用；有结论（或 `final` 给了原因）就交回。返回是否交回了。同一条只交一次（抢占）。"""
     from pearnly_core.assistant import toolrun
 
-    frappe.db.rollback()  # 结束调用方的读快照（同 `toolrun` 文件头「锁与快照」）
+    snapshot.fresh("waits._settle")  # 结束调用方的读快照（同 `toolrun` 文件头「锁与快照」）
     row = _row(name)
     if row is None:
         return False
@@ -121,7 +124,7 @@ def _settle(name: str, final: str | None = None) -> bool:
         else:
             found = _check(row, final)
         if not found or not (found.get("done") or final):
-            frappe.db.rollback()
+            snapshot.fresh("waits._settle")
             return False
         text, is_error = str(found.get("text") or row.result or ""), bool(found.get("is_error"))
         frappe.db.commit()  # 核对函数自己写的（如把进 / 销项写到票上）先提交，执行记录另起短事务
@@ -193,6 +196,7 @@ def settle_key(key: str) -> None:
         except Exception:
             frappe.db.rollback()
             frappe.log_error(title="Assistant wait settle failed")
+            frappe.db.commit()  # 日志随即提交：后面结束读快照的回滚不把它带走（11-19 回滚审计）
 
 
 def release(conversation: str, reason: str = USER_MESSAGE) -> int:
@@ -207,7 +211,7 @@ def cancel(conversation: str) -> int:
     """点了停止 / 这一轮结束：挂着的作废（引擎不再等这些结果），之后等的事结束了也不再交回。返回作废了几条。"""
     from pearnly_core.assistant import toolrun
 
-    frappe.db.rollback()
+    snapshot.fresh("waits.cancel")
     names = _parked("AND session_id=%s", (conversation,))
     changed = []
     for name in names:
@@ -230,7 +234,7 @@ def cancel(conversation: str) -> int:
 
 def sweep() -> None:
     """每分钟（共用识别巡检同一个时刻）：到上限的交回「还在做」；没到的核对一次，结束了却没交回的补交。"""
-    frappe.db.rollback()
+    snapshot.fresh("waits.sweep")
     now = _now()
     for name in _parked("", ()):
         try:
@@ -239,6 +243,7 @@ def sweep() -> None:
         except Exception:
             frappe.db.rollback()
             frappe.log_error(title="Assistant wait sweep failed")
+            frappe.db.commit()  # 日志随即提交：后面结束读快照的回滚不把它带走（11-19 回滚审计）
 
 
 # ── 进度 ────────────────────────────────────────────────────────────────────

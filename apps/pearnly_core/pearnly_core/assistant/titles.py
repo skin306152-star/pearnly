@@ -105,6 +105,7 @@ def summarize(name: str, legacy_title: str | None = None, message: str | None = 
             if _gone(name):
                 return  # 概括期间对话被删了（远端会话跟着删、读不到）：静默收手，不记错误（11-05 删对话竞争）
             frappe.log_error(title="Assistant title summary failed")
+            frappe.db.commit()  # 日志随即提交：后面结束读快照的回滚不把它带走（11-19 回滚审计）
         finally:
             ledger.record("cc_title", [usage_contracts.call(m, u) for m, u in spent], user=row.user,
                           conversation=row.session_id)

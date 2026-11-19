@@ -35,6 +35,8 @@ import time
 import uuid
 
 import frappe
+
+from pearnly_core.transaction import snapshot
 from frappe import _
 
 from pearnly_core.assistant import contracts, docx_preview, engine, sessions
@@ -58,7 +60,7 @@ def upload(session_id) -> dict:
     # 重新读，做完先提交再放锁，下一份读到的就是提交后的样子。
     with frappe.cache.lock(f"{frappe.local.site}:pearnly_assistant:upload:{row.name}", timeout=OPERATOR_UPLOAD_LOCK_SECONDS,
                            blocking_timeout=OPERATOR_UPLOAD_LOCK_SECONDS):
-        frappe.db.rollback()
+        snapshot.fresh("files.upload")
         out = _upload(sessions.owned(session_id))
         frappe.db.commit()
         return out

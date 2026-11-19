@@ -197,6 +197,9 @@ def _install():
     shared = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = sys.modules["pearnly_core.transaction"].conflicts = shared
     spec.loader.exec_module(shared)
+    spec = importlib.util.spec_from_file_location("pearnly_core.transaction.snapshot", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/snapshot.py")
+    sys.modules[spec.name] = sys.modules["pearnly_core.transaction"].snapshot = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(sys.modules[spec.name])
     spec = importlib.util.spec_from_file_location("pearnly_cowork.push.application.conflicts",
                                                   COWORK / "push/application/conflicts.py")
     conflicts = importlib.util.module_from_spec(spec)

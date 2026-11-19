@@ -21,6 +21,8 @@
 import json
 
 import frappe
+
+from pearnly_core.transaction import snapshot
 from frappe import _
 
 from pearnly_core.assistant import guided as assistant_guided
@@ -87,6 +89,8 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
     什么都不用定时此刻推出去会怎么写（`push.express.pushed.planned`，与入账后的 written 同一个函数），CC 推前照它说现 / 赊、科目
     （2026-10-20 教程录制：推前说赊购，写进去是现购）。``state`` / ``items`` 是共用卡片（``contracts.merge``）的输入；``legacy`` 是代录开始前预检原来的回包
     （:func:`operator_check`，形状与改造前逐字相同）。"""
+    # 下面几处回滚「只是看」：调用方此前有没提交的写就拒绝，不随之冲掉（11-19 回滚审计，`transaction.snapshot`）
+    snapshot.require_clean("precheck_source.document")
     from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.companies import pending
     from pearnly_cowork.connections import service as connections

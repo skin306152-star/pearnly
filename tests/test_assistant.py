@@ -121,6 +121,8 @@ def _install_fakes():
     conflicts = _load("pearnly_core.transaction.conflicts", CORE / "transaction/conflicts.py")
     conflicts.time = types.SimpleNamespace(sleep=lambda seconds: None)
     sys.modules["pearnly_core.transaction"].conflicts = conflicts
+    # 结束读快照前核对调用方没有没提交的写（11-19 回滚审计）：用真的，替身 db 没有写入计数时按 0
+    sys.modules["pearnly_core.transaction"].snapshot = _load("pearnly_core.transaction.snapshot", CORE / "transaction/snapshot.py")
     # 共用显示名（whoami 的 full_name）：替身原样回账号
     names = sys.modules["pearnly_core.account"].names = sys.modules["pearnly_core.account.names"] = types.ModuleType("names")
     names.display_name = lambda user: str(user or "")
@@ -928,7 +930,7 @@ class RelayTests(unittest.TestCase):
 
         saved = (getattr(frappe, "get_site_path", None), getattr(frappe, "request", None), getattr(frappe, "cache", None))
         frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
-        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None, lock=lock)
+        frappe.cache = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None, lock=lock)
         db_saved = (getattr(frappe.db, "rollback", None), getattr(frappe.db, "commit", None))
         frappe.db.rollback = lambda *a, **k: trail.append(("rollback",))
         frappe.db.commit = lambda *a, **k: trail.append(("commit",))
@@ -1141,7 +1143,7 @@ class RelayTests(unittest.TestCase):
                  getattr(frappe, "log_error", None))
         db_saved = (getattr(frappe.db, "rollback", None), getattr(frappe.db, "commit", None))
         frappe.get_site_path = lambda *parts: os.path.join(root, *parts)
-        frappe.cache = types.SimpleNamespace(set_value=lambda *a, **k: None,
+        frappe.cache = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None,
                                              lock=lambda *a, **k: contextlib.nullcontext())
         frappe.db.rollback = frappe.db.commit = lambda *a, **k: None
         errors, logged = [], []
@@ -2578,7 +2580,7 @@ class NoticeTests(unittest.TestCase):
         posted, carried, writes = [], [], []
         shown = [{"name": "n1", "at": "2026-10-12 08:01", "title": "Folder <A>", "text": "3 files", "creation": START}]
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append((remote, batch)))
-        db = types.SimpleNamespace(set_value=lambda *a, **k: writes.append(a), sql=lambda *a, **k: None, get_value=lambda *a, **k: 1)
+        db = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: writes.append(a), sql=lambda *a, **k: None, get_value=lambda *a, **k: 1)
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_seg2"), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
@@ -2692,7 +2694,7 @@ class NoticeTests(unittest.TestCase):
         row = _Row(name="row1", session_id="sesn_mine1", user="a@example.com", title="t", pending_carry="")
         posted, turns = [], {}
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append(batch))
-        db = types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
+        db = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
                                    get_value=lambda doctype, name, field: "th" if doctype == "User" else None)
         with mock.patch.object(sessions, "owned", return_value=row), \
                 mock.patch.object(sessions, "segment_for_turn", return_value="sesn_mine1"), \
@@ -2727,7 +2729,7 @@ class NoticeTests(unittest.TestCase):
         api = types.SimpleNamespace(post=lambda remote, batch: (order.append("post"), posted.append(batch)))
         page = {"sesn_mine1": "zh-CN"}
         accounts = {"a@example.com": "th"}
-        db = types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
+        db = types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None, sql=lambda *a, **k: None,
                                    get_value=lambda doctype, name, field: accounts.get(name) if doctype == "User" else None)
         text = "P3-DEP-H 用 T.7 推送，公司 นิภา เอ็กซ์เชนจ์"
         with mock.patch.object(sessions, "owned", return_value=row), \
@@ -5147,7 +5149,7 @@ class SidebarSyncTests(unittest.TestCase):
                     mock.patch.object(sessions.notices, "uncarried", lambda sid, user: []), \
                     mock.patch.object(sessions.projects, "note", lambda row, user: ("", None)), \
                     mock.patch.object(sessions.titles, "start", lambda *a, **k: None), \
-                    mock.patch.object(sessions.frappe, "db", types.SimpleNamespace(set_value=lambda *a, **k: None, sql=lambda *a, **k: None, get_value=lambda *a, **k: 1), create=True):
+                    mock.patch.object(sessions.frappe, "db", types.SimpleNamespace(commit=lambda: None, set_value=lambda *a, **k: None, sql=lambda *a, **k: None, get_value=lambda *a, **k: 1), create=True):
                 sessions.send("sesn_new002", "盘点一下")
         self.assertEqual(len(lines), 2, lines)
         created, sent = lines
@@ -6782,7 +6784,7 @@ class AskUserTests(unittest.TestCase):
         卡片结果再发消息，模型在两者之间多说一轮（重复回答 / 先问一遍），结果和消息同一批发引擎不收。所以同「先点停止再
         打字」：结束引擎那一轮、卡片作废、再发这条消息，随消息带一句说明。"""
         body = (CORE / "assistant/sessions.py").read_text(encoding="utf-8").split("\ndef send(", 1)[1].split("\ndef ", 1)[0]
-        steps = ["toolrun.waiting, row.session_id", 'api.post(remote, [{"type": "user.interrupt"}])', "frappe.db.commit()",
+        steps = ["toolrun.waiting, row.session_id", 'api.post(remote, [{"type": "user.interrupt"}])', "frappe.db.commit()  # 作废开头",
                  "toolrun.cancel_waiting, row.session_id", "api.post(remote, batch)"]
         at = [body.index(step) for step in steps]
         self.assertEqual(at, sorted(at))
@@ -7107,19 +7109,19 @@ class StopRaceTests(unittest.TestCase):
         先提交，执行记录另起短事务（不与工具的锁同时持有）；推送线程写库前先结束旧快照，附带步骤出错不打断转发。"""
         run = (CORE / "assistant/toolrun.py").read_text(encoding="utf-8")
         cancel = run.split("def cancel_waiting(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(cancel.index("frappe.db.rollback()"), cancel.index("SELECT name, tool_use_id, user"))
+        self.assertLess(cancel.index("snapshot.fresh("), cancel.index("SELECT name, tool_use_id, user"))  # 结束快照经共用件（11-19）
         self.assertIn("FOR UPDATE SKIP LOCKED", cancel)
         self.assertLess(cancel.index("FOR UPDATE SKIP LOCKED"), cancel.index("SET status='cancelled'"))
         self.assertIn("except frappe.QueryDeadlockError:", cancel)
         self.assertNotIn("FOR UPDATE\"", cancel)  # 没有会等锁的锁定读
         decide = run.split("def decide(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(decide.index("frappe.db.rollback()"), decide.index("frappe.db.get_value(TOOL_RUN"))
+        self.assertLess(decide.index("snapshot.fresh("), decide.index("frappe.db.get_value(TOOL_RUN"))
         self.assertLess(decide.index("try:"), decide.index("UPDATE `tab{TOOL_RUN}`"))
         self.assertIn("except frappe.QueryDeadlockError:", decide)
         finish = run.split("def _finish(", 1)[1]
         self.assertLess(finish.index("frappe.db.commit()"), finish.index("frappe.db.set_value(TOOL_RUN"))
         execute = run.split("def execute(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(execute.index("frappe.db.rollback()"), execute.index("run.insert("))
+        self.assertLess(execute.index("snapshot.fresh("), execute.index("run.insert("))
         self.assertIn("frappe.QueryDeadlockError)", execute)  # 同时登记撞上 1020 按重复处理
         source = (CORE / "assistant/sessions.py").read_text(encoding="utf-8")
         stop = source.split("def interrupt(", 1)[1].split("\ndef ", 1)[0]

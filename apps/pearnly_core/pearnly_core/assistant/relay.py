@@ -26,6 +26,8 @@ import uuid
 
 import frappe
 
+from pearnly_core.transaction import snapshot
+
 from pearnly_core.assistant import context, contracts, engine, stopped, titles, toolrun, usage
 
 EVENT = contracts.REALTIME_EVENT
@@ -112,7 +114,7 @@ def _keep_stopped(conversation, user, previews):
 def _fresh():
     """结束这条线程的读快照：线程里的事务每步都已提交，这里没有要丢的写。之后的写按当前数据来，不撞别的请求在这期间
     提交的改动（见文件头）。"""
-    frappe.db.rollback()
+    snapshot.fresh("relay._fresh")
 
 
 def _active(conversation, name):

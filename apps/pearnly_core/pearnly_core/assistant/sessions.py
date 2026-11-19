@@ -1037,6 +1037,8 @@ def send(session_id, text) -> dict:
 
         # 实操任务里的对话：每条都带上是哪个任务（工具按任务号查、改）
         company = "\n\n".join(p for p in (company, operator_tasks.thread_note(row.operator_task)) if p)
+    # 上面记下的（本对话账套回填、提醒已带出……）先提交：交回挂着的调用一开头结束读快照（`waits._settle`），没提交的会被回滚
+    frappe.db.commit()
     # 有调用挂着等后台结论（`waits`，例如识别还没完）：引擎这时只收工具结果，先把它按「还在做」交回，再发这条消息
     waits.quietly("Assistant wait release failed", waits.release, row.session_id)
     # 提问卡、「允许 / 拒绝」卡挂着时用户没点卡片、直接打字发来（11-11 压测 S8a：这句发不出）：引擎停在等卡片结果时不收用户
