@@ -665,6 +665,38 @@ class MrErp(Precheck):
         self.assertIsNone(self.precheck.mrerp_needed("CO-1", self.push.POS_DAY))
 
 
+class NewStockGroup(unittest.TestCase):
+    """新建库存品挂哪个存货科目组（`prepare.new_stock_group`，11-19 真机 69EXP\\TEST：账套已有库存品、挂得最多的 ST01 不是存货科目，
+    写账时电脑才停下 STOCK_ACC_GROUP_UNFIT）。服务端只有合格的组（带挂了几件）与库存品总数。"""
+
+    NEW = {"items": [{"item_mode": "stock_item", "code": "", "name": "Box"}]}
+
+    @staticmethod
+    def config(groups, total=None, chosen=""):
+        out = {"reported_stock_acc_groups": [{"acccod": code, "fit": True, "used_by": used} for code, used in groups]}
+        if total is not None:
+            out["catalog_fingerprint"] = {"stock_master_count": total}
+        return {**out, **({"stock_acccod": chosen} if chosen else {})}
+
+    def test_nothing_to_decide_without_a_new_stock_item_or_with_a_chosen_group(self):
+        known = {"items": [{"item_mode": "stock_item", "code": "P-1"}, {"item_mode": "non_stock_item", "code": ""}]}
+        self.assertEqual(prepare.new_stock_group(known, self.config([])), ("", ""))
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([], chosen="ST10")), ("", ""))
+        self.assertEqual(prepare.new_stock_group({**self.NEW, "stock_acccod": "ST10"}, self.config([])), ("", ""))
+
+    def test_a_fit_group_that_provably_holds_the_most_items_is_left_to_the_computer(self):
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("ST10", 146)], total=162)), ("", ""))
+
+    def test_an_unfit_most_used_group_is_never_cloned(self):
+        # 69SINCER：37 件里 ST01（办公设备）挂 19 件、合格的 DM 17 件 → 证明不了众数合格：唯一合格组直接带上
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("DM", 17)], total=37)), ("DM", ""))
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("DM", 17), ("ST10", 1)], total=37)),
+                         ("", E.CHOICE + ":" + choices.STOCK_GROUP))  # 几个合格的：问一次
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([], total=37)),
+                         ("", prepare.stock_acc_group.REASON_ACC_GROUP_MISSING))  # 一个合格的都没有：要在 Express 里配
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("DM", 17)])), ("DM", ""))  # 没报总数：同样不赌众数
+
+
 class Declared(unittest.TestCase):
     def test_the_product_declares_the_precheck_hook(self):
         source = (base.ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")

@@ -205,6 +205,11 @@ class Flow(Base):
 
 
 class Documents(Base):
+    def setUp(self):
+        super().setUp()
+        # 会话已过期时识别完照旧直接出卡；出卡前核「写不了、又没得选」的原因（`intake.stopped_reason`）这里没有可判的
+        self.enterContext(patch.object(intake, "stopped_reason", return_value=""))
+
     def event(self):
         return {"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
                 "message": {"type": "image", "id": "M1"}}
@@ -495,6 +500,7 @@ class Judge:
 
     def __init__(self, docs=None):
         self.docs, self.memory, self.records, self.refuse, self.serial = dict(docs or {}), {}, [], set(), 0
+        self.facts = {}  # doc_id → {state, reason}：判定判出写不了 / 等电脑的单
 
     def card(self, company, doc_ids):
         merged = []
@@ -503,7 +509,7 @@ class Judge:
             for raw in self.docs.get(doc_id) or ():
                 found = self.memory.get((raw["kind"], raw["subject"]))
                 items.append({**raw, "value": found, "source": precheck_card.REMEMBERED} if found else dict(raw))
-            merged.append({"doc_id": doc_id, "items": items})
+            merged.append({"doc_id": doc_id, "items": items, **self.facts.get(doc_id, {})})
         return precheck_card.merge(merged)
 
     def record(self, company, doc_ids, answers):
@@ -556,12 +562,15 @@ class LineItems(Base):
         self.enterContext(patch.object(line_questions, "_doc", side_effect=lambda name: self.docs[name]))
         self.enterContext(patch.object(line_items, "_save_choices",
                                        side_effect=lambda name, value: setattr(self.docs[name], "line_choices", json.dumps(value))))
-        self.enterContext(patch.object(line_questions, "_card", side_effect=lambda doc: {"card": doc.name}))
+        self.enterContext(patch.object(line_questions, "_card", side_effect=lambda doc, save=True:
+                                       {"card": doc.name, **({} if save else {"save": False})}))
         self.cancelled = []
         self.enterContext(patch.object(intake, "cancel_card", side_effect=lambda name: self.cancelled.append(name)
                                        or {"cancelled": True}))
         self.judge = Judge()
         self.enterContext(patch("pearnly_core.write_precheck.line_ask._default", side_effect=lambda: self.judge))
+        # 出卡时核「写不了、又没得选」的那句原因（`intake.stopped_reason`）用同一份替身判定
+        self.enterContext(patch("pearnly_core.write_precheck.api.card", side_effect=self.judge.card))
         self.enterContext(patch.object(line_items, "_prefill", return_value=None))
         self.enterContext(patch.object(line_items, "_warehouses", return_value=[("WH-1", "Main"), ("WH-2", "Shop")]))
         self.enterContext(patch.object(line_items, "_usable_warehouse", return_value=True))
@@ -814,6 +823,24 @@ class LineItems(Base):
         self.assertEqual(self.judge.records[-1][1:], (["I:LI-2"], [{"key": precheck_card.item_key("vat", "two"), "value": "claim"}]))
         self.assertEqual(self.replies[-1], [{"card": "LI-2"}])
 
+    def test_the_inventory_account_group_is_asked_before_the_card(self):
+        """11-19 真机：账套里已有库存品、挂得最多的组不合格，新建库存品写账时才停下。判定现在出这一题（合格的组里选、按账套记住）。"""
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{"kind": "stock_group", "subject": "BOOK-1", "label": "69EXP\\TEST",
+                                      "options": [{"code": "DM", "name": "DM · 11-04-01-00"}, {"code": "ST10", "name": "ST10"}]}]
+        question, = self.begin("LI-1")
+        self.assertEqual(self.labels(question), ["DM · 11-04-01-00", "ST10", "Cancel"])
+        self.press(question, 0)
+        self.assertEqual(self.judge.records[-1][2], [{"key": precheck_card.item_key("stock_group", "BOOK-1"), "value": "DM"}])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_no_fit_inventory_account_group_says_why_and_the_card_has_no_save(self):
+        """没有合格的组可选（只能会计在 Express 里改科目）：出卡前一句现有原因，卡上不放「保存」。"""
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.facts["I:LI-1"] = {"state": "not_writable", "reason": "stock_acc_group_missing"}
+        self.assertEqual(self.begin("LI-1"), [{"type": "text", "text": "express.error.STOCK_ACC_GROUP_UNFIT"},
+                                              {"card": "LI-1", "save": False}])
+
     def test_a_ticket_with_nothing_to_ask_gets_its_card_at_once(self):
         self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
         self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]
@@ -973,6 +1000,7 @@ class Language(Base):
             self.assertEqual(line.user_language("U1", default="th"), "ja")  # 问不到 LINE 也先用账号语言
 
     def test_the_card_uses_the_language_recorded_when_the_document_arrived(self):
+        self.enterContext(patch.object(intake, "stopped_reason", return_value=""))
         from pearnly_core import line
 
         seen = {}
@@ -1740,6 +1768,10 @@ class WebRecognition(unittest.TestCase):
 class Billing(Base):
     """按套餐扣：开工前查余额，识别成功才报账，按物理页，B 档（用户 2026-09-26）。"""
 
+    def setUp(self):
+        super().setUp()
+        self.enterContext(patch.object(intake, "stopped_reason", return_value=""))  # 出卡前核原因：这里没有可判的
+
     def test_units_are_physical_pages(self):
         from pearnly_erp_portal.recognition import billing, inputs
 
@@ -1939,10 +1971,10 @@ class CardSave(Web):
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
         self.linked = self.enterContext(patch("pearnly_erp_portal.express.push.linked", return_value=False))
         # 出卡前问的同一份写账前置判定（`intake.unanswered`）：默认都答过了
-        self.judged = []
+        self.judged, self.judged_fact = [], {}
         self.card = self.enterContext(patch("pearnly_core.write_precheck.api.card",
                                             side_effect=lambda company, doc_ids: precheck_card.merge(
-                                                [{"doc_id": doc_ids[0], "items": list(self.judged)}])))
+                                                [{"doc_id": doc_ids[0], "items": list(self.judged), **self.judged_fact}])))
         self.preflight = self.enterContext(patch("pearnly_erp_portal.express.api.preflight", return_value={"needed": []}))
         self.seen = {}
 
@@ -1989,6 +2021,14 @@ class CardSave(Web):
         self.assertEqual(reply["quickReply"]["items"][0]["action"]["label"], "Edit")
         self.judged = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]  # 答过了：照常提交
         self.assertEqual(self.press(), {"type": "text", "text": "Posted · PE-0001"})
+
+    def test_save_does_not_post_without_a_fit_inventory_account_group(self):
+        """旧卡：判定判出账套里没有合格的存货科目组（只能在 Express 里改）：不入账，回现有原因 + 「编辑」。"""
+        self.judged_fact = {"state": "not_writable", "reason": "stock_acc_group_missing"}
+        reply = self.press()
+        self.post.assert_not_called()
+        self.assertEqual(reply["text"], "express.error.STOCK_ACC_GROUP_UNFIT")
+        self.assertEqual(reply["quickReply"]["items"][0]["action"]["label"], "Edit")
 
     def test_save_reports_the_submit_error_with_edit(self):
         self.post.side_effect = frappe.ValidationError("Choose the warehouse")
@@ -2063,6 +2103,15 @@ class CardShape(Base):
         self.enterContext(patch.object(line_cards, "_", _same))
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
         return line_cards.preview(doc, result, totals)
+
+    def test_a_card_that_cannot_be_written_has_no_save(self):
+        from pearnly_erp_portal.integrations import line_cards
+
+        doc = _doc()
+        result = json.loads(doc.result)
+        self.card(doc, result, {})
+        bare = line_cards.preview(doc, result, {}, save=False)
+        self.assertEqual([button["action"]["label"] for button in bare["contents"]["footer"]["contents"]], ["Edit", "Cancel"])
 
     @staticmethod
     def rows(card):

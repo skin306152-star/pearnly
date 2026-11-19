@@ -66,10 +66,27 @@ def _ready(name):
     return doc if doc.status == intake.READY and doc.sent_by == frappe.session.user else None
 
 
-def _card(doc):
-    doc.reload()
-    result = json.loads(doc.result or "{}")
-    return line_cards.preview(doc, result, intake.totals(doc, result))
+def _card(doc, save=True, result=None):
+    if result is None:
+        doc.reload()
+        result = json.loads(doc.result or "{}")
+    totals = intake.totals(doc, result)
+    return line_cards.preview(doc, result, totals) if save else line_cards.preview(doc, result, totals, save=False)
+
+
+def cards_of(doc, result=None) -> list:
+    """问完的这张出卡：写不进 Express、又没得选的（账套里没有合格的存货科目组，`intake.stopped_reason`）先说一句原因、卡上不放
+    「保存」；其余照常一张带「保存」的卡。判不出来不挡卡（卡片「保存」再按判定兜底）。"""
+    try:
+        stop = intake.stopped_reason(doc)
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="ERP LINE card check failed", message=frappe.get_traceback()[-1500:])
+        stop = ""
+    if stop:
+        return [_text(stop), _card(doc, False, result) if result is not None else _card(doc, save=False)]
+    return [_card(doc, True, result) if result is not None else _card(doc)]
 
 
 def _cancel(name) -> list:
@@ -93,7 +110,7 @@ def _settle(payload, outcome) -> list:
     for row in outcome.get("finished") or ():
         doc = _ready(row.get("ref"))  # loop-query: 一次只问一张，出题器每次最多回一张问完的
         if doc is not None:
-            messages.append(_card(doc))  # loop-query: 同上，最多一张
+            messages += cards_of(doc)  # loop-query: 同上，最多一张
     for row in outcome.get("cancelled") or ():
         messages += _cancel(row.get("ref"))  # loop-query: 一次只问一张，最多取消一张
     return messages + list(outcome.get("messages") or ())
@@ -112,7 +129,7 @@ def _precheck(payload, doc) -> list:
         frappe.clear_messages()
         frappe.log_error(title="ERP LINE precheck question failed", message=frappe.get_traceback()[-1500:])
         payload.pop(line_ask.KEY, None)
-        return [_card(doc)]
+        return cards_of(doc)
     return _settle(payload, outcome)
 
 
@@ -248,4 +265,4 @@ def text(line_user_id, user, text, reply_token) -> bool:
     return True
 
 
-__all__ = ["KEPT", "PREFIX", "WAITING", "after_items", "answer", "begin", "is_step", "open_question", "send", "text"]
+__all__ = ["KEPT", "PREFIX", "WAITING", "after_items", "answer", "begin", "cards_of", "is_step", "open_question", "send", "text"]

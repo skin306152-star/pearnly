@@ -250,7 +250,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
             messages = None  # 提问出错不挡卡片：照出卡（卡片「保存」按判定兜底）
         if messages is None:
             # 会话已过期（或已换成收款）：问不了，照旧直接出卡
-            messages = [line_cards.preview(card, data, totals(card, data)) for card, data in cards]
+            messages = [message for card, data in cards for message in line_questions.cards_of(card, data)]
         # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送。
         line_questions.send(line_user_id, messages, reply_token)
         return {}
@@ -535,9 +535,13 @@ def save_card(name) -> dict:
         return {"cancelled": True}  # 点过「取消」：保存什么都不做
     if doc.status != READY:
         frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
-    needed = unanswered(doc)
+    found = judged(doc)
+    needed = unanswered(doc, found)
     if needed:
         return {"needed": needed}
+    stop = stopped_reason(doc, found)
+    if stop:
+        frappe.throw(stop)  # 账套里没有合格的存货科目组：不入账，回原因 + 「编辑」（旧卡）
     payload = build_payload(doc)
     from pearnly_erp_portal.express import api as express_api, push as express_push
 
@@ -549,16 +553,38 @@ def save_card(name) -> dict:
     return submit(name, payload)
 
 
-def unanswered(doc) -> list:
-    """这张此刻写账前置判定里还没定的项（同 LINE 出卡前问的那一份，`line_questions`：``I:<记录>``）→ ``[{kind, label}]``。
-    推荐值没点过的同样算没定（同 CC 引导卡：卡上没点过的预选不生效）；条件不成立的不算。"""
-    from pearnly_core.write_precheck import api as precheck_api, contracts as card, guide
+def judged(doc) -> dict:
+    """这张此刻的写账前置判定（同 LINE 出卡前问的那一份，`line_questions`：``I:<记录>``，共用层合成的卡片）。"""
+    from pearnly_core.write_precheck import api as precheck_api
     from pearnly_erp_portal.express import precheck
 
-    items = card.items_of(precheck_api.card(doc.company, [f"{precheck.INTAKE_PREFIX}:{doc.name}"]))
+    return precheck_api.card(doc.company, [f"{precheck.INTAKE_PREFIX}:{doc.name}"])
+
+
+def unanswered(doc, found=None) -> list:
+    """这张此刻写账前置判定里还没定的项 → ``[{kind, label}]``。推荐值没点过的同样算没定（同 CC 引导卡：卡上没点过的预选不生效）；
+    条件不成立的不算。"""
+    from pearnly_core.write_precheck import contracts as card, guide
+
+    items = card.items_of(found if found is not None else judged(doc))
     by_key = {item["key"]: item for item in items}
     return [{"kind": item["kind"], "label": item.get("label") or ""} for item in items
             if guide.tier_of(item) != guide.DECIDED and card.applies(item, by_key, [])]
+
+
+# 判定判出写不进 Express、又没有可选的（只能会计在 Express 里改）：出卡前说一句事实、卡上不放「保存」（11-19）。
+# 原因 → 现有原因词条：账套里没有合格的存货科目组（同 CC 桌面版写账停下时的那句）
+STOP_TEXTS = {"stock_acc_group_missing": "express.error.STOCK_ACC_GROUP_UNFIT"}  # = stock_acc_group.REASON_ACC_GROUP_MISSING
+
+
+def stopped_reason(doc, found=None) -> str:
+    """这张写不进 Express、人在 LINE / 网页里也选不了的那句原因（:data:`STOP_TEXTS`）；没有回空（照常可保存）。"""
+    found = found if found is not None else judged(doc)
+    for row in found.get("not_writable") or ():
+        key = STOP_TEXTS.get(str(row.get("reason") or ""))
+        if key:
+            return _(key)
+    return ""
 
 
 def cancel_card(name) -> dict:

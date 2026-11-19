@@ -204,17 +204,18 @@ def _amounts(doc, totals):
     return before, discount or None, vat, wht, grand
 
 
-def preview(doc, result, totals) -> dict:
-    """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，底部「保存」「编辑」。"""
+def preview(doc, result, totals, save=True) -> dict:
+    """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，底部「保存」「编辑」「取消」。``save`` 为假时不放「保存」
+    （写不进 Express、又不是要人选的，例如账套里没有合格的存货科目组，11-19）：只留「编辑」「取消」。"""
     shown = len(result.get("lines") or [])
     while True:
-        card = _card(doc, result, totals, shown)
+        card = _card(doc, result, totals, shown, save)
         if shown == 0 or len(json.dumps(card, ensure_ascii=False).encode()) <= MAX_BYTES:
             return card
         shown -= 1
 
 
-def _card(doc, result, totals, shown) -> dict:
+def _card(doc, result, totals, shown, save=True) -> dict:
     from pearnly_erp_portal.integrations import line_items
 
     accent, head = COLORS[doc.direction], _(line_flow.DIRECTION_LABELS[doc.direction])
@@ -262,6 +263,9 @@ def _card(doc, result, totals, shown) -> dict:
                {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
                 "action": {"type": "postback", "label": _("Cancel")[:20], "displayText": _("Cancel")[:20],
                            "data": urlencode({"a": "erp_cancel", "n": doc.name})}}]  # = CANCEL_ACTION
+    if not save:
+        buttons = buttons[1:]
+        buttons[0] = {key: value for key, value in buttons[0].items() if key != "margin"}
     alt = f"{title} · {_money(grand)}" if grand not in (None, "") else title
     return {"type": "flex", "altText": alt[:400],
             "contents": {"type": "bubble", "size": "mega",

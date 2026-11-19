@@ -53,6 +53,42 @@ def _needed_group(config, book):
              "options": [{"code": row["acccod"], "name": row.get("name") or ""} for row in groups], "current": ""}]
 
 
+def _stock_master_count(config):
+    try:
+        return int((config.get("catalog_fingerprint") or {})["stock_master_count"])
+    except (TypeError, KeyError, ValueError):
+        return None
+
+
+def new_stock_group(payload, config) -> tuple:
+    """这张要在 Express 里新建库存品（库存行没有存货码）、这份账套又没选过存货科目组时，新品挂哪个组 → ``(组码, 停下原因)``。
+
+    写账规则只在账套一件库存品都没有时定这个组（`mapper` 的零主档那一档）；账套里已有库存品时电脑抄挂得最多的那组
+    （CC 桌面版 `stock_template.pick` 的众数），那组的存货科目不像存货科目就在写账时停下（``STOCK_ACC_GROUP_UNFIT``；11-19 真机
+    69EXP\\TEST：ST01 → 14-01-03-00 办公设备）。服务端只拿得到合格的组（心跳只报 fit 的，带各组挂了几件）和库存品总数：
+    能证明挂得最多的是合格组（它挂的件数多过不合格的组加起来）的照旧交电脑；证明不了的同零主档那一档——合格的只有 1 个就带上它，
+    几个就停下问一次（``choice_needed:stock_group``，按账套记住），一个都没有就停下（缺存货科目组，要在 Express 里配）。
+    回 ``("", "")`` = 不用管。"""
+    from pearnly_core.express_rules.push.common import ITEM_MODE_STOCK
+
+    if str(payload.get("stock_acccod") or "").strip() or str(config.get("stock_acccod") or "").strip():
+        return "", ""
+    if not any(isinstance(item, dict) and item.get("item_mode") == ITEM_MODE_STOCK and not str(item.get("code") or "").strip()
+               for item in payload.get("items") or ()):
+        return "", ""
+    groups = stock_acc_group.fit_stock_acc_groups(config)
+    total = _stock_master_count(config)
+    if groups and total is not None:
+        counts = [int(group.get("used_by") or 0) for group in groups]
+        if max(counts) > total - sum(counts):
+            return "", ""  # 挂得最多的就是合格组：电脑照它抄
+    if len(groups) == 1:
+        return str(groups[0]["acccod"]).strip(), ""
+    if groups:
+        return "", contracts.CHOICE + ":" + choices.STOCK_GROUP
+    return "", stock_acc_group.REASON_ACC_GROUP_MISSING
+
+
 def _current_codes(pages, config):
     """明细行的存货码（ERP 商品上记的 Express 编码）这份账套里已经没有了（Express 改了 / 删了，ERP 还没同步）：去掉这个码，
     交给写账规则按品名认，认不出就停下让人在 ERP 里选（不把认不出的码交给电脑，写一次失败一次）。没读到存货表时不核。"""
@@ -208,9 +244,15 @@ def prepare(doc, company_row, ensure_masters):
         enabled=True, today=today, own_tax_id=doc["company"]["tax_id"], tenant_id=frappe.local.site,
         mappings=dict(_NO_MAPPINGS), account_tax_id=book.get("tax_id") or ""))
     if prepared.disposition == "ready":
+        group, stop = new_stock_group(prepared.payload, config)
+        if stop == stock_acc_group.REASON_ACC_GROUP_MISSING:
+            return {"hold": stop, "book": book}  # 没有合格的组可选：要在 Express 里配，写不了
+        if stop:
+            return {"hold": stop, "needed": _needed_group(config, book), "book": book}  # 同零主档那一档：选一次
+        payload = {**prepared.payload, "stock_acccod": group} if group else prepared.payload
         # 单据日期所在的会计期在 Express 里已关账（上一年度账套常全年锁）：CC 桌面版不写、回 PERIOD_LOCKED，单据上显示原因
         # （用户 10-23）。Cowork 的推送不带这个标记，照旧。
-        return {"payload": {**master_party(prepared.payload, data), "respect_period_lock": True}, "book": book}
+        return {"payload": {**master_party(payload, data), "respect_period_lock": True}, "book": book}
     if prepared.reason == stock_acc_group.REASON_ACC_GROUP_REQUIRED:
         return {"hold": contracts.CHOICE + ":" + choices.STOCK_GROUP, "needed": _needed_group(config, book),
                 "book": book}
