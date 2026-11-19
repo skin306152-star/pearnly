@@ -4,7 +4,8 @@
 
 页面上：点输入框上方的「收款」→ 对话里出引导卡（问客户）→ 点停止（对话页停止键调的同一个接口 ``assistant.api.interrupt``；
 对话号取页面地址的 ``?c=``，不靠标题：手机上标题可能还没生成）→ 服务端读回这次引导 ``expired`` / ``stopped``（``guide_view``）
-→ 刷新页面，卡读回失效一行（``data-status=expired``；空闲时推送不一定当场到，补拉一定到）。
+→ 不刷新，卡当场换成失效一行（``data-status=expired``，等 20 秒：推送或补拉带来这次引导的新版本）
+→ 再刷新页面，卡读回仍是失效一行（第二道）。
 库里：这次引导 ``expired`` / ``stopped``；本次专用客户没有任何来源 cc 的收款单（没有草稿、没有写入任务）。
 对话在收尾里删（引导随对话删：在步骤里删的话库里就查不到这次引导了）。
 """
@@ -49,8 +50,8 @@ def _steps(params):
          "const run=card()?.dataset.run||''; "
          "if(sid) await call('pearnly_core.assistant.api.interrupt',{session_id:sid},true); "
          "const server=run ? await call('pearnly_core.assistant.api.guide_view',{run_name:run}) : null; "
-         "const live=await until(()=>card()&&card().dataset.status==='expired', 40); await sleep(500); "
-         "return {session: sid, run, server: {status: server?.status||'', reason: server?.reason||''}, live};"},
+         "const live=await until(()=>card()&&card().dataset.status==='expired', 80); await sleep(500); "
+         "return {session: sid, run, server: {status: server?.status||'', reason: server?.reason||''}, live, status: card()?.dataset.status||''};"},
         {"name": "刷新页面", "js": "location.reload(); return 1;", "wait_ms": 6000},
         {"name": "刷新后读卡", "shot": True, "file": "2-reloaded", "js": JS + HELP +
          "await until(()=>card(), 120); await until(()=>card().dataset.status==='expired', 60); "
@@ -66,6 +67,7 @@ def judge(params, results, camera_code=None):
         {"case": "点停止：服务端读回这次引导失效、原因是停止", "seen": stopped,
          "ok": bool(stopped.get("session")) and stopped.get("run") == opened.get("run")
          and stopped.get("server") == {"status": "expired", "reason": "stopped"}},
+        {"case": "点停止：不刷新，卡当场换成失效一行", "seen": stopped, "ok": stopped.get("status") == "expired"},
         {"case": "刷新后：卡读回失效一行", "seen": reloaded,
          "ok": reloaded.get("status") == "expired" and reloaded.get("run") == opened.get("run")},
     ]
