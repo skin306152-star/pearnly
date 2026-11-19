@@ -232,6 +232,23 @@ class Businesses(unittest.TestCase):
             self.assertNotIn("pearnly_guide_businesses", hooks, app)
             self.assertIn("pearnly_guides = [", hooks, app)
 
+    def test_the_new_conversation_page_is_filtered_as_not_filed_yet(self):
+        # 11-19：新建页没有对话号 = 还没挂公司：产品声明了账本判定的，只出三种账本都写了的业务；没声明的产品不过滤
+        import frappe
+        from unittest import mock
+        from pearnly_core.assistant import guided
+        from pearnly_core.assistant.guide import registry
+
+        every = {"id": "purchase", "ledgers": ["express_local", "express_cloud", "mrerp"]}
+        express = {"id": "stock", "ledgers": ["express_local", "express_cloud"]}
+        hooks = {registry.LEDGER_HOOK: ["p.ledger"]}
+        with mock.patch.object(frappe, "get_hooks", lambda name: hooks.get(name) or {}), \
+                mock.patch.object(registry, "offered", lambda: {"chat": ["purchase", "sales"], "operator": []}), \
+                mock.patch.object(registry, "declared", lambda: [every, {**express, "id": "sales"}]):
+            self.assertEqual(guided.offered_for("")["chat"], ["purchase"])
+            hooks.pop(registry.LEDGER_HOOK)
+            self.assertEqual(guided.offered_for("")["chat"], ["purchase", "sales"])
+
     def test_setting_checks_the_mode_list(self):
         source = (ROOT / "apps/pearnly_core/pearnly_core/assistant/sessions.py").read_text(encoding="utf-8")
         start = source.index("def set_business(")

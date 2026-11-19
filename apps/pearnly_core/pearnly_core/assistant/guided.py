@@ -40,17 +40,19 @@ def offered() -> dict:
 
 
 def offered_for(session_id: str) -> dict:
-    """:func:`offered` 再按这段对话的账本种类过滤（`guide.registry.ledger_of`：产品判；对话号空、判不出不过滤；还没挂公司只出
-    不挑账本的业务）。
+    """:func:`offered` 再按这段对话的账本种类过滤（`guide.registry.ledger_of`：产品判；判不出不过滤；还没挂公司、新建页（对话号空）
+    只出不挑账本的业务；产品没声明账本判定的不过滤）。
     只认本人的对话。菜单、选业务（`sessions.set_business`）、开始引导（`guide.run.start`）都按它，不信页面。"""
     found = offered()
-    if not session_id:
-        return found
     from pearnly_core.assistant import sessions
     from pearnly_core.assistant.guide import registry
 
-    sessions.owned(session_id)
-    ledger = registry.ledger_of(session_id)
+    if session_id:
+        sessions.owned(session_id)
+        ledger = registry.ledger_of(session_id)
+    else:
+        # 新建页（还没有对话）= 还没挂公司：产品声明了账本判定的，同样只出不挑账本的业务（选好公司、对话建好后页面重取）
+        ledger = registry.NO_COMPANY if frappe.get_hooks(registry.LEDGER_HOOK) else None
     if ledger is None:
         return found
     fits = {guide["id"] for guide in registry.declared() if registry.fits_ledger(guide, ledger)}
