@@ -35,3 +35,12 @@
 
 ## 检查
 - 提交前本地：CC 全量单测、`test_companion_contract.Release1123Edges`、ERP / Cowork 相关测试、停下出口（146 个全归类）、架构、文案闸门。全闸门 / 候选 / 并集流程在 h5 合入 main、本分支变基后整套跑。
+
+## 11-19 接手窗口补记
+- 变基到 main 1a91b178b：冲突只有 `scripts/i18n/copy-approved.tsv` 两边各加登记行（都保留）。变基后 4 类红：稽核栏 5 栏登记成机器字段、
+  Cowork `precheck_source.py` 登记进 `cc.operator.page`、循环查库 4 处加有界说明、老预检测试替身补 `dialog_item`（80342656a）。
+- h5（`pearnly/cc-stop-exits-h5`）跟着这摞干净变基：远端换成 818ee7fcd（原 089a1f6bb）。range-diff：6 个提交一一对上
+  （7fc8814d8 → 11098c6cc 有改动 = 当初在 b1a10634b 上解过的 Cowork `push/application/service.py` 冲突；其余 5 个 `=` 完全相同）。
+  818ee7fcd 候选离线 LANE EXIT 0、109 组 OK。
+- ⑨ 按主会话 11-19 定的 B：领单每件带可选 `session`，一批都来自同一段对话才回到那段对话，否则待处理页（2e0790611、59ed06ac6）。
+- 1.12.22 真机补测结果与发现的缺陷见 `docs/work/2026-11-15-cc-desktop-1122-server.md`「真机补测（11-19）」。
