@@ -814,5 +814,43 @@ class PageFieldTests(Base):
         self.assertNotIn("total", invoices)
 
 
+class ReopenTests(Base):
+    """复核卡 / 已定项上点某一步「改」（guide_reopen）：回到那一步重问，原答案作为题的 ``value``（不当 preselected），依赖它的后面各步
+    作废、状态回 asking、版本 +1；后台定的那一步（auto）也能改，改的时候照常问；版本不对回 changed；不是这次引导的步骤拒收。"""
+
+    def test_reopening_an_answered_step_from_review_asks_it_again_with_the_old_answer(self):
+        name, found = self.to_review()
+        self.assertEqual(found["status"], "reviewing")
+        back = run.reopen(name, "invoices", found["version"])
+        self.assertEqual((back["status"], back["version"]), ("asking", found["version"] + 1))
+        asked = {q["key"]: q for q in back["card"]["questions"]}
+        self.assertEqual(list(asked), ["invoices"])
+        self.assertEqual(asked["invoices"]["value"], IV)
+        self.assertNotIn("preselected", asked["invoices"])
+        self.assertEqual(back["card"]["answers"], {"customer": "C001"})   # 方式依赖发票：作废
+        again = run.answer(name, {"invoices": IV})
+        self.assertEqual([q["key"] for q in again["card"]["questions"]], ["method"])
+        self.assertNotIn("value", again["card"]["questions"][0])
+
+    def test_a_decided_step_can_be_reopened_and_is_asked(self):
+        name = run.start("S1", "collection")["run"]
+        found = run.reopen(name, "on_date", 1)
+        asked = {q["key"]: q for q in found["card"]["questions"]}
+        self.assertEqual(asked["on_date"]["value"], "2026-11-14")
+        self.assertNotIn("on_date", [item["key"] for item in found["card"]["decided"]])
+        found = run.answer(name, {"on_date": "2026-11-13"})
+        self.assertNotIn("on_date", [q["key"] for q in found["card"]["questions"]])
+        self.assertEqual(found["card"]["answers"]["on_date"], "2026-11-13")
+
+    def test_a_stale_version_or_an_unknown_step_is_not_reopened(self):
+        name, found = self.to_review()
+        self.assertEqual(run.reopen(name, "invoices", found["version"] - 1)["outcome"], "changed")
+        refused = run.reopen(name, "nope", found["version"])
+        self.assertEqual(refused["outcome"], "refused")
+        self.assertEqual(refused["status"], "reviewing")
+        unanswered = run.start("S1", "collection")["run"]
+        self.assertEqual(run.reopen(unanswered, "invoices", 1)["outcome"], "refused")   # 还没答过的不用「改」
+
+
 if __name__ == "__main__":
     unittest.main()

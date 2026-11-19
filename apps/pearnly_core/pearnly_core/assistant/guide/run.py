@@ -147,6 +147,15 @@ def _ctx(doc, answers: Mapping[str, Any]) -> Dict[str, Any]:
             "draft": doc.draft or ""}
 
 
+def _reopened(doc) -> Dict[str, Any]:
+    """点了「改」回去重问的那一步：``{步骤: 原来的值}``（:func:`reopen`）。后台定的值在这期间不算定（照常问），原值作为题的 ``value``。"""
+    try:
+        found = json.loads(doc.get("reopened") or "{}")
+    except ValueError:
+        found = {}
+    return found if isinstance(found, dict) else {}
+
+
 def _decided(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
     """后台此刻能定的各步（声明了 ``default`` 的）：依赖的步骤有值了才去问产品；问不出、出错都当没有（降成问）。
     一步定了可能让下一步的依赖满足，所以转到不再有新值为止。"""
@@ -170,7 +179,8 @@ def _decided(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> Dict[
                 found[step["key"]] = {}
         if not progressed:
             break
-    return {key: value for key, value in found.items() if value}
+    reopened = _reopened(doc)
+    return {key: value for key, value in found.items() if value and key not in reopened}
 
 
 def _options(step: Mapping[str, Any], ctx: Dict[str, Any], txt="", start=0, page_length=PAGE, codes=None) -> Dict[str, Any]:
@@ -286,7 +296,8 @@ def _t(key: str) -> str:
 
 # ── 给页面的样子 ─────────────────────────────────────────────────────────────────────────────────────────────
 def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, Any], answers: Mapping[str, Any],
-              decided: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
+              decided: Mapping[str, Mapping[str, Any]], reopened: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+    reopened = reopened or {}
     out = {"key": step["key"], "input": step["input"], "rule": step["rule"], "tier": step.get("tier") or "how",
            "title_key": f"guide.step.{guide['id']}.{step['key']}", "required": step.get("required", True)}
     out["title"] = _t(out["title_key"])
@@ -322,6 +333,8 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         out["preselected"] = hint
     if answers.get(step["key"]) not in (None, "", [], {}):
         out["value"] = answers[step["key"]]
+    elif step["key"] in reopened:
+        out["value"] = reopened[step["key"]]   # 点「改」回来重问：原来的值放进 value（不当推荐）
     return out
 
 
@@ -381,7 +394,8 @@ def view(doc) -> Dict[str, Any]:
         decided = _decided(guide, doc, answers)
         asked = steps.to_ask(guide, answers, decided)
         settled = steps.settled(guide, answers, decided)
-        out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided) for step in asked],
+        reopened = _reopened(doc)
+        out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided, reopened) for step in asked],
                        "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}",
                                     "title": _t(f"guide.step.{guide['id']}.{item['key']}")} for item in settled],
                        "ready": steps.state(guide, answers, decided) == steps.READY,
@@ -612,6 +626,9 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     for key in changed:
         if by_key[key].get("apply"):
             _call(by_key[key]["apply"], _ctx(doc, answers), given[key])
+    reopened = _reopened(doc)
+    if any(key in reopened for key in given):
+        doc.reopened = json.dumps({key: value for key, value in reopened.items() if key not in given}, ensure_ascii=False, default=str)
     if changed and any(by_key[key].get("apply") for key in changed):
         _fill_context(doc, _conversation(doc.session_id))
     _settle(guide, doc, answers)
@@ -767,6 +784,32 @@ def tool_end(_tool_input) -> str:
     _conversation(session)  # 只认本人的对话
     ended = end_open(session, "user", CANCELLED)
     return json.dumps({"status": ENDED if ended else NO_OPEN})
+
+
+def reopen(name: str, key: str, version: int) -> Dict[str, Any]:
+    """复核卡或「已定」上点某一步「改」（页面接口 ``guide_reopen``）：回到那一步重问。本人、版本与看到的一致、运行还开着；那一步要是这次
+    引导此刻适用、已有值（答过的或后台定的）。原值记进 ``reopened``，题上作为 ``value``；依赖它的后面各步作废；回 asking、版本 +1。
+    按单据的业务（复核就地改一格，:func:`edit`）不走这里。"""
+    doc, guide, _now = _checked(name)
+    if _documents(guide) or doc.status not in OPEN:
+        return {**_shown(doc), "outcome": REFUSED}
+    if int(version) != int(doc.version or 0):
+        return {**_shown(doc), "outcome": CHANGED}
+    key = str(key or "")
+    answers = _answers(doc)
+    decided = _decided(guide, doc, answers)
+    values = steps.final_values(guide, answers, decided)
+    if key not in {step["key"] for step in guide["steps"]} or values.get(key) in (None, "", [], {}):
+        return {**_shown(doc), "outcome": REFUSED, "refused": _refusal({key or "step": "not offered"})}
+    kept = steps.without_dependents(guide, answers, [key])
+    kept.pop(key, None)
+    doc.reopened = json.dumps({**_reopened(doc), key: values[key]}, ensure_ascii=False, default=str)
+    doc.answers = json.dumps(kept, ensure_ascii=False, default=str)
+    doc.status, doc.draft, doc.result = ASKING, "", ""
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return _shown(doc)
 
 
 def cancel(name: str) -> Dict[str, Any]:

@@ -111,6 +111,14 @@ def guide_confirm(run_name, version):
 
 
 @frappe.whitelist(methods=["POST"])
+def guide_reopen(run_name, step, version):
+    """复核卡 / 已定项上点某一步「改」：回到那一步重问（`guide.run.reopen`）。"""
+    from pearnly_core.assistant.guide import run
+
+    return run.reopen(str(run_name or ""), str(step or ""), frappe.utils.cint(version))
+
+
+@frappe.whitelist(methods=["POST"])
 def guide_cancel(run_name):
     from pearnly_core.assistant.guide import run
 
