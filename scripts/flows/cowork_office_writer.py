@@ -8,8 +8,11 @@ B（录入员）在录入工作台推单（复核页「提交」同一个 `appli
 
 0. 旧件闸：存量站点迁移前排的件，迁移（补丁写上切换时刻）后别人的电脑不替；
 1. B 一台电脑都没有：照样排队；办公室 A 那台（在线）来领 → 领到，替写的人记 A（``writer``）、按 ``stand_in`` 写，录入人仍是 B；
-2. B 自己有一台够得到这本的电脑、但关着，A 的在线 → A 那台领到（不再「本人电脑关着就只等本人」）；
-3. B 自己的那台在线 → A 那台不领，B 自己的领到（替写的人空）；
+2. B 自己有一台够得到这本的电脑、但关着，A 的在线 → A 那台领到（不再「本人电脑关着就只等本人」；这本账套黏在刚写过的那台，
+   由它接着写）；
+3. B 自己的那台在线 → A 那台不领，B 自己的领到（先领他名下更早排着的旧件，写完再领这张；替写的人空）；
+
+每格领到后照电脑写完那样回执（`transport.acknowledge`）：同一本账套同时只写一件，不回执后面的格领不到。
 4. 能替写的人没有这条连接的使用权（办公室那台只有 C 登录过）、B 自己的也不是他的了 → 确认停下，票上记的原因是词条键
    ``push.no_writer``（显示时按看的人的语言翻）。
 
@@ -42,8 +45,13 @@ def computer(users):
     frappe.db.commit()
     frappe.set_user({A!r})
     machine = credentials.authenticate(made["token"])
+    tokens[machine.credential_id] = made["token"]  # 回执用（`receipt_auth.authenticate`，同 CC 桌面版写完回报）
     heartbeat._receive(machine, {{"account_set": "FLOWOP", "express_root": "D:\\\\FLOWOP",
+        # 几台电脑报同一本账套：带 Express 的文件号（真 CC 桌面版都报，同 `cowork-companion-concurrency-lab-verify.py` 的共享账套）。
+        # 只报本机写法时第二台起认不出是同一本，可达行停在「待认定」、够不到账套（11-19 备用 A 诊断：office2、office3、B 的 reach
+        # 为空）。不带网络路径：带了规范键就换成网络路径，与下面推单用的 FLOWOP 对不上
         "account_sets": [{{"code": "FLOWOP", "name": "Flow operator 69", "path": "FLOWOP", "root": "D:\\\\FLOWOP",
+                           "uid": "f10f0069-00000001",
                            "writable": True, "mapping": mapping, "company": "Flow Operator Co", "tax_id": "0994000777001"}}],
         "accounts": [{{"code": code}} for code in ("A", "V", "P", "S", "O", "R", "5300")],
         "catalog": {{"products": [], "customers": []}}, "max_payload_version": 99}})  # 支持现有全部载荷版本
@@ -102,11 +110,19 @@ def take(machine):
     frappe.db.commit()
     if not got.get("jobs"):
         diagnosis.append(why(machine))
+    held[machine.credential_id] = [job.get("log_id") for job in (got.get("jobs") or [])]
     return [job.get("history_id") for job in (got.get("jobs") or [])]  # 领到的是哪张票
+def done(machine):
+    # 照电脑写完那样回执（正式回执入口 `transport.acknowledge`）：这本账套空出来（同一本同时只写一件），这台成了刚写过的那台
+    from pearnly_cowork.companion import receipt_auth
+    for handle in held.pop(machine.credential_id, []):
+        context = receipt_auth.authenticate(tokens[machine.credential_id], handle)
+        transport.acknowledge(context, {{"log_id": handle, "result": "success"}})  # 单号可选，这里不核写成的单号
+        frappe.db.commit()
 def record(name):
     return frappe.db.get_value("Cowork Push Record", name or "", ["status", "entered_by", "writer", "write_route",
                                                                    "written_by_device"], as_dict=True) or {{}}
-diagnosis = []
+diagnosis, tokens, held = [], {{}}, {{}}
 office = computer([{A!r}])
 from datetime import datetime, timezone
 frappe.conf.pearnly_writer_rule_since = None       # 0. 旧件闸：这件排在存量站点迁移之前
@@ -118,16 +134,21 @@ old_row = record(old.get("record"))
 first = pushed("FLOW-OW-{tag}-1")                  # 1. B 一台电脑都没有
 taken_first = take(office["machine"])
 first_row = record(first.get("record"))
-mine = computer([{B!r}])                            # 2. B 自己的电脑关着、A 的在线（每台同时只领一件：另起一台 A 的）
+done(office["machine"])                             # 写完回执：这本账套空出来，黏在刚写过的这台（route_contracts.STICKY_SECONDS）
+mine = computer([{B!r}])                            # 2. B 自己的电脑关着、A 的在线
 off(mine["machine"])
-office2 = computer([{A!r}])
+office2 = computer([{A!r}])                         # 另一台 A 的也在线：这本黏在刚写过的 office 上，由它接着写
 second = pushed("FLOW-OW-{tag}-2")
-taken_second = take(office2["machine"])
+taken_second = take(office["machine"])
 second_row = record(second.get("record"))
-mine_online = computer([{B!r}])                     # 3. B 自己的那台在线：A 不替
+done(office["machine"])
+off(office["machine"])                              # 3. 刚写过的那台下线（不再黏着），B 自己的那台在线：A 的电脑不替
+mine_online = computer([{B!r}])
 office3 = computer([{A!r}])
 third = pushed("FLOW-OW-{tag}-3")
 taken_by_office = take(office3["machine"])
+taken_own_old = take(mine_online["machine"])        # B 自己的电脑先领他名下更早排着的那件（第 0 格的旧件），写完再领这张
+done(mine_online["machine"])
 taken_by_mine = take(mine_online["machine"])
 third_row = record(third.get("record"))
 for machine in (mine, mine_online):                 # 4. 能替写的人没有使用权、B 的电脑也不是他的了
@@ -141,7 +162,7 @@ none = pushed("FLOW-OW-{tag}-4")
 none["stored"] = frappe.db.get_value("Cowork OCR History", none["doc"], "last_push_reason")  # 票上存的原因（词条键）
 print(json.dumps({{"old": old, "taken_old": taken_old, "old_row": old_row, "first": first, "taken_first": taken_first, "first_row": first_row, "second": second,
                   "taken_second": taken_second, "second_row": second_row, "third": third, "taken_by_office": taken_by_office,
-                  "taken_by_mine": taken_by_mine, "third_row": third_row, "none": none,
+                  "taken_by_mine": taken_by_mine, "taken_own_old": taken_own_old, "third_row": third_row, "none": none,
                   "office": office["device"], "office2": office2["device"], "office3": office3["device"],
                   "diagnosis": diagnosis}}, default=str))
 """)
@@ -180,9 +201,10 @@ print(json.dumps({{**leftovers(), "devices": frappe.db.count({DEVICES!r}, {{"lab
         {"case": "B 自己的电脑关着、A 的在线：A 那台领到（不再只等本人的电脑）",
          "seen": {"taken": params.get("taken_second"), "row": second},
          "ok": second.get("status") == "leased" and second.get("writer") == A and second.get("entered_by") == B
-         and second.get("written_by_device") == params.get("office2")},
+         and second.get("written_by_device") == office},
         {"case": "B 自己的那台在线：A 那台不领，B 自己的领到，替写的人空",
-         "seen": {"by_office": params.get("taken_by_office"), "by_mine": params.get("taken_by_mine"), "row": third},
+         "seen": {"by_office": params.get("taken_by_office"), "own_old": params.get("taken_own_old"),
+                  "by_mine": params.get("taken_by_mine"), "row": third},
          "ok": (params.get("third") or {}).get("doc") not in (params.get("taken_by_office") or [])
          and (params.get("third") or {}).get("doc") in (params.get("taken_by_mine") or [])
          and third.get("status") == "leased" and not third.get("writer")
