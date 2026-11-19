@@ -296,10 +296,15 @@ def _job(doc, spelling, job, peer):
     attended = route_contracts.attended(job, peer)
     # 推的人在哪段对话里推的（只在他登录过这台电脑时给，CC 桌面版 1.12.23 ⑨：一批没录成的通知点开回到那段对话；
     # 记法同 ERP 推送工具 `push_followup.note_origin("erp", "<单据类型>:<单号>")`）
-    from pearnly_core.assistant import push_followup
+    # 只是顺带的可选信息：取不到只记日志、照常交单
+    try:
+        from pearnly_core.assistant import push_followup
 
-    session = push_followup.origin_session("erp", f"{doc.source_doctype}:{doc.source_name}",
-                                           (peer or route_contracts.Peer()).users) if doc.source_name else ""
+        session = push_followup.origin_session("erp", f"{doc.source_doctype}:{doc.source_name}",
+                                               (peer or route_contracts.Peer()).users) if doc.source_name else ""
+    except Exception:
+        frappe.log_error(title="Push origin lookup failed")
+        session = ""
     return queue_contracts.job(doc.name, {"history": doc.source_name or "", "invoice_no": doc.label or None,
                                           "frozen_payload": payload}, attended, session=session or None)
 

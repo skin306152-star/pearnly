@@ -2655,6 +2655,7 @@ class PushWaitTests(unittest.TestCase):
         remembered = []
         followup = types.ModuleType("pearnly_core.assistant.push_followup")
         followup.remember = lambda product, record, label: remembered.append((product, record, label)) or True
+        followup.note_origin = lambda product, record: True  # 发出时记来自哪段对话（1.12.23 ⑨，见 test_assistant.PushFollowUpTests）
         package = sys.modules["pearnly_core.assistant"]
         original = tools.frappe.db.get_value
         number = lambda doctype, name, field=None, *args, **kwargs: f"IV-{name}" if (doctype, field) == (tools.HISTORY, "invoice_no") \

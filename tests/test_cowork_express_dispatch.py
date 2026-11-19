@@ -545,6 +545,25 @@ class Transport(unittest.TestCase):
         self.assertEqual(self.scopes[-1], {"everyone": 0, "device": A, "anyone": 0, "users": (ME,), "since": ""})
         self.assertTrue(reply["jobs"][0]["attended"])
 
+    def test_a_job_carries_the_conversation_it_was_pushed_from_only_for_a_computer_its_pusher_signed_in_to(self):
+        # CC 桌面版 1.12.23 ⑨：领单每件可带推送来自的那段对话（push_followup.origin_session 按这台电脑登录过的人过滤）
+        asked, pusher = [], [ME]
+        followup = types.SimpleNamespace(origin_session=lambda product, record, users: asked.append(
+            (product, record, tuple(users))) or ("sess-0001" if pusher[0] in users else ""))
+        package = types.SimpleNamespace(push_followup=followup)
+        self.pending = [_row("CWP-1", "s1")]
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant": package,
+                                           "pearnly_core.assistant.push_followup": followup}):
+            reply = self.run_lease()
+        self.assertEqual(reply["jobs"][0]["session"], "sess-0001")
+        self.assertEqual([(product, users) for product, _record, users in asked], [("cowork", (ME,))])
+        pusher[0] = OTHER  # 这张是同事在他的对话里推的，同事没登录过这台
+        self.pending = [_row("CWP-2", "s2", created=1)]
+        with mock.patch.dict(sys.modules, {"pearnly_core.assistant": package,
+                                           "pearnly_core.assistant.push_followup": followup}):
+            reply = self.run_lease()
+        self.assertNotIn("session", reply["jobs"][0])  # 推的人没登录过这台：不带
+
     def test_a_book_waiting_for_express_to_close_rests_while_other_books_are_handed_out(self):
         # 11-12：排头上次回报「Express 开着这本账套」不满 30 秒 → 这本先不派（以前放回即可再领，电脑连着领同一张、别的账套领不到）
         from pearnly_core.cc_desktop.wire import ack_rules
