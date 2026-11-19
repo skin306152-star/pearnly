@@ -855,6 +855,7 @@ MR.ERP Company,MR.ERP 公司
 MR.ERP No.,MR.ERP 单号
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
+MR.ERP did not save this document,MR.ERP 未保存此单据
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP 不支持此税率，请核对税率后重新提交
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 MR.ERP import menu,MR.ERP 导入菜单
@@ -1572,6 +1573,7 @@ The company on your documents,单据上用的本公司资料
 The company used for new documents and for the company profile page,新建单据及公司资料页所用的公司
 The current POS opening entry is outdated. Please close it and create a new one.,当前开班记录已过期，请先交班再重新开班
 The customer is missing. Choose the customer and submit again.,缺少客户，请选择客户后重新提交
+The date is outside the MR.ERP accounting period,日期不在 MR.ERP 的会计期间内
 The default board cannot be archived,默认看板不能归档
 The destination warehouse must differ from the source warehouse,调入仓库不能与调出仓库相同
 The discount exceeds the line amount,折扣超过该行金额
@@ -1683,6 +1685,7 @@ This document is no longer available,该单据已不可用
 This document is not in Express,Express 中找不到此单
 This document is too large,文件过大
 This document is void,该单据已作废
+This document number is already used in MR.ERP,MR.ERP 中已有此单号
 This document type cannot be written to Express. Check it and submit again.,此单据类型无法写入 Express，请核对后重新提交
 This document type cannot be written to MR.ERP,此单据类型无法写入 MR.ERP
 This document was already recorded,这张单据已经入账
@@ -2579,13 +2582,17 @@ mrerp.error.ERR_MRERP_MASTER_UNREADABLE,无法读取 MR.ERP 主档。
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP 中此类单据本年度没有已关联日记账的导入菜单，请先在 MR.ERP 中关联。
 mrerp.error.ERR_MRERP_MENU_UNREADABLE,无法读取 MR.ERP 导入页的菜单（设置未完成或账号无权限）。
 mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,此单据类型无法写入 MR.ERP
+mrerp.error.ERR_MRERP_PERIOD_CLOSED,日期不在 MR.ERP 的会计期间内
 mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP 已受理导入，但所选菜单中未找到此单据，结果未知。请先在 MR.ERP 中核对，请勿直接重新推送。
 mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP 已受理导入，但所选菜单未关联日记账，不会入账。请在 MR.ERP 中核对。
+mrerp.error.ERR_MRERP_SAVE_FAILED,MR.ERP 未保存此单据
 mrerp.error.ERR_MRERP_STOCK_FIELD,分店、部门、工作代码、物料或仓库代码与 MR.ERP 不符
 mrerp.error.ERR_MRERP_STOCK_LINES,没有明细
 mrerp.error.ERR_MRERP_STOCK_NUMBER,单号超出 MR.ERP 允许的长度
+mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN,MR.ERP 中已有此单号
 mrerp.error.ERR_MRERP_STOCK_PRICE,缺少单价
 mrerp.error.ERR_MRERP_STOCK_QTY,数量须大于 0
+mrerp.error.ERR_MRERP_STOCK_SAME_STORE,调入仓库不能与调出仓库相同
 mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED,MR.ERP 中没有此仓库
 mrerp.error.ERR_NEGATIVE_AMOUNT,合计金额为负数，请更正后重新提交
 mrerp.error.ERR_NO_CLIENT,缺少客户，请选择客户后重新提交

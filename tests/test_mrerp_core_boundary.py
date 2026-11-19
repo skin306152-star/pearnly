@@ -37,6 +37,8 @@ EXTRA = {
     "receivables.py": {"pearnly_core.session_lock"},
     # 11-19 ERP 库存单直写：入库 / 出库导入（经导入 5 步与共用会话入口）
     "push/stock.py": {"pearnly_core.session_lock"},
+    # 调拨 / 调整照网页表单原生保存（经共用会话入口）
+    "push/stock_form.py": {"pearnly_core.session_lock"},
     "push/report_parser.py": {"openpyxl"},
     "push/xlsx/generator.py": {"openpyxl", "openpyxl.styles"},
 }

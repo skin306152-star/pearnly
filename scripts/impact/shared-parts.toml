@@ -2660,11 +2660,11 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py", "apps
 [[entry]]
 id = "erp.mrerp.stock"
 product = "ERP"
-where = "账本是 MR.ERP 的公司提交库存单（出库 / 入库 → 服务端导入 MR.ERP จ่ายสินค้า impstktraniss / รับสินค้า impstktranrec；调拨 / 调整网页表单直写做好之前标失败；总开关 MRERP_LEDGER_ENABLED 关着）"
-steps = "离线：tests/test_erp_mrerp_stock.py（排上 MR.ERP；出库按库存单位、不带价、菜单按用途；入库带每库存单位单价、没价的留给共用层补标准成本；调拨 / 调整标 ERR_MRERP_MODULE_UNAVAILABLE 不导；物料 / 仓库没有 MR.ERP 编码停下；不允许负库存时出库按各仓合计拦）+ tests/test_mrerp_stock_core.py（导入表 6 / 8 / 6 列、只两张表、负数与 0 拦住、出库菜单按用途记住）；实机：MR.ERP 测试账套入库、出库各写一张读回"
-expect = "开关关着时库存单一字不变（不写 MR.ERP）；开着时出库 / 入库单记 MR.ERP 单号（菜单前缀 + 单号）、库存卡与日记账同原生录入；调拨 / 调整单显示失败 · 此单据类型无法写入 MR.ERP；账套不允许负库存时超过各仓合计的出库提交时拦下"
+where = "账本是 MR.ERP 的公司提交库存单（出库 / 入库 → 服务端导入 MR.ERP จ่ายสินค้า impstktraniss / รับสินค้า impstktranrec；调拨 / 调整 → 照网页表单原生保存 ย้ายคลังสินค้า stktrant / ปรับปรุงสินค้า stktranmod；总开关 MRERP_LEDGER_ENABLED 关着）"
+steps = "离线：tests/test_erp_mrerp_stock.py（排上 MR.ERP；出库按库存单位、不带价、菜单按用途；入库带每库存单位单价、没价的留给共用层补标准成本；调拨 / 调整交网页表单保存（调拨带两仓、调整带仓与正负数量）；物料 / 仓库没有 MR.ERP 编码停下；不允许负库存时出库按各仓合计拦）+ tests/test_mrerp_stock_core.py（导入表 6 / 8 / 6 列、只两张表、负数与 0 拦住、出库菜单按用途记住）+ tests/test_mrerp_stock_form.py（主菜单读菜单、隐藏值、传 id、佛历日期、第二单位不传、会计期间、两仓不同、轧差、Save Success、按单号回读）；实机：MR.ERP 测试账套入库、出库、调拨、调整各写一张读回"
+expect = "开关关着时库存单一字不变（不写 MR.ERP）；开着时出库 / 入库单记 MR.ERP 单号（菜单前缀 + 单号）、库存卡与日记账同原生录入；调拨 / 调整单成原生的调拨单、调整单并记单号；账套不允许负库存时超过各仓合计的出库提交时拦下"
 check = "offline"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/stock.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/stock_form.py"]
 
 [[entry]]
 id = "erp.cc.collection"

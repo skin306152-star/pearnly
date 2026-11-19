@@ -1924,6 +1924,10 @@ No line items	没有明细	ไม่มีรายการสินค้า	�
 A branch, department, job, item or warehouse code does not match MR.ERP	分店、部门、工作代码、物料或仓库代码与 MR.ERP 不符	รหัสสาขา แผนก งาน สินค้า หรือคลัง ไม่ตรงกับ MR.ERP	支店・部門・作業・品目・倉庫のコードが MR.ERP と一致しません	mrerp.error.ERR_MRERP_STOCK_FIELD
 Quantity must be greater than 0	数量须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きくしてください	mrerp.error.ERR_MRERP_STOCK_QTY
 Unit price is missing	缺少单价	ไม่มีราคา/หน่วย	単価がありません	mrerp.error.ERR_MRERP_STOCK_PRICE
+The destination warehouse must differ from the source warehouse	调入仓库不能与调出仓库相同	คลังปลายทางต้องไม่ใช่คลังต้นทาง	移動先倉庫は移動元倉庫と別にしてください	mrerp.error.ERR_MRERP_STOCK_SAME_STORE
+The date is outside the MR.ERP accounting period	日期不在 MR.ERP 的会计期间内	วันที่ไม่อยู่ในรอบบัญชีของ MR.ERP	日付が MR.ERP の会計期間外です	mrerp.error.ERR_MRERP_PERIOD_CLOSED
+MR.ERP did not save this document	MR.ERP 未保存此单据	MR.ERP ไม่ได้บันทึกเอกสารนี้	MR.ERP にこの伝票は保存されませんでした	mrerp.error.ERR_MRERP_SAVE_FAILED
+This document number is already used in MR.ERP	MR.ERP 中已有此单号	เลขที่เอกสารนี้มีอยู่ใน MR.ERP แล้ว	この伝票番号は MR.ERP で使用済みです	mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN
 The total is negative. Correct it and submit again	合计金额为负数，请更正后重新提交	ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่	合計がマイナスです。直して再送信してください	mrerp.error.ERR_NEGATIVE_AMOUNT
 The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	mrerp.error.ERR_NO_CLIENT
 This customer has no match in MR.ERP. Choose the customer and submit again	MR.ERP 中没有此客户的对应档案，请选择客户后重新提交	ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่	この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください	mrerp.error.ERR_NO_CUSTOMER_MAPPING

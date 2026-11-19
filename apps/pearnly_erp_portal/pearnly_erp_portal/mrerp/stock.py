@@ -2,8 +2,8 @@
 由 `mrerp.push` 同一条排队 / 领取 / 结论流程交到这里准备载荷，经共用层导入（`pearnly_core.mrerp.push.stock`）。
 
 - 入库 → MR.ERP「รับสินค้า」导入（impstktranrec），带单价、金额；出库 → 「จ่ายสินค้า」导入（impstktraniss），成本 MR.ERP 自己算。
-  调拨（ย้ายคลังสินค้า）与调整（ปรับปรุงสินค้า）MR.ERP 没有导入，要照网页表单原生保存（评估方案甲，下一步）；做好之前如实停在
-  「失败 · 此单据类型无法写入 MR.ERP」（``ERR_MRERP_MODULE_UNAVAILABLE``），不装成功、也不静默不写。
+  调拨（ย้ายคลังสินค้า）与调整（ปรับปรุงสินค้า）MR.ERP 没有导入：照网页表单原生保存（评估方案甲，`pearnly_core.mrerp.push.stock_form`），
+  每张按单号回读。
 - 菜单：入库一个；出库按 ERP 用途各一个（`menus.stock_out_kind`，用途清单就是 `inventory.documents.PURPOSES`，不另列），都只列已
   关联日记账的，一个就自动用，多个问一次记在公司上（同采购 / 销售的「MR.ERP 导入菜单」）。分店、部门、งาน 用这份账套的默认值，没定的
   问一次（`mrerp.choices`）。
@@ -24,7 +24,6 @@ from pearnly_erp_portal.mrerp import contracts
 
 DOCTYPE = "ERP Stock Entry"  # = `express.stock_entry.DOCTYPE`（那边连着 Express 一侧，用到时才导入）
 IN, OUT, TRANSFER, ADJUST = "in", "out", "transfer", "adjust"
-FORM_PENDING = "ERR_MRERP_MODULE_UNAVAILABLE"   # 调拨 / 调整：网页表单直写做好之前
 ITEM_UNMAPPED = "ERR_MRERP_ITEM_UNMAPPED"            # 行上的物料在 MR.ERP 里没有对应的物料（`mrerp.error.<码>` 四语）
 WAREHOUSE_UNMAPPED = "ERR_MRERP_WAREHOUSE_UNMAPPED"  # 仓库在 MR.ERP 里没有对应的仓库
 NEGATIVE_FIELD = "stock_negative"                # 主档记录里这份账套「允许负库存」：1 允许 / 2 不允许（`masters.observe`）
@@ -58,6 +57,8 @@ def eligible(doc) -> bool:
 def menu_kind(direction, purpose=None) -> str:
     from pearnly_core.mrerp import menus
 
+    if direction in (TRANSFER, ADJUST):
+        return menus.STOCK_TRANSFER if direction == TRANSFER else menus.STOCK_ADJUST
     return menus.STOCK_IN if direction == IN else menus.stock_out_kind(purpose)
 
 
@@ -120,9 +121,39 @@ def payload(name, body, menus, defaults) -> dict:
                         "defaults": dict(defaults or {})}}
 
 
+def form_payload(direction, body, menus, defaults) -> dict:
+    """共用层 `push.stock_form.execute` 的载荷（调拨 / 调整，见那边文件头）；物料 / 仓库码缺了回 ``{"hold": 原因}``。
+    调拨：单头调出仓 → 调入仓，行是物料与数量（换成库存单位）；调整：行带仓与正负数量（`stock_entry.document` 已按库存单位、
+    同物料同仓轧差），人亲手填的增加行单价带上，其余由 MR.ERP 取系统成本（同网页）。"""
+    if body.get("unmapped_warehouses"):
+        return {"hold": WAREHOUSE_UNMAPPED}
+    lines = []
+    for item in body["lines"]:
+        if not str(item.get("code") or "").strip():
+            return {"hold": ITEM_UNMAPPED}
+        qty, cost = _base(item)
+        line = {"code": item["code"], "qty": _plain(qty)}
+        if direction == ADJUST:
+            if not str(item.get("loccod") or "").strip():
+                return {"hold": WAREHOUSE_UNMAPPED}
+            line["store"] = item["loccod"]
+            if qty > 0 and cost is not None:
+                line["price"] = _plain(cost.quantize(Decimal("0.0001")))
+        lines.append(line)
+    out = {"kind": direction, "number": str(body.get("number") or "")[:18], "date": body["date"],
+           "notes": [str(body.get("remark") or "")[:50], "", str(body.get("number") or "")[:50]], "lines": lines,
+           "menu": (menus or {}).get(menu_kind(direction)) or "", "defaults": dict(defaults or {})}
+    if direction == TRANSFER:
+        if not str(body.get("loccod") or "").strip() or not str(body.get("to_loccod") or "").strip():
+            return {"hold": WAREHOUSE_UNMAPPED}
+        out.update(from_store=body["loccod"], to_store=body["to_loccod"])
+    return {"payload": out}
+
+
 def prepare(name, body, row, book) -> dict:
-    """（`mrerp.push.prepare` 交过来：公司与账套已定、调拨 / 调整已先挡下）准备一张入库 / 出库单：``{"payload", "stock": True, ...}`` /
-    ``{"hold", "needed"}``。``body``：`express.stock_entry.document` 的形状（`express.push.document` 建的）。"""
+    """（`mrerp.push.prepare` 交过来：公司与账套已定）准备一张库存单：入库 / 出库 ``{"payload", "stock": True, ...}``（导入），
+    调拨 / 调整 ``{"payload", "form": True, ...}``（网页表单原生保存）；或 ``{"hold", "needed"}``。``body``：
+    `express.stock_entry.document` 的形状（`express.push.document` 建的）。"""
     from pearnly_erp_portal.mrerp import choices
 
     direction, purpose = frappe.db.get_value(DOCTYPE, name, ["direction", "purpose"])
@@ -131,10 +162,11 @@ def prepare(name, body, row, book) -> dict:
     if want:
         return {"hold": contracts.CHOICE, "needed": want, "book": book}
     menus, defaults = choices.chosen(row, book)
-    out = payload(name, body, menus, defaults)
+    form = direction in (TRANSFER, ADJUST)
+    out = form_payload(direction, body, menus, defaults) if form else payload(name, body, menus, defaults)
     if "hold" in out:
         return {**out, "book": book}
-    return {**out, "stock": True, "book": book, "company": row, "direction": "stock", "menu_kind": kind}
+    return {**out, "form" if form else "stock": True, "book": book, "company": row, "direction": "stock", "menu_kind": kind}
 
 
 def negative_blocked(company, book=None) -> bool:
@@ -183,6 +215,6 @@ def check_negative(doc, company) -> None:
         frappe.throw(frappe._("Not enough stock on hand"))
 
 
-__all__ = ["ADJUST", "DOCTYPE", "FORM_PENDING", "IN", "ITEM_UNMAPPED", "NEGATIVE_FIELD", "OUT", "TRANSFER",
+__all__ = ["ADJUST", "DOCTYPE", "IN", "ITEM_UNMAPPED", "NEGATIVE_FIELD", "OUT", "TRANSFER",
            "WAREHOUSE_UNMAPPED", "check_negative", "company_of", "date_of", "eligible", "kinds_of", "menu_kind",
-           "needed", "negative_blocked", "payload", "prepare"]
+           "form_payload", "needed", "negative_blocked", "payload", "prepare"]

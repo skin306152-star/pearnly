@@ -855,6 +855,7 @@ MR.ERP Company,บริษัท MR.ERP
 MR.ERP No.,เลขที่ MR.ERP
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
+MR.ERP did not save this document,MR.ERP ไม่ได้บันทึกเอกสารนี้
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 MR.ERP import menu,เมนูนำเข้า MR.ERP
@@ -1572,6 +1573,7 @@ The company on your documents,ข้อมูลบริษัทที่ใ�
 The company used for new documents and for the company profile page,บริษัทที่ใช้กับเอกสารใหม่และหน้าข้อมูลบริษัท
 The current POS opening entry is outdated. Please close it and create a new one.,รายการเปิดกะปัจจุบันหมดอายุ กรุณาปิดกะแล้วเปิดกะใหม่
 The customer is missing. Choose the customer and submit again.,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่
+The date is outside the MR.ERP accounting period,วันที่ไม่อยู่ในรอบบัญชีของ MR.ERP
 The default board cannot be archived,ไม่สามารถเก็บถาวรบอร์ดเริ่มต้นได้
 The destination warehouse must differ from the source warehouse,คลังปลายทางต้องไม่ใช่คลังต้นทาง
 The discount exceeds the line amount,ส่วนลดเกินยอดของบรรทัด
@@ -1683,6 +1685,7 @@ This document is no longer available,เอกสารนี้ไม่สา�
 This document is not in Express,ไม่พบเอกสารนี้ใน Express
 This document is too large,ไฟล์นี้ใหญ่เกินไป
 This document is void,เอกสารนี้ถูกยกเลิกแล้ว
+This document number is already used in MR.ERP,เลขที่เอกสารนี้มีอยู่ใน MR.ERP แล้ว
 This document type cannot be written to Express. Check it and submit again.,ประเภทเอกสารนี้บันทึกลง Express ไม่ได้ กรุณาตรวจสอบแล้วส่งใหม่
 This document type cannot be written to MR.ERP,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
 This document was already recorded,เอกสารนี้บันทึกแล้ว
@@ -2579,13 +2582,17 @@ mrerp.error.ERR_MRERP_MASTER_UNREADABLE,ไม่สามารถอ่าน�
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP ยังไม่มีเมนูนำเข้าที่เชื่อมโยงสมุดรายวันของปีนี้สำหรับเอกสารประเภทนี้ กรุณาเชื่อมโยงใน MR.ERP ก่อน
 mrerp.error.ERR_MRERP_MENU_UNREADABLE,ไม่สามารถอ่านเมนูจากหน้านำเข้าของ MR.ERP ได้ (ตั้งค่ายังไม่ครบหรือบัญชีผู้ใช้ไม่มีสิทธิ์)
 mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้
+mrerp.error.ERR_MRERP_PERIOD_CLOSED,วันที่ไม่อยู่ในรอบบัญชีของ MR.ERP
 mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP รับการนำเข้าแล้ว แต่ไม่พบเอกสารนี้ในเมนูที่เลือก จึงไม่ทราบผลลัพธ์ กรุณาตรวจสอบใน MR.ERP ก่อน และอย่าเพิ่งส่งซ้ำ
 mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP รับการนำเข้าแล้ว แต่เมนูที่เลือกไม่ได้เชื่อมโยงสมุดรายวัน จึงจะไม่ถูกลงบัญชี กรุณาตรวจสอบใน MR.ERP
+mrerp.error.ERR_MRERP_SAVE_FAILED,MR.ERP ไม่ได้บันทึกเอกสารนี้
 mrerp.error.ERR_MRERP_STOCK_FIELD,รหัสสาขา แผนก งาน สินค้า หรือคลัง ไม่ตรงกับ MR.ERP
 mrerp.error.ERR_MRERP_STOCK_LINES,ไม่มีรายการสินค้า
 mrerp.error.ERR_MRERP_STOCK_NUMBER,เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ
+mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN,เลขที่เอกสารนี้มีอยู่ใน MR.ERP แล้ว
 mrerp.error.ERR_MRERP_STOCK_PRICE,ไม่มีราคา/หน่วย
 mrerp.error.ERR_MRERP_STOCK_QTY,จำนวนต้องมากกว่า 0
+mrerp.error.ERR_MRERP_STOCK_SAME_STORE,คลังปลายทางต้องไม่ใช่คลังต้นทาง
 mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED,ไม่มีคลังนี้ใน MR.ERP
 mrerp.error.ERR_NEGATIVE_AMOUNT,ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่
 mrerp.error.ERR_NO_CLIENT,ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่

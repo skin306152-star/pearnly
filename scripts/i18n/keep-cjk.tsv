@@ -236,4 +236,5 @@ apps/pearnly_core/pearnly_core/mrerp/master_export.py	*	数据：MR.ERP 按仓�
 apps/pearnly_core/pearnly_core/express_rules/push/book_questions.py	*	数据：票面单位文字到 Express 单位码的后备映射（与 CC 桌面版 dbf_schema._UNIT_MAP 逐条相同）与现金科目名称关键词 เงินสด，按原字面比对，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/xlsx/receipt.py	*	数据：MR.ERP 收款导入模板（impfarev）的泰文表头，按原字面写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/xlsx/stock.py	*	数据：MR.ERP 库存入库 / 出库导入模板（impstktranrec / impstktraniss）的泰文表头，按原字面写入外部系统，不进界面
+apps/pearnly_core/pearnly_core/mrerp/push/stock_form.py	*	数据：MR.ERP 库存网页表单页上的泰文固定字（未关联日记账提示、未登录 / 被挤下线提示），按原字面比对页面，不进界面
 apps/pearnly_core/pearnly_core/mrerp/masters.py	ส่วนลดจ่าย	数据：MR.ERP 科目表里折扣科目的名称前缀（参考科目 18），按原字面比对，不进界面

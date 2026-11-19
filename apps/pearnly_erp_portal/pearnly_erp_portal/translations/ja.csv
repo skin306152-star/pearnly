@@ -855,6 +855,7 @@ MR.ERP Company,MR.ERP 会社
 MR.ERP No.,MR.ERP 番号
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.",MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.",MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
+MR.ERP did not save this document,MR.ERP にこの伝票は保存されませんでした
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP はこの税率に対応していません。確認して再送信してください
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 MR.ERP import menu,MR.ERP 取込メニュー
@@ -1572,6 +1573,7 @@ The company on your documents,書類に使う自社情報
 The company used for new documents and for the company profile page,新しい伝票と会社プロフィール画面で使う会社
 The current POS opening entry is outdated. Please close it and create a new one.,現在のシフト開始は古くなっています。閉めて新しく作成してください
 The customer is missing. Choose the customer and submit again.,顧客がありません。顧客を選択して再送信してください
+The date is outside the MR.ERP accounting period,日付が MR.ERP の会計期間外です
 The default board cannot be archived,既定のボードはアーカイブできません
 The destination warehouse must differ from the source warehouse,移動先倉庫は移動元倉庫と別にしてください
 The discount exceeds the line amount,割引が行の金額を超えています
@@ -1683,6 +1685,7 @@ This document is no longer available,この書類は利用できません
 This document is not in Express,この伝票は Express にありません
 This document is too large,この書類は大きすぎます
 This document is void,この伝票は無効です
+This document number is already used in MR.ERP,この伝票番号は MR.ERP で使用済みです
 This document type cannot be written to Express. Check it and submit again.,この書類の種類は Express に書き込めません。確認して再送信してください
 This document type cannot be written to MR.ERP,この種類の伝票は MR.ERP に書き込めません
 This document was already recorded,この書類は記録済みです
@@ -2579,13 +2582,17 @@ mrerp.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 mrerp.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,この種類の伝票は MR.ERP に書き込めません
+mrerp.error.ERR_MRERP_PERIOD_CLOSED,日付が MR.ERP の会計期間外です
 mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+mrerp.error.ERR_MRERP_SAVE_FAILED,MR.ERP にこの伝票は保存されませんでした
 mrerp.error.ERR_MRERP_STOCK_FIELD,支店・部門・作業・品目・倉庫のコードが MR.ERP と一致しません
 mrerp.error.ERR_MRERP_STOCK_LINES,明細がありません
 mrerp.error.ERR_MRERP_STOCK_NUMBER,伝票番号が MR.ERP の上限を超えています
+mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN,この伝票番号は MR.ERP で使用済みです
 mrerp.error.ERR_MRERP_STOCK_PRICE,単価がありません
 mrerp.error.ERR_MRERP_STOCK_QTY,数量は 0 より大きくしてください
+mrerp.error.ERR_MRERP_STOCK_SAME_STORE,移動先倉庫は移動元倉庫と別にしてください
 mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED,この倉庫は MR.ERP にありません
 mrerp.error.ERR_NEGATIVE_AMOUNT,合計がマイナスです。直して再送信してください
 mrerp.error.ERR_NO_CLIENT,顧客がありません。顧客を選択して再送信してください

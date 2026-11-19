@@ -855,6 +855,7 @@ MR.ERP Company,MR.ERP Company
 MR.ERP No.,MR.ERP No.
 "MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP.","MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
 "MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again.","MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
+MR.ERP did not save this document,MR.ERP did not save this document
 MR.ERP does not support this tax rate. Check it and submit again,MR.ERP does not support this tax rate. Check it and submit again
 MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 MR.ERP import menu,MR.ERP import menu
@@ -1572,6 +1573,7 @@ The company on your documents,The company on your documents
 The company used for new documents and for the company profile page,The company used for new documents and for the company profile page
 The current POS opening entry is outdated. Please close it and create a new one.,The current POS opening entry is outdated. Please close it and create a new one.
 The customer is missing. Choose the customer and submit again.,The customer is missing. Choose the customer and submit again.
+The date is outside the MR.ERP accounting period,The date is outside the MR.ERP accounting period
 The default board cannot be archived,The default board cannot be archived
 The destination warehouse must differ from the source warehouse,The destination warehouse must differ from the source warehouse
 The discount exceeds the line amount,The discount exceeds the line amount
@@ -1683,6 +1685,7 @@ This document is no longer available,This document is no longer available
 This document is not in Express,This document is not in Express
 This document is too large,This document is too large
 This document is void,This document is void
+This document number is already used in MR.ERP,This document number is already used in MR.ERP
 This document type cannot be written to Express. Check it and submit again.,This document type cannot be written to Express. Check it and submit again.
 This document type cannot be written to MR.ERP,This document type cannot be written to MR.ERP
 This document was already recorded,This document was already recorded
@@ -2579,13 +2582,17 @@ mrerp.error.ERR_MRERP_MASTER_UNREADABLE,Could not read the MR.ERP master data.
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP has no import menu linked to a journal this year for this kind of document. Link one in MR.ERP first.
 mrerp.error.ERR_MRERP_MENU_UNREADABLE,The MR.ERP import page shows no menu (setup incomplete or no permission).
 mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,This document type cannot be written to MR.ERP
+mrerp.error.ERR_MRERP_PERIOD_CLOSED,The date is outside the MR.ERP accounting period
 mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,"MR.ERP accepted the import, but the document was not found in the chosen menu. Result unknown: check in MR.ERP before pushing again."
 mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,"MR.ERP accepted the import, but the chosen menu is not linked to a journal, so it will not be posted. Check in MR.ERP."
+mrerp.error.ERR_MRERP_SAVE_FAILED,MR.ERP did not save this document
 mrerp.error.ERR_MRERP_STOCK_FIELD,"A branch, department, job, item or warehouse code does not match MR.ERP"
 mrerp.error.ERR_MRERP_STOCK_LINES,No line items
 mrerp.error.ERR_MRERP_STOCK_NUMBER,The document number is longer than MR.ERP allows
+mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN,This document number is already used in MR.ERP
 mrerp.error.ERR_MRERP_STOCK_PRICE,Unit price is missing
 mrerp.error.ERR_MRERP_STOCK_QTY,Quantity must be greater than 0
+mrerp.error.ERR_MRERP_STOCK_SAME_STORE,The destination warehouse must differ from the source warehouse
 mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED,This warehouse is not in MR.ERP
 mrerp.error.ERR_NEGATIVE_AMOUNT,The total is negative. Correct it and submit again
 mrerp.error.ERR_NO_CLIENT,The customer is missing. Choose the customer and submit again.

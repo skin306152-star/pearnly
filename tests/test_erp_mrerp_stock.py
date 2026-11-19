@@ -3,7 +3,7 @@
 沿用 `test_erp_mrerp_direct.py` 的内存 Frappe 替身与假执行（同一进程里导入它）。总开关在测试里打开：
 - 出库 / 入库：排上 MR.ERP、领取后交共用层库存导入（假执行），载荷换成库存单位、带 MR.ERP 物料 / 仓库码、入库带单价、出库不带；
   出库按用途取记住的菜单；成功记 MR.ERP 单号；
-- 调拨 / 调整：网页表单直写做好之前如实标失败（``ERR_MRERP_MODULE_UNAVAILABLE``），不导、不静默；
+- 调拨 / 调整：交共用层照网页表单原生保存（假执行），调拨带调出 / 调入仓、调整带仓与正负数量、人填的增加行单价；
 - 物料或仓库没有 MR.ERP 编码：停在单据上说清是哪一种；
 - 负库存：这份账套设成不允许时，出库过账前按本公司各仓合计拦；允许 / 没读到 / 入库都不拦。
 """
@@ -30,7 +30,7 @@ sys.modules.update({"pearnly_erp_portal.inventory.documents": _documents,
 from pearnly_erp_portal.mrerp import push, stock  # noqa: E402
 
 STOCK = push.STOCK
-STOCK_CALLS = []
+STOCK_CALLS, FORM_CALLS = [], []
 
 
 def body(name, **extra):
@@ -62,9 +62,17 @@ class _Stock:
             return self.outcome
 
         module.execute = execute
+        form_module = types.ModuleType("pearnly_core.mrerp.push.stock_form")
+
+        def save(payload, target, secrets, system_url, today=None):
+            FORM_CALLS.append({"payload": payload, "target": target})
+            return self.outcome
+
+        form_module.execute = save
         self.inner = T._Module({"status": "failed", "reason": "invoice path must not run"})
         self.inner.__enter__()
-        self.patch = patch.dict(sys.modules, {"pearnly_core.mrerp.push.stock": module})
+        self.patch = patch.dict(sys.modules, {"pearnly_core.mrerp.push.stock": module,
+                                              "pearnly_core.mrerp.push.stock_form": form_module})
         self.patch.start()
         return self
 
@@ -87,6 +95,7 @@ class StockToMrErp(unittest.TestCase):
     def setUp(self):
         T.reset()
         STOCK_CALLS.clear()
+        FORM_CALLS.clear()
         BODIES.clear()
         T.DB.table("ERP Warehouse")["WH-1"] = {"name": "WH-1", "company": "CO-1", "express_code": "0001"}
 
@@ -132,13 +141,24 @@ class StockToMrErp(unittest.TestCase):
         self.run_one("OUT-3")
         self.assertEqual([call["payload"]["menu"] for call in STOCK_CALLS], ["34", "33"])
 
-    def test_transfers_and_adjustments_are_marked_not_written_until_the_form_write_lands(self):
-        for name, direction in (("TR-1", "transfer"), ("ADJ-1", "adjust")):
-            entry(name, direction=direction)
-            saved = self.run_one(name)
-            with self.subTest(direction=direction):
-                self.assertEqual((saved["ledger_state"], saved["ledger_reason"]), ("failed", stock.FORM_PENDING))
-        self.assertEqual(STOCK_CALLS, [])
+    def test_transfers_and_adjustments_are_saved_through_the_native_form(self):
+        entry("TR-1", direction="transfer")
+        BODIES["TR-1"] = body("TR-1", doctype="RL", to_loccod="0002")
+        saved = self.run_one("TR-1", {"status": "success", "docnum": "ITTR-1", "menus": {}, "masters": {}})
+        self.assertEqual((saved["ledger_state"], saved["ledger_docnum"]), ("written", "ITTR-1"))
+        sent = FORM_CALLS[-1]["payload"]
+        self.assertEqual((sent["kind"], sent["from_store"], sent["to_store"]), ("transfer", "0001", "0002"))
+        self.assertEqual(sent["lines"], [{"code": "P0001", "qty": "24"}])
+        entry("ADJ-1", direction="adjust")
+        BODIES["ADJ-1"] = body("ADJ-1", doctype="TK", lines=[
+            {"code": "P0001", "name": "x", "qty": "5", "unit": "ชิ้น", "loccod": "0001", "product": "PRD-1", "unit_cost": "7"},
+            {"code": "P0002", "name": "y", "qty": "-2", "unit": "ชิ้น", "loccod": "0002", "product": "PRD-2"}])
+        self.run_one("ADJ-1", {"status": "success", "docnum": "IAADJ-1", "menus": {}, "masters": {}})
+        self.assertEqual(FORM_CALLS[-1]["payload"]["lines"], [{"code": "P0001", "qty": "5", "store": "0001", "price": "7"},
+                                                              {"code": "P0002", "qty": "-2", "store": "0002"}])
+        self.assertEqual(STOCK_CALLS, [])  # 不走导入
+        entry("TR-2", direction="transfer")
+        self.assertEqual(self.run_one("TR-2")["ledger_reason"], stock.WAREHOUSE_UNMAPPED)  # 没有调入仓码
 
     def test_an_item_or_warehouse_without_an_mrerp_code_holds_with_the_reason(self):
         entry("OUT-4")

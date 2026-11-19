@@ -114,9 +114,6 @@ def prepare(doctype, name, document) -> dict:
         return {"failed": contracts.NOT_CONFIGURED}
     if doctype == STOCK:
         from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
-
-        if frappe.db.get_value(doctype, name, "direction") in (stock.TRANSFER, stock.ADJUST):
-            return {"failed": stock.FORM_PENDING}  # 调拨 / 调整：网页表单直写做好之前如实标失败（主会话 11-19）
     held = printed.hold(doctype, name) if doctype != STOCK else None  # 识别来的单票面合计没有 / 对不上：同 Express 直写停下
     if held:
         return {"hold": held}
@@ -255,6 +252,10 @@ def run(doctype, name, document):
         from pearnly_core.mrerp.push import stock as stock_push  # 库存入库 / 出库导入（同上，只在任务里载入）
 
         outcome = stock_push.execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"])
+    elif prepared.get("form"):
+        from pearnly_core.mrerp.push import stock_form  # 调拨 / 调整：网页表单原生保存（同上）
+
+        outcome = stock_form.execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"], today)
     else:
         outcome = execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"], today)
     try:
@@ -266,7 +267,7 @@ def run(doctype, name, document):
     values = contracts.settle(outcome)
     if values["ledger_reason"] == contracts.CHOICE:
         fresh = choices.company_row(company.name)
-        if prepared.get("stock"):
+        if prepared.get("stock") or prepared.get("form"):
             from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
 
             needed = stock.needed(fresh, book, prepared["menu_kind"])

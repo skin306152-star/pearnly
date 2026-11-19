@@ -329,8 +329,8 @@ jobs:
         run: python3 tests/test_erp_mrerp_direct.py
       - name: ERP collections write to MR.ERP server-side (switched off nothing changes; receipt sheet columns and balance, open invoices from the bill picker, one money method, menu choice, read back, result unknown, written then withdrawn keeps the number)
         run: python3 tests/test_erp_mrerp_collection.py
-      - name: ERP stock entries write to MR.ERP server-side (issues and receipts in stock units through the stock imports, the issue menu per purpose, transfers and adjustments marked not written, unmapped items or warehouses held, negative stock blocked only where the account set forbids it) and the MR.ERP stock import sheets
-        run: python3 tests/test_erp_mrerp_stock.py && python3 tests/test_mrerp_stock_core.py
+      - name: ERP stock entries write to MR.ERP server-side (issues and receipts in stock units through the stock imports, the issue menu per purpose, transfers and adjustments through the native forms, unmapped items or warehouses held, negative stock blocked only where the account set forbids it), the MR.ERP stock import sheets and the native form fields
+        run: python3 tests/test_erp_mrerp_stock.py && python3 tests/test_mrerp_stock_core.py && python3 tests/test_mrerp_stock_form.py
       - name: MR.ERP masters reach ERP through the Express landing (switch off does nothing, queued once per company on the masters lane, after a write unless just read, idle companies skipped hourly, unreadable is a failure)
         run: python3 tests/test_erp_mrerp_onboarding.py
       - name: Verify scheduled tasks follow the company's account set for each document date

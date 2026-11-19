@@ -184,12 +184,18 @@
 | 负库存 | 主档整读顺带读出库新单网页的 `ssunegative`（`master_export.stock_negative`），存进连接的主档记录；`inventory.documents._post` 出库过账前 `mrerp.stock.check_negative` | 完成 |
 | CC 预选卡 | 库存单不进 MR.ERP 预选卡（`precheck` 改用 `mrerp_push.INVOICES`；库存四入口的 CC 引导式现在只做 Express），在单据上停下问 | 不变 |
 | 文案 | 新增 7 条 `mrerp.error.ERR_MRERP_*`（物料 / 仓库不在 MR.ERP、单号过长、没有明细、代码不符、数量须大于 0、缺少单价），四语；改已有 0 | `check-copy` 拦截 0 |
-| 测试账套实机 | 入库 / 出库各一张，读回单据与库存卡 | **受阻**：11-19 只读实测，测试账套的导入菜单（入库 29 / 327、出库 33，连收款 169）都显示未关联日记账（11-16 / 11-17 时是已关联），已报主会话 |
+| 测试账套实机 | 入库 / 出库各一张，读回单据与库存卡 | 完成（§17 恢复关联后）：入库两行（给价 10 / 不给价按标准成本 0.00）、出库一张（MR.ERP 自算单价），单据页逐栏读回一致；同单号重推认领原单、不重写。账套成本会计为 Periodic，原生也不记日记账 |
 
 测试账套只读实测得到的事实（11-19）：库存网页菜单号入库 29（前缀 IR）、出库 33（IS）、调拨 37（IT）、调整 39（IA）；允许负库存 = 1；
 主菜单页要带 `comidyear` 与 `seldb`，不带会清掉会话里的账套（之后的请求都被当成未登录）。
 
-## 16. 下一步（第 2 批：调拨 / 调整，方案甲）
+## 16. 第 2 批：调拨 / 调整，方案甲（同分支）
+
+- 共用层 `pearnly_core/mrerp/push/stock_form.py`：照源码协议与实录，`tests/test_mrerp_stock_form.py`；ERP `mrerp.stock.form_payload`，调拨 / 调整不再标失败，交表单保存。
+- 实录修正：第二单位两栏不能传空串（MR.ERP 按整数 0 绑外键，整张回滚），不传即 NULL；调拨列表一张单一个 `<p>`。
+- 测试账套：调拨两张写成、明细逐栏读回一致；同单号重推认领原单。调整单菜单 39 未关联日记账（网页上也没有「新增」），真写等主会话定是否关联。
+
+原定做法：
 
 照源码协议（共享笔记「MR.ERP-库存网页表单协议-源码-11-19.md」）：先 GET `allview.php?idmenu=` 再 GET `allform.php` 取隐藏值，POST `allsave.php`；
 物料 / 仓库 / 分店 / 部门 / งาน 传数据库 id（`bshlistboxdata.php`）；单号查重（`checkac.php`）、会计期间（`checkothperiod.php`）、调拨两仓不同、

@@ -28,7 +28,13 @@ RECEIPT, RECEIPT_PAGE = "receipt", "impfarev"
 # 用途各记一个（``stock_out.<用途>``，同 Express「出库按用途选簿」），都只列已关联日记账的、只有一个就自动用
 STOCK_IN, STOCK_IN_PAGE = "stock_in", "impstktranrec"
 STOCK_OUT, STOCK_OUT_PAGE = "stock_out", "impstktraniss"
-PAGE_OF = {**DOCUMENT_PAGE_OF, RECEIPT: RECEIPT_PAGE, STOCK_IN: STOCK_IN_PAGE, STOCK_OUT: STOCK_OUT_PAGE}
+# 调拨 / 调整（ย้ายคลังสินค้า stktrant / ปรับปรุงสินค้า stktranmod）：MR.ERP 没有导入，照网页表单原生保存（`push.stock_form`）；菜单从
+# 主菜单页读，记法同导入菜单（调拨不记日记账都可用；调整只用已关联日记账的）
+STOCK_TRANSFER, STOCK_TRANSFER_PAGE = "stock_transfer", "stktrant"
+STOCK_ADJUST, STOCK_ADJUST_PAGE = "stock_adjust", "stktranmod"
+FORM_PAGES = (STOCK_TRANSFER_PAGE, STOCK_ADJUST_PAGE)
+PAGE_OF = {**DOCUMENT_PAGE_OF, RECEIPT: RECEIPT_PAGE, STOCK_IN: STOCK_IN_PAGE, STOCK_OUT: STOCK_OUT_PAGE,
+           STOCK_TRANSFER: STOCK_TRANSFER_PAGE, STOCK_ADJUST: STOCK_ADJUST_PAGE}
 
 
 def stock_out_kind(purpose: Any) -> str:
@@ -148,7 +154,7 @@ def observe(raw: Any, account: str, pages: Optional[Dict[str, Optional[List[Dict
         entry.update(error=str(error)[:80], error_at=at)
     else:
         entry["pages"] = {**entry["pages"], **{page: options for page, options in (pages or {}).items()
-                                                if page in ALL_PAGES}}
+                                                if page in ALL_PAGES or page in FORM_PAGES}}
         entry.update(observed_at=at, error=None, error_at=None)
     value[account] = entry
     if len(value) > _MAX_ACCOUNTS:  # 满了丢掉最久没读过的
@@ -197,6 +203,7 @@ def view(raw: Any, observed: Any, account: str, kinds_wanted: Optional[List[str]
 
 
 __all__ = ["ALL_PAGES", "CHANGED", "CHOICE_REQUIRED", "KINDS", "KINDS_FOR_DIRECTION", "NOT_LINKED", "PAGES", "PAGE_OF",
-           "RECEIPT", "RECEIPT_PAGE", "STOCK_IN", "STOCK_IN_PAGE", "STOCK_OUT", "STOCK_OUT_PAGE", "page_of", "stock_out_kind",
+           "RECEIPT", "RECEIPT_PAGE", "STOCK_IN", "STOCK_IN_PAGE", "STOCK_OUT", "STOCK_OUT_PAGE",
+           "STOCK_TRANSFER", "STOCK_TRANSFER_PAGE", "STOCK_ADJUST", "STOCK_ADJUST_PAGE", "FORM_PAGES", "page_of", "stock_out_kind",
            "UNREADABLE", "chosen_map", "choices", "choose", "linked", "observe", "options_for", "parse_options",
            "resolve", "view"]
