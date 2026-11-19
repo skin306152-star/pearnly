@@ -2467,3 +2467,50 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/companion/transport.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py",
 ]
+
+[[flow]]
+id = "erp.cc.guide.reopen"
+title = "ERP 版 CC 收款引导卡复核后点「改」回去重问两次：每次回到那一步、原值在题上，库里这位客户的收款草稿始终只有一笔，旧的都作废（A2 11-19）"
+module = "scripts/flows/erp_cc_guide_reopen.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
+  "apps/pearnly_core/pearnly_core/assistant/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/guide.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.documents-edit"
+title = "ERP 版 CC 采购引导（documents 源）复核卡：交进识别完成的收单记录、卡上作答到复核 → 就地改单号（版本 +1、复核照新值）、改合计被拒（computed）→ 带旧复核指纹确定回 changed 不建计划 → 带当前 review.seen 确定办完交进代录（页面接口约定 5、7，11-19）"
+module = "scripts/flows/erp_cc_guide_documents_edit.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.recon-follow"
+title = "Cowork 版 CC 对账引导：对话里交总账、税报两份 xlsx → 确定 → 结果卡带追问；guide_follow 答结果里没有的题被拒、答第一题后版本 +1、追问消失、库里记下预设（页面接口约定 6，N1b，11-19）"
+module = "scripts/flows/cowork_cc_guide_recon_follow.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
+  "apps/pearnly_core/pearnly_core/assistant/api.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/recon.py",
+  "apps/pearnly_cowork/pearnly_cowork/recon_center/presets.py",
+]
