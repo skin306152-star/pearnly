@@ -69,7 +69,7 @@ def steps(params, camera_code=None):
     return [
         {"name": "业务菜单", "js": JS + menu + prompt + "const shown=await until(()=>row(),120); "
          # 完整清单读量宽度的那一排（手机上收进「更多」的也在）；点的只找直接摆出来的按钮（11-17 菜单定稿：前 4 项 + 更多）
-         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot])')||[])].map(b=>b.innerText.trim()); "
+         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')||[])].map(b=>b.innerText.trim()); "
          "const pick=async(l)=>{const b=[...(row()?.querySelectorAll(':scope > button')||[])].find(x=>x.innerText.trim()===l); b?.click(); await sleep(400);}; "
          "const cancel=async()=>{row()?.querySelector('button')?.click(); await sleep(400);}; "
          "await pick('采购'); const picked={chosen: row()?.dataset.business||'', placeholder: ph(), prompt: said()}; "
@@ -127,9 +127,9 @@ def judge(params, results, camera_code=None):
          "ok": one(inside.get("prompt"), "purchase", "请上传采购票据。") and (inside.get("saved") or {}).get("business") == "purchase"
          and bool((inside.get("saved") or {}).get("at")) and one(after.get("kept"), "purchase", "请上传采购票据。")
          and (after.get("gone") or {}).get("count") == 0 and (after.get("saved") or {}).get("business") == ""},
-        {"case": "模型调 pearnly_guide 后对话里出引导卡：题目是服务端出的中文（付款方式），选项「赊账」带「推荐」并默认选中，「现金」不选；没有 ask_user 提问卡、不浮成允许卡",
+        {"case": "模型调 pearnly_guide 后对话里出引导卡：题目是服务端出的中文（付款方式），选项「赊账」排第一带「推荐」但不预选（写账前的题点了才算，用户 11-16），「现金」不选；没有 ask_user 提问卡、不浮成允许卡",
          "seen": first,
-         "ok": bool(first.get("seen")) and bool(pay) and any("赊账" in c["text"] and c["badge"] and c["checked"] for c in choices)
+         "ok": bool(first.get("seen")) and bool(pay) and any("赊账" in c["text"] and c["badge"] and not c["checked"] for c in choices) and "赊账" in (choices[0]["text"] if choices else "")
          and any("现金" in c["text"] and not c["checked"] and not c["badge"] for c in choices) and not first.get("other")
          and not first.get("sheet")},
         {"case": "提交后卡片收成「已答 n 项」，模型收到 answered、这张单能写", "seen": sent,
