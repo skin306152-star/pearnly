@@ -17,6 +17,13 @@
 
 口径（主会话 11-19）：明写「没有」的记号（-、n/a、ไม่มี）照旧按 0；真读不懂的不许静默变 0。
 
+MR.ERP 窗口 11-19 在 test01·TEST2019 实测（PG691119-000002 写成、读回一致；main 上同一张会写成 0）后又改两处（主会话定）：
+
+- 货品行数量 / 单价读不懂又没行金额：推前校验停下，原因按格分码 `ERR_QTY_UNREADABLE` / `ERR_UNIT_PRICE_UNREADABLE`（带「行号 品名」，
+  四语词条，用户数据错、不自动重试，CC 归为要人改），不再是 `ERR_UNEXPECTED`（界面「意外错误」）。
+- 赊销税种只按增值税率判，预扣税不影响税种（同 MR.ERP 原生：销售导入没有预扣税栏，收款时记）：带「3%」或数字 3 预扣税的赊销票照常写，
+  原来数字 3 被 `ERR_TAX_RATE_INVALID` 误拒的一并改对。
+
 ## 测试（先红后绿）
 
 退回 main 的产品代码跑新测试：test_tax_documents 22 处、test_erp_recognised_numbers 7 处、test_claude_ocr_products 1 处、test_mrerp_import_amounts 4 处不过；修后全过。
@@ -28,6 +35,10 @@
 ## 只读统计（主会话审、主会话跑）
 
 `~/pearnly-devtools/prod-ro-1119/count-recognised-numbers-erp.sh`、`count-recognised-numbers-cowork.sh`（本体 `count-recognised-numbers.py`）。实验栈上按同一方式试跑过。
+
+主会话 11-19 审后经甲骨文节点中转在生产各跑一次（exit 0，输出 `prod-ro-1119/out/count-recognised-numbers-{erp,cowork}.json`）：能比对的单据里
+没有一张被静默写错——ERP 只有 mrerp 4 张、testerp 9 张存了识别原文，zero_price / dropped_pct / zero_header / dropped_wht 都是 0；Cowork
+写进 MR.ERP 的推送里没有旧读法读不懂的写法。网页上直接识别再保存的单据没有存识别原文，数不到（脚本输出的 note 同此）。
 
 ## 共用件连带回归（tax-documents、mrerp-rules、erp-transactions，57 个入口）
 
