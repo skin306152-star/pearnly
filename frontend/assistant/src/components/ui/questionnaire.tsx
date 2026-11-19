@@ -113,11 +113,14 @@ function QuestionnaireChoices({
   )
 }
 
+// 单选题开了编号（根上 shortcuts="numbers"，照 Claude 的提问卡，B25）：编号方块排在最前、代替圆点；lead 给了就画在同一个方块里
+// 代替编号（「其他」的笔形图标），这一项的编号键照样能按
 function QuestionnaireChoice({
   children,
   className,
+  lead,
   ...props
-}: React.ComponentProps<typeof QuestionnairePrimitive.Choice>) {
+}: React.ComponentProps<typeof QuestionnairePrimitive.Choice> & { lead?: React.ReactNode }) {
   return (
     <QuestionnairePrimitive.Choice
       data-slot="questionnaire-choice"
@@ -135,7 +138,7 @@ function QuestionnaireChoice({
       <span
         aria-hidden="true"
         data-slot="questionnaire-choice-indicator"
-        className="cc-ui-questionnaire-choice-indicator pointer-events-none relative flex shrink-0 items-center justify-center border group-data-[type=radio]/questionnaire-choice:rounded-full"
+        className="cc-ui-questionnaire-choice-indicator pointer-events-none relative flex shrink-0 items-center justify-center border group-data-[type=radio]/questionnaire-choice:rounded-full group-data-[shortcut]/questionnaire-choice:group-data-[type=radio]/questionnaire-choice:hidden"
       >
         <span
           data-slot="questionnaire-choice-indicator-dot"
@@ -152,10 +155,20 @@ function QuestionnaireChoice({
       >
         {children}
       </QuestionnairePrimitive.ChoiceLabel>
-      <QuestionnairePrimitive.ChoiceShortcut
-        data-slot="questionnaire-choice-shortcut"
-        className="cc-ui-questionnaire-choice-shortcut cc-ui-questionnaire-shortcut pointer-events-none ms-auto hidden shrink-0 group-data-[shortcut]/questionnaire-choice:inline-flex"
-      />
+      {lead !== undefined ? (
+        <span
+          aria-hidden="true"
+          data-slot="questionnaire-choice-lead"
+          className="cc-ui-questionnaire-choice-shortcut cc-ui-questionnaire-shortcut pointer-events-none order-first inline-flex shrink-0"
+        >
+          {lead}
+        </span>
+      ) : (
+        <QuestionnairePrimitive.ChoiceShortcut
+          data-slot="questionnaire-choice-shortcut"
+          className="cc-ui-questionnaire-choice-shortcut cc-ui-questionnaire-shortcut pointer-events-none ms-auto hidden shrink-0 group-data-[shortcut]/questionnaire-choice:inline-flex group-data-[type=radio]/questionnaire-choice:order-first group-data-[type=radio]/questionnaire-choice:ms-0"
+        />
+      )}
     </QuestionnairePrimitive.Choice>
   )
 }

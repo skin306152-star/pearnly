@@ -5,6 +5,8 @@
 //     默认选中；最后一项固定「其他」：选了可以自己输入（题目带 search 时是服务端可搜索的选择框，带 choices 时在给定的值里筛）；
 //   - 底部靠右「跳过」（次要）与「下一步 ⌘↵」（主要），最后一题主按钮是「提交 ⌘↵」（快捷键提示经共用的 Shortcut：Windows 写 Ctrl↵、触屏不写），⌘ / Ctrl + 回车同主按钮；
 //   - 卡片下方橙色小点 +「需要您的输入」（等人的时候）。
+// 单选题照 Claude（B25）：选项前是编号 1 / 2 / 3（数字键同点），点一下（鼠标、触屏或数字键）就翻到下一题；最后一题、要填数的选项、
+// 「其他」不自动翻。方向键在选项间移动不算点。
 // 点完（交回了答案）：同「允许」卡片点完只剩问话与一行淡色所选；没答就没了写「已取消」。
 // 带 show_if 的题（前面那一题选中某几个才问）随前面的回答收起 / 放出：翻页与「第 n 项，共 m 项」只算此刻要问的题（测试机 11-09）。
 // 「跳过」= 这一题不定（交回时标 skipped），依赖它的单这次不写、留在对话里，其余照写（由 CC / 服务端处理）。
@@ -12,8 +14,8 @@
 // 后两处页面自己出题（ask-shared.ts 的 itemQuestion）。样式只用 globals.css 的 .cc-askq-* 与变量。
 
 import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
-import { CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { type FC, type KeyboardEvent, type ReactNode, useEffect, useMemo, useState } from "react";
+import { CheckIcon, ChevronLeftIcon, ChevronRightIcon, PencilIcon } from "lucide-react";
+import { type FC, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Shortcut } from "@/components/shortcut";
 import { Marquee } from "@/components/ui/marquee";
 import { ask, co, guide, op, steps, t } from "@/i18n";
@@ -32,8 +34,7 @@ import {
 } from "@/components/ui/questionnaire";
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught, withReport } from "@/lib/caught";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { approvalCard, type Gates } from "@/lib/approval-card";
+import { approvalCard, floatingAsk, type Gates } from "@/lib/approval-card";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import {
@@ -57,6 +58,9 @@ import {
 import type { CardPhase } from "./card-phase";
 import { useSessionId } from "./operator-card";
 import { type ChoiceOption, EXPENSE_CODE, NEW_CODE } from "./operator-words";
+
+/** 按下后多久内的选中算「点了一下」（数字键、鼠标、触屏），单选题就翻到下一题。 */
+const PICK_MS = 1000;
 
 /** 「其他」展开后先列几条（其余「显示更多」：本页已取到的先放出，不够再向服务端取下一页）。 */
 const OTHER_ROWS = 5;
@@ -166,6 +170,15 @@ export const AskCard: FC<{
   const state = states[at] ?? { labels: [], other: null };
   const last = place >= shown.length - 1;
   const set = (next: AskState) => setStates((all) => all.map((s, i) => (i === at ? next : s)));
+  // 人刚刚点过（按下鼠标 / 触屏、按数字键）：方向键在单选项间移动也会选中，那不算点，不翻页
+  const touched = useRef(0);
+  const touch = () => { touched.current = Date.now(); };
+  const pickAndGo = (label: string) => {
+    if (q.multiSelect || last || busy || Date.now() - touched.current > PICK_MS) return;
+    const next = states.map((s, i) => (i === at ? toggle(q, s, label) : s));
+    setStates(next);
+    forward(next);
+  };
   const forward = (next: AskState[]) => {
     const visible = shownQuestions(questions, next);
     const now = visible.indexOf(at);
@@ -183,6 +196,10 @@ export const AskCard: FC<{
       e.preventDefault();
       primary();
     }
+  };
+  // 数字键：问卷部件在按键冒泡时就点了那一项，要在它之前（捕获阶段）记下「点了」
+  const onKeyCapture = (e: KeyboardEvent) => {
+    if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) touch();
   };
   const frame = (body: ReactNode) =>
     framed ? <div className="cc-steps-card cc-ui-questionnaire-card" data-slot={slot}>{body}</div> : <div className="cc-ui-questionnaire-card" data-slot={slot}>{body}</div>;
@@ -205,9 +222,9 @@ export const AskCard: FC<{
   // 「其他」、附加区、右下「跳过」「下一步 / 提交」。全用 components/ui 的问卷部件与按钮，外观是问卷部件的卡片外观（.cc-ui-questionnaire-card）；
   // 翻页与答案由本卡管（带 show_if 的题、多选、「其他」搜索），问卷部件只画这一题
   return (
-    <div className="cc-askq-wrap" onKeyDown={onKey}>
+    <div className="cc-askq-wrap" onKeyDown={onKey} onKeyDownCapture={onKeyCapture}>
       {frame(
-        <Questionnaire noValidate onSubmit={(e) => { e.preventDefault(); primary(); }} data-phase="ask">
+        <Questionnaire noValidate onSubmit={(e) => { e.preventDefault(); primary(); }} data-phase="ask" shortcuts={multi ? undefined : "numbers"}>
           <QuestionnaireItem key={at} name={`q${at}`} multiple={multi}>
             <QuestionnaireTitle data-slot="cc-askq-question">{q.question}</QuestionnaireTitle>
             {shown.length > 1 && (
@@ -225,7 +242,8 @@ export const AskCard: FC<{
             <QuestionnaireChoices aria-label={q.question}>
               {q.options.map((o) => (
                 <QuestionnaireChoice key={o.label} value={o.value ?? o.label} checked={state.labels.includes(o.label)} data-slot="cc-askq-option"
-                  disabled={busy} onChange={() => set(toggle(q, state, o.label))}>
+                  disabled={busy} onChange={() => set(toggle(q, state, o.label))} onPointerDown={touch}
+                  onClick={() => { if (!o.entry) pickAndGo(o.label); }}>
                   <span className="flex flex-wrap items-center gap-(--cc-space-8)">
                     <span className="cc-askq-label">{shownLabel(o.label)}</span>
                     {isRecommended(o) && <Badge variant="secondary">{guide.recommended}</Badge>}
@@ -235,7 +253,7 @@ export const AskCard: FC<{
               ))}
               {!q.noOther && (
                 <QuestionnaireChoice value="__other" checked={state.other !== null} data-slot="cc-askq-other-option" disabled={busy}
-                  onChange={() => set(toggleOther(q, state))}>
+                  onChange={() => set(toggleOther(q, state))} lead={multi ? undefined : <PencilIcon />}>
                   <span className="cc-askq-label">{ask.other}</span>
                 </QuestionnaireChoice>
               )}
@@ -300,18 +318,19 @@ export function askResultOf(result: unknown): AskResult | null {
   }
 }
 
-/** 工具 ask_user 的卡片（W2：工具声明要等人作答，调用登记成 awaiting_approval，同「允许」卡片）：「提交」= 对话的「允许」带上作答
+/** ask_user 这一张此刻的卡片（对话流里的 AskUserCard 与输入框上方的浮层 approval-sheet.tsx 共用）：「提交」= 对话的「允许」带上作答
  *  （session-controller 的 respondToApproval → confirm 的 answers），本页先定下；服务端核作答对不上题目会回「请求无效」，门放回来、
- *  卡片上方写原因，可以重答。电脑上「需要您的输入」由对话的工作状态行画（thread.tsx 的 RunIndicator，在卡片下方）；手机上那一行
- *  不画（等回答时它让给允许卡的浮层，ask_user 不浮），卡片自己带。 */
-export const AskUserCard: ToolCallMessagePartComponent = (props) => {
-  const part = props as unknown as CardPart & { approval?: { id: string; failure?: string; sending?: boolean } };
+ *  卡片上方写原因，可以重答。status：卡片下方自己带「需要您的输入」。 */
+export const AskUserBody: FC<{
+  part: CardPart & { approval?: { id: string; failure?: string; sending?: boolean } };
+  toolResult: unknown;
+  sessionId: string | null;
+  status: boolean;
+}> = ({ part, toolResult, sessionId, status }) => {
   // 入参按内容认（每次投影都是新对象，不然卡片里「其他」的搜索会被反复重来）
-  const argsKey = JSON.stringify(props.args ?? null);
+  const argsKey = JSON.stringify(part.args ?? null);
   const questions = useMemo(() => questionsOf(JSON.parse(argsKey)), [argsKey]);
   const labels = useToolLabels();
-  const phone = useIsMobile();
-  const sessionId = useSessionId();
   const [sent, setSent] = useState<AskResult | null>(null);
   const phase = askPhase(part, labels);
   const submit = (result: AskResult) => {
@@ -326,11 +345,40 @@ export const AskUserCard: ToolCallMessagePartComponent = (props) => {
     <AskCard
       questions={questions}
       phase={shown}
-      result={askResultOf(props.result) ?? (shown === "answered" ? sent : null)}
+      result={askResultOf(toolResult) ?? (shown === "answered" ? sent : null)}
       busy={phase === null || !!part.approval?.sending}
       failure={failure}
       onSubmit={submit}
-      status={phone}
+      status={status}
     />
   );
+};
+
+const NO_STORE = () => () => {};
+
+/** 这段对话此刻浮在输入框上的那张提问卡是哪一步（没有回 undefined）；只订这一个值，回复每来一段不重画卡片。 */
+function useFloatingAskId(sessionId: string | null): string | undefined {
+  const controller = sessionId ? getSessionController(sessionId) : null;
+  return useSyncExternalStore(controller?.subscribe ?? NO_STORE, () => {
+    const part = controller ? floatingAsk(controller.getSnapshot().messages) : undefined;
+    return part?.type === "tool-call" ? part.toolCallId : undefined;
+  });
+}
+
+/** 对话流里「正在提问」小标签（照 Claude）：这一张浮在输入框正上方答，对话流不撑开。 */
+const AskingTag: FC = () => (
+  <div className="cc-asking" data-slot="cc-asking">
+    <span className="cc-needs-input-dot" aria-hidden="true" />
+    <span className="cc-needs-input">{t("askingTag")}</span>
+  </div>
+);
+
+/** 工具 ask_user 的卡片（W2：工具声明要等人作答，调用登记成 awaiting_approval，同「允许」卡片）。等作答、且是最早一张等回答的
+ *  （approval-card.ts 的 floatingAsk）：电脑、手机都浮在输入框正上方答（B24，approval-sheet.tsx），这里只留「正在提问」；
+ *  答完、取消了、或前面还有别的卡等回答时照旧在对话流里画。 */
+export const AskUserCard: ToolCallMessagePartComponent = (props) => {
+  const sessionId = useSessionId();
+  if (useFloatingAskId(sessionId) === props.toolCallId) return <AskingTag />;
+  const part = props as unknown as CardPart & { approval?: { id: string; failure?: string; sending?: boolean } };
+  return <AskUserBody part={part} toolResult={props.result} sessionId={sessionId} status={false} />;
 };

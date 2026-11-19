@@ -16,7 +16,7 @@ import { getMethod, postMethod } from "@/lib/frappe";
 import { type ChoiceOption, optionLabel } from "./operator-words";
 
 // ── 形状（AskUserQuestion）──────────────────────────────────────────────────
-export const ASK_TOOL = "ask_user";
+export { ASK_TOOL } from "@/lib/approval-card";
 /** 一个选项。value：编码（页面 / 服务端出题时给，交回时按它换回）；recommended：推荐项（显示「推荐」徽章、默认选中，引导卡由服务端标）。 */
 export type AskOption = { label: string; description?: string; value?: string; recommended?: boolean;
   /** 选它还要填一个数（A3 四题 11-16：单位题「填换算」、成本题「填单位成本」）：交回「码:数」，数要大于 min_exclusive */

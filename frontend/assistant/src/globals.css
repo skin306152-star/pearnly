@@ -1699,6 +1699,9 @@
   }
   .cc-ask-sheet-q { flex: 1; min-width: 0; padding-top: var(--cc-space-8); font-size: var(--cc-ask-sheet-font); line-height: var(--cc-ask-sheet-lh); font-weight: var(--cc-weight-semibold); overflow-wrap: anywhere; }
   .cc-ask-sheet .cc-ask-changes { margin: 0; padding: 0; border: 0; border-radius: 0; font-size: var(--cc-body-size); line-height: var(--cc-body-lh); }
+  /* 浮在输入框正上方的提问卡（B24，approval-sheet.tsx）：卡片同对话流里那张，浮起一层；对话流里只留「正在提问」小标签 */
+  .cc-ask-float .cc-ui-questionnaire-card { background: var(--cc-bg-popover); box-shadow: var(--cc-shadow-pop); }
+  .cc-asking { display: flex; align-items: center; min-width: 0; }
   /* 「需要您的输入」（电脑上工作状态行在等用户回答时，照 Claude）：橙色小圆点 + 浅橙底橙字的小胶囊（字与圆点同一个品牌橙），在卡片下方 */
   .cc-needs-input-dot {
     flex-shrink: 0; width: var(--cc-needs-input-dot); height: var(--cc-needs-input-dot); border-radius: var(--cc-radius-full); background: var(--cc-brand);
@@ -3191,6 +3194,10 @@ html[data-text-size="large"] [data-slot="aui_message-group"] { zoom: 1.12; }
     min-width: var(--cc-icon); height: var(--cc-icon); padding-inline: var(--cc-space-4); align-items: center; justify-content: center;
     border: var(--cc-hairline) solid var(--cc-line); border-radius: var(--cc-radius-xs); color: var(--cc-ink-3); font-size: var(--cc-text-caption);
   }
+  .cc-ui-questionnaire-shortcut svg { width: var(--cc-icon-xs); height: var(--cc-icon-xs); }
+  [data-slot="questionnaire-choice-lead"] { padding-inline: 0; }   /* 笔形方块同编号方块一样宽，文字对齐 */
+  /* 单选题的编号方块代替了圆点（B25）：选中的那一项方块同选中的圆点一样填深 */
+  .cc-ui-questionnaire-choice[data-checked] .cc-ui-questionnaire-shortcut { border-color: var(--cc-ink); background: var(--cc-ink); color: var(--cc-bg-app); }
   .cc-input.cc-ui-questionnaire-input { width: 100%; }
   .cc-ui-questionnaire-error { color: var(--cc-danger); font-size: var(--cc-text-footnote); }
   .cc-ui-questionnaire-actions { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: var(--cc-space-8); }

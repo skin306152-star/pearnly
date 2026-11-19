@@ -1656,6 +1656,8 @@ export function getSessionController(sessionId: string) {
   return { respondToApproval: (id: string, approved: boolean) => (globalThis as any).answers.push([sessionId, id, approved]) };
 }
 """,
+    # 浮层里的提问卡（ask-card.tsx）一路引到 profile.ts，它用 Vite 的 import.meta.glob 取品牌图，这里用不到
+    "@/lib/profile": 'export const APP_NAME = "CC"; export const useProfile = () => undefined;',
 }
 
 
@@ -1965,6 +1967,47 @@ g.done();
         self.assertIn("background: var(--cc-bg-popover);", sheet)
         self.assertIn("--cc-radius-sheet: 1.5rem;", css)   # 8.webp 边缘拟合约 23.5（第 11 轮按钮排查 L9）
         self.assertIn("font-weight: var(--cc-weight-semibold);", css.split("\n  .cc-ask-sheet-q {", 1)[1].split("}", 1)[0])   # 问话粗体（照 Claude 手机端）
+
+    def test_ask_user_floats_over_the_composer_on_both_widths(self):
+        # B24（主会话 11-09 定，照 Claude 实测）：最早一张等回答的是 ask_user，电脑、手机都浮在输入框正上方，卡片同对话流那张；
+        # 它前面还有允许卡等回答就先浮允许卡（手机），提问卡照旧在对话流里
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
+import { floatingAsk } from "@/lib/approval-card";
+const g = globalThis as any;
+g.answers = [];
+const ask = { type: "tool-call", toolCallId: "a1", toolName: "ask_user", args: { questions: [] }, approval: { id: "a1" } };
+const save = { type: "tool-call", toolCallId: "t1", toolName: "cowork_company_choice_save", args: {}, approval: { id: "t1", ask: "保存？" } };
+g.snapshot = { sessionId: "sesn_1", messages: [{ role: "assistant", content: [ask] }] };
+for (const phone of [false, true]) {
+  g.phone = phone;
+  const tree = ApprovalSheet() as any;
+  assert.equal(tree.props["data-slot"], "cc-ask-float");
+  assert.equal(tree.props.children.props.part.toolCallId, "a1");
+  assert.equal(tree.props.children.props.status, false);
+}
+assert.equal(floatingAsk(g.snapshot.messages)?.toolCallId, "a1");
+// 前面还有允许卡在等：先答它（手机浮允许卡，电脑在对话流里），提问卡不浮
+g.snapshot.messages = [{ role: "assistant", content: [save, ask] }];
+assert.equal(floatingAsk(g.snapshot.messages), undefined);
+g.phone = true;
+assert.equal((ApprovalSheet() as any).props["data-slot"], "cc-ask-sheet");
+g.phone = false;
+assert.equal(ApprovalSheet(), null);
+// 答完：不浮
+g.snapshot.messages = [{ role: "assistant", content: [{ ...ask, approval: { id: "a1", approved: true } }] }];
+assert.equal(ApprovalSheet(), null);
+g.done();
+""", stubs={**self.STUBS, **SHEET_STUBS}, lang="zh")
+        card = read("components/tool-uis/ask-card.tsx")
+        # 对话流里只留「正在提问」小标签（同「需要您的输入」的小点与胶囊）
+        self.assertIn("if (useFloatingAskId(sessionId) === props.toolCallId) return <AskingTag />;", card)
+        self.assertIn('<span className="cc-needs-input">{t("askingTag")}</span>', card)
+        turn = read("lib/managed-agents/turn.ts")
+        # 浮着的提问卡由「正在提问」代替，工作状态行不再画「需要您的输入」
+        self.assertIn("return floatingAsk(state.messages) ? HIDDEN : INPUT;", turn)
 
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
         thread = read("components/assistant-ui/thread.tsx")

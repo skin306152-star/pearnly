@@ -137,6 +137,18 @@ export function approvalCard(source: CardPart, gates: Gates): CardState | null {
 }
 
 /** 手机上浮在输入框上方的那一张：最早一张还在等回答的（多张时答完一张再浮下一张）。 */
+/** 通用提问卡片的工具名（components/tool-uis/ask-shared.ts 照用）。 */
+export const ASK_TOOL = "ask_user";
+
+/** 浮在输入框正上方的那张提问卡（B24，主会话 11-09 定，照 Claude：电脑、手机都浮，对话流里只留「正在提问」小标签）：
+ *  最早一张等回答的是 ask_user 才浮；它前面还有别的等回答（允许卡等）就先答那张，提问卡照旧在对话流里。 */
+export function floatingAsk<P extends { type: string; toolName?: string; approval?: Approval }>(
+  messages: readonly { role: string; content: readonly P[] }[],
+): P | undefined {
+  const part = firstPendingApproval(messages);
+  return part?.toolName === ASK_TOOL ? part : undefined;
+}
+
 export function firstPendingApproval<P extends { type: string; approval?: Approval }>(
   messages: readonly { role: string; content: readonly P[] }[],
 ): P | undefined {

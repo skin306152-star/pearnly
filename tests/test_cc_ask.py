@@ -279,12 +279,27 @@ class SourceRules(unittest.TestCase):
         controller = read("lib/managed-agents/session-controller.ts")
         self.assertIn("respondToApproval(toolUseId: string, approved: boolean, reason?: string, answers?: unknown) {", controller)
         self.assertIn("...(approved && answers !== undefined ? { answers } : {}),", controller)
-        # 引导卡 pearnly_guide 同样不浮成允许卡（引导式录入第 1 期，有意变化）
+        # 引导卡 pearnly_guide 同样不浮成允许卡（引导式录入第 1 期，有意变化）；ask_user 在前面整张浮起（B24）
         self.assertIn("part.toolName === ASK_TOOL || part.toolName === GUIDE_TOOL) return null;", read("components/tool-uis/approval-sheet.tsx"))
         self.assertIn('ask_user: { type: "backend", render: AskUserCard },', kit)
         self.assertIn('new Set([...OPERATOR_CARDS, "ask_user", "pearnly_guide"])', kit)
         self.assertIn("CARD_TOOLS.has(part.toolName)", read("components/assistant-ui/thread.tsx"))
         self.assertNotIn("ask_user", read("lib/managed-agents/events.ts"))   # 不当代录卡片：照常提醒服务端执行
+
+    def test_single_choice_is_numbered_and_moves_on_when_picked(self):
+        # B25（照 Claude 实测 card-claude-01/02）：单选题选项前是编号方块（代替圆点，数字键同点）、「其他」是笔形方块；
+        # 鼠标 / 触屏 / 数字键点一下就翻到下一题；方向键移动、最后一题、要填数的选项、多选题不自动翻
+        card = read("components/tool-uis/ask-card.tsx")
+        self.assertIn('shortcuts={multi ? undefined : "numbers"}', card)
+        self.assertIn("onPointerDown={touch}", card)
+        self.assertIn("onClick={() => { if (!o.entry) pickAndGo(o.label); }}", card)
+        self.assertIn("if (q.multiSelect || last || busy || Date.now() - touched.current > PICK_MS) return;", card)
+        self.assertIn("if (/^[1-9]$/.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey) touch();", card)
+        self.assertIn("onKeyDownCapture={onKeyCapture}", card)   # 问卷部件冒泡时就点了那一项，要在它之前记下
+        self.assertIn("lead={multi ? undefined : <PencilIcon />}", card)
+        kit = read("components/ui/questionnaire.tsx")
+        self.assertIn("group-data-[shortcut]/questionnaire-choice:group-data-[type=radio]/questionnaire-choice:hidden", kit)
+        self.assertIn("group-data-[type=radio]/questionnaire-choice:order-first group-data-[type=radio]/questionnaire-choice:ms-0", kit)
 
     def test_operator_cards_use_the_question_card(self):
         start = read("components/tool-uis/operator-start.tsx")

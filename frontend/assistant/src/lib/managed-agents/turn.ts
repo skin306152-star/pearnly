@@ -14,6 +14,7 @@
 
 import { steps } from "@/i18n";
 import { isBusy, type Projection, type ThreadMessage, type ToolPart } from "./reducer";
+import { floatingAsk } from "@/lib/approval-card";
 
 export type TurnActivity =
   | { kind: "hidden" }
@@ -40,8 +41,9 @@ const INPUT: TurnActivity = { kind: "input" };
 /** 此刻状态行显示什么。sending：按下发送、正式气泡还没画出来（新对话建会话、附件还在上传，pending-send.ts）。 */
 export function turnActivity(state: TurnState, sending = false): TurnActivity {
   if (!sending && !isBusy(state)) return waitingActivity(state) ?? HIDDEN;
-  // 轮到用户：卡片在对话里等点，状态行说「需要您的输入」
-  if (!sending && state.pendingApprovals.length > 0) return INPUT;
+  // 轮到用户：卡片在对话里等点，状态行说「需要您的输入」；浮在输入框上的提问卡（approval-card.ts 的 floatingAsk）由对话流里的
+  // 「正在提问」小标签代替，状态行不再画（照 Claude）
+  if (!sending && state.pendingApprovals.length > 0) return floatingAsk(state.messages) ? HIDDEN : INPUT;
   if (state.stalled) return { kind: "reconnecting" };
   const last = state.messages.at(-1);
   if (sending || !last || last.role !== "assistant") return THINKING;
