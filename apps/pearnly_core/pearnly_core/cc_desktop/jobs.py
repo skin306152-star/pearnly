@@ -417,7 +417,7 @@ def _local_tz():
 
 def _since():
     """旧件闸（`writer_rule`）换成库里排队时刻（``creation``，站点时区）的写法：没配回最早，配了读不出回最晚（一件都不替）。"""
-    moment = datetime.strptime(route_contracts.db_time(writer_rule.current()), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    moment = datetime.strptime(route_contracts.db_time(writer_rule.current()), "%Y-%m-%d %H:%M:%S.%f").replace(tzinfo=timezone.utc)
     if moment.year in (1970, 9999):
         return moment.replace(tzinfo=None)
     return moment.astimezone(_local_tz()).replace(tzinfo=None)
