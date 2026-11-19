@@ -29,5 +29,5 @@
 ## 登记
 
 - 2026-11-19 用户原话：「同意」（经主会话转达，针对上表「原句 → 新句」）。
-- 已在 `scripts/i18n/copy-approved.tsv` 登记日期与本记录路径：MR.ERP 公司改用的四条现成词条（`erp.collection.status.written`、
-  `erp.collection.status.failed`、`MR.ERP`、`MR.ERP No.`）。本轮没有改动任何已有词条的文字或译文。
+- 已在 `scripts/i18n/copy-approved.tsv` 登记日期与本记录路径：MR.ERP 公司改用的现成词条 `erp.collection.status.written`、
+  `erp.collection.status.failed`、`MR.ERP No.`（`MR.ERP` 那条 11-16 已由 MR.ERP 界面修正登记过）。本轮没有改动任何已有词条的文字或译文。
