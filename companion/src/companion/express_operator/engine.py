@@ -248,6 +248,7 @@ class Engine:
             self._person()
         started = time.monotonic()
         reply = self.desk.act(actions, windows)
+        self._last_reply = reply
         # 分步计时：等待单算一项（后台做法回实际等了多久，前台做法是写死的时长），其余算到这一批的第一个动作上
         waited = sum(res.get("waited", int(a.get("ms", 0)) / 1000) for a, res in zip(actions, reply["results"])
                       if a["do"] == "wait" and res.get("ok"))
@@ -836,6 +837,21 @@ class Engine:
         self._auto_dialogs()
         return st.get("focus") or {}
 
+    def _onto_clicked_column(self, where: str, text: str) -> None:
+        """点进明细后焦点要在点的那一栏（品码）。账套设了「允许插入明细行」（ISINFO.INSERTIT = Y）时最左多一栏可编辑的行号，
+        新行的焦点停在那里（11-19 测试机2：品码打进行号栏只剩 3 个字，S 盘 760 本里 206 本这样设）：焦点格整个在点击处左边
+        就按回车往右走到那一栏，最多 3 次。没有这一栏的账套焦点本来就在点的那格，什么都不多做。"""
+        results = (getattr(self, "_last_reply", None) or {}).get("results") or []
+        xy = next((r.get("xy") for r in results if isinstance(r, dict) and r.get("xy")), None)
+        if not xy:
+            return
+        for _ in range(3):
+            rect = self._cell().get("rect") or []
+            if len(rect) < 4 or rect[2] > xy[0]:
+                return
+            self._event("line_number_column", where=where)
+            self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 300}], text, {"stage": "line"})
+
     def _type_cell(self, where: str, value: str, line_text: str) -> None:
         self.step(where, [{"do": "keys", "text": "{HOME}+{END}"}, {"do": "type", "text": value},
                           {"do": "wait", "ms": 200}], line_text, {"stage": "line"})
@@ -879,6 +895,7 @@ class Engine:
             if index == 1:
                 self.step(where, [{"do": "grid_click", "offset": self.form.spec["grid_offset"]},
                                   {"do": "wait", "ms": 400}], text, {"stage": "line"})
+                self._onto_clicked_column(where, text)
             start = self._cell().get("rect") or [0, 0, 0, 0]
             enter = lambda ms: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": ms}],  # noqa: E731
                                          text, {"stage": "line"})

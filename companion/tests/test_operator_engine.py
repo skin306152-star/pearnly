@@ -373,3 +373,14 @@ def test_a_site_without_the_ai_method_hands_the_document_to_a_person_instead_of_
     rec = engine.run(d)
     assert rec["outcome"] == "need_human" and rec["reason"] == "unknown_screen"
     assert sim.esc_pressed == 0
+
+
+
+def test_a_book_with_an_editable_line_number_column_still_enters_the_item_code_in_the_item_column():
+    """11-19 测试机2：账套设了「允许插入明细行」（ISINFO.INSERTIT = Y，S 盘 760 本里 206 本）时，明细最左多一栏可编辑的行号；
+    代录点进明细，焦点却停在行号栏，品码打进去只剩 3 个字（「000」「53-」），整张转人工。点进明细后焦点不在点的那一栏，
+    就按回车往右走到那一栏再录；没有这一栏的账套照旧（不多按一下）。"""
+    recs, sim, site, shots = run_docs(samples(), inject={"line_no_column": True})
+    assert [r["outcome"] for r in recs] == ["saved"] * 4
+    assert all(r["readback"]["ok"] for r in recs)
+    assert site.calls == [] and all(not r["fallbacks"] for r in recs)

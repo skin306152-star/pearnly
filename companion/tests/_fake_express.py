@@ -202,6 +202,8 @@ class FakeExpress:
                     "text": self.head.get(self.focus[1], ""), "rect": [200, 100 + i * 30, 360, 128 + i * 30]}
         _, row, col = self.focus
         cell = self.grid[row].get(col, "") if row < len(self.grid) else ""
+        if col == "no":  # 账套设了「允许插入明细行」（ISINFO.INSERTIT = Y）：最左多一栏可编辑的行号，窄
+            return {"hwnd": 5000, "cls": "Edit", "text": cell, "rect": [50, 470 + row * 30, 95, 498 + row * 30]}
         x = 100 + GRID_COLS.index(col) * 150
         return {"hwnd": 5000, "cls": "Edit", "text": cell, "rect": [x, 470 + row * 30, x + 140, 498 + row * 30]}
 
@@ -230,6 +232,8 @@ class FakeExpress:
             if key in self.inject:
                 text = self.inject.pop(key)
             cell[col] = text if self.select_all else cell.get(col, "") + text
+            if col == "no":
+                cell[col] = cell[col][:3]  # 行号栏只收 3 个字（11-19 测试机2：品码读回「000」「53-」）
         self.select_all = False
 
     def _set_focus(self, focus) -> None:
@@ -272,6 +276,9 @@ class FakeExpress:
             return
         _, row, col = self.focus
         cell = self.grid[row] if row < len(self.grid) else {}
+        if col == "no":  # 行号栏回车走到品码栏
+            self._set_focus(("grid", row, "item"))
+            return
         if col == "item":
             if cell.get("item") not in self.items:
                 self.dialog("picker", "", "ค้นหา", buttons=("ตกลง", "ยกเลิก", "เพิ่ม <Alt+&A>"))
@@ -593,7 +600,8 @@ class FakeExpress:
             if self.editing and not self.dialogs:
                 if not self.grid:
                     self.grid.append({})
-                self._set_focus(("grid", 0, "item"))
+                # 行号栏可编辑的账套：点品码栏，新行的焦点却停在最左的行号栏（11-19 测试机2 NLTTEST / TEST2 打开 INSERTIT 复现）
+                self._set_focus(("grid", 0, "no" if self.inject.get("line_no_column") else "item"))
             return {"xy": [210, 471]}
         if op == "dialog_button":
             if not self.dialogs:
