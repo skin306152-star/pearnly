@@ -203,10 +203,15 @@ def _deliver(credential, claim, spelling, uid, job, peer, *, connection=None):
     # 自动推不弹「账套被占用」（第 3 期第 5 条）
     automated = isinstance((claim.get('target') or {}).get('automation'), dict)
     attended = route_contracts.attended(job._replace(automated=automated), peer)
-    # 推的人在哪段对话里推的（只在他登录过这台电脑时给，CC 桌面版 1.12.23 ⑨：一批没录成的通知点开回到那段对话）
-    from pearnly_core.assistant import push_followup
+    # 推的人在哪段对话里推的（只在他登录过这台电脑时给，CC 桌面版 1.12.23 ⑨：一批没录成的通知点开回到那段对话）；
+    # 只是顺带的可选信息：取不到只记日志、照常交单
+    try:
+        from pearnly_core.assistant import push_followup
 
-    session = push_followup.origin_session('cowork', claim['record']['name'], (peer or route_contracts.Peer()).users)
+        session = push_followup.origin_session('cowork', claim['record']['name'], (peer or route_contracts.Peer()).users)
+    except Exception:
+        frappe.log_error(title='Push origin lookup failed')
+        session = ''
     return _value(queue_contracts.job, delivery.name, record, attended, queue_contracts.task_key(claim['record']['name']),
                   session or None)
 
