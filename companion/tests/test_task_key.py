@@ -79,3 +79,12 @@ def test_poll_reads_the_stable_key_and_an_old_server_without_it_leaves_none(monk
         "7c9e6679-7425-40de-944b-e07fc1f90ae7"
     assert _poll(monkeypatch, base).key is None
     assert _poll(monkeypatch, {**base, "task_key": 12}).key is None
+
+
+def test_poll_reads_the_conversation_a_task_was_pushed_from_and_an_old_server_without_it_leaves_none(monkeypatch):
+    # 1.12.23 ⑨：一批没录成的通知点开回到推这批的那段对话
+    base = {"log_id": "1b4e28ba-2fa1-11d2-883f-0016d3cca427", "history_id": "H", "invoice_no": "INV", "payload": {}}
+    assert _poll(monkeypatch, {**base, "session": "sess-0001"}).session == "sess-0001"
+    assert _poll(monkeypatch, base).session is None
+    assert _poll(monkeypatch, {**base, "session": " "}).session is None
+    assert _poll(monkeypatch, {**base, "session": 12}).session is None

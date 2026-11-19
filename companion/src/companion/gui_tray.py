@@ -372,7 +372,7 @@ class TrayApp(QObject):
             self._auto_timer.start(15000)
         QTimer.singleShot(0, self._auto_update_tick)
 
-    def _on_batch_done(self, profile_id: str, n_ok: int, n_fail: int, inv: str) -> None:
+    def _on_batch_done(self, profile_id: str, n_ok: int, n_fail: int, inv: str, session: str = "") -> None:
         """每批结束都弹原生通知(诚实三态),不再只在全成功时弹:
         全成功→「已录入,可查」· 部分失败→「N 成功 M 失败」· 全失败→「未成功,看日志」。"""
         try:
@@ -392,10 +392,12 @@ class TrayApp(QObject):
             if len([cfg for cfg in self.configs if not cfg.paused]) > 1:
                 title = f"{self._profile_label(profile_id)} · {title}"
             if n_fail:
-                # 有没录成的（1.12.23 ⑨）：点通知打开 CC 窗口的待处理页，原因在那里（不再叫人去网页看）
+                # 有没录成的（1.12.23 ⑨）：点通知打开 CC 窗口——这一批都是同一段对话里推的就回到那段对话（结论与原因在那里），
+                # 混着几段或不是对话里推的（定时任务、网页）开待处理页；不再叫人去网页看
                 site = next((str(getattr(cfg, "backend_url", "") or "") for cfg in self.configs
                              if str(getattr(cfg, "profile_id", "") or "") == profile_id), "")
-                self._show(title, body, lambda s=site: self.open_conversation(s, "", "pending"))
+                # （对话编号不合形状时 open_conversation 也按 pending 开待处理页）
+                self._show(title, body, lambda s=site, c=session: self.open_conversation(s, c, "pending"))
                 return
             self._message_action = None   # 这条通知点了不做事（别沿用上一条 Tomo 通知的动作）
             self._pop(title, body)
