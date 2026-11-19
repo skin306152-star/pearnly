@@ -25,6 +25,9 @@ from typing import Callable, Dict, Optional
 
 from . import contract as K
 from .draft import Draft, from_payload
+from ..logger import get_logger
+
+log = get_logger(__name__)
 
 IDLE_CLOSE_S = 120
 HELD_CHECK_S = 60  # 留着等人的 Express：空闲时隔多久看一次框答没答完（只读）
@@ -212,6 +215,7 @@ class Host:
             if other == batch_id or not account_dir or not mine or not same_book(mine, account_dir):
                 continue
             if getattr(runner.state, "held", "") and runner.still_held():
+                log.info("operator held elsewhere · batch=%s waits for batch %s (in memory)", batch_id, other)
                 return True
         return self._stored_held(account_dir, skip=batch_id)
 
@@ -235,7 +239,10 @@ class Host:
                 continue
             if not state.held:
                 continue
-            if self._settle_stored(store, state, alive=self.alive(int(pid))):
+            alive = self.alive(int(pid))
+            if self._settle_stored(store, state, alive=alive):
+                log.info("operator held elsewhere · batch=%s still held after restart (express pid %s alive=%s)", batch_id,
+                         pid, alive)
                 return True
         return False
 

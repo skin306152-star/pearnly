@@ -27,6 +27,9 @@ from . import contract as K
 from .draft import Draft
 from .engine import Crash, NeedHuman, Stopped
 from .helper import BudgetStop
+from ..logger import get_logger
+
+log = get_logger(__name__)
 
 EVENTS_SHOWN = 12
 
@@ -514,6 +517,9 @@ class Runner:
         d = s.doc(s.held)
         opened = self.engine.open_unknown() if hasattr(self.engine, "open_unknown") else None
         if opened and d is not None and d.status == K.WAITING:
+            # 诊断（11-19 测试机2：Express 被强关后这本账套一直判占着，直到 CC 重启）：记下判占着时看到的是什么
+            log.info("operator held check · batch=%s · doc=%s · still held: box %s", s.id, s.held,
+                     [str(w.get("title") or "")[:40] for w in opened][:3])
             return True
         if d is not None and d.status == K.WAITING and d.counts_before:
             try:
@@ -526,6 +532,8 @@ class Runner:
                 d.status, d.docnum, d.reason, d.detail, d.partial = K.SAVED, found["docnum"], "", "", {}
             else:
                 d.late_ack, d.late_profile = "", ""
+        log.info("operator held check · batch=%s · doc=%s · released (express %s, doc %s)", s.id, s.held,
+                 "gone" if opened is None else "no unknown box", getattr(d, "status", ""))
         release(s)
         self._set()
         if opened is not None and s.status in (K.BATCH_FINISHED, K.BATCH_STOPPED):
