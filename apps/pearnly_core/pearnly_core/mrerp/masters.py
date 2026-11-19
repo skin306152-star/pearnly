@@ -71,6 +71,9 @@ FIELDS_FOR_DIRECTION = {
                  "unit", "expense_account"),
     # 收款单表头（impfarev）：科目不问——现金 / 零用金 / 其他三格照 MR.ERP 收款新单的参考科目，转账科目与折扣科目由收款人选的方式带
     "receipt": ("branch", "dept", "job", "employee"),
+    # 库存入库 / 出库 / 调拨 / 调整（impstktranrec / impstktraniss 与网页 stktrant / stktranmod）：分店与每行的部门、งาน；
+    # 物料与仓库由 ERP 单据上的（从 MR.ERP 主档整读来的编码）
+    "stock": ("branch", "dept", "job"),
 }
 DOCUMENT_DIRECTIONS = ("sales", "purchase")  # 方向没定时（发票）只问这两组
 
@@ -333,6 +336,15 @@ def sampled(found: Dict[str, str], modules: List[str]) -> Dict[str, str]:
 _HEAD_BRANCH = re.compile(r"<input\b[^>]*\bid=[\"']txtothcombrh[\"'][^>]*>", re.IGNORECASE)
 
 
+_NEGATIVE = re.compile(r"var\s+ssunegative\s*=\s*['\"]?([12])\b")
+
+
+def parse_stock_negative(page: str) -> str:
+    """出库新单网页里「允许负库存」的设置（``var ssunegative = 1|2``）→ ``"1"`` / ``"2"``；没有（没设置、被踢回登录页）回空串。"""
+    match = _NEGATIVE.search(page or "")
+    return match.group(1) if match else ""
+
+
 def parse_head_branch(page: str) -> str:
     """赊销新建单据页（`artran/allform.php`）预填的本公司分店 = 总店（statusmain）；页上没有就是空串。"""
     match = _HEAD_BRANCH.search(page or "")
@@ -408,7 +420,7 @@ def observe(raw: Any, account: str, fields: Optional[Dict[str, List[Dict[str, st
     else:
         entry["fields"] = {**entry["fields"], **{k: v for k, v in (fields or {}).items()
                                                  if (k in (*SOURCES, "chart") and isinstance(v, list))
-                                                 or (k == "head_branch" and isinstance(v, str))}}
+                                                 or (k in ("head_branch", "stock_negative") and isinstance(v, str))}}
         if isinstance((fields or {}).get("suggested"), dict):
             # 按字段并：这次没抽样的那类档案的结论留着；抽过、没有多数的（空串）去掉
             merged = {**(entry["fields"].get("suggested") or {}), **fields["suggested"]}
@@ -457,7 +469,7 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
 
 __all__ = ["ACCOUNT_FIELDS", "CHANGED", "CHOICE_REQUIRED", "DEPOSIT_ACCOUNT_NAME", "DISCOUNT_ACCOUNT_NAME",
            "DOCUMENT_DIRECTIONS", "FIELDS", "FIELDS_FOR_DIRECTION", "REFERENCE",
-           "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "head_branch_id", "parse_company_tax", "parse_head_branch",
+           "SAMPLE_COLUMNS", "SUGGESTED", "WEB_DEFAULT", "head_branch_id", "parse_company_tax", "parse_head_branch", "parse_stock_negative",
            "rule_default", "sampled", "suggest",
            "UNREADABLE", "choices", "choose", "chosen_map", "customer_defaults", "known_codes", "masters",
            "observe", "observed_for", "options", "parse_listbox", "parse_prefixes", "parse_reference", "prefix_for",

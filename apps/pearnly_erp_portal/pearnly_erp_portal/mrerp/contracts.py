@@ -95,12 +95,13 @@ def settle(outcome: dict) -> dict:
     return {"ledger_state": "failed", "ledger_reason": reason[:500]}
 
 
-def needed(menu_view: dict, master_view: dict, direction: str) -> list:
+def needed(menu_view: dict, master_view: dict, direction: str, kinds: tuple = None) -> list:
     """此刻要人选的项（单据上停下等人选，同 `express` 的 ``ledger_needed`` 形状 ``{kind, subject, options}``）：
-    ``mrerp_menu`` / 单据类型、``mrerp_default`` / 主档字段；只看这个方向会用到的（`pearnly_core.mrerp.needs`）。"""
+    ``mrerp_menu`` / 单据类型、``mrerp_default`` / 主档字段；只看这个方向会用到的（`pearnly_core.mrerp.needs`）。``kinds``：这张单
+    用哪几类菜单（库存单：入库 / 按用途的出库）。"""
     from pearnly_core.mrerp import needs
 
-    picked = needs.needed({**(menu_view or {}), "defaults": master_view or {}}, direction)
+    picked = needs.needed({**(menu_view or {}), "defaults": master_view or {}}, direction, kinds)
     out = []
     for kind in picked["menus"]:
         options = ((menu_view or {}).get("kinds") or {}).get(kind, {}).get("options") or []

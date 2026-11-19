@@ -255,7 +255,7 @@ name = "MR.ERP 规则（会话、目录、主档、菜单、方向、导入文�
 paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters", "erp.collection.mrerp"]
+entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters", "erp.collection.mrerp", "erp.mrerp.stock"]
 not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）" }
 
 [[part]]
@@ -2656,6 +2656,15 @@ steps = "离线：tests/test_erp_mrerp_collection.py（开关关着全挡；导�
 expect = "开关关着时 Express 收款一字不变；开着时收款单记 FR 单号、未收余额清零、日记账平衡；现金与转账不能同在一笔；菜单不止一个时三处入口都问一次、记在公司上；撤回已写入的转人工、给单号、菜单与冲过的发票"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py", "apps/pearnly_core/pearnly_core/mrerp/push/receipt.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/receipt.py", "apps/pearnly_core/pearnly_core/mrerp/receivables.py"]
+
+[[entry]]
+id = "erp.mrerp.stock"
+product = "ERP"
+where = "账本是 MR.ERP 的公司提交库存单（出库 / 入库 → 服务端导入 MR.ERP จ่ายสินค้า impstktraniss / รับสินค้า impstktranrec；调拨 / 调整网页表单直写做好之前标失败；总开关 MRERP_LEDGER_ENABLED 关着）"
+steps = "离线：tests/test_erp_mrerp_stock.py（排上 MR.ERP；出库按库存单位、不带价、菜单按用途；入库带每库存单位单价、没价的留给共用层补标准成本；调拨 / 调整标 ERR_MRERP_MODULE_UNAVAILABLE 不导；物料 / 仓库没有 MR.ERP 编码停下；不允许负库存时出库按各仓合计拦）+ tests/test_mrerp_stock_core.py（导入表 6 / 8 / 6 列、只两张表、负数与 0 拦住、出库菜单按用途记住）；实机：MR.ERP 测试账套入库、出库各写一张读回"
+expect = "开关关着时库存单一字不变（不写 MR.ERP）；开着时出库 / 入库单记 MR.ERP 单号（菜单前缀 + 单号）、库存卡与日记账同原生录入；调拨 / 调整单显示失败 · 此单据类型无法写入 MR.ERP；账套不允许负库存时超过各仓合计的出库提交时拦下"
+check = "offline"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/stock.py", "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/stock.py"]
 
 [[entry]]
 id = "erp.cc.collection"

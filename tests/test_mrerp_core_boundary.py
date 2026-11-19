@@ -35,6 +35,8 @@ EXTRA = {
     # 11-17 ERP 收款直写：收款导入（经导入 5 步与共用会话入口）与读一位客户的未收单（经共用会话入口）
     "push/receipt.py": {"pearnly_core.session_lock"},
     "receivables.py": {"pearnly_core.session_lock"},
+    # 11-19 ERP 库存单直写：入库 / 出库导入（经导入 5 步与共用会话入口）
+    "push/stock.py": {"pearnly_core.session_lock"},
     "push/report_parser.py": {"openpyxl"},
     "push/xlsx/generator.py": {"openpyxl", "openpyxl.styles"},
 }

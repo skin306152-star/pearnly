@@ -451,7 +451,7 @@ MRERP_KINDS = (mrerp_choices.MENU, mrerp_choices.DEFAULT)
 
 def mrerp_picked(doctype, name):
     """这张 MR.ERP 单写进哪本（`mrerp.push.picked`：对话账套 → 单据上记过的 → 按单据日期）；MR.ERP 不导的单据类型回 None。"""
-    return mrerp_push.picked(doctype, name) if mrerp_push.DIRECTIONS.get(doctype) else None
+    return mrerp_push.picked(doctype, name) if mrerp_push.INVOICES.get(doctype) else None
 
 
 def mrerp_needed(company, doctype, picked=None):
@@ -459,7 +459,7 @@ def mrerp_needed(company, doctype, picked=None):
     卡片项的形状；选一次记在公司上那本账套名下，大家共用（同单据上「选一次」`mrerp.push.answer`）。``picked``：这张单选账套的结论
     （:func:`mrerp_picked`）——同期两本没选过只问选哪本（同 Express 那项、同一个记忆），选中了按那本的菜单与默认值问；没给时是公司上
     记的那本。MR.ERP 不导的单据类型回 None。"""
-    direction = mrerp_push.DIRECTIONS.get(doctype)
+    direction = mrerp_push.INVOICES.get(doctype)  # 库存单在单据上停下问（`mrerp.stock.needed`），不进 CC 预选卡
     row = mrerp_choices.company_row(company) if direction else None
     if not row:
         return None

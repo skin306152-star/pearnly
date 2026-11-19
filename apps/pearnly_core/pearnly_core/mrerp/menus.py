@@ -24,11 +24,26 @@ DOCUMENT_PAGE_OF = {"purchase": "impaptran", "purchase_expense": "impaptran",
                     "sales_credit": "impartran", "sales_cash": "imparse"}
 # 收款（รับชำระหนี้，ERP 收款直写，11-17）：导入页 impfarev（路由号 375），菜单同样按公司选一次记住
 RECEIPT, RECEIPT_PAGE = "receipt", "impfarev"
-PAGE_OF = {**DOCUMENT_PAGE_OF, RECEIPT: RECEIPT_PAGE}
+# 库存入库 / 出库（รับสินค้า impstktranrec 356 / จ่ายสินค้า impstktraniss 357，ERP 库存单直写，11-19）：入库一个菜单；出库按 ERP
+# 用途各记一个（``stock_out.<用途>``，同 Express「出库按用途选簿」），都只列已关联日记账的、只有一个就自动用
+STOCK_IN, STOCK_IN_PAGE = "stock_in", "impstktranrec"
+STOCK_OUT, STOCK_OUT_PAGE = "stock_out", "impstktraniss"
+PAGE_OF = {**DOCUMENT_PAGE_OF, RECEIPT: RECEIPT_PAGE, STOCK_IN: STOCK_IN_PAGE, STOCK_OUT: STOCK_OUT_PAGE}
+
+
+def stock_out_kind(purpose: Any) -> str:
+    """出库用途 → 记菜单用的单据类型（``stock_out.<用途>``；没填用途按「其他」）。"""
+    return f"{STOCK_OUT}.{str(purpose or '').strip() or 'other'}"
+
+
+def page_of(kind: Any) -> Optional[str]:
+    """单据类型 → 导入页（出库按用途的几类都是出库那一页）。"""
+    kind = str(kind or "")
+    return PAGE_OF.get(kind) or (STOCK_OUT_PAGE if kind.startswith(STOCK_OUT + ".") else None)
 # 导入页 → formupload 的路由号（MR.ERP 固定的程序页号，不是各公司的菜单号）。读菜单（`menu_read`）只读单据这三页；
 # 收款页由收款的导入与未收读取读到后存回（`ALL_PAGES`）。
 PAGES = {"impaptran": 363, "impartran": 370, "imparse": 371}
-ALL_PAGES = {**PAGES, RECEIPT_PAGE: 375}
+ALL_PAGES = {**PAGES, RECEIPT_PAGE: 375, STOCK_IN_PAGE: 356, STOCK_OUT_PAGE: 357}
 KINDS = tuple(DOCUMENT_PAGE_OF)  # 单据（发票）的几类；方向没定时只问这几类
 # 按票面方向，推送时可能用到的单据类型（录入时只问会用到的）。
 KINDS_FOR_DIRECTION = {"purchase": ("purchase", "purchase_expense"), "sales": ("sales_credit", "sales_cash"),
@@ -102,7 +117,7 @@ def choices(raw: Any) -> Dict[str, Dict[str, Dict[str, str]]]:
         if not isinstance(account, str) or not isinstance(kinds, dict):
             continue
         kept = {k: v for k, v in kinds.items()
-                if k in PAGE_OF and isinstance(v, dict) and str(v.get("idmenu") or "").strip().isdigit()}
+                if page_of(k) and isinstance(v, dict) and str(v.get("idmenu") or "").strip().isdigit()}
         if kept:
             out[account] = kept
     return out
@@ -148,7 +163,7 @@ def choose(raw: Any, account: str, kind: str, idmenu: Any, observed: Any, *, act
     """记下这份账套这类单据选的菜单；不是最近读到的已关联选项（或记录已满）返回 None。"""
     code = str(idmenu or "").strip()
     known = options_for(observed, account)
-    page = PAGE_OF.get(kind)
+    page = page_of(kind)
     if not account or not page or not known:
         return None
     hit = next((o for o in linked(known["pages"].get(page)) if o["idmenu"] == code), None)
@@ -159,12 +174,15 @@ def choose(raw: Any, account: str, kind: str, idmenu: Any, observed: Any, *, act
     return value if len(value) <= _MAX_ACCOUNTS else None
 
 
-def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
-    """选择入口要的：每类单据的已关联选项、选过哪个、这次要不要请人选（读不到的算未知，不问）。"""
+def view(raw: Any, observed: Any, account: str, kinds_wanted: Optional[List[str]] = None) -> Dict[str, Any]:
+    """选择入口要的：每类单据的已关联选项、选过哪个、这次要不要请人选（读不到的算未知，不问）。``kinds_wanted``：只看这几类
+    （出库按用途的 ``stock_out.<用途>`` 由调用方给）；不给是 :data:`PAGE_OF` 的各类。"""
     known = options_for(observed, account)
     picked = chosen_map(raw, account)
     kinds = {}
-    for kind, page in PAGE_OF.items():
+    for kind, page in ([(k, page_of(k)) for k in kinds_wanted] if kinds_wanted is not None else PAGE_OF.items()):
+        if not page:
+            continue
         options = (known or {}).get("pages", {}).get(page) if known else None
         usable = linked(options)
         hit, reason = resolve(options, picked.get(kind)) if options is not None else (None, None)
@@ -179,6 +197,6 @@ def view(raw: Any, observed: Any, account: str) -> Dict[str, Any]:
 
 
 __all__ = ["ALL_PAGES", "CHANGED", "CHOICE_REQUIRED", "KINDS", "KINDS_FOR_DIRECTION", "NOT_LINKED", "PAGES", "PAGE_OF",
-           "RECEIPT", "RECEIPT_PAGE",
+           "RECEIPT", "RECEIPT_PAGE", "STOCK_IN", "STOCK_IN_PAGE", "STOCK_OUT", "STOCK_OUT_PAGE", "page_of", "stock_out_kind",
            "UNREADABLE", "chosen_map", "choices", "choose", "linked", "observe", "options_for", "parse_options",
            "resolve", "view"]

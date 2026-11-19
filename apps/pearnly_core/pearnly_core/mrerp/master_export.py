@@ -193,6 +193,9 @@ def units(listbox: Optional[dict]) -> List[dict]:
 # ── 网络 ─────────────────────────────────────────────────────────────────────
 
 
+NEGATIVE_PAGE = "stktraniss/allform.php"
+
+
 class _Reader:
     def __init__(self, session):
         self.session = session
@@ -224,6 +227,15 @@ class _Reader:
         response = self._call("POST", f"{module}/component/expdata.php",
                               data={f"{prefix}begin": codes[0], f"{prefix}end": codes[-1]})
         return xlsx_rows(response.content or b""), len(codes)
+
+    def stock_negative(self) -> str:
+        """这份账套「ตั้งค่าระบบสินค้า」的 อนุญาตให้สินค้าติดลบ：``1`` 允许 / ``2`` 不允许 / 空串没设置或读不到。出库新单网页每次现查
+        ``tbl_stksetup.negative`` 写进 ``var ssunegative``（`stktraniss/allform.php`）。读不到不当错误（只影响出库提交前拦不拦）。"""
+        try:
+            page = self._call("GET", NEGATIVE_PAGE)
+        except Exception:  # noqa: BLE001 — 只是一项设置
+            return ""
+        return rules.parse_stock_negative(page.text or "")
 
     def stock(self, today: date):
         lists = self.listbox(f"{STOCK_MODULE}/component/bshlistboxdata.php")
@@ -265,6 +277,9 @@ def read_session(session, today: Optional[date] = None) -> tuple:
     # 主仓：MR.ERP 网页新建单据默认取编码排第一的仓（`artran/component/javascript/allform.js`，见 `masters.py` 文件头）；
     # ERP 建公司时自带的那一个没编码的仓第一次落库认作它（同 Express 的 mainloc）
     facts["settings"] = {"mainloc": facts["warehouses"][0]["code"]} if facts["warehouses"] else {}
+    negative = reader.stock_negative()  # 照 MR.ERP 出库网页拦不拦负库存（ERP 出库单提交前，`erp mrerp.stock.check_negative`）
+    if negative:
+        facts["settings"]["stock_negative"] = negative
     stats = {"requests": reader.requests, "bytes": reader.bytes, "seconds": round(time.monotonic() - started, 2),
              "listed": listed, "counts": {key: len(value) for key, value in facts.items() if isinstance(value, list)}}
     return facts, stats

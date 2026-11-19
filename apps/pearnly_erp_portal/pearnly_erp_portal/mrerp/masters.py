@@ -160,6 +160,12 @@ def run(company, manual=False):
             ledger_masters._record(company, {"state": ledger_masters.SYNCING})
             frappe.db.commit()
             counts = ledger_masters.apply(company, str(book["label"])[:140], facts, ledger=ledger_masters.MRERP)
+            negative = str((facts.get("settings") or {}).get("stock_negative") or "")
+            if negative:
+                # 这份账套「允许负库存」：记进连接上这本的主档记录（出库单提交前照 MR.ERP 出库网页拦不拦，`mrerp.stock.check_negative`）
+                from pearnly_erp_portal.mrerp import choices
+
+                choices.observe(book["connection"], book["key"], None, {"stock_negative": negative})
             result = {"state": ledger_masters.READY, "counts": counts}
             logger.info("MR.ERP masters %s: %s", company, {**stats, "landed": counts})
     except Exception:  # noqa: BLE001 — 契约：结果记在公司上

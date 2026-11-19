@@ -1917,6 +1917,13 @@ Choose purchase or sales for this invoice and submit again	请选择此发票为
 The invoice number is longer than MR.ERP allows. Shorten it and submit again	发票号超出 MR.ERP 允许的长度，请缩短后重新提交	เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่	請求書番号が MR.ERP の上限を超えています。短くして再送信してください	mrerp.error.ERR_INVOICE_NO_TOO_LONG
 The MR.ERP import failed. Nothing was posted	MR.ERP 导入出错，未入账	การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี	MR.ERP の取込でエラーが発生しました。計上されていません	mrerp.error.ERR_MRERP_IMPORT_ERROR
 This document type cannot be written to MR.ERP	此单据类型无法写入 MR.ERP	เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้	この種類の伝票は MR.ERP に書き込めません	mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE
+This item is not in MR.ERP	MR.ERP 中没有此物料	ไม่มีสินค้านี้ใน MR.ERP	この品目は MR.ERP にありません	mrerp.error.ERR_MRERP_ITEM_UNMAPPED
+This warehouse is not in MR.ERP	MR.ERP 中没有此仓库	ไม่มีคลังนี้ใน MR.ERP	この倉庫は MR.ERP にありません	mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED
+The document number is longer than MR.ERP allows	单号超出 MR.ERP 允许的长度	เลขที่เอกสารยาวเกินกว่าที่ MR.ERP รองรับ	伝票番号が MR.ERP の上限を超えています	mrerp.error.ERR_MRERP_STOCK_NUMBER
+No line items	没有明细	ไม่มีรายการสินค้า	明細がありません	mrerp.error.ERR_MRERP_STOCK_LINES
+A branch, department, job, item or warehouse code does not match MR.ERP	分店、部门、工作代码、物料或仓库代码与 MR.ERP 不符	รหัสสาขา แผนก งาน สินค้า หรือคลัง ไม่ตรงกับ MR.ERP	支店・部門・作業・品目・倉庫のコードが MR.ERP と一致しません	mrerp.error.ERR_MRERP_STOCK_FIELD
+Quantity must be greater than 0	数量须大于 0	จำนวนต้องมากกว่า 0	数量は 0 より大きくしてください	mrerp.error.ERR_MRERP_STOCK_QTY
+Unit price is missing	缺少单价	ไม่มีราคา/หน่วย	単価がありません	mrerp.error.ERR_MRERP_STOCK_PRICE
 The total is negative. Correct it and submit again	合计金额为负数，请更正后重新提交	ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่	合計がマイナスです。直して再送信してください	mrerp.error.ERR_NEGATIVE_AMOUNT
 The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	mrerp.error.ERR_NO_CLIENT
 This customer has no match in MR.ERP. Choose the customer and submit again	MR.ERP 中没有此客户的对应档案，请选择客户后重新提交	ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่	この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください	mrerp.error.ERR_NO_CUSTOMER_MAPPING

@@ -10,6 +10,7 @@
 5 minutes before,5分前
 A board needs at least one admin,ボードには管理者が少なくとも1人必要です
 A board needs at least one list,ボードには少なくとも1つのリストが必要です
+"A branch, department, job, item or warehouse code does not match MR.ERP",支店・部門・作業・品目・倉庫のコードが MR.ERP と一致しません
 A category needs a name,カテゴリ名を入力してください
 A company needs a name,会社には名前が必要です
 A company needs at least one warehouse,会社には倉庫が 1 つ以上必要です
@@ -935,6 +936,7 @@ No item matches the scanned code {0},スキャンしたコード {0} に一致�
 No items found. Scan barcode again.,商品が見つかりません。バーコードを再スキャンしてください
 No items in cart,カートに商品がありません
 No items were read,明細を読み取れませんでした
+No line items,明細がありません
 No match for “{0}”,「{0}」は見つかりません
 No members,メンバーなし
 No notifications,通知はありません
@@ -1190,6 +1192,7 @@ Quantity counted this time,今回の実地数量
 Quantity differences,数量差異
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted — hover a bar to see the item, the place and the exact amounts.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量。棒にマウスを載せると商品・場所・数量が見えます。
 "Quantity differences, largest first. Grey is the book quantity, the coloured bar is what was counted: short comes up shorter than grey, over runs past it.",数量差異（大きい順）。グレーは帳簿数量、色付きは実地数量：不足なら短く、超過ならグレーを超えます。
+Quantity must be greater than 0,数量は 0 より大きくしてください
 Quantity must be greater than zero,数量は 0 より大きい必要があります
 Query,照会
 Querying the Revenue Department...,税務局に照会中…
@@ -1574,6 +1577,7 @@ The destination warehouse must differ from the source warehouse,移動先倉庫�
 The discount exceeds the line amount,割引が行の金額を超えています
 The discount exceeds the total,割引が合計を超えています
 The document date is invalid. Correct it and submit again.,書類の日付が無効です。修正して再送信してください
+The document number is longer than MR.ERP allows,伝票番号が MR.ERP の上限を超えています
 The entry does not balance. Check the amounts,仕訳の貸借が合いません。金額を確認してください
 The file could not be saved. Please try again shortly.,ファイルを保存できませんでした。しばらくしてからもう一度お試しください
 The file is larger than 25 MB,ファイルが 25 MB を超えています
@@ -1696,6 +1700,7 @@ This is not a purchase or sales document,これは仕入・売上の書類では
 This item has expired. Please start again.,有効期限が切れました。もう一度やり直してください。
 This item is also stocked at:,この商品は他の場所にも在庫があります:
 This item is not a stock item in Express. Choose another item,この品目は Express の在庫品目ではありません。別の品目を選んでください
+This item is not in MR.ERP,この品目は MR.ERP にありません
 This item is not on the original cash sale,元の現金売上にこの商品がありません
 This label no longer exists,このラベルはもうありません
 This list no longer exists,このリストはもうありません
@@ -1732,6 +1737,7 @@ This warehouse already exists,この倉庫は既に存在します
 This warehouse belongs to the company above,この倉庫は上の会社に属します
 This warehouse code already exists,この倉庫コードは既に存在します
 This warehouse has no active location,この倉庫には有効なロケーションがありません
+This warehouse is not in MR.ERP,この倉庫は MR.ERP にありません
 This warehouse is not in the Express account set,この Express 会計データにこの倉庫はありません
 "Ticked, this company gets cashier pages, records, shifts and the cashier job role. Unticked, none of them appear.",有効にするとこの会社にレジ・レジ記録・シフト記録・「レジ担当」が表示されます。無効ならどれも表示されません。
 Time,時刻
@@ -1794,6 +1800,7 @@ Unit not found in Express,Express にこの単位がありません
 Unit not set,単位が未設定です
 Unit number type,番号の種類
 Unit opening registration,個体の期首登録
+Unit price is missing,単価がありません
 Unit {0} is not defined on {1},単位「{0}」は「{1}」に定義されていません
 Units,個体明細
 Units already sold or issued cannot be voided with this document,販売済みまたは出庫済みの個体はこの伝票と一緒に取り消せません
@@ -2567,12 +2574,19 @@ mrerp.error.ERR_MRERP_ACCOUNT_IN_USE,アカウントは別の場所でログイ�
 mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CASH,MR.ERP の仕入先「เงินสด」の勘定が現金・預金勘定ではありません。
 mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED,MR.ERP に現金仕入先を作成できませんでした。
 mrerp.error.ERR_MRERP_IMPORT_ERROR,MR.ERP の取込でエラーが発生しました。計上されていません
+mrerp.error.ERR_MRERP_ITEM_UNMAPPED,この品目は MR.ERP にありません
 mrerp.error.ERR_MRERP_MASTER_UNREADABLE,MR.ERP のマスターデータを読み取れません。
 mrerp.error.ERR_MRERP_MENU_NOT_LINKED,MR.ERP にこの種類の伝票で今年度の仕訳帳に連携済みの取込メニューがありません。先に MR.ERP で連携してください。
 mrerp.error.ERR_MRERP_MENU_UNREADABLE,MR.ERP の取込画面からメニューを読み取れません（設定未完了または権限なし）。
 mrerp.error.ERR_MRERP_MODULE_UNAVAILABLE,この種類の伝票は MR.ERP に書き込めません
 mrerp.error.ERR_MRERP_READBACK_NOT_FOUND,MR.ERP は取込を受け付けましたが、選択したメニューにこの伝票が見つかりません。結果不明のため、再送信の前に MR.ERP で確認してください。
 mrerp.error.ERR_MRERP_READBACK_NOT_LINKED,MR.ERP は取込を受け付けましたが、選択したメニューが仕訳帳に連携されておらず記帳されません。MR.ERP で確認してください。
+mrerp.error.ERR_MRERP_STOCK_FIELD,支店・部門・作業・品目・倉庫のコードが MR.ERP と一致しません
+mrerp.error.ERR_MRERP_STOCK_LINES,明細がありません
+mrerp.error.ERR_MRERP_STOCK_NUMBER,伝票番号が MR.ERP の上限を超えています
+mrerp.error.ERR_MRERP_STOCK_PRICE,単価がありません
+mrerp.error.ERR_MRERP_STOCK_QTY,数量は 0 より大きくしてください
+mrerp.error.ERR_MRERP_WAREHOUSE_UNMAPPED,この倉庫は MR.ERP にありません
 mrerp.error.ERR_NEGATIVE_AMOUNT,合計がマイナスです。直して再送信してください
 mrerp.error.ERR_NO_CLIENT,顧客がありません。顧客を選択して再送信してください
 mrerp.error.ERR_NO_CUSTOMER_MAPPING,この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください

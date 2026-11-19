@@ -1,4 +1,4 @@
-# 来源：旧线上 ec2e5c957e6b · services/erp/mrerp_http/modules.py；删去库存进出两项（只改导入路径）
+# 来源：旧线上 ec2e5c957e6b · services/erp/mrerp_http/modules.py；搬来时删去的库存进出两项 11-19 按本仓口径加回（ERP 库存单直写）
 # 有意变化（2026-09-28，MR.ERP 推送假成功）：交易单据不再写死 selmenu（旧 118 / 125 / 67 / 453）与回读列表菜单号。
 # 菜单号是各公司自己的，按这次读到的导入页选项 + 这份账套选过的决定（`mrerp/menus.py`），回读也在那个菜单里查。
 """MR.ERP 导入模块表 · doc_type → 端点/xlsx 模板/回读列表模块。
@@ -64,6 +64,10 @@ MODULES: Dict[str, MrErpModule] = {
     # 收款(รับชำระหนี้)· ERP 收款服务端直写(2026-11-17)· 3-sheet:表头 20 列 + 冲哪几张应收 + 支票(只表头)·
     # 回读列表 farev · 菜单照单据按公司选一次(menus.RECEIPT)· 11-16 测试账套真写确认(收款单前缀 FR、记日记账)
     "receipt": MrErpModule("receipt", "impfarev", 375, "receipt", "farev", verified=True),
+    # 库存入库 / 出库(รับสินค้า / จ่ายสินค้า)· ERP 库存单服务端直写(2026-11-19)· 2-sheet:单头 6 列 + 明细(入库 8 列带单价金额、
+    # 出库 6 列成本系统算)· 回读列表 stktranrec / stktraniss · 菜单入库一个、出库按用途各选一次(menus.STOCK_IN / stock_out_kind)
+    "stock_in": MrErpModule("stock_in", "impstktranrec", 356, "stock_in", "stktranrec", verified=True),
+    "stock_out": MrErpModule("stock_out", "impstktraniss", 357, "stock_out", "stktraniss", verified=True),
     # 主数据自建(走导入,非 Playwright 表单)· S2
     "master_customer": MrErpModule(
         "master_customer", "imparmas", 367, "customer_master", "armas", verified=False

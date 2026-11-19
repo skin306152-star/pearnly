@@ -31,7 +31,9 @@ from pearnly_erp_portal.mrerp import choices, connection as connections, contrac
 
 SALES = "ERP Sales Document"
 PURCHASE = "Purchase Document"
-DIRECTIONS = {SALES: "sales", PURCHASE: "purchase"}
+STOCK = "ERP Stock Entry"  # 库存单（出库 / 入库 / 调拨 / 调整，`mrerp.stock`，11-19）
+INVOICES = {SALES: "sales", PURCHASE: "purchase"}  # 发票类（CC 预选卡、对话直写按发票的判法）
+DIRECTIONS = {**INVOICES, STOCK: "stock"}
 KINDS = {SALES: express_contracts.SALES_KINDS, PURCHASE: express_contracts.PURCHASE_KINDS}
 JOB_TIMEOUT_SECONDS = 600
 POLL_MAX = 100
@@ -45,7 +47,26 @@ def handles(company) -> bool:
     return bool(row and row.mrerp_enabled and not row.express_enabled)
 
 
+def _row(doctype, name, fields, for_update=False):
+    """读单据的几栏；库存单没有 ``company`` / ``doc_date`` 两栏，按单头仓库的公司与过账日期补上（`mrerp.stock`）。"""
+    own = list(dict.fromkeys(["name", *(field for field in fields
+                                         if not (doctype == STOCK and field in ("company", "doc_date")))]))
+    row = frappe.db.get_value(doctype, name, own, as_dict=True, for_update=for_update) if name else None
+    if row and doctype == STOCK:
+        from pearnly_erp_portal.mrerp import stock  # 库存那一侧在用到时导入（它经 `express.stock_entry` 用到 express 一侧）
+
+        if "company" in fields:
+            row["company"] = stock.company_of(name)
+        if "doc_date" in fields:
+            row["doc_date"] = stock.date_of(name)
+    return row
+
+
 def _eligible(doctype, doc) -> bool:
+    if doctype == STOCK:
+        from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
+
+        return stock.eligible(doc)
     if doctype not in DIRECTIONS or doc.get("status") != "submitted" or (doc.get("doc_kind") or "") not in KINDS[doctype]:
         return False
     since = frappe.db.get_value("ERP Company", doc.company, "mrerp_linked_at")
@@ -87,11 +108,16 @@ def _wanted(row):
 def prepare(doctype, name, document) -> dict:
     """准备一张：``{"payload", "company", "direction"}``，或 ``{"hold": 原因, "needed": [...]}`` / ``{"failed": 原因}``。不写单据。
     ``document``：建单据的函数（`express.push.document`，同 Express 交给写账规则的那个形状）。"""
-    company = frappe.db.get_value(doctype, name, "company")
+    company = (_row(doctype, name, ["company"]) or {}).get("company")
     row = choices.company_row(company)
     if not row or not row.mrerp_enabled:
         return {"failed": contracts.NOT_CONFIGURED}
-    held = printed.hold(doctype, name)  # 识别来的单票面合计没有 / 对不上：同 Express 直写停下
+    if doctype == STOCK:
+        from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
+
+        if frappe.db.get_value(doctype, name, "direction") in (stock.TRANSFER, stock.ADJUST):
+            return {"failed": stock.FORM_PENDING}  # 调拨 / 调整：网页表单直写做好之前如实标失败（主会话 11-19）
+    held = printed.hold(doctype, name) if doctype != STOCK else None  # 识别来的单票面合计没有 / 对不上：同 Express 直写停下
     if held:
         return {"hold": held}
     body = document(doctype, name)
@@ -107,6 +133,8 @@ def prepare(doctype, name, document) -> dict:
     if picked["reason"]:
         return {"hold": picked["reason"]}
     book = picked["book"]
+    if doctype == STOCK:
+        return stock.prepare(name, body, row, book)
     menu_view, master_view = choices.views(row, book)
     needed = contracts.needed(menu_view, master_view, body["direction"])
     if needed:
@@ -125,8 +153,7 @@ def picked(doctype, name) -> dict:
     （``ledger_book``）；都没有按单据日期选。回 `mrerp.catalog.pick` 的结论（``{book, reason, options, subject}``）。"""
     from pearnly_erp_portal.mrerp import catalog  # 同 :func:`prepare`
 
-    row = frappe.db.get_value(doctype, name, ["company", "doc_date", "ledger_book"], as_dict=True) if doctype in DIRECTIONS \
-        else None
+    row = _row(doctype, name, ["company", "doc_date", "ledger_book"]) if doctype in DIRECTIONS else None
     if not row:
         return {"book": None, "reason": contracts.NOT_CONFIGURED, "options": [], "subject": ""}
     # 都没有给 None（照单据日期选），不给空串（`catalog.pick` 把空串当「对话账套未定」）
@@ -139,7 +166,7 @@ def send(doctype, name, manual=False):
 
     ``manual``：人在明确的推送入口点的（ERP 的 CC 推送工具 `express.cc_tools`）：这个 MR.ERP 账号被踢过的标记先清掉、这次照常登录
     （:func:`release_kick`，11-09 风险 7）。其余（提交新单、每分钟巡检、选一次后再排、改票面合计放行）都不清，有标记时导入入口快速失败。"""
-    row = frappe.db.get_value(doctype, name, ["name", "status", "company", "ledger_state", "ledger_reason"], as_dict=True)
+    row = _row(doctype, name, ["name", "status", "company", "ledger_state", "ledger_reason"])
     if not row or row.status != "submitted" or not handles(row.company):
         return {"status": "not_ready"}
     if manual:
@@ -179,8 +206,7 @@ def release_kick(company) -> bool:
 
 def _claim(doctype, name):
     """行锁里从「排队中」领成「正在导入」并提交；领不到回 None。"""
-    row = frappe.db.get_value(doctype, name, ["name", "owner", "company", "status", "ledger_state", "ledger_reason"],
-                              as_dict=True, for_update=True)
+    row = _row(doctype, name, ["name", "owner", "company", "status", "ledger_state", "ledger_reason"], for_update=True)
     if not row or row.status != "submitted" or row.ledger_state != express_contracts.QUEUED \
             or row.ledger_reason == contracts.IMPORTING or not handles(row.company):
         frappe.db.rollback()
@@ -224,8 +250,13 @@ def run(doctype, name, document):
     frappe.db.commit()  # 领取落定、行锁释放，之后才对外请求
 
     today = datetime.now(ZoneInfo("Asia/Bangkok")).date()
-    outcome = execute(prepared["payload"], {"account_set": book["key"]},
-                      {"username": lease["username"], "password": lease["password"]}, lease["system_url"], today)
+    secrets = {"username": lease["username"], "password": lease["password"]}
+    if prepared.get("stock"):
+        from pearnly_core.mrerp.push import stock as stock_push  # 库存入库 / 出库导入（同上，只在任务里载入）
+
+        outcome = stock_push.execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"])
+    else:
+        outcome = execute(prepared["payload"], {"account_set": book["key"]}, secrets, lease["system_url"], today)
     try:
         choices.observe(book["connection"], book["key"], outcome.get("menus"),
                         outcome.get("masters") or None)
@@ -235,9 +266,14 @@ def run(doctype, name, document):
     values = contracts.settle(outcome)
     if values["ledger_reason"] == contracts.CHOICE:
         fresh = choices.company_row(company.name)
-        menu_view, master_view = choices.views(fresh, book)
-        values["ledger_needed"] = json.dumps(contracts.needed(menu_view, master_view, prepared["direction"]),
-                                             ensure_ascii=False)
+        if prepared.get("stock"):
+            from pearnly_erp_portal.mrerp import stock  # 同 :func:`_row`
+
+            needed = stock.needed(fresh, book, prepared["menu_kind"])
+        else:
+            menu_view, master_view = choices.views(fresh, book)
+            needed = contracts.needed(menu_view, master_view, prepared["direction"])
+        values["ledger_needed"] = json.dumps(needed, ensure_ascii=False)
     else:
         values["ledger_needed"] = None
     if frappe.db.get_value(doctype, name, "status") == "void":
@@ -260,7 +296,7 @@ def run(doctype, name, document):
 def answer(doctype, name, answers) -> bool:
     """单据上选要人选的 MR.ERP 项（``[{kind, subject, value}]``，只认停在单据上的那几项、这一项能选的值）：记在公司上后再排。
     权限由调用方核（同 `express.api.answer`）。全部认得回真。"""
-    row = frappe.db.get_value(doctype, name, ["company", "ledger_state", "ledger_needed", "ledger_book"], as_dict=True)
+    row = _row(doctype, name, ["company", "ledger_state", "ledger_needed", "ledger_book"])
     if not row or row.ledger_state != express_contracts.HELD or not handles(row.company):
         return False
     try:
@@ -309,4 +345,4 @@ def poll():
         frappe.db.commit()
 
 
-__all__ = ["answer", "dispatch", "handles", "poll", "prepare", "queue", "release_kick", "run", "send"]
+__all__ = ["DIRECTIONS", "INVOICES", "STOCK", "answer", "dispatch", "handles", "poll", "prepare", "queue", "release_kick", "run", "send"]

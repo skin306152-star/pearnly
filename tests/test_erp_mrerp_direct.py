@@ -646,6 +646,8 @@ class KickedAccount(unittest.TestCase):
         self.assertEqual(users, {"apps/pearnly_core/pearnly_core/mrerp/push/execute.py": True,
                                  # 11-17 ERP 收款直写的收款导入（impfarev）
                                  "apps/pearnly_core/pearnly_core/mrerp/push/receipt.py": True,
+                                 # 11-19 ERP 库存单直写的入库 / 出库导入（impstktranrec / impstktraniss）
+                                 "apps/pearnly_core/pearnly_core/mrerp/push/stock.py": True,
                                  "apps/pearnly_cowork/pearnly_cowork/push/mrerp/operator.py": True})
         enter = (ROOT / "apps/pearnly_core/pearnly_core/mrerp/push/transport.py").read_text(encoding="utf-8")
         body = enter[enter.index('def __enter__(self) -> "MrErpImport":'):enter.index("def __exit__")]

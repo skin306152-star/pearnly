@@ -11,19 +11,21 @@ from typing import Any, Dict, Optional, Tuple
 from pearnly_core.mrerp import masters as master_rules, menus as menu_rules
 
 
-def used(direction: Optional[str] = None) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
-    """推这个方向的票会用到的（单据类型, 主档字段）；方向没定两边都算。"""
-    kinds = menu_rules.KINDS_FOR_DIRECTION.get(direction) or menu_rules.KINDS
+def used(direction: Optional[str] = None, kinds: Optional[Tuple[str, ...]] = None
+         ) -> Tuple[Tuple[str, ...], Tuple[str, ...]]:
+    """推这个方向的票会用到的（单据类型, 主档字段）；方向没定两边都算。``kinds``：调用方已知这张单用哪几类菜单（库存单：
+    入库 / 按用途的出库，`menus.stock_out_kind`）。"""
+    kinds = kinds or menu_rules.KINDS_FOR_DIRECTION.get(direction) or menu_rules.KINDS
     fields = master_rules.FIELDS_FOR_DIRECTION.get(direction) or tuple(dict.fromkeys(
         field for name in master_rules.DOCUMENT_DIRECTIONS for field in master_rules.FIELDS_FOR_DIRECTION[name]))
     return tuple(kinds), tuple(fields)
 
 
-def needed(view: Any, direction: Optional[str] = None) -> Dict[str, Any]:
+def needed(view: Any, direction: Optional[str] = None, kinds: Optional[Tuple[str, ...]] = None) -> Dict[str, Any]:
     """菜单视图（`connections.service.mrerp_menu`）里这张票推之前还要人选的：``{"known", "menus": [单据类型],
     "defaults": [主档字段]}``，只看这个方向会用到的。``known`` 为假：菜单或主档还没从 MR.ERP 读到过，这时说不出要不要选
     （推送时 MR.ERP 那边按读到的再核对）。"""
-    kinds, fields = used(direction)
+    kinds, fields = used(direction, kinds)
     view = view if isinstance(view, dict) else {}
     defaults = view.get("defaults") if isinstance(view.get("defaults"), dict) else {}
     return {"known": bool(view.get("known") and defaults.get("known")),

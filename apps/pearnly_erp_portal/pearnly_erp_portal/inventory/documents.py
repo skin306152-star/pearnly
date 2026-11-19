@@ -430,6 +430,11 @@ def _post(doc) -> dict:
     流水幂等锚是单据名，所以重复提交不会记两次。
     """
     company = warehouses.company_of(doc.warehouse)
+    if doc.direction == "out":
+        # 账本是 MR.ERP、这份账套设成不允许负库存：照 MR.ERP 出库网页，提交前按本公司各仓合计拦（`mrerp.stock`；其余不拦）
+        from pearnly_erp_portal.mrerp import stock as mrerp_stock
+
+        mrerp_stock.check_negative(doc, company)
     units = serials.line_serials(doc)
     if doc.direction == TRANSFER:
         # 调拨：一出一进同一个事务（`stock.apply_transfer`）；调入仓在建单时已核过同公司、不同仓

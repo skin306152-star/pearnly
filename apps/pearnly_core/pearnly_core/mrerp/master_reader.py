@@ -25,6 +25,7 @@ LISTS = {
     "armas": "armas/component/bshlistboxdata.php",
     "apmas": "apmas/component/bshlistboxdata.php",
     "stktraniss": "stktraniss/component/bshlistboxdata.php",
+    "stktranrec": "stktranrec/component/bshlistboxdata.php",  # 入库新单：物料 [id, 码, 名…]（补标准成本用，`push.stock`）
     "stkmas": "stkmas/component/bshlistboxdata.php",
     "artran": "artran/component/bshlistboxdata.php",
     "aptran": "aptran/component/bshlistboxdata.php",  # 采购单：税率表 txtothvatrate（同 artran / arse，同一张 tbl_othvatrate）
