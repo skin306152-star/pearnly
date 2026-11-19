@@ -72,7 +72,7 @@ console.log("HARNESS OK");
         self.assertIn("const holding = holdsSends(snapshot) || creating;", provider)
         self.assertIn("sendQueue.setBusy(holding);", provider)
         # 停止键、Esc 仍按整轮是否结束
-        self.assertIn("isRunning: running,", provider)
+        self.assertIn("isRunning: running && !asking,", provider)   # 浮着的提问卡等作答时例外：打字即作答（审计第六节）
 
 
 if __name__ == "__main__":

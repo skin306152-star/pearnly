@@ -2093,7 +2093,7 @@ assert.equal(sendFailureOf("thread-new"), "");
         provider = (SRC / "lib/managed-agents/runtime-provider.tsx").read_text(encoding="utf-8")
         self.assertIn("const [newChat] = useState(() => new NewChatSend());", provider)
         self.assertIn("const running = isBusy(snapshot) || creating;", provider)
-        self.assertIn("isRunning: running,", provider)
+        self.assertIn("isRunning: running && !asking,", provider)   # 浮着的提问卡等作答时是发送键（审计第六节）
         self.assertIn("if (newChat.cancel()) return;", provider)
         self.assertIn("if (controller) await send(await ensureSession());", provider)
         self.assertNotIn("usePendingSend", provider)

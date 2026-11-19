@@ -29,7 +29,7 @@ export function ApprovalSheet() {
   if (asking?.type === "tool-call") {
     return (
       <section key={asking.approval?.id} data-slot="cc-ask-float" className="cc-ask-float">
-        <AskUserBody part={asking} toolResult={asking.result} sessionId={snapshot.sessionId} status={false} />
+        <AskUserBody part={asking} toolResult={asking.result} sessionId={snapshot.sessionId} status={false} floating />
       </section>
     );
   }

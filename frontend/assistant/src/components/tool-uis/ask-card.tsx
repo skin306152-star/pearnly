@@ -35,6 +35,7 @@ import {
 import type { CardPart } from "@/lib/approval-card";
 import { reportCaught, withReport } from "@/lib/caught";
 import { approvalCard, floatingAsk, type Gates } from "@/lib/approval-card";
+import { noteSentAnswer, offerAskReply, useSentAnswer } from "@/lib/ask-reply";
 import { getSessionController } from "@/lib/managed-agents/session-controller";
 import { useToolLabels } from "@/lib/tool-labels";
 import {
@@ -158,7 +159,9 @@ export const AskCard: FC<{
   startAt?: number;
   /** 推荐项默认选中（ask_user 照 Claude 是）；写账前要人定的题传 false：只标「推荐」不预选，点了才算。 */
   preselect?: boolean;
-}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0, preselect = true }) => {
+  /** 输入框里直接打字作答（浮着的 ask_user）：卡片把「用这句话交当前这题的『其他』」放进来。 */
+  typed?: { current: ((text: string) => void) | null };
+}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0, preselect = true, typed }) => {
   // pos：此刻要问的题里的第几题（带 show_if 的题随前面的回答收起，不占位置）
   const [pos, setPos] = useState(startAt);
   const [states, setStates] = useState<AskState[]>(() => initialStates(questions, preselect));
@@ -191,6 +194,17 @@ export const AskCard: FC<{
     setStates(next);
     forward(next);
   };
+  // 输入框直接打字发出：这句是当前这题的「其他」，后面还没答的题记跳过，前面答过的照旧（照 Claude）
+  if (typed) {
+    typed.current = (text: string) => {
+      if (busy || phase !== "ask") return;
+      const visible = shownQuestions(questions, states);
+      const now = visible.indexOf(at);
+      const next = states.map((s, i) =>
+        i === at ? { labels: [], other: text, skipped: false } : visible.indexOf(i) > now ? { labels: [], other: null, skipped: true } : s);
+      onSubmit(resultFrom(questions, next));
+    };
+  }
   const onKey = (e: KeyboardEvent) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && !busy && phase === "ask") {
       e.preventDefault();
@@ -326,21 +340,29 @@ export const AskUserBody: FC<{
   toolResult: unknown;
   sessionId: string | null;
   status: boolean;
-}> = ({ part, toolResult, sessionId, status }) => {
+  /** 浮在输入框上方的那张：输入框里直接打字就用来作答（lib/ask-reply.ts）。 */
+  floating?: boolean;
+}> = ({ part, toolResult, sessionId, status, floating = false }) => {
   // 入参按内容认（每次投影都是新对象，不然卡片里「其他」的搜索会被反复重来）
   const argsKey = JSON.stringify(part.args ?? null);
   const questions = useMemo(() => questionsOf(JSON.parse(argsKey)), [argsKey]);
   const labels = useToolLabels();
-  const [sent, setSent] = useState<AskResult | null>(null);
+  // 本页刚交的（浮层里交的也算：浮层收起后对话流里这张接着显示所选）
+  const sent = (useSentAnswer(part.approval?.id) as AskResult | undefined) ?? null;
   const phase = askPhase(part, labels);
   const submit = (result: AskResult) => {
     if (!sessionId || !part.approval) return;
-    setSent(result);
+    noteSentAnswer(part.approval.id, result);
     getSessionController(sessionId).respondToApproval(part.approval.id, true, undefined, confirmAnswers(result));
   };
   // 门放回来了（作答没送到 / 对不上题目）：本页刚交的不算，卡片回到能答
   const failure = part.approval?.failure ?? "";
   const shown: CardPhase = phase ?? "ask";
+  const typed = useRef<((text: string) => void) | null>(null);
+  useEffect(() => {
+    if (!floating || !sessionId) return;
+    return offerAskReply(sessionId, (text) => typed.current?.(text));
+  }, [floating, sessionId]);
   return (
     <AskCard
       questions={questions}
@@ -350,6 +372,7 @@ export const AskUserBody: FC<{
       failure={failure}
       onSubmit={submit}
       status={status}
+      typed={floating ? typed : undefined}
     />
   );
 };

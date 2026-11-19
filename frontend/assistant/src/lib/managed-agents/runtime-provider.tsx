@@ -49,6 +49,8 @@ import { useProjects } from "./projects";
 import { opening, useOpening } from "@/lib/opening";
 import { loadToolLabels } from "@/lib/tool-labels";
 import { runningTurn, type OpenState } from "@/lib/follow-scroll";
+import { floatingAsk } from "@/lib/approval-card";
+import { answerAskByText } from "@/lib/ask-reply";
 import { offersRecord } from "@/lib/record-reply";
 
 // ------------------------------------------------------------- state hookup
@@ -160,6 +162,7 @@ function useSessionThreadRuntime() {
   }, [controller, threadId]);
   // 停止没成功之后这一轮自己结束了（联网后回复给完、别处停了）：那行原因不再留着
   const running = isBusy(snapshot) || creating;
+  const asking = !!floatingAsk(snapshot.messages);
   useEffect(() => {
     if (!running) clearStopFailure(threadId);
   }, [running, threadId]);
@@ -179,6 +182,8 @@ function useSessionThreadRuntime() {
 
   // 发出一条（输入框发送、排队的那句轮到时都走这里，send-queue.ts）
   const onNew = async (message: AppendMessage) => {
+    // 提问卡浮在输入框上方时直接打字（只有字）：交当前这题的「其他」，不当消息发出（lib/ask-reply.ts，照 Claude）
+    if (!message.attachments?.length && answerAskByText(sessionId ?? null, textOf(message))) return;
     // 按「还没有用户消息」判断首条：先加附件时会话在上传那一刻就建好了，按「有没有会话」判断会漏掉取标题，
     // 侧栏一直是「新对话」（2026-10-10 测试）。
     const isFirst = !snapshot.messages.some((m) => m.role === "user");
@@ -225,7 +230,8 @@ function useSessionThreadRuntime() {
     isLoading: !snapshot.isLoaded,
     // Busy = the agent is working, or a gate/custom tool is waiting on us,
     // or a brand-new chat is still creating its session to send the first message.
-    isRunning: running,
+    // 浮着的提问卡等作答：输入框照 Claude 是发送键（打字即作答），不是停止键
+    isRunning: running && !asking,
     isDisabled: snapshot.isDead || held,
     isSendDisabled: operator && !sessionId && !draftReady,
     adapters: { attachments },

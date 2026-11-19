@@ -2009,6 +2009,34 @@ g.done();
         # 浮着的提问卡由「正在提问」代替，工作状态行不再画「需要您的输入」
         self.assertIn("return floatingAsk(state.messages) ? HIDDEN : INPUT;", turn)
 
+    def test_typing_in_the_composer_answers_the_floating_ask(self):
+        # 审计第六节（照 Claude 实测）：提问卡浮着时在输入框直接打字发出 = 当前这题的「其他」，后面没答的跳过，不另发消息；
+        # 只认这段对话浮着的那张，卡收起就撤掉；浮层交的作答对话流里那张接着显示
+        run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { answerAskByText, noteSentAnswer, offerAskReply } from "@/lib/ask-reply";
+const got: string[] = [];
+assert.equal(answerAskByText("sesn_1", "记到杂费"), false);          // 没有浮着的卡：照常发消息
+const off = offerAskReply("sesn_1", (text) => got.push(text));
+assert.equal(answerAskByText("sesn_2", "别的对话"), false);          // 只认这段对话的
+assert.equal(answerAskByText("sesn_1", "   "), false);               // 空的不算
+assert.equal(answerAskByText("sesn_1", "  记到杂费 "), true);
+assert.deepEqual(got, ["记到杂费"]);
+off();
+assert.equal(answerAskByText("sesn_1", "再说一句"), false);          // 卡收起：照常发消息
+noteSentAnswer("t1", { answers: [] });
+(globalThis as any).done();
+""", stubs=self.STUBS, lang="zh")
+        card = read("components/tool-uis/ask-card.tsx")
+        self.assertIn("i === at ? { labels: [], other: text, skipped: false } : visible.indexOf(i) > now ? { labels: [], other: null, skipped: true } : s);", card)
+        self.assertIn("return offerAskReply(sessionId, (text) => typed.current?.(text));", card)
+        self.assertIn("noteSentAnswer(part.approval.id, result);", card)
+        runtime = read("lib/managed-agents/runtime-provider.tsx")
+        self.assertIn("if (!message.attachments?.length && answerAskByText(sessionId ?? null, textOf(message))) return;", runtime)
+        self.assertIn("isRunning: running && !asking,", runtime)   # 等作答时是发送键，不是停止键
+        self.assertIn("floating />", read("components/tool-uis/approval-sheet.tsx"))
+
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
         thread = read("components/assistant-ui/thread.tsx")
         # 电脑上等回答时工作状态行换成橙色小点 +「需要您的输入」（照 Claude，在卡片下方）；手机上由输入框上方的浮层代替，不显示
