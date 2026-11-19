@@ -161,7 +161,7 @@ def steps(params, camera_code=None):
              "const card=await until(()=>q('[data-slot=\"cc-askq-question\"]')||q('[data-slot=\"cc-op-choose\"]'),160); "
              "await until(()=>q('[data-slot=\"cc-askq-question\"]'),120); await sleep(500); "
              "return {card: !!card, question: q('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'', "
-             "choices: qa('[data-slot=\"cc-askq-choice\"], .cc-askq-opt').map(e=>e.innerText.trim()).slice(0,10), "
+             "choices: qa('[data-slot=\"cc-askq-option\"]').map(e=>e.innerText.trim()).slice(0,10), "
              "retryOnly: !!q('[data-slot=\"cc-op-retry\"]') && !q('[data-slot=\"cc-askq-question\"]')};"}]
 
 

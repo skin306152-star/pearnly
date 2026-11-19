@@ -194,9 +194,10 @@ def verify(lab, manifest, params, camera_code=None):
     return [
         {"case": "S1：新物料先问新建还是对应已有", "seen": params.get("s1_first"),
          "ok": any(row[0] == "item" for row in params.get("s1_first") or [])},
-        {"case": "S1：账套已有库存品、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，按在用数预选 DM",
+        # 1.12.23 起卡上列全部组、合格的排前面（Express 原生不拦不合格的组，人明确选了照写，`stock_groups.choosable`）
+        {"case": "S1：账套已有库存品、两个合格组、没选过 → 开始前问挂哪个组，合格的排前面，按在用数预选 DM",
          "seen": {"group": group, "all": params.get("s1_group"), "hold": params.get("s1_second_hold")},
-         "ok": bool(group) and group[1] == "DM" and sorted(group[2]) == ["DM", "P002"]},
+         "ok": bool(group) and group[1] == "DM" and sorted(group[2][:2]) == ["DM", "P002"] and group[2][2:] == ["ST01"]},
         {"case": "S1：选了 P002 后再准备，载荷带 stock_acccod = P002（不再交给 CC 桌面版按众数选）",
          "seen": {"group": params.get("s1_payload_group"), "hold": params.get("s1_ready_hold")},
          "ok": params.get("s1_payload_group") == "P002"},
