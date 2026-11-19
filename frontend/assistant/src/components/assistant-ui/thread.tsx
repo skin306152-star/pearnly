@@ -1068,6 +1068,9 @@ const StoppedNote: FC = () => {
 };
 
 const AssistantActionBar: FC = () => {
+  // 提问卡浮在输入框上方等作答：这一轮没结束（输入框只是换成发送键，打字即作答），回复下不出「复制」（同 Claude）
+  const asking = !!useFloatingAskId(useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId ?? null));
+  if (asking) return null;
   return (
     <ActionBarPrimitive.Root
       hideWhenRunning

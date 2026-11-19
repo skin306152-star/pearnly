@@ -2036,6 +2036,11 @@ noteSentAnswer("t1", { answers: [] });
         self.assertIn("if (!message.attachments?.length && answerAskByText(sessionId ?? null, textOf(message))) return;", runtime)
         self.assertIn("isRunning: running && !asking,", runtime)   # 等作答时是发送键，不是停止键
         self.assertIn("floating />", read("components/tool-uis/approval-sheet.tsx"))
+        thread = read("components/assistant-ui/thread.tsx")
+        # 等作答时输入框是「或直接回复…」；这一轮没结束，回复下不出「复制」
+        self.assertIn('placeholder = fixed ?? (asking ? t("askReply") :', thread)
+        bar = thread[thread.index("const AssistantActionBar: FC"):]
+        self.assertIn("if (asking) return null;", bar[:600])
 
     def test_needs_input_notice_and_install_banner_use_the_card_buttons(self):
         thread = read("components/assistant-ui/thread.tsx")
