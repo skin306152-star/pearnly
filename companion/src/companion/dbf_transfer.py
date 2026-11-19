@@ -254,7 +254,9 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
             unit_cost = _cost(account_dir, match) if loc_cost else Decimal(0)
             value = (abs(units.base_qty) * unit_cost).quantize(Decimal("0.01")) if loc_cost else Decimal(0)
             out_key, in_key = (stkcod, source), (stkcod, target)
-            if fifo:
+            # 两个仓都记着链才按仓走（老账套有的存货链在主档上，``stock_chain.Chain.kept``）
+            by_wh = by_place and chains[out_key].kept and chains[in_key].kept
+            if fifo and by_wh:
                 from .dbf_stock import _fifo_cost, _fifo_take
                 lots_left = place_lots.get(out_key, [])
                 unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), unit_cost)
@@ -270,7 +272,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "STKDES": remark or _fit(str(item.get("name") or ""), 50), "REIMBURSE": "\x00",
                     "MLOTNUM": heads.get(stkcod, ""),
                 }, units.unit, here)
-                if by_place and sign < 0:  # 调出行：调出仓的链写前结存与指针
+                if by_wh and sign < 0:  # 调出行：调出仓的链写前结存与指针
                     row.update({"MREMBAL": float(chains[out_key].bal), "MREMVAL": float(chains[out_key].val),
                                 "MLOTNUM": chains[out_key].head})
                 stock_units.stamp(row, units)
@@ -284,7 +286,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                                        "LOTBAL": float(units.base_qty), "LOTVAL": float(value),
                                        "LUNITPR": float(unit_cost.quantize(Decimal("0.01")))})
                     row.update(priced)
-                if by_place:
+                if by_wh:
                     key = out_key if sign < 0 else in_key
                     chains[key] = stock_chain.moved(chains[key], sign * abs(units.base_qty), sign * value,
                                                     row["MLOTNUM"] if sign > 0 else "")
@@ -292,7 +294,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                 S.append_stcrd(table, _filtered(table, row))
                 moves.append(stock_location.Move(stkcod, here, sign * units.base_qty, Decimal(0), docdat,
                                                  stock_location.KIND_TRANSFER))
-            if by_place:
+            if by_wh:
                 stock_sale.move_stmas(account_dir, stkcod, 0, 0, fields={"MLOTNUM": stock_chain.stored_head(chains[in_key])},
                                       lots=(chains[in_key].bal, chains[in_key].val))
             lines.append(dbf_detail.line_mode(seq, str(item.get("name") or ""), stkcod, mode=stock_sale.ITEM_MODE))

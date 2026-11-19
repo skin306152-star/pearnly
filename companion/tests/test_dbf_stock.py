@@ -634,3 +634,15 @@ def test_a_book_costed_by_warehouse_reads_and_keeps_the_lot_chain_of_that_wareho
     place = _stloc(book, "ICE01", "01")
     assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == (lot, 11.0, 505.0, 505.0)
     assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MLOTNUM"].strip() == lot
+
+
+def test_a_warehouse_holding_stock_without_a_lot_chain_keeps_the_master_chain(book):
+    """11-19 只读统计：有的分仓计价老账套部分存货 STLOC 有结存却没批号（链在主档上），这些照旧用主档的链、不碰 STLOC 的链栏。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", LOC_COST="Y")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
+    _chain(book, "ICE01", "01", MREMBAL=0.0, MREMVAL=0.0, LOCVAL=0.0)  # 有结存 5、没批号
+    res = _write(book, _entry("OU", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    place = _stloc(book, "ICE01", "01")
+    assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["LOCVAL"]) == ("", 0.0, 0.0)
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MREMBAL"] == 4.0  # 主档的链照旧减

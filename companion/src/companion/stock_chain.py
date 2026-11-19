@@ -9,6 +9,9 @@
 - CC 原先只读写主档那条陈旧的链：增加行指错批、明细结存记成负数，财务之后在 Express 存同日进货时 Express 照这些值重算，
   出库从 33.33 变成 29.73（11-18 先进先出一轮的已知差异）。
 
+- 只读统计（11-19，服务器 15 本先进先出 + 分仓计价账套）：有数据的 7 本 STLOC 都记着链；其中 1 本大部分存货 STLOC 有结存却没批号、链在主档上。
+  所以逐个 (存货, 仓) 判：这个仓记着链（``Chain.kept``）才按仓走，否则照旧用主档的链。
+
 本模块只读写 STLOC 的这几栏与取价要用的库存卡，不动任何已有的单据行。
 """
 
@@ -36,6 +39,7 @@ class Chain:
     bal: Decimal       # 链上结存
     val: Decimal       # 链上货值
     marked: bool = False  # 原表上的批号首字符是「-」（链已为负）
+    kept: bool = True     # 这个仓记着链：有批号，或这个仓还没有结存（新链从这里起）。有结存却没批号的（老账套部分存货，链在主档上）为 False
 
 
 def applies(account_dir) -> bool:
@@ -64,7 +68,7 @@ def mark(head: str) -> str:
 def read(account_dir, keys: Iterable[Key]) -> Dict[Key, Chain]:
     """各 (存货, 仓) 写前的链；STLOC 没有这一行的从空链起（随单新建这一行）。"""
     keys = set(keys)
-    out: Dict[Key, Chain] = {key: Chain("", Decimal(0), Decimal(0)) for key in keys}
+    out: Dict[Key, Chain] = {key: Chain("", Decimal(0), Decimal(0)) for key in keys}  # 这个仓还没有行：新链
     table = stock_location._open(account_dir, stock_location.TABLE, dbf.READ_ONLY)
     if table is None:
         return out
@@ -76,8 +80,9 @@ def read(account_dir, keys: Iterable[Key]) -> Dict[Key, Chain]:
                 continue
             seen.add(key)
             head, marked = unmark(str(stock_location._value(rec, "MLOTNUM") or ""))
+            kept = bool(head) or _dec(stock_location._value(rec, "LOCBAL")) == 0
             out[key] = Chain(head, _dec(stock_location._value(rec, "MREMBAL")), _dec(stock_location._value(rec, "MREMVAL")),
-                             marked)
+                             marked, kept)
     finally:
         table.close()
     return out
