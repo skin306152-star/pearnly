@@ -852,6 +852,19 @@ class ReopenTests(Base):
         self.assertEqual(run.reopen(unanswered, "invoices", 1)["outcome"], "refused")   # 还没答过的不用「改」
 
 
+class SearchAnyOptionStepTests(Base):
+    """guide_search 对任何选项步骤都给（不只声明了 search 的）：不带字时给第一页，「已定」里点改、翻页都用它（A2 约定第 3 条；
+    wire 上已经如此，这条守住）。"""
+
+    def test_a_step_without_search_still_pages(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        frappe.db.get_value = lambda doctype, filters, field, **kw: filters["name"] if self.locked(filters["name"]) else None
+        frappe.get_doc = lambda doctype, found: self.docs[found]
+        self.assertEqual([row["code"] for row in run.search(name, "invoices")["options"]], ["IV001", "IV002"])
+        self.assertEqual([row["code"] for row in run.search(name, "method")["options"]], ["cash", "transfer"])
+
+
 class FormEditTests(Base):
     """复核卡就地改一格（guide_edit）对表单业务：声明点名的 ``edit(ctx, draft, row, field, value)`` 回 ``{"draft": 新草稿}`` 就换成
     新草稿、版本 +1、复核卡照新草稿出；回 ``{"refused": {格: 码}, "refused_text"?}`` 不改，拒收照引擎的形状；不在复核、版本不对、
