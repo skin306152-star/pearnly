@@ -68,3 +68,5 @@ pearnly_erp_portal.patches.v1_30_master_ledger_source
 pearnly_erp_portal.patches.v1_31_mrerp_company_identity
 # 未收款的销售单收款方式改回空（11-16：收款方式加了空选项，原来开单传空被补成 cash）
 pearnly_erp_portal.patches.v1_32_unpaid_sales_payment_method
+# 替写的旧件闸：存量站点写上切换时刻，之前排的写账件只等提交人自己的电脑（11-17 定稿，领单时判写账人）
+pearnly_erp_portal.patches.v1_33_writer_rule_since

@@ -68,6 +68,12 @@ class StampSince(unittest.TestCase):
         patches = (ROOT / "apps/pearnly_cowork/pearnly_cowork/patches.txt").read_text(encoding="utf-8")
         self.assertIn("pearnly_cowork.patches.v0_0_29_writer_rule_since", patches.split("[post_model_sync]", 1)[1])
 
+    def test_the_erp_patch_calls_the_same_stamp_and_is_registered(self):
+        text = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/patches/v1_33_writer_rule_since.py").read_text(encoding="utf-8")
+        self.assertIn("writer_rule.stamp_since()", text)
+        patches = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/patches.txt").read_text(encoding="utf-8")
+        self.assertIn("pearnly_erp_portal.patches.v1_33_writer_rule_since", patches.split("[post_model_sync]", 1)[1])
+
 
 if __name__ == "__main__":
     unittest.main()

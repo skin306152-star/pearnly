@@ -770,7 +770,7 @@ class Release(Base):
         job = self.jobs.rows["J-" + made["name"]]
         self.assertEqual((job["payload_version"], job["payload"]["direction"], job["payload"]["invoices"],
                           job["payload"]["cash"], job["payload"]["ref_no"], job["actor"], job["request_key"]),
-                         (20, "receipt", [{"docnum": "IV1", "amount": "700.00"}], "700.00", made["name"], "office@x",
+                         (20, "receipt", [{"docnum": "IV1", "amount": "700.00"}], "700.00", made["name"], "a@x",
                           "erp:receipt:" + made["name"]))
         row = frappe.db.get_value("ERP Collection", made["name"], ["consent_ref", "confirmed_at", "job"], as_dict=True)
         self.assertEqual((row.consent_ref, row.job), ("line:evt-1", "J-" + made["name"]))

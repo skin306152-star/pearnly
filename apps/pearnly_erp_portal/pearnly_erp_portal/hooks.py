@@ -381,6 +381,8 @@ pearnly_cc_desktop = {
     "books_changed": "pearnly_erp_portal.express.companies.books_changed",
     # 领单前兜底：来源单据已作废的写账件撤掉、不交电脑（11-13）
     "still_wanted": "pearnly_erp_portal.express.desktop.still_wanted",
+    # 替写（用户 11-17 定稿，两产品同一条）：别人的电脑能不能替这件写——对这家公司有权限、签发有效
+    "stand_in": "pearnly_erp_portal.express.desktop.stand_in",
     # express_ar_open（11-11 收款）：一本账套的未收清发票（共用层接受这一种由 CC 桌面版那一批加）
     "kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"],
 }

@@ -1,10 +1,10 @@
-"""流程用例：ERP 写账人与收款一个口径（用户 11-16「按建议」，`express.push.actor_of` → `office_actor`）——只用手机的销售员 B 开的
-销售单，交给办公室那台只有 A 登录过 CC、够得到这本账套的电脑写；ERP 单据上仍记 B；单据页与代录对话不再说「未连接电脑」（B60 前叫「CC 桌面版未连接」）；
-另一家公司的电脑（够不到这本账套）不领。
+"""流程用例：ERP 写账人在电脑领单那一刻判（用户 11-17 定稿，两产品同一条；替代 11-16 排队时换人的 ``office_actor``）——只用手机的
+销售员 B 开的销售单，写账件仍归 B；办公室那台只有 A 登录过 CC、够得到这本账套的电脑来领时替 B 写，写账件上记下替写的 A；ERP 单据上
+仍记 B；单据页与代录对话不再说「未连接电脑」（B60 前叫「CC 桌面版未连接」）；另一家公司的电脑（够不到这本账套）不领。
 
 实验栈里没有真的 CC 桌面版：按 CC 桌面版的样子在站点里登记两台电脑（`cc_desktop.devices.register`，登录人分别是 A 与 C）并报账套
 （`books.replace`：A 那台报这家公司的账套，C 那台只报另一家公司的），标成在线。B 开单（正式入账函数）后按正式写入路径排写账件
-（`push.send`），再按电脑领单同一个排头函数（`jobs._heads`）看哪台领得到；最后照电脑写好的样子回执（`push.job_changed`）。
+（`push.send`），再按电脑领单同一个函数（`jobs._claim`）让两台各领一次；最后照电脑写好的样子回执（`push.job_changed`）。
 单据页的原因（`push._queued_note`，每分钟那一轮写到单据上）与代录对话那句（`operator.computer_state`）按产生它们的函数核——
 实验栈不跑定时任务。没有页面步骤。cleanup：删主档种子、撤写账件、作废单据、移除两台电脑与它们的账套行。
 """
@@ -14,7 +14,7 @@ import uuid
 
 from erp_lib import codes, company, void_documents, warehouses
 
-TITLE = "ERP 写账人同收款：只用手机的销售员的单交给办公室电脑写、ERP 记原发单人、不再显示未连接；别家公司的电脑不领（11-16）"
+TITLE = "ERP 写账人领单时判：只用手机的销售员的单由办公室电脑领单时替写、记下替写人，写账件与 ERP 仍记原发单人、不再显示未连接；别家公司的电脑不领（11-17 定稿）"
 A, B, C = "admin@erp.regression", "sales@erp.regression", "purchase@erp.regression"
 
 
@@ -87,6 +87,10 @@ if {bool(params.get('seeded'))!r}:
     path = facts._path({params['key']!r})
     if os.path.exists(path):
         os.remove(path)
+for name in frappe.get_all("Pearnly CC Job", filters={{"source_name": {params['doc']!r}, "status": ["in", ["queued", "leased"]]}},
+                           pluck="name"):
+    frappe.db.set_value("Pearnly CC Job", name, {{"status": "cancelled", "writing_key": None, "reason": "flow cleanup"}},
+                        update_modified=False)
 for device in ({params['office']!r}, {params['other']!r}):
     books.replace(device, [], now_datetime())
     frappe.db.set_value("Pearnly CC Device", device, {{"retired_at": now_datetime(), "token_digest": None}}, update_modified=False)
@@ -112,32 +116,42 @@ doc = frappe.db.get_value(push.SALES, {params['doc']!r}, ["owner", "ledger_state
                           as_dict=True)
 job = frappe.db.get_value("Pearnly CC Job", doc.ledger_job, ["name", "actor", "book_key", "status", "request_key"], as_dict=True) \\
     if doc.ledger_job else None
-peers = devices.peers()
-heads = {{name: [row.name for row in jobs._heads([{params['key']!r}], name, peers[name])] for name in ({params['office']!r}, {params['other']!r})}}
+import types
 reach = {{name: sorted(jobs.books.writable(name) or []) for name in ({params['office']!r}, {params['other']!r})}}
 note = push._queued_note(push.SALES, frappe._dict({{**doc, "name": {params['doc']!r}}}))
 frappe.set_user({B!r})
 words = operator.computer_state({params['company']!r}, {B!r})
 frappe.set_user("Administrator")
+# 两台电脑按领单同一个函数各领一次（别家公司那台先领：够不到这本，领不到）
+taken = {{}}
+for name in ({params['other']!r}, {params['office']!r}):
+    got_jobs = jobs._claim(types.SimpleNamespace(device=name), {{}}, devices.now())
+    frappe.db.commit()
+    taken[name] = len(got_jobs)
+leased = frappe.db.get_value("Pearnly CC Job", job.name, ["status", "lease_device", "writer", "actor"], as_dict=True) if job else {{}}
 written = {{}}
 if job:
     push.job_changed({{"source_doctype": push.SALES, "source_name": {params['doc']!r}, "status": "success", "job": job.name,
                       "docnum": "SR-FLOW-{params['tag'][:6]}", "request_key": job.request_key}})
+    # 写账件本身也照电脑回执那样收尾：放开这本账套的写者锁，不留「领走中」挡住同站点后面的格
+    frappe.db.set_value("Pearnly CC Job", job.name, {{"status": "success", "writing_key": None}}, update_modified=False)
     frappe.db.commit()
     written = frappe.db.get_value(push.SALES, {params['doc']!r}, ["owner", "ledger_state", "ledger_docnum"], as_dict=True)
-print(json.dumps({{"doc": doc, "job": job, "heads": heads, "reach": reach, "note": note, "words": words, "written": written}},
+print(json.dumps({{"doc": doc, "job": job, "taken": taken, "leased": leased, "reach": reach, "note": note, "words": words,
+                  "written": written}},
                  default=str))
 """)
     job, doc, written = got.get("job") or {}, got.get("doc") or {}, got.get("written") or {}
     office, other = params["office"], params["other"]
     return [
-        {"case": "the phone-only seller's document is queued for the office member whose computer reaches the book",
+        {"case": "the phone-only seller's document is queued as hers (decided when a computer claims, not now)",
          "saved": {"owner": doc.get("owner"), "actor": job.get("actor"), "state": doc.get("ledger_state")},
-         "ok": doc.get("owner") == B and job.get("actor") == A and job.get("status") == "queued"},
-        {"case": "the office computer can take it; the other company's computer cannot (it does not reach this book)",
-         "saved": {"heads": got.get("heads"), "reach": got.get("reach")},
-         "ok": job.get("name") in (got["heads"].get(office) or []) and not got["heads"].get(other)
-         and params["key"] not in (got["reach"].get(other) or [])},
+         "ok": doc.get("owner") == B and job.get("actor") == B and job.get("status") == "queued"},
+        {"case": "the office computer takes it standing in for her and records A; the other company's computer cannot",
+         "saved": {"taken": got.get("taken"), "leased": got.get("leased"), "reach": got.get("reach")},
+         "ok": (got.get("leased") or {}).get("status") == "leased" and (got.get("leased") or {}).get("lease_device") == office
+         and (got.get("leased") or {}).get("writer") == A and (got.get("leased") or {}).get("actor") == B
+         and not (got.get("taken") or {}).get(other) and params["key"] not in (got["reach"].get(other) or [])},
         {"case": "the document page reason and the conversation no longer say CC Desktop not connected",
          "saved": {"note": got.get("note"), "words": got.get("words")},
          "ok": got.get("note") != "express.cc_desktop_not_connected" and got.get("words") != "express.cc_desktop_not_connected"},

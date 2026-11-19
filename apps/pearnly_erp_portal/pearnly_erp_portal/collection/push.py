@@ -1,8 +1,8 @@
 """放行后的收款交进共用机器通道的写账队列，回执记回收款记录（RE 号 / 失败原因 / 电脑重读到的各张余额）。
 
 - 交：载荷方向 ``receipt``、载荷版本 20（`contracts.payload`）；请求号 ``erp:receipt:<记录号>``（同一笔只交一次）；写进放行时冻结的
-  那本账套；作业归谁按 `express.push.office_actor`（收款员不在办公室电脑上登录 CC：归这家公司在够得到这本账套的电脑上登录过
-  CC 的员工）。电脑不在线就排着，上线后补写。
+  那本账套；作业归收款员本人，谁的电脑写在领单那一刻判（用户 11-17 定稿，`cc_desktop.jobs`：收款员没有在线的电脑时，这家公司在线、
+  够得到这本账套、登录人有权限的电脑替她写）。电脑都不在线就排着，谁先上线谁写。
 - 回执（共用通道在同一事务里经 `express.desktop.job_changed` 交来）：排队 / 领走 → 待写入 / 写入中；成功 → 已写入 + RE 号，
   回执里每张发票写后的余额改进快照，再按客户读一次；转人工 → 失败 + 原因（``[ALREADY_COLLECTED]`` 时电脑重读到的各张余额记在
   记录上、改进快照；服务品现金制的发票 CC 也回 ``[INVOICE_NOT_FOUND]``（证据 ``problem="cash_basis_vat"``），照原因记失败；
@@ -59,7 +59,7 @@ def send(name):
               "methods": [{"code": row.code, "prefix": row.prefix, "amount": row.amount} for row in doc.payments]}
     payload = contracts.payload(record, book, company, user=doc.collector)
     job = jobs.enqueue(source_doctype=DOCTYPE, source_name=doc.name, request_key=request_key(doc.name, doc.get("attempt")),
-                       actor=express_push.office_actor(doc.collector, doc.company, doc.book_key), book_key=doc.book_key,
+                       actor=doc.collector, book_key=doc.book_key,
                        payload=payload, payload_version=contracts.PAYLOAD_VERSION, label=doc.name)
     _set(name, {"job": job["job"]})
     return job

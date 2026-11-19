@@ -1,7 +1,7 @@
 """验收场景（修复前红）：只用手机的员工发的单由办公室电脑写（office_actor）。
 
   acc.erp.office.actor.purchase   一个从没在电脑上登录过 CC 的员工（只用手机）开现购单提交 → 写账件归这家公司里在够得到这本账套的
-                                   电脑上登录过 CC 的员工（`push.office_actor`，同收银日汇总、收款）→ 测试机那台 CC 桌面版领走写进
+                                   电脑上登录过 CC 的员工（11-17 定稿起改为领单时替写：写账件仍归他本人，`cc_desktop.jobs` 领单时判）→ 测试机那台 CC 桌面版领走写进
                                    Express → 账本读回；ERP 单据仍是发单人的，单据页不说「CC 桌面版未连接」。
 
 修复前红：评估「ERP 写账人改走 office_actor」（11-16 主会话「按建议」，排在 H3 与「未连接提示」之后施工，流程 `erp.office-actor` 先红后绿
@@ -41,12 +41,13 @@ def run(ctx):
     conf = chain.settings()
     book = ctx.targets.ledger(chain.HOST, chain.LEDGER)
     chain.baseline(ctx, book, conf)
-    with ctx.step("只用手机的员工提交", "写账件归办公室电脑上登录 CC 的员工；那台电脑领走写成；单据仍是发单人的，不显示未连接"):
+    with ctx.step("只用手机的员工提交", "写账件归发单人；办公室电脑领单时替他写成；单据仍是发单人的，不显示未连接"):
         out = chain.site(ctx, "erp_office_actor.py", {**conf, "phone_user": phone, "run": chain.tag(ctx), "price": 10}, timeout=600)
         first = out.get("first_job") or {}
         ctx.facts.update(erp_doc=out.get("doc"))
-        ctx.require("写账件不归发单人（他没有电脑，归了就没人领）", True, bool(first.get("actor")) and first.get("actor") != phone)
-        ctx.check("写账件归这家公司够得到账套的电脑上登录 CC 的员工", out.get("expected_actor"), first.get("actor"))
+        # 11-17 定稿：写账件归发单人本人，办公室那台在领单那一刻替他写、写账件上记下替写的人
+        ctx.check("写账件归发单人本人", phone, first.get("actor"))
+        ctx.check("办公室电脑上登录 CC 的员工替他写", conf.get("user"), (out.get("job") or {}).get("writer"))
         ctx.check("排队时单据页不说 CC 桌面版未连接", True, out.get("note") != NOT_CONNECTED)
         state = out.get("state") or {}
         ctx.require("写账状态", "written", state.get("ledger_state"))

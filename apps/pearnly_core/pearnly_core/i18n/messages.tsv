@@ -938,6 +938,7 @@ Verify State	核对结果	ผลการตรวจสอบ	照合結果
 Writing Key	写入中的账套	ชุดบัญชีที่กำลังบันทึก	書き込み中の会計データ
 Written At	写入时间	เวลาบันทึก	書き込み日時
 Written By	写入的电脑	เครื่องที่บันทึก	書き込んだパソコン
+Writer	写账人	ผู้บันทึกเข้าบัญชี	書き込み担当者
 CC Desktop authentication failed.	CC 桌面版认证失败。	การยืนยันตัวตน CC เดสก์ท็อปไม่สำเร็จ	CC デスクトップの認証に失敗しました。	cc_desktop.unauthorized
 The CC Desktop service is temporarily unavailable. Try again shortly.	CC 桌面版服务暂时不可用，请稍后重试。	บริการ CC เดสก์ท็อปไม่พร้อมใช้งานชั่วคราว กรุณาลองใหม่ภายหลัง	CC デスクトップのサービスは一時的に利用できません。しばらくしてからもう一度お試しください。	cc_desktop.busy
 The CC Desktop request is invalid.	CC 桌面版请求无效。	คำขอของ CC เดสก์ท็อปไม่ถูกต้อง	CC デスクトップのリクエストが無効です。	cc_desktop.request_invalid

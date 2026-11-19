@@ -481,15 +481,15 @@ class World:
     def erp_office_actor(self, params):
         office, phone = params["user"], params["phone_user"]
         if self.break_at == "owner-actor":
-            # 修复前：actor_of 对采购单回开单人，没有电脑会来领，一直「CC 桌面版未连接」
-            return {"ok": True, "company": "CO-1", "doc": "PUR-M", "stuck": True, "expected_actor": office,
+            # 修复前（11-17 定稿前）：没有替写，归开单人的件没有电脑来领，一直「CC 桌面版未连接」
+            return {"ok": True, "company": "CO-1", "doc": "PUR-M", "expected_actor": phone,
                     "first_job": {"name": "J-M", "status": "queued", "actor": phone}, "note": "express.cc_desktop_not_connected",
-                    "state": {"ledger_state": "queued", "ledger_job": "J-M"}}
+                    "state": {"ledger_state": "queued", "ledger_job": "J-M"}, "job": {"status": "queued", "actor": phone}}
         self._purchase("HP691116-002", "V001", "P001")
-        return {"ok": True, "company": "CO-1", "doc": "PUR-M", "expected_actor": office, "note": "",
-                "first_job": {"name": "J-M", "status": "queued", "actor": office}, "owner": phone,
+        return {"ok": True, "company": "CO-1", "doc": "PUR-M", "expected_actor": phone, "note": "",
+                "first_job": {"name": "J-M", "status": "queued", "actor": phone}, "owner": phone,
                 "state": {"ledger_state": "written", "ledger_docnum": "HP691116-002"}, "book_paths": [params["ledger"]],
-                "job": {"status": "success", "verify_state": "ok", "actor": office},
+                "job": {"status": "success", "verify_state": "ok", "actor": phone, "writer": office},
                 "expected": {"supplier_code": "V001", "item_code": "P001", "qty": 1, "price": 10,
                              "totals": {"subtotal": 10.0, "vat_amount": 0.7, "grand_total": 10.7}}}
 
@@ -858,7 +858,7 @@ class ChainScenarioTest(unittest.TestCase):
                                              ("acc.erp.operator.stock.group", "h5-unasked", "写账状态"),
                                              ("acc.erp.operator.masters.link", "unlinked", "挂上了账本里实际用的码"),
                                              ("acc.erp.operator.no.computer", "no-hook", "未连接"),
-                                             ("acc.erp.office.actor.purchase", "owner-actor", "不归发单人")):
+                                             ("acc.erp.office.actor.purchase", "owner-actor", "写账状态")):
             result, world = self.go(scenario_id, break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, (scenario_id, break_at, result["detail"]))
             self.assertIn(words, result["detail"], (scenario_id, break_at))

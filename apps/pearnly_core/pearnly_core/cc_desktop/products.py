@@ -6,6 +6,8 @@
         "kinds": ["express_masters"], # 这个站点会请电脑做的按需请求种类
         "books_changed": "<点路径>",  # (device) -> None：可选；一台电脑报来的账套名单有了变化（同一事务里叫，产品排后台任务）
         "still_wanted": "<点路径>",   # (job: dict) -> bool：可选；领单前问一次这件还要不要写（来源单据已作废回 False，撤掉不交电脑）
+        "stand_in": "<点路径>",       # (user, job: dict) -> bool：可选；``user``（不是提交人）此刻能不能替这件写（用户 11-17 定稿：
+                                      # 公司里有一台开着、够得到、登录人有权限的电脑，任何成员的单都能写）；没声明 = 只写本人的
         # MR.ERP 登录在 CC 桌面版里授权（ADR-026 第 7 条，可选；两项都声明才算支持，没声明回 unsupported）：
         "mrerp_login_scope": "<点路径>",    # (user, connection) -> "site" | "local" | ""：管理员 site（写站点 + 存本机）、
                                             # 使用成员 local（只存本机）、别人空串（主会话 11-02 定）
@@ -54,6 +56,16 @@ def still_wanted(view: dict) -> bool:
     """领单前兜底：产品说这件不要了（如来源单据已作废）回 False；没声明一律要。"""
     path = _path("still_wanted")
     return bool(frappe.get_attr(path)(view)) if path else True
+
+
+def stand_in_enabled() -> bool:
+    return bool(_path("stand_in"))
+
+
+def stand_in(user, view: dict) -> bool:
+    """``user``（这台电脑上登录过 CC、不是提交人）此刻能不能替这件写：产品判（ERP：签发有效、对这家公司有权限）；没声明一律不能。"""
+    path = _path("stand_in")
+    return bool(path and user and user not in ("Guest", "Administrator") and frappe.get_attr(path)(user, view))
 
 
 def books_changed(device: str) -> None:

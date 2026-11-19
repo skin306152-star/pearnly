@@ -867,31 +867,28 @@ def _used_elsewhere(product, name):
 
 
 def actor_of(doctype, row, book_key):
-    """写账作业归谁（电脑只领自己登录过的人的单，ADR-021）：所有单据类型同收款一个口径（用户 11-16「按建议」）——开单人自己有登录过
-    CC 的电脑（在线或关着）就归开单人；没有（只用手机的销售员、仓管）就归这家公司里在够得到这份账套的电脑上登录过 CC 的员工
-    （:func:`office_actor`，在线的电脑优先）；一个都没有仍归开单人（页面写「CC 桌面版未连接」）。ERP 单据上记的仍是开单人，
-    只是写账件交给哪台电脑写。最早只给收银日汇总（建单人是 Administrator，10-25），11-11 收款，11-16 采购 / 销售 / 出入库 / 盘点。"""
-    return office_actor(row.owner, company_of(doctype, row.name), book_key)
+    """写账作业归谁：开单人本人（ERP 单据上记的也是他）。谁的电脑写在电脑来领单那一刻判（共用 ``cc_desktop.jobs``，用户 11-17
+    定稿，两产品同一条）：本人的电脑在线用自己的；否则公司里在线、够得到这份账套、登录人对这家公司有权限的那台替他写（:func:`may_write`）；
+    都不在线就排队，谁先上线谁写。11-16 在排队时就换成办公室同事的写法（``office_actor``）作废。"""
+    del doctype, book_key
+    return row.owner
 
 
-def office_actor(owner, company, book_key):
-    """不在办公室电脑上登录 CC 的人交的写账（收银日汇总的建单人、在外面收款的收款员）归谁：本人有登录过 CC 的电脑（在线或关着）
-    就归本人；否则归这家公司里在够得到这份账套的电脑上登录过 CC 的员工（在线的电脑优先，同一台按名字排）；一个都没有仍归本人。"""
-    if jobs.writers(owner, book_key)["state"] in ("ok", "offline", "not_yours"):
-        return owner
-    peers = devices.peers()
-    reach = [name for name in (books.reachers([book_key]) or {}).get(book_key) or () if name in peers]
-    for name in sorted(reach, key=lambda name: (not peers[name].online, name)):
-        for user in sorted(peers[name].users or ()):
-            if devices.issuer_valid(user) and company in companies.allowed_companies(user):
-                return user
-    return owner
+def may_write(user, company) -> bool:
+    """``user`` 此刻能不能用自己登录 CC 的电脑替别人写这家公司的单：签发有效（在职、能连 CC）、对这家公司有权限。"""
+    return bool(company) and devices.issuer_valid(user) and company in companies.allowed_companies(user)
+
+
+def writers_of(actor, company, book_key) -> dict:
+    """``actor`` 交到这家公司 ``book_key`` 的单此刻有没有电脑写（本人的、加上能替他写的，`cc_desktop.jobs.writers`）。"""
+    return jobs.writers(actor, book_key, eligible=lambda user: may_write(user, company))
 
 
 def _queued_note(doctype, row):
     """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
     他能写的电脑都关着 → 离线（在线的那台是别人的 → 你的电脑离线，不派给别人）；他的电脑都够不到这份账套 → 没有电脑能写。"""
-    found = jobs.writers(actor_of(doctype, row, row.ledger_book), row.ledger_book) if row.ledger_book else {"state": "ok"}
+    found = writers_of(actor_of(doctype, row, row.ledger_book), company_of(doctype, row.name), row.ledger_book) \
+        if row.ledger_book else {"state": "ok"}
     return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE, "not_yours": contracts.NOT_YOURS,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 

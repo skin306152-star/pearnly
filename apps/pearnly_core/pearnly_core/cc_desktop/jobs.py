@@ -17,12 +17,13 @@
 """
 import json
 import uuid
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import frappe
 from frappe import _
 
-from pearnly_core.cc_desktop import books, contracts, devices, documents, products
+from pearnly_core.cc_desktop import books, contracts, devices, documents, products, writer_rule
 from pearnly_core.cc_desktop.wire import ack_rules, queue_contracts, route_contracts
 from pearnly_core.express_rules.push import wire_location
 
@@ -33,7 +34,8 @@ STATUSES = (*OPEN, *DONE)
 HEAD_SCAN = 500
 FIELDS = ("name", "request_key", "source_doctype", "source_name", "label", "actor", "book_key", "payload_version",
           "status", "route_device", "attempt", "fence", "lease_device", "lease_expires_at", "last_device", "docnum",
-          "stage", "reason", "verify_state", "verify_json", "written_by_device", "written_at", "meta_json", "creation", "modified")
+          "stage", "reason", "verify_state", "verify_json", "written_by_device", "written_at", "meta_json", "writer", "creation",
+          "modified")
 LOST = "cc_desktop.result_unknown"
 VOIDED = "voided"  # 产品说这件不要了（来源单据已作废，`products.still_wanted`），领单前撤掉；同产品作废时撤的原因
 OUTDATED = "payload_version_outdated"
@@ -193,23 +195,27 @@ def retry(name) -> dict:
     return view(doc.as_dict())
 
 
-def writers(actor, book_key) -> dict:
-    """``actor`` 交到 ``book_key`` 的单此刻有没有电脑写：``{state, devices}``。state：``ok``（有在线的）、``offline``
-    （他能写的电脑都关着，单子排队）、``not_yours``（他能写的电脑都关着，而别人的电脑在线、够得到这本——不派给别人，
-    界面说「你的电脑离线」，不说成电脑离线，A 线 11-12 测试机1）、``unreachable``（他有电脑、都够不到这份账套）、
-    ``missing``（他一台登录过 CC 的电脑都没有，界面写「CC 桌面版未连接」）。"""
+def writers(actor, book_key, eligible=None) -> dict:
+    """``actor`` 交到 ``book_key`` 的单此刻有没有电脑写：``{state, devices}``（用户 11-17 定稿，两产品同一条）。能写的电脑 =
+    他自己登录过 CC 的、加上别人的电脑里有一位登录人 ``eligible(用户)`` 为真的（产品判：此刻对这家公司有权限、签发有效；
+    不给 = 只算他自己的），都要够得到这份账套。state（共用 ``route_contracts.writer_status``，换成原来的名字）：``ok``（有一台在线：
+    推了就写）、``offline``（都关着：排队，谁先上线谁写）、``unreachable``（有电脑、没有一台能写这本）、``missing``（他自己和能替他写
+    的人一台登录过 CC 的电脑都没有，界面写「CC 桌面版未连接」）。"""
     peers = devices.peers()
-    mine = [name for name, peer in peers.items() if route_contracts.serves(peer.users, actor)]
-    if not mine:
-        return {"state": "missing", "devices": []}
-    reach = set((books.reachers([book_key]) or {}).get(book_key) or ())
-    able = [name for name in mine if name in reach]
-    if not able:
-        return {"state": "unreachable", "devices": []}
-    if any(peers[name].online for name in able):
-        return {"state": "ok", "devices": able}
-    others = any(peer.online for name, peer in peers.items() if name in reach and name not in mine)
-    return {"state": "not_yours" if others else "offline", "devices": able}
+    check = eligible or (lambda user: False)
+    mine = {name for name, peer in peers.items() if route_contracts.serves(peer.users, actor)}
+    helpers = {name for name, peer in peers.items() if name not in mine
+               and any(user != actor and check(user) for user in peer.users or ())}
+    reach = set((books.reachers([book_key]) or {}).get(book_key) or ()) if (mine or helpers) else set()
+    able = sorted(name for name in mine | helpers if name in reach)
+    status = route_contracts.writer_status(online=any(peers[name].online for name in able), writers_known=bool(able),
+                                           computers=bool(mine or helpers))
+    return {"state": WRITER_STATES[status], "devices": able}
+
+
+WRITER_STATES = {route_contracts.WRITER_CONNECTED: "ok", route_contracts.WRITER_OFFLINE: "offline",
+                 route_contracts.WRITER_NO_WRITER: "unreachable", route_contracts.WRITER_MISSING: "missing",
+                 route_contracts.WRITER_NEEDS_UPDATE: "ok"}
 
 
 def waiting_on(actor, book_keys) -> list:
@@ -297,23 +303,33 @@ def _busy(device, moment):
         AND lease_expires_at > %s LIMIT 1""", (device, moment)))
 
 
-def _heads(keys, device, peer, moment=None):
+def _heads(keys, device, peer, moment=None, since=None):
     """各份账套里**这台电脑能写的**排在最前的那件（按交进来的先后）；有一件正在写的账套不算（等它写完）。
 
     只在归这台写的单里取排头（录入人在这台电脑上登录过 CC，或钉在这台电脑上的单；`route_contracts.owns`），同 Cowork
-    `companion.queue_heads`。验收 10-25：原来每份账套不分是谁的单只取最前一件，那件的录入人名下没有电脑时，同一份账套
+    `companion.queue_heads`；``since``（站点时区、库里排队时刻的写法，:func:`_since`）不为空时还看那之后排的别人的单（替写）。验收 10-25：原来每份账套不分是谁的单只取最前一件，那件的录入人名下没有电脑时，同一份账套
     后面所有人的单都领不到（CC 一直在领、30 分钟 126 次全是空）。"""
     marks = ", ".join(["%s"] * len(keys))
     taken = {row[0] for row in frappe.db.sql(f"""SELECT DISTINCT book_key FROM `tab{JOB}`
         WHERE status = 'leased' AND book_key IN ({marks})""", tuple(keys))}
     users = sorted({user for user in peer.users or () if user})
     mine = f"(route_device = %s OR (IFNULL(route_device, '') = ''{' AND actor IN (' + ', '.join(['%s'] * len(users)) + ')' if users else ''}))"
-    rows = frappe.db.sql(f"""SELECT name, actor, book_key, payload_version, route_device, reason, lease_expires_at FROM `tab{JOB}`
+    args = [*keys, device, *users]
+    if since is not None:
+        # 这台上有人能替别人写（用户 11-17 定稿）：再看切换时刻之后排的别人的单（旧件闸，`writer_rule`）；定时任务（钉在别的电脑上的）照旧不看。
+        # 切换前排的别人的件不进排头，不挡这本账套后面的新件
+        mine = f"({mine} OR (IFNULL(route_device, '') = '' AND creation >= %s))"
+        args.append(since)
+    rows = frappe.db.sql(f"""SELECT name, actor, book_key, payload_version, route_device, reason, lease_expires_at, source_doctype,
+        source_name, creation FROM `tab{JOB}`
         WHERE status = 'queued' AND book_key IN ({marks}) AND {mine} ORDER BY creation, name LIMIT {HEAD_SCAN}""",
-                         (*keys, device, *users), as_dict=True)
+                         tuple(args), as_dict=True)
     heads, seen = [], set(taken)
     for row in rows:  # 每份账套取第一条（同 `route_contracts.heads`，这里的键叫 book_key）
-        if row.book_key in seen or not route_contracts.owns(device, peer, row.actor, row.route_device or ""):
+        if row.book_key in seen:
+            continue
+        if not route_contracts.owns(device, peer, row.actor, row.route_device or "") and not (
+                since is not None and not row.route_device and _open(row.creation)):
             continue
         seen.add(row.book_key)
         if (row.reason == ack_rules.EXPRESS_OPEN and moment is not None and row.lease_expires_at
@@ -332,18 +348,30 @@ def _claim(context, request, moment):
     peers = devices.peers()
     me = peers.get(context.device) or route_contracts.Peer()
     peers[context.device] = me._replace(online=True)
-    heads = _heads(sorted(reach), context.device, me, moment)
+    # 这台上登录过 CC 的人里可能有人替别人写（用户 11-17 定稿，产品声明 ``stand_in``）：排头再看切换时刻之后排的别人的单
+    helping = bool(me.users) and products.stand_in_enabled()
+    heads = _heads(sorted(reach), context.device, me, moment, since=_since() if helping else None)
     if not heads:
         return []
     reachers = books.reachers([head.book_key for head in heads])
     for head in heads:
         job = route_contracts.Job(head.name, head.book_key, head.actor, int(head.payload_version or 1),
                                   head.route_device or "")
+        # 替这件写记谁：这台的登录人里此刻能替提交人写的（产品判），添加提交人的那位排前（Frappe 原生 User.owner，主会话 11-19）；
+        # 旧件闸：切换时刻之前排的件不替（领单时再核一次）
+        helper = _helper(me.users, head) if helping and head.actor not in (me.users or ()) and _open(head.creation) else ""
         decision = route_contracts.decide(context.device, job, reachers.get(head.book_key) or [], peers,
-                                          route_contracts.Account(), moment)
+                                          route_contracts.Account(), moment, stand_in=helper)
         if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
             continue
-        doc = frappe.get_doc(JOB, head.name, for_update=True)
+        try:
+            doc = frappe.get_doc(JOB, head.name, for_update=True)
+        except frappe.QueryDeadlockError:
+            # 两台电脑同时来领同一件（替写后同一件有几台能领）：排头是旧快照读到的，另一台刚领走并提交，这里加锁读撞「记录已变」
+            # （MariaDB 1020）。库已把这次领单的整个事务回滚（保存点也不在了，流程 erp.writer-at-claim 实测）：这件归那台，
+            # 这次空手回去、不报错，电脑下一轮再来领（报到时刻随下一轮再记）
+            frappe.db.rollback()
+            return []
         if doc.status != "queued":
             continue
         if not decision.take:
@@ -352,7 +380,9 @@ def _claim(context, request, moment):
             documents.persist(doc)
             products.job_changed(view(doc.as_dict()))
             continue
-        if not devices.issuer_valid(doc.actor):
+        # 提交人此刻还能交单（签发有效）；替写的由替写人签（产品已核他有权限），提交人只要账号没停用（收银日汇总由系统建、
+        # 收款员不在电脑上登录 CC，用户 11-17 定稿：任何成员的单都能写）
+        if not (devices.issuer_valid(doc.actor) if decision.route != route_contracts.STAND_IN else _enabled(doc.actor)):
             doc.update({"status": "manual", "reason": "cc_desktop.actor_not_allowed", "stage": "needs_review"})
             documents.persist(doc)
             products.job_changed(view(doc.as_dict()))
@@ -366,9 +396,11 @@ def _claim(context, request, moment):
         point = "pcc_lease_" + uuid.uuid4().hex
         frappe.db.savepoint(point)
         try:
+            # 替写的记下是谁（只作记录与排查，单上的提交人 actor 不变）；本人的电脑写的清空
             doc.update({"status": "leased", "lease_device": context.device, "last_device": context.device,
                         "lease_expires_at": moment + timedelta(seconds=ack_rules.LEASE_SECONDS),
-                        "writing_key": doc.book_key, "fence": int(doc.fence or 0) + 1})
+                        "writing_key": doc.book_key, "fence": int(doc.fence or 0) + 1,
+                        "writer": helper if decision.route == route_contracts.STAND_IN else None})
             documents.persist(doc)
         except frappe.UniqueValidationError:
             # 同一份账套另一件刚被别的电脑领走（写者锁）：这份账套等它写完，看下一份
@@ -377,6 +409,38 @@ def _claim(context, request, moment):
         products.job_changed(view(doc.as_dict()))
         return [_job(doc, reach[doc.book_key], job, peers.get(context.device))]
     return []
+
+
+def _local_tz():
+    return ZoneInfo(frappe.utils.get_system_timezone())
+
+
+def _since():
+    """旧件闸（`writer_rule`）换成库里排队时刻（``creation``，站点时区）的写法：没配回最早，配了读不出回最晚（一件都不替）。"""
+    moment = datetime.strptime(route_contracts.db_time(writer_rule.current()), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+    if moment.year in (1970, 9999):
+        return moment.replace(tzinfo=None)
+    return moment.astimezone(_local_tz()).replace(tzinfo=None)
+
+
+def _open(creation) -> bool:
+    """这件（``creation`` 站点时区）能不能由别人的电脑替写（共用 ``route_contracts.stand_in_open``，按 UTC 比）。"""
+    if not isinstance(creation, datetime):
+        return False
+    at = creation.replace(tzinfo=_local_tz()) if creation.tzinfo is None else creation
+    return route_contracts.stand_in_open(at, writer_rule.current())
+
+
+def _enabled(user) -> bool:
+    return user == "Administrator" or bool(user and frappe.db.get_value("User", user, "enabled"))
+
+
+def _helper(users, head) -> str:
+    """这台电脑替 ``head`` 的提交人写时记谁（共用 ``route_contracts.pick_user``）：不是提交人、产品认可此刻能替这件写的登录人；
+    添加提交人的那位排前（谁建的这个用户，Frappe 原生 ``User.owner``，主会话 11-19），取不到按用户名。只在几台都在线时排先后。"""
+    inviter = (frappe.db.get_value("User", head.actor, "owner") or "") if head.actor else ""
+    job = {"source_doctype": head.source_doctype, "source_name": head.source_name, "actor": head.actor, "book_key": head.book_key}
+    return route_contracts.pick_user(users, lambda user: user != head.actor and products.stand_in(user, job), inviter)
 
 
 def lease(context, body) -> dict:

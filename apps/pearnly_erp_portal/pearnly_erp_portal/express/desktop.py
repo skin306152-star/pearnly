@@ -26,6 +26,18 @@ def still_wanted(view) -> bool:
     return push.still_wanted(view)
 
 
+def stand_in(user, view) -> bool:
+    """``user`` 能不能用自己登录 CC 的电脑替这件写（共用层 ``stand_in``，用户 11-17 定稿）：对这件所属公司有权限、签发有效
+    （`push.may_write`）。收款记录按收款记录上的公司。"""
+    from pearnly_erp_portal.express import push
+
+    doctype, name = view.get("source_doctype"), view.get("source_name")
+    if not doctype or not name:
+        return False
+    company = frappe.db.get_value(doctype, name, "company") if doctype == "ERP Collection" else push.company_of(doctype, name)
+    return push.may_write(user, company)
+
+
 def job_changed(view):
     if view.get("source_doctype") == "ERP Collection":
         from pearnly_erp_portal.collection import push as collection_push

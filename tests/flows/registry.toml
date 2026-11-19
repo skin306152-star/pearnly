@@ -2369,7 +2369,7 @@ covers = [
 
 [[flow]]
 id = "erp.office-actor"
-title = "ERP 写账人同收款（11-16 用户「按建议」）：只用手机的销售员的单交给办公室只有 A 登录过 CC 的电脑写、ERP 记原发单人、单据页与对话不再说未连接；别家公司的电脑不领"
+title = "ERP 写账人领单时判（11-17 定稿，替代 11-16 排队时换人）：只用手机的销售员的单由办公室只有 A 登录过 CC 的电脑领单时替写、记下 A，写账件与 ERP 仍记原发单人、单据页与对话不再说未连接；别家公司的电脑不领"
 module = "scripts/flows/erp_office_actor.py"
 start = "/desk"
 user = "admin"
@@ -2379,6 +2379,21 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+]
+
+[[flow]]
+id = "erp.writer-at-claim"
+title = "ERP 领单时判写账人（11-17 定稿）：两台电脑同时抢同一件只领到一次、记下替写人；切换前排的旧件不替也不挡新件；本人电脑在线时不替"
+module = "scripts/flows/erp_writer_at_claim.py"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/products.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/desktop.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/patches/v1_33_writer_rule_since.py",
 ]
 
 [[flow]]

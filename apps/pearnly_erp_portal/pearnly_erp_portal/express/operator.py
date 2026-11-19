@@ -171,8 +171,8 @@ def computer_state(company, user) -> str:
     keys = [book["key"] for book in books.for_company(row.tax_id, row.branch)] if row else []
     from pearnly_erp_portal.express import push as express_push
 
-    # 写账件归谁同 `push.actor_of`（本人没电脑时由 office_actor 兜底给办公室电脑上登录过 CC 的同事，11-16）：兜底有人就不报未连接
-    states = {jobs.writers(express_push.office_actor(user, company, key), key)["state"] for key in keys}  # loop-query: 这家公司的几本账套
+    # 能写的电脑 = 本人的、加上能替他写的（领单时判，用户 11-17 定稿，`push.writers_of`）：同事那台在线就不报离线 / 未连接
+    states = {express_push.writers_of(user, company, key)["state"] for key in keys}  # loop-query: 这家公司的几本账套
     if not states or "ok" in states:
         return ""
     return getattr(contracts, COMPUTER_REASONS[next(state for state in COMPUTER_ORDER if state in states)])

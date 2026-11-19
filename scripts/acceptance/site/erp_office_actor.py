@@ -1,5 +1,5 @@
 """验收场景的站点侧脚本（在测试租户的 ERP 网页容器里跑）：只用手机（一台登录过 CC 的电脑都没有）的员工开一张现购单提交 →
-写账件归这家公司里在够得到这本账套的电脑上登录过 CC 的员工（办公室电脑，`push.office_actor`）→ 那台电脑领走写进 Express →
+写账件归他本人，办公室那台（够得到这本账套、登录人对这家公司有权限）在领单那一刻替他写（11-17 定稿，`cc_desktop.jobs`）→ 写进 Express →
 单据仍是发单人的。末行打印 ACC {json}。
 
     env/bin/python /tmp/acc-erp_office_actor.py <站点> '<JSON 参数>'
@@ -10,7 +10,6 @@
 开跑前核现场，不满足就拒跑（场景记前置条件不满足）：phone_user 一台登录过 CC 的电脑都没有（`jobs.writers` = missing）、这家公司
 在他的可见公司里；办公室那台此刻在线（`jobs.writers(user)` = ok）。走网页提交背后的同一组服务端函数（`purchasing.entry.post` →
 `express.push.send`），登记里标 via = "api"。
-写账件要是仍归发单人（修复前：没人领、一直排着「CC 桌面版未连接」），不空等：记下单据页此刻的原因，撤掉这一件、作废这张单后交回。
 防护同别的验收站点脚本：只在测试租户跑；这家公司由 CC 报上来的账套必须全部就是 ledger；写完按单据记下的账套核实际路径。
 """
 import base64
@@ -90,16 +89,9 @@ try:
     job = frappe.db.get_value("Pearnly CC Job", first.get("ledger_job"), ["name", "status", "actor", "request_key"], as_dict=True) \
         if first.get("ledger_job") else None
     row = frappe.db.get_value("Purchase Document", name, ["name", "owner", "ledger_book"], as_dict=True)
-    result.update(doc=name, first=first, first_job=job, expected_actor=push.office_actor(phone, company, key),
+    result.update(doc=name, first=first, first_job=job, expected_actor=phone,
                   note=push._queued_note("Purchase Document", row) if first.get("ledger_job") else "")
     state = first
-    if job and job.actor == phone:
-        # 修复前：归发单人，没有电脑会来领。不空等；撤掉这一件、作废这张单，不留给以后登录的电脑
-        jobs.cancel(job.name, reason="ACC office-actor scenario")
-        entry.cancel(name, reason="ACC office-actor scenario")
-        frappe.db.commit()
-        result.update(ok=True, stuck=True, state=state)
-        raise SystemExit(0)
     deadline = time.monotonic() + int(params.get("wait", 300))
     while time.monotonic() < deadline:
         frappe.db.rollback()
@@ -107,7 +99,7 @@ try:
         if state.get("ledger_state") in ("written", "mismatch", "held", "failed"):
             break
         time.sleep(5)
-    job = frappe.db.get_value("Pearnly CC Job", state.get("ledger_job"), ["name", "status", "verify_state", "reason", "actor", "request_key"],
+    job = frappe.db.get_value("Pearnly CC Job", state.get("ledger_job"), ["name", "status", "verify_state", "reason", "actor", "writer", "request_key"],
                               as_dict=True) if state.get("ledger_job") else None
     written = [r.path for r in frappe.get_all(books.BOOK, filters={"book_key": state.get("ledger_book")}, fields=["path"])] \
         if state.get("ledger_book") else []

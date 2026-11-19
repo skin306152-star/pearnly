@@ -2700,89 +2700,63 @@ class PosDayExits(PushModule):
                 self.run_exit("mark_handled", row, job)
 
 
-class PosDayActor(PushModule):
-    """收银日汇总每晚由系统合（建单人 Administrator 名下没有电脑）：作业归这家公司里电脑够得到账套的员工，否则一直领不走（10-25 实验栈）。"""
+class WriterAtClaim(PushModule):
+    """用户 11-17 定稿（两产品同一条，替代 11-16 排队时换人的 ``office_actor``）：写账件一律归开单人本人（收银日汇总的建单人是系统、
+    只用手机的销售员、收款员也一样）；谁的电脑写在领单那一刻判（`cc_desktop.jobs`）。这里守产品那一半：能替写的人 = 签发有效、对这家公司
+    有权限（:func:`push.may_write`）；状态（`push.writers_of`）把能替他写的电脑算进来，同事那台在线就不说离线 / 未连接。"""
 
-    def test_a_system_made_day_summary_goes_to_a_member_whose_computer_reaches_the_book(self):
+    def peers(self, **devices_):
         import types
+        return {name: types.SimpleNamespace(users=frozenset(users), online=online, payload_version=None, index_pending=None,
+                                            targets=None) for name, (users, online) in devices_.items()}
+
+    def patched(self, peers, reach, allowed):
+        from contextlib import ExitStack
         from unittest import mock
-        row = types.SimpleNamespace(name="PDS-1", owner="Administrator")
-        peers = {"PC-B": types.SimpleNamespace(users=frozenset({"zed@x", "bob@x"}), online=False),
-                 "PC-A": types.SimpleNamespace(users=frozenset({"amy@x"}), online=True),
-                 "PC-C": types.SimpleNamespace(users=frozenset({"cat@x"}), online=True)}
-        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "missing", "devices": []}), \
-                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push.devices, "peers", lambda: peers), \
-                mock.patch.object(self.push.books, "reachers", lambda keys: {"BK": ["PC-B", "PC-A"]}), \
-                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
-                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"] if user != "amy@x" else []):
-            # 在线的 PC-A 上的 amy 没有这家公司 → 离线的 PC-B 上按名字排的 bob；PC-C 够不到账套不算
-            self.assertEqual(self.push.actor_of("ERP POS Day Summary", row, "BK"), "bob@x")
-            # 用户 11-16「按建议」：出入库等人开的单与收银日汇总同一口径（开单人名下没有电脑就由办公室电脑兜底）
-            self.assertEqual(self.push.actor_of("ERP Stock Entry", row, "BK"), "bob@x")
-        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "ok", "devices": ["PC-A"]}):
-            self.assertEqual(self.push.actor_of("ERP POS Day Summary", types.SimpleNamespace(name="PDS-2", owner="amy@x"),
-                                                "BK"), "amy@x")
+        stack = ExitStack()
+        for target in (self.push.jobs.devices, self.push.devices):
+            stack.enter_context(mock.patch.object(target, "peers", lambda: peers))
+        for target in (self.push.jobs.books, self.push.books):
+            stack.enter_context(mock.patch.object(target, "reachers", lambda keys: reach))
+        stack.enter_context(mock.patch.object(self.push.devices, "issuer_valid", lambda user: user != "gone@x"))
+        stack.enter_context(mock.patch.object(self.push.companies, "allowed_companies", allowed))
+        return stack
 
-class PhoneOnlySeller(PushModule):
-    """用户 11-16「按建议」：采购 / 销售 / 出入库 / 盘点的写账件归谁与收款同一口径（`office_actor`）。办公室一台电脑只有 A 登录过 CC，
-    销售员 B 只用手机：B 的单归 A（A 的电脑领得走），ERP 单据上仍记 B；B 自己有电脑（哪怕关着）照旧归 B；够不到这本账套的电脑
-    （另一家公司的）上的人不算；兜底也没人时仍归 B（页面「CC 桌面版未连接」）。"""
-
-    def test_a_phone_only_sellers_documents_go_to_the_office_computer_that_reaches_the_book(self):
+    def test_every_document_kind_stays_with_its_submitter(self):
         import types
-        from unittest import mock
-        peers = {"PC-OFFICE": types.SimpleNamespace(users=frozenset({"a@x"}), online=True),
-                 "PC-OTHER-CO": types.SimpleNamespace(users=frozenset({"z@y"}), online=True)}
-        reach = {"BK": ["PC-OFFICE"]}  # 另一家公司的电脑够不到这本账套
-        row = types.SimpleNamespace(name="SD-1", owner="b@x")
-        mine = lambda actor, book: {"state": "ok" if actor in {u for n in reach[book] for u in peers[n].users} else "missing",
-                                    "devices": []}
-        with mock.patch.object(self.push.jobs, "writers", mine), \
-                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"), \
-                mock.patch.object(self.push.devices, "peers", lambda: peers), \
-                mock.patch.object(self.push.books, "reachers", lambda keys: reach), \
-                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
-                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"] if user != "z@y" else ["CO-9"]):
-            for doctype in (self.push.SALES, self.push.PURCHASE, self.push.STOCK, self.push.COUNT):
-                self.assertEqual(self.push.actor_of(doctype, row, "BK"), "a@x")
-            # 兜底的人也要能看这家公司：A 不在这家的可见公司里就不给 A，仍归 B（不跨公司）
-            with mock.patch.object(self.push.companies, "allowed_companies", lambda user: []):
-                self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
-            # 只有另一家公司的电脑在：够不到这本账套，不算
-            reach["BK"] = []
-            self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
-        # B 自己有登录过 CC 的电脑（关着）：照旧归 B，等他的电脑
-        with mock.patch.object(self.push.jobs, "writers", lambda actor, book: {"state": "offline", "devices": ["PC-B"]}), \
-                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"):
-            self.assertEqual(self.push.actor_of(self.push.SALES, row, "BK"), "b@x")
+        for owner in ("Administrator", "b@x", "col@x"):
+            for doctype in (self.push.SALES, self.push.PURCHASE, self.push.STOCK, self.push.COUNT, self.push.POS_DAY):
+                self.assertEqual(self.push.actor_of(doctype, types.SimpleNamespace(name="D-1", owner=owner), "BK"), owner)
+        text = (pathlib.Path(__file__).resolve().parents[1] / "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py").read_text()
+        self.assertIn("actor=doc.collector,", text)  # 收款：归收款员本人
 
+    def test_who_may_stand_in_is_a_valid_member_of_that_company(self):
+        with self.patched({}, {}, lambda user: ["CO-1"] if user != "other@x" else ["CO-9"]):
+            self.assertTrue(self.push.may_write("a@x", "CO-1"))
+            self.assertFalse(self.push.may_write("other@x", "CO-1"))  # 别家公司的人
+            self.assertFalse(self.push.may_write("gone@x", "CO-1"))   # 签发失效（离职、不能连 CC）
+            self.assertFalse(self.push.may_write("a@x", ""))
 
-class CollectionNotYours(PushModule):
-    """收款写账件 × not_yours（集成 1113 跨边，A 线 × 收款）：收款员自己有登录过 CC 的电脑、此刻关着，办公室同事够得到这本的电脑在线
-    —— `jobs.writers` 判 not_yours，`office_actor` 仍把作业归收款员本人（排队等他的电脑，不派给同事），页面原因是「您的电脑离线」。
-    收款员一台电脑都没有（missing）才转给办公室的人（收款支原意，不变）。"""
+    def test_a_colleagues_computer_that_may_stand_in_counts_for_the_status(self):
+        peers = self.peers(**{"PC-OFFICE": (["a@x"], True), "PC-OTHER-CO": (["z@y"], True)})
+        reach = {"BK": ["PC-OFFICE"]}
+        allowed = lambda user: ["CO-1"] if user != "z@y" else ["CO-9"]  # noqa: E731
+        with self.patched(peers, reach, allowed):
+            self.assertEqual(self.push.writers_of("b@x", "CO-1", "BK")["state"], "ok")  # 只用手机的 B：办公室 A 那台在线
+            peers["PC-OFFICE"].online = False
+            self.assertEqual(self.push.writers_of("b@x", "CO-1", "BK")["state"], "offline")  # 都关着：排队，谁先上线谁写
+            peers["PC-OFFICE"].online = True
+            reach["BK"] = []  # 能替写的电脑够不到这本账套
+            self.assertEqual(self.push.writers_of("b@x", "CO-1", "BK")["state"], "unreachable")
+        with self.patched(peers, {"BK": ["PC-OFFICE"]}, lambda user: []):  # 没有人对这家公司有权限：一台都不算
+            self.assertEqual(self.push.writers_of("b@x", "CO-1", "BK")["state"], "missing")
 
-    def test_a_collectors_job_waits_for_the_collectors_own_computer_when_a_colleagues_is_online(self):
-        import types
-        from unittest import mock
-        peers = {"PC-COL": types.SimpleNamespace(users=frozenset({"col@x"}), online=False, payload_version=None,
-                                                 index_pending=None, targets=None),
-                 "PC-OFFICE": types.SimpleNamespace(users=frozenset({"office@x"}), online=True, payload_version=None,
-                                                    index_pending=None, targets=None)}
-        with mock.patch.object(self.push.jobs.devices, "peers", lambda: peers), \
-                mock.patch.object(self.push.devices, "peers", lambda: peers), \
-                mock.patch.object(self.push.jobs.books, "reachers", lambda keys: {"BK": ["PC-COL", "PC-OFFICE"]}), \
-                mock.patch.object(self.push.books, "reachers", lambda keys: {"BK": ["PC-COL", "PC-OFFICE"]}), \
-                mock.patch.object(self.push.devices, "issuer_valid", lambda user: True), \
-                mock.patch.object(self.push.companies, "allowed_companies", lambda user: ["CO-1"]):
-            self.assertEqual(self.push.jobs.writers("col@x", "BK")["state"], "not_yours")
-            self.assertEqual(self.push.office_actor("col@x", "CO-1", "BK"), "col@x")  # 不派给 office@x
-            from pearnly_erp_portal.express import pending
-            self.assertEqual(pending.REASONS[self.push.contracts.NOT_YOURS], "express.reason.notYours")
-            # 收款员一台电脑都没有：照收款支原意归办公室在线电脑上的人
-            peers.pop("PC-COL")
-            self.assertEqual(self.push.office_actor("col@x", "CO-1", "BK"), "office@x")
+    def test_a_collectors_job_is_written_by_the_office_computer_while_hers_is_off(self):
+        # 11-13 的 not_yours（收款员自己的电脑关着就只等她的）按 11-17 定稿作废：办公室同事那台在线就由它写
+        peers = self.peers(**{"PC-COL": (["col@x"], False), "PC-OFFICE": (["office@x"], True)})
+        with self.patched(peers, {"BK": ["PC-COL", "PC-OFFICE"]}, lambda user: ["CO-1"]):
+            self.assertEqual(self.push.writers_of("col@x", "CO-1", "BK")["state"], "ok")
+            self.assertEqual(self.push.jobs.writers("col@x", "BK")["state"], "offline")  # 不给替写资格时只算她自己的
 
 
 class LinkParty(PushModule):

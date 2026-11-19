@@ -317,6 +317,8 @@ def install():
     frappe.flags = _Flags()
     frappe.get_hooks = lambda name: deepcopy(STATE.hooks.get(name) or {})
     frappe.get_attr = lambda path: STATE.attrs[path]
+    frappe.conf = {}  # 站点配置（替写的切换时刻 `pearnly_writer_rule_since`；每个测试开头 :func:`reset` 清空）
+    frappe.utils = types.SimpleNamespace(get_system_timezone=lambda: "Asia/Bangkok")
     frappe.generate_hash = lambda length=10: __import__("secrets").token_hex(length)[:length]
     frappe.whitelist = lambda **kw: (lambda fn: fn)
     frappe.get_site_path = lambda *parts: str(pathlib.Path(STATE.site_dir, *parts))
@@ -335,6 +337,7 @@ def reset(site_dir):
     STATE.db = DB()
     STATE.hooks, STATE.attrs, STATE.users, STATE.cache = {}, {}, {}, {}
     STATE.site_dir = str(site_dir)
+    sys.modules["frappe"].conf.clear()
     from pearnly_core.cc_desktop import documents
 
     STATE.controllers = {doctype: _Controller(documents) for doctype in documents.DOCTYPES}

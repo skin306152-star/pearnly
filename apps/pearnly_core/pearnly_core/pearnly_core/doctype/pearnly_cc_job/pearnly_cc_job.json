@@ -21,6 +21,7 @@
   "lease_expires_at",
   "writing_key",
   "last_device",
+  "writer",
   "docnum",
   "stage",
   "reason",
@@ -147,6 +148,13 @@
    "length": 30
   },
   {
+   "fieldname": "writer",
+   "fieldtype": "Link",
+   "label": "Writer",
+   "options": "User",
+   "read_only": 1
+  },
+  {
    "fieldname": "docnum",
    "fieldtype": "Data",
    "label": "Express Document Number",
@@ -201,7 +209,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-23 00:00:00.000000",
+ "modified": "2026-11-19 00:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly CC Job",

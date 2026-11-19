@@ -9,7 +9,7 @@
 """
 import ast
 import base64
-from datetime import timedelta
+from datetime import datetime, timedelta
 import hashlib
 import pathlib
 import sys
@@ -239,9 +239,58 @@ class Queue(Base):
         self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
         self.assertEqual(jobs.writers("boss@x", self.changes[-1]["book_key"])["state"], "missing")
 
-    def test_my_computer_offline_while_a_colleagues_is_online_is_said_as_mine_offline(self):
-        # A 线 11-12 测试机1：作业归 boss，boss 的电脑关着，同事 staff 的电脑在线、够得到这本——不派给同事（对的），但原来只说
-        # 「电脑离线」，用户看见电脑明明在线。分出 not_yours：这位用户自己的电脑离线、在线的那台不归他
+    def stand_in(self, may=lambda user, view: True):
+        fake.STATE.hooks["pearnly_cc_desktop"]["stand_in"] = ["t.stand_in"]
+        fake.STATE.attrs["t.stand_in"] = may
+
+    def test_a_colleagues_computer_stands_in_when_the_submitter_has_none_online_and_records_who(self):
+        # 用户 11-17 定稿（两产品同一条）：提交人 boss 没有在线的电脑 → staff 那台领单时替他写，写账件上提交人仍是 boss、记下替写的 staff
+        job = self.enqueue(actor="boss@x")
+        self.assertEqual(self.lease(self.office)["jobs"], [])  # 产品没声明替写：照旧只写本人的
+        self.stand_in(lambda user, view: user == "staff@x" and view["source_name"] == "SD-1")
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [job["job"]])
+        row = fake.STATE.db.table(documents.JOB)[job["job"]]
+        self.assertEqual((row["actor"], row["writer"], row["lease_device"], row["fence"]),
+                         ("boss@x", "staff@x", self.office.device, 1))
+        self.assertEqual(self.changes[-1]["actor"], "boss@x")
+
+    def test_no_stand_in_while_the_submitters_own_computer_is_online_or_for_a_folder_task_or_without_a_right(self):
+        self.stand_in()
+        mine = self.register("boss@x", KEY_B)
+        boss = self.context(mine["device"], "boss@x")
+        self.report(boss)
+        job = self.enqueue(actor="boss@x")
+        self.assertEqual(self.lease(self.office)["jobs"], [])  # 他自己的电脑在线、够得到：让它写
+        self.offline(boss)
+        self.stand_in(lambda user, view: False)  # 这台上的人对这家公司没有权限
+        self.assertEqual(self.lease(self.office)["jobs"], [])
+        self.stand_in()
+        fake.STATE.db.table(documents.JOB)[job["job"]]["route_device"] = boss.device  # 定时任务钉在他那台上：不替
+        self.assertEqual(self.lease(self.office)["jobs"], [])
+        fake.STATE.db.table(documents.JOB)[job["job"]]["route_device"] = None
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [job["job"]])
+
+    def test_jobs_queued_before_the_switch_wait_for_their_submitter_and_do_not_block_newer_ones(self):
+        # 旧件闸（主会话 11-17）：配了切换时刻（UTC），之前排的件不由别人的电脑写；它排在这本账套最前面也不挡后面的新件。
+        # 库里的排队时刻是站点时区（Asia/Bangkok，比 UTC 早 7 小时）
+        self.stand_in()
+        old = self.enqueue(actor="boss@x", name="SD-OLD")
+        new = self.enqueue(actor="boss@x", name="SD-NEW")
+        table = fake.STATE.db.table(documents.JOB)
+        table[old["job"]]["creation"] = datetime(2026, 11, 19, 9, 59)   # 站点时区 = 02:59 UTC
+        table[new["job"]]["creation"] = datetime(2026, 11, 19, 10, 1)   # 站点时区 = 03:01 UTC
+        frappe.conf["pearnly_writer_rule_since"] = "2026-11-19T03:00:00Z"
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [new["job"]])
+        self.ack(self.office, new["job"])
+        self.assertEqual(self.lease(self.office)["jobs"], [])  # 旧件只等 boss 自己的电脑
+        frappe.conf["pearnly_writer_rule_since"] = "not a time"  # 配了却读不出：一件都不替
+        self.assertEqual(self.lease(self.office)["jobs"], [])
+        del frappe.conf["pearnly_writer_rule_since"]  # 用户看过统计定了「旧件也写」：删掉这项即放开
+        self.assertEqual([j["log_id"] for j in self.lease(self.office)["jobs"]], [old["job"]])
+
+    def test_a_colleagues_online_computer_that_may_stand_in_counts_as_a_writer(self):
+        # 用户 11-17 定稿（两产品同一条）：boss 的电脑关着，同事 staff 的电脑在线、够得到这本、staff 能替他写（产品判）→ 推了就写；
+        # 产品不认 staff（eligible 不给 / 为假）→ 只算 boss 自己的，电脑离线、排队。不再有「你的电脑离线」（not_yours）
         mine = self.register("boss@x", KEY_B)
         boss = self.context(mine["device"], "boss@x")
         self.report(boss)
@@ -249,9 +298,11 @@ class Queue(Base):
         book = self.changes[-1]["book_key"]
         self.assertEqual(jobs.writers("boss@x", book)["state"], "ok")
         self.offline(boss)
-        self.assertEqual(jobs.writers("boss@x", book)["state"], "not_yours")
-        self.offline(self.office)  # 谁的电脑都不在线：照旧是离线
         self.assertEqual(jobs.writers("boss@x", book)["state"], "offline")
+        self.assertEqual(jobs.writers("boss@x", book, eligible=lambda user: True)["state"], "ok")
+        self.assertEqual(jobs.writers("boss@x", book, eligible=lambda user: False)["state"], "offline")
+        self.offline(self.office)  # 谁的电脑都不在线：离线，谁先上线谁写
+        self.assertEqual(jobs.writers("boss@x", book, eligible=lambda user: True)["state"], "offline")
 
     def test_the_computers_a_job_waits_for_are_the_owners_offline_ones(self):
         # 代录排着等电脑时页面写「等待电脑 · 名称」（A 线 11-12）：在等的是 boss 自己够得到这本、此刻不在线的电脑；同事的不算
