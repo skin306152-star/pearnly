@@ -73,9 +73,11 @@ class PickerSourceTests(unittest.TestCase):
         self.assertIn("{st.connect}", self.picker)
         desktop = read("lib/desktop.ts")
         has = block(desktop, "export function useHasConnections(): boolean {")
-        self.assertIn('return app || product === "cowork";', has)   # 同设置页：桌面版都有「连接」，浏览器里只有 Cowork 站点有
+        # 同设置页：桌面版都有「连接」，浏览器里看产品声明了电脑列表（connect.computers，Cowork 与 ERP 都声明，B50 不按产品名写死）
+        self.assertIn("const declared = useProjects((s) => !!s.connect.computers);", has)
+        self.assertIn("return app || declared;", has)
         settings = read("components/settings.tsx")
-        self.assertIn('const web = !api && product === "cowork";', settings)
+        self.assertIn("const web = !api && !!useProjects((s) => s.connect.computers);", settings)
 
     def test_refresh_lives_in_the_header_and_follows_the_catalog_section(self):
         head = self.picker.split('<div className="cc-dialog-head">', 1)[1].split("<DialogPrimitive.Description", 1)[0]
