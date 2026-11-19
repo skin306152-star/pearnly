@@ -168,3 +168,12 @@
   - 账套那一步是 `questions`（`auto`）：转调 `express.api.preflight`（网页提交前同一个判定），没有要问的进「已定」，有要问的一项一个单选子题、答了照网页记在公司名下。
   - 调整的增加 / 减少都可不答，确定前两边都空时退回「增加」（`stock_no_lines`）。
 - 未做：真站点流程未跑（不起实验栈）；真账本（测试机 NLTTEST / 70EXP\test）未测；登记主号以外的副号、颜色没问（第一版只登记主号）。
+
+## 评估作者意见与第二轮修改（11-19，总原则「网页上怎么做，引导就怎么做」）
+
+1. **单价（已知限制，待改）**：本分支基线的引擎不收表单源的 `edit`（`declaration.problems`：「intake, uploads and edit are for documents guides」），复核卡改不了格子。按退一步的口径保留：单价题必答、0 也收，推荐值（`documents.default_unit_cost`）只给看得到成本的人（`guard.cost_visible`，同服务端判法；物料调整里看不到成本的人填的价服务端照旧不算）。**等页面接口分支 `pearnly/cc-guide-page-endpoints`（表单源 edit）进 main 后改**：单价题改成 `auto`、默认 `default_unit_cost`，复核表的单价格用 `edit(ctx, draft, row, field, value)` 改，这一格只给 `guard.cost_visible()` 为真的人。入库对看不到成本的人怎么处理（服务端照存人填的价）也要一起定。
+2. **按台登记**：照网页按台登记弹窗（`public/desk/serials.js`）：每台问主号（必填）、副号、颜色（可空），交服务 `{serial_no, secondary_no, color}`；子题最多 50 个，一张单最多约 16 台按台登记。
+3. **出库选物料**：同网页出入库页的物料下拉（在架物料，原生 Link 只按 `is_active` 筛），结存 0 也能出（服务端默认允许负库存）；四种共用 `item_options`，调拨只列调出仓的。
+4. **结存显示**：网页出入库页的物料下拉不取结存（只调 `api_get_product` 与 `api_default_unit_cost`），所以引导也不显示结存；删掉了直接查 `ERP Stock Balance` 的那段。
+5. **原件 id**：`recognition/originals.py` 开了公开入口 `original_id(direction, request_key)`（薄包装 `_original_id`，权限与幂等键核对照旧），引导调它；幂等键 = 「运行 | 对话文件编号」的 sha256 前 40 位。网页上传（同模块 `begin / finish / upload`）本来就调 `_original_id`，没有另拼。`inventory/count.py` 的盘点照片也拼了同一种写法，但那条路改成调公开入口会多一道 `count.write` 权限判断（调用方已判过），且它的测试要装 Frappe 才能跑，本次没改，留待确认。
+6. **调拨**：保持单头一出一进两个仓；按行选仓等 f1279e0c4 进 main。

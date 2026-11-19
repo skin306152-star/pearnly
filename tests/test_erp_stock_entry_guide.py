@@ -217,6 +217,18 @@ def _put(original_id, filename, content, **fields):
 
 
 _module("pearnly_core.originals.registered", put=_put)
+
+
+def _original_id(direction, request_key):
+    import hashlib
+    import re
+
+    STATE["original_ids"].append((direction, request_key))
+    assert re.fullmatch(r"[A-Za-z0-9-]{8,64}", request_key), request_key   # 同网页上传的幂等键写法
+    return "ERO-" + hashlib.sha256(f"{direction}|{request_key}".encode()).hexdigest()[:48]
+
+
+_module("pearnly_erp_portal.recognition.originals", original_id=_original_id)
 _module("stock_guide_test_ledger", of=lambda session_id: STATE["ledger_kind"])
 
 from pearnly_core.assistant.guide import registry, run  # noqa: E402
@@ -245,7 +257,7 @@ class Base(unittest.TestCase):
         STATE.clear()
         STATE.update(caps={"stock.out", "stock.transfer", "stock.adjust", "stock.in"}, cost_visible=True, acting=[], prefills=[],
                      last_warehouse="", rollbacks=[], created=[], preflights=[], needs_book=False, book_saved=False,
-                     chat_files={"F1", "F2"}, read_files=[], ledger_kind="express_local", today="2026-11-19")
+                     chat_files={"F1", "F2"}, read_files=[], original_ids=[], ledger_kind="express_local", today="2026-11-19")
         TABLES.clear()
         TABLES.update({
             "ERP Warehouse": [{"name": "WH1", "warehouse_name": "Main", "warehouse_code": "01", "express_code": "", "company": "CO-1",
@@ -390,20 +402,25 @@ class Steps(Base):
 
 
 class Options(Base):
-    def test_out_lists_rows_with_stock_by_warehouse_with_the_default_warehouse_first(self):
+    def test_out_lists_every_active_product_by_warehouse_like_the_web_page_without_stock(self):
         STATE["last_warehouse"] = "WH2"
         found = run.start(SESSION, "stock_out")
         warehouse = self.questions(found)["warehouse"]
         # 推荐只排第一、不预选（没有 value），选项只有本公司的仓
         self.assertEqual((self.codes(warehouse), warehouse.get("preselected"), "value" in warehouse), (["WH2", "WH1"], "WH2", False))
         rows = self.questions(found)["rows"]
-        self.assertEqual(self.codes(rows), [P1_WH2, P1_WH1, P2_WH1])
-        self.assertEqual(rows["options"][0]["name"], "Apple · 02 · Back")
-        self.assertEqual(rows["options"][0]["note"], "stock.col.onHand 3 pcs")
+        # 同网页出库页的物料下拉：在架物料都能选（结存 0 也能出，服务端允许负库存），默认仓的排前面
+        self.assertEqual(self.codes(rows), [P1_WH2, "s:WH2|P2", P1_WH1, P2_WH1])
+        # 网页出库页不取结存：选项只有「物料 · 仓库」，没有结存
+        self.assertEqual(rows["options"][0], {"code": P1_WH2, "name": "Apple · 02 · Back"})
         self.assertEqual(STATE["prefills"][0], ("stock_out", "CO-1"))
         self.assertTrue(STATE["acting"] == [])  # 每次都在本对话公司下执行，出来还原
 
-    def test_codes_are_checked_against_this_company_stock_and_tracking(self):
+    def test_a_product_without_stock_can_be_issued(self):
+        name = run.start(SESSION, "stock_out")["run"]
+        self.assertNotIn("refused", run.answer(name, {"warehouse": "WH2", "rows": [{"code": "s:WH2|P2", "amount": "1"}]}))
+
+    def test_codes_are_checked_against_this_company_and_tracking(self):
         name = run.start(SESSION, "stock_out")["run"]
         for code in ("n:WH9|P1", "n:WH2|P3", "n:WH1|P2", "s:WH1|P1", "n:WH1|P9", "WH1|P1"):
             self.assertEqual(_codes(run.answer(name, {"rows": [{"code": code, "amount": "1"}]})), {"rows": "not offered"}, code)
@@ -411,10 +428,10 @@ class Options(Base):
 
     def test_search_finds_by_name_or_code(self):
         ctx = {"business": "stock_out", "company": "CO-1", "answers": {"warehouse": "WH1"}}
-        self.assertEqual([row["code"] for row in stock_guide.held_options(ctx, txt="b01")["options"]], [P2_WH1])
+        self.assertEqual([row["code"] for row in stock_guide.item_options(ctx, txt="b01")["options"]], [P2_WH1, "s:WH2|P2"])
         ctx["business"] = "stock_in"
-        self.assertEqual([row["code"] for row in stock_guide.inbound_options(ctx, txt="apple")["options"]], [P1_WH1, P1_WH2])
-        page = stock_guide.inbound_options(ctx, start=0, page_length=3)
+        self.assertEqual([row["code"] for row in stock_guide.item_options(ctx, txt="apple")["options"]], [P1_WH1, P1_WH2])
+        page = stock_guide.item_options(ctx, start=0, page_length=3)
         self.assertEqual(([row["code"] for row in page["options"]], page["more"]), ([P1_WH1, "s:WH1|P2", P1_WH2], True))
 
     def test_transfer_lists_only_the_source_warehouse_and_another_destination(self):
@@ -548,13 +565,21 @@ class Units(Base):
     def test_in_registers_new_units_and_a_return_takes_back_sold_ones(self):
         name, found = self.walk("stock_in", {"warehouse": "WH1", "rows": [{"code": P2_WH1, "amount": "2"}]})
         units = self.questions(found)["units"]["questions"]
-        self.assertEqual([(q["key"], q["input"]) for q in units], [("r1_1", "text"), ("r1_2", "text")])
+        # 同网页登记弹窗：每台问主号（必填）、副号、颜色
+        self.assertEqual([(q["key"], q["input"], q["required"]) for q in units],
+                         [("r1_1", "text", True), ("r1_1_secondary", "text", False), ("r1_1_color", "text", False),
+                          ("r1_2", "text", True), ("r1_2_secondary", "text", False), ("r1_2_color", "text", False)])
         self.assertTrue(units[0]["title"].startswith("serial.vehicle.primary 1 · Bike"))
+        self.assertTrue(units[1]["title"].startswith("serial.vehicle.secondary 1 · Bike"))
+        self.assertTrue(units[2]["title"].startswith("serial.color 1 · Bike"))
         self.assertEqual(_codes(run.answer(name, {"units": {"r1_1": "VINX", "r1_2": "vinx"}})), {"units": "stock_units_mismatch"})
-        found = run.answer(name, {"units": {"r1_1": "VIN1001", "r1_2": "VIN1002"}, "prices": [{"code": P2_WH1, "amount": "800"}]})
+        found = run.answer(name, {"units": {"r1_1": "VIN1001", "r1_1_secondary": "ENG1", "r1_1_color": "Red", "r1_2": "VIN1002"},
+                                  "prices": [{"code": P2_WH1, "amount": "800"}]})
         self.assertEqual(found["status"], "reviewing")
         run.confirm(name, found["version"])
-        self.assertEqual(STATE["created"][0]["lines"][0]["serials"], [{"serial_no": "VIN1001"}, {"serial_no": "VIN1002"}])
+        self.assertEqual(STATE["created"][0]["lines"][0]["serials"],
+                         [{"serial_no": "VIN1001", "secondary_no": "ENG1", "color": "Red"},
+                          {"serial_no": "VIN1002", "secondary_no": "", "color": ""}])
         name, found = self.walk("stock_in", {"purpose": "return", "warehouse": "WH1", "rows": [{"code": P2_WH1, "amount": "1"}]})
         units = self.questions(found)["units"]["questions"]
         self.assertEqual([[row["code"] for row in q["options"]] for q in units], [["U9"]])
@@ -563,14 +588,14 @@ class Units(Base):
         name, found = self.walk("stock_adjust", {"warehouse": "WH1", "plus": [{"code": P2_WH1, "amount": "1"}],
                                                  "minus": [{"code": P2_WH1, "amount": "1"}, {"code": P1_WH1, "amount": "3"}]})
         asked = self.questions(found)
-        self.assertEqual([(q["key"], q["input"]) for q in asked["plus_units"]["questions"]], [("r1_1", "text")])
+        self.assertEqual([q["key"] for q in asked["plus_units"]["questions"]], ["r1_1", "r1_1_secondary", "r1_1_color"])
         self.assertEqual([(q["key"], q["input"]) for q in asked["minus_units"]["questions"]], [("r1", "multi")])
         self.assertIn("prices", asked)
         found = run.answer(name, {"plus_units": {"r1_1": "VIN2001"}, "minus_units": {"r1": ["U2"]}, "prices": [{"code": P2_WH1, "amount": "900"}]})
         self.assertEqual(found["status"], "reviewing")
         run.confirm(name, found["version"])
         self.assertEqual(STATE["created"][0]["lines"], [
-            {"product": "P2", "qty": "1", "warehouse": "WH1", "unit_cost": "900", "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001"}]},
+            {"product": "P2", "qty": "1", "warehouse": "WH1", "unit_cost": "900", "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001", "secondary_no": "", "color": ""}]},
             {"product": "P2", "qty": "-1", "warehouse": "WH1", "serials": [{"serial": "U2"}]},
             {"product": "P1", "qty": "-3", "warehouse": "WH1"}])
 
@@ -609,6 +634,8 @@ class Files(Base):
         self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": "1", "warehouse": "WH1", "unit_cost": "10",
                                                          "unit_cost_manual": 1}])
         self.assertTrue(all(row["file_name"].startswith("ERO-") and row["owner"] == "a@x" for row in TABLES["File"]))
+        # 原件 id 走网页上传同一个公开入口（方向 stock_in，幂等键由这次引导 + 对话文件编号算出）
+        self.assertEqual([direction for direction, _key in STATE["original_ids"]], ["stock_in", "stock_in"])
         # 同一次引导同一份文件再存一次：认出上次那条，不再读、不再存
         ctx = {"business": "stock_in", "run": name, "session": SESSION}
         self.assertEqual(stock_guide._stored_files(ctx, ["F1"]), ["FILE-1"])

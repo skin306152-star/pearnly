@@ -36,6 +36,12 @@ def _original_id(direction, request_key):
     return "ERO-" + hashlib.sha256(seed.encode()).hexdigest()[:48]
 
 
+def original_id(direction, request_key):
+    """公开入口（同 :func:`_original_id`）：库存单附件不经网页上传、由 CC 引导把对话里的文件存成登记 File 时用同一种原件 id 写法
+    （`inventory.stock_guide._stored_files`）；同样按方向要开单能力、幂等键同样的写法。"""
+    return _original_id(direction, request_key)
+
+
 def _reply(file):
     return {"name": file.name, "file_url": file.file_url, "file_name": registered.filename(file)}
 

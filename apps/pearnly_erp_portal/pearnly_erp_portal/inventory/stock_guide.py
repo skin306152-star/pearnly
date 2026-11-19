@@ -3,14 +3,14 @@
 
 只转调网页库存单同一组服务，不另写业务规则：
 
-- 都在本对话公司下执行（`masters.company.acting`，同盘点引导）：仓、物料、结存、按台的台都只列这家公司的；
+- 都在本对话公司下执行（`masters.company.acting`，同盘点引导）：仓、物料、按台的台都只列这家公司的；
 - 日期：对话月份里的今天，否则那个月的月末（进「已定」，可改；改的日期要在对话月份里）；
 - 仓库（默认仓）：这家公司启用的仓，本人上次在这种单上选的 / 唯一的仓作推荐排第一（`warehouses.prefill_for`），不预选；
-- 物料按行选仓：选项的码是 ``<s|n>:<仓>|<物料>``（``s`` = 按台管理，`serials.tracked`），显示「物料 · 仓库」与结存；
-  出库、调拨、调整减少只列有结存的（调拨只列调出仓的，服务端单头一出一进），入库、调整增加列这家公司在架的物料 × 启用的仓；
+- 物料按行选仓：选项的码是 ``<s|n>:<仓>|<物料>``（``s`` = 按台管理，`serials.tracked`），显示「物料 · 仓库」；四种都同网页出入库页的
+  物料下拉：这家公司在架的物料 × 启用的仓（调拨只列调出仓的，服务端单头一出一进），结存 0 也能出（服务端允许负库存）、不显示结存；
 - 单价（入库、调整增加）：推荐值是这个仓现在的均价 / 物料参考成本（`documents.default_unit_cost`，同网页带出），只给看得到成本的人；
 - 按台管理（11-19 主会话定进第一版）：出库、调拨、调整减少逐行选在库的台；入库「退库」收回已售 / 已出库的台；其余入库、调整增加
-  逐台登记主号（子题，`questions`）；台数要等于数量，过账时 `serials.apply` 再全核一遍；
+  逐台登记主号、副号、颜色（同网页按台登记弹窗 `serials.js`，主号必填）（子题，`questions`）；台数要等于数量，过账时 `serials.apply` 再全核一遍；
 - 写账前置判定（网页提交前同一个 `express.api.preflight`）：这家公司账套里缺这种单要的簿 / 科目时问一次、按公司记住；不缺就进「已定」；
 - 附件：对话里交的文件（只认本人本对话的，`assistant.files`）在确定时存成本人私有的登记 File，随建单一起挂上（`api_create_stock_entry`
   的 ``attachments``，同网页「新建时先选附件」）；
@@ -34,7 +34,6 @@ from frappe import _
 
 DOCTYPE = "ERP Stock Entry"
 PRODUCT = "ERP Product"
-BALANCE = "ERP Stock Balance"
 WAREHOUSE = "ERP Warehouse"
 DIRECTIONS = {"stock_out": "out", "stock_transfer": "transfer", "stock_adjust": "adjust", "stock_in": "in"}
 # 预填仓的单据类型（`warehouses.KINDS`；建单时服务记的同一组，`documents.create_entry` → `warehouses.remember`）
@@ -44,7 +43,6 @@ SEP = "|"
 DRAFT_SEP = "@"
 PAGE_MAX = 50
 MATCH_MAX = 500                    # 搜索时先认出的物料最多几件（再按页切；一家公司在架的物料按这个封顶）
-HELD_MAX = 2000                    # 有结存的行最多取几行（一家公司启用的仓 × 有货的物料）
 UNIT_PAGES = 4                     # 选台的下拉最多翻几页（每页 50，`serials.search_units` 的上限）
 QUESTIONS_MAX = 50                 # 一题最多几个子题（引擎 `steps.QUESTIONS_MAX`）
 READY = {"ready": "1"}             # 写账前置判定没有要问的：这一步的值（进「已定」）
@@ -254,82 +252,44 @@ def _tracked(ctx, products) -> set:
     return serials.tracked(list(products), _company(ctx))
 
 
-def _held(warehouses, products=None) -> dict:
-    """这几个仓里有结存的 ``{(仓, 物料): 数量}``（同一仓的几行结存合起来）。"""
-    filters = [["warehouse", "in", list(warehouses) or [""]], ["qty_on_hand", ">", 0]]
-    if products is not None:
-        filters.append(["product", "in", sorted(products) or [""]])
-    rows = frappe.get_all(BALANCE, filters=filters, fields=["warehouse", "product", "qty_on_hand"],  # bounded: HELD_MAX
-                          limit_page_length=HELD_MAX)
-    out = {}
-    for row in rows:
-        key = (row["warehouse"], row["product"])
-        out[key] = out.get(key, 0) + frappe.utils.flt(row["qty_on_hand"])
-    return {key: qty for key, qty in out.items() if qty > 0}
-
-
 def _qty_text(qty) -> str:
     qty = frappe.utils.flt(qty)
     return str(int(qty)) if qty == int(qty) else f"{qty:g}"
 
 
-def _option(flag, warehouse, product, labels, qty=None) -> dict:
-    unit = (product.get("base_unit") or product.get("unit") or "").strip()
-    note = f"{_('stock.col.onHand')} {_qty_text(qty or 0)}" + (f" {unit}" if unit else "")
+def _option(flag, warehouse, product, labels) -> dict:
+    """一个选项：「物料 · 仓库」。不带结存（网页出入库页的物料下拉不取结存，`stock-entry.js` → `p.trade.lines_editor`）。"""
     return {"code": code_of(flag, warehouse, product["name"]),
-            "name": f"{product.get('product_name') or product['name']} · {labels.get(warehouse) or warehouse}",
-            "note": note}
+            "name": f"{product.get('product_name') or product['name']} · {labels.get(warehouse) or warehouse}"}
 
 
-def _checked_codes(ctx, codes, held) -> dict:
-    """核答案：每个码的仓是这家公司启用的、物料看得到且在架、按台标记与此刻一致；``held`` 时还要此刻有结存。"""
-    labels = {row["code"]: row["name"] for row in _warehouses(ctx)}
-    if held and _direction(ctx) == "transfer":
-        source = _default_warehouse(ctx)
-        labels = {key: value for key, value in labels.items() if key == source}
-    wanted = [parse(code) for code in codes]
-    with _acting(ctx):
-        products = _products(names=[product for _flag, _wh, product in wanted])
-        tracked = _tracked(ctx, products)
-        stock = _held([wh for _flag, wh, _p in wanted if wh in labels], products) if held else {}
-    rows = []
-    for flag, warehouse, product in wanted:
-        if warehouse not in labels or product not in products or flag != (TRACKED if product in tracked else PLAIN):
-            continue
-        if held and (warehouse, product) not in stock:
-            continue
-        rows.append(_option(flag, warehouse, products[product], labels, stock.get((warehouse, product))))
-    return {"options": rows, "more": False}
-
-
-def held_options(ctx, txt="", start=0, page_length=20, codes=None):
-    """出库、调拨、调整减少：有结存的「物料 · 仓库」（默认仓的排前面；调拨只列调出仓的）。"""
-    if codes is not None:
-        return _checked_codes(ctx, codes, held=True)
+def _scope(ctx) -> list:
+    """这一步能选的仓（默认仓在前）：调拨只有调出仓（服务端单头一出一进），其余是这家公司启用的仓。"""
     order = _ordered_warehouses(ctx)
     if _direction(ctx) == "transfer":
         source = _default_warehouse(ctx)
         order = [row for row in order if row["code"] == source]
-    labels = {row["code"]: row["name"] for row in order}
-    rank = {row["code"]: index for index, row in enumerate(order)}
+    return order
+
+
+def _checked_codes(ctx, codes) -> dict:
+    """核答案：每个码的仓在这一步能选的仓里、物料看得到且在架、按台标记与此刻一致（结存不核：服务端允许负库存，同网页）。"""
+    labels = {row["code"]: row["name"] for row in _scope(ctx)}
+    wanted = [parse(code) for code in codes]
     with _acting(ctx):
-        matched = _products(txt=txt) if str(txt or "").strip() else None
-        stock = _held(list(labels), None if matched is None else list(matched))
-        products = matched if matched is not None else _products(names=[product for _wh, product in stock])
+        products = _products(names=[product for _flag, _wh, product in wanted])
         tracked = _tracked(ctx, products)
-    keys = sorted((key for key in stock if key[1] in products),
-                  key=lambda key: (rank[key[0]], str(products[key[1]].get("product_name") or ""), key[1]))
-    begin, size = max(0, int(start or 0)), max(1, min(int(page_length or 20), PAGE_MAX))
-    rows = [_option(TRACKED if product in tracked else PLAIN, warehouse, products[product], labels, stock[(warehouse, product)])
-            for warehouse, product in keys[begin:begin + size]]
-    return {"options": rows, "more": len(keys) > begin + size}
+    rows = [_option(flag, warehouse, products[product], labels) for flag, warehouse, product in wanted
+            if warehouse in labels and product in products and flag == (TRACKED if product in tracked else PLAIN)]
+    return {"options": rows, "more": False}
 
 
-def inbound_options(ctx, txt="", start=0, page_length=20, codes=None):
-    """入库、调整增加：这家公司在架的物料 × 启用的仓（默认仓的排前面），带此刻结存。"""
+def item_options(ctx, txt="", start=0, page_length=20, codes=None):
+    """物料与数量（四种同一个，同网页出入库页的物料下拉：这家公司在架的物料，结存 0 也能出）：在架物料 × 能选的仓
+    （默认仓的排前面；调拨只列调出仓的）。"""
     if codes is not None:
-        return _checked_codes(ctx, codes, held=False)
-    order = _ordered_warehouses(ctx)
+        return _checked_codes(ctx, codes)
+    order = _scope(ctx)
     labels = {row["code"]: row["name"] for row in order}
     with _acting(ctx):
         products = _products(txt=txt)
@@ -338,9 +298,7 @@ def inbound_options(ctx, txt="", start=0, page_length=20, codes=None):
     page = pairs[begin:begin + size]
     with _acting(ctx):
         tracked = _tracked(ctx, {product for _wh, product in page})
-        stock = _held({wh for wh, _p in page}, {product for _wh, product in page}) if page else {}
-    rows = [_option(TRACKED if product in tracked else PLAIN, warehouse, products[product], labels, stock.get((warehouse, product)))
-            for warehouse, product in page]
+    rows = [_option(TRACKED if product in tracked else PLAIN, warehouse, products[product], labels) for warehouse, product in page]
     return {"options": rows, "more": len(pairs) > begin + size}
 
 
@@ -354,7 +312,7 @@ def _priced_step(ctx) -> str:
 def price_options(ctx, txt="", start=0, page_length=20, codes=None):
     """要填单价的行 = 上一步选的那几行（码不变）。"""
     chosen = [str(row.get("code")) for row in _answers(ctx).get(_priced_step(ctx)) or () if isinstance(row, dict)]
-    found = _checked_codes(ctx, chosen, held=False)["options"]
+    found = _checked_codes(ctx, chosen)["options"]
     return _only(found, codes) if codes is not None else _page(found, txt, start, page_length)
 
 
@@ -427,9 +385,14 @@ def _questions(ctx, step_key) -> list:
             item = names.get(product) or {"product_name": product}
             title = f"{item.get('product_name') or product} · {labels.get(warehouse) or warehouse} · {_qty_text(row['amount'])}"
             if mode == "register":
-                label = _("serial.device.primary" if kinds.get(product) == "device" else "serial.vehicle.primary")
+                device = kinds.get(product) == "device"
+                labels_of = {"": _("serial.device.primary") if device else _("serial.vehicle.primary"),
+                             "_secondary": _("serial.device.secondary") if device else _("serial.vehicle.secondary"),
+                             "_color": _("serial.color")}
                 for number in range(1, _whole(row["amount"]) + 1):
-                    out.append({"key": f"r{index}_{number}", "input": "text", "title": f"{label} {number} · {title}"})
+                    # 同网页按台登记弹窗（`serials.js`）：主号必填，副号、颜色可空
+                    out.extend({"key": f"r{index}_{number}{suffix}", "input": "text", "title": f"{text} {number} · {title}",
+                                **({"required": False} if suffix else {})} for suffix, text in labels_of.items())
                 continue
             out.append({"key": f"r{index}", "input": "multi", "title": title,
                         "options": _units_of(ctx, product, warehouse, mode)})  # loop-query: 这张单按台的几行，每行一次选台
@@ -493,7 +456,9 @@ def _serials(values, step_key, rows, mode) -> list:
     out = []
     for index, row in enumerate(rows, start=1):
         if mode == "register":
-            out.append([{"serial_no": str(answer.get(f"r{index}_{n}") or "").strip()}
+            out.append([{"serial_no": str(answer.get(f"r{index}_{n}") or "").strip(),
+                         "secondary_no": str(answer.get(f"r{index}_{n}_secondary") or "").strip(),
+                         "color": str(answer.get(f"r{index}_{n}_color") or "").strip()}
                         for n in range(1, _whole(row["amount"]) + 1)])
         else:
             out.append([{"serial": name} for name in answer.get(f"r{index}") or ()])
@@ -595,9 +560,12 @@ def file_check(ctx, value) -> str:
 
 
 def _original_id(ctx, file_id) -> str:
-    """同网页上传附件的原件 id 写法（`recognition.originals`：站点 + 本人 + 方向 + 幂等键）；幂等键 = 这次引导 + 对话文件编号。"""
-    seed = f"{frappe.local.site}|{frappe.session.user}|stock_{_direction(ctx)}|cc-{ctx.get('run')}-{file_id}"
-    return "ERO-" + hashlib.sha256(seed.encode()).hexdigest()[:48]
+    """原件 id：网页上传同一个公开入口（`recognition.originals.original_id`：站点 + 本人 + 方向 + 幂等键，按方向要开单能力）；
+    幂等键 = 这次引导 + 对话文件编号的摘要（同网页的键写法：字母数字与连字符）。"""
+    from pearnly_erp_portal.recognition import originals
+
+    key = hashlib.sha256(f"{ctx.get('run')}|{file_id}".encode()).hexdigest()[:40]
+    return originals.original_id(f"stock_{_direction(ctx)}", key)
 
 
 def _stored_files(ctx, file_ids) -> list:
@@ -609,7 +577,7 @@ def _stored_files(ctx, file_ids) -> list:
     names = []
     with _conversation(ctx):
         for file_id in file_ids or ():
-            original_id = _original_id(ctx, file_id)
+            original_id = _original_id(ctx, file_id)  # loop-query: 一张单最多 10 个附件，每份核一次开单能力
             existing = frappe.db.get_value("File", {"file_name": original_id + ".bin", "owner": frappe.session.user},  # loop-query: 一张单最多 10 个附件
                                            "name")
             if existing:
@@ -643,7 +611,7 @@ def _line(ctx, key, value, step=None):
 
 
 def _table(ctx, key, rows, labels):
-    found = {row["code"]: row for row in _checked_codes(ctx, [row["code"] for row in rows], held=False)["options"]}
+    found = {row["code"]: row for row in _checked_codes(ctx, [row["code"] for row in rows])["options"]}
     return {"key": key, "label_key": f"guide.step.{ctx.get('business')}.{key}", "step": key,
             "rows": [{"code": row["code"], "name": (found.get(row["code"]) or {}).get("name") or row["code"],
                       "amount": str(row["amount"]), **({"note": labels[row["code"]]} if labels.get(row["code"]) else {})}
