@@ -45,7 +45,6 @@ class Backend:
     def __init__(self, docs, parties=()):
         self.docs, self.parties = docs, list(parties)
         self.memory, self.records, self.refuse, self.denied, self.serial = {}, [], set(), set(), 0
-        self.entries = False  # 替身产品认「码:数」与自己填的字（共用 contracts.expand 现在不认，见 Entries.test_shared_expand_*）
 
     def card(self, company, doc_ids):
         merged = []
@@ -62,11 +61,6 @@ class Backend:
         before = self.card(company, doc_ids)
         if any(a["value"] in self.refuse for a in answers):
             return {"refused": "产品不收"}
-        if self.entries:
-            for answer in answers:
-                item = next(i for i in c.items_of(before) if i["key"] == answer["key"])
-                self.memory[(item["kind"], item["subject"])] = answer["value"]
-            return {**self.card(company, doc_ids), "writable": list(doc_ids), "held": []}
         expanded, errors = c.expand(before, answers)
         if errors:
             return {**before, "errors": errors}
@@ -379,7 +373,6 @@ class Entries(Fixture):
             with self.subTest(typed=typed):
                 self.payload = {}
                 backend = Backend({"d1": [COST]})
-                backend.entries = True
                 self.entry_prompt(backend, COST, 1)
                 out = self.type(backend, typed)
                 self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": value}])
@@ -388,7 +381,6 @@ class Entries(Fixture):
 
     def test_unit_factor(self):
         backend = Backend({"d1": [UNIT]})
-        backend.entries = True
         first, prompt = self.entry_prompt(backend, UNIT, 1)
         self.assertEqual(labels(first), ["กล่อง ×12", "填换算", "取消"])  # 选项名按 guide 的 label_key（guide.option.unit.factor）
         self.type(backend, "6")
@@ -396,7 +388,6 @@ class Entries(Fixture):
 
     def test_unreadable_or_out_of_range_numbers_ask_again(self):
         backend = Backend({"d1": [COST]})
-        backend.entries = True
         self.entry_prompt(backend, COST, 1)
         for typed in ("abc", "0", "-3", "(5)", "nan", "1 234", ""):
             with self.subTest(typed=typed):
@@ -426,7 +417,6 @@ class Entries(Fixture):
 
     def test_number_waiting_does_not_take_the_next_ticket(self):
         backend = Backend({"d1": [COST], "d2": [PAY]})
-        backend.entries = True
         self.entry_prompt(backend, COST, 1)
         self.assertEqual(self.start(backend, doc_ids=("d2",), ref="I-2")["status"], ask.QUEUED)
         out = self.type(backend, "15")
@@ -436,19 +426,18 @@ class Entries(Fixture):
 
     def test_free_question_takes_the_typed_text(self):
         backend = Backend({"d1": [COST]})
-        backend.entries = True
         self.start(backend)
         self.type(backend, "2")  # 自己填的题：没列编号时打的数字是值，不是选第 2 个
         self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "2"}])
 
-    def test_shared_expand_does_not_take_code_colon_number_yet(self):
-        # 现状（汇报遗留）：共用 contracts.expand 只认选项码，「码:数」回 value_not_offered；LINE 照「答错重问」处理，不前进
+    def test_shared_expand_takes_code_colon_number(self):
+        # 共用记答 contracts.expand 认「码:数」（主会话 11-19 定 A）：替身产品照 expand 展开后记住，这一题答完、不重问
         backend = Backend({"d1": [COST]})
         self.entry_prompt(backend, COST, 1)
-        out = self.type(backend, "100")
-        self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "given:100"}])
-        self.assertEqual(out["messages"][0]["text"], "此选项已失效")
-        self.assertTrue(ask.asking(self.payload))
+        out = self.type(backend, "1,000")
+        self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "given:1000"}])
+        self.assertEqual((out["status"], out["messages"]), (ask.IDLE, []))
+        self.assertEqual(backend.memory[("cost_basis", "line-1")], "given:1000")
 
     def test_number_rules(self):
         entry = {"input": "number", "min_exclusive": "0"}

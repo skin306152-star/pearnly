@@ -16,7 +16,7 @@
 
 要另填数的题也在 LINE 问完（主会话 11-19「不许有 LINE 问不了、只能进编辑页」）：点了带 ``entry`` 的选项（单位「填换算」、出库成本
 「填单位成本」）接着请用户直接打数字，按识别数字那套规整（``tax_documents.amounts.money``：逗号、฿、括号负数），照 ``entry`` 的下限核
-（同 CC 引导卡 ``assistant.guide.documents._entry_ok``），读不懂 / 不在范围当场再问；答案交「码:数」（同 CC 引导卡与
+（``contracts.entry_number``，共用记答与 CC 引导卡同用），读不懂 / 不在范围当场再问；答案交「码:数」（同 CC 引导卡与
 ``express_rules.push.book_questions`` 的 ``factor:`` / ``given:``）。可自己填的题（``free``）打的字原样作答（同 CC 引导卡「其他」）。
 只有既没选项、不能搜、也不能自己填（或 ``entry`` 不是数字）的题才问不了，记进 ``left``。结果不明、写不了、等电脑的单不是题，也不问。
 
@@ -28,12 +28,10 @@
 """
 from __future__ import annotations
 
-from decimal import Decimal
 from typing import Any, Dict, List, Mapping, Optional
 from urllib.parse import parse_qs, urlencode
 
 from pearnly_core.line_ui.labels import QUICK_LABEL_MAX, choice_labels
-from pearnly_core.tax_documents.amounts import money
 from pearnly_core.write_precheck import contracts as c
 from pearnly_core.write_precheck import guide
 
@@ -132,15 +130,8 @@ def askable(question: Mapping[str, Any], item: Optional[Mapping[str, Any]] = Non
 
 def number(entry: Mapping[str, Any], typed) -> Optional[str]:
     """用户打的数 → 交答案用的数字串（``1,234.50`` → ``1234.50``、``฿100`` → ``100``）；读不懂、不是有限数、不合 ``entry`` 的下限
-    （``min_exclusive`` 大于、``min`` 不小于，同 CC 引导卡）回 None。"""
-    amount = money(" ".join(str(typed or "").split()))
-    if amount is None or not amount.is_finite():
-        return None
-    if entry.get("min_exclusive") not in (None, "") and not amount > Decimal(str(entry["min_exclusive"])):
-        return None
-    if entry.get("min") not in (None, "") and amount < Decimal(str(entry["min"])):
-        return None
-    return format(amount, "f")
+    （``min_exclusive`` 大于、``min`` 不小于）回 None。与共用记答、CC 引导卡同一条（``contracts.entry_number``）。"""
+    return c.entry_number(entry, typed)
 
 
 def _entries(question: Mapping[str, Any], item: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:

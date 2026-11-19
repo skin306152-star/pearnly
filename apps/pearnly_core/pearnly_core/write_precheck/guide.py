@@ -30,7 +30,7 @@ WHETHER_KINDS = frozenset({"document_policy", "direction", "account_set", "curre
 NEW_OPTION_KEY = "guide.option.new"
 # 允许用户在「其他」里自己填的题（卡上每题末尾那一行「其他」只在这些题出）：值不是从主档里选的（例：出库没有成本基础时填单位成本）。
 # 选项来自主档、不许自造的题（对方、物料、科目、仓……）不出
-FREE_KINDS = frozenset({"cost_basis"})
+FREE_KINDS = c.FREE_KINDS  # 定义在 contracts（共用记答 expand 也认自填值）
 VERSION = 1
 
 

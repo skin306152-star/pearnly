@@ -322,8 +322,17 @@ class Entries(unittest.TestCase):
         self.assertEqual(documents.check_answers(self.CARD, [{"key": "unit|1", "value": "factor:6"}]),
                          [{"key": "unit|1", "value": "factor:6"}])
         self.assertEqual(documents.check_answers(self.CARD, [{"key": "unit|1", "value": "same"}])[0]["value"], "same")
+        # 数的口径同共用记答（contracts.entry_answer）：交出去的是规整后的「码:数」
+        self.assertEqual(documents.check_answers(self.CARD, [{"key": "unit|1", "value": "factor:1,200"}])[0]["value"], "factor:1200")
         for bad in ("factor:0", "factor:x", "same:3", "factor", "factor:nan"):
             self.assertRaises(documents.AnswerError, documents.check_answers, self.CARD, [{"key": "unit|1", "value": bad}])
+
+
+    def test_free_question_takes_the_typed_value(self):
+        card = {"questions": [{"key": "cost|1", "free": True, "options": [{"code": "none"},
+                                                                         {"code": "given", "entry": {"input": "number", "min_exclusive": "0"}}]}]}
+        self.assertEqual(documents.check_answers(card, [{"key": "cost|1", "value": "120"}])[0]["value"], "120")
+        self.assertRaises(documents.AnswerError, documents.check_answers, self.CARD, [{"key": "unit|1", "value": "120"}])
 
 
 class HandOver(Base):

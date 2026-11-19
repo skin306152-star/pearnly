@@ -23,9 +23,11 @@ from __future__ import annotations
 import hashlib
 import json
 from collections import Counter
+from decimal import Decimal
 from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
 
 from pearnly_core.express_rules.contracts import codes as code_rules
+from pearnly_core.tax_documents.amounts import money
 
 # ── 业务分组（卡片上的顺序）──
 BOOK, PURCHASE, SALES, STOCK, SERVICE, PAYMENT = "book", "purchase", "sales", "stock", "service", "payment"
@@ -90,6 +92,9 @@ PER_DOCUMENT_KINDS = frozenset({"posting_kind", "detail", "cost_basis", "new_par
 # 其中答案仍要记下的（键里带单号，等于只管这一张）：后台 / 网页再准备时照用（主会话 11-17 定 C，A7 明细对不上）。不进「记住的选择」
 # 清单（Cowork `push.choices.of_sets` 排除；ERP 没有把这份记忆列给人看的清单）
 KEPT_PER_DOCUMENT_KINDS = frozenset({"detail"})
+# 允许自己填值的类（引导卡每题末尾「其他」只在这些题出，``guide.build`` 标 ``free``）：值不是从主档里选的（例：出库没有成本基础时
+# 填单位成本），答案是填的字本身，不要求在选项里
+FREE_KINDS = frozenset({"cost_basis"})
 # 能只答给其中一张单的类（答案带 ``doc_id``）：只写那一张自己的、不记住、不合并（主会话 11-05：「按供应商记住照旧是默认，
 # 单张的例外 CC 在对话里也能改」）。产品把这一张自己定的列成单独一项，来源 :data:`DOCUMENT`
 DOCUMENT_ANSWER_KINDS = frozenset({"payment"})
@@ -187,6 +192,41 @@ def normalize_item(raw: Mapping[str, Any], direction: str = "") -> Dict[str, Any
     if when is not None:
         item["when"] = _when(when)
     return item
+
+
+def entry_number(entry, typed) -> Optional[str]:
+    """选项上「选它还要填一个数」（``entry``，例：单位题「填换算」、成本题「填单位成本」）填的数 → 规整后的数字串；不合回 None。
+
+    数按票面金额那套读（``tax_documents.amounts.money``：逗号、฿、会计括号负数）；要是有限数，合 ``min_exclusive``（大于）/
+    ``min``（不小于）。``entry`` 不是数字输入的一律不合。CC 引导卡核答案、共用记答、LINE 出题器同用这一条。"""
+    if not isinstance(entry, Mapping) or entry.get("input", "number") != "number":
+        return None
+    amount = money(" ".join(str(typed or "").split()))
+    if amount is None or not amount.is_finite():
+        return None
+    if entry.get("min_exclusive") not in (None, "") and not amount > Decimal(str(entry["min_exclusive"])):
+        return None
+    if entry.get("min") not in (None, "") and amount < Decimal(str(entry["min"])):
+        return None
+    return format(amount, "f")
+
+
+def _entry_codes(item: Mapping[str, Any]) -> set:
+    return {str(option.get("code") or "").strip() for option in item.get("options") or ()
+            if isinstance(option, Mapping) and isinstance(option.get("entry"), Mapping)}
+
+
+def entry_answer(options, value) -> Optional[str]:
+    """答案「码:数」：码是带 ``entry`` 的选项、数合 :func:`entry_number` → 规整后的「码:数」；否则 None（不带 entry 的码带数也是 None）。"""
+    code, sep, typed = str(value or "").strip().partition(":")
+    if not sep:
+        return None
+    option = next((option for option in options or () if isinstance(option, Mapping)
+                   and str(option.get("code") or "").strip() == code.strip() and isinstance(option.get("entry"), Mapping)), None)
+    if option is None:
+        return None
+    found = entry_number(option["entry"], typed)
+    return None if found is None else f"{code.strip()}:{found}"
 
 
 def _when(raw) -> Dict[str, str]:
@@ -350,7 +390,8 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
            ) -> Tuple[Dict[str, List[Dict[str, Any]]], List[Dict[str, str]]]:
     """卡片交回的答案 ``[{key, value, doc_id?}]`` → ``({doc_id: [{kind, subject, value, label, remember, document?}]}, errors)``。
 
-    答案可以改已定项（卡片上「已定」可改）。值要在这一项的可选范围里（给了 ``options`` 且没有 ``search`` 时）。
+    答案可以改已定项（卡片上「已定」可改）。值要在这一项的可选范围里（给了 ``options`` 且没有 ``search`` 时）；例外两种：
+    选项带 ``entry`` 的答「码:数」（:func:`entry_answer`，展开成规整后的「码:数」），:data:`FREE_KINDS` 的题答自己填的字。
     带 ``doc_id`` 的只展开到那一张（这一类要在 :data:`DOCUMENT_ANSWER_KINDS`、这张单要在这一项里），记成 ``document: True``、
     ``remember: False``：产品只写那一张自己的；来源是 :data:`DOCUMENT` 的项（这张单上人定的）作答同样只写那一张。
     出错的答案逐条回 ``{key, code}``，不展开；其余照展开（调用方决定整批拒还是部分收）。"""
@@ -382,8 +423,12 @@ def expand(card: Mapping[str, Any], answers: Iterable[Mapping[str, Any]]
         codes = _codes(item.get("options"))
         if codes is not None:
             value = code_rules.choose(value, codes)  # 复述时空白变了的编码换回选项里的原样
-        if codes is not None and not item.get("search") and value not in codes:
-            errors.append({"key": key, "code": ERR_NOT_OFFERED})
+        entered = entry_answer(item.get("options"), value) if codes is not None else None
+        if entered is not None:
+            value = entered
+        elif codes is not None and not item.get("search") and (value not in codes or value in _entry_codes(item)) \
+                and item["kind"] not in FREE_KINDS:
+            errors.append({"key": key, "code": ERR_NOT_OFFERED})  # 带 entry 的选项只答码、不带数也不收
             continue
         if not applies(item, by_key, answers):
             continue  # 依赖的那一项答成了别的值：这一项不成立，答了也不展开（不算错）
@@ -437,9 +482,9 @@ def preview(card: Mapping[str, Any], limit: int = 4) -> Dict[str, Any]:
 
 __all__ = ["BOOK", "BOOK_SETTING", "CC", "CHECK", "COMPANY_RULE", "DECIDED", "DECIDED_SOURCES", "DOCUMENT", "DOCUMENT_ANSWER_KINDS", "DOC_STATES",
            "ERR_DUPLICATE_KEY", "ERR_EMPTY_VALUE", "ERR_NOT_OFFERED", "ERR_NOT_PER_DOCUMENT", "ERR_TOO_MANY", "ERR_UNKNOWN_KEY",
-           "EXPRESS_HISTORY", "FACE", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
+           "EXPRESS_HISTORY", "FACE", "FREE_KINDS", "GROUPS", "HISTORY", "KINDS", "KIND_GROUPS", "MAX_ANSWERS", "MAX_DOCUMENTS",
            "KEPT_PER_DOCUMENT_KINDS", "NOT_WRITABLE", "OPEN", "PAYMENT", "PER_DOCUMENT_KINDS", "PINNED", "PROPOSED", "PROPOSED_SOURCES",
            "PURCHASE", "PrecheckError", "REMEMBERED", "RULE", "SALES", "SERVICE", "SMALL_LIST", "SOURCES", "STATES", "STOCK",
-           "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "applies", "defaults", "expand", "group_of",
+           "STOCK_ACCOUNT_PREFIX", "SUGGESTED", "TASK_DEFAULT", "UNKNOWN", "WAITING", "applies", "defaults", "entry_answer", "entry_number", "expand", "group_of",
            "held_back", "item_key", "items_of", "merge", "needs_card", "normalize_item", "preview", "state_of",
            "writable"]

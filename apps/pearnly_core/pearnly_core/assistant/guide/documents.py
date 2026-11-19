@@ -174,35 +174,16 @@ def check_answers(card: Mapping[str, Any], answers) -> List[Dict[str, str]]:
         if item is None or not value:
             raise AnswerError("answer not on the card")
         codes = {str(o.get("code") or "") for o in item.get("options") or ()}
-        entries = {str(o.get("code") or ""): o["entry"] for o in item.get("options") or () if isinstance(o.get("entry"), Mapping)}
-        plain = codes - set(entries)        # 带 entry 的选项必须连数一起答（「码:数」）
-        if codes and not item.get("search") and value not in plain and not _entry_ok(entries, value):
+        # 带 entry 的选项必须连数一起答「码:数」（数的口径同共用记答 `contracts.entry_answer`）；标了 free 的题收自己填的字
+        plain = codes - {str(o.get("code") or "") for o in item.get("options") or () if isinstance(o.get("entry"), Mapping)}
+        entered = card_contracts.entry_answer(item.get("options"), value)
+        if codes and not item.get("search") and value not in plain and entered is None and not item.get("free"):
             raise AnswerError("value not offered")
-        row = {"key": key, "value": value}
+        row = {"key": key, "value": entered or value}
         if answer.get("doc_id"):
             row["doc_id"] = str(answer["doc_id"])
         out.append(row)
     return out
-
-
-def _entry_ok(entries: Mapping[str, Mapping[str, Any]], value: str) -> bool:
-    """选项带 ``entry``（选它还要填一个数，例：单位题「填换算」、成本题「填单位成本」）：答案编码「码:数」，数要是数字、
-    合 ``min_exclusive`` / ``min``。业务上的核对（例：换算合不合理）由出题方在记答时再核。"""
-    from decimal import Decimal, InvalidOperation
-
-    code, sep, number = value.partition(":")
-    entry = entries.get(code)
-    if not sep or entry is None or entry.get("input", "number") != "number":
-        return False
-    try:
-        amount = Decimal(number.strip().replace(",", ""))
-    except InvalidOperation:
-        return False
-    if not amount.is_finite():
-        return False
-    if entry.get("min_exclusive") not in (None, "") and not amount > Decimal(str(entry["min_exclusive"])):
-        return False
-    return not (entry.get("min") not in (None, "") and amount < Decimal(str(entry["min"])))
 
 
 def record(card: Mapping[str, Any], company: str, doc_ids: List[str], rows: List[Dict[str, str]]) -> Dict[str, Any]:

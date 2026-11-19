@@ -252,6 +252,52 @@ def payment(value="credit", source="remembered", subject="purchase|0105556000001
             "direction": "purchase", "options": [{"code": "cash"}, {"code": "credit"}]}
 
 
+class EntryAnswers(unittest.TestCase):
+    """选项带 entry（单位「填换算」、出库成本「填单位成本」）答「码:数」、可自己填的题答填的字（主会话 11-19 定 A：共用记答认它们，
+    数的口径与 CC 引导卡、LINE 出题器同一条 ``contracts.entry_number``）；不带 entry 的选项一字不变。"""
+
+    ENTRY = {"input": "number", "min_exclusive": "0"}
+    UNIT = {"kind": "unit", "subject": "unit|purchase|A1|box", "label": "A",
+            "options": [{"code": "BOX"}, {"code": "factor", "entry": ENTRY}]}
+    COST = {"kind": "cost_basis", "subject": "line-1", "label": "",
+            "options": [{"code": "none"}, {"code": "given", "entry": ENTRY}]}
+
+    def expand(self, raw, value):
+        card = c.merge([doc("D1", raw)])
+        return c.expand(card, [{"key": c.item_key(raw["kind"], raw["subject"]), "value": value}])
+
+    def test_code_with_a_number_is_taken_and_normalised(self):
+        for given, value in (("factor:6", "factor:6"), ("factor:1,200.50", "factor:1200.50"), ("factor:฿12", "factor:12"),
+                             (" factor : 3 ", "factor:3")):
+            with self.subTest(given=given):
+                result, errors = self.expand(self.UNIT, given)
+                self.assertEqual(errors, [])
+                self.assertEqual(result["D1"][0]["value"], value)
+
+    def test_bad_numbers_are_refused(self):
+        for given in ("factor:0", "factor:-2", "factor:(3)", "factor:x", "factor:nan", "factor:", "factor"):
+            with self.subTest(given=given):
+                self.assertEqual([e["code"] for e in self.expand(self.UNIT, given)[1]], [c.ERR_NOT_OFFERED])
+
+    def test_a_code_without_entry_takes_no_number(self):
+        self.assertEqual([e["code"] for e in self.expand(self.UNIT, "BOX:3")[1]], [c.ERR_NOT_OFFERED])
+        self.assertEqual(self.expand(self.UNIT, "BOX")[0]["D1"][0]["value"], "BOX")  # 原样照收
+        self.assertEqual([e["code"] for e in self.expand(self.UNIT, "CASE")[1]], [c.ERR_NOT_OFFERED])
+
+    def test_free_question_takes_the_typed_value(self):
+        result, errors = self.expand(self.COST, "120 ต่อชิ้น")
+        self.assertEqual((errors, result["D1"][0]["value"]), ([], "120 ต่อชิ้น"))
+        self.assertEqual(self.expand(self.COST, "given:7.5")[0]["D1"][0]["value"], "given:7.5")
+        self.assertEqual(self.expand(self.COST, "none")[0]["D1"][0]["value"], "none")
+
+    def test_entry_number_rules(self):
+        self.assertEqual(c.entry_number(self.ENTRY, "1.5e3"), "1500")
+        self.assertIsNone(c.entry_number({"input": "date"}, "1"))
+        self.assertEqual(c.entry_number({"input": "number", "min": "0"}, "0"), "0")
+        self.assertIsNone(c.entry_number({"input": "number", "min": "1"}, "0.5"))
+        self.assertIsNone(c.entry_answer(self.UNIT["options"], "BOX:3"))
+
+
 class DocumentAnswers(unittest.TestCase):
     """单张的例外（主会话 11-05）：按供应商记住照旧是默认；答案带 ``doc_id`` 只改那一张、不记住、不合并；那一张自己定的列成单独一项，
     来源 ``document``、算已定、能再改。"""
