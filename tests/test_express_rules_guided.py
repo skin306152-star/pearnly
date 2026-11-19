@@ -276,6 +276,80 @@ class EveryKindAnswerIsUsed(unittest.TestCase):
                     self.assertNotIn(kind, kinds(again), (kind, guided))
 
 
+class PayloadCarriesTheAnswer(unittest.TestCase):
+    """守门（主会话 11-17 / 11-19，部署前条件）：每一类答了以后，载荷里那一栏就是答的值——从作答（``applied``，即 ``resolve`` 读到的
+    记忆 / 卡上答的）一直到映射器 / ``apply_to_payload`` 出的载荷。新加一类没在 ``WHERE`` 登记断言，测试失败。"""
+    # 类 → 断言它的用例（本类里的方法，或别的文件里已有的那条）
+    WHERE = {
+        "party": "test_party", "item": "test_item", "account": "test_account", "payment": "test_payment",
+        "vat": "test_vat", "department": "test_department", "service_vat": "test_service_vat",
+        "location": "test_location", "detail": "test_detail",
+        "receipt": "tests/test_express_rules_pos_refund.py::test_a_non_cash_refund_keeps_the_receiving_account_of_the_sale",
+    }
+    BASE = {"account_set": "TEST", "fallback_acc": "51-01", "vat_input_acc": "11-05", "ap_acc": "21-02", "cash_acc": "11-01"}
+
+    def purchase_payload(self, choices_):
+        from datetime import date
+        from pearnly_core.express_rules.push.mapper import build_express_payload
+
+        fields = {"seller_name": NAME, "seller_tax": TAX, "subtotal": "100.00", "vat": "7.00", "invoice_number": "SYN-9",
+                  "document_type": "receipt"}
+        history = {"id": "h9", "invoice_date": "2026-09-28", "invoice_no": "SYN-9", "total_amount": "107.00", "fields": fields}
+        result = build_express_payload(history, config={**self.BASE, "choices": choices_}, today=date(2026, 9, 28))
+        self.assertTrue(result.ok, result.reason)
+        return result.payload
+
+    def test_every_kind_has_a_payload_assertion(self):
+        self.assertEqual(set(self.WHERE), set(choices.KINDS) | {choices.DETAIL})
+        for kind, where in self.WHERE.items():
+            if "::" in where:
+                path, name = where.split("::")
+                self.assertIn(f"def {name}(", (ROOT / path).read_text(encoding="utf-8"), kind)
+            else:
+                self.assertTrue(callable(getattr(self, where, None)), kind)
+
+    def test_account(self):
+        lines = self.purchase_payload({"account": "53-01"})["lines"]
+        self.assertIn(("53-01", "D"), [(line["acc"], line["side"]) for line in lines])
+
+    def test_payment(self):
+        self.assertEqual(self.purchase_payload({"payment": "cash"})["doctype"], "HP")
+        self.assertEqual(self.purchase_payload({"payment": "credit"})["doctype"], "RR")
+
+    def test_vat(self):
+        claim = [line["acc"] for line in self.purchase_payload({"vat": "claim", "payment": "cash"})["lines"]]
+        expense = [line["acc"] for line in self.purchase_payload({"vat": "expense", "payment": "cash"})["lines"]]
+        self.assertIn("11-05", claim)        # 抵进项：进项税一行
+        self.assertNotIn("11-05", expense)   # 不抵：并进费用
+
+    def test_party(self):
+        payload = choices.apply_to_payload({"direction": "purchase", "supplier": {}}, {"party": "S2"})
+        self.assertEqual(payload["supplier"]["code"], "S2")
+
+    def test_item(self):
+        payload = choices.apply_to_payload({"direction": "purchase", "items": [{"name": "Ice", "item_mode": "stock_item"}]},
+                                           {"items": {choices.norm_name("Ice"): "P-001"}})
+        self.assertEqual(payload["items"][0]["code"], "P-001")
+
+    def test_department(self):
+        self.assertEqual(choices.apply_to_payload({"direction": "purchase"}, {"department": "D1"})["depcod"], "D1")
+
+    def test_location(self):
+        payload = choices.apply_to_payload({"direction": "purchase", "items": [{"name": "Ice", "item_mode": "stock_item"}]},
+                                           {"locations": {choices.norm_name("Ice"): "02"}})
+        self.assertEqual(payload["items"][0]["loccod"], "02")
+
+    def test_service_vat(self):
+        payload = choices.apply_to_payload({"direction": "purchase"}, {choices.service_vat.KIND: "accrual"})
+        self.assertEqual(payload[choices.service_vat.PAYLOAD_KEY], choices.service_vat.chosen_value("accrual"))
+
+    def test_detail(self):
+        payload = choices.apply_to_payload({"direction": "sales", "items": [{"name": "A"}], "items_status": "mismatch"},
+                                           {"detail": choices.DETAIL_AMOUNT_ONLY})
+        self.assertEqual((payload["items"], payload["items_status"], payload["detail_choice"]),
+                         ([], "empty", choices.DETAIL_AMOUNT_ONLY))
+
+
 class GuidedOnlyGatesAsking(unittest.TestCase):
     """守门（主会话 11-17 定 C）：``resolve`` 里条件带 ``guided`` 的分支只许决定出不出题，不许在里面读记忆（``chosen(``）——
     读记忆在引导分支里 = 别的口径用不上对话里答过的，后台再推落默认值（记错科目）。"""
