@@ -45,7 +45,7 @@ def computer(users):
         "account_sets": [{{"code": "FLOWOP", "name": "Flow operator 69", "path": "FLOWOP", "root": "D:\\\\FLOWOP",
                            "writable": True, "mapping": mapping, "company": "Flow Operator Co", "tax_id": "0994000777001"}}],
         "accounts": [{{"code": code}} for code in ("A", "V", "P", "S", "O", "R", "5300")],
-        "catalog": {{"products": [], "customers": []}}, "max_payload_version": 3}})
+        "catalog": {{"products": [], "customers": []}}, "max_payload_version": 99}})  # 支持现有全部载荷版本
     device = credentials.device_id(machine.credential_id)
     frappe.db.set_value({DEVICES!r}, device, {{"label": {LABEL!r}, "signed_in_users": _json.dumps(sorted(users)),
                                              "signed_in_user": sorted(users)[0]}}, update_modified=False)
