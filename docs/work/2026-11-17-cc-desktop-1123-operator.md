@@ -9,12 +9,12 @@
 | ③ 中途配方外的业务选择框 | 不点、单据窗口不关、Express 留着；回执原因 `dialog_choice`（保存途中已留半截单的仍 `partial_saved`）带 `meta.dialog`（指纹、标题、正文、按钮、单种、阶段）；载荷 `operator.dialog_answers` 里有同一指纹、按钮还在就照点 | `clean_operator_meta` 放行 `dialog`；`for_operator` 下发 `dialog_answers`；停下出口登记 |
 | ④ 对话里选了按钮 | 领单回复 `operator_controls`（answer）在取任务线程里执行，核框没变才点；保存途中的由「留着等人」检查补报原回执号；录入中途的点完按放弃收拾、等带答案重交 | `cc_desktop/operator_controls.py` 信箱（10 分钟、只发 ≥1.12.23）；ERP / Cowork 判定把框列成一题（选项 = 框按钮），记住（ERP 按公司 + 指纹，Cowork 按连接 + 账套 + 指纹，`operator_dialog`）、给留着框的电脑发指令 |
 | ⑥ 被打断 | 只认点到 / 按在本批 Express 上的（移动、滚轮、切前后台、别的程序里打字不算）；停手 3 秒接着录，满 60 秒还在点 → `interrupted`；人动过后核对不上不交 AI、转人工 | 原因登记、四语报告词条；卡片按钮写「继续」（= 重交、先读账套），停止用对话里的停止 |
-| ⑨ 叫人判据 | 页面经桥 `attention_seen{session, visible}` 报开着哪段对话；CC 窗口在最前面、页面看得见且就是这段对话 → 这条对话提醒不弹；有没录成的批次通知点开待处理页 | 页面一半归 frontend-backlog（C-4） |
+| ⑨ 叫人判据 | 页面经桥 `attention_seen{session, visible}` 报开着哪段对话；CC 窗口在最前面、页面看得见且就是这段对话 → 这条对话提醒不弹；有没录成的批次通知点开回到推这批的那段对话（一批都来自同一段对话时；混着几段、或定时任务 / 网页推的开待处理页；领单每件带可选 `session`，只给推的人登录过的电脑，主会话 11-19 定 B） | 页面一半归 frontend-backlog（C-4） |
 
 没做 / 后置：单位框按答案点（要先在测试机录原生单位框）；站点下发 `muted` 静音（等 `attention.call` 进 main）；流程 `cc.operator.dialog-choice`（随全套流程一起跑时补）。
 
 ## 文案改动（用户 11-16 同意，主会话转达原话「文案同意」）
-出现在哪：CC 桌面版每批写账结束弹的 Windows 通知（`gui_tray._on_batch_done`）。条件：与「点通知打开 CC 窗口的待处理页」同一个提交上线（本提交）。
+出现在哪：CC 桌面版每批写账结束弹的 Windows 通知（`gui_tray._on_batch_done`）。条件：与「点通知打开 CC 窗口、回到那段对话、看得到失败原因」同一版上线（1.12.23）。
 
 | 键 | 语言 | 现文案 | 改后 |
 |---|---|---|---|

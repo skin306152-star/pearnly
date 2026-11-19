@@ -1215,6 +1215,10 @@ def _settle(results) -> None:
         if record:
             waiting[record] = item
     sent = dict(waiting)
+    from pearnly_core.assistant import push_followup
+
+    for record in sent:  # 记下是本人在这段对话里推的：电脑领单时带回，一批没录成的通知点开回到这段对话（CC 桌面版 1.12.23 ⑨）
+        push_followup.note_origin("cowork", record)
     live = {name for name, item in waiting.items() if item.get("cc_desktop_online", True)}
     deadline = time.monotonic() + PUSH_WAIT_SECONDS
     first = True
