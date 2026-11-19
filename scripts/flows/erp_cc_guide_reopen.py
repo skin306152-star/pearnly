@@ -48,27 +48,27 @@ def steps(params, camera_code=None):
             f"await ans(run,{{invoices:[{{code:{first},amount:'600'}}]}}); "
             "const done=await ans(run,{methods:[{code:'cash',amount:'600'}]}); ")
     return [
-        {"name": "开对话", "js": JS + f"const sent=await say({json.dumps(tag + ' 你好')}); await sleep(1500); return {{sent}};"},
-        {"name": "开收款卡到复核", "js": JS + HELP +
+        {"name": "开对话", "js": JS + f"{{const sent=await say({json.dumps(tag + ' 你好')}); await sleep(1500); return {{sent}};}}"},
+        {"name": "开收款卡到复核", "js": JS + "{" + HELP +
          f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); const sid=(mine[0]||{{}}).id; "
          "const v=await api('guide_start',{session_id:sid,business:'collection'},true); window.__gr_run=v.run; "
          "await ready(v.run,'customer'); " + walk[len(HELP):] +
-         "return {run: v.run, status: done.status, version: done.version};"},
-        {"name": "改发票再复核", "js": JS + HELP +
+         "return {run: v.run, status: done.status, version: done.version};}"},
+        {"name": "改发票再复核", "js": JS + "{" + HELP +
          "const run=window.__gr_run; const before=await view(run); "
          "const back=await api('guide_reopen',{run_name:run,step:'invoices',version:before.version},true); "
          "const q=((back.card||{}).questions||[]).find(x=>x.key==='invoices')||{}; await ready(run,'invoices'); "
          f"await ans(run,{{invoices:[{{code:{first},amount:'500'}}]}}); const done=await ans(run,{{methods:[{{code:'cash',amount:'500'}}]}}); "
          "return {back: back.status, from: before.version, to: back.version, value: q.value||null, preselected: q.preselected||null, "
-         "status: done.status};"},
-        {"name": "改客户再复核", "js": JS + HELP +
+         "status: done.status};}"},
+        {"name": "改客户再复核", "js": JS + "{" + HELP +
          "const run=window.__gr_run; const before=await view(run); "
          "const back=await api('guide_reopen',{run_name:run,step:'customer',version:before.version},true); "
          "const q=((back.card||{}).questions||[]).find(x=>x.key==='customer')||{}; " + walk[len(HELP) + len("const run=window.__gr_run; "):] +
-         "return {back: back.status, from: before.version, to: back.version, value: q.value||null, status: done.status};"},
-        {"name": "删除会话", "js": JS + HELP + "const run=window.__gr_run; if(run) await api('guide_cancel',{run_name:run},true); "
+         "return {back: back.status, from: before.version, to: back.version, value: q.value||null, status: done.status};}"},
+        {"name": "删除会话", "js": JS + "{" + HELP + "const run=window.__gr_run; if(run) await api('guide_cancel',{run_name:run},true); "
          f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); "
-         "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};"},
+         "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};}"},
     ]
 
 

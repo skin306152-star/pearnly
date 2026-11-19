@@ -22,6 +22,8 @@ import erp_cc_operator_intake as intake_flow
 from cc_lib import JS
 
 TITLE = "ERP 版 CC 采购引导复核卡：就地改单号（版本 +1）、改合计被拒；带旧复核指纹确定回 changed 不写，带当前指纹确定办完交单"
+# 单据源的复核阶段看 ``stage``（review）；运行状态平时是 asking，带旧指纹确定被退回后是 reviewing（`run._confirm_documents`），都算在复核
+REVIEW_STATUSES = ("asking", "reviewing")
 USER = intake_flow.USER
 API = "pearnly_core.assistant.api."
 
@@ -126,17 +128,17 @@ def judge(params, results, camera_code=None):
     total_code = total_code.get("code") if isinstance(total_code, dict) else total_code
     return [
         {"case": "the handed-in purchase ticket reaches the review card with its doc_no editable", "seen": review,
-         "ok": review.get("status") == "reviewing" and review.get("stage") == "review" and doc_id in (review.get("rows") or [])
+         "ok": review.get("status") in REVIEW_STATUSES and review.get("stage") == "review" and doc_id in (review.get("rows") or [])
          and "doc_no" in (review.get("editable") or []) and bool(review.get("seen"))},
         {"case": "guide_edit on doc_no is taken: version +1 and the review row shows the new value", "seen": edited,
          "ok": not edited.get("outcome") and edited.get("version") == (edited.get("before") or 0) + 1
-         and edited.get("doc_no") == params["new_no"] and edited.get("status") == "reviewing"},
+         and edited.get("doc_no") == params["new_no"] and edited.get("status") in REVIEW_STATUSES and edited.get("stage") == "review"},
         {"case": "the edit changes the review fingerprint (the seen before it is now stale)", "seen": edited,
          "ok": bool(edited.get("seen_before")) and bool(edited.get("seen_after")) and edited.get("seen_before") != edited.get("seen_after")},
         {"case": "guide_edit on the computed total is refused (computed) and the version stays", "seen": refused,
          "ok": refused.get("outcome") == "refused" and total_code == "computed" and refused.get("version") == refused.get("before")},
         {"case": "guide_confirm with the stale seen answers changed and goes back to review", "seen": stale,
-         "ok": stale.get("outcome") == "changed" and stale.get("status") == "reviewing" and stale.get("stage") == "review"
+         "ok": stale.get("outcome") == "changed" and stale.get("status") in REVIEW_STATUSES and stale.get("stage") == "review"
          and doc_id in (stale.get("rows") or []) and (stale.get("version") or 0) > (stale.get("before") or 0)},
         {"case": "guide_confirm with the current review.seen is done and the result lists the ticket", "seen": done,
          "ok": not done.get("outcome") and done.get("status") == "done" and done.get("result_status") == "started"
@@ -160,12 +162,12 @@ print(json.dumps({{"intake": row.get("status"), "made": row.get("purchase") or "
     guide = got.get("guide") or {}
     consents = [str(plan.get("consent") or "") for plan in plans]
     return [
-        {"case": "the edited doc_no is written back onto the intake record", "saved": got.get("doc_no"),
+        {"case": "the edited doc_no is written back onto the intake record", "seen": got.get("doc_no"),
          "ok": got.get("doc_no") == params["new_no"]},
-        {"case": "only the confirm with the current seen made a write plan (the stale one wrote nothing)", "saved": consents,
+        {"case": "only the confirm with the current seen made a write plan (the stale one wrote nothing)", "seen": consents,
          "ok": len(plans) == 1 and consents[0] == str(guide.get("consent") or "") and consents[0].startswith(f"guide:{params['run']}:")},
-        {"case": "the guide run is done with the page's consent", "saved": guide,
+        {"case": "the guide run is done with the page's consent", "seen": guide,
          "ok": guide.get("status") == "done" and str(guide.get("consent") or "").startswith(f"guide:{params['run']}:")},
-        {"case": "the ticket was handed to the operator task once", "saved": got.get("task_docs"),
+        {"case": "the ticket was handed to the operator task once", "seen": got.get("task_docs"),
          "ok": (got.get("task_docs") or []).count(params["doc_id"]) == 1},
     ]

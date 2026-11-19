@@ -168,13 +168,22 @@ def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 presets = frappe.get_all("Cowork Recon Preset", filters={{"scope": ["like", "%{params['tax']}%"]}}, fields=["scope", "rule", "value"])
 tasks = frappe.db.count({DOCTYPE!r}, {{"title": ["like", "%{params['tag']}%"]}})
+# 诊断（GitHub Flows 44482051426：结果 failed、原因为空）：这次的对账任务行与后台留下的错误记录，原样带进核对里
+rows = frappe.get_all({DOCTYPE!r}, filters={{"title": ["like", "%{params['tag']}%"]}}, fields=["*"], limit_page_length=2)
+logs = [{{"method": row.method, "error": (row.error or "")[-1500:]}} for row in frappe.get_all(
+    "Error Log", filters={{"creation": [">=", frappe.utils.add_to_date(frappe.utils.now_datetime(), minutes=-15)]}},
+    fields=["method", "error"], order_by="creation desc", limit_page_length=5)]
 print(json.dumps({{"presets": presets, "tasks": tasks,
-                  "ocr": frappe.db.count("Pearnly OCR Work") if frappe.db.table_exists("Pearnly OCR Work") else 0}}, default=str))
+                  "ocr": frappe.db.count("Pearnly OCR Work") if frappe.db.table_exists("Pearnly OCR Work") else 0,
+                  "task_rows": [{{k: v for k, v in row.items() if k in ("name", "title", "status", "stage", "error", "summary_json")}}
+                                for row in rows], "error_logs": logs}}, default=str))
 """)
     presets = got.get("presets") or []
     return [
-        {"case": "the follow up answer is stored as the preset for this company tax id and account 4201", "saved": presets,
+        {"case": "diagnosis: this run's reconciliation rows and the background errors of the last 15 minutes (record only)",
+         "seen": {"task_rows": got.get("task_rows"), "error_logs": got.get("error_logs")}, "ok": True},
+        {"case": "the follow up answer is stored as the preset for this company tax id and account 4201", "seen": presets,
          "ok": any(p.get("scope") == params["scope"] and p.get("rule") == "excluded" and p.get("value") for p in presets)},
-        {"case": "the guide started one income reconciliation for this run", "saved": got.get("tasks"), "ok": got.get("tasks") == 1},
-        {"case": "nothing went to recognition", "saved": got.get("ocr"), "ok": got.get("ocr") == params["ocr"]},
+        {"case": "the guide started one income reconciliation for this run", "seen": got.get("tasks"), "ok": got.get("tasks") == 1},
+        {"case": "nothing went to recognition", "seen": got.get("ocr"), "ok": got.get("ocr") == params["ocr"]},
     ]
