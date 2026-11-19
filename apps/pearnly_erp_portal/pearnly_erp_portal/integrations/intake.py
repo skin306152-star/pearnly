@@ -514,6 +514,30 @@ def submit(name, payload) -> dict:
     return entry.post(payload, request_id="line-intake:" + doc.name, finalize=finish, allow_duplicate=True)
 
 
+EXPRESS_DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Document"}
+
+
+def save_card(name) -> dict:
+    """LINE 卡片「保存」（用户 11-18）：不进编辑页，按卡片上的选择与识别字段（``build_payload``，同 CC 收单）走编辑页同一个
+    提交（:func:`submit`，请求号同一个：编辑页提交过的再点只回原单）。提交前同编辑页一样按写账规则判一遍（``express.api.preflight``，
+    只对接着 Express 的公司）：有要人定的项就不提交，回 ``{"needed": [...]}``，由卡片一侧给「编辑」；其余缺项照提交时原样报错。"""
+    doc = _owned(name)
+    recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
+    if doc.status == CONFIRMED and recorded:
+        return {"name": recorded, "duplicate": True}
+    if doc.status != READY:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    payload = build_payload(doc)
+    from pearnly_erp_portal.express import api as express_api, push as express_push
+
+    if express_push.linked(doc.company):
+        needed = express_api.preflight(EXPRESS_DOCTYPES[doc.direction], payload).get("needed") or []
+        if needed:
+            return {"needed": needed}
+    payload.pop("ocr_review", None)  # 由 :func:`submit` 按这张卡补上
+    return submit(name, payload)
+
+
 # ── CC 对话收单（盘点 2026-11-08 P0-2，ADR-027 段 2）────────────────────────
 #
 # CC 对话（直写、代录）里的附件走 LINE 收单同一条链路：留底 → 一条收单记录（来源 cc）→ 共用识别队列 → 每张票一条待提交记录

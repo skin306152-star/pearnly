@@ -1664,6 +1664,69 @@ class Web(Base):
         post.assert_not_called()
 
 
+class CardSave(Web):
+    """卡片「保存」（用户 11-18）：不进编辑页直接提交，同编辑页的提交；要人定的项 / 提交时的报错不入账，回原因 + 「编辑」。"""
+
+    def setUp(self):
+        super().setUp()
+        from pearnly_erp_portal.integrations import line_cards
+
+        self.enterContext(patch.object(line_cards, "_", _same))
+        self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
+        self.linked = self.enterContext(patch("pearnly_erp_portal.express.push.linked", return_value=False))
+        self.preflight = self.enterContext(patch("pearnly_erp_portal.express.api.preflight", return_value={"needed": []}))
+        self.seen = {}
+
+        def post(payload, *, request_id, finalize, allow_duplicate):
+            self.seen.update(payload=payload, request_id=request_id)
+            finalize({"name": "PD-1"})
+            return {"name": "PD-1", "status": "submitted", "system_no": "PE-0001"}
+
+        self.post = self.enterContext(patch("pearnly_erp_portal.purchasing.entry.post", side_effect=post))
+
+    def press(self):
+        handlers._postback("U1", "buyer", "a=erp_save&n=LI-1", "tok")
+        return self.replies[-1][0]
+
+    def test_save_posts_the_card_through_the_edit_page_submit(self):
+        reply = self.press()
+        self.assertEqual(reply, {"type": "text", "text": "Posted · PE-0001"})
+        self.assertEqual(self.seen["request_id"], "line-intake:LI-1")  # 同编辑页的请求号：两边只入一次
+        payload = self.seen["payload"]
+        self.assertEqual((payload["company"], payload["source"], payload["supplier"], payload["lines"][0]["warehouse"]),
+                         ("CO-1", "line", "SUP-1", "WH-1"))
+        self.assertEqual(payload["attachments"][0]["file"], "FILE-1")
+        self.preflight.assert_not_called()  # 没接 Express：不判
+
+    def test_save_does_not_post_when_express_needs_a_person(self):
+        self.linked.return_value = True
+        self.preflight.return_value = {"needed": [{"kind": "account", "subject": "x", "label": "Freight", "options": [],
+                                                   "current": ""}, {"kind": "party", "subject": "y", "label": "", "options": []}]}
+        reply = self.press()
+        self.post.assert_not_called()
+        self.assertEqual(self.preflight.call_args.args[0], "Purchase Document")
+        self.assertEqual(reply["text"], "express.kind.account · Freight\nSupplier")
+        self.assertEqual(reply["quickReply"]["items"][0]["action"]["type"], "uri")
+
+    def test_save_reports_the_submit_error_with_edit(self):
+        self.post.side_effect = frappe.ValidationError("Choose the warehouse")
+        reply = self.press()
+        self.assertEqual(reply["text"], "Choose the warehouse")
+        self.assertEqual(reply["quickReply"]["items"][0]["action"]["label"], "Edit")
+        frappe.db.rollback.assert_called()
+
+    def test_only_the_sender_can_save(self):
+        self.roles["someone"] = {"purchase.write", "integration.read"}
+        handlers._postback("U2", "someone", "a=erp_save&n=LI-1", "tok")
+        self.post.assert_not_called()
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Not permitted"})
+
+    def test_a_saved_card_is_not_recorded_twice(self):
+        self.doc.status, self.doc.purchase = "confirmed", "PD-1"
+        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PD-1"})
+        self.post.assert_not_called()
+
+
 class CardShape(Base):
     def card(self, doc, result, totals):
         from pearnly_erp_portal.integrations import line_cards
@@ -1722,8 +1785,10 @@ class CardShape(Base):
         self.assertNotIn("Warehouse", self.rows(old))
         self.assertNotIn("trade.groupIn", json.dumps(old))
         footer = card["contents"]["footer"]["contents"]
-        self.assertEqual(len(footer), 1)
-        self.assertEqual(footer[0]["action"], {"type": "uri", "label": "Edit",
+        self.assertEqual(len(footer), 2)  # 「保存」在「编辑」上方（用户 11-18）
+        self.assertEqual(footer[0]["action"], {"type": "postback", "label": "Save", "displayText": "Save",
+                                               "data": "a=erp_save&n=LI-1"})
+        self.assertEqual(footer[1]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-purchase%2Fline%2FLI-1"})
 
     def test_card_shows_no_recognition_check_box(self):

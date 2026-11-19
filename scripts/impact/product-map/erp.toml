@@ -638,6 +638,20 @@ device_only = "提问随识别完的卡片一起发，要真 LINE 官方号收�
 device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：富菜单「ซื้อ」→ 上传识别 → 选公司、按票面、已付现金（不再问服务 / 库存商品和仓库）→ 拍一张有已知物料、运费、新物料三种行的票 → 卡片每行标「入库 / 只记账 / 新建 · 入库」，后跟一条提问列出新物料，按钮「全部新建并入库 / 全部只记账 / 逐项选择 / 取消」→ 点「逐项选择」：一项点「新建并入库」、一项点「选已有物料」打名称点序号 → 公司有多个仓且定不下来时问仓库（点一个）→ 仓建了仓位清单时问一次仓位（点一个或「不填」）→ 回一张更新后的卡片，标签已变 → 点卡片「编辑」打开采购页，每行「入库」勾选与卡片一致 → 提交 → 入库的行进了库存、运费行没有。再拍两张连发：一次只问一张，第二张沿用刚选的仓库不再问；同一张票再拍一次：记过的行不再问。销售「ขาย」同走一遍（按钮是「全部新建并出库」）"
 
 [[row]]
+id = "erp.line.postback.erp_save"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:erp_save"
+where = "LINE 识别后的采购 / 销售卡片，「แก้ไข」上方的「บันทึก」（a=erp_save&n=…，用户 11-18）：不进编辑页直接提交（同编辑页的提交、同一个请求号）；接 Express 的公司先按写账规则判一遍，要人定的项不提交、回原因 + 快捷回复「แก้ไข」；提交时的报错原样回"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_save_posts_the_card_through_the_edit_page_submit", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_save_does_not_post_when_express_needs_a_person", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_save_reports_the_submit_error_with_edit", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_only_the_sender_can_save", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_a_saved_card_is_not_recorded_twice"]
+group = "line.card-save"
+device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
+device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：富菜单「ซื้อ」→ 拍一张票 → 卡片底部「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「บันทึกบัญชีแล้ว · 单号」，网页采购列表有这张、接 Express 的测试公司写进测试账套；再点一次只回原单号；多仓没定仓 / 要人选科目的一张 → 不入账，回原因 + 快捷回复「แก้ไข」打开编辑页；销售「ขาย」同走一遍"
+
+[[row]]
 id = "erp.desk.pearnly-cashier"
 product = "ERP"
 channel = "desk"

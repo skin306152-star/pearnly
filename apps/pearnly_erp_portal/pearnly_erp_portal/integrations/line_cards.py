@@ -7,13 +7,15 @@
 〔定·09-26〕旧卡的「方向」改叫「业务类型」；日期仍按佛历年份显示，标签不加「佛历」。
 
 与旧卡不同的地方（用户口径）：
-- 〔定·09-25〕只有「编辑」一个按钮：打开网页端原生的采购 / 销售页，提交才入账；卡片不过期。
+- 〔定·09-25〕「编辑」打开网页端原生的采购 / 销售页，提交才入账；卡片不过期。
+- 〔11-18〕「编辑」上方加「保存」：不进编辑页直接提交（同编辑页的提交）；要人定的项不提交，回原因与「编辑」。
 - 〔定·09-26〕「字段细一点、商品名称全部显示」：在 LINE 里选的（供应商或客户、付款）照实显示在对应行里；明细不再只报条数，
   每一行商品名、数量 × 单价 = 金额都列出来。
 - 〔11-06 按行选物料与库存〕每行标「入库 / 出库 / 只记账 / 新建 · 入库」（以前整张一行「物料类型：库存商品 · 仓库」），有入库行时另列仓库。
 """
 import json
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 import frappe
 from frappe import _
@@ -28,6 +30,7 @@ DOC_KINDS = {"purchase_invoice": "Purchase Invoice",
 # 一张气泡的 JSON 有大小上限（LINE 30 KB）：明细按实际大小列，放不下的报「还有 N 项」。
 # 实测一行泰文商品约 570 字节，40 行就到 32.5 KB（09-26）；留一点余量。
 MAX_BYTES = 28 * 1024
+SAVE_ACTION = "erp_save"  # 卡片「保存」的 postback（字面量：产品地图按它认入口）
 
 
 def _money(value) -> str:
@@ -200,7 +203,7 @@ def _amounts(doc, totals):
 
 
 def preview(doc, result, totals) -> dict:
-    """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，只有「编辑」。"""
+    """一张 Flex 气泡：旧卡片的字段顺序 + LINE 里的选择 + 全部明细，底部「保存」「编辑」。"""
     shown = len(result.get("lines") or [])
     while True:
         card = _card(doc, result, totals, shown)
@@ -247,7 +250,11 @@ def _card(doc, result, totals, shown) -> dict:
         _kv(_("Payment method"), _payment(doc)),
     ]
     title = f"{_('Review document')} · {head}"
-    button = {"type": "button", "style": "primary", "height": "sm", "color": accent,
+    # 「保存」在「编辑」上方（用户 11-18）：保存 = 直接提交（同编辑页的提交，`intake.save_card`）
+    save = {"type": "button", "style": "primary", "height": "sm", "color": accent,
+            "action": {"type": "postback", "label": _("Save")[:20], "displayText": _("Save")[:20],
+                       "data": urlencode({"a": "erp_save", "n": doc.name})}}  # = SAVE_ACTION（字面量：产品地图按它认入口）
+    button = {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
               "action": {"type": "uri", "label": _("Edit")[:20], "uri": editor_link(doc)}}
     alt = f"{title} · {_money(grand)}" if grand not in (None, "") else title
     return {"type": "flex", "altText": alt[:400],
@@ -259,7 +266,7 @@ def _card(doc, result, totals, shown) -> dict:
                                {"type": "text", "text": _("Document summary · open details to review and post"),
                                 "size": "xxs", "color": "#F4F4F4", "margin": "xs", "wrap": True}]},
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
-                "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [button]}}}
+                "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [save, button]}}}
 
 
 def editor_link(doc) -> str:
@@ -268,3 +275,32 @@ def editor_link(doc) -> str:
 
     root = "pearnly-purchase" if doc.direction == "purchase" else "pearnly-sales"
     return line_login.entry_url(f"/desk/{root}/line/{doc.name}")
+
+
+# 卡片「保存」停下时：要人定的项按单据页 Express 弹窗同一套名称（`transactions.js` 的 EXPRESS_KINDS）
+NEEDED_KINDS = {"party": {"sales": "Customer", "purchase": "Supplier"}, "item": "Item", "account": "express.kind.account",
+                "department": "Department", "payment": "Payment Method", "vat": "express.kind.vat",
+                "account_set": "Account Set", "stock_group": "express.kind.stockGroup", "receipt": "express.kind.receipt",
+                "vat_registered": "express.kind.vatRegistered", "refund": "express.kind.refundAccount",
+                "exempt_mode": "express.kind.exemptMode", "service_vat": "express.kind.serviceVat"}
+
+
+def needed_text(doc, needed) -> str:
+    rows = []
+    for item in needed:
+        kind = NEEDED_KINDS.get(item.get("kind"))
+        label = _(kind.get(doc.direction) if isinstance(kind, dict) else kind or item.get("kind") or "")
+        rows.append(" · ".join(part for part in (label, item.get("label") or "") if part))
+    return "\n".join(dict.fromkeys(rows))
+
+
+def stopped(doc, text) -> dict:
+    """「保存」没有提交：一句原因（提交时原样的报错 / 要人定的项）+ 快捷回复「编辑」（打开同一页）。"""
+    return {"type": "text", "text": (text or "-")[:2000],
+            "quickReply": {"items": [{"type": "action", "action": {"type": "uri", "label": _("Edit")[:20],
+                                                                    "uri": editor_link(doc)}}]}}
+
+
+def saved(doc, created) -> dict:
+    number = created.get("system_no") or created.get("name") or ""
+    return {"type": "text", "text": " · ".join(part for part in (_("Posted"), number) if part)}

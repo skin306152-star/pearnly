@@ -400,6 +400,93 @@ class LineCardTest(unittest.TestCase):
         label.assert_called_once_with("CON-X", r"s:\2569\exp69\6902asc")
 
 
+class LineCardSaveTest(unittest.TestCase):
+    """卡片「保存」（用户 11-18）：推往 ERP 的票在「编辑」上方多一个「保存」，点了直接推送（同录入页「提交」）；
+    要人定的项不推，回现有原因 + 快捷回复「编辑」。"""
+
+    def setUp(self):
+        from pearnly_cowork.line import save as line_save
+        from pearnly_cowork.push.application import card_save as save
+
+        self.line_save, self.save = line_save, save
+        self.record = mock.MagicMock(pages="[]", total_amount="1.00", record_version=3, posting_kind="")
+        self.record.name = "CWH-3"
+        self.values = {"intake_target": "express", "push_connection": "CON-X", "push_account_set": "ACC-1",
+                       "last_push_status": "", "last_push_record": ""}
+        self.record.get.side_effect = lambda key, default=None: self.values.get(key, default)
+        self.record.push_connection = "CON-X"
+        self.after = {"last_push_status": "pending", "last_push_reason": ""}
+        self.view = {"needed": []}
+        for patch in [
+            mock.patch.object(save, "_", side_effect=lambda text, *a, **k: text),
+            mock.patch.object(save.storage, "read", side_effect=lambda name: self.record),
+            mock.patch.object(save.connections, "adapter_of", return_value="express"),
+            mock.patch.object(save.connections, "stock_acc_group", return_value=None),
+            mock.patch.object(save.application, "choices_view", side_effect=lambda *a, **k: self.view),
+            mock.patch.object(save.export_facts, "reason_text", side_effect=lambda reason: "T:" + str(reason)),
+            mock.patch.object(save.conflicts, "retried", side_effect=lambda function, *a, **k: function(*a, **k)),
+            mock.patch.object(save.frappe, "db", mock.Mock(**{"get_value.side_effect": self.get_value}), create=True),
+        ]:
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.submit = mock.patch.object(save.application, "submit",
+                                        return_value={"status": "prepared", "name": "PR-1", "revision": 1}).start()
+        self.confirm = mock.patch.object(save.application, "confirm", return_value={"status": "pending"}).start()
+        self.addCleanup(mock.patch.stopall)
+
+    def get_value(self, doctype, name, fields=None, as_dict=False):
+        return 7 if doctype == "Cowork Connection" else self.after
+
+    def test_push_card_has_save_above_edit_and_recognize_only_has_edit(self):
+        from pearnly_cowork.line import cards
+
+        with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"), \
+                mock.patch("pearnly_cowork.connections.directory.account_label", return_value="69EXP"):
+            buttons = cards.preview(self.record, {"target": "Express"})["contents"]["footer"]["contents"]
+            self.assertEqual([button["action"]["type"] for button in buttons], ["postback", "uri"])
+            self.assertEqual(buttons[0]["action"]["data"], "a=cowork_save&n=CWH-3")
+            self.values["intake_target"] = "none"
+            buttons = cards.preview(self.record, {"target": "x"})["contents"]["footer"]["contents"]
+            self.assertEqual([button["action"]["type"] for button in buttons], ["uri"])
+
+    def test_save_pushes_and_confirms_like_the_intake_page(self):
+        self.assertEqual(self.save.save("CWH-3"), {"sent": True})
+        args = self.submit.call_args
+        self.assertEqual(args.args[:6], ("CWH-3", "CON-X", args.args[2], 3, 7, "ACC-1"))
+        self.assertTrue(args.kwargs["manual"])
+        self.assertEqual(self.confirm.call_args.args[:2], ("PR-1", 1))
+        self.assertEqual(self.confirm.call_args.args[2], "confirm:" + args.args[2])
+
+    def test_save_stops_when_a_choice_is_needed(self):
+        self.view = {"needed": [{"kind": "account"}]}
+        self.assertEqual(self.save.save("CWH-3"), {"stop": "T:choice_needed"})
+        self.submit.assert_not_called()
+
+    def test_save_stops_without_an_account_set_and_on_a_failed_push(self):
+        self.values["push_account_set"] = ""
+        self.assertEqual(self.save.save("CWH-3"), {"stop": "Choose the year and account set first."})
+        self.values["push_account_set"] = "ACC-1"
+        self.submit.return_value = {"status": "failed", "reason": "push.disabled"}
+        self.assertEqual(self.save.save("CWH-3"), {"stop": "T:push.disabled"})
+        self.confirm.assert_not_called()
+
+    def test_a_pushed_card_is_not_pushed_twice(self):
+        self.values["last_push_status"] = "success"
+        self.assertEqual(self.save.save("CWH-3")["stop"], "T:already_success")
+        self.submit.assert_not_called()
+
+    def test_handler_routes_the_save_button(self):
+        with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
+                mock.patch.object(handlers.binding, "enabled", return_value=True), \
+                mock.patch.object(handlers.flow, "allowed", return_value=True), \
+                mock.patch.object(handlers, "_as", side_effect=lambda user, work: work()), \
+                mock.patch.object(self.line_save, "reply") as reply:
+            self.assertTrue(handlers._handle({"type": "postback", "replyToken": "tok",
+                                              "postback": {"data": "a=cowork_save&n=CWH-3"}}, "U1"))
+        reply.assert_called_once_with("CWH-3", "tok")
+
+
 class LineAnnounceTest(unittest.TestCase):
     def test_only_the_first_announcement_is_sent(self):
         cache = {intake._PENDING + "CWS-1": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}

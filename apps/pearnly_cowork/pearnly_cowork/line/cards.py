@@ -7,12 +7,15 @@
 """
 import json
 from decimal import Decimal, InvalidOperation
+from urllib.parse import urlencode
 
 import frappe
 from frappe import _
 
 from pearnly_core.account import line_login
 from pearnly_core.tax_documents import codes as tax_codes
+
+from pearnly_cowork.line import save
 
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
 PAYMENTS = {"cash": "Cash", "credit": "Credit", "transfer": "Transfer", "promptpay": "PromptPay",
@@ -158,7 +161,13 @@ def _card(record, pending, shown, labels=None):
                                 "size": "xxs", "color": "#F4F4F4", "margin": "xs", "wrap": True}]},
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
                 "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [
-                    {"type": "button", "style": "primary", "height": "sm", "color": accent,
+                    # 「保存」在「编辑」上方（用户 11-18）：推往 ERP 的票直接推送（`line.save`）；「仅识别」的票只有「编辑」
+                    *([{"type": "button", "style": "primary", "height": "sm", "color": accent,
+                        "action": {"type": "postback", "label": str(_("Save"))[:20], "displayText": str(_("Save"))[:20],
+                                   "data": urlencode({"a": "cowork_save", "n": record.name})}}]  # = SAVE_ACTION
+                      if save.pushable(record) else []),
+                    {"type": "button", "style": "secondary" if save.pushable(record) else "primary", "height": "sm",
+                     "margin": "sm", **({} if save.pushable(record) else {"color": accent}),
                      "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}}]}}}
 
 
