@@ -71,6 +71,8 @@ KIND_GROUPS = {
     "mrerp_menu": BOOK, "mrerp_default": BOOK,
     # 代录：这家定制过的 Express 菜单里这种单走哪个子菜单命令（归类键 = 单据种类，`express_operator.menu_choice`）
     "operator_form": BOOK,
+    # 代录：停在 Express 中途配方外的业务选择框，这份账套这个框（指纹）点哪个钮（CC 桌面版 1.12.23，`express.choices.OPERATOR_DIALOG`）
+    "operator_dialog": BOOK,
     "vat": PURCHASE,
     "refund": SALES, "vat_registered": SALES, "exempt_mode": SALES,
     "item": STOCK, "stock_group": STOCK, "goods_posting": STOCK, "location": STOCK,
