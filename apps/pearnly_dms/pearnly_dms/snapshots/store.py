@@ -182,6 +182,13 @@ def _load_big(raw):
     return json.loads(raw)
 
 
+def _now():
+    """快照表 creation / modified 的写法：框架口径（站点时区，`frappe.utils.now`），与 Frappe 自己写的一致。
+    原先用数据库时钟 `UTC_TIMESTAMP(6)`，库时区与站点不同时差几个小时（11-17 流程收尾按站点时钟查不到）；这两列只作记录，
+    快照的过期与请求判断用 `source_started_at` / `completed_at` / `requested_at` 纪元秒，不读它们。"""
+    return frappe.utils.now()
+
+
 def _ensure(name, scope_key, dataset, *, _database=None, exclusive=False):
     # SQL writes are private service operations. User-facing Document mutations
     # are denied by the controller, including import/rename/share bypasses.
@@ -191,8 +198,8 @@ def _ensure(name, scope_key, dataset, *, _database=None, exclusive=False):
     database.sql(f"""{insert} INTO `tab{DT}`
         (name, creation, modified, owner, modified_by, docstatus, scope_key, dataset,
          source_started_at, completed_at, requested_at)
-        VALUES (%s, UTC_TIMESTAMP(6), UTC_TIMESTAMP(6), 'Administrator', 'Administrator',
-                0, %s, %s, 0, 0, 0){suffix}""", (name, scope_key, dataset))
+        VALUES (%s, %s, %s, 'Administrator', 'Administrator',
+                0, %s, %s, 0, 0, 0){suffix}""", (name, _now(), _now(), scope_key, dataset))
 
 
 def read(endpoint, dataset="directory", *, reader="authority", max_age=None, refresh_interval=INTERVAL):
@@ -384,8 +391,8 @@ def merge_change_state(endpoint, incoming, *, base, expected_scope=None):
                             name, as_dict=True)
         stored = _load_big(rows[0].staging) or {}
         merged = incoming if stored == (base or {}) else _furthest(stored, incoming)
-        database.sql(f"UPDATE `tab{DT}` SET staging=%s, modified=UTC_TIMESTAMP(6) WHERE name=%s",
-                     (_dump_big(merged), name))
+        database.sql(f"UPDATE `tab{DT}` SET staging=%s, modified=%s WHERE name=%s",
+                     (_dump_big(merged), _now(), name))
         return merged
 
 
@@ -441,9 +448,9 @@ def _forget_customer(database, endpoint, customer_id, *, expected_scope):
     if not dropped:
         return False
     database.sql(f"UPDATE `tab{DT}` SET overlays=%s, payload=%s, generation=%s, "
-        "modified=UTC_TIMESTAMP(6) WHERE name=%s",
+        "modified=%s WHERE name=%s",
         (values["overlays"], values.get("payload", rows[0].payload),
-         values.get("generation", rows[0].generation), name))
+         values.get("generation", rows[0].generation), _now(), name))
     return True
 
 
@@ -497,9 +504,9 @@ def _verified_customer(database, endpoint, customer_id, fields, *, expected_scop
         values["payload"] = _dump_big(data)
         values["generation"] = uuid.uuid4().hex
     database.sql(f"UPDATE `tab{DT}` SET overlays=%s, payload=%s, generation=%s, "
-        "modified=UTC_TIMESTAMP(6) WHERE name=%s",
+        "modified=%s WHERE name=%s",
         (values["overlays"], values.get("payload", rows[0].payload),
-         values.get("generation", rows[0].generation), name))
+         values.get("generation", rows[0].generation), _now(), name))
 
 
 def request(endpoint, dataset, params, *, reader="sales"):
@@ -521,7 +528,7 @@ def request(endpoint, dataset, params, *, reader="sales"):
             raise SnapshotUnavailable("ERR_DMS_SNAPSHOT_REQUEST_LIMIT")
         _ensure(name, key, dataset, _database=database)
         database.sql(f"UPDATE `tab{DT}` SET request_json=%s, requested_at=%s, "
-            "modified=UTC_TIMESTAMP(6) WHERE name=%s", (raw, time.time(), name))
+            "modified=%s WHERE name=%s", (raw, time.time(), _now(), name))
 
 
 def requested(endpoint, *, reader="sales"):

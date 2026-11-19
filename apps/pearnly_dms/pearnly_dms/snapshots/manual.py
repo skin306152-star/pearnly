@@ -134,8 +134,8 @@ def request(endpoint, dataset, *, reader="authority", params=None, actor=None):
                 "retries": 0,
                 "count": previous.get("count"), "error_code": "",
                 "progress": {"processed": 0, "total": None, "unit": "records"}}
-            database.sql(f"UPDATE `tab{store.DT}` SET refresh_request=%s, modified=UTC_TIMESTAMP(6) "
-                         "WHERE name=%s", (store._dump(pending), name))
+            database.sql(f"UPDATE `tab{store.DT}` SET refresh_request=%s, modified=%s "
+                         "WHERE name=%s", (store._dump(pending), store._now(), name))
     if pending:
         try:
             _enqueue(endpoint, dataset, reader, pending["id"], 0)
@@ -199,8 +199,8 @@ def _update(endpoint, dataset, reader, request_id, values, *, expected_step=None
                 req.get("step") != expected_step or req.get("state") != expected_state)):
             return False
         req.update(values, updated_at=time.time())
-        database.sql(f"UPDATE `tab{store.DT}` SET refresh_request=%s, modified=UTC_TIMESTAMP(6) "
-                     "WHERE name=%s", (store._dump(req), name))
+        database.sql(f"UPDATE `tab{store.DT}` SET refresh_request=%s, modified=%s "
+                     "WHERE name=%s", (store._dump(req), store._now(), name))
     return True
 
 

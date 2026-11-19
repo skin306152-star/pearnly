@@ -146,11 +146,11 @@ def put(kind, task, lang, print_, view):
         payload = frappe.as_json(view, indent=None)
         frappe.db.sql(f"""INSERT INTO `tab{DOCTYPE}` (name, task, recon_kind, lang, fingerprint, payload, creation, modified,
                 owner, modified_by, docstatus, idx)
-            VALUES (%(name)s, %(task)s, %(kind)s, %(lang)s, %(print)s, %(payload)s, NOW(6), NOW(6), 'Administrator',
+            VALUES (%(name)s, %(task)s, %(kind)s, %(lang)s, %(print)s, %(payload)s, %(now)s, %(now)s, 'Administrator',
                 'Administrator', 0, 0)
-            ON DUPLICATE KEY UPDATE fingerprint=VALUES(fingerprint), payload=VALUES(payload), modified=NOW(6)""",
+            ON DUPLICATE KEY UPDATE fingerprint=VALUES(fingerprint), payload=VALUES(payload), modified=%(now)s""",
                       {"name": _name(kind, task, lang), "task": task, "kind": kind, "lang": lang, "print": print_,
-                       "payload": payload})
+                       "payload": payload, "now": frappe.utils.now()})  # 框架口径（站点时区），同 Frappe 写的 creation / modified
         frappe.db.commit()
     except Exception:
         frappe.db.rollback()

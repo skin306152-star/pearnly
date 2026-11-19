@@ -203,6 +203,8 @@ jobs:
         run: python3 scripts/check-form-layout.py && python3 tests/test_check_form_layout.py
       - name: A Select field that may be saved empty has a blank first option, or its exception says why it is never empty
         run: python3 scripts/check-select-blank.py && python3 tests/test_check_select_blank.py
+      - name: Native SQL takes its timestamps from the framework clock, not the database clock
+        run: python3 scripts/check-sql-clock.py && python3 tests/test_check_sql_clock.py
       - name: ERP and Cowork field descriptions sit in the info icon beside the label, not below the field (exceptions may only shrink)
         run: python3 scripts/check-field-help.py && node --test tests/test-desk-field-help.cjs
       - name: Shared link boxes send new and advanced search to our pages, and carry the scan button the product or the field asks for
