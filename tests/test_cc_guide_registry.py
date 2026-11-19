@@ -134,6 +134,14 @@ class ShapeTests(unittest.TestCase):
         self.assertTrue(any("needs review" in p for p in d.problems(changed(FORM, review=None))))
         self.assertEqual(d.problems(changed(FORM, review=None, writes=False)), [])
 
+    def test_a_form_guide_may_edit_a_review_cell_only_with_a_review(self):
+        edited = changed(FORM, edit="app.mod.edit")
+        self.assertEqual(d.problems(edited), [])
+        self.assertIn("app.mod.edit", d.paths(edited))
+        self.assertTrue(any("edit on a form guide needs review" in p for p in d.problems(changed(FORM, edit="app.mod.edit",
+                                                                                                    review=None, writes=False))))
+        self.assertTrue(any("intake and uploads are for documents" in p for p in d.problems(changed(FORM, intake="app.mod.in"))))
+
     def test_a_documents_guide_declares_only_file_steps_and_a_chat_guide_none(self):
         asked = changed(DOCS, steps=[{"key": "payment", "input": "choice", "rule": "always", "options": "app.mod.fn"}])
         self.assertTrue(any("only declares file steps" in p for p in d.problems(asked)))

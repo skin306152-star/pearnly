@@ -852,5 +852,48 @@ class ReopenTests(Base):
         self.assertEqual(run.reopen(unanswered, "invoices", 1)["outcome"], "refused")   # 还没答过的不用「改」
 
 
+class FormEditTests(Base):
+    """复核卡就地改一格（guide_edit）对表单业务：声明点名的 ``edit(ctx, draft, row, field, value)`` 回 ``{"draft": 新草稿}`` 就换成
+    新草稿、版本 +1、复核卡照新草稿出；回 ``{"refused": {格: 码}, "refused_text"?}`` 不改，拒收照引擎的形状；不在复核、版本不对、
+    没声明 ``edit`` 的不收。"""
+
+    def setUp(self):
+        super().setUp()
+        self.edits = []
+
+        def edit(ctx, draft, row, field, value):
+            self.edits.append((draft, row, field, value))
+            if field == "rate" and value == "99":
+                return {"refused": {"rate": "too_many_rows"}, "refused_text": {"rate": "Rate 99 is not allowed"}}
+            return {"draft": draft + "+1"}
+        ATTRS["app.edit"] = edit
+        ATTRS["app.GUIDES"] = [{**GUIDE, "edit": "app.edit"}]
+
+    def test_an_edit_replaces_the_draft_and_the_review_follows(self):
+        name, found = self.to_review()
+        done = run.edit(name, "ROW1", "base", "1200", found["version"])
+        self.assertEqual(self.edits, [(f"R:{name}", "ROW1", "base", "1200")])
+        self.assertEqual((done["status"], done["version"], done["review"]["draft"]), ("reviewing", found["version"] + 1, f"R:{name}+1"))
+        self.assertEqual(done.get("outcome", ""), "")
+
+    def test_a_refused_edit_changes_nothing(self):
+        name, found = self.to_review()
+        back = run.edit(name, "ROW1", "rate", "99", found["version"])
+        self.assertEqual(back["outcome"], "refused")
+        self.assertEqual(back["refused"], {"rate": {"code": "too_many_rows", "text": ""}})
+        self.assertEqual(back["refused_text"], {"rate": "Rate 99 is not allowed"})
+        self.assertEqual((back["version"], back["review"]["draft"]), (found["version"], f"R:{name}"))
+
+    def test_only_on_review_with_the_seen_version_and_a_declared_edit(self):
+        name, found = self.to_review()
+        self.assertEqual(run.edit(name, "ROW1", "base", "1", found["version"] - 1)["outcome"], "changed")
+        asking = run.start("S1", "collection")["run"]
+        self.assertEqual(run.edit(asking, "ROW1", "base", "1", 1)["outcome"], "refused")
+        ATTRS["app.GUIDES"] = [GUIDE]
+        name, found = self.to_review()
+        self.assertEqual(run.edit(name, "ROW1", "base", "1", found["version"])["outcome"], "refused")
+        self.assertEqual(len(self.edits), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -655,9 +655,13 @@ def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -
 
 
 def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[str, Any]:
-    """复核卡就地改一格（按单据的业务）：本人、版本与看到的一致、运行没失效；产品写回自己的单，版本 +1。"""
+    """复核卡就地改一格（页面接口 ``guide_edit``）：本人、版本与看到的一致、运行没失效。按单据的业务：产品写回自己的单（``doc_id``
+    是单据号）；表单业务：声明点名的 ``edit(ctx, draft, row, field, value)``（``doc_id`` 是复核表的行码，预扣税逐行复核），只在复核中。
+    收下版本 +1。"""
     doc, guide, _now = _checked(name)
-    if not _documents(guide) or doc.status not in OPEN:
+    if not _documents(guide):
+        return _edit_form(guide, doc, str(doc_id or ""), str(field or ""), value, version)
+    if doc.status not in OPEN:
         return {**_shown(doc), "outcome": REFUSED}
     if int(version) != int(doc.version or 0):
         return {**_shown(doc), "outcome": CHANGED}
@@ -666,6 +670,26 @@ def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[s
         text = _docs().reason_text(str(found["refused"]))
         return {**_shown(doc), "outcome": REFUSED, "refused": {str(field or ""): found["refused"]},
                 **({"refused_text": {str(field or ""): text}} if text else {})}
+    doc.version = int(doc.version or 0) + 1
+    _save(doc)
+    _announce(doc)
+    return _shown(doc)
+
+
+def _edit_form(guide: Mapping[str, Any], doc, row: str, field: str, value: Any, version: int) -> Dict[str, Any]:
+    """表单业务的就地改一格：回 ``{"draft": 新草稿}`` 换成新草稿；回 ``{"refused": {格: 码}, "refused_text"?: {格: 已翻译}}`` 不改。"""
+    if not guide.get("edit") or doc.status != REVIEWING:
+        return {**_shown(doc), "outcome": REFUSED}
+    if int(version) != int(doc.version or 0):
+        return {**_shown(doc), "outcome": CHANGED}
+    made = _call(guide["edit"], _ctx(doc, _answers(doc)), doc.draft or "", row, field, value)
+    if not isinstance(made, Mapping) or made.get("refused") or not made.get("draft"):
+        codes = (made or {}).get("refused") if isinstance(made, Mapping) else None
+        out = {**_shown(doc), "outcome": REFUSED, "refused": _refusal(dict(codes) if isinstance(codes, Mapping) else {field: "refused"})}
+        if isinstance(made, Mapping) and isinstance(made.get("refused_text"), Mapping):
+            out["refused_text"] = dict(made["refused_text"])
+        return out
+    doc.draft = str(made["draft"])
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)

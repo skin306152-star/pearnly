@@ -145,8 +145,13 @@ def problems(guide: Any) -> List[str]:
     for key in PATH_KEYS:
         if key in guide and not _is_path(guide[key]):
             out.append(f"{key} is not a dotted path")
-    if source != DOCUMENTS and any(key in guide for key in ("intake", "uploads", "edit")):
-        out.append("intake, uploads and edit are for documents guides")
+    if source != DOCUMENTS and any(key in guide for key in ("intake", "uploads")):
+        out.append("intake and uploads are for documents guides")
+    # 表单业务的 ``edit(ctx, draft, row, field, value)``：复核卡上表格就地改一格（预扣税逐行复核），所以要有 ``review``
+    if source == FORM and "edit" in guide and "review" not in guide:
+        out.append("edit on a form guide needs review (it edits a cell of the review card)")
+    if source == CHAT and "edit" in guide:
+        out.append("a chat guide has no edit")
     named = [key for key in DOCUMENT_HOOKS if key in guide]
     if source == DOCUMENTS and named and len(named) != len(DOCUMENT_HOOKS):
         out.append(f"a documents guide names all of {DOCUMENT_HOOKS} or none")

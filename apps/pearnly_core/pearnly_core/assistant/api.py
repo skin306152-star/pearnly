@@ -119,6 +119,14 @@ def guide_reopen(run_name, step, version):
 
 
 @frappe.whitelist(methods=["POST"])
+def guide_edit(run_name, doc_id, field, value="", version=0):
+    """复核卡就地改一格（按单据：票面一格；表单：复核表一行的一格，`guide.run.edit`）。"""
+    from pearnly_core.assistant.guide import run
+
+    return run.edit(str(run_name or ""), str(doc_id or ""), str(field or ""), value, frappe.utils.cint(version))
+
+
+@frappe.whitelist(methods=["POST"])
 def guide_cancel(run_name):
     from pearnly_core.assistant.guide import run
 
