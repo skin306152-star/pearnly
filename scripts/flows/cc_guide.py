@@ -67,8 +67,10 @@ def steps(params, camera_code=None):
     prompt = ("const said=()=>{const all=qa('[data-slot=\"cc-business-prompt\"]'); return {count: all.length, "
               "business: all[0]?.dataset.business||'', text: all[0]?.innerText.trim()||'', reply: !!all[0]?.closest('[data-role]')};}; ")
     return [
-        {"name": "业务菜单", "js": JS + menu + prompt + "const shown=await until(()=>row(),120); const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
-         "const pick=async(l)=>{const b=[...(row()?.querySelectorAll('button')||[])].find(x=>x.innerText.trim()===l); b?.click(); await sleep(400);}; "
+        {"name": "业务菜单", "js": JS + menu + prompt + "const shown=await until(()=>row(),120); "
+         # 完整清单读量宽度的那一排（手机上收进「更多」的也在）；点的只找直接摆出来的按钮（11-17 菜单定稿：前 4 项 + 更多）
+         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot])')||[])].map(b=>b.innerText.trim()); "
+         "const pick=async(l)=>{const b=[...(row()?.querySelectorAll(':scope > button')||[])].find(x=>x.innerText.trim()===l); b?.click(); await sleep(400);}; "
          "const cancel=async()=>{row()?.querySelector('button')?.click(); await sleep(400);}; "
          "await pick('采购'); const picked={chosen: row()?.dataset.business||'', placeholder: ph(), prompt: said()}; "
          "await cancel(); const cancelled=said(); "
@@ -109,9 +111,9 @@ def judge(params, results, camera_code=None):
     pay = first if first.get("question") == "付款方式" else {}
     choices = pay.get("choices") or []
     return [
-        {"case": "输入框上方的业务菜单：Cowork 只有采购、销售（没有收款）；点「采购」占位字换成「上传采购票据」，点 × 取消后回到原样",
+        {"case": "输入框上方的业务菜单：Cowork 按引导声明出（采购、销售在前，没有收款）；点「采购」占位字换成「上传采购票据」，点 × 取消后回到原样",
          "seen": menu,
-         "ok": bool(menu.get("shown")) and menu.get("labels") == ["采购", "销售"]
+         "ok": bool(menu.get("shown")) and (menu.get("labels") or [])[:2] == ["采购", "销售"] and "收款" not in (menu.get("labels") or [])
          and (menu.get("picked") or {}).get("chosen") == "purchase" and (menu.get("picked") or {}).get("placeholder") == "上传采购票据"
          and menu.get("cleared") == "" and menu.get("placeholder") != "上传采购票据"},
         {"case": "选了业务 CC 在对话里说一句要什么（不是只换输入框提示）：点「采购」出一条「请上传采购票据。」、不算模型回复；"

@@ -28,6 +28,11 @@ def prepare(lab, manifest):
 
 
 def steps(params, camera_code=None):
+    # 每步自己的代码包进一个块：与公用片段 JS 里同名的 card / row… 各在各的作用域（不包时报 Identifier 'card' has already been declared）
+    return [{**step, "js": JS + "{" + step["js"][len(JS):] + "}"} if step["js"].startswith(JS) else step for step in _steps(params)]
+
+
+def _steps(params):
     tag = json.dumps(params["tag"])
     return [
         {"name": "开对话", "js": JS + f"const sent=await say({json.dumps(params['tag'] + ' 你好')}); await sleep(1500); return {{sent}};"},
