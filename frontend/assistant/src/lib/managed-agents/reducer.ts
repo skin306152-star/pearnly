@@ -761,14 +761,15 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       // of it, reconcile in place (a preview is always a verbatim prefix);
       // otherwise append it whole (no streaming gate, or a missed start).
       const messages = draft(state.messages);
-      // 代录收尾那条（方案 14.10）：正文是空的，按 operator 字段写一句，报告记在消息上（thread.tsx 画成文件卡片）
+      // 代录收尾那条（方案 14.10）：服务端写好的那句（写成的单号、没写成的张数与原因，11-19）照原样出；
+      // 正文是空的（只有跳过的、旧记录）按 operator 字段的张数写一句。报告记在消息上（thread.tsx 画成文件卡片）
       const end = (event as { operator?: OperatorEnd }).operator;
       if (end && typeof end === "object") {
         const mi = currentAssistantIndex(messages, event.processed_at);
         const msg = messages[mi]!;
         const report = end.report?.url ? { report: { filename: end.report.filename ?? "", url: end.report.url } } : {};
         messages[mi] = {
-          ...withContent(msg, [...msg.content, { type: "text", text: operatorEndText(end) }]),
+          ...withContent(msg, [...msg.content, { type: "text", text: textOfBlocks(event.content) || operatorEndText(end) }]),
           metadata: { custom: { ...(msg.metadata?.custom ?? {}), ...report } },
         };
         return { ...state, messages };

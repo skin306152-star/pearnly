@@ -765,6 +765,7 @@ Stock In,入库
 Stock In / Out,库存（入库/出库）
 Stock Out,出库
 "Stock in/out summary (kept item, see the ERP manifest)",库存收发存汇总
+Stopped,已停止
 Stored encrypted; never shown,加密存储，不显示
 Subject,主体
 Submit request,提交申请
@@ -1396,6 +1397,8 @@ nav.suppliers,供应商
 nav.team,团队管理
 nav.warehouses,仓库
 nav.work,工作协作
+operator.end.not_done,未完成 {0} 张：{1}
+operator.end.stopped,已停止
 operator.report.column.number,Express 单号
 operator.report.column.party,对方
 operator.report.column.reason,原因
@@ -1580,6 +1583,7 @@ username / password are required,username / password 必填
 {0} is entered in {1}: {2},{0} 已写入 {1}：{2}
 {0} is not entered in {1},{0} 未写入 {1}
 {0} is not entered in {1}: {2},{0} 未写入 {1}：{2}
+{0} not done: {1},未完成 {0} 张：{1}
 {0} of {1} pages used this cycle; {2} remaining.,本周期已用 {0}/{1} 页，剩余 {2} 页。
 {0} pages per cycle,每周期 {0} 页
 {0} record(s) deleted.,已删除 {0} 条记录。

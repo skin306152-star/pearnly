@@ -325,7 +325,9 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
     else:
         if not open_docs:
             counts = {state: sum(1 for item in docs if item["state"] == state) for state in CONCLUDED}
-            out.add({"type": "agent.message", "id": f"{p}end_{status}_{_ms(last)}", "content": [{"type": "text", "text": ""}],
+            # 收尾那句由服务端按任务记录定（主会话 11-19 方案 A）：模型那一轮早已结束，写成后不会再说话
+            said = end_text(docs, status, _words(task))
+            out.add({"type": "agent.message", "id": f"{p}end_{status}_{_ms(last)}", "content": [{"type": "text", "text": said}],
                      "operator": {"kind": status if status in ("finished", "stopped", "attention") else "finished",
                                   "task": name, "counts": counts,
                                   "report": {"filename": report_name(task), "url": REPORT_URL + name}}}, last, 4)
@@ -334,6 +336,31 @@ def project(task, upload_states=None, tz: str = "UTC", floor=None) -> list[dict]
         else:
             _status(out, p, "end", {"type": "end_turn"}, last)
     return sorted(out.items, key=lambda event: event["processed_at"])
+
+
+def _words(task):
+    """任务主人的语言取词（收尾那句：实时推送在后台以任务主人身份出，整段重放在页面请求里出，两处取同一种语言）。"""
+    owner = str(_get(task, "owner") or "")
+    try:
+        lang = frappe.db.get_value("User", owner, "language") if owner else None
+    except Exception:  # noqa: BLE001 —— 取不到语言就按当前请求的语言
+        lang = None
+    return (lambda message: _(message, lang=lang)) if lang else (lambda message: _(message))
+
+
+def end_text(docs, status, translate) -> str:
+    """代录收尾那句：写成的单号（账本上的号，按账本原样，不写死 Express）、没写成的张数与原因（沿用报告里的原因词条）；
+    停了的先说已停止。只有跳过 / 作废的没有可说的，留空（页面照张数写一句）。同一份记录同一句，事件编号不变，页面按编号只出一次。"""
+    numbers = [str(_get(item["row"], "docnum") or "") for item in docs if item["state"] == "saved"]
+    numbers = [number for number in numbers if number]
+    failed = [item["row"] for item in docs if item["state"] == "not_done"]
+    parts = [translate("operator.end.stopped")] if status == "stopped" else []
+    if numbers:
+        parts.append(translate("intake.notice.created").format(", ".join(numbers)))
+    if failed:
+        reasons = [_reason_text(reason_code(_get(row, "reason")) or "unknown", translate) for row in failed]
+        parts.append(translate("operator.end.not_done").format(len(failed), ", ".join(dict.fromkeys(reasons))))
+    return " · ".join(parts)
 
 
 def _status(out, p, kind, stop, last) -> None:
@@ -578,5 +605,5 @@ def report(name):
 
 
 __all__ = ["PREFIX", "SESSION_PREFIX", "TOOL_NAMES", "awaiting", "events", "is_local", "last_time", "project", "publish",
-           "reason_detail", "receipt", "reason_code", "refresh", "report", "report_csv", "report_rows", "run_state", "session_of", "since",
+           "end_text", "reason_detail", "receipt", "reason_code", "refresh", "report", "report_csv", "report_rows", "run_state", "session_of", "since",
            "stamp", "stored_rows"]

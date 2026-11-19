@@ -765,6 +765,7 @@ Stock In,รับเข้า
 Stock In / Out,สินค้าคงคลัง (รับเข้า/จ่ายออก)
 Stock Out,จ่ายออก
 "Stock in/out summary (kept item, see the ERP manifest)",สรุปรับ-จ่าย-คงเหลือสินค้า
+Stopped,หยุดแล้ว
 Stored encrypted; never shown,จัดเก็บแบบเข้ารหัส และไม่แสดงค่า
 Subject,Subject
 Submit request,ส่งคำขอ
@@ -1396,6 +1397,8 @@ nav.suppliers,ผู้จำหน่าย
 nav.team,จัดการทีมงาน
 nav.warehouses,คลังสินค้า
 nav.work,ทำงานร่วมกัน
+operator.end.not_done,ยังไม่เสร็จ {0} ใบ: {1}
+operator.end.stopped,หยุดแล้ว
 operator.report.column.number,เลขที่ใน Express
 operator.report.column.party,คู่ค้า
 operator.report.column.reason,สาเหตุ
@@ -1580,6 +1583,7 @@ username / password are required,ต้องระบุ username / password
 {0} is entered in {1}: {2},{0} บันทึกลง {1} แล้ว: {2}
 {0} is not entered in {1},{0} ยังไม่ได้บันทึกลง {1}
 {0} is not entered in {1}: {2},{0} ยังไม่ได้บันทึกลง {1}: {2}
+{0} not done: {1},ยังไม่เสร็จ {0} ใบ: {1}
 {0} of {1} pages used this cycle; {2} remaining.,รอบนี้ใช้แล้ว {0}/{1} หน้า คงเหลือ {2} หน้า
 {0} pages per cycle,{0} หน้าต่อรอบ
 {0} record(s) deleted.,ลบ {0} รายการแล้ว

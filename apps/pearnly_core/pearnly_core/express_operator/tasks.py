@@ -272,13 +272,28 @@ def attach(name, results, groups=None, computer: str = "", start_at=None) -> dic
     return view(doc)
 
 
+def _current(change):
+    """加锁改任务、调用方此前只读（工具查进度、电脑页面报到、回执后的后台收尾）：此前的读已有快照，这期间别处提交改过这个任务，
+    加锁读就撞「记录已变」（MariaDB 1020，Frappe 抛 QueryDeadlockError；或保存时的时间戳冲突）。回滚只丢这份旧快照，
+    按当前状态再做一次（11-17 验收：电脑领单那一刻 CC 查进度报出错）。``change`` 每次自己加锁重读，结果按当前状态重算。"""
+    try:
+        return change()
+    except (frappe.QueryDeadlockError, frappe.TimestampMismatchError):
+        frappe.db.rollback()
+        frappe.clear_messages()
+        return change()
+
+
 def mark_running(name) -> dict:
     """CC 回报这一批开始录了（页面经桥看到）：等电脑空闲 → 进行中。别的状态不动。"""
-    doc = _own(name, for_update=True)
-    if doc.status == "queued":
-        doc.status = "running"
-        _save(doc)
-    return view(doc)
+    def change():
+        doc = _own(name, for_update=True)
+        if doc.status == "queued":
+            doc.status = "running"
+            _save(doc)
+        return view(doc)
+
+    return _current(change)
 
 
 def _name_rows(doc, rows) -> None:
@@ -339,10 +354,13 @@ def _conclude(doc) -> None:
 
 def settle(name) -> dict:
     """以站点为准收尾（主会话 10-27）：没定下来的单问产品（``status`` 钩子）现在怎样，写回子表；都有结论了推出任务状态。"""
-    doc = _own(name, for_update=True)
-    _conclude(doc)
-    _save(doc)
-    return view(doc)
+    def change():
+        doc = _own(name, for_update=True)
+        _conclude(doc)
+        _save(doc)
+        return view(doc)
+
+    return _current(change)
 
 
 def message_sent(name) -> bool:

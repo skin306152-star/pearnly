@@ -9,6 +9,8 @@
 2. 在卡片上逐题作答、发送：记下成功（修前这里报「没有权限」）。答案写回收单记录。
 3. 说一句让 CC 建写入计划（假智能体照真实引擎调 ``pearnly_write_plan``）：这张票在要写的里（修前判 ``not_found``）。
 4. 再说一句开始（``pearnly_write_start``）：收单记录提交成 ERP 单据，交进写账（实验栈没有执行电脑，交单后照常排着等电脑）。
+5. 照电脑领单、写成回执（正式回执路径），同时另一条线程以任务主人身份连查进度（``express_operator_status``，11-17 验收：领单那一刻
+   报「出错」）：一次都不出错；写成后任务这一行带 Express 单号，对话以一句「已录入：单号」收尾、只有一条（主会话 11-19 方案 A）。
 
 方向由模块常量 ``DIRECTION`` 定（采购本模块，销售 `erp_cc_operator_intake_sales`）。模型调用换成实验室的假智能体（`lab_agents.py`）。
 cleanup 作废提交出的单、撤掉写账件，删掉会话、任务与收单记录。
@@ -62,7 +64,8 @@ if {direction!r} == "purchase":
     result = {{"doc_no": "{tag.upper()}-1", "doc_date": day, "doc_kind": "purchase_invoice", "has_vat": 1,
               "supplier_name": "flow intake supplier {tag}", "lines": lines, "printed": printed}}
 else:
-    result = {{"doc_no": "{tag.upper()}-1", "doc_date": day, "doc_kind": "receipt", "has_vat": 1,
+    # 销售识别的税率在表头（`sales.recognition` 的 vat_rate，行上不带）：只写在行上时提交出的销售单税额为 0，票面 214 对不上停下
+    result = {{"doc_no": "{tag.upper()}-1", "doc_date": day, "doc_kind": "receipt", "has_vat": 1, "vat_rate": 7,
               "buyer_name": "flow intake buyer {tag}", "party_type": "company", "lines": lines, "printed": printed}}
 doc = frappe.get_doc({{"doctype": intake.DOCTYPE, "status": intake.READY, "direction": {direction!r}, "owner": frappe.session.user,
                        "sent_by": frappe.session.user, "source": intake.SOURCE_CC, "session_id": made["id"],
@@ -224,20 +227,81 @@ task = frappe.get_doc("Pearnly Express Operator Task", {params['task']!r})
 # 带上 Express 单号（11-17 验收：回执只带 P:，任务按 I: 找不到，一直「排队中」没单号）
 receipt = {{}}
 if doc and doc.get("ledger_job") and not {bool(params.get('no_computer'))!r}:
-    import time
+    import threading, time
+    from pearnly_core.express_operator import feed, tools
     from pearnly_erp_portal.express import push
     key = frappe.db.get_value("Pearnly CC Job", doc["ledger_job"], "request_key")
-    push.job_changed({{"source_doctype": doctype, "source_name": made, "status": "success", "job": doc["ledger_job"],
-                      "docnum": "FLOW-{params['tag'][:6]}", "request_key": key}})
+    # 电脑领单、写成回执的同时 CC 在对话里查进度（11-17 验收：领单那一刻 express_operator_status 出错）：另一条线程以任务主人身份连查
+    site, sites, asked = frappe.local.site, frappe.local.sites_path, {{"calls": 0, "errors": []}}
+    def ask():
+        frappe.init(site=site, sites_path=sites)
+        frappe.connect()
+        frappe.set_user({USER!r})
+        try:
+            for _ in range(8):
+                try:
+                    json.loads(tools.status({{"task": {params['task']!r}}}))
+                    frappe.db.commit()
+                except Exception as error:
+                    frappe.db.rollback()
+                    asked["errors"].append(repr(error)[:300])
+                asked["calls"] += 1
+                time.sleep(0.2)
+        finally:
+            frappe.destroy()
+    # 领单那一刻的确定性复现：CC 先读了任务（有了读快照）、慢 1.5 秒才收尾，这期间电脑页面报「开始录了」（`tasks.mark_running`）并提交
+    from pearnly_core.express_operator import tasks
+    slow, real_read = threading.local(), tasks.read
+    def read_slowly(name):
+        out = real_read(name)
+        if getattr(slow, "on", False):
+            slow.on = False
+            time.sleep(1.5)
+        return out
+    tasks.read = read_slowly
+    def ask_slowly():
+        slow.on = True
+        frappe.init(site=site, sites_path=sites)
+        frappe.connect()
+        frappe.set_user({USER!r})
+        try:
+            json.loads(tools.status({{"task": {params['task']!r}}}))
+            frappe.db.commit()
+        except Exception as error:
+            frappe.db.rollback()
+            asked["errors"].append("taken: " + repr(error)[:300])
+        asked["calls"] += 1
+        frappe.destroy()
+    first = threading.Thread(target=ask_slowly)
+    first.start()
+    time.sleep(0.4)
+    frappe.set_user({USER!r})
+    tasks.mark_running({params['task']!r})
     frappe.db.commit()
+    frappe.set_user("Administrator")
+    first.join(60)
+    probe = threading.Thread(target=ask)
+    probe.start()
+    for status, docnum in (("leased", ""), ("success", "FLOW-{params['tag'][:6]}")):
+        frappe.db.set_value("Pearnly CC Job", doc["ledger_job"], "status", status, update_modified=False)
+        push.job_changed({{"source_doctype": doctype, "source_name": made, "status": status, "job": doc["ledger_job"],
+                          "docnum": docnum, "request_key": key}})
+        frappe.db.commit()
+        time.sleep(0.6)
+    probe.join(60)
     for _ in range(60):
         frappe.db.rollback()
-        rows = frappe.get_all("Pearnly Express Operator Task Document", filters={{"parent": {params['task']!r}}},
-                              fields=["doc_id", "state", "docnum"])
+        # 只看这张票那一行：写入计划按这家这个月的整份待录清单定，同站点别的流程留下的单也可能在任务里
+        rows = frappe.get_all("Pearnly Express Operator Task Document", filters={{"parent": {params['task']!r},
+                              "doc_id": {params['doc_id']!r}}}, fields=["doc_id", "state", "docnum"])
         if rows and all(r.state == "saved" for r in rows):
             break
         time.sleep(1)
-    receipt = {{"rows": [dict(r) for r in rows], "status": frappe.db.get_value("Pearnly Express Operator Task", {params['task']!r}, "status")}}
+    # 写成后对话里的收尾那句（服务端按任务记录定，主会话 11-19 方案 A）：带这张的 Express 单号，只有一条
+    ends = [e for e in feed.project(frappe.get_doc("Pearnly Express Operator Task", {params['task']!r}), None, feed._tz())
+            if e["type"] == "agent.message"]
+    receipt = {{"rows": [dict(r) for r in rows], "status": frappe.db.get_value("Pearnly Express Operator Task", {params['task']!r}, "status"),
+               "asked": asked, "ends": [((e.get("content") or [{{}}])[0].get("text") or "") for e in ends]}}
 print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc or {{}},
                   "decided": all(line.get("decided") for line in chosen.get("lines") or [] if line),
                   "payment_decided": bool(chosen.get("payment_decided")), "warehouse": chosen.get("warehouse") or "",
@@ -250,7 +314,8 @@ print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc o
          "ok": got.get("decided") is True and got.get("payment_decided") is True and bool(got.get("warehouse"))},
         {"case": "the intake record was submitted as an ERP document handed to the Express write queue",
          "saved": {"intake": got.get("intake"), "made": got.get("made"), "doc": doc},
-         "ok": bool(got.get("made")) and doc.get("status") == "submitted" and bool(doc.get("ledger_state"))},
+         "ok": bool(got.get("made")) and doc.get("status") == "submitted" and bool(doc.get("ledger_state"))
+         and (params.get("no_computer") or (doc.get("ledger_state") == "queued" and bool(doc.get("ledger_job"))))},
         {"case": "the operator task carries the ticket", "saved": got.get("task_docs"),
          "ok": params["doc_id"] in (got.get("task_docs") or [])},
     ] + ([] if params.get("no_computer") else [
@@ -258,4 +323,11 @@ print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc o
          "saved": got.get("receipt"),
          "ok": [(r.get("doc_id"), r.get("state"), r.get("docnum")) for r in (got.get("receipt") or {}).get("rows") or []]
          == [(params["doc_id"], "saved", "FLOW-" + params["tag"][:6])]},
+        {"case": "asking for progress while the computer takes and writes the document does not fail",
+         "saved": (got.get("receipt") or {}).get("asked"),
+         "ok": ((got.get("receipt") or {}).get("asked") or {}).get("calls", 0) > 0
+         and not ((got.get("receipt") or {}).get("asked") or {}).get("errors")},
+        {"case": "once written the conversation ends with one sentence naming the Express number",
+         "saved": (got.get("receipt") or {}).get("ends"),
+         "ok": (got.get("receipt") or {}).get("ends") == ["已录入：FLOW-" + params["tag"][:6]]},
     ])

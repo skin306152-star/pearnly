@@ -763,6 +763,7 @@ Stock In,Stock In
 Stock In / Out,Stock In / Out
 Stock Out,Stock Out
 "Stock in/out summary (kept item, see the ERP manifest)","Stock in/out summary (kept item, see the ERP manifest)"
+Stopped,Stopped
 Stored encrypted; never shown,Stored encrypted; never shown
 Subject,Subject
 Submit request,Submit request
@@ -1394,6 +1395,8 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.warehouses,Warehouses
 nav.work,Work together
+operator.end.not_done,{0} not done: {1}
+operator.end.stopped,Stopped
 operator.report.column.number,Express no.
 operator.report.column.party,Party
 operator.report.column.reason,Reason
@@ -1578,6 +1581,7 @@ username / password are required,username / password are required
 {0} is entered in {1}: {2},{0} is entered in {1}: {2}
 {0} is not entered in {1},{0} is not entered in {1}
 {0} is not entered in {1}: {2},{0} is not entered in {1}: {2}
+{0} not done: {1},{0} not done: {1}
 {0} of {1} pages used this cycle; {2} remaining.,{0} of {1} pages used this cycle; {2} remaining.
 {0} pages per cycle,{0} pages per cycle
 {0} record(s) deleted.,{0} record(s) deleted.

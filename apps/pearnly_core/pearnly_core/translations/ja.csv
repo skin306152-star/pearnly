@@ -765,6 +765,7 @@ Stock In,入庫
 Stock In / Out,在庫（入出庫）
 Stock Out,出庫
 "Stock in/out summary (kept item, see the ERP manifest)",受払在庫の集計（維持項目。ERPマニフェスト参照）
+Stopped,停止しました
 Stored encrypted; never shown,暗号化して保存し、表示しません
 Subject,サブジェクト
 Submit request,申請する
@@ -1396,6 +1397,8 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.warehouses,倉庫
 nav.work,コラボレーション
+operator.end.not_done,未完了 {0} 件：{1}
+operator.end.stopped,停止しました
 operator.report.column.number,Express 番号
 operator.report.column.party,取引先
 operator.report.column.reason,理由
@@ -1580,6 +1583,7 @@ username / password are required,username / password は必須です
 {0} is entered in {1}: {2},{0} は {1} に入力済み：{2}
 {0} is not entered in {1},{0} は {1} に未入力
 {0} is not entered in {1}: {2},{0} は {1} に未入力：{2}
+{0} not done: {1},未完了 {0} 件：{1}
 {0} of {1} pages used this cycle; {2} remaining.,今期{0}/{1}ページ使用、残り{2}ページ。
 {0} pages per cycle,1期間あたり{0}ページ
 {0} record(s) deleted.,{0}件を削除しました。

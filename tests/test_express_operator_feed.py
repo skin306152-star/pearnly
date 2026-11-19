@@ -435,6 +435,27 @@ class ProjectionTests(unittest.TestCase):
         self.state["waiting_on"] = {("CO-1", "a@example.com"): "PC-ME"}  # 本人有电脑在等（关着）：照旧写电脑名
         self.assertEqual([e["detail"] for e in whole("queued")], ["PC-ME"])
 
+    def test_the_end_says_the_ledger_numbers_and_what_was_not_done(self):
+        # 主会话 11-19 方案 A：写成后模型那一轮早已结束，收尾那句由服务端按任务记录定（单号、没写成的张数与原因），不调模型
+        words = {"intake.notice.created": "已录入：{0}", "operator.end.not_done": "未完成 {0} 张：{1}", "operator.end.stopped": "已停止",
+                 "operator.report.reason.party_missing": "Express 中没有此对方", "operator.report.reason.unknown": "需要处理"}
+        self.feed._ = lambda text, lang=None: words.get(text, text)
+        said = lambda status, docs: next(e for e in self.project(_task(status, docs))
+                                          if e["type"] == "agent.message")["content"][0]["text"]
+        docs = [_doc(1, "saved", docnum="HP0000090"), _doc(2, "saved", docnum="HP0000091"),
+                _doc(3, "not_done", REASONS["human"]), _doc(4, "not_done", REASONS["product"]), _doc(5, "skipped")]
+        self.assertEqual(said("attention", docs), "已录入：HP0000090, HP0000091 · 未完成 2 张：Express 中没有此对方, 需要处理")
+        self.assertEqual(said("finished", [_doc(1, "saved", docnum="RR0000012")]), "已录入：RR0000012")  # 账本上的号原样，不写死前缀
+        self.assertEqual(said("stopped", [_doc(1, "saved", docnum="HP0000090"), _doc(2, "skipped", REASONS["stopped"])]),
+                         "已停止 · 已录入：HP0000090")
+        self.assertEqual(said("finished", [_doc(1, "skipped")]), "")  # 只有跳过的：页面照张数写一句
+        # 一张单只出一次：同一份记录（回执重放、重交后没变）投影出同一编号、同一句
+        task = _task("finished", [_doc(1, "saved", docnum="HP0000090")])
+        first = [e for e in self.project(task) if e["type"] == "agent.message"]
+        again = [e for e in self.project(copy.deepcopy(task)) if e["type"] == "agent.message"]
+        self.assertEqual(first, again)
+        self.assertEqual(len(first), 1)
+
     def test_the_same_record_projects_to_the_same_events_twice(self):
         task = _task("attention", [_doc(1, "saved", docnum="HP01"), _doc(2, "not_done", REASONS["batch"]),
                                    _doc(3, "not_done", REASONS["human"]), _doc(4, "queued", blocked_by="IV9 · X")],

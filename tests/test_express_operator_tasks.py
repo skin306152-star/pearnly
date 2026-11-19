@@ -36,10 +36,20 @@ class DoesNotExistError_(_Throw):
     pass
 
 
+class QueryDeadlockError_(Exception):  # MariaDB 1020「记录已变」（读快照之后别处提交改过这一行）
+    pass
+
+
+class TimestampMismatchError_(_Throw):
+    pass
+
+
 def _fake_frappe(state):
     frappe = types.ModuleType("frappe")
     frappe._dict = _Row
     frappe.PermissionError, frappe.DoesNotExistError = PermissionError_, DoesNotExistError_
+    frappe.QueryDeadlockError, frappe.TimestampMismatchError = QueryDeadlockError_, TimestampMismatchError_
+    frappe.clear_messages = lambda: None
     frappe.session = types.SimpleNamespace(user="a@example.com")
     frappe.conf = {"pearnly_product": "cowork"}
 
@@ -89,6 +99,9 @@ def _fake_frappe(state):
         return next(row for row in state["rows"] if row["name"] == name)
 
     def get_value(doctype, filters, field, for_update=False, as_dict=False):
+        if for_update and state.get("stale"):
+            state["stale"] -= 1  # 加锁读撞上旧快照（MariaDB 1020）：这一次报错，回滚后的当前读照常
+            raise QueryDeadlockError_("Record has changed since last read")
         rows = state["sessions"] if doctype == "Pearnly Assistant Session" else state["rows"]
         found = [row for row in rows if match(row, filters)]
         if not found:
@@ -122,7 +135,8 @@ def _fake_frappe(state):
     frappe.get_doc, frappe.get_all, frappe.delete_doc = get_doc, get_all, delete_doc
     frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
         (event, message, user, after_commit))
-    frappe.db = types.SimpleNamespace(get_value=get_value, exists=exists, set_value=set_value)
+    frappe.db = types.SimpleNamespace(get_value=get_value, exists=exists, set_value=set_value,
+                                      rollback=lambda: state.__setitem__("rollbacks", state.get("rollbacks", 0) + 1))
     frappe.parse_json = lambda text: __import__("json").loads(text) if isinstance(text, str) else text
     frappe.as_json = lambda value: __import__("json").dumps(value, default=str)
     utils = types.ModuleType("frappe.utils")
@@ -269,6 +283,22 @@ class TaskTests(unittest.TestCase):
                          [("saved", "RR0000009", ""), ("saved", "RR0000010", "RR0000008")])
         self.assertTrue(done["finished_at"])
         self.assertEqual(self.tasks.delete(made["name"]), {"deleted": made["name"]})
+
+    def test_settling_and_reporting_running_redo_once_on_a_stale_snapshot(self):
+        # 11-17 验收：电脑领单那一刻 CC 查进度报出错——查进度先读了任务（有了读快照），这期间电脑页面报「开始录了」并提交，
+        # 加锁读撞 MariaDB 1020。调用方此前只读：回滚这份旧快照、按当前状态再做一次；连撞两次照常报出去
+        made = self.tasks.create("CO-1", "2026-10")
+        self.tasks.attach(made["name"], [{"doc_id": "h1", "status": "sent"}], {}, "CCD-1", None)
+        self.state["stale"] = 1
+        self.assertEqual(self.tasks.mark_running(made["name"])["status"], "running")
+        self.assertEqual(self.state.get("rollbacks"), 1)
+        self.statuses = {"h1": {"state": "saved", "docnum": "RR0000011"}}
+        self.state["stale"] = 1
+        self.assertEqual(self.tasks.settle(made["name"])["status"], "finished")
+        self.assertEqual(self.state.get("rollbacks"), 2)
+        self.state["stale"] = 2
+        with self.assertRaises(QueryDeadlockError_):
+            self.tasks.settle(made["name"])
 
     def test_a_document_waiting_for_the_computer_waits_in_the_queue_and_goes_in_once_it_can(self):
         """线上 11-10（testcowork 代录 t4n5b25940）：点开始时电脑还没读到这份账套的科目表，产品回 waiting_for_cc，任务当场记

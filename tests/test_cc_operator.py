@@ -239,6 +239,11 @@ const last = state.messages.at(-1)!;
 assert.ok(last.content.some((p: any) => p.type === "text" && p.text === op.end.stopped(1)));
 assert.deepEqual((last.metadata as any).custom.report, { filename: "Acme 2026-10.csv", url: `/api/method/pearnly_core.express_operator.feed.report?name=${T}` });
 assert.equal(operatorEndText({ kind: "finished", task: T, counts: { saved: 5, not_done: 0 } }), op.end.finished(5, 0));
+// 服务端写好的收尾那句（写成的单号，主会话 11-19 方案 A）照原样出，不再换成张数
+state = project([{ type: "agent.message", id: `pop_${T}_end_finished_2`, processed_at: at(13), content: [{ type: "text", text: "已录入：HP0000090" }],
+  operator: { kind: "finished", task: T, counts: { saved: 1, not_done: 0 }, report: { filename: "Acme 2026-10.csv", url: `/api/method/pearnly_core.express_operator.feed.report?name=${T}` } } }], state);
+const said = state.messages.at(-1)!.content.filter((p: any) => p.type === "text").map((p: any) => p.text);
+assert.ok(said.includes("已录入：HP0000090") && !said.includes(op.end.finished(1, 0)));
 // 不当补拉锚点
 assert.equal(isLocalEvent({ type: "agent.tool_use", id: `pop_${T}_dA` } as any), true);
 assert.equal(isLocalEvent({ type: "pearnly.progress", id: "local-x" } as any), true);
