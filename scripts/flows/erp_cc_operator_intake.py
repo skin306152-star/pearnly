@@ -28,7 +28,7 @@ DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Document"}
 CARD = "q('[data-slot=\"cc-op-before-ask\"]')"  # 有要人定的题时开始前卡片就是这张问答卡
 
 
-NOT_CONNECTED = "CC 桌面版未连接"  # 单据页同一句（ERP 词条 CC Desktop not connected 的中文）
+NOT_CONNECTED = "未连接电脑"  # 单据页同一句（ERP 词条 No computer connected 的中文，B60 11-16 用户批准，原「CC 桌面版未连接」）
 OTHER_USER = "flow.other.person@erp.regression"
 
 
@@ -177,7 +177,7 @@ def steps(params, camera_code=None):
          "handed: ((r.handed||{}).results||[]).map(x=>({doc_id:x.doc_id, status:x.status, reason:String(x.reason||'').slice(0,120)})), "
          "no_computer: r.no_computer||'', note: String(r.note||'').slice(0,200)};"},
     ] + ([
-        # 发单人没有自己的电脑：对话里的代录进度写明「CC 桌面版未连接」（单据页同一句），不只「等待电脑」（页面靠补拉，等一会儿）
+        # 发单人没有自己的电脑：对话里的代录进度写明「未连接电脑」（单据页同一句），不只「等待电脑」（页面靠补拉，等一会儿）
         {"name": "未连接", "shot": True, "file": "4-not-connected", "js": JS +
          # 只看这张单的代录步骤行（展开「填写了单据」），不看对话正文（假智能体会把工具结果原样回显）；页面靠补拉，等一会儿
          "const row=()=>qa('[data-slot=\"cc-op-row\"]').map(e=>e.innerText.trim()).join(' | '); "
@@ -206,7 +206,7 @@ def judge(params, results, camera_code=None):
         {"case": "with no computer of the sender, CC is told it is not connected instead of handed to a computer",
          "seen": {k: started.get(k) for k in ("no_computer", "note")},
          "ok": started.get("no_computer") == NOT_CONNECTED and "handed to the computer" not in (started.get("note") or "").lower()},
-        {"case": "the conversation shows CC Desktop not connected", "seen": by.get("未连接"),
+        {"case": "the conversation shows No computer connected", "seen": by.get("未连接"),
          "ok": (by.get("未连接") or {}).get("seen") is True},
     ] if params.get("no_computer") else [])
 

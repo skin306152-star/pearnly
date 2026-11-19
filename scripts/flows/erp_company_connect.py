@@ -8,7 +8,7 @@
 11-15（主会话，照 CC「选择公司」弹窗）：再报两份——一份的公司已停用、一份的公司已在用。选择窗把连接上报的全部列出：右上有刷新，
 每行第二行是「税号 · 总部 · 账套文件夹」；已在用的那行勾选框禁用、标「已添加」；停用的那行可勾、标「已停用」，勾了就是重新启用那家
 （不另建）。左上角公司名下拉里不放「从连接添加」（用户 11-15 定去掉）。右上刷新请在线电脑立刻整份重报（`cc_service.rescan`）；实验栈的电脑
-不在线，刷新直接显示「CC 桌面版未连接」（在线电脑的下发与回执由 tests/test_cc_desktop_channel.py 守）。
+不在线，刷新直接显示「未连接电脑」（在线电脑的下发与回执由 tests/test_cc_desktop_channel.py 守）。
 """
 from __future__ import annotations
 
@@ -103,7 +103,7 @@ def steps(params, camera_code=None):
          "const items=(frappe.pearnly.header_menu_items?.()||[]).map(i=>i.name); frappe.boot.pearnly_companies=keep; "
          "return {items, count: 1};"},
         {"name": "刷新：没有在线电脑时显示未连接", "js": IDLE +
-         # 实验栈里那台电脑从没心跳过（不在线）：刷新不下发、不干等，直接显示「CC 桌面版未连接」
+         # 实验栈里那台电脑从没心跳过（不在线）：刷新不下发、不干等，直接显示「未连接电脑」（B60 词条改名）
          "const b=[...document.querySelectorAll('.page-head button')].find(e=>e.offsetParent&&e.innerText.trim()==='从连接添加'); "
          "if(!b) return {error:'no add-from-connections button'}; b.click(); "
          "let d=null; for(let k=0;k<40&&!(d=document.querySelector('.modal.show [data-fieldname=items]'));k++) await new Promise(r=>setTimeout(r,250)); "
@@ -138,8 +138,8 @@ def judge(params, results, camera_code=None):
          "ok": bool(menu.get("opened")) and menu.get("found") is False},
         {"case": "只有一家公司的账号：左上角下拉里本产品不加任何项", "seen": by.get("只有一家公司时下拉里也没有从连接添加"),
          "ok": (by.get("只有一家公司时下拉里也没有从连接添加") or {}).get("items") == []},
-        {"case": "刷新时没有在线电脑：不干等，直接显示「CC 桌面版未连接」", "seen": by.get("刷新：没有在线电脑时显示未连接"),
-         "ok": (by.get("刷新：没有在线电脑时显示未连接") or {}).get("text") == "CC 桌面版未连接"
+        {"case": "刷新时没有在线电脑：不干等，直接显示「未连接电脑」", "seen": by.get("刷新：没有在线电脑时显示未连接"),
+         "ok": (by.get("刷新：没有在线电脑时显示未连接") or {}).get("text") == "未连接电脑"
          and (by.get("刷新：没有在线电脑时显示未连接") or {}).get("took", 99999) < 5000},
         # 勾的带标记的三份：新税号新建、已停用重新启用、手工同税号接上
         {"case": "添加后刚加的三家排在列表最前、行高亮", "seen": {k: done.get(k) for k in ("fresh", "fresh_names")},
