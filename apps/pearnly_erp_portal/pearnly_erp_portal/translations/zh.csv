@@ -528,6 +528,7 @@ Document has been cancelled,单据已取消
 Document must be submitted,请先提交单据
 Document no.,单据号
 Document prefix,单据前缀
+Document summary,单据摘要
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型
@@ -2564,7 +2565,7 @@ mrerp.default.employee,员工
 mrerp.default.expense_account,费用科目
 mrerp.default.job,项目
 mrerp.default.product_group,物料分类
-mrerp.default.store,仓位
+mrerp.default.store,仓库
 mrerp.default.supplier_type,供应商类型
 mrerp.default.title,MR.ERP 设置
 mrerp.default.unit,单位

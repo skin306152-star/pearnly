@@ -157,3 +157,9 @@ Express 原生画面一列：库存四单已由库存对齐窗口实录（`2026-
 2. 第 1 项 ERP 卡片保存（复用 `submit_chat`）：写 1.5 小时 + 测 1 小时；Cowork 服务端保存入口：写 2 小时 + 测 1 小时。
 3. 第 2 项（等测试机2 截图定采购 / 销售）：服务端撤一单一仓 + 余额二元组 + 迁移 patch 3 小时；界面 10 个页面 3 小时；测试改写 2 小时；62 条入口回归 + 候选离线 2–3 小时。与库存对齐窗口：它管 `express/` 与 `companion/`，我管界面 / DocType / 迁移 / 余额维度；`documents.py` PURPOSES、`stock-entry.js` PURPOSES、`transactions.js` EXPRESS_KINDS、`erp_stock_entry.json` purpose 选项那几行它已改，谁后合谁变基。
 三项各自一个提交、可分开合入；第 2 项合入后库存对齐窗口再接 CC 库存四单引导的按行选仓。
+
+## 16. 审定记录
+
+- 11-19 主会话审定：Q2–Q6 按建议（「只在盘点那边保留仓位，其他地方的位置 / 仓位全部取消」）；施工顺序 3 → 1 → 2；架构新方向 `line → push` 同意，条件是 line 只走 `card_save.save`，并加检查守住（`tests/test_cowork_line_intake.py::test_line_reaches_push_only_through_card_save`）。
+- 11-19 用户回复（经主会话转）原话：「表照建议，字同意」——Q1：库存一览删状态、平均成本、价值（金额）、仓位，编码栏显示内部编码，名称加宽；物料资料列表只删「位置」。Q7：第 13 节三条改已有文案同意（`mrerp.default.store`、`guide.q.location` 中文「仓位 → 仓库」；卡片副标题只留「单据摘要」）。
+- Express 原生画面实录（11-19 12:1x，测试机2，服务器版 Express 只开 70EXP\test，开新单截图后取消、不存单，前后整本 MD5 一致）：RR 赊购（1-4）、HP 现购（1-2-1）、IV 赊销（2-4）、HS 现销（2-2-1）**单头都没有仓库栏，明细每行有「คลัง」（仓）栏**。采购、销售按行选仓，与库存三单一致；调拨 RL 单头选调出 / 调入仓（库存对齐窗口实录）。

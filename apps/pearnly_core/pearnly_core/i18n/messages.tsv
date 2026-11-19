@@ -1055,7 +1055,7 @@ Counterparty	对方	คู่ค้า	取引先	guide.q.party
 New counterparty	新建对方	คู่ค้าใหม่	新規取引先	guide.q.new_party
 Product	物料	สินค้า	商品	guide.q.item
 New product	新物料	สินค้าใหม่	新規商品	guide.q.new_item
-Warehouse	仓位	คลังสินค้า	倉庫	guide.q.location
+Warehouse	仓库	คลังสินค้า	倉庫	guide.q.location
 Unit	单位	หน่วย	単位	guide.q.unit
 Cost of goods sold	出库成本	ต้นทุนขาย	売上原価	guide.q.cost_basis
 Line items	明细	รายการ	明細	guide.q.detail

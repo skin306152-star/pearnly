@@ -653,6 +653,7 @@ Document No.,单据号
 Document Policy,单据录入规则
 Document handling set,已设置单据处理方式
 Document no.,单号
+Document summary,单据摘要
 Document summary · open details to review and post,单据摘要 · 进入明细完成复核与入账
 Document total,总金额
 Document type,单据类型

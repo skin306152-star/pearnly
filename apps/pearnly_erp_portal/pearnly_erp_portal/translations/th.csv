@@ -528,6 +528,7 @@ Document has been cancelled,เอกสารถูกยกเลิกแล�
 Document must be submitted,กรุณายืนยันเอกสารก่อน
 Document no.,เลขที่เอกสาร
 Document prefix,คำนำหน้าเอกสาร
+Document summary,สรุปเอกสาร
 Document summary · open details to review and post,สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี
 Document total,ยอดรวมทั้งสิ้น
 Document type,ประเภทเอกสาร
@@ -2564,7 +2565,7 @@ mrerp.default.employee,พนักงาน
 mrerp.default.expense_account,บัญชีค่าใช้จ่าย
 mrerp.default.job,งาน
 mrerp.default.product_group,กลุ่มสินค้า
-mrerp.default.store,ตำแหน่ง
+mrerp.default.store,คลังสินค้า
 mrerp.default.supplier_type,ประเภทผู้จำหน่าย
 mrerp.default.title,การตั้งค่า MR.ERP
 mrerp.default.unit,หน่วยนับ

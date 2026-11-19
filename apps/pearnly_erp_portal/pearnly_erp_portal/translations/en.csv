@@ -528,6 +528,7 @@ Document has been cancelled,Document has been cancelled
 Document must be submitted,Document must be submitted
 Document no.,Document no.
 Document prefix,Document prefix
+Document summary,Document summary
 Document summary · open details to review and post,Document summary · open details to review and post
 Document total,Document total
 Document type,Document type
@@ -2564,7 +2565,7 @@ mrerp.default.employee,Employee
 mrerp.default.expense_account,Expense account
 mrerp.default.job,Job
 mrerp.default.product_group,Product group
-mrerp.default.store,Location
+mrerp.default.store,Warehouse
 mrerp.default.supplier_type,Supplier type
 mrerp.default.title,MR.ERP settings
 mrerp.default.unit,Unit

@@ -157,7 +157,7 @@ def _card(record, pending, shown, labels=None):
                            "contents": [
                                {"type": "text", "text": title, "size": "lg", "weight": "bold",
                                 "color": "#FFFFFF", "wrap": True},
-                               {"type": "text", "text": _("Document summary · open details to review and post"),
+                               {"type": "text", "text": _("Document summary"),
                                 "size": "xxs", "color": "#F4F4F4", "margin": "xs", "wrap": True}]},
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
                 "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [

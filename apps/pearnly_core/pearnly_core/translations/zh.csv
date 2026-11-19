@@ -966,7 +966,7 @@ Waiting,等待
 Waiting for answers,等待作答
 Waiting for start time,等待开始时刻
 Waiting for the server,正在等待服务器
-Warehouse,仓位
+Warehouse,仓库
 Warehouses,仓库
 "Warehouses, stock-in and stock-out documents",仓库、入库与出库单据
 What Was Pushed,推送单据
@@ -1148,7 +1148,7 @@ guide.q.direction,业务类型
 guide.q.document_policy,是否入账
 guide.q.goods_posting,入账方式
 guide.q.item,物料
-guide.q.location,仓位
+guide.q.location,仓库
 guide.q.new_item,新物料
 guide.q.new_party,新建对方
 guide.q.operator_again,已入账

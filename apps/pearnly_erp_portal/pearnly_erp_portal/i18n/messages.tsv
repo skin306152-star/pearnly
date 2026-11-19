@@ -1268,7 +1268,7 @@ Upload and recognise	上传识别	อัปโหลดเอกสาร	アッ
 Enter manually	手动录入	กรอกเอง	手入力
 General supplier	一般供应商	ผู้จำหน่ายทั่วไป	一般仕入先
 Review document	复核单据	ตรวจทานเอกสาร	書類を確認
-Document summary · open details to review and post	单据摘要 · 进入明细完成复核与入账	สรุปเอกสาร · เปิดหน้ารายละเอียดเพื่อตรวจทานและลงบัญชี	書類の概要 · 明細画面で確認して計上してください
+Document summary	单据摘要	สรุปเอกสาร	書類の概要
 Direction	方向	ทิศทาง	方向
 Transaction type	业务类型	ประเภทรายการ	取引区分
 Documents	单据数量	จำนวนเอกสาร	書類数
@@ -2168,7 +2168,7 @@ MR.ERP settings	MR.ERP 设置	การตั้งค่า MR.ERP	MR.ERP 設�
 Branch	分店	สาขา	支店	mrerp.default.branch
 Department	部门	แผนก	部門	mrerp.default.dept
 Job	项目	งาน	案件	mrerp.default.job
-Location	仓位	ตำแหน่ง	保管場所	mrerp.default.store
+Warehouse	仓库	คลังสินค้า	倉庫	mrerp.default.store
 Employee	员工	พนักงาน	担当者	mrerp.default.employee
 Sales area	销售区域	พื้นที่การขาย	販売地域	mrerp.default.area
 Delivery type	运输方式	ประเภทขนส่ง	配送方法	mrerp.default.delivery

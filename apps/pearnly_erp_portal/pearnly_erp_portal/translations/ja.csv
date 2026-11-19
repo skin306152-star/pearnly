@@ -528,6 +528,7 @@ Document has been cancelled,伝票は取消済みです
 Document must be submitted,伝票を提出してください
 Document no.,書類番号
 Document prefix,書類プレフィックス
+Document summary,書類の概要
 Document summary · open details to review and post,書類の概要 · 明細画面で確認して計上してください
 Document total,合計
 Document type,書類種類
@@ -2564,7 +2565,7 @@ mrerp.default.employee,担当者
 mrerp.default.expense_account,費用勘定
 mrerp.default.job,案件
 mrerp.default.product_group,商品グループ
-mrerp.default.store,保管場所
+mrerp.default.store,倉庫
 mrerp.default.supplier_type,仕入先区分
 mrerp.default.title,MR.ERP 設定
 mrerp.default.unit,単位

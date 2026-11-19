@@ -476,6 +476,23 @@ class LineCardSaveTest(unittest.TestCase):
         self.assertEqual(self.save.save("CWH-3")["stop"], "T:already_success")
         self.submit.assert_not_called()
 
+    def test_line_reaches_push_only_through_card_save(self):
+        """架构登记 line → push（11-19 主会话批）只为卡片「保存」：line 域只许导入 `push.application.card_save`、只调它的 `save`。"""
+        import ast
+
+        base = root / "apps" / "pearnly_cowork" / "pearnly_cowork" / "line"
+        found = set()
+        for path in base.glob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom) and (node.module or "").startswith("pearnly_cowork.push"):
+                    found |= {(node.module, alias.name) for alias in node.names}
+                elif isinstance(node, ast.Import):
+                    found |= {(alias.name, "") for alias in node.names if alias.name.startswith("pearnly_cowork.push")}
+                elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "card_save":
+                    found.add(("card_save.", node.attr))
+        self.assertEqual(found, {("pearnly_cowork.push.application", "card_save"), ("card_save.", "save")})
+
     def test_handler_routes_the_save_button(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
                 mock.patch.object(handlers.binding, "enabled", return_value=True), \

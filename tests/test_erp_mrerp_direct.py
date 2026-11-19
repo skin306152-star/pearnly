@@ -616,6 +616,7 @@ class KickedAccount(unittest.TestCase):
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "run", "manual"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "request_read", "manual"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py", "run_read", "manual"),
+            ("apps/pearnly_cowork/pearnly_cowork/push/application/card_save.py", "save", "manual"),  # LINE 卡片「保存」（人点的，11-19）
         }
         found = set()
         for path in (ROOT / "apps").rglob("*.py"):
