@@ -22,7 +22,9 @@ A customer needs a name,顧客には名前が必要です
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A line amount cannot be read. Correct it and submit again,明細の金額が読み取れません。直して再送信してください
+A line quantity cannot be read. Correct it and submit again,明細の数量が読み取れません。直して再送信してください
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
+A line unit price cannot be read. Correct it and submit again,明細の単価が読み取れません。直して再送信してください
 A location that has been used cannot be removed,使用済みのロケーションは削除できません
 A location with stock cannot be turned off,在庫のあるロケーションは無効にできません
 A payment has to be approved before it counts as paid,支払いは承認されて初めて支払済みとして扱われます
@@ -2603,10 +2605,12 @@ mrerp.error.ERR_NO_INVOICE_DATE,伝票日付がないか読み取れません。
 mrerp.error.ERR_NO_INVOICE_NO,請求書番号がありません。追加して再送信してください
 mrerp.error.ERR_NO_SUPPLIER,この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください
 mrerp.error.ERR_NO_TOTAL_AMOUNT,合計がありません。追加して再送信してください
+mrerp.error.ERR_QTY_UNREADABLE,明細の数量が読み取れません。直して再送信してください
 mrerp.error.ERR_SESSION_LOCK,この MR.ERP アカウントは使用中です。後で再送信してください
 mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP はこの税率に対応していません。確認して再送信してください
 mrerp.error.ERR_TECHNICAL,MR.ERP に接続できません
 mrerp.error.ERR_UNEXPECTED,MR.ERP への送信中にエラーが発生しました
+mrerp.error.ERR_UNIT_PRICE_UNREADABLE,明細の単価が読み取れません。直して再送信してください
 mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,MR.ERP の取込結果を取得できません。MR.ERP で確認してください
 mrerp.error.ERR_VAT_RATE_ANOMALY,付加価値税額が 7% と合いません。確認して再送信してください
 mrerp.error.date_future,伝票日付が未来です。直して再送信してください

@@ -29,7 +29,9 @@ A dropdown field needs at least one option,ドロップダウンには選択肢�
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
 A file is larger than 25 MB.,25MBを超えるファイルがあります。
 A line amount cannot be read. Correct it and submit again,明細の金額が読み取れません。直して再送信してください
+A line quantity cannot be read. Correct it and submit again,明細の数量が読み取れません。直して再送信してください
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
+A line unit price cannot be read. Correct it and submit again,明細の単価が読み取れません。直して再送信してください
 A name is required.,名前を入力してください。
 A non-cash payment method has a negative total for a day,現金以外の支払方法の日計がマイナスの日があります
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,請求書の数値が Excel の対応する精度または範囲を超えています。値を変えずにエクスポートできません。
@@ -3529,10 +3531,12 @@ intake.error.ERR_NO_INVOICE_NO,請求書番号がありません。追加して�
 intake.error.ERR_NO_SUPPLIER,この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください
 intake.error.ERR_NO_TOTAL_AMOUNT,合計がありません。追加して再送信してください
 intake.error.ERR_PAYLOAD_VERSION,CC デスクトップが古いバージョンです。更新して再送信してください
+intake.error.ERR_QTY_UNREADABLE,明細の数量が読み取れません。直して再送信してください
 intake.error.ERR_SESSION_LOCK,この MR.ERP アカウントは使用中です。後で再送信してください
 intake.error.ERR_TAX_RATE_INVALID,MR.ERP はこの税率に対応していません。確認して再送信してください
 intake.error.ERR_TECHNICAL,MR.ERP に接続できません
 intake.error.ERR_UNEXPECTED,MR.ERP への送信中にエラーが発生しました
+intake.error.ERR_UNIT_PRICE_UNREADABLE,明細の単価が読み取れません。直して再送信してください
 intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,MR.ERP の取込結果を取得できません。MR.ERP で確認してください
 intake.error.ERR_VAT_RATE_ANOMALY,付加価値税額が 7% と合いません。確認して再送信してください
 intake.error.FIELD_TOO_LONG,Express の上限を超える長さの項目があります。短くして再送信してください

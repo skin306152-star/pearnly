@@ -22,7 +22,9 @@ A customer needs a name,请填写客户名称
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
 A line amount cannot be read. Correct it and submit again,明细金额无法识别，请更正后重新提交
+A line quantity cannot be read. Correct it and submit again,明细数量无法识别，请更正后重新提交
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
+A line unit price cannot be read. Correct it and submit again,明细单价无法识别，请更正后重新提交
 A location that has been used cannot be removed,已使用的仓位不能删除
 A location with stock cannot be turned off,有库存的仓位不能停用
 A payment has to be approved before it counts as paid,付款经审批后方视为已付
@@ -2603,10 +2605,12 @@ mrerp.error.ERR_NO_INVOICE_DATE,票面日期缺失或无法识别，请补填后
 mrerp.error.ERR_NO_INVOICE_NO,缺少发票号，请补充后重新提交
 mrerp.error.ERR_NO_SUPPLIER,MR.ERP 中没有此供应商，请核对供应商名称和税号
 mrerp.error.ERR_NO_TOTAL_AMOUNT,缺少合计金额，请补充后重新提交
+mrerp.error.ERR_QTY_UNREADABLE,明细数量无法识别，请更正后重新提交
 mrerp.error.ERR_SESSION_LOCK,此 MR.ERP 账号正在使用中，请稍后重新推送
 mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP 不支持此税率，请核对税率后重新提交
 mrerp.error.ERR_TECHNICAL,无法连接 MR.ERP
 mrerp.error.ERR_UNEXPECTED,推送至 MR.ERP 时出错
+mrerp.error.ERR_UNIT_PRICE_UNREADABLE,明细单价无法识别，请更正后重新提交
 mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,未取得 MR.ERP 导入结果，请在 MR.ERP 中核对
 mrerp.error.ERR_VAT_RATE_ANOMALY,增值税额与 7% 税率不符，请核对后重新提交
 mrerp.error.date_future,票面日期晚于当前日期，请更正后重新提交

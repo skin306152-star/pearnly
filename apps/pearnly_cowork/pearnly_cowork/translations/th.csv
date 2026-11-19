@@ -29,7 +29,9 @@ A dropdown field needs at least one option,ช่องแบบเลือก�
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
 A line amount cannot be read. Correct it and submit again,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
+A line quantity cannot be read. Correct it and submit again,อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+A line unit price cannot be read. Correct it and submit again,อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A name is required.,กรุณาระบุชื่อ
 A non-cash payment method has a negative total for a day,มีวิธีชำระเงินที่ไม่ใช่เงินสดซึ่งยอดรวมของวันติดลบ
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,ค่าตัวเลขในใบกำกับภาษีเกินความละเอียดหรือช่วงที่ Excel รองรับ จึงไม่สามารถส่งออกโดยรักษาค่าเดิมได้
@@ -3529,10 +3531,12 @@ intake.error.ERR_NO_INVOICE_NO,ไม่มีเลขที่เอกสา�
 intake.error.ERR_NO_SUPPLIER,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 intake.error.ERR_NO_TOTAL_AMOUNT,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
 intake.error.ERR_PAYLOAD_VERSION,CC เดสก์ท็อปเป็นรุ่นเก่า กรุณาอัปเดตแล้วส่งใหม่
+intake.error.ERR_QTY_UNREADABLE,อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 intake.error.ERR_SESSION_LOCK,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 intake.error.ERR_TAX_RATE_INVALID,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.ERR_TECHNICAL,เชื่อมต่อ MR.ERP ไม่ได้
 intake.error.ERR_UNEXPECTED,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
+intake.error.ERR_UNIT_PRICE_UNREADABLE,อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
 intake.error.ERR_VAT_RATE_ANOMALY,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 intake.error.FIELD_TOO_LONG,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่

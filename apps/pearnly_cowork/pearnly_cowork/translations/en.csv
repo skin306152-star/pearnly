@@ -29,7 +29,9 @@ A dropdown field needs at least one option,A dropdown field needs at least one o
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A file is larger than 25 MB.,A file is larger than 25 MB.
 A line amount cannot be read. Correct it and submit again,A line amount cannot be read. Correct it and submit again
+A line quantity cannot be read. Correct it and submit again,A line quantity cannot be read. Correct it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
+A line unit price cannot be read. Correct it and submit again,A line unit price cannot be read. Correct it and submit again
 A name is required.,A name is required.
 A non-cash payment method has a negative total for a day,A non-cash payment method has a negative total for a day
 A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.,A numeric value in the invoice exceeds the precision or range supported by Excel. It cannot be exported without changing its value.
@@ -3529,10 +3531,12 @@ intake.error.ERR_NO_INVOICE_NO,The invoice number is missing. Add it and submit 
 intake.error.ERR_NO_SUPPLIER,This supplier is not in MR.ERP. Check the supplier name and tax ID
 intake.error.ERR_NO_TOTAL_AMOUNT,The total is missing. Add it and submit again
 intake.error.ERR_PAYLOAD_VERSION,CC Desktop is out of date. Update CC Desktop and submit again
+intake.error.ERR_QTY_UNREADABLE,A line quantity cannot be read. Correct it and submit again
 intake.error.ERR_SESSION_LOCK,This MR.ERP account is in use. Send again later
 intake.error.ERR_TAX_RATE_INVALID,MR.ERP does not support this tax rate. Check it and submit again
 intake.error.ERR_TECHNICAL,Could not connect to MR.ERP
 intake.error.ERR_UNEXPECTED,An error occurred while sending to MR.ERP
+intake.error.ERR_UNIT_PRICE_UNREADABLE,A line unit price cannot be read. Correct it and submit again
 intake.error.ERR_UNKNOWN_UPLOAD_OUTCOME,No MR.ERP import result was returned. Check in MR.ERP
 intake.error.ERR_VAT_RATE_ANOMALY,The VAT does not match the 7% rate. Check it and submit again
 intake.error.FIELD_TOO_LONG,A field is longer than Express allows. Shorten it and submit again

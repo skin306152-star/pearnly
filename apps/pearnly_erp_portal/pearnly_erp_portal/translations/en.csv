@@ -22,7 +22,9 @@ A customer needs a name,A customer needs a name
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A line amount cannot be read. Correct it and submit again,A line amount cannot be read. Correct it and submit again
+A line quantity cannot be read. Correct it and submit again,A line quantity cannot be read. Correct it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
+A line unit price cannot be read. Correct it and submit again,A line unit price cannot be read. Correct it and submit again
 A location that has been used cannot be removed,A location that has been used cannot be removed
 A location with stock cannot be turned off,A location with stock cannot be turned off
 A payment has to be approved before it counts as paid,A payment has to be approved before it counts as paid
@@ -2603,10 +2605,12 @@ mrerp.error.ERR_NO_INVOICE_DATE,The invoice date is missing or unreadable. Fill 
 mrerp.error.ERR_NO_INVOICE_NO,The invoice number is missing. Add it and submit again.
 mrerp.error.ERR_NO_SUPPLIER,This supplier is not in MR.ERP. Check the supplier name and tax ID
 mrerp.error.ERR_NO_TOTAL_AMOUNT,The total is missing. Add it and submit again
+mrerp.error.ERR_QTY_UNREADABLE,A line quantity cannot be read. Correct it and submit again
 mrerp.error.ERR_SESSION_LOCK,This MR.ERP account is in use. Send again later
 mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP does not support this tax rate. Check it and submit again
 mrerp.error.ERR_TECHNICAL,Could not connect to MR.ERP
 mrerp.error.ERR_UNEXPECTED,An error occurred while sending to MR.ERP
+mrerp.error.ERR_UNIT_PRICE_UNREADABLE,A line unit price cannot be read. Correct it and submit again
 mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,No MR.ERP import result was returned. Check in MR.ERP
 mrerp.error.ERR_VAT_RATE_ANOMALY,The VAT does not match the 7% rate. Check it and submit again
 mrerp.error.date_future,The invoice date is in the future. Correct it and submit again

@@ -171,6 +171,8 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "ERR_PRODUCT_NAME_MISMATCH": ask("precheck:new_item", SERVER, "mrerp"),
     "ERR_CUSTOMER_CODE_TOO_LONG": ask("review", SERVER, "mrerp"),
     "ERR_NEGATIVE_AMOUNT": ask("review", SERVER, "mrerp"),
+    "ERR_QTY_UNREADABLE": ask("review", SERVER, "mrerp"),          # 明细数量读不懂又没行金额：人改这一格再推（11-19）
+    "ERR_UNIT_PRICE_UNREADABLE": ask("review", SERVER, "mrerp"),   # 明细单价读不懂又没行金额：同上
     "ERR_DUPLICATE_INVOICE": ask("fixed", SERVER, "mrerp"),              # 同号已在 MR.ERP：跳过 / 改号再录，不预选
     "ERR_NO_SEED_CUSTOMER": act("ledger_setting", "mrerp"),              # MR.ERP 里缺种子客户 / 物料：先在 MR.ERP 建
     "ERR_NO_SEED_PRODUCT": act("ledger_setting", "mrerp"),

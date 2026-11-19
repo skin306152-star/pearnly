@@ -22,7 +22,9 @@ A customer needs a name,กรุณากรอกชื่อลูกค้�
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A line amount cannot be read. Correct it and submit again,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
+A line quantity cannot be read. Correct it and submit again,อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
+A line unit price cannot be read. Correct it and submit again,อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A location that has been used cannot be removed,ตำแหน่งที่เคยใช้แล้วลบไม่ได้
 A location with stock cannot be turned off,ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้
 A payment has to be approved before it counts as paid,การจ่ายเงินจะถือว่าชำระแล้วเมื่อได้รับการอนุมัติ
@@ -2603,10 +2605,12 @@ mrerp.error.ERR_NO_INVOICE_DATE,ไม่มีวันที่เอกสา
 mrerp.error.ERR_NO_INVOICE_NO,ไม่มีเลขที่เอกสาร กรุณาเพิ่มแล้วส่งใหม่
 mrerp.error.ERR_NO_SUPPLIER,ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี
 mrerp.error.ERR_NO_TOTAL_AMOUNT,ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่
+mrerp.error.ERR_QTY_UNREADABLE,อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 mrerp.error.ERR_SESSION_LOCK,บัญชี MR.ERP นี้กำลังใช้งานอยู่ กรุณาส่งใหม่ภายหลัง
 mrerp.error.ERR_TAX_RATE_INVALID,MR.ERP ไม่รองรับอัตราภาษีนี้ กรุณาตรวจสอบแล้วส่งใหม่
 mrerp.error.ERR_TECHNICAL,เชื่อมต่อ MR.ERP ไม่ได้
 mrerp.error.ERR_UNEXPECTED,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
+mrerp.error.ERR_UNIT_PRICE_UNREADABLE,อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 mrerp.error.ERR_UNKNOWN_UPLOAD_OUTCOME,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
 mrerp.error.ERR_VAT_RATE_ANOMALY,ภาษีมูลค่าเพิ่มไม่ตรงกับอัตรา 7% กรุณาตรวจสอบแล้วส่งใหม่
 mrerp.error.date_future,วันที่เอกสารเป็นวันในอนาคต กรุณาแก้แล้วส่งใหม่
