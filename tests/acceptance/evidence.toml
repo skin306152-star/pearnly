@@ -2,16 +2,76 @@
 # check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。
 
 [[pass]]
-scenario = "acc.erp.collection.offline"
-sha = "574d61f9beab16a9e40ee2dff1063b72f5e270ee"
-date = "2026-11-16"
+scenario = "acc.erp.collection.line.edit"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
 env = "B"
-run = "20261116-192538-574d61f9b"
+run = "20261119-140338-8dd13d5f1"
 retried = false
-covers = "1d0bc9fef96d59d2"
-docnums = ["IV691116-001", "RE0000001", "RE0000002", "RE0000003"]
+covers = "7afb9cc15e73194b"
+docnums = ["IV691119-001", "RE0000001"]
 ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "SD-00853"
+erp_doc = "SD-02980"
+
+[[pass]]
+scenario = "acc.erp.collection.line.refused"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-140711-8dd13d5f1"
+retried = false
+covers = "7afb9cc15e73194b"
+docnums = ["IV691119-001", "RE0000001"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02982"
+
+[[pass]]
+scenario = "acc.erp.collection.nbsp"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-135652-8dd13d5f1"
+retried = false
+covers = "7afb9cc15e73194b"
+docnums = ["IV691119-001", "RE0000001"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02976"
+
+[[pass]]
+scenario = "acc.erp.collection.offline"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-141039-8dd13d5f1"
+retried = false
+covers = "bbd6c776fc9309e1"
+docnums = ["IV691119-001", "RE0000001", "RE0000002", "RE0000003"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02984"
+
+[[pass]]
+scenario = "acc.erp.collection.three"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-135129-8dd13d5f1"
+retried = false
+covers = "7afb9cc15e73194b"
+docnums = ["IV691119-001", "RE0000001", "RE0000002", "RE0000003"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02975"
+
+[[pass]]
+scenario = "acc.erp.collection.web.twice"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-140008-8dd13d5f1"
+retried = false
+covers = "7afb9cc15e73194b"
+docnums = ["IV691119-001", "RE0000001"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02978"
 
 [[pass]]
 scenario = "acc.erp.company.connect"
@@ -353,6 +413,18 @@ covers = "ec842463c8007a6d"
 docnums = ["IV691116-001"]
 ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-00815"
+
+[[pass]]
+scenario = "acc.erp.sales.credit.express"
+sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
+date = "2026-11-19"
+env = "B"
+run = "20261119-134925-8dd13d5f1"
+retried = false
+covers = "a16d9496782c8204"
+docnums = ["IV691119-001"]
+ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-02973"
 
 [[pass]]
 scenario = "acc.erp.stock.adjust.express"

@@ -525,3 +525,13 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 - 首跑（11-19 11:5x–12:06，小驱动，被测 cc-remembered-every-basis f32b4325b、maclab cowork + 测试机2 + TEST2）：两格通过——只记金额写成 RR691119-001（APTRN 税前 100 / 税 7 / 合计 107、STCRD 无行、凭证一张、进项税一行）；不入账停在 manual / items_mismatch、账本不动。ERP 两格「不适用」（ERP 单据合计按明细算，对不上时写账前硬拒，guided-erp 定）。
 - 前置：Cowork 站点要配智能体引擎（`sessions.create` 要连引擎建会话，不发消息、模型费 0，用完删密钥）；手造的识别记录要写上 `push_connection` / `push_account_set`（CC 对话放票时产品本来就写）；新接的 Cowork 公司首次判卡要等电脑读一次科目表。
 - 测试机2 基准哈希 11-19 起为 176DE98E（testerp 档案正常续换令牌，C216460D 作废）。
+
+## 11-19 下午（测试机2 13:45–14:50，maclab erp 从本工作树重起）
+- **缺陷 1 修复后补跑 7 格**（main 1a91b178b + CC 1.12.21、新路径基线）：sales.credit、collection.three / nbsp / web.twice / line.edit / line.refused / offline **全部通过**（证据已登记，`acceptance-runs/20261119-1349*`–`1417*-8dd13d5f1`）。至此 ERP 组 22 格在新路径上全过。
+- **代录②「最后不报单号」复跑**（`pearnly/operator-end-reply` 24674561f，maclab 挂它）：
+  - talk.purchase 第 1 次**通过**（含「最后说的 Express 单号与账本一致」）；运行器因之前环境类重跑（502、残留单）标「不稳」不登记证据。
+  - talk.purchase 第 2 次不通过：CC 说「这个月没有要录的单」——场景造的单疑被后台直写先领走（11-17 也见过）；场景要在开对话前核这张没被领、仍在待录，否则记「没测到」（待做）。
+  - talk.sales（新格首跑）不通过：CC 调完 operator_sources / start / status / erp_pending 后到超时没回话、没出计划；待查。
+  - 花费 0.104 + 0.043 + 0.168 = 0.315 美元。
+- 环境坑：maclab 换挂源码重建 web 后前端 nginx 还连旧 web → 502，要连 frontend 一起重启；bench 起来时可能撞「assets/assets File exists」退出，重跑 live 即可；别的工作树起的栈 bench 里没有 maclab/mint.py，要从本工作树 up 一次。
+- 收尾：测试机2 14:50 交 CC 桌面版窗口（176DE98E，判定 ok），TEST2 = 基线；maclab erp 开着（挂本工作树），密钥已删。
