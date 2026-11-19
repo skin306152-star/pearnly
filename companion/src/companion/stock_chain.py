@@ -129,8 +129,12 @@ def _stcrd(account_dir):
 
 
 def moved(chain: Chain, qty: Decimal, value: Decimal, new_head: str = "") -> Chain:
-    """链上增减 ``qty`` / ``value``（带正负）；增加成新一批时 ``new_head`` 是它的批号。"""
-    return replace(chain, bal=chain.bal + qty, val=chain.val + value, head=new_head or chain.head)
+    """链上增减 ``qty`` / ``value``（带正负）；增加成新一批时 ``new_head`` 是它的批号。
+    减少超过链上结存时链停在 0（原生：允许负库存的账套出超后这个仓的链是 0 / 0，不记负数，11-19 实录 OU2400001）。"""
+    bal, val = chain.bal + qty, chain.val + value
+    if qty < 0 and bal <= 0:
+        bal, val = Decimal(0), Decimal(0)
+    return replace(chain, bal=bal, val=val, head=new_head or chain.head)
 
 
 def stored_head(chain: Chain) -> str:

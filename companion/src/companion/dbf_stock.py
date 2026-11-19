@@ -648,7 +648,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 pool, slot = (place_lots, place) if here else (fifo_lots, stkcod)
                 if signed < 0:
                     lots_left = pool.get(slot, [])
-                    unit_cost, chained = _fifo_cost(lots_left, abs(qty), _cost(account_dir, now))
+                    # 出超（这个仓的批不够）：原生只按现有的批计价，多出的按 0（11-19 允许负库存实录）；按主档走的照旧按均价
+                    unit_cost, chained = _fifo_cost(lots_left, abs(qty), Decimal(0) if here else _cost(account_dir, now))
                     pool[slot] = _fifo_take(lots_left, abs(qty))
                 else:
                     unit_cost, chained = max(given, Decimal(0)), None

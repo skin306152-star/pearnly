@@ -259,7 +259,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
             if fifo and by_wh:
                 from .dbf_stock import _fifo_cost, _fifo_take
                 lots_left = place_lots.get(out_key, [])
-                unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), unit_cost)
+                unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), Decimal(0))  # 出超的部分按 0（同出库，原生）
                 place_lots[out_key] = _fifo_take(lots_left, abs(units.base_qty))
             total += value
             for posopr, here, other, sign in ((S.STCRD_POSOPR_TRANSFER_OUT, source, target, -1),
