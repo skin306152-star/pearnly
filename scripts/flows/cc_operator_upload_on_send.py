@@ -85,13 +85,16 @@ def steps(params, camera_code=None):
          "const removed=await until(()=>tiles().count===1,40); await sleep(1500); "
          "return {removed, tiles: tiles(), uploads: await listedUploads()};"},
         {"name": "传不上的一份", "shot": True, "file": "2-upload-failed", "js": head +
-         "const real=window.fetch; window.fetch=(u,o)=>String(u&&u.url||u).includes('assistant.api.upload')?Promise.resolve(new Response('',{status:503})):real(u,o); "
+         "const unblock=blockUploads(); "
          f"await pick([['{params['tag']}-c.png',{FILE},'image/png']]); "
          "const failed=await until(()=>tiles().failed===1,120); "
-         "const card=q('[data-slot=\"attachment\"][data-state=\"error\"]')?.innerText.trim()||''; window.fetch=real; "
-         "const x=q('[data-slot=\"attachment\"][data-state=\"error\"] .aui-attachment-tile-remove'); x?.click(); "
+         "const card=q('[data-slot=\"attachment\"][data-state=\"error\"]')?.innerText.trim()||''; unblock(); "
+         # 失败卡（B34）：整张卡是「重试」，右边 × 移除；× 要真点得到（按它的中心点命中，不被重试那一层盖住）
+         "const retry=!!q('[data-slot=\"attachment\"][data-state=\"error\"] [data-slot=\"attachment-trigger\"]'); "
+         "const x=q('[data-slot=\"attachment\"][data-state=\"error\"] .aui-attachment-tile-remove'); "
+         "const hit=(()=>{if(!x) return false; const r=x.getBoundingClientRect(); const e=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2); return !!e&&x.contains(e);})(); x?.click(); "
          "const removed=await until(()=>tiles().failed===0&&tiles().count===1,40); "
-         "return {failed, card, removed, tiles: tiles(), uploads: await listedUploads()};"},
+         "return {failed, card, retry, hit, removed, tiles: tiles(), uploads: await listedUploads()};"},
         {"name": "发出", "shot": True, "file": "3-sent", "js": head +
          f"const said=await say({tag}+' 看看这张'); if(!said) return {{error:'could not send'}}; "
          f"const bubble=await until(()=>qa('[data-role=\"user\"]').some(e=>e.innerText.includes({tag})),80); "
@@ -118,8 +121,9 @@ def judge(params, results, camera_code=None):
         {"case": "before sending the task has no upload yet", "seen": two.get("uploads"), "ok": two.get("uploads") == []},
         {"case": "removing a file leaves one in the composer and none in the task", "seen": removed,
          "ok": removed.get("removed") is True and removed.get("uploads") == []},
-        {"case": "an upload that cannot get through leaves a failed card that can be removed, nothing recorded", "seen": failed,
+        {"case": "an upload that cannot get through leaves a failed card that can be retried (the whole card) or removed (its × is really tappable), nothing recorded", "seen": failed,
          "ok": failed.get("failed") is True and params["tag"] + "-c.png" in (failed.get("card") or "")
+         and failed.get("retry") is True and failed.get("hit") is True
          and failed.get("removed") is True and failed.get("uploads") == []},
         {"case": "after sending only the sent file joins the conversation and is handed to recognition", "seen": {
             "rows": [{k: r.get(k) for k in ("filename", "batch", "state", "code")} for r in rows], "card": sent.get("cardText")},

@@ -113,15 +113,15 @@ def steps(params, camera_code=None):
         open_new,
         {"name": "一时传不上的附件", "shot": True, "file": "5-upload-failed-card", "js": head +
          # 上传接口一时不通（只这一个接口回 503）：进了输入框的附件留失败卡，卡上有文件名与原因
-         "const real=window.fetch; window.fetch=(u,o)=>String(u&&u.url||u).includes('assistant.api.upload')?Promise.resolve(new Response('',{status:503})):real(u,o); "
+         "window.__unblock=blockUploads(); "
          "await pick([['offline.txt',64,'text/plain']]); const failed=await until(()=>qa('[data-slot=\"attachment\"][data-state=\"error\"]').length===1,120); "
          "const tile=q('[data-slot=\"attachment\"][data-state=\"error\"]'); const card={name: tile?.querySelector('[data-slot=\"attachment-title\"]')?.innerText.trim()||'', "
          "reason: tile?.querySelector('[data-slot=\"attachment-description\"]')?.innerText.trim()||''}; "
          f"const clicked=await type({json.dumps(words['offline'])}); "
          f"const back=await until(()=>state().text.includes({json.dumps(words['offline'])})&&!!state().alert,120); const held=state(); "
-         "window.__real_fetch=real; return {failed, card, clicked, back, held};"},
+         "return {failed, card, clicked, back, held};"},
         {"name": "移除失败卡后发出", "shot": True, "file": "6-sent-after-removing-the-card", "js": head +
-         "if(window.__real_fetch) window.fetch=window.__real_fetch; "
+         "if(window.__unblock) window.__unblock(); "
          "await until(()=>qa('[data-slot=\"attachment\"][data-state=\"error\"]').length===1&&!q('.aui-attachment-tile-uploading'),120); "
          "const x=q('.aui-attachment-tile-remove'); x?.click(); const removed=await until(()=>state().cards===0,40); "
          "const b=q('button.aui-composer-send'); const clicked=!!b&&!b.disabled; if(clicked) b.click(); "

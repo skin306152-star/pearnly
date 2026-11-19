@@ -33,6 +33,14 @@ JS = (
     "const press=e=>{e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); e.click();};"
     # 输入框可用：链接 / 通知打开某段对话时，切到那里之前输入框和「+」不可用（lib/opening.ts 的闸，11-17），人点不了，流程也要等
     "const composerReady=()=>{const ta=q('textarea.aui-composer-input'); const add=qa('button.cc-attach').find(seen); return !!ta&&!ta.disabled&&!!add&&!add.disabled;};"
+    # 让 CC 附件上传一时传不上（只这一个接口）：页面上传走 XMLHttpRequest（要真进度，B32），没有 XHR 时走 fetch，两条都拦；
+    # 回一个恢复函数。XHR 照断线处理（同 lib/frappe.ts 的 postWithProgress：连不上抛 TypeError），fetch 照旧回 503
+    "const blockUploads=()=>{const hit=u=>String(u&&u.url||u||'').includes('assistant.api.upload'); const realFetch=window.fetch; "
+    "const P=XMLHttpRequest.prototype, realOpen=P.open, realSend=P.send; "
+    "window.fetch=(u,o)=>hit(u)?Promise.resolve(new Response('',{status:503})):realFetch(u,o); "
+    "P.open=function(m,u,...r){this.__ccUrl=String(u); return realOpen.call(this,m,u,...r);}; "
+    "P.send=function(b){if(!hit(this.__ccUrl)) return realSend.call(this,b); setTimeout(()=>{this.onerror&&this.onerror(new ProgressEvent('error'));},50);}; "
+    "return ()=>{window.fetch=realFetch; P.open=realOpen; P.send=realSend;};};"
     "const say=async t=>{const ta=q('textarea.aui-composer-input'); "
     "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta,t); ta.dispatchEvent(new Event('input',{bubbles:true})); "
     "await sleep(300); const b=q('button.aui-composer-send'); if(!b||b.disabled) return false; b.click(); return true;};"
