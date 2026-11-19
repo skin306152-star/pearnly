@@ -1740,6 +1740,13 @@ class CardSave(Web):
         self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Posted · PD-1"})
         drop.assert_not_called()
 
+    def test_an_unexpected_error_answers_failed_and_posts_nothing(self):
+        self.enterContext(patch.object(frappe, "log_error", create=True))
+        self.enterContext(patch.object(frappe, "get_traceback", return_value="trace", create=True))
+        self.post.side_effect = RuntimeError("boom")
+        self.assertEqual(self.press(), {"type": "text", "text": "Failed"})
+        frappe.db.rollback.assert_called()
+
     def test_recognised_percent_rates_are_numbers_when_the_card_is_saved(self):
         # 11-19 真机：识别结果的税率是「7%」字样，卡片「保存」报「值无效」、卡片合计全是「-」
         result = json.loads(self.doc.result)

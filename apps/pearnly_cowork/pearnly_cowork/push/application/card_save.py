@@ -74,7 +74,7 @@ def save(name) -> dict:
             return {"stop": view["wait"].get("message") or ""}
         if view.get("needed"):
             return {"stop": export_facts.reason_text("choice_needed")}
-    revision = frappe.db.get_value("Cowork Connection", connection, "record_revision")
+    revision = frappe.db.get_value(connections.CONNECTION, connection, "record_revision")
     key = _key("line-save", name, record.record_version, account_set, record.get("last_push_record") or "")
     result = application.submit(name, connection, key, record.record_version, revision, account_set, None, None,
                                 posting_kind, manual=True)

@@ -135,6 +135,13 @@ def _save_card(name, reply_token, act=None):
         message = line_cards.stopped(doc, text) if doc and doc.sent_by == frappe.session.user else {"type": "text", "text": text}
         line.reply(reply_token, [message])
         return
+    except Exception:
+        # 意外的错：记日志，回「失败」，什么都不入账（同 Cowork 卡片，11-19 真机）
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="ERP LINE card save failed", message=frappe.get_traceback()[-1500:])
+        line.reply(reply_token, [{"type": "text", "text": _("Failed")}])
+        return
     if result.get("cancelled"):
         line.reply(reply_token, [{"type": "text", "text": _("Cancelled")}])
         return

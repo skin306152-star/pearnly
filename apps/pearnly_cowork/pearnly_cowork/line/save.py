@@ -20,6 +20,13 @@ def reply(name, reply_token, cancel=False):
         frappe.clear_messages()
         line.reply(reply_token, [{"type": "text", "text": frappe.utils.strip_html(str(error)) or _("Not permitted")}])
         return
+    except Exception:
+        # 意外的错（11-19 真机：一处写错的表名让保存直接抛错、LINE 一句都不回）：记日志，回「失败」，什么都不推
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Cowork LINE card save failed", message=frappe.get_traceback()[-1500:])
+        line.reply(reply_token, [{"type": "text", "text": _("Failed")}])
+        return
     frappe.db.commit()
     if result.get("cancelled"):
         line.reply(reply_token, [{"type": "text", "text": _("Cancelled")}])

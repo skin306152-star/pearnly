@@ -439,7 +439,11 @@ class LineCardSaveTest(unittest.TestCase):
         self.addCleanup(mock.patch.stopall)
 
     def get_value(self, doctype, name, fields=None, as_dict=False):
-        return 7 if doctype == "Cowork Connection" else self.after
+        if doctype == self.save.HISTORY:
+            return self.after
+        # 连接的版本号按真实 DocType 名取（11-19 真机：写成不存在的「Cowork Connection」，保存直接抛错、LINE 不回话）
+        self.assertEqual(doctype, "Cowork ERP Connection")
+        return 7
 
     def test_push_and_recognize_only_cards_have_save_edit_cancel(self):
         from pearnly_cowork.line import cards
@@ -523,6 +527,18 @@ class LineCardSaveTest(unittest.TestCase):
                     found.add(("card_save.", node.attr))
         self.assertEqual(found, {("pearnly_cowork.push.application", "card_save"), ("card_save.", "save"),
                                  ("card_save.", "cancel")})
+
+    def test_an_unexpected_error_answers_failed(self):
+        replies = []
+        with mock.patch.object(self.save, "save", side_effect=RuntimeError("boom")), \
+                mock.patch.object(self.line_save, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(self.line_save.frappe, "log_error", create=True) as log, \
+                mock.patch.object(self.line_save.frappe, "get_traceback", return_value="t", create=True), \
+                mock.patch.object(self.line_save.frappe, "clear_messages", create=True), \
+                mock.patch("pearnly_core.line.reply", side_effect=lambda token, messages: replies.append(messages)):
+            self.line_save.reply("CWH-3", "tok")
+        self.assertEqual(replies, [[{"type": "text", "text": "Failed"}]])
+        log.assert_called_once()
 
     def test_handler_routes_the_save_button(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
