@@ -461,7 +461,7 @@ const RecordQuickReply: FC = () => {
   const text = t("recordNow");
   return (
     <div data-slot="cc-quick-replies" className="flex flex-wrap gap-(--cc-space-8)">
-      <Button variant="outline" size="sm" onClick={() => thread.append({ role: "user", content: [{ type: "text", text }] })}>
+      <Button variant="outline" onClick={() => thread.append({ role: "user", content: [{ type: "text", text }] })}>
         {text}
       </Button>
     </div>
@@ -469,8 +469,8 @@ const RecordQuickReply: FC = () => {
 };
 
 
-/** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1；样子照用户 11-17 定稿）：与「写入」同一行、同一种按钮（标准 Button outline sm：
- *  白底细边框、图标 + 业务名），同一刻只出一种——有写入计划在等时出「写入」，在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式
+/** 输入框上方的业务菜单（引导式录入第 1 期，评估 6.1；样子照用户 11-17 定稿）：与「写入」同一行、同一种按钮（标准 Button outline、默认档：
+ *  32 高 14 号字图标 16、触屏 44，白底细边框、图标 + 业务名，用户 11-19），同一刻只出一种——有写入计划在等时出「写入」，在跑时都不出，其余时候出菜单。只列这个产品 × 这个模式
  *  真能做的（服务端 businesses，产品声明，顺序按声明的 order）。
  *  - 前几项直接摆出（最多 MENU_FIRST 项），其余收进最后一个「更多」（标准下拉菜单，每行图标 + 业务名）；一行放不下就少摆，不换行、不横滚。
  *  - 选中一项：只留这一项，实底（主按钮那档）带「×」，点 × 取消。按表单走的业务选中 = 本对话有一张引导卡开着，× 取消这次引导。
@@ -502,7 +502,7 @@ const BusinessMenu: FC = () => {
       : () => chooseBusiness(sessionId, "");
     return (
       <div data-slot="cc-business-menu" data-business={chosen} className="flex min-w-0 gap-(--cc-space-8)">
-        <Button size="sm" aria-pressed onClick={clear}>
+        <Button aria-pressed onClick={clear}>
           <BusinessIcon business={chosen} icon={offered?.icons?.[chosen]} />
           {businessName(chosen)}
           <XIcon />
@@ -512,13 +512,13 @@ const BusinessMenu: FC = () => {
   }
   const pick = (business: string) => void pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem());
   const item = (business: string) => (
-    <Button key={business} variant="outline" size="sm" data-business={business} onClick={() => pick(business)}>
+    <Button key={business} variant="outline" data-business={business} onClick={() => pick(business)}>
       <BusinessIcon business={business} icon={offered?.icons?.[business]} />
       {businessName(business)}
     </Button>
   );
   const more = (
-    <Button variant="outline" size="sm" data-slot="cc-business-more">
+    <Button variant="outline" data-slot="cc-business-more">
       <EllipsisIcon />
       {t("more")}
       <ChevronDownIcon />
@@ -531,7 +531,7 @@ const BusinessMenu: FC = () => {
       {rest.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>{more}</DropdownMenuTrigger>
-          <DropdownMenuContent align="start" data-slot="cc-business-more-menu">
+          <DropdownMenuContent side="top" align="end" data-slot="cc-business-more-menu">
             {rest.map((business) => (
               <DropdownMenuItem key={business} data-business={business} onSelect={() => pick(business)}>
                 <BusinessIcon business={business} icon={offered?.icons?.[business]} />
@@ -544,7 +544,7 @@ const BusinessMenu: FC = () => {
       {/* 量宽度用（看不见、读屏与 Tab 都跳过）：每项与「更多」各自的自然宽度，决定这一行摆几项 */}
       <div ref={measure} aria-hidden inert className="cc-business-measure">
         {list.map((business) => (
-          <Button key={business} tabIndex={-1} variant="outline" size="sm">
+          <Button key={business} tabIndex={-1} variant="outline">
             <BusinessIcon business={business} icon={offered?.icons?.[business]} />
             {businessName(business)}
           </Button>

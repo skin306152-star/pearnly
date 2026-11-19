@@ -95,8 +95,11 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn("const list = menuOf(offered, mode);", body)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
         # 用户 11-17 定稿：没选的是描边小按钮（图标 + 业务名）；选中只留这一项、实底（主按钮那档）带 ×，点 × 取消
         # （按表单走的业务 = 本对话开着的引导，× 取消这次引导）
-        self.assertIn('variant="outline" size="sm" data-business={business}', body)
-        self.assertIn('<Button size="sm" aria-pressed onClick={clear}>', body)
+        self.assertIn('variant="outline" data-business={business}', body)  # 用户 11-19：32 高 14 号字（默认档 .cc-btn），不用 24 高的列表小按钮
+        self.assertIn('<Button aria-pressed onClick={clear}>', body)
+        self.assertNotIn('size="sm"', body)
+        # 「更多」的下拉向上开、与按钮右对齐，不遮输入框（用户 11-19）
+        self.assertIn('<DropdownMenuContent side="top" align="end" data-slot="cc-business-more-menu">', body)
         self.assertNotIn('variant="secondary"', body)
         self.assertIn("<XIcon />", body)
         self.assertIn('chooseBusiness(sessionId, "")', body)
