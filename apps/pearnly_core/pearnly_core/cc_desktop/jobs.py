@@ -359,7 +359,7 @@ def _claim(context, request, moment):
                                   head.route_device or "")
         # 替这件写记谁：这台的登录人里此刻能替提交人写的（产品判），添加提交人的那位排前（Frappe 原生 User.owner，主会话 11-19）；
         # 旧件闸：切换时刻之前排的件不替（领单时再核一次）
-        helper = _helper(me.users, head) if helping and head.actor not in (me.users or ()) and _open(head.creation) else ""
+        helper = _helper(me.users, head) if helping and head.actor not in (me.users or ()) and _open(head.creation) else ""  # loop-query: 每份账套一件排头（至多 MAX_HEADS），领到一件就返回
         decision = route_contracts.decide(context.device, job, reachers.get(head.book_key) or [], peers,
                                           route_contracts.Account(), moment, stand_in=helper)
         if not decision.take and decision.reason != route_contracts.NEEDS_UPDATE:
@@ -382,7 +382,7 @@ def _claim(context, request, moment):
             continue
         # 提交人此刻还能交单（签发有效）；替写的由替写人签（产品已核他有权限），提交人只要账号没停用（收银日汇总由系统建、
         # 收款员不在电脑上登录 CC，用户 11-17 定稿：任何成员的单都能写）
-        if not (devices.issuer_valid(doc.actor) if decision.route != route_contracts.STAND_IN else _enabled(doc.actor)):
+        if not (devices.issuer_valid(doc.actor) if decision.route != route_contracts.STAND_IN else _enabled(doc.actor)):  # loop-query: 同上，只对要领的这一件
             doc.update({"status": "manual", "reason": "cc_desktop.actor_not_allowed", "stage": "needs_review"})
             documents.persist(doc)
             products.job_changed(view(doc.as_dict()))

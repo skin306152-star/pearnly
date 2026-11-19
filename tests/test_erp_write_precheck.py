@@ -519,7 +519,7 @@ class ComputerState(Precheck):
         package = sys.modules["pearnly_core.cc_desktop"]
         with mock.patch.object(package, "books", books, create=True), \
                 mock.patch.dict(sys.modules, {"pearnly_core.cc_desktop.books": books}), \
-                mock.patch.object(operator.jobs, "writers", lambda user, key: {"state": found[key]}), \
+                mock.patch.object(operator.jobs, "writers", lambda user, key, eligible=None: {"state": found[key]}), \
                 mock.patch.object(frappe.db, "get_value", lambda *a, **k: types.SimpleNamespace(tax_id=base.OWN, branch="00000")):
             found.update({"BK-1": "missing", "BK-2": "missing"})
             self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NOT_CONNECTED)
