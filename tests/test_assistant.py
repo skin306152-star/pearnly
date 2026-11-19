@@ -7056,7 +7056,8 @@ class StopRaceTests(unittest.TestCase):
         posted, logged, rolled = [], [], []
         api = types.SimpleNamespace(post=lambda remote, batch: posted.append((remote, batch)))
         marked = []
-        db = types.SimpleNamespace(rollback=lambda: rolled.append(1), sql=lambda query, values=None: marked.append(values["name"]))
+        db = types.SimpleNamespace(rollback=lambda: rolled.append(1), commit=lambda: None,
+                                   sql=lambda query, values=None: marked.append(values["name"]))
         with mock.patch.object(sessions, "owned", lambda sid: row), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(sessions.toolrun, "cancel_waiting", mock.Mock(side_effect=_Deadlock("1020"))), \
@@ -7066,6 +7067,40 @@ class StopRaceTests(unittest.TestCase):
         self.assertEqual(posted, [(row.session_id, [{"type": "user.interrupt"}])])
         self.assertEqual((rolled, [kw.get("title") for kw in logged]), ([1], ["Assistant cancel waiting failed"]))
         self.assertEqual(marked, ["row1"])  # 停止的时刻照记（A 线写入计划核它）
+
+    def _stop_order(self, row):
+        """点停止时各步的先后（提交 / 回滚 / 写停止时刻 / 代录停住 / 打断引擎 / 作废允许卡）。"""
+        sessions = sys.modules.get("pearnly_core.assistant.sessions") or ToolRunRecordTests()._sessions()
+        order = []
+        api = types.SimpleNamespace(post=lambda remote, batch: order.append("interrupt"))
+        db = types.SimpleNamespace(rollback=lambda: order.append("rollback"), commit=lambda: order.append("commit"),
+                                   sql=lambda query, values=None: order.append("mark"))
+        with mock.patch.object(sessions, "owned", lambda sid: row), \
+                mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions, "_operator_stop", lambda r: order.append("operator")), \
+                mock.patch.object(sessions.toolrun, "cancel_waiting", lambda sid: order.append("cancel_waiting")), \
+                mock.patch.object(sessions.frappe, "db", db, create=True):
+            sessions.interrupt(row.session_id)
+        return order
+
+    def _committed_before_cancel(self, order, writes):
+        cancel = order.index("cancel_waiting")
+        committed = [i for i, step in enumerate(order) if step == "commit"]
+        for write in writes:
+            self.assertTrue(any(order.index(write) < i < cancel for i in committed), (write, order))
+
+    def test_stop_commits_the_stop_time_before_cancelling_waiting_cards(self):
+        # 11-19 查出：作废允许卡（`toolrun.cancel_waiting`）一开头先回滚、结束调用方的快照；停止时刻没提交就被整笔回滚，
+        # 写入计划（`write_plan.start` / `permit`）读不到这次停止，停止之后再说一句，开始了的计划还能接着推
+        row = _Row(name="row1", session_id="sesn_01X2K4vJBNvR361Cvjxap2Nw", remote_ids="")
+        self._committed_before_cancel(self._stop_order(row), ("mark",))
+
+    def test_stop_commits_the_operator_stop_before_cancelling_waiting_cards(self):
+        # 代录对话、远端会话已开过：任务上的 stop（执行的电脑取走后停下）同样要在作废允许卡之前提交，否则电脑一直录下去
+        row = _Row(name="row1", session_id="op_task0001", operator_task="task0001", remote_ids=json.dumps(["sesn_remote01"]))
+        order = self._stop_order(row)
+        self._committed_before_cancel(order, ("mark", "operator"))
+        self.assertIn("interrupt", order)
 
     def test_lock_order_one_tool_run_row_at_a_time(self):
         """源码：改执行记录的几处都先结束调用方的快照；作废每条一个短事务、SKIP LOCKED 不等锁；抢占撞上算没抢到；执行时工具的写

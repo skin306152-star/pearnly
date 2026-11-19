@@ -508,6 +508,21 @@ covers = [
 ]
 
 [[flow]]
+id = "cc.operator.stop"
+title = "代录对话里点停止（远端会话已开、任务在录）：执行的电脑取控制拿到 stop、对话记下停止时刻（11-19 现网缺陷：停止的写被作废允许卡的回滚冲掉）"
+module = "scripts/flows/cc_operator_stop.py"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/assistant/sessions.py",
+  "apps/pearnly_core/pearnly_core/assistant/toolrun.py",
+  "apps/pearnly_core/pearnly_core/express_operator/tasks.py",
+  "frontend/assistant/src/components/operator/bridge.ts",
+]
+
+[[flow]]
 id = "cc.operator.upload-on-send"
 title = "ERP CC 代录会话选中就上传、发送后才识别（11-14）：没发出时任务里没有上传、不识别不扣费；移除的不识别、留存删掉；上传失败留失败卡；发出后才交识别"
 module = "scripts/flows/cc_operator_upload_on_send.py"

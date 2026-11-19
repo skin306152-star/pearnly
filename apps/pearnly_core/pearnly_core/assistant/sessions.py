@@ -1172,8 +1172,12 @@ def interrupt(session_id) -> None:
     row = owned(session_id)
     # 记下这一刻用户下令停了（停止键、说停就停都走这里；A 线写入计划逐段写时核它，变了就停）。这之前只有读：撞上冲突整笔重来
     conflicts.retried(_mark_stop, row.name)
+    # 本站这几笔写（停止时刻、代录停住）各自当场提交：后面作废允许卡（`toolrun.cancel_waiting`）一开头先回滚、结束调用方的快照，
+    # 没提交的会被整笔回滚（11-19 查出：写入计划读不到这次停止、执行代录的电脑取不到 stop）
+    frappe.db.commit()
     if row.get("operator_task"):
         _operator_stop(row)
+        frappe.db.commit()
         if not segments(row):
             return
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])
