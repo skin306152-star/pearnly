@@ -460,3 +460,8 @@ reason = "解析本地存着的 / 外部给的文本，坏了按没有处理，�
 file = "frontend/assistant/src/lib/managed-agents/list-sync.ts"
 match = "return threads.getItemById(id);"
 reason = "组件库按编号取不到这一行（同一段对话两行并存、删掉后剩下那行不在它的映射里）是预期情况：当已经不在，跳过并整表重拉，不上报（11-09 e2e 报过 Entry not available 噪声）"
+
+[[allow]]
+file = "frontend/assistant/src/lib/business.ts"
+match = ".catch(() => undefined);"
+reason = "这段对话按账本过滤的菜单（businesses(session_id)）取不到时用全产品那份菜单：服务端还不认这个参数（A1 分支进 main 前）或断网都是预期情况，菜单照常出，不上报"
