@@ -463,7 +463,10 @@ def open_for_edit(name) -> dict:
     # `company.page_company`），不改本人网页的当前公司（线上 6，11-15：原来写用户默认值，点完「编辑」网页别处也换了公司）。
     if doc.company not in company.allowed_companies():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
-    form = build_payload(doc)
+    from pearnly_erp_portal.recognition import background
+
+    # 网页编辑页：读不懂的数空着、原生必填拦着，不显示成 0（主会话 11-19；`recognition.background.web_numbers`）
+    form = background.web_numbers(doc.direction, build_payload(doc))
     file = frappe.db.get_value("File", _file_name(doc), ["name", "file_name", "file_url"], as_dict=True)
     from pearnly_core.originals import registered
 

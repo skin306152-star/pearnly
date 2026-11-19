@@ -102,6 +102,17 @@ def tidy(row, amounts=(), rates=()):
     return out
 
 
+def blank(row, keys=()):
+    """给网页表单的那一份（主会话 11-19）：``keys`` 里读不懂的数（不是空、不是「没有」记号、:func:`number` 读不出）换成 None——
+    网页那一格空着、入账前必须填（原生必填），不让 Frappe 数字控件把它显示成 0 被不知不觉提交。百分比写法留给调用方。回新的 dict。"""
+    out = dict(row or {})
+    for key in keys:
+        raw = out.get(key)
+        if isinstance(raw, str) and raw.strip() and not raw.strip().endswith("%") and not nothing(raw) and number(raw) is None:
+            out[key] = None
+    return out
+
+
 # 泰国预扣税常用税率（%）：票面只印了扣税后的实付额时，按这几档反推（`withholding_rate`）。
 WHT_RATES = (Decimal(1), Decimal("1.5"), Decimal(2), Decimal(3), Decimal(5), Decimal(10), Decimal(15))
 

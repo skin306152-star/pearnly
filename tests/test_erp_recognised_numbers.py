@@ -21,10 +21,11 @@ frappe = fake.install()
 # 采购识别模块里只用到纯函数部分：上传、计费、原件这几个模块不加载
 for _name in ("pearnly_erp_portal.purchasing.files", "pearnly_erp_portal.recognition.billing",
               "pearnly_erp_portal.recognition.originals", "pearnly_erp_portal.recognition.policy",
-              "pearnly_core.originals.registered"):
+              "pearnly_erp_portal.recognition.progress", "pearnly_core.originals.registered"):
     sys.modules.setdefault(_name, types.ModuleType(_name))
 
 from pearnly_erp_portal.purchasing import recognition  # noqa: E402
+from pearnly_erp_portal.recognition import background  # noqa: E402
 from pearnly_erp_portal.sales import contracts as sales  # noqa: E402
 
 INTAKE = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py").read_text(encoding="utf-8")
@@ -85,6 +86,32 @@ class Sales(unittest.TestCase):
 
     def test_the_posting_payload_keeps_the_percentage_discount(self):
         self.assertIn('"discount", "discount_pct") if row.get(key) not in (None, "")', INTAKE)
+
+
+class WebForm(unittest.TestCase):
+    """主会话 11-19：网页那一格读不懂时空着、原生必填拦着，不让数字控件显示成 0 被不知不觉提交；LINE / CC 拿原文让入账报错。"""
+
+    def test_the_web_gets_null_for_an_unreadable_number_and_numbers_for_the_rest(self):
+        result = {"discount_total": "พิเศษ", "rounding": 0.5, "lines": [
+            {"qty": "สอง", "unit_price": "ตามตกลง", "discount": "n/a", "description": "1,000 ชิ้น"},
+            {"qty": 2.0, "unit_price": 10.0, "discount": "10%"}]}
+        web = background.web_numbers("purchase", result)
+        self.assertEqual((web["discount_total"], web["rounding"]), (None, 0.5))
+        self.assertEqual(web["lines"][0], {"qty": None, "unit_price": None, "discount": "n/a", "description": "1,000 ชิ้น"})
+        self.assertEqual(web["lines"][1], {"qty": 2.0, "unit_price": 10.0, "discount": "10%"})
+        self.assertEqual(result["lines"][0]["unit_price"], "ตามตกลง")  # 存下的识别原文不动（LINE / CC 入账照它报错）
+        self.assertEqual(background.web_numbers("sales", {"header_discount": "ลด", "lines": []})["header_discount"], None)
+
+    def test_both_web_paths_and_the_form_use_it(self):
+        self.assertIn('"result": web_numbers(kind, result)', (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py")
+                      .read_text(encoding="utf-8"))
+        self.assertIn("form = background.web_numbers(doc.direction, build_payload(doc))", INTAKE)
+        desk = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk"
+        self.assertIn('form.set_df_property(key, "reqd", 1)', (desk / "transactions.js").read_text(encoding="utf-8"))
+        self.assertIn("p.trade.require_blank(line.form, values);", (desk / "transactions.js").read_text(encoding="utf-8"))
+        for name in ("purchase-form.js", "sales-form.js"):
+            text = (desk / name).read_text(encoding="utf-8")
+            self.assertEqual(text.count("p.trade.require_blank(form, "), 2, name)  # 识别预填、LINE 卡编辑打开
 
 
 if __name__ == "__main__":

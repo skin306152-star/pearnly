@@ -146,6 +146,7 @@
 				label: line.form.get_value("description") || "", stock: line.form.get_value("stock_in"),
 				location: line.form.get_value("location"),
 				set: values => line.form.set_values({stock_in: values.stock, location: values.location})}))});
+		p.trade.require_blank(form, doc); // LINE 卡「编辑」打开：读不懂的数空着、必须填（主会话 11-19）
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 		let attachment_list;
@@ -231,6 +232,7 @@
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break"].includes(form.fields_dict[key].df.fieldtype));
 					await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
+					p.trade.require_blank(form, result); // 读不懂的数空着、必须填（主会话 11-19）
 					await form.set_value("supplier", "");
 					await state.party_choice.show();
 					state.source = result.source;

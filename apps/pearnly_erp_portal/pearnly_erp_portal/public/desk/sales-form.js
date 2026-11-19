@@ -115,6 +115,7 @@
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
 		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
+		p.trade.require_blank(form, doc); // LINE 卡「编辑」打开：读不懂的数空着、必须填（主会话 11-19）
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 		let attachment_list;
@@ -201,6 +202,7 @@
 					const allowed = Object.keys(form.fields_dict).filter(key => !form.fields_dict[key].df.read_only
 						&& !["HTML", "Button", "Section Break", "Column Break", "Tab Break", "Table"].includes(form.fields_dict[key].df.fieldtype));
 					await form.set_values(Object.fromEntries(Object.entries(result).filter(([key]) => allowed.includes(key))));
+					p.trade.require_blank(form, result); // 读不懂的数空着、必须填（主会话 11-19）
 					// 客户按读出的买方税号由服务端预选（认不出就空着给人选）；税号 / 分店随提交带上，提交时再按它认或记进新客户
 					await form.set_value("customer", result.customer || "");
 					await state.party_choice.show();

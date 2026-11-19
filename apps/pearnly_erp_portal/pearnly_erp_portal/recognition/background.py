@@ -45,4 +45,23 @@ def run(kind, token, user, lang, arguments):
         progress.finish(token, {"state": "failed", "message": _("Recognition failed. Please try again.")})
         return
     frappe.db.commit()
-    progress.finish(token, {"state": "done", "result": result})
+    progress.finish(token, {"state": "done", "result": web_numbers(kind, result)})
+
+
+# 网页表单上读不懂的数空着、必须填（主会话 11-19）：采购与销售各自的数字字段（同识别出口规整的那几项）
+WEB_NUMBERS = {"purchase": (("discount_total", "rounding", "wht_amount"), ("qty", "unit_price", "discount")),
+               "sales": (("header_discount",), ("qty", "unit_price", "discount"))}
+
+
+def web_numbers(kind, result):
+    """识别结果给网页前：读不懂的数换成空（`amounts.blank`），网页那一格空着、原生必填拦着，不显示成 0。LINE / CC 不经这里，
+    它们拿原文让入账的严格校验报出来。"""
+    from pearnly_core.tax_documents import amounts
+
+    if not isinstance(result, dict) or kind not in WEB_NUMBERS:
+        return result
+    head, line = WEB_NUMBERS[kind]
+    out = amounts.blank(result, head)
+    if isinstance(out.get("lines"), list):
+        out["lines"] = [amounts.blank(row, line) if isinstance(row, dict) else row for row in out["lines"]]
+    return out

@@ -600,6 +600,7 @@
 				const line = { wrapper, section: outer.sections[0], ready: false, manual: values.unit_cost_manual ? 1 : 0,
 					stash: Object.fromEntries(Object.entries(values).filter(([key]) => !field_names.includes(key))) };
 				line.form = p.layout(outer.fields_dict.fields.$wrapper, line_fields(line));
+				p.trade.require_blank(line.form, values);
 				if (values.spec) line.form.set_df_property("product", "description", values.spec);
 				scan_by_code(line);
 				lines.push(line);
@@ -650,6 +651,14 @@
 			try { await callback(); }
 			finally { dialog.pearnly_busy = false; dialog.$wrapper.find("button").prop("disabled", false); }
 		},
+	};
+	// 识别读不懂的数（服务端给的是 null，`recognition.background.web_numbers`）：那一格空着、设成原生必填，不填提交不了，
+	// 不让数字控件显示成 0 被不知不觉提交（主会话 11-19）。只看给了 null 的这几格，别的照旧。
+	p.trade.NUMBER_FIELDS = ["qty", "unit_price", "unit_cost", "discount", "discount_total", "rounding", "wht_amount", "header_discount"];
+	p.trade.require_blank = (form, values) => {
+		for (const key of p.trade.NUMBER_FIELDS) {
+			if (values && key in values && values[key] === null && form.fields_dict[key]) form.set_df_property(key, "reqd", 1);
+		}
 	};
 	// 采购 / 销售明细「批量编辑」（11-06 按行选物料与库存，评估 6.2）：原生 Dialog + Table，单头仓库、「全部」一键设、每行入库（出库）与仓位，
 	// 点保存写回各行（不提交）。`lines`：[{label, stock, location, set({stock, location})}]；`stock_label`：入库 / 出库那一列的字（已翻译）。
