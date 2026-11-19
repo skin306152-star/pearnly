@@ -32,6 +32,7 @@ class FakeDb:
             row = self.rows.get(values[0])
             return [row] if row else []
         if "INSERT INTO" in query:
+            assert "NOW(" not in query and values["now"] == "2026-11-19 10:00:00.000000"  # 时间由框架给，不用数据库时钟
             self.rows[values["name"]] = (values["print"], values["payload"])
             return []
         if query.startswith("DELETE"):
@@ -69,6 +70,8 @@ class ViewStoreTest(unittest.TestCase):
             patch.object(sheets, "_build", side_effect=self.build),
             patch.object(view_store, "building", side_effect=lambda *a: contextlib.nullcontext()),
             patch.object(view_store, "refresh_later", side_effect=lambda *a: self.refreshes.append(a)),
+            # 存档的 creation / modified 走框架口径（11-19：原先 SQL 用数据库时钟 NOW(6)，与站点时区差几个小时）
+            patch.object(frappe.utils, "now", return_value="2026-11-19 10:00:00.000000"),
         ]
         self.refreshes = []
         for item in self.patches:
