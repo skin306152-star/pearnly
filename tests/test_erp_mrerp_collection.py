@@ -8,7 +8,7 @@
   查不到记结果不明；已写入的撤回转人工、单号与事实留着。
 
 共用层的导入表、选单页解析与菜单规则只用标准库，CI 直接跑；导入执行对假 MR.ERP 站点（`FakeSite`，要 requests）的那组在生产镜像
-的候选检查里跑（缺 requests 时跳过）。
+的候选检查里跑（缺 requests 或 openpyxl 时跳过）。
 """
 from __future__ import annotations
 
@@ -597,16 +597,17 @@ class _execute:
         self.patch.stop()
 
 
-# ── 导入执行对假 MR.ERP 站点（要 requests；CI 没有时跳过，候选检查在生产镜像里跑）──────────────────────────
+# ── 导入执行对假 MR.ERP 站点（要 requests 与读导入报告的 openpyxl；缺一样就跳过，候选检查在生产镜像里跑）────────────
 
 try:
+    import openpyxl  # noqa: F401
     import requests  # noqa: F401
     HAVE_REQUESTS = True
 except ImportError:
     HAVE_REQUESTS = False
 
 
-@unittest.skipUnless(HAVE_REQUESTS, "needs requests (runs in the candidate checks)")
+@unittest.skipUnless(HAVE_REQUESTS, "needs requests and openpyxl (runs in the candidate checks)")
 class Execute(unittest.TestCase):
     """`pearnly_core.mrerp.push.receipt.execute` 对假站点：导入 5 步、回读认单号、销售员回落默认、菜单与结果不明。"""
 
