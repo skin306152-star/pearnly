@@ -106,7 +106,7 @@ BUSY_MOUNTS = [
 # setInterval：(文件, 所在函数或条件——在调用往上 window 行内出现的原文, 什么时候在跑, window)
 INTERVAL_SITES = [
     ("components/settings.tsx", "function useDesktopState(", "设置「此电脑」开着时每 2 秒读本机状态", 6),
-    ("components/settings.tsx", "export function PoolComputers(", "设置里「电脑」一节开着时每 10 秒刷新（多电脑：网页「连接」与桌面版「此电脑」都用它）", 8),
+    ("components/settings.tsx", "export function PoolComputers(", "设置里「电脑」一节开着时每 10 秒刷新（多电脑：网页「连接」与桌面版「此电脑」都用它；电脑列表接口按产品声明，B50）", 10),
     ("components/scheduled-tasks.tsx", "function HelperConnect(", "「连接 CC 桌面版」弹窗开着时每 3 秒看是否在线", 16),
     ("components/ui/drag.tsx", "if (step && (step < 0 ? d.intent.up : d.intent.down))", "拖动中指针贴着滚动区边缘时自动滚，离开边缘 / 放下即停", 8),
     ("components/assistant-ui/thread.tsx", "if (!running) return;", "工作状态行显示时每秒走一次计时（回合结束即卸下）", 3),

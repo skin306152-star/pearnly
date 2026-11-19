@@ -239,14 +239,16 @@ def _choice_rows(row, sets) -> list:
     """公司页「记住的选择」卡的行（形状同 Cowork：``source`` express、只能删）。"""
     from pearnly_erp_portal.express import choices
 
+    from pearnly_core.account.names import display_names
+
     names = {item["key"]: item.get("label") or item["key"] for item in sets or () if item.get("key")}
-    people = {}
+    remembered = choices.listing(row.name)
+    # 谁定的：一批人一次取回显示名（同共用的人名规则），不在循环里逐行查
+    people = display_names(item.chosen_by for item in remembered)
     out = []
-    for item in choices.listing(row.name):
+    for item in remembered:
         kind = CHOICE_KINDS.get(item.kind, item.kind)
         by = item.chosen_by or ""
-        if by and by not in people:
-            people[by] = frappe.db.get_value("User", by, "full_name") or by
         value = item.value or ""
         label = item.label or ""
         if item.kind == choices.ACCOUNT_SET:
