@@ -289,7 +289,7 @@ def product_rows(rows, *, cost_visible) -> list:
             slot = merged[row["product"]] = {
                 "name": row["product"], "product": row["product"], "product_name": row.get("product_name"),
                 "category_name": row.get("category_name") or "", "attribute": row.get("attribute") or "",
-                "code": row.get("code"), "barcode": row.get("barcode"), "warehouse": None, "warehouse_name": None,
+                "code": row.get("code"), "internal_code": row.get("internal_code") or "", "barcode": row.get("barcode"), "warehouse": None, "warehouse_name": None,
                 "location": "", "unit": row.get("unit"), "min_stock": row.get("min_stock") or 0,
                 "company_qty": row.get("company_qty"), "qty": d(0), "value": d(0), "known": True}
         slot["qty"] += d(row["qty_on_hand"])

@@ -416,6 +416,8 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             "product": row["product"], "product_name": product.get("product_name"),
             # 「条码 / 二维码」一格：没有条码就显示二维码内容（同盘点表，录制问题 #23）。
             "code": product.get("code"), "barcode": product_contracts.shown_code(product) or None,
+            # 库存一览的编码栏显示内部编码（岳父 11-18；没填回落 Express 编码，同物料资料列表）
+            "internal_code": product.get("internal_code") or product.get("express_code") or "",
             "category_name": product.get("category_name") or "", "attribute": product.get("attribute") or "",
             "warehouse": row["warehouse"],
             "location": row.get("location") or "",
@@ -434,7 +436,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
 # 列头排序白名单：在库一览是**先在内存里算好整批、再切片分页**的（见 `_overview_rows`），
 # 所以排序也在这里做，键就是行里的字段名。
 SORT_FIELDS = {
-    "product_name": "product_name", "code": "code", "barcode": "barcode",
+    "product_name": "product_name", "code": "code", "internal_code": "internal_code", "barcode": "barcode",
     "category_name": "category_name", "attribute": "attribute",
     "warehouse_name": "warehouse_name", "location": "location", "unit": "unit",
     "qty_on_hand": "qty_on_hand", "unit_cost": "unit_cost", "value": "value",

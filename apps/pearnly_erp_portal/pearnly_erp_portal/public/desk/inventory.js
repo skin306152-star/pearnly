@@ -83,10 +83,6 @@
 				money(totals.value), totals.low_count, totals.out_count), color);
 		}
 
-		const status_label = (row) => (row.status === "low"
-			? t("stock.status.lowWith", p.number(row.min_stock))
-			: t(`stock.status.${row.status}`));
-
 		// 库存行是流水推出来的结存，没有"删除"这一说（删掉就等于改账）。选中一行时给的是
 		// **对应的那一步**：打开这条商品×仓库×仓位的收发流水（跟点行进去是同一个视图）。
 		const selection = p.selection_action({
@@ -125,8 +121,8 @@
 				// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
 				compact_columns: true,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
-				sort_fields: ["product_name", "code", "barcode", "warehouse_name", "location",
-					"unit", "qty_on_hand", "unit_cost", "value"].filter(name => !product_view || !place_columns.includes(name)),
+				sort_fields: ["product_name", "internal_code", "barcode", "warehouse_name",
+					"unit", "qty_on_hand"].filter(name => !product_view || !place_columns.includes(name)),
 				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 					const [items, total] = await Promise.all([
@@ -140,21 +136,15 @@
 					// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
 					// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
 					// 品名后接「分类 · 特性/颜色」（岳父 11-01；十列放不下再加两列，搜索框也搜得到这两样）
-					{ fieldname: "product_name", width: 160, min_width: 132, label: t("stock.col.name"),
+					// 删了状态、成本、金额、仓位四栏（岳父 11-18），腾出的宽度给名称，名称显示完整
+					{ fieldname: "product_name", width: 300, min_width: 200, label: t("stock.col.name"),
 						format: (value, row) => [value, row.category_name, row.attribute].filter(Boolean).join(" · ") },
-					{ fieldname: "code", width: 80, min_width: 68, label: t("stock.col.code") },
+					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode") },
 					{ fieldname: "barcode", width: 110, min_width: 84, label: t("stock.col.barcode") },
 					{ fieldname: "warehouse_name", width: 116, min_width: 92, label: t("stock.col.warehouse") },
-					{ fieldname: "location", width: 56, min_width: 46, label: t("stock.count.location") },
 					{ fieldname: "unit", width: 50, min_width: 44, label: t("stock.col.unit") },
 					{ fieldname: "qty_on_hand", width: 60, min_width: 50, label: t("stock.col.onHand"),
 						format: (value) => p.number(value) },
-					{ fieldname: "unit_cost", width: 78, min_width: 64, label: t("stock.col.cost"),
-						format: (_value, row) => money(row.cost_known ? row.unit_cost : null) },
-					{ fieldname: "value", width: 82, min_width: 68, label: t("stock.col.value"),
-						format: (_value, row) => money(row.cost_known ? row.value : null) },
-					{ fieldname: "status", width: 68, min_width: 58, label: t("stock.col.status"),
-						format: (_value, row) => status_label(row) },
 				].filter(column => !product_view || !place_columns.includes(column.fieldname)),
 			});
 			await list.ready;

@@ -393,7 +393,7 @@
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
 				sort_fields: ["product_name", "code", "internal_code", "barcode", "attribute", "unit", "unit_price",
-					"default_cost", "place", "is_active"],
+					"default_cost", "is_active"],
 				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 					const [items, total] = await Promise.all([
@@ -404,7 +404,8 @@
 					return { items, total };
 				},
 				columns: [
-					{ fieldname: "product_name", width: 184, min_width: 160, label: t("product.col.name") },
+					// 「位置」一栏删了（岳父 11-18：只在盘点保留仓位），宽度给名称
+					{ fieldname: "product_name", width: 260, min_width: 180, label: t("product.col.name") },
 					{ fieldname: "code", width: 88, min_width: 78, label: t("product.col.code") },
 					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode"),
 						format: (_value, row) => row.internal_code || row.express_code || "" },
@@ -420,11 +421,6 @@
 						format: (_value, row) => marked(row, "price_set", row.unit_price) },
 					{ fieldname: "default_cost", width: 92, min_width: 82, label: t("product.col.cost"),
 						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
-					// 「位置」＝仓位这一列（用户 2026-09-23："图二加位置，内容显示仓库和仓位，
-					// 一屏显示完"）。仓库那一半随"商品默认仓"一起删掉了 —— 进货进哪个仓由
-					// 这家公司卖货的那个仓决定，不是商品级的属性，摆在商品列表上会误导。
-					{ fieldname: "place", width: 188, min_width: 132, label: t("product.col.place"),
-						format: (_value, row) => row.default_location || "" },
 					{ fieldname: "is_active", width: 84, min_width: 72, label: t("product.col.status"),
 						// 与供应商/客户两页同一口径：正常 / 已停用。原来用的是框架自己的
 						// "Active"，中文界面里会译成「激活」，三张列表同一个概念三种说法。
