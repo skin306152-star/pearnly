@@ -95,9 +95,7 @@ def _value(results, step):
 def judge(params, results, camera_code=None):
     name = params["name"]
     position, product, export, opened = (_value(results, step) for step in ("按位置", "按物料", "导出按物料", "点开看各仓"))
-    low = ("低库存", "Low", "ต่ำ")
     places, merged = position.get("rows") or [], product.get("rows") or []
-    is_low = lambda row: any(word in row.get("status", "") for word in low)  # noqa: E731 — 状态那一格的文字
     checks = [
         {"case": "by location shows the product in both warehouses", "seen": places,
          "ok": len(places) == 2 and all(name in row.get("product_name", "") for row in places)
@@ -109,10 +107,13 @@ def judge(params, results, camera_code=None):
         # 按列：按物料那一行没有仓库、仓位两格（按位置那两行有，见上一条）
         {"case": "by product has no warehouse column", "seen": merged,
          "ok": bool(merged) and not {"warehouse_name", "location"} & set(merged[0])},
-        {"case": "each location is low stock by the company total (3 and 1 against 5)", "seen": places,
-         "ok": bool(places) and all(is_low(row) for row in places)},
-        {"case": "by product shows the total 4 and low stock", "seen": merged,
-         "ok": bool(merged) and merged[0].get("qty_on_hand") == "4" and is_low(merged[0])},
+        # 库存一览删了状态、平均成本、金额、仓位四栏，编码栏是内部编码（岳父 11-18，用户 11-19）；低库存仍由服务端判
+        # （见 `verify`：两行都是 low、按物料一行 low），页面上不再有状态那一格
+        {"case": "the list has no status, cost, value or location column and shows the internal code", "seen": places,
+         "ok": bool(places) and not {"status", "unit_cost", "value", "location"} & set(places[0])
+         and "internal_code" in places[0]},
+        {"case": "by product shows the total 4", "seen": merged,
+         "ok": bool(merged) and merged[0].get("qty_on_hand") == "4"},
     ]
     checks.append({"case": "opening the product row goes back to its locations", "seen": opened,
                    "ok": opened.get("view") == "position" and len(opened.get("rows") or []) == 2})
