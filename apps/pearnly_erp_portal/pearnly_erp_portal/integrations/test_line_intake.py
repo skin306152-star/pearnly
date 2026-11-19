@@ -774,6 +774,46 @@ class LineItems(Base):
         self.say("เมนู")                                  # 没题在等答：菜单词照常交给菜单
         self.assertNotEqual(self.replies[-1], [again])
 
+    def other_card(self, action):
+        """点另一张（已出卡的）卡片上的按钮：保存回「已过账」、取消回「已取消」。"""
+        with patch.object(intake, "save_card", return_value={"name": "PD-1", "system_no": "PE-1"}), \
+                patch.object(frappe, "get_doc", side_effect=lambda doctype, name=None: self.docs[name], create=True), \
+                patch("pearnly_erp_portal.integrations.line_cards.saved", return_value={"type": "text", "text": "Posted · PE-1"}):
+            self.tap(f"a={action}&n=LI-1")
+        return self.replies[-1]
+
+    def test_the_reply_exit_reads_the_same_session_keys(self):
+        from pearnly_erp_portal.integrations import line_out
+
+        self.assertEqual((line_out.STATE, line_out.ITEMS, line_out.PRECHECK),
+                         (line_flow.STATE, self.items.ASKING, line_questions.line_ask.KEY))
+
+    def test_replies_to_another_card_carry_the_open_item_question(self):
+        """11-19 真机：B 的物料题在等答时点 A 卡「保存」，「已过账」成了最后一条，B 的按钮看不见了。现在末尾重带 B 的题，点它照样走。"""
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.add("LI-2", [self.row()], warehouse="WH-1")
+        card, question = self.begin("LI-1", "LI-2")
+        self.assertEqual(card, {"card": "LI-1"})
+        posted, again = self.other_card("erp_save")
+        self.assertEqual(posted["text"], "Posted · PE-1")
+        self.assertEqual((again["text"], self.labels(again)), (question["text"], self.labels(question)))
+        cancelled, again = self.other_card("erp_cancel")
+        self.assertEqual((cancelled["text"], again["text"]), ("Cancelled", question["text"]))
+        self.press(again, 0)
+        self.assertEqual(self.replies[-1], [{"card": "LI-2"}])  # 问完不再重带
+
+    def test_replies_to_another_card_carry_the_open_precheck_question(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
+        self.judge.docs["I:LI-2"] = [{**VAT, "subject": "two"}]
+        card, question = self.begin("LI-1", "LI-2")
+        posted, again = self.other_card("erp_save")
+        self.assertEqual(posted["text"], "Posted · PE-1")
+        self.assertEqual(again, question)                 # 同一题、同一组按钮（已发的那组仍有效）
+        self.press(question, 1)
+        self.assertEqual(self.judge.records[-1][1:], (["I:LI-2"], [{"key": precheck_card.item_key("vat", "two"), "value": "claim"}]))
+        self.assertEqual(self.replies[-1], [{"card": "LI-2"}])
+
     def test_a_ticket_with_nothing_to_ask_gets_its_card_at_once(self):
         self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
         self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]

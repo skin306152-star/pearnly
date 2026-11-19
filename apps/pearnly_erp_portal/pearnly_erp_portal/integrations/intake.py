@@ -24,7 +24,7 @@ from pearnly_core import line, line_binding
 from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import line_cards, line_flow, line_items
+from pearnly_erp_portal.integrations import line_cards, line_flow, line_items, line_out
 
 DOCTYPE = "ERP LINE Intake"
 QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
@@ -80,7 +80,7 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
                                     "reply_token": reply_token, "filename": filename}, sent_by)
     except (QueueFull, Deferred):
         _drop(doc, FAILED, "queue_busy")
-        line.reply(reply_token, [{"type": "text", "text": _(
+        line_out.reply(reply_token, [{"type": "text", "text": _(
             "The recognition queue is busy. Please send the document again shortly.")}])
     return {"name": doc.name}
 
@@ -212,7 +212,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
             code = "too_large" if fetched == TOO_LARGE else "download_failed"
             text = upload_limits.too_large() if fetched == TOO_LARGE else _("Could not store this document")
             _drop(doc, FAILED, code)
-            line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+            line_out.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": code, "notified": True}
         try:
             result = _recogniser(doc.direction).recognise([{"file": _file_name(doc), "kind": "bill"}],
@@ -225,7 +225,7 @@ def run(intake, line_user_id, reply_token="", filename=""):
             # 余额不足、不能按本单录入（不是单据 / 贷项通知单）要原话告诉本人；其余识别失败统一请他重发。
             text = str(exc) if isinstance(exc, (billing.InsufficientBalance, policy.UnsupportedDocument)) else _(
                 "Could not read this document. Please send it again.")
-            line.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
+            line_out.reply_or_push(line_user_id, [{"type": "text", "text": text}], reply_token)
             return {"failed": "recognition_failed", "notified": True}
         extras = result.pop("additional", None) or []
         doc.reload()
@@ -273,7 +273,7 @@ def ocr_failed(arguments, code):
     frappe.local.lang = doc.language or line.user_language(arguments.get("line_user_id"), default=channel_language())
     text = (_("The recognition result needs checking. Please do not resend this document yet.")
             if code == "provider_outcome_unknown" else _("Could not read this document. Please send it again."))
-    line.push(arguments.get("line_user_id"), [{"type": "text", "text": text}])
+    line_out.push(arguments.get("line_user_id"), [{"type": "text", "text": text}])
 
 
 # ── 预览卡 → 入账 ────────────────────────────────────────────────────────────

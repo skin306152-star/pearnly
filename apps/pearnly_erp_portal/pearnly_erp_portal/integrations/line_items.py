@@ -22,7 +22,7 @@ from frappe import _
 
 from pearnly_core import line
 
-from pearnly_erp_portal.integrations import line_flow
+from pearnly_erp_portal.integrations import line_flow, line_out
 from pearnly_erp_portal.products import line_memory, line_rules
 
 ACTION = "erp_item"
@@ -51,7 +51,7 @@ def _text(text):
 
 
 def _reply(reply_token, messages):
-    line.reply(reply_token, messages if isinstance(messages, list) else [messages])
+    line_out.reply(reply_token, messages if isinstance(messages, list) else [messages])
 
 
 # ── 这张票的选择 ──────────────────────────────────────────────────────────────

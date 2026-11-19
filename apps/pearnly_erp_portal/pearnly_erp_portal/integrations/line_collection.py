@@ -32,6 +32,7 @@ from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.collection import contracts
+from pearnly_erp_portal.integrations import line_out
 
 STATE = "erp_collection"
 ACTION = "col"
@@ -145,8 +146,8 @@ def _send(reply_token, messages):
         messages = [*prefix, *messages]
     to = getattr(frappe.local, "pearnly_collection_to", "")
     if to:
-        return line.reply_or_push(to, messages, reply_token)
-    return line.reply(reply_token, messages)
+        return line_out.reply_or_push(to, messages, reply_token)
+    return line_out.reply(reply_token, messages)
 
 
 @contextlib.contextmanager
@@ -794,7 +795,7 @@ def store_voucher(line_user_id, user, message_id, filename, prefix, reply_token=
             stored = None
         frappe.local.lang = language  # 存原件的那一段不许把回复的语言带偏（11-13 真机：凭证后那条变泰文）
         if not stored:
-            return line.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
+            return line_out.reply_or_push(line_user_id, [{"type": "text", "text": _("Could not store this document")}],
                                       reply_token)
         with background(line_user_id, reply_token), _guarded(reply_token):
             if payload.get("name"):  # 卡片上缺凭证：补进草稿
@@ -1150,7 +1151,7 @@ def await_result(name, line_user_id, user, reply_token="", language=""):
             return
         if view.get("returned"):
             return _return_card(line_user_id, view, reply_token)
-        line.reply_or_push(line_user_id, _result_messages(view), reply_token)
+        line_out.reply_or_push(line_user_id, _result_messages(view), reply_token)
 
 
 def _settled(view) -> bool:
@@ -1194,7 +1195,7 @@ def notify(name):
         if view.get("returned") and claim(name, view):
             _return_card(bindings[0], view)
         elif view["status"] in FINAL and claim(name, view):
-            line.push(bindings[0], _result_messages(view))
+            line_out.push(bindings[0], _result_messages(view))
 
 
 def _show_result(name, reply_token):

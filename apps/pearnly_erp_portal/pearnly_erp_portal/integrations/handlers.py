@@ -13,7 +13,8 @@ from pearnly_core import line, line_binding
 from pearnly_core.write_precheck import line_ask
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import intake, line_cards, line_collection, line_flow, line_items, line_menu, line_questions
+from pearnly_erp_portal.integrations import (intake, line_cards, line_collection, line_flow, line_items, line_menu, line_out,
+                                             line_questions)
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。日文同 DMS（連携解除，11-08）。
@@ -35,17 +36,17 @@ def _bind_with_code(user_id: str, text: str, reply_token: str) -> None:
     """把这条文本当绑定码试一次。认不出就回"码不对"。"""
     consumed = line_binding.consume_bind_code(text, line_user_id=user_id)
     if not consumed:
-        line.reply(reply_token, [{"type": "text", "text": _("That code is not valid")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("That code is not valid")}])
         return
     # 码是本人在网页上领的，但领码之后 LINE 可能已被管理员取消（团队管理那一勾）。
     if not guard.has("integration.manage", user=consumed["user"]):
-        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
         return
     profile = line.get_profile(user_id) or {}
     line_binding.bind(user_id, consumed["user"], profile.get("displayName") or "")
     # 绑上就挂按岗位的那套菜单；回执里同时给 ซื้อ / ขาย 两个原生按钮（旧线上绑定后回菜单）。
     line_menu.request_sync(user_id)
-    line.reply(reply_token, [{"type": "text", "text": _("Bound to {0}").format(
+    line_out.reply(reply_token, [{"type": "text", "text": _("Bound to {0}").format(
         _display_name(consumed["user"]))}])
 
 
@@ -53,10 +54,10 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
     """收到图片/PDF：必须先选好方向与各项；按这组选择留底并排队识别。"""
     choices = line_flow.choices(user_id)
     if not line_flow.ready(choices):
-        line.reply(reply_token, [{"type": "text", "text": _("Choose purchase or sales first")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Choose purchase or sales first")}])
         return
     if not guard.has(intake.DIRECTION_CAPABILITY[choices["direction"]], user=bound):
-        line.reply(reply_token, [{"type": "text", "text": _("This account cannot send documents")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("This account cannot send documents")}])
         return
     media_type = message.get("type") or ""
     filename = message.get("fileName") or ""
@@ -82,7 +83,7 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
         # 日志标题也走英文：`check-i18n` 的存量清单已经够长，新代码不再往里加中文。
         frappe.log_error(title="ERP LINE document storage failed",
                          message=frappe.get_traceback()[-1500:])
-        line.reply(reply_token, [{"type": "text", "text": _("Could not store this document")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Could not store this document")}])
 
 
 def _as(bound, function, *args):
@@ -102,10 +103,10 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
                                                      line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION)):
         return False
     if not bound:
-        line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
         return True
     if not guard.has("integration.read", user=bound):
-        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
         return True
     if action.startswith("mode:"):
         # 富菜单（新旧两套都是 `a=mode:purchase|sales`）与「เมนู」回的按钮。
@@ -138,23 +139,23 @@ def _save_card(name, reply_token, act=None):
         frappe.clear_messages()
         doc = frappe.db.exists(intake.DOCTYPE, name) and frappe.get_doc(intake.DOCTYPE, name)
         message = line_cards.stopped(doc, text) if doc and doc.sent_by == frappe.session.user else {"type": "text", "text": text}
-        line.reply(reply_token, [message])
+        line_out.reply(reply_token, [message])
         return
     except Exception:
         # 意外的错：记日志，回「失败」，什么都不入账（同 Cowork 卡片，11-19 真机）
         frappe.db.rollback()
         frappe.clear_messages()
         frappe.log_error(title="ERP LINE card save failed", message=frappe.get_traceback()[-1500:])
-        line.reply(reply_token, [{"type": "text", "text": _("Failed")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Failed")}])
         return
     if result.get("cancelled"):
-        line.reply(reply_token, [{"type": "text", "text": _("Cancelled")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Cancelled")}])
         return
     doc = frappe.get_doc(intake.DOCTYPE, name)
     if result.get("needed"):
-        line.reply(reply_token, [line_cards.stopped(doc, line_cards.needed_text(doc, result["needed"]))])
+        line_out.reply(reply_token, [line_cards.stopped(doc, line_cards.needed_text(doc, result["needed"]))])
         return
-    line.reply(reply_token, [line_cards.saved(doc, result)])
+    line_out.reply(reply_token, [line_cards.saved(doc, result)])
 
 
 def handle(event: dict) -> bool:
@@ -167,7 +168,8 @@ def handle(event: dict) -> bool:
         frappe.local.lang = line.user_language(user_id, default=intake.channel_language())
         line_menu.ensure(user_id, frappe.local.lang)
     try:
-        return _handle(event)
+        with line_out.receiving(user_id):  # 这次事件的回复末尾重带此人在等答的题（`line_out`）
+            return _handle(event)
     finally:
         frappe.local.lang = previous
 
@@ -181,7 +183,7 @@ def _handle(event: dict) -> bool:
         return False
 
     if etype == "follow":
-        line.reply(reply_token, [{"type": "text", "text": _("Send the code from the ERP page to bind")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("Send the code from the ERP page to bind")}])
         return True
 
     if etype == "unfollow":
@@ -200,9 +202,9 @@ def _handle(event: dict) -> bool:
 
     if message.get("type") in ("image", "file"):
         if not bound:
-            line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
+            line_out.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
         elif not guard.has("integration.read", user=bound):
-            line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+            line_out.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
         elif line_collection.wants_voucher(user_id):
             line_collection.receive_voucher(user_id, bound, message, reply_token)  # 收款里等的转账凭证
         else:
@@ -210,16 +212,16 @@ def _handle(event: dict) -> bool:
         return True
 
     if message.get("type") != "text":
-        line.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("This channel is not open yet")}])
         return True
 
     if _is_unbind(text):
         if bound:
             line_binding.unbind(user_id)
             line_menu.request_sync(user_id)
-            line.reply(reply_token, [{"type": "text", "text": _("Unbound")}])
+            line_out.reply(reply_token, [{"type": "text", "text": _("Unbound")}])
         else:
-            line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
+            line_out.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
         return True
 
     if not bound:
@@ -227,7 +229,7 @@ def _handle(event: dict) -> bool:
         return True
 
     if not guard.has("integration.read", user=bound):
-        line.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
+        line_out.reply(reply_token, [{"type": "text", "text": _("LINE is not enabled for this account")}])
         return True
     if text.casefold() in line_flow.MENU_WORDS:
         line_flow.menu(bound, reply_token)
@@ -244,5 +246,5 @@ def _handle(event: dict) -> bool:
     if direction:
         line_flow.start(user_id, bound, direction, reply_token)
         return True
-    line.reply(reply_token, [{"type": "text", "text": _("Tap the menu to start")}])
+    line_out.reply(reply_token, [{"type": "text", "text": _("Tap the menu to start")}])
     return True

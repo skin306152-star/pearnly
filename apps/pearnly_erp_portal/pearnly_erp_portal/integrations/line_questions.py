@@ -23,17 +23,17 @@ import json
 import frappe
 from frappe import _
 
-from pearnly_core import line
+import copy
+
 from pearnly_core.write_precheck import line_ask
 
-from pearnly_erp_portal.integrations import intake, line_cards, line_flow, line_items
+from pearnly_erp_portal.integrations import intake, line_cards, line_flow, line_items, line_out
 
 WAITING = "intake_wait"   # 会话里排着、还没开始问的票（收单记录名）
 # 会话里这几项是识别后的提问：答题中又点菜单重选「ซื้อ / ขาย」、取消重选时不丢（`line_flow.start` / `cancel`）
 KEPT = (line_items.ASKING, line_ask.KEY, WAITING)
 # 出题器按钮的 postback 开头（= ``line_ask.ACTION``；字面量：产品地图按它认入口 line:erp:postback:precheck）
 PREFIX = "a=precheck&"
-REPLY_MAX = 5
 STALE = "This option is no longer current"
 
 
@@ -42,12 +42,9 @@ def is_step(data) -> bool:
 
 
 def send(line_user_id, messages, reply_token=""):
-    """一次回复最多 5 条：第一批用回复令牌，其余推送。"""
-    if not messages:
-        return
-    line.reply_or_push(line_user_id, messages[:REPLY_MAX], reply_token)
-    for start in range(REPLY_MAX, len(messages), REPLY_MAX):
-        line.push(line_user_id, messages[start:start + REPLY_MAX])
+    """一次回复最多 5 条：第一批用回复令牌，其余推送（`line_out`：末尾不是题时重带在问的那道题）。"""
+    if messages:
+        line_out.reply_or_push(line_user_id, messages, reply_token)
 
 
 def _text(text):
@@ -132,6 +129,34 @@ def _again(payload) -> list:
     if batch and batch.get("question"):
         return [line_ask._render(batch, line_ask._default())]
     return []
+
+
+def open_question(line_user_id):
+    """这个 LINE 用户此刻在等答的那道题（`line_out` 在别的消息末尾重带用）；没有回 None。只读：不改会话、不作废已发的按钮——
+    物料 / 仓库题按这一张、这一步重出；写前判定的题在会话副本上按同一个序号重出（按钮与已发的那组一样，认同一题），正在等填数的重出
+    填数提示，正在显示搜索结果的重出那组结果。"""
+    payload = line_flow.choices(line_user_id)
+    asking = payload.get(line_items.ASKING) or {}
+    if asking.get("intake"):
+        name = asking["intake"]
+        if not frappe.db.exists(intake.DOCTYPE, name):
+            return None
+        doc = _doc(name)
+        return line_items.current(doc, dict(asking)) if doc.status == intake.READY else None
+    batch = copy.deepcopy((payload.get(line_ask.KEY) or {}).get("current"))
+    if not batch or not batch.get("question"):
+        return None
+    backend = line_ask._default()
+    batch["seq"] = int(batch.get("seq") or 0) - 1  # 下面的出题函数会加一：回到会话里的这一题的序号
+    entry = batch.get("entry")
+    if entry:
+        return line_ask._entry_prompt(batch, {"code": entry["code"], "label": entry["label"], "entry": entry["entry"]}, backend)
+    shown, codes = list(batch.get("shown") or ()), [option["code"] for option in batch["question"]["options"]]
+    if shown and shown != codes:  # 正显示打字搜到的结果（标签是「编码 名称」）
+        rows = [{"code": code, "name": label[len(code):].strip() if label.startswith(code) else label}
+                for code, label in zip(shown, batch.get("shown_labels") or ())]
+        return line_ask._results(batch, rows, False, backend)
+    return line_ask._render(batch, backend)
 
 
 def _drive(payload, messages=()) -> list:
@@ -223,4 +248,4 @@ def text(line_user_id, user, text, reply_token) -> bool:
     return True
 
 
-__all__ = ["KEPT", "PREFIX", "WAITING", "after_items", "answer", "begin", "is_step", "send", "text"]
+__all__ = ["KEPT", "PREFIX", "WAITING", "after_items", "answer", "begin", "is_step", "open_question", "send", "text"]

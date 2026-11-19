@@ -25,6 +25,7 @@ from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
 from pearnly_erp_portal.masters import access as master_access
+from pearnly_erp_portal.integrations import line_out
 
 STATE = "erp_intake"
 TTL_MINUTES = 30
@@ -98,11 +99,11 @@ def _button(label, data):
 
 def _ask(reply_token, text, items):
     items = items[:MAX_CHOICES] + [_button(_("Cancel"), "a=erp&s=cancel")]
-    line.reply(reply_token, [{"type": "text", "text": text, "quickReply": {"items": items}}])
+    line_out.reply(reply_token, [{"type": "text", "text": text, "quickReply": {"items": items}}])
 
 
 def _text(reply_token, text):
-    line.reply(reply_token, [{"type": "text", "text": text}])
+    line_out.reply(reply_token, [{"type": "text", "text": text}])
 
 
 def menu(user, reply_token):
