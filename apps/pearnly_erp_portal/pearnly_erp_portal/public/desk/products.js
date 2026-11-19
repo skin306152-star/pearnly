@@ -111,9 +111,6 @@
 				// 内部编码（主会话 10-26）：本地商品手输、扫码搜索盘点都认；Express 来的商品就是 Express 编码（只读）
 				{ fieldtype: "Data", fieldname: "internal_code", label: t("product.field.internalCode"),
 					length: 20, default: value("internal_code") || existing.express_code || "" },
-				// 来由（多仓评估 13.2-6）：手建 / 导入 / Express 同步 / 采购、销售自动建 / 盘点新建 · 盘点单号；只读
-				...(existing.origin ? [{ fieldtype: "Data", fieldname: "origin_text", label: t("product.field.origin"), read_only: 1,
-					default: [t(`product.origin.${existing.origin}`), existing.origin_name].filter(Boolean).join(" · ") }] : []),
 				{ fieldtype: "Column Break" },
 				{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 					default: value("unit") },
@@ -124,13 +121,13 @@
 					options: "THB", default: existing.price_set ? existing.unit_price : null },
 				{ fieldtype: "Currency", fieldname: "default_cost", label: t("product.field.cost"),
 					options: "THB", default: existing.cost_set ? existing.default_cost : null },
-				// 商品上的"默认仓"删掉了（用户 2026-09-24："进货就进卖货那个仓"）：进货/出入库
-				// 那一侧取的是收银台配的仓（`warehouses.receiving`），商品这一层再留一个默认仓
-				// 只会让两边对不上。仓位还是商品级建议值，留着。
-				{ fieldtype: "Data", fieldname: "default_location", label: t("product.field.defaultLocation"),
-					description: t("product.field.locationHint"), default: value("default_location") },
+				// 商品上的"默认仓""默认仓位"都删掉了（用户 2026-09-24："进货就进卖货那个仓"；11-19 取消仓位）：
+				// 仓在单据明细每一行上选。
 				{ fieldtype: "Float", fieldname: "min_stock", label: t("product.field.minStock"),
 					default: value("min_stock") },
+				// 来由（多仓评估 13.2-6）：手建 / 导入 / Express 同步 / 采购、销售自动建 / 盘点新建 · 盘点单号；只读（11-19 默认仓位删掉后挪到右栏末，两栏长度照旧接近）
+				...(existing.origin ? [{ fieldtype: "Data", fieldname: "origin_text", label: t("product.field.origin"), read_only: 1,
+					default: [t(`product.origin.${existing.origin}`), existing.origin_name].filter(Boolean).join(" · ") }] : []),
 				{ fieldtype: "Section Break" },
 				// 按台管理（车辆按台，主会话 10-26）：有库存时打开要先按台期初登记（`open_serial_opening`）。
 				// 只在按台类型的公司出现（汽车 / 手机电器，用户 10-29）；普通公司不出这两格，商品上的标志不动
@@ -228,20 +225,19 @@
 		// ── 建商品顺手放期初（多仓闭环 P1 G1）──────────────────────────────────
 		// 能录期初的人才出现（同库存页「录入期初库存」入口）；接了 Express 的公司期初从 Express 读回，不出现（服务端同样拒）。
 		const can_open = () => Boolean(frappe.boot.pearnly_pages?.includes("pearnly-stock-in")) && !p.express_company();
-		// 一件商品放进几个仓 / 库位：原生 Grid，仓库默认按 `warehouses.prefill` 预填
+		// 一件商品放进几个仓：原生 Grid，仓库默认按 `warehouses.prefill` 预填
 		const opening_grid = warehouse => [
 			{ fieldtype: "Section Break", label: t("product.field.opening"), collapsible: 1, collapsed: 1 },
 			{ fieldtype: "Table", fieldname: "opening", label: t("product.field.opening"), data: [], fields: [
 				{ fieldtype: "Link", fieldname: "warehouse", options: "ERP Warehouse", label: __("stock.col.warehouse"),
 					get_query: p.warehouse_query(), only_select: true, reqd: 1, in_list_view: 1, columns: 3, default: warehouse || "" },
-				{ fieldtype: "Data", fieldname: "location", label: __("stock.count.location"), in_list_view: 1, columns: 2 },
 				// 数量、成本都必填（同期初页；服务端没有成本就整件不建，验收复核 P1）
 				{ fieldtype: "Float", fieldname: "qty", label: __("stock.opening.qty"), reqd: 1, in_list_view: 1, columns: 2 },
 				{ fieldtype: "Currency", fieldname: "unit_cost", options: "THB", label: __("stock.opening.cost"), reqd: 1, in_list_view: 1, columns: 2 },
 			] },
 		];
 		const opening_rows = rows => (rows || []).filter(row => Number(row.qty) > 0)
-			.map(row => ({ warehouse: row.warehouse, location: row.location || "", qty: row.qty, unit_cost: row.unit_cost }));
+			.map(row => ({ warehouse: row.warehouse, qty: row.qty, unit_cost: row.unit_cost }));
 
 		// ── 按台管理 ────────────────────────────────────────────────────────────
 		const SERIALS = "pearnly_erp_portal.inventory.serials.";
@@ -288,7 +284,7 @@
 				dialog.onhide = () => { if (!done) resolve(false); };
 				// 各仓账面数（原生 DataTable）：按台期初每个仓要登记这么多台
 				new frappe.DataTable(dialog.fields_dict.stock.$wrapper.get(0), { layout: "fluid", serialNoColumn: false,
-					columns: [{ name: t("product.col.place"), editable: false }, { name: __("Qty"), editable: false, align: "right" }],
+					columns: [{ name: __("stock.col.warehouse"), editable: false }, { name: __("Qty"), editable: false, align: "right" }],
 					data: stock.map(row => [row.warehouse_name, row.qty == null ? "" : p.number(row.qty)]) });
 			});
 		}
@@ -323,7 +319,6 @@
 					{ fieldname: "secondary_no", label: p.serials.label(item, "secondary"), width: 140 },
 					{ fieldname: "color", label: __("serial.color"), width: 90 },
 					{ fieldname: "status", label: __("Status"), width: 90, format: value => __(`serial.status.${value}`) },
-					{ fieldname: "location", label: t("product.col.place"), width: 120 },
 					{ fieldname: "out_ref", label: __("Out Reference"), width: 150 },
 				] });
 		}
@@ -476,10 +471,10 @@
 			if (scanned) dialog.$wrapper.one("shown.bs.modal", () => setTimeout(() => dialog.fields_dict.product_name?.$input?.trigger("focus"), 0));
 			// 左下角那颗"全屏编辑"（官方插槽）：要批量建、或者字段在弹窗里挤，就进二级页面。
 			if (!inline) p.edit_all(dialog, t("product.action.fullPage"), url(SECOND), values => {
-				// 期初网格的第一行带到整页那一行的期初格（整页一行一个位置）
+				// 期初网格的第一行带到整页那一行的期初格（整页一行一个仓）
 				const [first] = opening_rows(values.opening);
 				carry = { ...values, __scanned: state.scanned, ...(first ? { opening_warehouse: first.warehouse,
-					opening_location: first.location, opening_qty: first.qty, opening_cost: first.unit_cost } : {}) };
+					opening_qty: first.qty, opening_cost: first.unit_cost } : {}) };
 			});
 			return dialog;
 		}
@@ -494,7 +489,7 @@
 		//
 		// **露出来的列加起来不能超过 10**：框架的 Grid 一旦 `total_colsize > 10` 就切成
 		// "列超限"模式（横向滚动），右侧的列会被切在可视区外 —— 用户看到的就是"后面的字段
-		// 都看不到了"。所以只留最常用的四列，其余（单位/库存单位/默认仓库/默认仓位/参考成本/
+		// 都看不到了"。所以只留最常用的四列，其余（单位/库存单位/参考成本/
 		// 分类/低库存/批次/有效期/VAT/图片）都在行展开里。
 		let opening_warehouse = "";
 		const grid_fields = () => [
@@ -506,9 +501,6 @@
 				label: t("product.field.price"), in_list_view: 1, columns: 2 },
 			{ fieldtype: "Data", fieldname: "unit", label: t("product.field.unit"),
 				in_list_view: 1, columns: 1 },
-			// 快录表里也没有"默认仓"了（同上面那条说明）。
-			{ fieldtype: "Data", fieldname: "default_location",
-				label: t("product.field.defaultLocation"), columns: 2 },
 			{ fieldtype: "Currency", fieldname: "default_cost", options: "THB",
 				label: t("product.field.cost"), columns: 2 },
 			{ fieldtype: "Data", fieldname: "base_unit", label: t("product.field.baseUnit"),
@@ -523,11 +515,10 @@
 				default: 1, columns: 1 },
 			{ fieldtype: "Attach Image", fieldname: "image_url", label: t("product.field.image"),
 				columns: 2 },
-			// 期初库存（多仓闭环 P1 G1）：一行一个位置，在行展开里；要放进几个仓用弹窗的期初网格或库存页的期初表
+			// 期初库存（多仓闭环 P1 G1）：一行一个仓，在行展开里；要放进几个仓用弹窗的期初网格或库存页的期初表
 			...(can_open() ? [
 				{ fieldtype: "Link", fieldname: "opening_warehouse", options: "ERP Warehouse", label: __("stock.col.warehouse"),
 					get_query: p.warehouse_query(), only_select: true, columns: 2, default: opening_warehouse },
-				{ fieldtype: "Data", fieldname: "opening_location", label: __("stock.count.location"), columns: 2 },
 				{ fieldtype: "Float", fieldname: "opening_qty", label: __("stock.opening.qty"), columns: 2 },
 				{ fieldtype: "Currency", fieldname: "opening_cost", options: "THB", label: __("stock.opening.cost"), columns: 2 },
 			] : []),
@@ -592,7 +583,6 @@
 				base_unit: row.base_unit,
 				category: row.category,
 				attribute: row.attribute,
-				default_location: row.default_location,
 				unit_price: Number(row.unit_price) > 0 ? row.unit_price : null,
 				default_cost: Number(row.default_cost) > 0 ? row.default_cost : null,
 				min_stock: row.min_stock,
@@ -600,7 +590,7 @@
 				image_url: row.image_url,
 				...code_payload(row.code_value, row.__scanned),
 				...(Number(row.opening_qty) > 0 ? { opening: opening_rows([{ warehouse: row.opening_warehouse,
-					location: row.opening_location, qty: row.opening_qty, unit_cost: row.opening_cost }]) } : {}),
+					qty: row.opening_qty, unit_cost: row.opening_cost }]) } : {}),
 			});
 
 			async function submit_all() {

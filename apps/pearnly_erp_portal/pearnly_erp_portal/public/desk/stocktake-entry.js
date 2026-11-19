@@ -56,7 +56,7 @@
 			// 实际仓库：官方原生 Link（只列当前公司的仓库），不是自由填写。
 			{ fieldtype: "Link", options: "ERP Warehouse", fieldname: "warehouse",
 				label: w("actualWarehouse"), reqd: 1, get_query: p.warehouse_query(), only_select: true },
-			// 「这件货还在别处」：货的账可能在另一个仓/仓位（用户 2026-09-23 那次盘点就是这样，
+			// 「这件货还在别处」：货的账可能在另一个仓（用户 2026-09-23 那次盘点就是这样，
 			// 数出来的货落成了新位置）。摆在"实际仓库"下面，当场就能改（见 `render_elsewhere`）。
 			{ fieldtype: "HTML", fieldname: "elsewhere", hidden: 1 },
 			// 多人分区盘点：这件货在本次盘点里别人（或自己）已经记过的 —— 谁、在哪、多少，
@@ -151,8 +151,7 @@
 			d.set_df_property("elsewhere", "hidden", places.length ? 0 : 1);
 			if (!places.length) return;
 			const text = places.slice(0, 3)
-				.map(place => `${place.warehouse_name} / ${place.location || t("stock.count.blank")} · `
-					+ `${p.number(place.qty)} ${place.unit || ""}`.trim())
+				.map(place => `${place.warehouse_name} · ` + `${p.number(place.qty)} ${place.unit || ""}`.trim())
 				.join("；");
 			host.$wrapper.append($("<p class='text-muted small mb-0'>").text(`${w("elsewhere")} ${text}`));
 		}
@@ -260,7 +259,8 @@
 			const source = lookup.rows.find(r => r.name === d.get_value("source_row"));
 			// 实际仓库是官方 Link，值是仓库编号（显示名由框架按标题取）；写成名称时实际仓位按它取选项会报「未找到仓库」（11-02 真机）
 			await d.set_value("warehouse", entry?.warehouse || source?.warehouse || lookup.warehouse);
-			await d.set_value("location", entry?.location ?? source?.location ?? "");
+			// 实际仓位：账面只到仓库，没有账面仓位可带；改已录的记录带那条记录自己的
+			await d.set_value("location", entry?.location ?? "");
 		}
 		// 物料页同一个新建弹窗（`products.js` 的 `open_quick`，用户 11-01「原地弹出新建物料的弹窗」）：码预填进「条码/二维码」；
 		// 编码预览与保存走盘点录入权的接口（来由记这份盘点，服务端 `count.create_product_here`），建好按存下的码接着记数。
@@ -328,7 +328,7 @@
 				selected = lookup.product;
 				request_id = crypto.randomUUID();
 				d.set_df_property("source_row", "options", lookup.rows.map(r => ({
-					value: r.name, label: `${r.warehouse_name} / ${r.location || t("stock.count.blank")} · ${p.number(r.book_qty)} ${r.unit || ""}`,
+					value: r.name, label: `${r.warehouse_name} · ${p.number(r.book_qty)} ${r.unit || ""}`,
 				})));
 				d.set_df_property("source_row", "hidden", !lookup.rows.length);
 				await d.set_value("source_row", row?.name || lookup.rows[0]?.name || "");

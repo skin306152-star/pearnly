@@ -327,7 +327,7 @@ def main():
                 "qr_payload", "unit", "base_unit", "category", "attribute", "unit_price",
                 "price_set", "cost_set", "vat_applicable", "is_active", "min_stock",
                 "default_cost", "image_url",
-                "default_warehouse", "default_location",
+                "default_warehouse",
                 "units"}
     results["fields_missing"] = sorted(expected - ours)
     results["fields_extra"] = sorted(ours - expected)

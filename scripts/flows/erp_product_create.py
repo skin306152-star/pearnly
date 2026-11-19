@@ -12,7 +12,7 @@ import uuid
 
 TITLE = "ERP 物料：新建弹窗的字段、来由与按码认出"
 ORDER = ("code_value", "product_name", "category", "attribute", "code", "internal_code", "unit", "base_unit", "unit_price",
-         "default_cost", "default_location", "min_stock", "vat_applicable", "image_url")
+         "default_cost", "min_stock", "vat_applicable", "image_url")
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
 CAPTURE = ("window.__dlgs=window.__dlgs||[];if(!frappe.ui.Dialog.prototype.__cap){const o=frappe.ui.Dialog.prototype.show;"
            "frappe.ui.Dialog.prototype.show=function(){window.__dlgs.push(this);return o.apply(this,arguments)};frappe.ui.Dialog.prototype.__cap=1;}")

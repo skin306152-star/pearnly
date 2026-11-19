@@ -31,7 +31,7 @@
 		Object.assign(field.df, changes); field.refresh();
 	};
 	u.line_keys = ["item_type", "product", "description", "code", "barcode", "qty", "unit", "unit_price",
-		"discount", "vat_rate", "wht_rate", "category", "subcategory", "warehouse", "location", "new_item"];
+		"discount", "vat_rate", "wht_rate", "category", "subcategory", "warehouse", "new_item"];
 	// 行上「入库」勾选 = 这一行入不入库（11-06 按行选物料与库存）：不勾就是只记账（服务端 `item_type = service`）
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
 		.map(row => ({...row, ...(row.stock_in === undefined ? {} : {item_type: Number(row.stock_in) ? "goods" : "service"})}))
@@ -47,7 +47,10 @@
 			f("description", "Item Name", "Data", {hidden: 1}),
 			f("qty", "Quantity", "Float", {reqd: 1, default: 1, precision: 6}),
 			f("unit", "UOM"), f("unit_price", "Rate", "Currency", {default: 0}),
-			f("stock_in", "trade.groupIn", "Check", {default: 1}), col(),
+			f("stock_in", "trade.groupIn", "Check", {default: 1}),
+			// 仓库按行（11-19，同 Express 原生赊购 / 现购明细）：入库的行选仓，新行跟上一行；只有一个仓的公司不出这一格（服务端取唯一仓）
+			f("warehouse", "Warehouse", "Link", {options: "ERP Warehouse", get_query: p.warehouse_query(),
+				hidden: state.single_warehouse ? 1 : 0, depends_on: "eval:doc.stock_in"}), col(),
 			f("discount", "Discount Amount", "Currency", {default: 0}),
 			f("vat_rate", "VAT Rate", "Percent", {default: state.defaults.settings.default_vat_rate}),
 			f("wht_rate", "Withholding Tax Rate", "Percent", {default: 0}),
@@ -55,15 +58,8 @@
 			f("vat_amount", "VAT", "Currency", {read_only: 1}),
 			f("wht_amount", "Withholding Tax", "Currency", {read_only: 1, depends_on: "eval:doc.wht_rate > 0"}),
 			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
-			// 两栏：左栏放哪（仓位），右栏分类。入不入库是上面的「入库」勾选（提交时由 `clean_lines` 换成 `item_type`）
-			f("new_item", "Item", "Check", {hidden: 1}),
-			// 仓库：一张单一个仓库，以单头为准（岳父 11-06），行上不显示；值随单头走（`p.place.track`），仓位行上可以改
-			f("warehouse", "Warehouse", "Link",
-				{options: "ERP Warehouse", get_query: p.warehouse_query(), hidden: 1}),
-			// 库位：能改时原生 Autocomplete（按仓库从服务端取清单）；只读（已提交 / 作废）用原生只读文字——只读的 Autocomplete 不建选项列表，
-			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
-			f("location", "Location", state.editable ? "Autocomplete" : "Data",
-				{get_query: p.location_query(() => line.form?.get_value("warehouse") || state.form?.get_value("warehouse"))}), col(),
+			// 两栏：右栏分类。入不入库是上面的「入库」勾选（提交时由 `clean_lines` 换成 `item_type`）
+			f("new_item", "Item", "Check", {hidden: 1}), col(),
 			// 物料号 / 条码：**自动带出来的**（选了物料、或扫了码就填上），不是让人手打的格，
 			// 所以从界面上收起来 —— 字段留着，值照旧随这一行提交（`LINE_FIELDS` 里要它们）。
 			f("code", "Item Code", "Data", {hidden: 1}), f("barcode", "Barcode", "Data", {hidden: 1}),
@@ -126,11 +122,6 @@
 			f("currency", "Currency", "Select", {options: "THB\nUSD\nEUR\nCNY\nJPY\nSGD", reqd: 1}), col(),
 			f("fx_rate", "Exchange Rate", "Float", {reqd: 1, precision: 6, depends_on: `eval:doc.currency !== '${state.defaults.settings.base_currency}'`}),
 			f("price_mode", "Prices Include Tax", "Select", {options: u.options(["exclusive", "inclusive"])}),
-			// 单头「仓库 + 库位」（多仓闭环 P1）：明细行跟着它，逐行可在「附加信息」里改
-			u.section("", {fieldname: "place_section"}),
-			...p.place.fields({labels: {warehouse: __("Warehouse"), location: __("Location")}, editable,
-				current: () => state.form?.get_value("warehouse"), onchange: key => state.place?.changed(key)})
-				.flatMap((field, index) => index ? [col(), field] : [field]),
 			u.section(""), f("lines", "Items", "HTML"),
 			f("add_line", "Add row", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("bulk_edit", "Bulk Edit", "Button", {hidden: !editable, click: () => state.bulk_edit?.()}),

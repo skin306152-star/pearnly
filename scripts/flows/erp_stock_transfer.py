@@ -49,9 +49,9 @@ if len(active) < 2:
 a, b = active[0], active[1]
 p = frappe.db.get_value("ERP Product", {product!r}, ["name", "code", "barcode"], as_dict=True)
 documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, submit=True,
-                       lines=[{{"product": p.name, "qty": 5, "unit_cost": 10, "location": ""}}])
+                       lines=[{{"product": p.name, "qty": 5, "unit_cost": 10}}])
 def place(w):
-    row = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": w, "location": ""}}, ["qty_on_hand", "value"], as_dict=True) or {{}}
+    row = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": w}}, ["qty_on_hand", "value"], as_dict=True) or {{}}
     return [float(row.get("qty_on_hand") or 0), float(row.get("value") or 0)]
 frappe.db.commit()
 print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "b": b, "before_a": place(a), "before_b": place(b)}}))
@@ -71,7 +71,7 @@ def steps(params, camera_code=None):
          "const i=d.$wrapper.find('.pearnly-line-editor [data-fieldname=\"product\"] input')[0]; if(!i) return {error:'no line product box'};"
          f"i.focus(); i.value={scan}; i.dispatchEvent(new Event('input',{{bubbles:true}}));"
          "i.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true}));"
-         "const line=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.to_location&&f.fields_dict.qty).pop();"
+         "const line=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.warehouse&&f.fields_dict.qty&&f.fields_dict.product).pop();"
          "for(let k=0;k<40&&!(line()&&line().get_value('product'));k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "const l=line(); if(!l||!l.get_value('product')) return {error:'product not filled by code'};"
          "await l.set_value('qty', 2); await idle();"
@@ -100,9 +100,11 @@ def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     made = by.get("新建调拨单") or {}
     return [
-        {"case": "transfer dialog has both places and no purpose", "seen": made,
-         "ok": {"warehouse", "location", "to_warehouse", "to_location"} <= set(made.get("fields") or [])
-         and "purpose" not in (made.get("fields") or []) and {"location", "to_location"} <= set(made.get("line_fields") or [])},
+        # 单头一出一进（同 Express 原生 RL，11-19 取消仓位）：单头调出仓 / 调入仓，没有仓位、没有用途；行上不放仓位
+        {"case": "transfer dialog has both warehouses, no locations and no purpose", "seen": made,
+         "ok": {"warehouse", "to_warehouse"} <= set(made.get("fields") or [])
+         and not {"location", "to_location", "purpose"} & set(made.get("fields") or [])
+         and not {"location", "to_location"} & set(made.get("line_fields") or [])},
         {"case": "product filled by code", "seen": made.get("product"), "ok": made.get("product") == params["product"]},
         {"case": "same warehouse refused", "seen": by.get("同仓被拒"), "ok": (by.get("同仓被拒") or {}).get("still_open") is True},
         {"case": "submitted", "seen": by.get("提交"), "ok": (by.get("提交") or {}).get("submitted") is True},
@@ -117,7 +119,7 @@ frappe.set_user("admin@erp.regression")
 companies.set_active_company({params['company']!r})
 a, b, product = {params['a']!r}, {params['b']!r}, {params['product']!r}
 def place(w):
-    row = frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": w, "location": ""}}, ["qty_on_hand", "value"], as_dict=True) or {{}}
+    row = frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": w}}, ["qty_on_hand", "value"], as_dict=True) or {{}}
     return [float(row.get("qty_on_hand") or 0), float(row.get("value") or 0)]
 entry = frappe.db.get_value("ERP Stock Entry", {{"reason": {params['token']!r}}}, ["name", "direction", "status", "doc_no", "warehouse", "to_warehouse"], as_dict=True) or {{}}
 moves = frappe.get_all("ERP Stock Movement", filters={{"ref_id": entry.get("name") or "-"}}, fields=["movement_type", "warehouse", "qty_base", "unit_cost", "value_delta", "cost_known"], order_by="creation asc")
@@ -135,7 +137,7 @@ if not frappe.db.get_value("ERP Product", car, "track_serial"):
     serials.turn_on(car, kind="vehicle")
 vin = "MR0TF" + frappe.generate_hash(length=12).upper()
 documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, purpose="other", submit=True,
-                       lines=[{{"product": car, "qty": 1, "unit_cost": 400000, "location": "", "serials": [{{"serial_no": vin}}]}}])
+                       lines=[{{"product": car, "qty": 1, "unit_cost": 400000, "serials": [{{"serial_no": vin}}]}}])
 unit = frappe.db.get_value("ERP Serial No", {{"serial_no": vin}}, "name")
 same = ""
 try:

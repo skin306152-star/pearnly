@@ -38,11 +38,13 @@
 			await form.set_values(Object.fromEntries(["subtotal", "vat_amount", "wht_amount", "grand_total", "net_payable"]
 				.map(key => [key, result[key]])));
 		}, 400);
+		// 仓库按行（11-19）：第一行用建议仓（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选），新行跟上一行；只有一个仓的公司明细不出仓库栏
+		const place = await p.place.defaults("purchase", {company: doc.company});
+		if (!still_current()) return () => {state.disposed = true;};
+		state.single_warehouse = place.single;
+		state.default_warehouse = editable ? place.warehouse : "";
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
-		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
-		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
-			set: values => line.form.set_values(values)})), {live: false});
 		state.party_choice = p.bind_entry_choice(form, {kind: "supplier", context: "purchase", reference: "supplier", title: "supplier_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({supplier_tax_id: row.tax_id, supplier_address: row.address,
@@ -101,7 +103,7 @@
 			// 类型「费用」的单：新明细默认只记账（10-24 验收：默认货物，提交时又要选仓库、对存货）；带来的行照它自己的类型（识别预选、已存的单）
 			const item_type = values.item_type || (form.get_value("doc_kind") === "expense" ? "service" : "goods");
 			await line.form.set_values({qty: 1, unit_price: 0, vat_rate: defaults.settings.default_vat_rate, wht_rate: 0,
-				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values,
+				...values, warehouse: values.warehouse || p.place.next(state.lines.at(-2)?.form.get_value("warehouse"), state.default_warehouse),
 				stock_in: item_type === "goods" ? 1 : 0});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
@@ -119,18 +121,14 @@
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
 		const today = frappe.datetime.get_today();
-		// 单头仓：单上有就用；新单按 `warehouses.prefill` 预填（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选）
-		const place = p.place.of(doc);
-		if (editable && !place.warehouse) place.warehouse = await p.place.prefill("purchase", {company: doc.company});
 		if (!still_current() || state.disposed) return () => {state.disposed = true; cleanup_entry(); layout.destroy();};
 		await form.set_values({system_no: defaults.system_no, doc_kind: "purchase_invoice",
 			doc_date: today, due_date: frappe.datetime.add_days(today, defaults.settings.default_due_days || 0),
 			supplier_branch_type: "none", currency: defaults.settings.base_currency || "THB", fx_rate: 1,
 			has_vat: 1, price_mode: "exclusive", is_paid: 1, update_stock: 1, auto_create_product: 1,
 			payment_method: "cash", discount_total: 0, rounding: 0, amount_override: 0, source: "web",
-			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), ...place, stock_posted_at: p.datetime_text(doc.stock_posted_at),
+			...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), stock_posted_at: p.datetime_text(doc.stock_posted_at),
 			outstanding: Number(doc.net_payable || 0) - Number(doc.paid_amount || 0)});
-		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
 		// 改成「费用」时，还没选物料的入库行一并改成只记账
 		form.fields_dict.doc_kind.df.onchange = () => {
@@ -139,13 +137,12 @@
 				if (line.form.get_value("stock_in") && !line.form.get_value("product")) void line.form.set_value("stock_in", 0);
 			}
 		};
-		// 批量编辑（11-06 按行选物料与库存）：单头仓库、每行入库与仓位，原生 Dialog + Table
-		state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupIn"), warehouse: form.get_value("warehouse"),
-			set_warehouse: value => form.set_value("warehouse", value),
+		// 批量编辑（11-06 按行选物料与库存）：每行入库与仓库，原生 Dialog + Table
+		state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupIn"), single: state.single_warehouse,
 			lines: state.lines.filter(line => line.form.get_value("description") || line.form.get_value("product")).map(line => ({
 				label: line.form.get_value("description") || "", stock: line.form.get_value("stock_in"),
-				location: line.form.get_value("location"),
-				set: values => line.form.set_values({stock_in: values.stock, location: values.location})}))});
+				warehouse: line.form.get_value("warehouse"),
+				set: values => line.form.set_values({stock_in: values.stock, warehouse: values.warehouse})}))});
 		p.trade.require_blank(form, doc); // LINE 卡「编辑」打开：读不懂的数空着、必须填（主会话 11-19）
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
 		form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));

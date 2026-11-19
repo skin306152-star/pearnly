@@ -40,7 +40,7 @@
 			label: t("stock.field.search"),
 			change: () => void list?.reload(),
 		});
-		// 显示方式（多仓闭环 P4）：按位置 = 物料 × 仓库 × 仓位；按物料 = 公司各仓合计，点一行回到按位置看这件物料在各仓的数
+		// 显示方式（多仓闭环 P4）：按位置 = 物料 × 仓库（11-19 取消仓位）；按物料 = 公司各仓合计，点一行回到按位置看这件物料在各仓的数
 		filters.view = page.add_field({
 			fieldtype: "Select",
 			fieldname: "view",
@@ -62,7 +62,6 @@
 				view: by_product() ? "product" : undefined,
 				product: by_product() ? undefined : (picked.product || undefined),
 				warehouse: picked.warehouse || undefined,
-				location: by_product() ? undefined : (picked.location || undefined),
 				qty_op: qty[2] || undefined,
 				qty_value: qty[3] === undefined || qty[3] === "" ? undefined : qty[3],
 				conditions: p.filter_conditions(list, ["qty_on_hand", "product"]),
@@ -84,7 +83,7 @@
 		}
 
 		// 库存行是流水推出来的结存，没有"删除"这一说（删掉就等于改账）。选中一行时给的是
-		// **对应的那一步**：打开这条商品×仓库×仓位的收发流水（跟点行进去是同一个视图）。
+		// **对应的那一步**：打开这条商品×仓库的收发流水（跟点行进去是同一个视图）。
 		const selection = p.selection_action({
 			page, list: () => list,
 			label: () => t("stock.action.ledger"),
@@ -92,12 +91,12 @@
 			reason: () => t("stock.action.ledgerSingle"),
 			run: async rows => { void p.stockLedger(rows[0]); },
 		});
-		// 按物料那一行没有仓库 / 仓位：点开 = 换回按位置、只看这件物料
+		// 按物料那一行没有仓库：点开 = 换回按位置、只看这件物料
 		const open_product = row => {
 			focus_product = row.product;
 			filters.view.set_value("position");
 		};
-		const place_columns = ["warehouse_name", "location"];
+		const place_columns = ["warehouse_name"];
 		async function build_list() {
 			list?.destroy(); list = null;
 			page.clear_primary_action();
@@ -106,11 +105,10 @@
 				page,
 				doctype: "ERP Stock Balance",
 				selectable: !product_view,
-				// 本页支持的筛选条件（官方的字段下拉里只列这几个）；按物料时没有仓位、物料两项。
+				// 本页支持的筛选条件（官方的字段下拉里只列这几个）；按物料时没有物料这一项。
 				filter_fields: [
 					{ fieldname: "warehouse", label: t("stock.col.warehouse"), fieldtype: "Link" },
 					...(product_view ? [] : [
-						{ fieldname: "location", label: t("stock.count.location"), fieldtype: "Data" },
 						{ fieldname: "product", label: t("trade.product"), fieldtype: "Link" }]),
 					{ fieldname: "qty_on_hand", label: t("stock.col.onHand"), fieldtype: "Float" },
 				],

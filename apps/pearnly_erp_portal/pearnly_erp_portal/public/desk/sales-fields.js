@@ -28,7 +28,7 @@
 		Object.assign(field.df, changes); field.refresh();
 	};
 	u.line_keys = ["item_type", "product", "description", "qty", "unit", "unit_price", "discount",
-		"discount_pct", "vat_applicable", "warehouse", "location", "new_item"];
+		"discount_pct", "vat_applicable", "warehouse", "new_item"];
 	// 行上「出库」勾选 = 这一行出不出库（11-06 按行选物料与库存）：不勾就是只记账（服务端 `item_type = service`）
 	u.clean_lines = lines => (lines || []).filter(row => row.description || row.product)
 		.map(row => ({...row, ...(row.stock_out === undefined ? {} : {item_type: Number(row.stock_out) ? "goods" : "service"})}))
@@ -47,16 +47,11 @@
 			f("discount", "Discount Amount", "Currency", {default: 0}),
 			f("vat_applicable", "VAT Applies", "Check", {default: 1}),
 			f("stock_out", "trade.groupOut", "Check", {default: 1}),
+			// 仓库按行（11-19，同 Express 原生赊销 / 现销明细）：出库的行选仓，新行跟上一行；只有一个仓的公司不出这一格（服务端取唯一仓）
+			f("warehouse", "Warehouse", "Link", {options: "ERP Warehouse", get_query: p.warehouse_query(),
+				hidden: state.single_warehouse ? 1 : 0, depends_on: "eval:doc.stock_out"}),
 			f("line_total", "Amount", "Currency", {read_only: 1}),
-			u.section("Additional Information", {collapsible: 1, collapsed: 1}),
 			f("new_item", "Item", "Check", {hidden: 1}),
-			// 仓库：一张单一个仓库，以单头为准（岳父 11-06），行上不显示；值随单头走（`p.place.track`），仓位行上可以改
-			f("warehouse", "Warehouse", "Link",
-				{options: "ERP Warehouse", get_query: p.warehouse_query(), hidden: 1}),
-			// 库位：能改时原生 Autocomplete（按仓库从服务端取清单）；只读（已提交 / 作废）用原生只读文字——只读的 Autocomplete 不建选项列表，
-			// 给它赋值时框架校验会报错、打断整页（10-26 打印窗口发现）
-			f("location", "Location", state.editable ? "Autocomplete" : "Data",
-				{get_query: p.location_query(() => line.form?.get_value("warehouse") || state.form?.get_value("warehouse"))}),
 			...(state.editable ? [u.section(""), f("remove", "Delete", "Button", {click: () => state.remove_line(line)})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "Section Break", "Column Break"].includes(field.fieldtype) ? field.read_only : !state.editable || field.read_only,
@@ -93,11 +88,7 @@
 			f("party_type", "trade.buyerType", "Select", {options: u.options(["company", "person", "foreign", "anonymous"])}), col(),
 			f("address", "Address", "Small Text"),
 			u.section("Items", {fieldname: "items_section"}),
-			// 单头「仓库 + 库位」（多仓闭环 P1）：明细行跟着它，逐行可在「附加信息」里改
-			...p.place.fields({labels: {warehouse: __("Warehouse"), location: __("Location")}, editable,
-				current: () => state.form?.get_value("warehouse"), onchange: key => state.place?.changed(key)})
-				.flatMap((field, index) => index ? [col(), field] : [field]),
-			u.section(""), f("lines", "Items", "HTML"),
+			f("lines", "Items", "HTML"),
 			f("add_line", "purchase.action.addLine", "Button", {hidden: !editable, click: () => state.add_line?.()}),
 			f("bulk_edit", "Bulk Edit", "Button", {hidden: !editable, click: () => state.bulk_edit?.()}),
 			f("merge_lines", "Merge Items", "Button", {hidden: 1, click: () => state.merge?.()}),

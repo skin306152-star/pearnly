@@ -51,7 +51,7 @@ print(json.dumps({{"count": doc["name"], "category": category}}))
 # 物料页新建弹窗（`products.js` 的 `product_fields`）的标准各格：盘点借的就是这一个，不是自做的几格。按弹窗里的先后比
 # （岳父 11-01：条码、名称、分类、特性/颜色在前，手机上就是这个顺序）
 STANDARD = ["code_value", "product_name", "category", "attribute", "code", "internal_code", "unit", "base_unit", "unit_price",
-            "default_cost", "default_location", "min_stock", "vat_applicable", "image_url"]
+            "default_cost", "min_stock", "vat_applicable", "image_url"]
 
 
 # 「新建物料」在不在眼前：在可视区域里、按钮中心点上就是它（没被提示框或相机画面盖住）
@@ -88,7 +88,7 @@ def steps(params, camera_code=None):
          "const form={title: f.title, fields, preview: f.get_value('code')||'', form_code: f.get_value('code_value')||'',"
          " opening: !!f.fields_dict.opening};"
          f"await f.set_values({{product_name: {name}, internal_code: {internal}, unit: 'ชิ้น', unit_price: 120, default_cost: 80,"
-         f" default_location: 'A-01', min_stock: 2, category: {json.dumps(params['category'])}, attribute: 'แดง'}});"
+         f" min_stock: 2, category: {json.dumps(params['category'])}, attribute: 'แดง'}});"
          "await new Promise(r=>setTimeout(r,300)); f.get_primary_btn().trigger('click');"
          "for(let k=0;k<60&&!d.fields_dict.qty.$wrapper.is(':visible');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {...form, form_closed: !f.$wrapper.is(':visible'), entry: d.fields_dict.qty.$wrapper.is(':visible'),"
@@ -143,7 +143,7 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 p = frappe.db.get_value("ERP Product", {{"barcode": {params['code']!r}}}, ["name", "product_name", "code", "origin", "origin_doctype", "origin_name",
-    "internal_code", "unit", "base_unit", "unit_price", "price_set", "default_cost", "cost_set", "default_location", "min_stock",
+    "internal_code", "unit", "base_unit", "unit_price", "price_set", "default_cost", "cost_set", "min_stock",
     "vat_applicable", "track_serial", "is_active", "category", "attribute"], as_dict=True) or {{}}
 rows = frappe.get_all("ERP Stock Count Entry", filters={{"count": {params['count']!r}, "voided": 0}}, fields=["product", "qty"], limit_page_length=20)
 item = frappe.db.get_value("ERP Stock Count Item", {{"count": {params['count']!r}, "product": p.get("name")}}, "row_origin") if p else None
@@ -157,7 +157,7 @@ print(json.dumps({{"product": p, "entries": [dict(r, qty=float(r.qty)) for r in 
         {"case": "dialog fields saved on the product", "saved": p,
          "ok": p.get("internal_code") == params["internal"] and p.get("unit") == "ชิ้น" and p.get("base_unit") == "ชิ้น"
          and float(p.get("unit_price") or 0) == 120 and p.get("price_set") == 1 and float(p.get("default_cost") or 0) == 80
-         and p.get("cost_set") == 1 and p.get("default_location") == "A-01" and float(p.get("min_stock") or 0) == 2
+         and p.get("cost_set") == 1 and float(p.get("min_stock") or 0) == 2
          and p.get("vat_applicable") == 1 and p.get("is_active") == 1 and not p.get("track_serial")
          and p.get("category") == params["category"] and p.get("attribute") == "แดง"},
         {"case": "entry saved on the new row", "saved": got,

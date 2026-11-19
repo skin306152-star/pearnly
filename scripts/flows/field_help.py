@@ -14,7 +14,7 @@ TITLE = "字段说明：标题旁的说明图标，悬停 / 点按显示，例�
 # 每个产品打开哪个弹窗、哪几格的说明要在图标里、哪几格是登记的例外
 CASES = {
     "erp": [{"name": "新建物料", "open": "const b=[...document.querySelectorAll('.page-head .primary-action')].find(e=>e.offsetParent); b&&b.click();",
-             "icons": ["code", "base_unit", "default_location"], "inline": []}],
+             "icons": ["code", "base_unit"], "inline": []}],
     "cowork": [{"name": "新建定时任务", "route": "pearnly-intake/folders",
                 "open": "const b=[...document.querySelectorAll('.page-head .primary-action')].find(e=>e.offsetParent); b&&b.click();",
                 "icons": ["folder"], "inline": ["year", "account_set_key", "d_account"]},

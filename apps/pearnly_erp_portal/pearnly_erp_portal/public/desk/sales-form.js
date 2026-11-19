@@ -25,11 +25,13 @@
 			await form.set_values(Object.fromEntries(["subtotal", "discount_total", "vat_amount", "grand_total"]
 				.map(key => [key, result[key]])));
 		}, 400);
+		// 仓库按行（11-19）：第一行用建议仓（本人上次 → 唯一仓 → 空 = 必须选），新行跟上一行；只有一个仓的公司明细不出仓库栏
+		const place = await p.place.defaults("sales", {company: doc.company});
+		if (!still_current()) return () => {state.disposed = true;};
+		state.single_warehouse = place.single;
+		state.default_warehouse = editable ? place.warehouse : "";
 		state.form = p.layout(page.main, u.fields(state, changes));
 		const form = state.form;
-		// 单头「仓库 + 库位」：改了它，还跟着它的明细行一起换（`p.place`）
-		state.place = p.place.track(form, () => state.lines.map(line => ({get: key => line.form.get_value(key),
-			set: values => line.form.set_values(values)})), {live: false});
 		state.party_choice = p.bind_entry_choice(form, {kind: "customer", context: "sales", reference: "customer", title: "buyer_name", editable,
 			company: () => doc.company || frappe.boot.pearnly_company,
 			on_select: row => form.set_values({party_type: row.party_type, address: row.address}),
@@ -84,7 +86,7 @@
 			state.lines.push(line);
 			// 出不出库：带来的行照它自己的类型（识别预选、已存的单），新行默认出库（11-06 按行选物料与库存）
 			await line.form.set_values({qty: 1, unit_price: 0, discount: 0, vat_applicable: 1,
-				warehouse: form.get_value("warehouse") || "", location: form.get_value("location") || "", ...values,
+				...values, warehouse: values.warehouse || p.place.next(state.lines.at(-2)?.form.get_value("warehouse"), state.default_warehouse),
 				stock_out: (values.item_type || "goods") === "goods" ? 1 : 0});
 			line.form.sections.filter(section => section.df.collapsed).forEach(section => section.collapse(true));
 			await line.choice.show();
@@ -101,9 +103,6 @@
 			for (const row of values) await state.add_line(row, false);
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
-		// 单头仓：单上有就用；新单按 `warehouses.prefill` 预填（本人上次 → 唯一仓 → 空 = 必须选）
-		const place = p.place.of(doc);
-		if (editable && !place.warehouse) place.warehouse = await p.place.prefill("sales", {company: doc.company});
 		if (!still_current() || state.disposed) return () => {state.disposed = true; cleanup_entry(); layout.destroy();};
 		// 「已付款」不是单据上存的字段：新单默认已付（现金、今天）；存过的单按收款状态（收清才算，部分收款保存时照原实收）。
 		// 11-15 真机：取消已付款提交后，详情仍照新单默认画成已付、收款方式空着的下拉显示成第一项「现金」；未付草稿再打开保存会被当成已付
@@ -111,9 +110,8 @@
 		await form.set_values({system_no: defaults.system_no, doc_kind: "receipt", doc_date: frappe.datetime.get_today(),
 			party_type: "person", has_vat: 1, price_includes_vat: 0, vat_rate: defaults.default_vat_rate || 7,
 			...(doc.name ? {} : {payment_method: "cash", payment_date: frappe.datetime.get_today()}), header_discount: 0,
-			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), is_paid: paid, ...place,
+			source: "web", ...Object.fromEntries(Object.entries(doc).filter(([key]) => key !== "lines")), is_paid: paid,
 			stock_posted_at: p.datetime_text(doc.stock_posted_at)});
-		state.place.sync();  // 单头填好了，之后人改单头才带着行走
 		await state.party_choice.show();
 		p.trade.require_blank(form, doc); // LINE 卡「编辑」打开：读不懂的数空着、必须填（主会话 11-19）
 		await state.set_lines(doc.lines?.length ? doc.lines : [{}]);
@@ -175,10 +173,9 @@
 				const values = state.values(); if (!values) return;
 				values.lines = u.clean_lines(values.lines);
 				// 按台管理的商品：出库的销售单（收据）逐行选在库的台（`p.serials`；取消就不提交）
-				// 选台只出这一行仓（库位）在库的台（G17）；行上没写仓的按单头仓
+				// 选台只出这一行的仓在库的台（G17）
 				if ((values.doc_kind || doc.doc_kind) === "receipt" && !(await p.serials.collect(
-					values.lines.filter(row => (row.item_type || "goods") === "goods"),
-					{mode: "pick", filters: values.warehouse ? {warehouse: values.warehouse, location: values.location || ""} : {}}))) return;
+					values.lines.filter(row => (row.item_type || "goods") === "goods"), {mode: "pick"}))) return;
 				if (state.ocr_hash) values.image_sha256 = state.ocr_hash;
 				// LINE 那张源文件由服务端按卡片补上，这里只交用户另加的附件。
 				values.attachments = state.attachments.filter(row => !row.intake);
@@ -224,13 +221,12 @@
 				}
 				finally {waiting.done();}
 			});
-			// 批量编辑（11-06 按行选物料与库存）：单头仓库、每行出库与仓位，原生 Dialog + Table
-			state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupOut"), warehouse: form.get_value("warehouse"),
-				set_warehouse: value => form.set_value("warehouse", value),
+			// 批量编辑（11-06 按行选物料与库存）：每行出库与仓库，原生 Dialog + Table
+			state.bulk_edit = () => p.trade.bulk_lines({stock_label: __("trade.groupOut"), single: state.single_warehouse,
 				lines: state.lines.filter(line => line.form.get_value("description") || line.form.get_value("product")).map(line => ({
 					label: line.form.get_value("description") || "", stock: line.form.get_value("stock_out"),
-					location: line.form.get_value("location"),
-					set: values => line.form.set_values({stock_out: values.stock, location: values.location})}))});
+					warehouse: line.form.get_value("warehouse"),
+					set: values => line.form.set_values({stock_out: values.stock, warehouse: values.warehouse})}))});
 			state.merge = async () => {
 				const rows = u.clean_lines(state.values(true).lines); if (rows.length < 2 && !state.split_lines) return;
 				if (state.split_lines) {await state.set_lines(state.split_lines); state.split_lines = null;}
@@ -238,7 +234,7 @@
 					state.split_lines = structuredClone(rows);
 					const first = rows[0], total = rows.reduce((sum, row) => sum + Math.max(0, Number(row.qty) * Number(row.unit_price) - Number(row.discount || 0)), 0);
 					await state.set_lines([{description: first.description, qty: 1, unit_price: Number(total.toFixed(2)),
-						discount: 0, vat_applicable: first.vat_applicable, warehouse: first.warehouse, location: first.location}]);
+						discount: 0, vat_applicable: first.vat_applicable, warehouse: first.warehouse}]);
 				}
 				changes();
 			};

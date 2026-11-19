@@ -59,37 +59,31 @@
 		// 明细：**能录入的时候不用表格** —— 一条一段的官方控件（用户 2026-09-23："出库和入库
 		// 界面添加物料那个位置不要用表格，拆出来"），见 `p.trade.lines_editor`；已提交 / 已作废
 		// 的单据只是看，仍旧用只读的那张表（那是"看"，不是"加物料"）。
-		// 单头两栏成行（11-01，原来六格竖成一长条）：单号 | 日期；仓库 | 库位；调拨是左栏调出、右栏调入。
-		// 明细、用途 / 备注各自一节。
-		const entry_fields = ({ doc = {}, doc_no, editable, data }) => [
+		// 单头两栏成行（11-01，原来六格竖成一长条）：单号 | 日期；调拨再一行左栏调出仓、右栏调入仓。
+		// 明细、用途 / 备注各自一节。仓库按行（11-19，同 Express 原生）：入库 / 出库 / 物料调整的仓在明细每一行，单头不放。
+		// `defaults`：建议仓与「只有一个仓」（`p.place.defaults`）。
+		const entry_fields = ({ doc = {}, doc_no, editable, data, defaults = {} }) => [
 			{ fieldtype: "Data", fieldname: "doc_no", label: t("trade.docNo"), read_only: 1,
 				default: doc_no, description: doc.doc_no ? "" : t("stock.field.docNoAuto") },
 			{ fieldtype: "Column Break" },
 			{ fieldtype: "Date", fieldname: "posting_date", label: t("trade.date"),
 				default: doc.posting_date || frappe.datetime.get_today(), reqd: 1 },
-			{ fieldtype: "Section Break" },
-			// 仓库用**官方原生**的 Link 到 `ERP Warehouse`（用户 2026-09-23："我说用官方原生，
-			// 这是第四遍了"）：下拉里只列**当前公司**的仓库；没找到时 Link 自己会带
-			// 「Create a new ERP Warehouse」（框架原生行为）。服务端只认已有的仓库。
-			// 单头「仓库 + 库位」（多仓闭环 P1，采购 / 销售 / 期初 / 盘点同一套 `p.place`）：表头一改，每一行里那格仓库镜像跟着改，
-			// 库位还跟着表头的行一起换。
-			...p.place.fields({ labels: transfer ? { warehouse: t("trade.fromWarehouse"), location: t("trade.fromLocation") }
-				: { warehouse: t("trade.warehouse"), location: t("trade.location") }, editable, reqd: true,
-				warehouse: doc.warehouse, location: doc.location, current: () => head?.fields_dict?.warehouse?.get_value(),
-				onchange: key => place?.changed(key) }).flatMap((field, index) => (index && !transfer ? [{ fieldtype: "Column Break" }, field] : [field])),
-			// 调拨：调入仓库 + 调入库位（同一家公司的另一个仓；服务端核同公司、不同仓、调入库位在调入仓的清单里）
-			...(transfer ? [{ fieldtype: "Column Break" }, ...p.place.fields({ labels: { warehouse: t("trade.toWarehouse"), location: t("trade.toLocation") }, editable,
-				reqd: true, warehouse: doc.to_warehouse, location: doc.to_location,
-				keys: { warehouse: "to_warehouse", location: "to_location" },
-				current: () => head?.fields_dict?.to_warehouse?.get_value(), onchange: key => to_place?.changed(key) })] : []),
+			// 调拨：单头调出仓 | 调入仓（同 Express 原生 RL；同一家公司的另一个仓，服务端核同公司、不同仓）。仓库用**官方原生**的
+			// Link 到 `ERP Warehouse`（用户 2026-09-23："我说用官方原生，这是第四遍了"）：下拉里只列**当前公司**的仓库。
+			...(transfer ? [{ fieldtype: "Section Break" },
+				p.place.field({ label: t("trade.fromWarehouse"), editable, reqd: true, warehouse: doc.warehouse,
+					onchange: () => place?.changed() }),
+				{ fieldtype: "Column Break" },
+				p.place.field({ label: t("trade.toWarehouse"), editable, reqd: true, warehouse: doc.to_warehouse,
+					fieldname: "to_warehouse" })] : []),
 			{ fieldtype: "Section Break" },
 			...(editable
 				// 明细的宿主（HTML 格）与"添加明细"那颗官方按钮：真正的控件由 `mount_lines` 建。
 				? [{ fieldtype: "HTML", fieldname: "lines" },
 					{ fieldtype: "Button", fieldname: "add_line", label: t("trade.action.addLine"),
 						click: () => lines?.add() }]
-				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced, to_location: transfer,
-					line_warehouses: Boolean(doc.line_warehouses),
+				: [p.trade.lines(t, { stock: true, cost: true, readonly: true, locked_price: !priced,
+					line_warehouses: !transfer && !defaults.single,
 					data: doc.lines || [] })]),
 			// 用途（录制问题 #14）：入库是退库，出库是内部领用 / 报损；可以不填。调拨没有用途。
 			// 只读时官方 Select 显示的是原值（other / internal_use），已提交的单改用文字框显示译文
@@ -104,36 +98,38 @@
 			// 单据号永远是只读的（上面那次 map 会把它放开）。
 			.map(field => (field.fieldname === "doc_no" ? { ...field, read_only: 1 } : field));
 
-		// 行里的「仓库」= 表头那一个（镜像，只读）；表头的仓库 / 库位一变，行跟着变（`p.place.track` → `lines.follow`）。
-		// 新单的仓按服务端 `warehouses.prefill` 预填（本人上次 → 卖货仓（只给入库）→ 唯一仓 → 空 = 必须选），选物料不再改它。
-		let place = null, to_place = null;
+		// 按行选仓：第一行用建议仓（服务端 `warehouses.prefill`：本人上次 → 卖货仓（只给入库）→ 唯一仓 → 空 = 必须选），新行跟上一行；
+		// 只有一个仓的公司不出仓库栏。调拨的行就是单头调出仓，单头一变行跟着变（`p.place.track`）。
+		let place = null;
 		// 把逐条明细挂到某一处（弹窗 / 整页），并把实例记在闭包上（按钮、取值、搬家都要用）。
-		function mount_lines(container, rows, target) {
+		function mount_lines(container, rows, target, defaults = {}) {
 			head = target;
 			const value = key => head?.fields_dict?.[key]?.get_value() || "";
 			lines = p.trade.lines_editor(t, { cost: true, locked_price: !priced, adjust, data: rows || [],
-				warehouse: () => value("warehouse"), location: () => value("location"),
-				...(transfer ? { to_warehouse: () => value("to_warehouse"), to_location: () => value("to_location") } : {}) });
-			place = p.place.track(head, () => lines.rows());
-			to_place = transfer ? p.place.track(head, () => lines.to_rows(),
-				{ keys: { warehouse: "to_warehouse", location: "to_location" } }) : null;
+				single: Boolean(defaults.single),
+				warehouse: () => (transfer ? value("warehouse") : (defaults.warehouse || "")),
+				...(transfer ? { to_warehouse: () => value("to_warehouse") } : {}) });
+			place = transfer ? p.place.track(head, () => lines.rows()) : null;
+			// 调入仓那格同样不用 default（见 `p.place.put`）：草稿 / 全屏带过来的值在这里写进去
+			if (transfer) p.place.put(head, "to_warehouse", head?.fields_dict?.to_warehouse?.df?.pearnly_place);
 			container.empty().append(lines.host);
 			const initial = (rows && rows.length) ? rows : [{ qty: 1 }];
 			initial.forEach(row => lines.add(row));
 			return lines;
 		}
 
-		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库、调拨选这个仓（这一行库位）在库的台，入库「退货」收回已售的台，
+		// 按台管理的商品提交前逐行登记 / 选台（`p.serials`）：出库、调拨选这一行的仓在库的台，入库「退货」收回已售的台，
 		// 其余入库登记新台
 		// 物料调整：增加的行登记新台、减少的行选在库的台（主会话 11-06 审定 #3）；盘点生成的调整单不登记 / 不选台（服务端照盘点口径）
 		const units = (lines_, values, way, counted) => counted ? lines_ : p.serials.collect(lines_, way === "adjust"
-			? { mode: line => (Number(line.qty) < 0 ? "pick" : "register"), filters: { warehouse: values.warehouse, location: values.location || "" } }
+			? { mode: line => (Number(line.qty) < 0 ? "pick" : "register") }
 			: way === "out" || way === "transfer"
-			? { mode: "pick", filters: { warehouse: values.warehouse, location: values.location || "" } }
+			? { mode: "pick", filters: transfer ? { warehouse: values.warehouse } : {} }
 			: { mode: values.purpose === "return" ? "return" : "register" });
+		// 单头只交调拨的调出 / 调入仓；其余的仓在行上（单头存的默认仓由服务端取第一行的仓）
 		const clean = values => ({ posting_date: values.posting_date,
-			warehouse: values.warehouse, location: values.location || "", purpose: values.purpose || "", reason: values.reason,
-			...(transfer ? { to_warehouse: values.to_warehouse, to_location: values.to_location || "" } : {}),
+			purpose: values.purpose || "", reason: values.reason,
+			...(transfer ? { warehouse: values.warehouse, to_warehouse: values.to_warehouse } : {}),
 			lines: p.trade.clean(values.lines) });
 		const PURPOSES = { in: ["return", "other"], out: ["internal_use", "damage", "sample", "production", "other"] };
 		// 这页的 `t` 只加载 `trade.` 前缀；用途的词条走原生 `__()`（键名词条同样认得）。
@@ -289,12 +285,13 @@
 			// 草稿（含老数据留下的、盘点生成的物料调整单）可以提交；已提交/已作废只能看。盘点生成的调整单盘点员也能提交（服务端同判）
 			const can_write = canWrite || Boolean(doc.stock_count && frappe.model.can_write("ERP Stock Count"));
 			const editable = can_write && (!name || doc.status === "draft");
-			if (editable && !doc.warehouse) doc.warehouse = await p.place.prefill(prefill_kind);
+			const defaults = await p.place.defaults(prefill_kind);
+			if (editable && transfer && !doc.warehouse) doc.warehouse = defaults.warehouse;
 			const posting_date = doc.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default(doc, posting_date);
 			let d;
 			const can_attach = canWrite && doc.status !== "void";
-			const fields = [...entry_fields({ doc, doc_no, editable }), ...attachment_fields(can_attach)];
+			const fields = [...entry_fields({ doc, doc_no, editable, defaults }), ...attachment_fields(can_attach)];
 			// 写进 Express 的情况（状态、单号、原因、再写一次）：采购 / 销售同一个弹窗
 			// 已写进 Express 后又作废的：同一个弹窗里看 Express 作废原单的结果（转人工的能重试）
 			if ((doc.status === "submitted" || doc.ledger_void_state) && doc.ledger_state) fields.push({
@@ -343,7 +340,7 @@
 			const files = attachments_area(d, { name, status: doc.status || "draft", can_attach });
 			await files.load();
 			// 明细：录入时是**逐条摊开**的（见 `mount_lines`）。
-			if (editable) mount_lines(d.fields_dict.lines.$wrapper, doc.lines || null, d);
+			if (editable) mount_lines(d.fields_dict.lines.$wrapper, doc.lines || null, d, defaults);
 			// 只有新建（或还没提交的草稿）才摊成整页；已提交的单据点开就是看。
 			if (editable) {
 				// 搬到整页去改：明细也一起带走（这里**不校验**，过去了再改）。
@@ -362,15 +359,16 @@
 				route: url(), trail: [{ label: title_new(), route: "" }] });
 			const values = carry || {};
 			carry = null;
-			if (!values.warehouse) values.warehouse = await p.place.prefill(prefill_kind);
+			const defaults = await p.place.defaults(prefill_kind);
+			if (transfer && !values.warehouse) values.warehouse = defaults.warehouse;
 			if (!current()) return;
 			// 带过来的明细行（弹窗里已经填好的那些）原样铺成逐条的小表单。
 			const data = (values.lines?.length ? values.lines : null) || [{ qty: 1 }];
 			const posting_date = values.posting_date || frappe.datetime.get_today();
 			const doc_no = await doc_no_default({}, posting_date);
 			if (!current()) return;
-			form = p.layout(page.main, [...entry_fields({ doc: values, doc_no, editable: true, data }), ...attachment_fields(true)]);
-			mount_lines(form.fields_dict.lines.$wrapper, data, form);
+			form = p.layout(page.main, [...entry_fields({ doc: values, doc_no, editable: true, data, defaults }), ...attachment_fields(true)]);
+			mount_lines(form.fields_dict.lines.$wrapper, data, form, defaults);
 			page_files = attachments_area(form, { can_attach: true });
 			page_files.restore(values.attachments);
 			await page_files.load();

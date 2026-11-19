@@ -274,22 +274,23 @@
           return (places || []).map((row) => '<option value="' + esc(row.value) + '" label="' + esc(row.label || row.value) + '">').join('');
         }
 
-        // 记在哪：默认账面那一行的仓 / 库位；账上本来没有的新登记商品沿用上一笔（同电脑，不凭空多出位置差异）
+        // 记在哪：默认账面那一行的仓（账面只到仓库，仓位是货在哪找到的、员工填）；账上本来没有的新登记商品沿用上一笔（同电脑）
         function defaultPlace(item) {
           const stores = (last?.warehouses || []).map((row) => row.value);
           if (last?.fresh && lastPlace && stores.includes(lastPlace.warehouse)) return lastPlace;
-          return { warehouse: item.warehouse || last?.warehouse || '', location: item.location || '' };
+          return { warehouse: item.warehouse || last?.warehouse || '', location: '' };
         }
 
         function entryForm(item, rows) {
           const place = defaultPlace(item);
-          // 行是「商品 × 仓库 × 库位」：分几个货架就有几行，员工挑一行来数（库位跟着行走）。
+          // 行是「商品 × 仓库」：这件货在几个仓有账就有几行，员工挑一行来数。
+          const storeName = (row) => (last?.warehouses || []).find((store) => store.value === row.warehouse)?.label || row.warehouse_name || row.warehouse || '';
           const picker = rows.length > 1
             ? '<div class="row" data-k="book"><div style="flex:1"><label>'
-              + esc(t('stock.count.location')) + '</label><select id="place">'
+              + esc(t('stock.workbench.bookPosition')) + '</label><select id="place">'
               + rows.map((row, index) => '<option value="' + index + '"'
                 + (row.name === item.name ? ' selected' : '') + '>'
-                + esc((row.location || '—') + ' · ' + number(row.book_qty)) + '</option>').join('')
+                + esc(storeName(row) + ' · ' + number(row.book_qty)) + '</option>').join('')
               + '</select></div></div>'
             : '';
           // 认出的物料，先后照岳父 11-01 那张单：条码、名称、分类、特性/颜色，再接编码（标签按显示的是内部编码还是系统编码，
@@ -303,9 +304,8 @@
             + info('category', t('product.field.category'), item.category)
             + info('attribute', t('product.field.attribute'), item.attribute)
             + info('code', t(item.code_internal ? 'product.col.internalCode' : 'stock.col.code'), item.code)
-            // 账面位置（分几个货架时让员工挑一行，同 Desk「账面位置」）、单位，再接实际仓库 / 库位 / 数量（用户 11-01 定的先后）
-            + (picker || info('book', t('stock.workbench.bookPosition'),
-              (item.warehouse_name || '') + ' / ' + (item.location || '—')))
+            // 账面位置（在几个仓有账时让员工挑一行，同 Desk「账面位置」）、单位，再接实际仓库 / 仓位 / 数量（用户 11-01 定的先后）
+            + (picker || info('book', t('stock.workbench.bookPosition'), storeName(item)))
             + info('unit', t('stock.col.unit'), item.unit)
             + '<div class="row"><div style="flex:1"><label>' + esc(t('stock.workbench.actualWarehouse')) + '</label>'
             + '<select id="store">' + (last?.warehouses || []).map((row) => '<option value="' + esc(row.value) + '"'
@@ -378,7 +378,7 @@
           ['code', 'codeValue'], ['product_name', 'name'], ['category', 'category', '', 'np_categories'], ['attribute', 'attribute'],
           ['internal_code', 'internalCode'],
           ['unit', 'unit'], ['base_unit', 'baseUnit'], ['unit_price', 'price', 'decimal'], ['default_cost', 'cost', 'decimal'],
-          ['default_location', 'defaultLocation'], ['min_stock', 'minStock', 'decimal'],
+          ['min_stock', 'minStock', 'decimal'],
         ];
         function offerNew(code) {
           const card = document.getElementById('code')?.closest('.card');

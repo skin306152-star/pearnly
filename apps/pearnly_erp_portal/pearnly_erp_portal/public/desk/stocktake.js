@@ -88,8 +88,7 @@
 			search = page.add_field({ fieldtype: "Data", fieldname: "search", label: t("stock.field.search"),
 				change: () => render_data() });
 			filter = page.add_field({ fieldtype: "Select", fieldname: "only", label: t("stock.count.filter"),
-				options: ["all", "uncounted", "differences", "locations"].map(value => ({ value,
-					label: value === "locations" ? w("locationDiff") : t(`stock.count.filter.${value}`) })),
+				options: ["all", "uncounted", "differences"].map(value => ({ value, label: t(`stock.count.filter.${value}`) })),
 				change: () => { item_filter = filter.get_value(); render_data(); } });
 			scope_warehouse = page.add_field({ fieldtype: "Select", fieldname: "scope_warehouse",
 				label: t("stock.col.warehouse"), change: () => choose_scope() });
@@ -229,10 +228,8 @@
 						{ value: "differences", label: t("stock.count.rowDifference") }] },
 				...(warehouses.length > 1 ? [{ fieldtype: "Select", fieldname: "warehouse", label: t("stock.col.warehouse"),
 					options: [{ value: "", label: t("stock.count.filter.all") }, ...warehouses.map(([value, label]) => ({ value, label }))] }] : []),
-				...(values("location").length ? [{ fieldtype: "Select", fieldname: "location", label: t("stock.count.location"),
-					options: [{ value: "", label: t("stock.count.filter.all") }, ...values("location").map(value => ({ value, label: value }))] }] : []),
 			];
-			const chosen = d => Object.fromEntries(["mode", "only", "warehouse", "location"].map(key => [key, d.get_value(key) || ""]));
+			const chosen = d => Object.fromEntries(["mode", "only", "warehouse"].map(key => [key, d.get_value(key) || ""]));
 			const d = p.dialog(__("Print"), fields, __("Print"), async values => {
 				p.trade.print("ERP Stock Count", name, "Pearnly Stock Count", chosen(d));
 				d.hide();
@@ -349,10 +346,9 @@
 			await render_areas();
 			if (!table_host[0].isConnected) return;
 			const q = (search?.get_value() || "").trim().toLowerCase();
-			const rows = state.items.filter(r => in_scope(r) && (!q || [r.product_name,r.code,r.barcode,r.location,r.category,r.attribute,r.actual_positions].join(" ").toLowerCase().includes(q))
+			const rows = state.items.filter(r => in_scope(r) && (!q || [r.product_name,r.code,r.barcode,r.category,r.attribute,r.actual_positions].join(" ").toLowerCase().includes(q))
 				&& (item_filter !== "uncounted" || !r.counted)
-				&& (item_filter !== "differences" || r.counted && (Number(r.difference) || r.location_difference))
-				&& (item_filter !== "locations" || r.location_difference));
+				&& (item_filter !== "differences" || r.counted && (Number(r.difference) || r.location_difference)));
 			table?.destroy(); table = null;
 			if (!rows.length) {
 				const empty = $(frappe.views.ListView.prototype.get_no_result_message.call({ doctype: "ERP Stock Count Item",
@@ -389,13 +385,13 @@
 				.filter(([column]) => column.width != null);
 			const pick = cells => shown.map(([_column, index]) => cells[index]);
 			table = await p.table(table_host, shown.map(([c])=>({ ...c, format: c.format || p.escape })), rows.map(r=>{
-				// 有差异的三处：数量差异、差异金额、以及仓位对不上时的实际仓位 —— 标红；
+				// 有差异的三处：数量差异、差异金额、以及盘到别的仓时的实际位置 —— 标红（账面只到仓库，仓位只记录不比，11-19）；
 				// 状态列在这一行有问题时一起标红（"未盘点"不算差异，保持原色）。
 				const quantity_diff = Boolean(r.counted) && Number(r.difference) !== 0;
 				const value_diff = quantity_diff && Boolean(Number(r.difference_value));
 				const moved = Boolean(r.location_difference);
 				const status = r.stock_changed ? w("needsRecount") : !r.counted ? t("stock.count.rowUncounted")
-					: moved ? w("locationDiff") : quantity_diff ? t("stock.count.rowDifference") : t("stock.count.rowMatch");
+					: moved || quantity_diff ? t("stock.count.rowDifference") : t("stock.count.rowMatch");
 				const flagged = quantity_diff || moved || r.stock_changed;
 				// 红色要写在链接自己身上：包在外面会被链接的颜色盖掉。
 				const red = narrow && flagged ? ' style="color: var(--red-600)"' : "";
@@ -404,7 +400,7 @@
 				const name = `<a href="#" data-count-row="${p.escape(r.name)}"${red}>${p.escape(r.product_name)}</a>${spec ? ` <span class="text-muted">${p.escape(spec)}</span>` : ""}`;
 				return pick([
 					name, r.code || "", r.barcode || "",
-					`${p.escape(r.warehouse_name)} / ${p.escape(r.location || t("stock.count.blank"))}`,
+					p.escape(r.warehouse_name),
 					moved ? danger(p.escape(r.actual_positions || "—")) : p.escape(r.actual_positions || "—"),
 					r.unit || "",
 					qty(r.book_qty), r.counted ? qty(r.counted_qty) : "—",
@@ -417,7 +413,7 @@
 		async function records(row) {
 			const entries = state.entries.filter(e=>e.item===row.name);
 			const d = new frappe.ui.Dialog({ title: t("stock.count.entriesTitle", row.product_name), size: "extra-large", fields: [
-				{ fieldtype: "HTML", fieldname: "hint", options: `<p class="text-muted">${p.escape(w("bookPosition"))}: ${p.escape(row.warehouse_name)} / ${p.escape(row.location || "—")} · ${qty(row.book_qty)} ${p.escape(row.unit || "")}</p>` },
+				{ fieldtype: "HTML", fieldname: "hint", options: `<p class="text-muted">${p.escape(w("bookPosition"))}: ${p.escape(row.warehouse_name)} · ${qty(row.book_qty)} ${p.escape(row.unit || "")}</p>` },
 				{ fieldtype: "HTML", fieldname: "entries" },
 				// 表格下面单独一片看照片：结束盘点之后也在这里看（用户 2026-09-22 口径：
 				// "除了导出能看图片，盘点结束的有没有什么办法查看图片"）。
@@ -437,17 +433,16 @@
 			d.on_page_show = async () => {
 				if (detail) return;
 				detail = await p.table(d.fields_dict.entries.$wrapper, [
-					// 实盘仓库 / 仓位与账面不同的那几格标红（与工作台、导出表同一条规矩）。
+					// 实盘仓库与账面不同的那一格标红（与工作台、导出表同一条规矩；仓位只是记录）。
 					{ name: w("actualWarehouse"), format: value => value },
 					{ name: w("actualLocation"), format: value => value },
 					t("stock.count.qty"), t("stock.count.note"),
 					t("stock.count.countedBy"), t("stock.count.countedAt"),
 					{ name: t("stock.col.status"), format: value=>value },
 				], entries.map(e=>{
-					// 哪一格对不上就标哪一格：仓库不同标仓库，仓位不同标仓位（和导出明细同一条规矩）。
-					const position = (different, text) => different ? danger(text) : text;
-					return [position(e.warehouse_name !== row.warehouse_name, p.escape(e.warehouse_name)),
-						position((e.location || "") !== (row.location || ""), p.escape(e.location || "—")),
+					// 仓库不同标仓库（和导出明细同一条规矩）
+					return [e.warehouse_name !== row.warehouse_name ? danger(p.escape(e.warehouse_name)) : p.escape(e.warehouse_name),
+						p.escape(e.location || "—"),
 					// 时间一律走 `p.datetime_text`（库里带微秒，界面上只看到分钟）：
 					// 产品里所有时间显示都用这一个入口，别再一处一处报。
 					qty(e.qty), e.note || "", e.counted_by_name, p.datetime_text(e.counted_at),

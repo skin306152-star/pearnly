@@ -129,22 +129,19 @@
 					{options: status_options(),
 						default: Number(row ? row.is_active : 1) ? t("company.status.active")
 							: t("company.status.inactive")}),
-				// 库位清单（第 5 项）：建了清单，这个仓的库位只能从清单选（服务端 `inventory.locations` / `positions.check`）；
-				// 没建清单照旧手输。有库存的库位不能停用，用过的不能删
+				// 仓位清单（第 5 项；11-19 起只给盘点选「实际仓位」）：建了清单，盘点记的仓位只能从清单选（服务端 `inventory.locations` /
+				// `positions.check`）；没建清单照旧手输。盘点里记过的不能删（停用）
 				...(is_new ? [] : [
 					{fieldtype: "Section Break"},
 					{fieldtype: "Table", fieldname: "locations", label: __("stock.location.list"), in_place_edit: true, data: [],
 						fields: [
 							// 仓位编码（11-07）：同一仓库里不能重、可空（服务端核）；选择框显示「编码 · 名称 · 说明」，按编码或名称都搜得到
 							{fieldtype: "Data", fieldname: "location_code", label: __("stock.location.code"), length: 30, in_list_view: 1, columns: 2},
-							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 2},
-							// 库位说明（用户 10-29），盘点打印的库位格也带上
-							{fieldtype: "Data", fieldname: "description", label: __("stock.location.description"), in_list_view: 1, columns: 2},
+							{fieldtype: "Data", fieldname: "location_name", label: __("stock.count.location"), reqd: 1, in_list_view: 1, columns: 3},
+							// 仓位说明（用户 10-29），盘点打印的仓位格也带上
+							{fieldtype: "Data", fieldname: "description", label: __("stock.location.description"), in_list_view: 1, columns: 3},
 							{fieldtype: "Check", fieldname: "is_active", label: __("Active"), default: 1, in_list_view: 1, columns: 2},
-							{fieldtype: "Float", fieldname: "qty", label: __("Qty"), read_only: 1, in_list_view: 1, columns: 2},
 						]},
-					{fieldtype: "Button", fieldname: "from_stock", label: __("stock.location.fromStock"),
-						click: () => add_in_stock()},
 				]),
 			], is_new ? t("company.newWarehouse") : __("Save"), async (values, dialog) => {
 				const saved = await p.call(stock_api + (is_new ? "api_create_warehouse" : "api_update_warehouse"),
@@ -166,22 +163,13 @@
 				await inline?.on_saved?.({...row, ...values, ...saved});
 				await list?.reload();
 			});
-			let locations_loaded = false, in_stock = [];
+			let locations_loaded = false;
 			const set_locations = data => {
 				const table = dialog.fields_dict.locations;
 				table.df.data = data.rows.map(item => ({...item, is_active: Number(item.is_active)}));
 				table.grid.refresh();
-				in_stock = data.in_stock;
-				dialog.set_df_property("from_stock", "hidden", !in_stock.length);
 				locations_loaded = true;
 			};
-			function add_in_stock() {
-				const table = dialog.fields_dict.locations;
-				const have = new Set((table.grid.get_data() || []).map(item => item.location_name));
-				for (const item of in_stock) if (!have.has(item.location_name)) table.df.data.push({...item, is_active: 1});
-				table.grid.refresh();
-				dialog.set_df_property("from_stock", "hidden", 1);
-			}
 			if (!is_new && can_manage()) {
 				void p.call(stock_api.replace("api.", "locations.") + "api_get_locations", {warehouse: row.name}).then(set_locations);
 			}

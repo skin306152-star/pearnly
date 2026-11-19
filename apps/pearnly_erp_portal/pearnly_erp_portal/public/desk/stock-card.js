@@ -13,7 +13,7 @@
  *
  * 两条路由：
  *   /desk/pearnly-stock-card                      报表列表（点行 / 选中"查看流水"）
- *   /desk/pearnly-stock-card/<商品>/<仓库>/<仓位>  二级页面：日期区间 + 期初/期末 + 明细表
+ *   /desk/pearnly-stock-card/<商品>/<仓库>         二级页面：日期区间 + 期初/期末 + 明细表（11-19 以前的链接多一段仓位，照常打开、不看它）
  * 库存页点行打开的是同一个明细，但走**弹窗**（`p.stockLedger`）。
  */
 (() => {
@@ -23,7 +23,7 @@
 	const url = (...parts) => p.subroute(root, ...parts);
 
 	const fetch_card = (row, dates = {}) => p.call(api + "api_stock_card", {
-		product: row.product, warehouse: row.warehouse, location: row.location || "",
+		product: row.product, warehouse: row.warehouse,
 		date_from: dates.date_from || "1900-01-01",
 		date_to: dates.date_to || frappe.datetime.get_today(),
 	});
@@ -186,7 +186,6 @@
 			// 掉进"当前栏"、被挤成窄窄一条（实测）。
 			...p.field_rows([
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"), read_only: 1, default: row.warehouse_name || row.warehouse },
-				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"), read_only: 1, default: row.location || "" },
 				{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"), read_only: 1, default: p.number(card.opening.qty) },
 				{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"), read_only: 1, default: p.number(card.closing.qty) },
 				{ fieldtype: "HTML", fieldname: "movements" },
@@ -224,13 +223,11 @@
 				return {date_from: fields.date_from.get_value() || undefined,
 					date_to: fields.date_to.get_value() || undefined,
 					warehouse: picked.warehouse || undefined, product: picked.product || undefined,
-					// 仓位只认「等于」（空仓位也是一个位置，服务端按原值比；多仓闭环 P4）
-					location: picked.location === undefined ? undefined : picked.location,
-					conditions: p.filter_conditions(list, ["location"])};
+					conditions: p.filter_conditions(list, [])};
 			};
 			page.add_inner_button(t("trade.export.action"), () => void export_dialog(
 				fields.date_from.get_value(), fields.date_to.get_value()));
-			// 这是报表：每行是一个"商品×仓库×仓位"的收发汇总，没有可删的东西。选中一行时给的是
+			// 这是报表：每行是一个"商品×仓库"的收发汇总，没有可删的东西。选中一行时给的是
 			// 对应的那一步 —— 打开这条汇总背后的明细（**二级页面**，这个视图字段多）。
 			// 沿用这一页自己的 `trade.` 词表（`t` 就是这个命名空间；写 stock.* 会露出键名）。
 			const selection = p.selection_action({
@@ -242,17 +239,16 @@
 			});
 			list = p.list({ page, doctype: "ERP Stock Movement", selectable: true, on_selection: selection,
 				on_open: row => open_ledger(row, query()),
-				// 本页支持的筛选条件（官方的字段下拉里只列这三个）。
+				// 本页支持的筛选条件（官方的字段下拉里只列这两个）。
 				filter_fields: [
 					{ fieldname: "warehouse", label: t("trade.warehouse"), fieldtype: "Link" },
-					{ fieldname: "location", label: t("trade.location"), fieldtype: "Data" },
 					{ fieldname: "product", label: t("trade.product"), fieldtype: "Link" },
 				],
 				// 收发存七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到，
 				// 看下能不能放在一屏显示完整"）。窗口更宽时按下面的比例等比放宽。
 				compact_columns: true,
 				// 列头点一下排序：服务端排序、分页，只算这一页（大租户上万商品×仓库，2026-10-25）。
-				sort_fields: ["product_name", "warehouse_name", "location",
+				sort_fields: ["product_name", "warehouse_name",
 					"opening_qty", "in_qty", "out_qty", "closing_qty"],
 				load: ({ start, page_length, sort_by, sort_order }) => p.call(api + "api_stock_summary_page",
 					{ ...query(), start, limit: page_length, sort_by, sort_order }),
@@ -260,7 +256,6 @@
 					{ fieldname: "product_name", width: 200, min_width: 168, label: t("trade.product"),
 						format: (value, row) => [value, row.spec].filter(Boolean).join(" · ") },
 					{ fieldname: "warehouse_name", width: 132, min_width: 110, label: t("trade.warehouse") },
-					{ fieldname: "location", width: 66, min_width: 54, label: t("trade.location") },
 					{ fieldname: "opening_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.opening"), format: value => p.number(value) },
 					{ fieldname: "in_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.in"), format: value => p.number(value) },
 					{ fieldname: "out_qty", width: 88, min_width: 78, fieldtype: "Float", label: t("trade.out"), format: value => p.number(value) },
@@ -304,18 +299,18 @@
 
 		function open_ledger(row, dates) {
 			range = dates;
-			frappe.set_route(root, row.product, row.warehouse, row.location || "");
+			frappe.set_route(root, row.product, row.warehouse);
 		}
 
 		// `current()`：这次渲染还是最新的一次（`p.routed_page`）；过时的那次取完数不再建页
 		async function open_ledger_page(rest, current) {
-			const [product, warehouse, location = ""] = rest;
+			const [product, warehouse] = rest;  // 旧链接的第三段（仓位）不看
 			const dates = {
 				date_from: range?.date_from || frappe.datetime.month_start(),
 				date_to: range?.date_to || frappe.datetime.get_today(),
 			};
 			range = null;
-			const card = await fetch_card({ product, warehouse, location }, dates);
+			const card = await fetch_card({ product, warehouse }, dates);
 			if (!current()) return;
 			p.breadcrumbs({ label: __("nav.stockCard"), route: url(),
 				trail: [{ label: card.product_name || product, route: "" }] });
@@ -333,15 +328,15 @@
 				}
 				dates.date_from = values.date_from;
 				dates.date_to = values.date_to;
-				const current = await fetch_card({ product, warehouse, location },
+				const current = await fetch_card({ product, warehouse },
 					{ date_from: values.date_from, date_to: values.date_to });
 				if (frappe.get_route()[0] !== root) return;
 				form.set_value("opening", p.number(current.opening.qty));
 				form.set_value("closing", p.number(current.closing.qty));
 				form.fields_dict.movements.$wrapper.empty().append(p.ledger_table(t, current));
 			}
-			// **一排 4 个**字段（用户 2026-09-25："分成一排4组方，视觉对齐"）：7 个字段排成
-			// 两排 4+3，第二排末尾补一栏空的，两排的竖线才对得齐；明细表另起一节占满整宽
+			// **一排 4 个**字段（用户 2026-09-25："分成一排4组方，视觉对齐"）：6 个字段排成
+			// 两排 4+2，第二排末尾补空栏，两排的竖线才对得齐；明细表另起一节占满整宽
 			// （用户 2026-09-22 口径："后面不要留那么多"，字段别占半边、把表挤走）。
 			form = p.layout(page.main, p.field_grid([
 				{ fieldtype: "Date", fieldname: "date_from", label: t("trade.from"),
@@ -352,8 +347,6 @@
 					read_only: 1, default: [card.product_name || product, card.spec].filter(Boolean).join(" · ") },
 				{ fieldtype: "Data", fieldname: "warehouse", label: t("trade.warehouse"),
 					read_only: 1, default: card.warehouse_name || warehouse },
-				{ fieldtype: "Data", fieldname: "location", label: t("trade.location"),
-					read_only: 1, default: location || "—" },
 				{ fieldtype: "Data", fieldname: "opening", label: t("trade.opening"),
 					read_only: 1, default: p.number(card.opening.qty) },
 				{ fieldtype: "Data", fieldname: "closing", label: t("trade.closing"),

@@ -35,7 +35,6 @@ Search name or barcode	搜索名称或条码	ค้นหาชื่อหร�
 Product	物料	สินค้า	商品	product.col.name
 Price	售价	ราคา	価格	product.col.price
 Reference cost	参考成本	ต้นทุนอ้างอิง	参考原価	product.col.cost
-Place	位置	ตำแหน่ง	保管場所	product.col.place
 Average cost	平均成本	ต้นทุนเฉลี่ย	平均原価	product.col.avgCost
 Status	状态	สถานะ	状態	product.col.status
 New product	新建物料	เพิ่มสินค้า	商品を追加	product.action.new
@@ -204,7 +203,6 @@ ERP Stock Count Variance	盘点差异看板	แดชบอร์ดผลต่
 Items	物料	รายการสินค้า	商品	trade.lines
 Product	物料	สินค้า	商品	trade.product
 Warehouse	仓库	คลังสินค้า	倉庫	trade.warehouse
-Location	仓位	ตำแหน่ง	保管場所	trade.location
 Quantity	数量	จำนวน	数量	trade.qty
 Unit Cost	单位成本	ต้นทุนต่อหน่วย	単位原価	trade.cost
 Unit Price	单价	ราคาต่อหน่วย	単価	trade.price
@@ -343,8 +341,6 @@ Original Item and Location	原单物料与仓位	สินค้าและต�
 Refund Amount	退款金额	ยอดคืนเงิน	返金額	trade.refundAmount
 Close Shift	交班	ปิดกะ	シフト終了	trade.closeShift
 Counted Cash	实点现金	เงินสดที่นับได้	実際の現金	trade.countedCash
-Default Location	默认仓位	ตำแหน่งเริ่มต้น	既定の保管場所	product.field.defaultLocation
-Used for new documents only. Each location keeps its own stock.	仅作为新单据的默认值，各仓位库存单独计算。	ใช้เป็นค่าเริ่มต้นในเอกสารใหม่ แต่ละตำแหน่งแยกยอดสต็อก	新しい伝票の初期値です。各保管場所の在庫は個別に管理します。	product.field.locationHint
 Select the original sale line	请选择原单中的物料行	กรุณาเลือกรายการจากบิลขายเดิม	元の販売明細を選択してください
 Select a product for each stock item	请为每条货物明细选择物料	กรุณาเลือกสินค้าสำหรับแต่ละรายการ	各在庫明細の商品を選択してください
 draft	草稿	ฉบับร่าง	下書き
@@ -391,7 +387,6 @@ Review differences	查看差异	ตรวจสอบผลต่าง	差異�
 Product not found. Check the code and try again.	未找到物料，请核对编码后重试。	ไม่พบสินค้า กรุณาตรวจสอบรหัสแล้วลองอีกครั้ง	商品が見つかりません。コードを確認してください。	stock.workbench.lookupFailed
 Saved. Scan the next item.	已保存，请扫描下一项。	บันทึกแล้ว กรุณาสแกนรายการถัดไป	保存しました。次の商品を読み取ってください。	stock.workbench.nextReady
 Lookup failed	查找失败	ค้นหาไม่สำเร็จ	検索できませんでした	stock.workbench.lookupError
-Position differences	仓位差异	ผลต่างตำแหน่ง	棚番の差異	stock.workbench.locationDiff
 Quantity differences	数量差异	ผลต่างจำนวน	数量差異	stock.workbench.quantityDiff
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.	部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。	สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ	棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。	stock.workbench.stockChanged
 Stock changed; recount	库存已变动，需重新盘点	สต็อกเปลี่ยนแปลงแล้ว ต้องตรวจนับใหม่	在庫変動・再棚卸	stock.workbench.needsRecount
@@ -526,7 +521,6 @@ Last Month	上个月	เดือนที่แล้ว	先月
 Line Amount	行金额	จำนวนเงินรายบรรทัด	行金額
 Line Discount	行折扣	ส่วนลดรายบรรทัด	行値引
 Line No	行号	ลำดับบรรทัด	行番号
-Location	仓位	ตำแหน่ง	保管場所
 Manual	手动	ด้วยตนเอง	手動入力
 Manually Set Amounts	手动设置金额	กำหนดยอดเงินด้วยตนเอง	金額の手動設定
 Merge Items	合并明细	รวมรายการ	明細統合
@@ -1754,18 +1748,14 @@ Unit barcode	单位条码	บาร์โค้ดหน่วย	単位バー�
 This code is already in use	该码已被占用	รหัสนี้ถูกใช้แล้ว	このコードは使用されています
 Select the product	选择商品	เลือกสินค้า	商品を選択	product.scan.pick
 This location is not in the location list of this warehouse	仓位不在此仓库的仓位清单中	ตำแหน่งนี้ไม่อยู่ในรายการตำแหน่งของคลังนี้	このロケーションはこの倉庫のロケーション一覧にありません
-A location with stock cannot be turned off	有库存的仓位不能停用	ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้	在庫のあるロケーションは無効にできません
 A warehouse with stock cannot be turned off	有库存的仓库不能停用	คลังที่มีสต็อกปิดใช้งานไม่ได้	在庫のある倉庫は無効にできません
 That warehouse is turned off	该仓库已停用	คลังนี้ปิดใช้งานแล้ว	この倉庫は無効です
 Create the warehouse in Express, then use Sync Express on the company page	请在 Express 中建仓库，再在公司页点「同步 Express」	สร้างคลังใน Express แล้วกด「ซิงค์ Express」ที่หน้าบริษัท	Express で倉庫を作成し、会社ページで「Express と同期」を押してください
 A location that has been used cannot be removed	已使用的仓位不能删除	ตำแหน่งที่เคยใช้แล้วลบไม่ได้	使用済みのロケーションは削除できません
 Duplicate location	仓位重复	ตำแหน่งซ้ำ	ロケーションが重複しています
 Duplicate location code	仓位编码重复	รหัสตำแหน่งซ้ำ	ロケーションコードが重複しています
-Locations	仓位清单	รายการตำแหน่ง	ロケーション一覧
-Add locations in stock	带入有库存的仓位	เพิ่มตำแหน่งที่มีสต็อก	在庫のあるロケーションを追加	stock.location.fromStock
 Locations	仓位清单	รายการตำแหน่ง	ロケーション一覧	stock.location.list
 This warehouse has no active location	此仓库没有启用的仓位	คลังนี้ไม่มีตำแหน่งที่เปิดใช้งาน	この倉庫には有効なロケーションがありません
-Not in the list	不在清单	ไม่อยู่ในรายการ	一覧にありません	stock.location.offList
 In Date	进库日期	วันที่รับเข้า	入庫日
 In Reference Type	进库单据类型	ประเภทเอกสารรับเข้า	入庫伝票種別
 In Reference	进库单据	เอกสารรับเข้า	入庫伝票
@@ -1854,9 +1844,7 @@ This warehouse code already exists	仓库编号已存在	รหัสคลั�
 Stock Transfer	调拨	โอนย้ายระหว่างคลัง	倉庫間移動	nav.stockTransfer
 New Stock Transfer	新建调拨单	สร้างใบโอนย้ายสินค้า	移動伝票を作成	trade.newTransfer
 From Warehouse	调出仓库	คลังต้นทาง	移動元倉庫	trade.fromWarehouse
-From Location	调出仓位	ตำแหน่งต้นทาง	移動元保管場所	trade.fromLocation
 To Warehouse	调入仓库	คลังปลายทาง	移動先倉庫	trade.toWarehouse
-To Location	调入仓位	ตำแหน่งปลายทาง	移動先保管場所	trade.toLocation
 transfer_out	调出	โอนออก	移動出庫
 transfer_in	调入	โอนเข้า	移動入庫
 The destination warehouse must differ from the source warehouse	调入仓库不能与调出仓库相同	คลังปลายทางต้องไม่ใช่คลังต้นทาง	移動先倉庫は移動元倉庫と別にしてください
@@ -1981,7 +1969,6 @@ This stock count already has an adjustment	此盘点已有物料调整单	กา
 Stock Count	盘点	ตรวจนับสต็อก	棚卸
 Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整
 Unit Cost Entered	单价已填写	กรอกราคาต่อหน่วยแล้ว	単価入力済み
-The warehouse differs from the warehouse of this document	仓库与本单仓库不一致	คลังไม่ตรงกับคลังของเอกสารนี้	この伝票の倉庫と一致しません
 Record only	只记账	ลงบัญชีอย่างเดียว	記帳のみ	erp.line.tag.none
 New · In	新建 · 入库	ใหม่ · รับเข้า	新規 · 入庫	erp.line.tag.newIn
 New · Out	新建 · 出库	ใหม่ · จ่ายออก	新規 · 出庫	erp.line.tag.newOut
@@ -1994,9 +1981,6 @@ Add and receive	新建并入库	สร้างใหม่และรับเ
 Add and issue	新建并出库	สร้างใหม่และจ่ายออก	新規で出庫	erp.line.items.newOut
 Existing item	选已有物料	เลือกสินค้าที่มี	既存の品目	erp.line.items.pick
 Type the item name or code	请输入物料名称或编码	พิมพ์ชื่อหรือรหัสสินค้า	品目名かコードを入力してください	erp.line.items.type
-Choose the location	请选择仓位	กรุณาเลือกตำแหน่ง	保管場所を選んでください	erp.line.items.location
-Type a word from the location name to find it	输入仓位名称关键字查找	พิมพ์คำในชื่อตำแหน่งเพื่อค้นหา	保管場所名の一部を入力して検索	erp.line.items.typeLocation
-None	不填	ไม่ระบุ	指定しない	erp.line.items.noLocation
 All	全部	ทั้งหมด	すべて	erp.trade.allLines
 Listed stock counts	查看了盘点列表	ดูรายการตรวจนับสต็อกแล้ว	棚卸の一覧を確認しました
 Viewed a stock count	查看了盘点结果	ดูผลการตรวจนับสต็อกแล้ว	棚卸結果を確認しました

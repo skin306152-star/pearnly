@@ -17,7 +17,7 @@ TITLE = "LINE 手机盘点：当场新建商品、选库位记数"
 # 新建表单的各格（`www/stocktake.html` 的 NEW_FIELDS，照物料页新建弹窗；按台两格只在汽车 / 手机电器公司出现）
 # 按页面上的先后比（岳父 11-01：条码、名称、分类、特性/颜色在前，同物料页弹窗）
 NEW_FIELDS = ["code", "product_name", "category", "attribute", "internal_code", "unit", "base_unit", "unit_price", "default_cost",
-              "default_location", "min_stock", "track_serial", "serial_kind", "vat_applicable"]
+              "min_stock", "track_serial", "serial_kind", "vat_applicable"]
 
 
 def prepare(lab, manifest):
