@@ -96,18 +96,20 @@ def _undecided(step: Mapping[str, Any], answers: Mapping[str, Any], decided: Map
 def to_ask(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[Dict[str, Any]]:
     """现在这张卡上问哪几步（照声明顺序）：适用、依赖都有值、还没定的。"""
     values = _values(guide, answers, decided)
-    optional = _optional_keys(guide)
+    out = _ruled_out_keys(guide, values)
+    skip = _optional_keys(guide) | out
     return [dict(step) for step in guide.get("steps") or ()
-            if applies(step, values) and all(_has(values.get(name)) for name in _needs(step, optional))
+            if step["key"] not in out and applies(step, values) and all(_has(values.get(name)) for name in _needs(step, skip))
             and _undecided(step, answers, decided)]
 
 
 def blocked(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[str]:
     """还没轮到的步骤（依赖的那一步没值，现在既问不了也判不出适不适用）。"""
     values = _values(guide, answers, decided)
-    optional = _optional_keys(guide)
+    out = _ruled_out_keys(guide, values)
+    skip = _optional_keys(guide) | out
     return [step["key"] for step in guide.get("steps") or ()
-            if not _ruled_out(step, values) and not all(_has(values.get(name)) for name in _needs(step, optional))]
+            if step["key"] not in out and not all(_has(values.get(name)) for name in _needs(step, skip))]
 
 
 def _ruled_out(step: Mapping[str, Any], values: Mapping[str, Any]) -> bool:
@@ -115,6 +117,17 @@ def _ruled_out(step: Mapping[str, Any], values: Mapping[str, Any]) -> bool:
     选了交文件，读回那一步的 ``after: 月份`` 让整张卡一直确定不了）。"""
     when = step.get("when")
     return bool(when) and _has(values.get(when["key"])) and not applies(step, values)
+
+
+def _ruled_out_keys(guide: Mapping[str, Any], values: Mapping[str, Any]) -> set:
+    """此刻不适用的步骤：自己的条件已判出不成立（:func:`_ruled_out`），或条件依赖的那一步本身不适用（一路传下去：定时任务选了
+    「启用」，「去向」不适用，挂在去向上的默认处理也不适用，不算「没轮到」；11-19 定时任务引导查出）。``after`` 点名不适用的步骤也不挡。"""
+    out: set = set()
+    for step in guide.get("steps") or ():
+        when = step.get("when")
+        if when and (when["key"] in out or _ruled_out(step, values)):
+            out.add(step["key"])
+    return out
 
 
 def settled(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> List[Dict[str, Any]]:
@@ -139,8 +152,9 @@ def state(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping
 def final_values(guide: Mapping[str, Any], answers: Mapping[str, Any], decided: Mapping[str, Mapping[str, Any]]) -> Dict[str, Any]:
     """交给声明的 ``draft`` / ``confirm`` 的值：只含适用的步骤（不适用的那几步就算留着旧答案也不带）。"""
     values = _values(guide, answers, decided)
+    out = _ruled_out_keys(guide, values)
     return {step["key"]: values[step["key"]] for step in guide.get("steps") or ()
-            if _has(values.get(step["key"])) and applies(step, values)}
+            if _has(values.get(step["key"])) and step["key"] not in out and applies(step, values)}
 
 
 def dependents(guide: Mapping[str, Any], key: str) -> List[str]:

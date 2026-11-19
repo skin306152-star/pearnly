@@ -229,5 +229,22 @@ class OptionalTests(unittest.TestCase):
         self.assertEqual(steps.blocked(guide, {"source": "rb"}, {}), ["pick"])   # 读回那条路上照旧要先有月份
         self.assertEqual(steps.blocked(guide, {}, {}), ["month", "pick", "files"])
 
+    def test_a_step_conditioned_on_a_step_that_does_not_apply_does_not_apply_either(self):
+        guide = {**OPTIONAL, "steps": [{"key": "action", "input": "choice", "rule": "always", "options": "app.mod.a"},
+                                       {"key": "target", "input": "choice", "rule": "always", "options": "app.mod.t",
+                                        "when": {"key": "action", "value": "new"}},
+                                       {"key": "vat", "input": "choice", "rule": "always", "options": "app.mod.v",
+                                        "when": {"key": "target", "value": "purchase"}},
+                                       {"key": "late", "input": "text", "rule": "always", "after": ["target"],
+                                        "when": {"key": "action", "in": ["new", "edit"]}},
+                                       {"key": "task", "input": "choice", "rule": "always", "options": "app.mod.k",
+                                        "when": {"key": "action", "value": "enable"}}]}
+        self.assertEqual(steps.blocked(guide, {"action": "enable"}, {}), [])   # 去向不适用，挂在它上面的也不适用
+        self.assertEqual(steps.state(guide, {"action": "enable", "task": "T1"}, {}), steps.READY)
+        self.assertEqual(steps.blocked(guide, {"action": "new"}, {}), ["vat", "late"])   # 去向适用：照旧等它
+        self.assertEqual([step["key"] for step in steps.to_ask(guide, {"action": "edit"}, {})], ["late"])
+        self.assertEqual(steps.final_values(guide, {"action": "enable", "task": "T1", "target": "purchase", "vat": "x"}, {}),
+                         {"action": "enable", "task": "T1"})
+
 if __name__ == "__main__":
     unittest.main()
