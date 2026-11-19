@@ -739,5 +739,46 @@ class ConsentCardTests(Base):
         self.assertNotIn("consent_title", done)
 
 
+class CommitBeforeViewTests(Base):
+    """11-19 回滚审计 P3 / P4 / _note：画卡（``view``）会调产品的选项、判定、说明，产品那边有的会回滚（Cowork 判卡片「只是看」、
+    说明出错的回滚）。引擎每次改了这次引导（开、答、改、确定、取消、追问、补上下文），先提交再画卡，没提交的改动不被冲掉。"""
+
+    def setUp(self):
+        super().setUp()
+        self.trail = []
+        saved, shown, inserted = run._save, run.view, run._insert
+        run._save = lambda doc: (self.trail.append("save"), saved(doc))[1]
+        run._insert = lambda values: (self.trail.append("save"), inserted(values))[1]
+        run.view = lambda doc: (self.trail.append("view"), shown(doc))[1]
+        self.addCleanup(setattr, run, "view", shown)
+        db = frappe.db
+        frappe.db = types.SimpleNamespace(commit=lambda: self.trail.append("commit"), rollback=lambda: self.trail.append("rollback"))
+        self.addCleanup(setattr, frappe, "db", db)
+
+    def assert_committed_before_each_view(self):
+        last_save = None
+        for at, step in enumerate(self.trail):
+            if step == "save":
+                last_save = at
+            if step == "view" and last_save is not None:
+                self.assertIn("commit", self.trail[last_save:at], self.trail)
+                last_save = None
+
+    def test_start_answer_and_cancel_commit_before_drawing_the_card(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        run.cancel(name)
+        self.assertIn("view", self.trail)
+        self.assert_committed_before_each_view()
+
+    def test_filling_in_the_conversation_context_is_committed_before_the_card(self):
+        self.now["company"] = ""
+        name = run.start("S1", "collection")["run"]
+        self.now["company"] = "CO1"  # 右栏后补上公司：下一次作答先补上下文、存下
+        self.trail.clear()
+        run.answer(name, {"customer": "C001"})
+        self.assert_committed_before_each_view()
+
+
 if __name__ == "__main__":
     unittest.main()

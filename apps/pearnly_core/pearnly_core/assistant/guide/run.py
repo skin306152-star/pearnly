@@ -384,6 +384,13 @@ def view(doc) -> Dict[str, Any]:
     return out
 
 
+def _shown(doc) -> Dict[str, Any]:
+    """改过这次引导之后画卡：先提交。画卡要调产品的选项、判定、说明，产品那边有的会回滚（Cowork 判卡片「只是看」、说明出错时），
+    没提交的改动会被整笔冲掉（11-19 回滚审计 P4 / _note）。"""
+    frappe.db.commit()
+    return view(doc)
+
+
 def _consent(guide: Mapping[str, Any], doc, answers: Mapping[str, Any]) -> str:
     """确定画成什么：``allow``（拒绝 / 允许）或 ``confirm``。声明写成与 ``when`` 同形的字典时按那一步此刻的值判。"""
     consent = guide.get("consent")
@@ -483,6 +490,8 @@ def _checked(name: str):
     now = _conversation(doc.session_id)
     if doc.status in OPEN and _fill_context(doc, now):
         _save(doc)
+        # 补上的上下文当场提交：接下来作答要画卡、判单据，产品那边的回滚会把它冲掉，之后再存就撞时间戳（11-19 回滚审计 P3）
+        frappe.db.commit()
     if doc.status in OPEN:
         stale = _stale(guide, doc, now)
         if stale:
@@ -515,7 +524,7 @@ def start(session_id: str, business: str, doc_ids=None, at: str = "asking", oper
                    "company": now["company"], "ledger": now["ledger"], "period": now["period"], "answers": "{}", "version": 1,
                    **({"documents": documents_column} if documents_column else {})})
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def _settle(guide: Mapping[str, Any], doc, answers: Dict[str, Any]) -> None:
@@ -543,9 +552,9 @@ def _settle(guide: Mapping[str, Any], doc, answers: Dict[str, Any]) -> None:
 def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> Dict[str, Any]:
     doc, guide, _now = _checked(name)
     if doc.status not in OPEN:
-        return {**view(doc), "outcome": REFUSED}
+        return {**_shown(doc), "outcome": REFUSED}
     if version is not None and int(version) != int(doc.version or 0):
-        return {**view(doc), "outcome": CHANGED}
+        return {**_shown(doc), "outcome": CHANGED}
     if not isinstance(given, Mapping) or not given:
         frappe.throw(_("Invalid request"))
     if _documents(guide):
@@ -569,13 +578,13 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
             if code:
                 refused[key] = str(code)
     if refused:
-        return {**view(doc), "outcome": REFUSED, "refused": _refusal(refused)}
+        return {**_shown(doc), "outcome": REFUSED, "refused": _refusal(refused)}
     # 交文件的步骤：别的题都收下了，才把这几份登记成用户交出的（唯一入口 `files.commit(via="guide")`，幂等）；
     # 不是这段对话里本人上传的，这一步不收
     not_here = _commit_files(doc.session_id, {key: list(value) for key, value in given.items()
                                               if by_key[key]["input"] == "file"})
     if not_here:
-        return {**view(doc), "outcome": REFUSED, "refused": _refusal({not_here: NOT_HERE})}
+        return {**_shown(doc), "outcome": REFUSED, "refused": _refusal({not_here: NOT_HERE})}
     changed = [key for key, value in given.items() if answers.get(key) != value]
     answers = steps.without_dependents(guide, answers, changed)
     answers.update(given)
@@ -585,7 +594,7 @@ def answer(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     if changed and any(by_key[key].get("apply") for key in changed):
         _fill_context(doc, _conversation(doc.session_id))
     _settle(guide, doc, answers)
-    return view(doc)
+    return _shown(doc)
 
 
 def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -> Dict[str, Any]:
@@ -599,30 +608,30 @@ def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -
         _end(doc, EXPIRED, "period")
         return guide_start.start(operator.get("task") or "")
     if found.get("refused"):
-        return {**view(doc), "outcome": REFUSED, "refused": found["refused"],
+        return {**_shown(doc), "outcome": REFUSED, "refused": found["refused"],
                 **({"errors": found["errors"]} if found.get("errors") else {})}
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[str, Any]:
     """复核卡就地改一格（按单据的业务）：本人、版本与看到的一致、运行没失效；产品写回自己的单，版本 +1。"""
     doc, guide, _now = _checked(name)
     if not _documents(guide) or doc.status not in OPEN:
-        return {**view(doc), "outcome": REFUSED}
+        return {**_shown(doc), "outcome": REFUSED}
     if int(version) != int(doc.version or 0):
-        return {**view(doc), "outcome": CHANGED}
+        return {**_shown(doc), "outcome": CHANGED}
     found = _docs().edit(guide, doc, _ctx(doc, _answers(doc)), str(doc_id or ""), str(field or ""), value)
     if isinstance(found, Mapping) and found.get("refused"):
         text = _docs().reason_text(str(found["refused"]))
-        return {**view(doc), "outcome": REFUSED, "refused": {str(field or ""): found["refused"]},
+        return {**_shown(doc), "outcome": REFUSED, "refused": {str(field or ""): found["refused"]},
                 **({"refused_text": {str(field or ""): text}} if text else {})}
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dict[str, Any]:
@@ -641,7 +650,7 @@ def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dic
             doc.version = int(doc.version or 0) + 1
             _save(doc)
             _announce(doc)
-            return {**view(doc), "outcome": result["outcome"]}
+            return {**_shown(doc), "outcome": result["outcome"]}
         doc.status = DONE
     except Exception as exc:  # noqa: BLE001 — 放行 / 产品函数拒了、出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
@@ -653,7 +662,7 @@ def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dic
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
@@ -662,21 +671,21 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
     consent = f"guide:{doc.name}:{int(version)}"
     if doc.status in (CONFIRMED, DONE, FAILED):
         # 同一确定再来一次（双击、重发、另一台设备）：回上次的结果，不办第二次
-        return {**view(doc), "outcome": "" if doc.consent == consent else REFUSED}
+        return {**_shown(doc), "outcome": "" if doc.consent == consent else REFUSED}
     if doc.status not in OPEN:
-        return {**view(doc), "outcome": REFUSED}
+        return {**_shown(doc), "outcome": REFUSED}
     if int(version) != int(doc.version or 0):
-        return {**view(doc), "outcome": CHANGED}
+        return {**_shown(doc), "outcome": CHANGED}
     if doc.business not in registry.offered().get(now["mode"], []):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     if _stopped_since(doc, now):
-        return {**view(doc), "outcome": STOPPED}
+        return {**_shown(doc), "outcome": STOPPED}
     if _documents(guide):
         return _confirm_documents(guide, doc, consent, seen)
     answers = _answers(doc)
     decided = _decided(guide, doc, answers)
     if steps.state(guide, answers, decided) != steps.READY or (guide.get("review") and doc.status != REVIEWING):
-        return {**view(doc), "outcome": REFUSED}
+        return {**_shown(doc), "outcome": REFUSED}
     doc.status, doc.consent = CONFIRMED, consent
     doc.version = int(doc.version or 0) + 1
     _save(doc)
@@ -691,13 +700,13 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
             doc.version = int(doc.version or 0) + 1
             _save(doc)
             _announce(doc)
-            return {**view(doc), "outcome": CHANGED}
+            return {**_shown(doc), "outcome": CHANGED}
         if isinstance(result, Mapping) and result.get("returned"):
             _send_back(guide, doc, answers, result["returned"])
             doc.version = int(doc.version or 0) + 1
             _save(doc)
             _announce(doc)
-            return {**view(doc), "outcome": REFUSED}
+            return {**_shown(doc), "outcome": REFUSED}
         doc.status = DONE
     except Exception as exc:  # noqa: BLE001 — 业务函数拒了 / 出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
@@ -709,7 +718,7 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def end_open(session_id: str, reason: str, status: str = EXPIRED) -> List[str]:
@@ -743,7 +752,7 @@ def cancel(name: str) -> Dict[str, Any]:
     doc, _guide_found, _now = _checked(name)
     if doc.status in OPEN:
         _end(doc, CANCELLED, "user")
-    return view(doc)
+    return _shown(doc)
 
 
 def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> Dict[str, Any]:
@@ -751,9 +760,9 @@ def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     此刻存下的结果）算出新的结果存下。业务函数拒了（``{"returned": …}`` 或抛错）回 ``refused``、什么都不改。"""
     doc, guide, _now = _checked(name)
     if doc.status != DONE or not guide.get("follow"):
-        return {**view(doc), "outcome": REFUSED}
+        return {**_shown(doc), "outcome": REFUSED}
     if version is not None and int(version) != int(doc.version or 0):
-        return {**view(doc), "outcome": CHANGED}
+        return {**_shown(doc), "outcome": CHANGED}
     current = view(doc)
     asked = _subs(((current.get("result") or {}) if isinstance(current.get("result"), Mapping) else {}).get("questions"))
     problem = _sub_problem(asked, given) if asked else "not asked now"
@@ -774,7 +783,7 @@ def follow(name: str, given: Mapping[str, Any], version: int | None = None) -> D
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)
-    return view(doc)
+    return _shown(doc)
 
 
 def view_of(name: str) -> Dict[str, Any]:

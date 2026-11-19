@@ -442,6 +442,26 @@ class OperatorStart(Base):
         self.assertEqual(self.docs["RUN1"].status, run.EXPIRED)
 
 
+class LedgerAnswerKept(unittest.TestCase):
+    """11-19 回滚审计 P1：卡上选的本对话账套（``ledger.choose``）当场提交，再交产品记其余答案。产品判卡片「只是看」要回滚，
+    没提交的账套会被冲掉：卡记下了这题不再问，单据却一直「账套未定」。"""
+
+    def test_the_chosen_book_is_committed_before_the_product_records(self):
+        trail = []
+        ledger = sys.modules["pearnly_core.assistant.ledger"]
+        saved = (ledger.choose, frappe.db, precheck_api.record)
+        ledger.choose = lambda session, ledger_id, by="page": trail.append("choose") or {"status": "set"}
+        frappe.db = types.SimpleNamespace(commit=lambda: trail.append("commit"), rollback=lambda: trail.append("rollback"))
+        precheck_api.record = lambda company, doc_ids, rows, guided=False: trail.append("record") or {"writable": list(doc_ids)}
+        try:
+            card = {"questions": [{"key": documents.LEDGER_PREFIX + "S1"}]}
+            out = documents.record(card, "CO1", ["D1"], [{"key": documents.LEDGER_PREFIX + "S1", "value": "B2"}])
+        finally:
+            ledger.choose, frappe.db, precheck_api.record = saved
+        self.assertEqual(out["writable"], ["D1"])
+        self.assertEqual(trail, ["choose", "commit", "record"])
+
+
 class Declaration(unittest.TestCase):
     def test_a_documents_guide_names_all_six_product_functions_or_none(self):
         self.assertEqual(declaration.problems(PURCHASE), [])

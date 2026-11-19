@@ -28,7 +28,8 @@ def _install_frappe():
     frappe._ = lambda text: TEXTS.get(text, text)
     frappe.local = types.SimpleNamespace(pearnly_assistant={"session_id": "S1"})
     frappe.db = types.SimpleNamespace(exists=lambda doctype, filters: EXISTS["value"],
-                                      get_value=lambda doctype, filters, field: SESSION.get(field))
+                                      get_value=lambda doctype, filters, field: SESSION.get(field),
+                                      commit=lambda: None, rollback=lambda: None)
     frappe.throw = lambda message, *a: (_ for _ in ()).throw(ValueError(message))
     frappe.whitelist = lambda **kw: (lambda fn: fn)
     frappe.parse_json = json.loads

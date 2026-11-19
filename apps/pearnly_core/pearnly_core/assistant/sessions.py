@@ -1192,6 +1192,7 @@ def interrupt(session_id) -> None:
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant guide stop failed")
+        frappe.db.commit()  # 日志随即提交：后面作废允许卡开头的回滚不把它带走（11-19 回滚审计）
     if row.get("operator_task") and not segments(row):
         return
     engine.adapter().post(current(row), [{"type": "user.interrupt"}])

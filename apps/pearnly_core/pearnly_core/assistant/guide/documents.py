@@ -202,6 +202,8 @@ def record(card: Mapping[str, Any], company: str, doc_ids: List[str], rows: List
         session = book["key"][len(LEDGER_PREFIX):]
         if not chosen or ledger.choose(session, chosen, by="page").get("status") != ledger.SET:
             kept_back = list(doc_ids)
+        # 选的账套当场提交：下面交产品记答案要先判卡片，产品「只是看」的回滚会把没提交的账套冲掉（11-19 回滚审计 P1）
+        frappe.db.commit()
     answered_mismatch = ""
     if mismatch:
         # 业务不一致那一题是卡自己出的（不在产品判定里）：答「不写入」或没答的那几张留下，答「按票面写入」的照常；不交给产品记
