@@ -933,9 +933,13 @@ def _expired_card(claimed) -> bool:
 
 
 def _stale_card(line_user_id, nonce, name, reply_token):
-    """点的不是当前卡：同一张卡已经点过（处理中 / 已处理）不回话；被新卡替换、过期、会话没了回「已过期」。
+    """点的不是当前卡：同一张卡已经点过（处理中 / 已处理）不回话——但点过【取消】的回「单号 · 已取消」（11-19 真机：取消后再点
+    【保存】没有任何回复，用户口径是保存要回「已取消」）；被新卡替换、过期、会话没了回「已过期」。
     会话里已经不是这一笔（过期了、或已换成别的）时，这张卡的草稿作废；会话正停在同一笔的新卡上则不动它。"""
     if _used(nonce):
+        found = frappe.db.get_value(DOCTYPE, name, ["name", "status", "collector"], as_dict=True) if name else None
+        if found and found.status == contracts.WITHDRAWN and found.collector == frappe.session.user:
+            return _text(reply_token, _status_text(found))
         return None
     # 只作废自己录的：11-14 起本公司有收款权限的人都能改别人的草稿，但点的是自己 LINE 里没有的卡（别人的、伪造的），不动那一笔
     if payload_of(line_user_id).get("name") != name and frappe.db.get_value(DOCTYPE, name, "collector") == frappe.session.user:

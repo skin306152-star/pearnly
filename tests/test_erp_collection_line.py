@@ -538,10 +538,17 @@ class Release(Base):
 
     def test_withdraw_before_it_is_written(self):
         name = self.card()
+        save = self.card_button("Save")["data"]
         self.tap(self.card_button("Cancel")["data"])
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
         self.assertIn("erp.collection.status.withdrawn", self.last_text())
         self.assertIsNone(SESSIONS.get("U1"))
+        # 取消后再点同一张卡的【保存】：什么都不做，回「单号 · 已取消」（11-19 真机：原来不回话）
+        replies = len(LINE.replies)
+        self.tap(save, event="evt-7")
+        self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
+        self.assertEqual(len(LINE.replies), replies + 1)
+        self.assertIn("erp.collection.status.withdrawn", self.last_text())
 
     def test_withdraw_after_release_from_the_pending_message(self):
         name = self.card()
