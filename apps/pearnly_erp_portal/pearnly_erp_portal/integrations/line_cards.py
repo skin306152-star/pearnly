@@ -9,7 +9,7 @@
 与旧卡不同的地方（用户口径）：
 - 〔定·09-25〕「编辑」打开网页端原生的采购 / 销售页，提交才入账；卡片不过期。
 - 〔11-18〕「编辑」上方加「保存」：不进编辑页直接提交（同编辑页的提交）；要人定的项不提交，回原因与「编辑」。
-- 〔11-19〕三个按钮：保存（业务色实底）、编辑（灰）、取消（白底带边框）；取消 = 这一张什么都不做，记录作废。
+- 〔11-19〕三个实底按钮：保存（业务色）、编辑（灰）、取消（灰）；取消 = 这一张什么都不做，记录作废。
 - 〔定·09-26〕「字段细一点、商品名称全部显示」：在 LINE 里选的（供应商或客户、付款）照实显示在对应行里；明细不再只报条数，
   每一行商品名、数量 × 单价 = 金额都列出来。
 - 〔11-06 按行选物料与库存〕每行标「入库 / 出库 / 只记账 / 新建 · 入库」（以前整张一行「物料类型：库存商品 · 仓库」），有入库行时另列仓库。
@@ -253,13 +253,15 @@ def _card(doc, result, totals, shown) -> dict:
     ]
     title = f"{_('Review document')} · {head}"
     # 「保存」在「编辑」上方（用户 11-18）：保存 = 直接提交（同编辑页的提交，`intake.save_card`）
-    # 三个按钮（用户 11-19）：保存 = 业务色实底、编辑 = 灰、取消 = 白底带边框（LINE 按钮没有边框，套一个带边框的白底框）
+    # 三个按钮（用户 11-19）：都是实底；保存 = 业务色，编辑、取消 = 灰
     buttons = [{"type": "button", "style": "primary", "height": "sm", "color": accent,
                 "action": {"type": "postback", "label": _("Save")[:20], "displayText": _("Save")[:20],
                            "data": urlencode({"a": "erp_save", "n": doc.name})}},  # = SAVE_ACTION（字面量：产品地图按它认入口）
                {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
                 "action": {"type": "uri", "label": _("Edit")[:20], "uri": editor_link(doc)}},
-               cancel_button(urlencode({"a": "erp_cancel", "n": doc.name}))]  # = CANCEL_ACTION
+               {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
+                "action": {"type": "postback", "label": _("Cancel")[:20], "displayText": _("Cancel")[:20],
+                           "data": urlencode({"a": "erp_cancel", "n": doc.name})}}]  # = CANCEL_ACTION
     alt = f"{title} · {_money(grand)}" if grand not in (None, "") else title
     return {"type": "flex", "altText": alt[:400],
             "contents": {"type": "bubble", "size": "mega",
@@ -287,15 +289,6 @@ NEEDED_KINDS = {"party": {"sales": "Customer", "purchase": "Supplier"}, "item": 
                 "account_set": "Account Set", "stock_group": "express.kind.stockGroup", "receipt": "express.kind.receipt",
                 "vat_registered": "express.kind.vatRegistered", "refund": "express.kind.refundAccount",
                 "exempt_mode": "express.kind.exemptMode", "service_vat": "express.kind.serviceVat"}
-
-
-def cancel_button(data) -> dict:
-    """白底带灰边框的「取消」（ERP、Cowork 卡片同一个样子）。"""
-    return {"type": "box", "layout": "vertical", "margin": "sm", "cornerRadius": "md", "borderWidth": "light",
-            "borderColor": "#CCCCCC", "backgroundColor": "#FFFFFF",
-            "contents": [{"type": "button", "style": "link", "height": "sm", "color": "#555555",
-                          "action": {"type": "postback", "label": _("Cancel")[:20], "displayText": _("Cancel")[:20],
-                                     "data": data}}]}
 
 
 def needed_text(doc, needed) -> str:

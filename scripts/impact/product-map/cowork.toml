@@ -1062,12 +1062,12 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:cowork:postback:cowork_cancel"
-where = "LINE 识别后的卡片（推往 ERP 与「仅识别」都有）最下面白底带边框的「ยกเลิก」（a=cowork_cancel&n=…，用户 11-19）：这一张什么都不做，记录与原件删掉（同列表删除）；已推送 / 已完成的不动；之后再点「บันทึก」只回「ยกเลิกแล้ว」"
+where = "LINE 识别后的卡片（推往 ERP 与「仅识别」都有）最下面灰色实底的「ยกเลิก」（a=cowork_cancel&n=…，用户 11-19）：这一张什么都不做，记录与原件删掉（同列表删除）；已推送 / 已完成的不动；之后再点「บันทึก」只回「ยกเลิกแล้ว」"
 parts = ["line"]
 tests = ["unit:tests/test_cowork_line_intake.py::test_cancel_deletes_an_untouched_draft_and_a_later_save_only_says_cancelled", "unit:tests/test_cowork_line_intake.py::test_cancel_after_save_or_push_keeps_the_record", "unit:tests/test_cowork_line_intake.py::test_push_and_recognize_only_cards_have_save_edit_cancel"]
 group = "line.card-cancel"
 device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
-device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：拍一张票 → 卡片底部三个按钮（บันทึก 业务色、แก้ไข 灰、ยกเลิก 白底带边框）→ 点「ยกเลิก」→ 回「ยกเลิกแล้ว」，录入列表没有这张；再点「บันทึก」→ 仍回「ยกเลิกแล้ว」、什么都没推"
+device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：拍一张票 → 卡片底部三个按钮（บันทึก 业务色、แก้ไข 灰色实底、ยกเลิก 灰色实底）→ 点「ยกเลิก」→ 回「ยกเลิกแล้ว」，录入列表没有这张；再点「บันทึก」→ 仍回「ยกเลิกแล้ว」、什么都没推"
 
 [[row]]
 id = "cowork.line.postback.cowork_item"

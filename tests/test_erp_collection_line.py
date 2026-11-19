@@ -247,8 +247,8 @@ class Steps(Base):
         record = T.S.table("ERP Collection")[name]
         self.assertEqual((record["status"], str(record["cash"]), record["source"], record["collector"]),
                          (C.DRAFT, "1500.00", "line", "a@x"))
-        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Confirm", "Edit", "Withdraw"])
-        self.assertEqual(parse_qs(self.card_button("Confirm")["data"]),
+        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Save", "Edit", "Cancel"])
+        self.assertEqual(parse_qs(self.card_button("Save")["data"]),
                          {"a": ["col"], "s": ["ok"], "n": [name], "ver": ["1"], "k": [self.payload()["nonce"]]})
         self.assertTrue(self.card_button("Edit")["uri"].endswith("/desk/pearnly-collections/" + name))  # 11-14 起只有「收款」一页
         self.assertEqual(frappe.session.user, "Guest")  # 做完还原
@@ -321,7 +321,7 @@ class Steps(Base):
         self.assertEqual(self.step(), "card")
         self.tap("a=col&s=more&v=later")  # 卡片那一步点了旧按钮：重出当前卡
         self.assertEqual(self.step(), "card")
-        self.assertIn("Confirm", [item["label"] for item in self.flex_buttons()])
+        self.assertIn("Save", [item["label"] for item in self.flex_buttons()])
 
     def test_an_old_cancel_asks_the_current_step_again(self):
         self.tap("a=col&s=start")
@@ -447,7 +447,7 @@ class Amounts(Base):
         frappe.session.user = "Guest"
         self.assertFalse(made["ready"])
         flow._show_card("U1", {}, made, "r-x")
-        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Edit", "Withdraw"])
+        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Edit", "Cancel"])
         self.assertEqual((self.step(), self.payload()["voucher_for"]), ("voucher", "BB"))
         self.tap(f"a=col&s=ok&n={made['name']}&ver=1")  # 伪造的【确认】：服务端照样拒
         self.assertEqual(T.S.table("ERP Collection")[made["name"]]["status"], C.DRAFT)
@@ -456,7 +456,7 @@ class Amounts(Base):
         flow.store_voucher(**{key: value for key, value in kwargs.items() if key not in ("queue", "enqueue_after_commit")})
         self.assertEqual(self.step(), "card")
         self.assertEqual(self.payload()["version"], 2)
-        self.assertIn("Confirm", [item["label"] for item in self.flex_buttons()])
+        self.assertIn("Save", [item["label"] for item in self.flex_buttons()])
 
 
 class Wording(Base):
@@ -485,7 +485,7 @@ class Release(Base):
         # 11-12 三星实测：别的收款员先收了同一张，点【确认】回了两遍「超过未收金额，请重新输入」
         name = self.card()
         with mock.patch.object(T.service, "reserved", return_value={"IV1": T.Decimal("1000")}):
-            self.tap(self.card_button("Confirm")["data"], event="evt-9")
+            self.tap(self.card_button("Save")["data"], event="evt-9")
         text = self.last_text()
         self.assertIn("Already collected. Current balance:", text)
         self.assertIn("IV1 0.00", text)
@@ -495,7 +495,7 @@ class Release(Base):
 
     def test_the_confirm_button_releases_the_shown_version_with_the_event_as_consent(self):
         name = self.card()
-        self.tap(self.card_button("Confirm")["data"], event="evt-9")
+        self.tap(self.card_button("Save")["data"], event="evt-9")
         record = T.S.table("ERP Collection")[name]
         self.assertEqual((record["status"], record["consent_ref"]), (C.QUEUED, "line:evt-9"))
         self.assertIsNone(SESSIONS.get("U1"))
@@ -521,31 +521,31 @@ class Release(Base):
         name = self.card()
         self.type("what")
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)
-        self.assertIn("Confirm", [item["label"] for item in self.flex_buttons()])
+        self.assertIn("Save", [item["label"] for item in self.flex_buttons()])
 
     def test_a_card_changed_after_it_was_shown_is_shown_again_not_released(self):
         name = self.card()
-        old = self.card_button("Confirm")["data"]
+        old = self.card_button("Save")["data"]
         frappe.session.user = "a@x"
         service.update_draft(name, 1, [{"docnum": "IV1", "amount": "900"}], cash="900")  # 网页弹窗里改过
         frappe.session.user = "Guest"
         self.tap(old)
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.DRAFT)
         self.assertIn("The collection changed. Check it again", self.last_text())
-        self.assertEqual(parse_qs(self.card_button("Confirm")["data"])["ver"], ["2"])
+        self.assertEqual(parse_qs(self.card_button("Save")["data"])["ver"], ["2"])
         self.type("ok")  # 打字确认用会话里新卡的版本
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
 
     def test_withdraw_before_it_is_written(self):
         name = self.card()
-        self.tap(self.card_button("Withdraw")["data"])
+        self.tap(self.card_button("Cancel")["data"])
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
         self.assertIn("erp.collection.status.withdrawn", self.last_text())
         self.assertIsNone(SESSIONS.get("U1"))
 
     def test_withdraw_after_release_from_the_pending_message(self):
         name = self.card()
-        self.tap(self.card_button("Confirm")["data"])
+        self.tap(self.card_button("Save")["data"])
         flow._wait_off(name)
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(name, "U1", "a@x", "r-wait")
@@ -589,7 +589,7 @@ class Rights(Base):
 class Results(Base):
     def released(self):
         name = Release.card(self)
-        self.tap(self.card_button("Confirm")["data"])
+        self.tap(self.card_button("Save")["data"])
         return name
 
     def test_written_within_the_wait_is_replied_with_the_receipt_number_and_not_pushed(self):
@@ -654,7 +654,7 @@ class Results(Base):
         self.tap("a=col&s=start", event="evt-m1")
         self.assertNotIn("BB has no account", self.last_text())  # 推过了：菜单不再列
         other = Release.card(self)
-        self.tap(self.card_button("Confirm")["data"], event="evt-c2")
+        self.tap(self.card_button("Save")["data"], event="evt-c2")
         with mock.patch.object(flow, "WAIT_SECONDS", 0):
             flow.await_result(other, "U1", "a@x", "r-wait2")
         self.tap(self.buttons()[0]["data"], event="evt-r")
@@ -689,7 +689,7 @@ class Returned(Base):
 
     def released(self):
         name = Release.card(self)
-        self.old = self.card_button("Confirm")["data"]
+        self.old = self.card_button("Save")["data"]
         self.tap(self.old)
         return name
 
@@ -707,7 +707,7 @@ class Returned(Base):
         self.assertIn("IV1 200.00", self.last_text())
         self.assertEqual((self.step(), self.payload()["name"], self.payload()["version"]), ("card", name, 2))
         # 余额不够这次收：卡上照规则不出【确认】，改了（卡片【编辑】/ 网页 / CC）再确认；确认号已换新
-        self.assertEqual([item for item in self.flex_buttons() if item["label"] == "Confirm"], [])
+        self.assertEqual([item for item in self.flex_buttons() if item["label"] == "Save"], [])
         self.assertNotIn(self.payload()["nonce"], self.old)
         replies = len(LINE.replies)
         self.tap(self.old, event="evt-old")  # 用过的旧卡：不回话、不放行
@@ -719,7 +719,7 @@ class Returned(Base):
         name = self.released()
         self.refuse(name, "[receipt_type_invalid] TR has no account")  # Express 里把方式设好了：原样再确认
         self.assertIn("Not written to Express: TR has no account", self.last_text())
-        self.tap(self.card_button("Confirm")["data"], event="evt-new")
+        self.tap(self.card_button("Save")["data"], event="evt-new")
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
         self.assertEqual(self.jobs.rows["J-" + name + "-1"]["request_key"], "erp:receipt:" + name + ":1")
         self.refuse(name, job="J-" + name)  # 上一件迟到的回执：不改、不还回
@@ -740,7 +740,7 @@ class Returned(Base):
 
     def test_while_waiting_the_returned_card_is_the_reply(self):
         name = Release.card(self)
-        self.tap(self.card_button("Confirm")["data"])
+        self.tap(self.card_button("Save")["data"])
         self.jobs.report("J-" + name, "manual", reason="[cash_account_missing] no cash account")
         flow.notify(name)
         self.assertEqual(LINE.pushes, [])  # 后台还在等：交给它
@@ -864,7 +864,7 @@ class CardLife(Base):
         self.pick("Cash")
         self.type(amount)
         self.assertEqual(self.step(), "card")
-        return self.payload()["name"], self.card_button("Confirm")["data"], self.card_button("Withdraw")["data"]
+        return self.payload()["name"], self.card_button("Save")["data"], self.card_button("Cancel")["data"]
 
     def status(self, name):
         return T.S.table("ERP Collection")[name]["status"]
@@ -912,7 +912,7 @@ class CardLife(Base):
     def test_a_card_shown_again_retires_the_earlier_card_of_the_same_draft(self):
         name, old_ok, old_wd = self.card()
         self.type("what")  # 卡片那一步打了别的字：重出卡，换新号
-        new_ok = self.card_button("Confirm")["data"]
+        new_ok = self.card_button("Save")["data"]
         self.assertNotEqual(new_ok, old_ok)
         self.tap(old_ok, event="evt-old")
         self.assertEqual((self.last_text(), self.status(name)), (EXPIRED, C.DRAFT))  # 同一笔的新卡还在：草稿不作废

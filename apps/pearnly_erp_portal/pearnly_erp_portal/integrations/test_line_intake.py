@@ -1804,13 +1804,11 @@ class CardShape(Base):
         self.assertNotIn("Warehouse", self.rows(old))
         self.assertNotIn("trade.groupIn", json.dumps(old))
         footer = card["contents"]["footer"]["contents"]
-        self.assertEqual(len(footer), 3)  # 保存（业务色）/ 编辑（灰）/ 取消（白底带边框）（用户 11-18、11-19）
+        self.assertEqual(len(footer), 3)  # 三个实底：保存（业务色）/ 编辑（灰）/ 取消（灰）（用户 11-18、11-19）
         self.assertEqual(footer[0]["action"], {"type": "postback", "label": "Save", "displayText": "Save",
                                                "data": "a=erp_save&n=LI-1"})
         self.assertEqual((footer[0]["style"], footer[0]["color"], footer[1]["style"]), ("primary", "#16873E", "secondary"))
-        self.assertEqual((footer[2]["backgroundColor"], footer[2]["borderWidth"], footer[2]["contents"][0]["style"]),
-                         ("#FFFFFF", "light", "link"))
-        self.assertEqual(footer[2]["contents"][0]["action"]["data"], "a=erp_cancel&n=LI-1")
+        self.assertEqual((footer[2]["style"], footer[2]["action"]["data"]), ("secondary", "a=erp_cancel&n=LI-1"))
         self.assertEqual(footer[1]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-purchase%2Fline%2FLI-1"})
 

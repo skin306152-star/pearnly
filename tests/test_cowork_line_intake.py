@@ -453,8 +453,8 @@ class LineCardSaveTest(unittest.TestCase):
                 self.assertEqual((buttons[0]["action"]["data"], buttons[0]["style"], buttons[0]["color"]),
                                  ("a=cowork_save&n=CWH-3", "primary", "#16873E"))
                 self.assertEqual((buttons[1]["style"], buttons[1]["action"]["type"]), ("secondary", "uri"))
-                self.assertEqual((buttons[2]["backgroundColor"], buttons[2]["contents"][0]["action"]["data"]),
-                                 ("#FFFFFF", "a=cowork_cancel&n=CWH-3"))
+                self.assertEqual((buttons[2]["style"], buttons[2]["action"]["data"]),
+                                 ("secondary", "a=cowork_cancel&n=CWH-3"))
 
     def test_save_pushes_and_confirms_like_the_intake_page(self):
         self.assertEqual(self.save.save("CWH-3"), {"sent": True})
