@@ -72,5 +72,30 @@ class GuideRunCardTests(unittest.TestCase):
             self.assertIn(f'@frappe.whitelist(methods=["GET"])\ndef {name}(', api)
 
 
+class PageEndpointTests(unittest.TestCase):
+    """页面（A2 的 lib/guide-run.ts）调的每个引导接口在服务端都有，方法对、参数名对、交给引擎同名的函数（约定见共享笔记
+    「引导卡页面接口-约定-11-19.md」）：改一步 guide_reopen、就地改一格 guide_edit、结果里的追问 guide_follow、确定带复核指纹 seen。"""
+
+    API = (ROOT / "apps/pearnly_core/pearnly_core/assistant/api.py").read_text(encoding="utf-8")
+
+    def body(self, name):
+        start = self.API.index(f"\ndef {name}(")
+        end = self.API.find("\n@frappe.whitelist", start)
+        return self.API[start:end if end > 0 else None]
+
+    def test_every_page_call_has_its_endpoint(self):
+        for name, method, args, call in (
+                ("guide_reopen", "POST", "(run_name, step, version)", "run.reopen("),
+                ("guide_edit", "POST", "(run_name, doc_id, field, value=\"\", version=0)", "run.edit("),
+                ("guide_follow", "POST", "(run_name, answers, version=None)", "run.follow("),
+                ("guide_confirm", "POST", "(run_name, version, seen=None)", "run.confirm(")):
+            self.assertIn(f'@frappe.whitelist(methods=["{method}"])\ndef {name}{args}:', self.API, name)
+            self.assertIn(call, self.body(name), name)
+
+    def test_follow_takes_the_answers_as_json_and_confirm_hands_seen_on(self):
+        self.assertIn("json.loads(answers) if isinstance(answers, str) else answers", self.body("guide_follow"))
+        self.assertIn('None if seen in (None, "") else str(seen)', self.body("guide_confirm"))
+
+
 if __name__ == "__main__":
     unittest.main()

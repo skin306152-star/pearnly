@@ -104,10 +104,20 @@ def guide_answer(run_name, answers, version=None):
 
 
 @frappe.whitelist(methods=["POST"])
-def guide_confirm(run_name, version):
+def guide_confirm(run_name, version, seen=None):
+    """``seen``：按单据的业务，页面带回复核卡上的指纹（``review.seen``），票在别处改过就不办（回 changed）；表单业务不带。"""
     from pearnly_core.assistant.guide import run
 
-    return run.confirm(str(run_name or ""), frappe.utils.cint(version))
+    return run.confirm(str(run_name or ""), frappe.utils.cint(version), None if seen in (None, "") else str(seen))
+
+
+@frappe.whitelist(methods=["POST"])
+def guide_follow(run_name, answers, version=None):
+    """结果卡上的追问作答（约定 N1b，`guide.run.follow`）。"""
+    from pearnly_core.assistant.guide import run
+
+    given = json.loads(answers) if isinstance(answers, str) else answers
+    return run.follow(str(run_name or ""), given or {}, None if version in (None, "") else frappe.utils.cint(version))
 
 
 @frappe.whitelist(methods=["POST"])
