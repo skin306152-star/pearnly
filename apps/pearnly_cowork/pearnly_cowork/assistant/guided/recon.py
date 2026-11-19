@@ -273,6 +273,9 @@ def _sheet(kind, task) -> dict:
     return view.get("task") or {}
 
 
+DONE = "done"   # `recon_center.jobs` 里对账任务办完的状态
+
+
 def result(ctx, draft):
     """结果卡：在跑（页面过一会儿再取）/ 完成（标题、要定一次的问题、工作簿）/ 失败（原因）。确定的回包在 ``ctx["done"]``（任务号）。"""
     from pearnly_cowork.recon_center import jobs
@@ -289,7 +292,8 @@ def result(ctx, draft):
             return {"status": "failed", "reason_text": str(error)[:300]}
         if state.get("state") in ("queued", "running"):
             return {"status": "queued", "wait": True}
-        if state.get("state") != "completed" or not state.get("task"):
+        # 对账任务办完记的是 done（`recon_center.jobs` 的 _state / _recovered），原来只认 completed，真跑时结果卡永远是失败（11-19 Flows 查出）
+        if state.get("state") != DONE or not state.get("task"):
             return {"status": "failed", "reason_text": str(state.get("error") or "")}
         head = _sheet(kind, state["task"])
         out = {"status": "ready", "kind": kind, "task": head.get("name") or state["task"], "title": head.get("title") or "",

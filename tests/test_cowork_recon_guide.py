@@ -228,7 +228,7 @@ class Base(unittest.TestCase):
     def bank_done(self):
         name, found = self.bank_upload()
         done = run.confirm(name, found["version"])
-        STATE["jobs"]["J1"] = {"state": "completed", "task": "CBR-1"}
+        STATE["jobs"]["J1"] = {"state": "done", "task": "CBR-1"}   # 同 recon_center.jobs 完成时记的状态（jobs.py:557）
         STATE["sheets"]["CBR-1"] = dict(BANK_SHEET)
         return name, run.view(self.docs[name])
 
