@@ -89,6 +89,13 @@ def main(only):
             bench("new-site", site, "--db-host", "db", "--db-root-password", PASSWORD, "--admin-password", PASSWORD,
                   "--mariadb-user-host-login-scope", "%")
         site_config = json.loads(site_file.read_text())
+        # 站点加密密钥建站时固定、只写一次（同 infrastructure/production/site-step.py 的 new_site）：配置里没有它时 Frappe
+        # 由各进程各自现生成一把写回配置，后写的覆盖先写的，先加密的密码随后解不开。11-19 全套：cowork.mrerp-login 是新站点上
+        # 第一个写连接密码的格，prepare 写下的老连接账号在页面与读回时都解不开（「未授权」、用户名为空），紧接着的格密钥已定、照过
+        if not site_config.get("encryption_key"):
+            from cryptography.fernet import Fernet
+
+            site_config["encryption_key"] = Fernet.generate_key().decode()
         features = json.loads(Path(f"apps/{app}/{app}/features.json").read_text())["features"]
         site_config.update(pearnly_product=product, pause_scheduler=1, disable_scheduler=1, mute_emails=1,
                            pearnly_features=["home_subscription", *[item["code"] for item in features]],

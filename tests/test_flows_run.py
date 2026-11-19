@@ -613,6 +613,14 @@ class BilledSites(unittest.TestCase):
         self.assertTrue({site for _, _, site in init.BILLED} <= set(init.SITES))
         self.assertIn("lab_billing.py", (ROOT / "scripts/regression/lab_init.py").read_text())
 
+    def test_site_encryption_key_is_fixed_before_install(self):
+        # 11-19：没固定密钥时各进程各自生成、后写覆盖先写，新站点上第一个写密码的格（cowork.mrerp-login）读回解不开
+        text = (ROOT / "scripts/regression/lab_init.py").read_text()
+        fixed = text.index('site_config["encryption_key"] = Fernet.generate_key()')
+        self.assertIn('if not site_config.get("encryption_key"):', text[:fixed])
+        self.assertLess(fixed, text.index("site_file.write_text(json.dumps(site_config"))
+        self.assertLess(text.index("site_file.write_text(json.dumps(site_config"), text.index('"install-app"'))
+
 
 class ChangedFlows(unittest.TestCase):
     """`--changed` 与补跑范围按改动选流程（11-11 第 9 车：只改了 `cc_send_while_waiting.py` 的等待，--changed 没选中那条流程，
