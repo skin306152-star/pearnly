@@ -750,7 +750,7 @@ def remember(company, answers) -> dict:
         if ledger_mrerp:
             saved += save_mrerp(company, doctype, given, seen, name)
             continue
-        saved += save_answers(company, doctype, name, given, seen)
+        saved += save_answers(company, doctype, name, given, seen)  # loop-query: 一张开始卡上答到的几张单，逐张记（同一项 seen 去重）
     return {"saved": saved}
 
 
