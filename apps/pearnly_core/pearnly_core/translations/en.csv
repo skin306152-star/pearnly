@@ -905,6 +905,7 @@ Transport Result,Transport Result
 Trigger,Trigger
 Try again,Try again
 Type,Type
+Type a name or code to find it,Type a name or code to find it
 Type of the connected system,Type of the connected system
 Type {0} or more characters for results.,Type {0} or more characters for results.
 UI language,UI language
@@ -1111,6 +1112,7 @@ guide.desc.item.__new__,Create it in Express
 guide.desc.party.__new__,Create it in Express
 guide.desc.payment.cash,Recorded as a cash purchase or sale
 guide.desc.payment.credit,Recorded as a credit purchase or sale
+guide.line.search,Type a name or code to find it
 guide.option.business.follow,Post as on the document
 guide.option.business.skip,Skip
 guide.option.detail.amount_only,Amount only

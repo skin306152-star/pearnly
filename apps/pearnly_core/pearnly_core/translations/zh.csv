@@ -907,6 +907,7 @@ Transport Result,传输结果
 Trigger,触发方式
 Try again,重试
 Type,类型
+Type a name or code to find it,输入名称或编码查找
 Type of the connected system,对端系统类型
 Type {0} or more characters for results.,至少输入 {0} 个字符
 UI language,界面语言
@@ -1113,6 +1114,7 @@ guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建
 guide.desc.payment.cash,记为现购 / 现销
 guide.desc.payment.credit,记为赊购 / 赊销
+guide.line.search,输入名称或编码查找
 guide.option.business.follow,按票面入账
 guide.option.business.skip,不入账
 guide.option.detail.amount_only,只记金额

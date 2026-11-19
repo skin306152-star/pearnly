@@ -907,6 +907,7 @@ Transport Result,転送結果
 Trigger,トリガー
 Try again,もう一度
 Type,種別
+Type a name or code to find it,名前またはコードを入力して検索
 Type of the connected system,接続先システムの種類
 Type {0} or more characters for results.,{0} 文字以上入力してください
 UI language,表示言語
@@ -1113,6 +1114,7 @@ guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成
 guide.desc.payment.cash,現金仕入・現金売上として記帳
 guide.desc.payment.credit,掛仕入・掛売上として記帳
+guide.line.search,名前またはコードを入力して検索
 guide.option.business.follow,書類どおりに記帳
 guide.option.business.skip,記帳しない
 guide.option.detail.amount_only,金額のみ

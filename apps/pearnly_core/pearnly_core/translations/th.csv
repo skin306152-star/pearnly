@@ -907,6 +907,7 @@ Transport Result,ผลการรับส่ง
 Trigger,รูปแบบการทริกเกอร์
 Try again,ลองอีกครั้ง
 Type,ประเภท
+Type a name or code to find it,พิมพ์ชื่อหรือรหัสเพื่อค้นหา
 Type of the connected system,ประเภทระบบปลายทาง
 Type {0} or more characters for results.,พิมพ์อย่างน้อย {0} ตัวอักษร
 UI language,ภาษาของหน้าจอ
@@ -1113,6 +1114,7 @@ guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express
 guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด
 guide.desc.payment.credit,บันทึกเป็นซื้อ / ขายเงินเชื่อ
+guide.line.search,พิมพ์ชื่อหรือรหัสเพื่อค้นหา
 guide.option.business.follow,บันทึกบัญชีตามเอกสาร
 guide.option.business.skip,ไม่บันทึกบัญชี
 guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
