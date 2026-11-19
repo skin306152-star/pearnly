@@ -647,6 +647,58 @@ tier = "gate"
 
 # ---- 第二期第 7 批（11-17）：对齐引导总表补的格。写好未跑；真模型，每遍上限 1 美元（另有一次真识别费，Mac 栈不经回放）。
 [[scenario]]
+id = "acc.cowork.intake.detail.amount_only"
+title = "Cowork A7：票面明细合计 ≠ 税前 → 引导卡问「明细」→ 只记金额 → 写成只有表头与分录（无存货明细）"
+class = "variant"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_intake_express.py"
+rows = ["cowork.desk.pearnly-intake.action.Submit"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+# ---- 第二期第 7 批（11-17）：对齐引导总表补的格。写好未跑；真模型，每遍上限 1 美元（另有一次真识别费，Mac 栈不经回放）。
+
+[[scenario]]
+id = "acc.cowork.intake.detail.skip"
+title = "Cowork A7：明细对不上的票答「不入账」→ 不写，停在明细对不上，账本不动"
+class = "variant"
+misuse = ["M02"]
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_intake_express.py"
+rows = ["cowork.desk.pearnly-intake.action.Submit"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/*.py",
+  "apps/pearnly_core/pearnly_core/express_rules/push/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+needs_server = true
+budget_usd = 0
+tier = "gate"
+
+# ---- 第二期第 7 批（11-17）：对齐引导总表补的格。写好未跑；真模型，每遍上限 1 美元（另有一次真识别费，Mac 栈不经回放）。
+
+[[scenario]]
 id = "acc.cowork.cc.direct.purchase"
 title = "Cowork 的 CC 对话直写：放一张采购票 → 识别 → 写入计划 → 点写入 → CC 桌面版写进 Express 验收账套 → 推送记录与账本读回（格 CW-D-P-L）"
 class = "chain"

@@ -519,3 +519,9 @@ LINE 收款的后台任务（等结果、通知）不排；验收员工已绑了
 | acc.erp.operator.talk.purchase ×3 | 不通过 ×3 | ② 没修：三次最后回复都没报写成的单号（HP0000090 / HP691117-001）；③ 没复现：三次可见文字都没有英文步骤句或工具名。第 2 次写账件不是代录交的（单号是直写格式 HP691117-001）：后台直写先领走了这张——场景前置没守住，按规矩应记「没测到」，场景要在交代录前核这张没被直写领走 |
 
 花费：0.100 + 0.248 + 0.131 = 0.479 美元（11-17 累计 1.147 美元）。主会话 11:4x 通知暂停，Cowork A7 两格（被测 cc-remembered-every-basis f32b4325b）与 1.12.21 补 7 格、三条新场景改到明天。
+
+## A7 两格登记（11-19）
+- `acc.cowork.intake.detail.amount_only` / `.skip`（场景 `cowork_intake_express.py` 的 A7 分支，站点脚本 `cowork_intake_post.py` 的 `detail` 参数），进 first_run 的 cowork 组；站点目标可由 `PEARNLY_ACC_SITE_TARGET` 指成 maclab。
+- 首跑（11-19 11:5x–12:06，小驱动，被测 cc-remembered-every-basis f32b4325b、maclab cowork + 测试机2 + TEST2）：两格通过——只记金额写成 RR691119-001（APTRN 税前 100 / 税 7 / 合计 107、STCRD 无行、凭证一张、进项税一行）；不入账停在 manual / items_mismatch、账本不动。ERP 两格「不适用」（ERP 单据合计按明细算，对不上时写账前硬拒，guided-erp 定）。
+- 前置：Cowork 站点要配智能体引擎（`sessions.create` 要连引擎建会话，不发消息、模型费 0，用完删密钥）；手造的识别记录要写上 `push_connection` / `push_account_set`（CC 对话放票时产品本来就写）；新接的 Cowork 公司首次判卡要等电脑读一次科目表。
+- 测试机2 基准哈希 11-19 起为 176DE98E（testerp 档案正常续换令牌，C216460D 作废）。

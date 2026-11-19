@@ -189,6 +189,25 @@ class World:
         return {"ok": True, "company": "CO-1", "item_code": "P001", "warehouse_code": "01", "warehouses": ["01", "02"], "docs": docs}
 
     def cowork_intake_post(self, params):
+        detail = params.get("detail")
+        if detail:   # A7：引导卡问「明细」；只记金额写表头、不写存货明细；不入账停在 items_mismatch
+            asked = ["party", "account"] if self.break_at == "no-detail-question" else ["detail", "party", "account"]
+            out = {"ok": True, "history": "H-A7", "card_kinds": asked, "detail": {"asked": True, "value": detail},
+                   "prepared": {"name": "PR-A7", "status": "manual" if detail == "skip" else "prepared",
+                                "reason": "items_mismatch" if detail == "skip" else ""}}
+            if detail == "skip":
+                if self.break_at == "skip-wrote":
+                    self.add("APTRN", DOCNUM="RR691119-002", NETAMT=107.0, VATAMT=7.0, AMOUNT=100.0)
+                return out
+            docnum = "RR691119-001"
+            self.add("APTRN", DOCNUM=docnum, SUPCOD="T001", NETAMT=107.0, VATAMT=7.0, AMOUNT=100.0)
+            self.add("ISVAT", DOCNUM=docnum)
+            self.add("GLJNL", VOUCHER=docnum)
+            if self.break_at == "stock-lines":
+                self.add("STCRD", DOCNUM=docnum, STKCOD="P001", TRNQTY=1)
+            out["record"] = {"name": "PR-A7", "status": "success", "docnum": docnum, "verify": "ok", "written": True,
+                             "duplicate_skipped": False, "written_to": params["ledger"]}
+            return out
         docnum, total = "HP691115-009", float(params["amount"]) + float(params["vat"])
         self.add("APTRN", DOCNUM=docnum, SUPCOD="V001" if self.break_at == "supplier" else "T001", NETAMT=total, VATAMT=float(params["vat"]))
         self.add("ISVAT", DOCNUM=docnum)
@@ -627,7 +646,7 @@ class ChainScenarioTest(unittest.TestCase):
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
                  "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
-                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1,
+                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1, "acc.cowork.intake.detail.amount_only": 1,
                  "acc.erp.pos.day.express": 1, "acc.erp.purchase.cancel.express": 1, "acc.erp.sales.cancel.express": 1,
                  "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
@@ -635,6 +654,8 @@ class ChainScenarioTest(unittest.TestCase):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((len(result["facts"]["docnums"]), world.calls[-1]), (docs, "restore"), scenario_id)
+        result, world = self.go("acc.cowork.intake.detail.skip")   # 不入账：不写，没有单号
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
         for scenario_id in ("acc.erp.company.connect", "acc.erp.company.connect.fresh", "acc.erp.company.connect.twice"):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
@@ -662,6 +683,9 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.erp.company.connect.fresh", "second-company", "接管"),
                  ("acc.erp.company.connect.twice", "added-twice", "再添加一次"),
                  ("acc.cowork.intake.express", "supplier", "供应商编码"), ("acc.cowork.intake.express.twice", "second-doc", "只多一行"),
+                 ("acc.cowork.intake.detail.amount_only", "stock-lines", "没有存货明细行"),
+                 ("acc.cowork.intake.detail.amount_only", "no-detail-question", "问了「明细」"),
+                 ("acc.cowork.intake.detail.skip", "skip-wrote", "与基线逐文件一致"),
                  ("acc.erp.denied", "open-door", "都被拒"), ("acc.erp.denied", "left-record", "都没变")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)
