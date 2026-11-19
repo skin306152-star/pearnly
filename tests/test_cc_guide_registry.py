@@ -219,10 +219,6 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(sorted(guides), ["pearnly_cowork", "pearnly_erp_portal"])
         for app, items in guides.items():
             for mode, wanted in _phase_one_businesses(app).items():
-                if (app, mode) == ("pearnly_erp_portal", "chat"):
-                    # 主会话 11-14：ERP 直写的采购 / 销售整链没走通过，从菜单拿掉、只留收款（P2 验过再放）。第 1 期的 hook 由它的窗口改，
-                    # 改完这一条与别的组合一样逐项相同
-                    wanted = [w for w in wanted if w == "collection"]
                 # 第 1 期之后新加的业务（P3 起，总表 docs/work/2026-11-16-cc-guided-master-table.md）不在第 1 期的 hook 里：只比第 1 期那几项
                 offered = sorted(g["id"] for g in items if mode in g["modes"] and g["id"] in PHASE_ONE_IDS)
                 self.assertEqual(offered, sorted(wanted), (app, mode))

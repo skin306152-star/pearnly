@@ -705,6 +705,6 @@ pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.chec
                         "mrerp": "pearnly_erp_portal.mrerp.ledger_check.check"}
 
 # CC 输入框上方的业务菜单（引导式录入第 1 期，评估 docs/work/2026-11-12-cc-guided-entry.md 6.1、12 节第 3 问）：这个产品 × 这个模式真能做的业务
-pearnly_guide_businesses = {"chat": ["collection"], "operator": ["purchase", "sales"]}
+pearnly_guide_businesses = {"chat": ["purchase", "sales", "collection"], "operator": ["purchase", "sales"]}
 # 引导声明（总设计 docs/work/2026-11-14-cc-guided-master-design.md 2.2）：每项业务一份声明，共用引擎 `pearnly_core.assistant.guide` 据此出菜单与卡
 pearnly_guides = ["pearnly_erp_portal.express.cc_guides.GUIDES", "pearnly_erp_portal.collection.cc_guide.GUIDES"]
