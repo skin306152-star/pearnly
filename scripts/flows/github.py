@@ -117,6 +117,11 @@ def summary(path, before=None):
     if left:
         lines += [f"**Left data behind ({len(left)}, recorded, not failed)**", ""]
         lines += [f"- {cell(r)} `{json.dumps(r['left_data'], ensure_ascii=False)[:300]}`" for r in left] + [""]
+    forced = [r for r in results if (r.get("swept") or {}).get("forced") or (r.get("swept") or {}).get("error")]
+    if forced:
+        lines += [f"**Sweep had to skip on_trash or failed ({len(forced)})**", ""]
+        lines += [f"- {cell(r)} `{json.dumps(r['swept'].get('forced') or {'error': r['swept'].get('error')}, ensure_ascii=False)[:300]}`"
+                  for r in forced] + [""]
     fallbacks = data.get("lab_python_fallbacks") or []
     if fallbacks:
         lines += [f"Lab worker fell back to one process per call {len(fallbacks)} times: `{fallbacks[0][:200]}`", ""]
