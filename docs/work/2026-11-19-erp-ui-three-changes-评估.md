@@ -1,0 +1,159 @@
+# 需求影响评估：ERP 界面三项（LINE 复核加保存、取消仓位统一仓库、物料列表精简）
+
+> 窗口：ERP 界面窗口；分支 `pearnly/erp-ui-three-1119`，基线 `origin/main` 1a91b178b（11-19 11:4x）。线上 `72516d120`（`release-20261115-1126`）。
+> 状态：只读评估，未改代码。交主会话 local_2a97180e 审定后施工。Express 原生采购 / 销售画面实录待补（测试机2 已批，排时段中）。
+
+## 0. 需求原文与理解
+
+- 原话（用户 11-18 晚，岳父的需求；记忆 `erp-ui-changes-2026-11-18.md`）：
+  1. LINE 识别复核界面在「编辑」上方加「保存」；保存 = 直接提交（正式入账、排队写账本）；采购、销售；ERP 的 LINE 与 Cowork 的 LINE 都加；「编辑」保留。
+  2. 取消「位置 / 仓位」统一用「仓库」；只有盘点保留仓位；入库界面明细的「位置」栏换成「仓库」栏、按行选；新建仓库页的「仓库编码」不动；各界面仓库放单头还是按行，照 Express 原生对应菜单。
+  3. 物料列表删 状态、成本、平均成本、价值、位置；编码栏改显示内部编码；宽度给名称、名称完整显示。
+- 不在范围：Express 写账载荷与 CC 写入器（库存对齐窗口 local_d02c5417 管）；LINE 新增追问步骤；收银界面改版；Cowork 的物料 / 库存页面（Cowork 无仓位概念）。
+
+## 1. 第 1 项前置核实（用户 11-18 问「LINE 识别 → 编辑 → 提交会不会写进 Express」，已答「会」）
+
+| # | 核实点 | 结论 | 证据（main 1a91b178b；线上 72516d120 同） |
+|---|---|---|---|
+| ① | LINE 识别出的销售单落成哪类 | **一律落成 receipt（收据），会写**。销售只有 quotation / receipt 两类，可写名单只有 receipt；采购可写 purchase_invoice / expense / goods / service，识别出的 purchase_order 也落成 purchase_invoice | `sales/contracts.py:330`（经 `sales/recognition.py:110`）、`express/contracts.py:106-107`、`purchasing/contracts.py:21`；MR.ERP 共用同一份（`mrerp/push.py:33`） |
+| ② | 公司主档首次同步完成前建的单 | **提交时不写，以后也不补**（注释明说）。但判据是「业务单据的创建时刻」，LINE 单在**提交那一刻**才建业务单据——所以接上前收到卡片、接上后才点保存 / 提交的，**会写** | 接上时刻 `express/masters.py:466-470`、MR.ERP `mrerp/catalog.py:102`；判据 `express/push.py:74-94`。Cowork 没有这条时刻判据 |
+| ③ | 线上与 main 是否一致 | 上面两条判据**一致**：`SALES_KINDS` / `PURCHASE_KINDS`、`started` / `counts_from`、`sales/contracts.py` 的 RECEIPT 在 72516d120 与 main 相同。main 比线上多的是派单人（e1bac7ac3「谁能写谁写」）、防重复排队（847fc020c）、MR.ERP 年度账套等，不改变「会不会写」 | `git diff 72516d120 origin/main` 对上列文件 |
+
+**点了「保存」也不一定写进账本的情况**（与编辑页提交相同，不是新问题，但卡片上直接保存时更容易碰到）：
+公司没接 Express / MR.ERP；单据早于接上时刻（见②）；写前停下——已断开、票面合计缺 / 对不上、要人选的项（同期账套、费用科目、同税号多档）→ 停在「要人选」，实时弹给录入人（`express/push.py:466-508`）。
+
+**施工后要在 ERP 与 Cowork 两条 LINE 上各实测一张**（交接第十一节第 4 条）：testerp / testcowork 测试租户 + 测试机 CC + 测试账套，各点一次「保存」看写进账套、单号回到卡片。
+
+## 2. 现有同类与复用
+
+- 第 1 项：ERP 卡片 `integrations/line_cards.py:202-262`（只有 uri「编辑」）；提交服务端 `integrations/intake.py:463-499` `submit`（行锁幂等、请求号 `line-intake:<记录名>`）；CC 路线已有 `submit_chat`（`intake.py:640-665`）用 `build_payload` + `entry.post` 直接提交——**「保存」复用这条，不新建提交逻辑**。Cowork 卡片 `pearnly_cowork/line/cards.py:115-162`，提交编排在前端 `intake-upload.js:972-1040`（存改动 → 问存货科目组 / Express 选择项 / MR.ERP 菜单 → `push.application.api.submit` → Express 再 `companion.submission.confirm`），服务端要补一个「卡片保存」入口把这串在服务端走完（复用 `service.submit` / `prepare` / `confirm`，不另写规则）。
+- 第 2 项：仓库已有（`ERP Warehouse`、选择框 `transactions.js:14 location_query`、`p.place`）；只删仓位、把仓库挪到行上，不新建。
+- 第 3 项：两张列表都是现有 Frappe 原生 DataTable 列定义，只删列、调宽。
+
+## 3. Frappe 原生能力
+
+- LINE 卡片按钮用 LINE Flex 原生 postback；网页侧不涉及。
+- 明细行仓库用原生 Grid 的 Link 列（`ControlLink` + `get_query` 服务端搜索），与现在单头仓库同一查询。
+- 表结构：删字段直接改 DocType JSON（Frappe 迁移不删旧列，旧数据留在库里不再读写）；余额维度收敛用原生 patch（`patches.txt`）。
+- 列表：原生 DataTable，服务端分页。库存列表现在是整批取全后内存切页（`stock.py:453-463`），本次不扩大，若顺手改为服务端分页要另列（见第 12 节）。
+
+## 4. 第 2 项：「界面 → 现在 → 改成」表（给用户看）
+
+Express 原生画面一列：库存四单已由库存对齐窗口实录（`2026-11-18-stock-express-parity.md` 111–113、143 行）；销售按行选仓有 10-25 实测（`2026-10-25-express-native-rules.md` 2.3 节「录行时以行上的仓为准、仓库下拉只列该商品有 STLOC 的仓」）；采购 / 现购 / 现销**待测试机2 截图确认**（CC 代录配方里四个单头都没有仓库栏，代录逐行在明细里填仓：`companion/.../recipes/express-1.0.1.94.json`、`engine.py:780`，旁证按行）。
+
+| 界面 | 现在 | 改成 | 对应 Express 原生画面 |
+|---|---|---|---|
+| 采购单（新建 / 编辑 / LINE 卡片打开） | 单头：仓库 + 仓位；明细：仓位 | 单头：不放仓库；明细每行一个「仓库」栏，新行沿用上一行，第一行默认（本人上次 → 卖货仓 → 唯一仓）；只有一个仓的公司不显示这一栏 | 1-4-1 赊购 RR、1-2 现购 HP：单头无仓，明细行选仓（**待截图确认**） |
+| 销售单 | 单头：仓库 + 仓位；明细：仓位 | 同采购 | 2-4 赊销 IV、2-2 现销 HS：明细行选仓，下拉只列该物料有库存行的仓（10-25 实测；HS **待截图**） |
+| 采购 / 销售「批量编辑」弹窗 | 单头仓 + 每行入库（出库）勾选 + 仓位 | 每行仓库 + 入库（出库）勾选；「全部」一键设同一个仓 | 同上 |
+| 入库 | 单头：仓库 + 仓位；明细：仓位（「位置」） | 单头不放仓库；明细「位置」栏换成「仓库」栏，按行选，新行沿用上一行 | 4-3-2 生产完工收货 PI：明细「品码 → 仓 → 数量 → 单位」，每行可选仓 |
+| 出库（自用 / 样品 / 报损 / 生产领料） | 同入库 | 同入库 | 4-1-1 OU（XS / ZZ / PD 同）：明细每行可选仓 |
+| 物料调整 | 同入库 | 同入库（加减混录不变） | 4-3-1 增减调整 JU：明细每行可选仓 |
+| 调拨 | 单头：调出仓 + 调出仓位 + 调入仓 + 调入仓位；明细：调出仓位 + 调入仓位 | 单头：调出仓 + 调入仓；明细不放仓 | 4-2-1 仓库调拨 RL：单头「调出仓 → 调入仓」，明细只有「品码 → 数量 → 单位」 |
+| 期初（仅未接 Express 的公司） | 表头仓 + 每行仓库 + 仓位 | 每行仓库（表头仓作默认）；删仓位 | Express 无对应（接 Express 的公司不出这一节） |
+| 盘点（**保留仓位**） | 账面仓库 / 仓位、实际仓位、仓位差异、打印带仓位 | 保留「实际仓位」（货在哪找到的）、打印照旧；账面改为只到仓库；「仓位差异」去掉（账面不再分仓位，没有对比依据）——**待定，见第 12 节** | Express 盘点 TK 不分仓位 |
+| 仓库（编辑弹窗） | 仓库编码、仓位清单（含每个仓位的数量、「带入有库存的仓位」按钮） | 仓库编码不动；仓位清单只给盘点选「实际仓位」用，去掉数量列与「带入有库存的仓位」——**待定，见第 12 节** | Express 仓库主档无仓位 |
+| 新建仓库弹窗 | 公司、名称、仓库编码、备注、状态 | 不动 | — |
+| 物料资料（新建 / 编辑 / 导入模板） | 「默认仓位」字段与提示；导入表 `default_location` 列 | 删 | Express 存货主档无仓位 |
+| 库存一览 | 「按位置」视图、仓位列、按仓位筛选 | 删，只按物料 / 按仓库 | — |
+| 库存卡 / 收发存 | 仓位维度（路由第三段） | 删，只到仓库 | — |
+| 按台管理选台 | 按仓库 + 仓位过滤 | 只按仓库 | — |
+| LINE 识别按行追问 | 多仓问仓库、建了仓位清单的问一次仓位 | 只问仓库（一张票问一次，各行同仓）；不问仓位；要逐行不同仓在「编辑」里改 | — |
+| 收银 POS | 界面不显示；服务端行上存仓位 | 服务端不再存；仓库照旧取班次的仓 | 现销 HS |
+| CC 引导 / 对话「仓库」题 | 中文词条写成「仓位」（英文是 Warehouse，实际问的就是 Express 仓库） | 中文改「仓库」 | — |
+| MR.ERP 默认值 | 中文词条「仓位」（实指仓库） | 中文改「仓库」 | — |
+
+## 5. 上下游数据
+
+- **库存余额维度**：现在按「物料 + 仓库 + 仓位」三元组记（`inventory/contracts.py:20 position_name`、`stock.py:60-186 / 495`、成本 `documents.py:131`、期初查重 `opening_batch.py:148-163`、对账 / 库存卡 `audit.py:72-91`、`card_rows.py:295`、`report.py:47-76`）。改成「物料 + 仓库」二元组：仓位参数一律去掉。
+- **存量数据迁移（原生 patch）**：① 流水、期初、余额、序列号、行物料记忆、单据行的 `location` 清空；② 每个「物料 + 仓库」用 `stock.rebuild_balance` 按流水重放成一行 `BAL-物料-仓库`；③ 删旧的 `BAL-<sha>` 余额行；④ 同仓不同仓位之间的挪动（调整、盘点一加一减）合并后正负抵消，调拨服务端本来就要求两个仓不同（`SAME_WAREHOUSE`）不受影响。现有 `patches/v1_2_storage_positions.py` 只把 null 改空串，不合并。**部署前要生产只读统计**：各租户 `location` 非空的流水 / 余额 / 单据行数（脚本我写、主会话审后跑），没有数就是空迁移。
+- **一单一仓规则撤掉**：`inventory/documents.py:177-181 / 198 / 228-232 / 360 / 393-399`（`_own_warehouse`）、`inventory/positions.py:101 one_warehouse`、`purchasing/entry.py:213`、`sales/entry.py:310`。改成「行上的仓为准、没有取默认仓」；调拨仍是单头一出一进。服务端校验：行仓必须属于本公司、启用中（现在只对单头仓核），多仓公司每个库存行都要有仓。
+- **Express**：载荷**不变**。采购 / 销售行本来就带 `loccod`（`express/contracts.py:11 / 216`），库存单「行上的仓，没有取单头的仓」（`express/stock_entry.py:169`，库存对齐分支 180 行同），调拨行 `loccod` = 调出仓、单头 `to_loccod` = 调入仓。不升载荷版本。Express 主档对齐把调整写进默认仓位（`express/masters.py:916-960`）改为只到仓库。
+- **CC 桌面版**：不涉及（载荷不变）。代录配方逐行填仓，本来支持按行。
+- **MR.ERP**：MR.ERP 导入表按仓库（STORE），无仓位；`mrerp.default.store` 只是词条。
+- **Cowork / DMS**：无仓位；共用层 `pearnly_core` 里的 location / LOCCOD 是 Express 仓库，不动逻辑。第 1 项 Cowork 只动 LINE 卡片与一个服务端保存入口。
+
+## 6. 隔离与权限
+
+- 保存（ERP）：沿用 `intake._owned`（只有发单本人 + 采购 / 销售写权限），服务端拦；LINE postback 带记录名，服务端按 LINE 绑定的用户核本人，不信任 postback 内容。Cowork：沿用 `scope.require` 工作空间权限 + 记录 / 连接版本号。
+- 行仓库：服务端核每个行仓属于单据公司（现在只核单头），跨公司仓库提交被拒。
+- 不涉及新角色、新权限项。
+
+## 7. 入口：网页、手机、LINE、CC
+
+- 网页桌面 / 窄屏：采购、销售、入库、出库、调整、调拨、期初、盘点、物料、仓库、库存、库存卡的仓位全部按第 4 节改；窄屏明细 Grid 多一列仓库（单仓公司不显示）。
+- LINE：ERP 与 Cowork 卡片加「保存」（第 1 项）；ERP 按行追问去掉仓位题。
+- CC 引导 / 对话：采购 / 销售引导里如有仓位题去掉（`pearnly_core/express_rules/push/choices.py:45 / 494`、`required_fields.py:254` 是 Express 仓库，保留）；库存四单引导由库存对齐窗口做，按行带 `warehouse` 转调 `create_entry`，等本项合入后施工（已约）。
+- 拍照入口：不涉及。
+
+## 8. 共用件与连带回归
+
+- `python3 scripts/check-impact.py --files`（positions / documents / stock / transactions.js / stock-entry.js / inventory.js / products.js / stocktake.js / warehouses.js / line_cards.py / intake.py / line_items.py / Cowork line/cards.py）：**命中共用件 erp-transactions（ERP 单据共用：仓库查询、明细、Express 预检），24 个入口**；连同文件对应的产品地图入口共 62 条（采购 / 销售 / 入库 / 出库 / 调拨 / 调整 / 期初 / 盘点 / 按台 / 打印 / LINE 收单与追问 / Cowork LINE / 写 Express 出入库与调拨 等），每条实测记「通过 / 不通过 / 没测到（原因）」后才合入。
+- 冒烟：扩展 `erp.place.header`（改成按行仓）、`erp.trade.line-stock`、`erp.line.item-questions`、`erp.line.intake.submit`（加卡片保存）、`cowork.line.chat`；新加「卡片保存」两条入口进产品地图。
+
+## 9. 存储与成本
+
+- 不增数据量、不加外部调用、无新增固定月费。LINE postback 回复是现有频道消息。迁移是一次性重算余额。
+
+## 10. 删除、作废、追溯
+
+- 已提交单据的旧 `location` 值迁移时清空（Express 本来就没有这一维，账本不受影响）；如需保留追溯，可改为只清余额维度、单据行旧值留在库中不显示——**建议清空**（轻便口径），见第 12 节。
+- 作废：照旧，写过 Express 的照原生作废；无变化。
+
+## 11. 第 3 项：物料列表
+
+两张列表都可能被叫作「物料列表」：
+
+| 列 | 物料资料列表 `products.js:406-431` | 库存一览 `inventory.js:140-158` |
+|---|---|---|
+| 状态 | 有（正常 / 已停用） | 有 |
+| 成本 | 有（参考成本） | — |
+| 平均成本 | — | 有 |
+| 价值 | — | 有（中文「金额」，泰文 มูลค่า = 价值） |
+| 位置 | 有（默认仓位） | 有（仓位） |
+| 编码 | 编码 + 单独一列内部编码（没填回落 Express 编码） | 只有编码，不显示内部编码 |
+| 名称宽 | 184 / 最小 160 | 160 / 最小 132 |
+| 分页 | 服务端分页 | 整批取全、内存切页 |
+
+用户列的五栏里「平均成本、价值」只在库存一览、「编码改内部编码」也只对库存一览成立，所以**多半指库存一览**；但「成本」只在物料资料列表。建议：库存一览删 状态 / 平均成本 / 价值 / 仓位，编码栏显示内部编码（没填回落编码）；物料资料列表的「位置」随第 2 项删，状态 / 参考成本是否也删——**待定，见第 12 节**。名称列「完整显示」：DataTable 单元格单行截断，用原生列宽加宽 + 允许换行（Frappe DataTable 的 `inlineFilters` 不变，只改 `width` 与单元格 `white-space`；如需自定义样式记原因）。
+
+## 12. 要问用户（经主会话）的点
+
+| # | 问题 | 我的建议 | 不定的影响 |
+|---|---|---|---|
+| Q1 | 「物料列表」指库存一览还是物料资料列表？ | 库存一览照五栏删；物料资料列表只删「位置」 | 删错一张表 |
+| Q2 | 卡片上点「保存」时，有编辑页才能补的项（多仓公司没定仓、按台登记车辆号、含税采购缺票号、Express 要人选的同期账套 / 科目 / 同税号多档、Cowork 的存货科目组 / MR.ERP 菜单）怎么办？ | 能自动定的照预选直接提交；要人定的不提交，回一句现有报错原文 + 「编辑」按钮（不新加追问） | 点了保存却停在半路，或静默写错 |
+| Q3 | 盘点保留仓位后，账面不再分仓位：「仓位差异」与账面仓位去掉，只留「实际仓位」记录？ | 是 | 盘点页留无依据的对比 |
+| Q4 | 仓库编辑里的仓位清单是否保留（只给盘点选实际仓位）？ | 保留清单，去掉数量列和「带入有库存的仓位」 | 盘点仓位只能手输 |
+| Q5 | 单据行旧的仓位值迁移时清空还是留库不显示？ | 清空 | 追溯口径 |
+| Q6 | LINE 按行追问：多仓时整张票问一次仓库（各行同仓），逐行不同仓去编辑页改？ | 是（不加追问步骤） | LINE 问得太细 |
+| Q7 | 卡片副标题「进入明细完成复核与入账」（`Document summary · open details to review and post`）加「保存」后与行为不符 | 见第 13 节文案清单 | 文案与行为不符 |
+
+## 13. 文案与官方 UI
+
+- **新文案**：卡片按钮「保存」沿用现有词条 `Save`（四语 保存 / บันทึก / 保存，ERP `messages.tsv:43`、共用层 `:532`），不新造。
+- **改已有文案（要用户看）**：
+
+| 词条 | 原句（中） | 新句（中） | 泰 / 英 / 日 |
+|---|---|---|---|
+| `mrerp.default.store` | 仓位 | 仓库 | คลังสินค้า / Warehouse / 倉庫 |
+| `guide.q.location`（CC 引导） | 仓位 | 仓库 | 同上（英文本来就是 Warehouse） |
+| 卡片副标题 `Document summary · open details to review and post`（ERP `:1268-1269`、Cowork `:1620`） | 单据摘要 · 进入明细完成复核与入账 | 单据摘要 | 泰 / 英 / 日 同步删后半句 |
+| 「位置」类明细栏（入库等，`trade.location`） | 仓位 | （删除，换成现有「仓库」词条 `stock.col.warehouse`） | — |
+
+- 删除的仓位相关词条约 30 条随代码删，不需审批；`check-copy.py` 过闸、交付附 `--report`。
+- 组件：LINE Flex 原生按钮；网页全原生 Grid / Link / DataTable，无自定义样式（名称列换行若需一行 CSS，记原因）。
+
+## 14. 测试与验收
+
+- 单元 / 离线：`test_erp_locations.py`、`test_erp_line_item_choice.py`、`test_erp_printing.py`、`test_erp_serials.py`、`test_erp_stock_adjust.py`、`test_erp_stock_card_export.py`、`test_erp_express_direct.py`、`test_opening_batch.py`、`test_opening_report.py`、`test_stock_opening_ui.js`、desk cjs 若干、`inventory/test_opening_flow.py`、`integrations/test_line_intake.py`、`express/test_operator_intake.py` 按新口径改断言（不删断言凑过）；新增：迁移 patch（同仓两仓位合并、BAL-sha 删除、余额与流水重放一致）、行仓跨公司被拒、调拨单头一出一进、卡片保存（成功 / 缺项不提交回原因 / 重复点幂等 / 非本人拒）。
+- 实验栈 / 测试环境：testerp / testcowork 测试租户各一张 LINE 卡片「保存」→ 测试账套写入并读回单号；采购 / 销售两行不同仓写进 Express 后两个仓 STLOC 各自变化（对照原生）；第 8 节 62 条入口逐条。
+- 真机：三星 adb 在 ERP-TEST 与 Cowork-test 两个 LINE 各点一次保存。
+- 用户要看：「界面 → 现在 → 改成」表（第 4 节）、Q1–Q7、文案清单（第 13 节），施工后看采购单按行仓库与入库页截图。
+
+## 15. 工作量与排期（机器耗时）
+
+1. 第 3 项（列表）——独立、最小：写 0.5 小时 + 闸门 0.5 小时。
+2. 第 1 项 ERP 卡片保存（复用 `submit_chat`）：写 1.5 小时 + 测 1 小时；Cowork 服务端保存入口：写 2 小时 + 测 1 小时。
+3. 第 2 项（等测试机2 截图定采购 / 销售）：服务端撤一单一仓 + 余额二元组 + 迁移 patch 3 小时；界面 10 个页面 3 小时；测试改写 2 小时；62 条入口回归 + 候选离线 2–3 小时。与库存对齐窗口：它管 `express/` 与 `companion/`，我管界面 / DocType / 迁移 / 余额维度；`documents.py` PURPOSES、`stock-entry.js` PURPOSES、`transactions.js` EXPRESS_KINDS、`erp_stock_entry.json` purpose 选项那几行它已改，谁后合谁变基。
+三项各自一个提交、可分开合入；第 2 项合入后库存对齐窗口再接 CC 库存四单引导的按行选仓。
