@@ -394,6 +394,20 @@ class Cowork(unittest.TestCase):
         self.assertEqual(receipt.pages[0].invoice.subtotal, "100.00")  # Cowork 的 subtotal 是税前
         self.assertEqual(receipt.pages[0].invoice.currency, "")  # 泰铢不填
 
+    def test_numbers_leave_the_claude_route_as_plain_numbers(self):
+        # 主会话 11-19：Claude 路线原先完全没规整，「1,234.50」「฿」「3%」一路带到 MR.ERP 导入表，明细静默变 0、预扣税率丢掉
+        line = {"description": "น้ำแข็ง", "code": "A1", "barcode": None, "item_type": "goods", "qty": "1,000", "unit": "ถุง",
+                "unit_price": "฿1.25", "discount": None, "discount_percent": None, "amount": "1,250.00", "vat_rate": "7%"}
+        read = voucher(doc(subtotal="1,250.00", vat="฿87.50", total="1,300.00", wht_rate="3%", wht_amount="37.50",
+                           lines=[line]), doc(page=1, invoice_number="IV002", subtotal="1,000.00", lines=[line]))
+        page = self.pipeline(read, 1).pages[0].invoice
+        self.assertEqual((page.subtotal, page.vat, page.total_amount, page.wht_rate, page.wht_amount),
+                         ("1250.00", "87.50", "1300.00", "3", "37.50"))
+        self.assertEqual((page.items[0].qty, page.items[0].price, page.items[0].subtotal), ("1000", "1.25", "1250.00"))
+        self.assertEqual((page.additional_invoices[0].subtotal, page.additional_invoices[0].items[0].qty), ("1000.00", "1000"))
+        odd = self.pipeline(voucher(doc(total="ตามตกลง")), 1).pages[0].invoice
+        self.assertEqual(odd.total_amount, "ตามตกลง")  # 读不懂的原样留给核对去报
+
     def test_every_page_of_a_long_file_is_read(self):
         from pearnly_cowork.ocr.execution import claude
         result = self.pipeline(voucher(doc(), doc(page=10, invoice_number="IV010")), 10)

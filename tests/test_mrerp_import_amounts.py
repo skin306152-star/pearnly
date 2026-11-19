@@ -11,6 +11,7 @@
 
 导入表直接调生成器（纯函数，不连网、不要 Frappe），读出 sheet 的格子比对。
 """
+from decimal import Decimal
 import io
 import pathlib
 import re
@@ -222,6 +223,44 @@ class CashPurchase(unittest.TestCase):
         cash = dict(NON_VAT, fields=dict(NON_VAT["fields"], posting_payment_manual="cash"))
         self.assertEqual(purchase.validate_expense_history(cash, MAPPINGS)[:2],
                          (False, "ERR_MRERP_CASH_SUPPLIER_NOT_CREATED"))
+
+
+class RecognisedNumbers(unittest.TestCase):
+    """识别读出的数字写法（主会话 11-19）：导入表读不懂的原来当 0，行金额、折扣静默变 0；预扣税「3%」静默丢掉。"""
+
+    def test_printed_spellings_are_read_and_unreadable_ones_are_not_zero(self):
+        self.assertEqual([fmt.fmt_number(v) for v in ("1,234.50", "฿100", "(183.82)", "3%", "1 000 บาท")],
+                         [1234.5, 100.0, -183.82, 3.0, 1000.0])
+        self.assertIsNone(fmt.fmt_number("ตามตกลง"))
+        self.assertEqual(fmt.line_amount({"subtotal": "1,250.00"}), 1250.0)
+        self.assertEqual(fmt._decimal(None), 0)
+        self.assertEqual(fmt._decimal("1,234.50"), Decimal("1234.50"))
+        with self.assertRaises(ValueError):
+            fmt._decimal("ตามตกลง")  # 读不懂停下，不当 0 写进导入表
+
+    def test_withholding_and_vat_rates_with_a_percent_sign_are_kept(self):
+        from pearnly_core.mrerp.push.xlsx import lookups
+
+        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "3%"}), "wht_3")
+        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "5 %", "vat_rate": "7"}), "wht_5")
+        self.assertEqual(lookups.derive_tax_kind({"vat_rate": "0%"}), "vat_0")
+        self.assertEqual(lookups.derive_tax_kind({"vat_rate": "อื่นๆ"}), "vat_7")  # 读不懂的照旧按默认
+
+    def test_a_document_discount_with_a_baht_sign_is_spread_like_a_plain_one(self):
+        rows = [{"amount": Decimal("600")}, {"amount": Decimal("400")}]
+        header, lines = fmt.allocate_discount({"discount": "฿100", "total_amount": "900"}, rows, fmt.INCLUSIVE)
+        self.assertEqual((header, [row["amount"] for row in lines]), (Decimal("0"), [Decimal("540.00"), Decimal("360.00")]))
+
+
+class PurchaseLineNumbers(unittest.TestCase):
+    def test_goods_lines_read_printed_spellings_and_stop_on_an_unreadable_price_without_an_amount(self):
+        from pearnly_core.mrerp.push.xlsx import purchase as purchase_sheet
+
+        rows = purchase_sheet._detail_rows({"items": [{"name": "A", "qty": "1,000", "price": "฿1.25"},
+                                                      {"name": "B", "qty": "2", "price": "5", "subtotal": "1,000.00"}]}, MAPPINGS)
+        self.assertEqual([(row["qty"], row["price"], row["amount"]) for row in rows], [(1000.0, 1.25, 1250.0), (2.0, 5.0, 1000.0)])
+        with self.assertRaises(ValueError):
+            purchase_sheet._detail_rows({"items": [{"name": "A", "qty": "2", "price": "ตามตกลง"}]}, MAPPINGS)
 
 
 if __name__ == "__main__":

@@ -41,21 +41,37 @@ NUMBER_UNSEEN_PREFIX = "invoice_number_unseen:"
 NUMBER_RANGE_PREFIX = "invoice_number_range:"
 
 
+RATE_FIELDS = ("wht_rate",)
+ITEM_FIELDS = ("qty", "price", "subtotal")
+
+
+def _plain(raw):
+    """一个识别读出的数 → 纯数字字符串（共用 `amounts.number`：「1,234.50」「฿99」「(183.82)」「3%」…）；读不懂回 None。"""
+    if raw in (None, ""):
+        return None
+    value = amounts.number(raw)
+    return None if value is None else format(value, "f")
+
+
 def normalize_amounts(invoice) -> list[str]:
-    """把能读成金额的票面字段规范成纯数字字符串；读不成的原样留给核对去报。返回改过的字段。"""
+    """把能读成数的票面字段规范成纯数字字符串：单头金额、预扣税率（「3%」→「3」）、每行明细的数量 / 单价 / 行金额
+    （主会话 11-19：原先只规整单头金额，明细与税率的「1,234.50」「3%」到 MR.ERP 导入表时静默变 0 或丢掉）。读不成的原样留给
+    核对去报。谷歌、Claude 两条路线都调（`runner.gate`、`execution.claude.to_pipeline`）。返回改过的字段。"""
     changed = []
-    for name in AMOUNT_FIELDS:
+    for name in AMOUNT_FIELDS + RATE_FIELDS:
         raw = getattr(invoice, name, None)
-        if raw in (None, ""):
-            continue
-        text = str(raw).strip()
-        value = amounts.money(text)
-        if value is None or not value.is_finite():
-            continue
-        plain = format(value, "f")
-        if plain != text:
+        plain = _plain(raw)
+        if plain is not None and plain != raw:
             setattr(invoice, name, plain)
-            changed.append(name)
+            if plain != str(raw).strip():
+                changed.append(name)
+    for index, item in enumerate(getattr(invoice, "items", None) or []):
+        for name in ITEM_FIELDS:
+            raw = getattr(item, name, None)
+            plain = _plain(raw)
+            if plain is not None and plain != raw:
+                setattr(item, name, plain)
+                changed.append(f"items[{index}].{name}")
     return changed
 
 

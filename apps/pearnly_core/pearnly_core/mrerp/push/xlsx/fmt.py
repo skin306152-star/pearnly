@@ -6,8 +6,10 @@
 
 import hashlib
 from datetime import datetime
-from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any, Dict, List, Optional, Tuple
+
+from pearnly_core.tax_documents import amounts
 
 # ============================================================
 # 铁律 29 · 字段格式工具
@@ -80,9 +82,9 @@ def fmt_number(value: Any) -> Optional[float]:
     (保留原行为:用于摘要/展示场景 · 不抛错)"""
     if value is None or value == "":
         return None
-    try:
-        n = Decimal(str(value))
-    except Exception:
+    # 识别读出的写法（「1,234.50」「฿100」「3%」…）按共用 `amounts.number` 读；读不懂回 None（调用方不得当 0，主会话 11-19）
+    n = amounts.number(value)
+    if n is None:
         return None
     if n > MAX_AMOUNT:
         return float(MAX_AMOUNT)
@@ -254,10 +256,14 @@ mrerp_sales_tax_label = mrerp_tax_label  # 旧名（销售先有这个判定）�
 
 
 def _decimal(value: Any) -> Decimal:
-    try:
-        return Decimal(str(value if value not in (None, "") else 0))
-    except (InvalidOperation, TypeError, ValueError):
+    """空 = 0；写法按共用 `amounts.number`；读不懂的**报错**、不当 0（主会话 11-19：导入表的行金额、折扣读不懂时静默变 0，
+    推出去的单金额就错了——停下比写错好）。"""
+    if value in (None, ""):
         return Decimal("0")
+    found = amounts.number(value)
+    if found is None:
+        raise ValueError(f"amount not parseable: {value!r}")
+    return found
 
 
 def allocate_discount(history: Any, rows: List[Dict[str, Any]], tax_kind: str) -> Tuple[Decimal, List[Dict[str, Any]]]:

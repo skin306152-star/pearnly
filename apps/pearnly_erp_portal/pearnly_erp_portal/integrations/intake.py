@@ -282,6 +282,9 @@ def _fallback_name(direction):
 def build_payload(doc, result=None) -> dict:
     """把「选好的主档 + 识别字段」拼成网页端入账函数要的入参（同一个形状）。"""
     result = result if result is not None else json.loads(doc.result or "{}")
+    # 识别出口已规整成纯数字（`purchasing.recognition.tidy_numbers`、`sales.contracts.map_recognised`）；规整之前存下的记录
+    # 在这里再过一次（主会话 11-19：「1,234.50」入账报值无效、「฿100」静默变 0）
+    result = _tidy_numbers(doc.direction, result)
     chosen = line_items.choices_of(doc)  # 每行的选择（改版前识别的票没有：照旧按整批 `item_kind`）
     goods = doc.item_kind == "goods"
     attachments = [{"file": _file_name(doc), "kind": "bill"}]
@@ -330,8 +333,9 @@ def build_payload(doc, result=None) -> dict:
     payload = {key: value for key, value in payload.items() if value not in (None, "")}
     lines = []
     for row in result.get("lines") or []:
+        # 百分比折扣（discount_pct）一起带上（主会话 11-19：识别出的百分比折扣拼单据时被丢掉）
         row = {key: row.get(key) for key in ("product", "description", "qty", "unit", "unit_price",
-                                             "discount") if row.get(key) not in (None, "")}
+                                             "discount", "discount_pct") if row.get(key) not in (None, "")}
         if not chosen:
             # 改版前识别的票：整批「库存商品」才出库（以前名字刚好对上已有物料的行也照样出库，现在按行）
             row["item_type"] = "goods" if goods else "service"
@@ -368,6 +372,24 @@ def build_payload(doc, result=None) -> dict:
             if customer:
                 payload["customer"] = customer
     return payload
+
+
+def _tidy_numbers(direction, result):
+    """一份识别结果的数字规整成纯数字（共用 `amounts.tidy`，与识别出口同一份字段）：金额读不懂原样留着让入账报错，
+    税率读不懂去掉按默认算。"""
+    if not isinstance(result, dict):
+        return result
+    if direction == "purchase":
+        from pearnly_erp_portal.purchasing import recognition
+
+        return recognition.tidy_numbers(result)
+    from pearnly_core.tax_documents import amounts
+
+    out = amounts.tidy(result, ("header_discount",), ("vat_rate",))
+    if isinstance(out.get("lines"), list):
+        out["lines"] = [amounts.tidy(row, ("qty", "unit_price", "discount"), ("discount_pct",)) if isinstance(row, dict) else row
+                        for row in out["lines"]]
+    return out
 
 
 def _chosen_lines(result, chosen):

@@ -10,6 +10,7 @@ from typing import Any, Dict, Optional
 
 from pearnly_core.express_rules.contracts.push import clean_tax_id
 from pearnly_core.mrerp.push.xlsx.fmt import fmt_str
+from pearnly_core.tax_documents import amounts
 
 # ============================================================
 # v27.8.1.17 · 商品名归一化 + 映射查表(给 detail 行写真 product_code 用)
@@ -135,21 +136,18 @@ def derive_tax_kind(history: Dict[str, Any]) -> str:
     """从 OCR 结果推断 Pearnly tax_kind 枚举"""
     rate = history.get("tax_rate_pct") or history.get("vat_rate")
     wht = history.get("wht_rate_pct") or history.get("wht_rate")
-    try:
-        if wht:
-            w = int(float(wht))
+    if wht:
+        # 「3%」「3 %」也读得出（共用 `amounts.number`）；原先 float("3%") 抛错被吞，预扣税静默丢掉（主会话 11-19）
+        found = amounts.number(wht)
+        if found is not None and found:
+            w = int(found)
             return f"wht_{w}" if w in (1, 3, 5) else "wht_3"
-    except Exception:
-        pass
-    try:
-        if rate is not None:
-            r = float(rate)
-            if r == 7:
-                return "vat_7"
-            if r == 0:
-                return "vat_0"
-            if r < 0:
-                return "vat_exempt"
-    except Exception:
-        pass
+    r = amounts.number(rate)  # 「0%」「7 %」也读得出；原先 float 抛错被吞，0% 税率落成默认的 7%
+    if r is not None:
+        if r == 7:
+            return "vat_7"
+        if r == 0:
+            return "vat_0"
+        if r < 0:
+            return "vat_exempt"
     return "vat_7"

@@ -415,6 +415,21 @@ class Payload(Base):
         self.assertEqual(payload["lines"][0]["warehouse"], "WH-1")
 
 
+    def test_old_records_with_printed_spellings_post_as_numbers_and_keep_the_percentage_discount(self):
+        # 主会话 11-19：「1,234.50」的数量 / 单价 / 凑整入账报值无效；销售的「฿」单价、整单折扣静默变 0；识别出的百分比折扣被丢掉
+        purchase = intake.build_payload(_doc(party="@doc", item_kind="service", warehouse=None, result=json.dumps(
+            {"doc_no": "INV-1", "supplier_name": "Acme", "rounding": "(0.25)", "wht_rate": "3%",
+             "lines": [{"description": "A", "qty": "1,234.50", "unit_price": "1,234.50", "vat_rate": "7%"}]})))
+        line = purchase["lines"][0]
+        self.assertEqual((line["qty"], line["unit_price"], line["vat_rate"], purchase["rounding"], purchase["wht_rate"]),
+                         (1234.5, 1234.5, 7.0, -0.25, 3.0))
+        sales = intake.build_payload(_doc(direction="sales", party="@any", result=json.dumps(
+            {"vat_rate": "7%", "header_discount": "฿50",
+             "lines": [{"description": "Soap", "qty": "1,000", "unit_price": "฿5", "discount_pct": "10%"}]})))
+        line = sales["lines"][0]
+        self.assertEqual((line["qty"], line["unit_price"], line["discount_pct"], sales["header_discount"], sales["vat_rate"]),
+                         (1000.0, 5.0, 10.0, 50.0, 7.0))
+
     def test_paid_sales_takes_the_document_date_and_vat_mode(self):
         # 定·09-25：付款日期取单据日期（09-26 实测记成了当天）；含税小票不再加一次 VAT。
         doc = _doc(direction="sales", party="@any", payment_method="cash", result=json.dumps(

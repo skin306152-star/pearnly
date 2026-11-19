@@ -11,6 +11,7 @@ from pearnly_core.claude_ocr import client, lines as claude_lines
 from pearnly_core.tax_documents import claude_kinds, codes as tax_codes
 from pearnly_cowork.ocr.results import UNREAD_STAGE
 from pearnly_cowork.ocr.schema import PipelineResult
+from pearnly_cowork.ocr.validation.accounting import normalize_amounts
 
 ENGINE = "claude_v1"
 # 选了「录 / 不录」由租户定的两类（10-07）：照常出票，交给存档时的单据口径决定。
@@ -86,7 +87,14 @@ def to_pipeline(outcome, page_count, anchor_year):
                       "trigger_reasons": list(outcome.get("why") or [])})
     body = {"pages": pages, "page_count": page_count, "elapsed_ms": int((outcome.get("seconds") or 0) * 1000),
             "engine": ENGINE, "estimated_cost_thb": round((outcome.get("usd") or 0) * 35, 4)}
-    return PipelineResult.model_validate(body, context={"anchor_year": anchor_year})
+    result = PipelineResult.model_validate(body, context={"anchor_year": anchor_year})
+    for page in result.pages:
+        # 数字写法规整（同谷歌路线的直读闸 `runner.gate`）：「1,234.50」「฿99」「3%」→ 纯数字，读不懂的原样留给核对（主会话 11-19：
+        # Claude 路线原先完全没规整，到 MR.ERP 导入表时明细静默变 0、预扣税率丢掉）
+        for invoice_ in [page.invoice, *(getattr(page.invoice, "additional_invoices", None) or [])]:
+            if invoice_ is not None and not getattr(invoice_, "is_not_invoice", False):
+                normalize_amounts(invoice_)
+    return result
 
 
 def evidence(outcome):

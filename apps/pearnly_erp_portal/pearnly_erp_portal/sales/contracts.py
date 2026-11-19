@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from decimal import Decimal
 
+from pearnly_core.tax_documents import amounts
+
 from pearnly_erp_portal.masters.contracts import PARTY_TYPES
 from pearnly_erp_portal.recognition import checks
 
@@ -257,28 +259,29 @@ def unit_price_of(row: dict):
     """票面单价；只印了行金额（门市小票常见：数量 + 金额两列）就用 金额 ÷ 数量。
 
     09-26 真机：小票只有 Amount 一列，识别按「不许自己算」把单价全给了 0，整张单金额为 0。
-    除法不是替模型算账：行金额是票面上印的，这里只是换成本单要的「单价」口径。"""
+    除法不是替模型算账：行金额是票面上印的，这里只是换成本单要的「单价」口径。
+    数字写法按共用 `amounts.number`（「฿100」「1,234.50」…）；单价与行金额都读不懂、单价又印了的，原样留着让入账报错，
+    不静默当 0（主会话 11-19：「฿100」单价静默变 0）。"""
     for key in ("unit_price", "amount"):
-        try:
-            value = _d(str(row.get(key) or 0).replace(",", ""))
-        except ArithmeticError:
-            continue
-        if value > 0:
+        value = amounts.number(row.get(key))
+        if value is not None and value > 0:
             if key == "unit_price":
                 return float(value)
-            try:
-                qty = _d(str(row.get("qty") or 1).replace(",", ""))
-            except ArithmeticError:
-                qty = _d(1)
+            qty = amounts.number(row.get("qty")) or _d(1)
             return float((value / (qty if qty > 0 else 1)).quantize(_CENT))
+    printed = row.get("unit_price")
+    if printed not in (None, "") and amounts.number(printed) is None:
+        return printed
     return 0
 
 
 def _header_discount(value):
-    try:
-        amount = _d(str(value or 0).replace(",", ""))
-    except ArithmeticError:
+    """票面整单折扣（金额）；读不懂的原样留着让入账报错，不静默当 0（主会话 11-19）。"""
+    if value in (None, ""):
         return 0
+    amount = amounts.number(value)
+    if amount is None:
+        return value
     return float(amount.quantize(_CENT)) if amount > 0 else 0
 
 
@@ -315,14 +318,19 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
             # 折扣 / 优惠券行不是商品：并进整单折扣（`recognition.checks.is_discount_line`）；0 元的照常留作一行。
             discount_lines += value
             continue
-        lines.append({
+        # 数字规整成纯数字（共用 `amounts.tidy`）：数量、折扣读不懂原样留着让入账报错；折扣百分比读不懂按没有算。
+        # 折扣一格印成「10%」的是百分比折扣，归到 discount_pct（本单的 discount 是金额）
+        discount = row.get("discount")
+        if isinstance(discount, str) and discount.strip().endswith("%") and not row.get("discount_percent"):
+            row = {**row, "discount": 0, "discount_percent": discount}
+        lines.append(amounts.tidy({
             "description": description[:300],
             "qty": row.get("qty") or 1,
             "unit": (str(row.get("unit") or "").strip() or None),
             "unit_price": unit_price_of(row),
             "discount": row.get("discount") or 0,
             "discount_pct": row.get("discount_percent") or 0,
-        })
+        }, ("qty", "discount"), ("discount_pct",)))
     buyer_type = str(payload.get("buyer_type") or "company").strip().lower()
     if buyer_type not in PARTY_TYPES:
         buyer_type = "company"
@@ -336,7 +344,7 @@ def map_recognised(payload: dict, *, source_file: str = "", image_sha256: str = 
         "party_type": buyer_type,
         "address": (str(payload.get("buyer_address") or "").strip() or None),
         "has_vat": payload.get("has_vat") is not False,
-        "vat_rate": payload.get("vat_rate") if payload.get("vat_rate") is not None else 7,
+        "vat_rate": float(amounts.number(payload.get("vat_rate"))) if amounts.number(payload.get("vat_rate")) is not None else 7,
         # 门市小票（ABB）通常是含税价：票面写着含税就按含税算，不在上面再加一次 VAT。
         "price_includes_vat": payload.get("price_includes_vat") is True,
         # 票面整单折扣（金额）：以前没读，有整单折扣的小票入账会多记。

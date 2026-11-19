@@ -40,6 +40,68 @@ def money(value):
     return -amount if negative else amount
 
 
+# 识别读出的数字的各种写法（主会话 11-19：各入口处理不一，有几处静默变 0 或丢掉）：千分位逗号、币种（฿ / THB / บาท / Baht）、
+# 百分号、各种空格、全角与印刷体减号、会计括号。只认这些写法，别的字照旧读不懂。
+_UNITS = re.compile(r"(฿|บาท|\bTHB\b|\bBaht\b|%)", re.IGNORECASE)
+_SPACES = re.compile(r"[\s\u00a0\u2000-\u200b\u202f\u3000]+")
+_MINUS = str.maketrans({"\u2212": "-", "\uff0d": "-", "\u2012": "-", "\u2013": "-", "\uff0e": ".", "\uff0c": ","})
+
+
+def number(value):
+    """识别读出的一个数（金额、数量、税率、折扣）→ ``Decimal``；读不懂、空、不是有限数回 None（**不当 0**，调用方决定怎么报）。
+    在 :func:`money` 之上多认 ``%``、``THB``、``บาท``、各种空格、全角 / 印刷体减号：「1,234.50」「฿100」「(183.82)」「3%」
+    「1 234.50 บาท」「－50」都读得出。数字本身（int / float / Decimal）原样转。纯函数。"""
+    if value is None or isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float, Decimal)):
+        try:
+            found = Decimal(str(value))
+        except (InvalidOperation, ValueError):
+            return None
+        return found if found.is_finite() else None
+    text = _SPACES.sub("", _UNITS.sub("", str(value).translate(_MINUS)))
+    if not text:
+        return None
+    found = money(text)
+    return found if found is not None and found.is_finite() else None
+
+
+# 票面上明写「没有」的记号（折扣格印「-」「n/a」等）：读得懂，就是 0，不是读不懂（09-26 口径：折扣印 n/a 当 0）
+NOTHING = frozenset(("-", "--", "–", "—", "n/a", "na", "none", "nil", "ไม่มี"))
+
+
+def nothing(value) -> bool:
+    return isinstance(value, str) and value.strip().lower() in NOTHING
+
+
+def tidy(row, amounts=(), rates=()):
+    """识别结果一行（单头或明细）的数字规整成纯数字：``amounts`` 里的键读得懂就换成数，**读不懂原样留着**（让入账时的严格校验
+    报错，不静默当 0）；``rates`` 里的键（税率等可以按默认算的）读得懂换成数，读不懂去掉这个键（入账按默认算）。百分比折扣
+    「20%」这类带 ``%`` 的金额字段原样留给调用方按行金额折算；明写「没有」的记号（:data:`NOTHING`）是 0。回新的 dict，
+    不改原来的。纯函数。"""
+    out = dict(row or {})
+    for key in amounts:
+        raw = out.get(key)
+        if raw in (None, "") or (isinstance(raw, str) and raw.strip().endswith("%")):
+            continue
+        if nothing(raw):
+            out[key] = 0.0
+            continue
+        found = number(raw)
+        if found is not None:
+            out[key] = float(found)
+    for key in rates:
+        raw = out.get(key)
+        if raw in (None, ""):
+            continue
+        found = number(raw)
+        if found is None:
+            out.pop(key)
+        else:
+            out[key] = float(found)
+    return out
+
+
 # 泰国预扣税常用税率（%）：票面只印了扣税后的实付额时，按这几档反推（`withholding_rate`）。
 WHT_RATES = (Decimal(1), Decimal("1.5"), Decimal(2), Decimal(3), Decimal(5), Decimal(10), Decimal(15))
 

@@ -153,10 +153,14 @@ def _detail_rows(history: Dict[str, Any], mappings: Dict[str, Any]) -> List[Dict
         if not isinstance(it, dict):
             continue
         name = str(it.get("name") or it.get("description") or "").strip()
-        qty = fmt_number(it.get("qty") or it.get("quantity")) or 1
-        price = fmt_number(it.get("unit_price") or it.get("price")) or 0
+        raw_qty, raw_price = it.get("qty") or it.get("quantity"), it.get("unit_price") or it.get("price")
+        qty = fmt_number(raw_qty) or 1
+        price = fmt_number(raw_price) or 0
         amount = line_amount(it)
         if amount is None:
+            if any(raw not in (None, "") and fmt_number(raw) is None for raw in (raw_qty, raw_price)):
+                # 印了数量 / 单价却读不懂、又没有行金额：停下，不按 0 写进导入表（主会话 11-19）
+                raise ValueError(f"line amount not parseable: {name!r} qty={raw_qty!r} price={raw_price!r}")
             amount = round((qty or 0) * (price or 0), 2)
         rows.append(
             {

@@ -46,23 +46,42 @@ LINE_FIELDS = ("item_type", "description", "code", "barcode", "qty", "unit", "un
 
 
 def _number(value):
-    return checks.money(value)
+    """识别读出的数（「1,234.50」「฿100」「3%」…，共用 `amounts.number`）；读不懂回 None。"""
+    return doc_amounts.number(value)
+
+
+# 识别出口规整一次（主会话 11-19：「1,234.50」入账报值无效、「฿100」静默变 0）：金额读不懂原样留着让入账的严格校验报错，
+# 税率读不懂去掉、入账按默认算（共用 `amounts.tidy`）。LINE 卡、CC 收单、网页预填都从这里拿到的已是数字。
+HEADER_AMOUNTS, HEADER_RATES = ("discount_total", "rounding", "wht_amount"), ("wht_rate",)
+LINE_AMOUNTS, LINE_RATES = ("qty", "unit_price", "discount"), ("vat_rate", "wht_rate")
+
+
+def tidy_numbers(result):
+    """一份采购识别结果（单头 + 明细）的数字规整成纯数字（`HEADER_*` / `LINE_*`）。旧记录在拼入账入参时再过一次
+    （`integrations.intake.build_payload`）。回新的 dict。"""
+    out = doc_amounts.tidy(result, HEADER_AMOUNTS, HEADER_RATES)
+    if isinstance(out.get("lines"), list):
+        out["lines"] = [doc_amounts.tidy(row, LINE_AMOUNTS, LINE_RATES) if isinstance(row, dict) else row
+                        for row in out["lines"]]
+    return out
 
 
 def _discount(value, base):
     """票面折扣可能印成金额，也可能印成「20.00%」。本单的折扣字段是**金额**：百分比按
-    这一行（或整单）的金额折成钱；读不懂的当 0，不拿文字去算（用户 2026-09-26 发现 20% 折扣
-    被整个丢掉，合计多出 16,963.20）。"""
+    这一行（或整单）的金额折成钱（用户 2026-09-26 发现 20% 折扣被整个丢掉，合计多出 16,963.20）。
+    读不懂的原样留着，入账时的严格校验报出来，不静默当 0（主会话 11-19）。"""
     if value in (None, ""):
         return value
     text = str(value).strip()
     if text.endswith("%"):
         rate, base = _number(text[:-1]), _number(base)
         if rate is None or base is None:
-            return 0
+            return value
         return float((base * rate / 100).quantize(Decimal("0.01"), ROUND_HALF_UP))
+    if doc_amounts.nothing(text):
+        return 0  # 折扣格印「-」「n/a」：没有折扣（09-26 口径）
     amount = _number(text)
-    return float(amount) if amount is not None else 0
+    return float(amount) if amount is not None else value
 
 
 NON_CLAIMABLE_VAT = "non_claimable_vat"
@@ -70,7 +89,7 @@ NON_CLAIMABLE_VAT = "non_claimable_vat"
 
 def clean_result(raw):
     """OCR is document content, never trusted master IDs, company IDs or posting flags."""
-    result = {key: raw[key] for key in HEADER_FIELDS if key in raw}
+    result = doc_amounts.tidy({key: raw[key] for key in HEADER_FIELDS if key in raw}, HEADER_AMOUNTS, HEADER_RATES)
     if "doc_kind" in result:
         # 提示词不改（识别改动要过金标闸门）：读出「采购订单」也落成进货单（用户 2026-10-28 删了采购订单）
         result["doc_kind"] = contracts.landing_kind(result["doc_kind"])
@@ -81,7 +100,8 @@ def clean_result(raw):
             continue
         # 空值不带：`amounts.calculate` 与网页表单都按「没这个键就用默认」（税率 7 等），
         # 带着 None 进去税率会被当成 0（09-26：含税票被算成没有 VAT）。
-        row = {key: raw_row[key] for key in LINE_FIELDS if raw_row.get(key) not in (None, "")}
+        row = doc_amounts.tidy({key: raw_row[key] for key in LINE_FIELDS if raw_row.get(key) not in (None, "")},
+                               LINE_AMOUNTS, LINE_RATES)
         amount, price = _number(raw_row.get("amount") or 0), _number(row.get("unit_price") or 0) or 0
         value = abs(amount or (_number(row.get("qty") or 1) or 1) * price or _number(row.get("discount") or 0) or 0)
         if value and checks.is_discount_line(row.get("description"), amount, price):
@@ -110,11 +130,11 @@ def clean_result(raw):
         gross = (_number(row.get("qty") or 0) or 0) * (_number(row.get("unit_price") or 0) or 0)
         if "discount" in row:
             row["discount"] = _discount(row["discount"], gross)
-        net += gross - Decimal(str(row.get("discount") or 0))
+        net += gross - (_number(row.get("discount")) or 0)  # 读不懂的折扣原样留给入账去报，这里不拿它算
     if "discount_total" in result:
         result["discount_total"] = _discount(result["discount_total"], net)
-    if discount_lines:
-        # 模型已经把同一笔折扣读进了整单折扣就不重复加。
+    if discount_lines and _number(result.get("discount_total") or 0) is not None:
+        # 模型已经把同一笔折扣读进了整单折扣就不重复加；整单折扣读不懂的原样留着（入账报出来），不拿折扣行盖掉。
         current = _number(result.get("discount_total") or 0) or Decimal(0)
         if abs(current - discount_lines) > Decimal("0.005"):
             result["discount_total"] = float((current + discount_lines).quantize(Decimal("0.01"), ROUND_HALF_UP))

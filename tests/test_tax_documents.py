@@ -213,5 +213,34 @@ class RepairedTaxId(unittest.TestCase):
         self.assertEqual(repaired_tax_id(105546015062), "0105546015062")
 
 
+class RecognisedNumbers(unittest.TestCase):
+    """识别读出的数字各种写法（主会话 11-19：各入口处理不一，有几处静默变 0 或丢掉）：共用 `amounts.number` / `amounts.tidy`。"""
+
+    def test_every_printed_spelling_reads_as_a_number(self):
+        from pearnly_core.tax_documents import amounts
+
+        cases = {"1,234.50": "1234.50", "฿100": "100", "(183.82)": "-183.82", "3%": "3", "7.0 %": "7.0",
+                 "1 234.50 บาท": "1234.50", "THB 99.00": "99.00", "100 Baht": "100", "－50": "-50", "−12": "-12",
+                 "1 234": "1234", 7: "7", 1.5: "1.5", Decimal("2.25"): "2.25"}
+        for raw, want in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(amounts.number(raw), Decimal(want))
+        for raw in ("abc", "", None, "1.2.3", "NaN", "inf", True):
+            with self.subTest(raw=raw):
+                self.assertIsNone(amounts.number(raw))  # 读不懂不当 0
+
+    def test_tidy_keeps_unreadable_amounts_for_the_strict_check_and_drops_unreadable_rates(self):
+        from pearnly_core.tax_documents import amounts
+
+        row = {"qty": "1,234.50", "unit_price": "฿x", "discount": "20%", "rounding": "(0.25)", "vat_rate": "7%",
+               "wht_rate": "??", "description": "1,000 ชิ้น"}
+        out = amounts.tidy(row, amounts=("qty", "unit_price", "discount", "rounding"), rates=("vat_rate", "wht_rate"))
+        self.assertEqual(out, {"qty": 1234.5, "unit_price": "฿x", "discount": "20%", "rounding": -0.25, "vat_rate": 7.0,
+                               "description": "1,000 ชิ้น"})
+        self.assertEqual(row["qty"], "1,234.50")  # 不改原来的
+        self.assertEqual(amounts.tidy({"discount": "n/a", "unit_price": " - "}, amounts=("discount", "unit_price")),
+                         {"discount": 0.0, "unit_price": 0.0})  # 明写「没有」的记号是 0，不是读不懂
+
+
 if __name__ == "__main__":
     unittest.main()
