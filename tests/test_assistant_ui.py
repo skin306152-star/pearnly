@@ -11913,6 +11913,9 @@ assert.equal(sent.length, 3);
         source = read("lib/stall-report.ts")
         self.assertIn('reportCaught(new Error(`CC ${kind}: ${detail}`), kind)', source)   # 统一出口，只带位置名与数
         self.assertIn('if (timer || document.visibilityState !== "visible" || !document.querySelector(BUSY)) return;', source)   # 空闲不跑
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class AppShortcutTests(unittest.TestCase):
     """欠账 B29（11-09 对照审计 #9，截图 claude-15）：一小组快捷键 + 快捷键表，照 Claude 的键与表的样子。"""
 
