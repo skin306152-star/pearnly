@@ -440,15 +440,20 @@ class Amounts(Base):
         self.assertEqual(self.step(), "card")
         self.assertEqual([str(row["amount"]) for row in T.S.table("ERP Collection Invoice").values()], ["250.00"])
 
-    def test_a_transfer_without_a_voucher_has_no_confirm_and_asks_for_the_photo(self):
+    def test_a_transfer_without_a_voucher_asks_for_the_photo_before_any_card(self):
+        # 用户 11-19「问完再出卡」：缺凭证时只要照片，收到后才出确认卡（卡发出后不再追问）
         frappe.session.user = "a@x"
         made = service.create_draft("CO-1", C1, [{"docnum": "IV2", "amount": "500"}],
                                     methods=[{"prefix": "BB", "amount": "500"}])
         frappe.session.user = "Guest"
         self.assertFalse(made["ready"])
         flow._show_card("U1", {}, made, "r-x")
-        self.assertEqual([item["label"] for item in self.flex_buttons()], ["Edit", "Cancel"])
+        self.assertEqual(self.flex_buttons(), [])
+        self.assertEqual(self.last_text(), "Send a photo of the transfer slip")
+        self.assertEqual([item["action"]["label"] for item in self.last()[-1]["quickReply"]["items"]], ["Cancel"])
         self.assertEqual((self.step(), self.payload()["voucher_for"]), ("voucher", "BB"))
+        self.type("ok")  # 等凭证时打字：再请发照片，仍不出卡
+        self.assertEqual((self.flex_buttons(), self.last_text()), ([], "Send a photo of the transfer slip"))
         self.tap(f"a=col&s=ok&n={made['name']}&ver=1")  # 伪造的【确认】：服务端照样拒
         self.assertEqual(T.S.table("ERP Collection")[made["name"]]["status"], C.DRAFT)
         flow.receive_voucher("U1", "a@x", {"type": "image", "id": "M2"}, "r-img")

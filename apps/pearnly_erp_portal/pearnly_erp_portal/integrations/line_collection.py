@@ -840,8 +840,8 @@ def _show_card(line_user_id, payload, card, reply_token, note=""):
     _save(line_user_id, state, ttl_minutes=CARD_MINUTES)
     messages = [cards.confirm(card, edit_url=edit_url(card["name"]), nonce=state["nonce"])]
     if state["step"] == "voucher":
-        messages.append({"type": "text", "text": _("Send a photo of the transfer slip"),
-                         "quickReply": {"items": [_cancel()]}})
+        # 缺转账凭证：先只要照片，收到后（`store_voucher` 补进草稿）才出确认卡——卡发出后不再追问（用户 11-19「问完再出卡」）
+        messages = [{"type": "text", "text": _("Send a photo of the transfer slip"), "quickReply": {"items": [_cancel()]}}]
     elif card.get("problem"):
         messages.insert(0, {"type": "text", "text": _explain(contracts.CollectionError(card["problem"],
                                                                                          card.get("detail")))})
