@@ -67,7 +67,10 @@ def steps(params, camera_code=None):
          f"return {{plan, sent, replied: !!bubble, status, gone, still: !!q({json.dumps(CHIP)})}};"},
         {"name": "删除会话", "js": JS + "const mine=(await listed('chat')).filter(s=>(s.title||'').includes("
          + json.dumps(params["tag"]) + ")); for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); "
-         "return {ids: mine.map(s=>s.id)};"},
+         # 诊断（不改判据）：按标题没找到时记下地址里的对话与侧栏前几段的编号、标题（11-19 cowork [new / mobile] 首轮 ids 空查原因）
+         "const here=new URLSearchParams(location.search).get('c')||''; "
+         "const top=mine.length?[]:(await listed('chat')).slice(0,5).map(s=>({id:s.id, title:s.title})); "
+         "return {ids: mine.map(s=>s.id), here, top};"},
     ]
 
 
@@ -89,7 +92,9 @@ def verify(lab, manifest, params, camera_code=None):
     out = lab.python(manifest["site"], f"""
 plans = frappe.db.count("Pearnly Assistant Write Plan", {{"user": {USER!r}}})
 sessions = frappe.db.count("Pearnly Assistant Session", {{"user": {USER!r}, "title": ["like", "%{params['tag']}%"]}})
-print(json.dumps({{"plans": plans, "sessions": sessions}}))
+recent = [] if not plans else frappe.get_all("Pearnly Assistant Session", filters={{"user": {USER!r}}},
+                                            fields=["session_id", "title", "title_source", "creation"], order_by="creation desc", limit_page_length=4)
+print(json.dumps({{"plans": plans, "sessions": sessions, "recent": recent}}, default=str))
 """)
     return [{"case": "对话删掉后写入计划随之删掉", "saved": out, "ok": out["plans"] == 0 and out["sessions"] == 0}]
 
