@@ -31,6 +31,7 @@ if IS_WIN:
     user32.GetLastActivePopup.argtypes = [HWND]
     user32.GetLastActivePopup.restype = HWND
     user32.ScreenToClient.argtypes = [HWND, ctypes.POINTER(W.POINT)]
+    user32.ClientToScreen.argtypes = [HWND, ctypes.POINTER(W.POINT)]
     user32.IsWindowEnabled.argtypes = [HWND]
     user32.PrintWindow.argtypes = [HWND, W.HDC, W.UINT]
     user32.SendMessageW.argtypes = [HWND, W.UINT, W.WPARAM, W.LPARAM]
@@ -276,7 +277,10 @@ class BackgroundDesk(WindowsDesk):
         lparam = (y << 16) | (x & 0xFFFF)
         self._post(grid, WM_LBUTTONDOWN, MK_LBUTTON, lparam)
         self._post(grid, WM_LBUTTONUP, 0, lparam)
-        return {"xy": [x, y], "background": True}
+        # 回报屏幕坐标（同前台做法）：引擎拿它比焦点格的位置，看焦点有没有落在点的那一栏（行号栏可编辑的账套，11-19）
+        point = W.POINT(x, y)
+        user32.ClientToScreen(grid, ctypes.byref(point))
+        return {"xy": [point.x, point.y], "client": [x, y], "background": True}
 
     def click(self, x: int, y: int, button: str = "left", count: int = 1) -> None:
         raise Refused("background mode does not move the real mouse")
