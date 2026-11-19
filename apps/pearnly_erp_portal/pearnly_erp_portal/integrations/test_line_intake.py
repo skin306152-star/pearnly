@@ -1752,7 +1752,10 @@ class CardSave(Web):
 
     def test_a_saved_card_is_not_recorded_twice(self):
         self.doc.status, self.doc.purchase = "confirmed", "PD-1"
-        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PD-1"})
+        frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
+            "PE2569-000020" if (doctype, fields) == ("Purchase Document", "system_no") else None)
+        # 再点回的是同一个系统号（11-19 真机：原来第二次显示内部名）
+        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PE2569-000020"})
         self.post.assert_not_called()
 
 

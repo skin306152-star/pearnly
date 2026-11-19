@@ -308,5 +308,9 @@ def stopped(doc, text) -> dict:
 
 
 def saved(doc, created) -> dict:
-    number = created.get("system_no") or created.get("name") or ""
+    """「已入账 · 单号」：采购用系统号（PE…，同提交时回的那个；重复点时 ``created`` 只有内部名，按名取系统号）。"""
+    number = created.get("system_no") or ""
+    if not number and doc.direction == "purchase" and created.get("name"):
+        number = frappe.db.get_value("Purchase Document", created["name"], "system_no") or ""
+    number = number or created.get("name") or ""
     return {"type": "text", "text": " · ".join(part for part in (_("Posted"), number) if part)}
