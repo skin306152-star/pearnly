@@ -634,7 +634,9 @@ class Engine:
             self.act([{"do": "wait", "ms": 0}])
         except Crash:
             return None
-        except Exception:  # noqa: BLE001 — 读不到当成还开着，不放手
+        except Exception as error:  # noqa: BLE001 — 读不到当成还开着，不放手
+            log.warning("operator held check: reading Express failed, treated as still open · %s: %s", type(error).__name__,
+                        str(error)[:200])
             return [{"title": "?", "texts": []}]
         return [w for w in self.windows if w.get("owned") and self._match(w) is None]
 
