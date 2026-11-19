@@ -252,3 +252,19 @@
 ### 过程记录
 
 施工中途曾用 `--no-verify` 存一个临时提交，违反仓库规矩，已当场撤掉，没推送过。以后临时存档用带标签的 stash 或 WIP 分支，走提交钩子。
+
+## 下一批（主会话 11-19：等这批部署、旧电脑上的 CC 桌面版升级完再清）
+
+`not_yours`（「您的电脑离线」）按新规则已不再返回。下面这些旧分支和词条已经触发不了，这批留着；等新版部署、旧版 CC 桌面版都升级完，再在下一批一起删，免得旧版还在用时出错：
+
+- 前端：
+  - `frontend/assistant/src/components/scheduled-tasks.tsx:165`；
+  - `apps/pearnly_cowork/pearnly_cowork/public/desk/targets.js:60-61` 及其注释「您的电脑离线（A 线 11-12）」。
+- 词条 `intake.agent.state.notYours`：四语，删除前核别处没人用。
+- 服务端：
+  - `assistant/operator_source.py` 的 `COMPUTER_ORDER` 与判断 `not_yours` 的那一句；
+  - `assistant/tools.py` 给模型的两段 `cc_desktop_not_yours` / `not_yours` 说明；
+  - `assistant/guided/readback.py` 的 `WAITING["not_yours"]`；
+  - `folder_intake/destinations.py` 里取 `not_yours` 的两处。
+
+前端验收（local_13d1e45b，11-19）已核过：main 上读这个接口的两处前端（`scheduled-tasks.tsx` 的 describe、`targets.js`）都按 online → writers_known → computers 判，新回包落到四句现有短句，不读 `status`。电脑列表沿用 cc-erp-parity B50 的验收结论。
