@@ -592,3 +592,30 @@ def test_a_batch_with_failures_opens_the_pending_page_and_no_longer_sends_people
     assert opened == [("https://acme.pearnly.com", "", "pending")]
     app._on_batch_done("p1", 4, 0, "")
     assert app._message_action is None  # 全录成的照旧点了不做事
+    app._on_batch_done("p1", 1, 1, "", "sess-0001")  # 这一批都是同一段对话里推的：回到那段对话（原因在那里）
+    app._on_message_clicked()
+    assert opened[-1] == ("https://acme.pearnly.com", "sess-0001", "pending")
+
+
+def test_a_batch_names_its_conversation_only_when_every_task_came_from_that_one():
+    # 1.12.23 ⑨：一批里每张都来自同一段对话才指定它；混着几段、或有张不是对话里推的（定时任务、网页）不指定 → 开待处理页
+    from types import SimpleNamespace as NS
+
+    from src.companion.gui_tray_workers import PollWorker, batch_session
+
+    pw = PollWorker([])
+    cfg = NS(profile_id="P1", ui_lang="zh")
+
+    def run(sessions, fail=()):
+        for index, session in enumerate(sessions):
+            task = NS(id=f"T-{index}", invoice_no=f"INV{index}", payload={}, attended=True, session=session)
+            pw.handle_task(cfg, None, task, None, "zh", write=lambda *a, i=index, **k: "x" if i in fail else None)
+        batch = pw._stats("P1")
+        session = batch_session(batch["sessions"])
+        batch.update(ok=0, fail=0, invoice="", sessions=set())
+        return session
+
+    assert run(["sess-0001", "sess-0001"], fail={1}) == "sess-0001"
+    assert run(["sess-0001", "sess-0002"], fail={0}) == ""
+    assert run(["sess-0001", None], fail={0}) == ""
+    assert run([None], fail={0}) == ""

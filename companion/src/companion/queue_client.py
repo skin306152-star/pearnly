@@ -31,6 +31,7 @@ _LEASE = _METHOD + "queue_api.lease"
 _ACK = _METHOD + "queue_api.acknowledge"
 MAX_INDEX_PENDING = 500  # 与服务端 queue_contracts.MAX_INDEX_PENDING 相同（多了服务端当没报）
 MAX_OPERATOR_CONTROLS = 20  # 一次领单回复最多执行几条代录指令（多的下一拍再领）
+SESSION_MAX = 140  # 单上的对话编号最长几个字（同服务端 queue_contracts.SESSION_MAX）
 _NOT_SENT = object()  # health() 的 update_blocked 没传：不带这个键（None 是「没被拦」，要照发）
 # 带整份账套名单的心跳（配对、刚启动、名单变了、每 30 分钟一次）的读超时。服务端头一回收这台电脑的名单时逐行登记账套与
 # 可达行，几百份要十来秒（教程问题第 10 条，10-20 生产：679 份 heartbeat.report 9.1 秒、另一次超过 10 秒被这边断开 499）；
@@ -77,6 +78,8 @@ class IncomingTask:
     # 同一条推送记录每次领都一样的键（ADR-021 11-02 修订）：丢在这台电脑手里的单重发时投递号（id）换新，本机记账
     # （task_journal）按它认「写过没有」。旧服务端不带 → None，按 id 记（同以前）。
     key: Optional[str] = None
+    # 推的人在哪段对话里推的（1.12.23 ⑨；只在推的人登录过这台电脑时服务端才给）：一批没录成的通知点开回到那段对话。没有 → None。
+    session: Optional[str] = None
 
 
 class QueueClient:
@@ -231,12 +234,14 @@ class QueueClient:
         job = jobs[0]
         attended = job.get("attended")
         key = job.get("task_key")
+        session = job.get("session")
         return IncomingTask(
             id=str(job["log_id"]),
             invoice_no=job.get("invoice_no"),
             payload=job.get("payload") or {},
             attended=attended if isinstance(attended, bool) else None,
             key=str(key) if isinstance(key, str) and key else None,
+            session=session.strip()[:SESSION_MAX] if isinstance(session, str) and session.strip() else None,
         )
 
     def take_operator_controls(self) -> list:

@@ -7829,6 +7829,18 @@ class PushFollowUpTests(unittest.TestCase):
         self.assertFalse(self.followup.tell("cowork", "REC-3", True, "Express"))
         self.assertEqual(self.posted, [])
 
+    def test_the_conversation_a_push_came_from_goes_only_to_a_computer_its_pusher_signed_in_to(self):
+        # CC 桌面版 1.12.23 ⑨：推送工具发出时就记下来自哪段对话（不论等不等得到结论），领单时只给推的人登录过的电脑
+        self.assertTrue(self.followup.note_origin("erp", "Pearnly Purchase:PUR-1"))
+        self.assertEqual(self.followup.origin_session("erp", "Pearnly Purchase:PUR-1", ["a@example.com", "b@example.com"]),
+                         "sess-1")
+        self.assertEqual(self.followup.origin_session("erp", "Pearnly Purchase:PUR-1", ["b@example.com"]), "")
+        self.assertEqual(self.followup.origin_session("erp", "Pearnly Purchase:PUR-2", ["a@example.com"]), "")
+        self.assertFalse(self.followup.tell("erp", "Pearnly Purchase:PUR-1", True, "Express"))  # 与晚到补一句互不相干
+        self.followup.frappe.local.pearnly_assistant = None
+        self.assertFalse(self.followup.note_origin("cowork", "REC-4"))  # 不是对话里推的（网页、定时任务）不记
+        self.assertEqual(self.followup.origin_session("cowork", "REC-4", ["a@example.com"]), "")
+
 
 
 def _gone_error():

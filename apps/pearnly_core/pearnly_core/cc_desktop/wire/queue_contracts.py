@@ -21,7 +21,10 @@ _JOB_KEYS = frozenset(("log_id", "history_id", "invoice_no", "payload"))
 # 领取回复里每件任务的可选键（ADR-021）：``attended`` = 录入人可能就在这台电脑前（不是定时任务、录入人在这台电脑上登录过 CC，
 # 第 55 条，`route_contracts.attended`）；``task_key`` = 同一条推送记录每次领都一样的不透明键（:func:`task_key`，ADR-021
 # 11-02 修订）。没有这些键的旧服务端照旧，旧客户端只按键取它认识的。
-JOB_OPTIONAL_KEYS = frozenset(("attended", "task_key"))
+JOB_OPTIONAL_KEYS = frozenset(("attended", "task_key", "session"))
+# ``session``（CC 桌面版 1.12.23 ⑨）：这张是推的人在哪段对话里推的（只在推的人登录过这台电脑时给）；一批没录成的通知点开回到那段对话。
+# 旧版 CC 不认这一项。
+SESSION_MAX = 140
 # 领取请求的可选键（ADR-021）：``index_pending`` = 这台电脑主档索引还没重建的账套文件号（按账套黏住用）。旧服务端忽略。
 LEASE_OPTIONAL_KEYS = frozenset(("index_pending",))
 MAX_INDEX_PENDING = 500
@@ -146,8 +149,10 @@ def ack_request(raw: dict) -> dict:
     return _json_copy(result)
 
 
-def job(log_id: str, native_record: dict, attended: bool | None = None, task_key: str | None = None) -> dict:
-    """Project only the four legacy wire fields from native.service.project(), plus optional ``attended`` / ``task_key``.
+def job(log_id: str, native_record: dict, attended: bool | None = None, task_key: str | None = None,
+        session: str | None = None) -> dict:
+    """Project only the four legacy wire fields from native.service.project(), plus optional ``attended`` / ``task_key`` /
+    ``session`` (the conversation it was pushed from, empty = none).
 
     The UUID identifies the caller's opaque mapping, never the native record or
     attempt. Frozen target, actor, fence and attempt token are not projected.
@@ -166,6 +171,10 @@ def job(log_id: str, native_record: dict, attended: bool | None = None, task_key
         result["attended"] = attended
     if task_key is not None:
         result["task_key"] = _uuid(task_key, response=True)
+    if session:
+        if not isinstance(session, str) or len(session) > SESSION_MAX or not session.strip():
+            _invalid(True)
+        result["session"] = session
     return result
 
 
@@ -210,7 +219,8 @@ def lease_response(jobs: list, refresh: dict | None = None, requests_waiting: bo
         if not _JOB_KEYS <= set(row) or set(row) - _JOB_KEYS - JOB_OPTIONAL_KEYS:
             _invalid(True)
         values.append(job(row["log_id"], {"history": row["history_id"],
-            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}, row.get("attended"), row.get("task_key")))
+            "invoice_no": row["invoice_no"], "frozen_payload": row["payload"]}, row.get("attended"), row.get("task_key"),
+            row.get("session")))
     result = {"ok": True, "lease_seconds": LEASE_SECONDS, "jobs": values}
     if refresh is not None:
         _object(refresh, response=True)

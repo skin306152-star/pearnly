@@ -22,6 +22,17 @@ def _operator_task(task) -> bool:
     return isinstance(payload, dict) and str(payload.get("entry_mode") or "").strip() == ENTRY_OPERATOR
 
 
+def batch_session(sessions) -> str:
+    """一批都来自的那段对话：每张都是同一段对话里推的才给；混着几段、或有张不是对话里推的（空）就不指定（开待处理页）。"""
+    values = set(sessions or ())
+    return next(iter(values)) if len(values) == 1 else ""
+
+
+def _session(task) -> str:
+    """这张单是在哪段对话里推的（领单时服务端给的，1.12.23 ⑨）；不是对话里推的（定时任务、网页）回空。"""
+    return str(getattr(task, "session", None) or "")
+
+
 def friendly_poll_error_spec(error: Exception) -> MessageSpec:
     try:
         import httpx
@@ -46,7 +57,7 @@ def friendly_poll_error(error: Exception, lang: str) -> str:
 class PollWorker(QThread):
     status = Signal(str, str, object)
     update_available = Signal(str, str)
-    batch_done = Signal(str, int, int, str)
+    batch_done = Signal(str, int, int, str, str)  # 档案、成功、失败、单号、这一批都来自的那段对话（不是一段就空）
 
     def __init__(self, configs, *, announce=None) -> None:
         super().__init__()
@@ -71,7 +82,7 @@ class PollWorker(QThread):
         self.cfg = self.configs[0] if self.configs else CompanionConfig()
         self._stop = False
         self._batch_stats = {
-            cfg.profile_id: {"ok": 0, "fail": 0, "invoice": ""} for cfg in self.configs
+            cfg.profile_id: {"ok": 0, "fail": 0, "invoice": "", "sessions": set()} for cfg in self.configs
         }
         self._logged_offline_errors: dict[str, str] = {}
         self._scheduler = None
@@ -114,7 +125,7 @@ class PollWorker(QThread):
             done.set()
 
     def _stats(self, profile_id: str) -> dict:
-        return self._batch_stats.setdefault(profile_id, {"ok": 0, "fail": 0, "invoice": ""})
+        return self._batch_stats.setdefault(profile_id, {"ok": 0, "fail": 0, "invoice": "", "sessions": set()})
 
     def handle_task(self, cfg, queue, task, index_batch, lang: str, write=None):
         """取任务线程交来的一张单（``write`` = ``worker._handle_dbf_task``，测试换成假的）。"""
@@ -135,9 +146,11 @@ class PollWorker(QThread):
                 outcome = write(cfg, queue, task, index_batch=index_batch)
         except Exception:
             batch["fail"] += 1
+            batch["sessions"].add(_session(task))
             raise
         if outcome == "waiting_lock":
             return "waiting_lock"
+        batch["sessions"].add(_session(task))
         if outcome:
             batch["fail"] += 1
             return "error"
@@ -161,9 +174,10 @@ class PollWorker(QThread):
                 batch["fail"],
                 batch["invoice"],
             )
-            batch.update(ok=0, fail=0, invoice="")
+            session = batch_session(batch["sessions"])
+            batch.update(ok=0, fail=0, invoice="", sessions=set())
             if succeeded or failed:
-                self.batch_done.emit(profile_id, succeeded, failed, invoice)
+                self.batch_done.emit(profile_id, succeeded, failed, invoice, session)
 
         scheduler = MultiProfileWorker(
             self.configs,

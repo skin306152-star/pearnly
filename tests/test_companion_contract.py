@@ -989,6 +989,30 @@ class Release1123Edges(unittest.TestCase):
         self.assertEqual(client(sent), sent)  # CC 按同样的规矩收下
         self.assertEqual(server.DIALOG_ANSWERS_MAX, MAX_DIALOG_ANSWERS)
 
+    def test_a_leased_task_carries_the_conversation_it_was_pushed_from_in_the_shape_cc_reads(self):
+        # ⑨：领单回复每件可带 ``session``（推的人在哪段对话里推的，只给他登录过的电脑）；CC 收下、一批都来自同一段才在通知里
+        # 回到那段对话。两边长度上限相同；旧版 CC 不认这一项（多出的键不影响）。
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(COMPANION.parent))
+        from pearnly_core.cc_desktop.wire import queue_contracts as server
+
+        self.assertIn("session", server.JOB_OPTIONAL_KEYS)
+        source = (COMPANION / "queue_client.py").read_text(encoding="utf-8")
+        self.assertIn(f"SESSION_MAX = {server.SESSION_MAX} ", source)  # 两边长度上限相同（CC 侧不导入：服务端测试环境没有 httpx）
+        log = "1b4e28ba-2fa1-11d2-883f-0016d3cca427"
+        record = {"history": "H", "invoice_no": "INV", "frozen_payload": {}}
+        self.assertEqual(server.job(log, record, session="sess-0001")["session"], "sess-0001")
+        self.assertNotIn("session", server.job(log, record))  # 不是对话里推的：不带
+        lease = server.lease_response([{"log_id": log, "history_id": "H", "invoice_no": "INV", "payload": {},
+                                        "session": "sess-0001"}])
+        self.assertEqual(lease["jobs"][0]["session"], "sess-0001")
+        self.assertIn('job.get("session")', source)
+        for path in ("apps/pearnly_cowork/pearnly_cowork/companion/transport.py", "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py"):
+            self.assertIn("push_followup.origin_session(", (ROOT / path).read_text(encoding="utf-8"), path)
+        for path in ("apps/pearnly_cowork/pearnly_cowork/assistant/tools.py",
+                     "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py"):
+            self.assertIn("push_followup.note_origin(", (ROOT / path).read_text(encoding="utf-8"), path)
+
     def test_the_page_reports_the_open_conversation_with_the_bridge_method_cc_reads(self):
         # ⑨：对话页经本机设置桥 call("attention_seen", {session, visible}) 报开着哪段对话、看不看得见；页面开始调时名字与参数两边一致
         bridge = (COMPANION / "tomo_bridge.py").read_text(encoding="utf-8")
@@ -1292,13 +1316,13 @@ class WriteDispatch(unittest.TestCase):
     def test_jobs_keep_the_four_keys_and_register_the_optional_ones(self):
         found = self.constants(self.QUEUE, "_JOB_KEYS", "JOB_OPTIONAL_KEYS", "LEASE_OPTIONAL_KEYS")
         self.assertEqual(set(found["_JOB_KEYS"]), {"log_id", "history_id", "invoice_no", "payload"})
-        self.assertEqual(set(found["JOB_OPTIONAL_KEYS"]), {"attended", "task_key"})
+        self.assertEqual(set(found["JOB_OPTIONAL_KEYS"]), {"attended", "task_key", "session"})
         self.assertEqual(set(found["LEASE_OPTIONAL_KEYS"]), {"index_pending"})
         poll = method_source(COMPANION / "queue_client.py", "QueueClient", "poll")
         read = set(re.findall(r"""job(?:\.get\(|\[)['"]([a-z_]+)['"]""", poll))
         # 1.7.0：按键取三个旧键 + 可选的 attended（只认布尔，没有按有人值守）；多出的键不碍事。1.12.11：再取可选的
-        # task_key（只认非空字符串，没有按投递号记，同以前）
-        self.assertEqual(read, {"log_id", "invoice_no", "payload", "attended", "task_key"})
+        # task_key（只认非空字符串，没有按投递号记，同以前）。1.12.23：再取可选的 session（推这件的那段对话，⑨）
+        self.assertEqual(read, {"log_id", "invoice_no", "payload", "attended", "task_key", "session"})
         self.assertTrue(read <= set(found["_JOB_KEYS"]) | set(found["JOB_OPTIONAL_KEYS"]))
         self.assertIn("attended if isinstance(attended, bool) else None", poll)
         self.assertIn("key=str(key) if isinstance(key, str) and key else None", poll)

@@ -344,6 +344,7 @@ def _settle(results) -> None:
             item["status"] = direct_push.QUEUED
             waiting[index] = _parse(item["document"])
     sent = dict(waiting)
+    _note_origin(sent)
     deadline = time.monotonic() + direct_push.PUSH_WAIT_SECONDS
     first = True
     if waiting:
@@ -359,6 +360,14 @@ def _settle(results) -> None:
             if outcome["status"] != direct_push.QUEUED or outcome.get("cc_desktop_online") is False:
                 waiting.pop(index)
     _follow_up(results, sent)
+
+
+def _note_origin(sent) -> None:
+    """发出去的几张记下是本人在这段对话里推的（电脑领单时带回，一批没录成的通知点开回到这段对话，CC 桌面版 1.12.23 ⑨）。"""
+    from pearnly_core.assistant import push_followup
+
+    for kind, name in sent.values():
+        push_followup.note_origin("erp", f"{kind.doctype}:{name}")
 
 
 def _follow_up(results, sent) -> None:

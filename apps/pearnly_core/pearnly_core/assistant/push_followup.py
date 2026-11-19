@@ -41,6 +41,32 @@ def remember(product, record, label) -> bool:
     return True
 
 
+def _origin_key(product, record) -> str:
+    return f"pearnly_push_origin:{product}:{record}"
+
+
+def note_origin(product, record) -> bool:
+    """这张是本人在这段对话里推的（推送工具发出时就记，不论等不等得到结论）：领单时交给电脑，一批没录成的通知点开回到这段对话
+    （CC 桌面版 1.12.23 ⑨）。拿不到对话、本人或缓存就不记。回是否记了。"""
+    context = getattr(frappe.local, "pearnly_assistant", None) or {}
+    session = str(context.get("session_id") or "")
+    user = str(getattr(frappe.session, "user", "") or "")
+    cache = _cache()
+    if not record or not session or not user or user == "Guest" or cache is None:
+        return False
+    cache.set_value(_origin_key(product, record), {"user": user, "session": session}, expires_in_sec=TTL)
+    return True
+
+
+def origin_session(product, record, users) -> str:
+    """这张推送来自的那段对话编号；只有推的人在这台电脑上登录过 CC（``users``）才给，别人的对话不交出去。没有回空。"""
+    cache = _cache()
+    found = cache.get_value(_origin_key(product, record)) if cache is not None and record else None
+    if not isinstance(found, dict) or not found.get("session") or found.get("user") not in set(users or ()):
+        return ""
+    return str(found["session"])
+
+
 @contextmanager
 def _in_lang(user):
     """按收件人的网页语言写文字（回执请求是 CC 桌面版发的，不是本人的语言）。"""
