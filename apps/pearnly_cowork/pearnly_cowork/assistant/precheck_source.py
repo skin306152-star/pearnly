@@ -39,6 +39,8 @@ DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
+ACCOUNT_SET = "account_set"  # 写进哪本账套（LINE 里归不上公司主档的票先问它，11-19；选了 = 按这本建 / 认公司主档并改投）
+TICKET = "ticket:"  # LINE 里归不上公司主档的票交给共用出题器的「公司」：``ticket:<单号>``，判定与记答时换回认出的公司（:func:`_company`）
 STOCK_GROUP = "stock_group"  # 新建库存品挂哪个存货科目组（每份账套选一次，用户 09-28；记在连接上，`connections.choose_stock_acc_group`）
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
@@ -544,6 +546,10 @@ def check(company, doc_ids, hint=None) -> dict:
     from pearnly_cowork.companies import rules
 
     scope.require("intake")
+    if str(company or "").startswith(TICKET):
+        found, company = _ticket(company, doc_ids)
+        if found is not None:
+            return found  # 还归不上公司：先问写进哪本账套
     memory = rules.groups(company)
     documents = []
     for name in doc_ids:
@@ -570,6 +576,15 @@ def remember(company, answers) -> dict:
 
     scope.require("intake")
     done, saved = set(), 0
+    if str(company or "").startswith(TICKET):
+        for name, rows in (answers or {}).items():
+            for row in rows or ():
+                if isinstance(row, dict) and row.get("kind") == ACCOUNT_SET:
+                    _choose_ledger(storage.read(name), str(row.get("value") or "").strip())  # loop-query: LINE 一次只交一张票，账套这一项最多一条
+                    saved += 1
+        company = _company(company)
+        answers = {name: [row for row in rows or () if isinstance(row, dict) and row.get("kind") != ACCOUNT_SET]
+                   for name, rows in (answers or {}).items()}
     for name, rows in (answers or {}).items():
         # ``document``：只答给这一张的（现 / 赊例外，主会话 11-05），不记住、只写这张单自己的
         rows = [row for row in rows or () if isinstance(row, dict) and (row.get("remember", True) or row.get("document"))]
@@ -632,12 +647,19 @@ def remember(company, answers) -> dict:
     return {"saved": saved}
 
 
-def line_ticket(history) -> dict:
-    """LINE 识别完、出卡前问这张票的题（`line.ask`，用户 11-19）：这张票归哪家公司（同待处理：推送去向的账套 → 买方 → 卖方税号，
-    `companies.pending.company_for`）与每题开头那行（对方 · 单据号）。归不上公司回空的 ``company``（不问，卡上保存照现有兜底）。
-    LINE 域只经这一个函数用到助手域（`architecture.md` 的 line → assistant）。"""
-    from pearnly_core.express_rules.contracts.history import primary_page_fields
+def _company_of(doc) -> str:
+    """这张票归哪家公司主档（同待处理：推送去向的账套 → 买方 → 卖方税号，`companies.pending.company_for`）；归不上回空串。"""
     from pearnly_cowork.companies import pending
+
+    return str(pending.company_for(_row(doc)) or "")
+
+
+def line_ticket(history) -> dict:
+    """LINE 识别完、出卡前问这张票的题（`line.ask`，用户 11-19）：交给共用出题器的「公司」与每题开头那行（对方 · 单据号）。
+    归得上公司主档（:func:`_company_of`）回那家；归不上、但推送去向的连接上有能写这张票的账套：回 ``ticket:<单号>``，判定先问「写进
+    哪本账套」（:func:`_ticket`），选了按那本建 / 认公司主档再问剩下的（主会话 11-19：不能有 LINE 问不了）；一本可选的都没有回
+    ``refused``（一句事实，不出卡）。LINE 域只经这一个函数用到助手域（`architecture.md` 的 line → assistant）。"""
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
     from pearnly_cowork.history import storage
 
     scope.require("intake")
@@ -645,7 +667,84 @@ def line_ticket(history) -> dict:
     fields = primary_page_fields(json.loads(doc.pages or "[]")) or {}
     number = str(fields.get("invoice_number") or getattr(doc, "invoice_no", "") or "")
     heading = " · ".join(part for part in (_party(doc, fields), number) if part)
-    return {"company": str(pending.company_for(_row(doc)) or ""), "heading": heading}
+    company = _company_of(doc)
+    if company:
+        return {"company": company, "heading": heading}
+    if not _ledger_options(doc):
+        return {"company": "", "heading": heading, "refused": str(_("cowork.company.not_in_catalog"))}
+    return {"company": TICKET + doc.name, "heading": heading}
+
+
+def _ledger_options(doc) -> list:
+    """归不上公司的票可写进的账套 ``[{code, name}]``：推送去向那条连接（本人能用的）目录里能建主档的账套（同 CC 选公司弹窗
+    `companies.service.create` 的判据）；推送去向那本认得出公司身份时只列同一家的各本（各年度），这本排第一。最多 ``SMALL_LIST`` 本。"""
+    from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+    from pearnly_cowork.companies import identity, service as companies
+
+    connection = str(getattr(doc, "push_connection", "") or "")
+    usable = {row["name"]: row["adapter"] for row in companies.usable_connections()}
+    if connection not in usable:
+        return []
+    adapter = usable[connection]
+
+    def key_of(value):
+        return (normalize_express_account_key(value) if adapter == "express" else str(value or "")).casefold()
+
+    rows = [row for row in companies.facts(connection).get("account_sets") or ()
+            if isinstance(row, dict) and identity.usable(adapter, row) and identity.company_identity(adapter, connection, row)]
+    wanted = key_of(getattr(doc, "push_account_set", ""))
+    current = next((row for row in rows if key_of(row.get("source_id")) == wanted), None)
+    if current:
+        mine = identity.company_identity(adapter, connection, current)["key"]
+        rows = [row for row in rows if identity.company_identity(adapter, connection, row)["key"] == mine]
+    rows.sort(key=lambda row: key_of(row.get("source_id")) != wanted)
+    books = [identity.book(adapter, connection, row) for row in rows[:card.SMALL_LIST]]
+    return [{"code": book["key"], "name": book.get("label") or book["key"]} for book in books]
+
+
+def _company(company) -> str:
+    """``ticket:<单号>`` → 这张票此刻认出的公司（选了账套、建了主档之后）；不是这种写法原样回。"""
+    from pearnly_cowork.history import storage
+
+    text = str(company or "")
+    if not text.startswith(TICKET):
+        return text
+    return _company_of(storage.read(text[len(TICKET):])) or text
+
+
+def _ticket(company, doc_ids):
+    """``check`` 收到 ``ticket:<单号>``：认得出公司了回 (None, 那家)，照常判；还归不上回 (只问「写进哪本账套」的结果, 原样)。
+    只认这一张（别的单号不回，同本人读不到的单）。"""
+    from pearnly_cowork.history import storage
+
+    name = company[len(TICKET):]
+    found = _company(company)
+    if found != company:
+        return None, found
+    if name not in [str(doc_id) for doc_id in doc_ids or ()]:
+        return {"company_title": "", "documents": []}, company
+    doc = storage.read(name)
+    base = {"doc_id": doc.name, "ref": str(getattr(doc, "invoice_no", "") or ""), "party": _party(doc, {}),
+            "state": card.CHECK, "items": []}
+    options = _ledger_options(doc)
+    if options:
+        base["items"].append({"kind": ACCOUNT_SET, "subject": doc.name[:card.SUBJECT_MAX], "value": "",
+                              "source": "", "options": options})
+    return {"company_title": "", "documents": [base]}, company
+
+
+def _choose_ledger(doc, value) -> None:
+    """归不上公司的票选了写进哪本账套：按这本建公司主档（已有就认现有的，同 CC 选公司弹窗「选即建」`companies.service.create`），
+    选的不是推送去向那本就改投（同待选账套 :func:`_choose_book`），不推。值须是 :func:`_ledger_options` 里的。"""
+    from pearnly_cowork.companies import service as companies
+    from pearnly_cowork.history import push_state
+
+    if value not in {option["code"] for option in _ledger_options(doc)}:
+        frappe.throw(_("cowork.choice.invalid"))
+    companies.create(doc.push_connection, value)
+    companies.forget_cache()  # 刚建的主档：同一请求里重判要认得出
+    if value.casefold() != str(doc.push_account_set or "").casefold():
+        push_state.retarget(doc.name, doc.push_connection, value)
 
 
 def _choose_book(doc, value) -> None:

@@ -65,10 +65,11 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None, stock_group=None, company="CO1"):
+         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None, stock_group=None, company="CO1", catalog=None):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
     没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）；
-    ``stock_group``：存货科目组还没选时 `card_save.stock_group_open` 回的样子；``company``：这张票归的公司（`pending.company_for`）。"""
+    ``stock_group``：存货科目组还没选时 `card_save.stock_group_open` 回的样子；``company``：这张票归的公司（`pending.company_for`，
+    可传函数按单据算）；``catalog``：推送去向连接 C1 的账套目录（行带 ``co`` = 公司身份，``ok`` 为假 = 不能建主档）。"""
     calls = []
     doc = doc or document()
     fields = json.loads(doc.pages)[0]["fields"]
@@ -109,9 +110,16 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
                  account_set_options=lambda row: stop_book or {"account_sets": [], "current": ""},
                  account_set_pick=lambda row, key: {"key": key} if key in ("K1", "K2") else None,
                  current_book_choice=lambda row, key: {"workspace": "W1", "key": "cb", "value": key},
-                 company_for=lambda row: company)
+                 company_for=lambda row: company(row) if callable(company) else company)
     card_save = ns(stock_group_open=lambda d: stock_group)
     storage = ns(read=lambda name: doc)
+    identity = ns(usable=lambda adapter, row: row.get("ok", True),
+                  company_identity=lambda adapter, connection, row: {"key": row["co"]} if row.get("co") else None,
+                  book=lambda adapter, connection, row: {"key": row["source_id"], "label": row["label"]})
+    companies = ns(usable_connections=lambda: [{"name": "C1", "adapter": "express"}],
+                   facts=lambda connection: {"account_sets": list(catalog or [])},
+                   create=lambda connection, key: calls.append(("create", connection, key)) or {"name": "CO9"},
+                   forget_cache=lambda: calls.append(("forget",)))
     connections = ns(read_for_push=lambda *a, **k: ns(endpoint={"adapter": "express"}, doc=ns(name="C1")),
                      choose_stock_acc_group=lambda *a: calls.append(("stock_group",) + a))
     memory = dict(menu_memory or {})  # {(连接, 账套, 单种): 菜单文字}
@@ -150,7 +158,9 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         "pearnly_cowork.connections": ns(service=connections),
         "pearnly_cowork.connections.service": connections,
         "pearnly_cowork.contracts": ns(document_policy=policy), "pearnly_cowork.contracts.document_policy": policy,
-        "pearnly_cowork.companies": ns(pending=pending, rules=ns(groups=lambda company: {})),
+        "pearnly_cowork.companies": ns(pending=pending, rules=ns(groups=lambda company: {}), identity=identity,
+                                       service=companies),
+        "pearnly_cowork.companies.identity": identity, "pearnly_cowork.companies.service": companies,
         "pearnly_cowork.companies.pending": pending, "pearnly_cowork.companies.rules": ns(groups=lambda company: {}),
         "pearnly_cowork.assistant": ns(
             operator_source=ns(regroup=lambda company, name, value: calls.append(("regroup", company, name, value)),
@@ -308,6 +318,60 @@ class StockGroupAndLine(unittest.TestCase):
         module, _calls, patcher = load(company=None)
         self.addCleanup(patcher.stop)
         self.assertEqual(module.line_ticket("h1")["company"], "")
+
+
+class LineLedger(unittest.TestCase):
+    """LINE 里归不上公司主档的票（主会话 11-19：不能有 LINE 问不了）：先问写进哪本账套（同一份判定、同一套记答），选了按那本建 /
+    认主档、换回认出的公司再判剩下的；一本可写的都没有回一句事实（现有词条）。"""
+    CATALOG = [{"source_id": "P:\\69EXP\\TEST", "label": "69EXP · TEST", "co": "acme"},
+               {"source_id": "P:\\68EXP\\TEST", "label": "68EXP · TEST", "co": "acme"},
+               {"source_id": "P:\\69EXP\\OTHER", "label": "69EXP · OTHER", "co": "other"},
+               {"source_id": "P:\\69EXP\\OLD", "label": "69EXP · OLD", "co": "acme", "ok": False}]
+
+    def load(self, **kwargs):
+        module, calls, patcher = load(**kwargs)
+        self.addCleanup(patcher.stop)
+        return module, calls
+
+    def test_an_unattributed_ticket_is_asked_its_account_set_first_from_the_same_companys_books(self):
+        module, calls = self.load(company="", catalog=self.CATALOG)
+        ticket = module.line_ticket("h1")
+        self.assertEqual(ticket["company"], "ticket:h1")
+        found = module.check(ticket["company"], ["h1"])
+        items = found["documents"][0]["items"]
+        self.assertEqual([item["kind"] for item in items], ["account_set"])  # 先只问账套
+        self.assertEqual(items[0]["options"], [{"code": "P:\\69EXP\\TEST", "name": "69EXP · TEST"},
+                                               {"code": "P:\\68EXP\\TEST", "name": "68EXP · TEST"}])  # 这本排第一、只列同一家
+        self.assertEqual(card.state_of(card.normalize_item(items[0])), card.OPEN)
+
+    def test_choosing_the_account_set_builds_the_master_retargets_and_the_rest_is_judged(self):
+        state = {"company": ""}
+        module, calls = self.load(company=lambda row: state["company"], catalog=self.CATALOG, needed=(PAYMENT,))
+        row = {"kind": "account_set", "subject": "h1", "value": "P:\\68EXP\\TEST", "label": "", "remember": True}
+        with self.assertRaises(Stop):  # 不在可选范围里的不收
+            module.remember("ticket:h1", {"h1": [{**row, "value": "P:\\69EXP\\OTHER"}]})
+        module.remember("ticket:h1", {"h1": [row]})
+        self.assertIn(("create", "C1", "P:\\68EXP\\TEST"), calls)
+        self.assertIn(("retarget", "h1", "C1", "P:\\68EXP\\TEST"), calls)
+        state["company"] = "CO9"  # 建了主档：认得出了
+        found = module.check("ticket:h1", ["h1"])
+        self.assertEqual({item["kind"] for item in found["documents"][0]["items"]}, {"payment"})
+        module.remember("ticket:h1", {"h1": [{"kind": "direction", "subject": "party|1|0", "value": "expense", "label": "A",
+                                             "remember": True}]})
+        self.assertEqual([c for c in calls if c[0] == "regroup"], [("regroup", "CO9", "h1", "expense")])  # 换回认出的公司记
+
+    def test_choosing_the_account_set_it_was_aimed_at_does_not_retarget(self):
+        module, calls = self.load(company="", catalog=self.CATALOG)
+        module.remember("ticket:h1", {"h1": [{"kind": "account_set", "subject": "h1", "value": BOOK, "label": "", "remember": True}]})
+        self.assertIn(("create", "C1", BOOK), calls)
+        self.assertNotIn("retarget", [c[0] for c in calls])
+
+    def test_no_writable_account_set_answers_one_fact_and_an_attributed_ticket_keeps_its_company(self):
+        module, _calls = self.load(company="", catalog=[{**self.CATALOG[0], "ok": False}])
+        self.assertEqual(module.line_ticket("h1"), {"company": "", "heading": "ร้าน A · INV-1",
+                                                    "refused": "cowork.company.not_in_catalog"})
+        module, _calls = self.load(company="CO1", catalog=self.CATALOG)
+        self.assertEqual(module.line_ticket("h1")["company"], "CO1")
 
 
 class PlannedAndHint(unittest.TestCase):

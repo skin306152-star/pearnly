@@ -6,14 +6,17 @@
 1. 按行追问（`line.items`：新物料怎么处理、多仓选仓；有「全部新建 / 全部记费用」一次答完整张）；
 2. 写账前置判定剩下的题（账套、存货科目组、Express 对应项、现 / 赊……）：共用出题器 `pearnly_core.write_precheck.line_ask`，判定与记答同
    CC 卡片（产品钩子 ``pearnly_write_precheck`` → `assistant.precheck_source`）；票归哪家公司、每题开头那行经
-   `assistant.precheck_source.line_ticket`（line → assistant 只经这一个函数）。推荐项排第一个按钮，点了才算；
+   `assistant.precheck_source.line_ticket`（line → assistant 只经这一个函数）。推荐项排第一个按钮，点了才算。
+   归不上公司主档的票，判定先问「写进哪本账套」（选了按那本建 / 认主档），再问剩下的；一本可选的都没有只回一句事实、不出卡；
 3. 出卡（`line.cards`，保存 / 编辑 / 取消），卡上列答过的结果。
 
 「仅识别」的票、没有题的票直接出卡。一批几张逐张问完、逐张出卡；答题中又来新票排在后面，答案只记给当前这一张，不串单。
 提问里点「取消」= 卡片「取消」（`line.save.drop` → `card_save.cancel`），回「已取消」，接着问排着的下一张。
 进度存在本人的 LINE 会话里（与上传前的选择同一个会话、30 分钟，键 :data:`TICKETS` 与两个出题器各自的键）；过期后旧按钮无效、不出卡
-（票照常在网页列表里）。判定出错、归不上公司的票不问，直接出卡（卡上保存照现有兜底停下回原因）。
+（票照常在网页列表里）。判定出错的票不问，直接出卡（卡上保存照现有兜底停下回原因）。
 LINE 一次回复最多 5 条：前 5 条用回复令牌，其余推送。
+LINE 的快捷回复只挂在最后一条消息上：有题在等答时，这次要发的最后一条不是带按钮的题（新票排队、旧按钮无效、打了与答题无关的字），
+就在后面重带当前这道题（记在票上的 ``prompt``，原样重发、按钮照样有效；ERP 11-19 真机：排队那句把题的按钮顶掉了）。
 """
 import frappe
 from frappe import _
@@ -51,6 +54,19 @@ def send(line_user_id, messages, reply_token=""):
         line.push(line_user_id, messages[start:start + REPLY_MAX])
 
 
+def _prompted(state, messages) -> list:
+    """有题在等答：记下这次发出的最后一道题（带按钮的那条）；最后一条不是带按钮的题就重带当前这道题。"""
+    ticket = state.get("current")
+    if not ticket:
+        return messages
+    asked = [message for message in messages if isinstance(message, dict) and message.get("quickReply")]
+    if asked:
+        ticket["prompt"] = asked[-1]
+    if ticket.get("prompt") and not (messages and messages[-1].get("quickReply")):
+        messages.append(ticket["prompt"])
+    return messages
+
+
 def _card(ticket) -> list:
     from pearnly_cowork.line import cards
 
@@ -77,6 +93,11 @@ def _precheck(payload, ticket, messages) -> bool:
         from pearnly_cowork.assistant import precheck_source
 
         found = precheck_source.line_ticket(ticket["name"])
+        if found.get("refused"):
+            # 一本可写的账套都没有：只回这一句事实，不出带「保存」的卡（票照常在网页列表里）
+            state["current"] = None
+            messages.append({"type": "text", "text": str(found["refused"])[:2000]})
+            return False
         if found.get("company"):
             outcome = line_ask.enqueue(payload, found["company"], [ticket["name"]], ref=ticket["name"],
                                        heading=found.get("heading") or "")
@@ -139,7 +160,7 @@ def _run(payload, messages) -> list:
     while not state.get("current") and state["queue"]:
         if _start(payload, state["queue"].pop(0), messages):  # loop-query: 一次上传的几张票，有题即停、逐张出卡
             break
-    return messages
+    return _prompted(state, messages)
 
 
 # ── 对外入口 ──────────────────────────────────────────────────────────────────
@@ -156,7 +177,8 @@ def arrive(line_user_id, records, pending) -> list:
         payload = flow.choices(line_user_id)
         state = _state(payload)
         state["queue"].extend({"name": name, "card": card, "answers": []} for name in records)
-        messages = [] if state.get("current") else _run(payload, [])
+        # 正在问别的：新票排在后面，这次只重带当前这道题（按钮还在最后一条上）
+        messages = _prompted(state, [] if state.get("current") else _run(payload, []))
         flow.keep(line_user_id, payload)
     return messages
 
@@ -193,23 +215,22 @@ def step(line_user_id, data, reply_token):
             messages.append({"type": "text", "text": _("This option is no longer current")})
         if not state.get("current"):
             _run(payload, messages)
+        _prompted(state, messages)
         if existed:
             flow.keep(line_user_id, payload)
     send(line_user_id, messages, reply_token)
 
 
 def text(line_user_id, message, reply_token) -> bool:
-    """答题中打的字：按行追问「选已有存货」那一步是找存货，出题器在等答时是打编号 / 搜索。不在这两种时回 False（交给别的处理）。"""
+    """答题中打的字：按行追问「选已有存货」那一步是找存货，出题器在等答时是打编号 / 搜索（对不上回没找到、重问这一题）；按行追问的
+    其余各步打了与答题无关的字，重发当前这道题。没有题在等答回 False（交给别的处理）。菜单词、解绑词在调用方之前已接走。"""
     with flow.locked(line_user_id):
         payload = flow.choices(line_user_id)
         state = _state(payload)
         ticket = state.get("current") or {}
         messages = []
         if ticket.get("stage") == ITEMS:
-            found = items.search(payload, message)
-            if found is None:
-                return False
-            messages.extend(found)
+            messages.extend(items.search(payload, message) or [])  # 不在找存货这一步：下面重带当前这道题
         elif ticket.get("stage") == PRECHECK and line_ask.asking(payload):
             outcome = line_ask.text(payload, message)
             if outcome is None:
@@ -219,6 +240,7 @@ def text(line_user_id, message, reply_token) -> bool:
                 _run(payload, messages)
         else:
             return False
+        _prompted(state, messages)
         flow.keep(line_user_id, payload)
     send(line_user_id, messages, reply_token)
     return True

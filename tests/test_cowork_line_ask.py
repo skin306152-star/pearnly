@@ -8,7 +8,9 @@ tests/test_write_precheck_line_ask.py：``contracts.merge`` 合卡、记住的�
 - 账套、存货科目组、Express 对应项（对方档打字搜）都在 LINE 问完才出卡；推荐项排第一，但没点不往下走；
 - 先问按行追问（新物料 / 仓），再问判定剩下的；答完一律出卡（不回「已保存」）；
 - 提问里取消 = 卡片「取消」（`line.save.drop`），回「已取消」、接着问下一张；
-- 答题中来新票排在后面，答案只记给当前这一张；会话过期不出卡；判定出错照出卡。
+- 答题中来新票排在后面，答案只记给当前这一张；会话过期不出卡；判定出错照出卡；
+- 归不上公司主档的票（主会话 11-19：不能有 LINE 问不了）：先问写进哪本账套、再问剩下的、最后出卡；一本可写的账套都没有只回一句事实、
+  不出带「保存」的卡。
 """
 import contextlib
 import json
@@ -25,7 +27,7 @@ from pearnly_core.write_precheck import contracts as c  # noqa: E402
 from pearnly_core.write_precheck import line_ask  # noqa: E402
 from pearnly_cowork.line import ask, cards, flow, handlers, items, save  # noqa: E402
 
-TEXTS = {"guide.q.payment": "Payment", "guide.q.party": "Counterparty", "guide.q.current_book": "Account set",
+TEXTS = {"guide.q.account_set": "Account set", "guide.q.payment": "Payment", "guide.q.party": "Counterparty", "guide.q.current_book": "Account set",
          "guide.option.payment.cash": "Cash", "guide.option.payment.credit": "Credit"}
 BOOK = {"kind": "current_book", "subject": "K1|K2", "label": "",
         "options": [{"code": "K1", "name": "69EXP · TEST"}, {"code": "K2", "name": "69EXP · TEST2"}]}
@@ -88,6 +90,7 @@ class LineAskTest(unittest.TestCase):
         self.backend = Backend({})
         self.rows = {}  # 按行追问：每张票推送侧给的行
         self.company = "CO-1"
+        self.refused = set()  # 一本可写的账套都没有的票
         store = self.store
 
         def set_session(user, state, payload, ttl_minutes=None):
@@ -104,7 +107,8 @@ class LineAskTest(unittest.TestCase):
             mock.patch.object(items, "_side", side_effect=lambda name: getattr(side, name)),
             mock.patch.object(line_ask, "_default", return_value=self.backend),
             mock.patch("pearnly_cowork.assistant.precheck_source.line_ticket",
-                       side_effect=lambda name: {"company": self.company, "heading": "ABC · " + name}),
+                       side_effect=lambda name: {"company": self.company, "heading": "ABC · " + name,
+                                                 **({"refused": "cowork.company.not_in_catalog"} if name in self.refused else {})}),
             mock.patch.object(cards, "previews", side_effect=lambda records, pending, answered=None: [
                 {"type": "flex", "card": name, "answered": list((answered or {}).get(name) or ())} for name in records]),
             mock.patch.object(save, "drop", side_effect=self.dropped.append),
@@ -194,8 +198,8 @@ class LineAskTest(unittest.TestCase):
         self.assertTrue(self.type("whatever"))  # 打别的字：回没找到、重问这一题
         self.assertEqual(self.sent[-1][0]["text"], "No match for “whatever”")
         question = self.last()
-        ask.step("U1", "a=precheck&b=old&n=1&q=x&k=0", "tok")  # 旧按钮：无效
-        self.assertEqual(self.last()["text"], "This option is no longer current")
+        ask.step("U1", "a=precheck&b=old&n=1&q=x&k=0", "tok")  # 旧按钮：无效，后面重带当前这道题
+        self.assertEqual(self.sent[-1], [{"type": "text", "text": "This option is no longer current"}, question])
         self.assertEqual((self.backend.records, self.cards_sent()), ([], []))
         self.tap("Credit", question)  # 点了推荐项才算
         self.assertEqual(len(self.cards_sent()), 1)
@@ -205,7 +209,8 @@ class LineAskTest(unittest.TestCase):
     def test_cancel_drops_the_document_like_the_card_cancel_and_moves_to_the_next(self):
         self.backend.docs = {"H1": [PAY], "H2": [{**PAY, "subject": "purchase|2"}]}
         self.arrive("H1")
-        self.arrive("H2")  # 正在问 H1：H2 排在后面，什么都不发
+        question = self.last()
+        self.assertEqual(self.arrive("H2"), [question])  # 正在问 H1：H2 排在后面，这次只重带 H1 这道题
         self.assertEqual(self.sent[-1][0]["text"].splitlines()[0], "ABC · H1")
         self.tap("Cancel")
         self.assertEqual(self.dropped, ["H1"])
@@ -216,8 +221,9 @@ class LineAskTest(unittest.TestCase):
     def test_a_new_document_while_answering_waits_and_answers_stay_on_their_own_document(self):
         self.backend.docs = {"H1": [PAY], "H2": [GROUP]}
         self.arrive("H1")
-        self.assertEqual(self.arrive("H2"), [])
-        self.tap("Cash")
+        question = self.last()
+        self.assertEqual(self.arrive("H2"), [question])  # 排队：重带当前这道题，按钮挂在最后一条上
+        self.tap("Cash", self.sent[-1][-1])  # 重带的那条按钮照样有效
         batch = self.sent[-1]
         self.assertEqual(batch[0]["card"], "H1")  # 先出 H1 的卡
         self.assertEqual(batch[-1]["text"].splitlines()[:2], ["ABC · H2", "Inventory account group"])  # 再问 H2
@@ -246,6 +252,24 @@ class LineAskTest(unittest.TestCase):
         self.assertEqual((self.dropped, self.sent[-1]), (["H1"], [{"type": "text", "text": "Cancelled"}]))
         self.assertEqual(self.cards_sent(), [])
 
+    def test_words_unrelated_to_the_question_send_the_current_question_again(self):
+        """有题在等答时打了与答题无关的字（ERP 11-19 真机：只回通用提示、题找不回来）：新物料段重发当前这道题；写账判定段回没找到并
+        重问这一题。按钮都在最后一条上、照样有效。"""
+        self.rows = {"H1": [{"kind": "item", "subject": "purchase|t|box", "label": "Box"}]}
+        self.backend.docs = {"H1": [PAY]}
+        self.arrive("H1")
+        question = self.last()
+        self.assertTrue(self.type("hello"))
+        self.assertEqual(self.sent[-1], [question])
+        self.tap("cowork.line.items.al", self.sent[-1][-1])
+        self.assertIn("Payment", self.last()["text"])
+        self.assertTrue(self.type("hello"))
+        self.assertEqual(self.sent[-1][0]["text"], "No match for “hello”")
+        self.assertIn("Payment", self.last()["text"])
+        self.tap("Cash")
+        self.assertEqual([m["card"] for m in self.cards_sent()], ["H1"])
+        self.assertFalse(self.type("hello"))  # 没有题在等答：交给别的处理
+
     def test_an_expired_session_sends_no_card(self):
         self.backend.docs = {"H1": [PAY]}
         self.arrive("H1")
@@ -266,6 +290,41 @@ class LineAskTest(unittest.TestCase):
         log.assert_called_once()
         self.company = ""  # 归不上公司：不问
         self.assertEqual([m["card"] for m in self.arrive("H2")], ["H2"])
+
+    def test_an_unattributed_document_is_asked_its_account_set_then_the_rest_then_gets_its_card(self):
+        """归不上公司主档：判定先只出「写进哪本账套」（同一份判定），答了（同一套记答）再判出剩下的题，问完才出卡。"""
+        ledger = {"kind": "account_set", "subject": "H1", "label": "",
+                  "options": [{"code": "K69", "name": "69EXP · ACME"}, {"code": "K68", "name": "68EXP · ACME"}]}
+        self.company = "ticket:H1"
+        backend = self.backend
+        whole = backend.card
+
+        def card(company, doc_ids):  # 账套没答之前只有这一题；答了以后才有剩下的
+            backend.docs = {"H1": [ledger] if ("account_set", "H1") not in backend.memory else [ledger, PAY]}
+            return whole(company, doc_ids)
+
+        with mock.patch.object(backend, "card", side_effect=card):
+            self.arrive("H1")
+            self.assertIn("Account set", self.last()["text"])
+            self.assertEqual(self.labels(), ["69EXP · ACME", "68EXP · ACME", "Cancel"])  # 「做不做」类：不预选
+            self.assertEqual(self.cards_sent(), [])
+            self.tap("68EXP · ACME")
+            self.assertIn("Payment", self.last()["text"])
+            self.assertEqual(self.cards_sent(), [])
+            self.tap("Cash")
+        self.assertEqual(self.cards_sent()[0]["answered"], [{"label": "Account set", "value": "68EXP · ACME"},
+                                                            {"label": "Payment · ABC", "value": "Cash"}])
+        self.assertEqual([(row[0], row[2][0]["value"]) for row in backend.records], [("ticket:H1", "K68"), ("ticket:H1", "cash")])
+
+    def test_no_writable_account_set_answers_the_fact_and_sends_no_save_card(self):
+        self.refused = {"H1"}
+        self.backend.docs = {"H2": [PAY]}
+        messages = self.arrive("H1", "H2")
+        self.assertEqual(messages[0], {"type": "text", "text": "cowork.company.not_in_catalog"})  # 一句事实（现有词条）
+        self.assertIn("Payment", messages[-1]["text"])  # 接着问下一张
+        self.tap("Cash")
+        self.assertEqual([m["card"] for m in self.cards_sent()], ["H2"])  # H1 没有带「保存」的卡
+        self.assertEqual(self.dropped, [])  # 不删（票照常在网页列表里）
 
     def test_more_than_five_messages_reply_five_and_push_the_rest(self):
         self.arrive(*[f"H{index}" for index in range(7)])
