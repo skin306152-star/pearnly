@@ -11,6 +11,7 @@ import { LoneStep, runningStepLabel, StepRow, StepsGroup } from "@/components/to
 import { CARD_TOOLS } from "@/components/tool-uis";
 import { liveProgress, progressText } from "@/lib/managed-agents/progress";
 import { ApprovalSheet } from "@/components/tool-uis/approval-sheet";
+import { useFloatingAskId } from "@/components/tool-uis/ask-card";
 import { TypingDots } from "@/components/typing-dots";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
@@ -622,7 +623,9 @@ export const Composer: FC<{ placeholder?: string; draft?: boolean; chin?: Compon
   // 选了业务（输入框上方的业务菜单）：占位字换成按业务的一句，上传就用输入框本来的入口（评估 6.1，用户 11-12：选了业务后不出上传卡）
   const businessId = useAuiState((s) => s.threadListItem.remoteId ?? null);
   const business = useCurrentBusiness(businessId) as Business | "";
-  const placeholder = fixed ?? (business ? ((guide.placeholder as Record<string, string>)[business] ?? t("reply")) : hasMessages ? t("reply") : t("placeholder"));
+  // 提问卡浮在输入框上方等作答：「或直接回复…」（同 Claude；打字发出即作答，lib/ask-reply.ts）
+  const asking = !!useFloatingAskId(useAuiState((s) => s.threadListItem.externalId ?? s.threadListItem.remoteId ?? null));
+  const placeholder = fixed ?? (asking ? t("askReply") : business ? ((guide.placeholder as Record<string, string>)[business] ?? t("reply")) : hasMessages ? t("reply") : t("placeholder"));
   // 没在输入、也没有字和附件时标 data-collapsed：手机上收成一行胶囊（「＋」、占位字，同 Claude 手机端），点进去展开成
   // 两行（输入在上、按钮在下）；电脑不按它变（globals.css 只在手机外壳里用）
   const [typing, setTyping] = useState(false);

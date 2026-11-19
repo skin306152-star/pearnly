@@ -157,11 +157,11 @@ export const AskCard: FC<{
   extra?: ReactNode;
   /** 一开始停在第几题（展示页截图用）。 */
   startAt?: number;
-  /** 推荐项默认选中（ask_user 照 Claude 是）；写账前要人定的题传 false：只标「推荐」不预选，点了才算。 */
+  /** 推荐项默认选中。一律不预选（主会话 11-19，用户定「钱和对象的题不预选」，同引导卡）：推荐项只排第一、标「推荐」，点了才算。 */
   preselect?: boolean;
   /** 输入框里直接打字作答（浮着的 ask_user）：卡片把「用这句话交当前这题的『其他』」放进来。 */
   typed?: { current: ((text: string) => void) | null };
-}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0, preselect = true, typed }) => {
+}> = ({ questions, phase, result, busy, failure, onSubmit, framed = true, status = framed, slot = "cc-askq", extra, startAt = 0, preselect = false, typed }) => {
   // pos：此刻要问的题里的第几题（带 show_if 的题随前面的回答收起，不占位置）
   const [pos, setPos] = useState(startAt);
   const [states, setStates] = useState<AskState[]>(() => initialStates(questions, preselect));
@@ -379,8 +379,9 @@ export const AskUserBody: FC<{
 
 const NO_STORE = () => () => {};
 
-/** 这段对话此刻浮在输入框上的那张提问卡是哪一步（没有回 undefined）；只订这一个值，回复每来一段不重画卡片。 */
-function useFloatingAskId(sessionId: string | null): string | undefined {
+/** 这段对话此刻浮在输入框上的那张提问卡是哪一步（没有回 undefined）；只订这一个值，回复每来一段不重画卡片。
+ *  输入框（thread.tsx 的 Composer）也用它：浮着时占位字是「或直接回复…」。 */
+export function useFloatingAskId(sessionId: string | null): string | undefined {
   const controller = sessionId ? getSessionController(sessionId) : null;
   return useSyncExternalStore(controller?.subscribe ?? NO_STORE, () => {
     const part = controller ? floatingAsk(controller.getSnapshot().messages) : undefined;

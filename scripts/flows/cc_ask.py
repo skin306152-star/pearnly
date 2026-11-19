@@ -5,7 +5,7 @@
 出提问卡。点「提交」= 对话的「允许」带上作答（`assistant.api.confirm` 的 answers），站点核对后记进执行记录、以 user.custom_tool_result
 交回引擎；假后端接着回一句「[lab-agent] ask_user <结果原文>」——断言的就是模型收到的工具结果。不调付费模型。
 
-两题：账套（推荐项默认选中）、费用科目（「其他」接共用写账前置判定的服务端搜索：按造好的这张单定账套，搜合成账套的科目表）。
+两题：账套（推荐项排第一、标「推荐」、不预选，主会话 11-19）、费用科目（「其他」接共用写账前置判定的服务端搜索：按造好的这张单定账套，搜合成账套的科目表）。
 电脑与手机宽度各跑一遍；提问卡在电脑、手机上都浮在输入框正上方（B24，主会话 11-09 定，照 Claude），对话流里只留「正在提问」小标签，
 不出允许浮层，工作状态行不再说「需要您的输入」。
 刷新后卡片照执行记录显示成答过的摘要。造数据同 `cowork_operator_lib.py`（产品自己的函数 + 合成账套目录，不连 Express）。
@@ -20,7 +20,7 @@ from cc_lib import JS
 from cowork_operator_lib import BASE, CLEANUP
 
 TYPED = "5300 运费"
-TITLE = "CC 对话里的通用提问卡片 ask_user：出题、推荐项默认选中、翻页、「其他」走服务端搜索、提交后服务端记下与模型收到的结果、刷新后是答过的摘要"
+TITLE = "CC 对话里的通用提问卡片 ask_user：出题、推荐项不预选、翻页、「其他」走服务端搜索、提交后服务端记下与模型收到的结果、刷新后是答过的摘要"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 REPLY = "[lab-agent] ask_user "
 USER = "admin@cowork.regression"
@@ -77,7 +77,9 @@ def steps(params, camera_code=None):
         {"name": "翻页", "js": head + "const after=qa('button[aria-label=\"下一项\"]').find(seen); if(!after) return {error:'no pager'}; after.click(); "
          "await sleep(300); const two=read(); const prev=qa('button[aria-label=\"上一项\"]').find(seen); prev?.click(); await sleep(300); "
          "return {two, back: read()};"},
-        {"name": "下一步到第 2 项", "js": head + "const n=" + CARD + "?.querySelector('[data-slot=\"cc-askq-next\"]'); n?.click(); await sleep(400); "
+        # 推荐项不预选（主会话 11-19）：点一下推荐的那项，单选题自动翻到第 2 项（B25）
+        {"name": "下一步到第 2 项", "js": head + "const o=" + CARD + "?.querySelector('[data-slot=\"cc-askq-option\"]'); "
+         "o?.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true})); o?.click(); await sleep(500); "
          "return read();"},
         {"name": "其他自己填", "js": head + "const o=" + CARD + "?.querySelector('[data-slot=\"cc-askq-other-option\"]'); if(!o) return {error:'no other'}; o.click(); "
          "await until(()=>q('[data-slot=\"cc-askq-other\"] input'),120); const box=q('[data-slot=\"cc-askq-other\"] input'); "
@@ -118,23 +120,23 @@ def judge(params, results, camera_code=None):
     got = _result(sent.get("reply") or "")
     answers = got.get("answers") or []
     return [
-        {"case": "模型调 ask_user 后对话里出提问卡：第一题、两个选项带说明、推荐项带「推荐」徽章并默认选中、最后是「其他」，「第 1 项，共 2 项」，主按钮「下一步」能点",
+        {"case": "模型调 ask_user 后对话里出提问卡：第一题、两个选项带说明、推荐项带「推荐」徽章、不预选、最后是「其他」，「第 1 项，共 2 项」，没选时主按钮「下一步」不能点",
          "seen": first,
          # 推荐项名字不再带「(推荐)」后缀，改成独立徽章（用户 11-12 批准；版式照 Claude 的提问卡，11-13）
          "ok": bool(first.get("seen")) and first.get("question") == q1["question"]
          and labels == [re.sub(r"\s*[(（](推荐|Recommended)[)）]\s*$", "", o["label"]) for o in q1["options"]]
          and bool(first.get("badge"))
-         and [o.get("checked") for o in first.get("options") or []] == [True, False]
+         and [o.get("checked") for o in first.get("options") or []] == [False, False]
          and (first.get("options") or [{}])[0].get("desc") == q1["options"][0]["description"] and bool(first.get("other"))
          and first.get("nth") == "第 1 项，共 2 项" and (first.get("next") or {}).get("text", "").startswith("下一步")
-         and not (first.get("next") or {}).get("disabled")},
+         and bool((first.get("next") or {}).get("disabled"))},
         {"case": "提问卡浮在输入框正上方、对话流里只留「正在提问」，不出允许浮层，工作状态行不说「需要您的输入」（B24）", "seen": first,
          "ok": bool(first.get("floating")) and bool(first.get("tag")) and not first.get("sheet") and first.get("running") != "input"},
-        {"case": "左右箭头来回翻：第 2 项是费用科目那一题，翻回第 1 项推荐项仍选着", "seen": paged,
+        {"case": "左右箭头来回翻：第 2 项是费用科目那一题，翻回第 1 项仍没有选中项", "seen": paged,
          "ok": (paged.get("two") or {}).get("question") == q2["question"] and (paged.get("two") or {}).get("nth") == "第 2 项，共 2 项"
          and (paged.get("back") or {}).get("question") == q1["question"]
-         and [o.get("checked") for o in (paged.get("back") or {}).get("options") or []] == [True, False]},
-        {"case": "「下一步」到最后一题，主按钮变「提交」", "seen": second,
+         and [o.get("checked") for o in (paged.get("back") or {}).get("options") or []] == [False, False]},
+        {"case": "点推荐的那项就翻到最后一题，主按钮变「提交」", "seen": second,
          "ok": second.get("question") == q2["question"] and (second.get("next") or {}).get("text", "").startswith("提交")},
         {"case": "「其他」自己填一句，填了就能提交", "seen": other,
          "ok": bool(other.get("listed")) and other.get("input") == TYPED and not (other.get("next") or {}).get("disabled")},

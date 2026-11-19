@@ -1478,7 +1478,7 @@ covers = [
 
 [[flow]]
 id = "cowork.cc.ask"
-title = "Cowork CC 对话里的通用提问卡片 ask_user（假智能体后端按脚本出题）：推荐项默认选中、翻页、「其他」走服务端搜索、提交后执行记录与模型收到的结果一致、刷新后是答过的摘要；手机不浮成允许卡"
+title = "Cowork CC 对话里的通用提问卡片 ask_user（假智能体后端按脚本出题）：浮在输入框上方、推荐项不预选、点了才翻页、「其他」自己填、提交后执行记录与模型收到的结果一致、刷新后是答过的摘要"
 module = "scripts/flows/cc_ask.py"
 product = "cowork"
 start = "/assistant"
@@ -1490,6 +1490,7 @@ covers = [
   "frontend/assistant/src/components/tool-uis/ask-*.tsx",
   "frontend/assistant/src/components/tool-uis/approval-sheet.tsx",
   "frontend/assistant/src/components/tool-uis/approval-bar.tsx",
+  "frontend/assistant/src/lib/ask-reply.ts",
   "apps/pearnly_core/pearnly_core/assistant/ask.py",
 ]
 
