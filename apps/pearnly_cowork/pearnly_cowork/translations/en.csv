@@ -61,6 +61,7 @@ A value in the ERP data report exceeds the allowed length.,A value in the ERP da
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,A withdrawal or deposit is negative. Check the withdrawal and deposit columns
 Abbreviated Tax Invoice,Abbreviated Tax Invoice
 Abbreviated tax invoice,Abbreviated tax invoice
+Account,Account
 Account Codes,Account Codes
 Account Key,Account Key
 Account Set,Account Set
@@ -606,6 +607,7 @@ Delete the documents?,Delete the documents?
 Delete the note?,Delete the note?
 Delete the rule?,Delete the rule?
 Delete the stock counts?,Delete the stock counts?
+Delete the scheduled tasks?,Delete the scheduled tasks?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -1587,6 +1589,7 @@ Run now,Run now
 Run now (tasks: {0}):,Run now (tasks: {0}):
 Run on day,Run on day
 Run requested. CC Desktop starts within a few minutes.,Run requested. CC Desktop starts within a few minutes.
+Run the scheduled task now?,Run the scheduled task now?
 Run this scheduled task now?,Run this scheduled task now?
 Run time,Run time
 SHA-256,SHA-256
@@ -1624,6 +1627,7 @@ Scanned At,Scanned At
 Schedule,Schedule
 Scheduled Time,Scheduled Time
 Scheduled run at {0} (tasks: {1}):,Scheduled run at {0} (tasks: {1}):
+Scheduled task,Scheduled task
 Scheduled task reminder,Scheduled task reminder
 Scheduled task results,Scheduled task results
 Scheduled tasks,Scheduled tasks
@@ -3557,6 +3561,28 @@ guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
+guide.business.folder_task,Scheduled tasks
+guide.consent.folder_task.delete,Delete the scheduled tasks?
+guide.consent.folder_task.run,Run the scheduled task now?
+guide.open.folder_task,Choose an action.
+guide.step.folder_task.account,Account
+guide.step.folder_task.action,Action
+guide.step.folder_task.book,Account Set
+guide.step.folder_task.department,Department
+guide.step.folder_task.folder,Folder to read
+guide.step.folder_task.item,Stock item not found in Express
+guide.step.folder_task.payment,When the document does not show cash or credit
+guide.step.folder_task.reader,Computer
+guide.step.folder_task.remind,Remind me
+guide.step.folder_task.root,Root
+guide.step.folder_task.run_day,Run on day
+guide.step.folder_task.run_time,Run time
+guide.step.folder_task.target,Posting
+guide.step.folder_task.task,Scheduled task
+guide.step.folder_task.tasks,Scheduled tasks
+guide.step.folder_task.times,Reminder time
+guide.step.folder_task.title,Task name
+guide.step.folder_task.vat,VAT on receipts and abbreviated tax invoices
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

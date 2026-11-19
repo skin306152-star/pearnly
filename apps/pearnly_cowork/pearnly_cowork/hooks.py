@@ -726,4 +726,5 @@ pearnly_guides = ["pearnly_cowork.assistant.guides.GUIDES", "pearnly_cowork.assi
                   "pearnly_cowork.assistant.guided.recon.GUIDES", "pearnly_cowork.assistant.guided.vat.GUIDES",
                   "pearnly_cowork.assistant.guided.pos.GUIDES", "pearnly_cowork.assistant.guided.wht.GUIDES",
                   "pearnly_cowork.assistant.guided.stocktake.GUIDES", "pearnly_cowork.assistant.guided.company.GUIDES",
-                  "pearnly_cowork.assistant.guided.pending.GUIDES", "pearnly_cowork.assistant.guided.work.GUIDES"]
+                  "pearnly_cowork.assistant.guided.pending.GUIDES", "pearnly_cowork.assistant.guided.work.GUIDES",
+                  "pearnly_cowork.assistant.guided.folder_task.GUIDES"]

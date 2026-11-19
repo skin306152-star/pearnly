@@ -74,3 +74,21 @@
 ## 13. 工作量与排期
 
 - 写码 5–6 小时、机器 1.5 小时；排在盘点之后。
+
+## 14. 施工记录（11-19，接手窗口）
+
+- 分支 `pearnly/cc-guided-folder-task`，基线 `pearnly/cowork-withdraw-cc` 96de6905f（备用 A 三条的最上层，列车 H）。
+- `assistant/guided/folder_task.py`：一个菜单项「定时任务」（图标 folder-clock），做什么 = 新建 / 修改 / 启用 / 停用 / 提醒 / 立即运行 / 删除。
+  确定只转调 CC 工具同一组函数（`folder_task_refusal`、`save_folder_task`、`set_folder_task_enabled`、`run_folder_task`、`delete_folder_tasks`），
+  所以 `_task_scope`、`_task_mrerp_setup` 不用改名（第 12 节第 2 问不再需要）。任务清单用 `folder_tasks`（只列本对话公司的）。
+- 新建时「任务」一步自动定成「新建」、账套一步新建 / 修改都适用（修改 = 任务原来的账套），后面各步统一挂在账套后面：引擎的 `after`
+  点名不适用的步骤会一直挡着（同 1266ea15f 那一类）。
+- 引擎补一处（`pearnly_core/assistant/guide/steps.py`，单独提交）：条件依赖的那一步本身不适用时，这一步也不适用（一路传下去），
+  不再算「没轮到」。选了「启用」时，「去向」不适用，挂在去向上的现赊 / 抵扣 / 科目 / 部门 / 存货也不适用；提醒时刻挂在提醒上，同理。
+  `tests/test_cc_guide_steps.py` 补一条。
+- 提醒时刻用子题（N1a）：最多 3 组「提醒日 + 提醒时间」，第一组必答，推荐现值或默认值（前一天 08:00、14:00）；当天提醒晚于运行时间退回（`contracts.remind_times`）。
+- MR.ERP 账套：去向出现购 / 赊购，不出默认处理题。导入菜单 / 默认值还没定时，现在由 `folder_task_refusal` 拒、退回账套那一步并附原因；
+  卡上直接问要等 `pearnly/cc-guided-push-setup` 进 main（待主会话定）。
+- 词条：`guide.business.folder_task`、`guide.open.folder_task`、`guide.step.folder_task.*`（18 项）、`guide.consent.folder_task.run / .delete`，
+  译文都沿用定时任务页已有的字。
+- 测试 `tests/test_cowork_folder_task_guide.py`（14 条）。

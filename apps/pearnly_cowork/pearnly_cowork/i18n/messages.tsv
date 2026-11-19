@@ -2538,3 +2538,25 @@ Done	完成	เสร็จ	完了	guide.step.work.checked
 Item	项目	รายการ	項目	guide.step.work.new_item
 Checklist	清单	รายการตรวจสอบ	チェックリスト	guide.step.work.new_group
 Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.work.files
+Scheduled tasks	定时任务	งานตามกำหนดเวลา	定期タスク	guide.business.folder_task
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.folder_task
+Action	操作	การดำเนินการ	操作	guide.step.folder_task.action
+Scheduled task	定时任务	งานตามกำหนดเวลา	定期タスク	guide.step.folder_task.task
+Scheduled tasks	定时任务	งานตามกำหนดเวลา	定期タスク	guide.step.folder_task.tasks
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.folder_task.book
+Computer	电脑	คอมพิวเตอร์	パソコン	guide.step.folder_task.reader
+Root	根目录	โฟลเดอร์หลัก	ルートフォルダー	guide.step.folder_task.root
+Folder to read	文件夹	โฟลเดอร์	フォルダー	guide.step.folder_task.folder
+Posting	入账方式	วิธีลงบัญชี	計上方法	guide.step.folder_task.target
+When the document does not show cash or credit	票面未注明现购 / 赊购	เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ	現金・掛けが書類から分からない場合	guide.step.folder_task.payment
+VAT on receipts and abbreviated tax invoices	收据、简易税票上的税额	ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ	領収書・簡易税請求書の税額	guide.step.folder_task.vat
+Account	科目	รหัสบัญชี	勘定科目	guide.step.folder_task.account
+Department	部门	แผนก	部門	guide.step.folder_task.department
+Stock item not found in Express	Express 中无对应存货	ไม่พบสินค้าใน Express	Express に在庫品目がない場合	guide.step.folder_task.item
+Run on day	每月运行日	วันที่ทำงานประจำเดือน	実行日	guide.step.folder_task.run_day
+Run time	运行时间	เวลาทำงาน	実行時刻	guide.step.folder_task.run_time
+Remind me	提醒	แจ้งเตือน	リマインド	guide.step.folder_task.remind
+Reminder time	提醒时间	เวลาแจ้งเตือน	リマインド時刻	guide.step.folder_task.times
+Task name	任务名称	ชื่องาน	タスク名	guide.step.folder_task.title
+Run the scheduled task now?	要立即运行定时任务吗？	เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่	定期タスクを今すぐ実行しますか？	guide.consent.folder_task.run
+Delete the scheduled tasks?	要删除定时任务吗？	ลบงานตามกำหนดเวลาหรือไม่	定期タスクを削除しますか？	guide.consent.folder_task.delete

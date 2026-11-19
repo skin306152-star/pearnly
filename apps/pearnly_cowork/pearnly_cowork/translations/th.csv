@@ -61,6 +61,7 @@ A value in the ERP data report exceeds the allowed length.,ค่าในรา
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,มียอดถอนหรือฝากที่ติดลบ กรุณาตรวจสอบคอลัมน์ถอนและฝาก
 Abbreviated Tax Invoice,ใบกำกับภาษีอย่างย่อ
 Abbreviated tax invoice,ใบกำกับภาษีอย่างย่อ
+Account,รหัสบัญชี
 Account Codes,รหัสบัญชี
 Account Key,คีย์ชุดบัญชี
 Account Set,ชุดบัญชี
@@ -606,6 +607,7 @@ Delete the documents?,ลบเอกสารหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
 Delete the rule?,ลบกฎหรือไม่
 Delete the stock counts?,ลบการตรวจนับหรือไม่
+Delete the scheduled tasks?,ลบงานตามกำหนดเวลาหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -1587,6 +1589,7 @@ Run now,เรียกใช้ทันที
 Run now (tasks: {0}):,ทำงานทันที ({0} งาน):
 Run on day,วันที่ทำงานประจำเดือน
 Run requested. CC Desktop starts within a few minutes.,ส่งคำขอแล้ว CC เดสก์ท็อปจะเริ่มทำงานภายในไม่กี่นาที
+Run the scheduled task now?,เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่
 Run this scheduled task now?,เรียกใช้งานตามกำหนดเวลานี้ตอนนี้หรือไม่
 Run time,เวลาทำงาน
 SHA-256,SHA-256
@@ -1624,6 +1627,7 @@ Scanned At,เวลาที่สแกน
 Schedule,กำหนดการ
 Scheduled Time,เวลาตามกำหนด
 Scheduled run at {0} (tasks: {1}):,รอบตามกำหนดเวลา {0} ({1} งาน):
+Scheduled task,งานตามกำหนดเวลา
 Scheduled task reminder,แจ้งเตือนงานตามกำหนดเวลา
 Scheduled task results,ผลงานตามกำหนดเวลา
 Scheduled tasks,งานตามกำหนดเวลา
@@ -3557,6 +3561,28 @@ guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
+guide.business.folder_task,งานตามกำหนดเวลา
+guide.consent.folder_task.delete,ลบงานตามกำหนดเวลาหรือไม่
+guide.consent.folder_task.run,เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่
+guide.open.folder_task,เลือกการดำเนินการ
+guide.step.folder_task.account,รหัสบัญชี
+guide.step.folder_task.action,การดำเนินการ
+guide.step.folder_task.book,ชุดบัญชี
+guide.step.folder_task.department,แผนก
+guide.step.folder_task.folder,โฟลเดอร์
+guide.step.folder_task.item,ไม่พบสินค้าใน Express
+guide.step.folder_task.payment,เมื่อเอกสารไม่ระบุซื้อเงินสดหรือซื้อเงินเชื่อ
+guide.step.folder_task.reader,คอมพิวเตอร์
+guide.step.folder_task.remind,แจ้งเตือน
+guide.step.folder_task.root,โฟลเดอร์หลัก
+guide.step.folder_task.run_day,วันที่ทำงานประจำเดือน
+guide.step.folder_task.run_time,เวลาทำงาน
+guide.step.folder_task.target,วิธีลงบัญชี
+guide.step.folder_task.task,งานตามกำหนดเวลา
+guide.step.folder_task.tasks,งานตามกำหนดเวลา
+guide.step.folder_task.times,เวลาแจ้งเตือน
+guide.step.folder_task.title,ชื่องาน
+guide.step.folder_task.vat,ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

@@ -61,6 +61,7 @@ A value in the ERP data report exceeds the allowed length.,ERP データレポ�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,出金または入金にマイナスの金額があります。出金・入金の列を確認してください
 Abbreviated Tax Invoice,簡易税務請求書
 Abbreviated tax invoice,簡易税務インボイス
+Account,勘定科目
 Account Codes,勘定科目コード
 Account Key,会計データキー
 Account Set,会計データ
@@ -606,6 +607,7 @@ Delete the documents?,書類を削除しますか？
 Delete the note?,メモを削除しますか？
 Delete the rule?,ルールを削除しますか？
 Delete the stock counts?,棚卸を削除しますか？
+Delete the scheduled tasks?,定期タスクを削除しますか？
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
@@ -1587,6 +1589,7 @@ Run now,今すぐ実行
 Run now (tasks: {0}):,今すぐ実行（{0} 件）：
 Run on day,実行日
 Run requested. CC Desktop starts within a few minutes.,実行を依頼しました。数分以内に開始します。
+Run the scheduled task now?,定期タスクを今すぐ実行しますか？
 Run this scheduled task now?,この定期タスクを今すぐ実行しますか？
 Run time,実行時刻
 SHA-256,SHA-256
@@ -1624,6 +1627,7 @@ Scanned At,スキャン日時
 Schedule,実行日時
 Scheduled Time,予定時刻
 Scheduled run at {0} (tasks: {1}):,{0} の定期実行（{1} 件）：
+Scheduled task,定期タスク
 Scheduled task reminder,定期タスクのリマインダー
 Scheduled task results,定期タスクの結果
 Scheduled tasks,定期タスク
@@ -3557,6 +3561,28 @@ guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
+guide.business.folder_task,定期タスク
+guide.consent.folder_task.delete,定期タスクを削除しますか？
+guide.consent.folder_task.run,定期タスクを今すぐ実行しますか？
+guide.open.folder_task,操作を選択してください。
+guide.step.folder_task.account,勘定科目
+guide.step.folder_task.action,操作
+guide.step.folder_task.book,会計データ
+guide.step.folder_task.department,部門
+guide.step.folder_task.folder,フォルダー
+guide.step.folder_task.item,Express に在庫品目がない場合
+guide.step.folder_task.payment,現金・掛けが書類から分からない場合
+guide.step.folder_task.reader,パソコン
+guide.step.folder_task.remind,リマインド
+guide.step.folder_task.root,ルートフォルダー
+guide.step.folder_task.run_day,実行日
+guide.step.folder_task.run_time,実行時刻
+guide.step.folder_task.target,計上方法
+guide.step.folder_task.task,定期タスク
+guide.step.folder_task.tasks,定期タスク
+guide.step.folder_task.times,リマインド時刻
+guide.step.folder_task.title,タスク名
+guide.step.folder_task.vat,領収書・簡易税請求書の税額
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書

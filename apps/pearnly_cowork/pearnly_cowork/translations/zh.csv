@@ -61,6 +61,7 @@ A value in the ERP data report exceeds the allowed length.,ERP 数据报告中�
 A withdrawal or deposit is negative. Check the withdrawal and deposit columns,部分支出或存入金额为负数，请检查支出 / 存入列
 Abbreviated Tax Invoice,简式税务发票
 Abbreviated tax invoice,简易税票
+Account,科目
 Account Codes,科目编码
 Account Key,账套键
 Account Set,账套
@@ -606,6 +607,7 @@ Delete the documents?,要删除单据吗？
 Delete the note?,要删除笔记吗？
 Delete the rule?,要删除规则吗？
 Delete the stock counts?,要删除盘点吗？
+Delete the scheduled tasks?,要删除定时任务吗？
 Delete these documents?,确定要删除以下单据吗？
 Delete these reconciliations?,确定要删除以下对账任务吗？
 Delete these scheduled tasks?,确定要删除以下定时任务吗？
@@ -1587,6 +1589,7 @@ Run now,立即运行
 Run now (tasks: {0}):,立即运行（{0} 个任务）：
 Run on day,每月运行日
 Run requested. CC Desktop starts within a few minutes.,已请求运行，CC 桌面版将在几分钟内开始。
+Run the scheduled task now?,要立即运行定时任务吗？
 Run this scheduled task now?,确定要立即运行此定时任务吗？
 Run time,运行时间
 SHA-256,SHA-256
@@ -1624,6 +1627,7 @@ Scanned At,扫描时间
 Schedule,每月运行
 Scheduled Time,定时时刻
 Scheduled run at {0} (tasks: {1}):,{0} 定时运行（{1} 个任务）：
+Scheduled task,定时任务
 Scheduled task reminder,定时任务提醒
 Scheduled task results,定时任务结果
 Scheduled tasks,定时任务
@@ -3557,6 +3561,28 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
+guide.business.folder_task,定时任务
+guide.consent.folder_task.delete,要删除定时任务吗？
+guide.consent.folder_task.run,要立即运行定时任务吗？
+guide.open.folder_task,选择操作。
+guide.step.folder_task.account,科目
+guide.step.folder_task.action,操作
+guide.step.folder_task.book,账套
+guide.step.folder_task.department,部门
+guide.step.folder_task.folder,文件夹
+guide.step.folder_task.item,Express 中无对应存货
+guide.step.folder_task.payment,票面未注明现购 / 赊购
+guide.step.folder_task.reader,电脑
+guide.step.folder_task.remind,提醒
+guide.step.folder_task.root,根目录
+guide.step.folder_task.run_day,每月运行日
+guide.step.folder_task.run_time,运行时间
+guide.step.folder_task.target,入账方式
+guide.step.folder_task.task,定时任务
+guide.step.folder_task.tasks,定时任务
+guide.step.folder_task.times,提醒时间
+guide.step.folder_task.title,任务名称
+guide.step.folder_task.vat,收据、简易税票上的税额
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
