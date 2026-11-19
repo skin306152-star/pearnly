@@ -19,7 +19,7 @@ import { shownError } from "@/lib/frappe";
 import { type GuideSub, guideFiles } from "@/lib/guide-run";
 import { ACCEPT, refusalOf } from "@/lib/managed-agents/attachments";
 import {
-  type AmountOption, type AmountRow, type ValueKind, amountsProblem, fillRest, formatMinor, setAmount, splitRemainder, sumMinor,
+  type AmountOption, type AmountRow, type ValueKind, amountsProblem, fillRest, formatMinor, lockedRows, setAmount, splitRemainder, sumMinor,
   toMinor, toggleRow, valueOk,
 } from "@/lib/guide-inputs";
 
@@ -49,20 +49,24 @@ export const AmountsField: FC<{
   rows: readonly AmountRow[];
   disabled?: boolean;
   zero?: boolean;
+  /** 一次最多几行（题上的 max_rows）：满了其余没勾的行（不带 free）禁用 */
+  maxRows?: number;
   onChange: (rows: AmountRow[]) => void;
-}> = ({ options, rows, disabled, zero, onChange }) => {
+}> = ({ options, rows, disabled, zero, maxRows, onChange }) => {
   const id = useId();
   const picked = new Map(rows.map((row) => [row.code, row.amount]));
   const wrong = amountsProblem(options, rows, zero);
+  const locked = lockedRows(options, rows, maxRows);
   return (
     <ItemGroup data-slot="cc-guide-amounts" className="cc-guide-body">
       {options.map((option) => {
         const checked = picked.has(option.code);
+        const off = disabled || (!checked && locked.has(option.code));
         const boxId = `${id}-${option.code}`;
         return (
           <Item key={option.code} size="sm" data-checked={checked || undefined}>
             <ItemMedia>
-              <Checkbox id={boxId} checked={checked} disabled={disabled}
+              <Checkbox id={boxId} checked={checked} disabled={off}
                 onCheckedChange={(value) => onChange(toggleRow(options, rows, option.code, value === true))} />
             </ItemMedia>
             <ItemContent>
@@ -92,10 +96,13 @@ export const SplitField: FC<{
   rows: readonly AmountRow[];
   total: string;
   disabled?: boolean;
+  /** 一次最多几行（题上的 max_rows）：满了其余还空着的格（不带 free）禁用、不出「填入差额」 */
+  maxRows?: number;
   onChange: (rows: AmountRow[]) => void;
-}> = ({ options, rows, total, disabled, onChange }) => {
+}> = ({ options, rows, total, disabled, maxRows, onChange }) => {
   const byCode = new Map(rows.map((row) => [row.code, row.amount]));
   const all = options.map((option) => ({ code: option.code, amount: byCode.get(option.code) ?? "" }));
+  const locked = lockedRows(options, all, maxRows);
   const filled = all.filter((row) => row.amount.trim() !== "");
   const rest = splitRemainder(filled, total);
   return (
@@ -103,6 +110,7 @@ export const SplitField: FC<{
       {options.map((option) => {
         const value = byCode.get(option.code) ?? "";
         const bad = value.trim() !== "" && (toMinor(value) ?? 0n) <= 0n;
+        const off = disabled || (value.trim() === "" && locked.has(option.code));
         return (
           <Item key={option.code} size="sm">
             <ItemContent>
@@ -110,13 +118,13 @@ export const SplitField: FC<{
               {option.note ? <ItemDescription>{option.note}</ItemDescription> : null}
             </ItemContent>
             <ItemActions>
-              {value.trim() === "" && rest > 0n && !disabled ? (
+              {value.trim() === "" && rest > 0n && !off ? (
                 <Button variant="secondary" size="xs" type="button" data-slot="cc-guide-fill-rest" onClick={() => onChange(fillRest(all, total, option.code))}>
                   {guide.fillRest}
                 </Button>
               ) : null}
               <Input className="cc-guide-amount w-(--cc-guide-amount-w) shrink-0" inputMode="decimal" aria-label={`${guide.amount} ${optionName(option)}`}
-                disabled={disabled} value={value} aria-invalid={bad || undefined}
+                disabled={off} value={value} aria-invalid={bad || undefined}
                 onChange={(event) => onChange(setAmount(all, option.code, event.currentTarget.value))} />
             </ItemActions>
           </Item>
@@ -254,15 +262,16 @@ export const SearchAmountsField: FC<{
   search?: SearchFn;
   rows: readonly AmountRow[];
   zero?: boolean;
+  maxRows?: number;
   label: string;
   disabled?: boolean;
   onChange: (rows: AmountRow[]) => void;
-}> = ({ options, more = false, search, rows, zero, label, disabled, onChange }) => {
+}> = ({ options, more = false, search, rows, zero, maxRows, label, disabled, onChange }) => {
   const found = useOptions(options, more, search, rows.map((row) => row.code));
   return (
     <div className="flex min-w-0 flex-col">
       {search && <SearchBox value={found.txt} label={label} disabled={disabled} onChange={found.setTxt} />}
-      <AmountsField options={found.options} rows={rows} zero={zero} disabled={disabled} onChange={onChange} />
+      <AmountsField options={found.options} rows={rows} zero={zero} maxRows={maxRows} disabled={disabled} onChange={onChange} />
       {found.searched && !found.options.length && <div className="cc-menu-label">{t("noResults")}</div>}
       {found.more && <MoreButton onClick={found.loadMore} />}
     </div>

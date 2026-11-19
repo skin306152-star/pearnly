@@ -64,13 +64,13 @@ const QuestionBody: FC<{
       );
     case "amounts":
       return search || q.more ? (
-        <SearchAmountsField options={q.options ?? []} more={q.more} search={search} rows={(value as AmountRow[]) ?? []} zero={q.zero}
+        <SearchAmountsField options={q.options ?? []} more={q.more} search={search} rows={(value as AmountRow[]) ?? []} zero={q.zero} maxRows={q.max_rows}
           label={q.title} disabled={disabled} onChange={onChange} />
       ) : (
-        <AmountsField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} zero={q.zero} disabled={disabled} onChange={onChange} />
+        <AmountsField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} zero={q.zero} maxRows={q.max_rows} disabled={disabled} onChange={onChange} />
       );
     case "split":
-      return <SplitField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} total={splitTotal(q, all, values)} disabled={disabled} onChange={onChange} />;
+      return <SplitField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} total={splitTotal(q, all, values)} maxRows={q.max_rows} disabled={disabled} onChange={onChange} />;
     case "file":
       return <FileField sessionId={sessionId} value={(value as string[]) ?? []} label={q.title} disabled={disabled} onChange={onChange} />;
     case "questions":

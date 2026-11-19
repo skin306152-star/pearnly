@@ -6,7 +6,7 @@ import { get, post } from "@/lib/frappe";
 import { listSessionFiles, uploadFile } from "@/lib/managed-agents/api";
 import { type AmountRow, amountsProblem, rowsToSend, splitProblem, sumMinor, fromMinor, valueOk } from "@/lib/guide-inputs";
 
-export type GuideOption = { code: string; name?: string; note?: string; amount?: string; max?: string; kind?: string };
+export type GuideOption = { code: string; name?: string; note?: string; amount?: string; max?: string; kind?: string; free?: boolean };
 /** 子题（N1a 输入 questions、N1b 结果里的追问）：输入只在 SUB_INPUTS 里；title 服务端已翻好。 */
 export type GuideSubInput = "choice" | "multi" | "number" | "text" | "date" | "month" | "time";
 export type GuideSub = {
@@ -19,6 +19,8 @@ export type GuideQuestion = {
   options?: GuideOption[]; more?: boolean; search?: boolean; facts?: string[]; wait?: boolean; preselected?: unknown; value?: unknown;
   /** N4：金额多选行上可以是 0（盘点数到 0）。待定：view 还没带这个键（声明有），带上前当 false */
   zero?: boolean;
+  /** 多行输入一次最多几行（split / amounts，选项函数此刻给；带 free 的选项不占名额），wire 50ba9dfb9 */
+  max_rows?: number;
   /** 分摊的总额。待定：view 还没带；没带时取本卡前面金额多选那一步的合计 */
   total?: string;
   /** N1a：一组子题 */

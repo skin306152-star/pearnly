@@ -5,7 +5,8 @@
 //   month / date / number / text：一格输入
 // 金额一律按「分」的整数算（BigInt），不用浮点：0.1 + 0.2 这种误差不能出现在钱上；显示与交回都是两位小数的字符串。
 
-export type AmountOption = { code: string; name?: string; note?: string; /** 勾上时默认填的数（发票的未收余额） */ amount?: string; /** 这一行最多能填多少 */ max?: string };
+export type AmountOption = { code: string; name?: string; note?: string; /** 勾上时默认填的数（发票的未收余额） */ amount?: string; /** 这一行最多能填多少 */ max?: string;
+  /** 不占 max_rows 的名额（折扣，wire 50ba9dfb9） */ free?: boolean };
 export type AmountRow = { code: string; amount: string };
 export type AmountProblem = "" | "empty" | "amount" | "over";
 export type SplitProblem = "" | "empty" | "amount" | "mismatch";
@@ -62,6 +63,16 @@ export function amountsProblem(options: readonly AmountOption[], rows: readonly 
 }
 
 /** 分摊还差多少（分）：正数 = 还没分完，负数 = 分多了。 */
+/** max_rows（题上给，例：MR.ERP 账本一笔只收一种方式）：不带 free 的行里金额不是 0 的算名额，满了以后其余不带 free 的行要锁；
+ *  回这一刻该锁的选项码（组件里再放过已勾 / 已填了字的那一行，清空就放开）。没给 max_rows 回空。服务端超出时拒收 too_many_rows。 */
+export function lockedRows(options: readonly AmountOption[], rows: readonly AmountRow[], maxRows?: number): ReadonlySet<string> {
+  if (!maxRows || maxRows < 1) return new Set();
+  const free = new Set(options.filter((option) => option.free).map((option) => option.code));
+  const counted = new Set(rows.filter((row) => !free.has(row.code) && (toMinor(row.amount) ?? 0n) !== 0n).map((row) => row.code));
+  if (counted.size < maxRows) return new Set();
+  return new Set(options.filter((option) => !option.free && !counted.has(option.code)).map((option) => option.code));
+}
+
 export const splitRemainder = (rows: readonly AmountRow[], total: string): bigint => (toMinor(total) ?? 0n) - sumMinor(rows);
 
 /** 分摊哪里不对：一项都没填 / 有一项不是正数 / 合计不等于总额。空着的项不算（没用这种方式）。 */

@@ -26,7 +26,7 @@ from pearnly_core.assistant.guide import steps  # noqa: E402
 LOGIC = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
-import { amountsProblem, defaultAmount, fillRest, fromMinor, rowsToSend, setAmount, splitProblem, splitRemainder, sumMinor, toMinor,
+import { amountsProblem, defaultAmount, fillRest, fromMinor, lockedRows, rowsToSend, setAmount, splitProblem, splitRemainder, sumMinor, toMinor,
   toggleRow, valueOk, TEXT_MAX } from "@/lib/guide-inputs";
 
 // 金额按分的整数算
@@ -73,6 +73,17 @@ assert.deepEqual(fillRest(setAmount(blank, "cash", "abc"), "1250.50", "transfer"
 assert.deepEqual(rowsToSend(split), [{ code: "cash", amount: "250.50" }, { code: "transfer", amount: "1000.00" }]);
 assert.deepEqual(rowsToSend([{ code: "cash", amount: "1,250.5" }]), [{ code: "cash", amount: "1250.50" }]);
 
+// max_rows（wire 50ba9dfb9，MR.ERP 账本一笔只收一种方式）：不带 free 的非零行满了，其余不带 free 的行锁上；free（折扣）不占名额、不锁；
+// 0 与没填的不算名额；清空那一行就放开；没给 max_rows 不锁
+const ways = [{ code: "cash" }, { code: "transfer" }, { code: "cheque" }, { code: "discount", free: true }];
+assert.deepEqual([...lockedRows(ways, [{ code: "cash", amount: "600" }], 1)].sort(), ["cheque", "transfer"]);
+assert.deepEqual([...lockedRows(ways, [{ code: "cash", amount: "600" }, { code: "discount", amount: "10" }], 1)].sort(), ["cheque", "transfer"]);
+assert.equal(lockedRows(ways, [{ code: "discount", amount: "10" }, { code: "cash", amount: "0" }, { code: "transfer", amount: "" }], 1).size, 0);
+assert.equal(lockedRows(ways, [{ code: "cash", amount: "" }], 1).size, 0);
+assert.equal(lockedRows(ways, [{ code: "cash", amount: "600" }], 2).size, 0);
+assert.deepEqual([...lockedRows(ways, [{ code: "cash", amount: "600" }, { code: "transfer", amount: "5" }], 2)], ["cheque"]);
+assert.equal(lockedRows(ways, [{ code: "cash", amount: "600" }]).size, 0);
+
 // 一格输入
 assert.ok(valueOk("month", "2026-11") && !valueOk("month", "2026-13") && !valueOk("month", "2026-1"));
 assert.ok(valueOk("date", "2026-11-14") && valueOk("date", "2028-02-29"));
@@ -108,6 +119,11 @@ class GuideInputTests(unittest.TestCase):
         for part in ('from "@/components/ui/item"', 'from "@/components/ui/checkbox"', 'from "@/components/ui/input"',
                      'from "@/components/ui/button"', "aria-invalid", "toggleRow", "fillRest"):
             self.assertIn(part, code)
+        # max_rows：多选金额锁没勾的行（已勾的还能取消），分摊锁还空着的格并收起「填入差额」；三处入口都把题上的 max_rows 交进来
+        self.assertIn("const off = disabled || (!checked && locked.has(option.code));", code)
+        self.assertIn('const off = disabled || (value.trim() === "" && locked.has(option.code));', code)
+        self.assertIn('{value.trim() === "" && rest > 0n && !off ? (', code)
+        self.assertEqual((src / "components/tool-uis/guide-run-card.tsx").read_text(encoding="utf-8").count("maxRows={q.max_rows}"), 3)
         for raw in ("<input", "<button", "<table", "radix-ui"):          # 不手写通用控件、不直接引底层件
             self.assertNotIn(raw, code)
         i18n = (src / "i18n.ts").read_text(encoding="utf-8")
