@@ -239,10 +239,12 @@ export const ChoiceField: FC<{
   recommended?: string;
   /** 搜索框初值（题上的 query） */
   query?: string;
+  /** 出不出搜索框（不给 = 有 search 就出）；只带 more 的题有 search 只为取下一页、不出框 */
+  searchBox?: boolean;
   label: string;
   disabled?: boolean;
   onChange: (value: string | string[]) => void;
-}> = ({ options, more = false, search, multi, value, recommended, query, label, disabled, onChange }) => {
+}> = ({ options, more = false, search, searchBox = !!search, multi, value, recommended, query, label, disabled, onChange }) => {
   const picked = Array.isArray(value) ? value : value ? [value] : [];
   const found = useOptions(options, more, search, picked, query);
   const toggle = (code: string) => {
@@ -251,7 +253,7 @@ export const ChoiceField: FC<{
   };
   return (
     <div className="flex min-w-0 flex-col" data-slot="cc-guide-choice">
-      {search && <SearchBox value={found.txt} label={label} disabled={disabled} onChange={found.setTxt} />}
+      {search && searchBox && <SearchBox value={found.txt} label={label} disabled={disabled} onChange={found.setTxt} />}
       <ChoiceRows options={found.options} picked={picked} multi={multi} recommended={recommended} disabled={disabled} label={label} onToggle={toggle} />
       {found.searched && !found.options.length && <div className="cc-menu-label">{t("noResults")}</div>}
       {found.more && <MoreButton onClick={found.loadMore} />}
@@ -267,14 +269,15 @@ export const SearchAmountsField: FC<{
   rows: readonly AmountRow[];
   zero?: boolean;
   maxRows?: number;
+  searchBox?: boolean;
   label: string;
   disabled?: boolean;
   onChange: (rows: AmountRow[]) => void;
-}> = ({ options, more = false, search, rows, zero, maxRows, label, disabled, onChange }) => {
+}> = ({ options, more = false, search, searchBox = !!search, rows, zero, maxRows, label, disabled, onChange }) => {
   const found = useOptions(options, more, search, rows.map((row) => row.code));
   return (
     <div className="flex min-w-0 flex-col">
-      {search && <SearchBox value={found.txt} label={label} disabled={disabled} onChange={found.setTxt} />}
+      {search && searchBox && <SearchBox value={found.txt} label={label} disabled={disabled} onChange={found.setTxt} />}
       <AmountsField options={found.options} rows={rows} zero={zero} maxRows={maxRows} disabled={disabled} onChange={onChange} />
       {found.searched && !found.options.length && <div className="cc-menu-label">{t("noResults")}</div>}
       {found.more && <MoreButton onClick={found.loadMore} />}

@@ -131,6 +131,11 @@ class GuideInputTests(unittest.TestCase):
         card = (src / "components/tool-uis/guide-run-card.tsx").read_text(encoding="utf-8")
         self.assertIn("query={q.query} onChange={onChange} />", card)
         self.assertNotIn("value={q.query", card)
+        # 约定第 3 条（docs/work/2026-11-19-cc-guide-page-endpoints.md）：带 more 的选项题「显示更多」去服务端取下一页（guide_search 任何选项步骤都给）；
+        # 搜索框只在声明了 search 的题上出
+        self.assertIn("const search = q.search || q.more ? (txt: string, start: number) => searchGuide(run, q.key, txt, start) : undefined;", card)
+        self.assertIn("const box = !!q.search;", card)
+        self.assertEqual(code.count("{search && searchBox && <SearchBox value={found.txt}"), 2)
         for raw in ("<input", "<button", "<table", "radix-ui"):          # 不手写通用控件、不直接引底层件
             self.assertNotIn(raw, code)
         i18n = (src / "i18n.ts").read_text(encoding="utf-8")

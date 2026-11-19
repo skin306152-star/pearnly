@@ -53,18 +53,21 @@ const QuestionBody: FC<{
   onChange: (value: unknown) => void;
 }> = ({ run, sessionId, question: q, all, values, disabled, onChange }) => {
   const value = values[q.key];
-  const search = q.search ? (txt: string, start: number) => searchGuide(run, q.key, txt, start) : undefined;
+  // 取服务端的选项：声明了搜索的打字搜，带 more 的「显示更多」取下一页（guide_search 任何选项步骤都给，约定第 3 条）；
+  // 搜索框只在声明了搜索的题上出
+  const search = q.search || q.more ? (txt: string, start: number) => searchGuide(run, q.key, txt, start) : undefined;
+  const box = !!q.search;
   switch (q.input) {
     case "choice":
     case "multi":
       return (
-        <ChoiceField options={q.options ?? []} more={q.more} search={search} multi={q.input === "multi"} label={q.title} disabled={disabled}
+        <ChoiceField options={q.options ?? []} more={q.more} search={search} searchBox={box} multi={q.input === "multi"} label={q.title} disabled={disabled}
           value={value as string | string[] | undefined} recommended={q.tier === "how" && typeof q.preselected === "string" ? q.preselected : undefined}
           query={q.query} onChange={onChange} />
       );
     case "amounts":
       return search || q.more ? (
-        <SearchAmountsField options={q.options ?? []} more={q.more} search={search} rows={(value as AmountRow[]) ?? []} zero={q.zero} maxRows={q.max_rows}
+        <SearchAmountsField options={q.options ?? []} more={q.more} search={search} searchBox={box} rows={(value as AmountRow[]) ?? []} zero={q.zero} maxRows={q.max_rows}
           label={q.title} disabled={disabled} onChange={onChange} />
       ) : (
         <AmountsField options={q.options ?? []} rows={(value as AmountRow[]) ?? []} zero={q.zero} maxRows={q.max_rows} disabled={disabled} onChange={onChange} />
