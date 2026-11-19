@@ -275,3 +275,7 @@ reason = "标准组件库的开发用展示页（kit.html?page=allow，允许卡
 [[file]]
 file = "frontend/assistant/src/kit/guide.tsx"
 reason = "标准组件库展示页里的引导卡预览（kit.html?page=guide），只在开发服务器与 CC_KIT=1 构建里、不进生产；卡本身由流程 cowork.cc.guide 与 tests/test_cc_guide_card.py 守住"
+
+[[file]]
+file = "frontend/assistant/src/lib/notify.ts"
+reason = "系统通知（Notification / service worker showNotification）在无头浏览器里不显示、点不到，流程没法看弹没弹、响没响；弹不弹（看着这段就不弹）由 tests/test_cc_attention.py、账户静音带 silent 由 tests/test_assistant_ui.py 离线守住"
