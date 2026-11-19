@@ -588,3 +588,49 @@ def test_an_issue_in_a_fifo_book_takes_the_earliest_lot_still_left(book):
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["XTRNVAL"], line["XUNITPR"]) == (30.0, 15.0)
     assert len(_rows(book, "STCRD")) == before + 1
+
+
+def _chain(acct, code, loc, **fields):
+    """把 STLOC 这一行的批次链栏设成给定值（分仓计价账套的样子）。"""
+    import dbf
+    from companion import dbf_schema
+
+    table = dbf.Table(str(acct / "STLOC.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for rec in dbf_schema.live_rows(table):
+            if (rec.STKCOD or "").strip() == code and (rec.LOCCOD or "").strip() == loc:
+                with rec as row:
+                    for name, value in fields.items():
+                        row[name] = value
+    finally:
+        table.close()
+
+
+def test_a_book_costed_by_warehouse_reads_and_keeps_the_lot_chain_of_that_warehouse(book):
+    """11-19 实录（先进先出 + 分仓计价测试账套）：批次链按仓记在 STLOC，主档上那条可能是陈旧的。出库按这个仓的链取最早仍有剩余的批，
+    明细记这个仓的链写前结存与指针；写后这个仓的链与主档都是写后的值（主档抄这个仓的链），LOCVAL 随单增减。别的仓的批不算。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", LOC_COST="Y")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
+    _receipt(book, "RR0000010", dt.date(2026, 3, 5), 10, 450)
+    _receipt(book, "RR0000011", dt.date(2026, 3, 9), 10, 600, loc="02")
+    head = "202603050RR0000010     1"
+    _chain(book, "ICE01", "01", MLOTNUM=head, MREMBAL=12.0, MREMVAL=530.0, LOCVAL=530.0, LOCBAL=12.0)
+    res = _write(book, _entry("OU", [_line("ICE01", 3)]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    # 链 12 = RR0000010 的 10 + RR0000009 剩 2：出 3 = 2 × 40 + 1 × 45
+    assert (line["XTRNVAL"], line["MLOTNUM"].strip(), line["MREMBAL"], line["MREMVAL"]) == (125.0, head, 12.0, 530.0)
+    place = _stloc(book, "ICE01", "01")
+    assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == (head, 9.0, 405.0, 405.0)
+    master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (head, 9.0, 405.0)
+
+    res = _write(book, _entry("JU", [_line("ICE01", 2, unit_cost="50")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["POSOPR"], line["MLOTNUM"].strip(), line["MREMBAL"], line["LOTBAL"]) == ("1", head, 9.0, 2.0)
+    lot = f"202603201{res.docnum:<12}  1"
+    place = _stloc(book, "ICE01", "01")
+    assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == (lot, 11.0, 505.0, 505.0)
+    assert _rows(book, "STMAS", STKCOD="ICE01")[0]["MLOTNUM"].strip() == lot

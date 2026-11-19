@@ -197,3 +197,24 @@ def test_a_transfer_in_a_book_costed_by_warehouse_carries_the_value_and_makes_a_
     assert (out["XUNITPR"], out["XTRNVAL"], out["NETVAL"], out["LOTBAL"]) == (10.0, 20.0, 0.0, 0.0)
     assert (into["XTRNVAL"], into["NETVAL"], into["LOTBAL"], into["LOTVAL"], into["MREMBAL"]) == (20.0, 20.0, 2.0, 20.0, 2.0)
     assert into["MLOTNUM"].rstrip() == f"202610303{res.docnum:<12}  1"
+
+
+def test_a_transfer_in_a_book_costed_by_warehouse_keeps_both_lot_chains_in_stloc(rl_book):
+    """11-19 实录：分仓计价账套的批次链按仓记在 STLOC。调出行记调出仓链的写前结存与指针；写后调出仓链减、调入仓链加且指向调入那一批，
+    两个仓的 LOCVAL 随货值增减，主档的批次栏抄调入仓的链（总结存不变）。"""
+    from account_rules_fixture import isinfo
+    from test_dbf_stock import _chain
+    from test_stock_location import _stloc
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", LOC_COST="Y")
+    head = "202509010RR0000001     1"
+    _chain(rl_book, "ICE01", "01", MLOTNUM=head, MREMBAL=5.0, MREMVAL=50.0, LOCVAL=50.0)
+    res = _write(rl_book, _transfer([_line("ICE01", 2)]))
+    assert res.ok, res.error
+    out = next(r for r in _rows(rl_book, "STCRD", DOCNUM=res.docnum) if r["POSOPR"] == "4")
+    assert (out["MLOTNUM"].strip(), out["MREMBAL"], out["MREMVAL"]) == (head, 5.0, 50.0)
+    lot = f"202610303{res.docnum:<12}  1"
+    source, target = _stloc(rl_book, "ICE01", "01"), _stloc(rl_book, "ICE01", "02")
+    assert (source["MLOTNUM"].strip(), source["MREMBAL"], source["MREMVAL"], source["LOCVAL"]) == (head, 3.0, 30.0, 30.0)
+    assert (target["MLOTNUM"].strip(), target["MREMBAL"], target["MREMVAL"], target["LOCVAL"]) == (lot, 2.0, 20.0, 20.0)
+    master = _rows(rl_book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["TOTBAL"], master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (5.0, lot, 2.0, 20.0)

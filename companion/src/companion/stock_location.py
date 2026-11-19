@@ -17,7 +17,8 @@ Express 自己的记法维护各仓结存 STLOC。
 - ``LOCBAL = BEGBAL + Σ QTY{期}``（5 套 100%），``QTY{期}`` / ``VAL{期}`` = 该期该仓 STCRD 的带符号 XTRNQTY / XTRNVAL
   （进为正、出为负），期号是 ISPRD 的财年期号与 CY / NY 年槽（同余额表月桶，``fiscal_period``）；
 - ``LPURDAT`` / ``LSELDAT`` / ``LMOVDAT`` = 该仓最后一次进货 / 销货 / 任何变动的单据日期（取较晚的那个）；
-- ``LOCVAL``、``MREMBAL`` / ``MREMVAL`` Express 不维护（几乎恒 0），这里也不碰；
+- ``LOCVAL``、``MLOTNUM``、``MREMBAL`` / ``MREMVAL``：不分仓计价的账套 Express 不维护（几乎恒 0），这里也不碰；分仓计价的账套
+  （ISINFO.LOC_COST = Y）这几栏是这个仓的批次链与货值，库存单 / 调拨由 ``stock_chain`` 维护（11-19 实录）；
 - 新行照真表的样子：品码、仓码、STKCLASS 抄商品主档、STATUS = 'A'，其余从 0 / 空起。
 
 单据日期不在 ISPRD 两个年槽里：LOCBAL 与日期照记，期桶不写，原因随回执 ``notes.stloc_bucket_not_written`` 上报（同

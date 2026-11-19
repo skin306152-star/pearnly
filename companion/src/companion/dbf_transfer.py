@@ -35,6 +35,7 @@ from . import dbf_detail
 from . import dbf_remarks
 from . import dbf_schema as S
 from . import fiscal_period
+from . import stock_chain
 from . import stock_guard
 from . import stock_location
 from . import stock_sale
@@ -170,7 +171,8 @@ def write_transfer(
     remark = _fit(payload.get("remark") or "", 50)
     clock.lap("checks")
     # 要建新存货时主档也进写前备份（调拨本身不动 STMAS）
-    backup_dir = _backup(account_dir, TABLES + (("STMAS",) if None in found else ()) + dbf_remarks.tables(items)) \
+    by_place = stock_chain.applies(account_dir)  # 分仓计价账套：两个仓的批次链都在 STLOC，主档抄调入仓的链（11-19）
+    backup_dir = _backup(account_dir, TABLES + (("STMAS",) if None in found or by_place else ()) + dbf_remarks.tables(items)) \
         if make_backup else None
     clock.lap("backup")
     docnum = ""
@@ -178,13 +180,15 @@ def write_transfer(
         today = today or _dt.date.today()
         create_new_items(account_dir, items, found, userid=userid, acccod=str(payload.get("stock_acccod") or "").strip())
         docnum, following = native_docnum(account_dir, TRANSFER, TRANSFER)  # 原生流水号（用户 11-18 定 D5）
+        chain_out: dict = {}
         docnum, lines, moves = _write(account_dir, docdate_be, docdat, remark, items, found, source, target,
-                                      userid=userid, today=today, docnum=docnum)
+                                      userid=userid, today=today, docnum=docnum, chain_out=chain_out)
         set_running(account_dir, TRANSFER, TRANSFER, following)
         try:
             expected, notes = stock_location.apply(account_dir, moves)
         except stock_location.LocationError as exc:
             raise _WriteError(str(exc), ERR_LOCATION) from exc
+        chain_expected = stock_chain.write(account_dir, chain_out.get("after", {}), chain_out.get("values", {}))
         remarks = dbf_remarks.write(account_dir, docnum, enumerate(items, start=1))  # 按台号码：一对明细同一个行号，说明挂一次
         clock.lap("write")
         _reindex(account_dir, ("STTRN", "STCRD", "ISRUN") + S.LOCATION_TABLES + dbf_remarks.tables(items))
@@ -195,6 +199,9 @@ def write_transfer(
             stock_location.verify(account_dir, expected)
         except stock_location.LocationVerifyError as exc:
             raise _WriteError(str(exc), ERR_VERIFY, exc.evidence) from exc
+        chain_problems = stock_chain.verify(account_dir, chain_expected)
+        if chain_problems:
+            raise _WriteError("; ".join(chain_problems[:5]), ERR_VERIFY)
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_STCRD_DOC, docnum)
         clock.lap("index_check")
@@ -213,8 +220,8 @@ def write_transfer(
                               evidence=exc.evidence if isinstance(exc, _WriteError) else None)
 
 
-def _write(account_dir, docdate_be, docdat, remark, items, found, source, target, *, userid, today, docnum=""):
-    """单头 + 成对明细 → (单号, 逐行结果, 各仓结存变动)。"""
+def _write(account_dir, docdate_be, docdat, remark, items, found, source, target, *, userid, today, docnum="", chain_out=None):
+    """单头 + 成对明细 → (单号, 逐行结果, 各仓结存变动)。``chain_out``：分仓计价账套写后两个仓的批次链（``stock_chain``）。"""
     if not docnum:
         head = _open(account_dir, "STTRN", dbf.READ_WRITE)
         try:
@@ -229,6 +236,14 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
     # 分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价，调入那一行成为调入仓的新一批（11-18 先进先出、分仓计价测试账套
     # 实录 RL2300610；不分仓计价的 70EXP 实录 RL0000004 两行都不带金额）
     loc_cost = str((account_rules._first(account_dir, "ISINFO") or {}).get("LOC_COST") or "").strip().upper() == "Y"
+    # 分仓计价且有 STLOC：两个仓各自的批次链（11-19 实录）——调出行记调出仓的链写前结存与指针、按调出仓的批取价（先进先出），
+    # 调入那一批成为调入仓链上最新的一批；写后两个仓的链记进 STLOC，主档抄调入仓的链
+    by_place = loc_cost and stock_chain.applies(account_dir)
+    codes = {match["stkcod"] for match in found if match}
+    chains = stock_chain.read(account_dir, {(code, loc) for code in codes for loc in (source, target)}) if by_place else {}
+    fifo = by_place and str((account_rules._first(account_dir, "ISINFO") or {}).get("COSMTD") or "").strip().upper() == "F"
+    place_lots = stock_chain.fifo_lots(account_dir, {key: chains[key] for key in chains if key[1] == source}) if fifo else {}
+    place_values: dict = {}
     total = Decimal(0)
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
@@ -238,6 +253,12 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                                         item.get("factor"))
             unit_cost = _cost(account_dir, match) if loc_cost else Decimal(0)
             value = (abs(units.base_qty) * unit_cost).quantize(Decimal("0.01")) if loc_cost else Decimal(0)
+            out_key, in_key = (stkcod, source), (stkcod, target)
+            if fifo:
+                from .dbf_stock import _fifo_cost, _fifo_take
+                lots_left = place_lots.get(out_key, [])
+                unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), unit_cost)
+                place_lots[out_key] = _fifo_take(lots_left, abs(units.base_qty))
             total += value
             for posopr, here, other, sign in ((S.STCRD_POSOPR_TRANSFER_OUT, source, target, -1),
                                               (S.STCRD_POSOPR_TRANSFER_IN, target, source, 1)):
@@ -249,6 +270,9 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "STKDES": remark or _fit(str(item.get("name") or ""), 50), "REIMBURSE": "\x00",
                     "MLOTNUM": heads.get(stkcod, ""),
                 }, units.unit, here)
+                if by_place and sign < 0:  # 调出行：调出仓的链写前结存与指针
+                    row.update({"MREMBAL": float(chains[out_key].bal), "MREMVAL": float(chains[out_key].val),
+                                "MLOTNUM": chains[out_key].head})
                 stock_units.stamp(row, units)
                 if loc_cost:
                     priced = {"UNITPR": float(unit_cost.quantize(Decimal("0.01"))), "TRNVAL": float(value),
@@ -260,12 +284,22 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                                        "LOTBAL": float(units.base_qty), "LOTVAL": float(value),
                                        "LUNITPR": float(unit_cost.quantize(Decimal("0.01")))})
                     row.update(priced)
+                if by_place:
+                    key = out_key if sign < 0 else in_key
+                    chains[key] = stock_chain.moved(chains[key], sign * abs(units.base_qty), sign * value,
+                                                    row["MLOTNUM"] if sign > 0 else "")
+                    place_values[key] = place_values.get(key, Decimal(0)) + sign * value
                 S.append_stcrd(table, _filtered(table, row))
                 moves.append(stock_location.Move(stkcod, here, sign * units.base_qty, Decimal(0), docdat,
                                                  stock_location.KIND_TRANSFER))
+            if by_place:
+                stock_sale.move_stmas(account_dir, stkcod, 0, 0, fields={"MLOTNUM": stock_chain.stored_head(chains[in_key])},
+                                      lots=(chains[in_key].bal, chains[in_key].val))
             lines.append(dbf_detail.line_mode(seq, str(item.get("name") or ""), stkcod, mode=stock_sale.ITEM_MODE))
     finally:
         table.close()
+    if by_place and chain_out is not None:
+        chain_out.update({"after": {key: chains[key] for key in place_values}, "values": place_values})
     head = _open(account_dir, "STTRN", dbf.READ_WRITE)
     try:
         S.append_native(head, _filtered(head, {
