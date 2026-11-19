@@ -143,6 +143,12 @@ def _entries(question: Mapping[str, Any], item: Mapping[str, Any]) -> Dict[str, 
     return found
 
 
+def _coded(option: Mapping[str, Any]) -> bool:
+    """主档选项（对方档、存货、科目）带编码：同名的几条只能靠编码分（11-19 真机：两件「น้ำแข็งหลอด」按钮一模一样）。"""
+    code, name = str(option.get("code") or ""), str(option.get("name") or "")
+    return bool(name and code and not code.startswith("__") and code != name)
+
+
 def _snapshot(question: Mapping[str, Any], item: Mapping[str, Any], backend) -> Dict[str, Any]:
     """一题存进会话的样子（按本轮语言翻好）：``{key, kind, title, label, docs, search, options: [{code, label}]}``。
     推荐项照 guide 排第一；搜索题的预选值不在选项里时补成第一个（名称取判定给的 ``value_label``）。"""
@@ -150,6 +156,7 @@ def _snapshot(question: Mapping[str, Any], item: Mapping[str, Any], backend) -> 
     entries = _entries(question, item)
     options = [{"code": str(option.get("code") or ""),
                 "label": str(option.get("name") or _say(backend, option.get("label_key") or "") or option.get("code") or ""),
+                **({"full": f"{option['code']} {option['name']}"} if _coded(option) else {}),
                 **({"entry": entries[option.get("code")]} if option.get("code") in entries else {})}
                for option in question.get("options") or ()]
     preselected = str(question.get("preselected") or "")
@@ -195,9 +202,12 @@ def _button(label: str, data: str) -> Dict[str, Any]:
 def _message(batch: Mapping[str, Any], lines: List[str], choices: List[Dict[str, str]], backend) -> Dict[str, Any]:
     """一条文字题：正文 + 快捷回复（前 12 个选项 + 取消）。名称放不下按钮（超过 20 字）或选项超过 12 个时正文列编号全名、按钮用编号短名。"""
     labels = [choice["label"] for choice in choices]
-    numbered = len(choices) > MAX_CHOICES or any(len(label) > QUICK_LABEL_MAX for label in labels)
+    numbered = (len(choices) > MAX_CHOICES or any(len(label) > QUICK_LABEL_MAX for label in labels)
+                or len(set(labels)) < len(labels))  # 同名的几条按钮分不开：正文列编号「编码 名称」，按钮用编号
     if numbered:
-        lines = lines + [f"{index}. {label}" for index, label in enumerate(labels, 1)]
+        twins = {label for label in labels if labels.count(label) > 1}  # 只有同名的才带编码（账套等编码是路径，不往正文写）
+        lines = lines + [f"{index}. {choice.get('full') if choice['label'] in twins and choice.get('full') else choice['label']}"
+                         for index, choice in enumerate(choices, 1)]
         shown = choice_labels(labels[:MAX_CHOICES])
     else:
         shown = labels

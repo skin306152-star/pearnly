@@ -156,6 +156,19 @@ class Render(Fixture):
         self.assertTrue(all(len(label) <= 20 for label in labels(message)))
         self.assertIn(f"1. {long}", message["text"])
 
+    def test_same_names_get_numbers_and_codes_in_the_text(self):
+        # 11-19 真机：两件同名存货「น้ำแข็งหลอด」按钮一模一样，分不出是哪件——同名的改编号按钮，正文写「编码 名称」
+        backend = Backend({"d1": [{"kind": "location", "subject": "x", "label": "",
+                                   "options": [{"code": "__new__", "name": "新建"}, {"code": "IC-01", "name": "น้ำแข็งหลอด"},
+                                               {"code": "IC-02", "name": "น้ำแข็งหลอด"}]}]})
+        message = self.start(backend)["messages"][0]
+        self.assertEqual(len(set(labels(message))), len(labels(message)))
+        self.assertIn("2. IC-01 น้ำแข็งหลอด", message["text"])
+        self.assertIn("3. IC-02 น้ำแข็งหลอด", message["text"])
+        self.assertIn("1. 新建", message["text"])
+        self.tap(backend, message, 2)
+        self.assertEqual(backend.records[-1][2], [{"key": backend.records[-1][2][0]["key"], "value": "IC-02"}])
+
     def test_search_question_offers_the_preselected_value_and_the_prompt(self):
         backend = Backend({"d1": [{**PARTY, "value": "S01", "value_label": "ABC Co", "source": c.HISTORY}]})
         message = self.start(backend)["messages"][0]
