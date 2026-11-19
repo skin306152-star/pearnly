@@ -795,6 +795,7 @@ class PrecheckTargetTests(Base):
         precheck.collect_document = lambda doctype, name: {"result": prepared[name], "items": [], "data": None}
         precheck.document_view = lambda doc_id, doctype, name, found=None: {"doc_id": doc_id}
         precheck.menu_item = lambda company, doctype, name: None  # 没停在定制菜单的子菜单（修法 D 见 test_erp_operator_menu_choice）
+        precheck.dialog_item = lambda company, doctype, name: None  # 没停在中途框（1.12.23 ③）
         stubs["pearnly_erp_portal.express.api"]._options = lambda item, data: []
         stubs["pearnly_erp_portal.express.facts"].load = lambda key: None
         express = stubs["pearnly_erp_portal.express"]

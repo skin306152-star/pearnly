@@ -295,7 +295,7 @@ def precheck(company, doc_ids) -> dict:
         found = write_precheck.collect_document(doctype, name)
         row = with_menu(legacy_row(doc_id, found), write_precheck.menu_item(company, doctype, name))
         # 停在 Express 中途配方外的业务选择框（CC 桌面版 1.12.23）：那一题同样列进 needed，中途那张卡照它出选项
-        row = with_menu(row, write_precheck.dialog_item(company, doctype, name))
+        row = with_menu(row, write_precheck.dialog_item(company, doctype, name))  # loop-query: 代录预检逐张判（同 menu_item），一批有上限
         target = book_target(found["result"].get("book"))
         row = {**row, "target": target} if target else row
         documents.append({**row, "precheck": write_precheck.document_view(doc_id, doctype, name, found)})
