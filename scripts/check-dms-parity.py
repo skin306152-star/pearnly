@@ -90,7 +90,7 @@ def _normalize(source: str) -> List[str]:
 
 def _git_show(repo: str, sha: str, path: str) -> Optional[str]:
     result = subprocess.run(
-        ["git", "-C", repo, "show", f"{sha}:{path}"],
+        ["git", "-c", "core.quotepath=off", "-C", repo, "show", f"{sha}:{path}"],
         capture_output=True, text=True, check=False,
     )
     return result.stdout if result.returncode == 0 else None
@@ -98,7 +98,7 @@ def _git_show(repo: str, sha: str, path: str) -> Optional[str]:
 
 def _git_list(repo: str, sha: str, prefix: str) -> List[str]:
     result = subprocess.run(
-        ["git", "-C", repo, "ls-tree", "-r", "--name-only", sha, "--", prefix],
+        ["git", "-c", "core.quotepath=off", "-C", repo, "ls-tree", "-r", "--name-only", sha, "--", prefix],
         capture_output=True, text=True, check=False,
     )
     if result.returncode != 0:
@@ -161,7 +161,7 @@ def main() -> int:
     if not os.path.isdir(os.path.join(args.baseline_repo, ".git")):
         print(f"[parity] 基准仓库不存在，跳过：{args.baseline_repo}")
         return 0
-    if subprocess.run(["git", "-C", args.baseline_repo, "cat-file", "-t", args.baseline_sha],
+    if subprocess.run(["git", "-c", "core.quotepath=off", "-C", args.baseline_repo, "cat-file", "-t", args.baseline_sha],
                       capture_output=True, text=True).returncode != 0:
         print(f"[parity] 基准 SHA 不存在，跳过：{args.baseline_sha}")
         return 0

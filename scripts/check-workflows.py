@@ -107,10 +107,10 @@ def _parsed(name: str, text: str) -> list[str]:
 
 def _files(staged: bool) -> list[tuple[str, str]]:
     if staged:
-        listed = subprocess.run(["git", "diff", "--cached", "--name-only", "--diff-filter=ACMR"], cwd=ROOT,
+        listed = subprocess.run(["git", "-c", "core.quotepath=off", "diff", "--cached", "--name-only", "--diff-filter=ACMR"], cwd=ROOT,
                                 capture_output=True, text=True, check=True).stdout.split()
         names = [path for path in listed if path.startswith(FOLDER) and path.endswith((".yml", ".yaml"))]
-        return [(path, subprocess.run(["git", "show", f":{path}"], cwd=ROOT, capture_output=True, text=True,
+        return [(path, subprocess.run(["git", "-c", "core.quotepath=off", "show", f":{path}"], cwd=ROOT, capture_output=True, text=True,
                                       check=True).stdout) for path in names]
     return [(str(path.relative_to(ROOT)), path.read_text(encoding="utf-8"))
             for path in sorted((ROOT / FOLDER).glob("*.y*ml"))]

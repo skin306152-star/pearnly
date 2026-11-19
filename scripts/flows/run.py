@@ -132,14 +132,14 @@ def registry() -> list[dict]:
 
 
 def merge_base(base: str) -> str:
-    found = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    found = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     if not found:
         raise SystemExit(f"找不到 {base} 与 HEAD 的分叉点")
     return found
 
 
 def changed_files(base: str) -> list[str]:
-    out = subprocess.run(["git", "diff", "--name-only", base, "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(["git", "-c", "core.quotepath=off", "diff", "--name-only", base, "HEAD"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
     return [line for line in out.splitlines() if line]
 
 
@@ -880,11 +880,11 @@ def lab_lock(folder=None):
 
 
 def head():
-    return subprocess.run(["git", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", "-c", "core.quotepath=off", "rev-parse", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
 def product_dirty():
-    return subprocess.run(["git", "status", "--porcelain", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", "-c", "core.quotepath=off", "status", "--porcelain", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
 def post_status(ok, summary):

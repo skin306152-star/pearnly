@@ -260,9 +260,9 @@ def load(path, expected=None):
 def verify_source(body, repo):
     """Optional local-only provenance verification, without checkout/fetch/pull."""
     source, ledger = body["source"], body["ledger"]
-    tree = command(["git", "-C", str(repo), "rev-parse", "--verify", source["sha"] + "^{tree}"]).strip()
+    tree = command(["git", "-c", "core.quotepath=off", "-C", str(repo), "rev-parse", "--verify", source["sha"] + "^{tree}"]).strip()
     require(tree == source["tree"], "local source tree differs from evidence")
-    raw = command(["git", "-C", str(repo), "show", ledger["commit"] + ":" + ledger["path"]])
+    raw = command(["git", "-c", "core.quotepath=off", "-C", str(repo), "show", ledger["commit"] + ":" + ledger["path"]])
     require(ledger_identity(raw)["excerpt"] == ledger["excerpt"], "fixed Git ledger differs from evidence")
 
 
@@ -298,12 +298,12 @@ def collect(args):
     require(not Path(args.output).exists(), "output exists; use a new evidence filename")
     require(re.fullmatch(r"[\w.-]+/[\w.-]+", args.github_repo), "invalid GitHub repository")
     require(len(args.services) == 2 and len(set(args.services)) == 2, "select exactly the Web and Worker services")
-    ledger_commit = command(["git", "-C", args.source_repo, "rev-parse", "--verify", args.ledger_ref + "^{commit}"]).strip()
+    ledger_commit = command(["git", "-c", "core.quotepath=off", "-C", args.source_repo, "rev-parse", "--verify", args.ledger_ref + "^{commit}"]).strip()
     require(SHA.fullmatch(ledger_commit), "invalid ledger Git commit")
-    raw = command(["git", "-C", args.source_repo, "show", ledger_commit + ":" + args.ledger_path])
+    raw = command(["git", "-c", "core.quotepath=off", "-C", args.source_repo, "show", ledger_commit + ":" + args.ledger_path])
     identity = ledger_identity(raw)
     require(identity["run_id"] == args.run_id, "run does not match the deployment ledger")
-    tree = command(["git", "-C", args.source_repo, "rev-parse", "--verify", identity["source_sha"] + "^{tree}"]).strip()
+    tree = command(["git", "-c", "core.quotepath=off", "-C", args.source_repo, "rev-parse", "--verify", identity["source_sha"] + "^{tree}"]).strip()
     run = read_json_command(["gh", "api", f"repos/{args.github_repo}/actions/runs/{args.run_id}", "--jq", RUN_FILTER])
     components = {}
     for name in args.services:

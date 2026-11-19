@@ -57,7 +57,7 @@ Infra, Unmet, OverBudget = errors.Infra, errors.Unmet, errors.OverBudget
 
 
 def git(*args: str) -> str:
-    return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    return subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=ROOT, capture_output=True, text=True).stdout.strip()
 
 
 def runs_home() -> Path:

@@ -255,7 +255,7 @@ batch_note() {
   local last files
   last=$(cd "$REPO" && gh run list --workflow stage-production.yml --status success --limit 1 --json headSha --jq '.[0].headSha // ""' 2>/dev/null) || last=
   [[ "$last" =~ ^[0-9a-f]{40}$ && "$last" != "$sha" ]] || return 0
-  files=$(git -C "$REPO" diff --name-only "$last" "$sha" 2>/dev/null) || return 0
+  files=$(git -c core.quotepath=off -C "$REPO" diff --name-only "$last" "$sha" 2>/dev/null) || return 0
   [[ -n "$files" ]] || return 0
   printf '\n本批（%s..%s）真机单与上线必验：\n' "${last:0:8}" "$short"
   # shellcheck disable=SC2086  # 文件名逐个作参数

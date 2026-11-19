@@ -82,10 +82,10 @@ def counts() -> tuple[dict[str, int], list[str]]:
 
 
 def base_registry() -> dict | None:
-    base = subprocess.run(["git", "merge-base", "origin/main", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    base = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", "origin/main", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     if not base:
         return None
-    shown = subprocess.run(["git", "show", f"{base}:{rel(REGISTRY)}"], cwd=ROOT, capture_output=True, text=True)
+    shown = subprocess.run(["git", "-c", "core.quotepath=off", "show", f"{base}:{rel(REGISTRY)}"], cwd=ROOT, capture_output=True, text=True)
     return json.loads(shown.stdout) if shown.returncode == 0 else None
 
 

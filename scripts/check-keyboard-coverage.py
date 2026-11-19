@@ -61,7 +61,7 @@ def typing(text: str) -> bool:
 
 def pages() -> list[Path]:
     """自己出整页的文件（只看进版本库的，构建产物不算）：apps 下的 html 页面、Python 里拼的整页、frontend 各单页入口。"""
-    listed = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "apps", "frontend"], cwd=ROOT,
+    listed = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "--cached", "--others", "--exclude-standard", "apps", "frontend"], cwd=ROOT,
                             capture_output=True, text=True, check=True).stdout.splitlines()
     found = []
     for name in sorted(listed):
@@ -99,10 +99,10 @@ def hooks_ok() -> list[str]:
 
 
 def base_exempt() -> dict | None:
-    base = subprocess.run(["git", "merge-base", "origin/main", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
+    base = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", "origin/main", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip()
     if not base:
         return None
-    shown = subprocess.run(["git", "show", f"{base}:{rel(EXEMPT)}"], cwd=ROOT, capture_output=True, text=True)
+    shown = subprocess.run(["git", "-c", "core.quotepath=off", "show", f"{base}:{rel(EXEMPT)}"], cwd=ROOT, capture_output=True, text=True)
     return json.loads(shown.stdout) if shown.returncode == 0 else None
 
 

@@ -15,7 +15,7 @@ fi
 if [ -f scripts/check-workflows.py ]; then
     python3 scripts/check-workflows.py --staged >/dev/null
 fi
-changed=$(git diff --cached --name-only --diff-filter=ACDMR)
+changed=$(git -c core.quotepath=off diff --cached --name-only --diff-filter=ACDMR)
 architecture=no
 copy=no
 if printf '%s\n' "$changed" | grep -Eq '^(apps/|AGENTS\.md$|\.githooks/|scripts/check-architecture\.py$|docs/development/(architecture-policy|dms-module-map)\.json$)'; then

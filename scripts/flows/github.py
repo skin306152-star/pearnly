@@ -53,7 +53,7 @@ def covered(status, scope):
 
 
 def on_main(sha):
-    return subprocess.run(["git", "merge-base", "--is-ancestor", sha, "origin/main"], cwd=ROOT).returncode == 0
+    return subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", "--is-ancestor", sha, "origin/main"], cwd=ROOT).returncode == 0
 
 
 def calibration(message):
@@ -66,7 +66,7 @@ def decide():
     event, sha = os.environ["GITHUB_EVENT_NAME"], os.environ["GITHUB_SHA"]
     scope, flows = os.environ.get("INPUT_SCOPE", ""), os.environ.get("INPUT_FLOWS", "")
     if event == "push":
-        message = subprocess.run(["git", "log", "-1", "--format=%B", sha], cwd=ROOT, capture_output=True, text=True).stdout
+        message = subprocess.run(["git", "-c", "core.quotepath=off", "log", "-1", "--format=%B", sha], cwd=ROOT, capture_output=True, text=True).stdout
         wanted = calibration(message)
         if wanted:  # `all` = 全套（在工作流还没进 main、手动触发用不了时校准墙钟）
             event, scope, flows = ("workflow_dispatch", "all", "") if wanted == "all" else ("workflow_dispatch", "flows", wanted)

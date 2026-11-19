@@ -691,7 +691,7 @@ class ChromeDebugPort(unittest.TestCase):
     def test_no_driver_picks_its_own_debug_port(self):
         import subprocess
 
-        listed = subprocess.run(["git", "ls-files", "*.mjs", "*.js", "*.py", "*.ts"], cwd=ROOT, capture_output=True, text=True,
+        listed = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "*.mjs", "*.js", "*.py", "*.ts"], cwd=ROOT, capture_output=True, text=True,
                                 check=True).stdout.split()
         bad = []
         for name in listed:

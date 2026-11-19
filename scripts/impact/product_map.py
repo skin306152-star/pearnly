@@ -50,7 +50,7 @@ E2E_FIELDS = {"id", "product", "runs", "where", "asserts", "since"}
 
 
 def tracked(root=ROOT) -> list[str]:
-    out = subprocess.run(["git", "ls-files"], cwd=root, check=True, capture_output=True, text=True).stdout
+    out = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files"], cwd=root, check=True, capture_output=True, text=True).stdout
     return [line for line in out.splitlines() if line]
 
 
@@ -906,7 +906,7 @@ def function_changes(old: str | None, new: str | None, diff: str):
 def changed_functions(root: Path, base: str, paths) -> dict:
     """{改到的 .py 文件: 函数名集合或 None（整个文件算）}，相对 `base`（分叉点）对比工作区（含未提交改动）。"""
     def git(*args):
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+        result = subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=root, capture_output=True, text=True)
         return result.stdout if result.returncode == 0 else None
 
     out = {}

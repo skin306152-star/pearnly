@@ -49,7 +49,7 @@ class Repo:
         self.git("branch", "origin/main")  # 检查脚本拿它当分叉点
 
     def git(self, *args):
-        return subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.root, capture_output=True,
+        return subprocess.run(["git", "-c", "core.quotepath=off", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.root, capture_output=True,
                               text=True, check=True).stdout.strip()
 
     def write(self, path, text):

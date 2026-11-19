@@ -563,6 +563,8 @@ jobs:
         env:
           IMPACT_BASE: ${{ github.event_name == 'pull_request' && 'HEAD^1' || (github.ref == 'refs/heads/main' && github.event.before) || '' }}
         run: python3 scripts/check-impact.py --markdown --out "${GITHUB_STEP_SUMMARY:-/dev/null}"
+      - name: Check scripts read git file lists with core.quotepath off (Chinese file names come back as written)
+        run: python3 tests/test_git_quotepath.py
       - name: Product map discovers every entry kind and checks each row's values, references and test strength
         run: python3 tests/test_product_map.py
       - name: Product map gate (every entry registered, still in the code and tested on each end; untested baseline only shrinks) and the entries this change touches

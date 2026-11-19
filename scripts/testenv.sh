@@ -209,7 +209,7 @@ live() {
   local target_app; target_app=$(resolve_app "${1:-}")
   local apps=(pearnly_core pearnly_cowork pearnly_dms pearnly_erp_portal pearnly_control)
   local tarball=/tmp/pearnly-testenv-live.tgz list migrate_hash
-  list=$(cd "$src/apps" && git ls-files -co --exclude-standard -- "${apps[@]}" \
+  list=$(cd "$src/apps" && git -c core.quotepath=off ls-files -co --exclude-standard -- "${apps[@]}" \
     | while IFS= read -r file; do [[ -f "$file" ]] && printf '%s\n' "$file"; done)
   [[ -n "$list" ]] || { echo "no product code under $src/apps" >&2; exit 2; }
   # 前端 SPA 是构建产物（.gitignore），默认用镜像里那份。调前端时设 PEARNLY_TESTENV_LOCAL_SPA=1：

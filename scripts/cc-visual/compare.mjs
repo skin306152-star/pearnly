@@ -110,7 +110,7 @@ export function coverageOf({ removed, added }, seenBefore, seenAfter) {
   });
 }
 
-const gitDiff = (range) => execFileSync("git", ["diff", "--unified=0", range, "--", "frontend/assistant/src"],
+const gitDiff = (range) => execFileSync("git", ["-c", "core.quotepath=off", "diff", "--unified=0", range, "--", "frontend/assistant/src"],
   { cwd: resolve(fileURLToPath(new URL("../..", import.meta.url))), encoding: "utf8" });
 
 /** 两份 run.json 能不能比：都在、环境 / 深浅色 / 场景筛选 / 每组场景清单一致。返回不一致的说明。 */

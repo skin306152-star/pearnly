@@ -778,7 +778,7 @@ class NarrowingRound(unittest.TestCase):
         modules = [path for path in sources.ADMIN_CODE if path.endswith(".py")]
         for path in modules:
             name = path.split("/")[-1][:-3]
-            found = subprocess.run(["git", "-C", str(ROOT), "grep", "-l", name, "--", "apps/pearnly_cowork", "apps/pearnly_dms",
+            found = subprocess.run(["git", "-c", "core.quotepath=off", "-C", str(ROOT), "grep", "-l", name, "--", "apps/pearnly_cowork", "apps/pearnly_dms",
                                     "apps/pearnly_erp_portal", "apps/pearnly_core"], capture_output=True, text=True).stdout.split()
             users = [f for f in found if f.endswith(".py") and f != path and "/test_" not in f]
             self.assertEqual(users, [], name)
@@ -846,7 +846,7 @@ class TempRepo(unittest.TestCase):
 
     def git(self, *args):
         return subprocess.run(
-            ["git", "-C", self.dir, "-c", "core.hooksPath=/dev/null", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
+            ["git", "-c", "core.quotepath=off", "-C", self.dir, "-c", "core.hooksPath=/dev/null", "-c", "user.name=t", "-c", "user.email=t@example.com", *args],
             check=True, capture_output=True, text=True,
         ).stdout.strip()
 
@@ -1131,10 +1131,10 @@ class TempRepo(unittest.TestCase):
     def test_shallow_clone_hint(self):
         clone = tempfile.mkdtemp(prefix="copy-gate-shallow-")
         self.addCleanup(shutil.rmtree, clone, True)
-        subprocess.run(["git", "clone", "-q", "--depth", "1", "file://" + self.dir, clone], check=True, capture_output=True)
+        subprocess.run(["git", "-c", "core.quotepath=off", "clone", "-q", "--depth", "1", "file://" + self.dir, clone], check=True, capture_output=True)
         self.git("commit", "-q", "--allow-empty", "-m", "main moved on")
         # 照着旧提示 git fetch --depth 1 origin main：origin/main 前进了，但历史还是截断的，merge-base 取不到
-        subprocess.run(["git", "-C", clone, "fetch", "-q", "--depth", "1", "origin"],
+        subprocess.run(["git", "-c", "core.quotepath=off", "-C", clone, "fetch", "-q", "--depth", "1", "origin"],
                        check=True, capture_output=True)
         with self.assertRaises(diff.BaseError) as caught:
             diff.resolve_base(clone, "auto")

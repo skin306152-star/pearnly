@@ -217,7 +217,7 @@ live_sync() {
   # 全部容器（只读）。表结构 / 补丁 / hooks 变了才迁移，否则只清缓存。
   check_context
   local list hash stamp=$state_dir/live/$app.migrate staging image fresh=0
-  list=$(cd "$src/apps" && git ls-files -co --exclude-standard -- "${LIVE_APPS[@]}" \
+  list=$(cd "$src/apps" && git -c core.quotepath=off ls-files -co --exclude-standard -- "${LIVE_APPS[@]}" \
     | while IFS= read -r file; do [[ -f "$file" ]] && printf '%s\n' "$file"; done)
   [[ -n "$list" ]] || die "$src/apps 下没有产品代码"
   hash=$(cd "$src/apps" && printf '%s\n' "$list" | grep -E '/doctype/.*\.json$|/patches\.txt$|/patches/.*\.py$|/hooks\.py$|/fixtures/' \

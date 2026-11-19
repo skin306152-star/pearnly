@@ -57,7 +57,7 @@ class Repo:
         self.git("commit", "-qm", "base")
 
     def git(self, *args):
-        return subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True, text=True).stdout
+        return subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=self.root, check=True, capture_output=True, text=True).stdout
 
     def write(self, path, text):
         target = self.root / path

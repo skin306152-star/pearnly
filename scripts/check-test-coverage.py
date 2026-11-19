@@ -106,8 +106,8 @@ def read_baseline(text: str) -> set[str]:
 def base_text(root: Path, relative: str, base: str) -> str | None:
     """merge-base 上这张表的内容；取不到（浅克隆、没有远端、不是 git 仓库）回 None，只做本地核对。"""
     try:
-        merge = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=root, capture_output=True, text=True, check=True)
-        shown = subprocess.run(["git", "show", f"{merge.stdout.strip()}:{relative}"], cwd=root,
+        merge = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", base, "HEAD"], cwd=root, capture_output=True, text=True, check=True)
+        shown = subprocess.run(["git", "-c", "core.quotepath=off", "show", f"{merge.stdout.strip()}:{relative}"], cwd=root,
                                capture_output=True, text=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         return None

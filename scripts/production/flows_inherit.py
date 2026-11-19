@@ -43,7 +43,7 @@ def decide(sha, ancestors, status_of, changed_since):
 
 
 def _git(*args) -> str:
-    return subprocess.run(["git", "-C", str(REPO), *args], check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", "-c", "core.quotepath=off", "-C", str(REPO), *args], check=True, capture_output=True, text=True).stdout
 
 
 def _status(sha):

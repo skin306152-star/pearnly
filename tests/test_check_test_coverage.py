@@ -80,7 +80,7 @@ class Coverage(unittest.TestCase):
         self.touch("test_old.py")
         self.touch("test_other.py")
         self.tables(baseline="# comment\ntest_old.py\n")
-        git = lambda *args: subprocess.run(["git", *args], cwd=self.root, check=True, capture_output=True)  # noqa: E731
+        git = lambda *args: subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=self.root, check=True, capture_output=True)  # noqa: E731
         git("init", "-q")
         git("-c", "user.email=t@example.com", "-c", "user.name=t", "add", "-A")
         git("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "base")

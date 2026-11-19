@@ -46,7 +46,7 @@ class RepositoryTest(unittest.TestCase):
         self.git("commit", "-q", "-m", "base")
 
     def git(self, *args):
-        subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.root, check=True, capture_output=True)
+        subprocess.run(["git", "-c", "core.quotepath=off", "-c", "user.name=t", "-c", "user.email=t@t", *args], cwd=self.root, check=True, capture_output=True)
 
     def test_staged_mode_reads_the_index_and_tracked_mode_reads_the_worktree(self):
         self.assertEqual(gate.main(["--root", str(self.root)]), 0)

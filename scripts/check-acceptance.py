@@ -100,7 +100,7 @@ def covers_digest(root: Path, commit: str, covers: list[str]) -> str | None:
 
 def git(root: Path, *args: str) -> str | None:
     try:
-        result = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True)
+        result = subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=root, capture_output=True, text=True)
     except FileNotFoundError:
         return None
     return result.stdout if result.returncode == 0 else None

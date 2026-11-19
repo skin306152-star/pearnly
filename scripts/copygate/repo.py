@@ -30,7 +30,7 @@ class GitError(RuntimeError):
 
 def git(repo: str, *args: str, binary: bool = False, stdin: bytes = None):
     proc = subprocess.run(
-        ["git", "-C", repo, *args],
+        ["git", "-c", "core.quotepath=off", "-C", repo, *args],
         input=stdin,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

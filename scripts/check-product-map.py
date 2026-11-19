@@ -296,12 +296,12 @@ def enforce_hits(product_map: pm.Map, hits: dict, flows, impact, changes: list, 
 
 def merge_base(base: str, root=ROOT) -> str | None:
     base = base if base != "auto" else (os.environ.get("PRODUCT_MAP_BASE") or "origin/main")
-    result = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=root, capture_output=True, text=True)
+    result = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", base, "HEAD"], cwd=root, capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else None
 
 
 def git_show(base: str, path: str, root=ROOT) -> str | None:
-    result = subprocess.run(["git", "show", f"{base}:{path}"], cwd=root, capture_output=True, text=True)
+    result = subprocess.run(["git", "-c", "core.quotepath=off", "show", f"{base}:{path}"], cwd=root, capture_output=True, text=True)
     return result.stdout if result.returncode == 0 else None
 
 
@@ -311,7 +311,7 @@ def _read(path: Path) -> str | None:
 
 def changed(base: str, root=ROOT) -> list[str]:
     def git(*args):
-        return subprocess.run(["git", *args], cwd=root, check=True, capture_output=True, text=True).stdout
+        return subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=root, check=True, capture_output=True, text=True).stdout
     base = base if base != "auto" else (os.environ.get("PRODUCT_MAP_BASE") or "origin/main")
     try:
         merge_base = git("merge-base", base, "HEAD").strip()

@@ -28,7 +28,7 @@ class FlowsInherit(unittest.TestCase):
         self.status = {}
 
     def git(self, *args):
-        return subprocess.run(["git", "-C", self.dir.name, *args], check=True, capture_output=True, text=True).stdout.strip()
+        return subprocess.run(["git", "-c", "core.quotepath=off", "-C", self.dir.name, *args], check=True, capture_output=True, text=True).stdout.strip()
 
     def commit(self, *paths, status=None):
         for path in paths:

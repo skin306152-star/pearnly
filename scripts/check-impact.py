@@ -67,7 +67,7 @@ def _match(path: str, patterns) -> bool:
 
 
 def _git(*args, cwd=ROOT) -> str:
-    return subprocess.run(["git", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
+    return subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=cwd, check=True, capture_output=True, text=True).stdout
 
 
 def load(path=REGISTRY):

@@ -43,7 +43,7 @@ if __name__ == "__main__":
     failures = []
     for old, new in MAPPING.items():
         source = "apps/pearnly_dms/" + old.replace(".", "/") + ".py"
-        original = subprocess.check_output(["git", "show", DATA["baseline"] + ":" + source], cwd=ROOT, text=True)
+        original = subprocess.check_output(["git", "-c", "core.quotepath=off", "show", DATA["baseline"] + ":" + source], cwd=ROOT, text=True)
         dest = ROOT / "apps/pearnly_dms" / (new.replace(".", "/") + ".py")
         before = ast.dump(Normalize().visit(ast.parse(original)), include_attributes=False)
         after = ast.dump(ast.parse(dest.read_text()), include_attributes=False)

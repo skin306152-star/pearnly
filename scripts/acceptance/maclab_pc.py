@@ -240,8 +240,8 @@ def prepare_deps(pc: Pc) -> dict:
         src_zip = Path(folder) / "ccsrc.zip"
         files = _zip(COMPANION, src_zip)
         deployed = {"site": deploy(pc, site_zip, SITE), "ccsrc": deploy(pc, src_zip, CCSRC + r"\companion")}
-    head = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-    dirty = subprocess.run(["git", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", "companion/src"]).returncode != 0
+    head = subprocess.run(["git", "-c", "core.quotepath=off", "-C", str(ROOT), "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
+    dirty = subprocess.run(["git", "-c", "core.quotepath=off", "-C", str(ROOT), "diff", "--quiet", "HEAD", "--", "companion/src"]).returncode != 0
     return {"packages": installed, "pinned": versions, "ccsrc_files": files, "ccsrc_from": head + (" + 未提交改动" if dirty else ""),
             "deployed": deployed}
 

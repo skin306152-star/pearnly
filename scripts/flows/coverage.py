@@ -65,7 +65,7 @@ def baseline(text=None) -> list[str]:
 
 
 def baseline_at(commit) -> list[str] | None:
-    out = subprocess.run(["git", "show", f"{commit}:{BASELINE.relative_to(ROOT)}"], cwd=ROOT, capture_output=True, text=True)
+    out = subprocess.run(["git", "-c", "core.quotepath=off", "show", f"{commit}:{BASELINE.relative_to(ROOT)}"], cwd=ROOT, capture_output=True, text=True)
     return baseline(out.stdout) if out.returncode == 0 else None
 
 
@@ -83,7 +83,7 @@ def _module_of(path: str) -> str:
 
 def import_graph() -> tuple[dict, dict]:
     """apps 下每个 Python 模块（不含测试、补丁）在**同一个 App** 里直接 import 的模块：{文件: {文件…}}，以及模块名 → 文件。"""
-    tracked = subprocess.run(["git", "ls-files", "apps"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+    tracked = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "apps"], cwd=ROOT, capture_output=True, text=True).stdout.split()
     files = [p for p in tracked if p.endswith(".py") and "/tests/" not in p and "/patches/" not in p and "/test_" not in p]
     by_module = {_module_of(p): p for p in files}
     graph = {}
@@ -165,7 +165,7 @@ PRODUCTS = [("apps/pearnly_erp_portal/", "ERP"), ("apps/pearnly_cowork/", "Cowor
 def change_counts(days) -> tuple[dict, dict]:
     """每个文件近 ``days`` 天与全部历史的提交次数（按 main 历史，合并提交不计）。"""
     def counts(*extra):
-        out = subprocess.run(["git", "log", "--no-merges", "--format=", "--name-only", *extra, "HEAD", "--", "apps", "frontend"],
+        out = subprocess.run(["git", "-c", "core.quotepath=off", "log", "--no-merges", "--format=", "--name-only", *extra, "HEAD", "--", "apps", "frontend"],
                              cwd=ROOT, capture_output=True, text=True).stdout.split()
         found = {}
         for path in out:
@@ -176,7 +176,7 @@ def change_counts(days) -> tuple[dict, dict]:
 
 def status(covers, exempt, days) -> str:
     """现状清单：入口 → 有没有流程，按产品分组、按近期改动次数（再按全部历史）倒序。"""
-    tracked = subprocess.run(["git", "ls-files", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+    tracked = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.split()
     recent, total = change_counts(days)
     flows = tomllib.loads(REGISTRY.read_text(encoding="utf-8"))["flow"]
     rows = []
@@ -202,8 +202,8 @@ def status(covers, exempt, days) -> str:
 
 
 def changed(base: str) -> list[str]:
-    merge_base = subprocess.run(["git", "merge-base", base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or base
-    out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=AMR", merge_base, "HEAD"], cwd=ROOT, capture_output=True,
+    merge_base = subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", base, "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.strip() or base
+    out = subprocess.run(["git", "-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=AMR", merge_base, "HEAD"], cwd=ROOT, capture_output=True,
                          text=True, check=True).stdout
     return [line for line in out.splitlines() if line]
 
@@ -225,7 +225,7 @@ def main(argv=None) -> int:
     for flow in tomllib.loads(REGISTRY.read_text(encoding="utf-8"))["flow"]:
         if not (ROOT / flow["module"]).is_file():
             problems.append(f"流程 {flow['id']}：模块 {flow['module']} 不存在")
-        tracked = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        tracked = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files"], cwd=ROOT, capture_output=True, text=True).stdout.split()
         problems += [f"流程 {flow['id']}：covers 里的 {c} 对不上任何文件（文件改名或删了要同步登记表）"
                      for c in flow.get("covers", []) if not any(match(t, c) for t in tracked)]
     problems += [f"{path}：not_flows.toml 这条没写原因" for path, reason in exempt.items() if not reason.strip()]
@@ -241,7 +241,7 @@ def main(argv=None) -> int:
                                 "# 只许减少：补上流程后对应条目必须删掉；不许新加。\n" + "\n".join(bare) + "\n", encoding="utf-8")
             print(f"存量清单 {len(bare)} 条")
             return 0
-        out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=AMR", args.base, args.head], cwd=ROOT,
+        out = subprocess.run(["git", "-c", "core.quotepath=off", "diff", "--name-only", "--diff-filter=AMR", args.base, args.head], cwd=ROOT,
                              capture_output=True, text=True).stdout.split()
         stock = set(baseline())
         hit = [f"  - {p}（经 {sorted(reach[p])[0]}）" for p in out if p in stock and p in reach]
@@ -252,7 +252,7 @@ def main(argv=None) -> int:
         print(status(covers, exempt, args.days))
         return 0
     if args.list:
-        tracked = subprocess.run(["git", "ls-files", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.split()
+        tracked = subprocess.run(["git", "-c", "core.quotepath=off", "ls-files", "apps", "frontend"], cwd=ROOT, capture_output=True, text=True).stdout.split()
         entries = [p for p in tracked if is_entry(p)]
         bare = [p for p in entries if p not in exempt and not any(match(p, c) for c in covers)]
         print("\n".join(bare))
@@ -270,7 +270,7 @@ def main(argv=None) -> int:
     problems += [f"{p}：存量清单里这条已经有流程覆盖了（或已不是入口背后的模块 / 文件已删），从 tests/flows/behind_baseline.txt 删掉"
                  for p in stock if p not in reach or behind_covered(p, reach[p], covers)]
     if args.files is None:
-        before = baseline_at(subprocess.run(["git", "merge-base", args.base, "HEAD"], cwd=ROOT, capture_output=True,
+        before = baseline_at(subprocess.run(["git", "-c", "core.quotepath=off", "merge-base", args.base, "HEAD"], cwd=ROOT, capture_output=True,
                                             text=True).stdout.strip() or args.base)
         if before is not None:
             problems += [f"{p}：存量清单只许减少，不能新加 —— 给它补流程" for p in stock if p not in set(before)]

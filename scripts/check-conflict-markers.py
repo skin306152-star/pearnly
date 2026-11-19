@@ -39,7 +39,7 @@ def conflicts(data: bytes) -> list[int]:
 
 
 def git(root: Path, *args: str) -> bytes:
-    return subprocess.run(["git", *args], cwd=root, capture_output=True, check=True).stdout
+    return subprocess.run(["git", "-c", "core.quotepath=off", *args], cwd=root, capture_output=True, check=True).stdout
 
 
 def tracked(root: Path) -> list[tuple[str, bytes]]:
