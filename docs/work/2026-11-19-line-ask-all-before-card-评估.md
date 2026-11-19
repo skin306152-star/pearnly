@@ -75,3 +75,31 @@
 ## 10. 审定（11-19 主会话）
 
 批准开工，附：① 推荐项排第一个按钮，只作推荐、点了才算，没点不往下走；钱和对象（对方、金额、科目这类）的题不预选；② 快捷回复按钮标签不超过 20 字，长名截短、全名写在题目正文；③ 新文案优先复用现成词条，真要新加四语齐、过 check-copy；④ 一类一提交：共用出题器、ERP、Cowork、收款各自分开提交，共用件按连带回归闸门出影响清单、逐个入口记结果；⑤ 真机格照第 6 节，另加「题答到一半又发了一张新票」，看会不会串单。
+
+## 11. 共用件连带回归（11-19 晚，集成分支 e409145e1；命中 express-rules 20、write-precheck 10、assistant 13 及本次改到的 LINE 入口，去重 47 个）
+
+依据：本机全闸门（3db9e8682 起只改了两个源码锁与一行产品地图说明）、候选离线 113 组 LANE EXIT 0（3db9e8682）、GitHub CI（推送后看，结果补在下面）、今晚测试机1 真机（`2026-11-19-erp-ui-three-device.md`）。
+
+| 入口 | 类型 | 结果 | 依据 / 原因 |
+|---|---|---|---|
+| erp.line.precheck-questions | manual | 通过 | 真机（ERP 采购 A / B、销售、取消、排队、重带题、存货对照、科目搜索） |
+| cowork.line.precheck-questions | manual | 通过 | 真机（K1–K4：问完出卡、卡列答案、排队、取消、仅识别、存货科目组题） |
+| erp.line.item-questions | manual | 通过 | 真机（新物料题出卡前问；11-19 起答完不再回旧卡） |
+| cowork.line.item-questions | manual | 通过 | 真机（全部新建存货 / 全部记费用） |
+| erp.line.chat、cowork.line.chat | manual | 通过 | 真机走富菜单、快捷回复、打字搜、上传图片 |
+| erp.line.intake.submit | manual | 通过 | 真机卡片保存写进 69EXP\TEST HP691119-001 |
+| erp.ocr、erp.execution | manual | 通过 | 真机 LINE 发图识别（Claude，7 张） |
+| cowork.execution、cowork.tax-documents | manual | 通过 | 真机 Cowork LINE 识别 4 张、推送 1 张写入（报税草稿没测到：不在本次改动链上） |
+| cowork.cc.channel | manual | 通过 | 真机 Cowork 推送经 CC 桌面版写入 HP691119-002、读回一致 |
+| erp.line.collection | offline | 通过 | 候选离线 + tests/test_erp_collection_line.py（缺凭证先要照片） |
+| erp.cc.collection、erp.cc.chat-push、erp.cc.stocktake、erp.mrerp.masters、erp.mrerp.direct、cc.operator.page、cc.operator.start-card | offline | 通过 | 候选离线 113 组 + 对应单测 |
+| erp.cc.write、erp.cc.stock-entry、cowork.express.push、erp.page.collections、erp.line.webhook-sim、cowork.line.webhook-sim | auto | 待 CI | GitHub Flows（推送后看） |
+| erp.trade.line-stock、erp.place.header、erp.entry.choices | manual | 没测到 | 网页单据页本次未改；共用写账规则只多一道存货科目组题，单测 test_erp_write_precheck 覆盖 |
+| erp.cc.pos-day、erp.cc.pos-refund | manual | 没测到 | 收银日汇总 / 退货不建新库存品，`new_item_group` 只在要新建库存品时生效；单测覆盖 |
+| cowork.mrerp.push | manual | 没测到 | 存货科目组判定只走 Express 映射，MR.ERP 推送路径没改 |
+| cowork.companies、cowork.connections、cowork.history、cowork.cc-chat.push、cowork.cc.troubleshooting、cowork.assistant | manual | 没测到 | 共用判定多一道存货科目组题（CC 卡片、复核页同用），今晚没开 CC 对话页实测；单测 test_cowork_write_precheck 56 个过 |
+| cc.operator.thread、erp.cc.companies、control.assistant、shared.assistant、cc.assistant | manual | 没测到 | 只因 assistant 共用件被命中（write_plan / guide 数字规则）；CC 对话页今晚没开；单测 test_write_plan、test_cc_guide_documents 过 |
+| erp.line.binding、cowork.line.binding、shared.team.members | manual | 没测到 | 本次没改绑定与团队页，命中来自 LINE 共用件 |
+| erp.tax-documents | manual | 没测到 | 税务判断代码没改 |
+
+已知限制：存货科目组「合格」只看存货科目，没看销货成本科目（CC 桌面版上报的判据）；69EXP\TEST 这类没配库存核算的账套，选了组仍会在写账时 `STOCK_IN_FAILED`。合格判据加成本科目派给库存对齐窗口，随 CC 1.12.22 发（主会话 11-19）。
