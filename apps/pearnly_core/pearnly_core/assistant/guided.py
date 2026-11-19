@@ -39,6 +39,23 @@ def offered() -> dict:
     return registry.offered()
 
 
+def offered_for(session_id: str) -> dict:
+    """:func:`offered` 再按这段对话的账本种类过滤（`guide.registry.ledger_of`：产品判；对话号空、还没挂公司、判不出都不过滤）。
+    只认本人的对话。菜单、选业务（`sessions.set_business`）、开始引导（`guide.run.start`）都按它，不信页面。"""
+    found = offered()
+    if not session_id:
+        return found
+    from pearnly_core.assistant import sessions
+    from pearnly_core.assistant.guide import registry
+
+    sessions.owned(session_id)
+    ledger = registry.ledger_of(session_id)
+    if ledger is None:
+        return found
+    fits = {guide["id"] for guide in registry.declared() if registry.fits_ledger(guide, ledger)}
+    return {mode: [business for business in values if business in fits] for mode, values in found.items()}
+
+
 def business_of(session_id: str) -> str:
     """这段对话选的业务（输入框上方的业务菜单，``Pearnly Assistant Session.business``）；没选回空。"""
     if not session_id:
@@ -51,4 +68,4 @@ def active() -> bool:
     return bool((getattr(local, "pearnly_assistant", None) or {}).get("session_id"))
 
 
-__all__ = ["active", "business_of", "offered", "within"]
+__all__ = ["active", "business_of", "offered", "offered_for", "within"]

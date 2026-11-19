@@ -237,7 +237,7 @@ class Businesses(unittest.TestCase):
         start = source.index("def set_business(")
         body = source[start:source.index("\ndef ", start + 10)]
         self.assertIn("owned(session_id)", body)
-        self.assertIn("guided.offered().get(mode, [])", body)
+        self.assertIn("guided.offered_for(row.session_id).get(mode, [])", body)  # 同一份清单，再按本对话账本过滤（11-19）
         # 记选的时刻（页面那句「请上传…」据此去重）；补交的按会话建立时刻；取消清空
         self.assertIn('"business_at": at', body)
         self.assertIn('frappe.db.get_value(SESSION, row.name, "creation") if from_start else frappe.utils.now_datetime()', body)

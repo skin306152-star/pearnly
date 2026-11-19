@@ -678,7 +678,7 @@ def set_business(session_id, business, from_start=False) -> dict:
     row = owned(session_id)
     business = str(business or "").strip()
     mode = "operator" if row.get("operator_task") else "chat"
-    if business and business not in guided.offered().get(mode, []):
+    if business and business not in guided.offered_for(row.session_id).get(mode, []):
         frappe.throw(_("Invalid request"))
     at = None
     if business:

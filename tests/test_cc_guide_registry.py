@@ -166,6 +166,27 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(registry.find("purchase")["source"], "documents")
         self.assertIsNone(registry.find("payment"))
 
+    def test_the_menu_follows_the_ledger_of_the_conversation(self):
+        # 11-19：不在声明 ledgers 里的业务不出现（不置灰、不说明）；没接账本的公司一项都不出；还没挂公司 / 判不出不过滤
+        express_only = changed(FORM, allowed=None, ledgers=["express_local", "express_cloud"])
+        self.declare(express_only, changed(DOCS, ledgers=["express_local", "express_cloud", "mrerp"]))
+        HOOKS[registry.LEDGER_HOOK] = ["app.ledger"]
+        kind = ["mrerp"]
+        ATTRS["app.ledger"] = lambda session_id: kind[0]
+        chat = lambda: [item["id"] for item in registry.menu("chat", registry.ledger_of("S1"))]  # noqa: E731
+        self.assertEqual(chat(), ["purchase"])
+        kind[0] = "express_local"
+        self.assertEqual(chat(), ["collection", "purchase"])
+        kind[0] = registry.NO_LEDGER
+        self.assertEqual(chat(), [])
+        kind[0] = None
+        self.assertEqual(chat(), ["collection", "purchase"])
+        ATTRS["app.ledger"] = lambda session_id: 1 / 0
+        self.assertIsNone(registry.ledger_of("S1"))
+        self.assertIn("Assistant guide ledger check failed", [title for title, _m in LOGGED])
+        HOOKS.pop(registry.LEDGER_HOOK)
+        self.assertIsNone(registry.ledger_of("S1"))  # 产品没声明：不过滤
+
     def test_a_business_shows_only_to_people_who_have_that_function(self):
         asked = []
         self.declare(changed(FORM, allowed="app.access.collector"), DOCS,

@@ -89,3 +89,21 @@ def wanted(company_row, task=None):
 
 
 __all__ = ["LEDGER_NEEDED", "carried", "for_session", "for_task", "pinned", "session", "wanted"]
+
+
+def guide_ledger(session_id):
+    """引导菜单按账本过滤（共用 `assistant.guide.registry.ledger_of` 调，hooks ``pearnly_guide_ledger``）：这段对话挂的公司账本是
+    哪一种——MR.ERP（`mrerp.push.handles`）、Express（公司开了 Express）、都没接回 ``"none"``；还没挂公司回 None（不过滤）。
+    本地 / 云端 Express 现在分不出（云端还没接），一律按本地；声明里两种都写的业务不受影响。"""
+    from pearnly_core.assistant import projects
+    from pearnly_erp_portal.mrerp import push as mrerp_push
+
+    company = projects.of_session(session_id)[0]
+    if not company:
+        return None
+    if mrerp_push.handles(company):
+        return "mrerp"
+    if frappe.db.get_value("ERP Company", company, "express_enabled"):
+        return "express_local"
+    return "none"
+

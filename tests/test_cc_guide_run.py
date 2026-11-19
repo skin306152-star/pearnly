@@ -588,6 +588,17 @@ class CapabilityTests(Base):
         self.assertEqual(run.follow(name, {"x": "y"})["outcome"], run.REFUSED)
 
 
+class LedgerTests(Base):
+    def test_a_guide_not_declared_for_the_conversation_ledger_does_not_start(self):
+        # 11-19：菜单上本来就没有它；页面硬交也不开（不信页面）
+        HOOKS["pearnly_guide_ledger"] = ["app.ledger"]
+        self.addCleanup(HOOKS.pop, "pearnly_guide_ledger", None)
+        ATTRS["app.ledger"] = lambda session_id: "mrerp"  # GUIDE 只声明了 express_local
+        self.assertRaises(ValueError, run.start, "S1", "collection")
+        ATTRS["app.ledger"] = lambda session_id: "express_local"
+        self.assertEqual(run.start("S1", "collection")["status"], "asking")
+
+
 class MaxRowsTests(Base):
     """多行输入一次最多几行（选项函数此刻给 ``max_rows``；带 ``free`` 的选项不占名额）：MR.ERP 账本一笔只收一种方式、折扣可另加。"""
 

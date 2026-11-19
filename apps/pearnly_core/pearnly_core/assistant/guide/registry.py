@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Mapping
 
 import frappe
 
@@ -56,16 +56,43 @@ def _allowed(guide: Dict[str, Any]) -> bool:
         return False
 
 
-def menu(mode: str) -> List[Dict[str, Any]]:
-    """这个模式的业务菜单：``[{id, label_key, icon, order, source}]``（``label_key`` 是术语表键，由调用方按本轮语言翻）。"""
+# 产品声明「这段对话的账本是哪一种」：``pearnly_guide_ledger = ["<点路径>"]``，函数(对话号) → ``declaration.LEDGERS`` 之一；
+# 公司没接账本回 :data:`NO_LEDGER`；对话还没挂公司（或判不出）回 None（不按账本过滤）。没声明的产品不按账本过滤
+LEDGER_HOOK = "pearnly_guide_ledger"
+NO_LEDGER = "none"
+
+
+def ledger_of(session_id: str) -> str | None:
+    """这段对话此刻的账本种类（产品判，见 :data:`LEDGER_HOOK`）；判不出 / 出错回 None。"""
+    paths = frappe.get_hooks(LEDGER_HOOK) or []
+    if not session_id or not paths:
+        return None
+    try:
+        found = frappe.get_attr(paths[-1])(session_id)
+    except Exception:  # noqa: BLE001 — 判不出不挡菜单：按不过滤处理
+        frappe.log_error(title="Assistant guide ledger check failed")
+        return None
+    return found if found in declaration.LEDGERS or found == NO_LEDGER else None
+
+
+def fits_ledger(guide: Mapping[str, Any], ledger: str | None) -> bool:
+    """这项业务对这种账本出不出现：None（还没挂公司 / 判不出）不过滤；没接账本的一项都不出；其余看声明的 ``ledgers``。"""
+    if ledger is None:
+        return True
+    return ledger != NO_LEDGER and ledger in (guide.get("ledgers") or ())
+
+
+def menu(mode: str, ledger: str | None = None) -> List[Dict[str, Any]]:
+    """这个模式的业务菜单：``[{id, label_key, icon, order, source}]``（``label_key`` 是术语表键，由调用方按本轮语言翻）。
+    ``ledger``：这段对话的账本种类（:func:`ledger_of`）——不在声明 ``ledgers`` 里的业务不出现（不置灰、不说明，11-19）。"""
     return [{"id": guide["id"], "label_key": guide["label_key"], "icon": guide["icon"], "order": guide["order"],
              "source": guide["source"]}
-            for guide in declared() if mode in guide["modes"] and _allowed(guide)]
+            for guide in declared() if mode in guide["modes"] and fits_ledger(guide, ledger) and _allowed(guide)]
 
 
-def offered() -> Dict[str, List[str]]:
+def offered(ledger: str | None = None) -> Dict[str, List[str]]:
     """``{chat: [业务 id], operator: [...]}``：同第 1 期 ``guided.offered`` 的形状（旧 hooks ``pearnly_guide_businesses`` 的替代）。"""
-    return {mode: [item["id"] for item in menu(mode)] for mode in declaration.MODES}
+    return {mode: [item["id"] for item in menu(mode, ledger)] for mode in declaration.MODES}
 
 
-__all__ = ["HOOK", "declared", "find", "menu", "offered"]
+__all__ = ["HOOK", "LEDGER_HOOK", "NO_LEDGER", "declared", "find", "fits_ledger", "ledger_of", "menu", "offered"]

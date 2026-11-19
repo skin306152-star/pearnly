@@ -61,7 +61,7 @@ def guide_card(session_id, tool_use_id):
 
 # 输入框上方的业务菜单（引导式录入第 1 期）：这个产品各模式能做的业务（只读）、记本对话业务
 @frappe.whitelist(methods=["GET"])
-def businesses():
+def businesses(session_id=None):
     from pearnly_core.assistant import guided
     from pearnly_core.assistant.guide import declaration, registry
 
@@ -72,7 +72,9 @@ def businesses():
     for guide in declared:
         found = _(guide["label_key"])
         labels[guide["id"]] = "" if found == guide["label_key"] else found
-    return {**guided.offered(), "forms": [guide["id"] for guide in declared if guide.get("source") == declaration.FORM],
+    # session_id（页面带上本对话）：按这段对话的账本种类过滤（`registry.ledger_of`，产品判）：不在声明 ledgers 里的业务不出现
+    return {**guided.offered_for(str(session_id or "")),
+            "forms": [guide["id"] for guide in declared if guide.get("source") == declaration.FORM],
             "labels": labels, "icons": {guide["id"]: guide["icon"] for guide in declared},
             "order": {guide["id"]: guide["order"] for guide in declared}}
 

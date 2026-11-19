@@ -507,8 +507,9 @@ def start(session_id: str, business: str, doc_ids=None, at: str = "asking", oper
     now = _conversation(session_id)
     guide = registry.find(business)
     if not guide or guide["source"] not in (d.FORM, d.DOCUMENTS) or now["mode"] not in guide["modes"] \
-            or business not in registry.offered().get(now["mode"], []):
-        frappe.throw(_("Invalid request"))
+            or business not in registry.offered().get(now["mode"], []) \
+            or not registry.fits_ledger(guide, registry.ledger_of(session_id)):
+        frappe.throw(_("Invalid request"))  # 账本种类不在声明 ledgers 里：菜单上本来就没有，不信页面（11-19）
     if _documents(guide) and not all(guide.get(key) for key in DOCUMENT_HOOKS):
         frappe.throw(_("Invalid request"))  # 声明还没点名 documents 源要的产品函数（这一格还不能在页面上办）
     if doc_ids is not None and not _documents(guide):
