@@ -245,3 +245,4 @@ pearnly_erp_portal:erp.collection.status.failed	zh	失败	2026-11-19	docs/work/2
 pearnly_erp_portal:MR.ERP No.	zh	MR.ERP 单号	2026-11-19	docs/work/2026-11-19-mrerp-collection-ledger-words.md
 pearnly_core:guide.q.location	zh	仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
 pearnly_erp_portal:mrerp.default.store	zh	仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+pearnly_erp_portal:erp.collection.status.withdrawn	zh	已取消	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md

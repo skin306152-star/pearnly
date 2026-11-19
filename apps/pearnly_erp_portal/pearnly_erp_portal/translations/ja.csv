@@ -2091,7 +2091,7 @@ erp.collection.source.web,ウェブ
 erp.collection.status.draft,下書き
 erp.collection.status.failed,失敗
 erp.collection.status.queued,書き込み待ち
-erp.collection.status.withdrawn,取り消し済み
+erp.collection.status.withdrawn,取消済み
 erp.collection.status.writing,書き込み中
 erp.collection.status.written,書き込み済み
 erp.company.notes,ノート

@@ -2091,7 +2091,7 @@ erp.collection.source.web,网页
 erp.collection.status.draft,草稿
 erp.collection.status.failed,失败
 erp.collection.status.queued,待写入
-erp.collection.status.withdrawn,已撤回
+erp.collection.status.withdrawn,已取消
 erp.collection.status.writing,写入中
 erp.collection.status.written,已写入
 erp.company.notes,知识库

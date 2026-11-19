@@ -2091,7 +2091,7 @@ erp.collection.source.web,Web
 erp.collection.status.draft,Draft
 erp.collection.status.failed,Failed
 erp.collection.status.queued,Pending write
-erp.collection.status.withdrawn,Withdrawn
+erp.collection.status.withdrawn,Cancelled
 erp.collection.status.writing,Writing
 erp.collection.status.written,Written
 erp.company.notes,Company notes
