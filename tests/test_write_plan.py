@@ -188,6 +188,11 @@ class WritePlanTests(unittest.TestCase):
             self.addCleanup(patcher_pkg.stop)
         sys.modules["pearnly_core.express_rules.contracts"].codes = _load(
             "pearnly_core.express_rules.contracts.codes", CORE / "express_rules/contracts/codes.py")
+        tax_documents = types.ModuleType("pearnly_core.tax_documents")  # 共用记答按票面金额那套读数（纯函数，只依赖标准库）
+        patcher_tax = mock.patch.dict(sys.modules, {"pearnly_core.tax_documents": tax_documents})
+        patcher_tax.start()
+        self.addCleanup(patcher_tax.stop)
+        tax_documents.amounts = _load("pearnly_core.tax_documents.amounts", CORE / "tax_documents/amounts.py")
         write_precheck.contracts = _load("pearnly_core.write_precheck.contracts", CORE / "write_precheck/contracts.py")
         self.plan_module = _load("pearnly_core.assistant.write_plan", CORE / "assistant/write_plan.py")
         self.conversation(operator_task="OPT-1")

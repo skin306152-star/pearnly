@@ -103,11 +103,11 @@ def _settle(payload, outcome, messages) -> bool:
                 {"label": " · ".join(part for part in (answer.get("title"), answer.get("label")) if part),
                  "value": answer.get("value_label") or answer.get("value")}
                 for answer in row.get("answers") or ())
-            messages.extend(_card(ticket))
+            messages.extend(_card(ticket))  # loop-query: 只认 ref 对上的当前这一张，每次最多一张
             state["current"] = ticket = None
     for row in outcome.get("cancelled") or ():
         if ticket and row.get("ref") == ticket["name"]:
-            messages.extend(_cancel(ticket))
+            messages.extend(_cancel(ticket))  # loop-query: 只认 ref 对上的当前这一张，每次最多一张
             state["current"] = ticket = None
     messages.extend(outcome.get("messages") or ())
     return bool(state.get("current"))
@@ -137,7 +137,7 @@ def _run(payload, messages) -> list:
         line_ask.stop(payload)  # 不该有残留的提问（例如上一张出错时）
         payload.pop(items.ASKING, None)
     while not state.get("current") and state["queue"]:
-        if _start(payload, state["queue"].pop(0), messages):
+        if _start(payload, state["queue"].pop(0), messages):  # loop-query: 一次上传的几张票，有题即停、逐张出卡
             break
     return messages
 

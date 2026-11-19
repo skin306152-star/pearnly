@@ -67,7 +67,7 @@ offline() {
     pearnly_core.account.test_native_account_password
   for script in scripts/test-dms-line-runtime.py scripts/test-dms-session-reuse.py scripts/test-dms-first-read.py scripts/test-dms-id-card-reads.py scripts/test-session-lock.py scripts/test-dms-line-language.py scripts/test-dms-intake-queue.py scripts/test-dms-query-output.py \
                 tests/test_teardown_members.py scripts/test-dms-query-snapshots.py scripts/test-dms-snapshot-consumers.py \
-                tests/test_cowork_no_company_scope.py tests/test_cowork_line_intake.py \
+                tests/test_cowork_no_company_scope.py tests/test_cowork_line_intake.py tests/test_cowork_line_ask.py \
                 tests/test_cowork_remote_ocr.py tests/test_cowork_remote_forward.py tests/test_cowork_direct_upload.py \
                 tests/test_claude_ocr_products.py tests/test_cowork_originals_edge.py tests/test_originals_store.py tests/test_recon_originals.py tests/test_originals_registered.py \
                 tests/test_cowork_ocr_tasks.py \
