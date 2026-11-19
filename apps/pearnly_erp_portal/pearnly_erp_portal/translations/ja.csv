@@ -215,6 +215,7 @@ By Payment Method,支払方法別
 By Warehouse,倉庫別
 By location,保管場所別
 By product,商品別
+By warehouse,倉庫別
 CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC デスクトップがこの伝票を読み取れません。項目を確認して再送信してください
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC デスクトップにこの会計データが許可されていません。CC デスクトップの会計データを確認してください
@@ -2956,7 +2957,7 @@ stock.status.low,在庫少
 stock.status.lowWith,在庫少（≤{0}）
 stock.status.ok,在庫あり
 stock.status.out,在庫切れ
-stock.view.position,保管場所別
+stock.view.position,倉庫別
 stock.view.product,商品別
 stock.workbench.actualLocation,実際の棚番
 stock.workbench.actualPositions,実際の棚番と数量

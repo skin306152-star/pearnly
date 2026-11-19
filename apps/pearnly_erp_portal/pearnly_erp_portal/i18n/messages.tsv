@@ -98,7 +98,7 @@ Average cost	平均成本	ต้นทุนเฉลี่ย	平均原価	stoc
 Value	金额	มูลค่า	金額	stock.col.value
 Search name or barcode	搜索名称或条码	ค้นหาชื่อหรือบาร์โค้ด	名前・バーコードで検索	stock.field.search
 View	显示方式	มุมมอง	表示	stock.field.view
-By location	按位置	ตามตำแหน่ง	保管場所別	stock.view.position
+By warehouse	按仓库	ตามคลัง	倉庫別	stock.view.position
 By product	按物料	ตามสินค้า	商品別	stock.view.product
 Reload	刷新	โหลดใหม่	再読み込み	stock.action.reload
 Export	导出	ส่งออก	エクスポート	stock.action.export

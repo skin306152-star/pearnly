@@ -215,6 +215,7 @@ By Payment Method,按收款方式
 By Warehouse,分仓
 By location,按位置
 By product,按物料
+By warehouse,按仓库
 CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC 桌面版无法读取此发票，请核对字段后重新提交
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC 桌面版未获授权使用此账套，请检查 CC 桌面版的账套设置
@@ -2956,7 +2957,7 @@ stock.status.low,低库存
 stock.status.lowWith,低库存（≤{0}）
 stock.status.ok,正常
 stock.status.out,缺货
-stock.view.position,按位置
+stock.view.position,按仓库
 stock.view.product,按物料
 stock.workbench.actualLocation,实际仓位
 stock.workbench.actualPositions,实际仓位及数量

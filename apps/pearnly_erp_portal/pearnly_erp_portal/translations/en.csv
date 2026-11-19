@@ -215,6 +215,7 @@ By Payment Method,By Payment Method
 By Warehouse,By Warehouse
 By location,By location
 By product,By product
+By warehouse,By warehouse
 CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC Desktop could not read this invoice. Check the fields and submit again
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC Desktop has not been given this account set. Check the account sets in CC Desktop
@@ -2956,7 +2957,7 @@ stock.status.low,Low stock
 stock.status.lowWith,Low (≤{0})
 stock.status.ok,In stock
 stock.status.out,Out of stock
-stock.view.position,By location
+stock.view.position,By warehouse
 stock.view.product,By product
 stock.workbench.actualLocation,Actual position
 stock.workbench.actualPositions,Actual positions and quantities

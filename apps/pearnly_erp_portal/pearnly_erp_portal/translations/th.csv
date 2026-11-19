@@ -215,6 +215,7 @@ By Payment Method,แยกตามวิธีรับเงิน
 By Warehouse,แยกคลัง
 By location,ตามตำแหน่ง
 By product,ตามสินค้า
+By warehouse,ตามคลัง
 CC,CC
 CC Desktop could not read this invoice. Check the fields and submit again,CC เดสก์ท็อปไม่สามารถอ่านเอกสารนี้ได้ กรุณาตรวจสอบข้อมูลแล้วส่งใหม่
 CC Desktop has not been given this account set. Check the account sets in CC Desktop,CC เดสก์ท็อปยังไม่ได้รับสิทธิ์ชุดบัญชีนี้ กรุณาตรวจสอบชุดบัญชีใน CC เดสก์ท็อป
@@ -2956,7 +2957,7 @@ stock.status.low,สต็อกต่ำ
 stock.status.lowWith,สต็อกต่ำ (≤{0})
 stock.status.ok,มีสินค้า
 stock.status.out,สินค้าหมด
-stock.view.position,ตามตำแหน่ง
+stock.view.position,ตามคลัง
 stock.view.product,ตามสินค้า
 stock.workbench.actualLocation,ตำแหน่งที่พบจริง
 stock.workbench.actualPositions,ตำแหน่งจริงและจำนวน
