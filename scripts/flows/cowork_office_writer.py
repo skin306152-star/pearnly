@@ -1,7 +1,8 @@
 """流程用例：Cowork 替写（用户 11-17 定稿「公司里只要有一台开着 CC、够得到那本账套、登录人有权限的电脑，任何成员提交的单就能写」，
 `route_contracts.decide` 的 ``stand_in``，在电脑来领的那一刻判）。
 
-实验栈里没有真的 CC 桌面版：按 CC 桌面版的样子在站点里签发电脑密钥、按心跳的真实入口报可达行（同 `cc_conversation_ledger.py`），
+实验栈里没有真的 CC 桌面版：按新版 CC 桌面版的样子每台电脑带自己的设备密钥登记（`credentials._register_device`）、按心跳的真实
+入口报可达行（同 `cc_conversation_ledger.py`），
 把登录记录设成指定的人；「关着」= 把那把密钥的最近报到时刻拨回一小时前。电脑来领走正式的领单入口（`companion.transport.lease`）。
 B（录入员）在录入工作台推单（复核页「提交」同一个 `application.submit`，再走录入页「确认发送」同一个 `service.confirm`），核：
 
@@ -33,7 +34,13 @@ from pearnly_cowork.push.application import service as app_service
 mapping = {{k: conf[k] for k in ("fallback_acc", "vat_input_acc", "ap_acc", "revenue_acc", "vat_output_acc", "ar_acc")}}
 def computer(users):
     """签发一台电脑的密钥、按心跳报够得到 FLOWOP，登录记录设成 ``users``；回 ``{{machine（领单用的密钥上下文）, device}}``。"""
-    machine = credentials.authenticate(credentials.issue(conn["name"], uuid4().hex)["token"])
+    # 新版 CC 桌面版的样子：每台电脑带自己的设备密钥登记（`credentials._register_device`，签发人 = 登录的那位），彼此不顶替
+    frappe.set_user(sorted(users)[0])
+    made = credentials._register_device(conn["name"], "express", sorted(users)[0], uuid4().hex, uuid4().hex,
+                                        "flow office " + uuid4().hex[:6], False)
+    frappe.db.commit()
+    frappe.set_user({A!r})
+    machine = credentials.authenticate(made["token"])
     heartbeat._receive(machine, {{"account_set": "FLOWOP", "express_root": "D:\\\\FLOWOP",
         "account_sets": [{{"code": "FLOWOP", "name": "Flow operator 69", "path": "FLOWOP", "root": "D:\\\\FLOWOP",
                            "writable": True, "mapping": mapping, "company": "Flow Operator Co", "tax_id": "0994000777001"}}],

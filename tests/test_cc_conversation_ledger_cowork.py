@@ -365,14 +365,21 @@ class CrossComputerTests(_Ledger):
 
 
 class ServingTests(unittest.TestCase):
-    """挑执行的那一处（谁的活谁的电脑做）：只看这位用户自己的电脑；能写且在线的在前；都不在线取第一处能写的（排队等它）；
-    一处都没有这位用户的电脑回第一处（照今天，推送那边照旧说没有能写的电脑）。绝不挑只有别人电脑的那一处。"""
+    """挑执行的那一处：替这件活干的电脑——这位用户自己的，加上公司里能替他写的别人的（用户 11-17 定稿，`connections.pool.stand_ins`：
+    别人的、能写这本、上面有此刻仍能用这条连接的登录人）——能写且在线的在前；都不在线取第一处有能写的电脑的（排队，谁先上线谁写）；
+    哪一处都没有回第一处（推送那边照旧说没有能写的电脑）。"""
 
-    def _pick(self, presence, writers):
-        pool = types.SimpleNamespace(
-            presence=lambda connection: presence.get(connection, {}),
-            owned=lambda peers, actor, device="": {k: v for k, v in peers.items() if actor in v.get("users", ())},
-            writers=lambda doc, key, peers=None: [d for d in sorted(peers or {}) if d in writers.get(doc.name, ())])
+    def _pick(self, presence, writers, may=()):
+        owned = lambda peers, actor, device="": {k: v for k, v in peers.items() if actor in v.get("users", ())}  # noqa: E731
+        can_write = lambda doc, key, peers=None: [d for d in sorted(peers or {}) if d in writers.get(doc.name, ())]  # noqa: E731
+
+        def stand_ins(doc, key, actor, peers=None, readable=False):
+            mine = owned(peers or {}, actor)
+            return {d: next(iter(sorted(peers[d]["users"] & set(may)))) for d in can_write(doc, key, peers)
+                    if d not in mine and peers[d]["users"] & set(may)}
+
+        pool = types.SimpleNamespace(presence=lambda connection: presence.get(connection, {}), owned=owned,
+                                     writers=can_write, stand_ins=stand_ins)
         with mock.patch.object(write_scope, "_pool", lambda: pool), \
                 mock.patch.object(write_scope.frappe, "get_doc", lambda doctype, name: types.SimpleNamespace(name=name),
                                   create=True):
@@ -383,13 +390,16 @@ class ServingTests(unittest.TestCase):
                     "EXP2": {"PC2": {"users": {"me@x"}, "online": True}}}
         self.assertEqual(self._pick(presence, {"EXP1": {"PC1"}, "EXP2": {"PC2"}}), ("EXP2", MAPPED))
 
-    def test_a_colleagues_online_computer_is_never_picked(self):
+    def test_a_colleagues_online_computer_is_picked_only_when_its_user_may_stand_in(self):
         presence = {"EXP1": {"PC1": {"users": {"me@x"}, "online": False}},
                     "EXP2": {"PC2": {"users": {"other@x"}, "online": True}}}
-        self.assertEqual(self._pick(presence, {"EXP1": {"PC1"}, "EXP2": {"PC2"}}), ("EXP1", UNC))
+        writers = {"EXP1": {"PC1"}, "EXP2": {"PC2"}}
+        self.assertEqual(self._pick(presence, writers, may={"other@x"}), ("EXP2", MAPPED))  # 同事的在线、他能替写
+        self.assertEqual(self._pick(presence, writers), ("EXP1", UNC))  # 同事不能用这条连接：排在我自己（关着）的那处
 
-    def test_with_no_computer_of_this_user_the_first_place_is_kept(self):
+    def test_with_no_computer_of_this_user_a_colleagues_place_or_else_the_first(self):
         presence = {"EXP2": {"PC2": {"users": {"other@x"}, "online": True}}}
+        self.assertEqual(self._pick(presence, {"EXP2": {"PC2"}}, may={"other@x"}), ("EXP2", MAPPED))
         self.assertEqual(self._pick(presence, {"EXP2": {"PC2"}}), ("EXP1", UNC))
 
 
