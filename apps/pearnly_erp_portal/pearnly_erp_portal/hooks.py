@@ -715,6 +715,7 @@ pearnly_ledger_check = {"express": "pearnly_erp_portal.express.ledger_check.chec
 # 引导声明（总设计 docs/work/2026-11-14-cc-guided-master-design.md 2.2）：每项业务一份声明，共用引擎 `pearnly_core.assistant.guide` 据此出菜单与卡
 pearnly_guides = ["pearnly_erp_portal.express.cc_guides.GUIDES", "pearnly_erp_portal.collection.cc_guide.GUIDES",
                   "pearnly_erp_portal.inventory.cc_guide.GUIDES", "pearnly_erp_portal.masters.cc_guide.GUIDES",
-                  "pearnly_erp_portal.inventory.cc_guide_card.GUIDES", "pearnly_erp_portal.express.cc_guide_pending.GUIDES"]
+                  "pearnly_erp_portal.inventory.cc_guide_card.GUIDES", "pearnly_erp_portal.express.cc_guide_pending.GUIDES",
+                  "pearnly_erp_portal.inventory.cc_stock_guides.GUIDES"]
 # 引导菜单按这段对话公司的账本种类过滤（声明 ledgers；共用 assistant.guide.registry.ledger_of）
 pearnly_guide_ledger = ["pearnly_erp_portal.express.conversation.guide_ledger"]

@@ -485,6 +485,7 @@ Date outside the account set period,วันที่อยู่นอกง�
 Dates,วันที่
 Days later,วันหลังจากนั้น
 Decided At,เวลาดำเนินการ
+Decrease,ลด
 Dedupe Key,คีย์กันซ้ำ
 Default,ค่าเริ่มต้น
 Default Company,บริษัทเริ่มต้น
@@ -760,6 +761,7 @@ In stock,มีสินค้า
 In-stock,ตรวจนับในคลัง
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,ตรวจนับในคลัง: สร้างจากยอดคงเหลือปัจจุบัน อัปโหลดไฟล์: ใช้แถวและจำนวนที่นับได้จากไฟล์
 Inactive,ปิดใช้งาน
+Increase,เพิ่ม
 Initial Password,รหัสผ่านเริ่มต้น
 Input Tax,ภาษีซื้อ
 Input VAT,ภาษีซื้อ
@@ -996,6 +998,7 @@ Not found in the Revenue Department records,ไม่พบข้อมูลก
 Not found on the document,ไม่ได้ระบุในเอกสาร
 Not in the account set yet,ยังไม่มีในชุดบัญชี
 Not in the list,ไม่อยู่ในรายการ
+Not in the selected month,ไม่อยู่ในเดือนที่เลือก
 Not permitted,ไม่ได้รับอนุญาต
 Not saved: {0},ยังไม่ได้บันทึก: {0}
 Not written to Express (disconnected),ไม่ได้บันทึก Express (ยกเลิกเชื่อมต่อ)
@@ -1477,6 +1480,8 @@ Stock,สต็อก
 Stock Account Group,กลุ่มบัญชีสินค้าคงเหลือ
 Stock Card Report,รายงานรับ-จ่าย-คงเหลือ
 Stock Count,ตรวจนับสต็อก
+Stock In,รับเข้า
+Stock Out,จ่ายออก
 Stock Posted At,วันเวลาที่ลงบัญชีสต็อก
 Stock Posting,การบันทึกสต็อก
 Stock Receipt-Issue Report,รายงานรับ-จ่ายสินค้า
@@ -2587,7 +2592,11 @@ goods,สินค้า
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
 guide.business.pending,รอดำเนินการ
+guide.business.stock_adjust,ปรับปรุงสินค้า
 guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
+guide.business.stock_in,รับเข้า
+guide.business.stock_out,จ่ายออก
+guide.business.stock_transfer,โอนย้ายระหว่างคลัง
 guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
@@ -2601,6 +2610,9 @@ guide.open.stocktake,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
+guide.refused.stock_day_period,ไม่อยู่ในเดือนที่เลือก
+guide.refused.stock_files_limit,รายการมากเกินไป
+guide.refused.stock_units_mismatch,จำนวนรายชิ้นไม่ตรงกับจำนวน
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2615,6 +2627,16 @@ guide.step.company.note,บันทึก
 guide.step.company.text,ข้อความ
 guide.step.company_add.companies,บริษัท
 guide.step.pending.item,เอกสาร
+guide.step.stock_adjust.book,ชุดบัญชี
+guide.step.stock_adjust.day,วันที่
+guide.step.stock_adjust.file,ไฟล์แนบ
+guide.step.stock_adjust.minus,ลด
+guide.step.stock_adjust.minus_units,รายชิ้น
+guide.step.stock_adjust.note,หมายเหตุ
+guide.step.stock_adjust.plus,เพิ่ม
+guide.step.stock_adjust.plus_units,รายชิ้น
+guide.step.stock_adjust.prices,ราคาต่อหน่วย
+guide.step.stock_adjust.warehouse,คลังสินค้า
 guide.step.stock_card.date_from,ตั้งแต่วันที่
 guide.step.stock_card.date_to,ถึงวันที่
 guide.step.stock_card.format,รูปแบบ
@@ -2623,6 +2645,31 @@ guide.step.stock_card.product_to,ถึงรหัสสินค้า
 guide.step.stock_card.report,รายงาน
 guide.step.stock_card.warehouse_from,รหัสคลังสินค้า
 guide.step.stock_card.warehouse_to,ถึงรหัสคลังสินค้า
+guide.step.stock_in.book,ชุดบัญชี
+guide.step.stock_in.day,วันที่
+guide.step.stock_in.file,ไฟล์แนบ
+guide.step.stock_in.note,หมายเหตุ
+guide.step.stock_in.prices,ราคาต่อหน่วย
+guide.step.stock_in.purpose,วัตถุประสงค์
+guide.step.stock_in.rows,สินค้า
+guide.step.stock_in.units,รายชิ้น
+guide.step.stock_in.warehouse,คลังสินค้า
+guide.step.stock_out.book,ชุดบัญชี
+guide.step.stock_out.day,วันที่
+guide.step.stock_out.file,ไฟล์แนบ
+guide.step.stock_out.note,หมายเหตุ
+guide.step.stock_out.purpose,วัตถุประสงค์
+guide.step.stock_out.rows,สินค้า
+guide.step.stock_out.units,รายชิ้น
+guide.step.stock_out.warehouse,คลังสินค้า
+guide.step.stock_transfer.book,ชุดบัญชี
+guide.step.stock_transfer.day,วันที่
+guide.step.stock_transfer.file,ไฟล์แนบ
+guide.step.stock_transfer.note,หมายเหตุ
+guide.step.stock_transfer.rows,สินค้า
+guide.step.stock_transfer.to_warehouse,คลังปลายทาง
+guide.step.stock_transfer.units,รายชิ้น
+guide.step.stock_transfer.warehouse,คลังต้นทาง
 guide.step.stocktake.action,การดำเนินการ
 guide.step.stocktake.category,หมวดหมู่
 guide.step.stocktake.code,บาร์โค้ด / คิวอาร์โค้ด

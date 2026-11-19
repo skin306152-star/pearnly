@@ -485,6 +485,7 @@ Date outside the account set period,Date outside the account set period
 Dates,Dates
 Days later,Days later
 Decided At,Decided At
+Decrease,Decrease
 Dedupe Key,Dedupe Key
 Default,Default
 Default Company,Default Company
@@ -760,6 +761,7 @@ In stock,In stock
 In-stock,In-stock
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.
 Inactive,Inactive
+Increase,Increase
 Initial Password,Initial Password
 Input Tax,Input Tax
 Input VAT,Input VAT
@@ -996,6 +998,7 @@ Not found in the Revenue Department records,Not found in the Revenue Department 
 Not found on the document,Not found on the document
 Not in the account set yet,Not in the account set yet
 Not in the list,Not in the list
+Not in the selected month,Not in the selected month
 Not permitted,Not permitted
 Not saved: {0},Not saved: {0}
 Not written to Express (disconnected),Not written to Express (disconnected)
@@ -1477,6 +1480,8 @@ Stock,Stock
 Stock Account Group,Stock Account Group
 Stock Card Report,Stock Card Report
 Stock Count,Stock Count
+Stock In,Stock In
+Stock Out,Stock Out
 Stock Posted At,Stock Posted At
 Stock Posting,Stock Posting
 Stock Receipt-Issue Report,Stock Receipt-Issue Report
@@ -2587,7 +2592,11 @@ goods,goods
 guide.business.company,Company Details
 guide.business.company_add,Add Company
 guide.business.pending,Pending
+guide.business.stock_adjust,Product Adjustment
 guide.business.stock_card,Stock Card Report
+guide.business.stock_in,Stock In
+guide.business.stock_out,Stock Out
+guide.business.stock_transfer,Stock Transfer
 guide.business.stocktake,Stock Count
 guide.consent.company.note_delete,Delete the note?
 guide.consent.stocktake.close,Close the stock count?
@@ -2601,6 +2610,9 @@ guide.open.stocktake,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
+guide.refused.stock_day_period,Not in the selected month
+guide.refused.stock_files_limit,Too many items
+guide.refused.stock_units_mismatch,The number of units does not match the quantity
 guide.review.department,Department
 guide.review.salesman,Salesman
 guide.step.collection.book,Account Set
@@ -2615,6 +2627,16 @@ guide.step.company.note,Note
 guide.step.company.text,Text
 guide.step.company_add.companies,Companies
 guide.step.pending.item,Document
+guide.step.stock_adjust.book,Account Set
+guide.step.stock_adjust.day,Date
+guide.step.stock_adjust.file,Attachments
+guide.step.stock_adjust.minus,Decrease
+guide.step.stock_adjust.minus_units,Units
+guide.step.stock_adjust.note,Note
+guide.step.stock_adjust.plus,Increase
+guide.step.stock_adjust.plus_units,Units
+guide.step.stock_adjust.prices,Unit Price
+guide.step.stock_adjust.warehouse,Warehouse
 guide.step.stock_card.date_from,From Date
 guide.step.stock_card.date_to,To Date
 guide.step.stock_card.format,Format
@@ -2623,6 +2645,31 @@ guide.step.stock_card.product_to,To Product
 guide.step.stock_card.report,Report
 guide.step.stock_card.warehouse_from,From Warehouse Code
 guide.step.stock_card.warehouse_to,To Warehouse Code
+guide.step.stock_in.book,Account Set
+guide.step.stock_in.day,Date
+guide.step.stock_in.file,Attachments
+guide.step.stock_in.note,Note
+guide.step.stock_in.prices,Unit Price
+guide.step.stock_in.purpose,Purpose
+guide.step.stock_in.rows,Product
+guide.step.stock_in.units,Units
+guide.step.stock_in.warehouse,Warehouse
+guide.step.stock_out.book,Account Set
+guide.step.stock_out.day,Date
+guide.step.stock_out.file,Attachments
+guide.step.stock_out.note,Note
+guide.step.stock_out.purpose,Purpose
+guide.step.stock_out.rows,Product
+guide.step.stock_out.units,Units
+guide.step.stock_out.warehouse,Warehouse
+guide.step.stock_transfer.book,Account Set
+guide.step.stock_transfer.day,Date
+guide.step.stock_transfer.file,Attachments
+guide.step.stock_transfer.note,Note
+guide.step.stock_transfer.rows,Product
+guide.step.stock_transfer.to_warehouse,To Warehouse
+guide.step.stock_transfer.units,Units
+guide.step.stock_transfer.warehouse,From Warehouse
 guide.step.stocktake.action,Action
 guide.step.stocktake.category,Category
 guide.step.stocktake.code,Barcode / QR code

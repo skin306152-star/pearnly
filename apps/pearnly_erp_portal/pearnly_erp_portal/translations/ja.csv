@@ -485,6 +485,7 @@ Date outside the account set period,日付が会計データの期間外です
 Dates,日付
 Days later,日後
 Decided At,判定日時
+Decrease,減少
 Dedupe Key,重複防止キー
 Default,既定
 Default Company,既定の会社
@@ -760,6 +761,7 @@ In stock,在庫あり
 In-stock,在庫棚卸
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,在庫棚卸：現在の在庫を凍結。取り込み：シートの行と実地数量を使用。
 Inactive,無効
+Increase,増加
 Initial Password,初期パスワード
 Input Tax,仕入税額
 Input VAT,仮払付加価値税
@@ -996,6 +998,7 @@ Not found in the Revenue Department records,税務局に登録がありません
 Not found on the document,書類に記載がありません
 Not in the account set yet,会計データにまだありません
 Not in the list,一覧にありません
+Not in the selected month,選択した月ではありません
 Not permitted,権限がありません
 Not saved: {0},保存されていません：{0}
 Not written to Express (disconnected),Express 未書き込み（接続解除済み）
@@ -1477,6 +1480,8 @@ Stock,在庫
 Stock Account Group,在庫勘定グループ
 Stock Card Report,受払在庫表
 Stock Count,棚卸
+Stock In,入庫
+Stock Out,出庫
 Stock Posted At,在庫転記日時
 Stock Posting,在庫計上
 Stock Receipt-Issue Report,入出庫レポート
@@ -2587,7 +2592,11 @@ goods,物品
 guide.business.company,会社情報
 guide.business.company_add,会社を追加
 guide.business.pending,処理待ち
+guide.business.stock_adjust,商品調整
 guide.business.stock_card,受払在庫表
+guide.business.stock_in,入庫
+guide.business.stock_out,出庫
+guide.business.stock_transfer,倉庫間移動
 guide.business.stocktake,棚卸
 guide.consent.company.note_delete,メモを削除しますか？
 guide.consent.stocktake.close,棚卸を終了しますか？
@@ -2601,6 +2610,9 @@ guide.open.stocktake,操作を選択してください。
 guide.option.company.note_add,メモを追加
 guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
+guide.refused.stock_day_period,選択した月ではありません
+guide.refused.stock_files_limit,項目が多すぎます
+guide.refused.stock_units_mismatch,個体数が数量と一致しません
 guide.review.department,部門
 guide.review.salesman,営業担当
 guide.step.collection.book,会計データ
@@ -2615,6 +2627,16 @@ guide.step.company.note,メモ
 guide.step.company.text,内容
 guide.step.company_add.companies,会社
 guide.step.pending.item,書類
+guide.step.stock_adjust.book,会計データ
+guide.step.stock_adjust.day,日付
+guide.step.stock_adjust.file,添付ファイル
+guide.step.stock_adjust.minus,減少
+guide.step.stock_adjust.minus_units,個体
+guide.step.stock_adjust.note,備考
+guide.step.stock_adjust.plus,増加
+guide.step.stock_adjust.plus_units,個体
+guide.step.stock_adjust.prices,単価
+guide.step.stock_adjust.warehouse,倉庫
 guide.step.stock_card.date_from,開始日
 guide.step.stock_card.date_to,終了日
 guide.step.stock_card.format,形式
@@ -2623,6 +2645,31 @@ guide.step.stock_card.product_to,終了品目
 guide.step.stock_card.report,レポート
 guide.step.stock_card.warehouse_from,開始倉庫
 guide.step.stock_card.warehouse_to,終了倉庫
+guide.step.stock_in.book,会計データ
+guide.step.stock_in.day,日付
+guide.step.stock_in.file,添付ファイル
+guide.step.stock_in.note,備考
+guide.step.stock_in.prices,単価
+guide.step.stock_in.purpose,用途
+guide.step.stock_in.rows,商品
+guide.step.stock_in.units,個体
+guide.step.stock_in.warehouse,倉庫
+guide.step.stock_out.book,会計データ
+guide.step.stock_out.day,日付
+guide.step.stock_out.file,添付ファイル
+guide.step.stock_out.note,備考
+guide.step.stock_out.purpose,用途
+guide.step.stock_out.rows,商品
+guide.step.stock_out.units,個体
+guide.step.stock_out.warehouse,倉庫
+guide.step.stock_transfer.book,会計データ
+guide.step.stock_transfer.day,日付
+guide.step.stock_transfer.file,添付ファイル
+guide.step.stock_transfer.note,備考
+guide.step.stock_transfer.rows,商品
+guide.step.stock_transfer.to_warehouse,移動先倉庫
+guide.step.stock_transfer.units,個体
+guide.step.stock_transfer.warehouse,移動元倉庫
 guide.step.stocktake.action,操作
 guide.step.stocktake.category,カテゴリ
 guide.step.stocktake.code,バーコード / QRコード

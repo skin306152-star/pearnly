@@ -145,3 +145,26 @@
 - 写码：声明 + 产品函数 5–6 小时（四种共用一个实现）；按台一题 +3 小时（第 12 节第 2 条）；引擎账本过滤 1–2 小时（如由我补）。
 - 机器：闸门 + 候选离线约 1.5 小时；流程 + 真账本四种约 1.5 小时（测试机时段要先登记）。
 - 顺序：排在采购、销售、收款、盘点之后（主会话口径）；前置是 ERP 界面窗口的「仓位改仓库、按行选仓」合入，以及第 12 节第 1、2 条有定论。
+
+## 主会话 11-19 定（覆盖第 12 节的建议）
+
+1. **按台管理进第一版**：出库、调拨、调整减少逐行选在库的台；入库、调整增加逐台登记主号；入库「退库」收回已售 / 已出库的台。用引擎的 `questions` 子题（N1a），题目由「物料」那一步的值算出；选台转调网页同一个 `serials.search_units`，过账时 `serials.apply` 再全核。
+2. **按行选仓**：物料选项的码是「仓库 + 物料」，显示「物料 · 仓库 · 结存」，一行一个仓；`warehouse` 只当默认仓。照 ERP 界面窗口分支 `pearnly/integration-erp-ui-three`（f1279e0c4）改完后的载荷写：行上带 `warehouse`；调拨单头一出一进（调出仓 `warehouse`、调入仓 `to_warehouse`，行上的仓服务端换成调出仓）。本分支不改 `documents.py`，测试用替身。
+3. **附件要做**：可选的 `file` 步骤；对话里交的文件确定时存成本人私有的登记 File（同网页上传的原件 id 写法），走 `api_create_stock_entry` 的 `attachments`（先核后挂）。
+4. **没接 Express 的纯 ERP 公司不显示**：声明 `ledgers: ["express_local", "express_cloud"]`；`express.conversation.guide_ledger` 对纯 ERP 公司回 `none`、对还没挂公司的对话回 `no_company`，`registry.fits_ledger` 两种都藏，直接开也拒（`run.start`）。
+5. **钱和对象的题不预选、推荐排第一**（仓库、物料、单价、调入仓、用途、台）：`rule: always`，推荐值由 `default` 给（引擎 `_recommended_first`）；日期、账套后台定（`auto`）。
+6. **复核卡点了确定才写**：`writes: True`、有 `review`；确定转调 `inventory.api.api_create_stock_entry(..., submit=1)`；幂等按「运行 + 版本」的 `dedupe_key`，确定前先查同键已建的单，有就回那一张。
+7. 四份声明各一项菜单（顺序 61–64，图标 `boxes`），`modes` 只 `["chat"]`，不写 `tool`。
+8. 结果卡：ERP 单号 + Express 写入状态与单号（同网页列表 `ledger_state / ledger_docnum`）。
+9. 草稿规则：草稿只是字符串（「方向@答案摘要」），确定之前不建 `ERP Stock Entry`，不会有孤儿单。
+
+## 施工记录（11-19，分支 `pearnly/cc-guided-stock-entries`，基线 7488ab8ef）
+
+- 新文件：`inventory/cc_stock_guides.py`（四份声明）、`inventory/stock_guide.py`（四份共用的产品函数，方向按 `ctx["business"]`）、`tests/test_erp_stock_entry_guide.py`（真引擎 + 替身，25 条）、流程 `scripts/flows/erp_cc_guide_stock_entries.py`（登记 `erp.cc.guide.stock-entries`）。
+- 追加：hooks `pearnly_guides`；ERP 术语表 42 行（菜单字沿用 `nav.stock*`，步骤名沿用 `trade.* / stock.purpose.label / serial.units / guide.step.collection.book`；新词只有「增加 / 减少」与一句「不在所选月份」）并重生成翻译包；CI 引导测试那一行；共用件 `assistant`、`erp-products-lookup`、`ocr` 的 `not_entries`。
+- 与评估第 3 节步骤表的差异：
+  - 出库、入库、调整的「物料」题不等默认仓（`warehouse` 只影响排序与单头默认仓），与仓库同一张卡；调拨的物料仍在调出仓之后（只列调出仓的）。
+  - 单价改成必答（`always`，0 可收）：可不答的题在适用步骤都有值时会被直接跳到复核，卡上永远问不到；推荐值只给看得到成本的人。
+  - 账套那一步是 `questions`（`auto`）：转调 `express.api.preflight`（网页提交前同一个判定），没有要问的进「已定」，有要问的一项一个单选子题、答了照网页记在公司名下。
+  - 调整的增加 / 减少都可不答，确定前两边都空时退回「增加」（`stock_no_lines`）。
+- 未做：真站点流程未跑（不起实验栈）；真账本（测试机 NLTTEST / 70EXP\test）未测；登记主号以外的副号、颜色没问（第一版只登记主号）。

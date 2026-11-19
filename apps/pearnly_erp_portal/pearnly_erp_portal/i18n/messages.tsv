@@ -2176,6 +2176,48 @@ Collection Method	收款方式	วิธีรับเงิน	入金方法	gu
 Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.step.collection.voucher
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
+Stock Out	出库	จ่ายออก	出庫	guide.business.stock_out
+Stock Transfer	调拨	โอนย้ายระหว่างคลัง	倉庫間移動	guide.business.stock_transfer
+Product Adjustment	物料调整	ปรับปรุงสินค้า	商品調整	guide.business.stock_adjust
+Stock In	入库	รับเข้า	入庫	guide.business.stock_in
+Date	日期	วันที่	日付	guide.step.stock_out.day
+Purpose	用途	วัตถุประสงค์	用途	guide.step.stock_out.purpose
+Warehouse	仓库	คลังสินค้า	倉庫	guide.step.stock_out.warehouse
+Product	物料	สินค้า	商品	guide.step.stock_out.rows
+Units	按台记录	รายชิ้น	個体	guide.step.stock_out.units
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.stock_out.book
+Note	备注	หมายเหตุ	備考	guide.step.stock_out.note
+Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.stock_out.file
+Date	日期	วันที่	日付	guide.step.stock_transfer.day
+From Warehouse	调出仓库	คลังต้นทาง	移動元倉庫	guide.step.stock_transfer.warehouse
+To Warehouse	调入仓库	คลังปลายทาง	移動先倉庫	guide.step.stock_transfer.to_warehouse
+Product	物料	สินค้า	商品	guide.step.stock_transfer.rows
+Units	按台记录	รายชิ้น	個体	guide.step.stock_transfer.units
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.stock_transfer.book
+Note	备注	หมายเหตุ	備考	guide.step.stock_transfer.note
+Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.stock_transfer.file
+Date	日期	วันที่	日付	guide.step.stock_adjust.day
+Warehouse	仓库	คลังสินค้า	倉庫	guide.step.stock_adjust.warehouse
+Increase	增加	เพิ่ม	増加	guide.step.stock_adjust.plus
+Decrease	减少	ลด	減少	guide.step.stock_adjust.minus
+Unit Price	单价	ราคาต่อหน่วย	単価	guide.step.stock_adjust.prices
+Units	按台记录	รายชิ้น	個体	guide.step.stock_adjust.plus_units
+Units	按台记录	รายชิ้น	個体	guide.step.stock_adjust.minus_units
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.stock_adjust.book
+Note	备注	หมายเหตุ	備考	guide.step.stock_adjust.note
+Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.stock_adjust.file
+Date	日期	วันที่	日付	guide.step.stock_in.day
+Purpose	用途	วัตถุประสงค์	用途	guide.step.stock_in.purpose
+Warehouse	仓库	คลังสินค้า	倉庫	guide.step.stock_in.warehouse
+Product	物料	สินค้า	商品	guide.step.stock_in.rows
+Unit Price	单价	ราคาต่อหน่วย	単価	guide.step.stock_in.prices
+Units	按台记录	รายชิ้น	個体	guide.step.stock_in.units
+Account Set	账套	ชุดบัญชี	会計データ	guide.step.stock_in.book
+Note	备注	หมายเหตุ	備考	guide.step.stock_in.note
+Attachments	附件	ไฟล์แนบ	添付ファイル	guide.step.stock_in.file
+Not in the selected month	不在所选月份	ไม่อยู่ในเดือนที่เลือก	選択した月ではありません	guide.refused.stock_day_period
+The number of units does not match the quantity	台数与数量不符	จำนวนรายชิ้นไม่ตรงกับจำนวน	個体数が数量と一致しません	guide.refused.stock_units_mismatch
+Too many items	项目过多	รายการมากเกินไป	項目が多すぎます	guide.refused.stock_files_limit
 Not saved: {0}	没有记下：{0}	ยังไม่ได้บันทึก: {0}	保存されていません：{0}	
 Opened the collection card	打开了收款卡片	เปิดการ์ดรับชำระแล้ว	入金カードを開きました
 Opening the collection card	正在打开收款卡片	กำลังเปิดการ์ดรับชำระ	入金カードを開いています

@@ -60,7 +60,7 @@ jobs:
       - name: ERP collections in CC chat (erp_collection_* tools on the collection service, release through the write plan after the user's next message, changed after said back not written, stop, operator conversation keeps the draft, slip from a chat attachment, rights, withdraw, results)
         run: python3 tests/test_erp_collection_cc.py
       - name: ERP collection guided in CC (form guide over the shared engine, decided steps, read-back facts, amounts held to what can be collected now, slips per transfer, review, consent by the click, sent-back steps, changed drafts, dates outside the period)
-        run: python3 tests/test_erp_collection_guide.py
+        run: python3 tests/test_erp_collection_guide.py && python3 tests/test_erp_stock_entry_guide.py
       - name: ERP purchase and sales guide product functions (intake by the business direction, recognition state, review face and edits back onto the record, direct confirm inside the conversation, unclicked payment held, results by ledger state)
         run: python3 tests/test_erp_guide_documents.py
       - name: CC attention rule (someone looking at the conversation is not called, away devices expire, any device is enough, push decides before sending)

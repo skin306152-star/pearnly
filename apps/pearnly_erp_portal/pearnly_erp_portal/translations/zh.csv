@@ -485,6 +485,7 @@ Date outside the account set period,日期不在账套期间内
 Dates,日期
 Days later,天后
 Decided At,处理时间
+Decrease,减少
 Dedupe Key,去重键
 Default,默认
 Default Company,默认公司
@@ -760,6 +761,7 @@ In stock,正常
 In-stock,盘点在库
 In-stock: freeze the current balances. Import: take the rows and counted quantities from the sheet.,盘点在库：按当前库存生成快照。上传导入：按表格登记行与实盘数。
 Inactive,已停用
+Increase,增加
 Initial Password,初始密码
 Input Tax,进项税额
 Input VAT,进项税
@@ -996,6 +998,7 @@ Not found in the Revenue Department records,税务局未查到该税号的登记
 Not found on the document,票面未载明
 Not in the account set yet,账套中未建
 Not in the list,不在清单
+Not in the selected month,不在所选月份
 Not permitted,没有权限
 Not saved: {0},没有记下：{0}
 Not written to Express (disconnected),未写入 Express（已断开）
@@ -1477,6 +1480,8 @@ Stock,库存
 Stock Account Group,存货科目组
 Stock Card Report,收发存报表
 Stock Count,盘点
+Stock In,入库
+Stock Out,出库
 Stock Posted At,库存过账时间
 Stock Posting,库存过账
 Stock Receipt-Issue Report,收发存报表
@@ -2587,7 +2592,11 @@ goods,货物
 guide.business.company,公司资料
 guide.business.company_add,添加公司
 guide.business.pending,待处理
+guide.business.stock_adjust,物料调整
 guide.business.stock_card,收发存报表
+guide.business.stock_in,入库
+guide.business.stock_out,出库
+guide.business.stock_transfer,调拨
 guide.business.stocktake,盘点
 guide.consent.company.note_delete,要删除笔记吗？
 guide.consent.stocktake.close,要结束盘点吗？
@@ -2601,6 +2610,9 @@ guide.open.stocktake,选择操作。
 guide.option.company.note_add,添加笔记
 guide.option.company.note_delete,删除笔记
 guide.option.company.note_edit,编辑笔记
+guide.refused.stock_day_period,不在所选月份
+guide.refused.stock_files_limit,项目过多
+guide.refused.stock_units_mismatch,台数与数量不符
 guide.review.department,部门
 guide.review.salesman,销售员
 guide.step.collection.book,账套
@@ -2615,6 +2627,16 @@ guide.step.company.note,笔记
 guide.step.company.text,内容
 guide.step.company_add.companies,公司
 guide.step.pending.item,单据
+guide.step.stock_adjust.book,账套
+guide.step.stock_adjust.day,日期
+guide.step.stock_adjust.file,附件
+guide.step.stock_adjust.minus,减少
+guide.step.stock_adjust.minus_units,按台记录
+guide.step.stock_adjust.note,备注
+guide.step.stock_adjust.plus,增加
+guide.step.stock_adjust.plus_units,按台记录
+guide.step.stock_adjust.prices,单价
+guide.step.stock_adjust.warehouse,仓库
 guide.step.stock_card.date_from,开始日期
 guide.step.stock_card.date_to,结束日期
 guide.step.stock_card.format,格式
@@ -2623,6 +2645,31 @@ guide.step.stock_card.product_to,截止物料
 guide.step.stock_card.report,报表
 guide.step.stock_card.warehouse_from,起始仓库
 guide.step.stock_card.warehouse_to,截止仓库
+guide.step.stock_in.book,账套
+guide.step.stock_in.day,日期
+guide.step.stock_in.file,附件
+guide.step.stock_in.note,备注
+guide.step.stock_in.prices,单价
+guide.step.stock_in.purpose,用途
+guide.step.stock_in.rows,物料
+guide.step.stock_in.units,按台记录
+guide.step.stock_in.warehouse,仓库
+guide.step.stock_out.book,账套
+guide.step.stock_out.day,日期
+guide.step.stock_out.file,附件
+guide.step.stock_out.note,备注
+guide.step.stock_out.purpose,用途
+guide.step.stock_out.rows,物料
+guide.step.stock_out.units,按台记录
+guide.step.stock_out.warehouse,仓库
+guide.step.stock_transfer.book,账套
+guide.step.stock_transfer.day,日期
+guide.step.stock_transfer.file,附件
+guide.step.stock_transfer.note,备注
+guide.step.stock_transfer.rows,物料
+guide.step.stock_transfer.to_warehouse,调入仓库
+guide.step.stock_transfer.units,按台记录
+guide.step.stock_transfer.warehouse,调出仓库
 guide.step.stocktake.action,操作
 guide.step.stocktake.category,分类
 guide.step.stocktake.code,条码/二维码

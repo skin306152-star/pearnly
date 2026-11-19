@@ -2789,3 +2789,17 @@ covers = [
   "apps/pearnly_dms/pearnly_dms/public/desk/roster.js",
   "apps/pearnly_dms/pearnly_dms/operators/roster.py",
 ]
+
+[[flow]]
+id = "erp.cc.guide.stock-entries"
+title = "ERP 版 CC 库存四单引导：选公司 → 菜单有出库 / 调拨 / 物料调整 / 入库 → 四种各走一遍到确定（按行选仓、单价、用途、对话附件）→ 读回库存单的方向、行上的仓、数量、单价、用途、附件（11-19）"
+module = "scripts/flows/erp_cc_guide_stock_entries.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_stock_guides.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock_guide.py",
+]
