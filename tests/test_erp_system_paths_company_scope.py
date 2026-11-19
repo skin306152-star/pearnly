@@ -26,8 +26,6 @@ SAFE_EDGES = {
         "传 system=True：公司按数据核（仓库属于这家公司），不走 _movement_company / company_of",
     ("express.push.requeue_unmapped", "inventory.warehouses.names_of"):
         "公司总是给了（同步那家），names_of 只在没给公司时才取当前公司",
-    ("integrations.intake.run", "integrations.intake.totals"):
-        "识别任务先 frappe.set_user(发单员工)，之后就是那位员工的用户路径",
 }
 DOTTED = re.compile(rf"{PKG}(\.\w+)+")
 

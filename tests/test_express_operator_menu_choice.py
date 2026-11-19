@@ -203,7 +203,7 @@ def _function(path, name):
 class CoworkPayload(unittest.TestCase):
     def test_prepare_hands_both_to_the_operator_payload(self):
         body = _function(SERVICE, "prepare")
-        block = body.split('if operator and prepared.disposition == "ready":', 1)[1].split("row = ledger.reserve", 1)[0]
+        block = body.split('if operator and disposition == "ready":', 1)[1].split("row = ledger.reserve", 1)[0]
         self.assertIn("choice_store.operator_form(loaded.doc.name, target.account_set,", block)
         self.assertIn('payload.get("doctype")', block)
         self.assertIn("pay_route=operator_pay_route(fields)", block)
