@@ -139,7 +139,7 @@ def steps(params, camera_code=None):
     return [
         # 同真机：用户先说一句要录（卡片在这一轮之后出）
         {"name": "开始前卡片", "shot": True, "file": "1-card", "js": JS +
-         "await until(()=>q('textarea.aui-composer-input'),120); "
+         "await until(composerReady,240); "
          f"const said=await say({json.dumps(tag + ' 把这张票录进 Express')}); "
          "await until(()=>qa('[data-role=\"assistant\"]').some(e=>e.innerText.includes('[lab-agent]')),160); "
          f"const got=await until(()=>{card}?.querySelector('[data-slot=\"cc-askq-question\"]'),240); await sleep(600); "

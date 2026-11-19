@@ -72,7 +72,7 @@ def steps(params, camera_code=None):
     head = JS + PICK + TILES + f"const listedUploads=async()=>((await call('pearnly_core.express_operator.api.task_uploads',{{name:{task}}}))||{{}}).uploads||[];"
     return [
         {"name": "选两份", "shot": True, "file": "1-two-uploaded", "js": head +
-         "await until(()=>q('textarea.aui-composer-input'),120); "
+         "await until(composerReady,240); "
          f"await pick([['{params['tag']}-a.png',{FILE},'image/png'],['{params['tag']}-b.png',{FILE},'image/png']]); "
          "const shown=await until(()=>tiles().count===2,80); "
          "const done=await until(()=>tiles().count===2&&tiles().uploading===0&&tiles().failed===0,240); "

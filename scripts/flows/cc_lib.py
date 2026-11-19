@@ -31,6 +31,8 @@ JS = (
     "const toMode=async m=>{if(mode()===m) return true; const b=qa(`[data-slot=\"cc-mode-switch\"] [data-mode=\"${m}\"]`).find(seen)"
     "||q(`[data-slot=\"cc-mode-switch\"] [data-mode=\"${m}\"]`); if(!b) return false; b.click(); return await until(()=>mode()===m,40);};"
     "const press=e=>{e.dispatchEvent(new PointerEvent('pointerdown',{bubbles:true,button:0,pointerType:'mouse'})); e.click();};"
+    # 输入框可用：链接 / 通知打开某段对话时，切到那里之前输入框和「+」不可用（lib/opening.ts 的闸，11-17），人点不了，流程也要等
+    "const composerReady=()=>{const ta=q('textarea.aui-composer-input'); const add=qa('button.cc-attach').find(seen); return !!ta&&!ta.disabled&&!!add&&!add.disabled;};"
     "const say=async t=>{const ta=q('textarea.aui-composer-input'); "
     "Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype,'value').set.call(ta,t); ta.dispatchEvent(new Event('input',{bubbles:true})); "
     "await sleep(300); const b=q('button.aui-composer-send'); if(!b||b.disabled) return false; b.click(); return true;};"
