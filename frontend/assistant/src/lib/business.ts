@@ -9,6 +9,8 @@ import { create } from "zustand";
 import { get, post } from "@/lib/frappe";
 import { guide, op } from "@/i18n";
 import { withReport } from "./caught";
+import { useLedgers } from "./conversation-ledger";
+import { useProjects } from "./managed-agents/projects";
 
 export type Business = string;
 /** 清单（服务端 api.businesses，S1）：两种模式各能做的业务、按表单走的业务；菜单字（已按本页语言翻好）、图标（声明 ICONS 里的 lucide 名）、顺序。
@@ -21,8 +23,10 @@ export type Offered = {
 
 
 type State = { offered: Offered | null; bySession: Record<string, string>; atBySession: Record<string, number>; draft: string;
-  draftAt: number };
-export const useBusiness = create<State>(() => ({ offered: null, bySession: {}, atBySession: {}, draft: "", draftAt: 0 }));
+  draftAt: number;
+  /** 按这段对话公司的账本种类过滤过的菜单（businesses(session_id)，A1 11-19）；key = 公司|账套，换了就重取 */
+  forSession: Record<string, { key: string; offered: Offered }> };
+export const useBusiness = create<State>(() => ({ offered: null, bySession: {}, atBySession: {}, draft: "", draftAt: 0, forSession: {} }));
 
 /** 服务端的时刻（RFC3339，空 = 从会话开头算）→ 毫秒；读不出当 0（从开头算，宁可少出一句）。 */
 const msOf = (value: string | undefined) => {
@@ -30,14 +34,38 @@ const msOf = (value: string | undefined) => {
   return Number.isFinite(at) ? at : 0;
 };
 
+const shapeOf = (out: Offered | null | undefined): Offered => ({ chat: out?.chat ?? [], operator: out?.operator ?? [], forms: out?.forms ?? [],
+  labels: out?.labels ?? {}, icons: out?.icons ?? {}, order: out?.order ?? {} });
+
 let loading: Promise<void> | null = null;
 /** 读一次这个产品能做的业务（读不到当没有，不出菜单）。 */
 export function loadOffered(): Promise<void> {
   loading ??= get<Offered>("businesses")
-    .then((out) => useBusiness.setState({ offered: { chat: out?.chat ?? [], operator: out?.operator ?? [], forms: out?.forms ?? [],
-      labels: out?.labels ?? {}, icons: out?.icons ?? {}, order: out?.order ?? {} } }))
+    .then((out) => useBusiness.setState({ offered: shapeOf(out) }))
     .catch(withReport(() => useBusiness.setState({ offered: { chat: [], operator: [] } }), "business-offered"));
   return loading;
+}
+
+/** 这段对话的菜单：带对话号取（服务端按它公司的账本种类过滤：不在声明 ledgers 里的不出，公司没接账本一项都不出，没挂公司不过滤）。
+ *  取不到（服务端还不认这个参数、断网）就用全产品那份，不报错。 */
+function loadOfferedFor(sessionId: string, key: string) {
+  void get<Offered>("businesses", { session_id: sessionId })
+    .then((out) => useBusiness.setState((s) => ({ forSession: { ...s.forSession, [sessionId]: { key, offered: shapeOf(out) } } })))
+    .catch(() => undefined);
+}
+
+/** 菜单用的清单：有对话号时用这段对话过滤过的（公司|账套 变了就重取，取到之前先用上一份），新建页用全产品的。 */
+export function useOffered(sessionId: string | null): Offered | null {
+  const project = useProjects((s) => (sessionId ? s.filings[sessionId]?.project : "") ?? "");
+  const ledger = useLedgers((s) => (sessionId ? s.views[sessionId]?.current : "") ?? "");
+  const key = `${project}|${ledger}`;
+  const all = useBusiness((s) => s.offered);
+  const own = useBusiness((s) => (sessionId ? s.forSession[sessionId] : undefined));
+  useEffect(() => {
+    void loadOffered();
+    if (sessionId) loadOfferedFor(sessionId, key);
+  }, [sessionId, key]);
+  return own?.offered ?? all;
 }
 
 /** 侧栏列表读到的会话业务。 */

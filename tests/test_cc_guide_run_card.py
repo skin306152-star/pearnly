@@ -31,7 +31,7 @@ class GuideRunCardTests(unittest.TestCase):
         self.assertIn("noteStartedRun(id", body)
         self.assertIn("pickBusiness(sessionId, business, offered?.forms ?? [], aui.threadListItem())", thread)
         # 点菜单开的卡也是对话内容：不出欢迎语；卡还开着时菜单不出（不再开第二张）；卡取到的新一版跟进本页记的状态
-        self.assertIn("const isEmpty = useAuiState(isNewChatView) && !pending && !guides;", thread)
+        self.assertIn("const isEmpty = useAuiState(isNewChatView) && !pending && !guides && !prompted;", thread)
         self.assertIn('const OPEN_GUIDE: ReadonlySet<string> = new Set(["asking", "reviewing"]);', thread)
         self.assertIn("noteRunView(sessionId, view)", read("components/tool-uis/guide-run-card.tsx"))
         self.assertIn('forms: out?.forms ?? []', read("lib/business.ts"))

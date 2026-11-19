@@ -63,7 +63,7 @@ import { approvalCard, type CardPart } from "@/lib/approval-card";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { type Business, businessName, chooseBusiness, loadOffered, menuOf, noteRunView, noteStartedRun, promptOf, useBusiness, useBusinessAt, useBusinessCarry, useCurrentBusiness, useStartedRuns } from "@/lib/business";
+import { type Business, businessName, chooseBusiness, menuOf, noteRunView, noteStartedRun, promptOf, useBusinessAt, useBusinessCarry, useCurrentBusiness, useOffered, useStartedRuns } from "@/lib/business";
 import { cancelGuide, guidePlacement, startGuide } from "@/lib/guide-run";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { ensureSessionOf, type SessionItem } from "@/lib/managed-agents/ensure-session";
@@ -132,9 +132,10 @@ const isNewChatView = (s: AssistantState) =>
 
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const pending = usePendingSend();
-  // 点菜单开的引导卡（还没说过话）也是这段对话的内容：不再出欢迎语、输入框落到底部
+  // 点菜单开的引导卡、选了业务后 CC 说的那句「请上传…」（还没说过话）也是这段对话的内容：不再出欢迎语、输入框落到底部
   const guides = useGuideRunList().length > 0;
-  const isEmpty = useAuiState(isNewChatView) && !pending && !guides;
+  const prompted = useBusinessPromptShown() !== "";
+  const isEmpty = useAuiState(isNewChatView) && !pending && !guides && !prompted;
   const isLoading =
     useAuiState((s) => s.thread.messages.length === 0 && s.thread.isLoading && !s.threads.isLoading) && !pending;
 
@@ -290,14 +291,19 @@ const GuideRuns: FC<{ before?: string }> = ({ before = "" }) => {
   return <>{here.map((run) => <GuideRunCard key={run.run} run={run} sessionId={snapshot.sessionId} />)}</>;
 };
 
-const BusinessPrompt: FC = () => {
+/** 这段对话此刻要不要画 CC 那句「请上传…」（回业务或 ""）：那句话本身与对话页（有它就不当空对话）共用同一个判断。 */
+function useBusinessPromptShown(): Business | "" {
   const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
   const business = useCurrentBusiness(sessionId);
   const at = useBusinessAt(sessionId);
   const messages = useAuiState((s) => s.thread.messages);
   const composerFiles = useAuiState((s) => s.composer.attachments.length);
   const pending = useShownPending();
-  const shown = promptOf(business, at, messages, composerFiles, pending) as Business | "";
+  return promptOf(business, at, messages, composerFiles, pending) as Business | "";
+}
+
+const BusinessPrompt: FC = () => {
+  const shown = useBusinessPromptShown();
   if (!shown) return null;
   return (
     <div data-slot="cc-business-prompt" data-business={shown} className="cc-reply px-(--cc-space-8) wrap-break-word">
@@ -479,9 +485,10 @@ const RecordQuickReply: FC = () => {
 const MENU_FIRST = 4;
 
 const BusinessMenu: FC = () => {
-  const offered = useBusiness((s) => s.offered);
   const mode = useModePlace((s) => s.mode);
   const sessionId = useAuiState((s) => s.threadListItem.remoteId ?? null);
+  // 菜单按这段对话公司的账本种类过滤（A1 11-19）：换公司 / 账套重取（lib/business useOffered）
+  const offered = useOffered(sessionId);
   const running = useAuiState((s) => s.thread.isRunning);
   const aui = useAui();
   const record = useRecordOffered();
@@ -489,7 +496,6 @@ const BusinessMenu: FC = () => {
   const open = useGuideRunList().filter((run) => OPEN_GUIDE.has(run.status)).pop();
   const current = useCurrentBusiness(sessionId) as Business | "";
   useBusinessCarry(sessionId);
-  useEffect(() => void loadOffered(), []);
   const list = menuOf(offered, mode);
   const row = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);

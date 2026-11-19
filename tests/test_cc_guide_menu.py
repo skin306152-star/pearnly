@@ -92,7 +92,17 @@ class GuideMenuTests(unittest.TestCase):
         self.assertIn('data-slot="cc-business-menu"', body)
         self.assertNotIn('cc-quick-replies', body)  # 业务菜单不是快捷回复：流程按 cc-quick-replies 找「写入」那颗
         self.assertIn("if (record || running || !list.length) return null;", body)
-        self.assertIn("const list = menuOf(offered, mode);", body)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
+        self.assertIn("const list = menuOf(offered, mode);", body)
+        # 菜单按这段对话公司的账本种类过滤（A1 11-19 businesses(session_id)）：带对话号取，换公司 / 账套（key）重取；
+        # 取不到（服务端还不认这个参数）就用全产品那份；新建页没有对话号不过滤
+        self.assertIn("const offered = useOffered(sessionId);", body)
+        biz = read("lib/business.ts")
+        self.assertIn('get<Offered>("businesses", { session_id: sessionId })', biz)
+        self.assertIn(".catch(() => undefined);", biz)
+        self.assertIn("if (sessionId) loadOfferedFor(sessionId, key);", biz)
+        self.assertIn("const key = `${project}|${ledger}`;", biz)
+        self.assertIn("}, [sessionId, key]);", biz)
+        self.assertIn("return own?.offered ?? all;", biz)  # 服务端清单按声明的 order 排（A2 线 F1，lib/business menuOf）
         # 用户 11-17 定稿：没选的是描边小按钮（图标 + 业务名）；选中只留这一项、实底（主按钮那档）带 ×，点 × 取消
         # （按表单走的业务 = 本对话开着的引导，× 取消这次引导）
         self.assertIn('variant="outline" data-business={business}', body)  # 用户 11-19：32 高 14 号字（默认档 .cc-btn），不用 24 高的列表小按钮
@@ -126,7 +136,11 @@ class GuideMenuTests(unittest.TestCase):
         body = thread[start:thread.index("\n};", start)]
         self.assertIn('data-slot="cc-business-prompt"', body)
         self.assertIn("cc-reply", body)
-        self.assertIn("promptOf(business, at, messages, composerFiles, pending)", body)
+        self.assertIn("const shown = useBusinessPromptShown();", body)
+        self.assertIn("return promptOf(business, at, messages, composerFiles, pending) as Business | \"\";", thread)
+        # 出了这一句就不是空对话（验收 M06 11-19：欢迎页不收、那句挤在形象旁边）：对话页用同一个判断
+        self.assertIn('const prompted = useBusinessPromptShown() !== "";', thread)
+        self.assertIn("const isEmpty = useAuiState(isNewChatView) && !pending && !guides && !prompted;", thread)
         self.assertIn("(guide.prompt as Record<string, string>)[shown]", body)
         self.assertNotIn("data-role", body)
 
