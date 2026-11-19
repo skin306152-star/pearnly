@@ -11779,6 +11779,9 @@ assert.equal(projectTell(branch, [head, branch]), "分店 00012");
         # 欠账 B61（10-26 待办）：只剩一个位置时「×」（.cc-row-btn）禁用要有标准禁用样，同其他按钮
         css = read("globals.css")
         self.assertIn(".cc-row-btn:disabled { opacity: var(--cc-disabled-opacity); pointer-events: none; }", css)
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
 class StallReportTests(unittest.TestCase):
     """欠账 B40（乱用设计 6.1）：转圈 60 秒那一块的字没变、同一张卡 5 秒内连点 3 次以上，报给站点错误日志；同一种每分钟最多 1 条，
     只带位置名、秒数、次数。"""
