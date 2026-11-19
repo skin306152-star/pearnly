@@ -659,12 +659,12 @@ def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[s
     是单据号）；表单业务：声明点名的 ``edit(ctx, draft, row, field, value)``（``doc_id`` 是复核表的行码，预扣税逐行复核），只在复核中。
     收下版本 +1。"""
     doc, guide, _now = _checked(name)
-    if not _documents(guide):
-        return _edit_form(guide, doc, str(doc_id or ""), str(field or ""), value, version)
     if doc.status not in OPEN:
         return {**_shown(doc), "outcome": REFUSED}
     if int(version) != int(doc.version or 0):
         return {**_shown(doc), "outcome": CHANGED}
+    if not _documents(guide):
+        return _edit_form(guide, doc, str(doc_id or ""), str(field or ""), value)
     found = _docs().edit(guide, doc, _ctx(doc, _answers(doc)), str(doc_id or ""), str(field or ""), value)
     if isinstance(found, Mapping) and found.get("refused"):
         # 拒收形状同表单与作答：{格: {code, text}}；refused_text 照旧带着（页面旧写法也认）
@@ -677,19 +677,21 @@ def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[s
     return _shown(doc)
 
 
-def _edit_form(guide: Mapping[str, Any], doc, row: str, field: str, value: Any, version: int) -> Dict[str, Any]:
-    """表单业务的就地改一格：回 ``{"draft": 新草稿}`` 换成新草稿；回 ``{"refused": {格: 码}, "refused_text"?: {格: 已翻译}}`` 不改。"""
-    if not guide.get("edit") or doc.status != REVIEWING:
+def _edit_form(guide: Mapping[str, Any], doc, row: str, field: str, value: Any) -> Dict[str, Any]:
+    """表单业务的就地改一格（版本已在 :func:`edit` 核过）：只在复核中、声明点名了 ``edit``、行与格都给了才收。产品回
+    ``{"draft": 新草稿}`` 换成新草稿、版本 +1；回 ``{"refused": {格: 码}, "refused_text"?: {格: 已翻译}}`` 什么都不改，拒收照引擎的
+    形状 ``{格: {code, text}}``、产品的说明在 ``refused_text`` 原样带上。回包不合这两种（产品写错了）报错，不当成用户被拒。"""
+    if doc.status != REVIEWING or not guide.get("edit") or not row or not field:
         return {**_shown(doc), "outcome": REFUSED}
-    if int(version) != int(doc.version or 0):
-        return {**_shown(doc), "outcome": CHANGED}
     made = _call(guide["edit"], _ctx(doc, _answers(doc)), doc.draft or "", row, field, value)
-    if not isinstance(made, Mapping) or made.get("refused") or not made.get("draft"):
-        codes = (made or {}).get("refused") if isinstance(made, Mapping) else None
-        out = {**_shown(doc), "outcome": REFUSED, "refused": _refusal(dict(codes) if isinstance(codes, Mapping) else {field: "refused"})}
-        if isinstance(made, Mapping) and isinstance(made.get("refused_text"), Mapping):
-            out["refused_text"] = dict(made["refused_text"])
-        return out
+    if not isinstance(made, Mapping):
+        frappe.throw(_("Invalid request"))
+    if made.get("refused"):
+        codes = {str(key): str(code) for key, code in dict(made["refused"]).items()}
+        texts = {str(key): str(text) for key, text in dict(made.get("refused_text") or {}).items() if text}
+        return {**_shown(doc), "outcome": REFUSED, "refused": _refusal(codes), **({"refused_text": texts} if texts else {})}
+    if not str(made.get("draft") or ""):
+        frappe.throw(_("Invalid request"))
     doc.draft = str(made["draft"])
     doc.version = int(doc.version or 0) + 1
     _save(doc)

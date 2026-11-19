@@ -473,6 +473,8 @@ class Declaration(unittest.TestCase):
         self.assertEqual(declaration.problems(menu_only), [])
         self.assertTrue(any("for documents guides" in text for text in declaration.problems(
             {**menu_only, "source": "chat", "steps": [], "intake": "app.intake"})))
+        self.assertTrue(any("has no edit" in text for text in declaration.problems(
+            {**menu_only, "source": "chat", "steps": [], "edit": "app.edit"})))
         self.assertIn("app.intake", declaration.paths(PURCHASE))
 
     def test_a_menu_only_documents_guide_cannot_start_on_the_page(self):
