@@ -7106,6 +7106,7 @@ class StopRaceTests(unittest.TestCase):
         with mock.patch.object(sessions, "owned", lambda sid: row), \
                 mock.patch.object(sessions.engine, "adapter", return_value=api), \
                 mock.patch.object(sessions, "_operator_stop", lambda r: order.append("operator")), \
+                mock.patch.object(_guide_run, "end_open", lambda sid, reason, status="expired": order.append("guide")), \
                 mock.patch.object(sessions.toolrun, "cancel_waiting", lambda sid: order.append("cancel_waiting")), \
                 mock.patch.object(sessions.frappe, "db", db, create=True):
             sessions.interrupt(row.session_id)
@@ -7121,13 +7122,14 @@ class StopRaceTests(unittest.TestCase):
         # 11-19 查出：作废允许卡（`toolrun.cancel_waiting`）一开头先回滚、结束调用方的快照；停止时刻没提交就被整笔回滚，
         # 写入计划（`write_plan.start` / `permit`）读不到这次停止，停止之后再说一句，开始了的计划还能接着推
         row = _Row(name="row1", session_id="sesn_01X2K4vJBNvR361Cvjxap2Nw", remote_ids="")
-        self._committed_before_cancel(self._stop_order(row), ("mark",))
+        # 11-19 erp.cc.guide.stop：结束开着的引导同样要在那之前提交，否则卡一直在问
+        self._committed_before_cancel(self._stop_order(row), ("mark", "guide"))
 
     def test_stop_commits_the_operator_stop_before_cancelling_waiting_cards(self):
         # 代录对话、远端会话已开过：任务上的 stop（执行的电脑取走后停下）同样要在作废允许卡之前提交，否则电脑一直录下去
         row = _Row(name="row1", session_id="op_task0001", operator_task="task0001", remote_ids=json.dumps(["sesn_remote01"]))
         order = self._stop_order(row)
-        self._committed_before_cancel(order, ("mark", "operator"))
+        self._committed_before_cancel(order, ("mark", "operator", "guide"))
         self.assertIn("interrupt", order)
 
     def test_lock_order_one_tool_run_row_at_a_time(self):

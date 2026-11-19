@@ -1178,8 +1178,8 @@ def interrupt(session_id) -> None:
     row = owned(session_id)
     # 记下这一刻用户下令停了（停止键、说停就停都走这里；A 线写入计划逐段写时核它，变了就停）。这之前只有读：撞上冲突整笔重来
     conflicts.retried(_mark_stop, row.name)
-    # 本站这几笔写（停止时刻、代录停住）各自当场提交：后面作废允许卡（`toolrun.cancel_waiting`）一开头先回滚、结束调用方的快照，
-    # 没提交的会被整笔回滚（11-19 查出：写入计划读不到这次停止、执行代录的电脑取不到 stop）
+    # 本站这几笔写（停止时刻、代录停住、结束引导）各自当场提交：后面作废允许卡（`toolrun.cancel_waiting`）一开头先回滚、
+    # 结束调用方的快照，没提交的会被整笔回滚（11-19 erp.cc.guide.stop：卡一直在问、写入计划也读不到这次停止）
     frappe.db.commit()
     if row.get("operator_task"):
         _operator_stop(row)
@@ -1188,6 +1188,7 @@ def interrupt(session_id) -> None:
     # 停止本身已经记下了，结束引导出错只记日志、不回 500（同下面作废允许卡）
     try:
         conflicts.retried(lambda: guide_run.end_open(row.session_id, "stopped"))
+        frappe.db.commit()  # 提交时把这次引导的新版本推给页面（`_announce` 带 after_commit）
     except Exception:
         frappe.db.rollback()
         frappe.log_error(title="Assistant guide stop failed")
