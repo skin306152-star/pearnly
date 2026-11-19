@@ -68,8 +68,8 @@ def steps(params, camera_code=None):
               "business: all[0]?.dataset.business||'', text: all[0]?.innerText.trim()||'', reply: !!all[0]?.closest('[data-role]')};}; ")
     return [
         {"name": "业务菜单", "js": JS + menu + prompt + "const shown=await until(()=>row(),120); "
-         # 完整清单读量宽度的那一排（手机上收进「更多」的也在）；点的只找直接摆出来的按钮（11-17 菜单定稿：前 4 项 + 更多）
-         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')||[])].map(b=>b.innerText.trim()); "
+         # 完整清单读量宽度的那一排（手机上收进「更多」的也在；那一排看不见，innerText 为空，读 textContent）；点的只找直接摆出来的按钮（11-17 菜单定稿：前 4 项 + 更多）
+         "const labels=[...(row()?.querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')||[])].map(b=>(b.textContent||'').trim()); "
          "const pick=async(l)=>{const b=[...(row()?.querySelectorAll(':scope > button')||[])].find(x=>x.innerText.trim()===l); b?.click(); await sleep(400);}; "
          "const cancel=async()=>{row()?.querySelector('button')?.click(); await sleep(400);}; "
          "await pick('采购'); const picked={chosen: row()?.dataset.business||'', placeholder: ph(), prompt: said()}; "
