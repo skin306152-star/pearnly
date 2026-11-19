@@ -346,3 +346,41 @@ def test_a_finished_batch_closes_express_once_the_person_has_answered_the_box(tm
     sim._press(sim.dialogs[-1], "แบบ ก")
     assert r.still_held() is False
     assert session.closed == 1 and r.state.docs[0].status == K.SAVED
+
+
+def test_express_killed_on_a_half_document_lets_the_book_go_even_when_reading_it_fails(tmp_path, monkeypatch):
+    """11-19 测试机2：代录停在认不得的框上等人时 Express 被强行结束（任务管理器 / 崩溃），后台做法读 Express 直接抛
+    「no Express window」（不是「窗口没了」那条 Crash）；以前一律当「还开着」，这本账套在这台电脑上一直占着，后面的单全按
+    「账套被占用」排到 CC 重启。读不到时看一眼 Express 窗口：一个都没有就是没了——放手，那张仍等人、不补报（再交来先读账套）。"""
+    from companion.express_operator.desk import Refused
+
+    host, sim, first, clock = _held_host(tmp_path)
+    runner = host.runners["b1"]
+    real = runner.engine.desk.act
+
+    def act(actions, windows=True):
+        if not sim.alive:
+            raise Refused("no Express window")  # 同真机后台做法：找不到 Express 主窗口
+        return real(actions, windows)
+
+    monkeypatch.setattr(runner.engine.desk, "act", act)
+    sim.dialogs, sim.alive = [], False  # Express 被强行结束，单停在半截
+    assert runner.still_held() is False
+    assert not runner.state.held
+    doc = runner.state.docs[0]
+    assert doc.status == K.WAITING and doc.late_ack == ""
+    # 同一本账套的下一张不再等它
+    assert host._held_elsewhere("b2", runner.state.account_dir) is False
+
+
+def test_a_read_failure_while_express_windows_are_still_there_keeps_the_box_for_the_person(tmp_path, monkeypatch):
+    """读 Express 出错、但 Express 的窗口还在（一时读不到）：照旧当还开着，不放手、不抢人的框。"""
+    host, sim, first, clock = _held_host(tmp_path)
+    runner = host.runners["b1"]
+
+    def act(actions, windows=True):
+        raise RuntimeError("transient read failure")
+
+    monkeypatch.setattr(runner.engine.desk, "act", act)
+    assert runner.still_held() is True
+    assert runner.state.held

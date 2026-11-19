@@ -634,7 +634,15 @@ class Engine:
             self.act([{"do": "wait", "ms": 0}])
         except Crash:
             return None
-        except Exception as error:  # noqa: BLE001 — 读不到当成还开着，不放手
+        except Exception as error:  # noqa: BLE001 — 读不到：Express 的窗口一个都没有就是没了，否则当成还开着、不放手
+            # 11-19 测试机2：Express 被强行结束后后台做法读它抛「no Express window」，以前一律当还开着，账套占到 CC 重启
+            try:
+                gone = not self.desk.windows()
+            except Exception:  # noqa: BLE001 — 连窗口清单也读不到：不下「没了」的结论
+                gone = False
+            if gone:
+                log.info("operator held check: Express is gone (%s: %s)", type(error).__name__, str(error)[:200])
+                return None
             log.warning("operator held check: reading Express failed, treated as still open · %s: %s", type(error).__name__,
                         str(error)[:200])
             return [{"title": "?", "texts": []}]
