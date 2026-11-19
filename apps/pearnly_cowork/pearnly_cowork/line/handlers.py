@@ -48,7 +48,14 @@ def handle(event: dict) -> bool:
     frappe.local.lang = line.user_language(user_id)
     menu.ensure(user_id, frappe.local.lang)
     try:
-        return _handle(event, user_id)
+        # 统一出口：这次反应里回给这个人的消息攒到最后一次发出；有题在等答时末尾重带当前这道题（`ask.reattach`，11-19：
+        # 点另一张卡的保存 / 取消等回复成了最后一条，题的快捷回复就看不见了）
+        with line.batch(user_id, event.get("replyToken") or ""):
+            handled = _handle(event, user_id)
+            from pearnly_cowork.line import ask
+
+            ask.reattach(user_id)
+        return handled
     finally:
         frappe.local.lang = previous
 

@@ -67,6 +67,25 @@ def _prompted(state, messages) -> list:
     return messages
 
 
+def reattach(line_user_id) -> None:
+    """统一出口（`handlers.handle` 的 ``line.batch`` 块结束前）：这次要回给这个人的消息里，最后一条不是带按钮的题、而他有题在等答
+    （新物料段或写账判定段），就在末尾重带当前这道题（记在票上的 ``prompt``，原样重发、按钮照样有效）。回复本身就是那道题不重复。
+    读传输层攒着的这一批（`pearnly_core.line.batch`，不改共用层）；没开批、没消息、没题在等答都不动。读不到会话不挡回复。"""
+    pending = line._collects(to=line_user_id)
+    if pending is None or not pending.get("messages"):
+        return
+    last = pending["messages"][-1]
+    if isinstance(last, dict) and last.get("quickReply"):
+        return
+    try:
+        prompt = ((flow.choices(line_user_id).get(TICKETS) or {}).get("current") or {}).get("prompt")
+    except Exception:
+        frappe.clear_messages()
+        return
+    if isinstance(prompt, dict) and prompt.get("quickReply"):
+        pending["messages"].append(prompt)
+
+
 def _card(ticket) -> list:
     from pearnly_cowork.line import cards
 
@@ -246,4 +265,4 @@ def text(line_user_id, message, reply_token) -> bool:
     return True
 
 
-__all__ = ["ITEMS", "PRECHECK", "STEP", "TICKETS", "arrive", "is_step", "send", "step", "text", "touch"]
+__all__ = ["ITEMS", "PRECHECK", "STEP", "TICKETS", "arrive", "is_step", "reattach", "send", "step", "text", "touch"]

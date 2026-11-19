@@ -270,6 +270,44 @@ class LineAskTest(unittest.TestCase):
         self.assertEqual([m["card"] for m in self.cards_sent()], ["H1"])
         self.assertFalse(self.type("hello"))  # 没有题在等答：交给别的处理
 
+    def test_a_save_or_cancel_on_another_card_while_answering_ends_with_the_current_question(self):
+        """统一出口（ERP 11-19 真机：等答时点另一张卡的保存，回复成了最后一条、题的按钮看不见）：这次回给这个人的消息末尾重带当前
+        这道题，按钮照样能点；回复本身就是那道题不重复。"""
+        self.backend.docs = {"H1": [PAY]}
+        self.arrive("H1")
+        question = self.last()
+        posted = []
+
+        def card_reply(name, token, cancel=False):  # 卡片「保存」/「取消」照常回一句（`line.save.reply`）
+            ask.line.reply(token, [{"type": "text", "text": "Cancelled" if cancel else "Entering"}])
+
+        with mock.patch.object(handlers, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch.object(handlers.frappe, "conf", {"pearnly_product": "cowork"}, create=True), \
+                mock.patch.object(handlers.line, "user_language", return_value="th"), \
+                mock.patch.object(handlers.menu, "ensure"), \
+                mock.patch.object(handlers.binding, "enabled", return_value=True), \
+                mock.patch.object(handlers.flow, "allowed", return_value=True), \
+                mock.patch.object(handlers, "_as", side_effect=lambda user, work: work()), \
+                mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
+                mock.patch.object(save, "reply", side_effect=card_reply), \
+                mock.patch.object(ask.line, "_post_reply", side_effect=lambda token, messages: posted.append(messages)
+                                  or (True, 200, "")):
+            for data in ("a=cowork_save&n=H9", "a=cowork_cancel&n=H8"):
+                self.assertTrue(handlers.handle({"type": "postback", "replyToken": "tok", "source": {"userId": "U1"},
+                                                 "postback": {"data": data}}))
+            self.assertTrue(handlers.handle({"type": "message", "replyToken": "tok", "source": {"userId": "U1"},
+                                             "message": {"type": "text", "text": "hello"}}))
+        self.assertEqual(posted[0], [{"type": "text", "text": "Entering"}, question])
+        self.assertEqual(posted[1], [{"type": "text", "text": "Cancelled"}, question])
+        # 无关文字：回复本身以那道题结尾（`ask.text`：没找到 + 重问），出口不再多带一份
+        self.assertEqual(len(posted), 2)
+        self.assertEqual(sum(bool(m.get("quickReply")) for m in self.sent[-1]), 1)
+        self.assertEqual(self.sent[-1][-1]["text"], question["text"])
+        question = self.sent[-1][-1]
+        rows = question["quickReply"]["items"]  # 当前这道题照样能点
+        ask.step("U1", next(r["action"]["data"] for r in rows if r["action"]["label"] == "Cash"), "tok")
+        self.assertEqual([m["card"] for m in self.cards_sent()], ["H1"])
+
     def test_an_expired_session_sends_no_card(self):
         self.backend.docs = {"H1": [PAY]}
         self.arrive("H1")
