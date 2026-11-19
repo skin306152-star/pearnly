@@ -791,5 +791,28 @@ class CommitBeforeViewTests(Base):
         self.assert_committed_before_each_view()
 
 
+class PageFieldTests(Base):
+    """页面要的两样题面字段（A2 等的服务端，约定见共享笔记「引导卡页面接口-约定-11-19.md」）：声明 ``zero`` 的金额多选题带
+    ``zero: true``（盘点数到 0 有效）；分摊题带 ``total``（要分摊的合计 = 它前面最近一道金额多选题此刻答的各行之和，字符串两位小数）。"""
+
+    def test_a_split_question_carries_the_total_of_the_amounts_before_it(self):
+        name = run.start("S1", "collection")["run"]
+        run.answer(name, {"customer": "C001"})
+        found = run.answer(name, {"invoices": [{"code": "IV001", "amount": "600.5"}, {"code": "IV002", "amount": "99.50"}]})
+        method = next(q for q in found["card"]["questions"] if q["key"] == "method")
+        self.assertEqual(method["total"], "700.00")
+        self.assertNotIn("zero", method)
+
+    def test_a_zero_step_says_so_and_others_do_not(self):
+        counted = {**GUIDE, "steps": [dict(GUIDE["steps"][0]), {**GUIDE["steps"][1], "zero": True}, *GUIDE["steps"][2:]]}
+        ATTRS["app.GUIDES"] = [counted]
+        name = run.start("S1", "collection")["run"]
+        self.assertNotIn("zero", run.view(self.docs[name])["card"]["questions"][0])
+        found = run.answer(name, {"customer": "C001"})
+        invoices = next(q for q in found["card"]["questions"] if q["key"] == "invoices")
+        self.assertIs(invoices["zero"], True)
+        self.assertNotIn("total", invoices)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -304,6 +304,12 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
         out.update(options=rows, more=found["more"], search=bool(step.get("search")))
         if "max_rows" in found:
             out["max_rows"] = found["max_rows"]
+        if step.get("zero"):
+            out["zero"] = True   # 金额多选的行上可以是 0（盘点数到 0），页面据此收 0
+        if step["input"] == "split":
+            total = _split_total(guide, step, answers)
+            if total is not None:
+                out["total"] = total
         facts.extend(found.get("facts") or ())
         if found.get("wait"):
             out["wait"] = True
@@ -317,6 +323,20 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
     if answers.get(step["key"]) not in (None, "", [], {}):
         out["value"] = answers[step["key"]]
     return out
+
+
+def _split_total(guide: Mapping[str, Any], step: Mapping[str, Any], answers: Mapping[str, Any]) -> str | None:
+    """分摊题要分摊的合计：声明里它前面最近一道金额多选题此刻答的各行之和（收款：各张发票收多少 → 收款方式要分摊的数）。
+    那一道还没答回 None（页面不显示「应分」）。两位小数的字符串，同金额的写法。"""
+    keys = [item["key"] for item in guide["steps"]]
+    before = [item for item in guide["steps"][:keys.index(step["key"])] if item["input"] == "amounts"]
+    rows = answers.get(before[-1]["key"]) if before else None
+    if not isinstance(rows, list) or not rows:
+        return None
+    found = [steps.amount(row.get("amount")) if isinstance(row, Mapping) else None for row in rows]
+    if any(value is None for value in found):
+        return None
+    return f"{sum(found):.2f}"
 
 
 def _recommended_first(step: Mapping[str, Any], ctx: Dict[str, Any], rows: List[Dict[str, Any]], hint: Any,
