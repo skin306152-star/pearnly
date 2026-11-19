@@ -119,6 +119,21 @@ def _precheck(payload, doc) -> list:
     return _settle(payload, outcome)
 
 
+def _again(payload) -> list:
+    """此刻在问的那道题原样再出一次（带快捷回复）：LINE 只在最后一条消息上挂快捷回复，回了「排队中」或别的话，原来那道题的按钮
+    就看不见了（11-19 真机）。物料 / 仓库那几步按这一张、这一步重出（按钮照样认）；写前判定的题用共用出题器现有的出题函数重出
+    （这一题的按钮换新的一组，之前那组作废）。"""
+    asking = payload.get(line_items.ASKING) or {}
+    if asking.get("intake"):
+        doc = _ready(asking["intake"])
+        question = line_items.current(doc, asking) if doc is not None else None
+        return [question] if question else []
+    batch = (payload.get(line_ask.KEY) or {}).get("current")
+    if batch and batch.get("question"):
+        return [line_ask._render(batch, line_ask._default())]
+    return []
+
+
 def _drive(payload, messages=()) -> list:
     """没有在问的：排着的下一张开始（先物料与仓库，再写前判定，没有题就出卡），直到有一张在问或排空。"""
     messages = list(messages)
@@ -150,8 +165,8 @@ def begin(line_user_id, names):
     payload[WAITING] = waiting + [name for name in names if name not in waiting]
     messages = _drive(payload)
     if not messages and _busy(payload):
-        # 正在答别的票：这张排在后面，回一句「排队中」（现有词条），问完前一张再问它
-        messages = [_text(_("Queued"))]
+        # 正在答别的票：这张排在后面，回一句「排队中」（现有词条），后面紧跟在问的那道题（快捷回复只挂在最后一条上）
+        messages = [_text(_("Queued")), *_again(payload)]
     line_flow.keep(line_user_id, payload)
     return messages
 
@@ -183,16 +198,24 @@ def answer(line_user_id, user, data, reply_token):
 
 
 def text(line_user_id, user, text, reply_token) -> bool:
-    """在问写前判定的题时收到的文字：打编号选、搜索题打名称或编码找（出题器判）。没在问、正在重选上传前的几步、打的是
-    「ซื้อ / ขาย」这类开始词时返回 False，交给别的流程。"""
+    """有题在等答时收到的文字。写前判定的题：打编号选、搜索题打名称或编码找，别的回没找到并重问（出题器判）；物料 / 仓库那几步
+    （打名称找物料、找仓库已由 `line_items.search` 先认）：打的字与答题无关，重发这道题（不回「请点击下方菜单开始」，11-19 真机）。
+    没题在等答、正在重选上传前的几步、打的是「ซื้อ / ขาย」这类开始词时返回 False，交给别的流程（菜单词在调用方之前已认）。"""
     payload = line_flow.choices(line_user_id)
     wanted = str(text or "").strip()
-    if not line_ask.asking(payload) or not wanted:
+    if not _busy(payload) or not wanted:
         return False
     if payload.get("direction") and not line_flow.ready(payload):
         return False  # 答题中又点菜单重选上传前的几步：打的字是给那几步的
     if not wanted.isdigit() and wanted.casefold() in line_flow.DIRECTION_WORDS:
         return False
+    if not line_ask.asking(payload):
+        messages = _again(payload)
+        if not messages:
+            return False
+        line_flow.keep(line_user_id, payload)
+        send(line_user_id, messages, reply_token)
+        return True
     outcome = line_ask.text(payload, wanted, user=user)
     if outcome is None:
         return False

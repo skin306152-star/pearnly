@@ -235,6 +235,11 @@ def start(doc, payload) -> dict | None:
     return _question(doc, payload[ASKING])
 
 
+def current(doc, asking) -> dict | None:
+    """在问的这一步原样再出一次（`line_questions`：排队回「排队中」后、答题中打了无关的字）；按钮认这一张、这一步，照样能点。"""
+    return _question(doc, asking)
+
+
 def heading(doc) -> str:
     """提问开头那行「对方 · 单号」（写前判定的题同样用它）。"""
     return _title(doc, _result(doc))
@@ -412,4 +417,4 @@ def _products(doc, text):
              len(exact) == 1) for row in rows][:MAX_CHOICES + 1]
 
 
-__all__ = ["ACTION", "ASKING", "adopt", "answer", "choices_of", "heading", "is_step", "prepare", "search", "start"]
+__all__ = ["ACTION", "ASKING", "adopt", "answer", "choices_of", "current", "heading", "is_step", "prepare", "search", "start"]

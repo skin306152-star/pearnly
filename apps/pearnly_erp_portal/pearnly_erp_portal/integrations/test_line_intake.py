@@ -686,8 +686,11 @@ class LineItems(Base):
     def test_documents_are_asked_one_at_a_time_and_cancel_moves_on(self):
         self.add("LI-1", [self.row()], warehouse="WH-1")
         self.add("LI-2", [self.row()], warehouse="WH-1")
-        self.assertEqual(len(self.begin("LI-1")), 1)
-        self.assertEqual(self.begin("LI-2"), [{"type": "text", "text": "Queued"}])  # 排在 LI-1 后面：只回「排队中」，不出卡、不提问
+        question, = self.begin("LI-1")
+        # 排在 LI-1 后面：回「排队中」，后面紧跟 LI-1 在问的那道题（快捷回复只挂在最后一条上，11-19 真机），不出卡、不问 LI-2
+        queued, again = self.begin("LI-2")
+        self.assertEqual(queued, {"type": "text", "text": "Queued"})
+        self.assertEqual((again["text"], self.labels(again)), (question["text"], self.labels(question)))
         self.tap("a=erp_item&v=all_new&n=LI-2")               # 不是当前这张：无效
         self.assertEqual(self.last_text(), "This option is no longer current")
         self.tap("a=erp_item&v=cancel&n=LI-1")
@@ -736,6 +739,41 @@ class LineItems(Base):
         self.assertEqual(self.judge.records[-1][2], [{"key": precheck_card.item_key("mrerp_menu", "purchase"), "value": "RR"}])
         self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
 
+    def test_the_queued_reply_carries_the_open_item_question_and_its_buttons_work(self):
+        """11-19 真机：票 A 的新物料题在等答时发票 B，只回「排队中」，A 的按钮就没了。现在后面紧跟 A 的题，点它照样往下走。"""
+        self.add("LI-1", [self.row()], warehouse="WH-1")
+        self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
+        self.begin("LI-1")
+        queued, again = self.begin("LI-2")
+        self.assertEqual(queued["text"], "Queued")
+        self.assertTrue(again["text"].startswith("Acme · LI-1"))
+        self.press(again, 0)                              # 全部新建并入库
+        self.assertEqual(self.lines("LI-1")[0]["new"], True)
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}, {"card": "LI-2"}])
+
+    def test_unrelated_words_while_an_item_question_waits_ask_it_again(self):
+        """11-19 真机：答物料题时打「x」回「请点击下方菜单开始」，题再也找不回来。现在重发这道题（按钮照样能点）。"""
+        self.add("LI-1", [self.row()], warehouse="WH-1")
+        question, = self.begin("LI-1")
+        self.say("x")
+        again, = self.replies[-1]
+        self.assertEqual((again["text"], self.labels(again)), (question["text"], self.labels(question)))
+        self.press(again, 0)
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_unrelated_words_while_a_precheck_question_waits_ask_it_again(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        question, = self.begin("LI-1")
+        self.say("x")
+        miss, again = self.replies[-1]
+        self.assertEqual(miss["text"], "No match for “x”")
+        self.assertEqual((again["text"], self.labels(again)), (question["text"], self.labels(question)))
+        self.press(again, 1)                              # 重出的按钮能点
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+        self.say("เมนู")                                  # 没题在等答：菜单词照常交给菜单
+        self.assertNotEqual(self.replies[-1], [again])
+
     def test_a_ticket_with_nothing_to_ask_gets_its_card_at_once(self):
         self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
         self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]
@@ -782,9 +820,11 @@ class LineItems(Base):
         self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
         self.judge.docs["I:LI-1"] = [{**VAT, "subject": "one"}]
         self.judge.docs["I:LI-2"] = [{**VAT, "subject": "two"}]
-        first, = self.begin("LI-1")
-        self.assertEqual(self.begin("LI-2"), [{"type": "text", "text": "Queued"}])  # 答题中来的新票：排队，不出卡、不插题
-        self.press(first, 0)
+        asked, = self.begin("LI-1")
+        queued, first = self.begin("LI-2")               # 答题中来的新票：排队，不出卡、不插题；后面紧跟 LI-1 在问的题
+        self.assertEqual(queued, {"type": "text", "text": "Queued"})
+        self.assertEqual((first["text"], self.labels(first)), (asked["text"], self.labels(asked)))
+        self.press(first, 0)                              # 重出的这一组按钮照样能点
         self.assertEqual(self.judge.records[-1][1], ["I:LI-1"])  # 答案只记给 LI-1
         card, second = self.replies[-1]
         self.assertEqual(card, {"card": "LI-1"})
