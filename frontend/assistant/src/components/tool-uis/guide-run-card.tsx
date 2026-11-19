@@ -60,7 +60,7 @@ const QuestionBody: FC<{
       return (
         <ChoiceField options={q.options ?? []} more={q.more} search={search} multi={q.input === "multi"} label={q.title} disabled={disabled}
           value={value as string | string[] | undefined} recommended={q.tier === "how" && typeof q.preselected === "string" ? q.preselected : undefined}
-          onChange={onChange} />
+          query={q.query} onChange={onChange} />
       );
     case "amounts":
       return search || q.more ? (

@@ -183,8 +183,9 @@ export type SearchFn = (txt: string, start: number) => Promise<{ options: Choice
 /** 先列几条（同提问卡「其他」：其余「显示更多」，本页已取到的先放出，不够再向服务端取下一页）。 */
 export const FIRST_ROWS = 5;
 
-export function useOptions(first: readonly ChoiceItem[], firstMore: boolean, search: SearchFn | undefined, picked: readonly string[]) {
-  const [txt, setTxtRaw] = useState("");
+/** query：搜索框的初值（服务端已按它搜好了 first 这一页，例：对话里说的客户名预填进「客户」）；只是初值，不当答案、不勾选。 */
+export function useOptions(first: readonly ChoiceItem[], firstMore: boolean, search: SearchFn | undefined, picked: readonly string[], query = "") {
+  const [txt, setTxtRaw] = useState(query);
   const [shown, setShown] = useState(FIRST_ROWS);
   const setTxt = (next: string) => { setTxtRaw(next); setShown(FIRST_ROWS); };
   const [page, setPage] = useState<{ options: ChoiceItem[]; more: boolean }>({ options: [...first], more: firstMore });
@@ -194,7 +195,8 @@ export function useOptions(first: readonly ChoiceItem[], firstMore: boolean, sea
   const firstKey = first.map((o) => o.code).join("\n");
   useEffect(() => {
     if (!search) return setPage({ options: [...first], more: firstMore });
-    if (!txt) return setPage({ options: [...first], more: firstMore });
+    // 空的、或还是服务端已搜好的那个初值：用题上给的这一页，不再搜一遍
+    if (!txt || (query && txt === query)) return setPage({ options: [...first], more: firstMore });
     let alive = true;
     const timer = window.setTimeout(() => void search(txt.trim(), 0).then((found) => alive && setPage(found), withReport(undefined, "guide-search")), 250);
     return () => { alive = false; window.clearTimeout(timer); };
@@ -235,12 +237,14 @@ export const ChoiceField: FC<{
   multi: boolean;
   value: string | string[] | undefined;
   recommended?: string;
+  /** 搜索框初值（题上的 query） */
+  query?: string;
   label: string;
   disabled?: boolean;
   onChange: (value: string | string[]) => void;
-}> = ({ options, more = false, search, multi, value, recommended, label, disabled, onChange }) => {
+}> = ({ options, more = false, search, multi, value, recommended, query, label, disabled, onChange }) => {
   const picked = Array.isArray(value) ? value : value ? [value] : [];
-  const found = useOptions(options, more, search, picked);
+  const found = useOptions(options, more, search, picked, query);
   const toggle = (code: string) => {
     if (!multi) return onChange(code);
     onChange(picked.includes(code) ? picked.filter((c) => c !== code) : [...picked, code]);

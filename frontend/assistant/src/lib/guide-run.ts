@@ -21,6 +21,8 @@ export type GuideQuestion = {
   zero?: boolean;
   /** 多行输入一次最多几行（split / amounts，选项函数此刻给；带 free 的选项不占名额），wire 50ba9dfb9 */
   max_rows?: number;
+  /** 带搜索的单选题：搜索框初值，选项已按它搜过（对话里说的客户名 / 单号预填，用户 11-16）；只是初值，不当答案、不勾选 */
+  query?: string;
   /** 分摊的总额。待定：view 还没带；没带时取本卡前面金额多选那一步的合计 */
   total?: string;
   /** N1a：一组子题 */

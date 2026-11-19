@@ -124,6 +124,13 @@ class GuideInputTests(unittest.TestCase):
         self.assertIn('const off = disabled || (value.trim() === "" && locked.has(option.code));', code)
         self.assertIn('{value.trim() === "" && rest > 0n && !off ? (', code)
         self.assertEqual((src / "components/tool-uis/guide-run-card.tsx").read_text(encoding="utf-8").count("maxRows={q.max_rows}"), 3)
+        # query（Cowork 引导第二线 11-19）：带搜索的单选题，搜索框初值；服务端已按它搜好第一页，页面不再搜一遍；只是初值，不当答案、不勾选
+        self.assertIn('const [txt, setTxtRaw] = useState(query);', code)
+        self.assertIn("if (!txt || (query && txt === query)) return setPage({ options: [...first], more: firstMore });", code)
+        self.assertIn("const found = useOptions(options, more, search, picked, query);", code)
+        card = (src / "components/tool-uis/guide-run-card.tsx").read_text(encoding="utf-8")
+        self.assertIn("query={q.query} onChange={onChange} />", card)
+        self.assertNotIn("value={q.query", card)
         for raw in ("<input", "<button", "<table", "radix-ui"):          # 不手写通用控件、不直接引底层件
             self.assertNotIn(raw, code)
         i18n = (src / "i18n.ts").read_text(encoding="utf-8")
