@@ -812,7 +812,8 @@ def tool_end(_tool_input) -> str:
 
 def reopen(name: str, key: str, version: int) -> Dict[str, Any]:
     """复核卡或「已定」上点某一步「改」（页面接口 ``guide_reopen``）：回到那一步重问。本人、版本与看到的一致、运行还开着；那一步要是这次
-    引导此刻适用、已有值（答过的或后台定的）。原值记进 ``reopened``，题上作为 ``value``；依赖它的后面各步作废；回 asking、版本 +1。
+    引导此刻适用、已有值（答过的或后台定的）。原值记进 ``reopened``，题上作为 ``value``；依赖它的后面各步作废；回 asking、版本 +1；
+    草稿号保留，交给下一次 ``draft``（产品据它作废上一张）。
     按单据的业务（复核就地改一格，:func:`edit`）不走这里。"""
     doc, guide, _now = _checked(name)
     if _documents(guide) or doc.status not in OPEN:
@@ -829,7 +830,8 @@ def reopen(name: str, key: str, version: int) -> Dict[str, Any]:
     kept.pop(key, None)
     doc.reopened = json.dumps({**_reopened(doc), key: values[key]}, ensure_ascii=False, default=str)
     doc.answers = json.dumps(kept, ensure_ascii=False, default=str)
-    doc.status, doc.draft, doc.result = ASKING, "", ""
+    # 草稿号留着：下一次生成草稿时产品据 ``ctx["draft"]`` 作废上一张（收款：作废旧草稿再建新的），清掉就留下孤儿草稿（A2 11-19）
+    doc.status, doc.result = ASKING, ""
     doc.version = int(doc.version or 0) + 1
     _save(doc)
     _announce(doc)

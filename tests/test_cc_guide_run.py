@@ -842,6 +842,21 @@ class ReopenTests(Base):
         self.assertNotIn("on_date", [q["key"] for q in found["card"]["questions"]])
         self.assertEqual(found["card"]["answers"]["on_date"], "2026-11-13")
 
+    def test_the_draft_made_before_reopening_is_handed_to_the_next_draft(self):
+        # A2 11-19 实验栈：改一步回去重问后再到复核，第一次复核建的收款草稿留在库里成了孤儿。草稿号要留到下一次生成草稿，
+        # 产品据 ctx["draft"] 作废上一张（同收款引导 `collection.guide.draft`）
+        seen = []
+        ATTRS["app.draft"] = lambda ctx, values: seen.append(ctx["draft"]) or f"R:{ctx['run']}:{len(seen)}"
+        name, found = self.to_review()
+        self.assertEqual(seen, [""])
+        back = run.reopen(name, "invoices", found["version"])
+        self.assertEqual(self.docs[name].draft, f"R:{name}:1")   # 重问期间不丢
+        run.answer(name, {"invoices": IV})
+        again = run.answer(name, {"method": CASH})
+        self.assertEqual((again["status"], seen), ("reviewing", ["", f"R:{name}:1"]))
+        self.assertEqual(self.docs[name].draft, f"R:{name}:2")
+        self.assertEqual(back["status"], "asking")
+
     def test_a_stale_version_or_an_unknown_step_is_not_reopened(self):
         name, found = self.to_review()
         self.assertEqual(run.reopen(name, "invoices", found["version"] - 1)["outcome"], "changed")

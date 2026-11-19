@@ -274,6 +274,20 @@ class SentBack(Base):
         self.assertNotEqual(new, old)
 
 
+    def test_reopening_a_step_from_review_withdraws_the_old_draft_too(self):
+        # A2 11-19 实验栈：复核卡上点「改」回去重问、再到复核，第一次复核建的草稿没作废，收款列表里多一笔孤儿草稿
+        name, found = self.to_review()
+        old, _version = guide._draft_name(self.runs[name].draft)
+        back = run.reopen(name, "invoices", found["version"])
+        self.assertEqual(back["status"], "asking")
+        run.answer(name, {"invoices": [{"code": "IV1", "amount": "700"}]})
+        again = run.answer(name, {"methods": [{"code": guide.CASH, "amount": "700"}]})
+        self.assertEqual(again["status"], "reviewing")
+        self.assertEqual(frappe.db.get_value("ERP Collection", old, "status"), C.WITHDRAWN)
+        new, _version = guide._draft_name(self.runs[name].draft)
+        self.assertNotEqual(new, old)
+
+
 class Dates(Base):
     def test_a_day_outside_every_period_is_asked_with_the_periods_that_can_be_recorded(self):
         periods = [{"key": T.BOOK["key"], "label": "NLTTEST", "short": "NLTTEST", "start": "2025-01-01",
