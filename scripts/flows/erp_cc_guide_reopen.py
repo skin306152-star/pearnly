@@ -38,7 +38,10 @@ def prepare(lab, manifest):
     site = manifest["site"]
     set_language(lab, site, USER, "zh")
     tag = "gr" + uuid.uuid4().hex[:6]
-    return {**seed(lab, manifest, tag), "tag": tag}
+    seeded = seed(lab, manifest, tag)
+    # 同收款引导卡流程：新对话先在输入框下面选公司（没选公司的对话引导卡会先问公司，按客户、发票交的答案接不上）
+    title = lab.python(site, f"print(json.dumps({{'t': frappe.db.get_value('ERP Company', {seeded['company']!r}, 'company_name')}}))")["t"]
+    return {**seeded, "tag": tag, "title": title}
 
 
 def steps(params, camera_code=None):
@@ -48,6 +51,11 @@ def steps(params, camera_code=None):
             f"await ans(run,{{invoices:[{{code:{first},amount:'600'}}]}}); "
             "const done=await ans(run,{methods:[{code:'cash',amount:'600'}]}); ")
     return [
+        {"name": "选公司", "js": JS + "{" + f"const want={json.dumps(params['title'])}; "
+         "q('[data-slot=\"cc-chin-company\"]').click(); await until(()=>q('[data-slot=\"cc-company-picker\"] .cc-list-row'),80); await sleep(800); "
+         "const row=qa('[data-slot=\"cc-company-picker\"] .cc-list-row').find(r=>r.innerText.includes(want)); row?.click(); "
+         "const chosen=await until(()=>!q('[data-slot=\"cc-company-picker\"]')&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(want),80); "
+         "return {row: !!row, chosen};}"},
         {"name": "开对话", "js": JS + f"{{const sent=await say({json.dumps(tag + ' 你好')}); await sleep(1500); return {{sent}};}}"},
         {"name": "开收款卡到复核", "js": JS + "{" + HELP +
          f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); const sid=(mine[0]||{{}}).id; "
@@ -76,6 +84,7 @@ def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
     first, invoices, customer = (by.get(k) or {} for k in ("开收款卡到复核", "改发票再复核", "改客户再复核"))
     return [
+        {"case": "在输入框下面选了这家公司", "seen": by.get("选公司"), "ok": bool((by.get("选公司") or {}).get("chosen"))},
         {"case": "第一次走到复核", "seen": first, "ok": first.get("status") == "reviewing" and bool(first.get("run"))},
         {"case": "改发票：回 asking、版本 +1、题上是原来填的那一行（不当推荐），再到复核", "seen": invoices,
          "ok": invoices.get("back") == "asking" and invoices.get("to") == (invoices.get("from") or 0) + 1
