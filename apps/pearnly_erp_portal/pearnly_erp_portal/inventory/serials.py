@@ -173,9 +173,10 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 _event(unit, "out", ref_type, ref_id, posting_date, prev_status=IN_STOCK)
 
 
-def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=None):
-    """``stock.apply_transfer`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数，选中的台必须在调出仓在库，
-    换到调入仓（状态仍是在库）；记两条按台流水（调出仓、调入仓），作废时据此退回。"""
+def transfer(*, lines, warehouse, to_warehouse, ref_type, ref_id, company, posting_date=None):
+    """``stock.apply_transfer`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数，选中的台必须在调出仓 ``warehouse`` 在库，
+    换到调入仓（状态仍是在库）；记两条按台流水（调出仓、调入仓），作废时据此退回。调拨单头一出一进、行上不放仓（11-19），
+    调出仓只看单头。"""
     products = tracked((line.get("product") for line in lines), company)
     if not products:
         return
@@ -191,7 +192,7 @@ def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=Non
             if unit.name in seen or unit.company != company or unit.product != line["product"]:
                 frappe.throw(_(NOT_FOUND))
             seen.add(unit.name)
-            if unit.status != IN_STOCK or unit.warehouse != line["warehouse"]:
+            if unit.status != IN_STOCK or unit.warehouse != warehouse:
                 frappe.throw(_(NOT_IN_STOCK) + f": {unit.serial_no}")
             _event(unit, TRANSFER_OUT, ref_type, ref_id, posting_date, prev_status=IN_STOCK)
             unit.update({"warehouse": to_warehouse})

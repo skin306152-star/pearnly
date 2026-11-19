@@ -203,8 +203,9 @@ class Serials(unittest.TestCase):
         self.assertFalse(any("location" in row for row in self.db[S.MOVEMENT].values() if isinstance(row, dict)))
 
     def transfer(self, unit, ref="STE-TF", source="W1", to="W2"):
-        S.transfer(lines=[self.line(1, [{"serial": unit.name}], warehouse=source)], to_warehouse=to,
-                   ref_type="stock_entry", ref_id=ref, company="CO-1")
+        # 调拨的行不放仓（单头一出一进，11-19）：`documents._post` 交来的行只有物料、数量、单位、台，调出仓只看单头
+        line = {key: value for key, value in self.line(1, [{"serial": unit.name}]).items() if key != "warehouse"}
+        S.transfer(lines=[line], warehouse=source, to_warehouse=to, ref_type="stock_entry", ref_id=ref, company="CO-1")
 
     def test_a_transfer_moves_the_unit_and_voiding_it_brings_it_back(self):
         """多仓闭环 P2：调拨选调出仓在库的台，换到调入仓、仍是在库；作废回调出仓（单头一出一进，11-19 不再有仓位）。"""

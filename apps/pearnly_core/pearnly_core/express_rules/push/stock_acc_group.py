@@ -88,14 +88,19 @@ def new_item_group(payload: Optional[Dict[str, Any]], config: Optional[Dict[str,
       · 能证明挂得最多的是合格组(它挂的件数多过不合格的组加起来) → 照旧交电脑,回空;
       · 证明不了 → 同零主档那一档:合格的 1 个就用它(``auto``),几个 → REASON_ACC_GROUP_REQUIRED(选一次、按账套记住),
         一个都没有 → REASON_ACC_GROUP_MISSING(要在 Express 里配)。
-    载荷或端点已带组、没有要新建的库存品 → 回空。"""
+    载荷或端点已带组、没有要新建的库存品 → 回空。没带存货码、名字与账套里已有的库存品同名的行不是新建：电脑照名取已有那件
+    （CC 桌面版 `stock_purchase` 复用同名库存品，``choices`` 同名不问存货对照），不为它定组。"""
+    from pearnly_core.express_rules.push.choices import norm_name
     from pearnly_core.express_rules.push.common import ITEM_MODE_STOCK
 
     payload, cfg = payload or {}, config or {}
     if str(payload.get("stock_acccod") or "").strip() or str(cfg.get("stock_acccod") or "").strip():
         return StockAccGroupChoice("", "", False)
+    existing = {norm_name(row.get("name")) for row in cfg.get("reported_products") or ()
+                if isinstance(row, dict) and str(row.get("code") or "").strip()
+                and str(row.get("kind") or "stock") == "stock" and norm_name(row.get("name"))}
     if not any(isinstance(item, dict) and item.get("item_mode") == ITEM_MODE_STOCK and not str(item.get("code") or "").strip()
-               for item in payload.get("items") or ()):
+               and norm_name(item.get("name")) not in existing for item in payload.get("items") or ()):
         return StockAccGroupChoice("", "", False)
     groups = fit_stock_acc_groups(cfg)
     total = stock_master_count(cfg)

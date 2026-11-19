@@ -505,12 +505,15 @@
 				line.pricing = true;
 				try { await set(); } finally { line.pricing = false; }
 			}
-			// 物料调整：人没改过单价的行，选物料 / 换仓 / 换单位时按这一行的仓现在的均价带出（看不到成本的人服务端回空）
+			// 物料调整：人没改过单价的行，选物料 / 换仓 / 换单位时按这一行的仓现在的均价带出（看不到成本的人服务端回空）。
+			// 这一行还没选仓（多仓公司、没有建议仓，先选了物料）：先不取，选了仓再带（仓那一格的 onchange）；不拿空仓去问服务端，
+			// 那会弹「请选择仓库」
 			async function default_cost(line) {
 				const product = line.form.get_value("product");
-				if (!product || line.manual) return;
+				const warehouse = line.form.get_value("warehouse") || head_warehouse();
+				if (!product || !warehouse || line.manual) return;
 				const result = await p.call("pearnly_erp_portal.inventory.api.api_default_unit_cost", { product,
-					warehouse: line.form.get_value("warehouse") || head_warehouse(), unit: line.form.get_value("unit") || "" });
+					warehouse, unit: line.form.get_value("unit") || "" });
 				if (line.form.get_value("product") !== product || line.manual) return;
 				await priced(line, () => line.form.set_value(price, result?.unit_cost ?? null));
 			}

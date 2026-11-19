@@ -239,6 +239,18 @@ class NewItemGroupTests(unittest.TestCase):
         self.assertEqual(self.verdict(self.NEW, self.config([], chosen="ST10")), ("", ""))
         self.assertEqual(self.verdict({**self.NEW, "stock_acccod": "ST10"}, self.config([])), ("", ""))
 
+    def test_a_stock_line_named_like_an_existing_stock_item_is_not_new(self):
+        """没带存货码、与账套已有库存品同名的行电脑照名复用（不新建），不为它定组 / 停下（流程 cowork.express.warehouse 11-19）；
+        同名的是非库存品、或另有一行真是新品的照旧要定组。"""
+        same = {"items": [{"item_mode": "stock_item", "code": "", "name": "Ice  Flow"}]}
+        products = [{"code": "ICE01", "name": "Ice flow", "kind": "stock"}]
+        self.assertEqual(self.verdict(same, {**self.config([], total=37), "reported_products": products}), ("", ""))
+        self.assertEqual(self.verdict(same, {**self.config([], total=37), "reported_products": [{**products[0], "kind": "nonstock"}]}),
+                         ("", "stock_acc_group_missing"))
+        mixed = {"items": same["items"] + self.NEW["items"]}
+        self.assertEqual(self.verdict(mixed, {**self.config([], total=37), "reported_products": products}),
+                         ("", "stock_acc_group_missing"))
+
     def test_the_computer_clones_only_a_provably_fit_most_used_group(self):
         self.assertEqual(self.verdict(self.NEW, self.config([("ST10", 146)], total=162)), ("", ""))
         self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17)], total=37)), ("DM", ""))  # ST01（不合格）挂 19 件

@@ -38,8 +38,9 @@
 			await form.set_values(Object.fromEntries(["subtotal", "vat_amount", "wht_amount", "grand_total", "net_payable"]
 				.map(key => [key, result[key]])));
 		}, 400);
-		// 仓库按行（11-19）：第一行用建议仓（本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选），新行跟上一行；只有一个仓的公司明细不出仓库栏
-		const place = await p.place.defaults("purchase", {company: doc.company});
+		// 仓库按行（11-19）：第一行用建议仓（单上带着的仓 → 本人上次 → 卖货仓 → 唯一仓 → 空 = 必须选），新行跟上一行；只有一个仓的公司明细不出仓库栏。
+		// 单上带着的仓：LINE 卡片「编辑」打开时是 LINE 里问的那一个（一张票问一次，`integrations/intake.py::_place`），已存的单是它的默认仓
+		const place = await p.place.defaults("purchase", {company: doc.company, context: doc.warehouse});
 		if (!still_current()) return () => {state.disposed = true;};
 		state.single_warehouse = place.single;
 		state.default_warehouse = editable ? place.warehouse : "";

@@ -129,6 +129,62 @@ test('预填问服务端 `warehouses.api_prefill`（单据类型 + 当前公司�
   assert.deepEqual({ ...call.args }, { kind: 'purchase', company: 'CO-1', context: '' });
 });
 
+// LINE 卡片「编辑」打开的采购 / 销售页：各行默认 LINE 里问的那个仓（单上带着的 `doc.warehouse`，`intake._place`），不是本人上次的仓
+// （11-19 按行选仓后表单不再有单头仓，曾只按本人上次 / 卖货仓预填，LINE 里答的仓在编辑页丢了）
+test('采购 / 销售页的建议仓先用单上带着的仓（LINE 里问的那个），服务端按 context 认', async () => {
+  const { p, calls } = load();
+  await p.place.defaults('purchase', { company: 'CO-2', context: 'WH-LINE' });
+  assert.deepEqual({ ...calls.find(item => item.method).args }, { kind: 'purchase', company: 'CO-2', context: 'WH-LINE' });
+  for (const [file, kind] of [['purchase-form.js', 'purchase'], ['sales-form.js', 'sales']]) {
+    const source = read(`apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/${file}`);
+    assert.match(source, new RegExp(`p\\.place\\.defaults\\("${kind}", \\{company: doc\\.company, context: doc\\.warehouse\\}\\)`), file);
+  }
+});
+
+// 物料调整按行选仓（11-19）：多仓公司没有建议仓时人先选物料、再选仓。没选仓之前不取默认单价（拿空仓问服务端会弹「请选择仓库」、
+// 页面留下未处理的 Promise 拒绝，流程 erp.stock-adjust 11-19 本地实测）；选了仓再按这个仓的均价带出。走真实的明细编辑器。
+function load_editor() {
+  const calls = [];
+  const node = () => { const el = { appendTo: () => el, append: () => el, empty: () => el, remove: () => el, addClass: () => el, on: () => el,
+    contents: () => ({ filter: () => ({ first: () => ({ replaceWith() {} }) }) }) }; return el; };
+  const frappe = { provide() {}, pearnly: {}, boot: { pearnly_pages: [], pearnly_company: 'CO-1', pearnly_companies: [] },
+    re_route: {}, model: {}, realtime: { on() {}, off() {} }, ui: { Sidebar: class {} }, datetime: { str_to_user: v => v },
+    breadcrumbs: { set_custom_breadcrumbs() {}, add() {} }, utils: { escape_html: v => v, get_link_title: () => 'Main', fetch_link_title: async () => 'Main' },
+    msg_dialog: null, call: async ({ method, args }) => { calls.push({ method, args }); return { message: { unit_cost: 12, unit: 'pc' } }; } };
+  const context = { frappe, window: { addEventListener() {} }, document: { body: { classList: { add() {} } }, addEventListener() {},
+    createTextNode: text => text }, $: node, __: k => k, locals: {}, setTimeout, clearTimeout,
+    localStorage: { getItem() { return null; }, setItem() {}, length: 0, key() {} } };
+  vm.runInNewContext(CORE, context);
+  vm.runInNewContext(TRANSACTIONS, context);
+  const p = frappe.pearnly;
+  p.layout = (_parent, fields) => {
+    const values = {}, fields_dict = {};
+    for (const df of fields) if (df.fieldname) fields_dict[df.fieldname] = { df, $wrapper: node(), input: { addEventListener() {} },
+      $input: { val: () => '' }, get_value: () => values[df.fieldname] };
+    return { fields_dict, sections: [{ head: node(), collapse() {} }], get_value: key => values[key],
+      set_value: async (key, value) => { values[key] = value; }, set_values: async changes => { Object.assign(values, changes); },
+      set_df_property: (key, prop, value) => { if (fields_dict[key]) fields_dict[key].df[prop] = value; } };
+  };
+  return { p, calls };
+}
+
+test('物料调整：这一行没选仓时选物料不取默认单价，选了仓再按这个仓带出', async () => {
+  const { p, calls } = load_editor();
+  const editor = p.trade.lines_editor(k => k, { cost: true, adjust: true, warehouse: () => '' });
+  const line = editor.add({});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const cost = () => calls.filter(item => item.method.endsWith('api_default_unit_cost'));
+  await line.form.set_value('product', 'PRD-1');
+  await line.form.fields_dict.product.df.onchange();
+  assert.equal(cost().length, 0, 'no default cost is asked for a line without a warehouse');
+  await line.form.set_value('warehouse', 'WH-3');
+  line.form.fields_dict.warehouse.df.onchange();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(cost().length, 1);
+  assert.equal(cost()[0].args.warehouse, 'WH-3');
+  assert.equal(line.form.get_value('unit_cost'), 12);
+});
+
 // 建议仓同步写进空格子、不走 Link 校验（校验在途时人选的仓会被框架丢掉，10-31）；已经有值的不动
 test('建议仓只写进空的那格，同步写、不发请求；track 建好时把能改的表头写上建议仓', () => {
   const { p, calls } = load();

@@ -247,8 +247,8 @@ def apply_transfer(*, warehouse: str, to_warehouse: str, lines, posting_date=Non
         return {"movements": [], "updated": [], "deduped": True}
     from pearnly_erp_portal.inventory import serials
 
-    serials.transfer(lines=lines, to_warehouse=to_warehouse, ref_type=ref_type, ref_id=ref_id, company=company,
-                     posting_date=posting_date)
+    serials.transfer(lines=lines, warehouse=warehouse, to_warehouse=to_warehouse, ref_type=ref_type, ref_id=ref_id,
+                     company=company, posting_date=posting_date)
     movements, updated = [], []
     common = {"posting_date": posting_date, "ref_type": ref_type, "ref_id": ref_id, "doc_no": doc_no, "reason": reason,
               "internal": True, "company": company}
