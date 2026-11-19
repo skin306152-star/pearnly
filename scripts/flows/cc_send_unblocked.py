@@ -5,8 +5,9 @@
 1. 永远传不上的文件（超限、空文件、不收的类型）选中那一刻就拒收：不进输入框、没有附件卡，输入框上方那一行说「文件超过 40 MB」；同一次选的另一份没超限的照常
    加入并传上。接着打一句发送，发得出去、带着那份没超限的。以前超限的留一张失败卡，发送时重传必败、整条发不出，不删卡就永远发不出。
    空文件同样拒收。
-2. 提问卡 ask_user 挂着时在输入框里打字发送：当场发出（不排队），站点先结束引擎等卡片的那一轮、卡片作废，再送这句（随它告诉
-   模型卡片没答、这句就是回答），CC 只回这一句；卡片变成「已取消」。以前这句排着等这一轮结束，而这一轮正等用户答卡，永远发不出。
+2. 提问卡 ask_user 浮在输入框上方等作答时在输入框里打字发送（照 Claude，审计 11-09 第六节，主会话 11-19）：这句就是当前这题的
+   「其他」，后面没答的题跳过，当场交卡（不排队），对话里不另出这句的气泡；CC 收到的是作答结果，卡片收成只读摘要。以前这句排着
+   等这一轮结束，而这一轮正等用户答卡，永远发不出。
 3. 「允许 / 拒绝」卡挂着时打字发送：同上，那张卡作废，工具没有执行（站点执行记录是 cancelled，没有执行过）。这条路任何情况下
    不能变成「允许」。
 
@@ -23,7 +24,7 @@ import uuid
 
 from cc_lib import JS
 
-TITLE = "CC 输入框不被挂着的东西挡住：超限文件选中时拒收不留失败卡；提问卡、允许卡挂着时打字当场发出，站点先结束那一轮、卡片作废（不执行）"
+TITLE = "CC 输入框不被挂着的东西挡住：超限文件选中时拒收不留失败卡；提问卡浮着时打字即作答；允许卡挂着时打字当场发出，站点先结束那一轮、卡片作废（不执行）"
 READY = "document.readyState === 'complete' && !!document.querySelector('textarea[aria-label]')"
 NOTE_TOOL = {"cowork": "cowork_company_note_save", "erp": "erp_company_note_save"}
 QUESTIONS = {"questions": [
@@ -86,15 +87,16 @@ def steps(params, camera_code=None):
          "return {clicked, bubble, replied, after: state(), file: qa('[data-role=\"user\"]').some(e=>e.innerText.includes('ok.txt'))||!!q('[data-role=\"user\"] .cc-file-card, .aui-user-message-attachments-end')};"},
         open_new,
         {"name": "提问卡挂着时打字发送", "shot": True, "file": "3-typed-while-question-card-waits", "js": head +
-         f"const asked=await say({json.dumps(params['ask'])}); const card=await until(()=>q('[data-slot=\"cc-askq-next\"]'),200); await sleep(800); "
+         f"const asked=await say({json.dumps(params['ask'])}); const card=await until(()=>q('[data-slot=\"cc-ask-float\"] [data-slot=\"cc-askq-next\"]'),200); await sleep(800); "
          "const before=state(); "
          f"const clicked=await type({json.dumps(words['ask'])}); await sleep(600); const queued=state().queue; "
-         f"const bubble=await until(()=>has(state().users,{json.dumps(words['ask'])}),80); "
-         f"const replied=await until(()=>has(state().replies,{reply(words['ask'])}),240); "
+         f"const answered=await until(()=>(q('[data-slot=\"cc-ask-answer\"]')?.innerText||'').includes({json.dumps(words['ask'])}),80); "
+         f"const replied=await until(()=>state().replies.some(r=>r.includes('[lab-agent] ask_user')&&r.includes({json.dumps(words['ask'])})),240); "
+         f"const bubble=has(state().users,{json.dumps(words['ask'])}); "
          "const settled=await until(()=>!q('[data-slot=\"cc-askq-next\"]'),80); "
          "const idle=await until(()=>!q('button.aui-composer-cancel'),80); "
          "q('[data-slot=\"cc-ask-answer\"]')?.scrollIntoView({block:'center'}); await sleep(400); "
-         "return {asked, card, before, clicked, queued, bubble, replied, settled, idle, after: state(), "
+         "return {asked, card, before, clicked, queued, answered, bubble, replied, settled, idle, after: state(), "
          "answer: q('[data-slot=\"cc-ask-answer\"]')?.innerText.trim()||''};"},
         open_new,
         {"name": "允许卡挂着时打字发送", "shot": True, "file": "4-typed-while-allow-card-waits", "js": head +
@@ -155,10 +157,12 @@ def judge(params, results, camera_code=None):
          "ok": bool(sent.get("clicked")) and bool(sent.get("bubble")) and bool(sent.get("replied"))
          and (sent.get("after") or {}).get("text") == "" and (sent.get("after") or {}).get("alert") == ""
          and (sent.get("after") or {}).get("cards") == 0},
-        {"case": "提问卡挂着时打字点发送：当场发出、不排队，气泡出现", "seen": {k: asked.get(k) for k in ("asked", "card", "clicked", "queued", "bubble", "before")},
-         "ok": bool(asked.get("card")) and bool(asked.get("clicked")) and asked.get("queued") == 0 and bool(asked.get("bubble"))},
-        {"case": "站点先结束等卡片的那一轮、卡片作废，再送这句：CC 只回这一句（没有别的回复），卡片不再能点、这一轮结束",
-         "seen": {"replies": [r[:200] for r in replies(asked)], **{k: asked.get(k) for k in ("replied", "settled", "idle", "answer")}},
+        {"case": "提问卡浮着时打字点发送 = 作答当前这题：当场交卡、不排队，对话里不另出这句的气泡，卡片摘要里是这句",
+         "seen": {k: asked.get(k) for k in ("asked", "card", "clicked", "queued", "answered", "bubble", "answer", "before")},
+         "ok": bool(asked.get("card")) and bool(asked.get("clicked")) and asked.get("queued") == 0 and bool(asked.get("answered"))
+         and not asked.get("bubble")},
+        {"case": "CC 收到的是作答（ask_user 的结果里带这句），只回这一次；卡片不再能点、这一轮结束",
+         "seen": {"replies": [r[:200] for r in replies(asked)], **{k: asked.get(k) for k in ("replied", "settled", "idle")}},
          "ok": bool(asked.get("replied")) and bool(asked.get("settled")) and bool(asked.get("idle")) and len(replies(asked)) == 1},
         {"case": "允许卡挂着时打字点发送：当场发出、不排队，气泡出现", "seen": {k: gated.get(k) for k in ("asked", "card", "clicked", "queued", "bubble", "before")},
          "ok": bool(gated.get("card")) and bool(gated.get("clicked")) and gated.get("queued") == 0 and bool(gated.get("bubble"))},
@@ -187,6 +191,6 @@ print(json.dumps({{"runs": [[r.tool, r.status] for r in rows], "executed": int(n
 """)
     runs = out.get("runs") or []
     return [
-        {"case": "执行记录：提问卡与写备注那次都是 cancelled（作废），没有执行过", "seen": out,
-         "ok": ["ask_user", "cancelled"] in runs and [tool, "cancelled"] in runs and out.get("executed") == 0},
+        {"case": "执行记录：提问卡是答完的（done，打字即作答），写备注那次是 cancelled（作废），没有执行过", "seen": out,
+         "ok": ["ask_user", "done"] in runs and [tool, "cancelled"] in runs and out.get("executed") == 0},
     ]
