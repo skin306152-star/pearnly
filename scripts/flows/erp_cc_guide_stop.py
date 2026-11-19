@@ -1,11 +1,11 @@
 """流程用例：引导进行中点停止 → 卡读回已失效、什么都没写（引导式退出路径，主会话 11-16）。
 
-真页面、假智能体（只用来开一段对话）；收款数据同一套造法（`collection_lib.seed`）。不连 Express、不发 LINE、不调模型。
+真页面、假智能体（开对话、让 CC 在工作）；收款数据同一套造法（`collection_lib.seed`）。不连 Express、不发 LINE、不调模型。
 
-页面上：点输入框上方的「收款」→ 对话里出引导卡（问客户）→ 点停止（对话页停止键调的同一个接口 ``assistant.api.interrupt``；
-对话号取页面地址的 ``?c=``，不靠标题：手机上标题可能还没生成）→ 服务端读回这次引导 ``expired`` / ``stopped``（``guide_view``）
-→ 不刷新，卡当场换成失效一行（``data-status=expired``，等 20 秒：推送或补拉带来这次引导的新版本）
-→ 再刷新页面，卡读回仍是失效一行（第二道）。
+页面上走用户真点的路（主会话 11-19）：点输入框上方的「收款」→ 对话里出引导卡（问客户）→ 再说一句让 CC 工作
+（假智能体 ``[lab-hold]`` 挂住不回，直到被停）→ 输入框的停止键出现 → 点停止键
+→ 不刷新，卡当场换成失效一行（``data-status=expired``，等 20 秒）→ 服务端读回这次引导 ``expired`` / ``stopped``（``guide_view``）
+→ 再刷新页面，卡读回仍是失效一行（第二道）。对话号取页面地址的 ``?c=``，不靠标题（手机上标题可能还没生成）。
 库里：这次引导 ``expired`` / ``stopped``；本次专用客户没有任何来源 cc 的收款单（没有草稿、没有写入任务）。
 对话在收尾里删（引导随对话删：在步骤里删的话库里就查不到这次引导了）。
 """
@@ -46,12 +46,15 @@ def _steps(params):
          "[...row().querySelectorAll('button')].find(b=>b.innerText.trim()==='收款')?.click(); "
          "await until(()=>card()&&card().dataset.status==='asking', 120); "
          "return {status: card()?.dataset.status||'', run: card()?.dataset.run||''};"},
+        {"name": "让 CC 工作", "js": JS + HELP + f"const sent=await say({json.dumps(params['tag'] + ' [lab-hold]' + params['tag'] + '[/lab-hold]')}); "
+         "const running=await until(()=>q('button.aui-composer-cancel'), 120); "
+         "return {sent, running, status: card()?.dataset.status||''};"},
         {"name": "点停止", "shot": True, "file": "1-stopped", "js": JS + HELP + SID +
-         "const run=card()?.dataset.run||''; "
-         "if(sid) await call('pearnly_core.assistant.api.interrupt',{session_id:sid},true); "
-         "const server=run ? await call('pearnly_core.assistant.api.guide_view',{run_name:run}) : null; "
+         "const run=card()?.dataset.run||''; const stop=q('button.aui-composer-cancel'); if(stop) stop.click(); "
          "const live=await until(()=>card()&&card().dataset.status==='expired', 80); await sleep(500); "
-         "return {session: sid, run, server: {status: server?.status||'', reason: server?.reason||''}, live, status: card()?.dataset.status||''};"},
+         "const server=run ? await call('pearnly_core.assistant.api.guide_view',{run_name:run}) : null; "
+         "return {session: sid, run, clicked: !!stop, live, status: card()?.dataset.status||'', "
+         "server: {status: server?.status||'', reason: server?.reason||''}};"},
         {"name": "刷新页面", "js": "location.reload(); return 1;", "wait_ms": 6000},
         {"name": "刷新后读卡", "shot": True, "file": "2-reloaded", "js": JS + HELP +
          "await until(()=>card(), 120); await until(()=>card().dataset.status==='expired', 60); "
@@ -61,13 +64,15 @@ def _steps(params):
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    opened, stopped, reloaded = by.get("点收款") or {}, by.get("点停止") or {}, by.get("刷新后读卡") or {}
+    opened, busy = by.get("点收款") or {}, by.get("让 CC 工作") or {}
+    stopped, reloaded = by.get("点停止") or {}, by.get("刷新后读卡") or {}
     return [
         {"case": "点「收款」出引导卡（在问）", "seen": opened, "ok": opened.get("status") == "asking" and bool(opened.get("run"))},
-        {"case": "点停止：服务端读回这次引导失效、原因是停止", "seen": stopped,
-         "ok": bool(stopped.get("session")) and stopped.get("run") == opened.get("run")
-         and stopped.get("server") == {"status": "expired", "reason": "stopped"}},
-        {"case": "点停止：不刷新，卡当场换成失效一行", "seen": stopped, "ok": stopped.get("status") == "expired"},
+        {"case": "再说一句：CC 在工作，输入框出停止键", "seen": busy, "ok": bool(busy.get("running"))},
+        {"case": "点停止键：不刷新，卡当场换成失效一行", "seen": stopped,
+         "ok": bool(stopped.get("clicked")) and stopped.get("run") == opened.get("run") and stopped.get("status") == "expired"},
+        {"case": "点停止键：服务端读回这次引导失效、原因是停止", "seen": stopped,
+         "ok": bool(stopped.get("session")) and stopped.get("server") == {"status": "expired", "reason": "stopped"}},
         {"case": "刷新后：卡读回失效一行", "seen": reloaded,
          "ok": reloaded.get("status") == "expired" and reloaded.get("run") == opened.get("run")},
     ]
