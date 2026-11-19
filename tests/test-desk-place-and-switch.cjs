@@ -2,7 +2,8 @@
 //   1. 页内切换记录：页头入口全部清掉再按新记录重建——原生 `add_inner_button` 同时往「⋯」菜单加一项，只清工具栏会把上一张单的
 //      「导出」「结束盘点」留在菜单里（盘点页从已过账切到进行中多出「导出」）。所有产品页都走 `p.clear_actions`（静态扫描兜底）。
 //   2. 服务端拒绝读取：详情页换成原生无权限页（`frappe.show_not_permitted`），不白屏、不留未处理的 Promise 拒绝。
-//   3. 单头「仓库 + 库位」（`p.place`）：明细行跟着单头走、逐行改过的不动；老单没有单头时从明细推出；不再读启动数据里的卖货仓。
+//   3. 仓库（`p.place`，11-19 按行选仓、取消仓位）：单头仓（调拨 / 期初）一换，跟着单头的行换、逐行改过的不动；新行跟上一行；
+//      建议仓带「只有一个仓」；不再读启动数据里的卖货仓。
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -21,7 +22,7 @@ function load({ companies = [] } = {}) {
     re_route: {}, model: {}, realtime: { on() {}, off() {} }, ui: { Sidebar: class {} }, datetime: { str_to_user: v => v },
     breadcrumbs: { set_custom_breadcrumbs() {}, add() {} }, utils: { escape_html: v => v, get_link_title: () => 'Main', fetch_link_title: async () => 'Main' }, msg_dialog,
     show_not_permitted: name => shown.push(name), get_route: () => ['pearnly-purchase', 'PUR-OTHER'],
-    call: async ({ method, args }) => { calls.push({ method, args }); return { message: { warehouse: 'WH-2', reason: 'last' } }; } };
+    call: async ({ method, args }) => { calls.push({ method, args }); return { message: { warehouse: 'WH-2', reason: 'last', single: false } }; } };
   const context = { frappe, window: { addEventListener() {} }, document: { body: { classList: { add() {} } }, addEventListener() {} },
     $: () => ({ on() {} }), __: k => k, locals: {}, setTimeout, clearTimeout,
     localStorage: { getItem() { return null; }, setItem() {}, length: 0, key() {} } };
@@ -74,58 +75,50 @@ function rows(values) {
     set(changes) { Object.assign(this.value, changes); } }));
 }
 
-test('单头换仓：跟着单头的行换仓并取新单头库位；逐行改过仓的行不动', () => {
+test('单头换仓：行上的仓空着或等于旧单头仓的跟着换；逐行改过仓的行不动；不再碰仓位', () => {
   const { p } = load();
-  const lines = rows([{ warehouse: 'WH-1', location: 'A1' }, { warehouse: '' }, { warehouse: 'WH-9', location: 'Z' }]);
-  p.place.follow(lines, { warehouse: 'WH-1', location: 'A1' }, { warehouse: 'WH-2', location: '' });
-  assert.deepEqual(lines.map(row => row.value), [{ warehouse: 'WH-2', location: '' }, { warehouse: 'WH-2', location: '' },
-    { warehouse: 'WH-9', location: 'Z' }]);
+  const lines = rows([{ warehouse: 'WH-1' }, { warehouse: '' }, { warehouse: 'WH-9' }]);
+  p.place.follow(lines, 'WH-1', 'WH-2');
+  assert.deepEqual(lines.map(row => row.value), [{ warehouse: 'WH-2' }, { warehouse: 'WH-2' }, { warehouse: 'WH-9' }]);
+  p.place.follow(lines, 'WH-2', 'WH-2');  // 没换：不动
+  assert.deepEqual(lines.map(row => row.value.warehouse), ['WH-2', 'WH-2', 'WH-9']);
 });
 
-test('单头只换库位：同仓里库位空着或等于旧单头库位的行跟，逐行改过库位的不动', () => {
+test('单头控件：换仓行跟着走；同值不重复动；整批填值时不跟，sync 之后人改才跟', () => {
   const { p } = load();
-  const lines = rows([{ warehouse: 'WH-1', location: '' }, { warehouse: 'WH-1', location: 'A1' }, { warehouse: 'WH-1', location: 'B7' }]);
-  p.place.follow(lines, { warehouse: 'WH-1', location: 'A1' }, { warehouse: 'WH-1', location: 'A2' });
-  assert.deepEqual(lines.map(row => row.value.location), ['A2', 'A2', 'B7']);
-});
-
-test('单头控件：换仓清空单头库位，行跟着走；同值不重复动', async () => {
-  const { p } = load();
-  const values = { warehouse: 'WH-1', location: 'A1' };
-  const form = { get_value: key => values[key], set_value: async (key, value) => { values[key] = value; } };
-  const lines = rows([{ warehouse: 'WH-1', location: 'A1' }]);
+  const values = { warehouse: 'WH-1' };
+  const form = { get_value: key => values[key] };
+  const lines = rows([{ warehouse: 'WH-1' }]);
   const place = p.place.track(form, () => lines);
   values.warehouse = 'WH-2';
-  await place.changed('warehouse');
-  assert.equal(values.location, '');
-  assert.deepEqual(lines[0].value, { warehouse: 'WH-2', location: '' });
-  await place.changed('location');  // 清库位触发的那一次：值没变，不再动行
-  assert.deepEqual(lines[0].value, { warehouse: 'WH-2', location: '' });
+  place.changed();
+  assert.deepEqual(lines[0].value, { warehouse: 'WH-2' });
+  place.changed();
+  assert.deepEqual(lines[0].value, { warehouse: 'WH-2' });
+  const opening = { warehouse: '' };
+  const later = rows([{ warehouse: 'WH-3' }, { warehouse: 'WH-9' }]);
+  const tracked = p.place.track({ get_value: key => opening[key] }, () => later, { live: false });
+  opening.warehouse = 'WH-3';
+  tracked.changed();  // 打开已有的单整批填值：不跟
+  assert.deepEqual(later.map(row => row.value.warehouse), ['WH-3', 'WH-9']);
+  tracked.sync();
+  opening.warehouse = 'WH-4';
+  tracked.changed();
+  assert.deepEqual(later.map(row => row.value.warehouse), ['WH-4', 'WH-9']);
 });
 
-test('打开已有的单：整批填单头时不跟（不把刚填进来的库位当成换仓清掉），sync 之后人改才跟', async () => {
+test('按行选仓：新行跟上一行，第一行用建议仓；不再从明细推单头', () => {
   const { p } = load();
-  const values = { warehouse: '', location: '' };
-  const form = { get_value: key => values[key], set_value: async (key, value) => { values[key] = value; } };
-  const lines = rows([{ warehouse: 'WH-1', location: 'A1' }]);
-  const place = p.place.track(form, () => lines, { live: false });
-  Object.assign(values, { warehouse: 'WH-1', location: 'A1' });
-  await place.changed('warehouse');
-  assert.deepEqual({ ...values }, { warehouse: 'WH-1', location: 'A1' });
-  place.sync();
-  values.location = 'A2';
-  await place.changed('location');
-  assert.equal(lines[0].value.location, 'A2');
+  assert.equal(p.place.next('WH-5', 'WH-2'), 'WH-5');
+  assert.equal(p.place.next('', 'WH-2'), 'WH-2');
+  assert.equal(p.place.next(undefined, ''), '');
+  assert.equal(p.place.of, undefined);
+  assert.equal(p.place.fields, undefined);
 });
 
-test('打开老单：单上没有单头时，有货的行都在同一个仓（库位）就当单头；各在各的仓就空着', () => {
+test('建议仓带「只有一个仓」：只有一个仓的公司明细不出仓库栏', async () => {
   const { p } = load();
-  assert.deepEqual({ ...p.place.of({ warehouse: 'WH-3', location: 'C' }) }, { warehouse: 'WH-3', location: 'C' });
-  assert.deepEqual({ ...p.place.of({ lines: [{ warehouse: 'WH-1', location: 'A' }, { warehouse: 'WH-1', location: 'A' }, {}] }) },
-    { warehouse: 'WH-1', location: 'A' });
-  assert.deepEqual({ ...p.place.of({ lines: [{ warehouse: 'WH-1', location: 'A' }, { warehouse: 'WH-1', location: 'B' }] }) },
-    { warehouse: 'WH-1', location: '' });
-  assert.deepEqual({ ...p.place.of({ lines: [{ warehouse: 'WH-1' }, { warehouse: 'WH-2' }] }) }, { warehouse: '', location: '' });
+  assert.deepEqual({ ...await p.place.defaults('sales') }, { warehouse: 'WH-2', single: false });
 });
 
 test('预填问服务端 `warehouses.api_prefill`（单据类型 + 当前公司），不读启动数据', async () => {
@@ -141,7 +134,7 @@ test('建议仓只写进空的那格，同步写、不发请求；track 建好�
   const { p, calls } = load();
   const control = (value = '') => ({ value, df: { pearnly_place: 'WH-7' }, get_value() { return this.value; },
     set_input(v) { this.value = v; } });
-  const form = { fields_dict: { warehouse: control(), location: control() }, refresh_dependency() {},
+  const form = { fields_dict: { warehouse: control() }, refresh_dependency() {},
     get_value(key) { return this.fields_dict[key].get_value(); } };
   const before = calls.length;
   p.place.put(form, 'warehouse', 'WH-2');
@@ -149,19 +142,21 @@ test('建议仓只写进空的那格，同步写、不发请求；track 建好�
   p.place.put(form, 'warehouse', 'WH-9');
   assert.equal(form.get_value('warehouse'), 'WH-2');
   assert.equal(calls.length, before);
-  const fresh = { fields_dict: { warehouse: control(), location: control() }, refresh_dependency() {},
+  const fresh = { fields_dict: { warehouse: control() }, refresh_dependency() {},
     get_value(key) { return this.fields_dict[key].get_value(); } };
   p.place.track(fresh, () => []);
   assert.equal(fresh.get_value('warehouse'), 'WH-7');
 });
 
-test('能改的表头仓不用 default（default 走 Link 校验），建议仓记在 pearnly_place；只读照旧用 default', () => {
+test('能改的表头仓不用 default（default 走 Link 校验），建议仓记在 pearnly_place；只读照旧用 default；只有仓库一格', () => {
   const { p } = load();
-  const [editable] = p.place.fields({ labels: {}, warehouse: 'WH-2' });
+  const editable = p.place.field({ label: 'W', warehouse: 'WH-2' });
   assert.equal(editable.default, undefined);
   assert.equal(editable.pearnly_place, 'WH-2');
-  const [readonly] = p.place.fields({ labels: {}, warehouse: 'WH-2', editable: false });
+  assert.equal(editable.fieldtype, 'Link');
+  const readonly = p.place.field({ label: 'W', warehouse: 'WH-2', editable: false });
   assert.equal(readonly.default, 'WH-2');
+  assert.equal(p.place.field({ fieldname: 'to_warehouse' }).fieldname, 'to_warehouse');
 });
 
 test('当前公司接了 Express：不给新建仓、不录期初', () => {

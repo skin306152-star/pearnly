@@ -131,11 +131,13 @@ jobs:
         run: python3 tests/test_erp_internal_code.py
       - name: ERP product category master and attribute / colour (dialog order, import and stock sheet columns, four language words)
         run: python3 tests/test_erp_product_attribute.py
-      - name: ERP warehouse location lists (listed locations only once a warehouse has a list, stocked locations stay on, used ones are kept)
+      - name: ERP warehouse location lists for stock counts only, and each line's own warehouse (another company's refused, one-warehouse companies need none)
         run: python3 tests/test_erp_locations.py
+      - name: Stock kept per product and warehouse only, existing located balances merged by replaying the movements with the same totals, rerun changes nothing
+        run: python3 tests/test_erp_warehouse_only_migration.py
       - name: ERP products tracked by unit (register on receipt, pick on sale, void back through the unit ledger, opening registration)
         run: python3 tests/test_erp_serials.py
-      - name: ERP product adjustment (mixed signs, hand-typed prices only to Express TK, one warehouse per document, old count entries listed as adjustments)
+      - name: ERP product adjustment (mixed signs, hand-typed prices only to Express TK, a warehouse on each line, transfers one out one in, old count entries listed as adjustments)
         run: python3 tests/test_erp_stock_adjust.py
       - name: ERP per-line item and stock choice
         run: python3 tests/test_erp_line_item_choice.py

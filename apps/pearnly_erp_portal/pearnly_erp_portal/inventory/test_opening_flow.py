@@ -50,7 +50,13 @@ class OpeningFlow(unittest.TestCase):
         frappe.set_user("Administrator")
         frappe.conf.pearnly_features = self.features
         company.set_active_company(self.a["name"])
-        self.place = self._testMethodName
+        # 每个用例一个自己的仓（库存只到「物料 × 仓库」，11-19 起不再按仓位隔开用例）
+        from pearnly_erp_portal.inventory import warehouses
+
+        self.place = frappe.db.get_value("ERP Warehouse", {"company": self.a["name"],
+                                          "warehouse_name": self.prefix + " " + self._testMethodName}, "name") \
+            or warehouses.create_warehouse(warehouse_name=self.prefix + " " + self._testMethodName,
+                                           company=self.a["name"])["name"]
 
     def tearDown(self):
         frappe.db.rollback()
@@ -58,8 +64,8 @@ class OpeningFlow(unittest.TestCase):
         frappe.clear_cache()
 
     def payload(self, **changes):
-        return {"warehouse": self.a["warehouse"], "as_of_date": nowdate(),
-            "rows": [{"product": self.product, "location": self.place, "qty": "1.123456", "unit_cost": "17.23"}], **changes}
+        return {"warehouse": self.place, "as_of_date": nowdate(),
+            "rows": [{"product": self.product, "qty": "1.123456", "unit_cost": "17.23"}], **changes}
 
     def post(self, payload):
         preview = api.api_preview_stock_opening(**payload)
@@ -67,7 +73,7 @@ class OpeningFlow(unittest.TestCase):
         return api.api_submit_stock_opening(**payload, review_token=preview["review_token"])
 
     def qty(self, product=None):
-        return stock.current_balance(product or self.product, self.a["warehouse"], self.place).qty
+        return stock.current_balance(product or self.product, self.place).qty
 
     def test_precision_value_balance_report_rebuild_and_replay_after_issue(self):
         payload = self.payload()
@@ -76,42 +82,42 @@ class OpeningFlow(unittest.TestCase):
         self.assertEqual(self.qty(), 0)
         first = self.post(payload)
         self.assertEqual(first["created"], 1)
-        balance = stock.current_balance(self.product, self.a["warehouse"], self.place)
+        balance = stock.current_balance(self.product, self.place)
         self.assertEqual(balance.qty, Decimal("1.123456"))
         self.assertEqual(balance.value, Decimal("19.36"))
-        card = report.card(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+        card = report.card(product=self.product, warehouse=self.place,
                            date_from=nowdate(), date_to=nowdate())
         self.assertEqual(card["closing"]["value"], float(balance.value))
         self.assertEqual(card["closing"]["qty"], float(balance.qty))
         self.assertEqual(card["opening"]["qty"], float(balance.qty))
         self.assertEqual(card["opening"]["value"], float(balance.value))
         self.assertEqual(card["rows"], [])
-        summary = report.summary(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+        summary = report.summary(product=self.product, warehouse=self.place,
                                  date_from=nowdate(), date_to=nowdate())[0]
         self.assertEqual(summary["in_qty"], 0)
         self.assertEqual(summary["opening_qty"], float(balance.qty))
-        rebuilt = stock.rebuild_balance(self.product, self.a["warehouse"], self.place)
+        rebuilt = stock.rebuild_balance(self.product, self.place)
         self.assertEqual(rebuilt["qty_on_hand"], float(balance.qty))
-        self.assertEqual(stock.current_balance(self.product, self.a["warehouse"], self.place).value, balance.value)
-        stock.apply_movement(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+        self.assertEqual(stock.current_balance(self.product, self.place).value, balance.value)
+        stock.apply_movement(product=self.product, warehouse=self.place,
                              movement_type="stock_out", qty="0.123456", ref_type="test", internal=True)
         repeat = api.api_submit_stock_opening(**payload, review_token=initial["review_token"])
         self.assertEqual((repeat["created"], repeat["skipped"], self.qty()), (0, 1, Decimal(1)))
-        card = report.card(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+        card = report.card(product=self.product, warehouse=self.place,
                            date_from=nowdate(), date_to=nowdate())
         self.assertEqual(len(card["rows"]), 1)
-        summary = report.summary(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+        summary = report.summary(product=self.product, warehouse=self.place,
                                  date_from=nowdate(), date_to=nowdate())[0]
         self.assertEqual(summary["in_qty"], 0)
         self.assertEqual(summary["out_qty"], 0.123456)
         self.assertEqual(card["closing"]["qty"], 1)
         self.assertEqual(frappe.db.count("ERP Stock Movement", {"ref_type": "opening", "ref_id": first["openings"][0]}), 1)
         with self.assertRaises(frappe.ValidationError):
-            openings.upsert_opening(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+            openings.upsert_opening(product=self.product, warehouse=self.place,
                 as_of_date=nowdate(), qty="1.123456", unit_cost=19)
 
     def test_zero_cost_zero_quantity_and_missing_cost_are_distinct(self):
-        payload = self.payload(rows=[{"product": self.product, "location": self.place, "qty": 0, "unit_cost": 0}])
+        payload = self.payload(rows=[{"product": self.product, "qty": 0, "unit_cost": 0}])
         result = self.post(payload)
         self.assertEqual((result["created"], self.qty()), (1, 0))
         self.assertEqual(self.post(payload)["skipped"], 1)
@@ -121,10 +127,10 @@ class OpeningFlow(unittest.TestCase):
         self.assertFalse(api.api_preview_stock_opening(**payload)["valid"])
         payload["rows"][0]["unit_cost"] = 0
         self.post(payload)
-        self.assertEqual(stock.current_balance(self.other, self.a["warehouse"], self.place).value, Decimal(0))
+        self.assertEqual(stock.current_balance(self.other, self.place).value, Decimal(0))
 
     def test_batch_write_failure_rolls_back_every_position(self):
-        payload = self.payload(rows=[{"product": product, "location": self.place, "qty": 3, "unit_cost": 7} for product in (self.product, self.other)])
+        payload = self.payload(rows=[{"product": product, "qty": 3, "unit_cost": 7} for product in (self.product, self.other)])
         review = api.api_preview_stock_opening(**payload)
         original = stock.apply_movement
         def fail_second(**kwargs):
@@ -136,19 +142,19 @@ class OpeningFlow(unittest.TestCase):
                 api.api_submit_stock_opening(**payload, review_token=review["review_token"])
         for product in (self.product, self.other):
             self.assertEqual(self.qty(product), 0)
-            self.assertFalse(frappe.db.exists("ERP Stock Opening", {"product": product, "warehouse": self.a["warehouse"], "location": self.place}))
-            self.assertFalse(frappe.db.exists("ERP Stock Movement", {"product": product, "warehouse": self.a["warehouse"], "location": self.place}))
+            self.assertFalse(frappe.db.exists("ERP Stock Opening", {"product": product, "warehouse": self.place}))
+            self.assertFalse(frappe.db.exists("ERP Stock Movement", {"product": product, "warehouse": self.place}))
 
     def test_stale_review_and_history_with_zero_balance_do_not_initialize(self):
         payload = self.payload()
         preview = api.api_preview_stock_opening(**payload)
         for movement, qty in (("stock_in", 2), ("stock_out", 2)):
-            stock.apply_movement(product=self.product, warehouse=self.a["warehouse"], location=self.place,
+            stock.apply_movement(product=self.product, warehouse=self.place,
                                  movement_type=movement, qty=qty, unit_cost=10, internal=True)
         self.assertEqual(self.qty(), 0)
         with self.assertRaises(frappe.ValidationError):
             api.api_submit_stock_opening(**payload, review_token=preview["review_token"])
-        self.assertFalse(frappe.db.exists("ERP Stock Opening", {"product": self.product, "location": self.place}))
+        self.assertFalse(frappe.db.exists("ERP Stock Opening", {"product": self.product, "warehouse": self.place}))
 
     def test_authorization_company_scope_and_token_identity(self):
         payload = self.payload()
@@ -172,7 +178,7 @@ class OpeningFlow(unittest.TestCase):
 
     def test_file_matches_existing_master_and_private_file_is_not_shared(self):
         data = opening_workbook.build_bytes([field for field, _ in opening_workbook.FIELD_LABELS], [
-            {"product_code": self.prefix, "unit": "pcs", "location": self.place, "qty": "4", "unit_cost": "12.50"},
+            {"product_code": self.prefix, "unit": "pcs", "qty": "4", "unit_cost": "12.50"},
             {"product_code": self.prefix + "-other", "unit": "pcs"},
         ])
         file = frappe.get_doc({"doctype": "File", "file_name": self.prefix + ".xlsx", "content": data, "is_private": 1}).save()
@@ -196,7 +202,7 @@ class OpeningFlow(unittest.TestCase):
         with self.assertRaises(frappe.ValidationError):
             api.api_submit_stock_opening(**payload, review_token=review["review_token"])
         frappe.db.set_value("ERP Product", self.product, "is_active", 1)
-        frappe.db.set_value("ERP Warehouse", self.a["warehouse"], "is_active", 0)
+        frappe.db.set_value("ERP Warehouse", self.place, "is_active", 0)
         with self.assertRaises(frappe.ValidationError):
             api.api_submit_stock_opening(**payload, review_token=review["review_token"])
         self.assertEqual(self.qty(), 0)
@@ -227,18 +233,16 @@ class OpeningFlow(unittest.TestCase):
         self.assertEqual(sum(result["skipped"] for result in results), 1)
         self.assertEqual(self.qty(), Decimal("1.123456"))
         self.assertEqual(frappe.db.count("ERP Stock Opening", {"product": self.product,
-            "warehouse": self.a["warehouse"], "location": self.place}), 1)
+            "warehouse": self.place}), 1)
 
-    def test_location_identity_preserves_case_and_accents(self):
-        locations = [self.place + suffix for suffix in ("-Rack-A", "-rack-a", "-e", "-é")]
-        payload = self.payload(rows=[{"product": self.product, "location": location,
-            "qty": index + 1, "unit_cost": 12} for index, location in enumerate(locations)])
+    def test_a_location_column_is_not_read_and_stock_is_per_warehouse(self):
+        """库存只到「物料 × 仓库」（11-19 取消仓位）：表里带来的仓位不读；同一物料同一个仓只初始化一次。"""
+        payload = self.payload(rows=[{"product": self.product, "location": "Rack-A", "qty": 2, "unit_cost": 12}])
         first = self.post(payload)
-        self.assertEqual(first["created"], 4)
-        self.assertEqual(len(set(first["openings"])), 4)
-        self.assertEqual(self.post(payload)["skipped"], 4)
-        for index, location in enumerate(locations):
-            self.assertEqual(stock.current_balance(self.product, self.a["warehouse"], location).qty, index + 1)
+        self.assertEqual(first["openings"], [contracts.position_name("OPN", self.product, self.place)])
+        self.assertEqual(self.post(payload)["skipped"], 1)
+        self.assertEqual(stock.current_balance(self.product, self.place).qty, 2)
+        self.assertTrue(frappe.db.exists("ERP Stock Balance", contracts.position_name("BAL", self.product, self.place)))
 
     def test_a_product_created_with_opening_stock_and_a_sheet_with_a_warehouse_column(self):
         """多仓闭环 P1（G1、G5）：建商品时顺手放期初（两个仓），与商品同一事务、照「每个位置只初始化一次」；任何一行不成整件商品
@@ -247,11 +251,11 @@ class OpeningFlow(unittest.TestCase):
 
         second = warehouses.create_warehouse(warehouse_name=self.prefix + " second", company=self.a["name"])["name"]
         made = products.create_product(product_name=self.prefix + " with opening", code=self.prefix + "-op", unit="pcs",
-                                       opening=[{"warehouse": self.a["warehouse"], "location": self.place, "qty": "3", "unit_cost": "10"},
-                                                {"warehouse": second, "location": "", "qty": "2", "unit_cost": "10"},
-                                                {"warehouse": second, "location": "", "qty": ""}])["name"]
-        self.assertEqual(stock.current_balance(made, self.a["warehouse"], self.place).qty, 3)
-        self.assertEqual(stock.current_balance(made, second, "").qty, 2)
+                                       opening=[{"warehouse": self.place, "qty": "3", "unit_cost": "10"},
+                                                {"warehouse": second, "qty": "2", "unit_cost": "10"},
+                                                {"warehouse": second, "qty": ""}])["name"]
+        self.assertEqual(stock.current_balance(made, self.place).qty, 3)
+        self.assertEqual(stock.current_balance(made, second).qty, 2)
         code = self.prefix + "-bad"
         with self.assertRaises(frappe.ValidationError):
             products.create_product(product_name=self.prefix + " bad", code=code, unit="pcs",
@@ -259,8 +263,8 @@ class OpeningFlow(unittest.TestCase):
         frappe.db.rollback()
         self.assertFalse(frappe.db.exists("ERP Product", {"code": code}))  # 期初不成：商品也没建
         sheet = api.api_preview_stock_opening(**self.payload(rows=[
-            {"product": self.other, "location": self.place, "qty": "1", "unit_cost": "1"},
-            {"product": self.other, "warehouse": second, "location": self.place, "qty": "1", "unit_cost": "1"},
+            {"product": self.other, "qty": "1", "unit_cost": "1"},
+            {"product": self.other, "warehouse": second, "qty": "1", "unit_cost": "1"},
             {"product": self.other, "warehouse": self.b["warehouse"], "qty": "1", "unit_cost": "1"}]))
         self.assertEqual([row["status"] for row in sheet["rows"]], ["ready", "ready", "error"])
-        self.assertEqual([row.get("warehouse") for row in sheet["rows"][:2]], [self.a["warehouse"], second])
+        self.assertEqual([row.get("warehouse") for row in sheet["rows"][:2]], [self.place, second])

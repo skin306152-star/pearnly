@@ -1,8 +1,8 @@
-"""仓库下的库位清单（第 5 项，主会话 10-26 审定）：内存替身，不连库。
+"""仓库下的仓位清单（第 5 项，主会话 10-26 审定；11-19 起只给盘点记「实际仓位」）与单据行定仓：内存替身，不连库。
 
-- 没建清单的仓库位照旧手输；建了清单，库位只能从清单里（在用的）选，空库位照旧可以；
-- 商品上的建议库位不在这个仓的清单里时留空，单据上明写的不在清单就拒；
-- 保存清单：名称去空白、不能重；还有库存的不能停用；用过（有流水）或还有库存的不能删。
+- 没建清单的仓仓位照旧手输；建了清单，盘点记的仓位只能从清单里（在用的）选，空仓位照旧可以；
+- 保存清单：名称去空白、不能重；盘点里记过的不能删（停用）；库存只到仓库，仓位不再有库存、不按库存拦停用；
+- 单据行定仓（11-19 撤掉一单一仓）：行上的仓为准，没写用单头默认仓，再没有只认唯一仓；别家公司的仓被拒。
 """
 import pathlib
 import sys
@@ -45,9 +45,8 @@ class Locations(unittest.TestCase):
                     rows = [row for row in rows if any(op == "like" and value.strip("%").casefold() in (row[field] or "").casefold()
                                                        for field, (op, value) in or_filters.items())]
                 return [row[pluck] for row in rows] if pluck else [types.SimpleNamespace(**row) for row in rows]
-            if doctype == "ERP Stock Balance":
-                return [types.SimpleNamespace(location=loc, qty=qty) for (wh, loc), qty in self.stock.items()
-                        if wh == filters["warehouse"]]
+            if doctype == "ERP Stock Balance":  # 仓还有没有货（`locations.has_stock`，库存只到仓库）
+                return [qty for (wh, _loc), qty in self.stock.items() if wh == filters["warehouse"] and qty][:1]
             return []
 
         self.saved = {}
@@ -91,11 +90,13 @@ class Locations(unittest.TestCase):
         with self.assertRaisesRegex(Refused, "no active location"):
             P.check("W3", "ZZZ")  # 清单全部停用 = 没有可用库位，先启用一个（主会话 10-26），不是不限制
 
-    def test_saving_keeps_stocked_and_used_locations(self):
-        with self.assertRaisesRegex(Refused, "with stock cannot be turned off"):
+    def test_saving_keeps_locations_a_count_recorded(self):
+        with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
+            # 库存只到仓库：仓位没有库存，停用不按库存拦（11-19）
             L.api_save_locations("W1", [{"location_name": "A-01", "is_active": 0}, {"location_name": "A-02"}])
+        self.assertEqual(self.saved["W1"][0]["is_active"], 0)
         with self.assertRaisesRegex(Refused, "has been used cannot be removed"):
-            L.api_save_locations("W1", [{"location_name": "A-01"}])  # A-02 有流水，不能删
+            L.api_save_locations("W1", [{"location_name": "A-01"}])  # A-02 盘点里记过，不能删
         with self.assertRaisesRegex(Refused, "Duplicate"):
             L.api_save_locations("W1", [{"location_name": "A-01"}, {"location_name": " A-01"}, {"location_name": "A-02"}])
         with mock.patch.object(L, "api_get_locations", lambda warehouse: "reloaded"):
@@ -106,11 +107,10 @@ class Locations(unittest.TestCase):
             L.api_save_locations("W1", [{"location_name": "A-01", "description": " 前排货架 "}, {"location_name": "A-02"}])
         self.assertEqual(self.saved["W1"][0]["description"], "前排货架")
 
-    def test_options_list_this_warehouse_and_mark_old_stocked_places(self):
+    def test_options_list_only_this_warehouse_active_locations(self):
         self.stock[("W1", "OLD-B")] = 2.0
         options = L.api_location_options("", "W1")
-        self.assertEqual([row["value"] for row in options], ["A-01", "A-02", "OLD-B"])  # 有库存的旧库位也列出、标「不在清单」
-        self.assertEqual(options[-1]["label"], "OLD-B · stock.location.offList")
+        self.assertEqual([row["value"] for row in options], ["A-01", "A-02"])  # 库存只到仓库：不再列有库存的旧仓位
         self.assertEqual(options[0]["label"], "A-01 · 前排货架")  # 没编码：「名称 · 说明」，值仍是仓位名称
         self.assertEqual(L.api_location_options("A", None), [])
         self.assertEqual(L.api_location_options("", "W2"), [])  # 没建清单：没有选项，照旧手输
@@ -149,21 +149,20 @@ class Locations(unittest.TestCase):
         self.assertEqual(P.resolve("W1", "A-01"), "A-01")      # 名称与别的仓位的编码撞了：按名称
         self.assertEqual(P.label("A-01", "A1", ""), "A1 · A-01")
 
-    def test_stock_and_count_exports_carry_the_location_code(self):
-        """库存导出、盘点导出加「仓位编码」一列（11-07 主会话定），收发存不加。"""
+    def test_exports_have_no_book_location_and_counts_keep_the_actual_one(self):
+        """库存只到仓库（11-19）：库存导出、盘点汇总表不再有仓位 / 仓位编码列；盘点明细照旧有「实际仓位」（货在哪找到的）。"""
         import ast
 
-        self.codes[("W1", "A-01")] = "A1"
-        rows = P.with_codes([{"warehouse": "W1", "location": "A-01"}, {"warehouse": "W1", "location": ""},
-                             {"warehouse": "W2", "location": "X"}])
-        self.assertEqual([row["location_code"] for row in rows], ["A1", "", ""])
         source = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py").read_text(encoding="utf-8")
         tree = {node.targets[0].id: ast.literal_eval(node.value) for node in ast.parse(source).body
-                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in ("EXPORT_COLUMNS", "COUNT_COLUMNS")}
+                if isinstance(node, ast.Assign) and getattr(node.targets[0], "id", "") in
+                ("EXPORT_COLUMNS", "COUNT_COLUMNS", "COUNT_DETAIL_COLUMNS")}
         for name in ("EXPORT_COLUMNS", "COUNT_COLUMNS"):
             fields = [field for field, _key in tree[name]]
-            self.assertEqual(fields[fields.index("location") + 1], "location_code", name)
-        self.assertEqual(source.count("positions.with_codes("), 2)  # 库存导出、盘点导出各一处
+            self.assertFalse({"location", "location_code"} & set(fields), name)
+        self.assertIn(("location", "stock.workbench.actualLocation"), tree["COUNT_DETAIL_COLUMNS"])
+        self.assertNotIn("book_location", [field for field, _key in tree["COUNT_DETAIL_COLUMNS"]])
+        self.assertFalse(hasattr(P, "with_codes"))
 
     def test_a_warehouse_with_stock_cannot_be_turned_off(self):
         """G16（多仓闭环 P0）：同库位停用，仓里还有货就不能停；没货的照停；只改名不核。"""
@@ -185,31 +184,43 @@ class Locations(unittest.TestCase):
         W.update_warehouse("W2", is_active=0)  # 没有货：照停
         self.assertEqual(docs["W2"].is_active, 0)
 
-    def test_the_header_warehouse_and_location_lead_the_lines(self):
-        """多仓闭环 P1 单头「仓库 + 库位」：行上没写仓的用单头仓；没写库位、又在单头仓的用单头库位（单头写的不再拿商品建议库位
-        顶掉）；行上明写的照旧；换到别的仓的行取商品建议库位（不在那个仓清单里就留空）。没写单头仓时库位也不留。"""
-        product = types.SimpleNamespace(is_active=1, default_location="A-02")
-        for target, value in (("receiving", lambda value, company=None: value or "W1"),
-                              ("required", lambda value, company=None: value)):
+    def test_the_line_warehouse_wins_and_the_header_is_only_a_default(self):
+        """11-19 撤掉一单一仓（同 Express 原生明细行选仓）：行上的仓为准；没写的用单头默认仓；都没写只认唯一仓，多仓报错让人选；
+        别家公司的仓被拒（行上的仓同样按单据公司核，原来只核单头）；仓位一概不再落到行上。"""
+        product = types.SimpleNamespace(is_active=1)
+        owners = {"W1": "CO-1", "W2": "CO-1", "X1": "CO-2"}
+        only = {"CO-1": None, "CO-S": "S1"}  # CO-1 两个仓（没有唯一仓），CO-S 只有一个
+
+        def required(value=None, company=None):
+            if value:
+                if owners.get(value) != company:
+                    raise Refused("Warehouse not found")
+                return value
+            if not only.get(company):
+                raise Refused("Pick a warehouse")
+            return only[company]
+
+        for target, value in (("receiving", required), ("required", required)):
             patcher = mock.patch.object(P.warehouses, target, value)
             patcher.start()
             self.addCleanup(patcher.stop)
         patcher = mock.patch.object(P.frappe.db, "get_value", lambda *a, **k: product, create=True)
         patcher.start()
         self.addCleanup(patcher.stop)
-        self.assertEqual(P.header("W1", " A-01 "), {"warehouse": "W1", "location": "A-01"})
-        self.assertEqual(P.header("", "A-01"), {"warehouse": None, "location": ""})
-        # 单头库位是人明写的：进出都按清单核（验收复核 P1：销售单头写 ZZ-99 从不存在的库位出了货）；没建清单的仓照旧手输
-        with self.assertRaisesRegex(Refused, "not in the location list"):
-            P.header("W1", "ZZ-99")
-        self.assertEqual(P.header("W2", "anything"), {"warehouse": "W2", "location": "anything"})
+        self.assertEqual(P.header("W1", company="CO-1"), {"warehouse": "W1"})
+        self.assertEqual(P.header("", company="CO-1"), {"warehouse": None})
         line = {"product": "P-1", "item_type": "goods"}
-        self.assertEqual(P.prepare(line, "W1", location="A-01"), {**line, "warehouse": "W1", "location": "A-01"})
-        self.assertEqual(P.prepare({**line, "location": "B"}, "W1", location="A-01")["location"], "B")
-        self.assertEqual(P.prepare(line, "W1")["location"], "A-02")  # 单头没写库位：商品建议库位（在清单里）
-        self.assertEqual(P.prepare({**line, "warehouse": "W2"}, "W1", location="A-01"), {**line, "warehouse": "W2", "location": "A-02"})
-        product.default_location = "Z-99"
-        self.assertEqual(P.prepare(line, "W1")["location"], "")  # 建议库位不在 W1 清单：留空让人选
+        self.assertEqual(P.prepare({**line, "warehouse": "W2"}, "W1", company="CO-1"), {**line, "warehouse": "W2"})
+        self.assertEqual(P.prepare(line, "W1", company="CO-1"), {**line, "warehouse": "W1"})  # 没写：单头默认仓
+        with self.assertRaisesRegex(Refused, "Pick a warehouse"):
+            P.prepare(line, None, company="CO-1")  # 多仓公司库存行没有仓：拒，让人选
+        self.assertEqual(P.prepare(line, None, company="CO-S"), {**line, "warehouse": "S1"})  # 只有一个仓：服务端自动取
+        with self.assertRaisesRegex(Refused, "Warehouse not found"):
+            P.prepare({**line, "warehouse": "X1"}, "W1", company="CO-1")  # 别家公司的仓
+        self.assertNotIn("location", P.prepare({**line, "location": "A-01", "to_location": "B"}, "W1", company="CO-1"))
+        self.assertEqual(P.prepare({"product": "P-1", "item_type": "service"}, None, company="CO-1"),
+                         {"product": "P-1", "item_type": "service"})  # 服务行不进出库，不取仓
+        self.assertFalse(hasattr(P, "one_warehouse"))
 
     def test_a_cash_register_binds_only_an_active_warehouse(self):
         """G16：收银台只能绑启用着的仓；仓后来停用了，旧收银台不换仓照样能存（改名等）。"""
@@ -257,16 +268,17 @@ class Locations(unittest.TestCase):
         for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)
-        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "SHOP", "reason": "selling"})
-        self.assertEqual(W.prefill("sales", "CO-1"), {"warehouse": "", "reason": ""})  # 出货类不给卖货仓，多仓必须选
-        self.assertEqual(W.prefill("sales", "CO-1", context="W2"), {"warehouse": "W2", "reason": "context"})
+        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "SHOP", "reason": "selling", "single": False})
+        self.assertEqual(W.prefill("sales", "CO-1"), {"warehouse": "", "reason": "", "single": False})  # 出货类不给卖货仓，多仓必须选
+        self.assertEqual(W.prefill("sales", "CO-1", context="W2"), {"warehouse": "W2", "reason": "context", "single": False})
         self.assertEqual(W.prefill("sales", "CO-1", context="X1")["reason"], "")  # 别家公司的仓不当来源
         W.remember("purchase", "W1", "CO-1")
-        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "W1", "reason": "last"})
+        self.assertEqual(W.prefill("purchase", "CO-1"), {"warehouse": "W1", "reason": "last", "single": False})
         self.assertEqual(W.prefill("stock_in", "CO-1")["reason"], "selling")  # 按单据类型分开记
         active["CO-1"].remove("W1")  # 上次那个仓停用了：不再建议
         self.assertEqual(W.prefill("purchase", "CO-1")["warehouse"], "SHOP")
-        self.assertEqual(W.prefill("sales", "CO-2"), {"warehouse": "X1", "reason": "sole"})
+        # 只有一个仓：界面明细不出仓库栏（`single`，11-19）
+        self.assertEqual(W.prefill("sales", "CO-2"), {"warehouse": "X1", "reason": "sole", "single": True})
         with self.assertRaisesRegex(Refused, "Invalid value"):
             W.prefill("anything", "CO-1")
         calls = []

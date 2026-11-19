@@ -25,7 +25,7 @@ function element() {
 
 // 弹窗里那套字段（去掉只读自动生成的 code），二级页面的列要与它对得上。
 const DIALOG_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', 'category_id',
-  'default_warehouse', 'default_location', 'unit_price', 'default_cost', 'min_stock',
+  'default_warehouse', 'unit_price', 'default_cost', 'min_stock',
   'vat_applicable', 'image_url'];
 
 function boot({ create = async () => ({ name: 'P-1' }) } = {}) {

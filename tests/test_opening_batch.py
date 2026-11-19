@@ -75,8 +75,6 @@ class OpeningBatch(unittest.TestCase):
         inventory.access = SimpleNamespace(write_opening=self.write_opening)
         inventory.stock = SimpleNamespace(lock_products=self.lock_products, apply_movement=self.apply_movement)
         inventory.warehouses = SimpleNamespace(required=self.warehouse, remember=lambda kind, warehouse, company=None: None)
-        # 库位清单（`positions.check`）：W3 建了清单只有 A-01，其余仓不限
-        inventory.positions = SimpleNamespace(check=self.check_location, resolve=lambda warehouse, value: value)
         inventory.serials = SimpleNamespace(
             DOCTYPE="ERP Serial No", OPENING_REF="serial_opening", MAX_NO=40, MAX_COLOR=60,
             DUPLICATE="This unit number is already registered", QTY_MISMATCH="The number of units does not match the quantity",
@@ -127,13 +125,6 @@ class OpeningBatch(unittest.TestCase):
             raise ValueError("Warehouse not found")
         return resolved
 
-    @staticmethod
-    def check_location(warehouse, location):
-        location = str(location or "").strip()
-        if warehouse == "W3" and location and location != "A-01":
-            raise RuntimeError("This location is not in the location list of the warehouse: " + location)
-        return location
-
     def sql(self, query, parameters=None, as_dict=False):
         self.queries.append(query)
         if "tabERP Product" in query:
@@ -147,7 +138,9 @@ class OpeningBatch(unittest.TestCase):
             return [Row(name=parameters[0], company="C1", is_active=1)] if parameters[0] in ("W1", "W3") else []
         state = self.state if "for update" in query or self.old_snapshot is None else self.old_snapshot
         table = next(key for key, text in (("openings", "Opening"), ("movements", "Movement"), ("balances", "Balance")) if "tabERP Stock " + text in query)
-        return [row for row in state[table] if (row.product, row.warehouse, row.location or "") == tuple(parameters)]
+        # 期初、流水、结存只按「物料 × 仓库」查（11-19 取消仓位）
+        assert "location" not in query, query
+        return [row for row in state[table] if (row.product, row.warehouse) == tuple(parameters)]
 
     def lock_products(self, products):
         self.calls.append(("lock", sorted(set(products))))
@@ -162,7 +155,7 @@ class OpeningBatch(unittest.TestCase):
 
     def write_opening(self, doc, method):
         self.assertEqual(method, "insert")
-        doc.name = self.contracts.position_name("OPN", doc.product, doc.warehouse, doc.location)
+        doc.name = self.contracts.position_name("OPN", doc.product, doc.warehouse)
         self.state["openings"].append(doc)
 
     def apply_movement(self, **values):
@@ -170,7 +163,7 @@ class OpeningBatch(unittest.TestCase):
             raise RuntimeError("simulated movement failure")
         row = Row(values)
         self.state["movements"].append(row)
-        self.state["balances"].append(Row(product=row.product, warehouse=row.warehouse, location=row.location,
+        self.state["balances"].append(Row(product=row.product, warehouse=row.warehouse,
             qty_on_hand=row.qty, value=row.qty * row.unit_cost, cost_known=bool(row.qty)))
 
     def preview(self, **changes):
@@ -194,7 +187,7 @@ class OpeningBatch(unittest.TestCase):
     def test_exact_replay_after_sale_keeps_existing_balance_and_note(self):
         review = self.preview()
         self.submit(review)
-        self.state["movements"].append(Row(product="P1", warehouse="W1", location="", qty=-2, movement_type="sale_out"))
+        self.state["movements"].append(Row(product="P1", warehouse="W1", qty=-2, movement_type="sale_out"))
         self.state["balances"][0].qty_on_hand = 2
         self.state["balances"][0].value = 20
         before = deepcopy(self.state)
@@ -253,8 +246,8 @@ class OpeningBatch(unittest.TestCase):
         self.products[0].is_active = 1
         duplicate = self.preview(rows=[self.args["rows"][0], {"product_code": "code-P1", "qty": 4, "unit_cost": 10}])
         self.assertEqual([row["status"] for row in duplicate["rows"]], ["error", "error"])
-        distinct = self.preview(rows=[self.args["rows"][0], {**self.args["rows"][0], "location": "A"}])
-        self.assertTrue(distinct["valid"])
+        distinct = self.preview(rows=[self.args["rows"][0], {**self.args["rows"][0], "warehouse": "W3"}])
+        self.assertTrue(distinct["valid"])  # 同一物料在另一个仓：各一笔
 
     def test_a_unit_company_opens_tracked_products_one_unit_per_row(self):
         """期初表并入按台（岳父 10-25）：按台商品一台一行、数量 1；同一位置的几台合成一笔期初，提交时逐台登记。"""
@@ -283,7 +276,7 @@ class OpeningBatch(unittest.TestCase):
                  ([{**car, "serial_no": "V1"}, {**car, "serial_no": "v1"}], ["error", "error"]),  # 表里重号
                  ([{**car, "serial_no": "V1", "qty": "2"}], ["error"]),  # 一台一行
                  ([{**car, "serial_no": "V1"}, {**car, "serial_no": "V2", "unit_cost": "1"}], ["error", "error"]),  # 同一位置成本不一
-                 ([{**car, "serial_no": "V1"}, {**car, "serial_no": "V2", "location": "A"}], ["ready", "ready"]))  # 不同库位各一笔
+                 ([{**car, "serial_no": "V1"}, {**car, "serial_no": "V2", "warehouse": "W3"}], ["ready", "ready"]))  # 不同仓各一笔
         for rows, statuses in cases:
             with self.subTest(rows=rows):
                 self.assertEqual([row["status"] for row in self.preview(rows=rows)["rows"]], statuses)
@@ -320,20 +313,15 @@ class OpeningBatch(unittest.TestCase):
         self.args["rows"] = [{"internal_code": "A-01", "product_code": self.products[1].code, "qty": "4", "unit_cost": "10"}]
         self.assertTrue(self.preview()["rows"][0].get("error"))
 
-    def test_location_queries_use_exact_bytes_like_position_identity(self):
-        rows = [{**self.args["rows"][0], "location": location} for location in ("Rack-A", "rack-a", "e", "é")]
+    def test_a_location_column_is_ignored_and_one_product_per_warehouse(self):
+        """库存只到「物料 × 仓库」（11-19）：表里带来的仓位不读（旧模板）；同一物料同一个仓的几行按仓位分开不再算各一笔，是重复。"""
+        rows = [{**self.args["rows"][0], "location": location} for location in ("Rack-A", "rack-a")]
         review = self.preview(rows=rows)
-        self.assertTrue(review["valid"])
-        self.assertEqual(self.submit(review, rows=rows)["created"], 4)
-        self.assertEqual(self.submit(review, rows=rows)["skipped"], 4)
-        location_queries = [query for query in self.queries if "coalesce(location" in query]
-        self.assertTrue(location_queries)
-        self.assertTrue(all("binary coalesce(location, '')=binary %s" in query for query in location_queries))
-
-    def test_numeric_zero_location_is_not_the_unnamed_position(self):
-        review = self.preview(rows=[{**self.args["rows"][0], "location": 0}, self.args["rows"][0]])
-        self.assertTrue(review["valid"])
-        self.assertEqual([row["location"] for row in review["rows"]], ["0", ""])
+        self.assertEqual([row["status"] for row in review["rows"]], ["error", "error"])
+        self.assertTrue(all("location" not in row for row in review["rows"]))
+        review = self.preview(rows=rows[:1])
+        self.assertEqual(self.submit(review, rows=rows[:1])["openings"], ["OPN-P1-W1"])
+        self.assertFalse(hasattr(self.state["openings"][0], "location") and self.state["openings"][0].location)
 
     def test_all_new_paths_require_both_capabilities_and_legacy_stays_report_write(self):
         for allowed in ({"inventory.read"}, {"stock.in"}, {"report.write"}, set()):
@@ -362,7 +350,7 @@ class OpeningBatch(unittest.TestCase):
     def test_current_read_catches_concurrent_movement_behind_old_snapshot(self):
         review = self.preview()
         self.old_snapshot = deepcopy(self.state)
-        self.before_lock = lambda: self.state["movements"].append(Row(product="P1", warehouse="W1", location="", qty=1))
+        self.before_lock = lambda: self.state["movements"].append(Row(product="P1", warehouse="W1", qty=1))
         with self.assertRaisesRegex(ValueError, "changed"):
             self.submit(review)
         self.assertFalse(self.state["openings"])
@@ -370,7 +358,7 @@ class OpeningBatch(unittest.TestCase):
     def test_concurrent_identical_opening_is_skipped_under_current_read(self):
         review = self.preview()
         self.old_snapshot = deepcopy(self.state)
-        self.before_lock = lambda: self.state["openings"].append(Row(product="P1", warehouse="W1", location="", name="OPN-P1-W1",
+        self.before_lock = lambda: self.state["openings"].append(Row(product="P1", warehouse="W1", name="OPN-P1-W1",
                 as_of_date=date(2026, 9, 1), qty=4, posted_qty=4, unit_cost=10))
         self.assertEqual(self.submit(review)["skipped"], 1)
         self.assertFalse(self.state["movements"])
@@ -434,24 +422,25 @@ class OpeningBatch(unittest.TestCase):
             self.submit()
         self.assertFalse(self.state["openings"])
 
-    def test_one_warehouse_per_opening_old_template_rows_elsewhere_are_problems(self):
-        """一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）：模板没有仓库列；旧模板的仓库列空着或就是表头的仓才收，
-        写了别的仓（按名称或编号认出来的）这一行是问题行，认不到的仓同样记成这一行的错，整批预览照常出。"""
+    def test_each_row_takes_its_own_warehouse_and_the_header_is_the_default(self):
+        """按行选仓（11-19，反转 11-06 的一张单一个仓库）：仓库那一列空着用表头的仓；写了别的仓（按名称或编号认）就记在那个仓；
+        认不到 / 别家公司的仓记成这一行的错，整批预览照常出；仓位列不读。"""
         rows = [{"product": "P1", "qty": "4", "unit_cost": "10"},
                 {"product": "P1", "warehouse": "Shop", "location": "A-01", "qty": "2", "unit_cost": "10"},
-                {"product": "P1", "warehouse": "W3", "location": "B-09", "qty": "1", "unit_cost": "10"},
+                {"product": "P2", "warehouse": "W3", "location": "B-09", "qty": "1", "unit_cost": "10"},
                 {"product": "P1", "warehouse": "X1", "qty": "1", "unit_cost": "10"}]
         result = self.preview(rows=rows)
         self.assertEqual([(row["warehouse"] if row["status"] != "error" else None, row["status"]) for row in result["rows"]],
-                         [("W1", "ready"), (None, "error"), (None, "error"), (None, "error")])
-        self.assertIn("differs from the warehouse", result["rows"][1]["error"])
-        self.assertIn("differs from the warehouse", result["rows"][2]["error"])
+                         [("W1", "ready"), ("W3", "ready"), ("W3", "ready"), (None, "error")])
         self.assertIn("Warehouse not found", result["rows"][3]["error"])
         self.assertFalse(result["valid"])
-        self.assertNotIn("warehouse", [field for field, _label in self.service.opening_workbook.FIELD_LABELS])
-        done = self.submit(rows=rows[:1])
-        self.assertEqual(done["created"], 1)
-        self.assertEqual(sorted((row.warehouse, row.location or "") for row in self.state["openings"]), [("W1", "")])
+        fields = [field for field, _label in self.service.opening_workbook.FIELD_LABELS]
+        self.assertIn("warehouse", fields)
+        self.assertNotIn("location", fields)
+        done = self.submit(rows=rows[:3])
+        self.assertEqual(done["created"], 3)
+        self.assertEqual(sorted((row.product, row.warehouse) for row in self.state["openings"]),
+                         [("P1", "W1"), ("P1", "W3"), ("P2", "W3")])
 
     def test_file_permission_and_remote_url_are_checked_before_reading(self):
         with self.assertRaisesRegex(ValueError, "local"):

@@ -466,9 +466,10 @@ class ChosenPayload(Base):
 
     def test_purchase_lines_carry_each_choice(self):
         payload = intake.build_payload(self.chosen())
+        # 改版前存下的票（11-19 以前）行上带着仓位：不再交给提交（库存只到仓库）
         self.assertEqual([(row["item_type"], row.get("product"), row.get("new_item"), row.get("location"))
                           for row in payload["lines"]],
-                         [("goods", "P-SOAP", None, "A1"), ("service", None, None, None), ("goods", None, 1, None)])
+                         [("goods", "P-SOAP", None, None), ("service", None, None, None), ("goods", None, 1, None)])
         self.assertEqual(payload["warehouse"], "WH-2")
         self.assertNotIn("update_stock", payload)
         self.assertNotIn("auto_create_product", payload)
@@ -505,17 +506,15 @@ class LineItems(Base):
         self.enterContext(patch.object(line_items, "_prefill", return_value=None))
         self.enterContext(patch.object(line_items, "_warehouses", return_value=[("WH-1", "Main"), ("WH-2", "Shop")]))
         self.enterContext(patch.object(line_items, "_usable_warehouse", return_value=True))
-        self.locations = []
+        # 仓建了仓位清单也不问仓位（11-19 只问仓库）：清单在这里照样给，追问不该去读它
+        self.locations = ["A1", "B2"]
         self.enterContext(patch("pearnly_erp_portal.inventory.positions.listed", side_effect=lambda w: list(self.locations)))
-        self.enterContext(patch("pearnly_erp_portal.inventory.positions.has_list", side_effect=lambda w: bool(self.locations)))
-        self.location_codes = {}  # 仓位编码（11-07）：{仓位名称: 编码}
-        self.enterContext(patch("pearnly_erp_portal.inventory.positions.codes", side_effect=lambda w: dict(self.location_codes)))
         frappe.db.exists.return_value = True
         self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload"}}
         self.roles["buyer"] = {"purchase.write", "purchase.read", "integration.read"}
 
     def add(self, name, lines, warehouse=None):
-        choices = {"warehouse": warehouse, "location_asked": False, "lines": lines}
+        choices = {"warehouse": warehouse, "lines": lines}
         doc = _doc(name=name, party="@doc", item_kind=None, warehouse=None, line_choices=json.dumps(choices), result=json.dumps(
             {"doc_no": name, "supplier_name": "Acme",
              "lines": [{"description": f"Item {index + 1}"} for index in range(len(lines))]}))
@@ -526,7 +525,7 @@ class LineItems(Base):
 
     @staticmethod
     def row(decided=False, item_type="goods", product=None):
-        return {"item_type": item_type, "product": product, "location": None, "decided": decided, "new": False}
+        return {"item_type": item_type, "product": product, "decided": decided, "new": False}
 
     def tap(self, data):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
@@ -594,28 +593,20 @@ class LineItems(Base):
         self.assertEqual(json.loads(self.docs["LI-2"].line_choices)["warehouse"], "WH-2")
         self.assertEqual(self.replies[-1], [{"card": "LI-1"}, {"card": "LI-2"}])
 
-    def test_a_location_list_is_asked_once_with_a_skip(self):
-        self.locations = ["A1", "B2"]
+    def test_only_the_warehouse_is_asked_never_a_location(self):
+        """11-19 只问仓库（一张票问一次，各行同仓；要逐行不同仓在「编辑」里改）：仓定了、仓建了仓位清单也不问仓位，
+        行上不记仓位，记忆也不再带仓位。"""
         self.add("LI-1", [self.row(True, product="P1"), self.row(True, product="P2")], warehouse="WH-1")
-        question = self.items.queue("U1", ["LI-1"])
-        self.assertEqual(self.labels(question), ["A1", "B2", "erp.line.items.noLocation"[:20], "Cancel"])
-        self.tap("a=erp_item&v=l&n=LI-1&k=1")
-        self.assertEqual([row["location"] for row in self.lines("LI-1")], ["B2", "B2"])
-        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
-
-    def test_location_buttons_show_the_code_and_a_typed_code_picks_the_location(self):
-        """仓位编码（11-07）：问仓位的按钮写「编码 · 名称」，点下去记名称；打字回复编码也认。"""
-        self.locations = ["Shelf A", "Shelf B"]
-        self.location_codes = {"Shelf A": "A1"}
-        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
-        question = self.items.queue("U1", ["LI-1"])
-        self.assertEqual(self.labels(question)[:2], ["A1 · Shelf A", "Shelf B"])
-        self.tap("a=erp_item&v=l&n=LI-1&k=0")
-        self.assertEqual([row["location"] for row in self.lines("LI-1")], ["Shelf A"])
-        self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
-        self.items.queue("U1", ["LI-2"])
-        self.say("a1")  # 打的是编码（不分大小写）
-        self.assertEqual([row["location"] for row in self.lines("LI-2")], ["Shelf A"])
+        self.assertIsNone(self.items.queue("U1", ["LI-1"]))
+        self.assertTrue(all("location" not in row for row in self.lines("LI-1")))
+        self.assertNotIn("location_asked", json.loads(self.docs["LI-1"].line_choices))
+        self.add("LI-2", [self.row(True, product="P1")])
+        question = self.items.queue("U1", ["LI-2"])
+        self.assertEqual(self.labels(question), ["1. Main", "2. Shop", "Cancel"])
+        self.tap("a=erp_item&v=w&n=LI-2&k=0")
+        self.assertEqual(self.replies[-1], [{"card": "LI-2"}])  # 选了仓就回卡片，不接着问仓位
+        self.tap("a=erp_item&v=l&n=LI-2&k=0")  # 老版本提问留下的仓位按钮：不认
+        self.assertEqual(self.last_text(), "This option is no longer current")
 
     def test_documents_are_asked_one_at_a_time_and_cancel_moves_on(self):
         self.add("LI-1", [self.row()], warehouse="WH-1")

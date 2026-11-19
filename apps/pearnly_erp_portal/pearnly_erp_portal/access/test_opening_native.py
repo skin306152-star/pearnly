@@ -76,7 +76,7 @@ class OpeningNativeBoundaries(unittest.TestCase):
 
     def new_opening(self):
         return frappe.get_doc({"doctype": DOCTYPE, "product": self.product,
-            "warehouse": self.a["warehouse"], "location": "native-attempt",
+            "warehouse": self.a["warehouse"],
             "as_of_date": "2026-09-24", "qty": 99, "unit_cost": 17, "posted_qty": 99})
 
     def assert_original(self):

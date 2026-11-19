@@ -151,7 +151,7 @@ class SecondBatchRules(unittest.TestCase):
         self.assertEqual((C.count_mode("Active", "check", True), C.count_mode("Active", "check", False),
                           C.count_mode("Posted", "check", False)), ("check", "sheet", "result"))
 
-    def test_count_rows_filter_by_only_warehouse_and_location(self):
+    def test_count_rows_filter_by_only_and_warehouse(self):
         from pearnly_erp_portal.inventory import contracts as S
 
         rows = [{"name": "a", "counted": 0, "difference": 0, "warehouse": "W1", "location": "A1"},
@@ -162,8 +162,10 @@ class SecondBatchRules(unittest.TestCase):
         self.assertEqual(names(), ["a", "b", "c", "d"])
         self.assertEqual(names(only="uncounted"), ["a"])
         self.assertEqual(names(only="differences"), ["c"])  # 四舍到 3 位：0.0004 不算差异
-        self.assertEqual(names(warehouse="W1", location="A1"), ["a"])
+        self.assertEqual(names(warehouse="W1"), ["a", "b", "d"])
         self.assertEqual(names(only="counted", warehouse="W1"), ["b", "d"])
+        with self.assertRaises(TypeError):
+            names(location="A1")  # 账面只到仓库（11-19）：盘点打印 / 导出不再按仓位筛
 
     def test_stock_status_and_the_by_product_view(self):
         """多仓闭环 P4：这一行没货是缺货；有货时低库存按这件物料的公司合计比。按物料合计：数量、金额相加，有一处成本未确立
@@ -180,9 +182,10 @@ class SecondBatchRules(unittest.TestCase):
                 {"product": "P1", "product_name": "น้ำแข็ง", "min_stock": 5, "company_qty": 4, "qty_on_hand": 1, "value": 14,
                  "cost_known": True, "unit_cost": 14, "warehouse": "W2", "location": ""}]
         merged = S.product_rows(rows, cost_visible=True)
-        self.assertEqual([(row["name"], row["qty_on_hand"], row["value"], row["unit_cost"], row["status"], row["warehouse"],
-                           row["location"]) for row in merged],
-                         [("P1", 4.0, 44.0, 11.0, "low", None, ""), ("P2", 2.0, None, None, "ok", None, "")])
+        self.assertEqual([(row["name"], row["qty_on_hand"], row["value"], row["unit_cost"], row["status"], row["warehouse"])
+                          for row in merged],
+                         [("P1", 4.0, 44.0, 11.0, "low", None), ("P2", 2.0, None, None, "ok", None)])
+        self.assertFalse(any("location" in row for row in merged))
         self.assertEqual([row["value"] for row in S.product_rows(rows, cost_visible=False)], [None, None])
         self.assertEqual(S.product_rows([{**rows[1], "company_qty": 0, "qty_on_hand": 0}], cost_visible=True)[0]["status"], "out")
         self.assertLess(C.thermal_height_mm(3, 2), C.thermal_height_mm(30, 2))

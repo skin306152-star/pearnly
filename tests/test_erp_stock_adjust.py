@@ -2,7 +2,8 @@
 
 - 一张单正负混录：数量不能为 0；减少的行不存价；增加的行能看成本的人给的价照存，人亲手填 / 改过的才记 `unit_cost_manual`；
   看不到成本的人给的价不算，按当前均价；服务端自己生成的行（盘点估值）照存、不算人填；
-- 一张单一个仓库：行上的仓一律换成单头的；盘点生成的调整单里在别的仓找到的货保留自己的仓；
+- 仓库按行（11-19 撤掉一单一仓，同 Express 原生）：行上的仓为准，单头存默认仓（没给就是第一行的仓）；别家公司的仓被拒；
+  多仓公司库存行没有仓被拒；只有一个仓自动取；调拨照旧单头一出一进（行就是调出仓，两仓相同被拒）；
 - 单的种类：方向 adjust 与历史盘点 AD 单（ref_type = count）都归物料调整；列表权限按种类拼；
 - Express：人建的物料调整单写增减调整 JU（4-3-1，11-18 主会话定 D1），盘点生成的调整单与历史盘点写盘点调整 TK；都按「存货 × 仓」
   轧差（仓位挪动净 0 不写）；TK 只带人填的单价，JU 带页面上的单价（原生调增要人填价）；表单预检同样分。
@@ -40,7 +41,7 @@ def refuse(message, *args, **kwargs):
 
 class AdjustLines(unittest.TestCase):
     def lines(self, rows, *, visible=True, trusted=False, default=Decimal("12.50")):
-        prepared = [{**row, "warehouse": "W1", "location": row.get("location", "")} for row in rows]
+        prepared = [{**row, "warehouse": "W1"} for row in rows]
         with mock.patch.object(documents.guard, "cost_visible", lambda: visible), \
                 mock.patch.object(documents, "default_unit_cost", lambda *a, **k: default), \
                 mock.patch.object(documents.frappe, "throw", refuse), \
@@ -81,14 +82,88 @@ class AdjustLines(unittest.TestCase):
         self.assertEqual([line["qty"] for line in out], [Decimal(3), Decimal(-2)])
 
 
-class OneWarehouse(unittest.TestCase):
-    def test_lines_follow_the_header_warehouse(self):
-        rows = documents._own_warehouse([{"product": "A", "warehouse": "W2"}, {"product": "B"}], "W1")
-        self.assertEqual([row["warehouse"] for row in rows], ["W1", "W1"])
+class LineWarehouses(unittest.TestCase):
+    """11-19 撤掉一单一仓：`create_entry` 照行上的仓铺行（服务端每行核仓属于单据公司、启用），单头存默认仓。"""
 
-    def test_a_count_adjustment_keeps_goods_found_in_another_warehouse(self):
-        rows = documents._own_warehouse([{"product": "A", "warehouse": "W2"}, {"product": "B"}], "W1", stock_count="STC-1")
-        self.assertEqual([row["warehouse"] for row in rows], ["W2", "W1"])
+    OWNERS = {"W1": "CO-1", "W2": "CO-1", "X1": "CO-2", "S1": "CO-S"}
+    SOLE = {"CO-1": None, "CO-S": "S1"}
+
+    def required(self, value=None, company=None):
+        if str(value or "").strip():
+            if value not in self.OWNERS or (company and self.OWNERS[value] != company):
+                raise Refused("Warehouse not found")
+            return value
+        only = self.SOLE.get(company or self.company)
+        if not only:
+            raise Refused("Pick a warehouse")
+        return only
+
+    def create(self, lines, *, direction="out", company="CO-1", **kwargs):
+        self.company, made = company, []
+        product = types.SimpleNamespace(is_active=1)
+        doc = types.SimpleNamespace(name="STE-1", doc_no="IS-1", status="draft")
+        patches = [
+            mock.patch.object(documents, "require_kind", lambda *a, **k: None),
+            mock.patch.object(documents.warehouses, "receiving", self.required),
+            mock.patch.object(documents.warehouses, "required", self.required),
+            mock.patch.object(documents.positions.warehouses, "receiving", self.required),
+            mock.patch.object(documents.positions.warehouses, "required", self.required),
+            mock.patch.object(documents.warehouses, "company_of", lambda name: self.OWNERS[name]),
+            mock.patch.object(documents.warehouses, "remember", lambda *a, **k: None),
+            mock.patch.object(documents.positions.frappe.db, "get_value", lambda *a, **k: product, create=True),
+            mock.patch.object(documents, "_with_units", lambda rows: rows),
+            mock.patch.object(documents.numbering, "allocate", lambda **k: "IS-1"),
+            mock.patch.object(documents.serials, "set_doc_serials", lambda *a: None),
+            mock.patch.object(documents.access, "write_entry", lambda *a: None),
+            mock.patch.object(documents.frappe, "get_doc", lambda values: made.append(values) or doc, create=True),
+            mock.patch.object(documents.frappe, "throw", refuse),
+            mock.patch.object(documents, "_", lambda text: text),
+        ]
+        for patcher in patches:
+            patcher.start()
+        try:
+            documents.create_entry(direction=direction, posting_date="2026-11-19", lines=lines, commit=False, **kwargs)
+        finally:
+            for patcher in reversed(patches):
+                patcher.stop()
+        return made[0]
+
+    def test_each_line_keeps_its_own_warehouse_and_the_header_is_the_first(self):
+        doc = self.create([{"product": "A", "qty": 1, "warehouse": "W2"}, {"product": "B", "qty": 1, "warehouse": "W1"}])
+        self.assertEqual([row["warehouse"] for row in doc["lines"]], ["W2", "W1"])
+        self.assertEqual(doc["warehouse"], "W2")  # 单头存默认仓：没给就是第一行的仓
+        self.assertFalse({"location", "to_location"} & set(doc) | {key for row in doc["lines"] for key in row}
+                         & {"location", "to_location"})
+
+    def test_a_line_without_a_warehouse_takes_the_default(self):
+        doc = self.create([{"product": "A", "qty": 1}, {"product": "B", "qty": 1, "warehouse": "W2"}], warehouse="W1")
+        self.assertEqual([row["warehouse"] for row in doc["lines"]], ["W1", "W2"])
+
+    def test_a_warehouse_of_another_company_is_refused(self):
+        with self.assertRaisesRegex(Refused, "Warehouse not found"):
+            self.create([{"product": "A", "qty": 1, "warehouse": "W1"}, {"product": "B", "qty": 1, "warehouse": "X1"}])
+
+    def test_a_multi_warehouse_company_needs_a_warehouse_on_every_stock_line(self):
+        with self.assertRaisesRegex(Refused, "Pick a warehouse"):
+            self.create([{"product": "A", "qty": 1}])
+
+    def test_a_one_warehouse_company_takes_it_without_asking(self):
+        doc = self.create([{"product": "A", "qty": 1}], company="CO-S")
+        self.assertEqual((doc["warehouse"], [row["warehouse"] for row in doc["lines"]]), ("S1", ["S1"]))
+
+    def test_a_transfer_stays_one_out_one_in_on_the_header(self):
+        doc = self.create([{"product": "A", "qty": 1, "warehouse": "W2"}], direction="transfer", warehouse="W1",
+                          to_warehouse="W2")
+        self.assertEqual((doc["warehouse"], doc["to_warehouse"]), ("W1", "W2"))
+        self.assertEqual([row["warehouse"] for row in doc["lines"]], ["W1"])  # 调拨的行就是调出仓（行上不放仓）
+        with self.assertRaisesRegex(Refused, "must differ"):
+            self.create([{"product": "A", "qty": 1}], direction="transfer", warehouse="W1", to_warehouse="W1")
+        with self.assertRaisesRegex(Refused, "Warehouse not found"):
+            self.create([{"product": "A", "qty": 1}], direction="transfer", warehouse="W1", to_warehouse="X1")
+
+    def test_the_old_one_warehouse_rule_is_gone(self):
+        self.assertFalse(hasattr(documents, "_own_warehouse"))
+        self.assertFalse(hasattr(documents.positions, "one_warehouse"))
 
 
 class LineUnits(unittest.TestCase):

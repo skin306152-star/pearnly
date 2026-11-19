@@ -23,7 +23,7 @@ function element() {
 // 新建弹窗会先向服务端要一个**编码预览**（`api_next_product_code`，只读不占号）。
 const PREVIEW_CODE = 'P-000042';
 const NEW_FIELDS = ['product_name', 'code', 'code_value', 'unit', 'base_unit', 'category_id',
-  'default_warehouse', 'default_location', 'unit_price', 'default_cost', 'min_stock',
+  'default_warehouse', 'unit_price', 'default_cost', 'min_stock',
   'vat_applicable', 'image_url'];
 
 function boot({ product = null, supported = true, can_write = true } = {}) {

@@ -39,7 +39,8 @@ class Rules(unittest.TestCase):
     def test_memory_beats_consensus_and_matching(self):
         result = line_rules.decide(remembered={"item_type": GOODS, "product": "P-OLD", "location": "A1"},
                                    agreed={"item_type": SERVICE}, matched={"product": "P-NAME"}, recognised=SERVICE)
-        self.assertEqual((result["product"], result["location"], result["source"]), ("P-OLD", "A1", line_rules.MEMORY))
+        self.assertEqual((result["product"], result["source"]), ("P-OLD", line_rules.MEMORY))
+        self.assertNotIn("location", result)  # 行物料记忆不再记仓位（11-19 取消仓位）
         consensus = line_rules.decide(agreed={"item_type": SERVICE, "product": None}, matched={"product": "P"})
         self.assertEqual((consensus["item_type"], consensus["source"]), (SERVICE, line_rules.AGREED))
 
@@ -125,7 +126,9 @@ class Memory(unittest.TestCase):
     def test_a_remembered_line_comes_back_only_for_the_same_company(self):
         self.learn("CO-A", [{"description": "น้ำแข็งหลอด", "product": "P-ICE", "item_type": GOODS, "location": "A1"}])
         found = line_memory.remembered("CO-A", "purchase", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด")
-        self.assertEqual(found, {"product": "P-ICE", "item_type": GOODS, "location": "A1"})
+        self.assertEqual(found, {"product": "P-ICE", "item_type": GOODS})  # 不再记仓位（11-19）
+        stored = next(iter(fake.STATE.db.table("ERP Line Item Memory").values()))
+        self.assertNotIn("location", stored)
         self.assertIsNone(line_memory.remembered("CO-B", "purchase", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด"))
         self.assertIsNone(line_memory.remembered("CO-A", "sales", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด"))
 

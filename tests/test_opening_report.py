@@ -47,7 +47,7 @@ class OpeningReport(unittest.TestCase):
         inventory = ModuleType("pearnly_erp_portal.inventory")
         inventory.contracts = self.contracts
         inventory.warehouses = SimpleNamespace(resolve=lambda value, **kwargs: value,
-            scope_filter=lambda: {"warehouse": ["in", ["W1", "W2"]]})
+            scope_filter=lambda: {"warehouse": ["in", ["W1", "W2", "W3"]]})
         # 品名后接「分类 · 特性」（岳父 11-01，`report._product_names` 用真的 `products.categories`）：分类主档查询换成内存里的
         frappe.whitelist = lambda *args, **kwargs: (lambda function: function)
         frappe.get_all = self.get_all
@@ -74,8 +74,6 @@ class OpeningReport(unittest.TestCase):
 
         def holds(row, condition):
             key, operation, value = condition
-            if key == "location":
-                return True  # Emulate a collation returning a superset of exact location names.
             have = row.get(key)
             have = str(have) if key == "posting_date" else have
             if operation == "=":
@@ -95,10 +93,10 @@ class OpeningReport(unittest.TestCase):
         if any(isinstance(field, dict) for field in fields):
             grouped = {}
             for row in rows:
-                key = (row["product"], row["warehouse"], row.get("location") or "")
+                key = (row["product"], row["warehouse"])
                 grouped.setdefault(key, 0)
                 grouped[key] += row["qty_base"]
-            return [{"product": p, "warehouse": w, "location": l, "qty": q} for (p, w, l), q in grouped.items()]
+            return [{"product": p, "warehouse": w, "qty": q} for (p, w), q in grouped.items()]
         return sorted(rows, key=lambda row: (str(row["posting_date"]), row["posting_time"], row["index"]))
 
     def get_all(self, doctype, filters=None, fields=None, as_list=False, **kwargs):
@@ -110,10 +108,10 @@ class OpeningReport(unittest.TestCase):
         before = len(self.queries)
         rows = self.report._movements(**query)
         del self.queries[before:]  # 对照实现自己取的流水不算页面的查询
-        self.queries.append(("ERP Stock Movement", query, {"group_by": "product, warehouse, location"}))
+        self.queries.append(("ERP Stock Movement", query, {"group_by": "product, warehouse"}))
         out = {}
         for row in rows:
-            key = (row["product"], row["warehouse"], row.get("location") or "")
+            key = (row["product"], row["warehouse"])  # 库存只到「物料 × 仓库」（11-19）
             sums = out.setdefault(key, dict.fromkeys(("carried", "period_in", "period_out", "init_all", "init_in"),
                                                      Decimal(0)))
             qty = Decimal(str(row["qty_base"]))
@@ -127,8 +125,8 @@ class OpeningReport(unittest.TestCase):
                 sums["init_in"] += qty if qty > 0 else 0
         return out
 
-    def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", location="", product="P1"):
-        self.movements.append({"name": name, "product": product, "warehouse": warehouse, "location": location,
+    def add(self, name, day, qty, cost=None, kind="stock_in", ref=None, warehouse="W1", product="P1"):
+        self.movements.append({"name": name, "product": product, "warehouse": warehouse,
             "posting_date": date.fromisoformat(day), "posting_time": "00:00:00", "index": len(self.movements),
             "movement_type": kind, "ref_type": ref, "ref_id": name + "-source", "doc_no": name,
             "qty": qty, "qty_base": qty, "unit": "pcs", "unit_cost": cost or 0,
@@ -201,7 +199,7 @@ class OpeningReport(unittest.TestCase):
         self.add("opening", "2026-09-01", 10, 10, kind="opening")
         self.add("sale", "2026-09-02", -2, kind="sale_out")
         self.add("revision", "2026-09-05", 7, 30, kind="adjust", ref="opening")
-        self.add("future-position", "2026-09-06", 99, 99, kind="opening", location="later")
+        self.add("future-position", "2026-09-06", 99, 99, kind="opening")
         card, summaries = self.card(end="2026-09-03"), self.summary(end="2026-09-03")
         self.assertEqual((card["opening"]["qty"], card["closing"]["qty"]), (10, 8))
         self.assertEqual(card["closing"]["value"], 80)
@@ -227,15 +225,15 @@ class OpeningReport(unittest.TestCase):
         self.assert_continuous(card)
         self.assert_continuous(self.card(start="2026-09-03"))
 
-    def test_positions_share_one_company_pool_like_mrerp(self):
-        """收发存报表照 MR.ERP（主会话 11-09）：一个物料全公司一个移动平均池，不再按仓 / 仓位各算各的。
-        池：A 10@10 → 卖 2 @10 → B 5@20（13 / 180 / 13.85）→ 卖 1 @13.85 → W2 2@70（14 / 306.15 / 21.87）→ 卖 1 @21.87。"""
-        self.add("open-A", "2026-09-01", 10, 10, kind="opening", location="A")
-        self.add("sale-A", "2026-09-02", -2, kind="sale_out", location="A")
-        self.add("open-B", "2026-09-05", 5, 20, kind="opening", location="B")
-        self.add("sale-B", "2026-09-06", -1, kind="sale_out", location="B")
-        self.add("open-W2", "2026-09-07", 2, 70, kind="opening", warehouse="W2", location="A")
-        self.add("sale-W2", "2026-09-08", -1, kind="sale_out", warehouse="W2", location="A")
+    def test_warehouses_share_one_company_pool_like_mrerp(self):
+        """收发存报表照 MR.ERP（主会话 11-09）：一个物料全公司一个移动平均池，不再按仓各算各的（11-19 起库存只到仓库）。
+        池：W1 10@10 → 卖 2 @10 → W3 5@20（13 / 180 / 13.85）→ 卖 1 @13.85 → W2 2@70（14 / 306.15 / 21.87）→ 卖 1 @21.87。"""
+        self.add("open-A", "2026-09-01", 10, 10, kind="opening")
+        self.add("sale-A", "2026-09-02", -2, kind="sale_out")
+        self.add("open-B", "2026-09-05", 5, 20, kind="opening", warehouse="W3")
+        self.add("sale-B", "2026-09-06", -1, kind="sale_out", warehouse="W3")
+        self.add("open-W2", "2026-09-07", 2, 70, kind="opening", warehouse="W2")
+        self.add("sale-W2", "2026-09-08", -1, kind="sale_out", warehouse="W2")
         self.add("out-of-scope", "2026-09-01", 100, 100, kind="opening", warehouse="OTHER")
         card = self.card()
         self.assertEqual((card["opening"]["qty"], card["opening"]["value"]), (17, 340))
@@ -248,7 +246,10 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual(sum(row["in_qty"] for row in summary), 0)
         self.assertEqual(sum(row["closing_value"] for row in summary), card["closing"]["value"])
         self.assertEqual(self.card(end="2026-09-03")["opening"]["qty"], 10)
-        self.assert_continuous(self.card(warehouse="W1", location="A"))
+        self.assert_continuous(self.card(warehouse="W1"))
+        # 11-19 以前的库存卡链接带着仓位：照常打开、不看它
+        self.assertEqual(self.card(warehouse="W1", location="A")["rows"], self.card(warehouse="W1")["rows"])
+        self.assertTrue(all("location" not in row for row in self.card()["rows"]))
 
     def test_trailing_revision_folds_into_opening_and_balance_price_is_amount_over_qty(self):
         """初始化修订并进期初；结余单价照 MR.ERP 报表 = round(结余金额 / 结余数量, 2)（57.php），不沿用引擎的滚动单价。
@@ -278,22 +279,20 @@ class OpeningReport(unittest.TestCase):
         self.assertEqual((summary["opening_qty"], summary["in_qty"], summary["out_qty"]), (10, 4, 4))
         self.assert_continuous(self.card())
 
-    def test_selected_location_does_not_merge_case_or_accent_variants(self):
-        for number, location in enumerate(("Rack-A", "rack-a", "e", "é"), 1):
-            self.add("open-" + location, "2026-09-01", number * 10, number, kind="opening", location=location)
-            self.add("sale-" + location, "2026-09-02", -1, kind="sale_out", location=location)
-        for number, location in enumerate(("Rack-A", "rack-a", "e", "é"), 1):
-            with self.subTest(location=location):
-                card, summary = self.card(location=location), self.summary(location=location)
-                self.assertEqual(card["opening"]["qty"], number * 10)
-                self.assertEqual([row["name"] for row in card["rows"]], ["sale-" + location])
-                self.assertEqual(len(summary), 1)
-                self.assertEqual(summary[0]["location"], location)
-                self.assert_continuous(card)
+    def test_the_summary_has_one_row_per_product_and_warehouse(self):
+        """库存只到「物料 × 仓库」（11-19）：同一个仓不再按仓位分行，汇总一行；汇总、库存卡都不再收仓位参数。"""
+        self.add("open-1", "2026-09-01", 10, 1, kind="opening")
+        self.add("sale-1", "2026-09-02", -1, kind="sale_out")
+        summary = self.summary()
+        self.assertEqual([(row["warehouse"], row["closing_qty"]) for row in summary], [("W1", 9)])
+        self.assertNotIn("location", summary[0])
+        self.assertEqual(summary[0]["name"], "BAL-P1-W1")
+        with self.assertRaises(TypeError):
+            self.summary(location="A")
 
-    def test_new_business_position_does_not_mask_other_opening_costs(self):
-        self.add("opening-A", "2026-09-01", 10, 10, kind="opening", location="A")
-        self.add("purchase-B", "2026-09-05", 5, 20, kind="purchase_in", location="B")
+    def test_new_business_warehouse_does_not_mask_other_opening_costs(self):
+        self.add("opening-A", "2026-09-01", 10, 10, kind="opening")
+        self.add("purchase-B", "2026-09-05", 5, 20, kind="purchase_in", warehouse="W3")
         card = self.card()
         self.assertEqual(card["opening"], {"date": "2026-09-01", "qty": 10, "unit_cost": 10, "value": 100})
         self.assertEqual((card["closing"]["qty"], card["closing"]["value"]), (15, 200))

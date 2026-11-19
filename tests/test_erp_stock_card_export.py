@@ -80,12 +80,12 @@ class Rows(unittest.TestCase):
     def setUp(self):
         self.rows = load("card_rows_pure", DOMAIN / "card_rows.py")
 
-    def move(self, day, doc, qty, price, amount, seq, position=("W1", "")):
+    def move(self, day, doc, qty, price, amount, seq, position=("W1",)):
         return self.rows.Movement(day, doc, D(qty), None if price is None else D(price),
                                   None if amount is None else D(amount), seq, position)
 
     def test_zero_balance_price_is_zero_and_totals_carry_no_price(self):
-        item = self.rows.block([self.rows.Opening(("W1", ""), D(2), D("3.00"))],
+        item = self.rows.block([self.rows.Opening(("W1",), D(2), D("3.00"))],
                                [self.move("2026-10-01", "S1", -2, "1.50", "3.00", 0)])
         self.assertEqual((item.closing_qty, item.closing_price, item.closing_amount), (D(0), D(0), D("0.00")))
         self.assertEqual((item.out_qty, item.out_amount, item.out_price), (D(2), D("3.00"), D("1.50")))
@@ -101,17 +101,17 @@ class Rows(unittest.TestCase):
         self.assertIsNone(item.in_price)
 
     def test_hidden_costs_keep_quantities(self):
-        item = self.rows.block([self.rows.Opening(("W1", ""), D(1), D("5.00"))],
+        item = self.rows.block([self.rows.Opening(("W1",), D(1), D("5.00"))],
                                [self.move("2026-10-01", "P1", 2, "4.00", "8.00", 0)], costs=False)
         self.assertEqual((item.opening_qty, item.opening_amount, item.closing_qty, item.closing_amount),
                          (D(1), None, D(3), None))
         self.assertEqual((item.lines[0].unit_price, item.lines[0].amount, item.lines[0].bal_price), (None, None, None))
 
     def test_shown_rules(self):
-        empty = self.rows.block([self.rows.Opening(("W1", ""), D(0), D("0.00"))], [])
+        empty = self.rows.block([self.rows.Opening(("W1",), D(0), D("0.00"))], [])
         self.assertFalse(empty.shown_in_detail())
         self.assertFalse(empty.shown_in_summary())
-        carried = self.rows.block([self.rows.Opening(("W1", ""), D(5), D("10.00"))], [])
+        carried = self.rows.block([self.rows.Opening(("W1",), D(5), D("10.00"))], [])
         self.assertTrue(carried.shown_in_detail())
         self.assertTrue(carried.shown_in_summary())
 
@@ -230,12 +230,12 @@ class Export(unittest.TestCase):
     def position_sums(self, query, date_from):
         out = {}
         for row in self.report._movements(**query):
-            out[(row["product"], row["warehouse"], row.get("location") or "")] = {}
+            out[(row["product"], row["warehouse"])] = {}  # 库存只到「物料 × 仓库」（11-19）
         return out
 
     def add(self, day, time, product, warehouse, qty, cost=None, kind="stock_in", doc=None):
         self.movements.append({"name": f"STM-{len(self.movements):05d}", "product": product, "warehouse": warehouse,
-            "location": "", "posting_date": date.fromisoformat(day), "posting_time": time, "index": len(self.movements),
+            "posting_date": date.fromisoformat(day), "posting_time": time, "index": len(self.movements),
             "movement_type": kind, "ref_type": None, "ref_id": None, "doc_no": doc or f"D{len(self.movements)}",
             "qty": abs(qty), "qty_base": qty, "unit": "pcs", "unit_cost": cost or 0, "cost_known": int(cost is not None),
             "reason": ""})
@@ -540,12 +540,12 @@ class Export(unittest.TestCase):
         row = next(r for r in self.layout("summary")["body"] if r["cells"][0]["value"] == code)
         return self.values(row)[2:]
 
-    def test_issue_from_a_location_that_never_had_cost_takes_the_pool_price(self):
-        """沐浴露：有成本的货在空仓位，卖却从从没进过货的仓位 A 出（A 负库存）。MR.ERP 全公司一个价：按池均价发，不空。"""
+    def test_issue_from_a_warehouse_that_never_had_cost_takes_the_pool_price(self):
+        """沐浴露：有成本的货在 W1，卖却从从没进过货的 W2 出（W2 负库存）。MR.ERP 全公司一个价：按池均价发，不空。
+        （11-19 以前是同一个仓的两个仓位，取消仓位后同一件事在两个仓之间。）"""
         self.products["P6"] = ("C006", "ครีมอาบน้ำ", "ขวด")
         self.add("2026-09-01", "10:00:00", "P6", "W1", 66, "121.21", "purchase_in", "PI-60")
-        self.add("2026-10-01", "10:00:00", "P6", "W1", -1, None, "sale_out", "SI-61")
-        self.movements[-1]["location"] = "A"
+        self.add("2026-10-01", "10:00:00", "P6", "W2", -1, None, "sale_out", "SI-61")
         self.add("2026-10-07", "10:00:00", "P6", "W1", 158, 80, "adjust", "IA-62")
         self.assertEqual(self.summary_of("C006"), [
             D(66), D("121.21"), D("7999.86"), D(158), D("80.00"), D("12640.00"), D(1), D("121.21"), D("121.21"),
@@ -557,9 +557,7 @@ class Export(unittest.TestCase):
         self.products["P7"] = ("C007", "น้ำดื่ม", "ขวด")
         self.add("2026-09-01", "10:00:00", "P7", "W1", 100, 20, "purchase_in", "PI-70")
         self.add("2026-10-04", "09:00:00", "P7", "W1", -63, None, "adjust", "AD-05")
-        self.movements[-1]["location"] = "B"
         self.add("2026-10-04", "10:00:00", "P7", "W1", 53, 20, "adjust", "AD-07")
-        self.movements[-1]["location"] = "B"
         body = self.layout("all", product_from="P7", product_to="P7")["body"]
         self.assertEqual([self.values(row) for row in body[2:4]], [
             ["04/10/2569", "AD-07", D(53), D("20.00"), D("1060.00"), None, None, None, D(153), D("20.00"), D("3060.00")],

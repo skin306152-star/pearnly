@@ -2893,13 +2893,13 @@ class ServiceLinesTakeNoWarehouse(unittest.TestCase):
 
         from pearnly_erp_portal.inventory import positions
 
-        product = SimpleNamespace(is_active=1, default_location="")
+        product = SimpleNamespace(is_active=1)
         with mock.patch.object(positions.frappe.db, "get_value", return_value=product), \
                 mock.patch.object(positions.warehouses, "receiving", side_effect=AssertionError("asked for a warehouse")):
             line = positions.prepare({"product": "PRD-68362", "item_type": "service", "qty": 1}, company="CO-42069")
         self.assertNotIn("warehouse", line)
         self.assertEqual(positions.saved({"product": "PRD-68362", "item_type": "service"}, company="CO-42069"),
-                         {"warehouse": None, "location": ""})
+                         {"warehouse": None})
         with mock.patch.object(positions.frappe.db, "get_value", return_value=product), \
                 mock.patch.object(positions.warehouses, "receiving", return_value="WH-68368") as receiving:
             goods = positions.prepare({"product": "PRD-1", "item_type": "goods", "qty": 1}, company="CO-42069")
@@ -2910,7 +2910,7 @@ class ServiceLinesTakeNoWarehouse(unittest.TestCase):
 
 
 class StockAlignment(MasterSync):
-    """出入库第一期（10-25）：对齐目标算全部还没进 Express 的 ERP 变动；调整写回原库位；Express 自己对不上的存货不抹、进差异清单。"""
+    """出入库第一期（10-25）：对齐目标算全部还没进 Express 的 ERP 变动；调整只到仓库（11-19）；Express 自己对不上的存货不抹、进差异清单。"""
 
     def test_pending_counts_only_moves_of_documents_started_after_the_link(self):
         """主会话 11-01（库存对齐统一口径）：只叠加开始时刻不早于接上时刻、还没写成的单；更早开始的一律不叠加，接上后 ERP 结存以
@@ -3029,13 +3029,29 @@ class StockAlignment(MasterSync):
                          [{"code": "ICE-02", "name": "น้ำแข็งบด", "locations": "3", "balance": "5"}])
         self.assertIsNone(sync._differences_json(products, {}))
 
-    def test_adjustments_go_back_to_the_goods_own_place(self):
-        place = self.sync._place
-        present = {("P1", "W1"): {"A-01"}, ("P2", "W1"): {"A-01", "B-02"}}
-        self.assertEqual(place("P1", "W1", "SHELF-9", present), "SHELF-9")  # 默认库位优先
-        self.assertEqual(place("P1", "W1", "", present), "A-01")             # 这个仓里只有一个库位
-        self.assertEqual(place("P2", "W1", "", present), "")                # 几个库位又没设默认：空库位
-        self.assertEqual(place("P3", "W1", "", present), "")
+    def test_adjustments_go_to_the_warehouse_only(self):
+        """库存只到仓库（11-19 取消仓位）：对齐调整写到「物料 × 仓库」，不再找默认仓位 / 原仓位。"""
+        import types
+        sync = self.sync
+        sync.stock.BALANCE = "ERP Stock Balance"
+        calls = []
+
+        def get_all(doctype, filters=None, fields=None, **kw):
+            if doctype == sync.PRODUCT:
+                self.assertNotIn("default_location", fields)
+                return [types.SimpleNamespace(name="P1", express_code="ICE-01")]
+            self.assertNotIn("location", fields)
+            return [types.SimpleNamespace(product="P1", warehouse="W1", qty_on_hand=2)]
+
+        with mock.patch.object(sync.frappe, "get_all", side_effect=get_all), \
+                mock.patch.object(sync, "_pending", return_value={}), \
+                mock.patch.object(sync.stock_contracts, "ADJUST", "adjust", create=True), \
+                mock.patch.object(sync.stock, "apply_movement", side_effect=lambda **kw: calls.append(kw), create=True):
+            moved = sync._stock("CO-1", {"01": "W1"}, [{"code": "ICE-01", "loccod": "01", "qty": "5"}])
+        self.assertEqual(moved, 1)
+        self.assertEqual((calls[0]["product"], calls[0]["warehouse"], calls[0]["qty"]), ("P1", "W1", 3.0))
+        self.assertNotIn("location", calls[0])
+        self.assertFalse(hasattr(sync, "_place"))
 
 
 class StockEntries(Base):
