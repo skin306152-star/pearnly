@@ -17,7 +17,6 @@
   "vat_rate",
   "line_total",
   "warehouse",
-  "location",
   "code",
   "barcode",
   "wht_rate",
@@ -113,12 +112,6 @@
    "label": "Warehouse"
   },
   {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
-  },
-  {
    "fieldname": "code",
    "label": "Item Code",
    "fieldtype": "Data"
@@ -163,7 +156,7 @@
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-10-30 20:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Line",

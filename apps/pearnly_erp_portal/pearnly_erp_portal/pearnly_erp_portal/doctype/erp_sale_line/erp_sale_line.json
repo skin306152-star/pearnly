@@ -13,7 +13,6 @@
   "line_total",
   "vat_amount",
   "warehouse",
-  "location",
   "original_line"
  ],
  "fields": [
@@ -77,12 +76,6 @@
    "label": "Warehouse"
   },
   {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
-  },
-  {
    "fieldname": "original_line",
    "fieldtype": "Data",
    "label": "Original Line",
@@ -91,7 +84,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-25 23:30:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sale Line",
  "owner": "Administrator",

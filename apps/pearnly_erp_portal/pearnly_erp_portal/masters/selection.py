@@ -13,7 +13,7 @@ KINDS = {
 }
 FIELDS = {
     "product": ("name", "product_name", "code", "internal_code", "express_code", "barcode", "qr_payload", "base_unit", "unit",
-                "unit_price", "price_set", "default_cost", "vat_applicable", "default_location", "category", "attribute",
+                "unit_price", "price_set", "default_cost", "vat_applicable", "category", "attribute",
                 "express_stock"),
     "supplier": ("name", "supplier_name", "express_code", "tax_id", "branch_type", "branch_no", "branch_name", "address"),
     "customer": ("name", "customer_name", "express_code", "tax_id", "branch_type", "branch_no", "party_type", "address"),

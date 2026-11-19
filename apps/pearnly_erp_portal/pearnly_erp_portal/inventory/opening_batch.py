@@ -1,4 +1,4 @@
-"""Review and atomically initialize existing products' stock positions once."""
+"""Review and atomically initialize existing products' stock (product × warehouse) once."""
 from datetime import date
 from decimal import Decimal, InvalidOperation
 import hashlib
@@ -12,7 +12,7 @@ from frappe.utils import nowdate
 
 from pearnly_core import browser_text
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.inventory import access, contracts, opening_workbook, positions, serials, stock, warehouses
+from pearnly_erp_portal.inventory import access, contracts, opening_workbook, serials, stock, warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.masters import access as master_access
 
@@ -145,9 +145,9 @@ def _product(row, catalog, company=None):
 
 def _position(row, context, *, current):
     suffix = " for update" if current else ""
-    parameters = (row["product"], row["warehouse"], row["location"])
+    parameters = (row["product"], row["warehouse"])
     openings = frappe.db.sql(
-        "select name, as_of_date, qty, unit_cost, posted_qty from `tabERP Stock Opening` where product=%s and warehouse=%s and binary coalesce(location, '')=binary %s" + suffix,
+        "select name, as_of_date, qty, unit_cost, posted_qty from `tabERP Stock Opening` where product=%s and warehouse=%s" + suffix,
         parameters, as_dict=True)
     if openings:
         previous = openings[0]
@@ -157,44 +157,26 @@ def _position(row, context, *, current):
             raise ValueError(ALREADY_INITIALIZED)
         return "skipped"
     movements = frappe.db.sql(
-        "select name from `tabERP Stock Movement` where product=%s and warehouse=%s and binary coalesce(location, '')=binary %s limit 1" + suffix,
+        "select name from `tabERP Stock Movement` where product=%s and warehouse=%s limit 1" + suffix,
         parameters)
     balances = frappe.db.sql(
-        "select qty_on_hand, value, cost_known from `tabERP Stock Balance` where product=%s and warehouse=%s and binary coalesce(location, '')=binary %s" + suffix,
+        "select qty_on_hand, value, cost_known from `tabERP Stock Balance` where product=%s and warehouse=%s" + suffix,
         parameters, as_dict=True)
     if movements or any(contracts.d(row.qty_on_hand) or contracts.d(row.value) or row.cost_known for row in balances):
         raise ValueError(HAS_HISTORY)
     return "ready"
 
 
-WAREHOUSE_MISMATCH = "The warehouse differs from the warehouse of this document"
-
-
 def _row_warehouse(value, context, *, current):
-    """这一行的仓：一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）——空着或就是表头的仓才收；旧模板的仓库列写了别的仓，
-    这一行记成问题行（预览照常出，整批不因它失败）。``current``：提交时照样核。"""
+    """这一行的仓（按行选仓，11-19）：空着用表头的仓；写了就要是这家公司启用的仓，认不到记成这一行的错（预览照常出，整批不因它
+    失败）。``current``：提交时照样核。"""
     if not _text(value) or _text(value) == context["warehouse"]:
         return context["warehouse"]
     try:
-        name = warehouses.required(_text(value), company=context["company"])
+        return warehouses.required(_text(value), company=context["company"])
     except Exception:  # noqa: BLE001 - 认不到的仓记成这一行的错，整批预览照常出
         frappe.clear_messages()
         raise ValueError("Warehouse not found") from None
-    if name != context["warehouse"]:
-        raise ValueError(WAREHOUSE_MISMATCH)
-    return name
-
-
-def _row_location(warehouse, location):
-    """库位按这个仓的清单核（`positions.check`，预览就核，原来提交才整批失败，G5）；不在清单记成这一行的错。
-    表里写的是仓位编码也认（11-07，`positions.resolve`），存仓位名称。"""
-    try:
-        return positions.check(warehouse, positions.resolve(warehouse, location))
-    except ValueError:
-        raise
-    except Exception as error:  # noqa: BLE001 - frappe.throw 的校验错：整批预览照常出，错误落在这一行
-        frappe.clear_messages()
-        raise ValueError(str(error)) from None
 
 
 def _unit(row, product, context, numbers):
@@ -228,8 +210,8 @@ def _unit(row, product, context, numbers):
 
 
 def _unit_positions(groups, context, *, current):
-    """一个位置（商品 × 仓 × 库位）上的几台合成一笔期初：台数就是期初数量，单位成本要一样；位置能不能开账同普通行。"""
-    for (product, warehouse, location), group in groups.items():
+    """一个位置（商品 × 仓）上的几台合成一笔期初：台数就是期初数量，单位成本要一样；位置能不能开账同普通行。"""
+    for (product, warehouse), group in groups.items():
         live = [row for row in group if not row["error"]]
         if not live:
             continue
@@ -237,7 +219,7 @@ def _unit_positions(groups, context, *, current):
         try:
             if len(costs) != 1:
                 raise ValueError(INVALID_ROW)
-            status = _position({"product": product, "warehouse": warehouse, "location": location,
+            status = _position({"product": product, "warehouse": warehouse,
                                 "qty": Decimal(len(live)), "unit_cost": costs.pop()}, context, current=current)
         except ValueError as error:
             for row in live:
@@ -250,7 +232,7 @@ def _unit_positions(groups, context, *, current):
 def _review(rows, context, catalog, *, current=False):
     output, seen, numbers, groups = [], {}, {}, {}
     for number, source in enumerate(rows, 1):
-        row = {key: source.get(key) for key in ("product", "product_code", "internal_code", "barcode", "unit", "warehouse", "location", "qty",
+        row = {key: source.get(key) for key in ("product", "product_code", "internal_code", "barcode", "unit", "warehouse", "qty",
                                                 "unit_cost", "serial_no", "secondary_no", "color")} if isinstance(source, dict) else {}
         row.update(row_number=source.get("row_number", number) if isinstance(source, dict) else number,
                    product_name="", code="", amount=None, status="error", error="")
@@ -261,15 +243,11 @@ def _review(rows, context, catalog, *, current=False):
             unit = _text(product.base_unit or product.unit)
             if not unit or (_text(row.get("unit")) and _text(row["unit"]) != unit):
                 raise ValueError("Opening stock must use the product base unit")
-            location = _text(row.get("location"))
-            if len(location) > 140:
-                raise ValueError(INVALID_ROW)
-            # 一张单一个仓库：行上的仓只能是表头的仓（旧模板的仓库列写了别的仓记成问题行）；仓位按这个仓的清单核
+            # 按行选仓：空着用表头的仓
             warehouse = _row_warehouse(row.get("warehouse"), context, current=current)
-            location = _row_location(warehouse, location)
             row.update(product=product.name, product_name=product.product_name, code=product.code or "",
-                       unit=unit, warehouse=warehouse, location=location)
-            identity = (product.name, warehouse, location)
+                       unit=unit, warehouse=warehouse)
+            identity = (product.name, warehouse)
             if _unit(row, product, context, numbers):
                 row["qty"] = _number(row.get("qty"), 6)
                 row["unit_cost"] = _number(row.get("unit_cost"), 2)
@@ -304,7 +282,7 @@ def _token(rows, context, note):
         frappe.throw(_("Opening stock review is not configured"))
     payload = {**context, "site": frappe.local.site, "user": frappe.session.user, "note": _text(note),
                "rows": [{key: format(row[key], "f") if key in ("qty", "unit_cost") else row.get(key) or ""
-                         for key in ("product", "unit", "warehouse", "location", "qty", "unit_cost", "serial_no", "secondary_no",
+                         for key in ("product", "unit", "warehouse", "qty", "unit_cost", "serial_no", "secondary_no",
                                      "color")} for row in rows]}
     return hmac.new(str(secret).encode(), json.dumps(payload, sort_keys=True, separators=(",", ":")).encode(), hashlib.sha256).hexdigest()
 
@@ -351,22 +329,22 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
     # 一个位置一笔期初：普通商品一行就是一个位置；按台商品同一位置的几台合成一笔，数量 = 台数，随后逐台登记
     places = {}
     for row in reviewed:
-        places.setdefault((row["product"], row["warehouse"], row["location"]), []).append(row)
+        places.setdefault((row["product"], row["warehouse"]), []).append(row)
     try:
         for group in places.values():
             row = group[0]
             qty = sum((item["qty"] for item in group), Decimal(0))
-            name = contracts.position_name("OPN", row["product"], row["warehouse"], row["location"])
+            name = contracts.position_name("OPN", row["product"], row["warehouse"])
             names.append(name)
             if row["status"] == "skipped":
                 skipped += 1
                 continue
             doc = frappe.get_doc({"doctype": "ERP Stock Opening", "product": row["product"],
-                                  "warehouse": row["warehouse"], "location": row["location"],
+                                  "warehouse": row["warehouse"],
                                   "as_of_date": context["as_of_date"], "qty": qty, "posted_qty": qty,
                                   "unit_cost": row["unit_cost"], "note": _text(note)})
             access.write_opening(doc, "insert")
-            stock.apply_movement(product=row["product"], warehouse=row["warehouse"], location=row["location"],
+            stock.apply_movement(product=row["product"], warehouse=row["warehouse"],
                                  movement_type=contracts.OPENING, qty=qty, unit=row["unit"], unit_cost=row["unit_cost"],
                                  posting_date=context["as_of_date"], posting_time="00:00:00", ref_type="opening", ref_id=doc.name,
                                  reason="opening stock", client_uuid="opening:" + hashlib.sha256(name.encode()).hexdigest(),
@@ -374,7 +352,7 @@ def _submit(*, warehouse, as_of_date, rows, note, review_token=None, legacy=Fals
             for unit in group:
                 if unit.get("serial_no"):
                     serials.register(product=row["product"], company=context["company"], warehouse=row["warehouse"],
-                                     location=row["location"], entry=unit, ref_type=serials.OPENING_REF, ref_id=doc.name,
+                                     entry=unit, ref_type=serials.OPENING_REF, ref_id=doc.name,
                                      posting_date=context["as_of_date"], action="opening")
             created += 1
     except Exception as error:
@@ -397,11 +375,11 @@ def submit(*, warehouse, as_of_date, rows, review_token, note=None):
     return result
 
 
-def upsert_one(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None, location=""):
+def upsert_one(*, product, warehouse, as_of_date, qty, unit_cost=None, note=None):
     """Old report API retains its authorization, but shares initialize-once rules."""
     guard.require("report.write")
     result = _submit(warehouse=warehouse, as_of_date=as_of_date,
-                     rows=[{"product": product, "location": location, "qty": qty, "unit_cost": unit_cost}],
+                     rows=[{"product": product, "qty": qty, "unit_cost": unit_cost}],
                      note=note, legacy=True)
     return {"name": result["openings"][0], "qty": float(contracts.d(qty)), "unit_cost": float(contracts.d(unit_cost))}
 
@@ -432,7 +410,7 @@ def template(warehouse):
     values = [{"product": row.name, "product_name": row.product_name, "product_code": row.code,
                "category": labels.get(row.category) or "", "attribute": row.attribute or "",
                "internal_code": product_contracts.internal_code(row),
-               "barcode": row.barcode, "unit": row.base_unit or row.unit, "warehouse": "", "location": "", "qty": None, "unit_cost": None}
+               "barcode": row.barcode, "unit": row.base_unit or row.unit, "warehouse": "", "qty": None, "unit_cost": None}
               for row in rows]
     # 按台的公司多出号码三列：按台商品照旧一行，有几台就复制几行、各填一台的号、数量 1
     return opening_workbook.build_bytes([browser_text.label(key) for _, key in opening_workbook.field_labels(kind)], values, kind)

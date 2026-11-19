@@ -48,7 +48,7 @@ LIST_FIELDS = (
     "name", "product_name", "code", "barcode", "qr_payload",
     "unit", "base_unit", "category", "attribute", "unit_price", "price_set", "cost_set",
     "vat_applicable", "is_active", "min_stock", "default_cost", "image_url",
-    "default_location", "express_code", "internal_code", "track_serial", "serial_kind", "origin", "origin_name",
+    "express_code", "internal_code", "track_serial", "serial_kind", "origin", "origin_name",
 )
 
 # 扫码当场查重查的是这几列（扫码枪扫出来的就是条码/编码/二维码内容）；列表搜索同一套再加名称。
@@ -219,7 +219,7 @@ def next_code_preview() -> dict:
 
 
 def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
-                    base_unit=None, category=None, attribute=None, default_location=None, serial_kind=None) -> dict:
+                    base_unit=None, category=None, attribute=None, serial_kind=None) -> dict:
     """新建物料弹窗（`products.js` 的 `product_fields`）里除品名与各种码以外的那几格 → 落库的列。商品页建档与盘点里
     就地新建（盘点的 `create_product_here`）同用这一份，两边收的字段与校验一致。"""
     unit = _text(unit, contracts.MAX_UNIT)
@@ -235,7 +235,6 @@ def standard_fields(*, unit=None, unit_price=None, vat_applicable=True, image_ur
         # 分类是主档（`products.categories`，岳父 11-01）：给了就要是现有分类；特性/颜色是一格自由文本
         "category": categories.require(category),
         "attribute": _text(attribute, contracts.MAX_ATTRIBUTE),
-        "default_location": _text(default_location, 140),
         # 按台管理的号码种类（车 / 其他）；开不开按台走 `inventory.serials.turn_on`（有库存要先按台期初登记）
         "serial_kind": serial_kind if serial_kind in ("vehicle", "device") else "vehicle",
     }
@@ -245,8 +244,8 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
                    vat_applicable=True, image_url=None, min_stock=None, default_cost=None,
                    qr_payload=None, base_unit=None,
                    category=None, attribute=None,
-                   default_location=None, internal_code=None, serial_kind=None, opening=None, origin=None):
-    """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, location, qty, unit_cost}]``，与商品
+                   internal_code=None, serial_kind=None, opening=None, origin=None):
+    """建一件商品。``opening``（可选，多仓闭环 P1 G1）：建好顺手放期初 ``[{warehouse, qty, unit_cost}]``，与商品
     同一个事务写（复用期初服务 `opening_batch`，同一套「每个位置只初始化一次」的规矩）；任何一行不成整件商品都不建。
     接了 Express 的公司期初读 Express，不在这里录（期初服务照样拒）。"""
     guard.require("products.manage")
@@ -270,8 +269,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
         "qr_payload": _text(qr_payload, contracts.MAX_QR),
         **standard_fields(unit=unit, unit_price=unit_price, vat_applicable=vat_applicable, image_url=image_url,
                           min_stock=min_stock, default_cost=default_cost, base_unit=base_unit, category=category,
-                          attribute=attribute,
-                          default_location=default_location, serial_kind=serial_kind),
+                          attribute=attribute, serial_kind=serial_kind),
         "is_active": 1,
         # 来由：手建 / 导入（盘点新建、采购 / 销售自动建、Express 同步各在自己那条路上写）
         "origin": "import" if origin == "import" else "manual",
@@ -289,7 +287,7 @@ def create_product(*, product_name, code=None, barcode=None, unit=None, unit_pri
 
 
 def _opening_rows(value) -> dict:
-    """建商品时的期初网格 → ``{仓: [{location, qty, unit_cost}]}``（空行不算；数量 / 成本的校验交给期初服务）。"""
+    """建商品时的期初网格 → ``{仓: [{qty, unit_cost}]}``（空行不算；数量 / 成本的校验交给期初服务）。"""
     if isinstance(value, str):
         value = frappe.parse_json(value) if value.strip() else []
     out = {}
@@ -299,8 +297,7 @@ def _opening_rows(value) -> dict:
         warehouse = _text(row.get("warehouse"), 140)
         if not warehouse:
             frappe.throw(_("Pick a warehouse"))
-        out.setdefault(warehouse, []).append({"location": _text(row.get("location"), 140), "qty": row.get("qty"),
-                                              "unit_cost": row.get("unit_cost")})
+        out.setdefault(warehouse, []).append({"qty": row.get("qty"), "unit_cost": row.get("unit_cost")})
     return out
 
 
@@ -340,7 +337,6 @@ SORT_FIELDS = {
     "unit": "unit",
     "unit_price": "unit_price",
     "default_cost": "default_cost",
-    "place": "default_location",
     "is_active": "is_active",
 }
 
@@ -420,13 +416,6 @@ def update_product(name: str, **changes):
     if "internal_code" in changes:
         doc.internal_code = internal
 
-    # 商品上的"默认仓"已经删掉（用户 2026-09-24："进货就进卖货那个仓" —— 进货那一侧改用
-    # 收银台上配的仓，见 `warehouses.receiving`），只剩仓位这一栏还是商品级建议值。
-    for field in ("default_location",):
-        if field not in changes:
-            continue
-        value = _text(changes[field], 140)
-        doc.set(field, value)
     old_unit, old_base = doc.unit or "", doc.base_unit or ""
     for field in ("barcode", "qr_payload", "unit", "image_url",
                   "base_unit"):

@@ -28,7 +28,6 @@ from pearnly_erp_portal.products import line_memory, line_rules
 ACTION = "erp_item"
 ASKING = "items"
 MAX_CHOICES = line_flow.MAX_CHOICES
-MAX_LOCATIONS = MAX_CHOICES - 1  # 仓位按钮另留一个「不填」
 STALE = "This option is no longer current"
 
 
@@ -59,7 +58,7 @@ def _reply(reply_token, messages):
 
 
 def choices_of(doc) -> dict | None:
-    """这张票上存的每行选择 ``{"lines": [...], "warehouse", "location_asked"}``；改版前识别的票没有（照旧按 ``item_kind``）。"""
+    """这张票上存的每行选择 ``{"lines": [...], "warehouse"}``；改版前识别的票没有（照旧按 ``item_kind``）。"""
     try:
         value = json.loads(doc.get("line_choices") or "null")
     except ValueError:
@@ -91,24 +90,6 @@ def _goods(value) -> bool:
     return any(row and row.get("item_type") == line_rules.GOODS for row in value["lines"])
 
 
-def _locate(value, warehouse):
-    """仓定了：入库行还没仓位的，用这件物料的建议仓位（在这个仓的清单里才用）。"""
-    from pearnly_erp_portal.inventory import positions
-
-    if not warehouse or not positions.has_list(warehouse):
-        return
-    names = set(positions.listed(warehouse))
-    for row in value["lines"]:
-        if not row or row.get("item_type") != line_rules.GOODS:
-            continue
-        if row.get("location") and row["location"] not in names:
-            row["location"] = None
-        if not row.get("location") and row.get("product"):
-            suggested = frappe.db.get_value("ERP Product", row["product"], "default_location")
-            if suggested in names:
-                row["location"] = suggested
-
-
 def prepare(doc, result, line_user_id=None) -> dict:
     """识别完一张：每行预选并存到票上；单头仓按「这一批 LINE 里选过的 → 本人上次 → 卖货仓 → 唯一仓」预填（同网页）。"""
     tax, name = _party(doc, result)
@@ -119,9 +100,9 @@ def prepare(doc, result, line_user_id=None) -> dict:
             continue
         found = line_memory.suggest(row, company=doc.company, direction=doc.direction, party_tax=tax, party_name=name,
                                     expense=doc.direction == "purchase" and result.get("doc_kind") == "expense")
-        lines.append({"item_type": found["item_type"], "product": found.get("product"), "location": found.get("location"),
+        lines.append({"item_type": found["item_type"], "product": found.get("product"),
                       "decided": bool(found["decided"]), "new": False})
-    value = {"lines": lines, "warehouse": None, "location_asked": False}
+    value = {"lines": lines, "warehouse": None}
     _place(doc, value, line_flow.choices(line_user_id) if line_user_id else {})
     _save_choices(doc.name, value)
     doc.line_choices = json.dumps(value, ensure_ascii=False)
@@ -129,11 +110,11 @@ def prepare(doc, result, line_user_id=None) -> dict:
 
 
 def _place(doc, value, payload):
-    """有入库行、还没定仓：这一批 LINE 里选过的 → 本人上次 → 卖货仓 → 唯一仓（同网页 `warehouses.prefill`）；再补仓位。"""
+    """有入库行、还没定仓：这一批 LINE 里选过的 → 本人上次 → 卖货仓 → 唯一仓（同网页 `warehouses.prefill`）。
+    一张票问一次仓，各行同仓（11-19 只问仓库、不问仓位；要逐行不同仓在「编辑」里改）。"""
     if _goods(value) and not value.get("warehouse"):
         batch = (payload or {}).get("batch_warehouse")
         value["warehouse"] = batch if _usable_warehouse(batch, doc.company) else _prefill(doc)
-    _locate(value, value.get("warehouse"))
 
 
 def _prefill(doc):
@@ -151,18 +132,13 @@ def _usable_warehouse(name, company):
 
 
 def _pending(value) -> str:
-    """这张还差哪一步：``rows`` 有定不了的行 / ``warehouse`` 有入库行、仓定不下来 / ``location`` 仓建了仓位清单、入库行有没仓位的 / 空 = 不问。"""
-    from pearnly_erp_portal.inventory import positions
-
+    """这张还差哪一步：``rows`` 有定不了的行 / ``warehouse`` 有入库行、仓定不下来 / 空 = 不问。"""
     if any(row and not row.get("decided") for row in value["lines"]):
         return "rows"
     if not _goods(value):
         return ""
     if not value.get("warehouse"):
         return "warehouse"
-    if (not value.get("location_asked") and positions.listed(value["warehouse"])
-            and any(row and row.get("item_type") == line_rules.GOODS and not row.get("location") for row in value["lines"])):
-        return "location"
     return ""
 
 
@@ -229,19 +205,6 @@ def _question(doc, asking) -> dict | None:
         return _message("\n".join(part for part in lines if part),
                         [_button(f"{index}. {label}", v="w", n=name, k=index - 1)
                          for index, (_key, label) in enumerate(options, 1)], name)
-    if step == "location":
-        from pearnly_erp_portal.inventory import positions
-
-        names = positions.listed(value["warehouse"])
-        skip = _button(_("erp.line.items.noLocation"), v="l_skip", n=name)
-        if len(names) > MAX_LOCATIONS:
-            return _message(f"{_title(doc, result)}\n{_('erp.line.items.location')}\n{_('erp.line.items.typeLocation')}",
-                            [skip], name)
-        asking["offered"] = names
-        codes = positions.codes(value["warehouse"])  # 按钮写「编码 · 名称」（11-07），点下去记的仍是名称
-        return _message(f"{_title(doc, result)}\n{_('erp.line.items.location')}",
-                        [_button(positions.label(label, codes.get(label)), v="l", n=name, k=index)
-                         for index, label in enumerate(names)] + [skip], name)
     return None
 
 
@@ -257,7 +220,6 @@ def _adopt(doc, payload) -> bool:
     if not value or value.get("warehouse") or not _goods(value) or not _usable_warehouse(payload.get("batch_warehouse"), doc.company):
         return False
     value["warehouse"] = payload["batch_warehouse"]
-    _locate(value, value["warehouse"])
     _save_choices(doc.name, value)
     doc.line_choices = json.dumps(value, ensure_ascii=False)
     return True
@@ -343,8 +305,6 @@ def _set_rows(doc, payload, indexes, **values):
     for index in indexes:
         row = value["lines"][index]
         row.update(values, decided=True)
-        if row.get("item_type") != line_rules.GOODS:
-            row["location"] = None
     _place(doc, value, payload)
     _save_choices(doc.name, value)
     doc.line_choices = json.dumps(value, ensure_ascii=False)
@@ -401,10 +361,6 @@ def answer(line_user_id, user, data, reply_token):
         warehouse = _offered(asking, params)
         if warehouse and _usable_warehouse(warehouse, doc.company):
             return _chose_warehouse(line_user_id, payload, reply_token, doc, warehouse)
-    if step == "location" and value in ("l", "l_skip"):
-        location = _offered(asking, params) if value == "l" else None
-        if value == "l_skip" or location:
-            return _chose_location(line_user_id, payload, reply_token, doc, location)
     return _reply(reply_token, _text(_(STALE)))
 
 
@@ -438,21 +394,9 @@ def _row_done(line_user_id, payload, reply_token, doc, **values):
 def _chose_warehouse(line_user_id, payload, reply_token, doc, warehouse):
     value = choices_of(doc)
     value["warehouse"] = warehouse
-    _locate(value, warehouse)
     _save_choices(doc.name, value)
     doc.line_choices = json.dumps(value, ensure_ascii=False)
     payload["batch_warehouse"] = warehouse  # 同一批后面几张沿用，不再问
-    return _advance(line_user_id, payload, reply_token, doc)
-
-
-def _chose_location(line_user_id, payload, reply_token, doc, location):
-    value = choices_of(doc)
-    for row in value["lines"]:
-        if row and row.get("item_type") == line_rules.GOODS and not row.get("location") and location:
-            row["location"] = location
-    value["location_asked"] = True
-    _save_choices(doc.name, value)
-    doc.line_choices = json.dumps(value, ensure_ascii=False)
     return _advance(line_user_id, payload, reply_token, doc)
 
 
@@ -460,32 +404,21 @@ def _chose_location(line_user_id, payload, reply_token, doc, location):
 
 
 def search(line_user_id, user, text, reply_token) -> bool:
-    """停在「选已有物料」「仓库」「仓位」（选项放不下按钮时）这一步收到的文字＝名称或编码。不在这几步返回 False。"""
+    """停在「选已有物料」「仓库」（选项放不下按钮时）这一步收到的文字＝名称或编码。不在这几步返回 False。"""
     payload = line_flow.choices(line_user_id)
     asking = payload.get(ASKING) or {}
     step, wanted = asking.get("step"), str(text or "").strip()
-    if step not in ("pick", "warehouse", "location") or not wanted or not asking.get("intake"):
+    if step not in ("pick", "warehouse") or not wanted or not asking.get("intake"):
         return False
     payload, doc = _current(line_user_id, user, {"n": asking["intake"]})
     if not doc:
         return False
     if step == "pick":
         found = _products(doc, wanted)
-    elif step == "warehouse":
+    else:
         exact, found = line_flow.find("warehouse", {"company": doc.company}, user, wanted)
         if exact:
             return _chose_warehouse(line_user_id, payload, reply_token, doc, exact) or True
-    else:
-        from pearnly_erp_portal.inventory import positions
-
-        warehouse = choices_of(doc)["warehouse"]
-        names = positions.listed(warehouse)
-        exact = positions.resolve(warehouse, wanted)  # 打的是仓位编码也认（11-07）
-        if exact in names:
-            return _chose_location(line_user_id, payload, reply_token, doc, exact) or True
-        codes = positions.codes(warehouse)
-        found = [(name, positions.label(name, codes.get(name))) for name in names
-                 if wanted.casefold() in name.casefold() or wanted.casefold() in codes.get(name, "").casefold()]
     if not found:
         _reply(reply_token, [_text(_("No match for “{0}”").format(wanted[:40])), _question(doc, asking)])
         line_flow.keep(line_user_id, payload)
@@ -497,7 +430,7 @@ def search(line_user_id, user, text, reply_token) -> bool:
         return _picked(line_user_id, payload, reply_token, doc, found[0][0]) or True  # 编码准确命中
     asking["offered"] = [row[0] for row in found]
     line_flow.keep(line_user_id, payload)
-    value = {"pick": "o", "warehouse": "w", "location": "l"}[step]
+    value = {"pick": "o", "warehouse": "w"}[step]
     lines = [_("Found {0}. Tap the number to choose:").format(len(found))]
     lines += [f"{index}. {row[1]}" for index, row in enumerate(found, 1)]
     extra = {"i": asking.get("i")} if step == "pick" else {}

@@ -35,7 +35,6 @@ FIELD_LABELS = (
     ("min_stock", "product.field.minStock"),
     ("vat_applicable", "product.field.vat"),
     ("image_url", "product.field.image"),
-    ("default_location", "product.field.defaultLocation"),
 )
 
 # 历史写法（去空白、转小写后比对）→ 我们的字段名。旧表格、导出件里长这样，照认。
@@ -120,7 +119,7 @@ def template_headers(label_of) -> list:
     return [label_of(key) for _field, key in FIELD_LABELS]
 
 TEXT_FIELDS = ("product_name", "code", "internal_code", "code_value",
-               "unit", "base_unit", "image_url", "default_location", "category", "attribute")
+               "unit", "base_unit", "image_url", "category", "attribute")
 NUMBER_FIELDS = ("unit_price", "default_cost", "min_stock")
 FLAG_FIELDS = ("vat_applicable",)
 

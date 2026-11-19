@@ -128,7 +128,7 @@ def _stock_lines(lines) -> list[dict]:
             frappe.throw(_("Product not found"), frappe.DoesNotExistError)
         out.append({"product": product["name"], "qty": line["qty"],
                     "unit": line.get("unit") or product["unit"], "serials": line.get("serials") or [],
-                    "warehouse": line.get("warehouse"), "location": line.get("location", "")})
+                    "warehouse": line.get("warehouse")})
     return out
 
 
@@ -182,7 +182,7 @@ def create_sale(*, lines, payments, sold_at=None, shift=None, terminal=None,
     sale_lines = [
         {"product": line.get("product"), "description": line.get("description"),
          "qty": line["qty"], "unit": line.get("unit"),
-         "warehouse": line.get("warehouse"), "location": line.get("location", ""),
+         "warehouse": line.get("warehouse"),
          "unit_price": line["unit_price"], "discount": line.get("discount", 0),
          "line_total": contracts.line_total(line["qty"], line["unit_price"], line.get("discount", 0))}
         for line in lines
@@ -256,7 +256,7 @@ def pos_export_lines(names) -> list[dict]:
         return []
     lines = frappe.get_all("ERP Sale Line", filters={"parent": ["in", names]},
                            fields=["parent", "product", "description", "qty", "unit", "unit_price",
-                                   "discount", "line_total", "warehouse", "location", "idx"],
+                                   "discount", "line_total", "warehouse", "idx"],
                            order_by="parent asc, idx asc", limit_page_length=0)
     for line in lines:
         line["line_no"] = line.get("idx")
@@ -403,7 +403,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
     # Pre-upgrade refunds had no source-line key. Allocate those to matching positions only.
     for refund_name in already:
         rows = frappe.get_all("ERP Sale Line", filters={"parent": refund_name},
-                              fields=["original_line", "product", "warehouse", "location", "qty", "unit"],
+                              fields=["original_line", "product", "warehouse", "qty", "unit"],
                               limit_page_length=0)
         for row in rows:
             quantity = contracts.d(row.qty)
@@ -428,7 +428,6 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         candidates = [row for row in original.lines if (
             row.name == line.get("original_line") if line.get("original_line") else
             row.product == line.get("product")
-            and ("location" not in line or (row.location or "") == line["location"])
             and (not line.get("warehouse") or (row.warehouse or original.warehouse) == line["warehouse"]))]
         if len(candidates) != 1:
             frappe.throw(_("Select the original sale line"))
@@ -465,7 +464,7 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
         "lines": [{"product": line["product"], "description": line.get("description"),
                    "qty": line["qty"], "unit": line.get("unit"),
                    "original_line": line["original_line"],
-                   "warehouse": line["warehouse"], "location": line["location"],
+                   "warehouse": line["warehouse"],
                    "unit_price": line["unit_price"], "discount": line.get("discount", 0),
                    "line_total": contracts.line_total(line["qty"], line["unit_price"],
                                                       line.get("discount", 0)),

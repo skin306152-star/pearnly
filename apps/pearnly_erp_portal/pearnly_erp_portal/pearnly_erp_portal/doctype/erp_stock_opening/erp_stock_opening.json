@@ -10,8 +10,7 @@
   "qty",
   "unit_cost",
   "posted_qty",
-  "note",
-  "location"
+  "note"
  ],
  "fields": [
   {
@@ -61,17 +60,11 @@
    "precision": "6",
    "read_only": 1,
    "description": "Opening quantity already recorded in stock"
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-09-21 00:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Opening",
  "owner": "Administrator",

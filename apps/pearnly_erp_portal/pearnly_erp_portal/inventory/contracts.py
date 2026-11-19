@@ -17,11 +17,16 @@ import hashlib
 CENT = Decimal("0.01")
 
 
-def position_name(prefix, product, warehouse, location=""):
-    """Keep the historical unnamed-position key; named positions get a stable unique key."""
+def position_name(prefix, product, warehouse):
+    """结存一行的名字：库存只到「物料 × 仓库」（11-19 取消仓位，只有盘点记仓位）。"""
+    return f"{prefix}-{product}-{warehouse}"
+
+
+def legacy_position_name(prefix, product, warehouse, location):
+    """11-19 以前带仓位的结存行名字（迁移补丁认旧行用）：没仓位的就是 :func:`position_name`。"""
     location = str(location or "").strip()
     if not location:
-        return f"{prefix}-{product}-{warehouse}"
+        return position_name(prefix, product, warehouse)
     identity = "\0".join((product, warehouse, location))
     return f"{prefix}-{hashlib.sha256(identity.encode()).hexdigest()}"
 
@@ -248,8 +253,8 @@ def movements_before(movements, date_from, *, after: bool = True):
 COUNT_ONLY = ("counted", "uncounted", "differences")
 
 
-def count_rows(items, *, only="", warehouse="", location=""):
-    """盘点行按「只看 / 仓库 / 库位」筛（差异报表、打印、导出同一口径，用户 10-29 批复）。空 = 不筛这一项。
+def count_rows(items, *, only="", warehouse=""):
+    """盘点行按「只看 / 仓库」筛（差异报表、打印、导出同一口径，用户 10-29 批复）。空 = 不筛这一项。
     差异按实盘后数量不等算（四舍到 3 位，与盘点合计同一判据）。"""
     def differs(row):
         try:
@@ -259,13 +264,11 @@ def count_rows(items, *, only="", warehouse="", location=""):
 
     keep = {"counted": lambda row: bool(row.get("counted")), "uncounted": lambda row: not row.get("counted"),
             "differences": differs}.get(str(only or "").strip(), lambda row: True)
-    warehouse, location = str(warehouse or "").strip(), str(location or "").strip()
-    return [row for row in items if keep(row)
-            and (not warehouse or row.get("warehouse") == warehouse)
-            and (not location or (row.get("location") or "") == location)]
+    warehouse = str(warehouse or "").strip()
+    return [row for row in items if keep(row) and (not warehouse or row.get("warehouse") == warehouse)]
 
 
-# 库存一览的两种看法（多仓闭环 P4）：按位置（商品 × 仓 × 库位，原来那样）/ 按商品（公司里各仓合计）
+# 库存一览的两种看法（多仓闭环 P4）：按位置（商品 × 仓）/ 按商品（公司里各仓合计）
 POSITION_VIEW, PRODUCT_VIEW = "position", "product"
 VIEWS = (POSITION_VIEW, PRODUCT_VIEW)
 
@@ -290,7 +293,7 @@ def product_rows(rows, *, cost_visible) -> list:
                 "name": row["product"], "product": row["product"], "product_name": row.get("product_name"),
                 "category_name": row.get("category_name") or "", "attribute": row.get("attribute") or "",
                 "code": row.get("code"), "internal_code": row.get("internal_code") or "", "barcode": row.get("barcode"), "warehouse": None, "warehouse_name": None,
-                "location": "", "unit": row.get("unit"), "min_stock": row.get("min_stock") or 0,
+                "unit": row.get("unit"), "min_stock": row.get("min_stock") or 0,
                 "company_qty": row.get("company_qty"), "qty": d(0), "value": d(0), "known": True}
         slot["qty"] += d(row["qty_on_hand"])
         slot["value"] += d(row.get("value") or 0)

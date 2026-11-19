@@ -70,3 +70,5 @@ pearnly_erp_portal.patches.v1_31_mrerp_company_identity
 pearnly_erp_portal.patches.v1_32_unpaid_sales_payment_method
 # 替写的旧件闸：存量站点写上切换时刻，之前排的写账件只等提交人自己的电脑（11-17 定稿，领单时判写账人）
 pearnly_erp_portal.patches.v1_33_writer_rule_since
+# 库存只到「物料 × 仓库」（11-19 取消仓位，只有盘点保留仓位记录）：非盘点表的仓位清空，带过仓位的「物料 × 仓库」按流水重放成一行结存，删旧的带仓位结存行
+pearnly_erp_portal.patches.v1_33_warehouse_only_stock

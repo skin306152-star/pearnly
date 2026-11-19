@@ -27,7 +27,7 @@ LINE_DOCTYPE = "ERP Sales Document Line"
 HEAD_FIELDS = ("customer", "party_type", "address", "source", "source_file", "note",
                "image_sha256", "printed_total", "ocr_review")
 LINE_FIELDS = ("item_type", "product", "description", "qty", "unit", "unit_price", "discount",
-               "discount_pct", "vat_applicable", "warehouse", "location", "new_item")
+               "discount_pct", "vat_applicable", "warehouse", "new_item")
 
 BLOCKED = "This document cannot be recorded yet"
 
@@ -206,16 +206,18 @@ def _post(payload, request_id, fingerprint, name, allow_duplicate=False):
             frappe.throw(_("Document already exists"))
     # 单据开始时刻（草稿按建草稿，`push.started`）：随单建的客户归不归这家公司按它
     customer, buyer_name = _buyer(payload, company, express_push.started(DOCTYPE, name) if name else None)
-    # 单头「仓库 + 库位」（多仓闭环 P1）：存在单上，行上没写的用它
-    place = positions.header(payload.get("warehouse"), payload.get("location"), company=company)
+    # 仓库按行（11-19，同 Express 原生 IV / HS 明细行选仓）：行上的仓为准；单头给的仓只作没写仓那几行的默认
+    place = positions.header(payload.get("warehouse"), company=company)
     party_tax = _party_tax(customer, payload)
     line_memory.fill([row for row in payload["lines"] if not row.get("item_type")], company=company, direction="sales",
-                     party_tax=party_tax, party_name=buyer_name, warehouse=place["warehouse"])
+                     party_tax=party_tax, party_name=buyer_name)
     created = []
     # 认不到物料的出库行随单新建（同 LINE，评估 12 节 #2）；报价单不出库，只认不建
     create = contracts.should_post_stock(kind, contracts.SUBMITTED)
     rows = [_line_row(raw, computed, company=company, place=place, create=create, created=created)
             for raw, computed in zip(payload["lines"], totals["lines"])]
+    # 单头存默认仓：没给就是第一条出库行的仓（列表、Express 兜底用它）
+    place["warehouse"] = place["warehouse"] or next((row["warehouse"] for row in rows if row.get("warehouse")), None)
     collection = _collection(payload, kind, totals["grand_total"], day)
     source = payload.get("source") or doc.get("source") or "manual"
     doc.update({key: payload[key] for key in HEAD_FIELDS if key in payload})
@@ -307,8 +309,7 @@ def _line_row(raw, computed, *, company=None, place=None, create=False, created=
     row["discount_pct"] = computed.get("discount_pct")
     row["vat_applicable"] = int(bool(computed["vat_applicable"]))
     place = place or {}
-    row = positions.one_warehouse(row, place.get("warehouse"))  # 一张单一个仓库，以单头为准（岳父 11-06）
-    return positions.prepare(row, place.get("warehouse"), company=company, location=place.get("location"))
+    return positions.prepare(row, place.get("warehouse"), company=company)
 
 
 def _collection(payload, kind, grand_total, day):

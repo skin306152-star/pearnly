@@ -6,7 +6,7 @@
 
 - 收 / 发只看方向（我们是带符号数量：> 0 收、< 0 发；MR.ERP 是 statustran 1 / 2），单据类型不参与。
 - 行上的单价、金额照 MR.ERP 成本引擎算（`pool_costs`：一个物料全公司一个移动平均池）。库存引擎（库存货值、单据成本、
-  推 Express）仍按「物料 × 仓 × 仓位」算，这次不动，所以报表和库存货值暂时会有差别（§G）。
+  推 Express）按「物料 × 仓」算（11-19 取消仓位），所以报表和库存货值暂时会有差别（§G）。
 - 结余由报表自己滚：结余数量 ± 行数量、结余金额 ± 行金额；结余单价 = 数量为 0 时 0，否则 round(金额 / 数量, 2)。
 - 汇总的收 / 发单价 = round(金额合计 / 数量合计, 2)，数量合计为 0 时 0。
 - 小计、合计只合计数量与金额，单价格留空。
@@ -48,7 +48,7 @@ def add(total: Optional[Decimal], value: Optional[Decimal]) -> Optional[Decimal]
 
 @dataclass
 class Movement:
-    """一笔流水（已由成本引擎算好金额）。`position` 是它所在的「仓 × 仓位」，合并报表跨仓位滚结余时分开记成本是否确立。"""
+    """一笔流水（已由成本引擎算好金额）。`position` 是它所在的仓（11-19 取消仓位），合并报表跨仓滚结余时分开记成本是否确立。"""
 
     date: str               # YYYY-MM-DD
     doc: str
@@ -143,7 +143,7 @@ class PoolMove:
 def pool_costs(moves) -> dict:
     """照 MR.ERP 成本引擎（component/php/stkcardpc.php，移动平均那一路）给每一笔定单价、金额：`{seq: (单价, 金额)}`。
 
-    - 一个物料全公司一个池（所有仓、仓位合在一起），顺序同报表：日期 → 同一天先收后发 → 单号 → 录入先后；
+    - 一个物料全公司一个池（所有仓合在一起），顺序同报表：日期 → 同一天先收后发 → 单号 → 录入先后；
     - 收：金额 = 数量 × 单价（自带单价，没有就用池里当时的结余单价）；结余数量、金额相加，结余单价 = round(金额 / 数量, 2)，
       数量 ≤ 0 时 0；
     - 发：发完结余 > 0 → 单价 = 发出前的结余单价、金额 = 单价 × 数量；发完结余 ≤ 0 → 金额 = 发出前剩下的全部金额、
@@ -283,7 +283,7 @@ def product_blocks(rows, *, date_from, include, group, own_cost, is_initializati
     """一个物料的收发存块（页面与导出共用的唯一算法）：`{分组: Block}`。
 
     `rows` = 这个物料在当前公司**所有**仓、仓位截止日前的全部流水（池要全公司，不受页面 / 导出的仓、仓位范围限制），每笔是
-    dict：`posting_date`（YYYY-MM-DD 字符串）、`qty_base`、`warehouse`、`location`、`seq`（录入先后）。
+    dict：`posting_date`（YYYY-MM-DD 字符串）、`qty_base`、`warehouse`、`seq`（录入先后）。
     `include(仓位)` 挑要出现在报表里的仓位，`group(仓位)` 定分到哪一块（合并 / 汇总 / 单品明细 → None；分仓 → 仓；汇总列表 → 仓位）。
     上期结转 = 起始日前各笔收加发减（57.php），初始化并进结转（评估 §C-2，同收发存页面口径）；`date_from` 为空则全部算期内。
     """
@@ -292,7 +292,7 @@ def product_blocks(rows, *, date_from, include, group, own_cost, is_initializati
                                  cost=own_cost(row)) for row in rows)
     parts: dict = {}
     for row in rows:
-        position = (row["warehouse"], row.get("location") or "")
+        position = (row["warehouse"],)
         if not include(position):
             continue
         held, moves = parts.setdefault(group(position), ({}, []))

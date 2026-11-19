@@ -67,7 +67,7 @@ def _columns() -> list:
          "fieldtype": "Data", "width": 170},
         {"label": _label("stock.count.countedAt"), "fieldname": "last_counted_at",
          "fieldtype": "Datetime", "width": 170},
-        # 按台管理的商品：这个仓位在库、这份盘点没扫到的台（没盘到的不自动改状态，人工处理，主会话 10-26）
+        # 按台管理的商品：这个仓在库、这份盘点没扫到的台（没盘到的不自动改状态，人工处理，主会话 10-26）
         {"label": _label("serial.notCountedUnits"), "fieldname": "uncounted_units",
          "fieldtype": "Small Text", "width": 220},
     ]
@@ -81,9 +81,8 @@ def _state(row) -> str:
                   else "stock.count.rowMatch")
 
 
-def _rows(name: str, only: str, warehouse="", location="") -> list:
-    items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only, warehouse=warehouse,
-                                       location=location)
+def _rows(name: str, only: str, warehouse="") -> list:
+    items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only, warehouse=warehouse)
     from pearnly_erp_portal.inventory import warehouses as warehouse_service
 
     warehouses = {row["name"]: warehouse_service.label(row) for row in frappe.get_list(  # 「编号 · 名称」（用户 10-29）
@@ -98,7 +97,7 @@ def _rows(name: str, only: str, warehouse="", location="") -> list:
             "category": row.get("category") or "", "attribute": row.get("attribute") or "",
             "barcode": row["barcode"], "unit": row["unit"],
             "warehouse_name": warehouses.get(row["warehouse"], row["warehouse"]),
-            "location": row["location"],
+            "location": row.get("actual_locations") or "",  # 实际仓位（盘点记录上记的，账面只到仓库）
             "row_origin": _label(f"stock.count.origin.{row['row_origin']}") if row.get("row_origin") else "",
             "book_qty": flt(row["book_qty"], 3),
             "counted_qty": flt(row["counted_qty"], 3) if counted else None,
@@ -109,13 +108,13 @@ def _rows(name: str, only: str, warehouse="", location="") -> list:
             "state": _state(row),
             "last_counted_by": row["last_counted_by"],
             "last_counted_at": row["last_counted_at"],
-            "uncounted_units": ", ".join(uncounted.get((row["product"], row["warehouse"], row["location"] or ""), [])),
+            "uncounted_units": ", ".join(uncounted.get((row["product"], row["warehouse"]), [])),
         })
     return out
 
 
 def _uncounted_units(name, items) -> dict:
-    """按台管理的商品：``{(商品, 仓, 库位): [这份盘点没扫到的在库台的主号]}``。"""
+    """按台管理的商品：``{(商品, 仓): [这份盘点没扫到的在库台的主号]}``。"""
     from pearnly_erp_portal.inventory import serials
 
     from pearnly_erp_portal.inventory import count as counts
@@ -131,10 +130,9 @@ def _uncounted_units(name, items) -> dict:
             continue
         units = frappe.get_all(serials.DOCTYPE, filters={"product": row["product"], "warehouse": row["warehouse"],
                                                         "status": serials.IN_STOCK},
-                               fields=["name", "serial_no", "location"], order_by="serial_no asc",
+                               fields=["name", "serial_no"], order_by="serial_no asc",
                                limit_page_length=500)  # bounded: 一个仓一个车型的在库台
-        out[(row["product"], row["warehouse"], row["location"] or "")] = [
-            unit.serial_no for unit in units if unit.name not in seen and (unit.location or "") == (row["location"] or "")]
+        out[(row["product"], row["warehouse"])] = [unit.serial_no for unit in units if unit.name not in seen]
     return out
 
 
@@ -157,5 +155,4 @@ def execute(filters=None):
         name = _latest_count()
     if not name or not frappe.db.exists("ERP Stock Count", name):
         return _columns(), []
-    return _columns(), _rows(name, (filters.get("only") or "").strip(), filters.get("warehouse") or "",
-                             filters.get("location") or "")
+    return _columns(), _rows(name, (filters.get("only") or "").strip(), filters.get("warehouse") or "")

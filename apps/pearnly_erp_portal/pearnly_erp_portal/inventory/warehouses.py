@@ -172,22 +172,23 @@ def _active_of(company) -> list:
 
 def prefill_for(kind, company, *, user=None, context=None) -> dict:
     """同 :func:`prefill`，公司已由调用方核过（网页：按本人可用范围；LINE 识别任务：收单时按发单人核过），这里不再按当前账号核。
-    ``user``：按谁上次选的（默认当前账号）。"""
+    ``user``：按谁上次选的（默认当前账号）。``single``：这家公司只有一个启用仓（界面明细不出仓库栏，服务端自动取它，11-19）。"""
     if kind not in KINDS or not company:
-        return {"warehouse": "", "reason": ""}
+        return {"warehouse": "", "reason": "", "single": False}
     active = set(_active_of(company))
+    single = len(active) == 1
     if context and context in active:
-        return {"warehouse": context, "reason": PREFILL_CONTEXT}
+        return {"warehouse": context, "reason": PREFILL_CONTEXT, "single": single}
     last = _last_choices(user).get(f"{kind}:{company}")
     if last in active:
-        return {"warehouse": last, "reason": PREFILL_LAST}
+        return {"warehouse": last, "reason": PREFILL_LAST, "single": single}
     if kind in INBOUND:
         shop = companies.terminal_warehouse(company)
         if shop in active:
-            return {"warehouse": shop, "reason": PREFILL_SELLING}
-    if len(active) == 1:
-        return {"warehouse": next(iter(active)), "reason": PREFILL_SOLE}
-    return {"warehouse": "", "reason": ""}
+            return {"warehouse": shop, "reason": PREFILL_SELLING, "single": single}
+    if single:
+        return {"warehouse": next(iter(active)), "reason": PREFILL_SOLE, "single": single}
+    return {"warehouse": "", "reason": "", "single": single}
 
 
 def remember(kind, warehouse, company=None) -> None:
@@ -330,10 +331,10 @@ def update_warehouse(name, **changes) -> dict:
     if "is_active" in changes:
         active = 1 if changes["is_active"] in (True, 1, "1", "true") else 0
         if doc.is_active and not active:
-            # 同库位停用（`locations.save_locations`）：仓里还有货就不能停，停了货就看不见、也卖不出去（G16）
+            # 仓里还有货就不能停，停了货就看不见、也卖不出去（G16）
             from pearnly_erp_portal.inventory import locations
 
-            if locations._stock_at(doc.name):
+            if locations.has_stock(doc.name):
                 frappe.throw(_(HAS_STOCK))
         doc.is_active = active
     if "note" in changes:

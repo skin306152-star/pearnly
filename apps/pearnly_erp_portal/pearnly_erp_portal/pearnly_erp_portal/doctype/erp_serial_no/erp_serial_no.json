@@ -14,7 +14,6 @@
   "column_break_state",
   "status",
   "warehouse",
-  "location",
   "in_ref_type",
   "in_ref",
   "in_date",
@@ -103,12 +102,6 @@
    "search_index": 1
   },
   {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "length": 140
-  },
-  {
    "fieldname": "in_ref_type",
    "fieldtype": "Data",
    "label": "In Reference Type",
@@ -158,7 +151,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-26 12:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Serial No",
  "owner": "Administrator",

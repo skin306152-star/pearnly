@@ -7,9 +7,7 @@
   "direction",
   "posting_date",
   "warehouse",
-  "location",
   "to_warehouse",
-  "to_location",
   "column_break_head",
   "supplier",
   "doc_no",
@@ -62,20 +60,10 @@
    "in_list_view": 1
   },
   {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location"
-  },
-  {
    "fieldname": "to_warehouse",
    "fieldtype": "Link",
    "label": "To Warehouse",
    "options": "ERP Warehouse"
-  },
-  {
-   "fieldname": "to_location",
-   "fieldtype": "Data",
-   "label": "To Location"
   },
   {
    "fieldname": "column_break_head",
@@ -261,7 +249,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-18 14:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry",
  "owner": "Administrator",

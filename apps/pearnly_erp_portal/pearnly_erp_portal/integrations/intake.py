@@ -394,7 +394,7 @@ def _tidy_numbers(direction, result):
 
 
 def _chosen_lines(result, chosen):
-    """识别的行 + 这张票上每行的选择（`line_items`）：入库与否、物料、新建、仓位。"""
+    """识别的行 + 这张票上每行的选择（`line_items`）：入库与否、物料、新建。"""
     lines = []
     for index, row in enumerate(result.get("lines") or []):
         choice = chosen["lines"][index] if index < len(chosen["lines"]) else None
@@ -405,14 +405,12 @@ def _chosen_lines(result, chosen):
                 row["product"] = choice["product"]
             if choice.get("new") and not row.get("product"):
                 row["new_item"] = 1
-            if choice.get("location") and row["item_type"] == "goods":
-                row["location"] = choice["location"]
         lines.append(row)
     return lines
 
 
 def _place(chosen, lines):
-    """单头仓（一张单一个仓库）：有入库行才给。"""
+    """LINE 问的那一个仓（一张票问一次，各行同仓；要逐行不同仓在编辑页改）：有入库行才给，作各行的默认仓。"""
     if chosen.get("warehouse") and any(row.get("item_type") == "goods" for row in lines):
         return {"warehouse": chosen["warehouse"]}
     return {}

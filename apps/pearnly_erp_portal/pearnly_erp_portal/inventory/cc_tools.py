@@ -83,7 +83,7 @@ def stocktake_report(tool_input) -> str:
     items = data.get("items") or []
     if not tool_input.get("all_items"):
         items = [r for r in items if not r.get("counted") or r.get("difference") or r.get("location_difference")]
-    keep = ("code", "product_name", "unit", "warehouse_name", "location", "book_qty", "counted_qty", "difference",
+    keep = ("code", "product_name", "unit", "warehouse_name", "book_qty", "counted_qty", "difference",
             "actual_positions")
     rows = [{k: r.get(k) for k in keep if r.get(k) not in (None, "")} | {"counted": bool(r.get("counted"))}
             for r in items[:ROWS_SHOWN]]
@@ -227,8 +227,8 @@ TOOLS = [
      "handler": "pearnly_erp_portal.inventory.cc_tools.stocktake_create"},
     {"name": "erp_stocktake_count", "label": "Recorded a count",
      "description": "Record a counted quantity for a product by code or barcode, like scanning on the page: entries for "
-                    "the same product add up. Warehouse and location default to the product's book position; give them "
-                    "when it was found elsewhere. recount true voids that product's earlier counts first and then "
+                    "the same product add up. Warehouse defaults to the product's book warehouse; give it when it was "
+                    "found in another warehouse, and location (the shelf) when the user says where it was found. recount true voids that product's earlier counts first and then "
                     "records qty.",
      "input_schema": {"type": "object", "properties": {
          "count": {"type": "string"}, "code": {"type": "string"}, "qty": {"type": "number", "minimum": 0},

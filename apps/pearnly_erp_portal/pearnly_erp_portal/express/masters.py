@@ -913,32 +913,22 @@ def stock_differences(products, stock_rows) -> dict:
     return out
 
 
-def _place(product, warehouse, default_location, present):
-    """调整写在哪个库位：这件货的默认库位；没设默认、这个仓里又只有一个库位的就用那一个；都没有才是空库位（不另起一行空库位）。"""
-    if default_location:
-        return default_location
-    places = sorted(present.get((product, warehouse), set()))
-    return places[0] if len(places) == 1 else ""
-
-
 def _stock(company, warehouses, stock_rows, differences=None):
-    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水，写在这件货在这个仓的原库位。回调整的笔数。
+    """ERP 结存对齐 Express：每个（Express 存货 × Express 仓库）差多少记一笔调整流水（库存只到仓库，11-19）。回调整的笔数。
     只认这家公司同步来的库存品（编码在公司内唯一）。``differences``（:func:`stock_differences`）里的存货 Express 自己对不上，
     不动 ERP 的数。"""
     if not warehouses:
         return 0
     rows = frappe.get_all(PRODUCT, filters={"express_company": company, "express_code": ["is", "set"], "express_stock": 1},
-                          fields=["name", "express_code", "default_location"], order_by="creation asc", limit_page_length=0)
+                          fields=["name", "express_code"], order_by="creation asc", limit_page_length=0)
     products = {row.express_code: row.name for row in rows}
-    defaults = {row.name: str(row.default_location or "").strip() for row in rows}
     skipped = {products[code] for code in (differences or {}) if code in products}
     targets = contracts.stock_targets(stock_rows, _pending(company, products, warehouses))
-    current, present = {}, {}
+    current = {}
     for row in frappe.get_all(stock.BALANCE, filters={"warehouse": ["in", list(warehouses.values())]},
-                              fields=["product", "warehouse", "location", "qty_on_hand"], limit_page_length=0):
+                              fields=["product", "warehouse", "qty_on_hand"], limit_page_length=0):
         key = (row.product, row.warehouse)
         current[key] = current.get(key, Decimal(0)) + contracts.d(row.qty_on_hand)
-        present.setdefault(key, set()).add(str(row.location or "").strip())
     wanted = {}
     for (code, loccod), qty in targets.items():
         if code in products and loccod in warehouses:
@@ -957,7 +947,6 @@ def _stock(company, warehouses, stock_rows, differences=None):
         try:
             stock.apply_movement(product=product, warehouse=warehouse, movement_type=stock_contracts.ADJUST,
                                  qty=float(delta), posting_date=nowdate(), ref_type=SYNC_REASON, reason=SYNC_REASON,
-                                 location=_place(product, warehouse, defaults.get(product), present),
                                  client_uuid=f"{SYNC_REASON}:{stamp}:{product}:{warehouse}"[:140],
                                  internal=True, allow_inactive=True, company=company, system=True)
             moved += 1

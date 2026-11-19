@@ -1,4 +1,4 @@
-"""One record per product, warehouse and free-text location."""
+"""One record per product and warehouse (11-19: locations are only kept on stock counts)."""
 
 from frappe.model.document import Document
 
@@ -7,8 +7,7 @@ from pearnly_erp_portal.inventory.contracts import position_name
 
 class ERPStockBalance(Document):
     def autoname(self):
-        self.location = str(self.location or "").strip()
-        self.name = position_name("BAL", self.product, self.warehouse, self.location)
+        self.name = position_name("BAL", self.product, self.warehouse)
 
 
 # 按物料查结存（盘点的库存令牌、估值、物料详情）与按仓库查结存（建盘点快照、库存一览）。没有索引时每次整表扫：

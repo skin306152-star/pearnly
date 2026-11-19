@@ -82,10 +82,9 @@ def _base_qty(line):
     return int(round(qty))
 
 
-def _event(unit, action, ref_type, ref_id, posting_date, prev_status="", warehouse=None, location=None):
+def _event(unit, action, ref_type, ref_id, posting_date, prev_status="", warehouse=None):
     frappe.get_doc({"doctype": MOVEMENT, "serial": unit.name, "product": unit.product, "company": unit.company,
-                    "warehouse": warehouse if warehouse is not None else unit.warehouse,
-                    "location": location if location is not None else (unit.location or ""), "action": action,
+                    "warehouse": warehouse if warehouse is not None else unit.warehouse, "action": action,
                     "prev_status": prev_status, "ref_type": ref_type, "ref_id": ref_id,
                     "posting_date": posting_date or nowdate(), "reversed": 0}).insert(ignore_permissions=True)
 
@@ -96,7 +95,7 @@ def _unit(name):
     return frappe.get_doc(DOCTYPE, name, for_update=True)
 
 
-def register(*, product, company, warehouse, location, entry, ref_type, ref_id, posting_date, action="in"):
+def register(*, product, company, warehouse, entry, ref_type, ref_id, posting_date, action="in"):
     """登记一台新车（进货、入库「其他」、按台期初）。"""
     serial_no = clean(entry.get("serial_no"), MAX_NO)
     if not serial_no:
@@ -113,7 +112,7 @@ def register(*, product, company, warehouse, location, entry, ref_type, ref_id, 
                            "serial_key": key(company, serial_no), "serial_tail": tail(serial_no),
                            "secondary_no": secondary_no or None,
                            "color": clean(entry.get("color"), MAX_COLOR) or None, "status": IN_STOCK,
-                           "warehouse": warehouse, "location": location or "", "in_ref_type": ref_type, "in_ref": ref_id,
+                           "warehouse": warehouse, "in_ref_type": ref_type, "in_ref": ref_id,
                            "in_date": posting_date or nowdate()})
     unit.insert(ignore_permissions=True)
     _event(unit, action, ref_type, ref_id, posting_date)
@@ -122,7 +121,7 @@ def register(*, product, company, warehouse, location, entry, ref_type, ref_id, 
 
 def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None):
     """``stock.apply_lines`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数、登记 / 收回 / 出台。``lines`` 已经过
-    ``positions.prepare``（有仓、库位）；每行的 ``serials`` 是 ``[{serial} | {serial_no, secondary_no, color}]``。"""
+    ``positions.prepare``（有仓）；每行的 ``serials`` 是 ``[{serial} | {serial_no, secondary_no, color}]``。"""
     if ref_type == COUNT_REF:
         return
     products = tracked((line.get("product") for line in lines), company)
@@ -150,8 +149,7 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 if not number or number in seen:
                     frappe.throw(_(DUPLICATE) + (f": {number}" if number else ""))
                 seen.add(number)
-                register(product=line["product"], company=company, warehouse=line["warehouse"],
-                         location=line.get("location"), entry=entry, ref_type=ref_type, ref_id=ref_id,
+                register(product=line["product"], company=company, warehouse=line["warehouse"], entry=entry, ref_type=ref_type, ref_id=ref_id,
                          posting_date=posting_date)
                 continue
             unit = _unit(entry.get("serial"))
@@ -162,12 +160,12 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 if unit.status not in (SOLD, ISSUED):
                     frappe.throw(_(NOT_FOUND))
                 prev = unit.status
-                unit.update({"status": IN_STOCK, "warehouse": line["warehouse"], "location": line.get("location") or ""})
+                unit.update({"status": IN_STOCK, "warehouse": line["warehouse"]})
                 unit.save(ignore_permissions=True)
                 _event(unit, "return", ref_type, ref_id, posting_date, prev_status=prev)
             else:
-                # 出台核仓与库位（G17）：台记的位置要等于这一行出货的位置，否则结存与台各在一处
-                if unit.status != IN_STOCK or not _at(unit, line["warehouse"], line.get("location")):
+                # 出台核仓（G17）：台记的仓要等于这一行出货的仓，否则结存与台各在一处
+                if unit.status != IN_STOCK or unit.warehouse != line["warehouse"]:
                     frappe.throw(_(NOT_IN_STOCK) + f": {unit.serial_no}")
                 unit.update({"status": SOLD if ref_type in SALE_REFS else ISSUED, "out_ref_type": ref_type,
                              "out_ref": ref_id, "out_date": posting_date or nowdate()})
@@ -175,13 +173,9 @@ def apply(*, lines, movement_type, ref_type, ref_id, company, posting_date=None)
                 _event(unit, "out", ref_type, ref_id, posting_date, prev_status=IN_STOCK)
 
 
-def _at(unit, warehouse, location) -> bool:
-    return unit.warehouse == warehouse and (unit.location or "") == (location or "")
-
-
 def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=None):
-    """``stock.apply_transfer`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数，选中的台必须在这一行的调出仓 / 库位在库，
-    换到调入仓 / 库位（状态仍是在库）；记两条按台流水（调出位置、调入位置），作废时据此退回。"""
+    """``stock.apply_transfer`` 在落流水之前调（同一个事务）：开了按台的商品逐行核台数，选中的台必须在调出仓在库，
+    换到调入仓（状态仍是在库）；记两条按台流水（调出仓、调入仓），作废时据此退回。"""
     products = tracked((line.get("product") for line in lines), company)
     if not products:
         return
@@ -197,10 +191,10 @@ def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=Non
             if unit.name in seen or unit.company != company or unit.product != line["product"]:
                 frappe.throw(_(NOT_FOUND))
             seen.add(unit.name)
-            if unit.status != IN_STOCK or not _at(unit, line["warehouse"], line.get("location")):
+            if unit.status != IN_STOCK or unit.warehouse != line["warehouse"]:
                 frappe.throw(_(NOT_IN_STOCK) + f": {unit.serial_no}")
             _event(unit, TRANSFER_OUT, ref_type, ref_id, posting_date, prev_status=IN_STOCK)
-            unit.update({"warehouse": to_warehouse, "location": line.get("to_location") or ""})
+            unit.update({"warehouse": to_warehouse})
             unit.save(ignore_permissions=True)
             _event(unit, TRANSFER_IN, ref_type, ref_id, posting_date, prev_status=IN_STOCK)
 
@@ -208,9 +202,9 @@ def transfer(*, lines, to_warehouse, ref_type, ref_id, company, posting_date=Non
 def reverse(ref_type, ref_id):
     """``stock.reverse_movements`` 先调：这张单动过的台逐条反向（后动的先回）。"""
     events = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id, "reversed": 0},  # bounded: 一张单的台
-                            fields=["name", "serial", "action", "prev_status", "warehouse", "location"],
+                            fields=["name", "serial", "action", "prev_status", "warehouse"],
                             order_by="creation desc", limit_page_length=0)
-    # 调拨：先核每台还在调入位置（`transfer_in`），再退回调出位置（`transfer_out`）——同一时刻写的两条不靠时间先后
+    # 调拨：先核每台还在调入仓（`transfer_in`），再退回调出仓（`transfer_out`）——同一时刻写的两条不靠时间先后
     events.sort(key=lambda event: event.action != TRANSFER_IN)
     for event in events:
         unit = _unit(event.serial)
@@ -222,14 +216,14 @@ def reverse(ref_type, ref_id):
             # 这台车现在必须还是这张单出的（验收 10-26：出库后又经入库「退货」收回，再作废出库单会多出一台）
             if unit.status not in (SOLD, ISSUED) or unit.out_ref != ref_id:
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
-            unit.update({"status": IN_STOCK, "warehouse": event.warehouse, "location": event.location or "",
+            unit.update({"status": IN_STOCK, "warehouse": event.warehouse,
                          "out_ref_type": None, "out_ref": None, "out_date": None})
         elif event.action == TRANSFER_IN:
             # 台已从调入仓卖出 / 出库 / 再调走：先作废后面那张
-            if unit.status != IN_STOCK or not _at(unit, event.warehouse, event.location):
+            if unit.status != IN_STOCK or unit.warehouse != event.warehouse:
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
         elif event.action == TRANSFER_OUT:
-            unit.update({"warehouse": event.warehouse, "location": event.location or ""})
+            unit.update({"warehouse": event.warehouse})
         elif event.action == "return":
             if unit.status != IN_STOCK:
                 frappe.throw(_(LEFT_ALREADY) + f": {unit.serial_no}")
@@ -241,7 +235,7 @@ def reverse(ref_type, ref_id):
 # ── 认台 ─────────────────────────────────────────────────────────────────────
 
 
-def lookup(code, company, *, product=None, statuses=None, warehouse=None, location=None) -> list:
+def lookup(code, company, *, product=None, statuses=None, warehouse=None) -> list:
     """扫到 / 手输的号 → 本公司没作废的台：主号全等 → 副号全等 → 主号末 8 位（各一层认到就停）。回 ``[台]``（认出几台交给人选）。
     GS1 码（Data Matrix 等，``01`` GTIN + ``21`` 序列号）按里面的序列号认（10-30）。"""
     from pearnly_erp_portal.products import gs1
@@ -253,10 +247,8 @@ def lookup(code, company, *, product=None, statuses=None, warehouse=None, locati
     if product:
         base["product"] = product
     if warehouse:
-        base["warehouse"] = warehouse
-        if location is not None:
-            base["location"] = location or ""  # 选台按这一行的仓 + 库位（G17）
-    fields = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location", "out_ref"]
+        base["warehouse"] = warehouse  # 选台按这一行的仓（G17）
+    fields = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "out_ref"]
     # 17 位完整车架号只认完全一样的；末 8 位只在输入的就是 8 位时认；发动机号照旧全等（主会话 10-26）
     full = len(text) == VIN_LENGTH
     for extra in ({"serial_key": key(company, text)}, None if full else {"secondary_no": text},
@@ -286,7 +278,7 @@ def stock_by_warehouse(product, company=None) -> dict:
 
 
 def turn_on(product, units=None, kind=None):
-    """开按台。没有库存的直接开；有库存的要随附按台期初登记 ``units``（``[{serial_no, secondary_no, color, warehouse, location}]``），
+    """开按台。没有库存的直接开；有库存的要随附按台期初登记 ``units``（``[{serial_no, secondary_no, color, warehouse}]``），
     每个仓登记的台数等于账面数才在同一个事务里开（主会话 10-26）。"""
     from pearnly_erp_portal.inventory import stock, warehouses
 
@@ -313,8 +305,7 @@ def turn_on(product, units=None, kind=None):
         if not number or (company, number) in seen:
             frappe.throw(_(DUPLICATE) + (f": {number}" if number else ""))
         seen.add((company, number))
-        register(product=product, company=company, warehouse=unit["warehouse"],
-                 location=clean(unit.get("location"), 140), entry=unit, ref_type=OPENING_REF, ref_id=product,
+        register(product=product, company=company, warehouse=unit["warehouse"], entry=unit, ref_type=OPENING_REF, ref_id=product,
                  posting_date=today, action="opening")
     doc.track_serial = 1
     if kind:
@@ -428,12 +419,12 @@ __all__ = ["IN_STOCK", "ISSUED", "SOLD", "VOID", "apply", "line_serials", "looku
 
 READ_CAPABILITIES = ("inventory.read", "stock.read", "cashier.read", "receipts.read", "sales.read", "purchase.read", "count.read",
                      "products.view", "report.read")
-LIST_FIELDS = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse", "location",
+LIST_FIELDS = ["name", "product", "serial_no", "secondary_no", "color", "status", "warehouse",
                "in_ref_type", "in_ref", "in_date", "out_ref_type", "out_ref", "out_date"]
 STATUSES = (IN_STOCK, SOLD, ISSUED, VOID)
 RETURNABLE = "returnable"  # 退回能选的台：已售或已出库
 # 按台期初 Excel 的列：字段 → 界面词条（车 / 其他商品的叫法都认，模板按商品的号码种类出）
-WORKBOOK_FIELDS = ("serial_no", "secondary_no", "color", "warehouse", "location")
+WORKBOOK_FIELDS = ("serial_no", "secondary_no", "color", "warehouse")
 PRIMARY_LABELS = {"vehicle": "serial.vehicle.primary", "device": "serial.device.primary"}
 SECONDARY_LABELS = {"vehicle": "serial.vehicle.secondary", "device": "serial.device.secondary"}
 MAX_IMPORT = 2000
@@ -455,18 +446,16 @@ def _company(company=None):
 
 
 @frappe.whitelist()
-def api_lookup(code=None, product=None, warehouse=None, status=None, company=None, location=None):
+def api_lookup(code=None, product=None, warehouse=None, status=None, company=None):
     """扫到 / 手输的号 → 本公司的台（主号 → 副号 → 末 8 位；认出几台都列出来让人选）。"""
     _require_read()
     statuses = [SOLD, ISSUED] if status == RETURNABLE else [status] if status in STATUSES else None
-    return lookup(code, _company(company), product=product or None, statuses=statuses, warehouse=warehouse or None,
-                  location=location)
+    return lookup(code, _company(company), product=product or None, statuses=statuses, warehouse=warehouse or None)
 
 
 @frappe.whitelist()
 def search_units(doctype=None, txt="", searchfield=None, start=0, page_len=20, filters=None):
-    """选台下拉（原生 Link 的 ``get_query``，服务端分页搜索）：``filters`` 可带 product / warehouse / location / status / out_ref
-    （location 只跟着 warehouse 用，空串 = 不分库位的那些台）。
+    """选台下拉（原生 Link 的 ``get_query``，服务端分页搜索）：``filters`` 可带 product / warehouse / status / out_ref。
     只列本公司的台；搜主号、副号、颜色。"""
     _require_read()
     filters = frappe.parse_json(filters) if isinstance(filters, str) else (filters or {})
@@ -476,8 +465,6 @@ def search_units(doctype=None, txt="", searchfield=None, start=0, page_len=20, f
     for field in ("product", "warehouse", "out_ref"):
         if filters.get(field):
             conditions[field] = filters[field]
-    if filters.get("warehouse") and "location" in filters:
-        conditions["location"] = filters.get("location") or ""
     text = clean(txt, MAX_NO)
     or_filters = [[field, "like", f"%{text}%"] for field in ("serial_no", "secondary_no", "color")] if text else None
     rows = frappe.get_all(DOCTYPE, filters=conditions, or_filters=or_filters,
@@ -561,7 +548,7 @@ def _labels(kind):
 
     keys = {"serial_no": PRIMARY_LABELS.get(kind, PRIMARY_LABELS["vehicle"]),
             "secondary_no": SECONDARY_LABELS.get(kind, SECONDARY_LABELS["vehicle"]),
-            "color": "serial.color", "warehouse": "stock.col.warehouse", "location": "stock.count.location"}
+            "color": "serial.color", "warehouse": "stock.col.warehouse"}
     return {field: browser_text.label(key) for field, key in keys.items()}
 
 
@@ -570,7 +557,7 @@ def _aliases():
     from pearnly_core import browser_text
 
     keys = {"serial_no": list(PRIMARY_LABELS.values()), "secondary_no": list(SECONDARY_LABELS.values()),
-            "color": ["serial.color"], "warehouse": ["stock.col.warehouse"], "location": ["stock.count.location"]}
+            "color": ["serial.color"], "warehouse": ["stock.col.warehouse"]}
     aliases = {field: field for field in WORKBOOK_FIELDS}
     for field, names in keys.items():
         for key in names:
@@ -605,8 +592,8 @@ def api_opening_template(product=None):
             continue
         name = visible[warehouse][0]
         for _index in range(min(int(round(qty)), MAX_IMPORT)):
-            sheet.append(["", "", "", name, ""])
-    for column in "ABCDE":
+            sheet.append(["", "", "", name])
+    for column in "ABCD":
         sheet.column_dimensions[column].width = 22
     buffer = io.BytesIO()
     book.save(buffer)
@@ -616,7 +603,7 @@ def api_opening_template(product=None):
 
 
 def parse_workbook(data) -> list:
-    """按台期初 Excel → ``[{serial_no, secondary_no, color, warehouse, location}]``（仓库按名称或编号，开按台时在本公司里认）。"""
+    """按台期初 Excel → ``[{serial_no, secondary_no, color, warehouse}]``（仓库按名称或编号，开按台时在本公司里认）。"""
     import io
 
     import openpyxl
@@ -682,7 +669,7 @@ def api_export_units(product=None, status=None, warehouse=None, q=None):
             if row.warehouse not in names:
                 names[row.warehouse] = frappe.db.get_value("ERP Warehouse", row.warehouse, "warehouse_name") or row.warehouse
             sheet.append([row.serial_no, row.secondary_no or "", row.color or "", names[row.warehouse] or "",
-                          row.location or "", _(f"serial.status.{row.status}")])
+                          _(f"serial.status.{row.status}")])
         if len(rows) < 500:
             break
         start += 500

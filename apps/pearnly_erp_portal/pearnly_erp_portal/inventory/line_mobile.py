@@ -147,7 +147,7 @@ def api_line_stocktake_lookup(ticket=None, name=None, code=None, **kwargs):
     """扫到的码 → 这个商品在这一份盘点里的**所有行**（一个货架一行）。
 
     手机端要拿这份清单让员工挑仓位：挑哪一行，那一发就记在那一行上。
-    快照里完全没有这个商品时才登记一行（账面取当前结存，库位留空）——
+    快照里完全没有这个商品时才登记一行（账面取当前结存）——
     只是登记，不写实盘（写 0 会被当成"数出来是 0"）。
 
     会登记行，所以只收 POST：Frappe 不提交 GET 请求，这一行会被回滚，保存时带着它的编号去找就 404
@@ -227,7 +227,7 @@ def api_line_stocktake_add(ticket=None, name=None, code=None, item=None, qty=Non
                            note=None, request_id=None, photos=None, warehouse=None, stock_token=None, **kwargs):
     """记一笔。手机端每一发都带 `request_id`：重试不会记两笔。
 
-    `item` 是员工挑的那一行（商品 × 仓库 × 库位）；只给码时按 `location` 找行。
+    `item` 是员工挑的那一行（商品 × 仓库）；`location` 记货在哪个仓位找到的。
     """
     as_ticket_user(ticket)
     if isinstance(photos, str):

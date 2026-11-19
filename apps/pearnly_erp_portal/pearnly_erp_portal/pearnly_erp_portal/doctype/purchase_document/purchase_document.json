@@ -17,7 +17,6 @@
   "doc_date",
   "due_date",
   "warehouse",
-  "location",
   "status",
   "section_amounts",
   "currency",
@@ -156,11 +155,6 @@
    "fieldtype": "Link",
    "label": "Warehouse",
    "options": "ERP Warehouse"
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location"
   },
   {
    "default": "draft",
@@ -588,7 +582,7 @@
  ],
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-11-03 18:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly ERP Portal",
  "name": "Purchase Document",

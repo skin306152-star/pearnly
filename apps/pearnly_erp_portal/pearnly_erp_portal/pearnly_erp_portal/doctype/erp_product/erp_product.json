@@ -30,7 +30,6 @@
   "is_active",
   "image_url",
   "units",
-  "default_location",
   "express_section",
   "ledger",
   "express_code",
@@ -206,11 +205,6 @@
    "options": "ERP Product Unit"
   },
   {
-   "fieldname": "default_location",
-   "fieldtype": "Data",
-   "label": "Default Location"
-  },
-  {
    "fieldname": "express_section",
    "fieldtype": "Section Break",
    "label": "Express",
@@ -285,7 +279,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-14 16:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Product",
  "naming_rule": "Expression",

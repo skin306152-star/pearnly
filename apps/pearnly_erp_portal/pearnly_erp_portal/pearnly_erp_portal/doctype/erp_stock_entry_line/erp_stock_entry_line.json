@@ -9,9 +9,7 @@
   "unit",
   "unit_cost",
   "unit_cost_manual",
-  "warehouse",
-  "location",
-  "to_location"
+  "warehouse"
  ],
  "fields": [
   {
@@ -54,22 +52,11 @@
    "fieldtype": "Link",
    "options": "ERP Warehouse",
    "label": "Warehouse"
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
-  },
-  {
-   "fieldname": "to_location",
-   "fieldtype": "Data",
-   "label": "To Location"
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-06 12:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Entry Line",
  "owner": "Administrator",

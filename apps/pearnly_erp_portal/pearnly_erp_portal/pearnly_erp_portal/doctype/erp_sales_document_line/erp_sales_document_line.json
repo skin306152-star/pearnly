@@ -15,8 +15,7 @@
   "discount_pct",
   "line_total",
   "vat_applicable",
-  "warehouse",
-  "location"
+  "warehouse"
  ],
  "fields": [
   {
@@ -95,17 +94,11 @@
    "fieldtype": "Link",
    "options": "ERP Warehouse",
    "label": "Warehouse"
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-07 00:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Sales Document Line",
  "owner": "Administrator",

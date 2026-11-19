@@ -57,17 +57,16 @@ def resolve_factor(product_doc, unit_name=None) -> tuple[str, object]:
     frappe.throw(_("Unit {0} is not defined on {1}").format(unit_name, product_doc.product_name or product_doc.name))
 
 
-def _balance_doc(product: str, warehouse: str, location=""):
-    name = contracts.position_name("BAL", product, warehouse, location)
+def _balance_doc(product: str, warehouse: str):
+    name = contracts.position_name("BAL", product, warehouse)
     if frappe.db.exists(BALANCE, name):
         return frappe.get_doc(BALANCE, name)
     return frappe.get_doc({"doctype": BALANCE, "product": product, "warehouse": warehouse,
-                           "location": location,
                            "qty_on_hand": 0, "value": 0, "unit_cost": 0, "cost_known": 0})
 
 
-def current_balance(product: str, warehouse: str, location="") -> contracts.Balance:
-    name = contracts.position_name("BAL", product, warehouse, location)
+def current_balance(product: str, warehouse: str) -> contracts.Balance:
+    name = contracts.position_name("BAL", product, warehouse)
     if not frappe.db.exists(BALANCE, name):
         return contracts.ZERO_BALANCE
     row = frappe.db.get_value(BALANCE, name,
@@ -78,8 +77,8 @@ def current_balance(product: str, warehouse: str, location="") -> contracts.Bala
                              unit=contracts.q2(row["unit_cost"]))
 
 
-def _save_balance(product: str, warehouse: str, balance: contracts.Balance, location="") -> None:
-    doc = _balance_doc(product, warehouse, location)
+def _save_balance(product: str, warehouse: str, balance: contracts.Balance) -> None:
+    doc = _balance_doc(product, warehouse)
     doc.qty_on_hand = balance.qty
     doc.value = balance.value if balance.value is not None else 0
     doc.unit_cost = balance.unit if balance.unit is not None else 0
@@ -94,8 +93,8 @@ def _save_balance(product: str, warehouse: str, balance: contracts.Balance, loca
 def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, unit=None,
                    unit_cost=None, posting_date=None, posting_time=None, ref_type=None,
                    ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                   allow_negative=True, internal=False, location="", allow_inactive=False,
-                   company=None, system=False, base_unit_cost=None, place_checked=False) -> dict:
+                   allow_negative=True, internal=False, allow_inactive=False,
+                   company=None, system=False, base_unit_cost=None) -> dict:
     """写一笔流水并推进结存。`client_uuid` 是整请求的幂等锚：命中即原样返回，不重复记账。
 
     `allow_negative` 默认与旧线上一致（允许超卖，告警在上层）；要拦负库存时显式传 False。
@@ -109,14 +108,13 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     `system=True`：没有用户动作的系统路径（Express 主档同步对齐库存）。公司必须给，按数据核（仓库属于这家公司），
     不按当前账号的可用范围核——同步以 Administrator 或排任务的人跑，停用的公司不在他们的可用范围里（10-30 事故）。
 
-    `place_checked=True`：仓位已在别处核过（盘点生成的物料调整单：盘点记录时核过，旧仓位也能盘），不再按仓位清单核。
+    库存只到「物料 × 仓库」（11-19 取消仓位；仓位只在盘点里记货在哪找到）。
     """
     if system and not (internal and company):
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     if not internal:
         _require()
     product_doc = _product(product, allow_inactive=internal and allow_inactive)
-    location = positions.clean_location(location)
     company = company if system else _movement_company(warehouse, company, internal)
     if system or (internal and allow_inactive):
         if (warehouses.owner_of(warehouse) if system else warehouses.company_of(warehouse)) != company:
@@ -128,11 +126,9 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     if client_uuid:
         existing = frappe.db.get_value(MOVEMENT, {"client_uuid": client_uuid}, "name")
         if existing:
-            row = frappe.db.get_value(MOVEMENT, existing,
-                                      ["product", "warehouse", "location", "qty_base"], as_dict=True)
+            row = frappe.db.get_value(MOVEMENT, existing, ["product", "warehouse", "qty_base"], as_dict=True)
             return {"movement": existing, "deduped": True,
-                    "qty_on_hand": float(current_balance(
-                        row["product"], row["warehouse"], row["location"]).qty)}
+                    "qty_on_hand": float(current_balance(row["product"], row["warehouse"]).qty)}
 
     base_unit, factor = resolve_factor(product_doc, unit)
     try:
@@ -147,12 +143,8 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
     warehouse_doc = frappe.db.exists("ERP Warehouse", warehouse)
     if not warehouse_doc:
         frappe.throw(_("Warehouse not found"), frappe.DoesNotExistError)
-    if base_qty > 0 and ref_type not in ("void", "count", "express_sync") and not place_checked:
-        # 库位清单（第 5 项）：货进到哪个库位要在这个仓的清单里。从旧库位出货、作废冲回照常；盘点在记录时已经核过（记在账面
-        # 原位置照常）；Express 同步按 Express 的数对齐，不因库位清单停住（验收 10-26）
-        positions.check(warehouse, location)
 
-    balance = current_balance(product, warehouse, location)
+    balance = current_balance(product, warehouse)
     if not allow_negative and balance.qty + base_qty < 0:
         frappe.throw(_("Not enough stock on hand"))
 
@@ -167,7 +159,6 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         "movement_type": movement_type,
         "product": product,
         "warehouse": warehouse,
-        "location": location,
         "qty": qty,
         "unit": unit or base_unit,
         "factor": factor,
@@ -183,7 +174,7 @@ def apply_movement(*, product: str, warehouse: str, movement_type: str, qty, uni
         "created_by": frappe.session.user,
     })
     doc.insert(ignore_permissions=True)
-    _save_balance(product, warehouse, new_balance, location)
+    _save_balance(product, warehouse, new_balance)
     return {"movement": doc.name, "deduped": False, "qty_on_hand": float(new_balance.qty),
             "unit_cost": None if new_balance.unit is None else float(new_balance.unit),
             # 这一笔每个基本单位的计价（成本未确立为 None）：调拨调入照它入（`apply_transfer`）
@@ -206,11 +197,10 @@ def _movement_company(warehouse, company, internal):
 
 def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
                 ref_type=None, ref_id=None, doc_no=None, reason=None, client_uuid=None,
-                allow_negative=True, internal=False, company=None, units=True, place_checked=False) -> dict:
-    """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。
+                allow_negative=True, internal=False, company=None, units=True) -> dict:
+    """整单动库存：逐行换算并落流水；首行带幂等锚，重复整单提交直接跳过。行上的仓为准，没写的用 ``warehouse``。
 
-    `units=False`：不经按台登记 / 出台（盘点生成的物料调整单照盘点口径，盘到别处的台由盘点自己换位）；
-    `place_checked`：见 `apply_movement`。"""
+    `units=False`：不经按台登记 / 出台（盘点生成的物料调整单照盘点口径，盘到别处的台由盘点自己换位）。"""
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
 
@@ -230,27 +220,25 @@ def apply_lines(*, warehouse: str, movement_type: str, lines, posting_date=None,
 
     movements, updated = [], []
     for index, line in enumerate(lines):
-        place = line
         result = apply_movement(
-            product=line["product"], warehouse=place["warehouse"], location=place["location"],
+            product=line["product"], warehouse=line["warehouse"],
             movement_type=movement_type,
             qty=line["qty"], unit=line.get("unit"), unit_cost=line.get("unit_cost"),
             posting_date=posting_date, ref_type=ref_type, ref_id=ref_id, doc_no=doc_no,
             reason=reason, client_uuid=client_uuid if index == 0 else None,
-            allow_negative=allow_negative, internal=True, company=company, place_checked=place_checked,
+            allow_negative=allow_negative, internal=True, company=company,
         )
         movements.append(result["movement"])
-        updated.append({"product": line["product"], "warehouse": place["warehouse"],
-                        "location": place["location"], "qty_on_hand": result["qty_on_hand"]})
+        updated.append({"product": line["product"], "warehouse": line["warehouse"],
+                        "qty_on_hand": result["qty_on_hand"]})
     return {"movements": movements, "updated": updated, "deduped": False}
 
 
 def apply_transfer(*, warehouse: str, to_warehouse: str, lines, posting_date=None, ref_type=None, ref_id=None,
                    doc_no=None, reason=None, client_uuid=None, company=None) -> dict:
-    """调拨（多仓闭环 P2）：整单一个事务，每行先从调出仓 / 库位出（``transfer_out``，按那个位置当前均价），再进调入仓 / 库位
-    （``transfer_in``，单价 = 调出那一笔的单价，成本随货走；调出那边成本未确立时不带价，按调入位置现有均价入，再没有就同样未确立，
-    同退货入库口径）。``lines`` 已带调出库位 ``location`` 与调入库位 ``to_location``。按台管理的商品选中的台随行换仓。
-    调用方（出入库单据服务）已经做过权限判断；调入库位的清单在 `apply_movement` 里按调入仓核。"""
+    """调拨（多仓闭环 P2）：整单一个事务，每行先从调出仓出（``transfer_out``，按那个仓当前均价），再进调入仓
+    （``transfer_in``，单价 = 调出那一笔的单价，成本随货走；调出那边成本未确立时不带价，按调入仓现有均价入，再没有就同样未确立，
+    同退货入库口径）。按台管理的商品选中的台随行换仓。调用方（出入库单据服务）已经做过权限判断。"""
     if not isinstance(lines, list) or not lines:
         frappe.throw(_("Provide at least one line item"))
     company = _movement_company(warehouse, company, True)
@@ -265,22 +253,20 @@ def apply_transfer(*, warehouse: str, to_warehouse: str, lines, posting_date=Non
     common = {"posting_date": posting_date, "ref_type": ref_type, "ref_id": ref_id, "doc_no": doc_no, "reason": reason,
               "internal": True, "company": company}
     for index, line in enumerate(lines):
-        out = apply_movement(product=line["product"], warehouse=warehouse, location=line.get("location") or "",
+        out = apply_movement(product=line["product"], warehouse=warehouse,
                              movement_type=contracts.TRANSFER_OUT, qty=line["qty"], unit=line.get("unit"),
                              client_uuid=client_uuid if index == 0 else None, **common)
-        into = apply_movement(product=line["product"], warehouse=to_warehouse, location=line.get("to_location") or "",
+        into = apply_movement(product=line["product"], warehouse=to_warehouse,
                               movement_type=contracts.TRANSFER_IN, qty=line["qty"], unit=line.get("unit"),
                               base_unit_cost=out.get("moved_unit_cost"), **common)
         movements += [out["movement"], into["movement"]]
-        updated += [{"product": line["product"], "warehouse": warehouse, "location": line.get("location") or "",
-                     "qty_on_hand": out["qty_on_hand"]},
-                    {"product": line["product"], "warehouse": to_warehouse, "location": line.get("to_location") or "",
-                     "qty_on_hand": into["qty_on_hand"]}]
+        updated += [{"product": line["product"], "warehouse": warehouse, "qty_on_hand": out["qty_on_hand"]},
+                    {"product": line["product"], "warehouse": to_warehouse, "qty_on_hand": into["qty_on_hand"]}]
     return {"movements": movements, "updated": updated, "deduped": False}
 
 
 def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=None):
-    """Internal only: caller authorizes reversal; original ledger fixes the storage position.
+    """Internal only: caller authorizes reversal; original ledger fixes the warehouse.
 
     反向流水**带上原单的单据号**：收发存与库存明细的"关联单据"列显示的是 `doc_no`
     （入库 IR / 出库 IS / 采购 PE / 销售 SI 那种系统号），没有号才退回显示内部单据名。
@@ -292,7 +278,7 @@ def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=Non
 
     serials.reverse(ref_type, ref_id)  # 这张单动过的台先回退（卖出的台拦住进货作废）
     rows = frappe.get_all(MOVEMENT, filters={"ref_type": ref_type, "ref_id": ref_id},
-                          fields=["name", "product", "warehouse", "location", "qty_base", "doc_no"],
+                          fields=["name", "product", "warehouse", "qty_base", "doc_no"],
                           order_by="creation asc", limit_page_length=0)
     resolved_companies = {row.warehouse: warehouses.company_of(row.warehouse) for row in rows}
     if company is not None:
@@ -301,7 +287,7 @@ def reverse_movements(*, ref_type, ref_id, client_uuid, reason=None, company=Non
             frappe.throw(_("Warehouse not found"))
     lock_products([row.product for row in rows])
     for row in rows:
-        apply_movement(product=row.product, warehouse=row.warehouse, location=row.location,
+        apply_movement(product=row.product, warehouse=row.warehouse,
                        movement_type=contracts.ADJUST, qty=-contracts.d(row.qty_base),
                        ref_type="void", ref_id=ref_id, doc_no=row.doc_no, reason=reason,
                        client_uuid=f"{client_uuid}:{row.name}", internal=True, allow_inactive=True,
@@ -327,7 +313,7 @@ def _qty_matches(qty, op, value) -> bool:
 
 
 def _company_totals(products) -> dict:
-    """这几件商品在当前公司所有仓里的合计在库（低库存按合计比，多仓闭环 P4；不跟页面的仓库 / 库位筛选）。"""
+    """这几件商品在当前公司所有仓里的合计在库（低库存按合计比，多仓闭环 P4；不跟页面的仓库筛选）。"""
     from frappe.query_builder.functions import Sum
 
     names = warehouses.names_of()
@@ -341,7 +327,7 @@ def _company_totals(products) -> dict:
     return {row["product"]: contracts.d(row["qty"] or 0) for row in rows}
 
 
-def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
+def _overview_rows(*, warehouse=None, q=None, include_zero=False, only_low=False,
                    qty_op=None, qty_value=None, conditions=None, product=None) -> list[dict]:
     """在库一览的全部命中行。成本按岗位遮蔽：没有成本权限的岗位拿到空值，不是 0。
 
@@ -359,14 +345,12 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
     else:
         # 看库存就是看**当前公司**那几个仓库的结存（结存按仓库记账）。
         filters.update(warehouses.scope_filter())
-    if location is not None:
-        filters["location"] = positions.clean_location(location)
-    # 原生筛选里「等于」以外的条件（页面 inventory.js 的仓库、仓位；数量走 qty_op）
+    # 原生筛选里「等于」以外的条件（页面 inventory.js 的仓库；数量走 qty_op）
     filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()]
     filters += list_filters.conditions(conditions, {
-        "warehouse": {"column": "warehouse", "link": ("ERP Warehouse", "warehouse_name")}, "location": "location"})
+        "warehouse": {"column": "warehouse", "link": ("ERP Warehouse", "warehouse_name")}})
     rows = frappe.get_list(BALANCE, filters=filters,
-                           fields=["name", "product", "warehouse", "location", "qty_on_hand", "unit_cost",
+                           fields=["name", "product", "warehouse", "qty_on_hand", "unit_cost",
                                    "value", "cost_known"],
                            order_by="modified desc", limit_page_length=0)
     products = {p["name"]: p for p in frappe.get_list(
@@ -420,7 +404,6 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
             "internal_code": product.get("internal_code") or product.get("express_code") or "",
             "category_name": product.get("category_name") or "", "attribute": product.get("attribute") or "",
             "warehouse": row["warehouse"],
-            "location": row.get("location") or "",
             "warehouse_name": names.get(row["warehouse"]),
             # 数量是基准（库存）单位，所以这里显示库存单位 —— 与落账口径同一处。
             "unit": (product.get("base_unit") or product.get("unit") or "").strip() or None,
@@ -438,7 +421,7 @@ def _overview_rows(*, warehouse=None, location=None, q=None, include_zero=False,
 SORT_FIELDS = {
     "product_name": "product_name", "code": "code", "internal_code": "internal_code", "barcode": "barcode",
     "category_name": "category_name", "attribute": "attribute",
-    "warehouse_name": "warehouse_name", "location": "location", "unit": "unit",
+    "warehouse_name": "warehouse_name", "unit": "unit",
     "qty_on_hand": "qty_on_hand", "unit_cost": "unit_cost", "value": "value",
 }
 
@@ -452,11 +435,11 @@ def _view_rows(view=None, **query) -> list[dict]:
     return [row for row in rows if row["status"] != "ok"] if only_low else rows
 
 
-def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
+def stock_overview(*, warehouse=None, q=None, include_zero=False, only_low=False,
                    qty_op=None, qty_value=None, start=0, limit=200,
                    sort_by=None, sort_order=None, conditions=None, view=None, product=None) -> list[dict]:
     """在库一览（分页）。`limit=0` 表示不分页，整批给。`view = product` 按商品合计（多仓闭环 P4）。"""
-    rows = _view_rows(view, warehouse=warehouse, location=location, q=q, include_zero=include_zero,
+    rows = _view_rows(view, warehouse=warehouse, q=q, include_zero=include_zero,
                       only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions, product=product)
     rows = listing.sort_rows(rows, sort_by, sort_order, SORT_FIELDS)
     start = int(start or 0)
@@ -465,10 +448,10 @@ def stock_overview(*, warehouse=None, location=None, q=None, include_zero=False,
     return rows[start:start + int(limit)]
 
 
-def stock_count(*, warehouse=None, location=None, q=None, include_zero=False, only_low=False,
+def stock_count(*, warehouse=None, q=None, include_zero=False, only_low=False,
                 qty_op=None, qty_value=None, conditions=None, view=None, product=None) -> int:
     """与列表同一套筛选的命中行数（页脚"第 N 项/共 M 项"用）。"""
-    return len(_view_rows(view, warehouse=warehouse, location=location, q=q, include_zero=include_zero,
+    return len(_view_rows(view, warehouse=warehouse, q=q, include_zero=include_zero,
                           only_low=only_low, qty_op=qty_op, qty_value=qty_value, conditions=conditions, product=product))
 
 
@@ -494,19 +477,24 @@ def stock_totals(*, warehouse=None, q=None) -> dict:
     }
 
 
-def rebuild_balance(product: str, warehouse: str, location="") -> dict:
+def rebuild_balance(product: str, warehouse: str) -> dict:
     """按流水重算某一行结存。用来验"结存确实能从流水推出来"，也用于修复。"""
     _require()
     warehouse = warehouses.required(warehouse)
-    location = positions.clean_location(location)
     lock_products([product])
+    return replay_balance(product, warehouse)
+
+
+def replay_balance(product: str, warehouse: str) -> dict:
+    """同 :func:`rebuild_balance`，不核权限（迁移补丁等系统路径用；调用方自己锁、自己核）：这个「物料 × 仓库」的全部流水按
+    日期、时间、录入先后重放成一行结存 ``BAL-物料-仓库``。"""
     movements = frappe.get_all(
-        MOVEMENT, filters={"product": product, "warehouse": warehouse, "location": location},
+        MOVEMENT, filters={"product": product, "warehouse": warehouse},
         fields=["movement_type", "qty_base", "unit_cost", "cost_known", "posting_date",
                 "posting_time", "name"],
         order_by="posting_date asc, posting_time asc, creation asc", limit_page_length=0)
     balance, _rows = contracts.roll(contracts.ZERO_BALANCE, movements)
-    _save_balance(product, warehouse, balance, location)
-    return {"product": product, "warehouse": warehouse, "location": location,
+    _save_balance(product, warehouse, balance)
+    return {"product": product, "warehouse": warehouse,
             "qty_on_hand": float(balance.qty),
             "unit_cost": None if balance.unit is None else float(balance.unit)}

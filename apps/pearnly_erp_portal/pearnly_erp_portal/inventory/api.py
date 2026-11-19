@@ -62,8 +62,8 @@ def api_update_warehouse(**kwargs):
 @frappe.whitelist(methods=["POST"])
 def api_create_stock_entry(**kwargs):
     guard.require("stock." + str(kwargs.get("direction")))
-    for key in ("numbering_direction", "commit", "stock_count", "trusted"):
-        kwargs.pop(key, None)  # 盘点来的调整单只由盘点生成（`count.adjustment_draft`），接口不收
+    for key in ("numbering_direction", "commit", "stock_count", "trusted", "location", "to_location"):
+        kwargs.pop(key, None)  # 盘点来的调整单只由盘点生成（`count.adjustment_draft`），接口不收；仓位 11-19 取消（旧页面带来的不收）
     _json_args(kwargs, "lines", "attachments")
     kwargs = _clean(kwargs)
     # 新建时先选好的附件（已传到原件层的登记 File）：建单前先核，建好后挂上（`inventory.attachments`）
@@ -165,14 +165,14 @@ def api_remove_stock_entry_file(name, file):
 
 
 @frappe.whitelist()
-def api_default_unit_cost(product=None, warehouse=None, location=None, unit=None):
-    """物料调整增加行的默认单价（这个位置现在的均价，没有就物料参考成本；页面选物料 / 换仓位时带出，人可以改）。
+def api_default_unit_cost(product=None, warehouse=None, unit=None):
+    """物料调整增加行的默认单价（这个仓现在的均价，没有就物料参考成本；页面选物料 / 换仓时带出，人可以改）。
     只给开得了物料调整、看得到成本的人；仓要是当前公司的。"""
     guard.require("stock.adjust")
     if not guard.cost_visible() or not product:
         return {"unit_cost": None}
     warehouse = warehouses.required(warehouse)
-    cost = documents.default_unit_cost(product, warehouse, location or "", unit or None)
+    cost = documents.default_unit_cost(product, warehouse, unit or None)
     return {"unit_cost": None if cost is None else float(cost)}
 
 
@@ -258,8 +258,6 @@ EXPORT_COLUMNS = (
     ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("warehouse_name", "stock.col.warehouse"),
-    ("location", "stock.count.location"),
-    ("location_code", "stock.location.code"),  # 仓位编码（11-07 主会话定：库存导出、盘点导出加这一列，收发存不加）
     ("unit", "stock.col.unit"),
     ("qty_on_hand", "stock.col.onHand"),
     ("unit_cost", "stock.col.cost"),
@@ -320,9 +318,9 @@ def _csv(rows) -> bytes:
     return buffer.getvalue().encode("utf-8-sig")
 
 
-def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None, conditions=None, location=None,
+def _stock_export_rows(warehouse=None, q=None, include_zero=None, only_low=None, conditions=None,
                        qty_op=None, qty_value=None, view=None, product=None):
-    return stock.stock_overview(warehouse=warehouse, location=location, q=q, include_zero=bool(include_zero),
+    return stock.stock_overview(warehouse=warehouse, q=q, include_zero=bool(include_zero),
                                 only_low=bool(only_low), qty_op=qty_op, qty_value=qty_value, limit=0, conditions=conditions,
                                 view=view, product=product)
 
@@ -333,9 +331,7 @@ def stock_export_size(**kwargs):
 
 
 def stock_export_file(**kwargs):
-    from pearnly_erp_portal.inventory import positions
-
-    return _csv(positions.with_codes(_stock_export_rows(**kwargs)))
+    return _csv(_stock_export_rows(**kwargs))
 
 
 @frappe.whitelist(methods=["POST"])
@@ -345,8 +341,8 @@ def api_stock_export(**kwargs):
     from pearnly_core.exports import service as exports
 
     kwargs = _clean(kwargs)
-    # 与列表同一套筛选：看法（按位置 / 按商品）、库位、数量条件、只看一件商品也带上（原来漏了库位与数量条件，多仓闭环 P4 补）
-    args = {key: kwargs.get(key) for key in ("warehouse", "location", "q", "include_zero", "only_low", "qty_op", "qty_value",
+    # 与列表同一套筛选：看法（按位置 / 按商品）、数量条件、只看一件商品也带上（多仓闭环 P4 补）
+    args = {key: kwargs.get(key) for key in ("warehouse", "q", "include_zero", "only_low", "qty_op", "qty_value",
                                              "conditions", "view", "product")
             if kwargs.get(key) not in (None, "")}
     return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_export_size",
@@ -371,8 +367,6 @@ COUNT_COLUMNS = (
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
     ("warehouse_name", "stock.col.warehouse"),
-    ("location", "stock.count.location"),
-    ("location_code", "stock.location.code"),
     ("actual_positions", "stock.workbench.actualPositions"),
     ("book_qty", "stock.count.book"),
     ("counted_qty", "stock.count.counted"),
@@ -385,7 +379,6 @@ COUNT_DETAIL_COLUMNS = (
     ("category", "stock.col.category"),
     ("attribute", "product.col.attribute"),
     ("book_warehouse_name", "stock.col.warehouse"),
-    ("book_location", "stock.count.location"),
     ("warehouse_name", "stock.workbench.actualWarehouse"),
     ("location", "stock.workbench.actualLocation"),
     ("unit", "stock.col.unit"),
@@ -433,14 +426,12 @@ def _count_summary_marks(row, columns) -> set:
 
 
 def _count_detail_marks(entry, book, columns) -> set:
-    """明细行里实盘仓库 / 仓位与账面不同的那几格；不计入合计的作废记录不标。"""
+    """明细行里实盘仓库与账面不同的那一格（账面只到仓库，仓位只记货在哪找到）；不计入合计的作废记录不标。"""
     if entry.get("voided") or not book:
         return set()
     fields = set()
     if entry.get("warehouse") != book.get("warehouse"):
         fields.add("warehouse_name")
-    if (entry.get("location") or "") != (book.get("location") or ""):
-        fields.add("location")
     return {field for field in fields if field in columns}
 
 
@@ -794,17 +785,14 @@ def stock_count_export_size(name=None, **_filters):
     return int(counts.get_count(name).get("item_total") or 0) + int(counts.entries_total(count=name) or 0)
 
 
-def stock_count_export_file(name=None, only=None, warehouse=None, location=None, mode=None):
-    """按打印弹窗里选的「只看 / 仓库 / 库位」导出（用户 10-29）；进行中默认盲盘（不出账面与差异），选核对表且有库存管理权才出。"""
+def stock_count_export_file(name=None, only=None, warehouse=None, mode=None):
+    """按打印弹窗里选的「只看 / 仓库」导出（用户 10-29）；进行中默认盲盘（不出账面与差异），选核对表且有库存管理权才出。"""
     from pearnly_erp_portal.inventory import contracts as stock_contracts
 
     task = counts.get_count(name)
     items = stock_contracts.count_rows(counts.list_items(count=name, limit=0), only=only or "",
-                                       warehouse=warehouse or "", location=location or "")
+                                       warehouse=warehouse or "")
     kept = {row["name"] for row in items}
-    from pearnly_erp_portal.inventory import positions
-
-    positions.with_codes(items)  # 汇总表带「仓位编码」一列
     entries = [row for row in counts.list_entries(count=name, limit=0) if row.get("item") in kept]
     blind = task.get("status") == "Active" and not (mode == "check" and guard.has("stock.manage"))
     return {"filename": f"{name}.xlsx", "content": _count_workbook(task, items, entries, blind=blind)}
@@ -816,7 +804,7 @@ def api_stock_count_export(**kwargs):
     小的当场回文件，大的排后台、做完推送下载（`pearnly_core.exports`）。"""
     from pearnly_core.exports import service as exports
 
-    args = {key: value for key, value in _clean(kwargs).items() if key in ("name", "only", "warehouse", "location", "mode")}
+    args = {key: value for key, value in _clean(kwargs).items() if key in ("name", "only", "warehouse", "mode")}
     name = args.get("name")
     return exports.deliver(count="pearnly_erp_portal.inventory.api.stock_count_export_size",
                            build="pearnly_erp_portal.inventory.api.stock_count_export_file", args=args,

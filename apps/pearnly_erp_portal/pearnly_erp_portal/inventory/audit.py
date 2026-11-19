@@ -69,14 +69,13 @@ def _issues(kind, note, rows, *, keys, limit=EXAMPLE_LIMIT):
 def balance_mismatch():
     """结存 = 该位置流水之和。这条不成立，说明账和流水已经分家。"""
     return _rows("""
-        SELECT b.product, b.warehouse, b.location, b.qty_on_hand,
+        SELECT b.product, b.warehouse, b.qty_on_hand,
                COALESCE(SUM(m.qty_base), 0) AS from_movements,
                b.qty_on_hand - COALESCE(SUM(m.qty_base), 0) AS drift
         FROM `tabERP Stock Balance` b
         LEFT JOIN `tabERP Stock Movement` m
                ON m.product = b.product AND m.warehouse = b.warehouse
-              AND COALESCE(m.location, '') = COALESCE(b.location, '')
-        GROUP BY b.product, b.warehouse, b.location, b.qty_on_hand
+        GROUP BY b.product, b.warehouse, b.qty_on_hand
         HAVING ABS(b.qty_on_hand - COALESCE(SUM(m.qty_base), 0)) > 0.000001
         ORDER BY ABS(b.qty_on_hand - COALESCE(SUM(m.qty_base), 0)) DESC
     """)
@@ -85,10 +84,9 @@ def balance_mismatch():
 def orphan_balance():
     """有结存、却一条流水都没有（或结存指向不存在的商品/仓库）。"""
     return _rows("""
-        SELECT b.product, b.warehouse, b.location, b.qty_on_hand,
+        SELECT b.product, b.warehouse, b.qty_on_hand,
                (SELECT COUNT(*) FROM `tabERP Stock Movement` m
-                 WHERE m.product = b.product AND m.warehouse = b.warehouse
-                   AND COALESCE(m.location, '') = COALESCE(b.location, '')) AS movements,
+                 WHERE m.product = b.product AND m.warehouse = b.warehouse) AS movements,
                (SELECT COUNT(*) FROM `tabERP Product` p WHERE p.name = b.product) AS product_exists,
                (SELECT COUNT(*) FROM `tabERP Warehouse` w WHERE w.name = b.warehouse) AS warehouse_exists
         FROM `tabERP Stock Balance` b
@@ -100,7 +98,7 @@ def movement_without_source():
     """每笔流水都要追得到一个还在的来源单据（本域的核心口径：流水不可改、来源可追）。"""
     broken = []
     for row in _rows("""
-        SELECT name, movement_type, ref_type, ref_id, doc_no, product, qty_base, warehouse, location
+        SELECT name, movement_type, ref_type, ref_id, doc_no, product, qty_base, warehouse
         FROM `tabERP Stock Movement` ORDER BY creation
     """):
         ref_type = (row.get("ref_type") or "").strip()
@@ -195,7 +193,7 @@ def stock_reference_drift():
     """
     drift = []
     for row in _rows("""
-        SELECT m.name, m.product, m.warehouse, m.location, w.company AS warehouse_company
+        SELECT m.name, m.product, m.warehouse, w.company AS warehouse_company
         FROM `tabERP Stock Movement` m
         LEFT JOIN `tabERP Warehouse` w ON w.name = m.warehouse
     """):
@@ -231,7 +229,7 @@ def party_drift():
 def zero_cost_stock():
     """有货、但成本未知（`cost_known=0`）：价值与毛利都算不出来。**提示**，不是错。"""
     return _rows("""
-        SELECT product, warehouse, location, qty_on_hand FROM `tabERP Stock Balance`
+        SELECT product, warehouse, qty_on_hand FROM `tabERP Stock Balance`
         WHERE qty_on_hand > 0 AND COALESCE(cost_known, 0) = 0
         ORDER BY qty_on_hand DESC
     """)
@@ -239,7 +237,7 @@ def zero_cost_stock():
 
 def negative_stock():
     return _rows("""
-        SELECT product, warehouse, location, qty_on_hand FROM `tabERP Stock Balance`
+        SELECT product, warehouse, qty_on_hand FROM `tabERP Stock Balance`
         WHERE qty_on_hand < 0 ORDER BY qty_on_hand
     """)
 
@@ -255,9 +253,9 @@ def ref_type_counts():
 
 CHECKS = [
     ("balance_mismatch", "结存 ≠ 该位置流水之和", balance_mismatch,
-     ["product", "warehouse", "location", "qty_on_hand", "from_movements", "drift"]),
+     ["product", "warehouse", "qty_on_hand", "from_movements", "drift"]),
     ("orphan_balance", "有结存但没流水 / 指向不存在的商品或仓库", orphan_balance,
-     ["product", "warehouse", "location", "qty_on_hand", "movements", "product_exists", "warehouse_exists"]),
+     ["product", "warehouse", "qty_on_hand", "movements", "product_exists", "warehouse_exists"]),
     ("movement_without_source", "流水追不到来源单据", movement_without_source,
      ["name", "movement_type", "ref_type", "ref_id", "doc_no", "why"]),
     ("movement_type_unknown", "流水类型没登记", movement_type_unknown,
@@ -275,9 +273,9 @@ CHECKS = [
 # 这两条是"提示"：不是数据错了，是数据还不够（成本没定 / 卖了还没有的货）。
 NOTES = [
     ("zero_cost_stock", "有货但成本未知（价值与毛利算不出来）", zero_cost_stock,
-     ["product", "warehouse", "location", "qty_on_hand"]),
+     ["product", "warehouse", "qty_on_hand"]),
     ("negative_stock", "负结存（本域允许超卖，但要有数）", negative_stock,
-     ["product", "warehouse", "location", "qty_on_hand"]),
+     ["product", "warehouse", "qty_on_hand"]),
 ]
 
 

@@ -16,7 +16,8 @@ FIELD_LABELS = (
     ("attribute", "product.col.attribute"),
     ("barcode", "stock.col.barcode"),
     ("unit", "stock.col.unit"),
-    ("location", "stock.count.location"),
+    # 按行选仓（11-19）：空着用页面上选的仓
+    ("warehouse", "stock.col.warehouse"),
     ("qty", "stock.opening.qty"),
     ("unit_cost", "stock.opening.cost"),
 )
@@ -26,9 +27,8 @@ UNIT_LABELS = {
     "vehicle": (("serial_no", "serial.vehicle.primary"), ("secondary_no", "serial.vehicle.secondary"), ("color", "serial.color")),
     "device": (("serial_no", "serial.device.primary"), ("secondary_no", "serial.device.secondary"), ("color", "serial.color")),
 }
-# 一张单一个仓库（岳父 11-06，反转多仓闭环 P1 G5）：模板不再有仓库列；旧模板带着这一列照样认出来，和页面上选的仓不一样的行
-# 在预览里列为问题行（`opening_batch._row_warehouse`）
-LEGACY_LABELS = (("warehouse", "stock.col.warehouse"),)
+# 旧模板的仓位列（11-19 取消仓位）：照样认出来、不读
+LEGACY_LABELS = (("location", "stock.count.location"),)
 TEXT_FIELDS = ("product", "product_code", "internal_code", "barcode", "serial_no", "secondary_no")
 
 

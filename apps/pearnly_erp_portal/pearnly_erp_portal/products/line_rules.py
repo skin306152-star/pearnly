@@ -24,28 +24,27 @@ USER, VAT, MEMORY, AGREED, MATCHED, EXPRESS_SERVICE, RECOGNISED, DEFAULT = (
     "user", "vat", "memory", "agreed", "matched", "express_service", "recognised", "default")
 
 
-def _result(item_type, source, product=None, location=None, decided=True) -> dict:
-    return {"item_type": item_type, "product": product or None, "location": location or None,
-            "source": source, "decided": decided}
+def _result(item_type, source, product=None, decided=True) -> dict:
+    return {"item_type": item_type, "product": product or None, "source": source, "decided": decided}
 
 
 def _remembered(row: Optional[Mapping[str, Any]], source) -> Optional[dict]:
     if not row or row.get("item_type") not in (GOODS, SERVICE):
         return None
-    return _result(row["item_type"], source, row.get("product"), row.get("location"))
+    return _result(row["item_type"], source, row.get("product"))
 
 
 def decide(*, chosen: Optional[Mapping[str, Any]] = None, non_claimable: bool = False,
            remembered: Optional[Mapping[str, Any]] = None, agreed: Optional[Mapping[str, Any]] = None,
            matched: Optional[Mapping[str, Any]] = None, recognised: Optional[str] = None,
            expense: bool = False) -> dict:
-    """一行的预选 → ``{item_type, product, location, source, decided}``。
+    """一行的预选 → ``{item_type, product, source, decided}``。
 
     ``chosen``：人选的 ``{product, item_type}``（有一项就算人选过）；``remembered`` / ``agreed``：调用方已核过物料还能用的记忆
-    ``{product, item_type, location}``；``matched``：认出的物料 ``{product, express_non_stock}``；``recognised``：采购识别给的类型。"""
+    ``{product, item_type}``；``matched``：认出的物料 ``{product, express_non_stock}``；``recognised``：采购识别给的类型。"""
     if chosen and (chosen.get("product") or chosen.get("item_type") in (GOODS, SERVICE)):
         item_type = chosen.get("item_type") if chosen.get("item_type") in (GOODS, SERVICE) else GOODS
-        return _result(item_type, USER, chosen.get("product"), chosen.get("location"))
+        return _result(item_type, USER, chosen.get("product"))
     if non_claimable:
         return _result(SERVICE, VAT)
     for row, source in ((remembered, MEMORY), (agreed, AGREED)):

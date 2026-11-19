@@ -8,7 +8,6 @@
   "product",
   "company",
   "warehouse",
-  "location",
   "action",
   "prev_status",
   "ref_type",
@@ -44,12 +43,6 @@
    "label": "Warehouse",
    "options": "ERP Warehouse",
    "search_index": 1
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "length": 140
   },
   {
    "fieldname": "action",
@@ -91,7 +84,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-30 20:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Serial Movement",
  "owner": "Administrator",

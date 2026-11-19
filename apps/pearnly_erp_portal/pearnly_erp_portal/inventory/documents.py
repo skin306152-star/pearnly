@@ -82,28 +82,19 @@ def _business_lines(lines) -> list:
     return kept
 
 
-def _destination(warehouse, to_warehouse, to_location, company) -> dict:
-    """调拨的调入仓与单头调入库位：必须是同一家公司启用的另一个仓（同仓不同库位不是仓间调拨，本期不开）；调入库位按调入仓的清单核。"""
+def _destination(warehouse, to_warehouse, company) -> str:
+    """调拨的调入仓：必须是同一家公司启用的另一个仓（单头一出一进，同 Express 原生 RL）。"""
     if not str(to_warehouse or "").strip():
         frappe.throw(_(TO_WAREHOUSE_REQUIRED))
     to_warehouse = warehouses.required(to_warehouse, company=company)
     if to_warehouse == warehouse:
         frappe.throw(_(SAME_WAREHOUSE))
-    return positions.header(to_warehouse, to_location, company=company)
-
-
-def _transfer_lines(lines, to_location, to_warehouse):
-    """明细行的调入库位：行上写了用行上的，没写用单头的；按调入仓的清单核。"""
-    for line, raw in lines:
-        place = raw.get("to_location") if "to_location" in raw else to_location
-        line["to_location"] = positions.check(to_warehouse, place)
-    return [line for line, _raw in lines]
+    return to_warehouse
 
 
 def _line_row(line) -> dict:
     return {"product": line["product"], "qty": line["qty"], "unit": line.get("unit"), "unit_cost": line.get("unit_cost"),
-            "unit_cost_manual": 1 if line.get("unit_cost_manual") else 0,
-            "warehouse": line["warehouse"], "location": line["location"], "to_location": line.get("to_location") or ""}
+            "unit_cost_manual": 1 if line.get("unit_cost_manual") else 0, "warehouse": line["warehouse"]}
 
 
 def stock_units(products) -> dict:
@@ -129,12 +120,12 @@ def _flag(value) -> bool:
     return value in (True, 1, "1", "true", "True")
 
 
-def default_unit_cost(product, warehouse, location="", unit=None):
-    """物料调整增加行的默认单价：这个位置现在的均价，没有就退回物料参考成本（同盘点估值 `count.valuation`），再没有留空；
+def default_unit_cost(product, warehouse, unit=None):
+    """物料调整增加行的默认单价：这个仓现在的均价，没有就退回物料参考成本（同盘点估值 `count.valuation`），再没有留空；
     按行上单位换成每个单位的价（均价是每个库存单位的）。"""
     from pearnly_erp_portal.inventory import count as counts
 
-    unit_cost = counts.valuation(product, (product, warehouse, positions.clean_location(location)))
+    unit_cost = counts.valuation(product, (product, warehouse))
     if unit_cost is None:
         return None
     product_doc = frappe.get_doc("ERP Product", product)
@@ -163,43 +154,41 @@ def _adjust_lines(lines, raw, *, trusted=False) -> list:
         elif priced:
             cost, manual = given, bool(visible and not trusted and _flag(source.get("unit_cost_manual")))
         else:
-            cost, manual = default_unit_cost(line["product"], line["warehouse"], line.get("location"), line.get("unit")), False
+            cost, manual = default_unit_cost(line["product"], line["warehouse"], line.get("unit")), False
         out.append({**line, "qty": qty, "unit_cost": cost, "unit_cost_manual": manual})
     return out
 
 
 def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=None,
                  reason=None, ref_type=None, ref_id=None, dedupe_key=None, submit=False,
-                 commit=True, purpose=None, location=None, to_warehouse=None, to_location=None,
-                 stock_count=None, trusted=False):
+                 commit=True, purpose=None, to_warehouse=None, stock_count=None, trusted=False):
     """建一张入库 / 出库 / 调拨 / 物料调整单；`submit=True` 时同一事务里过账。
 
     `commit=True`（默认）在建单 / 过账后提交事务；服务端自己的流程（盘点生成调整单草稿）传 `commit=False` 自己决定何时提交。
 
-    一张单一个仓库（岳父 11-06）：明细行的仓一律是单头的仓，行上只能改仓位。唯一例外：盘点生成的调整单（`stock_count`）里
-    盘点时在别的仓找到的货，那几行保留自己的仓（主会话 11-06 审定 #8）。`trusted`：服务端自己生成的行（盘点估值照存，不算人填的价）。
+    仓库按行（11-19，同 Express 原生 OU / JU / TK / PI）：每行一个仓，没写的用 ``warehouse``（单头的默认仓），再没有只认「这家公司
+    只有一个仓」；行上的仓要是这家公司启用的仓。单头存的仓是默认仓（没给就是第一行的仓），列表、按公司过滤、Express 兜底用它。
+    调拨照旧单头一出一进（调出仓 ``warehouse``、调入仓 ``to_warehouse``），行上不放仓。
+    `trusted`：服务端自己生成的行（盘点估值照存，不算人填的价）。
     """
     if direction not in DIRECTIONS:
         frappe.throw(_("Invalid value"))
     if stock_count and direction != ADJUST:
         frappe.throw(_("Invalid value"))
     require_kind(direction, ref_type, stock_count)
-    # 顺序要紧：**先把这张单的仓定死，再铺行**。单据没写仓时只认「这家公司只有一个仓」，多个仓报错让人选
-    # （`warehouses.receiving`，多仓闭环 P1 不再落卖货仓）。
-    warehouse = warehouses.receiving(warehouse)
-    company = warehouses.company_of(warehouse)
     transfer = direction == TRANSFER
-    destination = _destination(warehouse, to_warehouse, to_location, company) if transfer else {"warehouse": None, "location": ""}
+    raw = _business_lines(lines)
+    # 顺序要紧：**先把这张单的公司定死，再铺行**。默认仓：单头给的 → 第一行的仓 → 这家公司唯一的仓；多个仓又都没写报错让人选
+    # （`warehouses.receiving`，多仓闭环 P1 不再落卖货仓）。
+    warehouse = warehouses.receiving(warehouse or (None if transfer else _first_warehouse(raw)))
+    company = warehouses.company_of(warehouse)
+    destination = _destination(warehouse, to_warehouse, company) if transfer else None
+    if transfer:
+        raw = [{**line, "warehouse": warehouse} for line in raw]
     if not ref_type and not stock_count:  # 人建的单（盘点、采购入库等系统单不算）：下次预填本人上次选的仓（多仓闭环 P1，问 2）
         warehouses.remember(TRANSFER if transfer else "stock_" + direction, warehouse, company)
-    # 单头仓位（多仓闭环 P1 单头「仓库 + 仓位」）：行上没写仓位的用它
-    location = positions.header(warehouse, location, company=company)["location"]
-    raw = _business_lines(lines)
-    raw = _own_warehouse(raw, warehouse, stock_count)
-    lines = _with_units([positions.prepare(line, warehouse, company=company, location=location, allow_inactive=bool(stock_count))
+    lines = _with_units([positions.prepare(line, warehouse, company=company, allow_inactive=bool(stock_count))
                          for line in raw])
-    if transfer:
-        lines = _transfer_lines(list(zip(lines, raw)), destination["location"], destination["warehouse"])
     if direction == ADJUST:
         lines = _adjust_lines(lines, raw, trusted=trusted)
     # 单据号由系统发（入库 IR / 出库 IS / 调拨 TF / 物料调整 IA，类型码 + 佛历年 + 六位流水），不接受手输 ——
@@ -208,8 +197,7 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
                                 exists=lambda value: bool(frappe.db.exists(DOCTYPE, {"doc_no": value})))
     doc = frappe.get_doc({
         "doctype": DOCTYPE, "direction": direction, "posting_date": posting_date,
-        "warehouse": warehouse, "location": location, "to_warehouse": destination["warehouse"],
-        "to_location": destination["location"], "supplier": None if transfer or direction == ADJUST else supplier,
+        "warehouse": warehouse, "to_warehouse": destination, "supplier": None if transfer or direction == ADJUST else supplier,
         "doc_no": doc_no, "reason": reason, "purpose": _purpose(direction, purpose),
         "ref_type": ref_type, "ref_id": ref_id, "stock_count": stock_count, "dedupe_key": dedupe_key, "status": "draft",
         # 调拨不带单价（调出按调出位置均价、调入随调出，过账时算）
@@ -225,11 +213,9 @@ def create_entry(*, direction, posting_date, lines, warehouse=None, supplier=Non
     return {"name": doc.name, "doc_no": doc.doc_no, "status": doc.status}
 
 
-def _own_warehouse(raw, warehouse, stock_count=None) -> list:
-    """一张单一个仓库：行上的仓一律换成单头的仓。盘点生成的调整单里，行上带着的别的仓（盘点时在别的仓找到的货）照留。"""
-    if stock_count:
-        return [{**line, "warehouse": line.get("warehouse") or warehouse} for line in raw]
-    return [{**line, "warehouse": warehouse} for line in raw]
+def _first_warehouse(raw):
+    """第一行写着的仓（单头没给默认仓时用它当单头的仓）。"""
+    return next((line.get("warehouse") for line in raw if str(line.get("warehouse") or "").strip()), None)
 
 
 # 列头排序白名单。单据号那一列显示的是 `doc_no or name`，排库里的 doc_no 就够用。
@@ -330,8 +316,6 @@ def get_entry(name):
     data["kind"] = access.entry_kind(doc.direction, doc.get("ref_type"))
     if doc.get("stock_count"):
         data["stock_count_title"] = frappe.db.get_value("ERP Stock Count", doc.stock_count, "title") or doc.stock_count
-    data["location"] = doc.get("location") or ""
-    data["to_location"] = doc.get("to_location") or ""
     if doc.get("to_warehouse"):
         data["to_warehouse_name"] = frappe.db.get_value("ERP Warehouse", doc.to_warehouse, "warehouse_name") or doc.to_warehouse
     units = serials.line_serials(doc)
@@ -353,12 +337,10 @@ def get_entry(name):
          "spec": categories.spec(labels.get((shown.get(row.product) or {}).get("category")),
                                  (shown.get(row.product) or {}).get("attribute")),
          "unit_cost": row.unit_cost, "unit_cost_manual": bool(row.get("unit_cost_manual")),
-         "serials": units.get(row.idx, []), "to_location": row.get("to_location") or "",
+         "serials": units.get(row.idx, []),
          **positions.public(row, doc.warehouse, company=company)}
         for row in doc.get("lines") or []
     ]
-    # 一张单一个仓库：行上的仓都是单头的就不显示仓库列；老单（或盘点在别的仓找到货的调整单）有不一样的才显示，读出来不变样
-    data["line_warehouses"] = any(line["warehouse"] != doc.warehouse for line in data["lines"])
     return data
 
 
@@ -375,32 +357,24 @@ def update_entry(name, **changes):
     if "purpose" in changes:
         doc.purpose = _purpose(doc.direction, changes["purpose"])
     before = doc.warehouse
+    transfer = doc.direction == TRANSFER
     for field in ("posting_date", "warehouse", "supplier", "reason"):
         if field in changes:
             doc.set(field, warehouses.required(changes[field], company=company) if field == "warehouse" else changes[field])
-    if "location" in changes or "warehouse" in changes:
-        # 换了仓又没给库位：旧仓的单头库位不带过去（验收复核 P1）
-        moved = "warehouse" in changes and "location" not in changes and doc.warehouse != before
-        doc.location = positions.header(doc.warehouse, "" if moved else changes.get("location", doc.get("location")),
-                                        company=company)["location"]
-    transfer = doc.direction == TRANSFER
-    if transfer and ({"warehouse", "to_warehouse", "to_location"} & set(changes)):
-        moved = "to_warehouse" in changes and "to_location" not in changes and changes["to_warehouse"] != doc.to_warehouse
-        destination = _destination(doc.warehouse, changes.get("to_warehouse", doc.to_warehouse),
-                                   "" if moved else changes.get("to_location", doc.get("to_location")), company)
-        doc.to_warehouse, doc.to_location = destination["warehouse"], destination["location"]
-    if "warehouse" in changes and "lines" not in changes and doc.warehouse != before:
-        # 换了单头仓：一张单一个仓库，行跟着单头仓重铺（仓位回到单头的）
-        changes["lines"] = [{"product": row.product, "qty": row.qty, "unit": row.unit, "to_location": row.to_location or "",
-                             "unit_cost": row.unit_cost, "unit_cost_manual": row.get("unit_cost_manual"),
-                             **({"warehouse": row.warehouse} if doc.get("stock_count") and row.warehouse != before else {})}
-                            for row in doc.lines]
+    if transfer and ({"warehouse", "to_warehouse"} & set(changes)):
+        doc.to_warehouse = _destination(doc.warehouse, changes.get("to_warehouse", doc.to_warehouse), company)
+    if transfer and "warehouse" in changes and "lines" not in changes and doc.warehouse != before:
+        # 调拨换了调出仓：行跟着单头仓重铺（调拨的行不放仓）
+        changes["lines"] = [{"product": row.product, "qty": row.qty, "unit": row.unit} for row in doc.lines]
     if "lines" in changes:
-        raw = _own_warehouse(_business_lines(changes["lines"]), doc.warehouse, doc.get("stock_count"))
-        lines = _with_units([positions.prepare(line, doc.warehouse, company=company, location=doc.get("location"),
-                                               allow_inactive=bool(doc.get("stock_count"))) for line in raw])
+        raw = _business_lines(changes["lines"])
         if transfer:
-            lines = _transfer_lines(list(zip(lines, raw)), doc.get("to_location"), doc.to_warehouse)
+            raw = [{**line, "warehouse": doc.warehouse} for line in raw]
+        elif "warehouse" not in changes:
+            # 单头存的是默认仓：没另给就跟第一行（按行选仓，11-19）
+            doc.warehouse = warehouses.required(_first_warehouse(raw) or doc.warehouse, company=company)
+        lines = _with_units([positions.prepare(line, doc.warehouse, company=company,
+                                               allow_inactive=bool(doc.get("stock_count"))) for line in raw])
         if doc.direction == ADJUST:
             lines = _adjust_lines(lines, raw)
         doc.lines = []
@@ -440,8 +414,7 @@ def _post(doc) -> dict:
         # 调拨：一出一进同一个事务（`stock.apply_transfer`）；调入仓在建单时已核过同公司、不同仓
         result = stock.apply_transfer(
             warehouse=doc.warehouse, to_warehouse=doc.to_warehouse,
-            lines=[{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, []),
-                    **positions.saved(row, doc.warehouse, company=company), "to_location": row.get("to_location") or ""}
+            lines=[{"product": row.product, "qty": row.qty, "unit": row.unit, "serials": units.get(row.idx, [])}
                    for row in doc.lines],
             posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry", ref_id=doc.name,
             doc_no=doc.doc_no, reason=doc.reason, client_uuid=f"stock-entry:{doc.name}", company=company)
@@ -460,8 +433,8 @@ def _post(doc) -> dict:
         posting_date=str(doc.posting_date), ref_type=doc.ref_type or "stock_entry",
         ref_id=doc.name, doc_no=doc.doc_no, reason=doc.reason,
         client_uuid=f"stock-entry:{doc.name}", internal=True, company=company,
-        # 盘点来的：照盘点口径不登记 / 不出台（盘到别处的台在下面换位），仓位在盘点记录时已核过（旧仓位也能盘）
-        units=not counted, place_checked=bool(counted),
+        # 盘点来的：照盘点口径不登记 / 不出台（盘到别处的台在下面换位）
+        units=not counted,
     )
     if counted:
         counts.adjustment_posted(doc.stock_count, doc.name)

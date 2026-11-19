@@ -51,12 +51,12 @@ def _usable(row, company):
         return None
     if row["item_type"] == line_rules.GOODS and not row.get("product"):
         return None  # 记的是入库却没物料：提交后不会这样，当没记过
-    return {"product": row.get("product") or None, "item_type": row["item_type"], "location": row.get("location") or None}
+    return {"product": row.get("product") or None, "item_type": row["item_type"]}
 
 
 def remembered(company, direction, party_tax, party_name, description):
     row = frappe.db.get_value(MEMORY, memory_name(company, subject(direction, party_tax, party_name, description)),
-                              ["product", "item_type", "location"], as_dict=True)
+                              ["product", "item_type"], as_dict=True)
     return _usable(row, company)
 
 
@@ -66,8 +66,8 @@ def agreed(company, direction, description):
     if not key:
         return None
     rows = frappe.get_all(MEMORY, filters={"company": company, "direction": direction, "item_key": key},
-                          fields=["product", "item_type", "location"], limit_page_length=20)
-    found = {(row.product or "", row.item_type or "", row.location or "") for row in rows}
+                          fields=["product", "item_type"], limit_page_length=20)
+    found = {(row.product or "", row.item_type or "") for row in rows}
     if len(found) != 1:
         return None
     return _usable(rows[0], company)
@@ -96,7 +96,7 @@ def matched(line, company, direction):
 
 def suggest(line, *, company, direction, party_tax="", party_name="", expense=False, typed=False) -> dict:
     """一行的预选（`line_rules.decide`）。``typed``：行上的 ``item_type`` 是人定的（网页提交）；否则是识别给的。"""
-    chosen = {"product": line.get("product"), "location": line.get("location"),
+    chosen = {"product": line.get("product"),
               "item_type": line.get("item_type") if typed else None}
     if chosen["product"] or chosen["item_type"]:
         return line_rules.decide(chosen=chosen)
@@ -112,23 +112,18 @@ def suggest(line, *, company, direction, party_tax="", party_name="", expense=Fa
                              recognised=line.get("item_type") if direction == "purchase" else None, expense=expense)
 
 
-def apply(line, result, *, warehouse=None):
-    """把预选写到这一行（只填空着的）：类型、物料（单位换成物料的，同按名认的口径）、仓位（只在单头仓的清单里才用）。"""
+def apply(line, result):
+    """把预选写到这一行（只填空着的）：类型、物料（单位换成物料的，同按名认的口径）。"""
     line["item_type"] = result["item_type"]
     if result.get("product") and not line.get("product"):
         from pearnly_erp_portal.masters.selection import own_unit
 
         line["product"] = result["product"]
         line["unit"] = own_unit(frappe.get_doc("ERP Product", result["product"]), line.get("unit"))
-    if result.get("location") and not line.get("location") and warehouse:
-        from pearnly_erp_portal.inventory import positions
-
-        if not positions.has_list(warehouse) or result["location"] in positions.listed(warehouse):
-            line["location"] = result["location"]
     return line
 
 
-def fill(lines, *, company, direction, party_tax="", party_name="", expense=False, typed=False, warehouse=None):
+def fill(lines, *, company, direction, party_tax="", party_name="", expense=False, typed=False):
     """整张单的行逐行预选并写上；返回每行的预选结果（与 ``lines`` 同序）。"""
     results = []
     for line in lines or []:
@@ -137,7 +132,7 @@ def fill(lines, *, company, direction, party_tax="", party_name="", expense=Fals
             continue
         result = suggest(line, company=company, direction=direction, party_tax=party_tax, party_name=party_name,
                          expense=expense, typed=typed)
-        apply(line, result, warehouse=warehouse)
+        apply(line, result)
         results.append(result)
     return results
 
@@ -154,7 +149,7 @@ def learn(company, direction, party_tax, party_name, lines, document=None):
             continue
         latest[subject(direction, party_tax, party_name, description)] = {
             "item_name": description[:140], "item_key": _item_key(description), "product": row.get("product") or None,
-            "item_type": item_type, "location": row.get("location") or None, "last_document": document}
+            "item_type": item_type, "last_document": document}
     for key, values in latest.items():
         name = memory_name(company, key)
         if frappe.db.exists(MEMORY, name):

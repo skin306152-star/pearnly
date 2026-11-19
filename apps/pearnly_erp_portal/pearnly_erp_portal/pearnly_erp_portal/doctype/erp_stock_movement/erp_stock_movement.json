@@ -24,8 +24,7 @@
   "doc_no",
   "reason",
   "client_uuid",
-  "created_by",
-  "location"
+  "created_by"
  ],
  "fields": [
   {
@@ -155,17 +154,11 @@
    "label": "Created By",
    "options": "User",
    "read_only": 1
-  },
-  {
-   "fieldname": "location",
-   "fieldtype": "Data",
-   "label": "Location",
-   "default": ""
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-30 20:00:00.000000",
+ "modified": "2026-11-19 12:00:00.000000",
  "module": "Pearnly ERP Portal",
  "name": "ERP Stock Movement",
  "owner": "Administrator",

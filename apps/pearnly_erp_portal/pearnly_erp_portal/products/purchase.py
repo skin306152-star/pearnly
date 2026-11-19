@@ -45,7 +45,6 @@ def resolve(line, *, create=True, currency_rate=1, company=None, created=None):
             "base_unit": line.get("unit"), "unit_price": 0, "price_set": 0,
             "default_cost": Decimal(str(line.get("line_total", 0))) / Decimal(str(line["qty"])) * Decimal(str(currency_rate)),
             "cost_set": 1, "vat_applicable": int(float(line.get("vat_rate", 0)) > 0),
-            "default_location": line.get("location"),
             "is_active": 1, "origin": "purchase"})
         # This capability is deliberately limited to creating a purchase's item;
         # ERP Purchase retains read-only permission on the general item master.

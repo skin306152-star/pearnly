@@ -394,25 +394,33 @@ def _count(doc) -> dict:
     from pearnly_erp_portal.inventory import contracts as stock_contracts
 
     company = frappe.db.get_value("ERP Warehouse", doc.warehouse, "company")
-    # 打印时选的版式与筛选（打印页 / PDF 的地址参数，`frappe.form_dict`）：只看 / 仓库 / 库位，进行中可选核对表（用户 10-29）
+    # 打印时选的版式与筛选（打印页 / PDF 的地址参数，`frappe.form_dict`）：只看 / 仓库，进行中可选核对表（用户 10-29）
     wanted = frappe.form_dict or {}
     mode = contracts.count_mode(doc.status, wanted.get("mode") or "", guard.has("stock.manage"))
     items = frappe.get_all(COUNT_ITEM, filters={"count": doc.name},  # bounded: 这一张盘点单的品项
-                           fields=["product", "code", "product_name", "unit", "warehouse", "location", "book_qty", "counted",
-                                   "counted_qty", "difference"], order_by="location asc, code asc, creation asc",
+                           fields=["name", "product", "code", "product_name", "unit", "warehouse", "book_qty", "counted",
+                                   "counted_qty", "difference"], order_by="code asc, creation asc",
                            limit_page_length=0)
     specs = _products(item.product for item in items)
-    items = stock_contracts.count_rows(items, only=wanted.get("only") or "", warehouse=wanted.get("warehouse") or "",
-                                       location=wanted.get("location") or "")
-    notes = {row.location_name: row.description for row in frappe.get_all(  # bounded: 一个仓的库位清单
-        "ERP Warehouse Location", filters={"parent": doc.warehouse, "parenttype": "ERP Warehouse"},
-        fields=["location_name", "description"], limit_page_length=0) if row.description}
+    items = stock_contracts.count_rows(items, only=wanted.get("only") or "", warehouse=wanted.get("warehouse") or "")
+    # 「仓位」一栏是实际仓位（货在哪找到的，盘点记录上记的；账面只到仓库，11-19）
+    found = {}
+    for entry in frappe.get_all("ERP Stock Count Entry", filters={"count": doc.name, "voided": 0},  # bounded: 这一张盘点单的记录
+                                fields=["item", "warehouse", "location"], order_by="counted_at asc, name asc",
+                                limit_page_length=0):
+        if entry.location:
+            found.setdefault(entry.item, {}).setdefault((entry.warehouse, entry.location), None)
+    places = {place[0] for spots in found.values() for place in spots}
+    notes = {(row.parent, row.location_name): row.description for row in frappe.get_all(  # bounded: 这些仓的仓位清单
+        "ERP Warehouse Location", filters={"parent": ["in", sorted(places) or [""]], "parenttype": "ERP Warehouse"},
+        fields=["parent", "location_name", "description"], limit_page_length=0) if row.description}
     rows = []
     for item in items:
-        location = item.location or ""
+        spots = found.get(item.name) or {}
         row = {"code": item.code or "", "name": item.product_name or "",
                "spec": (specs.get(item.product) or {}).get("spec") or "", "unit": item.unit or "",
-               "location": " · ".join(part for part in (location, notes.get(location)) if part)}
+               "location": " / ".join(" · ".join(part for part in (spot, notes.get((store, spot))) if part)
+                                      for store, spot in spots)}
         if mode in ("result", "check"):
             row.update(book=contracts.qty(item.book_qty), counted=contracts.qty(item.counted_qty) if item.counted else "",
                        difference=contracts.qty(item.difference) if item.counted else "")
