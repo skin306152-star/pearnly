@@ -657,13 +657,13 @@ def remember(company, answers) -> dict:
                 saved += _set_document_payment(doc, value)
                 continue
             if kind == OPERATOR_DIALOG:
-                stop = _dialog_stop(doc)
+                stop = _dialog_stop(doc)  # loop-query: 只有答了中途框的那张才读它的推送记录，一张单一次
                 if not stop or str(row.get("subject") or "").strip().lower() != stop["digest"]:
                     continue  # 这张没停在这个框上（批里别的单的答案）：跳过、不拒
                 key = (*once, stop["connection"], stop["account_set"])
                 if key not in done:
                     done.add(key)
-                    saved += _remember_dialog(stop, value, str(row.get("label") or ""))
+                    saved += _remember_dialog(stop, value, str(row.get("label") or ""))  # loop-query: 同一份账套同一个框只记一次
                 continue
             if kind == OPERATOR_FORM:
                 stop = _menu_stop(doc)

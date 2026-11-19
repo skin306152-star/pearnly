@@ -283,6 +283,11 @@ REQUIRED_FIELDS = {
         {"field": "NETVAL", "auto": ["computed"]},
         {"field": "CMPLDAT", "auto": ["computed"]},  # 完成日 = 单据日
         {"field": "SLMCOD", "auto": ["master"]},  # 销售行的销售员 = 表头（取客户档，D-6）；不问不显示
+        # 凭证稽核栏（dbf_schema 写 GLJNL 头 / GLJNLIT 分录，同原生记法，1.12.23）
+        {"field": "CREDAT", "auto": ["machine"]},  # 凭证头建立日 = 录入当天
+        {"field": "CHGDAT", "auto": ["machine"]},  # 凭证头 / 分录改动日 = 录入当天
+        {"field": "CHGTIM", "auto": ["machine"]},  # 分录改动时刻 HHMM
+        {"field": "USERID", "auto": ["machine"]},  # 凭证头录入人（同单头 USERID）
     ],
     # 新供应商（APMAS）
     "express:APMAS": [
