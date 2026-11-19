@@ -177,3 +177,7 @@
 4. **结存显示**：网页出入库页的物料下拉不取结存（只调 `api_get_product` 与 `api_default_unit_cost`），所以引导也不显示结存；删掉了直接查 `ERP Stock Balance` 的那段。
 5. **原件 id**：`recognition/originals.py` 开了公开入口 `original_id(direction, request_key)`（薄包装 `_original_id`，权限与幂等键核对照旧），引导调它；幂等键 = 「运行 | 对话文件编号」的 sha256 前 40 位。网页上传（同模块 `begin / finish / upload`）本来就调 `_original_id`，没有另拼。`inventory/count.py` 的盘点照片也拼了同一种写法，但那条路改成调公开入口会多一道 `count.write` 权限判断（调用方已判过），且它的测试要装 Frappe 才能跑，本次没改，留待确认。
 6. **调拨**：保持单头一出一进两个仓；按行选仓等 f1279e0c4 进 main。
+
+## 评估作者 11-19 回复后的待改与后续小项
+- 待改（等 `pearnly/cc-guide-page-endpoints` 进 main）：单价改 auto（默认 `documents.default_unit_cost`）、复核卡上用表单 `edit` 改一格。入库单价给谁看、谁能改，照网页入库页的现状做，不在引导里另定规则。
+- 后续小项（不归库存四单，交主会话排给盘点那条线）：`inventory/count.py` 的盘点照片原件 id 统一调 `recognition.originals.original_id()`。现在的拼法行为正确，只是重复了一份写法；换成公开入口会多一道 `count.write` 权限判断，需要能装 Frappe 的环境（候选离线）验证，并给 `tests/test_erp_stocktake_photos.py` 补权限替身。
