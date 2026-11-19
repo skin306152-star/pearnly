@@ -361,9 +361,9 @@ class LineCardTest(unittest.TestCase):
         self.assertIn("Transaction type", texts)
         self.assertIn("Tax Invoice", texts)
         buttons = bubble["footer"]["contents"]
-        self.assertEqual(len(buttons), 1)
+        self.assertEqual(len(buttons), 3)  # 保存 / 编辑 / 取消（11-19）
         # 经免密入口：LINE 里未登录直接走 LINE 登录（2026-09-30 Cowork 接入）。
-        self.assertEqual(buttons[0]["action"]["uri"],
+        self.assertEqual(buttons[1]["action"]["uri"],
                          "https://t.example/api/method/pearnly_core.account.line_login.enter"
                          "?to=%2Fdesk%2Fpearnly-intake%2Fnew%2FCWH-1")
 
@@ -417,6 +417,7 @@ class LineCardSaveTest(unittest.TestCase):
         self.record.push_connection = "CON-X"
         self.after = {"last_push_status": "pending", "last_push_reason": ""}
         self.view = {"needed": []}
+        self.exists = True
         for patch in [
             mock.patch.object(save, "_", side_effect=lambda text, *a, **k: text),
             mock.patch.object(save.storage, "read", side_effect=lambda name: self.record),
@@ -425,7 +426,10 @@ class LineCardSaveTest(unittest.TestCase):
             mock.patch.object(save.application, "choices_view", side_effect=lambda *a, **k: self.view),
             mock.patch.object(save.export_facts, "reason_text", side_effect=lambda reason: "T:" + str(reason)),
             mock.patch.object(save.conflicts, "retried", side_effect=lambda function, *a, **k: function(*a, **k)),
-            mock.patch.object(save.frappe, "db", mock.Mock(**{"get_value.side_effect": self.get_value}), create=True),
+            mock.patch.object(save.storage, "complete"),
+            mock.patch.object(save.removal, "delete"),
+            mock.patch.object(save.frappe, "db", mock.Mock(**{"get_value.side_effect": self.get_value,
+                                                              "exists.side_effect": lambda *a, **k: self.exists}), create=True),
         ]:
             patch.start()
             self.addCleanup(patch.stop)
@@ -437,18 +441,20 @@ class LineCardSaveTest(unittest.TestCase):
     def get_value(self, doctype, name, fields=None, as_dict=False):
         return 7 if doctype == "Cowork Connection" else self.after
 
-    def test_push_card_has_save_above_edit_and_recognize_only_has_edit(self):
+    def test_push_and_recognize_only_cards_have_save_edit_cancel(self):
         from pearnly_cowork.line import cards
 
         with mock.patch.object(cards, "_", side_effect=lambda text, *a, **k: text), \
                 mock.patch.object(cards.frappe.utils, "get_url", return_value="https://t.example"), \
                 mock.patch("pearnly_cowork.connections.directory.account_label", return_value="69EXP"):
-            buttons = cards.preview(self.record, {"target": "Express"})["contents"]["footer"]["contents"]
-            self.assertEqual([button["action"]["type"] for button in buttons], ["postback", "uri"])
-            self.assertEqual(buttons[0]["action"]["data"], "a=cowork_save&n=CWH-3")
-            self.values["intake_target"] = "none"
-            buttons = cards.preview(self.record, {"target": "x"})["contents"]["footer"]["contents"]
-            self.assertEqual([button["action"]["type"] for button in buttons], ["uri"])
+            for target in ("express", "none"):
+                self.values["intake_target"] = target
+                buttons = cards.preview(self.record, {"target": "x"})["contents"]["footer"]["contents"]
+                self.assertEqual((buttons[0]["action"]["data"], buttons[0]["style"], buttons[0]["color"]),
+                                 ("a=cowork_save&n=CWH-3", "primary", "#16873E"))
+                self.assertEqual((buttons[1]["style"], buttons[1]["action"]["type"]), ("secondary", "uri"))
+                self.assertEqual((buttons[2]["backgroundColor"], buttons[2]["contents"][0]["action"]["data"]),
+                                 ("#FFFFFF", "a=cowork_cancel&n=CWH-3"))
 
     def test_save_pushes_and_confirms_like_the_intake_page(self):
         self.assertEqual(self.save.save("CWH-3"), {"sent": True})
@@ -471,13 +477,37 @@ class LineCardSaveTest(unittest.TestCase):
         self.assertEqual(self.save.save("CWH-3"), {"stop": "T:push.disabled"})
         self.confirm.assert_not_called()
 
+    def test_recognize_only_save_completes_the_record(self):
+        self.values["intake_target"] = "none"
+        self.assertEqual(self.save.save("CWH-3"), {"saved": True})
+        self.save.storage.complete.assert_called_once_with([{"name": "CWH-3", "record_version": 3}])
+        self.submit.assert_not_called()
+
+    def test_cancel_deletes_an_untouched_draft_and_a_later_save_only_says_cancelled(self):
+        self.values["staged"] = 1
+        self.assertEqual(self.save.cancel("CWH-3"), {"cancelled": True})
+        self.save.removal.delete.assert_called_once_with(["CWH-3"])
+        self.exists = False
+        self.assertEqual(self.save.save("CWH-3"), {"cancelled": True})
+        self.assertEqual(self.save.cancel("CWH-3"), {"cancelled": True})
+        self.submit.assert_not_called()
+        self.assertEqual(self.save.removal.delete.call_count, 1)
+
+    def test_cancel_after_save_or_push_keeps_the_record(self):
+        self.values.update(staged=0)
+        self.assertEqual(self.save.cancel("CWH-3"), {"kept": True})
+        self.values.update(staged=1, last_push_status="pending")
+        self.assertEqual(self.save.cancel("CWH-3"), {"kept": True})
+        self.save.removal.delete.assert_not_called()
+
     def test_a_pushed_card_is_not_pushed_twice(self):
         self.values["last_push_status"] = "success"
         self.assertEqual(self.save.save("CWH-3")["stop"], "T:already_success")
         self.submit.assert_not_called()
 
     def test_line_reaches_push_only_through_card_save(self):
-        """架构登记 line → push（11-19 主会话批）只为卡片「保存」：line 域只许导入 `push.application.card_save`、只调它的 `save`。"""
+        """架构登记 line → push（11-19 主会话批）只为卡片「保存」「取消」：line 域只许导入 `push.application.card_save`、只调它的
+        `save` / `cancel`。"""
         import ast
 
         base = root / "apps" / "pearnly_cowork" / "pearnly_cowork" / "line"
@@ -491,7 +521,8 @@ class LineCardSaveTest(unittest.TestCase):
                     found |= {(alias.name, "") for alias in node.names if alias.name.startswith("pearnly_cowork.push")}
                 elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "card_save":
                     found.add(("card_save.", node.attr))
-        self.assertEqual(found, {("pearnly_cowork.push.application", "card_save"), ("card_save.", "save")})
+        self.assertEqual(found, {("pearnly_cowork.push.application", "card_save"), ("card_save.", "save"),
+                                 ("card_save.", "cancel")})
 
     def test_handler_routes_the_save_button(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
@@ -501,7 +532,7 @@ class LineCardSaveTest(unittest.TestCase):
                 mock.patch.object(self.line_save, "reply") as reply:
             self.assertTrue(handlers._handle({"type": "postback", "replyToken": "tok",
                                               "postback": {"data": "a=cowork_save&n=CWH-3"}}, "U1"))
-        reply.assert_called_once_with("CWH-3", "tok")
+        reply.assert_called_once_with("CWH-3", "tok", cancel=False)
 
 
 class LineAnnounceTest(unittest.TestCase):

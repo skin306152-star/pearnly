@@ -3,7 +3,8 @@
 录入页的提交编排在前端（`intake-upload.js` 的 ``submit``）：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 →
 Express 确认（`companion.submission.confirm`，同一个 :func:`service.confirm` 加写者锁重来）。这里在服务端走同一串，调同一批
 服务端函数，不另写规则。前端会弹窗问的项这里不问：有要人定的就不推，回一句现有原因（`export_facts.reason_text`）。
-LINE 一侧（按钮、回话）在 `line.save`。"""
+「仅识别」的票保存 = 录入页的「完成」（`history.storage.complete`）；「取消」= 这一张什么都不做、记录删掉（`history.removal.delete`，
+同列表删除：真删记录与原件）。点过取消的票（已删）再点保存只回已取消。LINE 一侧（按钮、回话）在 `line.save`。"""
 import hashlib
 import json
 
@@ -11,7 +12,7 @@ import frappe
 from frappe import _
 
 from pearnly_cowork.connections import service as connections
-from pearnly_cowork.history import storage
+from pearnly_cowork.history import removal, storage
 from pearnly_cowork.push import export_facts
 from pearnly_cowork.push.application import conflicts, service as application
 
@@ -47,13 +48,17 @@ def _stock(record) -> tuple:
 
 def save(name) -> dict:
     """推送这张票：``{"sent": True}`` / ``{"stop": 原因}``。失败不抛（同录入页：原因记在票上）。"""
+    if not frappe.db.exists(HISTORY, name):
+        return {"cancelled": True}  # 点过「取消」（已删）：保存什么都不做
     record = storage.read(name)  # 读取范围（工作空间 / 客户）由它核
+    if not (record.get("intake_target") in PUSH_TARGETS and record.get("push_connection")):
+        # 「仅识别」：保存 = 完成这张票（同录入页「完成」，再点不重复写）
+        storage.complete([{"name": name, "record_version": record.record_version}])
+        return {"saved": True}
     if record.get("last_push_status") in SENT:
         if record.get("last_push_status") == "pending":
             return {"sent": True}
         return {"stop": export_facts.reason_text("already_success")}
-    if not (record.get("intake_target") in PUSH_TARGETS and record.get("push_connection")):
-        frappe.throw(_("Not permitted"), frappe.PermissionError)
     connection, account_set = record.push_connection, record.get("push_account_set") or ""
     if not account_set:
         return {"stop": _("Choose the year and account set first.")}
@@ -84,3 +89,15 @@ def save(name) -> dict:
     if after.get("last_push_status") in SENT:
         return {"sent": True}
     return {"stop": export_facts.reason_text(after.get("last_push_reason") or result.get("reason") or "choice_needed")}
+
+
+def cancel(name) -> dict:
+    """卡片「取消」（用户 11-19）：这一张什么都不做——不推送、不保存，记录删掉（同列表删除）。已推送 / 已完成的不动（``kept``）；
+    已删的回已取消。"""
+    if not frappe.db.exists(HISTORY, name):
+        return {"cancelled": True}
+    record = storage.read(name)
+    if record.get("last_push_status") or not record.get("staged"):
+        return {"kept": True}
+    removal.delete([name])
+    return {"cancelled": True}

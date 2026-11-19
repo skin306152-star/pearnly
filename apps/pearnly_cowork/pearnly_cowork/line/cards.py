@@ -15,8 +15,6 @@ from frappe import _
 from pearnly_core.account import line_login
 from pearnly_core.tax_documents import codes as tax_codes
 
-from pearnly_cowork.line import save
-
 COLORS = {"purchase": "#16873E", "sales": "#B11B50"}
 PAYMENTS = {"cash": "Cash", "credit": "Credit", "transfer": "Transfer", "promptpay": "PromptPay",
             "cheque": "Cheque", "card": "Card"}
@@ -161,14 +159,19 @@ def _card(record, pending, shown, labels=None):
                                 "size": "xxs", "color": "#F4F4F4", "margin": "xs", "wrap": True}]},
                 "body": {"type": "box", "layout": "vertical", "paddingAll": "16px", "contents": body},
                 "footer": {"type": "box", "layout": "vertical", "paddingAll": "14px", "contents": [
-                    # 「保存」在「编辑」上方（用户 11-18）：推往 ERP 的票直接推送（`line.save`）；「仅识别」的票只有「编辑」
-                    *([{"type": "button", "style": "primary", "height": "sm", "color": accent,
-                        "action": {"type": "postback", "label": str(_("Save"))[:20], "displayText": str(_("Save"))[:20],
-                                   "data": urlencode({"a": "cowork_save", "n": record.name})}}]  # = SAVE_ACTION
-                      if save.pushable(record) else []),
-                    {"type": "button", "style": "secondary" if save.pushable(record) else "primary", "height": "sm",
-                     "margin": "sm", **({} if save.pushable(record) else {"color": accent}),
-                     "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}}]}}}
+                    # 三个按钮（用户 11-18、11-19，与 ERP 卡片同一个样子）：保存 = 业务色实底（推往 ERP 的票推送、「仅识别」的票
+                    # 完成，`line.save`）、编辑 = 灰、取消 = 白底带边框（这一张什么都不做、记录删掉）
+                    {"type": "button", "style": "primary", "height": "sm", "color": accent,
+                     "action": {"type": "postback", "label": str(_("Save"))[:20], "displayText": str(_("Save"))[:20],
+                                "data": urlencode({"a": "cowork_save", "n": record.name})}},  # = SAVE_ACTION
+                    {"type": "button", "style": "secondary", "height": "sm", "margin": "sm",
+                     "action": {"type": "uri", "label": str(_("Edit"))[:20], "uri": uri}},
+                    {"type": "box", "layout": "vertical", "margin": "sm", "cornerRadius": "md", "borderWidth": "light",
+                     "borderColor": "#CCCCCC", "backgroundColor": "#FFFFFF",
+                     "contents": [{"type": "button", "style": "link", "height": "sm", "color": "#555555",
+                                   "action": {"type": "postback", "label": str(_("Cancel"))[:20],
+                                              "displayText": str(_("Cancel"))[:20],
+                                              "data": urlencode({"a": "cowork_cancel", "n": record.name})}}]}]}}}
 
 
 def preview(record, pending, labels=None) -> dict:

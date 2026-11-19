@@ -97,7 +97,7 @@ def _as(bound, function, *args):
 def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = "") -> bool:
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
-    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_collection.ACTION, line_cards.SAVE_ACTION)):
+    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_collection.ACTION, line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION)):
         return False
     if not bound:
         line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -113,6 +113,8 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
         line_collection.answer(user_id, bound, data, reply_token, event_id)
     elif action == line_cards.SAVE_ACTION:
         _as(bound, _save_card, params.get("n") or "", reply_token)  # 卡片「保存」（用户 11-18）
+    elif action == line_cards.CANCEL_ACTION:
+        _as(bound, _save_card, params.get("n") or "", reply_token, intake.cancel_card)  # 卡片「取消」（用户 11-19）
     elif action == line_items.ACTION:
         _as(bound, line_items.answer, user_id, bound, data, reply_token)  # 识别后按行追问（11-06 按行选物料与库存）
     else:
@@ -120,10 +122,11 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
     return True
 
 
-def _save_card(name, reply_token):
-    """卡片「保存」：提交成功回单号；有要人定的项、或提交时报错（缺仓库、按台未登记、非本人…）就不入账，回原因 + 「编辑」。"""
+def _save_card(name, reply_token, act=None):
+    """卡片「保存」：提交成功回单号；有要人定的项、或提交时报错（缺仓库、按台未登记、非本人…）就不入账，回原因 + 「编辑」。
+    ``act`` = ``intake.cancel_card`` 时是卡片「取消」：回「已取消」（已入账的回原单号）。点过取消再点保存同样只回「已取消」。"""
     try:
-        result = intake.save_card(name)
+        result = (act or intake.save_card)(name)
     except (frappe.ValidationError, frappe.PermissionError) as error:
         frappe.db.rollback()
         text = frappe.utils.strip_html(str(error) or "") or _("Not permitted")
@@ -131,6 +134,9 @@ def _save_card(name, reply_token):
         doc = frappe.db.exists(intake.DOCTYPE, name) and frappe.get_doc(intake.DOCTYPE, name)
         message = line_cards.stopped(doc, text) if doc and doc.sent_by == frappe.session.user else {"type": "text", "text": text}
         line.reply(reply_token, [message])
+        return
+    if result.get("cancelled"):
+        line.reply(reply_token, [{"type": "text", "text": _("Cancelled")}])
         return
     doc = frappe.get_doc(intake.DOCTYPE, name)
     if result.get("needed"):

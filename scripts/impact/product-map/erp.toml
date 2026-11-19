@@ -652,6 +652,20 @@ device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、�
 device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：富菜单「ซื้อ」→ 拍一张票 → 卡片底部「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「บันทึกบัญชีแล้ว · 单号」，网页采购列表有这张、接 Express 的测试公司写进测试账套；再点一次只回原单号；多仓没定仓 / 要人选科目的一张 → 不入账，回原因 + 快捷回复「แก้ไข」打开编辑页；销售「ขาย」同走一遍"
 
 [[row]]
+id = "erp.line.postback.erp_cancel"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:erp_cancel"
+where = "LINE 识别后的采购 / 销售卡片最下面白底带边框的「ยกเลิก」（a=erp_cancel&n=…，用户 11-19）：这一张什么都不做——不提交、不保存、不写账本，记录落为已取消、源文件删掉；已入账的不动（回原单号）；之后再点「บันทึก」只回「ยกเลิกแล้ว」"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_cancel_does_nothing_and_a_later_save_only_says_cancelled", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_cancel_after_save_keeps_the_record"]
+group = "line.card-cancel"
+device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
+device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：拍一张票 → 卡片底部三个按钮（บันทึก 采购绿 / 销售红、แก้ไข 灰、ยกเลิก 白底带边框）→ 点「ยกเลิก」→ 回「ยกเลิกแล้ว」，采购列表没有新单；再点「บันทึก」→ 仍回「ยกเลิกแล้ว」；点「แก้ไข」→ 单据已不可用"
+
+[[row]]
 id = "erp.desk.pearnly-cashier"
 product = "ERP"
 channel = "desk"

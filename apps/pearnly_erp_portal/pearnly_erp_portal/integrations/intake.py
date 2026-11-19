@@ -27,6 +27,7 @@ from pearnly_erp_portal.integrations import line_cards, line_flow, line_items
 
 DOCTYPE = "ERP LINE Intake"
 QUEUED, READY, FAILED, CONFIRMED = "queued", "ready", "failed", "confirmed"
+CANCELLED = "cancelled"  # LINE 卡片「取消」（用户 11-19）：这一张什么都不做，记录作废、源文件删掉
 OCR_KIND = "erp.line_intake"
 MEDIA_TYPES = {"image": "image", "file": "pdf"}
 DIRECTION_CAPABILITY = {"purchase": "purchase.write", "sales": "sales.write"}
@@ -525,6 +526,8 @@ def save_card(name) -> dict:
     recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
     if doc.status == CONFIRMED and recorded:
         return {"name": recorded, "duplicate": True}
+    if doc.status == CANCELLED:
+        return {"cancelled": True}  # 点过「取消」：保存什么都不做
     if doc.status != READY:
         frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
     payload = build_payload(doc)
@@ -536,6 +539,20 @@ def save_card(name) -> dict:
             return {"needed": needed}
     payload.pop("ocr_review", None)  # 由 :func:`submit` 按这张卡补上
     return submit(name, payload)
+
+
+def cancel_card(name) -> dict:
+    """LINE 卡片「取消」（用户 11-19）：这一张什么都不做——不提交、不保存、不写账本；记录落为已取消、源文件删掉（`_drop`），
+    编辑页与「保存」都不再认它。已入账的不动（回原单号）；重复点只回已取消。"""
+    doc = _owned(name, lock=True)
+    recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
+    if doc.status == CONFIRMED and recorded:
+        return {"name": recorded, "duplicate": True}
+    if doc.status == READY:
+        _drop(doc, CANCELLED)
+    elif doc.status != CANCELLED:
+        frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    return {"cancelled": True}
 
 
 # ── CC 对话收单（盘点 2026-11-08 P0-2，ADR-027 段 2）────────────────────────

@@ -1721,6 +1721,25 @@ class CardSave(Web):
         self.post.assert_not_called()
         self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Not permitted"})
 
+    def test_cancel_does_nothing_and_a_later_save_only_says_cancelled(self):
+        drop = self.enterContext(patch.object(intake, "_drop"))
+        handlers._postback("U1", "buyer", "a=erp_cancel&n=LI-1", "tok")
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Cancelled"})
+        self.assertEqual(drop.call_args.args[1], "cancelled")
+        self.doc.status = "cancelled"
+        self.assertEqual(self.press(), {"type": "text", "text": "Cancelled"})
+        handlers._postback("U1", "buyer", "a=erp_cancel&n=LI-1", "tok")
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Cancelled"})
+        self.post.assert_not_called()
+        self.assertEqual(drop.call_count, 1)
+
+    def test_cancel_after_save_keeps_the_record(self):
+        self.doc.status, self.doc.purchase = "confirmed", "PD-1"
+        drop = self.enterContext(patch.object(intake, "_drop"))
+        handlers._postback("U1", "buyer", "a=erp_cancel&n=LI-1", "tok")
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Posted · PD-1"})
+        drop.assert_not_called()
+
     def test_a_saved_card_is_not_recorded_twice(self):
         self.doc.status, self.doc.purchase = "confirmed", "PD-1"
         self.assertEqual(self.press(), {"type": "text", "text": "Posted · PD-1"})
@@ -1785,9 +1804,13 @@ class CardShape(Base):
         self.assertNotIn("Warehouse", self.rows(old))
         self.assertNotIn("trade.groupIn", json.dumps(old))
         footer = card["contents"]["footer"]["contents"]
-        self.assertEqual(len(footer), 2)  # 「保存」在「编辑」上方（用户 11-18）
+        self.assertEqual(len(footer), 3)  # 保存（业务色）/ 编辑（灰）/ 取消（白底带边框）（用户 11-18、11-19）
         self.assertEqual(footer[0]["action"], {"type": "postback", "label": "Save", "displayText": "Save",
                                                "data": "a=erp_save&n=LI-1"})
+        self.assertEqual((footer[0]["style"], footer[0]["color"], footer[1]["style"]), ("primary", "#16873E", "secondary"))
+        self.assertEqual((footer[2]["backgroundColor"], footer[2]["borderWidth"], footer[2]["contents"][0]["style"]),
+                         ("#FFFFFF", "light", "link"))
+        self.assertEqual(footer[2]["contents"][0]["action"]["data"], "a=erp_cancel&n=LI-1")
         self.assertEqual(footer[1]["action"], {"type": "uri", "label": "Edit",
                          "uri": "https://testerp.pearnly.com/api/method/pearnly_core.account.line_login.enter?to=%2Fdesk%2Fpearnly-purchase%2Fline%2FLI-1"})
 

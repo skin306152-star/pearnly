@@ -84,13 +84,14 @@ def _postback(user_id, bound, data, reply_token) -> bool:
 
     from pearnly_cowork.line import save
 
-    if data.startswith("a=" + save.SAVE_ACTION + "&"):
+    if data.startswith(("a=" + save.SAVE_ACTION + "&", "a=" + save.CANCEL_ACTION + "&")):
         # 卡片「保存」（用户 11-18）：直接推送这张票
         if _usable(bound, reply_token):
             from urllib.parse import parse_qs
 
             name = (parse_qs(data).get("n") or [""])[0]
-            _as(bound, lambda: save.reply(name, reply_token))
+            cancel = data.startswith("a=" + save.CANCEL_ACTION + "&")
+            _as(bound, lambda: save.reply(name, reply_token, cancel=cancel))
         return True
     if items.is_step(data):
         # 识别后按行追问存货对照（11-06 按行选物料）

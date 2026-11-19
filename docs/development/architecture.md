@@ -79,7 +79,7 @@
 | `config`、`patches`、`pearnly_cowork/`（DocType 控制器与桌面页） | 框架区：模块清单、数据升级、DocType 编排 | 不进域依赖表；控制器是编排层，可按需调用各域 |
 
 
-`line → push`（2026-11-19，LINE 卡片「保存」）：`line.save` 只调 `push.application.card_save.save` 这一个入口（与录入页「提交」同一串服务端函数：选择项预判 → 推送 → Express 确认），LINE 一侧只管按钮与回话；推送规则、幂等与原因都留在 `push`，`line` 不读推送记录。
+`line → push`（2026-11-19，LINE 卡片「保存」）：`line.save` 只调 `push.application.card_save` 的 `save` / `cancel`（保存与录入页「提交」同一串服务端函数：选择项预判 → 推送 → Express 确认，「仅识别」的票是「完成」；取消同列表删除），由 `tests/test_cowork_line_intake.py::test_line_reaches_push_only_through_card_save` 守住，LINE 一侧只管按钮与回话；推送规则、幂等与原因都留在 `push`，`line` 不读推送记录。
 已登记的既有环（债务，本次不扩围）：`ocr ↔ roundtrip`、`files ↔ ocr`、`history ↔ ocr`（后两组各有一条是函数内延迟导入）。它们来自旧项目同一批抽取与往返流程的相互调用，搬迁时按原职责落位；下次改到这些链时，要按真实职责把方向拆开并补回归，不能用新的延迟导入扩大环。`ocr` 与 `reconciliation` 之间没有也不应有依赖：两侧只通过 `contracts` 共享纯契约，抽取产物由调用方以数据形式交出。
 
 ### ERP 当前台、Express 当账本（2026-10-22；10-23 起 CC 桌面版直连 ERP，ADR-025）

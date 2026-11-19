@@ -1048,12 +1048,26 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:cowork:postback:cowork_save"
-where = "LINE 识别后推往 ERP 的卡片，「แก้ไข」上方的「บันทึก」（a=cowork_save&n=…，用户 11-18）：不进录入页直接推送（同录入页「提交」：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 → Express 确认）；要人定的项不推、回现有原因 + 快捷回复「แก้ไข」；「仅识别」的卡片没有这个按钮"
+where = "LINE 识别后推往 ERP 的卡片，「แก้ไข」上方的「บันทึก」（a=cowork_save&n=…，用户 11-18）：不进录入页直接推送（同录入页「提交」：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 → Express 确认）；要人定的项不推、回现有原因 + 快捷回复「แก้ไข」；「仅识别」的卡片保存 = 完成这张票（不推送）；点过取消的回已取消"
 parts = ["line"]
-tests = ["unit:tests/test_cowork_line_intake.py::test_push_card_has_save_above_edit_and_recognize_only_has_edit", "unit:tests/test_cowork_line_intake.py::test_save_pushes_and_confirms_like_the_intake_page", "unit:tests/test_cowork_line_intake.py::test_save_stops_when_a_choice_is_needed", "unit:tests/test_cowork_line_intake.py::test_save_stops_without_an_account_set_and_on_a_failed_push", "unit:tests/test_cowork_line_intake.py::test_a_pushed_card_is_not_pushed_twice", "unit:tests/test_cowork_line_intake.py::test_handler_routes_the_save_button"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_push_and_recognize_only_cards_have_save_edit_cancel", "unit:tests/test_cowork_line_intake.py::test_save_pushes_and_confirms_like_the_intake_page", "unit:tests/test_cowork_line_intake.py::test_save_stops_when_a_choice_is_needed", "unit:tests/test_cowork_line_intake.py::test_save_stops_without_an_account_set_and_on_a_failed_push", "unit:tests/test_cowork_line_intake.py::test_a_pushed_card_is_not_pushed_twice", "unit:tests/test_cowork_line_intake.py::test_handler_routes_the_save_button", "unit:tests/test_cowork_line_intake.py::test_recognize_only_save_completes_the_record"]
 group = "line.card-save"
 device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
 device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：「发单据进 ERP」选 Express 测试账套 → 拍一张票 → 卡片「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「กำลังบันทึก」，录入列表这张是录入中，测试机 CC 写进测试账套；再点一次回已推送成功；要选费用科目的一张 → 不推，回原因 + 快捷回复「แก้ไข」；选「仅识别」的卡片只有「แก้ไข」"
+
+[[row]]
+id = "cowork.line.postback.cowork_cancel"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:cowork_cancel"
+where = "LINE 识别后的卡片（推往 ERP 与「仅识别」都有）最下面白底带边框的「ยกเลิก」（a=cowork_cancel&n=…，用户 11-19）：这一张什么都不做，记录与原件删掉（同列表删除）；已推送 / 已完成的不动；之后再点「บันทึก」只回「ยกเลิกแล้ว」"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_cancel_deletes_an_untouched_draft_and_a_later_save_only_says_cancelled", "unit:tests/test_cowork_line_intake.py::test_cancel_after_save_or_push_keeps_the_record", "unit:tests/test_cowork_line_intake.py::test_push_and_recognize_only_cards_have_save_edit_cancel"]
+group = "line.card-cancel"
+device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
+device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：拍一张票 → 卡片底部三个按钮（บันทึก 业务色、แก้ไข 灰、ยกเลิก 白底带边框）→ 点「ยกเลิก」→ 回「ยกเลิกแล้ว」，录入列表没有这张；再点「บันทึก」→ 仍回「ยกเลิกแล้ว」、什么都没推"
 
 [[row]]
 id = "cowork.line.postback.cowork_item"
