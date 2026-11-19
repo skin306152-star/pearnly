@@ -246,3 +246,7 @@ pearnly_erp_portal:MR.ERP No.	zh	MR.ERP 单号	2026-11-19	docs/work/2026-11-19-m
 pearnly_core:guide.q.location	zh	仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
 pearnly_erp_portal:mrerp.default.store	zh	仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
 pearnly_erp_portal:erp.collection.status.withdrawn	zh	已取消	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+pearnly_erp_portal:stock.workbench.bookPosition	zh	账面仓库	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+pearnly_erp_portal:Each product and warehouse may appear only once	zh	同一物料和仓库只能填写一次	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+pearnly_erp_portal:This product already has stock movements in this warehouse; use a stock adjustment	zh	该物料在此仓库已有出入库记录，请使用库存调整	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md
+pearnly_erp_portal:This product is already initialized in this warehouse; use a stock adjustment	zh	该物料在此仓库已录入期初，请使用库存调整	2026-11-19	docs/work/2026-11-19-erp-ui-three-changes-评估.md

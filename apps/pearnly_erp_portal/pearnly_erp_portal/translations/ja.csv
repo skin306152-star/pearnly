@@ -190,6 +190,7 @@ Book,帳簿
 Book position,帳簿上の倉庫・棚番
 Book quantity,帳簿数量
 Book quantity {0} {1},帳簿数量 {0} {1}
+Book warehouse,帳簿上の倉庫
 Book {0} · counted {1} · difference {2},帳簿 {0} · 実地 {1} · 差異 {2}
 Bound,連携済み
 Bound at,連携日時
@@ -557,6 +558,7 @@ ERP menu,ERPメニュー
 ERP purchase recognition,仕入書類の読み取り
 ERP sales recognition,売上書類の読み取り
 Each product and location may appear only once,同じ商品と保管場所は1回だけ入力してください
+Each product and warehouse may appear only once,同じ商品と倉庫は1回だけ入力してください
 Each returned line must be an Express stock item,返品明細は Express の在庫品である必要があります
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,レジごとに販売する倉庫を指定します（上の倉庫名を記入。空欄なら最初の倉庫）。
 Edit,編集
@@ -1715,7 +1717,9 @@ This location is not in the location list of this warehouse,このロケーシ�
 This member cannot be assigned,このメンバーには割り当てられません
 This option is no longer current,この選択肢は現在の手順ではありません
 This payment method is not enabled for this company,この会社ではこの支払方法が有効になっていません
+This product already has stock movements in this warehouse; use a stock adjustment,この倉庫の商品には入出庫履歴があります。在庫調整を使用してください
 This product code already exists,この品目コードは既に存在します
+This product is already initialized in this warehouse; use a stock adjustment,この倉庫の商品は期首登録済みです。在庫調整を使用してください
 This receipt is in a daily summary sent to Express. Refund it instead,このレシートは Express に送った日次集計に入っています。返品にしてください
 This receipt is in a daily summary. Refund it instead,このレシートは日次集計に入っています。返品にしてください
 This request was already recorded,このリクエストは登録済みです
@@ -2959,7 +2963,7 @@ stock.workbench.actualPositions,実際の棚番と数量
 stock.workbench.actualWarehouse,実際の倉庫
 stock.workbench.addPhoto,写真を追加
 stock.workbench.area,エリア
-stock.workbench.bookPosition,帳簿上の倉庫・棚番
+stock.workbench.bookPosition,帳簿上の倉庫
 stock.workbench.camera,バーコード・QRコードを読む
 stock.workbench.cameraFailed,カメラを起動できません。HTTPSページでカメラを許可するか、コードを入力してください。
 stock.workbench.code,バーコード・QRコード・商品コード

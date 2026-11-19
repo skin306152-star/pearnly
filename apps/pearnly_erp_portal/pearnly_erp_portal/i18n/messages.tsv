@@ -375,7 +375,7 @@ Continuous counting	连续盘点	ตรวจนับต่อเนื่อ�
 Barcode, QR code or product code	条形码、二维码或物料编码	บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า	バーコード・QRコード・商品コード	stock.workbench.code
 Scan, enter the actual position and quantity, then save to continue.	扫码后填写实际仓位和数量，保存后进入下一项。	สแกน แล้วระบุตำแหน่งจริงและจำนวน จากนั้นบันทึกเพื่อไปยังรายการถัดไป	読み取り後に実際の保管場所と数量を入力し、保存すると次へ進みます。	stock.workbench.scanHint
 This item is also stocked at:	该物料还存放于：	สินค้านี้มีอยู่ที่อื่นด้วย:	この商品は他の場所にも在庫があります:	stock.workbench.elsewhere
-Book position	账面仓库／仓位	คลัง / ตำแหน่งตามบัญชี	帳簿上の倉庫・棚番	stock.workbench.bookPosition
+Book warehouse	账面仓库	คลังตามบัญชี	帳簿上の倉庫	stock.workbench.bookPosition
 Actual warehouse	实际仓库	คลังที่พบจริง	実際の倉庫	stock.workbench.actualWarehouse
 Actual position	实际仓位	ตำแหน่งที่พบจริง	実際の棚番	stock.workbench.actualLocation
 Actual positions and quantities	实际仓位及数量	ตำแหน่งจริงและจำนวน	実際の棚番と数量	stock.workbench.actualPositions
@@ -1199,7 +1199,7 @@ Last page	末页	หน้าสุดท้าย	最終ページ	stock.opening
 Check the opening stock row	请检查此期初明细	กรุณาตรวจสอบรายการยกมานี้	この期首明細を確認してください
 Choose a local opening stock file	请选择本地期初库存文件	กรุณาเลือกไฟล์สต็อกยกมาจากเครื่อง	アップロード済みの期首在庫ファイルを選択してください
 Choose an existing product for opening stock	请选择已有的物料录入期初	กรุณาเลือกสินค้าที่มีอยู่สำหรับสต็อกยกมา	登録済みの商品を選択してください
-Each product and location may appear only once	同一物料和仓位只能填写一次	สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว	同じ商品と保管場所は1回だけ入力してください
+Each product and warehouse may appear only once	同一物料和仓库只能填写一次	สินค้าเดียวกันในคลังเดียวกันระบุได้เพียงครั้งเดียว	同じ商品と倉庫は1回だけ入力してください
 Fix all opening stock errors before submitting	请修正全部期初明细错误后再入账	กรุณาแก้ไขข้อผิดพลาดทั้งหมดก่อนบันทึก	期首明細のエラーをすべて修正してから確定してください
 Keep product IDs, codes and barcodes as text in the opening stock file	期初文件中的物料标识、编码和条码请使用文本格式	รหัสระบุสินค้า รหัสสินค้า และบาร์โค้ดในไฟล์ยกมาต้องเป็นข้อความ	商品ID・コード・バーコードは文字列形式にしてください
 Opening quantity and unit cost are required and must be non-negative	期初数量和成本单价必填，且不能小于零	ต้องระบุจำนวนและต้นทุนต่อหน่วยยกมาเป็นค่าที่ไม่ติดลบ	期首数量と単価は必須です。0以上で入力してください
@@ -1214,8 +1214,8 @@ Provide between 1 and 5000 opening stock rows	请填写 1 至 5000 条期初明�
 The opening stock amount is too large	期初库存金额过大	มูลค่าสต็อกยกมามากเกินไป	期首在庫金額が大きすぎます
 The opening stock file is too large	期初库存文件过大	ไฟล์สต็อกยกมาใหญ่เกินไป	期首在庫ファイルが大きすぎます
 The product identifiers refer to different products	该行的物料标识、编码或条码对应不同物料	รหัสในแถวนี้อ้างถึงสินค้าคนละรายการ	この行の商品ID・コード・バーコードは別の商品を指しています
-This stock position already has stock movements; use a stock adjustment	该物料在此仓位已有出入库记录，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品には入出庫履歴があります。在庫調整を使用してください
-This stock position is already initialized; use a stock adjustment	该物料在此仓位已录入期初，请使用库存调整	สินค้านี้ในตำแหน่งจัดเก็บนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก	この保管場所の商品は期首登録済みです。在庫調整を使用してください
+This product already has stock movements in this warehouse; use a stock adjustment	该物料在此仓库已有出入库记录，请使用库存调整	สินค้านี้ในคลังนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก	この倉庫の商品には入出庫履歴があります。在庫調整を使用してください
+This product is already initialized in this warehouse; use a stock adjustment	该物料在此仓库已录入期初，请使用库存调整	สินค้านี้ในคลังนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก	この倉庫の商品は期首登録済みです。在庫調整を使用してください
 Use a valid opening date that is not in the future	请填写有效的期初日期，不能晚于今天	กรุณาระบุวันที่ยกมาที่ถูกต้องและไม่เกินวันนี้	本日以前の有効な期首日を入力してください
 Opening stock is read from Express	期初从 Express 读取	ยอดยกมาอ่านจาก Express	期首在庫は Express から読み込みます
 Receipts	小票张数	จำนวนใบเสร็จ	レシート枚数

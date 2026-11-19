@@ -19,8 +19,8 @@ from pearnly_erp_portal.masters import access as master_access
 INVALID_ROW = "Check the opening stock row"
 NUMBER_REQUIRED = "Opening quantity and unit cost are required and must be non-negative"
 PRECISION_INVALID = "Opening quantity supports six decimal places and unit cost supports two"
-ALREADY_INITIALIZED = "This stock position is already initialized; use a stock adjustment"
-HAS_HISTORY = "This stock position already has stock movements; use a stock adjustment"
+ALREADY_INITIALIZED = "This product is already initialized in this warehouse; use a stock adjustment"
+HAS_HISTORY = "This product already has stock movements in this warehouse; use a stock adjustment"
 STALE_REVIEW = "Opening stock changed. Preview the rows again before submitting."
 TRACKED = "Products tracked by unit change stock only through documents with units"
 PRODUCT_FIELDS = "name, product_name, code, internal_code, express_code, barcode, base_unit, unit, is_active, express_company, track_serial"
@@ -260,8 +260,8 @@ def _review(rows, context, catalog, *, current=False):
                 continue
             if identity in seen:
                 previous = seen[identity]
-                previous.update(status="error", error=_("Each product and location may appear only once"))
-                raise ValueError("Each product and location may appear only once")
+                previous.update(status="error", error=_("Each product and warehouse may appear only once"))
+                raise ValueError("Each product and warehouse may appear only once")
             seen[identity] = row
             row["qty"] = _number(row.get("qty"), 6)
             row["unit_cost"] = _number(row.get("unit_cost"), 2)

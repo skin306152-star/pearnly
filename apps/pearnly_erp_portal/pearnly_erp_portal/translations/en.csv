@@ -190,6 +190,7 @@ Book,Book
 Book position,Book position
 Book quantity,Book quantity
 Book quantity {0} {1},Book quantity {0} {1}
+Book warehouse,Book warehouse
 Book {0} · counted {1} · difference {2},Book {0} · counted {1} · difference {2}
 Bound,Bound
 Bound at,Bound at
@@ -557,6 +558,7 @@ ERP menu,ERP menu
 ERP purchase recognition,ERP purchase recognition
 ERP sales recognition,ERP sales recognition
 Each product and location may appear only once,Each product and location may appear only once
+Each product and warehouse may appear only once,Each product and warehouse may appear only once
 Each returned line must be an Express stock item,Each returned line must be an Express stock item
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).
 Edit,Edit
@@ -1715,7 +1717,9 @@ This location is not in the location list of this warehouse,This location is not
 This member cannot be assigned,This member cannot be assigned
 This option is no longer current,This option is no longer current
 This payment method is not enabled for this company,This payment method is not enabled for this company
+This product already has stock movements in this warehouse; use a stock adjustment,This product already has stock movements in this warehouse; use a stock adjustment
 This product code already exists,This product code already exists
+This product is already initialized in this warehouse; use a stock adjustment,This product is already initialized in this warehouse; use a stock adjustment
 This receipt is in a daily summary sent to Express. Refund it instead,This receipt is in a daily summary sent to Express. Refund it instead
 This receipt is in a daily summary. Refund it instead,This receipt is in a daily summary. Refund it instead
 This request was already recorded,This request was already recorded
@@ -2959,7 +2963,7 @@ stock.workbench.actualPositions,Actual positions and quantities
 stock.workbench.actualWarehouse,Actual warehouse
 stock.workbench.addPhoto,Add photos
 stock.workbench.area,Area
-stock.workbench.bookPosition,Book position
+stock.workbench.bookPosition,Book warehouse
 stock.workbench.camera,Scan barcode or QR code
 stock.workbench.cameraFailed,"Camera could not start. Allow camera access on an HTTPS page, or enter the code below."
 stock.workbench.code,"Barcode, QR code or product code"

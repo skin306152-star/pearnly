@@ -190,6 +190,7 @@ Book,账面
 Book position,账面仓库／仓位
 Book quantity,账面数量
 Book quantity {0} {1},账面数量 {0} {1}
+Book warehouse,账面仓库
 Book {0} · counted {1} · difference {2},账面 {0} · 实盘 {1} · 差异 {2}
 Bound,已绑定
 Bound at,绑定时间
@@ -557,6 +558,7 @@ ERP menu,ERP 菜单
 ERP purchase recognition,采购单据识别
 ERP sales recognition,销售单据识别
 Each product and location may appear only once,同一物料和仓位只能填写一次
+Each product and warehouse may appear only once,同一物料和仓库只能填写一次
 Each returned line must be an Express stock item,退货明细须为 Express 库存商品
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,每台收银台写明从哪个仓卖货（填上面某个仓库名，留空就用第一个仓）。
 Edit,编辑
@@ -1715,7 +1717,9 @@ This location is not in the location list of this warehouse,仓位不在此仓�
 This member cannot be assigned,无法分配给此成员
 This option is no longer current,该选项已失效，请按最新步骤选择
 This payment method is not enabled for this company,该公司未启用此收款方式
+This product already has stock movements in this warehouse; use a stock adjustment,该物料在此仓库已有出入库记录，请使用库存调整
 This product code already exists,该物料编码已存在
+This product is already initialized in this warehouse; use a stock adjustment,该物料在此仓库已录入期初，请使用库存调整
 This receipt is in a daily summary sent to Express. Refund it instead,此小票已计入写进 Express 的收银日汇总，请改用退货
 This receipt is in a daily summary. Refund it instead,此小票已计入收银日汇总，请改用退货
 This request was already recorded,该请求已记录
@@ -2959,7 +2963,7 @@ stock.workbench.actualPositions,实际仓位及数量
 stock.workbench.actualWarehouse,实际仓库
 stock.workbench.addPhoto,添加照片
 stock.workbench.area,区域
-stock.workbench.bookPosition,账面仓库／仓位
+stock.workbench.bookPosition,账面仓库
 stock.workbench.camera,扫描条形码或二维码
 stock.workbench.cameraFailed,摄像头无法启动。请在 HTTPS 页面允许摄像头权限，或手动输入编码。
 stock.workbench.code,条形码、二维码或物料编码

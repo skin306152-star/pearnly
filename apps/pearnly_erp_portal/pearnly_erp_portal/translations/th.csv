@@ -190,6 +190,7 @@ Book,บัญชี
 Book position,คลัง / ตำแหน่งตามบัญชี
 Book quantity,จำนวนตามบัญชี
 Book quantity {0} {1},จำนวนตามบัญชี {0} {1}
+Book warehouse,คลังตามบัญชี
 Book {0} · counted {1} · difference {2},ตามบัญชี {0} · นับได้ {1} · ผลต่าง {2}
 Bound,ผูกบัญชีแล้ว
 Bound at,เวลาที่ผูกบัญชี
@@ -557,6 +558,7 @@ ERP menu,เมนู ERP
 ERP purchase recognition,อ่านเอกสารซื้อ
 ERP sales recognition,อ่านเอกสารขาย
 Each product and location may appear only once,สินค้าเดียวกันในตำแหน่งจัดเก็บเดียวกันระบุได้เพียงครั้งเดียว
+Each product and warehouse may appear only once,สินค้าเดียวกันในคลังเดียวกันระบุได้เพียงครั้งเดียว
 Each returned line must be an Express stock item,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 Each terminal sells from the warehouse named on it (use one of the warehouse names above; blank uses the first).,เครื่องขายแต่ละเครื่องขายจากคลังที่ระบุไว้ (ใช้ชื่อคลังด้านบน ถ้าเว้นว่างจะใช้คลังแรก)
 Edit,แก้ไข
@@ -1715,7 +1717,9 @@ This location is not in the location list of this warehouse,ตำแหน่�
 This member cannot be assigned,ไม่สามารถมอบหมายให้สมาชิกนี้ได้
 This option is no longer current,ตัวเลือกนี้ใช้ไม่ได้แล้ว กรุณาเลือกตามขั้นตอนล่าสุด
 This payment method is not enabled for this company,บริษัทนี้ยังไม่ได้เปิดใช้วิธีชำระเงินนี้
+This product already has stock movements in this warehouse; use a stock adjustment,สินค้านี้ในคลังนี้มีรายการรับ-จ่ายแล้ว กรุณาใช้การปรับปรุงสต็อก
 This product code already exists,รหัสสินค้านี้มีอยู่แล้ว
+This product is already initialized in this warehouse; use a stock adjustment,สินค้านี้ในคลังนี้บันทึกยอดยกมาแล้ว กรุณาใช้การปรับปรุงสต็อก
 This receipt is in a daily summary sent to Express. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันที่ส่งเข้า Express แล้ว กรุณาใช้การคืนสินค้าแทน
 This receipt is in a daily summary. Refund it instead,ใบเสร็จนี้อยู่ในยอดสรุปรายวันแล้ว กรุณาใช้การคืนสินค้าแทน
 This request was already recorded,คำขอนี้ถูกบันทึกแล้ว
@@ -2959,7 +2963,7 @@ stock.workbench.actualPositions,ตำแหน่งจริงและจำ
 stock.workbench.actualWarehouse,คลังที่พบจริง
 stock.workbench.addPhoto,เพิ่มรูปภาพ
 stock.workbench.area,พื้นที่
-stock.workbench.bookPosition,คลัง / ตำแหน่งตามบัญชี
+stock.workbench.bookPosition,คลังตามบัญชี
 stock.workbench.camera,สแกนบาร์โค้ดหรือคิวอาร์โค้ด
 stock.workbench.cameraFailed,ไม่สามารถเปิดกล้องได้ กรุณาอนุญาตการเข้าถึงกล้องบนหน้า HTTPS หรือป้อนรหัสด้วยตนเอง
 stock.workbench.code,บาร์โค้ด คิวอาร์โค้ด หรือรหัสสินค้า
