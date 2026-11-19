@@ -115,10 +115,21 @@ class FakeSession:
 
 
 class ReadTests(unittest.TestCase):
+    def test_the_negative_stock_setting_is_read_from_the_issue_form(self):
+        class Negative(FakeSession):
+            def request(self, method, path, **kwargs):
+                if path == mx.NEGATIVE_PAGE:
+                    self.calls.append((method, path))
+                    return FakeResponse("<script>var ssunegative = 2;</script>")
+                return super().request(method, path, **kwargs)
+
+        facts, _stats = mx.read_session(Negative(), today=date(2026, 11, 14))
+        self.assertEqual(facts["settings"], {"mainloc": "0000", "stock_negative": "2"})
+
     def test_fixed_requests_and_ranges(self):
         session = FakeSession()
         facts, stats = mx.read_session(session, today=date(2026, 11, 14))
-        self.assertEqual(stats["requests"], 10)
+        self.assertEqual(stats["requests"], 11)  # 11-19 起多读一次出库新单网页的「允许负库存」（读不到不进 settings）
         self.assertEqual(len(facts["customers"]), 7)
         self.assertEqual(facts["units"], [{"code": "คัน", "name": "คัน"}])
         self.assertEqual(facts["settings"], {"mainloc": "0000"})
