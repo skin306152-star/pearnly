@@ -15,6 +15,9 @@ TABLES = {
     "zh": {"The document date is outside the fiscal period.": "单据日期不在会计期间内", "push.disabled": "推送已关闭",
            "intake.error.entry_not_balanced": "借贷不平"},
     "ja": {},
+    # 英文：词条键的译文是一句话（`push.no_writer` → 这句）；英文原句当原文的不进表（译文同原文）
+    "en": {"push.no_writer": "No computer with CC Desktop can write to this account set",
+           "The document date is outside the fiscal period.": "The document date is outside the fiscal period."},
 }
 
 
@@ -46,6 +49,9 @@ class SourceText(unittest.TestCase):
                              "The document date is outside the fiscal period.")
             self.assertEqual(push_state.source_text("[ENTRY_NOT_BALANCED] dr != cr"), "[ENTRY_NOT_BALANCED] dr != cr")
             self.assertEqual(push_state.source_text(""), "")
+            # 英文界面记下的词条句子还原成词条键（11-19：「没有可写入该账套的电脑」英文界面存成了句子）
+            self.assertEqual(push_state.source_text("No computer with CC Desktop can write to this account set"),
+                             "push.no_writer")
 
     def test_unreadable_translations_store_the_text_as_is(self):
         push_state, modules = _load("push_state_broken", APP / "history/push_state.py", "th")

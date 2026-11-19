@@ -4,13 +4,14 @@
 实验栈里没有真的 CC 桌面版：按新版 CC 桌面版的样子每台电脑带自己的设备密钥登记（`credentials._register_device`）、按心跳的真实
 入口报可达行（同 `cc_conversation_ledger.py`），
 把登录记录设成指定的人；「关着」= 把那把密钥的最近报到时刻拨回一小时前。电脑来领走正式的领单入口（`companion.transport.lease`）。
-B（录入员）在录入工作台推单（复核页「提交」同一个 `application.submit`，再走录入页「确认发送」同一个 `service.confirm`），核：
+B（录入员）在录入工作台推单（复核页「提交」同一个 `application.submit`，再走录入页「确认发送」同一个 `submission.confirm`），核：
 
 0. 旧件闸：存量站点迁移前排的件，迁移（补丁写上切换时刻）后别人的电脑不替；
 1. B 一台电脑都没有：照样排队；办公室 A 那台（在线）来领 → 领到，替写的人记 A（``writer``）、按 ``stand_in`` 写，录入人仍是 B；
 2. B 自己有一台够得到这本的电脑、但关着，A 的在线 → A 那台领到（不再「本人电脑关着就只等本人」）；
 3. B 自己的那台在线 → A 那台不领，B 自己的领到（替写的人空）；
-4. 能替写的人没有这条连接的使用权（办公室那台只有 C 登录过）、B 自己的也不是他的了 → 确认停在 ``push.no_writer``。
+4. 能替写的人没有这条连接的使用权（办公室那台只有 C 登录过）、B 自己的也不是他的了 → 确认停下，票上记的原因是词条键
+   ``push.no_writer``（显示时按看的人的语言翻）。
 
 没有页面步骤。cleanup 按连接删掉造的数据与电脑。
 """
@@ -61,12 +62,10 @@ def pushed(number):
     frappe.db.commit()
     out = {{"doc": name, "status": made.get("status"), "reason": made.get("reason") or ""}}
     if made.get("status") == "prepared":
-        try:
-            got = app_service.confirm(made["name"], made["revision"], "confirm:" + uuid4().hex)
-            out.update(status=got.get("status"), record=made["name"])
-        except Exception as error:
-            frappe.db.rollback()
-            out.update(status="refused", reason=str(error), record=made["name"])
+        # 录入页「确认发送」同一个入口（`companion.submission.confirm`）：失败不抛，原因记在票上
+        from pearnly_cowork.companion import submission
+        got = submission.confirm(made["name"], made["revision"], "confirm:" + uuid4().hex)
+        out.update(status=got.get("status"), reason=got.get("reason") or "", record=made["name"])
         frappe.db.commit()
     frappe.set_user({A!r})
     return out
@@ -139,6 +138,7 @@ for machine in (office, office2, office3):
                         update_modified=False)
 frappe.db.commit()
 none = pushed("FLOW-OW-{tag}-4")
+none["stored"] = frappe.db.get_value("Cowork OCR History", none["doc"], "last_push_reason")  # 票上存的原因（词条键）
 print(json.dumps({{"old": old, "taken_old": taken_old, "old_row": old_row, "first": first, "taken_first": taken_first, "first_row": first_row, "second": second,
                   "taken_second": taken_second, "second_row": second_row, "third": third, "taken_by_office": taken_by_office,
                   "taken_by_mine": taken_by_mine, "third_row": third_row, "none": none,
@@ -188,8 +188,7 @@ print(json.dumps({{**leftovers(), "devices": frappe.db.count({DEVICES!r}, {{"lab
          and third.get("status") == "leased" and not third.get("writer")
          and third.get("written_by_device") != params.get("office3")},
         {"case": "能替写的人没有这条连接的使用权：确认停在没有可写入该账套的电脑（push.no_writer）", "seen": none,
-         "ok": none.get("status") in ("refused", "failed") and any(
-             word in str(none.get("reason")) for word in ("push.no_writer", "No computer with CC Desktop"))},
+         "ok": none.get("status") in ("refused", "failed") and none.get("stored") == "push.no_writer"},
         {"case": "造的连接、公司、锁、电脑都清掉了", "seen": left, "ok": not any((left or {}).values())},
     ]
 

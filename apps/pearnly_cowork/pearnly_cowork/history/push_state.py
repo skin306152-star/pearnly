@@ -109,8 +109,10 @@ def source_text(reason):
         return text
     from frappe.translate import get_all_translations
 
-    for lang in dict.fromkeys([getattr(frappe.local, "lang", None), "th", "zh", "ja"]):
-        if not lang or lang == "en":
+    # 英文也查：词条键（如 ``push.no_writer``）的英文译文是一句话，英文界面里确认失败时记下的就是那句，要还原成词条键
+    # （11-19：英文界面的「没有可写入该账套的电脑」存成了英文句子，换语言照样显示英文）。英文原句当原文的词条译文与原文相同，不进反查
+    for lang in dict.fromkeys([getattr(frappe.local, "lang", None), "en", "th", "zh", "ja"]):
+        if not lang:
             continue
         try:
             table = get_all_translations(lang) or {}
