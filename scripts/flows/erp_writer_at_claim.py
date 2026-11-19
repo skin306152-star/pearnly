@@ -151,7 +151,10 @@ office = len(jobs._claim(types.SimpleNamespace(device={params['one']!r}), {{}}, 
 frappe.db.commit()
 mine = len(jobs._claim(types.SimpleNamespace(device={params['own']!r}), {{}}, devices.now()))
 frappe.db.commit()
-print(json.dumps({{"office": office, "own": mine, "old": job({old!r})}}, default=str))
+# B 那台领到的那件（并行跑时同一本账套里别的流程也可能给 B 排了件，领到的不一定是旧件；看它是不是 B 自己的、没记替写人）
+taken = frappe.get_all("Pearnly CC Job", filters={{"lease_device": {params['own']!r}, "status": "leased"}},
+                       fields=["name", "actor", "writer"], limit_page_length=5)
+print(json.dumps({{"office": office, "own": mine, "old": job({old!r}), "taken": [dict(row) for row in taken]}}, default=str))
 """)
     queued, results, after = raced.get("queued") or {}, raced.get("results") or {}, raced.get("after") or {}
     taken = [device for device, count in results.items() if count == 1]
@@ -168,8 +171,8 @@ print(json.dumps({{"office": office, "own": mine, "old": job({old!r})}}, default
         {"case": "the job queued before the switch is not stood in for and does not block the newer one",
          "saved": after.get("old"), "ok": (after.get("old") or {}).get("status") == "queued" and not (after.get("old") or {}).get("writer")},
         {"case": "with the submitter's own computer online the office computer does not stand in; hers takes it as her own",
-         "saved": own, "ok": own.get("office") == 0 and own.get("own") == 1 and (own.get("old") or {}).get("status") == "leased"
-         and (own.get("old") or {}).get("lease_device") == params["own"] and not (own.get("old") or {}).get("writer")},
+         "saved": own, "ok": own.get("office") == 0 and own.get("own") == 1 and len(own.get("taken") or []) == 1
+         and (own.get("taken") or [{}])[0].get("actor") == B and not (own.get("taken") or [{}])[0].get("writer")},
     ]
 
 
@@ -192,7 +195,8 @@ if {bool(params.get('seeded'))!r}:
     path = facts._path({params.get('key', '')!r})
     if os.path.exists(path):
         os.remove(path)
-for name in {[params[k]["job"] for k in ("old", "new") if params.get(k, {}).get("job")]!r}:
+for name in {[params[k]["job"] for k in ("old", "new") if params.get(k, {}).get("job")]!r} + frappe.get_all(
+        "Pearnly CC Job", filters={{"lease_device": {params.get('own', '')!r}, "status": "leased"}}, pluck="name"):
     if frappe.db.get_value("Pearnly CC Job", name, "status") in ("queued", "leased"):
         frappe.db.set_value("Pearnly CC Job", name, {{"status": "cancelled", "writing_key": None, "reason": "flow cleanup"}},
                             update_modified=False)
