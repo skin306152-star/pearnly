@@ -147,7 +147,7 @@ class NativePush(unittest.TestCase):
                 'reason': 'synthetic-fallback', 'stkcod': 'SYNTHETIC-STK'}])
         self.assertEqual(result['response_body']['meta']['stage'], 'success')
         self.assertEqual(result['response_body']['fallback_count'], 1)
-        self.assertEqual(result['response_body']['meta']['created_masters'], ['SYNTHETIC-STK'])
+        self.assertNotIn('created_masters', result['response_body']['meta'])  # 行上没有 created：不算新建
         late = self.acknowledge(name, context, claim, success=False, error='late-error')
         self.assertTrue(late['replayed'])
         self.assertEqual((late['status'], late['external_docnum']), ('success', 'SYNTHETIC-OK'))
@@ -159,7 +159,8 @@ class NativePush(unittest.TestCase):
         # Source callers pass line_modes only on success. The intentionally
         # corrected stale meta.stage behavior has a separate real ACK test.
         modes = [{'mode': self.native.common.ITEM_MODE_DIRECT, 'reason': 'fallback'},
-                 {'mode': self.native.common.ITEM_MODE_STOCK, 'stkcod': 'SYNTHETIC-CODE'}]
+                 {'mode': self.native.common.ITEM_MODE_STOCK, 'stkcod': 'SYNTHETIC-CODE', 'created': True},
+                 {'mode': self.native.common.ITEM_MODE_STOCK, 'stkcod': 'SYNTHETIC-OLD', 'created': False}]
         for stage in self.native.common.ACK_OUTCOMES:
             expected = {'ok': stage == 'success',
                 'express_docnum': 'SYNTHETIC-REF' if stage == 'success' else None,

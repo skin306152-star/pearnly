@@ -864,8 +864,10 @@ def _response(branch, stage, docnum, line_modes, meta, adapter='express'):
     clean = common.sanitize_push_meta(meta)
     # The stage in the trusted ACK is authoritative, not a stale metadata field.
     clean['stage'] = stage
-    if branch == 'legacy' and modes and 'created_masters' not in clean:
-        clean['created_masters'] = [m['stkcod'] for m in modes if m.get('stkcod')]
+    # 只列这次真新建的存货（行上 created 为真）；以前把所有行的存货码都列进来，11-19 被误读成「CC 新建了存货」
+    created = [m['stkcod'] for m in modes or () if m.get('stkcod') and m.get('created') is True]
+    if branch == 'legacy' and created and 'created_masters' not in clean:
+        clean['created_masters'] = created
     body['meta'] = clean
     return body
 

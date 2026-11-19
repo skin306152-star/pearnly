@@ -339,6 +339,8 @@ jobs:
         run: python3 tests/test_cowork_delete_everything.py
       - name: Verify re-pushed scheduled-task documents carry the task defaults and leave the account set memory alone
         run: python3 tests/test_cowork_push_fixed.py
+      - name: Verify the push receipt lists only items created on that document as created masters
+        run: python3 tests/test_cowork_push_ack_created_masters.py
       - name: Verify the Express choices (party, item, account, payment, VAT, department, warehouse) are asked once and remembered
         run: PYTHONPATH=apps/pearnly_core python3 tests/test_cowork_express_choices.py
       - name: Verify each purchase or sales line can be decided on its own (stock item, new stock item or expense) and mixed documents ask the expense account
