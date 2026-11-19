@@ -198,7 +198,10 @@ class WriterRuleShared(unittest.TestCase):
         self.assertFalse(rc.stand_in_open(None, since))
         self.assertFalse(rc.stand_in_open(datetime(2026, 11, 18, 1, 0), "not a time"))  # 配了却读不出：宁可不替
         self.assertEqual((rc.db_time(None), rc.db_time(since), rc.db_time("x")),
-                         ("1970-01-01 00:00:00", "2026-11-18 00:00:00", "9999-12-31 23:59:59"))
+                         ("1970-01-01 00:00:00.000000", "2026-11-18 00:00:00.000000", "9999-12-31 23:59:59.999999"))
+        # 同一秒里：早于切换时刻的件不进排头（与领单复核同一精度）
+        self.assertLess("2026-11-18 00:00:00.041874", rc.db_time("2026-11-18T00:00:00.5+00:00"))
+        self.assertFalse(rc.stand_in_open("2026-11-18 00:00:00.041874", "2026-11-18T00:00:00.5+00:00"))
 
     def test_the_state_to_text_table(self):
         status = lambda **kw: rc.writer_status(**{"online": False, "writers_known": False, "computers": False, **kw})
@@ -572,7 +575,7 @@ class Transport(unittest.TestCase):
         self.assertEqual(len(self.run_lease()["jobs"]), 1)
         self.assertEqual([call for call in self.calls if call[0] == "lease"],
                          [("lease", "CWP-1", rc.STAND_IN, A, ("writer", ME))])
-        self.assertEqual((self.scopes[-1]["anyone"], self.scopes[-1]["since"]), (0, "1970-01-01 00:00:00"))
+        self.assertEqual((self.scopes[-1]["anyone"], self.scopes[-1]["since"]), (0, "1970-01-01 00:00:00.000000"))
         self.calls.clear()
         self.peers[B]["online"] = True
         self.assertEqual(self.run_lease()["jobs"], [])

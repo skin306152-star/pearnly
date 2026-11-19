@@ -117,12 +117,13 @@ def _utc(value) -> datetime | None:
 
 
 def db_time(since) -> str:
-    """切换时刻换成库里排队时刻的写法（UTC、``YYYY-MM-DD HH:MM:SS``，给排头查询按它筛）：没配回最早的时刻（全部件都能替）；
-    配了却读不出回最晚的时刻（一件都不替，同 :func:`stand_in_open`）。纯函数。"""
+    """切换时刻换成库里排队时刻的写法（UTC、``YYYY-MM-DD HH:MM:SS.ffffff``，给排头查询按它筛；带到微秒，与库里的排队时刻、
+    :func:`stand_in_open` 同一精度——截到秒的话同一秒里早于切换时刻的件会进排头、又被领单复核拒，挡住后面的新件）：没配回最早的
+    时刻（全部件都能替）；配了却读不出回最晚的时刻（一件都不替，同 :func:`stand_in_open`）。纯函数。"""
     if since in (None, ""):
-        return "1970-01-01 00:00:00"
+        return "1970-01-01 00:00:00.000000"
     start = _utc(since)
-    return start.strftime("%Y-%m-%d %H:%M:%S") if start else "9999-12-31 23:59:59"
+    return start.strftime("%Y-%m-%d %H:%M:%S.%f") if start else "9999-12-31 23:59:59.999999"
 
 
 def stand_in_open(queued_at, since) -> bool:
