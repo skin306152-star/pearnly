@@ -84,13 +84,30 @@ def off(machine):
     frappe.db.set_value(credentials.DOCTYPE, machine.credential_id, "last_seen_at",
                         frappe.utils.now_datetime() - timedelta(hours=1), update_modified=False)
     frappe.db.commit()
+def why(machine):
+    # 领不到时看卡在哪（只读，结果带进 seen）：这台够得到的账套、排头、谁能替写
+    from pearnly_cowork.companion import devices as _devices
+    from pearnly_core.cc_desktop.wire import route_contracts as _rc
+    device = credentials.device_of(machine.credential_id) or ""
+    users = _devices.signed_in_of(device)
+    reach = sorted(pool.writable_reach(conn["name"], device))
+    doc = frappe.get_doc("Cowork ERP Connection", conn["name"])
+    helper = pool.stand_in_user(doc, users, "")
+    heads = queue_heads.heads(doc.name, doc.workspace, doc.client, reach, device=device, users=users,
+                              since=_rc.db_time(frappe.conf.get("pearnly_writer_rule_since")) if helper else "")
+    return {{"device": device, "users": sorted(users), "reach": reach, "helper": helper,
+            "heads": [(h.name, h.entered_by, str(h.created_at), h.payload_version) for h in heads],
+            "reachers": pool.reachers(conn["name"], "flowop", writable=True)}}
 def take(machine):
     got = transport.lease(machine, {{}})
     frappe.db.commit()
+    if not got.get("jobs"):
+        diagnosis.append(why(machine))
     return [job.get("history_id") for job in (got.get("jobs") or [])]  # 领到的是哪张票
 def record(name):
     return frappe.db.get_value("Cowork Push Record", name or "", ["status", "entered_by", "writer", "write_route",
                                                                    "written_by_device"], as_dict=True) or {{}}
+diagnosis = []
 office = computer([{A!r}])
 from datetime import datetime, timezone
 frappe.conf.pearnly_writer_rule_since = None       # 0. 旧件闸：这件排在存量站点迁移之前
@@ -125,7 +142,8 @@ none = pushed("FLOW-OW-{tag}-4")
 print(json.dumps({{"old": old, "taken_old": taken_old, "old_row": old_row, "first": first, "taken_first": taken_first, "first_row": first_row, "second": second,
                   "taken_second": taken_second, "second_row": second_row, "third": third, "taken_by_office": taken_by_office,
                   "taken_by_mine": taken_by_mine, "third_row": third_row, "none": none,
-                  "office": office["device"], "office2": office2["device"], "office3": office3["device"]}}, default=str))
+                  "office": office["device"], "office2": office2["device"], "office3": office3["device"],
+                  "diagnosis": diagnosis}}, default=str))
 """)
     return {**out, "tag": tag, "cases": []}
 
@@ -154,7 +172,8 @@ print(json.dumps({{**leftovers(), "devices": frappe.db.count({DEVICES!r}, {{"lab
          "ok": old.get("status") == "pending" and old.get("doc") not in (params.get("taken_old") or [])
          and old_row.get("status") == "pending" and not old_row.get("writer")},
         {"case": "B 一台电脑都没有：照样排队；A 那台领到、替写的人记 A，录入人仍是 B",
-         "seen": {"pushed": params.get("first"), "taken": params.get("taken_first"), "row": first},
+         "seen": {"pushed": params.get("first"), "taken": params.get("taken_first"), "row": first,
+                  "diagnosis": params.get("diagnosis")},
          "ok": (params.get("first") or {}).get("status") == "pending" and first.get("status") == "leased"
          and first.get("writer") == A and first.get("entered_by") == B and first.get("write_route") == "stand_in"
          and first.get("written_by_device") == office},
@@ -169,7 +188,8 @@ print(json.dumps({{**leftovers(), "devices": frappe.db.count({DEVICES!r}, {{"lab
          and third.get("status") == "leased" and not third.get("writer")
          and third.get("written_by_device") != params.get("office3")},
         {"case": "能替写的人没有这条连接的使用权：确认停在没有可写入该账套的电脑（push.no_writer）", "seen": none,
-         "ok": none.get("status") in ("refused", "failed") and "push.no_writer" in str(none.get("reason"))},
+         "ok": none.get("status") in ("refused", "failed") and any(
+             word in str(none.get("reason")) for word in ("push.no_writer", "No computer with CC Desktop"))},
         {"case": "造的连接、公司、锁、电脑都清掉了", "seen": left, "ok": not any((left or {}).values())},
     ]
 
