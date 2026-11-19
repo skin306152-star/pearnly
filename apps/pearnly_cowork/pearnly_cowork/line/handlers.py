@@ -1,7 +1,8 @@
 """Cowork 的 LINE 事件处理器（通道侧）。
 
 传输层 `pearnly_core.line` 负责验签、幂等与回执；这里只做分派：绑定 / 解绑、
-「发单据进 ERP」的选择（`flow`）、收单据（`intake`），菜单跟着权限与手机语言走（`menu`）。
+「发单据进 ERP」的选择（`flow`）、收单据（`intake`）、识别后出卡前的提问（`ask`：按钮 a=precheck / a=cowork_item，答题中打的字），
+菜单跟着权限与手机语言走（`menu`）。
 盘点在富菜单上直接打开网页端盘点页，不经过这里；工作协调要重新设计，还没有入口（用户 2026-09-26）。
 """
 import frappe
@@ -80,9 +81,7 @@ def _postback(user_id, bound, data, reply_token) -> bool:
         # 旧菜单的「ประสานงาน」：工作协调要重新设计，还没开放（用户 2026-09-26）。
         _reply(reply_token, _("This channel is not open yet"))
         return True
-    from pearnly_cowork.line import items
-
-    from pearnly_cowork.line import save
+    from pearnly_cowork.line import ask, save
 
     if data.startswith(("a=" + save.SAVE_ACTION + "&", "a=" + save.CANCEL_ACTION + "&")):
         # 卡片「保存」（用户 11-18）：直接推送这张票
@@ -93,10 +92,10 @@ def _postback(user_id, bound, data, reply_token) -> bool:
             cancel = data.startswith("a=" + save.CANCEL_ACTION + "&")
             _as(bound, lambda: save.reply(name, reply_token, cancel=cancel))
         return True
-    if items.is_step(data):
-        # 识别后按行追问存货对照（11-06 按行选物料）
+    if ask.is_step(data):
+        # 识别后、出卡前的提问（11-19）：按行追问存货对照（a=cowork_item）与写账前置判定的题（共用出题器 a=precheck）
         if _usable(bound, reply_token):
-            _as(bound, lambda: items.answer(user_id, data, reply_token))
+            _as(bound, lambda: ask.step(user_id, data, reply_token))
         return True
     if not (flow.is_start(data) or flow.is_step(data)):
         return False
@@ -163,13 +162,13 @@ def _handle(event: dict, user_id: str) -> bool:
     if text.casefold() in {word.casefold() for word in flow.MENU_WORDS} and flow.allowed(bound):
         flow.menu(reply_token)
         return True
-    # 正在「选已有存货」：打的字就是找存货的关键词（11-06 按行选物料）
-    from pearnly_cowork.line import items
-
-    if text and flow.allowed(bound) and _as(bound, lambda: items.search(user_id, text, reply_token)):
-        return True
-    # 正在选账套：打的字就是找账套的关键词（用户 2026-09-27）。
+    # 正在选账套：打的字就是找账套的关键词（用户 2026-09-27）。只在重新点了菜单、停在选账套这一步时接，否则交给下面
     if text and flow.allowed(bound) and _as(bound, lambda: flow.search(user_id, text, reply_token)):
+        return True
+    # 出卡前的提问在等答：「选已有存货」打的是存货关键词（11-06），出题器的题打编号或名称 / 编码（11-19）；没在问就不接
+    from pearnly_cowork.line import ask
+
+    if text and flow.allowed(bound) and _as(bound, lambda: ask.text(user_id, text, reply_token)):
         return True
     _reply(reply_token, _("Tap the menu to start"))
     return True

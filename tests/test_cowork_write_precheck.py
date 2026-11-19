@@ -65,9 +65,10 @@ def document(**extra):
 
 def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_book=None, direction="purchase",
          mismatch=None, config=None, accounts=None, planned=None, hinted=None,
-         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None):
+         menu_memory=None, record_book=("C9", "K9"), menu=None, stock_needed=None, stock_group=None, company="CO1"):
     """真加载判定模块；``needed``：写账规则要选的项；``block``：录不录的原因码；``goods``：商品单要选入账方式；``planned``：
-    没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）。"""
+    没有要选的项时推送服务给的「会怎么写」；``hinted``：带了用户说的费用类别时科目建议换成的顺序（同 `service._suggest`）；
+    ``stock_group``：存货科目组还没选时 `card_save.stock_group_open` 回的样子；``company``：这张票归的公司（`pending.company_for`）。"""
     calls = []
     doc = doc or document()
     fields = json.loads(doc.pages)[0]["fields"]
@@ -107,8 +108,12 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
     pending = ns(account_set_stop=lambda row: bool(stop_book),
                  account_set_options=lambda row: stop_book or {"account_sets": [], "current": ""},
                  account_set_pick=lambda row, key: {"key": key} if key in ("K1", "K2") else None,
-                 current_book_choice=lambda row, key: {"workspace": "W1", "key": "cb", "value": key})
+                 current_book_choice=lambda row, key: {"workspace": "W1", "key": "cb", "value": key},
+                 company_for=lambda row: company)
+    card_save = ns(stock_group_open=lambda d: stock_group)
     storage = ns(read=lambda name: doc)
+    connections = ns(read_for_push=lambda *a, **k: ns(endpoint={"adapter": "express"}, doc=ns(name="C1")),
+                     choose_stock_acc_group=lambda *a: calls.append(("stock_group",) + a))
     memory = dict(menu_memory or {})  # {(连接, 账套, 单种): 菜单文字}
 
     def record(connection, account_set, kind, subject, value, label=""):
@@ -128,8 +133,9 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
                                   choices=choice_store),
         "pearnly_cowork.push.choices": choice_store,
         "pearnly_cowork.push.lifecycle": ns(result_unknown=lambda status, reason: reason == "UNKNOWN"),
-        "pearnly_cowork.push.application": ns(service=service, goods_posting=ns(
+        "pearnly_cowork.push.application": ns(service=service, card_save=card_save, goods_posting=ns(
             choose=lambda name, value: calls.append(("goods", name, value)))),
+        "pearnly_cowork.push.application.card_save": card_save,
         "pearnly_cowork.push.application.service": service,
         "pearnly_cowork.push.application.goods_posting": ns(choose=lambda name, value: calls.append(("goods", name, value))),
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda d: None),
@@ -141,10 +147,8 @@ def load(doc=None, *, block=None, needed=(), decided=None, goods=False, stop_boo
         "pearnly_cowork.history.storage": storage,
         "pearnly_cowork.history.document_policy": ns(choose=lambda name, value: calls.append(("policy", name, value))),
         "pearnly_cowork.history.push_state": ns(retarget=lambda *a: calls.append(("retarget",) + a)),
-        "pearnly_cowork.connections": ns(service=ns(read_for_push=lambda *a, **k: ns(
-            endpoint={"adapter": "express"}, doc=ns(name="C1")))),
-        "pearnly_cowork.connections.service": ns(read_for_push=lambda *a, **k: ns(
-            endpoint={"adapter": "express"}, doc=ns(name="C1"))),
+        "pearnly_cowork.connections": ns(service=connections),
+        "pearnly_cowork.connections.service": connections,
         "pearnly_cowork.contracts": ns(document_policy=policy), "pearnly_cowork.contracts.document_policy": policy,
         "pearnly_cowork.companies": ns(pending=pending, rules=ns(groups=lambda company: {})),
         "pearnly_cowork.companies.pending": pending, "pearnly_cowork.companies.rules": ns(groups=lambda company: {}),
@@ -273,6 +277,39 @@ PLANNED = {"payment": "cash", "payment_from": "remembered", "account": "5100",
            "document_payment": {"payment": "credit", "from": "document_type"}}
 
 
+class StockGroupAndLine(unittest.TestCase):
+    VIEW = {"account_set_key": "s:\\69exp\\test", "known": True, "chosen": None,
+            "groups": [{"acccod": "1", "label": "1 · 1141 · สินค้า"}, {"acccod": "2", "label": "2 · 1142 · วัตถุดิบ"}]}
+
+    def test_an_unchosen_stock_group_is_one_open_item_with_the_qualified_groups(self):
+        """与 LINE 卡片保存停下同一判据（`card_save.stock_group_open`）：出一项，选项是合格的组，没有值（要人选）、不给「会怎么写」。"""
+        module, _calls, patcher = load(stock_group=self.VIEW, planned={"payment": "cash"})
+        self.addCleanup(patcher.stop)
+        found = module.document("h1")
+        item = {i["kind"]: i for i in found["items"]}["stock_group"]
+        self.assertEqual((item["subject"], item["value"], item["label"]), ("s:\\69exp\\test", "", "Inventory account group"))
+        self.assertEqual(item["options"], [{"code": "1", "name": "1 · 1141 · สินค้า"}, {"code": "2", "name": "2 · 1142 · วัตถุดิบ"}])
+        self.assertNotIn("planned", found)
+        self.assertEqual(card.state_of(card.normalize_item(item)), card.OPEN)
+
+    def test_no_stock_group_item_when_the_rule_says_no(self):
+        module, _calls, patcher = load(planned={"payment": "cash"})
+        self.addCleanup(patcher.stop)
+        found = module.document("h1")
+        self.assertNotIn("stock_group", {i["kind"] for i in found["items"]})
+        self.assertEqual(found["planned"], {"payment": "cash"})
+
+    def test_line_ticket_gives_the_company_and_the_heading(self):
+        """LINE 出卡前提问（`line.ask`）只经这一个函数用助手域：票归哪家公司（同待处理）、每题开头那行（对方 · 单据号）。"""
+        module, _calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        self.assertEqual(module.line_ticket("h1"), {"company": "CO1", "heading": "ร้าน A · INV-1"})
+        patcher.stop()
+        module, _calls, patcher = load(company=None)
+        self.addCleanup(patcher.stop)
+        self.assertEqual(module.line_ticket("h1")["company"], "")
+
+
 class PlannedAndHint(unittest.TestCase):
     """旧工具 ``cowork_push_choices`` 删掉后，推前「会怎么写」（planned）与用户说的费用类别（hint）改由判定带（主会话 11-05）。"""
 
@@ -376,6 +413,15 @@ class BigLists(unittest.TestCase):
         item = {i["kind"]: i for i in module.document("h1")["items"]}["account"]
         self.assertEqual((item["value"], item["value_label"], item["search"]), ("5100", "ค่าใช้จ่าย", "accounts"))
         self.assertNotIn("options", item)
+
+    def test_a_big_item_list_names_the_new_preselect(self):
+        """大存货表只给预选值：预选「新建」带上名称（LINE 按钮、CC 显示预选用，11-19；原来是空、LINE 按钮显示成编码）。"""
+        products = [{"code": f"P{n:03d}", "name": f"สินค้า {n}"} for n in range(30)]
+        module, _calls, patcher = load(needed=(ITEM,), config={})
+        self.addCleanup(patcher.stop)
+        with mock.patch.object(module, "_options", return_value=products):
+            item = {i["kind"]: i for i in module.document("h1")["items"]}["item"]
+        self.assertEqual((item["value"], item["value_label"], item["search"]), ("__new__", "guide.option.new", "products"))
 
     def test_a_small_list_puts_the_recommended_option_first_with_its_note(self):
         suggested = dict(ACCOUNT, suggested=[{"code": "6002", "name": "บัญชี 2", "reason": "history"}])
@@ -517,6 +563,15 @@ class Remember(unittest.TestCase):
         self.assertEqual([c for c in calls if c[0] in ("current_book", "retarget")],
                          [("current_book", "K2"), ("retarget", "h1", "C1", "K2")])
         self.assertEqual(out["saved"], 6)
+
+    def test_the_stock_group_is_remembered_on_the_connection_once_per_account_set(self):
+        """存货科目组（11-19 起出卡前在 LINE 问、CC 卡片也问）：按账套记在连接上（`connections.choose_stock_acc_group`，同录入页弹窗），
+        同一份账套一批里只记一次；不是合格的组由它照抛。"""
+        module, calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        row = {"kind": "stock_group", "subject": "acc", "value": "2", "label": "", "remember": True}
+        self.assertEqual(module.remember("CO1", {"h1": [row], "h2": [row]})["saved"], 1)
+        self.assertEqual([c for c in calls if c[0] == "stock_group"], [("stock_group", "C1", BOOK, "2")])
 
     def test_an_unknown_kind_is_refused(self):
         module, _calls, patcher = load()

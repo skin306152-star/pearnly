@@ -1,28 +1,32 @@
 """LINE 识别后按行追问「存货对照」（11-06 按行选物料与库存，评估 docs/work/2026-11-06-erp-line-item-stock-choice-评估.md 第 15 节 C7）。
 
-上传前不再问整批「服务 / 存货」。识别完发卡片时，这张票推往的 Express 账套里有定不了的行（共用写账规则 `choices.resolve` 的
-``needed`` 里 ``kind = item`` 且 ``expense``：没声明过账类型、没记过、名字也对不上目录），就在同一次发送里卡片后面跟一条带快捷回复的提问：
+上传前不再问整批「服务 / 存货」。识别完、出卡之前（11-19 起卡片最后才发，`line.ask` 编排：先问这里，再问写账前置判定剩下的题），
+这张票推往的 Express 账套里有定不了的行（共用写账规则 `choices.resolve` 的
+``needed`` 里 ``kind = item`` 且 ``expense``：没声明过账类型、没记过、名字也对不上目录），就先发一条带快捷回复的提问：
 
   供应商 · 单号 / 新物料：1. … 2. …   [全部新建存货] [全部记费用] [逐项选择] [取消]
 
 「逐项选择」一项一问：[新建存货] [记费用] [选已有存货] [取消]；「选已有存货」请打名称或编码，在这份账套的存货（库存品与非库存品）里找，
 列序号按钮。多仓账套（在用的仓 ≥ 2）还没记过默认仓时，这些行问完（或点了「全部…」）接着问一次仓：快捷回复列在用的仓（主仓在前），
 答案记成这份账套的默认仓（11-08，评估 docs/work/2026-11-07-cowork-express-warehouse-评估.md；一张票一个仓，不逐行问，要分仓去网页复核页改）。
-没有要问的行就不单为仓问。答案经推送服务 `save_choices` 记进账套记忆（同复核页、CC 卡片；推送侧经钩子 ``cowork_line_items``），之后推送照它走。一批几张票一次只问一张，问完一张接下一张。
-取消只停这张的提问，不改上传前的选择；没答的行照推送时的规则（停在待处理里等人选，不硬拦）。
+没有要问的行就不单为仓问。答案经推送服务 `save_choices` 记进账套记忆（同复核页、CC 卡片；推送侧经钩子 ``cowork_line_items``），之后推送照它走。
+这几题与写账前置判定的存货对照、仓是同一份 ``needed``（`assistant.precheck_source.choice_items`）；留在这里先问，是因为它有「全部新建 /
+全部记费用」一次答完整张、「记费用」在大存货表里也有按钮，判定那边逐行一题一问。答完记进账套记忆，判定重算时这些行就是已定、不再问。
 
-追问的进度存在本人的 LINE 会话里（与上传前的选择同一个会话、同样 30 分钟，键 ``ASKING``）；按钮只认当前在问的这一项。
+一张一张问、答完怎么接（写账前置判定、出卡）、取消（= 卡片「取消」）都在 `line.ask`；这里只出题、认按钮，状态存在交进来的 LINE 会话载荷
+``payload[ASKING]`` 里（与上传前的选择同一个会话、同样 30 分钟），由 `line.ask` 存回。按钮只认当前在问的这一项。
 """
 from urllib.parse import parse_qs, urlencode
 
 import frappe
 from frappe import _
 
-from pearnly_core import line
-
 ASKING = "items"
 ACTION = "cowork_item"
 MAX_RESULTS = 12
+ANSWERS_MAX = 15  # 卡上列出的答案最多几行（一张气泡有大小上限）
+# :func:`answer` 回的状态：还在问、这张问完了、点了取消、不是当前的按钮
+PENDING, DONE, CANCELLED, STALE = "asking", "done", "cancelled", "stale"
 
 
 def is_step(data) -> bool:
@@ -37,10 +41,6 @@ def _button(label, **params):
 
 def _message(text, items):
     return {"type": "text", "text": text, "quickReply": {"items": items[:12] + [_button(_("Cancel"), v="cancel")]}}
-
-
-def _reply(reply_token, messages):
-    line.reply(reply_token, messages if isinstance(messages, list) else [messages])
 
 
 # ── 识别完：算这张票要问的行（推送侧经钩子 ``cowork_line_items``，LINE 不导入推送 / 单据域）────────────────
@@ -99,146 +99,124 @@ def _location_question(asking) -> dict:
                                        for index, row in enumerate(options[:MAX_RESULTS])])
 
 
-def queue(line_user_id, history) -> dict | None:
-    """识别完一张：这张有定不了的行就排进本人的追问；现在没在问别的就回这张的提问（随卡片一起发），否则排队等前一张问完。"""
-    from pearnly_cowork.line import flow
-
+def start(payload, history) -> dict | None:
+    """开始问这一张：有定不了的行就记进会话载荷、回第一条提问；没有回 None（不问）。"""
     rows = rows_of(history)
     if not rows:
         return None
-    payload = flow.choices(line_user_id)
-    asking = payload.get(ASKING)
-    if asking and (asking.get("rows") or asking.get("queue")):
-        asking.setdefault("queue", []).append(history)
-        flow.keep(line_user_id, payload)
-        return None
-    payload[ASKING] = {"history": history, "rows": rows, "i": None, "queue": []}
-    flow.keep(line_user_id, payload)
+    payload[ASKING] = {"history": history, "rows": rows, "i": None, "answers": []}
     return first_question(history, rows)
+
+
+def finish(payload) -> list:
+    """这一张问完（或取消）：从会话里拿掉，回答过的结果 ``[{label, value}]``（卡上列出）。"""
+    return list((payload.pop(ASKING, None) or {}).get("answers") or ())
+
+
+def active(payload) -> bool:
+    return bool((payload.get(ASKING) or {}).get("rows"))
 
 
 # ── 作答 ─────────────────────────────────────────────────────────────────────
 
 
-def _save(history, answers):
-    """记进这张票推往的账套的记忆（同复核页「要选的项」）：``answers`` = ``[(row, value)]``。"""
-    _side("save")(history, [{"kind": row.get("kind", "item"), "subject": row["subject"], "value": value,
-                             "label": row["label"]} for row, value in answers])
+def _stale():
+    return STALE, [{"type": "text", "text": _("This option is no longer current")}]
 
 
-def _next_doc(line_user_id, payload, reply_token, done_text=True):
-    """这张问完：排着的下一张有要问的就问，没有就回「已保存」。"""
-    from pearnly_cowork.line import flow
-
-    asking = payload.get(ASKING) or {}
-    pending = list(asking.get("queue") or [])
-    while pending:
-        history = pending.pop(0)
-        rows = rows_of(history)
-        if rows:
-            payload[ASKING] = {"history": history, "rows": rows, "i": None, "queue": pending}
-            flow.keep(line_user_id, payload)
-            messages = [{"type": "text", "text": _("Saved")}] if done_text else []
-            return _reply(reply_token, messages + [first_question(history, rows)])
-    payload.pop(ASKING, None)
-    flow.keep(line_user_id, payload)
-    return _reply(reply_token, {"type": "text", "text": _("Saved") if done_text else _("Cancelled")})
+def _save(asking, answers):
+    """记进这张票推往的账套的记忆（同复核页「要选的项」）：``answers`` = ``[(row, value, 卡上显示的值)]``。"""
+    _side("save")(asking["history"], [{"kind": row.get("kind", "item"), "subject": row["subject"], "value": value,
+                                       "label": row["label"]} for row, value, _shown in answers])
+    shown = asking.setdefault("answers", [])
+    for row, _value, text in answers:
+        if len(shown) < ANSWERS_MAX:
+            shown.append({"label": str(row["label"] or _("Warehouse")), "value": str(text)})
 
 
-def answer(line_user_id, data, reply_token):
-    """快捷回复点回来的一步。只认当前在问的这一张、这一项；旧按钮点了回「这个选项已经不是当前的」。"""
+def answer(payload, data) -> tuple:
+    """快捷回复点回来的一步 → ``(状态, 要回的消息)``。只认当前在问的这一张、这一项；旧按钮回「这个选项已经不是当前的」。"""
     from pearnly_core.express_rules.push.choices import EXPENSE, NEW
-    from pearnly_cowork.line import flow
 
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     value = params.get("v") or ""
-    payload = flow.choices(line_user_id)
     asking = payload.get(ASKING)
     if not asking or not asking.get("rows"):
-        return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
+        return _stale()
     if value == "cancel":
-        return _next_doc(line_user_id, payload, reply_token, done_text=False)
+        return CANCELLED, []
     rows, current = asking["rows"], asking.get("i")
     if value in ("all_new", "all_expense", "each"):
         if current is not None:
-            return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
+            return _stale()
         if value == "each":
             asking["i"] = 0
-            flow.keep(line_user_id, payload)
-            return _reply(reply_token, _row_question(asking))
-        _save(asking["history"], [(row, NEW if value == "all_new" else EXPENSE) for row in _items(rows)])
+            return PENDING, [_row_question(asking)]
+        shown = _("cowork.line.items.newOne") if value == "all_new" else _("cowork.choice.expenseLine")
+        _save(asking, [(row, NEW if value == "all_new" else EXPENSE, shown) for row in _items(rows)])
         place = next((index for index, row in enumerate(rows) if row.get("kind") == "location"), None)
         if place is not None:  # 多仓账套：接着问一次仓
             asking["i"] = place
-            flow.keep(line_user_id, payload)
-            return _reply(reply_token, _location_question(asking))
-        return _next_doc(line_user_id, payload, reply_token)
+            return PENDING, [_location_question(asking)]
+        return DONE, []
     if current is None or str(params.get("i", "")) != str(current):
-        return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
-    if value == "pick" and rows[current].get("kind", "item") == "item":
+        return _stale()
+    row = rows[current]
+    if value == "pick" and row.get("kind", "item") == "item":
         asking["search"] = True
-        flow.keep(line_user_id, payload)
-        return _reply(reply_token, _message(_("cowork.line.items.type"), []))
-    if value in ("new", "expense") and rows[current].get("kind", "item") == "item":
-        return _answered(line_user_id, payload, reply_token, NEW if value == "new" else EXPENSE)
-    if value == "loc" and rows[current].get("kind") == "location":
-        options = rows[current].get("options") or []
+        return PENDING, [_message(_("cowork.line.items.type"), [])]
+    if value in ("new", "expense") and row.get("kind", "item") == "item":
+        new = value == "new"
+        return _answered(asking, NEW if new else EXPENSE, _("cowork.line.items.newOne") if new else _("cowork.choice.expenseLine"))
+    if value == "loc" and row.get("kind") == "location":
+        options = row.get("options") or []
         try:
-            code = options[int(params.get("k", ""))]["code"]
+            picked = options[int(params.get("k", ""))]
         except (ValueError, IndexError, KeyError):
-            return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
-        return _answered(line_user_id, payload, reply_token, code)
+            return _stale()
+        return _answered(asking, picked["code"], _option_label(picked))
     if value == "o":
-        offered = asking.get("offered") or []
+        offered, labels = asking.get("offered") or [], asking.get("offered_labels") or []
         try:
-            code = offered[int(params.get("k", ""))]
+            index = int(params.get("k", ""))
+            code = offered[index]
         except (ValueError, IndexError):
-            return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
-        return _answered(line_user_id, payload, reply_token, code)
-    return _reply(reply_token, {"type": "text", "text": _("This option is no longer current")})
+            return _stale()
+        return _answered(asking, code, labels[index] if index < len(labels) else code)
+    return _stale()
 
 
-def _answered(line_user_id, payload, reply_token, value):
-    from pearnly_cowork.line import flow
-
-    asking = payload[ASKING]
-    _save(asking["history"], [(asking["rows"][asking["i"]], value)])
+def _answered(asking, value, shown):
+    _save(asking, [(asking["rows"][asking["i"]], value, shown)])
     asking.pop("search", None)
     asking.pop("offered", None)
+    asking.pop("offered_labels", None)
     asking["i"] += 1
     if asking["i"] < len(asking["rows"]):
-        flow.keep(line_user_id, payload)
-        return _reply(reply_token, _row_question(asking))
-    return _next_doc(line_user_id, payload, reply_token)
+        return PENDING, [_row_question(asking)]
+    return DONE, []
 
 
-def search(line_user_id, text, reply_token) -> bool:
-    """在「选已有存货」这一步收到的文字＝名称或编码：在这份账套的存货里找（库存品与非库存品），列序号按钮。
-    不在这一步返回 False。"""
-    from pearnly_cowork.line import flow
-
-    payload = flow.choices(line_user_id)
+def search(payload, text) -> list | None:
+    """在「选已有存货」这一步收到的文字＝名称或编码：在这份账套的存货里找（库存品与非库存品），回列序号按钮的消息。
+    不在这一步回 None（交给别的处理）。"""
     asking = payload.get(ASKING) or {}
     if not asking.get("search") or asking.get("i") is None or not str(text or "").strip():
-        return False
+        return None
     find = _side("search")
     options = [row for row in (find(asking["history"], str(text).strip()[:60], MAX_RESULTS + 1) if find else [])
                if row.get("code")]
     if not options:
-        _reply(reply_token, [{"type": "text", "text": _("No match for “{0}”").format(str(text).strip()[:40])},
-                             _row_question(asking)])
-        return True
+        return [{"type": "text", "text": _("No match for “{0}”").format(str(text).strip()[:40])}, _row_question(asking)]
     if len(options) > MAX_RESULTS:
-        _reply(reply_token, _message(_("Too many matches; type a few more letters to narrow it down"), []))
-        return True
+        return [_message(_("Too many matches; type a few more letters to narrow it down"), [])]
     asking["offered"] = [row["code"] for row in options]
-    flow.keep(line_user_id, payload)
+    asking["offered_labels"] = [_option_label(row) for row in options]
     lines = [_("Found {0}. Tap the number to choose:").format(len(options))]
-    lines += [f"{index}. {' '.join(part for part in (row['code'], row.get('name')) if part)}"
-              for index, row in enumerate(options, 1)]
-    _reply(reply_token, _message("\n".join(lines), [_button(str(index), v="o", i=asking["i"], k=index - 1)
-                                                    for index in range(1, len(options) + 1)]))
-    return True
+    lines += [f"{index}. {label}" for index, label in enumerate(asking["offered_labels"], 1)]
+    return [_message("\n".join(lines), [_button(str(index), v="o", i=asking["i"], k=index - 1)
+                                         for index in range(1, len(options) + 1)])]
 
 
-__all__ = ["ACTION", "ASKING", "answer", "first_question", "is_step", "queue", "rows_of", "search"]
+__all__ = ["ACTION", "ASKING", "CANCELLED", "DONE", "PENDING", "STALE", "active", "answer", "finish", "first_question", "is_step",
+           "rows_of", "search", "start"]

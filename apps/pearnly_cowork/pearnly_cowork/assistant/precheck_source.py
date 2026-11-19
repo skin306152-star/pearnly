@@ -2,7 +2,7 @@
 `docs/work/2026-11-04-precheck-card.md` 第 3 节、7.2 W2）。
 
 - :func:`document`：一张单写之前要人定的项**一次收齐**：结果不明（先核对）、录不录（转账凭条 / 预扣税凭证）、方向（判不出时按公司
-  记住的分组）、待选账套（多份同期）、商品单入账方式、写账规则要人选的项（对方档、存货、费用科目、现 / 赊、抵不抵、收款科目……）。
+  记住的分组）、待选账套（多份同期）、商品单入账方式、存货科目组（11-19）、写账规则要人选的项（对方档、存货、费用科目、现 / 赊、抵不抵、收款科目……）。
   以前 `prepare` 遇到录不录、方向、入账方式先报错退出，后面的项算不到，人要被问好几轮；这里都变成项收进同一份结果。
   写入路径（`service.prepare`）不变：照原顺序退出，只是人已经一次答完了。
 - 每项带现在的值与来源：记住的、公司规则、Express 历史是已定；共用预选规则（`write_precheck.preselect`）、科目建议是预选；没有就未定。
@@ -39,6 +39,7 @@ DOCUMENT_POLICY = "document_policy"
 GOODS_POSTING = "goods_posting"
 CURRENT_BOOK = "current_book"
 PAYMENT = "payment"
+STOCK_GROUP = "stock_group"  # 新建库存品挂哪个存货科目组（每份账套选一次，用户 09-28；记在连接上，`connections.choose_stock_acc_group`）
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
@@ -189,6 +190,9 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
                  for item in asked]
     items.extend(asked)
     items.extend(decided_items(decision, found["fields"], found["direction"]))
+    group = _stock_group_item(doc)
+    if group:
+        items.append(group)
     own = document_payment_item(doc, found["fields"], found["direction"])
     if own:
         items.append(own)
@@ -344,6 +348,24 @@ def _goods_item(doc, loaded, found, decision, kind, posting_from, today):
             "options": [{"code": "stock"}, {"code": "service"}]}
 
 
+def _stock_group_item(doc):
+    """新建库存品挂哪个存货科目组还没定（与 LINE 卡片「保存」停下同一判据，`card_save.stock_group_open`：有库存行、这份账套合格的组
+    不止一个、还没选过）：一项，选项是合格的组，按账套记（11-19，LINE 出卡前问完）。不用问、读不到回 None。"""
+    from pearnly_cowork.push.application import card_save
+
+    try:
+        view = card_save.stock_group_open(doc)
+    except (frappe.ValidationError, frappe.PermissionError):
+        frappe.clear_messages()
+        return None
+    if not view:
+        return None
+    return {"kind": STOCK_GROUP, "subject": str(view.get("account_set_key") or doc.push_account_set or "")[:card.SUBJECT_MAX],
+            "label": str(_("Inventory account group")), "value": "", "source": "",
+            "options": [{"code": str(row["acccod"]), "name": str(row.get("label") or row["acccod"])}
+                        for row in view.get("groups") or () if row.get("acccod")]}
+
+
 def _lines_settled(fields, kinds) -> bool:
     """这张单每一行的过账类型都已按行定下（写账规则的 ``applied["kinds"]``）。"""
     from pearnly_core.express_rules.push import choices as choice_rules
@@ -403,11 +425,18 @@ def choice_items(view, fields, direction) -> list:
         if len(rows) > card.SMALL_LIST and item["kind"] in SEARCH_OF:
             # 大列表（科目表、存货）：只给预选值与名称，其余经 `search` 服务端分页取
             entry["search"] = SEARCH_OF[item["kind"]] + ("_all" if item["kind"] == "item" and item.get("expense") else "")
-            entry["value_label"] = next((row["name"] for row in rows if row["code"] == value), "")
+            entry["value_label"] = next((row["name"] for row in rows if row["code"] == value), "") or _special_label(value)
         else:
             entry["options"] = [{**row, "note": notes[row["code"]]} if notes.get(row["code"]) else row for row in rows]
         out.append(entry)
     return out
+
+
+def _special_label(value) -> str:
+    """「在 Express 新建」「记费用」这两个特殊值的名称（大列表只给预选值时，LINE 按钮与 CC 显示预选用；共用层四语词条）。"""
+    from pearnly_core.express_rules.push.choices import EXPENSE, NEW
+
+    return str(_("guide.option.new")) if value == NEW else str(_("guide.option.item.__expense__")) if value == EXPENSE else ""
 
 
 def search(company, doc_id, kind, txt, start, page_length) -> dict:
@@ -572,6 +601,15 @@ def remember(company, answers) -> dict:
                     done.add(key)
                     choices.append({key_: row.get(key_) for key_ in ("kind", "subject", "value", "label")})
                 continue
+            if kind == STOCK_GROUP:
+                key = (kind, doc.push_connection, doc.push_account_set)
+                if key not in done:
+                    done.add(key)
+                    from pearnly_cowork.connections import service as connections
+
+                    connections.choose_stock_acc_group(doc.push_connection, doc.push_account_set, value)  # 不是合格的组照抛
+                    saved += 1
+                continue
             if kind == DIRECTION:
                 operator_source.regroup(company, name, value)  # 每张单都改方向；按公司记住同一对方
                 saved += 1
@@ -592,6 +630,22 @@ def remember(company, answers) -> dict:
             saved += int(service.save_choices(name, doc.push_connection, doc.push_account_set or None,
                                               json.dumps(choices, ensure_ascii=False)).get("saved") or 0)
     return {"saved": saved}
+
+
+def line_ticket(history) -> dict:
+    """LINE 识别完、出卡前问这张票的题（`line.ask`，用户 11-19）：这张票归哪家公司（同待处理：推送去向的账套 → 买方 → 卖方税号，
+    `companies.pending.company_for`）与每题开头那行（对方 · 单据号）。归不上公司回空的 ``company``（不问，卡上保存照现有兜底）。
+    LINE 域只经这一个函数用到助手域（`architecture.md` 的 line → assistant）。"""
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
+    from pearnly_cowork.companies import pending
+    from pearnly_cowork.history import storage
+
+    scope.require("intake")
+    doc = storage.read(history)
+    fields = primary_page_fields(json.loads(doc.pages or "[]")) or {}
+    number = str(fields.get("invoice_number") or getattr(doc, "invoice_no", "") or "")
+    heading = " · ".join(part for part in (_party(doc, fields), number) if part)
+    return {"company": str(pending.company_for(_row(doc)) or ""), "heading": heading}
 
 
 def _choose_book(doc, value) -> None:

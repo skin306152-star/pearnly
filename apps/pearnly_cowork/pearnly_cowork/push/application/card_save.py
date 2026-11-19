@@ -2,7 +2,8 @@
 
 录入页的提交编排在前端（`intake-upload.js` 的 ``submit``）：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 →
 Express 确认（`companion.submission.confirm`，同一个 :func:`service.confirm` 加写者锁重来）。这里在服务端走同一串，调同一批
-服务端函数，不另写规则。前端会弹窗问的项这里不问：有要人定的就不推，回一句现有原因（`export_facts.reason_text`）。
+服务端函数，不另写规则。前端会弹窗问的项这里不问：有要人定的就不推，回一句现有原因（`export_facts.reason_text`）——11-19 起这些题
+在出卡前已在 LINE 里问完（`line.ask`），这里是兜底（旧卡、题没答完、LINE 里问不了的项）。
 「仅识别」的票保存 = 录入页的「完成」（`history.storage.complete`）；「取消」= 这一张什么都不做、记录删掉（`history.removal.delete`，
 同列表删除：真删记录与原件）。点过取消的票（已删）再点保存只回已取消。LINE 一侧（按钮、回话）在 `line.save`。"""
 import hashlib
@@ -46,6 +47,19 @@ def _stock(record) -> tuple:
     return "stock" in kinds, fields.get("posting_kind") or record.posting_kind or None
 
 
+def stock_group_open(record):
+    """这张票新建库存品要挂的存货科目组还没定：推往 Express、有库存行、这份账套读过且合格的组不止一个、还没选过 → 回选择入口的
+    样子（`connections.stock_acc_group`：``{account_set_key, known, groups, chosen}``）；不用问回 None。:func:`save` 停下与写账前置判定
+    （`assistant.precheck_source`：LINE 出卡前、CC 卡片里问这一题，用户 11-19）同一判据。"""
+    connection, account_set = record.get("push_connection"), record.get("push_account_set") or ""
+    if not (connection and account_set and _stock(record)[0]) or connections.adapter_of(connection) != "express":
+        return None
+    view = connections.stock_acc_group(connection, account_set)
+    if view and view.get("known") and not view.get("chosen") and len(view.get("groups") or []) >= 2:
+        return view
+    return None
+
+
 def save(name) -> dict:
     """推送这张票：``{"sent": True}`` / ``{"stop": 原因}``。失败不抛（同录入页：原因记在票上）。"""
     if not frappe.db.exists(HISTORY, name):
@@ -63,12 +77,10 @@ def save(name) -> dict:
     if not account_set:
         return {"stop": _("Choose the year and account set first.")}
     adapter = connections.adapter_of(connection)
-    stock, posting_kind = _stock(record)
+    posting_kind = _stock(record)[1]
     if adapter == "express":
-        if stock:
-            view = connections.stock_acc_group(connection, account_set)
-            if view and view.get("known") and not view.get("chosen") and len(view.get("groups") or []) >= 2:
-                return {"stop": _("Inventory account group")}
+        if stock_group_open(record):
+            return {"stop": _("Inventory account group")}
         view = application.choices_view(name, connection, account_set, posting_kind)
         if view.get("wait"):
             return {"stop": view["wait"].get("message") or ""}

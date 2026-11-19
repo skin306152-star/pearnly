@@ -1048,9 +1048,9 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:cowork:postback:cowork_save"
-where = "LINE 识别后推往 ERP 的卡片，「แก้ไข」上方的「บันทึก」（a=cowork_save&n=…，用户 11-18）：不进录入页直接推送（同录入页「提交」：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 → Express 确认）；要人定的项不推、回现有原因 + 快捷回复「แก้ไข」；「仅识别」的卡片保存 = 完成这张票（不推送）；点过取消的回已取消"
+where = "LINE 识别后推往 ERP 的卡片，「แก้ไข」上方的「บันทึก」（a=cowork_save&n=…，用户 11-18）：不进录入页直接推送（同录入页「提交」：账套没定先拦 → 存货科目组 → Express 选择项 → 推送 → Express 确认）；11-19 起这些题出卡前已在 LINE 问完（a=precheck），这里是兜底：旧卡、题没答完、LINE 里问不了的项不推、回现有原因 + 快捷回复「แก้ไข」；「仅识别」的卡片保存 = 完成这张票（不推送）；点过取消的回已取消"
 parts = ["line"]
-tests = ["unit:tests/test_cowork_line_intake.py::test_push_and_recognize_only_cards_have_save_edit_cancel", "unit:tests/test_cowork_line_intake.py::test_save_pushes_and_confirms_like_the_intake_page", "unit:tests/test_cowork_line_intake.py::test_save_stops_when_a_choice_is_needed", "unit:tests/test_cowork_line_intake.py::test_save_stops_without_an_account_set_and_on_a_failed_push", "unit:tests/test_cowork_line_intake.py::test_a_pushed_card_is_not_pushed_twice", "unit:tests/test_cowork_line_intake.py::test_handler_routes_the_save_button", "unit:tests/test_cowork_line_intake.py::test_recognize_only_save_completes_the_record"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_push_and_recognize_only_cards_have_save_edit_cancel", "unit:tests/test_cowork_line_intake.py::test_save_stops_when_the_stock_group_is_not_chosen_the_same_rule_the_questions_use", "unit:tests/test_cowork_line_intake.py::test_save_pushes_and_confirms_like_the_intake_page", "unit:tests/test_cowork_line_intake.py::test_save_stops_when_a_choice_is_needed", "unit:tests/test_cowork_line_intake.py::test_save_stops_without_an_account_set_and_on_a_failed_push", "unit:tests/test_cowork_line_intake.py::test_a_pushed_card_is_not_pushed_twice", "unit:tests/test_cowork_line_intake.py::test_handler_routes_the_save_button", "unit:tests/test_cowork_line_intake.py::test_recognize_only_save_completes_the_record"]
 group = "line.card-save"
 device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
 device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：「发单据进 ERP」选 Express 测试账套 → 拍一张票 → 卡片「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「กำลังบันทึก」，录入列表这张是录入中，测试机 CC 写进测试账套；再点一次回已推送成功；要选费用科目的一张 → 不推，回原因 + 快捷回复「แก้ไข」；选「仅识别」的卡片只有「แก้ไข」"
@@ -1076,9 +1076,23 @@ channel = "line"
 ends = ["mobile"]
 kind = "line-postback"
 anchor = "line:cowork:postback:cowork_item"
-where = "LINE 识别后按行追问存货对照（全部新建存货 / 全部记费用 / 逐项选择 / 选已有存货 / 取消，a=cowork_item&v=…，11-06）；多仓账套接着问一次仓（v=loc，11-08）"
+where = "LINE 识别后、出卡之前按行追问存货对照（全部新建存货 / 全部记费用 / 逐项选择 / 选已有存货 / 取消，a=cowork_item&v=…，11-06）；多仓账套接着问一次仓（v=loc，11-08）。11-19 起卡片最后才发：答完不回「已保存」，接着问写账前置判定剩下的题（a=precheck）再出卡，卡上列答过的结果；取消 = 卡片「取消」"
 parts = ["line", "express-rules"]
-tests = ["unit:tests/test_cowork_line_items.py::test_a_card_gets_one_question_listing_the_new_items_and_the_next_card_waits", "unit:tests/test_cowork_line_items.py::test_one_by_one_with_a_typed_search_and_stale_buttons", "unit:tests/test_cowork_line_intake.py::test_item_buttons_and_words_go_to_the_item_questions_first", "unit:tests/test_cowork_line_items.py::test_a_multi_warehouse_book_asks_the_warehouse_once_after_the_lines", "unit:tests/test_cowork_line_items.py::test_one_by_one_reaches_the_warehouse_question_last"]
+tests = ["unit:tests/test_cowork_line_items.py::test_a_card_gets_one_question_listing_the_new_items_and_a_document_without_rows_is_not_asked", "unit:tests/test_cowork_line_items.py::test_one_by_one_with_a_typed_search_and_stale_buttons", "unit:tests/test_cowork_line_intake.py::test_item_buttons_and_words_go_to_the_item_questions_first", "unit:tests/test_cowork_line_items.py::test_a_multi_warehouse_book_asks_the_warehouse_once_after_the_lines", "unit:tests/test_cowork_line_items.py::test_one_by_one_reaches_the_warehouse_question_last", "unit:tests/test_cowork_line_ask.py::test_item_questions_come_first_then_the_rest_then_one_card", "unit:tests/test_cowork_line_ask.py::test_cancel_in_the_item_question_drops_the_document_too"]
+
+[[row]]
+id = "cowork.line.postback.precheck"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:precheck"
+where = "LINE 识别后、出卡之前问写账前置判定的题（共用出题器 write_precheck.line_ask，a=precheck&b=…&n=…&q=…&k=…，用户 11-19）：账套、存货科目组、Express 对应项（对方 / 存货 / 科目打名称或编码找）、现 / 赊等一题一条快捷回复，推荐项排第一、点了才算；答完才出「บันทึก / แก้ไข / ยกเลิก」卡，卡上列答过的结果；「ยกเลิก」= 卡片取消；答题中来新票排在后面；「仅识别」与没题的票直接出卡"
+parts = ["line", "write-precheck"]
+tests = ["unit:tests/test_cowork_line_ask.py::test_questions_come_first_and_the_card_last_with_the_answers", "unit:tests/test_cowork_line_ask.py::test_account_set_stock_group_and_counterparty_are_asked_in_line_before_the_card", "unit:tests/test_cowork_line_ask.py::test_a_recommendation_that_was_not_tapped_does_not_move_on", "unit:tests/test_cowork_line_ask.py::test_cancel_drops_the_document_like_the_card_cancel_and_moves_to_the_next", "unit:tests/test_cowork_line_ask.py::test_a_new_document_while_answering_waits_and_answers_stay_on_their_own_document", "unit:tests/test_cowork_line_ask.py::test_a_document_without_questions_gets_its_card_straight_away", "unit:tests/test_cowork_line_ask.py::test_recognize_only_cards_go_straight_out_without_a_session", "unit:tests/test_cowork_line_ask.py::test_an_expired_session_sends_no_card", "unit:tests/test_cowork_line_ask.py::test_the_question_buttons_and_typed_words_reach_the_asker"]
+group = "line.precheck-ask"
+device_only = "题在识别完、出卡之前问，要真 LINE 官方号收图、付费识别和 LINE App 的 postback；实验栈没有 LINE 频道"
+device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：「发单据进 ERP」选 Express 测试账套 → 拍一张有新物料、要选对方 / 科目的票 → 先问新物料（全部新建）→ 再一题一题问（推荐项在第一个，没点不往下走；对方打名称找）→ 最后才出卡、卡上列答过的结果 → 点「บันทึก」直接推送；第二张答到一半又拍一张：新票排在后面、不串单；一张题里点「ยกเลิก」→ 回「ยกเลิกแล้ว」、录入列表没有这张；选「仅识别」的票直接出卡"
 
 [[row]]
 id = "cowork.line.postback.cowork_erp_start"

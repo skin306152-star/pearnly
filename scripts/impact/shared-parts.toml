@@ -197,7 +197,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection", "erp.line.precheck-questions"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection", "erp.line.precheck-questions", "cowork.line.precheck-questions"]
 
 [[part]]
 id = "line-session"
@@ -245,9 +245,10 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # （hooks.pearnly_write_precheck，W4 / W5 接页面前只有接口）。CC 卡片（W4）、直写门（W5）接入时同一提交补入口。
 # W3（11-05）ERP 接入：提交前弹窗（express.api.preflight → express.precheck）、代录预检与交单（hooks.pearnly_express_operator →
 # express.operator → express.precheck）、收银日汇总三项（express.pos_day）、待处理与卡片取数作答（hooks.pearnly_write_precheck）
+# 11-19 Cowork LINE 出卡前把题问完：line.ask 经共用出题器 write_precheck.line_ask 出题、记答（cowork.line.precheck-questions）
 entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push",
            "erp.cc.write", "erp.cc.pos-day", "erp.cc.companies",
-           "erp.line.precheck-questions"]
+           "erp.line.precheck-questions", "cowork.line.precheck-questions"]
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/guide_tool.py" = "CC 引导卡工具 pearnly_guide（引导式录入第 1 期）出卡与作答走写账前置判定；用户看到的入口是 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide，由 test_cc_guide_tool 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py" = "ERP 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上 documents 源前没有入口，入口随引导接线登记为 erp.cc.guide.purchase / erp.cc.guide.sales，由 test_erp_guide_documents 守住", "apps/pearnly_core/pearnly_core/assistant/guide/documents.py" = "引导的 documents 出题源（共用引擎 assistant.guide.run 按声明的 source 分来；出卡与记答走 write_precheck.api / guide，打字路径 assistant.guide_tool 也调它）；用户看到的入口随引导接线登记为 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide 与业务菜单，由 test_cc_guide_documents、test_cc_guide_tool 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py" = "Cowork 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上页面前没有入口，入口随引导接线登记为 cowork.cc.guide.purchase / cowork.cc.guide.sales，由 test_cowork_guide_documents 守住" }
 
 [[part]]
@@ -1386,10 +1387,19 @@ files = ["apps/pearnly_cowork/pearnly_cowork/hooks.py", "apps/pearnly_cowork/pea
 id = "cowork.line.item-questions"
 product = "Cowork"
 where = "LINE 识别后按行追问存货对照（11-06 按行选物料）"
-steps = "上传一张推往永续 / 混合库存 Express 账套、没声明过账类型、有认不出品名的票 → 卡片后跟一条提问；分别点全部新建存货 / 全部记费用 / 逐项选择（新建存货、记费用、选已有存货打字找）/ 取消；同批两张"
-expect = "新物料列全；答案记进账套记忆（同复核页「要选的项」），之后推送照它写；同批一次问一张；取消不记；旧按钮无效"
+steps = "上传一张推往永续 / 混合库存 Express 账套、没声明过账类型、有认不出品名的票 → 出卡前先一条提问（11-19 起卡片最后才发）；分别点全部新建存货 / 全部记费用 / 逐项选择（新建存货、记费用、选已有存货打字找）/ 取消；同批两张"
+expect = "新物料列全；答案记进账套记忆（同复核页「要选的项」），之后推送照它写；答完不回「已保存」，接着问写账前置判定剩下的题再出卡、卡上列答过的结果；同批一次问一张；取消 = 卡片取消（票删掉）；旧按钮无效"
 check = "manual"
 files = ["apps/pearnly_cowork/pearnly_cowork/line/items.py", "apps/pearnly_cowork/pearnly_cowork/push/application/line_items.py"]
+
+[[entry]]
+id = "cowork.line.precheck-questions"
+product = "Cowork"
+where = "LINE 识别后、出卡之前把要人定的题问完（11-19，line.ask：按行追问 → 写账前置判定共用出题器 a=precheck → 出卡）"
+steps = "「发单据进 ERP」选 Express 测试账套 → 拍一张有新物料、要选对方 / 科目、存货科目组没选的票；答到一半再拍一张；一张题里点取消；选「仅识别」拍一张；没有题的票拍一张"
+expect = "先问新物料，再一题一题问（推荐项第一个，没点不往下走；对方 / 存货 / 科目打名称或编码找）；问完才出卡、卡上列答过的结果，点保存直接推送；答题中的新票排在后面、答案不串到别的票；取消回已取消、票删掉；仅识别与没题的票直接出卡；同一份判定与记答同 CC 卡片（下次同一项不再问）"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/line/ask.py", "apps/pearnly_cowork/pearnly_cowork/line/intake.py", "apps/pearnly_cowork/pearnly_cowork/line/items.py", "apps/pearnly_cowork/pearnly_cowork/line/cards.py", "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py"]
 
 [[entry]]
 id = "erp.line.item-questions"

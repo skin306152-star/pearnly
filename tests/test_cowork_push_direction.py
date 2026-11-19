@@ -53,7 +53,9 @@ def operator_check(service, name):
     modules = {
         "frappe": frappe, "pearnly_cowork.access": ns(scope=service.scope),
         "pearnly_cowork.access.scope": service.scope,
-        "pearnly_cowork.push.application": ns(service=service), "pearnly_cowork.push.application.service": service,
+        # 存货科目组（11-19 进判定，`card_save.stock_group_open`）：这里的票不问
+        "pearnly_cowork.push.application": ns(service=service, card_save=ns(stock_group_open=lambda doc: None)),
+        "pearnly_cowork.push.application.service": service,
         "pearnly_cowork.push.application.provenance": ns(original_history=lambda d: None),
         "pearnly_cowork.push.lifecycle": ns(result_unknown=lambda *a: False),
         "pearnly_cowork.push": ns(lifecycle=ns(result_unknown=lambda *a: False)),

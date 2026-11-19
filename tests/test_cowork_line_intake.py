@@ -1,4 +1,5 @@
 """Cowork LINE「发单据进 ERP」（用户 2026-09-26：照 ERP 新做法）：快捷回复逐步选、只认当前一步、收单进网页同一条链。"""
+import contextlib
 import sys
 import unittest
 from pathlib import Path
@@ -54,6 +55,7 @@ class LineFlowTest(unittest.TestCase):
 
         patches = [
             mock.patch.object(flow, "_", side_effect=lambda text, *a, **k: text),
+            mock.patch.object(flow, "locked", lambda user: contextlib.nullcontext()),
             mock.patch.object(flow.line_session, "get_session", side_effect=lambda user: store.get(user)),
             mock.patch.object(flow.line_session, "set_session", side_effect=set_session),
             mock.patch.object(flow.line_session, "clear_session", side_effect=lambda user: store.pop(user, None)),
@@ -223,6 +225,19 @@ class LineFlowTest(unittest.TestCase):
         self.tap("Cancel")
         self.assertEqual(flow.choices("U1"), {})
 
+    def test_questions_in_progress_survive_a_restart_and_a_cancel_of_the_upload_choices(self):
+        """识别后在问的题（`line.ask`，11-19）也在这个会话里：重新点菜单、选目标、取消上传前的选择都不打断它们。"""
+        asking = {"tickets": {"current": {"name": "H1"}, "queue": []}, "precheck_ask": {"current": {"id": "t1"}},
+                  "items": {"history": "H1"}}
+        self.session["U1"] = {"state": flow.STATE, "payload": {"target": "mrerp", "connection": "CON-M", **asking}}
+        flow.start("U1", "tok")
+        self.tap("MR.ERP")
+        payload = flow.choices("U1")
+        self.assertEqual({key: payload[key] for key in flow.ASKING_KEYS}, asking)
+        self.assertEqual(payload["target"], "mrerp")
+        self.tap("Cancel")
+        self.assertEqual(flow.choices("U1"), asking)
+
     def test_postback_data_parsing(self):
         self.assertTrue(flow.is_start("action=cowork_erp_start"))
         self.assertTrue(flow.is_step("a=cowork&s=target&v=0"))
@@ -267,19 +282,21 @@ class LineHandlerTest(unittest.TestCase):
         self.assertIn("メニュー", handlers.flow.MENU_WORDS)
 
     def test_item_buttons_and_words_go_to_the_item_questions_first(self):
-        """11-06 按行选物料：识别后按行追问的按钮（a=cowork_item）交 `line.items`；在「选已有存货」这一步打的字先给它找存货。"""
-        from pearnly_cowork.line import items
+        """11-06 按行选物料：识别后按行追问的按钮（a=cowork_item）交出卡前的提问（`line.ask`，11-19 起编排按行追问与写账前置判定）；
+        在「选已有存货」这一步打的字给它找存货——没重新点菜单（不在选账套这一步）时选账套那一步不接。"""
+        from pearnly_cowork.line import ask
 
         with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
-                mock.patch.object(items, "answer") as answer, \
-                mock.patch.object(items, "search", return_value=True) as search, \
-                mock.patch.object(handlers.flow, "search") as account_search:
+                mock.patch.object(ask, "step") as answer, \
+                mock.patch.object(ask, "text", return_value=True) as search, \
+                mock.patch.object(handlers.flow, "search", return_value=False) as account_search:
             self.assertTrue(handlers._handle({"type": "postback", "replyToken": "tok",
                                               "postback": {"data": "a=cowork_item&v=each"}}, "U1"))
             handlers._handle(self.event(message={"type": "text", "text": "ice"}), "U1")
         answer.assert_called_once_with("U1", "a=cowork_item&v=each", "tok")
         search.assert_called_once_with("U1", "ice", "tok")
-        account_search.assert_not_called()
+        account_search.assert_called_once_with("U1", "ice", "tok")
+        self.assertEqual(self.replies, [])
 
     def test_menu_tap_needs_binding(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value=None):
@@ -468,6 +485,21 @@ class LineCardSaveTest(unittest.TestCase):
         self.assertEqual(self.confirm.call_args.args[:2], ("PR-1", 1))
         self.assertEqual(self.confirm.call_args.args[2], "confirm:" + args.args[2])
 
+    def test_save_stops_when_the_stock_group_is_not_chosen_the_same_rule_the_questions_use(self):
+        """兜底（旧卡、题没答完）：有库存行、合格的存货科目组不止一个、还没选 → 不推，回原因；出卡前的提问用同一个判据
+        （`stock_group_open`，`assistant.precheck_source`）。"""
+        view = {"account_set_key": "acc-1", "known": True, "chosen": None, "groups": [{"acccod": "1"}, {"acccod": "2"}]}
+        self.record.pages = '[{"fields": {"invoice_number": "IV1", "total_amount": "1", "items": [{"name": "Box", "posting_kind": "stock"}]}}]'
+        with mock.patch.object(self.save.connections, "stock_acc_group", return_value=view):
+            self.assertEqual(self.save.stock_group_open(self.record), view)
+            self.assertEqual(self.save.save("CWH-3"), {"stop": "Inventory account group"})
+            self.record.pages = "[]"  # 没有库存行：不问
+            self.assertIsNone(self.save.stock_group_open(self.record))
+            self.record.pages = '[{"fields": {"invoice_number": "IV1", "total_amount": "1", "items": [{"name": "Box", "posting_kind": "stock"}]}}]'
+            view["chosen"] = "1"
+            self.assertIsNone(self.save.stock_group_open(self.record))
+        self.submit.assert_not_called()
+
     def test_save_stops_when_a_choice_is_needed(self):
         self.view = {"needed": [{"kind": "account"}]}
         self.assertEqual(self.save.save("CWH-3"), {"stop": "T:choice_needed"})
@@ -552,31 +584,51 @@ class LineCardSaveTest(unittest.TestCase):
 
 
 class LineAnnounceTest(unittest.TestCase):
-    def test_only_the_first_announcement_is_sent(self):
-        cache = {intake._PENDING + "CWS-1": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}
+    def announce(self, pending, arrive=None, user="a@x"):
+        """识别完一份：回 (交给出卡前提问的参数, 发出去的)。"""
+        cache = {intake._PENDING + "CWS-1": pending}
         fake = mock.Mock(get_value=cache.get, delete_value=lambda key: cache.pop(key, None))
+        sent = []
         with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
                 mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
-                mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
-                mock.patch.object(intake, "_item_question", return_value=None), \
-                mock.patch.object(intake.line, "reply_or_push") as send:
+                mock.patch.object(intake.frappe, "session", mock.Mock(user="Guest"), create=True), \
+                mock.patch.object(intake.frappe, "set_user", create=True), \
+                mock.patch.object(intake.frappe, "db", mock.Mock(), create=True), \
+                mock.patch.object(intake.frappe, "clear_messages", create=True), \
+                mock.patch.object(intake.frappe, "log_error", create=True), \
+                mock.patch.object(intake.frappe, "get_traceback", return_value="t", create=True), \
+                mock.patch.object(intake.line_binding, "user_of", return_value=user), \
+                mock.patch("pearnly_cowork.line.cards.previews", side_effect=lambda records, pending: [
+                    {"type": "flex", "card": name} for name in records]), \
+                mock.patch("pearnly_cowork.line.ask.arrive", side_effect=arrive or (lambda user, records, pending: [
+                    {"type": "text", "text": "question"}])) as asked, \
+                mock.patch.object(intake.line, "reply_or_push", side_effect=lambda to, messages, token="": sent.append(
+                    (to, messages, token))):
             intake.announce("CWS-1", "saved", ["H1"])
-            intake.announce("CWS-1", "saved", ["H1"])
-        send.assert_called_once_with("U1", [{"type": "flex"}], "tok")
+            intake.announce("CWS-1", "saved", ["H1"])  # 只通知一次
+        return asked.call_args_list, sent
 
-    def test_the_item_question_goes_after_the_cards(self):
-        """11-06 按行选物料：有定不了的行就在卡片后面跟一条提问（同一次发送，快捷回复挂在最后一条上）。"""
-        cache = {intake._PENDING + "CWS-3": {"line_user_id": "U1", "language": "th", "reply_token": "tok"}}
-        fake = mock.Mock(get_value=cache.get, delete_value=lambda key: cache.pop(key, None))
-        question = {"type": "text", "text": "new"}
-        with mock.patch.object(intake.frappe, "cache", fake), mock.patch("pearnly_core.execution.state.store", return_value=fake), \
-                mock.patch.object(intake.frappe, "local", mock.Mock(lang="zh")), \
-                mock.patch("pearnly_cowork.line.cards.previews", return_value=[{"type": "flex"}]), \
-                mock.patch.object(intake, "_item_question", return_value=question) as asked, \
-                mock.patch.object(intake.line, "reply_or_push") as send:
-            intake.announce("CWS-3", "saved", ["H1"])
-        asked.assert_called_once_with("U1", ["H1"])
-        send.assert_called_once_with("U1", [{"type": "flex"}, question], "tok")
+    def test_only_the_first_announcement_is_sent(self):
+        calls, sent = self.announce({"line_user_id": "U1", "language": "th", "reply_token": "tok", "push": False})
+        self.assertEqual(sent, [("U1", [{"type": "text", "text": "question"}], "tok")])
+        self.assertEqual(len(calls), 1)
+
+    def test_a_push_document_goes_to_the_questions_and_its_card_comes_last(self):
+        """11-19「所有问题问完 … 一气呵成」：推往 ERP 的票交出卡前的提问（`line.ask.arrive`），不再「卡片 + 追问一起发」。"""
+        pending = {"line_user_id": "U1", "language": "th", "reply_token": "tok", "push": True, "target": "Express",
+                   "direction": "purchase", "mode": ""}
+        calls, sent = self.announce(pending)
+        self.assertEqual(calls[0].args[:2], ("U1", ["H1"]))
+        self.assertTrue(calls[0].args[2]["push"])
+        self.assertEqual(sent, [("U1", [{"type": "text", "text": "question"}], "tok")])
+
+    def test_a_failing_question_step_or_an_unbound_user_still_gets_the_cards(self):
+        pending = {"line_user_id": "U1", "language": "th", "reply_token": "tok", "target": "Express"}  # 部署前记下的（没有 push）
+        calls, sent = self.announce(pending, arrive=mock.Mock(side_effect=RuntimeError("boom")))
+        self.assertTrue(calls[0].args[2]["push"])
+        self.assertEqual(sent, [("U1", [{"type": "flex", "card": "H1"}], "tok")])
+        calls, sent = self.announce(dict(pending), user=None)
+        self.assertEqual((calls, sent), ([], [("U1", [{"type": "flex", "card": "H1"}], "tok")]))
 
     def test_uploads_not_from_line_are_ignored(self):
         fake = mock.Mock(get_value=lambda key: None)

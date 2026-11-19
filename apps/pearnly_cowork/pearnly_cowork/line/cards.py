@@ -2,8 +2,8 @@
 
 标题「复核单据 · 进项/销项」+ 副标题，进项绿、销项红；左灰标签、右粗体值；上面是 LINE 里的选择
 （目标 · 公司 · 年度、业务类型、入账方式），分隔线后是票面（单据号、日期、票种、对方名称 / 税号 / 分店 / 地址），
-再是全部明细（名称、数量 × 单价 = 金额），最后是金额与付款。只有一个「编辑」按钮：打开网页编辑页
-（复核、提交 / 导出都在网页做）。字段取识别记录的主页面，与复核页同一判据。
+再是全部明细（名称、数量 × 单价 = 金额），最后是金额与付款。字段取识别记录的主页面，与复核页同一判据。
+推往 ERP 的票出卡前已在 LINE 里问完要人定的题（`line.ask`，用户 11-19），答过的结果列在 LINE 的选择那一组后面（题 · 对象 → 选的值）。
 """
 import json
 from decimal import Decimal, InvalidOperation
@@ -113,7 +113,12 @@ def _account(record, labels):
     return [_kv(_("intake.target.accountSet"), labels[key])]
 
 
-def _card(record, pending, shown, labels=None):
+def _answered(rows):
+    """出卡前在 LINE 里答过的（`line.ask`）：``[{label, value}]``，每行「题 · 对象」→ 选的值。"""
+    return [_kv(row.get("label") or "-", row.get("value")) for row in rows or () if isinstance(row, dict)]
+
+
+def _card(record, pending, shown, labels=None, answered=()):
     fields = _primary(json.loads(record.pages or "[]"))
     direction = fields.get("direction") or pending.get("direction") or "purchase"
     accent = COLORS.get(direction, COLORS["purchase"])
@@ -126,6 +131,7 @@ def _card(record, pending, shown, labels=None):
         *_account(record, {} if labels is None else labels),
         _kv(_("Transaction type"), head),
         *([_kv(_("Posting"), pending["mode"])] if pending.get("mode") else []),
+        *_answered(answered),
         _separator(),
         _kv(_("Document no."), fields.get("invoice_number")),
         _kv(_("Date"), _be_date(fields.get("date"), fields.get("date_raw"))),
@@ -171,20 +177,21 @@ def _card(record, pending, shown, labels=None):
                                 "data": urlencode({"a": "cowork_cancel", "n": record.name})}}]}}}
 
 
-def preview(record, pending, labels=None) -> dict:
+def preview(record, pending, labels=None, answered=()) -> dict:
     items = _primary(json.loads(record.pages or "[]")).get("items") or []
     shown = len(items)
     labels = {} if labels is None else labels
     while True:
-        card = _card(record, pending, shown, labels)
+        card = _card(record, pending, shown, labels, answered)
         if shown == 0 or len(json.dumps(card, ensure_ascii=False).encode()) <= MAX_BYTES:
             return card
         shown -= 1
 
 
-def previews(records, pending) -> list:
+def previews(records, pending, answered=None) -> list:
+    """``answered``：``{单号: [{label, value}]}``，出卡前在 LINE 里答过的（`line.ask`）。"""
     rows = {row.name: row for row in frappe.get_all(
         "Cowork OCR History", filters={"name": ["in", records]},
         fields=["name", "pages", "total_amount", "intake_target", "push_connection", "push_account_set"])}
     labels = {}  # 同一批的账套名只按连接读一次目录
-    return [preview(rows[name], pending, labels) for name in records if name in rows]
+    return [preview(rows[name], pending, labels, (answered or {}).get(name) or ()) for name in records if name in rows]

@@ -4,7 +4,8 @@
 用户发 PDF 或图片 → webhook 只登记、排队（回调里同步下载，LINE 会先断开，ERP 09-25 踩过）→
 后台任务从 LINE 取原件，按本人身份走网页上传同一个入口（`files.service.create`）和识别受理
 （`ocr.execution.service.submit`，目标记在票上）→ 识别完（`workflow` 的 `cowork_ocr_recognized` 钩子）
-每张票推一张卡（版式照 ERP `integrations/line_cards.py`，见 `cards.py`），按钮打开网页复核页。
+推往 ERP 的票先在 LINE 里把要人定的题问完（`ask.py`，用户 11-19），每张票最后推一张卡（版式照 ERP
+`integrations/line_cards.py`，见 `cards.py`：保存 / 编辑 / 取消）；「仅识别」的票直接出卡。
 复核、提交推送都在网页做，与网页上传的票完全一样（列表里看得到，没有另一套草稿）。
 
 识别不成（额度不足、看不出发票、任务失败）也回一句话，请本人处理或重发。
@@ -30,12 +31,15 @@ def receive(*, line_user_id, bound, message, reply_token, choices):
     """webhook 里：只排队，不下载。调用方已把会话用户切成绑定的这个账号。"""
     message_id = message.get("id") or ""
     filename = message.get("fileName") or f"line-{message_id or 'document'}{MEDIA_SUFFIX.get(message.get('type'), '.jpg')}"
-    flow.keep(line_user_id, choices)
+    from pearnly_cowork.line import ask
+
+    ask.touch(line_user_id)
     line.start_loading(line_user_id, 60)
     frappe.enqueue("pearnly_cowork.line.intake.store", queue="short", enqueue_after_commit=True,
                    deduplicate=True, job_id="cowork-line-intake-" + message_id,
                    line_user_id=line_user_id, user=bound, message_id=message_id, filename=filename,
-                   choices={key: value for key, value in choices.items() if key != "offered"},
+                   choices={key: value for key, value in choices.items()
+                            if key != "offered" and key not in flow.ASKING_KEYS},
                    language=getattr(frappe.local, "lang", None) or "th", reply_token=reply_token)
 
 
@@ -109,10 +113,13 @@ def _admit(line_user_id, message_id, filename, choices, language, reply_token):
 
 def _remember(source_name, line_user_id, language, reply_token, choices):
     # 卡片上要摆这次的选择（目标、方向、入账方式；账套取票上记的另起一行）：趁本人会话还在时算好一起记下。
+    # ``push``：推往 ERP（出卡前先问题，`ask`）；「仅识别」直接出卡
     pearnly_state.store().set_value(_PENDING + source_name, {
         "line_user_id": line_user_id, "language": language, "reply_token": reply_token,
         "direction": choices.get("direction"), "target": flow.target_name(choices),
-        "mode": flow.mode_label(choices)}, expires_in_sec=PENDING_SECONDS)
+        "mode": flow.mode_label(choices),
+        "push": bool(choices.get("target") not in (None, flow.RECOGNIZE_ONLY) and choices.get("connection"))},
+        expires_in_sec=PENDING_SECONDS)
 
 
 def _forget(source_name):
@@ -162,42 +169,32 @@ def announce(source_name, phase, records):
                               _("No invoice was found in this document."), pending.get("reply_token")))
 
     def send():
-        from pearnly_cowork.line import cards
+        from pearnly_cowork.line import ask
 
-        messages = cards.previews(records, pending)
-        question = _item_question(pending["line_user_id"], records)
-        if question:
-            messages.append(question)  # 卡片后面跟一条按行追问（同一次发送；快捷回复挂在最后一条上）
-        # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送（ERP 同法）。
-        line.reply_or_push(pending["line_user_id"], messages[:5], pending.get("reply_token"))
-        for start in range(5, len(messages), 5):
-            line.push(pending["line_user_id"], messages[start:start + 5])
+        ask.send(pending["line_user_id"], _messages(pending, records), pending.get("reply_token"))
 
     _with_language(pending, send)
 
 
-def _item_question(line_user_id, records):
-    """这一批识别出的票里有定不了的行（Express 去向、没声明过账类型），排进本人的按行追问；现在就该问的那张回它的提问
-    （`line.items`）。按绑定的这个账号判（同 webhook 的做法），判不了就不问。"""
-    from pearnly_core import line_binding
+def _messages(pending, records):
+    """这次要发的：推往 ERP 的票先问题、问完才出卡（`ask.arrive`，按绑定的这个账号判，同 webhook 的做法）；「仅识别」直接出卡。
+    出题出错、解绑了：直接出卡（卡上保存照现有兜底）——不能让卡片丢掉。"""
+    from pearnly_cowork.line import ask, cards
 
-    from pearnly_cowork.line import items
-
+    line_user_id = pending["line_user_id"]
+    pending = {**pending, "push": pending.get("push", pending.get("target") in dict(flow.TARGETS).values())}  # 部署前记下的
     previous = frappe.session.user
     try:
         user = line_binding.user_of(line_user_id)
         if not user:
-            return None
+            return cards.previews(records, pending)  # 换绑 / 解绑了：照旧只出卡，不问
         frappe.set_user(user)
-        question = None
-        for history in records or ():
-            asked = items.queue(line_user_id, history)
-            question = question or asked
-        return question
+        return ask.arrive(line_user_id, records, pending)
     except Exception:
         frappe.db.rollback()
-        frappe.log_error(title="Cowork LINE item question failed", message=frappe.get_traceback()[-1500:])
-        return None
+        frappe.clear_messages()
+        frappe.log_error(title="Cowork LINE questions before the card failed", message=frappe.get_traceback()[-1500:])
+        return cards.previews(records, pending)
     finally:
         frappe.set_user(previous)
 

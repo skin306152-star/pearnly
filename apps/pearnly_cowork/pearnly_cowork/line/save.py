@@ -6,6 +6,20 @@ SAVE_ACTION = "cowork_save"  # 卡片「保存」的 postback（`cards._card` �
 CANCEL_ACTION = "cowork_cancel"  # 卡片「取消」
 
 
+def drop(name) -> None:
+    """出卡前的提问里点了「取消」（`line.ask`，用户 11-19）：这张票照卡片「取消」处理（`card_save.cancel`）；回话由调用方发。
+    出错记日志、不抛（取消不能把后面排着的票卡住）。"""
+    try:
+        from pearnly_cowork.push.application import card_save
+
+        card_save.cancel(name)
+        frappe.db.commit()
+    except Exception:
+        frappe.db.rollback()
+        frappe.clear_messages()
+        frappe.log_error(title="Cowork LINE question cancel failed", message=frappe.get_traceback()[-1500:])
+
+
 def reply(name, reply_token, cancel=False):
     """postback 入口：推完回一句；停下回原因 + 快捷回复「编辑」（打开录入页这张票）。``cancel``：卡片「取消」。"""
     from pearnly_core import line
