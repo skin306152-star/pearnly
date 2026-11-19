@@ -189,6 +189,7 @@ def _intake_row(row) -> dict:
 
 
 INTAKE_DOCTYPE = "ERP LINE Intake"  # 同 `integrations.intake.DOCTYPE`；先查有没有，有才导入收单模块
+SOURCE_CC, SOURCE_LINE = "cc", "line"  # = `integrations.intake.SOURCE_CC / SOURCE_LINE`（对话放进来的 / LINE 收单的）
 
 
 def _intake_rows(company, first, last) -> list:
@@ -218,15 +219,26 @@ def _intake_rows(company, first, last) -> list:
 
 def _intake(company, doc_id):
     """``I:<记录>`` → 收单记录（本人、对话来的、这家公司的）；别的回 None。"""
-    from pearnly_erp_portal.integrations import intake as chat_intake
+    return _own_intake(company, doc_id, SOURCE_CC)
 
+
+def judged_intake(company, doc_id):
+    """写账前置判定认的收单记录（`precheck.target_of`）：CC 对话放进来的（:func:`_intake`），加上 LINE 收单识别完、还在出卡前
+    提问的（用户 11-19：LINE 里出卡前把要人定的题问完，与 CC 开始前卡片同一份判定、同一套记答，`integrations.line_questions`）。
+    同样只认本人发的、这家公司的、有这类单据开单权的。代录（预检、交单、恢复）仍只认对话来的。"""
+    return _intake(company, doc_id) or _own_intake(company, doc_id, SOURCE_LINE)
+
+
+def _own_intake(company, doc_id, source):
     prefix, _sep, name = str(doc_id).partition(":")
     if prefix != INTAKE or not name:
         return None
-    row = frappe.db.get_value(chat_intake.DOCTYPE, name, ["name", "source", "sent_by", "company", "direction", "status",
-                                                          "purchase", "sales_document"], as_dict=True)
-    if not row or row.source != chat_intake.SOURCE_CC or row.sent_by != frappe.session.user or row.company != company:
+    row = frappe.db.get_value(INTAKE_DOCTYPE, name, ["name", "source", "sent_by", "company", "direction", "status",
+                                                     "purchase", "sales_document"], as_dict=True)
+    if not row or row.source != source or row.sent_by != frappe.session.user or row.company != company:
         return None
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
     if not guard.has(chat_intake.DIRECTION_CAPABILITY[row.direction]):
         return None
     return row
@@ -345,18 +357,19 @@ def written_twin(company, direction, result, grand_total) -> dict:
     return {}
 
 
-def _intake_precheck(company, doc_id, twins=True) -> dict:
+def _intake_precheck(company, doc_id, twins=True, judged=False) -> dict:
     """一条待提交的收单记录：按它提交时的入参（:func:`intake_payload`，同网页表单）判写进 Express 要人选的项（`collect_form`）。
     记录自己要人定的（付款、各行物料、仓库，:func:`intake_items`）与 Express 那几项一起问；行或仓库还没定、写入那条准备先报的，
     先只问记录自己的（定了再判 Express 那几项）。已提交的按提交出的单据判。``twins``：同一张票已写进 Express 的标 ``written``
-    （代录资料与交单用）；写账判定（`precheck.check`）不判这一项，由代录的待录清单定（「再录一次」照交）。"""
+    （代录资料与交单用）；写账判定（`precheck.check`）不判这一项，由代录的待录清单定（「再录一次」照交）。``judged``：写账判定
+    调的（也认 LINE 收单的记录，:func:`judged_intake`）。"""
     import json
 
     from pearnly_core.write_precheck import contracts as card
     from pearnly_erp_portal.express import precheck as write_precheck
     from pearnly_erp_portal.integrations import intake as chat_intake
 
-    row = _intake(company, doc_id)
+    row = judged_intake(company, doc_id) if judged else _intake(company, doc_id)
     if row is None:
         return {"doc_id": doc_id, "state": "blocked", "reason": "not_permitted", "message": _("Not Permitted")}
     done = _submitted(row)
@@ -431,7 +444,7 @@ def intake_found(company, doc, asked, given=None):
 def intake_view(company, doc_id) -> dict | None:
     """写账判定（`precheck.check`）里这条收单记录的一张卡片输入：与代录预检同一份（:func:`_intake_precheck` 的 ``precheck``，带
     ``direction``）。不是本人的回 None（不报存在与否）；已不在待提交（例如被删、识别失败）的写不了。"""
-    found = _intake_precheck(company, doc_id, twins=False)
+    found = _intake_precheck(company, doc_id, twins=False, judged=True)
     if "precheck" in found:
         return found["precheck"]
     if found.get("reason") == "not_permitted":
@@ -439,6 +452,23 @@ def intake_view(company, doc_id) -> dict | None:
     from pearnly_core.write_precheck import contracts as card
 
     return {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": str(found.get("reason") or "not_ready")}
+
+
+def intake_own_view(company, doc_id, row) -> dict:
+    """没接 Express 的公司里 LINE 收单的一条记录（写账判定 `precheck.check`，11-19 出卡前提问）：只有记录自己要人定的
+    （:func:`intake_items`：各行物料、仓库；付款上传前已在 LINE 里选过）。已提交、已取消的不再判。"""
+    import json
+
+    from pearnly_core.write_precheck import contracts as card
+    from pearnly_erp_portal.integrations import intake as chat_intake
+
+    if _submitted(row) or row.status != chat_intake.READY:
+        return {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": "not_ready"}
+    doc = frappe.get_doc(chat_intake.DOCTYPE, row.name)
+    result = json.loads(doc.result or "{}")
+    party = result.get("supplier_name") if row.direction == "purchase" else result.get("buyer_name")
+    return {"doc_id": doc_id, "ref": result.get("doc_no") or row.name, "direction": row.direction,
+            **({"party": party} if party else {}), "state": card.CHECK, "items": intake_items(company, doc, result)}
 
 
 def remember_intake(company, row, answers, seen=None) -> int:
@@ -507,7 +537,8 @@ def intake_items(company, doc, result) -> list:
     value = payment_default(company, doc.direction, result)
     # 卡上点过的（这一张写回了记录）、按对方记住过的（点过一次）是已定的，不再问；只按票面判出的是预选，点了才算（主会话 11-16）
     kept = bool(value) and choices.chosen(company, PAYMENT_KIND, payment_subject(doc.direction, result)) == value
-    if chosen.get("payment_decided"):
+    if chosen.get("payment_decided") or getattr(doc, "source", "") == SOURCE_LINE:
+        # LINE 收单：付款在上传前已选（`line_flow` 的已付 / 未付、付款方式），是已定的
         value, kept = (UNPAID if not doc.is_paid else str(doc.payment_method or "")), True
     items = [{"kind": "payment", "subject": payment_subject(doc.direction, result), "label": label, "value": value,
               "source": card.REMEMBERED if kept else card.RULE if value else "", "direction": doc.direction,
@@ -655,7 +686,7 @@ def intake_search(company, doc_id, search, txt="", start=0, page_length=20) -> d
     from pearnly_erp_portal.integrations import intake as chat_intake
     from pearnly_erp_portal.products import service as products
 
-    row = _intake(company, doc_id)
+    row = judged_intake(company, doc_id)
     if row is None:
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
     start, size = max(0, int(start or 0)), max(1, min(int(page_length or 20), write_precheck.SEARCH_MAX))

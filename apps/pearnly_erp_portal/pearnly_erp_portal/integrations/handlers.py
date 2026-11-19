@@ -10,9 +10,10 @@ import frappe
 from frappe import _
 
 from pearnly_core import line, line_binding
+from pearnly_core.write_precheck import line_ask
 
 from pearnly_erp_portal.access import guard
-from pearnly_erp_portal.integrations import intake, line_cards, line_collection, line_flow, line_items, line_menu
+from pearnly_erp_portal.integrations import intake, line_cards, line_collection, line_flow, line_items, line_menu, line_questions
 
 # 解绑指令词是**用户手打的词**，所以按通道语言认，并容错中英泰三套写法：
 # 认不出就等于这个功能对用户不存在。日文同 DMS（連携解除，11-08）。
@@ -97,7 +98,8 @@ def _as(bound, function, *args):
 def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = "") -> bool:
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
-    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_collection.ACTION, line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION)):
+    if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_ask.ACTION, line_collection.ACTION,
+                                                     line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION)):
         return False
     if not bound:
         line.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -117,6 +119,9 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
         _as(bound, _save_card, params.get("n") or "", reply_token, intake.cancel_card)  # 卡片「取消」（用户 11-19）
     elif action == line_items.ACTION:
         _as(bound, line_items.answer, user_id, bound, data, reply_token)  # 识别后按行追问（11-06 按行选物料与库存）
+    elif line_questions.is_step(data):
+        # 出卡前问写账前置判定的题（共用出题器，用户 11-19 问完再出卡）
+        _as(bound, line_questions.answer, user_id, bound, data, reply_token)
     else:
         line_flow.answer(user_id, bound, data, reply_token)
     return True
@@ -230,7 +235,9 @@ def _handle(event: dict) -> bool:
     if line_collection.text(user_id, bound, text, reply_token, event.get("webhookEventId") or ""):
         return True  # 正在录收款：打的字是客户关键字、金额或确认词（在「1 / 2」选方向之前认）
     if _as(bound, line_items.search, user_id, bound, text, reply_token):
-        return True  # 正停在识别后追问的「选已有物料 / 仓库 / 仓位」：打的字是名称或编码
+        return True  # 正停在识别后追问的「选已有物料 / 仓库」：打的字是名称或编码
+    if _as(bound, line_questions.text, user_id, bound, text, reply_token):
+        return True  # 正在答出卡前的写前判定题：打的字是编号、名称或编码（菜单词、「ซื้อ / ขาย」不在这里认）
     if line_flow.search(user_id, bound, text, reply_token):
         return True  # 正停在选公司 / 供应商 / 客户 / 仓库：打的字是名称或编号
     direction = line_flow.DIRECTION_WORDS.get(text.casefold())

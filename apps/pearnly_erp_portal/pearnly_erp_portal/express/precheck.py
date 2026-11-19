@@ -98,7 +98,7 @@ def _collection():
 
 
 # 写账判定里本产品认的编号种类（:func:`target_of`）：单据（采购 ``P:`` / 销售 ``S:`` / 收银日汇总 ``D:`` / 出入库 ``T:`` / 盘点 ``C:``）、
-# CC 代录放进来还没提交的收单记录（``I:``，`operator._intake`）、收款（``R:``，`collection.plan`）。新加一种在这里登记，
+# 还没提交的收单记录（``I:``：CC 代录放进来的与 LINE 收单出卡前提问的，`operator.judged_intake`）、收款（``R:``，`collection.plan`）。新加一种在这里登记，
 # check / remember / search / resume 都经 :func:`target_of`，不在各函数里各判一次（11-16 H3：``I:`` 只接进了代录钩子）。
 INTAKE_PREFIX = "I"
 DOCUMENT, INTAKE, COLLECTION, MISSING, UNKNOWN = "document", "intake", "collection", "missing", "unknown"
@@ -116,7 +116,7 @@ def target_of(company, doc_id) -> tuple:
     if prefix == INTAKE_PREFIX and name:
         from pearnly_erp_portal.express import operator
 
-        row = operator._intake(company, text)
+        row = operator.judged_intake(company, text)  # CC 对话放进来的，与 LINE 收单出卡前提问的（11-19）
         return (INTAKE, row) if row else (MISSING, None)
     if prefix in PREFIXES and name:
         found = resolve_target(company, text)
@@ -552,12 +552,15 @@ def check(company, doc_ids) -> dict:
             documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": UNKNOWN_DOCUMENT})
             continue
         if kind == INTAKE:
-            # CC 代录放进来、还没提交的收单记录：与代录预检同一份判定（开录时才提交成单据，`operator.submit`）；只写 Express
-            if not linked:
-                documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
-                continue
+            # 还没提交的收单记录：与代录预检同一份判定（CC 代录开录时才提交成单据，`operator.submit`；LINE 卡片「保存」时提交）
             from pearnly_erp_portal.express import operator
 
+            if not linked:
+                # 没接 Express：CC 代录的写不了；LINE 收单的照样问记录自己要人定的（物料、仓库，用户 11-19 出卡前问完）
+                own = getattr(found, "source", "") == operator.SOURCE_LINE
+                documents.append(operator.intake_own_view(company, doc_id, found) if own else  # loop-query: 收单记录逐张判，一批有上限
+                                 {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
+                continue
             view = operator.intake_view(company, doc_id)  # loop-query: 收单记录逐张判（同单据 document_view），一批有上限
             if view:
                 documents.append(view)

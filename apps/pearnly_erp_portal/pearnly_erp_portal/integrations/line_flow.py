@@ -70,8 +70,20 @@ def keep(line_user_id, payload):
     _save(line_user_id, payload)
 
 
+def _questions(line_user_id) -> dict:
+    """会话里识别后还在问 / 排着的票（`line_questions.KEPT`）：重选、取消上传前的选择时留着，问完照样出卡（11-19 问完才出卡）。"""
+    from pearnly_erp_portal.integrations import line_questions
+
+    previous = choices(line_user_id)
+    return {key: previous[key] for key in line_questions.KEPT if previous.get(key)}
+
+
 def cancel(line_user_id, reply_token):
-    line_session.clear_session(line_user_id)
+    kept = _questions(line_user_id)
+    if kept:
+        _save(line_user_id, kept)
+    else:
+        line_session.clear_session(line_user_id)
     _text(reply_token, _("Cancelled"))
 
 
@@ -113,7 +125,7 @@ def start(line_user_id, user, direction, reply_token):
         return _text(reply_token, _("This account cannot send documents"))
     from pearnly_erp_portal.masters import company
 
-    payload = {"direction": direction}
+    payload = {"direction": direction, **_questions(line_user_id)}
     allowed = company.allowed_companies(user)
     if not allowed:
         return _text(reply_token, _("No company is available for this account"))

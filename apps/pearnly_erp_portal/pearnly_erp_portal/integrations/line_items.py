@@ -3,13 +3,13 @@ docs/work/2026-11-06-erp-line-item-stock-choice-评估.md 6.1）。
 
 上传前不再整批问「服务 / 库存商品」和仓库。识别完每一行按 `products.line_memory` 预选（人记过的 → 认出的物料 → 识别给的类型），
 预选结果存在这张票上（``ERP LINE Intake.line_choices``，不随会话过期），卡片每行标「入库 / 出库 / 只记账 / 新建 · 入库」。
-只有定不了的才问，与卡片同一次发送：
+只有定不了的才问，在卡片之前问（用户 11-19「所有问题问完 … 一气呵成」，`line_questions`）：
 
   <对方> · <单号> / 新物料：2. … 5. …   [全部新建并入库] [全部只记账] [逐项选择] [取消]
 
 「逐项选择」一项一问 [新建并入库] [只记账] [选已有物料] [取消]，「选已有物料」打名称或编码找。有入库行、单头仓定不下来才问仓库
-（同一批后面几张沿用）；选定的仓建了仓位清单、入库行有没仓位的，问一次仓位（整张一个，逐行不同到网页改）。问完回更新后的卡片。
-一批几张票一次只问一张，问完（或取消）接下一张。取消只停这张的提问，这张按预选（未定的行 = 新建并入库）显示，卡片「编辑」照样能改。
+（一张票问一次，同一批后面几张沿用；11-19 不再问仓位）。这几步问完交 `line_questions` 接着问写账前置判定剩下的项，全部问完才出卡。
+一批几张票一次只问一张（排队在 `line_questions`）。取消 = 这张作废（同卡片「取消」），接着问下一张。
 
 追问到哪张哪一步存在本人的 LINE 会话里（与上传前的选择同一个会话，键 ``ASKING``）；按钮只认当前这一张、这一步，旧按钮点了无效。
 权限：只有发这张票的本人能答（会话按 LINE 用户分、记录再核 ``sent_by``），找物料 / 仓库只在这家公司可用的档里找。
@@ -214,77 +214,39 @@ def _warehouses(company):
     return [(row.name, row.warehouse_name or row.name) for row in rows]
 
 
-def _adopt(doc, payload) -> bool:
-    """排着的这张还没定仓、这一批刚在 LINE 里选过仓：沿用，不再问（回 True = 选择变了，要回更新后的卡片）。"""
-    value = choices_of(doc)
-    if not value or value.get("warehouse") or not _goods(value) or not _usable_warehouse(payload.get("batch_warehouse"), doc.company):
+def adopt(doc, payload) -> bool:
+    """排着的这张还没定仓、这一批刚在 LINE 里选过仓：沿用，不再问（回 True = 选择变了）。"""
+    value, batch = choices_of(doc), payload.get("batch_warehouse")
+    if not value or not batch or value.get("warehouse") or not _goods(value) or not _usable_warehouse(batch, doc.company):
         return False
-    value["warehouse"] = payload["batch_warehouse"]
+    value["warehouse"] = batch
     _save_choices(doc.name, value)
     doc.line_choices = json.dumps(value, ensure_ascii=False)
     return True
 
 
-def _start(doc, payload) -> dict | None:
-    """这张从头问：返回提问（并把进度记进会话 ``payload``），没什么要问回 None。"""
+def start(doc, payload) -> dict | None:
+    """这张从头问（`line_questions` 一次只交一张）：返回提问（并把进度记进会话 ``payload``），没什么要问回 None。"""
     value = choices_of(doc)
     step = _pending(value) if value else ""
     if not step:
         return None
-    payload[ASKING] = {"queue": (payload.get(ASKING) or {}).get("queue") or [], "intake": doc.name, "step": step, "i": None}
+    payload[ASKING] = {"intake": doc.name, "step": step, "i": None}
     return _question(doc, payload[ASKING])
 
 
-def queue(line_user_id, names) -> dict | None:
-    """识别完的几张票排进本人的追问：现在没在问别的就回第一张的提问（随卡片一起发），否则排在后面等前一张问完。"""
-    payload = line_flow.choices(line_user_id)
-    if not payload:
-        return None  # 会话过了 30 分钟：不问，卡片照预选，「编辑」照样能改
-    asking = payload.get(ASKING)
-    if asking and asking.get("intake"):
-        asking.setdefault("queue", []).extend(names)
-        line_flow.keep(line_user_id, payload)
-        return None
-    pending = list(names)
-    while pending:
-        doc = _doc(pending.pop(0))
-        payload[ASKING] = {"queue": pending}
-        question = _start(doc, payload)
-        if question:
-            line_flow.keep(line_user_id, payload)
-            return question
+def heading(doc) -> str:
+    """提问开头那行「对方 · 单号」（写前判定的题同样用它）。"""
+    return _title(doc, _result(doc))
+
+
+def _finish(line_user_id, payload, reply_token, doc=None, cancelled=None):
+    """这张的物料与仓库问完（``doc``）或在这几步点了「取消」（``cancelled``）：交 `line_questions` 接着问写前判定、出卡或作废，
+    再接排着的下一张。"""
+    from pearnly_erp_portal.integrations import line_questions
+
     payload.pop(ASKING, None)
-    line_flow.keep(line_user_id, payload)
-    return None
-
-
-def _card(doc):
-    from pearnly_erp_portal.integrations import intake, line_cards
-
-    doc.reload()
-    result = _result(doc)
-    return line_cards.preview(doc, result, intake.totals(doc, result))
-
-
-def _finish(line_user_id, payload, reply_token, doc=None):
-    """这张问完（``doc``）或取消：回更新后的卡片，排着的下一张有要问的就接着问。"""
-    asking = payload.get(ASKING) or {}
-    messages = [_card(doc)] if doc else []
-    pending = list(asking.get("queue") or [])
-    while pending:
-        following = _doc(pending.pop(0))
-        if following.status != "ready":
-            continue
-        payload[ASKING] = {"queue": pending}
-        if _adopt(following, payload):
-            messages.append(_card(following))
-        question = _start(following, payload)
-        if question:
-            line_flow.keep(line_user_id, payload)
-            return _reply(reply_token, (messages + [question])[-5:])
-    payload.pop(ASKING, None)
-    line_flow.keep(line_user_id, payload)
-    return _reply(reply_token, messages[-5:] or _text(_("Cancelled")))
+    return line_questions.after_items(line_user_id, payload, reply_token, doc=doc, cancelled=cancelled)
 
 
 def _advance(line_user_id, payload, reply_token, doc):
@@ -332,7 +294,7 @@ def answer(line_user_id, user, data, reply_token):
         return _reply(reply_token, _text(_(STALE)))
     asking = payload[ASKING]
     if value == "cancel":
-        return _finish(line_user_id, payload, reply_token)
+        return _finish(line_user_id, payload, reply_token, cancelled=doc)
     step = asking.get("step")
     if step == "rows" and value in ("all_new", "all_none", "each"):
         rows = _undecided(choices_of(doc))
@@ -450,4 +412,4 @@ def _products(doc, text):
              len(exact) == 1) for row in rows][:MAX_CHOICES + 1]
 
 
-__all__ = ["ACTION", "ASKING", "answer", "choices_of", "is_step", "prepare", "queue", "search"]
+__all__ = ["ACTION", "ASKING", "adopt", "answer", "choices_of", "heading", "is_step", "prepare", "search", "start"]

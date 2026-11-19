@@ -288,7 +288,8 @@ NEEDED_KINDS = {"party": {"sales": "Customer", "purchase": "Supplier"}, "item": 
                 "department": "Department", "payment": "Payment Method", "vat": "express.kind.vat",
                 "account_set": "Account Set", "stock_group": "express.kind.stockGroup", "receipt": "express.kind.receipt",
                 "vat_registered": "express.kind.vatRegistered", "refund": "express.kind.refundAccount",
-                "exempt_mode": "express.kind.exemptMode", "service_vat": "express.kind.serviceVat"}
+                "exempt_mode": "express.kind.exemptMode", "service_vat": "express.kind.serviceVat",
+                "location": "Warehouse"}  # 收单记录自己的仓库那一项（`express.operator.intake_items`）
 
 
 def needed_text(doc, needed) -> str:
@@ -296,7 +297,7 @@ def needed_text(doc, needed) -> str:
     for item in needed:
         kind = NEEDED_KINDS.get(item.get("kind"))
         label = _(kind.get(doc.direction) if isinstance(kind, dict) else kind or item.get("kind") or "")
-        rows.append(" · ".join(part for part in (label, item.get("label") or "") if part))
+        rows.append(" · ".join(dict.fromkeys(part for part in (label, item.get("label") or "") if part)))
     return "\n".join(dict.fromkeys(rows))
 
 

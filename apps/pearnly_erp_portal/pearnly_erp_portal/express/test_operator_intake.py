@@ -181,6 +181,50 @@ class Precheck(Base):
         self.assertEqual(operator._intake_precheck("CO-1", "I:LI-9")["reason"], "not_permitted")
         self.assertEqual(operator._intake_precheck("CO-2", "I:LI-1")["reason"], "not_permitted")
 
+    def test_line_records_are_judged_but_not_handed_to_the_operator(self):
+        """11-19 LINE 出卡前问完：写账判定也认 LINE 收单的记录（本人、这家公司的），代录（预检、交单）仍只认对话来的。"""
+        self.rows["LI-7"] = SimpleNamespace(name="LI-7", source="line", sent_by="buyer@x", company="CO-1", direction="purchase",
+                                            status="ready", purchase=None, sales_document=None)
+        self.rows["LI-8"] = SimpleNamespace(**{**vars(self.rows["LI-7"]), "name": "LI-8", "sent_by": "other@x"})
+        self.assertEqual(operator.judged_intake("CO-1", "I:LI-7").name, "LI-7")
+        self.assertEqual(operator.judged_intake("CO-1", "I:LI-1").name, "LI-1")
+        self.assertIsNone(operator.judged_intake("CO-1", "I:LI-8"))   # 别人发的
+        self.assertIsNone(operator.judged_intake("CO-2", "I:LI-7"))   # 别家公司
+        self.assertIsNone(operator._intake("CO-1", "I:LI-7"))         # 代录不认
+        self.assertEqual(operator._intake_precheck("CO-1", "I:LI-7")["reason"], "not_permitted")
+
+    def test_a_line_record_s_payment_was_chosen_before_upload_and_is_not_asked(self):
+        doc = SimpleNamespace(**{**vars(self.doc(is_paid=0, method="")), "source": "line"})
+        payment, = operator.intake_items("CO-1", doc, json.loads(doc.result))
+        self.assertEqual((payment["value"], payment["source"]), (operator.UNPAID, "remembered"))
+
+    def test_without_express_a_line_record_asks_only_its_own_items(self):
+        from pearnly_erp_portal.express import precheck
+
+        row = SimpleNamespace(name="LI-7", source="line", sent_by="buyer@x", company="CO-1", direction="purchase",
+                              status="ready", purchase=None, sales_document=None)
+        doc = SimpleNamespace(**{**vars(self.doc(lines=[{"decided": False, "item_type": "goods", "product": None}])),
+                                 "source": "line"})
+        with patch.object(frappe, "get_doc", return_value=doc, create=True), \
+                patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1", "WH-2"]):
+            view = operator.intake_own_view("CO-1", "I:LI-7", row)
+        self.assertEqual((view["state"], view["ref"]), ("check", "IV1"))
+        self.assertEqual([(item["kind"], item["source"]) for item in view["items"]],
+                         [("payment", "remembered"), ("item", "rule"), ("location", "")])
+        row.status = "cancelled"
+        self.assertEqual(operator.intake_own_view("CO-1", "I:LI-7", row)["state"], "not_writable")
+        # 写账判定：没接 Express 时 LINE 的记录给这一份，CC 代录的照旧写不了
+        with patch.object(precheck, "_company_ok", return_value=True), \
+                patch.object(precheck.push, "enabled", return_value=False), \
+                patch.object(precheck.mrerp_push, "handles", return_value=False), \
+                patch.object(precheck, "_collection", return_value=SimpleNamespace(
+                    mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
+                patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \
+                patch.object(operator, "intake_own_view", return_value={"doc_id": "I:LI-7", "state": "check", "items": []}):
+            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}])
+            row.source = "cc"
+            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"][0]["reason"], precheck.contracts.DISCONNECTED)
+
 
 class Answers(Base):
     def setUp(self):

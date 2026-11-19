@@ -197,7 +197,7 @@ name = "LINE 收发与等待三个点（webhook、reply / push / batch）"
 paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
-entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection"]
+entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection", "erp.line.precheck-questions"]
 
 [[part]]
 id = "line-session"
@@ -246,7 +246,8 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # W3（11-05）ERP 接入：提交前弹窗（express.api.preflight → express.precheck）、代录预检与交单（hooks.pearnly_express_operator →
 # express.operator → express.precheck）、收银日汇总三项（express.pos_day）、待处理与卡片取数作答（hooks.pearnly_write_precheck）
 entries = ["cc.operator.page", "cc.operator.thread", "cowork.express.push", "cowork.companies", "cowork.cc-chat.push",
-           "erp.cc.write", "erp.cc.pos-day", "erp.cc.companies"]
+           "erp.cc.write", "erp.cc.pos-day", "erp.cc.companies",
+           "erp.line.precheck-questions"]
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/guide_tool.py" = "CC 引导卡工具 pearnly_guide（引导式录入第 1 期）出卡与作答走写账前置判定；用户看到的入口是 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide，由 test_cc_guide_tool 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py" = "ERP 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上 documents 源前没有入口，入口随引导接线登记为 erp.cc.guide.purchase / erp.cc.guide.sales，由 test_erp_guide_documents 守住", "apps/pearnly_core/pearnly_core/assistant/guide/documents.py" = "引导的 documents 出题源（共用引擎 assistant.guide.run 按声明的 source 分来；出卡与记答走 write_precheck.api / guide，打字路径 assistant.guide_tool 也调它）；用户看到的入口随引导接线登记为 cowork.cc.tool.pearnly_guide、erp.cc.tool.pearnly_guide 与业务菜单，由 test_cc_guide_documents、test_cc_guide_tool 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py" = "Cowork 采购 / 销售引导的复核卡票面与标记（write_precheck.review 纯契约）；声明接上页面前没有入口，入口随引导接线登记为 cowork.cc.guide.purchase / cowork.cc.guide.sales，由 test_cowork_guide_documents 守住" }
 
 [[part]]
@@ -1398,6 +1399,15 @@ steps = "上传前只选公司 / 对方 / 已付；上传一张有已知物料�
 expect = "只问定不了的行；问完回更新后的卡片；同批一次问一张、仓库沿用；取消这张照预选；卡片「编辑」打开的网页按行带上选择；提交后记进明细物料记忆，下次同对方同品名不再问"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py"]
+
+[[entry]]
+id = "erp.line.precheck-questions"
+product = "ERP"
+where = "LINE 识别后出卡前问完要人定的题（用户 11-19：物料、仓库，再问写账前置判定剩下的项——接 Express 的公司是 Express 要人选的项——全部问完才发卡片；卡片「保存」按同一份判定兜底）"
+steps = "接 Express 的测试公司：富菜单「ซื้อ」→ 上传一张有新物料、会要人选 Express 项（新供应商 / 存货 / 运费科目 / 小票税额）的票 → 先答物料与仓库，再答 Express 的题（推荐排第一个按钮；打字搜索；打一句别的）→ 最后才来卡片 → 「บันทึก」；题答到一半再发一张新票；在题上点「取消」；没接 Express 的公司同走一遍；销售「ขาย」同走一遍；发卡前的旧卡（题没答完）点「บันทึก」"
+expect = "没有题的票直接出卡；有题的问完才出卡、卡在最后；推荐没点不往下走；答错回原因重问；取消 = 这张作废、不出卡；答题中的新票排队、答案不串到别的票；答过的按公司记住、下次同一项不再问；保存后写账不再停下要人选；旧卡题没答完点保存不入账、回原因 + 「แก้ไข」；CC 开始前卡片、代录开始卡、网页待处理照常（同一份判定）"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_questions.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_items.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py"]
 
 [[entry]]
 id = "erp.trade.line-stock"

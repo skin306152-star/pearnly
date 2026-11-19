@@ -9,8 +9,9 @@
 
 - 不是草稿：这条内部记录网页端列表里看不到，只能从卡片进来。
 - 重复单据放行，同一个文件也放行（用户 2026-09-25）；同一张卡只入一次（`line-intake:<记录名>`）。
-- 每一行对哪件物料、入不入库按行预选，定不了的识别后随卡片追问（`line_items`，11-06）：入库行采购入库、出库行销售出库
+- 每一行对哪件物料、入不入库按行预选（`line_items`，11-06）：入库行采购入库、出库行销售出库
   （认不到物料自动新建，销售允许负库存），只记账的行不动库存。
+- 要人定的题（定不了的行、仓库、写账前置判定的项）在出卡前一题一题问完，卡片最后才发（`line_questions`，用户 11-19）。
 """
 import hashlib
 import json
@@ -233,21 +234,25 @@ def run(intake, line_user_id, reply_token="", filename=""):
         doc.save(ignore_permissions=True)
         cards = [(doc, result)] + [(_sibling(doc, extra), extra) for extra in extras]
         for card, data in cards:
-            # 每一行预选（按收单前选的对方，`line_items.prepare`）；有定不了的随卡片问
+            # 每一行预选（按收单前选的对方，`line_items.prepare`）；定不了的在出卡前问
             line_items.prepare(card, data, line_user_id)
         frappe.db.commit()
-        messages = [line_cards.preview(card, data, totals(card, data)) for card, data in cards]
+        from pearnly_erp_portal.integrations import line_questions
+
         try:
-            question = line_items.queue(line_user_id, [card.name for card, _data in cards])
+            # 用户 11-19「所有问题问完 … 一气呵成」：每张要人定的题（物料、仓库、写账前置判定）问完才出卡，逐张；
+            # 正在问别的就排在后面（回空，不出卡）
+            messages = line_questions.begin(line_user_id, [card.name for card, _data in cards])
         except Exception:
+            frappe.db.rollback()
+            frappe.clear_messages()
             frappe.log_error(title="ERP LINE item question failed", message=frappe.get_traceback()[-1500:])
-            question = None  # 提问出错不挡卡片：卡片照预选，「编辑」照样能改
-        if question:
-            messages.append(question)
+            messages = None  # 提问出错不挡卡片：照出卡（卡片「保存」按判定兜底）
+        if messages is None:
+            # 会话已过期（或已换成收款）：问不了，照旧直接出卡
+            messages = [line_cards.preview(card, data, totals(card, data)) for card, data in cards]
         # 一次回复最多 5 条（LINE）：第一批用回复令牌，其余推送。
-        line.reply_or_push(line_user_id, messages[:5], reply_token)
-        for start in range(5, len(messages), 5):
-            line.push(line_user_id, messages[start:start + 5])
+        line_questions.send(line_user_id, messages, reply_token)
         return {}
     finally:
         frappe.set_user(previous)
@@ -518,8 +523,10 @@ EXPRESS_DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Documen
 
 def save_card(name) -> dict:
     """LINE 卡片「保存」（用户 11-18）：不进编辑页，按卡片上的选择与识别字段（``build_payload``，同 CC 收单）走编辑页同一个
-    提交（:func:`submit`，请求号同一个：编辑页提交过的再点只回原单）。提交前同编辑页一样按写账规则判一遍（``express.api.preflight``，
-    只对接着 Express 的公司）：有要人定的项就不提交，回 ``{"needed": [...]}``，由卡片一侧给「编辑」；其余缺项照提交时原样报错。"""
+    提交（:func:`submit`，请求号同一个：编辑页提交过的再点只回原单）。提交前先按 LINE 里出题的同一份写账前置判定核一遍
+    （:func:`unanswered`，11-19）：还有没答的题（旧卡、LINE 里问不了的题）不提交；再同编辑页一样按写账规则判一遍
+    （``express.api.preflight``，只对接着 Express 的公司）。有要人定的项就不提交，回 ``{"needed": [...]}``，由卡片一侧给「编辑」；
+    其余缺项照提交时原样报错。"""
     doc = _owned(name)
     recorded = doc.purchase if doc.direction == "purchase" else doc.sales_document
     if doc.status == CONFIRMED and recorded:
@@ -528,6 +535,9 @@ def save_card(name) -> dict:
         return {"cancelled": True}  # 点过「取消」：保存什么都不做
     if doc.status != READY:
         frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
+    needed = unanswered(doc)
+    if needed:
+        return {"needed": needed}
     payload = build_payload(doc)
     from pearnly_erp_portal.express import api as express_api, push as express_push
 
@@ -537,6 +547,18 @@ def save_card(name) -> dict:
             return {"needed": needed}
     payload.pop("ocr_review", None)  # 由 :func:`submit` 按这张卡补上
     return submit(name, payload)
+
+
+def unanswered(doc) -> list:
+    """这张此刻写账前置判定里还没定的项（同 LINE 出卡前问的那一份，`line_questions`：``I:<记录>``）→ ``[{kind, label}]``。
+    推荐值没点过的同样算没定（同 CC 引导卡：卡上没点过的预选不生效）；条件不成立的不算。"""
+    from pearnly_core.write_precheck import api as precheck_api, contracts as card, guide
+    from pearnly_erp_portal.express import precheck
+
+    items = card.items_of(precheck_api.card(doc.company, [f"{precheck.INTAKE_PREFIX}:{doc.name}"]))
+    by_key = {item["key"]: item for item in items}
+    return [{"kind": item["kind"], "label": item.get("label") or ""} for item in items
+            if guide.tier_of(item) != guide.DECIDED and card.applies(item, by_key, [])]
 
 
 def cancel_card(name) -> dict:

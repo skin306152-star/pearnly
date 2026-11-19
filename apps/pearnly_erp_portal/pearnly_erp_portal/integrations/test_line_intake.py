@@ -10,7 +10,8 @@ from unittest.mock import Mock, patch
 
 import frappe
 
-from pearnly_erp_portal.integrations import handlers, intake, line_flow
+from pearnly_core.write_precheck import contracts as precheck_card
+from pearnly_erp_portal.integrations import handlers, intake, line_flow, line_questions
 
 
 def _same(text, *args, **kwargs):
@@ -23,7 +24,7 @@ class Base(unittest.TestCase):
         self.sessions = {}
         self.roles = {"buyer": {"purchase.write", "integration.read"}}
         self.enterContext(patch.object(frappe, "_", _same, create=True))
-        for module in (handlers, intake, line_flow):
+        for module in (handlers, intake, line_flow, line_questions):
             self.enterContext(patch.object(module, "_", _same))
         self.enterContext(patch.object(frappe, "session", SimpleNamespace(user="Guest"), create=True))
         # sql：这家公司能选的对方档条数（`line_flow._more_parties`），1 条 = 按钮里已列全
@@ -488,9 +489,61 @@ class ChosenPayload(Base):
         self.assertNotIn("warehouse", intake.build_payload(doc))
 
 
+class Judge:
+    """替身写账前置判定（共用出题器 `line_ask` 的后台）：每张 ``I:<记录>`` 的项按 ``docs`` 给；记住的答案下次取卡时成为已定；
+    ``refuse`` 里的值记答时被产品拒。"""
+
+    def __init__(self, docs=None):
+        self.docs, self.memory, self.records, self.refuse, self.serial = dict(docs or {}), {}, [], set(), 0
+
+    def card(self, company, doc_ids):
+        merged = []
+        for doc_id in doc_ids:
+            items = []
+            for raw in self.docs.get(doc_id) or ():
+                found = self.memory.get((raw["kind"], raw["subject"]))
+                items.append({**raw, "value": found, "source": precheck_card.REMEMBERED} if found else dict(raw))
+            merged.append({"doc_id": doc_id, "items": items})
+        return precheck_card.merge(merged)
+
+    def record(self, company, doc_ids, answers):
+        self.records.append((company, list(doc_ids), list(answers)))
+        before = self.card(company, doc_ids)
+        if any(answer["value"] in self.refuse for answer in answers):
+            return {"refused": "Not accepted"}
+        expanded, errors = precheck_card.expand(before, answers)
+        if errors:
+            return {**before, "errors": errors}
+        for rows in expanded.values():
+            for row in rows:
+                self.memory[(row["kind"], row["subject"])] = row["value"]
+        return {**self.card(company, doc_ids), "writable": list(doc_ids), "held": []}
+
+    def search(self, company, doc_id, kind, txt, start, page_length):
+        return {"options": [], "more": False}
+
+    def allowed(self, user, company):
+        return user == "buyer"
+
+    def user(self):
+        return frappe.session.user
+
+    def text(self, key):
+        return key
+
+    def token(self):
+        self.serial += 1
+        return f"t{self.serial}"
+
+
+# Express 要人选的一项（小票税额抵不抵，推荐「记费用」）
+VAT = {"kind": "vat", "label": "Freight", "options": [{"code": "expense"}, {"code": "claim"}], "value": "expense",
+       "source": precheck_card.RULE}
+
+
 class LineItems(Base):
-    """识别后按行追问（`line_items`，评估 6.1）：定不了的行随卡片问一次，整批 / 逐项 / 选已有 / 取消；有入库行、仓定不下来才问仓库，
-    同一批沿用；仓建了仓位清单才问一次仓位；一批几张一次只问一张；旧按钮、别人的票无效。"""
+    """识别后先问完再出卡（用户 11-19，`line_questions`）：定不了的行问一次，整批 / 逐项 / 选已有 / 取消；有入库行、仓定不下来才
+    问仓库，同一批沿用；接着问写账前置判定剩下的项（共用出题器）；全部问完才出卡。一批几张一次只问一张；旧按钮、别人的票无效。"""
 
     def setUp(self):
         super().setUp()
@@ -500,9 +553,15 @@ class LineItems(Base):
         self.enterContext(patch.object(line_items, "_", _same))
         self.docs = {}
         self.enterContext(patch.object(line_items, "_doc", side_effect=lambda name: self.docs[name]))
+        self.enterContext(patch.object(line_questions, "_doc", side_effect=lambda name: self.docs[name]))
         self.enterContext(patch.object(line_items, "_save_choices",
                                        side_effect=lambda name, value: setattr(self.docs[name], "line_choices", json.dumps(value))))
-        self.enterContext(patch.object(line_items, "_card", side_effect=lambda doc: {"card": doc.name}))
+        self.enterContext(patch.object(line_questions, "_card", side_effect=lambda doc: {"card": doc.name}))
+        self.cancelled = []
+        self.enterContext(patch.object(intake, "cancel_card", side_effect=lambda name: self.cancelled.append(name)
+                                       or {"cancelled": True}))
+        self.judge = Judge()
+        self.enterContext(patch("pearnly_core.write_precheck.line_ask._default", side_effect=lambda: self.judge))
         self.enterContext(patch.object(line_items, "_prefill", return_value=None))
         self.enterContext(patch.object(line_items, "_warehouses", return_value=[("WH-1", "Main"), ("WH-2", "Shop")]))
         self.enterContext(patch.object(line_items, "_usable_warehouse", return_value=True))
@@ -510,7 +569,9 @@ class LineItems(Base):
         self.locations = ["A1", "B2"]
         self.enterContext(patch("pearnly_erp_portal.inventory.positions.listed", side_effect=lambda w: list(self.locations)))
         frappe.db.exists.return_value = True
-        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload"}}
+        # 上传时的会话：上传前的几步都选好了（`line_flow.ready`）
+        self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload", "company": "CO-1",
+                                                                     "party": "@doc", "is_paid": 0, "payment_method": ""}}
         self.roles["buyer"] = {"purchase.write", "purchase.read", "integration.read"}
 
     def add(self, name, lines, warehouse=None):
@@ -531,6 +592,17 @@ class LineItems(Base):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             handlers.handle({"type": "postback", "source": {"userId": "U1"}, "replyToken": "r", "postback": {"data": data}})
 
+    def begin(self, *names):
+        """识别任务里（以发单人身份）交进来的几张：回这次要发的消息。"""
+        frappe.session.user = "buyer"
+        try:
+            return line_questions.begin("U1", list(names))
+        finally:
+            frappe.session.user = "Guest"
+
+    def press(self, message, index):
+        self.tap(message["quickReply"]["items"][index]["action"]["data"])
+
     def say(self, text):
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
@@ -544,18 +616,21 @@ class LineItems(Base):
 
     def test_a_document_with_every_line_decided_and_a_warehouse_asks_nothing(self):
         self.add("LI-1", [self.row(True, product="P1"), self.row(True, "service")], warehouse="WH-1")
-        self.assertIsNone(self.items.queue("U1", ["LI-1"]))
+        self.assertEqual(self.begin("LI-1"), [{"card": "LI-1"}])  # 没有题：直接出卡
+        self.assertNotIn(line_questions.WAITING, self.sessions["U1"]["payload"])
 
     def test_undecided_lines_are_listed_with_four_buttons(self):
         self.add("LI-1", [self.row(True, product="P1"), self.row(), self.row()], warehouse="WH-1")
-        question = self.items.queue("U1", ["LI-1"])
+        messages = self.begin("LI-1")
+        self.assertEqual(len(messages), 1)  # 只有提问，卡片等问完
+        question = messages[0]
         self.assertEqual(question["text"].splitlines(), ["Acme · LI-1", "erp.line.items.new", "2. Item 2", "3. Item 3"])
         self.assertEqual(self.labels(question), [key[:20] for key in ("erp.line.items.allNewIn", "erp.line.items.allNone",
                                                                       "erp.line.items.each", "Cancel")])
 
     def test_all_new_marks_the_undecided_lines_and_replies_the_updated_card(self):
         self.add("LI-1", [self.row(True, product="P1"), self.row()], warehouse="WH-1")
-        self.items.queue("U1", ["LI-1"])
+        self.begin("LI-1")
         self.tap("a=erp_item&v=all_new&n=LI-1")
         self.assertEqual([(row["item_type"], row["new"], row["decided"]) for row in self.lines("LI-1")],
                          [("goods", False, True), ("goods", True, True)])
@@ -564,7 +639,7 @@ class LineItems(Base):
 
     def test_one_by_one_with_record_only_and_an_existing_item(self):
         self.add("LI-1", [self.row(), self.row()], warehouse="WH-1")
-        self.items.queue("U1", ["LI-1"])
+        self.begin("LI-1")
         self.tap("a=erp_item&v=each&n=LI-1")
         self.assertEqual(self.labels(self.replies[-1][0]), [key[:20] for key in ("erp.line.items.newIn", "erp.line.tag.none",
                                                                                  "erp.line.items.pick", "Cancel")])
@@ -584,12 +659,12 @@ class LineItems(Base):
     def test_the_warehouse_is_asked_only_for_stock_lines_and_kept_for_the_batch(self):
         self.add("LI-1", [self.row(True, product="P1")])
         self.add("LI-2", [self.row(True, product="P2")])
-        question = self.items.queue("U1", ["LI-1", "LI-2"])
+        question, = self.begin("LI-1", "LI-2")
         self.assertEqual(self.labels(question), ["1. Main", "2. Shop", "Cancel"])
         self.tap("a=erp_item&v=w&n=LI-1&k=1")
         self.assertEqual(json.loads(self.docs["LI-1"].line_choices)["warehouse"], "WH-2")
         self.assertEqual(self.sessions["U1"]["payload"]["batch_warehouse"], "WH-2")
-        # 排着的第二张沿用这次选的仓、不再问，回两张更新后的卡片
+        # 排着的第二张沿用这次选的仓、不再问：两张逐张出卡
         self.assertEqual(json.loads(self.docs["LI-2"].line_choices)["warehouse"], "WH-2")
         self.assertEqual(self.replies[-1], [{"card": "LI-1"}, {"card": "LI-2"}])
 
@@ -597,11 +672,11 @@ class LineItems(Base):
         """11-19 只问仓库（一张票问一次，各行同仓；要逐行不同仓在「编辑」里改）：仓定了、仓建了仓位清单也不问仓位，
         行上不记仓位，记忆也不再带仓位。"""
         self.add("LI-1", [self.row(True, product="P1"), self.row(True, product="P2")], warehouse="WH-1")
-        self.assertIsNone(self.items.queue("U1", ["LI-1"]))
+        self.assertEqual(self.begin("LI-1"), [{"card": "LI-1"}])
         self.assertTrue(all("location" not in row for row in self.lines("LI-1")))
         self.assertNotIn("location_asked", json.loads(self.docs["LI-1"].line_choices))
         self.add("LI-2", [self.row(True, product="P1")])
-        question = self.items.queue("U1", ["LI-2"])
+        question, = self.begin("LI-2")
         self.assertEqual(self.labels(question), ["1. Main", "2. Shop", "Cancel"])
         self.tap("a=erp_item&v=w&n=LI-2&k=0")
         self.assertEqual(self.replies[-1], [{"card": "LI-2"}])  # 选了仓就回卡片，不接着问仓位
@@ -611,21 +686,128 @@ class LineItems(Base):
     def test_documents_are_asked_one_at_a_time_and_cancel_moves_on(self):
         self.add("LI-1", [self.row()], warehouse="WH-1")
         self.add("LI-2", [self.row()], warehouse="WH-1")
-        self.assertIsNotNone(self.items.queue("U1", ["LI-1"]))
-        self.assertIsNone(self.items.queue("U1", ["LI-2"]))  # 排在 LI-1 后面
+        self.assertEqual(len(self.begin("LI-1")), 1)
+        self.assertEqual(self.begin("LI-2"), [])               # 排在 LI-1 后面：不出卡、不提问
         self.tap("a=erp_item&v=all_new&n=LI-2")               # 不是当前这张：无效
         self.assertEqual(self.last_text(), "This option is no longer current")
         self.tap("a=erp_item&v=cancel&n=LI-1")
-        self.assertTrue(self.replies[-1][0]["text"].startswith("Acme · LI-2"))
-        self.assertFalse(self.lines("LI-1")[0]["decided"])     # 取消：这张照预选，不改
+        # 取消 = 这张作废（同卡片「取消」），回「已取消」，接着问下一张；作废的这张不出卡
+        self.assertEqual(self.cancelled, ["LI-1"])
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Cancelled"})
+        self.assertTrue(self.replies[-1][1]["text"].startswith("Acme · LI-2"))
+        self.assertNotIn({"card": "LI-1"}, [message for reply in self.replies for message in reply])
 
     def test_another_person_s_document_is_not_answered(self):
         self.add("LI-1", [self.row()], warehouse="WH-1")
-        self.items.queue("U1", ["LI-1"])
+        self.begin("LI-1")
         self.docs["LI-1"].sent_by = "someone-else"
         self.tap("a=erp_item&v=all_none&n=LI-1")
         self.assertEqual(self.last_text(), "This option is no longer current")
         self.assertFalse(self.lines("LI-1")[0]["decided"])
+
+    # ── 写账前置判定的题：出卡前问完（用户 11-19，共用出题器 `line_ask`）──
+
+    def all_messages(self):
+        return [message for reply in self.replies for message in reply]
+
+    def test_express_items_are_asked_in_line_after_the_lines_and_the_card_comes_last(self):
+        self.add("LI-1", [self.row(True, product="P1"), self.row()], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "LI-1|freight"}]
+        self.begin("LI-1")
+        self.tap("a=erp_item&v=all_new&n=LI-1")          # 先答物料
+        question, = self.replies[-1]                     # 接着是 Express 要人选的那一题，不是卡
+        self.assertEqual(question["text"].splitlines(), ["Acme · LI-1", "Freight"])
+        self.assertEqual(self.labels(question), ["expense", "claim", "Cancel"])  # 推荐排第一
+        self.assertNotIn({"card": "LI-1"}, self.all_messages())
+        self.press(question, 1)
+        self.assertEqual(self.judge.records, [("CO-1", ["I:LI-1"], [{"key": precheck_card.item_key("vat", "LI-1|freight"),
+                                                                     "value": "claim"}])])
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])  # 问完才出卡，卡在最后
+        self.assertFalse(line_questions.line_ask.asking(self.sessions["U1"]["payload"]))
+
+    def test_a_ticket_with_nothing_to_ask_gets_its_card_at_once(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]
+        self.assertEqual(self.begin("LI-1"), [{"card": "LI-1"}])
+        self.assertEqual(self.judge.records, [])
+
+    def test_a_recommendation_not_tapped_does_not_move_on(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        question, = self.begin("LI-1")
+        self.assertEqual(self.labels(question)[0], "expense")
+        self.say("ok")                                    # 不是编号、也不是搜索题：回没找到并重问这一题
+        self.assertEqual(self.replies[-1][0]["text"], "No match for “{0}”".replace("{0}", "ok"))
+        self.assertEqual(self.replies[-1][1]["text"], question["text"])
+        self.assertEqual(self.judge.records, [])          # 推荐只是推荐：没点不记、不出卡
+        self.assertNotIn({"card": "LI-1"}, self.all_messages())
+
+    def test_a_refused_answer_says_why_and_asks_again(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        self.judge.refuse.add("claim")
+        question, = self.begin("LI-1")
+        self.press(question, 1)
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Not accepted"})
+        self.assertEqual(self.labels(self.replies[-1][1]), self.labels(question))
+        self.assertNotIn({"card": "LI-1"}, self.all_messages())
+        self.press(self.replies[-1][1], 0)
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
+
+    def test_cancel_on_a_precheck_question_voids_the_ticket(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        question, = self.begin("LI-1")
+        self.press(question, len(question["quickReply"]["items"]) - 1)  # 「取消」
+        self.assertEqual(self.cancelled, ["LI-1"])
+        self.assertEqual(self.replies[-1], [{"type": "text", "text": "Cancelled"}])
+        self.assertNotIn({"card": "LI-1"}, self.all_messages())
+        self.press(question, 0)                           # 取消后旧按钮无效
+        self.assertEqual(self.last_text(), "This option is no longer current")
+        self.assertEqual(self.judge.records, [])
+
+    def test_a_new_ticket_while_answering_waits_and_answers_stay_on_their_own_ticket(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.add("LI-2", [self.row(True, product="P2")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "one"}]
+        self.judge.docs["I:LI-2"] = [{**VAT, "subject": "two"}]
+        first, = self.begin("LI-1")
+        self.assertEqual(self.begin("LI-2"), [])          # 答题中来的新票：排队，不出卡、不插题
+        self.press(first, 0)
+        self.assertEqual(self.judge.records[-1][1], ["I:LI-1"])  # 答案只记给 LI-1
+        card, second = self.replies[-1]
+        self.assertEqual(card, {"card": "LI-1"})
+        self.assertEqual(second["text"].splitlines()[0], "Acme · LI-2")
+        self.press(first, 1)                              # LI-1 的旧按钮点在 LI-2 的题上：无效，不串单
+        self.assertEqual(self.last_text(), "This option is no longer current")
+        self.assertEqual(len(self.judge.records), 1)
+        self.press(second, 1)
+        self.assertEqual(self.judge.records[-1][1:], (["I:LI-2"], [{"key": precheck_card.item_key("vat", "two"),
+                                                                     "value": "claim"}]))
+        self.assertEqual(self.replies[-1], [{"card": "LI-2"}])
+
+    def test_an_expired_session_shows_no_card(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        question, = self.begin("LI-1")
+        self.sessions.pop("U1")                           # 30 分钟过了
+        self.press(question, 0)
+        self.assertEqual(self.replies[-1], [{"type": "text", "text": "This option is no longer current"}])
+        self.assertNotIn("U1", self.sessions)             # 不重建会话（别的流程的会话不被盖掉）
+        self.assertEqual(self.judge.records, [])
+        self.assertNotIn({"card": "LI-1"}, self.all_messages())
+
+    def test_choosing_purchase_again_keeps_the_open_question(self):
+        self.add("LI-1", [self.row(True, product="P1")], warehouse="WH-1")
+        self.judge.docs["I:LI-1"] = [{**VAT, "subject": "s"}]
+        question, = self.begin("LI-1")
+        with patch("pearnly_erp_portal.masters.company.allowed_companies", return_value=["CO-1", "CO-2"]), \
+                patch.object(line_flow, "_options", return_value=[("upload", "Upload and recognise")]), \
+                patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"):
+            self.tap("a=mode:purchase")                   # 答题中又点菜单「ซื้อ」重选
+            self.tap("a=erp&s=cancel")                    # 再取消重选
+        self.press(question, 0)
+        self.assertEqual(self.replies[-1], [{"card": "LI-1"}])
 
 
 class Language(Base):
@@ -1665,6 +1847,11 @@ class CardSave(Web):
         self.enterContext(patch.object(line_cards, "_", _same))
         self.enterContext(patch("frappe.utils.get_url", return_value="https://testerp.pearnly.com"))
         self.linked = self.enterContext(patch("pearnly_erp_portal.express.push.linked", return_value=False))
+        # 出卡前问的同一份写账前置判定（`intake.unanswered`）：默认都答过了
+        self.judged = []
+        self.card = self.enterContext(patch("pearnly_core.write_precheck.api.card",
+                                            side_effect=lambda company, doc_ids: precheck_card.merge(
+                                                [{"doc_id": doc_ids[0], "items": list(self.judged)}])))
         self.preflight = self.enterContext(patch("pearnly_erp_portal.express.api.preflight", return_value={"needed": []}))
         self.seen = {}
 
@@ -1698,6 +1885,19 @@ class CardSave(Web):
         self.assertEqual(self.preflight.call_args.args[0], "Purchase Document")
         self.assertEqual(reply["text"], "express.kind.account · Freight\nSupplier")
         self.assertEqual(reply["quickReply"]["items"][0]["action"]["type"], "uri")
+
+    def test_save_does_not_post_while_a_question_is_unanswered(self):
+        """旧卡、LINE 里问不了的题（11-19 问完才出卡）：判定里还有没定的项（推荐没点过的同样算）就不提交，回原因 + 「编辑」。"""
+        self.judged = [{**VAT, "subject": "s"}, {"kind": "location", "subject": "erp-intake:LI-1:warehouse",
+                                                  "label": "Warehouse", "options": [{"code": "WH-1", "name": "Main"}]}]
+        reply = self.press()
+        self.post.assert_not_called()
+        self.preflight.assert_not_called()
+        self.assertEqual(self.card.call_args.args, ("CO-1", ["I:LI-1"]))
+        self.assertEqual(sorted(reply["text"].splitlines()), ["Warehouse", "express.kind.vat · Freight"])
+        self.assertEqual(reply["quickReply"]["items"][0]["action"]["label"], "Edit")
+        self.judged = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]  # 答过了：照常提交
+        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PE-0001"})
 
     def test_save_reports_the_submit_error_with_edit(self):
         self.post.side_effect = frappe.ValidationError("Choose the warehouse")
