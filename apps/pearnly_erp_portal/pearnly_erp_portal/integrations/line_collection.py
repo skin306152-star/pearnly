@@ -1033,6 +1033,8 @@ def _pending_off(name):
 def _status_text(view) -> str:
     status = view.get("status") or ""
     if status == contracts.WRITTEN:
+        if view.get("ledger") == "mrerp":  # 账本是 MR.ERP：不说 Express，用状态词 + 单号
+            return f"{_('erp.collection.status.written')} · {view.get('docnum') or ''}"
         return _("Written to Express: {0}").format(view.get("docnum") or "")
     if status == contracts.FAILED:
         return _failed_text(view)
@@ -1044,9 +1046,14 @@ def _failed_text(view) -> str:
     from pearnly_core.cc_desktop.wire import ack_rules
 
     reason = str(view.get("reason") or "")
+    mrerp = view.get("ledger") == "mrerp"
     if reason == "express.account_set_missing" and view.get("company"):
         from pearnly_erp_portal.collection import texts
 
+        if mrerp:
+            from pearnly_erp_portal.collection import mrerp as ledger
+
+            return _not_written(view, ledger.no_book_text(view["company"], view.get("doc_date")))
         return _("Not written to Express: {0}").format(texts.no_book(view["company"], view.get("doc_date")))
     if ack_rules.error_code(reason) in BALANCE_CODES and view.get("balances"):
         lines = [_("Already collected. Current balance:")]
@@ -1054,7 +1061,14 @@ def _failed_text(view) -> str:
         return "\n".join(lines)
     from pearnly_erp_portal.collection import texts
 
-    return _("Not written to Express: {0}").format(texts.reason(reason) or view.get("status"))
+    return _not_written(view, texts.reason(reason) or view.get("status"))
+
+
+def _not_written(view, why) -> str:
+    """没写成的那句：Express 照旧「未写入 Express：…」；账本是 MR.ERP 的用状态词「失败 · …」（不说 Express）。"""
+    if view.get("ledger") == "mrerp":
+        return f"{_('erp.collection.status.failed')} · {why}"
+    return _("Not written to Express: {0}").format(why)
 
 
 def _result_messages(view) -> list:

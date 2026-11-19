@@ -619,5 +619,22 @@ class ReadBack(Base):
         self.assertEqual((refused["reason"], refused["read"]), (T.C.INVOICE_NOT_FOUND, "offline"))
 
 
+class MrErpNotes(unittest.TestCase):
+    """账本是 MR.ERP 的收款：给模型的结果定式说 MR.ERP、不提 CC 桌面版；Express 的照旧。"""
+
+    def test_refused_queued_and_reading_notes_follow_the_books(self):
+        failed = {"status": T.C.FAILED, "ledger": "mrerp"}
+        self.assertEqual(cc_tools._refusal_note({}, failed)["note"], cc_tools.MRERP_REFUSED_NOTE)
+        self.assertEqual(cc_tools._refusal_note({}, {"status": T.C.FAILED})["note"], cc_tools.REFUSED_NOTE)
+        for note in (cc_tools.MRERP_REFUSED_NOTE, cc_tools.MRERP_QUEUED_NOTE, cc_tools.MRERP_READING_NOTE):
+            self.assertNotIn("Express", note)
+            self.assertNotIn("CC Desktop", note)
+        read = {"refresh": "ready", "items": [], "customer": "C1"}
+        self.assertNotIn("Express", cc_tools._read_view(read, "C1", True)["note"])
+        self.assertIn("Express", cc_tools._read_view(read, "C1")["note"])
+        reading = {**read, "refresh": "reading"}
+        self.assertEqual(cc_tools._read_view(reading, "C1", True)["note"], cc_tools.MRERP_READING_NOTE)
+
+
 if __name__ == "__main__":
     unittest.main()

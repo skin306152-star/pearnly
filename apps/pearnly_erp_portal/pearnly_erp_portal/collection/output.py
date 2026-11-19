@@ -46,7 +46,9 @@ def workbook(params=None):
     book = Workbook()
     book.remove(book.active)
     sheets = []
-    for title, columns, child in ((_("Collection"), HEAD, None), (_("Invoices"), INVOICES, "invoices"),
+    # 当前公司账本是 MR.ERP：单号那一列叫「MR.ERP 单号」（同点开一笔的弹窗）
+    head = tuple((key, "MR.ERP No." if key == "docnum" and records.mrerp_books() else label) for key, label in HEAD)
+    for title, columns, child in ((_("Collection"), head, None), (_("Invoices"), INVOICES, "invoices"),
                                   (_("Payments"), PAYMENTS, "payments")):
         sheet = book.create_sheet(title[:31])
         sheet.append(([_("Collection")] if child else []) + [_(label) for _key, label in columns])

@@ -73,7 +73,15 @@ def page(params=None, *, start=0, limit=20, sort_by=None, sort_order=None) -> di
     return {"items": rows(params, start=start, limit=limit, sort_by=sort_by, sort_order=sort_order),
             "total": total(params),
             # 页头「新建」只给能录收款的人（收款岗位、管理员；服务端 `service.submit_web` 同样判）
-            "can_create": guard.has("collection.write")}
+            "can_create": guard.has("collection.write"),
+            # 当前公司账本是 MR.ERP：「写入结果」那一列的列头说 MR.ERP（页面 collections.js）
+            **({"ledger": "mrerp"} if mrerp_books() else {})}
+
+
+def mrerp_books() -> bool:
+    from pearnly_erp_portal.collection import mrerp as ledger
+
+    return bool(ledger.handles(companies.active_company()))
 
 
 def detail(name) -> dict:

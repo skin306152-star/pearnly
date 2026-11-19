@@ -1,4 +1,4 @@
-/* 收款（11-11；用户 11-14 收成一页、一个权限）：本公司在 LINE / CC / 网页录的全部收款与写进 Express（RE）的结果，不分谁录的。
+/* 收款（11-11；用户 11-14 收成一页、一个权限）：本公司在 LINE / CC / 网页录的全部收款与写进 Express（RE）或 MR.ERP（FR）的结果，不分谁录的。
  * 页头「新建」（弹窗 `collection-new.js`，提交即放行）；点一行：草稿开原生弹窗改各张本次收、现金、各方式与折扣、销售员与部门，
  * 副按钮「撤回」；待写入 / 失败的看明细并可「撤回」（同 LINE【撤回】）；已写入的只看。改与撤回只认打开时的版本，别人刚改过回原因。
  * LINE 确认卡【编辑】打开 `pearnly-collections/<记录>`（旧地址 `pearnly-my-collections/<记录>` 转到这里）：那一笔已经不是草稿时
@@ -244,6 +244,9 @@
 			load: async ({start, page_length, sort_by, sort_order}) => {
 				const out = await p.call(api + "api_collections",
 					{params: parameters(), start, limit: page_length, sort_by, sort_order});
+				// 当前公司账本是 MR.ERP（`records.page` 的 ledger）：写入结果那一列的列头说 MR.ERP；表头在取数之后才画
+				const column = list.columns.find(item => item.df.fieldname === "docnum");
+				if (column) column.df.label = out?.ledger === "mrerp" ? __("MR.ERP") : __("Express");
 				// 能录收款的人（服务端判，`records.page` 的 can_create）：页头「新建」
 				if (out?.can_create && !creating) {
 					creating = true;

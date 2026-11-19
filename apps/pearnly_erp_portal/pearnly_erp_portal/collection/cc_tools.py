@@ -65,10 +65,38 @@ REFUSED_NOTE = ("Express did not take this collection: reason is what CC Desktop
                 "to create or change anything in Express, and do not guess why.")
 
 
+# 账本是 MR.ERP 的公司（服务端直接导入，不经 CC 桌面版）：同一格结果换成 MR.ERP 的说法，模型不说 Express
+MRERP_QUEUED_NOTE = ("queued: sent, the server is importing it into MR.ERP and has no result yet. Tell the user it is "
+                     "queued; check later with erp_collection_status when they ask. Do not wait. A queued collection is "
+                     "not in MR.ERP yet.")
+MRERP_REFUSED_NOTE = ("MR.ERP did not take this collection: reason is what MR.ERP reported. Tell the user that in one "
+                      "plain sentence, then ask with ask_user what to do: pick the customer (or the invoices) again from "
+                      "erp_collection_customers / erp_collection_invoices and change the draft, or stop. Do not tell the "
+                      "user to create or change anything in MR.ERP, and do not guess why.")
+MRERP_READING_NOTE = ("read: reading — the server is reading this customer's invoices from MR.ERP right now and has not "
+                      "answered yet; invoices are from an earlier read and may miss new ones. Never say an invoice is "
+                      "collected, missing or not open. Tell the user it is still reading from MR.ERP, then call "
+                      "erp_collection_invoices again (or when the user asks).")
+
+
+def _mrerp(value) -> bool:
+    """``value``：收款的 view / 确认卡（带 ``ledger``），或公司名。"""
+    if isinstance(value, dict):
+        return value.get("ledger") == "mrerp"
+    from pearnly_erp_portal.collection import mrerp as ledger
+
+    return bool(value) and bool(ledger.handles(value))
+
+
+def _named(note, mrerp) -> str:
+    """只说账本名的定式（读到了）：账本是 MR.ERP 的把 Express 换成 MR.ERP。"""
+    return note.replace("Express", "MR.ERP") if mrerp else note
+
+
 def _refusal_note(out, view) -> dict:
     """写前被拒退回草稿 / 写失败：给模型一句定式（说清事实、给选择），不让它自由发挥成「去 Express 建客户」（11-15 真机）。"""
     if view.get("returned") or view.get("status") == contracts.FAILED:
-        out["note"] = REFUSED_NOTE
+        out["note"] = MRERP_REFUSED_NOTE if _mrerp(view) else REFUSED_NOTE
     return out
 
 
@@ -134,7 +162,7 @@ def _card(card) -> dict:
     """确认卡 → 工具结果：规则全过的草稿带写入计划的单号与下一步。"""
     out = dict(card)
     if card.get("returned"):
-        out["refused_note"] = REFUSED_NOTE
+        out["refused_note"] = MRERP_REFUSED_NOTE if _mrerp(card) else REFUSED_NOTE
     if card.get("status") == contracts.DRAFT and card.get("ready"):
         return {**out, "document": plan.doc_id(card["name"], card["version"]), "note": READY_NOTE}
     if card.get("status") == contracts.DRAFT:
@@ -223,10 +251,10 @@ def _invoice_view(data, docnum) -> dict:
     return view
 
 
-def _read_view(data, customer) -> dict:
+def _read_view(data, customer, mrerp=False) -> dict:
     state = data["refresh"] if data["refresh"] in READ_NOTES else snapshot.READING  # 说不清的不当「读到了」
-    return {"customer": data.get("customer") or customer, "invoices": data["items"], "read": state,
-            "note": READ_NOTES[state]}
+    note = MRERP_READING_NOTE if mrerp and state == snapshot.READING else _named(READ_NOTES[state], mrerp)
+    return {"customer": data.get("customer") or customer, "invoices": data["items"], "read": state, "note": note}
 
 
 def invoices(tool_input) -> str:
@@ -234,7 +262,7 @@ def invoices(tool_input) -> str:
 
     def run(company):
         found = _fresh_invoices(company, customer, tool_input.get("date") or None)
-        return _read_view(found["result"], customer) if "result" in found else found
+        return _read_view(found["result"], customer, _mrerp(company)) if "result" in found else found
 
     return _in_company(run)
 
@@ -397,6 +425,8 @@ def push(tool_input) -> str:
         out["docnum"] = view["docnum"]
     elif result == FAILED:
         out["reason"] = view["reason"]
+    elif result == QUEUED and _mrerp(view):
+        out["note"] = MRERP_QUEUED_NOTE
     elif result == QUEUED:
         out["note"] = QUEUED_NOTE
         if service.express_waiting(name):  # 这本账套此刻在等 Express 关闭（共用通道读的时候算）
@@ -472,9 +502,9 @@ TOOLS = [
          "limit": {"type": "integer", "minimum": 1, "maximum": CUSTOMERS_MAX}}},
      "handler": "pearnly_erp_portal.collection.cc_tools.customers"},
     {"name": "erp_collection_invoices", "label": "Listed open invoices", "modes": ["chat"],
-     "description": "A customer's invoices that are not fully paid in Express, oldest first: docnum, date, net, received, "
+     "description": "A customer's invoices that are not fully paid in the company's books (Express or MR.ERP), oldest first: docnum, date, net, received, "
                     "remaining and available (what can be collected now: remaining less what other collectors already "
-                    "recorded). Only available can be collected; never work amounts out yourself. It reads Express again "
+                    "recorded). Only available can be collected; never work amounts out yourself. It reads the books again "
                     "first; read says whether the list is fresh (ready) or not (reading / offline / outdated) — only a "
                     "ready list can tell that an invoice is not open; follow note.",
      "input_schema": {"type": "object", "properties": {"customer": {"type": "string", "description": "Customer code."},
@@ -494,7 +524,7 @@ TOOLS = [
                     "conversation as file). To change a saved one give collection and version: the whole content is "
                     "replaced. The server checks every rule (no more than available, amounts add up, only listed "
                     "methods) and returns the confirm card: company, book (account set), customer, each invoice, "
-                    "methods, discount, total, version, ready and problem. Nothing is written into Express by this.",
+                    "methods, discount, total, version, ready and problem. Nothing is written into the books by this.",
      "input_schema": {"type": "object", "properties": {
          "collection": COLLECTION_PROP, "version": VERSION_PROP,
          "customer": {"type": "string", "description": "Customer code (new collection)."},
@@ -516,11 +546,11 @@ TOOLS = [
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.card"},
     {"name": "erp_collection_push", "label": "Recorded a collection", "modes": ["chat"],
-     "description": "Record a collection into Express as an RE receipt: only the document of the write plan the user "
+     "description": "Record a collection into the company's books (an RE receipt in Express, a receipt in MR.ERP): only the document of the write plan the user "
                     "agreed to (pearnly_write_plan, said back, then pearnly_write_start after the user's reply); any "
                     "other comes back not_pushed with what to do, changed when it was changed after it was said back. "
-                    f"It waits up to about {direct_push.PUSH_WAIT_SECONDS} seconds for Express: entered (docnum is "
-                    "the RE number, tell it to the user), queued (not in Express yet; recorded once CC Desktop is back) or failed with a reason.",
+                    f"It waits up to about {direct_push.PUSH_WAIT_SECONDS} seconds for the books: entered (docnum is "
+                    "the RE or MR.ERP receipt number, tell it to the user), queued (not in the books yet; follow note) or failed with a reason.",
      "input_schema": {"type": "object", "properties": {
          "document": {"type": "string", "description": "The document (R:…) from erp_collection_draft and the plan."}},
          "required": ["document"]},

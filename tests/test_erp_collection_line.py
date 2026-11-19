@@ -1172,5 +1172,18 @@ class MrErpLedger(Base):
         self.assertEqual([key for key, _label in flow._unused(payload)], [flow.CASH])
 
 
+class MrErpResultLines(unittest.TestCase):
+    """账本是 MR.ERP 的收款（view 带 ``ledger``）：LINE 的结果句不说 Express，用状态词 + 单号 / 原因；Express 的照旧。"""
+
+    def test_written_and_failed_name_no_express_on_mrerp(self):
+        written = {"status": C.WRITTEN, "docnum": "FR0001", "ledger": "mrerp"}
+        self.assertEqual(flow._status_text(written), "erp.collection.status.written · FR0001")
+        self.assertEqual(flow._status_text({**written, "ledger": None}), "Written to Express: FR0001")
+        failed = {"status": C.FAILED, "reason": "mrerp.importing", "ledger": "mrerp"}
+        text = flow._status_text(failed)
+        self.assertTrue(text.startswith("erp.collection.status.failed · "), text)
+        self.assertNotIn("Express", text)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -299,10 +299,7 @@ def method_options(ctx, txt="", start=0, page_length=20, codes=None):
     rows += [{"code": TRANSFER + item["prefix"], "name": item["label"], "kind": "transfer"} for item in found["transfers"]]
     if found["discount"]:
         rows.append({"code": DISCOUNT + found["discount"]["prefix"], "name": _("Discount"), "kind": "discount"})
-    out = _page(rows, txt, start, page_length, codes)
-    if found.get("single") and codes is None:
-        out["facts"] = [_("Choose one collection method")]  # MR.ERP：一笔只收一种钱，折扣另算
-    return out
+    return _page(rows, txt, start, page_length, codes)  # MR.ERP 一笔只收一种钱：作答时 method_check 拒收
 
 
 def method_check(ctx, value) -> str:
@@ -451,7 +448,8 @@ def result(ctx, draft) -> dict:
         waiting = view["status"] in (contracts.QUEUED, contracts.WRITING) and service.express_waiting(name)
     status = "failed" if view.get("returned") else RESULT.get(view["status"], view["status"])
     out = {"status": status, "name": name, "docnum": view["docnum"], "total": view["total"],
-           "customer": f"{view['customer']} {view['customer_name']}"}
+           "customer": f"{view['customer']} {view['customer_name']}",
+           **({"ledger": "mrerp"} if view.get("ledger") == "mrerp" else {})}  # 账本是 MR.ERP：结果按 MR.ERP 说
     if status == "queued":
         out.update(wait=True, express_wait=bool(waiting))
     if status == "failed":
