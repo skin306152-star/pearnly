@@ -24,7 +24,9 @@ def prepare(lab, manifest):
     site = manifest["site"]
     set_language(lab, site, USER, "zh")
     tag = "gc" + uuid.uuid4().hex[:6]
-    return {**seed(lab, manifest, tag), "tag": tag, "cases": []}
+    seeded = seed(lab, manifest, tag)
+    title = lab.python(site, f"print(json.dumps({{'t': frappe.db.get_value('ERP Company', {seeded['company']!r}, 'company_name')}}))")["t"]
+    return {**seeded, "tag": tag, "title": title, "cases": []}
 
 
 # 页面小工具：给受控输入框填值（同人打字：原生 setter + input 事件）、读此刻的卡
@@ -64,6 +66,12 @@ def _steps(params):
               "await until(()=>card()&&card().innerText!==before, 60); await sleep(800); "
               "return {done, enabled, status: card()?.dataset.status||'', next: keys()};")
     return [
+        # 同真实用户：新对话先在输入框下面选公司（月份、账套随之定好），再说话；没选公司的对话引导卡会先问公司
+        {"name": "选公司", "js": JS + f"const want={json.dumps(params['title'])}; "
+         "q('[data-slot=\"cc-chin-company\"]').click(); await until(()=>q('[data-slot=\"cc-company-picker\"] .cc-list-row'),80); await sleep(800); "
+         "const row=qa('[data-slot=\"cc-company-picker\"] .cc-list-row').find(r=>r.innerText.includes(want)); row?.click(); "
+         "const chosen=await until(()=>!q('[data-slot=\"cc-company-picker\"]')&&(q('[data-slot=\"cc-chin-company\"]')?.innerText||'').includes(want),80); "
+         "return {row: !!row, chosen};"},
         {"name": "开对话", "js": JS + f"const sent=await say({json.dumps(params['tag'] + ' 你好')}); await sleep(1500); return {{sent}};"},
         {"name": "点收款", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),120); "
          "const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
