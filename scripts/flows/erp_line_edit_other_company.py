@@ -2,8 +2,8 @@
 
 老数据那套有两家公司（A、B）。管理员当前公司是 A，在实验室里建一张 B 公司、已识别的 LINE 采购收单（不跑识别、不经 LINE），
 另建一张 A 公司的。页面（管理员）：
-1. 打开 `/desk/pearnly-purchase/line/<B 的那张>`：这一页按 B 取数（`p.page_company` 是 B，单头的仓是 B 的仓，按当前公司搜仓只出
-   B 的仓），本人的当前公司（左上角、库里的用户默认值）仍是 A；
+1. 打开 `/desk/pearnly-purchase/line/<B 的那张>`：这一页按 B 取数（`p.page_company` 是 B，明细行的仓是 B 的仓、单头没有仓
+   （11-19 起仓库按行），按当前公司搜仓只出 B 的仓），本人的当前公司（左上角、库里的用户默认值）仍是 A；
 2. 提交：转去这张单的查看页，打得开（查看页仍按 B）；
 3. 回采购列表：这一页的公司还原成 A；
 4. 同页再开 A 的那张：不进入页面级公司；
@@ -100,7 +100,11 @@ const head=heads().pop();
 const searched=await frappe.call({{method: 'frappe.desk.search.search_link', args: {{doctype: 'ERP Warehouse', txt: '',
   filters: {{company: frappe.boot.pearnly_company}}, page_length: 50}}}});
 const context=(await frappe.call({{method: 'pearnly_erp_portal.masters.api.api_company_context'}})).message;
-return {{...state(), warehouse: head&&head.get_value('warehouse'), searched: (searched.message||searched.results||[]).map(r=>r.value||r.name),
+const line=(window.__fgs||[]).filter(f=>f.fields_dict&&f.fields_dict.unit_price&&f.fields_dict.stock_in&&f.wrapper
+  &&(f.wrapper.jquery?f.wrapper[0]:f.wrapper).isConnected)[0];
+return {{...state(), warehouse: line&&line.get_value('warehouse'),
+         head_place: head ? Object.keys(head.fields_dict).filter(k=>['warehouse','location'].includes(k)) : null,
+         searched: (searched.message||searched.results||[]).map(r=>r.value||r.name),
          context_current: context&&context.current}};"""},
         {"name": "提交", "js": JS + state + """
 const btn=all('.page-actions .primary-action, .page-actions .btn-primary')[0]; if(!btn) return {error:'no submit button'};
@@ -130,8 +134,9 @@ def judge(params, results, camera_code=None):
     opened, sent, back, mine, gone = (by.get(k, {}) for k in ("打开别家公司的卡片", "提交", "回列表", "同页开本公司的卡片", "打开已不在的"))
     a, b = params["a"], params["b"]
     return [
-        {"case": "the card page reads as B: page company, boot company, the head warehouse and a warehouse search",
+        {"case": "the card page reads as B: page company, boot company, the line warehouse and a warehouse search",
          "seen": opened, "ok": opened.get("page") == b and opened.get("boot") == b and opened.get("warehouse") == params["wh_b"]
+         and opened.get("head_place") == []
          and params["wh_b"] in (opened.get("searched") or []) and params["wh_a"] not in (opened.get("searched") or [])
          and opened.get("context_current") == b},
         {"case": "submitting opens the new document's view and the page still reads as B", "seen": sent,

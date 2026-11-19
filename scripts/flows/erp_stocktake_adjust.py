@@ -13,6 +13,7 @@ import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from erp_lib import LINES  # noqa: E402
 
 TITLE = "ERP 盘点 → 物料调整：结束不动库存、生成草稿、提交入账、作废后再生成"
 IDLE = ("const idle=async()=>{let q=0;for(let k=0;k<80&&q<2;k++){await new Promise(r=>setTimeout(r,250));q=($.active===0)?q+1:0;}};")
@@ -43,8 +44,8 @@ for key in ("stock-adjust", "stock-count"):
         person.add_roles(menu.role(key))
 # 一个干净的仓：这一遍只有这件物料（快照只这一行）
 a = warehouses.create_warehouse(warehouse_name="flow count " + frappe.generate_hash(length=4), company={company!r})["name"]
-documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, submit=True,
-                       lines=[{{"product": {product!r}, "qty": 5, "unit_cost": 10, "location": ""}}])
+documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), submit=True,
+                       lines=[{{"product": {product!r}, "qty": 5, "unit_cost": 10, "warehouse": a}}])
 task = count.create_count(title={title!r}, warehouse=a)["name"]
 count.add_entry(count=task, product={product!r}, qty=3, warehouse=a, location="", request_id="flow-ia-count-" + task)
 frappe.db.commit()
@@ -61,7 +62,7 @@ def steps(params, camera_code=None):
          "const c=window.__dlgs[window.__dlgs.length-1]; c.get_primary_btn().trigger('click');"
          "for(let k=0;k<60&&!button('stock.count.adjust');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "return {adjust_button: Boolean(button('stock.count.adjust')), close_gone: !button('stock.count.close')};"},
-        {"name": "按盘点结果调整物料", "js": IDLE + CAPTURE + BUTTON +
+        {"name": "按盘点结果调整物料", "js": IDLE + CAPTURE + LINES + BUTTON +
          "const b=button('stock.count.adjust'); if(!b) return {error:'no adjust button'}; const n=window.__dlgs.length; b.click();"
          "for(let k=0;k<60&&(window.__dlgs.length===n||frappe.get_route()[0]!=='pearnly-stock-adjust');k++) await new Promise(r=>setTimeout(r,250));"
          "await idle(); const d=window.__dlgs[window.__dlgs.length-1]; if(!d) return {error:'no draft dialog'};"
@@ -69,7 +70,10 @@ def steps(params, camera_code=None):
          # 单位：可改时是输入框，盘点生成的行只读时是显示文字（.control-value）
          "const unit=[...d.$wrapper.find('.pearnly-line-editor .frappe-control[data-fieldname=\"unit\"]')]"
          ".map(e=>{const i=e.querySelector('input');return (i&&i.offsetParent!==null?i.value:(e.querySelector('.control-value')||{}).textContent||'').trim()});"
-         "return {route: frappe.get_route()[0], editable: Boolean(d.get_primary_btn().is(':visible')), qty, unit};"},
+         # 仓库按行（11-19）：草稿每一行带着盘点的仓，单头没有仓库 / 仓位
+         "const head=Object.keys(d.fields_dict).filter(k=>['warehouse','location'].includes(k));"
+         "return {route: frappe.get_route()[0], editable: Boolean(d.get_primary_btn().is(':visible')), qty, unit, head,"
+         " warehouses: entryLines(d).map(l=>l.get_value('warehouse'))};"},
         {"name": "提交调整单", "js": IDLE +
          "const d=window.__dlgs.filter(x=>x.$wrapper.is(':visible')).pop(); if(!d) return {error:'dialog gone'};"
          "d.get_primary_btn().trigger('click');"
@@ -86,6 +90,8 @@ def judge(params, results, camera_code=None):
          "ok": closed.get("adjust_button") is True and closed.get("close_gone") is True},
         {"case": "the button opens the draft adjustment with the difference", "seen": draft,
          "ok": draft.get("route") == "pearnly-stock-adjust" and draft.get("editable") is True and "-2" in (draft.get("qty") or [])},
+        {"case": "the draft has no header warehouse or location and its line holds the counted warehouse", "seen": draft,
+         "ok": draft.get("head") == [] and draft.get("warehouses") == [params["a"]]},
         {"case": "the generated draft line shows the product's stock unit", "seen": draft.get("unit"),
          "ok": bool(params.get("unit")) and draft.get("unit") == [params["unit"]]},
         {"case": "draft submitted", "seen": by.get("提交调整单"), "ok": (by.get("提交调整单") or {}).get("submitted") is True},
@@ -100,10 +106,10 @@ frappe.set_user("admin@erp.regression")
 companies.set_active_company({params['company']!r})
 a, product, task = {params['a']!r}, {params['product']!r}, {params['task']!r}
 def qty():
-    return float(frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": a, "location": ""}}, "qty_on_hand") or 0)
+    return float(frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": a}}, "qty_on_hand") or 0)
 state = frappe.db.get_value("ERP Stock Count", task, ["status", "adjustment", "ledger_state"], as_dict=True)
 entry = frappe.db.get_value("ERP Stock Entry", state.adjustment, ["name", "direction", "status", "doc_no", "stock_count", "ref_type"], as_dict=True) if state.adjustment else {{}}
-moves = frappe.get_all("ERP Stock Movement", filters={{"ref_id": state.adjustment or "-"}}, fields=["movement_type", "qty_base"])
+moves = frappe.get_all("ERP Stock Movement", filters={{"ref_id": state.adjustment or "-"}}, fields=["movement_type", "qty_base", "warehouse"])
 posted = qty()
 documents.void_entry(state.adjustment)
 after_void = [frappe.db.get_value("ERP Stock Count", task, "status"), frappe.db.get_value("ERP Stock Count", task, "adjustment"), qty()]
@@ -123,7 +129,7 @@ print(json.dumps({{"state": state, "entry": entry, "moves": [dict(m, qty_base=fl
          and str(entry.get("doc_no") or "").startswith("IA") and entry.get("stock_count") == params["task"] and not entry.get("ref_type")
          and not state.get("ledger_state")},
         {"case": "the adjustment moved -2 and stock is the counted 3", "saved": [moves, got["posted"]],
-         "ok": [(m["movement_type"], m["qty_base"]) for m in moves] == [("adjust", -2.0)] and got["posted"] == 3},
+         "ok": [(m["movement_type"], m["qty_base"], m["warehouse"]) for m in moves] == [("adjust", -2.0, params["a"])] and got["posted"] == 3},
         {"case": "voiding the adjustment puts stock back and reopens the count for a new adjustment", "saved": got["after_void"],
          "ok": got["after_void"][0] == "Closed" and not got["after_void"][1] and got["after_void"][2] == 5},
         {"case": "a new draft can be made and deleted again", "saved": [got["again"], got["again_state"], got["after_delete"]],

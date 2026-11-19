@@ -893,7 +893,7 @@ covers = [
 
 [[flow]]
 id = "erp.warehouses.rules"
-title = "ERP 仓库：有货不能停用、空仓停用启用、库位清单管入库（多仓 P0 / 库位清单）"
+title = "ERP 仓库：有货不能停用、空仓停用启用、仓位清单只管盘点记实际仓位、入库只按仓（多仓 P0；11-19 取消仓位）"
 module = "scripts/flows/erp_warehouse_rules.py"
 start = "/desk/pearnly-warehouses"
 user = "admin"

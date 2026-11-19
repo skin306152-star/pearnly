@@ -2,8 +2,10 @@
 
 不跑识别（付费）、不经 LINE：实验室里以采购岗建一张「已识别」的 LINE 收单记录（照识别结果的形状：一行是已有物料的品名、
 一行识别说是服务的运费、一行新品名），按收单前选「按票面」跑每行预选（`line_items.prepare`，同识别任务里那一步）；
-单头仓定不下来时照 LINE 里选仓那一步写进去。打开 `/desk/pearnly-purchase/line/<记录>`：三行的「入库」勾选依次是 勾 / 不勾 / 勾，
-第一行认出了已有物料；提交。库里：这张票已入账，三行类型依次 入库 / 只记账 / 入库，只有入库行有流水，记进明细物料记忆。
+LINE 里选仓那一步照写一个仓（一张票问一次，各行同仓；挑一个不是本人建议仓的，编辑页各行要带的是 LINE 里答的这一个）。
+打开 `/desk/pearnly-purchase/line/<记录>`：单头没有仓库 / 仓位（11-19 起仓库按行），三行的「入库」勾选依次是 勾 / 不勾 / 勾、
+每行的仓都是 LINE 里答的那个，第一行认出了已有物料；提交。库里：这张票已入账，三行类型依次 入库 / 只记账 / 入库，
+只有入库行有流水、都在那个仓，记进明细物料记忆。
 """
 from __future__ import annotations
 
@@ -26,12 +28,13 @@ CAPTURE = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__c
 def prepare(lab, manifest):
     co, tag = company(manifest), uuid.uuid4().hex[:6]
     item = codes(manifest)["by_barcode"]
-    warehouse = warehouses(manifest)[0]["name"]
+    stores = [row["name"] for row in warehouses(manifest)]
     # 这一格关掉「接 Express」，单子不排进账本；格结束时 run_flow 还原（`Lab.set_fields`，成功、失败、超时都还原）
     lab.set_fields(manifest["site"], "ERP Company", co, {"express_enabled": 0})
     out = lab.python(manifest["site"], f"""
 import base64, hashlib
 from pearnly_erp_portal.integrations import intake, line_items
+from pearnly_erp_portal.inventory import warehouses
 from pearnly_erp_portal.masters import company as companies
 frappe.set_user("purchase@erp.regression")
 companies.set_active_company({co!r})
@@ -50,9 +53,10 @@ doc = frappe.get_doc({{"doctype": intake.DOCTYPE, "status": intake.READY, "direc
                        "received_at": frappe.utils.now(), "result": json.dumps(result, ensure_ascii=False)}}).insert(ignore_permissions=True)
 value = line_items.prepare(doc, result)
 preset = [dict(row) for row in value["lines"]]
-if not value.get("warehouse"):
-    value["warehouse"] = {warehouse!r}  # 同 LINE 里选仓那一步
-    frappe.db.set_value(intake.DOCTYPE, doc.name, "line_choices", json.dumps(value))
+# 同 LINE 里选仓那一步：答一个不是本人建议仓的仓（这一批 LINE 里选过的仓优先于建议仓，`line_items._place`）
+suggested = warehouses.prefill_for("purchase", {co!r}, user=frappe.session.user).get("warehouse")
+value["warehouse"] = next((name for name in {stores!r} if name != suggested), {stores[0]!r})
+frappe.db.set_value(intake.DOCTYPE, doc.name, "line_choices", json.dumps(value))
 frappe.db.commit()
 print(json.dumps({{"intake": doc.name, "preset": preset, "warehouse": value["warehouse"]}}))
 """)
@@ -76,7 +80,8 @@ const lines=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price&&
 await until(()=>lines().length===3, 25000); await idle(); await sleep(800);
 const head=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.bulk_edit&&on(f)).pop();
 return {{checks: lines().map(l=>l.get_value('stock_in')), products: lines().map(l=>!!l.get_value('product')),
-         warehouse: head&&head.get_value('warehouse')}};"""},
+         warehouses: lines().map(l=>l.get_value('warehouse')||''),
+         head_place: head ? Object.keys(head.fields_dict).filter(k=>['warehouse','location'].includes(k)) : null}};"""},
         {"name": "提交", "js": JS + """
 const btn=all('.page-actions .primary-action, .page-actions .btn-primary')[0]; if(!btn) return {error:'no submit button'};
 btn.click(); await sleep(1500);
@@ -92,9 +97,10 @@ def judge(params, results, camera_code=None):
     return [{"case": "the server preselected matched / recognised service / new", "seen": params["preset"],
              "ok": [(row["item_type"], bool(row["product"]), row["decided"]) for row in params["preset"]]
              == [("goods", True, True), ("service", False, True), ("goods", False, False)]},
-            {"case": "the page carries each line's choice and the warehouse", "seen": opened,
+            # 仓库按行（11-19）：单头没有仓库 / 仓位，LINE 里答的仓是各行的仓
+            {"case": "the page carries each line's choice and the LINE warehouse on every line", "seen": opened,
              "ok": opened.get("checks") == [1, 0, 1] and opened.get("products") == [True, False, False]
-             and opened.get("warehouse") == params["warehouse"]},
+             and opened.get("head_place") == [] and opened.get("warehouses") == [params["warehouse"]] * 3},
             {"case": "submitted", "seen": sent, "ok": bool(sent.get("moved"))}]
 
 
@@ -104,13 +110,16 @@ row = frappe.db.get_value("ERP LINE Intake", {params['intake']!r}, ["status", "p
 lines = frappe.get_all("Purchase Line", filters={{"parent": row.purchase, "parenttype": "Purchase Document"}},
                        fields=["item_type", "product"], order_by="idx asc") if row.purchase else []
 moved = frappe.get_all("ERP Stock Movement", filters={{"ref_id": row.purchase}}, pluck="product") if row.purchase else []
+places = sorted(set(frappe.get_all("ERP Stock Movement", filters={{"ref_id": row.purchase}}, pluck="warehouse"))) if row.purchase else []
 remembered = frappe.db.count("ERP Line Item Memory", {{"last_document": row.purchase}}) if row.purchase else 0
-print(json.dumps({{"status": row.status, "lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "remembered": remembered}}))
+print(json.dumps({{"status": row.status, "lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "places": places,
+                  "remembered": remembered}}))
 """)
     kinds = [row["item_type"] for row in got["lines"]]
     stocked = sorted({row["product"] for row in got["lines"] if row["item_type"] == "goods"})
     return [{"case": "the LINE document is recorded with in / record only / in", "seen": got,
              "ok": got["status"] == "confirmed" and kinds == ["goods", "service", "goods"]
              and got["lines"][0]["product"] == params["product"] and not got["lines"][1]["product"]},
-            {"case": "only the stock lines moved stock", "seen": got["moved"], "ok": got["moved"] == stocked},
+            {"case": "only the stock lines moved stock, in the LINE warehouse", "seen": [got["moved"], got["places"]],
+             "ok": got["moved"] == stocked and got["places"] == [params["warehouse"]]},
             {"case": "the lines are remembered", "seen": got["remembered"], "ok": got["remembered"] == 3}]

@@ -1,8 +1,9 @@
 """流程用例：ERP 新建采购单（盘点菜单做完整 S1：明细不再有批号 / 失效日期；按码认商品走单据物料选择）。
 手机宽度另用假摄像头跑一遍：明细物料格不输条码，点格子右边的扫码按钮，由相机读出条码认商品（产品地图 erp.scan.purchase.item-scan，11-04）。
 
-打开采购新建页、切到「手动录入」：明细里没有批号、失效日期两格；单头填供应商名、单头仓、付清（现金），明细物料格输条码回车（单据物料选择按码认出商品）、
-数量 2、单价 10，提交。库里：采购单已提交、明细是这件商品、批号 / 失效日期为空，单头仓 +2。
+打开采购新建页、切到「手动录入」：明细里没有批号、失效日期、仓位三格，有仓库一格；单头填供应商名、付清（现金），单头没有仓库 / 仓位
+（11-19 起仓库按行，同 Express 原生 RR / HP），明细物料格输条码回车（单据物料选择按码认出商品）、这一行选仓、数量 2、单价 10，提交。
+库里：采购单已提交、明细是这件商品、行上是这个仓、批号 / 失效日期为空，这个仓 +2。
 新开户那家公司接了 Express：这条流程只看采购本身，跑的时候先关掉「接 Express」（不走写账预检），跑完还原。
 """
 from __future__ import annotations
@@ -34,7 +35,7 @@ frappe.set_user("purchase@erp.regression")
 companies.set_active_company({company!r})
 p = frappe.db.get_value("ERP Product", {product!r}, ["name", "product_name", "barcode", "code"], as_dict=True)
 wh = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
-qty = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": wh, "location": ""}}, "qty_on_hand") or 0
+qty = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": wh}}, "qty_on_hand") or 0
 frappe.db.commit()
 print(json.dumps({{"product": p.name, "product_name": p.product_name, "scan": p.barcode or p.code, "warehouse": wh, "before": float(qty)}}))
 """)
@@ -67,7 +68,7 @@ def steps(params, camera_code=None):
          # 新建采购默认「上传识别」，切到「手动录入」才能直接填写提交
          "const entry=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.entry_manual).pop(); if(entry){await entry.set_value('entry_manual',1); await idle();}"
          f"await head.set_values({{supplier_name:{sup}, doc_no:{sup}, doc_kind:'purchase_invoice', is_paid:1, payment_method:'cash'}});"
-         f"if(head.fields_dict.warehouse) await head.set_value('warehouse', {wh});"
+         "const head_place=Object.keys(head.fields_dict).filter(k=>['warehouse','location'].includes(k));"
          + (
          # 假摄像头那一遍：点明细物料格右边的扫码按钮，相机读出条码 → 单据物料选择按码认出
          "const btn=line.fields_dict.entry_choice.$wrapper.find('.pearnly-link-scan')[0]; if(!btn) return {error:'no scan button on the item cell'}; btn.click();"
@@ -81,7 +82,7 @@ def steps(params, camera_code=None):
          "const b=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
          "if(!b) return {error:'no submit button'}; b.click();"
          "for(let k=0;k<80&&(frappe.get_route()[1]||'')==='new';k++) await new Promise(r=>setTimeout(r,250)); await idle();"
-         "return {route: frappe.get_route().join('/')};"},
+         "return {route: frappe.get_route().join('/'), head_place};"},
     ]
 
 
@@ -90,6 +91,9 @@ def judge(params, results, camera_code=None):
     fields = (by.get("打开新建页") or {}).get("line_fields") or []
     return [
         {"case": "line has no batch or expiry", "seen": fields, "ok": "unit_price" in fields and not {"batch_no", "expiry_date"} & set(fields)},
+        # 仓库按行（11-19）：明细行有仓库、没有仓位；单头没有仓库、仓位
+        {"case": "the line has a warehouse and no location; the header has neither", "seen": [fields, by.get("填写提交")],
+         "ok": "warehouse" in fields and "location" not in fields and (by.get("填写提交") or {}).get("head_place") == []},
         {"case": "chooser finds the product by barcode", "seen": by.get("按条码认商品"),
          "ok": params["product_name"] in ((by.get("按条码认商品") or {}).get("choices") or "")},
         {"case": "submitted and opened", "seen": by.get("填写提交"), "ok": not ((by.get("填写提交") or {}).get("route") or "").endswith("/new")},
@@ -99,7 +103,7 @@ def judge(params, results, camera_code=None):
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 doc = frappe.db.get_value("Purchase Document", {{"supplier_name": {params['supplier']!r}}}, ["name", "status"], as_dict=True) or {{}}
-lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty"]) if doc else []
+lines = frappe.get_all("Purchase Line", filters={{"parent": doc.get("name")}}, fields=["product", "qty", "warehouse"]) if doc else []
 # 批次 / 有效期 10-30 彻底删除：库里的列也没有了
 gone = [c for c in ("batch_no", "expiry_date") if frappe.db.has_column("Purchase Line", c)]
 # 这张单自己的库存流水（两遍各开一张单，账面先后都在变，按单核入库数）
@@ -111,7 +115,7 @@ print(json.dumps({{"doc": doc, "lines": [dict(r, qty=float(r.qty)) for r in line
     return [
         {"case": "purchase submitted without batch or expiry", "saved": got,
          "ok": got["doc"].get("status") == "submitted" and line.get("product") == params["product"] and line.get("qty") == 2.0
-         and got.get("batch_columns") == []},
+         and line.get("warehouse") == params["warehouse"] and got.get("batch_columns") == []},
         {"case": "stock went up by 2", "saved": got["moved"], "ok": got["moved"] == 2.0},
         # 账本栏是通用列；这一遍关了「接 Express」，单子不排进账本
         ledger_case(lab, manifest["site"], "Purchase Document", [got["doc"].get("name")], False),

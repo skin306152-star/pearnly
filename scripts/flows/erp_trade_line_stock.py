@@ -2,8 +2,9 @@
 销售单同一套步骤见 `erp_trade_line_stock_sales.py`。
 
 手动录入一张三行的单：第一行按码认出已有物料、第二行打「运费」、第三行打一个新品名；每行都看得见「入库」（销售「出库」）勾选。
-点明细下面的「批量编辑」：原生弹窗列出三行和单头仓库，「全部」选入库后把运费那行取消、保存，页面上运费那行的勾选跟着取消；提交。
-库里：三行类型依次是入库 / 只记账 / 入库，只有第一、三行有库存流水（第三行随单新建了物料、记着是这张单建的），运费那行不建物料；
+单头没有仓库 / 仓位（11-19 起仓库按行，同 Express 原生 RR / IV）。点明细下面的「批量编辑」：原生弹窗列出三行，每行一格仓库、没有仓位，
+上面「仓库」一格选一个仓就把每一行设成这个仓；「全部」选入库后把运费那行取消、保存，页面上运费那行的勾选跟着取消、每行的仓跟着换；提交。
+库里：三行类型依次是入库 / 只记账 / 入库，只有第一、三行有库存流水且都在选的那个仓（第三行随单新建了物料、记着是这张单建的），运费那行不建物料；
 三行都记进明细物料记忆（同一家公司）。这家公司接了 Express 的，跑的时候先关掉「接 Express」（不走写账预检），跑完还原。
 """
 from __future__ import annotations
@@ -62,7 +63,7 @@ if (manual) {{ (manual.querySelector('input[type=checkbox], input[type=radio]')|
 const head=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.add_line&&f.fields_dict.bulk_edit).pop(); if(!head) return {{error:'no head form'}};
 const party=[...page.querySelectorAll('[data-fieldname="entry_choice"]')].find(el=>!el.closest('[data-fieldname="lines"]'));
 setInput(party.querySelector('input, textarea'), {js_value(params['party'])}); await sleep(600); await idle();
-await head.set_value('warehouse', {js_value(params['warehouse'])}); await idle();
+const head_place=Object.keys(head.fields_dict).filter(k=>['warehouse','location'].includes(k));
 if(head.fields_dict.doc_no) await head.set_value('doc_no', {js_value(params['party'])});
 const on=f=>{{const w=f.wrapper&&(f.wrapper.jquery?f.wrapper[0]:f.wrapper); return !!w&&w.isConnected;}};
 const lineForms=()=>window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price&&f.fields_dict[{check}]&&on(f));
@@ -76,24 +77,30 @@ for (const text of [{js_value(params['freight'])}, {js_value(params['fresh'])}])
 const lines=lineForms(); if(lines.length!==3) return {{error:'lines '+lines.length}};
 for (const line of lines) {{ await line.set_values({{qty: 2, unit_price: 10}}); }}
 await sleep(600); await idle();
-return {{checks: lines.map(l=>l.get_value({check})), products: lines.map(l=>!!l.get_value('product'))}};"""},
+return {{checks: lines.map(l=>l.get_value({check})), products: lines.map(l=>!!l.get_value('product')), head_place,
+         line_place: Object.keys(lines[0].fields_dict).filter(k=>['warehouse','location'].includes(k))}};"""},
         # 打开弹窗、设好（全部入库、运费那行取消）后截图（设了 PEARNLY_FLOWS_SHOTS 时，`flows-shots/<流程>-<数据>-<宽度>/bulk-edit.png`）
         {"name": "打开批量编辑", "shot": True, "full": True, "file": "bulk-edit", "js": JS + f"""
 const on=f=>{{const w=f.wrapper&&(f.wrapper.jquery?f.wrapper[0]:f.wrapper); return !!w&&w.isConnected;}};
 const head=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.bulk_edit&&on(f)).pop();
 head.fields_dict.bulk_edit.$input.click(); await sleep(800); await idle();
 const dlg=await until(()=>(frappe.ui.open_dialogs||[]).slice(-1)[0]); if(!dlg||!dlg.fields_dict.rows) return {{error:'no dialog'}};
-const listed=(dlg.fields_dict.rows.df.data||[]).map(r=>r.label); const warehouse=dlg.get_value('warehouse');
+const listed=(dlg.fields_dict.rows.df.data||[]).map(r=>r.label);
+const row_fields=(dlg.fields_dict.rows.df.fields||[]).map(f=>f.fieldname);
+// 「全部」那一格仓库：选一个仓，每一行都设成它
+if(!dlg.fields_dict.warehouse) return {{error:'no all-lines warehouse', listed: listed.length, row_fields}};
+await dlg.set_value('warehouse', {js_value(params['warehouse'])}); await sleep(400); await idle();
+const set_all=(dlg.fields_dict.rows.df.data||[]).map(r=>r.warehouse||'');
 await dlg.set_value('all','goods'); await sleep(400);
 const data=dlg.fields_dict.rows.df.data; data[1].stock=0; dlg.fields_dict.rows.grid.refresh(); await sleep(400);
-return {{listed: listed.length, warehouse}};"""},
+return {{listed: listed.length, row_fields, set_all}};"""},
         {"name": "批量编辑", "js": JS + f"""
 const on=f=>{{const w=f.wrapper&&(f.wrapper.jquery?f.wrapper[0]:f.wrapper); return !!w&&w.isConnected;}};
 const dlg=(frappe.ui.open_dialogs||[]).slice(-1)[0]; if(!dlg||!dlg.fields_dict.rows) return {{error:'no dialog'}};
 const ok=dlg.$wrapper.find('.modal-footer .btn-primary:visible')[0]; if(!ok) return {{error:'no primary'}}; ok.click();
 await sleep(900); await idle();
 const lines=window.__fgs.filter(f=>f.fields_dict&&f.fields_dict.unit_price&&f.fields_dict[{check}]&&on(f));
-return {{checks: lines.map(l=>l.get_value({check}))}};"""},
+return {{checks: lines.map(l=>l.get_value({check})), warehouses: lines.map(l=>l.get_value('warehouse')||'')}};"""},
         {"name": "提交", "js": JS + """
 const btn=all('.page-actions .primary-action, .page-actions .btn-primary')[0]; if(!btn) return {error:'no submit button'};
 btn.click(); await sleep(1500);
@@ -108,10 +115,16 @@ def judge(params, results, camera_code=None):
     made, sent = by.get("三行明细", {}), by.get("提交", {})
     bulk = {**by.get("打开批量编辑", {}), **by.get("批量编辑", {})}
     params["doc"] = (sent.get("route") or [None, None])[1]
+    wh = params["warehouse"]
     return [{"case": "every line shows the stock check, ticked by default; the first line is the existing item", "seen": made,
              "ok": made.get("checks") == [1, 1, 1] and made.get("products") == [True, False, False]},
-            {"case": "bulk edit lists the lines with the header warehouse and writes the checks back", "seen": bulk,
-             "ok": bulk.get("listed") == 3 and bulk.get("warehouse") == params["warehouse"] and bulk.get("checks") == [1, 0, 1]},
+            # 仓库按行（11-19）：单头没有仓库 / 仓位，明细行有仓库、没有仓位
+            {"case": "the header has no warehouse or location; each line has a warehouse and no location", "seen": made,
+             "ok": made.get("head_place") == [] and made.get("line_place") == ["warehouse"]},
+            {"case": "bulk edit lists the lines with a warehouse per row, sets every row from the all-lines warehouse and writes both back",
+             "seen": bulk,
+             "ok": bulk.get("listed") == 3 and "warehouse" in (bulk.get("row_fields") or []) and "location" not in (bulk.get("row_fields") or [])
+             and bulk.get("set_all") == [wh, wh, wh] and bulk.get("checks") == [1, 0, 1] and bulk.get("warehouses") == [wh, wh, wh]},
             {"case": "submitted", "seen": sent, "ok": bool(sent.get("moved"))}]
 
 
@@ -122,10 +135,11 @@ name = {params.get('doc')!r}
 lines = frappe.get_all({cfg['line']!r}, filters={{"parent": name, "parenttype": {cfg['doctype']!r}}},
                        fields=["item_type", "product", "description"], order_by="idx asc") if name else []
 moved = frappe.get_all("ERP Stock Movement", filters={{"ref_id": name}}, pluck="product") if name else []
+places = sorted(set(frappe.get_all("ERP Stock Movement", filters={{"ref_id": name}}, pluck="warehouse"))) if name else []
 fresh = next((row.product for row in lines if row.description == {params['fresh']!r}), None)
 origin = frappe.db.get_value("ERP Product", fresh, ["origin_doctype", "origin_name"], as_dict=True) if fresh else None
 remembered = frappe.db.count("ERP Line Item Memory", {{"company": {params['company']!r}, "last_document": name}}) if name else 0
-print(json.dumps({{"lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "fresh": fresh, "origin": origin,
+print(json.dumps({{"lines": [dict(r) for r in lines], "moved": sorted(set(moved)), "places": places, "fresh": fresh, "origin": origin,
                   "remembered": remembered}}, default=str))
 """)
     kinds = [row["item_type"] for row in got["lines"]]
@@ -133,8 +147,8 @@ print(json.dumps({{"lines": [dict(r) for r in lines], "moved": sorted(set(moved)
     return [{"case": "line kinds are in / record only / in", "seen": got["lines"], "ok": kinds == ["goods", "service", "goods"]},
             {"case": "the freight line has no item; the new line made one", "seen": products,
              "ok": products[:1] == [params["product"]] and products[1] is None and bool(products[2])},
-            {"case": "only the stock lines moved stock", "seen": got["moved"],
-             "ok": got["moved"] == sorted({params["product"], got["fresh"] or "-"})},
+            {"case": "only the stock lines moved stock, in the warehouse set on the lines", "seen": [got["moved"], got["places"]],
+             "ok": got["moved"] == sorted({params["product"], got["fresh"] or "-"}) and got["places"] == [params["warehouse"]]},
             {"case": "the new item records the document that created it", "seen": got["origin"],
              "ok": (got["origin"] or {}).get("origin_doctype") == cfg["doctype"] and (got["origin"] or {}).get("origin_name") == params.get("doc")},
             {"case": "every line is remembered for this company", "seen": got["remembered"], "ok": got["remembered"] == 3}]

@@ -32,6 +32,14 @@ const msg=()=>all('.modal.show .msgprint, .modal.show .modal-body').map(e=>e.tex
 """
 
 
+# 入库 / 出库 / 物料调整弹窗（11-19 起仓库按行，同 Express 原生 OU / JU / PI）：单头不放仓，明细每一行是一个小表单（官方 FieldGroup，
+# 有 product / qty / warehouse 三格）。`LINES` 记下页面建的 FieldGroup，`entryLines(d)` 取弹窗 d 里的明细行（按顺序）。
+LINES = ("window.__fgs=window.__fgs||[];if(!frappe.ui.FieldGroup.prototype.__cap){const f=frappe.ui.FieldGroup.prototype.make;"
+         "frappe.ui.FieldGroup.prototype.make=function(){window.__fgs.push(this);return f.apply(this,arguments)};frappe.ui.FieldGroup.prototype.__cap=1;}"
+         "const entryLines=d=>window.__fgs.filter(f=>f!==d&&f.fields_dict&&f.fields_dict.product&&f.fields_dict.qty&&f.fields_dict.warehouse"
+         "&&$.contains(d.$wrapper[0],f.fields_dict.product.$wrapper[0]));")
+
+
 def company(manifest) -> str:
     return manifest.get("company") or manifest["companies"][0]
 
@@ -143,20 +151,18 @@ tills = frappe.get_all("ERP POS Terminal", filters={{"company": co}}, pluck="nam
 made = []
 def has(doctype, filters):
     return bool(frappe.get_all(doctype, filters=filters, pluck="name", limit_page_length=1))
-def entry(direction, qty, spot):
+def entry(direction, qty):  # 每行一个仓（11-19 起库存只按物料 + 仓库，行上不放仓位）
     documents.create_entry(direction=direction, posting_date=frappe.utils.nowdate(), warehouse=wh, reason="flow seed", submit=True,
-                           lines=[{{"product": product, "qty": qty, "unit_cost": 10, "location": spot}}])
+                           lines=[{{"product": product, "qty": qty, "unit_cost": 10, "warehouse": wh}}])
     made.append("stock " + direction)
-def held():  # 有货的库位（出库、收银从这里出，不把哪一格扣成负数）
-    row = frappe.db.sql("select location from `tabERP Stock Balance` where product=%s and warehouse=%s and qty_on_hand >= 2 "
-                        "order by qty_on_hand desc, location asc limit 1", (product, wh))
-    return row[0][0] if row else None
-if not has("ERP Stock Entry", {{"direction": "in", "status": "submitted", "warehouse": ["in", stores]}}) or held() is None:
-    entry("in", 10, shelf)
+def held():  # 这个仓有货（出库、收银从这里出，不扣成负数）
+    return float(frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": wh}}, "qty_on_hand") or 0) >= 2
+if not has("ERP Stock Entry", {{"direction": "in", "status": "submitted", "warehouse": ["in", stores]}}) or not held():
+    entry("in", 10)
 if not has("ERP Stock Entry", {{"direction": "out", "status": "submitted", "warehouse": ["in", stores]}}):
-    entry("out", 1, held() or "")
+    entry("out", 1)
 line = {{"product": product, "item_type": "goods", "description": "flow seed", "qty": 1, "unit": "ชิ้น", "unit_price": 100, "vat_rate": 7,
-         "warehouse": wh, "location": shelf}}
+         "warehouse": wh}}
 if not has("Purchase Document", {{"company": co, "status": "submitted", "stock_posted_at": ["is", "set"]}}):
     supplier = frappe.db.get_value("ERP Supplier", {{"supplier_name": "ผู้ขายโฟลว์"}}) or suppliers.create_supplier(supplier_name="ผู้ขายโฟลว์")["name"]
     purchase.post({{"company": co, "supplier": supplier, "doc_date": "2026-10-01", "currency": "THB", "fx_rate": 1, "has_vat": 1,

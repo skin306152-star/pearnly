@@ -1,7 +1,7 @@
 """流程用例：ERP 物料调整（岳父 11-06，号 IA）——一张单正负混录、增加行默认带均价可改、减少行单价只读、收发存分收入 / 发出、作废冲回。
 
-库存岗位打开「物料调整」页新建一张：单头仓 A，第一行按码填物料、数量 3（单价默认带出当前均价，改成 7），第二行同一物料、数量 -2
-（单价那一格只读），备注一个识别串，提交。库里：一张已提交的调整单（号 IA…），两笔 `adjust` 流水 +3 / -2，第一行记「人填的价」；
+库存岗位打开「物料调整」页新建一张：单头不放仓（11-19 起仓库按行，同 Express 原生 JU），第一行按码填物料、选仓 A、数量 3
+（单价默认带出这个仓的均价，改成 7），第二行同一物料、数量 -2（仓跟上一行，单价那一格只读），备注一个识别串，提交。库里：一张已提交的调整单（号 IA…），两笔 `adjust` 流水 +3 / -2，第一行记「人填的价」；
 收发存里这件物料本期收入 3、发出 2；入库 / 出库列表不出现盘点生成的旧 AD 单、物料调整列表出现；作废后回原数。
 Express：关了「接 Express」的公司提交不排账本；开着且接上的公司提交后排进账本（一张调整单写一张 TK，由 CC 写，这里只看排没排）。
 """
@@ -42,13 +42,15 @@ user = "stock@erp.regression"
 if not frappe.db.exists("Has Role", {{"parent": user, "role": menu.role("stock-adjust")}}):  # 老数据建库时还没有物料调整菜单
     person = frappe.get_doc("User", user); person.flags.ignore_permissions = True  # 测试准备：管理员账号不能改别人的角色
     person.add_roles(menu.role("stock-adjust"))
-a = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc", limit=1)[0]
+active = frappe.get_all("ERP Warehouse", filters={{"company": {company!r}, "is_active": 1}}, pluck="name", order_by="creation asc")
+a = active[0]
 p = frappe.db.get_value("ERP Product", {product!r}, ["name", "code"], as_dict=True)
-documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=a, submit=True,
-                       lines=[{{"product": p.name, "qty": 5, "unit_cost": 10, "location": ""}}])
-row = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": a, "location": ""}}, ["qty_on_hand"], as_dict=True) or {{}}
+documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), submit=True,
+                       lines=[{{"product": p.name, "qty": 5, "unit_cost": 10, "warehouse": a}}])
+row = frappe.db.get_value("ERP Stock Balance", {{"product": p.name, "warehouse": a}}, ["qty_on_hand"], as_dict=True) or {{}}
 frappe.db.commit()
-print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "before": float(row.get("qty_on_hand") or 0)}}))
+print(json.dumps({{"product": p.name, "scan": {scan!r} or p.code, "a": a, "single": len(active) == 1,
+                  "before": float(row.get("qty_on_hand") or 0)}}))
 """)
     return {**out, "company": company, "token": "flow-ia-" + uuid.uuid4().hex[:8], "cases": []}
 
@@ -71,19 +73,22 @@ def steps(params, camera_code=None):
          "const btn=[...document.querySelectorAll('.page-head .primary-action, .page-head .btn-primary')].find(e=>e.offsetParent);"
          "if(!btn) return {error:'no new button'}; const n=window.__dlgs.length; btn.click();"
          "for(let k=0;k<40&&window.__dlgs.length===n;k++) await new Promise(r=>setTimeout(r,250)); await idle();"
-         "const d=window.__dlgs[window.__dlgs.length-1]; if(!d||!d.fields_dict.warehouse) return {error:'no dialog'};"
-         f"await d.set_value('warehouse', {a}); await d.set_value('reason', {token}); await idle();"
+         "const d=window.__dlgs[window.__dlgs.length-1]; if(!d||!d.fields_dict.add_line) return {error:'no dialog'};"
+         f"await d.set_value('reason', {token}); await idle();"
          + _fill(scan, 3) +
+         # 仓在行上：选仓 A，单价按这个仓的均价带出
+         f"await l.set_value('warehouse', {a}); await idle();"
          "const shown=l.get_value('unit_cost'); await l.set_value('unit_cost', 7); await idle();"
          "return {fields: Object.keys(d.fields_dict).filter(k=>['warehouse','location','purpose','to_warehouse'].includes(k)),"
          " line_warehouse_hidden: Boolean(l.fields_dict.warehouse && l.fields_dict.warehouse.df.hidden),"
+         " line_location: Boolean(l.fields_dict.location), warehouse: l.get_value('warehouse'),"
          " product: l.get_value('product'), shown};"},
         {"name": "加一行减少", "js": IDLE +
          "const d=window.__dlgs.find(x=>x.fields_dict&&x.fields_dict.add_line&&x.$wrapper.is(':visible')); if(!d) return {error:'dialog gone'};"
          "d.fields_dict.add_line.$input.trigger('click'); await idle();"
          + _fill(scan, -2) +
          "l.refresh_dependency&&l.refresh_dependency(); await idle();"
-         "return {price_locked: Boolean(l.fields_dict.unit_cost.df.read_only), qty: l.get_value('qty')};"},
+         "return {price_locked: Boolean(l.fields_dict.unit_cost.df.read_only), qty: l.get_value('qty'), warehouse: l.get_value('warehouse')};"},
         {"name": "提交", "js": IDLE +
          "const d=window.__dlgs.find(x=>x.fields_dict&&x.fields_dict.add_line&&x.$wrapper.is(':visible')); if(!d) return {error:'dialog gone'};"
          "d.get_primary_btn().trigger('click');"
@@ -99,11 +104,13 @@ def judge(params, results, camera_code=None):
     by = {r.get("step"): (r.get("value") or {}) for r in results}
     made, less = by.get("新建物料调整单") or {}, by.get("加一行减少") or {}
     return [
-        {"case": "adjustment dialog has warehouse and location, no purpose", "seen": made,
-         "ok": {"warehouse", "location"} <= set(made.get("fields") or []) and "purpose" not in (made.get("fields") or [])
-         and "to_warehouse" not in (made.get("fields") or [])},
-        {"case": "line shows no warehouse (one warehouse per document)", "seen": made.get("line_warehouse_hidden"),
-         "ok": made.get("line_warehouse_hidden") is True},
+        # 仓库按行（11-19，同 Express 原生 JU）：单头没有仓库、仓位、用途、调入仓；行上一格仓库（只有一个仓的公司不显示），没有仓位
+        {"case": "adjustment header has no warehouse, location, purpose or destination", "seen": made,
+         "ok": made.get("fields") == []},
+        {"case": "each line has a warehouse (hidden only for a one-warehouse company) and no location", "seen": made,
+         "ok": made.get("line_warehouse_hidden") is params["single"] and made.get("line_location") is False
+         and made.get("warehouse") == params["a"]},
+        {"case": "the added line takes the previous line's warehouse", "seen": less, "ok": less.get("warehouse") == params["a"]},
         {"case": "product filled by code", "seen": made.get("product"), "ok": made.get("product") == params["product"]},
         {"case": "increase line brings the average cost", "seen": made.get("shown"), "ok": made.get("shown") not in (None, "", 0)},
         {"case": "decrease line price is read only", "seen": less, "ok": less.get("price_locked") is True and less.get("qty") == -2},
@@ -120,7 +127,7 @@ frappe.set_user("admin@erp.regression")
 companies.set_active_company({params['company']!r})
 a, product = {params['a']!r}, {params['product']!r}
 def qty():
-    return float(frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": a, "location": ""}}, "qty_on_hand") or 0)
+    return float(frappe.db.get_value("ERP Stock Balance", {{"product": product, "warehouse": a}}, "qty_on_hand") or 0)
 entry = frappe.db.get_value("ERP Stock Entry", {{"reason": {params['token']!r}}}, ["name", "direction", "status", "doc_no", "warehouse", "ledger_state"], as_dict=True) or {{}}
 lines = frappe.get_all("ERP Stock Entry Line", filters={{"parent": entry.get("name") or "-"}}, fields=["qty", "unit_cost", "unit_cost_manual", "warehouse"], order_by="idx asc")
 moves = frappe.get_all("ERP Stock Movement", filters={{"ref_id": entry.get("name") or "-"}}, fields=["movement_type", "qty_base", "doc_no"], order_by="creation asc")
