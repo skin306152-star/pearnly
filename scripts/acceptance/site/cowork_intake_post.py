@@ -37,7 +37,7 @@ result = {"ok": False}
 try:
     from pearnly_core.execution.replay import TEST_SITES
 
-    if not TEST_SITES.fullmatch(site) or frappe.conf.get("pearnly_product") != "cowork":
+    if not (TEST_SITES.fullmatch(site) or site.endswith(".maclab.localhost")) or frappe.conf.get("pearnly_product") != "cowork":
         raise SystemExit(f"refuse: {site} is not a Cowork test tenant")
     if not frappe.conf.get("pearnly_cowork_erp_push_enabled"):
         raise SystemExit("refuse: push switch is off on this site")
@@ -83,15 +83,81 @@ try:
               "buyer_name": attributes.get("company") or attributes.get("name") or "", "buyer_tax": attributes.get("tax_id") or "",
               "subtotal": str(amount), "vat": str(vat), "total_amount": str(amount + vat), "date": invoice_date,
               "document_type": "tax_invoice", "invoice_number": number}
+    detail = str(params.get("detail") or "")   # A7「明细对不上」：amount_only（只记金额）/ skip（不入账）
+    if detail:
+        # 票面明细合计 ≠ 税前额（同 tests/test_express_rules_guided.A7AmountOnlyInThePayload）：税前 100、只有一行 40
+        fields["items"] = [{"name": params.get("item_name") or "ค่าบริการโฆษณา", "qty": "1", "price": "40", "subtotal": "40"}]
     pages = [{"page_index": 1, "fields": fields}]
     posting_kind = params.get("posting_kind", "service")
     history = storage.create_recognized(conn.workspace, pages, f"acc-{secrets.token_hex(6)}", source="manual", confidence="high",
                                         ai_raw=pages, client=conn.client, posting_kind=posting_kind)
     frappe.db.commit()
     name = history["name"]
+    if detail:
+        # 照引导卡的正路答「明细」这一题（引擎 resolve 读这条记下的答案）：这本账套的 Cowork 公司 → 一段对话会话 → 判卡 → 记答案
+        from pearnly_core.assistant import ledger as conversation_ledger
+        from pearnly_core.assistant import sessions
+        from pearnly_core.write_precheck import api as precheck
+        from pearnly_cowork.companies import service as cowork_companies
+
+        # CC 对话里放的票，产品会把对话账套记在记录上（push_connection / push_account_set），判卡与记答案都按它；这里手造的记录照样记上
+        frappe.db.set_value("Cowork OCR History", name, {"push_connection": conn.name, "push_account_set": account_set},
+                            update_modified=False)
+        frappe.db.commit()
+        seed = {"seed_connection": conn.name, "seed_account_set": account_set}
+        company = frappe.db.get_value("Cowork Company", seed, "name")
+        if not company:
+            made_company = cowork_companies.create(conn.name, account_set) or {}
+            frappe.db.commit()
+            company = frappe.db.get_value("Cowork Company", seed, "name") or made_company.get("id") or made_company.get("name")
+        made = sessions.create(project=company, period=invoice_date[:7], mode="chat")
+        frappe.db.commit()
+        try:
+            frappe.local.pearnly_assistant = {"session_id": made["id"]}
+            try:
+                conversation_ledger.choose(made["id"], account_set, by="page")
+                frappe.db.commit()
+            except Exception as error:  # noqa: BLE001 —— 已定了也行
+                frappe.db.rollback()
+                result["ledger_choose"] = str(error)[:200]
+            deadline_card = time.monotonic() + int(params.get("card_wait", 240))
+            while True:   # 新接的公司先要电脑读一次科目表（waiting「正在读科目表」）：等它读完再判
+                frappe.db.rollback()
+                card = precheck.card(company, [name])
+                if not card.get("waiting") or time.monotonic() > deadline_card:
+                    break
+                time.sleep(10)
+            items = [item for group in card.get("groups") or [] for item in group.get("items") or []] or list(card.get("items") or [])
+            result["card_kinds"] = [item.get("kind") for item in items]
+            found = next((item for item in items if item.get("kind") == "detail"), None)
+            if not found:
+                raise SystemExit(f"the card did not ask the detail question (kinds: {result['card_kinds']})")
+            # 整张卡都答上（引导卡要一次答完才写）：明细按本格；有预选的照预选；其余取第一个不是「新建」的选项
+            answers = []
+            for item in items:
+                if item.get("kind") == "detail":
+                    value = detail
+                else:
+                    codes = [str(option.get("code")) for option in item.get("options") or []]
+                    value = item.get("value") or next((code for code in codes if code != "__new__"), codes[0] if codes else "")
+                if value:
+                    answers.append({"key": item["key"], "value": value})
+            result["answers"] = [{"kind": item.get("kind"), "value": answer["value"]} for item, answer in
+                                 zip([i for i in items if any(a["key"] == i["key"] for a in answers)], answers)]
+            saved = precheck.record(company, [name], answers, guided=True)
+            frappe.db.commit()
+            result["detail"] = {"asked": True, "key": found["key"], "value": detail,
+                                "saved": {k: saved.get(k) for k in ("ok", "saved", "refused") if isinstance(saved, dict)}}
+        finally:
+            frappe.local.pearnly_assistant = None
+            try:
+                sessions.delete(made["id"])
+                frappe.db.commit()
+            except Exception:  # noqa: BLE001
+                frappe.db.rollback()
     view = application_service.choices_view(name, conn.name, account_set, posting_kind)
     frappe.db.rollback()
-    if (view or {}).get("needed"):
+    if (view or {}).get("needed") and not detail:
         raise SystemExit(f"choices needed in this book: {[item.get('kind') for item in view['needed']]}")
 
     def submit(key):
@@ -105,6 +171,10 @@ try:
     request_key = f"acc-{secrets.token_hex(8)}"
     prepared = submit(request_key)
     result["prepared"] = {key: prepared.get(key) for key in ("name", "status", "reason")}
+    if detail == "skip":
+        # 「不入账」：不写，照旧停在「明细对不上」（准备阶段就停下，不进写账队列）
+        result.update(ok=True, history=name)
+        raise SystemExit("")
     if prepared.get("status") != "prepared":
         raise SystemExit(f"not prepared: {prepared.get('reason') or prepared.get('status')}")
     payload = json.loads(frappe.db.get_value(PUSH, prepared["name"], "payload_json") or "{}")
