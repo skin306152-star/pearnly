@@ -21,6 +21,7 @@ A confirmed draft must point at the record it created,ฉบับร่าง�
 A customer needs a name,กรุณากรอกชื่อลูกค้า
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
+A line amount cannot be read. Correct it and submit again,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 A location that has been used cannot be removed,ตำแหน่งที่เคยใช้แล้วลบไม่ได้
 A location with stock cannot be turned off,ตำแหน่งที่มีสต็อกปิดใช้งานไม่ได้
@@ -2567,6 +2568,7 @@ mrerp.default.title,การตั้งค่า MR.ERP
 mrerp.default.unit,หน่วยนับ
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
+mrerp.error.ERR_AMOUNT_UNREADABLE,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 mrerp.error.ERR_AUTH,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
 mrerp.error.ERR_BUSINESS,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
 mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่

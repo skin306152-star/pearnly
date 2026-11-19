@@ -21,6 +21,7 @@ A confirmed draft must point at the record it created,確定した下書きは�
 A customer needs a name,顧客には名前が必要です
 A dropdown field needs at least one option,ドロップダウンには選択肢が1つ以上必要です
 A field is longer than Express allows. Shorten it and submit again,Express の上限を超える長さの項目があります。短くして再送信してください
+A line amount cannot be read. Correct it and submit again,明細の金額が読み取れません。直して再送信してください
 A line quantity is invalid. Correct it and submit again.,明細の数量が無効です。修正して再送信してください
 A location that has been used cannot be removed,使用済みのロケーションは削除できません
 A location with stock cannot be turned off,在庫のあるロケーションは無効にできません
@@ -2567,6 +2568,7 @@ mrerp.default.title,MR.ERP 設定
 mrerp.default.unit,単位
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,金額が合いません。直して再送信してください
+mrerp.error.ERR_AMOUNT_UNREADABLE,明細の金額が読み取れません。直して再送信してください
 mrerp.error.ERR_AUTH,MR.ERP にログインできません。接続のユーザー名とパスワードを確認してください
 mrerp.error.ERR_BUSINESS,MR.ERP がエラーを返しました。MR.ERP で確認してください
 mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,MR.ERP の顧客コードが長すぎます。顧客を選び直してください

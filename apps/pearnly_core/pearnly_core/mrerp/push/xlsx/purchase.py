@@ -229,12 +229,37 @@ def _expense_note(history: Dict[str, Any]) -> str:
     return note[:60]
 
 
+# 明细印了却读不懂、又没有行金额（主会话 11-19：不按 0 写；用户数据错、不自动重试；按格分码，页面说得出是哪一格）
+QTY_UNREADABLE, PRICE_UNREADABLE = "ERR_QTY_UNREADABLE", "ERR_UNIT_PRICE_UNREADABLE"
+
+
+def unreadable_line(history: Dict[str, Any]) -> str:
+    """有一行明细印了数量 / 单价却读不懂（`amounts.number`）、又没有行金额：回 ``码:第几行 品名``（页面按码出话），没有回空串。"""
+    items = history.get("items")
+    if not isinstance(items, list):
+        fields = history.get("fields") if isinstance(history.get("fields"), dict) else {}
+        items = fields.get("items")
+    for index, it in enumerate(items or [], start=1):
+        if not isinstance(it, dict) or line_amount(it) is not None:
+            continue
+        name = str(it.get("name") or it.get("description") or "").strip()[:40]
+        for code, raw in ((QTY_UNREADABLE, it.get("qty") or it.get("quantity")),
+                          (PRICE_UNREADABLE, it.get("unit_price") or it.get("price"))):
+            if raw not in (None, "") and fmt_number(raw) is None:
+                return f"{code}:{index} {name}".rstrip()
+    return ""
+
+
 def validate_purchase_history(history: Dict[str, Any], mappings: Dict[str, Any]):
     """采购 preflight(最小 · 非 sales_credit 口径):日期 + 正金额 + 供应商码可解析。
     返回 (ok, err_code, warnings)。供应商缺失由 provision_suppliers 前置补,故这里只兜底。"""
     ok, err, warnings = validate_expense_history(history, mappings)
     if not ok:
         return ok, err, warnings
+    unreadable = unreadable_line(history)
+    if unreadable:
+        # 印了数量 / 单价却读不懂、又没有行金额：要人改这一格，不按 0 写（主会话 11-19，用户数据错、不自动重试）
+        return False, unreadable, []
     # VAT 税率合理性(对抗票 06 · 与销项同口径):进项票隐含税率非 ≈7% → 转人工。
     if _gen.vat_rate_anomaly(history):
         return False, "ERR_VAT_RATE_ANOMALY", []

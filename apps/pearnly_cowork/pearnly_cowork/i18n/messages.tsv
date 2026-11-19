@@ -2394,6 +2394,8 @@ The invoice number is longer than MR.ERP allows. Shorten it and submit again	发
 The MR.ERP import failed. Nothing was posted	MR.ERP 导入出错，未入账	การนำเข้า MR.ERP ผิดพลาด ไม่ได้บันทึกบัญชี	MR.ERP の取込でエラーが発生しました。計上されていません	intake.error.ERR_MRERP_IMPORT_ERROR
 This document type cannot be written to MR.ERP	此单据类型无法写入 MR.ERP	เอกสารประเภทนี้บันทึกลง MR.ERP ไม่ได้	この種類の伝票は MR.ERP に書き込めません	intake.error.ERR_MRERP_MODULE_UNAVAILABLE
 The total is negative. Correct it and submit again	合计金额为负数，请更正后重新提交	ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่	合計がマイナスです。直して再送信してください	intake.error.ERR_NEGATIVE_AMOUNT
+A line unit price cannot be read. Correct it and submit again	明细单价无法识别，请更正后重新提交	อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่	明細の単価が読み取れません。直して再送信してください	intake.error.ERR_UNIT_PRICE_UNREADABLE
+A line quantity cannot be read. Correct it and submit again	明细数量无法识别，请更正后重新提交	อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่	明細の数量が読み取れません。直して再送信してください	intake.error.ERR_QTY_UNREADABLE
 This customer has no match in MR.ERP. Choose the customer and submit again	MR.ERP 中没有此客户的对应档案，请选择客户后重新提交	ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่	この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください	intake.error.ERR_NO_CUSTOMER_MAPPING
 This supplier is not in MR.ERP. Check the supplier name and tax ID	MR.ERP 中没有此供应商，请核对供应商名称和税号	ไม่มีผู้จำหน่ายนี้ใน MR.ERP กรุณาตรวจสอบชื่อและเลขประจำตัวผู้เสียภาษี	この仕入先は MR.ERP にありません。仕入先名と税番号を確認してください	intake.error.ERR_NO_SUPPLIER
 The total is missing. Add it and submit again	缺少合计金额，请补充后重新提交	ไม่มียอดรวม กรุณาเพิ่มแล้วส่งใหม่	合計がありません。追加して再送信してください	intake.error.ERR_NO_TOTAL_AMOUNT

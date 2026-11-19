@@ -28,6 +28,7 @@ A day's sales total is zero or less,A day's sales total is zero or less
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
 A file is larger than 25 MB.,A file is larger than 25 MB.
+A line amount cannot be read. Correct it and submit again,A line amount cannot be read. Correct it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
 A name is required.,A name is required.
 A non-cash payment method has a negative total for a day,A non-cash payment method has a negative total for a day
@@ -3495,6 +3496,7 @@ intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,The result is not confirmed. Chec
 intake.error.ERR_ACCOUNT_NEEDS_REVIEW,An account used is not in the MR.ERP chart of accounts. Check the account settings
 intake.error.ERR_ACCOUNT_UID_MISMATCH,The account set on this computer is not the registered one. Waiting for another computer.
 intake.error.ERR_AMOUNTS_NOT_CLOSED,The amounts do not add up. Correct them and submit again
+intake.error.ERR_AMOUNT_UNREADABLE,A line amount cannot be read. Correct it and submit again
 intake.error.ERR_AUTH,Could not sign in to MR.ERP. Check the connection's username and password
 intake.error.ERR_BUSINESS,MR.ERP returned an error. Check in MR.ERP
 intake.error.ERR_CUSTOMER_CODE_TOO_LONG,The MR.ERP customer code is too long. Choose the customer again

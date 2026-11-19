@@ -21,6 +21,7 @@ A confirmed draft must point at the record it created,已确认的草稿必须�
 A customer needs a name,请填写客户名称
 A dropdown field needs at least one option,下拉字段至少需要一个选项
 A field is longer than Express allows. Shorten it and submit again,部分字段超出 Express 允许的长度，请缩短后重新提交
+A line amount cannot be read. Correct it and submit again,明细金额无法识别，请更正后重新提交
 A line quantity is invalid. Correct it and submit again.,明细数量无效，请修改后重新提交
 A location that has been used cannot be removed,已使用的仓位不能删除
 A location with stock cannot be turned off,有库存的仓位不能停用
@@ -2567,6 +2568,7 @@ mrerp.default.title,MR.ERP 设置
 mrerp.default.unit,单位
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,所用科目不在 MR.ERP 科目表中，请检查科目设置
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,金额合计不一致，请更正后重新提交
+mrerp.error.ERR_AMOUNT_UNREADABLE,明细金额无法识别，请更正后重新提交
 mrerp.error.ERR_AUTH,MR.ERP 登录失败，请检查连接的账号和密码
 mrerp.error.ERR_BUSINESS,MR.ERP 返回错误，请在 MR.ERP 中核对
 mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,MR.ERP 客户代码超出允许长度，请重新选择客户

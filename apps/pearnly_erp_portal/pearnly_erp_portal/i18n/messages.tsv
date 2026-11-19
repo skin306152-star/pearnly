@@ -1929,6 +1929,8 @@ The date is outside the MR.ERP accounting period	日期不在 MR.ERP 的会计�
 MR.ERP did not save this document	MR.ERP 未保存此单据	MR.ERP ไม่ได้บันทึกเอกสารนี้	MR.ERP にこの伝票は保存されませんでした	mrerp.error.ERR_MRERP_SAVE_FAILED
 This document number is already used in MR.ERP	MR.ERP 中已有此单号	เลขที่เอกสารนี้มีอยู่ใน MR.ERP แล้ว	この伝票番号は MR.ERP で使用済みです	mrerp.error.ERR_MRERP_STOCK_NUMBER_TAKEN
 The total is negative. Correct it and submit again	合计金额为负数，请更正后重新提交	ยอดรวมติดลบ กรุณาแก้ไขแล้วส่งใหม่	合計がマイナスです。直して再送信してください	mrerp.error.ERR_NEGATIVE_AMOUNT
+A line unit price cannot be read. Correct it and submit again	明细单价无法识别，请更正后重新提交	อ่านราคาต่อหน่วยในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่	明細の単価が読み取れません。直して再送信してください	mrerp.error.ERR_UNIT_PRICE_UNREADABLE
+A line quantity cannot be read. Correct it and submit again	明细数量无法识别，请更正后重新提交	อ่านจำนวนในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่	明細の数量が読み取れません。直して再送信してください	mrerp.error.ERR_QTY_UNREADABLE
 The customer is missing. Choose the customer and submit again.	缺少客户，请选择客户后重新提交	ไม่มีข้อมูลลูกค้า กรุณาเลือกลูกค้าแล้วส่งใหม่	顧客がありません。顧客を選択して再送信してください	mrerp.error.ERR_NO_CLIENT
 This customer has no match in MR.ERP. Choose the customer and submit again	MR.ERP 中没有此客户的对应档案，请选择客户后重新提交	ไม่มีข้อมูลลูกค้านี้ใน MR.ERP กรุณาเลือกลูกค้าแล้วส่งใหม่	この顧客は MR.ERP に対応する顧客がありません。顧客を選んで再送信してください	mrerp.error.ERR_NO_CUSTOMER_MAPPING
 The invoice date is missing or unreadable. Fill it in and submit again	票面日期缺失或无法识别，请补填后重新提交	ไม่มีวันที่เอกสารหรืออ่านไม่ได้ กรุณากรอกแล้วส่งใหม่	伝票日付がないか読み取れません。入力して再送信してください	mrerp.error.ERR_NO_INVOICE_DATE

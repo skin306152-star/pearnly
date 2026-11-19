@@ -13,6 +13,9 @@ USER_DATA_ERROR_CODES = {
     "ERR_NO_TOTAL_AMOUNT",
     "ERR_AMOUNTS_NOT_CLOSED",  # 写账前通用护栏（`tax_documents.ledger_guard`）：票面金额对不上
     "ERR_NEGATIVE_AMOUNT",
+    # 明细印了数量 / 单价却读不懂、又没有行金额（主会话 11-19：不按 0 写，要人改这一格）
+    "ERR_QTY_UNREADABLE",
+    "ERR_UNIT_PRICE_UNREADABLE",
     "ERR_TAX_ID_INVALID",
     "ERR_DATE_FUTURE",
     "ERR_INVOICE_NO_TOO_LONG",

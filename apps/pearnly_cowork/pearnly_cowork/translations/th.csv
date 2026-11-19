@@ -28,6 +28,7 @@ A day's sales total is zero or less,ยอดขายรวมของบา�
 A dropdown field needs at least one option,ช่องแบบเลือกต้องมีตัวเลือกอย่างน้อยหนึ่งรายการ
 A field is longer than Express allows. Shorten it and submit again,มีช่องข้อมูลยาวเกินกว่าที่ Express รองรับ กรุณาแก้ให้สั้นลงแล้วส่งใหม่
 A file is larger than 25 MB.,มีไฟล์ขนาดเกิน 25 MB
+A line amount cannot be read. Correct it and submit again,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 A line quantity is invalid. Correct it and submit again.,จำนวนในรายการไม่ถูกต้อง กรุณาแก้ไขแล้วส่งใหม่
 A name is required.,กรุณาระบุชื่อ
 A non-cash payment method has a negative total for a day,มีวิธีชำระเงินที่ไม่ใช่เงินสดซึ่งยอดรวมของวันติดลบ
@@ -3495,6 +3496,7 @@ intake.error.ERP_CONFIRMED_PUSH_RESULT_UNKNOWN,ยังไม่ยืนยั
 intake.error.ERR_ACCOUNT_NEEDS_REVIEW,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 intake.error.ERR_ACCOUNT_UID_MISMATCH,ชุดบัญชีบนคอมพิวเตอร์เครื่องนี้ไม่ใช่ชุดที่ลงทะเบียนไว้ กำลังรอคอมพิวเตอร์เครื่องอื่น
 intake.error.ERR_AMOUNTS_NOT_CLOSED,ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่
+intake.error.ERR_AMOUNT_UNREADABLE,อ่านยอดเงินในรายการไม่ได้ กรุณาแก้ไขแล้วส่งใหม่
 intake.error.ERR_AUTH,เข้าสู่ระบบ MR.ERP ไม่สำเร็จ กรุณาตรวจสอบชื่อผู้ใช้และรหัสผ่านของการเชื่อมต่อ
 intake.error.ERR_BUSINESS,MR.ERP แจ้งข้อผิดพลาด กรุณาตรวจสอบใน MR.ERP
 intake.error.ERR_CUSTOMER_CODE_TOO_LONG,รหัสลูกค้า MR.ERP ยาวเกินกำหนด กรุณาเลือกลูกค้าใหม่

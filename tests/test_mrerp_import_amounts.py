@@ -238,13 +238,23 @@ class RecognisedNumbers(unittest.TestCase):
         with self.assertRaises(ValueError):
             fmt._decimal("ตามตกลง")  # 读不懂停下，不当 0 写进导入表
 
-    def test_withholding_and_vat_rates_with_a_percent_sign_are_kept(self):
+    def test_vat_rates_with_a_percent_sign_are_kept_and_withholding_does_not_change_the_kind(self):
         from pearnly_core.mrerp.push.xlsx import lookups
 
-        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "3%"}), "wht_3")
-        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "5 %", "vat_rate": "7"}), "wht_5")
+        # 预扣税不影响税种（主会话 11-19，同 MR.ERP 原生：销售导入没有预扣税栏，收款时记）：「3%」和 3 两种写法都按增值税
+        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "3%", "vat_rate": "7"}), "vat_7")
+        self.assertEqual(lookups.derive_tax_kind({"wht_rate": 3, "vat_rate": 7}), "vat_7")
+        self.assertEqual(lookups.derive_tax_kind({"wht_rate": "5 %"}), "vat_7")
         self.assertEqual(lookups.derive_tax_kind({"vat_rate": "0%"}), "vat_0")
         self.assertEqual(lookups.derive_tax_kind({"vat_rate": "อื่นๆ"}), "vat_7")  # 读不懂的照旧按默认
+        from pearnly_core.mrerp.push.xlsx import generator
+
+        base = generator.validate_history_for_sales_credit(dict(LINE_DISCOUNT), MAPPINGS)
+        for wht in ("3%", 3):
+            with self.subTest(wht=wht):
+                got = generator.validate_history_for_sales_credit({**LINE_DISCOUNT, "wht_rate": wht}, MAPPINGS)
+                self.assertEqual(got[:2], base[:2])  # 带预扣税的赊销票照常过推前检查（原来数字 3 被 ERR_TAX_RATE_INVALID 拒）
+                self.assertNotEqual(got[1], "ERR_TAX_RATE_INVALID")
 
     def test_a_document_discount_with_a_baht_sign_is_spread_like_a_plain_one(self):
         rows = [{"amount": Decimal("600")}, {"amount": Decimal("400")}]
@@ -261,6 +271,21 @@ class PurchaseLineNumbers(unittest.TestCase):
         self.assertEqual([(row["qty"], row["price"], row["amount"]) for row in rows], [(1000.0, 1.25, 1250.0), (2.0, 5.0, 1000.0)])
         with self.assertRaises(ValueError):
             purchase_sheet._detail_rows({"items": [{"name": "A", "qty": "2", "price": "ตามตกลง"}]}, MAPPINGS)
+
+    def test_the_preflight_stops_an_unreadable_line_as_a_user_data_error_not_an_unexpected_one(self):
+        # MR.ERP 窗口 11-19 在 TEST2019 实测：只在生成器里报错时结论是 ERR_UNEXPECTED（界面「意外错误」、会自动重试）
+        from pearnly_core.mrerp.push import user_data
+        from pearnly_core.mrerp.push.xlsx import purchase as purchase_sheet
+
+        self.assertEqual(purchase_sheet.unreadable_line({"items": [{"name": "A", "qty": 1}, {"name": "สกรู", "qty": "2", "price": "ตามตกลง"}]}),
+                         "ERR_UNIT_PRICE_UNREADABLE:2 สกรู")
+        self.assertEqual(purchase_sheet.unreadable_line({"items": [{"name": "B", "qty": "สอง", "price": "5"}]}), "ERR_QTY_UNREADABLE:1 B")
+        self.assertEqual(purchase_sheet.unreadable_line({"items": [{"name": "A", "qty": "2", "price": "ตามตกลง", "subtotal": "10"}]}), "")
+        self.assertEqual(purchase_sheet.unreadable_line({"items": [{"name": "A", "qty": "1,000", "price": "฿1.25"}]}), "")
+        self.assertIn("return False, unreadable, []", (ROOT / "apps/pearnly_core/pearnly_core/mrerp/push/xlsx/purchase.py")
+                      .read_text(encoding="utf-8"))
+        for code in ("ERR_UNIT_PRICE_UNREADABLE:2 สกรู", "ERR_QTY_UNREADABLE:1 B"):
+            self.assertTrue(user_data.is_user_data_error(code))
 
 
 if __name__ == "__main__":

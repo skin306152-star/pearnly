@@ -21,6 +21,7 @@ A confirmed draft must point at the record it created,A confirmed draft must poi
 A customer needs a name,A customer needs a name
 A dropdown field needs at least one option,A dropdown field needs at least one option
 A field is longer than Express allows. Shorten it and submit again,A field is longer than Express allows. Shorten it and submit again
+A line amount cannot be read. Correct it and submit again,A line amount cannot be read. Correct it and submit again
 A line quantity is invalid. Correct it and submit again.,A line quantity is invalid. Correct it and submit again.
 A location that has been used cannot be removed,A location that has been used cannot be removed
 A location with stock cannot be turned off,A location with stock cannot be turned off
@@ -2567,6 +2568,7 @@ mrerp.default.title,MR.ERP settings
 mrerp.default.unit,Unit
 mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW,An account used is not in the MR.ERP chart of accounts. Check the account settings
 mrerp.error.ERR_AMOUNTS_NOT_CLOSED,The amounts do not add up. Correct them and submit again
+mrerp.error.ERR_AMOUNT_UNREADABLE,A line amount cannot be read. Correct it and submit again
 mrerp.error.ERR_AUTH,Could not sign in to MR.ERP. Check the connection's username and password
 mrerp.error.ERR_BUSINESS,MR.ERP returned an error. Check in MR.ERP
 mrerp.error.ERR_CUSTOMER_CODE_TOO_LONG,The MR.ERP customer code is too long. Choose the customer again

@@ -133,15 +133,11 @@ def lookup_tax_code(tax_kind: str, mappings: Dict[str, Any]) -> str:
 
 
 def derive_tax_kind(history: Dict[str, Any]) -> str:
-    """从 OCR 结果推断 Pearnly tax_kind 枚举"""
+    """从 OCR 结果推断 Pearnly tax_kind 枚举（赊销推前检查用，`generator.validate_history_for_sales_credit`）：只按增值税率判。
+
+    预扣税不影响税种（主会话 11-19，同 MR.ERP 原生）：客户代扣不改变我们开的销项税，MR.ERP 销售导入没有预扣税这一栏，预扣在收款时记。
+    原来带预扣税率时回 wht_*，赊销允许的税种里没有它——数字 3 的赊销票被误拒，「3%」读失败才碰巧落成 vat_7。"""
     rate = history.get("tax_rate_pct") or history.get("vat_rate")
-    wht = history.get("wht_rate_pct") or history.get("wht_rate")
-    if wht:
-        # 「3%」「3 %」也读得出（共用 `amounts.number`）；原先 float("3%") 抛错被吞，预扣税静默丢掉（主会话 11-19）
-        found = amounts.number(wht)
-        if found is not None and found:
-            w = int(found)
-            return f"wht_{w}" if w in (1, 3, 5) else "wht_3"
     r = amounts.number(rate)  # 「0%」「7 %」也读得出；原先 float 抛错被吞，0% 税率落成默认的 7%
     if r is not None:
         if r == 7:
