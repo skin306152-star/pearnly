@@ -38,7 +38,10 @@ def main(argv=None) -> int:
     ap.add_argument("--types", default="RR,HP,IV,HS")
     ap.add_argument("--probe-only", action="store_true")
     ap.add_argument("--keep-open", action="store_true")
-    ap.add_argument("--background", action="store_true", help="不碰真键盘鼠标，直接给 Express 发消息")
+    # 默认后台做法（同产品 host.py 写死的 BackgroundDesk，11-19：前台做法在 Express 退出后被外壳抢前台时会被前台保护拒）；
+    # 要验前台做法另给 --foreground
+    ap.add_argument("--background", action="store_true", default=True, help="不碰真键盘鼠标，直接给 Express 发消息（默认）")
+    ap.add_argument("--foreground", dest="background", action="store_false", help="用真键盘鼠标（前台做法）")
     ap.add_argument("--keep-precheck-issues", action="store_true", help="实验用：预检有问题的单也照录（测放弃与作废闸）")
     ap.add_argument("--front-notepad", action="store_true", help="实验用：开一个记事本放在最前面，看 Express 在后面能不能录")
     args = ap.parse_args(argv)
