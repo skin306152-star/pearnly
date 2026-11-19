@@ -2690,8 +2690,8 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/stock.py", "apps/pear
 [[entry]]
 id = "erp.cc.collection"
 product = "ERP"
-where = "ERP 版 CC 对话里录收款（找客户、未收清发票、方式、建 / 改草稿、对话附件当转账凭证、按写入计划放行、结果、撤回；收款第 4 步）"
-steps = "离线：tests/test_erp_collection_cc.py（草稿 → pearnly_write_plan → 用户下一句 → pearnly_write_start → erp_collection_push；没有新用户消息不开始、复述后改过不写、停止后不放、代录会话里没有收款工具、凭证来自附件、权限、撤回、结果）+ tests/test_erp_write_precheck.py（R: 单号交给收款判定、收款员可建计划）；真模型场景另批"
+where = "ERP 版 CC 对话里录收款（11-19 起打字说要收款只打开收款卡 erp_collection_guide，说到的客户名 / 单号预填搜索框；查客户、未收清发票、方式、结果、撤回照旧；收款第 4 步）"
+steps = "离线：tests/test_erp_collection_cc.py（打字开卡：只开收款引导、hint 原样交给引导、不带金额、开不了说原因；服务函数：草稿 → pearnly_write_plan → 用户下一句 → pearnly_write_start → erp_collection_push；没有新用户消息不开始、复述后改过不写、停止后不放、代录会话里没有收款工具、凭证来自附件、权限、撤回、结果）+ tests/test_erp_write_precheck.py（R: 单号交给收款判定、收款员可建计划）；真模型场景另批"
 expect = "工具只调 collection.service；放行只认已开始计划里的那张、按单号里的版本、同意 = 用户消息序号；写成回 RE 号，没写成回 queued"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/contracts.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/plan.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py", "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py"]

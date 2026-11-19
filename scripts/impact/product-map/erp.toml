@@ -2174,6 +2174,16 @@ where = "CC 工具 pearnly_write_start"
 tests = ["unit:tests/test_write_plan.py::test_writing_starts_only_after_the_user_answered_the_plan"]
 
 [[row]]
+id = "erp.cc.tool.erp_collection_guide"
+product = "ERP"
+channel = "cc-chat"
+ends = ["desktop", "mobile"]
+kind = "cc-tool"
+anchor = "tool:erp:erp_collection_guide"
+where = "CC 工具 erp_collection_guide（打字说要收款：只在对话里打开收款卡，说到的客户名 / 单号预填进搜索框；客户、发票、金额由用户在卡上选填）"
+tests = ["unit:tests/test_erp_collection_cc.py::test_opening_starts_the_collection_guide_in_this_conversation_with_the_hint"]
+
+[[row]]
 id = "erp.cc.tool.erp_collection_customers"
 product = "ERP"
 channel = "cc-chat"
@@ -2204,26 +2214,6 @@ where = "CC 工具 erp_collection_methods（收款第 4 步：这本账套能用
 tests = ["unit:tests/test_erp_collection_cc.py::test_customers_invoices_and_methods_come_from_the_service"]
 
 [[row]]
-id = "erp.cc.tool.erp_collection_draft"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:erp:erp_collection_draft"
-where = "CC 工具 erp_collection_draft（收款第 4 步：建 / 改收款草稿，回确认卡与写入计划单号）"
-tests = ["unit:tests/test_erp_collection_cc.py::test_draft_plan_answer_start_release"]
-
-[[row]]
-id = "erp.cc.tool.erp_collection_voucher"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:erp:erp_collection_voucher"
-where = "CC 工具 erp_collection_voucher（收款第 4 步：对话附件当转账凭证挂到草稿）"
-tests = ["unit:tests/test_erp_collection_cc.py::test_a_missing_slip_is_not_ready_until_attached"]
-
-[[row]]
 id = "erp.cc.tool.erp_collection_card"
 product = "ERP"
 channel = "cc-chat"
@@ -2232,16 +2222,6 @@ kind = "cc-tool"
 anchor = "tool:erp:erp_collection_card"
 where = "CC 工具 erp_collection_card（收款第 4 步：看一笔收款的确认卡）"
 tests = ["unit:tests/test_erp_collection_cc.py::test_the_card_reads_back_the_latest_version"]
-
-[[row]]
-id = "erp.cc.tool.erp_collection_push"
-product = "ERP"
-channel = "cc-chat"
-ends = ["desktop", "mobile"]
-kind = "cc-tool"
-anchor = "tool:erp:erp_collection_push"
-where = "CC 工具 erp_collection_push（收款第 4 步：按用户同意的写入计划放行收款（写成 Express RE））"
-tests = ["unit:tests/test_erp_collection_cc.py::test_draft_plan_answer_start_release"]
 
 [[row]]
 id = "erp.cc.tool.erp_collection_status"

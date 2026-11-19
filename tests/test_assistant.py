@@ -1890,6 +1890,9 @@ class ToolAndDefinitionTests(unittest.TestCase):
         # 11-16 真机：工具说明里的英文原句被照搬进中文对话；三选一写成了文字
         self.assertIn("Never copy their sentences into a reply", " ".join(definition.SYSTEM.split()))
         self.assertIn("ask with one ask_user card instead of listing the options in text", " ".join(definition.SYSTEM.split()))
+        # 11-20 真模型：工具调用前写出一句复述工具说明的英文自述（"Open collection card with hint; never pass amounts"）
+        self.assertIn("do not write notes to yourself there: no plan, no reminder of a rule and no restatement of a tool's "
+                      "description", " ".join(definition.SYSTEM.split()))
         # 11-10 线上压测 S6 起：<language> 是用户这句话自己的语言（服务端判），判不出才是界面语言
         for words in ("Reply in the language given in <language> tags with each user message",
                       "the language of the user's own words in that message, or their interface language when it has none",

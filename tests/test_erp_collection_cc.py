@@ -144,7 +144,7 @@ class Declarations(unittest.TestCase):
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.TOOLS"]', hooks)
         self.assertIn('"pearnly_erp_portal.collection.cc_tools.STEP_NAMES"]', hooks)
 
-    def test_an_operator_conversation_has_no_collection_tool_and_a_direct_one_has_all_ten(self):
+    def test_an_operator_conversation_has_no_collection_tool_and_a_direct_one_has_all_eight(self):
         # 用户 11-11：代录不做收款。各模式只用自己的工具：代录会话给模型的工具表里一个 erp_collection_* 都没有（共用层
         # `tools.mode_allowed`，同 `definition.brief` 按模式整组换上）
         from pearnly_core.assistant import tools
@@ -152,7 +152,7 @@ class Declarations(unittest.TestCase):
         with mock.patch.object(tools, "declared", lambda: list(cc_tools.TOOLS)):
             chat = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "chat")]
             operator = [t["name"] for t in tools.declared() if tools.mode_allowed(t["name"], "operator")]
-        self.assertEqual(len(chat), 10)
+        self.assertEqual(len(chat), 8)
         self.assertEqual(chat, [t["name"] for t in cc_tools.TOOLS])
         self.assertEqual([name for name in operator if name.startswith("erp_collection_")], [])
 
@@ -168,6 +168,81 @@ class Declarations(unittest.TestCase):
         self.assertIn("if _collection().allowed(user, company):", source)
         self.assertIn("collections.check(company, [doc_id for doc_id in doc_ids if collections.mine(doc_id)])", source)
         self.assertIn("from pearnly_erp_portal.collection import plan", source)
+
+
+class TypedCollectionOpensTheCard(Base):
+    """打字说要收款只打开收款卡（用户 11-16「按建议做」）：给模型的工具里没有建草稿 / 挂凭证 / 放行，只有开卡；说到的客户名 / 单号
+    原样交给引导预填搜索框，不带金额；查询类工具照旧。开卡的工具是收款引导声明的那一个。"""
+
+    def test_the_model_can_only_open_the_card_and_query(self):
+        names = [tool["name"] for tool in cc_tools.TOOLS]
+        self.assertEqual(names[0], "erp_collection_guide")
+        self.assertFalse(set(names) & set(cc_tools.TOOLS_REPLACED_BY_CARD))
+        self.assertTrue({"erp_collection_customers", "erp_collection_invoices", "erp_collection_status",
+                         "erp_collection_list"} <= set(names))
+        self.assertEqual(list(cc_tools.TOOLS[0]["input_schema"]["properties"]), ["hint"])
+        # 11-20 真模型：说到客户就只传客户，没说客户才传发票号（模型曾把「码 + 发票号」一起传）
+        hint = cc_tools.TOOLS[0]["input_schema"]["properties"]["hint"]["description"]
+        self.assertIn("only when no customer was named, the invoice number", hint)
+        self.assertIn("Never both", hint)
+        # 工具说明写它做什么，不写给模型的命令句（11-20：模型把说明复述成一句英文步骤出现在中文回复里）
+        description = cc_tools.TOOLS[0]["description"]
+        self.assertTrue(description.startswith("Opens the collection card"))
+        self.assertNotIn("Never pass", description)
+        for name in cc_tools.TOOLS_REPLACED_BY_CARD:   # 函数留着：整条撤回时恢复声明即可
+            self.assertTrue(callable(getattr(cc_tools, name.removeprefix("erp_collection_"))))
+        from pearnly_erp_portal.collection import cc_guide
+
+        self.assertEqual(cc_guide.GUIDES[0]["tool"], "erp_collection_guide")
+
+    def test_opening_starts_the_collection_guide_in_this_conversation_with_the_hint(self):
+        from pearnly_core.assistant.guide import run
+
+        started = []
+        warmed = []
+        with mock.patch.object(run, "start", lambda session, business, **kw: started.append((session, business, kw))
+                               or {"run": "RUN1", "status": "asking"}), \
+                mock.patch.object(service, "warm", lambda company, day=None: warmed.append(company)):
+            out = json.loads(cc_tools.guide({"hint": "  ร้านป้าแดง   600 "}))
+        self.assertEqual(warmed, [cc_tools._company()])   # 同 LINE 选公司：没读过未收发票的账套先整本读
+        self.assertEqual(started, [(SESSION, "collection", {"hint": "ร้านป้าแดง 600"})])
+        self.assertEqual((out["status"], out["run"]), ("opened", "RUN1"))
+        self.assertIn("names no customer, invoice or amount and asks for none", out["note"])
+        with mock.patch.object(run, "start", lambda session, business, **kw: started.append(kw) or {"run": "RUN2"}):
+            cc_tools.guide({})
+        self.assertEqual(started[-1], {"hint": ""})
+
+    def test_a_card_that_cannot_open_says_why(self):
+        from pearnly_core.assistant.guide import run
+
+        def refuse(*args, **kwargs):
+            raise frappe.ValidationError("Invalid request")
+        with mock.patch.object(run, "start", refuse):
+            out = json.loads(cc_tools.guide({"hint": "IV1"}))
+        self.assertEqual(out["status"], "not_saved")
+        frappe.local.pearnly_assistant = {}
+        self.assertEqual(json.loads(cc_tools.guide({}))["reason"], cc_tools.NOT_IN_CONVERSATION)
+
+
+class OtherEntriesDoNotUseTheCcTools(unittest.TestCase):
+    """拿掉 CC 的建草稿 / 挂凭证 / 放行三个工具不影响网页、LINE、MR.ERP 账套的收款（主会话 11-19 ②）：除了 CC 工具模块自己和收款引导
+    （只借它的撤回问句拼法 `note_withdraw`），没有别的产品代码引用 `collection.cc_tools`；它们都直接调 `collection.service`。
+    行为由 test_erp_collection（网页 / 服务函数）、test_erp_collection_line（LINE）、test_erp_admin_collection、test_erp_collection_guide 守住。"""
+
+    def test_only_the_cc_tool_module_and_the_guide_note_reference_it(self):
+        app = ROOT / "apps" / "pearnly_erp_portal" / "pearnly_erp_portal"
+        users = {}
+        for path in app.rglob("*.py"):
+            text = path.read_text(encoding="utf-8")
+            if "collection import cc_tools" in text or "collection.cc_tools" in text:
+                users[str(path.relative_to(app))] = text
+        self.assertEqual(sorted(users), ["collection/cc_tools.py", "collection/guide.py", "hooks.py"])
+        guide = users["collection/guide.py"]
+        self.assertEqual(guide.count("cc_tools."), guide.count("cc_tools.note_withdraw"))
+        for name in cc_tools.TOOLS_REPLACED_BY_CARD:
+            self.assertNotIn(name, users["hooks.py"])
+        for entry in ("collection/api.py", "integrations/line_collection.py", "integrations/line_collection_cards.py"):
+            self.assertIn("service", (app / entry).read_text(encoding="utf-8"), entry)
 
 
 class Flow(Base):

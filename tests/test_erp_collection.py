@@ -134,10 +134,9 @@ def _cmp(value, op, wanted):
         return value == wanted
     if op == "!=":
         return value != wanted
-    if op == "in":
-        return value in wanted
-    if op == "not in":
-        return value not in wanted
+    if op in ("in", "not in"):  # 同 = 按库的排序规则比
+        found = any(_cmp(value, "=", item) for item in wanted)
+        return found if op == "in" else not found
     if op == "is":
         return value not in (None, "") if wanted == "set" else value in (None, "")
     if op == "like":  # % 是通配（转义的 \\% \\_ 按字面），整串比
@@ -990,6 +989,24 @@ class Permissions(Base):
         # 11-15 线上：账套没报会计期间的公司选了也录不了（问不出收款日期），不列出来
         with mock.patch.dict(BOOK, {"period_start": "", "period_end": ""}):
             self.assertEqual(service.companies_for(), [])
+
+    def test_customers_search_finds_the_customer_of_an_open_invoice_number(self):
+        # 11-20 真模型：「客户 <码> 付了 <发票号>」CC 开卡带的是发票号或「码 + 发票号」，客户题曾为空。对不上客户时按未收发票快照认
+        self.as_user("a@x")
+        mine = [{"code": "2100883", "name": "ร้านป้าแดง", "tax_id": ""}]
+        self.assertEqual(service.customers("CO-1", "IV2"), {"items": mine, "total": 1})
+        self.assertEqual(service.customers("CO-1", "2100883 IV1")["items"], mine)
+        self.assertEqual(service.customers("CO-1", "iv3")["items"][0]["code"], "2100900")
+        self.assertEqual(service.customers("CO-1", "IV1 IV3")["total"], 2)       # 两张发票两位客户：都列
+        self.assertEqual(service.customers("CO-1", "IV1 IV2")["total"], 1)       # 同一位客户只列一次
+        self.assertEqual(service.customers("CO-1", "IV1 IV3", start=1, limit=1)["items"][0]["code"], "2100900")
+        self.assertEqual(service.customers("CO-1", "IV9"), {"items": [], "total": 0})   # 快照里没有：照旧空
+        self.assertEqual(service.customers("CO-1", "IV")["total"], 0)           # 单号只精确对，不按一部分
+        # 别家公司的快照不认；能对上客户时不走发票（照旧按客户搜）
+        snapshot.replace("CO-2", "OTHER-BOOK", [{"docnum": "IVX", "customer": "2100883", "net": "1", "remaining": "1"}],
+                         "2026-11-11T03:00:00+00:00")
+        self.assertEqual(service.customers("CO-1", "IVX")["total"], 0)
+        self.assertEqual(service.customers("CO-1", "ป้า")["items"], mine)
 
     def test_methods_listed_for_the_collector(self):
         self.as_user("a@x")

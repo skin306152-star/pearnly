@@ -174,7 +174,7 @@ layer = "L3"
 env = "B"
 via = "api"
 module = "scripts/acceptance/scenarios/erp_collection_express.py"
-rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
@@ -206,7 +206,7 @@ layer = "L3"
 env = "B"
 via = "api"
 module = "scripts/acceptance/scenarios/erp_collection_express.py"
-rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/express_rules/contracts/codes.py",
@@ -583,7 +583,7 @@ layer = "L3"
 env = "B"
 via = "api"
 module = "scripts/acceptance/scenarios/erp_company_connect.py"
-rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft",
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_guide",
         "erp.desk.pearnly-company.action.company.connect.add"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/access/guard.py",
@@ -868,7 +868,7 @@ env = "B"
 module = "scripts/acceptance/scenarios/erp_cc_collection.py"
 driver = "real"
 lang = "zh"
-rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/assistant/codes.py",
@@ -893,7 +893,7 @@ env = "B"
 module = "scripts/acceptance/scenarios/erp_cc_collection.py"
 driver = "real"
 lang = "zh"
-rows = ["erp.cc.tool.erp_collection_draft", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/assistant/codes.py",
@@ -1267,7 +1267,7 @@ layer = "L3"
 env = "B"
 via = "api"
 module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
-rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
@@ -1293,7 +1293,7 @@ layer = "L3"
 env = "B"
 via = "api"
 module = "scripts/acceptance/scenarios/erp_collection_misuse.py"
-rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_push"]
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_guide"]
 covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/collection/*.py",
   "apps/pearnly_core/pearnly_core/cc_desktop/*.py",

@@ -91,6 +91,10 @@ TYPED_GAP = 2.0
 ATTACHED = re.compile(r"(?:^|\n\n)\[Attached files?, mounted read-only in the sandbox:\n((?:- .+ → .+\n?)+)\]$")
 
 
+GUIDE_EVENT = "pearnly.guide"                  # `assistant.guide.run.event`
+GUIDE_CONFIRMED = ("confirmed", "done", "failed")  # 点过确定之后的状态（办失败也是点过了）
+
+
 # ── 接口 ──────────────────────────────────────────────────────────────────────
 class Conversation:
     """场景只对这个接口写。`click(card, choice)`：card 是 plan / ask / allow；plan 的 choice 是 write，ask 的是选项文字
@@ -111,6 +115,20 @@ class Conversation:
         raise NotImplementedError
 
     def stop(self) -> None:
+        raise NotImplementedError
+
+    # 引导卡（引导式：业务卡片由站点出，不经模型；页面同一组接口 `assistant.api.guide_*`）
+    def guide(self, business: str, seconds: int = 120) -> dict | None:
+        """这段对话里最近一次 ``business`` 引导此刻的卡（`guide_view`）；卡上还在读（``wait``）就照页面过一会儿再取。没开回 None。"""
+        raise NotImplementedError
+
+    def guide_answer(self, run: str, answers: dict, version: int) -> dict:
+        raise NotImplementedError
+
+    def guide_search(self, run: str, key: str, txt: str) -> dict:
+        raise NotImplementedError
+
+    def guide_confirm(self, run: str, version: int) -> dict:
         raise NotImplementedError
 
     def wait_idle(self, seconds: int = 180) -> None:
@@ -180,7 +198,8 @@ def record_from_events(events: list):
     - turns：user.message（去掉附件说明，文件名放 files）、agent.message、pearnly.stopped（被停掉的半段，stopped=True）。
     - tools：真的执行了的调用（at 是执行的时刻：要「允许」的取点允许那一刻）；被拒绝、被作废、还在等的不算执行。
     - cards：ask = 调 ask_user；allow = 本站登记成等「允许」（pearnly.tool_run awaiting_approval）或引擎那边要确认
-      （user.tool_confirmation）；plan = 写入计划（pearnly.write_plan），开始了（started）算用户点头，answered_at 是开始的时刻。
+      （user.tool_confirmation）；plan = 写入计划（pearnly.write_plan），开始了（started）算用户点头，answered_at 是开始的时刻；
+      引导卡（pearnly.guide）点了确定也算一张 plan（``guide: True``），answered_at 是第一次到确定之后状态的时刻。
     - stops：user.interrupt 的时刻；卡片挂着时用户打字、站点先停那一轮（其后 TYPED_GAP 秒内有用户消息）不算喊停。
     - writes 留空（实验栈没有账本；真写场景由账本前后对比补上）。
     注意：本站执行记录与写入计划在整段重放里只带此刻的状态；要分出「等过允许」「计划等过点头」，要用对话进行中逐次增量读到的事件
@@ -201,6 +220,7 @@ def record_from_events(events: list):
     results: dict[str, tuple] = {}   # user.custom_tool_result：调用编号 → (原文, 时刻, 出错)
     confirms: dict[str, tuple] = {}  # user.tool_confirmation（引擎那边要确认的）：调用编号 → (allow / deny, 时刻)
     plans: dict[str, list] = {}
+    guides: dict[str, list] = {}     # pearnly.guide：引导编号 → [(状态, 时刻, 业务)]
     turns, calls, interrupts = [], [], []
     for event in ordered:
         kind, at = event.get("type"), epoch(event.get("processed_at"))
@@ -225,6 +245,8 @@ def record_from_events(events: list):
             interrupts.append(at)
         elif kind == "pearnly.write_plan":
             plans.setdefault(event.get("plan"), []).append((event.get("status"), at, event.get("count")))
+        elif kind == GUIDE_EVENT:
+            guides.setdefault(event.get("run"), []).append((event.get("status"), at, event.get("business")))
 
     tools, cards = [], []
     for call in calls:
@@ -266,6 +288,13 @@ def record_from_events(events: list):
         cards.append({"kind": "plan", "id": plan, "at": history[0][1], "topic": plan, "count": history[-1][2],
                       "answer": "write" if started is not None else None, "answered_at": started,
                       "status": history[-1][0]})
+
+    # 引导卡上点「确定 / 写入」（站点核的是页面上这一下，`guide:<运行>:<版本>`）同写入计划的点头：算一张 plan 卡
+    for run, history in guides.items():
+        confirmed = next((when for state, when, _ in history if state in GUIDE_CONFIRMED), None)
+        cards.append({"kind": "plan", "id": run, "at": history[0][1], "topic": f"guide:{history[0][2]}", "count": 1,
+                      "answer": "write" if confirmed is not None else None, "answered_at": confirmed,
+                      "status": history[-1][0], "guide": True})
 
     def card_open(card, moment) -> bool:
         return card["kind"] in ("ask", "allow") and (card["at"] or 0) <= moment and (card["answered_at"] is None or card["answered_at"] > moment)
@@ -573,6 +602,26 @@ class LabConversation(Conversation):
 
     def stop(self) -> None:
         self._post("interrupt", {"session_id": self.session_id})
+
+    def guide(self, business: str, seconds: int = 120) -> dict | None:
+        deadline = time.monotonic() + seconds
+        while True:
+            self.poll()
+            runs = [event.get("run") for event in self.events if event.get("type") == GUIDE_EVENT and event.get("business") == business]
+            view = self._call("GET", "guide_view", {"run_name": runs[-1]}) if runs else None
+            waiting = bool(view) and any(q.get("wait") for q in ((view.get("card") or {}).get("questions") or ()))
+            if (view and not waiting) or time.monotonic() > deadline:
+                return view
+            time.sleep(self.POLL)
+
+    def guide_answer(self, run: str, answers: dict, version: int) -> dict:
+        return self._post("guide_answer", {"run_name": run, "answers": json.dumps(answers, ensure_ascii=False), "version": version})
+
+    def guide_search(self, run: str, key: str, txt: str) -> dict:
+        return self._call("GET", "guide_search", {"run_name": run, "key": key, "txt": txt}) or {}
+
+    def guide_confirm(self, run: str, version: int) -> dict:
+        return self._post("guide_confirm", {"run_name": run, "version": version})
 
     def record(self):
         self.poll()

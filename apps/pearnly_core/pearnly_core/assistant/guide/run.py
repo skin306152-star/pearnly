@@ -296,7 +296,8 @@ def _t(key: str) -> str:
 
 # ── 给页面的样子 ─────────────────────────────────────────────────────────────────────────────────────────────
 def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, Any], answers: Mapping[str, Any],
-              decided: Mapping[str, Mapping[str, Any]], reopened: Mapping[str, Any] | None = None) -> Dict[str, Any]:
+              decided: Mapping[str, Mapping[str, Any]], reopened: Mapping[str, Any] | None = None,
+              query: str = "") -> Dict[str, Any]:
     reopened = reopened or {}
     out = {"key": step["key"], "input": step["input"], "rule": step["rule"], "tier": step.get("tier") or "how",
            "title_key": f"guide.step.{guide['id']}.{step['key']}", "required": step.get("required", True)}
@@ -310,9 +311,11 @@ def _question(guide: Mapping[str, Any], step: Mapping[str, Any], ctx: Dict[str, 
             out["wait"] = True
     hint = (decided.get(step["key"]) or {}).get("value")
     if step["input"] in d.OPTION_INPUTS:
-        found = _options(step, ctx)
-        rows = _recommended_first(step, ctx, found["options"], hint if out["tier"] == "how" else None)
+        found = _options(step, ctx, txt=query)
+        rows = _recommended_first(step, ctx, found["options"], hint if out["tier"] == "how" else None, txt=query)
         out.update(options=rows, more=found["more"], search=bool(step.get("search")))
+        if query:
+            out["query"] = query   # 搜索框的初值（打字开卡时说的客户名 / 单号），选项已按它搜过
         if "max_rows" in found:
             out["max_rows"] = found["max_rows"]
         if step.get("zero"):
@@ -367,6 +370,20 @@ def _recommended_first(step: Mapping[str, Any], ctx: Dict[str, Any], rows: List[
     return [found, *others] if found is not None else rows
 
 
+def _searchable(step: Mapping[str, Any]) -> bool:
+    return step["input"] == "choice" and bool(step.get("search"))
+
+
+def _query_key(guide: Mapping[str, Any], doc, asked: List[Mapping[str, Any]], answers: Mapping[str, Any]) -> str:
+    """打字开卡时说的那几个字（``hint``）预填到哪一题：此刻要问的第一道带搜索的单选题；用户答过任何一道带搜索的单选题后就不再预填
+    （那几个字只管开卡那一下，不跟到后面的题上）。"""
+    if not str(doc.get("hint") or "").strip():
+        return ""
+    if any(_searchable(step) and answers.get(step["key"]) not in (None, "", [], {}) for step in guide["steps"]):
+        return ""
+    return next((step["key"] for step in asked if _searchable(step)), "")
+
+
 def view(doc) -> Dict[str, Any]:
     """这次引导此刻给页面的全部：状态、版本、这张卡的题与已定项；复核中带复核视图，办完带结果。"""
     out = {"run": doc.name, "business": doc.business, "status": doc.status, "version": int(doc.version or 0),
@@ -395,7 +412,10 @@ def view(doc) -> Dict[str, Any]:
         asked = steps.to_ask(guide, answers, decided)
         settled = steps.settled(guide, answers, decided)
         reopened = _reopened(doc)
-        out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided, reopened) for step in asked],
+        query_key = _query_key(guide, doc, asked, answers)
+        out["card"] = {"version": 2, "questions": [_question(guide, step, ctx, answers, decided, reopened,
+                                                             str(doc.get("hint") or "") if step["key"] == query_key else "")
+                                                   for step in asked],
                        "decided": [{**item, "title_key": f"guide.step.{guide['id']}.{item['key']}",
                                     "title": _t(f"guide.step.{guide['id']}.{item['key']}")} for item in settled],
                        "ready": steps.state(guide, answers, decided) == steps.READY,
@@ -534,10 +554,11 @@ def _checked(name: str):
 
 
 # ── 走法 ─────────────────────────────────────────────────────────────────────────────────────────────────────
-def start(session_id: str, business: str, doc_ids=None, at: str = "asking", operator=None) -> Dict[str, Any]:
+def start(session_id: str, business: str, doc_ids=None, at: str = "asking", operator=None, hint: str = "") -> Dict[str, Any]:
     """点菜单上的业务开一次引导。``doc_ids``（只对按单据的业务，公开入口）：别的引导 / 代录开始前把已有单据交进来，不交文件、不等识别，
     从判定（``at="asking"``）或复核（``at="review"``）接着走（`documents.initial`）。``operator``：代录开始前那张卡
-    （`express_operator.guide_start.start` 调，``{task, period}``）。"""
+    （`express_operator.guide_start.start` 调，``{task, period}``）。``hint``：打字说要办这件事时提到的客户名 / 单号（CC 工具开卡时给，
+    最多 140 字），出卡时预填到第一道带搜索的单选题（:func:`_query_key`），只当搜索词，不当答案。"""
     now = _conversation(session_id)
     guide = registry.find(business)
     if not guide or guide["source"] not in (d.FORM, d.DOCUMENTS) or now["mode"] not in guide["modes"] \
@@ -557,6 +578,7 @@ def start(session_id: str, business: str, doc_ids=None, at: str = "asking", oper
             _end(old, CANCELLED, "replaced")
     doc = _insert({"session_id": now["session_id"], "user": frappe.session.user, "business": business, "status": ASKING,
                    "company": now["company"], "ledger": now["ledger"], "period": now["period"], "answers": "{}", "version": 1,
+                   **({"hint": " ".join(str(hint).split())[:140]} if str(hint or "").strip() else {}),
                    **({"documents": documents_column} if documents_column else {})})
     _announce(doc)
     return _shown(doc)

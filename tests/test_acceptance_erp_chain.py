@@ -338,14 +338,15 @@ class World:
             self.erp_sales_post({"buyer": "ร้านเอซีซี 1", "ledger": ""})
 
     def erp_collection_lookup(self, params):
-        return {"ok": True, "records": [dict(item, consent_ref="cc:S-1:3") for item in getattr(self, "cc_records", [])]}
+        return {"ok": True, "records": [dict(item, consent_ref="guide:RUN1:4") for item in getattr(self, "cc_records", [])]}
 
     def talk(self):
-        """替身对话：说一句就出写入计划；点「写入」时「CC 桌面版」把收款单写进替身账套。"""
+        """替身对话：推送场景说一句就出写入计划、点「写入」写成；收款（11-19 起）说一句只开收款卡，卡上答完、点「写入」时
+        「CC 桌面版」把收款单写进替身账套。"""
         world, record = self, sys.modules["cc_lines"].Record
 
         class Talk:
-            session_id, site, said, clicked = "S-1", "erp.test", [], None
+            session_id, site, said, clicked, stage = "S-1", "erp.test", [], None, 0
 
             def say(self, text):
                 Talk.said.append(text)
@@ -359,15 +360,50 @@ class World:
                     users.append({"role": "user", "text": "刚开的，再读一次", "at": 2.5})
                 plan = {"kind": "plan", "id": "p1", "at": 3.0, "topic": "p1", "count": 1, "answer": "write" if Talk.clicked else None,
                         "answered_at": Talk.clicked, "status": "started" if Talk.clicked else "awaiting"}
-                reply = "已写入 Express：RE0000001（发票 IV691115-001）" if Talk.clicked else "计划如下"
+                collecting = not getattr(world, "pushing", "")
+                reply = "已写入 Express：RE0000001（发票 IV691115-001）" if Talk.clicked else "已打开收款卡片" if collecting else "计划如下"
                 if getattr(world, "pushing", "") and Talk.clicked:
                     reply = "已写入 Express：" + ("HP691115-001" if world.pushing == "purchase" else world.invoice)
                     if world.pushing == "mrerp":
                         reply = "已写入 MR.ERP：PG691115-000001"
                 if world.break_at == "wrong-reply" and Talk.clicked:
                     reply = "已写入 Express：RE0000009"
-                tools = [] if world.break_at == "no-draft" or getattr(world, "pushing", "") else [{"id": "t1", "name": "erp_collection_draft", "at": 2.0, "input": {}, "status": "ok"}]
+                tools = [] if world.break_at == "no-open" or not collecting else [{"id": "t1", "name": "erp_collection_guide", "at": 2.0, "input": {}, "status": "ok"}]
+                if world.break_at == "old-path" and collecting:
+                    tools.append({"id": "t2", "name": "erp_collection_invoices", "at": 2.1, "input": {}, "status": "ok"})
+                if collecting:
+                    plan = {**plan, "id": "RUN1", "topic": "guide:collection", "guide": True,
+                            "status": "done" if Talk.clicked else "asking"}
                 return record(turns=users + [{"role": "assistant", "text": reply, "at": 4.0}], tools=tools, cards=[plan], writes=[], stops=[])
+
+            def guide(self, business, seconds=120):
+                if world.break_at == "no-open":
+                    return None
+                spoken = world.customer.replace(NBSP, " ")
+                if Talk.stage == 0:
+                    first = {"key": "customer", "input": "choice", "options": [{"code": world.customer, "name": "A"}],
+                             "query": "" if world.break_at == "no-query" else spoken}
+                    return {"run": "RUN1", "status": "asking", "version": 1, "card": {"questions": [first], "answers": {}}}
+                if Talk.stage == 1:
+                    return {"run": "RUN1", "status": "asking", "version": 2, "card": {"questions": [
+                        {"key": "invoices", "input": "amounts", "options": [{"code": world.invoice, "amount": "1070"}]},
+                        {"key": "methods", "input": "split", "options": [{"code": "cash"}]}], "answers": {"customer": world.customer}}}
+                return {"run": "RUN1", "status": "reviewing", "version": 3, "review": {"total": "400.00"}}
+
+            def guide_search(self, run, key, txt):
+                return {"options": [{"code": world.customer}]}
+
+            def guide_answer(self, run, answers, version):
+                Talk.stage += 1
+                return {"run": run, "status": "asking", "version": version + 1}
+
+            def guide_confirm(self, run, version):
+                Talk.clicked = 5.0
+                written = world._receipt("COL-CC", 400.0, 0.0, "cc")
+                if world.break_at == "refused-by-desktop":
+                    written.update(status="failed", docnum="")
+                world.cc_records = [written]
+                return {"run": run, "status": "done", "version": version + 1}
 
             def click(self, card, choice):
                 Talk.clicked = 5.0
@@ -386,7 +422,7 @@ class World:
             def evidence(self):
                 return {"session_id": "S-1", "events": []}
 
-        Talk.said, Talk.clicked = [], None
+        Talk.said, Talk.clicked, Talk.stage = [], None, 0
         return Talk()
 
     def erp_operator_post(self, params):
@@ -780,7 +816,8 @@ class ChainScenarioTest(unittest.TestCase):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((len(result["facts"]["docnums"]), result["spent_usd"], world.calls[-1]), (2, 0.3, "restore"))
-        for break_at, words in (("nbsp", "逐字符原样"), ("refused-by-desktop", "收款状态"), ("wrong-reply", "收款单号"), ("no-draft", "建了收款草稿")):
+        for break_at, words in (("nbsp", "逐字符原样"), ("refused-by-desktop", "收款状态"), ("wrong-reply", "收款单号"), ("no-open", "开卡工具"),
+                                ("old-path", "打字只开卡"), ("no-query", "预填")):
             result, world = self.go("acc.erp.cc.collection.nbsp", break_at)
             self.assertEqual(result["outcome"], self.runner.FAIL, break_at)
             self.assertIn(words, result["detail"], break_at)

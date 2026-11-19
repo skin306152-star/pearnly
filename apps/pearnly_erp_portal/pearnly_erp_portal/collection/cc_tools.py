@@ -491,7 +491,48 @@ RESULT_NOTE = ("status is draft, queued (released, on its way to Express), writi
 
 DATE_PROP = {"type": "string", "description": "Collection date YYYY-MM-DD; leave out for today. Give the date the user chose "
                                             "after date_needed on every collection call."}
+GUIDE_OPENED_NOTE = ("The collection card is open in this conversation. The reply is one short sentence in the user's "
+                     "language that the customer, invoices and amounts are picked on the card and confirmed there; it "
+                     "names no customer, invoice or amount and asks for none, and nothing else is recorded.")
+
+
+def guide(tool_input) -> str:
+    """打字说要收款：只在本对话打开收款卡（共用引擎 `assistant.guide.run.start`，同输入框上方的「收款」），说到的客户名 / 单号只预填
+    进搜索框；客户、发票、金额都由用户在卡上选填（用户 11-16「按建议做」），CC 不经手数值。开不了（不是直写对话、没有这项功能）回原因。"""
+    from pearnly_core.assistant.guide import run
+
+    session = _session()
+    if not session:
+        return _json({"status": "not_saved", "reason": NOT_IN_CONVERSATION})
+    hint = " ".join(str((tool_input or {}).get("hint") or "").split())[:140]
+    try:
+        found = run.start(session, "collection", hint=hint)
+        company = _company()
+        if company:
+            service.warm(company)  # 同 LINE 选公司：从没读过未收发票的账套先整本读一次（按发票号认客户、列发票都要它）
+        frappe.db.commit()
+    except (frappe.ValidationError, frappe.PermissionError) as error:
+        return _json(_refused(error))
+    return _json({"status": "opened", "run": found.get("run"), "note": GUIDE_OPENED_NOTE})
+
+
+# 打字录收款改成开卡（11-16）后不再给模型的三个工具：函数保留（整条撤回时恢复声明即可）
+TOOLS_REPLACED_BY_CARD = ("erp_collection_draft", "erp_collection_voucher", "erp_collection_push")
 TOOLS = [
+    {"name": "erp_collection_guide", "label": "Opened the collection card", "modes": ["chat"],
+     "description": "Opens the collection card in this conversation; it is the only way a collection the user wants to "
+                    "record (a customer paid, receive money for invoices) is recorded here. On the card the user picks the "
+                    "customer, the invoices, the amounts and the methods and confirms; nothing is recorded until they do, "
+                    "and this tool takes no amounts. hint is one search word for the card's customer search: the customer "
+                    "(name or code) exactly as the user wrote it when they named one; only when they named no customer, "
+                    "the invoice number they wrote (the card finds the customer of that open invoice); left out when they "
+                    "named neither. Questions about collections or invoices (how much is open, was it recorded) are "
+                    "answered with the other collection tools, without this card.",
+     "input_schema": {"type": "object", "properties": {"hint": {
+         "type": "string", "maxLength": 140,
+         "description": "The customer as the user wrote it; or, only when no customer was named, the invoice number. "
+                        "Never both, never an amount."}}},
+     "handler": "pearnly_erp_portal.collection.cc_tools.guide"},
     {"name": "erp_collection_customers", "label": "Searched customers for a collection", "modes": ["chat"],
      "description": "Customers of the company this conversation is filed under that a collection can be recorded for "
                     "(from Express), by code or part of the name: code and name. Up to "
@@ -517,44 +558,11 @@ TOOLS = [
                     "discount (the cash discount kind, or none). Only these can be used.",
      "input_schema": {"type": "object", "properties": {"date": DATE_PROP}},
      "handler": "pearnly_erp_portal.collection.cc_tools.methods"},
-    {"name": "erp_collection_draft", "label": "Saved a collection draft", "modes": ["chat"],
-     "description": "Save a collection the user is recording for one customer: the invoices with the amount collected on "
-                    "each (or only docnums and amount, the total, collected oldest first), cash, and methods (transfers "
-                    "and the discount by prefix, with amount; for a transfer the slip photo attached in this "
-                    "conversation as file). To change a saved one give collection and version: the whole content is "
-                    "replaced. The server checks every rule (no more than available, amounts add up, only listed "
-                    "methods) and returns the confirm card: company, book (account set), customer, each invoice, "
-                    "methods, discount, total, version, ready and problem. Nothing is written into the books by this.",
-     "input_schema": {"type": "object", "properties": {
-         "collection": COLLECTION_PROP, "version": VERSION_PROP,
-         "customer": {"type": "string", "description": "Customer code (new collection)."},
-         "invoices": INVOICES_PROP, "amount": {"type": "string"}, "cash": {"type": "string"},
-         "methods": METHODS_PROP, "salesman": {"type": "string"}, "department": {"type": "string"},
-         "date": DATE_PROP},
-         "required": ["invoices"]},
-     "handler": "pearnly_erp_portal.collection.cc_tools.draft"},
-    {"name": "erp_collection_voucher", "label": "Attached a transfer slip", "modes": ["chat"],
-     "description": "Attach the transfer slip photo the user sent in this conversation to one transfer (prefix) of a "
-                    "saved collection; returns the confirm card with the new version.",
-     "input_schema": {"type": "object", "properties": {
-         "collection": COLLECTION_PROP, "version": VERSION_PROP, "prefix": {"type": "string"}, "file": FILE_PROP},
-         "required": ["collection", "version", "prefix", "file"]},
-     "handler": "pearnly_erp_portal.collection.cc_tools.voucher"},
     {"name": "erp_collection_card", "label": "Viewed a collection", "modes": ["chat"],
-     "description": "The confirm card of one of the user's collections (the same as erp_collection_draft returns). "
+     "description": "The confirm card of one of the user's collections. "
                     + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
      "handler": "pearnly_erp_portal.collection.cc_tools.card"},
-    {"name": "erp_collection_push", "label": "Recorded a collection", "modes": ["chat"],
-     "description": "Record a collection into the company's books (an RE receipt in Express, a receipt in MR.ERP): only the document of the write plan the user "
-                    "agreed to (pearnly_write_plan, said back, then pearnly_write_start after the user's reply); any "
-                    "other comes back not_pushed with what to do, changed when it was changed after it was said back. "
-                    f"It waits up to about {direct_push.PUSH_WAIT_SECONDS} seconds for the books: entered (docnum is "
-                    "the RE or MR.ERP receipt number, tell it to the user), queued (not in the books yet; follow note) or failed with a reason.",
-     "input_schema": {"type": "object", "properties": {
-         "document": {"type": "string", "description": "The document (R:…) from erp_collection_draft and the plan."}},
-         "required": ["document"]},
-     "handler": "pearnly_erp_portal.collection.cc_tools.push"},
     {"name": "erp_collection_status", "label": "Checked a collection", "modes": ["chat"],
      "description": "Where one of the user's collections is now. " + RESULT_NOTE,
      "input_schema": {"type": "object", "properties": {"collection": COLLECTION_PROP}, "required": ["collection"]},
@@ -580,13 +588,11 @@ TOOLS = [
 ]
 
 STEP_NAMES = {
+    "erp_collection_guide": "Opening the collection card",
     "erp_collection_customers": "Searching customers for a collection",
     "erp_collection_invoices": "Listing open invoices",
     "erp_collection_methods": "Listing collection methods",
-    "erp_collection_draft": "Saving a collection draft",
-    "erp_collection_voucher": "Attaching a transfer slip",
     "erp_collection_card": "Viewing a collection",
-    "erp_collection_push": "Recording a collection",
     "erp_collection_status": "Checking a collection",
     "erp_collection_list": "Listing collections",
     "erp_collection_withdraw": "Withdrawing a collection",

@@ -132,11 +132,7 @@ effect = ["site", "ledger"]
 line = true
 card = true
 
-[row."erp.cc.tool.erp_collection_draft"]
-effect = ["site"]
-card = true
-
-[row."erp.cc.tool.erp_collection_push"]
+[row."erp.cc.tool.erp_collection_guide"]
 effect = ["site", "ledger"]
 card = true
 

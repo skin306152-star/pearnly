@@ -721,7 +721,7 @@ class PushTests(unittest.TestCase):
         self.assertEqual((by["P:PUR-6"]["status"], by["P:PUR-6"]["reason_code"]), ("with_operator", E.OPERATOR_OWNED))
         self.assertEqual(by["P:PUR-7"]["status"], "unconfirmed")  # 结果不明：不再推
         self.assertEqual(by["P:NOPE"]["status"], "not_found")
-        self.assertIn("erp_collection_push", by["R:COL261111-AB12@1"]["note"])  # 收款由收款工具放行
+        self.assertIn("erp_collection_guide", by["R:COL261111-AB12@1"]["note"])  # 收款只在收款卡上录
         self.assertEqual(CALLS, [("retry", PURCHASE, "PUR-4"), ("send", SALES, "SD-5")])
         self.assertIn("erp_push_results", out["note"])
 

@@ -19,8 +19,7 @@ rows = ["erp.desk.pearnly-sales.action.Submit", "erp.desk.pearnly-sales.action.E
 [[chain]]
 id = "erp.collection-to-express"
 title = "ERP 收款：发票读回 → 录收款（网页 / LINE / CC 对话）→ 写成 Express 收款单 → 账本读回（挂的发票、余额、凭证、银行流水）"
-rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_draft",
-        "erp.cc.tool.erp_collection_push"]
+rows = ["erp.desk.pearnly-collections.action.New", "erp.line.postback.col", "erp.cc.tool.erp_collection_guide"]
 
 [[chain]]
 id = "erp.stock-in-to-express"

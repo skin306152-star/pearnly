@@ -1018,6 +1018,7 @@ Open that product,打开该物料
 "Open this page from LINE, or sign in to the site first",请从 LINE 打开本页，或先登录站点
 Opened At,开班时间
 Opened at {0},开班时间 {0}
+Opened the collection card,打开了收款卡片
 Opened the original,查看了原件
 Opening,期初
 Opening Amount,期初金额
@@ -1041,6 +1042,7 @@ Opening stock items,期初库存明细
 Opening stock must use the product base unit,期初库存必须使用物料的库存单位
 Opening stock review,期初库存核对
 Opening stock review is not configured,期初核对配置缺失，请联系管理员
+Opening the collection card,正在打开收款卡片
 Opening the original,正在打开原件
 Opening unit cost,期初成本单价
 Opening value,期初金额

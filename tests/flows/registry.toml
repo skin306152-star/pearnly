@@ -2286,6 +2286,21 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.typed-collection"
+title = "ERP 版 CC 打字说要收款：只打开收款卡，客户搜索框预填说到的客户码，卡上什么都不替用户答，库里不建草稿（用户 11-16）"
+module = "scripts/flows/erp_cc_typed_collection.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/collection/cc_tools.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+]
+
+[[flow]]
 id = "erp.cc.guide.stop"
 title = "ERP 版 CC 收款引导卡进行中点停止：卡读回已失效，没有收款单、没有写入任务（引导式退出路径，主会话 11-16）"
 module = "scripts/flows/erp_cc_guide_stop.py"

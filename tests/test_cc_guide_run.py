@@ -163,6 +163,44 @@ class StartTests(Base):
         self.assertRaises(ValueError, run.start, "S1", "payment")
 
 
+class HintTests(Base):
+    """打字说要办时开卡（11-16 用户「按建议做」）：说到的客户名 / 单号只预填进第一道带搜索的单选题的搜索框，选项按它搜，不当答案；
+    答过这一题后不再跟到后面的题上。"""
+
+    def setUp(self):
+        super().setUp()
+        self.searched = []
+
+        def customers(ctx, txt="", start=0, page_length=20, codes=None):
+            if codes is None:
+                self.searched.append(txt)
+            rows = [code for code in self.customers if codes is not None or txt.casefold() in code.casefold()]
+            return self.options(rows, codes)
+        ATTRS["app.customers"] = customers
+
+    def test_the_hint_fills_the_search_box_of_the_first_search_step_and_is_not_an_answer(self):
+        found = run.start("S1", "collection", hint="  c002 ")
+        question = found["card"]["questions"][0]
+        self.assertEqual((question["key"], question["query"]), ("customer", "c002"))
+        self.assertEqual([row["code"] for row in question["options"]], ["C002"])
+        self.assertEqual(self.searched[-1], "c002")
+        self.assertNotIn("value", question)
+        self.assertEqual(found["card"]["answers"], {})
+        self.assertEqual(self.docs[found["run"]].hint, "c002")
+
+    def test_once_the_step_is_answered_the_hint_is_gone(self):
+        name = run.start("S1", "collection", hint="C002")["run"]
+        found = run.answer(name, {"customer": "C002"})
+        self.assertTrue(all("query" not in q for q in found["card"]["questions"]))
+
+    def test_without_a_hint_nothing_is_prefilled_and_a_long_one_is_cut(self):
+        found = run.start("S1", "collection")
+        self.assertNotIn("query", found["card"]["questions"][0])
+        self.assertEqual(self.searched[-1], "")
+        name = run.start("S1", "collection", hint="x" * 300)["run"]
+        self.assertEqual(len(self.docs[name].hint), 140)
+
+
 class AnswerTests(Base):
     def test_answers_walk_the_steps_and_end_in_a_draft_under_review(self):
         name, found = self.to_review()

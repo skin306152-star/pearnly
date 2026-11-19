@@ -9,6 +9,7 @@
   "session_id",
   "user",
   "business",
+  "hint",
   "status",
   "company",
   "ledger",
@@ -41,6 +42,12 @@
    "fieldname": "business",
    "fieldtype": "Data",
    "label": "Type",
+   "read_only": 1
+  },
+  {
+   "fieldname": "hint",
+   "fieldtype": "Data",
+   "label": "Search",
    "read_only": 1
   },
   {
@@ -123,7 +130,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-19 12:00:00.000000",
+ "modified": "2026-11-19 22:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Assistant Guide Run",

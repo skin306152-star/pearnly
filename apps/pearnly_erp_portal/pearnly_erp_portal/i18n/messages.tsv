@@ -2175,3 +2175,5 @@ Transfer Slip	转账凭证	สลิปการโอน	振込明細	guide.ste
 Salesman	销售员	พนักงานขาย	営業担当	guide.review.salesman
 Department	部门	แผนก	部門	guide.review.department
 Not saved: {0}	没有记下：{0}	ยังไม่ได้บันทึก: {0}	保存されていません：{0}	
+Opened the collection card	打开了收款卡片	เปิดการ์ดรับชำระแล้ว	入金カードを開きました
+Opening the collection card	正在打开收款卡片	กำลังเปิดการ์ดรับชำระ	入金カードを開いています

@@ -294,7 +294,7 @@ def _route(kind, name, row) -> str:
     return ""
 
 
-COLLECTION_NOTE = "This is a collection: record it with erp_collection_push."
+COLLECTION_NOTE = "This is a collection: it is recorded only on the collection card (erp_collection_guide)."
 
 
 def _push_one(document, tool_input) -> dict:

@@ -252,10 +252,35 @@ def customers(company, q="", start=0, limit=12) -> dict:
     # 与选择框、LINE 选客户同一份查询（`masters.link_search`：名称、账本编码、税号、电话，不分大小写包含，几个词都要有，
     # 电话不论带不带横线），只要这家的账本客户
     limit = max(1, min(int(limit or 12), SEARCH_MAX))
-    found = link_search.rows(CUSTOMER, company, text, start=max(0, int(start or 0)), limit=limit,
-                             filters={"is_active": 1}, ledger_only=True)
+    start = max(0, int(start or 0))
+    total = link_search.count(CUSTOMER, company, text, filters={"is_active": 1}, ledger_only=True)
+    if not total and text:
+        return _customers_by_invoice(company, text, start, limit)
+    found = link_search.rows(CUSTOMER, company, text, start=start, limit=limit, filters={"is_active": 1}, ledger_only=True)
     return {"items": [{"code": row.express_code, "name": row.title, "tax_id": row.tax_id or ""} for row in found],
-            "total": link_search.count(CUSTOMER, company, text, filters={"is_active": 1}, ledger_only=True)}
+            "total": total}
+
+
+INVOICE_WORDS_MAX = 5
+
+
+def _customers_by_invoice(company, text, start, limit) -> dict:
+    """搜索字对不上任何客户时按发票号认（11-20：打字说「客户 C001 付了 IV001」，CC 开卡带的是发票号或「编号 + 发票号」）：搜索字里
+    哪几个词是这家公司未收清发票的单号（快照，按单号精确对、最多几个词），回这些发票的客户。只认账本里在用的客户；单号与客户按原样比
+    （库的排序规则把只差空白的当相等）。快照里没有（还没读过 / 已收清）就照旧是空。"""
+    words = list(dict.fromkeys(text.split()))[:INVOICE_WORDS_MAX]
+    owners = []
+    for row in frappe.get_all(snapshot.DOCTYPE, filters={"company": company, "docnum": ["in", words]},
+                              fields=["docnum", "customer"], order_by="doc_date asc, docnum asc", limit_page_length=SEARCH_MAX):
+        if any(row.docnum.lower() == word.lower() for word in words) and row.customer and row.customer not in owners:
+            owners.append(row.customer)
+    if not owners:
+        return {"items": [], "total": 0}
+    rows = {row.express_code: row for row in frappe.get_all(
+        CUSTOMER, filters={**master_access.ledger_filters(company), "is_active": 1, "express_code": ["in", owners]},
+        fields=["express_code", "customer_name", "tax_id"], limit_page_length=SEARCH_MAX)}
+    items = [{"code": code, "name": rows[code].customer_name, "tax_id": rows[code].tax_id or ""} for code in owners if code in rows]
+    return {"items": items[start:start + limit], "total": len(items)}
 
 
 def customer_code(company, given) -> str:

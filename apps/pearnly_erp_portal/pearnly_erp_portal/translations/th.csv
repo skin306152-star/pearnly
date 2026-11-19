@@ -1018,6 +1018,7 @@ Open that product,เปิดสินค้ารายการนี้
 "Open this page from LINE, or sign in to the site first",กรุณาเปิดหน้านี้จาก LINE หรือเข้าสู่ระบบก่อน
 Opened At,เวลาเปิดกะ
 Opened at {0},เปิดกะเมื่อ {0}
+Opened the collection card,เปิดการ์ดรับชำระแล้ว
 Opened the original,เปิดต้นฉบับแล้ว
 Opening,ยอดยกมา
 Opening Amount,ยอดยกมา
@@ -1041,6 +1042,7 @@ Opening stock items,รายการสต็อกยกมา
 Opening stock must use the product base unit,สต็อกยกมาต้องใช้หน่วยฐานของสินค้า
 Opening stock review,ตรวจสอบสต็อกยกมา
 Opening stock review is not configured,ไม่พบการตั้งค่าการตรวจสอบสต็อกยกมา กรุณาติดต่อผู้ดูแลระบบ
+Opening the collection card,กำลังเปิดการ์ดรับชำระ
 Opening the original,กำลังเปิดต้นฉบับ
 Opening unit cost,ต้นทุนต่อหน่วยยกมา
 Opening value,มูลค่ายกมา
