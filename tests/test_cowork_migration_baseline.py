@@ -208,7 +208,7 @@ class BaselineTests(unittest.TestCase):
         raw = "## 正在服务的发布身份\n\n" + self.body["ledger"]["excerpt"]
         with patch.object(gate, "command", side_effect=["b" * 40, raw]) as run:
             gate.verify_source(self.body, "/read-only-source")
-            self.assertEqual(run.call_args_list[1].args[0][3], "show")
+            self.assertIn("show", run.call_args_list[1].args[0])  # git -c core.quotepath=off -C <源仓> show …
         with patch.object(gate, "command", return_value="0" * 40):
             with self.assertRaisesRegex(gate.BaselineError, "source tree"):
                 gate.verify_source(self.body, "/read-only-source")
@@ -223,7 +223,7 @@ class BaselineTests(unittest.TestCase):
             def execute(args):
                 calls.append(args)
                 if args[0] == "git":
-                    if args[3] == "show":
+                    if "show" in args:
                         return "## 正在服务的发布身份\n\n" + self.body["ledger"]["excerpt"]
                     return ("b" if args[-1].endswith("^{tree}") else "c") * 40
                 if args[0] == "gh":

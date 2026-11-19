@@ -30,7 +30,7 @@ class QuotePathEverywhere(unittest.TestCase):
     def test_python_git_calls_turn_quoting_off(self):
         bad = []
         for name in tracked("scripts", "tests", ".githooks"):
-            if not name.endswith(".py"):
+            if not name.endswith(".py") or name == "tests/test_git_quotepath.py":  # 本文件写的是规则本身（用 FLAG 变量）
                 continue
             text = (ROOT / name).read_text(encoding="utf-8")
             for match in re.finditer(r'\["git",([^\]\n]{0,60})', text):
