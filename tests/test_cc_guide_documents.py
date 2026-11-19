@@ -262,7 +262,8 @@ class Walk(Base):
         self.assertEqual(found["review"]["rows"][0]["face"]["doc_no"], "IV-9")
         before = found["version"]
         found = run.edit(name, "I:1", "total", "999", before)
-        self.assertEqual((found["outcome"], found["refused"]), (run.REFUSED, {"total": "computed"}))
+        self.assertEqual((found["outcome"], found["refused"]["total"]["code"]), (run.REFUSED, "computed"))
+        self.assertEqual(set(found["refused"]["total"]), {"code", "text"})   # 同表单与作答的拒收形状 {格: {code, text}}（约定 11-19）
         self.assertEqual(run.edit(name, "I:9", "doc_no", "x", found["version"])["outcome"], run.REFUSED)  # 不在复核里的票
         self.assertEqual(run.edit(name, "I:1", "doc_no", "x", before - 1)["outcome"], run.CHANGED)
 

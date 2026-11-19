@@ -856,6 +856,11 @@ class ReopenTests(Base):
         self.assertEqual((again["status"], seen), ("reviewing", ["", f"R:{name}:1"]))
         self.assertEqual(self.docs[name].draft, f"R:{name}:2")
         self.assertEqual(back["status"], "asking")
+        run.reopen(name, "customer", again["version"])   # 再改一次：上一张照样交下去
+        run.answer(name, {"customer": "C002"})
+        run.answer(name, {"invoices": [{"code": "IV009", "amount": "1000"}]})
+        third = run.answer(name, {"method": CASH})
+        self.assertEqual((third["status"], seen[-1], self.docs[name].draft), ("reviewing", f"R:{name}:2", f"R:{name}:3"))
 
     def test_a_stale_version_or_an_unknown_step_is_not_reopened(self):
         name, found = self.to_review()

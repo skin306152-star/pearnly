@@ -667,8 +667,9 @@ def edit(name: str, doc_id: str, field: str, value: Any, version: int) -> Dict[s
         return {**_shown(doc), "outcome": CHANGED}
     found = _docs().edit(guide, doc, _ctx(doc, _answers(doc)), str(doc_id or ""), str(field or ""), value)
     if isinstance(found, Mapping) and found.get("refused"):
-        text = _docs().reason_text(str(found["refused"]))
-        return {**_shown(doc), "outcome": REFUSED, "refused": {str(field or ""): found["refused"]},
+        # 拒收形状同表单与作答：{格: {code, text}}；refused_text 照旧带着（页面旧写法也认）
+        code, text = str(found["refused"]), _docs().reason_text(str(found["refused"]))
+        return {**_shown(doc), "outcome": REFUSED, "refused": {str(field or ""): {"code": code, "text": text}},
                 **({"refused_text": {str(field or ""): text}} if text else {})}
     doc.version = int(doc.version or 0) + 1
     _save(doc)

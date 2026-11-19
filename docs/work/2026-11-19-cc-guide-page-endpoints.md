@@ -22,3 +22,13 @@
 ## 测试
 `tests/test_cc_guide_run.py`：PageFieldTests、ReopenTests、SearchAnyOptionStepTests、FormEditTests；`tests/test_cc_guide_registry.py`：表单可写 edit 但要有 review；
 `tests/test_cc_guide_run_card.py`：PageEndpointTests（每个页面调用都有接口、方法、参数名、交给引擎同名函数）。除 SearchAnyOptionStepTests（wire 上已支持，守住）外都先红后绿。
+
+## 草稿只留一份（A2 11-19 实验栈查出，按类修）
+现象：复核后点「改」回去重问、再到复核，第一次复核建的收款草稿没作废，每改一次多一笔没有同意记录的草稿。
+原因：`reopen` 清掉了运行记录的草稿号，产品的 `draft(ctx, values)` 拿不到 `ctx["draft"]`，作废不了上一张。
+约定（引擎）：运行记录的草稿号在「改一步重问」「复核中改答案」「改一格」时都留着，下一次 `draft` / `edit` 收到的 `ctx["draft"]`
+就是上一张；只有结束（取消、失效、办完）才不再交。产品的草稿若在库里建了记录，**必须据 `ctx["draft"]` 作废或复用上一张，不能新增**。
+盘点（11-19，main 与在途分支的全部表单引导）：收款（`collection.guide.draft`）作废上一张再建；预扣税按「公司 + 月份」同一个记录号重出
+（`tax.service.wht_draft`，不新增）；收银日汇总的草稿号是导出文件号，不建记录；读回、对账、盘点、看板、公司资料、待处理、收发存、
+定时任务的草稿只是字符串。测试：test_cc_guide_run 的 ReopenTests（改两次，每次上一张都交给下一次 draft）、test_erp_collection_guide
+（真引擎：复核 → 改 → 再复核，旧草稿已作废）；流程 erp.cc.guide.reopen（改两次，库里这位客户 1 笔草稿、2 笔作废）。
