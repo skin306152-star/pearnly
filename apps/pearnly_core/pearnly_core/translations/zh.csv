@@ -318,8 +318,10 @@ Enabled,启用
 Enabled features,已开通功能
 Endpoint,连接端点
 Enter again,再写一次
+Enter conversion,填换算
 "Enter the display name, DMS account and password. Issue bind codes after saving.",填写显示名及该操作员的 DMS 账号和密码，保存后分别生成绑定码
 Enter the first name,请填写名
+Enter unit cost,填单位成本
 Entering,录入中
 Error Message,错误信息
 Event ID,事件 ID
@@ -509,6 +511,7 @@ No camera was found on this device. Enter the code instead.,此设备上没有�
 "No client ID for invitation links is configured, so the invitation email cannot be sent",未配置「邀请链接客户端 ID」，无法发送邀请邮件
 No computer connected,未连接电脑
 No connection to test,缺少要测试的连接
+No cost posting,不结转
 No existing customer matched and no DMS customer reference was given: confirm manually first,未匹配到已有客户，且未提供 DMS 客户引用，请先人工确认
 No file was received.,未收到文件。
 No operators yet — add one above,暂无操作员，请在上方新增
@@ -560,6 +563,7 @@ Operator added,操作员已新增
 Operator list,操作员名单
 Operators,操作员
 Optional,可留空
+Or type a value,或直接输入
 Order Discount,整单折扣
 Original document,原件
 Output Tokens,输出 Token
@@ -908,6 +912,8 @@ Trigger,触发方式
 Try again,重试
 Type,类型
 Type a name or code to find it,输入名称或编码查找
+Type a number,输入数字
+Type a number greater than {0},输入大于 {0} 的数字
 Type of the connected system,对端系统类型
 Type {0} or more characters for results.,至少输入 {0} 个字符
 UI language,界面语言
@@ -1114,9 +1120,14 @@ guide.desc.item.__new__,在 Express 新建
 guide.desc.party.__new__,在 Express 新建
 guide.desc.payment.cash,记为现购 / 现销
 guide.desc.payment.credit,记为赊购 / 赊销
+guide.line.number,输入数字
+guide.line.numberAbove,输入大于 {0} 的数字
+guide.line.other,或直接输入
 guide.line.search,输入名称或编码查找
 guide.option.business.follow,按票面入账
 guide.option.business.skip,不入账
+guide.option.cost_basis.given,填单位成本
+guide.option.cost_basis.none,不结转
 guide.option.detail.amount_only,只记金额
 guide.option.detail.skip,不入账
 guide.option.direction.expense,费用
@@ -1137,6 +1148,7 @@ guide.option.payment.cash,现金
 guide.option.payment.credit,赊账
 guide.option.service_vat.accrual,权责发生制
 guide.option.service_vat.cash_basis,收付实现制
+guide.option.unit.factor,填换算
 guide.option.vat.claim,抵扣
 guide.option.vat.expense,记入费用
 guide.q.account,科目

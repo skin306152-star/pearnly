@@ -14,8 +14,11 @@
 - **会话**：存在产品给的 LINE 会话载荷 ``payload[KEY]`` 里（每次调用后由产品存回；会话 30 分钟过期同现有，过期后旧按钮自然无效）。
   键与 ERP ``line_items`` / Cowork ``line.items`` 的 ``items`` 不同。
 
-LINE 里问不了的题（选项要另填一个数的 ``entry``、可自己填的 ``free``、既没选项也不能搜的）不问，记进 ``left``，照现有兜底（卡上保存时回原因、
-编辑页里定）。结果不明、写不了、等电脑的单不是题，也不问。
+要另填数的题也在 LINE 问完（主会话 11-19「不许有 LINE 问不了、只能进编辑页」）：点了带 ``entry`` 的选项（单位「填换算」、出库成本
+「填单位成本」）接着请用户直接打数字，按识别数字那套规整（``tax_documents.amounts.money``：逗号、฿、括号负数），照 ``entry`` 的下限核
+（同 CC 引导卡 ``assistant.guide.documents._entry_ok``），读不懂 / 不在范围当场再问；答案交「码:数」（同 CC 引导卡与
+``express_rules.push.book_questions`` 的 ``factor:`` / ``given:``）。可自己填的题（``free``）打的字原样作答（同 CC 引导卡「其他」）。
+只有既没选项、不能搜、也不能自己填（或 ``entry`` 不是数字）的题才问不了，记进 ``left``。结果不明、写不了、等电脑的单不是题，也不问。
 
 每个对外函数回一个结果 ``{status, messages, finished, cancelled}``：产品先按 ``finished`` 逐张出卡、处理 ``cancelled``，再发 ``messages``
 （下一题、重问、旧按钮无效的提示）。``status``：``asking``（有题在等答）/ ``idle``（没有在问的）/ ``queued``（新票排在后面）/
@@ -25,10 +28,12 @@ LINE 里问不了的题（选项要另填一个数的 ``entry``、可自己填�
 """
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import Any, Dict, List, Mapping, Optional
 from urllib.parse import parse_qs, urlencode
 
 from pearnly_core.line_ui.labels import QUICK_LABEL_MAX, choice_labels
+from pearnly_core.tax_documents.amounts import money
 from pearnly_core.write_precheck import contracts as c
 from pearnly_core.write_precheck import guide
 
@@ -43,6 +48,9 @@ ASKING, IDLE, QUEUED, STALE = "asking", "idle", "queued", "stale"
 
 # 文字（键 / 英文原文 msgid，按本轮语言翻）
 SEARCH_PROMPT = "guide.line.search"
+NUMBER_PROMPT = "guide.line.number"
+NUMBER_ABOVE = "guide.line.numberAbove"
+OTHER_PROMPT = "guide.line.other"
 STALE_TEXT = "This option is no longer current"
 NO_MATCH = "No match for “{0}”"
 TOO_MANY = "Too many matches; type a few more letters to narrow it down"
@@ -115,20 +123,43 @@ def _say(backend, key: str, params: Optional[Mapping[str, Any]] = None) -> str:
     return found
 
 
-def askable(question: Mapping[str, Any]) -> bool:
-    """LINE 里能问的题：有选项或能搜；选项不要另填数（``entry``），也不是可自己填的题（``free``）。"""
-    options = question.get("options") or ()
-    if question.get("free") or any(isinstance(option.get("entry"), Mapping) for option in options):
+def askable(question: Mapping[str, Any], item: Optional[Mapping[str, Any]] = None) -> bool:
+    """LINE 里能问的题：有选项、能搜或能自己填；要另填的数（``entry``，选项上或判定卡同一项的选项上）只认数字。"""
+    if any(entry.get("input", "number") != "number" for entry in _entries(question, item or {}).values()):
         return False
-    return bool(options or question.get("search"))
+    return bool(question.get("options") or question.get("search") or question.get("free"))
+
+
+def number(entry: Mapping[str, Any], typed) -> Optional[str]:
+    """用户打的数 → 交答案用的数字串（``1,234.50`` → ``1234.50``、``฿100`` → ``100``）；读不懂、不是有限数、不合 ``entry`` 的下限
+    （``min_exclusive`` 大于、``min`` 不小于，同 CC 引导卡）回 None。"""
+    amount = money(" ".join(str(typed or "").split()))
+    if amount is None or not amount.is_finite():
+        return None
+    if entry.get("min_exclusive") not in (None, "") and not amount > Decimal(str(entry["min_exclusive"])):
+        return None
+    if entry.get("min") not in (None, "") and amount < Decimal(str(entry["min"])):
+        return None
+    return format(amount, "f")
+
+
+def _entries(question: Mapping[str, Any], item: Mapping[str, Any]) -> Dict[str, Dict[str, Any]]:
+    """选项码 → 要另填的数（``entry``）。``guide.build`` 出题时不带选项上的 ``entry``，按判定卡上同一项的选项补回。"""
+    found = {}
+    for option in [*(item.get("options") or ()), *(question.get("options") or ())]:
+        if isinstance(option, Mapping) and isinstance(option.get("entry"), Mapping):
+            found[str(option.get("code") or "")] = dict(option["entry"])
+    return found
 
 
 def _snapshot(question: Mapping[str, Any], item: Mapping[str, Any], backend) -> Dict[str, Any]:
     """一题存进会话的样子（按本轮语言翻好）：``{key, kind, title, label, docs, search, options: [{code, label}]}``。
     推荐项照 guide 排第一；搜索题的预选值不在选项里时补成第一个（名称取判定给的 ``value_label``）。"""
     params = question.get("title_params") or {}
+    entries = _entries(question, item)
     options = [{"code": str(option.get("code") or ""),
-                "label": str(option.get("name") or _say(backend, option.get("label_key") or "") or option.get("code") or "")}
+                "label": str(option.get("name") or _say(backend, option.get("label_key") or "") or option.get("code") or ""),
+                **({"entry": entries[option.get("code")]} if option.get("code") in entries else {})}
                for option in question.get("options") or ()]
     preselected = str(question.get("preselected") or "")
     if preselected and question.get("search") and preselected not in {option["code"] for option in options}:
@@ -137,7 +168,7 @@ def _snapshot(question: Mapping[str, Any], item: Mapping[str, Any], backend) -> 
     label = str(params.get("label") or "")
     return {"key": question["key"], "kind": question.get("kind") or "", "title": title,
             "label": "" if label == title else label, "docs": list(question.get("docs") or ()),
-            "search": str(question.get("search") or ""), "options": options[:LIST_MAX]}
+            "search": str(question.get("search") or ""), "free": bool(question.get("free")), "options": options[:LIST_MAX]}
 
 
 def _next(card: Mapping[str, Any], batch: Dict[str, Any], backend) -> Optional[Dict[str, Any]]:
@@ -151,7 +182,7 @@ def _next(card: Mapping[str, Any], batch: Dict[str, Any], backend) -> Optional[D
             continue
         if not c.applies(question, items, answered):
             continue
-        if not askable(question):
+        if not askable(question, items.get(question["key"]) or {}):
             batch["left"].append(question["key"])
             continue
         return _snapshot(question, items.get(question["key"]) or {}, backend)
@@ -179,6 +210,7 @@ def _message(batch: Mapping[str, Any], lines: List[str], choices: List[Dict[str,
         shown = choice_labels(labels[:MAX_CHOICES])
     else:
         shown = labels
+    batch["numbered"] = numbered
     items = [_button(text, _data(batch, q=batch["question"]["key"], k=index)) for index, text in enumerate(shown)]
     items.append(_button(backend.text(CANCEL), _data(batch, c=1)))
     return {"type": "text", "text": "\n".join(line for line in lines if line)[:5000], "quickReply": {"items": items}}
@@ -187,13 +219,29 @@ def _message(batch: Mapping[str, Any], lines: List[str], choices: List[Dict[str,
 def _render(batch: Dict[str, Any], backend) -> Dict[str, Any]:
     """当前这一题的消息（每出一次题序号加一，之前的按钮作废）。"""
     batch["seq"] = int(batch.get("seq") or 0) + 1
+    batch.pop("entry", None)
     question = batch["question"]
     batch["shown"] = [option["code"] for option in question["options"]]
     batch["shown_labels"] = [option["label"] for option in question["options"]]
     lines = [batch.get("heading") or "", question["title"], question["label"]]
     if question["search"]:
         lines.append(_say(backend, SEARCH_PROMPT))
+    elif question.get("free"):
+        lines.append(_say(backend, OTHER_PROMPT))
     return _message(batch, lines, question["options"], backend)
+
+
+def _entry_prompt(batch: Dict[str, Any], option: Mapping[str, Any], backend) -> Dict[str, Any]:
+    """点了要另填数的选项：请用户直接打数字（有下限的写上下限）。这时只认打的数与「取消」，之前的按钮作废。"""
+    batch["seq"] = int(batch.get("seq") or 0) + 1
+    batch["entry"] = {"code": option["code"], "label": option["label"], "entry": dict(option["entry"])}
+    batch["shown"], batch["shown_labels"], batch["numbered"] = [], [], False
+    question, entry = batch["question"], option["entry"]
+    above = entry.get("min_exclusive")
+    prompt = _say(backend, NUMBER_ABOVE).replace("{0}", str(above)) if above not in (None, "") else ""
+    lines = [batch.get("heading") or "", question["title"], question["label"], option["label"],
+             prompt or _say(backend, NUMBER_PROMPT)]
+    return _message(batch, lines, [], backend)
 
 
 def _results(batch: Dict[str, Any], rows: List[Dict[str, str]], more: bool, backend) -> Dict[str, Any]:
@@ -269,10 +317,19 @@ def enqueue(payload: Dict[str, Any], company: str, doc_ids, ref: Any = None, hea
 
 
 def _choose(state: Dict[str, Any], index: int, user, backend) -> Dict[str, Any]:
-    """选中当前显示的第 ``index`` 个（从 0 起）：交 ``record``；答错回原因并重问这一题；答对接下一题，这批问完接下一批。"""
+    """选中当前显示的第 ``index`` 个（从 0 起）：要另填数的选项先请用户打数字，其余直接作答。"""
+    batch = state["current"]
+    code, label = batch["shown"][index], batch["shown_labels"][index]
+    option = next((option for option in batch["question"]["options"] if option["code"] == code), None)
+    if option is not None and option.get("entry"):
+        return _outcome(state, [_entry_prompt(batch, option, backend)])
+    return _answer(state, code, label, user, backend)
+
+
+def _answer(state: Dict[str, Any], code: str, label: str, user, backend) -> Dict[str, Any]:
+    """交 ``record``（``code`` 是选项码、「码:数」或自己填的字）；答错回原因并重问这一题；答对接下一题，这批问完接下一批。"""
     batch = state["current"]
     question = batch["question"]
-    code, label = batch["shown"][index], batch["shown_labels"][index]
     found = backend.record(batch["company"], batch["doc_ids"], [{"key": question["key"], "value": code}])
     if found.get("refused") or found.get("errors"):
         reason = str(found.get("refused") or "") or backend.text(STALE_TEXT)
@@ -328,10 +385,19 @@ def text(payload: Dict[str, Any], message: str, user=None, backend=None) -> Opti
     if not backend.allowed(user, batch["company"]):
         return None
     wanted = " ".join(str(message or "").split())[:TEXT_MAX]
-    shown = batch.get("shown") or []
-    if wanted.isdigit() and 1 <= int(wanted) <= len(shown):
-        return _choose(state, int(wanted) - 1, user, backend)
     question = batch["question"]
+    entry = batch.get("entry")
+    if entry:
+        found = number(entry["entry"], wanted)
+        if found is None:  # 读不懂 / 不在范围：当场再问这个数
+            option = {"code": entry["code"], "label": entry["label"], "entry": entry["entry"]}
+            return _outcome(state, [_entry_prompt(batch, option, backend)])
+        return _answer(state, f"{entry['code']}:{found}", f"{entry['label']} {found}", user, backend)
+    shown = batch.get("shown") or []
+    if wanted.isdigit() and 1 <= int(wanted) <= len(shown) and (batch.get("numbered") or not question.get("free")):
+        return _choose(state, int(wanted) - 1, user, backend)
+    if question.get("free") and wanted:  # 可自己填的题：打的字原样作答（同 CC 引导卡「其他」）
+        return _answer(state, wanted[:c.VALUE_MAX], wanted[:c.VALUE_MAX], user, backend)
     if question["search"] and wanted:
         doc_id = (question["docs"] or batch["doc_ids"])[0]
         found = backend.search(batch["company"], doc_id, question["search"], wanted, 0, MAX_CHOICES)
@@ -349,4 +415,4 @@ def _default():
 
 
 __all__ = ["ACTION", "ASKING", "DATA_MAX", "IDLE", "KEY", "MAX_CHOICES", "QUEUED", "STALE", "askable", "asking", "enqueue", "is_step",
-           "pending", "postback", "stop", "text"]
+           "number", "pending", "postback", "stop", "text"]

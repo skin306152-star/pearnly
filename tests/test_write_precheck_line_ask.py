@@ -22,7 +22,10 @@ from pearnly_core.write_precheck import line_ask as ask  # noqa: E402
 TEXTS = {"guide.q.payment": "付款方式", "guide.q.party": "对方", "guide.q.account_set": "账套", "guide.q.location": "仓库",
          "guide.q.cost_basis": "出库成本", "guide.option.payment.cash": "现金", "guide.option.payment.credit": "赊账",
          "guide.line.search": "输入名称或编码查找", "Cancel": "取消", "This option is no longer current": "此选项已失效",
-         "No match for “{0}”": "没有找到「{0}」", "Too many matches; type a few more letters to narrow it down": "结果过多"}
+         "No match for “{0}”": "没有找到「{0}」", "Too many matches; type a few more letters to narrow it down": "结果过多",
+         "guide.q.unit": "单位", "guide.option.cost_basis.none": "不结转", "guide.option.cost_basis.given": "填单位成本",
+         "guide.option.unit.factor": "填换算", "guide.line.number": "输入数字", "guide.line.numberAbove": "输入大于 {0} 的数字",
+         "guide.line.other": "或直接输入"}
 
 PAY = {"kind": "payment", "subject": "purchase|1|abc", "label": "ABC", "options": [{"code": "cash"}, {"code": "credit"}]}
 PARTY = {"kind": "party", "subject": "purchase|0105550000001", "label": "ABC", "search": "parties"}
@@ -42,6 +45,7 @@ class Backend:
     def __init__(self, docs, parties=()):
         self.docs, self.parties = docs, list(parties)
         self.memory, self.records, self.refuse, self.denied, self.serial = {}, [], set(), set(), 0
+        self.entries = False  # 替身产品认「码:数」与自己填的字（共用 contracts.expand 现在不认，见 Entries.test_shared_expand_*）
 
     def card(self, company, doc_ids):
         merged = []
@@ -58,6 +62,11 @@ class Backend:
         before = self.card(company, doc_ids)
         if any(a["value"] in self.refuse for a in answers):
             return {"refused": "产品不收"}
+        if self.entries:
+            for answer in answers:
+                item = next(i for i in c.items_of(before) if i["key"] == answer["key"])
+                self.memory[(item["kind"], item["subject"])] = answer["value"]
+            return {**self.card(company, doc_ids), "writable": list(doc_ids), "held": []}
         expanded, errors = c.expand(before, answers)
         if errors:
             return {**before, "errors": errors}
@@ -173,7 +182,9 @@ class Render(Fixture):
         self.assertEqual(parse_qs(data(message, 0))["q"], [BOOKS_KEY])
 
     def test_questions_line_cannot_ask_are_left(self):
-        backend = Backend({"d1": [COST]})
+        # 选项要填的不是数字（不认得的 entry）：LINE 问不了，记进 left
+        odd = {**COST, "options": [{"code": "none"}, {"code": "given", "entry": {"input": "date"}}]}
+        backend = Backend({"d1": [odd]})
         out = self.start(backend)
         self.assertEqual(out["status"], ask.IDLE)
         self.assertEqual(out["finished"][0]["left"], [c.item_key("cost_basis", "line-1")])
@@ -340,6 +351,114 @@ class Queue(Fixture):
     def test_session_key_is_separate(self):
         self.assertNotEqual(ask.KEY, "items")  # ERP line_items / Cowork line.items 用 items
         self.assertEqual(ask.ACTION, "precheck")
+
+
+UNIT = {"kind": "unit", "subject": "unit|purchase|A1|กล่อง", "label": "สินค้า A",
+        "options": [{"code": "BOX", "name": "กล่อง ×12"}, {"code": "factor", "entry": {"input": "number", "min_exclusive": "0"}}]}
+COST_KEY, UNIT_KEY = c.item_key("cost_basis", "line-1"), c.item_key(UNIT["kind"], UNIT["subject"])
+
+
+class Entries(Fixture):
+    """要另填数的题（主会话 11-19：LINE 里也要问完）：点了带 entry 的选项接着打数字；可自己填的题（free）打字作答。"""
+
+    def entry_prompt(self, backend, item, index):
+        message = self.start(backend)["messages"][0]
+        return message, self.tap(backend, message, index)["messages"][0]
+
+    def test_tapping_an_entry_option_asks_for_a_number(self):
+        backend = Backend({"d1": [COST]})
+        first, prompt = self.entry_prompt(backend, COST, 1)
+        self.assertEqual(labels(first), ["不结转", "填单位成本", "取消"])
+        self.assertIn("或直接输入", first["text"])  # 出库成本可自己填（guide.FREE_KINDS）
+        self.assertEqual(prompt["text"].splitlines()[-2:], ["填单位成本", "输入大于 0 的数字"])
+        self.assertEqual(labels(prompt), ["取消"])
+        self.assertEqual(backend.records, [])  # 点了选项还没填数：不记
+
+    def test_typed_numbers_are_normalised_and_sent_as_code_colon_number(self):
+        for typed, value in (("1,234.50", "given:1234.50"), ("฿100", "given:100"), (" 12.5 ", "given:12.5")):
+            with self.subTest(typed=typed):
+                self.payload = {}
+                backend = Backend({"d1": [COST]})
+                backend.entries = True
+                self.entry_prompt(backend, COST, 1)
+                out = self.type(backend, typed)
+                self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": value}])
+                self.assertEqual(out["status"], ask.IDLE)
+                self.assertEqual(out["finished"][0]["answers"][0]["value"], value)
+
+    def test_unit_factor(self):
+        backend = Backend({"d1": [UNIT]})
+        backend.entries = True
+        first, prompt = self.entry_prompt(backend, UNIT, 1)
+        self.assertEqual(labels(first), ["กล่อง ×12", "填换算", "取消"])  # 选项名按 guide 的 label_key（guide.option.unit.factor）
+        self.type(backend, "6")
+        self.assertEqual(backend.records[-1][2], [{"key": UNIT_KEY, "value": "factor:6"}])
+
+    def test_unreadable_or_out_of_range_numbers_ask_again(self):
+        backend = Backend({"d1": [COST]})
+        backend.entries = True
+        self.entry_prompt(backend, COST, 1)
+        for typed in ("abc", "0", "-3", "(5)", "nan", "1 234", ""):
+            with self.subTest(typed=typed):
+                out = self.type(backend, typed)
+                self.assertEqual(out["status"], ask.ASKING)
+                self.assertEqual(out["messages"][0]["text"].splitlines()[-1], "输入大于 0 的数字")
+        self.assertEqual(backend.records, [])
+        self.type(backend, "7")
+        self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "given:7"}])
+
+    def test_old_buttons_are_stale_while_waiting_for_the_number(self):
+        backend = Backend({"d1": [COST]})
+        first, prompt = self.entry_prompt(backend, COST, 1)
+        self.assertEqual(self.tap(backend, first, 0)["status"], ask.STALE)  # 选项那条的按钮
+        for item in buttons(prompt):
+            self.assertLessEqual(len(item["action"]["data"].encode("utf-8")), ask.DATA_MAX)
+        self.assertEqual(backend.records, [])
+
+    def test_cancel_while_waiting_for_the_number(self):
+        backend = Backend({"d1": [COST], "d2": [PAY]})
+        _first, prompt = self.entry_prompt(backend, COST, 1)
+        self.start(backend, doc_ids=("d2",), ref="I-2", heading="DEF")  # 等数时来新票：排在后面
+        out = self.tap(backend, prompt, 0)
+        self.assertEqual([b["ref"] for b in out["cancelled"]], ["I-1"])
+        self.assertEqual(out["messages"][0]["text"].splitlines()[:2], ["DEF", "付款方式"])
+        self.assertEqual(backend.records, [])
+
+    def test_number_waiting_does_not_take_the_next_ticket(self):
+        backend = Backend({"d1": [COST], "d2": [PAY]})
+        backend.entries = True
+        self.entry_prompt(backend, COST, 1)
+        self.assertEqual(self.start(backend, doc_ids=("d2",), ref="I-2")["status"], ask.QUEUED)
+        out = self.type(backend, "15")
+        self.assertEqual(backend.records[-1][1], ["d1"])
+        self.assertEqual([b["ref"] for b in out["finished"]], ["I-1"])
+        self.assertEqual(out["messages"][0]["text"].splitlines()[1], "付款方式")
+
+    def test_free_question_takes_the_typed_text(self):
+        backend = Backend({"d1": [COST]})
+        backend.entries = True
+        self.start(backend)
+        self.type(backend, "2")  # 自己填的题：没列编号时打的数字是值，不是选第 2 个
+        self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "2"}])
+
+    def test_shared_expand_does_not_take_code_colon_number_yet(self):
+        # 现状（汇报遗留）：共用 contracts.expand 只认选项码，「码:数」回 value_not_offered；LINE 照「答错重问」处理，不前进
+        backend = Backend({"d1": [COST]})
+        self.entry_prompt(backend, COST, 1)
+        out = self.type(backend, "100")
+        self.assertEqual(backend.records[-1][2], [{"key": COST_KEY, "value": "given:100"}])
+        self.assertEqual(out["messages"][0]["text"], "此选项已失效")
+        self.assertTrue(ask.asking(self.payload))
+
+    def test_number_rules(self):
+        entry = {"input": "number", "min_exclusive": "0"}
+        self.assertEqual(ask.number(entry, "1,234.50"), "1234.50")
+        self.assertEqual(ask.number(entry, "฿100"), "100")
+        self.assertEqual(ask.number(entry, "1.5e3"), "1500")
+        for bad in ("abc", "0", "-1", "(2)", "inf", "nan", ""):
+            self.assertIsNone(ask.number(entry, bad), bad)
+        self.assertEqual(ask.number({"input": "number", "min": "0"}, "0"), "0")
+        self.assertIsNone(ask.number({"input": "number", "min": "1"}, "0.5"))
 
 
 class SiteBackend(unittest.TestCase):

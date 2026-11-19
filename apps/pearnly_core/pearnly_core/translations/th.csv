@@ -318,8 +318,10 @@ Enabled,เปิดใช้งาน
 Enabled features,ฟังก์ชันที่เปิดใช้งาน
 Endpoint,ปลายทางการเชื่อมต่อ
 Enter again,บันทึกอีกครั้ง
+Enter conversion,กรอกอัตราแปลง
 "Enter the display name, DMS account and password. Issue bind codes after saving.",กรอกชื่อที่แสดง บัญชีและรหัสผ่าน DMS ของพนักงานรายนี้ แล้วสร้างรหัสผูกแยกแต่ละรายหลังบันทึก
 Enter the first name,กรุณากรอกชื่อ
+Enter unit cost,กรอกต้นทุนต่อหน่วย
 Entering,กำลังบันทึก
 Error Message,ข้อความข้อผิดพลาด
 Event ID,Event ID
@@ -509,6 +511,7 @@ No camera was found on this device. Enter the code instead.,ไม่พบก�
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
 No computer connected,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
 No connection to test,ไม่ได้ระบุการเชื่อมต่อที่จะทดสอบ
+No cost posting,ไม่ลงต้นทุนขาย
 No existing customer matched and no DMS customer reference was given: confirm manually first,ไม่พบลูกค้าที่ตรงกันและไม่ได้ระบุรหัสอ้างอิงลูกค้า DMS กรุณายืนยันด้วยตนเองก่อน
 No file was received.,ไม่ได้รับไฟล์
 No operators yet — add one above,ยังไม่มีพนักงาน กรุณาเพิ่มที่ด้านบน
@@ -560,6 +563,7 @@ Operator added,เพิ่มพนักงานแล้ว
 Operator list,รายชื่อพนักงาน
 Operators,พนักงาน
 Optional,เว้นว่างได้
+Or type a value,หรือพิมพ์ค่าเอง
 Order Discount,ส่วนลดทั้งใบ
 Original document,ต้นฉบับ
 Output Tokens,โทเค็นขาออก
@@ -908,6 +912,8 @@ Trigger,รูปแบบการทริกเกอร์
 Try again,ลองอีกครั้ง
 Type,ประเภท
 Type a name or code to find it,พิมพ์ชื่อหรือรหัสเพื่อค้นหา
+Type a number,พิมพ์ตัวเลข
+Type a number greater than {0},พิมพ์ตัวเลขที่มากกว่า {0}
 Type of the connected system,ประเภทระบบปลายทาง
 Type {0} or more characters for results.,พิมพ์อย่างน้อย {0} ตัวอักษร
 UI language,ภาษาของหน้าจอ
@@ -1114,9 +1120,14 @@ guide.desc.item.__new__,สร้างใหม่ใน Express
 guide.desc.party.__new__,สร้างใหม่ใน Express
 guide.desc.payment.cash,บันทึกเป็นซื้อ / ขายเงินสด
 guide.desc.payment.credit,บันทึกเป็นซื้อ / ขายเงินเชื่อ
+guide.line.number,พิมพ์ตัวเลข
+guide.line.numberAbove,พิมพ์ตัวเลขที่มากกว่า {0}
+guide.line.other,หรือพิมพ์ค่าเอง
 guide.line.search,พิมพ์ชื่อหรือรหัสเพื่อค้นหา
 guide.option.business.follow,บันทึกบัญชีตามเอกสาร
 guide.option.business.skip,ไม่บันทึกบัญชี
+guide.option.cost_basis.given,กรอกต้นทุนต่อหน่วย
+guide.option.cost_basis.none,ไม่ลงต้นทุนขาย
 guide.option.detail.amount_only,บันทึกเฉพาะยอดเงิน
 guide.option.detail.skip,ไม่บันทึกบัญชี
 guide.option.direction.expense,ค่าใช้จ่าย
@@ -1137,6 +1148,7 @@ guide.option.payment.cash,เงินสด
 guide.option.payment.credit,เงินเชื่อ
 guide.option.service_vat.accrual,เกณฑ์สิทธิ
 guide.option.service_vat.cash_basis,เกณฑ์เงินสด
+guide.option.unit.factor,กรอกอัตราแปลง
 guide.option.vat.claim,ขอคืน
 guide.option.vat.expense,บันทึกเป็นค่าใช้จ่าย
 guide.q.account,รหัสบัญชี

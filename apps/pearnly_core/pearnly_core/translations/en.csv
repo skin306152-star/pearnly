@@ -318,8 +318,10 @@ Enabled,Enabled
 Enabled features,Enabled features
 Endpoint,Endpoint
 Enter again,Enter again
+Enter conversion,Enter conversion
 "Enter the display name, DMS account and password. Issue bind codes after saving.","Enter the display name, DMS account and password. Issue bind codes after saving."
 Enter the first name,Enter the first name
+Enter unit cost,Enter unit cost
 Entering,Entering
 Error Message,Error Message
 Event ID,Event ID
@@ -508,6 +510,7 @@ No camera was found on this device. Enter the code instead.,No camera was found 
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
 No computer connected,No computer connected
 No connection to test,No connection to test
+No cost posting,No cost posting
 No existing customer matched and no DMS customer reference was given: confirm manually first,No existing customer matched and no DMS customer reference was given: confirm manually first
 No file was received.,No file was received.
 No operators yet — add one above,No operators yet — add one above
@@ -558,6 +561,7 @@ Operator added,Operator added
 Operator list,Operator list
 Operators,Operators
 Optional,Optional
+Or type a value,Or type a value
 Order Discount,Order Discount
 Original document,Original document
 Output Tokens,Output Tokens
@@ -906,6 +910,8 @@ Trigger,Trigger
 Try again,Try again
 Type,Type
 Type a name or code to find it,Type a name or code to find it
+Type a number,Type a number
+Type a number greater than {0},Type a number greater than {0}
 Type of the connected system,Type of the connected system
 Type {0} or more characters for results.,Type {0} or more characters for results.
 UI language,UI language
@@ -1112,9 +1118,14 @@ guide.desc.item.__new__,Create it in Express
 guide.desc.party.__new__,Create it in Express
 guide.desc.payment.cash,Recorded as a cash purchase or sale
 guide.desc.payment.credit,Recorded as a credit purchase or sale
+guide.line.number,Type a number
+guide.line.numberAbove,Type a number greater than {0}
+guide.line.other,Or type a value
 guide.line.search,Type a name or code to find it
 guide.option.business.follow,Post as on the document
 guide.option.business.skip,Skip
+guide.option.cost_basis.given,Enter unit cost
+guide.option.cost_basis.none,No cost posting
 guide.option.detail.amount_only,Amount only
 guide.option.detail.skip,Skip
 guide.option.direction.expense,Expense
@@ -1135,6 +1146,7 @@ guide.option.payment.cash,Cash
 guide.option.payment.credit,Credit
 guide.option.service_vat.accrual,Accrual basis
 guide.option.service_vat.cash_basis,Cash basis
+guide.option.unit.factor,Enter conversion
 guide.option.vat.claim,Claim
 guide.option.vat.expense,Expense
 guide.q.account,Account

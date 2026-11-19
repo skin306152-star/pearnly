@@ -318,8 +318,10 @@ Enabled,有効
 Enabled features,有効な機能
 Endpoint,接続先
 Enter again,もう一度入力
+Enter conversion,換算を入力
 "Enter the display name, DMS account and password. Issue bind codes after saving.",表示名と DMS アカウント・パスワードを入力し、保存後に連携コードを発行します
 Enter the first name,名を入力してください
+Enter unit cost,単位原価を入力
 Entering,入力中
 Error Message,エラーメッセージ
 Event ID,イベントID
@@ -509,6 +511,7 @@ No camera was found on this device. Enter the code instead.,このデバイス�
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
 No computer connected,パソコン未接続
 No connection to test,テストする接続が指定されていません
+No cost posting,原価振替なし
 No existing customer matched and no DMS customer reference was given: confirm manually first,既存顧客に一致せず、DMS顧客参照もありません。まず手動で確認してください
 No file was received.,ファイルを受信していません。
 No operators yet — add one above,オペレーターがまだいません。上で追加してください
@@ -560,6 +563,7 @@ Operator added,オペレーターを追加しました
 Operator list,オペレーター一覧
 Operators,オペレーター
 Optional,空欄可
+Or type a value,または直接入力
 Order Discount,伝票全体の値引
 Original document,原本
 Output Tokens,出力トークン
@@ -908,6 +912,8 @@ Trigger,トリガー
 Try again,もう一度
 Type,種別
 Type a name or code to find it,名前またはコードを入力して検索
+Type a number,数値を入力
+Type a number greater than {0},{0} より大きい数値を入力
 Type of the connected system,接続先システムの種類
 Type {0} or more characters for results.,{0} 文字以上入力してください
 UI language,表示言語
@@ -1114,9 +1120,14 @@ guide.desc.item.__new__,Express で新規作成
 guide.desc.party.__new__,Express で新規作成
 guide.desc.payment.cash,現金仕入・現金売上として記帳
 guide.desc.payment.credit,掛仕入・掛売上として記帳
+guide.line.number,数値を入力
+guide.line.numberAbove,{0} より大きい数値を入力
+guide.line.other,または直接入力
 guide.line.search,名前またはコードを入力して検索
 guide.option.business.follow,書類どおりに記帳
 guide.option.business.skip,記帳しない
+guide.option.cost_basis.given,単位原価を入力
+guide.option.cost_basis.none,原価振替なし
 guide.option.detail.amount_only,金額のみ
 guide.option.detail.skip,記帳しない
 guide.option.direction.expense,経費
@@ -1137,6 +1148,7 @@ guide.option.payment.cash,現金
 guide.option.payment.credit,掛け
 guide.option.service_vat.accrual,発生主義
 guide.option.service_vat.cash_basis,現金主義
+guide.option.unit.factor,換算を入力
 guide.option.vat.claim,控除
 guide.option.vat.expense,費用計上
 guide.q.account,勘定科目

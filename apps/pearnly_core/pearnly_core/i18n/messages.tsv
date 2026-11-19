@@ -1125,4 +1125,10 @@ Post as on the document	按票面入账	บันทึกบัญชีตา�
 Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.business.skip
 Covers this month	覆盖本月	ครอบคลุมเดือนนี้	今月を含む	guide.why.covers
 Type a name or code to find it	输入名称或编码查找	พิมพ์ชื่อหรือรหัสเพื่อค้นหา	名前またはコードを入力して検索	guide.line.search
+Type a number	输入数字	พิมพ์ตัวเลข	数値を入力	guide.line.number
+Type a number greater than {0}	输入大于 {0} 的数字	พิมพ์ตัวเลขที่มากกว่า {0}	{0} より大きい数値を入力	guide.line.numberAbove
+Or type a value	或直接输入	หรือพิมพ์ค่าเอง	または直接入力	guide.line.other
+Enter conversion	填换算	กรอกอัตราแปลง	換算を入力	guide.option.unit.factor
+Enter unit cost	填单位成本	กรอกต้นทุนต่อหน่วย	単位原価を入力	guide.option.cost_basis.given
+No cost posting	不结转	ไม่ลงต้นทุนขาย	原価振替なし	guide.option.cost_basis.none
 This operator task has expired. Start a new one.	此实操任务已失效，请新建一个。	งานทำใน Express นี้หมดอายุแล้ว กรุณาสร้างใหม่	この代行入力タスクは期限切れです。新しく作成してください。	
