@@ -660,6 +660,28 @@ class ChangedFlows(unittest.TestCase):
 
 
 
+class NoDroppedStockColumns(unittest.TestCase):
+    """库存只到「物料 × 仓库」（迁移 v1_33_warehouse_only_stock，11-19）后，流程与清理代码在实验室里不再按已删的仓位列查库。
+
+    新装站点（实验室两套数据都是）没有这些列，按它们过滤 / 取值报 Unknown column（11-20 部署前全套 erp.cashier.first-sale 四格红、
+    run.py 收尾清理 89 格报错留下数据）。表与列取补丁里那份清单；只核对存在与否的 has_field / has_column 不算。"""
+
+    def test_flow_scripts_do_not_query_dropped_location_columns(self):
+        patch = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/patches/v1_33_warehouse_only_stock.py").read_text(encoding="utf-8")
+        dropped = re.findall(r'\("([^"]+)", "([^"]+)"\)', patch)
+        self.assertIn(("ERP Stock Balance", "location"), dropped)
+        found = []
+        for path in sorted([*(ROOT / "scripts/flows").glob("*.py"), *(ROOT / "scripts/regression").glob("*.py"),
+                            *(ROOT / "scripts/acceptance").rglob("*.py")]):
+            for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+                if "has_field(" in line or "has_column(" in line:
+                    continue
+                for doctype, column in dropped:
+                    if f'"{doctype}"' in line and re.search(rf"[\"']{column}[\"']", line):
+                        found.append(f"{path.relative_to(ROOT)}:{number} {doctype}.{column}")
+        self.assertEqual(found, [])
+
+
 class DriveTimeout(unittest.TestCase):
     """整格卡满 900 秒时说出卡在哪一步（驱动每步开始前打一行 progress），已跑完的步骤输出不再整个丢掉（11-12）。"""
 

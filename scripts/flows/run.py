@@ -562,9 +562,10 @@ made.sort(key=lambda r: str(r[0]), reverse=True)
 stock = set()
 if frappe.db.exists("DocType", "ERP Stock Movement"):
     for name in [n for _, t, n in made if t == "ERP Stock Movement"]:
-        row = frappe.db.get_value("ERP Stock Movement", name, ["product", "warehouse", "location"], as_dict=True)
+        # 库存只到「物料 × 仓库」（v1_33_warehouse_only_stock，11-19）：流水、结存表上已没有仓位列
+        row = frappe.db.get_value("ERP Stock Movement", name, ["product", "warehouse"], as_dict=True)
         if row:
-            stock.add((row.product, row.warehouse, row.location or ""))
+            stock.add((row.product, row.warehouse))
 # 每删一行框架都排一个 delete_dynamic_links 后台任务；一格删上千行（开户默认分类等）会把队列撑满（QueueOverloaded），
 # 收尾这段改成当场做，结束还原
 enqueue = frappe.enqueue
@@ -655,15 +656,15 @@ if stock:
     from pearnly_erp_portal.inventory import stock as inventory
     from pearnly_erp_portal.masters import company as companies
     was = companies.active_company()
-    for product, warehouse, location in sorted(stock):
-        if not frappe.db.exists("ERP Stock Balance", {{"product": product, "warehouse": warehouse, "location": location}}):
+    for product, warehouse in sorted(stock):
+        if not frappe.db.exists("ERP Stock Balance", {{"product": product, "warehouse": warehouse}}):
             continue  # 这一格新建的结存行，已经删掉
         company = frappe.db.get_value("ERP Warehouse", warehouse, "company")
         if not company:
             continue
         try:
             companies.set_active_company(company)  # 仓库按当前公司认（warehouses.required）：别家公司的仓要先切过去
-            inventory.rebuild_balance(product, warehouse, location)
+            inventory.rebuild_balance(product, warehouse)
             frappe.db.commit()
             rebuilt += 1
         except Exception as e:  # noqa: BLE001

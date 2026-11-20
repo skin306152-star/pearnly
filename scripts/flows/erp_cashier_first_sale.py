@@ -37,7 +37,7 @@ for shift in frappe.get_all("ERP Shift", filters={{"status": "open", "cashier": 
 documents.create_entry(direction="in", posting_date=frappe.utils.nowdate(), warehouse=main, submit=True,
                        lines=[{{"product": {product!r}, "qty": 3, "unit_cost": 10}}])
 p = frappe.db.get_value("ERP Product", {product!r}, ["barcode", "code", "unit_price"], as_dict=True)
-qty = frappe.db.get_value("ERP Stock Balance", {{"product": {product!r}, "warehouse": main, "location": ""}}, "qty_on_hand") or 0
+qty = frappe.db.get_value("ERP Stock Balance", {{"product": {product!r}, "warehouse": main}}, "qty_on_hand") or 0
 frappe.db.commit()
 print(json.dumps({{"main": main, "scan": p.barcode or p.code, "price": float(p.unit_price or 100), "before": float(qty)}}))
 """)
@@ -77,7 +77,7 @@ def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
 sale = frappe.db.get_value("ERP Sale", {{"client_uuid": {params['uuid']!r}}}, ["name", "status", "terminal", "warehouse"], as_dict=True) or {{}}
 terminal = frappe.db.get_value("ERP POS Terminal", sale.get("terminal"), "warehouse") if sale else None
-qty = frappe.db.get_value("ERP Stock Balance", {{"product": {params['product']!r}, "warehouse": {params['main']!r}, "location": ""}}, "qty_on_hand") or 0
+qty = frappe.db.get_value("ERP Stock Balance", {{"product": {params['product']!r}, "warehouse": {params['main']!r}}}, "qty_on_hand") or 0
 for shift in frappe.get_all("ERP Shift", filters={{"status": "open", "cashier": "cashier@erp.regression"}}, pluck="name"):
     frappe.db.set_value("ERP Shift", shift, "status", "closed", update_modified=False)  # 收尾：别留开着的班
 frappe.db.commit()
