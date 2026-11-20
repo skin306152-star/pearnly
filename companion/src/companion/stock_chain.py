@@ -243,8 +243,12 @@ def write(account_dir, after: Dict[Key, Chain], value_moves: Dict[Key, Decimal])
                 continue
             seen.add(key)
             chain = after[key]
+            locval = _dec(stock_location._value(rec, "LOCVAL")) + value_moves.get(key, Decimal(0))
             values = {"MLOTNUM": stored_head(chain), "MREMBAL": float(chain.bal), "MREMVAL": float(chain.val),
-                      "LOCVAL": float(_dec(stock_location._value(rec, "LOCVAL")) + value_moves.get(key, Decimal(0)))}
+                      "LOCVAL": float(locval)}
+            locbal = _dec(stock_location._value(rec, "LOCBAL"))
+            if locbal > 0:  # 原生：写后这个仓结存为正时 UNITPR = 货值 / 结存，≤ 0 不动（11-20 实录 P0 / P2 / P5）
+                values["UNITPR"] = float((locval / locbal).quantize(Decimal("0.0001")))
             values = {name: value for name, value in values.items() if name in fields}
             with rec as row:
                 for name, value in values.items():

@@ -276,7 +276,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
             if early:
                 after = stock_chain.moved(stock_chain.opening(stock_chain.DayFirst((), *out_before)), -abs(units.base_qty), -value)
                 early_state[out_key] = (stock_chain.stored_head(after), after.bal, after.val)
-            total += value
+            total += value * 2 if loc_cost else value  # 原生单头货值 = 两行（调出 + 调入）之和（11-20 实录 RL2300610：2 × 712.8 = 1,425.6）
             for posopr, here, other, sign in ((S.STCRD_POSOPR_TRANSFER_OUT, source, target, -1),
                                               (S.STCRD_POSOPR_TRANSFER_IN, target, source, 1)):
                 row = account_rules.localize_stcrd(account_dir, {
@@ -309,8 +309,10 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                                                     row["MLOTNUM"] if sign > 0 else "")
                     place_values[key] = place_values.get(key, Decimal(0)) + sign * value
                 S.append_stcrd(table, _filtered(table, row))
-                moves.append(stock_location.Move(stkcod, here, sign * units.base_qty, Decimal(0), docdat,
-                                                 stock_location.KIND_TRANSFER))
+                # 分仓计价：两个仓的期桶金额随货值增减、调入仓记最后变动日（11-20 实录）；不分仓计价照旧不动金额、日期栏
+                moves.append(stock_location.Move(stkcod, here, sign * units.base_qty, sign * value if loc_cost else Decimal(0),
+                                                 docdat, stock_location.KIND_TRANSFER_COSTED if loc_cost
+                                                 else stock_location.KIND_TRANSFER))
             if by_wh:
                 stock_sale.move_stmas(account_dir, stkcod, 0, 0, fields={"MLOTNUM": stock_chain.stored_head(chains[in_key])},
                                       lots=(chains[in_key].bal, chains[in_key].val))

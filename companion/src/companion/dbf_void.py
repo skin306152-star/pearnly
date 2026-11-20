@@ -258,6 +258,8 @@ def void_stock_entry(
 
 def _transfer_back(item: stock_location.Move) -> stock_location.Move:
     """调拨那一行在 STLOC 上的反向（不动日期、金额栏，同原生作废 RL）。"""
+    if item.kind == stock_location.KIND_TRANSFER_COSTED:
+        return stock_location.Move(item.stkcod, item.loccod, -item.qty, -item.value, item.docdat, stock_location.KIND_VOID)
     return stock_location.Move(item.stkcod, item.loccod, -item.qty, Decimal(0), item.docdat, stock_location.KIND_TRANSFER)
 
 
@@ -273,8 +275,11 @@ def _void_lines(account_dir: Path, docnum: str, kind: str) -> List[stock_locatio
             row = {name: rec[name] for name in ("STKCOD", "LOCCOD", "XTRNQTY", "XTRNVAL", "TRNVAL", "DOCDAT")}
             if kind == TRANSFER:
                 sign = -1 if _text(rec, "POSOPR") == S.STCRD_POSOPR_TRANSFER_OUT else 1
+                # 分仓计价账套的调拨带金额：作废时期桶金额一并回滚（不动日期栏，同作废其他单）
+                value = sign * _dec(row["XTRNVAL"])
                 moves.append(stock_location.Move(_text(rec, "STKCOD"), _text(rec, "LOCCOD"), sign * _dec(row["XTRNQTY"]),
-                                                 Decimal(0), row["DOCDAT"], stock_location.KIND_TRANSFER))
+                                                 value, row["DOCDAT"],
+                                                 stock_location.KIND_TRANSFER_COSTED if value else stock_location.KIND_TRANSFER))
                 dbf.delete(rec)
                 continue
             moves.append(stock_location.move(row, move_kind))

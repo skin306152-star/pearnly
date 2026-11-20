@@ -185,13 +185,18 @@ def test_this_companion_takes_the_transfer_payload_version():
 
 
 def test_a_transfer_in_a_book_costed_by_warehouse_carries_the_value_and_makes_a_lot_in(rl_book):
-    """分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价（单头货值 = 合计），调入那一行成为调入仓的新一批
-    （11-18 先进先出、分仓计价测试账套实录）。不分仓计价的账套照旧不带金额（上一条）。"""
+    """分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价，单头货值 = 两行之和（11-20 实录 RL2300610：
+    每行 712.8、单头 1,425.6），调入那一行成为调入仓的新一批（11-18 先进先出、分仓计价测试账套实录）。两个仓的期桶金额随货值增减，
+    调入仓记最后变动日、UNITPR = 货值 / 结存（11-20 实录）。不分仓计价的账套照旧不带金额（上一条）。"""
     from account_rules_fixture import isinfo
     isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", LOC_COST="Y")
     res = _write(rl_book, _transfer([_line("ICE01", 2)]))
     assert res.ok, res.error
-    assert _rows(rl_book, "STTRN", DOCNUM=res.docnum)[0]["TRNVAL"] == 20.0
+    assert _rows(rl_book, "STTRN", DOCNUM=res.docnum)[0]["TRNVAL"] == 40.0
+    source, target = _stloc(rl_book, "ICE01", "01"), _stloc(rl_book, "ICE01", "02")
+    buckets = [name for name in target if name.startswith("VAL") and target[name]]
+    assert buckets and all(target[name] == 20.0 and source[name] == -20.0 for name in buckets)
+    assert target["LMOVDAT"] == dt.date(2026, 10, 30)
     rows = {r["POSOPR"]: r for r in _rows(rl_book, "STCRD", DOCNUM=res.docnum)}
     out, into = rows["4"], rows["3"]
     assert (out["XUNITPR"], out["XTRNVAL"], out["NETVAL"], out["LOTBAL"]) == (10.0, 20.0, 0.0, 0.0)
@@ -260,3 +265,20 @@ def test_a_document_sorting_after_the_days_rows_keeps_the_current_chain(rl_book)
     assert issue.ok, issue.error
     line = _rows(rl_book, "STCRD", DOCNUM=issue.docnum)[0]
     assert (line["XTRNVAL"], line["MREMBAL"], line["MREMVAL"]) == (1425.6, 9.0, 6415.2)
+
+
+def test_voiding_a_costed_transfer_rolls_the_period_values_of_both_locations_back(rl_book):
+    """分仓计价账套的调拨带金额、期桶金额随之增减（11-20 实录）：作废时两个仓的期桶金额一并回滚，日期栏不动。"""
+    from account_rules_fixture import isinfo
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", LOC_COST="Y")
+    before = _stloc(rl_book, "ICE01", "01")
+    res = _write(rl_book, _transfer([_line("ICE01", 2)]))
+    assert res.ok, res.error
+    payload = {"payload_version": 14, "direction": "stock", "action": "void", "doctype": "RL", "docnum": res.docnum,
+               "items": [{"seq": 1, "code": "ICE01", "loccod": "01", "qty": "2"}]}
+    out = dbf_void.void_stock_entry(payload, rl_book, selected_dir=str(rl_book), make_backup=False)
+    assert out.ok, out.error
+    source, target = _stloc(rl_book, "ICE01", "01"), _stloc(rl_book, "ICE01", "02")
+    assert all(source[name] == before[name] for name in source if name.startswith(("VAL", "QTY")))
+    assert all(target[name] == 0.0 for name in target if name.startswith(("VAL", "QTY")))
+    assert source["LMOVDAT"] == before["LMOVDAT"]

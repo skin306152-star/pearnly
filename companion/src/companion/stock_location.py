@@ -53,6 +53,7 @@ KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负
 KIND_ADJUST_NATIVE = "adjust_native"
 KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
 KIND_TRANSFER = "transfer"  # 仓间调拨 RL（dbf_transfer）：数量自带正负，原生不动日期栏、不动金额栏，新建的行不带分类（实录 RL0000002）
+KIND_TRANSFER_COSTED = "transfer_costed"  # 分仓计价账套的调拨（ISINFO.LOC_COST = Y）：期桶金额随货值增减，调入仓记 LMOVDAT（11-20 实录 RL2300610）
 KIND_HEAL = "heal"  # STLOC 缺行的存货补主仓那一行（``_heal``）：只补结存，不进期桶、不动日期栏
 KIND_RETURN = "return"  # 收银退货单 SR 货回仓（dbf_refund）：增，只记 LMOVDAT（实录 SR0000001 与原单同一天，LSELDAT 动没动看不出，不碰）
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
@@ -190,8 +191,13 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
             buckets[qty_field] = buckets.get(qty_field, Decimal(0)) + item.qty
             if item.kind != KIND_TRANSFER:
                 buckets[val_field] = buckets.get(val_field, Decimal(0)) + item.value
-        for field in (() if item.kind in (KIND_VOID, KIND_TRANSFER, KIND_ADJUST_NATIVE)
-                      else ("LMOVDAT", _DATE_FIELD.get(item.kind))):
+        if item.kind == KIND_TRANSFER_COSTED:
+            stamped = ("LMOVDAT",) if item.qty > 0 else ()
+        elif item.kind in (KIND_VOID, KIND_TRANSFER, KIND_ADJUST_NATIVE):
+            stamped = ()
+        else:
+            stamped = ("LMOVDAT", _DATE_FIELD.get(item.kind))
+        for field in stamped:
             if field and item.docdat and (slot["dates"].get(field) is None or item.docdat > slot["dates"][field]):
                 slot["dates"][field] = item.docdat
     classes = _stock_classes(account_dir, {key[0] for key in totals})
@@ -218,7 +224,7 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
             expected[key] = values
         for key in [key for key in totals if key not in seen]:
             values = _updated(None, totals[key], fields)
-            transfer_only = totals[key]["kinds"] == {KIND_TRANSFER}
+            transfer_only = totals[key]["kinds"] <= {KIND_TRANSFER, KIND_TRANSFER_COSTED}
             table.append({"STKCOD": key[0], "LOCCOD": key[1], "STATUS": "A",
                           **({} if transfer_only else {"STKCLASS": classes.get(key[0], "")}), **values})
             expected[key] = values
