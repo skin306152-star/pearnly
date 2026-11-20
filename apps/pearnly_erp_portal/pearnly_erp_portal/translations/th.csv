@@ -331,6 +331,7 @@ Closed At,เวลาปิดกะ
 Closed at,เวลาปิด
 Closed by,ผู้ปิด
 Closing Quantity,จำนวนคงเหลือ
+Cloud Express,Express บนคลาวด์
 Code,รหัส
 Code expired,รหัสหมดอายุแล้ว
 Code or barcode,รหัสหรือบาร์โค้ด
@@ -2000,6 +2001,7 @@ company.col.warehouse,ชื่อคลังสินค้า
 company.col.warehouseCode,รหัสคลัง
 company.connect.add,เพิ่มจากการเชื่อมต่อ
 company.connect.added,เพิ่มแล้ว
+company.connect.expressCloud,Express บนคลาวด์
 company.connect.title,เลือกบริษัทที่จะใช้
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข

@@ -331,6 +331,7 @@ Closed At,交班时间
 Closed at,结束时间
 Closed by,结束人
 Closing Quantity,期末数量
+Cloud Express,云端 Express
 Code,编码
 Code expired,绑定码已过期
 Code or barcode,编码或条码
@@ -2000,6 +2001,7 @@ company.col.warehouse,仓库名称
 company.col.warehouseCode,仓库编号
 company.connect.add,从连接添加
 company.connect.added,已添加
+company.connect.expressCloud,云端 Express
 company.connect.title,选择要用的公司
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发

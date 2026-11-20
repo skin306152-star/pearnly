@@ -5,7 +5,8 @@
 //   目录里还没建的按身份合成一张表，搜索、按标签筛、分页（每页 50，「显示更多」）都在服务端；我有对话的按最近活动在前，其余按名称。
 //   没建过的那行点了用现有 create 顺手建（幂等 request_key，同一行重点不重建），建好就在这段对话里用它，不再有单独的「添加公司」一步。
 //   没建的行只给能建的人（服务端判：Cowork 要录入权限，ERP 要开单权限且没被限定公司）。
-//   标签按服务端给的 adapters 出（不按标签筛时有哪几种）：两种以上才摆；ERP 有不接账本的纯 ERP 公司时多一个「ERP」。没点过标签时
+//   标签按服务端给的 adapters 出（不按标签筛时有哪几种），有一种就摆，最后一个总是「云端 Express」（11-20 用户定：先占位，还没有
+//   来源，点进去是空状态、不取数）；ERP 有不接账本的纯 ERP 公司时多一个「ERP」。没点过标签时
 //   停在第一行那种（我最近用的那家的 ERP）；标签只筛这次打开里看的，不记住。
 //   第一行「最近」= 不挂公司（新对话里才有：current 给了字符串）；当前选中的那行打勾。
 //   头部「刷新账套」（产品声明了 catalog 才有）：本人能用的每条连接各读一次目录，隔几秒再取两次列表。
@@ -48,12 +49,18 @@ export function openCompanyPicker(then: (id: string, title: string) => void, cur
 const close = () => useCompanyPicker.setState({ open: false, then: null, current: null });
 
 // 标签顺序同定时任务表单的目标卡片；产品名不翻译
-const ERPS = [{ adapter: "mrerp", label: "MR.ERP" }, { adapter: "express", label: "Express" }, { adapter: "erp", label: "ERP" }];
+const CLOUD = "express_cloud";
+const ERPS = [
+  { adapter: "mrerp", label: "MR.ERP" },
+  { adapter: "express", label: "Express" },
+  { adapter: "erp", label: "ERP" },
+  { adapter: CLOUD, label: co.cloudExpress },
+];
 
-/** 摆哪几个标签（服务端 adapters 里认得的，按 ERPS 的先后）；只有一种时不摆。 */
+/** 摆哪几个标签（服务端 adapters 里认得的，按 ERPS 的先后，最后是占位的「云端 Express」）；一种都没有时不摆。 */
 export function tabsOf(adapters: readonly string[]): string[] {
-  const kinds = ERPS.map((e) => e.adapter).filter((a) => adapters.includes(a));
-  return kinds.length > 1 ? kinds : [];
+  const kinds = ERPS.map((e) => e.adapter).filter((a) => a !== CLOUD && adapters.includes(a));
+  return kinds.length ? [...kinds, CLOUD] : [];
 }
 
 /** 没点过标签时停在哪个：第一行那种（我最近用的那家的 ERP），第一行认不出就第一个标签；不摆标签时 ""（不按标签筛）。 */
@@ -147,6 +154,14 @@ const Choices: FC<{ reload: { current: () => void } }> = ({ reload }) => {
 
   const load = (text: string, tab: string, start = 0) => {
     const mine = ++asked.current;
+    if (tab === CLOUD) {
+      // 占位：还没有云端 Express 的来源，不取数，显示空状态
+      setRows([]);
+      setMore(false);
+      setLoadingMore(false);
+      setError("");
+      return;
+    }
     if (start) setLoadingMore(true);
     void listChoices(text.trim(), tab, start)
       .then(
@@ -200,7 +215,7 @@ const Choices: FC<{ reload: { current: () => void } }> = ({ reload }) => {
     openSettings("connections");
   };
 
-  const tabs = ERPS.filter((e) => adapters.includes(e.adapter)); // adapters 已是 tabsOf：只有一种时为空
+  const tabs = ERPS.filter((e) => adapters.includes(e.adapter)); // adapters 已是 tabsOf：一种都没有时为空
   const typing = !!search.trim();
   const recents = current !== null && !typing;
   const nothing = rows !== null && !rows.length && !typing; // 一家都没有（没在搜）

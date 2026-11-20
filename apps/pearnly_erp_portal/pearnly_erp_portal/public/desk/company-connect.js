@@ -3,7 +3,8 @@
  * 接一家公司只剩两步：CC 桌面版授权 Express 位置（或登录 MR.ERP）→ 在这里勾要用的公司。勾谁建谁，名称 / 税号 / 分店由服务端
  * 读目录带出（`masters.cc_service.connection_list` / `create_many`，与 CC 对话里选公司弹窗同一份目录、同一个建法），建好自动排同步。
  *
- * 排布同 CC「选择公司」（用户 11-15 截图）：标题，右上刷新 / 关闭；整行搜索；Express / MR.ERP 两个标签（只有一种来源时不出标签）；
+ * 排布同 CC「选择公司」（用户 11-15 截图）：标题，右上刷新 / 关闭；整行搜索；MR.ERP / Express / 云端 Express 三个标签一律显示（11-20 用户定；
+ * 没有该来源的标签显示空状态；云端 Express 还没有来源，先占位、不取数）；
  * 每行行首勾选框，公司名，下面浅色一行「税号 · 总部 / 分店 · 账套文件夹」，行尾状态；列表在弹窗里滚动；底部「添加」。
  * 控件都是原生的：`frappe.ui.Dialog`（头部按钮区 `.modal-actions` 照它自己的 `btn-ghost icon-btn` 加刷新）、Data 搜索、原生标签
  * 样式（`form-tabs` / `nav-link`）、原生 MultiCheck 勾选（它的选项文字原样放进 `label-area`，两行字与行尾 `indicator-pill` 就排在
@@ -20,7 +21,10 @@
 	const p = frappe.pearnly;
 	const api = "pearnly_erp_portal.masters.api.";
 	const PAGE = 50;
-	const ADAPTER_LABELS = {express: "Express", mrerp: "MR.ERP"};
+	// 标签顺序同 CC「选择公司」：MR.ERP 在前、云端 Express 最后；产品名不翻译，「云端 Express」走词条
+	const TABS = ["mrerp", "express", "express_cloud"];
+	const CLOUD = "express_cloud";
+	const tab_label = value => ({express: "Express", mrerp: "MR.ERP"})[value] || __("company.connect.expressCloud");
 	const HEAD_OFFICE = "00000";
 	const RESCAN_WAIT_MS = 60000;   // 刷新后等电脑整份重报的上限（办公室共享盘走 SMB1 / 无线，整份重扫超过十几秒是常态）
 	const RESCAN_POLL_MS = 2000;
@@ -141,10 +145,10 @@
 			});
 		}
 		function paint_tabs() {
-			$tabs.toggle(adapters.length > 1);
-			$tabs.find(".form-tabs").html(adapters.map(value => `<li class="nav-item">
+			$tabs.show();
+			$tabs.find(".form-tabs").html(TABS.map(value => `<li class="nav-item">
 				<button class="nav-link ${value === adapter ? "active" : ""}" type="button" role="tab"
-					data-adapter="${esc(value)}">${esc(ADAPTER_LABELS[value] || value)}</button></li>`).join(""));
+					data-adapter="${esc(value)}">${esc(tab_label(value))}</button></li>`).join(""));
 		}
 		// 选项文字由 MultiCheck 原样放进 `label-area`（不转义），客户数据都先转义
 		const label_of = row => {
@@ -172,14 +176,21 @@
 			remember();
 			const ticket = ++loading;
 			const start = reset ? 0 : rows.length;
+			if (adapter === CLOUD) {    // 占位：还没有云端 Express 的来源，不取数，显示空状态
+				rows = [];
+				total = 0;
+				paint_tabs();
+				return paint();
+			}
 			const page = await p.call(api + "api_connection_choices", {search, adapter, start, limit: PAGE});
 			if (!dialog || ticket !== loading) return;    // 换了标签 / 搜索：旧的那页不画
 			rows = reset ? page.rows || [] : [...rows, ...(page.rows || [])];
 			total = page.total || 0;
 			connected = page.connected !== false;
 			adapters = page.adapters || [];
-			if (adapters.length && !adapters.includes(adapter)) {
-				adapter = adapters[0];
+			// 第一次打开停在有数据的第一个标签（按 TABS 的先后），都没有就停在第一个；之后点哪个看哪个（没数据就是空状态）
+			if (!adapter) {
+				adapter = TABS.find(value => adapters.includes(value)) || TABS[0];
 				paint_tabs();
 				return load(true);
 			}

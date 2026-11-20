@@ -517,7 +517,8 @@ def connection_list(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     every = _catalog()
     adapters = [name for name in ("express", "mrerp") if any(row["adapter"] == name for row in every)]
     wanted = str(adapter or "").strip()
-    rows = [row for row in every if row["adapter"] == wanted] if wanted in adapters else every
+    # 点了某个标签就只给这一种（没有这一种就是空的，页面显示空状态；11-20 标签一律显示）；不带标签（第一次打开）给全部
+    rows = [row for row in every if row["adapter"] == wanted] if wanted else every
     needle = " ".join(str(search or "").split()).casefold()
     if needle:
         rows = [row for row in rows if needle in " ".join([row["title"], row.get("book") or "", row["tax_id"], *row["years"], *row["folders"]]).casefold()]

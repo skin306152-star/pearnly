@@ -696,7 +696,7 @@ export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ??
 // 日文与服务端词条在 apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv。
 const COMPANY = {
   en: {
-    companies: "Companies", refreshSets: "Refresh account sets",
+    cloudExpress: "Cloud Express", companies: "Companies", refreshSets: "Refresh account sets",
     deleteCompany: "Delete company", deleteCompanyAsk: "Delete company?", allSets: "All account sets", notes: "Notes", add: "Add", docFolder: "Documents folder",
     monthFolder: (name: string) => `This month: ${name}`, accountSets: "Account sets", taxDrafts: "Tax drafts", remembered: "Saved choices",
     period: "Month", noPeriod: "No month", branch: "Branch", noBranch: "No branch", headOffice: "Head office", branchShort: "Branch",
@@ -782,7 +782,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   zh: {
-    companies: "公司", refreshSets: "刷新账套",
+    cloudExpress: "云端 Express", companies: "公司", refreshSets: "刷新账套",
     deleteCompany: "删除公司", deleteCompanyAsk: "删除公司？", allSets: "全部账套", notes: "知识库", add: "添加", docFolder: "单据文件夹",
     monthFolder: (name: string) => `本月：${name}`, accountSets: "账套", taxDrafts: "申报草稿", remembered: "记住的选择",
     period: "处理月份", noPeriod: "不指定", branch: "分店", noBranch: "不指定分店", headOffice: "总公司", branchShort: "分店",
@@ -867,7 +867,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   th: {
-    companies: "บริษัท", refreshSets: "รีเฟรชชุดบัญชี",
+    cloudExpress: "Express บนคลาวด์", companies: "บริษัท", refreshSets: "รีเฟรชชุดบัญชี",
     deleteCompany: "ลบบริษัท", deleteCompanyAsk: "ลบบริษัท?", allSets: "ชุดบัญชีทั้งหมด", notes: "บันทึก", add: "เพิ่ม", docFolder: "โฟลเดอร์เอกสาร",
     monthFolder: (name: string) => `เดือนนี้: ${name}`, accountSets: "ชุดบัญชี", taxDrafts: "ร่างแบบภาษี", remembered: "ตัวเลือกที่จำไว้",
     period: "เดือนที่ทำ", noPeriod: "ไม่ระบุเดือน", branch: "สาขา", noBranch: "ไม่ระบุสาขา", headOffice: "สำนักงานใหญ่", branchShort: "สาขา",
@@ -952,7 +952,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   ja: {
-    companies: "会社", refreshSets: "会計データを更新",
+    cloudExpress: "クラウド Express", companies: "会社", refreshSets: "会計データを更新",
     deleteCompany: "会社を削除", deleteCompanyAsk: "会社を削除しますか？", allSets: "すべての会計データ", notes: "ノート", add: "追加", docFolder: "書類フォルダー",
     monthFolder: (name: string) => `今月：${name}`, accountSets: "会計データ", taxDrafts: "申告の下書き", remembered: "保存した選択",
     period: "処理月", noPeriod: "指定なし", branch: "支店", noBranch: "支店を指定しない", headOffice: "本店", branchShort: "支店",

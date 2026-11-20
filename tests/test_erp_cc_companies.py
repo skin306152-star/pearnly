@@ -806,6 +806,10 @@ class AddCompanyTests(unittest.TestCase):
         self.assertEqual(out["rows"][0]["folders"], ["69EXP"])
         self.assertEqual((out["total"], out["adapters"], out["connected"]), (2, ["express"], True))
         self.assertEqual([row["title"] for row in cc_service.connection_list("69exp", start=1)["rows"]], ["Siam Trading"])
+        # 标签一律显示（11-20）：点了没有数据的那种（MR.ERP / 云端 Express）就是空的，不回落成全部
+        self.assertEqual(cc_service.connection_list(adapter="express")["total"], 2)
+        for empty_tab in ("mrerp", "express_cloud"):
+            self.assertEqual((cc_service.connection_list(adapter=empty_tab)["rows"], cc_service.connection_list(adapter=empty_tab)["total"]), ([], 0))
         STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 1
         self.assertEqual([row["state"] for row in cc_service.connection_list()["rows"]], ["new", "added"])
         # 停用的、已有的都不算「还要人勾」：自动弹窗与 CC 工具的名单照旧
