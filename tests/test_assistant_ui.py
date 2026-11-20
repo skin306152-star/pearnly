@@ -11959,5 +11959,41 @@ assert.equal(textOf(undefined), "");
             for word in ("shortcutsTitle", "shortcutsSearch", "shortcutsGeneral", "shortcutsInChat", "newline", "reuseLast"):
                 self.assertRegex(words, rf"\n    {word}: \"[^\"]+\"", (lang, word))
 
+
+# 按类防回归：hook 必须无条件调用。11-20 release-20261120-0939 上线后全部 CC 桌面版窗口一打开就白屏（React #300 hook 数量变化）——
+# settings.tsx 写成 `!api && !!useProjects(...)`，api 由空变有值后这一次渲染少调一个 hook（f3f0267a4 引入）。前端没装 eslint，这里按
+# 源码拦：`&&` / `||` / `??` / 三元 `?`、`:` 后面直接调 `useXxx(` 的写法一律不许（注释、字符串里的不算）。
+_HOOK_AFTER = re.compile(r"(&&|\|\||\?\?|\?(?![.?])|(?<![:\w\]\)\s]):(?!:)|\?[^;{}?]*?:)\s*!*\s*(use[A-Z]\w*)\s*[(<]")
+
+
+def _code_only(text):
+    text = re.sub(r"/\*.*?\*/", lambda m: " " * len(m.group(0)), text, flags=re.S)
+    text = re.sub(r"//[^\n]*", "", text)
+    return re.sub(r"(\"(?:\\.|[^\"\\\n])*\"|'(?:\\.|[^'\\\n])*'|`(?:\\.|[^`\\])*`)", lambda m: '""', text)
+
+
+def conditional_hooks(text):
+    return [m.group(2) for m in _HOOK_AFTER.finditer(_code_only(text))]
+
+
+class HooksUnconditionalTests(unittest.TestCase):
+    def test_the_check_catches_short_circuit_and_ternary_hook_calls(self):
+        for bad in ("const web = !api && !!useProjects((s) => s.connect.computers);",
+                    "const a = x || useFoo();", "const a = x ?? useFoo();", "const a = x ? useFoo() : 1;",
+                    "const a = x ? 1 : useFoo();", "const a = x ? 1 : useFoo<string>();"):
+            self.assertTrue(conditional_hooks(bad), bad)
+        for good in ("const declared = useProjects((s) => s.connect.computers);\nconst web = !api && !!declared;",
+                     "const a = useFoo(); // x && useBar()", 'const s = "a && useBar()";', "const o = { a: 1 };",
+                     "const v = a?.useFoo;", "function f(a: number) { return useMemo(() => a, [a]); }"):
+            self.assertEqual(conditional_hooks(good), [], good)
+
+    def test_no_hook_is_called_behind_a_condition_in_the_assistant_source(self):
+        found = []
+        for path in sorted((FRONTEND / "src").rglob("*.ts*")):
+            for hook in conditional_hooks(path.read_text(encoding="utf-8")):
+                found.append(f"{path.relative_to(ROOT)}: {hook}")
+        self.assertEqual(found, [])
+
+
 if __name__ == "__main__":
     unittest.main()

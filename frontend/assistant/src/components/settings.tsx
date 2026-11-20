@@ -112,7 +112,9 @@ export function Settings() {
 
   // 浏览器里打开（没有桌面端）：产品声明了电脑列表（connect.computers）才给只读的「连接」看连着哪台电脑；改只在电脑上的 CC 里
   // （用户 2026-10-10；按声明不按产品名，欠账 B50）
-  const web = !api && !!useProjects((s) => s.connect.computers);
+  // hook 无条件调用：api 由空变有值时短路会少调一次 hook，React 报 #300 整页白屏（11-20 release-20261120-0939 全部桌面版窗口）
+  const declared = useProjects((s) => s.connect.computers);
+  const web = !api && !!declared;
   const current = !api && !(web && section === "connections") && section !== "general" ? "general" : section;
   const titles: Record<Section, string> = { general: st.general, connections: st.connections, system: st.system };
 
