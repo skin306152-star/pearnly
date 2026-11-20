@@ -629,7 +629,8 @@ def test_a_book_costed_by_warehouse_reads_and_keeps_the_lot_chain_of_that_wareho
     res = _write(book, _entry("JU", [_line("ICE01", 2, unit_cost="50")]))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["POSOPR"], line["MLOTNUM"].strip(), line["MREMBAL"], line["LOTBAL"]) == ("1", head, 9.0, 2.0)
+    # 同一天：调增（1）排在出库（6）之前，原生记开日的状态（11-20 实录 P3），不是出库后的 9
+    assert (line["POSOPR"], line["MLOTNUM"].strip(), line["MREMBAL"], line["LOTBAL"]) == ("1", head, 12.0, 2.0)
     lot = f"202603201{res.docnum:<12}  1"
     place = _stloc(book, "ICE01", "01")
     assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == (lot, 11.0, 505.0, 505.0)

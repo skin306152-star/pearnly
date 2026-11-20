@@ -618,6 +618,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     by_place = native and stock_chain.applies(account_dir)
     chains = stock_chain.read(account_dir, set(places)) if by_place else {}
     place_lots = stock_chain.fifo_lots(account_dir, chains) if by_place and fifo else {}
+    # 原生存单即重算当天（``stock_chain`` 11-20 实录）：先进先出 + 分仓计价时，排到当天已有行之前的行记开日状态、按开日的批取价
+    firsts = stock_chain.day_firsts(account_dir, set(places), docdat) if by_place and fifo else {}
+    early_lots: Dict[Tuple[str, str], List[Tuple[Decimal, Decimal]]] = {}  # 这张单排在当天最前的仓：开日的批（同单后面的行接着扣）
+    early_state: Dict[Tuple[str, str], Tuple[str, Decimal, Decimal]] = {}  # 同上：下一行要记的写前（批次指针原样、结存、货值）
     place_values: Dict[Tuple[str, str], Decimal] = {}
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
     try:
@@ -630,7 +634,15 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             signed = -qty if kind == ISSUE else qty
             place = places[seq - 1]
             here = by_place and chains[place].kept  # 这个仓记着链才按仓走（老账套有的存货链在主档上）
-            bal, val = (chains[place].bal, chains[place].val) if here \
+            line_posopr = S.STCRD_POSOPR_RECEIVE if native and signed > 0 and kind != ISSUE else posopr
+            early = here and fifo and (place in early_lots or
+                                       stock_chain.ahead(firsts.get(place), stock_chain.order_of(line_posopr, docnum, seq)))
+            if early and place not in early_lots:
+                start = stock_chain.opening(firsts[place])
+                early_lots[place] = stock_chain.fifo_lots(account_dir, {place: start}, before=docdat)[place]
+                early_state[place] = (firsts[place].head, start.bal, start.val)
+            bal, val = (early_state[place][1], early_state[place][2]) if early \
+                else (chains[place].bal, chains[place].val) if here \
                 else balances.get(stkcod, (_dec(match["mrembal"]), _dec(match["mremval"])))
             tot_bal, tot_val = totals.get(stkcod, (_dec(match["totbal"]), _dec(match["totval"])))
             now = {**match, "totbal": tot_bal, "totval": tot_val}
@@ -645,7 +657,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             elif native and fifo:
                 # 先进先出账套：减少按最早仍有剩余的批取价（同一张单前面的行已经用掉的照样扣），增加用给的单价、没给是 0；
                 # 分仓计价的只看这个仓的批
-                pool, slot = (place_lots, place) if here else (fifo_lots, stkcod)
+                pool, slot = (early_lots, place) if early else (place_lots, place) if here else (fifo_lots, stkcod)
                 if signed < 0:
                     lots_left = pool.get(slot, [])
                     # 出超（这个仓的批不够）：原生只按现有的批计价，多出的按 0（11-19 允许负库存实录）；按主档走的照旧按均价
@@ -661,14 +673,13 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
             totals[stkcod] = (tot_bal + signed, _q2(tot_val + signed_value))
             unit = units.unit
             trn = units.qty if kind == ISSUE else (units.qty if signed >= 0 else -abs(units.qty))
-            line_posopr = S.STCRD_POSOPR_RECEIVE if native and signed > 0 and kind != ISSUE else posopr
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_entry_row(
                 docnum, seq, docdat, stkcod, str(item.get("name") or ""), float(trn),
                 float(_q2(unit_cost) if unit_cost else 0), val=float(value if kind == ISSUE else signed_value),
                 # 批次链结存：增加行记写前（原生；写前数量为负时记 0，11-18 实录 JU0000001），减少行记写后、不带批次指针（同 CC 写销售 IV 的
                 # 现行口径——11-18 实测：这样财务之后在 Express 存同日进货时，Express 会把这一行重算到新批价，而带「写前 + 指针」会被重算成 0）
                 # 分仓计价账套照原生：增减都记这个仓的链写前结存（11-19 实录 OU2400001：01 仓链 2418 出 1，明细记 2418）
-                rem_bal=float(max(bal, Decimal(0)) if here and signed > 0 else bal if here
+                rem_bal=float(bal if early else max(bal, Decimal(0)) if here and signed > 0 else bal if here
                               else (max(bal, Decimal(0)) if signed > 0 else new_bal) if native else new_bal),
                 rem_val=float(val if here else (val if signed > 0 else new_val) if native else new_val), posopr=line_posopr,
                 unit=unit, depcod=depcod, accnumdr=account if kind == ISSUE else "", accnumcr=account if kind != ISSUE else ""),
@@ -678,7 +689,7 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 # 增加的行成为新的一批（LOT*），NETVAL = 货值；减少的行 NETVAL 0；单价 0 的行 UNITPR / XUNITPR 空
                 row.update({"STKDES": remark or row["STKDES"],
                             # 分仓计价账套：增减都指这个仓当前那一批（实录 OU2400001 / JU2200001）
-                            "MLOTNUM": chains[place].head if here
+                            "MLOTNUM": early_state[place][0] if early else chains[place].head if here
                             else lot_heads.get(stkcod, "") if signed > 0 and kind != ISSUE else "",
                             "NETVAL": float(value) if signed > 0 and kind != ISSUE else 0.0})
                 if signed > 0 and kind != ISSUE:
@@ -706,6 +717,10 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
                 moves.append(stock_location.move(row, move_kind))
             master = {"LASUPD": docdat} if native else {}
             head_lot = lot_heads.get(stkcod, "")
+            if early:
+                after = stock_chain.moved(stock_chain.opening(stock_chain.DayFirst((), early_state[place][0], bal, val)),
+                                          signed, signed_value)
+                early_state[place] = (stock_chain.stored_head(after), after.bal, after.val)
             if here:
                 new_head = f"{docdat:%Y%m%d}{S.STCRD_POSOPR_RECEIVE}{docnum:<12}{S.seqnum_text(seq)}" if signed > 0 else ""
                 chains[place] = stock_chain.moved(chains[place], signed, signed_value, new_head)

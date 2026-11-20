@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from decimal import Decimal
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import dbf
 
@@ -74,8 +74,10 @@ def read(account_dir, keys: Iterable[Key]) -> Dict[Key, Chain]:
         return out
     try:
         seen = set()
+        stocked = set()
         for rec in S.live_rows(table):
             key = (stock_location._text(rec, "STKCOD"), stock_location._text(rec, "LOCCOD"))
+            stocked.add(key[0])
             if key not in keys or key in seen:
                 continue
             seen.add(key)
@@ -85,12 +87,31 @@ def read(account_dir, keys: Iterable[Key]) -> Dict[Key, Chain]:
                              marked, kept)
     finally:
         table.close()
+    # STLOC 一行都没有、主档却有结存的存货（10-22 前 CC 留下的）：链在主档上，照主档走；写单时补行（stock_location._heal）。
+    # 本单新建的存货（主档结存 0）照旧从这个仓的新链起
+    legacy = {key[0] for key in keys - seen if key[0] not in stocked}
+    if legacy:
+        held = _master_held(account_dir, legacy)
+        for key in keys - seen:
+            if key[0] in held:
+                out[key] = Chain("", Decimal(0), Decimal(0), kept=False)
     return out
 
 
-def fifo_lots(account_dir, chains: Dict[Key, Chain]) -> Dict[Key, List[Tuple[Decimal, Decimal]]]:
+def _master_held(account_dir, codes: set) -> set:
+    table = stock_location._open(account_dir, "STMAS", dbf.READ_ONLY)
+    if table is None:
+        return set()
+    try:
+        return {stock_location._text(rec, "STKCOD") for rec in S.live_rows(table)
+                if stock_location._text(rec, "STKCOD") in codes and _dec(stock_location._value(rec, "TOTBAL")) != 0}
+    finally:
+        table.close()
+
+
+def fifo_lots(account_dir, chains: Dict[Key, Chain], before=None) -> Dict[Key, List[Tuple[Decimal, Decimal]]]:
     """各 (存货, 仓) 还有剩余的批 → ``[(剩余数量, 单价)]``（由早到晚）：只看这个仓的进货类批，从最新的往回数到链上结存为止，
-    最早仍有剩余的那一批只剩差额（原生出库取这一批的价）。"""
+    最早仍有剩余的那一批只剩差额（原生出库取这一批的价）。``before``：只看这一天之前的批（当天开日的批，见 ``day_firsts``）。"""
     out: Dict[Key, List[Tuple[Decimal, Decimal]]] = {key: [] for key in chains}
     if not chains:
         return out
@@ -104,7 +125,7 @@ def fifo_lots(account_dir, chains: Dict[Key, Chain]) -> Dict[Key, List[Tuple[Dec
             if key not in chains or (rec.POSOPR or "").strip() not in RECEIPT_POSOPR:
                 continue
             qty = _dec(rec.XTRNQTY)
-            if qty > 0 and rec.DOCDAT:
+            if qty > 0 and rec.DOCDAT and (before is None or rec.DOCDAT < before):
                 price = _dec(rec.XUNITPR) or _dec(rec.XTRNVAL) / qty  # 库存单位单价（原生 4 位小数）；老行没有就按货值 / 数量
                 rows.setdefault(key, []).append((rec.DOCDAT, (rec.DOCNUM or "").strip(), (rec.SEQNUM or "").strip(), qty, price))
     finally:
@@ -119,6 +140,64 @@ def fifo_lots(account_dir, chains: Dict[Key, Chain]) -> Dict[Key, List[Tuple[Dec
             need -= take
         out[key] = list(reversed(left))
     return out
+
+
+# 原生存单即重算当天（11-20 69EXP 先进先出 + 分仓计价逐张实录 P0–P5）：每存一张单，Express 把这件存货在这个仓当天的全部明细
+# 按「动作类别 → 单号 → 行号」重排（进货 / 调增 1、调入 3 在前，调出 4、出库 6、调减 8 在后），从排在最前那一行记的写前结存与批次指针
+# （MREMBAL / MREMVAL / MLOTNUM）起整段重算，已存单的明细与凭证金额一起改。所以 CC 后写的行排到当天已有行前面时，这一行要记当天开日的
+# 状态（= 原来排最前那一行记的值），金额也按开日的批算；之后原生存单或「计算」就与全程原生一致。
+
+
+@dataclass(frozen=True)
+class DayFirst:
+    order: Tuple[str, str, int]  # 排序键：(动作类别, 单号, 行号)
+    head: str  # 那一行记的批次指针（原样，含「-」）
+    bal: Decimal
+    val: Decimal
+
+
+def order_of(posopr: str, docnum: str, seqnum) -> Tuple[str, str, int]:
+    """原生当天重算的排序键。"""
+    try:
+        seq = int(str(seqnum).strip() or 0)
+    except ValueError:
+        seq = 0
+    return (str(posopr or "").strip(), str(docnum or "").strip(), seq)
+
+
+def day_firsts(account_dir, keys: Iterable[Key], docdat) -> Dict[Key, DayFirst]:
+    """各 (存货, 仓) 这一天已有明细里排在最前的那一行（没有就不在结果里）。"""
+    keys = set(keys)
+    out: Dict[Key, DayFirst] = {}
+    if not keys or docdat is None:
+        return out
+    main = account_rules.main_location(account_dir)
+    table = dbf.Table(str(_stcrd(account_dir)), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    table.open(dbf.READ_ONLY)
+    try:
+        for rec in S.live_rows(table):
+            if rec.DOCDAT != docdat:
+                continue
+            key = ((rec.STKCOD or "").strip(), (rec.LOCCOD or "").strip() or main)
+            if key not in keys:
+                continue
+            order = order_of(rec.POSOPR, rec.DOCNUM, rec.SEQNUM)
+            if key not in out or order < out[key].order:
+                out[key] = DayFirst(order, (rec.MLOTNUM or "").rstrip(), _dec(rec.MREMBAL), _dec(rec.MREMVAL))
+    finally:
+        table.close()
+    return out
+
+
+def opening(first: DayFirst) -> Chain:
+    """当天开日的链（取排最前那一行记的写前值）。"""
+    head, marked = unmark(first.head)
+    return Chain(head, first.bal, first.val, marked)
+
+
+def ahead(first: Optional[DayFirst], order: Tuple[str, str, int]) -> bool:
+    """这一行排在当天已有各行之前。"""
+    return first is not None and order < first.order
 
 
 def _stcrd(account_dir):
@@ -205,4 +284,4 @@ def verify(account_dir, expected: Dict[Key, dict]) -> List[str]:
     return problems
 
 
-__all__ = ["Chain", "RECEIPT_POSOPR", "applies", "fifo_lots", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]
+__all__ = ["Chain", "DayFirst", "RECEIPT_POSOPR", "ahead", "applies", "day_firsts", "fifo_lots", "opening", "order_of", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]

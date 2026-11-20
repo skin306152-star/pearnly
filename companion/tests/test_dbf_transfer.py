@@ -218,3 +218,45 @@ def test_a_transfer_in_a_book_costed_by_warehouse_keeps_both_lot_chains_in_stloc
     assert (target["MLOTNUM"].strip(), target["MREMBAL"], target["MREMVAL"], target["LOCVAL"]) == (lot, 2.0, 20.0, 20.0)
     master = _rows(rl_book, "STMAS", STKCOD="ICE01")[0]
     assert (master["TOTBAL"], master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (5.0, lot, 2.0, 20.0)
+
+
+def test_same_day_documents_written_after_an_over_issue_start_from_the_opening_state_as_native_recalculates(rl_book):
+    """11-20 69EXP 先进先出 + 分仓计价 + 允许负库存逐张实录（P0–P5）：原生每存一张单把这件存货在这个仓当天的明细按动作类别重排、
+    从排最前那一行记的写前值起整段重算。出库 12 个（开日 10 个 @712.8，出超 2）之后同一天再写调拨、调增：调拨（4）与调增（1）都排在
+    出库（6）前面，要记开日的状态（10 / 7,128、指开日那一批）；调拨按开日的批取价 712.8（不是出库后链上的 0）。
+    这样原生下一次存单或「计算」就从开日的状态起算，与全程原生一致（出库 8,515.2、调拨 712.8）。"""
+    from account_rules_fixture import isinfo
+    from test_dbf_stock import _chain, _entry, _line as stock_line, _receipt, _write as write_stock
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", LOC_COST="Y", NEGALLOW="Y")
+    _receipt(rl_book, "EC0000051", dt.date(2016, 6, 29), 10, 7128)
+    head = "201606292EC0000051     1"
+    _chain(rl_book, "ICE01", "01", MLOTNUM=head, MREMBAL=10.0, MREMVAL=7128.0, LOCVAL=7128.0, LOCBAL=10.0)
+    issue = write_stock(rl_book, _entry("OU", [stock_line("ICE01", 12, loccod="01")], docdate_be="691030"))
+    assert issue.ok, issue.error
+    line = _rows(rl_book, "STCRD", DOCNUM=issue.docnum)[0]
+    assert (line["XTRNVAL"], line["MREMBAL"], line["MREMVAL"], line["MLOTNUM"].strip()) == (7128.0, 10.0, 7128.0, head)
+
+    res = _write(rl_book, _transfer([_line("ICE01", 1)]))
+    assert res.ok, res.error
+    out = next(r for r in _rows(rl_book, "STCRD", DOCNUM=res.docnum) if r["POSOPR"] == "4")
+    assert (out["XTRNVAL"], out["MREMBAL"], out["MREMVAL"], out["MLOTNUM"].strip()) == (712.8, 10.0, 7128.0, head)
+
+    gain = write_stock(rl_book, _entry("JU", [stock_line("ICE01", 3, loccod="01", unit_cost="700")], docdate_be="691030"))
+    assert gain.ok, gain.error
+    row = _rows(rl_book, "STCRD", DOCNUM=gain.docnum)[0]
+    assert (row["POSOPR"], row["XTRNVAL"], row["MREMBAL"], row["MREMVAL"], row["MLOTNUM"].strip()) == ("1", 2100.0, 10.0, 7128.0, head)
+
+
+def test_a_document_sorting_after_the_days_rows_keeps_the_current_chain(rl_book):
+    """当天已有调拨（4），再写出库（6）排在它后面：照旧记当前链的写前值、按当前的批取价（这本来就是原生排序后的位置）。"""
+    from account_rules_fixture import isinfo
+    from test_dbf_stock import _chain, _entry, _line as stock_line, _receipt, _write as write_stock
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", LOC_COST="Y", NEGALLOW="Y")
+    _receipt(rl_book, "EC0000051", dt.date(2016, 6, 29), 10, 7128)
+    head = "201606292EC0000051     1"
+    _chain(rl_book, "ICE01", "01", MLOTNUM=head, MREMBAL=10.0, MREMVAL=7128.0, LOCVAL=7128.0, LOCBAL=10.0)
+    assert _write(rl_book, _transfer([_line("ICE01", 1)])).ok
+    issue = write_stock(rl_book, _entry("OU", [stock_line("ICE01", 2, loccod="01")], docdate_be="691030"))
+    assert issue.ok, issue.error
+    line = _rows(rl_book, "STCRD", DOCNUM=issue.docnum)[0]
+    assert (line["XTRNVAL"], line["MREMBAL"], line["MREMVAL"]) == (1425.6, 9.0, 6415.2)

@@ -243,6 +243,10 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
     chains = stock_chain.read(account_dir, {(code, loc) for code in codes for loc in (source, target)}) if by_place else {}
     fifo = by_place and str((account_rules._first(account_dir, "ISINFO") or {}).get("COSMTD") or "").strip().upper() == "F"
     place_lots = stock_chain.fifo_lots(account_dir, {key: chains[key] for key in chains if key[1] == source}) if fifo else {}
+    # 原生存单即重算当天（``stock_chain`` 11-20 实录）：调出行（4）排到调出仓当天已有行之前时记开日状态、按开日的批取价
+    firsts = stock_chain.day_firsts(account_dir, {(code, source) for code in codes}, docdat) if fifo else {}
+    early_lots: dict = {}
+    early_state: dict = {}
     place_values: dict = {}
     total = Decimal(0)
     table = _open(account_dir, "STCRD", dbf.READ_WRITE)
@@ -256,11 +260,22 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
             out_key, in_key = (stkcod, source), (stkcod, target)
             # 两个仓都记着链才按仓走（老账套有的存货链在主档上，``stock_chain.Chain.kept``）
             by_wh = by_place and chains[out_key].kept and chains[in_key].kept
+            early = fifo and by_wh and (out_key in early_lots or stock_chain.ahead(
+                firsts.get(out_key), stock_chain.order_of(S.STCRD_POSOPR_TRANSFER_OUT, docnum, seq)))
+            if early and out_key not in early_lots:
+                start = stock_chain.opening(firsts[out_key])
+                early_lots[out_key] = stock_chain.fifo_lots(account_dir, {out_key: start}, before=docdat)[out_key]
+                early_state[out_key] = (firsts[out_key].head, start.bal, start.val)
+            out_before = early_state[out_key] if early else None
             if fifo and by_wh:
                 from .dbf_stock import _fifo_cost, _fifo_take
-                lots_left = place_lots.get(out_key, [])
+                pool = early_lots if early else place_lots
+                lots_left = pool.get(out_key, [])
                 unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), Decimal(0))  # 出超的部分按 0（同出库，原生）
-                place_lots[out_key] = _fifo_take(lots_left, abs(units.base_qty))
+                pool[out_key] = _fifo_take(lots_left, abs(units.base_qty))
+            if early:
+                after = stock_chain.moved(stock_chain.opening(stock_chain.DayFirst((), *out_before)), -abs(units.base_qty), -value)
+                early_state[out_key] = (stock_chain.stored_head(after), after.bal, after.val)
             total += value
             for posopr, here, other, sign in ((S.STCRD_POSOPR_TRANSFER_OUT, source, target, -1),
                                               (S.STCRD_POSOPR_TRANSFER_IN, target, source, 1)):
@@ -272,7 +287,9 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "STKDES": remark or _fit(str(item.get("name") or ""), 50), "REIMBURSE": "\x00",
                     "MLOTNUM": heads.get(stkcod, ""),
                 }, units.unit, here)
-                if by_wh and sign < 0:  # 调出行：调出仓的链写前结存与指针
+                if out_before and sign < 0:  # 排在当天最前：记开日状态（原样）
+                    row.update({"MREMBAL": float(out_before[1]), "MREMVAL": float(out_before[2]), "MLOTNUM": out_before[0]})
+                elif by_wh and sign < 0:  # 调出行：调出仓的链写前结存与指针
                     row.update({"MREMBAL": float(chains[out_key].bal), "MREMVAL": float(chains[out_key].val),
                                 "MLOTNUM": chains[out_key].head})
                 stock_units.stamp(row, units)
