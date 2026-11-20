@@ -1,7 +1,11 @@
 /* 从连接添加（`desk/company-connect.js`）：排布同 CC「选择公司」——列表在弹窗里滚动，每行原生勾选框 + 两行字 + 行尾状态。
  * 勾选框、字色字号、状态胶囊、标签页都是 Frappe 原生的（MultiCheck、`text-muted small`、`indicator-pill`、`form-tabs`），这里只排位置。 */
+/* 原生 MultiCheck 用多栏排版（`columns: 1`）：限高之后放不下的行会溢出成右边新的一栏、要横向滑（11-20 用户报）。
+   这里不用多栏，一列竖排，超出上下滚动。 */
 .pearnly-connect-list .checkbox-options {
+	columns: auto;
 	max-height: min(60vh, 520px);
+	overflow-x: hidden;
 	overflow-y: auto;
 }
 .pearnly-connect-list .unit-checkbox label {
