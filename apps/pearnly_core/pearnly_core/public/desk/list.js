@@ -116,6 +116,8 @@
 				if (this.destroyed) return;
 				this.$frappe_list.toggleClass("pearnly-list-with-actions", Boolean(this.row_actions));
 				this.$frappe_list.toggleClass("pearnly-compact-list", Boolean(this.compact_columns));
+				// `wrap_subject`：第一列（名称）占满剩余宽度、放不下就换行完整显示，行跟着变高（样式见 product.css）。
+				this.$frappe_list.toggleClass("pearnly-wrap-subject", Boolean(this.wrap_subject));
 				if (this.selectable) this.setup_check_events();
 				this.$result.on("click keydown", ".list-row-container", event => {
 					if (!this.on_open) return;
@@ -280,9 +282,12 @@
 			if (!this.compact_columns) {
 				return frappe.views.ListView.prototype.apply_column_widths.call(this);
 			}
-			for (const col of this.spec) {
+			// `wrap_subject`：富余宽度全给名称，其它列不放宽；窗口窄时其它列先收到 `min_width`，名称最后才收
+			// （物料 / 库存一览，11-20 用户定：长名称要能看全）。
+			for (const [i, col] of this.spec.entries()) {
+				const flex = !this.wrap_subject || i === 0 ? "1 1" : "0 4";
 				this.$result.find(`[data-fieldname="${col.fieldname}"]`).css({
-					width: col.width, flex: `1 1 ${col.width}px`, minWidth: col.min_width,
+					width: col.width, flex: `${flex} ${col.width}px`, minWidth: col.min_width,
 				});
 			}
 		}

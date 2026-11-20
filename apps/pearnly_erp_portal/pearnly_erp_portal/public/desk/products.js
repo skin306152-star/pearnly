@@ -384,11 +384,12 @@
 				// 七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。
 				// 宽度按下面的口径走，窗口更宽时等比放宽；`min_width` 是不能再压的底线。
 				compact_columns: true,
+				// 名称占满剩余宽度、换行完整显示（11-20 用户定：长名称要能看全）
+				wrap_subject: true,
 				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
-				sort_fields: ["product_name", "code", "internal_code", "barcode", "attribute", "unit", "unit_price",
-					"default_cost", "is_active"],
+				sort_fields: ["product_name", "internal_code", "barcode", "attribute", "unit", "unit_price"],
 				load: async ({ start, page_length, sort_by, sort_order }) => {
 					// 列表框架给的是 {start, page_length}；服务端的参数名是 start / limit。
 					const [items, total] = await Promise.all([
@@ -399,9 +400,9 @@
 					return { items, total };
 				},
 				columns: [
-					// 「位置」一栏删了（岳父 11-18：只在盘点保留仓位），宽度给名称
+					// 「位置」一栏删了（岳父 11-18：只在盘点保留仓位）；系统编码、参考成本、状态三栏不在列表显示（11-20 用户定，
+					// 详情页与按状态筛选照旧），富余宽度都给名称、名称换行完整显示
 					{ fieldname: "product_name", width: 260, min_width: 180, label: t("product.col.name") },
-					{ fieldname: "code", width: 88, min_width: 78, label: t("product.col.code") },
 					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode"),
 						format: (_value, row) => row.internal_code || row.express_code || "" },
 					// 条码与二维码在界面上是同一格：哪个有值就显示哪个，列名跟表单一致。
@@ -414,12 +415,6 @@
 					{ fieldname: "unit", width: 60, min_width: 52, label: t("product.col.unit") },
 					{ fieldname: "unit_price", width: 92, min_width: 82, label: t("product.col.price"),
 						format: (_value, row) => marked(row, "price_set", row.unit_price) },
-					{ fieldname: "default_cost", width: 92, min_width: 82, label: t("product.col.cost"),
-						format: (_value, row) => marked(row, "cost_set", row.default_cost) },
-					{ fieldname: "is_active", width: 84, min_width: 72, label: t("product.col.status"),
-						// 与供应商/客户两页同一口径：正常 / 已停用。原来用的是框架自己的
-						// "Active"，中文界面里会译成「激活」，三张列表同一个概念三种说法。
-						format: (value) => t(Number(value) ? "product.active" : "product.inactive") },
 				],
 			});
 
