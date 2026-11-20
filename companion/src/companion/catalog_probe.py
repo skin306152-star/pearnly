@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Tuple
 import dbf
 
 from . import dbf_schema as S
-from . import stock_lookup, stock_template
+from . import stock_lookup, stock_sale, stock_template
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -242,7 +242,7 @@ def _warehouse(code: str, name: str, main: str, used: set) -> Dict[str, str]:
 def probe_isacc_candidates(account_dir) -> List[Dict[str, Any]]:
     """ISACC → 存货科目组候选(全量 · 带 fit 判据)。排序:fit 优先 · used_by 降序。
 
-    fit 直接问 stock_template.assert_inventory_account —— 判据只留一份:下拉里能选中、
+    fit 直接问 stock_template.assert_inventory_account 与 stock_sale.stock_accounts —— 判据只留一份:下拉里能选中、
     自动建档却过不了的组,等于让会计白选一次再撞同一堵墙。
     ACCTYP='F' 是固定资产模块自己的组(FA01..FA13),70EXP 全 162 条 STKTYP=0 无一挂在其下,
     放进存货下拉只会诱人选错,故不列。
@@ -310,11 +310,14 @@ def _stock_acccod_usage(account_dir) -> Dict[str, int]:
 
 
 def _fits_inventory(account_dir, acccod: str) -> bool:
-    """这个组的存货科目过不过自动建档那关(GLACC 资产类 + 存货类名)。"""
+    """这个组能不能用:存货科目过自动建档那关(GLACC 资产类 + 存货类名),且存货、销货成本两个科目都配了
+    (写账那关 ``stock_sale.stock_accounts``:缺一个就停在 STOCK_IN_FAILED。11-20 69EXP TEST 有组只配了存货科目,
+    选了它写账才失败)。判据与写账同一份,不另写一套。"""
     try:
         stock_template.assert_inventory_account(account_dir, acccod)
+        stock_sale.stock_accounts(account_dir, acccod)
         return True
-    except stock_template.InventoryAccountUnfit:
+    except (stock_template.InventoryAccountUnfit, stock_sale.StockItemNotFound):
         return False
 
 

@@ -294,3 +294,13 @@ def test_warehouses_left_out_when_stcrd_cannot_be_read(acct, monkeypatch):
 
     monkeypatch.setattr(CP, "_scan_stcrd", broken)
     assert "warehouses" not in CP.catalog_payload(acct)
+
+
+def test_a_group_without_a_cost_of_sales_account_is_not_offered(chart):
+    """11-20：69EXP\\TEST 有个组只配了存货科目、没配销货成本科目，选了它写账就停在 STOCK_IN_FAILED（缺存货 / COGS 科目）。
+    合格判据与写账同一份（存货科目过建档那关，且存货、销货成本科目都在），这种组不报。"""
+    _add(chart, "ISACC", ACCTYP="S", ACCCOD="ST11", ACCDES="ไม่มีต้นทุนขาย", METHOD="A",
+         ACCNUM01="11-04-04-00", ACCNUM02="")
+    fit = {c["code"]: c["fit"] for c in CP.probe_isacc_candidates(chart)}
+    assert fit["ST11"] is False and fit["ST10"] is True
+    assert "ST11" not in {c["code"] for c in CP.catalog_payload(chart)["isacc_candidates"]}
