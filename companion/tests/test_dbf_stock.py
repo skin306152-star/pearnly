@@ -649,7 +649,8 @@ def test_a_warehouse_holding_stock_without_a_lot_chain_keeps_the_master_chain(bo
 
 
 def test_issuing_more_than_the_warehouse_chain_values_only_its_lots_and_stops_the_chain_at_zero(book):
-    """11-19 允许负库存实录（先进先出 + 分仓计价）：出超时原生只按这个仓现有的批计价、多出的按 0，这个仓的链停在 0 / 0，不记负数。"""
+    """11-19 允许负库存实录（先进先出 + 分仓计价）：出超时原生只按这个仓现有的批计价、多出的按 0，这个仓的链停在 0 / 0，不记负数；
+    批号首字符改「-」（11-20 逐张实录 P1：仓库与主档都是「-01606292EC0000051」）。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", LOC_COST="Y", NEGALLOW="Y")
     _receipt(book, "RR0000010", dt.date(2026, 3, 5), 5, 250)
     head = "202603050RR0000010     1"
@@ -659,6 +660,6 @@ def test_issuing_more_than_the_warehouse_chain_values_only_its_lots_and_stops_th
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
     assert (line["XTRNVAL"], line["MREMBAL"], line["MREMVAL"]) == (250.0, 5.0, 250.0)
     place = _stloc(book, "ICE01", "01")
-    assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == (head, 0.0, 0.0, 0.0)
+    assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == ("-" + head[1:], 0.0, 0.0, 0.0)
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
-    assert (master["TOTBAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, 0.0, 0.0)
+    assert (master["TOTBAL"], master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (-2.0, "-" + head[1:], 0.0, 0.0)

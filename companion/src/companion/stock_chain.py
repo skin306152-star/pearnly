@@ -130,16 +130,21 @@ def _stcrd(account_dir):
 
 def moved(chain: Chain, qty: Decimal, value: Decimal, new_head: str = "") -> Chain:
     """链上增减 ``qty`` / ``value``（带正负）；增加成新一批时 ``new_head`` 是它的批号。
-    减少超过链上结存时链停在 0（原生：允许负库存的账套出超后这个仓的链是 0 / 0，不记负数，11-19 实录 OU2400001）。"""
+    减少超过链上结存时链停在 0（原生：允许负库存的账套出超后这个仓的链是 0 / 0，不记负数，11-19 实录 OU2400001），
+    批号标成负（首字符「-」，11-20 逐张实录 P1）；之后增加成新一批时批号指新批、不再标负（实录 P3）。"""
     bal, val = chain.bal + qty, chain.val + value
+    marked = chain.marked
     if qty < 0 and bal <= 0:
+        marked = marked or bal < 0
         bal, val = Decimal(0), Decimal(0)
-    return replace(chain, bal=bal, val=val, head=new_head or chain.head)
+    if new_head:
+        marked = False
+    return replace(chain, bal=bal, val=val, head=new_head or chain.head, marked=marked)
 
 
 def stored_head(chain: Chain) -> str:
-    """写回表里的批号：链为负时首字符改「-」（原生）。"""
-    return mark(chain.head) if chain.bal < 0 else chain.head
+    """写回表里的批号：链为负（出超过）时首字符改「-」（原生）。"""
+    return mark(chain.head) if chain.marked or chain.bal < 0 else chain.head
 
 
 def write(account_dir, after: Dict[Key, Chain], value_moves: Dict[Key, Decimal]) -> Dict[Key, dict]:
