@@ -51,22 +51,27 @@ if os.path.exists(path):
     os.replace(path, backup)
 # 这份账套：供应商同税号只有一个（服务端按税号认得准，开始前不问）——电脑写时另在 Express 里认出一个名字相近、没填税号的旧档，
 # 以「疑似重复」拦下（服务端判不出的那种停法，同 H5 的存货科目组）；存货科目组两个合格（DM 在用 4 件、P002 在用 1 件）、
-# 一个不合格（ST01 办公设备）
-facts.save(key, {{"version": 2, "customers": [], "departments": [],
-                 # 存货表读到了（一件无关的库存品）：新物料按品名认不到，开始前问「新建 / 对应已有」
-                 "products": [{{"code": "OTHER-{tag}", "name": "สินค้าอื่น {tag}", "kind": "stock"}}],
-                 "suppliers": [{{"code": "SUP-A-{tag}", "name": "ผู้ขาย H5 {tag}", "tax_id": {SUPPLIER_TAX!r}, "branch": "00000"}},
-                               {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": "", "branch": ""}}],
-                 # 科目表与默认科目对照（同 ERP 单测的一套）：采购单要采购 / 进项税 / 应付科目才准备得出来
-                 "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (
-                               "11-01-01-00", "11-02-01-00", "11-04-01-00", "11-04-02-00", "52-08-00-00", "41-01-00-00",
-                               "11-03-01-00", "21-04-01-00", "51-03-00-00", "21-01-01-00", "11-06-01-00")],
-                           "mapping": {{"revenue_acc": "41-01-00-00", "ar_acc": "11-03-01-00", "vat_output_acc": "21-04-01-00",
-                                       "fallback_acc": "51-03-00-00", "ap_acc": "21-01-01-00", "vat_input_acc": "11-06-01-00"}},
-                           "catalog": {{"isacc_candidates": [
-                               {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 4}},
-                               {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 1}},
-                               {{"code": "ST01", "desc": "อุปกรณ์สำนักงาน", "inv_acc": "14-01-03-00", "fit": False, "used_by": 2}}]}}}}}})
+# 一个不合格（ST01 办公设备）。心跳报的库存品总数 ``total``（`stock_acc_group.new_item_group` 的判据）：合格组挂的件数（最多 4）
+# 不多过其余的件数就证明不了「挂得最多的是合格组」，开始前问组；多过就照旧交电脑、不问
+def book(total):
+    facts.save(key, {{"version": 2, "customers": [], "departments": [],
+                     # 存货表读到了（一件无关的库存品）：新物料按品名认不到，开始前问「新建 / 对应已有」
+                     "products": [{{"code": "OTHER-{tag}", "name": "สินค้าอื่น {tag}", "kind": "stock"}}],
+                     "suppliers": [{{"code": "SUP-A-{tag}", "name": "ผู้ขาย H5 {tag}", "tax_id": {SUPPLIER_TAX!r}, "branch": "00000"}},
+                                   {{"code": "SUP-B-{tag}", "name": "ผู้ขาย H5 {tag} (เก่า)", "tax_id": "", "branch": ""}}],
+                     # 科目表与默认科目对照（同 ERP 单测的一套）：采购单要采购 / 进项税 / 应付科目才准备得出来
+                     "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (
+                                   "11-01-01-00", "11-02-01-00", "11-04-01-00", "11-04-02-00", "52-08-00-00", "41-01-00-00",
+                                   "11-03-01-00", "21-04-01-00", "51-03-00-00", "21-01-01-00", "11-06-01-00")],
+                               "mapping": {{"revenue_acc": "41-01-00-00", "ar_acc": "11-03-01-00", "vat_output_acc": "21-04-01-00",
+                                           "fallback_acc": "51-03-00-00", "ap_acc": "21-01-01-00", "vat_input_acc": "11-06-01-00"}},
+                               "catalog": {{"isacc_candidates": [
+                                   {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 4}},
+                                   {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 1}},
+                                   {{"code": "ST01", "desc": "อุปกรณ์สำนักงาน", "inv_acc": "14-01-03-00", "fit": False, "used_by": 2}}],
+                                          "fingerprint": {{"stock_master_count": total}}}}}}}})
+
+book(9)  # 合格组 5 件、其余 4 件：最多的 DM 4 件不多过其余 4 件 → 证明不了
 supplier = suppliers.create_supplier(supplier_name="ผู้ขาย H5 {tag}", tax_id={SUPPLIER_TAX!r})["name"]
 product = products.create_product(product_name="D1116 H5 Item {tag}", unit="ชิ้น", unit_price=500, default_cost=500)["name"]
 frappe.db.commit()
@@ -91,6 +96,12 @@ for item in first["items"]:
         choices.remember(company, "item", item["subject"], "__new__")
         out["item_subject"] = item["subject"]
 frappe.db.commit()
+# 新规则另一档：总数 6（其余只 1 件），能证明挂得最多的 DM 合格 → 不问组、载荷不带组（电脑照众数抄）；再换回 9 件
+book(6)
+proven = precheck.collect_document(push.PURCHASE, name)
+out["s1_proven"] = {{"items": kinds(proven), "group": (proven["result"].get("payload") or {{}}).get("stock_acccod"),
+                    "hold": str(proven["result"].get("hold") or "")[:300]}}
+book(9)
 second = precheck.collect_document(push.PURCHASE, name)
 out["s1_group"] = kinds(second)
 out["s1_second_hold"] = str(second["result"].get("hold") or ("payload" if second["result"].get("payload") else second["result"]))[:300]
@@ -194,7 +205,11 @@ def verify(lab, manifest, params, camera_code=None):
     return [
         {"case": "S1：新物料先问新建还是对应已有", "seen": params.get("s1_first"),
          "ok": any(row[0] == "item" for row in params.get("s1_first") or [])},
-        {"case": "S1：账套已有库存品、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，按在用数预选 DM",
+        {"case": "S1：心跳报的总数能证明挂得最多的组合格（`new_item_group`）→ 开始前不问组、载荷不带组，照旧交电脑",
+         "seen": params.get("s1_proven"),
+         "ok": bool(params.get("s1_proven")) and not any(row[0] == "stock_group" for row in params["s1_proven"]["items"])
+               and not params["s1_proven"]["group"] and "stock_group" not in params["s1_proven"]["hold"]},
+        {"case": "S1：证明不了挂得最多的组合格、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，推荐挂得最多的 DM",
          "seen": {"group": group, "all": params.get("s1_group"), "hold": params.get("s1_second_hold")},
          "ok": bool(group) and group[1] == "DM" and sorted(group[2]) == ["DM", "P002"]},
         {"case": "S1：选了 P002 后再准备，载荷带 stock_acccod = P002（不再交给 CC 桌面版按众数选）",
