@@ -242,9 +242,9 @@
 		return p.call(API.connections + "stock_acc_group", {name: connection.name, account_set_key}).catch((caughtError) => { globalThis.pearnlyCaught?.(caughtError, "targets"); return (() => null)(caughtError); });
 	}
 
-	/** 该请用户选：候选已知、合格的有两个以上、这份账套还没选过（名单里也列不合格的组，人可以明确选它；只数合格的）。 */
+	/** 该请用户选：候选已知、合格的有两个以上、这份账套还没选过。 */
 	function stock_group_needed(view) {
-		return Boolean(view?.known && !view.chosen && (view.groups || []).filter(group => group.fit).length >= 2);
+		return Boolean(view?.known && !view.chosen && (view.groups || []).length >= 2);
 	}
 
 	/** 下拉选项：「码 · 科目号 · 科目名 · N 个商品在用」（用量帮会计认出这家真在用的组）。 */

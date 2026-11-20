@@ -281,8 +281,7 @@ def options(connection, account_set_key=None):
 def _stock_ready(connection, account_set_key):
     """选存货而这份账套有两个以上存货科目组时，与新建录入一样要先选定一个（存回账套，见 `targets/stock_groups.py`）。"""
     view = connections.stock_acc_group(connection, account_set_key) or {}
-    # 只数合格的组（名单里也列不合格的、人可以明确选，1.12.23；「两个以上才问」照旧按合格的算）
-    if view.get("known") and not view.get("chosen") and len([g for g in view.get("groups") or [] if g.get("fit")]) >= 2:
+    if view.get("known") and not view.get("chosen") and len(view.get("groups") or []) >= 2:
         frappe.throw(_("cowork.folder.stock_group_needed"))
 
 

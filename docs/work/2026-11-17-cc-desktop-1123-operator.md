@@ -44,3 +44,8 @@
   818ee7fcd 候选离线 LANE EXIT 0、109 组 OK。
 - ⑨ 按主会话 11-19 定的 B：领单每件带可选 `session`，一批都来自同一段对话才回到那段对话，否则待处理页（2e0790611、59ed06ac6）。
 - 1.12.22 真机补测结果与发现的缺陷见 `docs/work/2026-11-15-cc-desktop-1122-server.md`「真机补测（11-19）」。
+
+## 11-20 变基对齐 main（主会话定）
+- 变基到 h5 对齐分支（底下是 main 6b641f42f）。h5 的旧 6 个提交换成对齐后的版本，`for_new_items` 去掉，新物料定组一律走 main 的 `stock_acc_group.new_item_group`。
+- 存货科目组：服务端出卡和保存一律按 main 0c4891a39，卡上只列合格的组，保存时拒绝不合格的（管钱底线）。原 4be79574f 的服务端「全部列出、合格在前」（`stock_groups.choosable`、ERP `_needed_group`、Cowork 文件夹与上传框的计数）去掉；CC 桌面版一侧照旧上报全部组、带合格标记，写入时按 Express 原生检查照写服务端给的组（`stock_template.GUARD_CHOSEN_GROUP` 开关不变）。
+- 行号栏修复：旧版 4173b5dec 去掉，换成小分支 `pearnly/operator-insert-row-col` 当前的 3 个提交（顶 3da5dc811，`_onto_item_column`）；小分支进 main 时以 main 上的为准再核一次。

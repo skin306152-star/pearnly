@@ -872,11 +872,13 @@ class StockGroupDecidedByTheServer(unittest.TestCase):
         self.assertIn("code = chosen or dominant", template)
         self.assertIn("if not chosen or GUARD_CHOSEN_GROUP:", template)
 
-    def test_unfit_groups_are_offered_only_when_the_desktop_reports_them(self):
-        # 服务端能记住的组 = 小助手报上来的全部组（合格的在前）；自动定组只数合格的。CC 桌面版上报时不再只报合格的
+    def test_the_desktop_reports_every_group_and_the_server_keeps_only_fit_ones(self):
+        # CC 桌面版上报全部组、带合格标记（1.12.23）；服务端出卡、记住、保存只认合格的组（科目对不上是管钱底线，主会话 11-20，
+        # 同 main 0c4891a39），判据一律走 `stock_acc_group.new_item_group`
         rule = (ROOT / "apps" / "pearnly_core" / "pearnly_core" / "express_rules" / "targets" / "stock_groups.py").read_text(
             encoding="utf-8")
-        self.assertIn("for g in choosable(groups)}", rule)
+        self.assertIn("for g in fit(groups)}", rule)
+        self.assertNotIn("def choosable(", rule)
         for path in ("catalog_probe.py", "express_masters.py"):
             self.assertNotIn('if c["fit"]]', (COMPANION / path).read_text(encoding="utf-8"), path)
             self.assertNotIn('if row["fit"]]', (COMPANION / path).read_text(encoding="utf-8"), path)
