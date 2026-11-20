@@ -77,7 +77,9 @@ class PickerSourceTests(unittest.TestCase):
         self.assertIn("const declared = useProjects((s) => !!s.connect.computers);", has)
         self.assertIn("return app || declared;", has)
         settings = read("components/settings.tsx")
-        self.assertIn("const web = !api && !!useProjects((s) => s.connect.computers);", settings)
+        # hook 无条件调用（11-20 白屏：写成 `!api && !!useProjects(...)` 时 api 有值后少调一个 hook）
+        self.assertIn("const declared = useProjects((s) => s.connect.computers);", settings)
+        self.assertIn("const web = !api && !!declared;", settings)
 
     def test_refresh_lives_in_the_header_and_follows_the_catalog_section(self):
         head = self.picker.split('<div className="cc-dialog-head">', 1)[1].split("<DialogPrimitive.Description", 1)[0]
