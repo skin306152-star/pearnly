@@ -39,3 +39,9 @@ ERP 网页建采购单（新供应商、新物料、第二个仓、赊购）→ 
 ## 发版顺序（建议）
 1.12.22 已在 main：先从 main 打 1.12.22 发正式版。本分支里 CC 桌面版那一块（`companion/`）等 1.12.22 发出后再合 main，记为 1.12.23。
 服务端那一块（S1 判据、S2 出口）对旧版 CC 也成立，可以先合、随下一批部署。所以本分支拆两次合入：服务端先合，CC 桌面版那一提交后合。
+
+## 11-20 对齐 main 的选组规则（主会话定）
+- 新物料挂哪个存货科目组一律用 main 的 `stock_acc_group.new_item_group`（0c4891a39：用心跳报的件数证明挂得最多的组是合格组，证明不了才按合格名单 1 个自动用、几个开始前问、0 个停下）。ERP `prepare.py`、Cowork `service.py`、`card_save`、`precheck_source` 都已在调它。
+- 本分支原来的 `for_new_items`（mapper / sales_mapper 里另判、Cowork 推送准备另停、Cowork 预选卡另出一题）是同一问题的第二套规则，变基到 main 6b641f42f 时整段去掉，用 main 的版本；对应的 Cowork 单测改动也去掉（main 已有同一判据的测试）。
+- 保留：电脑写到一半以「要人选一次」的码停下（对方档疑似重复 / 分店、存货科目组、服务品进项口径）时，ERP 开始卡与代录卡列出那一项（`api.blocked_needed`、`precheck._with_blocked`），代录卡上说产品那一句原因（`feed` 的 `reason_text`）。
+- 流程 `cc.operator.stop-choice` 按新规则改断言：账套报了库存品总数，能证明挂得最多的组合格 → 开始前不问、载荷不带组；证明不了 → 问一次，只列合格的，推荐挂得最多的。
