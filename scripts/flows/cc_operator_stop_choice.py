@@ -209,10 +209,9 @@ def verify(lab, manifest, params, camera_code=None):
          "seen": params.get("s1_proven"),
          "ok": bool(params.get("s1_proven")) and not any(row[0] == "stock_group" for row in params["s1_proven"]["items"])
                and not params["s1_proven"]["group"] and "stock_group" not in params["s1_proven"]["hold"]},
-        # 1.12.23 起卡上列全部组、合格的排前面（Express 原生不拦不合格的组，人明确选了照写，`stock_groups.choosable`）；问不问、推荐哪个只看合格的
-        {"case": "S1：证明不了挂得最多的组合格、两个合格组、没选过 → 开始前问挂哪个组，合格的排前面，推荐挂得最多的合格组 DM",
+        {"case": "S1：证明不了挂得最多的组合格、两个合格组、没选过 → 开始前问挂哪个组，只列合格的，推荐挂得最多的 DM",
          "seen": {"group": group, "all": params.get("s1_group"), "hold": params.get("s1_second_hold")},
-         "ok": bool(group) and group[1] == "DM" and sorted(group[2][:2]) == ["DM", "P002"] and group[2][2:] == ["ST01"]},
+         "ok": bool(group) and group[1] == "DM" and sorted(group[2]) == ["DM", "P002"]},
         {"case": "S1：选了 P002 后再准备，载荷带 stock_acccod = P002（不再交给 CC 桌面版按众数选）",
          "seen": {"group": params.get("s1_payload_group"), "hold": params.get("s1_ready_hold")},
          "ok": params.get("s1_payload_group") == "P002"},

@@ -271,8 +271,7 @@ class Prepare(Base):
                   {"code": "ST01", "desc": "อุปกรณ์", "inv_acc": "14-01-03-00", "fit": False}]
         self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": groups}})
         needed, = P.group_needed(doc(), COMPANY)
-        # 合格的在前、不合格的也列（人明确选了照写，Express 原生不拦，1.12.23）
-        self.assertEqual((needed["kind"], [option["code"] for option in needed["options"]]), ("stock_group", ["DM", "ST01"]))
+        self.assertEqual((needed["kind"], [option["code"] for option in needed["options"]]), ("stock_group", ["DM"]))
         choices.remember(COMPANY["name"], needed["kind"], needed["subject"], "DM")
         self.assertEqual(self.prepare(doc())["payload"]["stock_acccod"], "DM")
 
@@ -294,7 +293,7 @@ class Prepare(Base):
         self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": two}})
         held = self.prepare(doc(items=new))
         self.assertEqual(held["hold"], K.CHOICE + ":stock_group")
-        self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["DM", "P002", "ST01"])  # 不合格的排后面
+        self.assertEqual([option["code"] for option in held["needed"][0]["options"]], ["DM", "P002"])
         choices.remember(COMPANY["name"], held["needed"][0]["kind"], held["needed"][0]["subject"], "P002")
         self.assertEqual(self.prepare(doc(items=new))["payload"]["stock_acccod"], "P002")
 

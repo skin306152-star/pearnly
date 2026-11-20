@@ -19,7 +19,6 @@ import frappe
 from pearnly_core.assistant import guided as assistant_guided
 from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_core.express_rules.push import service_vat, stock_acc_group
-from pearnly_core.express_rules.targets import stock_groups
 from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.preflight import ExpressContext
 
@@ -49,8 +48,7 @@ def _needed_book(picked, company_name):
 
 
 def _needed_group(config, book):
-    # 选项：合格的在前、不合格的也列（人明确选了照写，Express 原生不拦，1.12.23；旧版 CC 只报合格的）
-    groups = stock_groups.choosable(config.get("reported_stock_acc_groups"))
+    groups = stock_acc_group.fit_stock_acc_groups(config)
     return [{"kind": choices.STOCK_GROUP, "subject": book["key"], "label": book.get("label") or "",
              "options": [{"code": row["acccod"], "name": row.get("name") or ""} for row in groups], "current": ""}]
 

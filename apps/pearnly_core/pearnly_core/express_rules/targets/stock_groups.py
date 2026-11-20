@@ -21,15 +21,6 @@ def fit(groups: Any) -> List[Dict[str, Any]]:
     return [g for g in groups if isinstance(g, dict) and g.get("fit") and g.get("acccod")]
 
 
-def choosable(groups: Any) -> List[Dict[str, Any]]:
-    """人在卡片上能选的组：小助手报上来的全部组，合格的（fit）排前面（1.12.23 起不合格的也报，人明确选了照写，Express 原生不拦；
-    旧版只报合格的，这里就等于 :func:`fit`）。自动定组、「两个以上才问」仍只数合格的。"""
-    if not isinstance(groups, list):
-        return []
-    rows = [g for g in groups if isinstance(g, dict) and g.get("acccod")]
-    return [g for g in rows if g.get("fit")] + [g for g in rows if not g.get("fit")]
-
-
 def label(group: Dict[str, Any]) -> str:
     """「码 · 科目号 · 科目名」—— 选择下拉、推送日志与导出表同一个拼法。"""
     return " · ".join(str(x) for x in (group.get(k) for k in _LABEL_PARTS) if x)
@@ -54,9 +45,9 @@ def chosen(raw: Any, account: str) -> str:
 
 def choose(raw: Any, account: str, acccod: Any, groups: Any, *, actor: str,
            at: str) -> Optional[Dict[str, Dict[str, str]]]:
-    """记下这份账套选的组，返回新的整份记录；不是小助手为这份账套上报的组（:func:`choosable`，或记录已满）返回 None。"""
+    """记下这份账套选的组，返回新的整份记录；不是小助手为这份账套上报的合格组（或记录已满）返回 None。"""
     code = str(acccod or "").strip()
-    if not account or not code or code not in {str(g["acccod"]).strip() for g in choosable(groups)}:
+    if not account or not code or code not in {str(g["acccod"]).strip() for g in fit(groups)}:
         return None
     value = deepcopy(choices(raw))
     value[account] = {"acccod": code, "chosen_by": actor, "chosen_at": at}
@@ -66,6 +57,6 @@ def choose(raw: Any, account: str, acccod: Any, groups: Any, *, actor: str,
 def view(raw: Any, account: str, groups: Any) -> Dict[str, Any]:
     """选择入口要的：这份账套的合格组、选过哪个，以及候选是否已知（小助手还没读过这份账套就是未知）。"""
     return {"account_set_key": account, "known": isinstance(groups, list),
-            "groups": [{"acccod": str(g["acccod"]).strip(), "label": label(g), "used_by": g.get("used_by"),
-                        "fit": bool(g.get("fit"))} for g in choosable(groups)],
+            "groups": [{"acccod": str(g["acccod"]).strip(), "label": label(g), "used_by": g.get("used_by")}
+                       for g in fit(groups)],
             "chosen": chosen(raw, account) or None}

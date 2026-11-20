@@ -36,18 +36,14 @@ class ChoiceTest(unittest.TestCase):
         self.assertEqual(value[ACCOUNT]["chosen_by"], "a@example.com")
         self.assertEqual(stock_groups.chosen(raw, r"s:\none"), "")
 
-    def test_only_a_group_reported_for_this_account_can_be_chosen(self):
-        """小助手为这份账套报上来的组都能选（1.12.23 起不合格的也报、人明确选了照写，Express 原生不拦）；没报的、空的不能。"""
-        for code, groups in (("ZZ", GROUPS), ("", GROUPS), ("SA", None), ("SA", [])):
+    def test_only_a_group_reported_fit_for_this_account_can_be_chosen(self):
+        for code, groups in (("SX", GROUPS), ("ZZ", GROUPS), ("", GROUPS), ("SA", None), ("SA", [])):
             self.assertIsNone(stock_groups.choose(None, ACCOUNT, code, groups, actor="a", at="t"))
-        self.assertEqual(stock_groups.choose(None, ACCOUNT, "SX", GROUPS, actor="a", at="t")[ACCOUNT]["acccod"], "SX")
-        # 自动定组仍只数合格的
-        self.assertEqual([g["acccod"] for g in stock_groups.fit(GROUPS)], ["SA", "SB"])
 
     def test_view_says_when_the_candidates_are_not_known_yet(self):
         view = stock_groups.view(None, ACCOUNT, GROUPS)
         self.assertEqual((view["known"], view["chosen"]), (True, None))
-        self.assertEqual([(g["acccod"], g["fit"]) for g in view["groups"]], [("SA", True), ("SB", True), ("SX", False)])
+        self.assertEqual([g["acccod"] for g in view["groups"]], ["SA", "SB"])
         self.assertEqual(view["groups"][0]["label"], "SA · 11-04-01-00 · Synthetic stock A")
         self.assertEqual(view["groups"][0]["used_by"], 3)
         unknown = stock_groups.view(None, ACCOUNT, None)
