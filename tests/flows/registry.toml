@@ -1013,7 +1013,7 @@ covers = [
 
 [[flow]]
 id = "erp.company.connect.mrerp"
-title = "ERP「从连接添加」MR.ERP 标签页：一家一行、已添加禁用、勾选建公司；开关关着时不出（公司接入第 3 批，11-15）"
+title = "ERP「从连接添加」MR.ERP 标签页：一家一行、已添加禁用、勾选建公司；开关关着时 MR.ERP 标签是空状态（公司接入第 3 批，11-15；三个标签一律显示 11-20）"
 module = "scripts/flows/erp_company_connect_mrerp.py"
 start = "/desk/pearnly-company"
 user = "admin"
