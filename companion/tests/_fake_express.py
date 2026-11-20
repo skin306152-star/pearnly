@@ -276,7 +276,9 @@ class FakeExpress:
             return
         _, row, col = self.focus
         cell = self.grid[row] if row < len(self.grid) else {}
-        if col == "no":  # 行号栏回车走到品码栏
+        if col == "no":  # 行号栏回车走到品码栏；空行的品码格这时填满空格（11-20 测试机2 实录：20 个空格，存档时当品码去查）
+            if not cell.get("item"):
+                cell["item"] = " " * 20
             self._set_focus(("grid", row, "item"))
             return
         if col == "item":
@@ -318,7 +320,7 @@ class FakeExpress:
             self._set_focus(("grid", row, "amount"))
         else:
             self.grid.append({})
-            self._set_focus(("grid", row + 1, "item"))
+            self._set_focus(("grid", row + 1, "no" if self.inject.get("line_no_column") else "item"))
 
     def _prewrite(self) -> None:
         """录到第一行明细时 Express 先写一张金额 0 的单头占号（实测）；保存时才填金额。"""
@@ -418,6 +420,10 @@ class FakeExpress:
 
     def _save(self) -> None:
         party = self.head.get(PARTY[self.form], "").strip()
+        if any(r.get("item") and not r["item"].strip() for r in self.grid):
+            # 有一行的品码格是一串空格（打开了却没录）：Express 存档时拿它去查，弹品码选择框（11-20 测试机2 item_missing 的真因）
+            self.dialog("picker", "", "ค้นหา", buttons=("ตกลง", "ยกเลิก", "เพิ่ม <Alt+&A>"))
+            return
         if f"crash_on_save:{party}" in self.inject:
             self.inject.pop(f"crash_on_save:{party}")
             self.dialog("smb", "ExpressI", r"Error -70 (90621) Reading File \\ACCSERVER\ACCOUNT\69EXP\TEST\STMAS.CDX")

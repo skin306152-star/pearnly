@@ -248,7 +248,9 @@ class Engine:
             self._person()
         started = time.monotonic()
         reply = self.desk.act(actions, windows)
-        self._last_reply = reply
+        for action, result in zip(actions, reply.get("results") or []):
+            if action.get("do") == "grid_click" and isinstance(result, dict) and result.get("xy"):
+                self._grid_xy = result["xy"]  # 点进明细的屏幕坐标（`_onto_item_column` 用；中途读状态不覆盖它）
         # 分步计时：等待单算一项（后台做法回实际等了多久，前台做法是写死的时长），其余算到这一批的第一个动作上
         waited = sum(res.get("waited", int(a.get("ms", 0)) / 1000) for a, res in zip(actions, reply["results"])
                       if a["do"] == "wait" and res.get("ok"))
@@ -837,17 +839,16 @@ class Engine:
         self._auto_dialogs()
         return st.get("focus") or {}
 
-    def _onto_clicked_column(self, where: str, text: str) -> None:
-        """点进明细后焦点要在点的那一栏（品码）。账套设了「允许插入明细行」（ISINFO.INSERTIT = Y）时最左多一栏可编辑的行号，
-        新行的焦点停在那里（11-19 测试机2：品码打进行号栏只剩 3 个字，S 盘 760 本里 206 本这样设）：焦点格整个在点击处左边
-        就按回车往右走到那一栏，最多 3 次。没有这一栏的账套焦点本来就在点的那格，什么都不多做。"""
-        results = (getattr(self, "_last_reply", None) or {}).get("results") or []
-        xy = next((r.get("xy") for r in results if isinstance(r, dict) and r.get("xy")), None)
-        if not xy:
+    def _onto_item_column(self, where: str, text: str, x: Optional[int]) -> None:
+        """每行录品码前焦点要在品码栏（``x`` 落在品码栏里：第 1 行是点进明细的屏幕横坐标，之后是第 1 行品码格左边 + 1）。
+        账套设了「允许插入明细行」（ISINFO.INSERTIT = Y）时最左多一栏可编辑的行号，新行的焦点停在那里（11-19 测试机2：品码打进
+        行号栏只剩 3 个字，S 盘 760 本里 206 本这样设）：焦点格整个在 ``x`` 左边就按回车往右走，最多 3 次。没有这一栏的账套焦点
+        本来就在品码格，什么都不多做。"""
+        if x is None:
             return
         for _ in range(3):
             rect = self._cell().get("rect") or []
-            if len(rect) < 4 or rect[2] > xy[0]:
+            if len(rect) < 4 or rect[2] > x:
                 return
             self._event("line_number_column", where=where)
             self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": 300}], text, {"stage": "line"})
@@ -893,10 +894,16 @@ class Engine:
                     f"单价 {line.unit_price}；光标停在下一行（第 {index + 1} 行）的品码格，这一格是空的；没有弹窗；不要保存。")
             self._line_recovered = False
             if index == 1:
+                self._grid_xy = None
                 self.step(where, [{"do": "grid_click", "offset": self.form.spec["grid_offset"]},
                                   {"do": "wait", "ms": 400}], text, {"stage": "line"})
-                self._onto_clicked_column(where, text)
+                item_x = (self._grid_xy or [None])[0]
+            else:
+                item_x = item_left + 1  # 第 1 行品码格的左边：之后每行焦点在它左边（行号栏）就往右走
+            self._onto_item_column(where, text, item_x)
             start = self._cell().get("rect") or [0, 0, 0, 0]
+            if index == 1:
+                item_left = start[0]
             enter = lambda ms: self.step(where, [{"do": "keys", "text": "{ENTER}"}, {"do": "wait", "ms": ms}],  # noqa: E731
                                          text, {"stage": "line"})
             qty_cell: Dict = {}
@@ -917,7 +924,9 @@ class Engine:
             for _ in range(6):
                 enter(400)
                 rect = self._cell().get("rect") or [0, 0, 0, 0]
-                if abs(rect[0] - start[0]) < 8 and rect[1] > start[1] + 5:
+                # 到了下一行的品码格就停；账套设了「允许插入明细行」时下一行先到行号栏（在品码格左边）——也停在那里，
+                # 不把空行的品码格打开（打开就填满空格，存档时 Express 拿空格当品码去查、弹选择框，11-20 测试机2）
+                if rect[0] < start[0] + 8 and rect[1] > start[1] + 5:
                     self._layer("win32")
                     break
             else:
