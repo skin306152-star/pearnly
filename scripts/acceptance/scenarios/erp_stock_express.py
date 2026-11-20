@@ -3,16 +3,16 @@
 编排 B（实验栈挂候选源码 + 测试机2 的 CC 桌面版 + 验收账套）。模型不参与，费用 0。前置：公司已从连接添加并同步过主档。
 
 按场景 id 分（括号里是站点脚本按顺序做的几步）：
-  acc.erp.stock.in.express        入库 2 件（→ Express 调整 JU）
+  acc.erp.stock.in.express        入库 2 件（→ Express 生产完工收货 PI）
   acc.erp.stock.out.express       先入库 2 件再出库 1 件（→ 领用 OU；先入库是为了不撞负库存）
-  acc.erp.stock.adjust.express    物料调整 +3（→ 盘点调整 TK）
+  acc.erp.stock.adjust.express    物料调整 +3（→ 增减调整 JU）
   acc.erp.stock.transfer.express  先入库 2 件再调拨 1 件到另一个仓（→ 调拨 RL；账套只有一个 Express 仓时记前置条件不满足）
   acc.erp.stock.void.express      入库 2 件写成后作废（→ 原单在账本里改成作废、数量加回）
   acc.erp.stock.count.express     新建盘点 → 实盘比账面多 1 → 结束 → 按盘点结果生成调整单（再点一次不生成第二张）→ 提交（→ TK）
 
 **状态：写好未跑**（11-15 晚）。首跑要校准的：
 - 明细数量的正负（出库、调出行在 STCRD 里的符号）：现在按绝对值核；凭证张数不核（账套是定期盘存或零金额时不过账）。
-- 验收账套有没有第二个 Express 仓、有没有 JU / OU / TK / RL 单据簿、允不允许负库存：缺了会停在等人处理，场景把原因原样报出来。
+- 验收账套有没有第二个 Express 仓、有没有 PI / JU / OU / TK / RL 单据簿、允不允许负库存：缺了会停在等人处理，场景把原因原样报出来。
 - 从服务端函数走（via = "api"）：出入库页、盘点页的界面在流程用例上验（`erp.stock-out.new`、`erp.stock.transfer`、`erp.stock.adjust`、
   `erp.stocktake.adjust`）。
 """
@@ -31,7 +31,9 @@ STEPS = {
     "void": [{"kind": "in", "qty": 2, "unit_cost": 10}, {"kind": "void", "of": 0}],
     "count": [{"kind": "count", "delta": 1}],
 }
-PREFIX = {"in": "JU", "out": "OU", "adjust": "TK", "count": "TK", "transfer": "RL"}
+# 照 Express 原生录入的单据簿（docs/work/2026-11-18-stock-express-parity.md；express/stock_entry.py）：入库写 PI、人建物料调整写 JU、
+# 盘点调整写 TK、出库按用途（站点脚本用「其他」→ OU）
+PREFIX = {"in": "PI", "out": "OU", "adjust": "JU", "count": "TK", "transfer": "RL"}
 
 
 def _chain():

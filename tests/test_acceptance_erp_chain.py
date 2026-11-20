@@ -158,7 +158,7 @@ class World:
                 "expected": {"item_code": "P001", "receipts": 2, "in_summary": 2, "qty": 2.0, "grand_total": total, "sold_total": total}}
 
     def erp_stock_post(self, params):
-        prefix = {"in": "JU", "out": "OU", "adjust": "TK", "count": "TK", "transfer": "RL"}
+        prefix = {"in": "PI", "out": "OU", "adjust": "JU", "count": "TK", "transfer": "RL"}
         docs = []
         for index, step in enumerate(params["steps"]):
             kind = step["kind"]
