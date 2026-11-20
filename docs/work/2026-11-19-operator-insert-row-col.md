@@ -35,4 +35,6 @@ CC 代录点进明细表格（`grid_click`，偏移按品码栏）后直接打�
 - 真机（测试机2 + maclab erp，测试账套 69EXP\TEST2）：INSERTIT 临时改 Y 录一张、原值 N 录一张，结果见下行；用完按基线整本还原。
 - 11-20 探针（分支源码，测试机2，TEST2 打开 INSERTIT）：一行的单录成 HP0000090；两行的单两行都录进（合计读到 20.00，停在合计核对只因探针
   复制行时没改载荷合计）。证据 ~/pearnly-devtools/device-1119/smoke/probe_insert.py 与探针日志。
+- 11-20 正式包（companion-build run 44678777198，源码 3da5dc811，sha256 64686462…）装测试机2 + maclab erp：TEST2 打开 INSERTIT 代录采购一张
+  12:17 录成 HP0000090（written）；按基线还原后 INSERTIT = N 再录一张 12:19 录成 HP0000090（written）。两次之后都按基线整本还原。
 
