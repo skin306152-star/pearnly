@@ -664,3 +664,38 @@ def test_issuing_more_than_the_warehouse_chain_values_only_its_lots_and_stops_th
     assert (place["MLOTNUM"].strip(), place["MREMBAL"], place["MREMVAL"], place["LOCVAL"]) == ("-" + head[1:], 0.0, 0.0, 0.0)
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
     assert (master["TOTBAL"], master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (-2.0, "-" + head[1:], 0.0, 0.0)
+
+
+def _hold(acct, code, qty, value):
+    import dbf
+    from companion import dbf_schema
+    table = dbf.Table(str(acct / "STMAS.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for rec in dbf_schema.live_rows(table):
+            if (rec.STKCOD or "").strip() == code:
+                with rec as row:
+                    row["TOTBAL"], row["TOTVAL"], row["MREMBAL"], row["MREMVAL"] = qty, value, qty, value
+    finally:
+        table.close()
+
+
+def test_a_stock_item_with_no_location_row_gets_its_earlier_balance_on_the_main_warehouse(book):
+    """11-20 70EXP 测试账套 PN00063：10-22 前的 CC 写库存不维护 STLOC，留下主档有结存、STLOC 一行没有的存货，原生录单选不到
+    （只补一行主仓 STLOC 后同一张单就存成了）。CC 写单碰到这种存货，把本单之前的主档结存记进主仓那一行，再记本单的变动。"""
+    _hold(book, "ICE02", 3.0, 30.0)
+    assert _stloc(book, "ICE02", "01") is None
+    res = _write(book, _entry("JU", [_line("ICE02", 2, loccod="02", unit_cost="10")]))
+    assert res.ok, res.error
+    assert _stloc(book, "ICE02", "01")["LOCBAL"] == 3.0
+    assert _stloc(book, "ICE02", "02")["LOCBAL"] == 2.0
+    res = _write(book, _entry("OU", [_line("ICE02", 1, loccod="01")]))
+    assert res.ok, res.error
+    assert _stloc(book, "ICE02", "01")["LOCBAL"] == 2.0  # 已有行：不再补
+
+
+def test_a_new_stock_item_without_a_balance_gets_no_extra_location_row(book):
+    """主档结存 0 的存货（新建的）照旧：只建本单那个仓的行。"""
+    res = _write(book, _entry("JU", [_line("ICE02", 2, loccod="02", unit_cost="10")]))
+    assert res.ok, res.error
+    assert _stloc(book, "ICE02", "01") is None and _stloc(book, "ICE02", "02")["LOCBAL"] == 2.0

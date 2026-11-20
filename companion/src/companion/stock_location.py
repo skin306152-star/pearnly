@@ -34,6 +34,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 
 import dbf
 
+from . import account_rules
 from . import dbf_schema as S
 from . import fiscal_period
 from .logger import get_logger
@@ -52,6 +53,7 @@ KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负
 KIND_ADJUST_NATIVE = "adjust_native"
 KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
 KIND_TRANSFER = "transfer"  # 仓间调拨 RL（dbf_transfer）：数量自带正负，原生不动日期栏、不动金额栏，新建的行不带分类（实录 RL0000002）
+KIND_HEAL = "heal"  # STLOC 缺行的存货补主仓那一行（``_heal``）：只补结存，不进期桶、不动日期栏
 KIND_RETURN = "return"  # 收银退货单 SR 货回仓（dbf_refund）：增，只记 LMOVDAT（实录 SR0000001 与原单同一天，LSELDAT 动没动看不出，不碰）
 _DATE_FIELD = {KIND_PURCHASE: "LPURDAT", KIND_SALE: "LSELDAT"}
 _TOLERANCE = Decimal("0.000001")
@@ -200,6 +202,10 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
     try:
         fields = {name.upper() for name in table.field_names}
         seen = set()
+        stocked = set()  # STLOC 有行（任何仓）的存货
+        for rec in S.live_rows(table):
+            stocked.add(_text(rec, "STKCOD"))
+        _heal(account_dir, totals, stocked)
         for rec in S.live_rows(table):
             key = (_text(rec, "STKCOD"), _text(rec, "LOCCOD"))
             if key not in totals or key in seen:
@@ -224,6 +230,38 @@ def apply(account_dir, moves: Iterable[Move]) -> Tuple[Dict[tuple, dict], dict]:
         log.warning("STLOC 期桶未写（会计需人工补记）：%s", why)
         notes["stloc_bucket_not_written"] = why
     return expected, notes
+
+
+def _heal(account_dir, totals: Dict[tuple, dict], stocked: set) -> None:
+    """存货在 STLOC 一行都没有、主档却有结存（10-22 前的 CC 写库存不维护 STLOC 留下的，11-20 实录 70EXP 测试账套 PN00063：
+    原生录单时选不到它）：把本单之前的主档结存记进主仓那一行（随本单新建），之后原生就选得到、各仓结存也加得上主档。
+    各写路都是先改主档、再记 STLOC，所以本单之前的结存 = 主档现结存 − 本单的变动。"""
+    missing = {key[0] for key in totals} - stocked
+    if not missing:
+        return
+    main = account_rules.main_location(account_dir)
+    if not main:
+        return
+    table = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    if table is None:
+        return
+    try:
+        balances = {}
+        for rec in S.live_rows(table):
+            code = _text(rec, "STKCOD")
+            if code in missing and code not in balances and _text(rec, "STKTYP") in ("", "0"):
+                balances[code] = _dec(_value(rec, "TOTBAL"))
+    finally:
+        table.close()
+    for code, now in balances.items():
+        moved = sum((total["qty"] for key, total in totals.items() if key[0] == code), Decimal(0))
+        before = now - moved
+        if before == 0:
+            continue
+        slot = totals.setdefault((code, main), {"qty": Decimal(0), "buckets": {}, "dates": {}, "kinds": set()})
+        slot["qty"] += before
+        slot["kinds"].add(KIND_HEAL)
+        log.info("STLOC 补行：%s 主仓 %s 补本单之前的主档结存 %s", code, main, before)
 
 
 def _updated(rec, total: dict, fields: set) -> dict:
