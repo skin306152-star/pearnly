@@ -174,10 +174,19 @@ basis = "ERP 声明 stocktake（form 源，本对话公司下：按仓库新建�
 [[row]]
 id = "resolve"
 name = "结果不明核对、待处理"
-cowork_direct = ["todo:p2", "todo:p2", "wait:cloud"]
+guide = "pending"
+cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
 erp_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 pending（form 源，选本对话公司待处理清单里的一项 → 确定后交给采购 / 销售的按单据引导 run.start(doc_ids)，判定卡与复核卡都在那里；删除走允许卡；没有结果步骤；d920db310、bba22e8c7）；只有离线单测 test_cowork_pending_guide，页面流程归第 2 步。ERP 的待处理（cc-guided-pending 4509b017c）没带：ERP 采购 / 销售引导在 main 上只开代录，直写对话里交不过去"
+
+[[row.link]]
+cell = "cowork_direct.mrerp"
+basis = "同本地 Express 那格的声明（面向 MR.ERP）；Cowork 的 MR.ERP 推送在线；没有 MR.ERP 公司上的流程"
 
 [[row]]
 id = "folder_task"

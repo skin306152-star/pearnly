@@ -50,7 +50,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -101,6 +101,11 @@ from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_cowork.assistant.guided import pending as guide  # noqa: E402
 
 SESSION = "S1"
+
+
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
 
 
 class Doc(dict):
@@ -184,7 +189,7 @@ class Pending(Base):
         self.assertEqual([row["code"] for row in self.questions(found)["item"]["options"]], ["D1", "D2"])
         self.assertEqual(STATE["asked"][-1], ("CO-1", None))
         self.assertEqual([row["code"] for row in guide.item_options({"company": "CO-1"}, txt="buyer")["options"]], ["D2"])
-        self.assertEqual(run.answer(name, {"item": "D9"})["refused"], {"item": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"item": "D9"})), {"item": "not offered"})
 
     def test_handling_hands_the_document_to_its_documents_guide_at_the_card(self):
         name, found = self.walk({"action": "handle"}, {"item": "D2"})
