@@ -112,8 +112,9 @@ def _cash(text: str) -> bool:
 
 
 def pick(options: Sequence[str], form_choice: str = "", pay_route: str = "") -> str:
-    """子菜单多个命令时选哪一个：先用站点记住的菜单文字（规范化后全等，或互相包含且唯一）；再按付款方式（现金 → 含
-    「เงินสด / ทั่วไป」且不是转账 / 银行的唯一一项；转账 → 含「โอน」或银行字样的唯一一项）。定不下来回空串（问人）。"""
+    """子菜单多个命令时选哪一个：先用站点记住的菜单文字（规范化后全等，或互相包含且唯一）；没记过再按付款方式（现金 → 含
+    「เงินสด / ทั่วไป」且不是转账 / 银行的唯一一项；转账 → 含「โอน」或银行字样的唯一一项）。定不下来回空串（问人）。
+    记住的菜单文字已不在这一层的命令里（菜单改了）：当没记住、回空串问人，不按付款方式另挑一项（11-22，不静默换）。"""
     options = [str(o) for o in options or []]
     want = norm(form_choice)
     if want:
@@ -123,6 +124,7 @@ def pick(options: Sequence[str], form_choice: str = "", pay_route: str = "") -> 
         near = [o for o in options if norm(o) and (want in norm(o) or norm(o) in want)]
         if len(near) == 1:
             return near[0]
+        return ""
     route = str(pay_route or "").strip().lower()
     hits = [o for o in options if _cash(o)] if route == "cash" else \
         [o for o in options if _transfer(o)] if route == "transfer" else []

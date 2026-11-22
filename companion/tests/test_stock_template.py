@@ -134,15 +134,14 @@ def test_empty_account_still_builds_with_just_the_account_group(acct):
     assert ST.pick(acct, CLONE, acccod="ST10") == {"ACCCOD": "ST10"}
 
 
-def test_passed_in_acccod_is_written_as_chosen_unless_the_guard_is_on(acct, monkeypatch):
-    """回落路：人选的组（载荷带来的）照写，只核它在账套里真有（1.12.23，Express 原生不拦）；开关打开恢复原来的 GLACC 判定。"""
+def test_a_passed_in_group_that_is_not_fit_stops_before_building(acct):
+    """回落路：载荷带来的组（服务端定的、人选的、记住的）同样过上报 fit 那一份判据（主会话 11-23 收回 11-16「人选的照写」：
+    服务端 4b36c7caf 起只给合格的组，单一判据）。费用科目的组、账套里没有的组都停下，由服务端重问。"""
     _service(acct, "SRV1", "003U")
-    assert ST.pick(acct, CLONE, acccod="ST02")["ACCCOD"] == "ST02"  # 费用科目：人明确选了照写
-    with pytest.raises(ST.InventoryAccountUnfit):
-        ST.pick(acct, CLONE, acccod="NOPE")  # 账套里没有的组：照旧拦
-    monkeypatch.setattr(ST, "GUARD_CHOSEN_GROUP", True)
     with pytest.raises(ST.InventoryAccountUnfit):
         ST.pick(acct, CLONE, acccod="ST02")
+    with pytest.raises(ST.InventoryAccountUnfit):
+        ST.pick(acct, CLONE, acccod="NOPE")
 
 
 def test_the_chosen_group_wins_over_the_dominant_one(acct):
@@ -161,11 +160,9 @@ def test_a_chosen_group_without_items_borrows_the_dominant_structure(acct):
     assert tpl == {"STKGRP": "AA", "QUCOD": "ลต", "ACCCOD": "ST10"}
 
 
-def test_the_chosen_group_is_written_as_chosen_unless_the_guard_is_on(acct, monkeypatch):
-    """所选的组照写（只核在账套里真有）；开关打开恢复 GLACC 判定：选中费用科目的组也不建档。没选、按众数取的照旧守门。"""
+def test_a_chosen_group_that_is_not_fit_is_not_built(acct):
+    """所选的组过同一份判据：选中费用科目的组不建档（同按众数取的）。"""
     _stock(acct, "OIL01", "ST01")
-    assert ST.pick(acct, CLONE, acccod="ST02")["ACCCOD"] == "ST02"
-    monkeypatch.setattr(ST, "GUARD_CHOSEN_GROUP", True)
     with pytest.raises(ST.InventoryAccountUnfit):
         ST.pick(acct, CLONE, acccod="ST02")
 
@@ -205,3 +202,18 @@ def test_assert_inventory_account_matches_real_chart_facts(acct, acccod, ok):
     else:
         with pytest.raises(ST.InventoryAccountUnfit):
             ST.assert_inventory_account(acct, acccod)
+
+
+def test_a_group_without_a_cost_of_sales_account_is_unfit_before_any_write(acct):
+    """11-22（69EXP TEST P002）：存货科目合格、却没配销货成本科目的组，建档前就判不合格（同心跳上报的合格名单
+    `catalog_probe._fits_inventory`），停下 STOCK_ACC_GROUP_UNFIT 让服务端重新问组，不再写到一半停在 STOCK_IN_FAILED。"""
+    t = dbf.Table(str(acct / "ISACC.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    t.append({"ACCTYP": "S", "ACCCOD": "P002", "METHOD": "A", "ACCNUM01": "11-04-02-00", "ACCNUM02": ""})
+    t.close()
+    _stock(acct, "OIL01", "ST01")
+    with pytest.raises(ST.InventoryAccountUnfit):
+        ST.pick(acct, CLONE, acccod="P002")
+    with pytest.raises(ST.InventoryAccountUnfit):
+        ST.assert_usable_group(acct, "P002")
+    assert ST.assert_usable_group(acct, "ST01") == "11-04-02-00"

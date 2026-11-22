@@ -867,10 +867,12 @@ class StockGroupDecidedByTheServer(unittest.TestCase):
         for adapter in ("purchase_adapter.py", "sales_adapter.py"):
             self.assertIn('stock_acccod=str(payload.get("stock_acccod") or "").strip()',
                           (COMPANION / adapter).read_text(encoding="utf-8"), adapter)
-        # 选过的（服务端带来的）先用，没带才看众数；带来的组按一个开关决定要不要再过存货科目判据（原生实录前不合 main）
+        # 选过的（服务端带来的）先用，没带才看众数；不论哪来的组，写账都过上报 fit 那一份判据（主会话 11-23，单一判据）
         template = (COMPANION / "stock_template.py").read_text(encoding="utf-8")
-        self.assertIn("code = chosen or dominant", template)
-        self.assertIn("if not chosen or GUARD_CHOSEN_GROUP:", template)
+        self.assertIn('code = (acccod or "").strip() or dominant', template)
+        self.assertIn("assert_usable_group(account_dir, code)", template)
+        probe = (COMPANION / "catalog_probe.py").read_text(encoding="utf-8")
+        self.assertIn("stock_template.assert_usable_group(account_dir, acccod)", probe)
 
     def test_the_desktop_reports_every_group_and_the_server_keeps_only_fit_ones(self):
         # CC 桌面版上报全部组、带合格标记（1.12.23）；服务端出卡、记住、保存只认合格的组（科目对不上是管钱底线，主会话 11-20，

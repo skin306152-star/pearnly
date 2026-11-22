@@ -49,12 +49,6 @@ _INVENTORY_WORDS = (
 )
 
 
-# 服务端带来的组（载荷 ``stock_acccod``）要不要再过下面的存货科目判据（1.12.23，11-16 主会话）：服务端自动定的只会是判过合格的组；
-# 不合格的组只有人在卡片上明确选了才会带来，Express 原生对它不拦（只在科目不在科目表 / 不能记账时报 1155 拒存，那条另有
-# ITEM_GROUP_ACCOUNT_MISSING 守着），按「Express 不拦我们不拦」照写。原生实录（测试机原生建一件挂不合格组的品录一张）之前不合 main；
-# 实录结论若是原生也拦，改回 True 即恢复原来的守门。没带组、按众数选的照旧守门。
-GUARD_CHOSEN_GROUP = False
-
 # 回报码(1.11.0):新建库存品挂的存货科目组过不了下面的判据 / 没配 —— 产品端据此让人选一次存货科目组(选过的再写时带
 # `stock_acccod`),不按普通写盘失败重试(结论一样)。
 ERR_STOCK_GROUP = "STOCK_ACC_GROUP_UNFIT"
@@ -82,12 +76,8 @@ def pick(account_dir, clone_fields: Iterable[str], *, acccod: str = "") -> Dict:
     if not rows:
         return _service_template(account_dir, clone_fields, acccod)
     dominant = _dominant_acccod(rows)
-    chosen = (acccod or "").strip()
-    code = chosen or dominant
-    if not chosen or GUARD_CHOSEN_GROUP:
-        assert_inventory_account(account_dir, code)
-    else:
-        assert_group_exists(account_dir, code)  # 人选的组：只核它在账套里真有（同原生），不再按名字判像不像存货
+    code = (acccod or "").strip() or dominant
+    assert_usable_group(account_dir, code)
     same = next((fields for c, fields in rows if c == code), None)
     if same is not None:
         return same
@@ -111,10 +101,7 @@ def _service_template(account_dir, clone_fields: Iterable[str], acccod: str) -> 
             "请会计先在账套里配好存货科目组,再推这张销售票 · "
             "ยังไม่ได้ตั้งค่ากลุ่มบัญชีสินค้าคงเหลือในชุดบัญชีนี้ กรุณาให้ผู้ทำบัญชีตั้งค่าก่อน"
         )
-    if GUARD_CHOSEN_GROUP:
-        assert_inventory_account(account_dir, code)
-    else:
-        assert_group_exists(account_dir, code)
+    assert_usable_group(account_dir, code)
     fields = _service_fields(account_dir, clone_fields)
     fields["ACCCOD"] = code
     return fields
@@ -139,9 +126,23 @@ def _service_fields(account_dir, clone_fields: Iterable[str]) -> Dict:
         t.close()
 
 
+def assert_usable_group(account_dir, acccod: str) -> str:
+    """建库存档前核这个存货科目组能不能用，判据同心跳上报的合格名单（`catalog_probe._fits_inventory`）：存货科目过
+    :func:`assert_inventory_account`，且存货、销货成本两个科目都配了（写账那关 `stock_sale.stock_accounts`）。不合格抛
+    :class:`InventoryAccountUnfit`（停下 ``STOCK_ACC_GROUP_UNFIT``，服务端重新问组），不再走到写账才停在 STOCK_IN_FAILED（11-22）。"""
+    from . import stock_sale
+
+    accnum = assert_inventory_account(account_dir, acccod)
+    try:
+        stock_sale.stock_accounts(account_dir, acccod)
+    except stock_sale.StockItemNotFound as exc:
+        raise InventoryAccountUnfit(f"ACCCOD {acccod} 没配销货成本科目(ISACC ACCNUM02)· 交会计") from exc
+    return accnum
+
+
 def assert_group_exists(account_dir, acccod: str) -> Tuple[str, List]:
     """科目组在这本账套里真有、存货科目在科目表里（Express 原生也要：科目不在科目表就 1155 拒存）。回 (科目码, 科目链)；不满足抛。
-    人在卡片上明确选的组只过这一关（:data:`GUARD_CHOSEN_GROUP`）。"""
+    是 :func:`assert_inventory_account` 的第一关。"""
     accnum = _isacc_inventory(account_dir, acccod)
     if not accnum:
         raise InventoryAccountUnfit(

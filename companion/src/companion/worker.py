@@ -339,7 +339,7 @@ def _handle_dbf_task(
     # 三重一致性闸期望值全来自客户所选账套(配对锁定):账套名 + 目录 + 公司。
     common = dict(
         # 部门码:账套设置里选一次、随载荷下发(2026-09-28 压测:原账 SUTI、推送为空);没下发用本机配置。
-        depcod=str(payload.get("depcod") or "").strip() or cfg.default_depcod,
+        depcod=str(payload.get("depcod") or "").strip() or _local_department(cfg.default_depcod, st.account_dir),
         allowed_sets=allowed_account_sets(st.account_set),
         selected_dir=st.account_dir,
         expected_company=st.account_company,
@@ -434,6 +434,17 @@ def _handle_dbf_task(
 ERR_OPERATOR_UNAVAILABLE = "OPERATOR_UNAVAILABLE"
 # 代录回执说明发往站点最多多少字（同 express_operator.contract.DETAIL_MAX：AI 结论原文整段带上；日志仍只记前 200 字）
 OPERATOR_DETAIL_MAX = 2000
+
+
+def _local_department(code, account_dir) -> str:
+    """本机配置的默认部门（载荷没带部门时用）：这份账套的部门表里没有就当没设、不带部门（同服务端记住的部门不在部门表时，
+    由单据簿默认），不把不存在的部门码写进账套；读不了部门表照旧用（11-22）。"""
+    code = str(code or "").strip()
+    if not code:
+        return ""
+    from .catalog_probe import has_department
+
+    return "" if has_department(account_dir, code) is False else code
 
 
 def _handle_operator_task(cfg, qc, task, st):

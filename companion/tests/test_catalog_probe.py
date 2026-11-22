@@ -308,3 +308,38 @@ def test_a_group_without_a_cost_of_sales_account_is_reported_unfit(chart):
     assert {c["code"]: c["fit"] for c in reported}["ST11"] is False
     first_unfit = next(i for i, c in enumerate(reported) if not c["fit"])
     assert all(not c["fit"] for c in reported[first_unfit:])
+
+
+def test_a_local_default_department_not_in_the_department_table_counts_as_not_set(acct):
+    """11-22：本机配置的默认部门（载荷没带部门时用）不在这份账套的部门表里 → 当没设、不带部门；在表里照用。"""
+    from companion import worker
+
+    _add(acct, "ISTAB", TABTYP="50", TYPCOD="SUTI", TYPDES="แผนก")
+    _add(acct, "ISTAB", TABTYP="21", TYPCOD="GONE", TYPDES="คลัง")  # 同码的仓不算部门
+    assert CP.has_department(acct, "SUTI") is True and CP.has_department(acct, "GONE") is False
+    assert worker._local_department("SUTI", acct) == "SUTI"
+    assert worker._local_department("GONE", acct) == ""
+    assert worker._local_department("", acct) == ""
+    assert worker._local_department("SUTI", acct / "missing") == "SUTI"  # 读不了部门表：照旧
+
+
+def test_the_write_check_is_the_reported_fit_for_every_group(chart, monkeypatch):
+    """接缝（主会话 11-23）：CC 只有一份「这个组能不能用」的判据。心跳上报的 fit 与写账建档的核对（人选的、记住的、
+    按众数挑的都一样）对同一个组结果一致：上报合格的写得进，上报不合格的停在 STOCK_ACC_GROUP_UNFIT 由服务端重问。"""
+    from companion import stock_template as ST
+
+    _add(chart, "ISACC", ACCTYP="S", ACCCOD="ST11", ACCDES="ไม่มีต้นทุนขาย", METHOD="A",
+         ACCNUM01="11-04-04-00", ACCNUM02="")
+    reported = {c["code"]: c["fit"] for c in CP.catalog_payload(chart)["isacc_candidates"]}
+    assert True in reported.values() and False in reported.values()
+    for code, fit in reported.items():
+        try:
+            ST.assert_usable_group(chart, code)
+            writable = True
+        except ST.InventoryAccountUnfit:
+            writable = False
+        assert writable is fit, code
+    calls = []
+    monkeypatch.setattr(ST, "assert_usable_group", lambda d, c: calls.append(c))
+    CP._fits_inventory(chart, "ST10")
+    assert calls == ["ST10"]  # 上报 fit 就是调写账那一个函数，不另写一套

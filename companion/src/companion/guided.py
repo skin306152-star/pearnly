@@ -197,7 +197,7 @@ def invalid_values(account_dir, payload: Dict[str, Any], mode: str, block: str) 
     for index, item in rows:
         if "acccod" in item and str(item.get("item_mode") or "").strip() in (STOCK_IN, STOCK_OUT):
             try:
-                stock_template.assert_inventory_account(account_dir, str(item["acccod"]).strip())
+                stock_template.assert_usable_group(account_dir, str(item["acccod"]).strip())
             except stock_template.InventoryAccountUnfit as exc:
                 return Refusal(stock_template.ERR_STOCK_GROUP, f"line {index}: {exc}")
     data = payload.get(block)

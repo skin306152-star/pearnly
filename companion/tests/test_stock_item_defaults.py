@@ -106,7 +106,8 @@ def bare_acct(tmp_path):
     t = dbf.Table(str(d / "ISACC.DBF"), codepage=S.CODEPAGE)
     t.open(dbf.READ_WRITE)
     try:
-        t.append({"ACCTYP": "S", "ACCCOD": "ST01", "METHOD": "A", "ACCNUM01": _INV_ACC})
+        # 存货、销货成本科目都配了才是能用的组（11-22 `stock_template.assert_usable_group`，同心跳上报的合格名单）
+        t.append({"ACCTYP": "S", "ACCCOD": "ST01", "METHOD": "A", "ACCNUM01": _INV_ACC, "ACCNUM02": "51-01-00-00"})
     finally:
         t.close()
     return d

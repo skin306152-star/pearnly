@@ -114,6 +114,13 @@ def test_pick_by_remembered_text_then_by_payment_route():
     assert M.pick(["ซื้อเงินสด", "ซื้อผ่าน kbank"], pay_route="transfer") == "ซื้อผ่าน kbank"
 
 
+def test_a_remembered_menu_text_no_longer_offered_is_asked_again_not_replaced():
+    """11-22：记住的子菜单文字已不在这一层的命令里（菜单改了）→ 当没记住、回空串问人，不按付款方式另挑一项。"""
+    options = [CASH_TEXT, TMB_TEXT]
+    assert M.pick(options, form_choice="ซื้อผ่าน KTB ที่ปิดไปแล้ว", pay_route="cash") == ""
+    assert M.pick(options, form_choice="ซื้อผ่าน KTB ที่ปิดไปแล้ว", pay_route="transfer") == ""
+
+
 def test_payload_brings_the_two_menu_choices_and_old_payloads_leave_them_empty():
     job = {"doctype": "HP", "docdate_be": "691021", "supplier": {"code": "P002"},
            "items": [{"code": "500310", "qty": "1", "unit_price": "1"}],

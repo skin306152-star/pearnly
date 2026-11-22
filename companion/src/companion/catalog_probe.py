@@ -24,7 +24,7 @@ from typing import Any, Dict, List, Tuple
 import dbf
 
 from . import dbf_schema as S
-from . import stock_lookup, stock_sale, stock_template
+from . import stock_lookup, stock_template
 from .logger import get_logger
 
 log = get_logger(__name__)
@@ -169,6 +169,23 @@ def probe_departments(account_dir) -> List[Dict[str, str]]:
     return out
 
 
+def has_department(account_dir, code: str):
+    """部门码在不在这份账套的部门表（ISTAB TABTYP=50）里 → True / False；读不了表回 None（判不了，调用方照旧）。
+    本机配置的默认部门写前用它核（11-22：记住的选择在用时按当前判据复核，不在就当没设）。"""
+    want = str(code or "").strip()
+    try:
+        table = _open_ro(account_dir, "ISTAB")
+        if table is None:
+            return None
+        try:
+            return any(not dbf.is_deleted(r) and _gv(r, "TABTYP") == _DEPARTMENT_TABTYP and _gv(r, "TYPCOD") == want
+                       for r in table)
+        finally:
+            table.close()
+    except Exception:  # noqa: BLE001 - 读不了部门表不拦写账，照旧用本机配置
+        return None
+
+
 def probe_stcrd_fingerprint(account_dir) -> Tuple[int, int]:
     """STCRD → (stcrd_lines, stcrd_lines_moving_stock)。moving = 有真实库存影响的明细行。"""
     lines, moving, _locations = _scan_stcrd(account_dir)
@@ -242,7 +259,7 @@ def _warehouse(code: str, name: str, main: str, used: set) -> Dict[str, str]:
 def probe_isacc_candidates(account_dir) -> List[Dict[str, Any]]:
     """ISACC → 存货科目组候选(全量 · 带 fit 判据)。排序:fit 优先 · used_by 降序。
 
-    fit 直接问 stock_template.assert_inventory_account 与 stock_sale.stock_accounts —— 判据只留一份:下拉里能选中、
+    fit 直接问 stock_template.assert_usable_group(存货科目 + 销货成本科目)—— 判据只留一份:下拉里能选中、
     自动建档却过不了的组,等于让会计白选一次再撞同一堵墙。
     ACCTYP='F' 是固定资产模块自己的组(FA01..FA13),70EXP 全 162 条 STKTYP=0 无一挂在其下,
     放进存货下拉只会诱人选错,故不列。
@@ -312,12 +329,11 @@ def _stock_acccod_usage(account_dir) -> Dict[str, int]:
 def _fits_inventory(account_dir, acccod: str) -> bool:
     """这个组能不能用:存货科目过自动建档那关(GLACC 资产类 + 存货类名),且存货、销货成本两个科目都配了
     (写账那关 ``stock_sale.stock_accounts``:缺一个就停在 STOCK_IN_FAILED。11-20 69EXP TEST 有组只配了存货科目,
-    选了它写账才失败)。判据与写账同一份,不另写一套。"""
+    选了它写账才失败)。判据与写账、建档同一份(`stock_template.assert_usable_group`),不另写一套。"""
     try:
-        stock_template.assert_inventory_account(account_dir, acccod)
-        stock_sale.stock_accounts(account_dir, acccod)
+        stock_template.assert_usable_group(account_dir, acccod)
         return True
-    except (stock_template.InventoryAccountUnfit, stock_sale.StockItemNotFound):
+    except stock_template.InventoryAccountUnfit:
         return False
 
 
@@ -380,8 +396,8 @@ def catalog_payload(account_dir) -> Dict[str, Any]:
     candidates: List[Dict[str, Any]] = []
     try:
         ranked = probe_isacc_candidates(account_dir)
-        # 合格的在前、不合格的也报（带 fit 标记，1.12.23）：服务端自动定组只认合格的；人在卡片上可以明确选不合格的，CC 照写
-        # （`stock_template.GUARD_CHOSEN_GROUP`）。以前只报合格的
+        # 合格的在前、不合格的也报（带 fit 标记，1.12.23）：服务端出卡、记住、自动定组只认合格的；写账建档用同一份判据
+        # （`stock_template.assert_usable_group`，主会话 11-23）。以前只报合格的
         candidates = ranked[:_MAX_ISACC_CANDIDATES]
         # 两个数都记:可选 0 个时,日志要能分清「没配存货科目组」和「这块压根没跑」
         log.info(
