@@ -5626,8 +5626,11 @@ class MrErpOperatorSubmitTests(unittest.TestCase):
     def submit(self, operator=None, route_device="CCD-A"):
         return tools._submit_one("H1", None, None, None, route_device, operator=operator)
 
+    def test_the_constant_is_on_for_users(self):
+        self.assertTrue(self.contracts.MRERP_OPERATOR_ENABLED)  # 11-22 用户定对用户开放
+
     def test_with_the_constant_off_an_mrerp_operator_job_stops_as_before(self):
-        self.assertFalse(self.contracts.MRERP_OPERATOR_ENABLED)  # 合入 main 时关着
+        self.enterContext(mock.patch.object(self.contracts, "MRERP_OPERATOR_ENABLED", False))
         for operator in (self.operator(), self.operator(target=None)):
             with self.subTest(operator=operator):
                 self.assertEqual(self.submit(operator), {"document": "H1", "status": "failed",

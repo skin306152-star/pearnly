@@ -38,9 +38,9 @@ id = "purchase"
 name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
 guide = "purchase"
 cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
-cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
-erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+erp_operator = ["half:p2", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
@@ -60,14 +60,22 @@ cell = "erp_operator.express_local"
 basis = "ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；页面接口流程从题答到复核、就地改、带复核指纹确定交进代录（API 级，不点卡）"
 flows = ["erp.cc.operator.intake", "erp.cc.guide.documents-edit"]
 
+[[row.link]]
+cell = "cowork_operator.mrerp"
+basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测"
+
+[[row.link]]
+cell = "erp_operator.mrerp"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测"
+
 [[row]]
 id = "sales"
 name = "销售：赊销、现销；同上各类票"
 guide = "sales"
 cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
-cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
-erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+erp_operator = ["half:p2", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
@@ -86,6 +94,14 @@ cell = "erp_operator.express_local"
 basis = "ERP 声明 sales 只开 operator（express/cc_guides.py）；代录放进来的销售票开始前卡作答、提交成销售单交进写账（API 级流程）"
 flows = ["erp.cc.operator.intake.sales"]
 
+[[row.link]]
+cell = "cowork_operator.mrerp"
+basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测"
+
+[[row.link]]
+cell = "erp_operator.mrerp"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测"
+
 [[row]]
 id = "new_master"
 name = "随单新建对方 / 物料（采购销售里的两道题）"
@@ -100,7 +116,7 @@ name = "收款"
 guide = "collection"
 cowork_direct = ["out:只在 ERP"]
 cowork_operator = ["out:代录不做收款"]
-erp_direct = ["done", "wait:mrerp", "wait:cloud"]
+erp_direct = ["done", "half:p1", "wait:cloud"]
 erp_operator = ["out:代录不做收款"]
 
 [[row.link]]
@@ -111,6 +127,11 @@ flows = ["erp.cc.typed-collection", "erp.cc.guide.stop", "erp.cc.guide.reopen"]
 model = ["docs/work/2026-11-19-cc-typed-collection-opens-card.md::11-20 修后真模型"]
 scenarios = ["acc.erp.cc.collection", "acc.erp.cc.collection.nbsp", "acc.erp.collection.three", "acc.erp.collection.busy",
              "acc.erp.collection.offline", "acc.erp.collection.nbsp", "acc.erp.denied"]
+
+[[row.link]]
+cell = "erp_direct.mrerp"
+basis = "MR.ERP 账本开关 11-22 用户定打开；collection 声明含 MR.ERP 账本，方式题回 max_rows=1、折扣 free（9efd90263）；11-22 本机实验栈 + MR.ERP 专属测试账套按卡片的服务端一组函数走到写成两张（没用浏览器点卡），所以只算半"
+device = ["真机记录:erp.cc.tool.erp_collection_guide"]
 
 [[row]]
 id = "pos_day"

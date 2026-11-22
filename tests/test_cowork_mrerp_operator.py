@@ -105,10 +105,11 @@ class Target(Framework):
     def test_the_constant_off_keeps_every_company_on_express(self):
         db = MagicMock()
         db.get_value.return_value = "mrerp"
-        with patch.object(frappe, "db", db):
-            self.assertFalse(contracts.MRERP_OPERATOR_ENABLED)
+        self.assertTrue(contracts.MRERP_OPERATOR_ENABLED)  # 11-22 用户定对用户开放
+        with patch.object(frappe, "db", db), patch.object(contracts, "MRERP_OPERATOR_ENABLED", False):
             self.assertEqual(operator_source.target("CO-1"), "express")
             self.assertFalse(db.get_value.called)  # 关着连公司都不读
+        with patch.object(frappe, "db", db):
             with patch.object(contracts, "MRERP_OPERATOR_ENABLED", True):
                 self.assertEqual(operator_source.target("CO-1"), "mrerp")
                 db.get_value.return_value = "express"

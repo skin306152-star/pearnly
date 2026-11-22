@@ -361,8 +361,8 @@ class ProviderTests(unittest.TestCase):
         # 设置 → 连接的 MR.ERP 一行只在 MR.ERP 账本开着时声明（主会话 11-07 定案 #13）：关着不出这一行；电脑列表（只读，
         # 欠账 B50）总是声明，浏览器里「连接」那一栏按它出
         mrerp = importlib.import_module("pearnly_erp_portal.mrerp")
-        self.assertFalse(mrerp.MRERP_LEDGER_ENABLED)
-        self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
+        with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", False):
+            self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
         roles = lambda user=None: ["ERP Admin"] if (user or frappe.session.user) == "boss@x" else []  # noqa: E731
         with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True), mock.patch.object(frappe, "get_roles", roles, create=True):
             self.assertEqual(cc_projects.connect(), {**{"computers": "pearnly_erp_portal.masters.cc_companies.computers"}, "mrerp": "pearnly_erp_portal.mrerp.api."})

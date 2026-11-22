@@ -1,6 +1,6 @@
 """ERP 接 MR.ERP 的主档整读排程（`pearnly_erp_portal.mrerp.masters`，公司接入第 3 批）的离线检查。
 
-- 开关关着（:data:`MRERP_LEDGER_ENABLED` = False）：不排、不读、每小时那次什么都不做；
+- 开关关着（测试里打补丁设成 False；11-22 起常量是 True）：不排、不读、每小时那次什么都不做；
 - 开着：接上 / 换账套、写单后、每小时各排一次整读（同一家公司只排一件，排在 Express 主档同一条队列）；写单后那次 5 分钟内读过
   就不再排；长期没人用（14 天没新单、接上也超过 14 天、读过一次）的每小时那次不读；没读过的总要读一次；
 - 后台整读：读成落进 Express 同一个落库（``ledger`` = MR.ERP），状态记在公司上；读不到记原因码、不当成空账套落库。
@@ -140,6 +140,7 @@ class Base(unittest.TestCase):
 
 class SwitchOffTests(Base):
     def test_nothing_queued_or_read(self):
+        self.enterContext(self.switch(False))
         self.frappe.db.companies["CO-1"] = company()
         self.assertFalse(self.masters.queue("CO-1"))
         self.assertFalse(self.masters.after_write("CO-1"))
@@ -173,6 +174,77 @@ class QueueTests(Base):
             self.assertTrue(self.masters.after_write("CO-1"))
             # 已经排着：不再排
             self.assertFalse(self.masters.after_write("CO-1"))
+
+
+class NoAutomaticLoginTests(Base):
+    """不经人触发的读取不登录 MR.ERP（开关打开那次，主会话 11-22 定 B）：每小时整读与写单后那次都以 ``warm=True`` 排，跑起来只用
+    热会话（`master_export.read(login=False)`）；人点的照常登录。定时 / 写单后的调用链里出现会登录的读取就失败。"""
+
+    def run_jobs(self):
+        """把排上的整读任务照队列参数跑一遍，交回每次读取的 (manual, login)。"""
+        seen = []
+        export = types.ModuleType("pearnly_core.mrerp.master_export")
+        export.read = lambda lease, key, manual, login=True: seen.append((manual, login)) or (
+            {"customers": [{"code": "C1"}]}, None, {"requests": 1})
+        with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
+            for method, kw in list(self.frappe.enqueued):
+                self.assertEqual(method, "pearnly_erp_portal.mrerp.masters.run")
+                self.masters.run(kw["company"], manual=kw["manual"], warm=kw.get("warm", False))
+        return seen
+
+    def test_the_hourly_read_never_logs_in(self):
+        self.frappe.db.companies["BUSY"] = company("BUSY")
+        self.frappe.db.docs[("Purchase Document", "BUSY")] = [NOW - datetime.timedelta(hours=5)]
+        with self.switch():
+            self.masters.sync_all()
+        (_method, kw), = self.frappe.enqueued
+        self.assertEqual((kw["manual"], kw["warm"]), (False, True))
+        self.assertEqual(self.run_jobs(), [(False, False)])
+
+    def test_the_read_after_a_write_never_logs_in(self):
+        self.frappe.db.companies["CO-1"] = company(express_synced_at=NOW - datetime.timedelta(minutes=20))
+        with self.switch():
+            self.assertTrue(self.masters.after_write("CO-1"))
+        (_method, kw), = self.frappe.enqueued
+        self.assertEqual((kw["manual"], kw["warm"]), (False, True))
+        self.assertEqual(self.run_jobs(), [(False, False)])
+
+    def test_a_person_s_read_still_logs_in_and_is_not_swallowed_by_a_queued_warm_one(self):
+        self.frappe.db.companies["CO-1"] = company(express_synced_at=NOW - datetime.timedelta(minutes=20))
+        with self.switch():
+            self.masters.after_write("CO-1")
+            self.assertTrue(self.masters.queue("CO-1", manual=True))
+        (_m1, warm), (_m2, manual) = self.frappe.enqueued
+        self.assertNotEqual(warm["job_id"], manual["job_id"])  # 人点的另一个任务号：不会因去重被吞
+        self.assertEqual((manual["manual"], manual["warm"]), (True, False))
+        self.assertEqual(self.run_jobs(), [(False, False), (True, True)])
+
+    def test_a_cold_session_skips_the_read_without_a_failure(self):
+        self.frappe.db.companies["CO-1"] = company()
+        export = types.ModuleType("pearnly_core.mrerp.master_export")
+        export.read = lambda lease, key, manual, login=True: (None, "ERR_NO_SESSION", {}) if not login else self.fail("logged in")
+        with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
+            self.masters.run("CO-1", warm=True)
+        self.assertEqual(self.ledger.recorded[-1][1], "ready")
+        self.assertEqual(self.ledger.applied, [])
+
+    def test_every_scheduled_or_after_write_enqueue_of_run_is_warm(self):
+        """源码守门：masters.py 里排 ``masters.run`` 的地方，凡不是人点的（``manual=False``）都带 ``warm=True``。"""
+        import ast
+        import pathlib
+
+        source = (pathlib.Path(__file__).resolve().parents[1]
+                  / "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py").read_text(encoding="utf-8")
+        calls = [node for node in ast.walk(ast.parse(source)) if isinstance(node, ast.Call)
+                 and ast.unparse(node.func) == "frappe.enqueue" and node.args
+                 and getattr(node.args[0], "value", "") == "pearnly_erp_portal.mrerp.masters.run"]
+        self.assertTrue(calls)
+        for call in calls:
+            kw = {item.arg: ast.unparse(item.value) for item in call.keywords}
+            with self.subTest(line=call.lineno):
+                self.assertIn("warm", kw)
+                if kw.get("manual") == "False":
+                    self.assertEqual(kw["warm"], "True")
 
 
 class IdleTests(Base):

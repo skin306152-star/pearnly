@@ -11,7 +11,11 @@
   人点的）、用时再核（:func:`probe_soon`，11-22）。长期没人用的公司（:func:`idle`）每小时那次不读；它一写单就会因写单后那次再读上。
 - 用时再核（选主档 / 打开主档列表，`express.live.touch`）：**只在会话还热时**探测一次客户 / 供应商 / 物料三张列表的摘要
   （`master_export.probe`，不登录），和上次整读时的不同才接着用这个热会话整读（也不登录）。所以探测不新增任何会顶掉会计
-  浏览器登录的登录次数：登录只发生在原来就有的几处（每小时整读、写单后、人点的）。
+  浏览器登录的登录次数。
+- 不经人触发的读取一律不登录（开关打开那次，主会话 11-22 定 B）：每小时整读（:func:`sync_all`）、写单后那次（:func:`after_write`）
+  都以 ``warm=True`` 排 :func:`run`——只用缓存里还热的会话（共用层 ``mrerp.account.use(login=False)``），没有或过期就跳过这次、
+  不记失败。登录只发生在人点的几处（选 / 建公司、公司页「同步 MR.ERP」、写账本身）。`tests/test_erp_mrerp_onboarding.py` 守着：
+  定时与写单后的调用链里出现会登录的读取就失败。
 """
 from datetime import timedelta
 import logging
@@ -50,9 +54,10 @@ def _job_id(company):
     return f"erp-mrerp-masters:{frappe.local.site}:{company}"
 
 
-def queue(company, notify=None, manual=False):
+def queue(company, notify=None, manual=False, warm=False):
     """排一次整读（同一家公司排着的只留一件）。开关关着、公司没接 MR.ERP 的不排。``manual``：人点出来的（从连接添加、公司页
-    选账套，`catalog.choose`）——读时先清这个 MR.ERP 账号的被踢标记、照常登录；定时与写单后的不算。"""
+    选账套，`catalog.choose`）——读时先清这个 MR.ERP 账号的被踢标记、照常登录；定时与写单后的不算。``warm``：不是人点的那几处
+    （写单后，:func:`after_write`）只用热会话、不登录。人点的另用一个任务号：排着一件只用热会话的也不会把这次吞掉。"""
     if not mrerp.enabled() or not company:
         return False
     if not frappe.db.get_value(COMPANY, company, "mrerp_enabled"):
@@ -62,8 +67,8 @@ def queue(company, notify=None, manual=False):
     if frappe.db.get_value(COMPANY, company, "express_sync_state") not in (ledger_masters.READING, ledger_masters.SYNCING):
         ledger_masters._record(company, {"state": ledger_masters.QUEUED})
     frappe.enqueue("pearnly_erp_portal.mrerp.masters.run", queue=ledger_masters.lane(), timeout=JOB_TIMEOUT,
-                   enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company,
-                   manual=bool(manual))
+                   enqueue_after_commit=True, job_id=_job_id(company) + (":manual" if manual else ""), deduplicate=True,
+                   company=company, manual=bool(manual), warm=bool(warm) and not manual)
     return True
 
 
@@ -79,7 +84,7 @@ def after_write(company):
             return False
         if row.express_synced_at and get_datetime(row.express_synced_at) > now_datetime() - AFTER_WRITE_GAP:
             return False
-        return queue(company)
+        return queue(company, warm=True)  # 写单后顺手那次不是人点的：只用热会话、不登录
     except Exception:  # noqa: BLE001 — 顺手排的读取，出错不挡写账
         frappe.log_error(title="ERP MR.ERP master read after write not queued")
         return False
@@ -127,7 +132,7 @@ def _enqueue(company):
     ledger_masters._record(company, {"state": ledger_masters.QUEUED})
     frappe.enqueue("pearnly_erp_portal.mrerp.masters.run", queue=ledger_masters.lane(), timeout=JOB_TIMEOUT,
                    enqueue_after_commit=True, job_id=_job_id(company), deduplicate=True, company=company,
-                   manual=False)
+                   manual=False, warm=True)  # 定时那次：只用热会话、不登录（不顶掉会计浏览器的登录）
 
 
 def start(company):

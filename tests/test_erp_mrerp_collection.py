@@ -1,7 +1,7 @@
 """ERP 收款写进 MR.ERP（服务端直写，`pearnly_erp_portal.collection.mrerp` + 共用层 `pearnly_core.mrerp.push.receipt` /
 `xlsx.receipt` / `receivables`）的离线检查。不连库、不连 MR.ERP；凭据只用假值。
 
-- 开关关着（:data:`MRERP_LEDGER_ENABLED` = False）：收款的 MR.ERP 入口全挡，``handles`` 不查库；收款服务里每处分流都先问
+- 开关关着（测试里打补丁设成 False；11-22 起常量是 True）：收款的 MR.ERP 入口全挡，``handles`` 不查库；收款服务里每处分流都先问
   ``ledger.handles``，Express 公司走原来那条一字不变；
 - 开着（测试里打补丁）：选账套、列未收发票（读选单页落快照）、全额 / 部分 / 两张发票一笔 / 转账进银行科目 / 带折扣，导入表逐列
   与平衡、第 20 列有值；销售员对上 / 对不上回落默认；收款菜单多个要选、单个直接用、没关联的不选；写后读回拿到单号、受理了却
@@ -367,6 +367,7 @@ def collection(name="COL261116-AB12", status=contracts.QUEUED, cash="0.00", paym
     return _get_doc("ERP Collection", name)
 
 
+@patch.object(mrerp_switch, "MRERP_LEDGER_ENABLED", False)
 class SwitchedOff(unittest.TestCase):
     def setUp(self):
         reset()

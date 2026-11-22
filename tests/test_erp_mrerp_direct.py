@@ -1,9 +1,9 @@
 """ERP 接 MR.ERP 导入直写（`pearnly_erp_portal.mrerp`，评估 2026-11-02 §13 第 6 步）的离线检查：总开关两种状态。
 
-- **关着**（:data:`MRERP_LEDGER_ENABLED` = False，现在的值）：所有 MR.ERP 入口挡住（选账本、连接、账套、选择、CC 授权钩子都不认），
+- **关着**（测试里打补丁设成 False；11-22 起常量是 True，用户定对用户开放）：所有 MR.ERP 入口挡住（选账本、连接、账套、选择、CC 授权钩子都不认），
   ERP hooks 与以前一样不声明 MR.ERP 登录钩子（共用通道照旧回 unsupported），`handles` 不查库直接回假（Express 的入队、准备、
   每分钟巡检、对话工具的分路因此一字不变），对话工具的账本叫法仍是 "Express"，ERP 不导入 Cowork；
-- **开着**（测试里打补丁设成 True）：账本是 MR.ERP 的公司提交的单排上导入、领取后按规范载荷导入（假执行）、结论记回单据的
+- **开着**（现在的值，测试里也打补丁设成 True）：账本是 MR.ERP 的公司提交的单排上导入、领取后按规范载荷导入（假执行）、结论记回单据的
   通用账本栏；现购停下；要人选的停在单据上、选一次记在公司上后再排；账号被代录占着时照旧排队（不算失败）；结果不明不自动重推；
   「正在导入」过期转结果不明。
 
@@ -221,13 +221,21 @@ class _Module:
         self.patch.stop()
 
 
+class SwitchDefault(unittest.TestCase):
+    def test_the_switch_is_a_code_constant_and_on(self):
+        """11-22 用户定对用户开放：常量是 True（不按站点 / 租户开）。"""
+        self.assertIs(mrerp.MRERP_LEDGER_ENABLED, True)
+        self.assertTrue(mrerp.enabled())
+
+
+@patch.object(mrerp, "MRERP_LEDGER_ENABLED", False)
 class SwitchedOff(unittest.TestCase):
-    """关着：入口全挡、Express 那条一字不变。"""
+    """关着（打补丁）：入口全挡、Express 那条一字不变——开关仍是唯一的总闸，关回去就回到没有 MR.ERP 时的样子。"""
 
     def setUp(self):
         reset()
 
-    def test_the_switch_is_a_code_constant_and_off(self):
+    def test_the_switch_off_means_disabled(self):
         self.assertIs(mrerp.MRERP_LEDGER_ENABLED, False)
         self.assertFalse(mrerp.enabled())
 

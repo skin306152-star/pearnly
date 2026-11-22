@@ -70,10 +70,10 @@ def level(reason: str) -> str:
 TARGET_EXPRESS = "express"
 TARGET_MRERP = "mrerp"
 TARGETS = (TARGET_EXPRESS, TARGET_MRERP)
-# MR.ERP 代录开没开（全平台一处，主会话 11-03；不按站点 / 租户开关，10-07 定）：关着时产品对所有公司回 Express、出 Express
-# 载荷，与没有 MR.ERP 代录时逐字节相同。第 2 步 CC 执行层核过线上配方、合入的那个提交统一改 True。只在服务端（CC 桌面版
-# 那一份契约不需要它：站点不派 MR.ERP 代录单，CC 就不会收到）。
-MRERP_OPERATOR_ENABLED = False
+# MR.ERP 代录开没开（全平台一处，主会话 11-03；不按站点 / 租户开关，10-07 定）：11-22 用户定对用户开放、改 True。改回 False
+# 时产品对所有公司回 Express、出 Express 载荷，与没有 MR.ERP 代录时逐字节相同。只在服务端（CC 桌面版那一份契约不需要它：
+# 站点不派 MR.ERP 代录单，CC 就不会收到）。
+MRERP_OPERATOR_ENABLED = True
 
 # ── 载荷：直写同一份载荷 + 代录标记（载荷 16，CC 桌面版 payload_contract 同号）───────────────────
 OPERATOR_PAYLOAD_VERSION = 16

@@ -526,10 +526,10 @@ desktop_version: 1.12.21
 
 | # | 业务 | Cowork 直写 ①·⑤·⑨ | Cowork 代录 ②·⑥·⑩ | ERP 直写 ③·⑦·⑪ | ERP 代录 ④·⑧·⑫ |
 |---|---|---|---|---|---|
-| 1 | 采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣 | ◐ P2 · ◐ P2 · ⇢云 | ◐ P2 · ⇢MR · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ⇢MR · ⇢云 |
-| 2 | 销售：赊销、现销；同上各类票 | ◐ P2 · ◐ P2 · ⇢云 | ◐ P2 · ⇢MR · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ⇢MR · ⇢云 |
+| 1 | 采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣 | ◐ P2 · ◐ P2 · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 |
+| 2 | 销售：赊销、现销；同上各类票 | ◐ P2 · ◐ P2 · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 |
 | 3 | 随单新建对方 / 物料（采购销售里的两道题） | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 |
-| 4 | 收款 | —（只在 ERP） | —（代录不做收款） | ✅ · ⇢MR · ⇢云 | —（代录不做收款） |
+| 4 | 收款 | —（只在 ERP） | —（代录不做收款） | ✅ · ◐ P1 · ⇢云 | —（代录不做收款） |
 | 5 | POS 日汇总 | ◐ P3 · —（只支持 Express 账套） · ⇢云 | —（只做直写） | —（ERP 有自己的收银台（存疑，P3 前核对）） | —（只做直写） |
 | 6 | 出入库 / 调拨 / 物料调整 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ○ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
 | 7 | 盘点 | ◐ P3 | —（只做直写） | ◐ P4 | —（只做直写） |
@@ -547,9 +547,9 @@ desktop_version: 1.12.21
 | 19 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ○ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 20 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **81 格**：✅ 1、◐ 16、○ 20、✗ 4、等 MR.ERP 15、等云端 24、等公司接入 1。
+范围内共 **81 格**：✅ 1、◐ 21、○ 20、✗ 4、等 MR.ERP 10、等云端 24、等公司接入 1。
 
-按证据：**真机通过 0** · **真模型通过 1** · **只有服务端 16** · **没做 24**；另 等 MR.ERP 15 · 等云端 24 · 等公司接入 1 · 范围外 47。
+按证据：**真机通过 1** · **真模型通过 1** · **只有服务端 20** · **没做 24**；另 等 MR.ERP 10 · 等云端 24 · 等公司接入 1 · 范围外 47。
 
 ### 按格依据
 
@@ -559,45 +559,45 @@ desktop_version: 1.12.21
 | purchase | Cowork 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程 |
 | purchase | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 purchase（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | purchase | Cowork 代录 · 本地 | ◐ P2 | 只有服务端 | Cowork 声明 purchase 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程 |
-| purchase | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 声明了 purchase（operator）；等 MR.ERP（MRERP_OPERATOR_ENABLED = False） |
+| purchase | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测 |
 | purchase | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 purchase（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | purchase | ERP 直写 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 purchase（chat）；打字路径能办，没有引导卡 |
-| purchase | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 purchase（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| purchase | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 purchase（chat）；等 MR.ERP（开着） |
 | purchase | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明 purchase（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | purchase | ERP 代录 · 本地 | ◐ P2 | 只有服务端 | ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；页面接口流程从题答到复核、就地改、带复核指纹确定交进代录（API 级，不点卡）；流程 `erp.cc.operator.intake`、`erp.cc.guide.documents-edit` |
-| purchase | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 purchase（operator）；等 MR.ERP（MRERP_LEDGER_ENABLED = False · MRERP_OPERATOR_ENABLED = False） |
+| purchase | ERP 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测 |
 | purchase | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 purchase（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | sales | Cowork 直写 · 本地 | ◐ P2 | 只有服务端 | Cowork 声明 sales（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；没有销售按单据引导的页面流程 |
 | sales | Cowork 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程 |
 | sales | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 sales（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | sales | Cowork 代录 · 本地 | ◐ P2 | 只有服务端 | Cowork 声明 sales 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程 |
-| sales | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 声明了 sales（operator）；等 MR.ERP（MRERP_OPERATOR_ENABLED = False） |
+| sales | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测 |
 | sales | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 sales（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | sales | ERP 直写 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 sales（chat）；打字路径能办，没有引导卡 |
-| sales | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 sales（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| sales | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 sales（chat）；等 MR.ERP（开着） |
 | sales | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明 sales（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | sales | ERP 代录 · 本地 | ◐ P2 | 只有服务端 | ERP 声明 sales 只开 operator（express/cc_guides.py）；代录放进来的销售票开始前卡作答、提交成销售单交进写账（API 级流程）；流程 `erp.cc.operator.intake.sales` |
-| sales | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 sales（operator）；等 MR.ERP（MRERP_LEDGER_ENABLED = False · MRERP_OPERATOR_ENABLED = False） |
+| sales | ERP 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测 |
 | sales | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 sales（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | new_master | Cowork 直写 · 本地 | ✗ ⇢桌 P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字也办不了，等 CC 桌面版 |
 | new_master | Cowork 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 没有声明这项业务的引导（chat）；等 MR.ERP（开着） |
 | new_master | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | new_master | Cowork 代录 · 本地 | ✗ ⇢桌 P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（operator）；打字也办不了，等 CC 桌面版 |
-| new_master | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 没有声明这项业务的引导（operator）；等 MR.ERP（MRERP_OPERATOR_ENABLED = False） |
+| new_master | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 没有声明这项业务的引导（operator）；等 MR.ERP（开着） |
 | new_master | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 没有声明这项业务的引导（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | new_master | ERP 直写 · 本地 | ✗ ⇢桌 P2 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字也办不了，等 CC 桌面版 |
-| new_master | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| new_master | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（开着） |
 | new_master | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | new_master | ERP 代录 · 本地 | ✗ ⇢桌 P2 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（operator）；打字也办不了，等 CC 桌面版 |
-| new_master | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（operator）；等 MR.ERP（MRERP_LEDGER_ENABLED = False · MRERP_OPERATOR_ENABLED = False） |
+| new_master | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（operator）；等 MR.ERP（开着） |
 | new_master | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | collection | ERP 直写 · 本地 | ✅ | 真模型通过 | ERP 声明 collection（form 源，复核 + 确定 + 结果，df314c0bc）；真页面点「收款」→ 卡上选客户、发票、现金 → 复核 →「写入」→ 结果（58c36f1b0 起，电脑 + 手机宽度）；打字说收款只开卡（1e85d12d6）真模型 6 段通过；卡片这条路还没有真机记录（11-15 / 11-16 的真机是旧打字工具）；页面流程 `erp.cc.guide.collection`；流程 `erp.cc.typed-collection`、`erp.cc.guide.stop`、`erp.cc.guide.reopen`；真模型 `docs/work/2026-11-19-cc-typed-collection-opens-card.md::11-20 修后真模型`；验收场景（登记未跑）`acc.erp.cc.collection`、`acc.erp.cc.collection.nbsp`、`acc.erp.collection.three`、`acc.erp.collection.busy`、`acc.erp.collection.offline`、`acc.erp.collection.nbsp`、`acc.erp.denied` |
-| collection | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 collection（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| collection | ERP 直写 · MR.ERP | ◐ P1 | 真机通过 | MR.ERP 账本开关 11-22 用户定打开；collection 声明含 MR.ERP 账本，方式题回 max_rows=1、折扣 free（9efd90263）；11-22 本机实验栈 + MR.ERP 专属测试账套按卡片的服务端一组函数走到写成两张（没用浏览器点卡），所以只算半；真机 `真机记录:erp.cc.tool.erp_collection_guide` |
 | collection | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 collection（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | pos_day | Cowork 直写 · 本地 | ◐ P3 | 只有服务端 | Cowork 声明 pos（form 源，交导出文件、没见过的版式在卡上答列、复核、确定写进 Express；没有结果步骤；cc-guided-pos 232ab6d79 起）；只有离线单测 test_cowork_pos_guide，页面流程归第 2 步（cc-guided-flow-markers 里等待中的那条） |
 | pos_day | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 pos（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | stock_docs | ERP 直写 · 本地 | ○ P4 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
-| stock_docs | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| stock_docs | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（开着） |
 | stock_docs | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | stocktake | Cowork 直写 | ◐ P3 | 只有服务端 | Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；没有结果步骤；cdb104b3d、c0c936631、80c1c2770）；只有离线单测 test_cowork_stocktake_guide，页面流程归第 2 步 |
 | stocktake | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；没有结果步骤；b0fcdc66b、e101bb82b）；只有离线单测 test_erp_stocktake_guide，页面流程归第 2 步 |
@@ -605,13 +605,13 @@ desktop_version: 1.12.21
 | resolve | Cowork 直写 · MR.ERP | ○ P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | resolve | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | resolve | Cowork 代录 · 本地 | ○ P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（operator）；打字路径能办，没有引导卡 |
-| resolve | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 没有声明这项业务的引导（operator）；等 MR.ERP（MRERP_OPERATOR_ENABLED = False） |
+| resolve | Cowork 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_cowork 没有声明这项业务的引导（operator）；等 MR.ERP（开着） |
 | resolve | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 没有声明这项业务的引导（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | resolve | ERP 直写 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
-| resolve | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（MRERP_LEDGER_ENABLED = False） |
+| resolve | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（开着） |
 | resolve | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | resolve | ERP 代录 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（operator）；打字路径能办，没有引导卡 |
-| resolve | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（operator）；等 MR.ERP（MRERP_LEDGER_ENABLED = False · MRERP_OPERATOR_ENABLED = False） |
+| resolve | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（operator）；等 MR.ERP（开着） |
 | resolve | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（operator）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | folder_task | Cowork 直写 · 本地 | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | folder_task | Cowork 直写 · MR.ERP | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
@@ -634,6 +634,6 @@ desktop_version: 1.12.21
 | ledger_setup | Cowork 直写 | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | stock_report | ERP 直写 | ○ P4 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | add_company | ERP 直写 · 本地 | ○ P4 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
-| add_company | ERP 直写 · MR.ERP | ⇢公 | 等公司接入 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等公司接入（MRERP_LEDGER_ENABLED = False） |
+| add_company | ERP 直写 · MR.ERP | ⇢公 | 等公司接入 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等公司接入（开着） |
 | add_company | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 <!-- cc-coverage:end -->

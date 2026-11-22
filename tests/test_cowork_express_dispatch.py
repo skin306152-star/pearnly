@@ -504,6 +504,10 @@ class Transport(unittest.TestCase):
             return [Record(name=name, payload_json=json.dumps({"payload_version": 2})) for name in values[0]]
         if "status='leased' AND r.lease_expires_at<=%s" in q:
             return [Record(row) for row in self.expired]
+        if "c.adapter='mrerp'" in q:
+            # MR.ERP 代录开着（11-22 起）：没有 Express 单可领时再看派给这台的 MR.ERP 代录单（`mrerp_jobs.heads`）；这组只造 Express 单
+            self.queries.append("mrerp_heads")
+            return []
         raise AssertionError("unexpected query: " + q)
 
     def lease(self, name, *, context, adapter, now=None, redeliver=False, writer=""):

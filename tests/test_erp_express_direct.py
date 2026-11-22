@@ -1136,7 +1136,8 @@ class PushModule(Base):
         import types
         from unittest import mock
         utils = types.ModuleType("frappe.utils")
-        utils.now_datetime = utils.nowdate = lambda: "2026-10-24"
+        utils.nowdate = lambda: "2026-10-24"
+        utils.now_datetime = lambda: __import__("datetime").datetime(2026, 10, 24, 10, 0)  # MR.ERP 开着时每分钟巡检也调 `mrerp.push.poll`（要真时刻）
         patcher = mock.patch.dict(sys.modules, {"frappe.utils": utils})
         patcher.start()
         self.addCleanup(patcher.stop)
@@ -3153,7 +3154,8 @@ class StockEntries(Base):
         super().setUp()
         import types
         utils = types.ModuleType("frappe.utils")
-        utils.now_datetime = utils.nowdate = lambda: "2026-10-24"
+        utils.nowdate = lambda: "2026-10-24"
+        utils.now_datetime = lambda: __import__("datetime").datetime(2026, 10, 24, 10, 0)  # MR.ERP 开着时每分钟巡检也调 `mrerp.push.poll`（要真时刻）
         import datetime as dt
         utils.getdate = lambda value: dt.date.fromisoformat(str(value)[:10])
         patcher = mock.patch.dict(sys.modules, {"frappe.utils": utils})

@@ -401,9 +401,11 @@ class DeclarationTests(unittest.TestCase):
         by_name = {tool["name"]: tool for tool in tools.TOOLS}
         self.assertEqual(by_name["erp_resolve_push_result"]["input_schema"]["required"],
                          direct_push.RESOLVE_SCHEMA["required"])
+        # 账本叫法跟 MR.ERP 开关走（11-22 起开着：「Express or MR.ERP」）
+        self.assertEqual(tools.PROGRAM, "Express or MR.ERP")
         self.assertTrue(by_name["erp_resolve_push_result"]["description"].startswith(
-            "When a push result is unknown (Express may or may not have it), record what the user found"))
-        self.assertIn(direct_push.unconfirmed_rule("Express", "erp_resolve_push_result"),
+            "When a push result is unknown (Express or MR.ERP may or may not have it), record what the user found"))
+        self.assertIn(direct_push.unconfirmed_rule(tools.PROGRAM, "erp_resolve_push_result"),
                       by_name["erp_push_documents"]["description"])
         props = by_name["erp_list_documents"]["input_schema"]["properties"]
         self.assertEqual({key: props[key] for key in ("company", "all_companies", "offset", "limit")},
