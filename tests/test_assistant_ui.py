@@ -11906,6 +11906,12 @@ judge.click(620_000, card); judge.click(620_500, card); judge.click(621_000, car
 assert.equal(sent.length, 2);
 judge.click(700_000, card); judge.click(700_100, card); judge.click(700_200, card);
 assert.equal(sent.length, 3);
+// 每一下都有进展（多题卡点「下一步」换了题，卡上的字变了）不算连点（11-22 GitHub Flows：三题开始前卡被当成连点上报）
+const next = el("cc-askq-next");
+judge.click(800_000, next, "Q1"); judge.click(800_500, next, "Q2"); judge.click(801_000, next, "Q3");
+assert.equal(sent.length, 3);
+judge.click(900_000, next, "Q3"); judge.click(900_200, next, "Q3"); judge.click(900_400, next, "Q3");
+assert.deepEqual(sent.slice(3), ["rapid_clicks cc-askq-next 3x"]);
 (globalThis as any).done();
 """)
         page = read("assistant.tsx")

@@ -24,7 +24,7 @@ export function placeOf(el: Element | null): string {
 /** 判定本身（不碰定时器和 DOM 事件，测试直接喂时刻）：转圈看「挂了多久、那一块的字变没变」，连点看「同一张卡 5 秒内几次」。 */
 export class StallJudge {
   private busy = new Map<Element, { since: number; text: string }>();
-  private clicks = new Map<Element, number[]>();
+  private clicks = new Map<Element, { times: number[]; state: string }>();
   private lastReport = new Map<string, number>();
 
   constructor(private readonly report: (kind: string, detail: string) => void) {}
@@ -52,11 +52,13 @@ export class StallJudge {
     this.busy.clear();
   }
 
-  /** 点了一张卡。 */
-  click(now: number, card: Element): void {
-    const times = (this.clicks.get(card) ?? []).filter((t) => now - t < CLICK_WINDOW_MS);
+  /** 点了一张卡。``state``：点的那一刻卡片上的字；和上一下不同说明上一下有了进展（多题卡点「下一步」换了题），重新数 ——
+   *  11-22 GitHub Flows：三题的开始前卡 5 秒内点了三次「下一步」、每次都换了题，被当成连点上报。只有点了没变化的才算连点。 */
+  click(now: number, card: Element, state = ""): void {
+    const last = this.clicks.get(card);
+    const times = last && last.state === state ? last.times.filter((t) => now - t < CLICK_WINDOW_MS) : [];
     times.push(now);
-    this.clicks.set(card, times);
+    this.clicks.set(card, { times, state });
     if (times.length >= CLICK_TIMES) {
       this.emit(now, "rapid_clicks", `${placeOf(card)} ${times.length}x`);
       this.clicks.delete(card);
@@ -109,7 +111,9 @@ export function watchStalls(): () => void {
   document.addEventListener("visibilitychange", maybeStart);
   const onClick = (event: MouseEvent) => {
     const card = (event.target as Element | null)?.closest?.(CARD);
-    if (card) judge.click(Date.now(), card);
+    // 卡片此刻的字（整张问答卡 / 卡片那一块），只拿来比有没有变，不上报
+    const block = card?.closest(".cc-ui-questionnaire-card, .cc-card, [data-slot*=\"card\"]") ?? card;
+    if (card) judge.click(Date.now(), card, (block?.textContent ?? "").slice(0, 2000));
   };
   document.addEventListener("click", onClick, true);
   maybeStart();
