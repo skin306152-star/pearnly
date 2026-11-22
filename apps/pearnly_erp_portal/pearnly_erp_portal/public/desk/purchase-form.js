@@ -118,6 +118,7 @@
 		state.set_lines = async values => {
 			++state.revision;
 			form.fields_dict.lines.$wrapper.empty(); state.lines = [];
+			await p.place.titles(values);
 			for (const row of values) await state.add_line(row, false);
 			state.lines.forEach((line, i) => line.section.collapse(i > 0));
 		};
