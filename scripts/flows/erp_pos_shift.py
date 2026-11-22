@@ -111,4 +111,5 @@ print(json.dumps({"rows": len(rows), "ledger": [k for k in keys if k.startswith(
                           and k not in ("express_summary", "express_extra", "express_pending_refund")] + old}))
 """)
     return {"case": "收银记录行带通用账本栏", "seen": got,
-            "ok": got["rows"] > 0 and got["ledger"] == ["ledger_docnum", "ledger_state"] and not got["old"]}
+            # 原因栏随状态一起回（11-22：每分钟自己再试的原因显示「录入中」，列表按状态 + 原因取词）
+            "ok": got["rows"] > 0 and got["ledger"] == ["ledger_docnum", "ledger_reason", "ledger_state"] and not got["old"]}
