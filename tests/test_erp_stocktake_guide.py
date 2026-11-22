@@ -55,7 +55,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -148,6 +148,11 @@ from pearnly_erp_portal.inventory import cc_guide, guide  # noqa: E402
 SESSION = "S1"
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -229,7 +234,7 @@ class New(Base):
         self.assertEqual({item["key"]: item["value"] for item in found["card"]["decided"]}, {"warehouse": "WH2"})
         self.assertEqual(set(STATE["acting"]), {"CO-1"})   # 都在本对话公司下
         refused = run.answer(name, {"warehouse": "WH9"})
-        self.assertEqual(refused["refused"], {"warehouse": "not offered"})
+        self.assertEqual(_codes(refused), {"warehouse": "not offered"})
 
     def test_without_a_remembered_warehouse_it_is_asked(self):
         STATE["last_warehouse"] = ""
@@ -248,7 +253,7 @@ class Count(Base):
     def test_only_active_counts_are_offered_and_items_come_from_the_count_search(self):
         name, found = self.walk({"action": "count"})
         self.assertEqual([row["code"] for row in self.questions(found)["count"]["options"]], ["SC1"])
-        self.assertEqual(run.answer(name, {"count": "SC2"})["refused"], {"count": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"count": "SC2"})), {"count": "not offered"})
         found = run.answer(name, {"count": "SC1"})
         self.assertEqual([row["code"] for row in self.questions(found)["rows"]["options"]], ["P1", "P2"])
         self.assertEqual([row["code"] for row in guide.item_options({"answers": {"count": "SC1"}}, txt="b01")["options"]],
@@ -256,8 +261,8 @@ class Count(Base):
 
     def test_zero_counts_negative_and_unknown_products_do_not(self):
         name, _found = self.walk({"action": "count"}, {"count": "SC1"})
-        self.assertIn("rows", run.answer(name, {"rows": [{"code": "P1", "amount": "-2"}]})["refused"])
-        self.assertEqual(run.answer(name, {"rows": [{"code": "P9", "amount": "1"}]})["refused"], {"rows": "not offered"})
+        self.assertIn("rows", _codes(run.answer(name, {"rows": [{"code": "P1", "amount": "-2"}]})))
+        self.assertEqual(_codes(run.answer(name, {"rows": [{"code": "P9", "amount": "1"}]})), {"rows": "not offered"})
         found = run.answer(name, {"rows": [{"code": "P1", "amount": "0"}, {"code": "P2", "amount": "5"}]})
         self.assertEqual([(row["name"], row["amount"]) for row in found["review"]["tables"][0]["rows"]],
                          [("Apple", "0"), ("Banana", "5")])
@@ -312,7 +317,7 @@ class NewProduct(Base):
         name, found = self.walk({"action": "new_product"})
         self.assertEqual([row["code"] for row in self.questions(found)["count"]["options"]], ["SC1"])
         run.answer(name, {"count": "SC1"})
-        self.assertEqual(run.answer(name, {"code": "X1", "product_name": "X", "qty": "-1"})["refused"], {"qty": "Enter a quantity"})
+        self.assertEqual(_codes(run.answer(name, {"code": "X1", "product_name": "X", "qty": "-1"})), {"qty": "Enter a quantity"})
 
 
 class CloseAdjustDelete(Base):

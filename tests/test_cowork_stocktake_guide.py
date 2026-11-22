@@ -54,7 +54,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -169,6 +169,11 @@ from pearnly_cowork.assistant.guided import stocktake as guide  # noqa: E402
 SESSION = "S1"
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -189,6 +194,9 @@ class Base(unittest.TestCase):
                     "stopped_at": None}
         run._insert, run._locked, run._save, run._open_runs, run._conversation, run._announce = (
             self.insert, self.locked, self.save, self.open_runs, lambda session_id: dict(self.now), lambda doc: None)
+        # 交文件的步骤登记成用户交出的（`assistant.files.commit`，同 test_cowork_recon_guide）：本对话的附件才认
+        run._commit_files = lambda session_id, by_step: next(
+            (key for key, ids in by_step.items() if any(i not in STATE["attachments"] for i in ids)), "")
 
     def tick(self):
         self.clock[0] += 1
@@ -255,7 +263,7 @@ class Count(Base):
         name, found = self.walk({"action": "count"})
         self.assertEqual([row["code"] for row in self.questions(found)["count"]["options"]], ["T1"])
         refused = run.answer(name, {"count": "T2"})   # 已结束的不收
-        self.assertEqual(refused["refused"], {"count": "not offered"})
+        self.assertEqual(_codes(refused), {"count": "not offered"})
         found = run.answer(name, {"count": "T1"})
         self.assertEqual(list(self.questions(found)), ["rows"])
         self.assertEqual({item["key"]: item["value"] for item in found["card"]["decided"]}, {"mode": "add"})
@@ -271,8 +279,8 @@ class Count(Base):
 
     def test_zero_is_a_count_a_negative_quantity_or_a_row_not_in_this_count_is_not(self):
         name, _found = self.walk({"action": "count"}, {"count": "T1"})
-        self.assertIn("rows", run.answer(name, {"rows": [{"code": "I1", "amount": "-1"}]})["refused"])
-        self.assertEqual(run.answer(name, {"rows": [{"code": "X9", "amount": "1"}]})["refused"], {"rows": "not offered"})
+        self.assertIn("rows", _codes(run.answer(name, {"rows": [{"code": "I1", "amount": "-1"}]})))
+        self.assertEqual(_codes(run.answer(name, {"rows": [{"code": "X9", "amount": "1"}]})), {"rows": "not offered"})
         found = run.answer(name, {"rows": [{"code": "I1", "amount": "0"}, {"code": "I2", "amount": "4.5"}]})
         self.assertEqual(found["status"], run.REVIEWING)
         table = found["review"]["tables"][0]
@@ -316,7 +324,7 @@ class New(Base):
         name, found = self.walk({"action": "new"})
         self.assertEqual(list(self.questions(found)), ["file", "title"])
         for value in (["F2"], ["F9"], ["F1", "F2"]):   # 不是 .xlsx、不在本对话、不止一份
-            self.assertEqual(run.answer(name, {"file": value})["refused"], {"file": "stocktake.file_invalid"})
+            self.assertEqual(_codes(run.answer(name, {"file": value})), {"file": "stocktake.file_invalid"})
         self.assertEqual(STATE["sessions_seen"][-1], SESSION)
 
     def test_confirming_creates_through_the_cc_tool_with_the_file_and_name(self):

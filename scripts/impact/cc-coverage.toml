@@ -136,10 +136,19 @@ erp_operator = ["out:11-12 先不做"]
 [[row]]
 id = "stocktake"
 name = "盘点"
-cowork_direct = ["todo:p3"]
+guide = "stocktake"
+cowork_direct = ["half:p3"]
 cowork_operator = ["out:只做直写"]
-erp_direct = ["todo:p4"]
+erp_direct = ["half:p4"]
 erp_operator = ["out:只做直写"]
+
+[[row.link]]
+cell = "cowork_direct"
+basis = "Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；没有结果步骤；cdb104b3d、c0c936631、80c1c2770）；只有离线单测 test_cowork_stocktake_guide，页面流程归第 2 步"
+
+[[row.link]]
+cell = "erp_direct"
+basis = "ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；没有结果步骤；b0fcdc66b、e101bb82b）；只有离线单测 test_erp_stocktake_guide，页面流程归第 2 步"
 
 [[row]]
 id = "resolve"
