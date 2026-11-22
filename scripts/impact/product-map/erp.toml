@@ -22,7 +22,7 @@ ends = ["desktop"]
 kind = "cc-operator-hook"
 anchor = "operator:erp:intake"
 where = "代录 intake"
-tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction", "flow:erp.cc.operator.intake", "flow:erp.cc.operator.intake.sales"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/express/test_operator_intake.py::test_files_go_to_chat_intake_with_no_direction", "flow:erp.cc.operator.intake", "flow:erp.cc.operator.intake.sales", "flow:erp.cc.operator.intake.new-item"]
 
 [[row]]
 id = "erp.cc.operator.uploads"

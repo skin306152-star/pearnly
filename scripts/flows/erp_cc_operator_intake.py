@@ -34,7 +34,7 @@ NOT_CONNECTED = "未连接电脑"  # 单据页同一句（ERP 词条 No computer
 OTHER_USER = "flow.other.person@erp.regression"
 
 
-def prepare(lab, manifest, direction=None, no_computer=False):
+def prepare(lab, manifest, direction=None, no_computer=False, new_item=False):
     direction = direction or DIRECTION
     co, tag = company(manifest), "opi" + uuid.uuid4().hex[:6]
     if no_computer:
@@ -77,7 +77,11 @@ value = line_items.prepare(doc, result)
 # 同 H3 真机那张票：行已认出物料（这里认成 Express 同步来的那件）、仓库按这家第一个启用的仓定好，卡片问付款与 Express 那几项；
 # 行没认出、仓库没定时那几问由单测守住
 product = frappe.db.get_value("ERP Product", {{"express_company": {co!r}, "express_code": ["is", "set"], "is_active": 1}}, "name")
-value["lines"] = [{{**line, "item_type": "goods", "product": product, "new": False, "decided": True}} for line in value["lines"]]
+if not {new_item!r}:
+    value["lines"] = [{{**line, "item_type": "goods", "product": product, "new": False, "decided": True}} for line in value["lines"]]
+else:
+    # 11-20 线上 H3：行上的物料认不出（新物料），开始前卡片要问物料题（只能搜、预选「新建」）
+    value["lines"] = [{{**line, "item_type": "goods", "product": None, "new": False, "decided": False}} for line in value["lines"]]
 value["warehouse"] = value.get("warehouse") or frappe.get_all("ERP Warehouse", filters={{"company": {co!r}, "is_active": 1}},
                                                               pluck="name", order_by="express_code asc", limit_page_length=1)[0]
 frappe.db.set_value(intake.DOCTYPE, doc.name, "line_choices", json.dumps(value))
@@ -97,7 +101,7 @@ frappe.db.commit()
 print(json.dumps({{"session": made["id"], "task": made["task"], "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
 """)
     return {**out, "company": co, "tag": tag, "direction": direction, "doc_id": "I:" + out["intake"], "no_computer": no_computer,
-            "cases": []}
+            "new_item": new_item, "cases": []}
 
 
 def cleanup(lab, manifest, params):
@@ -163,7 +167,7 @@ def steps(params, camera_code=None):
          "   Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(box,' '); "
          "   box.dispatchEvent(new Event('input',{bubbles:true})); } "
          "   await until(()=>qa('[data-slot=\"cc-askq-choice\"]').length>0,80); qa('[data-slot=\"cc-askq-choice\"]')[0]?.click(); } } "
-         " await sleep(300); asked.push(qn); const n=c.querySelector('[data-slot=\"cc-askq-next\"]'); if(!n||n.disabled) break; n.click(); "
+         " await sleep(300); asked.push({q: qn, options: opts.map(o=>o.innerText.trim())}); const n=c.querySelector('[data-slot=\"cc-askq-next\"]'); if(!n||n.disabled) break; n.click(); "
          " await until(()=>{const d=" + card + "; return !d || d.querySelector('[data-slot=\"cc-ask-answer\"],[data-slot=\"cc-ask-failure\"]') "
          "  || (d.querySelector('[data-slot=\"cc-askq-question\"]')?.innerText.trim()||'')!==qn;},80); await sleep(500); } "
          "return {asked, answer, failure};"},
@@ -211,7 +215,13 @@ def judge(params, results, camera_code=None):
          "ok": started.get("no_computer") == NOT_CONNECTED and "handed to the computer" not in (started.get("note") or "").lower()},
         {"case": "the conversation shows No computer connected", "seen": by.get("未连接"),
          "ok": (by.get("未连接") or {}).get("seen") is True},
-    ] if params.get("no_computer") else [])
+    ] if params.get("no_computer") else []) + ([
+        # 11-20 线上 H3：认不出的物料行，物料题只剩「其他」打字，提交 417。物料题要有「新建」可点（推荐、排第一）
+        {"case": "the item question of an unrecognized line offers New item as its first option",
+         "seen": answered.get("asked"),
+         "ok": any(len(a.get("options") or []) >= 1 and "新建" in (a.get("options") or [""])[0]
+                   for a in answered.get("asked") or [] if isinstance(a, dict))},
+    ] if params.get("new_item") else [])
 
 
 def verify(lab, manifest, params, camera_code=None):
@@ -304,6 +314,7 @@ if doc and doc.get("ledger_job") and not {bool(params.get('no_computer'))!r}:
                "asked": asked, "ends": [((e.get("content") or [{{}}])[0].get("text") or "") for e in ends]}}
 print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc or {{}},
                   "decided": all(line.get("decided") for line in chosen.get("lines") or [] if line),
+                  "new_lines": [bool(line.get("new")) for line in chosen.get("lines") or [] if line],
                   "payment_decided": bool(chosen.get("payment_decided")), "warehouse": chosen.get("warehouse") or "",
                   "task_docs": [r.doc_id for r in task.get("documents") or []], "receipt": receipt}}, default=str))
 """)
@@ -318,7 +329,10 @@ print(json.dumps({{"intake": row.get("status"), "made": made or "", "doc": doc o
          and (params.get("no_computer") or (doc.get("ledger_state") == "queued" and bool(doc.get("ledger_job"))))},
         {"case": "the operator task carries the ticket", "saved": got.get("task_docs"),
          "ok": params["doc_id"] in (got.get("task_docs") or [])},
-    ] + ([] if params.get("no_computer") else [
+    ] + ([
+        {"case": "choosing New item on the card is saved on the line (no 417)", "saved": got.get("new_lines"),
+         "ok": got.get("new_lines") == [True]},
+    ] if params.get("new_item") else []) + ([] if params.get("no_computer") else [
         {"case": "after the computer's receipt the ticket's task row is entered with the Express number",
          "saved": got.get("receipt"),
          "ok": [(r.get("doc_id"), r.get("state"), r.get("docnum")) for r in (got.get("receipt") or {}).get("rows") or []]

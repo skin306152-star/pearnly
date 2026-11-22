@@ -2427,6 +2427,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.operator.intake.new-item"
+title = "ERP CC 代录放票、物料行认不出：开始前卡片物料题点「新建」提交记下、开录提交成 ERP 采购单（11-20 线上 H3：物料题只剩「其他」打字、提交 417）"
+module = "scripts/flows/erp_cc_operator_intake_new_item.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "frontend/assistant/src/components/tool-uis/operator-start.tsx",
+  "frontend/assistant/src/components/tool-uis/ask-shared.ts",
+  "frontend/assistant/src/components/tool-uis/ask-card.tsx",
+]
+
+[[flow]]
 id = "erp.cc.operator.no-computer"
 title = "ERP CC 代录放票、发单人没有自己的电脑：开始后 CC 被告知「CC 桌面版未连接」、不说已交给电脑，对话进度写明未连接（11-16 H 组）"
 module = "scripts/flows/erp_cc_operator_intake_no_computer.py"
