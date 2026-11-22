@@ -1508,6 +1508,7 @@ Switch Between Payment Modes,Switch Between Payment Modes
 Switch company,Switch company
 Switching company...,Switching company...
 Sync Express,Sync Express
+Sync MR.ERP,Sync MR.ERP
 Sync failed,Sync failed
 Synced,Synced
 Synced from Express,Synced from Express
@@ -2075,6 +2076,7 @@ company.syncExpress.queued,Queued
 company.syncExpress.reading,Reading
 company.syncExpress.ready,Synced
 company.syncExpress.syncing,Syncing
+company.syncMrerp,Sync MR.ERP
 company.taxHint,13 digits; a branch adds its 5-digit branch number
 company.terminalDefaultName,Counter 1
 company.terminalEdit,Edit

@@ -202,7 +202,7 @@ class RunTests(Base):
     def test_read_lands_through_the_express_landing(self):
         self.frappe.db.companies["CO-1"] = company()
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key, manual: ({"customers": [{"code": "C1"}]}, None, {"requests": 10})
+        export.read = lambda lease, key, manual, login=True: ({"customers": [{"code": "C1"}]}, None, {"requests": 10})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
         self.assertEqual(self.ledger.applied, [("CO-1", "TEST2019", "mrerp", 1)])
@@ -212,7 +212,7 @@ class RunTests(Base):
     def test_two_books_unchosen_stop_and_ask_instead_of_reading_the_first(self):
         self.frappe.db.companies["CO-1"] = company(mrerp_account_set="several")
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key, manual: self.fail("must not read before a book is chosen")
+        export.read = lambda lease, key, manual, login=True: self.fail("must not read before a book is chosen")
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
         self.assertEqual(self.ledger.applied, [])
@@ -226,7 +226,7 @@ class RunTests(Base):
     def test_unreadable_is_a_failure_not_an_empty_ledger(self):
         self.frappe.db.companies["CO-1"] = company()
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key, manual: (None, "ERR_ACCOUNT_IN_USE", {})
+        export.read = lambda lease, key, manual, login=True: (None, "ERR_ACCOUNT_IN_USE", {})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.run("CO-1")
         self.assertEqual(self.ledger.applied, [])
@@ -237,7 +237,7 @@ class RunTests(Base):
         self.frappe.db.companies["CO-1"] = company(express_synced_at=NOW - datetime.timedelta(hours=1))
         seen = []
         export = types.ModuleType("pearnly_core.mrerp.master_export")
-        export.read = lambda lease, key, manual: seen.append(manual) or (None, "ERR_TECHNICAL", {})
+        export.read = lambda lease, key, manual, login=True: seen.append(manual) or (None, "ERR_TECHNICAL", {})
         with self.switch(), patch.dict(sys.modules, {"pearnly_core.mrerp.master_export": export}):
             self.masters.queue("CO-1", manual=True)
             self.masters.after_write("CO-1")

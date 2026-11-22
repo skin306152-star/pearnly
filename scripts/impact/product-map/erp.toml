@@ -1059,6 +1059,17 @@ where = "pearnly-company 页头「company.syncExpress」"
 tests = ["flow:erp.company.actions"]
 
 [[row]]
+id = "erp.desk.pearnly-company.action.company.syncMrerp"
+product = "ERP"
+channel = "desk"
+ends = ["desktop", "mobile"]
+kind = "page-action"
+anchor = "action:erp:pearnly-company:company.syncMrerp"
+where = "pearnly-company 页头「同步 MR.ERP」（11-22 即时同步：接 MR.ERP 的公司、管理员；MR.ERP 总开关关着时整节不出现）"
+tests = ["unit:tests/test_ledger_instant_sync.py::test_the_mrerp_sync_button_reads_as_a_manual_entry", "unit:tests/test_mrerp_account_session.py::test_a_probe_reuses_the_warm_session_and_never_logs_in"]
+cc_na = "公司页管理员的维护动作（同「同步 Express」）；CC 用的主档与它同一份落库，用时再核在后台做"
+
+[[row]]
 id = "erp.desk.pearnly-home.action.Delete"
 product = "ERP"
 channel = "desk"

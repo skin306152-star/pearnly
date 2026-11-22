@@ -1508,6 +1508,7 @@ Switch Between Payment Modes,支払方法を切り替え
 Switch company,会社を切り替える
 Switching company...,会社を切り替えています…
 Sync Express,Express と同期
+Sync MR.ERP,MR.ERP と同期
 Sync failed,同期に失敗しました
 Synced,同期しました
 Synced from Express,Express から同期
@@ -2075,6 +2076,7 @@ company.syncExpress.queued,待機中
 company.syncExpress.reading,読み込み中
 company.syncExpress.ready,同期しました
 company.syncExpress.syncing,同期中
+company.syncMrerp,MR.ERP と同期
 company.taxHint,13桁。支店は5桁の支店番号を続けます
 company.terminalDefaultName,レジ 1
 company.terminalEdit,編集

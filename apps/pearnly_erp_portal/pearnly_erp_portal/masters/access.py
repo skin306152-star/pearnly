@@ -121,6 +121,11 @@ def master_query(doctype, user=None):
         current = company.active_company(user)
     except frappe.PermissionError:
         current = None
+    if current:
+        # 用时再核一次（11-22，不阻塞）：选择框搜主档 / 打开主档列表时请账本看一眼有没有变，变了读完列表自己刷新
+        from pearnly_erp_portal.express import live
+
+        live.touch(current)
     condition, values = scope_sql(current, f"tab{doctype}")
     return condition.replace("%(master_scope_company)s", frappe.db.escape(values["master_scope_company"])) if values else condition
 

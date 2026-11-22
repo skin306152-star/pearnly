@@ -545,6 +545,18 @@
 					if (key === "reading") watch_sync(company, still_current);
 				});
 			}
+			// 接着 MR.ERP 的公司（管理员才有这一节）：同「同步 Express」，服务端整读 MR.ERP，做完推给本人（`mrerp.api.sync_company`）
+			if (data.mrerp?.linked) {
+				const company = name || data.name;
+				page.add_inner_button(t("company.syncMrerp"), async () => {
+					const result = await p.call(MRERP + "sync_company", {company}, "POST");
+					const key = sync_key(result?.state);
+					frappe.show_alert({message: p.escape(t(`company.syncExpress.${key}`)),
+						indicator: key === "queued" ? "blue" : "orange"});
+					if (form?.fields_dict?.mrerp_sync_state) form.set_value("mrerp_sync_state", t(`company.syncExpress.${key}`));
+					if (key === "queued") watch_sync(company, still_current);
+				});
+			}
 		}
 
 		const go_to = (...parts) => frappe.set_route(root, ...parts);

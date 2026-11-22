@@ -5,6 +5,9 @@
         "job_changed": "<点路径>",    # (job: dict) -> None：一件写账有了新状态（同一事务里叫，产品把单号 / 原因写回自己的单据）
         "kinds": ["express_masters"], # 这个站点会请电脑做的按需请求种类
         "books_changed": "<点路径>",  # (device) -> None：可选；一台电脑报来的账套名单有了变化（同一事务里叫，产品排后台任务）
+        "ledger_changed": "<点路径>", # (device, {book_key: {类别}}) -> None：可选；CC 桌面版报某几本账套变了哪几类
+                                      # （文件变更通知，`pearnly_core.ledger_sync`），同一事务里叫，产品只排读取、不在这里读
+        "watch_books": "<点路径>",    # (device) -> [book_key]：可选；要这台电脑盯着哪几本（已接公司的现用账套），心跳回复带给它
         "still_wanted": "<点路径>",   # (job: dict) -> bool：可选；领单前问一次这件还要不要写（来源单据已作废回 False，撤掉不交电脑）
         "stand_in": "<点路径>",       # (user, job: dict) -> bool：可选；``user``（不是提交人）此刻能不能替这件写（用户 11-17 定稿：
                                       # 公司里有一台开着、够得到、登录人有权限的电脑，任何成员的单都能写）；没声明 = 只写本人的
@@ -72,6 +75,21 @@ def books_changed(device: str) -> None:
     path = _path("books_changed")
     if path:
         frappe.get_attr(path)(device)
+
+
+def ledger_changed(device: str, changes: dict) -> None:
+    path = _path("ledger_changed")
+    if path and changes:
+        frappe.get_attr(path)(device, changes)
+
+
+def watch_books(device: str) -> list:
+    """产品要这台电脑盯着的账套键；没声明回空（电脑什么都不盯，靠标记检查与每小时整读）。"""
+    path = _path("watch_books")
+    if not path:
+        return []
+    found = frappe.get_attr(path)(device) or []
+    return [str(key) for key in found if key]
 
 
 def kinds() -> list:

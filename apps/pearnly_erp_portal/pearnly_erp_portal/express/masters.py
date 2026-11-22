@@ -63,6 +63,8 @@ POLL_EVERY = 8
 EVENT = "pearnly_erp_express_sync"  # 手动同步做完推给发起人：{company, state, note}
 NOTIFY_KEY = "erp-express-sync-notify:"  # 缓存：哪几个人在等这家公司的同步结果
 OFFLINE_CHECK_KEY = "erp-express-offline-check"
+CHECKING_KEY = "erp-express-checking"  # 用时再核发出去、等每分钟 :func:`advance` 比的公司（:func:`check_soon`）
+DIRTY_KEY = "erp-express-dirty:"       # 在读 / 在落库时又报变了：落完再排一轮（:func:`kick`）
 OFFLINE_CHECK_EVERY = 240  # 秒
 # 记在公司上的同步状态（公司页显示）
 QUEUED, READING, SYNCING, READY, FAILED = "queued", "reading", "syncing", "ready", "failed"
@@ -125,6 +127,7 @@ def advance():
                           order_by="express_synced_at asc, name asc", limit_page_length=0)
     # 只推进接 Express 的：接 MR.ERP 的公司同用这组状态字段，由 `mrerp.masters` 自己排读（服务端登录，不经电脑）
     rows = [row for row in rows if not row.get("mrerp_enabled")]
+    _checked()
     # 「未连接 / 要更新」的隔几分钟看一次电脑回来没有（整夜关机时几十家）。按上次看的时间算：定时任务在后台进程忙时会推迟，
     # 按「分钟数是 5 的倍数」常常错过（10-24 验收：电脑回来 9 分钟还显示未连接）
     recheck = not frappe.cache.get_value(OFFLINE_CHECK_KEY)
@@ -196,23 +199,75 @@ def sync_all():
 
 def check_marks():
     """（每 10 分钟）每家接了 Express 的公司：取上一次请电脑看的标记，和上次落库时的不同（主档改了）、或现用账套换了
-    （新年度账套报上来了）就排整套同步；再发下一次看标记的请求。电脑不在线 / 旧版 CC 桌面版不认：不建，靠每小时兜底。"""
+    （新年度账套报上来了）就排整套同步；再发下一次看标记的请求。电脑不在线 / 旧版 CC 桌面版不认：不建，靠每小时兜底。
+    CC 桌面版盯着账套时（文件变更通知，`live`）改动当场就排上了，这里是兜底。"""
     for row in linked_companies():
-        book = None if target.masters_choice(row, nowdate()) else target.current(row, nowdate())  # loop-query: 每家公司一次（10 分钟一轮），同 current 读同一份账套名单
-        if book is None:
-            continue
-        key = "erp_marks:" + book["key"]
-        made = requests.find(MARK_KIND, key)
-        if made is not None and made["status"] != "done":
-            continue  # 上一次的还在排 / 在读
-        if made is not None:
-            seen, data = _mark(made)
-            _ar_changed(row.name, book, data)
-            last = frappe.db.get_value(COMPANY, row.name, ["express_mark", "express_book"], as_dict=True) or {}
-            if seen and (seen != last.get("express_mark") or (last.get("express_book") or "") != book["label"][:140]):
-                queue(row.name)
-        if requests.waiting(MARK_KIND, book["key"]) is None:
-            requests.create(MARK_KIND, key, _params(book), book_key=book["key"], actor=frappe.session.user)
+        _check_one(row)
+
+
+def _check_one(row, ask=True) -> bool:
+    """一家公司：上一次看标记的结果读好了就比（变了排同步）；``ask`` 再发下一次。回「上一次的还在排 / 在读」。"""
+    book = None if target.masters_choice(row, nowdate()) else target.current(row, nowdate())  # loop-query: 每家公司一次（10 分钟一轮），同 current 读同一份账套名单
+    if book is None:
+        return False
+    key = "erp_marks:" + book["key"]
+    made = requests.find(MARK_KIND, key)
+    if made is not None and made["status"] != "done":
+        return True  # 上一次的还在排 / 在读
+    if made is not None:
+        seen, data = _mark(made)
+        _ar_changed(row.name, book, data)
+        last = frappe.db.get_value(COMPANY, row.name, ["express_mark", "express_book"], as_dict=True) or {}
+        if seen and (seen != last.get("express_mark") or (last.get("express_book") or "") != book["label"][:140]):
+            queue(row.name)
+    if ask and requests.waiting(MARK_KIND, book["key"]) is None:
+        requests.create(MARK_KIND, key, _params(book), book_key=book["key"], actor=frappe.session.user)
+        return True
+    return False
+
+
+def check_soon(company) -> None:
+    """用时再核一次（`live.check`，选主档 / 列表打开时，后台任务）：现在就请电脑看一眼标记，结果由每分钟的 :func:`advance`
+    比（不等 10 分钟那轮）。上一次的结果已经读好就当场比。"""
+    row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch", "is_active", "mrerp_enabled"], as_dict=True)
+    if not row or not row.is_active or row.mrerp_enabled or not contracts.tax13(row.tax_id) or not push.linked(company):
+        return
+    if _check_one(row):
+        frappe.cache.hset(CHECKING_KEY, company, 1)
+
+
+def _checked():
+    """（:func:`advance` 里）用时再核发出去的看标记读好了的：当场比，不等 10 分钟那轮。"""
+    for company in list(frappe.cache.hkeys(CHECKING_KEY) or []):
+        company = company.decode() if isinstance(company, bytes) else company
+        row = frappe.db.get_value(COMPANY, company, ["name", "tax_id", "branch"], as_dict=True)  # loop-query: 只有用时再核过的几家
+        if not row or not _check_one(row, ask=False):
+            frappe.cache.hdel(CHECKING_KEY, company)
+
+
+def kick(company) -> str:
+    """CC 桌面版报这家公司现用账套的主档 / 结存变了（文件变更通知，`live.ledger_changed`）：不等标记检查，现在就发起读取
+    （同手动同步，只是不推给谁）。已经在读 / 在落库的记一笔「读完再来一轮」（:data:`DIRTY_KEY`），读好落完后再排一次；在读的
+    已满 :data:`OPEN_READS` 家就排队等 :func:`advance`。回这次记成的状态。"""
+    state = frappe.db.get_value(COMPANY, company, "express_sync_state")
+    if state in (READING, SYNCING):
+        frappe.cache.set_value(DIRTY_KEY + company, 1, expires_in_sec=JOB_WAIT + LAND_LIMIT)
+        return state
+    reading = frappe.get_all(COMPANY, filters={"express_sync_state": READING, "is_active": 1}, pluck="name",
+                             limit=OPEN_READS)
+    if len(reading) >= OPEN_READS:
+        queue(company)
+        return QUEUED
+    found = _request(company, fresh=True)
+    _record(company, found)
+    return found.get("state") or FAILED
+
+
+def _requeue_if_dirty(company, result) -> None:
+    """读的这一份之后账套又变了（:func:`kick` 记的）：落完再排一轮。"""
+    if result.get("state") == READY and frappe.cache.get_value(DIRTY_KEY + company):
+        frappe.cache.delete_value(DIRTY_KEY + company)
+        queue(company)
 
 
 def _mark(made):
@@ -268,6 +323,7 @@ def sync(company, wait=0, notify=None):
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
     _requeue_if_stale(company, result)
+    _requeue_if_dirty(company, result)
     frappe.db.commit()
     if result.get("state") != READING:
         _notify(company, result, notify)
@@ -390,6 +446,7 @@ def land(company, book_key, label, since="", company_name=""):
         result = {"state": FAILED, "note": f"{type(error).__name__}: {error}"[:500]}
     _record(company, result)
     _requeue_if_stale(company, result)
+    _requeue_if_dirty(company, result)
     frappe.db.commit()
     _notify(company, result)
     _next()

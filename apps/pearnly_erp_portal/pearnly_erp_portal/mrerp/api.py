@@ -66,6 +66,17 @@ def choose_ledger(company, connection_name, account_set):
 
 
 @frappe.whitelist(methods=["POST"])
+def sync_company(company):
+    """公司页「同步 MR.ERP」（同「同步 Express」，只限管理员）：排一次整读，做完推给本人。人点的入口：先清被踢标记、照常登录。"""
+    from pearnly_erp_portal.mrerp import masters
+
+    connection.require_admin()
+    if not isinstance(company, str) or not frappe.db.get_value("ERP Company", company, "mrerp_enabled"):
+        frappe.throw(frappe._("Company not found"), frappe.DoesNotExistError)
+    return masters.start(company)
+
+
+@frappe.whitelist(methods=["POST"])
 def detach(company):
     catalog.detach(company)
     return {"company": company}

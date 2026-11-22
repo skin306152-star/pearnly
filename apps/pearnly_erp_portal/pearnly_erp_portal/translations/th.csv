@@ -1508,6 +1508,7 @@ Switch Between Payment Modes,สลับวิธีชำระเงิน
 Switch company,สลับบริษัท
 Switching company...,กำลังสลับบริษัท…
 Sync Express,ซิงค์ Express
+Sync MR.ERP,ซิงค์ MR.ERP
 Sync failed,ซิงค์ไม่สำเร็จ
 Synced,ซิงค์แล้ว
 Synced from Express,ซิงค์จาก Express
@@ -2075,6 +2076,7 @@ company.syncExpress.queued,อยู่ในคิว
 company.syncExpress.reading,กำลังอ่าน
 company.syncExpress.ready,ซิงค์แล้ว
 company.syncExpress.syncing,กำลังซิงค์
+company.syncMrerp,ซิงค์ MR.ERP
 company.taxHint,13 หลัก ถ้าเป็นสาขาให้ต่อท้ายด้วยเลขสาขา 5 หลัก
 company.terminalDefaultName,จุดขาย 1
 company.terminalEdit,แก้ไข

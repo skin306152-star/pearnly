@@ -1908,6 +1908,34 @@ class GuidedPayload(unittest.TestCase):
         self.assertEqual(problem(doctype="HS", cash_account="11-01-02-00", pos={})[0], "PAYLOAD_INVALID")
 
 
+class LedgerChanges(unittest.TestCase):
+    """账本变化即时同步（11-22）：CC 桌面版盯着的账套变了，心跳带 ``ledger_changes``（``[{key, tables}]``，``key`` 是心跳回复
+    ``watch_books`` 给的），服务端按共用约定的表名 → 类别排读。CC 看标记的几张表（``MARK_TABLES`` / ``AR_MARK_TABLES``）都要在
+    约定的表里，否则它报上来的变化被当成不认识丢掉。字段名两边一个字不能差（CC 一侧随下一版 CC 桌面版做）。"""
+
+    @staticmethod
+    def tuple_constant(path, name):
+        for node in ast.parse(path.read_text(encoding="utf-8")).body:
+            if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == name for t in node.targets):
+                return ast.literal_eval(node.value)
+        raise AssertionError(f"{name} not in {path}")
+
+    def test_every_table_the_computer_watches_has_a_kind(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.ledger_sync import contracts
+
+        for name in ("MARK_TABLES", "AR_MARK_TABLES"):
+            for table in self.tuple_constant(COMPANION / "express_masters.py", name):
+                with self.subTest(table=table):
+                    self.assertTrue(contracts.table_kind(table + ".DBF"), table)
+        self.assertEqual(contracts.table_kind("ARTRN.DBF"), contracts.RECEIVABLE)
+
+    def test_the_heartbeat_field_names(self):
+        machine = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "cc_desktop" / "machine.py"
+        self.assertEqual(self.tuple_constant(machine, "CHANGES"), "ledger_changes")
+        self.assertEqual(self.tuple_constant(machine, "WATCH"), "watch_books")
+
+
 class BookQuestions(unittest.TestCase):
     """开始前四题（A3 / P2-2，``express_rules.push.book_questions``）与 CC 桌面版写时的同一判法：常量逐个相同；代录单只带 CC 代录认的键
     （带了表头 ``guided`` / ``cash_account`` 或成本键，CC 整单拒收），所以代录不出成本、现金科目两题；直写下发的键都是载荷 21 的键。

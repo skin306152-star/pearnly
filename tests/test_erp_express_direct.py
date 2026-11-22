@@ -467,6 +467,9 @@ class MasterSync(Base):
             def hkeys(self, name):
                 return list(store.get(name, {}))
 
+            def hdel(self, name, key):
+                store.get(name, {}).pop(key, None)
+
             def delete_value(self, name):
                 store.pop(name, None)
 
@@ -822,6 +825,69 @@ class MasterSync(Base):
         self.assertEqual(made, [("express_marks", "erp_marks:k1"), ("express_marks", "erp_marks:k2"),
                                 ("express_marks", "erp_marks:k3")])
 
+    def test_a_reported_change_reads_now_and_a_change_while_reading_reads_once_more(self):
+        # 11-22 即时同步：CC 桌面版报现用账套变了，不等 10 分钟看标记那轮，当场发起读取；在读时又报变了，落完再读一轮
+        import types
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "express_sync_state": "ready", "is_active": 1}
+        made = []
+        found = {"state": "reading", "book": {"key": "k1"}, "made": {"status": "requested"}}
+        with mock.patch.object(self.sync, "_request", lambda company, fresh=False: made.append((company, fresh)) or found):
+            self.assertEqual(self.sync.kick("CO-1"), "reading")
+            self.assertEqual(made, [("CO-1", True)])
+            self.assertEqual(table["CO-1"]["express_sync_state"], "reading")
+            self.assertEqual(self.sync.kick("CO-1"), "reading")  # 在读：不再发，只记读完再来
+        self.assertEqual(len(made), 1)
+        self.assertTrue(self.cache.get(self.sync.DIRTY_KEY + "CO-1"))
+        with mock.patch.object(self.sync, "_sync_once", lambda company: {"state": "ready"}), \
+                mock.patch.object(self.sync, "_next", lambda: None):
+            self.sync.sync("CO-1")
+        self.assertEqual(table["CO-1"]["express_sync_state"], "queued")
+        self.assertIsNone(self.cache.get(self.sync.DIRTY_KEY + "CO-1"))
+        del types
+
+    def test_reported_changes_queue_when_enough_companies_are_reading(self):
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        for i in range(self.sync.OPEN_READS):
+            table[f"CO-R{i}"] = {"name": f"CO-R{i}", "express_sync_state": "reading", "is_active": 1}
+        table["CO-1"] = {"name": "CO-1", "express_sync_state": "ready", "is_active": 1}
+        with mock.patch.object(self.sync, "_request", lambda *a, **k: self.fail("should wait for advance")):
+            self.assertEqual(self.sync.kick("CO-1"), "queued")
+        self.assertEqual(table["CO-1"]["express_sync_state"], "queued")
+
+    def test_check_at_use_asks_now_and_the_next_minute_compares(self):
+        # 用时再核（不阻塞）：现在就请电脑看标记；每分钟 advance 比上，变了排同步（不等 10 分钟那轮）
+        import gzip
+        import types
+        from unittest import mock
+        table = fake.STATE.db.table("ERP Company")
+        table["CO-1"] = {"name": "CO-1", "tax_id": "0105531007042", "branch": "00000", "is_active": 1,
+                         "express_mark": "m1", "express_book": "T.9", "express_sync_state": "ready"}
+        status = {"value": None}
+        made = []
+        stub = types.SimpleNamespace(
+            find=lambda kind, key: {"request": key, "status": status["value"]} if status["value"] else None,
+            result=lambda name: (gzip.compress(json.dumps({"mark": "m2"}).encode()), {}),
+            drop=lambda name: None, waiting=lambda kind, key: None,
+            create=lambda kind, key, params, **kw: made.append((kind, key)))
+        with mock.patch.object(self.sync, "requests", stub), \
+                mock.patch.object(self.sync.push, "linked", lambda company: True, create=True), \
+                mock.patch.object(self.sync.target, "current",
+                                  lambda row, day: {"key": "k1", "label": "T.9", "path": PATH}, create=True), \
+                mock.patch.object(self.sync.target, "masters_choice", lambda row, day: None, create=True):
+            self.sync.check_soon("CO-1")
+            self.assertEqual(made, [("express_marks", "erp_marks:k1")])
+            self.assertIn("CO-1", self.cache.get(self.sync.CHECKING_KEY))
+            status["value"] = "requested"
+            self.sync._checked()  # 还没读好：留着
+            self.assertEqual(table["CO-1"]["express_sync_state"], "ready")
+            status["value"] = "done"
+            self.sync._checked()
+        self.assertEqual(table["CO-1"]["express_sync_state"], "queued")
+        self.assertEqual(len(made), 1)  # 比完不再自己发下一次（10 分钟那轮照常）
+
     def test_the_hourly_sync_only_takes_old_computers_and_stale_companies(self):
         import datetime as dt
         import types
@@ -1042,11 +1108,15 @@ class MasterIsolation(unittest.TestCase):
         patches = [mock.patch.object(access.company, "active_company", lambda user=None: "CO-A", create=True),
                    mock.patch.object(access, "company_allowed", lambda name, user=None: name in ("CO-A", "CO-B")),
                    mock.patch.object(frappe.db, "escape", lambda value: f"'{value}'", create=True)]
+        from pearnly_erp_portal.express import live
+        self.touched = []
+        patches.append(mock.patch.object(live, "touch", self.touched.append))
         for patcher in patches:
             patcher.start()
             self.addCleanup(patcher.stop)
 
     def test_lists_show_local_records_and_the_current_company_only(self):
+        self.addCleanup(lambda: self.assertEqual(self.touched, ["CO-A"]))  # 用时再核（11-22）：按当前公司，管理员不算
         self.assertEqual(self.access.master_query("ERP Supplier", "staff@x"),
                          "(`tabERP Supplier`.`express_company` is null or `tabERP Supplier`.`express_company` = '' "
                          "or `tabERP Supplier`.`express_company` = 'CO-A')")  # 不包 ifnull，索引用得上

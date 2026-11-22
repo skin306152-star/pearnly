@@ -1508,6 +1508,7 @@ Switch Between Payment Modes,切换支付方式
 Switch company,切换公司
 Switching company...,正在切换公司…
 Sync Express,同步 Express
+Sync MR.ERP,同步 MR.ERP
 Sync failed,同步失败
 Synced,已同步
 Synced from Express,Express 同步
@@ -2075,6 +2076,7 @@ company.syncExpress.queued,排队中
 company.syncExpress.reading,读取中
 company.syncExpress.ready,已同步
 company.syncExpress.syncing,同步中
+company.syncMrerp,同步 MR.ERP
 company.taxHint,税号 13 位；有分店再带 5 位分店编号
 company.terminalDefaultName,收银台 1
 company.terminalEdit,编辑

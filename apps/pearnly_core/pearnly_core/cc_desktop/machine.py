@@ -1,6 +1,8 @@
 """CC 桌面版共用机器通道的机器方法（多产品共用，ADR-025）：令牌身份（`http_auth`），精确 POST，提交成功才回数据。
 
-  POST /api/method/pearnly_core.cc_desktop.machine.heartbeat          心跳：报账套名单与版本（同 Cowork heartbeat.report 的请求体）
+  POST /api/method/pearnly_core.cc_desktop.machine.heartbeat          心跳：报账套名单与版本（同 Cowork heartbeat.report 的请求体）；
+                                                                      可带 ``ledger_changes``（盯着的账套变了哪几张表），回复带
+                                                                      ``watch_books``（要盯哪几本，:func:`_watch_reply`）
   POST /api/method/pearnly_core.cc_desktop.machine.lease              领一件写账（同 Cowork queue_api.lease）
   POST /api/method/pearnly_core.cc_desktop.machine.acknowledge        回报写账结果（同 Cowork queue_api.acknowledge）
   POST /api/method/pearnly_core.cc_desktop.machine.next_request       领一件按需请求（同 Cowork request_api.next_request）
@@ -18,9 +20,55 @@ import frappe
 
 from pearnly_core.cc_desktop import books, devices, http_auth, jobs, login_tickets, products, release, requests, rescan
 from pearnly_core.cc_desktop.wire import queue_contracts, request_contracts
+from pearnly_core.ledger_sync import contracts as ledger_contracts
 from pearnly_core.transaction import conflicts
 
 PROTOCOL = 1
+CHANGES = "ledger_changes"  # 心跳请求体：``[{key, tables: [表名 | "*"]}]``（CC 桌面版文件变更通知，评估 2026-11-22）
+WATCH = "watch_books"       # 心跳回复：``[{key, path, root}]``，这台电脑要盯的账套（本机写法）
+WATCH_CACHE = "pcc-watch-books:"
+WATCH_TTL = 300             # 要盯哪几本按电脑缓存这么久（秒）：每分钟一拍心跳不每次查公司与账套
+
+
+def _changes(context, body):
+    """心跳带来的账套变化：只认这台电脑报过的账套、认识的表，交给产品排读取（产品不在这里读、不等电脑）。"""
+    raw = body.get(CHANGES)
+    if not raw:
+        return
+    changes = ledger_contracts.express_changes(raw, books.readable(context.device).keys())
+    if changes:
+        frappe.db.savepoint("pcc_ledger_changed")
+        try:
+            products.ledger_changed(context.device, changes)
+        except frappe.QueryDeadlockError:
+            raise  # 1020 / 1213 整笔重来（`conflicts.retried`）
+        except Exception:  # noqa: BLE001 — 排读取出错不挡心跳（10 分钟标记检查照样兜底）
+            frappe.db.rollback(save_point="pcc_ledger_changed")
+            frappe.log_error(title="CC ledger change not queued", message=frappe.get_traceback()[-3000:])
+
+
+def _watch_reply(device) -> list:
+    """要这台电脑盯着的账套（本机路径）。产品没声明回空；按电脑缓存 :data:`WATCH_TTL` 秒。"""
+    cached = frappe.cache.get_value(WATCH_CACHE + device)
+    if cached is not None:
+        return cached
+    try:
+        keys = set(products.watch_books(device))
+    except Exception:  # noqa: BLE001 — 算不出来这一拍不回，不挡心跳
+        frappe.log_error(title="CC watch list failed", message=frappe.get_traceback()[-3000:])
+        return []
+    rows = books.readable(device) if keys else {}
+    found = [{"key": key, "path": row.path, "root": row.root or ""} for key, row in sorted(rows.items()) if key in keys]
+    frappe.cache.set_value(WATCH_CACHE + device, found, expires_in_sec=WATCH_TTL)
+    return found
+
+
+def forget_watch(device=None) -> None:
+    """要盯的账套变了（公司接上 / 断开、换了现用账套）：下一拍心跳重新算。不给电脑就全部重算。"""
+    if device:
+        frappe.cache.delete_value(WATCH_CACHE + device)
+    else:
+        frappe.cache.delete_keys(WATCH_CACHE)
 
 
 def _commit(operation):
@@ -37,6 +85,9 @@ def _heartbeat(context, body):
     if full:
         books.replace(context.device, body["account_sets"], devices.now())
         rescan.acknowledge(context.device, body)  # 网页要的整份重扫已随这份名单报上来
+        forget_watch(context.device)
+    if not offline:
+        _changes(context, body)
     version = body.get("companion_version")
     payload_version = body.get("max_payload_version")
     due = devices.record_report(context, version=version if isinstance(version, str) else None,
@@ -53,6 +104,9 @@ def _heartbeat(context, body):
     latest = release.latest()
     if latest:
         reply["companion_latest"] = latest
+    watch = _watch_reply(context.device)
+    if watch:
+        reply[WATCH] = watch
     return reply
 
 

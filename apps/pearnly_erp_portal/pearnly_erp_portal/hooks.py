@@ -383,6 +383,9 @@ pearnly_cc_desktop = {
     "still_wanted": "pearnly_erp_portal.express.desktop.still_wanted",
     # 替写（用户 11-17 定稿，两产品同一条）：别人的电脑能不能替这件写——对这家公司有权限、签发有效
     "stand_in": "pearnly_erp_portal.express.desktop.stand_in",
+    # 账本变化即时同步（11-22）：CC 桌面版盯已接公司的现用账套，报变了哪几类就当场排读（`express.live`）
+    "ledger_changed": "pearnly_erp_portal.express.live.ledger_changed",
+    "watch_books": "pearnly_erp_portal.express.live.watch_books",
     # express_ar_open（11-11 收款）：一本账套的未收清发票（共用层接受这一种由 CC 桌面版那一批加）
     "kinds": ["express_masters", "express_marks", "express_doc_check", "express_ar_open"],
 }
@@ -532,7 +535,8 @@ pearnly_navigation = [{'product': 'erp',
     "*": ["selection"],
     "pearnly-cashier": ["trade.closeShift", "trade.openShift", "trade.newInvoice", "trade.recentOrders"],
     "pearnly-clients": ["client.new"],
-    "pearnly-company": ["company.new", "company.connect.add", "Cancel", "company.save", "company.syncExpress"],
+    "pearnly-company": ["company.new", "company.connect.add", "Cancel", "company.save", "company.syncExpress",
+                        "company.syncMrerp"],
     "pearnly-home": ["home.ledger.export", "home.topup", "home.plans.title", "Delete", "home.billing"],
     "pearnly-inventory": ["stock.action.export", "stock.opening.title", "preview", "Cancel", "submit", "Edit"],
     "pearnly-products": ["product.action.new", "product.action.import", "product.action.submit"],

@@ -30,6 +30,7 @@ _LOGIN_BOUNCE = ("checklogin", "/login/index", "/login/?", "/login.php", "/index
 # 同一账号在别处登录后，本会话再访问任何页，MR.ERP（`component/php/checkuseruse.php`）先 alert 这句再跳 logoutkick.php：
 # 认出它 = 被踢（不是会话过期）。过期 / 没登录是另一句「กรุณา Login เข้าสู่ระบบ」，那种可以重新登录。
 KICKED_TEXT = "มีผู้ Login ซ้ำ"
+NO_SESSION = "ERR_NO_SESSION"  # 不许登录（:attr:`MrErpSession.may_login`）而缓存里没有能用的会话
 _IDUS = (re.compile(r"<input[^>]*\bname=[\"']idus[\"'][^>]*\bvalue=[\"'](\d+)[\"']", re.IGNORECASE),
          re.compile(r"<input[^>]*\bvalue=[\"'](\d+)[\"'][^>]*\bname=[\"']idus[\"']", re.IGNORECASE))
 # 选账套后用来抓 idus 的业务页（旧版默认：销项赊账导入页）。
@@ -89,6 +90,8 @@ class MrErpSession:
         self._selected = False
         self._restored = False
         self.kicked = False
+        # False：只接着用缓存里的会话，不登录（`account.use(login=False)`：后台探测不为自己新增登录次数，免得把会计踢下线）
+        self.may_login = True
 
     def _same_site(self, response, *args, **kwargs):
         target = urljoin(response.url, response.headers.get("Location", "")) if response.is_redirect else response.url
@@ -133,6 +136,8 @@ class MrErpSession:
         return "txtpasswords" in body or "txtusers" in body
 
     def login(self):
+        if not self.may_login:
+            raise SessionError(NO_SESSION, "no warm session and logging in is not allowed here")
         # 老 PHP 站：必须先 GET 一次登录页才建会话；checklogin 失败也回 200，真假留给选账套验。
         self._send("GET", "/")
         self._send("GET", "login/login.php")

@@ -1355,6 +1355,7 @@ Express Note	Express 备注	หมายเหตุ Express	Express メモ
 Whole document taxed	按账套设置整张计税	คิดภาษีทั้งใบตามชุดบัญชี	会計データの設定どおり全体に課税
 Express Sent At	Express 发送时间	ส่ง Express เมื่อ	Express 送信日時
 Sync Express	同步 Express	ซิงค์ Express	Express と同期	company.syncExpress
+Sync MR.ERP	同步 MR.ERP	ซิงค์ MR.ERP	MR.ERP と同期	company.syncMrerp
 Synced	已同步	ซิงค์แล้ว	同期しました	company.syncExpress.ready
 Stock differences in Express	Express 库存不一致	สต็อกใน Express ไม่ตรงกัน	Express の在庫が一致しません	company.express.stockDifferences
 Warehouses total	各仓合计	รวมทุกคลัง	倉庫合計	company.express.locationsTotal

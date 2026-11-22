@@ -1619,10 +1619,10 @@ args = { "company_tax" = "0105549038811", "branch" = "00012", "loccod" = "01", "
 id = "erp.cc.masters"
 product = "ERP"
 where = "Express 主档同步"
-steps = "公司页「同步 Express」；定时 advance（每分钟）/ check_marks（10 分钟）/ sync_all（每小时）"
-expect = "主档、仓库、库存按 Express 对齐；改 Express 主档后约 20 分钟跟上"
+steps = "公司页「同步 Express」；定时 advance（每分钟）/ check_marks（10 分钟）/ sync_all（每小时）；CC 桌面版心跳报 ledger_changes（11-22 即时同步，`express.live`）；选择框 / 主档列表用时再核"
+expect = "主档、仓库、库存按 Express 对齐；改 Express 主档后约 20 分钟跟上（CC 桌面版报变化后当场发起读取；用时再核下一分钟比标记）"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/live.py"]
 
 [[entry]]
 id = "cowork.cc.channel"
@@ -1775,10 +1775,10 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/cashier/access.py", "apps/p
 id = "erp.entry.choices"
 product = "ERP"
 where = "单据对方 / 物料选择与提交时按码认"
-steps = "采购 / 销售明细物料格、对方格打字或扫码；提交"
+steps = "采购 / 销售明细物料格、对方格打字或扫码（11-22 起顺带用时再核账本：同一家公司 2 分钟一次，排后台）；提交"
 expect = "只出当前公司 + 本地；提交按名称 / 编码认同一件，单位跟商品"
 check = "manual"
-files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/category_memory.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py"]
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/entry-choice.js", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/entry.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/purchase.py", "apps/pearnly_erp_portal/pearnly_erp_portal/products/sales.py", "apps/pearnly_erp_portal/pearnly_erp_portal/sales/recognition.py", "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/category_memory.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/cashier/counter.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/masters.py", "apps/pearnly_erp_portal/pearnly_erp_portal/express/live.py"]
 
 [[entry]]
 id = "erp.products.find-by-code"

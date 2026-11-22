@@ -15,7 +15,9 @@
 """
 from __future__ import annotations
 
+import hashlib
 import io
+import json
 import logging
 import re
 import time
@@ -196,11 +198,20 @@ def units(listbox: Optional[dict]) -> List[dict]:
 NEGATIVE_PAGE = "stktraniss/allform.php"
 
 
+def digest(listed: Dict[str, list]) -> str:
+    """客户 / 供应商 / 物料三张列表（每行 ``[id, 码, 名]``）的摘要：新增、改名、删除都会变；改价、改地址、结存变化看不出
+    （MR.ERP 没有修改时间可查，评估 2026-11-22 §11.2）。整读与探测算的是同一份，比得上。"""
+    rows = {kind: [[str(cell) for cell in item[:3]] for item in listed.get(kind) or [] if isinstance(item, list)]
+            for kind in EXPORTS}
+    return hashlib.sha1(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode("utf-8")).hexdigest()
+
+
 class _Reader:
     def __init__(self, session):
         self.session = session
         self.requests = 0
         self.bytes = 0
+        self.listed: Dict[str, list] = {}  # 种类 → 列表接口那几行（:func:`digest` 用）
 
     def _call(self, method, path, **kwargs):
         kwargs.setdefault("headers", {"Referer": f"{self.session.base}/login/mainmenu.php"})
@@ -219,9 +230,15 @@ class _Reader:
             raise ExportError(rules.UNREADABLE, path)
         return found
 
-    def export(self, module, code_key, prefix):
-        codes = [str(item[1]).strip() for item in self.listbox(f"{module}/component/bshlistboxdata.php").get(code_key) or []
-                 if isinstance(item, list) and len(item) >= 2 and str(item[1]).strip()]
+    def listed_rows(self, kind) -> list:
+        module, code_key, _prefix = EXPORTS[kind]
+        rows = [item for item in self.listbox(f"{module}/component/bshlistboxdata.php").get(code_key) or []
+                if isinstance(item, list) and len(item) >= 2 and str(item[1]).strip()]
+        self.listed[kind] = rows
+        return rows
+
+    def export(self, kind, module, code_key, prefix):
+        codes = [str(item[1]).strip() for item in self.listed_rows(kind)]
         if not codes:
             return [], 0
         response = self._call("POST", f"{module}/component/expdata.php",
@@ -270,7 +287,7 @@ def read_session(session, today: Optional[date] = None) -> tuple:
     reader = _Reader(session)
     facts, listed = {}, {}
     for kind, (module, code_key, prefix) in EXPORTS.items():
-        rows, listed[kind] = reader.export(module, code_key, prefix)
+        rows, listed[kind] = reader.export(kind, module, code_key, prefix)
         facts[kind] = products(rows) if kind == "products" else parties(rows, customer=kind == "customers")
     facts["units"] = units(reader.listbox(UNIT_LIST))
     facts["warehouses"], facts["stock"] = reader.stock(today or date.today())
@@ -281,11 +298,40 @@ def read_session(session, today: Optional[date] = None) -> tuple:
     if negative:
         facts["settings"]["stock_negative"] = negative
     stats = {"requests": reader.requests, "bytes": reader.bytes, "seconds": round(time.monotonic() - started, 2),
-             "listed": listed, "counts": {key: len(value) for key, value in facts.items() if isinstance(value, list)}}
+             "listed": listed, "digest": digest(reader.listed), "counts": {key: len(value) for key, value in facts.items() if isinstance(value, list)}}
     return facts, stats
 
 
-def read(lease, account_set_key, *, manual) -> tuple:
+PROBE_LOCK_WAIT = 5  # 探测拿不到同账号锁（正在推送 / 整读）就算了，下次再探
+
+
+def probe(lease, account_set_key) -> tuple:
+    """会话还热时探测一次（用时再核，评估 2026-11-22）：只接着用缓存里的会话、**不登录**，进账套后取三张列表算 :func:`digest`。
+    → (摘要 | None, 错误码 | None)。没有热会话回 ``ERR_NO_SESSION``；被踢过回 ``ERR_ACCOUNT_IN_USE``；拿不到锁回 ``ERR_BUSY``。"""
+    from pearnly_core.session_lock import SessionLockUnavailable
+    from pearnly_core.mrerp import account as mrerp_account
+
+    comidyear, _, seldb = str(account_set_key or "").partition(":")
+    if not lease.get("username") or not lease.get("password"):
+        return None, "ERR_NO_CREDS"
+    try:
+        with mrerp_account.use(lease["system_url"], lease["username"], lease["password"], manual=False,
+                               lock_wait=PROBE_LOCK_WAIT, login=False) as session:
+            session.select(comidyear, seldb)
+            reader = _Reader(session)
+            for kind in EXPORTS:
+                reader.listed_rows(kind)
+            return digest(reader.listed), None
+    except SessionLockUnavailable:
+        return None, "ERR_BUSY"
+    except (SessionError, ExportError) as exc:
+        return None, exc.code
+    except Exception:  # noqa: BLE001 — 契约：探测失败只落错误码
+        logger.exception("MR.ERP probe raised")
+        return None, "ERR_UNEXPECTED"
+
+
+def read(lease, account_set_key, *, manual, login=True) -> tuple:
     """→ (主档 | None, 错误码 | None, 统计)。会话从共用入口拿（`account.use`：同账号锁、被踢标记、接上缓存会话）。
     ``manual``：人在明确的入口点出来的这一次（从连接添加、公司页选账套）先清被踢标记、照常登录；定时、写单后的不清，账号被踢过
     时不登录、回 ``ERR_ACCOUNT_IN_USE``。由调用入口显式给。"""
@@ -298,7 +344,7 @@ def read(lease, account_set_key, *, manual) -> tuple:
         return None, "ERR_NO_CREDS", {}
     try:
         with mrerp_account.use(lease["system_url"], lease["username"], lease["password"], manual=manual,
-                               lock_wait=LOCK_WAIT_SECONDS) as session:
+                               lock_wait=LOCK_WAIT_SECONDS, login=login) as session:
             session.select(comidyear, seldb)
             facts, stats = read_session(session)
             return facts, None, stats
@@ -312,4 +358,4 @@ def read(lease, account_set_key, *, manual) -> tuple:
         return None, "ERR_UNEXPECTED", {}
 
 
-__all__ = ["ExportError", "parties", "products", "read", "read_session", "stock", "units", "xlsx_rows"]
+__all__ = ["ExportError", "digest", "parties", "probe", "products", "read", "read_session", "stock", "units", "xlsx_rows"]

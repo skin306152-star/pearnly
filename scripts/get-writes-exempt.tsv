@@ -17,3 +17,4 @@ pearnly_cowork.push.application.api.choices	接口	待改（GET 里手动 commit
 pearnly_cowork.recon_center.api.active	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
 pearnly_cowork.recon_center.api.status	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.jobs._resume）
 pearnly_cowork.recon_center.sheets.load	接口	待改（GET 里手动 commit 才生效：pearnly_cowork.recon_center.view_store.put）
+pearnly_erp_portal.express.live.touch	经过	用时再核（11-22 即时同步）：主档权限查询里按当前公司排一件后台任务（frappe.enqueue 直接进队列，不写数据库；同一家公司 120 秒一次靠缓存键），记录与读取都在后台任务里提交

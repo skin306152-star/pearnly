@@ -596,6 +596,8 @@ class KickedAccount(unittest.TestCase):
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/catalog.py", "choose", "manual"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "queue", "manual"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "run", "manual"),
+            # 11-22 公司页「同步 MR.ERP」（人点的，同「同步 Express」）
+            ("apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/masters.py", "start", "manual"),
             ("apps/pearnly_core/pearnly_core/mrerp/master_export.py", "read", "manual"),
             ("apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py", "retry", "manual"),  # 单据页「再写一次」（B13）
             # 11-11 读取：共用入口（清标记只在这一处）与把 manual 往下传的几层
