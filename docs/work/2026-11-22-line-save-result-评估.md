@@ -1,14 +1,15 @@
-# 需求影响评估：LINE 保存后的状态与回执（三张卡一套）
+# 需求影响评估：LINE 上要等结果的动作——原生状态优先、结果用回复、文案只做超时兜底
 
 ## 0. 需求原文与理解
 - 原话（11-22，用户对主会话）：「录入中」后没回执怎么知道状态？状态的目的是什么？LINE 有自带状态。主会话方案用户回「按这个做」。
 - 理解：LINE 里 Cowork 单据卡、ERP 单据卡、ERP 收款卡点「保存」后：先显示 LINE 自带的三个点（loading），后台等电脑写的结果；等到了用这次的 reply token 回「成功 · 单号」或「失败 · 原因 +【编辑】」；等不到回「录入中」+ 快捷按钮【查看结果】，点了用新的 reply token 回此刻状态。全程只 reply、不 push。状态词统一成 录入中 / 成功 / 失败 / 已取消（ERP 网页列表、详情、LINE）。
-- 不在范围：LINE 别的回话（识别中、出卡前提问）；CC 对话里的状态说法；Cowork 网页（已是标准词）；MR.ERP 开关。
+- 范围扩大（11-22 用户原话：「我要line这边全部会触发执行状态的指令都要优先用line原生的状态，我们的文案才是兜底」）：ERP、Cowork 两条 LINE 上所有会触发执行、要等结果的动作，见第 13 栏清点表。
+- 不在范围：DMS（已是目标形态）；CC 对话里的状态说法；Cowork 网页（已是标准词）；MR.ERP 开关。
 
 ## 1. 现有同类与复用
-- ERP 收款卡已有大半：`integrations/line_collection.py` 放行后 `start_loading(30)` + 后台 `await_result`（等 `WAIT_SECONDS=20`）→ 写成回复，没写成回「已记录 · 待写入」+【查看结果】（`_show_result`），失败另 `notify` push 一条。
-- Cowork `line/save.py`、ERP `integrations/handlers.py::_save_card`：在 webhook 里同步交单，立刻回「录入中 / Saved / 已入账 · 单号」，不等结果。
-- 结论：把收款卡的「后台等 + 回复 + 查看结果」抽成共用件（`pearnly_core` 里一个小模块：等待循环、去重「只告诉一次」、回执格式），三张卡各自只给「读状态」函数；收款卡去掉 `notify` 的 push。
+- DMS 已是目标形态：后台任务带 reply token，慢了由计时线程用 `pearnly_core.line.reply_sender` 先回「还在处理」+【查看结果】（`pearnly_dms/line/out.py:249/282/293`）。
+- ERP 收款放行最接近：loading + 后台 `await_result`（short 队列里每秒读一次、最多 20 秒）+【View result】，但占一个 short 进程睡 20 秒、失败另 push。
+- 结论：在 `pearnly_core` 出一个共用件 `line_receipt`（照 DMS 的计时线程做法）：`start(动作键, 用户, reply token, 兜底消息)` 发 loading、记「待回」、起一个 `threading.Timer`；`settle(动作键, 结果消息)` 在结果落库那一刻原子地取走「待回」并用同一个 token 回复。两产品所有要等结果的动作都调它；各产品只提供「读此刻状态 → 消息」的函数和【查看结果】的回复。
 
 ## 2. Frappe 原生能力
 - 后台等待用 `frappe.enqueue`（short 队列，同收款卡现状），不另起线程；状态读取用各单据现有字段。不涉及界面组件新增（LINE 消息与快捷回复是 LINE 协议）。
@@ -34,9 +35,13 @@
 - 新增共用件 `pearnly_core` LINE 结果回执（登记进 `scripts/impact/shared-parts.toml`，三个调用方）；改 `transactions.js` 状态词（共用件「单据 Express 窗口」）。施工时贴 `check-impact.py` 输出。
 - 流程 / 冒烟：现有 `erp.line.postback.*`、`cowork.line.postback.*` 离线测试改断言（先回 loading、后回结果；超时回录入中 +【查看结果】）；新增【查看结果】的离线测试。
 
-## 8. 存储与成本
-- loading：官方文档未写计费（价格页只列 push / multicast / broadcast / narrowcast 计数，reply 不计数）。三张卡全改 reply 后 **不增加 push 计数**，收款卡去掉失败 push 还少一条。
-- 后台等待：每次保存占 short 队列一个工作进程最多 N 秒（见第 10 栏）。按 3 租户 × 10 人估：同时保存 ≤ 几张，short 队列现有进程数够用；施工时核实生产 short 队列进程数，必要时等待改成「每秒查一次、不占锁」。
+## 8. 存储与成本、并发下的进程占用
+- loading：官方未写计费；全部只用 reply，不增加 push 计数；收款卡去掉失败 push。
+- **事件驱动，不占后台进程**（主会话审定）：Frappe 锁定版本关掉了 RQ 的定时投递（`background_jobs.py` `with_scheduler=False`），调度器最快按分钟（默认 4 分钟）轮询，做不了 20 秒兜底；所以：
+  - 结果回复：在结果落库的那一刻（ERP 写账回执 `push.job_changed`、收款回执、Cowork 推送回执、CC 读取请求完成 / 主档落库）调 `line_receipt.settle`，就在那个已有的请求 / 任务里发一次 HTTP 回复，不另起任务。
+  - 超时兜底：保存时在网页进程里起一个 `threading.Timer`（同 DMS），不占 RQ 进程、等待期间不耗 CPU；到点原子取走「待回」（Redis GETDEL），取到才回兜底文案 +【查看结果】。结果先到就由 `settle` 取走，计时线程到点取不到就什么都不做——同一动作只回一次。
+  - 30 个并发保存：webhook 交单本身同现状（几百毫秒）；多出的是网页进程里 30 个睡眠中的计时线程（每个只占一个线程栈，不占请求槽、不占 short 队列）；结果回复发生在回执处理里（已有）。施工后用流程跑 30 个并发保存，看 short 队列不积压、网页请求不变慢。
+  - 风险：网页进程在等待期间重启，计时线程丢失 → 这一单不会回兜底；结果仍会在回执时回复（token 还有效时），否则用户在网页 / 下次操作看到状态。记录、不另补。
 
 ## 9. 删除、作废、追溯
 - 不涉及数据删除；「已取消」沿用卡片取消现状。「只告诉一次」用缓存键（同收款卡 7 天），不落库。
@@ -55,4 +60,21 @@
 1. ERP `mismatch`（写进 Express 但回读核对不一致）显示「失败」还是「成功」？建议「失败」（要人看），原因悬浮写「核对不一致」。
 2. ERP `handled`（已在 Express 手工处理）显示「成功」？建议是。
 3. ERP 详情 Express 弹窗里作废进度（「作废」那一行的 排队中 / 已取消 / 待处理）是否也统一？建议统一（录入中 / 已取消 / 失败）。
-4. 等待上限：先 20 秒，真机实测 reply token 时长后再定（不超过 55 秒，也不超过 loading 60 秒）。
+4. 等待上限：先 20 秒，真机实测 reply token 时长后再定（不超过 55 秒，也不超过 loading 60 秒）。（主会话已同意 1–4）
+5. 「排队中」（ERP 识别完时另一张票还在问，`line_questions.begin`）不是在等执行，是告诉人这张卡排在后面：建议保留，不当过程文字处理。
+6. 识别（发图 / PDF）：现在 loading + 存下的 token 回复，识别排队超过 token 有效期时会改成 push 送卡。按「只用 reply」口径要改成到点回兜底「识别中」+【查看结果】、点了才出卡；这会让慢的识别多一步点按钮。建议：识别保留现状（结果是卡片本身，push 让卡自动到），只把其余动作改成只 reply；请定。
+
+## 13. 入口清点（ERP、Cowork 两条 LINE；DMS 已是目标形态）
+| # | 产品 | 用户动作 | 现在 | 改后 |
+|---|---|---|---|---|
+| 1 | Cowork | 卡片【保存】（`line/save.py:56`） | 立刻回「录入中」，之后 LINE 不再告诉结果 | loading → 推送回执时 `settle` 回「成功 · Express 单号」/「失败 · 原因 +【编辑】」；20 秒没结果回「录入中 +【查看结果】」 |
+| 2 | Cowork | 卡片【保存】时科目表还在读（`card_save.py:77`） | 回「CC 桌面版正在读取科目表，请稍后再试 +【编辑】」 | loading → 主档落库时接着保存并回结果；超时回同句兜底 +【查看结果】（点了重试保存） |
+| 3 | Cowork | 菜单「交给 ERP」选目标、还没有账套目录（`flow.py:261`） | 回「正在从 ERP 读取公司列表，请稍后重新点击菜单」 | loading → 目录读好时回公司列表；超时回兜底 +【查看结果】（点了出列表） |
+| 4 | ERP | 卡片【保存】（`handlers.py:131 _save_card`） | 立刻回「已入账 · 单号」（接 Express 的公司其实还在排写账） | 没接 Express：立刻回「成功 · 单号」（现状同义）；接 Express：loading → 写账回执时回「成功 · 单号」/「失败 · 原因 +【编辑】」，超时回「录入中 +【查看结果】」 |
+| 5 | ERP | 收款确认【保存】（`line_collection.py:999 / 1134`） | loading + short 进程睡等 20 秒；没写成回「已记录 · 待写入 +【查看结果】【撤回】」，失败另 push | loading → 收款回执时 `settle` 回结果；超时回「录入中 +【查看结果】【撤回】」；去掉 `notify` 的 push 与 short 睡等 |
+| 6 | ERP | 收款选客户 / 点【刷新】（`line_collection.py:466-484`） | 回「正在读取 Express（MR.ERP）+【刷新】」 | loading → 未收发票读好落库时回发票列表 / 「没有未收清的发票」；超时回同句兜底 +【刷新】 |
+| 7 | ERP | 收款勾完发票点【下一步】、主档在读（`line_collection.py:528 → _guarded`） | 回「正在读取 Express（MR.ERP）」，要人再点一次 | loading → 主档落库时回收款方式那一步；超时回兜底 +【查看结果】（点了接着出那一步） |
+| 8 | ERP | 识别完时另一张票还在问（`line_questions.py:211`） | 「排队中」+ 正在问的题 | 待定 5：建议保留 |
+| 9–12 | ERP / Cowork | 发图 / PDF 识别、收款凭证图（已 loading + 存下 token 回复） | loading，结果用存下的 token；超时改 push | 待定 6：建议保留现状 |
+
+守门：加一条离线检查，LINE 处理器（ERP `integrations/line_*`、`handlers.py`，Cowork `line/*`）里不许在拿到结果前 reply 过程文字词条（Entering / Reading from … / Recorded · pending write / Reading the company list … / cowork.masters.reading）——这些只许出现在 `line_receipt` 的兜底消息里。
