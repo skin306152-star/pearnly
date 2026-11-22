@@ -121,6 +121,23 @@ class Precheck(Base):
         with patch("pearnly_erp_portal.express.choices.chosen", return_value="transfer"):
             self.assertEqual(operator.intake_items("CO-1", decided, face)[0]["value"], "transfer")  # 这个对方记住的优先
 
+    def test_a_search_only_item_question_keeps_its_search_and_preselect_for_the_before_start_card(self):
+        """11-20 线上代录 H3：卡里有新物料行时，物料题（只能搜，没有选项）交给开始前卡片的 needed 丢了 search 与预选，
+        前端只剩「其他」打字，交回的字服务端不认（417「请求无效」）。needed 带上 search、current 与预选的说法。"""
+        doc = self.doc(lines=[{"decided": False, "item_type": "goods", "product": None}])
+        with patch.object(frappe, "get_doc", return_value=doc), \
+                patch.object(intake, "build_payload", return_value={"company": "CO-1"}), \
+                patch("pearnly_erp_portal.inventory.warehouses.names_of", return_value=["WH-1", "WH-2"]), \
+                patch("pearnly_erp_portal.express.precheck.collect_form", side_effect=frappe.ValidationError("x")):
+            row = operator._intake_precheck("CO-1", "I:LI-1")
+        item = next(n for n in row["needed"] if n["kind"] == "item")
+        self.assertEqual((item["search"], item["current"], item["options"]), ("own_products", operator.card_new(), []))
+        self.assertTrue(item["value_label"])
+        self.assertNotIn("search", next(n for n in row["needed"] if n["kind"] == "location"))
+        from pearnly_erp_portal.express import cc_tools
+
+        self.assertEqual(cc_tools.INTAKE_DOC, operator.INTAKE)  # CC 列「识别好、还没提交」的那几张用同一个单号前缀
+
     def test_records_of_one_party_share_one_payment_question(self):
         """11-08：24 张同一买方的票，付款问 24 遍；按「方向 + 对方税号」只问一题。"""
         result = {"buyer_name": "บมจ.บิ๊กซี", "buyer_tax_id": "0-1075-36000-63-3"}

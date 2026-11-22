@@ -390,8 +390,7 @@ def _intake_precheck(company, doc_id, twins=True, judged=False) -> dict:
             **({"party": party} if party else {})}
     asked = intake_items(company, doc, result)
     found = intake_found(company, doc, asked)
-    own = [{"kind": item["kind"], "subject": item["subject"], "label": item["label"], "options": item.get("options") or [],
-            "current": item.get("value") or ""} for item in asked]
+    own = [needed_of(item, item.get("options") or []) for item in asked]
     if found is None:
         check = {**view, "state": "check", "items": asked}
         return {"doc_id": doc_id, "state": "choose", "reason": contracts.CHOICE + ":payment", "needed": own, "precheck": check}
@@ -762,9 +761,19 @@ def legacy_needed(found) -> list:
     """收齐的项 → 原来「要人选的项」的形状 ``{kind, subject, label, options, current}``（单据页弹窗、代录预检用；``current`` 是预选）。"""
     from pearnly_erp_portal.express import precheck as write_precheck
 
-    return [{"kind": item["kind"], "subject": item["subject"], "label": item.get("label") or "",
-             "options": write_precheck.full_options(item, found["data"]), "current": item.get("value") or ""}
-            for item in found["items"]]
+    return [needed_of(item, write_precheck.full_options(item, found["data"])) for item in found["items"]]
+
+
+def needed_of(item, options) -> dict:
+    """一个卡片项 → 「要人选的项」``{kind, subject, label, options, current, value_label?, search?}``。只能搜的项（物料 ``own_products``
+    等，没有选项）要带上 ``search`` 与预选的说法：11-20 线上代录 H3，丢了 ``search`` 的物料题只剩「其他」打字，交回的字服务端不认（417）。"""
+    need = {"kind": item["kind"], "subject": item["subject"], "label": item.get("label") or "", "options": options,
+            "current": item.get("value") or ""}
+    if item.get("value") and item.get("value_label"):
+        need["value_label"] = str(item["value_label"])
+    if item.get("search"):
+        need["search"] = str(item["search"])
+    return need
 
 
 def legacy_row(doc_id, found) -> dict:

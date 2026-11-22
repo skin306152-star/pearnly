@@ -603,15 +603,27 @@ class ListTests(unittest.TestCase):
             "LI-1": {"name": "LI-1", "source": "cc", "session_id": "s1", "sent_by": "boss@x", "purchase": "PUR-1"},
             "LI-2": {"name": "LI-2", "source": "cc", "session_id": "s1", "sent_by": "boss@x", "sales_document": "SAL-1"},
             "LI-3": {"name": "LI-3", "source": "cc", "session_id": "s2", "sent_by": "boss@x", "purchase": "PUR-2"},
-            "LI-4": {"name": "LI-4", "source": "line", "session_id": "s1", "sent_by": "boss@x", "purchase": "PUR-2"}})
+            "LI-4": {"name": "LI-4", "source": "line", "session_id": "s1", "sent_by": "boss@x", "purchase": "PUR-2"},
+            # 11-20 线上代录 H3：识别好、还没提交成单据的（开始前卡片已列出），CC 只查已提交的单，说「还没识别成单据」
+            "LI-5": {"name": "LI-5", "source": "cc", "session_id": "s1", "sent_by": "boss@x", "status": "ready",
+                     "company": "CO-1"},
+            "LI-6": {"name": "LI-6", "source": "cc", "session_id": "s2", "sent_by": "boss@x", "status": "ready",
+                     "company": "CO-1"}})
         stub = types.ModuleType("pearnly_erp_portal.integrations.intake")
-        stub.DOCTYPE, stub.SOURCE_CC = "ERP LINE Intake", "cc"
+        stub.DOCTYPE, stub.SOURCE_CC, stub.READY = "ERP LINE Intake", "cc", "ready"
+        stub.chat_records = lambda names: [{"record": name, "status": "ready", "direction": "purchase", "company": "CO-1",
+                                            "doc_no": "TS6911-1120H3", "doc_date": "2026-11-20", "party": "Shop H",
+                                            "totals": {"grand_total": "107.00"}} for name in names]
         patcher = mock.patch.dict(sys.modules, {"pearnly_erp_portal.integrations.intake": stub})
         patcher.start()
         self.addCleanup(patcher.stop)
         out = call(tools.list_documents, this_conversation=True)
         self.assertEqual(sorted(row["name"] for row in out["documents"]), ["P:PUR-1", "S:SAL-1"])
         self.assertTrue(out["scope"]["this_conversation"])
+        self.assertEqual(out["recognized_not_submitted"], [{"doc_id": "I:LI-5", "kind": "purchase", "company": "CO-1",
+                                                            "invoice_no": "TS6911-1120H3", "date": "2026-11-20",
+                                                            "party": "Shop H", "total": "107.00"}])
+        self.assertNotIn("recognized_not_submitted", call(tools.list_documents))  # 不问本对话的不列
         self.assertEqual([row["name"] for row in call(tools.list_documents, this_conversation=True,
                                                         push_state="success")["documents"]], ["S:SAL-1"])
         intake.clear()

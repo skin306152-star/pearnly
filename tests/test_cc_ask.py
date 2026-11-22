@@ -131,6 +131,24 @@ const g = globalThis as any;
   assert.equal(docItemQuestion(party, "CO-1", "IV-009 · Shop C").question, "IV-009 · Shop C · " + itemQuestion(party, "CO-1").header);
   assert.equal(docItemQuestion(needed[0]!, "CO-1", "IV-009 · Shop C").question, "IV-009 · Shop C · " + nq[0]!.question);
   assert.equal(docItemQuestion(party, "CO-1", "").question, itemQuestion(party, "CO-1").question);
+  // 11-20 线上代录 H3：只能搜的物料题（没有选项）带预选 current 与 search，题里有「新建」（推荐）且「其他」接服务端搜索；
+  // 「其他」只打字、没从列表点一条不算答了（服务端只认编码，打字会 417）
+  const h3 = itemsOfNeeded([{ doc_id: "I:LI-1", state: "choose", needed: [
+    { kind: "item", subject: "erp-intake:LI-1:0", label: "Cable", options: [], current: "__new__", value_label: "New item", search: "own_products" },
+    { kind: "location", subject: "erp-intake:LI-1:warehouse", label: op.precheck.kind.location!, options: [{ code: "WH-1", name: "Main" }, { code: "WH-2", name: "Back" }], current: "" },
+  ] }] as any);
+  assert.equal(h3[0]!.value, "__new__");
+  assert.equal(h3[0]!.search, "own_products");
+  const hq = h3.map((i) => itemQuestion(i, "CO-1"));
+  assert.ok(isRecommended(hq[0]!.options[0]));
+  assert.deepEqual(hq[0]!.search, { company: "CO-1", doc_id: "I:LI-1", kind: "own_products" });
+  assert.deepEqual(docAnswers(h3, hq, { answers: [{ header: "", question: "", labels: [hq[0]!.options[0]!.label] }, { header: "", question: "", labels: [hq[1]!.options[0]!.label] }] }),
+    { "I:LI-1": [{ kind: "item", subject: "erp-intake:LI-1:0", value: "__new__", label: "Cable" }, { kind: "location", subject: "erp-intake:LI-1:warehouse", value: "WH-1", label: op.precheck.kind.location! }] });
+  assert.equal(hq[0]!.pickOnly, true);
+  assert.equal(answered({ labels: [], other: "H3SRV" }, hq[0]), false);
+  assert.equal(answered({ labels: [], other: "P-1 Cable", otherCode: "P-1" }, hq[0]), true);
+  // 仓库题的说明就是「仓库」：题目只写一次（11-20 线上「仓库 · 仓库」）
+  assert.equal(hq[1]!.question, op.precheck.kind.location);
 
   // 测试机 11-09（shots/12）：选了「按服务录入」还问从哪个仓库出库。show_if：前面那一题选中其中之一才问，否则藏起、交回 not_asked
   const cond = questionsOf({ questions: [

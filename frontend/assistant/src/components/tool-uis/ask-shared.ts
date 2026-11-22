@@ -14,6 +14,7 @@
 import { ask, op } from "@/i18n";
 import { getMethod, postMethod } from "@/lib/frappe";
 import { type ChoiceOption, optionLabel } from "./operator-words";
+import type { PrecheckNeed } from "./operator-shared";
 
 // ── 形状（AskUserQuestion）──────────────────────────────────────────────────
 export { ASK_TOOL } from "@/lib/approval-card";
@@ -37,6 +38,8 @@ export type AskQuestion = {
   subtitle?: string;
   /** 不出「其他」（引导卡：选项来自主档、不许自己填的题，服务端定）。 */
   noOther?: boolean;
+  /** 「其他」只认从列表里点的一条，打的字不算答了（页面自己出题、交回编码的题：服务端只认编码，打字会被拒）。 */
+  pickOnly?: boolean;
 };
 export type AskInput = { questions: AskQuestion[] };
 
@@ -122,7 +125,7 @@ export function entryOk(entry: NonNullable<AskOption["entry"]>, text: string | u
 
 /** 这一题答了没有（选了选项，或「其他」填了字 / 选了值）；给了题目时，选中的带 entry 的选项还要填好数。 */
 export const answered = (state: AskState | undefined, question?: AskQuestion) =>
-  !!state && !state.skipped && (state.labels.length > 0 || !!(state.other ?? "").trim())
+  !!state && !state.skipped && (state.labels.length > 0 || (!!(state.other ?? "").trim() && (!question?.pickOnly || !!(state.otherCode ?? "").trim())))
   && !(question?.options ?? []).some((o) => o.entry && state.labels.includes(o.label) && !entryOk(o.entry, state.entries?.[o.label]));
 
 /** 提交：按题序，没答的算跳过。 */
@@ -211,11 +214,14 @@ export function itemQuestion(item: AskItem, company: string): AskQuestion {
     description: "",
   }));
   const kind = kindName(item);
+  // 说明就是类名本身的（仓库题的说明是「仓库」）不再写第二遍：11-20 线上题目显示「仓库 · 仓库」
+  const own = item.label && item.label.trim().toLocaleLowerCase() !== kind.trim().toLocaleLowerCase() ? item.label : "";
   return {
-    question: item.label ? `${kind} · ${item.label}` : kind,
+    question: own ? `${kind} · ${own}` : kind,
     header: kind.slice(0, 12),
     multiSelect: false,
     options,
+    ...(item.search || item.options?.length ? { pickOnly: true } : {}),
     ...(item.search ? { search: { company, doc_id: item.docs[0] ?? "", kind: item.search } } : {}),
     ...(item.options?.length ? { choices: item.options } : {}),
   };
@@ -297,8 +303,10 @@ function afterWhatTheyNeed(out: AskItem[], item: AskItem, _i: number, all: reado
   return [...out, item, ...waiting];
 }
 
-/** 代录 precheck 一张单要选的（needed：同一类同一对象只问一次）。 */
-export function itemsOfNeeded(docs: ReadonlyArray<{ doc_id: string; state: string; needed?: Array<{ kind: string; subject: string; label: string; options: ChoiceOption[] }> }>): AskItem[] {
+
+/** 代录 precheck 一张单要选的（needed：同一类同一对象只问一次）。预选（current）排第一、带「推荐」，只能搜的项带 search：11-20 线上
+ *  代录 H3，丢了这两样的物料题只剩「其他」打字，交回的字服务端不认（417）。 */
+export function itemsOfNeeded(docs: ReadonlyArray<{ doc_id: string; state: string; needed?: PrecheckNeed[] }>): AskItem[] {
   const map = new Map<string, AskItem>();
   for (const doc of docs) {
     if (doc.state !== "choose") continue;
@@ -309,7 +317,11 @@ export function itemsOfNeeded(docs: ReadonlyArray<{ doc_id: string; state: strin
         if (!found.docs.includes(doc.doc_id)) found.docs.push(doc.doc_id);
         continue;
       }
-      map.set(key, { key, kind: need.kind, subject: need.subject, label: need.label || need.subject, options: need.options ?? [], docs: [doc.doc_id] });
+      map.set(key, {
+        key, kind: need.kind, subject: need.subject, label: need.label || need.subject, options: need.options ?? [], docs: [doc.doc_id],
+        ...(need.current ? { value: String(need.current), ...(need.value_label ? { value_label: String(need.value_label) } : {}) } : {}),
+        ...(need.search ? { search: String(need.search) } : {}),
+      });
     }
   }
   return [...map.values()];

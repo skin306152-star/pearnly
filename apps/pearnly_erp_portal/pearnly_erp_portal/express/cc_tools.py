@@ -405,6 +405,7 @@ def _list_row(kind, row, waiting=None) -> dict:
 
 
 CONVERSATION_DOCUMENTS_MAX = 500
+INTAKE_DOC = "I"  # 识别好、还没提交的收单记录的单号前缀（= `express.operator.INTAKE`，代录用 ``I:<记录>``）
 
 
 def _conversation_documents() -> dict:
@@ -421,6 +422,29 @@ def _conversation_documents() -> dict:
                           limit_page_length=CONVERSATION_DOCUMENTS_MAX)
     return {push.PURCHASE: sorted({row.purchase for row in rows if row.get("purchase")}),
             push.SALES: sorted({row.sales_document for row in rows if row.get("sales_document")})}
+
+
+def _conversation_unsubmitted(companies) -> list:
+    """本对话附件识别出、还没提交成单据的收单记录（``erp_list_documents`` 的 ``recognized_not_submitted``）：11-20 线上代录 H3，
+    开始前卡片已列出这张票，CC 只查已提交的单据，两次说「还没识别成单据」。``doc_id`` 是代录用的 ``I:<记录>``。"""
+    from pearnly_erp_portal.integrations import intake
+
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    if not session:
+        return []
+    names = frappe.get_all(intake.DOCTYPE, filters={"source": intake.SOURCE_CC, "session_id": session,
+                                                    "sent_by": frappe.session.user, "status": intake.READY,
+                                                    "company": ["in", list(companies) or [""]]},
+                           pluck="name", order_by="creation desc", limit_page_length=CONVERSATION_DOCUMENTS_MAX)
+    out = []
+    for row in intake.chat_records(names) if names else []:
+        if row["status"] != intake.READY or row["record"] not in names:
+            continue
+        out.append({"doc_id": f"{INTAKE_DOC}:{row['record']}", "kind": row.get("direction") or "purchase",
+                    "company": row.get("company") or "", "invoice_no": row.get("doc_no") or "",
+                    "date": str(row.get("doc_date") or ""), "party": row.get("party") or "",
+                    "total": str((row.get("totals") or {}).get("grand_total") or "")})
+    return out
 
 
 def _filters(kind, companies, tool_input, only=None) -> tuple:
@@ -497,8 +521,10 @@ def list_documents(tool_input) -> str:
         documents.append(_list_row(kind, row, waiting))
     total = max(total, offset + len(page))
     next_offset = offset + len(page)
+    unsubmitted = _conversation_unsubmitted(companies) if only is not None and not offset else []
     return direct_push.dumps({"documents": documents, "count": len(documents), "total": total, "offset": offset,
-                              "next_offset": next_offset if next_offset < total else None, "scope": scope})
+                              "next_offset": next_offset if next_offset < total else None, "scope": scope,
+                              **({"recognized_not_submitted": unsubmitted} if unsubmitted else {})})
 
 
 def push_results(tool_input) -> str:
@@ -802,6 +828,9 @@ TOOLS = [
                     "to them), pass this_conversation true: they are listed whatever their date and even before any "
                     "push, so never filter them by the work month; when some are dated outside the month this "
                     "conversation is about, say so in one sentence (which months) and ask the user how to handle them. "
+                    "recognized_not_submitted lists the files of this conversation that are recognized but not "
+                    "submitted as ERP documents yet (doc_id I:…; in operator mode they are the ones on the before-start "
+                    "card): they are recognized, so never say they are not. "
                     + ROW_NOTE,
      "input_schema": {"type": "object", "properties": {
          "search": {"type": "string"}, "push_state": {"type": "string", "enum": list(PUSH_STATES)},

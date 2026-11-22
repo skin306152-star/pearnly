@@ -179,7 +179,8 @@ export type ChooseInput = { task: string; company: string; doc_id: string; ref?:
 export type ResumeInput = { task: string; company: string; reason: string; detail?: string; doc_id?: string; ref?: string; party?: string; doc_ids?: string[] };
 
 /** 站点 precheck 一张单的结论（开始前、中途选都用）。 */
-export type PrecheckNeed = { kind: string; subject: string; label: string; options: ChoiceOption[] };
+/** current：预选；value_label：预选的说法；search：只能去服务端搜的类（物料等，没有选项）。 */
+export type PrecheckNeed = { kind: string; subject: string; label: string; options: ChoiceOption[]; current?: string; value_label?: string; search?: string };
 /** state written：同一张票已写进 Express（docnum 是它在 Express 里的单号），默认不交，人可以点「再录一次」（用户 11-09）。 */
 export type PrecheckDoc = { doc_id: string; state: "ready" | "choose" | "waiting" | "blocked" | "written"; reason?: string; message?: string; needed?: PrecheckNeed[]; docnum?: string };
 /** 这次写进哪儿（B4，precheck 回包的 target / targets，取值同 start 实际用的那一份）。count：几张单写进这份（targets 里才有）。 */
