@@ -271,6 +271,7 @@ REQUIRED_FIELDS = {
         {"field": "MREMVAL", "auto": ["computed"]},
         {"field": "TOTBAL", "auto": ["computed"]},
         {"field": "TOTVAL", "auto": ["computed"]},
+        {"field": "LASUPD", "auto": ["computed"]},  # 主档最后变动日 = 单据日（原生进货 / 销货，11-22 实录）
         {"field": "OPNBAL", "auto": ["computed"]},
         {"field": "OPNVAL", "auto": ["computed"]},
         {"field": "LOCBAL", "auto": ["computed"]},  # 各仓结存 STLOC
