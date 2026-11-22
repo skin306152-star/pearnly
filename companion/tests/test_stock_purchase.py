@@ -188,7 +188,9 @@ def test_purchase_accumulates_into_existing_stock(acct):
     assert len(stc) == 1
     assert float(stc[0]["XUNITPR"]) == 25.0  # 净额单价 = 2500/100
     assert float(stc[0]["XTRNVAL"]) == 2500.0  # 本行入库货值
-    assert float(stc[0]["MREMBAL"]) == 1100.0  # 入库后结存
+    # 原生增加行（K 系列 11-22，与库存单同一套 ``stock_costing``）：明细记写前结存、本行成为新的一批
+    assert float(stc[0]["MREMBAL"]) == 1000.0
+    assert (float(stc[0]["LOTBAL"]), float(stc[0]["LOTVAL"])) == (100.0, 2500.0)
     assert (stc[0]["PEOPLE"] or "").strip() == "S001"
 
     assert modes[0]["stkcod"] == "OIL01" and modes[0]["created"] is False

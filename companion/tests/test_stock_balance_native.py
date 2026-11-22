@@ -85,8 +85,10 @@ def test_a_sale_is_costed_from_the_total_and_adds_to_the_customer_balance(apart)
     res = _sell(apart, _sale([_item("ICE01", 2, 60.0, "stock_sale")]))
     assert res.ok, res.error
     line = _rows(apart, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XUNITPR"], line["XTRNVAL"]) == (10.0, 20.0)  # 均价 TOTVAL / TOTBAL，不是批次链的 20
-    assert _master(apart) == {"TOTBAL": 43.0, "TOTVAL": 430.0, "MREMBAL": 1.0, "MREMVAL": 40.0, "UNITPR": 10.0}
+    # 有没有货看总结存（11-07）；取价照原生 4.2 按主档批次链（单价 20，K 系列 11-22 与库存单同一套 ``stock_costing``），
+    # 以前按总结存均价 10
+    assert (line["XUNITPR"], line["XTRNVAL"]) == (20.0, 40.0)
+    assert _master(apart) == {"TOTBAL": 43.0, "TOTVAL": 410.0, "MREMBAL": 1.0, "MREMVAL": 20.0, "UNITPR": 9.5349}
     assert _balance(apart, "ARMAS", "CUSCOD", "C001") == pytest.approx(264.2)  # 200 + 含税 64.20
 
 

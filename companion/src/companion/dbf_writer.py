@@ -36,6 +36,7 @@ from . import guided
 from . import master_create
 from . import purchase_lines
 from . import service_vat
+from . import stock_chain
 from . import stock_location
 from . import stock_template
 from . import write_verify
@@ -419,6 +420,7 @@ def write_purchase(
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
+    costing: dict = {}  # 库存行共用的取价状态(``stock_costing``),写完把分仓链记进 STLOC
     try:
         # 新供应商 → 先在 APMAS 建档(在备份-回滚事务内)拿到码
         entry.supplier_code = master_create.ensure_supplier(
@@ -440,9 +442,10 @@ def write_purchase(
             depcod,
             srv=srv,
             deferred_vat=deferred_vat,
-            **_located(locations, moves),
+            **_located(locations, moves, costing),
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
+        chain_expected = record_chains(account_dir, costing)
         # 按台号码:明细行号 = 载荷顺序(混行单分段写也用整张单的行号,`dbf_detail.runs`)
         remarks = dbf_remarks.write(account_dir, docnum, enumerate(entry.items, start=1))
         clock.lap("write")
@@ -469,6 +472,7 @@ def write_purchase(
             stock_seqs=dbf_detail.stock_line_numbers(line_modes),
         )
         verify_locations(account_dir, stloc_expected)
+        verify_chains(account_dir, chain_expected)
         check_remarks(account_dir, docnum, remarks)
         clock.lap("verify")
         _verify_index(account_dir, cdx_reindex.TAG_AP_DOCNUM, docnum)
@@ -563,6 +567,7 @@ def _write_all(
     deferred_vat="",
     locations=None,
     moves=None,
+    costing=None,
 ) -> tuple:
     """写完采购六表,返回 (凭证号, 逐行 mode, 有无库存行, 诚实标注, 实际写的分录 [(SEQIT, ACCNUM, 借贷, 金额)])。"""
     rectyp = S.RECTYP[prefix]
@@ -663,7 +668,7 @@ def _write_all(
         line_modes, groups = purchase_lines.write_detail(
             account_dir, docnum, docdat, entry, gl_rows, depcod=depcod, userid=userid,
             items=inclusive_items(entry.items, flgvat, total),  # 现购价含税：明细记含税（同原生）
-            **_located(locations, moves),
+            **_located(locations, moves, costing),
         )
         gl_rows = purchase_lines.stock_journal(account_dir, gl_rows, groups, getattr(entry, "items_account", ""),
                                                periodic=periodic)
@@ -805,11 +810,14 @@ def _reindex_or_defer(
         _reindex(account_dir, write_tables + extra)
 
 
-def _located(locations, moves=None) -> dict:
-    """要维护 STLOC 的单才往下层传仓库与变动收集(``locations`` / ``moves``);账套没有 STLOC 时调用与以前一字不差。"""
+def _located(locations, moves=None, costing=None) -> dict:
+    """要维护 STLOC 的单才往下层传仓库与变动收集(``locations`` / ``moves``);账套没有 STLOC 时调用与以前一字不差。
+    ``costing``:库存行共用的取价状态(``stock_costing.Book``,分仓计价账套的批次链由调用方 ``record_chains`` 写进 STLOC)。"""
     if locations is None:
         return {}
-    return {"locations": locations} if moves is None else {"locations": locations, "moves": moves}
+    if moves is None:
+        return {"locations": locations}
+    return {"locations": locations, "moves": moves, **({"costing": costing} if costing is not None else {})}
 
 
 def remarks_problem(entry) -> Optional[tuple]:
@@ -843,6 +851,22 @@ def record_locations(account_dir, moves, notes):
     except stock_location.LocationError as e:
         raise _WriteError(str(e), ERR_LOCATION) from e
     return expected, ({**(notes or {}), **extra} if extra else notes)
+
+
+def record_chains(account_dir, costing) -> dict:
+    """分仓计价账套:这张单动过的各 (存货, 仓) 批次链与本单货值记进 STLOC(``stock_chain``;STLOC 结存已由 ``record_locations`` 记好)
+    → 读回要核的值。没有库存行 / 不分仓计价时什么都不做。"""
+    book = (costing or {}).get("book")
+    if book is None or not book.by_place:
+        return {}
+    return stock_chain.write(account_dir, *book.chain_writes())
+
+
+def verify_chains(account_dir, expected) -> None:
+    """读回 STLOC 的批次链栏,不符按读回失败整单回滚。"""
+    problems = stock_chain.verify(account_dir, expected)
+    if problems:
+        raise _WriteError("; ".join(problems[:5]), ERR_VERIFY)
 
 
 def verify_locations(account_dir, expected) -> None:

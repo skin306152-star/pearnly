@@ -60,8 +60,10 @@ from .dbf_writer import (
     _reindex_or_defer,
     _located,
     _restore,
+    record_chains,
     record_locations,
     stock_location_tables,
+    verify_chains,
     verify_locations,
     _verify_index,
     _WriteError,
@@ -339,6 +341,7 @@ def write_sale(
     clock.lap("backup")
     docnum = ""
     moves = [] if locations is not None else None
+    costing: dict = {}  # 库存行共用的取价状态(``stock_costing``),写完把分仓链记进 STLOC
     try:
         since = _table_sizes(account_dir)  # 读回只核对这之后追加的行(见 _VERIFY_TABLES)
         journal_since = pos_journal.sizes(account_dir) if journal else {}
@@ -369,11 +372,12 @@ def write_sale(
             has_vat,
             userid,
             depcod,
-            **_located(locations, moves),
+            **_located(locations, moves, costing),
             srv=srv,
             deferred_vat=deferred_vat,
         )
         stloc_expected, notes = record_locations(account_dir, moves, notes)
+        chain_expected = record_chains(account_dir, costing)
         # 按台号码:明细行号 = 载荷顺序(库存 / 非库存两条路都从 1 起,混行转人工)
         remarks = dbf_remarks.write(account_dir, docnum, enumerate(entry.items, start=1))
         vouchers = []
@@ -413,6 +417,7 @@ def write_sale(
             stock_seqs=dbf_detail.stock_line_numbers(line_modes),
         )
         verify_locations(account_dir, stloc_expected)
+        verify_chains(account_dir, chain_expected)
         check_remarks(account_dir, docnum, remarks)
         pos_differ = (pos_journal.verify(account_dir, vouchers, cash_acc, journal_since, docdat=docdat)
                       if vouchers else [])
@@ -488,6 +493,7 @@ def _write_all(
     *,
     locations=None,
     moves=None,
+    costing=None,
     srv=None,
     deferred_vat="",
 ) -> tuple:
@@ -595,7 +601,7 @@ def _write_all(
                     userid=userid,
                     acccod=getattr(entry, "stock_acccod", ""),
                     slmcod=salesman,
-                    **_located(locations, moves),
+                    **_located(locations, moves, costing),
                     **numbered,
                 )
                 line_modes += modes

@@ -92,6 +92,7 @@ def write_stock_in_lines(
     moves: Optional[list] = None,
     seqs: Optional[List[int]] = None,
     groups: Optional[Dict[Tuple[str, str], Decimal]] = None,
+    costing: Optional[Dict] = None,
 ) -> Tuple[List[Dict], Dict[str, Decimal]]:
     """写库存入库行 + 累加 STMAS 结存,返回 (逐行 mode 结果, {存货科目码: 入库金额合计})。
     ``groups``(可选):按物料科目组累计 {(存货科目 ACCNUM01, 购货 / 成本科目 ACCNUM02): 入库金额}。
@@ -106,7 +107,18 @@ def write_stock_in_lines(
     载荷 4(``stock_location``):``locations`` 是逐行仓库码(None = 主仓,同以前),``moves`` 收集各行在 STLOC 上的
     变动交调用方记账;两者都是 None 时与以前逐字节相同。
     ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
+    ``costing``:同一张单几段共用的取价状态(``{"book": stock_costing.Book}``);调用方在 STLOC 结存记好后把分仓链写进去。
+
+    每一行照原生成为新的一批(K 系列 11-22,与库存单增加行同一套 ``stock_costing``):LOTBAL / LOTVAL / LUNITPR、明细记写前结存
+    (为负记 0)与当前批的指针,主档当前批改成这一批;分仓计价账套更新这个仓的批次链与 LOCVAL、主档抄它。
     """
+    from . import stock_costing
+
+    costing = costing if costing is not None else {}
+    book = costing.get("book")
+    if book is None:
+        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat)
+    main = account_rules.main_location(account_dir)
     line_modes: List[Dict] = []
     in_by_account: Dict[str, Decimal] = {}
     st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
@@ -140,12 +152,15 @@ def write_stock_in_lines(
             stkcod = made.stkcod
             # 别写回 acccod:那是「建新档用哪个科目组」的入参,逐行循环里覆盖它会让第二行
             # 起拿上一个商品的科目码去建档。这里要的是本商品档上实际挂的组。
-            cur_bal, cur_val, item_acccod = _stmas_state(account_dir, stkcod)
+            _cur_bal, _cur_val, item_acccod = _stmas_state(account_dir, stkcod)
             inv_acc, _cogs_acc = stock_sale.stock_accounts(account_dir, item_acccod)
             # 包装单位按 Express 主档系数换成库存单位入库（stock_units；验收 10-25）
             units = stock_units.resolve(account_dir, stkcod, unit, qty, it.get("factor"))
-            new_bal = cur_bal + units.base_qty
-            new_val = _money(cur_val + amount)
+            loc = stock_location.location_at(locations, seq - 1)
+            book.extend([(stkcod, loc or main)])
+            base_cost = _money(amount / units.base_qty)
+            out = book.add(stkcod, (stkcod, loc or main), units.base_qty, amount, posopr=S.STCRD_POSOPR_PURCHASE, seq=seq,
+                           unit_cost=base_cost)
             row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_in_row(
                     docnum,
                     seq,
@@ -156,21 +171,21 @@ def write_stock_in_lines(
                     float(units.qty),
                     float(_money(amount / units.qty)),
                     val=float(amount),
-                    rem_bal=float(new_bal),
-                    rem_val=float(new_val),
+                    rem_bal=out.fields["MREMBAL"],
+                    rem_val=out.fields["MREMVAL"],
                     unit=units.unit,
                     depcod=depcod,
                     ref_no=ref_no,
                     posopr=S.STCRD_POSOPR_PURCHASE,
-                ), units.unit, stock_location.location_at(locations, seq - 1))
+                ), units.unit, loc)
             row = dbf_fields.priced_line(row, it, st_fields)  # 现购 HP 价含税：UNITPR / TRNVAL 记含税，成本照税前
             # 进货的库存行没有售价：原生 RR / HP 的库存行 XSALVAL 是 0（S 盘 95 本人录的 15.9 万行里 93%，11-07 取证），
             # 非库存行才记税前额（那条路不经这里）
             row["XSALVAL"] = 0.0
-            S.append_stcrd(st, stock_units.stamp(row, units, base_cost=_money(amount / units.base_qty)))
+            row.update({name: value for name, value in out.fields.items() if name in st_fields and name != "XUNITPR"})
+            S.append_stcrd(st, stock_units.stamp(row, units, base_cost=base_cost))
             if moves is not None:
                 moves.append(stock_location.move(row, stock_location.KIND_PURCHASE))
-            stock_sale.move_stmas(account_dir, stkcod, units.base_qty, amount)
             in_by_account[inv_acc] = in_by_account.get(inv_acc, Decimal("0")) + amount
             if groups is not None:
                 groups[(inv_acc, _cogs_acc)] = groups.get((inv_acc, _cogs_acc), Decimal("0")) + amount

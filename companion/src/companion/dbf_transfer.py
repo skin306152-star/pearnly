@@ -231,7 +231,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
     lines: List[Dict] = []
     moves: List[stock_location.Move] = []
     # 原生调拨两行都带批次指针（主档当前那一批，11-18 实录 RL0000004）；Express 之后重算批次链时把调拨算进链里
-    from .dbf_stock import _cost, _lot_heads
+    from .stock_costing import average_cost as _cost, lot_heads as _lot_heads  # 与库存单、销货、进货共用一套取价
     heads = _lot_heads(account_dir, {match["stkcod"] for match in found if match})
     # 分仓计价的账套（ISINFO.LOC_COST = Y）原生调拨带金额：两行按出库成本计价，调入那一行成为调入仓的新一批（11-18 先进先出、分仓计价测试账套
     # 实录 RL2300610；不分仓计价的 70EXP 实录 RL0000004 两行都不带金额）
@@ -268,7 +268,7 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                 early_state[out_key] = (firsts[out_key].head, start.bal, start.val)
             out_before = early_state[out_key] if early else None
             if fifo and by_wh:
-                from .dbf_stock import _fifo_cost, _fifo_take
+                from .stock_costing import fifo_cost as _fifo_cost, fifo_take as _fifo_take
                 pool = early_lots if early else place_lots
                 lots_left = pool.get(out_key, [])
                 unit_cost, value = _fifo_cost(lots_left, abs(units.base_qty), Decimal(0))  # 出超的部分按 0（同出库，原生）

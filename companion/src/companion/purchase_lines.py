@@ -81,6 +81,7 @@ def write_detail(
     locations: Optional[List[Optional[str]]] = None,
     moves: Optional[list] = None,
     items: Optional[list] = None,
+    costing: Optional[dict] = None,
 ) -> Tuple[List[dict], Dict[Tuple[str, str], Decimal]]:
     """写本单明细行,返回 (逐行 mode 结果, 库存行按物料科目组累计的入库额 {(ACCNUM01, ACCNUM02): 金额},交 :func:`stock_journal`)。
 
@@ -123,6 +124,7 @@ def write_detail(
                 ref_no=entry.ref_no,
                 groups=groups,
                 **({"locations": locations, "moves": moves} if locations is not None else {}),
+                **({"costing": costing} if costing is not None else {}),
                 **numbered,
             )
         except Exception as e:  # 入库任一步失败 → 统一交会计(整单回滚·不留半截库存)

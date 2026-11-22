@@ -254,6 +254,7 @@ def write_stock_lines(
     moves: Optional[list] = None,
     seqs: Optional[List[int]] = None,
     slmcod: str = "",
+    costing: Optional[Dict] = None,
 ) -> Tuple[List[Dict], List[Tuple[str, str, str, Decimal]]]:
     """写库存明细行 + 扣 STMAS,返回 (逐行 mode 结果, COGS 分录行)。
     ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
@@ -266,7 +267,19 @@ def write_stock_lines(
     `acccod`=账套配置的存货科目组,只在账里一条库存品都没有、要建首个库存档时用得上。
     ``slmcod``:单头的销售员,每行照原生也带。
     载荷 4(``stock_location``):``locations`` 逐行仓库码(None = 主仓),``moves`` 收集 STLOC 变动;都是 None 时同以前。
+    ``costing``:同一张单几段共用的取价状态(``{"book": stock_costing.Book}``,混行单分段写时接着用);调用方在 STLOC 结存记好后
+    把 ``book.chain_writes()`` 交 ``stock_chain.write``(分仓计价账套)。
+
+    取价与批次栏照库存单同一套(``stock_costing``,K 系列 11-22):平均成本按主档批次链、先进先出按最早仍有剩余的批、分仓计价按这个仓的链;
+    分仓计价出超的部分按 0(原生)。
     """
+    from . import stock_costing
+
+    costing = costing if costing is not None else {}
+    book = costing.get("book")
+    if book is None:
+        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat)
+    main = account_rules.main_location(account_dir)
     line_modes: List[Dict] = []
     cogs_by_pair: Dict[Tuple[str, str], Decimal] = {}
     st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
@@ -280,15 +293,16 @@ def write_stock_lines(
             amount = float(Decimal(str(it.get("amount") or "0")))
             unit = str(it.get("unit") or "")
             item = find_stock_item(account_dir, name, str(it.get("code") or ""))
-            if item and item["totbal"] > 0:
-                # ① 复用(有正库存):真扣库存 + 移动均价结转 COGS
+            loc = stock_location.location_at(locations, seq - 1)
+            if item:
+                book.extend([(item["stkcod"], loc or main)])
+            if item and book.total_balance(item["stkcod"]) > 0:
+                # ① 复用(有正库存):真扣库存 + 照原生取价结转 COGS(``stock_costing``)
                 # 包装单位按 Express 主档系数换成库存单位动结存、算成本(stock_units;验收 10-25)
                 units = stock_units.resolve(account_dir, item["stkcod"], unit, qty, it.get("factor"))
                 base = float(units.base_qty)
-                avg = item["totval"] / item["totbal"]
-                cogs = _q2(base * avg)
-                new_bal = item["mrembal"] - base
-                new_val = _q2(item["mremval"] - cogs)
+                out = book.take(item["stkcod"], (item["stkcod"], loc or main), units.base_qty, posopr=S.STCRD_POSOPR, seq=seq)
+                cogs = float(out.value)
                 inv_acc, cogs_acc = stock_accounts(account_dir, item["acccod"])
                 row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
@@ -300,24 +314,23 @@ def write_stock_lines(
                         float(units.qty),
                         unit_price,
                         amount,
-                        avg_cost=_q2(avg),
+                        avg_cost=_q2(out.unit_cost),
                         cogs=cogs,
-                        rem_bal=new_bal,
-                        rem_val=new_val,
+                        rem_bal=out.fields["MREMBAL"],
+                        rem_val=out.fields["MREMVAL"],
                         unit=units.unit,
                         depcod=depcod,
-                    ), units.unit, stock_location.location_at(locations, seq - 1))
+                    ), units.unit, loc)
+                row.update(_chain_fields(out, st_fields))
                 S.append_stcrd(st, S.with_salesman(stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units), slmcod,
                                                    st_fields))  # 明细行带单头销售员（照原生，11-12）
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
-                move_stmas(account_dir, item["stkcod"], -base, -cogs)
                 key = (cogs_acc, inv_acc)
-                cogs_by_pair[key] = cogs_by_pair.get(key, Decimal("0")) + Decimal(
-                    str(cogs)
-                )
+                if cogs:
+                    cogs_by_pair[key] = cogs_by_pair.get(key, Decimal("0")) + Decimal(str(cogs))
                 line_modes.append(
-                    # 有正结存:照移动均价结转,人填的单位成本不用(回执标 cost_ignored)
+                    # 有正结存:照原生取价结转,人填的单位成本不用(回执标 cost_ignored)
                     dbf_detail.line_mode(seq, name, item["stkcod"], mode=ITEM_MODE,
                                          cost_ignored=it.get("cost_choice") == COST_GIVEN)
                 )
@@ -338,9 +351,11 @@ def write_stock_lines(
                         reason = REASON_COST_GIVEN if cost > 0 else reason
                 units = stock_units.resolve(account_dir, basis.stkcod, unit, qty, it.get("factor"))
                 base = float(units.base_qty)
-                cogs = _q2(base * cost) if cost > 0 else 0.0
-                new_bal = basis.bal - base
-                new_val = _q2(basis.val - cogs)
+                book.extend([(basis.stkcod, loc or main)])
+                out = book.take(basis.stkcod, (basis.stkcod, loc or main), units.base_qty, posopr=S.STCRD_POSOPR, seq=seq,
+                                cost=Decimal(str(cost)))
+                cogs = float(out.value)
+                new_bal = out.fields["MREMBAL"]
                 row = account_rules.localize_stcrd(account_dir, S.stcrd_stock_out_row(
                         docnum,
                         seq,
@@ -353,16 +368,16 @@ def write_stock_lines(
                         amount,
                         avg_cost=cost,
                         cogs=cogs,
-                        rem_bal=new_bal,
-                        rem_val=new_val,
+                        rem_bal=out.fields["MREMBAL"],
+                        rem_val=out.fields["MREMVAL"],
                         unit=units.unit,
                         depcod=depcod,
-                    ), units.unit, stock_location.location_at(locations, seq - 1))
+                    ), units.unit, loc)
+                row.update({name_: value for name_, value in _chain_fields(out, st_fields).items() if name_ != "XUNITPR"})
                 S.append_stcrd(st, S.with_salesman(stock_units.stamp(dbf_fields.priced_line(row, it, st_fields), units), slmcod,
                                                    st_fields))  # 明细行带单头销售员（照原生，11-12）
                 if moves is not None:
                     moves.append(stock_location.move(row, stock_location.KIND_SALE))
-                move_stmas(account_dir, basis.stkcod, -base, -cogs)
                 if cogs:
                     inv_acc, cogs_acc = stock_accounts(account_dir, basis.acccod or _acccod_of(account_dir, basis.stkcod))
                     key = (cogs_acc, inv_acc)
@@ -403,6 +418,11 @@ def write_stock_lines(
         cogs_rows.append((COGS_SEQIT_DR, cogs_acc, S.TRNTYP_DEBIT, amt))
         cogs_rows.append((COGS_SEQIT_CR, inv_acc, S.TRNTYP_CREDIT, amt))
     return line_modes, cogs_rows
+
+
+def _chain_fields(out, st_fields) -> Dict:
+    """``stock_costing`` 回的批次栏（MREMBAL / MREMVAL / MLOTNUM / XUNITPR），老表没有的栏不写。"""
+    return {name: value for name, value in out.fields.items() if name in st_fields}
 
 
 def move_stmas(account_dir: Path, stkcod: str, qty, value, *, fields: Optional[Dict] = None,
