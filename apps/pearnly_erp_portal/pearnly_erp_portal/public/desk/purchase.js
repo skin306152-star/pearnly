@@ -66,7 +66,7 @@
 					{fieldname: "status", width: 72, min_width: 52, label: __("Status"), format: u.label},
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态
 					...(p.express_used() ? [{fieldname: "ledger_docnum", width: 110, min_width: 76, label: __("Express"),
-						format: (value, row) => value || (row.ledger_state ? u.label("express_" + row.ledger_state) : ""),
+						format: (value, row) => value || p.ledger_word(row.ledger_state, row.ledger_reason),  // 同单据页的状态词（11-22）
 						// 排队中、在等 Express 关闭：状态不变，悬浮说明是现成那句（`p.express_waiting`）
 						title: (value, row) => p.express_waiting(row)}] : []),
 				],

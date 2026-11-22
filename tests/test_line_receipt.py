@@ -354,6 +354,31 @@ class StatusWordTables(unittest.TestCase):
         # LINE 等结果：排队中、停在每分钟会自己再试的原因上都还在录入；其余停下、失败、写成都是结论
         self.assertFalse(contracts.ledger_settled("queued", ""))
         self.assertFalse(contracts.ledger_settled("held", contracts.NO_WRITER))
+
+    def test_auto_retry_reasons_are_entering_on_the_web_and_in_line(self):
+        """主会话 11-22：录入中 = 交出去还在路上。停在每分钟自己会再试的原因上（没有账套、没有能写的电脑、主档在读、退货单的原 HS
+        还没写成）网页和 LINE 都是「录入中」、LINE 接着等；失败只给要人处理的。"""
+        from pearnly_erp_portal.express import contracts
+
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        web = re.findall(r'"([^"]+)"', page.split("const AUTO_RETRY = [", 1)[1].split("];", 1)[0])
+        self.assertEqual(set(web), set(contracts.AUTO_RETRY_REASONS))
+        self.assertEqual(set(contracts.AUTO_RETRY_REASONS), {contracts.NO_BOOK, contracts.NO_WRITER, contracts.READING,
+                                                             contracts.REFUND_WAITING})
+        for reason in contracts.AUTO_RETRY_REASONS:
+            with self.subTest(reason=reason):
+                self.assertEqual(contracts.ledger_word("held", reason), "Entering")
+                self.assertFalse(contracts.ledger_settled("held", reason))
+        for reason in ("choice_needed:party", contracts.SEVERAL_BOOKS, contracts.WAREHOUSE_UNMAPPED, "[WRITE_FAILED] x"):
+            with self.subTest(reason=reason):
+                self.assertEqual(contracts.ledger_word("held", reason), "Failed")
+                self.assertTrue(contracts.ledger_settled("held", reason))
+        self.assertEqual(contracts.ledger_word("failed", contracts.NO_WRITER), "Failed")  # 只看停下（held）的原因
+        self.assertIn('p.ledger_word(info.state, info.reason)', page)
+        for name in ("purchase.js", "sales.js", "pos-receipts.js", "stock-entry.js"):
+            text = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk" / name).read_text(encoding="utf-8")
+            with self.subTest(page=name):
+                self.assertIn("ledger_reason", text)  # 列表按原因分录入中 / 失败
         self.assertTrue(contracts.ledger_settled("held", "choice_needed:party"))
         self.assertTrue(contracts.ledger_settled("written", ""))
         self.assertTrue(contracts.ledger_settled("mismatch", ""))

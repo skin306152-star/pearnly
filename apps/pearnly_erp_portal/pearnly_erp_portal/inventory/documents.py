@@ -29,7 +29,7 @@ ZERO_QTY = "Quantity cannot be 0"
 
 LIST_FIELDS = ("name", "direction", "posting_date", "warehouse", "to_warehouse", "supplier", "doc_no",
                "status", "purpose", "reason", "ref_type", "ref_id", "stock_count", "submitted_at", "ledger_state", "ledger_docnum",
-               "ledger_void_state")
+               "ledger_reason", "ledger_void_state")
 
 # 用途（录制问题 #14：以前只有自由填写的备注）：入库是退库，出库是内部领用 / 报损 / 样品 / 生产领料；都可选「其他」或不填。
 # 接了 Express 的公司出库按用途写进对应的领用簿（`express.stock_entry.PURPOSE_BOOKS`，11-18 D12）。

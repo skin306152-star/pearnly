@@ -35,7 +35,7 @@
 		const url = (...parts) => p.subroute(root, ...parts);
 		const title_new = () => t({ in: "trade.newIn", out: "trade.newOut", transfer: "trade.newTransfer",
 			adjust: "trade.newAdjust" }[direction]);
-		const express_label = state => p.ledger_word(state);  // 同单据页的状态词（用户 11-22）
+		const express_label = (state, reason) => p.ledger_word(state, reason);  // 同单据页的状态词（用户 11-22）
 		// 出库不填单价：旧线上出库单是按**结存成本**计价的（`contracts.issue()`），
 		// 单价那一格在界面上只读、由服务端在过账时算，所以这里不给人填 —— 但**只锁那一格**，
 		// 商品行本身要能加能改。
@@ -269,7 +269,7 @@
 						format: (value, row) => [purpose_label(row?.purpose), value].filter(Boolean).join(" · ") },
 					// 接了事务所 Express 账本的站点：写进去了显示 Express 单号，否则显示状态（同采购 / 销售列表）
 					...(p.express_used() ? [{ fieldname: "ledger_docnum", width: 110, min_width: 76,
-						label: __("Express"), format: (value, row) => value || express_label(row?.ledger_state),
+						label: __("Express"), format: (value, row) => value || express_label(row?.ledger_state, row?.ledger_reason),
 						// 排队中、在等 Express 关闭：状态不变，悬浮说明是现成那句（`p.express_waiting`）
 						title: (value, row) => p.express_waiting(row) }] : []),
 				],

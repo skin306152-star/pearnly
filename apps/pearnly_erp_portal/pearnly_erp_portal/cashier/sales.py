@@ -335,7 +335,7 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
     summaries = {row.name: row for row in frappe.get_all(
         "ERP POS Day Summary", filters={"name": ["in", [r.get("express_summary") for r in rows if r.get("express_summary")]
                                                  or [""]]},
-        fields=["name", "ledger_state", "ledger_docnum", "seq"], limit_page_length=len(rows) or 1)}
+        fields=["name", "ledger_state", "ledger_docnum", "ledger_reason", "seq"], limit_page_length=len(rows) or 1)}
     # 退货小票还没进退货单、原小票已进日汇总：标「待写退货」（B3b，每晚合成退货单）
     originals = dict(frappe.get_all(DT, filters={"name": ["in", [r.get("return_against") for r in rows
                                                                  if r.get("sale_type") == "refund" and r.get("status") == "completed"
@@ -348,6 +348,7 @@ def list_sales(*, shift=None, cashier=None, date_from=None, date_to=None, sale_t
             row["express_pending_refund"] = 1
         summary = summaries.get(row.get("express_summary")) or {}
         row["ledger_state"], row["ledger_docnum"] = summary.get("ledger_state") or "", summary.get("ledger_docnum") or ""
+        row["ledger_reason"] = summary.get("ledger_reason") or ""  # 状态词按原因分录入中 / 失败（11-22）
         row["express_extra"] = int(summary.get("seq") or 1) > 1  # 同一天第 2 张起是晚到小票的补单
     return rows
 

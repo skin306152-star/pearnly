@@ -110,10 +110,13 @@
 	// 单据写进 Express 的情况（CC 桌面版直连 ERP，ADR-025）：状态、Express 单号、停下的原因；要人拿主意的项在这里选一次
 	// （服务端只认这份账套里有的值，选过记在这家公司名下），转人工的可以再写一次。
 	// 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败）：列表、详情、Express 弹窗与 LINE 回执同一张表（服务端
-	// `express.contracts.LEDGER_WORDS`，契约测试比对）。核对不一致（mismatch）算失败，原因栏写「核对不一致」
+	// `express.contracts.LEDGER_WORDS` / `AUTO_RETRY_REASONS`，契约测试比对）。录入中 = 交出去还在路上：排队中，以及停在每分钟
+	// 自己会再试的原因上；失败只给要人处理的。核对不一致（mismatch）算失败，原因栏写「核对不一致」
 	const LEDGER_WORDS = {queued: "Entering", written: "Succeeded", handled: "Succeeded", held: "Failed", failed: "Failed",
 		mismatch: "Failed", detached: "Failed"};
-	p.ledger_word = state => (state ? __(LEDGER_WORDS[state] || state) : "");
+	const AUTO_RETRY = ["express.account_set_missing", "express.no_writer", "express.masters_reading", "express.pos_refund_waiting"];
+	p.ledger_word = (state, reason) => (!state ? "" : state === "held" && AUTO_RETRY.includes(reason || "") ? __("Entering")
+		: __(LEDGER_WORDS[state] || state));
 	const EXPRESS_REASONS = {
 		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
@@ -246,7 +249,7 @@
 			: info.state === "detached" ? __("express.state.detached") : info.state === "mismatch" ? __("express.reason.mismatch") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
-				default: p.ledger_word(info.state)},
+				default: p.ledger_word(info.state, info.reason)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: mrerp_ledger ? __("MR.ERP No.") : __("Express No."),
 				read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度

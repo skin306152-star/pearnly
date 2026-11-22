@@ -134,7 +134,7 @@
 				{ fieldname: "shift", width: 140, min_width: 96, label: t("trade.shiftNo") },
 				// 接了 Express：所在现销日汇总的 Express 单号，没写进去显示状态（同采购 / 销售列表）
 				...(p.express_used() ? [{ fieldname: "ledger_docnum", width: 170, min_width: 120,
-					label: __("Express"), format: (value, row) => (value || (row.ledger_state ? p.ledger_word(row.ledger_state)
+					label: __("Express"), format: (value, row) => (value || (row.ledger_state ? p.ledger_word(row.ledger_state, row.ledger_reason)
 						: row.express_pending_refund ? __("express.state.refundPending") : ""))
 						+ (row.express_extra ? ` · ${__("express.summary.extra")}` : ""),
 					// 所在日汇总排队中、在等 Express 关闭：状态不变，悬浮说明是现成那句（`p.express_waiting`）

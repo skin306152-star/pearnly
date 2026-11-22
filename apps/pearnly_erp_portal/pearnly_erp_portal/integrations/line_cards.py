@@ -357,7 +357,7 @@ def result(doc, created=None, *, final=False, name=""):
         return saved(doc, {"name": row.name, "system_no": row.system_no, **(created or {})})
     if not express_contracts.ledger_settled(state, reason):
         return entering(doc) if final else None
-    word = express_contracts.ledger_word(state)
+    word = express_contracts.ledger_word(state, reason)
     if word == express_contracts.SUCCEEDED:
         number = row.get("ledger_docnum") or row.get("system_no") or row.name
         return {"type": "text", "text": f"{_(word)} · {number}"}

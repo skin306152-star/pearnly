@@ -98,24 +98,28 @@ def printed_hold(recognized, printed_total, grand_total, net_payable=None):
 
 
 # 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败）：网页列表、详情、Express 弹窗与 LINE 回执同一张表（单据页
-# `public/desk/transactions.js` 的 ``LEDGER_WORDS`` 契约测试比对）。写进去了但回读核对不一致（mismatch）要人看，算失败、原因
-# :data:`MISMATCH_REASON`；人标记「已在 Express 手工处理」（handled）算成功。原因照旧在原因栏 / 悬浮里
+# `public/desk/transactions.js` 的 ``LEDGER_WORDS`` / ``AUTO_RETRY`` 契约测试比对）。录入中 = 交出去还在路上：排队中，以及停在
+# 每分钟会自己再试的原因上（:data:`AUTO_RETRY_REASONS`，主会话 11-22 审定）；失败只给要人处理的（停下待选、核对不一致、被拒、写入失败、
+# 已断开）。写进去了但回读核对不一致（mismatch）原因 :data:`MISMATCH_REASON`；人标记「已在 Express 手工处理」（handled）算成功。
+# 原因照旧在原因栏 / 悬浮里
 ENTERING, SUCCEEDED, NOT_DONE = "Entering", "Succeeded", "Failed"
 LEDGER_WORDS = {QUEUED: ENTERING, WRITTEN: SUCCEEDED, HANDLED: SUCCEEDED, HELD: NOT_DONE, FAILED: NOT_DONE,
                 MISMATCH: NOT_DONE, DETACHED: NOT_DONE}
 MISMATCH_REASON = "express.reason.mismatch"
+# 每分钟自己再试的停下原因（= :data:`POLL_REASONS`：没有账套、没有能写的电脑、主档在读、退货单的原 HS 还没写成）：算录入中
+AUTO_RETRY_REASONS = POLL_REASONS
 
 
-def ledger_word(state) -> str:
-    """单据账本状态 → 状态词词条（没在表里的原样）。"""
+def ledger_word(state, reason="") -> str:
+    """单据账本状态（与停下的原因）→ 状态词词条（没在表里的原样）。"""
+    if state == HELD and str(reason or "") in AUTO_RETRY_REASONS:
+        return ENTERING
     return LEDGER_WORDS.get(state or "", state or "")
 
 
 def ledger_settled(state, reason) -> bool:
-    """LINE 上等结果的这一单有没有结论：排队中、停在每分钟会自己再试的原因上（等电脑、主档在读、没有账套…）都还算在录入。"""
-    if not state or state == QUEUED:
-        return False
-    return not (state == HELD and str(reason or "") in POLL_REASONS)
+    """LINE 上等结果的这一单有没有结论：状态词是「录入中」的（排队中、停在自己会再试的原因上）还没有，等到超时回兜底。"""
+    return bool(state) and ledger_word(state, reason) != ENTERING
 
 
 def needs_person(state, reason) -> bool:
@@ -420,7 +424,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "NOT_YOURS", "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]
