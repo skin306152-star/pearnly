@@ -1223,6 +1223,21 @@ class Snapshot(Base):
         self.assertEqual(frappe.db.get_value(snapshot.DOCTYPE, {"docnum": "IV3"}, "remaining"), Decimal("30.00"))
         self.assertEqual(S.hashes.get(snapshot.PENDING), {})
 
+    def test_a_customer_with_no_open_invoice_reads_as_ready_after_the_minute_lands_it(self):
+        """11-20 线上缺陷⑦：没有未收发票的客户，每分钟的 advance 落库后删了请求，人点「刷新」又新发一件、回「正在读取」，
+        永远说不到「没有未收发票」。刚落库的那件这段时间里算读好了，不再新发；过了这段时间再点就重读一次。"""
+        self.assertEqual(snapshot.request("CO-1", BOOK, "NLT0314"), snapshot.READING)
+        key = snapshot.request_key(BOOK["key"], "NLT0314")
+        self.requests.finish(key, [], "2026-11-11T06:00:00+00:00")
+        snapshot.advance()
+        self.assertNotIn(key, self.requests.made)
+        self.assertEqual(snapshot.request("CO-1", BOOK, "NLT0314"), snapshot.READY)
+        self.assertEqual(snapshot.rows(BOOK["key"], "NLT0314"), [])
+        self.assertNotIn(key, self.requests.made)  # 没有新发
+        S.cache.pop(snapshot.LANDED + key)  # 过了那段时间
+        self.assertEqual(snapshot.request("CO-1", BOOK, "NLT0314"), snapshot.READING)
+        self.assertIn(key, self.requests.made)
+
     def test_choosing_the_company_in_line_warms_up_a_book_never_read_and_the_first_list_uses_it(self):
         """11-15 真机：第一次读客户发票要点「刷新」。选定公司时请电脑整本读一次（只给还没有快照的账套），选好客户时读好了就直接列出。"""
         self.as_user("a@x")
