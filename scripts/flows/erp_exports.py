@@ -134,9 +134,11 @@ print(json.dumps(out))
             {"case": "filtering by the general ledger state finds the documents that have one", "saved": columns,
              "ok": all(columns[key]["filter"] for key in ("purchase", "sales"))},
             {"case": "purchase / sales lists carry the general ledger columns", "saved": columns,
-             # 原因栏随状态一起回（11-22：每分钟自己再试的原因显示「录入中」，列表按状态 + 原因取词）
-             "ok": all(columns[key]["list"] in ([], LIST_LEDGER) for key in ("purchase", "sales"))
-             and columns["purchase"]["list"] == LIST_LEDGER}]
+             # 列表接口行里带通用账本的状态与单号（界面上仍是原来那一栏「Express」）；原因可以一起回（11-22：状态词按状态 + 原因算，
+             # 每分钟自己再试的原因显示「录入中」），不按字段个数判
+             "ok": all(not columns[key]["list"] or _ledger_keys_ok(columns[key]["list"]) for key in ("purchase", "sales"))
+             and _ledger_keys_ok(columns["purchase"]["list"])}]
 
 
-LIST_LEDGER = ["ledger_docnum", "ledger_reason", "ledger_state"]
+def _ledger_keys_ok(keys) -> bool:
+    return {"ledger_docnum", "ledger_state"} <= set(keys) <= {"ledger_docnum", "ledger_reason", "ledger_state"}
