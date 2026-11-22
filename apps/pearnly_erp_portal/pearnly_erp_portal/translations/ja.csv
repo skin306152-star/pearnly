@@ -495,8 +495,8 @@ Default withholding for service documents,サービス伝票の既定の源泉�
 Delete,削除
 Delete note,メモを削除
 Delete selected ({0}),選択を削除（{0}）
-Delete the stock count?,棚卸を削除しますか？
 Delete the note?,メモを削除しますか？
+Delete the stock count?,棚卸を削除しますか？
 Delete this card permanently? This cannot be undone.,このカードを完全に削除しますか？元に戻せません。
 Delete this list and all its cards permanently? This cannot be undone.,このリストとすべてのカードを完全に削除しますか？元に戻せません。
 Delete {0} stock counts? Posted ones cannot be deleted.,選択した {0} 件の棚卸を削除しますか？転記済みは削除できません。
@@ -2581,16 +2581,16 @@ express.state.written,書き込み済み
 express.summary.extra,追加分
 express.void,Express で取消
 goods,物品
-guide.business.stocktake,棚卸
-guide.consent.stocktake.close,棚卸を終了しますか？
-guide.consent.stocktake.delete,棚卸を削除しますか？
-guide.open.stocktake,操作を選択してください。
 guide.business.company,会社情報
 guide.business.company_add,会社を追加
+guide.business.stocktake,棚卸
 guide.consent.company.note_delete,メモを削除しますか？
+guide.consent.stocktake.close,棚卸を終了しますか？
+guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.fact.company.none,会社が未選択です
 guide.open.company,操作を選択してください。
 guide.open.company_add,追加する会社を選択してください。
+guide.open.stocktake,操作を選択してください。
 guide.option.company.note_add,メモを追加
 guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
@@ -2603,6 +2603,10 @@ guide.step.collection.day,入金日
 guide.step.collection.invoices,請求書
 guide.step.collection.methods,入金方法
 guide.step.collection.voucher,振込明細
+guide.step.company.action,操作
+guide.step.company.note,メモ
+guide.step.company.text,内容
+guide.step.company_add.companies,会社
 guide.step.stocktake.action,操作
 guide.step.stocktake.category,カテゴリ
 guide.step.stocktake.code,バーコード / QRコード
@@ -2616,10 +2620,6 @@ guide.step.stocktake.title,名前
 guide.step.stocktake.unit,単位
 guide.step.stocktake.unit_price,販売価格
 guide.step.stocktake.warehouse,倉庫
-guide.step.company.action,操作
-guide.step.company.note,メモ
-guide.step.company.text,内容
-guide.step.company_add.companies,会社
 hq,本店
 "image or pdf, as LINE reported it",image または pdf（LINEが通知したまま）
 issued,発行済み

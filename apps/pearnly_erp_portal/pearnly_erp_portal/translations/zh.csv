@@ -495,8 +495,8 @@ Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
 Delete note,删除笔记
 Delete selected ({0}),删除所选（{0}）
-Delete the stock count?,要删除盘点吗？
 Delete the note?,要删除笔记吗？
+Delete the stock count?,要删除盘点吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
 Delete this list and all its cards permanently? This cannot be undone.,确定要永久删除此列表及其中所有卡片吗？删除后无法恢复。
 Delete {0} stock counts? Posted ones cannot be deleted.,确定要删除选中的 {0} 份盘点吗？已过账的盘点无法删除。
@@ -2581,16 +2581,16 @@ express.state.written,已写入
 express.summary.extra,补单
 express.void,Express 作废
 goods,货物
-guide.business.stocktake,盘点
-guide.consent.stocktake.close,要结束盘点吗？
-guide.consent.stocktake.delete,要删除盘点吗？
-guide.open.stocktake,选择操作。
 guide.business.company,公司资料
 guide.business.company_add,添加公司
+guide.business.stocktake,盘点
 guide.consent.company.note_delete,要删除笔记吗？
+guide.consent.stocktake.close,要结束盘点吗？
+guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.open.company,选择操作。
 guide.open.company_add,选择要添加的公司。
+guide.open.stocktake,选择操作。
 guide.option.company.note_add,添加笔记
 guide.option.company.note_delete,删除笔记
 guide.option.company.note_edit,编辑笔记
@@ -2603,6 +2603,10 @@ guide.step.collection.day,收款日期
 guide.step.collection.invoices,发票
 guide.step.collection.methods,收款方式
 guide.step.collection.voucher,转账凭证
+guide.step.company.action,操作
+guide.step.company.note,笔记
+guide.step.company.text,内容
+guide.step.company_add.companies,公司
 guide.step.stocktake.action,操作
 guide.step.stocktake.category,分类
 guide.step.stocktake.code,条码/二维码
@@ -2616,10 +2620,6 @@ guide.step.stocktake.title,名称
 guide.step.stocktake.unit,单位
 guide.step.stocktake.unit_price,售价
 guide.step.stocktake.warehouse,仓库
-guide.step.company.action,操作
-guide.step.company.note,笔记
-guide.step.company.text,内容
-guide.step.company_add.companies,公司
 hq,总部
 "image or pdf, as LINE reported it",image 或 pdf（LINE 返回的原始值）
 issued,已开出

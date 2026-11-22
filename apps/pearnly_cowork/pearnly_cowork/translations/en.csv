@@ -602,9 +602,9 @@ Defaults,Defaults
 Delete note,Delete note
 Delete rule,Delete rule
 Delete selected ({0}),Delete selected ({0})
-Delete the stock counts?,Delete the stock counts?
 Delete the note?,Delete the note?
 Delete the rule?,Delete the rule?
+Delete the stock counts?,Delete the stock counts?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3502,31 +3502,25 @@ erp.target_projection_value_required,The ERP data report is missing a required v
 erp.target_projection_value_too_long,A value in the ERP data report exceeds the allowed length.
 excel,excel
 failed,Failed
+guide.business.company,Company Details
 guide.business.pos,POS Daily Sales
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
+guide.business.stocktake,Stock Count
 guide.business.vat,VAT Return
 guide.business.wht,Withholding Tax
-guide.open.pos,Upload the POS export.
-guide.business.stocktake,Stock Count
-guide.consent.stocktake.close,Close the stock count?
-guide.consent.stocktake.delete,Delete the stock counts?
 guide.consent.company.note_delete,Delete the note?
 guide.consent.company.rule_delete,Delete the rule?
+guide.consent.stocktake.close,Close the stock count?
+guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
+guide.open.pos,Upload the POS export.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
+guide.open.stocktake,Choose an action.
 guide.open.vat,Choose the tax month.
 guide.open.wht,Choose the tax month.
-guide.step.pos.columns,Columns
-guide.step.pos.days,Daily Totals
-guide.step.pos.export,POS Export
-guide.step.pos.posting_kind,Posting
-guide.open.stocktake,Choose an action.
-guide.business.company,Company Details
-guide.fact.company.none,No company selected
-guide.open.company,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
@@ -3535,6 +3529,10 @@ guide.option.company.rule_promote,Set for whole company
 guide.step.company.action,Action
 guide.step.company.note,Item
 guide.step.company.text,Text
+guide.step.pos.columns,Columns
+guide.step.pos.days,Daily Totals
+guide.step.pos.export,POS Export
+guide.step.pos.posting_kind,Posting
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
@@ -3545,12 +3543,6 @@ guide.step.recon.readback,Readback
 guide.step.recon.sales_vat,Output VAT report
 guide.step.recon.source,Source
 guide.step.recon.statement,Bank statement
-guide.step.vat.excess_brought_forward,Excess tax brought forward
-guide.step.vat.exempt_sales,Exempt sales
-guide.step.vat.period,Tax Month
-guide.step.vat.readback,Readback
-guide.step.vat.zero_vat_as,Rows with zero VAT
-guide.step.wht.period,Tax Month
 guide.step.stocktake.action,Action
 guide.step.stocktake.count,Stock count
 guide.step.stocktake.counts,Stock counts
@@ -3558,6 +3550,12 @@ guide.step.stocktake.file,Sheet
 guide.step.stocktake.mode,Method
 guide.step.stocktake.rows,Quantity counted this time
 guide.step.stocktake.title,Name
+guide.step.vat.excess_brought_forward,Excess tax brought forward
+guide.step.vat.exempt_sales,Exempt sales
+guide.step.vat.period,Tax Month
+guide.step.vat.readback,Readback
+guide.step.vat.zero_vat_as,Rows with zero VAT
+guide.step.wht.period,Tax Month
 held,held
 history.date_anchor_invalid,The date reference year is invalid. Reload and try again.
 history.date_anchor_required,The date reference year is missing. Reload and try again.

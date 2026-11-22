@@ -602,9 +602,9 @@ Defaults,既定値
 Delete note,メモを削除
 Delete rule,ルールを削除
 Delete selected ({0}),選択を削除（{0}）
-Delete the stock counts?,棚卸を削除しますか？
 Delete the note?,メモを削除しますか？
 Delete the rule?,ルールを削除しますか？
+Delete the stock counts?,棚卸を削除しますか？
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
@@ -3502,31 +3502,25 @@ erp.target_projection_value_required,ERP データレポートに必須の値が
 erp.target_projection_value_too_long,ERP データレポート内の値が許容される長さを超えています。
 excel,Excel
 failed,失敗
+guide.business.company,会社情報
 guide.business.pos,POS 日次売上
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
+guide.business.stocktake,棚卸
 guide.business.vat,付加価値税申告書
 guide.business.wht,源泉徴収税申告書
-guide.open.pos,POS のエクスポートをアップロードしてください。
-guide.business.stocktake,棚卸
-guide.consent.stocktake.close,棚卸を終了しますか？
-guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.consent.company.note_delete,メモを削除しますか？
 guide.consent.company.rule_delete,ルールを削除しますか？
+guide.consent.stocktake.close,棚卸を終了しますか？
+guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.fact.company.none,会社が未選択です
 guide.open.company,操作を選択してください。
+guide.open.pos,POS のエクスポートをアップロードしてください。
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
+guide.open.stocktake,操作を選択してください。
 guide.open.vat,課税月を選択してください。
 guide.open.wht,課税月を選択してください。
-guide.step.pos.columns,列
-guide.step.pos.days,日次合計
-guide.step.pos.export,POS エクスポート
-guide.step.pos.posting_kind,記帳方法
-guide.open.stocktake,操作を選択してください。
-guide.business.company,会社情報
-guide.fact.company.none,会社が未選択です
-guide.open.company,操作を選択してください。
 guide.option.company.note_add,メモを追加
 guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
@@ -3535,6 +3529,10 @@ guide.option.company.rule_promote,会社全体に設定
 guide.step.company.action,操作
 guide.step.company.note,対象
 guide.step.company.text,内容
+guide.step.pos.columns,列
+guide.step.pos.days,日次合計
+guide.step.pos.export,POS エクスポート
+guide.step.pos.posting_kind,記帳方法
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
@@ -3545,12 +3543,6 @@ guide.step.recon.readback,読み戻し
 guide.step.recon.sales_vat,売上税報告
 guide.step.recon.source,取得元
 guide.step.recon.statement,銀行明細
-guide.step.vat.excess_brought_forward,繰越超過納付額
-guide.step.vat.exempt_sales,免税の売上高
-guide.step.vat.period,課税月
-guide.step.vat.readback,読み戻し
-guide.step.vat.zero_vat_as,税額ゼロの行
-guide.step.wht.period,課税月
 guide.step.stocktake.action,操作
 guide.step.stocktake.count,棚卸
 guide.step.stocktake.counts,棚卸
@@ -3558,6 +3550,12 @@ guide.step.stocktake.file,シート
 guide.step.stocktake.mode,方法
 guide.step.stocktake.rows,今回の実地数量
 guide.step.stocktake.title,名前
+guide.step.vat.excess_brought_forward,繰越超過納付額
+guide.step.vat.exempt_sales,免税の売上高
+guide.step.vat.period,課税月
+guide.step.vat.readback,読み戻し
+guide.step.vat.zero_vat_as,税額ゼロの行
+guide.step.wht.period,課税月
 held,送信連携待ち
 history.date_anchor_invalid,日付の基準年が無効です。再読み込みしてから再試行してください。
 history.date_anchor_required,日付の基準年がありません。再読み込みしてから再試行してください。

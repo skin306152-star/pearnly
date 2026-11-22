@@ -602,9 +602,9 @@ Defaults,默认值
 Delete note,删除笔记
 Delete rule,删除规则
 Delete selected ({0}),删除所选（{0}）
-Delete the stock counts?,要删除盘点吗？
 Delete the note?,要删除笔记吗？
 Delete the rule?,要删除规则吗？
+Delete the stock counts?,要删除盘点吗？
 Delete these documents?,确定要删除以下单据吗？
 Delete these reconciliations?,确定要删除以下对账任务吗？
 Delete these scheduled tasks?,确定要删除以下定时任务吗？
@@ -3502,31 +3502,25 @@ erp.target_projection_value_required,ERP 数据报告缺少必填值。
 erp.target_projection_value_too_long,ERP 数据报告中的值超过允许长度。
 excel,Excel
 failed,失败
+guide.business.company,公司资料
 guide.business.pos,收银日汇总
 guide.business.readback,回读
 guide.business.recon,对账中心
+guide.business.stocktake,盘点
 guide.business.vat,增值税申报表
 guide.business.wht,预扣税申报表
-guide.open.pos,请上传 POS 导出。
-guide.business.stocktake,盘点
-guide.consent.stocktake.close,要结束盘点吗？
-guide.consent.stocktake.delete,要删除盘点吗？
 guide.consent.company.note_delete,要删除笔记吗？
 guide.consent.company.rule_delete,要删除规则吗？
+guide.consent.stocktake.close,要结束盘点吗？
+guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.open.company,选择操作。
+guide.open.pos,请上传 POS 导出。
 guide.open.readback,选择账套和月份。
 guide.open.recon,选择对账类型。
+guide.open.stocktake,选择操作。
 guide.open.vat,选择税务月份。
 guide.open.wht,选择税务月份。
-guide.step.pos.columns,列
-guide.step.pos.days,每日合计
-guide.step.pos.export,POS 导出
-guide.step.pos.posting_kind,入账方式
-guide.open.stocktake,选择操作。
-guide.business.company,公司资料
-guide.fact.company.none,未选公司
-guide.open.company,选择操作。
 guide.option.company.note_add,添加笔记
 guide.option.company.note_delete,删除笔记
 guide.option.company.note_edit,编辑笔记
@@ -3535,6 +3529,10 @@ guide.option.company.rule_promote,设为全公司
 guide.step.company.action,操作
 guide.step.company.note,对象
 guide.step.company.text,内容
+guide.step.pos.columns,列
+guide.step.pos.days,每日合计
+guide.step.pos.export,POS 导出
+guide.step.pos.posting_kind,入账方式
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
@@ -3545,12 +3543,6 @@ guide.step.recon.readback,回读
 guide.step.recon.sales_vat,销项税报告
 guide.step.recon.source,来源
 guide.step.recon.statement,银行账单
-guide.step.vat.excess_brought_forward,上期结转的多缴税额
-guide.step.vat.exempt_sales,免税销售额
-guide.step.vat.period,税务月份
-guide.step.vat.readback,回读
-guide.step.vat.zero_vat_as,税额为零的行
-guide.step.wht.period,税务月份
 guide.step.stocktake.action,操作
 guide.step.stocktake.count,库存盘点
 guide.step.stocktake.counts,库存盘点
@@ -3558,6 +3550,12 @@ guide.step.stocktake.file,表格文件
 guide.step.stocktake.mode,方式
 guide.step.stocktake.rows,本次实盘数量
 guide.step.stocktake.title,名称
+guide.step.vat.excess_brought_forward,上期结转的多缴税额
+guide.step.vat.exempt_sales,免税销售额
+guide.step.vat.period,税务月份
+guide.step.vat.readback,回读
+guide.step.vat.zero_vat_as,税额为零的行
+guide.step.wht.period,税务月份
 held,待接入发送
 history.date_anchor_invalid,日期参考年份无效，请重新加载后重试。
 history.date_anchor_required,缺少日期参考年份，请重新加载后重试。

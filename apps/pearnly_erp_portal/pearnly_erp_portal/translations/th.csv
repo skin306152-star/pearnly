@@ -495,8 +495,8 @@ Default withholding for service documents,ภาษีหัก ณ ที่จ
 Delete,ลบ
 Delete note,ลบบันทึก
 Delete selected ({0}),ลบที่เลือก ({0})
-Delete the stock count?,ลบการตรวจนับหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
+Delete the stock count?,ลบการตรวจนับหรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete this list and all its cards permanently? This cannot be undone.,ต้องการลบรายการนี้และการ์ดทั้งหมดในรายการถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
 Delete {0} stock counts? Posted ones cannot be deleted.,ต้องการลบการตรวจนับ {0} รายการที่เลือกใช่หรือไม่ รายการที่ลงบัญชีแล้วไม่สามารถลบได้
@@ -2581,16 +2581,16 @@ express.state.written,บันทึกแล้ว
 express.summary.extra,ใบเพิ่มเติม
 express.void,ยกเลิกใน Express
 goods,สินค้า
-guide.business.stocktake,ตรวจนับสินค้า
-guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
-guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
-guide.open.stocktake,เลือกการดำเนินการ
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
+guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
+guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
+guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.company_add,เลือกบริษัทที่จะเพิ่ม
+guide.open.stocktake,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
@@ -2603,6 +2603,10 @@ guide.step.collection.day,วันที่รับเงิน
 guide.step.collection.invoices,ใบแจ้งหนี้
 guide.step.collection.methods,วิธีรับเงิน
 guide.step.collection.voucher,สลิปการโอน
+guide.step.company.action,การดำเนินการ
+guide.step.company.note,บันทึก
+guide.step.company.text,ข้อความ
+guide.step.company_add.companies,บริษัท
 guide.step.stocktake.action,การดำเนินการ
 guide.step.stocktake.category,หมวดหมู่
 guide.step.stocktake.code,บาร์โค้ด / คิวอาร์โค้ด
@@ -2616,10 +2620,6 @@ guide.step.stocktake.title,ชื่อ
 guide.step.stocktake.unit,หน่วย
 guide.step.stocktake.unit_price,ราคาขาย
 guide.step.stocktake.warehouse,คลังสินค้า
-guide.step.company.action,การดำเนินการ
-guide.step.company.note,บันทึก
-guide.step.company.text,ข้อความ
-guide.step.company_add.companies,บริษัท
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

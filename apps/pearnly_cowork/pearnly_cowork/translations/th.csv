@@ -602,9 +602,9 @@ Defaults,ค่าเริ่มต้น
 Delete note,ลบบันทึก
 Delete rule,ลบกฎ
 Delete selected ({0}),ลบที่เลือก ({0})
-Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
 Delete the rule?,ลบกฎหรือไม่
+Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3502,31 +3502,25 @@ erp.target_projection_value_required,รายงานข้อมูล ERP �
 erp.target_projection_value_too_long,ค่าในรายงานข้อมูล ERP ยาวเกินขีดจำกัด
 excel,Excel
 failed,ล้มเหลว
+guide.business.company,ข้อมูลบริษัท
 guide.business.pos,ยอดขายรายวันจาก POS
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
+guide.business.stocktake,ตรวจนับสินค้า
 guide.business.vat,แบบ ภ.พ.30
 guide.business.wht,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
-guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
-guide.business.stocktake,ตรวจนับสินค้า
-guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
-guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.company.rule_delete,ลบกฎหรือไม่
+guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
+guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
+guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
+guide.open.stocktake,เลือกการดำเนินการ
 guide.open.vat,เลือกเดือนภาษี
 guide.open.wht,เลือกเดือนภาษี
-guide.step.pos.columns,คอลัมน์
-guide.step.pos.days,ยอดรวมรายวัน
-guide.step.pos.export,ไฟล์ส่งออก POS
-guide.step.pos.posting_kind,วิธีบันทึกบัญชี
-guide.open.stocktake,เลือกการดำเนินการ
-guide.business.company,ข้อมูลบริษัท
-guide.fact.company.none,ยังไม่ได้เลือกบริษัท
-guide.open.company,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
@@ -3535,6 +3529,10 @@ guide.option.company.rule_promote,ตั้งเป็นทั้งบริ�
 guide.step.company.action,การดำเนินการ
 guide.step.company.note,รายการ
 guide.step.company.text,ข้อความ
+guide.step.pos.columns,คอลัมน์
+guide.step.pos.days,ยอดรวมรายวัน
+guide.step.pos.export,ไฟล์ส่งออก POS
+guide.step.pos.posting_kind,วิธีบันทึกบัญชี
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย
@@ -3545,12 +3543,6 @@ guide.step.recon.readback,การอ่านข้อมูลกลับ
 guide.step.recon.sales_vat,รายงานภาษีขาย
 guide.step.recon.source,แหล่งที่มา
 guide.step.recon.statement,รายการเดินบัญชีธนาคาร
-guide.step.vat.excess_brought_forward,ภาษีที่ชำระเกินยกมา
-guide.step.vat.exempt_sales,ยอดขายที่ได้รับยกเว้น
-guide.step.vat.period,เดือนภาษี
-guide.step.vat.readback,การอ่านข้อมูลกลับ
-guide.step.vat.zero_vat_as,รายการที่ภาษีเป็นศูนย์
-guide.step.wht.period,เดือนภาษี
 guide.step.stocktake.action,การดำเนินการ
 guide.step.stocktake.count,ตรวจนับสินค้า
 guide.step.stocktake.counts,ตรวจนับสินค้า
@@ -3558,6 +3550,12 @@ guide.step.stocktake.file,ไฟล์
 guide.step.stocktake.mode,วิธี
 guide.step.stocktake.rows,จำนวนที่นับครั้งนี้
 guide.step.stocktake.title,ชื่อ
+guide.step.vat.excess_brought_forward,ภาษีที่ชำระเกินยกมา
+guide.step.vat.exempt_sales,ยอดขายที่ได้รับยกเว้น
+guide.step.vat.period,เดือนภาษี
+guide.step.vat.readback,การอ่านข้อมูลกลับ
+guide.step.vat.zero_vat_as,รายการที่ภาษีเป็นศูนย์
+guide.step.wht.period,เดือนภาษี
 held,รอเชื่อมต่อการส่ง
 history.date_anchor_invalid,ปีอ้างอิงสำหรับวันที่ไม่ถูกต้อง กรุณาโหลดใหม่แล้วลองอีกครั้ง
 history.date_anchor_required,ไม่มีปีอ้างอิงสำหรับวันที่ กรุณาโหลดใหม่แล้วลองอีกครั้ง

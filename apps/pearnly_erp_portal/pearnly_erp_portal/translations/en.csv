@@ -495,8 +495,8 @@ Default withholding for service documents,Default withholding for service docume
 Delete,Delete
 Delete note,Delete note
 Delete selected ({0}),Delete selected ({0})
-Delete the stock count?,Delete the stock count?
 Delete the note?,Delete the note?
+Delete the stock count?,Delete the stock count?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
 Delete this list and all its cards permanently? This cannot be undone.,Delete this list and all its cards permanently? This cannot be undone.
 Delete {0} stock counts? Posted ones cannot be deleted.,Delete {0} stock counts? Posted ones cannot be deleted.
@@ -2581,16 +2581,16 @@ express.state.written,Written
 express.summary.extra,Late receipts
 express.void,Cancel in Express
 goods,goods
-guide.business.stocktake,Stock Count
-guide.consent.stocktake.close,Close the stock count?
-guide.consent.stocktake.delete,Delete the stock count?
-guide.open.stocktake,Choose an action.
 guide.business.company,Company Details
 guide.business.company_add,Add Company
+guide.business.stocktake,Stock Count
 guide.consent.company.note_delete,Delete the note?
+guide.consent.stocktake.close,Close the stock count?
+guide.consent.stocktake.delete,Delete the stock count?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
 guide.open.company_add,Choose the companies to add.
+guide.open.stocktake,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
@@ -2603,6 +2603,10 @@ guide.step.collection.day,Collection Date
 guide.step.collection.invoices,Invoices
 guide.step.collection.methods,Collection Method
 guide.step.collection.voucher,Transfer Slip
+guide.step.company.action,Action
+guide.step.company.note,Note
+guide.step.company.text,Text
+guide.step.company_add.companies,Companies
 guide.step.stocktake.action,Action
 guide.step.stocktake.category,Category
 guide.step.stocktake.code,Barcode / QR code
@@ -2616,10 +2620,6 @@ guide.step.stocktake.title,Name
 guide.step.stocktake.unit,Unit
 guide.step.stocktake.unit_price,Selling price
 guide.step.stocktake.warehouse,Warehouse
-guide.step.company.action,Action
-guide.step.company.note,Note
-guide.step.company.text,Text
-guide.step.company_add.companies,Companies
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued
