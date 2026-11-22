@@ -75,9 +75,10 @@ def save(name) -> dict:
     if adapter == "express":
         view = application.choices_view(name, connection, account_set, posting_kind)
         if view.get("wait"):
-            # 科目表还在读（或电脑离线等）：``wait`` 是这一档（`service.masters_wait`），读好了 LINE 接着保存（`line.save`）
-            return {"stop": view["wait"].get("message") or "", "wait": view["wait"].get("state") or "reading",
-                    "connection": connection}
+            # 科目表此刻不能用（`service.masters_wait`）：还在读的带 ``wait``，读好了 LINE 接着保存（`line.save`）；电脑离线、读不到等
+            # 等也不会好的照旧只回那句原因
+            reading = (view["wait"].get("state") or "reading") == "reading"
+            return {"stop": view["wait"].get("message") or "", **({"wait": True, "connection": connection} if reading else {})}
         if view.get("needed"):
             return {"stop": export_facts.reason_text("choice_needed")}
         if stock_group_stop(view):
