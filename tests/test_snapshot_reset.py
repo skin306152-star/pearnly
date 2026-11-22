@@ -42,6 +42,7 @@ REGISTERED = {
     ("pearnly_cowork/pearnly_cowork/assistant/tools.py", "recognize_attachments"): (1, "此前每笔写都已提交"),
     ("pearnly_cowork/pearnly_cowork/assistant/tools.py", "refresh_account_sets"): (1, "紧跟在本函数自己的提交之后"),
     ("pearnly_cowork/pearnly_cowork/assistant/tools.py", "save_folder_tasks"): (1, "整批保存失败时撤销自己这一批"),
+    ("pearnly_cowork/pearnly_cowork/assistant/guided/stocktake.py", "_refused"): (1, "盘点引导确定时的出错分支，只撤销失败那一步自己的写（引擎调确定前已提交「已确定」，guide.run.confirm）"),
     ("pearnly_cowork/pearnly_cowork/companion/transport.py", "_claim_mrerp"): (1, "回到保存点"),
     ("pearnly_cowork/pearnly_cowork/connections/mrerp_menu_reader.py", "run"): (1, "后台任务开头"),
     ("pearnly_cowork/pearnly_cowork/folder_intake/rules.py", "save_many"): (1, "回到保存点"),
