@@ -606,8 +606,8 @@ Delete selected ({0}),ลบที่เลือก ({0})
 Delete the documents?,ลบเอกสารหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
 Delete the rule?,ลบกฎหรือไม่
-Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete the scheduled tasks?,ลบงานตามกำหนดเวลาหรือไม่
+Delete the stock counts?,ลบการตรวจนับหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3516,6 +3516,7 @@ erp.target_projection_value_too_long,ค่าในรายงานข้อ�
 excel,Excel
 failed,ล้มเหลว
 guide.business.company,ข้อมูลบริษัท
+guide.business.folder_task,งานตามกำหนดเวลา
 guide.business.pending,รอดำเนินการ
 guide.business.pos,ยอดขายรายวันจาก POS
 guide.business.readback,อ่านข้อมูลกลับ
@@ -3526,12 +3527,15 @@ guide.business.wht,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
 guide.business.work,จัดการงาน
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.company.rule_delete,ลบกฎหรือไม่
+guide.consent.folder_task.delete,ลบงานตามกำหนดเวลาหรือไม่
+guide.consent.folder_task.run,เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่
 guide.consent.pending.delete,ลบเอกสารหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.fact.work.nothing,ไม่มีรายการที่จะแก้ไข
 guide.open.company,เลือกการดำเนินการ
+guide.open.folder_task,เลือกการดำเนินการ
 guide.open.pending,เลือกการดำเนินการ
 guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
 guide.open.readback,เลือกชุดบัญชีและเดือน
@@ -3554,17 +3558,6 @@ guide.option.work.update,แก้ไขการ์ด
 guide.step.company.action,การดำเนินการ
 guide.step.company.note,รายการ
 guide.step.company.text,ข้อความ
-guide.step.pending.action,การดำเนินการ
-guide.step.pending.item,เอกสาร
-guide.step.pending.items,เอกสาร
-guide.step.pos.columns,คอลัมน์
-guide.step.pos.days,ยอดรวมรายวัน
-guide.step.pos.export,ไฟล์ส่งออก POS
-guide.step.pos.posting_kind,วิธีบันทึกบัญชี
-guide.business.folder_task,งานตามกำหนดเวลา
-guide.consent.folder_task.delete,ลบงานตามกำหนดเวลาหรือไม่
-guide.consent.folder_task.run,เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่
-guide.open.folder_task,เลือกการดำเนินการ
 guide.step.folder_task.account,รหัสบัญชี
 guide.step.folder_task.action,การดำเนินการ
 guide.step.folder_task.book,ชุดบัญชี
@@ -3583,6 +3576,13 @@ guide.step.folder_task.tasks,งานตามกำหนดเวลา
 guide.step.folder_task.times,เวลาแจ้งเตือน
 guide.step.folder_task.title,ชื่องาน
 guide.step.folder_task.vat,ภาษีในใบเสร็จรับเงินและใบกำกับภาษีอย่างย่อ
+guide.step.pending.action,การดำเนินการ
+guide.step.pending.item,เอกสาร
+guide.step.pending.items,เอกสาร
+guide.step.pos.columns,คอลัมน์
+guide.step.pos.days,ยอดรวมรายวัน
+guide.step.pos.export,ไฟล์ส่งออก POS
+guide.step.pos.posting_kind,วิธีบันทึกบัญชี
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

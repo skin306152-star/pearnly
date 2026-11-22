@@ -606,8 +606,8 @@ Delete selected ({0}),Delete selected ({0})
 Delete the documents?,Delete the documents?
 Delete the note?,Delete the note?
 Delete the rule?,Delete the rule?
-Delete the stock counts?,Delete the stock counts?
 Delete the scheduled tasks?,Delete the scheduled tasks?
+Delete the stock counts?,Delete the stock counts?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3516,6 +3516,7 @@ erp.target_projection_value_too_long,A value in the ERP data report exceeds the 
 excel,excel
 failed,Failed
 guide.business.company,Company Details
+guide.business.folder_task,Scheduled tasks
 guide.business.pending,Pending
 guide.business.pos,POS Daily Sales
 guide.business.readback,Read Back
@@ -3526,12 +3527,15 @@ guide.business.wht,Withholding Tax
 guide.business.work,Task Management
 guide.consent.company.note_delete,Delete the note?
 guide.consent.company.rule_delete,Delete the rule?
+guide.consent.folder_task.delete,Delete the scheduled tasks?
+guide.consent.folder_task.run,Run the scheduled task now?
 guide.consent.pending.delete,Delete the documents?
 guide.consent.stocktake.close,Close the stock count?
 guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
 guide.fact.work.nothing,Nothing to change
 guide.open.company,Choose an action.
+guide.open.folder_task,Choose an action.
 guide.open.pending,Choose an action.
 guide.open.pos,Upload the POS export.
 guide.open.readback,Choose the account set and month.
@@ -3554,17 +3558,6 @@ guide.option.work.update,Edit card
 guide.step.company.action,Action
 guide.step.company.note,Item
 guide.step.company.text,Text
-guide.step.pending.action,Action
-guide.step.pending.item,Document
-guide.step.pending.items,Documents
-guide.step.pos.columns,Columns
-guide.step.pos.days,Daily Totals
-guide.step.pos.export,POS Export
-guide.step.pos.posting_kind,Posting
-guide.business.folder_task,Scheduled tasks
-guide.consent.folder_task.delete,Delete the scheduled tasks?
-guide.consent.folder_task.run,Run the scheduled task now?
-guide.open.folder_task,Choose an action.
 guide.step.folder_task.account,Account
 guide.step.folder_task.action,Action
 guide.step.folder_task.book,Account Set
@@ -3583,6 +3576,13 @@ guide.step.folder_task.tasks,Scheduled tasks
 guide.step.folder_task.times,Reminder time
 guide.step.folder_task.title,Task name
 guide.step.folder_task.vat,VAT on receipts and abbreviated tax invoices
+guide.step.pending.action,Action
+guide.step.pending.item,Document
+guide.step.pending.items,Documents
+guide.step.pos.columns,Columns
+guide.step.pos.days,Daily Totals
+guide.step.pos.export,POS Export
+guide.step.pos.posting_kind,Posting
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices
