@@ -296,11 +296,15 @@ def test_warehouses_left_out_when_stcrd_cannot_be_read(acct, monkeypatch):
     assert "warehouses" not in CP.catalog_payload(acct)
 
 
-def test_a_group_without_a_cost_of_sales_account_is_not_offered(chart):
+def test_a_group_without_a_cost_of_sales_account_is_reported_unfit(chart):
     """11-20：69EXP\\TEST 有个组只配了存货科目、没配销货成本科目，选了它写账就停在 STOCK_IN_FAILED（缺存货 / COGS 科目）。
-    合格判据与写账同一份（存货科目过建档那关，且存货、销货成本科目都在），这种组不报。"""
+    合格判据与写账同一份（存货科目过建档那关，且存货、销货成本科目都在），这种组标不合格。1.12.23 起 CC 照报全部组、
+    不合格的排在合格的后面（服务端出卡与保存只认合格的，主会话 11-20），所以它在上报里、带 fit=False。"""
     _add(chart, "ISACC", ACCTYP="S", ACCCOD="ST11", ACCDES="ไม่มีต้นทุนขาย", METHOD="A",
          ACCNUM01="11-04-04-00", ACCNUM02="")
     fit = {c["code"]: c["fit"] for c in CP.probe_isacc_candidates(chart)}
     assert fit["ST11"] is False and fit["ST10"] is True
-    assert "ST11" not in {c["code"] for c in CP.catalog_payload(chart)["isacc_candidates"]}
+    reported = CP.catalog_payload(chart)["isacc_candidates"]
+    assert {c["code"]: c["fit"] for c in reported}["ST11"] is False
+    first_unfit = next(i for i, c in enumerate(reported) if not c["fit"])
+    assert all(not c["fit"] for c in reported[first_unfit:])
