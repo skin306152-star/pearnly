@@ -456,7 +456,9 @@ class LineCardSaveTest(unittest.TestCase):
 
     def get_value(self, doctype, name, fields=None, as_dict=False):
         if doctype == self.save.HISTORY:
-            return self.after
+            return getattr(self, "owner", "a@x") if fields == "owner" else self.after
+        if doctype == "Cowork Push Record":
+            return "EX-1" if fields == "external_docnum" else None
         # 连接的版本号按真实 DocType 名取（11-19 真机：写成不存在的「Cowork Connection」，保存直接抛错、LINE 不回话）
         self.assertEqual(doctype, "Cowork ERP Connection")
         return 7
@@ -549,7 +551,7 @@ class LineCardSaveTest(unittest.TestCase):
 
     def test_line_reaches_push_only_through_card_save(self):
         """架构登记 line → push（11-19 主会话批）只为卡片「保存」「取消」：line 域只许导入 `push.application.card_save`、只调它的
-        `save` / `cancel`。"""
+        `save` / `cancel`，与保存后读结果的 `outcome`（11-22 LINE 回执）。"""
         import ast
 
         base = root / "apps" / "pearnly_cowork" / "pearnly_cowork" / "line"
@@ -564,7 +566,7 @@ class LineCardSaveTest(unittest.TestCase):
                 elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name) and node.value.id == "card_save":
                     found.add(("card_save.", node.attr))
         self.assertEqual(found, {("pearnly_cowork.push.application", "card_save"), ("card_save.", "save"),
-                                 ("card_save.", "cancel")})
+                                 ("card_save.", "cancel"), ("card_save.", "outcome")})  # outcome：保存后的回执（11-22）
 
     def test_an_unexpected_error_answers_failed(self):
         replies = []
@@ -577,6 +579,94 @@ class LineCardSaveTest(unittest.TestCase):
             self.line_save.reply("CWH-3", "tok")
         self.assertEqual(replies, [[{"type": "text", "text": "Failed"}]])
         log.assert_called_once()
+
+    def _waited(self, **extra):
+        """点「保存」：回 (交给 line_receipt.start 的参数, 当场回的)。"""
+        from pearnly_core.line_ui import receipt as line_receipt
+
+        replies = []
+        with mock.patch.object(self.line_save, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch("pearnly_core.account.line_login.entry_url", side_effect=lambda path: "https://t" + path), \
+                mock.patch.object(line_receipt, "start", return_value=True) as start, \
+                mock.patch.object(line_receipt, "settle") as settle, \
+                mock.patch("pearnly_core.line.reply", side_effect=lambda token, messages: replies.append(messages)):
+            self.line_save.reply("CWH-3", "tok", **extra)
+        self.settled = settle
+        return start, replies
+
+    def resume(self):
+        with mock.patch.object(self.line_save, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch("pearnly_core.account.line_login.entry_url", side_effect=lambda path: "https://t" + path):
+            return self.line_save.resume("CWH-3")
+
+    def test_save_waits_for_the_push_receipt_and_answers_with_the_result(self):
+        """用户 11-22：推出去了先三个点、不先回「录入中」；推送回执落库时回「成功 · Express 单号」/「失败 · 原因」+【编辑】，
+        等不到才回「录入中」+【查看结果】。"""
+        start, replies = self._waited()
+        self.assertEqual(replies, [])
+        key, user, token, fallback = start.call_args.args
+        self.assertEqual((key, token), ("cowork:save:CWH-3", "tok"))
+        self.assertEqual(fallback[0]["text"], "Entering")
+        self.assertEqual([item["action"]["data"] for item in fallback[0]["quickReply"]["items"]], ["a=cowork_result&n=CWH-3"])
+        self.assertEqual(start.call_args.kwargs["resume"], "pearnly_cowork.line.save.resume")
+        self.settled.assert_not_called()  # 回执还没到
+        self.assertIsNone(self.resume())  # 叫醒了还在录入：接着等
+        self.after = {"last_push_status": "success", "last_push_reason": "", "last_push_record": "PR-1"}
+        self.assertEqual(self.resume(), [{"type": "text", "text": "Succeeded · EX-1"}])
+        self.after = {"last_push_status": "manual", "last_push_reason": "push.disabled", "last_push_record": "PR-1"}
+        failed = self.resume()[0]
+        self.assertEqual(failed["text"], "Failed · T:push.disabled")
+        self.assertEqual([item["action"]["type"] for item in failed["quickReply"]["items"]], ["uri"])
+
+    def test_a_receipt_already_there_is_the_answer_at_once(self):
+        self.after = {"last_push_status": "success", "last_push_reason": "", "last_push_record": "PR-1"}
+        start, replies = self._waited()
+        start.assert_not_called()
+        self.assertEqual(replies, [[{"type": "text", "text": "Succeeded · EX-1"}]])
+
+    def test_a_chart_still_being_read_waits_and_the_fallback_offers_edit_and_view_result(self):
+        self.view = {"needed": [], "wait": {"state": "reading", "message": "cowork.masters.reading"}}
+        self.after = {"last_push_status": "", "last_push_reason": ""}  # 还没推
+        self.confirm.side_effect = lambda *a, **k: self.after.update(last_push_status="pending") or {"status": "pending"}
+        start, replies = self._waited()
+        self.assertEqual(replies, [])  # 不先回「正在读取科目表」
+        fallback = start.call_args.args[3][0]
+        self.assertEqual(fallback["text"], "cowork.masters.reading")
+        self.assertEqual([item["action"]["type"] for item in fallback["quickReply"]["items"]], ["uri", "postback"])
+        self.assertEqual(start.call_args.kwargs["topics"], ["cowork:refresh:CON-X"])  # 连接读完时叫醒
+        self.submit.assert_not_called()
+        self.assertIsNone(self.resume())  # 叫醒了还在读：接着等
+        self.view = {"needed": []}
+        self.assertIsNone(self.resume())  # 读好了：接着保存，推出去了等回执
+        self.submit.assert_called_once()
+
+    def test_view_result_answers_only_the_sender_with_the_current_state(self):
+        replies = []
+        with mock.patch.object(self.line_save, "_", side_effect=lambda text, *a, **k: text), \
+                mock.patch("pearnly_core.line.reply", side_effect=lambda token, messages: replies.append(messages)), \
+                mock.patch.object(self.line_save.frappe, "session", mock.Mock(user="a@x"), create=True):
+            self.line_save.show("CWH-3", "tok")
+            self.owner = "b@x"
+            self.line_save.show("CWH-3", "tok2")
+        self.assertEqual(replies[0][0]["text"], "Entering")
+        self.assertEqual(replies[1], [{"type": "text", "text": "Not permitted"}])
+
+    def test_the_push_state_hook_wakes_the_wait(self):
+        from pearnly_core.line_ui import receipt as line_receipt
+
+        with mock.patch.object(line_receipt, "wake") as wake:
+            self.line_save.pushed("CWH-3")
+        wake.assert_called_once_with("cowork:save:CWH-3")
+
+    def test_handler_routes_the_view_result_button(self):
+        with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \
+                mock.patch.object(handlers.binding, "enabled", return_value=True), \
+                mock.patch.object(handlers.flow, "allowed", return_value=True), \
+                mock.patch.object(handlers, "_as", side_effect=lambda user, work: work()), \
+                mock.patch.object(self.line_save, "show") as show:
+            self.assertTrue(handlers._handle({"type": "postback", "replyToken": "tok",
+                                              "postback": {"data": "a=cowork_result&n=CWH-3"}}, "U1"))
+        show.assert_called_once_with("CWH-3", "tok")
 
     def test_handler_routes_the_save_button(self):
         with mock.patch.object(handlers.line_binding, "user_of", return_value="a@x"), \

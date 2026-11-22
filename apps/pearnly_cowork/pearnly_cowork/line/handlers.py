@@ -90,6 +90,14 @@ def _postback(user_id, bound, data, reply_token) -> bool:
         return True
     from pearnly_cowork.line import ask, save
 
+    if data.startswith("a=" + save.RESULT_ACTION + "&"):
+        # 「录入中」后的【查看结果】（用户 11-22）：发单本人的这张此刻的状态
+        if _usable(bound, reply_token):
+            from urllib.parse import parse_qs
+
+            name = (parse_qs(data).get("n") or [""])[0]
+            _as(bound, lambda: save.show(name, reply_token))
+        return True
     if data.startswith(("a=" + save.SAVE_ACTION + "&", "a=" + save.CANCEL_ACTION + "&")):
         # 卡片「保存」（用户 11-18）：直接推送这张票
         if _usable(bound, reply_token):

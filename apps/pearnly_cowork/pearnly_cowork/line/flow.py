@@ -90,13 +90,21 @@ def _button(label, data):
                                          "displayText": label}}
 
 
+def _reply(reply_token, messages):
+    box = getattr(frappe.local, "pearnly_cowork_capture", None)
+    if box is not None:
+        box.extend(messages)  # 读好了接着回的那一次（:func:`resume_accounts`）：交给 `line_receipt` 发
+        return
+    line.reply(reply_token, messages)
+
+
 def _text(reply_token, text):
-    line.reply(reply_token, [{"type": "text", "text": text}])
+    _reply(reply_token, [{"type": "text", "text": text}])
 
 
 def _ask(reply_token, text, items):
     items = items[:MAX_CHOICES] + [_button(_("Cancel"), "a=cowork&s=cancel")]
-    line.reply(reply_token, [{"type": "text", "text": text, "quickReply": {"items": items}}])
+    _reply(reply_token, [{"type": "text", "text": text, "quickReply": {"items": items}}])
 
 
 def menu(reply_token):
@@ -256,9 +264,11 @@ def _ask_account(line_user_id, payload, reply_token, note="") -> bool:
 
     rows = _account_rows(payload)
     if not rows:
+        if getattr(frappe.local, "pearnly_cowork_capture", None) is not None:
+            raise _StillReading()
         _clear(line_user_id)
         _request_directory(payload)
-        _text(reply_token, _("Reading the company list from the ERP. Tap the menu again in a moment."))
+        _wait_accounts(line_user_id, payload, reply_token)
         return True
     if len(rows) == 1:
         payload.update(account_set_key=str(rows[0]["source_id"]), account_label=account_search.label(payload["target"], rows[0]))
@@ -321,6 +331,40 @@ def _prefetch_account(payload):
         service.ensure_account_masters(payload["connection"], payload["account_set_key"])
     except frappe.ValidationError:
         pass
+
+
+class _StillReading(Exception):
+    """读好了接着回（:func:`resume_accounts`）时目录还是空的：这次不回，接着等。"""
+
+
+def _wait_accounts(line_user_id, payload, reply_token):
+    """这家 ERP 的账套目录还没读到（已请电脑读）：先三个点，读好了接着问账套；等不到回原来那句 +【查看结果】（点了从菜单重来，
+    用户 11-22，`pearnly_core.line_ui.receipt`）。"""
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    label = str(_("View result"))[:20]
+    fallback = [{"type": "text", "text": _("Reading the company list from the ERP. Tap the menu again in a moment."),
+                 "quickReply": {"items": [{"type": "action", "action": {
+                     "type": "postback", "label": label, "data": START, "displayText": label}}]}}]
+    if not line_receipt.start(f"cowork:accounts:{line_user_id}", line_user_id, reply_token, fallback,
+                              resume="pearnly_cowork.line.flow.resume_accounts",
+                              args={"line_user_id": line_user_id, "payload": payload},
+                              topics=[f"cowork:refresh:{payload.get('connection') or ''}"]):
+        line.reply(reply_token, fallback)
+
+
+def resume_accounts(line_user_id, payload):
+    """（`line_receipt` 的短任务，按发单人的身份与语言）连接读完了：目录有了就接着问账套（或直接选上、问下一步），回那些消息；
+    还是空的回 None 接着等。"""
+    previous = getattr(frappe.local, "pearnly_cowork_capture", None)
+    box = frappe.local.pearnly_cowork_capture = []
+    try:
+        _next(line_user_id, dict(payload or {}), "")
+    except _StillReading:
+        return None
+    finally:
+        frappe.local.pearnly_cowork_capture = previous
+    return box or None
 
 
 def _request_directory(payload):

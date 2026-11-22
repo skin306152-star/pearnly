@@ -2560,3 +2560,4 @@ Reminder time	提醒时间	เวลาแจ้งเตือน	リマイン�
 Task name	任务名称	ชื่องาน	タスク名	guide.step.folder_task.title
 Run the scheduled task now?	要立即运行定时任务吗？	เรียกใช้งานตามกำหนดเวลาตอนนี้หรือไม่	定期タスクを今すぐ実行しますか？	guide.consent.folder_task.run
 Delete the scheduled tasks?	要删除定时任务吗？	ลบงานตามกำหนดเวลาหรือไม่	定期タスクを削除しますか？	guide.consent.folder_task.delete
+View result	查看结果	ดูผลลัพธ์	結果を見る	

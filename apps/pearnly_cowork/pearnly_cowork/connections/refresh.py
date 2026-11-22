@@ -201,9 +201,17 @@ def validate_completion(doc, completion, credential_id, token_generation, now, *
     return row
 
 
+def _wake(doc):
+    """LINE 上有人在等这条连接读好（账套目录、某份账套的科目表，用户 11-22，`pearnly_core.line_ui.receipt`）：叫醒，提交后接着回。"""
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    line_receipt.wake_topic(f"cowork:refresh:{doc.name}")
+
+
 def finish(doc, row, *, revision=None, error=None, now):
     if row is None:
         return
+    _wake(doc)
     if row.get('parent_request'):
         if error:
             fail(doc, row, str(error), now)

@@ -75,7 +75,9 @@ def save(name) -> dict:
     if adapter == "express":
         view = application.choices_view(name, connection, account_set, posting_kind)
         if view.get("wait"):
-            return {"stop": view["wait"].get("message") or ""}
+            # 科目表还在读（或电脑离线等）：``wait`` 是这一档（`service.masters_wait`），读好了 LINE 接着保存（`line.save`）
+            return {"stop": view["wait"].get("message") or "", "wait": view["wait"].get("state") or "reading",
+                    "connection": connection}
         if view.get("needed"):
             return {"stop": export_facts.reason_text("choice_needed")}
         if stock_group_stop(view):
@@ -95,6 +97,22 @@ def save(name) -> dict:
     if after.get("last_push_status") in SENT:
         return {"sent": True}
     return {"stop": export_facts.reason_text(after.get("last_push_reason") or result.get("reason") or "choice_needed")}
+
+
+def outcome(name) -> dict:
+    """这张票此刻的推送结果（同录入列表，票上的推送状态）：``{"status": "" | pending | success | failed, "docnum", "reason"}``；
+    ``reason`` 是给人看的那句（同列表悬浮，`export_facts.reason_text`）。没推过 / 已删回空状态。LINE 卡片「保存」后的回执用（`line.save`）。"""
+    row = frappe.db.get_value(HISTORY, name, ["last_push_status", "last_push_reason", "last_push_record"], as_dict=True) or {}
+    status = row.get("last_push_status") or ""
+    if status == "success":
+        docnum = frappe.db.get_value("Cowork Push Record", row.get("last_push_record"), "external_docnum") \
+            if row.get("last_push_record") else ""
+        return {"status": "success", "docnum": docnum or "", "reason": ""}
+    if status == "pending":
+        return {"status": "pending", "docnum": "", "reason": ""}
+    if status:
+        return {"status": "failed", "docnum": "", "reason": export_facts.reason_text(row.get("last_push_reason") or status)}
+    return {"status": "", "docnum": "", "reason": ""}
 
 
 def cancel(name) -> dict:

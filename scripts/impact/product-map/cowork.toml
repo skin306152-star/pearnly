@@ -1056,6 +1056,18 @@ device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、�
 device = "部署后在 testcowork（Cowork-test 官方号，三星 LINE）：「发单据进 ERP」选 Express 测试账套 → 拍一张票 → 卡片「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「กำลังบันทึก」，录入列表这张是录入中，测试机 CC 写进测试账套；再点一次回已推送成功；要选费用科目的一张 → 不推，回原因 + 快捷回复「แก้ไข」；选「仅识别」的卡片只有「แก้ไข」"
 
 [[row]]
+id = "cowork.line.postback.cowork_result"
+product = "Cowork"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:cowork:postback:cowork_result"
+where = "LINE 卡片「บันทึก」后等不到推送回执时回的「กำลังบันทึก」（或科目表还在读的那句）上的【ดูผลลัพธ์】（a=cowork_result&n=…，用户 11-22）：发单本人的这张此刻的状态（同录入列表的状态词：录入中 / 成功 · Express 单号 / 失败 · 原因 +「แก้ไข」）；还没推出去的重试保存；别人点回无权限"
+parts = ["line"]
+tests = ["unit:tests/test_cowork_line_intake.py::test_view_result_answers_only_the_sender_with_the_current_state", "unit:tests/test_cowork_line_intake.py::test_handler_routes_the_view_result_button", "unit:tests/test_cowork_line_intake.py::test_save_waits_for_the_push_receipt_and_answers_with_the_result"]
+group = "line.card-result"
+
+[[row]]
 id = "cowork.line.postback.cowork_cancel"
 product = "Cowork"
 channel = "line"
