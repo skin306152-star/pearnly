@@ -2091,6 +2091,7 @@ class CardSave(Web):
         """用户 11-22：接了 Express 的公司提交后还在排写账：先三个点、不先回「已入账」；回执到了回「成功 · Express 单号」，
         没写成回「失败 · 原因」+【编辑】；等不到回「录入中」+【查看结果】。"""
         from pearnly_core.line_ui import receipt as line_receipt
+        from pearnly_erp_portal.express import pending
         from pearnly_erp_portal.integrations import line_cards
 
         self.linked.return_value = True
@@ -2102,18 +2103,22 @@ class CardSave(Web):
         self.assertEqual(len(self.replies), before)
         key, _user, token, fallback = start.call_args.args
         self.assertEqual((key, token), ("erp:doc:Purchase Document:PD-1", "tok"))
+        # 同一张单：等结果的键 = 回执叫醒的键（`express.pending.line_key`），接着回的短任务也带上这个名字
+        self.assertEqual(key, pending.line_key("Purchase Document", "PD-1"))
+        self.assertEqual(start.call_args.kwargs["args"], {"intake": "LI-1", "name": "PD-1"})
         self.assertEqual(fallback[0]["text"], "Entering")
         self.assertEqual(fallback[0]["quickReply"]["items"][0]["action"]["data"], "a=erp_result&n=LI-1")
         settle.assert_not_called()
-        self.assertIsNone(line_cards.result(self.doc))  # 还在排：接着等
+        resume = lambda: line_cards.resume("LI-1", "PD-1")  # noqa: E731  回执叫醒的短任务（`line_receipt.resume` 按 args 调）
+        self.assertIsNone(resume())  # 还在排：接着等
         self.express_row("held", "express.no_writer")
-        self.assertIsNone(line_cards.result(self.doc))  # 等电脑、每分钟自己再试：还算在录入
+        self.assertIsNone(resume())  # 等电脑、每分钟自己再试：还算在录入
         self.express_row("written", docnum="HP6911-0001")
-        self.assertEqual(line_cards.result(self.doc), {"type": "text", "text": "Succeeded · HP6911-0001"})
+        self.assertEqual(resume(), [{"type": "text", "text": "Succeeded · HP6911-0001"}])
         self.express_row("mismatch", docnum="HP6911-0001")
-        self.assertEqual(line_cards.result(self.doc)["text"], "Failed · express.reason.mismatch")
+        self.assertEqual(resume()[0]["text"], "Failed · express.reason.mismatch")
         self.express_row("failed", "[WRITE_FAILED] no account")
-        failed = line_cards.result(self.doc)
+        failed = resume()[0]
         self.assertTrue(failed["text"].startswith("Failed · "), failed["text"])
         self.assertEqual(failed["quickReply"]["items"][0]["action"]["label"], "Edit")
 

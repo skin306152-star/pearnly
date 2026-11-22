@@ -161,23 +161,24 @@ def _save_card(name, reply_token, act=None):
     if message is not None:
         line_out.reply(reply_token, [message])  # 没接 Express：提交即成功；再点一次：此刻的状态
         return
-    _await(doc, reply_token)
+    _await(doc, reply_token, result.get("name") or "")
 
 
-def _await(doc, reply_token):
+def _await(doc, reply_token, created=""):
     """接 Express 的公司提交后在排写账：先三个点，写账回执到了（`express.push._set` 叫醒）回结果；等不到回「录入中」+【查看结果】
     （`pearnly_core.line_ui.receipt`，用户 11-22）。"""
     from pearnly_core.line_ui import receipt as line_receipt
     from pearnly_erp_portal.express import pending
 
-    key = pending.line_key(*line_cards.recorded(doc))
+    doctype, name = line_cards.recorded(doc, created)  # 提交刚回的单据名：与回执叫醒的键（`express.push._set`）同一张单
+    key = pending.line_key(doctype, name)
     started = line_receipt.start(key, getattr(frappe.local, line_out.USER, None) or doc.line_user_id, reply_token,
                                  [line_cards.entering(doc)], resume="pearnly_erp_portal.integrations.line_cards.resume",
-                                 args={"intake": doc.name})
+                                 args={"intake": doc.name, "name": name})
     if not started:
         line_out.reply(reply_token, [line_cards.entering(doc)])
         return
-    message = line_cards.result(doc)  # 交单到这里之间回执已经到了：当场回结果
+    message = line_cards.result(doc, name=name)  # 交单到这里之间回执已经到了：当场回结果
     if message is not None:
         line_receipt.settle(key, [message])
 

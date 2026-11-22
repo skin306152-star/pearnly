@@ -327,10 +327,11 @@ def saved(doc, created) -> dict:
 # ── 保存之后的结果（用户 11-22：先三个点，写账回执到了回结果；等不到回「录入中」+【查看结果】）──────────────────
 
 
-def recorded(doc) -> tuple:
-    """这张 LINE 单据提交出来的单：``(单据类型, 名称)``；还没提交回 ``(单据类型, "")``。"""
+def recorded(doc, name="") -> tuple:
+    """这张 LINE 单据提交出来的单：``(单据类型, 名称)``；还没提交回 ``(单据类型, "")``。``name``：提交刚回的单据名（内存里的这张
+    LINE 单据可能还没带上链接栏）——等结果的键、回执叫醒的键、读状态都用同一个名字（`express.pending.line_key`）。"""
     doctype, link = RECORDED[doc.direction]
-    return doctype, doc.get(link) or ""
+    return doctype, doc.get(link) or name or ""
 
 
 def entering(doc) -> dict:
@@ -341,13 +342,12 @@ def entering(doc) -> dict:
         {"type": "action", "action": {"type": "postback", "label": label, "data": data, "displayText": label}}]}}
 
 
-def result(doc, created=None, *, final=False):
+def result(doc, created=None, *, final=False, name=""):
     """这张此刻的结果（状态词与网页同一张表，`express.contracts.ledger_word`）：没接 Express 的「成功 · 单号」；写进去了
     「成功 · Express 单号」；没写成「失败 · 原因」+【编辑】。还在录入回 None（``final`` 时回「录入中」+【查看结果】）。"""
     from pearnly_erp_portal.express import contracts as express_contracts, pending
 
-    doctype, name = recorded(doc)
-    name = name or (created or {}).get("name") or ""
+    doctype, name = recorded(doc, name or (created or {}).get("name") or "")
     row = frappe.db.get_value(doctype, name, ["name", "system_no", "ledger_state", "ledger_reason", "ledger_docnum"],
                               as_dict=True) if name else None
     if not row:
@@ -365,8 +365,8 @@ def result(doc, created=None, *, final=False):
     return stopped(doc, " · ".join(part for part in (_(word), why) if part))
 
 
-def resume(intake):
-    """（`line_receipt` 的短任务）写账回执到了：回这张的结果；还在录入回 None 接着等。"""
+def resume(intake, name=""):
+    """（`line_receipt` 的短任务）写账回执到了：回这张的结果；还在录入回 None 接着等。``name``：等的那张单（同等结果的键）。"""
     doc = frappe.get_doc("ERP LINE Intake", intake)
-    message = result(doc)
+    message = result(doc, name=name)
     return [message] if message else None
