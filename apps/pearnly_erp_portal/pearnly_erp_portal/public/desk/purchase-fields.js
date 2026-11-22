@@ -21,7 +21,9 @@
 	u.label = value => u.labels[value] || value || "";
 	u.options = values => values.map(value => ({ value, label: u.label(value) }));
 	u.field = (fieldname, label, fieldtype = "Data", options = {}) => ({fieldname, label: __(label), fieldtype,
-		...(fieldtype === "Link" ? {only_select: true, no_create: true, formatter: value => p.escape(value || "")} : {}),
+		// 只读时显示名称（Link 的标题缓存，`p.place.titles` 画行前取好），不出链接；没取到的照旧显示编号（11-20 线上：采购详情仓库显示 WH-00002）
+		...(fieldtype === "Link" ? {only_select: true, no_create: true,
+			formatter: (value, df) => p.escape((value && df?.options && frappe.utils.get_link_title(df.options, value)) || value || "")} : {}),
 		...(fieldtype === "Select" ? {formatter: value => p.escape(u.label(value))} : {}), ...options});
 	u.section = (label, options = {}) => ({fieldtype: "Section Break", label: __(label), ...options});
 	u.column = () => ({fieldtype: "Column Break"});

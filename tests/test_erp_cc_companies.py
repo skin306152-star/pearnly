@@ -1162,6 +1162,17 @@ class PendingTests(unittest.TestCase):
         page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
         self.assertIn("__(`express.fail.${bare}`)", page)
 
+    def test_trade_lines_show_link_names_not_codes_when_read_only(self):
+        """11-20 线上：采购详情第 1 行仓库显示 WH-00002。采购、销售明细的 Link 栏只读时按标题缓存显示名称，画行前先取好每行仓库的名称。"""
+        desk = ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk"
+        for kind in ("purchase", "sales"):
+            with self.subTest(kind=kind):
+                fields = (desk / f"{kind}-fields.js").read_text(encoding="utf-8")
+                self.assertIn("frappe.utils.get_link_title(df.options, value)", fields)
+                self.assertNotIn('formatter: value => p.escape(value || "")', fields)
+                form = (desk / f"{kind}-form.js").read_text(encoding="utf-8")
+                self.assertLess(form.index("await p.place.titles(values);"), form.index("for (const row of values) await state.add_line"))
+
     def test_needs_person_skips_states_that_retry_by_themselves(self):
         self.assertTrue(E.needs_person(E.HELD, "choice_needed:party"))
         self.assertTrue(E.needs_person(E.HELD, E.WAREHOUSE_UNMAPPED))
