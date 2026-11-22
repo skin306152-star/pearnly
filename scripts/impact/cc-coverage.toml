@@ -7,6 +7,7 @@
 #   todo:<期>       范围内、没有引导（现在靠打字能办）
 #   no:<期>:<等谁>  范围内、打字也办不了（等谁：desktop = CC 桌面版）
 #   wait:mrerp / wait:cloud / wait:onboard   等 MR.ERP 写账线 / 云端 Express / 公司接入（线开没开见下面 [line]）
+#   wait:erp_docs   等 ERP 直写的采购 / 销售引导开放（ERP 那边要把单子交给它的业务，如 ERP 待处理，11-22 主会话定）
 #   out:<依据>      范围外
 # 依据（11-22 起）：每个 done / half 的格在所在行下写一条 [[row.link]]：cell = "组.账本"（一格的组只写组），basis = 这格凭什么这么标，
 #   flows / page_flows = 流程 id（tests/flows/registry.toml），model / device = 真模型 / 真机依据（"acc:<验收场景>" 跑过的、
@@ -177,7 +178,7 @@ name = "结果不明核对、待处理"
 guide = "pending"
 cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
-erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
+erp_direct = ["wait:erp_docs", "wait:mrerp", "wait:cloud"]
 erp_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
 
 [[row.link]]
@@ -187,6 +188,10 @@ basis = "Cowork 声明 pending（form 源，选本对话公司待处理清单里
 [[row.link]]
 cell = "cowork_direct.mrerp"
 basis = "同本地 Express 那格的声明（面向 MR.ERP）；Cowork 的 MR.ERP 推送在线；没有 MR.ERP 公司上的流程"
+
+[[row.link]]
+cell = "erp_direct.express_local"
+basis = "ERP 待处理引导（cc-guided-pending 4509b017c）写好了没合：它在直写对话里把单子交给 ERP 采购 / 销售的按单据引导，而那两个引导在 main 上只开代录（express/cc_guides.py modes = operator），run.start 按模式拒；ERP 直写采购 / 销售引导开放后连同这份一起合（主会话 11-22）"
 
 [[row]]
 id = "folder_task"

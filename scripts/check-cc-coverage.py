@@ -70,8 +70,9 @@ FLOW_PRODUCT = {"pearnly_cowork": "cowork", "pearnly_erp_portal": "erp"}
 LEDGERS = ("express_local", "mrerp", "express_cloud")           # 一组三格的顺序
 LEDGER_LINE = {"mrerp": "mrerp", "express_cloud": "cloud"}      # 这种账本走哪条线（本地 Express 没有线开关）
 PHASES = ("p0", "p1", "p2", "p3", "p4", "mrerp")
-WAITS = {"mrerp": "⇢MR", "cloud": "⇢云", "onboard": "⇢公", "desktop": "⇢桌"}
-WAIT_WORDS = {"mrerp": "等 MR.ERP", "cloud": "等云端", "onboard": "等公司接入", "desktop": "等 CC 桌面版"}
+WAITS = {"mrerp": "⇢MR", "cloud": "⇢云", "onboard": "⇢公", "desktop": "⇢桌", "erp_docs": "⇢单"}
+WAIT_WORDS = {"mrerp": "等 MR.ERP", "cloud": "等云端", "onboard": "等公司接入", "desktop": "等 CC 桌面版",
+              "erp_docs": "等 ERP 直写采购 / 销售引导"}
 DONE, HALF, TODO, NO, WAIT, OUT = "done", "half", "todo", "no", "wait", "out"
 MARKS = {DONE: "✅", HALF: "◐", TODO: "○", NO: "✗"}
 DEVICE_ENVS = ("B", "C", "D")       # 验收场景的环境：测试机 + CC 桌面版 / 线上测试租户 / 真手机 → 真机档；A 本机真模型 → 真模型档
@@ -471,7 +472,7 @@ def tiers(rows: List[Dict[str, Any]], evidence: Dict[str, Any] | None, root: Pat
 
 
 def counts(rows: List[Dict[str, Any]], evidence: Dict[str, Any] | None = None) -> Dict[str, int]:
-    found = {DONE: 0, HALF: 0, TODO: 0, NO: 0, "wait:mrerp": 0, "wait:cloud": 0, "wait:onboard": 0, "wait:desktop": 0}
+    found = {DONE: 0, HALF: 0, TODO: 0, NO: 0, **{f"wait:{line}": 0 for line in WAITS}}
     for row in rows:
         for group in GROUPS:
             for cell in row.get(group) or ():
@@ -536,17 +537,19 @@ def render(rows: List[Dict[str, Any]], guides: Dict | None = None, lines: Dict |
                  "（本段由 `scripts/check-cc-coverage.py --write` 按 `scripts/impact/cc-coverage.toml` 生成，不要手改。）", "",
                  "记号：**✅** 引导做完（声明完整、页面流程从题点到结果）· **◐** 做了一半（已声明、服务端能走，页面整条没有流程证据）· "
                  "**○** 范围内、没有引导（现在靠打字能办）· **✗** 范围内、打字也办不了 · "
-                 "**⇢MR / ⇢云 / ⇢公 / ⇢桌** 等 MR.ERP 写账线 / 云端 Express / 公司接入 / CC 桌面版 · **—** 范围外（括号里是依据）。"
+                 "**⇢MR / ⇢云 / ⇢公 / ⇢桌 / ⇢单** 等 MR.ERP 写账线 / 云端 Express / 公司接入 / CC 桌面版 / ERP 直写采购销售引导 · "
+                 "**—** 范围外（括号里是依据）。"
                  "每组三格按 本地 Express · MR.ERP · 云端 Express；只有一格的是与账本无关的业务。P 几是排在哪一期。", "",
                  head, "|---|---|" + "---|" * len(GROUPS)]
     for number, row in enumerate(rows, 1):
         lines_out.append(f"| {number} | {row['name']} | " + " | ".join(" · ".join(_cell(c) for c in row[group]) for group in GROUPS) + " |")
     lines_out += ["", f"范围内共 **{found['in_scope']} 格**：✅ {found[DONE]}、◐ {found[HALF]}、○ {found[TODO]}、✗ {found[NO]}、"
-                      f"等 MR.ERP {found['wait:mrerp']}、等云端 {found['wait:cloud']}、等公司接入 {found['wait:onboard']}。",
+                      f"等 MR.ERP {found['wait:mrerp']}、等云端 {found['wait:cloud']}、等公司接入 {found['wait:onboard']}、"
+                      f"等 ERP 直写采购 / 销售 {found['wait:erp_docs']}。",
                   "",
                   f"按证据：**真机通过 {found['device']}** · **真模型通过 {found['model']}** · **只有服务端 {found['server']}** · "
                   f"**没做 {found['none']}**；另 等 MR.ERP {found['wait:mrerp']} · 等云端 {found['wait:cloud']} · "
-                  f"等公司接入 {found['wait:onboard']} · 范围外 {found['out']}。",
+                  f"等公司接入 {found['wait:onboard']} · 等 ERP 直写采购 / 销售 {found['wait:erp_docs']} · 范围外 {found['out']}。",
                   "",
                   "### 按格依据", "",
                   "| 业务 | 格 | 标记 | 证据档 | 依据 |", "|---|---|---|---|---|"]
@@ -599,7 +602,8 @@ def main(argv=None) -> int:
         found = counts(rows, evidence)
         print(f"范围内 {found['in_scope']} 格：✅ {found[DONE]} ◐ {found[HALF]} ○ {found[TODO]} ✗ {found[NO]}；"
               f"真机 {found['device']} · 真模型 {found['model']} · 只有服务端 {found['server']} · 没做 {found['none']}；"
-              f"等 MR.ERP {found['wait:mrerp']} · 等云端 {found['wait:cloud']} · 等公司接入 {found['wait:onboard']} · 范围外 {found['out']}")
+              f"等 MR.ERP {found['wait:mrerp']} · 等云端 {found['wait:cloud']} · 等公司接入 {found['wait:onboard']} · "
+              f"等 ERP 直写采购 / 销售 {found['wait:erp_docs']} · 范围外 {found['out']}")
         return 0
     text = DOC.read_text(encoding="utf-8")
     current = doc_section(text)

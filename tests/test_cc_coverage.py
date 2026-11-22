@@ -41,6 +41,7 @@ class CellTests(unittest.TestCase):
         self.assertEqual(gate.parse("todo:p4"), ("todo", "p4", ""))
         self.assertEqual(gate.parse("no:p2:desktop"), ("no", "p2", "desktop"))
         self.assertEqual(gate.parse("wait:cloud"), ("wait", "", "cloud"))
+        self.assertEqual(gate.parse("wait:erp_docs"), ("wait", "", "erp_docs"))
         self.assertEqual(gate.parse("out:只在 ERP"), ("out", "", "只在 ERP"))
 
     def test_anything_else_is_refused(self):
@@ -243,7 +244,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual({r["id"]: r for r in self.rows}["collection"]["erp_direct"][0], "done")
         self.assertEqual(found["device"] + found["model"] + found["server"], found["done"] + found["half"])
         self.assertEqual(found["none"], found["todo"] + found["no"])
-        states = ("done", "half", "todo", "no", "wait:mrerp", "wait:cloud", "wait:onboard", "wait:desktop")
+        states = ("done", "half", "todo", "no", *(f"wait:{line}" for line in gate.WAITS))
         self.assertEqual(found["in_scope"], sum(found[k] for k in states))
         by_id = {r["id"]: r for r in self.rows}
         self.assertTrue(all(gate.parse(c)[0] == "out" for g in ("cowork_direct", "cowork_operator", "erp_operator")
