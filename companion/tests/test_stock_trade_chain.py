@@ -96,3 +96,54 @@ def test_stock_lines_split_by_a_service_line_share_one_costing_state(by_place):
     assert values == [80.0, 90.0]  # 先 RR0000009 剩的 2 × 40，再 RR0000010 的 2 × 45
     place = _stloc(by_place, "ICE01", "01")
     assert (place["MREMBAL"], place["LOCVAL"]) == (8.0, 360.0)
+
+
+def _master_chain(acct, **fields):
+    import dbf
+    from companion import dbf_schema
+
+    table = dbf.Table(str(acct / "STMAS.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        for rec in dbf_schema.live_rows(table):
+            if rec.STKCOD.strip() == "ICE01":
+                with rec as row:
+                    for name, value in fields.items():
+                        row[name] = value
+    finally:
+        table.close()
+
+
+TK_HEAD = "20261026:TK0000001     1"
+
+
+def test_an_oversell_in_an_average_cost_book_writes_the_row_like_native_iv0000051(acct):
+    """11-22 70EXP\\test 实录（物料 501780，链 25 / 1,200 卖 27）：原生只按链计 1,200、多出的按 0；明细记写前链 25 / 1,200 与当前批的指针；
+    主档链 −2 / 0、批号首字符改「-」、LASUPD 改单据日。CC 以前记写后 −2 / 0、不带指针，财务原生存同日进货后被 Express 重算成 200（原生 1,260）。"""
+    isinfo(acct, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _master_chain(acct, TOTBAL=25.0, TOTVAL=1200.0, MREMBAL=25.0, MREMVAL=1200.0, MLOTNUM=TK_HEAD)
+    res = _sell(acct, _sale([_item("ICE01", 27, 2700.0, "stock_sale")]))
+    assert res.ok, res.error
+    line = _rows(acct, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MREMVAL"], line["MLOTNUM"].rstrip()) == \
+        (1200.0, 44.4444, 25.0, 1200.0, TK_HEAD)
+    master = _rows(acct, "STMAS", STKCOD="ICE01")[0]
+    assert (master["TOTBAL"], master["TOTVAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, 0.0, -2.0, 0.0)
+    assert master["MLOTNUM"].rstrip() == "-" + TK_HEAD[1:] and master["LASUPD"] == dt.date(2026, 3, 20)
+
+
+def test_selling_the_whole_chain_in_a_fifo_book_without_warehouse_costing_takes_the_chain_value(acct):
+    """11-22 实录（70EXP\\test 临时先进先出）：链整条卖完时原生按链货值 1,200，不按库存卡重建的批（CC 以前 1,170）。"""
+    isinfo(acct, MAINLOC="01", ISPERPETUA="Y", COSMTD="F", NEGALLOW="Y")
+    _receipt(acct, "RR0000009", dt.date(2026, 1, 1), 25, 1170)
+    _master_chain(acct, TOTBAL=25.0, TOTVAL=1200.0, MREMBAL=25.0, MREMVAL=1200.0, MLOTNUM=TK_HEAD)
+    res = _sell(acct, _sale([_item("ICE01", 27, 2700.0, "stock_sale")]))
+    assert res.ok, res.error
+    assert _rows(acct, "STCRD", DOCNUM=res.docnum)[0]["XTRNVAL"] == 1200.0
+
+
+def test_a_purchase_stamps_the_master_movement_date_like_native(acct):
+    """11-22 实录：原生进货、销货都把主档 LASUPD 改成单据日。"""
+    res = _buy(acct, _purchase([_item("ICE01", 2, 20.0, "stock_item")]))
+    assert res.ok, res.error
+    assert _rows(acct, "STMAS", STKCOD="ICE01")[0]["LASUPD"] == dt.date(2026, 1, 15)

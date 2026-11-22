@@ -4,8 +4,11 @@
 
 规则来源见 docs/work/2026-11-18-stock-express-parity.md（四、八、九、十一、十二节）与 2026-11-22-stock-purchase-sale-chain.md：
 
-- 平均成本账套（ISINFO.COSMTD ≠ F）：减少按主档批次链 MREMVAL / MREMBAL 取价，超出链上结存的部分按 ``EXCESS_AVERAGE``（D4 方案 A）。
-- 先进先出、不分仓：减少按这件存货最早仍有剩余的批取价（9.2）。
+- 平均成本账套（ISINFO.COSMTD ≠ F）：减少按主档批次链 MREMVAL / MREMBAL 取价，超出链上结存的部分按 0（原生 1-戊①）。
+- 先进先出、不分仓：减少按这件存货最早仍有剩余的批取价（9.2）；出到链结存及以上时按链货值、多出的按 0（11-22 实录）。
+- 减少行的明细批次栏一律照原生记写前链与当前批的指针（11-22 70EXP\test 实录：记写后、不带指针时，财务原生存同日进货后
+  Express 从这一行重算当天，把链当成空，CC 的销货被算成 200、原生 1,260；照原生记则逐栏收敛）。覆盖 11-18 库存单「减少行记写后、
+  不带指针、超出按均价」的口径（主会话 11-22 定）。
 - 先进先出 / 平均 + 分仓计价（LOC_COST = Y，这个仓记着链）：按这个仓的链（``stock_chain``）；出超的部分按 0、链停在 0（十二节）；
   先进先出时排到当天已有行之前的行记开日状态（存单即重算当天，库存 C）。
 - 增加：成为新的一批（LOT*），明细记写前结存（为负记 0）与当前批的指针；分仓计价的写后更新这个仓的链，主档抄它。
@@ -30,11 +33,6 @@ from . import stock_location
 _CENT = Decimal("0.01")
 RECEIPT_POSOPR = stock_chain.RECEIPT_POSOPR
 
-# 平均成本 / 不分仓先进先出账套出超（链上结存不够）那部分的取价：True = 按主档均价（D4 方案 A，11-18 主会话定），False = 按 0（原生 1-戊①）。
-# 分仓计价、按仓走的路径一律按 0（十二节实录）。待 11-22 第 3 件实录定（docs/work/2026-11-22-stock-purchase-sale-chain.md §12 第 1 条）。
-EXCESS_AVERAGE = True
-# 不按仓走的减少行记写前链与当前批的指针（原生 IV，11-22 70EXP\test 实录）；False = 记写后、不带指针（11-18 定的现行口径）。实录后定。
-NATIVE_DECREASE_ROWS = False
 
 
 def _q2(value) -> Decimal:
@@ -82,7 +80,7 @@ def average_cost(account_dir, item: Dict[str, Any]) -> Decimal:
 
 def chain_cost(qty: Decimal, bal: Decimal, val: Decimal, average: Decimal) -> Tuple[Decimal, Decimal]:
     """平均成本账套减少一行 → (单价, 货值)：批次链结存为正按链（单价 = 结存金额 / 结存数量，与原生逐栏一致）；超出链上结存的部分、
-    以及链结存 ≤ 0 时整行按 ``average``（D4 方案 A；``EXCESS_AVERAGE`` 关掉时 ``average`` 传 0 = 原生按 0）。"""
+    以及链结存 ≤ 0 时整行按 ``average``（原生是 0：之后财务原生存同日进货时 Express 照明细的写前链回填，11-22 实录）。"""
     if qty <= 0:
         return Decimal(0), Decimal(0)
     if bal <= 0:
@@ -307,13 +305,15 @@ class Book:
 
     def _out_cost(self, stkcod, place, qty, bal, val, early, *, consume: bool) -> Tuple[Decimal, Decimal]:
         here = self.kept(place)
-        average = average_cost(self.account_dir, self.now(stkcod))
-        if not self.fifo:  # 平均成本：链上结存不够的部分（分仓计价同样，11-18 实录只有不分仓的平均成本账套）
-            return chain_cost(qty, bal, val, average if EXCESS_AVERAGE else Decimal(0))
-        excess = Decimal(0) if here or not EXCESS_AVERAGE else average
+        if not self.fifo:  # 平均成本：按链，链上结存不够的部分按 0（原生 1-戊①、11-22 实录）
+            return chain_cost(qty, bal, val, Decimal(0))
         pool, slot = (self.early_lots, place) if early else (self.place_lots, place) if here else (self.code_lots, stkcod)
         lots = pool.get(slot, [])
-        unit_cost, value = fifo_cost(lots, qty, excess)
+        unit_cost, value = fifo_cost(lots, qty, Decimal(0))  # 批不够的部分按 0（原生）
+        if not here and bal > 0 and qty >= bal:
+            # 不分仓先进先出出到链结存及以上：原生按主档链货值（11-22 实录 1,200；按库存卡重建的批是 1,170），多出的按 0
+            value = _q2(max(val, Decimal(0)))
+            unit_cost = value / qty if qty else Decimal(0)
         if consume:
             pool[slot] = fifo_take(lots, qty)
         return unit_cost, value
@@ -321,7 +321,7 @@ class Book:
     # —— 写一行 ——
     def take(self, stkcod: str, place, qty: Decimal, *, posopr: str, seq: int, cost: Optional[Decimal] = None) -> Line:
         """减少 ``qty``（库存单位，正数）。``cost`` 给了就按它（每库存单位）计，不取链 / 批的价（销货结存 ≤ 0 的标准成本 / 人填成本）。
-        明细批次栏：按仓走的记这个仓的链写前结存与指针（11-19 实录 OU2400001），否则记写后、不带指针（CC 写销售 IV 的现行口径）。"""
+        明细批次栏照原生记写前链与当前批的指针：按仓走的是这个仓的链（11-19 实录 OU2400001），否则是主档的链（11-22 实录 IV0000051）。"""
         early = self._early(place, posopr, seq)
         bal, val = self._before(stkcod, place, early)
         if cost is None:
@@ -359,12 +359,10 @@ class Book:
         self.totals[stkcod] = (now["totbal"] + signed, _q2(now["totval"] + signed_value))
         increase = signed > 0
         fields: Dict[str, Any] = {
-            # 批次链结存：增加行记写前（写前为负记 0，11-18 实录 JU0000001）；减少行按仓走的记写前，否则记写后
-            "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal if (here or NATIVE_DECREASE_ROWS)
-                             else new_bal),
-            "MREMVAL": float(val if (here or increase or NATIVE_DECREASE_ROWS) else new_val),
-            "MLOTNUM": self.early_state[place][0] if early else self.chains[place].head if here
-            else self.heads.get(stkcod, "") if (increase or NATIVE_DECREASE_ROWS) else "",
+            # 批次链结存记写前（增加行写前为负记 0，11-18 实录 JU0000001；减少行照记，11-22 实录 IV0000051），指针指当前那一批
+            "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal),
+            "MREMVAL": float(val),
+            "MLOTNUM": self.early_state[place][0] if early else self.chains[place].head if here else self.heads.get(stkcod, ""),
             "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP)) if unit_cost else 0.0,
         }
         if increase:
@@ -397,5 +395,5 @@ class Book:
         return {key: self.chains[key] for key in self.place_values}, dict(self.place_values)
 
 
-__all__ = ["Book", "EXCESS_AVERAGE", "Line", "average_cost", "chain_cost", "fifo_cost", "fifo_prices", "fifo_take", "is_fifo",
+__all__ = ["Book", "Line", "average_cost", "chain_cost", "fifo_cost", "fifo_prices", "fifo_take", "is_fifo",
            "lot_heads", "lot_number", "standard_cost"]

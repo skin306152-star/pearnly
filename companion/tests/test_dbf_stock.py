@@ -68,11 +68,12 @@ def test_an_issue_writes_the_header_the_detail_the_balances_and_the_journal_like
     assert head["LOCCOD"].strip() == "01" and head["DOCSTAT"] == "N" and head["NXTSEQ"].strip() == "1"
     line = _rows(book, "STCRD", DOCNUM="OU0000001")[0]
     assert line["POSOPR"] == "6" and line["TRNQTY"] == 2.0 and line["XUNITPR"] == 10.0 and line["XTRNVAL"] == 20.0
-    # 减少行照 CC 写销售 IV 的现行口径记写后结存（3 / 30）、不带批次指针（11-18 实测：这样 Express 之后重算得回来）；品名栏是单头备注
-    assert line["MREMBAL"] == 3.0 and line["MREMVAL"] == 30.0 and line["ACCNUMDR"].strip() == ISSUE_ACC
-    assert line["MLOTNUM"].strip() == ""
-    assert line["STKDES"].strip() == "เบิกใช้ในสำนักงาน" and line["NETVAL"] == 0.0
+    # 减少行照原生记写前结存（5 / 50）与当前批的指针（11-22 实录 IV0000051：记写后、不带指针时财务原生存同日进货，Express 从这一行
+    # 重算当天、把链当成空，成本被算错；主会话 11-22 定覆盖 11-18 的写后口径）；品名栏是单头备注
+    assert line["MREMBAL"] == 5.0 and line["MREMVAL"] == 50.0 and line["ACCNUMDR"].strip() == ISSUE_ACC
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
+    assert line["MLOTNUM"] == master["MLOTNUM"]
+    assert line["STKDES"].strip() == "เบิกใช้ในสำนักงาน" and line["NETVAL"] == 0.0
     assert (master["MREMBAL"], master["MREMVAL"], master["TOTBAL"]) == (3.0, 30.0, 3.0)
     assert master["LASUPD"] == dt.date(2026, 3, 20)  # 原生：库存单把主档最后变动日改成单据日
     stloc = _stloc(book, "ICE01", "01")
@@ -433,26 +434,28 @@ def test_an_issue_that_would_go_negative_stops_when_the_book_needs_approval(book
     assert _write(book, _entry("OU", [_line("ICE01", 5)])).ok
 
 
-def test_an_issue_takes_the_lot_chain_cost_and_the_average_beyond_it(book):
-    """出库取价 D4 方案 A（主会话 11-18）：批次链结存 5 / 50 出 7 个 → 批次内 5 个按批次链 50，多出的 2 个按主档均价 10，共 70。"""
+def test_an_issue_takes_the_lot_chain_cost_and_nothing_beyond_it_like_native(book):
+    """原生 1-戊① / 11-22 实录 IV0000051（平均成本）：批次链结存 5 / 50 出 7 个 → 只按链上现有的 50 计，多出的 2 个按 0；之后财务原生存
+    同日进货时 Express 照明细的写前链回填（实录 1,200 → 1,260）。覆盖 11-18 的方案 A（多出的按均价）。"""
     res = _write(book, _entry("OU", [_line("ICE01", 7)], remark="ทดสอบ"))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XTRNVAL"], line["XUNITPR"]) == (70.0, 10.0)
+    assert (line["XTRNVAL"], line["XUNITPR"]) == (50.0, 7.1429)
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
-    assert (master["TOTBAL"], master["TOTVAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, -20.0, -2.0, -20.0)
+    assert (master["TOTBAL"], master["TOTVAL"], master["MREMBAL"], master["MREMVAL"]) == (-2.0, 0.0, -2.0, 0.0)
 
 
-def test_an_issue_on_an_empty_lot_chain_goes_out_at_the_average_and_is_journalled(book):
-    """批次链结存为 0（总结存还有货，实录 500603 的样子）：原生按 0 出、不过账、等之后界面存单回头重算；方案 A 按均价出、照常过账，
-    不留没人回填的 0 成本单。主档当前批次栏首字符照原生改成「-」（批次链变负）。"""
+def test_an_issue_on_an_empty_lot_chain_goes_out_at_zero_like_native(book):
+    """批次链结存为 0（总结存还有货，实录 500603 的样子）：照原生按 0 出、不过账，明细记写前链 0 与当前批的指针；之后财务原生存同日
+    进货类单时 Express 照这些栏回填（11-22 实录：照原生写的单重算后与原生逐栏一致）。主档当前批次栏首字符照原生改成「-」。"""
     _set_master(book, MREMBAL=0.0, MREMVAL=0.0, MLOTNUM="202603010RR0000001     1")
     res = _write(book, _entry("OU", [_line("ICE01", 1)], remark="ทดสอบ"))
     assert res.ok, res.error
     line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
-    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MLOTNUM"].strip()) == (10.0, 10.0, -1.0, "")
+    assert (line["XTRNVAL"], line["XUNITPR"], line["MREMBAL"], line["MLOTNUM"].strip()) == \
+        (0.0, 0.0, 0.0, "202603010RR0000001     1")
     heads, lines = _journal(book, res.docnum)
-    assert lines == [("0", ISSUE_ACC, Decimal("10.00"), "1"), ("1", INVENTORY_ACC, Decimal("10.00"), "1")]
+    assert heads == [] and lines == []
     master = _rows(book, "STMAS", STKCOD="ICE01")[0]
     assert (master["MREMBAL"], master["MLOTNUM"].rstrip()) == (-1.0, "-02603010RR0000001     1")
 
@@ -561,7 +564,7 @@ def test_an_increase_after_the_chain_went_negative_points_at_the_lot_as_stored_a
 
 def test_an_increase_in_a_fifo_book_is_a_native_lot_too(book):
     """先进先出账套的调增也照原生写成批（POSOPR 1、LOT*）：11-18 在先进先出测试账套实测，不成批的增加行在财务原生存同日进货时
-    被 Express 改值（PI 200 → 166.60）。出库取价在先进先出账套照旧按均价。"""
+    被 Express 改值（PI 200 → 166.60）。之后的出库明细指这一批（写前链与指针，11-22）。"""
     isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="F")
     res = _write(book, _entry("JU", [_line("ICE01", 2, unit_cost="12")]))
     assert res.ok, res.error
@@ -569,7 +572,7 @@ def test_an_increase_in_a_fifo_book_is_a_native_lot_too(book):
     assert (line["POSOPR"], line["LOTBAL"], line["LOTVAL"], line["NETVAL"]) == ("1", 2.0, 24.0, 24.0)
     res = _write(book, _entry("OU", [_line("ICE01", 1)]))
     assert res.ok, res.error
-    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == ""
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == f"202603201{'JU0000001':<12}  1"
 
 
 def test_an_issue_in_a_fifo_book_takes_the_earliest_lot_still_left(book):

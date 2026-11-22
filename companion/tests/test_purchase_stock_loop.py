@@ -295,7 +295,7 @@ class PurchaseToSaleLoopTest(unittest.TestCase):
         self.assertEqual(len(out), 1)
         self.assertEqual(float(out[0].XUNITPR), 12.0)
         self.assertEqual(float(out[0].XTRNVAL), 600.0)
-        self.assertEqual(float(out[0].MREMBAL), 150.0)
+        self.assertEqual(float(out[0].MREMBAL), 200.0)  # 照原生记写前链（11-22）
 
     def test_stock_lines_debit_inventory_directly_and_vat_and_payables_stay(self):
         """照 Express 原生（11-07，S 盘 95 本）：库存行的钱从采购借方整条记到物料科目组的存货科目（SEQIT 0），没有「借存货 / 贷购货」

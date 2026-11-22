@@ -93,11 +93,12 @@ def test_a_sale_is_costed_from_the_total_and_adds_to_the_customer_balance(apart)
 
 
 def test_stock_on_hand_counts_even_when_the_lot_chain_is_empty(apart):
-    """总结存 45、批次链 0：以前判成没货（按标准成本 / 不结转），现在照有货按均价结转。"""
+    """总结存 45、批次链 0：判有货（看总结存，不走标准成本那一支）；取价照原生按链，链空按 0（之后财务原生存同日进货时 Express 回填，
+    11-22 实录）。"""
     _set(apart, "STMAS", "STKCOD", "ICE01", MREMBAL=0.0, MREMVAL=0.0)
     res = _sell(apart, _sale([_item("ICE01", 2, 60.0, "stock_sale")]))
     assert res.ok, res.error
-    assert _rows(apart, "STCRD", DOCNUM=res.docnum)[0]["XTRNVAL"] == 20.0
+    assert _rows(apart, "STCRD", DOCNUM=res.docnum)[0]["XTRNVAL"] == 0.0
     assert not [mode for mode in res.line_modes if mode.get("reason")]
     assert _master(apart)["TOTBAL"] == 43.0
 

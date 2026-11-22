@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
-"""V2-b 卖库存品:真扣库存 + COGS(移动均价制)。逆向 gold HS580101-001。
+"""V2-b 卖库存品:真扣库存 + COGS。取价与批次栏照原生、与库存单同一套(``stock_costing``,K 系列 11-22)。
 
 「选库存」的销售行走这里(item_mode='stock_sale'),按"账里这库存品有没有货"分支:
 
-**① 有货(STKTYP=0 库存品·正库存)**:把货从客户真实库存里扣出去,按移动均价结转成本。
-账务(逆向真账 gold HS580101-001,沙盒验证通过):
-- 均价成本 = STMAS.TOTVAL / STMAS.TOTBAL(总结存,= Express 维护的 UNITPR);COGS = 数量 × 均价;
-- STCRD 库存出行:XUNITPR=均价、XTRNVAL=COGS、MREMBAL/MREMVAL=卖后结存(带库存签名);
-- STMAS 扣减(:func:`move_stmas`):总结存 TOTBAL / TOTVAL 与批次链 MREMBAL / MREMVAL 各自 −数量 / −COGS,UNITPR 随总结存重算;
+**① 有货(总结存为正)**:把货从客户真实库存里扣出去,照原生取价结转成本(``stock_costing``):
+- 平均成本按主档批次链 MREMVAL / MREMBAL,先进先出按最早仍有剩余的批,分仓计价按这个仓的链;链上不够的部分按 0(原生 1-戊①);
+- STCRD 库存出行:XUNITPR / XTRNVAL = 成本,MREMBAL / MREMVAL / MLOTNUM = 写前链与当前批的指针(11-22 实录 IV0000051);
+- STMAS 扣减(:func:`move_stmas`):总结存与批次链各自 −数量 / −COGS,UNITPR 随总结存重算,LASUPD 改单据日;
 - 额外分录:借 COGS 科目(ISACC.ACCNUM02)/ 贷 存货科目(ISACC.ACCNUM01)· 金额=COGS。
 
 **② 有档没货(零/负库存)**:照卖,卖成更负 —— 负结存在真账里是常态(61EXP/61SKBAC 取证:
@@ -260,7 +259,7 @@ def write_stock_lines(
     ``seqs``:这几行在整张单里的行号(混行单分段写,`dbf_detail.runs`;``locations`` 照整张单的下标取);不给 = 从 1 起。
 
     items = item_mode=='stock_sale' 的行(已在备份-回滚事务内)。逐行三分支(据单次读取的结存):
-    - 有正库存(bal>0)→ 库存出行 + 扣 STMAS + COGS 分录(移动均价);
+    - 有正库存(总结存>0)→ 库存出行 + 扣 STMAS + COGS 分录(照原生取价,``stock_costing``);
     - 有档没货(bal≤0)→ 卖成更负;STNPR>0 按标准成本结转,否则不结转(reason=no_cost_basis);
     - 账里没这品(None)→ 建 STKTYP=0 档再卖成负,无成本基础(reason=new_item_no_cost_basis)。
     COGS 分录按 (COGS科目, 存货科目) 聚合:借 COGS 总额 / 贷 存货 总额(有成本的行才产生)。
@@ -278,7 +277,7 @@ def write_stock_lines(
     costing = costing if costing is not None else {}
     book = costing.get("book")
     if book is None:
-        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat)
+        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat, master_fields={"LASUPD": docdat})  # 原生改主档最后变动日（11-22 实录）
     main = account_rules.main_location(account_dir)
     line_modes: List[Dict] = []
     cogs_by_pair: Dict[Tuple[str, str], Decimal] = {}

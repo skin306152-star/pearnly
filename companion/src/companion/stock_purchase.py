@@ -117,7 +117,7 @@ def write_stock_in_lines(
     costing = costing if costing is not None else {}
     book = costing.get("book")
     if book is None:
-        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat)
+        book = costing["book"] = stock_costing.Book(account_dir, docnum, docdat, master_fields={"LASUPD": docdat})  # 原生改主档最后变动日（11-22 实录）
     main = account_rules.main_location(account_dir)
     line_modes: List[Dict] = []
     in_by_account: Dict[str, Decimal] = {}
