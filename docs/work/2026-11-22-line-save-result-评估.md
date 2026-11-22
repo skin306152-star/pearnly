@@ -80,12 +80,12 @@
 守门：加一条离线检查，LINE 处理器（ERP `integrations/line_*`、`handlers.py`，Cowork `line/*`）里不许在拿到结果前 reply 过程文字词条（Entering / Reading from … / Recorded · pending write / Reading the company list … / cowork.masters.reading）——这些只许出现在 `line_receipt` 的兜底消息里。
 
 ## 14. 改已有文案清单
-用户 11-22 已在对话中同意统一到标准词（录入中 / 成功 / 失败 / 已取消）。做法：代码改用已有的标准词条（core `Entering` 录入中、`Succeeded` 成功、`Failed` 失败、`Cancelled` 已取消），原词条行不改字，所以 `check-copy.py` 记为「改动 0」，`copy-approved.tsv` 无需新登记；下表是给人看到的变化（四语，旧 → 新）。
+用户 11-22 在对话里同意统一到标准词（原话：按这个做）。统一到 录入中 / 成功 / 失败 / 已取消。做法：代码改用已有的标准词条（core `Entering` 录入中、`Succeeded` 成功、`Failed` 失败、`Cancelled` 已取消），原词条行不改字，所以 `check-copy.py` 记为「改动 0」，`copy-approved.tsv` 无需新登记；下表是给人看到的变化（四语，旧 → 新）。
 
 | 位置 | 旧（中 / 泰 / 英 / 日） | 新（中 / 泰 / 英 / 日） |
 |---|---|---|
 | ERP 列表 Express 列、详情 Express 弹窗、收银记录、出入库：排队中 | 排队中 / รอคิว / Queued / 待機中 | 录入中 / กำลังบันทึก / Entering / 入力中 |
-| 同上：待处理（held） | 待处理 / รอดำเนินการ / Pending / 保留中 | 失败 / ไม่สำเร็จ / Failed / 失敗 |
+| 同上：待处理（held） | 待处理 / รอดำเนินการ / Pending / 保留中 | 要人处理的：失败 / ไม่สำเร็จ / Failed / 失敗；停在每分钟自己会再试的原因上（没有账套、没有能写的电脑、主档在读、退货单原 HS 未写成，主会话 11-22 审定）：录入中 / กำลังบันทึก / Entering / 入力中 |
 | 同上：不一致（mismatch） | 不一致 / ไม่ตรงกัน / Mismatch / 不一致 | 失败 / ไม่สำเร็จ / Failed / 失敗；原因栏「核对不一致 / ตรวจสอบไม่ตรงกัน / Check mismatch / 照合不一致」（新词条 `express.reason.mismatch`） |
 | 同上：已写入 | 已写入 / บันทึกแล้ว / Written / 書き込み済み | 成功 / สำเร็จ / Succeeded / 成功 |
 | 同上：已在 Express 手工处理（handled） | 已在 Express 手工处理 / จัดการด้วยมือใน Express แล้ว / Handled manually in Express / Express で手動処理済み | 成功 / สำเร็จ / Succeeded / 成功 |
