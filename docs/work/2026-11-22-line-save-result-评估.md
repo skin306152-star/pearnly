@@ -78,3 +78,28 @@
 | 9–12 | ERP / Cowork | 发图 / PDF 识别、收款凭证图（已 loading + 存下 token 回复） | loading，结果用存下的 token；超时改 push | 待定 6：建议保留现状 |
 
 守门：加一条离线检查，LINE 处理器（ERP `integrations/line_*`、`handlers.py`，Cowork `line/*`）里不许在拿到结果前 reply 过程文字词条（Entering / Reading from … / Recorded · pending write / Reading the company list … / cowork.masters.reading）——这些只许出现在 `line_receipt` 的兜底消息里。
+
+## 14. 改已有文案清单
+用户 11-22 已在对话中同意统一到标准词（录入中 / 成功 / 失败 / 已取消）。做法：代码改用已有的标准词条（core `Entering` 录入中、`Succeeded` 成功、`Failed` 失败、`Cancelled` 已取消），原词条行不改字，所以 `check-copy.py` 记为「改动 0」，`copy-approved.tsv` 无需新登记；下表是给人看到的变化（四语，旧 → 新）。
+
+| 位置 | 旧（中 / 泰 / 英 / 日） | 新（中 / 泰 / 英 / 日） |
+|---|---|---|
+| ERP 列表 Express 列、详情 Express 弹窗、收银记录、出入库：排队中 | 排队中 / รอคิว / Queued / 待機中 | 录入中 / กำลังบันทึก / Entering / 入力中 |
+| 同上：待处理（held） | 待处理 / รอดำเนินการ / Pending / 保留中 | 失败 / ไม่สำเร็จ / Failed / 失敗 |
+| 同上：不一致（mismatch） | 不一致 / ไม่ตรงกัน / Mismatch / 不一致 | 失败 / ไม่สำเร็จ / Failed / 失敗；原因栏「核对不一致 / ตรวจสอบไม่ตรงกัน / Check mismatch / 照合不一致」（新词条 `express.reason.mismatch`） |
+| 同上：已写入 | 已写入 / บันทึกแล้ว / Written / 書き込み済み | 成功 / สำเร็จ / Succeeded / 成功 |
+| 同上：已在 Express 手工处理（handled） | 已在 Express 手工处理 / จัดการด้วยมือใน Express แล้ว / Handled manually in Express / Express で手動処理済み | 成功 / สำเร็จ / Succeeded / 成功 |
+| 同上：未写入 Express（已断开） | 未写入 Express（已断开）（状态） | 失败 / ไม่สำเร็จ / Failed / 失敗；原因栏「未写入 Express（已断开）」 |
+| Express 弹窗作废进度行：排队中 / 待处理 | 排队中 / 待处理 | 录入中 / 失败（已取消照旧） |
+| Express 弹窗「再写一次」后的提示 | 排队中 / รอคิว / Queued / 待機中 | 录入中 / กำลังบันทึก / Entering / 入力中 |
+| ERP LINE 卡片「保存」：已入账 · 单号 | 已入账 · 单号 / บันทึกบัญชีแล้ว · 单号 / Posted · 单号 / 記帳済み · 单号 | 成功 · 单号 / สำเร็จ · 单号 / Succeeded · 单号 / 成功 · 单号（接 Express 的公司为 Express 单号；没写成「失败 · 原因」+【แก้ไข】；等不到「录入中」+【ดูผลลัพธ์】） |
+| ERP LINE 收款：已记录 · 待写入 | 已记录 · 待写入 / บันทึกแล้ว · รอบันทึกลง Express / Recorded · pending write / 記録済み · 書き込み待ち | 录入中 / กำลังบันทึก / Entering / 入力中 |
+| ERP LINE 收款：已写入 Express：RE 号 | 已写入 Express：{0} / บันทึกลง Express แล้ว: {0} / Written to Express: {0} / Express に書き込みました：{0} | 成功 · {0} / สำเร็จ · {0} / Succeeded · {0} / 成功 · {0} |
+| ERP LINE 收款：未写入 Express：原因 | 未写入 Express：{0} / ไม่ได้บันทึกลง Express: {0} / Not written to Express: {0} / Express に書き込めませんでした：{0} | 失败 · {0} / ไม่สำเร็จ · {0} / Failed · {0} / 失敗 · {0} |
+| ERP 网页「收款」页状态列、LINE 收款状态：待写入 / 写入中 | 待写入 / รอบันทึก / Pending write / 書き込み待ち；写入中 / กำลังบันทึก / Writing / 書き込み中 | 录入中 / กำลังบันทึก / Entering / 入力中 |
+| 同上：已写入 | 已写入 / บันทึกแล้ว / Written / 書き込み済み | 成功 / สำเร็จ / Succeeded / 成功 |
+| 同上：已取消（撤回） | 已取消 / ยกเลิกแล้ว / Cancelled / 取消済み（`erp.collection.status.withdrawn`） | 已取消 / ยกเลิกแล้ว / Cancelled / 取消済み（标准词 `Cancelled`，字不变） |
+| ERP 网页新建收款提交后的提示 | 已记录 · 待写入 | 录入中 / กำลังบันทึก / Entering / 入力中 |
+| Cowork LINE 卡片「保存」 | 立刻回「录入中」 | 先三个点；成功 · Express 单号 / 失败 · 原因 +【แก้ไข】；等不到「录入中」+【ดูผลลัพธ์】（新增 Cowork 词条 `View result` 查看结果 / ดูผลลัพธ์ / 結果を見る，同 ERP） |
+
+不变：⑤ ERP 识别完时另一张票还在问的「排队中」（`line_questions.begin`）保留原词条；⑥ 发图 / PDF 识别保持现状（第 12 栏）；CC 对话里的状态说法、`pending.STATES`（CC 待处理右栏）不在本次范围。
