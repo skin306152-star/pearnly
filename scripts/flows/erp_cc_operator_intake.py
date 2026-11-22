@@ -95,8 +95,14 @@ if seeded:
                "vat_output_acc": "21-04-01-00", "ar_acc": "11-03-01-00"}}
     facts.save(key, {{"version": 2, "customers": [], "suppliers": [], "products": [], "warehouses": [{{"code": "01", "name": "คลัง Flow"}}],
                      "settings": {{"mainloc": "01"}}, "stock": [], "departments": [],
-                     "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (*mapping.values(), "11-01-01-00")],
-                               "mapping": mapping, "catalog": {{"isacc_candidates": []}}}}}})
+                     "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (*mapping.values(), "11-01-01-00",
+                                                                                                    "11-04-01-00", "11-04-02-00")],
+                               # 认不出的物料行要在 Express 新建库存品：给两个合格的存货科目组（同真账套），卡片问选哪个；
+                               # 一个都没有时整张单停在「缺存货科目组」，卡片不出题（11-22 GitHub Flows）
+                               "mapping": mapping, "catalog": {{"isacc_candidates": [
+                                   {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 0}},
+                                   {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 0}}]
+                                   if {new_item!r} else []}}}}}})
 frappe.db.commit()
 print(json.dumps({{"session": made["id"], "task": made["task"], "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
 """)
