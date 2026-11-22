@@ -324,6 +324,31 @@ class MrErpLedger(Base):
             self.assertEqual(guide.method_check(ctx, [{"code": guide.TRANSFER + "1112-01", "amount": "550"},
                                                       {"code": guide.DISCOUNT + "5300-09", "amount": "50"}]), "")
 
+    METHODS = {"cash": True, "transfers": [{"prefix": "1112-01", "code": "1112-01", "name": "KBANK", "label": "KBANK 1234"}],
+               "discount": {"prefix": "5300-09", "code": "5300-09", "name": "Discount", "label": "Discount"}}
+
+    def test_the_method_card_takes_one_row_on_mrerp_and_discount_is_free(self):
+        ctx = {"answers": {"company": "CO-1", "invoices": IV1_600}}
+        with mock.patch.object(guide.service, "methods", return_value=dict(self.METHODS)):
+            found = guide.method_options(ctx)
+        self.assertNotIn("max_rows", found)  # Express：照旧不限
+        self.assertFalse(any(row.get("free") for row in found["options"]))
+        with mock.patch.object(guide.service, "methods", return_value={**self.METHODS, "single": True}):
+            found = guide.method_options(ctx)
+            by_code = guide.method_options(ctx, codes=[guide.CASH, guide.DISCOUNT + "5300-09"])  # 引擎作答时按码取也带上
+        self.assertEqual(found["max_rows"], 1)
+        self.assertEqual([row["code"] for row in found["options"] if row.get("free")], [guide.DISCOUNT + "5300-09"])
+        self.assertEqual(by_code["max_rows"], 1)
+
+    def test_the_card_refuses_a_second_money_row_on_mrerp(self):
+        name, _found = self.to_invoices()
+        self.read_back()
+        run.answer(name, {"invoices": IV1_600})
+        with mock.patch.object(guide.service, "methods", return_value={**self.METHODS, "single": True}):
+            refused = run.answer(name, {"methods": self.TWO})
+            self.assertEqual(_codes(refused), {"methods": run.TOO_MANY_ROWS})
+            self.assertEqual(self.questions(refused)["methods"]["max_rows"], 1)
+
     def test_the_receipt_menu_is_asked_with_the_book_and_remembered(self):
         menus = {"options": [{"code": "169", "name": "รับชำระหนี้"}, {"code": "171", "name": "รับชำระ-2"}]}
         chosen, books = [], []

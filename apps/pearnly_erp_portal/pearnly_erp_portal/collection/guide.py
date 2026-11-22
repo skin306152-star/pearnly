@@ -295,11 +295,18 @@ def method_options(ctx, txt="", start=0, page_length=20, codes=None):
             if error.code in (MASTERS_READING, "collection.mrerp_reading"):
                 out["wait"] = True
             return out
+    # 账本是 MR.ERP（`service.methods` 的 ``single``）：一笔只收一种钱，卡上只让填一行（``max_rows``，引擎超出回 too_many_rows），
+    # 折扣带 ``free`` 不占名额（转账 + 折扣仍可）；method_check 的 ONE_METHOD 留作兜底（主会话 11-17）
+    single = bool(found.get("single"))
     rows = [{"code": CASH, "name": _("Cash"), "kind": "cash"}] if found["cash"] else []
     rows += [{"code": TRANSFER + item["prefix"], "name": item["label"], "kind": "transfer"} for item in found["transfers"]]
     if found["discount"]:
-        rows.append({"code": DISCOUNT + found["discount"]["prefix"], "name": _("Discount"), "kind": "discount"})
-    return _page(rows, txt, start, page_length, codes)  # MR.ERP 一笔只收一种钱：作答时 method_check 拒收
+        rows.append({"code": DISCOUNT + found["discount"]["prefix"], "name": _("Discount"), "kind": "discount",
+                     **({"free": True} if single else {})})
+    out = _page(rows, txt, start, page_length, codes)
+    if single:
+        out["max_rows"] = 1
+    return out
 
 
 def method_check(ctx, value) -> str:
