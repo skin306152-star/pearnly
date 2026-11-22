@@ -50,3 +50,13 @@
 
 真机记录 | erp.desk.pearnly-purchase.action.Submit | 2026-11-22 | a8b5ea33f | 本机实验栈 pearnly-switch-lab（a8b5ea33f + 本分支开关改动）+ MR.ERP 专属测试账套 | 通过 | 开关打开后 ERP 采购单提交排上 MR.ERP 导入，选一次菜单与费用科目后写成 PG691122-288584
 真机记录 | erp.desk.pearnly-sales.action.Submit | 2026-11-22 | a8b5ea33f | 本机实验栈 pearnly-switch-lab（a8b5ea33f + 本分支开关改动）+ MR.ERP 专属测试账套 | 通过 | 开关打开后 ERP 销售单提交写成 SI691122-409406
+
+## 上线后必验（release-20261122-1321 = 1315cb058）
+
+只走网页 / 只读页面，不连生产 SSH，不写真实客户账。
+
+| 检查项 | 结果 |
+| --- | --- |
+| ① 正式租户 mrerp 站点能看到 MR.ERP 入口、不自动写账、不自动登录 | 没测到：正式租户不登录（e2e 账号只在测试租户）。开关此前一直关着，线上没有任何公司接 MR.ERP，自动整读 / 写账的前提（已接 MR.ERP 的公司）不存在；自动路径由本分支 5 条守门测试（`NoAutomaticLoginTests`）兜着 |
+| ② testerp 选 MR.ERP 账本、收款引导卡方式只能填一行、真写一张 | 没测到：testerp 没有 MR.ERP 连接（`mrerp.api.records` 返回空），没有公司接 MR.ERP；MR.ERP 密码只能在 CC 桌面版由用户本人授权（第三方账号密码不代输）。待用户到场：在测试机1 的 CC 桌面版授权 MR.ERP 测试账号到 testerp，再走 testerp 收款 |
+| ③ 物料 / 库存一览列宽（1440） | 通过：e2e 账号登录线上 testerp（解析核对指向生产），物料一览 20 行、库存一览 2 行，内部编码列完整显示，脚本检测文字截断 0；截图在本机 `~/pearnly-devtools/postcheck-1122/` |
