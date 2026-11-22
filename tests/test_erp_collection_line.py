@@ -5,7 +5,9 @@ IV1 1000 / IV2 500、2100900 一张 IV3 50），LINE 传输层、会话、绑定
 `integrations.line_collection` 与 `collection.service`：服务端的权限、预留、版本、撤回都是真的。
 
 覆盖：每一步的状态、客户超过 12 个、发票多选与合计、组合 / 折扣 / 部分（哪张留余额、逐张输入）、超收重输、转账缺凭证、
-【确认】按钮与打字确认、卡片版本变了重出卡、撤回、权限（无岗位、伪造按钮）、结果用回复还是推送、富菜单第 4 格。
+【确认】按钮与打字确认、卡片版本变了重出卡、撤回、权限（无岗位、伪造按钮）、富菜单第 4 格；放行后先三个点、回执到了用这次的回复令牌
+回结果、等不到回「录入中」（`pearnly_core.line_ui.receipt`，计时器换成不睡的假计时器，用户 11-22），全程不推送；电脑还在读时同样等、
+读好了接着回下一步。
 """
 import contextlib
 import json
@@ -52,6 +54,10 @@ class FakeLine(types.ModuleType):
     def start_loading(self, user_id, seconds=30):
         self.loading.append(user_id)
         return True
+
+    def reply_sender(self, token):
+        """计时线程用的回复（`line_receipt` 到点回兜底）：同样记进 replies。"""
+        return lambda messages: self.replies.append((token, messages)) or True
 
     def download_message_content(self, message_id, **kwargs):
         return self.content
@@ -114,6 +120,18 @@ class FakeRedis:
     def delete(self, key):
         self.values.pop(key, None)
 
+    def getdel(self, key):
+        return self.values.pop(key, None)
+
+    def sadd(self, key, member):
+        self.values.setdefault(key, set()).add(member)
+
+    def smembers(self, key):
+        return set(self.values.get(key) or ())
+
+    def expire(self, key, seconds):
+        return True
+
 
 REDIS = FakeRedis()
 try:
@@ -129,10 +147,25 @@ import pearnly_core  # noqa: E402
 
 pearnly_core.line, pearnly_core.line_session, pearnly_core.line_binding = LINE, session_module, binding_module
 
+from pearnly_core.line_ui import receipt as line_receipt  # noqa: E402
 from pearnly_erp_portal.collection import contracts as C, service  # noqa: E402
 from pearnly_erp_portal.integrations import line_collection as flow, line_collection_cards as cards  # noqa: E402
 
 C1 = "2100883"
+frappe.get_attr = lambda path: __import__("importlib").import_module(path.rsplit(".", 1)[0]).__dict__[path.rsplit(".", 1)[1]]
+
+
+class Timers:
+    """不睡的计时器（`line_receipt.Timer`）：start 只记下，``fire`` 才到点回兜底。"""
+
+    def __init__(self):
+        self.made = []
+
+    def __call__(self, seconds, function):
+        timer = types.SimpleNamespace(seconds=seconds, function=function, daemon=False)
+        timer.start = lambda: None
+        self.made.append(timer)
+        return timer
 
 
 class Base(T.Base):
@@ -154,6 +187,15 @@ class Base(T.Base):
         frappe.session.user = "Guest"  # webhook 是 Guest，按绑定的账号调服务
         T.S.table("Pearnly LINE Binding").update({"B1": {"name": "B1", "user": "a@x", "status": "active",
                                                           "line_user_id": "U1"}})
+        self.timers = Timers()
+        timer = mock.patch.object(line_receipt, "Timer", self.timers)
+        timer.start()
+        self.addCleanup(timer.stop)
+
+    def timeout(self):
+        """等结果的计时到点：回兜底（只有那一轮的「待回」还在时）。"""
+        for timer in list(self.timers.made):
+            timer.function()
 
     # ── 假事件 ──
     def tap(self, data, uid="U1", event="evt-1"):
@@ -264,10 +306,75 @@ class Steps(Base):
         self.assertEqual(self.step(), "customer")
         self.type("nothing like it")
         self.assertIn("No match for “nothing like it”", self.last_text())
-        self.type("99007")  # 整串编号：直接选上（快照里还没有这位客户的发票：请电脑读，给【刷新】再看）
+        replies = len(LINE.replies)
+        self.type("99007", event="evt-7")  # 整串编号：直接选上（快照里还没有这位客户的发票：请电脑读，先三个点）
         self.assertEqual((self.step(), self.payload()["customer"]), ("customer", "99007"))
+        self.assertEqual(len(LINE.replies), replies)  # 不先回过程文字
+        self.assertTrue(line_receipt.pending("erp:col-read:U1"))
+        self.timeout()  # 等不到读好：原句「正在读取」+【刷新】
+        self.assertEqual(LINE.replies[-1][0], "r-evt-7")
         self.assertEqual(self.last_text(), "Reading from Express")
         self.assertEqual(self.buttons()[0]["data"], "a=col&s=customer&v=99007")
+
+    def test_invoices_read_while_waiting_are_the_reply(self):
+        """选了客户、电脑还在读：读好了（共用通道交回那件，按请求号叫醒）接着回下一步，用选客户那次的回复令牌（用户 11-22）。"""
+        T.S.table("ERP Customer")["X1"] = {"name": "X1", "express_company": "CO-1", "express_code": "99001",
+                                          "customer_name": "shop one", "is_active": 1}
+        self.tap("a=col&s=start")
+        with mock.patch.object(T.snapshot, "request", return_value="reading"):
+            self.type("99001", event="evt-8")
+        found = json.loads(REDIS.values["site|pearnly:line:receipt:erp:col-read:U1"])
+        self.assertEqual(found["args"], {"line_user_id": "U1", "step": "customer", "value": "99001"})
+        topics = [key for key, value in REDIS.values.items() if isinstance(value, set) and "erp:col-read:U1" in value]
+        book = topics[0].split(":")[-2] if topics else ""
+        self.assertEqual(topics, ["site|pearnly:line:receipt-topic:cc-request:" + T.snapshot.request_key(book, "99001")])
+        with mock.patch.object(T.snapshot, "request", return_value="reading"):
+            line_receipt.resume("erp:col-read:U1")  # 叫醒了但还在读：不回，接着等
+        self.assertTrue(line_receipt.pending("erp:col-read:U1"))
+        with mock.patch.object(T.snapshot, "request", return_value="ready"):
+            line_receipt.resume("erp:col-read:U1")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-8")
+        self.assertIn("No open invoices", self.last_text())
+        replies = len(LINE.replies)
+        self.timeout()
+        self.assertEqual(len(LINE.replies), replies)  # 结果回过了：不再回「正在读取」
+
+    def test_methods_read_while_waiting_continue_with_the_method_question(self):
+        """勾完发票点【下一步】、收款方式要的主档电脑还在读：先三个点，读好了接着问收款方式；等不到回「正在读取」+【查看结果】
+        （点了接着出这一步，用户 11-22）。"""
+        real = service._catalog
+        reading = C.CollectionError("express.masters_reading")
+        with mock.patch.object(service, "_catalog", side_effect=reading):
+            self.tap("a=col&s=start")
+            self.type(C1)
+            self.tap("a=col&s=inv&v=IV1")
+            replies = len(LINE.replies)
+            self.tap("a=col&s=invoices&v=done", event="evt-n")
+            self.assertEqual(len(LINE.replies), replies)  # 不先回「正在读取」
+            self.assertEqual(self.step(), "invoices")
+            line_receipt.resume("erp:col-read:U1")  # 叫醒了还在读：接着等
+            self.assertEqual(len(LINE.replies), replies)
+        with mock.patch.object(service, "_catalog", side_effect=real):
+            line_receipt.resume("erp:col-read:U1")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-n")
+        self.assertIn("Choose the collection method", self.last_text())
+        self.assertEqual(self.step(), "method")
+        self.assertIn("site|pearnly:line:receipt-topic:cc-request:erp_masters:", "".join(
+            key for key, value in REDIS.values.items() if isinstance(value, set)))  # 主档那件读好时按请求号叫醒
+
+    def test_methods_still_reading_after_the_wait_offer_view_result(self):
+        reading = C.CollectionError("express.masters_reading")
+        with mock.patch.object(service, "_catalog", side_effect=reading):
+            self.tap("a=col&s=start")
+            self.type(C1)
+            self.tap("a=col&s=inv&v=IV1")
+            self.tap("a=col&s=invoices&v=done", event="evt-n")
+            self.timeout()
+        self.assertEqual(LINE.replies[-1][0], "r-evt-n")
+        self.assertEqual(self.last_text(), "Reading from Express")
+        self.assertEqual([item["label"] for item in self.buttons()], ["View result", "Cancel"])
+        self.tap(self.buttons()[0]["data"], event="evt-v")  # 【查看结果】：主档读好了就接着问收款方式
+        self.assertIn("Choose the collection method", self.last_text())
 
     def test_a_customer_that_cannot_be_read_now_says_why_not_no_open_invoices(self):
         # 11-12 三星实测：读不到（电脑没连 / 要更新）时说「没有未收清的发票」会误导收款员
@@ -504,11 +611,11 @@ class Release(Base):
         record = T.S.table("ERP Collection")[name]
         self.assertEqual((record["status"], record["consent_ref"]), (C.QUEUED, "line:evt-9"))
         self.assertIsNone(SESSIONS.get("U1"))
-        path, kwargs = self.enqueued[-1]
-        self.assertEqual((path, kwargs["name"], kwargs["reply_token"], kwargs["user"]),
-                         ("pearnly_erp_portal.integrations.line_collection.await_result", name, "r-evt-9", "a@x"))
-        self.assertTrue(flow.waiting(name))
+        # 放行后先三个点、记下在等这笔的结果（用这次的回复令牌）；不占后台进程睡等、不另回一句
+        self.assertTrue(line_receipt.pending("erp:col:" + name))
         self.assertEqual(LINE.loading, ["U1"])
+        self.assertEqual(LINE.replies[-1][0] != "r-evt-9", True)
+        self.assertNotIn("pearnly_erp_portal.integrations.line_collection.await_result", [path for path, _kw in self.enqueued])
 
     def test_typed_confirm_words_release_too(self):
         for word in (" OK ", "ยืนยัน", "确认", "確認", "o k"):
@@ -546,22 +653,21 @@ class Release(Base):
         save = self.card_button("Save")["data"]
         self.tap(self.card_button("Cancel")["data"])
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
-        self.assertIn("erp.collection.status.withdrawn", self.last_text())
+        self.assertIn("Cancelled", self.last_text())  # 状态词「已取消」（用户 11-22）
         self.assertIsNone(SESSIONS.get("U1"))
         # 取消后再点同一张卡的【保存】：什么都不做，回「单号 · 已取消」（11-19 真机：原来不回话）
         replies = len(LINE.replies)
         self.tap(save, event="evt-7")
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.WITHDRAWN)
         self.assertEqual(len(LINE.replies), replies + 1)
-        self.assertIn("erp.collection.status.withdrawn", self.last_text())
+        self.assertIn("Cancelled", self.last_text())
 
     def test_withdraw_after_release_from_the_pending_message(self):
         name = self.card()
         self.tap(self.card_button("Save")["data"])
-        flow._wait_off(name)
-        with mock.patch.object(flow, "WAIT_SECONDS", 0):
-            flow.await_result(name, "U1", "a@x", "r-wait")
-        self.assertIn("Recorded · pending write", self.last_text())
+        self.timeout()  # 等不到写入：用这次的回复令牌回「录入中」
+        self.assertEqual(LINE.replies[-1][0], "r-evt-1")
+        self.assertIn("Entering", self.last_text())
         self.assertEqual([item["label"] for item in self.buttons()], ["View result", "Withdraw"])
         withdraw = self.buttons()[1]["data"]
         self.tap(withdraw)
@@ -610,90 +716,90 @@ class Results(Base):
                          meta={"invoices": [{"docnum": "IV1", "remaining_after": "0.00"}]})
         self.assertIn(("pearnly_erp_portal.integrations.line_collection.notify", name),
                       [(path, kw.get("name")) for path, kw in self.enqueued])
-        flow.notify(name)  # 回执后的推送任务：后台还在等，交给它
+        flow.notify(name)  # 回执提交后的短任务：还在等，用放行那次的回复令牌回结果
         self.assertEqual(LINE.pushes, [])
-        flow.await_result(name, "U1", "a@x", "r-wait")
-        self.assertEqual(LINE.replies[-1][0], "r-wait")
-        self.assertIn("Written to Express: RE2403080", self.last_text())
+        self.assertEqual(LINE.replies[-1][0], "r-evt-1")
+        self.assertIn("Succeeded · RE2403080", self.last_text())
+        replies = len(LINE.replies)
+        self.timeout()  # 计时到点：结果已经回过，不再回「录入中」
         flow.notify(name)
-        self.assertEqual(LINE.pushes, [])  # 同一结果只说一次
+        self.assertEqual((len(LINE.replies), LINE.pushes), (replies, []))  # 同一结果只说一次、令牌只用一次
 
     def test_written_after_the_wait_is_not_pushed_and_is_told_by_reply(self):
-        # 11-13 用户定：写成不推送。「已记录 · 待写入」带【查看结果】；下次进「收款」先用回复列出上次之后写成 / 失败的
+        # 11-13 用户定：写成不推送。「录入中」带【查看结果】；下次进「收款」先用回复列出上次之后写成 / 失败的
         name = self.released()
-        with mock.patch.object(flow, "WAIT_SECONDS", 0):
-            flow.await_result(name, "U1", "a@x", "r-wait")
-        self.assertIn("Recorded · pending write", self.last_text())
-        self.assertFalse(flow.waiting(name))
+        self.timeout()
+        self.assertEqual(LINE.replies[-1][0], "r-evt-1")
+        self.assertIn("Entering", self.last_text())
+        self.assertFalse(line_receipt.pending("erp:col:" + name))
         view_result = self.buttons()[0]
         self.assertEqual((view_result["label"], parse_qs(view_result["data"])["s"]), ("View result", ["res"]))
-        self.tap(view_result["data"], event="evt-r1")  # 还没写成：照实再说一遍待写入
-        self.assertIn("Recorded · pending write", self.last_text())
+        self.tap(view_result["data"], event="evt-r1")  # 还没写成：照实再说一遍录入中
+        self.assertIn("Entering", self.last_text())
         self.jobs.report("J-" + name, "success", docnum="RE2403081")
+        replies = len(LINE.replies)
         flow.notify(name)
-        self.assertEqual(LINE.pushes, [])  # 成功路径 0 条推送
+        self.assertEqual((LINE.pushes, len(LINE.replies)), ([], replies))  # 没人在等：成功路径 0 条推送、不回话
         self.tap(view_result["data"], event="evt-r2")
         self.assertEqual(LINE.replies[-1][0], "r-evt-r2")
-        self.assertIn("Written to Express: RE2403081", self.last_text())
+        self.assertIn("Succeeded · RE2403081", self.last_text())
         self.tap("a=col&s=start", event="evt-m1")  # 看过了：进菜单不再列
         self.assertNotIn("RE2403081", self.last_text())
         self.assertEqual(LINE.pushes, [])
 
     def test_the_menu_lists_what_was_written_or_failed_since_last_time_once(self):
         name = self.released()
-        with mock.patch.object(flow, "WAIT_SECONDS", 0):
-            flow.await_result(name, "U1", "a@x", "r-wait")
+        self.timeout()
         self.jobs.report("J-" + name, "success", docnum="RE2403082")
         flow.notify(name)
         self.tap("a=col&s=start", event="evt-m1")
         self.assertEqual(LINE.replies[-1][0], "r-evt-m1")  # 用回复，不推送
         text = self.last_text()
-        self.assertIn("Written to Express: RE2403082", text)
+        self.assertIn("Succeeded · RE2403082", text)
         self.assertIn("Type the customer code or part of the name", text)  # 接着照常问客户
         self.tap("a=col&s=start", event="evt-m2")
         self.assertNotIn("RE2403082", self.last_text())
         self.assertEqual(LINE.pushes, [])
 
-    def test_a_failure_is_pushed_once_and_not_after_it_was_seen(self):
+    def test_a_failure_is_never_pushed_and_is_told_once(self):
+        # 用户 11-22：只回复不推送。等着的时候失败了用回复说；没人在等时，【查看结果】或下次进「收款」说一次
         name = self.released()
-        with mock.patch.object(flow, "WAIT_SECONDS", 0):
-            flow.await_result(name, "U1", "a@x", "r-wait")
+        self.timeout()
         self.jobs.report("J-" + name, "manual", reason="[WRITE_FAILED] BB has no account")
         flow.notify(name)
         flow.notify(name)
-        self.assertEqual(len(LINE.pushes), 1)  # 失败路径最多 1 条
-        self.assertIn("Not written to Express: BB has no account", LINE.pushes[0][1][0]["text"])
+        self.assertEqual(LINE.pushes, [])
         self.tap("a=col&s=start", event="evt-m1")
-        self.assertNotIn("BB has no account", self.last_text())  # 推过了：菜单不再列
+        self.assertIn("Failed · BB has no account", self.last_text())
+        self.tap("a=col&s=start", event="evt-m2")
+        self.assertNotIn("BB has no account", self.last_text())  # 说过了：菜单不再列
         other = Release.card(self)
         self.tap(self.card_button("Save")["data"], event="evt-c2")
-        with mock.patch.object(flow, "WAIT_SECONDS", 0):
-            flow.await_result(other, "U1", "a@x", "r-wait2")
-        self.tap(self.buttons()[0]["data"], event="evt-r")
-        self.jobs.report("J-" + other, "manual", reason="[WRITE_FAILED] seen first")
-        self.tap(self.buttons()[0]["data"], event="evt-r2")  # 收款员先点【查看结果】看到了失败
-        self.assertIn("seen first", self.last_text())
-        flow.notify(other)
-        self.assertEqual(len(LINE.pushes), 1)  # 看过的不推
+        self.jobs.report("J-" + other, "manual", reason="[WRITE_FAILED] while waiting")
+        flow.notify(other)  # 还在等：用放行那次的令牌回失败
+        self.assertEqual(LINE.replies[-1][0], "r-evt-c2")
+        self.assertIn("Failed · while waiting", self.last_text())
+        self.assertEqual(LINE.pushes, [])
 
     def test_waiting_for_express_is_said_in_the_pending_reply_only(self):
         # 等 Express 关闭（约定：`cc_desktop.jobs.book_express_wait`，express-wait-display 11-12）：当场的回复（免费）带现成那句，
         # 不另推送说原因；排队里的原因码不抄到收款记录上
-        name = self.released()
-        book = T.S.table("ERP Collection")[name]["book_key"]
-        self.jobs.report("J-" + name, "queued", reason="ACCOUNT_BUSY_LOCKED")
-        self.assertEqual((T.S.table("ERP Collection")[name]["status"], T.S.table("ERP Collection")[name]["reason"]),
-                         (C.QUEUED, ""))
-        for waiting in (True, False):
+        for index, waiting in enumerate((True, False)):
+            if index:
+                self.tap(self.buttons()[1]["data"], event="evt-wd")  # 撤回上一笔，发票余额放回来
+            name = Release.card(self)
+            book = T.S.table("ERP Collection")[name]["book_key"]
             with mock.patch("pearnly_core.cc_desktop.jobs.book_express_wait", create=True,
-                            side_effect=lambda key, moment=None: {"waiting": waiting and key == book, "since": None}), \
-                    mock.patch.object(flow, "WAIT_SECONDS", 0):
-                flow._wait_on(name)
-                flow.await_result(name, "U1", "a@x", "r-wait")
-            self.assertIn("Recorded · pending write", self.last_text())
+                            side_effect=lambda key, moment=None: {"waiting": waiting and key == book, "since": None}):
+                self.tap(self.card_button("Save")["data"], event=f"evt-w{index}")
+            self.jobs.report("J-" + name, "queued", reason="ACCOUNT_BUSY_LOCKED")
+            self.assertEqual((T.S.table("ERP Collection")[name]["status"], T.S.table("ERP Collection")[name]["reason"]),
+                             (C.QUEUED, ""))
+            self.timeout()
+            self.assertEqual(LINE.replies[-1][0], f"r-evt-w{index}")
+            self.assertIn("Entering", self.last_text())
             self.assertEqual("express.error.ACCOUNT_BUSY_LOCKED" in self.last_text(), waiting)
         self.assertEqual(LINE.pushes, [])
-
 
 
 class Returned(Base):
@@ -706,7 +812,6 @@ class Returned(Base):
         return name
 
     def refuse(self, name, reason="[already_collected] invoice paid", job=None):
-        flow._wait_off(name)
         self.jobs.report(job or "J-" + name, "manual", reason=reason,
                          meta={"invoices": [{"docnum": "IV1", "remaining": "200.00"}]})
         flow.notify(name)
@@ -714,7 +819,7 @@ class Returned(Base):
     def test_the_card_comes_back_with_each_current_balance_and_a_new_confirm(self):
         name = self.released()
         self.refuse(name)
-        self.assertEqual(LINE.replies[-1][0], "push:U1")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-1")  # 还在等：用放行那次的回复令牌还回原卡（不推送）
         self.assertIn("Already collected. Current balance:", self.last_text())  # CC 的小写码对上了（11-14 前对不上）
         self.assertIn("IV1 200.00", self.last_text())
         self.assertEqual((self.step(), self.payload()["name"], self.payload()["version"]), ("card", name, 2))
@@ -730,7 +835,7 @@ class Returned(Base):
     def test_a_returned_card_can_be_released_again_as_a_new_write(self):
         name = self.released()
         self.refuse(name, "[receipt_type_invalid] TR has no account")  # Express 里把方式设好了：原样再确认
-        self.assertIn("Not written to Express: TR has no account", self.last_text())
+        self.assertIn("Failed · TR has no account", self.last_text())
         self.tap(self.card_button("Save")["data"], event="evt-new")
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
         self.assertEqual(self.jobs.rows["J-" + name + "-1"]["request_key"], "erp:receipt:" + name + ":1")
@@ -738,6 +843,19 @@ class Returned(Base):
         self.assertEqual(T.S.table("ERP Collection")[name]["status"], C.QUEUED)
         self.refuse(name, job="J-" + name + "-1")  # 第二次被拒（这一件）：照样还回
         self.assertEqual((self.step(), self.payload()["version"]), ("card", 3))
+        self.assertEqual(LINE.replies[-1][0], "r-evt-new")
+
+    def test_returned_after_the_wait_comes_back_on_view_result(self):
+        name = self.released()
+        self.timeout()  # 等不到：回「录入中」+【查看结果】【撤回】
+        view_result = self.buttons()[0]["data"]
+        replies = len(LINE.replies)
+        self.refuse(name)
+        self.assertEqual((len(LINE.replies), LINE.pushes), (replies, []))  # 没人在等：不推送、不回话
+        self.tap(view_result, event="evt-r")
+        self.assertEqual(LINE.replies[-1][0], "r-evt-r")
+        self.assertIn("Already collected. Current balance:", self.last_text())
+        self.assertEqual((self.step(), self.payload()["name"], self.payload()["version"]), ("card", name, 2))
 
     def test_a_collector_busy_with_another_collection_only_hears_the_reason(self):
         name = self.released()
@@ -755,10 +873,9 @@ class Returned(Base):
         self.tap(self.card_button("Save")["data"])
         self.jobs.report("J-" + name, "manual", reason="[cash_account_missing] no cash account")
         flow.notify(name)
-        self.assertEqual(LINE.pushes, [])  # 后台还在等：交给它
-        flow.await_result(name, "U1", "a@x", "r-wait")
-        self.assertEqual(LINE.replies[-1][0], "r-wait")
-        self.assertIn("Not written to Express: no cash account", self.last_text())
+        self.assertEqual(LINE.pushes, [])
+        self.assertEqual(LINE.replies[-1][0], "r-evt-1")
+        self.assertIn("Failed · no cash account", self.last_text())
         self.assertEqual(self.step(), "card")
 
     def test_the_same_draft_is_seen_alike_in_line_the_web_list_and_cc(self):
@@ -777,10 +894,10 @@ class Returned(Base):
 
     def test_a_plain_failure_says_the_reason(self):
         name = self.released()
-        flow._wait_off(name)
         self.jobs.report("J-" + name, "manual", reason="[WRITE_FAILED] BB has no account")
         flow.notify(name)
-        self.assertIn("Not written to Express: BB has no account", LINE.pushes[0][1][0]["text"])
+        self.assertEqual(LINE.pushes, [])
+        self.assertIn("Failed · BB has no account", self.last_text())
 
     def test_cc_records_are_not_pushed_to_line(self):
         frappe.session.user = "a@x"
@@ -893,8 +1010,7 @@ class CardLife(Base):
         self.assertEqual(SESSIONS["U1"]["payload"], before)  # 会话不被改回旧草稿
         self.tap(old_wd, event="evt-old-wd")
         self.assertEqual((self.last_text(), self.status(new)), (EXPIRED, C.DRAFT))  # B3：旧卡撤不掉新的
-        self.assertNotIn("pearnly_erp_portal.integrations.line_collection.await_result",
-                         [path for path, _kw in self.enqueued])
+        self.assertFalse(line_receipt.pending("erp:col:" + old))
 
     def test_an_old_card_does_not_erase_a_collection_being_entered(self):
         # B5：新收款录到一半点旧卡，进度不丢
@@ -918,8 +1034,7 @@ class CardLife(Base):
         self.tap(wd, event="evt-c")
         self.assertEqual(len(LINE.replies), replies)
         self.assertEqual(self.status(name), C.QUEUED)
-        self.assertEqual([path for path, _kw in self.enqueued].count(
-            "pearnly_erp_portal.integrations.line_collection.await_result"), 1)
+        self.assertEqual(len(self.timers.made), 1)  # 只等一轮
 
     def test_a_card_shown_again_retires_the_earlier_card_of_the_same_draft(self):
         name, old_ok, old_wd = self.card()
@@ -1189,11 +1304,11 @@ class MrErpResultLines(unittest.TestCase):
 
     def test_written_and_failed_name_no_express_on_mrerp(self):
         written = {"status": C.WRITTEN, "docnum": "FR0001", "ledger": "mrerp"}
-        self.assertEqual(flow._status_text(written), "erp.collection.status.written · FR0001")
-        self.assertEqual(flow._status_text({**written, "ledger": None}), "Written to Express: FR0001")
+        self.assertEqual(flow._status_text(written), "Succeeded · FR0001")
+        self.assertEqual(flow._status_text({**written, "ledger": None}), "Succeeded · FR0001")  # 状态词两种账本同一句（11-22）
         failed = {"status": C.FAILED, "reason": "mrerp.importing", "ledger": "mrerp"}
         text = flow._status_text(failed)
-        self.assertTrue(text.startswith("erp.collection.status.failed · "), text)
+        self.assertTrue(text.startswith("Failed · "), text)
         self.assertNotIn("Express", text)
 
 

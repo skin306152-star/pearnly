@@ -17,7 +17,10 @@
 	p.collections = async (page, t, wrapper) => {
 		const api = "pearnly_erp_portal.collection.api.";
 		const root = "pearnly-collections";
-		const status_label = value => (value ? t(`erp.collection.status.${value}`) : "");
+		// 状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：同 LINE 回执（`collection.contracts.STATUS_WORDS`，契约测试比对）
+		const STATUS_WORDS = {draft: "erp.collection.status.draft", queued: "Entering", writing: "Entering", written: "Succeeded",
+			failed: "Failed", withdrawn: "Cancelled"};
+		const status_label = value => (value ? __(STATUS_WORDS[value] || value) : "");
 		const source_label = value => (value ? t(`erp.collection.source.${value}`) : "");
 		const money = value => p.money(value);
 		const amount = value => Number(value || 0);

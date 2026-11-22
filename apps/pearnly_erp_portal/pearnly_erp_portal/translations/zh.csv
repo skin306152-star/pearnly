@@ -275,6 +275,7 @@ Change members,变更成员
 Chart,图表
 Chart by,统计维度
 Chassis No,车架号
+Check mismatch,核对不一致
 Check sheet,核对表
 Check the opening stock row,请检查此期初明细
 Checkbox,勾选
@@ -2555,6 +2556,7 @@ express.precheck.note.vatSales,有含税销售
 express.precheck.note.writable,有电脑能写入
 express.reason.choiceNeeded,写入 Express 前需要选择
 express.reason.itemUnmapped,Express 中没有这件商品
+express.reason.mismatch,核对不一致
 express.reason.noBook,没有覆盖此日期的 Express 账套
 express.reason.noStockBook,此 Express 账套没有这种库存单的单据簿，请在 Express 中设置
 express.reason.noWriter,没有能写此账套的电脑

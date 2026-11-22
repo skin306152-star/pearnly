@@ -37,6 +37,17 @@ REF_MAX = 30
 # 记录状态
 DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN = "draft", "queued", "writing", "written", "failed", "withdrawn"
 STATUSES = (DRAFT, QUEUED, WRITING, WRITTEN, FAILED, WITHDRAWN)
+# 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败 / 已取消）：LINE 回执与网页「收款」页同一张表（`collections.js` 的
+# ``STATUS_WORDS`` 契约测试比对）。草稿照旧
+STATUS_WORDS = {DRAFT: "erp.collection.status.draft", QUEUED: "Entering", WRITING: "Entering", WRITTEN: "Succeeded",
+                FAILED: "Failed", WITHDRAWN: "Cancelled"}
+
+
+def status_word(status) -> str:
+    """收款状态 → 状态词词条（没在表里的原样）。"""
+    return STATUS_WORDS.get(status or "", status or "")
+
+
 RESERVING = (QUEUED, WRITING)          # 占着发票余额的（已放行、还没写完）
 WITHDRAWABLE = (DRAFT, QUEUED, FAILED)  # 没被电脑领走前可撤回（领走的另由写账队列拒）
 SOURCES = ("line", "cc", "web")  # web：ERP 网页「新建」（11-14），提交即放行

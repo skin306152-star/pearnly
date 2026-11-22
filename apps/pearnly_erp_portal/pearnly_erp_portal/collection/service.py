@@ -360,6 +360,21 @@ def choose_menu(company, value, day=None) -> dict:
     return {"chosen": str(value)}
 
 
+def reading_topics(company, day=None, customer=None) -> list:
+    """LINE 里「正在读取」等的那一件读好时叫醒的主题（`pearnly_core.line_ui.receipt.wake_topic`，用户 11-22）：``customer`` 给了是
+    这位客户的未收清发票，否则是这本账套的主档（收款方式）。Express 经共用机器通道（``cc-request:<请求号>``，`requests.complete`
+    叫醒），MR.ERP 是服务端的读取任务（`collection.mrerp.reading_topics`）。定不了账套回空（只等兜底）。"""
+    try:
+        book = book_for(_company(company), day or nowdate())
+    except (contracts.CollectionError, frappe.ValidationError):
+        return []
+    if ledger.handles(company):
+        return ledger.reading_topics(book, customer)
+    if customer is not None:
+        return ["cc-request:" + snapshot.request_key(book["key"], customer_code(company, customer))]
+    return ["cc-request:" + express_contracts.MASTERS_REQUEST + book["key"]]
+
+
 def reading_text(company) -> str:
     """「正在读取」按账本说：MR.ERP 的说 MR.ERP，其余照旧 Express。"""
     return _(ledger.READING_TEXT) if ledger.handles(company) else _("Reading from Express")

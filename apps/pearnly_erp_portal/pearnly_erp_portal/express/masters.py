@@ -368,7 +368,7 @@ def choose_book(company, key) -> dict:
 
 
 def _request_key(book):
-    return "erp_masters:" + book["key"]
+    return contracts.MASTERS_REQUEST + book["key"]
 
 
 def forget(book_key):

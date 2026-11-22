@@ -95,6 +95,24 @@ _CODE_DETAIL = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*:[a-z0-9_,.:]*$")  # 
 STATES = {contracts.HELD: "Pending", contracts.FAILED: "Failed", contracts.MISMATCH: "Mismatch"}
 
 
+def line_key(doctype, name) -> str:
+    """LINE 卡片「保存」后在等这张单写账结果的键（`pearnly_core.line_ui.receipt`，`integrations.handlers._await`）。"""
+    return f"erp:doc:{doctype}:{name}"
+
+
+def line_changed(doctype, name, values) -> None:
+    """账本栏刚写了新状态（`express.push._set` / `mrerp.push._set`）：有了结论（`contracts.ledger_settled`，或清空了状态）而 LINE
+    上有人在等这张的结果，就排提交后的短任务回结果（用户 11-22）。没人在等只读一次 Redis。"""
+    if "ledger_state" not in values:
+        return
+    state = values["ledger_state"]
+    if state is not None and not contracts.ledger_settled(state, values.get("ledger_reason")):
+        return
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    line_receipt.wake(line_key(doctype, name))
+
+
 # ---------------- 纯判断 ----------------
 
 

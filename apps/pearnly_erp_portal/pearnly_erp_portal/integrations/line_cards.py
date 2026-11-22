@@ -33,6 +33,8 @@ DOC_KINDS = {"purchase_invoice": "Purchase Invoice",
 MAX_BYTES = 28 * 1024
 SAVE_ACTION = "erp_save"  # 卡片「保存」的 postback（字面量：产品地图按它认入口）
 CANCEL_ACTION = "erp_cancel"  # 卡片「取消」
+RESULT_ACTION = "erp_result"  # 「录入中」后的【查看结果】（用户 11-22，a=erp_result&n=…）
+RECORDED = {"purchase": ("Purchase Document", "purchase"), "sales": ("ERP Sales Document", "sales_document")}
 
 
 def _money(value) -> str:
@@ -313,9 +315,58 @@ def stopped(doc, text) -> dict:
 
 
 def saved(doc, created) -> dict:
-    """「已入账 · 单号」：采购用系统号（PE…，同提交时回的那个；重复点时 ``created`` 只有内部名，按名取系统号）。"""
+    """「成功 · 单号」（没接 Express、不写账本的公司提交即成功）：采购用系统号（PE…，同提交时回的那个；重复点时 ``created`` 只有
+    内部名，按名取系统号）。"""
     number = created.get("system_no") or ""
     if not number and doc.direction == "purchase" and created.get("name"):
         number = frappe.db.get_value("Purchase Document", created["name"], "system_no") or ""
     number = number or created.get("name") or ""
-    return {"type": "text", "text": " · ".join(part for part in (_("Posted"), number) if part)}
+    return {"type": "text", "text": " · ".join(part for part in (_("Succeeded"), number) if part)}
+
+
+# ── 保存之后的结果（用户 11-22：先三个点，写账回执到了回结果；等不到回「录入中」+【查看结果】）──────────────────
+
+
+def recorded(doc) -> tuple:
+    """这张 LINE 单据提交出来的单：``(单据类型, 名称)``；还没提交回 ``(单据类型, "")``。"""
+    doctype, link = RECORDED[doc.direction]
+    return doctype, doc.get(link) or ""
+
+
+def entering(doc) -> dict:
+    """「录入中」+【查看结果】（等写账回执的兜底，同网页列表的状态词）。"""
+    label = _("View result")[:20]
+    data = urlencode({"a": "erp_result", "n": doc.name})  # = RESULT_ACTION（字面量：产品地图按它认入口）
+    return {"type": "text", "text": _("Entering"), "quickReply": {"items": [
+        {"type": "action", "action": {"type": "postback", "label": label, "data": data, "displayText": label}}]}}
+
+
+def result(doc, created=None, *, final=False):
+    """这张此刻的结果（状态词与网页同一张表，`express.contracts.ledger_word`）：没接 Express 的「成功 · 单号」；写进去了
+    「成功 · Express 单号」；没写成「失败 · 原因」+【编辑】。还在录入回 None（``final`` 时回「录入中」+【查看结果】）。"""
+    from pearnly_erp_portal.express import contracts as express_contracts, pending
+
+    doctype, name = recorded(doc)
+    name = name or (created or {}).get("name") or ""
+    row = frappe.db.get_value(doctype, name, ["name", "system_no", "ledger_state", "ledger_reason", "ledger_docnum"],
+                              as_dict=True) if name else None
+    if not row:
+        return saved(doc, created) if created else entering(doc) if final else None
+    state, reason = row.get("ledger_state") or "", row.get("ledger_reason") or ""
+    if not state:
+        return saved(doc, {"name": row.name, "system_no": row.system_no, **(created or {})})
+    if not express_contracts.ledger_settled(state, reason):
+        return entering(doc) if final else None
+    word = express_contracts.ledger_word(state)
+    if word == express_contracts.SUCCEEDED:
+        number = row.get("ledger_docnum") or row.get("system_no") or row.name
+        return {"type": "text", "text": f"{_(word)} · {number}"}
+    why = _(express_contracts.MISMATCH_REASON) if state == express_contracts.MISMATCH else pending.reason_label(state, reason)
+    return stopped(doc, " · ".join(part for part in (_(word), why) if part))
+
+
+def resume(intake):
+    """（`line_receipt` 的短任务）写账回执到了：回这张的结果；还在录入回 None 接着等。"""
+    doc = frappe.get_doc("ERP LINE Intake", intake)
+    message = result(doc)
+    return [message] if message else None

@@ -109,6 +109,11 @@
 	});
 	// 单据写进 Express 的情况（CC 桌面版直连 ERP，ADR-025）：状态、Express 单号、停下的原因；要人拿主意的项在这里选一次
 	// （服务端只认这份账套里有的值，选过记在这家公司名下），转人工的可以再写一次。
+	// 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败）：列表、详情、Express 弹窗与 LINE 回执同一张表（服务端
+	// `express.contracts.LEDGER_WORDS`，契约测试比对）。核对不一致（mismatch）算失败，原因栏写「核对不一致」
+	const LEDGER_WORDS = {queued: "Entering", written: "Succeeded", handled: "Succeeded", held: "Failed", failed: "Failed",
+		mismatch: "Failed", detached: "Failed"};
+	p.ledger_word = state => (state ? __(LEDGER_WORDS[state] || state) : "");
 	const EXPRESS_REASONS = {
 		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
@@ -236,16 +241,17 @@
 		const reason = waiting ? waiting : info.reason_text ? info.reason_text
 			: info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp
-				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n") : "";
+				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n")
+			// 已断开：原因写「未写入 Express（已断开）」；核对不一致：原因写「核对不一致」（状态词都是「失败」）
+			: info.state === "detached" ? __("express.state.detached") : info.state === "mismatch" ? __("express.reason.mismatch") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
-				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",
-					failed: "Failed", handled: "express.state.handled", detached: "express.state.detached"}[info.state] || info.state)},
+				default: p.ledger_word(info.state)},
 			...(info.docnum ? [{fieldtype: "Data", fieldname: "docnum", label: mrerp_ledger ? __("MR.ERP No.") : __("Express No."),
 				read_only: 1, default: info.docnum}] : []),
 			// 已写进 Express 又在 ERP 作废的单：Express 作废原单的进度
 			...(info.void ? [{fieldtype: "Data", fieldname: "void", label: __("express.void"), read_only: 1,
-				default: __({queued: "Queued", voided: "Cancelled", held: "Pending"}[info.void] || info.void)}] : []),
+				default: __({queued: "Entering", voided: "Cancelled", held: "Failed"}[info.void] || info.void)}] : []),
 			...(reason ? [{fieldtype: "Small Text", fieldname: "reason", label: __("Reason"), read_only: 1, default: reason}] : []),
 			// 按账套设置整张计税（账套没开逐行 VAT、公司选了整张计税）：税额与收银小票逐行拆出的不同，标明
 			...(info.vat_whole ? [{fieldtype: "Check", fieldname: "vat_whole", label: __("Whole document taxed"),
@@ -267,7 +273,7 @@
 				p.success(__("Saved"), "click");
 			} else if (info.can_retry) {
 				await p.call(api + "retry", {doctype, name}, "POST");
-				p.success(__("Queued"), "submit");
+				p.success(__("Entering"), "submit");
 			}
 			dialog.hide();
 			if (info.can_answer || info.can_retry) await reload?.();

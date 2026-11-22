@@ -90,11 +90,13 @@ def dispatch(doctype, name):
 
 
 def _set(doctype, name, values):
-    """写单据上的通用账本栏（不改修改时间）；改到状态或原因时单据进出「待处理」就推一次（同 `express.push._set`）。"""
+    """写单据上的通用账本栏（不改修改时间）；改到状态或原因时单据进出「待处理」就推一次，LINE 上有人在等结果就叫醒（同
+    `express.push._set`）。"""
     before = pending.ledger_of(doctype, name) if {"ledger_state", "ledger_reason"} & set(values) else None
     frappe.db.set_value(doctype, name, values, update_modified=False)
     if before is not None:
         pending.notify(doctype, name, before)
+    pending.line_changed(doctype, name, values)
 
 
 def _wanted(row):

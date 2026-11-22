@@ -189,6 +189,16 @@ def _read_key(book_key, customer):
     return READ_KEY + snapshot.request_key(book_key, customer)
 
 
+def reading_topics(book, customer=None) -> list:
+    """LINE 等「正在读取 MR.ERP」时叫醒的主题（`collection.service.reading_topics`）：这位客户的未收单读取（:func:`run_read`），
+    或这本账套的主档读取（`mrerp.choices.run_read`）。"""
+    if customer is not None:
+        return ["erp:mrerp-ar:" + _read_key(book["key"], customer)]
+    from pearnly_erp_portal.mrerp import choices
+
+    return [choices.read_topic(book.get("connection") or "", book.get("key") or "")]
+
+
 def request(company, book, customer) -> str:
     """按客户读一次（后台）：读好了回 ``ready``（只回一次，下一次再发新的读）、在读回 ``reading``、上一次读失败回 ``failed``。"""
     from pearnly_erp_portal.collection import snapshot
@@ -222,6 +232,9 @@ def run_read(company, book_key, customer):
         frappe.db.rollback()
         frappe.log_error(title="ERP MR.ERP receivables read failed")
     frappe.cache.set_value(key, {"state": state}, expires_in_sec=READ_SECONDS)
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    line_receipt.wake_topic("erp:mrerp-ar:" + key)  # LINE 上在等这位客户的发票（用户 11-22）
 
 
 def _read(company, book_key, customer) -> str:

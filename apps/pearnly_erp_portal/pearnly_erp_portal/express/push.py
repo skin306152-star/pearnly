@@ -327,13 +327,14 @@ def vat_fields(body, exempt) -> dict:
 
 def _set(doctype, name, values):
     """写单据上的账本栏（通用列 ``ledger_*``，现在账本只有 Express；不改修改时间）。改到状态或原因时，这张单进出 ERP 版 CC 的「待处理」就给能看这家公司的人推一次
-    （`pending.notify`，提交后）。"""
+    （`pending.notify`，提交后）；LINE 上有人在等这张的结果（卡片「保存」后），叫醒它回结果（提交后，用户 11-22）。"""
     from pearnly_erp_portal.express import pending
 
     before = pending.ledger_of(doctype, name) if {"ledger_state", "ledger_reason"} & set(values) else None
     frappe.db.set_value(doctype, name, values, update_modified=False)
     if before is not None:
         pending.notify(doctype, name, before)
+    pending.line_changed(doctype, name, values)
 
 
 def _prepare_body(doctype, company, body):

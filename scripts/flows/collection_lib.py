@@ -140,7 +140,9 @@ real_binding_of = line_binding.binding_of
 line_binding.user_of = lambda line_user_id: LINES.get(line_user_id) or (real_binding_of(line_user_id) or frappe._dict()).get("user")
 line_binding.binding_of = lambda line_user_id: (frappe._dict(user=LINES[line_user_id], line_user_id=line_user_id, status="active")
                                                 if line_user_id in LINES else real_binding_of(line_user_id))
-line_collection.WAIT_SECONDS = 0
+from pearnly_core.line_ui import receipt as line_receipt
+# 等结果的计时器当场到点（实验栈没有电脑写账，回执不会来）：放行后的兜底「录入中」+【查看结果】【撤回】在这次事件里就发出
+line_receipt.Timer = lambda seconds, function: types.SimpleNamespace(daemon=True, start=function)
 def inline(path, **kwargs):
     for key in ("queue", "enqueue_after_commit", "job_id", "deduplicate", "timeout", "now"):
         kwargs.pop(key, None)

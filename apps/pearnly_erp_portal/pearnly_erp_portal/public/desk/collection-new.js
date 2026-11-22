@@ -241,7 +241,7 @@
 				dialog.enable_primary_action();
 			}
 			frappe.utils.play_sound("submit");
-			frappe.show_alert({message: __("Recorded · pending write"), indicator: "green"});
+			frappe.show_alert({message: __("Entering"), indicator: "green"});  // 同列表状态词（用户 11-22）
 			dialog.hide();
 			on_done?.();
 		}

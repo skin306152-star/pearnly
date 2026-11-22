@@ -275,6 +275,7 @@ Change members,เปลี่ยนสมาชิก
 Chart,แผนภูมิ
 Chart by,แผนภูมิแบ่งตาม
 Chassis No,เลขตัวถัง
+Check mismatch,ตรวจสอบไม่ตรงกัน
 Check sheet,ใบตรวจสอบ
 Check the opening stock row,กรุณาตรวจสอบรายการยกมานี้
 Checkbox,ช่องทำเครื่องหมาย
@@ -2555,6 +2556,7 @@ express.precheck.note.vatSales,มียอดขายที่มีภาษ�
 express.precheck.note.writable,มีเครื่องที่บันทึกได้
 express.reason.choiceNeeded,ต้องเลือกก่อนบันทึกเข้า Express
 express.reason.itemUnmapped,ไม่มีสินค้านี้ใน Express
+express.reason.mismatch,ตรวจสอบไม่ตรงกัน
 express.reason.noBook,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 express.reason.noStockBook,ชุดบัญชี Express นี้ไม่มีสมุดสำหรับเอกสารสินค้าประเภทนี้ กรุณาตั้งค่าใน Express
 express.reason.noWriter,ไม่มีเครื่องที่บันทึกชุดบัญชีนี้ได้

@@ -4,8 +4,10 @@
 	u.api = "pearnly_erp_portal.sales.api.";
 	u.call = (method, args = {}, write = false) => p.call(u.api + method, args, write ? "POST" : "GET");
 	u.labels = {
-		express_queued: __("Queued"), express_held: __("Pending"), express_failed: __("Failed"),
-		express_mismatch: __("Mismatch"), express_detached: __("express.state.detached"),
+		// Express 列的状态词同单据页（`p.ledger_word`，用户 11-22 统一成 录入中 / 成功 / 失败）
+		express_queued: p.ledger_word("queued"), express_held: p.ledger_word("held"), express_failed: p.ledger_word("failed"),
+		express_mismatch: p.ledger_word("mismatch"), express_detached: p.ledger_word("detached"),
+		express_written: p.ledger_word("written"), express_handled: p.ledger_word("handled"),
 		receipt: __("Receipt"), quotation: __("Quotation"),
 		draft: __("Draft"), submitted: __("Submitted"), void: __("Cancelled"),
 		unpaid: __("Unpaid"), partial: __("Partly Paid"), paid: __("Paid"),

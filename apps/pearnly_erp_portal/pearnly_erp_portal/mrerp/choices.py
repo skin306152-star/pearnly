@@ -79,6 +79,11 @@ def request_read(company, *, manual):
     return {"company": company, "requested_at": str(now_datetime())}
 
 
+def read_topic(connection, account_set) -> str:
+    """这份账套导入页菜单与主档读取那件的主题（LINE 等「正在读取 MR.ERP」时叫醒，`pearnly_core.line_ui.receipt`）。"""
+    return f"erp:mrerp-masters:{connection}:{account_set}"
+
+
 def run_read(connection, account_set, manual=False):
     """（后台任务）读导入页菜单与主档（不持行锁）→ 存回连接。永不抛到队列。"""
     if not connections.mrerp.enabled():
@@ -93,6 +98,9 @@ def run_read(connection, account_set, manual=False):
     pages, fields, error, master_error = menu_read.read(lease, account_set, manual=bool(manual))
     observe(connection, account_set, pages, fields, error=error, master_error=master_error)
     frappe.db.commit()
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    line_receipt.wake_topic(read_topic(connection, account_set))  # LINE 上在等收款方式（用户 11-22）
 
 
 def observe(connection, account_set, pages, fields, error=None, master_error=None):

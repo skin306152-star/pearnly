@@ -100,7 +100,7 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
     params = {key: values[0] for key, values in parse_qs(data or "").items()}
     action = params.get("a") or ""
     if not (action.startswith("mode:") or action in ("erp", line_items.ACTION, line_ask.ACTION, line_collection.ACTION,
-                                                     line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION)):
+                                                     line_cards.SAVE_ACTION, line_cards.CANCEL_ACTION, line_cards.RESULT_ACTION)):
         return False
     if not bound:
         line_out.reply(reply_token, [{"type": "text", "text": _("Bind this account first")}])
@@ -118,6 +118,8 @@ def _postback(user_id: str, bound, data: str, reply_token: str, event_id: str = 
         _as(bound, _save_card, params.get("n") or "", reply_token)  # 卡片「保存」（用户 11-18）
     elif action == line_cards.CANCEL_ACTION:
         _as(bound, _save_card, params.get("n") or "", reply_token, intake.cancel_card)  # 卡片「取消」（用户 11-19）
+    elif action == line_cards.RESULT_ACTION:
+        _as(bound, _show_result, params.get("n") or "", reply_token)  # 「录入中」后的【查看结果】（用户 11-22）
     elif action == line_items.ACTION:
         _as(bound, line_items.answer, user_id, bound, data, reply_token)  # 识别后按行追问（11-06 按行选物料与库存）
     elif line_questions.is_step(data):
@@ -155,7 +157,40 @@ def _save_card(name, reply_token, act=None):
     if result.get("needed"):
         line_out.reply(reply_token, [line_cards.stopped(doc, line_cards.needed_text(doc, result["needed"]))])
         return
-    line_out.reply(reply_token, [line_cards.saved(doc, result)])
+    message = line_cards.result(doc, result, final=bool(result.get("duplicate")))
+    if message is not None:
+        line_out.reply(reply_token, [message])  # 没接 Express：提交即成功；再点一次：此刻的状态
+        return
+    _await(doc, reply_token)
+
+
+def _await(doc, reply_token):
+    """接 Express 的公司提交后在排写账：先三个点，写账回执到了（`express.push._set` 叫醒）回结果；等不到回「录入中」+【查看结果】
+    （`pearnly_core.line_ui.receipt`，用户 11-22）。"""
+    from pearnly_core.line_ui import receipt as line_receipt
+    from pearnly_erp_portal.express import pending
+
+    key = pending.line_key(*line_cards.recorded(doc))
+    started = line_receipt.start(key, getattr(frappe.local, line_out.USER, None) or doc.line_user_id, reply_token,
+                                 [line_cards.entering(doc)], resume="pearnly_erp_portal.integrations.line_cards.resume",
+                                 args={"intake": doc.name})
+    if not started:
+        line_out.reply(reply_token, [line_cards.entering(doc)])
+        return
+    message = line_cards.result(doc)  # 交单到这里之间回执已经到了：当场回结果
+    if message is not None:
+        line_receipt.settle(key, [message])
+
+
+def _show_result(name, reply_token):
+    """【查看结果】：本人的这张此刻的状态（同网页列表的状态词）；还没提交的照「保存」处理。"""
+    doc = frappe.db.exists(intake.DOCTYPE, name) and frappe.get_doc(intake.DOCTYPE, name)
+    if not doc or doc.sent_by != frappe.session.user:
+        line_out.reply(reply_token, [{"type": "text", "text": _("Not permitted")}])
+        return
+    if not line_cards.recorded(doc)[1]:
+        return _save_card(name, reply_token)
+    line_out.reply(reply_token, [line_cards.result(doc, final=True)])
 
 
 def handle(event: dict) -> bool:

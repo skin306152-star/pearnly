@@ -1991,7 +1991,7 @@ class CardSave(Web):
 
     def test_save_posts_the_card_through_the_edit_page_submit(self):
         reply = self.press()
-        self.assertEqual(reply, {"type": "text", "text": "Posted · PE-0001"})
+        self.assertEqual(reply, {"type": "text", "text": "Succeeded · PE-0001"})
         self.assertEqual(self.seen["request_id"], "line-intake:LI-1")  # 同编辑页的请求号：两边只入一次
         payload = self.seen["payload"]
         self.assertEqual((payload["company"], payload["source"], payload["supplier"], payload["lines"][0]["warehouse"]),
@@ -2020,7 +2020,7 @@ class CardSave(Web):
         self.assertEqual(sorted(reply["text"].splitlines()), ["Warehouse", "express.kind.vat · Freight"])
         self.assertEqual(reply["quickReply"]["items"][0]["action"]["label"], "Edit")
         self.judged = [{**VAT, "subject": "s", "value": "claim", "source": precheck_card.REMEMBERED}]  # 答过了：照常提交
-        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PE-0001"})
+        self.assertEqual(self.press(), {"type": "text", "text": "Succeeded · PE-0001"})
 
     def test_save_does_not_post_without_a_fit_inventory_account_group(self):
         """旧卡：判定判出账套里没有合格的存货科目组（只能在 Express 里改）：不入账，回现有原因 + 「编辑」。"""
@@ -2059,7 +2059,7 @@ class CardSave(Web):
         self.doc.status, self.doc.purchase = "confirmed", "PD-1"
         drop = self.enterContext(patch.object(intake, "_drop"))
         handlers._postback("U1", "buyer", "a=erp_cancel&n=LI-1", "tok")
-        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Posted · PD-1"})
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Succeeded · PD-1"})
         drop.assert_not_called()
 
     def test_an_unexpected_error_answers_failed_and_posts_nothing(self):
@@ -2079,12 +2079,62 @@ class CardSave(Web):
         self.assertEqual((line["vat_rate"], line["wht_rate"]), (7.0, 3.0))
         self.assertEqual(intake._tidy_numbers("purchase", {"lines": [{"vat_rate": "n/a", "wht_rate": 1}]})["lines"], [{"wht_rate": 1.0}])
 
+    def express_row(self, state, reason="", docnum=""):
+        """接了 Express：提交出来的单此刻的账本栏（`line_cards.result` 读的那几栏）。"""
+        row = frappe._dict(name="PD-1", system_no="PE-0001", ledger_state=state, ledger_reason=reason, ledger_docnum=docnum)
+        other = getattr(self, "_other_values", None) or frappe.db.get_value.side_effect
+        self._other_values = other
+        frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
+            row if doctype == "Purchase Document" and isinstance(fields, list) else other(doctype, name, fields, **kw))
+
+    def test_a_linked_company_waits_for_the_write_receipt(self):
+        """用户 11-22：接了 Express 的公司提交后还在排写账：先三个点、不先回「已入账」；回执到了回「成功 · Express 单号」，
+        没写成回「失败 · 原因」+【编辑】；等不到回「录入中」+【查看结果】。"""
+        from pearnly_core.line_ui import receipt as line_receipt
+        from pearnly_erp_portal.integrations import line_cards
+
+        self.linked.return_value = True
+        self.express_row("queued")
+        start = self.enterContext(patch.object(line_receipt, "start", return_value=True))
+        settle = self.enterContext(patch.object(line_receipt, "settle"))
+        before = len(self.replies)
+        handlers._postback("U1", "buyer", "a=erp_save&n=LI-1", "tok")
+        self.assertEqual(len(self.replies), before)
+        key, _user, token, fallback = start.call_args.args
+        self.assertEqual((key, token), ("erp:doc:Purchase Document:PD-1", "tok"))
+        self.assertEqual(fallback[0]["text"], "Entering")
+        self.assertEqual(fallback[0]["quickReply"]["items"][0]["action"]["data"], "a=erp_result&n=LI-1")
+        settle.assert_not_called()
+        self.assertIsNone(line_cards.result(self.doc))  # 还在排：接着等
+        self.express_row("held", "express.no_writer")
+        self.assertIsNone(line_cards.result(self.doc))  # 等电脑、每分钟自己再试：还算在录入
+        self.express_row("written", docnum="HP6911-0001")
+        self.assertEqual(line_cards.result(self.doc), {"type": "text", "text": "Succeeded · HP6911-0001"})
+        self.express_row("mismatch", docnum="HP6911-0001")
+        self.assertEqual(line_cards.result(self.doc)["text"], "Failed · express.reason.mismatch")
+        self.express_row("failed", "[WRITE_FAILED] no account")
+        failed = line_cards.result(self.doc)
+        self.assertTrue(failed["text"].startswith("Failed · "), failed["text"])
+        self.assertEqual(failed["quickReply"]["items"][0]["action"]["label"], "Edit")
+
+    def test_view_result_answers_the_sender_with_the_current_state(self):
+        self.doc.status, self.doc.purchase = "confirmed", "PD-1"
+        self.express_row("queued")
+        handlers._postback("U1", "buyer", "a=erp_result&n=LI-1", "tok")
+        self.assertEqual(self.replies[-1][0]["text"], "Entering")
+        self.express_row("written", docnum="HP6911-0002")
+        handlers._postback("U1", "buyer", "a=erp_result&n=LI-1", "tok2")
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Succeeded · HP6911-0002"})
+        self.roles["someone"] = {"purchase.write", "integration.read"}
+        handlers._postback("U2", "someone", "a=erp_result&n=LI-1", "tok3")
+        self.assertEqual(self.replies[-1][0], {"type": "text", "text": "Not permitted"})
+
     def test_a_saved_card_is_not_recorded_twice(self):
         self.doc.status, self.doc.purchase = "confirmed", "PD-1"
         frappe.db.get_value.side_effect = lambda doctype, name, fields=None, **kw: (
             "PE2569-000020" if (doctype, fields) == ("Purchase Document", "system_no") else None)
         # 再点回的是同一个系统号（11-19 真机：原来第二次显示内部名）
-        self.assertEqual(self.press(), {"type": "text", "text": "Posted · PE2569-000020"})
+        self.assertEqual(self.press(), {"type": "text", "text": "Succeeded · PE2569-000020"})
         self.post.assert_not_called()
 
 

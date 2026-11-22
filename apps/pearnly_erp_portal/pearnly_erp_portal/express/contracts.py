@@ -43,6 +43,8 @@ SEVERAL_BOOKS = "express.account_set_several"
 PERIOD_OUTSIDE = "express.account_period_mismatch"
 NO_WRITER = "express.no_writer"
 READING = "express.masters_reading"
+# 一本账套整套主档那件按需请求的请求号前缀（`masters._request_key`；LINE 等收款方式时按它叫醒，`collection.service.reading_topics`）
+MASTERS_REQUEST = "erp_masters:"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
 # 这位用户能写的电脑都关着、在线的那台是别人的（不派给别人）：说「你的电脑离线」（A 线 11-12）
@@ -93,6 +95,27 @@ def printed_hold(recognized, printed_total, grand_total, net_payable=None):
     if amounts.computed_issues({"total": printed}, grand_total, None, net_payable):
         return PRINTED_TOTAL_MISMATCH
     return None
+
+
+# 给人看的状态词（用户 11-22 统一成 录入中 / 成功 / 失败）：网页列表、详情、Express 弹窗与 LINE 回执同一张表（单据页
+# `public/desk/transactions.js` 的 ``LEDGER_WORDS`` 契约测试比对）。写进去了但回读核对不一致（mismatch）要人看，算失败、原因
+# :data:`MISMATCH_REASON`；人标记「已在 Express 手工处理」（handled）算成功。原因照旧在原因栏 / 悬浮里
+ENTERING, SUCCEEDED, NOT_DONE = "Entering", "Succeeded", "Failed"
+LEDGER_WORDS = {QUEUED: ENTERING, WRITTEN: SUCCEEDED, HANDLED: SUCCEEDED, HELD: NOT_DONE, FAILED: NOT_DONE,
+                MISMATCH: NOT_DONE, DETACHED: NOT_DONE}
+MISMATCH_REASON = "express.reason.mismatch"
+
+
+def ledger_word(state) -> str:
+    """单据账本状态 → 状态词词条（没在表里的原样）。"""
+    return LEDGER_WORDS.get(state or "", state or "")
+
+
+def ledger_settled(state, reason) -> bool:
+    """LINE 上等结果的这一单有没有结论：排队中、停在每分钟会自己再试的原因上（等电脑、主档在读、没有账套…）都还算在录入。"""
+    if not state or state == QUEUED:
+        return False
+    return not (state == HELD and str(reason or "") in POLL_REASONS)
 
 
 def needs_person(state, reason) -> bool:
@@ -397,7 +420,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "CHOICE", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "NOT_YOURS", "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

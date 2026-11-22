@@ -666,6 +666,18 @@ device_only = "按钮在识别完的卡片上，要真 LINE 官方号收图、�
 device = "部署后在 testerp（ERP-TEST 官方号，三星 LINE）：富菜单「ซื้อ」→ 拍一张票 → 卡片底部「บันทึก」在「แก้ไข」上方 → 点「บันทึก」→ 回「บันทึกบัญชีแล้ว · 单号」，网页采购列表有这张、接 Express 的测试公司写进测试账套；再点一次只回原单号；多仓没定仓 / 要人选科目的一张 → 不入账，回原因 + 快捷回复「แก้ไข」打开编辑页；销售「ขาย」同走一遍"
 
 [[row]]
+id = "erp.line.postback.erp_result"
+product = "ERP"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:erp:postback:erp_result"
+where = "LINE 卡片「บันทึก」后等不到写账回执时回的「กำลังบันทึก」上的【ดูผลลัพธ์】（a=erp_result&n=…，用户 11-22）：发单本人的这张此刻的状态（同网页列表的状态词：录入中 / 成功 · Express 单号 / 失败 · 原因 +「แก้ไข」）；别人点回无权限；还没提交的照「保存」处理"
+parts = ["line"]
+tests = ["unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_view_result_answers_the_sender_with_the_current_state", "unit:apps/pearnly_erp_portal/pearnly_erp_portal/integrations/test_line_intake.py::test_a_linked_company_waits_for_the_write_receipt", "unit:tests/test_line_receipt.py::test_the_timer_first_means_the_result_is_not_sent"]
+group = "line.card-result"
+
+[[row]]
 id = "erp.line.postback.erp_cancel"
 product = "ERP"
 channel = "line"

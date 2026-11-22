@@ -12,9 +12,10 @@
    卡片有效期照 DMS（共享笔记「卡片有效期规则」A 节）：每张卡一个一次性确认号（`line_session.consume_nonce`），【确认】【撤回】都要它；
    出新卡、重开一笔、取消时旧卡失效、没放行的草稿作废；卡自出卡起 :data:`CARD_MINUTES` 分钟有效；同一张卡再点不回话，其余失效回
    :data:`EXPIRED`。【取消】只认最新那条消息上的（步号 ``turn``）。单据日期按放行当天；今天不在这家任何一本账套的期间里时，选公司后先问收款日期（账套跟着日期走），照选的写。
-3. 结果：放行后在后台等写入最多 :data:`WAIT_SECONDS` 秒（显示三个点），写成用回复给 RE 号；没写成先回「已记录 · 待写入」
-   （带【查看结果】【撤回】）。之后写成不推送：点【查看结果】或下次进「收款」时用回复告诉；写失败推一条给录入的收款员本人
-   （回执 `collection.push` → :func:`notify`，同一笔一次，已看过不推）。
+3. 结果（用户 11-22，`pearnly_core.line_ui.receipt`）：放行后先显示三个点，收款回执落库（`collection.push` → :func:`notify`）时用这次的
+   回复令牌回「成功 · RE 号」/「失败 · 原因」（写前被拒退回草稿的，原卡带原因还回）；等不到回「录入中」（带【查看结果】【撤回】）。
+   之后只用回复：点【查看结果】或下次进「收款」时告诉（同一笔一次），不推送。选客户、勾完发票时电脑还在读（未收清发票、收款方式）
+   同样先三个点，读好了接着回下一步；等不到回原来那句「正在读取」+【刷新】/【查看结果】。
 
 规则、权限、金额全部在 `collection.service`（LINE 只调它，不另写一份）；这里只管问与记。身份是绑定的 ERP 账号。
 """
@@ -28,6 +29,7 @@ import frappe
 from frappe import _
 
 from pearnly_core import line, line_binding, line_session
+from pearnly_core.line_ui import receipt as line_receipt
 from pearnly_core.line_ui.labels import choice_labels
 
 from pearnly_erp_portal.access import guard
@@ -51,16 +53,14 @@ OLDEST, EACH = "@oldest", "@each"
 MAX_CHOICES = 12
 # Flex 发票列表：每张气泡 10 张，最多 5 张气泡（一笔收款最多 `contracts.MAX_INVOICES` 张）
 PER_BUBBLE = 10
-WAIT_SECONDS = 20
 EDIT_ROUTE = "/desk/pearnly-collections/"  # 11-14 起「收款」一页（旧的 pearnly-my-collections/<记录> 仍转过来）
 # 打字确认（用户手打的词不翻译；四种语言 + ok）。比较时去掉空白、不分大小写
 CONFIRM_WORDS = frozenset(("ยืนยัน", "确认", "確認", "ok", "confirm"))
 # 回执里这两种「不能收」带每张发票此刻的余额（`collection.push`）；没带余额的（如服务品现金制）照原因说
 BALANCE_CODES = contracts.UNCOLLECTABLE  # CC 回的原样小写码（11-14 前写成大写、对不上）
-_WAIT_KEY = "pearnly:erp:collection:line-wait:"
 _TOLD_KEY = "pearnly:erp:collection:line-told:"
 _USED_KEY = "pearnly:erp:collection:line-used:"     # 已消费的确认号：同卡再点不回话
-_PENDING_KEY = "pearnly:erp:collection:line-pending:"  # 「已记录 · 待写入」那条的撤回号（一笔一个）
+_PENDING_KEY = "pearnly:erp:collection:line-pending:"  # 「录入中」那条的撤回号（一笔一个）
 USED_SECONDS = 86400
 
 
@@ -144,10 +144,68 @@ def _send(reply_token, messages):
     if prefix:
         frappe.local.pearnly_collection_prefix = []
         messages = [*prefix, *messages]
+    box = getattr(frappe.local, "pearnly_collection_capture", None)
+    if box is not None:
+        box.extend(messages)  # 拼「等结果」的回复（:func:`_captured`）：不发，交给 `line_receipt`
+        return True
     to = getattr(frappe.local, "pearnly_collection_to", "")
     if to:
         return line_out.reply_or_push(to, messages, reply_token)
     return line_out.reply(reply_token, messages)
+
+
+@contextlib.contextmanager
+def _captured():
+    """块里要回给这个人的消息只收下不发（:func:`_send`）：等结果的兜底与结果由 `line_receipt` 用回复令牌发。"""
+    previous = getattr(frappe.local, "pearnly_collection_capture", None)
+    box = frappe.local.pearnly_collection_capture = []
+    try:
+        yield box
+    finally:
+        frappe.local.pearnly_collection_capture = previous
+
+
+def _resuming() -> bool:
+    return bool(getattr(frappe.local, "pearnly_collection_resuming", False))
+
+
+class _StillReading(Exception):
+    """读好了接着回下一步（:func:`resume_step`）时还在读：这次不回，接着等。"""
+
+
+def _read_key(line_user_id) -> str:
+    return f"erp:col-read:{line_user_id}"
+
+
+def _wait_read(line_user_id, reply_token, topics, step, value, fallback):
+    """电脑还在读（未收清发票、收款方式）：先三个点，读好了接着回这一步的下一问；等不到回 ``fallback`` 原句（用户 11-22）。
+    接着回的那一次（:func:`resume_step`）又碰到还在读：不再起一轮，抛 :class:`_StillReading` 接着等。"""
+    if _resuming():
+        raise _StillReading()
+    with _captured() as messages:
+        fallback()
+    if not line_receipt.start(_read_key(line_user_id), line_user_id, reply_token, messages,
+                              resume="pearnly_erp_portal.integrations.line_collection.resume_step",
+                              args={"line_user_id": line_user_id, "step": step, "value": value}, topics=topics):
+        _send(reply_token, messages)
+
+
+def resume_step(line_user_id, step, value):
+    """（`line_receipt` 的短任务，按收款员的身份与语言）读好了：接着走这一步，回它的消息；还在读、或会话已不在这一步回 None。"""
+    payload = payload_of(line_user_id)
+    wanted = {"customer": ("customer",), "invoices": ("invoices",)}.get(step) or ()
+    if payload.get("step") not in wanted:
+        return None
+    previous = getattr(frappe.local, "pearnly_collection_resuming", False)
+    frappe.local.pearnly_collection_resuming = True
+    try:
+        with _captured() as messages, _guarded(""):
+            _ANSWERS[step](line_user_id, payload, value, "")
+    except _StillReading:
+        return None
+    finally:
+        frappe.local.pearnly_collection_resuming = previous
+    return messages or None
 
 
 @contextlib.contextmanager
@@ -238,7 +296,7 @@ def answer(line_user_id, user, data, reply_token, event_id=""):
         if step == "wd":
             return _withdraw_tap(line_user_id, params, reply_token)
         if step == "res":
-            return _show_result(params.get("n") or "", reply_token)
+            return _show_result(params.get("n") or "", reply_token, line_user_id)
         payload = payload_of(line_user_id)
         if not payload.get("step"):
             return _text(reply_token, _(EXPIRED))  # 会话过期 / 已结束：不是「旧步骤」
@@ -480,8 +538,10 @@ def _pick_customer(line_user_id, payload, value, reply_token, note=""):
         payload["step"] = "customer"
         _save(line_user_id, payload)
         if found.get("refresh") == "reading":
-            return _ask(reply_token, service.reading_text(payload["company"]),  # 按账本说（MR.ERP / Express）
-                        [_button(_("Refresh"), _data("customer", value))])
+            # 先三个点，读好了接着出发票列表；等不到回「正在读取」（按账本说 MR.ERP / Express）+【刷新】
+            return _wait_read(line_user_id, reply_token, service.reading_topics(payload["company"], payload.get("day"), value),
+                              "customer", value, lambda: _ask(reply_token, service.reading_text(payload["company"]),
+                                                              [_button(_("Refresh"), _data("customer", value))]))
         if found.get("refresh") == "offline":  # 读不到不是「没有」：照实说电脑没连
             return _ask_customer(reply_token, note=_("No computer connected"))
         if found.get("refresh") == "outdated":
@@ -525,11 +585,22 @@ def _answer_invoice(line_user_id, payload, value, reply_token):
     _show_invoices(payload, reply_token)
 
 
+READING_CODES = ("express.masters_reading", "collection.mrerp_reading")  # 主档还在读（Express / MR.ERP）
+
+
 def _answer_invoices_done(line_user_id, payload, value, reply_token):
     if not payload.get("picked"):
         return _show_invoices(payload, reply_token, note=_("Choose at least one invoice"))
     payload.update(cash="0", methods=[], allocation=None)
-    _ask_method(line_user_id, payload, reply_token)
+    try:
+        _ask_method(line_user_id, payload, reply_token)
+    except contracts.CollectionError as error:
+        if error.code not in READING_CODES:
+            raise
+        # 收款方式要的主档电脑还在读：先三个点，读好了接着问收款方式；等不到回「正在读取」+【查看结果】（点了接着出这一步）
+        _wait_read(line_user_id, reply_token, _service().reading_topics(payload["company"], payload.get("day")), "invoices", "",
+                   lambda: _send(reply_token, [{"type": "text", "text": _explain(error), "quickReply": {"items": [
+                       _button(_("View result"), _data("invoices")), _cancel()]}}]))
 
 
 # ── 收款方式与金额 ───────────────────────────────────────────────────────────
@@ -995,15 +1066,20 @@ def _release(line_user_id, name, version, reply_token, event_id):
     if payload_of(line_user_id).get("name") == name:
         _clear(line_user_id)
     _pending_on(name)
-    _wait_on(name)
-    line.start_loading(line_user_id, 30)
-    frappe.enqueue("pearnly_erp_portal.integrations.line_collection.await_result", queue="short",
-                   enqueue_after_commit=True, name=name, line_user_id=line_user_id, user=frappe.session.user,
-                   reply_token=reply_token, language=getattr(frappe.local, "lang", None) or "")
+    # 先三个点，收款回执落库时（:func:`notify`）回结果；等不到回「录入中」+【查看结果】【撤回】（用户 11-22）
+    view = _service().status(name)
+    if _settled(view):  # 放行时就有了结论（没有账套等）：当场回
+        claim(name, view)
+        return _send(reply_token, _result_messages(view))
+    fallback = _result_messages(view)
+    if not line_receipt.start(_receipt_key(name), line_user_id, reply_token, fallback,
+                              resume="pearnly_erp_portal.integrations.line_collection.resume_release",
+                              args={"name": name, "line_user_id": line_user_id}):
+        _send(reply_token, fallback)
 
 
 def _withdraw_tap(line_user_id, params, reply_token):
-    """【撤回】只认当前卡（会话里的确认号），或这一笔「已记录 · 待写入」那条上的撤回号；别的旧卡回「已过期」，不动正在录的。"""
+    """【撤回】只认当前卡（会话里的确认号），或这一笔「录入中」那条上的撤回号；别的旧卡回「已过期」，不动正在录的。"""
     name, nonce = params.get("n") or "", params.get("k") or ""
     if params.get("p"):
         if not nonce or nonce != _pending_of(name):
@@ -1036,15 +1112,13 @@ def _pending_off(name):
 
 
 def _status_text(view) -> str:
+    """一笔此刻的状态（状态词同网页「收款」页，`contracts.status_word`，用户 11-22）：成功 · RE 号、失败 · 原因，其余「记录号 · 状态」。"""
     status = view.get("status") or ""
     if status == contracts.WRITTEN:
-        if view.get("ledger") == "mrerp":  # 账本是 MR.ERP：不说 Express，用状态词 + 单号
-            return f"{_('erp.collection.status.written')} · {view.get('docnum') or ''}"
-        return _("Written to Express: {0}").format(view.get("docnum") or "")
+        return f"{_(contracts.status_word(status))} · {view.get('docnum') or ''}"
     if status == contracts.FAILED:
         return _failed_text(view)
-    label = _(f"erp.collection.status.{status}") if status in contracts.STATUSES else status
-    return f"{view.get('name') or ''} · {label}"
+    return f"{view.get('name') or ''} · {_(contracts.status_word(status))}"
 
 
 def _failed_text(view) -> str:
@@ -1059,21 +1133,19 @@ def _failed_text(view) -> str:
             from pearnly_erp_portal.collection import mrerp as ledger
 
             return _not_written(view, ledger.no_book_text(view["company"], view.get("doc_date")))
-        return _("Not written to Express: {0}").format(texts.no_book(view["company"], view.get("doc_date")))
+        return _not_written(view, texts.no_book(view["company"], view.get("doc_date")))
     if ack_rules.error_code(reason) in BALANCE_CODES and view.get("balances"):
         lines = [_("Already collected. Current balance:")]
         lines += [f"{docnum} {money(value)}" for docnum, value in (view.get("balances") or {}).items()]
-        return "\n".join(lines)
+        return _not_written(view, "\n".join(lines))
     from pearnly_erp_portal.collection import texts
 
     return _not_written(view, texts.reason(reason) or view.get("status"))
 
 
 def _not_written(view, why) -> str:
-    """没写成的那句：Express 照旧「未写入 Express：…」；账本是 MR.ERP 的用状态词「失败 · …」（不说 Express）。"""
-    if view.get("ledger") == "mrerp":
-        return f"{_('erp.collection.status.failed')} · {why}"
-    return _("Not written to Express: {0}").format(why)
+    """没写成的那句：状态词「失败 · 原因」（Express、MR.ERP 同一句，用户 11-22）。"""
+    return f"{_(contracts.status_word(contracts.FAILED))} · {why}"
 
 
 def _result_messages(view) -> list:
@@ -1081,10 +1153,10 @@ def _result_messages(view) -> list:
     head = f"{view.get('customer_name') or ''} · {money(view.get('total'))}"
     if status in (contracts.WRITTEN, contracts.FAILED, contracts.WITHDRAWN):
         return [{"type": "text", "text": _status_text(view) + "\n" + head}]
-    # 还没写成：已记录、待写入；没被电脑领走前可撤回。这本账套此刻在等 Express 关闭就带上现成那句（只在这条当场的回复里，
+    # 还没写成：录入中（同网页的状态词）；没被电脑领走前可撤回。这本账套此刻在等 Express 关闭就带上现成那句（只在这条回复里，
     # 不另推送；当天第一笔放行时电脑还没去试，不知道）
     waiting = view.get("status") == contracts.QUEUED and _service().express_waiting(view["name"])
-    lines = [_("Recorded · pending write"), *([_("express.error.ACCOUNT_BUSY_LOCKED")] if waiting else []), head]
+    lines = [_("Entering"), *([_("express.error.ACCOUNT_BUSY_LOCKED")] if waiting else []), head]  # = status_word(QUEUED)
     items = [_button(_("View result"), _data("res", n=view["name"]))]
     token = _pending_of(view["name"])
     if token and view.get("status") in contracts.WITHDRAWABLE:
@@ -1101,19 +1173,8 @@ def _state():
     return pearnly_state.store()
 
 
-def _wait_on(name):
-    store = _state()
-    store.set(store.make_key(_WAIT_KEY + name), "1", ex=WAIT_SECONDS + 40)
-
-
-def _wait_off(name):
-    store = _state()
-    store.delete(store.make_key(_WAIT_KEY + name))
-
-
-def waiting(name) -> bool:
-    store = _state()
-    return bool(store.get(store.make_key(_WAIT_KEY + name)))
+def _receipt_key(name) -> str:
+    return f"erp:col:{name}"
 
 
 def claim(name, view) -> bool:
@@ -1131,27 +1192,18 @@ def _read(name) -> dict:
     return _service().status(name)
 
 
-def await_result(name, line_user_id, user, reply_token="", language=""):
-    """（后台）放行后最多等 :data:`WAIT_SECONDS` 秒：写成 / 失败了用回复说结果；还没写成回「已记录 · 待写入」，结果由
-    :func:`notify` 之后推送。"""
-    import time
-
-    with acting(user), speaking(line_user_id, language):
-        deadline = time.monotonic() + WAIT_SECONDS
-        view = _read(name)
-        while not _settled(view) and time.monotonic() < deadline:
-            time.sleep(1)
-            view = _read(name)
-        if not _settled(view):
-            _wait_off(name)
-            view = _read(name)  # 撤下等待之后再读一次：回执恰好在这之间到的，照样在这里回
-        else:
-            _wait_off(name)
-        if _settled(view) and not claim(name, view):
-            return
-        if view.get("returned"):
-            return _return_card(line_user_id, view, reply_token)
-        line_out.reply_or_push(line_user_id, _result_messages(view), reply_token)
+def resume_release(name, line_user_id):
+    """（`line_receipt` 的短任务，按收款员的身份与语言）收款回执到了：有结论就回结果（写前被拒的原卡带原因还回），记作告诉过；
+    还没写成回 None 接着等。"""
+    view = _read(name)
+    if not _settled(view):
+        return None
+    claim(name, view)
+    if view.get("returned"):
+        with _captured() as messages:
+            _return_card(line_user_id, view)
+        return messages
+    return _result_messages(view)
 
 
 def _settled(view) -> bool:
@@ -1164,7 +1216,7 @@ def _return_card(line_user_id, view, reply_token=""):
     这个人正在 LINE 里录另一笔（会话停在别的步骤）：不打断，只说原因；这笔草稿在网页「收款」页、CC 对话里照样能改了再放行。"""
     name = view["name"]
     note = _failed_text(view)
-    _pending_off(name)  # 「已记录 · 待写入」上的撤回号作废：这笔回到了草稿，撤回走新卡
+    _pending_off(name)  # 「录入中」上的撤回号作废：这笔回到了草稿，撤回走新卡
     current = payload_of(line_user_id)
     previous = getattr(frappe.local, "pearnly_collection_to", "")
     frappe.local.pearnly_collection_to = line_user_id
@@ -1178,31 +1230,19 @@ def _return_card(line_user_id, view, reply_token=""):
 
 
 def notify(name):
-    """（回执提交之后）LINE 录的收款写失败：后台还在等就交给它回；否则推送一条给录入的收款员本人（同一笔一次，已看过不推）。
-    写成不推送：收款员点「查看结果」或下次进「收款」时用回复告诉（:func:`_show_result`、:func:`_told_first`）。"""
-    doc = frappe.db.get_value(DOCTYPE, name, ["collector", "source", "status", "docnum", "job"], as_dict=True)
-    if not doc or doc.source != "line" or doc.status not in (contracts.FAILED, contracts.DRAFT):
-        return
-    if waiting(name):
-        return
-    bindings = frappe.get_all("Pearnly LINE Binding", filters={"user": doc.collector, "status": "active"},
-                              pluck="line_user_id", limit_page_length=1)
-    if not bindings:
-        return
-    # 推送用这个人手机上 LINE 的语言（同收单卡片）
-    with acting(doc.collector), speaking(bindings[0]):
-        view = _service().status(name)
-        if view.get("returned") and claim(name, view):
-            _return_card(bindings[0], view)
-        elif view["status"] in FINAL and claim(name, view):
-            line_out.push(bindings[0], _result_messages(view))
+    """（回执提交之后的短任务，`collection.push._tell`）LINE 录的这笔有人在等结果（放行后三个点还在）：按收款员的身份与语言回结果
+    （:func:`resume_release`，`line_receipt.resume`）。没人在等就什么都不做：不推送，收款员点【查看结果】或下次进「收款」时用回复
+    告诉（:func:`_show_result`、:func:`_told_first`）。"""
+    line_receipt.resume(_receipt_key(name))
 
 
-def _show_result(name, reply_token):
-    """「已记录 · 待写入」上的【查看结果】：用回复给此刻的状态 / RE 号；已了结的记作看过（失败也不再推送）。"""
+def _show_result(name, reply_token, line_user_id=""):
+    """「录入中」上的【查看结果】：用回复给此刻的状态 / RE 号（写前被拒的原卡带原因还回）；已了结的记作告诉过。"""
     view = _service().status(name)
-    if view["status"] in FINAL:
+    if view["status"] in FINAL or view.get("returned"):
         claim(name, view)
+    if view.get("returned") and line_user_id:
+        return _return_card(line_user_id, view, reply_token)
     _send(reply_token, _result_messages(view))
 
 

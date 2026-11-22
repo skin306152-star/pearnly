@@ -275,6 +275,7 @@ Change members,Change members
 Chart,Chart
 Chart by,Chart by
 Chassis No,Chassis No
+Check mismatch,Check mismatch
 Check sheet,Check sheet
 Check the opening stock row,Check the opening stock row
 Checkbox,Checkbox
@@ -2555,6 +2556,7 @@ express.precheck.note.vatSales,Has taxed sales
 express.precheck.note.writable,A computer can write it
 express.reason.choiceNeeded,Choose before writing to Express
 express.reason.itemUnmapped,The item is not in Express
+express.reason.mismatch,Check mismatch
 express.reason.noBook,No Express account set covers this date
 express.reason.noStockBook,This Express account set has no book for this kind of stock document. Set it up in Express
 express.reason.noWriter,No computer can write this account set
