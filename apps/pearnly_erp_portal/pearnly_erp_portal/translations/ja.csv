@@ -31,6 +31,7 @@ A payment has to be approved before it counts as paid,支払いは承認され�
 A product needs a name,品目には名前が必要です
 A refund cannot be more than the original sale,返品は元の売上を超えられません
 A refund needs the original sale,返品には元の売上が必要です
+A required account is not set,必要な勘定科目が設定されていません
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express に似た得意先があります。それを選ぶか、新しい得意先であることを確認してください
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express に似た仕入先があります。それを選ぶか、新しい仕入先であることを確認してください
 A stock count needs a name,棚卸には名前が必要です
@@ -119,6 +120,7 @@ Amount,金額
 Amount Payable,支払金額
 Amount Received,受取額
 Amounts,金額
+Amounts do not add up,金額が合いません
 An account used is not in the MR.ERP chart of accounts. Check the account settings,使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください
 An error occurred while sending to MR.ERP,MR.ERP への送信中にエラーが発生しました
 An item group's account is not in the Express chart of accounts,品目グループの勘定が Express の勘定科目表にありません
@@ -525,6 +527,7 @@ Document Number,伝票番号
 Document Prefix,伝票接頭辞
 Document Type,伝票種別
 Document already exists,伝票は既に存在します
+Document date missing or unreadable,伝票日付がないか読み取れません
 Document has already been cancelled,伝票は取消済みです
 Document has already been submitted,伝票は提出済みです
 Document has been cancelled,伝票は取消済みです
@@ -615,6 +618,7 @@ Entries,記録
 Entries from a stock count cannot be voided alone,この入出庫は棚卸から作られたため、単独で取り消せません
 Entries — {0},記録 — {0}
 Entry Method,入力方法
+Entry does not balance,仕訳の貸借が合いません
 Excel file,Excel ファイル
 Exchange Rate,為替レート
 Exchange Rate is required,為替レートを入力してください
@@ -935,6 +939,7 @@ No,番号
 No Express account set covers this date,この日付を含む Express 会計データがありません
 No MR.ERP import result was returned. Check in MR.ERP,MR.ERP の取込結果を取得できません。MR.ERP で確認してください
 No Open Shift,未開店
+No account set chosen,会計データが選ばれていません
 No attachments,添付ファイルなし
 No cards are assigned to you,割り当てられたカードはありません
 No company is available for this account,このアカウントで使える会社がありません
@@ -1403,6 +1408,7 @@ Service,サービス
 Service input VAT,サービスの仮払付加価値税
 Service input VAT basis not set,サービスの仮払付加価値税の基準が未設定です
 Service or stock item?,サービスですか、在庫品ですか？
+Service or stock not chosen,サービスか在庫かが選ばれていません
 Set as current,現在の会社にする
 Set due date,期日を N 日後に設定
 Set reminder,リマインダー
@@ -1437,6 +1443,7 @@ Skipped {0} row(s); the first ones are listed above,{0}行をスキップしま�
 Sold,販売済み
 Sold At,販売日時
 Sold by,担当者
+Some fields are uncertain,不確かな項目があります
 Some lines have no product yet,商品が未選択の行があります
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,棚卸中に在庫が変動した商品があります。対象行を開いて再棚卸してから終了してください。
 Someone else changed this card. Close it and open it again.,このカードは他の人が変更しました。閉じて開き直してください
@@ -2493,6 +2500,18 @@ express.error.UNIT_CHOICE,単位が未設定です
 express.error.UNIT_CODE_NOT_FOUND,Express にこの単位がありません
 express.error.VOID_DOCUMENT_CHANGED,この伝票は Express で変更されています。Express で確認してください
 express.error.VOID_DOCUMENT_NOT_FOUND,この伝票は Express にありません
+express.fail.amounts_not_consistent,金額が合いません
+express.fail.bad_or_missing_date,伝票日付がないか読み取れません
+express.fail.entry_not_balanced,仕訳の貸借が合いません
+express.fail.low_confidence,不確かな項目があります
+express.fail.no_account_set,会計データが選ばれていません
+express.fail.no_ap_account,必要な勘定科目が設定されていません
+express.fail.no_ar_account,必要な勘定科目が設定されていません
+express.fail.no_input_vat_account,必要な勘定科目が設定されていません
+express.fail.no_output_vat_account,必要な勘定科目が設定されていません
+express.fail.no_purchase_account,必要な勘定科目が設定されていません
+express.fail.no_revenue_account,必要な勘定科目が設定されていません
+express.fail.posting_kind_needed,サービスか在庫かが選ばれていません
 express.kind.account,費用勘定
 express.kind.exemptMode,免税品の記帳
 express.kind.receipt,入金勘定

@@ -31,6 +31,7 @@ A payment has to be approved before it counts as paid,A payment has to be approv
 A product needs a name,A product needs a name
 A refund cannot be more than the original sale,A refund cannot be more than the original sale
 A refund needs the original sale,A refund needs the original sale
+A required account is not set,A required account is not set
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer","A similar customer already exists in Express. Choose it, or confirm this is a new customer"
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier","A similar supplier already exists in Express. Choose it, or confirm this is a new supplier"
 A stock count needs a name,A stock count needs a name
@@ -119,6 +120,7 @@ Amount,Amount
 Amount Payable,Amount Payable
 Amount Received,Amount Received
 Amounts,Amounts
+Amounts do not add up,Amounts do not add up
 An account used is not in the MR.ERP chart of accounts. Check the account settings,An account used is not in the MR.ERP chart of accounts. Check the account settings
 An error occurred while sending to MR.ERP,An error occurred while sending to MR.ERP
 An item group's account is not in the Express chart of accounts,An item group's account is not in the Express chart of accounts
@@ -525,6 +527,7 @@ Document Number,Document Number
 Document Prefix,Document Prefix
 Document Type,Document Type
 Document already exists,Document already exists
+Document date missing or unreadable,Document date missing or unreadable
 Document has already been cancelled,Document has already been cancelled
 Document has already been submitted,Document has already been submitted
 Document has been cancelled,Document has been cancelled
@@ -615,6 +618,7 @@ Entries,Entries
 Entries from a stock count cannot be voided alone,Entries from a stock count cannot be voided alone
 Entries — {0},Entries — {0}
 Entry Method,Entry Method
+Entry does not balance,Entry does not balance
 Excel file,Excel file
 Exchange Rate,Exchange Rate
 Exchange Rate is required,Exchange Rate is required
@@ -935,6 +939,7 @@ No,No
 No Express account set covers this date,No Express account set covers this date
 No MR.ERP import result was returned. Check in MR.ERP,No MR.ERP import result was returned. Check in MR.ERP
 No Open Shift,No Open Shift
+No account set chosen,No account set chosen
 No attachments,No attachments
 No cards are assigned to you,No cards are assigned to you
 No company is available for this account,No company is available for this account
@@ -1403,6 +1408,7 @@ Service,Service
 Service input VAT,Service input VAT
 Service input VAT basis not set,Service input VAT basis not set
 Service or stock item?,Service or stock item?
+Service or stock not chosen,Service or stock not chosen
 Set as current,Set as current
 Set due date,Set due date
 Set reminder,Set reminder
@@ -1437,6 +1443,7 @@ Skipped {0} row(s); the first ones are listed above,Skipped {0} row(s); the firs
 Sold,Sold
 Sold At,Sold At
 Sold by,Sold by
+Some fields are uncertain,Some fields are uncertain
 Some lines have no product yet,Some lines have no product yet
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,Some products had stock movements during counting. Open the affected row and recount that product before finishing.
 Someone else changed this card. Close it and open it again.,Someone else changed this card. Close it and open it again.
@@ -2493,6 +2500,18 @@ express.error.UNIT_CHOICE,Unit not set
 express.error.UNIT_CODE_NOT_FOUND,Unit not found in Express
 express.error.VOID_DOCUMENT_CHANGED,This document was changed in Express. Check it in Express
 express.error.VOID_DOCUMENT_NOT_FOUND,This document is not in Express
+express.fail.amounts_not_consistent,Amounts do not add up
+express.fail.bad_or_missing_date,Document date missing or unreadable
+express.fail.entry_not_balanced,Entry does not balance
+express.fail.low_confidence,Some fields are uncertain
+express.fail.no_account_set,No account set chosen
+express.fail.no_ap_account,A required account is not set
+express.fail.no_ar_account,A required account is not set
+express.fail.no_input_vat_account,A required account is not set
+express.fail.no_output_vat_account,A required account is not set
+express.fail.no_purchase_account,A required account is not set
+express.fail.no_revenue_account,A required account is not set
+express.fail.posting_kind_needed,Service or stock not chosen
 express.kind.account,Expense Account
 express.kind.exemptMode,Exempt items
 express.kind.receipt,Receiving Account

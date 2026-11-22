@@ -31,6 +31,7 @@ A payment has to be approved before it counts as paid,การจ่ายเ�
 A product needs a name,กรุณากรอกชื่อสินค้า
 A refund cannot be more than the original sale,ยอดคืนเงินต้องไม่เกินยอดของเอกสารขายต้นฉบับ
 A refund needs the original sale,การคืนเงินต้องระบุเอกสารขายต้นฉบับ
+A required account is not set,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",มีลูกค้าที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นลูกค้าใหม่
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",มีผู้จำหน่ายที่คล้ายกันอยู่ใน Express แล้ว กรุณาเลือกรายนั้น หรือยืนยันว่าเป็นผู้จำหน่ายใหม่
 A stock count needs a name,กรุณากรอกชื่อเอกสารตรวจนับ
@@ -119,6 +120,7 @@ Amount,จำนวนเงิน
 Amount Payable,ยอดที่ต้องชำระ
 Amount Received,รับชำระ
 Amounts,จำนวนเงิน
+Amounts do not add up,ยอดรวมไม่ตรงกัน
 An account used is not in the MR.ERP chart of accounts. Check the account settings,รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี
 An error occurred while sending to MR.ERP,เกิดข้อผิดพลาดขณะส่งไปยัง MR.ERP
 An item group's account is not in the Express chart of accounts,บัญชีของกลุ่มสินค้าไม่มีในผังบัญชี Express
@@ -525,6 +527,7 @@ Document Number,เลขที่เอกสาร
 Document Prefix,คำนำหน้าเลขเอกสาร
 Document Type,ประเภทเอกสาร
 Document already exists,มีเอกสารนี้อยู่แล้ว
+Document date missing or unreadable,ไม่มีวันที่เอกสารหรืออ่านไม่ได้
 Document has already been cancelled,เอกสารถูกยกเลิกแล้ว
 Document has already been submitted,ยืนยันเอกสารแล้ว
 Document has been cancelled,เอกสารถูกยกเลิกแล้ว
@@ -615,6 +618,7 @@ Entries,รายการ
 Entries from a stock count cannot be voided alone,รายการนี้สร้างจากการตรวจนับ ยกเลิกแยกไม่ได้
 Entries — {0},รายการ — {0}
 Entry Method,วิธีการบันทึก
+Entry does not balance,ยอดเดบิตและเครดิตไม่เท่ากัน
 Excel file,ไฟล์ Excel
 Exchange Rate,อัตราแลกเปลี่ยน
 Exchange Rate is required,กรุณาระบุอัตราแลกเปลี่ยน
@@ -935,6 +939,7 @@ No,ลำดับ
 No Express account set covers this date,ไม่มีชุดบัญชี Express ที่ครอบคลุมวันที่นี้
 No MR.ERP import result was returned. Check in MR.ERP,ไม่ได้รับผลการนำเข้าจาก MR.ERP กรุณาตรวจสอบใน MR.ERP
 No Open Shift,ยังไม่เปิดกะ
+No account set chosen,ยังไม่ได้เลือกชุดบัญชี
 No attachments,ไม่มีไฟล์แนบ
 No cards are assigned to you,ยังไม่มีการ์ดที่มอบหมายให้คุณ
 No company is available for this account,บัญชีนี้ไม่มีบริษัทที่ใช้งานได้
@@ -1403,6 +1408,7 @@ Service,บริการ
 Service input VAT,ภาษีซื้อของสินค้าบริการ
 Service input VAT basis not set,ยังไม่ได้กำหนดเกณฑ์ภาษีซื้อของสินค้าบริการ
 Service or stock item?,กรุณาเลือก บริการ หรือ สินค้าคงคลัง
+Service or stock not chosen,ยังไม่ได้เลือกบริการหรือสินค้าคงเหลือ
 Set as current,ตั้งเป็นปัจจุบัน
 Set due date,ตั้งวันครบกำหนดเป็นอีก N วัน
 Set reminder,ตั้งการแจ้งเตือน
@@ -1437,6 +1443,7 @@ Skipped {0} row(s); the first ones are listed above,ข้าม {0} แถว �
 Sold,ขายแล้ว
 Sold At,เวลาขาย
 Sold by,พนักงานเก็บเงิน
+Some fields are uncertain,ข้อมูลบางช่องยังยืนยันไม่ได้
 Some lines have no product yet,บางบรรทัดยังไม่ได้เลือกสินค้า
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,สินค้าบางรายการมีการเคลื่อนไหวของสต็อกระหว่างการตรวจนับ กรุณาตรวจนับสินค้าที่ทำเครื่องหมายไว้ใหม่ก่อนสิ้นสุดการตรวจนับ
 Someone else changed this card. Close it and open it again.,มีผู้ใช้อื่นแก้ไขการ์ดนี้แล้ว กรุณาปิดแล้วเปิดใหม่
@@ -2493,6 +2500,18 @@ express.error.UNIT_CHOICE,ยังไม่ได้กำหนดหน่ว
 express.error.UNIT_CODE_NOT_FOUND,ไม่พบหน่วยนับนี้ใน Express
 express.error.VOID_DOCUMENT_CHANGED,เอกสารนี้ถูกแก้ไขใน Express แล้ว กรุณาตรวจสอบใน Express
 express.error.VOID_DOCUMENT_NOT_FOUND,ไม่พบเอกสารนี้ใน Express
+express.fail.amounts_not_consistent,ยอดรวมไม่ตรงกัน
+express.fail.bad_or_missing_date,ไม่มีวันที่เอกสารหรืออ่านไม่ได้
+express.fail.entry_not_balanced,ยอดเดบิตและเครดิตไม่เท่ากัน
+express.fail.low_confidence,ข้อมูลบางช่องยังยืนยันไม่ได้
+express.fail.no_account_set,ยังไม่ได้เลือกชุดบัญชี
+express.fail.no_ap_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.no_ar_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.no_input_vat_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.no_output_vat_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.no_purchase_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.no_revenue_account,ยังไม่ได้ตั้งรหัสบัญชีที่ต้องใช้
+express.fail.posting_kind_needed,ยังไม่ได้เลือกบริการหรือสินค้าคงเหลือ
 express.kind.account,บัญชีค่าใช้จ่าย
 express.kind.exemptMode,สินค้ายกเว้นภาษี
 express.kind.receipt,บัญชีรับเงิน

@@ -31,6 +31,7 @@ A payment has to be approved before it counts as paid,付款经审批后方视�
 A product needs a name,请填写物料名称
 A refund cannot be more than the original sale,退款不能超过原始销售单
 A refund needs the original sale,退款必须指定原始销售单
+A required account is not set,缺少所需科目
 "A similar customer already exists in Express. Choose it, or confirm this is a new customer",Express 中已存在相似客户，请选择该客户或确认为新客户
 "A similar supplier already exists in Express. Choose it, or confirm this is a new supplier",Express 中已存在相似供应商，请选择该供应商或确认为新供应商
 A stock count needs a name,请填写盘点单名称
@@ -119,6 +120,7 @@ Amount,金额
 Amount Payable,应付金额
 Amount Received,实收金额
 Amounts,金额
+Amounts do not add up,金额合计不一致
 An account used is not in the MR.ERP chart of accounts. Check the account settings,所用科目不在 MR.ERP 科目表中，请检查科目设置
 An error occurred while sending to MR.ERP,推送至 MR.ERP 时出错
 An item group's account is not in the Express chart of accounts,物料科目组的科目不在 Express 科目表中
@@ -525,6 +527,7 @@ Document Number,单据编号
 Document Prefix,单据前缀
 Document Type,单据类型
 Document already exists,单据已存在
+Document date missing or unreadable,单据日期缺失或无法识别
 Document has already been cancelled,单据已取消
 Document has already been submitted,单据已提交
 Document has been cancelled,单据已取消
@@ -615,6 +618,7 @@ Entries,记录
 Entries from a stock count cannot be voided alone,此单由盘点生成，不能单独作废
 Entries — {0},记录 — {0}
 Entry Method,录入方式
+Entry does not balance,分录借贷不平
 Excel file,Excel 文件
 Exchange Rate,汇率
 Exchange Rate is required,汇率不能为空
@@ -935,6 +939,7 @@ No,序号
 No Express account set covers this date,没有覆盖此日期的 Express 账套
 No MR.ERP import result was returned. Check in MR.ERP,未取得 MR.ERP 导入结果，请在 MR.ERP 中核对
 No Open Shift,尚未开班
+No account set chosen,未选择账套
 No attachments,无附件
 No cards are assigned to you,暂无分配给您的卡片
 No company is available for this account,此账号无可用公司
@@ -1403,6 +1408,7 @@ Service,服务
 Service input VAT,服务品进项税
 Service input VAT basis not set,服务品进项税口径未定
 Service or stock item?,请选择服务或库存商品
+Service or stock not chosen,未选择服务或存货
 Set as current,设为当前
 Set due date,到期日设为 N 天后
 Set reminder,设置提醒
@@ -1437,6 +1443,7 @@ Skipped {0} row(s); the first ones are listed above,已跳过 {0} 行，部分�
 Sold,已售
 Sold At,销售时间
 Sold by,收银员
+Some fields are uncertain,部分字段无法确认
 Some lines have no product yet,部分行未选物料
 Some products had stock movements during counting. Open the affected row and recount that product before finishing.,部分物料在盘点期间发生库存变动，请重新盘点已标记的物料后再结束盘点。
 Someone else changed this card. Close it and open it again.,此卡片已被其他用户修改，请关闭后重新打开。
@@ -2493,6 +2500,18 @@ express.error.UNIT_CHOICE,单位未定
 express.error.UNIT_CODE_NOT_FOUND,Express 中没有此单位
 express.error.VOID_DOCUMENT_CHANGED,此单在 Express 中已被修改，请在 Express 中核对
 express.error.VOID_DOCUMENT_NOT_FOUND,Express 中找不到此单
+express.fail.amounts_not_consistent,金额合计不一致
+express.fail.bad_or_missing_date,单据日期缺失或无法识别
+express.fail.entry_not_balanced,分录借贷不平
+express.fail.low_confidence,部分字段无法确认
+express.fail.no_account_set,未选择账套
+express.fail.no_ap_account,缺少所需科目
+express.fail.no_ar_account,缺少所需科目
+express.fail.no_input_vat_account,缺少所需科目
+express.fail.no_output_vat_account,缺少所需科目
+express.fail.no_purchase_account,缺少所需科目
+express.fail.no_revenue_account,缺少所需科目
+express.fail.posting_kind_needed,未选择服务或存货
 express.kind.account,费用科目
 express.kind.exemptMode,免税商品写法
 express.kind.receipt,收款科目
