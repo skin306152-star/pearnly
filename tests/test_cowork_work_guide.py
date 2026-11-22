@@ -48,7 +48,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -103,6 +103,11 @@ from pearnly_cowork.assistant.guided import work as guide  # noqa: E402
 SESSION = "S1"
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Doc(dict):
     __getattr__ = dict.get
 
@@ -120,6 +125,9 @@ class Base(unittest.TestCase):
                     "stopped_at": None}
         run._insert, run._locked, run._save, run._open_runs, run._conversation, run._announce = (
             self.insert, self.locked, self.save, self.open_runs, lambda session_id: dict(self.now), lambda doc: None)
+        # 交文件的步骤登记成用户交出的（`assistant.files.commit`，同 test_cowork_recon_guide）：本对话的附件才认
+        run._commit_files = lambda session_id, by_step: next(
+            (key for key, ids in by_step.items() if any(i not in STATE["files"] for i in ids)), "")
 
     def tick(self):
         self.clock[0] += 1
@@ -236,7 +244,7 @@ class Work(Base):
 
     def test_attaching_puts_conversation_files_on_the_card(self):
         name, found = self.walk({"action": "attach"}, {"card": "C1"})
-        self.assertEqual(run.answer(name, {"files": ["F9"]})["refused"], {"files": "cowork.work.error.file"})
+        self.assertEqual(_codes(run.answer(name, {"files": ["F9"]})), {"files": "cowork.work.error.file"})
         found = run.answer(name, {"files": ["F1"]})
         self.assertEqual(found["review"]["tables"][0]["rows"][0]["name"], "receipt.pdf")
         run.confirm(name, found["version"])

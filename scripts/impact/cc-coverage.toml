@@ -286,10 +286,15 @@ basis = "ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删
 [[row]]
 id = "board"
 name = "任务看板"
-cowork_direct = ["todo:p4"]
+guide = "work"
+cowork_direct = ["half:p4"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 看板工具未做（随 ADR-027 段 3）"]
 erp_operator = ["out:只做直写"]
+
+[[row.link]]
+cell = "cowork_direct"
+basis = "Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；没有结果步骤；cc-guided-work 75e9cf2e7、76b646bcf）；只有离线单测 test_cowork_work_guide，页面流程归第 2 步"
 
 [[row]]
 id = "ledger_setup"
@@ -302,10 +307,15 @@ erp_operator = ["out:只做直写"]
 [[row]]
 id = "stock_report"
 name = "收发存报表导出"
+guide = "stock_card"
 cowork_direct = ["out:Cowork 无库存业务"]
 cowork_operator = ["out:Cowork 无库存业务"]
-erp_direct = ["todo:p4"]
+erp_direct = ["half:p4"]
 erp_operator = ["out:只做直写"]
+
+[[row.link]]
+cell = "erp_direct"
+basis = "ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；没有复核与结果步骤；cc-guided-stock-card 29625d9d6）；只有离线单测 test_erp_stock_card_guide，页面流程归第 2 步"
 
 [[row]]
 id = "add_company"

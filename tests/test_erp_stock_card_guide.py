@@ -49,7 +49,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -99,6 +99,11 @@ from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_erp_portal.inventory import guide_card  # noqa: E402
 
 SESSION = "S1"
+
+
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
 
 
 class Doc(dict):
@@ -162,12 +167,12 @@ class StockCard(Base):
         name = run.start(SESSION, "stock_card")["run"]
         found = run.answer(name, {"report": "by_warehouse"})
         self.assertEqual([row["code"] for row in self.questions(found)["warehouse_from"]["options"]], ["WH1", "WH2"])
-        self.assertEqual(run.answer(name, {"warehouse_from": "WH9"})["refused"], {"warehouse_from": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"warehouse_from": "WH9"})), {"warehouse_from": "not offered"})
 
     def test_an_end_before_the_start_is_refused(self):
         name = run.start(SESSION, "stock_card")["run"]
         found = run.answer(name, {"report": "all", "date_from": "2026-02-10", "date_to": "2026-02-01"})
-        self.assertEqual(found["refused"], {"date_to": "trade.export.error.dateOrder"})
+        self.assertEqual(_codes(found), {"date_to": "trade.export.error.dateOrder"})
 
     def test_products_search_natively_and_are_checked_by_what_the_user_can_see(self):
         found = guide_card.product_options({"company": "CO-1"}, txt="item 2", page_length=5)
