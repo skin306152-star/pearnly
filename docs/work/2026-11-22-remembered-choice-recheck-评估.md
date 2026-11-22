@@ -108,3 +108,42 @@ ERP `express/choices.py` 文件头也写明了这条口径。
 1. 服务端 4 项 + 单测：写代码约 1 小时；全闸门 + 候选离线约 1 小时机器时间。
 2. 受影响流程 + 真机复现：等测试机排期。
 3. CC 桌面版 a–c：等主会话定。
+
+## 审定与施工（11-22）
+
+主会话审定：评估通过。CC 桌面版 a / b / c 三项都做，跟下一版 CC（1.12.24，与 K1、即时同步 CC 侧同车）：
+- b：默认部门要核部门表，不在表里就当没设；
+- c：记住的子菜单不在候选里时，不许自己挑，当没记住、回服务端出题。
+
+不合格的那行不删，重新选后覆盖。
+
+生产只读统计（主会话 11-22 跑）：
+- ERP 各站点没有记住的存货科目组 / 库存单单别科目行；
+- Cowork 5 条：fit 3 条、no_report 2 条（erpcowork 69SINCER 记 DM、testcowork demo01 记 ST01，都没有读回的候选可比）。
+
+线上目前没有确认不合格的记住项，这次是预防性修复。no_report 按「候选未知照旧用」处理。
+
+施工：
+- 共用层：
+  - `stock_groups.still_fit`；`stock_groups.chosen` / `view` 多一个候选参数；
+  - `stock_acc_group.remembered_group`：`resolve_stock_acc_group`、`new_item_group`、采购 / 销售两个 mapper 都用它取记住的组。
+- Cowork：`_apply_stock_group` 带上候选。
+- ERP：`prepare._config` 与库存单 `_with_group` 都过 `still_fit`；库存单单别科目这份账套读到了科目表、记住的科目却不在表里，就当没记过。
+- CC 桌面版：
+  - a：新增 `stock_template.assert_usable_group`，存货科目合格、且存货 / 销货成本两个科目都配了。`pick`、`guided`、`catalog_probe._fits_inventory` 同用这一份判据；不合格抛 `InventoryAccountUnfit` → 停下 `STOCK_ACC_GROUP_UNFIT`。
+  - b：`worker._local_department` + `catalog_probe.has_department`。本机默认部门不在部门表里就不带；读不了部门表照旧用。
+  - c：`express_operator/menu.pick` 记住的菜单文字不在候选里时回空串（`MenuChoice` 问人），不再按付款方式另挑一项。
+- 共用件登记：`stock_template.py` 写进 cc-dbf-write 的 `not_entries`（只借用写账科目判据）。
+
+## 拆分（主会话 11-22）
+
+CC 正式版从 main 打，1.12.23 还没进 main。所以本任务拆成两条分支：
+- `pearnly/remembered-choice-recheck`：服务端，先合。包括共用层、Cowork、ERP、单测，以及本记录。
+- `pearnly/remembered-choice-recheck-cc`：CC 桌面版 a / b / c，以及 `scripts/impact/shared-parts.toml` 里 `stock_template.py` 那条 not_entries（只在 CC 改动后才有那个调用关系）。等 1.12.23 发出后，和 K1、即时同步 CC 侧一起进。
+
+服务端先于 CC 上线时，旧版 CC 的上报照旧可用：已发的 CC 自 v1.1.77 起每个候选都带 `fit`。
+- 1.12.22 / 1.12.23 只报合格的组，判据含销货成本科目；更早的版本报全部候选。
+- 报为合格的记住组照用，和以前一样；报为不合格或不在名单里的，当没记住。
+- 契约测试：`tests/test_cowork_stock_acc_group_choice.py` 的 `test_reports_from_cc_desktop_already_in_the_field_keep_their_remembered_group_judged_as_before`。
+
+上面「施工」一节里的 CC 桌面版 a / b / c 在 `-cc` 分支，不在本分支。

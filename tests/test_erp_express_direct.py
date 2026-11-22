@@ -3370,6 +3370,10 @@ class StockEntries(Base):
         payload = self.prepared(self.body(lines=[self.new_item()]))["payload"]
         self.assertNotIn("stock_acccod", payload)
         choices.remember(COMPANY["name"], choices.STOCK_GROUP, key, "ST02")
+        payload = self.prepared(self.body(lines=[self.new_item()]))["payload"]
+        self.assertNotIn("stock_acccod", payload)  # 11-22：选过的组不在这份账套的合格名单里，当没选过
+        groups = [{"acccod": "ST02", "fit": True, "used_by": 3}]
+        self.masters(key, facts={"accounts": ACCOUNTS, "mapping": MAPPING, "catalog": {"isacc_candidates": groups}})
         for doctype, extra in (("JU", {}), ("RL", {"to_loccod": "03"})):
             payload = self.prepared(self.body(doctype=doctype, lines=[self.new_item()], **extra))["payload"]
             self.assertEqual(payload["stock_acccod"], "ST02", doctype)
@@ -3473,6 +3477,14 @@ class StockEntries(Base):
         choices.remember(COMPANY["name"], "account", "stock:OU", "52-08-00-00", "")
         result = self.stock.prepare(self.body(doctype="OU"), COMPANY, ensure)
         self.assertEqual(result["payload"]["account"], "52-08-00-00")
+        # 11-22：记住的科目这份账套的科目表里已经没有了 → 当没记过：默认科目也不能记账，重新出题
+        choices.remember(COMPANY["name"], "account", "stock:OU", "99-99-99-99", "")
+        result = self.stock.prepare(self.body(doctype="OU"), COMPANY, ensure)
+        self.assertEqual(result["hold"], E.CHOICE + ":account")
+        # 默认科目能记账的单别：记住的科目不在表里时按默认写，不带记住的
+        choices.remember(COMPANY["name"], "account", "stock:TK", "99-99-99-99", "")
+        result = self.stock.prepare(self.body(doctype="TK"), COMPANY, ensure)
+        self.assertNotIn("account", result["payload"])
 
     def test_an_older_cc_desktop_without_stock_books_is_not_asked(self):
         key = self.computer([book()])[0]

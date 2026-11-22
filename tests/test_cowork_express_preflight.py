@@ -236,8 +236,17 @@ class NewItemGroupTests(unittest.TestCase):
     def test_nothing_to_decide_without_a_new_stock_item_or_with_a_chosen_group(self):
         known = {"items": [{"item_mode": "stock_item", "code": "P-1"}, {"item_mode": "non_stock_item", "code": ""}]}
         self.assertEqual(self.verdict(known, self.config([])), ("", ""))
-        self.assertEqual(self.verdict(self.NEW, self.config([], chosen="ST10")), ("", ""))
-        self.assertEqual(self.verdict({**self.NEW, "stock_acccod": "ST10"}, self.config([])), ("", ""))
+        self.assertEqual(self.verdict(self.NEW, self.config([("ST10", 1)], chosen="ST10")), ("", ""))
+        self.assertEqual(self.verdict({**self.NEW, "stock_acccod": "ST10"}, self.config([("ST10", 1)])), ("", ""))
+        self.assertEqual(self.verdict(self.NEW, {"stock_acccod": "ST10"}), ("", ""))  # 没读到候选：记住的照用
+
+    def test_a_remembered_group_no_longer_fit_counts_as_never_chosen(self):
+        """11-22 69EXP\\TEST P002：记住的组已不在合格名单里 → 当没记住，照「没定组」重新定 / 问 / 停，不静默用也不静默换。"""
+        self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17)], total=37, chosen="P002")), ("DM", ""))
+        self.assertEqual(self.verdict(self.NEW, self.config([("DM", 17), ("ST10", 1)], total=37, chosen="P002")),
+                         ("", "stock_acc_group_required"))
+        self.assertEqual(self.verdict({**self.NEW, "stock_acccod": "P002"}, self.config([], total=37)),
+                         ("", "stock_acc_group_missing"))
 
     def test_a_stock_line_named_like_an_existing_stock_item_is_not_new(self):
         """没带存货码、与账套已有库存品同名的行电脑照名复用（不新建），不为它定组 / 停下（流程 cowork.express.warehouse 11-19）；

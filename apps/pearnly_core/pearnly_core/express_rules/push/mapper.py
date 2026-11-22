@@ -78,7 +78,7 @@ from pearnly_core.express_rules.push.posting_profile import (
     account_set_has_no_stock_master,
     profile_from_config,
 )
-from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.push.stock_acc_group import remembered_group, resolve_stock_acc_group
 from pearnly_core.express_rules.push.field_clean import (
     clean_address,
     clean_branch_no,
@@ -250,7 +250,7 @@ def build_express_payload(
     has_stock_mode = (
         (ITEM_MODE_STOCK in line_modes) if line_modes is not None else item_mode == ITEM_MODE_STOCK
     )
-    stock_acccod = str(config.get("stock_acccod") or "").strip()
+    stock_acccod = remembered_group(config)  # 记住的组已不合格当没记住（11-22）
     acc_group_auto = False
     # 采购建第一个库存品同样要一个存货科目组:零主档账套里小助手没有可克隆的 STMAS 模板行,
     # 只能靠 ISACC 从零建 STKTYP=0。此前这道闸只装在销项、采购一律放行,可放行的票到了小助手

@@ -29,6 +29,7 @@ import frappe
 from pearnly_core.express_rules.push.account_rules import wire_account_set
 from pearnly_core.express_rules.push.choices import NEW, norm_name
 from pearnly_core.express_rules.push.common import FACTOR_PAYLOAD_VERSION, REMARKS_PAYLOAD_VERSION
+from pearnly_core.express_rules.targets import stock_groups
 
 from pearnly_erp_portal.express import choices, contracts, conversation, facts, target
 
@@ -302,10 +303,12 @@ def _version(base, lines) -> int:
     return max(base, REMARKS_PAYLOAD_VERSION) if any(line.get("remarks") for line in lines) else base
 
 
-def _with_group(payload, company, book) -> dict:
-    """有要新建的存货时带上这份账套选过的存货科目组（同采购的 ``stock_acccod``）；没选过不带，电脑用账套里用得最多的那组。"""
+def _with_group(payload, company, book, data) -> dict:
+    """有要新建的存货时带上这份账套选过的存货科目组（同采购的 ``stock_acccod``）；没选过不带，电脑用账套里用得最多的那组。
+    选过的组已不在这份账套的合格名单里（判据收紧 / 组被改，`stock_groups.still_fit`，11-22）当没选过。"""
     group = choices.chosen(company, choices.STOCK_GROUP, book["key"]) if any(
         line.get("new_ok") for line in payload["items"]) else ""
+    group = stock_groups.still_fit(group, facts.reported(data).get("reported_stock_acc_groups"))
     return {**payload, "stock_acccod": group} if group else payload
 
 
@@ -334,17 +337,19 @@ def prepare(body, company_row, ensure_masters) -> dict:
     items = items or []
     if body["doctype"] == TRANSFER:
         result = _transfer_payload(body, book, data, items)
-        return {**result, "payload": _with_group(result["payload"], company_row["name"], book)} if "payload" in result else result
+        return {**result, "payload": _with_group(result["payload"], company_row["name"], book, data)} if "payload" in result else result
     prefix, asked = _book(body, data, company_row["name"])
     if asked:
         return _hold(book, [asked, *items])
     subject = account_subject(prefix)
     account = choices.chosen(company_row["name"], ACCOUNT, subject)
+    postable = {str(row.get("code") or "").strip() for row in facts.reported(data).get("reported_accounts") or []}
+    if account and postable and account not in postable:
+        account = ""  # 记住的科目这份账套的科目表里已经没有了：当没记过，下面照默认科目判、不在表里就出题（11-22）
     if isinstance(stock_books, dict) and stock_books and prefix not in stock_books:
         # 这份账套没有这个单别的单据簿（ISRUN）：选科目也写不进去，直接停下说明（1.12.3 起 CC 桌面版才区分得出）
         return {"hold": contracts.NO_STOCK_BOOK, "book": book}
     if not account and isinstance(stock_books, dict):
-        postable = {str(row.get("code") or "").strip() for row in facts.reported(data).get("reported_accounts") or []}
         default = str(stock_books.get(prefix) or "").strip()
         if not default or (postable and default not in postable):
             return _hold(book, [{"kind": ACCOUNT, "subject": subject, "label": prefix, "options": [], "current": ""},
@@ -369,7 +374,7 @@ def prepare(body, company_row, ensure_masters) -> dict:
         payload["payload_version"] = max(payload["payload_version"], STOCK_BOOK_PAYLOAD_VERSION)
     if account:
         payload["account"] = account
-    return {"payload": _with_group(payload, company_row["name"], book), "book": book}
+    return {"payload": _with_group(payload, company_row["name"], book, data), "book": book}
 
 
 def book_subject(purpose) -> str:

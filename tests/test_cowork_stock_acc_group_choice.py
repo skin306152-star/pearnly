@@ -49,6 +49,34 @@ class ChoiceTest(unittest.TestCase):
         unknown = stock_groups.view(None, ACCOUNT, None)
         self.assertEqual((unknown["known"], unknown["groups"]), (False, []))
 
+    def test_a_remembered_group_that_is_no_longer_fit_counts_as_not_chosen(self):
+        """11-22：判据收紧后记住的组不在这份账套的合格名单里 → 当没选过（视图不显示已选、推送重新问）；没读到候选照旧用。"""
+        raw = json.dumps({ACCOUNT: {"acccod": "SX"}})
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, GROUPS), "")
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, []), "")
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT), "SX")
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, None), "SX")
+        self.assertIsNone(stock_groups.view(raw, ACCOUNT, GROUPS)["chosen"])
+        self.assertEqual(stock_groups.view(json.dumps({ACCOUNT: {"acccod": "SB"}}), ACCOUNT, GROUPS)["chosen"], "SB")
+        self.assertEqual(stock_groups.view(raw, ACCOUNT, None)["chosen"], "SX")
+
+    def test_reports_from_cc_desktop_already_in_the_field_keep_their_remembered_group_judged_as_before(self):
+        """服务端先于 CC 桌面版上线（11-22）：已发的 CC 自 v1.1.77 起每个候选都带 ``fit``；1.12.22 / 1.12.23 只报合格的组，
+        判据含销货成本科目（0c892923c）；更早的版本报全部候选、各带 ``fit``。经同一个净化（心跳 / ERP 读回都走它）后：
+        报为合格的记住组照用（同以前），报为不合格或不在名单里的才当没记住；没报候选的照用。"""
+        from pearnly_core.cc_desktop.wire.report_rules import sanitize_stock_acc_groups
+
+        raw = json.dumps({ACCOUNT: {"acccod": "ST01"}})
+        only_fit = sanitize_stock_acc_groups([{"acccod": "DM", "fit": True, "used_by": 17}])  # 1.12.22 / 1.12.23 的形状
+        all_flagged = sanitize_stock_acc_groups([{"acccod": "ST01", "fit": True, "used_by": 19},  # 更早的版本：判据松，报为合格
+                                                 {"acccod": "DM", "fit": True, "used_by": 17},
+                                                 {"acccod": "ST06", "fit": False, "used_by": 2}])
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, only_fit), "")
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, all_flagged), "ST01")
+        self.assertEqual(stock_groups.chosen(json.dumps({ACCOUNT: {"acccod": "ST06"}}), ACCOUNT, all_flagged), "")
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, sanitize_stock_acc_groups([])), "")  # 报了空表 = 一个合格的都没有
+        self.assertEqual(stock_groups.chosen(raw, ACCOUNT, None), "ST01")  # 没读到候选
+
     def test_bad_stored_values_count_as_not_chosen(self):
         for raw in ("not json", "[1]", json.dumps({ACCOUNT: "SA"}), json.dumps({ACCOUNT: {"acccod": " "}})):
             self.assertEqual(stock_groups.chosen(raw, ACCOUNT), "")
@@ -96,6 +124,27 @@ class PayloadTest(unittest.TestCase):
                              "stock_acc_group_required")
             self.assertEqual(build({"catalog_fingerprint": EMPTY, "reported_stock_acc_groups": GROUPS[2:]}).reason,
                              "stock_acc_group_missing")
+
+    def test_a_remembered_group_no_longer_fit_is_not_sent_and_is_asked_again(self):
+        """11-22 69EXP\\TEST P002：记住的组已不合格 → 有存货主档的账套不带（照旧交电脑 / 由新建判定重新问），零主档的账套照「没定组」
+        重新定：合格的几个就问、一个都没有就停；不静默用旧组，也不静默换。"""
+        from pearnly_core.express_rules.push import stock_acc_group
+
+        for build in (_purchase, _sale):
+            stocked = build({"catalog_fingerprint": STOCKED, "reported_stock_acc_groups": GROUPS, "stock_acccod": "SX"})
+            self.assertTrue(stocked.ok, stocked.reason)
+            self.assertNotIn("stock_acccod", stocked.payload)
+            self.assertEqual(build({"catalog_fingerprint": EMPTY, "reported_stock_acc_groups": GROUPS,
+                                    "stock_acccod": "SX"}).reason, "stock_acc_group_required")
+            self.assertEqual(build({"catalog_fingerprint": EMPTY, "reported_stock_acc_groups": GROUPS[2:],
+                                    "stock_acccod": "SX"}).reason, "stock_acc_group_missing")
+        new = {"items": [{"item_mode": "stock_item", "code": "", "name": "Synthetic new"}]}
+        config = {"reported_stock_acc_groups": GROUPS, "stock_acccod": "SX"}
+        self.assertEqual(stock_acc_group.new_item_group(new, config).fail_reason, "stock_acc_group_required")
+        self.assertEqual(stock_acc_group.new_item_group({**new, "stock_acccod": "SX"}, {"reported_stock_acc_groups": GROUPS})
+                         .fail_reason, "stock_acc_group_required")
+        self.assertEqual(stock_acc_group.new_item_group(new, {**config, "stock_acccod": "SA"}).fail_reason, "")
+        self.assertEqual(stock_acc_group.remembered_group({"stock_acccod": "SX"}), "SX")  # 没读到候选：照旧
 
     def test_service_documents_carry_no_group(self):
         for build in (_purchase, _sale):

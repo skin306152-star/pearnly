@@ -72,7 +72,7 @@ from pearnly_core.express_rules.push.posting_profile import (
     account_set_has_no_stock_master,
     profile_from_config,
 )
-from pearnly_core.express_rules.push.stock_acc_group import resolve_stock_acc_group
+from pearnly_core.express_rules.push.stock_acc_group import remembered_group, resolve_stock_acc_group
 from pearnly_core.express_rules.push.field_clean import (
     clean_address,
     clean_branch_no,
@@ -326,7 +326,7 @@ def build_express_sales_payload(
         # 带上票面商品行:补选卡靠它让会计看见这张票卖的是什么再判库存/服务(同科目组卡口径)。
         return fail(profile.escalate_reason(), line_item_names(fields))
 
-    stock_acccod = str(config.get("stock_acccod") or "").strip()
+    stock_acccod = remembered_group(config)  # 记住的组已不合格当没记住（11-22）
     acc_group_auto = False
     # 每批开关优先于画像:显式「库存」→ stock_sale(小助手扣真实库存 + 结转成本);显式「服务」→
     # 非库存服务档 + 收入式(不碰库存·不被永续画像推成 stock);缺省 → 沿用画像(=今天默认,行为不变)。

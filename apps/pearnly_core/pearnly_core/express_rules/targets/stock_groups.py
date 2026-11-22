@@ -38,9 +38,20 @@ def choices(raw: Any) -> Dict[str, Dict[str, str]]:
             if isinstance(k, str) and isinstance(v, dict) and str(v.get("acccod") or "").strip()}
 
 
-def chosen(raw: Any, account: str) -> str:
-    """这份账套选过的组码；没选过是空串。`account` 须是规范化后的账套键。"""
-    return str((choices(raw).get(account) or {}).get("acccod") or "").strip() if account else ""
+def still_fit(acccod: Any, groups: Any) -> str:
+    """记住的组在用时按当前判据复核（11-22）：这份账套还没读到候选（``groups`` 不是表）照旧用；读到了、组不在合格名单里
+    （判据收紧、组被改 / 删）回空串 = 当没记住，由各入口走「没定组」原有的路（合格 1 个自动用、几个出题、没有就停）。
+    不静默用不合格的组，也不静默换成别的组。"""
+    code = str(acccod or "").strip()
+    if not code or not isinstance(groups, list):
+        return code
+    return code if code in {str(g["acccod"]).strip() for g in fit(groups)} else ""
+
+
+def chosen(raw: Any, account: str, groups: Any = None) -> str:
+    """这份账套选过、仍然合格的组码（:func:`still_fit`；不给候选 = 候选未知，照旧）；没选过是空串。`account` 须是规范化后的账套键。"""
+    found = str((choices(raw).get(account) or {}).get("acccod") or "").strip() if account else ""
+    return still_fit(found, groups)
 
 
 def choose(raw: Any, account: str, acccod: Any, groups: Any, *, actor: str,
@@ -59,4 +70,4 @@ def view(raw: Any, account: str, groups: Any) -> Dict[str, Any]:
     return {"account_set_key": account, "known": isinstance(groups, list),
             "groups": [{"acccod": str(g["acccod"]).strip(), "label": label(g), "used_by": g.get("used_by")}
                        for g in fit(groups)],
-            "chosen": chosen(raw, account) or None}
+            "chosen": chosen(raw, account, groups) or None}

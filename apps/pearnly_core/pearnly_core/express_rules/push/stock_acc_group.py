@@ -37,10 +37,20 @@ def fit_stock_acc_groups(config: Optional[Dict[str, Any]]) -> List[Dict[str, Any
     return stock_groups.fit((config or {}).get("reported_stock_acc_groups"))
 
 
+def remembered_group(config: Optional[Dict[str, Any]], payload: Optional[Dict[str, Any]] = None) -> str:
+    """载荷或端点记住的存货科目组，按这份账套当前的合格名单复核（`stock_groups.still_fit`，11-22）：不合格回空 = 当没记住；
+    这份账套没读到候选照旧用。69EXP\\TEST 的 P002 在判据收紧（要配销货成本科目，0c892923c）后不合格，以前记住了照用、写账停在
+    STOCK_IN_FAILED。"""
+    cfg = config or {}
+    code = str((payload or {}).get("stock_acccod") or "").strip() or str(cfg.get("stock_acccod") or "").strip()
+    return stock_groups.still_fit(code, cfg.get("reported_stock_acc_groups"))
+
+
 def resolve_stock_acc_group(config: Optional[Dict[str, Any]]) -> StockAccGroupChoice:
     """账套零库存主档时,这次建库存品挂哪个存货科目组;定不下来就说清缺的是哪一样。
 
-    端点显式配过 stock_acccod → 一律用它,不看候选数(会计拍过板的决定,不因心跳刷新翻案)。
+    端点显式配过 stock_acccod 且仍在合格名单里(`remembered_group`)→ 用它,不看候选数(会计拍过板的决定,不因心跳刷新翻案);
+    已不合格的当没配过,走下面三档重新定(11-22)。
     没配则按合格候选数分三档:
       1 个  → 自动用它。没得选,问了也是白问 —— 每张票弹一次卡纯粹是挡会计的路。
       0 个  → REASON_ACC_GROUP_MISSING,缺的是科目本身,得先去 Express 建一个。
@@ -52,7 +62,7 @@ def resolve_stock_acc_group(config: Optional[Dict[str, Any]]) -> StockAccGroupCh
     众数会挑中作废的那组,所以这里只认过了存货科目判据的 fit 名单,不看谁挂得多。
     """
     cfg = config or {}
-    chosen = str(cfg.get("stock_acccod") or "").strip()
+    chosen = remembered_group(cfg)
     if chosen:
         return StockAccGroupChoice(chosen, "", False)
     groups = fit_stock_acc_groups(cfg)
@@ -88,13 +98,13 @@ def new_item_group(payload: Optional[Dict[str, Any]], config: Optional[Dict[str,
       · 能证明挂得最多的是合格组(它挂的件数多过不合格的组加起来) → 照旧交电脑,回空;
       · 证明不了 → 同零主档那一档:合格的 1 个就用它(``auto``),几个 → REASON_ACC_GROUP_REQUIRED(选一次、按账套记住),
         一个都没有 → REASON_ACC_GROUP_MISSING(要在 Express 里配)。
-    载荷或端点已带组、没有要新建的库存品 → 回空。没带存货码、名字与账套里已有的库存品同名的行不是新建：电脑照名取已有那件
+    载荷或端点已带仍合格的组(`remembered_group`)、没有要新建的库存品 → 回空;带的组已不合格当没带(11-22)。没带存货码、名字与账套里已有的库存品同名的行不是新建：电脑照名取已有那件
     （CC 桌面版 `stock_purchase` 复用同名库存品，``choices`` 同名不问存货对照），不为它定组。"""
     from pearnly_core.express_rules.push.choices import norm_name
     from pearnly_core.express_rules.push.common import ITEM_MODE_STOCK
 
     payload, cfg = payload or {}, config or {}
-    if str(payload.get("stock_acccod") or "").strip() or str(cfg.get("stock_acccod") or "").strip():
+    if remembered_group(cfg, payload):
         return StockAccGroupChoice("", "", False)
     existing = {norm_name(row.get("name")) for row in cfg.get("reported_products") or ()
                 if isinstance(row, dict) and str(row.get("code") or "").strip()

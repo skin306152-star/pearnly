@@ -21,6 +21,7 @@ from pearnly_core.express_rules.push import choices as choice_rules
 from pearnly_core.express_rules.push import service_vat, stock_acc_group
 from pearnly_core.express_rules.push.prepare import prepare_express
 from pearnly_core.express_rules.push.preflight import ExpressContext
+from pearnly_core.express_rules.targets import stock_groups
 
 from pearnly_erp_portal.express import choices, contracts, conversation, facts, target
 
@@ -36,7 +37,9 @@ def _config(book, data, company_name):
               # 写账规则的账套白名单：这一份、能写（领单时再按领取那台电脑核一遍）
               "reported_account_sets": [{"path": book["path"], "writable": True, "root": book.get("root") or ""}],
               **mapping, **reported}
-    group = choices.chosen(company_name, choices.STOCK_GROUP, book["key"])
+    # 选过的组已不在这份账套的合格名单里当没选过，写账规则照「没定组」重新定 / 问（`stock_groups.still_fit`，11-22）
+    group = stock_groups.still_fit(choices.chosen(company_name, choices.STOCK_GROUP, book["key"]),
+                                   config.get("reported_stock_acc_groups"))
     if group:
         config["stock_acccod"] = group
     return config

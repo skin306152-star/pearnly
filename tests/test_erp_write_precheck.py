@@ -681,8 +681,18 @@ class NewStockGroup(unittest.TestCase):
     def test_nothing_to_decide_without_a_new_stock_item_or_with_a_chosen_group(self):
         known = {"items": [{"item_mode": "stock_item", "code": "P-1"}, {"item_mode": "non_stock_item", "code": ""}]}
         self.assertEqual(prepare.new_stock_group(known, self.config([])), ("", ""))
-        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([], chosen="ST10")), ("", ""))
-        self.assertEqual(prepare.new_stock_group({**self.NEW, "stock_acccod": "ST10"}, self.config([])), ("", ""))
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("ST10", 1)], chosen="ST10")), ("", ""))
+        self.assertEqual(prepare.new_stock_group({**self.NEW, "stock_acccod": "ST10"}, self.config([("ST10", 1)])), ("", ""))
+        unknown = {"stock_acccod": "ST10"}  # 这份账套还没读到候选：记住的照用
+        self.assertEqual(prepare.new_stock_group(self.NEW, unknown), ("", ""))
+
+    def test_a_remembered_group_that_is_no_longer_fit_counts_as_never_chosen(self):
+        """11-22 69EXP\\TEST：记住的 P002 判据收紧后不在合格名单里 → 当没记住，照「没定组」重新定 / 问，不静默用也不静默换。"""
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("DM", 17)], chosen="P002")), ("DM", ""))
+        self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("DM", 17), ("ST10", 1)], chosen="P002")),
+                         ("", E.CHOICE + ":" + choices.STOCK_GROUP))
+        self.assertEqual(prepare.new_stock_group({**self.NEW, "stock_acccod": "P002"}, self.config([])),
+                         ("", prepare.stock_acc_group.REASON_ACC_GROUP_MISSING))
 
     def test_a_fit_group_that_provably_holds_the_most_items_is_left_to_the_computer(self):
         self.assertEqual(prepare.new_stock_group(self.NEW, self.config([("ST10", 146)], total=162)), ("", ""))
