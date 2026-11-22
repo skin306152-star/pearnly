@@ -602,10 +602,10 @@ Defaults,Defaults
 Delete note,Delete note
 Delete rule,Delete rule
 Delete selected ({0}),Delete selected ({0})
+Delete the documents?,Delete the documents?
 Delete the note?,Delete the note?
 Delete the rule?,Delete the rule?
 Delete the stock counts?,Delete the stock counts?
-Delete the documents?,Delete the documents?
 Delete these documents?,Delete these documents?
 Delete these reconciliations?,Delete these reconciliations?
 Delete these scheduled tasks?,Delete these scheduled tasks?
@@ -3509,6 +3509,7 @@ erp.target_projection_value_too_long,A value in the ERP data report exceeds the 
 excel,excel
 failed,Failed
 guide.business.company,Company Details
+guide.business.pending,Pending
 guide.business.pos,POS Daily Sales
 guide.business.readback,Read Back
 guide.business.recon,Reconciliation
@@ -3517,13 +3518,13 @@ guide.business.vat,VAT Return
 guide.business.wht,Withholding Tax
 guide.consent.company.note_delete,Delete the note?
 guide.consent.company.rule_delete,Delete the rule?
+guide.consent.pending.delete,Delete the documents?
 guide.consent.stocktake.close,Close the stock count?
 guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
-guide.open.pos,Upload the POS export.
-guide.consent.pending.delete,Delete the documents?
 guide.open.pending,Choose an action.
+guide.open.pos,Upload the POS export.
 guide.open.readback,Choose the account set and month.
 guide.open.recon,Choose the reconciliation type.
 guide.open.stocktake,Choose an action.
@@ -3534,21 +3535,19 @@ guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
 guide.option.company.rule_delete,Delete rule
 guide.option.company.rule_promote,Set for whole company
+guide.option.pending.export,Export review workbook
+guide.option.pending.handle,Handle
+guide.option.pending.review,Edit document
 guide.step.company.action,Action
 guide.step.company.note,Item
 guide.step.company.text,Text
+guide.step.pending.action,Action
+guide.step.pending.item,Document
+guide.step.pending.items,Documents
 guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
-guide.business.pending,Pending
-guide.open.pending,Choose an action.
-guide.option.pending.export,Export review workbook
-guide.option.pending.handle,Handle
-guide.option.pending.review,Edit document
-guide.step.pending.action,Action
-guide.step.pending.item,Document
-guide.step.pending.items,Documents
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

@@ -602,10 +602,10 @@ Defaults,ค่าเริ่มต้น
 Delete note,ลบบันทึก
 Delete rule,ลบกฎ
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete the documents?,ลบเอกสารหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
 Delete the rule?,ลบกฎหรือไม่
 Delete the stock counts?,ลบการตรวจนับหรือไม่
-Delete the documents?,ลบเอกสารหรือไม่
 Delete these documents?,ลบเอกสารเหล่านี้หรือไม่
 Delete these reconciliations?,ลบงานกระทบยอดเหล่านี้หรือไม่
 Delete these scheduled tasks?,ลบงานตามกำหนดเวลาเหล่านี้หรือไม่
@@ -3509,6 +3509,7 @@ erp.target_projection_value_too_long,ค่าในรายงานข้อ�
 excel,Excel
 failed,ล้มเหลว
 guide.business.company,ข้อมูลบริษัท
+guide.business.pending,รอดำเนินการ
 guide.business.pos,ยอดขายรายวันจาก POS
 guide.business.readback,อ่านข้อมูลกลับ
 guide.business.recon,ศูนย์กระทบยอด
@@ -3517,13 +3518,13 @@ guide.business.vat,แบบ ภ.พ.30
 guide.business.wht,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.company.rule_delete,ลบกฎหรือไม่
+guide.consent.pending.delete,ลบเอกสารหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
-guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
-guide.consent.pending.delete,ลบเอกสารหรือไม่
 guide.open.pending,เลือกการดำเนินการ
+guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
 guide.open.readback,เลือกชุดบัญชีและเดือน
 guide.open.recon,เลือกประเภทการกระทบยอด
 guide.open.stocktake,เลือกการดำเนินการ
@@ -3534,21 +3535,19 @@ guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
 guide.option.company.rule_delete,ลบกฎ
 guide.option.company.rule_promote,ตั้งเป็นทั้งบริษัท
+guide.option.pending.export,ส่งออกสมุดงานตรวจทาน
+guide.option.pending.handle,ดำเนินการ
+guide.option.pending.review,แก้ไขเอกสาร
 guide.step.company.action,การดำเนินการ
 guide.step.company.note,รายการ
 guide.step.company.text,ข้อความ
+guide.step.pending.action,การดำเนินการ
+guide.step.pending.item,เอกสาร
+guide.step.pending.items,เอกสาร
 guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
-guide.business.pending,รอดำเนินการ
-guide.open.pending,เลือกการดำเนินการ
-guide.option.pending.export,ส่งออกสมุดงานตรวจทาน
-guide.option.pending.handle,ดำเนินการ
-guide.option.pending.review,แก้ไขเอกสาร
-guide.step.pending.action,การดำเนินการ
-guide.step.pending.item,เอกสาร
-guide.step.pending.items,เอกสาร
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

@@ -602,10 +602,10 @@ Defaults,既定値
 Delete note,メモを削除
 Delete rule,ルールを削除
 Delete selected ({0}),選択を削除（{0}）
+Delete the documents?,書類を削除しますか？
 Delete the note?,メモを削除しますか？
 Delete the rule?,ルールを削除しますか？
 Delete the stock counts?,棚卸を削除しますか？
-Delete the documents?,書類を削除しますか？
 Delete these documents?,これらの書類を削除しますか？
 Delete these reconciliations?,これらの照合を削除しますか？
 Delete these scheduled tasks?,これらの定期タスクを削除しますか？
@@ -3509,6 +3509,7 @@ erp.target_projection_value_too_long,ERP データレポート内の値が許容
 excel,Excel
 failed,失敗
 guide.business.company,会社情報
+guide.business.pending,処理待ち
 guide.business.pos,POS 日次売上
 guide.business.readback,読み戻し
 guide.business.recon,照合センター
@@ -3517,13 +3518,13 @@ guide.business.vat,付加価値税申告書
 guide.business.wht,源泉徴収税申告書
 guide.consent.company.note_delete,メモを削除しますか？
 guide.consent.company.rule_delete,ルールを削除しますか？
+guide.consent.pending.delete,書類を削除しますか？
 guide.consent.stocktake.close,棚卸を終了しますか？
 guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.fact.company.none,会社が未選択です
 guide.open.company,操作を選択してください。
-guide.open.pos,POS のエクスポートをアップロードしてください。
-guide.consent.pending.delete,書類を削除しますか？
 guide.open.pending,操作を選択してください。
+guide.open.pos,POS のエクスポートをアップロードしてください。
 guide.open.readback,会計データと月を選択してください。
 guide.open.recon,照合の種別を選択してください。
 guide.open.stocktake,操作を選択してください。
@@ -3534,21 +3535,19 @@ guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
 guide.option.company.rule_delete,ルールを削除
 guide.option.company.rule_promote,会社全体に設定
+guide.option.pending.export,確認用ブックを書き出し
+guide.option.pending.handle,処理
+guide.option.pending.review,書類を修正
 guide.step.company.action,操作
 guide.step.company.note,対象
 guide.step.company.text,内容
+guide.step.pending.action,操作
+guide.step.pending.item,書類
+guide.step.pending.items,書類
 guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
-guide.business.pending,処理待ち
-guide.open.pending,操作を選択してください。
-guide.option.pending.export,確認用ブックを書き出し
-guide.option.pending.handle,処理
-guide.option.pending.review,書類を修正
-guide.step.pending.action,操作
-guide.step.pending.item,書類
-guide.step.pending.items,書類
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書
