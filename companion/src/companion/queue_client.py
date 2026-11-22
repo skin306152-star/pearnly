@@ -130,6 +130,7 @@ class QueueClient:
         operator_targets: Optional[list] = None,
         mrerp_logins: Optional[list] = None,
         mrerp_users: Optional[dict] = None,
+        ledger_changes: Optional[list] = None,
     ) -> dict:
         """心跳 · 上报探测到的账套列表 + 科目表 + 录入方式 + **客户所选账套**(供 FE 选/镜像)· 返回连接状态。
 
@@ -149,6 +150,8 @@ class QueueClient:
                  None = 不带这个键,空对象照发。
         update_blocked:自动更新被 Windows 拦下 {version, at}(update_block.reported),没被拦是 None;
                  None 也照发(云端据此清掉旧值),只有不传这个参数才不带这个键(云端原样保留)。
+        ledger_changes:盯着的账套变了哪几张表 [{key, tables}](ledger_watch,11-22 即时同步;key 是心跳回复
+                 watch_books 给的);None / 空不带这个键。
         云端旧版忽略请求体仍正常。
         """
         body: dict = {}
@@ -181,6 +184,8 @@ class QueueClient:
             body["mrerp_logins"] = [str(connection) for connection in mrerp_logins]
         if mrerp_users is not None:
             body["mrerp_users"] = {str(connection): str(user) for connection, user in mrerp_users.items()}
+        if ledger_changes:
+            body["ledger_changes"] = [dict(item) for item in ledger_changes]
         if master_refresh_request_id:
             body["master_refresh_request_id"] = str(master_refresh_request_id)
         if master_refresh_scope:

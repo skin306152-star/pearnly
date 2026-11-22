@@ -1048,6 +1048,23 @@ def _snapshot_waiting(cfg: CompanionConfig, state: dict, now: float) -> bool:
         return False
 
 
+def _ledger_watcher(cfg: CompanionConfig):
+    """这个成员的盯账套（`ledger_watch`，11-22 即时同步）：名单随心跳回复的 ``watch_books``。"""
+    from . import ledger_watch
+
+    return ledger_watch.for_member(str(getattr(cfg, "profile_id", "") or "") or str(getattr(cfg, "backend_url", "")))
+
+
+def _ledger_waiting(cfg: CompanionConfig, state: dict, now: float) -> bool:
+    """盯着的账套有静下来的变化，且离上一拍至少 :data:`_SNAPSHOT_HEARTBEAT_MIN_S` 秒：提前报，不等每分钟那拍。"""
+    if now - state.get("last_heartbeat", 0.0) < _SNAPSHOT_HEARTBEAT_MIN_S:
+        return False
+    try:
+        return _ledger_watcher(cfg).ready()
+    except Exception:  # noqa: BLE001 — 判断不了就照常按每分钟一拍
+        return False
+
+
 def _run_periodic(
     cfg: CompanionConfig, qc, state: dict, on_update_available=None
 ) -> None:
@@ -1060,8 +1077,9 @@ def _run_periodic(
     )
     if refresh_request_id or now - state.get("last_heartbeat", 0.0) >= max(
         10, cfg.heartbeat_interval_s
-    ) or _snapshot_waiting(cfg, state, now):
+    ) or _snapshot_waiting(cfg, state, now) or _ledger_waiting(cfg, state, now):
         state["last_heartbeat"] = now
+        watcher = None
         try:
             from . import update_block
             from .payload_contract import SUPPORTED_PAYLOAD_VERSIONS, operator_targets
@@ -1174,6 +1192,9 @@ def _run_periodic(
                 and digest == state.get("sent_digest")
                 and now - float(state.get("sent_full_at", 0.0) or 0.0) < _FULL_REPORT_S
             )
+            # 盯着的账套变了哪几张表（ledger_watch）：随这一拍报，报成功才清掉，失败下一拍再带
+            watcher = _ledger_watcher(cfg)
+            changes = watcher.take()
             hb = qc.health(
                 account_sets=None if slim else known_sets,
                 accounts=None if slim else known_accts,
@@ -1194,8 +1215,12 @@ def _run_periodic(
                 reindex_runner=cdx_reindex.runner_status(),
                 # 自动更新被 Windows 拦下（版本 + 时刻）；没被拦报 None，云端据此清掉旧值（update_block.py）
                 update_blocked=update_block.reported(),
+                ledger_changes=changes or None,
                 **refresh_fields,
             )
+            watcher.done(True)
+            # 要盯哪几本（服务端按已接公司的现用账套给，本机路径）；没带 = 一本都不盯（旧服务端、没接公司）
+            watcher.sync(hb.get("watch_books") if isinstance(hb, dict) else None)
             if not slim:
                 state["sent_digest"] = digest
                 state["sent_full_at"] = now
@@ -1218,6 +1243,8 @@ def _run_periodic(
             )
             device_link.REJECTIONS.ok(cfg)
         except Exception as e:
+            if watcher is not None:
+                watcher.done(False)
             log.warning("[heartbeat] 上报失败(忽略): %s", e)
             # 服务端一直不认这把密钥（连续 401）：标出来，对话页打开时自动重新登记换新（device_link.Rejections）
             if getattr(getattr(e, "response", None), "status_code", None) == 401:
@@ -1297,3 +1324,8 @@ def run_poll_loop(
                 continue
             handle_task(qc, task)
             processed += 1
+    # 这个成员停了（退出 / 换配对）：关掉它盯账套的线程，下次连上按心跳回复重开
+    try:
+        _ledger_watcher(cfg).close()
+    except Exception:  # noqa: BLE001
+        log.exception("[ledger-watch] 关闭失败(忽略)")

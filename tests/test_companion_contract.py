@@ -2045,7 +2045,10 @@ class LedgerChanges(unittest.TestCase):
     def tuple_constant(path, name):
         for node in ast.parse(path.read_text(encoding="utf-8")).body:
             if isinstance(node, ast.Assign) and any(getattr(t, "id", "") == name for t in node.targets):
-                return ast.literal_eval(node.value)
+                value = node.value
+                if isinstance(value, ast.Call) and getattr(value.func, "id", "") == "frozenset" and value.args:
+                    value = value.args[0]
+                return ast.literal_eval(value)
         raise AssertionError(f"{name} not in {path}")
 
     def test_every_table_the_computer_watches_has_a_kind(self):
@@ -2057,6 +2060,21 @@ class LedgerChanges(unittest.TestCase):
                 with self.subTest(table=table):
                     self.assertTrue(contracts.table_kind(table + ".DBF"), table)
         self.assertEqual(contracts.table_kind("ARTRN.DBF"), contracts.RECEIVABLE)
+
+    def test_the_computer_watches_exactly_the_agreed_tables(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        from pearnly_core.ledger_sync import contracts
+
+        tables = self.tuple_constant(COMPANION / "ledger_watch.py", "WATCH_TABLES")
+        self.assertEqual(set(tables), set(contracts.EXPRESS_TABLES))
+        self.assertEqual(self.tuple_constant(COMPANION / "ledger_watch.py", "ALL"), contracts.ALL)
+
+    def test_the_computer_sends_changes_and_follows_the_watch_list(self):
+        client = (COMPANION / "queue_client.py").read_text(encoding="utf-8")
+        self.assertIn('body["ledger_changes"]', client)
+        worker = (COMPANION / "worker.py").read_text(encoding="utf-8")
+        self.assertIn("ledger_changes=changes or None", worker)
+        self.assertIn('hb.get("watch_books")', worker)
 
     def test_the_heartbeat_field_names(self):
         machine = ROOT / "apps" / "pearnly_core" / "pearnly_core" / "cc_desktop" / "machine.py"
