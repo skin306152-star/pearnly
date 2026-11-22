@@ -223,9 +223,11 @@ class AdditiveGuards(unittest.TestCase):
                       '"pearnly_cowork.folder_intake.events.recognized"]', source)
         self.assertIn('pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}', source)
         self.assertIn('pearnly_cowork.folder_intake.schedule.tick', source)
-        # 推送状态变了：定时任务那份文件马上刷新排在第一；之后只多一个代录事件源的只读入口（统一对话框架 14.2）
+        # 推送状态变了：定时任务那份文件马上刷新排在第一；之后只多一个代录事件源的只读入口（统一对话框架 14.2）与 LINE 卡片
+        # 「保存」后的回执叫醒（11-22）
         self.assertIn('cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed", '
-                      '"pearnly_core.express_operator.feed.receipt"]', source)
+                      '"pearnly_core.express_operator.feed.receipt",\n                             '
+                      '"pearnly_cowork.line.save.pushed"]', source)
 
     def test_reminders_and_briefs_run_every_five_minutes(self):
         tree = ast.parse((APP / "hooks.py").read_text())

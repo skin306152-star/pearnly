@@ -37,7 +37,7 @@ test('在等 Express 关闭的行给出现成那句，别的行不给', () => {
   assert.equal(p.express_waiting(null), '');
 });
 
-test('单据的 Express 弹窗：状态仍是「排队中」，「原因」一栏是那一句；不在等的排队中没有原因', async () => {
+test('单据的 Express 弹窗：状态仍是「录入中」（11-22 状态词），「原因」一栏是那一句；不在等的排队中没有原因', async () => {
   const base = {state: 'queued', docnum: '', reason: '', needed: [], can_answer: false, can_retry: false};
   const fields = async info => {
     const {p, dialogs} = boot(info);
@@ -45,7 +45,7 @@ test('单据的 Express 弹窗：状态仍是「排队中」，「原因」一�
     return Object.fromEntries(dialogs[0].fields.map(field => [field.fieldname, field]));
   };
   const waiting = await fields({...base, waiting: 'express_open'});
-  assert.equal(waiting.state.default, 'Queued');
+  assert.equal(waiting.state.default, 'Entering');
   assert.equal(waiting.reason.fieldtype, 'Small Text');   // 失败原因用的同一栏（官方只读控件）
   assert.equal(waiting.reason.default, SENTENCE);
   assert.equal((await fields({...base, waiting: ''})).reason, undefined);
