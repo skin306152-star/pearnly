@@ -67,6 +67,11 @@ R.frappe.db.get_value = lambda doctype, name, fields, as_dict=False: (
 from pearnly_cowork.assistant.guided import wht  # noqa: E402
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Base(R.Base):
     def setUp(self):
         super().setUp()
@@ -101,7 +106,7 @@ class Month(Base):
         found = run.start(SESSION, "wht")
         self.assertEqual(self.asked(found)["period"]["facts"], ["tax.company_invalid"])
         refused = run.answer(found["run"], {"period": "2026-10"})
-        self.assertEqual(refused["refused"], {"period": "tax.company_invalid"})
+        self.assertEqual(_codes(refused), {"period": "tax.company_invalid"})
 
 
 class Review(Base):

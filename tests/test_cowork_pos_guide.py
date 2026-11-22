@@ -67,6 +67,11 @@ from pearnly_cowork.assistant.guided import pos  # noqa: E402
 ANSWERS = {"column.receipt": "เลขที่", "date_order": "dmy", "amount_basis": "inclusive", "status.1": "sale", "status.2": "void"}
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Base(R.Base):
     def setUp(self):
         super().setUp()
@@ -92,10 +97,10 @@ class Menu(Base):
 class Export(Base):
     def test_one_export_from_this_conversation_into_an_express_book(self):
         name = run.start(SESSION, "pos")["run"]
-        self.assertEqual(run.answer(name, {"export": ["F1", "F2"]})["refused"], {"export": "pos.type_unsupported"})
-        self.assertEqual(run.answer(name, {"export": ["F9"]})["refused"], {"export": "pos.file_unreadable"})
+        self.assertEqual(_codes(run.answer(name, {"export": ["F1", "F2"]})), {"export": "pos.type_unsupported"})
+        self.assertEqual(_codes(run.answer(name, {"export": ["F9"]})), {"export": "pos.file_unreadable"})
         STATE["current"] = R.MRERP_ID
-        self.assertEqual(run.answer(name, {"export": ["F1"]})["refused"], {"export": "pos.not_express"})
+        self.assertEqual(_codes(run.answer(name, {"export": ["F1"]})), {"export": "pos.not_express"})
 
 
 class Columns(Base):
@@ -128,13 +133,13 @@ class Columns(Base):
     def test_an_answer_not_among_this_exports_options_is_not_taken(self):
         name, _found = self.uploaded()
         refused = run.answer(name, {"columns": {**ANSWERS, "column.receipt": "Bill No"}})
-        self.assertEqual(refused["refused"], {"columns": "not offered"})
+        self.assertEqual(_codes(refused), {"columns": "not offered"})
         self.assertFalse([answers for answers in STATE["previews"] if answers])
 
     def test_answers_that_leave_a_question_open_are_not_taken(self):
         name, _found = self.uploaded()
         partial = {key: value for key, value in ANSWERS.items() if key != "status.2"}
-        self.assertEqual(run.answer(name, {"columns": partial})["refused"], {"columns": "incomplete"})
+        self.assertEqual(_codes(run.answer(name, {"columns": partial})), {"columns": "incomplete"})
 
 
 class Posting(Base):

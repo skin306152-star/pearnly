@@ -44,6 +44,11 @@ from pearnly_cowork.assistant.guided import vat  # noqa: E402
 READY = {"readback": "RB1", "status": "ready", "account_set": "ABC 2026", "period": "2026-10"}
 
 
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
+
+
 class Base(R.Base):
     def setUp(self):
         super().setUp()
@@ -105,7 +110,7 @@ class Steps(Base):
 
     def test_boxes_3_and_10_may_be_left_empty_but_not_negative(self):
         name, _found = self.to_options()
-        self.assertEqual(run.answer(name, {"exempt_sales": "-5"})["refused"], {"exempt_sales": "tax.option_invalid"})
+        self.assertEqual(_codes(run.answer(name, {"exempt_sales": "-5"})), {"exempt_sales": "tax.option_invalid"})
         found = run.answer(name, {"zero_vat_as": "zero_rated"})
         self.assertTrue(found["card"]["ready"])
 
