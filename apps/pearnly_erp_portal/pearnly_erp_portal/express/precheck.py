@@ -438,7 +438,7 @@ def _operator_job(doctype, name):
     """这张单当前那件写账件：代录交的、转了人工的才回 ``(行, 回执 meta)``，否则 ``(None, {})``。"""
     current = frappe.db.get_value(doctype, name, "ledger_job") if name else None
     row = frappe.db.get_value(jobs.JOB, current, ["status", "request_key", "book_key", "meta_json", "written_by_device",
-                                                   "lease_device", "route_device"], as_dict=True) if current else None
+                                                   "lease_device", "route_device", "last_device"], as_dict=True) if current else None
     if not row or row.get("status") != "manual" or not str(row.get("request_key") or "").startswith(push.OPERATOR_KEY):
         return None, {}
     try:
@@ -456,7 +456,9 @@ def dialog_stop(doctype, name) -> dict:
     dialog = receipt_rules.clean_operator_meta(raw).get("dialog") if row else None
     if not dialog:
         return {}
-    device = row.get("written_by_device") or row.get("lease_device") or row.get("route_device") or ""
+    # 留着框的那台：最后领这件的电脑（`last_device`，领单时记、转人工不清）；转人工时租约与派给谁都已清空，只认它会找不到电脑、
+    # 对话里的选择就发不下去（11-22 测试机1 实测：答了框 4 分钟没人点）
+    device = row.get("last_device") or row.get("written_by_device") or row.get("lease_device") or row.get("route_device") or ""
     return {**dialog, "device": str(device), "batch": str(raw.get("batch") or ""), "doc": str(raw.get("doc") or "")}
 
 

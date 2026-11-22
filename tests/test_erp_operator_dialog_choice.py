@@ -49,7 +49,8 @@ class Case(pre.Precheck):
                 "stage": "manual"}
         fake.STATE.db.table(documents.JOB)["J1"] = {
             "name": "J1", "status": "manual", "request_key": "erp:operator:b1:PI-1@x", "book_key": "BK-1",
-            "written_by_device": "PC-1", "meta_json": json.dumps(meta, ensure_ascii=False), **job}
+            "last_device": "PC-1", "written_by_device": None, "lease_device": None, "route_device": None,
+            "meta_json": json.dumps(meta, ensure_ascii=False), **job}
 
     def ready(self):
         return mock.patch.object(self.precheck, "collect_document", lambda doctype, name, given=None:
@@ -71,6 +72,12 @@ class Judge(Case):
             self.assertEqual(self.precheck.dialog_stop(self.push.PURCHASE, "PI-1"), {}, job)
         self.stopped(box={**BOX, "digest": "nothex"})
         self.assertEqual(self.precheck.dialog_stop(self.push.PURCHASE, "PI-1"), {})
+
+    def test_the_holding_computer_is_the_last_one_that_took_the_job(self):
+        # 转人工时 CC 回执清掉租约与派给谁（`jobs.ack`），written_by_device 只在写成时记：留着框的电脑只剩 last_device
+        # （11-22 测试机1：只看前三栏时 device 为空，对话里答了框没发给电脑）
+        self.stopped()
+        self.assertEqual(self.precheck.dialog_stop(self.push.PURCHASE, "PI-1")["device"], "PC-1")
 
     def test_the_card_asks_the_box_and_a_remembered_button_is_decided(self):
         self.stopped()

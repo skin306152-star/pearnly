@@ -98,7 +98,8 @@ meta = {{"operator": {{"batch": "flow-{tag}", "doc": "P:" + name, "reason": "dia
                       "dialog": {{"digest": {DIGEST!r}, "title": "ExpressI", "text": {BOX_TEXT!r}, "buttons": {BUTTONS!r},
                                  "doc_type": "RR", "stage": "saving"}}}}}}
 if job:
-    frappe.db.set_value("Pearnly CC Job", job, {{"status": "manual", "reason": reason, "written_by_device": {DEVICE!r},
+    frappe.db.set_value("Pearnly CC Job", job, {{"status": "manual", "reason": reason, "last_device": {DEVICE!r},
+                                                 "written_by_device": None, "lease_device": None, "route_device": None,
                                                  "meta_json": _json.dumps(meta, ensure_ascii=False)}}, update_modified=False)
     push.job_changed({{"source_doctype": push.PURCHASE, "source_name": name, "status": "manual", "job": job, "reason": reason}})
     frappe.db.commit()
