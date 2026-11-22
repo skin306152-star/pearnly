@@ -196,10 +196,19 @@ basis = "ERP 待处理引导（cc-guided-pending 4509b017c）写好了没合：�
 [[row]]
 id = "folder_task"
 name = "文件夹定时任务"
-cowork_direct = ["todo:p4", "todo:p4", "wait:cloud"]
+guide = "folder_task"
+cowork_direct = ["half:p4", "half:p4", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:11-12 先不做"]
 erp_operator = ["out:11-12 先不做"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；没有结果步骤；cc-guided-folder-task 92053429d，原作者窗口已归档，主会话 11-22 交本窗口）；只有离线单测 test_cowork_folder_task_guide，页面流程归第 2 步"
+
+[[row.link]]
+cell = "cowork_direct.mrerp"
+basis = "同本地 Express 那格的声明（面向 MR.ERP：MR.ERP 账套问现购 / 赊购、不问默认处理，单测 test_mrerp_book_asks_cash_or_credit_and_no_default_handling）；没有 MR.ERP 公司上的流程"
 
 [[row]]
 id = "recon"

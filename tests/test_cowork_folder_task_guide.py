@@ -55,7 +55,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 19, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -148,6 +148,11 @@ from pearnly_core.assistant.guide import declaration, registry, run  # noqa: E40
 from pearnly_cowork.assistant.guided import folder_task as guide  # noqa: E402
 
 SESSION = "S1"
+
+
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
 
 
 class Doc(dict):
@@ -282,7 +287,7 @@ class New(Base):
         self.assertEqual(sorted(set(self.asked(found)) & {"payment", "vat", "account", "department", "item"}),
                          ["account", "department", "item"])
         self.assertEqual([row["code"] for row in self.question(found, "account")["options"]], ["4100"])
-        self.assertEqual(run.answer(name, {"account": "5100"})["refused"], {"account": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"account": "5100"})), {"account": "not offered"})
 
     def test_accounts_still_being_read_wait(self):
         STATE["reading"] = True
@@ -326,7 +331,7 @@ class New(Base):
         for given in answers[:-1]:
             run.answer(name, given)
         found = run.answer(name, answers[-1])
-        self.assertEqual(found["refused"], {"times": "cowork.folder.remind_same_day"})
+        self.assertEqual(_codes(found), {"times": "cowork.folder.remind_same_day"})
 
 
 class Existing(Base):
@@ -352,7 +357,7 @@ class Existing(Base):
         for action, codes in (("enable", ["T2"]), ("disable", ["T1"]), ("run", ["T1"]), ("remind", ["T1", "T2"])):
             found = run.answer(name, {"action": action})
             self.assertEqual([row["code"] for row in self.question(found, "task")["options"]], codes, action)
-        self.assertEqual(run.answer(name, {"task": "T9"})["refused"], {"task": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"task": "T9"})), {"task": "not offered"})
 
     def test_enable_and_reminder_go_through_the_switch_tool(self):
         name, found = self.walk({"action": "enable"}, {"task": "T2"})
@@ -368,8 +373,9 @@ class Existing(Base):
     def test_run_now_notes_the_charge_and_delete_deletes_once(self):
         name, found = self.walk({"action": "run"}, {"task": "T1"})
         self.assertEqual(found["consent"], "allow")
+        # 复核行在 main 上另带 step / label（引擎补的），这里只比这一行自己的三项
         self.assertIn({"key": "charge", "label_key": "cowork.folder.runNow", "value": "cowork.folder.runNow.charge"},
-                      found["review"]["lines"])
+                      [{k: line.get(k) for k in ("key", "label_key", "value")} for line in found["review"]["lines"]])
         done = run.confirm(name, found["version"])
         self.assertEqual((self.calls("run_folder_task"), done["result"]["reason_text"]),
                          ([{"task": "T1"}], "cowork.folder.runRequested"))
