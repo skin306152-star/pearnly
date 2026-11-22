@@ -211,8 +211,9 @@ def guidance_troubleshooting(pending_tool: str) -> str:
             "worked out was calculated. Every change to an amount, tax ID, invoice number, date or items carries its "
             "basis. Once the user decides, carry it through: fix, push again and report the result. Pushing does not "
             "check for duplicates: you may point out two documents that look the same, but never hold back or delete "
-            "one unless the user asks. In a conversation filed under a company, on the user's first message check its "
-            f"pending items once with {pending_tool} and, if there are any, mention them briefly.")
+            "one unless the user asks. The page already lists a company's pending items under the conversation: do not "
+            f"check them with {pending_tool} or mention them on your own, and never say that there are none; look at them "
+            "when the user asks what needs attention or when they bear on what the user asked.")
 
 
 # 测试窗口第 3 轮：「交给 CC」的预填只写单号、对方、金额、日期（不写内部记录名），CC 要自己按单号找到这几张；ERP 用户同样会这么说

@@ -423,6 +423,13 @@ class DeclarationTests(unittest.TestCase):
         self.assertIn("erp_list_documents search set to its invoice number (or the counterparty when there is no number)",
                       find)
         self.assertNotIn("file name", find)
+        # 11-22 真模型 8 段：ERP 每段开头都多查一次待处理、回复多一句「目前没有待处理的单据」（Cowork 同一句共用提示）。待处理在对话下面
+        # 已经列着：不主动查、不主动提、没有也不说；用户问或与所问有关时才查
+        trouble = direct_push.guidance_troubleshooting("erp_pending")
+        self.assertIn(trouble, tools.GUIDANCE)
+        self.assertNotIn("first message", trouble)
+        self.assertIn("do not check them with erp_pending or mention them on your own, and never say that there are none", trouble)
+        self.assertIn('direct_push.guidance_troubleshooting("cowork_pending")', (COWORK / "assistant/tools.py").read_text(encoding="utf-8"))
         cowork = (COWORK / "assistant/tools.py").read_text(encoding="utf-8")
         for used in ("direct_push.resolve_description(", "direct_push.unconfirmed_rule(", "direct_push.scope_props(",
                      "direct_push.RESOLVE_SCHEMA", "direct_push.GUIDANCE_TIMES",
