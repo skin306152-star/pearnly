@@ -3519,12 +3519,14 @@ guide.business.recon,Reconciliation
 guide.business.stocktake,Stock Count
 guide.business.vat,VAT Return
 guide.business.wht,Withholding Tax
+guide.business.work,Task Management
 guide.consent.company.note_delete,Delete the note?
 guide.consent.company.rule_delete,Delete the rule?
 guide.consent.pending.delete,Delete the documents?
 guide.consent.stocktake.close,Close the stock count?
 guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
+guide.fact.work.nothing,Nothing to change
 guide.open.company,Choose an action.
 guide.open.pending,Choose an action.
 guide.open.pos,Upload the POS export.
@@ -3533,6 +3535,7 @@ guide.open.recon,Choose the reconciliation type.
 guide.open.stocktake,Choose an action.
 guide.open.vat,Choose the tax month.
 guide.open.wht,Choose the tax month.
+guide.open.work,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
@@ -3541,6 +3544,9 @@ guide.option.company.rule_promote,Set for whole company
 guide.option.pending.export,Export review workbook
 guide.option.pending.handle,Handle
 guide.option.pending.review,Edit document
+guide.option.work.done,Mark complete or incomplete
+guide.option.work.move,Move card
+guide.option.work.update,Edit card
 guide.step.company.action,Action
 guide.step.company.note,Item
 guide.step.company.text,Text
@@ -3551,12 +3557,6 @@ guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
-guide.business.work,Task Management
-guide.fact.work.nothing,Nothing to change
-guide.open.work,Choose an action.
-guide.option.work.done,Mark complete or incomplete
-guide.option.work.move,Move card
-guide.option.work.update,Edit card
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
 guide.step.recon.invoices,Sales invoices

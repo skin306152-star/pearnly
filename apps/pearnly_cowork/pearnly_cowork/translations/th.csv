@@ -3519,12 +3519,14 @@ guide.business.recon,ศูนย์กระทบยอด
 guide.business.stocktake,ตรวจนับสินค้า
 guide.business.vat,แบบ ภ.พ.30
 guide.business.wht,แบบ ภ.ง.ด.3 / ภ.ง.ด.53
+guide.business.work,จัดการงาน
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.company.rule_delete,ลบกฎหรือไม่
 guide.consent.pending.delete,ลบเอกสารหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
+guide.fact.work.nothing,ไม่มีรายการที่จะแก้ไข
 guide.open.company,เลือกการดำเนินการ
 guide.open.pending,เลือกการดำเนินการ
 guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
@@ -3533,6 +3535,7 @@ guide.open.recon,เลือกประเภทการกระทบยอ
 guide.open.stocktake,เลือกการดำเนินการ
 guide.open.vat,เลือกเดือนภาษี
 guide.open.wht,เลือกเดือนภาษี
+guide.open.work,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
@@ -3541,6 +3544,9 @@ guide.option.company.rule_promote,ตั้งเป็นทั้งบริ�
 guide.option.pending.export,ส่งออกสมุดงานตรวจทาน
 guide.option.pending.handle,ดำเนินการ
 guide.option.pending.review,แก้ไขเอกสาร
+guide.option.work.done,ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ
+guide.option.work.move,ย้ายการ์ด
+guide.option.work.update,แก้ไขการ์ด
 guide.step.company.action,การดำเนินการ
 guide.step.company.note,รายการ
 guide.step.company.text,ข้อความ
@@ -3551,12 +3557,6 @@ guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
-guide.business.work,จัดการงาน
-guide.fact.work.nothing,ไม่มีรายการที่จะแก้ไข
-guide.open.work,เลือกการดำเนินการ
-guide.option.work.done,ทำเครื่องหมายเสร็จหรือยังไม่เสร็จ
-guide.option.work.move,ย้ายการ์ด
-guide.option.work.update,แก้ไขการ์ด
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน
 guide.step.recon.invoices,ใบกำกับภาษีขาย

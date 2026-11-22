@@ -3519,12 +3519,14 @@ guide.business.recon,照合センター
 guide.business.stocktake,棚卸
 guide.business.vat,付加価値税申告書
 guide.business.wht,源泉徴収税申告書
+guide.business.work,タスク管理
 guide.consent.company.note_delete,メモを削除しますか？
 guide.consent.company.rule_delete,ルールを削除しますか？
 guide.consent.pending.delete,書類を削除しますか？
 guide.consent.stocktake.close,棚卸を終了しますか？
 guide.consent.stocktake.delete,棚卸を削除しますか？
 guide.fact.company.none,会社が未選択です
+guide.fact.work.nothing,変更する項目がありません
 guide.open.company,操作を選択してください。
 guide.open.pending,操作を選択してください。
 guide.open.pos,POS のエクスポートをアップロードしてください。
@@ -3533,6 +3535,7 @@ guide.open.recon,照合の種別を選択してください。
 guide.open.stocktake,操作を選択してください。
 guide.open.vat,課税月を選択してください。
 guide.open.wht,課税月を選択してください。
+guide.open.work,操作を選択してください。
 guide.option.company.note_add,メモを追加
 guide.option.company.note_delete,メモを削除
 guide.option.company.note_edit,メモを編集
@@ -3541,6 +3544,9 @@ guide.option.company.rule_promote,会社全体に設定
 guide.option.pending.export,確認用ブックを書き出し
 guide.option.pending.handle,処理
 guide.option.pending.review,書類を修正
+guide.option.work.done,完了・未完了を切り替え
+guide.option.work.move,カードを移動
+guide.option.work.update,カードを編集
 guide.step.company.action,操作
 guide.step.company.note,対象
 guide.step.company.text,内容
@@ -3551,12 +3557,6 @@ guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
-guide.business.work,タスク管理
-guide.fact.work.nothing,変更する項目がありません
-guide.open.work,操作を選択してください。
-guide.option.work.done,完了・未完了を切り替え
-guide.option.work.move,カードを移動
-guide.option.work.update,カードを編集
 guide.step.readback.book,会計データ
 guide.step.readback.period,月
 guide.step.recon.invoices,売上請求書

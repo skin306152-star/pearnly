@@ -2585,6 +2585,7 @@ express.void,Cancel in Express
 goods,goods
 guide.business.company,Company Details
 guide.business.company_add,Add Company
+guide.business.stock_card,Stock Card Report
 guide.business.stocktake,Stock Count
 guide.consent.company.note_delete,Delete the note?
 guide.consent.stocktake.close,Close the stock count?
@@ -2592,12 +2593,11 @@ guide.consent.stocktake.delete,Delete the stock count?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
 guide.open.company_add,Choose the companies to add.
+guide.open.stock_card,Choose the report and dates.
 guide.open.stocktake,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
-guide.business.stock_card,Stock Card Report
-guide.open.stock_card,Choose the report and dates.
 guide.review.department,Department
 guide.review.salesman,Salesman
 guide.step.collection.book,Account Set
@@ -2611,6 +2611,14 @@ guide.step.company.action,Action
 guide.step.company.note,Note
 guide.step.company.text,Text
 guide.step.company_add.companies,Companies
+guide.step.stock_card.date_from,From Date
+guide.step.stock_card.date_to,To Date
+guide.step.stock_card.format,Format
+guide.step.stock_card.product_from,From Product
+guide.step.stock_card.product_to,To Product
+guide.step.stock_card.report,Report
+guide.step.stock_card.warehouse_from,From Warehouse Code
+guide.step.stock_card.warehouse_to,To Warehouse Code
 guide.step.stocktake.action,Action
 guide.step.stocktake.category,Category
 guide.step.stocktake.code,Barcode / QR code
@@ -2624,14 +2632,6 @@ guide.step.stocktake.title,Name
 guide.step.stocktake.unit,Unit
 guide.step.stocktake.unit_price,Selling price
 guide.step.stocktake.warehouse,Warehouse
-guide.step.stock_card.date_from,From Date
-guide.step.stock_card.date_to,To Date
-guide.step.stock_card.format,Format
-guide.step.stock_card.product_from,From Product
-guide.step.stock_card.product_to,To Product
-guide.step.stock_card.report,Report
-guide.step.stock_card.warehouse_from,From Warehouse Code
-guide.step.stock_card.warehouse_to,To Warehouse Code
 hq,hq
 "image or pdf, as LINE reported it","image or pdf, as LINE reported it"
 issued,issued

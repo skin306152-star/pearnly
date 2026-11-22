@@ -2585,6 +2585,7 @@ express.void,ยกเลิกใน Express
 goods,สินค้า
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
+guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
 guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
@@ -2592,12 +2593,11 @@ guide.consent.stocktake.delete,ลบการตรวจนับหรือ�
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.company_add,เลือกบริษัทที่จะเพิ่ม
+guide.open.stock_card,เลือกรายงานและวันที่
 guide.open.stocktake,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
-guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
-guide.open.stock_card,เลือกรายงานและวันที่
 guide.review.department,แผนก
 guide.review.salesman,พนักงานขาย
 guide.step.collection.book,ชุดบัญชี
@@ -2611,6 +2611,14 @@ guide.step.company.action,การดำเนินการ
 guide.step.company.note,บันทึก
 guide.step.company.text,ข้อความ
 guide.step.company_add.companies,บริษัท
+guide.step.stock_card.date_from,ตั้งแต่วันที่
+guide.step.stock_card.date_to,ถึงวันที่
+guide.step.stock_card.format,รูปแบบ
+guide.step.stock_card.product_from,รหัสสินค้า
+guide.step.stock_card.product_to,ถึงรหัสสินค้า
+guide.step.stock_card.report,รายงาน
+guide.step.stock_card.warehouse_from,รหัสคลังสินค้า
+guide.step.stock_card.warehouse_to,ถึงรหัสคลังสินค้า
 guide.step.stocktake.action,การดำเนินการ
 guide.step.stocktake.category,หมวดหมู่
 guide.step.stocktake.code,บาร์โค้ด / คิวอาร์โค้ด
@@ -2624,14 +2632,6 @@ guide.step.stocktake.title,ชื่อ
 guide.step.stocktake.unit,หน่วย
 guide.step.stocktake.unit_price,ราคาขาย
 guide.step.stocktake.warehouse,คลังสินค้า
-guide.step.stock_card.date_from,ตั้งแต่วันที่
-guide.step.stock_card.date_to,ถึงวันที่
-guide.step.stock_card.format,รูปแบบ
-guide.step.stock_card.product_from,รหัสสินค้า
-guide.step.stock_card.product_to,ถึงรหัสสินค้า
-guide.step.stock_card.report,รายงาน
-guide.step.stock_card.warehouse_from,รหัสคลังสินค้า
-guide.step.stock_card.warehouse_to,ถึงรหัสคลังสินค้า
 hq,สำนักงานใหญ่
 "image or pdf, as LINE reported it",image หรือ pdf (ค่าเดิมที่ LINE ส่งมา)
 issued,ออกเอกสารแล้ว

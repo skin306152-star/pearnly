@@ -3519,12 +3519,14 @@ guide.business.recon,对账中心
 guide.business.stocktake,盘点
 guide.business.vat,增值税申报表
 guide.business.wht,预扣税申报表
+guide.business.work,任务管理
 guide.consent.company.note_delete,要删除笔记吗？
 guide.consent.company.rule_delete,要删除规则吗？
 guide.consent.pending.delete,要删除单据吗？
 guide.consent.stocktake.close,要结束盘点吗？
 guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
+guide.fact.work.nothing,没有要改的项
 guide.open.company,选择操作。
 guide.open.pending,选择操作。
 guide.open.pos,请上传 POS 导出。
@@ -3533,6 +3535,7 @@ guide.open.recon,选择对账类型。
 guide.open.stocktake,选择操作。
 guide.open.vat,选择税务月份。
 guide.open.wht,选择税务月份。
+guide.open.work,选择操作。
 guide.option.company.note_add,添加笔记
 guide.option.company.note_delete,删除笔记
 guide.option.company.note_edit,编辑笔记
@@ -3541,6 +3544,9 @@ guide.option.company.rule_promote,设为全公司
 guide.option.pending.export,导出复核工作簿
 guide.option.pending.handle,处理
 guide.option.pending.review,修改票面
+guide.option.work.done,标记完成或未完成
+guide.option.work.move,移动卡片
+guide.option.work.update,编辑卡片
 guide.step.company.action,操作
 guide.step.company.note,对象
 guide.step.company.text,内容
@@ -3551,12 +3557,6 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
-guide.business.work,任务管理
-guide.fact.work.nothing,没有要改的项
-guide.open.work,选择操作。
-guide.option.work.done,标记完成或未完成
-guide.option.work.move,移动卡片
-guide.option.work.update,编辑卡片
 guide.step.readback.book,账套
 guide.step.readback.period,月份
 guide.step.recon.invoices,销售发票
