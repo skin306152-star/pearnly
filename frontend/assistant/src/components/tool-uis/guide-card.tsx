@@ -146,11 +146,14 @@ export function askQuestionsOf(card: GuideCardData, company = ""): AskQuestion[]
     }));
     // 推荐项排第一（AskCard 按第一个是不是推荐项定默认选中）
     options.sort((a, b) => Number(!!b.recommended) - Number(!!a.recommended));
+    const count = question.count ?? 1;
+    // 说明就是题目本身的（仓库题的说明是「仓库」）只管一张时不再写第二遍：11-22 测试环境「仓库」下面又一行「仓库」
+    const same = !!question.title && label.trim().toLocaleLowerCase() === question.title.trim().toLocaleLowerCase();
     return {
       question: question.title || label,
       header: question.title || label,
       options,
-      ...(question.title && label ? { subtitle: (question.count ?? 1) > 1 ? guide.documents(label, question.count ?? 1) : label } : {}),
+      ...(question.title && label && !(same && count <= 1) ? { subtitle: count > 1 ? guide.documents(label, count) : label } : {}),
       ...(question.search && company ? { search: { company, doc_id: question.docs?.[0] ?? "", kind: question.search } } : {}),
       ...(question.free || (question.search && company) ? {} : { noOther: true }),
     };

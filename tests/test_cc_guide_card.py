@@ -111,6 +111,10 @@ const qs = askQuestionsOf(card);
 assert.equal(qs[0].options[0].value, "credit");
 assert.equal(qs[0].options[0].recommended, true);
 assert.equal(qs[1].noOther, true);
+// 说明就是题目本身（仓库题：题目「仓库」、说明「仓库」）只管一张时不再写第二遍；管几张时照写几张
+const place = { ...card.questions[0], title: "Warehouse", title_params: { label: "Warehouse" }, count: 1 };
+assert.equal(askQuestionsOf({ ...card, questions: [place] })[0].subtitle, undefined);
+assert.ok(askQuestionsOf({ ...card, questions: [{ ...place, count: 3 }] })[0].subtitle);
 assert.deepEqual(guideAnswersOf(card, { answers: [
   { header: "", question: "", labels: ["CASH"] }, { header: "", question: "", labels: [], skipped: true }] }), [{ key: "k-pay", value: "cash" }]);
 assert.deepEqual(guideAnswersOf({ ...card, questions: [{ ...card.questions[0], free: true }] },
