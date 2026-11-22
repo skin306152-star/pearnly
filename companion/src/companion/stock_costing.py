@@ -33,6 +33,8 @@ RECEIPT_POSOPR = stock_chain.RECEIPT_POSOPR
 # 平均成本 / 不分仓先进先出账套出超（链上结存不够）那部分的取价：True = 按主档均价（D4 方案 A，11-18 主会话定），False = 按 0（原生 1-戊①）。
 # 分仓计价、按仓走的路径一律按 0（十二节实录）。待 11-22 第 3 件实录定（docs/work/2026-11-22-stock-purchase-sale-chain.md §12 第 1 条）。
 EXCESS_AVERAGE = True
+# 不按仓走的减少行记写前链与当前批的指针（原生 IV，11-22 70EXP\test 实录）；False = 记写后、不带指针（11-18 定的现行口径）。实录后定。
+NATIVE_DECREASE_ROWS = False
 
 
 def _q2(value) -> Decimal:
@@ -358,10 +360,11 @@ class Book:
         increase = signed > 0
         fields: Dict[str, Any] = {
             # 批次链结存：增加行记写前（写前为负记 0，11-18 实录 JU0000001）；减少行按仓走的记写前，否则记写后
-            "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal if here else new_bal),
-            "MREMVAL": float(val if (here or increase) else new_val),
+            "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal if (here or NATIVE_DECREASE_ROWS)
+                             else new_bal),
+            "MREMVAL": float(val if (here or increase or NATIVE_DECREASE_ROWS) else new_val),
             "MLOTNUM": self.early_state[place][0] if early else self.chains[place].head if here
-            else self.heads.get(stkcod, "") if increase else "",
+            else self.heads.get(stkcod, "") if (increase or NATIVE_DECREASE_ROWS) else "",
             "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP)) if unit_cost else 0.0,
         }
         if increase:
