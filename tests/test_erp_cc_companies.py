@@ -1107,7 +1107,9 @@ class PendingTests(unittest.TestCase):
         for code in ("cc_desktop.result_unknown", "payload_version_outdated", "some_new_code"):
             self.assertEqual(pending.reason_label(E.FAILED, code), "Failed", code)
             self.assertEqual(pending.reason_label(E.HELD, code), "Pending", code)
-        self.assertIn("/^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*$/.test(info.reason)", page)  # 单据页同一规则
+        self.assertIn("/^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason)", page)  # 单据页同一规则
+        # 11-20 线上「需要处理」露出 low_confidence:vendor_missing：「码:细节」没有译文也不原样给人看
+        self.assertEqual(pending.reason_label(E.HELD, "some_new_code:detail_a,detail_b"), "Pending")
 
     def test_mrerp_reasons_get_their_text_in_four_languages(self):
         """账本是 MR.ERP 的单（11-09 P0-④）：本域原因、结果不明、共用层的「码」「码:细节」「码; 原文」与防呆码都有词条，
@@ -1137,6 +1139,28 @@ class PendingTests(unittest.TestCase):
         self.assertIn('match(/^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])/)', page)
         self.assertIn('startsWith("mrerp.result_unknown") ? "mrerp.reason.resultUnknown"', page)
         self.assertEqual(pending._MRERP_CODE.pattern, r"^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])")
+
+    def test_every_express_preflight_code_gets_its_text_in_four_languages(self):
+        """11-20 线上「需要处理」露出 low_confidence:vendor_missing：写入前通用检查（`express_rules.push` 的 mapper / confidence /
+        ledger）停下的码都要有 `express.fail.<码>` 四语词条，待处理与单据页同一规则；新加的码没词条在这里拦。"""
+        rows = [line.split("\t") for line in
+                (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8").splitlines()]
+        keys = {row[4]: row[:4] for row in rows if len(row) >= 5}
+        rules = ROOT / "apps/pearnly_core/pearnly_core/express_rules"
+        source = "\n".join(path.read_text(encoding="utf-8") for path in rules.rglob("*.py") if "test" not in path.name)
+        codes = set(re.findall(r'\bfail\("([a-z][a-z0-9_]*)"', source)) | set(re.findall(r'"([a-z][a-z0-9_]*):" \+', source))
+        ledger = (rules / "push/ledger.py").read_text(encoding="utf-8").split("EXPRESS_REASON = {", 1)[1].split("}", 1)[0]
+        codes |= {value.split(":")[0] for value in re.findall(r':\s*"([a-z][a-z0-9_:]*)"', ledger)}
+        self.assertIn("low_confidence", codes)
+        self.assertIn("bad_or_missing_date", codes)
+        table = {key: values[0] for key, values in keys.items()}
+        for code in sorted(codes):
+            with self.subTest(code=code):
+                self.assertTrue(all(keys.get(f"express.fail.{code}", ["", "", "", ""])), code)
+                with mock.patch.object(pending, "_", lambda text: table.get(text, text)):
+                    self.assertEqual(pending.reason_label(E.HELD, code + ":vendor_missing"), table[f"express.fail.{code}"])
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        self.assertIn("__(`express.fail.${bare}`)", page)
 
     def test_needs_person_skips_states_that_retry_by_themselves(self):
         self.assertTrue(E.needs_person(E.HELD, "choice_needed:party"))

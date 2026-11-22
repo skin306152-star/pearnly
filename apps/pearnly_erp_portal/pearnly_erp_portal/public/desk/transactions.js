@@ -26,6 +26,13 @@
 			}
 			return { warehouse, single: Boolean(result?.single) };
 		},
+		// 一组行上的仓先取好显示名（Link 的标题缓存）：只读的单据详情直接按缓存画，没取过的显示成编号
+		// （11-20 线上：采购详情第 1 行仓库显示 WH-00002，同公司销售详情碰巧取过才显示名称）
+		async titles(rows) {
+			const codes = [...new Set((rows || []).map(row => row?.warehouse).filter(Boolean))]
+				.filter(code => !frappe.utils.get_link_title("ERP Warehouse", code));
+			await Promise.all(codes.map(code => frappe.utils.fetch_link_title("ERP Warehouse", code)));
+		},
 		async prefill(kind, options = {}) {
 			return (await p.place.defaults(kind, options)).warehouse;
 		},
@@ -212,7 +219,9 @@
 		const coded = code && __(`express.error.${code}`) !== `express.error.${code}` ? `express.error.${code}` : "";
 		// MR.ERP 账本的单（同 `express.pending.reason_label`）：结果不明一句；共用层的「码」「码:细节」「码; 原文」用 `mrerp.error.<码>`
 		const bare = (info.reason || "").match(/^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])/)?.[1];
+		// 写入前通用检查的码（low_confidence:vendor_missing、bad_or_missing_date…，同 `express.pending.reason_label`）用 `express.fail.<码>`
 		const mrerp = (info.reason || "").startsWith("mrerp.result_unknown") ? "mrerp.reason.resultUnknown"
+			: bare && __(`express.fail.${bare}`) !== `express.fail.${bare}` ? `express.fail.${bare}`
 			: bare && __(`mrerp.error.${bare}`) !== `mrerp.error.${bare}` ? `mrerp.error.${bare}` : "";
 		const shortages = code === "STOCK_INSUFFICIENT"
 			// 库存不足按仓列出（CC `stock_guard.message`：「物料@仓 need 要 have 有」；没有分仓结存的账套仓记 all）
@@ -227,7 +236,7 @@
 		const reason = waiting ? waiting : info.reason_text ? info.reason_text
 			: info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp
-				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n") : "";
+				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n") : "";
 		const fields = [
 			{fieldtype: "Data", fieldname: "state", label: __("Status"), read_only: 1,
 				default: __({queued: "Queued", written: "express.state.written", mismatch: "Mismatch", held: "Pending",

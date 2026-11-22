@@ -89,7 +89,9 @@ CODES = {"PERIOD_LOCKED": "express.reason.periodLocked", "STOCK_INSUFFICIENT": "
 # 译文在 `mrerp.error.<码>`（同 Cowork `intake.error.<码>` 的四语），没有译文的原样
 MRERP_UNKNOWN = "mrerp.result_unknown"
 _MRERP_CODE = re.compile(r"^(ERR_[A-Z0-9_]+|[a-z][a-z0-9_]*)(?=$|[:;])")  # 共用层的 ERR_ 码与防呆码（mrerp_credit_note、date_future…）
-_BARE_CODE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$")  # 只有小写码、没有原文的原因（cancelled、cc_desktop.result_unknown…）
+_BARE_CODE = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*$")
+# 「码:细节」也只是码（low_confidence:vendor_missing,invoice_no_missing）：没有译文时同样不原样给人看
+_CODE_DETAIL = re.compile(r"^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*:[a-z0-9_,.:]*$")  # 只有小写码、没有原文的原因（cancelled、cc_desktop.result_unknown…）
 STATES = {contracts.HELD: "Pending", contracts.FAILED: "Failed", contracts.MISMATCH: "Mismatch"}
 
 
@@ -123,10 +125,12 @@ def reason_label(state, reason) -> str:
         return _("mrerp.reason.resultUnknown")
     bare = _MRERP_CODE.match(reason)
     if bare:
-        key = f"mrerp.error.{bare.group(1)}"
-        text = _(key)
-        if text != key:
-            return text
+        # 写入前通用检查的码（`express_rules.push` 的 mapper / confidence / ledger：low_confidence:vendor_missing、
+        # bad_or_missing_date…）用 `express.fail.<码>`；MR.ERP 的用 `mrerp.error.<码>`（11-20 线上「需要处理」露出 low_confidence:…）
+        for key in (f"express.fail.{bare.group(1)}", f"mrerp.error.{bare.group(1)}"):
+            text = _(key)
+            if text != key:
+                return text
     code = _error_code(reason)
     if code in CODES:
         return _(CODES[code])
@@ -135,7 +139,7 @@ def reason_label(state, reason) -> str:
         text = _(key)
         if text != key:
             return text
-    if _BARE_CODE.match(reason):
+    if _BARE_CODE.match(reason) or _CODE_DETAIL.match(reason):
         return _(STATES.get(state, "Pending"))  # 认不得的原因码不原样给人看（11-15 右栏露出 cancelled）：说状态
     return reason
 
