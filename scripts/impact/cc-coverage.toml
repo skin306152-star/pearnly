@@ -2,32 +2,89 @@
 # 行 = 业务；四组 = Cowork 直写 / Cowork 代录 / ERP 直写 / ERP 代录；每组三格按 本地 Express · MR.ERP · 云端 Express（格号见总表第 1 节）。
 # 与账本无关的业务一组只写一格。
 # 一格的写法：
-#   done            引导做完（题、复核、确定、结果都在卡上）
-#   half:<期>       做了一半（有题卡，复核 / 结果 / 开始卡没并）
+#   done            引导做完：声明完整（题、复核、确定、结果都在卡上），且登记了真页面点卡从题到结果的流程（link.page_flows）
+#   half:<期>       做了一半：已声明、服务端能走，页面整条（题 → 复核 → 确定 → 结果）还没有流程证据
 #   todo:<期>       范围内、没有引导（现在靠打字能办）
 #   no:<期>:<等谁>  范围内、打字也办不了（等谁：desktop = CC 桌面版）
-#   wait:mrerp / wait:cloud / wait:onboard   等 MR.ERP 写账线 / 云端 Express 实测 / 公司接入
+#   wait:mrerp / wait:cloud / wait:onboard   等 MR.ERP 写账线 / 云端 Express / 公司接入（线开没开见下面 [line]）
 #   out:<依据>      范围外
-# 闸门 scripts/check-cc-coverage.py：写法合规；标 done / half 的格必须有对应的引导声明（done 还要是完整引导）；有声明的格不许标 out / no；
-# 总表里的表与本文件一致（改这里后跑 --write 重新生成）。
+# 依据（11-22 起）：每个 done / half 的格在所在行下写一条 [[row.link]]：cell = "组.账本"（一格的组只写组），basis = 这格凭什么这么标，
+#   flows / page_flows = 流程 id（tests/flows/registry.toml），model / device = 真模型 / 真机依据（"acc:<验收场景>" 跑过的、
+#   "真机记录:<行 id>" docs/work 下固定格式通过的、"docs/work/<文件>::<原文片段>" 非固定格式的记录），scenarios = 登记了还没跑过的验收场景。
+# 闸门 scripts/check-cc-coverage.py 双向核：声明了的格标低了（todo / no / 线开着还 wait、完整引导有页面流程还 half）拦，
+#   标高了没证据（done / half 没声明、done 没页面流程、线关着）拦；引导相关的流程 / 真机记录 / 验收场景都要登记到某一格；
+#   相对 origin/main 分叉点改了引导声明或引导流程，本文件必须同一分支一起改。改完跑 --write 重新生成总表那一段。
+
+# 账本线开没开：一组写 "open"、"closed:<为什么>"，或一串 "路径:常量名"（全为 True 才算开）。线关着的格只能标 wait 或 out。
+[line.mrerp]
+cowork_direct = "open"
+cowork_operator = ["apps/pearnly_core/pearnly_core/express_operator/contracts.py:MRERP_OPERATOR_ENABLED"]
+erp_direct = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py:MRERP_LEDGER_ENABLED"]
+erp_operator = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py:MRERP_LEDGER_ENABLED",
+                "apps/pearnly_core/pearnly_core/express_operator/contracts.py:MRERP_OPERATOR_ENABLED"]
+
+[line.cloud]
+cowork_direct = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
+cowork_operator = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
+erp_direct = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
+erp_operator = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
+
+# 引导相关、但不对应某一格的流程 / 真机记录 / 验收场景（写为什么）
+[unlinked.records]
+"guided-core.erp-cc" = "只验接线后新对话照常回复、控制台 0 报错（本分支不加界面），不是哪项业务的引导"
 
 [[row]]
 id = "purchase"
 name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
 guide = "purchase"
-cowork_direct = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
 erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；对话里是第 1 期 pearnly_guide 问答卡 + 写入计划，页面没有按单据引导从题点到结果的流程"
+flows = ["cowork.cc.guide"]
+
+[[row.link]]
+cell = "cowork_direct.mrerp"
+basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程"
+
+[[row.link]]
+cell = "cowork_operator.express_local"
+basis = "Cowork 声明 purchase 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程"
+
+[[row.link]]
+cell = "erp_operator.express_local"
+basis = "ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；页面接口流程从题答到复核、就地改、带复核指纹确定交进代录（API 级，不点卡）"
+flows = ["erp.cc.operator.intake", "erp.cc.guide.documents-edit"]
 
 [[row]]
 id = "sales"
 name = "销售：赊销、现销；同上各类票"
 guide = "sales"
-cowork_direct = ["half:p2", "wait:mrerp", "wait:cloud"]
+cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
 erp_operator = ["half:p2", "wait:mrerp", "wait:cloud"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 sales（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；没有销售按单据引导的页面流程"
+
+[[row.link]]
+cell = "cowork_direct.mrerp"
+basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程"
+
+[[row.link]]
+cell = "cowork_operator.express_local"
+basis = "Cowork 声明 sales 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程"
+
+[[row.link]]
+cell = "erp_operator.express_local"
+basis = "ERP 声明 sales 只开 operator（express/cc_guides.py）；代录放进来的销售票开始前卡作答、提交成销售单交进写账（API 级流程）"
+flows = ["erp.cc.operator.intake.sales"]
 
 [[row]]
 id = "new_master"
@@ -43,8 +100,17 @@ name = "收款"
 guide = "collection"
 cowork_direct = ["out:只在 ERP"]
 cowork_operator = ["out:代录不做收款"]
-erp_direct = ["half:p1", "wait:mrerp", "wait:cloud"]
+erp_direct = ["done", "wait:mrerp", "wait:cloud"]
 erp_operator = ["out:代录不做收款"]
+
+[[row.link]]
+cell = "erp_direct.express_local"
+basis = "ERP 声明 collection（form 源，复核 + 确定 + 结果，df314c0bc）；真页面点「收款」→ 卡上选客户、发票、现金 → 复核 →「写入」→ 结果（58c36f1b0 起，电脑 + 手机宽度）；打字说收款只开卡（1e85d12d6）真模型 6 段通过；卡片这条路还没有真机记录（11-15 / 11-16 的真机是旧打字工具）"
+page_flows = ["erp.cc.guide.collection"]
+flows = ["erp.cc.typed-collection", "erp.cc.guide.stop", "erp.cc.guide.reopen"]
+model = ["docs/work/2026-11-19-cc-typed-collection-opens-card.md::11-20 修后真模型"]
+scenarios = ["acc.erp.cc.collection", "acc.erp.cc.collection.nbsp", "acc.erp.collection.three", "acc.erp.collection.busy",
+             "acc.erp.collection.offline", "acc.erp.collection.nbsp", "acc.erp.denied"]
 
 [[row]]
 id = "pos_day"
@@ -89,10 +155,20 @@ erp_operator = ["out:11-12 先不做"]
 [[row]]
 id = "recon"
 name = "银行对账、收入对账、增值税对账"
-cowork_direct = ["todo:p3", "todo:p3", "wait:cloud"]
+guide = "recon"
+cowork_direct = ["half:p3", "half:p3", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此业务"]
 erp_operator = ["out:ERP 无此业务"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；页面接口流程交两份 xlsx → 确定 → 结果卡追问作答（API 级，不点卡）"
+flows = ["cowork.cc.guide.recon-follow"]
+
+[[row.link]]
+cell = "cowork_direct.mrerp"
+basis = "recon 声明含 mrerp（交文件两侧对账与账本种类无关）；没有 MR.ERP 公司上的流程"
 
 [[row]]
 id = "vat"
@@ -113,10 +189,15 @@ erp_operator = ["out:ERP 无此业务"]
 [[row]]
 id = "readback"
 name = "Express 读回"
-cowork_direct = ["todo:p3", "out:MR.ERP 无读回", "wait:cloud"]
+guide = "readback"
+cowork_direct = ["half:p3", "out:MR.ERP 无读回", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此工具"]
 erp_operator = ["out:ERP 无此工具"]
+
+[[row.link]]
+cell = "cowork_direct.express_local"
+basis = "Cowork 声明 readback（form 源，确定 + 结果，只读不写；9f35ba9d6）；只有离线单测（test_cowork_readback_guide），没有页面流程"
 
 [[row]]
 id = "documents"
