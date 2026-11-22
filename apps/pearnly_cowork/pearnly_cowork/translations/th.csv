@@ -3510,7 +3510,6 @@ guide.step.pos.columns,คอลัมน์
 guide.step.pos.days,ยอดรวมรายวัน
 guide.step.pos.export,ไฟล์ส่งออก POS
 guide.step.pos.posting_kind,วิธีบันทึกบัญชี
-guide.business.stocktake,ตรวจนับสินค้า
 guide.open.stocktake,เลือกการดำเนินการ
 guide.step.readback.book,ชุดบัญชี
 guide.step.readback.period,เดือน

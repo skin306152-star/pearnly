@@ -3510,7 +3510,6 @@ guide.step.pos.columns,列
 guide.step.pos.days,每日合计
 guide.step.pos.export,POS 导出
 guide.step.pos.posting_kind,入账方式
-guide.business.stocktake,盘点
 guide.open.stocktake,选择操作。
 guide.step.readback.book,账套
 guide.step.readback.period,月份

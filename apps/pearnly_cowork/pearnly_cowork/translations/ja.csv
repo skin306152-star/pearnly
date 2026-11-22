@@ -3510,7 +3510,6 @@ guide.step.pos.columns,列
 guide.step.pos.days,日次合計
 guide.step.pos.export,POS エクスポート
 guide.step.pos.posting_kind,記帳方法
-guide.business.stocktake,棚卸
 guide.open.stocktake,操作を選択してください。
 guide.step.readback.book,会計データ
 guide.step.readback.period,月

@@ -3510,7 +3510,6 @@ guide.step.pos.columns,Columns
 guide.step.pos.days,Daily Totals
 guide.step.pos.export,POS Export
 guide.step.pos.posting_kind,Posting
-guide.business.stocktake,Stock Count
 guide.open.stocktake,Choose an action.
 guide.step.readback.book,Account Set
 guide.step.readback.period,Month
