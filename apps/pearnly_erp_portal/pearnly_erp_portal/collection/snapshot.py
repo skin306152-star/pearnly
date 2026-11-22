@@ -39,8 +39,8 @@ IN_USE_DAYS = 30
 READY, READING, OFFLINE, OUTDATED, FAILED = "ready", "reading", "offline", "outdated", "failed"
 
 
-LANDED = "erp-ar-landed:"          # 缓存：请求号 → 刚落库（读好的那件已删）；这段时间里同一请求号算读好了，不再新发
-LANDED_SECONDS = 120               # 每分钟落一次库：落完到人点「刷新」这段时间够用，过了再点就重读一次
+LANDED = "erp-ar-landed:"          # 缓存：请求号 → 每分钟的 advance 刚把它落库（请求已删）；下一次同一请求号算读好了（只算一次）
+LANDED_SECONDS = 120               # 落完到人点「刷新」这段时间够用；过了、或已用过一次，再点就重读
 LOOKED = "erp-ar-looked:"          # 缓存：请求号 → 按单号查到的 {单号: {state, customer, remaining}}（docnums 那种读，10 分钟）
 LOOKED_SECONDS = 600
 DOCNUMS_MAX = 20
@@ -89,8 +89,9 @@ def request(company, book, customer="", docnums=()):
             _remember(key, company, book["key"], customer)
             return READING
         if frappe.cache.get_value(LANDED + key):
-            # 每分钟的 :func:`advance` 刚把这件落库并删了请求：算读好了（11-20 线上缺陷⑦：没有未收发票的客户，每次「刷新」
-            # 都新发一件、回「正在读取」，永远说不到「没有未收发票」）
+            # 每分钟的 :func:`advance` 刚把这件落库并删了请求：这一次算读好了（11-20 线上缺陷⑦：没有未收发票的客户，每次「刷新」
+            # 都新发一件、回「正在读取」，永远说不到「没有未收发票」）。只算一次：再问就重读，按单号核对刚开的发票不吃旧读取
+            frappe.cache.delete_value(LANDED + key)
             return READY
         waiting = requests.waiting(KIND, book["key"], params=params)
         if waiting:
@@ -163,9 +164,7 @@ def land(company, book_key, made, customer="", key=None):
         frappe.log_error(title="ERP receivable snapshot result invalid", message=str(made.get("request")))
         return -1
     _looked(key, data)
-    written = replace(company, book_key, data["items"], data.get("read_at"), customer)
-    frappe.cache.set_value(LANDED + key, 1, expires_in_sec=LANDED_SECONDS)
-    return written
+    return replace(company, book_key, data["items"], data.get("read_at"), customer)
 
 
 def _row_values(item):
@@ -322,4 +321,5 @@ def advance():
             frappe.cache.hdel(PENDING, key)
         elif made["status"] == "done":
             land(item["company"], item["book_key"], made, item.get("customer") or "", key)
+            frappe.cache.set_value(LANDED + key, 1, expires_in_sec=LANDED_SECONDS)
             frappe.db.commit()
