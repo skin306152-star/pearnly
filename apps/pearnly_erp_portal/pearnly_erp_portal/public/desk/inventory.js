@@ -118,7 +118,7 @@
 				// 看下能不能放在一屏显示完整"）。`compact_columns` 让每列按下面的宽度走、并按窗口
 				// 富余空间等比放宽；`min_width` 是底线，窄到放不下时才会回落到框架的横向滚动。
 				compact_columns: true,
-				// 名称占满剩余宽度、换行完整显示（11-20 用户定：长名称要能看全）
+				// 名称放不下就换行完整显示（11-20）；其它列按最长的值定宽、编码完整显示，富余宽度名称 2 : 其它各 1（11-22）
 				wrap_subject: true,
 				// 列头点一下排序（`sort_fields` 声明服务端认的字段，见 core `p.list`）。
 				sort_fields: ["product_name", "internal_code", "barcode", "warehouse_name",
@@ -136,7 +136,7 @@
 					// 十列的底线加起来要能塞进最窄的常见窗口：否则最右那几列会被右边那块（计数）
 					// 盖住、或者要横向滑才看得到（用户 2026-09-23 报的就是这两件事）。
 					// 品名后接「分类 · 特性/颜色」（岳父 11-01；十列放不下再加两列，搜索框也搜得到这两样）
-					// 删了状态、成本、金额、仓位四栏（岳父 11-18）；名称占满剩余宽度、换行完整显示（11-20）
+					// 删了状态、成本、金额、仓位四栏（岳父 11-18）；名称换行完整显示（11-20）
 					{ fieldname: "product_name", width: 300, min_width: 200, label: t("stock.col.name"),
 						format: (value, row) => [value, row.category_name, row.attribute].filter(Boolean).join(" · ") },
 					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode") },

@@ -116,7 +116,7 @@
 				if (this.destroyed) return;
 				this.$frappe_list.toggleClass("pearnly-list-with-actions", Boolean(this.row_actions));
 				this.$frappe_list.toggleClass("pearnly-compact-list", Boolean(this.compact_columns));
-				// `wrap_subject`：第一列（名称）占满剩余宽度、放不下就换行完整显示，行跟着变高（样式见 product.css）。
+				// `wrap_subject`：第一列（名称）放不下就换行完整显示、行跟着变高（样式见 product.css）；其它列按内容定宽（`apply_column_widths`）。
 				this.$frappe_list.toggleClass("pearnly-wrap-subject", Boolean(this.wrap_subject));
 				if (this.selectable) this.setup_check_events();
 				this.$result.on("click keydown", ".list-row-container", event => {
@@ -282,14 +282,34 @@
 			if (!this.compact_columns) {
 				return frappe.views.ListView.prototype.apply_column_widths.call(this);
 			}
-			// `wrap_subject`：富余宽度全给名称，其它列不放宽；窗口窄时其它列先收到 `min_width`，名称最后才收
-			// （物料 / 库存一览，11-20 用户定：长名称要能看全）。
+			// `wrap_subject`（物料 / 库存一览）：名称以外的列按本页最长的值（含列头）定宽、不截断、不再收窄
+			// （11-22 用户定：内部编码、条码要完整显示）；富余宽度按 名称 2 : 其它各 1 分，名称不独占右边
+			// 一大片；窗口窄时名称先收到 `min_width`、放不下就换行（11-20），还不够其它列才收到各自的 `min_width`
+			// （名称收缩系数 100，几乎独自先收；其它列按「量到的宽度超出 `min_width` 的那段」分摊——flex 按
+			// 系数 × 基准宽度分摊，系数取 (宽 − 底线) / 宽，空列和短列不收、长编码先收）。
+			const fit = this.wrap_subject ? this.measure_fit_widths() : null;
 			for (const [i, col] of this.spec.entries()) {
-				const flex = !this.wrap_subject || i === 0 ? "1 1" : "0 4";
-				this.$result.find(`[data-fieldname="${col.fieldname}"]`).css({
-					width: col.width, flex: `${flex} ${col.width}px`, minWidth: col.min_width,
-				});
+				const $cells = this.$result.find(`[data-fieldname="${col.fieldname}"]`);
+				if (fit && i > 0) {
+					const shrink = Math.max(0, fit[i] - (col.min_width || 0)) / fit[i];
+					$cells.css({width: fit[i], flex: `1 ${shrink.toFixed(4)} ${fit[i]}px`, minWidth: col.min_width});
+					continue;
+				}
+				$cells.css({width: col.width, flex: `${fit ? "2 100" : "1 1"} ${col.width}px`, minWidth: col.min_width});
 			}
+		}
+		measure_fit_widths() {
+			// 先让各列按内容自然展开（不换行的最长宽度），一次量完再按量到的值定宽。
+			const widths = this.spec.map(() => 0);
+			for (const [i, col] of this.spec.entries()) {
+				if (i === 0) continue;
+				const cells = this.$result.find(`[data-fieldname="${col.fieldname}"]`).toArray();
+				for (const el of cells) Object.assign(el.style, {width: "auto", flex: "0 0 auto", minWidth: "0", maxWidth: "none"});
+				for (const el of cells) widths[i] = Math.max(widths[i], Math.ceil(el.getBoundingClientRect().width));
+				for (const el of cells) el.style.maxWidth = "";
+				widths[i] = Math.max(widths[i], col.min_width || 0);
+			}
+			return widths;
 		}
 		get_no_result_message() {
 			// Keep upstream SVG/layout; expose only a caller-provided working action.

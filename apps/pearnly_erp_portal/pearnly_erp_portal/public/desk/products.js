@@ -384,7 +384,7 @@
 				// 七列一屏放得下、不用横向滑（用户 2026-09-23："内容太多，要滑动才能看得到"）。
 				// 宽度按下面的口径走，窗口更宽时等比放宽；`min_width` 是不能再压的底线。
 				compact_columns: true,
-				// 名称占满剩余宽度、换行完整显示（11-20 用户定：长名称要能看全）
+				// 名称放不下就换行完整显示（11-20）；其它列按最长的值定宽、编码完整显示，富余宽度名称 2 : 其它各 1（11-22）
 				wrap_subject: true,
 				// 空态用原生那一页（图标 + 按钮），按钮就是这颗"新建商品"。
 				empty_action: can_create ? { label: t("product.action.new"), action: open_quick } : null,
@@ -401,7 +401,7 @@
 				},
 				columns: [
 					// 「位置」一栏删了（岳父 11-18：只在盘点保留仓位）；系统编码、参考成本、状态三栏不在列表显示（11-20 用户定，
-					// 详情页与按状态筛选照旧），富余宽度都给名称、名称换行完整显示
+					// 详情页与按状态筛选照旧），名称换行完整显示
 					{ fieldname: "product_name", width: 260, min_width: 180, label: t("product.col.name") },
 					{ fieldname: "internal_code", width: 96, min_width: 80, label: t("product.col.internalCode"),
 						format: (_value, row) => row.internal_code || row.express_code || "" },

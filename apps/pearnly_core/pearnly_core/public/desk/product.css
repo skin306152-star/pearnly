@@ -96,7 +96,7 @@ body.pearnly-product-desk .frappe-list .result .list-subject > a.level-item {
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
-/* `p.list({wrap_subject: true})`（物料、库存一览，11-20 用户定）：名称一列占满剩余宽度（`list.js` 只让这一列放宽），
+/* `p.list({wrap_subject: true})`（物料、库存一览，11-20 用户定）：名称一列拿较多的富余宽度（分配见 `list.js` 的 `apply_column_widths`），
    放不下就换行完整显示、行跟着变高，不出省略号。框架给每列的 400px 上限（`list.scss` 里那条长选择器）对这一列取消。 */
 body.pearnly-product-desk .frappe-list.pearnly-wrap-subject .result-container .result .list-row-container .level-left .list-row-col.list-subject {
 	max-width: none;
