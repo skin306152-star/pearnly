@@ -41,6 +41,7 @@ import { useToolLabels } from "@/lib/tool-labels";
 import {
   answered,
   answeredLine,
+  answeredTitle,
   entryOk,
   askActions,
   type AskQuestion,
@@ -223,7 +224,7 @@ export const AskCard: FC<{
     return frame(
       <div className="aui-step cc-ask" data-phase={phase}>
         <div className="cc-ask-q">
-          {questions.length === 1 ? q.question : questions.filter((_x, i) => !result?.answers[i]?.not_asked).map((x) => x.header || x.question).join(" · ")}
+          {answeredTitle(questions, phase === "answered" ? result : null)}
         </div>
         <div data-slot="cc-ask-answer" className="cc-ask-answer">
           {phase === "answered" ? answeredLine(result) : phase === "expired" ? guide.expired : phase === "ended" ? "" : steps.cancelled}

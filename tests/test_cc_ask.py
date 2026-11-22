@@ -46,7 +46,7 @@ PURE = r"""
 import "cc-test-setup";
 import assert from "node:assert/strict";
 import {
-  answered, answeredLine, askActions, confirmAnswers, docAnswers, docItemQuestion, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
+  answered, answeredLine, answeredTitle, askActions, confirmAnswers, docAnswers, docItemQuestion, initialStates, isRecommended, itemQuestion, itemQuestions, itemsOfCheck,
   itemsOfNeeded, keyAnswers, PRECHECK_API, questionsOf, resultFrom, SEARCH_PAGE, setAskSite, shownQuestions, toggle, toggleOther,
 } from "@/components/tool-uis/ask-shared";
 import { ask, op } from "@/i18n";
@@ -149,6 +149,13 @@ const g = globalThis as any;
   assert.equal(answered({ labels: [], other: "P-1 Cable", otherCode: "P-1" }, hq[0]), true);
   // 仓库题的说明就是「仓库」：题目只写一次（11-20 线上「仓库 · 仓库」）
   assert.equal(hq[1]!.question, op.precheck.kind.location);
+  // 答完的标题按答过的那几题拼，不按此刻的题（11-22 测试环境：答完后站点重新出题，标题写成「付款方式 · 存货 · 存货科目组」，下面一行是付款 / 存货 / 仓库）
+  const done = { answers: [{ header: "Pay", question: "Pay · X", labels: ["Cash"] }, { header: "Item", question: "Item · Y", labels: ["New"] },
+    { header: "Warehouse", question: "Warehouse", labels: ["01"] }, { header: "Skip", question: "Skip", labels: [], not_asked: true as const }] };
+  const now = [{ question: "Pay · X", header: "Pay", options: [] }, { question: "Item · Y", header: "Item", options: [] }, { question: "Stock group", header: "Stock group", options: [] }];
+  assert.equal(answeredTitle(now, done), "Pay · Item · Warehouse");
+  assert.equal(answeredTitle(now, null), "Pay · Item · Stock group");
+  assert.equal(answeredTitle(now, { answers: [done.answers[0]!] }), "Pay · X");
 
   // 测试机 11-09（shots/12）：选了「按服务录入」还问从哪个仓库出库。show_if：前面那一题选中其中之一才问，否则藏起、交回 not_asked
   const cond = questionsOf({ questions: [

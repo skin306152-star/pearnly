@@ -153,6 +153,18 @@ export function confirmAnswers(result: AskResult): Array<{ labels: string[]; oth
   );
 }
 
+/** 点完后卡片标题：按答过的那几题（结果里自带题头）拼，不按此刻的题 —— 开始前卡片答完后站点按新状态重新出题，题变了（多了存货科目组），
+ *  标题照新题写成「付款方式 · 存货 · 存货科目组」、下面一行却是付款 / 存货 / 仓库（11-22 测试环境）。没有结果（取消、过期）照此刻的题。 */
+export function answeredTitle(questions: readonly AskQuestion[], result: AskResult | null | undefined): string {
+  const answers = result?.answers ?? [];
+  if (answers.length) {
+    const shown = answers.filter((a) => !a.not_asked);
+    return shown.length === 1 ? shown[0]!.question || shown[0]!.header : shown.map((a) => a.header || a.question).join(" · ");
+  }
+  if (questions.length === 1) return questions[0]!.question;
+  return questions.map((x) => x.header || x.question).join(" · ");
+}
+
 /** 点完那一行（同允许卡片点完只剩一行淡色所选）：每题「标签：所选」，跳过的写「跳过」。 */
 export function answeredLine(result: AskResult | null | undefined): string {
   return (result?.answers ?? [])
