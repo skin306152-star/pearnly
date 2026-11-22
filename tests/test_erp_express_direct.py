@@ -863,7 +863,7 @@ class MasterSync(Base):
         import types
         from unittest import mock
         table = fake.STATE.db.table("ERP Company")
-        table["CO-1"] = {"name": "CO-1", "tax_id": "0105531007042", "branch": "00000", "is_active": 1,
+        table["CO-1"] = {"name": "CO-1", "tax_id": "0105500000009", "branch": "00000", "is_active": 1,
                          "express_mark": "m1", "express_book": "T.9", "express_sync_state": "ready"}
         status = {"value": None}
         made = []
