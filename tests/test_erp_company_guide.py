@@ -49,7 +49,7 @@ def _throw(message, exc=ValueError):
 frappe.throw = _throw
 STATE = {}
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: STATE["rollbacks"].append(1))
-frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value)
+frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: datetime.datetime(2026, 11, 16, 10, 5))  # 放太久失效（run._idle）：同测试里的时钟
 frappe.publish_realtime = lambda *args, **kwargs: None
 sys.modules["frappe"] = frappe
 
@@ -109,6 +109,11 @@ from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_erp_portal.masters import cc_guide, guide  # noqa: E402
 
 SESSION = "S1"
+
+
+def _codes(found):
+    """拒收照引擎形状 {格: {code, text}}（main 8172605d2）：只比码。"""
+    return {key: value["code"] for key, value in found["refused"].items()}
 
 
 class Doc(dict):
@@ -192,7 +197,7 @@ class Notes(Base):
     def test_adding_asks_only_the_text_and_saves_it_as_from_cc(self):
         name, found = self.walk("company", {"action": "note_add"})
         self.assertEqual(list(self.questions(found)), ["text"])
-        self.assertEqual(run.answer(name, {"text": "   "})["refused"], {"text": "a short text"})
+        self.assertEqual(_codes(run.answer(name, {"text": "   "})), {"text": "a short text"})
         found = run.answer(name, {"text": "Uses  branch 00001"})
         lines = {line["key"]: line["value"] for line in found["review"]["lines"]}
         self.assertEqual((lines["company"], lines["text"]), ("ABC Co", "Uses branch 00001"))
@@ -202,7 +207,7 @@ class Notes(Base):
     def test_editing_picks_a_note_of_this_company_and_suggests_its_text(self):
         name, found = self.walk("company", {"action": "note_edit"})
         self.assertEqual([row["code"] for row in self.questions(found)["note"]["options"]], ["N1", "N2"])
-        self.assertEqual(run.answer(name, {"note": "N7"})["refused"], {"note": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"note": "N7"})), {"note": "not offered"})
         found = run.answer(name, {"note": "N2"})
         text = self.questions(found)["text"]
         self.assertEqual((text["preselected"], text.get("value")), ("Pays by transfer", None))   # 推荐、点了才算
@@ -245,7 +250,7 @@ class AddCompanies(Base):
 
     def test_a_company_not_in_the_catalog_is_not_accepted(self):
         name = run.start(SESSION, "company_add")["run"]
-        self.assertEqual(run.answer(name, {"companies": ["express:9:00000"]})["refused"], {"companies": "not offered"})
+        self.assertEqual(_codes(run.answer(name, {"companies": ["express:9:00000"]})), {"companies": "not offered"})
 
     def test_a_company_added_elsewhere_meanwhile_goes_back_to_the_ticks(self):
         code = STATE["catalog"][3]["identity"]

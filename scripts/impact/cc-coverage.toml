@@ -255,10 +255,19 @@ erp_operator = ["todo:p2"]
 [[row]]
 id = "company_info"
 name = "公司资料、记住的选择、知识库"
-cowork_direct = ["todo:p4"]
+guide = "company"
+cowork_direct = ["half:p4"]
 cowork_operator = ["out:只做直写"]
-erp_direct = ["todo:p4"]
+erp_direct = ["half:p4"]
 erp_operator = ["out:只做直写"]
+
+[[row.link]]
+cell = "cowork_direct"
+basis = "Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；没有结果步骤；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步"
+
+[[row.link]]
+cell = "erp_direct"
+basis = "ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；没有结果步骤；3bc89a2dc、dd298be7e）；只有离线单测 test_erp_company_guide，页面流程归第 2 步"
 
 [[row]]
 id = "board"
@@ -287,10 +296,15 @@ erp_operator = ["out:只做直写"]
 [[row]]
 id = "add_company"
 name = "添加公司（从连接里的账本添加）"
+guide = "company_add"
 cowork_direct = ["out:现有公司选择窗的页面功能（没核）"]
 cowork_operator = ["out:现有公司选择窗的页面功能（没核）"]
-erp_direct = ["todo:p4", "wait:onboard", "wait:cloud"]
+erp_direct = ["half:p4", "wait:onboard", "wait:cloud"]
 erp_operator = ["out:只做直写"]
+
+[[row.link]]
+cell = "erp_direct.express_local"
+basis = "ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；没有结果步骤；3bc89a2dc、84db98ec6）；只有离线单测 test_erp_company_guide，页面流程归第 2 步"
 
 [[row]]
 id = "not_now"
