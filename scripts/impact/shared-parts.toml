@@ -198,6 +198,16 @@ paths = ["apps/pearnly_core/pearnly_core/line.py"]
 markers = ["pearnly_core.line.", "pearnly_core.line import", "pearnly_core import line\n", "pearnly_core import line,", "pearnly_core import line as", "pearnly_line_handlers", "pearnly_line_mirror"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.line.webhook-sim", "cowork.line.webhook-sim", "dms.line.webhook-sim", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "dms.line.chat", "dms.line.scheduled", "dms.roster.line-oa", "control.line.channel", "shared.desk.liff-boot", "erp.line.stocktake.liff-camera", "cowork.line.stocktake.liff-camera", "cowork.line.item-questions", "erp.line.item-questions", "erp.line.collection", "erp.line.precheck-questions", "cowork.line.precheck-questions"]
+not_entries = { "apps/pearnly_core/pearnly_core/line_ui/receipt.py" = "等结果的回执（共用件 line-receipt）只用 start_loading / reply / reply_sender，入口见 line-receipt 的 entries" }
+
+[[part]]
+id = "line-receipt"
+name = "LINE 等结果的回执（先三个点，结果落库时用这次的回复令牌回结果，等不到回兜底；ERP、Cowork 的 LINE 保存 / 收款 / 正在读取，用户 11-22）"
+paths = ["apps/pearnly_core/pearnly_core/line_ui/receipt.py"]
+markers = ["pearnly_core.line_ui import receipt", "line_ui.receipt"]
+search = ["apps/**/*.py", "scripts/flows/*.py"]
+entries = ["erp.line.chat", "cowork.line.chat", "erp.line.collection", "erp.line.card-result", "cowork.line.card-result"]
+not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/requests.py" = "共用机器通道的按需请求读好 / 失败时按请求号叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_cowork/pearnly_cowork/connections/refresh.py" = "连接读完（账套目录、科目表）时按连接叫醒（wake_topic），不发消息；LINE 一侧由 cowork.line.card-result 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py" = "单据账本栏有了结论时按单据叫醒（wake），不发消息；LINE 一侧由 erp.line.card-result 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py" = "MR.ERP 未收单读完时按客户叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py" = "MR.ERP 主档读完时按账套叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py" = "只算叫醒用的主题名（注释与说明里提到），不调用；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py" = "说明里提到回执经它回复，不调用", "scripts/flows/collection_lib.py" = "实验栈流程把等结果的计时器换成当场到点（没有电脑写账），流程 erp.line.collection 本身就是它的入口" }
 
 [[part]]
 id = "line-session"
@@ -461,7 +471,7 @@ paths = ["apps/pearnly_core/pearnly_core/execution/**"]
 markers = ["pearnly_core.execution", "pearnly_core import execution", "pearnly_ocr_handlers", "pearnly_ocr_failure_handlers", "pearnly_ocr_finished_handlers", "pearnly_ocr_resume_unknown"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml", "frontend/**/*.ts", "frontend/**/*.tsx", "frontend/**/*.vue", "apps/**/*.js"]
 entries = ["control.execution", "shared.execution", "cowork.execution", "dms.execution", "erp.execution", "erp.line.chat", "erp.line.stocktake", "cowork.line.chat", "cowork.express.push", "erp.stock-count.upload", "cc.mrerp-login", "erp.cc.companies", "erp.line.collection"]
-not_entries = { "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列", "apps/pearnly_dms/pearnly_dms/i18n.py" = "只调 execution.language 定后台任务的回复语言（11-14），不调执行队列；DMS LINE 回复的入口是 dms.execution，由 pearnly_core.execution.test_job_language 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py" = "只调 execution.language 定网页识别任务的语言（11-14），不调执行队列；入口是 erp.execution，由 pearnly_core.execution.test_job_language 守住" }
+not_entries = { "apps/pearnly_core/pearnly_core/line_ui/receipt.py" = "等结果的回执（共用件 line-receipt）只用不淘汰的 Redis 记「待回」与后台任务里设语言，不进识别队列；入口见 line-receipt 的 entries", "apps/pearnly_core/pearnly_core/express_operator/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时代录上传回可重试的话，不调执行队列", "apps/pearnly_cowork/pearnly_cowork/files/api.py" = "只取 Deferred 异常类：原件存放处一时连不上时录入上传回可重试的话，不调执行队列", "apps/pearnly_core/pearnly_core/express_operator/uploads.py" = "只取 Deferred 异常类：对话输入框里交任务识别时原件存放处一时连不上回可重试的话，不调执行队列", "apps/pearnly_dms/pearnly_dms/i18n.py" = "只调 execution.language 定后台任务的回复语言（11-14），不调执行队列；DMS LINE 回复的入口是 dms.execution，由 pearnly_core.execution.test_job_language 守住", "apps/pearnly_erp_portal/pearnly_erp_portal/recognition/background.py" = "只调 execution.language 定网页识别任务的语言（11-14），不调执行队列；入口是 erp.execution，由 pearnly_core.execution.test_job_language 守住" }
 
 [[part]]
 id = "assistant"
@@ -1365,6 +1375,24 @@ steps = "三星 adb：关注、绑定码、解绑词、富菜单 ซื้อ/�
 expect = "马上能回的不出三个点；慢的先出三个点、回复到达时消失、不出现在回复之后；回复与按钮同 main"
 check = "manual"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/binding.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_flow.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_menu.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py"]
+
+[[entry]]
+id = "erp.line.card-result"
+product = "ERP"
+where = "LINE 采购 / 销售卡片「บันทึก」之后（用户 11-22）"
+steps = "离线：test_line_intake.py 的 test_a_linked_company_waits_for_the_write_receipt、test_view_result_answers_the_sender_with_the_current_state，tests/test_line_receipt.py；部署后三星真机：接 Express 的测试公司拍一张点「บันทึก」，CC 开着 / 关着各一次，点【ดูผลลัพธ์】"
+expect = "先出三个点；写账回执到了回「สำเร็จ · Express 单号」/「ไม่สำเร็จ · 原因」+「แก้ไข」；约 20 秒等不到回「กำลังบันทึก」+【ดูผลลัพธ์】，点了回此刻状态；没接 Express 的公司提交即回「สำเร็จ · 单号」；全程不推送"
+check = "manual"
+files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py"]
+
+[[entry]]
+id = "cowork.line.card-result"
+product = "Cowork"
+where = "LINE 识别卡片「บันทึก」之后（用户 11-22）"
+steps = "离线：tests/test_cowork_line_intake.py 的 test_save_waits_for_the_push_receipt_and_answers_with_the_result、test_a_chart_still_being_read_waits_and_the_fallback_offers_edit_and_view_result、test_view_result_answers_only_the_sender_with_the_current_state；部署后三星真机：Express 测试账套拍一张点「บันทึก」，CC 开着 / 关着各一次；「发单据进 ERP」选还没读过目录的连接"
+expect = "先出三个点；推送回执到了回「สำเร็จ · Express 单号」/「ไม่สำเร็จ · 原因」+「แก้ไข」；等不到回「กำลังบันทึก」+【ดูผลลัพธ์】；科目表 / 公司列表在读时读好了接着回，等不到回原句 +【ดูผลลัพธ์】；全程不推送"
+check = "manual"
+files = ["apps/pearnly_cowork/pearnly_cowork/line/save.py", "apps/pearnly_cowork/pearnly_cowork/line/flow.py", "apps/pearnly_cowork/pearnly_cowork/hooks.py"]
 
 [[entry]]
 id = "erp.line.stocktake"
@@ -2665,8 +2693,8 @@ files = ["apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py", "apps/
 id = "erp.line.collection"
 product = "ERP"
 where = "LINE 录收款（富菜单第 4 格「收款」、「เมนู」里的收款按钮）"
-steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12、多选合计、组合 / 折扣 / 部分、超收、缺凭证、确认按钮与打字确认、版本变了重出卡、撤回、权限、结果回复 vs 推送、确认号与有效期、取消只认当前步、凭证后语言）；实验栈流程 erp.line.collection（模拟 LINE 事件走完到确认卡 → 我的收款弹窗改草稿 → 回 LINE 旧卡确认重出新卡、伪造被拒、打 ok 放行、待写入时撤回）；部署后三星真机走一遍"
-expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；写成用回复给 RE 号，没写成先回待写入（带查看结果）；写成不推送、写失败推一条；确认卡一卡一个确认号、旧卡与过期卡回已过期、连点不回话；单据日期按放行当天；今天不在这家任何一本账套的期间里时选公司后先问收款日期（账套跟着日期走、佛历快捷回复与打字都认），确认卡写出收款日期，照选的写"
+steps = "离线：tests/test_erp_collection_line.py（各步、搜索多于 12、多选合计、组合 / 折扣 / 部分、超收、缺凭证、确认按钮与打字确认、版本变了重出卡、撤回、权限、结果只回复不推送、等结果与读好了接着回、确认号与有效期、取消只认当前步、凭证后语言）；实验栈流程 erp.line.collection（模拟 LINE 事件走完到确认卡 → 我的收款弹窗改草稿 → 回 LINE 旧卡确认重出新卡、伪造被拒、打 ok 放行、待写入时撤回）；部署后三星真机走一遍"
+expect = "每步只认当前那一步；规则与权限都由 collection.service 判；放行只认卡片展示的版本；放行后先三个点，回执到了用放行那次的回复令牌回「成功 · RE 号」/「失败 · 原因」（写前被拒还回原卡），等不到回「录入中」（带查看结果、撤回）；全程不推送（11-22）；选客户 / 勾完发票时电脑在读同样先三个点、读好了接着回下一步；确认卡一卡一个确认号、旧卡与过期卡回已过期、连点不回话；单据日期按放行当天；今天不在这家任何一本账套的期间里时选公司后先问收款日期（账套跟着日期走、佛历快捷回复与打字都认），确认卡写出收款日期，照选的写"
 check = "offline"
 files = ["apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection.py", "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_collection_cards.py", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/texts.py"]
 

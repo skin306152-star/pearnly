@@ -205,6 +205,7 @@ def complete(context, body):
         raise contracts.ContractError("companion.on_demand_stale")
     if not data["ok"]:
         _close(doc, "failed", data["code"], moment)
+        _wake(doc)
         return {"status": "failed"}
     received = int(doc.received_bytes or 0)
     if data["offset"] != received:
@@ -228,4 +229,13 @@ def complete(context, body):
         doc.update({"status": "done", "result_bytes": total, "result_sha256": digest, "completed_at": moment,
                     "meta_json": json.dumps(data["meta"], ensure_ascii=False, sort_keys=True), "lease_handle": None})
     documents.persist(doc)
+    if doc.status == "done":
+        _wake(doc)
     return {"status": doc.status, "received": total}
+
+
+def _wake(doc):
+    """LINE 上有人在等这件读好（「正在读取」之后，`pearnly_core.line_ui.receipt`，用户 11-22）：按请求号叫醒，提交后由产品接着回。"""
+    from pearnly_core.line_ui import receipt as line_receipt
+
+    line_receipt.wake_topic("cc-request:" + str(doc.request_key or ""))

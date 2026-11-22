@@ -51,8 +51,10 @@ jobs:
         run: python3 tests/test_ledger_instant_sync.py
       - name: ERP collections written to Express as receipts (only money-receiving kinds offered, reservations, release by the shown version, withdraw, rights, receipts, snapshot, read-only page)
         run: python3 tests/test_erp_collection.py
-      - name: ERP collections in LINE (fourth menu tile, company / customer search / invoice multi-select / methods and amounts / voucher / combined, discount and partial / confirm card, release by the shown version by button or typed word, withdraw, rights, result replied or pushed to the collector)
+      - name: ERP collections in LINE (fourth menu tile, company / customer search / invoice multi-select / methods and amounts / voucher / combined, discount and partial / confirm card, release by the shown version by button or typed word, withdraw, rights, result replied to the collector with the release reply token, never pushed)
         run: python3 tests/test_erp_collection_line.py
+      - name: LINE actions that wait for a result show the loading dots and reply the result with the same reply token, a fallback only after the wait, once; LINE handlers never reply process words before the result; status words are one table for the web and LINE
+        run: python3 tests/test_line_receipt.py
       - name: Master search rules shared by the pickers, LINE supplier / customer search and LINE collection customer search (columns match each DocType's search fields)
         run: python3 tests/test_master_search_rules.py
       - name: ERP collections in CC chat (erp_collection_* tools on the collection service, release through the write plan after the user's next message, changed after said back not written, stop, operator conversation keeps the draft, slip from a chat attachment, rights, withdraw, results)
