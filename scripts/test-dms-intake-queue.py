@@ -231,13 +231,14 @@ class IntakeQueue(unittest.TestCase):
         self.assertEqual(self.lookup.call_count, 4)
         self.assertEqual(self.counts, {"reply_ok": 4})
 
-    def test_rejected_reply_falls_back_to_push_and_both_are_counted(self):
+    def test_rejected_reply_is_held_for_view_result_and_not_pushed(self):
+        # 等结果的动作全程只回复（用户 11-22，同 ERP / Cowork 共用件）：被拒时结果存着等【查看结果】，不推送
         self.fixture()
         self.reply_status = 400
         self.event(text=PHONE)
         self.assertFalse(self.jobs)  # Cache-only reads run synchronously.
-        self.assertEqual([kind for kind, _ in self.messages()], ["reply", "push"])
-        self.assertEqual(self.counts, {"reply_rejected": 1, "push_ok": 1})
+        self.assertEqual([kind for kind, _ in self.messages()], ["reply"])
+        self.assertEqual(self.counts, {"reply_rejected": 1})
 
     def test_missing_reply_token_keeps_counted_push_fallback(self):
         self.fixture()

@@ -316,7 +316,6 @@ def _deliver(key: str, line_user_id: str, target: str) -> None:
         from pearnly_dms.line import cards
 
         first, rest = messages[:4] + [_show_result_button(cards.TXT_MORE_RESULTS, key)], messages[4:]
-    waiting = receipt.pending(key)  # 还没回过兜底：这次回复被拒时他什么都没收到，照原来推过去
     frappe.local.pearnly_line_batch = None  # 回复本身不能再被这一批收回去（同一张令牌）
     try:
         replied = receipt.settle(key, first)
@@ -326,10 +325,7 @@ def _deliver(key: str, line_user_id: str, target: str) -> None:
         current["messages"], current["used"] = [], True
         _hold(key, {"messages": rest}) if rest else _drop(key)
         return
-    current["used"] = True  # 令牌用过了（回过兜底，或这次被拒）
-    if waiting:
-        _drop(key)
-        return  # 回复被拒（令牌失效等）：一批推过去，不让他什么都收不到
+    current["used"] = True  # 令牌用过了（回过兜底，或这次被拒）：同 ERP / Cowork 全程不推送，结果存着等【查看结果】
     if target == _IMAGE_TARGET:
         _drop(key)
         return  # 识别慢：结果推到聊天（同 ERP / Cowork 识别，主会话 11-23）
