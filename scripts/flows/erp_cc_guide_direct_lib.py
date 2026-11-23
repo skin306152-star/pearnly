@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import time
 
 import erp_cc_guide_operator_lib as operator_lib
 import erp_cc_operator_intake as intake_flow
@@ -95,5 +96,13 @@ print(json.dumps({{"plans": plans, "guide": guide, "record": record, "made": mad
     ]
 
 
-def cleanup(lab, manifest, params):
-    intake_flow.cleanup(lab, manifest, params)
+def cleanup(lab, manifest, params, attempts=4):
+    """同代录那条的收尾（作废单据、撤写账件、删会话与记录），只多一件：直写确定后后台写账任务马上开跑、锁着这张单，作废那一下
+    （``entry.cancel`` 的 ``select … for update``）可能等锁超时（11-23 GitHub Flows 一次）。收尾本身可重跑（已作废的跳过），等一下再来。"""
+    for attempt in range(attempts):
+        try:
+            return intake_flow.cleanup(lab, manifest, params)
+        except Exception:
+            if attempt == attempts - 1:
+                raise
+            time.sleep(15)

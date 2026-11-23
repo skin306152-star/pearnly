@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 
+import erp_cc_guide_direct_lib as direct_lib
 import erp_cc_guide_operator_lib as operator_lib
 import erp_cc_operator_intake as intake_flow
 from cc_lib import JS
@@ -132,4 +133,4 @@ if frappe.db.exists("Pearnly Assistant Session", {{"session_id": {params['clean'
 frappe.db.commit()
 print("{{}}")
 """)
-    intake_flow.cleanup(lab, manifest, params)
+    direct_lib.cleanup(lab, manifest, params)
