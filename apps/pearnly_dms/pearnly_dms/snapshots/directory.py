@@ -103,9 +103,8 @@ class Directory:
         out = []
         for product_id, record in (catalogues.get("product") or {}).items():
             fields = record.get("fields") or {}
-            status = str(fields.get("selstatuscancel") or "")
-            label = str((record.get("labels") or {}).get("selstatuscancel") or "")
-            if status not in ("", "0") or "ยกเลิก" in label:
+            # 停用状态（`selstatuscancel`）：与车型主档同一口径，`0` 为正常（生产 VUK60 实读）。
+            if str(fields.get("selstatuscancel") or "0") != "0":
                 continue
             out.append({"product_id": str(product_id), "code": str(fields.get("txtproductcode") or ""),
                         "name": str(fields.get("txtproductname") or ""), "unit": str(fields.get("txtunits") or ""),
