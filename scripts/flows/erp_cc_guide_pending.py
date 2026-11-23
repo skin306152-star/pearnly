@@ -35,13 +35,18 @@ finally:
     push.queue = queue
 frappe.db.set_value("ERP Sales Document", created["name"], {{"ledger_state": contracts.HELD, "ledger_reason": contracts.CHOICE,
                                                              "ledger_target": contracts.LEDGER_EXPRESS}}, update_modified=False)
+# 点菜单用一段干净的直写对话（同一家公司、本月；待处理清单按公司取）：放过票的那段对话上挂着收单记录的提示，不出业务菜单
+from pearnly_core.assistant import sessions
+clean = sessions.create(project={params['company']!r}, period=frappe.utils.today()[:7], mode="chat")
+frappe.db.set_value("Pearnly Assistant Session", {{"session_id": clean["id"]}}, "title", {params['tag'] + '-pending'!r})
 frappe.db.commit()
-print(json.dumps({{"document": created["name"]}}))
+print(json.dumps({{"document": created["name"], "clean": clean["id"]}}))
 """)
     except Exception:
         intake_flow.cleanup(lab, manifest, params)
         raise
-    return {**params, "business": "sales", "document": made["document"], "pending_doc": "S:" + made["document"]}
+    return {**params, "business": "sales", "document": made["document"], "pending_doc": "S:" + made["document"],
+            "clean": made["clean"]}
 
 
 def steps(params, camera_code=None):
@@ -49,13 +54,19 @@ def steps(params, camera_code=None):
     sales = operator_lib.steps({**params, "doc_id": params["pending_doc"]}, camera_code)
     return [
         {"name": "打开直写对话", "wait_ms": 6000, "js": JS +
-         f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['session'])})),0); return true;"},
-        {"name": "点待处理", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>row(),120); "
-         "const labels=[...(row()?.querySelectorAll('button')||[])].map(b=>b.innerText.trim()); "
-         "[...row().querySelectorAll('button')].find(b=>b.innerText.trim()==='待处理')?.click(); "
+         f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['clean'])})),0); return true;"},
+        # 菜单只摆前 4 项、其余收进「更多」（11-17 定稿）：直接摆出来的就点，否则开「更多」点里面那一项
+        {"name": "点待处理", "js": JS + HELP + "const row=()=>q('[data-slot=\"cc-business-menu\"]'); await until(()=>composerReady(),120); "
+         "const shown=await until(()=>row(),120); "
+         "if(!shown) return {shown, url: location.href, composer: composerReady(), cards: qa('[data-slot=\"cc-guide-run\"]').length}; "
+         "const labels=[...row().querySelectorAll('.cc-business-measure > button:not([data-slot=\"cc-business-more\"])')].map(b=>(b.textContent||'').trim()); "
+         "const direct=row().querySelector(':scope > button[data-business=\"pending\"]'); "
+         "if(direct) direct.click(); else { press(row().querySelector(':scope [data-slot=\"cc-business-more\"]')); "
+         " await until(()=>q('[data-slot=\"cc-business-more-menu\"] [data-business=\"pending\"]'),40); "
+         " q('[data-slot=\"cc-business-more-menu\"] [data-business=\"pending\"]')?.click(); } "
          "await until(()=>card()?.dataset.business==='pending'&&card().querySelector('[data-slot=\"cc-guide-option\"]'),120); await sleep(500); "
          "const codes=[...card().querySelectorAll('[data-slot=\"cc-guide-option\"]')].map(o=>o.dataset.code); "
-         "return {labels, business: card()?.dataset.business||'', status: card()?.dataset.status||'', codes};"},
+         "return {shown, labels, direct: !!direct, business: card()?.dataset.business||'', status: card()?.dataset.status||'', codes};"},
         {"name": "选单提交", "js": JS + HELP + f"const want={want}; "
          "const opt=card()?.querySelector('[data-slot=\"cc-guide-option\"][data-code=\"'+want+'\"]'); opt?.click(); await sleep(300); "
          "const submit=[...card().querySelectorAll('button')].find(b=>b.innerText.split('\\n')[0].trim()==='提交'); "
@@ -93,7 +104,7 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     got = lab.python(manifest["site"], f"""
-runs = frappe.get_all("Pearnly Assistant Guide Run", filters={{"session_id": {params['session']!r}}},
+runs = frappe.get_all("Pearnly Assistant Guide Run", filters={{"session_id": {params['clean']!r}}},
                       fields=["name", "business", "status", "consent"], order_by="creation asc", limit_page_length=10)
 doc = frappe.db.get_value("ERP Sales Document", {params['document']!r}, ["ledger_state", "ledger_reason", "source", "status"], as_dict=True)
 print(json.dumps({{"runs": runs, "doc": doc}}, default=str))
@@ -112,4 +123,13 @@ print(json.dumps({{"runs": runs, "doc": doc}}, default=str))
 
 
 def cleanup(lab, manifest, params):
+    if params.get("clean"):
+        lab.python(manifest["site"], f"""
+from pearnly_core.assistant import sessions
+frappe.set_user({USER!r})
+if frappe.db.exists("Pearnly Assistant Session", {{"session_id": {params['clean']!r}}}):
+    sessions.delete({params['clean']!r})
+frappe.db.commit()
+print("{{}}")
+""")
     intake_flow.cleanup(lab, manifest, params)
