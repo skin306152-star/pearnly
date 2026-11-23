@@ -166,9 +166,12 @@ class LoadingAnimation(unittest.TestCase):
     """等待一律用 LINE 原生加载动画（用户 2026-10-02）：提交后放、读的过程中续，读失败才发文字；动画接口失败流程照常。"""
 
     def test_a_submitted_read_shows_the_animation_instead_of_text(self):
-        with patch.object(query_flow, "_send") as send, patch.object(query_flow, "start_loading") as loading:
+        from pearnly_dms.line import out
+
+        # 11-23：读取在等经共用件开满三个点、记下在等（读完用这次令牌回结果，到点才回「正在读取」+【查看结果】）
+        with patch.object(query_flow, "_send") as send, patch.object(out, "begin") as begin:
             query_flow._waiting(USER, {"state": "queued"}, "tok")
-        loading.assert_called_once_with(USER, 60)
+        self.assertEqual(begin.call_args.args[:3], (USER, "tok", out.query_key(USER)))
         send.assert_not_called()
         with patch.object(query_flow, "_send") as send, patch.object(query_flow, "start_loading") as loading, \
                 patch.object(query_flow.query_cards, "manual_status_message", return_value={"type": "text", "text": "failed"}):
