@@ -64,7 +64,7 @@ def banner(hosts=None, stream=None) -> None:
 
 def _short_sha(src: str) -> str:
     try:
-        return subprocess.run(["git", "-C", src, "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
+        return subprocess.run(["git", "-c", "core.quotepath=off", "-C", src, "rev-parse", "--short", "HEAD"], capture_output=True, text=True,
                               timeout=10).stdout.strip()
     except (OSError, subprocess.SubprocessError):
         return ""
