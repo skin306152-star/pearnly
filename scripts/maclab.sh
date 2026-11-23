@@ -107,8 +107,8 @@ preflight() {
   local load free
   load=$(sysctl -n vm.loadavg | awk '{print $2}')
   free=$(colima ssh -p "$colima_profile" -- free -g 2>/dev/null | awk '/^Mem:/{print $7}')
-  echo "· 本机 1 分钟负载 $load；colima 可用内存 ${free:-?}G"
-  awk -v l="$load" -v m="$MAX_LOAD" 'BEGIN{exit !(l > m)}' && die "负载 $load 高于 $MAX_LOAD，先不起"
+  echo "· 本机 1 分钟负载 ${load}；colima 可用内存 ${free:-?}G"
+  awk -v l="$load" -v m="$MAX_LOAD" 'BEGIN{exit !(l > m)}' && die "负载 $load 高于 ${MAX_LOAD}，先不起"
   [[ -n "$free" ]] && (( free < MIN_FREE_GB )) && die "colima 可用内存 ${free}G 不足 ${MIN_FREE_GB}G，先不起"
   local holder
   holder=$(docker ps --format '{{.Names}} {{.Ports}}' | grep -E "[:.]$port->" | grep -v "^$project-" || true)
@@ -190,7 +190,7 @@ ping_lan() {
     [[ "$code" == 200 ]] || (( SECONDS >= deadline )) && break
     sleep 3
   done
-  echo "· ping http://$ip:$port（Host: $site:$port）→ $code"
+  echo "· ping http://$ip:${port}（Host: $site:${port}）→ $code"
   [[ "$code" == 200 ]]
 }
 
@@ -216,7 +216,7 @@ up() {
 }
 
 live_sync() {
-  # 同 testenv live：被测工作树（含未提交改动）的产品代码 + 镜像里有、仓库不跟踪的构建产物，原地同步到 $live_dir，挂进本产品
+  # 同 testenv live：被测工作树（含未提交改动）的产品代码 + 镜像里有、仓库不跟踪的构建产物，原地同步到 ${live_dir}，挂进本产品
   # 全部容器（只读）。表结构 / 补丁 / hooks 变了才迁移，否则只清缓存。
   check_context
   local list hash stamp=$state_dir/live/$app.migrate staging image fresh=0
@@ -247,7 +247,7 @@ live_sync() {
     done
   } > "$live_override.tmp"
   mv "$live_override.tmp" "$live_override"
-  echo "· 源码：$(git -C "$src" rev-parse --short HEAD)$(git -C "$src" diff --quiet HEAD -- apps || echo ' + 未提交改动')（$src）"
+  echo "· 源码：$(git -C "$src" rev-parse --short HEAD)$(git -C "$src" diff --quiet HEAD -- apps || echo ' + 未提交改动')（${src}）"
   dc up -d --no-deps $(app_services) >/dev/null
   (( fresh )) || dc restart $(app_services | grep -v -E "^$app-frontend$") >/dev/null
   dc restart "$app-frontend" >/dev/null
@@ -285,7 +285,7 @@ status() {
   local a
   for a in erp cowork; do
     resolve_app "$a"
-    echo "== $project（网页入口 0.0.0.0:$port → $site；实时源码：$([[ -f "$live_override" ]] && echo 开 || echo 关)）"
+    echo "== ${project}（网页入口 0.0.0.0:$port → ${site}；实时源码：$([[ -f "$live_override" ]] && echo 开 || echo 关)）"
     docker ps -a --filter "label=com.docker.compose.project=$project" --format '   {{.Names}}  {{.Status}}  {{.Ports}}'
     docker volume ls --filter "name=^${project}_" --format '   卷 {{.Name}}'
   done
