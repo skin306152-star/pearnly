@@ -317,5 +317,64 @@ class CoreLanesTest(unittest.TestCase):
         self.assertEqual([item["id"] for item in runner.select(registry, args)], ["acc.a"])
 
 
+class PurchaseUiTest(unittest.TestCase):
+    """核心集第 1 条（acc.erp.purchase.express.ui）：先建草稿、浏览器真点「提交」、再等写账；弹出要人定的窗口、没提交成都不通过；
+    服务端不在 Mac 栈时界面那一段没测到。读回那步这里故意停下（只验界面这一段的编排）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        keys = {"PEARNLY_LOCK_DIR": self.tmp.name + "/locks", "PEARNLY_ACC_ERP_USER": "acc.erp@maclab.test", "PEARNLY_ACC_ERP_TAX": "1",
+                "PEARNLY_ACC_BASELINE": "B"}
+        old = {key: os.environ.get(key) for key in keys}
+        os.environ.update(keys)
+        self.addCleanup(lambda: [os.environ.pop(k, None) if v is None else os.environ.__setitem__(k, v) for k, v in old.items()])
+
+    def go(self, page, target="maclab"):
+        import json as _json
+        scenario = dict(runner.registry_check.Registry(ROOT).scenarios["acc.erp.purchase.express.ui"], needs_server=False, resources=[],
+                        site_resources={})
+        module = runner._load(f"acc_purchase_ui_{target}_{id(page)}", ROOT / scenario["module"])
+        module.SITE_TARGET = target
+        calls = []
+
+        class Site:
+            def run(self, product, script, site, raw, timeout=600):
+                params = _json.loads(raw)
+                calls.append(params.get("stage") or "post")
+                if params.get("stage") == "draft":
+                    return "ACC " + _json.dumps({"ok": True, "doc": "PE-9", "status": "draft"})
+                return "ACC " + _json.dumps({"ok": True, "doc": params.get("doc"), "book_paths": [module.LEDGER], "job": {"verify_state": "ok"},
+                                             "state": {"ledger_state": "written", "ledger_docnum": "HP1"}, "expected": {}})
+
+        book = types.SimpleNamespace(probe=lambda: {"busy": []}, verify=lambda base: {"ok": True}, copy=lambda after: {"ok": False},
+                                     restore=lambda base: {"ok": True})
+        targets = types.SimpleNamespace(site=lambda t: Site(), ledger=lambda host, path: book,
+                                        windows=lambda host: types.SimpleNamespace(work="C:/W"))
+        module.submit_in_page = lambda ctx, doc, user: dict(page, doc=doc)
+        result = runner.run_one(scenario, pathlib.Path(self.tmp.name) / "run", "win-test", False, targets=targets, module=module)
+        steps = {step["name"]: step["ok"] for step in result.get("steps", [])}
+        return result, steps, calls
+
+    def test_draft_then_click_then_wait(self):
+        result, steps, calls = self.go({"clicked": True, "status": "submitted", "dialog": "", "msgs": ["已提交"]})
+        self.assertEqual(calls, ["draft", "wait"])
+        self.assertTrue(steps["网页上提交"])
+        self.assertTrue(steps["提交采购单并等写入"])
+        self.assertIn("拷出写后的现场", result["detail"])   # 读回这步在这里故意停下
+
+    def test_a_dialog_or_no_submit_fails_the_page_step(self):
+        result, steps, calls = self.go({"clicked": True, "status": "draft", "dialog": "เลือกบัญชี", "msgs": []})
+        self.assertEqual(result["outcome"], runner.FAIL)
+        self.assertFalse(steps["网页上提交"])
+        self.assertEqual(calls, ["draft"])   # 没提交成就不去等写账
+
+    def test_the_page_step_is_not_run_off_the_mac_lab(self):
+        result, steps, calls = self.go({"clicked": True, "status": "submitted"}, target="lab")
+        self.assertEqual(result["outcome"], runner.NOT_RUN)
+        self.assertIn("Mac 实验栈", result["detail"])
+        self.assertEqual(calls, [])
+
+
 if __name__ == "__main__":
     unittest.main()

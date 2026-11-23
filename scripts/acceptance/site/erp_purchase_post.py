@@ -5,7 +5,9 @@
 
 参数：user（测试机 CC 桌面版上登录的员工，CC 只领他的单）、company_tax / branch（公司）、ledger（验收账套路径，只认它）、
 run（本次运行编号，写进单号便于按号读回）、price、wait（最多等几秒，默认 300）、
-resend（真：同一张单推送后立刻再推一次、写完回执后再推一次，再等 settle 秒；看会不会写出第二张）。
+resend（真：同一张单推送后立刻再推一次、写完回执后再推一次，再等 settle 秒；看会不会写出第二张）、
+stage（界面那一版 `acc.erp.purchase.express.ui` 用，11-23）：``draft`` 只建同样内容的草稿交回单号（`purchasing.service.create_purchase`，
+同 LINE / 识别留下的草稿），由浏览器在采购页真点「提交」；``wait`` 不建单，按 ``doc`` 等这张单写账有结论后照常交回。
 防护（同 `scripts/smoke/express_flow.py`，落点换成验收账套）：只在测试租户跑；这家公司由 CC 报上来的账套必须**全部**就是 ledger，
 多报一本（同税号的真账套、别的测试套）就拒绝、不建单；写完再按单据记下的账套核一次实际路径。
 这一版从服务端提交（与现有冒烟同一个入口 purchasing.entry.post），登记里标 via = "api"：它证明「提交之后写进账本并且写对」，
@@ -61,14 +63,31 @@ try:
     if not (product and supplier and warehouse):
         raise SystemExit(f"test data missing in {company}: product={bool(product)} supplier={bool(supplier)} warehouse={bool(warehouse)}")
     price = params.get("price", 10)
+    stage = str(params.get("stage") or "")
     payload = {"doc_kind": "purchase_invoice", "company": company, "supplier": supplier.name, "doc_no": f"ACC-{params['run']}",
                "doc_date": frappe.utils.today(), "has_vat": 1, "price_mode": "exclusive", "is_paid": 1,
                "lines": [{"product": product.name, "description": product.product_name, "qty": 1, "unit_price": price,
                           "warehouse": warehouse, "item_type": "goods"}]}
-    posted = entry.post(payload, request_id=f"acc-{secrets.token_hex(6)}")
-    frappe.db.commit()
-    push.send("Purchase Document", posted["name"])
-    frappe.db.commit()
+    if stage == "draft":
+        from pearnly_erp_portal.purchasing import service as purchasing
+
+        line = payload["lines"][0]
+        draft = purchasing.create_purchase(supplier=supplier.name, supplier_name="", doc_date=payload["doc_date"], doc_no=payload["doc_no"],
+                                           company=company, lines=[{key: line[key] for key in ("product", "description", "qty", "unit_price",
+                                                                                                "warehouse", "item_type")}])
+        frappe.db.commit()
+        result.update(ok=True, company=company, doc=draft["name"], doc_no=payload["doc_no"],
+                      status=frappe.db.get_value("Purchase Document", draft["name"], "status"))
+        raise SystemExit("")
+    if stage == "wait":
+        posted = {"name": params["doc"]}
+        if frappe.db.get_value("Purchase Document", posted["name"], "company") != company:
+            raise SystemExit(f"refuse: {posted['name']} is not a document of the acceptance company")
+    else:
+        posted = entry.post(payload, request_id=f"acc-{secrets.token_hex(6)}")
+        frappe.db.commit()
+        push.send("Purchase Document", posted["name"])
+        frappe.db.commit()
     resent = []
 
     def resend(moment):
@@ -103,12 +122,14 @@ try:
     written = [row.path for row in frappe.get_all(books.BOOK, filters={"book_key": state.get("ledger_book")}, fields=["path"])] \
         if state.get("ledger_book") else []
     doc = frappe.get_doc("Purchase Document", posted["name"])
-    result.update(ok=True, company=company, doc=posted["name"], doc_no=payload["doc_no"], state=state, job=job, book_paths=written,
+    result.update(ok=True, company=company, doc=posted["name"], doc_no=doc.get("doc_no") or payload["doc_no"], state=state, job=job,
+                  book_paths=written, status=doc.get("status"),
                   expected={"supplier_code": supplier.express_code, "item_code": product.express_code, "qty": 1, "price": price,
                             "doc_date": str(doc.get("doc_date")),
                             "totals": {key: float(doc.get(key) or 0) for key in ("subtotal", "vat_amount", "grand_total") if doc.get(key) is not None}})
 except SystemExit as stop:
-    result["why"] = str(stop)
+    if str(stop):
+        result["why"] = str(stop)
 finally:
     frappe.destroy()
 print("ACC " + json.dumps(result, ensure_ascii=False, default=str))

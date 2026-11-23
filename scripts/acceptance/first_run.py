@@ -36,13 +36,13 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parents[1]
 
-ERP = ["company.connect.fresh", "company.connect", "company.connect.twice", "denied", "purchase.express", "purchase.express.twice",
+ERP = ["company.connect.fresh", "company.connect", "company.connect.twice", "denied", "purchase.express", "purchase.express.ui", "purchase.express.twice",
        "sales.credit.express", "collection.three", "collection.nbsp", "collection.web.twice", "collection.line.edit",
        "collection.line.refused", "collection.busy", "collection.line.redelivered", "collection.line.unbound", "stock.in.express", "stock.out.express", "stock.adjust.express", "stock.transfer.express",
        "stock.void.express", "stock.count.express", "pos.day.express", "pos.day.vat.remembered", "purchase.cancel.express", "sales.cancel.express"]
 GROUPS = {
     "erp": [f"acc.erp.{name}" for name in ERP],
-    "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express"],
+    "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express", "acc.cowork.operator.purchase.express"],
     "chat": ["acc.erp.cc.collection", "acc.erp.cc.collection.nbsp", "acc.erp.cc.push.purchase", "acc.erp.cc.push.sales",
              "acc.erp.operator.talk.purchase", "acc.erp.operator.talk.sales", "acc.erp.mrerp.cc.push"],
     "mrerp": [f"acc.erp.mrerp.{name}" for name in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice",
@@ -56,6 +56,7 @@ GROUPS = {
 }
 NEEDS = {  # 每组要配的环境变量（值不进这里；缺了说名字）
     "erp": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
+    # Cowork 代录那条另要 PEARNLY_ACC_COWORK_USER / _CONNECTION：缺了只那一格记没测到
     "operator": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
     "chat": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE", "PEARNLY_ACC_REAL_BASE", "PEARNLY_ACC_REAL_USER"],
     "mrerp": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_MRERP_COMPANY"],

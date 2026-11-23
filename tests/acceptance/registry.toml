@@ -33,7 +33,6 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
-core = true
 
 [[scenario]]
 id = "acc.erp.purchase.express.twice"
@@ -1541,3 +1540,32 @@ needs_server = true
 budget_usd = 0
 tier = "gate"
 core = true
+
+[[scenario]]
+id = "acc.erp.purchase.express.ui"
+title = "ERP 采购草稿在采购页真点「提交」→ CC 桌面版写进 Express 验收账套 → 单号回显 → 账本读回与不变式（核心集的跨端主线）"
+class = "chain"
+chain = "erp.purchase-to-express"
+layer = "L3"
+env = "B"
+module = "scripts/acceptance/scenarios/erp_purchase_express.py"
+rows = ["erp.desk.pearnly-purchase.action.Submit", "erp.desk.pearnly-purchase.action.Express"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/*.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/service.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase-form.js",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/purchase.js",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/dbf_writer.py",
+  "companion/src/companion/dbf_schema.py",
+  "companion/src/companion/worker.py",
+  "companion/src/companion/write_verify.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+core = true
+

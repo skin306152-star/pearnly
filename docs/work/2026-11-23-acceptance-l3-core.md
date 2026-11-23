@@ -77,4 +77,16 @@
   站点脚本 `site/cowork_operator_post.py`（造票同 Cowork 录入那条 → 记对话账套 → Cowork 公司 → 代录任务 → `express_operator.api.start`），
   断言代录载荷（`entry_mode=operator`）、批次 = 代录任务、票名下只一条推送、任务里已录入同一单号，账本读回与直写同一套；
   新链 `cowork.operator-to-express`；`core = true`；离线单测（正确世界通过、三种坏法各自被拦）。
+- 批 2：第 1 条 `acc.erp.purchase.express.ui`（ERP 采购草稿在采购页真点「提交」）写好、浏览器一段已在自用 Mac 栈实测
+  （PUR-2026-00005：点页头主按钮后服务端 submitted、页面出「已提交」）；整条写账未跑。核心集里替换服务端提交版 `acc.erp.purchase.express`
+  （后者留 gate）。浏览器工具 `scripts/acceptance/desk_submit.py`（Playwright，本机栈测试账号、密码从栈配置读不打印）；
+  采购站点脚本加 `stage = draft / wait`。离线单测：先草稿后点再等写账；弹窗或没提交成判不通过且不去等写账；不在 Mac 栈时没测到。
+- 第 14 条（Cowork LINE 录单回执）设计定了、等 LINE 回执分支（`pearnly/line-save-result`，d7154d585）进 main 再写：
+  新口径（主会话 11-23）：点卡片「保存」后开 LINE loading 60 秒；结果在 55 秒内落库就用同一张回复令牌回结果，55 秒还没结果才回「录入中 +
+  【查看结果】」；全程不推送（`pearnly_core.line_ui.receipt` 的 WAIT_SECONDS 55、LOADING_SECONDS 60）。
+  怎么验：结果由「落库那一刻」的进程（CC 回执请求或后台任务）回，发起事件的进程截不到；Mac 栈没有 LINE 频道（镜像模式下 loading 与兜底都不走），
+  所以只在接了 LINE 测试频道的测试环境 testcowork（测试机1）跑：站点脚本以测试账号身份进程内投一个卡片「保存」事件（假回复令牌，同
+  `scripts/smoke/line_flow.py` 的做法），断言 ①推送记录写成、单号 = 账本读回的单号（与第 10 条同一套读回）②站点按天的 LINE 出站计数
+  （`line._count`：reply_ok / reply_rejected / push_*）这一单只多一次回复、推送 0 次（假令牌被 LINE 拒收记 reply_rejected，证明「只回一次、
+  不推」）③写成用时 < 55 秒时走的是结果那一回、不是兜底。回执文字本身（单号写在消息里）LINE 拒收后看不到，留真机记录（三星）核。
 
