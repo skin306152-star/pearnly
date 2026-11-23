@@ -236,6 +236,108 @@ def test_docnum_falls_back_when_ref_no_too_wide(datat):
     assert (iv.REFNUM or "").strip() == "IV69/00475-XY"
 
 
+def _books(d, *rows):
+    """往合成账套 ISRUN 加单据簿：(DOCTYP, PREFIX, DOCNUM, JNLTYP)。"""
+    t = dbf.Table(str(d / "ISRUN.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    try:
+        for doctyp, prefix, running, jnltyp in rows:
+            t.append({"DOCTYP": doctyp, "PREFIX": prefix, "DOCNUM": running, "JNLTYP": jnltyp})
+    finally:
+        t.close()
+
+
+def _running(d, doctyp, prefix):
+    return [(r.DOCNUM or "").strip() for r in _rows(d, "ISRUN", DOCTYP=doctyp, PREFIX=prefix)]
+
+
+def _write(d, **over):
+    res = WS.write_sale(_sale(**over), d, allowed_sets=("DATAT",), selected_dir=str(d), make_backup=False)
+    assert res.ok, res.error
+    return res
+
+
+def _ref_kept(d, docnum, ticket):
+    ar = _rows(d, "ARTRN", DOCNUM=docnum)[0]
+    iv = _rows(d, "ISVAT", DOCNUM=docnum)[0]
+    assert (ar.YOUREF or "").strip() == ticket and (iv.REFNUM or "").strip() == ticket
+
+
+def test_k2_ticket_with_the_book_prefix_is_the_docnum(datat):
+    """票面号以销货簿前缀开头（财务的做法：IV 后面打纸面发票号）→ 单号 = 票面号，计数器照旧加一。"""
+    _books(datat, ("IV", "IV", "0000277", "03"), ("HS", "HS", "0000001", "03"))
+    res = _write(datat, ref_no="IV69/10-042")
+    assert res.docnum == "IV69/10-042"
+    _ref_kept(datat, "IV69/10-042", "IV69/10-042")
+    assert _running(datat, "IV", "IV") == ["0000278"]
+
+
+def test_k2_ticket_without_a_book_prefix_takes_the_native_running_number(datat):
+    """票面号不以任何销货簿前缀开头（11-16 69SINCER 的 SSIVA02001）→ 照原生留空单号：簿前缀 + ISRUN 下一个号，
+    票面号进 YOUREF / REFNUM，计数器记成下一个号（前两位不在 ISRUN 时 Express 会弹 Message 43）。"""
+    _books(datat, ("IV", "IV", "0000277", "03"), ("HS", "HS", "0000001", "03"))
+    res = _write(datat, ref_no="SSIVA02001")
+    assert res.docnum == "IV0000277"
+    _ref_kept(datat, "IV0000277", "SSIVA02001")
+    assert _running(datat, "IV", "IV") == ["0000278"]
+    assert _running(datat, "HS", "HS") == ["0000001"]
+
+
+def test_k2_native_running_number_skips_numbers_already_used(datat):
+    _books(datat, ("IV", "IV", "0000277", "03"))
+    t = dbf.Table(str(datat / "ARTRN.DBF"), codepage=S.CODEPAGE)
+    t.open(dbf.READ_WRITE)
+    t.append({"RECTYP": "3", "DOCNUM": "IV0000277", "CUSCOD": "X"})
+    t.close()
+    res = _write(datat, ref_no="SS-1")
+    assert res.docnum == "IV0000278"
+    assert _running(datat, "IV", "IV") == ["0000279"]
+
+
+def test_k2_running_number_with_a_year_segment_counts_on(datat):
+    _books(datat, ("IV", "IV", "2300002", "03"))
+    assert _write(datat, ref_no="X-77").docnum == "IV2300002"
+    assert _running(datat, "IV", "IV") == ["2300003"]
+
+
+def test_k2_several_sales_books_use_the_one_the_ticket_starts_with(datat):
+    """一个账套多本销货簿（NLTTEST：IV / IO / IE …）：票面号以哪本的前缀开头就记哪本，只动那本的计数器。"""
+    _books(datat, ("IV", "IV", "2300002", "03"), ("IV", "IO", "2400040", "03"), ("IV", "I", "0000001", "03"))
+    res = _write(datat, ref_no="IO2400040")
+    assert res.docnum == "IO2400040"
+    assert _running(datat, "IV", "IO") == ["2400041"]
+    assert _running(datat, "IV", "IV") == ["2300002"] and _running(datat, "IV", "I") == ["0000001"]
+
+
+def test_k2_a_book_of_the_other_kind_does_not_count(datat):
+    """现销 HS 的票面号以赊销簿 IV 开头不算对上（单别不同的簿），照原生由 HS 簿往下编。"""
+    _books(datat, ("IV", "IV", "0000277", "03"), ("HS", "HS", "0000015", "03"))
+    res = _write(datat, doctype="HS", ref_no="IV69/00001", lines=[
+        {"acc": "11-01-01-00", "side": "D", "amount": "9630.00", "desc": "เงินสด"},
+        {"acc": "41-01-00-00", "side": "C", "amount": "9000.00", "desc": "รายได้"},
+        {"acc": "11-05-04-02", "side": "C", "amount": "630.00", "desc": "ภาษีขาย"}])
+    assert res.docnum == "HS0000015"
+    _ref_kept(datat, "HS0000015", "IV69/00001")
+    assert _running(datat, "HS", "HS") == ["0000016"] and _running(datat, "IV", "IV") == ["0000277"]
+
+
+def test_k2_lowercase_or_too_wide_ticket_takes_the_running_number(datat):
+    _books(datat, ("IV", "IV", "0000277", "03"))
+    assert _write(datat, ref_no="iv69/00001").docnum == "IV0000277"
+    res = _write(datat, ref_no="IV69/00475-XY")
+    assert res.docnum == "IV0000278"
+    _ref_kept(datat, "IV0000278", "IV69/00475-XY")
+
+
+@pytest.mark.parametrize("ticket", ["SSIVA02001", "K1-0001", "IV69/10-042", "IO2400040", "INV-1", "1234", "ใบกำกับ1"])
+def test_k2_every_sales_docnum_starts_with_a_sales_book_prefix(datat, ticket):
+    """机器检查：账套有销货簿时，CC 写出的销货单号一律以这个单别某本簿的前缀开头（Express 按单号前缀找 ISRUN，找不到弹 Message 43）。"""
+    _books(datat, ("IV", "IV", "0000277", "03"), ("IV", "IO", "2400040", "03"))
+    res = _write(datat, ref_no=ticket)
+    assert any(res.docnum.startswith(p) for p in ("IV", "IO")), res.docnum
+    _ref_kept(datat, res.docnum, ticket)
+
+
 def test_reject_write_to_dir_other_than_selected(datat, tmp_path):
     # 所选 = datat,写盘目标给了别的目录 → C2 闸拒
     bad = tmp_path / "70EXP" / "PDATAT"

@@ -6,7 +6,7 @@
 
 字段语义逆向真 DATAT gold(现销 HL580301-001·3 行非库存):ARTRN.AMOUNT/TOTAL/NETAMT=
 含税、NETVAL=税前、VATAMT=税额、FLGVAT='1'(价含税);ISVAT('S').REFNUM=票面号(gold 里与 DOCNUM
-相同;票号超出 DOCNUM 宽度时单号退回自编号,REFNUM 与 ARTRN.YOUREF 仍是票面号,见 _sales_docnum);
+相同;票号不以这个单别某本 ISRUN 簿的前缀开头、超出 DOCNUM 宽度或为空时单号照原生由簿往下编,REFNUM 与 ARTRN.YOUREF 仍是票面号,见 _sales_docnum);
 GLJNLIT SEQIT 借资产=2/贷收入=5/贷销项税=6。⚠️ DATAT 无赊销样本 → IV(Dr 应收)按现销
 gold 类推,真机再证(见报告)。护栏沿用采购:DATAT 白名单/写前备份/失败回滚/读回校验/
 ref_no+客户 幂等/CDX 重建。
@@ -168,29 +168,85 @@ def _gl_rows(entry: SalesEntry) -> List[Tuple[str, str, str, Decimal]]:
 _MAX_DOCNUM = 12  # ARTRN/ISVAT/STCRD 的 DOCNUM C(12)
 
 
-def _sales_docnum(artrn, prefix: str, docdate_be: str, ref_no: str) -> str:
-    """销项凭证号 = 票面发票号。
+def _sales_books(account_dir, doctype: str) -> List[Dict[str, str]]:
+    """ISRUN 里这个单别（IV 赊销 / HS 现销）的全部单据簿：``[{prefix, running, jnltyp, depcod}]``。一个账套可以有好几本
+    （NLTTEST 有 IV / IO / IE / IT / IG，T9WNF 75 本），不同前缀对应不同发票本；读不到 ISRUN 是空表。"""
+    table = account_rules._open(account_dir, "ISRUN")
+    if table is None:
+        return []
+    try:
+        return [{"prefix": account_rules._gv(r, "PREFIX"), "running": account_rules._gv(r, "DOCNUM"),
+                 "jnltyp": account_rules._gv(r, "JNLTYP"), "depcod": account_rules._gv(r, "DEPCOD")}
+                for r in S.live_rows(table)
+                if account_rules._gv(r, "DOCTYP") == doctype and account_rules._gv(r, "PREFIX")]
+    finally:
+        table.close()
 
-    销项票是本方开的,票号(IV69/00475)印在实体票上、给了客户、要进 ภ.พ.30 让税局
-    连号核对 —— Express 里的 เลขที่เอกสาร 就该是它,而不是我们另编一套。这与采购
-    相反:采购票是对方开的,凭证号本就该由本方账套自己排。
 
-    两个约束下的退让:
-      · DOCNUM 定宽 C(12),票号超宽 → 退回自编号(ISVAT.REFNUM 仍是真实票号,报表不受影响);
-      · 账套里已有同号的单(会计手录过)照写,不查重(用户 2026-09-30)。
-    回退开关:PEARNLY_SALES_DOCNUM=seq → 整体退回旧的自编号行为。
-    """
+def _native_running(artrn, book: Dict[str, str]) -> Optional[Tuple[str, str]]:
+    """照 Express 原生留空单号时的编法：簿前缀 + 这本簿 ISRUN 的下一个号（IV0000277；带年份段的 2300002 照原样往后数）→
+    (本张单号, 写完后 ISRUN.DOCNUM 该记的下一个号)。账套里已有这个号（含软删行，号用过就是用过）就往后跳；这本簿没有能用的流水号 → None。"""
+    current = book.get("running", "")
+    if not current.isdigit():
+        return None
+    used = {(r.DOCNUM or "").strip() for r in artrn}
+    width, number = len(current), int(current)
+    for _ in range(10000):
+        docnum = f"{book['prefix']}{str(number).zfill(width)}"
+        if len(docnum.encode("cp874", "replace")) > _MAX_DOCNUM:
+            return None
+        if docnum not in used:
+            return docnum, str(number + 1).zfill(width)
+        number += 1
+    return None
+
+
+def _sales_docnum(artrn, books: List[Dict[str, str]], doctype: str, docdate_be: str,
+                  ref_no: str) -> Tuple[str, str, Optional[str]]:
+    """销项凭证号 → (单号, 用的那本簿的前缀, 写完后这本簿 ISRUN.DOCNUM 该记的号；None = 照旧加一)。
+
+    照财务在 Express 里的做法（K2，用户 11-23「按建议改」；32 本真账统计 + 70EXP 原生实录）：
+      · Express 销货的单号格前缀锁死是单据簿的前缀，财务把纸面发票号打在后面（69SINCER 3,218 张前两位全是 IV）；
+        所以票面号以这个单别某本簿的前缀开头 → 单号 = 票面号，用那本簿（多本簿取最长的前缀）；
+      · 票面号不以任何一本簿的前缀开头（11-16 的 SSIVA02001）、超 DOCNUM C(12) 或为空 → 单号照原生留空时由簿往下编
+        （默认簿 = 前缀与单别同名的那本），票面号照旧进 ARTRN.YOUREF 与 ISVAT.REFNUM（ภ.พ.30 按 REFNUM 打印）。
+        原来直接用票面号：前两位不在 ISRUN 时 Express 重算同日单弹 Message 43「ISRUN(xx)」，财务当天的原生单存不下去（11-22 实录）；
+      · 账套里已有同号的单照写，不查重（用户 2026-09-30）；ISRUN 没有这个单别的簿（合成账套）→ 照旧用票面号，
+        簿没有能用的流水号 → 退回 前缀 + 佛历年月日 + 当日序号。
+    回退开关：PEARNLY_SALES_DOCNUM=seq → 整体退回旧的当日序号自编号。"""
     if os.environ.get("PEARNLY_SALES_DOCNUM", "").strip().lower() == "seq":
-        return _next_docnum(artrn, prefix, docdate_be)
+        return _next_docnum(artrn, doctype, docdate_be), doctype, None
     printed = (ref_no or "").strip()
-    if printed and len(printed.encode("cp874", "replace")) <= _MAX_DOCNUM:
-        return printed
-    log.warning(
-        "sales docnum: ref_no %r 超 DOCNUM C(%d) 或为空 · 退回自编号",
-        printed,
-        _MAX_DOCNUM,
-    )
-    return _next_docnum(artrn, prefix, docdate_be)
+    fits = bool(printed) and len(printed.encode("cp874", "replace")) <= _MAX_DOCNUM
+    if not books:
+        if fits:
+            return printed, doctype, None
+        log.warning("sales docnum: ref_no %r 超 DOCNUM C(%d) 或为空、账套没有 %s 簿 · 退回当日序号", printed, _MAX_DOCNUM, doctype)
+        return _next_docnum(artrn, doctype, docdate_be), doctype, None
+    if fits:
+        matched = [b for b in books if printed.startswith(b["prefix"])]
+        if matched:
+            return printed, max(matched, key=lambda b: len(b["prefix"]))["prefix"], None
+    book = next((b for b in books if b["prefix"] == doctype), books[0])
+    native = _native_running(artrn, book)
+    log.info("sales docnum: ref_no %r 不以 %s 簿前缀开头或不能当单号 · 照原生由 %s 簿往下编",
+             printed, doctype, book["prefix"])
+    if native is None:
+        return _next_docnum(artrn, book["prefix"], docdate_be), book["prefix"], None
+    return native[0], book["prefix"], native[1]
+
+
+def _set_running(account_dir, doctype: str, prefix: str, following: str) -> None:
+    """ISRUN 这一簿的 DOCNUM 记成下一个号（原生存单后就是这样）。"""
+    table = _open(account_dir, "ISRUN", dbf.READ_WRITE)
+    try:
+        for rec in S.live_rows(table):
+            if account_rules._gv(rec, "DOCTYP") == doctype and account_rules._gv(rec, "PREFIX") == prefix:
+                with rec as fields:
+                    fields["DOCNUM"] = following
+                return
+    finally:
+        table.close()
 
 
 def write_sale(
@@ -503,7 +559,17 @@ def _write_all(
     cash = prefix == "HS"
     # 按这套账自己的设置(2026-10-08):单据簿的日记账 / 默认部门;赊销的应收行记客户档上的科目、到期日按客户档
     # 付款期(以前恒用账套默认应收科目,62 套里 44% 的客户挂的不是它,控制科目与明细账对不上)。
-    book = account_rules.book(account_dir, prefix)
+    # 单号先定（K2）：票面号对上哪本销货簿就用那本簿的日记账 / 默认部门 / 计数器；POS 日汇总照旧自编
+    following = None
+    book_prefix = prefix
+    if not entry.is_pos:
+        books = _sales_books(account_dir, prefix)
+        ar_read = _open(account_dir, "ARTRN", dbf.READ_ONLY)
+        try:
+            docnum, book_prefix, following = _sales_docnum(ar_read, books, prefix, docdate_be, entry.ref_no)
+        finally:
+            ar_read.close()
+    book = account_rules.book(account_dir, book_prefix)
     jnltyp = book.get("JNLTYP") or S.JNLTYP_SALES
     depcod = depcod or book.get("DEPCOD", "")
     duedat = None
@@ -542,8 +608,8 @@ def _write_all(
     ar = _open(account_dir, "ARTRN", dbf.READ_WRITE)
     try:
         # POS 日汇总票单号自编(HS + 佛历年月日 + 序号);票号起止写进销项税摘要与参考号
-        docnum = (_next_docnum(ar, prefix, docdate_be) if entry.is_pos
-                  else _sales_docnum(ar, prefix, docdate_be, entry.ref_no))
+        if entry.is_pos:
+            docnum = _next_docnum(ar, prefix, docdate_be)
         # 销项 ARTRN.VATPRD 真单恒空(税期记在 ISVAT);CSHRCV/IVCAMT 现销=含税·赊销=0。
         S.append_native(ar, 
             {
@@ -679,7 +745,10 @@ def _write_all(
         gi.close()
     glbal_mark.mark(account_dir, written)  # 科目余额对应格标待重算（照 Express 原生，11-12）
 
-    _bump_isrun(account_dir, prefix, jnltyp)
+    if following is None:
+        _bump_isrun(account_dir, book_prefix, jnltyp)
+    else:
+        _set_running(account_dir, prefix, book_prefix, following)
     notes = _update_arbal(account_dir, entry.customer_code, docdat, prefix, total)
     if prefix == "IV":
         # 赊销加客户余额（原生；现销 HS 不动，``master_create.move_party_balance``）
