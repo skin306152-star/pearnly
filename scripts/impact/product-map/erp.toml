@@ -753,7 +753,7 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-company"
 where = "侧栏「pearnly-company」"
 cc = ["erp_companies"]
-tests = ["flow:erp.company.settings", "flow:erp.company.create", "impact:erp.page.company"]
+tests = ["flow:erp.company.settings", "flow:erp.company.create", "impact:erp.page.company", "unit:tests/test-desk-user-menu.cjs", "impact:shared.user-menu"]
 
 [[row]]
 id = "erp.desk.pearnly-home"
@@ -920,7 +920,7 @@ kind = "nav-page"
 anchor = "nav:erp:pearnly-team"
 group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
-tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team", "flow:erp.team.actions"]
+tests = ["flow:erp.team.add-member", "flow:erp.team.full-name", "flow:erp.team.bulk-disable", "impact:erp.page.team", "flow:erp.team.actions", "unit:tests/test-desk-user-menu.cjs", "impact:shared.user-menu"]
 
 [[row]]
 id = "erp.desk.pearnly-warehouses"

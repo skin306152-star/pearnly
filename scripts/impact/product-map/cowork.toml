@@ -1205,7 +1205,7 @@ kind = "nav-page"
 anchor = "nav:cowork:pearnly-team"
 group = "desk.pearnly-team"
 where = "侧栏「pearnly-team」"
-tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team", "flow:cowork.team.actions"]
+tests = ["flow:cowork.team.full-name", "flow:cowork.team.bulk-disable", "impact:cowork.page.team", "flow:cowork.team.actions", "unit:tests/test-desk-user-menu.cjs", "impact:shared.user-menu"]
 
 [[row]]
 id = "cowork.desk.pearnly-work"

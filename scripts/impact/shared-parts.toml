@@ -14,7 +14,7 @@ name = "产品外壳与页面注册（product.js；字段说明图标 field-help
 paths = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "apps/pearnly_core/pearnly_core/public/desk/product.css", "apps/pearnly_core/pearnly_core/public/desk/field-help.js"]
 markers = ["pearnly.register("]
 search = ["apps/**/*.js", "apps/**/*.html"]
-entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections"]
+entries = ["erp.page.home", "erp.page.products", "erp.page.inventory", "erp.page.stock-in", "erp.page.stock-out", "erp.page.stock-transfer", "erp.page.stock-adjust", "erp.page.stock-card", "erp.page.stock-count", "erp.page.cashier", "erp.page.company", "erp.page.warehouses", "erp.page.team", "erp.page.purchase", "erp.page.suppliers", "erp.page.sales", "erp.page.pos-receipts", "erp.page.pos-shifts", "erp.page.clients", "erp.page.tasks", "cowork.page.home", "cowork.page.intake", "cowork.page.recon-bank", "cowork.page.recon-income", "cowork.page.recon-vat", "cowork.page.stocktake", "cowork.page.work", "cowork.page.team", "dms.page.home", "dms.page.connect", "dms.page.records", "dms.page.roster", "erp.report.stock-count-variance", "shared.sidebar-order", "shared.user-menu", "erp.company-menu", "erp.detail.sales.draft", "erp.detail.sales.submitted", "erp.detail.sales.void", "erp.detail.purchase.draft", "erp.detail.purchase.submitted", "erp.detail.purchase.void", "erp.detail.stock-in.submitted", "erp.detail.stock-out.void", "erp.stock-count.switch.posted-to-active", "erp.stock-count.switch.active-to-posted", "erp.purchase.detail.not-permitted", "erp.sales.detail.not-permitted", "cowork.stocktake.switch", "erp.page.collections"]
 
 [[part]]
 id = "web-entry"
@@ -1059,6 +1059,15 @@ steps = "任一产品页 → 侧栏标题 → 侧栏顺序 → 拖动、保存�
 expect = "顺序生效，子项不重复"
 check = "manual"
 files = ["apps/pearnly_core/pearnly_core/public/desk/product.js"]
+
+[[entry]]
+id = "shared.user-menu"
+product = "共用"
+where = "左下角头像：账号区（ERP 公司 / 个人信息 / 团队管理；Cowork 个人信息 / 团队管理；DMS 个人信息）"
+steps = "业务页（带列表筛选）→ 点左下角 → 落账号区第一项 → 账号区里切换几项 → 再点左下角；另：直接打开账号页 → 点左下角；账号区里点业务菜单"
+expect = "进去落第一项（ERP 公司）；再点回到进去前那一页、筛选还在，侧栏是业务菜单；切换账号项不丢原页；直接打开账号页再点回首页；点业务菜单照常进那一页（11-23）"
+check = "offline"
+files = ["apps/pearnly_core/pearnly_core/public/desk/product.js", "tests/test-desk-user-menu.cjs"]
 
 [[entry]]
 id = "erp.user-profile"

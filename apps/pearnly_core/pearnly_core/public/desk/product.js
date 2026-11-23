@@ -1010,8 +1010,10 @@ frappe.provide("frappe.pearnly");
 			return entries.some(entry => entry.route && entry.route === route[0])
 				|| (route[0] === "Form" && route[1] === "User" && route[2] === frappe.session.user);
 		};
+		// `back`：点开账号区那一刻所在的业务页（路径 + 地址栏查询参数，即列表筛选）；再点左下角回到它。
+		// 用户 11-13："应该跳转到上次界面"。只存在内存里，刷新即丢（刷新后在账号区 → 回首页）。
 		const state = sidebar.pearnly_user_menu = sidebar.pearnly_user_menu
-			|| {open: in_account(), bound: false};
+			|| {open: in_account(), bound: false, back: null};
 		const cards = () => sidebar.$sidebar.find(".body-sidebar-cards");
 		// 画成"账号那两项"（原生 `sidebar_item` 模板，图标/hover 与侧栏一致），
 		// 每次都重绑一次点击 —— 侧栏重画会把节点换掉。
@@ -1043,18 +1045,33 @@ frappe.provide("frappe.pearnly");
 		// 收起 = 让原生重新画一遍业务菜单（我们不自己拼回原来的条目）。
 		const show_business = () => {
 			state.open = false;
+			state.back = null;
 			cards().removeClass("hidden");
 			sidebar.make_sidebar();
+		};
+		// 再点左下角出账号区：回到点开前那一页。跳法照框架处理站内链接的原生写法（`router.js`：查询参数放进
+		// `frappe.route_options`，再 `frappe.set_route(路径)`），页面按原生 route_options 读回筛选；不用 `history.back()`
+		// （账号区里点过几项，后退只退到上一个账号项）。点开前本来就在账号区（直接打开链接 / 刷新）→ 回首页。
+		const leave_account = () => {
+			const back = state.back;
+			state.back = null;
+			const params = new URLSearchParams(back?.search || "");
+			if ([...params.keys()].length) frappe.route_options = Object.fromEntries(params);
+			frappe.set_route(back?.path || "/desk");
 		};
 		// 原生那行 onclick 要摘掉：不然点一下既换菜单又跳走。绑定记号挂在按钮自己身上，
 		// 万一那颗按钮被换掉还能重绑（路由监听挂在侧栏实例上，只挂一次）。
 		if (!button.data("pearnlyMenu")) {
 			button.removeAttr("onclick").data("pearnlyMenu", true).on("click", (event) => {
 				event.preventDefault();
-				if (state.open) return show_business();
-				// 点开时右侧默认落在「个人信息」；已经在账号区里（例如团队管理）就只换菜单。
+				if (state.open) return in_account() ? leave_account() : show_business();
+				// 点开时右侧落在账号区第一项（按产品声明顺序：ERP 是公司，没有公司的落个人信息；用户 11-13 取消
+				// "默认进个人信息"）；已经在账号区里（例如直接打开了团队管理）就只换菜单。
 				if (!entries.length) return;
-				if (!in_account()) (entries.includes(profile) ? profile : entries[0]).go();
+				if (!in_account()) {
+					state.back = {path: window.location.pathname, search: window.location.search};
+					entries[0].go();
+				}
 				paint_account();
 			});
 		}
