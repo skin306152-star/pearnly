@@ -34,9 +34,10 @@ NOT_CONNECTED = "未连接电脑"  # 单据页同一句（ERP 词条 No computer
 OTHER_USER = "flow.other.person@erp.regression"
 
 
-def prepare(lab, manifest, direction=None, no_computer=False, new_item=False):
+def prepare(lab, manifest, direction=None, no_computer=False, new_item=False, mode="operator", company_name=None):
+    """``mode``：会话模式（代录 ``operator`` 建任务；直写 ``chat`` 不建任务，`erp_cc_guide_direct_lib`）；``company_name``：换一家公司（MR.ERP 那遍）。"""
     direction = direction or DIRECTION
-    co, tag = company(manifest), "opi" + uuid.uuid4().hex[:6]
+    co, tag = company_name or company(manifest), "opi" + uuid.uuid4().hex[:6]
     if no_computer:
         # 发单人自己一台登录过 CC 的电脑都没有：实验栈里的电脑只算别人登录过（格结束时 `restore_fields` 还原）
         found = lab.python(manifest["site"], f"""
@@ -53,7 +54,7 @@ from pearnly_erp_portal.integrations import intake, line_items
 frappe.db.set_value("User", {USER!r}, "language", "zh")
 frappe.set_user({USER!r})
 period = frappe.utils.today()[:7]
-made = sessions.create(project={co!r}, period=period, mode="operator")
+made = sessions.create(project={co!r}, period=period, mode={mode!r})
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "title", {tag!r})
 pixel = base64.b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==")
 file = frappe.get_doc({{"doctype": "File", "file_name": "{tag}.png", "is_private": 1, "content": pixel}}).insert()
@@ -104,7 +105,7 @@ if seeded:
                                    {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 0}}]
                                    if {new_item!r} else []}}}}}})
 frappe.db.commit()
-print(json.dumps({{"session": made["id"], "task": made["task"], "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
+print(json.dumps({{"session": made["id"], "task": made.get("task") or "", "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
 """)
     return {**out, "company": co, "tag": tag, "direction": direction, "doc_id": "I:" + out["intake"], "no_computer": no_computer,
             "new_item": new_item, "cases": []}
@@ -130,7 +131,7 @@ if {bool(params.get('seeded'))!r}:
         os.remove(path)
 frappe.set_user({USER!r})
 # 排着等电脑的任务不能删（`tasks.delete`）：单据已作废，先按站点收尾；仍在排队的（实验栈没有电脑来领）标停止
-if frappe.db.exists(tasks.DOCTYPE, {params['task']!r}):
+if {params['task']!r} and frappe.db.exists(tasks.DOCTYPE, {params['task']!r}):
     tasks.settle({params['task']!r})
     if frappe.db.get_value(tasks.DOCTYPE, {params['task']!r}, "status") in ("queued", "running"):
         frappe.db.set_value(tasks.DOCTYPE, {params['task']!r}, "status", "stopped", update_modified=False)

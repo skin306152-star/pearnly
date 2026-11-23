@@ -39,7 +39,7 @@ name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带
 guide = "purchase"
 cowork_direct = ["done", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
-erp_direct = ["half:p2", "half:p2", "wait:cloud"]
+erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
@@ -73,7 +73,8 @@ basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 p
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 purchase 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程待补"
+basis = "ERP 声明 purchase 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）"
+page_flows = ["erp.cc.guide.purchase"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
@@ -84,7 +85,7 @@ name = "销售：赊销、现销；同上各类票"
 guide = "sales"
 cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
-erp_direct = ["half:p2", "half:p2", "wait:cloud"]
+erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
@@ -116,7 +117,8 @@ basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 s
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 sales 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程待补"
+basis = "ERP 声明 sales 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）"
+page_flows = ["erp.cc.guide.sales"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
@@ -209,7 +211,8 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP）；Cowork 的 MR.ER
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；没有结果步骤；离线单测 test_erp_pending_guide，页面流程待补"
+basis = "ERP 声明 pending（form 源，express/cc_guide_pending.py，4509b017c 11-23 带进来）：选本对话公司待处理清单里的一张采购 / 销售单（侧栏「待处理」同一个 express.pending.pending）→ 确定后 run.start 交给直写的采购 / 销售按单据引导，判定卡与复核卡在那里（复核行只读，改票面回单据页，主会话 11-23）；没有结果步骤；离线单测 test_erp_pending_guide，页面流程真点卡从题到结果（本地 Express）"
+page_flows = ["erp.cc.guide.pending"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"

@@ -131,3 +131,12 @@
 4. 总表 / 等待线 / 文档 / 产品地图：约 20 分钟。
 5. 全闸门 + 候选离线（改了 app 代码）+ public-scan + 推送 + GitHub：机器约 40 分钟。
 依赖：1、2 可并行写，3 依赖 1、2；一个分支一次交合入。今天不部署。
+
+## 施工记录（11-23）
+
+- 页面流程分工与写法照页面流程窗口 local_e7561a69：ERP 直写 6 格归本分支；骨架复用它的 `erp_cc_guide_operator_lib.py`（507ec23d0 摘进来，它进 main 后变基自动去重），
+  直写版 `scripts/flows/erp_cc_guide_direct_lib.py` + 薄模块 `erp_cc_guide_purchase.py` / `erp_cc_guide_sales.py`；待处理 `erp_cc_guide_pending.py`（菜单点「待处理」→ 选单 → 交给销售引导 → 题卡 → 复核 → 确定）。
+  造数 `erp_cc_operator_intake.prepare` 加 `mode`（直写会话不建代录任务）与 `company_name` 两个参数，代录那几条不变。
+- 总表：ERP 直写采购 / 销售（本地 Express）有了完整声明 + 页面流程，按闸门规则标 ✅；待处理是 form 源、没有结果步骤，留 ◐。
+- MR.ERP 两格（采购 / 销售 × MR.ERP）：实验栈没有 MR.ERP 连接与主档，同一条流程换 MR.ERP 公司跑要先能造出 MR.ERP 公司的写账判定数据；本批先不登记，留 ◐，照实报主会话。
+- 已知共用层缺口（页面流程窗口报、主会话已派它修）：documents 源出题 `card_for` 没进对话口径 `guided.within`，判定说可写、推送仍要付款 / 科目。修好之前「写账判定与推送同一判据」不完全成立；本分支不绕。

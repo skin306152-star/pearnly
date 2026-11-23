@@ -2665,3 +2665,51 @@ covers = [
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
 ]
+
+[[flow]]
+id = "erp.cc.guide.purchase"
+title = "ERP 版 CC 直写采购引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡；运行 done、同意来自页面、一份直写写入计划、收单记录提交成 ERP 单（来源 cc）并排上写账（实验栈没有识别，收单记录由 run.start(doc_ids) 交进来）"
+module = "scripts/flows/erp_cc_guide_purchase.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_guides.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
+
+[[flow]]
+id = "erp.cc.guide.sales"
+title = "ERP 版 CC 直写销售引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡；运行 done、同意来自页面、一份直写写入计划、收单记录提交成 ERP 单（来源 cc）并排上写账（实验栈没有识别，收单记录由 run.start(doc_ids) 交进来）"
+module = "scripts/flows/erp_cc_guide_sales.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_guides.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
+
+[[flow]]
+id = "erp.cc.guide.pending"
+title = "ERP 版 CC 直写待处理引导真页面：菜单点「待处理」→ 选停下的销售单 → 确定交给销售引导 → 题卡 → 复核（票面只读）→ 确定 → 结果；两次运行 done、同意来自页面、单子重新排上写账"
+module = "scripts/flows/erp_cc_guide_pending.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_guide_pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+]
