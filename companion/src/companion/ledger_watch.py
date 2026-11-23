@@ -205,6 +205,7 @@ class Watcher:
         for key, book in current.items():
             if wanted.get(key) != book.path:
                 book.stop()
+                log.info("[ledger-watch] 不再盯 %s", book.path)
                 with self._lock:
                     self._books.pop(key, None)
         for key, path in wanted.items():
@@ -214,6 +215,7 @@ class Watcher:
                 book = _Book(self, key, path)
                 self._books[key] = book
             book.start()
+            log.info("[ledger-watch] 盯上 %s", path)
 
     def watching(self) -> Dict[str, str]:
         with self._lock:
@@ -259,10 +261,15 @@ class Watcher:
         with self._lock:
             taken, self._taken = self._taken, {}
             if ok:
-                return
-            for key, tables in taken.items():
-                self._pending.setdefault(key, set()).update(tables)
-                self._last.setdefault(key, 0.0)
+                paths = {key: book.path for key, book in self._books.items()}
+            else:
+                for key, tables in taken.items():
+                    self._pending.setdefault(key, set()).update(tables)
+                    self._last.setdefault(key, 0.0)
+        if ok and taken:
+            # 低频（每次账本保存最多一行）：现场排错和实测计时都看这一行。
+            log.info("[ledger-watch] 已报 %s", "；".join(
+                f"{paths.get(key, key)}: {','.join(sorted(tables))}" for key, tables in sorted(taken.items())))
 
 
 _WATCHERS: Dict[str, Watcher] = {}

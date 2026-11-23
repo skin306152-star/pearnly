@@ -58,6 +58,20 @@ def test_changes_settle_then_ride_one_heartbeat_and_return_if_it_fails():
     assert watcher.take() == [] and not watcher.ready()
 
 
+def test_a_report_is_logged_once_it_is_accepted(caplog):
+    clock = Clock()
+    watcher = lw.Watcher(clock=clock, enabled=False)
+    watcher.note("k1", ["ARMAS.DBF"])
+    clock.now += lw.SETTLE_S
+    watcher.take()
+    with caplog.at_level("INFO", logger=lw.log.name):
+        watcher.done(False)                   # 没报上：不记
+        assert "已报" not in caplog.text
+        watcher.take()
+        watcher.done(True)
+    assert "[ledger-watch] 已报 k1: ARMAS" in caplog.text
+
+
 def test_unknown_changes_are_reported_as_all():
     clock = Clock()
     watcher = lw.Watcher(clock=clock, enabled=False)
