@@ -13,7 +13,7 @@
 | Python | `3.14.7` | 运行 `pearnly-ci:runtime-…` 容器实测 |
 | Node / npm | `v24.20.0` / `11.19.0` | 同上（需 source nvm 后才在 PATH） |
 | frappe-bench CLI | `5.31.0` | 同上 |
-| MariaDB | `11.8` | 样板 compose 镜像 tag，且容器实际运行过 9 小时 |
+| MariaDB | `11.8` | 样板 compose 镜像 tag，且容器实际运行过 9 小时 ；所有 MariaDB 一律 `--innodb-snapshot-isolation=OFF`（11-23，见 docs/work/2026-11-23-snapshot-isolation-off.md，`tests/test_mariadb_snapshot_isolation.py` 守） |
 | Redis | `6.2-alpine`（cache + queue 两个实例） | 同上 |
 | WeKan | `v11.58.0` | `~/wekan/package.json` |
 | Meteor | `3.5.2-rc.0` | `~/wekan/.meteor/release` |

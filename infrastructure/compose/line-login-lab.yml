@@ -4,7 +4,7 @@ name: pearnly-line-login-lab
 services:
   mariadb:
     image: mariadb:11.8
-    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --skip-character-set-client-handshake]
+    command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, --skip-character-set-client-handshake, --innodb-snapshot-isolation=OFF]
     environment: {MARIADB_ROOT_PASSWORD: lab-root-only}
     volumes: [db:/var/lib/mysql]
     healthcheck: {test: [CMD, healthcheck.sh, --connect], interval: 5s, retries: 30}

@@ -534,10 +534,11 @@ def ensure_item(*, count, code=None, product=None) -> dict:
 
 def _refresh_totals(count: str) -> None:
     """任务上的三个数（行数 / 已盘点 / 有差异）与行上的差异一起更新。"""
-    rows = frappe.get_list(ITEM, filters={"count": count},
-                           fields=["name", "book_qty", "basis_qty", "basis_set", "counted", "counted_qty", "difference",
-                                   "warehouse"],
-                           limit_page_length=0)
+    # 加锁读（当前值）：两人同时录同一份盘点时，各自按别人刚提交的盘点数重算差异，不拿事务开头的旧快照覆盖
+    # （MariaDB 关了快照隔离，11-23；调用方都已核过 count.write）
+    rows = frappe.db.get_values(ITEM, {"count": count},  # bounded: 这一份盘点的行
+                                ["name", "book_qty", "basis_qty", "basis_set", "counted", "counted_qty", "difference",
+                                 "warehouse"], as_dict=True, for_update=True, order_by="creation asc")
     # 录一笔就要重算整份盘点：记录按盘点一次取、差异没变的行不写（性能体检 11-14：251 行原先每录一笔发约 1,000 条）
     for place in {row["warehouse"] for row in rows if row["counted"]}:
         company_access.require_warehouse(place)

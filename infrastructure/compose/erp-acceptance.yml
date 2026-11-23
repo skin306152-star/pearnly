@@ -22,7 +22,7 @@ services:
     # QEMU materializes MariaDB 11.8.9's default 8 TiB virtual resize ceiling.
     # Keep production's actual 1 GiB buffer pool; cap only its unused resize range.
     command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci,
-              --innodb-buffer-pool-size=1G, --innodb-buffer-pool-size-max=1G]
+              --innodb-buffer-pool-size=1G, --innodb-buffer-pool-size-max=1G, --innodb-snapshot-isolation=OFF]
     networks:
       runtime:
         aliases: [db]

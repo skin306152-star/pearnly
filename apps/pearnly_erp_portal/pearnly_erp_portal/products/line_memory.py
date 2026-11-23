@@ -137,6 +137,9 @@ def fill(lines, *, company, direction, party_tax="", party_name="", expense=Fals
     return results
 
 
+LEARN_SAVEPOINT = "line_memory_learn"
+
+
 def learn(company, direction, party_tax, party_name, lines, document=None):
     """提交成功后记下每一行最终的选择（同一张单同一品名以最后一行为准）。"""
     if direction not in DIRECTIONS or not company:
@@ -154,9 +157,16 @@ def learn(company, direction, party_tax, party_name, lines, document=None):
         name = memory_name(company, key)
         if frappe.db.exists(MEMORY, name):
             frappe.db.set_value(MEMORY, name, values, update_modified=True)
-        else:
+            continue
+        # 同一对方同一品名的几张单同时提交（LINE 同一瞬间保存 30 张，11-23 实验栈）：都看到「还没有」、都去插同一个名字，
+        # 后到的撞主键。先插；撞上就回到插之前、改成更新（插入等前一个提交后才报重复，此时那一行已在，更新的是它）。
+        frappe.db.savepoint(LEARN_SAVEPOINT)
+        try:
             frappe.get_doc({"doctype": MEMORY, "company": company, "direction": direction, "subject": key,
                             **values}).insert(ignore_permissions=True)
+        except frappe.DuplicateEntryError:
+            frappe.db.rollback(save_point=LEARN_SAVEPOINT)
+            frappe.db.set_value(MEMORY, name, values, update_modified=True)
 
 
 __all__ = ["agreed", "apply", "fill", "learn", "matched", "memory_name", "remembered", "subject", "suggest"]

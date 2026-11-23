@@ -469,12 +469,13 @@ class PushSideLookups(unittest.TestCase):
 
 class Assessment(unittest.TestCase):
     def test_the_assessment_is_written_without_bumping_the_record_version(self):
-        writes, events = [], []
+        writes, events, locks = [], [], []
         frappe = types.ModuleType("frappe")
         frappe._ = lambda text: text
         rows = {"H1": Row(last_push_record="CWP-1", auto_reasons="judged:account", owner="u@example.com")}
         frappe.db = ns(set_value=lambda doctype, name, values, update_modified=True: writes.append(
-            (name, values, update_modified)), get_value=lambda doctype, name, fields, as_dict=False: rows.get(name))
+            (name, values, update_modified)), get_value=lambda doctype, name, fields, as_dict=False, for_update=False: (
+                locks.append(for_update), rows.get(name))[1])
         frappe.publish_realtime = lambda *a, **k: events.append(a)
         frappe.session = ns(user="a@example.com")
         frappe.get_hooks = lambda name: []
@@ -498,6 +499,8 @@ class Assessment(unittest.TestCase):
         self.assertEqual(json.loads(values["auto_proposal"]), {"class": "A"})
         push_state.withdraw_automation(Row(name="CWP-9", history="H1"), "automation_changed")
         self.assertNotIn("last_push_status", writes[-1][1])  # 票上已是别的推送：只记原因
+        # 原因码在原值上追加：读这张票是加锁读（MariaDB 关了快照隔离，不能拿旧快照覆盖别人刚记的原因，11-23）
+        self.assertEqual(locks.count(True), 2)  # 两次撤回各一次
 
 
 # ── 第 8、10 条：公司档位的评估、核不上即降、看档位的权限 ──────────────────────

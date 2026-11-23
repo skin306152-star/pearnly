@@ -7,7 +7,7 @@ services:
     cpus: 1
     environment:
       MARIADB_ROOT_PASSWORD: cowork-backend-lab-only
-    command: [--innodb-buffer-pool-size=128M, '--max-connections=${PEARNLY_COWORK_LAB_DB_CONNECTIONS:-40}']
+    command: [--innodb-buffer-pool-size=128M, '--max-connections=${PEARNLY_COWORK_LAB_DB_CONNECTIONS:-40}', --innodb-snapshot-isolation=OFF]
     volumes: [db:/var/lib/mysql]
     healthcheck:
       test: [CMD, healthcheck.sh, --connect, --innodb_initialized]

@@ -13,7 +13,7 @@ services:
     cpus: 1
     environment:
       MARIADB_ROOT_PASSWORD: erp-pos-provision-lab-only
-    command: [--innodb-buffer-pool-size=192M, --max-connections=60]
+    command: [--innodb-buffer-pool-size=192M, --max-connections=60, --innodb-snapshot-isolation=OFF]
     volumes: [db:/var/lib/mysql]
     healthcheck:
       test: [CMD, healthcheck.sh, --connect, --innodb_initialized]

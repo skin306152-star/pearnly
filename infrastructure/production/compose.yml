@@ -104,8 +104,11 @@ services:
     # 提缓冲池要同时提 PEARNLY_MARIADB_MEM，容量检查按「缓冲池 + 固定开销 + 连接数 × 每连接」核算（capacity.py）。
     # --log-bin：二进制日志存在数据卷里、保留 7 天（用户 2026-10-02 定，零费用），配合每日全量备份能恢复到任意时刻
     # （见 scripts/production/restore-drill.sh 与 docs/work/2026-10-02-offsite-backup.md）。sync-binlog=0 交给系统刷盘，不加写延迟。
+    # --innodb-snapshot-isolation=OFF：11.8 默认 ON，事务读过之后加锁读 / 改到别人刚提交的行就报 1020（同一瞬间取号 30 张 29 张失败、
+    # 按条件批量改、先读后加锁都撞）。关掉回到 11.4 及以前 / MySQL 的行为（加锁读读最新已提交值）。没加锁就读再写绝对值的写法由
+    # scripts/check-unlocked-overwrite.py 守着（docs/work/2026-11-23-snapshot-isolation-off.md）。所有实验栈同设，tests/test_mariadb_snapshot_isolation.py 守。
     command: [--character-set-server=utf8mb4, --collation-server=utf8mb4_unicode_ci, '--innodb-buffer-pool-size=${PEARNLY_MARIADB_BUFFER_POOL:-1G}', --max-allowed-packet=64M, '--max-connections=${PEARNLY_MARIADB_MAX_CONNECTIONS:-151}',
-              --log-bin=binlog, --binlog-expire-logs-seconds=604800, --sync-binlog=0]
+              --log-bin=binlog, --binlog-expire-logs-seconds=604800, --sync-binlog=0, --innodb-snapshot-isolation=OFF]
     environment:
       MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?}
       MARIADB_DATABASE: keycloak

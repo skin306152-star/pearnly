@@ -30,12 +30,13 @@ def _module(name, **attrs):
 
 class Db:
     def __init__(self):
-        self.values, self.commits = [], 0
+        self.values, self.commits, self.locked = [], 0, []
 
     def set_value(self, doctype, name, field, value=None, update_modified=True):
         self.values.append((doctype, name, field if isinstance(field, dict) else {field: value}))
 
-    def get_value(self, doctype, name, field):
+    def get_value(self, doctype, name, field, for_update=False):
+        self.locked.append((doctype, field, for_update))
         return json.dumps(["H-TMP"])
 
     def commit(self):
@@ -111,6 +112,8 @@ class IntoDocument(unittest.TestCase):
         self.assertEqual((source["source_file"], source["source_page_indices"]), ("SRC-NEW", "[1, 2]"))
         binding = next(values for doctype, name, values in frappe.db.values if doctype == "Cowork Source File")
         self.assertEqual(json.loads(binding["binding_records"]), ["H1"])
+        # 绑定列表在原值上替换：加锁读当前值（MariaDB 关了快照隔离，11-23）
+        self.assertIn(("Cowork Source File", "binding_records", True), frappe.db.locked)
         (args, kwargs), = RECORDS
         self.assertEqual(args[0], "H1")
         self.assertIn("page2.jpg", kwargs["basis"])

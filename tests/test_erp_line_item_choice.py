@@ -132,6 +132,31 @@ class Memory(unittest.TestCase):
         self.assertIsNone(line_memory.remembered("CO-B", "purchase", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด"))
         self.assertIsNone(line_memory.remembered("CO-A", "sales", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด"))
 
+    def test_two_submissions_at_the_same_moment_end_in_one_memory_not_an_error(self):
+        """同一对方同一品名的两张单同时提交（11-23 实验栈 30 张同一瞬间保存，29 张撞主键）：这一张看到「还没有」、去插时
+        另一张刚提交了同名的那一行 → 撞重复不报错，回到插之前、改成更新。"""
+        name = line_memory.memory_name("CO-A", line_memory.subject("purchase", "0105551234567", "ร้านน้ำแข็ง", "น้ำแข็งหลอด"))
+        table = fake.STATE.db.table(line_memory.MEMORY)
+        original = line_memory.frappe.get_doc
+
+        # 另一张刚提交的那一行已在库里；这一张事务开头的快照里还没有（普通读看不到）
+        table[name] = {"name": name, "company": "CO-A", "product": "P-OLD", "item_type": GOODS, "last_document": "PUR-OTHER"}
+
+        def racing(values, docname=None):
+            if isinstance(values, dict) and values.get("doctype") == line_memory.MEMORY:
+                def insert(**kw):
+                    raise line_memory.frappe.DuplicateEntryError(line_memory.MEMORY, name, None)
+                return mock.Mock(insert=insert)
+            return original(values, docname)
+
+        stale = lambda doctype, docname=None: False if doctype == line_memory.MEMORY else original_exists(doctype, docname)
+        original_exists = line_memory.frappe.db.exists
+        with mock.patch.object(line_memory.frappe, "get_doc", racing), \
+                mock.patch.object(line_memory.frappe.db, "exists", stale):
+            self.learn("CO-A", [{"description": "น้ำแข็งหลอด", "product": "P-ICE", "item_type": GOODS}], document="PUR-2")
+        row = fake.STATE.db.table(line_memory.MEMORY)[name]  # 回到保存点后是另一份表
+        self.assertEqual((row["product"], row["last_document"]), ("P-ICE", "PUR-2"))
+
     def test_a_later_submission_overwrites_the_memory(self):
         self.learn("CO-A", [{"description": "น้ำแข็งหลอด", "product": "P-ICE", "item_type": GOODS}])
         self.learn("CO-A", [{"description": "น้ำแข็งหลอด", "product": None, "item_type": SERVICE}], document="PUR-2")

@@ -19,6 +19,7 @@ services:
     image: mariadb:11.8@sha256:8b5f33ebd85d1775657e974ed10434128bb493c80e826ceaa54074fd1a92a112
     environment:
       MARIADB_ROOT_PASSWORD: line-lab-local-only
+    command: [--innodb-snapshot-isolation=OFF]
     volumes: ["db:/var/lib/mysql"]
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]

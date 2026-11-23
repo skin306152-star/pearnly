@@ -45,6 +45,7 @@ def _log(card, action, detail=None, content=None):
 
 def _lock(doctype):
     # 同类对象的并发新建 / 重排在 DocType 元数据行上排队。
+    # 排到之后读位置一律加锁读（当前值）：普通读拿的是事务开头的快照，看不到前一个人刚提交的位置（11-23）。
     frappe.db.get_value("DocType", doctype, "name", for_update=True)
 
 
@@ -100,8 +101,8 @@ def lists(board, archived=False):
 
 
 def _list_tail(board):
-    rows = frappe.get_all(COLUMN, filters={"board": board, "archived": 0}, fields=["position"],
-                          order_by="position desc", limit_page_length=1)
+    rows = frappe.db.get_values(COLUMN, {"board": board, "archived": 0}, ["position"], as_dict=True,
+                                order_by="position desc", limit=1, for_update=True)
     return rows[0].position if rows else None
 
 
@@ -143,12 +144,12 @@ def move_list(name, before=None, after=None):
     def neighbour(other):
         if not other or other == name:
             return None
-        return frappe.db.get_value(COLUMN, {"name": other, "board": board, "archived": 0}, "position")
+        return frappe.db.get_value(COLUMN, {"name": other, "board": board, "archived": 0}, "position", for_update=True)
 
     position = contracts.position_between(neighbour(before), neighbour(after))
     if position is None:
-        rows = frappe.get_all(COLUMN, filters={"board": board, "archived": 0, "name": ["!=", name]},
-                              pluck="name", order_by="position asc, creation asc", limit_page_length=0)
+        rows = frappe.db.get_values(COLUMN, {"board": board, "archived": 0, "name": ["!=", name]}, "name",  # bounded: 一块板的列表
+                                    pluck=True, order_by="position asc, creation asc", for_update=True)
         for other, value in zip(rows, contracts.renumber(len(rows))):
             frappe.db.set_value(COLUMN, other, "position", value, update_modified=False)
         position = (contracts.position_between(neighbour(before), neighbour(after))
@@ -224,8 +225,9 @@ def sort_list(name, key):
         raise Invalid("erp.work.error.request")
     field, reverse = SORTS[key]
     _lock(CARD)
-    rows = frappe.get_all(CARD, filters={"board_list": name, "archived": 0},
-                          fields=["name", "title", "due_date", "creation"], limit_page_length=0)
+    rows = frappe.db.get_values(CARD, {"board_list": name, "archived": 0},  # bounded: 一个列表的卡
+                                ["name", "title", "due_date", "creation"], as_dict=True, for_update=True,
+                                order_by="creation asc")
     if field == "due_date":
         rows.sort(key=lambda item: (item.due_date is None, item.due_date or getdate("1900-01-01")))
     elif field == "title":
@@ -461,7 +463,8 @@ def _column_tail(board_list, exclude=None):
     filters = {"board_list": board_list, "archived": 0}
     if exclude:
         filters["name"] = ["!=", exclude]
-    rows = frappe.get_all(CARD, filters=filters, fields=["position"], order_by="position desc", limit_page_length=1)
+    rows = frappe.db.get_values(CARD, filters, ["position"], as_dict=True, order_by="position desc", limit=1,
+                                for_update=True)
     return rows[0].position if rows else None
 
 
@@ -687,13 +690,14 @@ def move(name, board_list, before=None, after=None):
     def neighbour(other):
         if not other or other == doc.name:
             return None
-        return frappe.db.get_value(CARD, {"name": other, "board_list": target.name, "archived": 0}, "position")
+        return frappe.db.get_value(CARD, {"name": other, "board_list": target.name, "archived": 0}, "position",
+                                   for_update=True)
 
     position = contracts.position_between(neighbour(before), neighbour(after))
     if position is None:
         # 两卡之间挤不下：整列按当前顺序重排，再算一次。
-        column = frappe.get_all(CARD, filters={"board_list": target.name, "archived": 0, "name": ["!=", doc.name]},
-                                pluck="name", order_by="position asc, creation asc", limit_page_length=0)
+        column = frappe.db.get_values(CARD, {"board_list": target.name, "archived": 0, "name": ["!=", doc.name]},  # bounded: 一列的卡
+                                      "name", pluck=True, order_by="position asc, creation asc", for_update=True)
         for row, value in zip(column, contracts.renumber(len(column))):
             frappe.db.set_value(CARD, row, "position", value, update_modified=False)
         position = contracts.position_between(neighbour(before), neighbour(after))

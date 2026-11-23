@@ -147,7 +147,9 @@ def merge(name, temporary, filename) -> dict:
     frappe.db.set_value(storage.DOCTYPE, name, values, update_modified=False)
     if values.get("source_file"):
         # 推送前核对「原件绑定的单据」（`push.application.provenance`）：拼好的原件识别时绑的是临时那张，换成原单
-        bound = storage.parse(frappe.db.get_value("Cowork Source File", values["source_file"], "binding_records") or "[]")
+        # 加锁读：绑定列表在原值上替换，按别人刚提交的值改（MariaDB 关了快照隔离，11-23）
+        bound = storage.parse(frappe.db.get_value("Cowork Source File", values["source_file"], "binding_records",
+                                                  for_update=True) or "[]")
         frappe.db.set_value("Cowork Source File", values["source_file"], "binding_records",
                             storage.encode([name if row == temporary else row for row in bound or [temporary]]),
                             update_modified=False)

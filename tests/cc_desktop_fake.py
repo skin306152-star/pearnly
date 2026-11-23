@@ -33,6 +33,10 @@ class AuthenticationError(Exception):
     http_status_code = 401
 
 
+class DuplicateEntryError(Exception):
+    """同 Frappe：插入撞主键 / 唯一键。"""
+
+
 class DoesNotExistError(ValidationError):
     pass
 
@@ -297,6 +301,7 @@ def install():
     frappe._cc_fake = True
     frappe.ValidationError = ValidationError
     frappe.UniqueValidationError = UniqueValidationError
+    frappe.DuplicateEntryError = DuplicateEntryError
     frappe.PermissionError = PermissionError_
     frappe.AuthenticationError = AuthenticationError
     frappe.DoesNotExistError = DoesNotExistError

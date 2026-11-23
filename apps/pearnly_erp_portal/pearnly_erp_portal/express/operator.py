@@ -664,6 +664,8 @@ def settle_payment(company, name, record=None) -> bool:
     value = choices.chosen(company, PAYMENT_KIND, payment_subject(record.direction, json.loads(record.result or "{}")))
     if value != UNPAID and value not in _methods(record.direction):
         return False
+    # 写回前加锁重读选择：卡上别的答案可能刚提交，在当前值上并（MariaDB 关了快照隔离，11-23）
+    chosen = json.loads(frappe.db.get_value(chat_intake.DOCTYPE, name, "line_choices", for_update=True) or "null") or {}
     frappe.db.set_value(chat_intake.DOCTYPE, name, {**_payment_values(record.direction, value),
                                                      "line_choices": json.dumps({**chosen, "payment_decided": True})})
     return True
@@ -693,7 +695,8 @@ def apply_intake_answers(company, name, answers) -> list:
 
     from pearnly_erp_portal.express import choices
 
-    doc = frappe.get_doc(chat_intake.DOCTYPE, name)
+    # 加锁读：选择在原值上逐项改，按别人刚提交的值改（MariaDB 关了快照隔离，11-23）
+    doc = frappe.get_doc(chat_intake.DOCTYPE, name, for_update=True)
     subject = INTAKE_SUBJECT + name
     chosen = json.loads(doc.line_choices or "null") or {"lines": []}
     pay = payment_subject(doc.direction, json.loads(doc.result or "{}"))
