@@ -317,8 +317,9 @@ export const GuideRunView: FC<{
     );
   }
   if (view.review && (documents ? view.stage === "review" : view.status === "reviewing")) return <GuideReview {...props} head={head} />;
-  // 没有复核的表单（不写账的）题都答完了：出确定卡，不停在只剩「已定 n 项」的问卷上
-  if (!documents && view.status === "asking" && view.card?.ready && !view.card.questions.length) return <GuideReady {...props} />;
+  // 没有复核的表单（不写账的）能确定了：出确定卡，不停在只剩「已定 n 项」的问卷上；还挂着的只有选填题（第 3、10 栏这类，
+  // 问卷里刚出现过、跳过了）也算能确定，否则跳过后提交又回到同几道选填题，永远到不了确定（11-23 增值税页面流程查出）
+  if (!documents && view.status === "asking" && view.card?.ready && view.card.questions.every((q) => !q.required)) return <GuideReady {...props} />;
   if (view.card && (view.status === "asking" || (documents && view.stage === "files"))) {
     const title = documents ? operatorTitle(view) : null;
     return (

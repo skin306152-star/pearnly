@@ -59,8 +59,8 @@ class GuideRunCardTests(unittest.TestCase):
         self.assertIn('label: label ?? (allow ? t("allow") : t("recordNow"))', review)  # 复核卡沿用已上线的词
         # 没有复核的表单答完了（11-23）：出确定卡，同一组按钮交 guide_confirm，不写账的叫「确定」
         self.assertIn('buttons={decideButtons(props, card.ready, undefined, t("confirm"))}', review)
-        self.assertIn('if (!documents && view.status === "asking" && view.card?.ready && !view.card.questions.length) return <GuideReady {...props} />;',
-                      card)
+        self.assertIn('if (!documents && view.status === "asking" && view.card?.ready && view.card.questions.every((q) => !q.required)) '
+                      'return <GuideReady {...props} />;', card)
         for kit in ('from "@/components/ui/button"', 'from "@/components/ui/questionnaire"', 'from "./guide-inputs"'):
             self.assertIn(kit, card)
         self.assertNotIn("<button", card)  # 不手写通用控件

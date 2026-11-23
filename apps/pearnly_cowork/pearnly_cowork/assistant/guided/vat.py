@@ -124,6 +124,38 @@ def confirm(ctx, values, draft, consent) -> dict:
             "files": files}
 
 
+
+def _draft_row(name):
+    """确定时出的那份申报草稿此刻还在不在、合计多少（结果卡现算用，只读）。"""
+    from pearnly_cowork.tax import service
+
+    if not name:
+        return None
+    return frappe.db.get_value(service.DOCTYPE, name, ["name", "connection", "account_set", "period", "source_ref", "tax_total"],
+                               as_dict=True)
+
+
+def result(ctx, draft):
+    """结果卡（现算）：草稿还在 → 已就绪、合计 = 草稿税额、检查项条数、工作簿；这本账套这个月之后又完成了一份回读（出草稿用的
+    不是最近那份，同月结台账 `companies.exceptions.tax_items` 的判据）→ 标「草稿已过期」；草稿删了 → 未完成。标记只回码
+    （``marks``：``tax_issue`` 带条数、``tax_draft_stale``），页面按已有词条显示。确定回包在 ``ctx["done"]``；不是出了草稿的回 None。"""
+    from pearnly_cowork.tax import periods, sources
+
+    done = ctx.get("done") or {}
+    if not isinstance(done, dict) or done.get("status") != "ready":
+        return None
+    row = _draft_row(str(done.get("draft") or ""))
+    if not row:
+        return {**done, "status": "failed", "files": []}
+    marks = [{"code": "tax_issue", "count": int(done["issues_total"])}] if done.get("issues_total") else []
+    year, month = periods.parse_period(str(row.period or done.get("period") or ""))
+    with recon._conversation(ctx):
+        newest = sources.vat_readback(row.connection, row.account_set, year, month) or {}
+    if row.source_ref and str(newest.get("ref") or "") not in ("", str(row.source_ref)):
+        marks.append({"code": "tax_draft_stale"})
+    return {**done, "status": "ready", "total": str(row.tax_total or ""), "files": list(done.get("files") or ()), "marks": marks}
+
+
 # ── 声明 ─────────────────────────────────────────────────────────────────────
 
 GUIDES = [
@@ -148,6 +180,6 @@ GUIDES = [
           "options": "pearnly_cowork.assistant.guided.vat.zero_options",
           "default": "pearnly_cowork.assistant.guided.vat.zero_default"},
      ],
-     "confirm": "pearnly_cowork.assistant.guided.vat.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.vat.confirm", "result": "pearnly_cowork.assistant.guided.vat.result",
      "tool": "cowork_vat_draft", "expires": ["ledger", "company"]},
 ]

@@ -61,6 +61,14 @@ R._module("pearnly_cowork.assistant.tools", _pos_source=lambda file_id: (
     {"file": file_id, "filename": f"{file_id}.xlsx", "source": f"SRC-{file_id}", "key": f"assistant:pos:{file_id}"}
     if file_id in STATE["attachments"] else {"file": file_id, "status": "not_found"}))
 R.frappe.PermissionError = PermissionError
+# 结果现算（`pos.result`）：取数用采购 / 销售引导同一个 `guide_documents.result`；从没推过的那几张标未推送
+PUSH = {}
+R._module("pearnly_cowork.assistant.guide_documents", HISTORY="Cowork OCR History",
+          result=lambda ctx, doc_ids: {"rows": [{"doc_id": d, "status": {"success": "entered", "pending": "queued"}.get(PUSH.get(d, ""), "held"),
+                                                 **({"docnum": "IV001"} if PUSH.get(d) == "success" else {})} for d in doc_ids],
+                                       "wait": any(PUSH.get(d) == "pending" for d in doc_ids)})
+R.frappe.get_all = lambda doctype, filters=None, fields=None, limit_page_length=None, **kw: [
+    R.types.SimpleNamespace(name=d, last_push_status=PUSH.get(d, "")) for d in (filters or {}).get("name", ["in", []])[1]]
 
 from pearnly_cowork.assistant.guided import pos  # noqa: E402
 
@@ -162,6 +170,17 @@ class Confirm(Base):
         self.assertEqual((done["result"]["status"], done["result"]["documents"]), ("ready", ["H1", "H2"]))
         run.confirm(name, found["version"])
         self.assertEqual(len(STATE["admitted"]), 1)
+
+    def test_the_result_shows_each_day_as_not_pushed_until_the_push_chain_takes_it(self):
+        PUSH.clear()
+        name, found = self.reviewed()
+        result = run.confirm(name, found["version"])["result"]
+        self.assertEqual([(r["doc_id"], r["status"], r.get("reason_code")) for r in result["rows"]],
+                         [("H1", "", "not_pushed"), ("H2", "", "not_pushed")])
+        PUSH.update(H1="success", H2="pending")
+        result = run.view(self.docs[name])["result"]
+        self.assertEqual([(r["doc_id"], r["status"], r.get("docnum")) for r in result["rows"]], [("H1", "entered", "IV001"), ("H2", "queued", None)])
+        self.assertTrue(result["wait"])
 
     def test_a_layout_forgotten_before_confirm_goes_back_to_the_columns(self):
         name, found = self.reviewed()

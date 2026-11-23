@@ -36,8 +36,19 @@ def _previous(connection, key, period):
 
 R._module("pearnly_cowork.tax")
 R._module("pearnly_cowork.tax.access", allowed=lambda user=None: STATE.get("tax", True))
-R._module("pearnly_cowork.tax.service", vat_draft=_draft, previous_excess=_previous,
+R._module("pearnly_cowork.tax.service", vat_draft=_draft, previous_excess=_previous, DOCTYPE="Cowork Tax Draft",
           workbook=lambda summary, lang=None: ("PP30-2026-10.xlsx", b"PK"))
+R._module("pearnly_cowork.tax.periods", parse_period=lambda text: tuple(int(part) for part in str(text).split("-")))
+# 结果现算（`vat.result`）：草稿记录（出草稿时的回读号 RB1）与这本账套这个月最近完成的回读
+R._module("pearnly_cowork.tax.sources", vat_readback=lambda connection, key, year, month: STATE.get("newest"))
+
+
+def _draft_row(doctype, name, fields, as_dict=False):
+    row = (STATE.get("draft_rows") or {}).get(name)
+    return R.types.SimpleNamespace(**row) if row else None
+
+
+R.frappe.db.get_value = _draft_row
 
 from pearnly_cowork.assistant.guided import vat  # noqa: E402
 
@@ -52,7 +63,9 @@ def _codes(found):
 class Base(R.Base):
     def setUp(self):
         super().setUp()
-        STATE.update(drafts=[], tax=True)
+        STATE.update(drafts=[], tax=True, newest={"ref": "RB1"},
+                     draft_rows={"VAT-1": {"name": "VAT-1", "connection": "CONN-E", "account_set": "2026", "period": "2026-10",
+                                           "source_ref": "RB1", "tax_total": "400.00"}})
         R.HOOKS["pearnly_guides"] = ["pearnly_cowork.assistant.guided.vat.GUIDES"]
 
     def to_options(self):
@@ -130,6 +143,17 @@ class Confirm(Base):
                                             {"code": "input_duplicate", "text": "cowork.tax.issue.input_duplicate", "count": 1}])
         run.confirm(name, found["version"])
         self.assertEqual(len(STATE["drafts"]), 1)
+
+    def test_the_result_is_worked_out_now_from_the_draft_and_the_newest_readback(self):
+        name, _found = self.to_options()
+        found = run.answer(name, {"zero_vat_as": "zero_rated"})
+        result = run.confirm(name, found["version"])["result"]
+        self.assertEqual((result["status"], result["total"], result["marks"]), ("ready", "400.00", [{"code": "tax_issue", "count": 2}]))
+        self.assertEqual(result["files"], [{"file": "F1", "name": "PP30-2026-10.xlsx"}])
+        STATE["newest"] = {"ref": "RB2"}   # 之后又完成了一份回读：草稿已过期（同月结台账）
+        self.assertIn({"code": "tax_draft_stale"}, run.view(self.docs[name])["result"]["marks"])
+        STATE["draft_rows"] = {}            # 草稿删了：未完成，不再给工作簿
+        self.assertEqual((run.view(self.docs[name])["result"]["status"], run.view(self.docs[name])["result"]["files"]), ("failed", []))
 
     def test_no_readback_any_more_goes_back_to_the_readback_step(self):
         name, _found = self.to_options()

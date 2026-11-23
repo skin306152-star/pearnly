@@ -159,14 +159,15 @@ device = ["真机记录:erp.cc.tool.erp_collection_guide"]
 id = "pos_day"
 name = "POS 日汇总"
 guide = "pos"
-cowork_direct = ["half:p3", "out:只支持 Express 账套", "wait:cloud"]
+cowork_direct = ["done", "out:只支持 Express 账套", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 有自己的收银台（存疑，P3 前核对）"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 pos（form 源，交导出文件、没见过的版式在卡上答列、复核、确定写进 Express；没有结果步骤；cc-guided-pos 232ab6d79 起）；只有离线单测 test_cowork_pos_guide，页面流程归第 2 步（cc-guided-flow-markers 里等待中的那条）"
+basis = "Cowork 声明 pos（form 源，交导出文件、没见过的版式在卡上答列、复核、确定按天建票；cc-guided-pos 232ab6d79 起；11-23 补结果步骤：每天那张票一行，复用 guide_documents.result 取推送状态与单号，没推过的标未推送）；真页面交导出 → 复核每天一行 → 确定 → 结果卡每天一行未推送，两张票推送目标本对话账套（11-23 实验栈电脑 / 手机两格）；另有离线单测 test_cowork_pos_guide"
+page_flows = ["cowork.cc.guide.pos"]
 
 [[row]]
 id = "stock_docs"
@@ -258,27 +259,29 @@ basis = "recon 声明含 mrerp（交文件两侧对账与账本种类无关）�
 id = "vat"
 name = "增值税 ภ.พ.30 草稿"
 guide = "vat"
-cowork_direct = ["half:p3", "out:MR.ERP 无读回", "wait:cloud"]
+cowork_direct = ["done", "out:MR.ERP 无读回", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此业务"]
 erp_operator = ["out:ERP 无此业务"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 vat（form 源，月份与本月读回同对账引导、第 3 / 10 栏可空、确定出一份草稿与工作簿；不写账、没有结果步骤；cc-guided-vat c5b445c70、b5e9318bb）；只有离线单测 test_cowork_vat_guide，页面流程归第 2 步"
+basis = "Cowork 声明 vat（form 源，月份与本月读回同对账引导、第 3 / 10 栏可空、确定出一份草稿与工作簿；不写账；cc-guided-vat c5b445c70、b5e9318bb；11-23 补结果步骤：现算草稿还在不在、出草稿用的回读是否最近那份——不是标草稿已过期）；真页面菜单 → 本月 → 跳过选填栏 → 确定卡「确定」→ 结果卡已就绪带工作簿，取卡时之后又完成的回读标过期（11-23 实验栈电脑 / 手机两格）；另有离线单测 test_cowork_vat_guide"
+page_flows = ["cowork.cc.guide.vat"]
 
 [[row]]
 id = "wht"
 name = "预扣税 ภ.ง.ด.3 / 53 草稿"
 guide = "wht"
-cowork_direct = ["half:p3"]
+cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此业务"]
 erp_operator = ["out:ERP 无此业务"]
 
 [[row.link]]
 cell = "cowork_direct"
-basis = "Cowork 声明 wht（form 源，月份 → 逐行复核（没有所得类型的收款方按税号记住）→ 确定出本对话公司的一份草稿；没有结果步骤；cc-guided-wht / wht-review 6bd5a3af0、2f0af96bf、5b35678ce）；只有离线单测 test_cowork_wht_guide，页面流程归第 2 步"
+basis = "Cowork 声明 wht（form 源，月份 → 逐行复核（没有所得类型的收款方按税号记住）→ 确定出本对话公司的一份草稿；cc-guided-wht / wht-review 6bd5a3af0、2f0af96bf、5b35678ce；11-23 补结果步骤：现算草稿还在不在）；真页面菜单 → 本月 → 复核卡 → 确定 → 结果卡已就绪带工作簿，草稿删了取卡时未完成（11-23 实验栈电脑 / 手机两格）；另有离线单测 test_cowork_wht_guide"
+page_flows = ["cowork.cc.guide.wht"]
 
 [[row]]
 id = "readback"

@@ -261,6 +261,24 @@ def confirm(ctx, values, draft, consent) -> dict:
                      for day in made.get("days") or ()]}
 
 
+def result(ctx, draft):
+    """结果卡（现算）：每天那张票一行，取数用采购 / 销售引导同一个 `guide_documents.result`（推送状态、账本单号一次取回）：
+    已入账带单号 / 在写（页面过一会儿再取）/ 没成带原因。日汇总票建好后推送另走推送链：还没推过的那几张标 ``not_pushed``（页面按已有
+    词条「未推送」显示），不说已跳过。确定回包在 ``ctx["done"]``（建好的票）；不是建了票的回 None。"""
+    from pearnly_cowork.assistant import guide_documents
+
+    done = ctx.get("done") or {}
+    if not isinstance(done, dict) or done.get("status") != "ready":
+        return None
+    docs = [str(name) for name in done.get("documents") or () if name]
+    found = guide_documents.result(ctx, docs)
+    never = {row.name for row in frappe.get_all(guide_documents.HISTORY, filters={"name": ["in", docs or [""]]},
+                                                fields=["name", "last_push_status"], limit_page_length=len(docs) or 1)
+             if not row.last_push_status}
+    rows = [{**row, "status": "", "reason_code": "not_pushed"} if row.get("doc_id") in never else row for row in found.get("rows") or ()]
+    return {**done, "status": "ready", "rows": rows, "wait": bool(found.get("wait"))}
+
+
 # ── 声明 ─────────────────────────────────────────────────────────────────────
 
 GUIDES = [
@@ -278,6 +296,6 @@ GUIDES = [
           "default": "pearnly_cowork.assistant.guided.pos.posting_default"},
      ],
      "draft": "pearnly_cowork.assistant.guided.pos.draft", "review": "pearnly_cowork.assistant.guided.pos.review",
-     "confirm": "pearnly_cowork.assistant.guided.pos.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.pos.confirm", "result": "pearnly_cowork.assistant.guided.pos.result",
      "tool": "cowork_pos_import", "expires": ["ledger", "company"]},
 ]

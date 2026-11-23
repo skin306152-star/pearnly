@@ -225,6 +225,28 @@ def confirm(ctx, values, draft, consent) -> dict:
             "questions_total": len(summary.get("questions") or []), "files": files}
 
 
+
+def _draft_row(name):
+    """确定时出的那份申报草稿此刻还在不在、合计多少（结果卡现算用，只读）。"""
+    from pearnly_cowork.tax import service
+
+    if not name:
+        return None
+    return frappe.db.get_value(service.DOCTYPE, name, ["name", "connection", "account_set", "period", "source_ref", "tax_total"],
+                               as_dict=True)
+
+
+def result(ctx, draft):
+    """结果卡（现算）：草稿还在 → 已就绪、合计 = 草稿税额、工作簿；删了 → 未完成。确定回包在 ``ctx["done"]``；不是出了草稿的回 None。"""
+    done = ctx.get("done") or {}
+    if not isinstance(done, dict) or done.get("status") != "ready":
+        return None
+    row = _draft_row(str(done.get("draft") or ""))
+    if not row:
+        return {**done, "status": "failed", "files": []}
+    return {**done, "status": "ready", "total": str(row.tax_total or ""), "files": list(done.get("files") or ())}
+
+
 # ── 声明 ─────────────────────────────────────────────────────────────────────
 
 GUIDES = [
@@ -239,6 +261,6 @@ GUIDES = [
           "facts": "pearnly_cowork.assistant.guided.wht.period_facts"},
      ],
      "draft": "pearnly_cowork.assistant.guided.wht.draft", "review": "pearnly_cowork.assistant.guided.wht.review",
-     "confirm": "pearnly_cowork.assistant.guided.wht.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.wht.confirm", "result": "pearnly_cowork.assistant.guided.wht.result",
      "tool": "cowork_wht_draft"},
 ]

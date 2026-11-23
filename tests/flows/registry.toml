@@ -2730,3 +2730,48 @@ covers = [
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
 ]
+
+[[flow]]
+id = "cowork.cc.guide.vat"
+title = "Cowork 版 CC 增值税引导真页面：菜单 → 本月（回读已读完不问）→ 跳过第 3、10 栏 → 确定卡「确定」→ 结果卡已就绪带工作簿；之后又完成一份回读，取卡时结果标草稿已过期"
+module = "scripts/flows/cowork_cc_guide_vat.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/vat.py",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  "frontend/assistant/src/lib/guide-run.ts",
+]
+
+[[flow]]
+id = "cowork.cc.guide.pos"
+title = "Cowork 版 CC 收银日汇总引导真页面：交 POS 导出 → 复核每天一行 → 确定 → 结果卡每天一张票一行（未推送）；两张票推送目标 T.8"
+module = "scripts/flows/cowork_cc_guide_pos.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/pos.py",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  "frontend/assistant/src/lib/guide-run.ts",
+]
+
+[[flow]]
+id = "cowork.cc.guide.wht"
+title = "Cowork 版 CC 预扣税引导真页面：菜单 → 本月 → 复核卡 → 确定 → 结果卡已就绪带工作簿；草稿删了取卡时结果未完成"
+module = "scripts/flows/cowork_cc_guide_wht.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/wht.py",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  "frontend/assistant/src/lib/guide-run.ts",
+]

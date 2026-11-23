@@ -354,6 +354,10 @@ export const GuideUploadsLine: FC<{ uploads: GuideUploads }> = ({ uploads }) => 
 
 // ── 结果 ──────────────────────────────────────────────────────────────────────────────────────────────
 
+/** 结果上服务端给的码 → 月结台账的已有词条（带条数的加「n 项」），不另起文案。 */
+const markWord = (mark: { code: string; count?: number }) =>
+  [co.ledger.code[mark.code] ?? "", mark.count ? co.ledger.issues(mark.count) : ""].filter(Boolean).join(" · ");
+
 const STATUS_WORD: Record<string, () => string> = {
   entered: () => op.doc.saved, queued: () => op.doc.entering, confirmed: () => op.doc.entering, held: () => op.doc.skipped,
   failed: () => op.doc.notDone, withdrawn: () => op.doc.skipped,
@@ -365,7 +369,8 @@ const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
       <div key={row.doc_id} className="cc-op-line" data-doc={row.doc_id} data-status={row.status}>
         <span className="min-w-0 flex-1 wrap-break-word">
           {row.doc_no || row.doc_id}
-          {row.reason_text ? <span className="block text-(--cc-ink-3)">{row.reason_text}</span> : null}
+          {row.reason_text || row.reason_code
+            ? <span className="block text-(--cc-ink-3)">{row.reason_text || markWord({ code: row.reason_code ?? "" })}</span> : null}
         </span>
         {row.status === "queued" ? <Spinner /> : null}
         <span>{STATUS_WORD[row.status]?.() ?? ""}</span>
@@ -404,6 +409,9 @@ export const GuideResultCard: FC<Props & { head?: ReactNode }> = (props) => {
           <span className="min-w-0 flex-1 wrap-break-word">
             {STATUS_WORD[form.status]?.() ?? ""}
             {form.reason_text ? <span className="block text-(--cc-ink-3)">{form.reason_text}</span> : null}
+            {(form.marks ?? []).map((mark) => (
+              <span key={mark.code} className="block text-(--cc-ink-3)" data-mark={mark.code}>{markWord(mark)}</span>
+            ))}
           </span>
           {form.wait ? <Spinner /> : null}
           <span className="tabular-nums">{[form.docnum, form.total].filter(Boolean).join(" · ")}</span>

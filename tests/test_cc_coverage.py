@@ -239,7 +239,7 @@ class RepositoryTests(unittest.TestCase):
 
     def test_the_state_is_reported_as_it_is(self):
         found = gate.counts(self.rows, self.evidence)
-        self.assertEqual(found["done"], 9)
+        self.assertEqual(found["done"], 12)
         by_id = {r["id"]: r for r in self.rows}
         self.assertEqual(by_id["collection"]["erp_direct"][0], "done")
         # 11-23 真页面流程：Cowork 直写采购、ERP 代录采购 / 销售（本地 Express）
@@ -251,6 +251,9 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual([by_id["purchase"]["erp_direct"][0], by_id["sales"]["erp_direct"][0]], ["done", "done"])
         # 11-23 documents 源出题进对话口径之后：Cowork 直写销售（本地 Express）
         self.assertEqual(by_id["sales"]["cowork_direct"][0], "done")
+        # 11-23 补了结果步骤之后的真页面流程：Cowork 增值税、POS 日汇总（本地 Express）、预扣税
+        self.assertEqual([by_id["vat"]["cowork_direct"][0], by_id["pos_day"]["cowork_direct"][0], by_id["wht"]["cowork_direct"][0]],
+                         ["done", "done", "done"])
         self.assertEqual(found["device"] + found["model"] + found["server"], found["done"] + found["half"])
         self.assertEqual(found["none"], found["todo"] + found["no"])
         states = ("done", "half", "todo", "no", *(f"wait:{line}" for line in gate.WAITS))

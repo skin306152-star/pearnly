@@ -51,6 +51,8 @@ export type GuideReview = {
 export type GuideResultFile = { file: string; name: string };
 export type GuideResult = {
   status: string; docnum?: string; reason_text?: string; total?: string; customer?: string; wait?: boolean;
+  /** 结果现算的标记（申报草稿：tax_issue 带条数、tax_draft_stale）：码，页面按月结台账的已有词条显示 */
+  marks?: { code: string; count?: number }[];
   /** N2：结果带的文件（对话文件 id + 文件名） */
   files?: GuideResultFile[];
   /** N1b：确定之后冒出来的追问 */
@@ -76,6 +78,7 @@ export type GuideUploads = { files: { batch: string; state: "reading" | "done" |
 export type GuideDocResult = {
   status: string; wait?: boolean;
   rows: { doc_id: string; status: "entered" | "queued" | "held" | "failed" | string; docnum?: string; reason?: string; reason_text?: string;
+    /** 没有原因句时的码（如 POS 日汇总票还没推过：not_pushed），按月结台账的已有词条显示 */ reason_code?: string;
     /** 待定：结果行要带单据自己的号（票面 doc_no），没带时显示 doc_id */ doc_no?: string }[];
 };
 export const isDocReview = (review: unknown): review is GuideDocReview => !!review && Array.isArray((review as GuideDocReview).rows);

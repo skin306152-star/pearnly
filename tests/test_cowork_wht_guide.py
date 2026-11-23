@@ -56,13 +56,19 @@ R._module("pearnly_cowork.tax")
 R._module("pearnly_cowork.tax.access", allowed=lambda user=None: STATE.get("tax", True))
 R._module("pearnly_cowork.tax.wht", INCOME_CODES=CODES, FORMS=("pnd53", "pnd3"),
           tax_id=lambda value: "".join(ch for ch in str(value or "") if ch.isdigit()))
-R._module("pearnly_cowork.tax.service", wht_draft=_wht_draft, answer=_answer,
+R._module("pearnly_cowork.tax.service", wht_draft=_wht_draft, answer=_answer, DOCTYPE="Cowork Tax Draft",
           workbook=lambda summary, lang=None: ("PND-2026-10.xlsx", b"PK"))
 R._module("pearnly_core.assistant.projects", of_session=lambda session: ("CO-1", "2026-10", "00000"))
 R._module("pearnly_cowork.access.scope", require=lambda capability: None, default_workspace=lambda: "WS1",
           require_read=lambda: None if STATE.get("read", True) else (_ for _ in ()).throw(PermissionError("x")))
-R.frappe.db.get_value = lambda doctype, name, fields, as_dict=False: (
-    {"tax_id": STATE["company_tax"], "title": "T9 Sincer"} if as_dict else STATE["company_tax"])
+def _get_value(doctype, name, fields, as_dict=False):
+    if doctype == "Cowork Tax Draft":   # 结果现算（`wht.result`）读的草稿记录
+        row = (STATE.get("draft_rows") or {}).get(name)
+        return R.types.SimpleNamespace(**row) if row else None
+    return {"tax_id": STATE["company_tax"], "title": "T9 Sincer"} if as_dict else STATE["company_tax"]
+
+
+R.frappe.db.get_value = _get_value
 
 from pearnly_cowork.assistant.guided import wht  # noqa: E402
 
@@ -75,7 +81,9 @@ def _codes(found):
 class Base(R.Base):
     def setUp(self):
         super().setUp()
-        STATE.update(drafts=[], answered=[], remembered=set(), company_tax="0105556000009", tax=True, read=True, included=False)
+        STATE.update(drafts=[], answered=[], remembered=set(), company_tax="0105556000009", tax=True, read=True, included=False,
+                     draft_rows={"WHT-1": {"name": "WHT-1", "connection": "", "account_set": "", "period": "2026-10", "source_ref": "",
+                                           "tax_total": "590.00"}})
         R.CACHE.clear()
         R.HOOKS["pearnly_guides"] = ["pearnly_cowork.assistant.guided.wht.GUIDES"]
 
@@ -178,6 +186,14 @@ class Review(Base):
         self.assertEqual(result["files"], [{"file": "F1", "name": "PND-2026-10.xlsx"}])
         run.confirm(name, found["version"])
         self.assertEqual(STATE["added"], ["PND-2026-10.xlsx"])
+
+    def test_the_result_is_worked_out_now_from_the_draft(self):
+        rows = STATE["draft_rows"]
+        name, found = self.reviewed()
+        result = run.confirm(name, found["version"])["result"]
+        self.assertEqual((result["status"], result["total"], result["files"]), ("ready", "590.00", [{"file": "F1", "name": "PND-2026-10.xlsx"}]))
+        rows.clear()  # 草稿删了：未完成，不再给工作簿
+        self.assertEqual((run.view(self.docs[name])["result"]["status"], run.view(self.docs[name])["result"]["files"]), ("failed", []))
 
 
 if __name__ == "__main__":
