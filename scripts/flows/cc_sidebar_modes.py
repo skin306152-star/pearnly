@@ -61,11 +61,14 @@ frappe.set_user({user!r})
 {seed}
 # 没录成的那张用产品里真有的单据（卡片点开要按它预检）：ERP 取这家一张已提交的采购单（只读），Cowork 用造数据建一张识别单
 if {product!r} == "erp":
-    from pearnly_erp_portal.express import push
+    from pearnly_erp_portal.express import operator, push
     company = {erp_company!r}
     title = frappe.db.get_value("ERP Company", company, "company_name") or company
-    doc_id = (frappe.get_all(push.PURCHASE, filters={{"company": company, "status": "submitted"}}, pluck="name",
-                             order_by="name asc", limit_page_length=1) or [{tag!r} + "-doc"])[0]
+    name = (frappe.get_all(push.PURCHASE, filters={{"company": company, "status": "submitted"}}, pluck="name",
+                          order_by="name asc", limit_page_length=1) or [{tag!r} + "-doc"])[0]
+    # 代录任务里的单据编号带种类前缀（``P:<名>``，同 ``operator.sources``）：裸名字预检当成本产品不认的编号、记错误日志
+    # （11-23 流程每格记服务端错误日志后看到的「Write precheck: unknown document kind」）
+    doc_id = {{doctype: key for key, (doctype, _capability) in operator.KINDS.items()}}[push.PURCHASE] + ":" + name
 else:
     company, title = seeded["id"], seeded["title"]
     doc_id = recognized({tag!r} + "-REF")

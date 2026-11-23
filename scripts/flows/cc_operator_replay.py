@@ -81,9 +81,13 @@ doc.title = {tag!r} + " 回放"
 doc.status = "attention"
 doc.started_at = now - timedelta(minutes=10)
 doc.finished_at = now - timedelta(minutes=2)
-doc.append("documents", {{"doc_id": docs[0].name, "ref": docs[0].system_no or docs[0].name, "party": "Flow party", "doc_group": "purchase",
+# 代录任务里的单据编号带种类前缀（``P:<名>``，同 ``operator.sources``）：裸名字预检当成本产品不认的编号、记错误日志
+# （11-23 流程每格记服务端错误日志后看到的「Write precheck: unknown document kind」）
+from pearnly_erp_portal.express import operator
+kind = {{doctype: key for key, (doctype, _capability) in operator.KINDS.items()}}[push.PURCHASE] + ":"
+doc.append("documents", {{"doc_id": kind + docs[0].name, "ref": docs[0].system_no or docs[0].name, "party": "Flow party", "doc_group": "purchase",
                           "state": "saved", "docnum": "EXP-" + {tag!r}, "queued_at": now - timedelta(minutes=9), "done_at": now - timedelta(minutes=6)}})
-doc.append("documents", {{"doc_id": docs[1].name, "ref": docs[1].system_no or docs[1].name, "party": "Flow party", "doc_group": "purchase",
+doc.append("documents", {{"doc_id": kind + docs[1].name, "ref": docs[1].system_no or docs[1].name, "party": "Flow party", "doc_group": "purchase",
                           "state": "not_done", "reason": "[OPERATOR_COMPANY_PICK] flow", "queued_at": now - timedelta(minutes=9),
                           "done_at": now - timedelta(minutes=3)}})
 doc.flags.ignore_permissions = True
