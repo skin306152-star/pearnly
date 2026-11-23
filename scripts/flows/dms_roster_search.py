@@ -17,7 +17,7 @@ JS = r"""
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const until=async(f,ms=20000)=>{const end=Date.now()+ms;while(Date.now()<end){const v=f();if(v)return v;await sleep(200);}return null;};
 const box=()=>document.querySelector('.page-form [data-fieldname="search"] input');
-const names=()=>[...new Set([...document.querySelectorAll('.list-row-container .list-subject')].map(e=>e.innerText.trim()).filter(Boolean))];
+const names=()=>[...new Set([...document.querySelectorAll('.list-row-container .list-subject')].filter(e=>!e.closest('.list-row-head')).map(e=>e.innerText.trim()).filter(Boolean))];
 const count=()=>((document.querySelector('.list-count')||{}).innerText||'').trim();
 const search=async(text,expect)=>{const i=await until(box);i.focus();i.value=text;
   i.dispatchEvent(new Event('input',{bubbles:true}));i.dispatchEvent(new Event('change',{bubbles:true}));
