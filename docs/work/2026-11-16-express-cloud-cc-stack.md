@@ -14,3 +14,15 @@
 - 本分支首次扫描命中 186 处（测试夹具与注释里的云端主机、账号、域、主机名、端口），已全部换成占位（`198.51.100.7`、`CLOUDUSER-01`、`example`、`CLOUD-HOST` 等）；测试里故意写的假密码 / 假令牌逐行标注 `scan: fake`；测试里的办公室服务器名换成通用名。
 - 复扫结果：**拦截 0 · 提示 0**；提交说明命中 0。
 - 已推送过的旧分支处理见主会话记录（三条远端分支已删、运行记录已删、清除请求草稿在本机）。
+
+## 11-23 变基到 main（`pearnly/express-cloud-cc-rebased`）
+- 基线 origin/main `b77bbb488`（含 CC 桌面版 1.12.23）；29 个提交逐个变基，原分支 `pearnly/express-cloud-cc`（`ccf540cc6`）保留。
+- 冲突 6 个文件，以 main 已定口径为准、本分支只补自己的新增：
+  - `tests/test_companion_contract.py`：main 新增的 `LedgerChanges`、`BookQuestions` 与本分支的 `OneNetworkExit` 三类都保留（各测各的）。
+  - `companion/src/companion/tomo_bridge.py`：构造参数保留 main 的 `on_attention`（1.12.23 ⑨），后面接本分支的 `cloud_links` / `cloud_new` / `session_rdp` / `cloud_session` / `ask_login`。
+  - `companion/src/companion/express_operator/session.py`：保留 main 的 `uid`，加本分支的 `ensure_login`。
+  - `scripts/impact/shared-parts.toml`（4 次）：取 main 一行，再补本提交相对它自己父提交新增 / 改动的项；每次核对「解后相对 main 的变化」与「原提交相对父提交的变化」逐共用件逐字段相同。
+  - `tests/flows/not_flows.toml`、`tests/test_cc_idle_motion.py`：两边各加的条目都保留。
+- 逐提交公开扫描：变基后中间 17 个提交里有 10 个仍带云端主机、账号等原值（后面两个提交才换成占位 / 标 `scan: fake`；原分支同样如此）。按那两个提交的逐行替换，把占位提前到引入那一行的提交里（只换命中扫描规则的行），最终树与改写前逐字节相同。改写后 29 个提交逐个「拦截 0 · 提示 0」，提交说明命中 0。
+- 本机检查（HEAD 树）：全闸门 GATE EXIT 0；生产镜像候选离线 113 组 LANE EXIT 0；companion 全套 2409 通过、63 跳过（Mac，Windows 专属用例跳过）；契约 + 云端设置行 + 空闲动效 170 通过；`check-impact` 登记表完整，离线入口 `cc.operator.page`、`cc.desktop.operator`、`cc.desktop.operator.mrerp` 的离线用例通过，其余入口仍是「没测到（需 Windows / 用户到场）」。
+- 不合入 main：本分支改 `companion-release.yml`（云端精简包与 `latest.json` 的 `cloud` 项），排在 CC 桌面版 1.12.24 发出之后，由主会话定时机；合入后第一次发版要回读 `cloud` 项与公网 sha256。
