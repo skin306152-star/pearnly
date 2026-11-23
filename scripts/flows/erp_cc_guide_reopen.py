@@ -58,7 +58,7 @@ def steps(params, camera_code=None):
          "return {row: !!row, chosen};}"},
         {"name": "开对话", "js": JS + f"{{const sent=await say({json.dumps(tag + ' 你好')}); await sleep(1500); return {{sent}};}}"},
         {"name": "开收款卡到复核", "js": JS + "{" + HELP +
-         f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); const sid=(mine[0]||{{}}).id; "
+         f"const mine=(await ownChats({json.dumps(tag)},'chat')); const sid=(mine[0]||{{}}).id; "
          "const v=await api('guide_start',{session_id:sid,business:'collection'},true); window.__gr_run=v.run; "
          "await ready(v.run,'customer'); " + walk[len(HELP):] +
          "return {run: v.run, status: done.status, version: done.version};}"},
@@ -75,7 +75,7 @@ def steps(params, camera_code=None):
          "const q=((back.card||{}).questions||[]).find(x=>x.key==='customer')||{}; " + walk[len(HELP) + len("const run=window.__gr_run; "):] +
          "return {back: back.status, from: before.version, to: back.version, value: q.value||null, status: done.status};}"},
         {"name": "删除会话", "js": JS + "{" + HELP + "const run=window.__gr_run; if(run) await api('guide_cancel',{run_name:run},true); "
-         f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); "
+         f"const mine=(await ownChats({json.dumps(tag)},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};}"},
     ]
 

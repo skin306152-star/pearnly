@@ -123,7 +123,7 @@ def steps(params, camera_code=None):
             {"name": f"拒绝删单据 {lang}", "js": head + f"return await answer(false, {DELETE!r});"},
         ]
     out.append({"name": "语言还原", "wait_ms": 6000, "js": head + f"return await setLang({USER!r}, 'zh');"})
-    out.append({"name": "删除会话", "js": head + f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(params['tag'])})); "
+    out.append({"name": "删除会话", "js": head + f"const mine=(await ownChats({json.dumps(params['tag'])},'chat')); "
                 "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};"})
     return out
 

@@ -131,7 +131,7 @@ def steps(params, camera_code=None):
          f"const replied=await until(()=>has(state().replies,{reply(words['offline'])}),240); "
          "return {removed, clicked, bubble, replied, after: state()};"},
         {"name": "删除会话", "js": JS +
-         f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(params['tag'])})); "
+         f"const mine=(await ownChats({json.dumps(params['tag'])},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); "
          "return {ids: mine.map(s=>s.id), left: (await listed('chat')).filter(s=>!(s.title||'').trim()).length};"},
     ]

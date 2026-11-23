@@ -45,7 +45,7 @@ def steps(params, camera_code=None):
         {"name": "撤回：再来一次并允许", "shot": True, "file": "2-withdraw-allowed", "js": JS + read +
          f"const opened=await ask({json.dumps(params['withdraw'])}, {WITHDRAW!r}); const r=await answer(true, {WITHDRAW!r}); "
          "await sleep(600); return {card: opened, result: r, status: await state()};"},
-        {"name": "删除会话", "js": JS + f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(params['tag'])})); "
+        {"name": "删除会话", "js": JS + f"const mine=(await ownChats({json.dumps(params['tag'])},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};"},
     ]
 

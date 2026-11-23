@@ -65,8 +65,8 @@ def steps(params, camera_code=None):
          "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),80); "
          f"const gone=await until(()=>!q({json.dumps(CHIP)}),60); await sleep(1500); "
          f"return {{plan, sent, replied: !!bubble, status, gone, still: !!q({json.dumps(CHIP)})}};"},
-        {"name": "删除会话", "js": JS + "const mine=(await listed('chat')).filter(s=>(s.title||'').includes("
-         + json.dumps(params["tag"]) + ")); for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); "
+        {"name": "删除会话", "js": JS + "const mine=(await ownChats("
+         + json.dumps(params["tag"]) + ",'chat')); for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); "
          # 诊断（不改判据）：按标题没找到时记下地址里的对话与侧栏前几段的编号、标题（11-19 cowork [new / mobile] 首轮 ids 空查原因）
          "const here=new URLSearchParams(location.search).get('c')||''; "
          "const top=mine.length?[]:(await listed('chat')).slice(0,5).map(s=>({id:s.id, title:s.title})); "

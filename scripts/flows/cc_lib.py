@@ -11,6 +11,7 @@
   pickCompany(title)                新建页下巴点「公司」，在选择公司弹窗里选这家（名称完全相同；月份随之默认当月）
   call(m, args, post)               调站点接口（完整点分名），回 message；最多等 60 秒，超时抛「request <接口> timed out」
   listed(m)                         侧栏同一个接口 `assistant.api.listing` 按模式列的会话（第一页）
+  ownChats(tag, m)                  这一格建的会话（标题含 tag，等异步生成的标题出现，最多 30 秒）；删会话一律用它
   openSteps(slot)                   展开对话里收起的步骤组，直到出现 data-slot = slot 的那一步
   rows()                            侧栏对话行（标题文字）
   turnDone(n)                       等这一轮结束再读回复：停止键消失、连续 1 秒没再出现（最多 n×250 毫秒，默认 60 秒），回 true / false。
@@ -63,6 +64,8 @@ JS = (
     "body:post?body:undefined, signal:stop.signal}); return (await r.json()).message; }"
     "catch(e){ if(e&&e.name==='AbortError') throw new Error('request '+m+' timed out after 60s'); throw e; } finally{ clearTimeout(timer); }};"
     "const listed=async m=>((await call('pearnly_core.assistant.api.listing',{mode:m}))||{}).sessions||[];"
+    # 这一格建的会话（标题含本格的 tag）：标题是首句异步生成的，等到出现为止（最多 30 秒）；手机格走得快时只看一次会落空（11-23 Flows 偶发 ids=[]）
+    "const ownChats=async(tag,m)=>{for(let i=0;i<120;i++){const found=(await listed(m||'chat')).filter(s=>(s.title||'').includes(tag)); if(found.length) return found; await sleep(250);} return [];};"
     "const openSteps=async slot=>{for(let k=0;k<20&&!q(`[data-slot=\"${slot}\"]`);k++){"
     "const b=qa('.cc-steps-summary[aria-expanded=\"false\"]')[0]; if(!b) {await sleep(250); continue;} b.click(); await sleep(150);} "
     "return !!q(`[data-slot=\"${slot}\"]`);};"

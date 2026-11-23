@@ -76,7 +76,7 @@ def steps(params, camera_code=None):
          "await sleep(600); card().querySelector('[data-slot=\"cc-askq-option\"]')?.click(); await sleep(300); "
          "card().querySelector('[data-slot=\"cc-askq-next\"]')?.click(); return await measure(2);"},
         {"name": "删除会话", "js": JS +
-         f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({tag})); "
+         f"const mine=(await ownChats({tag},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};"},
     ]
 

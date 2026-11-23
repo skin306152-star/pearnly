@@ -57,7 +57,7 @@ def steps(params, camera_code=None):
          "const first=(card.questions||[])[0]||{}; "
          "return {status: v?.status||'', first: first.key||'', query: first.query||'', "
          "options: (first.options||[]).map(o=>o.code), answers: card.answers||{}};}"},
-        {"name": "删除会话", "js": JS + "{" + f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(tag)})); "
+        {"name": "删除会话", "js": JS + "{" + f"const mine=(await ownChats({json.dumps(tag)},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};}"},
     ]
 

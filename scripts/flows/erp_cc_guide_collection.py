@@ -90,7 +90,7 @@ def _steps(params):
          "await until(()=>card()?.querySelector('[data-slot=\"cc-guide-result\"]'), 60); "
          "const res=card()?.querySelector('[data-slot=\"cc-guide-result\"]'); return {clicked: !!b, status: card()?.dataset.status||'', "
          "result: res?.dataset.result||'', text: res?.innerText||''};"},
-        {"name": "删除会话", "js": JS + f"const mine=(await listed('chat')).filter(s=>(s.title||'').includes({json.dumps(params['tag'])})); "
+        {"name": "删除会话", "js": JS + f"const mine=(await ownChats({json.dumps(params['tag'])},'chat')); "
          "for(const s of mine) await call('pearnly_core.assistant.api.delete',{session_id:s.id},true); return {ids: mine.map(s=>s.id)};"},
     ]
 
