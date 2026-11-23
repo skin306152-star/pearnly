@@ -2537,6 +2537,23 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.writer-at-claim"
+title = "Cowork 领单时判写账人（11-17 定稿，同 ERP）：两台电脑同时抢同一张只领到一次、只开一次写入；本人与同事同时来领时本人的领到"
+module = "scripts/flows/cowork_writer_at_claim.py"
+product = "cowork"
+start = "/desk"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/companion/transport.py",
+  "apps/pearnly_cowork/pearnly_cowork/companion/queue_api.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/native/service.py",
+  "apps/pearnly_core/pearnly_core/transaction/conflicts.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/wire/route_contracts.py",
+]
+
+[[flow]]
 id = "erp.cc.guide.reopen"
 title = "ERP 版 CC 收款引导卡复核后点「改」回去重问两次：每次回到那一步、原值在题上，库里这位客户的收款草稿始终只有一笔，旧的都作废（A2 11-19）"
 module = "scripts/flows/erp_cc_guide_reopen.py"
