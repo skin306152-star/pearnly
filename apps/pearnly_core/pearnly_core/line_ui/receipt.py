@@ -6,7 +6,7 @@
 
 一个动作一个键（产品自己起，如 ``erp:doc:<单据>``）：
 
-- :func:`start`（webhook 里、交单之后）：发 loading（`line.start_loading`，秒数取不小于等待时长的 5 的倍数、最多 60），在不淘汰的
+- :func:`start`（webhook 里、交单之后）：发 loading（`line.start_loading`，开满 LINE 允许的 60 秒），在不淘汰的
   Redis（`execution.state`，键按站点加前缀）记「待回」（带回复令牌，约 70 秒过期），再起一个 :data:`Timer` 计时线程；到点原子取走
   「待回」（GETDEL），取到才用这张令牌回兜底消息（「录入中」+【查看结果】之类）。兜底消息在 start 时、请求上下文里翻译好建好，
   计时线程里不碰站点上下文与数据库。
@@ -16,8 +16,8 @@
   的函数路径与参数）与 ``topics``，落库处调 :func:`wake`（按键）或 :func:`wake_topic`（按主题，如共用机器通道的请求号）；有人在等
   就排一个短任务 :func:`resume`：按发起人的身份与语言调产品的函数，回了消息就 :func:`settle`，回 None（还没好）就继续等。
 
-为什么不用 ``frappe.enqueue`` 排一个睡 20 秒的任务、或排一个延时任务：锁定版 Frappe 的 worker 关了 RQ 的定时投递
-（``background_jobs.py`` 的 ``with_scheduler=False``），调度器最快按分钟轮询，做不了 20 秒的兜底；睡等又要占一个 short 进程
+为什么不用 ``frappe.enqueue`` 排一个睡等的任务、或排一个延时任务：锁定版 Frappe 的 worker 关了 RQ 的定时投递
+（``background_jobs.py`` 的 ``with_scheduler=False``），调度器最快按分钟轮询，做不了秒级的兜底；睡等又要占一个 short 进程
 （原来收款放行就是这样占着等）。计时线程只占一个线程栈，不占请求槽与队列；网页进程在等待期间重启，计时线程丢失 → 这一单不回兜底，
 结果仍在落库时回（令牌还有效时），否则人在网页 / 下次操作看到状态（评估第 8 栏，记录、不另补）。
 
@@ -33,7 +33,10 @@ import frappe
 
 logger = logging.getLogger(__name__)
 
-WAIT_SECONDS = 20  # 等结果的时长：先 20 秒（同收款卡原来的等待），真机实测令牌有效时长后再定，不超过 55 秒
+# 原生动画到头前才兜底（用户 11-23：「到达官方原生动画还未结果才触发我们的兜底」）。LINE 不通知动画结束，计时仍由这里做：
+# loading 开满 60 秒，兜底在第 55 秒发——11-23 三星真机同一回复令牌 55 秒仍送达，是实测最晚点
+WAIT_SECONDS = 55
+LOADING_SECONDS = 60  # LINE loading 的上限（5–60、步长 5）
 LIFE_SECONDS = 70  # 「待回」在 Redis 里留多久：比令牌有效期略长，过了就当没在等
 _KEY = "pearnly:line:receipt:"
 _TOPIC = "pearnly:line:receipt-topic:"
@@ -62,12 +65,6 @@ def _decode(raw):
         return None
 
 
-def loading_seconds(wait) -> int:
-    """loading 的秒数：不小于等待时长的 5 的倍数，5–60（LINE 只认这些值）。"""
-    seconds = max(5, int(wait or 0))
-    return min(60, -(-seconds // 5) * 5)
-
-
 def start(key, line_user_id, reply_token, fallback_messages, wait=None, *, resume="", args=None,
           topics=(), user=None) -> bool:
     """开始等这个动作的结果（见模块说明）。没有令牌或没有键回 False，什么都不做（调用方照旧当场回）。
@@ -79,7 +76,7 @@ def start(key, line_user_id, reply_token, fallback_messages, wait=None, *, resum
     wait = int(wait or WAIT_SECONDS)
     line = _line()
     try:
-        line.start_loading(line_user_id, loading_seconds(wait))
+        line.start_loading(line_user_id, LOADING_SECONDS)
     except Exception:  # noqa: BLE001 —— 三个点出不来只是少了等待的样子，不挡后面
         logger.warning("[line receipt] loading unavailable", exc_info=True)
     try:
@@ -212,5 +209,5 @@ def after_commit(function) -> None:
         function()
 
 
-__all__ = ["LIFE_SECONDS", "Timer", "WAIT_SECONDS", "after_commit", "loading_seconds", "pending", "resume", "settle",
+__all__ = ["LIFE_SECONDS", "Timer", "WAIT_SECONDS", "LOADING_SECONDS", "after_commit", "pending", "resume", "settle",
            "start", "wake", "wake_topic"]

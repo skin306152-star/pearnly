@@ -2,7 +2,7 @@
 
 断言的是应有状态：结果先到 → 计时线程到点不回；计时先到 → 结果回不了（settle 回 False）；同一动作只回一次、令牌只用一次；
 又点了一次（同一个键新一轮）旧计时器不抢新一轮的；叫醒只在有人在等、登记了接着回的函数时排任务；接着回的函数回 None 就继续等；
-loading 秒数取 5 的倍数、不超过 60；记不下「待回」当场回兜底。计时器换成不睡的假计时器，不真等 20 秒。
+loading 开满 60 秒、兜底在第 55 秒（原生动画到头前，用户 11-23）；记不下「待回」当场回兜底。计时器换成不睡的假计时器，不真等。
 
 守门（:class:`ProcessWordsGuard`）：ERP / Cowork 的 LINE 处理器拿到结果之前不回过程文字（录入中、正在读取…）——这些词条只许出现在
 交给 ``line_receipt.start`` 的兜底消息里（登记的兜底函数与它们的调用方），或【查看结果】答此刻状态的地方。状态词表：网页
@@ -151,7 +151,7 @@ class LineReceiptTest(unittest.TestCase):
 
     def test_the_result_first_means_the_timer_sends_nothing(self):
         self.assertTrue(line_receipt.start("erp:col:RC-1", "U1", "tok-1", FALLBACK))
-        self.assertEqual(LINE.loading, [("U1", 20)])
+        self.assertEqual(LINE.loading, [("U1", 60)])
         self.assertTrue(self.timers.made[0].daemon and self.timers.made[0].started)
         self.assertEqual(self.timers.made[0].seconds, line_receipt.WAIT_SECONDS)
         self.assertTrue(line_receipt.pending("erp:col:RC-1"))
@@ -187,8 +187,11 @@ class LineReceiptTest(unittest.TestCase):
         self.assertFalse(line_receipt.start("", "U1", "tok", FALLBACK))
         self.assertEqual((LINE.loading, self.timers.made), ([], []))
 
-    def test_loading_seconds_are_steps_of_five_up_to_sixty(self):
-        self.assertEqual([line_receipt.loading_seconds(value) for value in (0, 3, 20, 21, 55, 90)], [5, 5, 20, 25, 55, 60])
+    def test_loading_runs_the_full_sixty_seconds_and_the_fallback_comes_before_it_ends(self):
+        # 用户 11-23：原生动画到头前还没结果才兜底；令牌实测 55 秒仍送达，「待回」要活过兜底那一刻
+        self.assertEqual((line_receipt.LOADING_SECONDS, line_receipt.WAIT_SECONDS), (60, 55))
+        self.assertLess(line_receipt.WAIT_SECONDS, line_receipt.LOADING_SECONDS)
+        self.assertGreater(line_receipt.LIFE_SECONDS, line_receipt.WAIT_SECONDS)
 
     def test_when_the_wait_cannot_be_noted_the_fallback_is_sent_at_once(self):
         REDIS.broken = True
