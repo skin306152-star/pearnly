@@ -178,7 +178,8 @@ class MacLab:
         self.runner = runner
 
     def container(self, product: str) -> str:
-        return f"pearnly-maclab-{product}-{product}-web-1"
+        # 另起的一套（MACLAB_STACK，见 scripts/maclab.sh）项目名前缀不同；默认 pearnly-maclab
+        return f"{os.environ.get('MACLAB_STACK') or 'pearnly-maclab'}-{product}-{product}-web-1"
 
     def run(self, product: str, script: Path, *args: str, timeout=600) -> str:
         name, container = f"acc-{script.name}", self.container(product)

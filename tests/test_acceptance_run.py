@@ -269,6 +269,16 @@ class CoreLanesTest(unittest.TestCase):
         self.assertEqual(runner.resources_of(self.EXPRESS, "maclab", "testpc2"),
                          ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2", "lab:erp"])
 
+    def test_another_mac_stack_takes_its_own_lab_lock(self):
+        os.environ["MACLAB_STACK"] = "acc-core"
+        try:
+            self.assertEqual(runner.resources_of(self.EXPRESS, "maclab", "testpc1"),
+                             ["testpc1", "testpc1-desktop", "ledger:69EXP/TEST2", "lab:erp"])  # 不是登记前缀的照旧
+            self.assertEqual(runner.resources_of({"id": "x", "resources": [], "site_resources": {"maclab": ["lab:pearnly-maclab-erp"]}},
+                                                 "maclab", "testpc2"), ["lab:acc-core-erp"])
+        finally:
+            os.environ.pop("MACLAB_STACK", None)
+
     def test_lanes_join_on_any_shared_resource(self):
         groups = runner.lanes([self.MRERP, self.EXPRESS2, self.EXPRESS], "maclab", "testpc1")
         self.assertEqual([[item["id"] for item in group] for group in groups], [["acc.a", "acc.b"], ["acc.m"]])

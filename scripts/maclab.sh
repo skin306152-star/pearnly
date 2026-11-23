@@ -15,7 +15,10 @@
 #   scripts/maclab.sh reset <erp|cowork> --yes 删本栈的全部卷（站点、库、队列）；要显式 --yes
 #   scripts/maclab.sh logs <erp|cowork> [服务…] / ps <erp|cowork>
 #
-# 边界：只碰项目名 pearnly-maclab-<产品> 的容器、卷、网络；不用全局清理命令；不连远程机器；口令只在本机
+# 另起一套（别的窗口占着默认那套时）：MACLAB_STACK=<名> 换项目名前缀（默认 pearnly-maclab），同时给 MACLAB_ERP_PORT /
+# MACLAB_COWORK_PORT、MACLAB_CONFIG_DIR、MACLAB_STATE_DIR 各一份自己的，几套互不相碰；验收运行器与 MacLab 站点通道读同一个 MACLAB_STACK。
+#
+# 边界：只碰项目名 <MACLAB_STACK>-<产品>（默认 pearnly-maclab-<产品>）的容器、卷、网络；不用全局清理命令；不连远程机器；口令只在本机
 # ~/.config/pearnly-maclab/<产品>.env（600）。
 set -euo pipefail
 
@@ -34,7 +37,7 @@ die() { echo "maclab: $*" >&2; exit 2; }
 
 resolve_app() {
   case "${1:-}" in erp|cowork) app=$1 ;; *) die "要指定 erp 或 cowork" ;; esac
-  project=pearnly-maclab-$app
+  project=${MACLAB_STACK:-pearnly-maclab}-$app
   case "$app" in
     erp) port=${MACLAB_ERP_PORT:-18991}; frappe_app=pearnly_erp_portal; user=${MACLAB_ERP_USER:-acc.erp@maclab.test} ;;
     cowork) port=${MACLAB_COWORK_PORT:-18992}; frappe_app=pearnly_cowork; user=${MACLAB_COWORK_USER:-acc.cowork@maclab.test} ;;

@@ -180,6 +180,7 @@ def unstable(scenario_id: str, home: Path) -> bool:
     return sum(1 for line in recent if line.get("retried")) >= 2
 
 
+REGISTERED_STACK = "pearnly-maclab"  # 登记里 site_resources.maclab 写的 Mac 栈前缀；另起一套时由 MACLAB_STACK 换
 REGISTERED_PC = "testpc2"  # 登记里写的「跑 CC 桌面版、读验收账套的那台」；实际用哪台由 PEARNLY_ACC_LEDGER_HOST 定（场景模块同一个变量）
 
 
@@ -192,6 +193,9 @@ def resources_of(scenario: dict, target: str | None = None, pc: str | None = Non
     names = list(scenario.get("resources", [])) + list((scenario.get("site_resources") or {}).get(target, []))
     if pc != REGISTERED_PC:
         names = [pc + name[len(REGISTERED_PC):] if name == REGISTERED_PC or name.startswith(REGISTERED_PC + "-") else name for name in names]
+    stack = os.environ.get("MACLAB_STACK") or REGISTERED_STACK
+    if stack != REGISTERED_STACK:  # 另起的 Mac 栈（scripts/maclab.sh 的 MACLAB_STACK）：占它自己的实验栈锁，不占默认那套
+        names = [f"lab:{stack}-" + name[len(f"lab:{REGISTERED_STACK}-"):] if name.startswith(f"lab:{REGISTERED_STACK}-") else name for name in names]
     return list(dict.fromkeys(names))
 
 
