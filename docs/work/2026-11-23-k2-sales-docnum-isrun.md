@@ -116,17 +116,18 @@
 
 | 层 | 内容 | 结果 |
 | --- | --- | --- |
-| 单测 | `test_dbf_writer_sales.py -k k2` 14 条 | 通过 |
-| companion 全套 | `pytest tests` | 待填 |
-| 离线回放 | C 盘 T 账套销货回归（含 NLTTEST / T9WNF 多簿、69SINCER 样式票号） | 待填 |
-| 真机 | 69EXP\TEST：Cowork / CC 写一张 SS 前缀销货 → 原生同日录 RR，不弹 Message 43 | 待填 |
+| 单测 | `test_dbf_writer_sales.py -k k2` 15 条 | 通过 |
+| companion 全套 | `pytest tests`（e4cfb20b8） | 1992 通过 / 61 跳过；闸门 286 ok、0 FAIL |
+| 离线回放 | 测试机1 C 盘 101 本 T 账套，`express-sales-docnum-regression.py`（11-23） | 首轮 92 通过 / 3 失败（T7/T8/T9WNF 一位前缀簿 S 对上 SSIVA02001）/ 6 跳过 → 改成只认两位前缀后 95 通过 / 0 失败 / 6 跳过（5 本没有客户、1 本没有 IV 簿）；45 本有多本赊销簿 |
+| 退货回归 | 同上，`express-refund-regression.py --runner` | 80 通过 / 0 失败 / 21 跳过（同 K1 基线），退货按新单号找到原单 |
+| 真机 | 69EXP\TEST（11-23）：本分支源码写赊销票号 SSIVA112301（一行库存、今天）→ 单号 IV0000033；原生同日同物料录 RR → 存成 RR0000309，无任何弹窗；IV0000033 那一行批次指针指向 RR0000309（Express 已重算同日）；之后整本还原 167 个文件 MD5 差异 0 | 通过 |
 
 影响清单（`check-impact.py --files companion/src/companion/dbf_sales.py`，共用件 cc-dbf-write）：
 
 | 入口 | 结果 |
 | --- | --- |
-| cc.desktop.write | 待填 |
-| erp.cc.write | 待填 |
-| cowork.cc.channel | 待填 |
+| cc.desktop.write | 通过（测试机1 离线回放 101 本 + 69EXP\TEST 真机一张，写入与读回一致） |
+| erp.cc.write | 通过（同一写入函数 `write_sale`；companion 全套 + 离线回放覆盖；ERP 端载荷不变） |
+| cowork.cc.channel | 没测到（Cowork 推送没有自动冒烟；载荷与回执格式不变，回执带实际写入的单号）；随 1.12.24 集成验收补一张 |
 | erp.cc.pos-day | 单号路径未改（POS 照旧）；companion 全套覆盖 |
 | cc.desktop.operator、erp.cc.stock-entry、erp.cc.stock-void、erp.cc.pos-refund、erp.cc.stock-transfer | 不走销货单号路径，没测到（不受影响）；companion 全套覆盖 |
