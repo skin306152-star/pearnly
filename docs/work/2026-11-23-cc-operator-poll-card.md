@@ -46,8 +46,31 @@ main 7d935d206 同格通过；Flows 自带的 finish 补跑 43.3 秒通过。本
 
 ## 已知问题第 92 条（jobs 3 并行时 cc.operator 偶发资料 0 张、侧栏删除找不到行）
 
-症状不同（资料 0 张是站点这家等着录的单为 0，侧栏删除找不到行），不像同源；本分支修完在实验栈按同组合多跑几轮再核，结果见下。
+症状不同（资料 0 张是站点这家等着录的单为 0，侧栏删除找不到行），不像同源。本次在实验栈 jobs 3 并行跑 cc.operator 与
+cc.chat 等共 7 轮（改前 4 轮、改后 3 轮，cc.operator 28 格），都没出现「资料 0 张」或「删除找不到行」，未复现、无法判定同源，
+第 92 条保持原结论。
 
-## 验证
+## 没做的
 
-（施工中）
+- 读的时候按第一句时刻兜底出卡（`message_at` 一直记不上时）：增量补拉拿不到第一句时刻，要再读一次引擎；重来上限内记上 +
+  partial 页带卡片已覆盖两条路，用尽的情况只留日志。卡片编号固定（`pop_<任务>_start`），同一任务只会有一张。
+- 「引擎读不到」「第一次记不上」两种情况的流程格：实验栈不能在页面拿到锚点之后、卡片出现之前定点让引擎列事件失败或让任务行
+  撞 1020，这两路由单测覆盖（改前红、改后绿）；流程格只加「只靠补拉也出卡片」。
+
+## 验证（3684e7ffa，基 main 7d935d206；本机回归实验栈挂本工作树）
+
+- 单测：`tests/test_assistant.py` 266 通过（新两条改前红、改后绿）；`tests/test_express_operator_feed.py` 23、
+  `test_cowork_assistant_tools.py` 270、`test_cowork_folder_intake.py` 128、`test_cowork_folder_task_batch.py` 33 通过。
+- 流程：cc.operator / cc.chat / cc.operator.replay 两轮 24/24；`--changed --base origin/main` 7 条 20/20（cc.chat、cc.operator、
+  cc.operator.replay、cc.operator.stop、cc.sidebar-modes、cowork.cc.sidebar-modes、erp.cc.guide.stop）。新格「只靠补拉也出卡片」
+  8/8（realtime false，卡片在回复收起后 0–1 毫秒内已在）。
+- 新诊断第一次跑就看到一条原有的服务端错误：cc.operator.replay 每格 3 条、cc.sidebar-modes 旧数据集每格 1 条
+  「Write precheck: unknown document kind」（不判、本分支不碰预检，另报主会话）。
+- 共用件影响清单（`scripts/check-impact.py`，命中 assistant 13 个入口）：
+  - 通过（流程实测）：cc.assistant（cc.chat、cc.sidebar-modes）、cc.operator.thread（cc.operator、cc.operator.replay、cc.operator.stop）、
+    cc.operator.start-card（cc.operator 开始前卡片）、shared.assistant（对话页打开、各流程页面无报错）、
+    cowork.assistant 的侧栏部分（cowork.cc.sidebar-modes）。
+  - 没测到（原因：改动只在补拉读不到引擎时与发出后记时刻两处，这些入口的工具 / 业务路径不经过，离线单测覆盖到同一函数）：
+    control.assistant、erp.cc.companies、erp.cc.chat-push、erp.cc.stocktake、cowork.cc-chat.push、cowork.cc.troubleshooting、
+    erp.cc.collection、erp.page.collections。
+- 全闸门 288 ok / RC 0（12fa910a2）；候选离线 LANE EXIT 0（3684e7ffa，之后只改测试与记录）；public-scan 见推送前。
