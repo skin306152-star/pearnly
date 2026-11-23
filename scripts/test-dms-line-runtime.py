@@ -19,7 +19,7 @@ class AttachmentProtocol(unittest.TestCase):
         from pearnly_dms.client import attachments
         form = {'stsel': 'e', 'idsel': '1', 'txtdocno': 'LOCAL', 'txtcusname': 'preserve'}
         client = Mock()
-        client._parse_form_defaults.side_effect = lambda raw: copy.deepcopy(form)
+        client._parse_booking_form.side_effect = lambda raw: copy.deepcopy(form)
         uploads = []
         def upload(*args, **kwargs):
             fields = kwargs['data']
@@ -44,11 +44,11 @@ class AttachmentProtocol(unittest.TestCase):
         client = Mock()
         before = {'stsel': 'e', 'idsel': '1', 'txtdocno': 'LOCAL', 'fulcurrname1': 'old'}
         after = {'stsel': 'e', 'idsel': '1', 'txtdocno': 'LOCAL', 'fulcurrname1': 'new'}
-        client._parse_form_defaults.side_effect = [before, after]
+        client._parse_booking_form.side_effect = [before, after]
         files = [{'display_name': 'new', 'filename': 'test.jpg', 'content_type': 'image/jpeg', 'content': b'test'}]
         self.assertFalse(attachments.attach(client, booking_id='1', files=files)['ok'])
         client.reset_mock()
-        client._parse_form_defaults.side_effect = [{**before, 'idsel': 'another'}]
+        client._parse_booking_form.side_effect = [{**before, 'idsel': 'another'}]
         self.assertFalse(attachments.attach(client, booking_id='1', files=files)['ok'])
         client.transport.post.assert_not_called()
 
