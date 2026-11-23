@@ -73,3 +73,8 @@
 - 离线自检（11-23）：10 条从没跑过的场景模块与站点脚本全部编译过；`tests/test_acceptance_*.py` 全过；`first_run.py --list`（测试机1 + Mac 栈）列出要占的资源与缺的环境变量；
   **没有连站点跑**：Mac 栈 cowork 现在没起、maclab-erp 挂的是别的窗口的实时源码，真跑前按排队起栈、`maclab.sh live` 挂被测提交。
   10 条里要真模型的 8 条（ERP CC 对话 4 条、Cowork CC 直写 2 条、代录对话 2 条）只能在真跑时验，离线做不了更多。
+- 批 2（11-23 下午，测试机排队期间离线写）：第 12 条 `acc.cowork.operator.purchase.express`（Cowork 代录 · 本地 · 采购）写好未跑：
+  站点脚本 `site/cowork_operator_post.py`（造票同 Cowork 录入那条 → 记对话账套 → Cowork 公司 → 代录任务 → `express_operator.api.start`），
+  断言代录载荷（`entry_mode=operator`）、批次 = 代录任务、票名下只一条推送、任务里已录入同一单号，账本读回与直写同一套；
+  新链 `cowork.operator-to-express`；`core = true`；离线单测（正确世界通过、三种坏法各自被拦）。
+

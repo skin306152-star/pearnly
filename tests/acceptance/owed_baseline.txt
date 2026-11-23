@@ -251,8 +251,6 @@ control.topup.reject|variant:new+old
 control.welcome.retry|misuse:M02
 control.welcome.retry|misuse:M16
 control.welcome.retry|normal
-cowork.cc.operator.submit|L3:normal
-cowork.cc.operator.submit|chain
 cowork.cc.operator.submit|misuse:M02
 cowork.cc.operator.submit|misuse:M03
 cowork.cc.operator.submit|misuse:M04

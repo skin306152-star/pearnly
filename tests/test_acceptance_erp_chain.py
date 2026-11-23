@@ -222,6 +222,20 @@ class World:
                 self.add("APTRN", DOCNUM="HP691115-010", SUPCOD="T001", NETAMT=total, VATAMT=35.0)
         return out
 
+    def cowork_operator_post(self, params):
+        """Cowork 代录（核心集第 12 条）：票交代录 → 代录载荷、批次 = 代录任务 → 录成 → 任务里已录入同一个单号。"""
+        docnum, total = "HP691123-001", float(params["amount"]) + float(params["vat"])
+        self.add("APTRN", DOCNUM=docnum, SUPCOD="T001", NETAMT=total, VATAMT=float(params["vat"]))
+        self.add("ISVAT", DOCNUM=docnum)
+        self.add("GLJNL", VOUCHER=docnum)
+        return {"ok": True, "history": "H-OP", "company": "CWC-1", "task": "OPT-1",
+                "pushes": 2 if self.break_at == "direct-too" else 1,
+                "record": {"name": "PR-OP", "status": "success", "docnum": docnum, "verify": "ok", "written": True,
+                           "operator": self.break_at != "direct-payload", "operator_batch": "OPT-1", "written_to": params["ledger"]},
+                "task_view": {"status": "done", "documents": [{"doc_id": "H-OP", "state": "failed" if self.break_at == "task-not-saved" else "saved",
+                                                                "docnum": docnum}]},
+                "expected": {"amount": params["amount"], "vat": params["vat"], "total": str(total)}}
+
     def erp_mrerp_post(self, params):
         kind, total, vat = params["kind"], 321.0, 21.0
         if params.get("need_switch") and self.break_at == "switch-in-code-off":
@@ -662,6 +676,7 @@ class ChainScenarioTest(unittest.TestCase):
         fixes = (".operator.intake.", ".operator.stock.", ".operator.masters.", ".operator.no.")
         module = "erp_operator_fixes.py" if any(part in scenario_id for part in fixes) else \
             "erp_office_actor.py" if ".office.actor." in scenario_id else \
+            "cowork_operator_express.py" if ".cowork.operator." in scenario_id else \
             "cowork_intake_express.py" if ".cowork." in scenario_id else \
             "erp_operator_talk.py" if ".operator.talk." in scenario_id else "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_cc_push.py" if ".cc.push." in scenario_id else "erp_cc_collection.py" if ".cc." in scenario_id else \
@@ -682,7 +697,7 @@ class ChainScenarioTest(unittest.TestCase):
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
                  "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
-                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1, "acc.cowork.intake.detail.amount_only": 1,
+                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1, "acc.cowork.operator.purchase.express": 1, "acc.cowork.intake.detail.amount_only": 1,
                  "acc.erp.pos.day.express": 1, "acc.erp.purchase.cancel.express": 1, "acc.erp.sales.cancel.express": 1,
                  "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
@@ -722,6 +737,9 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.cowork.intake.detail.amount_only", "stock-lines", "没有存货明细行"),
                  ("acc.cowork.intake.detail.amount_only", "no-detail-question", "问了「明细」"),
                  ("acc.cowork.intake.detail.skip", "skip-wrote", "与基线逐文件一致"),
+                 ("acc.cowork.operator.purchase.express", "direct-payload", "代录载荷"),
+                 ("acc.cowork.operator.purchase.express", "direct-too", "只有这一条推送"),
+                 ("acc.cowork.operator.purchase.express", "task-not-saved", "已录入"),
                  ("acc.erp.denied", "open-door", "都被拒"), ("acc.erp.denied", "left-record", "都没变")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)

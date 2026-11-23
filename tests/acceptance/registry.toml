@@ -1513,3 +1513,31 @@ covers = [
 resources = ["mrerp:test01"]
 budget_usd = 0
 tier = "weekly"
+
+# ---- 核心集批 2（11-23，docs/work/2026-11-23-acceptance-l3-core.md 第 1 节第 12 条）。写好未跑，首跑通过才有证据。
+
+[[scenario]]
+id = "acc.cowork.operator.purchase.express"
+title = "Cowork 采购票交给代录 → CC 桌面版在 Express 界面录成 → 账本读回（与直写同一套断言；格 Cowork 代录 · 本地 · 采购）"
+class = "chain"
+chain = "cowork.operator-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_operator_express.py"
+rows = ["cowork.cc.operator.submit"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/tools.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/express_operator/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+core = true
