@@ -50,8 +50,8 @@ def guided_doc(business, number):
     # 推送目标同真实上传（`operator_source.intake`：按这家公司现用的连接与账套交识别）
     frappe.db.set_value("Cowork OCR History", made["name"], {"push_connection": conn["name"],
         "push_account_set": frappe.db.get_value("Cowork Company", company["id"], "seed_account_set")})
-    # 采购的费用科目按卖方记住（题卡上只问付款方式）；销售什么都不记（同第一次录这家：收入科目、付款方式都在题卡上问）。
-    # 销售只记科目不记付款时写账判定说可写、推送却要付款方式（11-23 本流程查出，已报主会话），所以不造那种半记住的样子
+    # 采购的费用科目按卖方记住（题卡上只问付款方式）；销售什么都不记（同第一次录这家：收入科目、付款方式都在题卡上问——
+    # 11-23 前出题不在对话里、按网页口径算定了这两项不出题，推送时在对话里又要，被跳过；`guide.documents.in_conversation` 修）
     if business == "purchase":
         application.save_choices(made["name"], conn["name"], "FLOWT8", json.dumps([
             {"kind": "account", "subject": "purchase|" + other["tax"], "value": "5300", "label": other["name"]}]))

@@ -83,14 +83,15 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开
 id = "sales"
 name = "销售：赊销、现销；同上各类票"
 guide = "sales"
-cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
+cowork_direct = ["done", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
 erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 sales（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；没有销售按单据引导的页面流程"
+basis = "Cowork 声明 sales（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（收入科目、付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；出题、记答案、确定时的判定都在本次引导的对话里，修好之前卡上不出这两题、推送时被跳过）"
+page_flows = ["cowork.cc.guide.sales"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"

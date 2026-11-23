@@ -28,4 +28,4 @@
 - 本分支只交共用层修复与守门测试（先于叠车合入，ERP 直写待处理等引导依赖它）。
 - 本机实验栈（叠车之上的源码）：Cowork 直写销售新流程修前卡上不出题、确定后被跳过，修后电脑 / 手机两格过；Cowork 采购、第 1 期引导卡仍过。
   ERP 受影响流程以 GitHub 干净实验栈的 `pearnly/flows` 为准（本机栈 ERP 站点被一次中途停掉的运行弄脏，换回 main 代码同样不过，正在重建）。
-- `cowork.cc.guide.sales` 流程与「销售 · Cowork 直写 · 本地」升 done 在分支 `pearnly/cc-guide-sales-page-flow`，叠车进 main 后另交。
+- 续（11-23，基 main 2e006a7bc）：新流程 `cowork.cc.guide.sales`（同 `cowork_cc_guide_docs_lib`，销售什么都不记）：题卡问收入科目、付款方式 → 复核 → 立即录入 → 结果已交出，本机实验栈电脑 / 手机两格通过；总表「销售 · Cowork 直写 · 本地」half → done（✅6 → ✅7）。

@@ -2713,3 +2713,20 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
 ]
+
+[[flow]]
+id = "cowork.cc.guide.sales"
+title = "Cowork 版 CC 销售引导（直写）真页面：题卡逐题点 → 复核卡 →「立即录入」→ 结果卡已交出；运行 done、同意来自页面、推向本对话账套 T.8（实验栈没有识别，单据由 run.start(doc_ids) 交进来）"
+module = "scripts/flows/cowork_cc_guide_sales.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guides.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
