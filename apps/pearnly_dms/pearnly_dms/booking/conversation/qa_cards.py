@@ -430,7 +430,7 @@ def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
     items = freebies.get("rows") or []
     if not items:
         return []
-    hide = bool(car_freebies.HIDE_PRICE)
+    hide = bool(freebies.get("hide_price", True))
     rows: List[Dict[str, Any]] = [
         {"type": "text", "text": qat("LBL_FREEBIES"), "size": "sm", "color": "#8a8a8a", "margin": "md"}
     ]

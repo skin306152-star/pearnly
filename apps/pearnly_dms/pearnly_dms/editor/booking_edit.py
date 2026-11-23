@@ -312,18 +312,11 @@ def _session_freebies(qa: dict, snapshot: dict, car_id: str) -> dict:
     return (snapshot.get("freebies") or {}).get(car_id) or {}
 
 
-def car_freebies_hide_price() -> bool:
-    """编辑页与 LINE 卡是否隐藏赠品单价、金额与合计（同 `car_freebies.HIDE_PRICE`）。"""
-    from pearnly_dms.booking import car_freebies
-
-    return bool(car_freebies.HIDE_PRICE)
-
-
 def _freebies_view(data: Optional[dict]) -> dict:
     """编辑页只读赠品表：与 LINE 预览卡同一份取数（`car_freebies.from_form`）。"""
     data = data or {}
     return {"rows": list(data.get("rows") or []), "total": str(data.get("total") or ""),
-            "hide_price": car_freebies_hide_price()}
+            "hide_price": bool(data.get("hide_price", True))}
 
 
 def freebies(line_user_id: str, nonce: str, car_id: str) -> dict:

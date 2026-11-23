@@ -71,10 +71,14 @@ class FromFormTests(Isolated):
     def test_unreadable_snapshot_never_blocks(self):
         from pearnly_dms.contracts.client_base import DmsClientError
 
-        view = Mock(car_form=Mock(side_effect=DmsClientError("x", "ERR_DMS_SNAPSHOT_PENDING")))
+        pending = DmsClientError("x", "ERR_DMS_SNAPSHOT_PENDING")
+        view = Mock(car_form=Mock(side_effect=pending), hide_freebies_price=Mock(return_value=False))
         self.assertEqual(self.freebies.from_view(view, "C1")["rows"], [])
-        view = Mock(car_form=Mock(return_value=FORM))
+        view = Mock(car_form=Mock(return_value=FORM), hide_freebies_price=Mock(return_value=False))
         self.assertEqual(self.freebies.from_view(view, "C1")["total"], "20,634.13")
+        self.assertFalse(self.freebies.from_view(view, "C1")["hide_price"])
+        view.hide_freebies_price.side_effect = pending
+        self.assertTrue(self.freebies.from_view(view, "C1")["hide_price"])
 
 
 class EditedTests(Isolated):
@@ -139,6 +143,7 @@ class DirectoryTests(Isolated):
         self.assertEqual(directory.car_form("missing"), {})
         self.assertEqual(directory.car_names(), {"C1": "Mu-X 2.2 Biturbo RS 4WD"})
         self.assertEqual([p["product_id"] for p in directory.freebie_products()], ["P1"])
+        self.assertTrue(directory.hide_freebies_price())
 
 
 class PreviewRowTests(Isolated):
@@ -157,14 +162,21 @@ class PreviewRowTests(Isolated):
             found += [part["text"] for part in row.get("contents", [])] if row.get("contents") else [row.get("text")]
         return found
 
-    def qa(self, form):
-        return {"answers": {"car": {"id": "C1"}}, "car_freebies": self.freebies.from_form("C1", form)}
+    def qa(self, form, hide_price=False):
+        return {"answers": {"car": {"id": "C1"}},
+                "car_freebies": self.freebies.from_form("C1", form, hide_price=hide_price)}
 
     def test_card_lists_each_freebie_and_the_total(self):
         texts = self.texts(self.cards.freebie_rows(self.qa(FORM)))
         self.assertEqual(texts[0], "dms.card.qa.LBL_FREEBIES")
         self.assertIn("50 litre × 18.00 = 900.00", texts)
         self.assertEqual(texts[-2:], ["dms.card.qa.LBL_FREEBIES_TOTAL", "20,634.13"])
+
+    def test_hidden_price_setting_shows_names_quantities_and_units_only(self):
+        texts = self.texts(self.cards.freebie_rows(self.qa(FORM, hide_price=True)))
+        self.assertIn("50 litre", texts)
+        self.assertNotIn("dms.card.qa.LBL_FREEBIES_TOTAL", texts)
+        self.assertFalse(any("900.00" in text or "×" in text for text in texts))
 
     def test_long_lists_stop_at_fifteen_and_say_how_many_more(self):
         many = {name: values * 5 for name, values in FORM.items() if name.endswith("[]")}

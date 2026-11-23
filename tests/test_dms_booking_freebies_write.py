@@ -171,6 +171,115 @@ class ReviewTests(Isolated):
         self.assertFalse([d for d in self.review.compare({}, {"fbproductval[]": []}) if d["item"] == "qa.LBL_FREEBIES"])
 
 
+class FakeDms:
+    """A booking form that keeps whatever arrays were last posted, like DMS storing the rows."""
+
+    def __init__(self, test):
+        self.test = test
+        self.base_url = "https://dms.invalid/"
+        forms = importlib.import_module("pearnly_dms.client.client_forms").DmsClientFormsMixin()
+        self._parse_booking_form = forms._parse_booking_form
+        self._parse_form_arrays = forms._parse_form_arrays
+        self._parse_form_defaults = forms._parse_form_defaults
+        self.stored = {"fbproductval[]": ["9", "4"], "txtfbproduct[]": ["ฟิล์ม เซรามิค", "กรอบป้ายทะเบียน"],
+                       "txtfbquantity[]": ["1.00", "1.00"], "txtfbunits[]": ["แผ่น", "แผ่น"],
+                       "txtfbprice[]": ["18826.50", "307.63"], "txtfbamount[]": ["18,826.50", "307.63"],
+                       "fbunitsval[]": ["2", "2"]}
+        self.files = ["ID card copy"]
+        self.posts = []
+        self.transport = self
+
+    def _url(self, path):
+        return self.base_url + path
+
+    def page(self):
+        single = ('<input name="stsel" value="e"><input name="idsel" value="7"><input name="stcbc" value="1">'
+                  '<input name="txtdocno" value="BK0001"><input name="txtcus" value="Local Fixture">')
+        files = "".join(f'<input name="fulcurrname{i}" value="{n}">' for i, n in enumerate(self.files, 1))
+        rows = "".join(f'<input name="{name}" value="{v}">' for name in self.stored for v in self.stored[name])
+        return single + files + rows
+
+    def _post_text(self, path, data):
+        if path.endswith("showdata.php"):
+            return '<div data-val="7" data-allo="e" data-cf=""><p>BK0001</p></div>'
+        return self.page()
+
+    def post(self, url, data=None, files=None, timeout_ms=None):
+        self.posts.append(dict(data))
+        self.stored = {k: list(v) for k, v in data.items() if isinstance(v, list)}
+        if files:
+            self.files.append(data["fulnewname[]"])
+
+        class R:
+            status_code, text = 200, "ok"
+        return R()
+
+
+class WholeFormWriteBackTests(Isolated):
+    """The defect this fixes: a booking with several freebie rows lost all but the last on amend / attach."""
+
+    def test_amend_keeps_every_freebie_row(self):
+        dms = FakeDms(self)
+        amend = importlib.import_module("pearnly_dms.booking.booking_amend")
+        out = amend.amend(dms, booking_id="7", booking_no="BK0001", writes={"txtcus": "Fixed Name"})
+        self.assertEqual(out["status"], "updated")
+        self.assertEqual(dms.posts[0]["fbproductval[]"], ["9", "4"])
+        self.assertEqual(dms.posts[0]["txtcus"], "Fixed Name")
+        self.assertEqual(out["form"]["fbproductval[]"], ["9", "4"])
+
+    def test_attaching_a_file_keeps_every_freebie_row(self):
+        dms = FakeDms(self)
+        attachments = importlib.import_module("pearnly_dms.client.attachments")
+        out = attachments.attach(dms, booking_id="7", files=[
+            {"display_name": "Deposit slip", "filename": "s.jpg", "content": b"x", "content_type": "image/jpeg"}])
+        self.assertTrue(out["ok"])
+        self.assertEqual(dms.posts[0]["txtfbquantity[]"], ["1.00", "1.00"])
+        self.assertEqual(dms.stored["fbproductval[]"], ["9", "4"])
+
+    def test_review_fix_writes_the_submitted_rows_back(self):
+        dms = FakeDms(self)
+        dms.stored = {k: v[1:] for k, v in dms.stored.items()}  # DMS kept only one row
+        review = importlib.import_module("pearnly_dms.booking.booking_review")
+        amend = importlib.import_module("pearnly_dms.booking.booking_amend")
+        sent = FakeDms(self).stored
+        diff = next(d for d in review.compare(sent, dms._parse_booking_form(dms.page()))
+                    if d["item"] == "qa.LBL_FREEBIES")
+        out = amend.amend(dms, booking_id="7", booking_no="BK0001", writes=diff["write"])
+        self.assertEqual(out["form"]["fbproductval[]"], ["9", "4"])
+        self.assertFalse(review.unresolved([diff], out["form"]))
+
+
+class CreateArraysTests(Isolated):
+    def test_create_sends_every_native_row_and_the_users_edits(self):
+        ops = importlib.import_module("pearnly_dms.client.client_ops").DmsClientOpsMixin
+        forms = importlib.import_module("pearnly_dms.client.client_forms").DmsClientFormsMixin()
+        calls = []
+
+        class Client:
+            _parse_form_arrays = staticmethod(forms._parse_form_arrays)
+
+            def _post_text(self, path, data):
+                calls.append((path, dict(data)))
+                return NATIVE
+
+            def _bshsd_all(self, elemname):
+                calls.append(("picker", elemname))
+                return [[11, "P011", "บัตรเติมน้ำมัน", 3, "บัตร", "400.00"]]
+
+        class Booking:
+            car = type("Car", (), {"id": "558"})()
+            freebies = None
+
+        arrays = ops._booking_freebie_arrays(Client(), Booking(), hfbp="h")
+        self.assertEqual(calls, [("drfcbc/component/cardffreebies.php", {"idcar": "558", "hfbp": "h"})])
+        self.assertEqual(arrays["fbproductval[]"], ["9", "4"])
+        Booking.freebies = (("4", "3"), ("11", "1"))
+        arrays = ops._booking_freebie_arrays(Client(), Booking(), hfbp="h")
+        self.assertEqual(arrays["fbproductval[]"], ["4", "11"])
+        self.assertEqual(arrays["txtfbamount[]"], ["922.89", "400.00"])
+        self.assertEqual(calls[-1], ("picker", "txtfbproduct[]"))
+
+
 class WantedTests(Isolated):
     def setUp(self):
         super().setUp()

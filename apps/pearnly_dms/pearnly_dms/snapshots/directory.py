@@ -89,6 +89,14 @@ class Directory:
         record = (catalogues.get("car") or {}).get(str(car_id)) or {}
         return copy.deepcopy(record.get("fields") or {})
 
+    def hide_freebies_price(self):
+        """DMS 订车单设置「隐藏赠品价格」（`setcbc.cbhidefreebiesprice`，原生表单 `hfbp=h`）。"""
+        catalogues = self._load("company")["data"].get("catalogues") or {}
+        record = (catalogues.get("setcbc") or {}).get("singleton")
+        if not isinstance(record, dict):
+            raise DmsClientError("Booking settings are absent from the snapshot", "ERR_DMS_SNAPSHOT_PENDING")
+        return bool((record.get("fields") or {}).get("cbhidefreebiesprice"))
+
     def freebie_products(self):
         """可加为赠品的商品（车辆快照的商品主档），跳过已停用的：`[{product_id, code, name, unit, unit_id, price}]`。"""
         catalogues = self._load("vehicles")["data"].get("catalogues") or {}

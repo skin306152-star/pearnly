@@ -5,9 +5,9 @@
 不另读 DMS；赠品不随单提交（2026-11-23 定：只显示）。金额一律 `Decimal`，
 合计按全部赠品算，卡片只列前 `CARD_LIMIT` 项。
 
-单价、金额照 DMS 网页录入界面显示：DMS 的「隐藏赠品价格」（`setcbc.cbhidefreebiesprice`）
-在 ris、testdms 都开着，网页录入预定单时仍显示单价、金额与合计（用户 11-22 截图），
-所以这个设置不管录入界面，这里也不跟它走。
+单价、金额、合计照 DMS 原生订车单：公司设置「隐藏赠品价格」（`setcbc.cbhidefreebiesprice`，
+原生表单里的 `hfbp=h`）开着时只显示名称、数量、单位，价格照样随单提交（2026-11-23 主会话定）。
+设置读不到时按隐藏处理，不冒险露价格。
 """
 
 from __future__ import annotations
@@ -16,9 +16,6 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Optional
 
 from pearnly_dms.contracts.client_base import DmsClientError
-
-#: 赠品单价、金额、合计是否隐藏（待主会话定是否跟 DMS「隐藏赠品价格」设置走，见评估）。
-HIDE_PRICE = False
 
 COLUMNS = ("txtfbproduct[]", "txtfbunits[]", "txtfbquantity[]", "txtfbprice[]", "txtfbamount[]",
            "fbproductval[]")
@@ -44,14 +41,14 @@ def quantity(value: Decimal) -> str:
     return f"{value.normalize():f}" if value == value.to_integral_value() else f"{value:,}"
 
 
-def from_form(car_id: str, fields: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """车型表单字段 → `{"car_id", "rows", "total"}`；没有赠品时 rows 为空。
+def from_form(car_id: str, fields: Optional[Dict[str, Any]], *, hide_price: bool = True) -> Dict[str, Any]:
+    """车型表单字段 → `{"car_id", "rows", "total", "hide_price"}`；没有赠品时 rows 为空。
 
     列长度对不上或金额解析不了 → 视为读不到，返回空（显示层不出这一块，不猜）。
     """
     fields = fields or {}
     columns = [list(fields.get(name) or []) for name in COLUMNS]
-    empty = {"car_id": str(car_id), "rows": [], "total": ""}
+    empty = {"car_id": str(car_id), "rows": [], "total": "", "hide_price": bool(hide_price)}
     if len({len(column) for column in columns}) != 1:
         return empty
     rows: List[Dict[str, str]] = []
@@ -95,7 +92,8 @@ def edited(car_id: str, default: Dict[str, Any], submitted: List[Dict[str, Any]]
                      "price": money(price), "amount": money(amount)})
     same = [(r["product_id"], _number(r["qty"])) for r in rows] == [
         (str(r.get("product_id")), _number(r.get("qty"))) for r in default.get("rows") or []]
-    return {"car_id": str(car_id), "rows": rows, "total": money(total) if rows else "", "edited": not same}
+    return {"car_id": str(car_id), "rows": rows, "total": money(total) if rows else "", "edited": not same,
+            "hide_price": bool(default.get("hide_price", True))}
 
 
 def wanted(qa: Dict[str, Any]) -> Optional[tuple]:
@@ -116,9 +114,14 @@ def for_car(qa: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def from_view(view: Any, car_id: str) -> Dict[str, Any]:
-    """从快照视图（`snapshots.directory.Directory`）取：车型表单读不到 → 空，不挡订车。"""
+    """从快照视图（`snapshots.directory.Directory`）取：车型表单读不到 → 空，不挡订车；
+    隐藏价格设置读不到 → 按隐藏处理。"""
     try:
         fields = view.car_form(car_id)
     except DmsClientError:
         fields = {}
-    return from_form(car_id, fields)
+    try:
+        hide = view.hide_freebies_price()
+    except DmsClientError:
+        hide = True
+    return from_form(car_id, fields, hide_price=hide)
