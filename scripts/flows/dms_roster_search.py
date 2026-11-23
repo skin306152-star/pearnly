@@ -3,7 +3,7 @@
 备数据：在本站点名册里放 25 个同一前缀的合成操作员（实验栈没有 DMS 连接，按表直接落行，跳过「先连 DMS」的开户校验）。
 页面：管理员打开名册页 → 页头搜索框输入前缀 → 列表只剩这 25 个里的第一页（20 / 25），「加载更多」后 25 / 25（分页照旧生效）；
 输入其中一个的显示名 → 只剩 1 行；输入另一个的 DMS 用户名 → 只剩那 1 行；清空 → 回到全部。
-落库：搜索只读，不写；收尾删掉备的 25 行与它们的账号。
+落库：搜索只读，不写；只落名册行、不建账号，收尾按主键删掉这 25 行（并行几格不撞锁）；失败时结果里带 Error Log 标题。
 """
 from __future__ import annotations
 
@@ -29,20 +29,22 @@ def prepare(lab, manifest):
     tag = "Fs" + uuid.uuid4().hex[:6]
     rows = [{"display_name": f"{tag} Op{i:02d}", "dms_username": f"{tag.lower()}u{i:02d}",
              "user": f"{tag.lower()}{i:02d}@operators.local"} for i in range(COUNT)]
-    total = lab.python(manifest["site"], f"""
+    # 只落名册行、不建 User：名册列表不读 User；建 / 删 User 会走 `User.on_trash` 里按非主键条件的批量 update
+    # （ToDo.assigned_by、Contact.user 等），同一站点几格并行时互相撞锁（train-1123c old/desktop、本分支 new/desktop 各一次）。
+    seeded = lab.python(manifest["site"], f"""
 frappe.set_user("Administrator")
+since = str(frappe.utils.now_datetime())
+names = []
 for row in {rows!r}:
-    if not frappe.db.exists("User", row["user"]):
-        frappe.get_doc({{"doctype": "User", "email": row["user"], "first_name": row["display_name"],
-                        "user_type": "Website User", "send_welcome_email": 0}}).insert(ignore_permissions=True)
     doc = frappe.new_doc("DMS Operator")
     doc.update({{"display_name": row["display_name"], "user": row["user"], "dms_username": row["dms_username"],
                 "dms_role": "sales", "status": "active"}})
     doc.set_new_name(); doc.set_user_and_timestamp(); doc.db_insert()
+    names.append(doc.name)
 frappe.db.commit()
-print(json.dumps({{"total": frappe.db.count("DMS Operator")}}))
-""")["total"]
-    return {"tag": tag, "rows": rows, "total": total}
+print(json.dumps({{"total": frappe.db.count("DMS Operator"), "names": names, "since": since}}))
+""")
+    return {"tag": tag, "rows": rows, "total": seeded["total"], "names": seeded["names"], "since": seeded["since"]}
 
 
 def steps(params, camera_code=None):
@@ -82,15 +84,22 @@ def judge(params, results, camera_code=None):
 
 
 def verify(lab, manifest, params, camera_code=None):
-    users = [row["user"] for row in params["rows"]]
+    # 收尾只按主键删本格落的那 25 行（不碰 User，不做按条件的批量更新）；出错时把原文和这段时间的 Error Log 标题一起带回结果。
     left = lab.python(manifest["site"], f"""
 frappe.set_user("Administrator")
-for name in frappe.get_all("DMS Operator", filters={{"user": ["in", {users!r}]}}, pluck="name"):
-    frappe.db.delete("DMS Operator", {{"name": name}})
-for user in {users!r}:
-    if frappe.db.exists("User", user):
-        frappe.delete_doc("User", user, ignore_permissions=True, force=True)
-frappe.db.commit()
-print(json.dumps({{"left": frappe.db.count("DMS Operator", {{"user": ["in", {users!r}]}})}}))
+error = ""
+try:
+    for name in {params["names"]!r}:
+        frappe.db.delete("DMS Operator", {{"name": name}})
+    frappe.db.commit()
+except Exception as exc:
+    frappe.db.rollback()
+    error = f"{{type(exc).__name__}}: {{exc}}"[:600]
+titles = frappe.get_all("Error Log", filters={{"creation": [">=", {params["since"]!r}]}}, pluck="method",
+                        order_by="creation asc", limit_page_length=20)
+print(json.dumps({{"left": frappe.db.count("DMS Operator", {{"name": ["in", {params["names"]!r}]}}), "error": error,
+                  "error_logs": titles}}, default=str))
 """)
-    return [{"case": "the 25 seeded operators are removed again", "seen": left, "ok": left.get("left") == 0}]
+    # Error Log 标题只随结果带回（同一站点上并行的别的流程也会写，不拿它判这一格）
+    return [{"case": "the 25 seeded operators are removed again", "seen": left,
+             "ok": left.get("left") == 0 and not left.get("error")}]

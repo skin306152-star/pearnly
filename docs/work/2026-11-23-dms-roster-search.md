@@ -27,3 +27,10 @@
 - 截图（本机实验栈、25 个合成操作员）：电脑宽度搜「Som」5 / 5；手机宽度搜 `sale07` 1 / 1；页头搜索框中文显示「搜索」。
 - 影响清单：`dms.page.roster` 由上面流程覆盖；`dms.roster.line-oa`、`dms.line.binding` 没测到（本次未改这两处代码）。
 - 未做：真实租户 / 测试机 / 三星（按派单只读不碰）；部署由主会话今晚单独做。
+
+## 流程收尾偶发库错误的根治（11-23 晚，分支 `pearnly/dms-roster-flow-fix`）
+- 现象：`dms.roster.search` 在拼车 train-1123c 的 old / 电脑格、本分支 new / 电脑格各红过一次，都在收尾删测试用户时 `User.on_trash` 的 update 报库错误（原文被截断）。
+- 原因：流程备数据时建了 25 个 User、收尾再删。`User.on_trash` 里有按非主键条件的批量 update（`ToDo.assigned_by`、`Contact.user` 置空等），同一站点几格并行删各自用户时撞同一批行。实验室 MariaDB 11.8 开着 `innodb_snapshot_isolation`、`Innodb_deadlocks` 为 0，推断是快照隔离下的 1020「记录已变更」（与 LINE 窗口记的并发取号同类），而不是死锁。本机用旧写法 `--jobs 3` 跑 3 轮 12 格没有复现，原文没拿到。收尾在命令行脚本里跑，失败不进 Error Log。
+- 产品路径不受影响：名册删除操作员（`delete_operator`）只停用账号、不删 User，不走 `User.on_trash`。
+- 改法：流程不再建 / 删 User（名册列表不读 User，直接落行不校验链接），只落 25 行名册记录；收尾只按主键删本格那 25 行；收尾出错时把报错原文与这段时间新增的 Error Log 标题一并放进结果（标题只随结果带回，同站点上别的流程也会写，不拿它判这一格）。
+- 验证：新写法 `--jobs 3` 连跑 4 轮，4 × 4 格 16/16 通过。
