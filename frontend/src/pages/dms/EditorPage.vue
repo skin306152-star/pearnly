@@ -31,12 +31,14 @@ import {
   loadConfig,
   loadDraft,
   loadGeo,
+  loadFreebies,
   loadPaints,
   saveDraft,
   returnToChat,
   snapshotErrorKey,
   type Draft,
   type EditorMode,
+  type Freebies,
   type Option,
   type Payment,
   type SnapshotInfo,
@@ -81,6 +83,7 @@ const geo = reactive<Record<string, Option[]>>({
   zipcodes: [],
 });
 const paints = ref<Option[]>([]);
+const freebies = ref<Freebies>();
 const manualBanks = ref<string[]>([]);
 const advisor = ref("");
 const hasFiles = reactive({ id_card: false, slip: false });
@@ -289,6 +292,7 @@ function adopt(draft: Draft): void {
     masters[key] = draft.masters[key] || [];
   });
   paints.value = draft.masters?.paints || [];
+  freebies.value = draft.freebies;
   Object.keys(geo).forEach((level) => {
     geo[level] = draft.geo?.[level] || [];
   });
@@ -395,10 +399,17 @@ async function onCarChange(): Promise<void> {
   const carId = answers.car_id;
   answers.paint_id = "";
   paints.value = [];
+  freebies.value = undefined;
   if (!carId) return;
   try {
-    const rows = await loadPaints(ticket.value, nonce.value, carId);
-    if (request === paintRequest) paints.value = rows;
+    const [rows, gifts] = await Promise.all([
+      loadPaints(ticket.value, nonce.value, carId),
+      loadFreebies(ticket.value, nonce.value, carId),
+    ]);
+    if (request === paintRequest) {
+      paints.value = rows;
+      freebies.value = gifts;
+    }
   } catch (err) { reportCaught(err, "EditorPage");
     if (request === paintRequest) errorText.value = explain(err);
   }
@@ -732,6 +743,19 @@ function changeLocale(value: Locale): void {
                 :options="optionList(paints)"
                 v-model="answers.paint_id"
               />
+              <div v-if="freebies?.rows?.length" class="pn-editor-freebies">
+                <div class="pn-editor-h2">{{ t("dms.card.qa.LBL_FREEBIES") }}</div>
+                <div v-for="(item, index) in freebies.rows" :key="index" class="pn-editor-freebie">
+                  <span>{{ item.name }}</span>
+                  <span>
+                    {{ [item.qty, item.unit].filter(Boolean).join(" ") }} × {{ item.price }} = {{ item.amount }}
+                  </span>
+                </div>
+                <div class="pn-editor-freebie">
+                  <span>{{ t("dms.card.qa.LBL_FREEBIES_TOTAL") }}</span>
+                  <span>{{ freebies.total }}</span>
+                </div>
+              </div>
               <FormControl variant="outline" :class="fieldClass('delivery_date_be')"
                 type="text"
                 :label="t('dms.edit.delivery')"
@@ -937,6 +961,25 @@ function changeLocale(value: Locale): void {
   .pn-editor-grid {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+/* 赠品只读表：整行跨两栏；名称在左、数量与金额在右。 */
+.pn-editor-freebies {
+  grid-column: 1 / -1;
+}
+
+.pn-editor-freebie {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 0;
+  font-size: 13px;
+  border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
+}
+
+.pn-editor-freebie > span:last-child {
+  text-align: right;
+  white-space: nowrap;
 }
 
 .pn-editor-payment {

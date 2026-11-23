@@ -164,6 +164,8 @@ First setup,First setup
 First-time setup,First-time setup
 Fit the ID card inside the frame,Fit the ID card inside the frame
 Floor,Floor
+Freebies,Freebies
+Freebies total,Freebies total
 Full address directory,Full address directory
 Full customer records,Full customer records
 Gear,Gear
@@ -630,6 +632,8 @@ dms.card.qa.LBL_ATTACH_CARD,ID card copy
 dms.card.qa.LBL_ATTACH_SLIP,Deposit transfer slip
 dms.card.qa.LBL_CAR,Model/colour
 dms.card.qa.LBL_DELIVERY,Delivery date
+dms.card.qa.LBL_FREEBIES,Freebies
+dms.card.qa.LBL_FREEBIES_TOTAL,Freebies total
 dms.card.qa.LBL_PLACE,Booking location
 dms.card.qa.LBL_POSTCODE,Postcode
 dms.card.qa.LBL_REGIS,Registered under
@@ -660,6 +664,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,Invalid format. Please fill in both fields {h
 dms.card.qa.TXT_CAR_NONE,No matching model. Please try typing again.
 dms.card.qa.TXT_CAR_PICK,Choose a car model ({n} found)
 dms.card.qa.TXT_CONFIRM_ABOVE,Tap Confirm or Discard on the summary above
+dms.card.qa.TXT_FREEBIES_MORE,{n} more
 dms.card.qa.TXT_MASTER_EMPTY_ITEM,"DMS has no options set up for {item} yet. Ask an administrator to add them in DMS, then try again."
 dms.card.qa.TXT_NEED_SLIP,There is a transfer payment. Please send the transfer slip before viewing the summary.
 dms.card.qa.TXT_NO_COMPANY_BANK,"No company receiving account yet. Please ask the admin to set it up in DMS, then try again."
@@ -1040,4 +1045,5 @@ usage log,usage log
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {n} latest sales records from DMS,{n} latest sales records from DMS
+{n} more,{n} more
 {text} ({fields}),{text} ({fields})

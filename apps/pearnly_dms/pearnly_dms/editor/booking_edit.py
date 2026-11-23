@@ -48,7 +48,7 @@ from pearnly_dms.contracts.client_base import parse_be_date
 from pearnly_dms.intake.service import geo_options as _geo_options
 from pearnly_dms.masters.master_contract import MasterSyncError, build_paint_snapshot, build_snapshot
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
-from pearnly_dms.booking.conversation.qa_util import car_label, find_row, row_name
+from pearnly_dms.booking.conversation.qa_util import car_display, car_label, find_row, row_name
 
 logger = logging.getLogger(__name__)
 
@@ -269,7 +269,8 @@ def load(line_user_id: str, nonce: str) -> dict:
         "snapshot": snapshot.get("snapshot", {}),
         "masters": {
             "places": _options(masters.get("place_books") or []),
-            "cars": _options(masters.get("cars") or [], car_label),
+            "cars": _options(masters.get("cars") or [],
+                             lambda row: car_display(row, snapshot.get("car_names"))),
             "paints": (_options(_snapshot_paints(snapshot, car_id)) if car_id else []),
             "terms": _options(masters.get("term_sales") or []),
             "regis": _options(masters.get("regis_behalfs") or []),
@@ -279,6 +280,8 @@ def load(line_user_id: str, nonce: str) -> dict:
             },
             "prefixes": _options(prefix_rows or []),
         },
+        # 当前车型的赠品（只读）；换车型时页面另取 `freebies`。
+        "freebies": _freebies_view((snapshot.get("freebies") or {}).get(car_id)),
         # 与 LINE 对话同一条规则：这几类目录权威为空 → 银行名称手工填，hidden id 留空。
         "manual_banks": _manual_bank_keys(masters),
         # 首屏携带本地完整地址目录的当前层级选项，避免多次页面往返。
@@ -294,6 +297,20 @@ def paints(line_user_id: str, nonce: str, car_id: str) -> List[dict]:
     if find_row(masters.get("cars"), car_id) is None:
         raise DmsBookingEditError("dms_booking.invalid_master")
     return _options(_snapshot_paints(snapshot, car_id))
+
+
+def _freebies_view(data: Optional[dict]) -> dict:
+    """编辑页只读赠品表：与 LINE 预览卡同一份取数（`car_freebies.from_form`）。"""
+    data = data or {}
+    return {"rows": list(data.get("rows") or []), "total": str(data.get("total") or "")}
+
+
+def freebies(line_user_id: str, nonce: str, car_id: str) -> dict:
+    """换车型 → 该车型的赠品（只读）。只读车辆快照；车型是否仍可选由保存时校验。"""
+    from pearnly_dms.editor.edit_snapshot import read_car_freebies
+
+    _, _, endpoint = _review(line_user_id, nonce)
+    return _freebies_view(read_car_freebies(endpoint, car_id))
 
 
 def geo(line_user_id: str, nonce: str, level: str, parent_id: str = "") -> List[dict]:
@@ -394,6 +411,7 @@ def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
         raise DmsBookingEditError("dms_booking.invalid_master")
     customer.update(labels)
     car = _pick(masters, "car", car_id)
+    car["display"] = car_display(find_row(masters.get("cars"), car["id"]), snapshot.get("car_names"))
     paint_rows = _snapshot_paints(snapshot, car["id"])
     # 换车型后颜色必须属于**新**车型：拿老选项提交会被这里挡下。
     paint_row = find_row(paint_rows, str(raw_answers.get("paint_id") or ""))
@@ -432,6 +450,7 @@ def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
     }
     qa["master_snapshot"] = build_snapshot(masters)
     qa["paint_snapshots"] = {car["id"]: build_paint_snapshot(car["id"], paint_rows)}
+    qa["car_freebies"] = (snapshot.get("freebies") or {}).get(car["id"]) or {}
     qa.pop("masters_synced", None)
     qa["payments"] = _payments(list(submitted.get("payments") or []), masters)
     files = dict(qa.get("files") or {})

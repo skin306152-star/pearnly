@@ -66,3 +66,19 @@ def paints(tenant_id, line_user_id, qa, *, persist) -> List[list]:
     qa.setdefault("paint_snapshots", {})[car_id] = paint_snapshot
     persist(tenant_id, line_user_id, qa)
     return list(paint_snapshot["rows"])
+
+
+
+def car_freebies(qa, car_id) -> Dict[str, Any]:
+    """选中车型的赠品（只读显示），与编辑页同一份车辆 / 公司快照。"""
+    from pearnly_dms.booking import car_freebies as freebies
+
+    return freebies.from_view(Directory(_endpoint(qa)), car_id)
+
+
+def car_names(qa) -> Dict[str, str]:
+    """车型 id → ชื่อรถ（快照里的车型主档表单）。读不到 → 空，显示回落 ชื่อรุ่นรถ。"""
+    try:
+        return Directory(_endpoint(qa)).car_names()
+    except DmsClientError:
+        return {}

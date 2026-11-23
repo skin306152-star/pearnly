@@ -164,6 +164,8 @@ First setup,初回設定
 First-time setup,初回設定
 Fit the ID card inside the frame,身分証を枠に合わせてください
 Floor,階
+Freebies,景品
+Freebies total,景品合計
 Full address directory,完全な住所一覧
 Full customer records,完全な顧客データ
 Gear,ギア
@@ -630,6 +632,8 @@ dms.card.qa.LBL_ATTACH_CARD,身分証明書のコピー
 dms.card.qa.LBL_ATTACH_SLIP,予約金の振込明細
 dms.card.qa.LBL_CAR,車種/色
 dms.card.qa.LBL_DELIVERY,納車日
+dms.card.qa.LBL_FREEBIES,景品
+dms.card.qa.LBL_FREEBIES_TOTAL,景品合計
 dms.card.qa.LBL_PLACE,予約受付場所
 dms.card.qa.LBL_POSTCODE,郵便番号
 dms.card.qa.LBL_REGIS,登録名義
@@ -660,6 +664,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,形式が正しくありません。2 つと�
 dms.card.qa.TXT_CAR_NONE,該当する車種が見つかりません。もう一度入力してください。
 dms.card.qa.TXT_CAR_PICK,車種を選択（{n} 件）
 dms.card.qa.TXT_CONFIRM_ABOVE,上の概要で「確定」または「破棄」を押してください
+dms.card.qa.TXT_FREEBIES_MORE,他 {n} 件
 dms.card.qa.TXT_MASTER_EMPTY_ITEM,DMS に「{item}」の選択肢がまだ設定されていません。管理者に DMS で追加してもらってから、もう一度お試しください。
 dms.card.qa.TXT_NEED_SLIP,振込の支払いがあります。概要を見る前に振込明細を送ってください。
 dms.card.qa.TXT_NO_COMPANY_BANK,会社の入金口座がまだありません。管理者に DMS で設定してもらってから、もう一度お試しください。
@@ -1040,4 +1045,5 @@ usage log,利用履歴
 "{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件
 {0}/{1} groups,{0}/{1} グループ
 {n} latest sales records from DMS,DMS の最新販売記録 {n} 件
+{n} more,他 {n} 件
 {text} ({fields}),{text}（{fields}）

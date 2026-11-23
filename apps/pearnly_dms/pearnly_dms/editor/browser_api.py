@@ -205,6 +205,15 @@ def browser_paints(ticket: str, nonce: str, car_id: str) -> list:
 
 
 @frappe.whitelist(allow_guest=True)
+def browser_freebies(ticket: str, nonce: str, car_id: str) -> dict:
+    """换车型 → 该车型的赠品（只读，只服务订车编辑器）。"""
+    who = _ticket_line_user(ticket)
+    if who["mode"] != "booking":
+        _fail("dms_booking.expired", 409)
+    return _guard(lambda: dms_booking_edit.freebies(who["line_user_id"], nonce, car_id))
+
+
+@frappe.whitelist(allow_guest=True)
 def browser_geo(ticket: str, nonce: str, level: str, parent_id: str = "") -> list:
     """地址级联（两种模式共用一份实现）。"""
     who = _ticket_line_user(ticket)

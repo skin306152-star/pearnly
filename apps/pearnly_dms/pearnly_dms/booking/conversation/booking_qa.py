@@ -40,8 +40,10 @@ from pearnly_dms.masters.master_contract import MasterSyncError
 from pearnly_dms.ocr.ocr_service import resolve_dms_endpoint
 from pearnly_dms.line.out import send as _send
 from pearnly_dms.booking.conversation.qa_util import (
+    car_display,
     car_label,
     car_label_of,
+    car_matches,
     find_row,
     norm,
     norm_row,
@@ -286,14 +288,16 @@ def _on_slip(tenant_id, line_user_id, qa, text, reply_token) -> None:
 def _on_car_search(tenant_id, line_user_id, qa, text, reply_token) -> None:
     rows = booking_qa_sync.masters(tenant_id, line_user_id, qa, "cars", persist=_persist)
     needle = norm(text)
-    hits = [r for r in rows if needle and needle in norm_row(r)]
+    names = booking_qa_sync.car_names(qa)
+    hits = [r for r in rows if car_matches(r, needle, names)]
     if not hits:
         _send(line_user_id, qa_cards.car_none(), reply_token)
         return
     # 命中集落进会话：翻页 postback 直接取，搜索结果不随翻页丢失；选中后清理。
-    qa["car_search"] = {"hits": hits, "page": 0}
+    hit_names = {str(r[0]): names[str(r[0])] for r in hits if names.get(str(r[0]))}
+    qa["car_search"] = {"hits": hits, "page": 0, "names": hit_names}
     _persist(tenant_id, line_user_id, qa)
-    _send(line_user_id, qa_cards.car_results(hits, len(hits)), reply_token)
+    _send(line_user_id, qa_cards.car_results(hits, len(hits), names=hit_names), reply_token)
 
 
 def _on_paint(tenant_id, line_user_id, qa, text, reply_token) -> None:
@@ -379,8 +383,9 @@ def _pick_car(tenant_id, line_user_id, qa, value, reply_token) -> None:
     if row is None:
         _reask(tenant_id, line_user_id, qa, "", reply_token)
         return
-    qa.pop("car_search", None)  # 选完即清命中集，不留残渣
-    qa["answers"]["car"] = {"id": str(row[0]), "label": car_label(row)}
+    names = (qa.pop("car_search", None) or {}).get("names") or booking_qa_sync.car_names(qa)  # 选完即清命中集
+    qa["answers"]["car"] = {"id": str(row[0]), "label": car_label(row), "display": car_display(row, names)}
+    qa["car_freebies"] = booking_qa_sync.car_freebies(qa, str(row[0]))
     qa["answers"].pop("paint", None)
     qa.pop("paint_snapshots", None)
     _advance_answer(tenant_id, line_user_id, qa, "car", "paint", reply_token)

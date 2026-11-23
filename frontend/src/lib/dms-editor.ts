@@ -115,6 +115,13 @@ export interface Draft {
   manual_banks: string[];
   geo: Record<string, Option[]>;
   snapshot?: SnapshotInfo;
+  freebies?: Freebies;
+}
+
+/** 车型主档里的赠品（只读显示，不随单提交）。 */
+export interface Freebies {
+  rows: { name: string; unit: string; qty: string; price: string; amount: string }[];
+  total: string;
 }
 
 export interface Config {
@@ -210,6 +217,10 @@ export function loadDraft(ticket: string, nonce: string): Promise<Draft> {
 
 export function loadPaints(ticket: string, nonce: string, carId: string): Promise<Option[]> {
   return call<Option[]>(`${API}browser_paints`, { ticket, nonce, car_id: carId });
+}
+
+export function loadFreebies(ticket: string, nonce: string, carId: string): Promise<Freebies> {
+  return call<Freebies>(`${API}browser_freebies`, { ticket, nonce, car_id: carId });
 }
 
 export function loadGeo(

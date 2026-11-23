@@ -24,6 +24,7 @@ import frappe
 from pearnly_core import line
 from pearnly_dms.booking import attachments, booking_ledger
 from pearnly_dms.booking.booking_readback import docno_equal
+from pearnly_dms.booking.conversation.qa_util import car_text
 from pearnly_dms.contracts.endpoint import endpoint_name
 from pearnly_dms.adapter.operations import run_logged_in
 from pearnly_dms.line import cards
@@ -171,7 +172,7 @@ def _receipt_message(doc, marker):
         nonce = review_fix.open_card(record, doc.line_user_id, doc.booking_no, doc.booking_id,
                                      review["diffs"])
     return cards.booking_receipt_message(doc.booking_no,
-        str((answers.get("car") or {}).get("label") or ""),
+        car_text(answers),
         str(answers.get("delivery_date_be") or ""), str((qa.get("advisor") or {}).get("name") or ""),
         review=review, attach_ok=bool(result.get("attach_ok", True)), record=record, nonce=nonce)
 

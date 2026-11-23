@@ -238,6 +238,9 @@ Sales advisor	销售顾问	ที่ปรึกษาการขาย	営業�
 ID card copy	身份证复印件	สำเนาบัตรประชาชน	身分証明書のコピー	dms.card.qa.LBL_ATTACH_CARD
 Deposit transfer slip	订金转账凭证	สลิปโอนเงินจอง	予約金の振込明細	dms.card.qa.LBL_ATTACH_SLIP
 Model/colour	车型/颜色	รุ่น/สี	車種/色	dms.card.qa.LBL_CAR
+Freebies	赠品	รายการของแถม	景品	dms.card.qa.LBL_FREEBIES
+Freebies total	赠品合计	รวมของแถม	景品合計	dms.card.qa.LBL_FREEBIES_TOTAL
+{n} more	另 {n} 项	อีก {n} รายการ	他 {n} 件	dms.card.qa.TXT_FREEBIES_MORE
 Delivery date	交车日期	วันที่ส่งมอบ	納車日	dms.card.qa.LBL_DELIVERY
 Booking location	订车地点	สถานที่รับจอง	予約受付場所	dms.card.qa.LBL_PLACE
 Postcode	邮编	รหัสไปรษณีย์	郵便番号	dms.card.qa.LBL_POSTCODE

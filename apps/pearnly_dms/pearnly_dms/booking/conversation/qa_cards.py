@@ -28,6 +28,7 @@ from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
 from pearnly_dms.booking import booking_car_details as booking_car_details
+from pearnly_dms.booking import car_freebies as car_freebies
 from pearnly_dms.editor import edit_link as dms_edit_link
 from pearnly_dms import i18n
 from pearnly_dms.intake.draft import address_line
@@ -52,7 +53,8 @@ from pearnly_dms.booking.conversation.qa_payment_cards import (
     ask_payment_bank as ask_payment_bank,
 )
 from pearnly_dms.booking.conversation.qa_util import CHANNEL_EXTRA_SHAPE  # noqa: F401  既有对外名
-from pearnly_dms.booking.conversation.qa_util import car_label as _car_label
+from pearnly_dms.booking.conversation.qa_util import car_display as _car_display
+from pearnly_dms.booking.conversation.qa_util import car_text as _car_text
 from pearnly_dms.booking.conversation.qa_util import deposit_total as deposit_total  # noqa: F401  既有对外名
 from pearnly_dms.booking.conversation.qa_util import qat
 from pearnly_dms.booking.conversation.qa_util import row_name as _name
@@ -225,12 +227,15 @@ def ask_car() -> Dict[str, Any]:
     return _msg(qat("TXT_ASK_CAR"))
 
 
-def car_results(rows: List[list], n: int, page: int = 0) -> Dict[str, Any]:
-    """车型搜索结果按钮（分页）：全部命中逐页可选，一次消息恒 ≤13 项。"""
+def car_results(rows: List[list], n: int, page: int = 0,
+                names: Optional[Dict[str, str]] = None) -> Dict[str, Any]:
+    """车型搜索结果按钮（分页）：全部命中逐页可选，一次消息恒 ≤13 项；选项写 «รหัสรุ่นรถ / ชื่อรถ»。"""
     text = qat("TXT_CAR_PICK", n=n)
-    return _msg(
-        _option_text(text, rows, _car_label, page), _pick_rows(rows, "car", _car_label, page)
-    )
+
+    def label(row):
+        return _car_display(row, names)
+
+    return _msg(_option_text(text, rows, label, page), _pick_rows(rows, "car", label, page))
 
 
 def car_none() -> Dict[str, Any]:
@@ -371,7 +376,7 @@ def slip_conflict() -> Dict[str, Any]:
 
 # ── 预览汇总卡 ────────────────────────────────────────────────────────────
 def _car_paint_line(answers: Dict[str, Any]) -> str:
-    car = str((answers.get("car") or {}).get("label") or "")
+    car = _car_text(answers)
     paint = str((answers.get("paint") or {}).get("name") or "")
     return " · ".join(p for p in (car, paint) if p) or "—"
 
@@ -419,6 +424,30 @@ def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
     }
 
 
+def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """车型赠品（只读）：标题、逐项「名称 / 数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
+    freebies = car_freebies.for_car(qa)
+    items = freebies.get("rows") or []
+    if not items:
+        return []
+    rows: List[Dict[str, Any]] = [
+        {"type": "text", "text": qat("LBL_FREEBIES"), "size": "sm", "color": "#8a8a8a", "margin": "md"}
+    ]
+    for item in items[: car_freebies.CARD_LIMIT]:
+        quantity = " ".join(part for part in (item["qty"], item["unit"]) if part)
+        detail = f"{quantity} × {item['price']} = {item['amount']}"
+        rows.append({"type": "box", "layout": "horizontal", "spacing": "sm", "contents": [
+            {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "flex": 4, "wrap": True},
+            {"type": "text", "text": detail, "size": "sm", "color": "#111111", "flex": 5,
+             "wrap": True, "align": "end"},
+        ]})
+    hidden = len(items) - car_freebies.CARD_LIMIT
+    if hidden > 0:
+        rows.append({"type": "text", "text": qat("TXT_FREEBIES_MORE", n=hidden), "size": "sm", "color": "#8a8a8a"})
+    rows.append(_kv_row(qat("LBL_FREEBIES_TOTAL"), freebies.get("total") or ""))
+    return rows
+
+
 def preview_card(qa: Dict[str, Any], nonce: str, notice: str = "") -> Dict[str, Any]:
     """逐问结束的汇总卡：全部答案 + 各渠道金额 + 合计 + 附件两行 + 确认/丢弃。
 
@@ -447,6 +476,7 @@ def preview_card(qa: Dict[str, Any], nonce: str, notice: str = "") -> Dict[str, 
         _kv_row(qat("LBL_PLACE"), str((answers.get("place") or {}).get("name") or "")),
         _kv_row(qat("LBL_CAR"), _car_paint_line(answers)),
         *booking_car_details.rows(qa),
+        *freebie_rows(qa),
         _kv_row(qat("LBL_DELIVERY"), str(answers.get("delivery_date_be") or "")),
         _kv_row(qat("LBL_TERM"), str((answers.get("term") or {}).get("name") or "")),
         _kv_row(qat("LBL_REGIS"), _regis_line(answers)),

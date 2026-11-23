@@ -6,6 +6,7 @@ perform their independent live validation/readback in the write service.
 
 from typing import Any, Dict, Optional, Tuple
 
+from pearnly_dms.booking import car_freebies
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.snapshots.directory import Directory
@@ -60,6 +61,9 @@ def read_edit_snapshot(endpoint, *, car_ids=(), customer=None, customer_id="",
         "masters": masters if include_booking_masters else {"prefixes": prefixes},
         "paints": {str(car): view.paints(str(car)) for car in car_ids if car}
         if include_booking_masters else {},
+        "freebies": {str(car): car_freebies.from_view(view, str(car)) for car in car_ids if car}
+        if include_booking_masters else {},
+        "car_names": _car_names(view) if include_booking_masters else {},
         "prefixes": prefixes,
         "geo": {level: view.list_geo(level, parent) for level, parent in geo_levels(resolved)},
         "customer": saved, "resolved_customer": resolved,
@@ -67,4 +71,16 @@ def read_edit_snapshot(endpoint, *, car_ids=(), customer=None, customer_id="",
     }
 
 
-__all__ = ["geo_levels", "read_edit_snapshot"]
+def _car_names(view):
+    try:
+        return view.car_names()
+    except DmsClientError:
+        return {}  # 显示回落 ชื่อรุ่นรถ，不挡编辑
+
+
+def read_car_freebies(endpoint, car_id):
+    """编辑页换车型：只读车辆 / 公司快照里这台车的赠品，不读客户与地址。"""
+    return car_freebies.from_view(Directory(endpoint), str(car_id or ""))
+
+
+__all__ = ["geo_levels", "read_car_freebies", "read_edit_snapshot"]

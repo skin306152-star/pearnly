@@ -82,8 +82,30 @@ def car_label(row) -> str:
     return (code + " " + name).strip()
 
 
+def car_display(row, names: Optional[Dict[str, str]] = None) -> str:
+    """给人看的车型：«รหัสรุ่นรถ / ชื่อรถ»（同 DMS 网页）。
+
+    ชื่อรถ 只在车型主档表单里（`txtdescmodelname`），下拉行里没有，由调用方从快照传 `names`；
+    取不到时回落行里的 ชื่อรุ่นรถ。**确认复核仍比 `car_label`**，这里只管显示。
+    """
+    code = str(row[1]) if len(row) > 1 else ""
+    name = str((names or {}).get(str(row[0])) or "").strip() or (str(row[2]) if len(row) > 2 else "")
+    return f"{code} / {name}" if code and name else (code or name)
+
+
+def car_matches(row, needle: str, names: Optional[Dict[str, str]] = None) -> bool:
+    """搜车型：代码、ชื่อรุ่นรถ、ชื่อรถ 任一包含即命中（例：dmax 命中 D-Max）。"""
+    return bool(needle) and needle in norm_row(row) + norm((names or {}).get(str(row[0])))
+
+
+def car_text(answers: Dict[str, Any]) -> str:
+    """已选车型的显示文字：有 display 用 display，旧会话回落 label。"""
+    car = (answers or {}).get("car") or {}
+    return str(car.get("display") or car.get("label") or "")
+
+
 def car_label_of(qa: Dict[str, Any]) -> str:
-    return str((qa.get("answers") or {}).get("car", {}).get("label") or "")
+    return car_text(qa.get("answers") or {})
 
 
 def find_row(rows: Optional[List[list]], rid: Optional[str]) -> Optional[list]:

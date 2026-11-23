@@ -83,6 +83,18 @@ class Directory:
             return self.index_details[cid]
         raise CustomerDetailPending(cid)
 
+    def car_form(self, car_id):
+        """车型主档表单字段（赠品明细、ชื่อรถ 等）；车型不在完整快照里 → 空。"""
+        catalogues = self._load("vehicles")["data"].get("catalogues") or {}
+        record = (catalogues.get("car") or {}).get(str(car_id)) or {}
+        return copy.deepcopy(record.get("fields") or {})
+
+    def car_names(self):
+        """车型 id → ชื่อรถ（车型主档表单的 `txtdescmodelname`；下拉行里没有这一列）。"""
+        catalogues = self._load("vehicles")["data"].get("catalogues") or {}
+        return {str(car_id): str((record.get("fields") or {}).get("txtdescmodelname") or "").strip()
+                for car_id, record in (catalogues.get("car") or {}).items()}
+
     def list_prefixes(self):
         self._customers()
         if not isinstance(self.data.get("prefixes"), list) or not self.data["prefixes"]:

@@ -116,7 +116,8 @@ def flip_page(
         search["page"] = max(0, min(page, last))
         persist(tenant_id, line_user_id, qa)
         # 车型搜索结果是本地命中的快照，不读主档 —— 直接回卡片
-        _send(line_user_id, qa_cards.car_results(hits, len(hits), search["page"]), reply_token)
+        _send(line_user_id, qa_cards.car_results(hits, len(hits), search["page"], search.get("names")),
+              reply_token)
         return
     key = (
         PAYMENT_CHANNEL_BANKS.get((qa.get("pending_channel") or {}).get("channel"))

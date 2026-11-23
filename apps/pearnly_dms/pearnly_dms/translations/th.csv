@@ -164,6 +164,8 @@ First setup,ตั้งค่าครั้งแรก
 First-time setup,ตั้งค่าครั้งแรก
 Fit the ID card inside the frame,กรุณาวางบัตรให้อยู่ในกรอบ
 Floor,ชั้น
+Freebies,รายการของแถม
+Freebies total,รวมของแถม
 Full address directory,รายการที่อยู่ครบชุด
 Full customer records,ข้อมูลลูกค้าครบชุด
 Gear,เกียร์
@@ -630,6 +632,8 @@ dms.card.qa.LBL_ATTACH_CARD,สำเนาบัตรประชาชน
 dms.card.qa.LBL_ATTACH_SLIP,สลิปโอนเงินจอง
 dms.card.qa.LBL_CAR,รุ่น/สี
 dms.card.qa.LBL_DELIVERY,วันที่ส่งมอบ
+dms.card.qa.LBL_FREEBIES,รายการของแถม
+dms.card.qa.LBL_FREEBIES_TOTAL,รวมของแถม
 dms.card.qa.LBL_PLACE,สถานที่รับจอง
 dms.card.qa.LBL_POSTCODE,รหัสไปรษณีย์
 dms.card.qa.LBL_REGIS,จดทะเบียนในนาม
@@ -660,6 +664,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,รูปแบบไม่ถูกต้อ
 dms.card.qa.TXT_CAR_NONE,ไม่พบรุ่นรถที่ตรงกัน กรุณาพิมพ์ใหม่อีกครั้ง
 dms.card.qa.TXT_CAR_PICK,เลือกรุ่นรถ (พบ {n} รายการ)
 dms.card.qa.TXT_CONFIRM_ABOVE,กรุณากด «ยืนยัน» หรือ «ยกเลิก» ในสรุปด้านบน
+dms.card.qa.TXT_FREEBIES_MORE,อีก {n} รายการ
 dms.card.qa.TXT_MASTER_EMPTY_ITEM,ยังไม่ได้ตั้งค่าตัวเลือก «{item}» ใน DMS กรุณาติดต่อผู้ดูแลระบบเพื่อเพิ่มใน DMS แล้วลองใหม่อีกครั้ง
 dms.card.qa.TXT_NEED_SLIP,รายการนี้มีการชำระด้วยเงินโอน กรุณาส่งสลิปโอนเงินก่อนดูสรุป
 dms.card.qa.TXT_NO_COMPANY_BANK,ยังไม่ได้ตั้งค่าบัญชีรับเงินของบริษัท กรุณาติดต่อผู้ดูแลระบบเพื่อตั้งค่าใน DMS แล้วลองใหม่อีกครั้ง
@@ -1040,4 +1045,5 @@ usage log,บันทึกการใช้งาน
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
+{n} more,อีก {n} รายการ
 {text} ({fields}),{text} ({fields})

@@ -164,6 +164,8 @@ First setup,首次设置
 First-time setup,首次设置
 Fit the ID card inside the frame,请将身份证置于框内
 Floor,楼层
+Freebies,赠品
+Freebies total,赠品合计
 Full address directory,完整地址目录
 Full customer records,完整客户资料
 Gear,变速箱
@@ -630,6 +632,8 @@ dms.card.qa.LBL_ATTACH_CARD,身份证复印件
 dms.card.qa.LBL_ATTACH_SLIP,订金转账凭证
 dms.card.qa.LBL_CAR,车型/颜色
 dms.card.qa.LBL_DELIVERY,交车日期
+dms.card.qa.LBL_FREEBIES,赠品
+dms.card.qa.LBL_FREEBIES_TOTAL,赠品合计
 dms.card.qa.LBL_PLACE,订车地点
 dms.card.qa.LBL_POSTCODE,邮编
 dms.card.qa.LBL_REGIS,登记名义
@@ -660,6 +664,7 @@ dms.card.qa.TXT_BAD_PAYMENT_DETAIL,格式不正确，两栏均须填写 {hint}
 dms.card.qa.TXT_CAR_NONE,未找到匹配的车型，请重新输入。
 dms.card.qa.TXT_CAR_PICK,选择车型（共 {n} 项）
 dms.card.qa.TXT_CONFIRM_ABOVE,请在上方汇总中点击「确认」或「放弃」
+dms.card.qa.TXT_FREEBIES_MORE,另 {n} 项
 dms.card.qa.TXT_MASTER_EMPTY_ITEM,DMS 中尚未设置「{item}」选项，请联系管理员在 DMS 中添加后重试。
 dms.card.qa.TXT_NEED_SLIP,本单包含转账付款，请先发送转账凭证，再查看汇总。
 dms.card.qa.TXT_NO_COMPANY_BANK,尚未设置公司收款账户，请联系管理员在 DMS 中设置后重试。
@@ -1040,4 +1045,5 @@ usage log,使用记录
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组
 {n} latest sales records from DMS,DMS 最新销售记录 {n} 条
+{n} more,另 {n} 项
 {text} ({fields}),{text}（{fields}）
