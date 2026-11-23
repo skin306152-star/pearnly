@@ -57,6 +57,9 @@
 			.map(([doctype, fieldname, operator, value]) => [fieldname, operator, value]);
 		return rows.length ? JSON.stringify(rows) : undefined;
 	};
+	// 第几次换路由（列表条件只在进到页面时取回一次，见 ProductList 构造里 `entering`）
+	let navigation = 0;
+	frappe.router?.on?.("change", () => { navigation += 1; });
 	class ProductList extends frappe.views.BaseList {
 		constructor(options) {
 			super(options);
@@ -86,8 +89,13 @@
 			// 嵌在表单里的列表（`container`）不存。比原生多存页头字段（搜索框、日期、仓库…），`routed_page` 每次显示都重建它们。
 			this.memory = options.container ? null
 				: `pearnly:${(frappe.get_route?.() || [])[0] || ""}:${frappe.boot?.pearnly_company || ""}`;
+			// 只在**进到这一页**时取回一次（每次换路由算一次）：人在页面上改了个会整张重建列表的字段（库存页「显示方式」），
+			// 重建出来的列表不能再把旧的存档盖回去。取回过程中引起的重建（填回「显示方式」→ 重建）只再取回筛选与排序。
+			const entering = this.page?.pearnly_restored_nav !== navigation;
+			this.restore_fields = entering;
 			this.remembered = this.memory && !Object.keys(frappe.route_options || {}).length
-				? null : undefined;  // null = 等 DocType 载入后去取；undefined = 不取
+				&& (entering || this.page?.pearnly_restoring) ? null : undefined;  // null = 等 DocType 载入后去取；undefined = 不取
+			if (this.remembered === null && entering) this.page.pearnly_restored_nav = navigation;
 			this.settings = {formatters: {}, button: options.button};
 			// 白名单：只列这些字段（见上面包 `frappe.ui.Filter` 的那段）。注意 `filter_fields`
 			// 是给 `FieldSelect` 看的**字段名数组**；页面声明写成 `filter_fields: [{fieldname…}]`
@@ -379,6 +387,10 @@
 			this.page.wrapper.off("show", this.layout_handler);
 			this.$result?.find("[data-original-title]").tooltip("dispose");
 			this.$frappe_list?.remove();
+			// 原生 FilterArea 往页头追加了自己的「筛选」区（`.filter-section` 与 `.standard-filter-section`）：列表拆掉时一并拆，
+			// 不然同一页重建列表（库存页切「显示方式」）页头会多出一颗「筛选」，越切越多。
+			this.$filter_section?.remove();
+			this.filter_area?.standard_filters_wrapper?.remove();
 		}
 		// 页头那几格（`page.add_field`）：有值的输入类控件，按钮、说明之类不算
 		page_fields() {
@@ -395,8 +407,12 @@
 			}
 			if ([20, 100, 500, 2500].includes(saved.page_length)) this.selected_page_count = this.page_length = saved.page_length;
 			const values = saved.fields && typeof saved.fields === "object" ? saved.fields : {};
+			// 有的页头字段一改就整张列表重建（库存页「显示方式」→ `build_list`）：重建出来的新列表只取回筛选与排序，
+			// 页头字段由最先那张列表填一遍就够，否则填回 → 重建 → 再填回，没完没了。标记挂在页面上（新旧列表共用）。
+			if (!this.restore_fields || this.page.pearnly_restoring) return;
 			// 填回时页面字段的 change 会叫 reload：先停住，填完由下面那一次 refresh 按全部条件取一次
 			this.restoring = true;
+			this.page.pearnly_restoring = true;
 			try {
 				for (const control of this.page_fields()) {
 					const value = values[control.df.fieldname];
@@ -407,10 +423,12 @@
 							: String(control.df.options || "").split("\n");
 						if (!options.includes(value)) continue;
 					}
+					if (control.get_value() === value) continue;
 					await control.set_value(value);
 				}
 			} finally {
 				this.restoring = false;
+				this.page.pearnly_restoring = false;
 			}
 		}
 		remember() {
