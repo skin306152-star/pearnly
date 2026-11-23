@@ -20,5 +20,10 @@
 - `apps/pearnly_dms/pearnly_dms/public/desk/roster.js`：页头加搜索框，值随分页参数交给接口；改值即从第一页重载。
 - 测试：`tests/test_dms_roster_search.py`（只回匹配行、按用户名也能搜、分页仍生效且总数同条件、空搜索=全部、坏分页仍拒绝），进 `check-dms-offline.py`；`tests/test-roster-selection.cjs` 补搜索框与参数断言。
 
-## 验证
-（见下方，随提交更新）
+## 验证（`edb852bea` 一线，本机）
+- 离线：`check-dms-offline.py`（含新测试 5 项）、`check-architecture.py`、`check-unbounded-queries.py`（未超基线）、`check-copy.py`（拦截 0，无新文案）、`node tests/test-roster-selection.cjs` 均通过；全闸门 `gate.sh` 288 项 ok；生产镜像候选离线（`fdf20d98`）LANE EXIT 0。
+- 流程：新流程 `dms.roster.search`（新 / 老两套数据 × 电脑 / 手机）在本机实验栈 4/4 通过：前缀搜到 20 / 25，「加载更多」到 25 / 25，按显示名、按 DMS 用户名各只剩 1 行，清空回到全部；备的 25 行收尾删掉。名册服务端被流程覆盖后，`tests/flows/behind_baseline.txt` 删去 12 条已覆盖的模块。
+  - 中途一轮 4 格里 new / 电脑那一格出过一次数据库报错（同一提交单跑与重跑全套都通过），原文没留下，未复现。
+- 截图（本机实验栈、25 个合成操作员）：电脑宽度搜「Som」5 / 5；手机宽度搜 `sale07` 1 / 1；页头搜索框中文显示「搜索」。
+- 影响清单：`dms.page.roster` 由上面流程覆盖；`dms.roster.line-oa`、`dms.line.binding` 没测到（本次未改这两处代码）。
+- 未做：真实租户 / 测试机 / 三星（按派单只读不碰）；部署由主会话今晚单独做。
