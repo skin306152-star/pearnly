@@ -609,6 +609,9 @@ def main():
             msg, status = message_of(api.browser_paints, customer_ticket, NONCE, "C2")
             check("客户档票据调「换车型颜色」→ expired(409)（模式守卫）",
                   msg == "dms_booking.expired" and status == 409, (msg, status))
+            msg, status = message_of(api.browser_freebies, customer_ticket, NONCE, "C2")
+            check("客户档票据调「换车型赠品」→ expired(409)（模式守卫）",
+                  msg == "dms_booking.expired" and status == 409, (msg, status))
             before = mirror_count()
             saved = api.browser_save(auth["ticket"], NONCE, submitted())
             check("browser_save 回新 nonce 且卡片已发",

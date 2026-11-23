@@ -147,6 +147,11 @@ reason = "订车编辑器：车型的颜色选项"
 guard = "编辑票据 + nonce"
 
 [[guest]]
+method = "pearnly_dms.editor.browser_api.browser_freebies"
+reason = "订车编辑器：车型的赠品（只读）"
+guard = "编辑票据 + nonce"
+
+[[guest]]
 method = "pearnly_dms.editor.browser_api.browser_geo"
 reason = "编辑器地址级联"
 guard = "编辑票据 + nonce"
