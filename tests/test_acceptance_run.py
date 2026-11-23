@@ -256,5 +256,56 @@ class RunTest(unittest.TestCase):
         self.assertIn("PEARNLY_ACC_ERP_USER", result["detail"])
 
 
+class CoreLanesTest(unittest.TestCase):
+    """核心集：换 CC 桌面版那台时锁跟着换；按资源分路（共用任何一项归同一路）；两路真的同时跑、结果都收齐；报告逐条三态。"""
+
+    EXPRESS = {"id": "acc.a", "resources": ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2"],
+               "site_resources": {"lab": ["testpc1"], "maclab": ["lab:erp"]}}
+    EXPRESS2 = {"id": "acc.b", "resources": ["testpc2", "ledger:69EXP/TEST2"], "site_resources": {"maclab": ["lab:cowork"]}}
+    MRERP = {"id": "acc.m", "resources": ["mrerp:acc"]}
+
+    def test_pc_switch_renames_registered_pc_and_dedupes(self):
+        self.assertEqual(runner.resources_of(self.EXPRESS, "lab", "testpc1"), ["testpc1", "testpc1-desktop", "ledger:69EXP/TEST2"])
+        self.assertEqual(runner.resources_of(self.EXPRESS, "maclab", "testpc2"),
+                         ["testpc2", "testpc2-desktop", "ledger:69EXP/TEST2", "lab:erp"])
+
+    def test_lanes_join_on_any_shared_resource(self):
+        groups = runner.lanes([self.MRERP, self.EXPRESS2, self.EXPRESS], "maclab", "testpc1")
+        self.assertEqual([[item["id"] for item in group] for group in groups], [["acc.a", "acc.b"], ["acc.m"]])
+        isolated = runner.lanes([{"id": "acc.x", "resources": []}, {"id": "acc.y", "resources": []}], "lab", "testpc2")
+        self.assertEqual(len(isolated), 2)
+
+    def test_lanes_run_at_the_same_time_and_all_results_come_back(self):
+        import threading
+        barrier = threading.Barrier(2, timeout=5)  # 两路都走到这里才放行：串行跑就会超时
+        def run(ctx):
+            barrier.wait()
+            ctx.check("ok", 1, 1)
+        with tempfile.TemporaryDirectory() as tmp:
+            os.environ["PEARNLY_LOCK_DIR"] = str(pathlib.Path(tmp) / "locks")
+            try:
+                a = dict(SCENARIO, id="acc.a", resources=["testpc2"])
+                m = dict(SCENARIO, id="acc.m", resources=["mrerp:acc"])
+                fake = module(run)
+                results = runner.run_lanes([[a], [m]], pathlib.Path(tmp) / "run", "win-test", False, None, "abc", pathlib.Path(tmp),
+                                           modules={"acc.a": fake, "acc.m": fake})
+            finally:
+                os.environ.pop("PEARNLY_LOCK_DIR", None)
+        self.assertEqual([(item["scenario"], item["outcome"]) for item in results], [("acc.a", runner.PASS), ("acc.m", runner.PASS)])
+
+    def test_report_lists_every_scenario_with_reason(self):
+        text = runner.report_text([{"scenario": "acc.a", "outcome": runner.NOT_RUN, "detail": "资源被占用：testpc1"},
+                                   {"scenario": "acc.b", "outcome": runner.PASS, "seconds": 12.3, "facts": {"docnums": ["RR1"]}}],
+                                  "r1", "0123456789abcdef", False, "core; 2 scenarios")
+        self.assertIn("| `acc.a` | 没测到 | 0s | 0 | 资源被占用：testpc1 |", text)
+        self.assertIn("| `acc.b` | 通过 | 12s | 0 | RR1 |", text)
+
+    def test_core_flag_selects_core_only(self):
+        registry = types.SimpleNamespace(scenarios={"acc.a": {"id": "acc.a", "core": True, "tier": "weekly"},
+                                                    "acc.b": {"id": "acc.b", "tier": "gate"}})
+        args = types.SimpleNamespace(scenario=None, tier=None, since=None, core=True)
+        self.assertEqual([item["id"] for item in runner.select(registry, args)], ["acc.a"])
+
+
 if __name__ == "__main__":
     unittest.main()

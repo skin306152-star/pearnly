@@ -6,7 +6,8 @@
 # 可选：site_resources = { lab = [...], maclab = [...] }（服务端在测试机实验栈 / 本机 Mac 实验栈时各自另占的资源，
 #       由 PEARNLY_ACC_SITE_TARGET 选；默认 lab）、
 #       via = "api"（被验收的那段没走界面：不算界面覆盖）、needs_server（要账套服务器，只在 08:00–20:40 开跑）、
-#       misuse = [代号…]、chain = "<链 id>"。
+#       misuse = [代号…]、chain = "<链 id>"、
+#       core = true（核心集：上线前 `run.py --core` 一条命令跑完的那一组，与 tier 无关；清单与取舍见 docs/work/2026-11-23-acceptance-l3-core.md）。
 
 [[scenario]]
 id = "acc.erp.purchase.express"
@@ -32,6 +33,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.purchase.express.twice"
@@ -164,6 +166,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.collection.three"
@@ -197,6 +200,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.collection.nbsp"
@@ -616,10 +620,12 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.cowork.intake.express.twice"
@@ -640,7 +646,8 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -665,7 +672,8 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -691,7 +699,8 @@ covers = [
   "companion/src/companion/worker.py",
   "companion/src/companion/write_verify.py",
 ]
-resources = ["testpc1", "testpc2", "ledger:69EXP/TEST2"]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-cowork"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
@@ -726,10 +735,11 @@ needs_server = true
 budget_usd = 1
 repeat = 1
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.cowork.cc.direct.sales"
-title = "Cowork 的 CC 对话直写：放一张销售票（卖方是验收公司）→ 识别 → 写入计划 → 点写入 → 写进 Express 验收账套 → 读回（格 CW-D-S-L；样票待补）"
+title = "Cowork 的 CC 对话直写：放一张销售票（卖方是验收公司）→ 识别 → 写入计划 → 点写入 → 写进 Express 验收账套 → 读回（格 CW-D-S-L；样票 sales-a1）"
 class = "normal"
 layer = "L3"
 env = "B"
@@ -778,6 +788,7 @@ covers = [
 resources = ["mrerp:test01"]
 budget_usd = 0
 tier = "weekly"
+core = true
 
 [[scenario]]
 id = "acc.erp.mrerp.purchase.expense"
@@ -817,6 +828,7 @@ covers = [
 resources = ["mrerp:test01"]
 budget_usd = 0
 tier = "weekly"
+core = true
 
 [[scenario]]
 id = "acc.erp.mrerp.sales.cash"
@@ -883,6 +895,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 1
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.cc.collection.nbsp"
@@ -935,6 +948,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 0
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.operator.sales.express"
@@ -1057,6 +1071,7 @@ site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
 needs_server = true
 budget_usd = 1
 tier = "gate"
+core = true
 
 [[scenario]]
 id = "acc.erp.mrerp.purchase.cash"

@@ -4,9 +4,9 @@
 # `expect` 是这张票录对了以后账本里应有的值（场景拿它核 APTRN），不是给模型看的。
 # 用例（cc_talk_cases.toml）里还没有对应样票的名字：purchase-b1（别家公司的票）、purchase-june（别的月份）、purchase-ambiguous-pay、
 # purchase-injected（票面藏指令）、purchase-a1-photo2、contract、transfer-slip——随第二期各格场景补。
-# 销售票（Cowork 直写销售 acc.cowork.cc.direct.sales 要的 sales-a1，还没有）：写 direction = "sales"，卖方就是上面的 [buyer]（验收公司），
-# 买方写 customer = { code, name, tax_id, branch, address }——必须照验收账套基线 ARMAS 里真有的一位客户抄（今天没核过基线，所以没登记），
-# expect 写 customer_code / amount / vat / total；只记账的一行（服务）最稳，不动库存。
+# 销售票（direction = "sales"）：卖方就是下面的 [buyer]（验收公司），买方 customer 照验收账套基线 ARMAS 里真有的一位客户抄；
+# sales-a1 的客户 บ001 取自 TEST2 在 11-13、11-14 两份只读拷贝的 ARMAS（两份一致；本机 ~/pearnly-devtools/collection-lab/run1113/re_t2、
+# half-doc/snap/hd69test2），首跑时场景按基线读回再核一次。只记账的一行（服务），不动库存。
 
 [buyer]
 name = "บริษัท Pearnly จำกัด"
@@ -33,3 +33,14 @@ supplier = { code = "T001", name = "บริษัท ไทย ซี-เซ�
 vat_rate = "7"
 lines = [{ description = "ค่าบริการโฆษณา", qty = "1", unit = "งาน", price = "500.00" }]
 expect = { supplier_code = "T001", amount = "500.00", vat = "35.00", total = "535.00" }
+
+[[sample]]
+id = "sales-a1"
+direction = "sales"
+title = "ใบกำกับภาษี / ใบแจ้งหนี้"
+number = "ACC-S1-0001"
+date = "2026-11-13"
+customer = { code = "บ001", name = "บริษัท บ้านดีโฮมบิลเดอร์ จำกัด", tax_id = "0105599240028", branch = "สำนักงานใหญ่", address = "120/33 ถนนราชพฤกษ์ ตำบลบางรักน้อย อำเภอเมืองนนทบุรี จังหวัดนนทบุรี 11000" }
+vat_rate = "7"
+lines = [{ description = "ค่าบริการติดตั้ง", qty = "1", unit = "งาน", price = "800.00" }]
+expect = { customer_code = "บ001", amount = "800.00", vat = "56.00", total = "856.00" }

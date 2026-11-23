@@ -378,7 +378,8 @@ class DirectWriteScenarioTest(unittest.TestCase):
 
         def registry(*args):
             data = real(*args)
-            return dict(data, samples={**data["samples"], **({"sales-a1": self.SALES} if self.with_sales else {})})
+            rest = {name: item for name, item in data["samples"].items() if name != "sales-a1"}  # 样票库已登记 sales-a1：「缺销售票」要拿掉它
+            return dict(data, samples={**rest, **({"sales-a1": self.SALES} if self.with_sales else {})})
 
         self.samples.registry = registry
         self.addCleanup(setattr, self.samples, "registry", real)

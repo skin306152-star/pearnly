@@ -288,7 +288,7 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 | 写功能时 | 影响评估里写：新增 / 改动哪些地图行、各欠哪些场景、哪些要 L3。新入口同一提交登记进地图并写齐欠的场景 |
 | 提交 / 推送 | L0 全过；`check-acceptance.py` 过；`run.py --changed` 跑受影响的 L2 场景 |
 | 进集成分支前 | 改到 `effect` 含 ledger 的行或跨端链路：跑命中的 L3 场景并登记证据（真环境的时间与费用先报主会话）；命中共用件照旧逐入口实测 |
-| 上线前 | L2 全套（`pearnly/flows`）；L3 必跑集中被本批改到的场景有新鲜证据（`pearnly/acceptance`）；`deploy.sh` 两道闸都认，没有绕过开关 |
+| 上线前 | L2 全套（`pearnly/flows`）；**L3 核心集一条命令跑完**（`run.py --core --record`，见 §8）并把 `report.md` 交主会话；L3 必跑集中被本批改到的场景有新鲜证据（`pearnly/acceptance`）；`deploy.sh` 两道闸都认，没有绕过开关 |
 | 上线后 | L4 自动跑；本批真机单逐条做；真写探针见下（待定案） |
 | 每周 | L3 全集、L2 倒序全套、一轮探索；机器报告交主会话 |
 | 出事后 | 修复的同一提交加一条固定场景，地图行记 `incidents` |
@@ -316,6 +316,12 @@ run.json      提交、是否有未提交改动、环境、各端版本（服务
 - **不让它越积越慢**，三个集合：
   - 每次必跑：受影响的 L2 场景（按 `covers` 自动选）。
   - 上线前必跑（`tier = "gate"`）：L2 全套 + L3 核心集。L2 全套墙钟上限 120 分钟、L3 核心集 40 分钟；超了先合并重复的情形、把 `variant` 挪到每周集，不许删 `normal` 与 `chain`。
+  - **L3 核心集**（主会话 11-23 审定，清单与取舍见 [核心集记录](../work/2026-11-23-acceptance-l3-core.md)）：登记里 `core = true` 的场景，与 `tier` 无关；
+    覆盖用户真实主路径——Cowork / ERP × 直写 / 代录 × 本地 Express / MR.ERP × 采购 / 销售 / 收款，加 LINE 收款与录单回执、网页 → CC → 账本 → 回执的跨端链。
+    一条命令：`PEARNLY_ACC_LEDGER_HOST=<测试机> PEARNLY_ACC_SITE_TARGET=maclab python3 scripts/acceptance/run.py --core --holder <窗口> --record`。
+    运行器按占用的资源把场景分成互不相交的几路并行（Express 账套一路、MR.ERP 一路），路内顺序；每次在证据目录写 `report.md`，逐条「通过 / 不通过 / 没测到（原因）」。
+    `check-acceptance.py --report` 的「L3 核心集」一段列每条的证据状态。**现在只报告、不拦**：跑稳（连续两次全过、没有「不稳」）后由主会话定何时接进 `deploy.sh` 拦。
+    不进核心集的：DMS 订车真建单（写外部 DMS 要用户授权，先留 L2 模拟）、云端 Express（那条线进 main 后补）。
   - 每周（`tier = "weekly"`）：其余 `variant`、长链、L3 全集、探索。
 - 每条场景登记预计用时；机器报告列出最慢的 10 条与最近不稳的场景。
 - 费用：真模型与识别每条场景写死上限，运行器按实际调用计费到额即停；整轮有上限；每次运行记台账。

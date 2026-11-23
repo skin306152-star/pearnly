@@ -201,6 +201,8 @@ class Registry:
                 say(f"{where}：tier 只能是 {' / '.join(TIERS)}")
             if not isinstance(scenario.get("budget_usd", 0), (int, float)) or scenario.get("budget_usd", 0) < 0:
                 say(f"{where}：budget_usd 要是不小于 0 的数")
+            if "core" in scenario and not isinstance(scenario["core"], bool):
+                say(f"{where}：core 只能是 true / false（核心集：上线前一条命令跑完的那一组，见标准 §8）")
             if scenario.get("module") and not (self.root / scenario["module"]).is_file():
                 say(f"{where}：模块不存在 {scenario['module']}")
             for row_id in scenario.get("rows", []):
@@ -496,6 +498,13 @@ def report(registry: Registry) -> str:
         f"CC 对话乱用种子：{len(registry.talk)} 类；用例骨架 {len(registry.cases.get('case', []))} 条（都没跑过）；已登记成场景的 "
         f"{len({code for s in registry.scenarios.values() for code in s.get('talk', [])})} 类；底线 {len(registry.lines)} 条",
     ]
+    core = sorted(scenario_id for scenario_id, scenario in registry.scenarios.items() if scenario.get("core"))
+    lines.append(f"L3 核心集（core = true，`run.py --core` 一条命令跑完）：{len(core)} 条；"
+                 + "、".join(f"{state} {[states[i] for i in core].count(state)}" for state in ("已验", "过期", "没有证据")))
+    for scenario_id in core:
+        state, detail = registry.freshness(scenario_id)
+        lines.append(f"  ★ {scenario_id}：{state}" + (f"（{detail}）" if detail else ""))
+    lines.append("全部 L3 场景：")
     for scenario_id, scenario in sorted(registry.scenarios.items()):
         state, detail = registry.freshness(scenario_id)
         lines.append(f"  · {scenario_id}  {scenario.get('title', '')}：{state}" + (f"（{detail}）" if detail else ""))

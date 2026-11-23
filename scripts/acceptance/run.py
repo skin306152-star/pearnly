@@ -4,6 +4,8 @@
 
     python3 scripts/acceptance/run.py --scenario <id> [--scenario <id>…]    # 指定场景
     python3 scripts/acceptance/run.py --tier gate [--since <提交>]           # 必跑集；带 --since 只跑本批改到的
+    python3 scripts/acceptance/run.py --core                                # 核心集（登记 core = true）：上线前一条命令跑完；
+                                                                            # 按占用的资源分路并行（Express 账套一路、MR.ERP 一路）
     python3 scripts/acceptance/run.py --scenario <id> --dry-run              # 只打印要占用什么、花多少、跑哪个模块；不碰任何机器
     … --record        通过的结果写进 tests/acceptance/evidence.toml（要求产品代码没有未提交改动）
     … --post-status   把结果回写成提交状态 pearnly/acceptance（只对 --tier gate）
@@ -20,6 +22,7 @@
 from __future__ import annotations
 
 import argparse
+import threading
 import fnmatch
 import importlib.util
 import json
@@ -177,11 +180,41 @@ def unstable(scenario_id: str, home: Path) -> bool:
     return sum(1 for line in recent if line.get("retried")) >= 2
 
 
-def resources_of(scenario: dict, target: str | None = None) -> list[str]:
+REGISTERED_PC = "testpc2"  # 登记里写的「跑 CC 桌面版、读验收账套的那台」；实际用哪台由 PEARNLY_ACC_LEDGER_HOST 定（场景模块同一个变量）
+
+
+def resources_of(scenario: dict, target: str | None = None, pc: str | None = None) -> list[str]:
     """这条场景这一次要占的资源：登记的 `resources`，加上按服务端在哪（`PEARNLY_ACC_SITE_TARGET`：lab 测试机实验栈，默认 /
-    maclab 本机 Mac 实验栈）分别登记的 `site_resources`——服务端在 Mac 上时不占测试机1。"""
+    maclab 本机 Mac 实验栈）分别登记的 `site_resources`——服务端在 Mac 上时不占测试机1。
+    CC 桌面版那台换了（`PEARNLY_ACC_LEDGER_HOST=testpc1`）时，登记里的 testpc2 / testpc2-desktop 换成那台再拿锁，去重。"""
     target = target or os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
-    return list(scenario.get("resources", [])) + list((scenario.get("site_resources") or {}).get(target, []))
+    pc = pc or os.environ.get("PEARNLY_ACC_LEDGER_HOST", REGISTERED_PC)
+    names = list(scenario.get("resources", [])) + list((scenario.get("site_resources") or {}).get(target, []))
+    if pc != REGISTERED_PC:
+        names = [pc + name[len(REGISTERED_PC):] if name == REGISTERED_PC or name.startswith(REGISTERED_PC + "-") else name for name in names]
+    return list(dict.fromkeys(names))
+
+
+def lanes(chosen: list[dict], target: str | None = None, pc: str | None = None) -> list[list[dict]]:
+    """按占用的资源把场景分成互不相交的几路（共用任何一项资源的归同一路，传递闭包），路与路之间可以并行，路内按 id 顺序跑。
+    核心集里 Express 那一路（测试机 + 验收账套）与 MR.ERP 那一路（mrerp:<测试账号>）不相交，两路同时跑。"""
+    parent: dict[str, str] = {}
+
+    def find(name: str) -> str:
+        while parent.setdefault(name, name) != name:
+            parent[name] = parent[parent[name]]
+            name = parent[name]
+        return name
+
+    for scenario in chosen:
+        names = resources_of(scenario, target, pc) or [f"<{scenario['id']}>"]
+        for name in names[1:]:
+            parent[find(name)] = find(names[0])
+    groups: dict[str, list[dict]] = {}
+    for scenario in chosen:
+        names = resources_of(scenario, target, pc) or [f"<{scenario['id']}>"]
+        groups.setdefault(find(names[0]), []).append(scenario)
+    return sorted((sorted(group, key=lambda item: item["id"]) for group in groups.values()), key=lambda group: group[0]["id"])
 
 
 def run_one(scenario: dict, run_dir: Path, holder: str, dry: bool, targets=None, module=None, now=None) -> dict:
@@ -278,6 +311,8 @@ def select(registry, args) -> list[dict]:
         if missing:
             raise SystemExit(f"不在 tests/acceptance/registry.toml：{', '.join(missing)}")
         return [scenarios[name] for name in args.scenario]
+    if getattr(args, "core", False):
+        return sorted((item for item in scenarios.values() if item.get("core")), key=lambda item: item["id"])
     chosen = [item for item in scenarios.values() if item.get("tier") == args.tier]
     if args.since:
         changed = git("diff", "--name-only", args.since, "HEAD").splitlines()
@@ -322,18 +357,83 @@ def sweep(home: Path, now: float | None = None) -> None:
             shutil.rmtree(folder, ignore_errors=True)
 
 
+_shared = threading.Lock()  # 各路并行时：写 history.jsonl、打印、按需加载模块都过这一把
+
+
+def run_lanes(groups: list[list[dict]], run_dir: Path, holder: str, dry: bool, targets, sha: str, home: Path,
+              modules: dict | None = None) -> list[dict]:
+    """各路并行、路内顺序跑。只有一路时就在本线程跑。结果按场景 id 排序返回。模块先在主线程按顺序加载好，
+    避免两路同时第一次加载同一个帮手模块。"""
+    modules = dict(modules or {})
+    if not dry:
+        for group in groups:
+            for scenario in group:
+                if scenario["id"] not in modules:
+                    modules[scenario["id"]] = _load(f"acc_{scenario['id'].replace('.', '_')}", ROOT / scenario["module"])
+    results: list[dict] = []
+
+    def one_lane(group: list[dict]) -> None:
+        for scenario in group:
+            result = run_repeated(scenario, run_dir, holder, dry, targets, modules.get(scenario["id"]))
+            with _shared:
+                if not dry and result["outcome"] != NOT_RUN:
+                    with open(home / "history.jsonl", "a", encoding="utf-8") as out:
+                        out.write(json.dumps({"at": time.strftime("%Y-%m-%d %H:%M:%S"), "scenario": scenario["id"], "sha": sha,
+                                              "outcome": result["outcome"], "retried": result.get("retried", False)}, ensure_ascii=False) + "\n")
+                    if result["outcome"] == PASS and unstable(scenario["id"], home):
+                        result["unstable"] = True
+                        result["detail"] = "这次过了，但最近 10 次里环境类重跑达到 2 次：标「不稳」，不登记证据，先修场景或环境"
+                results.append(result)
+                mark = result["outcome"] + ("（重跑过）" if result.get("retried") else "") + ("（不稳）" if result.get("unstable") else "")
+                print(f"{mark} {scenario['id']} {result.get('seconds', 0)}s {result.get('detail', '')}".rstrip(), flush=True)
+
+    if len(groups) <= 1:
+        for group in groups:
+            one_lane(group)
+    else:
+        failures: list[BaseException] = []
+
+        def guarded(group):
+            try:
+                one_lane(group)
+            except BaseException as error:  # noqa: BLE001 —— 一路崩了不拖垮另一路，最后再抛
+                failures.append(error)
+
+        threads = [threading.Thread(target=guarded, args=(group,), name=f"lane-{index}") for index, group in enumerate(groups, 1)]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+        if failures:
+            raise failures[0]
+    return sorted(results, key=lambda item: item["scenario"])
+
+
+def report_text(results: list[dict], run_id: str, sha: str, dirty: bool, summary: str) -> str:
+    """逐条「通过 / 不通过 / 没测到（原因）」一屏报告，存进证据目录的 report.md（交主会话、贴任务记录都用这份）。"""
+    lines = [f"# 验收运行 {run_id}", "", f"- 被测提交 `{sha[:12]}`" + ("（产品代码有未提交改动：不能登记证据）" if dirty else ""),
+             f"- {summary}", "", "| 场景 | 结果 | 用时 | 花费 | 原因 / 单号 |", "|---|---|---|---|---|"]
+    for item in results:
+        mark = item["outcome"] + ("（重跑过）" if item.get("retried") else "") + ("（不稳）" if item.get("unstable") else "")
+        docs = "、".join(str(v) for v in (item.get("facts") or {}).get("docnums", []) or [])
+        why = (item.get("detail") or "").replace("|", "／").replace("\n", " ")[:160] or docs
+        lines.append(f"| `{item['scenario']}` | {mark} | {round(item.get('seconds', 0))}s | {item.get('spent_usd', 0)} | {why} |")
+    return "\n".join(lines) + "\n"
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--scenario", action="append")
     parser.add_argument("--tier", choices=registry_check.TIERS)
     parser.add_argument("--since")
+    parser.add_argument("--core", action="store_true", help="跑核心集（登记 core = true），按资源分路并行")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--record", action="store_true")
     parser.add_argument("--post-status", action="store_true")
     parser.add_argument("--holder", default=os.environ.get("PEARNLY_LOCK_HOLDER", ""))
     args = parser.parse_args(argv)
-    if not args.scenario and not args.tier:
-        parser.error("要给 --scenario 或 --tier")
+    if sum(map(bool, (args.scenario, args.tier, args.core))) != 1:
+        parser.error("--scenario、--tier、--core 三选一")
     if not args.holder and not args.dry_run:
         parser.error("要给 --holder <窗口名>（或环境变量 PEARNLY_LOCK_HOLDER）：占用锁上写谁在用")
     registry = registry_check.Registry(ROOT)
@@ -343,28 +443,22 @@ def main(argv=None) -> int:
     sha, dirty = git("rev-parse", "HEAD"), bool(git("status", "--porcelain", "apps", "frontend", "companion"))
     if (args.record or args.post_status) and dirty:
         raise SystemExit("产品代码有未提交改动：这样跑出来的结果不能登记为证据，也不能回写状态")
-    if args.post_status and (args.scenario or not args.tier == "gate"):
-        raise SystemExit("--post-status 只对 --tier gate 用")
+    if args.post_status and not (args.tier == "gate" or args.core):
+        raise SystemExit("--post-status 只对 --tier gate / --core 用")
     home = runs_home()
     run_id = time.strftime("%Y%m%d-%H%M%S") + "-" + sha[:9]
     run_dir = home / run_id
     targets = None if args.dry_run else _load("acceptance_targets", HERE / "targets.py").Targets()
-    results, started = [], time.monotonic()
-    for scenario in chosen:
-        result = run_repeated(scenario, run_dir, args.holder or "dry-run", args.dry_run, targets)
-        if not args.dry_run and result["outcome"] != NOT_RUN:
-            with open(home / "history.jsonl", "a", encoding="utf-8") as out:
-                out.write(json.dumps({"at": time.strftime("%Y-%m-%d %H:%M:%S"), "scenario": scenario["id"], "sha": sha,
-                                      "outcome": result["outcome"], "retried": result.get("retried", False)}, ensure_ascii=False) + "\n")
-            if result["outcome"] == PASS and unstable(scenario["id"], home):
-                result["unstable"] = True
-                result["detail"] = "这次过了，但最近 10 次里环境类重跑达到 2 次：标「不稳」，不登记证据，先修场景或环境"
-        results.append(result)
-        mark = result["outcome"] + ("（重跑过）" if result.get("retried") else "") + ("（不稳）" if result.get("unstable") else "")
-        print(f"{mark} {scenario['id']} {result.get('seconds', 0)}s {result.get('detail', '')}".rstrip())
+    started = time.monotonic()
+    groups = lanes(chosen) if args.core else [chosen]
+    if args.core:
+        for index, group in enumerate(groups, 1):
+            print(f"第 {index} 路（{'、'.join(dict.fromkeys(n for s in group for n in resources_of(s)))}）：{len(group)} 条")
+    results = run_lanes(groups, run_dir, args.holder or "dry-run", args.dry_run, targets, sha, home)
     counts = {name: sum(1 for item in results if item["outcome"] == name) for name in (PASS, FAIL, NOT_RUN)}
     ok = bool(results) and counts[FAIL] == 0 and counts[NOT_RUN] == 0 and not any(item.get("unstable") for item in results)
-    scope = f"tier {args.tier}" + (f" since {args.since[:12]}" if args.since else "") if args.tier else "scenarios " + ",".join(args.scenario)
+    scope = ("core" if args.core else
+             f"tier {args.tier}" + (f" since {args.since[:12]}" if args.since else "") if args.tier else "scenarios " + ",".join(args.scenario))
     summary = (f"{scope}; {len(results)} scenarios; {counts[PASS]} passed, {counts[FAIL]} failed, {counts[NOT_RUN]} not run; "
                f"{round(sum(item.get('spent_usd', 0) for item in results), 2)} usd; {round(time.monotonic() - started)}s")
     if not args.dry_run:
@@ -372,6 +466,7 @@ def main(argv=None) -> int:
         (run_dir / "run.json").write_text(json.dumps({"run": run_id, "sha": sha, "dirty": dirty, "scope": scope, "ok": ok, "summary": summary,
                                                       "holder": args.holder, "results": results}, ensure_ascii=False, indent=1, default=str),
                                           encoding="utf-8")
+        (run_dir / "report.md").write_text(report_text(results, run_id, sha, dirty, summary), encoding="utf-8")
         sweep(home)
         if args.record:
             digests = {scenario["id"]: registry_check.covers_digest(ROOT, sha, scenario.get("covers", [])) for scenario in registry.scenarios.values()}

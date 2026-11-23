@@ -4,8 +4,8 @@
   acc.cowork.cc.direct.purchase   采购票（默认样票 purchase-a1：卖方是基线里的供应商 V001，买方是验收公司）  引导总表格 CW-D-P-L
   acc.cowork.cc.direct.sales      销售票（默认样票 sales-a1：卖方是验收公司，买方是基线里真有的客户）        引导总表格 CW-D-S-L
 
-**状态（11-17 第 7 批）**：purchase 写好未跑；sales **留桩**——样票库里还没有销售票（要先对着基线 ARMAS 挑一位真有的客户，见
-`tests/acceptance/samples.toml` 文件头），没有就记前置条件不满足，其余步骤与采购同一套、已写好。11-14 写的示范 2 按现在的共用件改过：
+**状态**：purchase、sales 都写好未跑（11-17 第 7 批写；11-23 补了销售样票 sales-a1，客户 บ001 取自 TEST2 基线 ARMAS，
+见 `tests/acceptance/samples.toml` 文件头）。11-14 写的示范 2 按现在的共用件改过：
 基线 / 现场 / 收尾 / 读回走 `erp_chain`，单号取 Cowork 推送记录（不再从账本差异里猜新增行），站点目标可以是本机 Mac 实验栈。
 
 前置条件（缺一样就是「没测到」，场景开头或那一步说清缺什么）：

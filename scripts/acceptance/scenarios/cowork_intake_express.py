@@ -1,7 +1,8 @@
 """验收场景：Cowork 录入页「提交」一张采购票 → 推送 → CC 桌面版写进 Express 验收账套 → 单号回显 → 账本读回 → 恢复基线。
 
-编排 B，**服务端只在测试机实验栈跑**（testcowork 域名切过去；主会话 11-15 定：Mac 实验栈的站点名不在产品的测试站点名单里，
-不改产品名单）。模型不参与、识别不跑（票的内容写死，取自验收样票库 purchase-a2），费用 0。
+编排 B。服务端跟 `PEARNLY_ACC_SITE_TARGET`：maclab → 本机 Mac 实验栈 cowork.maclab.localhost（A7 两格 11-19 就在这里通过；
+这条场景不跑识别，不受「Mac 栈站点名不在识别回放名单里」的限制），lab → 测试机实验栈 testcowork（域名切过去）。
+默认不再指向线上测试租户（11-23：办公室出口连不上生产时不排连线上的场景）。模型不参与、识别不跑（票的内容写死，取自验收样票库 purchase-a2），费用 0。
 
   acc.cowork.intake.express         提交 → 写成一张采购单，读回表头（供应商、金额、税、合计）
   acc.cowork.intake.express.twice   写成后同一张票再提交一次 → 账本里仍只多一张
@@ -16,7 +17,8 @@
 参数（环境变量）：
   PEARNLY_ACC_COWORK_USER         测试机 CC 桌面版上登录的 Cowork 员工
   PEARNLY_ACC_COWORK_CONNECTION   接着验收账套的那条 Express 连接
-  PEARNLY_ACC_BASELINE、PEARNLY_ACC_LEDGER、PEARNLY_ACC_LEDGER_HOST 同别的场景；PEARNLY_ACC_COWORK_SITE 默认 testcowork.pearnly.com
+  PEARNLY_ACC_BASELINE、PEARNLY_ACC_LEDGER、PEARNLY_ACC_LEDGER_HOST 同别的场景；PEARNLY_ACC_COWORK_SITE 默认按站点目标
+  （maclab → cowork.maclab.localhost，lab → testcowork.pearnly.com）
 """
 import importlib.util
 import os
@@ -25,7 +27,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 Unmet = sys.modules["acc_errors"].Unmet
-SITE = os.environ.get("PEARNLY_ACC_COWORK_SITE", "testcowork.pearnly.com")
+SITE_TARGET = os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
+SITE = os.environ.get("PEARNLY_ACC_COWORK_SITE") or ("cowork.maclab.localhost" if SITE_TARGET == "maclab" else "testcowork.pearnly.com")
 SAMPLE = "purchase-a2"   # 服务类的票（只记账），供应商在验收账套基线里有
 
 
@@ -66,7 +69,7 @@ def run(ctx):
     detail = ctx.scenario["id"].rsplit(".", 1)[-1] if ".intake.detail." in ctx.scenario["id"] else ""
     book = ctx.targets.ledger(chain.HOST, chain.LEDGER)
     chain.baseline(ctx, book, conf)
-    target = os.environ.get("PEARNLY_ACC_SITE_TARGET", "lab")
+    target = SITE_TARGET
     if detail:
         a7(ctx, chain, conf, book, ticket, detail, target)
         return

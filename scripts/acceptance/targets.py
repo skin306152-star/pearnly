@@ -27,7 +27,8 @@ ROOT = HERE.parents[1]
 
 HOSTS = {
     "testpc1": {"ssh": "PEARNLY_ACC_TESTPC1", "default": "lenovo-office-lan", "python": "PEARNLY_ACC_TESTPC1_PYTHON",
-                "python_default": "python", "work": "PEARNLY_ACC_TESTPC1_WORK", "work_default": "C:/PearnlyAcceptance"},
+                "python_default": "python", "work": "PEARNLY_ACC_TESTPC1_WORK", "work_default": "C:/PearnlyAcceptance",
+                "user": "PEARNLY_ACC_TESTPC1_USER", "user_default": ""},  # 桌面用户（读得到账套服务器共享的那位）首跑时实测后填进环境变量
     "testpc2": {"ssh": "PEARNLY_ACC_TESTPC2", "default": "testpc2", "python": "PEARNLY_ACC_TESTPC2_PYTHON",
                 "python_default": "C:/PearnlyPython311/python.exe", "work": "PEARNLY_ACC_TESTPC2_WORK", "work_default": "C:/PearnlyAcceptance",
                 "user": "PEARNLY_ACC_TESTPC2_USER", "user_default": "aksar"},

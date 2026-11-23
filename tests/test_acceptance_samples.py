@@ -29,7 +29,8 @@ class SamplesTest(unittest.TestCase):
         self.assertIn("purchase-a1", data["samples"])
         for name, sample in data["samples"].items():
             self.assertEqual(samples.check(sample), [], name)
-            self.assertTrue(sample.get("expect", {}).get("supplier_code"), name)
+            party = "customer_code" if sample.get("direction") == "sales" else "supplier_code"  # 销售票核的是客户编码
+            self.assertTrue(sample.get("expect", {}).get(party), name)
         self.assertEqual(samples.totals(data["samples"]["purchase-a1"])["total"], Decimal("128.40"))
 
     def test_page_carries_the_facts_and_nothing_for_the_model(self):

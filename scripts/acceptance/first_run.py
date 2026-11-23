@@ -19,7 +19,7 @@
   mrerp     MR.ERP 十五条（占 mrerp:test01，会踢掉别处登录；依赖三条没进 main 的分支；税报告两条会在测试账套里归期）。
   offline   收款时电脑离线（会停 / 起测试机2 的 CC 桌面版，占测试机桌面；跑前先问主会话）。
   cowork    Cowork 录入提交两条（只在测试机实验栈，testcowork 域名切过去）。
-  cowork-chat  Cowork 的 CC 对话直写（真模型 + 一次真识别）：采购 → 销售（销售样票还没补，记没测到）。本机 Mac 实验栈 cowork
+  cowork-chat  Cowork 的 CC 对话直写（真模型 + 一次真识别）：采购 → 销售（样票 sales-a1）。本机 Mac 实验栈 cowork
             （PEARNLY_ACC_SITE_TARGET=maclab）或测试机实验栈；站点上不能有别的待录单。
   fixes     真机线 11-16 问题补的五条（修复前红：对应修复进 main 并部署前应不通过）：未连接（不写账套）→ 只用手机的员工由办公室
             电脑写 → 代录放票 H3 → 代录问物料组 H5 → 代录回执挂码（后三条占测试机桌面）。
