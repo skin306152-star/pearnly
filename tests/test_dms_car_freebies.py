@@ -132,7 +132,7 @@ class PreviewRowTests(Isolated):
         texts = self.texts(rows)
         self.assertIn("dms.card.qa.TXT_FREEBIES_MORE|5", texts)
         self.assertEqual(texts[-1], "103,170.65")
-        self.assertEqual(sum(1 for row in rows if row.get("layout") == "horizontal"), 15)
+        self.assertEqual(sum(1 for row in rows if row.get("layout") == "vertical"), 15)
 
     def test_another_car_or_no_freebies_adds_nothing(self):
         qa = self.qa(FORM)

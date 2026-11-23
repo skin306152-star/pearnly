@@ -425,7 +425,7 @@ def _fallback_summary(qa: Dict[str, Any]) -> Dict[str, str]:
 
 
 def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """车型赠品（只读）：标题、逐项「名称 / 数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
+    """车型赠品（只读）：标题、逐项「名称」+「数量 单位 × 单价 = 金额」、合计；最多列 15 项。"""
     freebies = car_freebies.for_car(qa)
     items = freebies.get("rows") or []
     if not items:
@@ -436,10 +436,10 @@ def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
     for item in items[: car_freebies.CARD_LIMIT]:
         quantity = " ".join(part for part in (item["qty"], item["unit"]) if part)
         detail = f"{quantity} × {item['price']} = {item['amount']}"
-        rows.append({"type": "box", "layout": "horizontal", "spacing": "sm", "contents": [
-            {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "flex": 4, "wrap": True},
-            {"type": "text", "text": detail, "size": "sm", "color": "#111111", "flex": 5,
-             "wrap": True, "align": "end"},
+        # 两行：名称在上（长名照常折行），「数量 单位 × 单价 = 金额」在下靠右，窄屏不会把算式拆开。
+        rows.append({"type": "box", "layout": "vertical", "contents": [
+            {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "wrap": True},
+            {"type": "text", "text": detail, "size": "sm", "color": "#111111", "align": "end", "wrap": True},
         ]})
     hidden = len(items) - car_freebies.CARD_LIMIT
     if hidden > 0:
