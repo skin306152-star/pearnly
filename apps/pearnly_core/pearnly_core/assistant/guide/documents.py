@@ -25,6 +25,7 @@
 """
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 from typing import Any, Dict, List, Mapping
@@ -32,6 +33,7 @@ from typing import Any, Dict, List, Mapping
 import frappe
 from frappe import _
 
+from pearnly_core.assistant import guided
 from pearnly_core.write_precheck import api as precheck_api
 from pearnly_core.write_precheck import contracts as card_contracts
 from pearnly_core.write_precheck import guide
@@ -42,6 +44,17 @@ LEDGER_PREFIX = "ledger|"
 MISMATCH_PREFIX = "business|"
 FOLLOW, SKIP = "follow", "skip"
 BLOCKING = "blocking"           # 复核里有写不进账本的格（单号空、日期不是日期、金额不是数字）：这一张这次不写
+
+
+def in_conversation(fn):
+    """引导运行里的一步（``fn(guide_decl, doc, ctx, ...)``）在这次引导的那段对话里做（`assistant.guided.within`）：写账判定与写入
+    都按引导口径（没点过的预选不生效、判不出的出题）。页面接口（看卡、作答、改一格、确定、搜索）不是工具调用，不进对话就走网页口径——
+    卡上判「可写」不出题，确定后在对话里推送却要人选（11-23 Cowork 直写销售：付款方式、收入科目被跳过）。"""
+    @functools.wraps(fn)
+    def wrapped(guide_decl, doc, ctx, *args, **kwargs):
+        with guided.within(str((ctx or {}).get("session") or "")):
+            return fn(guide_decl, doc, ctx, *args, **kwargs)
+    return wrapped
 
 
 class AnswerError(ValueError):
@@ -138,7 +151,8 @@ def card_for(company: str, doc_ids: List[str], session: str, business: str, hint
              mismatch_answered: bool = False) -> tuple[Dict[str, Any], Dict[str, Any]]:
     """这批单的引导卡：(判定原样, 翻好的卡)。卡的每题带 ``input: choice``（引擎九种输入之一）。``mismatch_answered``：
     这次引导里「业务对不上」已经答过，不再出。"""
-    found = precheck_api.card(company, doc_ids, hint)
+    with guided.within(session):  # 出题与之后的记答案、开始前判定、写账同一口径（引导口径）
+        found = precheck_api.card(company, doc_ids, hint)
     built = guide.build(found)
     mismatch = None if mismatch_answered else mismatch_question(found, business)
     if mismatch:
@@ -256,12 +270,14 @@ def initial(doc_ids=None, at: str = ASKING, operator: Mapping[str, Any] | None =
     return json.dumps(found)
 
 
-def check_handed(company: str, doc_ids: List[str]) -> None:
+def check_handed(company: str, doc_ids: List[str], session: str = "") -> None:
     """交进来的已有单据先核（`run.start` 开运行之前，核不过开着的那次不动）：写账判定只回本人能写、这家公司的单，判定里一张都
-    没出现的（不是本人的、不是这家公司的、找不到）拒，抛 ``PermissionError``。已推送 / 等电脑 / 写不了的照开，卡上的事实行说明。"""
+    没出现的（不是本人的、不是这家公司的、找不到）拒，抛 ``PermissionError``。已推送 / 等电脑 / 写不了的照开，卡上的事实行说明。
+    ``session``：这次引导的对话（判定在对话里做，同出题）。"""
     if not doc_ids:
         return
-    found = precheck_api.card(company, list(doc_ids))
+    with guided.within(session):
+        found = precheck_api.card(company, list(doc_ids))
     seen = {str(doc_id) for doc_id in found.get("ready") or ()}
     for item in card_contracts.items_of(found):
         seen.update(str(doc_id) for doc_id in item.get("docs") or ())
@@ -334,6 +350,7 @@ def _facts(found: Mapping[str, Any]) -> Dict[str, Any]:
     return {key: list(found.get(key) or ()) for key in (card_contracts.WAITING, card_contracts.NOT_WRITABLE) if found.get(key)}
 
 
+@in_conversation
 def view(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, Any]:
     """给页面的那一段（``guide.run.view`` 并进去）：交文件 / 识别中 / 题卡 / 复核。"""
     now = stage(guide_decl, doc, ctx)
@@ -372,6 +389,7 @@ def _judge(company: str, doc_ids: List[str]):
     return write_plan._judge(company, list(doc_ids))
 
 
+@in_conversation
 def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mapping[str, Any]) -> Dict[str, Any]:
     """作答（锁着这一行调）：交文件 ``{"documents": [文件 id]}`` 或题卡 ``{"answers": [{key, value, doc_id?}]}``。
     回 ``{}`` = 收下；``{"refused": {键: 原因}}`` = 不收。改的是 ``doc.documents``，版本由调用方 +1、存。"""
@@ -417,6 +435,7 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
     return {}
 
 
+@in_conversation
 def edit(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], doc_id: str, field: str, value: Any) -> Dict[str, Any]:
     """复核卡就地改一格（锁着这一行调）：只收复核里列着的票；产品写回自己的单。回产品给的这一行或 ``{"refused": 码}``。"""
     now = stage(guide_decl, doc, ctx)
@@ -425,6 +444,7 @@ def edit(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], doc_id: str, f
     return _call(guide_decl["edit"], ctx, str(doc_id), str(field or ""), value) or {}
 
 
+@in_conversation
 def confirm(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], consent: str, seen: str | None = None) -> Dict[str, Any]:
     """确定之后（引擎已核过本人、版本、功能、停止；锁着这一行、已落下「已确定」）：
 
@@ -469,6 +489,7 @@ def confirm(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], consent: st
     return out
 
 
+@in_conversation
 def result(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], stored: Mapping[str, Any] | None) -> Dict[str, Any]:
     """结果卡：这次交出去的每张向产品要写账状态（已入账带单号 / 在写 / 没成带原因）；留下的按确定时记的原因；
     还有在写的 ``wait``（页面过一会儿再取）。顺序同识别出的票。"""
@@ -489,6 +510,7 @@ def result(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], stored: Mapp
             "wait": bool(found.get("wait"))}
 
 
+@in_conversation
 def search(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], key: str, txt: str = "", start: int = 0,
            page_length: int = 20) -> Dict[str, Any]:
     """题卡上带服务端搜索的那一题（科目、物料、对方）翻页 / 搜索：转写账判定的搜索（同第 1 期卡）。"""

@@ -487,5 +487,53 @@ class Declaration(unittest.TestCase):
             base.tearDown()
 
 
+class SameConversation(Base):
+    """守门（11-23 Cowork 直写销售：卡上判「可写」不出付款 / 收入科目题，确定后在对话里推送却「要人选」被跳过）：documents 源出题、
+    开始前核单、记答案、复核、确定时的判定与写入，全在这次引导的那段对话里做（`assistant.guided.within`），同一口径；页面接口
+    不是工具调用，不靠调用方带对话。出了这几步不留对话（不串到别的请求）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.seen = []
+
+        def spy(label, fn):
+            def wrapped(*args, **kwargs):
+                self.seen.append((label, (frappe.local.pearnly_assistant or {}).get("session_id")))
+                return fn(*args, **kwargs)
+            return wrapped
+
+        precheck_api.card = spy("card", precheck_api.card)
+        precheck_api.record = spy("record", precheck_api.record)
+        precheck_api.search = spy("search", lambda company, doc_id, kind, txt, start, page_length: {"options": [], "more": False})
+        _plan._judge = spy("judge", _plan._judge)
+        _plan.from_page = spy("plan", _plan.from_page)
+        ATTRS["app.confirm"] = spy("confirm", ATTRS["app.confirm"])
+        ATTRS["app.review"] = spy("review", ATTRS["app.review"])
+
+    def test_every_judgement_of_a_page_driven_run_happens_in_the_run_conversation(self):
+        name = run.start("S1", "purchase", doc_ids=["I:1", "I:2"])["run"]   # 开始前核单
+        found = run.view(self.docs[name])                                    # 出题（页面看卡）
+        pay = found["card"]["questions"][0]
+        run.search(name, pay["key"]) if pay.get("search") else None
+        found = self.answer_card(name, [{"key": pay["key"], "value": "credit"}])  # 记答案、复核
+        run.confirm(name, found["version"], found["review"]["seen"])         # 确定：判定、计划、产品写入
+        labels = {label for label, _session in self.seen}
+        self.assertTrue({"card", "record", "judge", "review", "plan", "confirm"} <= labels, labels)
+        self.assertEqual({session for _label, session in self.seen}, {"S1"}, self.seen)
+        self.assertIsNone(frappe.local.pearnly_assistant)  # 出来还原，不串到别的请求
+
+    def test_judging_writable_on_the_card_and_writing_after_confirm_use_the_same_reading(self):
+        # 判定的口径只看是否在对话里（`guided.active`）：卡上那次与确定后写入那次必须一样，判「可写」的写的时候不会再缺选择
+        self.items["I:1"] = [dict(PAY, source=c.REMEMBERED)]   # 判定此刻可写（付款记住过）
+        name = run.start("S1", "purchase", doc_ids=["I:1"], at="review")["run"]
+        found = run.view(self.docs[name])
+        run.confirm(name, found["version"], found["review"]["seen"])
+        judged = [session for label, session in self.seen if label == "card"]
+        written = [session for label, session in self.seen if label in ("plan", "confirm")]
+        self.assertTrue(judged and written)
+        self.assertEqual(set(judged), set(written))
+        self.assertEqual(set(judged), {"S1"})
+
+
 if __name__ == "__main__":
     unittest.main()
