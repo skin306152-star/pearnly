@@ -1569,3 +1569,29 @@ budget_usd = 0
 tier = "gate"
 core = true
 
+[[scenario]]
+id = "acc.cowork.line.receipt"
+title = "Cowork LINE 卡片「保存」→ 推送 → CC 桌面版写进验收账套 → 同一张回复令牌回结果（loading 60 秒、55 秒才兜底、全程不推送）→ 账本读回"
+class = "chain"
+chain = "cowork.intake-to-express"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/cowork_line_receipt.py"
+rows = ["cowork.line.postback.cowork_save"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/line/save.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/card_save.py",
+  "apps/pearnly_core/pearnly_core/line_ui/receipt.py",
+  "apps/pearnly_core/pearnly_core/line.py",
+  "apps/pearnly_cowork/pearnly_cowork/push/application/*.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1", "testenv-domain:cowork"], maclab = ["lab:pearnly-maclab-cowork"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+core = true
+

@@ -222,6 +222,26 @@ class World:
                 self.add("APTRN", DOCNUM="HP691115-010", SUPCOD="T001", NETAMT=total, VATAMT=35.0)
         return out
 
+    def cowork_line_save(self, params):
+        """Cowork LINE 卡片保存（核心集第 14 条）：本进程开 60 秒 loading；结果在别的进程用同一张假令牌回（站点计数 reply_rejected +1）。"""
+        docnum, total = "HP691123-002", float(params["amount"]) + float(params["vat"])
+        self.add("APTRN", DOCNUM=docnum, SUPCOD="T001", NETAMT=total, VATAMT=float(params["vat"]))
+        self.add("ISVAT", DOCNUM=docnum)
+        self.add("GLJNL", VOUCHER=docnum)
+        slow = self.break_at == "slow"
+        here = [] if self.break_at == "no-loading" else [{"kind": "start", "seconds": 60, "texts": []}]
+        if slow:
+            here.append({"kind": "reply", "seconds": None, "texts": ["กำลังบันทึก"]})
+        if self.break_at == "pushed":
+            here.append({"kind": "push", "seconds": None, "texts": ["สำเร็จ"]})
+        delta = {} if slow else {"reply_rejected": 2 if self.break_at == "two-replies" else 1}
+        if self.break_at == "pushed":
+            delta["push_ok"] = 1
+        return {"ok": True, "history": "H-LINE", "noted": True, "settled_after": None if slow else 18.0, "wait_seconds": 55,
+                "loading_seconds": 60, "here": here, "usage_delta": delta, "pushes": 1,
+                "record": {"name": "PR-L", "status": "success", "docnum": docnum, "verify": "ok", "written": True, "written_to": params["ledger"]},
+                "expected": {"amount": params["amount"], "vat": params["vat"], "total": str(total)}}
+
     def cowork_operator_post(self, params):
         """Cowork 代录（核心集第 12 条）：票交代录 → 代录载荷、批次 = 代录任务 → 录成 → 任务里已录入同一个单号。"""
         docnum, total = "HP691123-001", float(params["amount"]) + float(params["vat"])
@@ -677,6 +697,7 @@ class ChainScenarioTest(unittest.TestCase):
         module = "erp_operator_fixes.py" if any(part in scenario_id for part in fixes) else \
             "erp_office_actor.py" if ".office.actor." in scenario_id else \
             "cowork_operator_express.py" if ".cowork.operator." in scenario_id else \
+            "cowork_line_receipt.py" if ".cowork.line." in scenario_id else \
             "cowork_intake_express.py" if ".cowork." in scenario_id else \
             "erp_operator_talk.py" if ".operator.talk." in scenario_id else "erp_operator_express.py" if ".operator." in scenario_id else "erp_mrerp.py" if ".mrerp." in scenario_id else \
             "erp_cc_push.py" if ".cc.push." in scenario_id else "erp_cc_collection.py" if ".cc." in scenario_id else \
@@ -697,7 +718,7 @@ class ChainScenarioTest(unittest.TestCase):
     def test_every_scenario_passes_on_a_correct_world_and_restores_the_baseline(self):
         wrote = {"acc.erp.stock.in.express": 1, "acc.erp.stock.out.express": 2, "acc.erp.stock.adjust.express": 1,
                  "acc.erp.stock.transfer.express": 2, "acc.erp.stock.void.express": 1, "acc.erp.stock.count.express": 1,
-                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1, "acc.cowork.operator.purchase.express": 1, "acc.cowork.intake.detail.amount_only": 1,
+                 "acc.cowork.intake.express": 1, "acc.cowork.intake.express.twice": 1, "acc.cowork.operator.purchase.express": 1, "acc.cowork.line.receipt": 1, "acc.cowork.intake.detail.amount_only": 1,
                  "acc.erp.pos.day.express": 1, "acc.erp.purchase.cancel.express": 1, "acc.erp.sales.cancel.express": 1,
                  "acc.erp.sales.credit.express": 1, "acc.erp.collection.three": 4, "acc.erp.collection.nbsp": 2,
                  "acc.erp.collection.web.twice": 2, "acc.erp.collection.line.edit": 2, "acc.erp.collection.line.refused": 2}
@@ -711,6 +732,11 @@ class ChainScenarioTest(unittest.TestCase):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((result["facts"]["add_branch"], world.calls.count("restore")), ("adopted", 0))
+
+    def test_line_receipt_that_falls_back_after_55_seconds_still_passes_and_says_so(self):
+        result, world = self.go("acc.cowork.line.receipt", "slow")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        self.assertIn("กำลังบันทึก", result["facts"]["fallback"])
 
     def test_three_entries_collect_the_same_invoice_and_the_balance_adds_up(self):
         result, world = self.go("acc.erp.collection.three")
@@ -740,6 +766,8 @@ class ChainScenarioTest(unittest.TestCase):
                  ("acc.cowork.operator.purchase.express", "direct-payload", "代录载荷"),
                  ("acc.cowork.operator.purchase.express", "direct-too", "只有这一条推送"),
                  ("acc.cowork.operator.purchase.express", "task-not-saved", "已录入"),
+                 ("acc.cowork.line.receipt", "pushed", "没有推送"), ("acc.cowork.line.receipt", "two-replies", "回复恰好一次"),
+                 ("acc.cowork.line.receipt", "no-loading", "loading"),
                  ("acc.erp.denied", "open-door", "都被拒"), ("acc.erp.denied", "left-record", "都没变")]
         for scenario_id, break_at, words in cases:
             result, world = self.go(scenario_id, break_at)
