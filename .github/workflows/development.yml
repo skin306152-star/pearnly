@@ -623,6 +623,8 @@ jobs:
         run: python3 scripts/check-frontend-i18n.py --strict
       - name: No tracked file carries an unresolved merge conflict (grouped conflict markers with branch names)
         run: python3 tests/test_check_conflict_markers.py && python3 scripts/check-conflict-markers.py
+      - name: The test-site pointer tells production from the test environment and logs lab-start and lab-stop in the live table (three misreadings on 11-23 came from a test site left on the test environment)
+        run: python3 tests/test_testenv_pointer.py
       - name: Workflow files GitHub can read (no colon and space in unquoted values, no reserved first characters, no tab indentation, full parse when PyYAML is there)
         run: python3 tests/test_check_workflows.py && python3 scripts/check-workflows.py
       - name: Check whitespace

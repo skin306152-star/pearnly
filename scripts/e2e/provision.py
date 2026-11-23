@@ -230,6 +230,11 @@ def plan_lines(apply: bool) -> list[str]:
 
 
 def main(argv=None) -> int:
+    # 测试站指向先打出来（主会话 11-23：在「线上」测试站做的事落进了测试环境、没人察觉）
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from testenv_pointer import banner
+
+    banner()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--apply", action="store_true", help="照做（默认只读核对）")
     args = parser.parse_args(argv)

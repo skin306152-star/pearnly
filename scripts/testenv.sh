@@ -201,6 +201,8 @@ lab_start() {
   bash "$root/scripts/testenv-cloudflare.sh" switch-lab $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
   prod_scheduler pause "$first"
+  # 切换自动登记到实时表（主会话 11-23：三次误判都因测试站切在测试环境没人察觉）
+  python3 "$root/scripts/testenv_pointer.py" --record "$first" lab --src "$src" || true
 }
 
 live() {
@@ -292,6 +294,7 @@ lab_stop() {
   bash "$root/scripts/testenv-cloudflare.sh" switch-prod $apps
   bash "$root/scripts/testenv-cloudflare.sh" status $apps
   for one in $apps; do prod_scheduler resume "$one"; done
+  for one in $apps; do python3 "$root/scripts/testenv_pointer.py" --record "$one" prod --src "$src" || true; done
   for one in $apps; do bash "$0" down "$one"; done
   keepalive stop || true
   echo '本栈已停，数据卷保留；重新开始测试用 lab-start。'
@@ -363,6 +366,10 @@ case "${1:-}" in
   sh) shift; bash_remote_app "$(resolve_app)" sh "$@" ;;
   urls) urls ;;
   lab-start) shift; lab_start "$@" ;;
+  where)
+    # 三个测试站此刻指向（线上 / 测试环境）：先按解析判断（不要令牌），再打 Cloudflare 记录（要令牌，准）
+    python3 "$root/scripts/testenv_pointer.py"
+    bash "$root/scripts/testenv-cloudflare.sh" status 2>/dev/null || echo "(没有 Cloudflare 令牌，只按解析判断)" ;;
   live) live "${2:-}" ;;
   live-off) app=$(resolve_app "${2:-}"); sync; bash_remote_app "$app" live-off ;;
   lab-stop) shift; lab_stop "$@" ;;
@@ -382,6 +389,7 @@ usage: testenv.sh {setup|sync|env|pull|config|up|finish|ps|logs|urls|down|reset|
   reset            停栈并删除本栈的数据卷（只删本产品项目名下的卷）
   lab-start [产品] 一键开始测试：起本栈 → 线上导出该租户 → 取回 → 导入 → 收尾 → 域名切过来
   lab-stop [产品]  一键结束测试：域名切回线上 → 停本栈（站点与数据库卷保留）
+  where            三个测试站此刻指向线上还是测试环境（lab-start / lab-stop 成功后自动登记实时表）
 
 产品（app）为 dms|erp|cowork，**一次只跑一个**：每个产品一套独立栈（自己的数据库、
 Redis、站点卷与网络），测一个不会碰到另一个。被测代码用 PEARNLY_TESTENV_SRC 指向对应

@@ -426,6 +426,11 @@ def report_text(results: list[dict], run_id: str, sha: str, dirty: bool, summary
 
 
 def main(argv=None) -> int:
+    # 测试站指向先打出来（主会话 11-23：在「线上」测试站做的事落进了测试环境、没人察觉）
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from testenv_pointer import banner
+
+    banner()
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--scenario", action="append")
     parser.add_argument("--tier", choices=registry_check.TIERS)

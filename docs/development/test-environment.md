@@ -73,8 +73,11 @@ ERP，两边的库、队列、缓存都不共享。
 ```bash
 bash scripts/testenv.sh lab-start dms   # 拉镜像（测试机没有才拉）→ 起 DMS 栈 →（首次或要求刷新才导出导入）→ 切域名
 bash scripts/testenv.sh lab-stop  dms   # 域名切回线上 → 停 DMS 栈（卷保留）
+bash scripts/testenv.sh where           # 三个测试站此刻指向线上还是测试环境
 bash scripts/testenv.sh lab-start erp   # 换成 ERP（会先停掉 DMS 栈）
 ```
+
+**指向登记**（2026-11-23）：`lab-start` / `lab-stop` 成功后自动在本机 `~/pearnly-devtools/test-window/环境指向与占用-实时.md`的「切换流水」追加一行（时间、域名、方向、被测工作树与提交）并改该域名那一行；`where`、e2e / 验收入口、`scripts/production/deploy.sh` 开头都先打指向，任一测试站不在线上时第一行醒目标出（`scripts/testenv_pointer.py`，按解析认：线上那份直连生产地址）。
 
 **按产品切换**：`lab-start` / `lab-stop` 带要测的产品名（`dms`、`erp`、`cowork`；不带默认 `dms`）。
 只切一个产品时，其它产品的域名完全不动：它们仍走通配记录、仍由线上服务。

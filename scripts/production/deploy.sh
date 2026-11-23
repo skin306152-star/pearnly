@@ -73,6 +73,8 @@ if [[ -n "$tag" && ! "$tag" =~ ^release-[0-9]{8}-[0-9]{4}$ ]]; then
 fi
 
 say() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$*"; }
+# 测试站指向先打出来（主会话 11-23）：任一测试站在测试环境时第一行醒目标出
+python3 "$(dirname "$0")/../testenv_pointer.py" || true
 stop() {  # stop <停在哪> <下一步怎么办…>
   local where=$1; shift
   printf '\n停下：%s\n' "$where" >&2
