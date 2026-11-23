@@ -78,11 +78,13 @@ def steps(params, camera_code=None):
          "return {switched, ok, mode: mode(), welcome: !!q('.aui-thread-welcome-root'), blocked, before};"},
         {"name": "选公司说一句", "js": JS + f"const picked=await pickCompany({json.dumps(title)}); "
          "const period=q('[data-slot=\"cc-period-chip\"]')?.innerText.trim()||''; "
+         # 实验室不起 socketio：页面的实时通道连不上，事件全靠补拉（11-23 Flows 手机格开始前卡片不出那一路）
+         "const realtime=await fetch('/socket.io/?EIO=4&transport=polling').then(r=>r.ok).catch(()=>false); "
          f"const sent=await say({json.dumps(line)}); let indicator=false; "
          f"const got=await until(()=>{{ if(q('[data-slot=\"cc-run-indicator\"]')) indicator=true; "
          f"return qa('[data-role=\"assistant\"]').some(e=>e.innerText.includes({json.dumps(REPLY)})); }},160); "
-         "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),40); "
-         "const card=await until(()=>q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-target\"]'),120); "
+         "await until(()=>!q('[data-slot=\"cc-run-indicator\"]'),40); const replied=Date.now(); "
+         "const card=await until(()=>q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-target\"]'),120); const cardMs=Date.now()-replied; "
          "await until(()=>q('[data-slot=\"cc-op-before\"] .cc-op-before-body'),80); await sleep(500); "
          "const roles=qa('[data-role]'); const userAt=roles.findIndex(e=>e.dataset.role==='user'); "
          "const cardAt=roles.findIndex(e=>e.querySelector('[data-slot=\"cc-op-before\"]')); "
@@ -92,7 +94,7 @@ def steps(params, camera_code=None):
          "user: qa('[data-role=\"user\"]').map(e=>e.innerText.trim()), assistant: qa('[data-role=\"assistant\"]').map(e=>e.innerText.trim().slice(0,120)), "
          "card, target: q('[data-slot=\"cc-op-target\"]')?.innerText.trim()||'', "
          "start: !!q('[data-slot=\"cc-op-before\"] [data-slot=\"cc-op-start\"]'), send: !!q('button.aui-composer-send'), "
-         "stop: !!q('button.aui-composer-cancel'), userAt, cardAt, lines, moreRows};"},
+         "stop: !!q('button.aui-composer-cancel'), userAt, cardAt, lines, moreRows, realtime, cardMs};"},
         {"name": "侧栏按模式", "js": JS + "const operator=await listed('operator'); const chat=await listed('chat'); "
          f"const mine=operator.filter(s=>s.project==={json.dumps(company)}&&s.mode==='operator'&&s.task); "
          "return {operator: operator.map(s=>({id:s.id, mode:s.mode, task:s.task, project:s.project, period:s.period, title:s.title})), "
@@ -151,6 +153,9 @@ def judge(params, results, camera_code=None):
          "seen": {k: made.get(k) for k in ("card", "target", "start", "send", "stop")},
          "ok": bool(made.get("card")) and params["title"] in (made.get("target") or "") and not made.get("start")
          and bool(made.get("send")) and not made.get("stop")},
+        {"case": "实时通道连不上、页面只靠补拉：回复收起后开始前卡片照样出（11-23 Flows 手机格：卡片到下一句发出才出）",
+         "seen": {k: made.get(k) for k in ("realtime", "card", "cardMs")},
+         "ok": bool(made.get("card")) and not made.get("realtime")},
         {"case": "开始前卡片排在用户这句之后，逐张的行最多先列 5 行、其余收进「显示更多」（11-09：45 张逐行列出、卡片排在前面，用户的话和回复被挤出视口）",
          "seen": {k: made.get(k) for k in ("userAt", "cardAt", "lines", "moreRows")} | {"marked": len(params["marked"]), "site": params["docs"]},
          "ok": 0 <= int(made.get("userAt", -1)) < int(made.get("cardAt", -1))

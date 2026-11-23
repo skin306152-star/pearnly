@@ -485,6 +485,17 @@ print("{{}}")
     def client_errors(self, site):
         return self.python(site, 'print(json.dumps({"n": frappe.db.count("Error Log", {"method": ["like", "Browser error%"]})}))')["n"]
 
+    def server_errors(self, site, since=None):
+        """站点此刻的时间（``since`` 不给时）或 ``since`` 之后服务端记下的 Error Log 标题（前端回传的不算，那一路另有断言）。
+        只记录不判：同一站点的格依次跑，这段时间里记下的就是这一格的（11-23 Flows cc.operator 手机格：开始前卡片不出，CI 只留
+        bench 日志最后 300 行，服务端那一侧没有证据）。"""
+        if since is None:
+            return self.python(site, 'print(json.dumps({"at": str(frappe.utils.now_datetime())}))')["at"]
+        return self.python(site, f"""
+rows = frappe.get_all("Error Log", filters={{"creation": [">=", {since!r}], "method": ["not like", "Browser error%"]}},
+                      pluck="method", order_by="creation asc", limit_page_length=50)
+print(json.dumps({{"titles": rows}}))""")["titles"]
+
 
 # 流程结束要和开始一样的那部分（11-16：收款流程在账套原来没有资料时留下一份只有收款类型的资料，同一实验室后面的
 # cc.operator 新开户格开始卡没有目标、两格必挂；清卷重建才过）。日志类（名字以 Log 结尾）不算：记录本身就是要留的痕迹。
@@ -773,7 +784,7 @@ def run_flow(lab, flow, dataset, viewport):
     product = flow.get("product", "erp")
     manifest = lab.dataset(dataset, product)
     site, user = manifest["site"], f"{flow.get('user', 'admin')}@{product}.regression"
-    before = lab.client_errors(site)
+    before = {"client": lab.client_errors(site), "at": lab.server_errors(site)}
     lab.changed().clear()
     prepared = []
     try:
@@ -830,7 +841,8 @@ def _run_prepared(lab, flow, module, manifest, dataset, viewport, site, user, be
     # ERP / Cowork 字段说明要在标题旁的说明图标里（11-02），还写在字段下方的就是漏了（登记的例外不算，见 `ui_steps.mjs`）
     checks.append({"case": "field descriptions below fields", "seen": sorted(below), "ok": not below})
     checks.append({"case": "field descriptions in the info icon (record only)", "seen": sorted(icons), "ok": True})
-    checks.append({"case": "client errors in Error Log", "seen": after - before, "ok": after == before})
+    checks.append({"case": "client errors in Error Log", "seen": after - before["client"], "ok": after == before["client"]})
+    checks.append({"case": "server errors in Error Log (record only)", "seen": lab.server_errors(site, before["at"]), "ok": True})
     return {"flow": flow["id"], "dataset": dataset, "viewport": viewport, "ok": all(c["ok"] for c in checks),
             "seconds": round(time.monotonic() - started, 1), "checks": checks}
 
@@ -1177,6 +1189,8 @@ def main(argv=None) -> int:
         result["lab_python"] = lab.cell_mode()
         result["port"] = lab_port()
         bad = [c for c in result["checks"] if not c["ok"]]
+        if bad:  # 不通过的格把这段时间服务端记下的错误标题排在最前（只截 600 字时也看得到）
+            bad = [c for c in result["checks"] if c["case"].startswith("server errors") and c["seen"]] + bad
         with printing:
             print(f"{'通过' if result['ok'] else '不通过'} {flow['id']} [{dataset} / {viewport}] {result.get('seconds', '')}s "
                   f"{result.get('error', '')} {json.dumps(bad, ensure_ascii=False)[:600] if bad else ''}", flush=True)

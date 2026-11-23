@@ -31,6 +31,7 @@
 「不再属于」）。
 """
 import json
+from datetime import datetime, timedelta, timezone
 
 import frappe
 from frappe import _
@@ -854,6 +855,25 @@ def segment_for_turn(row, api) -> str:
         return fresh
 
 
+# 补拉时引擎「列出事件」读不到（partial）：本站自己记的事件不靠引擎，照样给（11-23 Flows cc.operator 手机格：开始前卡片
+# 一直不出，到下一句发出才出）。没有锚点时间，按最近这段取（页面按编号去重）；这页仍标 partial，页面不拿它当锚点、不收缺口。
+PARTIAL_WINDOW = timedelta(minutes=30)
+
+
+def _partial_page(row, user, operator=False) -> dict:
+    """引擎读不到时的这一页：最近的提醒，加上与正常增量同一套本站事件——执行记录、写入计划、引导运行、等后台结论的进度
+    （`_with_tool_runs`），直写会话再带被停掉的半段回复，代录会话再带代录事件源（资料、开始前卡片、各步）。"""
+    since = datetime.now(timezone.utc) - PARTIAL_WINDOW
+    events = _with_tool_runs([], row, since) + notices.feed(row.session_id, user, recent=True)
+    if operator:
+        from pearnly_core.express_operator import feed
+
+        events = events + feed.events(row, since)
+    else:
+        events = events + stopped.feed(row.session_id, since=since)
+    return {"events": events, "full": False, "partial": True}
+
+
 def events(session_id, after=None, status=False) -> dict:
     """整段重放（after 为空，各段合起来）或只取当前段 `after` 之后的新事件。取不到锚点时退回整段，`full` 告诉浏览器。
     本对话的提醒一并给：整段时按时间并入，增量时带上锚点时间之后的（对话页按编号去重）。本站执行记录同样接在最后
@@ -874,7 +894,7 @@ def events(session_id, after=None, status=False) -> dict:
             # 引擎「列出事件」偶尔超时（工具长时间执行时更常见）：不报 500，本站的提醒照样带上；`partial` 告诉页面这次
             # 没读到引擎（不是「没有新事件」）：不拿这页收补拉缺口，压着的推送等下一次真读到引擎再交（第 11 轮合并审查）
             frappe.log_error(title="Assistant events fetch failed")
-            return {"events": notices.feed(row.session_id, user, recent=True), "full": False, "partial": True}
+            return _partial_page(row, user)
         if found is not None:
             newer = found[1:]
             _remember_context(row, newer)
@@ -911,7 +931,7 @@ def _operator_events(row, user, api, after, status) -> dict:
             found = contracts.since(tap, anchor)
         except Exception:
             frappe.log_error(title="Assistant events fetch failed")
-            return {"events": notices.feed(row.session_id, user, recent=True), "full": False, "partial": True}
+            return _partial_page(row, user, operator=True)
         if found is not None:
             newer = found[1:]
             _remember_context(row, newer)
@@ -1024,6 +1044,22 @@ def _remember_context(row, events_of_current) -> None:
         frappe.log_error(title="Assistant context note failed")
 
 
+def _mark_after_send(title, function, *args) -> None:
+    """消息已发出之后才记的事（代录第一句的时刻、附件交出）：先提交这次请求已有的写入，再在自己的事务里做，撞上 1020 / 1213
+    （站点库快照隔离：这笔事务先读过、要锁的任务行随后被别的请求改过）整笔回滚、退避重来（`transaction.conflicts.retried`）。
+    11-23 Flows cc.operator 手机格：记第一句时刻撞上冲突只留了日志，开始前卡片补拉也不出，等下一句发出再记才出。
+    重来用尽或别的错误：消息已发出，不当发送失败，只留日志。"""
+    from pearnly_core.transaction import conflicts
+
+    frappe.db.commit()
+    try:
+        conflicts.retried(function, *args)
+        frappe.db.commit()
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title=title)
+
+
 def send(session_id, text) -> dict:
     steps = timing.Steps(TURN_LOG)
     row = owned(session_id)
@@ -1074,20 +1110,17 @@ def send(session_id, text) -> dict:
     if row.get("operator_task"):
         from pearnly_core.express_operator import tasks as operator_tasks
 
-        # 代录会话的第一句发出了：记下此刻，资料与开始前卡片这时才出、排在这句后面（``feed.project``）。记不上只留日志
-        try:
-            operator_tasks.message_sent(row.operator_task)
-        except Exception:
-            frappe.log_error(title="Operator message sent mark failed")
+        # 代录会话的第一句发出了：记下此刻，资料与开始前卡片这时才出、排在这句后面（``feed.project``）。在自己的事务里记
+        # （`_mark_after_send`）：撞上快照冲突 / 死锁整笔重来，用尽才只留日志
+        _mark_after_send("Operator message sent mark failed", operator_tasks.message_sent, row.operator_task)
     # 这条消息带着的、输入框里已传好的文件这时才算交出（交出文件的唯一入口 files.commit，两种会话同一个）：代录会话这时进对话
     # （上传卡片排在这条消息后面）、提交后才交识别（11-14 用户：点了发送才识别）。消息已发出：记不上只留日志，不当发送失败
     if "/uploads/" in text:  # 带着附件（附件位置 /mnt/session/uploads/<编号>/<文件名>）才有要交出的
-        try:
-            from pearnly_core.assistant import files as chat_files
+        from pearnly_core.assistant import files as chat_files
 
-            chat_files.commit(row, chat_files.ids_in(row, text), via="send")
-        except Exception:
-            frappe.log_error(title="Assistant attachment hand-over failed")
+        # 交出可重入（同几份再交不重记、不重复识别），撞冲突整笔重来是安全的
+        _mark_after_send("Assistant attachment hand-over failed",
+                         lambda: chat_files.commit(row, chat_files.ids_in(row, text), via="send"))
     # 发出成功才算这段对话有了动静：最后活动时间记成现在（侧栏「上次更新」按它排；CC 回复时由 relay 再记）
     context.active(row.name)
     turn = _count_turn(row.name)

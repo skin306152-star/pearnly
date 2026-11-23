@@ -2821,6 +2821,74 @@ class NoticeTests(unittest.TestCase):
             self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002"), {"events": [card], "full": False, "partial": True})
             self.assertEqual(fed[-1], ("sesn_mine1", "a@example.com", None, True))
 
+    def test_a_page_the_engine_could_not_read_still_carries_the_sites_own_events(self):
+        """补拉读不到引擎（partial）：本站自己记的事件不靠引擎，照样给——直写会话的执行记录 / 写入计划 / 引导运行（`_with_tool_runs`）
+        与被停掉的半段回复，代录会话的代录事件源（资料、开始前卡片）。11-23 Flows cc.operator 手机格：开始前卡片一直不出。"""
+        sessions = self._sessions()
+        api = types.SimpleNamespace(events=mock.Mock(side_effect=TimeoutError()))
+        notice = {"type": "pearnly.notice", "id": "pnotice_n1"}
+        run = {"type": "pearnly.tool_run", "id": "prun_1"}
+        half = {"type": "pearnly.stopped", "id": "pstop_1"}
+        card = {"type": "agent.custom_tool_use", "id": "pop_t1_start"}
+        windows = []
+
+        def runs(events, row, since=None):
+            windows.append(since)
+            return events + [run]
+
+        feed = types.ModuleType("feed")
+        feed.events = lambda row, moment=None, said=None: (windows.append(moment), [card])[1]
+        with mock.patch.object(sessions.engine, "adapter", return_value=api), \
+                mock.patch.object(sessions, "_with_tool_runs", runs), \
+                mock.patch.object(sessions.notices, "feed", lambda sid, user, since=None, recent=False: [notice] if recent else []), \
+                mock.patch.object(sessions.stopped, "feed", lambda sid, since=None: (windows.append(since), [half])[1]), \
+                mock.patch.dict(sys.modules, {"pearnly_core.express_operator.feed": feed}), \
+                mock.patch.object(sys.modules.setdefault("pearnly_core.express_operator",
+                                                         types.ModuleType("pearnly_core.express_operator")), "feed", feed, create=True), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: None, create=True):
+            chat = _Row(name="row1", session_id="sesn_mine1", remote_ids="", operator_task="")
+            with mock.patch.object(sessions, "owned", return_value=chat):
+                self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002"),
+                                 {"events": [run, notice, half], "full": False, "partial": True})
+            operator = _Row(name="row2", session_id="op_t1", remote_ids='["sesn_r1"]', operator_task="t1")
+            with mock.patch.object(sessions, "owned", return_value=operator):
+                self.assertEqual(sessions.events("op_t1", after="sevt_0002"),
+                                 {"events": [run, notice, card], "full": False, "partial": True})
+        # 没有锚点时间：按最近 30 分钟取（带时区，页面按编号去重）
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.assertEqual(len(windows), 4)
+        self.assertTrue(all(w.tzinfo and datetime.timedelta(minutes=29) < now - w < datetime.timedelta(minutes=31)
+                            for w in windows))
+
+    def test_marks_after_sending_retry_a_snapshot_conflict_in_their_own_transaction(self):
+        """消息发出后才记的（代录第一句时刻）：先提交已有写入，撞 1020 整笔回滚、退避再记，记上了提交；用尽只留日志、不当发送失败。"""
+        sessions = self._sessions()
+        conflicts = sys.modules["pearnly_core.transaction.conflicts"]
+        calls, tries, logged = [], [], []
+
+        def mark(name):
+            tries.append(name)
+            if len(tries) == 1:
+                raise _Deadlock("1020 Record has changed since last read")
+            calls.append(("marked", name))
+
+        db = types.SimpleNamespace(commit=lambda: calls.append("commit"), rollback=lambda *a, **k: calls.append("rollback"))
+        with mock.patch.object(sessions.frappe, "db", db, create=True), \
+                mock.patch.object(conflicts.frappe, "db", db, create=True), \
+                mock.patch.object(conflicts.frappe, "QueryDeadlockError", _Deadlock, create=True), \
+                mock.patch.object(conflicts.time, "sleep", lambda seconds: None), \
+                mock.patch.object(sessions.frappe, "log_error", lambda **kw: logged.append(kw["title"]), create=True):
+            sessions._mark_after_send("Operator message sent mark failed", mark, "t1")
+            self.assertEqual(tries, ["t1", "t1"])
+            self.assertEqual(calls, ["commit", "rollback", ("marked", "t1"), "commit"])
+            self.assertEqual(logged, [])
+            # 一直撞：用尽后回滚、只留日志
+            calls.clear()
+            sessions._mark_after_send("Operator message sent mark failed", mock.Mock(side_effect=_Deadlock("1213")), "t1")
+            self.assertEqual(logged, ["Operator message sent mark failed"])
+            self.assertEqual(calls[0], "commit")
+            self.assertEqual(calls[-1], "rollback")
+
     def test_delete_detaches_notices_and_seen_needs_ownership(self):
         sessions = self._sessions()
         row = _Row(name="row1", session_id="sesn_mine1", remote_ids="", archived=1)
@@ -2975,15 +3043,15 @@ class RunStatusTests(unittest.TestCase):
             page = sessions.events("sesn_mine1", after="sevt_0002", status=True)
             self.assertNotIn("run", page)
             self.assertEqual(len(page["events"]), 2)
-            # 取事件就失败：照旧只给提醒，也不读状态
+            # 取事件就失败：给提醒与本站事件（这里都没有），不读状态
             api.events = mock.Mock(side_effect=TimeoutError())
             api.status = mock.Mock(return_value="idle")
             self.assertEqual(sessions.events("sesn_mine1", after="sevt_0002", status=True),
                              {"events": [], "full": False, "partial": True})
             api.status.assert_not_called()
         self.assertEqual(asked, [])  # 没有停着等的调用就不查执行记录
-        # 增量补拉（取到事件的 5 次）各查一次锚点之后改过的执行记录，不按事件逐条查
-        self.assertEqual(len(self.page_runs), 5)
+        # 增量补拉（取到事件的 5 次，加取事件失败那 1 次按最近这段）各查一次改过的执行记录，不按事件逐条查
+        self.assertEqual(len(self.page_runs), 6)
         self.assertTrue(all(o[0][:2] == ["modified", ">="] and len(o) == 1 for _, _, o in self.page_runs))
 
     def test_parked_calls_are_split_by_the_sites_tool_runs(self):
