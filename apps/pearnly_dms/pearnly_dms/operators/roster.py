@@ -25,7 +25,6 @@ from typing import Optional
 import frappe
 from frappe import _
 
-from pearnly_core.desk import list_filters
 from pearnly_core.endpoints import read_password
 from pearnly_dms.operators import advisors, line_account
 
@@ -181,6 +180,8 @@ def list_operators(start=0, page_length=20, search=None) -> dict:
         frappe.throw(_("Invalid value"))
     if start < 0 or not 1 <= page_length <= 2500:
         frappe.throw(_("Invalid value"))
+    from pearnly_core.desk import list_filters
+
     text = _clean(search)[:140]
     or_filters = [[field, "like", f"%{text}%"] for field in SEARCH_FIELDS] if text else None
     docs = frappe.get_all(OPERATOR, or_filters=or_filters, fields=["name"],

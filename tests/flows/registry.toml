@@ -2775,3 +2775,17 @@ covers = [
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
   "frontend/assistant/src/lib/guide-run.ts",
 ]
+
+[[flow]]
+id = "dms.roster.search"
+title = "DMS 操作员名册：按显示名 / DMS 用户名搜索，分页与「加载更多」照旧，清空回到全部（客户 11-23 员工近 100 人）"
+module = "scripts/flows/dms_roster_search.py"
+product = "dms"
+start = "/desk/pearnly-roster"
+user = "admin"
+datasets = ["new", "old"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_dms/pearnly_dms/public/desk/roster.js",
+  "apps/pearnly_dms/pearnly_dms/operators/roster.py",
+]
