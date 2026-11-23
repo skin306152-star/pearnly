@@ -177,6 +177,8 @@ class SubmitHandsOutTheVerifiedForm(Isolated):
             def _parse_form_defaults(self, body):
                 return dict(test.form)
 
+            _parse_booking_form = _parse_form_defaults
+
             def _resolve_admin_transport(self):
                 return None
 

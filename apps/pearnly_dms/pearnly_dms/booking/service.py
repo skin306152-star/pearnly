@@ -186,7 +186,7 @@ def book_in_session(
     """
     from pearnly_dms.adapter.push import booking_defaults_from_endpoint
     from pearnly_dms.booking.booking_customer import CustomerIncomplete, card_from_customer
-    from pearnly_dms.booking import booking_review
+    from pearnly_dms.booking import booking_review, car_freebies
     from pearnly_dms.booking.booking_org import resolve_booking_org
     from pearnly_dms.booking.booking_payload import build_booking_payload
     from pearnly_dms.booking.booking_preflight import local_preflight
@@ -308,6 +308,7 @@ def book_in_session(
             delivery_date_be=str(answers.get("delivery_date_be") or booking.delivery_date_be),
             regis_name=str(answers.get("regis_name") or ""),
             payments=tuple(payments),
+            freebies=car_freebies.wanted(qa),
         )
         readback: dict = {}
         with booking_lock(endpoint):

@@ -35,6 +35,7 @@ from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
 from typing import Dict, List, Optional, Sequence, Tuple
 
+from pearnly_dms.booking import booking_freebies
 from pearnly_dms.contracts.id_validate import normalize_thai_id
 from pearnly_dms.contracts.payments import _PAYMENT_MONEY_FIELD, _PAYMENT_TEXT_FIELD
 
@@ -139,15 +140,52 @@ def _payment_item(channel: str) -> _Item:
                  extra=tuple(slots.values()))
 
 
+class _FreebieItem:
+    """赠品行：逐行比（商品 id，数量），名称与单价是 DMS 回显不比；写回时带整组原生数组。"""
+
+    label = "qa.LBL_FREEBIES"
+    inputs: Tuple[Tuple[str, str], ...] = ()
+
+    @staticmethod
+    def _list(form: dict, name: str) -> List[str]:
+        value = (form or {}).get(name)
+        return [str(v) for v in value] if isinstance(value, (list, tuple)) else ([str(value)] if value else [])
+
+    def show(self, form: dict) -> str:
+        names = self._list(form, "txtfbproduct[]")
+        quantities = self._list(form, "txtfbquantity[]")
+        units = self._list(form, "txtfbunits[]")
+        return ", ".join(" ".join(p for p in (_text(n), _text(q), _text(u)) if p)
+                         for n, q, u in zip(names, quantities, units)) or "—"
+
+    def fields(self) -> Tuple[str, ...]:
+        return booking_freebies.ARRAYS
+
+    def matches(self, expected: dict, form: dict) -> bool:
+        return booking_freebies.signature(expected or {}) == booking_freebies.signature(form or {})
+
+    def present(self, *forms: dict) -> bool:
+        return any(self._list(form, "fbproductval[]") for form in forms)
+
+
+_FREEBIES = _FreebieItem()
 _PAYMENTS = {channel: _payment_item(channel) for channel in _PAYMENT_MONEY_FIELD}
-_BY_LABEL = {item.label: item for item in (*_ITEMS, *_PAYMENTS.values(), _TOTAL)}
+_BY_LABEL = {item.label: item for item in (*_ITEMS, *_PAYMENTS.values(), _TOTAL, _FREEBIES)}
 
 
-def _items(submitted: dict, form: dict) -> List[_Item]:
-    """有金额的付款渠道（任一边非零）才成一项。"""
+def _items(submitted: dict, form: dict) -> list:
+    """有金额的付款渠道（任一边非零）才成一项；任一边有赠品行才比赠品。"""
     paid = [item for item in _PAYMENTS.values()
             if any(_money(side.get(item.money)) for side in (submitted, form))]
-    return [*_ITEMS, *paid, _TOTAL]
+    freebies = [_FREEBIES] if _FREEBIES.present(submitted, form) else []
+    return [*_ITEMS, *freebies, *paid, _TOTAL]
+
+
+def _write_value(value: object):
+    """写回值：多值字段（赠品行）原样保留成 list，其余转成文字。"""
+    if isinstance(value, (list, tuple)):
+        return [str(v) for v in value]
+    return str(value or "")
 
 
 def compare(submitted: dict, form: dict) -> List[Dict[str, object]]:
@@ -162,7 +200,7 @@ def compare(submitted: dict, form: dict) -> List[Dict[str, object]]:
         if item.matches(submitted, form):
             continue
         diffs.append({"item": item.label, "sent": item.show(submitted), "dms": item.show(form),
-                      "write": {f: str(submitted.get(f) or "") for f in item.fields()},
+                      "write": {f: _write_value(submitted.get(f)) for f in item.fields()},
                       "inputs": [list(pair) for pair in item.inputs]})
     return diffs
 

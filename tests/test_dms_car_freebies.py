@@ -51,7 +51,7 @@ class FromFormTests(Isolated):
         out = self.freebies.from_form("C1", FORM)
         self.assertEqual(out["car_id"], "C1")
         self.assertEqual([row["name"] for row in out["rows"]], FORM["txtfbproduct[]"])
-        self.assertEqual(out["rows"][3], {"name": "Fuel", "unit": "litre", "qty": "50",
+        self.assertEqual(out["rows"][3], {"product_id": "P4", "name": "Fuel", "unit": "litre", "qty": "50",
                                           "price": "18.00", "amount": "900.00"})
         self.assertEqual(out["total"], "20,634.13")
 

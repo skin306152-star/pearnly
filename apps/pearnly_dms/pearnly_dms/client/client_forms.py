@@ -60,6 +60,30 @@ class DmsClientFormsMixin:
                 data[name] = re.sub(r"<.*?>", "", match.group(2))
         return data
 
+    def _parse_form_arrays(self, page: str) -> Dict[str, List[str]]:
+        """表单里名字以 `[]` 结尾的同名多值输入框，按页面顺序取全部值（取值规则同上）。
+
+        `_parse_form_defaults` 是一名一值的字典，同名多行（订车单赠品 `txtfb*[]`、加装件等）
+        会只剩最后一行；整张表单回写（改单、挂附件）时必须用这一份把多行原样带回去。
+        """
+        arrays: Dict[str, List[str]] = {}
+        for match in re.finditer(r"<input\b([^>]*)>", page, re.I | re.S):
+            attrs = match.group(1)
+            name = self._attr(attrs, "name")
+            if not name or not name.endswith("[]"):
+                continue
+            input_type = (self._attr(attrs, "type") or "text").lower()
+            if input_type in {"button", "file", "submit"}:
+                continue
+            if input_type in {"checkbox", "radio"} and "checked" not in attrs.lower():
+                continue
+            arrays.setdefault(name, []).append(self._attr(attrs, "value") or "")
+        return arrays
+
+    def _parse_booking_form(self, page: str) -> Dict[str, Any]:
+        """订车单整张表单：一名一值的字段 + `[]` 多值字段（list）。用于 new/edit 整单提交。"""
+        return {**self._parse_form_defaults(page), **self._parse_form_arrays(page)}
+
     def _norm_geo(self, name: str) -> str:
         return normalized(name)
 

@@ -67,6 +67,38 @@ def _retry_read_once(call, url: str):
         raise DmsClientError(f"{type(exc).__name__}: {exc}", "ERR_DMS_TECHNICAL") from exc
 
 
+def _pairs(data: Dict[str, Any]):
+    """字典 → 有序 (名, 值) 对；list/tuple 的值按顺序展开成同名多项（原生表单的 `name[]`）。"""
+    for key, value in data.items():
+        for item in (value if isinstance(value, (list, tuple)) else [value]):
+            yield str(key), "" if item is None else str(item)
+
+
+def encode_form(data: Dict[str, Any], files: Optional[Dict[str, Any]] = None):
+    """编码含同名多值字段的表单正文，返回 `(正文字节, content-type)`。
+
+    没有文件 → `application/x-www-form-urlencoded`（UTF-8，与浏览器提交同形）；
+    有文件 → `multipart/form-data`，文件项 `(文件名, 字节, 类型)` 照现有 `files` 约定。
+    """
+    from urllib.parse import urlencode
+
+    if not files:
+        return urlencode(list(_pairs(data))).encode("ascii"), "application/x-www-form-urlencoded"
+    import uuid
+
+    boundary = "----pearnly" + uuid.uuid4().hex
+    parts = []
+    for key, value in _pairs(data):
+        parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n'.encode()
+                     + value.encode("utf-8") + b"\r\n")
+    for field, (filename, content, content_type) in files.items():
+        parts.append(
+            f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; filename="{filename}"\r\n'
+            f"Content-Type: {content_type}\r\n\r\n".encode("utf-8") + bytes(content) + b"\r\n")
+    parts.append(f"--{boundary}--\r\n".encode())
+    return b"".join(parts), f"multipart/form-data; boundary={boundary}"
+
+
 class Resp:
     """业务客户端只需要这三个字段（老产品 `_Resp` 的同名同形）。"""
 
@@ -104,6 +136,13 @@ class PlaywrightTransport:
         timeout_ms: Optional[int] = None,
     ) -> Resp:
         timeout = timeout_ms or 30000
+        if any(isinstance(value, (list, tuple)) for value in (data or {}).values()):
+            # 同名多值字段（订车单赠品行 `txtfb*[]` 等）：Playwright 的 form/multipart 字典每个名字
+            # 只能放一个值，会把多行压成一行。这里按原生表单顺序自己编码正文，用 `data=` 发出。
+            body, content_type = encode_form(data or {}, files)
+            send = lambda: self._wrap(self._rc.post(  # noqa: E731
+                url, data=body, headers={"content-type": content_type}, timeout=timeout))
+            return _retry_read_once(send, url)
         if files:
             multipart: Dict[str, Any] = {}
             for k, v in (data or {}).items():

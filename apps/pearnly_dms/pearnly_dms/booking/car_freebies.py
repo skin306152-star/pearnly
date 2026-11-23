@@ -17,7 +17,8 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_dms.contracts.client_base import DmsClientError
 
-COLUMNS = ("txtfbproduct[]", "txtfbunits[]", "txtfbquantity[]", "txtfbprice[]", "txtfbamount[]")
+COLUMNS = ("txtfbproduct[]", "txtfbunits[]", "txtfbquantity[]", "txtfbprice[]", "txtfbamount[]",
+           "fbproductval[]")
 CARD_LIMIT = 15
 
 
@@ -52,15 +53,26 @@ def from_form(car_id: str, fields: Optional[Dict[str, Any]]) -> Dict[str, Any]:
         return empty
     rows: List[Dict[str, str]] = []
     total = Decimal("0")
-    for name, unit, qty, price, amount in zip(*columns):
+    for name, unit, qty, price, amount, product_id in zip(*columns):
         numbers = (_number(qty), _number(price), _number(amount))
         if None in numbers or not str(name or "").strip():
             return empty
         total += numbers[2]
-        rows.append({"name": str(name).strip(), "unit": str(unit or "").strip(),
+        rows.append({"product_id": str(product_id or "").strip(),
+                     "name": str(name).strip(), "unit": str(unit or "").strip(),
                      "qty": quantity(numbers[0]), "price": money(numbers[1]),
                      "amount": money(numbers[2])})
     return {**empty, "rows": rows, "total": money(total) if rows else ""}
+
+
+def wanted(qa: Dict[str, Any]) -> Optional[tuple]:
+    """写入 DMS 用：用户在编辑页动过这台车的赠品 → `((商品 id, 数量), …)`；没动过 → `None`
+    （照原生选车带出的默认行提交）。换了车、旧会话没有这份 → `None`。"""
+    saved = (qa or {}).get("car_freebies") or {}
+    car_id = str(((qa or {}).get("answers") or {}).get("car", {}).get("id") or "")
+    if not saved.get("edited") or not car_id or str(saved.get("car_id") or "") != car_id:
+        return None
+    return tuple((str(row.get("product_id") or ""), str(row.get("qty") or "")) for row in saved.get("rows") or [])
 
 
 def for_car(qa: Dict[str, Any]) -> Dict[str, Any]:

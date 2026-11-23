@@ -100,7 +100,8 @@ class DmsBookingOutcomeUnknown(DmsClientError):
 
 
 def _read_candidate(client, row_id: str) -> dict:
-    return client._parse_form_defaults(
+    # 带上 `[]` 多值字段：开单回执要逐行核对赠品（回读判定只看登记过的字段，不受影响）。
+    return client._parse_booking_form(
         client._post_text(_BOOKING_FORM_PATH, {"status": "e", "id": row_id})
     )
 

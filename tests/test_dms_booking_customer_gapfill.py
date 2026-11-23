@@ -221,6 +221,7 @@ class Booking:
     delivery_date_be: str = "22/10/2569"
     regis_name: str = ""
     payments: tuple = ()
+    freebies: object = None
 
 
 class Recorder:

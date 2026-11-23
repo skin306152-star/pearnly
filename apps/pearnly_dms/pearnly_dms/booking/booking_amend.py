@@ -43,7 +43,8 @@ UPDATED, LOCKED, REJECTED, UNVERIFIED = "updated", "locked", "rejected", "unveri
 
 def _form(client, booking_id: str, booking_no: str) -> Dict[str, str]:
     """新鲜的修改页表单；不是这张单就抛（绝不拿别的单去写）。"""
-    fields = client._parse_form_defaults(client._post_text(_FORM, {"status": "e", "id": str(booking_id)}))
+    # 整单回写：`[]` 多值字段（赠品行、加装件）按原样带回，否则多行会被压成一行。
+    fields = client._parse_booking_form(client._post_text(_FORM, {"status": "e", "id": str(booking_id)}))
     if fields.get("stsel") != "e" or fields.get("idsel") != str(booking_id) or not docno_equal(booking_no, fields):
         raise DmsClientError("Booking edit form identity mismatch", "ERR_DMS_IMPORT")
     return fields

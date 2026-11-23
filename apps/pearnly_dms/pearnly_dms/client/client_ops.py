@@ -25,6 +25,7 @@ from pearnly_dms.client import docno as dms_docno
 from pearnly_dms.masters import employees as dms_employees
 from pearnly_dms.booking.booking_org import resolve_booking_org
 from pearnly_dms.booking.booking_payload import payload_from_refs
+from pearnly_dms.booking import booking_freebies
 from pearnly_dms.booking.booking_submit import submit_booking
 from pearnly_dms.contracts.client_base import DmsClientError, to_be_date
 from pearnly_dms.masters.master_rows import memo as _memo
@@ -143,12 +144,13 @@ class DmsClientOpsMixin:
         `readback_out` 见 `submit_booking`：核实那一轮读到的表单，只给回执复核用。
         """
         form_html = self._post_text("drfcbc/form.php", {"status": "n"})
-        base = self._parse_form_defaults(form_html)
+        base = self._parse_booking_form(form_html)
         base["stsel"] = "n"
         base["idsel"] = ""
         base["idmenu"] = _DRFCBC_IDMENU
         base["menulv"] = _DRFCBC_MENULV
         self._apply_booking_form_fields(base, customer_id=customer_id, booking=booking, card=card)
+        base.update(self._booking_freebie_arrays(booking, hfbp=str(base.get("hfbp") or "")))
 
         state = self._next_booking_docno(booking.branch.id)
         scan = dms_docno.scan_unoccupied_docno(state.docno, state.digits, self._post_text)
@@ -166,6 +168,19 @@ class DmsClientOpsMixin:
             readback_payload=self._booking_readback_payload,
             readback_out=readback_out,
         )
+
+    def _booking_freebie_arrays(self, booking: DMSBookingPayload, *, hfbp: str) -> Dict[str, List[str]]:
+        """赠品行（原生 `txtfb*[]` 数组）：与网页选车型时同一个原生接口带出，再叠加用户的修改。
+
+        原生接口读不到 → 抛 `ERR_DMS_MASTER_UNAVAILABLE`，不建一张缺赠品的单。
+        """
+        native = booking_freebies.native_rows(
+            self._post_text(booking_freebies.NATIVE_PATH, {"idcar": booking.car.id, "hfbp": hfbp}),
+            self._parse_form_arrays,
+        )
+        rows = booking_freebies.final_rows(
+            native, booking.freebies, lambda: self._bshsd_all(booking_freebies.PICKER))
+        return booking_freebies.form_arrays(rows)
 
     def _next_booking_docno(self, branch_id: str) -> dms_docno.DMSBookingAutonumState:
         """取 DMS **原生**订车单取号状态（前缀 + 完整号 + 隐藏字段）。

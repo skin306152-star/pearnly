@@ -8,7 +8,8 @@ from pearnly_dms.contracts.client_base import DmsClientError
 
 
 def _form(client, booking_id):
-    fields = client._parse_form_defaults(client._post_text(
+    # 整单回写：`[]` 多值字段（赠品行、加装件）按原样带回，否则挂附件会把多行压成一行。
+    fields = client._parse_booking_form(client._post_text(
         "drfcbc/form.php", {"status": "e", "id": str(booking_id)}))
     if fields.get("stsel") != "e" or fields.get("idsel") != str(booking_id):
         raise DmsClientError("Booking attachment form identity mismatch", "ERR_DMS_IMPORT")

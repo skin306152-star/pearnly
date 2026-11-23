@@ -77,6 +77,8 @@ class Dms:
     def _parse_form_defaults(self, body):
         return dict(self.form)
 
+    _parse_booking_form = _parse_form_defaults
+
     def post(self, url, data, timeout_ms=None, files=None):
         self.test.assertTrue(url.endswith("drfcbc/edit.php"))
         self.test.events.append("post")

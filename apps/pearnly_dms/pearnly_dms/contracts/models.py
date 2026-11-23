@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 
 @dataclass(frozen=True)
@@ -94,6 +94,9 @@ class DMSBookingPayload:
     # 由 `dms_booking_org.resolve_booking_org` 按顾问实时解出，整包进表单；
     # 空 = 这条路径还没解组织（不能拿分店列表首行硬填，见 booking_org 顶部）。
     organization_fields: tuple = ()
+    # 赠品行：`None` = 用户没动过，照原生选车带出的默认行提交；否则是 `((商品 id, 数量), …)`，
+    # 按这个顺序合成（见 `booking.booking_freebies.final_rows`）。空元组 = 用户删光了，不带赠品。
+    freebies: Optional[tuple] = None
 
 
 # booking_defaults 里属于「个人」的键：顾问 = 销售提成归属，是个人身份不是租户策略，
