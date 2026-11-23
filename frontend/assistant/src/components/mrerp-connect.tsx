@@ -5,16 +5,17 @@
 //                   声明了 connect.mrerp 时出（共用层 projects() 的 connect：Cowork 给 connections 接口；ERP 只在 MR.ERP 账本开着时
 //                   给），页面不按产品名分支。CC 桌面版「此电脑 → 连接」与浏览器的「连接」同一行。
 //   MrerpConnect  — 点「连接」的弹窗（原定时任务里的那一个搬来；定时任务、Cowork Desk 的「连接」都改成打开设置的连接一节）：
-//                   系统地址（存下走 configure，只给管理员，服务端判）+ MrErpLogin（密码只在 CC 桌面版原生小窗填，浏览器、手机里
-//                   按钮灰）。存下或授权成功后请服务端读一次这条连接的账套目录（声明接口的 request_refresh），选择公司弹窗的 MR.ERP
-//                   标签下就有这些公司。
+//                   系统地址（存下走 configure，只给管理员，服务端判）+ 用户名 + 密码，「连接」一步存地址并授权（11-23 用户
+//                   「第一个弹窗不行吗」：不再另弹原生小窗；密码只经本机桥交出，见 mrerp-login.tsx；浏览器、手机里两格灰）。存下或
+//                   授权成功后请服务端读一次这条连接的账套目录（声明接口的 request_refresh），选择公司弹窗的 MR.ERP 标签下就有这些公司。
 // 不提供断开 / 删除连接（产品本来就不允许删连接）。
 
 import { Dialog, DialogClose, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
 import { XIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useMemo, useState } from "react";
-import { authorizedDetail, type MrErpCredential, MrErpLogin } from "@/components/mrerp-login";
-import { st, t } from "@/i18n";
+import { authorizeConnection, authorizedDetail, type MrErpCredential, MrErpLoginStatus } from "@/components/mrerp-login";
+import { co, st, t } from "@/i18n";
+import { openSettings, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { useProfile } from "@/lib/profile";
@@ -84,20 +85,29 @@ export const MrerpRow: FC = () => {
   );
 };
 
-/** 「连接 MR.ERP」弹窗。onClose(changed, name)：存了地址或授权成功（要读一次目录）与那条连接。 */
+/** 「连接 MR.ERP」弹窗：系统地址 + 用户名 + 密码，「连接」一步存地址并授权（11-23 用户「第一个弹窗不行吗」）。onClose(changed, name)：
+ *  存了地址或授权成功（要读一次目录）与那条连接。用户名、密码都空着只存地址；只填一样不能点。 */
 export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null; onClose: (changed: boolean, name: string) => void }> = ({
   api,
   connection,
   onClose,
 }) => {
   const product = useProfile()?.product;
+  const { app, mrerpLoginInline } = useDesktopFeatures();
   const key = useMemo(requestKey, []);
   const saved = connection?.config?.system_url || DEFAULT_URL;
   const [url, setUrl] = useState(saved);
+  const [username, setUsername] = useState(connection?.credential?.username ?? "");
+  // 密码只在这个 state 里：交给本机桥后立即清空；不存、不进错误上报（authorizeConnection 只经本机桥交出去）
+  const [password, setPassword] = useState("");
   const [current, setCurrent] = useState<MrerpConnection | null>(connection);
+  const [local, setLocal] = useState<MrErpCredential>(null);
   const [changed, setChanged] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // 浏览器、手机里没有本机桥：两格不可用；旧桌面版没有这项能力：提示更新
+  const canLogin = app && !!mrerpLoginInline;
+  const typed = canLogin && !!password;
   // 地址没改、已有连接时不再存；没有连接先建一条
   const save = async (): Promise<MrerpConnection | null> => {
     if (current && url === (current.config?.system_url || DEFAULT_URL)) return current;
@@ -112,10 +122,21 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
   const submit = async () => {
     setBusy(true);
     setError("");
+    const login = typed ? { username, password } : null;
+    setPassword("");
     try {
       const next = await save();
+      if (!login) return onClose(true, next?.name ?? "");
+      const result = next ? await authorizeConnection(product, next.name, login.username, login.password) : null;
+      if (!result?.ok) return setError(st.mrerpAuthorizeFailed);
+      // 使用成员只存了这台电脑：站点那行不变，弹窗里多一行本机这次的；管理员的站点也写了，关弹窗由那一行显示
+      if (!result.written) {
+        setChanged(true);
+        return setLocal(result.authorized);
+      }
       onClose(true, next?.name ?? "");
-    } catch (e) { reportCaught(e, "mrerp-connect");
+    } catch (e) {
+      reportCaught(e, "mrerp-connect");
       setError(shownError(e));
     } finally {
       setBusy(false);
@@ -142,24 +163,30 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
               <span className="text-body">{st.systemUrl}</span>
               <input className="cc-input" value={url} onChange={(e) => setUrl(e.target.value)} data-slot="cc-mrerp-url" />
             </label>
-            <MrErpLogin
-              product={product}
-              connection={current}
-              ensure={async () => (await save().catch((e: unknown) => { reportCaught(e, "mrerp-connect"); setError(shownError(e)); return null; }))?.name ?? null}
-              onDone={() => {
-                setChanged(true);
-                void getMethod<MrerpConnection[]>(api + "records", { limit: 100 })
-                  .then((rows) => setCurrent(rows?.find((row) => row.name === current?.name) ?? mainMrerp(rows)))
-                  .catch(withReport(() => undefined, "mrerp-connect"));
-              }}
-            />
+            <MrErpLoginStatus credential={current?.credential} local={local} />
+            <label className="flex flex-col gap-(--cc-space-6)">
+              <span className="text-body">{st.username}</span>
+              <input className="cc-input" value={username} disabled={!canLogin || busy} autoComplete="off" spellCheck={false}
+                onChange={(e) => setUsername(e.target.value)} data-slot="cc-mrerp-username" />
+            </label>
+            <label className="flex flex-col gap-(--cc-space-6)">
+              <span className="text-body">{st.password}</span>
+              <input className="cc-input" type="password" value={password} disabled={!canLogin || busy} autoComplete="new-password"
+                onChange={(e) => setPassword(e.target.value)} data-slot="cc-mrerp-password" />
+            </label>
+            {app && !mrerpLoginInline && (
+              <button type="button" className="cc-btn self-start" onClick={() => openSettings("system")}>
+                {co.updateDesktop}
+              </button>
+            )}
           </div>
           <div className="cc-dialog-foot">
             {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
             <DialogClose asChild>
               <button type="button" className="cc-btn">{t("cancel")}</button>
             </DialogClose>
-            <button type="button" className="cc-btn" data-primary="" disabled={busy || !url} onClick={() => void submit()}>
+            <button type="button" className="cc-btn" data-primary="" disabled={busy || !url || (typed && !username)}
+              onClick={() => void submit()}>
               {st.connect}
             </button>
           </div>

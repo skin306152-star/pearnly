@@ -1,12 +1,13 @@
-"""流程用例：MR.ERP 连接的登录在 CC 桌面版里授权（ADR-026 第 7 条）——网页上不再有 MR.ERP 密码框。
+"""流程用例：MR.ERP 连接的登录在 CC 桌面版里授权（ADR-026 第 7 条）——用户名、密码只在 CC 桌面版的「连接 MR.ERP」弹窗里输
+（11-23 用户「第一个弹窗不行吗」），浏览器里两格不可用。
 
 每套 Cowork 数据：
 1. 造数据（产品自己的函数，不连 MR.ERP）：一条 MR.ERP 连接（网页老做法存的账号密码 `flow-old`，即「老连接」）、合成账套目录、
    从目录建一家公司，再把连接停用——这家公司就没有可用账套，「新建任务」走不带公司种子的表单，MR.ERP 卡片出「连接」；
    另建一条 Express 连接并给一台合成电脑发密钥（发票要认得出电脑，同 CC 桌面版登记）。
 2. CC 对话页 `/assistant?view=tasks&company=<公司>`：点「新建任务」→ MR.ERP 卡片的「连接」→ 打开设置 → 连接（11-07 起 MR.ERP 连接只在
-   这里），最上面「MR.ERP」一行写「已授权：flow-old」→ 点这一行的「连接」→ 弹窗里**没有任何密码框**，「在 CC 桌面版中授权」按钮
-   在浏览器里不可用；改系统地址、点「连接」→ 弹窗关上。
+   这里），最上面「MR.ERP」一行写「已授权：flow-old」→ 点这一行的「连接」→ 弹窗里有用户名、密码两格（整页只有这一个密码框），
+   在浏览器里（没有 CC 本机桥）两格都不可用；改系统地址、点「连接」→ 弹窗关上。
 3. 页面会话向站点要一次性票（CC 窗口里点授权时同一条接口，带合成电脑的设备密钥）：拿得到、形状对。
 4. Cowork Desk：录入、自动录入规则两处共用的 `intake_targets.connect_dialog` 不再自己弹窗，新开一页 `/assistant?settings=connections`；
    打开这个地址就是设置 → 连接，最上面是 MR.ERP 一行。
@@ -113,10 +114,11 @@ def steps(params, camera_code=None):
          "const first=!!row()&&row().closest('[role=\"dialog\"]')?.querySelector('.cc-settings-row')===row(); "
          "row()?.querySelector('[data-slot=\"cc-mrerp-connect\"]')?.click(); "
          "const opened=await until(()=>q('[data-slot=\"cc-mrerp-connect-dialog\"] [data-slot=\"cc-mrerp-login\"]'),60); "
-         "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const button=box?.querySelector('[data-slot=\"cc-mrerp-authorize\"]'); "
+         "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const user=box?.querySelector('[data-slot=\"cc-mrerp-username\"]'); "
+         "const secret=box?.querySelector('[data-slot=\"cc-mrerp-password\"]'); "
          "const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); "
          "return {settled, first, status, opened, passwords: passwords(), login: box?.querySelector('[data-slot=\"cc-mrerp-login\"]')?.innerText||'', "
-         "authorize_disabled: !!(button&&button.disabled), url: url?url.value:''};"},
+         "login_disabled: !!(user&&user.disabled&&secret&&secret.disabled&&secret.type==='password'), url: url?url.value:''};"},
         {"name": "改网址、点连接", "js": WAIT +
          "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); if(!url) return {error:'no url input'}; "
          "Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value').set.call(url," + json.dumps(NEW_URL) + "); "
@@ -150,8 +152,8 @@ def judge(params, results, camera_code=None):
     return [
         {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，最上面一行 MR.ERP 写「已授权：flow-old」", "seen": dialog,
          "ok": bool(dialog.get("settled")) and bool(dialog.get("first")) and "已授权：" + OLD_USER in str(dialog.get("status"))},
-        {"case": "这一行的「连接」弹窗打开、没有密码框、授权按钮在浏览器里不可用", "seen": dialog,
-         "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 0 and dialog.get("authorize_disabled") is True},
+        {"case": "这一行的「连接」弹窗打开、用户名与密码两格在浏览器里不可用（整页只有这一个密码框）", "seen": dialog,
+         "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 1 and dialog.get("login_disabled") is True},
         {"case": "改网址点连接后弹窗关上，设置里那一行还在", "seen": saved, "ok": bool(saved.get("closed")) and bool(saved.get("row"))},
         {"case": "页面会话拿得到一次性票", "seen": ticket,
          "ok": ticket.get("status") == 200 and ticket.get("ok") is True and ticket.get("shape") is True},

@@ -106,8 +106,8 @@ class _Host:
 
     def connect(self, token=None):
         link = window_link.TrayLink(self.env[window_link.ENV_PIPE], token or self.env[window_link.ENV_TOKEN])
-        link.set_handler(lambda message: (self.handled.append(message),
-                                          "C:/picked" if message["op"] == "pick" else None)[1])
+        replies = {"pick": "C:/picked", "login": {"user": "admin", "password": "x" * 9}}
+        link.set_handler(lambda message: (self.handled.append(message), replies.get(message["op"]))[1])
         assert link.connect_to_tray()
         self.links.append(link)
         return link
@@ -155,6 +155,25 @@ def test_the_chat_page_calls_the_bridge_in_the_tray_and_the_tray_asks_the_window
     assert t.host.pick("เลือกโฟลเดอร์", "C:/Docs") == "C:/picked"
     pick = next(m for m in t.handled if m["op"] == "pick")
     assert pick["title"] == "เลือกโฟลเดอร์" and pick["start"] == "C:/Docs"
+
+
+def test_the_tray_asks_the_window_to_show_the_login_window_and_gets_the_typed_login_back():
+    """账号密码小窗也请窗口进程弹（11-23 用户：托盘弹的落在 CC 后面）：托盘交出前台权，窗口回用户名与密码；请求里不带密码。"""
+    import os
+
+    t = _Host()
+    t.host.open({"op": "show"})
+    t.connect()
+    assert _until(lambda: t.host.connected)
+    del t.foreground[:]
+    assert t.host.login("th", "mrerp_login_title", "admin") == ("admin", "x" * 9)
+    asked = next(m for m in t.handled if m["op"] == "login")
+    assert (asked["lang"], asked["title_key"], asked["user"]) == ("th", "mrerp_login_title", "admin")
+    assert "password" not in asked and t.foreground == [os.getpid()]
+    # 窗口没了：不弹、回 None
+    closed = window_link.WindowHost(on_request=lambda m: None, on_notify=lambda m: None, spawn=lambda *a: 1,
+                                    name=f"PearnlyCCWindowTest-{uuid.uuid4().hex}")
+    assert closed.login("th", "mrerp_login_title", "") is None
 
 
 def test_window_status_and_notifications_reach_the_tray_and_a_closed_pipe_resets_the_state():
@@ -522,6 +541,22 @@ def test_the_tray_logs_when_the_open_window_stops_and_starts_painting(caplog):
     assert _until(lambda: t.host.paused == "")
 
 
+def test_the_window_process_shows_the_login_window_over_the_cc_window(monkeypatch):
+    """托盘请窗口进程弹账号密码小窗：先把 CC 窗口拿到前面，再以它为父弹；回用户名与密码，取消回 None。"""
+    from src.companion.express_operator import login_dialog
+
+    controller, _link, _quits = _controller()
+    asked = []
+    monkeypatch.setattr(login_dialog, "ask",
+                        lambda lang, parent=None, **kw: asked.append((lang, parent, kw)) or ("admin", "x" * 9))
+    got = controller.handle({"op": "login", "lang": "th", "title_key": "op_login_title", "user": "admin"})
+    assert got == {"user": "admin", "password": "x" * 9}
+    assert controller.window.calls[-1] == "front"
+    assert asked == [("th", controller.window, {"title_key": "op_login_title", "user": "admin"})]
+    monkeypatch.setattr(login_dialog, "ask", lambda *a, **kw: None)
+    assert controller.handle({"op": "login", "lang": "th", "title_key": "op_login_title", "user": ""}) is None
+
+
 def test_the_bridge_in_the_window_forwards_to_the_tray_only_on_the_chat_page():
     from src.companion import window_main
 
@@ -532,8 +567,8 @@ def test_the_bridge_in_the_window_forwards_to_the_tray_only_on_the_chat_page():
     assert link.requests[-1] == ("call", {"method": "pause", "args": '{"id":"m1"}',
                                           "url": "https://acme.pearnly.com/assistant",
                                           "timeout_ms": window_link.REQUEST_TIMEOUT_MS})
-    # 会弹选择文件夹框的不设上限：人选得慢，页面也等到真结果（审查 10-18 第 1 条）
-    for method in ("pick_roots", "pick_folder", "add_folder"):
+    # 会弹选择文件夹框 / 账号密码小窗的不设上限：人选、人输得慢，页面也等到真结果（审查 10-18 第 1 条；小窗 11-23）
+    for method in ("pick_roots", "pick_folder", "add_folder", "operator_authorize", "mrerp_authorize"):
         bridge.call(method, "{}")
         assert link.requests[-1][1]["method"] == method and link.requests[-1][1]["timeout_ms"] is None
     del link.requests[2:]

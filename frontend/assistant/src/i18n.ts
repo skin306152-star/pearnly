@@ -600,7 +600,7 @@ const SETTINGS = {
       blocked: "Windows blocked the automatic update to v{ver}" },
     failed: "Could not update. Try again.",
     mrerpAuthorized: (detail: string) => `Authorized: ${detail}`, mrerpNotAuthorized: "Not authorized",
-    mrerpAuthorize: "Authorize in CC Desktop", mrerpAuthorizeFailed: "Authorization failed",
+    username: "Username", password: "Password", mrerpAuthorizeFailed: "Authorization failed", // 界面标签，不是密钥 scan: fake
   },
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
@@ -630,7 +630,7 @@ const SETTINGS = {
       blocked: "Windows 拦截了 v{ver} 的自动更新" },
     failed: "无法更新，请重试。",
     mrerpAuthorized: (detail: string) => `已授权：${detail}`, mrerpNotAuthorized: "未授权",
-    mrerpAuthorize: "在 CC 桌面版中授权", mrerpAuthorizeFailed: "授权失败",
+    username: "用户名", password: "密码", mrerpAuthorizeFailed: "授权失败",
   },
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
@@ -660,7 +660,7 @@ const SETTINGS = {
       blocked: "Windows บล็อกการอัปเดตอัตโนมัติเป็น v{ver}" },
     failed: "ไม่สามารถอัปเดตได้ กรุณาลองใหม่",
     mrerpAuthorized: (detail: string) => `อนุญาตแล้ว: ${detail}`, mrerpNotAuthorized: "ยังไม่ได้อนุญาต",
-    mrerpAuthorize: "อนุญาตใน CC เดสก์ท็อป", mrerpAuthorizeFailed: "อนุญาตไม่สำเร็จ",
+    username: "ชื่อผู้ใช้", password: "รหัสผ่าน", mrerpAuthorizeFailed: "อนุญาตไม่สำเร็จ", // 界面标签，不是密钥 scan: fake
   },
   ja: {
     settings: "設定", general: "一般", thisComputer: "このパソコン", connections: "接続", system: "システム",
@@ -690,7 +690,7 @@ const SETTINGS = {
       blocked: "Windows が v{ver} への自動更新をブロックしました" },
     failed: "更新できませんでした。もう一度お試しください。",
     mrerpAuthorized: (detail: string) => `許可済み：${detail}`, mrerpNotAuthorized: "未許可",
-    mrerpAuthorize: "CC デスクトップで許可", mrerpAuthorizeFailed: "許可できませんでした",
+    username: "ユーザー名", password: "パスワード", mrerpAuthorizeFailed: "許可できませんでした",
   },
 };
 

@@ -1616,7 +1616,7 @@ covers = [
 
 [[flow]]
 id = "cowork.mrerp-login"
-title = "Cowork MR.ERP 连接只在 CC 设置 → 连接（11-07）：定时任务与 Desk 的「连接」都到那里，最上面 MR.ERP 一行与连接弹窗没有密码框、只显示「已授权」与「在 CC 桌面版中授权」（浏览器里不可用），页面要得到一次性票，?settings=connections 打开那一栏；网址照存、老连接的密码不动"
+title = "Cowork MR.ERP 连接只在 CC 设置 → 连接（11-07）：定时任务与 Desk 的「连接」都到那里，最上面 MR.ERP 一行显示「已授权」，连接弹窗里的用户名、密码两格只在 CC 桌面版里能填（浏览器里不可用，11-23），页面要得到一次性票，?settings=connections 打开那一栏；网址照存、老连接的密码不动"
 module = "scripts/flows/cowork_mrerp_login.py"
 product = "cowork"
 start = "/assistant"

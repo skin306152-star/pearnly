@@ -9,11 +9,12 @@ from ..express_operator import credentials
 from .session import credential_target
 
 
-def ask_and_store(url: str, connection: str, lang: str = "zh", parent=None) -> bool:
+def ask_and_store(url: str, connection: str, lang: str = "zh", parent=None, *, asker=None) -> bool:
+    """``asker``：谁来弹（``login_dialog.Ask``；托盘里是桥的 ``ask_login``，经 CC 窗口进程弹、置前）。"""
     from ..express_operator import login_dialog
 
     target = credential_target(url, connection)
-    found = login_dialog.ask(lang, parent, title_key="mrerp_login_title", user=credentials.user_name(target))
+    found = (asker or login_dialog.local_ask(parent))(lang, "mrerp_login_title", credentials.user_name(target))
     if found is None:
         return False
     credentials.store(target, *found)

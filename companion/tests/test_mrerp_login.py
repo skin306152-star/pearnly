@@ -3,8 +3,9 @@
 - 本机凭据：一条 MR.ERP 连接一条，目标名带站点与连接号；心跳只报这个站点的连接号；断开站点一并删掉（凭据管理器用替身）；
 - 交给站点（``mrerp_login.authorize``）：只走这个成员通道的那条精确路径，报文只有票、用户名、密码；
   站点收下了才存本机，没收下本机不存；出错只回码，日志里没有密码；
-- 桥（``tomo_bridge`` 的 ``mrerp_authorize``）：只收票，不收页面传来的用户名、密码；对话页不是这台电脑连着的站点不弹窗；
-  取消不交；输好后在后台交，结果里没有密码；能力表里有 ``mrerp_login``；
+- 桥（``tomo_bridge`` 的 ``mrerp_authorize``）：收票与「连接 MR.ERP」弹窗里输的用户名、密码（11-23 用户「第一个弹窗不行吗」，
+  能力表 ``mrerp_login_inline``），只给一样不收；旧页面只带票照旧弹原生小窗（经注入的 ``ask_login``，托盘里由窗口进程弹、置前）；
+  对话页不是这台电脑连着的站点不收不弹；取消不交；在后台交，结果与日志里没有密码；能力表里有 ``mrerp_login``；
 - 心跳带 ``mrerp_logins``（只有连接号），不报就不带这个键。
 """
 import json
@@ -74,12 +75,12 @@ def _server(reply=None, status=200, fail=None):
             raise fail
         return status, reply if reply is not None else {
             "ok": True, "connection": "CWEC-1", "system_url": "https://www.mrerp4sme.com", "written": True,
-            "authorized": {"username": "test01", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
+            "authorized": {"username": "mrerp-user", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
 
     return sent, post
 
 
-def _authorize(post, vault, token="exp_CWEC-1_secret", ticket=TICKET, username=" test01 "):
+def _authorize(post, vault, token="exp_CWEC-1_secret", ticket=TICKET, username=" mrerp-user "):  # scan: fake
     return mrerp_login.authorize(site=SITE, backend_url="https://" + SITE, token=token, ticket=ticket,
                                  username=username, password=PASSWORD, post=post, store=vault.store)
 
@@ -90,10 +91,10 @@ def test_the_site_gets_it_first_then_this_computer_stores_it(caplog):
     sent, post = _server()
     result = _authorize(post, vault)
     assert result == {"ok": True, "connection": "CWEC-1", "written": True,
-                      "authorized": {"username": "test01", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
+                      "authorized": {"username": "mrerp-user", "device": "ACC-PC", "at": "2026-11-02T13:00:00+00:00"}}
     assert sent == [("https://" + SITE, "exp_CWEC-1_secret", channel.PATHS["cowork"]["mrerp_login"],
-                     {"ticket": TICKET, "username": "test01", "password": PASSWORD})]
-    assert vault.items == {credentials.mrerp_target(MRERP, "CWEC-1"): ("test01", PASSWORD, credentials.site_comment(SITE))}
+                     {"ticket": TICKET, "username": "mrerp-user", "password": PASSWORD})]
+    assert vault.items == {credentials.mrerp_target(MRERP, "CWEC-1"): ("mrerp-user", PASSWORD, credentials.site_comment(SITE))}
     assert PASSWORD not in json.dumps(result)
     assert PASSWORD not in caplog.text
 
@@ -214,25 +215,42 @@ def _wait(bridge, job):
     return json.loads(done[job])
 
 
-def test_bridge_takes_only_the_ticket_and_hands_the_login_over_in_the_background(monkeypatch):
+def test_bridge_takes_the_login_typed_in_the_connect_dialog_and_hands_it_over_in_the_background(monkeypatch, caplog):
+    # 11-23 用户「第一个弹窗不行吗」：「连接 MR.ERP」弹窗里输的用户名、密码随票交来，不再弹原生小窗；只回成没成、不写日志
     from companion.express_operator import login_dialog
 
     settings = _Settings()
     bridge = _bridge(settings)
-    asked, sent = [], []
-    monkeypatch.setattr(login_dialog, "ask", lambda lang, parent=None, **kw: asked.append(kw) or ("test01", PASSWORD))
+    sent = []
+    monkeypatch.setattr(login_dialog, "ask", lambda *a, **kw: pytest.fail("must not show the native window"))
     monkeypatch.setattr(mrerp_login, "authorize",
                         lambda **kw: sent.append(kw) or {"ok": True, "connection": "CWEC-1", "authorized": {}})
-    first = json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET, "username": "x", "password": "y",
-                                                                  "lang": "zh"})))
+    first = json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET, "username": "mrerp-user",
+                                                                  "password": PASSWORD, "lang": "zh"})))
+    assert PASSWORD not in json.dumps(first)
     result = _wait(bridge, first["job"])
     assert result["ok"] is True and PASSWORD not in json.dumps(result)
-    assert asked == [{"title_key": "mrerp_login_title"}]
-    assert sent[0]["ticket"] == TICKET and sent[0]["username"] == "test01" and sent[0]["password"] == PASSWORD
+    assert sent[0]["ticket"] == TICKET and sent[0]["username"] == "mrerp-user" and sent[0]["password"] == PASSWORD
     assert sent[0]["site"] == SITE and sent[0]["token"] == "exp_CWEC-1_secret"
+    assert PASSWORD not in caplog.text
+    assert "mrerp_login_inline" in json.loads(bridge.state())["features"]
 
 
-def test_bridge_refuses_without_a_ticket_or_on_another_site_and_cancel_sends_nothing(monkeypatch):
+def test_an_old_chat_page_that_sends_only_the_ticket_still_gets_the_native_window(monkeypatch):
+    from companion.express_operator import login_dialog
+
+    bridge = _bridge(_Settings())
+    asked, sent = [], []
+    monkeypatch.setattr(login_dialog, "ask", lambda lang, parent=None, **kw: asked.append(kw) or ("mrerp-user", PASSWORD))
+    monkeypatch.setattr(mrerp_login, "authorize",
+                        lambda **kw: sent.append(kw) or {"ok": True, "connection": "CWEC-1", "authorized": {}})
+    first = json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET, "lang": "zh"})))
+    assert _wait(bridge, first["job"])["ok"] is True
+    assert asked == [{"title_key": "mrerp_login_title", "user": ""}]
+    assert sent[0]["username"] == "mrerp-user" and sent[0]["password"] == PASSWORD
+
+
+def test_bridge_refuses_without_a_ticket_half_a_login_or_on_another_site_and_cancel_sends_nothing(monkeypatch):
     from companion.express_operator import login_dialog
 
     asked = []
@@ -240,12 +258,38 @@ def test_bridge_refuses_without_a_ticket_or_on_another_site_and_cancel_sends_not
     monkeypatch.setattr(mrerp_login, "authorize", lambda **kw: pytest.fail("must not send"))
     bridge = _bridge(_Settings())
     assert json.loads(bridge.call("mrerp_authorize", json.dumps({})))["code"] == "login_invalid"
+    assert json.loads(bridge.call("mrerp_authorize", json.dumps({"username": "mrerp-user", "password": PASSWORD})))["code"] \
+        == "login_invalid"
+    for half in ({"username": "mrerp-user"}, {"password": PASSWORD}, {"username": "", "password": PASSWORD},
+                 {"username": "mrerp-user", "password": 5}):
+        assert json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET, **half})))["code"] == "login_invalid"
     other = _bridge(_Settings(), page="https://testerp.pearnly.com/assistant")
     assert json.loads(other.call("mrerp_authorize", json.dumps({"ticket": TICKET})))["code"] == "not_connected"
+    assert json.loads(other.call("mrerp_authorize", json.dumps({"ticket": TICKET, "username": "mrerp-user",
+                                                                "password": PASSWORD})))["code"] == "not_connected"
     assert asked == []
     assert json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET}))) == {"ok": False,
                                                                                           "cancelled": True}
     assert len(asked) == 1
+
+
+def test_native_login_windows_of_the_bridge_go_through_the_injected_asker(monkeypatch):
+    # 托盘里桥收 WindowHost.login（窗口进程弹、置前）：Express 授权登录与旧页面兜底都经它，不在托盘里自己弹
+    from companion.express_operator import login_dialog
+    from companion.tomo_bridge import TomoBridge
+
+    monkeypatch.setattr(login_dialog, "ask", lambda *a, **kw: pytest.fail("the tray must not show it itself"))
+    stored = []
+    monkeypatch.setattr(login_dialog.credentials, "store", lambda target, user, password: stored.append((target, user)))
+    asked = []
+    bridge = TomoBridge(_Settings(), allowed=lambda: True, window=lambda: None, set_lang=lambda lang: None,
+                        page_url=lambda: f"https://{SITE}/assistant",
+                        ask_login=lambda lang, title_key, user: asked.append((lang, title_key, user)) or ("admin", PASSWORD))
+    assert json.loads(bridge.call("operator_authorize", json.dumps({"lang": "th"}))) == {"ok": True}
+    assert asked == [("th", "op_login_title", "")] and stored and stored[0][1] == "admin"
+    monkeypatch.setattr(mrerp_login, "authorize", lambda **kw: {"ok": True, "connection": "CWEC-1", "authorized": {}})
+    job = json.loads(bridge.call("mrerp_authorize", json.dumps({"ticket": TICKET, "lang": "th"})))["job"]
+    assert _wait(bridge, job)["ok"] is True and asked[-1] == ("th", "mrerp_login_title", "")
 
 
 def test_operator_login_for_mrerp_goes_to_the_step_two_module_or_says_unsupported(monkeypatch):
@@ -256,13 +300,14 @@ def test_operator_login_for_mrerp_goes_to_the_step_two_module_or_says_unsupporte
         assert json.loads(bridge.call(method, args)) == {"ok": False, "code": "unsupported"}
 
     calls = []
-    fake = type("Login", (), {"ask_and_store": staticmethod(lambda url, c, lang: calls.append(("ask", url, c)) or True),
+    fake = type("Login", (), {"ask_and_store": staticmethod(lambda url, c, lang, asker=None:
+                                                            calls.append(("ask", url, c, asker is not None)) or True),
                               "forget": staticmethod(lambda url, c: calls.append(("forget", url, c)) or True),
                               "stored": staticmethod(lambda: ["CWEC-1"])})
     monkeypatch.setattr(type(bridge), "_mrerp_login_module", staticmethod(lambda: fake))
     assert json.loads(bridge.call("operator_authorize", args)) == {"ok": True}
     assert json.loads(bridge.call("operator_forget", args)) == {"ok": True}
-    assert calls == [("ask", MRERP, "CWEC-1"), ("forget", MRERP, "CWEC-1")]
+    assert calls == [("ask", MRERP, "CWEC-1", True), ("forget", MRERP, "CWEC-1")]
 
 
 def test_operator_login_for_mrerp_uses_the_step_two_module_only_with_the_switch_on(monkeypatch):
@@ -274,7 +319,7 @@ def test_operator_login_for_mrerp_uses_the_step_two_module_only_with_the_switch_
     monkeypatch.setenv(payload_contract.MRERP_OPERATOR_ENV, "1")
     assert type(_bridge(_Settings()))._mrerp_login_module() is step_two
     asked = []
-    monkeypatch.setattr(step_two, "ask_and_store", lambda url, c, lang: asked.append((url, c, lang)) or False)
+    monkeypatch.setattr(step_two, "ask_and_store", lambda url, c, lang, asker=None: asked.append((url, c, lang)) or False)
     args = json.dumps({"target": "mrerp", "url": MRERP, "connection": "CWEC-1"})
     assert json.loads(_bridge(_Settings()).call("operator_authorize", args)) == {"ok": False}
     assert asked and asked[0][:2] == (MRERP, "CWEC-1")

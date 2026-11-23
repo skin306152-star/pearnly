@@ -1598,7 +1598,17 @@ class CompanyFolders(unittest.TestCase):
 
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
-        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels")', self.bridge)
+        self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",\n'
+                      '            "mrerp_login_inline")', self.bridge)
+
+    def test_the_mrerp_connect_dialog_and_the_bridge_agree_on_the_typed_login(self):
+        # 11-23（用户「第一个弹窗不行吗」）：「连接 MR.ERP」弹窗里输的用户名、密码随票经桥交给 CC 本机；页面按能力 mrerp_login_inline
+        # 判这个桌面版收不收，键名两边一个字不能差
+        desktop = (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8")
+        self.assertIn('api.call("mrerp_authorize", { ticket, username, password })', desktop)
+        self.assertIn('MRERP_LOGIN_INLINE = "mrerp_login_inline"', desktop)
+        self.assertIn('username, password = args.get("username"), args.get("password")', self.bridge)
+        self.assertIn('"mrerp_login_inline")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)

@@ -1963,7 +1963,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:mrerp-connect"
-where = "CC 设置 → 连接最上面「MR.ERP」一行（状态 +「连接」：系统地址、在 CC 桌面版中授权）；定时任务与 Desk 录入的 MR.ERP「连接」都到这里（Desk 新开 /assistant?settings=connections）"
+where = "CC 设置 → 连接最上面「MR.ERP」一行（状态 +「连接」：系统地址、用户名、密码，一步存地址并在 CC 桌面版里授权）；定时任务与 Desk 录入的 MR.ERP「连接」都到这里（Desk 新开 /assistant?settings=connections）"
 tests = ["flow:cowork.mrerp-login", "unit:tests/test_mrerp_login_pages.py::CcPage"]
 group = "cc.action.mrerp-connect"
 na = { ERP = "ERP 的 MR.ERP 账本没对用户开放（MRERP_LEDGER_ENABLED 关着，服务端不声明 connect，不出这一行）" }
@@ -1975,7 +1975,7 @@ channel = "cc-chat"
 ends = ["desktop", "mobile"]
 kind = "cc-action"
 anchor = "ccaction:cowork:mrerp-auth"
-where = "CC 设置 → 连接最上面 MR.ERP 一行的连接弹窗里「在 CC 桌面版中授权」（11-07 起 MR.ERP 连接只在这里）"
+where = "CC 设置 → 连接最上面 MR.ERP 一行的连接弹窗里输用户名、密码点「连接」（11-07 起 MR.ERP 连接只在这里；11-23 起不再另弹原生小窗，浏览器里两格灰）"
 tests = ["flow:cowork.mrerp-login"]
 group = "cc.action.mrerp-auth"
 na = { ERP = "ERP 没有 MR.ERP 连接（MR.ERP 代录在 Cowork）" }

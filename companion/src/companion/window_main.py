@@ -38,8 +38,8 @@ BUSY_ANSWER_MS = 3000        # 页面这么久没回答「在不在回复」（�
 LINGER_LIMIT_MS = 30 * 60 * 1000   # 关窗口后等回复最多等这么久
 LINGER_GRACE_MS = 1500       # 回复刚完：再留这么久，让页面发的「回复完成」通知先到托盘再退
 FIRST_COMMAND_MS = 5000      # 连上托盘后等第一条命令最多这么久（托盘收下就马上交过来）
-# 这几个会在托盘那边请窗口弹选择文件夹框，人选多久就等多久（不设上限，否则选得慢页面报失败、设置却已改了）
-PICKER_METHODS = frozenset({"pick_roots", "pick_folder", "add_folder"})
+# 这几个会在托盘那边请窗口弹选择文件夹框 / 账号密码小窗，人选、人输多久就等多久（不设上限，否则慢了页面报失败、设置却已改了）
+PICKER_METHODS = frozenset({"pick_roots", "pick_folder", "add_folder", "operator_authorize", "mrerp_authorize"})
 ACTION_MEMORY = 50           # 转给托盘的通知，点了要做的事记最近几条
 
 
@@ -171,6 +171,9 @@ class WindowController(QObject):
             self.bridge.done.emit(str(message.get("job") or ""), str(message.get("result") or ""))
         elif op == "pick":
             return self._pick(str(message.get("title") or ""), str(message.get("start") or ""))
+        elif op == "login":
+            return self._login(str(message.get("lang") or ""), str(message.get("title_key") or ""),
+                               str(message.get("user") or ""))
         elif op == "click":
             action = self._actions.pop(str(message.get("id") or ""), None)
             if action is not None:
@@ -187,6 +190,14 @@ class WindowController(QObject):
         from PySide6.QtWidgets import QFileDialog
 
         return QFileDialog.getExistingDirectory(self.window, title, start) or ""
+
+    def _login(self, lang: str, title_key: str, user: str):
+        """托盘请弹的账号密码小窗（Express 授权登录、MR.ERP 代录登录）：以 CC 窗口为父、模态、置前；回 {user, password} 或 None。"""
+        from .express_operator import login_dialog
+
+        self.window.show_front()
+        found = login_dialog.ask(lang or self.window.lang, self.window, title_key=title_key or "op_login_title", user=user)
+        return {"user": found[0], "password": found[1]} if found else None
 
     # ── 交给托盘的 ──
     def _notify(self, title: str, body: str, on_click=None, tag: str = "") -> None:

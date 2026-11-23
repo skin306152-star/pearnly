@@ -68,6 +68,13 @@ def _notify_already_running(cfg: CompanionConfig, headless: bool) -> None:
         box.setIcon(QMessageBox.Information)
         box.setWindowTitle(t("already_running_title", lang))
         box.setText(t("already_running_body", lang))
+        # 弹出时置前（原生小窗一律置前，11-23）：这个进程是用户刚双击起来的，有前台权
+        from PySide6.QtCore import Qt
+
+        box.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        box.show()
+        box.raise_()
+        box.activateWindow()
         box.exec()
     except Exception:
         print(t("already_running_body", lang))

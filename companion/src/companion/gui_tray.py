@@ -787,7 +787,8 @@ class TrayApp(QObject):
             settings,
             allowed=lambda: host.connected and tomo_links.is_chat(self._page_url()),
             window=lambda: None, set_lang=self._set_lang, page_url=self._page_url, pick=host.pick,
-            on_attention=self._attention_seen)
+            # 要人输账号密码的原生小窗也请窗口进程弹（以 CC 窗口为父、置前；托盘弹的会落在 CC 后面，11-23 用户）
+            ask_login=host.login, on_attention=self._attention_seen)
         # 桥的两个信号交给窗口进程里的页面（窗口没开就不发）
         self._bridge.changed.connect(lambda: host.send("changed"))
         self._bridge.done.connect(lambda job, result: host.send("done", job=job, result=result))

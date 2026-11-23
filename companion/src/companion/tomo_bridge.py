@@ -9,8 +9,12 @@
 服务端。另要求对话页的站点就是这台电脑连着的那家公司（``page_url``），否则回 ``other_site``。
 ``state()`` 带 ``features: ["company_folders", "devices"]``（旧版没有，页面据此降级）与 ``legacy_roots``（设置页的旧授权清理行）。
 
-MR.ERP 登录（ADR-026 第 7 条，11-02）：``mrerp_authorize`` 只收站点发给对话页的一次性票，弹原生小窗，经机器通道交给站点、
-站点收下了再存本机凭据管理器（mrerp_login.py）；密码不经过页面。
+MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行吗」）：``mrerp_authorize`` 收站点发给对话页的一次性票和
+「连接 MR.ERP」弹窗里输的用户名、密码，经机器通道交给站点、站点收下了再存本机凭据管理器（mrerp_login.py）；只回成没成，
+不回显、不写日志。旧对话页只带票：照旧弹原生小窗收。
+
+原生小窗（Express 授权登录、MR.ERP 代录登录、上面的旧页面兜底）一律经 ``ask_login`` 弹：托盘里请 CC 窗口进程弹（以 CC 窗口
+为父、模态、置前，``WindowHost.login``，11-23 用户：小窗落在 CC 后面看不到），同选文件夹的 ``pick``。
 
 多台电脑（ADR-021，1.7.0）：``state()`` 另带 ``device: {key, name}``（这台电脑的设备密钥与电脑名；取不到是空对象），对话页每次
 打开都带它调 ``companion.api.register``（对话页一侧在第 6 批）；成员带 ``device_state``（``superseded`` / ``claimed_elsewhere``：
@@ -28,7 +32,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 from urllib.parse import urlsplit
 
 from PySide6.QtCore import QObject, QStandardPaths, Signal, Slot
@@ -49,10 +53,20 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # sites = 每个成员带自己的站点与通道（1.11.0，ADR-025）：同一台电脑可以同时连一个 Cowork 站点和一个 ERP 站点，ERP 站点的
 # 对话页据此登记这台电脑（配对码 ``pcc_…``）。
 # operator = 代录 Express（10-26，入口与直写分开）：operator_state / operator_control / operator_frame / operator_authorize。
-# mrerp_login = MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，11-02）：mrerp_authorize 收对话页发的一次性票，弹原生小窗收用户名和
-# 密码，经这台电脑连着这个站点的成员的机器通道交给站点，站点收下了再存本机凭据管理器；页面拿不到密码，只回成没成。
+# mrerp_login = MR.ERP 登录在 CC 里授权（ADR-026 第 7 条，11-02）：mrerp_authorize 收对话页发的一次性票，经这台电脑连着这个站点的
+# 成员的机器通道交给站点，站点收下了再存本机凭据管理器，只回成没成。
+# mrerp_login_inline = mrerp_authorize 另收页面「连接 MR.ERP」弹窗里输的 username / password（11-23），不再弹原生小窗；没有这项的
+# 旧桌面版页面提示更新。
 # place_channels = 每个位置给哪几种成员读（11-07 共用电脑隔离）：state() 带 ``place_channels``，``place_channels`` 动作改一个位置的勾。
-FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels")
+FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",
+            "mrerp_login_inline")
+
+
+def _local_login(parent, lang: str, title_key: str, user: str) -> Optional[Tuple[str, str]]:
+    """在本进程弹账号密码小窗（以 ``parent`` 为父、置前）：单进程与测试用；托盘里桥收的是 ``WindowHost.login``。"""
+    from .express_operator import login_dialog
+
+    return login_dialog.ask(lang, parent, title_key=title_key, user=user)
 
 
 class TomoBridge(QObject):
@@ -63,7 +77,8 @@ class TomoBridge(QObject):
     def __init__(self, settings: DesktopSettings, *, allowed: Callable[[], bool], window: Callable[[], object],
                  set_lang: Callable[[str], None], page_url: Callable[[], str] = lambda: "",
                  pick: Optional[Callable[[str, str], str]] = None,
-                 on_attention: Callable[[str, bool], None] = lambda _session, _visible: None) -> None:
+                 on_attention: Callable[[str, bool], None] = lambda _session, _visible: None,
+                 ask_login: Optional[Callable[[str, str, str], Optional[Tuple[str, str]]]] = None) -> None:
         super().__init__()
         self._settings = settings
         self._allowed = allowed
@@ -72,6 +87,9 @@ class TomoBridge(QObject):
         self._set_lang = set_lang
         # pick(标题, 从哪打开) → 选好的文件夹（没选是空串）：默认在本进程弹（以窗口为父）；托盘里经窗口进程弹（WindowHost.pick）
         self._pick = pick or (lambda title, start: QFileDialog.getExistingDirectory(self._window(), title, start))
+        # ask_login(界面语言, 标题词条, 预填用户名) → (用户名, 密码) 或 None：默认在本进程弹（以窗口为父、置前）；托盘里经窗口进程弹
+        # （WindowHost.login）。要人输账号密码的原生小窗都走它
+        self._ask_login = ask_login or (lambda lang, title_key, user: _local_login(self._window(), lang, title_key, user))
         self._probes = Probes()
         # 对话页报「现在开着哪段对话、看不看得见」（1.12.23 ⑨）：托盘据此判这条对话提醒要不要弹
         self._on_attention = on_attention
@@ -229,7 +247,7 @@ class TomoBridge(QObject):
         if method == "operator_authorize":
             from .express_operator import login_dialog
 
-            return {"ok": login_dialog.ask_and_store(normalize(lang))}
+            return {"ok": login_dialog.ask_and_store(normalize(lang), asker=self._ask_login)}
         if method == "operator_forget":
             from .express_operator import login_dialog
 
@@ -258,23 +276,28 @@ class TomoBridge(QObject):
             return {"ok": False, "code": "unsupported"}
         url, connection = str(args.get("url") or ""), str(args.get("connection") or "")
         if method == "operator_authorize":
-            return {"ok": bool(login.ask_and_store(url, connection, normalize(lang)))}
+            return {"ok": bool(login.ask_and_store(url, connection, normalize(lang), asker=self._ask_login))}
         return {"ok": bool(login.forget(url, connection))}
 
     def _mrerp_authorize(self, args: dict, lang: str) -> dict:
-        """MR.ERP 登录在 CC 里授权（ADR-026 第 7 条）：只收票（args 里的用户名、密码、地址一概不看），对话页必须是这台电脑连着的
-        站点；弹原生小窗（界面线程），输好后在后台交给站点、再存本机（``mrerp_login.authorize``）。回 ``{ok}`` 或
-        ``{ok: false, code | cancelled}``，从不回密码。"""
+        """MR.ERP 登录在 CC 里授权（ADR-026 第 7 条）：收票与「连接 MR.ERP」弹窗里输的用户名、密码（11-23，地址一概不看），对话页
+        必须是这台电脑连着的站点；在后台交给站点、再存本机（``mrerp_login.authorize``）。旧对话页只带票：经 ``ask_login`` 弹原生
+        小窗收。用户名、密码只给了一样不收。回 ``{ok}`` 或 ``{ok: false, code | cancelled}``，从不回密码、不写日志。"""
         from . import mrerp_login
-        from .express_operator import login_dialog
 
         ticket = str(args.get("ticket") or "")
         if not mrerp_login.valid_ticket(ticket):
             return {"ok": False, "code": "login_invalid"}
+        username, password = args.get("username"), args.get("password")
+        args = None   # 不再留着页面交来的密码
+        typed = username is not None or password is not None
+        if typed and not (isinstance(username, str) and username and isinstance(password, str) and password):
+            return {"ok": False, "code": "login_invalid"}
         member = self._settings.member_for(self._page_host())
         if member is None:
             return {"ok": False, "code": "not_connected"}
-        found = login_dialog.ask(normalize(lang), title_key="mrerp_login_title")
+        found = (username, password) if typed else self._ask_login(normalize(lang), "mrerp_login_title", "")
+        username = password = None
         if found is None:
             return {"ok": False, "cancelled": True}
         site, backend_url, token = member

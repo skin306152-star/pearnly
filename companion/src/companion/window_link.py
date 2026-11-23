@@ -13,7 +13,7 @@ CC 窗口（网页内核、对话页，gui_tomo.py）在另一个进程里：打
   的等 ``reply``）；``status``（窗口看得见没、在不在最前面、当前地址、对话页为什么停画）；``notify``（窗口里要弹的系统通知，
   托盘弹）；``restart``（换了绘制方式，退出后请托盘重新拉起，render_safety.py）；``bye``。
 - 托盘 → 窗口：``show`` / ``ask`` / ``open_conversation`` / ``open_settings``（打开窗口做什么）；``changed`` / ``done``
-  （桥的两个信号）；``pick``（弹选择文件夹框，带 ``id`` 等 ``reply``）；``click``（点了窗口转来的通知）；``lang``；``quit``。
+  （桥的两个信号）；``pick``（弹选择文件夹框，带 ``id`` 等 ``reply``）；``login``（弹账号密码小窗，同 pick，回用户名与密码）；``click``（点了窗口转来的通知）；``lang``；``quit``。
 
 收到的行先排队，回到事件循环再逐条处理（``_Channel``）：处理时可以弹框、等对方回复（嵌套事件循环），排在后面的照样能进来。
 """
@@ -336,6 +336,22 @@ class WindowHost(QObject):
         assert self._channel is not None
         result = self._channel.request("pick", timeout_ms=None, title=str(title or ""), start=str(start or ""))
         return result if isinstance(result, str) else ""
+
+    def login(self, lang: str, title_key: str, user: str):
+        """请窗口弹账号密码小窗（以 CC 窗口为父、模态、置前，11-23 用户：托盘弹的落在 CC 后面看不到），等人输好：回
+        ``(用户名, 密码)``；取消、窗口没了回 None。只经本用户的本地管道，不记日志。"""
+        if not self.connected:
+            return None
+        assert self._channel is not None
+        self._foreground(self._pid)
+        result = self._channel.request("login", timeout_ms=None, lang=str(lang or ""), title_key=str(title_key or ""),
+                                       user=str(user or ""))
+        if not isinstance(result, dict):
+            return None
+        username, password = result.get("user"), result.get("password")
+        result = None
+        return (username, password) if isinstance(username, str) and username and isinstance(password, str) and password \
+            else None
 
     def quit(self) -> None:
         """退出 CC：让窗口进程也退出，不再接新连接（已经接上、还没打招呼的那个也叫它退出）。"""
