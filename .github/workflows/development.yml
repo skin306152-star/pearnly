@@ -512,6 +512,8 @@ jobs:
         run: node --test tests/test-desk-live.cjs
       - name: Verify product list filters offer only the conditions their servers apply (equals, between)
         run: node tests/test-desk-list-filter.cjs
+      - name: Verify product lists keep their search, filters, sort and page size when the page is shown again, per company
+        run: node --test tests/test-desk-list-memory.cjs
       - name: Verify the Desk text cache
         run: node --test tests/test-desk-texts.cjs
       - name: Verify the narrow-screen breadcrumb menu lists each destination once

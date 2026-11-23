@@ -80,6 +80,14 @@
 			this.sort_fields = new Set(options.sort_fields || []);
 			this.sort_by = null;
 			this.sort_order = null;
+			// 回到列表时条件还在（用户 11-13「应该跳转到上次界面」，评估 docs/work/2026-11-23-list-keep-filters-评估.md）：照原生
+			// `list_view.js` —— 每次取数前把条件存进本人的 User Settings（`frappe.model.user_settings`，刷新、下次登录都在），建列表时取回；
+			// 链接带来的条件（`frappe.route_options`）优先，这次不取回。按页面路由 × 当前公司分存（换公司不带仓库、客户这类条件）；
+			// 嵌在表单里的列表（`container`）不存。比原生多存页头字段（搜索框、日期、仓库…），`routed_page` 每次显示都重建它们。
+			this.memory = options.container ? null
+				: `pearnly:${(frappe.get_route?.() || [])[0] || ""}:${frappe.boot?.pearnly_company || ""}`;
+			this.remembered = this.memory && !Object.keys(frappe.route_options || {}).length
+				? null : undefined;  // null = 等 DocType 载入后去取；undefined = 不取
 			this.settings = {formatters: {}, button: options.button};
 			// 白名单：只列这些字段（见上面包 `frappe.ui.Filter` 的那段）。注意 `filter_fields`
 			// 是给 `FieldSelect` 看的**字段名数组**；页面声明写成 `filter_fields: [{fieldname…}]`
@@ -111,6 +119,13 @@
 				// 框架的筛选区/标准筛选要读 DocType 的字段定义（`meta.fields`、`title_field`），
 				// 那一步在 ListView 的 `setup_meta` 里；产品列表不是 ListView，自己补上。
 				this.meta = frappe.get_meta(this.doctype);
+				if (this.remembered === null) {
+					const saved = frappe.get_user_settings?.(this.doctype, this.memory) || {};
+					this.remembered = saved;
+					// 同原生 `validate_filters`：只认本页白名单里的字段，别的（字段改名、撤掉）丢掉
+					this.filters = (Array.isArray(saved.filters) ? saved.filters : [])
+						.filter(row => Array.isArray(row) && this.filter_fields?.includes(row[1]));
+				}
 				if (!this.destroyed) return this.setup_main_section();
 			}).then(() => {
 				if (this.destroyed) return;
@@ -167,7 +182,7 @@
 				this.layout_handler = frappe.utils.debounce(() => this.resize_list(), 300);
 				$(window).on("resize", this.layout_handler);
 				this.page.wrapper.on("show", this.layout_handler);
-				return this.refresh();
+				return this.restore_page_state().then(() => this.refresh());
 			});
 		}
 		setup_filter_area() {
@@ -365,7 +380,52 @@
 			this.$result?.find("[data-original-title]").tooltip("dispose");
 			this.$frappe_list?.remove();
 		}
+		// 页头那几格（`page.add_field`）：有值的输入类控件，按钮、说明之类不算
+		page_fields() {
+			return Object.values(this.page?.fields_dict || {}).filter(control => control?.df?.fieldname
+				&& typeof control.get_value === "function" && typeof control.set_value === "function"
+				&& !["Button", "HTML", "Heading", "Section Break", "Column Break"].includes(control.df.fieldtype));
+		}
+		async restore_page_state() {
+			const saved = this.remembered;
+			if (!saved) return;
+			if (this.sort_fields.has(saved.sort_by)) {
+				this.sort_by = saved.sort_by;
+				this.sort_order = saved.sort_order === "desc" ? "desc" : "asc";
+			}
+			if ([20, 100, 500, 2500].includes(saved.page_length)) this.selected_page_count = this.page_length = saved.page_length;
+			const values = saved.fields && typeof saved.fields === "object" ? saved.fields : {};
+			// 填回时页面字段的 change 会叫 reload：先停住，填完由下面那一次 refresh 按全部条件取一次
+			this.restoring = true;
+			try {
+				for (const control of this.page_fields()) {
+					const value = values[control.df.fieldname];
+					if (value === undefined || value === null) continue;
+					// Select 的值已不在选项里（选项随公司 / 数据变）就不填
+					if (control.df.fieldtype === "Select") {
+						const options = Array.isArray(control.df.options) ? control.df.options.map(o => o?.value ?? o)
+							: String(control.df.options || "").split("\n");
+						if (!options.includes(value)) continue;
+					}
+					await control.set_value(value);
+				}
+			} finally {
+				this.restoring = false;
+			}
+		}
+		remember() {
+			if (!this.memory || !frappe.model?.user_settings?.save) return;
+			const fields = {};
+			for (const control of this.page_fields()) {
+				const value = control.get_value();
+				if (value !== undefined && value !== null && value !== "") fields[control.df.fieldname] = value;
+			}
+			frappe.model.user_settings.save(this.doctype, this.memory, {
+				filters: this.filter_area?.get?.() || [], sort_by: this.sort_by, sort_order: this.sort_order,
+				page_length: this.selected_page_count, fields});
+		}
 		async reload() {
+			if (this.restoring) return;
 			this.start = 0;
 			this.page_length = this.selected_page_count;
 			return this.refresh();
@@ -378,6 +438,8 @@
 			if (!this.$result) return this.ready;
 			const request = ++this.sequence;
 			const start = this.start, length = this.page_length;
+			// 同原生 `before_render`：每次取数前存一次（原生在框架里合并去抖后写服务端）
+			try { this.remember(); } catch (error) { globalThis.pearnlyCaught?.(error, "list"); }
 			this.freeze(true);
 			try {
 				// 排序参数一并交给页面自己的 `load`：列表是服务端分页的，排序必须回服务端。
