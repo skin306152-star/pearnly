@@ -17,6 +17,9 @@ from typing import Any, Dict, List, Optional
 
 from pearnly_dms.contracts.client_base import DmsClientError
 
+#: 赠品单价、金额、合计是否隐藏（待主会话定是否跟 DMS「隐藏赠品价格」设置走，见评估）。
+HIDE_PRICE = False
+
 COLUMNS = ("txtfbproduct[]", "txtfbunits[]", "txtfbquantity[]", "txtfbprice[]", "txtfbamount[]",
            "fbproductval[]")
 CARD_LIMIT = 15
@@ -63,6 +66,36 @@ def from_form(car_id: str, fields: Optional[Dict[str, Any]]) -> Dict[str, Any]:
                      "qty": quantity(numbers[0]), "price": money(numbers[1]),
                      "amount": money(numbers[2])})
     return {**empty, "rows": rows, "total": money(total) if rows else ""}
+
+
+def edited(car_id: str, default: Dict[str, Any], submitted: List[Dict[str, Any]],
+           products: List[Dict[str, str]]) -> Dict[str, Any]:
+    """编辑页提交的赠品行（`[{product_id, qty}]`）→ 会话里存的赠品（显示行 + 合计 + 是否改过）。
+
+    照原生：数量空或 ≤0 当 1；同一商品只留第一行；商品须是这台车的默认赠品或商品主档里的商品。
+    返回 `None` = 有不认识的商品或数量不是数字（调用方按无效主档拒绝保存）。
+    """
+    known = {str(row.get("product_id")): row for row in products}
+    known.update({str(row.get("product_id")): row for row in default.get("rows") or []})
+    rows, seen, total = [], set(), Decimal("0")
+    for item in submitted:
+        product_id = str((item or {}).get("product_id") or "").strip()
+        if not product_id or product_id in seen:
+            continue
+        seen.add(product_id)
+        base, qty = known.get(product_id), _number((item or {}).get("qty"))
+        price = _number((base or {}).get("price"))
+        if base is None or qty is None or price is None:
+            return None
+        qty = qty if qty > 0 else Decimal("1")
+        amount = qty * price
+        total += amount
+        rows.append({"product_id": product_id, "name": str(base.get("name") or ""),
+                     "unit": str(base.get("unit") or ""), "qty": quantity(qty),
+                     "price": money(price), "amount": money(amount)})
+    same = [(r["product_id"], _number(r["qty"])) for r in rows] == [
+        (str(r.get("product_id")), _number(r.get("qty"))) for r in default.get("rows") or []]
+    return {"car_id": str(car_id), "rows": rows, "total": money(total) if rows else "", "edited": not same}
 
 
 def wanted(qa: Dict[str, Any]) -> Optional[tuple]:

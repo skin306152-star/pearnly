@@ -281,7 +281,12 @@ def load(line_user_id: str, nonce: str) -> dict:
             "prefixes": _options(prefix_rows or []),
         },
         # 当前车型的赠品（只读）；换车型时页面另取 `freebies`。
-        "freebies": _freebies_view((snapshot.get("freebies") or {}).get(car_id)),
+        "freebies": _freebies_view(_session_freebies(qa, snapshot, car_id)),
+        # 原生可从商品主档加赠品行（同一商品不能重复）；编辑页的「添加赠品」选项。
+        "freebie_products": [
+            {"id": p["product_id"], "label": " ".join(x for x in (p["code"], p["name"]) if x),
+             "name": p["name"], "unit": p["unit"], "price": p["price"]}
+            for p in snapshot.get("freebie_products") or []],
         # 与 LINE 对话同一条规则：这几类目录权威为空 → 银行名称手工填，hidden id 留空。
         "manual_banks": _manual_bank_keys(masters),
         # 首屏携带本地完整地址目录的当前层级选项，避免多次页面往返。
@@ -299,10 +304,26 @@ def paints(line_user_id: str, nonce: str, car_id: str) -> List[dict]:
     return _options(_snapshot_paints(snapshot, car_id))
 
 
+def _session_freebies(qa: dict, snapshot: dict, car_id: str) -> dict:
+    """编辑页打开时的赠品：会话里已改过这台车的赠品就用改过的，否则用车型默认。"""
+    saved = qa.get("car_freebies") or {}
+    if saved.get("edited") and str(saved.get("car_id") or "") == str(car_id):
+        return saved
+    return (snapshot.get("freebies") or {}).get(car_id) or {}
+
+
+def car_freebies_hide_price() -> bool:
+    """编辑页与 LINE 卡是否隐藏赠品单价、金额与合计（同 `car_freebies.HIDE_PRICE`）。"""
+    from pearnly_dms.booking import car_freebies
+
+    return bool(car_freebies.HIDE_PRICE)
+
+
 def _freebies_view(data: Optional[dict]) -> dict:
     """编辑页只读赠品表：与 LINE 预览卡同一份取数（`car_freebies.from_form`）。"""
     data = data or {}
-    return {"rows": list(data.get("rows") or []), "total": str(data.get("total") or "")}
+    return {"rows": list(data.get("rows") or []), "total": str(data.get("total") or ""),
+            "hide_price": car_freebies_hide_price()}
 
 
 def freebies(line_user_id: str, nonce: str, car_id: str) -> dict:
@@ -450,7 +471,18 @@ def save(line_user_id: str, nonce: str, submitted: dict, deliver=None) -> str:
     }
     qa["master_snapshot"] = build_snapshot(masters)
     qa["paint_snapshots"] = {car["id"]: build_paint_snapshot(car["id"], paint_rows)}
-    qa["car_freebies"] = (snapshot.get("freebies") or {}).get(car["id"]) or {}
+    default = (snapshot.get("freebies") or {}).get(car["id"]) or {}
+    if "freebies" in submitted:
+        # 照原生：可改数量、删行、从商品主档加行；不认识的商品 / 数量不是数字 → 拒绝保存。
+        from pearnly_dms.booking import car_freebies
+
+        chosen = car_freebies.edited(car["id"], default, list(submitted.get("freebies") or []),
+                                     list(snapshot.get("freebie_products") or []))
+        if chosen is None:
+            raise DmsBookingEditError("dms_booking.invalid_master")
+        qa["car_freebies"] = chosen
+    else:
+        qa["car_freebies"] = default
     qa.pop("masters_synced", None)
     qa["payments"] = _payments(list(submitted.get("payments") or []), masters)
     files = dict(qa.get("files") or {})

@@ -116,12 +116,31 @@ export interface Draft {
   geo: Record<string, Option[]>;
   snapshot?: SnapshotInfo;
   freebies?: Freebies;
+  freebie_products?: FreebieProduct[];
 }
 
-/** 车型主档里的赠品（只读显示，不随单提交）。 */
+/** 一行赠品（照 DMS 原生订车单：可改数量、可删；单位只读；金额 = 数量 × 单价）。 */
+export interface FreebieRow {
+  product_id: string;
+  name: string;
+  unit: string;
+  qty: string;
+  price: string;
+  amount?: string;
+}
+
+/** 选车型带出的赠品；hide_price = 不显示单价、金额与合计。 */
 export interface Freebies {
-  rows: { name: string; unit: string; qty: string; price: string; amount: string }[];
+  rows: FreebieRow[];
   total: string;
+  hide_price?: boolean;
+}
+
+/** 可加为赠品的商品（DMS 商品主档）。 */
+export interface FreebieProduct extends Option {
+  name: string;
+  unit: string;
+  price: string;
 }
 
 export interface Config {

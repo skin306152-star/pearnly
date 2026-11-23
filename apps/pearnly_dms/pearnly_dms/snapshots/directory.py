@@ -89,6 +89,21 @@ class Directory:
         record = (catalogues.get("car") or {}).get(str(car_id)) or {}
         return copy.deepcopy(record.get("fields") or {})
 
+    def freebie_products(self):
+        """可加为赠品的商品（车辆快照的商品主档），跳过已停用的：`[{product_id, code, name, unit, unit_id, price}]`。"""
+        catalogues = self._load("vehicles")["data"].get("catalogues") or {}
+        out = []
+        for product_id, record in (catalogues.get("product") or {}).items():
+            fields = record.get("fields") or {}
+            status = str(fields.get("selstatuscancel") or "")
+            label = str((record.get("labels") or {}).get("selstatuscancel") or "")
+            if status not in ("", "0") or "ยกเลิก" in label:
+                continue
+            out.append({"product_id": str(product_id), "code": str(fields.get("txtproductcode") or ""),
+                        "name": str(fields.get("txtproductname") or ""), "unit": str(fields.get("txtunits") or ""),
+                        "unit_id": str(fields.get("unitsval") or ""), "price": str(fields.get("txtprice") or "")})
+        return out
+
     def car_names(self):
         """车型 id → ชื่อรถ（车型主档表单的 `txtdescmodelname`；下拉行里没有这一列）。"""
         catalogues = self._load("vehicles")["data"].get("catalogues") or {}

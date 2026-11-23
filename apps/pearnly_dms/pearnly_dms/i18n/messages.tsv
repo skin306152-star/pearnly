@@ -241,6 +241,8 @@ Model/colour	车型/颜色	รุ่น/สี	車種/色	dms.card.qa.LBL_CAR
 Freebies	赠品	รายการของแถม	景品	dms.card.qa.LBL_FREEBIES
 Freebies total	赠品合计	รวมของแถม	景品合計	dms.card.qa.LBL_FREEBIES_TOTAL
 {n} more	另 {n} 项	อีก {n} รายการ	他 {n} 件	dms.card.qa.TXT_FREEBIES_MORE
+Add freebie	添加赠品	เพิ่มของแถม	景品を追加	dms.edit.addFreebie
+Quantity	数量	จำนวน	数量	dms.edit.quantity
 Delivery date	交车日期	วันที่ส่งมอบ	納車日	dms.card.qa.LBL_DELIVERY
 Booking location	订车地点	สถานที่รับจอง	予約受付場所	dms.card.qa.LBL_PLACE
 Postcode	邮编	รหัสไปรษณีย์	郵便番号	dms.card.qa.LBL_POSTCODE

@@ -8,6 +8,7 @@ Action,การดำเนินการ
 Add,เพิ่ม
 Add a channel,เพิ่มช่องทางชำระเงิน
 Add and edit customers,เพิ่มและแก้ไขข้อมูลลูกค้า
+Add freebie,เพิ่มของแถม
 Add read account,เพิ่มบัญชีอ่านข้อมูล
 Add system account,เพิ่มบัญชีระบบ
 Add transfer,เพิ่มเงินโอน
@@ -265,6 +266,7 @@ Price in DMS,ราคาตาม DMS
 Private Synchronization Progress,ความคืบหน้าการซิงค์ภายใน
 Progress {processed}/{total},ความคืบหน้า {processed}/{total}
 Province,จังหวัด
+Quantity,จำนวน
 Query Requested,เวลาที่ขอสอบถาม
 Queued,อยู่ในคิว
 Rank by number of cars or amount?,กรุณาเลือกจัดอันดับตามจำนวนคันหรือยอดเงิน
@@ -871,6 +873,7 @@ dms.doctype.system_account,บัญชีระบบ DMS
 dms.doctype.system_account.description,บัญชี DMS เพิ่มเติมสำหรับระบบเท่านั้น ใช้สำหรับการอ่านข้อมูลของผู้ดูแลระบบและการบันทึกข้อมูลลูกค้า
 dms.doctype.system_account.last_checked_at,เวลาตรวจสอบล่าสุด
 dms.doctype.system_account.last_status,ตรวจสอบล่าสุด
+dms.edit.addFreebie,เพิ่มของแถม
 dms.edit.addPayment,เพิ่มช่องทาง
 dms.edit.addressSnapshotAsOf,ข้อมูลที่อยู่ ณ {time} อัปเดตเมื่อกดอ่าน
 dms.edit.addressSnapshotStale,ข้อมูลที่อยู่เดิม ณ {time} หากต้องการข้อมูลใหม่ กรุณาให้ผู้ดูแลระบบกดอ่านอีกครั้ง
@@ -939,6 +942,7 @@ dms.edit.postcodeMissing,กรุณาเลือกรหัสไปรษ�
 dms.edit.prefix,คำนำหน้า
 dms.edit.previewSendFailed,ส่งสรุปใหม่ไปที่ LINE ไม่สำเร็จ กรุณาลองอีกครั้ง
 dms.edit.province,จังหวัด
+dms.edit.quantity,จำนวน
 dms.edit.regis,จดทะเบียนในนาม
 dms.edit.regisName,ชื่อผู้จดทะเบียน
 dms.edit.remove,ลบ

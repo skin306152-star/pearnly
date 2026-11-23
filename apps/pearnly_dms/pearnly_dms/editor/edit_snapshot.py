@@ -64,6 +64,7 @@ def read_edit_snapshot(endpoint, *, car_ids=(), customer=None, customer_id="",
         "freebies": {str(car): car_freebies.from_view(view, str(car)) for car in car_ids if car}
         if include_booking_masters else {},
         "car_names": _car_names(view) if include_booking_masters else {},
+        "freebie_products": _freebie_products(view) if include_booking_masters else [],
         "prefixes": prefixes,
         "geo": {level: view.list_geo(level, parent) for level, parent in geo_levels(resolved)},
         "customer": saved, "resolved_customer": resolved,
@@ -76,6 +77,13 @@ def _car_names(view):
         return view.car_names()
     except DmsClientError:
         return {}  # 显示回落 ชื่อรุ่นรถ，不挡编辑
+
+
+def _freebie_products(view):
+    try:
+        return view.freebie_products()
+    except DmsClientError:
+        return []  # 只是不能从商品主档加行；车型默认赠品照常
 
 
 def read_car_freebies(endpoint, car_id):

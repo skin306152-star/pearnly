@@ -8,6 +8,7 @@ Action,Action
 Add,Add
 Add a channel,Add a channel
 Add and edit customers,Add and edit customers
+Add freebie,Add freebie
 Add read account,Add read account
 Add system account,Add system account
 Add transfer,Add transfer
@@ -265,6 +266,7 @@ Price in DMS,Price in DMS
 Private Synchronization Progress,Private Synchronization Progress
 Progress {processed}/{total},Progress {processed}/{total}
 Province,Province
+Quantity,Quantity
 Query Requested,Query Requested
 Queued,Queued
 Rank by number of cars or amount?,Rank by number of cars or amount?
@@ -871,6 +873,7 @@ dms.doctype.system_account,DMS System Account
 dms.doctype.system_account.description,Extra DMS accounts reserved for the system. Admin reads and customer writes pick a free one so operators do not queue on a single account.
 dms.doctype.system_account.last_checked_at,Last Checked At
 dms.doctype.system_account.last_status,Last Check
+dms.edit.addFreebie,Add freebie
 dms.edit.addPayment,Add payment method
 dms.edit.addressSnapshotAsOf,Address data as of {time}; refreshed manually
 dms.edit.addressSnapshotStale,Older address data as of {time}; ask an administrator to refresh if needed
@@ -939,6 +942,7 @@ dms.edit.postcodeMissing,Choose a postcode from the list.
 dms.edit.prefix,Title
 dms.edit.previewSendFailed,Could not send the revised preview to LINE. Try again.
 dms.edit.province,Province
+dms.edit.quantity,Quantity
 dms.edit.regis,Register in the name of
 dms.edit.regisName,Registered owner name
 dms.edit.remove,Remove

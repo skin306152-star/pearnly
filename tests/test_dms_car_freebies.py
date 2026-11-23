@@ -77,12 +77,51 @@ class FromFormTests(Isolated):
         self.assertEqual(self.freebies.from_view(view, "C1")["total"], "20,634.13")
 
 
+class EditedTests(Isolated):
+    PRODUCTS = [{"product_id": "P9", "code": "X9", "name": "Wax", "unit": "can", "unit_id": "7", "price": "120.00"}]
+
+    def default(self):
+        return self.freebies.from_form("C1", FORM)
+
+    def test_unchanged_rows_are_not_an_edit(self):
+        rows = [{"product_id": r["product_id"], "qty": r["qty"]} for r in self.default()["rows"]]
+        out = self.freebies.edited("C1", self.default(), rows, self.PRODUCTS)
+        self.assertFalse(out["edited"])
+        self.assertEqual(out["total"], "20,634.13")
+
+    def test_quantity_delete_and_add_follow_the_native_rules(self):
+        out = self.freebies.edited("C1", self.default(), [
+            {"product_id": "P4", "qty": "2"}, {"product_id": "P1", "qty": "0"},
+            {"product_id": "P9", "qty": "3"}, {"product_id": "P4", "qty": "9"}], self.PRODUCTS)
+        self.assertTrue(out["edited"])
+        self.assertEqual([(r["product_id"], r["qty"], r["amount"]) for r in out["rows"]],
+                         [("P4", "2", "36.00"), ("P1", "1", "1,500.00"), ("P9", "3", "360.00")])
+        self.assertEqual(out["total"], "1,896.00")
+        self.assertEqual(self.freebies.wanted({"answers": {"car": {"id": "C1"}}, "car_freebies": out}),
+                         (("P4", "2"), ("P1", "1"), ("P9", "3")))
+
+    def test_unknown_products_or_bad_numbers_are_refused(self):
+        self.assertIsNone(self.freebies.edited("C1", self.default(), [{"product_id": "ZZ", "qty": "1"}], self.PRODUCTS))
+        self.assertIsNone(self.freebies.edited("C1", self.default(), [{"product_id": "P4", "qty": "x"}], self.PRODUCTS))
+
+    def test_removing_every_row_is_an_edit_with_no_freebies(self):
+        out = self.freebies.edited("C1", self.default(), [], self.PRODUCTS)
+        self.assertEqual((out["rows"], out["edited"]), ([], True))
+
+
 class DirectoryTests(Isolated):
     def test_car_form_and_car_names_come_from_the_published_vehicle_snapshot(self):
         published = {
             "vehicles": {"data": {"masters": {"cars": []}, "paints": {},
                                   "catalogues": {"car": {"C1": {"id": "C1", "labels": {}, "fields": {
-                                      **FORM, "txtdescmodelname": " Mu-X 2.2 Biturbo RS 4WD "}}}}},
+                                      **FORM, "txtdescmodelname": " Mu-X 2.2 Biturbo RS 4WD "}}},
+                                  "product": {
+                                      "P1": {"id": "P1", "labels": {"selstatuscancel": "ใช้งาน"}, "fields": {
+                                          "txtproductcode": "A1", "txtproductname": "Mat", "txtprice": "1,500.00",
+                                          "unitsval": "1", "txtunits": "set", "selstatuscancel": "0"}},
+                                      "P2": {"id": "P2", "labels": {"selstatuscancel": "ยกเลิก"}, "fields": {
+                                          "txtproductcode": "A2", "txtproductname": "Old", "txtprice": "1.00",
+                                          "unitsval": "1", "txtunits": "set", "selstatuscancel": "1"}}}}},
                          "as_of": 1.0, "completed_at": 1.0, "generation": "g", "stale": False},
             "company": {"data": {"masters": {}, "catalogues": {"setcbc": {"singleton": {
                 "id": "singleton", "fields": {"cbhidefreebiesprice": "1"}, "labels": {}}}}},
@@ -99,6 +138,7 @@ class DirectoryTests(Isolated):
         self.assertEqual(directory.car_form("C1")["txtfbamount[]"], FORM["txtfbamount[]"])
         self.assertEqual(directory.car_form("missing"), {})
         self.assertEqual(directory.car_names(), {"C1": "Mu-X 2.2 Biturbo RS 4WD"})
+        self.assertEqual([p["product_id"] for p in directory.freebie_products()], ["P1"])
 
 
 class PreviewRowTests(Isolated):

@@ -8,6 +8,7 @@ Action,操作
 Add,添加
 Add a channel,添加付款方式
 Add and edit customers,新增和修改客户资料
+Add freebie,添加赠品
 Add read account,添加读档账号
 Add system account,添加系统账号
 Add transfer,添加转账
@@ -265,6 +266,7 @@ Price in DMS,DMS 价格
 Private Synchronization Progress,内部同步进度
 Progress {processed}/{total},进度 {processed}/{total}
 Province,府
+Quantity,数量
 Query Requested,查询请求时间
 Queued,已排队
 Rank by number of cars or amount?,请选择排行指标：台数或金额
@@ -871,6 +873,7 @@ dms.doctype.system_account,DMS 系统账号
 dms.doctype.system_account.description,系统专用的额外 DMS 账号，用于管理员读取和客户资料写入。
 dms.doctype.system_account.last_checked_at,最近检查时间
 dms.doctype.system_account.last_status,最近检查
+dms.edit.addFreebie,添加赠品
 dms.edit.addPayment,添加支付方式
 dms.edit.addressSnapshotAsOf,地址资料时间：{time}；手动读取更新
 dms.edit.addressSnapshotStale,当前为 {time} 的旧地址资料，需要时请管理员手动刷新
@@ -939,6 +942,7 @@ dms.edit.postcodeMissing,请从列表中选择邮编。
 dms.edit.prefix,称谓
 dms.edit.previewSendFailed,新版预览发送到 LINE 失败，请重试。
 dms.edit.province,府
+dms.edit.quantity,数量
 dms.edit.regis,登记名义
 dms.edit.regisName,登记人姓名
 dms.edit.remove,删除

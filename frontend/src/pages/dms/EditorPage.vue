@@ -38,7 +38,8 @@ import {
   snapshotErrorKey,
   type Draft,
   type EditorMode,
-  type Freebies,
+  type FreebieProduct,
+  type FreebieRow,
   type Option,
   type Payment,
   type SnapshotInfo,
@@ -83,7 +84,11 @@ const geo = reactive<Record<string, Option[]>>({
   zipcodes: [],
 });
 const paints = ref<Option[]>([]);
-const freebies = ref<Freebies>();
+// 赠品：照 DMS 原生订车单——换车型重新带出、可改数量、可删行、可从商品主档加行（同一商品不重复）。
+const freebieRows = ref<FreebieRow[]>([]);
+const hideFreebiePrice = ref(false);
+const freebieProducts = ref<FreebieProduct[]>([]);
+const freebieToAdd = ref("");
 const manualBanks = ref<string[]>([]);
 const advisor = ref("");
 const hasFiles = reactive({ id_card: false, slip: false });
@@ -292,7 +297,9 @@ function adopt(draft: Draft): void {
     masters[key] = draft.masters[key] || [];
   });
   paints.value = draft.masters?.paints || [];
-  freebies.value = draft.freebies;
+  freebieRows.value = (draft.freebies?.rows || []).map((row) => ({ ...row }));
+  hideFreebiePrice.value = Boolean(draft.freebies?.hide_price);
+  freebieProducts.value = draft.freebie_products || [];
   Object.keys(geo).forEach((level) => {
     geo[level] = draft.geo?.[level] || [];
   });
@@ -399,7 +406,7 @@ async function onCarChange(): Promise<void> {
   const carId = answers.car_id;
   answers.paint_id = "";
   paints.value = [];
-  freebies.value = undefined;
+  freebieRows.value = [];
   if (!carId) return;
   try {
     const [rows, gifts] = await Promise.all([
@@ -408,7 +415,8 @@ async function onCarChange(): Promise<void> {
     ]);
     if (request === paintRequest) {
       paints.value = rows;
-      freebies.value = gifts;
+      freebieRows.value = (gifts.rows || []).map((row) => ({ ...row }));
+      hideFreebiePrice.value = Boolean(gifts.hide_price);
     }
   } catch (err) { reportCaught(err, "EditorPage");
     if (request === paintRequest) errorText.value = explain(err);
@@ -467,7 +475,52 @@ function payload(): Record<string, unknown> {
     answers: { ...answers },
     payments: payments.value,
     keep_files: { id_card: keep.id_card, slip: keep.slip },
+    freebies: freebieRows.value.map((row) => ({ product_id: row.product_id, qty: row.qty })),
   };
+}
+
+// ── 赠品 ─────────────────────────────────────────────────────────────────
+/** 金额字符串 → 分（整数，避免浮点）；读不懂当 0。 */
+function cents(value: string): bigint {
+  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(String(value || "").replace(/,/g, "").trim());
+  if (!match) return 0n;
+  return BigInt(match[1]) * 100n + BigInt((match[2] || "").padEnd(2, "0"));
+}
+
+function money(value: bigint): string {
+  const whole = (value / 100n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return `${whole}.${(value % 100n).toString().padStart(2, "0")}`;
+}
+
+/** 数量 × 单价（两位小数，四舍五入），与 DMS 原生 calcfreebies 同口径。 */
+function freebieAmount(row: FreebieRow): bigint {
+  const qty = cents(row.qty) || 100n;
+  return (qty * cents(row.price) + 50n) / 100n;
+}
+
+const freebieTotal = computed(() =>
+  money(freebieRows.value.reduce((sum, row) => sum + freebieAmount(row), 0n)),
+);
+
+const freebieChoices = computed(() =>
+  freebieProducts.value.filter((p) => !freebieRows.value.some((row) => row.product_id === p.id)),
+);
+
+function addFreebie(): void {
+  const product = freebieProducts.value.find((p) => p.id === freebieToAdd.value);
+  if (!product) return;
+  freebieRows.value.push({
+    product_id: product.id,
+    name: product.name,
+    unit: product.unit,
+    qty: "1.00",
+    price: product.price,
+  });
+  freebieToAdd.value = "";
+}
+
+function removeFreebie(index: number): void {
+  freebieRows.value.splice(index, 1);
 }
 
 async function save(): Promise<void> {
@@ -743,17 +796,43 @@ function changeLocale(value: Locale): void {
                 :options="optionList(paints)"
                 v-model="answers.paint_id"
               />
-              <div v-if="freebies?.rows?.length" class="pn-editor-freebies">
+              <div v-if="answers.car_id" class="pn-editor-freebies">
                 <div class="pn-editor-h2">{{ t("dms.card.qa.LBL_FREEBIES") }}</div>
-                <div v-for="(item, index) in freebies.rows" :key="index" class="pn-editor-freebie">
-                  <span>{{ item.name }}</span>
-                  <span>
-                    {{ [item.qty, item.unit].filter(Boolean).join(" ") }} × {{ item.price }} = {{ item.amount }}
-                  </span>
+                <div v-for="(row, index) in freebieRows" :key="row.product_id" class="pn-editor-freebie">
+                  <div class="pn-editor-freebie-name">
+                    <span>{{ row.name }}</span>
+                    <span v-if="!hideFreebiePrice">{{ money(freebieAmount(row)) }}</span>
+                  </div>
+                  <div class="pn-editor-freebie-edit">
+                    <FormControl variant="outline"
+                      type="text"
+                      inputmode="decimal"
+                      :label="t('dms.edit.quantity')"
+                      v-model="row.qty"
+                    />
+                    <span>{{ row.unit }}</span>
+                    <span v-if="!hideFreebiePrice">× {{ row.price }}</span>
+                    <Button variant="ghost" :label="t('dms.edit.remove')" @click="removeFreebie(index)" />
+                  </div>
                 </div>
-                <div class="pn-editor-freebie">
+                <div v-if="freebieRows.length && !hideFreebiePrice" class="pn-editor-freebie-name">
                   <span>{{ t("dms.card.qa.LBL_FREEBIES_TOTAL") }}</span>
-                  <span>{{ freebies.total }}</span>
+                  <span>{{ freebieTotal }}</span>
+                </div>
+                <div v-if="freebieChoices.length" class="pn-editor-freebie-edit">
+                  <FormControl variant="outline"
+                    type="select"
+                    :placeholder="t('dms.edit.chooseOption')"
+                    :options="optionList(freebieChoices)"
+                    v-model="freebieToAdd"
+                  />
+                  <Button
+                    variant="outline"
+                    theme="gray"
+                    :label="t('dms.edit.addFreebie')"
+                    :disabled="!freebieToAdd"
+                    @click="addFreebie"
+                  />
                 </div>
               </div>
               <FormControl variant="outline" :class="fieldClass('delivery_date_be')"
@@ -969,17 +1048,28 @@ function changeLocale(value: Locale): void {
 }
 
 .pn-editor-freebie {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 6px 0;
-  font-size: 13px;
+  display: grid;
+  gap: 6px;
+  padding: 8px 0;
   border-bottom: 1px solid var(--outline-gray-2, #e5e7eb);
 }
 
-.pn-editor-freebie > span:last-child {
-  text-align: right;
+.pn-editor-freebie-name {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.pn-editor-freebie-name > span:last-child {
   white-space: nowrap;
+}
+
+.pn-editor-freebie-edit {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  font-size: 13px;
 }
 
 .pn-editor-payment {

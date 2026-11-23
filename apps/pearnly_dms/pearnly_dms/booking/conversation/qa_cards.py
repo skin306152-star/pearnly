@@ -430,12 +430,13 @@ def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
     items = freebies.get("rows") or []
     if not items:
         return []
+    hide = bool(car_freebies.HIDE_PRICE)
     rows: List[Dict[str, Any]] = [
         {"type": "text", "text": qat("LBL_FREEBIES"), "size": "sm", "color": "#8a8a8a", "margin": "md"}
     ]
     for item in items[: car_freebies.CARD_LIMIT]:
         quantity = " ".join(part for part in (item["qty"], item["unit"]) if part)
-        detail = f"{quantity} × {item['price']} = {item['amount']}"
+        detail = quantity if hide else f"{quantity} × {item['price']} = {item['amount']}"
         # 两行：名称在上（长名照常折行），「数量 单位 × 单价 = 金额」在下靠右，窄屏不会把算式拆开。
         rows.append({"type": "box", "layout": "vertical", "contents": [
             {"type": "text", "text": item["name"], "size": "sm", "color": "#111111", "wrap": True},
@@ -444,7 +445,8 @@ def freebie_rows(qa: Dict[str, Any]) -> List[Dict[str, Any]]:
     hidden = len(items) - car_freebies.CARD_LIMIT
     if hidden > 0:
         rows.append({"type": "text", "text": qat("TXT_FREEBIES_MORE", n=hidden), "size": "sm", "color": "#8a8a8a"})
-    rows.append(_kv_row(qat("LBL_FREEBIES_TOTAL"), freebies.get("total") or ""))
+    if not hide:
+        rows.append(_kv_row(qat("LBL_FREEBIES_TOTAL"), freebies.get("total") or ""))
     return rows
 
 

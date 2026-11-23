@@ -8,6 +8,7 @@ Action,操作
 Add,追加
 Add a channel,支払方法を追加
 Add and edit customers,顧客の追加と編集
+Add freebie,景品を追加
 Add read account,読み取りアカウントを追加
 Add system account,システムアカウントを追加
 Add transfer,振込を追加
@@ -265,6 +266,7 @@ Price in DMS,DMS の価格
 Private Synchronization Progress,内部同期の進捗
 Progress {processed}/{total},進捗 {processed}/{total}
 Province,県
+Quantity,数量
 Query Requested,照会要求日時
 Queued,待機中
 Rank by number of cars or amount?,台数と金額のどちらでランキングしますか？
@@ -871,6 +873,7 @@ dms.doctype.system_account,DMS システムアカウント
 dms.doctype.system_account.description,システム専用の追加 DMS アカウント。管理者読み取りと顧客書き込みは空いているものを使うため、担当者が 1 つのアカウントで待つ必要がありません。
 dms.doctype.system_account.last_checked_at,最終チェック日時
 dms.doctype.system_account.last_status,最終チェック
+dms.edit.addFreebie,景品を追加
 dms.edit.addPayment,支払方法を追加
 dms.edit.addressSnapshotAsOf,住所データ取得時刻：{time}。手動で更新します。
 dms.edit.addressSnapshotStale,{time} 時点の古い住所データです。必要に応じて管理者に更新を依頼してください。
@@ -939,6 +942,7 @@ dms.edit.postcodeMissing,リストから郵便番号を選択してください�
 dms.edit.prefix,敬称
 dms.edit.previewSendFailed,新しいプレビューを LINE に送信できませんでした。再試行してください。
 dms.edit.province,県
+dms.edit.quantity,数量
 dms.edit.regis,登録名義
 dms.edit.regisName,登録者名
 dms.edit.remove,削除
