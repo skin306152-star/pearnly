@@ -27,3 +27,8 @@
 - 本机检查（HEAD 树）：全闸门 GATE EXIT 0；生产镜像候选离线 113 组 LANE EXIT 0；companion 全套 2409 通过、63 跳过（Mac，Windows 专属用例跳过）；契约 + 云端设置行 + 空闲动效 170 通过；`check-impact` 登记表完整，离线入口 `cc.operator.page`、`cc.desktop.operator`、`cc.desktop.operator.mrerp` 的离线用例通过，其余入口仍是「没测到（需 Windows / 用户到场）」。
 - 不合入 main：本分支改 `companion-release.yml`（云端精简包与 `latest.json` 的 `cloud` 项），排在 CC 桌面版 1.12.24 发出之后，由主会话定时机；合入后第一次发版要回读 `cloud` 项与公网 sha256。
 - 11-23 主会话定：同线两条旧分支也叠到本分支。`pearnly/express-cloud-source-mark`（服务端收心跳 `link {kind: cloud, via, host}`、两个产品存到电脑行上；CC 一侧 `queue_client.py` 已在发这个键，没有它服务端不认）无冲突叠上；`pearnly/express-cloud-notes`（评估、实测清单、实测记录、施工短版与只读探测脚本，`cloud_link` 代码注释引用这几份评估）无冲突叠上，逐提交公开扫描拦截 0。
+- 11-23 与 `pearnly/mrerp-connect-inline`（随 CC 1.12.24）的接缝：那条分支把托盘里所有要人输账号密码的原生小窗改成经 CC 窗口进程弹
+  （以 CC 窗口为父、模态、置前，`window_link.WindowHost.login`，用户 11-23「弹窗在 CC 后面看不到」），桥的构造参数叫 `ask_login`，签名是
+  `(语言, 标题词条, 预填用户名)`；本分支桥里已有同名参数 `ask_login`（云端账号密码窗 `_ask_cloud_login`，签名 `(语言, 预填用户名)`），
+  合入时会撞在同一个构造参数上。按类收成一套：云端账号密码窗也走那条（标题词条用云端的，`_ask_cloud_login` 改成经注入的
+  `ask_login` 由窗口进程弹），删掉本分支自己的同名参数，守护测试 `companion/tests/test_native_dialogs_front.py` 会拦住托盘里直接弹的小窗。
