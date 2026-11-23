@@ -52,6 +52,10 @@
 
 1. 核心集 = 第 1 节 1–14；15、16 归 `gate`（按 `--since` 命中才跑）。Express 一路与 MR.ERP 一路按资源并行，目标 ≤40 分钟。
 2. DMS 订车真建单先不进 L3，留 L2 模拟；写外部 DMS 要用户授权，主会话去问。
+   **更新（用户 11-23「可以」，主会话转达）**：DMS 订车进核心集，第 15 条 `acc.dms.line.booking`：每次在 testdms 的测试账号 DMS-TEST 上
+   真建一张订车单 → 核对 → 用 DMS 网页原生作废方式作废；只限这个测试账号、不碰真实租户；**作废失败判不通过、不留测试单**。
+   DMS 单独一路资源（`testenv-domain:dms` + `samsung`）。建单 / 核对 / 作废复用 DMS 窗口 11-23 在 testdms 真建单那套
+   （`docs/work/2026-11-23-dms-line-gifts.md`），等 DMS 分支合入 main 后再写；登记里写授权来源「用户 11-23」。
 3. 测试机2 今天不用，CC 桌面版换测试机1（`PEARNLY_ACC_LEDGER_HOST=testpc1`，运行器把登记里的 testpc2 锁换成 testpc1）；站点本机 Mac 实验栈
    （`PEARNLY_ACC_SITE_TARGET=maclab`）；账套 `69EXP\TEST2`；真模型上限 3 美元。测试机1 排在 LINE 回执、DMS 真建单、K1 回放之后，主会话通知；
    账套服务器 20:40 前收尾，来不及改明早。办公室出口连不上生产：要连线上测试租户的场景先不排。
