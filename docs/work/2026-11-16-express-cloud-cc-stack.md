@@ -26,3 +26,4 @@
 - 逐提交公开扫描：变基后中间 17 个提交里有 10 个仍带云端主机、账号等原值（后面两个提交才换成占位 / 标 `scan: fake`；原分支同样如此）。按那两个提交的逐行替换，把占位提前到引入那一行的提交里（只换命中扫描规则的行），最终树与改写前逐字节相同。改写后 29 个提交逐个「拦截 0 · 提示 0」，提交说明命中 0。
 - 本机检查（HEAD 树）：全闸门 GATE EXIT 0；生产镜像候选离线 113 组 LANE EXIT 0；companion 全套 2409 通过、63 跳过（Mac，Windows 专属用例跳过）；契约 + 云端设置行 + 空闲动效 170 通过；`check-impact` 登记表完整，离线入口 `cc.operator.page`、`cc.desktop.operator`、`cc.desktop.operator.mrerp` 的离线用例通过，其余入口仍是「没测到（需 Windows / 用户到场）」。
 - 不合入 main：本分支改 `companion-release.yml`（云端精简包与 `latest.json` 的 `cloud` 项），排在 CC 桌面版 1.12.24 发出之后，由主会话定时机；合入后第一次发版要回读 `cloud` 项与公网 sha256。
+- 11-23 主会话定：同线两条旧分支也叠到本分支。`pearnly/express-cloud-source-mark`（服务端收心跳 `link {kind: cloud, via, host}`、两个产品存到电脑行上；CC 一侧 `queue_client.py` 已在发这个键，没有它服务端不认）无冲突叠上；`pearnly/express-cloud-notes`（评估、实测清单、实测记录、施工短版与只读探测脚本，`cloud_link` 代码注释引用这几份评估）无冲突叠上，逐提交公开扫描拦截 0。
