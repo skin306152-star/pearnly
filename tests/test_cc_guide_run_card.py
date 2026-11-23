@@ -55,7 +55,12 @@ class GuideRunCardTests(unittest.TestCase):
         self.assertIn('if (question.input === "amounts" || question.input === "split") return rowsToSend(value as AmountRow[]);', lib)
         self.assertIn("answerGuide(view.run, given, view.version)", card)
         self.assertIn("confirmGuide(view.run, view.version, seen)", read("components/tool-uis/guide-review.tsx"))  # 单据复核另带复核指纹（documents 源）
-        self.assertIn('label: allow ? t("allow") : t("recordNow")', read("components/tool-uis/guide-review.tsx"))  # 已上线的词，不新增文案
+        review = read("components/tool-uis/guide-review.tsx")
+        self.assertIn('label: label ?? (allow ? t("allow") : t("recordNow"))', review)  # 复核卡沿用已上线的词
+        # 没有复核的表单答完了（11-23）：出确定卡，同一组按钮交 guide_confirm，不写账的叫「确定」
+        self.assertIn('buttons={decideButtons(props, card.ready, undefined, t("confirm"))}', review)
+        self.assertIn('if (!documents && view.status === "asking" && view.card?.ready && !view.card.questions.length) return <GuideReady {...props} />;',
+                      card)
         for kit in ('from "@/components/ui/button"', 'from "@/components/ui/questionnaire"', 'from "./guide-inputs"'):
             self.assertIn(kit, card)
         self.assertNotIn("<button", card)  # 不手写通用控件

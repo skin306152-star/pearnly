@@ -217,15 +217,15 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP：MR.ERP 账套问现
 id = "recon"
 name = "银行对账、收入对账、增值税对账"
 guide = "recon"
-cowork_direct = ["half:p3", "half:p3", "wait:cloud"]
+cowork_direct = ["done", "half:p3", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此业务"]
 erp_operator = ["out:ERP 无此业务"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；页面接口流程交两份 xlsx → 确定 → 结果卡追问作答（API 级，不点卡）"
-flows = ["cowork.cc.guide.recon-follow"]
+basis = "Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；交两份 xlsx、卡上答到可确定 → 页面上确定卡（没有复核步骤的表单答完）点「确定」→ 结果卡就绪、带追问，页面上点追问选项「提交」后追问消失、记成预设（11-23 实验栈电脑 / 手机两格；作答一段走页面同一组接口）"
+page_flows = ["cowork.cc.guide.recon-follow"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
@@ -261,14 +261,15 @@ basis = "Cowork 声明 wht（form 源，月份 → 逐行复核（没有所得�
 id = "readback"
 name = "Express 读回"
 guide = "readback"
-cowork_direct = ["half:p3", "out:MR.ERP 无读回", "wait:cloud"]
+cowork_direct = ["done", "out:MR.ERP 无读回", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此工具"]
 erp_operator = ["out:ERP 无此工具"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 readback（form 源，确定 + 结果，只读不写；9f35ba9d6）；只有离线单测（test_cowork_readback_guide），没有页面流程"
+basis = "Cowork 声明 readback（form 源，确定 + 结果，只读不写；9f35ba9d6）；真页面点菜单「回读」→ 账套 = 本对话 T.8 已定、只问月份 → 提交 → 确定卡「确定」→ 结果卡在读 / 电脑没来领，运行 done、同意来自页面（11-23 实验栈电脑 / 手机两格；实验栈没有真 CC 桌面版来读）；另有离线单测 test_cowork_readback_guide"
+page_flows = ["cowork.cc.guide.readback"]
 
 [[row]]
 id = "documents"

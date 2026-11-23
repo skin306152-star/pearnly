@@ -2592,7 +2592,7 @@ product = "cowork"
 start = "/assistant"
 user = "admin"
 datasets = ["new"]
-viewports = ["desktop"]
+viewports = ["desktop", "mobile"]
 covers = [
   "apps/pearnly_core/pearnly_core/assistant/guide/run.py",
   "apps/pearnly_core/pearnly_core/assistant/api.py",
@@ -2648,5 +2648,20 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_documents.py",
   "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-operator.tsx",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
+
+[[flow]]
+id = "cowork.cc.guide.readback"
+title = "Cowork 版 CC 回读引导真页面：菜单「回读」→ 账套 = 本对话 T.8 已定、只问月份 → 提交 → 确定卡（没有复核步骤的表单答完）「确定」→ 结果卡在读 / 电脑没来领；运行 done、同意来自页面、回读只在 T.8"
+module = "scripts/flows/cowork_cc_guide_readback.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/readback.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
 ]

@@ -5,10 +5,11 @@ docs/work/2026-11-19-cc-guide-page-endpoints.md）。现在只有对账引导声
 没有 → 结果里问一次「这类收入要不要排除」（预设规则 excluded，范围 本公司税号 · 4201）。税号每次随机：答过一次的预设以后不再问。
 
 页面上（管理员，假智能体只占着对话框架、不说话）：两份 xlsx 用对话页同一个附件接口传进这段直写对话 → ``guide_start(recon)`` →
-卡上答种类（收入）、来源（交文件）、总账、税报两侧文件 → ``guide_confirm`` → 等后台对账完、结果卡带追问：
+卡上答种类（收入）、来源（交文件）、总账、税报两侧文件 → 打开这段对话，答完了、对账没有复核步骤，页面出确定卡（每个已定步骤一行、
+「确定」）→ 页面上点「确定」→ 等后台对账完、结果卡带追问：
 
 1. ``guide_follow`` 答一道结果里没有的题：回 ``refused``（``not offered``），版本不变。
-2. ``guide_follow`` 答结果里的第一题（第一个选项）：收下、版本 +1；结果重算后这一题不再出现；库里记下这条预设。
+2. 页面结果卡上点第一题的第一个选项、点「提交」（``guide_follow``）：收下、版本 +1；结果重算后这一题不再出现；库里记下这条预设。
 
 cleanup 删会话（连引导运行与对话里的结果工作簿）、本次的收入对账任务与答出来的预设。
 """
@@ -112,27 +113,36 @@ def steps(params, camera_code=None):
          f" const r=await call('{API}guide_answer',{{run_name:v.run, answers:JSON.stringify(answers), version:v.version}},true); "
          " if(!r) return {error:'answer failed', rounds}; if(r.outcome) return {error:'answer '+r.outcome, refused:r.refused, rounds}; v=r; } "
          "return {run:v.run, status:v.status, ready:!!((v.card||{}).ready), version:v.version, rounds, uploaded:[fl,fr]};"},
-        # 确定：后台对账，结果卡等算完；完成的结果带要定一次的追问
+        # 打开这段对话：引导卡在对话里（答完了、没有复核步骤 → 确定卡）
+        {"name": "打开对话", "wait_ms": 6000, "js": JS +
+         f"setTimeout(()=>location.assign('/assistant?c='+encodeURIComponent({json.dumps(params['session'])})),0); return true;"},
+        # 确定：在页面上点确定卡的「确定」；后台对账，结果卡等算完；完成的结果带要定一次的追问
         {"name": "确定等结果", "shot": True, "file": "1-result", "js": head +
-         "const run=window.__flowRun; if(!run) return {error:'no guide run'}; const v0=await view(run); "
-         f"const r=await call('{API}guide_confirm',{{run_name:run, version:(v0||{{}}).version}},true)||{{}}; "
-         "if(r.outcome) return {error:'confirm '+r.outcome, status:r.status}; "
-         "const v=await ready(run); const res=(v||{}).result||{}; "
-         "return {status:(v||{}).status||'', version:(v||{}).version||0, result_status:res.status||'', "
-         "reason:String(res.reason_text||'').slice(0,200), files:(res.files||[]).map(f=>f.name), questions:asked(v)};"},
+         "const run=window.__flowRun||new URL(location.href).searchParams.get('run')||''; "
+         "const card=()=>qa('[data-slot=\"cc-guide-run\"][data-stage=\"ready\"]').pop(); "
+         "const shown=await until(()=>card()?.querySelector('[data-slot=\"cc-guide-confirm\"]'),200); "
+         "const c=card(); const runId=c?.dataset.run||run; const b=c?.querySelector('[data-slot=\"cc-guide-confirm\"]'); "
+         "const ready_card={shown, lines:[...(c?.querySelectorAll('[data-slot=\"cc-guide-back\"]')||[])].map(x=>x.dataset.step), "
+         "label:b?b.innerText.trim():'', enabled:!!b&&!b.disabled}; window.__flowRun=runId; b?.click(); "
+         "const v=await ready(runId); const res=(v||{}).result||{}; "
+         "await until(()=>q('[data-slot=\"cc-guide-result\"]')?.dataset.result==='ready',360); "
+         "return {ready_card, status:(v||{}).status||'', version:(v||{}).version||0, result_status:res.status||'', "
+         "reason:String(res.reason_text||'').slice(0,200), files:(res.files||[]).map(f=>f.name), questions:asked(v), "
+         "result_card:q('[data-slot=\"cc-guide-result\"]')?.dataset.result||''};"},
         # 答一道结果里没有的题：不收
         {"name": "追问答错题", "js": head +
          "const run=window.__flowRun; if(!run) return {error:'no guide run'}; const v=await view(run); "
          f"const r=await call('{API}guide_follow',{{run_name:run, answers:JSON.stringify({{q99:'yes'}}), version:(v||{{}}).version}},true)||{{}}; "
          "return {before:(v||{}).version||0, version:r.version||0, outcome:r.outcome||'', refused:r.refused||{}, questions:asked(r)};"},
-        # 答结果里的第一题（第一个选项）：收下、版本 +1，结果按预设重算后这一题不再出现
+        # 答结果里的第一题（第一个选项）：在结果卡上点子题的第一项、点「提交」；收下、版本 +1，结果按预设重算后这一题不再出现
         {"name": "追问作答", "shot": True, "file": "2-followed", "js": head +
          "const run=window.__flowRun; if(!run) return {error:'no guide run'}; const v=await view(run); const first=asked(v)[0]; "
          "if(!first||!first.options.length) return {error:'no follow up question', questions:asked(v)}; "
-         "const answers={[first.key]: first.options[0]}; "
-         f"const r=await call('{API}guide_follow',{{run_name:run, answers:JSON.stringify(answers), version:(v||{{}}).version}},true)||{{}}; "
-         "const after=await ready(run); "
-         "return {before:(v||{}).version||0, version:r.version||0, outcome:r.outcome||'', answered:{...first, value:first.options[0]}, "
+         "await until(()=>q('[data-slot=\"cc-guide-follow\"]'),120); const box=q(`[data-slot=\"cc-guide-follow\"] [data-slot=\"cc-guide-subquestion\"][data-key=\"${first.key}\"]`); "
+         "const opt=box?.querySelector(`[role=\"radio\"][value=\"${first.options[0]}\"]`); opt?.click(); await sleep(300); "
+         "const sub=q('[data-slot=\"cc-guide-follow-submit\"]'); const enabled=!!sub&&!sub.disabled; sub?.click(); "
+         "await sleep(2000); const after=await ready(run); "
+         "return {clicked:!!opt, enabled, before:(v||{}).version||0, version:(after||{}).version||0, answered:{...first, value:first.options[0]}, "
          "result_status:(((after||{}).result)||{}).status||'', questions:asked(after)};"},
         {"name": "删除会话", "js": head +
          f"await call('{API}delete',{{session_id:SID}},true); const left=(await listed('chat')).some(s=>s.id===SID); return {{left}};"},
@@ -150,13 +160,17 @@ def judge(params, results, camera_code=None):
         {"case": "the recon guide asks the kind and both income files, then can be confirmed", "seen": opened,
          "ok": opened.get("status") == "asking" and opened.get("ready") is True
          and all(k in asked for k in ("kind", "ledger", "sales_vat"))},
-        {"case": "after confirm the result card is ready with the workbook and a follow up question", "seen": done,
-         "ok": done.get("status") == "done" and done.get("result_status") == "ready" and bool(done.get("files"))
-         and bool(done.get("questions"))},
+        {"case": "answered with no review step, the page shows the ready card: a row for the step the server settled (source) and an enabled Confirm",
+         "seen": done.get("ready_card"),
+         "ok": bool((done.get("ready_card") or {}).get("shown")) and (done.get("ready_card") or {}).get("label") == "确定"
+         and bool((done.get("ready_card") or {}).get("enabled")) and "source" in ((done.get("ready_card") or {}).get("lines") or [])},
+        {"case": "clicking Confirm on the page: the result card is ready with the workbook and a follow up question", "seen": done,
+         "ok": done.get("status") == "done" and done.get("result_status") == "ready" and done.get("result_card") == "ready"
+         and bool(done.get("files")) and bool(done.get("questions"))},
         {"case": "guide_follow with a question that is not on the result is refused and nothing moves", "seen": wrong,
          "ok": wrong.get("outcome") == "refused" and wrong_code == "not offered" and wrong.get("version") == wrong.get("before")},
-        {"case": "guide_follow with the first question's first option is taken: version +1", "seen": followed,
-         "ok": not followed.get("outcome") and followed.get("version") == (followed.get("before") or 0) + 1},
+        {"case": "the first question's first option picked on the result card and submitted: version +1", "seen": followed,
+         "ok": bool(followed.get("clicked")) and bool(followed.get("enabled")) and followed.get("version") == (followed.get("before") or 0) + 1},
         {"case": "the result is recomputed and the answered question is gone", "seen": followed,
          "ok": followed.get("result_status") == "ready" and bool(answered.get("title"))
          and all(q.get("title") != answered.get("title") for q in followed.get("questions") or [])},

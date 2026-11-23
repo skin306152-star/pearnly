@@ -535,10 +535,10 @@ desktop_version: 1.12.21
 | 7 | 盘点 | ◐ P3 | —（只做直写） | ◐ P4 | —（只做直写） |
 | 8 | 结果不明核对、待处理 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ⇢单 · ⇢MR · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
 | 9 | 文件夹定时任务 | ◐ P4 · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
-| 10 | 银行对账、收入对账、增值税对账 | ◐ P3 · ◐ P3 · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
+| 10 | 银行对账、收入对账、增值税对账 | ✅ · ◐ P3 · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 11 | 增值税 ภ.พ.30 草稿 | ◐ P3 · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 12 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ◐ P3 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
-| 13 | Express 读回 | ◐ P3 · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
+| 13 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
 | 14 | 单据维护：改识别结果、录不录、删除、导出复核表 | ○ P2 | ○ P2 | ○ P2 | ○ P2 |
 | 15 | 公司资料、记住的选择、知识库 | ◐ P4 | —（只做直写） | ◐ P4 | —（只做直写） |
 | 16 | 任务看板 | ◐ P4 | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
@@ -547,7 +547,7 @@ desktop_version: 1.12.21
 | 19 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 20 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **81 格**：✅ 4、◐ 27、○ 10、✗ 4、等 MR.ERP 10、等云端 24、等公司接入 1、等 ERP 直写采购 / 销售 1。
+范围内共 **81 格**：✅ 6、◐ 25、○ 10、✗ 4、等 MR.ERP 10、等云端 24、等公司接入 1、等 ERP 直写采购 / 销售 1。
 
 按证据：**真机通过 1** · **真模型通过 1** · **只有服务端 29** · **没做 14**；另 等 MR.ERP 10 · 等云端 24 · 等公司接入 1 · 等 ERP 直写采购 / 销售 1 · 范围外 47。
 
@@ -616,13 +616,13 @@ desktop_version: 1.12.21
 | folder_task | Cowork 直写 · 本地 | ◐ P4 | 只有服务端 | Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；没有结果步骤；cc-guided-folder-task 92053429d，原作者窗口已归档，主会话 11-22 交本窗口）；只有离线单测 test_cowork_folder_task_guide，页面流程归第 2 步 |
 | folder_task | Cowork 直写 · MR.ERP | ◐ P4 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP：MR.ERP 账套问现购 / 赊购、不问默认处理，单测 test_mrerp_book_asks_cash_or_credit_and_no_default_handling）；没有 MR.ERP 公司上的流程 |
 | folder_task | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 folder_task（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
-| recon | Cowork 直写 · 本地 | ◐ P3 | 只有服务端 | Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；页面接口流程交两份 xlsx → 确定 → 结果卡追问作答（API 级，不点卡）；流程 `cowork.cc.guide.recon-follow` |
+| recon | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；交两份 xlsx、卡上答到可确定 → 页面上确定卡（没有复核步骤的表单答完）点「确定」→ 结果卡就绪、带追问，页面上点追问选项「提交」后追问消失、记成预设（11-23 实验栈电脑 / 手机两格；作答一段走页面同一组接口）；页面流程 `cowork.cc.guide.recon-follow` |
 | recon | Cowork 直写 · MR.ERP | ◐ P3 | 只有服务端 | recon 声明含 mrerp（交文件两侧对账与账本种类无关）；没有 MR.ERP 公司上的流程 |
 | recon | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 recon（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | vat | Cowork 直写 · 本地 | ◐ P3 | 只有服务端 | Cowork 声明 vat（form 源，月份与本月读回同对账引导、第 3 / 10 栏可空、确定出一份草稿与工作簿；不写账、没有结果步骤；cc-guided-vat c5b445c70、b5e9318bb）；只有离线单测 test_cowork_vat_guide，页面流程归第 2 步 |
 | vat | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 vat（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | wht | Cowork 直写 | ◐ P3 | 只有服务端 | Cowork 声明 wht（form 源，月份 → 逐行复核（没有所得类型的收款方按税号记住）→ 确定出本对话公司的一份草稿；没有结果步骤；cc-guided-wht / wht-review 6bd5a3af0、2f0af96bf、5b35678ce）；只有离线单测 test_cowork_wht_guide，页面流程归第 2 步 |
-| readback | Cowork 直写 · 本地 | ◐ P3 | 只有服务端 | Cowork 声明 readback（form 源，确定 + 结果，只读不写；9f35ba9d6）；只有离线单测（test_cowork_readback_guide），没有页面流程 |
+| readback | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 readback（form 源，确定 + 结果，只读不写；9f35ba9d6）；真页面点菜单「回读」→ 账套 = 本对话 T.8 已定、只问月份 → 提交 → 确定卡「确定」→ 结果卡在读 / 电脑没来领，运行 done、同意来自页面（11-23 实验栈电脑 / 手机两格；实验栈没有真 CC 桌面版来读）；另有离线单测 test_cowork_readback_guide；页面流程 `cowork.cc.guide.readback` |
 | readback | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 readback（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | documents | Cowork 直写 | ○ P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | documents | Cowork 代录 | ○ P2 | 没做 | pearnly_cowork 没有声明这项业务的引导（operator）；打字路径能办，没有引导卡 |

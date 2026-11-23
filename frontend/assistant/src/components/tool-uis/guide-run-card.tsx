@@ -35,7 +35,7 @@ import {
 import { CardFoot, CardFrame, CardLine, QuestionFrame } from "./card-frame";
 import { GuideCardBody, guideCardOf } from "./guide-card";
 import { GuideOperatorHead, operatorTitle } from "./guide-operator";
-import { GuideResultCard, GuideReview, GuideUploadsLine, runAttrs } from "./guide-review";
+import { GuideReady, GuideResultCard, GuideReview, GuideUploadsLine, runAttrs } from "./guide-review";
 
 type Values = Record<string, unknown>;
 
@@ -317,6 +317,8 @@ export const GuideRunView: FC<{
     );
   }
   if (view.review && (documents ? view.stage === "review" : view.status === "reviewing")) return <GuideReview {...props} head={head} />;
+  // 没有复核的表单（不写账的）题都答完了：出确定卡，不停在只剩「已定 n 项」的问卷上
+  if (!documents && view.status === "asking" && view.card?.ready && !view.card.questions.length) return <GuideReady {...props} />;
   if (view.card && (view.status === "asking" || (documents && view.stage === "files"))) {
     const title = documents ? operatorTitle(view) : null;
     return (

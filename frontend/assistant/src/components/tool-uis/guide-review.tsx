@@ -37,13 +37,13 @@ type Props = { view: GuideView; sessionId: string | null; busy: boolean; failure
 
 /** 脚上的按钮（卡片骨架 card-frame.tsx）：次按钮照线上允许卡叫「拒绝」（灰底，在主按钮左边；= 取消这次引导），主按钮确定是「写入」、
  *  允许卡式确定（N5）是「允许」（主会话 11-16 定）。 */
-function decideButtons({ view, act }: Props, ready: boolean, seen?: string): FrameButton[] {
+function decideButtons({ view, act }: Props, ready: boolean, seen?: string, label?: string): FrameButton[] {
   const confirm = () => act(() => confirmGuide(view.run, view.version, seen));
   const cancel = () => act(() => cancelGuide(view.run));
   const allow = view.consent === "allow";
   return [
     { slot: "cc-guide-cancel", label: t("deny"), onClick: cancel },
-    { slot: "cc-guide-confirm", label: allow ? t("allow") : t("recordNow"), primary: true, disabled: !ready, onClick: confirm },
+    { slot: "cc-guide-confirm", label: label ?? (allow ? t("allow") : t("recordNow")), primary: true, disabled: !ready, onClick: confirm },
   ];
 }
 
@@ -186,6 +186,27 @@ const FormReview: FC<Props & { review: FormReviewData; head?: ReactNode }> = (pr
           </div>
         ) : null}
         {review.problem_text ? <Alert variant="destructive" data-slot="cc-guide-problem"><AlertDescription>{review.problem_text}</AlertDescription></Alert> : null}
+      </div>
+    </CardFrame>
+  );
+};
+
+// ── 没有复核的表单答完了（readback / recon / vat 这类不写账的，声明闸门：写账的表单必须有复核）──────────────────────────────
+
+/** 题都答完、服务端 ``card.ready`` 且这类引导没有复核步骤：已定各项一行一项（点一行回到那一步改），脚上同复核卡的「拒绝 / 确定」，
+ *  确定同样交 ``guide_confirm``。不写账，主按钮叫「确定」不叫「写入」。 */
+export const GuideReady: FC<Props> = (props) => {
+  const { view, busy, act } = props;
+  const card = view.card!;
+  const back = (step: string) => act(() => reopenGuide(view.run, step, view.version));
+  return (
+    <CardFrame title={businessName(view.business)} slot="cc-guide-run" attrs={{ ...runAttrs(view), "data-stage": "ready" }}
+      buttons={decideButtons(props, card.ready, undefined, t("confirm"))} failure={props.failure} busy={busy}>
+      <div data-slot="cc-guide-ready" className="cc-op-before-body">
+        {card.decided.map((item) => (
+          <StepRow key={item.key} label={item.title} step={item.key} busy={busy} onBack={back}
+            value={item.value_label ?? (typeof item.value === "string" ? item.value : "")} />
+        ))}
       </div>
     </CardFrame>
   );
