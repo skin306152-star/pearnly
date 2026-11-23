@@ -57,7 +57,7 @@ def test_a_customer_without_a_salesman_leaves_it_empty(acct):
     assert account_rules.party_salesman(acct, "C002") == "" and account_rules.party_salesman(acct, "NOPE") == ""
 
 
-def test_only_the_salesman_field_differs(acct, tmp_path):
+def test_only_the_salesman_field_differs(acct, tmp_path, frozen_clock):
     """同一张单写进两本只差「客户档有没有销售员」的账套：写出来的单据只差 ARTRN.SLMCOD 这一栏。"""
     _customers(acct)
     twin = tmp_path / "twin"

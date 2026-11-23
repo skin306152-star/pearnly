@@ -15,6 +15,39 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from companion import cdx_reindex  # noqa: E402
 
+import datetime as _datetime  # noqa: E402
+import types as _types  # noqa: E402
+
+
+@pytest.fixture
+def frozen_clock(monkeypatch):
+    """把写入代码看到的「现在」钉在测试开始那一刻：companion 各模块里引用的 datetime 模块（``_dt`` / ``dt`` 等别名）换成
+    ``now()`` / ``today()`` 恒回这一刻的版本，其余照真的。「两本副本各写一次再逐字节比」的测试必须用它——凭证明细的 CHGTIM 记
+    录入时刻 HHMM（``dbf_schema.journal_stamp``、``dbf_stock``），两次写入跨了一分钟（跨午夜时连 CHGDAT）就多一处差异
+    （11-23 K2 分支 CI：test_purchase_no_invoice_number 多出 GLJNLIT.DBF）。"""
+    moment = _datetime.datetime.now().replace(microsecond=0)
+
+    class _Now(_datetime.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return cls.combine(moment.date(), moment.time(), tzinfo=tz)
+
+    class _Today(_datetime.date):
+        @classmethod
+        def today(cls):
+            return cls(moment.year, moment.month, moment.day)
+
+    frozen = _types.ModuleType("datetime")
+    frozen.__dict__.update({k: v for k, v in vars(_datetime).items() if not k.startswith("__")})
+    frozen.datetime, frozen.date = _Now, _Today
+    for name, module in list(sys.modules.items()):
+        if name == "companion" or name.startswith("companion."):
+            for attr, value in list(vars(module).items()):
+                if value is _datetime:
+                    monkeypatch.setattr(module, attr, frozen)
+    return moment
+
+
 # 真靶场夹具两侧共用一份(桥端在 bridge/tests/conftest.py 同样注册)。
 from _lab_target import lab_acct  # noqa: E402,F401
 

@@ -13,7 +13,7 @@ import shutil
 from test_stock_location import _buy, _item, _no_runner, _purchase, _rows, _state, acct  # noqa: F401
 
 
-def test_a_purchase_without_an_invoice_number_is_written_with_the_field_left_empty(acct, tmp_path):
+def test_a_purchase_without_an_invoice_number_is_written_with_the_field_left_empty(acct, tmp_path, frozen_clock):
     twin = tmp_path / "twin"
     shutil.copytree(acct, twin)
     for doctype in ("RR", "HP"):

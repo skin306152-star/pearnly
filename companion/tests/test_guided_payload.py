@@ -96,7 +96,7 @@ def test_an_older_payload_reads_none_of_the_new_keys(acct):
     assert guided.guided(GUIDED) and not guided.guided({"guided": True})
 
 
-def test_an_older_payload_with_stray_keys_writes_the_same_bytes(acct, tmp_path):
+def test_an_older_payload_with_stray_keys_writes_the_same_bytes(acct, tmp_path, frozen_clock):
     import shutil
 
     twin = tmp_path / "twin"

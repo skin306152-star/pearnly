@@ -103,7 +103,7 @@ def test_a_purchase_and_a_sale_carry_the_unit_numbers_under_their_lines(acct):
     assert _remarks(acct, sold.docnum) == [("  2     ", CAR[0], False), ("  2     ", CAR[1], False)]
 
 
-def test_without_remarks_the_book_is_byte_for_byte_what_it_was(acct, tmp_path):
+def test_without_remarks_the_book_is_byte_for_byte_what_it_was(acct, tmp_path, frozen_clock):
     import shutil
 
     twin = tmp_path / "twin"
