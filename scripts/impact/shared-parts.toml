@@ -202,11 +202,11 @@ not_entries = { "apps/pearnly_core/pearnly_core/line_ui/receipt.py" = "等结果
 
 [[part]]
 id = "line-receipt"
-name = "LINE 等结果的回执（先三个点，结果落库时用这次的回复令牌回结果，等不到回兜底；ERP、Cowork 的 LINE 保存 / 收款 / 正在读取，用户 11-22）"
+name = "LINE 等结果的回执（先三个点，结果落库时用这次的回复令牌回结果，等不到回兜底；ERP、Cowork 的 LINE 保存 / 收款 / 正在读取，用户 11-22；DMS 的识别、查重、写入、订车、查询读取，11-23）"
 paths = ["apps/pearnly_core/pearnly_core/line_ui/receipt.py"]
 markers = ["pearnly_core.line_ui import receipt", "line_ui.receipt"]
 search = ["apps/**/*.py", "scripts/flows/*.py"]
-entries = ["erp.line.chat", "cowork.line.chat", "erp.line.collection", "erp.line.card-result", "cowork.line.card-result"]
+entries = ["erp.line.chat", "cowork.line.chat", "erp.line.collection", "erp.line.card-result", "cowork.line.card-result", "dms.line.chat"]
 not_entries = { "apps/pearnly_core/pearnly_core/cc_desktop/requests.py" = "共用机器通道的按需请求读好 / 失败时按请求号叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_cowork/pearnly_cowork/connections/refresh.py" = "连接读完（账套目录、科目表）时按连接叫醒（wake_topic），不发消息；LINE 一侧由 cowork.line.card-result 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py" = "单据账本栏有了结论时按单据叫醒（wake），不发消息；LINE 一侧由 erp.line.card-result 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/mrerp.py" = "MR.ERP 未收单读完时按客户叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/choices.py" = "MR.ERP 主档读完时按账套叫醒（wake_topic），不发消息；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/service.py" = "只算叫醒用的主题名（注释与说明里提到），不调用；LINE 一侧由 erp.line.collection 实测", "apps/pearnly_erp_portal/pearnly_erp_portal/collection/push.py" = "说明里提到回执经它回复，不调用", "scripts/flows/collection_lib.py" = "实验栈流程把等结果的计时器换成当场到点（没有电脑写账），流程 erp.line.collection 本身就是它的入口" }
 
 [[part]]

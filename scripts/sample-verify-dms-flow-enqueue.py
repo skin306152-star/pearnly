@@ -41,10 +41,11 @@ def main():
     identity = {"user": "operator@example.test", "binding_revision": "fixture-revision"}
     with patch.object(frappe, "enqueue", fake_enqueue), \
             patch("pearnly_dms.line.identity.current", return_value=identity), \
-            patch.object(out, "start_loading") as loading:
+            patch.object(out, "begin", return_value="dms:k") as begin:
         dms_flow._enqueue("probe", dms_flow.process_image,
                           {"user_id": identity["user"]}, "U", "MID", "REPLY")
-        loading.assert_called_once_with("U", 60)
+        # 交出要等结果的任务：经共用件开满三个点、记下在等（`out.begin` → `line_ui.receipt.start`，11-23）
+        begin.assert_called_once_with("U", "REPLY")
 
     # 原生队列控制参数不进入业务载荷；守卫原样展开 arguments 给目标函数。
     payload = captured.get("kwargs", {}).get("arguments") or {}
