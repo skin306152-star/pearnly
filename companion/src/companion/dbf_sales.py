@@ -207,7 +207,7 @@ def _sales_docnum(artrn, books: List[Dict[str, str]], doctype: str, docdate_be: 
 
     照财务在 Express 里的做法（K2，用户 11-23「按建议改」；32 本真账统计 + 70EXP 原生实录）：
       · Express 销货的单号格前缀锁死是单据簿的前缀，财务把纸面发票号打在后面（69SINCER 3,218 张前两位全是 IV）；
-        所以票面号以这个单别某本簿的前缀开头 → 单号 = 票面号，用那本簿（多本簿取最长的前缀）；
+        所以票面号前两位是这个单别某本两位前缀簿的前缀 → 单号 = 票面号，用那本簿；
       · 票面号不以任何一本簿的前缀开头（11-16 的 SSIVA02001）、超 DOCNUM C(12) 或为空 → 单号照原生留空时由簿往下编
         （默认簿 = 前缀与单别同名的那本），票面号照旧进 ARTRN.YOUREF 与 ISVAT.REFNUM（ภ.พ.30 按 REFNUM 打印）。
         原来直接用票面号：前两位不在 ISRUN 时 Express 重算同日单弹 Message 43「ISRUN(xx)」，财务当天的原生单存不下去（11-22 实录）；
@@ -224,9 +224,11 @@ def _sales_docnum(artrn, books: List[Dict[str, str]], doctype: str, docdate_be: 
         log.warning("sales docnum: ref_no %r 超 DOCNUM C(%d) 或为空、账套没有 %s 簿 · 退回当日序号", printed, _MAX_DOCNUM, doctype)
         return _next_docnum(artrn, doctype, docdate_be), doctype, None
     if fits:
-        matched = [b for b in books if printed.startswith(b["prefix"])]
+        # Express 按单号前两位找 ISRUN（Message 43「ISRUN(K1)」）：只认两位前缀的簿；一位前缀的簿（T9WNF 的 S / R …）它怎么找没实证，
+        # 票号首字母碰巧相同（SSIVA02001 对上 S 簿）也照原生由默认簿往下编，不冒这个险
+        matched = next((b for b in books if len(b["prefix"]) == 2 and printed[:2] == b["prefix"]), None)
         if matched:
-            return printed, max(matched, key=lambda b: len(b["prefix"]))["prefix"], None
+            return printed, matched["prefix"], None
     book = next((b for b in books if b["prefix"] == doctype), books[0])
     native = _native_running(artrn, book)
     log.info("sales docnum: ref_no %r 不以 %s 簿前缀开头或不能当单号 · 照原生由 %s 簿往下编",

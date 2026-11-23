@@ -99,7 +99,9 @@
   - 69SINCER 3,218 张前两位全是 IV，REFNUM = 单号 2,935 张；抽查 32 本真账财务录的单前两位 100% 在 ISRUN。
   - 多本销货簿的账套（NLTTEST IV/IO/IE/IT/IG，T9WNF 75 本）不同前缀对应不同发票本。
 - 写法（`companion/src/companion/dbf_sales.py`，赊销 IV、现销 HS 同一处）：
-  - 票面号以这个单别某本 ISRUN 簿的前缀开头（区分大小写，多本取最长前缀）→ 单号 = 票面号，日记账 / 默认部门 / 计数器用那本簿（计数器照旧加一）。
+  - 票面号前两位等于这个单别某本两位前缀 ISRUN 簿的前缀（区分大小写）→ 单号 = 票面号，日记账 / 默认部门 / 计数器用那本簿（计数器照旧加一）。
+    一位前缀的簿（T7/T8/T9WNF 有 S、R、E …）不认：Express 按前两位找 ISRUN（Message 43「ISRUN(K1)」），一位前缀它怎么找没实证；
+    101 本回放首轮里 SSIVA02001 在 WNF 三本对上了 S 簿而保留成单号，改成照原生由 IV 簿往下编。
   - 不以任何一本开头、超 DOCNUM C(12) 或为空 → 照原生留空单号：默认簿（前缀与单别同名，没有就第一本）的前缀 + ISRUN 下一个号（号用过就往后跳，含软删行），写完 ISRUN 记成下一个号；票面号照旧进 ARTRN.YOUREF 与 ISVAT.REFNUM。
   - 账套没有这个单别的簿（合成账套）→ 照旧用票面号；簿没有能用的流水号 → 退回 前缀 + 佛历年月日 + 当日序号。
   - 收银日汇总（POS）单号照旧（HS + 佛历年月日 + 序号，前缀在 ISRUN）。回退开关 PEARNLY_SALES_DOCNUM=seq 不变。
@@ -107,7 +109,7 @@
 - 按类查同类写入器：采购 `dbf_writer`、退货 `dbf_refund`（单别 + 日期）、收款 `dbf_receipt`、库存单 `dbf_stock`、调拨 `dbf_transfer`（ISRUN 流水号）都不拿外部号当单号。
   另发现 `stock_sale.set_opening_stock`（补期初卡）在 STCRD 写 `OB yymmdd-nnn` 期初行，OB 多半不是 ISRUN 簿前缀，属同类风险；它只有明细没有单头，改法另评估，本次不动（已报主会话）。
 - 测试：
-  - 单测 `companion/tests/test_dbf_writer_sales.py` 新增 14 条 `test_k2_*`：前缀对上、对不上、号已用跳号、带年份段流水号、多本簿、别的单别的簿不算、小写 / 超宽、所有单号都以销货簿前缀开头的机器检查。
+  - 单测 `companion/tests/test_dbf_writer_sales.py` 新增 8 个 `test_k2_*` 用例（含 7 种票号参数化，共 15 条）：前缀对上、对不上、号已用跳号、带年份段流水号、多本簿、一位前缀的簿不算、别的单别的簿不算、小写 / 超宽、所有单号都以销货簿前缀开头的机器检查。
   - 结果：见下方「验证记录」。
 
 ## 验证记录

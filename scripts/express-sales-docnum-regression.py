@@ -162,6 +162,8 @@ def check(acct: Path) -> dict:
         before = {(b["doctyp"], b["prefix"]): b["running"] for b in isrun(acct)}
         book = next(b for b in isrun(acct) if (b["doctyp"], b["prefix"]) == (book["doctyp"], book["prefix"]))
         used = {text(r["DOCNUM"]) for r in rows(acct, "ARTRN", ("DOCNUM",))}
+        if kind == "native" and any(len(b["prefix"]) == 2 and ticket[:2] == b["prefix"] for b in isrun(acct) if b["doctyp"] == doctype):
+            return {"state": "fail", "why": f"case {ticket} collides with a {doctype} book prefix"}
         want = ticket if kind == "ticket" else None
         native = expect_native(acct, book, used) if kind == "native" else None
         if kind == "native" and native is None:

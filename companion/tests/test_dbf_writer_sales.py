@@ -321,6 +321,14 @@ def test_k2_a_book_of_the_other_kind_does_not_count(datat):
     assert _running(datat, "HS", "HS") == ["0000016"] and _running(datat, "IV", "IV") == ["0000277"]
 
 
+def test_k2_a_one_letter_book_does_not_keep_the_ticket(datat):
+    """一位前缀的簿（T9WNF 有 S、R …）：Express 按前两位找 ISRUN，SSIVA02001 首字母碰巧是 S 也不当对上，照原生由 IV 簿往下编。"""
+    _books(datat, ("IV", "IV", "0000277", "03"), ("IV", "S", "0000001", "03"))
+    res = _write(datat, ref_no="SSIVA02001")
+    assert res.docnum == "IV0000277"
+    assert _running(datat, "IV", "S") == ["0000001"]
+
+
 def test_k2_lowercase_or_too_wide_ticket_takes_the_running_number(datat):
     _books(datat, ("IV", "IV", "0000277", "03"))
     assert _write(datat, ref_no="iv69/00001").docnum == "IV0000277"
