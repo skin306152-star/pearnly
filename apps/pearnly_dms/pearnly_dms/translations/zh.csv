@@ -153,6 +153,7 @@ Enable the DMS connection before reading data,请先启用 DMS 连接，再读�
 Engine,发动机
 Engine number,发动机号
 Enter the DMS password.,请填写 DMS 密码。
+Entering,录入中
 "Existing data found, but some fields differ",找到原有资料，部分不一致
 Existing data kept. Type menu for other tasks.,已沿用原资料。输入 菜单 办理其他事项。
 Expected delivery date — tap the button to pick a date,预计交车日期 — 请点击按钮选择日期
@@ -563,7 +564,7 @@ dms.card.TXT_MORE_RESULTS,还有更多结果，请点击「查看结果」继续
 dms.card.TXT_NEED_BOTH,请发送客户的身份证照片和电话号码
 dms.card.TXT_NEW_CARD_ALT,确认保存新客户
 dms.card.TXT_NEW_CARD_HEAD,新客户，确认资料后保存
-dms.card.TXT_NOT_READY,处理尚未完成，请稍后再次点击「查看结果」。
+dms.card.TXT_NOT_READY,录入中
 dms.card.TXT_NO_CREDIT,额度不足，请联系公司管理员充值或到 pearnly.com/dms 订阅套餐
 dms.card.TXT_NO_ENDPOINT,尚未设置 DMS 连接，请联系管理员。
 dms.card.TXT_PICK_ABOVE,请从上方卡片中选择，或输入「重新开始」办理新业务
@@ -591,7 +592,7 @@ dms.card.TXT_SAME,该客户已存在，资料一致
 dms.card.TXT_SAME_ALT,客户资料一致
 dms.card.TXT_SAVE_FAIL,保存失败，请重试。
 dms.card.TXT_SCAN_SENT,已扫描身份证
-dms.card.TXT_STILL_WORKING,正在处理，完成后请点击「查看结果」。
+dms.card.TXT_STILL_WORKING,录入中
 dms.card.TXT_SYSTEM_ERROR,系统出错，请重试。
 dms.card.car.brand,品牌
 dms.card.car.desc,车辆说明

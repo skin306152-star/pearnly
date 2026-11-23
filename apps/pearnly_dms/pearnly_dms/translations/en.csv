@@ -153,6 +153,7 @@ Enable the DMS connection before reading data,Enable the DMS connection before r
 Engine,Engine
 Engine number,Engine number
 Enter the DMS password.,Enter the DMS password.
+Entering,Entering
 "Existing data found, but some fields differ","Existing data found, but some fields differ"
 Existing data kept. Type menu for other tasks.,Existing data kept. Type menu for other tasks.
 Expected delivery date — tap the button to pick a date,Expected delivery date — tap the button to pick a date
@@ -563,7 +564,7 @@ dms.card.TXT_MORE_RESULTS,There is more. Tap View result to see the rest.
 dms.card.TXT_NEED_BOTH,Please send the customer's ID card photo and phone number
 dms.card.TXT_NEW_CARD_ALT,Confirm saving a new customer
 dms.card.TXT_NEW_CARD_HEAD,New customer — confirm the data to save
-dms.card.TXT_NOT_READY,Not done yet. Please tap View result again in a moment.
+dms.card.TXT_NOT_READY,Entering
 dms.card.TXT_NO_CREDIT,Not enough credit. Please ask your company admin to top up or subscribe at pearnly.com/dms
 dms.card.TXT_NO_ENDPOINT,The DMS connection is not set up yet. Please contact the admin.
 dms.card.TXT_PICK_ABOVE,"Please choose from the card above, or type restart to begin a new item"
@@ -591,7 +592,7 @@ dms.card.TXT_SAME,This customer already exists and the data matches
 dms.card.TXT_SAME_ALT,Customer data matches
 dms.card.TXT_SAVE_FAIL,Save failed. Please try again.
 dms.card.TXT_SCAN_SENT,ID card scanned
-dms.card.TXT_STILL_WORKING,"Still working on it. When it is done, tap View result."
+dms.card.TXT_STILL_WORKING,Entering
 dms.card.TXT_SYSTEM_ERROR,Something went wrong. Please try again.
 dms.card.car.brand,Brand
 dms.card.car.desc,Car details

@@ -153,6 +153,7 @@ Enable the DMS connection before reading data,กรุณาเปิดใช�
 Engine,เครื่องยนต์
 Engine number,หมายเลขเครื่องยนต์
 Enter the DMS password.,กรุณากรอกรหัสผ่าน DMS
+Entering,กำลังบันทึก
 "Existing data found, but some fields differ",พบข้อมูลเดิม มีบางส่วนไม่ตรงกัน
 Existing data kept. Type menu for other tasks.,ใช้ข้อมูลเดิมแล้ว พิมพ์ เมนู เพื่อทำรายการอื่น
 Expected delivery date — tap the button to pick a date,วันที่คาดว่าจะส่งมอบรถ — กรุณากดปุ่มเพื่อเลือกวันที่
@@ -464,7 +465,7 @@ User manual,คู่มือการใช้งาน
 Vehicle master data,ข้อมูลหลักรถยนต์
 Verified Write Results,ผลการบันทึกที่ตรวจสอบแล้ว
 Video guides,วิดีโอสอนการใช้งาน
-View result,ดูผล
+View result,ดูผลลัพธ์
 View result / status,ดูผล / สถานะการอ่าน
 View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 Village,หมู่บ้าน
@@ -494,7 +495,7 @@ dms.card.BTN_RESTART,เริ่มใหม่
 dms.card.BTN_RETRY,ลองใหม่
 dms.card.BTN_SAVE_NEW,บันทึกลูกค้าใหม่
 dms.card.BTN_SCAN_CARD,สแกนบัตรประชาชน
-dms.card.BTN_SHOW_RESULT,ดูผล
+dms.card.BTN_SHOW_RESULT,ดูผลลัพธ์
 dms.card.BTN_UPDATE,อัปเดตข้อมูล
 dms.card.MSG_BIND_BAD_CODE,รหัสผูกนี้ใช้ไม่ได้หรือหมดอายุแล้ว กรุณากลับไปสร้างใหม่ที่หน้าเว็บ
 dms.card.MSG_BIND_GREETING,สวัสดีครับ นี่คือผู้ช่วย DMS\nกรุณาส่งรหัสผูกที่สร้างจากหน้าเว็บมาให้ผม เพื่อผูกบัญชีให้เสร็จ
@@ -563,7 +564,7 @@ dms.card.TXT_MORE_RESULTS,ยังมีผลลัพธ์เพิ่มเ
 dms.card.TXT_NEED_BOTH,กรุณาส่งรูปบัตรประชาชนและเบอร์โทรศัพท์ของลูกค้า
 dms.card.TXT_NEW_CARD_ALT,ยืนยันบันทึกลูกค้าใหม่
 dms.card.TXT_NEW_CARD_HEAD,ลูกค้าใหม่ กรุณายืนยันข้อมูลก่อนบันทึก
-dms.card.TXT_NOT_READY,ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง
+dms.card.TXT_NOT_READY,กำลังบันทึก
 dms.card.TXT_NO_CREDIT,เครดิตไม่เพียงพอ กรุณาติดต่อผู้ดูแลระบบของบริษัทเพื่อเติมเงินหรือสมัครแพ็กเกจที่ pearnly.com/dms
 dms.card.TXT_NO_ENDPOINT,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS กรุณาติดต่อผู้ดูแลระบบ
 dms.card.TXT_PICK_ABOVE,กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
@@ -591,7 +592,7 @@ dms.card.TXT_SAME,มีข้อมูลลูกค้ารายนี้�
 dms.card.TXT_SAME_ALT,ข้อมูลลูกค้าตรงกัน
 dms.card.TXT_SAVE_FAIL,บันทึกไม่สำเร็จ กรุณาลองใหม่
 dms.card.TXT_SCAN_SENT,สแกนบัตรแล้ว
-dms.card.TXT_STILL_WORKING,กำลังดำเนินการ เมื่อเสร็จแล้วกรุณากด «ดูผล»
+dms.card.TXT_STILL_WORKING,กำลังบันทึก
 dms.card.TXT_SYSTEM_ERROR,ระบบขัดข้อง กรุณาลองใหม่อีกครั้ง
 dms.card.car.brand,ยี่ห้อ
 dms.card.car.desc,รายละเอียดรถ

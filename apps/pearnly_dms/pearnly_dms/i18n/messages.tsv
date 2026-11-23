@@ -420,9 +420,9 @@ First name	名	ชื่อ	名	dms.card.REVIEW_FIRST_NAME
 Last name	姓	นามสกุล	姓	dms.card.REVIEW_LAST_NAME
 Date of birth	出生日期	วันเกิด	生年月日	dms.card.REVIEW_BIRTHDAY
 Changes saved	资料已修改	แก้ไขข้อมูลแล้ว	内容を修正しました	dms.card.TXT_EDIT_SENT
-Still working on it. When it is done, tap View result.	正在处理，完成后请点击「查看结果」。	กำลังดำเนินการ เมื่อเสร็จแล้วกรุณากด «ดูผล»	処理中です。終わったら「結果を見る」を押してください。	dms.card.TXT_STILL_WORKING
-View result	查看结果	ดูผล	結果を見る	dms.card.BTN_SHOW_RESULT
-Not done yet. Please tap View result again in a moment.	处理尚未完成，请稍后再次点击「查看结果」。	ยังไม่เสร็จ กรุณารอสักครู่แล้วกด «ดูผล» อีกครั้ง	まだ終わっていません。少し待ってからもう一度「結果を見る」を押してください。	dms.card.TXT_NOT_READY
+Entering	录入中	กำลังบันทึก	入力中	dms.card.TXT_STILL_WORKING
+View result	查看结果	ดูผลลัพธ์	結果を見る	dms.card.BTN_SHOW_RESULT
+Entering	录入中	กำลังบันทึก	入力中	dms.card.TXT_NOT_READY
 There is more. Tap View result to see the rest.	还有更多结果，请点击「查看结果」继续查看。	ยังมีผลลัพธ์เพิ่มเติม กรุณากด «ดูผล» เพื่อดูต่อ	続きがあります。「結果を見る」を押してください。	dms.card.TXT_MORE_RESULTS
 Complete Snapshot	完整快照	สแนปช็อตฉบับสมบูรณ์	完全スナップショット	
 Dataset	数据集	ชุดข้อมูล	データセット	
