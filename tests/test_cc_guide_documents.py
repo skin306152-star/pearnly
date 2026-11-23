@@ -229,6 +229,15 @@ class Walk(Base):
         self.assertEqual(found["stage"], documents.REVIEW)
         self.assertEqual([row["doc_id"] for row in found["review"]["rows"]], ["I:1", "I:2"])
 
+    def test_direct_write_and_operator_ask_the_same_card_from_the_same_precheck(self):
+        # 写账判定与推送同一判据（ERP 直写放开，主会话 11-23）：题卡不分模式，直写与代录同一张卡（题键、档、选项、推荐一样）
+        _name, chat = self.to_card()
+        self.now["mode"] = "operator"
+        _name, operator = self.to_card()
+        strip = lambda card: [{k: v for k, v in q.items() if k != "docs"} for q in card["questions"]]
+        self.assertEqual(strip(chat["card"]), strip(operator["card"]))
+        self.assertEqual([q["key"] for q in chat["card"]["questions"]], [q["key"] for q in operator["card"]["questions"]])
+
     def test_questions_that_appear_once_the_record_is_decided_are_asked_next(self):
         name, found = self.to_card()
         pay = found["card"]["questions"][0]

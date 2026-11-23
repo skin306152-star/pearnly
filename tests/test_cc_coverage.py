@@ -41,11 +41,10 @@ class CellTests(unittest.TestCase):
         self.assertEqual(gate.parse("todo:p4"), ("todo", "p4", ""))
         self.assertEqual(gate.parse("no:p2:desktop"), ("no", "p2", "desktop"))
         self.assertEqual(gate.parse("wait:cloud"), ("wait", "", "cloud"))
-        self.assertEqual(gate.parse("wait:erp_docs"), ("wait", "", "erp_docs"))
         self.assertEqual(gate.parse("out:只在 ERP"), ("out", "", "只在 ERP"))
 
     def test_anything_else_is_refused(self):
-        for bad in ("done:p1", "half", "todo:p9", "no:p2", "wait:someone", "out:", "out", "maybe"):
+        for bad in ("done:p1", "half", "todo:p9", "no:p2", "wait:someone", "wait:erp_docs", "out:", "out", "maybe"):
             self.assertRaises(ValueError, gate.parse, bad)
 
 

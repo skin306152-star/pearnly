@@ -234,9 +234,14 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(sorted(guides), ["pearnly_cowork", "pearnly_erp_portal"])
         menus = {app: {mode: sorted(g["id"] for g in items if mode in g["modes"]) for mode in ("chat", "operator")}
                  for app, items in guides.items()}
-        # ERP 直写的采购 / 销售整链没走通过，不上直写菜单（主会话 11-14，P2 验过再放）
-        self.assertNotIn("purchase", menus["pearnly_erp_portal"]["chat"])
-        self.assertIn("collection", menus["pearnly_erp_portal"]["chat"])
+        # ERP 直写也上采购 / 销售（主会话 11-23：同 Cowork 直写与 ERP 代录同一份声明形状）；待处理只在直写（交给直写的采购 / 销售卡）
+        self.assertTrue({"purchase", "sales", "pending", "collection"} <= set(menus["pearnly_erp_portal"]["chat"]))
+        self.assertNotIn("pending", menus["pearnly_erp_portal"]["operator"])
+        erp, cowork = ({g["id"]: g for g in guides[app]} for app in ("pearnly_erp_portal", "pearnly_cowork"))
+        for business in ("purchase", "sales"):
+            # 两产品同一业务：模式、账本、出题源、图标、顺序一样（只产品函数各自的）
+            self.assertEqual({k: erp[business][k] for k in ("modes", "ledgers", "source", "icon", "order", "steps", "expires")},
+                             {k: cowork[business][k] for k in ("modes", "ledgers", "source", "icon", "order", "steps", "expires")})
         self.assertEqual(menus["pearnly_erp_portal"]["operator"], ["purchase", "sales"])
         self.assertTrue({"purchase", "sales"} <= set(menus["pearnly_cowork"]["chat"]))
 
