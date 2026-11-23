@@ -39,7 +39,7 @@ class CcPage(unittest.TestCase):
         dialog = text.split("export const MrerpConnect: FC", 1)[1]
         self.assertIn("config: { system_url: url }", dialog)
         self.assertIn('type="password" value={password} disabled={!canLogin || busy} autoComplete="new-password"', dialog)
-        self.assertIn("disabled={!canLogin || busy}", dialog.split('data-slot="cc-mrerp-username"')[0].rsplit("<input", 1)[1])
+        self.assertIn("disabled={!canLogin || busy}", dialog.split('data-slot="cc-mrerp-username"')[0].rsplit("<Input", 1)[1])
         self.assertIn("const canLogin = app && !!mrerpLoginInline;", dialog)
         self.assertIn("{app && !mrerpLoginInline && (", dialog)   # 旧桌面版：提示更新
         self.assertIn("<MrErpLoginStatus credential={current?.credential} local={local} />", dialog)

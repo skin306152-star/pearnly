@@ -12,6 +12,8 @@
 
 import { Dialog, DialogClose, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
 import { XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authorizeConnection, authorizedDetail, type MrErpCredential, MrErpLoginStatus } from "@/components/mrerp-login";
 import { co, st, t } from "@/i18n";
@@ -171,18 +173,18 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
             <MrErpLoginStatus credential={current?.credential} local={local} />
             <label className="flex flex-col gap-(--cc-space-6)">
               <span className="text-body">{st.username}</span>
-              <input className="cc-input" value={username} disabled={!canLogin || busy} autoComplete="off" spellCheck={false}
+              <Input value={username} disabled={!canLogin || busy} autoComplete="off" spellCheck={false}
                 onChange={(e) => setUsername(e.target.value)} data-slot="cc-mrerp-username" />
             </label>
             <label className="flex flex-col gap-(--cc-space-6)">
               <span className="text-body">{st.password}</span>
-              <input className="cc-input" type="password" value={password} disabled={!canLogin || busy} autoComplete="new-password"
+              <Input type="password" value={password} disabled={!canLogin || busy} autoComplete="new-password"
                 onChange={(e) => setPassword(e.target.value)} data-slot="cc-mrerp-password" />
             </label>
             {app && !mrerpLoginInline && (
-              <button type="button" className="cc-btn self-start" onClick={() => openSettings("system")}>
+              <Button variant="outline" className="self-start" onClick={() => openSettings("system")}>
                 {co.updateDesktop}
-              </button>
+              </Button>
             )}
           </div>
           <div className="cc-dialog-foot">

@@ -85,7 +85,6 @@ BUSY_SITES = [
     ("components/pending.tsx", "cc-spinner", "{!view && !error && (", 3),  # 提议那一行展开、CC 备好的内容还没取回
     ("components/pending.tsx", "cc-spinner", "head && open && !error && (", 3),  # 月结台账里要选的那一行点开、判定还没回来（11-05）
     ("components/company-cards.tsx", "cc-spinner", "if (!options) return", 0),  # MR.ERP 记住的选择展开、可选值还没取回（10-19）
-    ("components/mrerp-login.tsx", "cc-spinner", "{busy &&", 0),  # MR.ERP 登录授权：要票、等 CC 桌面版交给站点时（11-02）
     ("components/run/upload-card.tsx", "<TypingDots", "{busy &&", 0),  # 上传状态卡片：上传中、排队中、识别中才有（11-04）
     ("components/tool-uis/operator-steps.tsx", "<TypingDots", 'row.tone === "running" &&', 0),  # 代录单据行：还没结论、也没排着的那张才有（11-04 统一对话框架）
     # 引导卡里的加载占位（ccs：卡里加载用骨架）：样子在这里，谁、什么时候挂见 BUSY_MOUNTS（A2 线 11-16）

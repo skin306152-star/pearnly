@@ -66,10 +66,6 @@
     "K1": 4,
     "K4": 10
   },
-  "components/mrerp-login.tsx": {
-    "K1": 2,
-    "K4": 3
-  },
   "components/operator/mode-switch.tsx": {
     "K1": 1,
     "K3": 1
