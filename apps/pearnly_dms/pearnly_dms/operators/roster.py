@@ -25,6 +25,7 @@ from typing import Optional
 import frappe
 from frappe import _
 
+from pearnly_core.desk import list_filters
 from pearnly_core.endpoints import read_password
 from pearnly_dms.operators import advisors, line_account
 
@@ -164,8 +165,15 @@ def get_profile(user: str) -> Optional[dict]:
     return _profile_row(frappe.get_doc(OPERATOR, name))
 
 
-def list_operators(start=0, page_length=20) -> dict:
-    """花名册列表。老产品的列：操作员 / 角色 / 查询权限 / LINE 状态 / 状态 / 操作。"""
+# 名册页搜索框一次搜这两列（客户 2026-11-23：员工近 100 人，要能按名字找）。
+SEARCH_FIELDS = ("display_name", "dms_username")
+
+
+def list_operators(start=0, page_length=20, search=None) -> dict:
+    """花名册列表。老产品的列：操作员 / 角色 / 查询权限 / LINE 状态 / 状态 / 操作。
+
+    `search` 按显示名或 DMS 用户名包含匹配（参数化 LIKE），分页与总数都跟着同一份条件走。
+    """
     _require_admin()
     try:
         start, page_length = int(start), int(page_length)
@@ -173,10 +181,13 @@ def list_operators(start=0, page_length=20) -> dict:
         frappe.throw(_("Invalid value"))
     if start < 0 or not 1 <= page_length <= 2500:
         frappe.throw(_("Invalid value"))
-    docs = frappe.get_all(OPERATOR, fields=["name"], order_by="creation asc, name asc",
+    text = _clean(search)[:140]
+    or_filters = [[field, "like", f"%{text}%"] for field in SEARCH_FIELDS] if text else None
+    docs = frappe.get_all(OPERATOR, or_filters=or_filters, fields=["name"],
+                          order_by="creation asc, name asc",
                           limit_start=start, limit_page_length=page_length)
     return {"items": [_row(frappe.get_doc(OPERATOR, d.name)) for d in docs],
-            "total": frappe.db.count(OPERATOR)}
+            "total": list_filters.count(OPERATOR, or_filters=or_filters, ignore_permissions=True)}
 
 
 def create_operator(
@@ -356,8 +367,8 @@ def delete_operator(name: str) -> dict:
 
 
 @frappe.whitelist()
-def api_list_operators(start=0, page_length=20):
-    return list_operators(start, page_length)
+def api_list_operators(start=0, page_length=20, search=None):
+    return list_operators(start, page_length, search)
 
 
 @frappe.whitelist(methods=["POST"])

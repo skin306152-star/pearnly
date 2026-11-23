@@ -45,6 +45,7 @@ UNIT_TESTS = (
     "tests/test_dms_line_button_labels.py",
     "tests/test_dms_car_freebies.py",
     "tests/test_dms_booking_freebies_write.py",
+    "tests/test_dms_roster_search.py",
 )
 
 if __name__ == "__main__":

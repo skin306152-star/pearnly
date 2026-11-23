@@ -8,6 +8,9 @@
 		async function refresh() { await list.reload(); }
 		page.set_primary_action(t("roster.add"), create);
 		page.set_title_sub(p.escape(t("roster.subtitle")));
+		// 按名字找人（员工多时翻页找太慢）：同 ERP 页的页头搜索框，服务端按显示名 / DMS 用户名搜、分页照旧。
+		const search = page.add_field({fieldtype: "Data", fieldname: "search", label: __("Search"),
+			change: () => void list?.reload()});
 		list = p.list({page, doctype: "DMS Operator", selectable: true, compact_columns: true,
 			on_open: editor,
 			on_selection: rows => {
@@ -15,7 +18,7 @@
 					rows.length ? () => removeRows(list.get_checked_items()) : create);
 				page.btn_primary.prop("disabled", deleting);
 			},
-			load: args => p.call(api + "api_list_operators", args),
+			load: args => p.call(api + "api_list_operators", {...args, search: search.get_value() || undefined}),
 			row_actions: row => [
 				{id: "line", label: t(row.line_bound ? "roster.unbindLine" : "roster.bindLine"),
 					disabled: !row.line_bound && row.status !== "active", action: row.line_bound ? unbind : bind},
