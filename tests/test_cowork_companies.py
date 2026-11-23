@@ -2897,8 +2897,9 @@ class BookIdentityTests(unittest.TestCase):
             self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.missing")
             states.update(C2={"computers": True, "writers_known": False})
             self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.noWriter")
+            # 11-17 定稿起没有「您的电脑离线」：旧形状里多带的 not_yours 也只按电脑离线说
             states.update(C1={"computers": True, "writers_known": True, "not_yours": True})
-            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.notYours")
+            self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.offline")
             states.update(C2={"computers": True, "writers_known": True})
             self.assertEqual(module.computer_state(company, "a@example.com"), "intake.agent.state.offline")
             states.update(C2={"computers": True, "writers_known": True, "online": True})

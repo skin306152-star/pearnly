@@ -2696,17 +2696,18 @@ class PushWaitTests(unittest.TestCase):
         self.assertEqual((item["status"], item["cc_desktop_online"]), ("queued", False))
         self.assertEqual((len(self.reads), self.sleeps), (1, []))
 
-    def test_a_push_waiting_for_my_own_computer_says_so_when_a_colleagues_is_online(self):
-        # A 线 11-12 测试机1：本人能写的电脑关着、同事的在线——活不归同事，CC 原来说「CC 电脑不在线」。回包带在等的电脑
-        # 与 cc_desktop_not_yours，说明写明同事的电脑不会替他写
+    def test_a_push_waiting_for_my_own_computer_names_it(self):
+        # 本人能写的电脑与能替他写的同事电脑都关着：回包带在等的电脑。11-17 定稿起同事的电脑在线就替他写（上面算在线），
+        # 不再有 cc_desktop_not_yours，说明里也不再说同事的电脑不替他写
         self.online = False
-        self.waiting = {"waiting_on": ["PC-ME"], "not_yours": True}
+        self.waiting = {"waiting_on": ["PC-ME"]}
         self.timeline = [{"PR-H1": {"status": "pending"}}]
         out = self._push("H1")
         item, = out["results"]
-        self.assertEqual((item["cc_desktop_online"], item["waiting_on"], item["cc_desktop_not_yours"]),
-                         (False, ["PC-ME"], True))
-        self.assertIn("a colleague's computer will not write it for them", tools.PUSH_QUEUED_NOTE)
+        self.assertEqual((item["cc_desktop_online"], item["waiting_on"]), (False, ["PC-ME"]))
+        self.assertNotIn("cc_desktop_not_yours", item)
+        self.assertNotIn("not_yours", tools.PUSH_QUEUED_NOTE)
+        self.assertNotIn("will not write it for them", tools.PUSH_QUEUED_NOTE)
 
     def test_documents_not_sent_are_not_waited_for(self):
         self.docs["H1"].last_push_status = "success"
@@ -4570,11 +4571,8 @@ class ReadbackTests(unittest.TestCase):
         out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
         self.assertEqual(out["note"], tools.READBACK_WAITING["missing"])
         self.assertIn("not connected CC Desktop", out["note"])
-        # A 线 11-12：他自己的电脑都没来、同事够得到这本的电脑在——说是他的电脑离线，同事的电脑不会替他读
-        self.made = {"status": "waiting_for_cc", "reason": "not_yours"}
-        out = json.loads(tools.express_readback({"connection": "EXP1", "account_set_key": "K", "period": "2026-05"}))
-        self.assertEqual(out["note"], tools.READBACK_WAITING["not_yours"])
-        self.assertIn("a colleague's computer will not read it for them", out["note"])
+        # 11-17 定稿起同事够得到这本的电脑替他读，读回服务不再回 not_yours，说明里也没有这一条
+        self.assertNotIn("not_yours", tools.READBACK_WAITING)
 
     def test_someone_elses_readback_still_reading_is_returned_at_once(self):
         # 能用这条连接的人都看得到回读（用户 2026-10-15 夜定），但还在读的那份只由发起人推进：同事的 CC 不空等 90 秒

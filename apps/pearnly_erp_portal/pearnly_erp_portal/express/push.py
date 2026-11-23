@@ -889,10 +889,10 @@ def writers_of(actor, company, book_key) -> dict:
 
 def _queued_note(doctype, row):
     """排队中的单此刻为什么还没写（页面写原因，不改状态）：这件作业归的人一台登录过 CC 的电脑都没有 →「CC 桌面版未连接」；
-    他能写的电脑都关着 → 离线（在线的那台是别人的 → 你的电脑离线，不派给别人）；他的电脑都够不到这份账套 → 没有电脑能写。"""
+    他的与能替他写的电脑都关着 → 离线；都够不到这份账套 → 没有电脑能写。"""
     found = writers_of(actor_of(doctype, row, row.ledger_book), company_of(doctype, row.name), row.ledger_book) \
         if row.ledger_book else {"state": "ok"}
-    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE, "not_yours": contracts.NOT_YOURS,
+    return {"missing": contracts.NOT_CONNECTED, "offline": contracts.OFFLINE,
             "unreachable": contracts.NO_WRITER}.get(found["state"], "")
 
 

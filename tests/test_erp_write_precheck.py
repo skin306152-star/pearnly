@@ -525,8 +525,6 @@ class ComputerState(Precheck):
             self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NOT_CONNECTED)
             found["BK-2"] = "unreachable"
             self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NO_WRITER)
-            found["BK-1"] = "not_yours"
-            self.assertEqual(operator.computer_state("CO-1", "b@x"), E.NOT_YOURS)
             found["BK-2"] = "offline"
             self.assertEqual(operator.computer_state("CO-1", "b@x"), E.OFFLINE)
             found["BK-1"] = "ok"

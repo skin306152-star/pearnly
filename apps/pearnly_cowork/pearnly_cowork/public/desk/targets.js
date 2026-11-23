@@ -55,11 +55,8 @@
 		if (adapter === "mrerp" || snapshot.agent?.online) return {text: __("connect.state.connected"), tone: "green"};
 		// 第 6 批（ADR-021，D4）：能写的电脑都关着 →「电脑离线」，仍可选（排队，开机后写）；池里有电脑、却没有一台能写 →
 		// 「没有能写的电脑」；一台电脑都没有 → 现有「CC 桌面版未连接」。
-		// 本人能写的都关着、同事够得到的在线（活不归同事）→「您的电脑离线」（A 线 11-12）
-		if (snapshot.agent?.writers_known) {
-			return {text: __(snapshot.agent.not_yours ? "intake.agent.state.notYours" : "intake.agent.state.offline"),
-				tone: "orange"};
-		}
+		// 能替他写的同事电脑在线时服务端已算在线（领单时判，用户 11-17 定稿）
+		if (snapshot.agent?.writers_known) return {text: __("intake.agent.state.offline"), tone: "orange"};
 		return {text: __(snapshot.agent?.computers ? "intake.agent.state.noWriter" : "intake.agent.state.missing"),
 			tone: "orange"};
 	}

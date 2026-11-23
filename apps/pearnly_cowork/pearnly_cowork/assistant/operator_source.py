@@ -34,14 +34,14 @@ def waiting_on(company, user) -> str:
     return ", ".join(dict.fromkeys(names))
 
 
-COMPUTER_ORDER = ("intake.agent.state.offline", "intake.agent.state.notYours", "intake.agent.state.noWriter",
+COMPUTER_ORDER = ("intake.agent.state.offline", "intake.agent.state.noWriter",
                   "intake.agent.state.missing")  # 几条连接结论不同时报最接近能写的那个
 
 
 def computer_state(company, user) -> str:
     """代录排着等电脑时，``user`` 自己的电脑能不能写这家账套（共用层 ``products.computer_state``，同 ERP）：任一条连接有在线的、
-    能写的回空串；否则回网页去向同一个词条键（`public/desk/targets.js`）——电脑关着 ``intake.agent.state.offline``、只有同事的在线
-    ``…notYours``、有电脑却都够不到 ``…noWriter``、一台都没有 ``…missing``（未连接电脑）。没有连接的回空串（另有原因）。"""
+    能写的回空串；否则回网页去向同一个词条键（`public/desk/targets.js`）——他的与能替他写的电脑都关着 ``intake.agent.state.offline``、
+    有电脑却都够不到 ``…noWriter``、一台都没有 ``…missing``（未连接电脑）。没有连接的回空串（另有原因）。"""
     from pearnly_cowork.companies import service
     from pearnly_cowork.folder_intake import destinations
 
@@ -57,8 +57,7 @@ def computer_state(company, user) -> str:
         if state.get("online"):
             return ""
         found.add("intake.agent.state.missing" if not state.get("computers") else
-                  "intake.agent.state.noWriter" if not state.get("writers_known") else
-                  "intake.agent.state.notYours" if state.get("not_yours") else "intake.agent.state.offline")
+                  "intake.agent.state.noWriter" if not state.get("writers_known") else "intake.agent.state.offline")
     return next((code for code in COMPUTER_ORDER if code in found), "")
 
 

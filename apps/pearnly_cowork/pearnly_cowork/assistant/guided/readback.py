@@ -22,7 +22,7 @@ from frappe import _
 EXPRESS = "express"
 DRAFT_SEP = "@"
 # 读回服务回的「电脑没来领」原因 → 结果卡上一行事实（已有词条）
-WAITING = {"offline": "CC Desktop offline or needs update", "not_yours": "CC Desktop offline or needs update",
+WAITING = {"offline": "CC Desktop offline or needs update",
            "update_needed": "CC Desktop offline or needs update",
            "unreachable": "None of your computers with CC Desktop can open this account set"}
 READING = "Reading back the accounting books"

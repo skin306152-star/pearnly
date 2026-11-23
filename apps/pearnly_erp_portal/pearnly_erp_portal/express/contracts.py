@@ -47,8 +47,6 @@ READING = "express.masters_reading"
 MASTERS_REQUEST = "erp_masters:"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
-# 这位用户能写的电脑都关着、在线的那台是别人的（不派给别人）：说「你的电脑离线」（A 线 11-12）
-NOT_YOURS = "express.cc_desktop_not_yours"
 # 写账判定 / 代录预检里编号种类本产品不认（契约缺口，11-16 H3）：回这个原因、记错误日志（标题 UNKNOWN_DOCUMENT_LOG），
 # 与「不是本人的单」（不回、不报存在与否）分开；只给模型与日志，不是界面文案
 UNKNOWN_DOCUMENT = "unknown_document"
@@ -425,6 +423,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
-           "NOT_YOURS", "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

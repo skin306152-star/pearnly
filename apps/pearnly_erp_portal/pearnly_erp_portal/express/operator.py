@@ -154,15 +154,14 @@ def waiting_on(company, user) -> str:
 
 
 # 本人电脑此刻的状态（`cc_desktop.jobs.writers` 的 state）→ 单据页同一个原因码（`push._queued_note`，词条见 `pending.REASONS`）
-COMPUTER_REASONS = {"missing": "NOT_CONNECTED", "unreachable": "NO_WRITER", "not_yours": "NOT_YOURS",
-                    "offline": "OFFLINE"}  # 契约里的常量名（调用时取值）
-COMPUTER_ORDER = ("offline", "not_yours", "unreachable", "missing")  # 几本账套结论不同时报最接近能写的那个
+COMPUTER_REASONS = {"missing": "NOT_CONNECTED", "unreachable": "NO_WRITER", "offline": "OFFLINE"}  # 契约里的常量名（调用时取值）
+COMPUTER_ORDER = ("offline", "unreachable", "missing")  # 几本账套结论不同时报最接近能写的那个
 
 
 def computer_state(company, user) -> str:
     """代录排着等电脑时，``user`` 交的单此刻有没有电脑写这家公司的账本（共用层 ``products.computer_state``；写账件归谁同 `push.actor_of`）：
     任一本账套有在线的回空串；
-    否则回单据页同一个原因码——电脑关着 ``express.cc_desktop_offline``、只有同事的在线 ``…_not_yours``、有电脑却都够不到账套
+    否则回单据页同一个原因码——电脑关着 ``express.cc_desktop_offline``、有电脑却都够不到账套
     ``express.no_writer``、一台登录过 CC 的电脑都没有 ``express.cc_desktop_not_connected``（11-16 H 组：只写「等待电脑」）。
     这家公司没有账套的回空串（另有原因）。"""
     from pearnly_core.cc_desktop import books

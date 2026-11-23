@@ -29,9 +29,9 @@ class ExpressTarget:
 
     @staticmethod
     def waiting(connection):
-        """都不在线时在等的本人电脑与「同事的电脑在线」（`companion.pool.state` 的 ``waiting_on`` / ``not_yours``）。"""
+        """都不在线时在等的本人电脑（`companion.pool.state` 的 ``waiting_on``）。"""
         found = pool.for_user(connection)
-        return {key: found[key] for key in ("waiting_on", "not_yours") if found.get(key)}
+        return {"waiting_on": found["waiting_on"]} if found.get("waiting_on") else {}
 
     @staticmethod
     def selectable(connection, device=""):
@@ -84,7 +84,7 @@ def online(adapter, connection):
 
 
 def waiting(adapter, connection):
-    """排队等电脑时给模型说清在等谁（A 线 11-12）：``{waiting_on: [本人电脑名称], not_yours: True?}``；没有、读不出回空。"""
+    """排队等电脑时给模型说清在等谁（A 线 11-12）：``{waiting_on: [本人电脑名称]}``；没有、读不出回空。"""
     target = ADAPTERS[adapter]
     try:
         return target.waiting(connection) if hasattr(target, "waiting") else {}
@@ -103,8 +103,8 @@ def waiting_on(connection, user) -> list:
 
 
 def owner_state(connection, user) -> dict:
-    """``user`` 自己的电脑在这条连接上此刻怎样（`companion.pool.state` 按人：``online`` / ``computers`` / ``writers_known`` /
-    ``not_yours``）；代录任务按任务主人问（11-16 H 组：没有电脑时说清为什么）。读不出回空 dict。"""
+    """``user`` 自己的电脑在这条连接上此刻怎样（`companion.pool.state` 按人：``online`` / ``computers`` / ``writers_known``）；
+    代录任务按任务主人问（11-16 H 组：没有电脑时说清为什么）。读不出回空 dict。"""
     try:
         return dict(pool.state(connection, user=user) or {})
     except Exception:
