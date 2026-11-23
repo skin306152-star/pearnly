@@ -38,14 +38,15 @@ erp_operator = "closed:云端 Express 来源是占位、不取数（b0f007927）
 id = "purchase"
 name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
 guide = "purchase"
-cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
+cowork_direct = ["done", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
-erp_operator = ["half:p2", "half:p2", "wait:cloud"]
+erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；对话里是第 1 期 pearnly_guide 问答卡 + 写入计划，页面没有按单据引导从题点到结果的流程"
+basis = "Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；实验栈没有识别，单据由 run.start(doc_ids) 交进来，交文件 → 识别那段不在流程里）"
+page_flows = ["cowork.cc.guide.purchase"]
 flows = ["cowork.cc.guide"]
 
 [[row.link]]
@@ -58,7 +59,8 @@ basis = "Cowork 声明 purchase 含 operator；代录开始前卡是按单据引
 
 [[row.link]]
 cell = "erp_operator.express_local"
-basis = "ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；页面接口流程从题答到复核、就地改、带复核指纹确定交进代录（API 级，不点卡）"
+basis = "ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；代录对话里真页面从题卡（付款方式）点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-23 实验栈电脑 / 手机两格；收单记录由 run.start(doc_ids) 交进来）；另有接口级的就地改、带复核指纹确定"
+page_flows = ["erp.cc.guide.operator-purchase"]
 flows = ["erp.cc.operator.intake", "erp.cc.guide.documents-edit"]
 
 [[row.link]]
@@ -76,7 +78,7 @@ guide = "sales"
 cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
 cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
 erp_direct = ["todo:p2", "wait:mrerp", "wait:cloud"]
-erp_operator = ["half:p2", "half:p2", "wait:cloud"]
+erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
@@ -92,7 +94,8 @@ basis = "Cowork 声明 sales 含 operator；代录开始前卡是按单据引导
 
 [[row.link]]
 cell = "erp_operator.express_local"
-basis = "ERP 声明 sales 只开 operator（express/cc_guides.py）；代录放进来的销售票开始前卡作答、提交成销售单交进写账（API 级流程）"
+basis = "ERP 声明 sales 只开 operator（express/cc_guides.py）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-23 实验栈电脑 / 手机两格；收单记录由 run.start(doc_ids) 交进来）；另有开始前卡作答提交成销售单的接口级流程"
+page_flows = ["erp.cc.guide.operator-sales"]
 flows = ["erp.cc.operator.intake.sales"]
 
 [[row.link]]
