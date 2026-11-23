@@ -12,7 +12,7 @@
 
 import { Dialog, DialogClose, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
 import { XIcon } from "lucide-react";
-import { type FC, useCallback, useEffect, useMemo, useState } from "react";
+import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { authorizeConnection, authorizedDetail, type MrErpCredential, MrErpLoginStatus } from "@/components/mrerp-login";
 import { co, st, t } from "@/i18n";
 import { openSettings, useDesktopFeatures } from "@/lib/desktop";
@@ -119,7 +119,11 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
     setChanged(true);
     return next;
   };
+  // 双击：busy 要等下一次渲染才灰，同一刻点两下都会进来；这里当场挡住第二下（11-23 testerp 多出一条空连接，服务端也按系统地址复用）
+  const running = useRef(false);
   const submit = async () => {
+    if (running.current) return;
+    running.current = true;
     setBusy(true);
     setError("");
     const login = typed ? { username, password } : null;
@@ -139,6 +143,7 @@ export const MrerpConnect: FC<{ api: string; connection: MrerpConnection | null;
       reportCaught(e, "mrerp-connect");
       setError(shownError(e));
     } finally {
+      running.current = false;
       setBusy(false);
     }
   };

@@ -46,6 +46,9 @@ class CcPage(unittest.TestCase):
         # 一个按钮：先存地址，再经本机桥授权；不再另弹原生小窗、不再有单独的「在 CC 桌面版中授权」
         submit = block(dialog, "const submit = async () => {", "\n  };\n")
         self.assertLess(submit.index("await save()"), submit.index("await authorizeConnection("))
+        # 双击只进一次（11-23 testerp 多出一条空连接）：第一句就挡，收尾放开；服务端另按系统地址复用
+        self.assertTrue(submit.startswith("const submit = async () => {\n    if (running.current) return;\n    running.current = true;"))
+        self.assertIn("running.current = false;", submit)
         self.assertNotIn("<MrErpLogin ", text)
         # 接口前缀只来自产品声明（connect.mrerp），不写死某个产品；目录刷新也走它
         self.assertIn("useProjects((s) => s.connect.mrerp", text)

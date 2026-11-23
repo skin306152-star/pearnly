@@ -114,8 +114,14 @@ def _get_doc(doctype, name=None, for_update=False):
     return DB.docs[doctype][name]
 
 
+def _get_all(doctype, filters=None, fields=None, order_by=None, limit_page_length=None):
+    rows = [Doc({field: row.get(field) for field in (fields or ["name"])}) for row in DB.docs.get(doctype, {}).values()
+            if all((row.get(key) or "") == (value or "") for key, value in (filters or {}).items())]
+    return rows[:limit_page_length] if limit_page_length else rows
+
+
 frappe = types.ModuleType("frappe")
-frappe.__dict__.update(db=DB, throw=_throw, _=lambda text: text, get_doc=_get_doc, ValidationError=ValidationError,
+frappe.__dict__.update(db=DB, throw=_throw, _=lambda text: text, get_doc=_get_doc, get_all=_get_all, ValidationError=ValidationError,
                        PermissionError=PermissionError_, conf={}, local=types.SimpleNamespace(site="testcowork.pearnly.com"),
                        session=types.SimpleNamespace(user=USER))
 frappe_utils = types.ModuleType("frappe.utils")
@@ -277,6 +283,19 @@ class ConnectionReadLocks(unittest.TestCase):
             self.assertEqual(again["revision"], 3)
         api = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/api.py").read_text(encoding="utf-8")
         self.assertIn("credentials, all_members)", api)  # 网页接口照传
+
+    def test_configure_reuses_the_mrerp_connection_of_the_same_system(self):
+        """11-23（testerp 多出一条没授权的空 MR.ERP 连接）：没带连接号时同一归属下同一系统地址已有 MR.ERP 连接就回它、不新建——
+        重开弹窗换了请求号、双击、重试都只留一条（判据同 ERP，`urls.system_key`：主机大小写、末尾斜杠不算不同）。"""
+        DB.docs[CONNECTION] = {"MR": connection("MR", adapter="mrerp", config_json=model.dumps({"system_url": "https://mrerp.example"})),
+                               "CONN": connection("CONN")}
+        with mock.patch.object(access, "require_assignee", lambda *args, **kwargs: None, create=True):
+            for key, url in (("k-a", "https://mrerp.example"), ("k-b", "https://MRERP.example/")):
+                again = service.configure("W", "mrerp", key, "MR.ERP", {"system_url": url}, users=[USER])
+                self.assertEqual(again["name"], "MR")
+        self.assertEqual(sorted(DB.docs[CONNECTION]), ["CONN", "MR"])
+        self.assertIsNone(service._same_system("W", "", "https://other.example"))
+        self.assertIsNone(service._same_system("W", "CL", "https://mrerp.example"))   # 别的客户的不算
 
     def test_configure_refuses_an_mrerp_login_from_the_page(self):
         """ADR-026 第 7 条：MR.ERP 的账号密码只在 CC 桌面版里授权（`mrerp_login.store`），网页交来的 `credentials`

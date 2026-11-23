@@ -76,6 +76,22 @@ def _dto(doc):
             "credential": mrerp_login.view(doc)}
 
 
+SAME_SYSTEM_SCAN = 100
+
+
+def _same_system(workspace, client, system_url):
+    """这个归属下同一系统地址（`urls.system_key`）最早建的那条 MR.ERP 连接；没有回 None。"""
+    from pearnly_core.mrerp.urls import system_key
+
+    key = system_key(system_url)
+    rows = frappe.get_all(CONNECTION, filters={"workspace": workspace, "client": client or "", "adapter": "mrerp"},
+                          fields=["name", "config_json"], order_by="creation asc", limit_page_length=SAME_SYSTEM_SCAN)
+    for row in rows:
+        if system_key(model.parse(row.config_json, {}).get("system_url")) == key:
+            return _read(CONNECTION, row.name)
+    return None
+
+
 def configure(workspace, adapter, request_key, label, config, client=None, users=None,
               name=None, expected_revision=None, enabled=True, credentials=None, all_members=None):
     """建或改连接。``all_members``（D2，ADR-021 第 4 批）：Express 池全所可用；``None`` = 不变（新建的 Express 池默认 1），
@@ -102,6 +118,13 @@ def configure(workspace, adapter, request_key, label, config, client=None, users
         _error("connection.config_invalid")
     for user in users:
         access.require_assignee(user, workspace, client)
+    if not name and adapter == "mrerp":
+        # 同一归属下同一系统地址已有 MR.ERP 连接就回它、不新建（11-23：重开弹窗换了请求号也建一条，产品又不许删连接；与 ERP 同一判据
+        # `urls.system_key`）。要改它的配置照常带连接号
+        found = _same_system(workspace, client, config.get("system_url"))
+        if found is not None:
+            access.require_connection(found, management=True, enabled=False)
+            return _dto(found)
     enabled = model.boolean(enabled)
     # 没给就不变（新建的 Express 池默认全所可用）；请求指纹只在给了时带它，没给的请求与以前同一个指纹
     given = [] if all_members is None else [model.boolean(all_members)]

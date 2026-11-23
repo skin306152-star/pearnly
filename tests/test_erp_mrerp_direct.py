@@ -61,8 +61,11 @@ class Db:
     def commit(self):
         self.commits += 1
 
-    def rollback(self):
+    def rollback(self, save_point=None):
         self.rollbacks += 1
+
+    def savepoint(self, name):
+        pass
 
 
 DB = Db()
@@ -75,6 +78,8 @@ frappe.db = DB
 frappe._ = lambda text, *a, **k: text
 frappe.PermissionError = PermissionError_
 frappe.ValidationError = ValueError
+frappe.DuplicateEntryError = type("DuplicateEntryError", (Exception,), {})
+frappe.clear_messages = lambda: None
 frappe.session = types.SimpleNamespace(user="boss@x")
 frappe.local = types.SimpleNamespace(site="erp.test")
 frappe.get_roles = lambda user=None: ["ERP Admin"] if user == "boss@x" else []
@@ -678,9 +683,11 @@ class _Doc(Row):
     def save(self, ignore_permissions=False):
         DB.table(self["doctype"])[self["name"]] = {k: v for k, v in self.items() if k != "doctype"}
 
-    def insert(self, ignore_permissions=False):
+    def insert(self, ignore_permissions=False, set_name=None):
         table = DB.table(self["doctype"])
-        self["name"] = f"C{len(table) + 1}"
+        if set_name and set_name in table:
+            raise frappe.DuplicateEntryError(set_name)   # 同一主键已被别的请求插进去（库的唯一约束）
+        self["name"] = set_name or f"C{len(table) + 1}"
         self.setdefault("creation", datetime.datetime(2026, 11, 9, 10, len(table)))
         self.save()
         return self
@@ -786,6 +793,31 @@ class ConnectRow(_SiteFakes):
         self.assertEqual((changed["name"], changed["system_url"]), (first["name"], "https://erp.example.co.th"))
         with self.assertRaises(ValueError):
             self.api.configure(adapter="express", request_key="k3", config={"system_url": "https://x.example"})
+
+    def test_reopening_the_dialog_reuses_the_connection_of_the_same_system(self):
+        # 11-23 testerp 多出一条没授权的空连接：重开弹窗（新请求号）、旧调法不带连接号，同一系统地址都回原来那一条，不新建
+        DB.table("ERP MRERP Connection").clear()
+        first = self.api.configure(adapter="mrerp", request_key="k1", config={"system_url": "https://mrerp.example"})
+        for again in (self.api.configure(adapter="mrerp", request_key="k9", config={"system_url": "https://MRERP.example/"}),
+                      self.api.configure(system_url="https://mrerp.example.")):
+            self.assertEqual(again["name"], first["name"])
+        self.assertEqual(len(DB.table("ERP MRERP Connection")), 1)
+        # 另一个系统地址才是另一条连接
+        other = self.api.configure(adapter="mrerp", request_key="k10", config={"system_url": "https://erp.example.co.th"})
+        self.assertNotEqual(other["name"], first["name"])
+        self.assertEqual(len(DB.table("ERP MRERP Connection")), 2)
+
+    def test_two_requests_with_the_same_key_at_once_leave_one_connection(self):
+        # 同一请求号同时到两次：都没看见对方还没提交的那条，后插的撞主键，回同一条，不报错
+        from pearnly_erp_portal.mrerp import connection
+
+        DB.table("ERP MRERP Connection").clear()
+        with patch.object(connection, "same_system", lambda url: None), patch.object(DB, "exists", lambda *a: False):
+            first = connection.configure_once("https://mrerp.example", None, "k1")
+            second = connection.configure_once("https://mrerp.example", None, "k1")
+        self.assertEqual(first, second)
+        self.assertEqual(list(DB.table("ERP MRERP Connection")), [first])
+        self.assertTrue(first.startswith("mrerp-"))
 
     def test_the_old_configure_call_keeps_its_view(self):
         view = self.api.configure(system_url="https://www.mrerp4sme.com", connection_name="C1")

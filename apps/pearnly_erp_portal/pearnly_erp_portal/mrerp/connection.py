@@ -6,11 +6,13 @@
 范围（服务端判，主会话 11-02 定的口径）：ERP 管理员 ``site``（写进连接的 Password 字段，直写用）；ERP 没有连接的使用名单，别人一律
 空串（拿不到票、交来也拒）。:data:`pearnly_erp_portal.mrerp.MRERP_LEDGER_ENABLED` 关着时都不认。
 """
+import hashlib
+
 import frappe
 from frappe import _
 from frappe.utils import now_datetime
 
-from pearnly_core.mrerp.urls import validate_url
+from pearnly_core.mrerp.urls import system_key, validate_url
 
 from pearnly_erp_portal import mrerp
 from pearnly_erp_portal.access import rules
@@ -36,8 +38,12 @@ def require_admin():
         frappe.throw(_("Not permitted"), frappe.PermissionError)
 
 
-def configure(system_url, name=None) -> str:
-    """建 / 改一条连接的网址（只限管理员）。回连接号。网址按共用层的存储语法校验（同 Cowork 连接）。"""
+def configure(system_url, name=None, create_as=None) -> str:
+    """建 / 改一条连接的网址（只限管理员）。回连接号。网址按共用层的存储语法校验（同 Cowork 连接）。
+
+    没给连接号时按系统地址复用（11-23：testerp 多出一条没授权的空连接，旧弹窗两个按钮各存了一次）：这个站点已有同一系统地址的连接
+    就回它、不新建（两个产品同一判据 `urls.system_key`）。新建时给了 ``create_as`` 就用它当连接号：同一请求号同时来两次只插得进一条，
+    后到的撞主键回同一条。"""
     require_admin()
     url = str(system_url or "").strip() or DEFAULT_URL
     try:
@@ -50,13 +56,31 @@ def configure(system_url, name=None) -> str:
             doc.system_url = url
             doc.save(ignore_permissions=True)
         return doc.name
+    found = same_system(url)
+    if found:
+        return found
     doc = frappe.get_doc({"doctype": CONNECTION, "system_url": url, "enabled": 1})
-    doc.insert(ignore_permissions=True)
-    return doc.name
+    if not create_as:
+        doc.insert(ignore_permissions=True)
+        return doc.name
+    point = "erp_mrerp_create"
+    frappe.db.savepoint(point)
+    try:
+        doc.insert(ignore_permissions=True, set_name=create_as)
+    except frappe.DuplicateEntryError:
+        frappe.db.rollback(save_point=point)
+        frappe.clear_messages()
+    return create_as
+
+
+def same_system(url):
+    """这个站点上同一系统地址（`urls.system_key`）最早建的那条连接；没有回 None。"""
+    key = system_key(url)
+    rows = frappe.get_all(CONNECTION, fields=["name", "system_url"], order_by="creation asc", limit_page_length=PAGE_MAX)
+    return next((row.name for row in rows if system_key(row.system_url or DEFAULT_URL) == key), None)
 
 
 PAGE_MAX = 100
-CONFIGURE_KEY_SECONDS = 3600
 
 
 def main_name():
@@ -96,17 +120,15 @@ def records(start=0, limit=50) -> list:
 
 def configure_once(system_url, name=None, request_key=None) -> str:
     """CC 设置里的「连接」：同 :func:`configure`，另按 ``request_key`` 幂等——没给连接号时同一个请求号重发（双击、网络重试）
-    回同一条，不重复建。"""
+    回同一条，不重复建。新连接的连接号由请求人与请求号定（11-23：原来先查缓存再建，两次同时到都查不到、各建一条）；同一系统地址
+    已有连接的回那一条（:func:`configure`）。"""
     require_admin()
-    key = f"erp-mrerp-configure::{frappe.session.user}::{str(request_key or '')[:80]}" if request_key else ""
-    if not name and key:
-        known = frappe.cache.get_value(key)
-        if known and frappe.db.exists(CONNECTION, known):
-            name = known
-    out = configure(system_url, name)
-    if key:
-        frappe.cache.set_value(key, out, expires_in_sec=CONFIGURE_KEY_SECONDS)
-    return out
+    create_as = None
+    if request_key and not name:
+        create_as = "mrerp-" + hashlib.sha256(f"{frappe.session.user}\n{str(request_key)[:80]}".encode()).hexdigest()[:20]
+        if frappe.db.exists(CONNECTION, create_as):
+            name = create_as
+    return configure(system_url, name, create_as=create_as)
 
 
 def view(name) -> dict:
@@ -164,4 +186,4 @@ def lease(name) -> dict:
 
 
 __all__ = ["configure", "configure_once", "is_admin", "lease", "login_scope", "login_store", "main_name", "record",
-           "records", "require_admin", "require_enabled", "view"]
+           "records", "require_admin", "require_enabled", "same_system", "view"]

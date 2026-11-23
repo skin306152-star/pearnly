@@ -466,7 +466,8 @@ def test_the_bridge_never_takes_a_path_from_the_page(tmp_path, monkeypatch):
     bridge = tomo_bridge.TomoBridge(settings, allowed=lambda: True, window=lambda: None, set_lang=lambda _l: None,
                                     page_url=lambda: url[0])
     state = json.loads(bridge.state())
-    assert state["features"] == ["company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels"] and state["legacy_roots"][0]["id"] == "r"
+    assert state["features"] == ["company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",
+                                 "mrerp_login_inline"] and state["legacy_roots"][0]["id"] == "r"
 
     done = []
     bridge.done.connect(lambda job, result: done.append((job, json.loads(result))))
