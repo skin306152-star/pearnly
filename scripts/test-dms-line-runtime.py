@@ -712,25 +712,58 @@ class DmsPageReply(unittest.TestCase):
         self.send.assert_not_called()
 
 
-class DmsSlowReply(unittest.TestCase):
-    """慢任务：令牌快过期先免费回「还在处理」，结果存起来，点「查看结果」再免费回。"""
+class _ReceiptRedis(_FakeRedis):
+    """共用件 `line_ui.receipt` 用到的几个调用（GETDEL、集合）。"""
+
+    def getdel(self, key):
+        return self.values.pop(key, None)
+
+    def sadd(self, key, value):
+        self.values.setdefault(key, set()).add(value)
+
+    def expire(self, key, seconds):
+        return True
+
+
+class _HeldTimer:
+    """不睡的计时器：记下来，测试里手动 ``fire()``。"""
+
+    made = []
+
+    def __init__(self, seconds, function):
+        self.seconds, self.function, self.daemon = seconds, function, False
+        _HeldTimer.made.append(self)
+
+    def start(self):
+        pass
+
+    def fire(self):
+        self.function()
+
+
+class DmsLineReceipt(unittest.TestCase):
+    """等结果的 LINE 动作走共用件（用户 11-22 / 11-23）：三个点开满，结果用同一张令牌回；第 55 秒还没好才回兜底 +【查看结果】，
+    结果存起来点按钮再回；不推送（身份证识别慢照旧推卡）；识别延后时【查看结果】回「还在录入」，不再说过期。"""
 
     def setUp(self):
-        from pearnly_dms.line import out
+        from pearnly_core.line_ui import receipt
+        from pearnly_dms.line import cards, out
 
-        self.out = out
-        self.state = _FakeRedis()
+        self.out, self.receipt = out, receipt
+        self.state = _ReceiptRedis()
         self.enterContext(patch.object(out, "_state", return_value=self.state))
-        self.enterContext(patch.object(out, "SLOW_AFTER", 0.05))
-        self.sent = []
+        self.enterContext(patch.object(receipt, "_store", return_value=self.state))
+        _HeldTimer.made = []
+        self.enterContext(patch.object(receipt, "Timer", _HeldTimer))
+        self.fallback = []
         self.enterContext(patch.object(line, "reply_sender",
-                                       return_value=lambda messages: self.sent.append(messages) or True))
-        self.reply = self.enterContext(patch.object(line, "reply"))
-        from pearnly_dms.line import cards
-
-        for name, value in (("TXT_STILL_WORKING", "Still working"), ("BTN_SHOW_RESULT", "View result"),
-                            ("TXT_NOT_READY", "Not yet"), ("TXT_EXPIRED", "Expired"),
-                            ("TXT_MORE_RESULTS", "More")):
+                                       return_value=lambda messages: self.fallback.append(messages) or True))
+        self.reply = self.enterContext(patch.object(line, "reply", return_value=True))
+        self.loading = self.enterContext(patch.object(line, "start_loading", return_value=True))
+        self.enterContext(patch.object(frappe.local, "session", frappe._dict(user="Guest"), create=True))
+        self.enterContext(patch.object(frappe.local, "lang", "zh", create=True))
+        for name, value in (("TXT_STILL_WORKING", "Entering"), ("BTN_SHOW_RESULT", "View result"),
+                            ("TXT_NOT_READY", "Entering"), ("TXT_EXPIRED", "Expired"), ("TXT_MORE_RESULTS", "More")):
             self.enterContext(patch.object(cards, name, value, create=True))
 
     def batch(self, messages):
@@ -738,38 +771,83 @@ class DmsSlowReply(unittest.TestCase):
                             {"to": "U-sales", "token": "tok", "origin": "tok", "used": False,
                              "messages": list(messages)}, create=True)
 
-    def test_slow_job_replies_still_working_then_hands_the_result_on_tap(self):
-        import time as clock
-
-        self.out.note_reply_token("tok")
+    def test_a_result_inside_the_wait_is_replied_with_the_same_token_and_no_fallback(self):
+        key = self.out.begin("U-sales", "tok")
+        self.assertEqual(self.loading.call_args.args, ("U-sales", self.receipt.LOADING_SECONDS))
+        self.assertEqual(_HeldTimer.made[0].seconds, self.receipt.WAIT_SECONDS)
         with self.batch([{"type": "text", "text": "done"}]):
-            slow = self.out._SlowReply("U-sales", "tok")
-            clock.sleep(0.2)
-            self.assertEqual(self.sent[0][0]["text"], "Still working")
-            self.assertEqual(self.sent[0][0]["quickReply"]["items"][0]["action"]["data"], "action=show_result")
-            self.out.show_result("U-sales", "tok-wait")
-            self.assertEqual(self.reply.call_args.args[1][0]["text"], "Not yet")
-            slow.finish()
-            self.assertEqual(frappe.local.pearnly_line_batch["messages"], [], "nothing is pushed")
-            self.assertTrue(frappe.local.pearnly_line_batch["used"])
-        self.out.show_result("U-sales", "tok-tap")
+            self.out._deliver(key, "U-sales", "pearnly_dms.intake.flow.write_create")
+            self.assertEqual(frappe.local.pearnly_line_batch["messages"], [], "nothing left to push")
+        self.assertEqual(self.reply.call_args.args, ("tok", [{"type": "text", "text": "done"}]))
+        _HeldTimer.made[0].fire()
+        self.assertEqual(self.fallback, [], "one action, one reply")
+
+    def test_after_the_fallback_the_result_waits_for_view_result_and_is_not_pushed(self):
+        key = self.out.begin("U-sales", "tok")
+        _HeldTimer.made[0].fire()
+        self.assertEqual(self.fallback[0][0]["text"], "Entering")
+        self.assertEqual(self.fallback[0][0]["quickReply"]["items"][0]["action"]["data"],
+                         "action=show_result&k=" + key)
+        self.out.show_result("U-sales", "tok-wait", key)
+        self.assertEqual(self.reply.call_args.args[1][0]["text"], "Entering")
+        with self.batch([{"type": "text", "text": "done"}]):
+            self.out._deliver(key, "U-sales", "pearnly_dms.intake.flow.write_create")
+            self.assertEqual(frappe.local.pearnly_line_batch["messages"], [], "not pushed")
+        self.out.show_result("U-sales", "tok-tap", key)
         self.assertEqual(self.reply.call_args.args, ("tok-tap", [{"type": "text", "text": "done"}]))
-        self.out.show_result("U-sales", "tok-again")
+        self.out.show_result("U-sales", "tok-again", key)
         self.assertEqual(self.reply.call_args.args[1][0]["text"], "Expired")
 
-    def test_fast_job_and_stale_token_change_nothing(self):
-        import time as clock
+    def test_a_slow_id_card_still_pushes_its_card_after_the_fallback(self):
+        key = self.out.begin("U-sales", "tok")
+        _HeldTimer.made[0].fire()
+        with self.batch([{"type": "flex", "altText": "card"}]):
+            self.out._deliver(key, "U-sales", "pearnly_dms.intake.flow.process_image")
+            current = frappe.local.pearnly_line_batch
+            self.assertEqual(current["messages"], [{"type": "flex", "altText": "card"}])
+            self.assertTrue(current["used"], "the spent token is not tried again: the card is pushed")
 
-        self.out.note_reply_token("tok")
-        with patch.object(self.out, "SLOW_AFTER", 5), self.batch([{"type": "text", "text": "done"}]):
-            slow = self.out._SlowReply("U-sales", "tok")
-            slow.finish()
+    def test_a_deferred_recognition_keeps_waiting_instead_of_expiring(self):
+        from pearnly_core.execution.errors import Deferred
+
+        key = self.out.begin("U-sales", "tok")
+        _HeldTimer.made[0].fire()
+
+        def deferred(**kwargs):
+            raise Deferred("claude_not_configured")
+
+        with patch("pearnly_dms.line.identity.matches", return_value=True), \
+                patch("pearnly_dms.i18n.line_language", return_value=nullcontext()), \
+                patch.object(frappe, "get_attr", return_value=deferred), self.assertRaises(Deferred):
+            self.out.run_guarded("pearnly_dms.intake.flow.process_image",
+                                 {"line_user_id": "U-sales", "reply_token": "tok", "binding": {}})
+        self.out.show_result("U-sales", "tok-tap", key)
+        self.assertEqual(self.reply.call_args.args[1][0]["text"], "Entering", "still entering, not expired")
+
+    def test_a_job_with_nothing_to_say_ends_the_wait_without_a_fallback(self):
+        key = self.out.begin("U-sales", "tok")
+        with self.batch([]):
+            self.out._deliver(key, "U-sales", "pearnly_dms.intake.flow.run_dedup")
+        _HeldTimer.made[0].fire()
+        self.assertEqual(self.fallback, [])
+
+    def test_without_a_token_nothing_waits_and_the_batch_goes_as_before(self):
+        self.assertEqual(self.out.begin("U-sales", ""), "")
+        self.assertEqual(_HeldTimer.made, [])
+        with self.batch([{"type": "text", "text": "done"}]):
+            self.out._deliver("", "U-sales", "pearnly_dms.intake.flow.write_create")
             self.assertEqual(frappe.local.pearnly_line_batch["messages"], [{"type": "text", "text": "done"}])
-        clock.sleep(0.1)
-        self.assertEqual(self.sent, [])
-        self.state.values[self.out._token_key("old")] = clock.time() - 58
-        self.assertIsNone(self.out._SlowReply("U-sales", "old").timer, "a token about to expire is not used")
-        self.assertIsNone(self.out._SlowReply("U-sales", "").timer)
+
+    def test_each_action_keeps_its_own_result_and_old_buttons_still_find_the_person(self):
+        first, second = self.out.begin("U-sales", "tok-1"), self.out.begin("U-sales", "tok-2")
+        self.assertNotEqual(first, second)
+        self.out._hold(first, {"messages": [{"type": "text", "text": "one"}]})
+        self.out._hold(second, {"messages": [{"type": "text", "text": "two"}]})
+        self.out.show_result("U-sales", "t", first)
+        self.assertEqual(self.reply.call_args.args[1], [{"type": "text", "text": "one"}])
+        self.out._hold("U-sales", {"messages": [{"type": "text", "text": "old"}]})
+        self.out.show_result("U-sales", "t")
+        self.assertEqual(self.reply.call_args.args[1], [{"type": "text", "text": "old"}])
 
 
 class DmsReviewLanguage(unittest.TestCase):

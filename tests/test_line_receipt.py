@@ -187,6 +187,15 @@ class LineReceiptTest(unittest.TestCase):
         self.assertFalse(line_receipt.start("", "U1", "tok", FALLBACK))
         self.assertEqual((LINE.loading, self.timers.made), ([], []))
 
+    def test_forget_ends_a_wait_without_any_reply(self):
+        # DMS 11-23：任务做完、没有要说的，取走「待回」，到点不回兜底
+        self.assertTrue(line_receipt.start("dms:a", "U1", "tok-f", FALLBACK))
+        self.assertTrue(line_receipt.forget("dms:a"))
+        self.assertFalse(line_receipt.pending("dms:a"))
+        self.assertFalse(line_receipt.forget("dms:a"))
+        self.timers.fire()
+        self.assertEqual(LINE.sent, [])
+
     def test_loading_runs_the_full_sixty_seconds_and_the_fallback_comes_before_it_ends(self):
         # 用户 11-23：原生动画到头前还没结果才兜底；令牌实测 55 秒仍送达，「待回」要活过兜底那一刻
         self.assertEqual((line_receipt.LOADING_SECONDS, line_receipt.WAIT_SECONDS), (60, 55))

@@ -252,16 +252,23 @@ def _push_result(endpoint, dataset, request_id, conditions):
         from pearnly_dms import i18n
         from pearnly_dms.query import query_flow
 
+        from pearnly_core import line
+        from pearnly_dms.line import out
+
         kind = conditions["kind"]
-        with i18n.line_language(binding["line_user_id"]):  # 读完推结果：按发起人的手机语言
+        user = binding["line_user_id"]
+        # 读完回结果：按发起人的手机语言；在等时用那次的回复令牌回，兜底回过就存着等【查看结果】，不推送（11-23）
+        with i18n.line_language(user), line.batch(user, ""):
             if kind == "capabilities":
-                query_flow._run_dimensions(binding, binding["line_user_id"])
+                query_flow._run_dimensions(binding, user)
             else:
-                params = _session_params(binding["line_user_id"], kind, conditions)
+                params = _session_params(user, kind, conditions)
                 if params is None:
+                    out.deliver(out.query_key(user), user)  # 结束这次等（不回兜底）
                     return  # 操作员已经换了条件：这份结果属于旧条件，不推
                 runner = query_flow._run_records if kind == "records" else query_flow._run_top
-                runner(binding, binding["line_user_id"], params)
+                runner(binding, user, params)
+            out.deliver(out.query_key(user), user)
     except Exception:
         # 2026-10-02 ris：推结果这一步报错只记了一行 warning，操作员两次查询都既没结果也没失败提示。
         # 现在记进 Error Log，并告诉发起人这次没查成、请重试（推不出去也不影响已落库的读取结果）。

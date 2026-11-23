@@ -123,9 +123,9 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, postback
     pb = {k: v[0] for k, v in parse_qs(postback.get("data") or "").items()}
     action = pb.get("action")
 
-    # 慢任务的「查看结果」：免费回覆存着的结果（`line.out.show_result`）。
+    # 等结果的「查看结果」：回存着的结果或此刻还在录入（`line.out.show_result`，按这次动作的键 ``k``）。
     if action == cards.ACT_SHOW_RESULT:
-        out.show_result(line_user_id, reply_token)
+        out.show_result(line_user_id, reply_token, pb.get("k") or "")
         return
 
     # 逐问按钮（`data="qa:<action>[:<value>]"`）直接归逐问状态机；

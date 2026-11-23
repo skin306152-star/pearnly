@@ -11,6 +11,8 @@ import unittest
 from unittest.mock import Mock, patch
 
 import frappe
+
+import dms_wait_fixture
 from pearnly_dms.contracts.client_base import DmsClientError
 from pearnly_dms.query import sales_readback as rb, snapshot_sync as sync
 from pearnly_dms.snapshots import manual, store
@@ -417,6 +419,7 @@ class Refresh(unittest.TestCase):
 
 class QueryInteraction(unittest.TestCase):
     def setUp(self):
+        dms_wait_fixture.install(self.enterContext)  # LINE 等结果的在等 / 存档放内存（11-23 共用件）
         from pearnly_dms.query import query_flow
         self.flow = query_flow
         self.session = None
@@ -429,6 +432,11 @@ class QueryInteraction(unittest.TestCase):
         self.send = self.enterContext(patch.object(query_flow, "_send"))
         self.push = self.enterContext(patch.object(query_flow, "_push"))
         self.loading = self.enterContext(patch.object(query_flow, "start_loading"))
+        from pearnly_dms.line import out as dms_out
+
+        self.dms_out = dms_out
+        # 读取在等：开满三个点、记下在等，读完用这次令牌回、到点才回「正在读取」+【查看结果】（11-23 共用件）
+        self.begin = self.enterContext(patch.object(dms_out, "begin", return_value="dms:query:x"))
         self.records = self.enterContext(patch.object(rb, "fetch_sales_records", return_value={"ok": True, "rows": []}))
         self.top = self.enterContext(patch.object(rb, "fetch_top_sales", return_value={"ok": True, "rows": []}))
         self.capabilities = self.enterContext(patch.object(rb, "query_capabilities", return_value={"ok": True, "top_sales": True}))
@@ -469,6 +477,12 @@ class QueryInteraction(unittest.TestCase):
         self.send.assert_not_called()
         self.push.assert_not_called()
 
+    def assert_waits(self):
+        from pearnly_dms.query import query_cards
+
+        self.begin.assert_called_once_with("U-lab", "reply", self.dms_out.query_key("U-lab"),
+                                           query_cards.manual_status_message({"state": "running"})["text"])
+
     def test_cold_read_enqueues_by_itself_and_never_shows_zero(self):
         """冷缓存时**服务端自己**把这次读取登记出去：菜单 5 只有一个功能按钮
         （按类查记录），操作员不需要再点"读取"（用户 2026-09-25）。
@@ -479,8 +493,8 @@ class QueryInteraction(unittest.TestCase):
         from pearnly_dms.query import query_cards
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_PENDING"}
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
-        # 等待用 LINE 原生的加载动画（用户 2026-10-02），不发「正在读」文字——冷数据更不会显示成「零记录」
-        self.loading.assert_called_once_with("U-lab", 60)
+        # 等待用 LINE 原生的加载动画（用户 2026-10-02 / 11-23），不当场发「正在读」文字——冷数据更不会显示成「零记录」
+        self.assert_waits()
         self.send.assert_not_called()
         self.push.assert_not_called()
         self.assertTrue(query_cards._t("EMPTY_RECORDS_PREFIX"))
@@ -537,8 +551,8 @@ class QueryInteraction(unittest.TestCase):
         self.records.return_value = {"ok": False, "error_code": "ERR_DMS_SNAPSHOT_STALE"}
         self.status.return_value = {"state": "succeeded", "as_of": 123, "stale": True}
         self.flow._begin_records(self.identity, "U-lab", reply_token="reply")
-        # 读已经过期 → **自动重读一次**（菜单 5 没有"读取"按钮）；等待只放加载动画，不承诺"点一下就能看到结果"。
-        self.loading.assert_called_once_with("U-lab", 60)
+        # 读已经过期 → **自动重读一次**（菜单 5 没有"读取"按钮）；等待放加载动画，读完用这次令牌回结果。
+        self.assert_waits()
         self.send.assert_not_called()
         self.request.assert_called_once()
 

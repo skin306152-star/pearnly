@@ -283,12 +283,16 @@ def _begin_records(
 
 
 def _waiting(line_user_id, status, reply_token):
-    """读取已登记：还在读（或已读完、结果正在推）就放 LINE 原生的加载动画——不计消息额度、对方打开聊天时可见、我们一发消息就停；
-    读完的结果由 `snapshot_sync` 推过来。登记即失败才发文字（用户 2026-10-02：等待一律用加载动画，不发「正在读」）。"""
+    """读取已登记：还在读就放 LINE 原生的加载动画（开满 60 秒）并记下在等；读完的结果由 `snapshot_sync` 用这次的回复令牌回，
+    第 55 秒还没读完才回「正在读取」+【查看结果】（用户 11-22 / 11-23：原生状态优先、文案兜底）。登记即失败才当场发文字。"""
     if str(status.get("state") or "") == "failed":
         _send(line_user_id, query_cards.manual_status_message(status), reply_token)
     else:
-        start_loading(line_user_id, 60)
+        # 三个点开满；读完 `snapshot_sync._push_result` 用这次的令牌回结果，到点还在读才回「正在读取」+【查看结果】（11-23）
+        from pearnly_dms.line import out
+
+        out.begin(line_user_id, reply_token, out.query_key(line_user_id),
+                  query_cards.manual_status_message({"state": "running"})["text"])
 
 
 def _still_reading(binding, line_user_id, reply_token, sess) -> bool:

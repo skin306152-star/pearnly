@@ -20,7 +20,6 @@ import logging
 import copy
 import secrets
 import threading
-import time
 from typing import Any, Dict, Optional
 
 from pearnly_core import line
@@ -191,16 +190,21 @@ def enqueue(job: str, fn, *args) -> None:
         # Cache-only read: never wait behind OCR, writes or background imports.
         if fn.__module__ != "pearnly_dms.intake.flow" or fn.__name__ != "run_dedup":
             raise ValueError("Invalid cache-only dedup target")
+        begin(arguments["line_user_id"], arguments.get("reply_token") or "")  # 查重也先给三个点（11-23 补）
         return run_guarded(f"{fn.__module__}.{fn.__name__}", arguments)
-    # Show activity while the job is waiting, then the worker renews it on start.
-    start_loading(arguments["line_user_id"], 60)
+    # LINE 自带的三个点开满、记下在等；worker 开跑时续上（`run_guarded`），结果用这次的令牌回。
+    key = begin(arguments["line_user_id"], arguments.get("reply_token") or "")
     if job == "image":
         from pearnly_core.execution.work import submit
         from pearnly_core.execution.errors import QueueFull, Deferred
         try:
             return submit("dms.id_card", str(arguments["message_id"]), arguments, identity["user"])
         except (QueueFull, Deferred):
-            push_text(arguments["line_user_id"], _("The recognition queue is busy. Please send the image again shortly."))
+            busy = {"type": "text", "text": _("The recognition queue is busy. Please send the image again shortly.")}
+            if not _receipt().settle(key, [busy]):
+                push_text(arguments["line_user_id"], busy["text"])
+            if key:
+                _drop(key)
             raise
     frappe.enqueue(
         "pearnly_dms.line.out.run_guarded",
@@ -211,15 +215,14 @@ def enqueue(job: str, fn, *args) -> None:
     )
 
 
-# ── 慢任务不占推送额度 ─────────────────────────────────────────────────────
-# LINE：回覆令牌收到后 1 分钟内有效、只能用一次（官方文档）。任务跑得久，结果到时令牌已过期，只能推播。
-# 做法（用户 2026-10-05「其它的做掉」）：任务跑到 SLOW_AFTER 秒还没完，趁令牌还在先免费回一句「还在处理」
-# 带「查看结果」按钮；任务做完不推播，结果存起来，他点按钮（一次新的消息，带新令牌）再免费回给他。
-SLOW_AFTER = 40
-_TOKEN_LIFE = 55
-_TOKEN_AT = "pearnly:dms:reply-token-at:"
+# ── 等结果：LINE 原生 loading 优先，我们的话只做兜底（共用件 `pearnly_core.line_ui.receipt`）──────────────
+# 用户 11-22：「line这边全部会触发执行状态的指令都要优先用line原生的状态，我们的文案才是兜底」；11-23：到原生动画到头还没结果
+# 才兜底。webhook 交出后台任务时开满 60 秒 loading、记下在等；任务做完用同一张回复令牌回结果；第 55 秒还没结果，计时线程回
+# 兜底 +【查看结果】，结果存起来，他点按钮（新的一次消息、新令牌）再回。只回复、不推送；身份证识别慢时同 ERP / Cowork 识别把结果
+# 推到聊天（主会话 11-23）。一个动作一个键（按这次的回复令牌），同一个人前后两件不互相盖。
 _RESULTS = "pearnly:dms:held-results:"
 _RESULT_SECONDS = 24 * 3600
+_IMAGE_TARGET = "pearnly_dms.intake.flow.process_image"
 
 
 def _state():
@@ -228,113 +231,139 @@ def _state():
     return state.store()
 
 
-def _token_key(token: str) -> str:
-    return _TOKEN_AT + hashlib.sha256(token.encode()).hexdigest()[:32]
+def _receipt():
+    from pearnly_core.line_ui import receipt
+
+    return receipt
 
 
-def note_reply_token(token: str) -> None:
-    """webhook 收到事件时记下回覆令牌的收到时间（2 分钟），后台任务据此算令牌还剩多久。"""
-    if not token:
-        return
-    try:
-        _state().set_value(_token_key(token), time.time(), expires_in_sec=120)
-    except Exception:
-        # 记不下只是少了"先回一句"的机会，不能挡住这条消息的处理。
-        logger.warning("[dms out] could not note reply token time", exc_info=True)
+def action_key(reply_token: str) -> str:
+    """这次动作的键（按 webhook 收到的回复令牌，任务、重试、「查看结果」都认它）；没有令牌回空。"""
+    return "dms:" + hashlib.sha256(reply_token.encode()).hexdigest()[:32] if reply_token else ""
 
 
-def _show_result_button(text: str) -> Dict[str, Any]:
+def _hold(key: str, value) -> None:
+    client = _state()
+    client.set(client.make_key(_RESULTS + key), json.dumps(value), ex=_RESULT_SECONDS)
+
+
+def _held(key: str):
+    client = _state()
+    raw = client.get(client.make_key(_RESULTS + key))
+    return json.loads(raw) if raw else None
+
+
+def _show_result_button(text: str, key: str = "") -> Dict[str, Any]:
     from pearnly_dms.line import cards
 
     label = str(cards.BTN_SHOW_RESULT)[:20]
+    data = "action=" + cards.ACT_SHOW_RESULT + ("&k=" + key if key else "")
     return {"type": "text", "text": str(text), "quickReply": {"items": [{"type": "action", "action": {
-        "type": "postback", "label": label, "data": "action=" + cards.ACT_SHOW_RESULT, "displayText": label}}]}}
+        "type": "postback", "label": label, "data": data, "displayText": label}}]}}
 
 
-class _SlowReply:
-    """一个后台任务的「还在处理」计时：令牌快过期还没做完 → 用令牌回一句；做完时把结果改存起来。
+def begin(line_user_id: str, reply_token: str, key: str = "", text=None) -> str:
+    """交出要等结果的事时：开 loading、在等（``receipt.start``），给【查看结果】记「在等」。回这次动作的键。
+    ``key`` / ``text``：不按令牌分的动作（查询读取一人一件）与它自己的兜底那句（缺省「还在处理」）。"""
+    from pearnly_dms.line import cards
 
-    计时线程里没有站点上下文：存储客户端与完整键名在任务线程里先取好，线程里只用底层读写。"""
+    key = (key or action_key(reply_token)) if reply_token else ""
+    if not key or not line_user_id:
+        start_loading(line_user_id, 60)
+        return ""
+    try:
+        _hold(key, {"pending": True})
+    except Exception:
+        logger.warning("[dms out] could not note the wait", exc_info=True)
+    _receipt().start(key, line_user_id, reply_token,
+                     [_show_result_button(cards.TXT_STILL_WORKING if text is None else text, key)])
+    return key
 
-    def __init__(self, line_user_id: str, token: str):
-        self.lock = threading.Lock()
-        self.sent = False
-        self.closed = False
-        self.timer = None
-        self.user = line_user_id
-        if not line_user_id or not token:
-            return
-        try:
-            client = _state()
-            noted = client.get_value(_token_key(token))
-            key = client.make_key(_RESULTS + line_user_id)
-        except Exception:
-            return
-        try:
-            age = time.time() - float(noted)
-        except (TypeError, ValueError):
-            return  # 没记到（或记的不是时间）：不知道令牌还剩多久，就不抢先回
-        if age >= _TOKEN_LIFE:
-            return
+
+def query_key(line_user_id: str) -> str:
+    """查询读取的键：一个人同时只有一份在读（新的一次登记替换旧的，`snapshot_sync._push_result`）。"""
+    return "dms:query:" + hashlib.sha256(line_user_id.encode()).hexdigest()[:32] if line_user_id else ""
+
+
+def deliver(key: str, line_user_id: str) -> None:
+    """（`line.batch` 块里、发出之前）别的路径做完时同 :func:`run_guarded`：在等就用那次的令牌回，兜底回过就存着等【查看结果】。"""
+    _deliver(key, line_user_id, "")
+
+
+def _deliver(key: str, line_user_id: str, target: str) -> None:
+    """任务做完（含出错）、``line.batch`` 发出之前：这一批发给本人的话用这次的令牌回（在等时）；兜底已回过就存起来等他点
+    【查看结果】，不推送；身份证识别照旧推到聊天。这次没开始等（没有令牌、旧任务）就照原来一批发出。"""
+    import frappe
+
+    current = getattr(frappe.local, "pearnly_line_batch", None)
+    if not key or not current or current.get("to") != line_user_id:
+        return
+    try:
+        held = _held(key)
+    except Exception:
+        return
+    if held is None:
+        return  # 这次没开始等：照原来发
+    receipt = _receipt()
+    messages = list(current["messages"])
+    if not messages:
+        receipt.forget(key)
+        if held.get("pending"):
+            _hold(key, {"messages": []})
+        return
+    first, rest = messages, []
+    if len(messages) > 5:
         from pearnly_dms.line import cards
 
-        message = _show_result_button(cards.TXT_STILL_WORKING)
-        send = line.reply_sender(token)
-        self.client, self.key = client, key
-
-        def fire():
-            with self.lock:
-                if self.closed:
-                    return
-                self.sent = send([message])
-                if self.sent:
-                    client.set(key, json.dumps({"pending": True}), ex=_RESULT_SECONDS)
-
-        self.timer = threading.Timer(max(0.0, SLOW_AFTER - age), fire)
-        self.timer.daemon = True
-        self.timer.start()
-
-    def finish(self) -> None:
-        """任务结束（含出错）时调用，在 `line.batch` 发出之前。"""
-        if self.timer is None:
-            return
-        self.timer.cancel()
-        with self.lock:
-            self.closed = True
-            if not self.sent:
-                return
-        import frappe
-
-        # 令牌已用来回「还在处理」：这一批发给本人的消息不推播，存起来等他点「查看结果」。
-        current = getattr(frappe.local, "pearnly_line_batch", None)
-        held = []
-        if current and current.get("to") == self.user:
-            held, current["messages"] = list(current["messages"]), []
-            current["used"] = True
-        self.client.set(self.key, json.dumps({"messages": held}), ex=_RESULT_SECONDS)
+        first, rest = messages[:4] + [_show_result_button(cards.TXT_MORE_RESULTS, key)], messages[4:]
+    waiting = receipt.pending(key)  # 还没回过兜底：这次回复被拒时他什么都没收到，照原来推过去
+    frappe.local.pearnly_line_batch = None  # 回复本身不能再被这一批收回去（同一张令牌）
+    try:
+        replied = receipt.settle(key, first)
+    finally:
+        frappe.local.pearnly_line_batch = current
+    if replied:
+        current["messages"], current["used"] = [], True
+        _hold(key, {"messages": rest}) if rest else _drop(key)
+        return
+    current["used"] = True  # 令牌用过了（回过兜底，或这次被拒）
+    if waiting:
+        _drop(key)
+        return  # 回复被拒（令牌失效等）：一批推过去，不让他什么都收不到
+    if target == _IMAGE_TARGET:
+        _drop(key)
+        return  # 识别慢：结果推到聊天（同 ERP / Cowork 识别，主会话 11-23）
+    current["messages"] = []
+    _hold(key, {"messages": messages})
 
 
-def show_result(line_user_id: str, reply_token: str) -> None:
-    """「查看结果」按钮：有结果就免费回给他；还在跑就再回一句「还没好」；什么都没有就说过期。"""
+def _drop(key: str) -> None:
+    client = _state()
+    client.delete(client.make_key(_RESULTS + key))
+
+
+def show_result(line_user_id: str, reply_token: str, key: str = "") -> None:
+    """【查看结果】：有结果就回给他；还在等回「还在录入」+【查看结果】；什么都没有就说过期。``key``：这次动作的键（旧按钮没有，
+    按人找）。"""
     from pearnly_dms.line import cards
 
     client = _state()
-    key = client.make_key(_RESULTS + line_user_id)
-    raw = client.get(key)
+    full = client.make_key(_RESULTS + (key or line_user_id))
+    raw = client.get(full)
     held = json.loads(raw) if raw else None
     if not held:
         line.reply(reply_token, [{"type": "text", "text": str(cards.TXT_EXPIRED)}])
         return
     if held.get("pending"):
-        line.reply(reply_token, [_show_result_button(cards.TXT_NOT_READY)])
+        line.reply(reply_token, [_show_result_button(cards.TXT_NOT_READY, key)])
         return
     messages = list(held.get("messages") or [])
     # 一次回覆最多 5 条：多出来的留着，最后一条换成带按钮的「还有结果」。
     if len(messages) > 5:
-        client.set(key, json.dumps({"messages": messages[4:]}), ex=_RESULT_SECONDS)
-        messages = messages[:4] + [_show_result_button(cards.TXT_MORE_RESULTS)]
+        client.set(full, json.dumps({"messages": messages[4:]}), ex=_RESULT_SECONDS)
+        messages = messages[:4] + [_show_result_button(cards.TXT_MORE_RESULTS, key)]
     else:
-        client.delete(key)
+        client.delete(full)
     line.reply(reply_token, messages or [{"type": "text", "text": str(cards.TXT_EXPIRED)}])
 
 
@@ -352,16 +381,27 @@ def run_guarded(target, arguments):
     user = arguments.get("line_user_id") or ""
     # 排队等 DMS 账号时，每隔一会儿续一次"正在输入"（免费），别让对方以为没反应。
     frappe.local.dms_lock_wait_hook = (lambda: start_loading(user, 60)) if user else None
+    from pearnly_core.execution.errors import Deferred
     from pearnly_dms import i18n
 
     try:
         # 后台任务同样按这个人手机上的语言说话（问过的语言有一小时缓存，不会每次都问 LINE）。
+        key = action_key(arguments.get("reply_token") or "")
         with i18n.line_language(user), line.batch(user, arguments.get("reply_token") or ""):
-            slow = _SlowReply(user, arguments.get("reply_token") or "")
             try:
-                return frappe.get_attr(target)(**arguments)
-            finally:
-                slow.finish()
+                result = frappe.get_attr(target)(**arguments)
+            except Deferred:
+                # 识别延后重试（没配识别、服务暂不可用等）：还在等，什么都不发、不改存着的「在等」（11-23：原来这里把结果
+                # 存成空，他点【查看结果】被回「此项已过期」）
+                current = getattr(frappe.local, "pearnly_line_batch", None)
+                if current and not current["messages"]:
+                    current["used"] = True
+                raise
+            except Exception:
+                _deliver(key, user, target)
+                raise
+            _deliver(key, user, target)
+            return result
     finally:
         frappe.local.dms_lock_wait_hook = None
 

@@ -18,6 +18,8 @@ from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlencode
 
 import frappe
+
+import dms_wait_fixture
 import requests
 
 
@@ -139,6 +141,7 @@ class IntakeQueue(unittest.TestCase):
         cache.make_key.side_effect = lambda key: key
         cache.hincrby.side_effect = lambda key, field, value: self.counts.update({field.partition("|")[2]: value})
         replace(frappe, "cache", return_value=cache)
+        dms_wait_fixture.install(self.stack.enter_context)  # LINE 等结果的在等 / 存档放内存（11-23 共用件）
         replace(frappe, "enqueue", side_effect=lambda method, **kwargs: self.jobs.append((method, copy.deepcopy(kwargs))))
         replace(requests.sessions.Session, "request", side_effect=AssertionError("Unexpected external HTTP"))
         replace(requests, "post", side_effect=self.http_post)

@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, Mock, patch
 from urllib.parse import parse_qs
 
 import frappe
+
+import dms_wait_fixture
 import requests
 
 
@@ -81,6 +83,7 @@ class SnapshotConsumers(unittest.TestCase):
         # 锁与节流等不能丢的状态在不淘汰的状态存储（pearnly_core.execution.state，DMS 各模块用到时才导入）；与 frappe.cache 同一个替身
         from pearnly_core.execution import state as pearnly_state
         self.replace(pearnly_state, "store", return_value=self.cache)
+        dms_wait_fixture.install(self.stack.enter_context)  # LINE 等结果的在等 / 存档放内存（11-23 共用件）
         self.replace(frappe, "enqueue", side_effect=lambda method, **kw: self.jobs.append((method, copy.deepcopy(kw))))
         self.replace(frappe, "get_hooks", side_effect=lambda name: self.hooks.pearnly_dms_snapshot_collectors
                      if name == "pearnly_dms_snapshot_collectors" else [])
@@ -585,7 +588,8 @@ class SnapshotConsumers(unittest.TestCase):
         self.assertEqual(self.sessions.get_session(UID)["state"], "reviewing")
         # Real run_dedup + out/LINE wrapper: only the result reply is sent.
         # Do not patch start_loading: the outer HTTP list detects its regression.
-        self.assertEqual([url for url, _ in self.http], ["https://api.line.me/v2/bot/message/reply"])
+        self.assertEqual([url for url, _ in self.http], ["https://api.line.me/v2/bot/chat/loading/start",
+                                                         "https://api.line.me/v2/bot/message/reply"])  # 查重也先给三个点（11-23）
         lookup.reset_mock()
         self.replace(identity, "matches", return_value=False)
         result = self.out.enqueue("dedup", self.flow.run_dedup, self.binding, UID, queue_fixture.CARD,

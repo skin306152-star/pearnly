@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """LINE 上要等结果的动作：先显示 LINE 自带的三个点，结果到了用这次的回复令牌回结果；等不到回兜底（用户 11-22）。
 
-多产品共用（ERP、Cowork；DMS 已有自己的同类做法 `pearnly_dms.line.out._SlowReply`）。用户 11-22：「LINE 这边全部会触发执行状态
+多产品共用（ERP、Cowork、DMS；DMS 11-23 起由 `pearnly_dms.line.out` 接入，原来的 `_SlowReply` 已删）。用户 11-22：「LINE 这边全部会触发执行状态
 的指令都要优先用 LINE 原生的状态，我们的文案才是兜底」。评估：docs/work/2026-11-22-line-save-result-评估.md。
 
 一个动作一个键（产品自己起，如 ``erp:doc:<单据>``）：
@@ -153,6 +153,11 @@ def settle(key, messages) -> bool:
     return bool(_line().reply(found["token"], list(messages)[:5]))
 
 
+def forget(key) -> bool:
+    """这个动作做完了、没有要回的话（产品自己什么都不说）：取走「待回」，计时线程到点取不到就不回兜底。取到回 True。"""
+    return bool(key) and _take(key) is not None
+
+
 def wake(key) -> bool:
     """结果落库处叫（同一事务里即可）：这个动作有人在等、登记了 ``resume`` 就排一个提交后的短任务 :func:`resume`。"""
     found = _peek(key) if key else None
@@ -209,5 +214,5 @@ def after_commit(function) -> None:
         function()
 
 
-__all__ = ["LIFE_SECONDS", "Timer", "WAIT_SECONDS", "LOADING_SECONDS", "after_commit", "pending", "resume", "settle",
+__all__ = ["LIFE_SECONDS", "Timer", "WAIT_SECONDS", "LOADING_SECONDS", "after_commit", "forget", "pending", "resume", "settle",
            "start", "wake", "wake_topic"]
