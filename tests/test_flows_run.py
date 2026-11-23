@@ -504,6 +504,7 @@ class CompanyFields(unittest.TestCase):
         lab, ran = self.lab([{"express_enabled": 1}, {}])
         lab.dataset = lambda which, product="erp": {"site": "erp-new"}
         lab.client_errors = lambda site: set()
+        lab.server_errors = lambda site, since=None: "2026-11-23 10:00:00" if since is None else []
         order = []
 
         class Module:
