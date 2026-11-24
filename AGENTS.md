@@ -76,6 +76,7 @@
 - 审查共享调用方、入口、队列与状态回读，不能只修一个表面调用点。阻塞项写明复现条件、影响与剩余验证。
 - 新增、删除或改动用户能碰到的入口，同一提交更新 [产品地图](docs/development/verification.md#产品地图)（`scripts/check-product-map.py` 拦未登记、已过期、没有测试），影响清单里的流程照跑。
 - 改到登记的共用件，按 [共用件连带回归闸门](docs/development/verification.md#共用件连带回归闸门) 执行：`scripts/check-impact.py` 出影响清单，每个入口实测并记「通过 / 不通过 / 没测到（原因）」后才能合入；新调用方同一提交补进登记表。
+- 改了会上线的产品代码（`apps/`、`companion/`、`frontend/`、`scripts/production/` 等）的分支，申请合入前跑一遍 `code-review`（medium 档）：本分支引入的真问题修掉并重跑受影响检查，原有问题记进已知问题。纯文档、纯流程测试脚本不跑；它不替代闸门、候选检查和 Flows（[流程](docs/development/workflow.md#5-审查与合并准备)）。
 - 使用本任务已选定的模型和工具。默认由一个 Agent 完成；用户要求分工时，按独立文件归属委派，返回具体证据。角色规范见 [开发 Agent](docs/development/agents.md)，不强制多代理或外部 worker。
 
 ### 真实环境验证（Windows 测试环境）
