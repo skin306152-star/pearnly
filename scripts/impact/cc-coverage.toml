@@ -180,7 +180,7 @@ erp_operator = ["out:11-12 先不做"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 stock_out（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续"
+basis = "ERP 声明 stock_out（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 在回归实验栈四单走到确定（train-1124 6c8cb08f5 通过，服务端走卡接口），页面点卡整条证据归后续"
 flows = ["erp.cc.guide.stock-entries"]
 
 [[row]]
@@ -194,7 +194,7 @@ erp_operator = ["out:11-12 先不做"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 stock_transfer（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续"
+basis = "ERP 声明 stock_transfer（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 在回归实验栈四单走到确定（train-1124 6c8cb08f5 通过，服务端走卡接口），页面点卡整条证据归后续"
 
 [[row]]
 id = "stock_adjust"
@@ -207,7 +207,7 @@ erp_operator = ["out:11-12 先不做"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 stock_adjust（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续"
+basis = "ERP 声明 stock_adjust（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 在回归实验栈四单走到确定（train-1124 6c8cb08f5 通过，服务端走卡接口），页面点卡整条证据归后续"
 
 [[row]]
 id = "stock_in"
@@ -220,7 +220,7 @@ erp_operator = ["out:11-12 先不做"]
 
 [[row.link]]
 cell = "erp_direct.express_local"
-basis = "ERP 声明 stock_in（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续"
+basis = "ERP 声明 stock_in（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 在回归实验栈四单走到确定（train-1124 6c8cb08f5 通过，服务端走卡接口），页面点卡整条证据归后续"
 
 [[row]]
 id = "stocktake"
