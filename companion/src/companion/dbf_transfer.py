@@ -285,13 +285,14 @@ def _write(account_dir, docdate_be, docdat, remark, items, found, source, target
                     "UNITPR": 0.0, "TRNVAL": 0.0, "XTRNQTY": float(units.base_qty),
                     "MREMBAL": float(_dec(match["mrembal"])), "MREMVAL": float(_dec(match["mremval"])),
                     "STKDES": remark or _fit(str(item.get("name") or ""), 50), "REIMBURSE": "\x00",
-                    "MLOTNUM": heads.get(stkcod, ""),
+                    "MLOTNUM": stock_chain.row_head(heads.get(stkcod, ""), match["mrembal"]),
                 }, units.unit, here)
                 if out_before and sign < 0:  # 排在当天最前：记开日状态（原样）
-                    row.update({"MREMBAL": float(out_before[1]), "MREMVAL": float(out_before[2]), "MLOTNUM": out_before[0]})
+                    row.update({"MREMBAL": float(out_before[1]), "MREMVAL": float(out_before[2]),
+                                "MLOTNUM": stock_chain.row_head(out_before[0], out_before[1])})
                 elif by_wh and sign < 0:  # 调出行：调出仓的链写前结存与指针
                     row.update({"MREMBAL": float(chains[out_key].bal), "MREMVAL": float(chains[out_key].val),
-                                "MLOTNUM": chains[out_key].head})
+                                "MLOTNUM": stock_chain.row_head(chains[out_key].head, chains[out_key].bal)})
                 stock_units.stamp(row, units)
                 if loc_cost:
                     priced = {"UNITPR": float(unit_cost.quantize(Decimal("0.01"))), "TRNVAL": float(value),

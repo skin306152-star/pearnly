@@ -466,9 +466,8 @@ def _write(account_dir, doctype, kind, docdate_be, docdat, account, remark, item
     ``chain_out``：分仓计价账套写后各 (存货, 仓) 的批次链与本单货值（``stock_chain``），由调用方在 STLOC 结存记好后写进去。"""
     count = doctype == COUNT
     posopr = S.STCRD_POSOPR_ISSUE if kind == ISSUE else S.STCRD_POSOPR_COUNT if count else S.STCRD_POSOPR_ADJUST
+    # JU / PI 同样把仓库结存的最后变动日 LMOVDAT 推到单据日（单据日更晚时；11-24 两本账套原生 JU 实录。11-18 记的「原生不改」是同日录单看不出来）
     move_kind = stock_location.KIND_ISSUE if kind == ISSUE else stock_location.KIND_ADJUST
-    if kind != ISSUE and doctype != COUNT:
-        move_kind = stock_location.KIND_ADJUST_NATIVE  # JU / PI 原生不改仓库结存的最后变动日
     if not docnum:
         head = _open(account_dir, "STTRN", dbf.READ_WRITE)
         try:

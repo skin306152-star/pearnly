@@ -460,12 +460,12 @@ def test_an_issue_on_an_empty_lot_chain_goes_out_at_zero_like_native(book):
     assert (master["MREMBAL"], master["MLOTNUM"].rstrip()) == (-1.0, "-02603010RR0000001     1")
 
 
-def test_an_adjustment_does_not_stamp_the_warehouse_movement_date(book):
-    """JU / PI 原生不改仓库结存的最后变动日（11-18 实录），领用 OU 改。"""
-    before = _stloc(book, "ICE01", "01")["LMOVDAT"]
+def test_an_adjustment_stamps_the_warehouse_movement_date_when_it_is_later(book):
+    """JU / PI 把仓库结存的最后变动日推到单据日（11-24 70EXP\\test、69EXP\\NLTTEST 原生 JU 实录：10-25 → 11-24、2022-08-15 → 11-24；
+    11-18 记的「原生不改」是同日录单看不出来），日期更早的单不往回改，同领用 OU。"""
     assert _write(book, _entry("JU", [_line("ICE01", 1, unit_cost="10")])).ok
-    assert _stloc(book, "ICE01", "01")["LMOVDAT"] == before
-    assert _write(book, _entry("OU", [_line("ICE01", 1)])).ok
+    assert _stloc(book, "ICE01", "01")["LMOVDAT"] == dt.date(2026, 3, 20)
+    assert _write(book, _entry("JU", [_line("ICE01", 1, unit_cost="10")], docdate_be="690301")).ok
     assert _stloc(book, "ICE01", "01")["LMOVDAT"] == dt.date(2026, 3, 20)
 
 

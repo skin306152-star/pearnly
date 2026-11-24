@@ -27,6 +27,9 @@ from . import account_rules
 from . import dbf_schema as S
 from . import stock_location
 
+# 链上还没有批时原生明细与链记的批号（11-24 NLTTEST 原生 JU 实录：空链的仓写入行记 B/F、作废后仓链回到 B/F）
+EMPTY_HEAD = "B/F"
+
 # 先进先出的批：进货、调增 / 完工收货、盘盈、调入、退货回仓
 RECEIPT_POSOPR = ("0", "1", ":", "3", "2")
 
@@ -59,6 +62,11 @@ def unmark(raw: str) -> Tuple[str, bool]:
     if raw.startswith("-"):
         return ("B" if raw[1:3] == "/F" else "2") + raw[1:], True
     return raw, False
+
+
+def row_head(head: str, bal) -> str:
+    """明细上记的写前批号：链是空的（没有批号、写前结存 0）时记 ``B/F``（原生）；有结存却没批号的老数据照旧记空。"""
+    return head or (EMPTY_HEAD if _dec(bal) == 0 else "")
 
 
 def mark(head: str) -> str:
@@ -288,4 +296,4 @@ def verify(account_dir, expected: Dict[Key, dict]) -> List[str]:
     return problems
 
 
-__all__ = ["Chain", "DayFirst", "RECEIPT_POSOPR", "ahead", "applies", "day_firsts", "fifo_lots", "opening", "order_of", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]
+__all__ = ["Chain", "DayFirst", "EMPTY_HEAD", "RECEIPT_POSOPR", "row_head", "ahead", "applies", "day_firsts", "fifo_lots", "opening", "order_of", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]

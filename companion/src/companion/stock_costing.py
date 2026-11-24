@@ -362,7 +362,9 @@ class Book:
             # 批次链结存记写前（增加行写前为负记 0，11-18 实录 JU0000001；减少行照记，11-22 实录 IV0000051），指针指当前那一批
             "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal),
             "MREMVAL": float(val),
-            "MLOTNUM": self.early_state[place][0] if early else self.chains[place].head if here else self.heads.get(stkcod, ""),
+            # 链上还没有批时原生记 B/F（11-24 NLTTEST 原生 JU 实录）
+            "MLOTNUM": stock_chain.row_head(self.early_state[place][0] if early else self.chains[place].head if here
+                                            else self.heads.get(stkcod, ""), bal),
             "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP)) if unit_cost else 0.0,
         }
         if increase:
