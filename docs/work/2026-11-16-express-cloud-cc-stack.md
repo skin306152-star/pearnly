@@ -48,3 +48,8 @@
   `test_cloud_lazy_import` 子进程守住启动 / 托盘 / 空闲 / 对话页不导入 comtypes 与云端窗口模块）；CC 启动不自动连云端。可见的变化只有一处：
   1.12.25 起「设置 → 连接」多一行「云端 Express（未连接）」，不点「连接」就什么都不做。服务端两个电脑表各加三个隐藏只读字段
   （`link_kind` / `link_via` / `link_host`，原生迁移），本地电脑永远为空。安装包多带 comtypes（只在连云端时导入）。
+- 11-24 测试机1 ATL 宿主只读预检（从 af5e31c9a 源码 + 测试机自带 Python 3.11 / PySide6，comtypes 1.4.17 放临时目录不安装；APPDATA 指临时目录，没碰 CC 与 CC 档案；skin3 一次性计划任务）：
+  建出 `MsRdpClient10NotSafeForScripting`（`AtlAxWin` 子窗口 + `AtlAxGetControl`），`AdvancedSettings9` 可用；`apply_settings` 全部写入（文档用地址 198.51.100.7、假密码，**没有调用连接**，`Connected` 读回 0）；
+  `nonscriptable.apply` 开 CredSSP 并只映射临时 `subst` 的 Y:，`read_back` 读回 CredSSP 开、盘 C / S 未映射、Y 映射。`RedirectDrives` 读回为 True（单个盘开了映射，控件总开关随之显示开；逐盘读回只有隧道盘）。
+  关闭后控件销毁；临时目录、计划任务、subst 收尾回读 0。11-16 的 QAxWidget 阻塞已解。真连云端仍待用户到场。
+- 发版口径（11-24 主会话）：合入 main 不等于发 1.12.25。先从 main 打测试版装测试机1，用户到场把云端首测走通，再发正式版。
