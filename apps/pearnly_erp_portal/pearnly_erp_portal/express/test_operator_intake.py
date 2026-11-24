@@ -354,6 +354,8 @@ class Submit(Base):
         if isinstance(fields, list) and "line_choices" in fields:
             return SimpleNamespace(line_choices=json.dumps(self.choices), direction="sales",
                                    result=json.dumps({"buyer_name": "Big C", "buyer_tax_id": "0107536000633"}))
+        if fields == "line_choices":  # settle_payment 写回前加锁重读的那一列
+            return json.dumps(self.choices)
         return self.get_value(doctype, name, fields, as_dict)
 
     def test_unanswered_lines_hold_the_record(self):
