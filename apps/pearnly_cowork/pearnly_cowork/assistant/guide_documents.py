@@ -77,7 +77,12 @@ def intake(ctx, file_ids) -> dict:
                     # 代录开始时交得进去（P4 11-24：原来不记，别月票确定时整批「请求无效」）
                     from pearnly_core.express_operator import uploads as operator_uploads
 
-                    operator_uploads.record(task, file_id, filename, len(content), found)  # loop-query: 最多 FILES_MAX 份
+                    try:
+                        operator_uploads.record(task, file_id, filename, len(content), found)  # loop-query: 最多 FILES_MAX 份
+                    except (frappe.ValidationError, frappe.PermissionError):
+                        # 识别已交（已扣费）：记不进任务（任务被删等）不让这份交文件失败，只记日志；这张确定时照旧按清单判
+                        frappe.clear_messages()
+                        frappe.log_error(title="Guide upload not recorded on the operator task")
             else:
                 refused[file_id] = str(found.get("reason") or "not_accepted")
     return {"batches": batches, "refused": refused}
