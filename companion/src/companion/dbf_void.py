@@ -23,6 +23,7 @@
 
 from __future__ import annotations
 
+import datetime as _dt
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
@@ -352,6 +353,8 @@ def _chains_now(account_dir: Path, docnum: str, transfer: bool) -> Dict:
     if codes:
         master = _open(account_dir, "STMAS", dbf.READ_ONLY)
         try:
+            if not {"MLOTNUM", "MREMBAL", "MREMVAL"} <= {name.upper() for name in master.field_names}:
+                codes = set()  # 老表没有批次栏：不回链（照旧只回结存）
             for rec in S.live_rows(master):
                 code = _text(rec, "STKCOD")
                 if code in codes and (code, None) not in out:
@@ -362,44 +365,48 @@ def _chains_now(account_dir: Path, docnum: str, transfer: bool) -> Dict:
     return out
 
 
-def _later_rows(account_dir: Path, key, first: dict, docnum: str) -> bool:
-    """这条链上还有没有排在本单第一行之后的明细（别的单；本单的行此时已打删除标记）。排序照原生当天重算（``stock_chain.order_of``）。"""
+def _chain_rows(account_dir: Path, keys) -> Dict:
+    """作废后这几条链上剩下的明细（本单的行此时已打删除标记），一次扫描：各链 → [(排序键, 动作, 单号, 行号, 日期, 库存数量)]。
+    排序照原生当天重算（日期 → ``stock_chain.order_of``）。"""
     main = account_rules.main_location(account_dir)
-    mine = (first["DOCDAT"], stock_chain.order_of(first["POSOPR"], docnum, first["SEQNUM"]))
+    codes = {key[0] for key in keys}
+    out: Dict = {key: [] for key in keys}
     table = _open(account_dir, "STCRD", dbf.READ_ONLY)
     try:
         for rec in S.live_rows(table):
-            if _text(rec, "STKCOD") != key[0] or (key[1] is not None and (_text(rec, "LOCCOD") or main) != key[1]):
+            code = _text(rec, "STKCOD")
+            if code not in codes or not rec["DOCDAT"]:
                 continue
-            if rec["DOCDAT"] and (rec["DOCDAT"], stock_chain.order_of(rec["POSOPR"], rec["DOCNUM"], rec["SEQNUM"])) > mine:
-                return True
+            loc = _text(rec, "LOCCOD") or main
+            entry = ((rec["DOCDAT"], stock_chain.order_of(rec["POSOPR"], rec["DOCNUM"], rec["SEQNUM"])), _text(rec, "POSOPR"),
+                     _text(rec, "DOCNUM"), str(rec["SEQNUM"] or "").strip(), rec["DOCDAT"], _dec(rec["XTRNQTY"]))
+            for key in ((code, loc), (code, None)):
+                if key in out:
+                    out[key].append(entry)
     finally:
         table.close()
-    return False
+    return out
 
 
-def _previous_lot(account_dir: Path, key, first: dict, docnum: str) -> str:
-    """这条链上除本单外排序最后的一批（进货类的正数行；批号 = 日期 + 动作 + 单号 + 行号，``stock_costing.lot_number``）。
+def _later_rows(remaining: list, first: dict, docnum: str) -> bool:
+    """这条链上还有没有排在本单第一行之后的明细（别的单）。"""
+    mine = (first["DOCDAT"], stock_chain.order_of(first["POSOPR"], docnum, first["SEQNUM"]))
+    return any(entry[0] > mine for entry in remaining)
+
+
+def _previous_lot(remaining: list) -> str:
+    """这条链上剩下的批里排序最后的一批（进货类的正数行；批号 = 日期 + 动作 + 单号 + 行号，``stock_costing.lot_number``）。
     调入行记的是自己这一新批、不记写前批号（原生 RL2300610），作废时批号要回到写前那一批：CC 写入时不论单据日新批都成为链头，
     所以写前的链头就是剩下的批里排最后的那一批（本单倒填日期时它比本单晚）。一批都没有回空。"""
-    main = account_rules.main_location(account_dir)
-    best = None
-    table = _open(account_dir, "STCRD", dbf.READ_ONLY)
-    try:
-        for rec in S.live_rows(table):
-            if _text(rec, "STKCOD") != key[0] or (key[1] is not None and (_text(rec, "LOCCOD") or main) != key[1]):
-                continue
-            if _text(rec, "POSOPR") not in stock_chain.RECEIPT_POSOPR or _dec(rec["XTRNQTY"]) <= 0 or not rec["DOCDAT"]:
-                continue
-            order = (rec["DOCDAT"], stock_chain.order_of(rec["POSOPR"], rec["DOCNUM"], rec["SEQNUM"]))
-            if best is None or order > best[0]:
-                best = (order, rec)
-    finally:
-        table.close()
-    if best is None:
+    lots = [entry for entry in remaining if entry[1] in stock_chain.RECEIPT_POSOPR and entry[5] > 0]
+    if not lots:
         return ""
-    rec = best[1]
-    return f"{rec['DOCDAT']:%Y%m%d}{_text(rec, 'POSOPR')}{_text(rec, 'DOCNUM'):<12}{str(rec['SEQNUM'] or '')[:3]:>3}"
+    _order, posopr, docnum, seq, day, _qty = max(lots, key=lambda entry: entry[0])
+    try:
+        seq_text = S.seqnum_text(int(seq))
+    except ValueError:
+        seq_text = f"{seq:>3}"
+    return f"{day:%Y%m%d}{posopr}{docnum:<12}{seq_text}"
 
 
 def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[dict], before: Dict) -> Dict:
@@ -411,12 +418,13 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
     after: Dict = {}
     values: Dict = {}
     master_from: Dict[str, Any] = {}
+    remaining = _chain_rows(account_dir, list(before))
     for key, now in before.items():
         rows = [row for row in chain_rows if row["STKCOD"] == key[0]
                 and (key[1] is None or (row["LOCCOD"] or main) == key[1])]
         if not rows:
             continue
-        rows.sort(key=lambda row: (row["DOCDAT"] or 0, stock_chain.order_of(row["POSOPR"], docnum, row["SEQNUM"])))
+        rows.sort(key=lambda row: (row["DOCDAT"] or _dt.date.min, stock_chain.order_of(row["POSOPR"], docnum, row["SEQNUM"])))
         first = rows[0]
         head, marked = stock_chain.unmark(first["MLOTNUM"])
         start = stock_chain.Chain("" if head == stock_chain.EMPTY_HEAD else head, first["MREMBAL"], first["MREMVAL"], marked)
@@ -429,13 +437,13 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
             else:
                 replay = replace(replay, bal=replay.bal + row["qty"], val=replay.val + row["value"])
         fits = abs(replay.bal - now.bal) <= Decimal("0.0001") and abs(replay.val - now.val) <= Decimal("0.01")
-        if fits and not _later_rows(account_dir, key, first, docnum):
+        if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
         else:
             back = now.head
             if _own_lot(now.head, docnum):  # 批号指着本单的批：回行上记的写前批号；行上记的也是本单的批（调入行）就找之前最近的一批
                 back = head if head and not _own_lot(head, docnum) else \
-                    (_previous_lot(account_dir, key, first, docnum) or stock_chain.EMPTY_HEAD)
+                    (_previous_lot(remaining[key]) or stock_chain.EMPTY_HEAD)
             new = replace(now, bal=now.bal - qty, val=now.val - value, head=back, marked=False if back != now.head else now.marked)
         if key[1] is not None:
             after[key] = new

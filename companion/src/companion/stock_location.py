@@ -49,7 +49,7 @@ KIND_PURCHASE = "purchase"
 KIND_SALE = "sale"
 KIND_ISSUE = "issue"    # 库存单领用（OU 类）：减，只记 LMOVDAT
 KIND_ADJUST = "adjust"  # 库存单调整（JU 类）：行上数量自带正负，只记 LMOVDAT
-# 不记日期栏的调整（现在没有写路用它；11-18 以为 JU / PI 原生不改 LMOVDAT，11-24 实录推翻，JU / PI 改用 KIND_ADJUST）
+# 不记日期栏的调整：生产完工收货 PI（11-18 以为 JU / PI 原生都不改 LMOVDAT；11-24 JU 实录推翻、JU 改用 KIND_ADJUST，PI 待实录）
 KIND_ADJUST_NATIVE = "adjust_native"
 KIND_VOID = "void"      # 作废原单（dbf_void）：反向回滚，不动日期栏
 KIND_TRANSFER = "transfer"  # 仓间调拨 RL（dbf_transfer）：数量自带正负，原生不动日期栏、不动金额栏，新建的行不带分类（实录 RL0000002）
