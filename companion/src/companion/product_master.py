@@ -98,6 +98,39 @@ def _first_by_vatcod(rows, exempt: bool) -> Optional[str]:
     return next((row["stkcod"] for row in rows if row["stkcod"] and (row.get("vatcod") == EXEMPT_VATCOD) == exempt), None)
 
 
+_NATIVE_ACCOUNT_ITEM_TYPES = ("4", "5")  # 会计自己建的科目码品（CC 建的一律 3 型）
+
+
+def _pick_account_template(account_dir: Path, account: str = "") -> Optional[Dict]:
+    """同账套里会计原生建的「编码 = 科目码」品（4 / 5 型、编码在科目表里）的形状字段（只读）；没有（或读不了）回 None。"""
+    try:
+        return _first_account_template(account_dir, account)
+    except Exception:  # noqa: BLE001 — 读不了科目表 / 主档：照旧用随便一件非库存品
+        return None
+
+
+def _first_account_template(account_dir: Path, account: str = "") -> Optional[Dict]:
+    accounts = set()
+    g = _open(account_dir, "GLACC", dbf.READ_ONLY)
+    try:
+        for r in S.live_rows(g):
+            accounts.add(_gv(r, "ACCNUM") or "")
+    finally:
+        g.close()
+    found = []
+    t = _open(account_dir, "STMAS", dbf.READ_ONLY)
+    try:
+        for r in S.live_rows(t):
+            code = _gv(r, "STKCOD") or ""
+            if str(_gv(r, "STKTYP")) in _NATIVE_ACCOUNT_ITEM_TYPES and code in accounts:
+                found.append((code, {f: _gv(r, f) for f in _CLONE_FIELDS}))
+    finally:
+        t.close()
+    # 同一类科目（首位相同：5 费用、4 收入、1 资产…）的样本优先，费用品不照抄资产科目品的科目组
+    same = [tpl for code, tpl in found if code[:1] == (account or "")[:1]]
+    return (same or [tpl for _code, tpl in found] or [None])[0]
+
+
 def _pick_template(account_dir: Path) -> Optional[Dict]:
     """取同账套一条真实非库存主档作克隆模板(只读)。无则 None(调用方兜底)。"""
     t = _open(account_dir, "STMAS", dbf.READ_ONLY)
@@ -432,7 +465,9 @@ def ensure_account_item(
             raise AccountItemIsStock(code)
         return code, False
     desc = _account_name(account_dir, code) or (name or "").strip() or code
-    tpl = _pick_template(account_dir)
+    # 科目组、单位优先照抄这本账套原生的「编码 = 科目码」品（会计自己建的是 4 / 5 型、费用科目组，11-24 korn / 57ASCRD：
+    # 类型 5、组 คช、单位 คง 或空）；没有这种样本才照抄随便一件非库存品（以前的做法，待评估）。类型仍按下面固定 3 型
+    tpl = _pick_account_template(account_dir, code) or _pick_template(account_dir)
     acccod = _ensure_acccod(account_dir, code, desc, created_date, userid)
     row = {f: tpl[f] for f in _CLONE_FIELDS if tpl.get(f) not in ("", None)} if tpl else {}
     row.update(_fill_shape(account_dir, row, unit))

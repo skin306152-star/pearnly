@@ -537,12 +537,14 @@ def test_detail_gl_unchanged_three_lines(datat):
     assert gi == {"2", "5", "6"}  # 无 COGS/存货行
 
 
-def test_items_not_ok_falls_back_header_only(datat):
-    # items_status=mismatch → 不落 STCRD,退回表头模式(NXTSEQ 默认),账照常。
+def test_items_not_ok_get_one_account_line_instead(datat):
+    # items_status=mismatch：带来的行不可信、不写；以前退回只有单头——Express 里「修改再存」会把这种单清零（11-24）。现在补一行
+    # 「编码 = 收入科目码」的服务品（``amount_only``），账照常
     p = _sale_items(items_status="mismatch")
     res = WS.write_sale(p, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
     assert res.ok, res.error
-    assert _rows(datat, "STCRD", DOCNUM=res.docnum) == []
+    [line] = _rows(datat, "STCRD", DOCNUM=res.docnum)
+    assert (line.STKCOD or "").strip() == p["items_account"]
     assert len(_rows(datat, "ARTRN", DOCNUM=res.docnum)) == 1
 
 

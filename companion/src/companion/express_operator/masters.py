@@ -28,6 +28,9 @@ PURCHASE_TYPES = ("RR", "HP")
 SALES_TYPES = ("IV", "HS")
 STOCK_MODES = ("stock_item", "stock_sale")
 NON_STOCK_MODE = "non_stock_item"
+# 没有明细行的票补的那一行（直写与代录同一个口径，见 ``companion.amount_only``）：带这个标记
+AMOUNT_ONLY_LINE = "amount_only_line"
+ACCOUNT_MODE = "account_item"
 MASTER_TABLES = ("APMAS", "ARMAS", "STMAS", "ISACC")
 # 没开「按商品记增值税」的账套里免税、应税混着的单：明细免税码录不进去，交人
 ERR_EXEMPT_MIXED_CLOSED = "OPERATOR_EXEMPT_LINES_NEED_PER_ITEM_VAT"
@@ -107,6 +110,14 @@ def _plan(payload: Dict, account_dir: Path, side: str) -> _Plan:
             plan.party_create = True
     per_item_vat = _per_item_vat(account_dir)
     for index, item in enumerate(payload.get("items") or []):
+        if item.get(AMOUNT_ONLY_LINE):
+            # 没有明细的票补的那一行：编码 = 科目码的服务品（直写直接科目行同一个 ensure_account_item）。已有就用，没有就建；
+            # 同码是库存品在 ``prepare`` 里已经整单交人
+            account = str(item.get("account") or "").strip()
+            kind = product_master.account_item_type(account_dir, account)
+            plan.lines.append({"index": index, "mode": ACCOUNT_MODE, "name": "", "unit": "", "account": account,
+                               "code": account if kind is not None else ""})
+            continue
         mode = str(item.get("item_mode") or "").strip()
         if mode not in STOCK_MODES:
             mode = NON_STOCK_MODE  # 非库存品与直接科目行都按科目建服务品（见文件头）
@@ -172,6 +183,12 @@ def _create(plan: _Plan, account_dir: Path, docdat: _dt.date, userid: str) -> Li
             continue
         if line["code"]:
             continue
+        if line["mode"] == ACCOUNT_MODE:
+            line["code"], _made = product_master.ensure_account_item(account_dir, line["account"], created_date=docdat,
+                                                                     userid=userid)
+            touched.update(("STMAS", "ISACC"))
+            created.append({"kind": "item", "code": line["code"], "name": ""})
+            continue
         if line["mode"] in STOCK_MODES:
             made = product_master.ensure_stock_item(account_dir, line["name"], userid=userid, unit=line["unit"],
                                                     acccod=line.get("acccod") or getattr(plan.entry, "stock_acccod", ""),
@@ -193,6 +210,13 @@ def _create(plan: _Plan, account_dir: Path, docdat: _dt.date, userid: str) -> Li
                 if item["kind"] in ("item", "repaired") and not cdx_reindex.seek(account_dir, table, tag, item["code"]).found:
                     raise dbf_writer._WriteError(f"STMAS index lookup missed {item['code']}", dbf_writer.ERR_INDEX)
     return created
+
+
+def amount_only_line(payload: Dict) -> Optional[Dict]:
+    """没有明细行的买卖单要补的那一行：与直写同一个 ``amount_only.line``（按含税价录时单价含税）。"""
+    from .. import amount_only
+
+    return amount_only.line(payload, vat_included=(payload.get("operator") or {}).get("vat_included") is True)
 
 
 def _with_codes(payload: Dict, plan: _Plan) -> Dict:
@@ -218,7 +242,7 @@ def written_codes(payload: Dict) -> Dict:
         out["party_code"] = code
     lines = [{"seq": index, "name": str(item.get("name") or "").strip(), "code": str(item.get("code") or "").strip()}
              for index, item in enumerate(payload.get("items") or [], start=1)
-             if isinstance(item, dict) and str(item.get("code") or "").strip()]
+             if isinstance(item, dict) and str(item.get("code") or "").strip() and not item.get(AMOUNT_ONLY_LINE)]
     if lines:
         out["line_codes"] = lines
     return out
@@ -248,6 +272,16 @@ def prepare(payload: Dict, settings, *, before_create: Callable[[], None] = lamb
         if refusal is not None:
             return Prepared(False, payload, error_code=refusal.code, error=refusal.detail, outcome="needs_review")
         payload = {**payload, "items": guided.items(payload)}
+    line = amount_only_line(payload)
+    if line is not None:
+        from .. import product_master
+
+        kind = product_master.account_item_type(account_dir, line["account"])
+        if kind is not None and kind not in product_master._NONSTOCK_TYPES:
+            # 科目码同时是库存品的编码：照直写（``AccountItemIsStock``）整单交人，不开 Express、不录一行空码
+            return Prepared(False, payload, error_code=product_master.ERR_ACCOUNT_ITEM_STOCK,
+                            error=f"account {line['account']} is a stock item code", outcome="needs_review")
+        payload = {**payload, "items": [line]}
     items = [it for it in payload.get("items") or [] if isinstance(it, dict)]
     exempt = [it for it in items if it.get("vat_exempt") is True]
     if exempt and not _per_item_vat(account_dir):

@@ -24,6 +24,7 @@ from typing import Any, Dict, Optional
 
 import dbf
 
+from . import amount_only
 from . import cdx_reindex
 from . import dbf_detail
 from . import dbf_remarks
@@ -330,6 +331,8 @@ def write_purchase(
     co_ok, co_reason = account_company_matches(account_dir, expected_company)
     if not co_ok:
         return DbfWriteResult(False, error_code=ERR_COMPANY, error=co_reason)
+    # 没有明细的票补一行「编码 = 科目码」的服务品（11-24：只有单头的单在 Express 里修改再存会被清零，见 ``amount_only``）
+    amount_only.fill(entry, payload, account_dir)
     if not (entry.supplier_code or entry.supplier_name):
         return DbfWriteResult(
             False,

@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import dbf
 
+from . import amount_only
 from . import dbf_detail
 from . import dbf_remarks
 from . import product_master
@@ -308,6 +309,8 @@ def write_sale(
 
         return write_refund(payload, account_dir, entry, userid=userid, depcod=depcod, make_backup=make_backup,
                             index_batch=index_batch)
+    # 没有明细的票补一行「编码 = 科目码」的服务品（11-24：只有单头的单在 Express 里修改再存会被清零，见 ``amount_only``）
+    amount_only.fill(entry, payload, account_dir)
     if not (entry.customer_code or entry.customer_name):
         return DbfWriteResult(
             False,

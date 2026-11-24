@@ -174,10 +174,14 @@ def test_purchase_no_batch_keeps_per_doc_reindex(datat):
     assert res.ok, res.error
 
 
-def test_purchase_items_not_ok_header_only(datat):
-    res = W.write_purchase(_payload_items(items_status="incomplete"), datat,
-                           allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
-    assert res.ok and _rows(datat, "STCRD", DOCNUM=res.docnum) == []
+def test_purchase_items_not_ok_get_one_account_line_instead(datat):
+    # 明细不可信（incomplete）：以前退回只有单头——Express 里「修改再存」会把这种单清零（11-24）；现在不用带来的行，补一行
+    # 「编码 = 科目码」的服务品（``amount_only``）
+    payload = _payload_items(items_status="incomplete")
+    res = W.write_purchase(payload, datat, allowed_sets=("DATAT",), selected_dir=str(datat), make_backup=False)
+    assert res.ok, res.error
+    [line] = _rows(datat, "STCRD", DOCNUM=res.docnum)
+    assert (line.STKCOD or "").strip() == payload["items_account"]
 
 
 def _write_isinfo(d, company):
