@@ -39,7 +39,8 @@ LINGER_LIMIT_MS = 30 * 60 * 1000   # 关窗口后等回复最多等这么久
 LINGER_GRACE_MS = 1500       # 回复刚完：再留这么久，让页面发的「回复完成」通知先到托盘再退
 FIRST_COMMAND_MS = 5000      # 连上托盘后等第一条命令最多这么久（托盘收下就马上交过来）
 # 这几个会在托盘那边请窗口弹选择文件夹框 / 账号密码小窗，人选、人输多久就等多久（不设上限，否则慢了页面报失败、设置却已改了）
-PICKER_METHODS = frozenset({"pick_roots", "pick_folder", "add_folder", "operator_authorize", "mrerp_authorize"})
+PICKER_METHODS = frozenset({"pick_roots", "pick_folder", "add_folder", "operator_authorize", "mrerp_authorize",
+                            "cloud_connect", "cloud_operator_authorize"})
 ACTION_MEMORY = 50           # 转给托盘的通知，点了要做的事记最近几条
 
 

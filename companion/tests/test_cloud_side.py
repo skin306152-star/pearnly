@@ -100,7 +100,7 @@ class Bridge:
 def test_the_one_mapped_drive_with_in_out_ctl_is_the_tunnel(tmp_path):
     root = _tunnel(tmp_path, "Z")
     (tmp_path / "C").mkdir()                       # 别的盘：没有 in / out / ctl
-    (tmp_path / "AB" / "in").mkdir(parents=True)   # 不是单个字母
+    (tmp_path / "AB" / "in").mkdir(parents=True)   # 不是盘符
     assert cloud_side.find_tunnel_root(base=str(tmp_path)) == root
 
 
@@ -117,17 +117,31 @@ def test_no_or_several_candidates_return_none(tmp_path, layout):
     assert cloud_side.find_tunnel_root(base=str(tmp_path)) is None
 
 
-def test_listing_the_share_is_injectable_and_errors_are_none():
-    def boom(_path):
+def test_drives_are_probed_one_by_one_and_the_share_itself_is_never_listed(monkeypatch):
+    """11-24 云端实测：会话里 ``\\\\tsclient`` 这一级列不出来（dir 报路径语法不正确、net view 报 1707），
+    ``\\\\tsclient\\Z\\ctl`` 却在。所以只能按盘符逐个探，绝不 listdir 这一级。"""
+    def no_listing(path):
+        raise AssertionError(f"listed {path}")
+
+    monkeypatch.setattr(os, "listdir", no_listing)
+    monkeypatch.setattr(os, "scandir", no_listing)
+    probed = []
+    dirs = {os.path.join("\\\\tsclient", "Z", sub) for sub in ("in", "out", "ctl")}
+    found = cloud_side.find_tunnel_root(is_dir=lambda path: probed.append(path) or path in dirs)
+    # Windows 上 Path("\\\\tsclient\\Z") 是 UNC 根，str 会带结尾的反斜杠
+    assert found is not None and str(found).rstrip("\\/").endswith("Z")
+    assert probed and all(path.startswith("\\\\tsclient") for path in probed)
+
+    def broken(path):
         raise OSError("no session")
 
-    assert cloud_side.find_tunnel_root(listdir=boom) is None
-    seen = []
-    dirs = {os.path.join("\\\\tsclient", "Z", sub) for sub in ("in", "out", "ctl")}
-    found = cloud_side.find_tunnel_root(listdir=lambda path: seen.append(path) or ["Z", "C", "share"],
-                                        is_dir=lambda path: path in dirs)
-    # Windows 上 Path("\\\\tsclient\\Z") 是 UNC 根，str 会带结尾的反斜杠
-    assert seen == ["\\\\tsclient"] and found is not None and str(found).rstrip("\\/").endswith("Z")
+    assert cloud_side.find_tunnel_root(is_dir=broken) is None
+
+
+def test_the_cloud_side_probes_the_same_letters_the_bridge_maps():
+    from companion.cloud_link import host
+
+    assert cloud_side.TUNNEL_LETTERS == host.LETTERS
 
 
 def test_the_host_comes_from_the_bridge_manifest(tmp_path):

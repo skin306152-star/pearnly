@@ -4,8 +4,8 @@ r"""云端那份 CC 自己的接线（``companion.exe --cloud``，runtime_mode�
 只在云端模式用（``main.py`` 的 ``--cloud`` 分支与 ``express_operator.host`` 在云端模式下才导入本模块）；本地模式什么都不碰。
 本模块不导入 Qt（云端精简包里没有，``tests/test_cloud_package.py`` 守住）。
 
-- 隧道根目录（:func:`find_tunnel_root`）：云端会话里桥只映射了一个盘，路径 ``\\tsclient\<盘符>``。枚举 ``\\tsclient\`` 下名字是单个
-  字母的项，根下 ``in``、``out``、``ctl`` 三个子目录都在的才算；恰好一个才用，零个或多个回 None（不猜）。
+- 隧道根目录（:func:`find_tunnel_root`）：云端会话里桥只映射了一个盘，路径 ``\\tsclient\<盘符>``。按桥会用的盘符（Z 往 D）逐个
+  直接探（``\\tsclient`` 这一级在会话里列不出来），根下 ``in``、``out``、``ctl`` 三个子目录都在的才算；恰好一个才用，零个或多个回 None（不猜）。
 - 配对（:func:`run_pair`，``--cloud --pair <令牌>``，只在安装命令里带一次）：主机名从桥放进隧道盘的 ``cc\cloud.json`` 的 ``host``
   读。桥写入的必须是 ``rdp.host(连接主机)``——桥 ``BridgePairing(link.host)`` 用的同一个规范化主机地址（去首尾空白与末尾点、转小写），
   两侧都按它派生认证密钥，差一个字符配对就会被拒（``tampered``）。调 ``device_pairing.pair``；成功后设备密钥在云端本用户凭据管理器
@@ -66,23 +66,19 @@ UNPAIRED = "unpaired"
 
 # ── 隧道盘与主机名 ────────────────────────────────────────────────────────────
 
-def _list(path: str) -> list:
-    return os.listdir(path)
+# 桥映射隧道盘时可选的盘符（同 ``host.LETTERS``，桥从 Z 往 D 找第一个空的；tests 守两边一致）
+TUNNEL_LETTERS = "ZYXWVUTSRQPONMLKJIHGFED"
 
 
-def find_tunnel_root(*, base: str = CLIENT_SHARE, listdir: Callable[[str], Iterable[str]] = _list,
+def find_tunnel_root(*, base: str = CLIENT_SHARE, letters: str = TUNNEL_LETTERS,
                      is_dir: Callable[[str], bool] = os.path.isdir) -> Optional[Path]:
-    r"""``\\tsclient\`` 下名字是单个字母、根下有 ``in`` / ``out`` / ``ctl`` 的盘恰好一个时回它，否则 None。"""
-    try:
-        names = list(listdir(base))
-    except OSError:
-        return None
+    r"""``\\tsclient\<盘符>`` 里根下有 ``in`` / ``out`` / ``ctl`` 的恰好一个时回它，否则 None。
+
+    逐个盘符直接探，不列 ``\\tsclient`` 这一级：远程桌面会话里它列不出来（11-24 云端实测 ``dir \\tsclient`` 报路径语法不正确、
+    ``net view`` 报 1707，``Test-Path \\tsclient\Z\ctl`` 却为真），先列再挑就永远找不到。"""
     found = []
-    for name in names:
-        name = str(name)
-        if len(name) != 1 or not name.isascii() or not name.isalpha():
-            continue
-        root = os.path.join(base, name)
+    for letter in letters:
+        root = os.path.join(base, letter)
         try:
             if all(is_dir(os.path.join(root, sub)) for sub in TUNNEL_DIRS):
                 found.append(root)

@@ -88,3 +88,21 @@ def test_the_already_running_notice_stays_on_top_and_takes_focus():
     notice = text[text.index("box = QMessageBox()"):text.index("box.exec()")]
     assert "WindowStaysOnTopHint" in notice and "box.raise_()" in notice and "box.activateWindow()" in notice
 
+
+
+# 桥里会弹账号密码小窗的动作（人输多久等多久）→ 窗口进程转发这些调用时不设 120 秒上限（window_main.PICKER_METHODS）。
+# 11-24 云端首测：cloud_connect 漏在名单外，用户 8 分钟后才输完密码，页面 2 分钟就报「连接失败」，后台其实已连上。
+ASKING_ACTIONS = {"operator_authorize", "mrerp_authorize", "cloud_connect", "cloud_operator_authorize"}
+
+
+def test_every_bridge_action_that_waits_for_a_login_window_has_no_timeout_in_the_window_process():
+    tree = ast.parse((SRC / "tomo_bridge.py").read_text(encoding="utf-8"))
+    sites = [node for node in ast.walk(tree)
+             if (isinstance(node, ast.Call) and ast.unparse(node.func) == "self._ask_login")
+             or (isinstance(node, ast.keyword) and node.arg == "asker" and ast.unparse(node.value) == "self._ask_login")]
+    # 现有 5 处：Express 授权、MR.ERP 代录登录（两处）、云端账号、云端代录 Express 登录。新加一处就要把它的动作补进 ASKING_ACTIONS
+    assert len(sites) == 5, [ast.unparse(node) for node in sites]
+    main = (SRC / "window_main.py").read_text(encoding="utf-8")
+    picker = ast.literal_eval(next(ast.unparse(node.value.args[0]) for node in ast.walk(ast.parse(main))
+                                   if isinstance(node, ast.Assign) and ast.unparse(node.targets[0]) == "PICKER_METHODS"))
+    assert ASKING_ACTIONS <= set(picker), ASKING_ACTIONS - set(picker)
