@@ -203,6 +203,15 @@ test('下钻加的条件不记：从菜单再进来没有它，搜索框照旧�
   assert.deepEqual(JSON.parse(JSON.stringify(back.list.filters)), [['ERP Product', 'is_active', '=', 1]], '后退回来还在');  // 沙箱里建的数组原型不同，按值比
 });
 
+test('下钻字段上人自己另加的条件照记，只去掉代加的那一行', async () => {
+  const store = {};
+  const { list } = await open(harness({ store }), { fields: { search: control('search') } });
+  await list.drill([['ERP Product', 'is_active', '=', 1]]);
+  list.filters = [...list.filters, ['ERP Product', 'is_active', '!=', 2]];
+  await list.reload();
+  assert.deepEqual(JSON.parse(JSON.stringify(store['ERP Product|pearnly:pearnly-products:CO-A'].filters)), [['ERP Product', 'is_active', '!=', 2]]);
+});
+
 test('人把下钻的条件改掉，改后的值才是人选的，照记', async () => {
   const store = {};
   const { list } = await open(harness({ store }), { fields: { search: control('search') } });

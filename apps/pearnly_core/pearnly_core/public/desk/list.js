@@ -490,11 +490,13 @@
 			}
 			if (JSON.stringify(this.drilled) !== before) this.save_drilled();
 			const drilled = new Set(this.drilled.filters.map(key));
-			// 代加条件的那个字段：沿用人上次自己在这个字段上选的条件
+			// 只去掉代加的那几行；代加条件的那个字段上人上次自己选的条件沿用（后退回到下钻那一条时它被下钻盖过、不在当前里）
 			const drilled_fields = new Set(this.drilled.filters.map(row => row[1]));
-			const own = (this.remembered?.filters || []).filter(row => Array.isArray(row) && drilled_fields.has(row[1]));
+			const kept = current.filter(row => !drilled.has(key(row)));
+			const own = (this.remembered?.filters || []).filter(row => Array.isArray(row) && drilled_fields.has(row[1])
+				&& !kept.some(c => key(c) === key(row)));
 			frappe.model.user_settings.save(this.doctype, this.memory, {
-				filters: current.filter(row => !drilled.has(key(row)) && !drilled_fields.has(row[1])).concat(own), sort_by: this.sort_by, sort_order: this.sort_order,
+				filters: kept.concat(own), sort_by: this.sort_by, sort_order: this.sort_order,
 				page_length: this.selected_page_count, fields});
 		}
 		async reload() {

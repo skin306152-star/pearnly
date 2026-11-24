@@ -25,9 +25,14 @@ def forget_lists(user):
     """去掉这个账号个人设置里 `pearnly:` 开头的列表记忆：库里（`__UserSettings`）和缓存（原生先写缓存、浏览器再叫同步进库）都清。"""
     import json
 
-    from frappe.model.utils.user_settings import sync_user_settings
-
-    sync_user_settings()  # 先把缓存里的同步进库，再从库里改，免得缓存那份之后又被同步回来
+    # 先把这个账号缓存里的设置同步进库（同原生 `sync_user_settings` 的写法，只取本账号的键），再从库里改，免得缓存那份之后又被同步回来
+    for key, data in (frappe.cache.hgetall("_user_settings") or {}).items():
+        key = key.decode() if isinstance(key, bytes) else key
+        doctype, _, owner = key.rpartition("::")
+        if owner != user or not doctype:
+            continue
+        frappe.db.sql("insert into `__UserSettings` (`user`, `doctype`, `data`) values (%s, %s, %s) "
+                      "on duplicate key update `data`=%s", (user, doctype, data, data))
     for doctype, data in frappe.db.sql("select doctype, data from `__UserSettings` where user=%s", user):
         try:
             settings = json.loads(data or "{}")
