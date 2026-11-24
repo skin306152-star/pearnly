@@ -144,7 +144,8 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
             # 原来这里不出题，账套有几个已关联菜单时每张都停在「先选导入菜单」，CC 里没处选）
             frappe.db.rollback()
             legacy = legacy or {"state": "blocked", "message": str(_("push.adapter_not_connected"))[:300]}
-            if loaded.endpoint.get("adapter") == MRERP:
+            if loaded.endpoint.get("adapter") == MRERP and not _operator_session():
+                # 代录对话不问：代录是 CC 桌面版在 MR.ERP 网页里录，不走导入菜单
                 from pearnly_cowork.assistant.guided import push_setup
 
                 items.extend(push_setup.items(doc.push_connection, doc.push_account_set, fields.get("direction") or None)["items"])
@@ -730,6 +731,12 @@ def remember(company, answers) -> dict:
         for (connection, account_set, direction), rows in setup.items():
             saved += push_setup.remember(connection, account_set, direction or None, rows)  # loop-query: 一张卡涉及的账套，通常一份
     return {"saved": saved}
+
+
+def _operator_session() -> bool:
+    """此刻在代录对话里（会话挂着代录任务，同共用引擎 `assistant.guide.run._conversation` 认模式的判据）。"""
+    session = str((getattr(frappe.local, "pearnly_assistant", None) or {}).get("session_id") or "")
+    return bool(session) and bool(frappe.db.get_value("Pearnly Assistant Session", {"session_id": session}, "operator_task"))
 
 
 def _fields(doc) -> dict:

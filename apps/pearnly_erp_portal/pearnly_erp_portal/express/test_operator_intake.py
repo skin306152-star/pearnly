@@ -236,7 +236,7 @@ class Precheck(Base):
         with patch.object(precheck, "_company_ok", return_value=True), \
                 patch.object(precheck.push, "enabled", return_value=False), \
                 patch.object(precheck.mrerp_push, "handles", return_value=False), \
-                patch.object(precheck, "_operator_conversation", side_effect=lambda: modes["operator"]), \
+                patch.object(precheck, "_operator_conversation", side_effect=lambda record=None: modes["operator"]), \
                 patch.object(precheck, "_collection", return_value=SimpleNamespace(
                     mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
                 patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \
@@ -290,7 +290,7 @@ class Precheck(Base):
         with patch.object(precheck, "_company_ok", return_value=True), \
                 patch.object(precheck.push, "enabled", return_value=False), \
                 patch.object(precheck.mrerp_push, "handles", return_value=True), \
-                patch.object(precheck, "_operator_conversation", side_effect=lambda: modes["operator"]), \
+                patch.object(precheck, "_operator_conversation", side_effect=lambda record=None: modes["operator"]), \
                 patch.object(precheck, "_collection", return_value=SimpleNamespace(
                     mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
                 patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \

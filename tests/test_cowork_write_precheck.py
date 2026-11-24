@@ -314,11 +314,20 @@ class MrerpSetup(unittest.TestCase):
         patch.start()
         self.addCleanup(patch.stop)
         sys.modules["pearnly_cowork.assistant"].guided = guided
+        frappe_mod = sys.modules["frappe"]
+        frappe_mod.local = ns(pearnly_assistant={"session_id": "S1"})
+        self.operator_task = ""
+        frappe_mod.db.get_value = lambda doctype, *a, **k: self.operator_task if doctype == "Pearnly Assistant Session" else None
 
     def test_the_menu_still_to_choose_is_on_the_card(self):
         found = self.module.document("h1")
         self.assertEqual(found["state"], "check")
         self.assertEqual([(item["kind"], item["subject"]) for item in found["items"]], [("mrerp_menu", "purchase")])
+
+    def test_an_operator_conversation_is_not_asked_import_menus(self):
+        # 代录是 CC 桌面版在 MR.ERP 网页里录，不走导入菜单（主会话 11-24）
+        self.operator_task = "TASK1"
+        self.assertEqual(self.module.document("h1")["items"], [])
 
     def test_answers_are_remembered_once_per_account_set(self):
         answer = [{"kind": "mrerp_menu", "subject": "purchase", "value": "68", "label": "ซื้อ"}]
