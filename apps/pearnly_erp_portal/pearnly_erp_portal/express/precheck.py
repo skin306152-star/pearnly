@@ -671,7 +671,7 @@ def check(company, doc_ids) -> dict:
                 # 代录对话：代录写的是 Express（CC 桌面版录），这家没接 Express——账本是 MR.ERP 的报「不支持」（如实），没有账本的报未连接；
                 # 直写（和 LINE 卡片）：问记录自己要人定的（物料、仓库），账本是 MR.ERP 的再加 MR.ERP 导入前要人定的（导入菜单、主档默认值、
                 # 同期两本选哪本；同已存单据 :func:`mrerp_view`，用户 11-19 出卡前问完）
-                if _operator_conversation(found):
+                if _operator_conversation(found):  # loop-query: 收单记录逐张判，一批有上限（同下一行）
                     documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE,
                                       "reason": UNSUPPORTED if ledger_mrerp else contracts.DISCONNECTED})
                     continue
@@ -761,7 +761,7 @@ def remember(company, answers) -> dict:
             from pearnly_erp_portal.express import operator
 
             # 同 :func:`check`：按账本 + 对话方式，不按来源（代录对话里 MR.ERP 公司的收单不出题，不会走到这里记 MR.ERP 那几项）
-            on_mrerp = ledger_mrerp and not _operator_conversation(found)
+            on_mrerp = ledger_mrerp and not _operator_conversation(found)  # loop-query: 一张卡片答到的几条记录，逐条判
             remember_row = operator.remember_intake_mrerp if on_mrerp else operator.remember_intake
             saved += remember_row(company, found, given, seen)  # loop-query: 一张卡片答到的几条记录，逐条写回
             continue

@@ -268,7 +268,7 @@ paths = ["apps/pearnly_core/pearnly_core/mrerp/**"]
 markers = ["pearnly_core.mrerp", "pearnly_core import mrerp"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["cowork.mrerp.push", "cowork.mrerp.catalog", "cowork.cc.mrerp-setup", "erp.mrerp.direct", "erp.mrerp.masters", "erp.collection.mrerp", "erp.mrerp.stock"]
-not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）", "apps/pearnly_cowork/pearnly_cowork/assistant/guided/push_setup.py" = "引导的 MR.ERP 设置题：只用 mrerp.needs 判要问哪几项（同待处理页 pending_api.mrerp_needs），作答走 connections.service；接线前没有入口，入口随判定卡题类登记为 cowork.cc.mrerp-setup 的引导版，由 test_cowork_push_setup_guide 守住" }
+not_entries = { "apps/pearnly_cowork/pearnly_cowork/push/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11，P0 记录「核账本的 MR.ERP 一侧」）", "apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/ledger_check.py" = "录过的票先核账本的 MR.ERP 通道（hooks pearnly_ledger_check[\"mrerp\"]，MR.ERP 账本开关关着时回空），还没有调用方；「录过的票」判定接入时登记入口（D 线 11-11）" }
 
 [[part]]
 id = "exports"
@@ -1705,11 +1705,11 @@ files = ["apps/pearnly_cowork/pearnly_cowork/connections/model.py", "apps/pearnl
 [[entry]]
 id = "cowork.cc.mrerp-setup"
 product = "Cowork"
-where = "CC 对话里 MR.ERP 设置（推之前要选的导入菜单 / 默认值、MR.ERP 设置工具、待处理当场选）"
-steps = "CC 对话页（Cowork）让 CC 推一张 MR.ERP 单 / 改 MR.ERP 设置；「公司 · 月份」对话末尾的「需要处理」框里点停在要选菜单的单当场选"
+where = "CC 对话里 MR.ERP 设置（推之前要选的导入菜单 / 默认值、MR.ERP 设置工具、待处理当场选、引导判定卡上的菜单 / 默认值题）"
+steps = "CC 对话页（Cowork）让 CC 推一张 MR.ERP 单 / 改 MR.ERP 设置；「公司 · 月份」对话末尾的「需要处理」框里点停在要选菜单的单当场选；直写对话里开采购 / 销售引导，判定卡上答导入菜单 / 默认值（11-24 接线）"
 expect = "只问这张单方向会用到、还没选的；选完照常重推"
 check = "manual"
-files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py"]
+files = ["apps/pearnly_cowork/pearnly_cowork/assistant/tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/company_tools.py", "apps/pearnly_cowork/pearnly_cowork/assistant/pending_api.py", "apps/pearnly_cowork/pearnly_cowork/companies/pending.py", "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py", "apps/pearnly_cowork/pearnly_cowork/assistant/guided/push_setup.py"]
 
 [[entry]]
 id = "cowork.companies"
