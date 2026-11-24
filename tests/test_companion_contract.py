@@ -2236,5 +2236,73 @@ class OneNetworkExit(unittest.TestCase):
         self.assertEqual(writes, ["kwargs['transport'] = factory(dict(kwargs))"])
 
 
+class CloudExpressWire(unittest.TestCase):
+    """云端 Express（express-cloud 11-16）服务端 ↔ CC 桌面版的两条约定，两边同测：
+    1. 心跳的 ``link``：云端那份 CC（``runtime_mode.link``，``queue_client`` 放进心跳）报 ``{kind: cloud, via, host}``，站点
+       ``cc_desktop/wire/link_contracts.stored`` 收成电脑行三个字段；本地 CC 不带这个键，站点「不改上次存的」，现有电脑零变化。
+    2. 发布清单 ``latest.json`` 的 ``cloud`` 项：``infrastructure/production/receive-companion.py`` 写的形状，桥的
+       ``cloud_link/cloud_package.parse_entry`` 原样认得（版本、地址、sha256、大小）；没有这一项时桥回 None、不下载。"""
+
+    def setUp(self):
+        sys.path.insert(0, str(ROOT / "apps" / "pearnly_core"))
+        sys.path.insert(0, str(COMPANION.parent))
+
+    def test_the_cloud_heartbeat_link_is_what_the_site_stores_and_a_local_cc_sends_none(self):
+        import os
+        import types
+        from unittest import mock
+
+        from companion import runtime_mode
+        from pearnly_core.cc_desktop.wire import link_contracts
+
+        # 心跳里的本机名取自 queue_client._device_name；它导入 httpx，这里只换掉本机名
+        queue_client = types.SimpleNamespace(_device_name=lambda: "CLOUD-HOST-01")
+
+        with mock.patch.dict(os.environ, {runtime_mode.CLOUD_ENV: "", runtime_mode.VIA_ENV: ""}):
+            self.assertIsNone(runtime_mode.link())
+            self.assertIsNone(link_contracts.stored(None))   # 本地 CC 心跳不带 link：电脑行不动
+        with mock.patch.dict(os.environ, {}), mock.patch.dict(sys.modules, {"companion.queue_client": queue_client}):
+            runtime_mode.enable("OFFICE-PC")
+            sent = runtime_mode.link()
+        self.assertEqual(sent, {"kind": link_contracts.CLOUD, "via": "OFFICE-PC", "host": "CLOUD-HOST-01"})
+        self.assertEqual(link_contracts.stored(sent),
+                         {"link_kind": "cloud", "link_via": "OFFICE-PC", "link_host": "CLOUD-HOST-01"})
+        self.assertEqual(link_contracts.view("cloud", "OFFICE-PC", "CLOUD-HOST-01"), sent)
+        self.assertLessEqual(runtime_mode.TEXT_MAX, link_contracts.MAX_TEXT)   # CC 截的不会被站点再截
+        heartbeat = method_source(COMPANION / "queue_client.py", "QueueClient", "health")
+        self.assertIn("body['link'] = link", heartbeat)   # method_source 是 ast.unparse 的写法
+        self.assertIn("link = runtime_mode.link()", heartbeat)
+        machine = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/machine.py").read_text(encoding="utf-8")
+        self.assertIn('link=body.get("link")', machine)
+
+    def test_the_release_cloud_entry_is_what_the_bridge_reads(self):
+        import hashlib
+        import io
+        import json
+        import tempfile
+        from unittest import mock
+
+        from companion.cloud_link import cloud_package
+
+        receiver = _module("receive_companion_cloud", ROOT / "infrastructure/production/receive-companion.py")
+        body, cloud = b"MZ" + b"\0" * 64, b"PK\x03\x04" + b"cloud" * 20
+        source = "b" * 40
+        head = {"target": "prod", "version": "1.12.25", "source_sha": source, "sha256": hashlib.sha256(body).hexdigest(),
+                "size": len(body), "publication": "1-1",
+                "cloud": {"version": "1.12.25", "sha256": hashlib.sha256(cloud).hexdigest(), "size": len(cloud)}}
+
+        class _Stdin:
+            buffer = io.BytesIO(json.dumps(head).encode() + b"\n" + body + cloud)
+
+        with tempfile.TemporaryDirectory() as root:
+            receiver.ROOT = Path(root) / "companion"
+            with mock.patch.object(sys, "stdin", _Stdin()), mock.patch.object(sys, "stdout", io.StringIO()):
+                receiver.main()
+            latest = json.loads((receiver.ROOT / "latest.json").read_text(encoding="utf-8"))
+        self.assertEqual(cloud_package.parse_entry(latest), latest["cloud"])
+        self.assertEqual(set(latest["cloud"]), {"version", "url", "sha256", "size"})
+        self.assertIsNone(cloud_package.parse_entry({key: value for key, value in latest.items() if key != "cloud"}))
+
+
 if __name__ == "__main__":
     unittest.main()
