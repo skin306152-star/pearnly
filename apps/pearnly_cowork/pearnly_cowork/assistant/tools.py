@@ -5411,7 +5411,7 @@ TOOLS = [
      "handler": "pearnly_cowork.assistant.tools.withdraw_push"},
     {"name": "cowork_delete_documents", "label": "Deleted documents",
      "description": "Permanently delete documents from the Intake workbench with their original files, like Delete "
-                    "in the list; documents already pushed are skipped. The user sees the documents listed with Allow / "
+                    "in the list; documents being pushed right now are skipped. The user sees the documents listed with Allow / "
                     "Deny first, so do not ask again before calling it; only when it is unclear which ones they mean, "
                     "list them by number, seller and amount and ask first. Returns deleted and skipped counts.",
      "input_schema": {"type": "object", "properties": {

@@ -107,3 +107,20 @@
 
 合计约 12–15 小时。预期总表：单据维护 4 格 ○ → ✅；待处理代录 · 本地 2 格 ○ → ✅；待处理直写 · 本地 2 格 ◐ → ✅；
 MR.ERP 那几格随后按 MR.ERP 页面流程另算。
+
+## 14. 共用件连带回归（`tools.py`，11-24 变基后）
+
+命中的共用件：无
+只改到调用方的入口：`cowork.cc-chat.push`、`cowork.express.push`、`cowork.cc.mrerp-setup`、`cowork.ocr`、`cowork.execution`、`cowork.assistant`、`cowork.tax-documents`
+
+要实测的入口 7 个（每行填「通过 / 不通过 / 没测到（原因）」，不能用推断代替）：
+
+| 入口 | 产品 | 位置 | 怎么点 | 预期 | 方式 | 结果 |
+|---|---|---|---|---|---|---|
+| `cowork.cc-chat.push` | Cowork | CC 对话页推送（让 CC 推、对话末尾的「需要处理」框、公司工具改选择） | CC 对话页（Cowork）上传单据后让 CC 推送 / 对话末尾的「需要处理」框推送 / 让 CC 改记住的选择 | 照常写进 Express、读回一致；CC 说的与写入的一致 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.express.push` | Cowork | Cowork 推送 Express（全部类型） | 录入工作台 / 识别记录 → 推送：采购、销售、库存、存货科目组、付款、预检、回执；自动推送规则；POS 日汇总（导入一份含当天全退那一天的收银导出） | 照常写进 Express、读回一致。服务类进项票由自动冒烟 cowork_express_flow.py 写进测试机 C 盘 T 账套并核单号与 CC 读回；采购库存、销售、付款、POS 日汇总等其余类型仍人工逐类型推；POS 导入里一天全退（全部为 0）的那天不建票、其余天照建（10-25 起，原来整份报错） | auto：cowork_express | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.cc.mrerp-setup` | Cowork | CC 对话里 MR.ERP 设置（推之前要选的导入菜单 / 默认值、MR.ERP 设置工具、待处理当场选） | CC 对话页（Cowork）让 CC 推一张 MR.ERP 单 / 改 MR.ERP 设置；「公司 · 月份」对话末尾的「需要处理」框里点停在要选菜单的单当场选 | 只问这张单方向会用到、还没选的；选完照常重推 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.ocr` | Cowork | Cowork 录入识别 / 远端识别 / 对账识别 | 录入工作台上传识别；对账中心单据识别（付费识别，按小样本） | 识别成功、结果入库 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.execution` | Cowork | Cowork 录入、对账、文件夹录入、CC 对话工具 | 录入工作台上传；对账上传；文件夹录入一轮；CC 对话里推送（付费识别，小样本） | 排队、识别、推送照常 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.assistant` | Cowork | Cowork 的 CC 工具与公司页 | CC 对话里让 CC 推送 / 查待处理 / 改记住的选择；公司页 | 工具结果正确、说的与做的一致 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |
+| `cowork.tax-documents` | Cowork | Cowork 识别、推送、报税草稿 | 录入识别；推送；报税（P.N.D.3 / 53）草稿 | 照常 | manual | 没测到（本分支对 tools.py 只改了 `cowork_delete_documents` 一句给模型看的工具说明，函数与返回不变；离线 `check-cc-tools`、`test_cowork_pending_guide` 守住；实测要真识别或真 Express 推送，按本改动不必要，交主会话定是否补） |

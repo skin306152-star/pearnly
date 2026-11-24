@@ -254,6 +254,25 @@ class Pending(Base):
         self.assertEqual((STATE["deleted"], done["result"]["deleted"]), ([["D1"]], 1))
 
 
+class CrossCompany(Base):
+    """跨公司单号一律查不到（主会话 11-24 守门）：待处理与单据两份声明、按名回查与经引擎作答都只认本对话公司的单。"""
+
+    def test_another_company_document_is_never_offered_or_accepted(self):
+        ITEMS.append({"document": "DX", "invoice_no": "IVX", "counterparty": "Elsewhere", "reason_label": "", "amount": "1.00",
+                      "date": "2026-11-02", "company": "CO-2"})
+        self.addCleanup(ITEMS.pop)
+        pending_ctx = {"company": "CO-1", "session": SESSION, "period": "2026-11", "business": "pending"}
+        documents_ctx = {**pending_ctx, "business": "documents"}
+        self.assertEqual(guide.item_options(pending_ctx, codes=["DX"])["options"], [])
+        self.assertEqual(guide.item_options(documents_ctx, codes=["OTHER"])["options"], [])
+        self.assertNotIn("OTHER", [row["code"] for row in guide.item_options(documents_ctx, page_length=50)["options"]])
+        for business, code in (("pending", "DX"), ("documents", "OTHER")):
+            name = run.start(SESSION, business)["run"]
+            run.answer(name, {"action": "export"})
+            self.assertEqual(_codes(run.answer(name, {"items": [code]})), {"items": "not offered"}, business)
+        self.assertEqual(STATE["exported"], [])
+
+
 class OperatorMonth(Base):
     def test_in_an_operator_conversation_pending_lists_only_the_conversation_month(self):
         # D3 是 CC 提议：待处理行上显示的是提议日期（11 月），票面发票日期是 10 月——代录按发票日期筛（同代录交单）
