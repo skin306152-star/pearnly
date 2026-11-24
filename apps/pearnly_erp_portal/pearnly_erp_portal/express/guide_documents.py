@@ -362,7 +362,7 @@ def result(ctx, doc_ids) -> dict:
     from pearnly_erp_portal.integrations import intake as chat_intake
 
     found = _records(ctx, doc_ids)
-    rows, wait = [], False
+    rows, wait, ledgerless = [], False, {}
     for doc_id in _ids(doc_ids):
         prefix, _sep, plain = doc_id.partition(":")
         record = found.get(doc_id)
@@ -377,6 +377,13 @@ def result(ctx, doc_ids) -> dict:
             text = _held_text(record) if record.status == chat_intake.READY else ""
             rows.append({"doc_id": doc_id, "status": HELD, **({"reason_text": text} if text else {})})
             continue
+        if prefix not in DOCUMENT_PREFIXES and _ledgerless(record.company, ledgerless):
+            # 这家公司没接任何账本：提交进 ERP 就办完了（同 LINE，主会话 11-24 定），不排写账；原来按写账状态判成「未完成」
+            row = frappe.db.get_value(_DOCTYPES[record.direction], document, ["ledger_state", "system_no"], as_dict=True) or {}
+            if not row.get("ledger_state"):
+                rows.append({"doc_id": doc_id, "status": ENTERED, "document": document,
+                             **({"docnum": row["system_no"]} if row.get("system_no") else {})})
+                continue
         # 每张单的写账状态同对话推送结果逐张判（`cc_tools._outcome`）
         outcome = cc_tools._outcome(cc_tools.KINDS[record.direction], document)  # loop-query: 逐张判写账状态，最多 DOCS_MAX 张
         status = {"entered": ENTERED, "queued": QUEUED}.get(outcome.get("status"),
@@ -386,6 +393,19 @@ def result(ctx, doc_ids) -> dict:
                      **({"docnum": outcome["docnum"]} if outcome.get("docnum") else {}),
                      **({"reason_text": outcome["reason"]} if outcome.get("reason") else {})})
     return {"rows": rows, "wait": wait}
+
+
+_DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Document"}
+
+
+def _ledgerless(company, seen) -> bool:
+    """这家公司没接任何账本（没接 Express、账本也不是 MR.ERP）；``seen`` 是本次结果里按公司记的结论（一次引导一家公司）。"""
+    if company not in seen:
+        from pearnly_erp_portal.express import push
+        from pearnly_erp_portal.mrerp import push as mrerp_push
+
+        seen[company] = not push.enabled(company) and not mrerp_push.handles(company)
+    return seen[company]
 
 
 __all__ = ["DOCUMENT_PREFIXES", "direction_of", "COMPUTED", "ENTERED", "FAILED", "HELD", "NOT_AVAILABLE", "PAYMENT_UNDECIDED", "QUEUED", "UNDECIDED_LINES",

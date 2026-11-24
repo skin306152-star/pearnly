@@ -143,7 +143,8 @@ def prepare(doctype, name, document) -> dict:
     flat = contracts.history(body, company_name=row.company_name, doc_kind=found.get("doc_kind") or "",
                              payment_method=found.get("payment_method") or "", party_id=found.get(party_field) or "")
     menus, defaults = choices.chosen(row, book)
-    return {"payload": contracts.payload(flat, own_tax_id=body["company"]["tax_id"], menus=menus, defaults=defaults),
+    return {"payload": contracts.payload(flat, own_tax_id=body["company"]["tax_id"], menus=menus, defaults=defaults,
+                                         products=contracts.products(body)),
             "company": row, "direction": body["direction"], "book": book}
 
 

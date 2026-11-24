@@ -86,6 +86,14 @@ _module("pearnly_erp_portal.express.conversation", for_session=_for_session)
 KINDS = {"purchase": "purchase-kind", "sales": "sales-kind"}
 OUTCOMES = {}
 _module("pearnly_erp_portal.express.cc_tools", KINDS=KINDS, _outcome=lambda kind, name: OUTCOMES[name])
+# 这家公司接了哪种账本（`express.push.enabled` / `mrerp.push.handles`）：默认接着 Express
+LEDGER = {"express": True, "mrerp": False}
+LOOKUPS = []
+_module("pearnly_erp_portal.express.push", enabled=lambda company: LOOKUPS.append(company) or LEDGER["express"])
+_module("pearnly_erp_portal.mrerp")
+_module("pearnly_erp_portal.mrerp.push", handles=lambda company: LEDGER["mrerp"])
+sys.modules["pearnly_erp_portal.express"].push = sys.modules["pearnly_erp_portal.express.push"]
+sys.modules["pearnly_erp_portal.mrerp"].push = sys.modules["pearnly_erp_portal.mrerp.push"]
 sys.modules["pearnly_erp_portal.express"].conversation = sys.modules["pearnly_erp_portal.express.conversation"]
 sys.modules["pearnly_erp_portal.express"].cc_tools = sys.modules["pearnly_erp_portal.express.cc_tools"]
 sys.modules["pearnly_erp_portal.express"].operator = operator
@@ -105,6 +113,7 @@ RESULT = {"doc_no": "IV-1", "doc_date": "2026-11-01", "supplier_name": "ISUZU", 
 class Base(unittest.TestCase):
     def setUp(self):
         RECEIVED.clear(), SUBMITTED.clear(), SESSIONS.clear(), COMMITS.clear(), STATE["saved"].clear(), OUTCOMES.clear()
+        LEDGER.update(express=True, mrerp=False), LOOKUPS.clear()
         frappe.session = types.SimpleNamespace(user="u@x")
         frappe.get_all = self.get_all
         self.records = {"LI-1": Record(name="LI-1", status="ready", direction="purchase", company="CO-1", modified="t1",
@@ -223,6 +232,28 @@ class Result(Base):
         self.assertEqual((found["rows"][0]["status"], found["wait"]), ("queued", True))
         OUTCOMES["PO-7"] = {"status": "needs_choice", "reason": "写入前要选"}
         self.assertEqual(G.result(CTX, ["I:LI-1"])["rows"][0]["status"], "held")
+
+    def test_a_company_without_any_ledger_is_done_once_the_ticket_is_in_erp(self):
+        """主会话 11-24 定：没接任何账本的公司，直写对话里 CC 收单判可写（判定 `precheck.check`，test_operator_intake 守），确定后
+        只存进 ERP（同 LINE），不排写账；结果卡这一张是办完了（ERP 单号），不是按写账状态判成的「未完成 · not_for_express」。"""
+        self.records["LI-1"].update(status="confirmed", purchase="PO-7")
+        self.records["PO-7"] = Record(name="PO-7", ledger_state="", system_no="PE-0007")
+        LEDGER.update(express=False, mrerp=False)
+        found = G.result(CTX, ["I:LI-1", "I:LI-1"])
+        self.assertEqual([(row["status"], row.get("docnum"), row["document"]) for row in found["rows"]],
+                         [("entered", "PE-0007", "PO-7")])
+        self.assertFalse(found["wait"])
+        self.assertEqual(LOOKUPS, ["CO-1"])  # 一次结果按公司只判一次
+        # 确定：照网页同一个入账函数提交（提交里接了账本才排写账），这张不因为没账本被留下
+        self.records["LI-1"].update(status="ready", purchase=None)
+        self.assertEqual([doc["status"] for doc in G.confirm(CTX, ["I:LI-1"], "guide:RUN1:1")["docs"]], ["queued"])
+        self.assertEqual([name for name, _ in SUBMITTED], ["LI-1"])
+        # 接着 Express 的、账本是 MR.ERP 的照写账状态判（不会因为 ledger_state 还空就说办完）
+        self.records["LI-1"].update(status="confirmed", purchase="PO-7")
+        OUTCOMES["PO-7"] = {"status": "queued"}
+        for express, mrerp in ((True, False), (False, True)):
+            LEDGER.update(express=express, mrerp=mrerp)
+            self.assertEqual(G.result(CTX, ["I:LI-1"])["rows"][0]["status"], "queued", (express, mrerp))
 
 
 if __name__ == "__main__":

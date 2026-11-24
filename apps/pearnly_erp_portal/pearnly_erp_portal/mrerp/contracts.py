@@ -64,9 +64,25 @@ def history(body: dict, *, company_name: str, doc_kind: str = "", payment_method
     return out
 
 
-def payload(flat: dict, *, own_tax_id: str, menus: dict, defaults: dict) -> dict:
-    """规范载荷（纯 JSON，同 Cowork 冻结进账本前的 ``json.dumps(..., default=str)``）。"""
+def products(body: dict) -> list:
+    """明细里带着账本商品代码的行（ERP 物料从 MR.ERP 读来、记着它的代码）→ 共用层商品查找表 ``[{item_name, erp_code}]``
+    （`pearnly_core.mrerp.push.xlsx.lookups._build_product_lookup`）：导入先按它认出已有商品，认不出的才按品名新建
+    （`autocreate.provision_products`）。原来不带，从 MR.ERP 读来的物料也按品名新建，撞上同名的已有商品建不出，导入报
+    「รหัสสินค้าเป็นค่าว่าง」（11-24 MR.ERP 专属测试账套真写）。"""
+    out, seen = [], set()
+    for item in body.get("items") or ():
+        name, code = str(item.get("name") or "").strip(), str(item.get("code") or "").strip()
+        if name and code and (name, code) not in seen:
+            seen.add((name, code))
+            out.append({"item_name": name, "erp_code": code})
+    return out
+
+
+def payload(flat: dict, *, own_tax_id: str, menus: dict, defaults: dict, products: list = ()) -> dict:
+    """规范载荷（纯 JSON，同 Cowork 冻结进账本前的 ``json.dumps(..., default=str)``）。``products``：:func:`products`，没有就不放。"""
     mappings = {"accounts": [], "clients": []}
+    if products:
+        mappings["products"] = list(products)
     if own_tax_id:
         mappings["_own_tax_id"] = own_tax_id
     mappings["_mrerp_menus"] = dict(menus or {})
@@ -115,4 +131,4 @@ def needed(menu_view: dict, master_view: dict, direction: str, kinds: tuple = No
 
 
 __all__ = ["ACCOUNT_BUSY", "CHOICE", "IMPORTING", "LEDGER_MRERP", "NOT_CONFIGURED", "NO_LOGIN",
-           "UNKNOWN", "history", "history_id", "needed", "payload", "settle"]
+           "UNKNOWN", "history", "history_id", "needed", "payload", "products", "settle"]

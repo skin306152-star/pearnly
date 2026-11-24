@@ -905,6 +905,18 @@ class PureRules(unittest.TestCase):
         self.assertNotIn("payment_method", unpaid["fields"])
         self.assertNotIn("client_id", unpaid)
 
+    def test_items_with_a_ledger_code_go_into_the_product_lookup(self):
+        """11-24 测试账套真写：从 MR.ERP 读来的物料（记着它的商品代码）原来不带代码，导入按品名新建、撞上同名已有商品，报
+        「รหัสสินค้าเป็นค่าว่าง」。带代码的行放进共用层商品查找表（同名同码只放一次），没代码的行照旧按品名新建；没有就不放这一项。"""
+        body = {"items": [{"name": "เม็ดสแคป", "code": "เม็ดสแคป"}, {"name": "เม็ดสแคป", "code": "เม็ดสแคป"},
+                          {"name": "ของใหม่", "code": ""}, {"name": " MOBILUX EP ", "code": "หล่อลื่น021"}]}
+        found = contracts.products(body)
+        self.assertEqual(found, [{"item_name": "เม็ดสแคป", "erp_code": "เม็ดสแคป"},
+                                 {"item_name": "MOBILUX EP", "erp_code": "หล่อลื่น021"}])
+        self.assertEqual(contracts.payload({}, own_tax_id="", menus={}, defaults={}, products=found)["mappings"]["products"], found)
+        self.assertNotIn("products", contracts.payload({}, own_tax_id="", menus={}, defaults={})["mappings"])
+        self.assertEqual(contracts.products({"items": [{"name": "ของใหม่"}]}), [])
+
     def test_the_mrerp_number_is_stable_per_document_and_hex(self):
         self.assertEqual(contracts.history_id("PUR-1@1"), contracts.history_id("PUR-1@1"))
         self.assertNotEqual(contracts.history_id("PUR-1@1"), contracts.history_id("PUR-1@2"))

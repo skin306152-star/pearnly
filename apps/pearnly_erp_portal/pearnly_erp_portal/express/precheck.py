@@ -563,10 +563,20 @@ def mrerp_needed(company, doctype, picked=None):
     if picked and picked["reason"] == contracts.SEVERAL_BOOKS:
         return [{"kind": choices.ACCOUNT_SET, "subject": picked["subject"], "label": row.company_name or row.name,
                  "value": "", "source": "", "options": [_option(option) for option in picked["options"]]}]
+    from pearnly_erp_portal.express import api
+
     menu_view, master_view = mrerp_choices.views(row, (picked or {}).get("book"))
-    return [{"kind": raw["kind"], "subject": raw["subject"], "label": raw["subject"], "value": "", "source": "",
-             "options": [_option(option) for option in raw.get("options") or ()]}
+    # 题目用单据弹窗同一套项目名（`api.MRERP_SUBJECTS`，原来直接放了单据类型 / 字段键，卡上显示 purchase）；选项「代码 · 名称」
+    # （同 Cowork `guided.push_setup`、记住的选择的显示）
+    return [{"kind": raw["kind"], "subject": raw["subject"], "label": _(api.MRERP_SUBJECTS.get(raw["subject"], raw["subject"])),
+             "value": "", "source": "",
+             "options": [_option({**option, "name": _coded(option)}) for option in raw.get("options") or ()]}
             for raw in mrerp_contracts.needed(menu_view, master_view, direction)]
+
+
+def _coded(option) -> str:
+    """选项显示「代码 · 名称」（两者相同或缺一只显示一个）。"""
+    return " · ".join(str(part) for part in dict.fromkeys((option.get("code"), option.get("name"))) if part)
 
 
 def mrerp_view(doc_id, doctype, name) -> dict:

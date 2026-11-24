@@ -593,6 +593,11 @@ class MrErp(Precheck):
         self.assertEqual(found["state"], card.CHECK)
         self.assertEqual([(item["kind"], item["subject"], [o["code"] for o in item["options"]]) for item in found["items"]],
                          [("mrerp_menu", "purchase", ["68", "454"]), ("mrerp_default", "supplier_type", ["sup001", "sup002"])])
+        # 11-24：题目是单据弹窗同一套项目名（原来直接放了键 purchase，卡上就显示 purchase），选项「代码 · 名称」
+        from pearnly_erp_portal.express import api
+        self.assertEqual([item["label"] for item in found["items"]],
+                         [api.MRERP_SUBJECTS["purchase"], api.MRERP_SUBJECTS["supplier_type"]])
+        self.assertEqual([o["name"] for o in found["items"][0]["options"]], ["68 · ซื้อ", "454 · ซื้อ2"])
         merged = card.merge(out["documents"])
         self.assertTrue(card.needs_card(merged))
         self.assertEqual([group["group"] for group in merged["groups"]], ["book"])
