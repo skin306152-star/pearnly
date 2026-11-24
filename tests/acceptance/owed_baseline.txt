@@ -487,7 +487,6 @@ cowork.web.work.list.delete|misuse:M11
 cowork.web.work.list.delete|misuse:M17
 cowork.web.work.list.delete|normal
 cowork.web.work.list.delete|variant:new+old
-dms.booking.confirm|L3:normal
 dms.booking.confirm|chain
 dms.booking.confirm|misuse:M02
 dms.booking.confirm|misuse:M03

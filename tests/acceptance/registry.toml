@@ -1595,3 +1595,29 @@ budget_usd = 0
 tier = "gate"
 core = true
 
+
+[[scenario]]
+id = "acc.dms.line.booking"
+title = "DMS 订车（LINE「确认建单」同一入口）在测试账号 DMS-TEST 真建带两行赠品的订车单 → 读回原单赠品逐行 → 照网页原生作废 → 读回作废态"
+class = "normal"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/dms_booking.py"
+rows = ["dms.booking.confirm"]
+covers = [
+  "apps/pearnly_dms/pearnly_dms/booking/service.py",
+  "apps/pearnly_dms/pearnly_dms/booking/booking_submit.py",
+  "apps/pearnly_dms/pearnly_dms/booking/booking_payload.py",
+  "apps/pearnly_dms/pearnly_dms/booking/booking_preflight.py",
+  "apps/pearnly_dms/pearnly_dms/booking/booking_freebies.py",
+  "apps/pearnly_dms/pearnly_dms/booking/car_freebies.py",
+  "apps/pearnly_dms/pearnly_dms/client/client_ops.py",
+  "apps/pearnly_dms/pearnly_dms/client/client_forms.py",
+  "apps/pearnly_dms/pearnly_dms/client/transport.py",
+]
+# 授权：用户 11-23「可以」（主会话转达）——只在 testdms 的测试账号 DMS-TEST 上真建、建完原生作废，作废失败判不通过。服务端固定在测试机实验栈。
+resources = ["testpc1", "testenv-domain:dms"]
+budget_usd = 0
+tier = "gate"
+core = true

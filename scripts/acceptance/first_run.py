@@ -17,6 +17,7 @@
   operator  代录两条（占测试机桌面，一次一条）。
   chat      CC 对话（真模型）：收款、推送、代录对话（采购、销售）、MR.ERP 推送。要接了模型的实验栈。
   mrerp     MR.ERP 十五条（占 mrerp:test01，会踢掉别处登录；依赖三条没进 main 的分支；税报告两条会在测试账套里归期）。
+  dms       DMS 订车真建单（DMS-TEST 测试账号，建完原生作废；testdms 要先 lab-start 到测试机，主会话排）。
   offline   收款时电脑离线（会停 / 起测试机2 的 CC 桌面版，占测试机桌面；跑前先问主会话）。
   cowork    Cowork 录入提交两条（只在测试机实验栈，testcowork 域名切过去）。
   cowork-chat  Cowork 的 CC 对话直写（真模型 + 一次真识别）：采购 → 销售（样票 sales-a1）。本机 Mac 实验栈 cowork
@@ -52,6 +53,7 @@ GROUPS = {
                "acc.cowork.line.receipt"],
     "cowork-chat": ["acc.cowork.cc.direct.purchase", "acc.cowork.cc.direct.sales"],
     "offline": ["acc.erp.collection.offline"],
+    "dms": ["acc.dms.line.booking"],
     "fixes": ["acc.erp.operator.no.computer", "acc.erp.office.actor.purchase", "acc.erp.operator.intake.purchase",
               "acc.erp.operator.stock.group", "acc.erp.operator.masters.link"],
 }
@@ -66,6 +68,7 @@ NEEDS = {  # 每组要配的环境变量（值不进这里；缺了说名字）
     # 未连接那条另要 PEARNLY_ACC_ERP_NOPC_USER / _TAX、办公室电脑那条另要 PEARNLY_ACC_ERP_PHONE_USER：缺了只那一格记没测到
     "fixes": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
     "offline": ["PEARNLY_ACC_ERP_USER", "PEARNLY_ACC_ERP_TAX", "PEARNLY_ACC_BASELINE"],
+    "dms": ["PEARNLY_ACC_DMS_LAB", "PEARNLY_ACC_DMS_USER", "PEARNLY_ACC_DMS_HOST", "PEARNLY_ACC_DMS_PEOPLE_ID"],
 }
 SKIP_PAID = "会花模型费（上限 {budget} 美元），没给 --paid"
 AFTER_FAIL = "前面不通过，没往下跑"
