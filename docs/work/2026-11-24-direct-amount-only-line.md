@@ -33,7 +33,12 @@
   - 不补的六种情形；
   - 代录与直写同一个函数；
   - 代录建主档补行（原代录分支的测试移过来）。
-- 101 本 T 账套离线回放（测试机1 后台，`scripts/express-amount-only-regression.py`，每本复制两份，旧写法 / 新写法各写一张无明细 RR 与 IV，逐字段断言 + CDX 一致）：结果见下。
+- 101 本 T 账套离线回放（测试机1 后台，11-24 15:23–16:05，`scripts/express-amount-only-regression.py`）：
+  - 做法：每本复制两份，旧写法、新写法各写一张无明细 RR 与 IV，逐字段断言，并核 CDX 与 DBF 一致；
+  - 结果：**98 通过 / 0 失败 / 3 跳过**。跳过的是 T7PROPHA、T8PROPHA（没有默认科目或对方）和 thai（没有会计期间）；
+  - 补行服务品：RR 新建 95、沿用 3，IV 新建 83、沿用 12；
+  - 结果文件：`~/pearnly-devtools/operator-empty-items-1124/evidence/replay101/`；
+  - 回放跑的是 code-review 修复之前的提交 c14c901a2。审查后新加的两处（不可信明细也换成补行、同类科目样本优先）只影响有部分 OCR 行的票和新建品的科目组 / 单位，由单元测试覆盖，单头 / 凭证 / 税记录的对照结论不受影响。
 - 实机回归（固定用例，以后改直写写法都要过）：`scripts/express-operator/edit_save_regression.py`。直写无明细 RR / IV → Express 修改再存 → 断言金额、分录、税额、明细不变 → 原生作废 → 断言 DOCSTAT C。
   - 测试机2 69EXP\TEST，用账套里原本没有服务品的科目 52-01-00-00、42-07-00-00：
   - 新写法：RR691124-004、IV0000036 **通过**；
