@@ -593,7 +593,7 @@ function Connections({ api }: { api: Desktop }) {
         })}
 
       {/* 「云端 Express」（步 E，用户 11-16）：Express 那一组下面一行；旧版桌面端没有这几个桥动作，不出 */}
-      <CloudExpressRow api={api} />
+      {window.pearnly_cloud_express === true && <CloudExpressRow api={api} />}
 
       {companyFolders && legacy.length > 0 && (
         <>

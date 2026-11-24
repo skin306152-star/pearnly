@@ -13,6 +13,8 @@ declare global {
     pearnly_upload_max_bytes?: number;
     /** 附件收哪些类型（小写扩展名，带点）：同样由服务端写进来（`assistant.contracts.UPLOAD_EXTENSIONS`）。 */
     pearnly_upload_extensions?: readonly string[];
+    /** 云端 Express 的入口显不显示：正式部署里先不显示（端到端没走通；服务端 `cc_desktop/cloud_entry.py` 写明什么时候拿掉）。 */
+    pearnly_cloud_express?: boolean;
   }
 }
 

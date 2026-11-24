@@ -340,7 +340,9 @@ boot_session = [
     "pearnly_core.desk.boot_messages.boot_session",
 ]
 # 页面文案的版本指纹：每次启动都给（不进按用户缓存的启动信息），前端据此把文案包存在浏览器里。
-extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo"]
+# 云端 Express 的入口在正式部署里先不显示（端到端没走通，`cc_desktop/cloud_entry.py` 写明什么时候拿掉）
+extend_bootinfo = ["pearnly_core.browser_text.extend_bootinfo", "pearnly_core.desk.boot_messages.extend_bootinfo",
+                   "pearnly_core.cc_desktop.cloud_entry.extend_bootinfo"]
 app_include_css = [versioned_asset("pearnly_core", "desk/product.css"), versioned_asset("pearnly_core", "desk/scan.css")]
 # 顺序即依赖：`messages.js` 最先（整份翻译表按语言 + 指纹单独取、可缓存，界面启动前须就位，`desk/boot_messages.py`）；`errors.js` 其次（页面报错回传，后面的组件出错也抓得到）；`product.js` 先立起 `frappe.pearnly`，后面的共用组件都挂在它上面。
 app_include_js = [versioned_asset("pearnly_core", "desk/messages.js"), versioned_asset("pearnly_core", "desk/errors.js"), versioned_asset("pearnly_core", "desk/keyboard.js"), versioned_asset("pearnly_core", "desk/product.js"), versioned_asset("pearnly_core", "desk/field-help.js"), versioned_asset("pearnly_core", "desk/actions.js"), versioned_asset("pearnly_core", "desk/select.js"), versioned_asset("pearnly_core", "desk/link.js"), versioned_asset("pearnly_core", "desk/list.js"), versioned_asset("pearnly_core", "desk/viewer.js"), versioned_asset("pearnly_core", "desk/home.js"), versioned_asset("pearnly_core", "desk/sidebar.js"), versioned_asset("pearnly_core", "scan/reader.js"), versioned_asset("pearnly_core", "desk/scan.js")]

@@ -97,14 +97,21 @@ class PickerBehaviourTests(unittest.TestCase):
     def test_tabs_follow_the_server_adapters_and_open_on_the_first_rows_kind(self):
         self.run_page(r"""
 import { firstTab, openCompanyPicker, tabsOf, useCompanyPicker } from "@/components/company-picker";
-// 一种都没有不摆标签；有就摆，最后是占位的「云端 Express」（11-20）
+// 一种都没有不摆标签；有就摆（11-20）。「云端 Express」只在服务端说显示时摆在最后（正式部署不显示，11-24 cloud_entry）
 assert.deepEqual(tabsOf([]), []);
 assert.equal(firstTab([], []), "");
-assert.deepEqual(tabsOf(["express"]), ["express", "express_cloud"]);
+assert.equal((window as any).pearnly_cloud_express, undefined);
+assert.deepEqual(tabsOf(["express"]), ["express"]);
+assert.deepEqual(tabsOf(["express"], true), ["express", "express_cloud"]);
+assert.deepEqual(tabsOf([], true), []);
 assert.equal(firstTab(["express"], [{ adapter: "express" }]), "express");
 // MR.ERP、Express、ERP 的先后，云端 Express 最后；认不出的丢掉
-assert.deepEqual(tabsOf(["express", "mrerp", "bogus"]), ["mrerp", "express", "express_cloud"]);
-assert.deepEqual(tabsOf(["erp", "express"]), ["express", "erp", "express_cloud"]);
+assert.deepEqual(tabsOf(["express", "mrerp", "bogus"]), ["mrerp", "express"]);
+assert.deepEqual(tabsOf(["express", "mrerp", "bogus"], true), ["mrerp", "express", "express_cloud"]);
+assert.deepEqual(tabsOf(["erp", "express"], true), ["express", "erp", "express_cloud"]);
+(window as any).pearnly_cloud_express = true;
+assert.deepEqual(tabsOf(["express"]), ["express", "express_cloud"]);
+delete (window as any).pearnly_cloud_express;
 // 停在第一行那种（我最近用的那家），第一行认不出或没有就第一个标签
 assert.equal(firstTab(["express", "mrerp"], [{ adapter: "express" }, { adapter: "mrerp" }]), "express");
 assert.equal(firstTab(["express", "mrerp"], []), "mrerp");

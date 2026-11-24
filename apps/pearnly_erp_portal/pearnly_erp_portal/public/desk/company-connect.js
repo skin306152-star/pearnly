@@ -22,7 +22,8 @@
 	const api = "pearnly_erp_portal.masters.api.";
 	const PAGE = 50;
 	// 标签顺序同 CC「选择公司」：MR.ERP 在前、云端 Express 最后；产品名不翻译，「云端 Express」走词条
-	const TABS = ["mrerp", "express", "express_cloud"];
+	// 「云端 Express」标签只在服务端说显示时才摆（正式部署里先不显示，端到端没走通；见 pearnly_core/cc_desktop/cloud_entry.py）
+	const TABS = ["mrerp", "express"].concat(frappe.boot && frappe.boot.pearnly_cloud_express ? ["express_cloud"] : []);
 	const CLOUD = "express_cloud";
 	const tab_label = value => ({express: "Express", mrerp: "MR.ERP"})[value] || __("company.connect.expressCloud");
 	const HEAD_OFFICE = "00000";

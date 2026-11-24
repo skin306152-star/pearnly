@@ -57,10 +57,11 @@ const ERPS = [
   { adapter: CLOUD, label: co.cloudExpress },
 ];
 
-/** 摆哪几个标签（服务端 adapters 里认得的，按 ERPS 的先后，最后是占位的「云端 Express」）；一种都没有时不摆。 */
-export function tabsOf(adapters: readonly string[]): string[] {
+/** 摆哪几个标签（服务端 adapters 里认得的，按 ERPS 的先后，最后是占位的「云端 Express」）；一种都没有时不摆。
+ *  「云端 Express」标签只在服务端说显示时才摆（`window.pearnly_cloud_express`，正式部署里先不显示，见 `cc_desktop/cloud_entry.py`）。 */
+export function tabsOf(adapters: readonly string[], cloud = window.pearnly_cloud_express === true): string[] {
   const kinds = ERPS.map((e) => e.adapter).filter((a) => a !== CLOUD && adapters.includes(a));
-  return kinds.length ? [...kinds, CLOUD] : [];
+  return kinds.length ? (cloud ? [...kinds, CLOUD] : kinds) : [];
 }
 
 /** 没点过标签时停在哪个：第一行那种（我最近用的那家的 ERP），第一行认不出就第一个标签；不摆标签时 ""（不按标签筛）。 */

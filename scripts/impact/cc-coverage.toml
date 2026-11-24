@@ -24,10 +24,10 @@ erp_operator = ["apps/pearnly_erp_portal/pearnly_erp_portal/mrerp/__init__.py:MR
                 "apps/pearnly_core/pearnly_core/express_operator/contracts.py:MRERP_OPERATOR_ENABLED"]
 
 [line.cloud]
-cowork_direct = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
-cowork_operator = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
-erp_direct = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
-erp_operator = "closed:云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过"
+cowork_direct = "closed:11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）"
+cowork_operator = "closed:11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）"
+erp_direct = "closed:11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）"
+erp_operator = "closed:11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）"
 
 # 引导相关、但不对应某一格的流程 / 真机记录 / 验收场景（写为什么）
 [unlinked.records]

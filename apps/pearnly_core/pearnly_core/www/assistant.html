@@ -32,6 +32,7 @@
       window.csrf_token = "{{ csrf_token }}";
       window.pearnly_upload_max_bytes = {{ upload_max_bytes | int }};
       window.pearnly_upload_extensions = {{ upload_extensions | tojson }};
+      window.pearnly_cloud_express = {{ cloud_express | tojson }};
       (function () {
         var xhr = new XMLHttpRequest();
         xhr.open("GET", "/assets/pearnly_core/assistant/index.html?v=" + Date.now(), false);

@@ -251,5 +251,42 @@ class CloudPairingBlock(unittest.TestCase):
             self.assertEqual(text.count(row), 1, row)
 
 
+class HiddenInProduction(unittest.TestCase):
+    """11-24 首测：云端 Express 端到端没走通（D3 云端 CC 没有成员、D4 找不到账套），入口在正式部署里先不显示（不是按租户开关）。
+    判定只有一处（``pearnly_core/cc_desktop/cloud_entry.visible``：非生产才显示），对话页与 Desk 启动信息都取它，三处入口按它渲染。"""
+
+    CORE = ROOT / "apps/pearnly_core/pearnly_core"
+
+    def test_only_non_production_deployments_show_the_cloud_entries(self):
+        import sys
+
+        sys.path.insert(0, str(ROOT / "apps/pearnly_core"))
+        from pearnly_core.cc_desktop import cloud_entry
+
+        for env in ({}, {"PEARNLY_DEPLOYMENT": "production"}, {"PEARNLY_DEPLOYMENT": " Production "},
+                    {"PEARNLY_DEPLOYMENT": ""}):
+            self.assertFalse(cloud_entry.visible(env), env)
+        for name in ("dev", "testenv", "acceptance"):
+            self.assertTrue(cloud_entry.visible({"PEARNLY_DEPLOYMENT": name}), name)
+        boot = type("Boot", (), {})()
+        cloud_entry.extend_bootinfo(boot)
+        self.assertIsInstance(boot.pearnly_cloud_express, bool)
+
+    def test_the_page_and_the_desk_boot_carry_the_decision(self):
+        page = read(self.CORE / "www/assistant.py")
+        self.assertIn("context.cloud_express = cloud_entry.visible()", page)
+        self.assertIn("window.pearnly_cloud_express = {{ cloud_express | tojson }};", read(self.CORE / "www/assistant.html"))
+        self.assertIn('"pearnly_core.cc_desktop.cloud_entry.extend_bootinfo"', read(self.CORE / "hooks.py"))
+
+    def test_all_three_entries_render_only_when_the_server_says_so(self):
+        self.assertIn("{window.pearnly_cloud_express === true && <CloudExpressRow api={api} />}", read(SETTINGS))
+        picker = read(SPA / "components/company-picker.tsx")
+        self.assertIn("cloud = window.pearnly_cloud_express === true", picker)
+        self.assertIn("(cloud ? [...kinds, CLOUD] : kinds)", picker)
+        connect = read(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js")
+        self.assertIn('const TABS = ["mrerp", "express"].concat(frappe.boot && frappe.boot.pearnly_cloud_express ? ["express_cloud"] : []);',
+                      connect)
+
+
 if __name__ == "__main__":
     unittest.main()

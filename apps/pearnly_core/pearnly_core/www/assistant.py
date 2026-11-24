@@ -9,6 +9,7 @@ import frappe
 from pearnly_core import login_redirect
 from pearnly_core.account import preferences
 from pearnly_core.assistant import contracts
+from pearnly_core.cc_desktop import cloud_entry
 from pearnly_core.identity import assistant_entry_url
 from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
@@ -30,4 +31,6 @@ def get_context(context):
     context.upload_max_bytes = UPLOAD_MAX_BYTES
     # 收哪些类型：页面选中文件时先比，不收的当场拒收、不留失败卡（同服务端校验一个来源，`contracts.upload_name`）
     context.upload_extensions = sorted(contracts.UPLOAD_EXTENSIONS)
+    # 云端 Express 的入口：正式部署里先不显示（端到端没走通，`cc_desktop.cloud_entry` 写明什么时候拿掉）
+    context.cloud_express = cloud_entry.visible()
     context.lang = frappe.local.lang = preferences.interface_language()
