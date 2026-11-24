@@ -531,25 +531,28 @@ desktop_version: 1.12.21
 | 3 | 随单新建对方 / 物料（采购销售里的两道题） | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 |
 | 4 | 收款 | —（只在 ERP） | —（代录不做收款） | ✅ · ◐ P1 · ⇢云 | —（代录不做收款） |
 | 5 | POS 日汇总 | ✅ · —（只支持 Express 账套） · ⇢云 | —（只做直写） | —（ERP 有自己的收银台（存疑，P3 前核对）） | —（只做直写） |
-| 6 | 出入库 / 调拨 / 物料调整 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ○ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
-| 7 | 盘点 | ◐ P3 | —（只做直写） | ◐ P4 | —（只做直写） |
-| 8 | 结果不明核对、待处理 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
-| 9 | 文件夹定时任务 | ◐ P4 · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
-| 10 | 银行对账、收入对账、增值税对账 | ✅ · ◐ P3 · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
-| 11 | 增值税 ภ.พ.30 草稿 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
-| 12 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ✅ | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
-| 13 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
-| 14 | 单据维护：改识别结果、录不录、删除、导出复核表 | ○ P2 | ○ P2 | ○ P2 | ○ P2 |
-| 15 | 公司资料、记住的选择、知识库 | ◐ P4 | —（只做直写） | ◐ P4 | —（只做直写） |
-| 16 | 任务看板 | ◐ P4 | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
-| 17 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
-| 18 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 | —（只做直写） |
-| 19 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
-| 20 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
+| 6 | 出库 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
+| 7 | 调拨 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
+| 8 | 物料调整 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
+| 9 | 入库 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
+| 10 | 盘点 | ◐ P3 | —（只做直写） | ◐ P4 | —（只做直写） |
+| 11 | 结果不明核对、待处理 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
+| 12 | 文件夹定时任务 | ◐ P4 · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
+| 13 | 银行对账、收入对账、增值税对账 | ✅ · ◐ P3 · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
+| 14 | 增值税 ภ.พ.30 草稿 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
+| 15 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ✅ | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
+| 16 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
+| 17 | 单据维护：改识别结果、录不录、删除、导出复核表 | ○ P2 | ○ P2 | ○ P2 | ○ P2 |
+| 18 | 公司资料、记住的选择、知识库 | ◐ P4 | —（只做直写） | ◐ P4 | —（只做直写） |
+| 19 | 任务看板 | ◐ P4 | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
+| 20 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
+| 21 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 | —（只做直写） |
+| 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
+| 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **81 格**：✅ 12、◐ 25、○ 8、✗ 4、等 MR.ERP 7、等云端 24、等公司接入 1。
+范围内共 **90 格**：✅ 12、◐ 29、○ 7、✗ 4、等 MR.ERP 10、等云端 27、等公司接入 1。
 
-按证据：**真机通过 1** · **真模型通过 1** · **只有服务端 35** · **没做 12**；另 等 MR.ERP 7 · 等云端 24 · 等公司接入 1 · 范围外 47。
+按证据：**真机通过 1** · **真模型通过 1** · **只有服务端 39** · **没做 11**；另 等 MR.ERP 10 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
 ### 按格依据
 
@@ -596,9 +599,18 @@ desktop_version: 1.12.21
 | collection | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 collection（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | pos_day | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 pos（form 源，交导出文件、没见过的版式在卡上答列、复核、确定按天建票；cc-guided-pos 232ab6d79 起；11-23 补结果步骤：每天那张票一行，复用 guide_documents.result 取推送状态与单号，没推过的标未推送）；真页面交导出 → 复核每天一行 → 确定 → 结果卡每天一行未推送，两张票推送目标本对话账套（11-23 实验栈电脑 / 手机两格）；另有离线单测 test_cowork_pos_guide；页面流程 `cowork.cc.guide.pos` |
 | pos_day | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 pos（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
-| stock_docs | ERP 直写 · 本地 | ○ P4 | 没做 | pearnly_erp_portal 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
-| stock_docs | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明这项业务的引导（chat）；等 MR.ERP（开着） |
-| stock_docs | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明这项业务的引导（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
+| stock_out | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 stock_out（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续；流程 `erp.cc.guide.stock-entries` |
+| stock_out | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 stock_out（chat）；等 MR.ERP（开着） |
+| stock_out | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 stock_out（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
+| stock_transfer | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 stock_transfer（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续 |
+| stock_transfer | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 stock_transfer（chat）；等 MR.ERP（开着） |
+| stock_transfer | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 stock_transfer（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
+| stock_adjust | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 stock_adjust（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续 |
+| stock_adjust | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 stock_adjust（chat）；等 MR.ERP（开着） |
+| stock_adjust | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 stock_adjust（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
+| stock_in | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 stock_in（form 源，本对话公司下、只限本地 / 云端 Express 账本：按行选物料与仓、单价、用途、对话附件，复核点确定转调网页同一个 api_create_stock_entry 提交，按运行 + 版本幂等；cc-guided-stock-entries bd8d3f855 / 63fed0ed4，train-1124 拼入）；离线单测 test_erp_stock_entry_guide，流程 erp.cc.guide.stock-entries 已登记、真站点还没跑，页面整条证据归后续 |
+| stock_in | ERP 直写 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 声明了 stock_in（chat）；等 MR.ERP（开着） |
+| stock_in | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 stock_in（chat）；等云端（云端 Express 来源是占位、不取数（b0f007927），T1–T6 只读实测没过） |
 | stocktake | Cowork 直写 | ◐ P3 | 只有服务端 | Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；没有结果步骤；cdb104b3d、c0c936631、80c1c2770）；只有离线单测 test_cowork_stocktake_guide，页面流程归第 2 步 |
 | stocktake | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 stocktake（form 源，本对话公司下：按仓库新建、计数、结束、按结果出调整单、删除；未知条码就地新建物料再记数；结束与删除走允许卡；没有结果步骤；b0fcdc66b、e101bb82b）；只有离线单测 test_erp_stocktake_guide，页面流程归第 2 步 |
 | resolve | Cowork 直写 · 本地 | ◐ P2 | 只有服务端 | Cowork 声明 pending（form 源，选本对话公司待处理清单里的一项 → 确定后交给采购 / 销售的按单据引导 run.start(doc_ids)，判定卡与复核卡都在那里；删除走允许卡；没有结果步骤；d920db310、bba22e8c7）；只有离线单测 test_cowork_pending_guide，页面流程归第 2 步。ERP 的待处理 11-23 随 ERP 直写采购 / 销售一起带进来（另见 erp_direct 两格） |
