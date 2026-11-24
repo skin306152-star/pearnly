@@ -239,7 +239,7 @@ class RepositoryTests(unittest.TestCase):
 
     def test_the_state_is_reported_as_it_is(self):
         found = gate.counts(self.rows, self.evidence)
-        self.assertEqual(found["done"], 14)
+        self.assertEqual(found["done"], 15)
         by_id = {r["id"]: r for r in self.rows}
         self.assertEqual(by_id["collection"]["erp_direct"][0], "done")
         # 11-23 真页面流程：Cowork 直写采购、ERP 代录采购 / 销售（本地 Express）
@@ -247,6 +247,8 @@ class RepositoryTests(unittest.TestCase):
                           by_id["sales"]["erp_operator"][0]], ["done", "done", "done"])
         # 11-24 Cowork 代录采购 / 销售（本地 Express）有真页面流程
         self.assertEqual([by_id["purchase"]["cowork_operator"][0], by_id["sales"]["cowork_operator"][0]], ["done", "done"])
+        # 11-24 对账在接 MR.ERP 的公司对话里有真页面流程
+        self.assertEqual(by_id["recon"]["cowork_direct"][1], "done")
         # 11-23 没有复核的表单答完出确定卡后的真页面流程：Cowork 回读、对账（本地 Express）
         self.assertEqual([by_id["readback"]["cowork_direct"][0], by_id["recon"]["cowork_direct"][0]], ["done", "done"])
         # 11-23 ERP 直写采购 / 销售（本地 Express）放开并有真页面流程

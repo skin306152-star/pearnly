@@ -26,7 +26,8 @@ API = "pearnly_core.assistant.api."
 DOCTYPE = "Cowork Income Reconciliation"
 
 
-def prepare(lab, manifest):
+def prepare(lab, manifest, company=None):
+    """``company``：会话开在这家公司下（MR.ERP 那格，`cowork_cc_guide_recon_mrerp`）；不给是不带公司的对话。"""
     tag = "rf" + uuid.uuid4().hex[:6]
     tax = "1" + f"{uuid.uuid4().int % 10 ** 12:012d}"   # 13 位、首位不是 0 的编造税号
     out = lab.python(manifest["site"], f"""
@@ -54,7 +55,7 @@ ledger = (f"GL income {{tag}}.xlsx", book([("GL", [["วันที่", "ใ�
 sales_vat = (f"VAT income {{tag}}.xlsx", book([("VAT", head + [table, sale])]))
 frappe.db.set_value("User", {USER!r}, "language", "zh")
 frappe.set_user({USER!r})
-made = sessions.create(period=frappe.utils.today()[:7])
+made = sessions.create(project={company!r}, period=frappe.utils.today()[:7]) if {company!r} else sessions.create(period=frappe.utils.today()[:7])
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": made["id"]}}, "title", tag)
 frappe.db.commit()
 print(json.dumps({{"session": made["id"], "ledger": list(ledger), "sales_vat": list(sales_vat),

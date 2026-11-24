@@ -2601,6 +2601,19 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.cc.guide.recon-mrerp"
+title = "Cowork 版 CC 对账引导在接 MR.ERP 的公司对话里：交总账、税报两份 xlsx → 确定 → 结果卡带追问；答第一题后追问消失、记下预设（编造的 MR.ERP 连接与目录，不带凭据）"
+module = "scripts/flows/cowork_cc_guide_recon_mrerp.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/recon.py",
+]
+
+[[flow]]
 id = "cowork.cc.guide.purchase"
 title = "Cowork 版 CC 采购引导（直写）真页面：题卡逐题点 → 复核卡 →「立即录入」→ 结果卡已交出；运行 done、同意来自页面、推向本对话账套 T.8（实验栈没有识别，单据由 run.start(doc_ids) 交进来）"
 module = "scripts/flows/cowork_cc_guide_purchase.py"

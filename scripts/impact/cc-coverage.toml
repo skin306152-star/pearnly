@@ -288,7 +288,7 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP：MR.ERP 账套问现
 id = "recon"
 name = "银行对账、收入对账、增值税对账"
 guide = "recon"
-cowork_direct = ["done", "half:p3", "wait:cloud"]
+cowork_direct = ["done", "done", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 无此业务"]
 erp_operator = ["out:ERP 无此业务"]
@@ -300,7 +300,8 @@ page_flows = ["cowork.cc.guide.recon-follow"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
-basis = "recon 声明含 mrerp（交文件两侧对账与账本种类无关）；没有 MR.ERP 公司上的流程"
+basis = "recon 声明含 mrerp（交文件两侧对账与账本种类无关）；接 MR.ERP 的公司（编造的 MR.ERP 连接与账套目录，不带凭据）的对话里真页面交两份 xlsx → 确定卡「确定」→ 结果卡就绪带追问 → 答追问后消失、记成预设（11-24 本机实验栈电脑 / 手机两格）"
+page_flows = ["cowork.cc.guide.recon-mrerp"]
 
 [[row]]
 id = "vat"
