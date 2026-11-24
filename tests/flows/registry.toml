@@ -2748,6 +2748,19 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.guide.operator-other-month"
+title = "ERP 版 CC 代录对话里的别月票（P4）：题卡先问「票面 X · 本对话 Y」照录 / 本次不录 → 点照录 → 复核 → 确定 → 交进代录任务一次"
+module = "scripts/flows/erp_cc_guide_operator_other_month.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/guide_start.py",
+]
+
+[[flow]]
 id = "erp.cc.guide.operator-purchase"
 title = "ERP 版 CC 代录采购引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡交进代录；运行 done、同意来自页面、一份写入计划、票进代录任务一次（实验栈没有识别，收单记录由 run.start(doc_ids) 交进来）"
 module = "scripts/flows/erp_cc_guide_operator_purchase.py"

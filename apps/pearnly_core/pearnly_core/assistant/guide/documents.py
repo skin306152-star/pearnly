@@ -335,6 +335,8 @@ def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, 
         from pearnly_core.express_operator import guide_start
 
         own = guide_start.questions(ctx, doc_ids, st["operator"], st.get("again") or [], st.get("follow") or [])
+        # 代录自己的题在卡片翻译（`card_for`）之后才加进来：同样按本轮语言翻（原来标题显示成单号、选项显示成码）
+        own = _translate({"questions": own, "decided": []})["questions"]
         built["questions"][:0] = own
         built["counts"]["questions"] = len(built["questions"])
         held = list(dict.fromkeys([*held, *(d for q in own for d in q["docs"])]))
@@ -344,6 +346,7 @@ def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, 
 
         task = guide_start.conversation_task(ctx)
         own = guide_start.other_month(ctx, doc_ids, task, st.get("follow") or []) if task else []
+        own = _translate({"questions": own, "decided": []})["questions"]
         built["questions"][:0] = own
         built["counts"]["questions"] = len(built["questions"])
         held = list(dict.fromkeys([*held, *(d for q in own for d in q["docs"])]))

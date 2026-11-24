@@ -435,6 +435,8 @@ class OperatorStart(Base):
         self.assertEqual((other["kind"], other["docs"], other["preselected"], [o["code"] for o in other["options"]]),
                          ("operator_other", ["I:2"], "", ["follow", "skip"]))
         self.assertEqual(other["title_params"], {"label": "IV2", "month": "2026-10", "period": self.now["period"]})
+        # 翻译过（替身没有译文时标题落回单号、选项落回码；真站点是「票面 X · 本对话 Y」与两项选项字）
+        self.assertEqual((other["title"], [o["label"] for o in other["options"]]), ("IV2", ["follow", "skip"]))
         found = self.answer_card(found["run"], [{"key": other["key"], "value": value},
                                                 *({"key": q["key"], "value": "cash"} for q in rest)])
         self.assertEqual(found["stage"], documents.REVIEW)  # 答过的不再问
