@@ -98,6 +98,8 @@
 			list = p.list({
 				// 勾选框照官方列表保留（用户 2026-09-26）。
 				page, doctype: "Cowork OCR History", compact_columns: true,
+				// 「查看待处理」带进来的「失败」是代选的：这次停留保留，不记成下次进来的状态
+				drill: preset ? {fields: {push_state: preset}} : undefined,
 				on_selection: () => selection(),
 				// 本页支持的筛选条件：名称与选项都取自 DocType（不再自己造词）。
 				filter_fields: [

@@ -151,7 +151,8 @@
 			if (focus_product && !product_view) {
 				const product = focus_product;
 				focus_product = null;
-				await list.filter_area.add([[list.doctype, "product", "=", product]]);
+				// 下钻（`list.drill`）：只在这次停留和后退回来时保留，下次从菜单进库存不带这件
+				await list.drill([[list.doctype, "product", "=", product]]);
 			}
 		}
 		await build_list();

@@ -12,7 +12,7 @@ const source = fs.readFileSync(path.join(__dirname, '../apps/pearnly_core/pearnl
 // 什么方法都接、都返回自己的 jQuery 替身
 const chain = new Proxy(function () {}, { get: (target, key) => (key === 'length' ? 0 : chain), apply: () => chain });
 
-function harness({ company = 'CO-A', route = 'pearnly-products', route_options = null, store = {} } = {}) {
+function harness({ company = 'CO-A', route = 'pearnly-products', route_options = null, store = {}, history = fakeHistory() } = {}) {
   const routerChanges = [];
   const frappe = {
     pearnly: {}, ui: {}, meta: {}, boot: { pearnly_company: company }, route_options,
@@ -25,7 +25,8 @@ function harness({ company = 'CO-A', route = 'pearnly-products', route_options =
         constructor(options) { Object.assign(this, options); this.filters = []; }
         setup_main_section() {
           this.$frappe_list = chain; this.$result = chain; this.$paging_area = chain; this.$no_result = chain;
-          this.filter_area = { get: () => this.filters };
+          this.filter_area = { get: () => this.filters,
+            add: async rows => { this.filters = [...this.filters, ...rows]; await this.refresh(); } };
         }
         freeze() {} prepare_data() {} toggle_result_area() {} get_no_result_message() { return ''; } reset_defaults() {}
         on_row_checked() {} get_checked_items() { return []; }
@@ -33,8 +34,21 @@ function harness({ company = 'CO-A', route = 'pearnly-products', route_options =
       ListView: { prototype: { render_list() {}, apply_column_widths() {}, get_no_result_message() { return ''; }, setup_check_events() {}, get_checked_items() { return []; }, clear_checked_items() {}, update_checkbox() {} } },
     },
   };
-  vm.runInNewContext(source, { frappe, window: {}, $: () => chain, __: v => v, setTimeout, clearTimeout });
-  return { frappe, p: frappe.pearnly, store, navigate: () => routerChanges.forEach(fn => fn()) };
+  vm.runInNewContext(source, { frappe, window: {}, $: () => chain, __: v => v, setTimeout, clearTimeout, history,
+    location: { href: '/desk/' + route } });
+  return { frappe, p: frappe.pearnly, store, history, navigate: () => routerChanges.forEach(fn => fn()) };
+}
+
+// 浏览历史的替身：`state` 是当前这一条的；`push()` = 菜单 / 侧栏 / 链接进来（新的一条，没有 state）；`back()` = 回到上一条
+function fakeHistory() {
+  const entries = [{ state: null }];
+  let at = 0;
+  return {
+    get state() { return entries[at].state; },
+    replaceState(state) { entries[at] = { state: JSON.parse(JSON.stringify(state)) }; },
+    push() { entries.splice(at + 1); entries.push({ state: null }); at += 1; },
+    back() { at -= 1; },
+  };
 }
 
 function control(fieldname, fieldtype = 'Data', options) {
@@ -161,4 +175,65 @@ test('列表拆掉时一并拆掉原生筛选区（同一页重建列表不多�
   list.filter_area = { get: () => [], standard_filters_wrapper: { remove: () => removed.push('standard') } };
   list.destroy();
   assert.deepEqual(removed, ['filter-section', 'standard']);
+});
+
+// 11-24 主会话：「点开某一行」代加的条件只在这次停留和后退回来时保留，不写进跨次进入的记忆；人自己选的才记住
+test('下钻加的条件不记：从菜单再进来没有它，搜索框照旧；后退回到那一条还在', async () => {
+  const store = {};
+  const history = fakeHistory();
+  const first = await open(harness({ store, history }), { fields: { search: control('search') } });
+  first.page.fields_dict.search.value = 'ABC';
+  await first.list.drill([['ERP Product', 'is_active', '=', 1]]);
+  assert.deepEqual(first.list.filters, [['ERP Product', 'is_active', '=', 1]], '这次停留里在');
+  assert.deepEqual(store['ERP Product|pearnly:pearnly-products:CO-A'].filters, [], '没写进记忆');
+  // 人原来在这个字段上自己选过条件：下钻那次存档沿用它，不被下钻盖掉也不丢
+  store['ERP Product|pearnly:pearnly-products:CO-A'] = { fields: { search: 'ABC' }, filters: [['ERP Product', 'is_active', '=', 0]] };
+  const own = await open(harness({ store, history: fakeHistory() }), { fields: { search: control('search') } });
+  await own.list.drill([['ERP Product', 'is_active', '=', 1]]);
+  assert.deepEqual(JSON.parse(JSON.stringify(store['ERP Product|pearnly:pearnly-products:CO-A'].filters)), [['ERP Product', 'is_active', '=', 0]]);
+  store['ERP Product|pearnly:pearnly-products:CO-A'] = { fields: { search: 'ABC' }, filters: [] };
+  assert.equal(store['ERP Product|pearnly:pearnly-products:CO-A'].fields.search, 'ABC', '人输的搜索照记');
+  history.push();  // 去别的菜单
+  history.push();  // 再从菜单进列表：新的一条
+  const menu = await open(harness({ store, history }), { fields: { search: control('search') } });
+  assert.deepEqual(JSON.parse(JSON.stringify(menu.list.filters)), [], '从菜单进来不带下钻那件');
+  assert.equal(menu.loads[0].search, 'ABC');
+  history.back(); history.back();  // 浏览器后退回到下钻那一条
+  const back = await open(harness({ store, history }), { fields: { search: control('search') } });
+  assert.deepEqual(JSON.parse(JSON.stringify(back.list.filters)), [['ERP Product', 'is_active', '=', 1]], '后退回来还在');  // 沙箱里建的数组原型不同，按值比
+});
+
+test('人把下钻的条件改掉，改后的值才是人选的，照记', async () => {
+  const store = {};
+  const { list } = await open(harness({ store }), { fields: { search: control('search') } });
+  await list.drill([['ERP Product', 'is_active', '=', 1]]);
+  list.filters = [['ERP Product', 'is_active', '=', 0]];
+  await list.reload();
+  assert.deepEqual(store['ERP Product|pearnly:pearnly-products:CO-A'].filters, [['ERP Product', 'is_active', '=', 0]]);
+});
+
+test('别页按钮带进来的预选（drill 选项）：这次用它、不被记住的旧值盖掉，也不记成下次的状态', async () => {
+  const store = { 'ERP Product|pearnly:pearnly-products:CO-A': { fields: { state: 'success' }, filters: [] } };
+  const h = harness({ store });
+  const page = { main: chain, wrapper: chain, page_form: chain, fields_dict: { state: control('state', 'Select', '\nfailed\nsuccess') } };
+  page.fields_dict.state.value = 'failed';
+  const list = h.p.list({ page, doctype: 'ERP Product', columns: [{ fieldname: 'product_name' }], drill: { fields: { state: 'failed' } },
+    load: async () => ({ items: [], total: 0 }) });
+  list.resize_list = () => {};
+  await list.ready;
+  assert.equal(page.fields_dict.state.value, 'failed');
+  assert.equal(store['ERP Product|pearnly:pearnly-products:CO-A'].fields.state, 'success', '记住的仍是人上次自己选的');
+});
+
+test('页面不直接 filter_area.add：替人加条件一律走 list.drill（不然会被记成人选的）', () => {
+  const root = path.join(__dirname, '../apps');
+  const offenders = [];
+  const walk = dir => { for (const name of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, name.name);
+    if (name.isDirectory()) { if (!['node_modules', 'dist', 'pearnly-app'].includes(name.name)) walk(full); }
+    else if (/\/public\/desk\/.*\.js$/.test(full) && !full.endsWith('pearnly_core/public/desk/list.js')
+      && /filter_area\??\.add\(/.test(fs.readFileSync(full, 'utf8'))) offenders.push(path.relative(root, full));
+  } };
+  walk(root);
+  assert.deepEqual(offenders, []);
 });

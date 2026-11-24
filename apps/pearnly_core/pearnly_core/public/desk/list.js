@@ -96,6 +96,15 @@
 			this.remembered = this.memory && !Object.keys(frappe.route_options || {}).length
 				&& (entering || this.page?.pearnly_restoring) ? null : undefined;  // null = 等 DocType 载入后去取；undefined = 不取
 			if (this.remembered === null && entering) this.page.pearnly_restored_nav = navigation;
+			// 代人加的条件（点开一行下钻：库存「按物料」点一行 → 只看这件；别页一个按钮带着预选进来：录入「查看待处理」→ 失败）
+			// 只在这次停留、以及浏览器后退 / 前进回到这一条历史时保留，**不写进跨次进入的记忆**；人自己在搜索框、筛选、视图、日期里
+			// 选的才记住（11-24 主会话定：昨天点开过某件物料，今天从菜单进库存只看到这一件、再搜别的就是空表，会以为库存没了）。
+			// 记在当前这一条浏览历史上（`history.state`）：后退 / 前进回到这一条会带回，菜单、侧栏、链接进来是新的一条，自然没有。
+			// 页面用 `drill` 选项（建列表时就有的页头字段值 / 条件）或 `list.drill(条件)`（列表画好后再加），不直接 `filter_area.add`。
+			const kept = this.memory ? globalThis.history?.state?.pearnly_drill?.[this.memory] : null;
+			this.drilled = {fields: {...(kept?.fields || {}), ...(options.drill?.fields || {})}, filters: []};
+			for (const row of [...(kept?.filters || []), ...(options.drill?.filters || [])]) this.note_drilled(row);
+			if (options.drill) this.save_drilled();
 			this.settings = {formatters: {}, button: options.button};
 			// 白名单：只列这些字段（见上面包 `frappe.ui.Filter` 的那段）。注意 `filter_fields`
 			// 是给 `FieldSelect` 看的**字段名数组**；页面声明写成 `filter_fields: [{fieldname…}]`
@@ -134,6 +143,10 @@
 					this.filters = (Array.isArray(saved.filters) ? saved.filters : [])
 						.filter(row => Array.isArray(row) && this.filter_fields?.includes(row[1]));
 				}
+				// 代加的条件盖过记住的同一字段（后退回到下钻那一条：仍只看那件）
+				const drilled = this.drilled.filters.filter(row => this.filter_fields?.includes(row[1]));
+				if (drilled.length) this.filters = [...(this.filters || []).filter(row => !drilled.some(d => d[1] === row[1])),
+					...drilled.map(row => [this.doctype, ...row.slice(1)])];
 				if (!this.destroyed) return this.setup_main_section();
 			}).then(() => {
 				if (this.destroyed) return;
@@ -399,14 +412,15 @@
 				&& !["Button", "HTML", "Heading", "Section Break", "Column Break"].includes(control.df.fieldtype));
 		}
 		async restore_page_state() {
-			const saved = this.remembered;
+			const saved = this.remembered || (Object.keys(this.drilled.fields).length ? {} : null);
 			if (!saved) return;
 			if (this.sort_fields.has(saved.sort_by)) {
 				this.sort_by = saved.sort_by;
 				this.sort_order = saved.sort_order === "desc" ? "desc" : "asc";
 			}
 			if ([20, 100, 500, 2500].includes(saved.page_length)) this.selected_page_count = this.page_length = saved.page_length;
-			const values = saved.fields && typeof saved.fields === "object" ? saved.fields : {};
+			// 代加的页头字段值盖过记住的（录入页从「查看待处理」进来：仍是失败，不被上次记住的状态盖掉）
+			const values = {...(saved.fields && typeof saved.fields === "object" ? saved.fields : {}), ...this.drilled.fields};
 			// 有的页头字段一改就整张列表重建（库存页「显示方式」→ `build_list`）：重建出来的新列表只取回筛选与排序，
 			// 页头字段由最先那张列表填一遍就够，否则填回 → 重建 → 再填回，没完没了。标记挂在页面上（新旧列表共用）。
 			if (!this.restore_fields || this.page.pearnly_restoring) return;
@@ -431,15 +445,56 @@
 				this.page.pearnly_restoring = false;
 			}
 		}
+		// 下钻：页面替人加的条件（见构造里 `drilled`）。先记下再加，加条件引起的那次取数存档时就不带它
+		async drill(filters) {
+			for (const row of filters) this.note_drilled(row);
+			this.save_drilled();
+			await this.filter_area?.add(filters);
+		}
+		note_drilled(row) {
+			if (!Array.isArray(row) || row.length < 4) return;
+			const key = JSON.stringify(row.slice(1));
+			if (!this.drilled.filters.some(d => JSON.stringify(d.slice(1)) === key)) this.drilled.filters.push(row);
+		}
+		save_drilled() {
+			if (!this.memory) return;
+			try {
+				const state = {...(globalThis.history?.state || {})};
+				const all = {...(state.pearnly_drill || {})};
+				if (this.drilled.filters.length || Object.keys(this.drilled.fields).length) all[this.memory] = this.drilled;
+				else delete all[this.memory];
+				state.pearnly_drill = all;
+				globalThis.history?.replaceState(state, "", globalThis.location?.href);
+			} catch (error) { globalThis.pearnlyCaught?.(error, "list"); }
+		}
 		remember() {
 			if (!this.memory || !frappe.model?.user_settings?.save) return;
+			const key = row => JSON.stringify(row.slice(1));
+			const current = this.filter_area?.get?.() || [];
+			// 人把代加的条件去掉或改了值，它就不再是代加的：从这一条历史里也去掉
+			const before = JSON.stringify(this.drilled);
+			this.drilled.filters = this.drilled.filters.filter(row => current.some(c => key(c) === key(row)));
 			const fields = {};
 			for (const control of this.page_fields()) {
-				const value = control.get_value();
-				if (value !== undefined && value !== null && value !== "") fields[control.df.fieldname] = value;
+				const name = control.df.fieldname, value = control.get_value();
+				if (name in this.drilled.fields) {
+					// 代选的值不记：沿用人上次自己选的（没有就不记）
+					if (value === this.drilled.fields[name]) {
+						const own = this.remembered?.fields?.[name];
+						if (own !== undefined && own !== null && own !== "") fields[name] = own;
+						continue;
+					}
+					delete this.drilled.fields[name];
+				}
+				if (value !== undefined && value !== null && value !== "") fields[name] = value;
 			}
+			if (JSON.stringify(this.drilled) !== before) this.save_drilled();
+			const drilled = new Set(this.drilled.filters.map(key));
+			// 代加条件的那个字段：沿用人上次自己在这个字段上选的条件
+			const drilled_fields = new Set(this.drilled.filters.map(row => row[1]));
+			const own = (this.remembered?.filters || []).filter(row => Array.isArray(row) && drilled_fields.has(row[1]));
 			frappe.model.user_settings.save(this.doctype, this.memory, {
-				filters: this.filter_area?.get?.() || [], sort_by: this.sort_by, sort_order: this.sort_order,
+				filters: current.filter(row => !drilled.has(key(row)) && !drilled_fields.has(row[1])).concat(own), sort_by: this.sort_by, sort_order: this.sort_order,
 				page_length: this.selected_page_count, fields});
 		}
 		async reload() {
