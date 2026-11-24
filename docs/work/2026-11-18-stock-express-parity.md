@@ -180,6 +180,8 @@ RL 只差 D5、D7；出库在批次干净时只差 D5–D10。
 - 不重算的部分逐栏一致：OU（批次干净时单价 48、凭证 96、结存全同）、RL（只差批次链栏 MLOTNUM / MREM，Express 自己的批次链）、
   JU / PI 增加行（POSOPR 1、LOT*、NETVAL、PI 的簿与对方科目）、STKDES、STMAS.LASUPD、分录 CHGDAT / CHGTIM。
 - 待补两小点：批次链变负时 STMAS.MLOTNUM 首字符改「-」（同 10-26 RL 实录「B/F → -/F」）；JU / PI 不改 STLOC.LMOVDAT（原生不改）。
+  **11-24 更正**：「JU 不改 LMOVDAT」是误判——当天的 JU 与同日 OU 同一天录，日期没有变晚，看不出来。11-24 70EXP\test、69EXP\NLTTEST 原生 JU
+  实录都是单据日更晚就把 LMOVDAT 推到单据日（同其他库存单），JU 已改（分支 pearnly/void-restore-chain）；PI 还没有这样的实录，照旧不改、待补。
 - **D4 硬条件未过**：CC 写 0 成本出库 → CC 写进货 → Express 跑 4-7-4（只选两件物料、同时检查调拨），4-7-4 **不回填** CC 写的 0 成本行与凭证
   （只把调拨明细 REIMBURSE 改成 V）。原生是界面存单时按日期重算同日全部单（含已写凭证）；批次干净的物料同日先出后进，原生也把前面的出库从 48 改 45。
   已停手回主会话重议（方案 A 混合 / B 全批次链 / C 复刻重算 / D 退回均价）。
@@ -193,6 +195,8 @@ RL 只差 D5、D7；出库在批次干净时只差 D5–D10。
 - 有意保留的不同两处：STTRN.REFNUM 写 ERP 单号（Express 这几张单的界面没有参考号栏，看不到；报表按单号列印时不出现）；
   GLJNL.CREBY 写 PEARNLY（CC 写的单的机器标记；Express 凭证画面不显示建档人）。
 - 补的两小点：批次链变负时 STMAS.MLOTNUM 首字符改「-」；JU / PI 不改 STLOC.LMOVDAT。
+  **11-24 更正**：「JU 不改 LMOVDAT」是误判——当天的 JU 与同日 OU 同一天录，日期没有变晚，看不出来。11-24 70EXP\test、69EXP\NLTTEST 原生 JU
+  实录都是单据日更晚就把 LMOVDAT 推到单据日（同其他库存单），JU 已改（分支 pearnly/void-restore-chain）；PI 还没有这样的实录，照旧不改、待补。
 
 ### 4.4 JU / PI 增加行的 STCRD.POSOPR：1 还是 8（主会话要求查清条件）
 
