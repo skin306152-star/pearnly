@@ -128,12 +128,16 @@ try:
         },
         "car_freebies": {"car_id": car_id, "edited": True,
                          "rows": [{"product_id": pid, "qty": qty} for pid, qty in freebies]},
-        "draft": {}, "payments": [], "customer_dirty": False,
+        # 逐问里 draft 带着身份证上的证号（建单时按它核对客户资料卡，`booking_customer.card_from_customer`）；这里没跑识别，照测试客户的证号给
+        "draft": {"people_id": str(params["people_id"])}, "payments": [], "customer_dirty": False,
     }}
     result["asked"] = {"car_id": car_id, "freebies": freebies, "delivery_be": delivery_be}
 
     # ── 建单（与 LINE「确认」同一个入口：本地快照复核 → 建单 → 回读核对） ──
-    booked = book_in_session(endpoint, payload)
+    # cancel_only：上一次建了单却没作废成（{booking_no, booking_id}）——不再建，只补作废与读回
+    leftover = params.get("cancel_only") or {}
+    booked = ({"ok": True, "booking_no": str(leftover["booking_no"]), "booking_id": str(leftover["booking_id"])}
+              if leftover else book_in_session(endpoint, payload))
     result["booked"] = {key: booked.get(key) for key in ("ok", "booking_no", "booking_id", "error_code", "preflight", "field")}
     if not booked.get("ok"):
         result["ok"] = True  # 站点侧走完了；建不成由场景判不通过
@@ -144,7 +148,8 @@ try:
     # ── 读回原单（只读）：单号、客户、车型、赠品数组 ──
     def read_back(cl, adapter):
         form = cl._parse_booking_form(cl._post_text(FORM, {"status": "e", "id": booking_id}))
-        return {"docno": form.get("txtdocno"), "id": form.get("idsel"), "car": form.get("txtcar") or form.get("selcar"),
+        from pearnly_dms.booking.booking_readback import docno_equal
+        return {"docno": booking_no if docno_equal(booking_no, form) else form.get("txtdocno"), "id": form.get("idsel"), "car": form.get("txtcar") or form.get("selcar"),
                 "customer": form.get("txtcus") or form.get("idcus"), "arrays": arrays(form),
                 "keys_sha": hashlib.sha256("|".join(sorted(form)).encode()).hexdigest()[:12]}
     try:
@@ -155,7 +160,9 @@ try:
     # ── 原生作废：列表「ยกเลิก」= form.php?status=c → 「ยืนยันยกเลิก」把整张 #frm 提交 cancel.php ──
     def cancel(cl, adapter):
         form = cl._parse_booking_form(cl._post_text(FORM, {"status": "c", "id": booking_id}))
-        guard = {"stsel": form.get("stsel"), "idsel": form.get("idsel"), "docno": form.get("txtdocno"),
+        from pearnly_dms.booking.booking_readback import docno_equal
+        # 单号按产品的比法（原生把前缀与号码分两栏：txtdocno 只是号码部分，11-24 首跑整号直比没对上、没作废）
+        guard = {"stsel": form.get("stsel"), "idsel": form.get("idsel"), "docno": booking_no if docno_equal(booking_no, form) else form.get("txtdocno"),
                  "freebie_rows": len(form.get("fbproductval[]") or [])}
         if guard["stsel"] != "c" or guard["idsel"] != booking_id or guard["docno"] != booking_no:
             return {"guard": guard, "sent": False}

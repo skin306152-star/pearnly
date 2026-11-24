@@ -18,7 +18,7 @@ PEARNLY_ACC_DMS_LAB=1（testdms 已 lab-start 到测试机，没设就记没测�
 断言：建单成功、有单号；读回原单单号一致、赠品两行按顺序 = 商品 id 4 / 18、数量 1 / 2、金额 250 / 200；作废前表单是这张单的作废态；
 作废请求原生成功（200、回包空）；作废后列表里该单状态为「ยกเลิก」、默认（未作废）列表里搜不到。
 
-**状态：写好未跑**（11-24）。
+**状态**：11-24 首跑（测试环境 testdms → DMS-TEST）：BK000002611000003 建成后作废核对按整号比没对上、没作废，当场按原生请求补作废；修后重跑。
 """
 import importlib.util
 import os
@@ -66,7 +66,7 @@ def run(ctx):
     conf = settings()
     site = os.environ.get("PEARNLY_ACC_DMS_SITE", "testdms.pearnly.com")
     with ctx.step("用 LINE「确认建单」同一入口在 DMS-TEST 真建单，读回，原生作废，读回作废态",
-                  "建单成功；赠品两行 4 / 18、数量 1 / 2；作废请求原生成功；作废后该单状态 ยกเลิก、未作废列表里搜不到"):
+                  "建单成功；赠品两行 4 / 18、数量 1 / 2；作废请求原生成功；作废后该单状态 ยกเลิก、只剩查看 / 复制"):
         out = chain.site(ctx, "dms_booking.py", {**conf, "run": chain.tag(ctx)}, timeout=900, product="dms", name=site, target="lab")
         ctx.require("写前核对：登录的是登记的测试 DMS", True, out.get("dms_host_ok"))
         booked = out.get("booked") or {}
@@ -89,5 +89,6 @@ def run(ctx):
         after = out.get("after") or {}
         cells = [str(cell) for row in after.get("rows") or [] for cell in (row[1] if len(row) > 1 else [])]
         ctx.check("作废后列表里该单状态为 ยกเลิก", True, CANCELLED in cells)
-        ctx.check("未作废列表里搜不到这张单", True, str(after.get("active_id") or "") != str(booking_id))
+        # 原生作废后这张单只剩「查看 / 复制」两个动作（列表行 data-allo="vu"，11-23 真机同）；默认列表搜索作废的单照样搜得到，不拿它判
+        ctx.check("作废后这张单只剩查看 / 复制（data-allo = vu）", ["vu"], (after.get("allo") or [])[:1])
         ctx.save("dms-booking.txt", f"单号 {booking_no}（DMS id {booking_id}）；作废 {'已确认' if CANCELLED in cells else '没核到——要当场补作废'}\n")

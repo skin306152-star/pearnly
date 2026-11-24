@@ -27,7 +27,7 @@ GOOD = {
     "readback": {"docno": "BK000002611000009", "arrays": {"fbproductval[]": ["4", "18"], "txtfbquantity[]": ["1.00", "2.00"],
                                                           "txtfbamount[]": ["250.00", "200.00"]}},
     "cancel": {"guard": {"stsel": "c", "idsel": "140", "docno": "BK000002611000009"}, "sent": True, "status": 200, "body_len": 0},
-    "after": {"rows": [["140", ["BK000002611000009", "ยกเลิก"]]], "active_id": None},
+    "after": {"rows": [["140", ["ยกเลิก", "BK000002611000009"]]], "allo": ["vu"], "active_id": "140"},
 }
 
 
@@ -79,7 +79,7 @@ class DmsBookingScenarioTest(unittest.TestCase):
                  (broken(["cancel", "body_len"], 12), "原生成功"),
                  (broken(["cancel", "sent"], False), "原生成功"),
                  (broken(["after", "rows"], [["140", ["BK000002611000009", "ใช้งาน"]]]), "ยกเลิก"),
-                 (broken(["after", "active_id"], "140"), "搜不到"),
+                 (broken(["after", "allo"], ["pvecgu"]), "只剩查看"),
                  ({**GOOD, "after_error": "作废：timeout"}, "每一步都走完"),
                  (broken(["booked"], {"ok": False, "error_code": "ERR_DMS_IMPORT"}), "建单成功")]
         for out, words in cases:
