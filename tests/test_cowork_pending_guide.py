@@ -80,12 +80,16 @@ ITEMS = [{"document": "D1", "invoice_no": "IV1", "counterparty": "Seller A", "re
 
 
 DOCS = [{"name": f"H{i}", "invoice_no": f"INV{i}", "invoice_date": "2026-11-05", "seller_name": "Seller", "buyer_name": "Me",
-         "total_amount": "107.00", "filename": f"f{i}.jpg", "direction": "purchase"} for i in range(1, 8)]
+         "total_amount": "107.00", "filename": f"f{i}.jpg", "direction": "purchase", "push_connection": "C1",
+         "push_account_set": "BOOK"} for i in range(1, 8)]
+DOCS.append({"name": "OTHER", "invoice_no": "INVX", "invoice_date": "2026-11-05", "seller_name": "Elsewhere", "buyer_name": "B",
+             "total_amount": "1.00", "filename": "x.jpg", "direction": "purchase", "push_connection": "C2", "push_account_set": "B2"})
+INVOICE_DATES = {"D1": "2026-11-02", "D2": "2026-11-03"}   # 待处理行的发票日期（`frappe.get_all` 替身按它回）
 
 
 def _listed(payload):
     """`tools.list_documents` 的替身：按页切、给 next_offset 与 total（同真实工具的形状）。"""
-    rows = [row for row in DOCS if not payload.get("search") or payload["search"] in row["invoice_no"]]
+    rows = [row for row in DOCS if row["push_connection"] == "C1" and (not payload.get("search") or payload["search"] in row["invoice_no"])]
     start, size = int(payload.get("offset") or 0), int(payload.get("limit") or 20)
     page = rows[start:start + size]
     return {"documents": page, "total": len(rows), "offset": start, "next_offset": start + len(page)}
@@ -109,7 +113,11 @@ _module("pearnly_cowork.assistant.tools",
             {"status": "exported", "documents": 2, "file": "/mnt/session/uploads/F3/review.xlsx"}),
         delete_documents=lambda payload: STATE["deleted"].append(payload["documents"]) or json.dumps(
             STATE.get("delete_result") or {"deleted": 1, "skipped": 1}),
-        list_documents=lambda payload: STATE["listed"].append(dict(payload)) or json.dumps(_listed(payload)))
+        list_documents=lambda payload: STATE["listed"].append(dict(payload)) or json.dumps(_listed(payload)),
+        # 公司范围（同 `tools.list_documents`）：本对话公司推往 C1 的 BOOK
+        _company_scope=lambda tool_input: {"sets": [{"connection": "C1", "key": "BOOK"}]},
+        _scope_pairs=lambda sets: {(item["connection"], item["key"].casefold()) for item in sets},
+        _account_key=lambda value: str(value or "").casefold())
 
 from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_cowork.assistant.guided import pending as guide  # noqa: E402
@@ -135,6 +143,8 @@ class Base(unittest.TestCase):
         STATE.update(intake=True, asked=[], exported=[], deleted=[], started=[], rollbacks=[], listed=[], got=[])
         frappe.get_list = lambda doctype, filters=None, fields=None, limit_page_length=0, **k: STATE["got"].append(filters) or [
             dict(row) for row in DOCS if row["name"] in filters["name"][1]]
+        frappe.get_all = lambda doctype, filters=None, fields=None, limit_page_length=0, **k: [
+            types.SimpleNamespace(name=name, invoice_date=INVOICE_DATES.get(name, "")) for name in filters["name"][1]]
         HOOKS["pearnly_guides"] = ["pearnly_cowork.assistant.guided.pending.GUIDES"]
         self.docs, self.clock = {}, [0]
         self.now = {"session_id": SESSION, "mode": "chat", "company": "CO-1", "ledger": "BOOK", "period": "2026-11",
@@ -220,6 +230,7 @@ class Pending(Base):
         done = run.confirm(name, found["version"])
         self.assertEqual(STATE["started"], [(SESSION, "sales", ["D2"], "asking")])
         self.assertEqual(done["result"]["next"], {"run": "RUN9", "business": "sales"})
+        self.assertEqual(done["result"]["docnum"], "IV2 · Buyer B")   # 结果卡写单号 · 对方（交出那刻记下）
         run.confirm(name, found["version"])
         self.assertEqual(len(STATE["started"]), 1)   # 同一确定不交第二次
 
@@ -245,9 +256,12 @@ class Pending(Base):
 
 class OperatorMonth(Base):
     def test_in_an_operator_conversation_pending_lists_only_the_conversation_month(self):
+        # D3 是 CC 提议：待处理行上显示的是提议日期（11 月），票面发票日期是 10 月——代录按发票日期筛（同代录交单）
         ITEMS.append({"document": "D3", "invoice_no": "IV3", "counterparty": "Old", "reason_label": "", "amount": "1.00",
-                      "date": "2026-10-30", "company": "CO-1"})
+                      "date": "2026-11-20", "company": "CO-1"})
+        INVOICE_DATES["D3"] = "2026-10-30"
         self.addCleanup(ITEMS.pop)
+        self.addCleanup(INVOICE_DATES.pop, "D3")
         ctx = {"company": "CO-1", "session": SESSION, "period": "2026-11", "business": "pending"}
         self.assertEqual([row["code"] for row in guide.item_options(ctx)["options"]], ["D1", "D2", "D3"])   # 直写不按月
         self.now["mode"] = "operator"
@@ -269,14 +283,15 @@ class Documents(Base):
         self.assertEqual([row["code"] for row in guide.item_options(self.CTX, txt="INV3")["options"]], ["H3"])
 
     def test_chosen_documents_are_read_back_by_name_within_the_conversation_month(self):
-        found = guide.item_options(self.CTX, codes=["H2", "H9"])
-        self.assertEqual([row["code"] for row in found["options"]], ["H2"])
-        self.assertEqual(STATE["got"][-1], {"name": ["in", ["H2", "H9"]], "invoice_date": ["between", ["2026-11-01", "2026-11-30"]]})
+        found = guide.item_options(self.CTX, codes=["H2", "H9", "OTHER"])
+        self.assertEqual([row["code"] for row in found["options"]], ["H2"])   # 别家公司的单（OTHER）不收
+        self.assertEqual(STATE["got"][-1], {"name": ["in", ["H2", "H9", "OTHER"]], "invoice_date": ["between", ["2026-11-01", "2026-11-30"]]})
 
     def test_the_result_says_what_was_done(self):
         result = guide.result
-        handed = result({**self.CTX, "done": {"status": "entered", "docnum": "H1", "next": {"run": "R2", "business": "purchase"}}}, "")
-        self.assertEqual((handed["status"], handed["docnum"]), ("ready", "INV1 · Seller"))   # 单号 · 对方，不出内部编号
+        handed = result({**self.CTX, "done": {"status": "entered", "docnum": "H1", "label": "INV1 · Seller",
+                                              "next": {"run": "R2", "business": "purchase"}}}, "")
+        self.assertEqual((handed["status"], handed["docnum"]), ("ready", "INV1 · Seller"))   # 交出那刻记下的单号 · 对方，不出内部编号
         files = result({**self.CTX, "done": {"status": "entered", "files": [{"file": "F", "name": "r.xlsx"}]}}, "")
         self.assertEqual(files["status"], "ready")
         self.assertEqual(result({**self.CTX, "done": {"status": "entered", "deleted": 2, "skipped": 0}}, "")["reason_text"],

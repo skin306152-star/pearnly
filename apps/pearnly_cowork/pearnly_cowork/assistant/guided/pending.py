@@ -107,8 +107,12 @@ def _items(ctx, search=None) -> list:
     found = pending.pending(company, LIMIT, search or None)
     items = found.get("items") or []
     month = _month(ctx) if _operator(ctx) else None
-    if month:
-        items = [item for item in items if month[0] <= str(item.get("date") or "")[:10] <= month[1]]
+    if month and items:
+        # 按票面发票日期（同代录交单的清单 `operator_source.sources`），不按待处理行上显示的日期（CC 提议的行显示提议日期）
+        dated = {row.name: str(row.invoice_date or "")[:10] for row in frappe.get_all(
+            HISTORY, filters={"name": ["in", [item["document"] for item in items]]}, fields=["name", "invoice_date"],
+            limit_page_length=len(items))}
+        items = [item for item in items if month[0] <= dated.get(item["document"], "") <= month[1]]
     return [{"code": item["document"],
              "name": " · ".join(part for part in (item.get("invoice_no") or item.get("filename"), item.get("counterparty")) if part)
              or item["document"],
@@ -137,7 +141,15 @@ def _document_options(ctx, txt="", start=0, page_length=20, codes=None):
             return {"options": [], "more": False}
         rows = frappe.get_list(HISTORY, filters={"name": ["in", wanted], "invoice_date": ["between", list(month)]},
                                fields=["name", "invoice_no", "invoice_date", "seller_name", "buyer_name", "total_amount",
-                                       "filename", "direction"], limit_page_length=len(wanted))
+                                       "filename", "direction", "push_connection", "push_account_set"],
+                               limit_page_length=len(wanted))
+        with _conversation(ctx):
+            scope = tools._company_scope({})
+        if scope and scope.get("sets") is not None:
+            # 只收本对话公司的单（同清单 `tools.list_documents` 的公司范围：推往这家的连接与账套）
+            pairs = tools._scope_pairs(scope["sets"])
+            rows = [row for row in rows
+                    if (str(row.get("push_connection") or ""), tools._account_key(row.get("push_account_set"))) in pairs]
         by = {row["name"]: row for row in rows}
         return {"options": [_document_row(by[code]) for code in wanted if code in by], "more": False}
     size = max(1, min(int(page_length or 20), PAGE_MAX))
@@ -197,7 +209,9 @@ def _hand_over(ctx, document, at) -> dict:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"returned": {"item": {"reason": "pending_refused", "text": str(error)[:300]}}}
-    return {"status": "entered", "docnum": document, "next": {"run": started.get("run"), "business": business}}
+    shown = next(iter(item_options(ctx, codes=[document])["options"]), None)
+    return {"status": "entered", "docnum": document, "label": (shown or {}).get("name") or "",
+            "next": {"run": started.get("run"), "business": business}}
 
 
 def confirm(ctx, values, draft, consent) -> dict:
@@ -228,9 +242,8 @@ def result(ctx, draft):
     if not isinstance(done, dict):
         return None
     if done.get("next"):
-        chosen = str(done.get("docnum") or "")
-        row = next(iter(item_options(ctx, codes=[chosen])["options"]), None) if chosen else None
-        return {**done, "status": "ready", "docnum": (row or {}).get("name") or ""}
+        # 交出那一刻记下的「单号 · 对方」（交出后单子多半已不在待处理里，不能再查）
+        return {**done, "status": "ready", "docnum": str(done.get("label") or "")}
     if done.get("files") is not None:
         return {**done, "status": "ready"}
     if "deleted" in done:
