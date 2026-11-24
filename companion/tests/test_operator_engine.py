@@ -132,8 +132,10 @@ def test_budget_from_the_site_stops():
     from companion.express_operator.helper import BudgetStop
 
     d = samples()[1]
-    with pytest.raises(BudgetStop):
-        run_docs([d], inject={"typo_qty:P002": "50"}, site_kwargs={"budget_after": 0})
+    # 预算用完也经唯一收尾入口：这张按放弃收好（不留编辑中的单），原因 budget（批次按它整批停）
+    recs, sim, _site, _ = run_docs([d], inject={"typo_qty:P002": "50"}, site_kwargs={"budget_after": 0})
+    assert (recs[0]["outcome"], recs[0]["reason"]) == ("need_human", "budget") and not sim.editing
+    assert BudgetStop
 
 
 def test_same_treats_numbers_and_nbsp_display():

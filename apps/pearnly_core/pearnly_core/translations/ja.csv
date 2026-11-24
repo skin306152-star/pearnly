@@ -942,6 +942,7 @@ Unit Price,単価
 Unit price,単価
 Unknown product: {0},不明な製品: {0}
 Unrecognized Express screen,認識できない Express 画面
+Unsaved document open in Express,Express に未保存の伝票が開いたままです
 Updated the hands-on task,代行入力タスクを更新しました
 Updating the hands-on task,代行入力タスクを更新しています
 Upload,アップロード
@@ -1454,6 +1455,7 @@ operator.report.reason.duplicate_ref,取引先の番号が重複しています
 operator.report.reason.express_restarted,Express を再度開きました
 operator.report.reason.interrupted,入力中に Express が操作されました
 operator.report.reason.item_missing,Express に商品がありません
+operator.report.reason.left_open,Express に未保存の伝票が開いたままです
 operator.report.reason.license,Express のライセンス数の上限です
 operator.report.reason.login_failed,Express のログインに失敗しました
 operator.report.reason.login_missing,Express のログインが未設定です

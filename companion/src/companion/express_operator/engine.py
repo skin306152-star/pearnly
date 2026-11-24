@@ -23,7 +23,7 @@ from . import contract as K
 from . import menu as M
 from .desk import MenuAmbiguous
 from .draft import Draft
-from .helper import NoHelper, png_block
+from .helper import BudgetStop, NoHelper, png_block
 
 # 写进 companion.log（托盘进程的日志）：AI 接不上时的错误码，不含截图与请求体
 log = get_logger(__name__)
@@ -55,6 +55,9 @@ class NeedHuman(Exception):
 # เกณฑ์สิทธิ / เกณฑ์เงินสด）：配方有规则按规则答，没有规则的 AI 只能看、不能点，原样留给人（11-13 设计要点 4）
 NEUTRAL_BUTTONS = frozenset({"ตกลง", "ยกเลิก", "ปิด", "OK", "CANCEL", "CLOSE"})
 PARTIAL = "partial_saved"
+# 保存键按下前停下、放弃又没能让单据窗口离开编辑（认不出的框挡着、取消不掉）：Express 原样留着（``held``），不关、不重录，交人
+LEFT_OPEN = "left_open"
+STOPPED = "stopped"  # ``run`` 的结局之一：人点了停止，这张已按放弃收拾（批次记停止跳过，再交从头录前先读账套）
 
 
 def _buttons(w: Dict) -> List[str]:
@@ -183,6 +186,7 @@ class Engine:
         self._line_recovered = False
         self._stage = ""
         self._before = None  # 这张开录前账套各表行数（放弃时只作废之后新出现的单号）
+        self._settling = False  # 正在按放弃收尾：等人时不再因「停止」「一直有人在点」中断
         # 记住的菜单路径（AI 选对后按「账套 + 配方版本 + 单种」记在本机 probe.json，``probe.MenuMemory``）：get(单种) / put(单种, 路径, 标题)
         self.menus = menus
         self.menu_hint: Tuple[str, str] = ("", "")  # 探路时（没有草稿单）由批次给：这一张的 form_choice、pay_route
@@ -214,7 +218,13 @@ class Engine:
         started = time.monotonic()
         try:
             paused = bool(self.presence())
-        except Interrupted as stop:  # 等满上限人还在点：带上这张停在哪
+        except (Stopped, Interrupted) as stop:
+            if self._settling:
+                # 收尾（放弃这张）途中：停止已经在收尾了、人一直在点也照样收（不收就要留半截单），不再往外抛
+                return False
+            if not isinstance(stop, Interrupted):
+                raise
+            # 等满上限人还在点：带上这张停在哪
             stop.interrupt["stage"] = "saving" if self._save_pressed else "editing"
             stop.interrupt["where"] = stop.interrupt["where"] or str(self._stage or "")[:60]
             raise
@@ -1026,8 +1036,12 @@ class Engine:
 
     def abandon(self) -> List[str]:
         """放弃这张：关掉提醒框 → 编辑中就点「取消」（还没明细时 Express 问 1312 → 按「ตกลง」，不写任何东西）→
-        已有明细时「取消」会直接存档（试点实测）：读单号格确认存了 → 作废命令 → 确认框按「ตกลง」。回作废的单号。"""
+        已有明细时「取消」会直接存档（试点实测）：读单号格确认存了 → 作废命令 → 确认框按「ตกลง」。回作废的单号。
+
+        收尾途中等人（锁屏、有人在点）照等，但不再因「停止」「一直有人在点」中断（``_settling``）：这一步就是停下后的收尾。
+        收完单据窗口还在编辑中（取消不掉）、或认不出的框挡着：``held``——Express 原样留给人，不关（关了就是半截单）。"""
         voided: List[str] = []
+        settling, self._settling = self._settling, True
         try:
             for w in self._dialogs():
                 rule = self._match(w)
@@ -1046,7 +1060,9 @@ class Engine:
                 self._auto_dialogs()
                 # Express 慢时存档要一会儿：等它落下再读单号（11-01 录制机：只读一次没读到就当没存，半截单 HP0000123 留成了有效单）
                 self._wait_for(lambda: not self.in_edit(), SLOW_SAVE_S)
-            docnum = self.saved_check(self.draft.doc_type)
+            docnum = self.saved_check(self.draft.doc_type if self.draft else self.form.doc_type)
+            if self.draft is None:
+                docnum = ""  # 没有草稿（探路时新建的空单）：认不出是不是这一张开录后新出的，不作废
             # 两道硬保护（10-26 实机：取消后 Express 的单号格显示的是上一张已存的单，旧逻辑据此误作废了三张好单
             # HP0000026 / IV0000022 / HS0000007）：①账套里这一张开录后才新出现的单号；②本批次开录后新建、且不是本批次
             # 已存好的单（批次给的 may_void）。任何一道对不上都不作废，转「需要你」。
@@ -1062,13 +1078,49 @@ class Engine:
                     self.act([{"do": "dialog_button", "text": "ตกลง"}, {"do": "wait", "ms": 1500}])
                 voided.append(docnum)
                 self._report("voided", docnum=docnum)
-            self._event("abandon", ok=not self.in_edit())
+            if self.in_edit():
+                raise Unexpected("document still in edit after cancel")
+            self._event("abandon", ok=True)
         except Exception as e:  # noqa: BLE001 — 收尾失败不掩盖原来的原因；画面状态不明，下一张从菜单重开
             self._event("abandon", ok=False, error=str(e)[:200])
             self.form_open = None
             # 认不出的框留在一张编辑中的单上：Express 原样留给人（退出就把单断在半截），再交来先读账套
             self.rec.update(held=True, recheck=True)
+        finally:
+            self._settling = settling
         return voided
+
+    def unsaved_open(self) -> bool:
+        """单据窗口还停在编辑中吗（只读，批次关 Express 前问）。没开过单据窗口、Express 已经没了当没有；别的读不到当还开着
+        （宁可不关、留给人，也不冒险把半张单关进账）。"""
+        if self.form is None:
+            return False
+        try:
+            # 先看窗口（只读，不改引擎记着的窗口清单）：Express 没了、服务器读写错（-70）的框开着 = Express 已经坏了，
+            # 点什么都没用，照原设计关掉重开、再交先读账套
+            seen = self.desk.act([{"do": "wait", "ms": 0}], True).get("windows") or []
+            if not seen or any((self._match(w) or {}).get("outcome") == "crash" for w in seen):
+                return False
+            return self.in_edit()
+        except Crash:
+            return False
+        except Unexpected as e:
+            return "no Express window" not in str(e)
+        except Exception:  # noqa: BLE001
+            return True
+
+    def settle_open(self) -> List[str]:
+        """关 Express 前收掉还在编辑中的单（批次 ``_close`` 调）：就是 ``abandon``，作废两道闸照旧；收不干净时 ``rec["held"]``。"""
+        if not self.rec.get("events"):
+            self.begin(self.draft, self.form.doc_type if self.form else "")
+        self.rec["held"] = False
+        self.rec.pop("void_refused", None)
+        if not self.baseline:
+            # 接管来的 Express（CC 重启后收拾上次留下的）：单据窗口不是这个引擎开的、没记基准窗口。顶层窗口里不是别的窗口
+            # 所属的（主窗口）当基准，所属的才算弹窗——不然主窗口也被当成认不出的框，收不了
+            seen = self.desk.act([{"do": "wait", "ms": 0}], True).get("windows") or []
+            self.baseline = {w["hwnd"] for w in seen if not w.get("owned")}
+        return self.abandon()
 
     def _screen_note(self) -> str:
         """判不了画面时记下当时看到的（进「未完成」的明细，给人和排查用）：Express 当前窗口标题、新弹出的框里的字、单号格。"""
@@ -1115,17 +1167,50 @@ class Engine:
                     "outcome": "", "reason": "", "detail": "", "docnum": "", "readback": None,
                     "placeholders": []}
 
-    def _need_human(self, draft: Draft, e: NeedHuman) -> None:
-        """保存键按下之前就转人工：截画面、按放弃流程收尾（作废两道闸照旧）。"""
-        self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
-        if isinstance(e, MenuChoice):
-            self.rec["menu_options"] = list(e.options)
-        if isinstance(e, DialogHeld):
-            self.rec["dialog"] = dict(e.dialog)
-        if isinstance(e, Interrupted):
-            self.rec["interrupt"] = dict(e.interrupt)
-        self._need_human_shot(draft.doc_id)  # 作废前截下转人工那一刻的画面（2026-11-03：原来只截存成的单）
+    def _leave(self, draft: Draft, e: Exception) -> str:
+        """一张单中途停下的**唯一收尾入口**（11-24 主会话定）：不管什么原因——转人工、Express 拦单、人点了停止、AI 预算用完、
+        工具层报错、任何没接住的异常——都从这里走，回这张的单号（只有保存后出事、账套里已完整时才有）。
+
+        - 保存键按下之后：读账套判（``_after_save_trouble``），完整回单号，半截 / 没看到就不碰 Express、``held`` 交人；
+        - 保存键按下之前：截下当时的画面，按放弃收（取消；有明细时取消即存档 → 作废两道闸），单据窗口不留在编辑中；
+          放弃不干净（认不出的框挡着、取消不掉）→ Express 原样留着（``held``）、原因 ``left_open``（业务选择框照旧
+          ``dialog_choice`` 出卡）。
+
+        Express 没了 / 服务器读写错（``Crash``）不走这里：那时什么都不能点，交给批次等服务器恢复（恢复后关 Express 前照样先收）。"""
+        if self._save_pressed:
+            docnum = self._after_save_trouble(draft, e)
+            if isinstance(e, BudgetStop) and not docnum:
+                # 预算用完：账套里没存完的照旧 held / partial 交人；原因仍记 budget、整批停（不让后面的单一张张再撞预算）
+                if self.rec.get("reason") != PARTIAL:
+                    self.rec["reason"] = "budget"
+                self.rec["stop_batch"] = True
+            return docnum
+        if isinstance(e, Stopped):
+            self.rec.update(outcome=STOPPED, reason=STOPPED)
+        elif isinstance(e, Blocked):
+            self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
+        elif isinstance(e, BudgetStop):
+            self.rec.update(outcome="need_human", reason="budget", detail=str(e)[:K.DETAIL_MAX])
+        elif isinstance(e, NeedHuman):
+            self.rec.update(outcome="need_human", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
+            if isinstance(e, MenuChoice):
+                self.rec["menu_options"] = list(e.options)
+            if isinstance(e, DialogHeld):
+                self.rec["dialog"] = dict(e.dialog)
+            if isinstance(e, Interrupted):
+                self.rec["interrupt"] = dict(e.interrupt)
+        else:  # 工具层报错、没接住的异常：这张转人工，整批停下（同 11-01 口径，后面的单不一张张撞上去）
+            self.rec.update(outcome="need_human", reason="unknown_screen",
+                            detail=f"{type(e).__name__}: {e}"[:K.DETAIL_MAX], stop_batch=True)
+        if self.rec["outcome"] != STOPPED:
+            self._need_human_shot(draft.doc_id)  # 作废前截下停下那一刻的画面（2026-11-03：原来只截存成的单）
         self.rec["voided"] = self.abandon()
+        if self.rec.get("held") and not isinstance(e, DialogHeld) and self.unsaved_open():
+            # 收不干净：如实说 Express 里有一张没保存的单开着（原来的原因留在说明里）
+            first = self.rec["reason"]
+            self.rec.update(outcome="need_human", reason=LEFT_OPEN,
+                            detail=f"{first}: {self.rec.get('detail') or ''}".strip(": ")[:K.DETAIL_MAX])
+        return ""
 
     def _after_save_trouble(self, draft: Draft, e: Exception) -> str:
         """保存键按下之后出了认不出的画面（11-12 IV0000043、11-13 IV0000045）。按类处理，不只哪一个框：
@@ -1170,8 +1255,8 @@ class Engine:
             return {}
 
     def run(self, draft: Draft) -> Dict:
-        """录一张。回 ``{"outcome": saved / need_human / blocked / crash, "reason", "docnum", "voided", "readback", ...}``。
-        Stopped 原样往上抛（这张留在「正在录」，续录时先读账套判断）。"""
+        """录一张。回 ``{"outcome": saved / need_human / blocked / stopped / crash, "reason", "docnum", "voided", "readback", ...}``。
+        中途停下一律经 ``_leave`` 收尾（人点停止也是：这张按放弃收拾后回 ``stopped``，不再留着半截让关 Express 时存进账）。"""
         self.begin(draft)
         if self.form is None or not self.form.verified:
             self.rec.update(outcome="need_human", reason="unsupported")
@@ -1188,19 +1273,11 @@ class Engine:
                 self.rec["reason"] = "unknown_screen"
             if docnum == SAVED_UNREAD:
                 docnum = ""
-        except (NeedHuman, Unexpected) as e:
-            if not self._save_pressed:
-                if isinstance(e, Unexpected):
-                    raise
-                self._need_human(draft, e)
-            else:
-                docnum = self._after_save_trouble(draft, e)
-        except Blocked as e:
-            self.rec.update(outcome="blocked", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
-            self.rec["voided"] = self.abandon()
         except Crash as e:
             self.rec.update(outcome="crash", reason=e.reason, detail=e.detail[:K.DETAIL_MAX])
             self.form_open = None
+        except Exception as e:  # noqa: BLE001 — 唯一收尾入口：任何原因停下都在这里收（tests/test_operator_clean_exit.py 守着）
+            docnum = self._leave(draft, e)
         if self.rec["outcome"] != "crash":
             try:
                 started = time.monotonic()
@@ -1224,7 +1301,7 @@ class Engine:
                 started = time.monotonic()
                 self.evidence(draft.doc_id, self.screenshot("saved"))
                 self._time("evidence", time.monotonic() - started)
-        if self.rec["outcome"] in ("need_human", "crash"):
+        if self.rec["outcome"] in ("need_human", "crash", STOPPED):
             self.form_open = None  # 画面状态不明，下一张从菜单重新打开
         self.rec["seconds"] = round(time.monotonic() - self._t0, 1)
         return self.rec

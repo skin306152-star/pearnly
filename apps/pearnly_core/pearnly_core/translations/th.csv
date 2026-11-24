@@ -942,6 +942,7 @@ Unit Price,ราคาต่อหน่วย
 Unit price,ราคาต่อหน่วย
 Unknown product: {0},ผลิตภัณฑ์ที่ไม่รู้จัก: {0}
 Unrecognized Express screen,ไม่รู้จักหน้าจอ Express
+Unsaved document open in Express,มีเอกสารที่ยังไม่บันทึกเปิดค้างใน Express
 Updated the hands-on task,อัปเดตงานทำใน Express แล้ว
 Updating the hands-on task,กำลังอัปเดตงานทำใน Express
 Upload,อัปโหลด
@@ -1454,6 +1455,7 @@ operator.report.reason.duplicate_ref,เลขที่อ้างอิงซ�
 operator.report.reason.express_restarted,เปิด Express ใหม่แล้ว
 operator.report.reason.interrupted,มีการใช้งาน Express ระหว่างบันทึก
 operator.report.reason.item_missing,ไม่มีสินค้านี้ใน Express
+operator.report.reason.left_open,มีเอกสารที่ยังไม่บันทึกเปิดค้างใน Express
 operator.report.reason.license,สิทธิ์ใช้งาน Express เต็ม
 operator.report.reason.login_failed,เข้าสู่ระบบ Express ไม่สำเร็จ
 operator.report.reason.login_missing,ยังไม่ได้ตั้งค่าการเข้าสู่ระบบ Express

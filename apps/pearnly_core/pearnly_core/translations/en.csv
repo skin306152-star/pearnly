@@ -940,6 +940,7 @@ Unit Price,Unit Price
 Unit price,Unit price
 Unknown product: {0},Unknown product: {0}
 Unrecognized Express screen,Unrecognized Express screen
+Unsaved document open in Express,Unsaved document open in Express
 Updated the hands-on task,Updated the hands-on task
 Updating the hands-on task,Updating the hands-on task
 Upload,Upload
@@ -1452,6 +1453,7 @@ operator.report.reason.duplicate_ref,Duplicate party reference
 operator.report.reason.express_restarted,Express reopened
 operator.report.reason.interrupted,Express was used during entry
 operator.report.reason.item_missing,Item not in Express
+operator.report.reason.left_open,Unsaved document open in Express
 operator.report.reason.license,Express license limit reached
 operator.report.reason.login_failed,Express sign-in failed
 operator.report.reason.login_missing,Express sign-in not set

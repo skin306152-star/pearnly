@@ -942,6 +942,7 @@ Unit Price,单价
 Unit price,单价
 Unknown product: {0},未知产品：{0}
 Unrecognized Express screen,无法识别的 Express 画面
+Unsaved document open in Express,Express 里有一张未保存的单开着
 Updated the hands-on task,更新了实操任务
 Updating the hands-on task,正在更新实操任务
 Upload,上传
@@ -1454,6 +1455,7 @@ operator.report.reason.duplicate_ref,对方单号重复
 operator.report.reason.express_restarted,Express 已重新打开
 operator.report.reason.interrupted,Express 被人操作过
 operator.report.reason.item_missing,Express 中没有此商品
+operator.report.reason.left_open,Express 里有一张未保存的单开着
 operator.report.reason.license,Express 授权名额已满
 operator.report.reason.login_failed,Express 登录失败
 operator.report.reason.login_missing,Express 登录未设置

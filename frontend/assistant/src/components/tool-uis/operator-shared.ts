@@ -44,6 +44,7 @@ export const REASONS = {
   crash_repeated: "human",
   cc_restarted: "human",
   partial_saved: "human",
+  left_open: "human",
   dialog_choice: "human",
   interrupted: "human",
   placeholder_left: "human",

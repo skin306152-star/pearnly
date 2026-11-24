@@ -25,7 +25,7 @@ from typing import Callable, Dict, List, Optional
 from . import book as B
 from . import contract as K
 from .draft import Draft
-from .engine import Crash, NeedHuman, Stopped
+from .engine import LEFT_OPEN, STOPPED, Crash, NeedHuman, Stopped
 from .helper import BudgetStop
 from ..logger import get_logger
 
@@ -561,17 +561,17 @@ class Runner:
             self.session.desk.act([{"do": "dialog_button", "text": "ตกลง"}], windows=False)
             self.sleep(2)
         d = next((d for d in s.docs if d.status == K.ENTERING), None)
+        self.session.attached = True
         if d is not None:
-            if self.engine.in_edit():
-                self.engine.begin(Draft(**d.draft))
-                self.engine._before = d.counts_before or None
-                d.voided += self.engine.abandon()
-                if self.engine.rec.get("void_refused"):
-                    d.placeholders.append(self.engine.rec["void_refused"])
+            self.engine.begin(Draft(**d.draft))
+            self.engine._before = d.counts_before or None
+            s.current = d.doc_id
+            if not self._leave_clean():  # 收不干净：那张记 left_open、Express 原样留给人，不关
+                self._set(current="")
+                return
             d.status, d.reason = K.WAITING, "cc_restarted"
             self._set(current="")
-        self.session.attached = True
-        self.session.close()
+        self._close()
 
     def finish(self) -> None:
         """批次最后一张录完（或停止）：正常退出 Express、清过期截图。Express 留着等人答框（``held``）时不退出。"""
@@ -587,7 +587,13 @@ class Runner:
             pass
 
     def _close(self) -> None:
+        """正常退出 Express——代录里**唯一**关 Express 的地方（批次收尾、闲置退出、建主档前退出、断网恢复后重开都经这里；
+        ``tests/test_operator_clean_exit.py`` 守着别处不直接关）。关之前单据窗口不许停在编辑中：还在编辑就先按放弃收；
+        收不干净（认不出的框挡着、取消不掉）就不关，Express 原样留给人（``held``），关了就是一张半截单（11-24 测试机2 RR0000309）。"""
         if self.state.held:  # 存档停在人要答的框上：退出 Express 就把单断在半截（11-13 IV0000045），留给人
+            self.engine.form_open = None
+            return
+        if not self._leave_clean():
             self.engine.form_open = None
             return
         try:
@@ -597,6 +603,36 @@ class Runner:
         # 退出过 Express：这一批再有单来（作答、重试、整批继续）先重开、核公司，单据窗口也从菜单重开
         self._reopen = bool(self.state.started)
         self.engine.form_open = None
+
+    def _leave_clean(self) -> bool:
+        """关 Express 前看单据窗口：不在编辑中（或 Express 已经没了）回真；在编辑中先按放弃收（引擎同一个 ``abandon``），
+        收干净了回真；收不干净记 ``held``（落盘，留给人），回假。"""
+        unsaved = getattr(self.engine, "unsaved_open", None)
+        if unsaved is None or not unsaved():
+            return True
+        doc = self.state.doc(self.state.current) if self.state.current else None
+        if doc is None:  # 停下时那张已经收过尾：找最近一张没录成的（引擎上次录的就是它）
+            last = str((getattr(self.engine, "rec", None) or {}).get("doc_id") or "")
+            doc = self.state.doc(last) if last else None
+            if doc is not None and doc.status == K.SAVED:
+                doc = None  # 那张已存好：开着的不是它（探路留下的空单等），不把存好的单记成留着
+        voided = self.engine.settle_open()
+        if doc is not None:
+            doc.voided += list(voided or [])
+            refused = (getattr(self.engine, "rec", None) or {}).get("void_refused")
+            if refused and refused not in doc.placeholders:
+                doc.placeholders.append(refused)
+        if not (getattr(self.engine, "rec", None) or {}).get("held") and not unsaved():
+            self._set()
+            return True
+        held = doc.doc_id if doc is not None else "?"
+        if doc is not None and doc.status != K.SAVED:
+            doc.status, doc.reason, doc.held, doc.recheck = K.WAITING, LEFT_OPEN, True, True
+        self.state.held = held
+        log.warning("operator close · batch=%s · doc=%s · a document is still open in Express, left for a person",
+                    self.state.id, held)
+        self._set()
+        return False
 
     def _probe(self) -> None:
         if not self.probe:
@@ -702,6 +738,13 @@ class Runner:
                 continue  # 还是「正在录」：回到循环开头先读账套判断
             if outcome == "saved":
                 d.status, d.docnum, d.reason = K.SAVED, rec["docnum"], ""
+            elif outcome == STOPPED:
+                # 人点了停止：引擎已按放弃收拾好这张（作废两道闸照旧）。记停止跳过；再交来先读账套、确认没写成才从头录
+                d.status, d.reason, d.detail, d.recheck = K.SKIPPED, STOPPED, "", True
+                if rec.get("void_refused"):
+                    d.placeholders.append(rec["void_refused"])
+                self._set(status=K.BATCH_STOPPED, reason="", current="")
+                return False
             else:
                 d.status, d.reason, d.detail = K.WAITING, rec.get("reason") or "unknown_screen", rec.get("detail", "")
                 d.docnum = rec.get("docnum", "")
@@ -710,6 +753,9 @@ class Runner:
                 if rec.get("void_refused"):  # 放弃时作废闸没过：那张半截单留着，交给人处理
                     d.placeholders.append(rec["void_refused"])
             self._set(current="")
+            if rec.get("stop_batch"):  # 工具层报错、没接住的异常（引擎已收拾好这张）：整批停下等人，后面的单不一张张撞上去
+                self._set(status=K.BATCH_STOPPED, reason=d.reason)
+                return False
             if d.reason in K.BATCH_STOPPERS:
                 self._set(status=K.BATCH_STOPPED, reason=d.reason)
                 return False
@@ -725,9 +771,13 @@ class Runner:
                 return False
             self.sleep(self.net_poll_s)
             waited += self.net_poll_s
+        if not self._leave_clean():  # 恢复了：关 Express 重开前先收掉编辑中的那张，收不干净就留给人
+            self._set(status=K.BATCH_STOPPED, reason=LEFT_OPEN)
+            return False
+        self._close()
         try:
-            self.session.close()
             self.session.ensure_open()
+            self._reopen = False  # 这里已经重开、核过公司
         except NeedHuman as e:
             self._set(status=K.BATCH_STOPPED, reason=e.reason)
             return False

@@ -64,6 +64,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "placeholder_left": act("placeholder_left", "p2"),
     "interrupted": ask("fixed", DESKTOP, "p2"),                       # 有人在 Express 里动过：继续 / 停止（1.12.23 ⑥）
     "dialog_choice": ask("screen", DESKTOP, "p2"),                     # 中途配方外的业务选择框：框的原文与按钮带回对话，人选了 CC 去点（1.12.23 ③）
+    "left_open": act("cancel_in_express", "p2"),                      # 保存前停下、放弃收不干净：Express 里这张没保存的单开着，人在那台电脑的 Express 里取消
     "partial_saved": act("partial_left", "p2"),                        # 保存途中停住、账套里留了半截单（不重录、不作废）：说清哪张缺什么，人去账本补完
     "network_down": act("computer_online", "p2"),
     "budget": act("ours_retry", "p2"),

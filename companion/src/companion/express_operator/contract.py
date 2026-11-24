@@ -76,6 +76,7 @@ REASONS = {
     # 保存途中停住（认不出的框、Express 被关）：账套里留了这张的半截单（单头在，金额 / 明细 / 凭证 / 税缺一样或几样）。
     # 不重录、不作废，结果 meta 带 partial {docnum, missing} 与 docnum；Express 还留着等人答框时另带 held {computer, account_set}
     "partial_saved": HUMAN,
+    "left_open": HUMAN,
     # 中途配方外的业务选择框（1.12.23 ③）：不点、单据窗口不关、Express 留着（held），结果 meta.dialog 带
     # {digest, title, text, buttons, doc_type, stage: editing|saving}；人在对话里选了，站点记住、下回按 operator.dialog_answers 照点
     "dialog_choice": HUMAN,
