@@ -200,7 +200,8 @@ def _load_dbf(path: Path):
 def diff(before: Path, after: Path) -> dict:
     """两份账套（目录或快照）的差异：
     - files：按内容哈希，added / removed / changed（清单文件不算）；
-    - tables：内容变了的 DBF 逐行——新增行（非空字段）、改动行（字段 旧→新）、删除标记变化、行数。"""
+    - tables：内容变了的 DBF 逐行——新增行（非空字段，带删除标记的照列、标 deleted）、改动行（字段 旧→新）、删除标记变化；
+      ``rows_before`` / ``rows_after`` 只数有效行（不含删除标记的行），``raw_before`` / ``raw_after`` 是原始行数。"""
     left, right = digest(before, skip=(MANIFEST,)), digest(after, skip=(MANIFEST,))
     changed = sorted(name for name in left if name in right and left[name] != right[name])
     result = {"files": {"added": sorted(set(right) - set(left)), "removed": sorted(set(left) - set(right)), "changed": changed},
@@ -226,7 +227,11 @@ def diff(before: Path, after: Path) -> dict:
                 if old[0] != new[0]:
                     change["_deleted"] = [old[0], new[0]]
                 rows.append({"row": index, "changed": change})
-        result["tables"][Path(rel).stem.upper()] = {"rows_before": len(rows_a), "rows_after": len(rows_b), "rows": rows}
+        # 行数只数有效行（DBF 删除标记 `*` 的行不算）：Express 界面存单时自带一行带删除标记的分录（人录的单也有，11-24 无明细代录
+        # 多出的 51-03-01-00 就是它），不跳过就把「凭证只多三行」判成四行。原始行数另给，删除标记的行在 rows 里照旧带 deleted。
+        live = lambda rows: sum(1 for deleted, _values in rows if not deleted)  # noqa: E731
+        result["tables"][Path(rel).stem.upper()] = {"rows_before": live(rows_a), "rows_after": live(rows_b),
+                                                     "raw_before": len(rows_a), "raw_after": len(rows_b), "rows": rows}
     return result
 
 

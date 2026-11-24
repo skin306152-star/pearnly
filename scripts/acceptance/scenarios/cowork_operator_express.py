@@ -12,6 +12,7 @@
 _LEDGER / _LEDGER_HOST，站点跟 PEARNLY_ACC_SITE_TARGET）；那台电脑的 CC 桌面版上登录的员工要已在 CC 里做过 Express「授权登录」。
 """
 import importlib.util
+import os
 import sys
 from pathlib import Path
 
@@ -40,7 +41,7 @@ def run(ctx):
     with ctx.step("交给代录并等录成", "票交进代录任务，推送载荷是代录载荷；CC 桌面版在 Express 界面录成并回执"):
         out = chain.site(ctx, "cowork_operator_post.py",
                          {**conf, "run": chain.tag(ctx), "seller_tax": ticket["supplier"]["tax_id"], "seller_name": ticket["supplier"]["name"],
-                          "amount": ticket["expect"]["amount"], "vat": ticket["expect"]["vat"], "lines": ticket.get("lines") or []},
+                          "amount": ticket["expect"]["amount"], "vat": ticket["expect"]["vat"], "lines": [] if os.environ.get("PEARNLY_ACC_NO_LINES") == "1" else ticket.get("lines") or []},  # 无明细票回归（11-24）
                          timeout=1200, product="cowork", name=intake.SITE, target=intake.SITE_TARGET)
         record = out.get("record") or {}
         if record.get("status") == "manual":

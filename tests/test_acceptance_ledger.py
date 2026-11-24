@@ -7,6 +7,8 @@ import pathlib
 import struct
 import sys
 import tempfile
+import io
+import contextlib
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -114,6 +116,22 @@ class LedgerTest(unittest.TestCase):
         with self.assertRaises(ledger.Refused):
             ledger.snapshot(self.book, self.root / "s2", probe=lambda root: ["APTRN.DBF"])
         self.assertFalse((self.root / "s2").exists())
+
+    def test_row_counts_skip_rows_carrying_the_delete_mark(self):
+        # 11-24 无明细代录：Express 界面存进货单自带一行带删除标记的分录（51-03-01-00），有效分录与直写相同；
+        # 行数只数有效行，删除标记的行照列在 rows 里（deleted: True），原始行数另给
+        ledger.snapshot(self.book, self.snap)
+        fields = [("DOCNUM", 10), ("AMOUNT", 8)]
+        (self.book / "APTRN.DBF").write_bytes(dbf(fields, [(False, ["RR0000001", "100.00"]), (False, ["RR0000002", "500.00"]),
+                                                           (True, ["RR0000002", "500.00"]), (False, ["RR0000002", "35.00"])]))
+        result = ledger.diff(self.snap, self.book)
+        table = result["tables"]["APTRN"]
+        self.assertEqual((table["rows_before"], table["rows_after"], table["raw_before"], table["raw_after"]), (1, 3, 1, 4))
+        self.assertEqual([row.get("deleted") for row in table["rows"]], [False, True, False])
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            ledger.main(["diff", str(self.snap), str(self.book), "--allow", "APTRN"])
+        self.assertEqual(json.loads(out.getvalue())["tables"]["APTRN"][:2], [1, 3])   # 场景 grew() 读的就是它：多 2 行，不是 3 行
 
     def test_diff_reports_rows_and_the_untouched_invariant(self):
         ledger.snapshot(self.book, self.snap)
