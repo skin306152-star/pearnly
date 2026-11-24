@@ -60,7 +60,7 @@ class ExpressMapResult:
     ok: bool
     payload: Optional[Dict[str, Any]]
     reason: str
-    # 失败时票上的商品行(name/stkcod)。库存类失败要靠它渲染「补期初 / 选存货科目组」卡:
+    # 失败时票上的商品行(name/stkcod)。库存类失败要靠它渲染「选存货科目组」卡:
     # 闸在载荷构造之前就退出,不带出来的话日志里只剩一个 reason,卡拿到空列表退化成一句话。
     items: Optional[List[Dict[str, Any]]] = None
 

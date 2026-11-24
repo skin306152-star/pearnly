@@ -262,12 +262,8 @@ def write_sale(
     selected_dir: str = "",
     expected_company: str = "",
     index_batch=None,
-    opening_stock=None,
 ) -> DbfWriteResult:
     """把一张销售票直写进账套 DBF(AR 表族)。失败整体回滚。
-
-    opening_stock(会计补期初 [{name,qty,unit_cost,date}])非空 → 备份事务内先垫库存,让本票
-    的库存卖行可复用真库存 + 结转 COGS(见 stock_sale.set_opening_stock)。期初与销售原子成败。
 
     三重一致性闸(镜像采购 · 缺所选 → fail-safe 拒):account_set 名(allowed_sets)+
     写盘目录(selected_dir)+ 目标 ISINFO 公司(expected_company)三证齐过才落盘。
@@ -414,10 +410,6 @@ def write_sale(
         created_customer = bool(not existing_code) or (
             cash_missing and entry.customer_code == master_create.CASH_CUSTOMER
         )
-        # 补期初:同一备份-回滚事务内先垫库存(STMAS/STCRD 已在 BACKUP_TABLES),_write_all 的
-        # 库存卖行随即复用①真扣库存 + 移动均价 COGS。期初或后续过账任一失败 → 一并回滚,不留半吊子。
-        if opening_stock:
-            stock_sale.set_opening_stock(account_dir, opening_stock, docdat)
         docnum, line_modes, has_stock, notes, gl_rows = _write_all(
             account_dir,
             entry,

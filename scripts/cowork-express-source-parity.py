@@ -216,8 +216,8 @@ def run(source=None, source_texts=None):
     for key,values in {'confidence':['low','medium','needs_review','',None],
                        'direction':['sales','purchase','bogus','income','expense'],
                        'invoice_date':['1999-01-01','2027-01-01','2026-09-21','bad'],
-                       'invoice_no':['','bad😀','2026-09-01'],
-                       'merged_fields':[{'opening_stock':[{'name':'A','qty':'1','unit_cost':'2'}]}]}.items():
+                       # 补期初透传 merged_fields.opening_stock 已删，不再对照（有意变化，11-24：旧仓补期初卡没迁来、线上零使用）。
+                       'invoice_no':['','bad😀','2026-09-01']}.items():
         changes += [({}, {key:v}, {}, {}) for v in values]
     for key,values in {'account_set':['','OTHER'],'max_payload_version':[0,1,'dirty'],
                        'directions':['sales','purchase',['sales'],[]],

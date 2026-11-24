@@ -458,43 +458,6 @@ def stcrd_stock_entry_row(
     }
 
 
-def stcrd_opening_row(
-    docnum: str,
-    seqnum: int,
-    docdat,
-    stkcod: str,
-    name: str,
-    qty: float,
-    unit_cost: float,
-    *,
-    rem_bal: float,
-    rem_val: float,
-    unit: str = "",
-    loccod: str = STCRD_DEFAULT_LOCCOD,
-    depcod: str = "",
-) -> dict:
-    """一条 STCRD 期初入库行 = 无对手方的入库行(stcrd_stock_in_row 的期初特例)。
-
-    期初从 0 起算,故本行货值 == 入库后结存货值(rem_val);PEOPLE 空(期初无供应商)。
-    """
-    return stcrd_stock_in_row(
-        docnum,
-        seqnum,
-        docdat,
-        stkcod,
-        "",
-        name,
-        qty,
-        unit_cost,
-        val=rem_val,
-        rem_bal=rem_bal,
-        rem_val=rem_val,
-        unit=unit,
-        loccod=loccod,
-        depcod=depcod,
-    )
-
-
 _STOCK_IMPACT_FIELDS = (
     "PHYBAL",
     "MREMBAL",

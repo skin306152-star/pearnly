@@ -431,7 +431,7 @@ def move_stmas(account_dir: Path, stkcod: str, qty, value, *, fields: Optional[D
     - ``TOTBAL / TOTVAL`` 是总结存：在**这一行现有值**上加 ``qty / value``（入为正、出为负）。以前写成「MREMBAL ± 本单」，
       两者不等的品（S 盘 95 本 18%）一写就把总结存改错（TEST 500603：45 → 4）。
     - ``UNITPR``：总结存为正时 = TOTVAL / TOTBAL（4 位小数，Express 维护的移动均价，S 盘 94% 的有货品如此）；不为正时不动（同原生）。
-    - ``MREMBAL / MREMVAL``（先进先出批次链）维持既有做法：同样增减；``lots`` 给了就直接设成这两个值（补期初）。批次链与成本方案另定。
+    - ``MREMBAL / MREMVAL``（先进先出批次链）维持既有做法：同样增减；``lots`` 给了就直接设成这两个值（分仓计价抄仓链）。批次链与成本方案另定。
     - ``fields``：同时要写的其他栏（盘点的 LASUPD / MLOTNUM、期初的 OPNBAL / OPNVAL）。
     只改还算数的行（软删的同码旧档不碰）；老表没有的栏不写。找不到这件品返回 False。
     """
@@ -462,77 +462,3 @@ def move_stmas(account_dir: Path, stkcod: str, qty, value, *, fields: Optional[D
         return False
     finally:
         t.close()
-
-
-def _set_stmas_opening(account_dir: Path, stkcod: str, qty: float, val: float) -> None:
-    """置 STMAS 期初:OPNBAL / OPNVAL 与批次链 MREMBAL / MREMVAL 设成期初数(既有做法),总结存 TOTBAL / TOTVAL 加上期初数
-    (这件品此前卖成负的,总结存 = 负数 + 期初,不盖掉)。"""
-    move_stmas(account_dir, stkcod, qty, val, fields={"OPNBAL": qty, "OPNVAL": val}, lots=(qty, val))
-
-
-def set_opening_stock(
-    account_dir: Path, items: List[Dict], docdat, *, userid: str = S.PEARNLY_USERID
-) -> List[Dict]:
-    """会计补的期初 → 建/复用 STKTYP=0 库存目录档 + 置 STMAS 期初/结存 + 写 STCRD 期初入库行。
-
-    items=[{name, qty, unit_cost, [unit]}](成本由会计据真实单据传入,绝不自造)。已在备份-
-    回滚事务内调用。已有正库存的品跳过(不冲既有库存)。写完商品有真实库存,随后走 stock_sale ①
-    真扣库存+移动均价 COGS。返回逐项结果。
-
-    ⚠️ 本函数只落库存台账(STMAS 期初/结存 + STCRD 期初入库行),让商品有真实可卖库存;
-    GL 开账分录(借存货 / 贷 ทุน-ยกมา 期初权益)待真账 gold 逆向确认科目后补 —— 不凭空写 GL。
-    """
-    results: List[Dict] = []
-    st = dbf.Table(str(Path(account_dir) / "STCRD.DBF"), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
-    st.open(dbf.READ_WRITE)
-    try:
-        for seq, it in enumerate(items, start=1):
-            name = str(it.get("name") or "")
-            qty = float(Decimal(str(it.get("qty") or "0")))
-            cost = float(Decimal(str(it.get("unit_cost") or "0")))
-            if qty <= 0 or cost < 0:
-                raise StockItemNotFound(
-                    f"期初「{name}」数量/成本非法(qty={qty} cost={cost})"
-                )
-            val = _q2(qty * cost)
-            unit = str(it.get("unit") or "")
-            # d = 会计填的**业务日期**(期初那天),逐行可填,缺则回落单据日期。它只管 STCRD
-            # 期初行和单号,不碰主档 CREDAT —— 主档记的是"这条档什么时候建出来的"(今天)。
-            d = it.get("date") or docdat
-            stkcod = product_master.ensure_stock_item(
-                account_dir, name, userid=userid, unit=unit
-            ).stkcod
-            cur = find_stock_item(account_dir, name)
-            if cur and cur["totbal"] > 0:
-                results.append(
-                    {"name": name, "stkcod": stkcod, "mode": "skip_has_stock"}
-                )
-                continue
-            docnum = f"OB{d.strftime('%y%m%d')}-{seq:03d}"  # 期初单(OB=opening balance)
-            S.append_stcrd(
-                st, account_rules.localize_stcrd(account_dir, S.stcrd_opening_row(
-                    docnum,
-                    seq,
-                    d,
-                    stkcod,
-                    name,
-                    qty,
-                    cost,
-                    rem_bal=qty,
-                    rem_val=val,
-                    unit=unit,
-                ), unit)
-            )
-            _set_stmas_opening(account_dir, stkcod, qty, val)
-            results.append(
-                {
-                    "name": name,
-                    "stkcod": stkcod,
-                    "mode": "opening_set",
-                    "qty": qty,
-                    "val": val,
-                }
-            )
-    finally:
-        st.close()
-    return results

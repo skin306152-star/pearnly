@@ -149,13 +149,18 @@ class PreflightTests(unittest.TestCase):
         self.assertEqual(result.disposition, 'ready')
         self.assertEqual(sum(Decimal(i['amount']) for i in result.payload['items']), Decimal('100.00'))
 
-    def test_prior_docnum_and_opening_stock_are_detached(self):
-        self.history['merged_fields'] = {'opening_stock': [{'name': 'A', 'qty': '1'}]}
+    def test_prior_docnum_is_set_and_inputs_stay_untouched(self):
         originals = deepcopy((self.endpoint, self.history, self.context.mappings))
         result = preflight_express(self.endpoint, self.history, context=replace(self.context, prior_docnum='RR0001'))
         self.assertEqual(result.payload['prior_docnum'], 'RR0001')
-        result.payload['opening_stock'][0]['qty'] = '999'
+        result.payload['prior_docnum'] = 'changed'
         self.assertEqual((self.endpoint, self.history, self.context.mappings), originals)
+
+    def test_opening_stock_is_not_passed_to_the_computer(self):
+        # 补期初透传已删（11-24）：旧仓补期初卡没有迁来、线上零使用；原生期初不写库存卡，CC 照写的 OB 行会挡财务原生录单
+        self.history['merged_fields'] = {'opening_stock': [{'name': 'A', 'qty': '1'}]}
+        result = preflight_express(self.endpoint, self.history, context=self.context)
+        self.assertNotIn('opening_stock', result.payload)
 
     def test_prior_lookup_key_never_grants_scope(self):
         self.assertEqual(prior_history_id({'id': 'new'}, {'history_id': ' old '}), 'old')

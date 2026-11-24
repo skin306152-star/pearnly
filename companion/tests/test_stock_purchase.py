@@ -30,53 +30,6 @@ from companion import dbf_schema as S  # noqa: E402
 from companion import stock_purchase as SP  # noqa: E402
 from companion import stock_sale as SS  # noqa: E402
 
-# 重构前 stcrd_opening_row 的真实写出值(逐字段固化)。stcrd_stock_in_row 抽出后,期初行
-# 必须仍写出这一模一样的一行——否则会悄悄改掉客户已落账的期初库存口径。
-_OPENING_GOLD = {
-    "STKCOD": "PN00001",
-    "LOCCOD": "01",
-    "DOCNUM": "OB260601-001",
-    "SEQNUM": "  1",  # 照 Express 原生右对齐（验收 10-26），追加时由 append_stcrd 按字节写
-    "DOCDAT": dt.date(2026, 6, 1),
-    # REFNUM 显式写起后:采购行带供应商票号,期初行没有对手方票 → 恒空串(与不写这一列
-    # 落盘等价,DBF 字符列默认就是空白),期初口径未变。
-    "REFNUM": "",
-    "DEPCOD": "01",
-    "POSOPR": "9",
-    "PEOPLE": "",
-    "TRNQTY": 50.0,
-    "TQUCOD": "ถง",
-    "TFACTOR": 1.0,
-    "UNITPR": 4.5,
-    "DISCAMT": 0.0,
-    "TRNVAL": 225.0,
-    "NETVAL": 225.0,
-    "XTRNQTY": 50.0,
-    "XUNITPR": 4.5,
-    "XTRNVAL": 225.0,
-    "XSALVAL": 225.0,
-    "STKDES": "น้ำแข็งหลอดเล็ก",
-    "MREMBAL": 50.0,
-    "MREMVAL": 225.0,
-}
-
-
-def test_opening_row_unchanged_after_extracting_stock_in_row():
-    row = S.stcrd_opening_row(
-        "OB260601-001",
-        1,
-        dt.date(2026, 6, 1),
-        "PN00001",
-        "น้ำแข็งหลอดเล็ก",
-        50,
-        4.5,
-        rem_bal=50,
-        rem_val=225.0,
-        unit="ถัง",
-        depcod="01",
-    )
-    assert row == _OPENING_GOLD
-
 
 def test_stock_in_row_carries_party_and_line_value():
     """入库行 = 期初行 + 对手方(供应商)· 且货值列是**本行入库额**,不是结存额。"""

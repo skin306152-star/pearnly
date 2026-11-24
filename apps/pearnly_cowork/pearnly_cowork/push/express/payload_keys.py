@@ -7,8 +7,8 @@ transport's verified consumer contract; do not use this set as queue validation.
 from __future__ import annotations
 
 # express payload v1 全集:build_express_payload / build_express_sales_payload 的
-# 固定键 + 条件键(stock_acccod / vat_capitalized / prior_docnum)+ preflight 注入的
-# opening_stock + finalize_payload 盖的 payload_version。
+# 固定键 + 条件键(stock_acccod / vat_capitalized / prior_docnum)+ finalize_payload 盖的 payload_version。
+# 补期初透传 opening_stock 已删(11-24:旧仓补期初卡没有迁来、线上零使用,原生期初不写库存卡)。
 WRITE_PAYLOAD_KEYS = frozenset(
     {
         "payload_version",
@@ -40,7 +40,6 @@ WRITE_PAYLOAD_KEYS = frozenset(
         "prior_docnum",
         # 复核页「仍然推送」：服务端准备时加（不是映射器出的），小助手查重闸认它。
         "duplicate_confirmed",
-        "opening_stock",
         # POS 导出的日汇总票（载荷 3）：票号起止、自编单号、付款方式转账凭证（`contracts/pos.py`）。
         "pos",
     }

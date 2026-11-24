@@ -247,23 +247,6 @@ def test_master_records_the_real_creation_date_not_the_invoice_date(acct):
     assert row["CREDAT"] != _DOCDAT
 
 
-def test_opening_stock_keeps_the_business_date_on_the_stock_row(acct):
-    """期初行的日期是会计填的业务日期,不许被"建档日改今天"顺手改掉 —— 两个日期各管各的。"""
-    opened = dt.date(2026, 1, 1)
-    SS.set_opening_stock(
-        acct, [{"name": _NEW, "qty": "10", "unit_cost": "5", "date": opened}], _DOCDAT
-    )
-    t = dbf.Table(str(acct / "STCRD.DBF"), codepage=S.CODEPAGE)
-    t.open(dbf.READ_ONLY)
-    try:
-        rows = [r for r in t if (r["DOCNUM"] or "").strip().startswith("OB260101")]
-    finally:
-        t.close()
-    assert rows and rows[0]["DOCDAT"] == opened  # 期初行:业务日期
-    master = _row(acct, PM.find_stock_item_code(acct, _NEW))
-    assert master["CREDAT"] == dt.date.today()  # 主档:真实建档日
-
-
 # ── line_modes 契约(主站按这两个键在推送日志上标注)───────────────────────
 
 

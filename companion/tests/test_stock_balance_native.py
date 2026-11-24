@@ -18,7 +18,6 @@ import pytest
 from account_rules_fixture import isinfo, seed
 from companion import dbf_schema as S
 from companion import stock_guard
-from companion import stock_sale
 from test_dbf_stock import _entry, _line, _write, book  # noqa: F401
 from test_dbf_void import _void
 from test_stock_location import _buy, _item, _purchase, _rows, _sale, _sell, _stloc, acct  # noqa: F401
@@ -145,16 +144,3 @@ def test_the_whole_book_negative_stock_check_reads_the_total(apart):
     assert [(row["need"], row["have"]) for row in short] == [("6", "5")]
 
 
-def test_an_opening_after_negative_sales_adds_to_the_total(apart):
-    _set(apart, "STMAS", "STKCOD", "ICE01", TOTBAL=-3.0, TOTVAL=0.0, MREMBAL=0.0, MREMVAL=0.0)
-    out = stock_sale.set_opening_stock(apart, [{"name": "น้ำแข็งหลอด", "qty": 10, "unit_cost": 4}], dt.date(2026, 1, 1))
-    assert [row["mode"] for row in out] == ["opening_set"]
-    row = _rows(apart, "STMAS", STKCOD="ICE01")[0]
-    assert (row["OPNBAL"], row["TOTBAL"], row["TOTVAL"], row["MREMBAL"]) == (10.0, 7.0, 40.0, 10.0)
-
-
-def test_an_opening_is_skipped_when_the_total_is_positive_even_if_the_lot_chain_is_empty(apart):
-    _set(apart, "STMAS", "STKCOD", "ICE01", MREMBAL=0.0, MREMVAL=0.0)
-    out = stock_sale.set_opening_stock(apart, [{"name": "น้ำแข็งหลอด", "qty": 10, "unit_cost": 4}], dt.date(2026, 1, 1))
-    assert [row["mode"] for row in out] == ["skip_has_stock"]
-    assert _master(apart)["TOTBAL"] == 45.0

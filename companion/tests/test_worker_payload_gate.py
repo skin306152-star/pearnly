@@ -377,43 +377,6 @@ def test_endpoint_refresh_failure_is_acknowledged_instead_of_staying_pending():
     assert heartbeat["master_refresh_error"] == "ERR_MASTER_SCAN_FAILED"
 
 
-def test_opening_items_maps_key_to_name_and_parses_date():
-    """补期初透传行:Pearnly 键 `key`(品名)→ `name`;日期字符串 → date;空名行丢弃。"""
-    import datetime
-
-    out = worker._opening_items(
-        {
-            "opening_stock": [
-                {"key": "ข้าวหอม", "qty": 50, "unit_cost": 4.5, "date": "2026-01-01"},
-                {
-                    "key": "   ",
-                    "qty": 1,
-                    "unit_cost": 1,
-                    "date": "2026-01-01",
-                },  # 空名 → 丢
-            ]
-        }
-    )
-    assert len(out) == 1
-    assert out[0]["name"] == "ข้าวหอม"
-    assert out[0]["qty"] == 50 and out[0]["unit_cost"] == 4.5
-    assert out[0]["date"] == datetime.date(2026, 1, 1)
-
-
-def test_opening_items_none_when_absent_and_tolerates_bad_date():
-    """无 opening_stock / 空列表 → None(常规过账);坏日期 → date=None 不炸,仍映射该行。"""
-    assert worker._opening_items({}) is None
-    assert worker._opening_items({"opening_stock": []}) is None
-    out = worker._opening_items(
-        {
-            "opening_stock": [
-                {"key": "x", "qty": 1, "unit_cost": 0, "date": "not-a-date"}
-            ]
-        }
-    )
-    assert out[0]["date"] is None and out[0]["name"] == "x"
-
-
 def test_task_account_is_resolved_from_local_root_registry():
     current = ExpressSettings(
         method="dbf",

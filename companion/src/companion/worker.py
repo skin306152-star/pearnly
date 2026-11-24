@@ -8,7 +8,6 @@ reindex)→ Express 立即可查,无需任何额外整理步骤。
 
 from __future__ import annotations
 
-import datetime
 import ntpath
 import sys
 import time
@@ -163,39 +162,6 @@ def _note_uid_mismatch(task_id: str, now: Optional[float] = None) -> bool:
     repeat = task_id in _uid_mismatch_seen
     _uid_mismatch_seen[task_id] = moment
     return repeat
-
-
-def _opening_items(payload: dict):
-    """Pearnly 补期初卡透传的期初行 → set_opening_stock 期望的形状。
-
-    Pearnly 端键名是 `key`(=品名),映射成 `name`;日期 'YYYY-MM-DD' 解析成 date
-    (解析不出留 None → set_opening_stock 回落单据日期)。空/缺 → None(该票无期初,走常规过账)。
-    """
-    raw = (payload or {}).get("opening_stock")
-    if not raw:
-        return None
-    out = []
-    for it in raw:
-        if not isinstance(it, dict):
-            continue
-        name = str(it.get("key") or it.get("name") or "").strip()
-        if not name:
-            continue
-        ds = str(it.get("date") or "").strip()[:10]
-        try:
-            d = datetime.date.fromisoformat(ds) if ds else None
-        except ValueError:
-            d = None
-        out.append(
-            {
-                "name": name,
-                "qty": it.get("qty"),
-                "unit_cost": it.get("unit_cost"),
-                "unit": it.get("unit") or "",
-                "date": d,
-            }
-        )
-    return out or None
 
 
 def _write_tables(direction: str, payload: dict) -> tuple:
@@ -367,10 +333,7 @@ def _handle_dbf_task(
                                outcome="waiting_lock")
                 return "waiting_lock"
             if direction == "sales":
-                # 会计补的期初(库存卖但客户账里此品零库存 → 先垫库存再过账)· 与销售同事务原子成败。
-                res = write_sale(
-                    payload, st.account_dir, opening_stock=_opening_items(payload), **common
-                )
+                res = write_sale(payload, st.account_dir, **common)
             elif direction == "stock" and payload.get("action") == "void":
                 # 作废 ERP 写进去的库存单(载荷 8,出入库第一期 B 段 ①):照 Express 原生作废原单
                 from .dbf_void import void_stock_entry
