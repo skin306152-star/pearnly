@@ -136,6 +136,7 @@ def _fake_frappe(state):
     frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
         (event, message, user, after_commit))
     frappe.db = types.SimpleNamespace(get_value=get_value, exists=exists, set_value=set_value,
+                                      commit=lambda: state.__setitem__("commits", state.get("commits", 0) + 1),
                                       rollback=lambda: state.__setitem__("rollbacks", state.get("rollbacks", 0) + 1))
     frappe.parse_json = lambda text: __import__("json").loads(text) if isinstance(text, str) else text
     frappe.as_json = lambda value: __import__("json").dumps(value, default=str)
@@ -637,6 +638,15 @@ class TaskTests(unittest.TestCase):
         sys.modules["pearnly_core.express_operator.uploads"] = uploads
         self.package.uploads = uploads
         self.addCleanup(sys.modules.pop, "pearnly_core.express_operator.uploads", None)
+        # 列出快照（`listed`）照真模块记在任务上（替身 frappe 的 set_value）
+        sys.modules["pearnly_core.express_operator.tasks"] = self.tasks
+        self.package.tasks = self.tasks
+        listed_spec = importlib.util.spec_from_file_location(
+            "pearnly_core.express_operator.listed", ROOT / "apps/pearnly_core/pearnly_core/express_operator/listed.py")
+        self.package.listed = importlib.util.module_from_spec(listed_spec)
+        listed_spec.loader.exec_module(self.package.listed)
+        sys.modules["pearnly_core.express_operator.listed"] = self.package.listed
+        self.addCleanup(sys.modules.pop, "pearnly_core.express_operator.listed", None)
         spec = importlib.util.spec_from_file_location(
             "op_tools", ROOT / "apps/pearnly_core/pearnly_core/express_operator/tools.py")
         tools = importlib.util.module_from_spec(spec)

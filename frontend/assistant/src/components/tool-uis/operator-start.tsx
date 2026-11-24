@@ -80,7 +80,9 @@ const DocLine: FC<{ title: string; detail?: string; slot: string; children?: Rea
   </div>
 );
 
-type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: { set: boolean; user: string } | null };
+type Prep = { docs: DocRef[]; next: number | null; prechecks: PrecheckDoc[]; targets: WriteTarget[]; login: { set: boolean; user: string } | null;
+  /** 这次列出过、之后被直写写进账本的单（服务端按任务快照补，带单号；不预检、开始时跳过）。 */
+  entered: DocRef[] };
 
 /** 第一页重取后合上已取过的「显示更多」那几页：第一页在前（新上传的落在这里），别的页里已有的照留，同一张只留一次。 */
 export function mergeDocs(first: readonly DocRef[], before: readonly DocRef[]): DocRef[] {
@@ -105,14 +107,15 @@ export function uploadsDoneKey(messages: ReadonlyArray<{ content: ReadonlyArray<
 function usePrep(input: StartInput, on: boolean, uploads: string) {
   const [prep, setPrep] = useState<Prep | null>(null);
   const load = useCallback(async (offset: number, before: Prep | null, refresh = false): Promise<Prep> => {
-    const page = await operatorActions.documents(input.company, input.period, offset);
+    const page = await operatorActions.documents(input.company, input.period, offset, input.task);
     const docs = refresh ? mergeDocs(page.documents, before?.docs ?? []) : [...(before?.docs ?? []), ...page.documents];
     const next = refresh && before ? before.next : page.next;
+    const entered = offset ? (before?.entered ?? []) : page.entered;
     const [checked, login] = await Promise.all([operatorActions.precheck(input.company, docs.map((d) => d.doc_id), input.task), loginHere()]);
-    const fresh = { docs, next, prechecks: checked.documents, targets: checked.targets, login };
+    const fresh = { docs, next, prechecks: checked.documents, targets: checked.targets, login, entered };
     setPrep(fresh);
     return fresh;
-  }, [input.company, input.period]);
+  }, [input.company, input.period, input.task]);
   const latest = useRef<Prep | null>(null);
   latest.current = prep;
   useEffect(() => {
@@ -138,7 +141,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const [notice, setNotice] = useState("");
   const [allRows, setAllRows] = useState(false);
   const prechecks = prep?.prechecks ?? [];
-  const titleOf = (id: string) => docTitle(prep?.docs.find((d) => d.doc_id === id) ?? {}, id);
+  const titleOf = (id: string) => docTitle(prep?.docs.find((d) => d.doc_id === id) ?? prep?.entered.find((d) => d.doc_id === id) ?? {}, id);
   const unknown = prechecks.filter((p) => p.state === "blocked" && p.reason === RESULT_UNKNOWN);
   const stopped = prechecks.filter((p) => (p.state === "blocked" || p.state === "waiting") && p.reason !== RESULT_UNKNOWN);
   const result = resultOf<StartResult>(props.result);
@@ -148,7 +151,9 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
   const questions = useMemo(() => items.map((item) => itemQuestion(item, input.company)), [items, input.company]);
   const [sent, setSent] = useState<AskResult | null>(null);
   // 同一张票已写进 Express 的（默认跳过）：人点了「再录一次」的放进 again
-  const written = prechecks.filter((p) => p.state === "written");
+  // 列出之后被直写写进账本的（服务端快照补的，带单号）同样照「已写进」列出，不凭空消失（主会话 11-24）
+  const written = [...prechecks.filter((p) => p.state === "written"),
+    ...(prep?.entered ?? []).map((d) => ({ doc_id: d.doc_id, state: "written", docnum: d.entered } as PrecheckDoc))];
   const shown = rowsShown([unknown, stopped, written], allRows);
   const [shownUnknown, shownStopped, shownWritten] = shown.groups as [PrecheckDoc[], PrecheckDoc[], PrecheckDoc[]];
   // 卡里答的题只记下（同写账前置判定的记法），不开始写；写不写、写哪几张由写入计划定（再录一次也在对话里说）

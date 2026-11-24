@@ -140,7 +140,9 @@ export function answersFor(questions: readonly Question[], picked: Readonly<Reco
 // ── 事件形状（方案 14.10，U1 定稿）────────────────────────────────────────────
 /** 一张单（资料清单、开始前框、单据行）。 */
 /** moves：这张能拖到哪几组（站点按产品声明给，没有 = 不能拖）。 */
-export type DocRef = { doc_id: string; ref?: string; party?: string; total?: string; date?: string; group?: string; kind?: string; moves?: string[] };
+export type DocRef = { doc_id: string; ref?: string; party?: string; total?: string; date?: string; group?: string; kind?: string; moves?: string[];
+  /** 这次代录列出过、之后被直写写进账本的单：Express 单号（服务端按任务快照补出，不能拖、开始时跳过）。 */
+  entered?: string };
 
 /** operator_sources 的 input；交单后的结果是按组的张数（"" = 未分组）。准备中没有结果，展开时调 documents（服务端分页）。 */
 export type SourcesInput = { task: string; company: string; company_title?: string; period: string };
@@ -237,13 +239,15 @@ export const setOperatorSite = (next: Partial<typeof site>) => {
 /** 资料一页的大小（服务端分页，「显示更多」再取下一页）。 */
 export const PAGE = 50;
 
-type DocumentsReply = { documents?: DocRef[]; next_offset?: number | null; total?: number };
+type DocumentsReply = { documents?: DocRef[]; next_offset?: number | null; total?: number; entered?: DocRef[] };
 
 export const operatorActions = {
-  documents: async (company: string, period: string, offset: number) => {
-    const reply = await site.get<DocumentsReply>(API + "documents", { company, period, offset, limit: PAGE });
+  /** task：这次代录任务——服务端记下列出过的单，第一页另回已被直写写进账本的那几张（entered，主会话 11-24：不凭空消失）。 */
+  documents: async (company: string, period: string, offset: number, task = "") => {
+    const reply = await site.get<DocumentsReply>(API + "documents", { company, period, offset, limit: PAGE, ...(task ? { task } : {}) });
     const documents = (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) }));
-    return { documents, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };
+    const entered = (reply?.entered ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id), moves: [] }));
+    return { documents, entered, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };
   },
   /** task：开始卡的代录任务（服务端在它的对话里预检：按本对话账套准备，已定就不问账套）；中途选那些不给。 */
   precheck: async (company: string, docIds: readonly string[], task = "") => {

@@ -139,7 +139,8 @@ class WritePlanTests(unittest.TestCase):
              **self.docs[doc_id]} for doc_id in ids if doc_id in self.docs]}
         operator_api = types.ModuleType("pearnly_core.express_operator.api")
         # 完整待录清单（不看页面加载了几页）：D007 移到不入账，D010 已写进 Express；D061 起不在这家这个月
-        operator_api.waiting = lambda company, period, again: (
+        self.waited = []
+        operator_api.waiting = lambda company, period, again, task="": self.waited.append(task) or (
             [d for d in self.docs if d not in ("D007", "D010") or d in again], {},
             [{"doc_id": "D007", "reason": "moved_to_not_entered"}]
             + ([] if "D010" in again else [{"doc_id": "D010", "reason": "already_entered"}]))
@@ -218,6 +219,7 @@ class WritePlanTests(unittest.TestCase):
         self.assertEqual(out["account_sets"], [{"account_set": "K1", "account_set_title": "Acme 2026", "count": 58}])
         self.assertIn("say back to the user in one sentence", out["note"])
         self.assertEqual(FAKE.published[-1]["status"], "awaiting")  # 页面据此出「录吧」
+        self.assertTrue(self.waited[-1])  # 按这次代录任务取：列出过、之后被直写的单照「已入账」跳过（主会话 11-24）
 
     def test_the_plan_names_come_from_the_server_and_carry_no_note_text(self):
         """11-15 线上：CC 复述计划时账套那行夹了英文「(This conversation's account set)」——给模型的说明句被照抄。计划结果里给人看的

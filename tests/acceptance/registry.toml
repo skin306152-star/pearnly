@@ -1621,3 +1621,27 @@ resources = ["testpc1", "testenv-domain:dms"]
 budget_usd = 0
 tier = "gate"
 core = true
+
+[[scenario]]
+id = "acc.erp.operator.listed.direct"
+title = "ERP 代录列出的单被每分钟那一轮直写抢先：代录这边如实显示「已入账 · 单号」、写入计划与交单跳过、账本只多一张（不重复入账）"
+class = "variant"
+layer = "L3"
+env = "B"
+via = "api"
+module = "scripts/acceptance/scenarios/erp_operator_listed.py"
+rows = ["erp.cc.operator.submit"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/*.py",
+  "apps/pearnly_core/pearnly_core/assistant/write_plan.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_core/pearnly_core/cc_desktop/*.py",
+  "companion/src/companion/worker.py",
+]
+resources = ["testpc2", "ledger:69EXP/TEST2"]
+site_resources = { lab = ["testpc1"], maclab = ["lab:pearnly-maclab-erp"] }
+needs_server = true
+budget_usd = 0
+tier = "gate"
+core = true

@@ -62,16 +62,23 @@ DOC_KEYS = ("doc_id", "kind", "date", "party", "ref", "total", "other_month")
 def _preparing(view: dict) -> dict:
     """还没开始的任务：这次代录待录的单（产品 ``sources``，同写入计划取的那份清单的前几张）与对话里放进来的每一份此刻识别到哪
     （``uploads.read``，同页面上传卡片）。11-16 H3：CC 只看得到「还没录」，不知道票已放进来、已识别，叫用户去别的页面上传。"""
-    from pearnly_core.express_operator import products, uploads
+    from pearnly_core.express_operator import listed, products, uploads
 
     found = products.sources(view["company"], view.get("period") or "", 0, WAITING_SHOWN)
-    waiting = [{key: row[key] for key in DOC_KEYS if row.get(key) not in (None, "")}
-               for row in found.get("documents") or [] if isinstance(row, dict) and row.get("doc_id") and row.get("group") != "skip"]
+    rows = [row for row in found.get("documents") or [] if isinstance(row, dict) and row.get("doc_id")]
+    waiting = [{key: row[key] for key in DOC_KEYS if row.get(key) not in (None, "")} for row in rows if row.get("group") != "skip"]
+    # 这次列出过、之后被直写写进账本的单：照实给出（已入账 · 单号），开始时跳过；不说成「没有了」（主会话 11-24）
+    snapshot = listed.remember(view["name"], view["company"], rows)
+    entered = [{key: row[key] for key in ("doc_id", "ref", "party", "docnum") if row.get(key)}
+               for row in listed.entered(view["company"], snapshot, [row["doc_id"] for row in rows])]
     sent = [{"filename": row.get("filename") or "", "state": row.get("state") or "",
              "documents": [{key: doc[key] for key in ("doc_id", "ref", "party", "date") if doc.get(key)}
                            for doc in row.get("documents") or [] if isinstance(doc, dict)]}
             for row in uploads.read(view["name"]).get("uploads") or []]
-    return {"waiting": waiting, "waiting_total": int(found.get("total") or len(waiting)), "uploads": sent}
+    out = {"waiting": waiting, "waiting_total": int(found.get("total") or len(waiting)), "uploads": sent}
+    if entered:
+        out["entered"] = entered
+    return out
 
 
 # 状态之外给模型的下一步（只给模型读，不是界面文案）：不提内部名词
@@ -79,7 +86,9 @@ NEXT_PREPARING = ("Nothing has been entered yet. waiting lists the documents thi
                   "this conversation are recognized here and appear there once read; uploads shows each file's state), so "
                   "never send the user elsewhere to upload. When the user wants them entered: settle the open questions, "
                   "make the write plan (pearnly_write_plan), say it back in one sentence and start it (pearnly_write_start) "
-                  "only after the user agrees in a new message.")
+                  "only after the user agrees in a new message. entered lists documents from this task's list that were "
+                  "entered in Express another way in the meantime (docnum is the Express number): they are already entered "
+                  "and the task skips them; say so with the number, never that they disappeared.")
 NEXT_ATTENTION = ("Some documents need the user: the cards in this conversation ask what is missing (one question covers "
                   "every document that needs the same answer). Point the user to them; do not ask the same thing again.")
 

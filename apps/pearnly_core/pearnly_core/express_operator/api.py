@@ -19,7 +19,7 @@ import frappe
 from frappe import _
 
 from pearnly_core.execution.errors import Deferred
-from pearnly_core.express_operator import products, shapes, tasks, uploads
+from pearnly_core.express_operator import listed, products, shapes, tasks, uploads
 from pearnly_core.originals import local_file, upload_limits
 from pearnly_core.originals.rules import UPLOAD_MAX_BYTES
 
@@ -33,14 +33,23 @@ def _require(company):
 
 
 @frappe.whitelist()
-def documents(company, period, offset=0, limit=50):
+def documents(company, period, offset=0, limit=50, task=""):
+    """资料清单（服务端分页）。``task``：这次代录任务（准备中）——现查到的单记进任务的快照，第一页另补快照里已被直写写进账本的单
+    （``entered`` 带单号、不能拖，`listed`）：列出过的单不凭空消失（主会话 11-24）。"""
     _require(company)
     limit = max(1, min(int(limit or 50), PAGE_MAX))
-    found = products.sources(company, str(period or ""), max(0, int(offset or 0)), limit)
+    offset = max(0, int(offset or 0))
+    found = products.sources(company, str(period or ""), offset, limit)
     movable = products.can_regroup()
     for row in found.get("documents") or []:
         if isinstance(row, dict):
             row["moves"] = shapes.moves(row, movable)
+    if task:
+        rows = [row for row in found.get("documents") or [] if isinstance(row, dict)]
+        snapshot = listed.remember(str(task), company, rows)
+        if not offset and snapshot:
+            found["entered"] = [{**row, "entered": row["docnum"], "moves": []}
+                                for row in listed.entered(company, snapshot, [row.get("doc_id") for row in rows])]
     return found
 
 
@@ -164,7 +173,7 @@ def remember(company, answers, task=""):
         return precheck_products.remember(company, {str(doc_id): rows for doc_id, rows in answers.items() if rows})
 
 
-def waiting(company, period, again) -> tuple[list, dict, list]:
+def waiting(company, period, again, task="") -> tuple[list, dict, list]:
     """这家公司这个月此刻该交的全部单（按产品的资料顺序）、各自的分组、去掉的单 ``[{doc_id, reason}]``：资料分页取全，去掉人移到
     「不入账」（skip）的、结果不明还没标的、同一张票已写进 Express 的（``again`` 里用户说了「再录一次」的照交）。不看页面加载了几页
     （第 4 项）。写入计划（`assistant.write_plan`）按它定代录这次写哪几张。"""
@@ -182,6 +191,11 @@ def waiting(company, period, again) -> tuple[list, dict, list]:
     rows = list({str(row["doc_id"]): row for row in rows}.values())
     candidates = [str(row["doc_id"]) for row in rows if row.get("group") != "skip"]
     skipped = [{"doc_id": str(row["doc_id"]), "reason": "moved_to_not_entered"} for row in rows if row.get("group") == "skip"]
+    if task:
+        # 这次代录列出过、之后被直写写进账本的：照「同一张票已写进账本」跳过，带单号（不凭空消失，主会话 11-24）
+        snapshot = listed.remember(str(task), company, rows)
+        skipped += [{"doc_id": row["doc_id"], "reason": listed.ENTERED, "docnum": row["docnum"]}
+                    for row in listed.entered(company, snapshot, [row["doc_id"] for row in rows])]
     held = set()
     for start_at in range(0, len(candidates), BATCH_MAX):
         for doc in products.precheck(company, candidates[start_at:start_at + BATCH_MAX]).get("documents") or []:
@@ -221,7 +235,7 @@ def start(company, doc_ids, computer="", start_at=0, answers=None, task="", grou
         # 交哪些单由服务端按这家公司这个月的完整待录清单定（第 4 项，主会话 11-10：页面只交已加载的那几页，第 51 张起漏掉）；
         # 写入计划给的单是这份清单里用户同意写的那几张（`hand_in`），清单外的不交
         wanted = set(doc_ids)
-        doc_ids, server_groups, _skipped = waiting(company, found["period"], [str(doc_id) for doc_id in again])
+        doc_ids, server_groups, _skipped = waiting(company, found["period"], [str(doc_id) for doc_id in again], task=task)
         doc_ids = [doc_id for doc_id in doc_ids if doc_id in wanted]
         if not doc_ids:
             frappe.throw(_("Invalid request"))

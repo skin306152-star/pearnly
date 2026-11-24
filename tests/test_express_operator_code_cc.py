@@ -133,7 +133,12 @@ def fake_frappe(state):
     frappe.get_doc, frappe.get_all = get_doc, get_all
     frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
         (event, message, user, after_commit))
-    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all,
+    def set_value(doctype, name, field, value=None, update_modified=True):
+        for row in state["tasks"]:
+            if row["name"] == name:
+                row[field] = value
+
+    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all, set_value=set_value,
                                       commit=lambda: state.setdefault("commits", []).append(1),
                                       rollback=lambda: state.setdefault("rollbacks", []).append(1))
     frappe.local = types.SimpleNamespace(site="test.site", lang="th")
@@ -1008,6 +1013,89 @@ class StartTakesTheWholeListTests(Base):
             api.start("CO-1", ["D001"], task=self.task)
         self.assertEqual(self.submitted, [])
 
+
+
+class ListedDocumentsStayListedTests(Base):
+    """代录列出快照（主会话 11-24）：列出阶段不锁；列出过的单之后被直写写进账本，资料清单、给模型的准备中清单、写入计划都如实给出
+    「已入账 · 单号」、开始时跳过，不从清单里凭空消失（L3 首跑：ERP 每分钟那一轮把排队中的单直写掉，代录清单时有时无）。"""
+
+    def setUp(self):
+        super().setUp()
+        self.submitted = []
+        self.rows = [{"doc_id": f"D{n}", "group": "purchase"} for n in range(1, 4)]
+        self.state = {}
+
+        def sources(company, period, offset, limit):
+            page = self.rows[offset:offset + limit]
+            following = offset + len(page)
+            return {"documents": [dict(row) for row in page], "next_offset": following if following < len(self.rows) else None,
+                    "total": len(self.rows)}
+
+        def status(company, doc_ids):
+            return [{"doc_id": doc_id, **({"ref": f"PO-{doc_id}", "party": "T001"} if doc_id in self.state else {}),
+                     **self.state.get(doc_id, {"state": "queued"})} for doc_id in doc_ids]
+
+        def submit(company, doc_ids, batch, computer, answers):
+            self.submitted.append(list(doc_ids))
+            return [{"doc_id": doc_id, "status": "sent"} for doc_id in doc_ids]
+
+        STATE["hooks"]["pearnly_express_operator"].update(sources="p.sources", submit="p.submit", precheck="p.precheck",
+                                                          status="p.status")
+        STATE["attrs"].update({"p.sources": sources, "p.submit": submit, "p.status": status,
+                               "p.precheck": lambda company, ids: {"documents": [{"doc_id": i, "state": "ready"} for i in ids]}})
+        self.task = tasks.create("CO-1", "2026-10")["name"]
+
+    def written_directly(self, doc_id, docnum):
+        # 产品 sources 只给还没交进写账的单：直写写成后它从现查里消失，status 说已入账
+        self.rows = [row for row in self.rows if row["doc_id"] != doc_id]
+        self.state[doc_id] = {"state": "saved", "docnum": docnum}
+
+    def test_a_listed_document_written_directly_shows_as_entered_with_its_number_and_is_skipped(self):
+        planned, _groups, skipped = api.waiting("CO-1", "2026-10", [], task=self.task)
+        self.assertEqual(planned, ["D1", "D2", "D3"])
+        self.written_directly("D2", "RR0000101")
+        planned, _groups, skipped = api.waiting("CO-1", "2026-10", [], task=self.task)
+        self.assertEqual(planned, ["D1", "D3"])
+        self.assertEqual(skipped, [{"doc_id": "D2", "reason": "already_entered", "docnum": "RR0000101"}])
+        page = api.documents("CO-1", "2026-10", task=self.task)
+        self.assertEqual([row["doc_id"] for row in page["documents"]], ["D1", "D3"])
+        self.assertEqual(page["entered"], [{"doc_id": "D2", "group": "purchase", "ref": "PO-D2", "party": "T001",
+                                            "docnum": "RR0000101", "entered": "RR0000101", "moves": []}])
+        api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])
+        self.assertEqual(self.submitted[-1], ["D1", "D3"])  # 已被直写的不再交代录
+
+    def test_the_model_sees_entered_documents_while_preparing(self):
+        tools = importlib.import_module("pearnly_core.express_operator.tools")
+        view = tasks.read(self.task)
+        self.assertNotIn("entered", tools._preparing(view))
+        self.written_directly("D3", "RR0000102")
+        out = tools._preparing(view)
+        self.assertEqual([row["doc_id"] for row in out["waiting"]], ["D1", "D2"])
+        self.assertEqual(out["entered"], [{"doc_id": "D3", "ref": "PO-D3", "party": "T001", "docnum": "RR0000102"}])
+
+    def test_gone_documents_that_are_not_entered_are_not_added_and_new_ones_still_come_in(self):
+        api.documents("CO-1", "2026-10", task=self.task)
+        self.rows = [row for row in self.rows if row["doc_id"] != "D1"] + [{"doc_id": "D9", "group": "sales"}]
+        self.state["D1"] = {"state": "not_done", "docnum": ""}   # 没录成 / 取消 / 在别处排着：不当成已入账
+        page = api.documents("CO-1", "2026-10", task=self.task)
+        self.assertEqual([row["doc_id"] for row in page["documents"]], ["D2", "D3", "D9"])
+        self.assertEqual(page.get("entered"), [])
+
+    def test_only_the_first_page_carries_entered_and_without_a_task_nothing_is_remembered(self):
+        api.documents("CO-1", "2026-10", task=self.task)
+        self.written_directly("D1", "RR1")
+        self.assertNotIn("entered", api.documents("CO-1", "2026-10", offset=1, task=self.task))
+        self.assertNotIn("entered", api.documents("CO-1", "2026-10"))
+        doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
+        self.assertEqual(json.loads(doc.get("listed")), {"D1": "purchase", "D2": "purchase", "D3": "purchase"})
+
+    def test_a_started_task_no_longer_records_what_it_lists(self):
+        api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])
+        doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
+        before = doc.get("listed")
+        self.rows.append({"doc_id": "D4", "group": "purchase"})
+        api.documents("CO-1", "2026-10", task=self.task)
+        self.assertEqual(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed"), before)
 
 if __name__ == "__main__":
     unittest.main()

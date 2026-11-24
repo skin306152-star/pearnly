@@ -211,7 +211,7 @@ def make(tool_input) -> dict:
         from pearnly_core.express_operator import api as operator_api
 
         again = [str(doc_id) for doc_id in tool_input.get("again") or () if doc_id]
-        doc_ids, _groups, held = operator_api.waiting(company, period, again)
+        doc_ids, _groups, held = operator_api.waiting(company, period, again, task=task)
         again = [doc_id for doc_id in again if doc_id in doc_ids]
         skipped_first = held
     else:

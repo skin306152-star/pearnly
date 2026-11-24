@@ -20,6 +20,7 @@
   "message_at",
   "session_id",
   "controls",
+  "listed",
   "documents",
   "uploads"
  ],
@@ -109,6 +110,13 @@
    "read_only": 1
   },
   {
+   "fieldname": "listed",
+   "fieldtype": "Long Text",
+   "hidden": 1,
+   "label": "Listed Documents",
+   "read_only": 1
+  },
+  {
    "fieldname": "documents",
    "fieldtype": "Table",
    "label": "Documents",
@@ -123,7 +131,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-11-09 13:00:00.000000",
+ "modified": "2026-11-24 15:00:00.000000",
  "modified_by": "Administrator",
  "module": "Pearnly Core",
  "name": "Pearnly Express Operator Task",

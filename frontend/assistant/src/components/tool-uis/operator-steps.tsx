@@ -130,7 +130,7 @@ const docTexts = (): DragTexts => ({
   droppedIn: (name, group) => `${name} · ${group}`,
 });
 
-type Listed = { docs: DocRef[]; next: number | null; total: number };
+type Listed = { docs: DocRef[]; next: number | null; total: number; entered: DocRef[] };
 
 const movesOf = (docs: readonly DocRef[], id: string): readonly string[] => docs.find((d) => d.doc_id === id)?.moves ?? [];
 
@@ -144,8 +144,9 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
   const texts = useMemo(docTexts, []);
   const load = async (offset: number) => {
     try {
-      const page = await operatorActions.documents(input.company, input.period, offset);
-      setListed((before) => ({ docs: [...(offset ? (before?.docs ?? []) : []), ...page.documents], next: page.next, total: page.total ?? page.documents.length }));
+      const page = await operatorActions.documents(input.company, input.period, offset, input.task);
+      setListed((before) => ({ docs: [...(offset ? (before?.docs ?? []) : []), ...page.documents], next: page.next, total: page.total ?? page.documents.length,
+        entered: offset ? (before?.entered ?? []) : page.entered }));
     } catch (caughtError) {
       reportCaught(caughtError, "operator-sources");
     }
@@ -174,7 +175,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
         <Marquee className="min-w-0 flex-1 truncate">{line}</Marquee>
         {!done && <ChevronRightIcon aria-hidden />}
       </button>
-      {open && !done && listed && listed.docs.length > 0 && (
+      {open && !done && listed && listed.docs.length + listed.entered.length > 0 && (
         <div className="cc-step-detail cc-step-text" data-slot="cc-op-sources-list">
           <DragArea
             texts={texts}
@@ -184,7 +185,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
               if (target.list && target.list !== active.list) regroup(String(active.id), target.list as DocGroup);
             }}
           >
-            {groupDocs(listed.docs, dragging).map(([group, rows]) => (
+            {groupDocs([...listed.docs, ...listed.entered], dragging).map(([group, rows]) => (
               <DocGroupList key={group} group={group} rows={rows} />
             ))}
           </DragArea>
@@ -221,10 +222,12 @@ const DocItem: FC<{ doc: DocRef; group: DocGroup }> = ({ doc, group }) => {
   const data: DragData = { id: doc.doc_id, kind: "doc", label: title, list: group };
   const sortable = useSortableItem(data, { disabled: !doc.moves?.length });
   return (
-    <div {...sortable.node} className="cc-op-doc" data-slot="cc-op-doc">
+    <div {...sortable.node} className="cc-op-doc" data-slot={doc.entered !== undefined ? "cc-op-doc-entered" : "cc-op-doc"}>
       <span {...sortable.handle} className="cc-op-doc-handle">
         <Marquee className="min-w-0 flex-1 truncate">{title}</Marquee>
-        {doc.total && <span className="cc-op-count">{formatAmount(doc.total)}</span>}
+        {doc.entered !== undefined
+          ? <span className="cc-op-count">{[op.doc.saved, doc.entered].filter(Boolean).join(" · ")}</span>
+          : doc.total && <span className="cc-op-count">{formatAmount(doc.total)}</span>}
       </span>
     </div>
   );
