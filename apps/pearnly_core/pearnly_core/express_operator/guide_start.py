@@ -7,7 +7,10 @@
 - 同一张票已写进 Express（``written``，默认跳过）：跳过 / 再录一次（答再录一次的进 ``again``，交 `hand_in`）；
 - 上次写入结果不明：已入账 / 没有入账（答了走 `api.resolve`，同开始卡上那两个按钮）；
 - 这个月一张可录的都没有、别的月份有：各月几张（服务端数，`products.elsewhere`）+ 留在这个月；选了月份改任务月份
-  （`sessions.move`，同对话上方的月份），按新月份重开这张卡。
+  （`sessions.move`，同对话上方的月份），按新月份重开这张卡；
+- 本人放进这次代录、票面不是任务月份的（资料行带 ``other_month``，P4 11-24）：「票面 X 月 · 本对话 Y 月」——放进本次代录照录（按票面
+  日期）/ 这次不录。原来不问就交（ERP）或交不进（Cowork 引导交的文件没记进任务批次，整批「请求无效」）。照录写进本对话账套：
+  票面日期不在它的会计期间里时推送停在「期间不符」，不会写进别的账套。
 
 都不预选（「做不做」类）。月份与张数是服务端数的，卡上的字照它出。
 """
@@ -21,6 +24,8 @@ from frappe import _
 AGAIN_PREFIX = "operator-again|"
 RESOLVE_PREFIX = "operator-resolve|"
 MONTH_KEY = "operator-month"
+OTHER_PREFIX = "operator-other|"
+FOLLOW = "follow"
 AGAIN, SKIP = "again", "skip"
 ENTERED, NOT_ENTERED = "entered", "not_entered"
 STAY = "stay"
@@ -79,7 +84,8 @@ def _whether(key: str, kind: str, docs: List[str], options: List[Dict[str, Any]]
             "remember": False, "free": False}
 
 
-def questions(ctx: Mapping[str, Any], doc_ids: List[str], operator: Mapping[str, Any], again: List[str]) -> List[Dict[str, Any]]:
+def questions(ctx: Mapping[str, Any], doc_ids: List[str], operator: Mapping[str, Any], again: List[str],
+              follow=()) -> List[Dict[str, Any]]:
     """卡上这次代录自己的题（放在写账判定的题前面）：没有单时问月份；写过的问再录不录；结果不明的问入没入账。"""
     from pearnly_core.express_operator import products, tasks
 
@@ -91,7 +97,7 @@ def questions(ctx: Mapping[str, Any], doc_ids: List[str], operator: Mapping[str,
         options = [{"code": item["month"], "name": f"{item['month']} · {item['count']}"} for item in months]
         options.append({"code": STAY, "label_key": "guide.option.operator_month.stay"})
         return [_whether(MONTH_KEY, "operator_month", [], options, {"count": sum(item["count"] for item in months)})]
-    out = []
+    out = other_month(ctx, doc_ids, operator, follow)
     for doc in _precheck(company, doc_ids):
         doc_id = str(doc.get("doc_id") or "")
         label = str(doc.get("ref") or doc_id)
@@ -108,18 +114,44 @@ def questions(ctx: Mapping[str, Any], doc_ids: List[str], operator: Mapping[str,
     return out
 
 
+def other_month(ctx: Mapping[str, Any], doc_ids: List[str], operator: Mapping[str, Any], follow=()) -> List[Dict[str, Any]]:
+    """这次的单里票面不是任务月份的（资料行带 ``other_month``）：每张一题「票面 X 月 · 本对话 Y 月」，照录 / 本次不录，不预选、不记住。
+    ``follow``：这次已答了照录的（运行状态里记着），不再问。"""
+    wanted = set(doc_ids) - set(follow or ())
+    if not wanted:
+        return []
+    period = str(operator.get("period") or "")
+    rows = [row for row in _candidates(str(ctx.get("company") or ""), period)
+            if row.get("other_month") and str(row["doc_id"]) in wanted]
+    return [_whether(OTHER_PREFIX + str(row["doc_id"]), "operator_other", [str(row["doc_id"])],
+                     [{"code": FOLLOW, "label_key": "guide.option.operator_other.follow"},
+                      {"code": SKIP, "label_key": "guide.option.operator_other.skip"}],
+                     {"label": str(row.get("ref") or row["doc_id"]), "month": str(row["other_month"]), "period": period})
+            for row in rows]
+
+
+def conversation_task(ctx: Mapping[str, Any]) -> Dict[str, str] | None:
+    """这次引导开在代录对话里、又不是开始前那张卡（按菜单交的票）：``{task, period}``，同开始卡的 ``operator``；不是代录对话回 None。"""
+    from pearnly_core.assistant import sessions
+
+    if not ctx.get("session"):
+        return None
+    task = (sessions.owned(str(ctx["session"])) or {}).get("operator_task")
+    return {"task": str(task), "period": str(ctx.get("period") or "")} if task else None
+
+
 def own(key: str) -> bool:
-    return key == MONTH_KEY or key.startswith((AGAIN_PREFIX, RESOLVE_PREFIX))
+    return key == MONTH_KEY or key.startswith((AGAIN_PREFIX, RESOLVE_PREFIX, OTHER_PREFIX))
 
 
 def apply(ctx: Mapping[str, Any], rows: List[Dict[str, str]], operator: Mapping[str, Any]) -> Dict[str, Any]:
-    """落下卡上这几题的答案（不交给写账判定）：``{again: [加进再录的单], held: [这次不录的单], month?: 新月份}``。
+    """落下卡上这几题的答案（不交给写账判定）：``{again: [加进再录的单], held: [这次不录的单], follow: [别月照录的单], month?: 新月份}``。
     已入账 / 没有入账走 `api.resolve`（同开始卡上的按钮）；月份走 `sessions.move`（同对话上方的月份，任务跟着改）。"""
     from pearnly_core.assistant import sessions
     from pearnly_core.express_operator import api, products
 
     company = str(ctx.get("company") or "")
-    out: Dict[str, Any] = {"again": [], "held": []}
+    out: Dict[str, Any] = {"again": [], "held": [], "follow": []}
     month = next((row["value"] for row in rows if row["key"] == MONTH_KEY), "")  # 一张卡至多一道月份题
     if month and month != STAY and month in {item["month"] for item in products.elsewhere(company, operator.get("period") or "")}:
         found = frappe.db.get_value(sessions.SESSION, {"session_id": ctx["session"], "user": frappe.session.user},
@@ -132,6 +164,9 @@ def apply(ctx: Mapping[str, Any], rows: List[Dict[str, str]], operator: Mapping[
         if key.startswith(AGAIN_PREFIX):
             doc_id = key[len(AGAIN_PREFIX):]
             out["again" if value == AGAIN else "held"].append(doc_id)
+        elif key.startswith(OTHER_PREFIX):
+            # 照录的记进运行状态（不再问、照交）；本次不录的这次留下
+            out["follow" if value == FOLLOW else "held"].append(key[len(OTHER_PREFIX):])
         elif key.startswith(RESOLVE_PREFIX):
             doc_id = key[len(RESOLVE_PREFIX):]
             if value in (ENTERED, NOT_ENTERED):

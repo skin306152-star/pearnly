@@ -379,11 +379,13 @@ class OperatorStart(Base):
         self.now["mode"] = "operator"
         self.pre = {"I:1": {"state": "ready"}, "I:2": {"state": "written", "docnum": "RR0007", "ref": "IV2"}}
         self.months, self.moved, self.resolved, self.sources = [], [], [], ["I:1", "I:2"]
+        self.extra = {}  # 资料行的其余字段（别月票带 other_month）
         tasks = _module("pearnly_core.express_operator.tasks", RESULT_UNKNOWN="push.result_unknown",
                         read=lambda name: {"company": "CO1", "period": self.now["period"], "status": "preparing", "session_id": "S1"})
         products = _module("pearnly_core.express_operator.products",
                            sources=lambda company, period, offset, limit: {
-                               "documents": [{"doc_id": d, "kind": "purchase"} for d in self.sources] if offset == 0 else [],
+                               "documents": [{"doc_id": d, "kind": "purchase", **self.extra.get(d, {})} for d in self.sources]
+                               if offset == 0 else [],
                                "next_offset": None},
                            precheck=lambda company, ids: {"documents": [{"doc_id": d, **self.pre.get(d, {"state": "ready"})} for d in ids]},
                            elsewhere=lambda company, period: list(self.months),
@@ -422,6 +424,42 @@ class OperatorStart(Base):
         found = run.confirm(found["run"], found["version"], found["review"]["seen"])
         self.assertEqual(HANDED, [("CO1", "TK1", ["I:1", "I:2"])])
         self.assertEqual(self.confirmed, [])
+
+    def other_month_card(self, value):
+        """P4 11-24：本人放进这次代录、票面不是任务月份的（资料行带 other_month）先问一题「票面 X 月 · 本对话 Y 月」，不预选；
+        本次不录的不交，照录的照交（答过不再问）。原来 ERP 不问就交、Cowork 交不进（整批「请求无效」）。"""
+        self.pre = {}
+        self.extra = {"I:2": {"other_month": "2026-10", "ref": "IV2"}}
+        found = self.guide_start.start("TK1")
+        other, *rest = found["card"]["questions"]
+        self.assertEqual((other["kind"], other["docs"], other["preselected"], [o["code"] for o in other["options"]]),
+                         ("operator_other", ["I:2"], "", ["follow", "skip"]))
+        self.assertEqual(other["title_params"], {"label": "IV2", "month": "2026-10", "period": self.now["period"]})
+        found = self.answer_card(found["run"], [{"key": other["key"], "value": value},
+                                                *({"key": q["key"], "value": "cash"} for q in rest)])
+        self.assertEqual(found["stage"], documents.REVIEW)  # 答过的不再问
+        run.confirm(found["run"], found["version"], found["review"]["seen"])
+        return HANDED[-1][2]
+
+    def test_a_ticket_of_another_month_left_out_this_time_is_not_handed_in(self):
+        self.assertEqual(self.other_month_card("skip"), ["I:1"])
+
+    def test_a_ticket_of_another_month_entered_by_its_date_is_handed_in(self):
+        self.assertEqual(self.other_month_card("follow"), ["I:1", "I:2"])
+
+    def test_a_ticket_of_another_month_put_in_from_the_menu_of_an_operator_conversation_is_asked_too(self):
+        """代录对话里按菜单交的票（不是开始卡那种运行）同样先问；直写对话不问。"""
+        self.pre = {}
+        self.extra = {"I:1": {"other_month": "2026-10", "ref": "IV1"}}
+        sessions = sys.modules["pearnly_core.assistant.sessions"]
+        owned = sessions.owned
+        self.addCleanup(setattr, sessions, "owned", owned)
+        sessions.owned = lambda session_id: {"session_id": session_id, "operator_task": "TK1"}
+        found = run.start("S1", "purchase", doc_ids=["I:1"])
+        self.assertEqual([q["kind"] for q in found["card"]["questions"]][:1], ["operator_other"])
+        sessions.owned = lambda session_id: {"session_id": session_id, "operator_task": ""}
+        found = run.start("S1", "purchase", doc_ids=["I:1"])
+        self.assertNotIn("operator_other", [q["kind"] for q in found["card"]["questions"]])
 
     def test_a_written_ticket_left_as_skip_is_not_handed_in(self):
         found = self.guide_start.start("TK1")

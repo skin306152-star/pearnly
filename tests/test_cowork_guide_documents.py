@@ -53,8 +53,16 @@ document_checks = _module("pearnly_cowork.assistant.document_checks",
                           record=lambda *a, **kw: CALLS["record"].append((a, kw)))
 storage = _module("pearnly_cowork.history.storage")
 _module("pearnly_core.assistant.files", attachment=lambda file_id: (f"{file_id}.pdf", b"%PDF"))
+TASKS = {}  # 会话 → 挂着的代录任务（代录对话）
+UPLOADED = []
+_module("pearnly_core.assistant.sessions", owned=lambda session_id: {"operator_task": TASKS.get(session_id, "")})
+_module("pearnly_core.express_operator")
+_module("pearnly_core.express_operator.uploads",
+        record=lambda task, key, filename, size, result: UPLOADED.append((task, key, filename, size, result.get("name"))))
 import pearnly_core.assistant as _assistant  # noqa: E402
 _assistant.files = sys.modules["pearnly_core.assistant.files"]
+_assistant.sessions = sys.modules["pearnly_core.assistant.sessions"]
+sys.modules["pearnly_core.express_operator"].uploads = sys.modules["pearnly_core.express_operator.uploads"]
 sys.modules["pearnly_cowork.assistant"].operator_source = operator_source
 sys.modules["pearnly_cowork.assistant"].tools = tools
 sys.modules["pearnly_cowork.assistant"].document_checks = document_checks
@@ -123,6 +131,16 @@ class Walk(Base):
         self.assertEqual(CALLS["intake"][0], ("CC-1", "F1.pdf", "F1"))
         found = G.uploads(CTX, ["P1", "P2", "PX"])
         self.assertEqual((found["doc_ids"], found["wait"]), (["H1", "H2"], True))
+
+    def test_files_given_in_an_operator_conversation_are_recorded_on_its_task(self):
+        """P4 11-24：代录对话里经引导交的文件同资料区上传一样记进代录任务（别月的票才交得进这次代录）；直写对话不记。"""
+        UPLOADED.clear()
+        G.intake(CTX, ["F1"])
+        self.assertEqual(UPLOADED, [])
+        TASKS["S1"] = "T1"
+        self.addCleanup(TASKS.clear)
+        G.intake(CTX, ["F2", "BAD"])
+        self.assertEqual([(task, key, name) for task, key, name, _size, _batch in UPLOADED], [("T1", "F2", "F2.pdf")])
 
     def test_the_face_uses_the_seller_on_purchases_and_the_buyer_on_sales(self):
         [row] = G.review(CTX, ["H1", "NOPE"])["rows"]

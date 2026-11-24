@@ -259,6 +259,7 @@ Data,Data
 Date,Date
 Date as printed,Date as printed
 Date outside the account set period,Date outside the account set period
+Dated {month} · this conversation {period},Dated {month} · this conversation {period}
 Dedup Key,Dedup Key
 Dedupe Key,Dedupe Key
 Default Connection,Default Connection
@@ -406,6 +407,7 @@ Identity Session,Identity Session
 Image Fingerprint,Image Fingerprint
 In-progress state of a multi-turn conversation. One row per session.,In-progress state of a multi-turn conversation. One row per session.
 Inbound = invoices received; outbound = invoices issued,Inbound = invoices received; outbound = invoices issued
+Include in this entry by invoice date,Include in this entry by invoice date
 Input Tokens,Input Tokens
 Input VAT,Input VAT
 "Install it, then sign in with this account to connect.","Install it, then sign in with this account to connect."
@@ -547,6 +549,7 @@ Not posted,Not posted
 Not signed in,Not signed in
 Not subscribed,Not subscribed
 Not supported,Not supported
+Not this time,Not this time
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
@@ -1162,6 +1165,8 @@ guide.option.new,New
 guide.option.operator_again.again,Enter again
 guide.option.operator_again.skip,Skip
 guide.option.operator_month.stay,This month
+guide.option.operator_other.follow,Include in this entry by invoice date
+guide.option.operator_other.skip,Not this time
 guide.option.operator_resolve.entered,Posted
 guide.option.operator_resolve.not_entered,Not posted
 guide.option.payment.cash,Cash
@@ -1187,6 +1192,7 @@ guide.q.new_item,New product
 guide.q.new_party,New counterparty
 guide.q.operator_again,Posted
 guide.q.operator_month,Month
+guide.q.operator_other,Dated {month} · this conversation {period}
 guide.q.operator_resolve,Result unknown
 guide.q.party,Counterparty
 guide.q.payment,Payment

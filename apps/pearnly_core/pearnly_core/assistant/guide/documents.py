@@ -334,7 +334,16 @@ def stage(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any]) -> Dict[str, 
         # 代录开始前：这次代录自己的题（再录不录、入没入账、这个月没单时改月份）排最前；还挂着这几题的单这次先不录
         from pearnly_core.express_operator import guide_start
 
-        own = guide_start.questions(ctx, doc_ids, st["operator"], st.get("again") or [])
+        own = guide_start.questions(ctx, doc_ids, st["operator"], st.get("again") or [], st.get("follow") or [])
+        built["questions"][:0] = own
+        built["counts"]["questions"] = len(built["questions"])
+        held = list(dict.fromkeys([*held, *(d for q in own for d in q["docs"])]))
+    elif doc_ids and ctx.get("mode") != "chat":
+        # 代录对话里按菜单交的票：票面不是本对话月份的那几张先问照录不照录（P4 11-24；原来确定时交不进任务，整批「请求无效」）
+        from pearnly_core.express_operator import guide_start
+
+        task = guide_start.conversation_task(ctx)
+        own = guide_start.other_month(ctx, doc_ids, task, st.get("follow") or []) if task else []
         built["questions"][:0] = own
         built["counts"]["questions"] = len(built["questions"])
         held = list(dict.fromkeys([*held, *(d for q in own for d in q["docs"])]))
@@ -416,7 +425,7 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
         rows = check_answers(now["card"], given.get("answers") or [])
     except AnswerError as error:
         return {"refused": {"answers": str(error)}}
-    extra: Dict[str, Any] = {"again": [], "held": []}
+    extra: Dict[str, Any] = {"again": [], "held": [], "follow": []}
     if st.get("operator"):
         from pearnly_core.express_operator import guide_start
 
@@ -425,6 +434,15 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
         extra = guide_start.apply(ctx, mine, st["operator"])
         if extra.get("month"):
             return {"restart": True}  # 改了月份：按新月份重开这张卡（引擎重开）
+    elif any(row["key"].startswith("operator-") for row in rows):
+        # 代录对话里按菜单交的票：卡上只会有别月那一题（:func:`stage`），照开始卡同一个落法
+        from pearnly_core.express_operator import guide_start
+
+        mine = [row for row in rows if guide_start.own(row["key"])]
+        rows = [row for row in rows if not guide_start.own(row["key"])]
+        task = guide_start.conversation_task(ctx)
+        if task:
+            extra = guide_start.apply(ctx, mine, task)
     card = {**now["card"], "questions": [q for q in now["card"].get("questions") or ()
                                           if not str(q.get("key") or "").startswith(("operator-", ))]}
     found = record(card, ctx["company"], now["doc_ids"], rows) if now["doc_ids"] else {"status": "answered", "held": []}
@@ -432,6 +450,7 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
         return {"refused": {"answers": "changed"}, "errors": found["errors"]}
     asked = list(dict.fromkeys([*st["asked"], *(q["key"] for q in now["card"].get("questions") or ())]))
     _save_state(doc, {**st, "asked": asked, "held": list(dict.fromkeys([*found["held"], *extra["held"]])),
+                      "follow": list(dict.fromkeys([*(st.get("follow") or []), *(extra.get("follow") or [])])),
                       "again": list(dict.fromkeys([*(st.get("again") or []), *extra["again"]])),
                       "mismatch": found.get("mismatch") or st.get("mismatch")})
     return {}

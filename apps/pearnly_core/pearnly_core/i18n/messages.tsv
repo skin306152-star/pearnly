@@ -1070,6 +1070,9 @@ This month	本月	เดือนนี้	今月	guide.option.operator_month.st
 Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.q.operator_again
 Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.option.operator_again.skip
 Enter again	再写一次	บันทึกอีกครั้ง	もう一度入力	guide.option.operator_again.again
+Dated {month} · this conversation {period}	票面 {month} · 本对话 {period}	เอกสารเดือน {month} · บทสนทนานี้ {period}	伝票 {month} · この会話 {period}	guide.q.operator_other
+Include in this entry by invoice date	放进本次代录照录（按票面日期）	รวมในรอบนี้ตามวันที่ในเอกสาร	伝票日付で今回の代行入力に含める	guide.option.operator_other.follow
+Not this time	本次不录	ไม่บันทึกครั้งนี้	今回は入力しない	guide.option.operator_other.skip
 Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.q.operator_resolve
 Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.option.operator_resolve.entered
 Not posted	没有入账	ยังไม่บันทึกบัญชี	記帳されていません	guide.option.operator_resolve.not_entered

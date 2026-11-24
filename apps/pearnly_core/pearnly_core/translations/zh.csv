@@ -259,6 +259,7 @@ Data,数据
 Date,日期
 Date as printed,票面日期
 Date outside the account set period,日期不在账套期间内
+Dated {month} · this conversation {period},票面 {month} · 本对话 {period}
 Dedup Key,去重键
 Dedupe Key,去重键
 Default Connection,默认连接
@@ -407,6 +408,7 @@ Identity Session,身份会话
 Image Fingerprint,影像指纹
 In-progress state of a multi-turn conversation. One row per session.,多轮对话的中间状态。每个会话一行。
 Inbound = invoices received; outbound = invoices issued,进项 = 收到的发票；销项 = 开出的发票
+Include in this entry by invoice date,放进本次代录照录（按票面日期）
 Input Tokens,输入 Token
 Input VAT,进项税
 "Install it, then sign in with this account to connect.",安装后用本账号登录即可连接。
@@ -548,6 +550,7 @@ Not posted,没有入账
 Not signed in,未登录
 Not subscribed,未订阅
 Not supported,不支持
+Not this time,本次不录
 Note,备注
 Notes,备注
 Nothing to save,没有需要保存的更改
@@ -1164,6 +1167,8 @@ guide.option.new,新建
 guide.option.operator_again.again,再写一次
 guide.option.operator_again.skip,不入账
 guide.option.operator_month.stay,本月
+guide.option.operator_other.follow,放进本次代录照录（按票面日期）
+guide.option.operator_other.skip,本次不录
 guide.option.operator_resolve.entered,已入账
 guide.option.operator_resolve.not_entered,没有入账
 guide.option.payment.cash,现金
@@ -1189,6 +1194,7 @@ guide.q.new_item,新物料
 guide.q.new_party,新建对方
 guide.q.operator_again,已入账
 guide.q.operator_month,月份
+guide.q.operator_other,票面 {month} · 本对话 {period}
 guide.q.operator_resolve,结果不明
 guide.q.party,对方
 guide.q.payment,付款方式

@@ -259,6 +259,7 @@ Data,ข้อมูล
 Date,วันที่
 Date as printed,วันที่ตามใบกำกับภาษี
 Date outside the account set period,วันที่อยู่นอกงวดของชุดบัญชี
+Dated {month} · this conversation {period},เอกสารเดือน {month} · บทสนทนานี้ {period}
 Dedup Key,คีย์กันซ้ำ
 Dedupe Key,คีย์กันซ้ำ
 Default Connection,การเชื่อมต่อเริ่มต้น
@@ -407,6 +408,7 @@ Identity Session,เซสชันตัวตน
 Image Fingerprint,ลายนิ้วมือภาพ
 In-progress state of a multi-turn conversation. One row per session.,สถานะระหว่างทางของบทสนทนาหลายรอบ หนึ่งแถวต่อหนึ่งเซสชัน
 Inbound = invoices received; outbound = invoices issued,ภาษีซื้อ = ใบกำกับภาษีที่ได้รับ ภาษีขาย = ใบกำกับภาษีที่ออก
+Include in this entry by invoice date,รวมในรอบนี้ตามวันที่ในเอกสาร
 Input Tokens,โทเค็นขาเข้า
 Input VAT,ภาษีซื้อ
 "Install it, then sign in with this account to connect.",ติดตั้งแล้วเข้าสู่ระบบด้วยบัญชีนี้เพื่อเชื่อมต่อ
@@ -548,6 +550,7 @@ Not posted,ยังไม่บันทึกบัญชี
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
 Not supported,ไม่รองรับ
+Not this time,ไม่บันทึกครั้งนี้
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
@@ -1164,6 +1167,8 @@ guide.option.new,สร้างใหม่
 guide.option.operator_again.again,บันทึกอีกครั้ง
 guide.option.operator_again.skip,ไม่บันทึกบัญชี
 guide.option.operator_month.stay,เดือนนี้
+guide.option.operator_other.follow,รวมในรอบนี้ตามวันที่ในเอกสาร
+guide.option.operator_other.skip,ไม่บันทึกครั้งนี้
 guide.option.operator_resolve.entered,บันทึกบัญชีแล้ว
 guide.option.operator_resolve.not_entered,ยังไม่บันทึกบัญชี
 guide.option.payment.cash,เงินสด
@@ -1189,6 +1194,7 @@ guide.q.new_item,สินค้าใหม่
 guide.q.new_party,คู่ค้าใหม่
 guide.q.operator_again,บันทึกบัญชีแล้ว
 guide.q.operator_month,เดือน
+guide.q.operator_other,เอกสารเดือน {month} · บทสนทนานี้ {period}
 guide.q.operator_resolve,ไม่ทราบผล
 guide.q.party,คู่ค้า
 guide.q.payment,การชำระเงิน

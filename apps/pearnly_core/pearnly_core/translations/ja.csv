@@ -259,6 +259,7 @@ Data,データ
 Date,日付
 Date as printed,伝票の日付
 Date outside the account set period,日付が会計データの期間外です
+Dated {month} · this conversation {period},伝票 {month} · この会話 {period}
 Dedup Key,重複防止キー
 Dedupe Key,重複防止キー
 Default Connection,既定の接続
@@ -407,6 +408,7 @@ Identity Session,アイデンティティセッション
 Image Fingerprint,画像フィンガープリント
 In-progress state of a multi-turn conversation. One row per session.,多段対話の途中状態。1セッション1行。
 Inbound = invoices received; outbound = invoices issued,仕入＝受け取った請求書、売上＝発行した請求書
+Include in this entry by invoice date,伝票日付で今回の代行入力に含める
 Input Tokens,入力トークン
 Input VAT,仮払消費税
 "Install it, then sign in with this account to connect.",インストール後、このアカウントでログインすると接続されます。
@@ -548,6 +550,7 @@ Not posted,記帳されていません
 Not signed in,未ログイン
 Not subscribed,未登録
 Not supported,対応していません
+Not this time,今回は入力しない
 Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
@@ -1164,6 +1167,8 @@ guide.option.new,新規
 guide.option.operator_again.again,もう一度入力
 guide.option.operator_again.skip,記帳しない
 guide.option.operator_month.stay,今月
+guide.option.operator_other.follow,伝票日付で今回の代行入力に含める
+guide.option.operator_other.skip,今回は入力しない
 guide.option.operator_resolve.entered,記帳済み
 guide.option.operator_resolve.not_entered,記帳されていません
 guide.option.payment.cash,現金
@@ -1189,6 +1194,7 @@ guide.q.new_item,新規商品
 guide.q.new_party,新規取引先
 guide.q.operator_again,記帳済み
 guide.q.operator_month,月
+guide.q.operator_other,伝票 {month} · この会話 {period}
 guide.q.operator_resolve,結果不明
 guide.q.party,取引先
 guide.q.payment,支払方法

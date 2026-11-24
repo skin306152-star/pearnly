@@ -58,6 +58,7 @@ def intake(ctx, file_ids) -> dict:
     from pearnly_cowork.assistant import operator_source
 
     batches, refused = [], {}
+    task = _operator_task(ctx)
     with _conversation(ctx):
         for file_id in list(dict.fromkeys(str(item) for item in file_ids or () if item))[:FILES_MAX]:
             filename, content = files.attachment(file_id)  # loop-query: 卡上一次交的文件，最多 FILES_MAX 份
@@ -71,9 +72,23 @@ def intake(ctx, file_ids) -> dict:
             batch = str(found.get("name") or found.get("batch") or "")
             if found.get("accepted") and batch:
                 batches.append(batch)
+                if task:
+                    # 代录对话里交的：同资料区上传一样记进这次代录任务（`express_operator.api.intake`），别月的票才算本人放进任务的、
+                    # 代录开始时交得进去（P4 11-24：原来不记，别月票确定时整批「请求无效」）
+                    from pearnly_core.express_operator import uploads as operator_uploads
+
+                    operator_uploads.record(task, file_id, filename, len(content), found)  # loop-query: 最多 FILES_MAX 份
             else:
                 refused[file_id] = str(found.get("reason") or "not_accepted")
     return {"batches": batches, "refused": refused}
+
+
+def _operator_task(ctx) -> str:
+    """这段对话挂着的代录任务号（代录对话），直写对话回空。"""
+    from pearnly_core.assistant import sessions
+
+    session = str(ctx.get("session") or "")
+    return str((sessions.owned(session) or {}).get("operator_task") or "") if session else ""
 
 
 def uploads(ctx, batches) -> dict:
