@@ -7,7 +7,8 @@
 - 新写的明细照 Express 原生记法：SEQNUM 右对齐、TQUCOD 不空、TFACTOR > 0（同账套原生明细的行号写法一并统计）；
 - STLOC 其他行一行不变；没被写的表逐字节不变（写入集合 = 进货 / 销货备份表 + STLOC，另有索引文件）；
 - 写前这件品 STMAS.TOTBAL（总结存）等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」；11-07 前误核 MREMBAL）；
-- 物料组的存货科目不在科目表（``ITEM_GROUP_ACCOUNT_MISSING``，原生 1155 拒存）时进货整单不写、账套逐字节不变，记跳过；
+- 物料组的存货科目不在科目表（``ITEM_GROUP_ACCOUNT_MISSING``，原生 1155 拒存）时：重拷副本按正式路径（带写前备份）再写一次，
+  必须同样拒写、账套逐字节不变，记跳过；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写过的表 CDX 与 DBF 一致（``express_cdx_check``）。
 源账套只读（只 copytree 出来）；工作副本用完删掉。不连网络、不碰服务器。
 
@@ -22,12 +23,14 @@ import datetime as dt
 import fnmatch
 import hashlib
 import json
+import os
 import shutil
 import sys
 import traceback
 from decimal import Decimal
 from pathlib import Path
 
+SOURCES = {}  # 工作副本名 → 源账套（拒写时重拷一份，按正式路径带写前备份再写一次）
 CASH = False  # --cash：写现购 HP / 现销 HS
 
 
@@ -63,6 +66,9 @@ def main(argv=None) -> int:
         books = books[:args.limit]
     work = Path(args.work)
     work.mkdir(parents=True, exist_ok=True)
+    # 正式路径的写前备份放进工作目录，不进这台电脑 CC 自己的备份目录
+    os.environ["PEARNLY_WRITE_BACKUP_DIR"] = str(work / "_write_backups")
+    SOURCES.update({book.name: book for book in books})
     counts = {"ok": 0, "fail": 0, "skip": 0}
     with open(args.out, "w", encoding="utf-8") as out:
         for book in books:
@@ -184,11 +190,17 @@ def check(acct: Path) -> dict:
     res = W.write_purchase(purchase, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
     if not res.ok:
         # 物料组的存货 / 购货科目不在这套账的科目表里：原生 Express 存单报 1155 拒存，CC 同样整单不写（11-08 ERR_GROUP_ACCOUNT），
-        # 是账套数据的事，记跳过；但拒写必须一字节不动
+        # 是账套数据的事，记跳过。这个拒写发生在写到一半（正式路径靠写前备份整单回滚），回放不带备份会留下半截：
+        # 重拷一份副本，按正式路径带写前备份再写一次，必须同样拒写且账套一字节不动
         if res.error_code == W.ERR_GROUP_ACCOUNT:
-            if digests(acct) != files_before:
-                return {"state": "fail", "why": f"purchase refused {res.error_code} but the book changed"}
-            return {"state": "skip", "why": f"purchase {res.error_code}: {res.error}"[:300]}
+            shutil.rmtree(acct, ignore_errors=True)
+            shutil.copytree(SOURCES[acct.name], acct)
+            fresh = digests(acct)
+            again = W.write_purchase(purchase, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=True)
+            if again.ok or again.error_code != W.ERR_GROUP_ACCOUNT or digests(acct) != fresh:
+                return {"state": "fail", "why": f"purchase refused {res.error_code}; with the backup: {again.ok} {again.error_code}, "
+                                                f"book unchanged {digests(acct) == fresh}"}
+            return {"state": "skip", "why": f"purchase {res.error_code} (rolled back, book unchanged): {res.error}"[:300]}
         return {"state": "fail", "why": f"purchase {res.error_code}: {res.error}"}
     sale = payload("HS" if CASH else "IV", be(day), "IV-STLOC", accounts, name, code, 2, Decimal("40.00"), customer=customers[0])
     res2 = WS.write_sale(sale, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
