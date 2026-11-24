@@ -37,6 +37,7 @@ try:
 
     # 列出（资料清单第一页）：这张在现查里、记进任务的快照
     first = api.documents(company, period, task=task)
+    frappe.db.commit()   # 同一次 POST 请求结束时提交（下面等直写的循环会 rollback，不先提交就把快照回滚掉了）
     result["listed"] = [row.get("doc_id") for row in first.get("documents") or []]
     result["listed_entered"] = first.get("entered") or []
 
