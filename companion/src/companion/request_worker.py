@@ -151,7 +151,14 @@ class RequestWorker:
                 except Exception:
                     log.exception("按需请求本轮失败（%s 秒后再问）", self._back_off(key))
             if not worked:
-                self._rest(self._idle)
+                self._rest(self._next_wait())
+
+    def _next_wait(self) -> float:
+        """空闲等多久：通常一个 ``idle``；有连接刚失败、退避时刻比它早，就等到那一刻重问（1.12.25：空闲放长到 30 秒后，
+        失败了再等满一次会让 Cowork 的在场判断——90 秒内来过——断掉）。被拒（REFUSED_BACKOFF）的不算。"""
+        now = self._timer()
+        soonest = [at - now for key, at in self._refused.items() if key in self._failures and at > now]
+        return max(1.0, min([self._idle, *soonest]))
 
     def _rest(self, seconds: float) -> None:
         """空闲时等一会儿：领单回复说有新请求就提前醒（``request_wake``，1.12.22），停线程也马上醒。"""

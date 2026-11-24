@@ -44,7 +44,7 @@ class RequestClient:
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
             timeout=httpx.Timeout(timeout, connect=min(10.0, timeout)),
-            verify=http_tls.context(),
+            verify=http_tls.context(), limits=http_tls.limits(),
         )
 
     def close(self) -> None:

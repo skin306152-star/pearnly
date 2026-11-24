@@ -51,7 +51,7 @@ class FolderClient:
             base_url=backend_url,
             headers={"Authorization": f"Bearer {bearer_token}"},
             timeout=httpx.Timeout(timeout, connect=min(10.0, timeout)),
-            verify=http_tls.context(),
+            verify=http_tls.context(), limits=http_tls.limits(),
         )
 
     def close(self) -> None:
@@ -88,7 +88,7 @@ def put_direct(url: str, headers: dict, path, backend_url: str, timeout: float =
         raise ValueError("refusing to upload to the tenant site")
     clean = {str(k): str(v) for k, v in (headers or {}).items() if str(k).lower() != "authorization"}
     with net.client(follow_redirects=False, timeout=httpx.Timeout(timeout, connect=15.0),
-                    verify=http_tls.context()) as client, \
+                    verify=http_tls.context(), limits=http_tls.limits()) as client, \
             open(path, "rb") as handle:
         response = client.put(url, content=handle.read(), headers=clean)
     if response.status_code == 412:

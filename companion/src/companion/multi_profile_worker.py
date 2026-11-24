@@ -10,11 +10,12 @@ single thread; DBF writes therefore remain strictly serial.
 
 from __future__ import annotations
 
+import random
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional
 
-from . import device_facts, projection_refresh
+from . import device_facts, projection_refresh, request_wake
 from .config import CompanionConfig, member_active
 from .logger import get_logger
 from .queue_client import QueueClient, QueueClientConfig
@@ -26,6 +27,10 @@ log = get_logger(__name__)
 # 成功一次就回到正常节奏。原来 401 也每 3 秒领一次（11-08 erpcowork 日志：一台电脑 3 分半里 401 约 70 次）。
 # 退避期间这个成员整轮跳过（心跳、认电脑也不发）；重新连接 / 配对会重起取任务线程，新密钥马上照正常节奏。
 AUTH_BACKOFF_MAX_S = 600.0
+# 连不上服务器 / 服务端 5xx（断网、上游挡住、部署重启）时同样从 3 秒起翻倍，最多 30 秒一次，每次上下浮动两成（1.12.25）。
+# 原来照样每 3 秒新建一次连接：一个办公室几台电脑断网期间一直在发新连接，恢复那一刻也同时涌上来；成功一次就回到正常节奏。
+NET_BACKOFF_MAX_S = 30.0
+NET_BACKOFF_JITTER = 0.2
 
 QueueFactory = Callable[[QueueClientConfig], QueueClient]
 PeriodicRunner = Callable[
@@ -35,6 +40,13 @@ TaskHandler = Callable[[CompanionConfig, QueueClient, object, object], object]
 StatusCallback = Callable[[str, str, str], None]
 BatchCallback = Callable[[str], None]
 UpdateCallback = Callable[[str, dict], None]
+
+
+def _network_error(exc: Exception, code) -> bool:
+    """连不上（httpx 传输层错误：建连 / 读写超时、连接被断）或服务端 5xx。"""
+    import httpx
+
+    return isinstance(exc, httpx.TransportError) or (isinstance(code, int) and code >= 500)
 
 
 def _profile_id(cfg: CompanionConfig, position: int) -> str:
@@ -69,6 +81,7 @@ class ProfileRuntimeState:
     processed_in_batch: int = 0
     index_batch: object = None
     auth_streak: int = 0          # 连续几次取任务回 401
+    net_streak: int = 0           # 连续几次连不上 / 5xx
     retry_at: float = 0.0         # 退避到这个时刻（clock）之前不再领
 
     @property
@@ -103,6 +116,7 @@ class MultiProfileWorker:
         uid_of: Callable[[str], str] = device_facts.cached_uid,
         clock: Callable[[], float] = time.monotonic,
         rejections=None,
+        jitter: Callable[[], float] = random.random,
     ) -> None:
         # announce(cfg)：每轮先给这个成员认一次电脑（device_link.Announcer，到时候才真发）；uid_of：账套目录 → 文件号
         self._announce = announce
@@ -110,6 +124,7 @@ class MultiProfileWorker:
         self._clock = clock
         # 连续 401 记到 device_link.REJECTIONS（够条件就把这把密钥标成不能再用，等对话页重新登记）；测试换成假的
         self._rejections = rejections
+        self._jitter = jitter   # 0–1 的随机数（退避浮动用）；测试换成固定值
         self._queue_factory = queue_factory
         self._periodic_runner = periodic_runner
         self._task_handler = task_handler
@@ -198,14 +213,23 @@ class MultiProfileWorker:
         return bool(state.retry_at) and self._clock() < state.retry_at
 
     def _note_poll_error(self, state: ProfileRuntimeState, exc: Exception) -> None:
-        """取任务失败：401 按连续次数退避并记到 REJECTIONS；别的错误（网络、5xx）照正常节奏，退避清零。"""
+        """取任务失败：401 按连续次数退避并记到 REJECTIONS；连不上 / 5xx 按 :data:`NET_BACKOFF_MAX_S` 退避；别的错误照正常节奏。"""
         code = getattr(getattr(exc, "response", None), "status_code", None)
+        interval = max(1, int(getattr(state.cfg, "poll_interval_ms", 3000) or 3000)) / 1000.0
         if code != 401:
             state.auth_streak = 0
             state.retry_at = 0.0
+            if _network_error(exc, code):
+                state.net_streak += 1
+                spread = 1.0 + NET_BACKOFF_JITTER * (2.0 * self._jitter() - 1.0)
+                delay = min(interval * (2 ** (state.net_streak - 1)), NET_BACKOFF_MAX_S) * spread
+                state.retry_at = self._clock() + delay
+                log.info("取任务连不上服务器（第 %d 次），%.0f 秒后再试 · profile=%s", state.net_streak, delay, state.profile_id)
+            else:
+                state.net_streak = 0
             return
+        state.net_streak = 0
         state.auth_streak += 1
-        interval = max(1, int(getattr(state.cfg, "poll_interval_ms", 3000) or 3000)) / 1000.0
         delay = min(interval * (2 ** (state.auth_streak - 1)), AUTH_BACKOFF_MAX_S)
         state.retry_at = self._clock() + delay
         log.warning("取任务被服务端拒绝（401，第 %d 次），%.0f 秒后再试 · profile=%s",
@@ -216,6 +240,9 @@ class MultiProfileWorker:
             log.exception("记录 401 失败 · profile=%s", state.profile_id)
 
     def _mark_poll_ok(self, state: ProfileRuntimeState) -> None:
+        if state.net_streak:
+            state.net_streak = 0
+            state.retry_at = 0.0
         if state.auth_streak:
             state.auth_streak = 0
             state.retry_at = 0.0
@@ -334,7 +361,8 @@ class MultiProfileWorker:
                 state, "working", str(getattr(task, "invoice_no", "") or "")
             )
             try:
-                outcome = self._task_handler(state.cfg, qc, task, state.index_batch)
+                with request_wake.writing():   # 做单期间领单停着、叫醒到不了：按需请求线程回到 15 秒一问
+                    outcome = self._task_handler(state.cfg, qc, task, state.index_batch)
             except Exception as exc:
                 failed += 1
                 state.last_error = str(exc)

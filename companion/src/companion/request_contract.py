@@ -14,8 +14,11 @@ MAX_BYTES = {"express_read": 50 * 1024 * 1024, "folder_list": 2 * 1024 * 1024, "
              "express_doc_check": 256 * 1024, "express_ar_open": 2 * 1024 * 1024}
 LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "account_history": 900,
                  "express_masters": 900, "express_marks": 120, "express_doc_check": 120, "express_ar_open": 180}
-# 空闲时多久来领一次（服务端 SEEN_SECONDS 之内来过才算在线）。
-POLL_SECONDS = 15
+# 空闲时多久来领一次（服务端 SEEN_SECONDS 之内来过才算在线，Cowork 还据此续代录单的租约，所以不能拉长到 SEEN_SECONDS 的一半以上）。
+# 1.12.25 起 15 → 30 秒：有新请求时领单回复带 requests_waiting 马上叫醒（``request_wake``，领单 3 秒一次），空问只是兜底与报到；
+# 写账线在做单时叫醒到不了，回到 15 秒（``request_wake.BUSY_SECONDS``）。问失败了按退避时刻重问、不等满一次空闲：
+# 30（空闲）+ 30（一次读超时）+ 15（首次退避）= 75 秒，仍在 SEEN_SECONDS（90）之内。
+POLL_SECONDS = 30
 
 
 @dataclass(frozen=True)

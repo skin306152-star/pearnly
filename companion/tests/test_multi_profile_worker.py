@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from types import SimpleNamespace
 
+import httpx
 import pytest
 
 from src.companion.multi_profile_worker import MultiProfileWorker
@@ -407,7 +408,7 @@ def test_a_key_the_server_refuses_backs_off_exponentially_up_to_ten_minutes():
     assert rejections.calls and all(call == ("rejected", "A") for call in rejections.calls)
 
 
-def test_one_success_resets_the_back_off_and_other_errors_keep_the_normal_pace():
+def test_one_success_resets_the_back_off_and_5xx_backs_off_without_marking_the_key():
     clock = _Clock()
     made, rejections = {}, _Rejections()
     cfg = _cfg("A")
@@ -415,14 +416,37 @@ def test_one_success_resets_the_back_off_and_other_errors_keep_the_normal_pace()
     script = [_status_error(401)] * 4 + [None] + [_status_error(502)] * 5
     worker = MultiProfileWorker(
         [cfg], queue_factory=_factory({"A": script}, made),
-        periodic_runner=_no_periodic, clock=clock, rejections=rejections,
+        periodic_runner=_no_periodic, clock=clock, rejections=rejections, jitter=lambda: 0.5,
     )
     times = _poll_times(worker, clock, made, "A", 200)
     gaps = [b - a for a, b in zip(times, times[1:])]
     assert gaps[:4] == [3.0, 6.0, 12.0, 24.0]      # 4 次 401，第 5 次成功
-    # 成功后回到每轮都领（节奏由 run_forever 每轮睡 poll_interval 定）；网络 / 5xx 不按密钥失效退避
-    assert gaps[4:9] == [1.0, 1.0, 1.0, 1.0, 1.0]
+    # 成功后回到每轮都领（节奏由 run_forever 每轮睡 poll_interval 定）；之后 5xx 按网络退避（1.12.25），不记成密钥失效
+    assert gaps[4:9] == [1.0, 3.0, 6.0, 12.0, 24.0]
     assert ("ok", "A") in rejections.calls
+    assert rejections.calls.count(("rejected", "A")) == 4
+
+
+def test_while_the_server_is_unreachable_polls_back_off_to_thirty_seconds_with_spread():
+    """断网 / 上游挡住时不再每 3 秒新建一次连接（1.12.25）：3 秒起翻倍、最多 30 秒，上下浮动两成；连上一次就回到每轮都领。"""
+    for draw, cap in ((0.5, 30.0), (0.0, 24.0), (1.0, 36.0)):
+        clock = _Clock()
+        made = {}
+        cfg = _cfg("A")
+        cfg.poll_interval_ms = 3000
+        script = [httpx.ConnectTimeout("down")] * 8 + [None] * 3
+        worker = MultiProfileWorker(
+            [cfg], queue_factory=_factory({"A": script}, made),
+            periodic_runner=_no_periodic, clock=clock, rejections=_Rejections(), jitter=lambda: draw,
+        )
+        times = _poll_times(worker, clock, made, "A", 400, step=0.5)
+        gaps = [b - a for a, b in zip(times, times[1:])]
+        spread = 1.0 + 0.2 * (2 * draw - 1)
+        expected = [min(3.0 * 2 ** n, 30.0) * spread for n in range(7)]
+        assert all(abs(gap - value) <= 0.5 for gap, value in zip(gaps[:7], expected)), (draw, gaps[:7])
+        assert max(gaps[:7]) <= cap + 0.5
+        assert gaps[8:10] == [0.5, 0.5]           # 连上了：每轮都领（这里每步 0.5 秒）
+        assert worker.state("A").net_streak == 0
 
 
 def test_a_backed_off_profile_does_not_hold_up_the_others():
@@ -436,3 +460,19 @@ def test_a_backed_off_profile_does_not_hold_up_the_others():
     )
     _poll_times(worker, clock, made, "A", 60)
     assert made["A"].poll_count <= 5 and made["B"].poll_count == 60
+
+
+def test_tasks_run_inside_the_write_window_the_on_demand_thread_watches():
+    """做单期间（1.12.25）领单停着，按需请求线程据 request_wake.writing 回到 15 秒一问；做完就清掉。"""
+    from src.companion import request_wake
+
+    seen = []
+    clock = _Clock()
+    made = {}
+    worker = MultiProfileWorker(
+        [_cfg("A")], queue_factory=_factory({"A": [_task("A", "T1"), None]}, made),
+        periodic_runner=_no_periodic, clock=clock, rejections=_Rejections(),
+        task_handler=lambda cfg, qc, task, batch: seen.append(request_wake._WRITING.is_set()),
+    )
+    worker.run_round()
+    assert seen == [True] and not request_wake._WRITING.is_set()

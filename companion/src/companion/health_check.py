@@ -42,7 +42,7 @@ def _check_backend(cfg: CompanionConfig) -> CheckItem:
     heartbeat = channel.path(cfg.bearer_token, "heartbeat") or _HEARTBEAT
 
     try:
-        with net.client(timeout=3.0, verify=http_tls.context()) as c:
+        with net.client(timeout=3.0, verify=http_tls.context(), limits=http_tls.limits()) as c:
             r = c.post(
                 f"{cfg.backend_url}{heartbeat}",
                 headers={"Authorization": f"Bearer {cfg.bearer_token}"},

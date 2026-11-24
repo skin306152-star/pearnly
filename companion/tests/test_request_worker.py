@@ -212,3 +212,64 @@ def test_server_errors_back_off_and_a_rejected_key_is_reported(monkeypatch):
     worker._rest = lambda seconds: worker._stop.set() or True
     worker._loop()
     assert reported == ["exp_CONN1_s"]
+
+
+def test_after_a_failure_the_next_ask_comes_at_the_back_off_moment_not_a_full_idle():
+    """空闲 30 秒（1.12.25）：失败了按退避时刻（15 秒）重问，不再等满一次空闲——Cowork 按「90 秒内来过」判电脑在场、续代录单租约。
+    被拒（REFUSED_BACKOFF，10 分钟）的连接不提前。"""
+    import httpx
+
+    response = httpx.Response(502, request=httpx.Request("POST", "https://a.pearnly.com" + NEXT))
+
+    class Broken(FakeClient):
+        def next(self, body):
+            raise httpx.HTTPStatusError("502", request=response.request, response=response)
+
+    now = [1000.0]
+    worker = request_worker.RequestWorker(lambda: [_cfg()], client_factory=Broken(), timer=lambda: now[0])
+    waits = []
+
+    def wait(seconds):
+        waits.append(seconds)
+        worker._stop.set()
+        return True
+
+    worker._rest = wait
+    worker._loop()
+    assert request_worker.POLL_SECONDS == 30 and waits == [15.0]
+    worker._failures.clear()
+    assert worker._next_wait() == 30          # 只剩被拒的：等满一次空闲
+    worker._refused.clear()
+    assert worker._next_wait() == 30
+    from companion import request_contract
+    from companion.request_client import RequestClient
+
+    # 30 空闲 + 一次读超时 + 首次退避，仍在服务端 90 秒在场窗口内
+    timeout = RequestClient.__init__.__defaults__[0]
+    assert request_contract.POLL_SECONDS + timeout + request_worker.ERROR_BACKOFF[0] < 90
+
+
+def test_while_the_write_lane_works_the_idle_wait_is_the_old_fifteen_seconds(monkeypatch):
+    """写账线在做单时领单停着、服务端的叫醒到不了：按需请求线程最多等 BUSY_SECONDS（同 1.12.24 的 15 秒）；做完回到空闲间隔。
+    等的中途开始做单也会按短的那个醒。"""
+    import threading
+    import time as _time
+
+    from companion import request_wake
+
+    monkeypatch.setattr(request_wake, "BUSY_SECONDS", 0.05)
+    request_wake._EVENT.clear()   # 别的测试叫醒过、留下的事件（进程里只有一个）
+    started = _time.monotonic()
+    with request_wake.writing():
+        assert request_wake.nap(5) is False
+    assert _time.monotonic() - started < 1
+    done = []
+    sleeper = threading.Thread(target=lambda: done.append(request_wake.nap(5)))
+    started = _time.monotonic()
+    sleeper.start()
+    _time.sleep(0.02)
+    with request_wake.writing():
+        sleeper.join(2)
+    assert done == [False] and _time.monotonic() - started < 1
+    request_wake.ring()
+    assert request_wake.nap(5) is True        # 叫醒照旧马上返回

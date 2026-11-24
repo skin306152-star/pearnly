@@ -176,7 +176,7 @@ def _default_forward():
     from .tunnel_relay import httpx_forward
 
     # 桥本身从不设隧道 transport（只有云端模式才设），这里经 net.client 照常直连站点
-    client = net.client(verify=http_tls.context(), follow_redirects=False)
+    client = net.client(verify=http_tls.context(), limits=http_tls.limits(), follow_redirects=False)
     return client, httpx_forward(client)
 
 

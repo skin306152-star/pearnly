@@ -30,3 +30,16 @@ def context() -> ssl.SSLContext:
 
             _context = httpx.create_ssl_context()
         return _context
+
+
+# 空闲连接留多久（1.12.25）。httpx 默认只留 5 秒：领单 3 秒一次赶得上，按需请求（空闲时几十秒一次）、文件夹同步每次都
+# 重新建 TCP + TLS（11-24 本机实测：一台连两个站点的电脑每分钟 8.6 次新握手，办公室同一出口合起来约每分钟 28 次）。
+# 60 秒：比服务端 nginx 默认的 65 秒短，服务端先关的空闲连接这边不会再拿来用。
+KEEPALIVE_SECONDS = 60.0
+
+
+def limits():
+    """出站客户端共用的连接池设置（与 httpx 默认相同，只把空闲连接留到 :data:`KEEPALIVE_SECONDS`）。更新下载是一次性的，不用。"""
+    import httpx
+
+    return httpx.Limits(max_connections=100, max_keepalive_connections=20, keepalive_expiry=KEEPALIVE_SECONDS)

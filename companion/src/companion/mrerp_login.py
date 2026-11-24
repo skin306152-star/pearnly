@@ -41,7 +41,7 @@ def _post(backend_url: str, token: str, path: str, body: dict, timeout: float) -
     from .queue_client import unwrap
 
     with net.client(base_url=backend_url, headers={"Authorization": f"Bearer {token}"},
-                    timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context()) as client:
+                    timeout=httpx.Timeout(timeout, connect=min(5.0, timeout)), verify=http_tls.context(), limits=http_tls.limits()) as client:
         response = client.post(path, json=body)
     if response.status_code != 200:
         return response.status_code, {}

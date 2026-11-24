@@ -2176,18 +2176,18 @@ class OneNetworkExit(unittest.TestCase):
     BEFORE = {
         # 桥下载云端精简包（2026-11-16，cloud_link/cloud_package.py）：同 updater 跟随重定向
         ("cloud_package.py", "_client"): [{"timeout", "follow_redirects", "verify"}],
-        ("device_link.py", "_post"): [{"base_url", "headers", "timeout", "verify"}],
-        ("folder_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
-        ("folder_client.py", "put_direct"): [{"follow_redirects", "timeout", "verify"}],
-        ("health_check.py", "_check_backend"): [{"timeout", "verify"}],
-        ("mrerp_login.py", "_post"): [{"base_url", "headers", "timeout", "verify"}],
-        ("operator_ai.py", "transport"): [{"base_url", "headers", "verify", "timeout"}],
-        ("queue_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
-        ("request_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify"}],
+        ("device_link.py", "_post"): [{"base_url", "headers", "timeout", "verify", "limits"}],
+        ("folder_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify", "limits"}],
+        ("folder_client.py", "put_direct"): [{"follow_redirects", "timeout", "verify", "limits"}],
+        ("health_check.py", "_check_backend"): [{"timeout", "verify", "limits"}],
+        ("mrerp_login.py", "_post"): [{"base_url", "headers", "timeout", "verify", "limits"}],
+        ("operator_ai.py", "transport"): [{"base_url", "headers", "verify", "timeout", "limits"}],
+        ("queue_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify", "limits"}],
+        ("request_client.py", "__init__"): [{"base_url", "headers", "timeout", "verify", "limits"}],
         ("updater.py", "check_update"): [{"timeout", "follow_redirects", "verify"}],
         ("updater.py", "download_installer"): [{"timeout", "follow_redirects", "verify"}],
         # 云端 Express 桥侧代发（cloud_link/host.py）：新调用方，不跟随重定向、超时按每个请求自带
-        ("host.py", "_default_forward"): [{"verify", "follow_redirects"}],
+        ("host.py", "_default_forward"): [{"verify", "follow_redirects", "limits"}],
     }
 
     def _sources(self):
@@ -2302,6 +2302,64 @@ class CloudExpressWire(unittest.TestCase):
         self.assertEqual(cloud_package.parse_entry(latest), latest["cloud"])
         self.assertEqual(set(latest["cloud"]), {"version", "url", "sha256", "size"})
         self.assertIsNone(cloud_package.parse_entry({key: value for key, value in latest.items() if key != "cloud"}))
+
+
+class IdleTraffic(unittest.TestCase):
+    """CC 桌面版空闲时的出站流量（2026-11-24 评估 `docs/work/2026-11-24-cc-desktop-poll-traffic-评估.md`，1.12.25）：
+    办公室同一出口的几台电脑合起来每分钟约 28 次新 TCP + TLS 握手，全来自 httpx 默认只留 5 秒的空闲连接。"""
+
+    def test_every_outbound_client_keeps_idle_connections_the_shared_way(self):
+        """所有出站客户端（统一经 `net.client`）都用 `http_tls.limits()`（空闲连接留 KEEPALIVE_SECONDS）；只有一次性的下载
+        （更新安装包、云端精简包）不用。云端模式下 `net.client` 装隧道 transport，httpx 不看 limits，云端那份 CC 不建直连。"""
+        found = []
+        for path in sorted(COMPANION.rglob("*.py")):
+            for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+                if isinstance(node, ast.Call) and ast.unparse(node.func) == "httpx.Client":
+                    self.assertEqual(path.name, "net.py")   # 唯一出口
+                if isinstance(node, ast.Call) and ast.unparse(node.func) == "net.client":
+                    found.append(path.name)
+                    if path.name in ("updater.py", "cloud_package.py"):
+                        continue
+                    limits = [k for k in node.keywords if k.arg == "limits"]
+                    self.assertTrue(limits and ast.unparse(limits[0].value) == "http_tls.limits()", path.name)
+        self.assertIn("queue_client.py", found)
+        self.assertIn("request_client.py", found)
+        self.assertIn("folder_client.py", found)
+        self.assertIn("host.py", found)   # 桥上替云端 CC 代发的客户端
+
+    def test_idle_connections_close_on_our_side_before_nginx_does(self):
+        """比 nginx 默认 keepalive_timeout（65 秒）短：服务端先关的空闲连接这边不会再拿来用。文件夹两轮之间比它短，下一轮复用。"""
+        keep = number_constants(COMPANION / "http_tls.py", ("KEEPALIVE_SECONDS",))["KEEPALIVE_SECONDS"]
+        self.assertLess(keep, 65)
+        idle = number_constants(COMPANION / "folder_worker.py", ("IDLE_SECONDS",))["IDLE_SECONDS"]
+        self.assertLessEqual(idle + 5, keep)
+
+    def test_the_on_demand_thread_waits_for_the_lease_wake_and_still_checks_in_within_the_online_window(self):
+        """按需请求空闲时只是兜底与报到：有新请求靠领单回复的 requests_waiting 叫醒（领单 3 秒一次）；空问的间隔漏一次也还在
+        服务端 SEEN_SECONDS 之内（Cowork 据此判电脑在不在、续代录单租约）。"""
+        server = number_constants(WIRE / "request_contracts.py", ("POLL_SECONDS", "SEEN_SECONDS"))
+        self.assertLess(2 * server["POLL_SECONDS"], server["SEEN_SECONDS"])
+        # 失败了按退避时刻重问：空闲 + 一次读超时（云端模式经文件隧道再加 GRACE_SECONDS）+ 首次退避，仍在窗口内
+        worker_constants = number_constants(COMPANION / "request_worker.py", ("ERROR_BACKOFF",))
+        grace = number_constants(COMPANION / "cloud_link" / "tunnel_transport.py", ("GRACE_SECONDS",))["GRACE_SECONDS"]
+        timeout = 30.0   # RequestClient 的默认读超时
+        self.assertIn("timeout: float = 30.0", (COMPANION / "request_client.py").read_text(encoding="utf-8"))
+        self.assertLess(server["POLL_SECONDS"] + timeout + grace + worker_constants["ERROR_BACKOFF"][0], server["SEEN_SECONDS"])
+        worker = (COMPANION / "request_worker.py").read_text(encoding="utf-8")
+        self.assertIn("idle: float = POLL_SECONDS", worker)
+        self.assertIn("request_wake.nap(seconds)", method_source(COMPANION / "request_worker.py", "RequestWorker", "_rest"))
+        self.assertIn("request_wake.ring()", method_source(COMPANION / "queue_client.py", "QueueClient", "poll"))
+        # 写账线做单时领单停着、叫醒到不了：按需请求线程回到 15 秒一问；失败了按退避时刻重问，不等满一次空闲
+        self.assertIn("with request_wake.writing():", method_source(COMPANION / "multi_profile_worker.py", "MultiProfileWorker", "run_round"))
+        self.assertIn("self._rest(self._next_wait())", worker)
+        for path in (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py", SERVER / "transport.py"):
+            self.assertIn("request_wake.take(", path.read_text(encoding="utf-8"), path.name)
+
+    def test_lease_retries_back_off_while_the_server_is_unreachable(self):
+        """连不上 / 5xx 时领单不再每 3 秒新建一次连接：最多 NET_BACKOFF_MAX_S 一次、带浮动，成功一次就回到正常节奏。"""
+        values = number_constants(COMPANION / "multi_profile_worker.py", ("NET_BACKOFF_MAX_S", "NET_BACKOFF_JITTER"))
+        self.assertLessEqual(values["NET_BACKOFF_MAX_S"], 60)
+        self.assertGreater(values["NET_BACKOFF_JITTER"], 0)
 
 
 if __name__ == "__main__":

@@ -191,6 +191,53 @@ def test_round_uploads_new_files_and_writes_result(tmp_path, monkeypatch, given,
     assert [p.name for p in written] == ["INV-1_2808.xlsx"] and written[0].read_bytes() == b"PK-xlsx"
 
 
+def test_one_client_per_connection_is_kept_between_rounds(tmp_path):
+    """每条连接一直用同一个客户端（1.12.25）：原来每轮新建、用完关掉，每分钟都重新握手；同步没回来、换了密钥、连接没了才换。"""
+    made = []
+
+    class Counting(FakeClient):
+        closed = 0
+        broken = False
+
+        def __call__(self, url, token):
+            made.append(token)
+            return self
+
+        def close(self):
+            Counting.closed += 1
+
+        def sync(self, body):
+            if Counting.broken:
+                raise OSError("down")
+            return super().sync(body)
+
+    cfg = _cfg()
+    key = folder_store.connection_key(cfg)
+    fake = Counting([])
+    worker = FolderIntake(lambda: [cfg], client_factory=fake)
+    worker.round(cfg, key)
+    worker.round(cfg, key)
+    assert made == [cfg.bearer_token] and Counting.closed == 0
+    Counting.broken = True
+    with pytest.raises(OSError):
+        worker.round(cfg, key)
+    assert Counting.closed == 1                     # 同步没回来：这一个关掉
+    Counting.broken = False
+    worker.round(cfg, key)
+    assert len(made) == 2                           # 下一轮新建
+    cfg.bearer_token = "exp_CONN1_reset"
+    worker.round(cfg, key)
+    assert made[-1] == "exp_CONN1_reset" and Counting.closed == 2   # 重新配对：旧的关掉换新的
+    worker.close_clients()
+    assert Counting.closed == 3 and not worker._clients
+
+
+def test_rounds_are_shorter_than_the_kept_connection():
+    from companion import folder_worker, http_tls
+
+    assert folder_worker.IDLE_SECONDS + 5 <= http_tls.KEEPALIVE_SECONDS
+
+
 def test_no_roots_tells_the_cloud_once_then_stays_quiet(tmp_path):
     # 没有文件夹：只报一次空的（启动时 / 刚删光时），云端就不再留着旧文件夹；之后不再联网。
     cfg = _cfg()

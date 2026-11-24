@@ -49,7 +49,9 @@ from .version import VERSION
 
 log = get_logger(__name__)
 
-IDLE_SECONDS = 60
+# 两轮之间等多久。55 秒（1.12.25 前 60 秒）：要比连接保留时间（`http_tls.KEEPALIVE_SECONDS`，60 秒）短，下一轮才用得上
+# 上一轮那条连接，不用每分钟重新握手；一轮里没到点的事不多，多出的几次同步很轻。
+IDLE_SECONDS = 55
 # 根目录下的文件夹名与各文件夹现有几份一起重扫，间隔看上一次花了多久（2026-10）：一秒内看全就每轮都刷（放进文件后一两分钟
 # 网页就看得到）；更慢就每 2 分钟（原只报文件夹名时的节奏，10-09 由 15 分钟改来：新建的子文件夹要等很久才出现在网页下拉）；
 # 数不完（太大、网络共享太慢，见 folder_plan.SURVEY_*）就每 10 分钟才重数，免得每分钟把整棵树数一遍——这期间文件夹名
@@ -120,6 +122,9 @@ class FolderIntake:
         self._seen_scope: dict[str, Optional[dict]] = {}
         # 正在跑一次运行或补传（逐份上传中）：托盘的自动更新等它跑完（busy）。
         self._working = False
+        # 每条连接一直用同一个客户端（{connection_key: 客户端}，只在本线程的 round 里用，1.12.25）：原来每轮新建、用完关掉，
+        # 每分钟都要重新建 TCP + TLS。出了错关掉这一个，下一轮新建；线程退出时全部关掉。
+        self._clients: dict = {}
 
     # ── 线程 ──────────────────────────────────────────────────────────────
 
@@ -185,8 +190,40 @@ class FolderIntake:
             return []
 
     def _loop(self) -> None:
+        try:
+            self._serve()
+        finally:
+            self.close_clients()
+
+    def close_clients(self) -> None:
+        for key in list(self._clients):
+            self._drop(key)
+
+    def _client(self, cfg, key: str):
+        """这条连接的客户端；换了密钥（重新配对）就换一个。"""
+        token = str(getattr(cfg, "bearer_token", "") or "")
+        held = self._clients.get(key)
+        if held is not None and held[0] == (cfg.backend_url, token):
+            return held[1]
+        self._drop(key)
+        client = self._client_factory(cfg.backend_url, token)
+        self._clients[key] = ((cfg.backend_url, token), client)
+        return client
+
+    def _drop(self, key: str) -> None:
+        held = self._clients.pop(key, None)
+        if held is not None:
+            try:
+                held[1].close()
+            except Exception:
+                log.debug("文件夹客户端关闭失败", exc_info=True)
+
+    def _serve(self) -> None:
         while not self._stop.is_set():
-            for cfg in self._active():
+            active = self._active()
+            for gone in set(self._clients) - {connection_key(cfg) for cfg in active}:
+                self._drop(gone)   # 断开、暂停或删掉的连接：不留着它的连接
+            for cfg in active:
                 if self._stop.is_set():
                     return
                 key = connection_key(cfg)
@@ -228,7 +265,8 @@ class FolderIntake:
 
     def round(self, cfg, key: str) -> None:
         ledger = Ledger(key)
-        client = self._client_factory(cfg.backend_url, cfg.bearer_token)
+        client = self._client(cfg, key)
+        failed = True
         try:
             stored = roots(key)
             # 服务端一次收几个根目录（回复里的 max_roots，没收到过按 20）：多的这次不报，也不当作这台电脑读得到
@@ -243,6 +281,7 @@ class FolderIntake:
                                     "rule_pending": self._rule_pending.get(key, {}),
                                     "notices_after": ledger.notices_after or 0.0,
                                     "update_blocked": update_block.reported()})
+            failed = False   # 同步回来了：连接好好的（后面上传出错 httpx 自己会丢掉坏连接）
             if not response.get("ok"):
                 return
             self._limits(key, response)
@@ -305,7 +344,8 @@ class FolderIntake:
                 self._count_pending(key, ledger, response.get("rules") or [], touched)
         finally:
             ledger.save()
-            client.close()
+            if failed:
+                self._drop(key)   # 同步没回来（连不上、401、超时）：下一轮换一条新连接
 
     def _limits(self, key: str, response: dict) -> None:
         """记下回复里的 max_roots 与 roots_in_use（旧服务端不带，就保持原样：按 20 封顶、不自动收回）。"""

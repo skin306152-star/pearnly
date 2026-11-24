@@ -66,8 +66,9 @@ LEASE_SECONDS = {"express_read": 900, "folder_list": 180, "folder_fetch": 600, "
                  "express_masters": 900, "express_marks": 120, "express_doc_check": 120, "express_ar_open": 180}
 # 这么久没有电脑来领就算过期（code not_claimed）；领了以后每交一块续一次租约。
 CLAIM_SECONDS = 600
-# 小助手空闲时每 POLL_SECONDS 来领一次：SEEN_SECONDS 之内来过才算此刻在线。
-POLL_SECONDS = 15
+# 小助手空闲时每 POLL_SECONDS 来领一次：SEEN_SECONDS 之内来过才算此刻在线（漏一次也还在线：2 × POLL_SECONDS < SEEN_SECONDS）。
+# 有新请求时不等这一拍：领单回复带 requests_waiting 叫醒（`request_wake`）。1.12.25 起 15 → 30 秒（电脑在做单时仍 15 秒），旧版仍 15 秒，都在 SEEN_SECONDS 内。
+POLL_SECONDS = 30
 SEEN_SECONDS = 90
 # 旧请求行（含没取走的结果）在同一连接下一次新建请求时顺手删掉，不另开定时任务。
 KEEP_SECONDS = 7 * 86400
