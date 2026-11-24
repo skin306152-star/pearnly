@@ -542,6 +542,7 @@ Not permitted,没有权限
 Not posted,没有入账
 Not signed in,未登录
 Not subscribed,未订阅
+Not supported,不支持
 Note,备注
 Notes,备注
 Nothing to save,没有需要保存的更改
@@ -1192,6 +1193,7 @@ guide.reason.blocking,单号、日期或金额有误
 guide.reason.held,待选择
 guide.reason.last_write_result_unknown,结果不明
 guide.reason.undecided_items,待选择
+guide.reason.unsupported,不支持
 guide.reason.waiting_for_computer,等待
 guide.refused.not in this conversation,不是本对话的文件
 guide.refused.not offered,已不可选

@@ -632,6 +632,17 @@ def save_mrerp(company, doctype, answers, seen, name=None, picked=None) -> int:
 # ---------------- 钩子 ----------------
 
 
+
+UNSUPPORTED = "unsupported"  # 这条路此刻办不了（共用层出口 `assistant.stop_exits`、文字 ``guide.reason.unsupported``）
+
+
+def _operator_conversation() -> bool:
+    """此刻在代录对话里（会话挂着代录任务，同共用引擎认模式的判据 `assistant.guide.run._conversation`）；不在 CC 对话里
+    （LINE 卡片、网页）算不是。"""
+    session = conversation.session()
+    return bool(session) and bool(frappe.db.get_value("Pearnly Assistant Session", {"session_id": session}, "operator_task"))
+
+
 def check(company, doc_ids) -> dict:
     """共用层 ``write_precheck.api.check`` 调的钩子：这家公司这批单的判定。本人不能写的单不回、也不报存在与否；这家公司断开了
     Express 的，每张都写不了。"""
@@ -654,12 +665,17 @@ def check(company, doc_ids) -> dict:
             from pearnly_erp_portal.express import operator
 
             if not linked:
-                # 没接 Express：CC 代录的写不了；LINE 收单的照样问记录自己要人定的（物料、仓库），账本是 MR.ERP 的再加 MR.ERP 导入前
-                # 要人定的（导入菜单、主档默认值、同期两本选哪本；同已存单据 :func:`mrerp_view`，用户 11-19 出卡前问完）
-                own = getattr(found, "source", "") == operator.SOURCE_LINE
+                # 没接 Express：按「这家公司接的账本 + 对话方式」判，不按记录的来源（11-24 主会话：CC 对话放进来的与 LINE 收单的同一判据；
+                # 原来只有 LINE 来源走下面这条，ERP 直写 · MR.ERP 的 CC 收单一律报 express.disconnected）。
+                # 代录对话：代录写的是 Express（CC 桌面版录），这家没接 Express——账本是 MR.ERP 的报「不支持」（如实），没有账本的报未连接；
+                # 直写（和 LINE 卡片）：问记录自己要人定的（物料、仓库），账本是 MR.ERP 的再加 MR.ERP 导入前要人定的（导入菜单、主档默认值、
+                # 同期两本选哪本；同已存单据 :func:`mrerp_view`，用户 11-19 出卡前问完）
+                if _operator_conversation():
+                    documents.append({"doc_id": doc_id, "state": card.NOT_WRITABLE,
+                                      "reason": UNSUPPORTED if ledger_mrerp else contracts.DISCONNECTED})
+                    continue
                 view = operator.intake_mrerp_view if ledger_mrerp else operator.intake_own_view
-                documents.append(view(company, doc_id, found) if own else  # loop-query: 收单记录逐张判，一批有上限
-                                 {"doc_id": doc_id, "state": card.NOT_WRITABLE, "reason": contracts.DISCONNECTED})
+                documents.append(view(company, doc_id, found))  # loop-query: 收单记录逐张判，一批有上限
                 continue
             view = operator.intake_view(company, doc_id)  # loop-query: 收单记录逐张判（同单据 document_view），一批有上限
             if view:
@@ -743,8 +759,9 @@ def remember(company, answers) -> dict:
         if kind == INTAKE:
             from pearnly_erp_portal.express import operator
 
-            line_mrerp = ledger_mrerp and getattr(found, "source", "") == operator.SOURCE_LINE
-            remember_row = operator.remember_intake_mrerp if line_mrerp else operator.remember_intake
+            # 同 :func:`check`：按账本 + 对话方式，不按来源（代录对话里 MR.ERP 公司的收单不出题，不会走到这里记 MR.ERP 那几项）
+            on_mrerp = ledger_mrerp and not _operator_conversation()
+            remember_row = operator.remember_intake_mrerp if on_mrerp else operator.remember_intake
             saved += remember_row(company, found, given, seen)  # loop-query: 一张卡片答到的几条记录，逐条写回
             continue
         doctype, name = found

@@ -542,6 +542,7 @@ Not permitted,ไม่ได้รับอนุญาต
 Not posted,ยังไม่บันทึกบัญชี
 Not signed in,ยังไม่ได้เข้าสู่ระบบ
 Not subscribed,ยังไม่สมัคร
+Not supported,ไม่รองรับ
 Note,หมายเหตุ
 Notes,หมายเหตุ
 Nothing to save,ไม่มีการแก้ไขที่ต้องบันทึก
@@ -1192,6 +1193,7 @@ guide.reason.blocking,เลขที่ วันที่ หรือจำ�
 guide.reason.held,ต้องเลือก
 guide.reason.last_write_result_unknown,ไม่ทราบผล
 guide.reason.undecided_items,ต้องเลือก
+guide.reason.unsupported,ไม่รองรับ
 guide.reason.waiting_for_computer,รอคิว
 guide.refused.not in this conversation,ไม่ใช่ไฟล์ในบทสนทนานี้
 guide.refused.not offered,ไม่มีให้เลือกแล้ว

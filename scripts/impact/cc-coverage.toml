@@ -69,7 +69,7 @@ basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声�
 
 [[row.link]]
 cell = "erp_operator.mrerp"
-basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
 
 
 [[row.link]]
@@ -79,7 +79,7 @@ page_flows = ["erp.cc.guide.purchase"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
-basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）；没有 MR.ERP 公司上的采购引导页面流程"
+basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的采购引导页面流程与真写记录"
 [[row]]
 id = "sales"
 name = "销售：赊销、现销；同上各类票"
@@ -115,7 +115,7 @@ basis = "MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声�
 
 [[row.link]]
 cell = "erp_operator.mrerp"
-basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 只开 operator、含 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版录要测试机，没测"
+basis = "MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单"
 
 
 [[row.link]]
@@ -125,7 +125,7 @@ page_flows = ["erp.cc.guide.sales"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
-basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）；没有 MR.ERP 公司上的销售引导页面流程"
+basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的销售引导页面流程与真写记录"
 [[row]]
 id = "new_master"
 name = "随单新建对方 / 物料（采购销售里的两道题）"

@@ -542,6 +542,7 @@ Not permitted,権限がありません
 Not posted,記帳されていません
 Not signed in,未ログイン
 Not subscribed,未登録
+Not supported,対応していません
 Note,備考
 Notes,備考
 Nothing to save,保存する変更はありません
@@ -1192,6 +1193,7 @@ guide.reason.blocking,番号・日付・金額に誤り
 guide.reason.held,選択待ち
 guide.reason.last_write_result_unknown,結果不明
 guide.reason.undecided_items,選択待ち
+guide.reason.unsupported,対応していません
 guide.reason.waiting_for_computer,待機中
 guide.refused.not in this conversation,この会話のファイルではありません
 guide.refused.not offered,選択できなくなりました

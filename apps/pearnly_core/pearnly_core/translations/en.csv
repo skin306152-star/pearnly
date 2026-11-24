@@ -541,6 +541,7 @@ Not permitted,Not permitted
 Not posted,Not posted
 Not signed in,Not signed in
 Not subscribed,Not subscribed
+Not supported,Not supported
 Notes,Notes
 Nothing to save,Nothing to save
 Nothing to show,Nothing to show
@@ -1190,6 +1191,7 @@ guide.reason.blocking,"Number, date or amount is invalid"
 guide.reason.held,Needs a choice
 guide.reason.last_write_result_unknown,Result unknown
 guide.reason.undecided_items,Needs a choice
+guide.reason.unsupported,Not supported
 guide.reason.waiting_for_computer,Waiting
 guide.refused.not in this conversation,Not a file in this conversation
 guide.refused.not offered,No longer available

@@ -278,7 +278,9 @@ class Access(Precheck):
                 self.precheck.remember("CO-1", {"I:LI-2": answer})  # 不是本人的：照旧没有权限
         with mock.patch.object(self.precheck.guard, "has", lambda capability, user=None: True), \
                 mock.patch.object(self.precheck.companies, "allowed_companies", lambda user=None: ["CO-1"]), \
-                mock.patch.object(self.push, "enabled", lambda company: False):
+                mock.patch.object(self.push, "enabled", lambda company: False), \
+                mock.patch.object(self.precheck, "_operator_conversation", lambda: True):
+            # 代录对话、这家没接 Express（也不是 MR.ERP）：没有账本可写（判据按账本 + 对话方式，11-24）
             with mock.patch.object(operator, "_intake", lambda company, doc_id: row):
                 out = self.precheck.check("CO-1", ["I:LI-1"])
         self.assertEqual(out["documents"], [{"doc_id": "I:LI-1", "state": card.NOT_WRITABLE, "reason": E.DISCONNECTED}])

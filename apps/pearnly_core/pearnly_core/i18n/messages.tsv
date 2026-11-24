@@ -1079,6 +1079,7 @@ Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guid
 Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.reason.last_write_result_unknown
 Waiting	等待	รอคิว	待機中	guide.reason.waiting_for_computer
 Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.undecided_items
+Not supported	不支持	ไม่รองรับ	対応していません	guide.reason.unsupported
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat
 Posting	入账方式	วิธีบันทึกบัญชี	計上方法	guide.q.goods_posting
 Post	是否入账	บันทึกบัญชีหรือไม่	記帳	guide.q.document_policy

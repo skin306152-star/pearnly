@@ -230,16 +230,22 @@ class Precheck(Base):
                          [("payment", "remembered"), ("item", "rule"), ("location", "")])
         row.status = "cancelled"
         self.assertEqual(operator.intake_own_view("CO-1", "I:LI-7", row)["state"], "not_writable")
-        # 写账判定：没接 Express 时 LINE 的记录给这一份，CC 代录的照旧写不了
+        # 写账判定：没接 Express 时按「账本 + 对话方式」判、不按来源（11-24）：直写（和 LINE 卡片）给这一份，LINE 的与 CC 对话放进来的
+        # 同一判据；代录对话里没有账本可写，报未连接
+        modes = {"operator": False}
         with patch.object(precheck, "_company_ok", return_value=True), \
                 patch.object(precheck.push, "enabled", return_value=False), \
                 patch.object(precheck.mrerp_push, "handles", return_value=False), \
+                patch.object(precheck, "_operator_conversation", side_effect=lambda: modes["operator"]), \
                 patch.object(precheck, "_collection", return_value=SimpleNamespace(
                     mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
                 patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \
                 patch.object(operator, "intake_own_view", return_value={"doc_id": "I:LI-7", "state": "check", "items": []}):
-            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}])
-            row.source = "cc"
+            for source in ("line", "cc"):
+                row.source = source
+                self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}],
+                                 source)
+            modes["operator"] = True
             self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"][0]["reason"], precheck.contracts.DISCONNECTED)
 
     def test_on_mr_erp_a_line_record_also_asks_what_mr_erp_needs_with_the_same_judgment(self):
@@ -278,17 +284,29 @@ class Precheck(Base):
             self.assertEqual(operator.remember_intake_mrerp("CO-1", row, answers), 1)
         written.assert_called_once_with("CO-1", "LI-7", answers)
         self.assertEqual(saved, [(precheck.push.SALES, answers[1:], None, book)])
-        # 写账判定与记答在 MR.ERP 公司对 LINE 的记录走这一支
+        # 写账判定与记答在 MR.ERP 公司走这一支：LINE 收单的、直写对话放进来的同一判据（11-24：原来 CC 对话放进来的一律报
+        # express.disconnected，ERP 直写 · MR.ERP 写不进）；代录对话里报「不支持」（代录写的是 Express），不报未连接这种错原因
+        modes = {"operator": False}
         with patch.object(precheck, "_company_ok", return_value=True), \
                 patch.object(precheck.push, "enabled", return_value=False), \
                 patch.object(precheck.mrerp_push, "handles", return_value=True), \
+                patch.object(precheck, "_operator_conversation", side_effect=lambda: modes["operator"]), \
                 patch.object(precheck, "_collection", return_value=SimpleNamespace(
                     mine=lambda doc_id: False, check=lambda company, ids: {"documents": []})), \
                 patch.object(precheck, "target_of", side_effect=lambda company, doc_id: (precheck.INTAKE, row)), \
                 patch.object(operator, "intake_mrerp_view", return_value={"doc_id": "I:LI-7", "state": "check", "items": []}), \
+                patch.object(operator, "remember_intake", return_value=1) as plain, \
                 patch.object(operator, "remember_intake_mrerp", return_value=1) as remembered:
-            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}])
-            self.assertEqual(precheck.remember("CO-1", {"I:LI-7": answers}), {"saved": 1})
+            for source in ("line", "cc"):
+                row.source = source
+                self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"], [{"doc_id": "I:LI-7", "state": "check", "items": []}],
+                                 source)
+                self.assertEqual(precheck.remember("CO-1", {"I:LI-7": answers}), {"saved": 1})
+            self.assertEqual(remembered.call_count, 2)
+            modes["operator"] = True
+            self.assertEqual(precheck.check("CO-1", ["I:LI-7"])["documents"],
+                             [{"doc_id": "I:LI-7", "state": "not_writable", "reason": precheck.UNSUPPORTED}])
+            plain.assert_not_called()
         self.assertEqual(remembered.call_args.args[:3], ("CO-1", row, answers))
 
 

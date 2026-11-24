@@ -486,7 +486,7 @@ def _intake_picked(company, row) -> dict:
 
 
 def intake_mrerp_view(company, doc_id, row) -> dict:
-    """账本是 MR.ERP 的公司里 LINE 收单的一条记录（写账判定 `precheck.check`，用户 11-19 出卡前问完）：记录自己要人定的
+    """账本是 MR.ERP 的公司里一条收单记录（LINE 收单的、直写对话放进来的同一判据，`precheck.check`；用户 11-19 出卡前问完）：记录自己要人定的
     （:func:`intake_own_view`）加 MR.ERP 导入前要人定的（导入菜单、主档默认值、同期两本选哪本）——与已存单据同一份
     （`precheck.mrerp_needed`，账套按 :func:`_intake_picked`）。没有覆盖单据日期的账套：写不了（同已存单据 `precheck.mrerp_view`）。"""
     from pearnly_core.write_precheck import contracts as card
@@ -505,7 +505,7 @@ def intake_mrerp_view(company, doc_id, row) -> dict:
 
 
 def remember_intake_mrerp(company, row, answers, seen=None) -> int:
-    """MR.ERP 公司里对 LINE 收单记录答的记下（写账判定 `precheck.remember` 调）：记录自己的几项写回记录（:func:`apply_intake_answers`），
+    """MR.ERP 公司里对收单记录答的记下（LINE 收单的、直写对话放进来的同一判据；写账判定 `precheck.remember` 调）：记录自己的几项写回记录（:func:`apply_intake_answers`），
     MR.ERP 那几项按同已存单据的记法记在公司上那本账套名下（`precheck.save_mrerp`，账套按 :func:`_intake_picked`）。已提交的按提交出的
     单据记。回 MR.ERP 那边记了几项。"""
     from pearnly_erp_portal.express import precheck as write_precheck
