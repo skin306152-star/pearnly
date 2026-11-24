@@ -90,7 +90,24 @@ frappe.db.set_value(intake.DOCTYPE, doc.name, "line_choices", json.dumps(value))
 import os
 from pearnly_erp_portal.express import facts, push, target
 key = target.pick(push._company({co!r}), day)["book"]["key"]
-seeded = facts.load(key) is None
+before = facts.load(key)
+seeded = before is None
+# 认不出的物料行要在 Express 新建库存品：给两个合格的存货科目组（同真账套），卡片问选哪个；
+# 一个都没有时整张单停在「缺存货科目组」，卡片不出题、写入计划为空（11-22 GitHub Flows；11-24 长期开着的回归实验室里同一家的主档
+# 早被别的流程读回过、没有合格组，种子不放，这一格稳定不通过）。主档已在时也补上这两个组，收尾按原样还原
+groups = [{{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 0}},
+          {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 0}}]
+patched = False
+if not seeded and {new_item!r}:
+    import copy
+    data = copy.deepcopy(before)
+    book = data.setdefault("facts", {{}})
+    accounts = book.setdefault("accounts", [])
+    have = {{str(row.get("code")) for row in accounts if isinstance(row, dict)}}
+    accounts.extend({{"code": row["inv_acc"], "name": row["inv_acc"], "type": "1"}} for row in groups if row["inv_acc"] not in have)
+    book.setdefault("catalog", {{}})["isacc_candidates"] = groups
+    facts.save(key, data)
+    patched = True
 if seeded:
     mapping = {{"fallback_acc": "51-03-00-00", "vat_input_acc": "11-06-01-00", "ap_acc": "21-01-01-00", "revenue_acc": "41-01-00-00",
                "vat_output_acc": "21-04-01-00", "ar_acc": "11-03-01-00"}}
@@ -98,14 +115,10 @@ if seeded:
                      "settings": {{"mainloc": "01"}}, "stock": [], "departments": [],
                      "facts": {{"accounts": [{{"code": code, "name": code, "type": code[0]}} for code in (*mapping.values(), "11-01-01-00",
                                                                                                     "11-04-01-00", "11-04-02-00")],
-                               # 认不出的物料行要在 Express 新建库存品：给两个合格的存货科目组（同真账套），卡片问选哪个；
-                               # 一个都没有时整张单停在「缺存货科目组」，卡片不出题（11-22 GitHub Flows）
-                               "mapping": mapping, "catalog": {{"isacc_candidates": [
-                                   {{"code": "DM", "desc": "วัตถุดิบ", "inv_acc": "11-04-01-00", "fit": True, "used_by": 0}},
-                                   {{"code": "P002", "desc": "สินค้า", "inv_acc": "11-04-02-00", "fit": True, "used_by": 0}}]
-                                   if {new_item!r} else []}}}}}})
+                               "mapping": mapping, "catalog": {{"isacc_candidates": groups if {new_item!r} else []}}}}}})
 frappe.db.commit()
-print(json.dumps({{"session": made["id"], "task": made.get("task") or "", "intake": doc.name, "period": period, "book": key, "seeded": seeded}}))
+print(json.dumps({{"session": made["id"], "task": made.get("task") or "", "intake": doc.name, "period": period, "book": key, "seeded": seeded,
+                  "facts_before": before if patched else None}}, ensure_ascii=False))
 """)
     return {**out, "company": co, "tag": tag, "direction": direction, "doc_id": "I:" + out["intake"], "no_computer": no_computer,
             "new_item": new_item, "cases": []}
@@ -124,11 +137,15 @@ import os
 from pearnly_core.assistant import sessions
 from pearnly_core.express_operator import tasks
 # 先删准备时放的主档种子：后面哪一步出错也不留给同一站点的下一格（11-16：留下的主档让 cc.operator 的单被排进写账队列）
+from pearnly_erp_portal.express import facts
 if {bool(params.get('seeded'))!r}:
-    from pearnly_erp_portal.express import facts
     path = facts._path({params.get('book', '')!r})
     if os.path.exists(path):
         os.remove(path)
+# 主档原来就在、准备时补了存货科目组的：按原样还原
+before = json.loads({json.dumps(params.get("facts_before"), ensure_ascii=False)!r})
+if before is not None:
+    facts.save({params.get('book', '')!r}, before)
 frappe.set_user({USER!r})
 # 排着等电脑的任务不能删（`tasks.delete`）：单据已作废，先按站点收尾；仍在排队的（实验栈没有电脑来领）标停止
 if {params['task']!r} and frappe.db.exists(tasks.DOCTYPE, {params['task']!r}):
