@@ -662,12 +662,12 @@ export function useAutoConnect(product: string | undefined) {
       if (elsewhere) return setLink({ kind: "other_site", site: elsewhere });
       for (const member of membersHere(state)) if (member.device_state) tried.add(`${member.id}:${member.device_state}`);
       if (!membersHere(state).length || thisComputer(state)) await connectComputer(api);
-      if (alive && state.cloud_link) await registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
+      if (alive && state.cloud_link && window.pearnly_cloud_express === true) await registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
       if (!alive || !thisComputer(state)) return;
       off = api.onChanged(() => {
         void api.state().then((next) => {
           if (!alive || !next || !("members" in next) || otherSite(next, product)) return;
-          if (next.cloud_link) void registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
+          if (next.cloud_link && window.pearnly_cloud_express === true) void registerCloud(api, tried).catch(withReport(() => undefined, "desktop"));
           const fresh = membersHere(next).filter((m) => m.device_state && !tried.has(`${m.id}:${m.device_state}`));
           if (!fresh.length) return;
           for (const member of fresh) tried.add(`${member.id}:${member.device_state}`);

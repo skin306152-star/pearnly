@@ -240,7 +240,7 @@ class DeviceMethods(unittest.TestCase):
                       cloud)
         self.assertIn('api.call("cloud_token", { host, token: found.token })', cloud)
         self.assertNotIn('"pair"', cloud)
-        self.assertIn("if (alive && state.cloud_link) await registerCloud(api, tried)",
+        self.assertIn("if (alive && state.cloud_link && window.pearnly_cloud_express === true) await registerCloud(api, tried)",
                       page[page.index("export function useAutoConnect"):])
         for name in ('"cloud_pending"', '"cloud_token"', '"cloud_link": True'):
             self.assertIn(name, bridge)

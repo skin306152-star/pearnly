@@ -283,6 +283,10 @@ class HiddenInProduction(unittest.TestCase):
         picker = read(SPA / "components/company-picker.tsx")
         self.assertIn("cloud = window.pearnly_cloud_express === true", picker)
         self.assertIn("(cloud ? [...kinds, CLOUD] : kinds)", picker)
+        desktop = read(SPA / "lib/desktop.ts")
+        # 页面自动登记云端电脑也按同一个判定（两处触发都收）
+        self.assertEqual(desktop.count("registerCloud(api, tried)"), 2)
+        self.assertEqual(desktop.count("cloud_link && window.pearnly_cloud_express === true) "), 2)
         connect = read(ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/company-connect.js")
         self.assertIn('const TABS = ["mrerp", "express"].concat(frappe.boot && frappe.boot.pearnly_cloud_express ? ["express_cloud"] : []);',
                       connect)
