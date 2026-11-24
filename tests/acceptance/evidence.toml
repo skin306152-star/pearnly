@@ -40,6 +40,15 @@ erp_doc = "CWH-15f994af079f27fb54619fd8e473696ab8d38823eeb0901c"
 task = "1tunhpg4u3"
 
 [[pass]]
+scenario = "acc.dms.line.booking"
+sha = "9f6b9f15824e936afdf6dcfac8cb7bd5da89be2c"
+date = "2026-11-24"
+env = "B"
+run = "20261124-140149-9f6b9f158"
+retried = false
+covers = "38e2b6b4627ec3da"
+
+[[pass]]
 scenario = "acc.erp.cc.collection"
 sha = "025490335dd0378476621bba3a62424a268c807c"
 date = "2026-11-24"
