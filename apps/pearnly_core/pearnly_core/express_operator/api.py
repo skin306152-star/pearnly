@@ -49,7 +49,8 @@ def documents(company, period, offset=0, limit=50, task=""):
         snapshot = listed.remember(str(task), company, rows)
         if not offset and snapshot:
             found["entered"] = [{**row, "entered": row["docnum"], "moves": []}
-                                for row in listed.entered(company, snapshot, [row.get("doc_id") for row in rows])]
+                                for row in listed.entered(company, snapshot, [row.get("doc_id") for row in rows],
+                                                          period=str(period or ""))]
     return found
 
 

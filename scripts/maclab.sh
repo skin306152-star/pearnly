@@ -227,6 +227,12 @@ live_sync() {
     | LC_ALL=C sort | while IFS= read -r file; do printf '%s\n' "$file"; cat "$file"; done | shasum -a 256 | cut -c1-16)
   staging=$(mktemp -d "${TMPDIR:-/tmp}/maclab-live.XXXXXX")
   (cd "$src/apps" && printf '%s\n' "$list" | COPYFILE_DISABLE=1 tar -cf - -T -) | tar -xf - -C "$staging"
+  # 调前端时 MACLAB_LOCAL_SPA=1：带上工作树里本地构建好的 /assistant（frontend/assistant 里 vite build），镜像那份不再覆盖它（同 testenv
+  # 的 PEARNLY_TESTENV_LOCAL_SPA）；没构建就停下说清
+  if [[ "${MACLAB_LOCAL_SPA:-}" == 1 ]]; then
+    [[ -f "$src/apps/pearnly_core/pearnly_core/public/assistant/index.html" ]] || die "MACLAB_LOCAL_SPA=1 但本地没构建 /assistant（frontend/assistant 里 vite build）"
+    (cd "$src/apps" && COPYFILE_DISABLE=1 tar -cf - pearnly_core/pearnly_core/public/assistant) | tar -xf - -C "$staging"
+  fi
   image=$(env_value PEARNLY_IMAGE); [[ -n "${MACLAB_IMAGE:-}" ]] && image=$MACLAB_IMAGE
   docker run --rm --entrypoint sh "$image" -c 'cd /home/frappe/frappe-bench/apps && tar -cf - $(ls -d \
     pearnly_core/pearnly_core/public/pearnly-app pearnly_core/pearnly_core/public/assistant \

@@ -54,10 +54,32 @@ def remember(task: str, company: str, rows) -> dict:
     return snapshot
 
 
-def entered(company: str, snapshot: dict, current) -> list:
-    """快照里有、``current``（这次现查到的单号）里没有、产品说已入账的单：``[{doc_id, group, ref, party, docnum}]``，按快照顺序。"""
+PAGE = 100  # 全月清单逐页取（产品 sources 的服务端分页，同 `api.PAGE_MAX`）
+
+
+def _all_ids(company: str, period: str) -> set:
+    """这家公司这个月此刻现查到的全部单号（逐页取，最多 LISTED_MAX * 2 张）：只看一页时，快照里在后几页的单会被当成「不在了」、
+    逐张去读现状（code-review 11-24）。产品 sources 是成批查询，比逐张读状态便宜。"""
+    ids, offset = set(), 0
+    while len(ids) <= LISTED_MAX * 2:
+        found = products.sources(company, period, offset, PAGE)
+        page = [str(row["doc_id"]) for row in found.get("documents") or [] if isinstance(row, dict) and row.get("doc_id")]
+        ids.update(page)
+        following = found.get("next_offset")
+        if not page or following is None or int(following) <= offset:
+            break
+        offset = int(following)
+    return ids
+
+
+def entered(company: str, snapshot: dict, current, period: str = "") -> list:
+    """快照里有、现查里没有、产品说已入账的单：``[{doc_id, group, ref, party, docnum}]``，按快照顺序。``current`` 是这次现查到的
+    单号；只是一页（给了 ``period``）时，先按全月清单核一遍，只对真不在清单里的读现状。"""
     present = {str(doc_id) for doc_id in current or ()}
     gone = [doc_id for doc_id in snapshot if doc_id not in present]
+    if gone and period:
+        present |= _all_ids(company, period)
+        gone = [doc_id for doc_id in gone if doc_id not in present]
     if not gone:
         return []
     found = {str(row.get("doc_id")): row for row in products.status(company, gone) if isinstance(row, dict)}

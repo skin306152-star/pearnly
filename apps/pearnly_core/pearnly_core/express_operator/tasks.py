@@ -230,6 +230,8 @@ def update(name, *, title=None, starred=None, company=None, company_title=None, 
             doc.set("documents", [])
         if period is not None:
             doc.period = _period(period)
+        # 列出快照（`listed`）是这家公司这个月的：换了就清掉，别把上个月 / 别家已入账的单当成这次列出过的
+        doc.set("listed", "")
     _save(doc)
     return view(doc)
 

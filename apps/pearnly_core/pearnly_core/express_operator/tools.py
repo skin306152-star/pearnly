@@ -70,7 +70,7 @@ def _preparing(view: dict) -> dict:
     # 这次列出过、之后被直写写进账本的单：照实给出（已入账 · 单号），开始时跳过；不说成「没有了」（主会话 11-24）
     snapshot = listed.remember(view["name"], view["company"], rows)
     entered = [{key: row[key] for key in ("doc_id", "ref", "party", "docnum") if row.get(key)}
-               for row in listed.entered(view["company"], snapshot, [row["doc_id"] for row in rows])]
+               for row in listed.entered(view["company"], snapshot, [row["doc_id"] for row in rows], period=view.get("period") or "")]
     sent = [{"filename": row.get("filename") or "", "state": row.get("state") or "",
              "documents": [{key: doc[key] for key in ("doc_id", "ref", "party", "date") if doc.get(key)}
                            for doc in row.get("documents") or [] if isinstance(doc, dict)]}

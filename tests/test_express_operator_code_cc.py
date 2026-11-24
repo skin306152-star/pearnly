@@ -1089,6 +1089,26 @@ class ListedDocumentsStayListedTests(Base):
         doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
         self.assertEqual(json.loads(doc.get("listed")), {"D1": "purchase", "D2": "purchase", "D3": "purchase"})
 
+    def test_documents_on_later_pages_are_not_read_back_one_by_one(self):
+        # code-review 11-24：只拿一页比时，后几页的单会被当成「不在了」逐张读现状；先按全月清单核，只读真离开的
+        self.rows = [{"doc_id": f"D{n}", "group": "purchase"} for n in range(1, 8)]
+        api.documents("CO-1", "2026-10", limit=3, task=self.task)
+        api.documents("CO-1", "2026-10", offset=3, limit=4, task=self.task)
+        asked = []
+        status = STATE["attrs"]["p.status"]
+        STATE["attrs"]["p.status"] = lambda company, ids: asked.append(list(ids)) or status(company, ids)
+        self.written_directly("D6", "RR6")
+        page = api.documents("CO-1", "2026-10", limit=3, task=self.task)
+        self.assertEqual(asked, [["D6"]])
+        self.assertEqual([row["doc_id"] for row in page["entered"]], ["D6"])
+
+    def test_changing_the_month_or_company_clears_what_was_listed(self):
+        api.documents("CO-1", "2026-10", task=self.task)
+        tasks.update(self.task, period="2026-11")
+        self.assertFalse(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed"))
+        self.written_directly("D1", "RR1")   # 十月那张被写掉：十一月的清单里不算「列出过」
+        self.assertEqual(api.documents("CO-1", "2026-11", task=self.task).get("entered"), [])
+
     def test_a_started_task_no_longer_records_what_it_lists(self):
         api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])
         doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
