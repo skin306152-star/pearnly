@@ -526,8 +526,8 @@ desktop_version: 1.12.21
 
 | # | 业务 | Cowork 直写 ①·⑤·⑨ | Cowork 代录 ②·⑥·⑩ | ERP 直写 ③·⑦·⑪ | ERP 代录 ④·⑧·⑫ |
 |---|---|---|---|---|---|
-| 1 | 采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 |
-| 2 | 销售：赊销、现销；同上各类票 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 |
+| 1 | 采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣 | ✅ · ✅ · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ✅ · ⇢云 | ✅ · ◐ P2 · ⇢云 |
+| 2 | 销售：赊销、现销；同上各类票 | ✅ · ✅ · ⇢云 | ✅ · ◐ P2 · ⇢云 | ✅ · ✅ · ⇢云 | ✅ · ◐ P2 · ⇢云 |
 | 3 | 随单新建对方 / 物料（采购销售里的两道题） | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 | ✗ ⇢桌 P2 · ⇢MR · ⇢云 |
 | 4 | 收款 | —（只在 ERP） | —（代录不做收款） | ✅ · ◐ P1 · ⇢云 | —（代录不做收款） |
 | 5 | POS 日汇总 | ✅ · —（只支持 Express 账套） · ⇢云 | —（只做直写） | —（ERP 有自己的收银台（存疑，P3 前核对）） | —（只做直写） |
@@ -550,34 +550,34 @@ desktop_version: 1.12.21
 | 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **90 格**：✅ 19、◐ 26、○ 4、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
+范围内共 **90 格**：✅ 23、◐ 22、○ 4、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
 
-按证据：**真机通过 1** · **真模型通过 1** · **只有服务端 43** · **没做 8**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
+按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 39** · **没做 8**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
 ### 按格依据
 
 | 业务 | 格 | 标记 | 证据档 | 依据 |
 |---|---|---|---|---|
 | purchase | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 purchase（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；实验栈没有识别，单据由 run.start(doc_ids) 交进来，交文件 → 识别那段不在流程里）；页面流程 `cowork.cc.guide.purchase`；流程 `cowork.cc.guide` |
-| purchase | Cowork 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程 |
+| purchase | Cowork 直写 · MR.ERP | ✅ | 真机通过 | 同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）。11-24 修：判定卡原来不出 MR.ERP 导入菜单 / 默认值题（guided.push_setup 没有调用方），多菜单或缺默认值时每张停在要选；现在推送目标是 MR.ERP 时卡上问、按账套记一次。接 MR.ERP 的公司（编造连接）真页面从题卡（导入菜单）点到复核、「立即录入」、结果卡，菜单记在账套名下（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上作答后写成 PG691124-405464；页面流程 `cowork.cc.guide.mrerp-purchase`；真机 `docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写` |
 | purchase | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 purchase（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | purchase | Cowork 代录 · 本地 | ✅ | 只有服务端 | Cowork 声明 purchase 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-24 页面流程，电脑 / 手机两格；单据由 run.start(doc_ids) 交进来，实验栈没有识别）；资料清单开着时又进来一张新票、不刷新就确定也交得进（11-25 回归流程，电脑 / 手机两格）；页面流程 `cowork.cc.guide.operator-purchase`、`cowork.cc.guide.operator-new-after-list` |
 | purchase | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测 |
 | purchase | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 purchase（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | purchase | ERP 直写 · 本地 | ✅ | 只有服务端 | ERP 声明 purchase 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）；页面流程 `erp.cc.guide.purchase` |
-| purchase | ERP 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的采购引导页面流程与真写记录 |
+| purchase | ERP 直写 · MR.ERP | ✅ | 真机通过 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；接 MR.ERP 的公司（编造连接）真页面从题卡（导入菜单，题目原来显示成键 purchase，同日改成单据弹窗的项目名、选项「代码 · 名称」）点到复核、确定、结果卡，提交成 ERP 单去向 MR.ERP（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上作答后写成 PG691124-620145（同日修 ERP 写 MR.ERP 不带物料商品代码，修前从 MR.ERP 读来的物料导入报商品代码为空）；页面流程 `erp.cc.guide.mrerp-purchase`；真机 `docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写` |
 | purchase | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 purchase（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | purchase | ERP 代录 · 本地 | ✅ | 只有服务端 | ERP 声明 purchase 只开 operator（express/cc_guides.py，d7468bc14）；代录对话里真页面从题卡（付款方式）点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-23 实验栈电脑 / 手机两格；收单记录由 run.start(doc_ids) 交进来）；另有接口级的就地改、带复核指纹确定；页面流程 `erp.cc.guide.operator-purchase`；流程 `erp.cc.operator.intake`、`erp.cc.guide.documents-edit` |
 | purchase | ERP 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 purchase 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单 |
 | purchase | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 purchase（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | sales | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 sales（documents 源，chat + operator，三种账本，f96b4029d / d7468bc14）；直写对话里按单据引导真页面从题卡（收入科目、付款方式）点到复核、「立即录入」、结果卡已交出，运行 done、同意来自页面、推向本对话账套（11-23 实验栈电脑 / 手机两格；出题、记答案、确定时的判定都在本次引导的对话里，修好之前卡上不出这两题、推送时被跳过）；页面流程 `cowork.cc.guide.sales` |
-| sales | Cowork 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程 |
+| sales | Cowork 直写 · MR.ERP | ✅ | 真机通过 | 同采购那格（推送目标是 MR.ERP 时判定卡问导入菜单 / 默认值、按账套记一次，11-24 修）。接 MR.ERP 的公司（编造连接）真页面从题卡点到复核、「立即录入」、结果卡（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上答默认银行科目后写成 SI691124-964561；页面流程 `cowork.cc.guide.mrerp-sales`；真机 `docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写` |
 | sales | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 sales（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | sales | Cowork 代录 · 本地 | ✅ | 只有服务端 | Cowork 声明 sales 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-24 页面流程，电脑 / 手机两格；单据由 run.start(doc_ids) 交进来，实验栈没有识别）；页面流程 `cowork.cc.guide.operator-sales` |
 | sales | Cowork 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 代录开关 MRERP_OPERATOR_ENABLED 11-22 用户定打开；声明含 operator 与 MR.ERP 账本，同本地 Express 那格的开始前卡；没有 MR.ERP 代录引导的页面流程，CC 桌面版在 MR.ERP 网页里录要测试机，没测 |
 | sales | Cowork 代录 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 sales（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | sales | ERP 直写 · 本地 | ✅ | 只有服务端 | ERP 声明 sales 11-23 放开直写（modes = chat + operator，同 Cowork；主会话 11-23）：题卡与代录同一张（同一份写账前置判定，test_cc_guide_documents 直写与代录同卡），确定时写入计划逐张重算判定、直写调 express.guide_documents.confirm 走网页同一个入账函数 submit_chat（付款没定 / 行没定的这一张留下）；离线单测 test_erp_guide_documents，页面流程真点卡从题到结果（本地 Express）；页面流程 `erp.cc.guide.sales` |
-| sales | ERP 直写 · MR.ERP | ◐ P2 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的销售引导页面流程与真写记录 |
+| sales | ERP 直写 · MR.ERP | ✅ | 真机通过 | 同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；接 MR.ERP 的公司（编造连接）真页面从题卡点到复核、确定、结果卡，提交成 ERP 单去向 MR.ERP（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上答默认银行科目后写成 SE691124-774951；页面流程 `erp.cc.guide.mrerp-sales`；真机 `docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写` |
 | sales | ERP 直写 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 声明了 sales（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | sales | ERP 代录 · 本地 | ✅ | 只有服务端 | ERP 声明 sales 只开 operator（express/cc_guides.py）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-23 实验栈电脑 / 手机两格；收单记录由 run.start(doc_ids) 交进来）；另有开始前卡作答提交成销售单的接口级流程；页面流程 `erp.cc.guide.operator-sales`；流程 `erp.cc.operator.intake.sales` |
 | sales | ERP 代录 · MR.ERP | ◐ P2 | 只有服务端 | MR.ERP 账本与代录两个开关 11-22 用户定打开；ERP 声明 sales 含 operator 与 MR.ERP 账本。11-24 核实：代录对话里 MR.ERP 公司的 CC 收单走不通（ERP 代录写的是 Express），原来报错原因 express.disconnected，cc-guide-mrerp-direct 起如实报「不支持」（unsupported）；按闸门规则声明覆盖、线开着只能标 half，实际打字也办不了，留在要测试机1 的清单 |

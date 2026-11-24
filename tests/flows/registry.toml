@@ -2939,3 +2939,57 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/cc_stock_guides.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/stock_guide.py",
 ]
+
+[[flow]]
+id = "cowork.cc.guide.mrerp-purchase"
+title = "Cowork 版 CC 采购引导在接 MR.ERP 的公司直写对话里：账套两个已关联导入菜单未选 → 题卡问导入菜单（代码 · 名称）→ 复核卡 →「立即录入」→ 结果卡；菜单记在账套名下、票推向这份账套（编造的 MR.ERP 连接，不带凭据）"
+module = "scripts/flows/cowork_cc_guide_mrerp_purchase.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/push_setup.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.mrerp-sales"
+title = "Cowork 版 CC 销售引导在接 MR.ERP 的公司直写对话里：账套两个已关联导入菜单未选 → 题卡问导入菜单（代码 · 名称）→ 复核卡 →「立即录入」→ 结果卡；菜单记在账套名下、票推向这份账套（编造的 MR.ERP 连接，不带凭据）"
+module = "scripts/flows/cowork_cc_guide_mrerp_sales.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/push_setup.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.mrerp-purchase"
+title = "ERP 版 CC 直写采购引导在接 MR.ERP 的公司上：题卡问导入菜单（代码 · 名称）→ 复核卡 → 确定 → 结果卡；收单记录提交成 ERP 单（来源 cc）、去向 MR.ERP，菜单记在公司这份账套名下（编造的 MR.ERP 连接，不带凭据）"
+module = "scripts/flows/erp_cc_guide_mrerp_purchase.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.mrerp-sales"
+title = "ERP 版 CC 直写销售引导在接 MR.ERP 的公司上：题卡问导入菜单（代码 · 名称）→ 复核卡 → 确定 → 结果卡；收单记录提交成 ERP 单（来源 cc）、去向 MR.ERP，菜单记在公司这份账套名下（编造的 MR.ERP 连接，不带凭据）"
+module = "scripts/flows/erp_cc_guide_mrerp_sales.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+]

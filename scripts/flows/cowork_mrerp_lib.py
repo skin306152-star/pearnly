@@ -23,7 +23,14 @@ def mr_cleanup():
         for company in frappe.get_all("Cowork Company", filters={{"seed_connection": c}}, pluck="name", limit_page_length=20):
             mr_companies.delete(company)
             frappe.db.delete("Cowork Company Choice", {{"company": company}})
+        # 推送途中拿的写者锁（连接锁、公司锁；产品拒删、只能直接删）：本连接的，和持有者是本连接推送记录的
         left = frappe.get_all("Cowork OCR History", filters={{"push_connection": c}}, pluck="name", limit_page_length=0)
+        held = frappe.get_all("Cowork Push Record", filters={{"connection": c}}, pluck="name", limit_page_length=0)
+        if left:
+            held += frappe.get_all("Cowork Push Record", filters={{"history": ["in", left]}}, pluck="name", limit_page_length=0)
+        if held:
+            frappe.db.delete("Cowork Push Writer Lock", {{"holder": ["in", held]}})
+        frappe.db.delete("Cowork Push Writer Lock", {{"connection": c}})
         if left:
             frappe.db.delete("Cowork OCR Correction", {{"source_history": ["in", left]}})
             frappe.db.delete("Cowork Push Record", {{"history": ["in", left]}})

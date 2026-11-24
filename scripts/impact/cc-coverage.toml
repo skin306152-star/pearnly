@@ -37,9 +37,9 @@ erp_operator = "closed:11-24 真机首测端到端没通：云端那份 CC 没�
 id = "purchase"
 name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
 guide = "purchase"
-cowork_direct = ["done", "half:p2", "wait:cloud"]
+cowork_direct = ["done", "done", "wait:cloud"]
 cowork_operator = ["done", "half:p2", "wait:cloud"]
-erp_direct = ["done", "half:p2", "wait:cloud"]
+erp_direct = ["done", "done", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
@@ -50,7 +50,9 @@ flows = ["cowork.cc.guide"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
-basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程"
+basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）。11-24 修：判定卡原来不出 MR.ERP 导入菜单 / 默认值题（guided.push_setup 没有调用方），多菜单或缺默认值时每张停在要选；现在推送目标是 MR.ERP 时卡上问、按账套记一次。接 MR.ERP 的公司（编造连接）真页面从题卡（导入菜单）点到复核、「立即录入」、结果卡，菜单记在账套名下（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上作答后写成 PG691124-405464"
+page_flows = ["cowork.cc.guide.mrerp-purchase"]
+device = ["docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写"]
 
 [[row.link]]
 cell = "cowork_operator.express_local"
@@ -79,14 +81,16 @@ page_flows = ["erp.cc.guide.purchase"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
-basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的采购引导页面流程与真写记录"
+basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；接 MR.ERP 的公司（编造连接）真页面从题卡（导入菜单，题目原来显示成键 purchase，同日改成单据弹窗的项目名、选项「代码 · 名称」）点到复核、确定、结果卡，提交成 ERP 单去向 MR.ERP（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上作答后写成 PG691124-620145（同日修 ERP 写 MR.ERP 不带物料商品代码，修前从 MR.ERP 读来的物料导入报商品代码为空）"
+page_flows = ["erp.cc.guide.mrerp-purchase"]
+device = ["docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写"]
 [[row]]
 id = "sales"
 name = "销售：赊销、现销；同上各类票"
 guide = "sales"
-cowork_direct = ["done", "half:p2", "wait:cloud"]
+cowork_direct = ["done", "done", "wait:cloud"]
 cowork_operator = ["done", "half:p2", "wait:cloud"]
-erp_direct = ["done", "half:p2", "wait:cloud"]
+erp_direct = ["done", "done", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
 [[row.link]]
@@ -96,7 +100,9 @@ page_flows = ["cowork.cc.guide.sales"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
-basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在线（push/mrerp，无开关）；没有 MR.ERP 的引导流程"
+basis = "同采购那格（推送目标是 MR.ERP 时判定卡问导入菜单 / 默认值、按账套记一次，11-24 修）。接 MR.ERP 的公司（编造连接）真页面从题卡点到复核、「立即录入」、结果卡（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上答默认银行科目后写成 SI691124-964561"
+page_flows = ["cowork.cc.guide.mrerp-sales"]
+device = ["docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写"]
 
 [[row.link]]
 cell = "cowork_operator.express_local"
@@ -125,7 +131,9 @@ page_flows = ["erp.cc.guide.sales"]
 
 [[row.link]]
 cell = "erp_direct.mrerp"
-basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；还没有 MR.ERP 公司上的销售引导页面流程与真写记录"
+basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开）：提交后 push.queue 交 mrerp_push.queue，MR.ERP 菜单 / 默认科目在题卡上问（mrerp_menu）。11-24 修：CC 对话放进来的收单原来一律判 express.disconnected（只有 LINE 来源走 MR.ERP 判定），改按账本 + 对话方式判，直写对话走 operator.intake_mrerp_view（离线单测 test_operator_intake）；接 MR.ERP 的公司（编造连接）真页面从题卡点到复核、确定、结果卡，提交成 ERP 单去向 MR.ERP（实验栈电脑 / 手机两格）；MR.ERP 专属测试账套上卡上答默认银行科目后写成 SE691124-774951"
+page_flows = ["erp.cc.guide.mrerp-sales"]
+device = ["docs/work/2026-11-24-cc-guide-mrerp-direct.md::11-24 MR.ERP 专属测试账套真写"]
 [[row]]
 id = "new_master"
 name = "随单新建对方 / 物料（采购销售里的两道题）"
