@@ -377,9 +377,11 @@ def result(ctx, doc_ids) -> dict:
             text = _held_text(record) if record.status == chat_intake.READY else ""
             rows.append({"doc_id": doc_id, "status": HELD, **({"reason_text": text} if text else {})})
             continue
-        if prefix not in DOCUMENT_PREFIXES and _ledgerless(record.company, ledgerless):
+        bare = prefix not in DOCUMENT_PREFIXES and _ledgerless(record.company, ledgerless)  # loop-query: 按公司只判一次
+        if bare:
             # 这家公司没接任何账本：提交进 ERP 就办完了（同 LINE，主会话 11-24 定），不排写账；原来按写账状态判成「未完成」
-            row = frappe.db.get_value(_DOCTYPES[record.direction], document, ["ledger_state", "system_no"], as_dict=True) or {}
+            row = frappe.db.get_value(_DOCTYPES[record.direction], document, ["ledger_state", "system_no"],  # loop-query: 逐张读单号，最多 DOCS_MAX 张
+                                      as_dict=True) or {}
             if not row.get("ledger_state"):
                 rows.append({"doc_id": doc_id, "status": ENTERED, "document": document,
                              **({"docnum": row["system_no"]} if row.get("system_no") else {})})

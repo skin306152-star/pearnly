@@ -153,9 +153,10 @@ def _ledger_codes(company, body) -> set:
     codes = sorted({str(item.get("code") or "").strip() for item in body.get("items") or ()} - {""})
     if not codes:
         return set()
-    return set(frappe.get_all("ERP Product", filters={"express_company": company, "ledger": contracts.LEDGER_MRERP,
-                                                      "express_code": ["in", codes]},
-                              pluck="express_code", limit_page_length=len(codes) * 4))
+    from pearnly_erp_portal.masters import access  # 主档归属口径唯一的家
+
+    filters = {**access.ledger_filters(company), "ledger": contracts.LEDGER_MRERP, "express_code": ["in", codes]}
+    return set(frappe.get_all("ERP Product", filters=filters, pluck="express_code", limit_page_length=len(codes) * 4))
 
 
 def picked(doctype, name) -> dict:

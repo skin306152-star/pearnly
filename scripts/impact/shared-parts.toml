@@ -302,7 +302,7 @@ paths = ["apps/pearnly_erp_portal/pearnly_erp_portal/masters/access.py"]
 markers = ["masters.access", "masters import access"]
 search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastructure/**/*.yml"]
 entries = ["erp.masters.scope", "erp.records.scope", "erp.print.purchase", "erp.print.sales", "erp.entry.choices", "erp.trade.line-stock",
-           "erp.collection.server", "erp.line.webhook-sim", "erp.exports", "erp.inventory.opening.row-warehouse"]
+           "erp.collection.server", "erp.line.webhook-sim", "erp.exports", "erp.inventory.opening.row-warehouse", "erp.mrerp.direct"]
 
 [[part]]
 id = "erp-printing"

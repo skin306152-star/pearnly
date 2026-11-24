@@ -247,6 +247,9 @@ class RepositoryTests(unittest.TestCase):
                           by_id["sales"]["erp_operator"][0]], ["done", "done", "done"])
         # 11-24 Cowork 代录采购 / 销售（本地 Express）有真页面流程
         self.assertEqual([by_id["purchase"]["cowork_operator"][0], by_id["sales"]["cowork_operator"][0]], ["done", "done"])
+        # 11-24 Cowork 直写、ERP 直写采购 / 销售 · MR.ERP：页面流程 + MR.ERP 专属测试账套卡上作答真写（cc-guide-mrerp-direct）
+        self.assertEqual([by_id[row][group][1] for row in ("purchase", "sales") for group in ("cowork_direct", "erp_direct")],
+                         ["done"] * 4)
         # 11-24 对账在接 MR.ERP 的公司对话里有真页面流程
         self.assertEqual(by_id["recon"]["cowork_direct"][1], "done")
         # 11-24 单据维护（Cowork 直写 / 代录）、待处理（Cowork 直写 · 本地补结果步骤、代录 · 本地新开）有真页面流程

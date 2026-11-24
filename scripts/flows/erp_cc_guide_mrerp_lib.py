@@ -56,9 +56,15 @@ frappe.db.commit()
 frappe.db.set_value("User", {USER!r}, "language", "zh")
 frappe.set_user({USER!r})
 co = companies.create_company(company_name="Flow MR " + TAG, tax_id={OWN_TAX!r}, payment_methods=["cash"])["name"]
-frappe.db.set_value("ERP Company", co, {{"mrerp_enabled": 1, "express_enabled": 0, "mrerp_connection": conn.name,
-                                         "mrerp_account_set": {SET!r}, "mrerp_company": "tax:" + {BOOK_TAX!r},
-                                         "mrerp_linked_at": frappe.utils.add_to_date(frappe.utils.now_datetime(), minutes=-5)}})
+frappe.db.commit()
+print(json.dumps({{"company": co, "connection": conn.name}}))
+'''
+
+SEED_REST = f'''
+import base64, hashlib
+from pearnly_core.assistant import sessions
+from pearnly_erp_portal.integrations import intake, line_items
+frappe.set_user({USER!r})
 prod = frappe.get_doc({{"doctype": "ERP Product", "product_name": "FLOW ITEM " + TAG, "base_unit": "ชิ้น", "is_active": 1,
                        "express_company": co, "express_code": "FL" + TAG.upper(), "origin": "mrerp", "ledger": "mrerp"}})
 prod.flags.express_sync = True
@@ -95,7 +101,13 @@ def prepare(lab, manifest, business):
     tag = "gmr" + uuid.uuid4().hex[:6]
     site = manifest["site"]
     try:
-        out = lab.python(site, f"TAG, DIRECTION = {tag!r}, {business!r}\n" + SEED + """
+        made = lab.python(site, f"TAG, DIRECTION = {tag!r}, {business!r}\n" + SEED)
+        # 公司接上这条 MR.ERP 连接与账套：经 lab.set_fields 记原值再改（格结束时统一还原，test_flows_run CompanyFields）
+        lab.set_fields(site, "ERP Company", made["company"], {
+            "mrerp_enabled": 1, "express_enabled": 0, "mrerp_connection": made["connection"], "mrerp_account_set": SET,
+            "mrerp_company": "tax:" + BOOK_TAX, "mrerp_linked_at": _five_minutes_ago(lab, site)})
+        out = lab.python(site, f"TAG, DIRECTION, co, conn_name = {tag!r}, {business!r}, {made['company']!r}, {made['connection']!r}\n"
+                         + SEED_REST + """
 from pearnly_core.assistant.guide import run
 try:
     found = run.start(made["id"], DIRECTION, doc_ids=["I:" + doc.name], at="asking")
@@ -104,7 +116,7 @@ try:
 except Exception as error:
     frappe.db.rollback()
     started = {"run": "", "error": repr(error)[:300]}
-print(json.dumps({"company": co, "connection": conn.name, "product": prod.name, "session": made["id"], "intake": doc.name,
+print(json.dumps({"company": co, "connection": conn_name, "product": prod.name, "session": made["id"], "intake": doc.name,
                   "started": started}, default=str))
 """)
     except Exception:
@@ -112,6 +124,10 @@ print(json.dumps({"company": co, "connection": conn.name, "product": prod.name, 
         raise
     return {**out, "tag": tag, "business": business, "direction": business, "doc_id": "I:" + out["intake"],
             "run": (out.get("started") or {}).get("run") or "", "cases": []}
+
+
+def _five_minutes_ago(lab, site) -> str:
+    return lab.python(site, 'print(json.dumps({"at": str(frappe.utils.add_to_date(frappe.utils.now_datetime(), minutes=-5))}))')["at"]
 
 
 steps = direct.steps
