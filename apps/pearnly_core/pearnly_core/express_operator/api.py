@@ -32,7 +32,7 @@ def _require(company):
         frappe.throw(_("Not Permitted"), frappe.PermissionError)
 
 
-@frappe.whitelist()
+@frappe.whitelist(methods=["POST"])
 def documents(company, period, offset=0, limit=50, task=""):
     """资料清单（服务端分页）。``task``：这次代录任务（准备中）——现查到的单记进任务的快照，第一页另补快照里已被直写写进账本的单
     （``entered`` 带单号、不能拖，`listed`）：列出过的单不凭空消失（主会话 11-24）。"""

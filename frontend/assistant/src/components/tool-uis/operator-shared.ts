@@ -244,7 +244,8 @@ type DocumentsReply = { documents?: DocRef[]; next_offset?: number | null; total
 export const operatorActions = {
   /** task：这次代录任务——服务端记下列出过的单，第一页另回已被直写写进账本的那几张（entered，主会话 11-24：不凭空消失）。 */
   documents: async (company: string, period: string, offset: number, task = "") => {
-    const reply = await site.get<DocumentsReply>(API + "documents", { company, period, offset, limit: PAGE, ...(task ? { task } : {}) });
+    // POST：带任务号时服务端要把列出的单记进任务（写库的接口一律 POST，scripts/check-get-writes.py）
+    const reply = await site.post<DocumentsReply>(API + "documents", { company, period, offset, limit: PAGE, ...(task ? { task } : {}) });
     const documents = (reply?.documents ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id) }));
     const entered = (reply?.entered ?? []).map((d) => ({ ...d, doc_id: String(d.doc_id), moves: [] }));
     return { documents, entered, next: typeof reply?.next_offset === "number" ? reply.next_offset : null, total: reply?.total };

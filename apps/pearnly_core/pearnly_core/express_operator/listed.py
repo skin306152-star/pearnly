@@ -36,7 +36,7 @@ def _rows(rows) -> dict:
 
 def remember(task: str, company: str, rows) -> dict:
     """把这次现查到的单记进任务的快照（本人、同一家公司、还在准备中的任务才记；别的情况什么都不记，回空）。回记完后的快照。
-    读路径（GET）也会调：自己提交，否则请求结束被回滚（Frappe GET 不提交）。"""
+    调用方都在会提交的路径上（资料清单接口只收 POST、CC 工具、写入计划、交单），这里不自己提交。"""
     if not task:
         return {}
     doc = tasks._own(task, for_update=True)
@@ -50,7 +50,6 @@ def remember(task: str, company: str, rows) -> dict:
         snapshot[doc_id] = group or snapshot.get(doc_id, "")
     if snapshot != before:
         frappe.db.set_value(tasks.DOCTYPE, doc.name, FIELD, json.dumps(snapshot, ensure_ascii=False), update_modified=False)
-        frappe.db.commit()
     return snapshot
 
 

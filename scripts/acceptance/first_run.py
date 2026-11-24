@@ -43,7 +43,8 @@ ERP = ["company.connect.fresh", "company.connect", "company.connect.twice", "den
        "stock.void.express", "stock.count.express", "pos.day.express", "pos.day.vat.remembered", "purchase.cancel.express", "sales.cancel.express"]
 GROUPS = {
     "erp": [f"acc.erp.{name}" for name in ERP],
-    "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express", "acc.cowork.operator.purchase.express"],
+    "operator": ["acc.erp.operator.purchase.express", "acc.erp.operator.sales.express", "acc.cowork.operator.purchase.express",
+                 "acc.erp.operator.listed.direct"],
     "chat": ["acc.erp.cc.collection", "acc.erp.cc.collection.nbsp", "acc.erp.cc.push.purchase", "acc.erp.cc.push.sales",
              "acc.erp.operator.talk.purchase", "acc.erp.operator.talk.sales", "acc.erp.mrerp.cc.push"],
     "mrerp": [f"acc.erp.mrerp.{name}" for name in ("purchase.goods", "purchase.expense", "sales.credit", "sales.cash", "twice",

@@ -276,14 +276,20 @@ const g = globalThis as any;
   const posts: Array<[string, any]> = [];
   const gets: Array<[string, any]> = [];
   setOperatorSite({
-    post: async (method: string, args: any) => (posts.push([method, args]), { ok: true }) as any,
+    post: async (method: string, args: any) => (posts.push([method, args]), method.endsWith(".documents")
+      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, entered: [{ doc_id: 2, entered: "RR1", group: "purchase" }] }
+      : { ok: true }) as any,
     get: async (method: string, args: any) => (gets.push([method, args]), { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null }) as any,
   });
   const API = "pearnly_core.express_operator.api.";
   // 开始前：资料服务端分页；预检的要选项按类、同一对象只问一次；不入账、结果不明还没标的不交
-  const page = await operatorActions.documents("CO-1", "2026-10", 0);
-  assert.deepEqual(gets.at(-1), [API + "documents", { company: "CO-1", period: "2026-10", offset: 0, limit: 50 }]);
+  const page = await operatorActions.documents("CO-1", "2026-10", 0, "TASK-1");
+  // 带任务号、走 POST（服务端把列出的单记进任务）；第一页另带列出后已被直写写进账本的（entered，不能拖）
+  assert.deepEqual(posts.at(-1), [API + "documents", { company: "CO-1", period: "2026-10", offset: 0, limit: 50, task: "TASK-1" }]);
   assert.equal(page.documents[0]!.doc_id, "1");
+  assert.deepEqual(page.entered, [{ doc_id: "2", entered: "RR1", group: "purchase", moves: [] }]);
+  await operatorActions.documents("CO-1", "2026-10", 50);
+  assert.deepEqual(posts.at(-1), [API + "documents", { company: "CO-1", period: "2026-10", offset: 50, limit: 50 }]);
   const prechecks = [
     { doc_id: "A", state: "choose", needed: [{ kind: "party", subject: "S1", label: "Supplier 1", options: [{ code: "__new__", name: "" }] }] },
     { doc_id: "B", state: "choose", needed: [{ kind: "party", subject: "S1", label: "Supplier 1", options: [{ code: "__new__", name: "" }] }] },
@@ -318,7 +324,9 @@ const g = globalThis as any;
   g.setTargets({ documents: [{ doc_id: 1, state: "ready" }], target: { account_set: "S1" } });          // 旧服务端只给 target
   assert.deepEqual((await operatorActions.precheck("CO-1", ["1"])).targets.map((t: any) => t.account_set), ["S1"]);
   setOperatorSite({
-    post: async (method: string, args: any) => (posts.push([method, args]), { ok: true }) as any,
+    post: async (method: string, args: any) => (posts.push([method, args]), method.endsWith(".documents")
+      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, entered: [{ doc_id: 2, entered: "RR1", group: "purchase" }] }
+      : { ok: true }) as any,
     get: async (method: string, args: any) => (gets.push([method, args]), { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null }) as any,
   });
   // 卡片按钮照旧调代录接口，不调对话的 confirm / run_tool；开始时带上交出的每张单的分组（U1 tasks.attach 记进单据行）
