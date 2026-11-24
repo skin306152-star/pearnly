@@ -38,12 +38,12 @@ pool.put_facts(frappe.get_doc("Cowork ERP Connection", conn["name"]), "flowt8",
 frappe.db.commit()
 
 
-def guided_doc(business, number):
+def guided_doc(business, number, day="2026-06-09"):
     mine = {"tax": %(my)r, "name": "Flow Ledger Co"}
     other = {"tax": %(other)r, "name": "Flow party " + number}
     seller, buyer = (other, mine) if business == "purchase" else (mine, other)
     fields = {"direction": business, "seller_name": seller["name"], "seller_tax": seller["tax"], "buyer_tax": buyer["tax"],
-              "buyer_name": buyer["name"], "subtotal": "100", "vat": "7", "total_amount": "107", "date": "2026-06-09",
+              "buyer_name": buyer["name"], "subtotal": "100", "vat": "7", "total_amount": "107", "date": day,
               "document_type": "tax_invoice", "invoice_number": number}
     pages = [{"page_index": 1, "fields": fields}]
     made = storage.create_recognized(ws, pages, uuid4().hex, source="manual", confidence="high", ai_raw=pages)

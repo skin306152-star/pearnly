@@ -29,7 +29,9 @@ def prepare(lab, manifest, business):
     out = lab.python(site, docs._seed_code() + f"""
 from pearnly_core.assistant import sessions
 from pearnly_core.assistant.guide import run
-name = guided_doc({business!r}, {number!r})
+# 代录交单按这家公司本月（按发票日期）的完整待录清单定（`express_operator.api.waiting`），票要是本月的：直写那两条的 6 月票在本月
+# 代录对话里确定时交不进任务（「请求无效」，11-24 GitHub Flows 四格同样不过）
+name = guided_doc({business!r}, {number!r}, {ledger.CHAT_MONTH + "-01"!r})
 made = sessions.create(project=company["id"], period={ledger.CHAT_MONTH!r}, mode="operator", ledger=ids.get({ledger.T8!r}, ""))
 sid = made["id"]
 frappe.db.set_value("Pearnly Assistant Session", {{"session_id": sid}}, "title", {tag!r})
