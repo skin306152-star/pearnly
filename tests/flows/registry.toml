@@ -2618,6 +2618,40 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.cc.guide.operator-purchase"
+title = "Cowork 版 CC 代录采购引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡交进代录；运行 done、同意来自页面、一份写入计划、票进代录任务一次（实验栈没有识别，单据由 run.start(doc_ids) 交进来）"
+module = "scripts/flows/cowork_cc_guide_operator_purchase.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guides.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
+
+[[flow]]
+id = "cowork.cc.guide.operator-sales"
+title = "Cowork 版 CC 代录销售引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡交进代录；运行 done、同意来自页面、一份写入计划、票进代录任务一次（实验栈没有识别，单据由 run.start(doc_ids) 交进来）"
+module = "scripts/flows/cowork_cc_guide_operator_sales.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guides.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
+  "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+]
+
+[[flow]]
 id = "erp.cc.guide.operator-purchase"
 title = "ERP 版 CC 代录采购引导真页面：题卡逐题点 → 复核卡 → 确定 → 结果卡交进代录；运行 done、同意来自页面、一份写入计划、票进代录任务一次（实验栈没有识别，收单记录由 run.start(doc_ids) 交进来）"
 module = "scripts/flows/erp_cc_guide_operator_purchase.py"

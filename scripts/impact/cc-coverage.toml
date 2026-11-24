@@ -38,7 +38,7 @@ id = "purchase"
 name = "采购：赊购、现购；货品 / 费用 / 服务；无税卖家；带折扣"
 guide = "purchase"
 cowork_direct = ["done", "half:p2", "wait:cloud"]
-cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
+cowork_operator = ["done", "half:p2", "wait:cloud"]
 erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
@@ -54,7 +54,8 @@ basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在�
 
 [[row.link]]
 cell = "cowork_operator.express_local"
-basis = "Cowork 声明 purchase 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程"
+basis = "Cowork 声明 purchase 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-24 页面流程，电脑 / 手机两格；单据由 run.start(doc_ids) 交进来，实验栈没有识别）"
+page_flows = ["cowork.cc.guide.operator-purchase"]
 
 [[row.link]]
 cell = "erp_operator.express_local"
@@ -84,7 +85,7 @@ id = "sales"
 name = "销售：赊销、现销；同上各类票"
 guide = "sales"
 cowork_direct = ["done", "half:p2", "wait:cloud"]
-cowork_operator = ["half:p2", "half:p2", "wait:cloud"]
+cowork_operator = ["done", "half:p2", "wait:cloud"]
 erp_direct = ["done", "half:p2", "wait:cloud"]
 erp_operator = ["done", "half:p2", "wait:cloud"]
 
@@ -99,7 +100,8 @@ basis = "同本地 Express 那格的声明；Cowork 的 MR.ERP 发票推送在�
 
 [[row.link]]
 cell = "cowork_operator.express_local"
-basis = "Cowork 声明 sales 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；没有 Cowork 代录引导的页面流程"
+basis = "Cowork 声明 sales 含 operator；代录开始前卡是按单据引导（ccb6bb0b6）；代录对话里真页面从题卡点到复核、确定、结果卡交进代录，运行 done、一份写入计划、票进代录任务一次（11-24 页面流程，电脑 / 手机两格；单据由 run.start(doc_ids) 交进来，实验栈没有识别）"
+page_flows = ["cowork.cc.guide.operator-sales"]
 
 [[row.link]]
 cell = "erp_operator.express_local"
