@@ -13,7 +13,7 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 「连接 MR.ERP」弹窗里输的用户名、密码，经机器通道交给站点、站点收下了再存本机凭据管理器（mrerp_login.py）；只回成没成，
 不回显、不写日志。旧对话页只带票：照旧弹原生小窗收。
 
-原生小窗（Express 授权登录、MR.ERP 代录登录、上面的旧页面兜底）一律经 ``ask_login`` 弹：托盘里请 CC 窗口进程弹（以 CC 窗口
+原生小窗（Express 授权登录、MR.ERP 代录登录、上面的旧页面兜底、云端 Express 账号、云端代录的 Express 登录）一律经 ``ask_login`` 弹：托盘里请 CC 窗口进程弹（以 CC 窗口
 为父、模态、置前，``WindowHost.login``，11-23 用户：小窗落在 CC 后面看不到），同选文件夹的 ``pick``。
 
 多台电脑（ADR-021，1.7.0）：``state()`` 另带 ``device: {key, name}``（这台电脑的设备密钥与电脑名；取不到是空对象），对话页每次
@@ -28,15 +28,15 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 
 「设置 → 连接」的「云端 Express」一行（步 E，用户 11-16；逻辑在 ``cloud_link/settings_link.py``，只在调到时导入）：
 ``cloud_prefill``（连接弹窗预填主机、端口、用户名，不含任何密码）、``cloud_connect {host, port, user}``（同 MR.ERP 授权
-（ADR-026 第 7 条）：密码不经页面，桥弹 CC 原生小窗（``login_dialog.ask``，账号预填页面上那个）收账号和密码，只存本机凭据管理器；
+（ADR-026 第 7 条）：密码不经页面，桥经 ``ask_login`` 弹 CC 原生小窗（标题 ``cloud_login_title``，账号预填页面上那个；托盘里由窗口进程弹、置前）收账号和密码，只存本机凭据管理器；
 存连接配置、生成云端设备密钥；存好后在界面线程起这条连接的宿主 ``cloud_link/host.py``——隧道盘、会话交接、中转、可见的连接
 窗口（默认最小化），回包的状态换成会话实况；一个桥一个宿主，再点「连接」先停旧的再起）、``cloud_disconnect``（先停宿主——关窗即
 断开、停中转、撤隧道盘——再 ``LinkStore.remove``）、``cloud_status``（连接与状态词，状态来自宿主的会话）。人把连接窗口关掉
 = 断开，宿主随之停。**CC 启动时就算存有云端连接也不自动连**，等人在设置里点「连接」。
 旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
 
-云端代录的 Express 登录（做法页 11-16 第二版，``cloud_link/cred_handoff.py``）：``cloud_operator_authorize {connection}`` 弹 CC
-原生小窗（``login_dialog.ask``，同本地代录的「授权登录」），用户本人输 Express 用户名和密码，只存桥本机凭据管理器
+云端代录的 Express 登录（做法页 11-16 第二版，``cloud_link/cred_handoff.py``）：``cloud_operator_authorize {connection}`` 经 ``ask_login`` 弹 CC
+原生小窗（同本地代录的「授权登录」，托盘里由窗口进程弹、置前），用户本人输 Express 用户名和密码，只存桥本机凭据管理器
 ``Pearnly CC/cloud-express/<云端主机>/<连接>``（页面不收密码，回包不含密码）；云端那份 CC 要用时经隧道 ``ctl\\`` 加密交过去
 （宿主 ``cloud_link/host.py`` 处理）。``cloud_operator_forget {connection}`` 删本机这条，并经 ``ctl`` 请云端删掉它那条（宿主没起
 时先记着，下次起宿主补发）。前端按钮另做；旧版桥回 ``{ok: false}``。
@@ -114,7 +114,6 @@ class TomoBridge(QObject):
                  session_rdp: Optional[Callable[[], object]] = None,
                  cloud_session: Optional[Callable[[], object]] = None,
                  cloud_host: Optional[Callable[[str, Callable], object]] = None,
-                 ask_express_login: Optional[Callable[[str], object]] = None,
                  cloud_cred_store: Optional[Callable[[str, str, str], None]] = None,
                  cloud_cred_forget: Optional[Callable[[str], object]] = None,
                  cloud_prepare: Optional[Callable[[object, str], object]] = None,
@@ -144,8 +143,7 @@ class TomoBridge(QObject):
         self._cloud_host = None
         # 连接窗口的会话：默认取宿主的（宿主没起是 None = 未连接）；测试注入
         self._cloud_session = cloud_session or self._host_session
-        # 云端代录的 Express 登录：原生小窗（语言）→ (用户名, 密码) 或 None；桥本机凭据的存 / 删（目标名, …）；测试注入
-        self._ask_express_login = ask_express_login or _ask_express_login
+        # 云端代录的 Express 登录存 / 删桥本机凭据（目标名, …）；测试注入。小窗同本地代录「授权登录」，经 ask_login 弹
         self._cloud_cred_store = cloud_cred_store or _cloud_cred_store
         self._cloud_cred_forget = cloud_cred_forget or _cloud_cred_forget
         # 宿主没起时点了「取消授权」的连接号：下次起宿主时请云端删
@@ -433,7 +431,7 @@ class TomoBridge(QObject):
             return {"ok": False, "code": "not_found"}
         target = cred_handoff.bridge_target(link.host, connection)
         if method == "cloud_operator_authorize":
-            found = self._ask_express_login(normalize(lang))
+            found = self._ask_login(normalize(lang), "op_login_title", "")
             if not found:
                 return {"ok": False, "cancelled": True}
             user, password = found
@@ -704,13 +702,6 @@ def _cloud_host_new(host: str, on_change):
     from .cloud_link.link_store import LinkStore
 
     return CloudHost(host, links=LinkStore.load, on_change=on_change)
-
-
-def _ask_express_login(lang: str):
-    """云端代录的 Express 用户名和密码：CC 原生小窗（同本地代录「授权登录」，``login_dialog.ask``），页面拿不到密码。"""
-    from .express_operator import login_dialog
-
-    return login_dialog.ask(lang)
 
 
 def _cloud_cred_store(target: str, user: str, password: str) -> None:

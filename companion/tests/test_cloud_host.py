@@ -521,7 +521,7 @@ def _bridge(tmp_path, holder, log, fail=None):
     return TomoBridge(settings, allowed=lambda: True, window=lambda: None, set_lang=lambda lang: None,
                       cloud_links=lambda: holder.get("store"),
                       cloud_new=lambda: holder.setdefault("store", _load(tmp_path)),
-                      session_rdp=lambda: None, ask_login=lambda lang, user: ("CLOUDUSER-01", PASSWORD),
+                      session_rdp=lambda: None, ask_login=lambda lang, title_key, user: ("CLOUDUSER-01", PASSWORD),
                       cloud_host=lambda host, on_change: _FakeHost(host, on_change, log, fail))
 
 

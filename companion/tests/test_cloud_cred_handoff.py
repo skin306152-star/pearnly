@@ -423,7 +423,7 @@ def _bridge(tmp_path, holder):
     vault = holder.setdefault("vault", {})
     return TomoBridge(_Settings(), allowed=lambda: True, window=lambda: None, set_lang=lambda lang: None,
                       cloud_links=lambda: _load(tmp_path) if (tmp_path / "cloud_link.json").exists() else None,
-                      ask_express_login=lambda lang: holder.setdefault("asked", []).append(lang) or holder.get("login"),
+                      ask_login=lambda lang, title_key, user: holder.setdefault("asked", []).append((lang, title_key, user)) or holder.get("login"),
                       cloud_cred_store=lambda target, user, password: vault.__setitem__(target, (user, password)),
                       cloud_cred_forget=lambda target: vault.pop(target, None) is not None)
 
@@ -442,7 +442,7 @@ def test_bridge_authorize_stores_only_locally_and_never_returns_the_password(tmp
     assert json.loads(reply) == {"ok": True}
     assert PASSWORD not in reply and USER not in reply
     assert holder["vault"] == {f"Pearnly CC/cloud-express/{HOST}/c-1": (USER, PASSWORD)}
-    assert holder["asked"][-1] == "th"
+    assert holder["asked"][-1] == ("th", "op_login_title", "")
     assert PASSWORD not in caplog.text and USER not in caplog.text
     assert json.loads(bridge.call("cloud_operator_authorize", json.dumps({"connection": "a/b"}))) == \
         {"ok": False, "code": "invalid"}

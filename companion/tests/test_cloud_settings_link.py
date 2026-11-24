@@ -212,7 +212,7 @@ def _bridge(tmp_path, holder):
                       cloud_links=lambda: holder.get("store"),
                       cloud_new=lambda: holder.setdefault("store", _store(tmp_path)),
                       session_rdp=lambda: holder.get("rdp"), cloud_session=lambda: holder.get("session"),
-                      ask_login=lambda lang, user: holder.setdefault("asked", []).append((lang, user)) or holder.get("login"))
+                      ask_login=lambda lang, title_key, user: holder.setdefault("asked", []).append((lang, title_key, user)) or holder.get("login"))
 
 
 def _wait(bridge, reply):
@@ -258,7 +258,7 @@ def test_bridge_connect_status_disconnect_round_trip(tmp_path, vault):
     assert PASSWORD not in reply
     result = _wait(bridge, reply)
     assert result == {"ok": True, "state": "idle", "host": HOST}
-    assert holder["asked"] == [("th", "CLOUDUSER-01")]
+    assert holder["asked"] == [("th", "cloud_login_title", "CLOUDUSER-01")]
     assert generic == {"Pearnly CC/cloud/" + HOST: ("example\\CLOUDUSER-01", PASSWORD)}
     assert "typed-in-page" not in json.dumps(generic) + json.dumps(domain)
     assert _store(tmp_path).get(HOST).via == "OFFICE-PC"
@@ -277,7 +277,7 @@ def test_bridge_checks_the_address_before_asking_and_cancel_changes_nothing(tmp_
     bad = json.loads(bridge.call("cloud_connect", json.dumps({"host": "bad host!", "user": "u"})))
     assert bad == {"ok": False, "code": "invalid", "field": "host"} and "asked" not in holder
     cancelled = json.loads(bridge.call("cloud_connect", json.dumps({"host": HOST, "port": 3390, "user": "u", "lang": "zh"})))
-    assert cancelled == {"ok": False, "cancelled": True} and holder["asked"] == [("zh", "u")]
+    assert cancelled == {"ok": False, "cancelled": True} and holder["asked"] == [("zh", "cloud_login_title", "u")]
     assert generic == {} and domain == {} and not (tmp_path / "cloud_link.json").exists()
 
 
@@ -298,12 +298,20 @@ def test_bridge_connect_failure_is_reported_not_retried(tmp_path, vault, monkeyp
     assert generic == {} and domain == {} and not (tmp_path / "cloud_link.json").exists()
 
 
-def test_the_native_window_is_the_shared_login_dialog_with_its_own_title():
+def test_the_cloud_account_window_goes_through_the_bridge_ask_login_with_its_own_title():
+    """云端账号、云端代录的 Express 登录都经桥的 ``ask_login`` 弹（托盘里由窗口进程弹、置前，同 MR.ERP），桥里没有云端自己的弹法。"""
     pytest.importorskip("PySide6")
+    import ast
     import inspect
 
     from companion import i18n, tomo_bridge
 
-    source = inspect.getsource(tomo_bridge._ask_cloud_login)
-    assert 'login_dialog.ask(lang, title_key="cloud_login_title", user=user)' in source
+    tree = ast.parse(inspect.getsource(tomo_bridge))
+    titles = sorted(ast.literal_eval(call.args[1]) for call in ast.walk(tree)
+                    if isinstance(call, ast.Call) and ast.unparse(call.func) == "self._ask_login"
+                    and isinstance(call.args[1], ast.Constant))
+    assert titles == ["cloud_login_title", "mrerp_login_title", "op_login_title"]
+    assert not hasattr(tomo_bridge, "_ask_cloud_login") and not hasattr(tomo_bridge, "_ask_express_login")
+    params = inspect.signature(tomo_bridge.TomoBridge.__init__).parameters
+    assert "ask_express_login" not in params and list(params).count("ask_login") == 1
     assert len(i18n._M["cloud_login_title"]) == 4
