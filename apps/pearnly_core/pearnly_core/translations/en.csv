@@ -21,6 +21,7 @@ Account name,Account name
 Account number,Account number
 Account set,Account set
 Account set in use,Account set in use
+Account set not chosen,Account set not chosen
 Account set setting,Account set setting
 Account set unavailable,Account set unavailable
 Account signed in elsewhere,Account signed in elsewhere
@@ -111,6 +112,7 @@ Cache Write Tokens,Cache Write Tokens
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.","Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return."
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.","Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return."
 Cancel,Cancel
+Cannot be written,Cannot be written
 Cannot confirm while the status is {0},Cannot confirm while the status is {0}
 Cannot match while the status is {0},Cannot match while the status is {0}
 Cannot reach the OCR service: {0},Cannot reach the OCR service: {0}
@@ -511,6 +513,7 @@ No,No
 No DMS connection has been configured yet,No DMS connection has been configured yet
 No Data,No Data
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)","No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)"
+No account set,No account set
 No camera was found on this device. Enter the code instead.,No camera was found on this device. Enter the code instead.
 "No client ID for invitation links is configured, so the invitation email cannot be sent","No client ID for invitation links is configured, so the invitation email cannot be sent"
 No computer connected,No computer connected
@@ -533,9 +536,11 @@ Not Permitted,Not Permitted
 Not a file in this conversation,Not a file in this conversation
 Not allowed,Not allowed
 Not authorized,Not authorized
+Not available,Not available
 Not connected,Not connected
 Not done,Not done
 Not enough stock,Not enough stock
+Not found,Not found
 Not linked,Not linked
 Not permitted,Not permitted
 Not posted,Not posted
@@ -607,6 +612,7 @@ Pending review,Pending review
 Period End,Period End
 Period Start,Period Start
 Period closed,Period closed
+Period mismatch,Period mismatch
 Personal data: not shown in lists and never written to logs,Personal data: not shown in lists and never written to logs
 Pinned Computer,Pinned Computer
 Plan,Plan
@@ -621,6 +627,7 @@ Posted,Posted
 Posting,Posting
 Preparing the file,Preparing the file
 Private Key,Private Key
+Processing error,Processing error
 Processing…,Processing…
 Product,Product
 Product Ref,Product Ref
@@ -1186,10 +1193,19 @@ guide.q.payment,Payment
 guide.q.service_vat,Service VAT basis
 guide.q.unit,Unit
 guide.q.vat,Input VAT
+guide.reason.account_period_mismatch,Period mismatch
 guide.reason.already_entered,Posted
 guide.reason.blocking,"Number, date or amount is invalid"
+guide.reason.failed,Processing error
 guide.reason.held,Needs a choice
 guide.reason.last_write_result_unknown,Result unknown
+guide.reason.ledger_needed,Account set not chosen
+guide.reason.moved_to_not_entered,Skip
+guide.reason.no_account_set,No account set
+guide.reason.not_available,Not available
+guide.reason.not_found,Not found
+guide.reason.not_permitted,Not permitted
+guide.reason.not_writable,Cannot be written
 guide.reason.undecided_items,Needs a choice
 guide.reason.unsupported,Not supported
 guide.reason.waiting_for_computer,Waiting

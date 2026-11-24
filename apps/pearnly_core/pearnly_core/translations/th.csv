@@ -21,6 +21,7 @@ Account name,ชื่อบัญชี
 Account number,เลขที่บัญชี
 Account set,ชุดบัญชี
 Account set in use,ชุดบัญชีกำลังถูกใช้งาน
+Account set not chosen,ยังไม่เลือกชุดบัญชี
 Account set setting,การตั้งค่าชุดบัญชี
 Account set unavailable,เปิดชุดบัญชีไม่ได้
 Account signed in elsewhere,บัญชีเข้าสู่ระบบที่อื่นอยู่
@@ -111,6 +112,7 @@ Cache Write Tokens,โทเค็นเขียนแคช
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",การเข้าถึงกล้องถูกปิดอยู่ กรุณาไปที่ การตั้งค่า → Safari → กล้อง แล้วเลือก อนุญาต หรือแตะการตั้งค่าเว็บไซต์ในแถบที่อยู่ → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",กล้องถูกปิด แตะไอคอนซ้ายแถบที่อยู่ → การอนุญาต → กล้อง → อนุญาต หากเปิดไม่ได้ ไปที่ การตั้งค่า → แอปพลิเคชัน → เบราว์เซอร์ → การอนุญาต → กล้อง กลับมาที่หน้านี้เพื่อลองใหม่
 Cancel,ยกเลิก
+Cannot be written,เขียนไม่ได้
 Cannot confirm while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถยืนยันได้
 Cannot match while the status is {0},สถานะปัจจุบันคือ {0} ไม่สามารถจับคู่ได้
 Cannot reach the OCR service: {0},ไม่สามารถเชื่อมต่อบริการ OCR ได้: {0}
@@ -512,6 +514,7 @@ No,ไม่
 No DMS connection has been configured yet,ยังไม่ได้ตั้งค่าการเชื่อมต่อ DMS
 No Data,ไม่มีข้อมูล
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",ยังไม่ได้ตั้งค่าบัญชี การเชื่อมต่อนี้จึงใช้งานไม่ได้ กรุณาตั้งค่าข้อมูลรับรองแล้วทดสอบการเชื่อมต่อ
+No account set,ไม่มีชุดบัญชี
 No camera was found on this device. Enter the code instead.,ไม่พบกล้องในอุปกรณ์นี้ กรุณาป้อนรหัสด้วยตนเอง
 "No client ID for invitation links is configured, so the invitation email cannot be sent",ยังไม่ได้ตั้งค่า Client ID สำหรับลิงก์เชิญ จึงไม่สามารถส่งอีเมลเชิญได้
 No computer connected,ยังไม่ได้เชื่อมต่อคอมพิวเตอร์
@@ -534,9 +537,11 @@ Not Permitted,ไม่ได้รับอนุญาต
 Not a file in this conversation,ไม่ใช่ไฟล์ในบทสนทนานี้
 Not allowed,ไม่อนุญาต
 Not authorized,ยังไม่ได้อนุญาต
+Not available,ใช้ไม่ได้
 Not connected,ยังไม่เชื่อมต่อ
 Not done,ยังไม่เสร็จ
 Not enough stock,สต็อกไม่พอ
+Not found,ไม่พบ
 Not linked,ยังไม่ผูก
 Not permitted,ไม่ได้รับอนุญาต
 Not posted,ยังไม่บันทึกบัญชี
@@ -609,6 +614,7 @@ Pending review,รอตรวจสอบ
 Period End,สิ้นงวด
 Period Start,ต้นงวด
 Period closed,งวดปิดบัญชีแล้ว
+Period mismatch,งวดไม่ตรง
 Personal data: not shown in lists and never written to logs,ข้อมูลส่วนบุคคล: ไม่แสดงในรายการ และไม่เขียนลงล็อก
 Pinned Computer,เครื่องที่กำหนด
 Plan,แพ็กเกจ
@@ -623,6 +629,7 @@ Posted,บันทึกบัญชีแล้ว
 Posting,วิธีบันทึกบัญชี
 Preparing the file,กำลังเตรียมไฟล์
 Private Key,คีย์ส่วนตัว
+Processing error,เกิดข้อผิดพลาด
 Processing…,กำลังดำเนินการ…
 Product,ผลิตภัณฑ์
 Product Ref,รหัสอ้างอิงสินค้าภายนอก
@@ -1188,10 +1195,19 @@ guide.q.payment,การชำระเงิน
 guide.q.service_vat,เกณฑ์ภาษีบริการ
 guide.q.unit,หน่วย
 guide.q.vat,ภาษีซื้อ
+guide.reason.account_period_mismatch,งวดไม่ตรง
 guide.reason.already_entered,บันทึกบัญชีแล้ว
 guide.reason.blocking,เลขที่ วันที่ หรือจำนวนเงินไม่ถูกต้อง
+guide.reason.failed,เกิดข้อผิดพลาด
 guide.reason.held,ต้องเลือก
 guide.reason.last_write_result_unknown,ไม่ทราบผล
+guide.reason.ledger_needed,ยังไม่เลือกชุดบัญชี
+guide.reason.moved_to_not_entered,ไม่บันทึกบัญชี
+guide.reason.no_account_set,ไม่มีชุดบัญชี
+guide.reason.not_available,ใช้ไม่ได้
+guide.reason.not_found,ไม่พบ
+guide.reason.not_permitted,ไม่ได้รับอนุญาต
+guide.reason.not_writable,เขียนไม่ได้
 guide.reason.undecided_items,ต้องเลือก
 guide.reason.unsupported,ไม่รองรับ
 guide.reason.waiting_for_computer,รอคิว

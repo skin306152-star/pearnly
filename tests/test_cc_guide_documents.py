@@ -472,6 +472,26 @@ class LedgerAnswerKept(unittest.TestCase):
         self.assertEqual(trail, ["choose", "commit", "record"])
 
 
+class ResultReasons(unittest.TestCase):
+    """11-24（P3）：结果行缺文字的原因码按共用原因表补上（写入计划跳过的 not_found / account_period_mismatch 等原来没有字，卡上只有
+    「已跳过」）；整次没办成的原因也带上。表里没有的码不造字。"""
+
+    def test_rows_and_the_whole_run_get_the_reason_from_the_shared_table(self):
+        words = {"guide.reason.not_found": "未找到", "guide.reason.account_period_mismatch": "期间不符"}
+        saved = frappe._
+        frappe._ = lambda text: words.get(text, text)
+        try:
+            stored = {"status": "failed", "reason": "not_found", "docs": ["D1", "D2", "D3"], "write": [],
+                      "held": [{"doc_id": "D1", "reason": "account_period_mismatch"}, {"doc_id": "D2", "reason": "odd_code"},
+                               {"doc_id": "D3", "reason": "not_found"}]}
+            out = documents.result.__wrapped__({}, None, {}, stored)
+        finally:
+            frappe._ = saved
+        self.assertEqual([(row["doc_id"], row.get("reason_text")) for row in out["rows"]],
+                         [("D1", "期间不符"), ("D2", None), ("D3", "未找到")])
+        self.assertEqual(out["reason_text"], "未找到")
+
+
 class Declaration(unittest.TestCase):
     def test_a_documents_guide_names_all_six_product_functions_or_none(self):
         self.assertEqual(declaration.problems(PURCHASE), [])

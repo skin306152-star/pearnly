@@ -21,6 +21,7 @@ Account name,收款户名
 Account number,收款账号
 Account set,账套
 Account set in use,账套正在使用
+Account set not chosen,未选账套
 Account set setting,账套设置
 Account set unavailable,账套无法打开
 Account signed in elsewhere,账号已在别处登录
@@ -111,6 +112,7 @@ Cache Write Tokens,缓存写入 Token
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",相机权限已关闭。请前往 iPhone「设置 → Safari 浏览器 → 相机」选择「允许」，或点击地址栏中的网站设置 → 相机。返回本页后将自动重试。
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",相机权限已关闭。请点击地址栏左侧的图标 → 权限 → 相机 → 允许，仍无法打开时，请前往手机「设置 → 应用程序 → 浏览器 → 权限 → 相机」选择「允许」。返回本页后将自动重试。
 Cancel,取消
+Cannot be written,无法写入
 Cannot confirm while the status is {0},当前状态为 {0}，无法确认
 Cannot match while the status is {0},当前状态为 {0}，无法匹配
 Cannot reach the OCR service: {0},无法连接 OCR 服务：{0}
@@ -512,6 +514,7 @@ No,否
 No DMS connection has been configured yet,尚未配置 DMS 连接
 No Data,暂无数据
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",未配置账号，此连接不可用。请配置凭据后测试连接。
+No account set,没有账套
 No camera was found on this device. Enter the code instead.,此设备上没有找到相机。请手动输入编码。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",未配置「邀请链接客户端 ID」，无法发送邀请邮件
 No computer connected,未连接电脑
@@ -534,9 +537,11 @@ Not Permitted,没有权限
 Not a file in this conversation,不是本对话的文件
 Not allowed,不允许
 Not authorized,未授权
+Not available,不可用
 Not connected,未连接
 Not done,未完成
 Not enough stock,库存不够
+Not found,未找到
 Not linked,未绑定
 Not permitted,没有权限
 Not posted,没有入账
@@ -609,6 +614,7 @@ Pending review,待审核
 Period End,期末
 Period Start,期初
 Period closed,期间已关账
+Period mismatch,期间不符
 Personal data: not shown in lists and never written to logs,个人敏感信息：不在列表显示，不写日志
 Pinned Computer,指定的电脑
 Plan,套餐
@@ -623,6 +629,7 @@ Posted,已入账
 Posting,入账方式
 Preparing the file,正在准备文件
 Private Key,私钥
+Processing error,处理出错
 Processing…,处理中…
 Product,产品
 Product Ref,物料外部标识
@@ -1188,10 +1195,19 @@ guide.q.payment,付款方式
 guide.q.service_vat,服务税口径
 guide.q.unit,单位
 guide.q.vat,进项税
+guide.reason.account_period_mismatch,期间不符
 guide.reason.already_entered,已入账
 guide.reason.blocking,单号、日期或金额有误
+guide.reason.failed,处理出错
 guide.reason.held,待选择
 guide.reason.last_write_result_unknown,结果不明
+guide.reason.ledger_needed,未选账套
+guide.reason.moved_to_not_entered,不入账
+guide.reason.no_account_set,没有账套
+guide.reason.not_available,不可用
+guide.reason.not_found,未找到
+guide.reason.not_permitted,没有权限
+guide.reason.not_writable,无法写入
 guide.reason.undecided_items,待选择
 guide.reason.unsupported,不支持
 guide.reason.waiting_for_computer,等待

@@ -319,6 +319,26 @@ class ConfirmTests(Base):
         self.assertEqual((failed["status"], failed["result"]), ("failed", {"status": "failed", "reason": "collection.over_collected"}))
         self.assertEqual(run.confirm(name, found["version"])["status"], "failed")
 
+    def test_a_failure_says_why_with_the_formal_message_the_table_or_one_general_sentence(self):
+        """11-24（P3）：确定时出错原来只回码，卡上只有「未完成」。产品 frappe.throw 的正式文案原样带上（去标签）；带码的按原因表；
+        都没有的（程序出错）回通用一句；错误编号不上卡片。"""
+        words = {"guide.reason.failed": "处理出错", "guide.reason.not_permitted": "没有权限"}
+        frappe._ = lambda text: words.get(text, text)
+        frappe.ValidationError = type("ValidationError", (Exception,), {})
+        self.addCleanup(setattr, frappe, "_", lambda text: text)
+        self.addCleanup(delattr, frappe, "ValidationError")
+        cases = [(frappe.ValidationError("<b>Supplier</b> is required"), "ValidationError", "Supplier is required"),
+                 (type("Coded", (Exception,), {"code": "not_permitted"})(), "not_permitted", "没有权限"),
+                 (KeyError("qty"), "KeyError", "处理出错")]
+        for error, code, text in cases:
+            def refuse(ctx, values, draft, consent, error=error):
+                raise error
+            ATTRS["app.release"] = refuse
+            name, found = self.to_review()
+            failed = run.confirm(name, found["version"])["result"]
+            self.assertEqual((failed["status"], failed["reason"], failed["reason_text"]), ("failed", code, text))
+            self.assertNotIn("Error Log", json.dumps(failed, ensure_ascii=False))
+
 
 class EndTests(Base):
     def test_a_changed_account_set_expires_the_run_and_nothing_more_is_taken(self):

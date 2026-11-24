@@ -365,6 +365,7 @@ const STATUS_WORD: Record<string, () => string> = {
 
 const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
   <div data-slot="cc-guide-result" data-result={result.status} className="cc-op-before-body">
+    {result.reason_text ? <p className="cc-askq-desc" data-slot="cc-guide-result-reason">{result.reason_text}</p> : null}
     {result.rows.map((row) => (
       <div key={row.doc_id} className="cc-op-line" data-doc={row.doc_id} data-status={row.status}>
         <span className="min-w-0 flex-1 wrap-break-word">

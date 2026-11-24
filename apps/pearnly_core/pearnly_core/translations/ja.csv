@@ -21,6 +21,7 @@ Account name,口座名義
 Account number,口座番号
 Account set,帳簿
 Account set in use,会計データは使用中です
+Account set not chosen,帳簿未選択
 Account set setting,帳簿の設定
 Account set unavailable,会計データを開けません
 Account signed in elsewhere,アカウントは別の場所でログイン中です
@@ -111,6 +112,7 @@ Cache Write Tokens,キャッシュ書き込みトークン
 "Camera access is turned off. Go to iPhone Settings → Safari → Camera and choose Allow, or tap the website settings in the address bar → Camera. The page retries automatically when you return.",カメラへのアクセスがオフになっています。iPhone の「設定 → Safari → カメラ」で「許可」を選ぶか、アドレスバーの Web サイト設定 → カメラ から許可してください。戻ると自動で再試行します。
 "Camera access is turned off. Tap the icon at the left of the address bar → Permissions → Camera → Allow; if it still does not open, go to the phone Settings → Apps → your browser → Permissions → Camera → Allow. The page retries automatically when you return.",カメラへのアクセスがオフになっています。アドレスバー左のアイコン → 権限 → カメラ →「許可」、開かない場合は「設定 → アプリ → ブラウザ → 権限 → カメラ」で許可してください。戻ると自動で再試行します。
 Cancel,キャンセル
+Cannot be written,書き込めません
 Cannot confirm while the status is {0},ステータス {0} では確定できません
 Cannot match while the status is {0},ステータス {0} では照合できません
 Cannot reach the OCR service: {0},OCRサービスに接続できません: {0}
@@ -512,6 +514,7 @@ No,いいえ
 No DMS connection has been configured yet,DMS接続はまだ設定されていません
 No Data,データがありません
 "No account is filled in yet, so this connection cannot be used (configure the credentials, then test the connection)",まだアカウントが未入力のため、この接続は使えません（資格情報を設定してから接続テストへ）
+No account set,帳簿がありません
 No camera was found on this device. Enter the code instead.,このデバイスにカメラが見つかりません。コードを入力してください。
 "No client ID for invitation links is configured, so the invitation email cannot be sent",招待リンク用のクライアントIDが未設定のため、招待メールを送信できません
 No computer connected,パソコン未接続
@@ -534,9 +537,11 @@ Not Permitted,権限がありません
 Not a file in this conversation,この会話のファイルではありません
 Not allowed,不許可
 Not authorized,未承認
+Not available,利用できません
 Not connected,未接続
 Not done,未完了
 Not enough stock,在庫が足りません
+Not found,見つかりません
 Not linked,未連携
 Not permitted,権限がありません
 Not posted,記帳されていません
@@ -609,6 +614,7 @@ Pending review,審査待ち
 Period End,期末
 Period Start,期首
 Period closed,期間は締め済みです
+Period mismatch,期間が一致しません
 Personal data: not shown in lists and never written to logs,個人情報のため一覧に表示せず、ログにも書きません
 Pinned Computer,指定パソコン
 Plan,プラン
@@ -623,6 +629,7 @@ Posted,記帳済み
 Posting,計上方法
 Preparing the file,ファイルを準備しています
 Private Key,秘密鍵
+Processing error,処理エラー
 Processing…,処理中…
 Product,製品
 Product Ref,商品の外部参照
@@ -1188,10 +1195,19 @@ guide.q.payment,支払方法
 guide.q.service_vat,サービス消費税の基準
 guide.q.unit,単位
 guide.q.vat,仮払消費税
+guide.reason.account_period_mismatch,期間が一致しません
 guide.reason.already_entered,記帳済み
 guide.reason.blocking,番号・日付・金額に誤り
+guide.reason.failed,処理エラー
 guide.reason.held,選択待ち
 guide.reason.last_write_result_unknown,結果不明
+guide.reason.ledger_needed,帳簿未選択
+guide.reason.moved_to_not_entered,記帳しない
+guide.reason.no_account_set,帳簿がありません
+guide.reason.not_available,利用できません
+guide.reason.not_found,見つかりません
+guide.reason.not_permitted,権限がありません
+guide.reason.not_writable,書き込めません
 guide.reason.undecided_items,選択待ち
 guide.reason.unsupported,対応していません
 guide.reason.waiting_for_computer,待機中

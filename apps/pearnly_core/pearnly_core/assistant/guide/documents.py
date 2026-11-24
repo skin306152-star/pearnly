@@ -94,8 +94,10 @@ def _translate(built: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def reason_text(code: str) -> str:
-    """留下 / 不收的原因码 → 按本轮语言的一句（``guide.reason.<码>``）；没有现成说法回空（页面只显示状态，不按码造字）。"""
-    return _text(f"guide.reason.{code}", {}) if code else ""
+    """留下 / 不收的原因码 → 按本轮语言的一句（共用原因表 `guide.reasons.text`）；没有现成说法回空（页面只显示状态，不按码造字）。"""
+    from pearnly_core.assistant.guide import reasons
+
+    return reasons.text(code)
 
 
 # ── 卡前两题 ─────────────────────────────────────────────────────────────────
@@ -506,8 +508,11 @@ def result(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], stored: Mapp
             text = reason_text(str(row["reason"]))
             if text:
                 row["reason_text"] = text
-    return {"status": stored.get("status") or "", "rows": [rows[doc_id] for doc_id in docs if doc_id in rows],
-            "wait": bool(found.get("wait"))}
+    out = {"status": stored.get("status") or "", "rows": [rows[doc_id] for doc_id in docs if doc_id in rows],
+           "wait": bool(found.get("wait"))}
+    # 写入计划没建成（确定时 ``reason``）：整次的原因也带上，页面在逐张那几行上面显示
+    text = reason_text(str(stored.get("reason") or "")) if stored.get("reason") else ""
+    return {**out, "reason_text": text} if text else out
 
 
 @in_conversation

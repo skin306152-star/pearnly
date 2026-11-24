@@ -1078,6 +1078,15 @@ Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.h
 Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	guide.reason.already_entered
 Result unknown	结果不明	ไม่ทราบผล	結果不明	guide.reason.last_write_result_unknown
 Waiting	等待	รอคิว	待機中	guide.reason.waiting_for_computer
+Not permitted	没有权限	ไม่ได้รับอนุญาต	権限がありません	guide.reason.not_permitted
+Not found	未找到	ไม่พบ	見つかりません	guide.reason.not_found
+Not available	不可用	ใช้ไม่ได้	利用できません	guide.reason.not_available
+Cannot be written	无法写入	เขียนไม่ได้	書き込めません	guide.reason.not_writable
+No account set	没有账套	ไม่มีชุดบัญชี	帳簿がありません	guide.reason.no_account_set
+Period mismatch	期间不符	งวดไม่ตรง	期間が一致しません	guide.reason.account_period_mismatch
+Account set not chosen	未选账套	ยังไม่เลือกชุดบัญชี	帳簿未選択	guide.reason.ledger_needed
+Skip	不入账	ไม่บันทึกบัญชี	記帳しない	guide.reason.moved_to_not_entered
+Processing error	处理出错	เกิดข้อผิดพลาด	処理エラー	guide.reason.failed
 Needs a choice	待选择	ต้องเลือก	選択待ち	guide.reason.undecided_items
 Not supported	不支持	ไม่รองรับ	対応していません	guide.reason.unsupported
 Service VAT basis	服务税口径	เกณฑ์ภาษีบริการ	サービス消費税の基準	guide.q.service_vat

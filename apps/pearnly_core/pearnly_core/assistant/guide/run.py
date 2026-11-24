@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Mapping
 import frappe
 from frappe import _
 
-from pearnly_core.assistant.guide import declaration as d, registry, steps
+from pearnly_core.assistant.guide import declaration as d, reasons, registry, steps
 
 DOCTYPE = "Pearnly Assistant Guide Run"
 TYPE = "pearnly.guide"
@@ -742,7 +742,9 @@ def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dic
     except Exception as exc:  # noqa: BLE001 — 放行 / 产品函数拒了、出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
         doc = _locked(name)
-        result = {"status": "failed", "reason": str(getattr(exc, "code", "") or type(exc).__name__)}
+        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log
+        code, text = reasons.failure(exc)
+        result = {"status": "failed", "reason": code, **({"reason_text": text} if text else {})}
         doc.status = FAILED
         frappe.log_error(title="Assistant guide confirm failed")
     doc.result = json.dumps(result, ensure_ascii=False, default=str)
@@ -798,7 +800,9 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — 业务函数拒了 / 出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
         doc = _locked(name)
-        result = {"status": "failed", "reason": str(getattr(exc, "code", "") or type(exc).__name__)}
+        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log
+        code, text = reasons.failure(exc)
+        result = {"status": "failed", "reason": code, **({"reason_text": text} if text else {})}
         doc.status = FAILED
         frappe.log_error(title="Assistant guide confirm failed")
     doc.result = json.dumps(result, ensure_ascii=False, default=str)

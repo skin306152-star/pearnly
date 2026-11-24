@@ -76,7 +76,8 @@ export type GuideDocReview = {
 };
 export type GuideUploads = { files: { batch: string; state: "reading" | "done" | "failed" | string; reason?: string; reason_text?: string }[]; wait: boolean };
 export type GuideDocResult = {
-  status: string; wait?: boolean;
+  /** 整次没办成的原因句（写入计划没建成时服务端给，`guide.reasons`） */
+  status: string; wait?: boolean; reason_text?: string;
   rows: { doc_id: string; status: "entered" | "queued" | "held" | "failed" | string; docnum?: string; reason?: string; reason_text?: string;
     /** 没有原因句时的码（如 POS 日汇总票还没推过：not_pushed），按月结台账的已有词条显示 */ reason_code?: string;
     /** 待定：结果行要带单据自己的号（票面 doc_no），没带时显示 doc_id */ doc_no?: string }[];
