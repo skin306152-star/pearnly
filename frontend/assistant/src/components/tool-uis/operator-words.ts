@@ -34,6 +34,14 @@ export function docTitle(doc: { ref?: string | undefined; party?: string | undef
 }
 
 /** 站点内部的单据编号（不给用户看）：Cowork 识别单 CWH-…、ERP 的 P: / S: / I:…、哈希。 */
+/** 列出过、已不在待录清单里的单此刻的样子（服务端 `listed.gone` 的 state → 已有状态词，同代录报告 `feed.STATE_KEY`）：
+ *  已入账带 Express 单号；读不到的（unknown）给中性的「等待」。 */
+const GONE_STATE: Record<string, string> = { saved: "saved", not_done: "notDone", cancelled: "skipped", queued: "waiting", unknown: "waiting" };
+export function goneLabel(doc: { state?: string | undefined; docnum?: string | undefined }): string {
+  const word = op.doc[GONE_STATE[doc.state ?? ""] ?? "waiting"] ?? op.doc.waiting;
+  return [word, doc.state === "saved" ? doc.docnum : ""].filter(Boolean).join(" · ");
+}
+
 export const isInternalId = (text: string) => /^(CWH-|[PSI]:)|^[0-9a-f]{24,}$/i.test(text.trim());
 
 export const NEW_CODE = "__new__";

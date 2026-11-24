@@ -23,9 +23,9 @@ def load(name, relative):
 
 HELD = {"ok": True, "company": "CO-1", "doctype": "ERP Sales Document", "doc": "SD-1", "doc_id": "S:SD-1", "number": "SI-1",
         "state": {"ledger_state": "queued"}, "jobs": 0}
-GOOD = {"ok": True, "listed": ["S:SD-1"], "listed_entered": [], "state": {"ledger_state": "written", "ledger_docnum": "IV0000030"},
+GOOD = {"ok": True, "listed": ["S:SD-1"], "listed_gone": [], "state": {"ledger_state": "written", "ledger_docnum": "IV0000030"},
         "job": {"request_key": "erp:sales:SD-1@x", "status": "success"}, "after_listed": [],
-        "after_entered": [{"doc_id": "S:SD-1", "docnum": "IV0000030", "entered": "IV0000030", "moves": []}],
+        "after_gone": [{"doc_id": "S:SD-1", "state": "saved", "docnum": "IV0000030", "moves": []}],
         "model_waiting": [], "model_entered": [{"doc_id": "S:SD-1", "docnum": "IV0000030"}], "planned": [],
         "skipped": [{"doc_id": "S:SD-1", "reason": "already_entered", "docnum": "IV0000030"}],
         "hand_in_refused": "Invalid request", "jobs": 1}
@@ -79,7 +79,7 @@ class OperatorListedScenarioTest(unittest.TestCase):
         self.assertEqual(world.calls, ["erp_push_held.py", "erp_operator_listed.py"])
 
     def test_each_broken_world_fails(self):
-        cases = [(self.broken("after_entered", []), "已入账 · 单号"),
+        cases = [(self.broken("after_gone", []), "已入账 · 单号"),
                  (self.broken("after_listed", ["S:SD-1"]), "不再当成待录"),
                  (self.broken("model_entered", []), "给模型"),
                  (self.broken("skipped", []), "跳过它"),

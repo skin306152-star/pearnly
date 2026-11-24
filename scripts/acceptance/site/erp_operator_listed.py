@@ -39,7 +39,7 @@ try:
     first = api.documents(company, period, task=task)
     frappe.db.commit()   # 同一次 POST 请求结束时提交（下面等直写的循环会 rollback，不先提交就把快照回滚掉了）
     result["listed"] = [row.get("doc_id") for row in first.get("documents") or []]
-    result["listed_entered"] = first.get("entered") or []
+    result["listed_gone"] = first.get("gone") or []
 
     # 等每分钟那一轮把它直写掉（不替产品去写：这里只读）
     deadline, state = time.monotonic() + int(params.get("wait", 240)), {}
@@ -56,7 +56,7 @@ try:
     # 写掉之后代录这边怎么说
     after = api.documents(company, period, task=task)
     result["after_listed"] = [row.get("doc_id") for row in after.get("documents") or []]
-    result["after_entered"] = after.get("entered") or []
+    result["after_gone"] = after.get("gone") or []
     view = tasks.read(task)
     prep = tools._preparing(view)
     result["model_waiting"] = [row.get("doc_id") for row in prep.get("waiting") or []]

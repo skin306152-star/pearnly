@@ -35,7 +35,8 @@ SKIPPED_SHOWN = 50  # 回给 CC 的跳过清单最多列几张（其余只给张
 
 # 跳过的原因（给模型，不经 _()）
 SKIP_GROUP = "moved_to_not_entered"       # 人在卡片上移到了「不入账」
-SKIP_ENTERED = "already_entered"          # 同一张票已写进账本（代录预检 written）
+SKIP_ENTERED = "already_entered"          # 同一张票已写进账本（代录预检 written；代录列出后被直写写掉的也是这个，带 docnum）
+SKIP_LEFT = "no_longer_waiting"           # 代录列出过、已不在待录清单里（没录成 / 已取消 / 在别处排着 / 读不到，带 state）
 SKIP_UNKNOWN = "last_write_result_unknown"  # 上次写入结果不明：先让人核对已入账 / 没入账
 SKIP_UNDECIDED = "undecided_items"        # 还有没定的项（ask_user 问完、pearnly_precheck_answer 存下后再建计划）
 SKIP_WAITING = "waiting_for_computer"     # 等电脑读账套、没有电脑能写（会自己好的）

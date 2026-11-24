@@ -19,6 +19,7 @@ from pearnly_core.express_operator import products, tasks
 FIELD = "listed"
 LISTED_MAX = 500
 ENTERED = "already_entered"  # 写入计划 / 开始跳过的原因（同一张票已写进账本，`assistant.write_plan.SKIP_ENTERED`）
+LEFT = "no_longer_waiting"  # 列出过、已不在待录清单里、也不是已入账（没录成 / 已取消 / 在别处排着 / 读不到）：跳过并带现状
 
 
 def _load(raw) -> dict:
@@ -71,22 +72,38 @@ def _all_ids(company: str, period: str) -> set:
     return ids
 
 
-def entered(company: str, snapshot: dict, current, period: str = "") -> list:
-    """快照里有、现查里没有、产品说已入账的单：``[{doc_id, group, ref, party, docnum}]``，按快照顺序。``current`` 是这次现查到的
-    单号；只是一页（给了 ``period``）时，先按全月清单核一遍，只对真不在清单里的读现状。"""
+STATES = ("saved", "queued", "not_done", "cancelled")  # 产品 status 的现状；别的（unknown）照中性显示并记日志
+
+
+def gone(company: str, snapshot: dict, current, period: str = "") -> list:
+    """快照里有、现查里没有的单，**一律**按现状给出（主会话 11-24：列出过的单不许凭空消失）：
+    ``[{doc_id, group, ref, party, state, docnum}]``，按快照顺序。``state`` 是产品 status 的 saved / queued / not_done / cancelled，
+    读不到（unknown、产品没回这张）给 ``unknown`` 并记一条错误日志。``current`` 是这次现查到的单号；只是一页（给了 ``period``）时，
+    先按全月清单核一遍，只对真不在清单里的读现状。"""
     present = {str(doc_id) for doc_id in current or ()}
-    gone = [doc_id for doc_id in snapshot if doc_id not in present]
-    if gone and period:
+    left = [doc_id for doc_id in snapshot if doc_id not in present]
+    if left and period:
         present |= _all_ids(company, period)
-        gone = [doc_id for doc_id in gone if doc_id not in present]
-    if not gone:
+        left = [doc_id for doc_id in left if doc_id not in present]
+    if not left:
         return []
-    found = {str(row.get("doc_id")): row for row in products.status(company, gone) if isinstance(row, dict)}
-    out = []
-    for doc_id in gone:
+    found = {str(row.get("doc_id")): row for row in products.status(company, left) if isinstance(row, dict)}
+    out, unread = [], []
+    for doc_id in left:
         row = found.get(doc_id) or {}
-        if row.get("state") != "saved":
-            continue
+        state = str(row.get("state") or "")
+        if state not in STATES:
+            state = "unknown"
+            unread.append(doc_id)
         out.append({"doc_id": doc_id, "group": snapshot.get(doc_id) or "", "ref": str(row.get("ref") or ""),
-                    "party": str(row.get("party") or ""), "docnum": str(row.get("docnum") or "")})
+                    "party": str(row.get("party") or ""), "state": state,
+                    "docnum": str(row.get("docnum") or "") if state == "saved" else ""})
+    if unread:
+        frappe.log_error(title="Operator listed document state unknown",
+                         message=f"company={company} docs={unread[:20]}")
     return out
+
+
+def entered(company: str, snapshot: dict, current, period: str = "") -> list:
+    """:func:`gone` 里已入账的那几张（写入计划与交单按「同一张票已写进账本」跳过）。"""
+    return [row for row in gone(company, snapshot, current, period) if row["state"] == "saved"]

@@ -1059,8 +1059,8 @@ class ListedDocumentsStayListedTests(Base):
         self.assertEqual(skipped, [{"doc_id": "D2", "reason": "already_entered", "docnum": "RR0000101"}])
         page = api.documents("CO-1", "2026-10", task=self.task)
         self.assertEqual([row["doc_id"] for row in page["documents"]], ["D1", "D3"])
-        self.assertEqual(page["entered"], [{"doc_id": "D2", "group": "purchase", "ref": "PO-D2", "party": "T001",
-                                            "docnum": "RR0000101", "entered": "RR0000101", "moves": []}])
+        self.assertEqual(page["gone"], [{"doc_id": "D2", "group": "purchase", "ref": "PO-D2", "party": "T001",
+                                         "state": "saved", "docnum": "RR0000101", "moves": []}])
         api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])
         self.assertEqual(self.submitted[-1], ["D1", "D3"])  # 已被直写的不再交代录
 
@@ -1072,20 +1072,31 @@ class ListedDocumentsStayListedTests(Base):
         out = tools._preparing(view)
         self.assertEqual([row["doc_id"] for row in out["waiting"]], ["D1", "D2"])
         self.assertEqual(out["entered"], [{"doc_id": "D3", "ref": "PO-D3", "party": "T001", "docnum": "RR0000102"}])
+        self.rows = [row for row in self.rows if row["doc_id"] != "D2"]
+        self.state["D2"] = {"state": "not_done", "docnum": ""}
+        self.assertEqual(tools._preparing(view)["left"], [{"doc_id": "D2", "ref": "PO-D2", "party": "T001", "state": "not_done"}])
 
-    def test_gone_documents_that_are_not_entered_are_not_added_and_new_ones_still_come_in(self):
+    def test_every_listed_document_that_left_shows_its_state_and_new_ones_still_come_in(self):
+        # 主会话 11-24：列出过的单任何情况下都不凭空消失——没录成、取消、读不到也照现状列出；读不到的记日志
         api.documents("CO-1", "2026-10", task=self.task)
-        self.rows = [row for row in self.rows if row["doc_id"] != "D1"] + [{"doc_id": "D9", "group": "sales"}]
-        self.state["D1"] = {"state": "not_done", "docnum": ""}   # 没录成 / 取消 / 在别处排着：不当成已入账
+        self.rows = [{"doc_id": "D9", "group": "sales"}]
+        self.state.update({"D1": {"state": "not_done", "docnum": ""}, "D2": {"state": "cancelled", "docnum": ""},
+                           "D3": {"state": "unknown"}})
         page = api.documents("CO-1", "2026-10", task=self.task)
-        self.assertEqual([row["doc_id"] for row in page["documents"]], ["D2", "D3", "D9"])
-        self.assertEqual(page.get("entered"), [])
+        self.assertEqual([row["doc_id"] for row in page["documents"]], ["D9"])
+        self.assertEqual([(row["doc_id"], row["state"], row["docnum"]) for row in page["gone"]],
+                         [("D1", "not_done", ""), ("D2", "cancelled", ""), ("D3", "unknown", "")])
+        self.assertIn("Operator listed document state unknown", STATE.get("errors", []))
+        _planned, _groups, skipped = api.waiting("CO-1", "2026-10", [], task=self.task)
+        self.assertEqual([(row["doc_id"], row["reason"], row.get("state")) for row in skipped],
+                         [("D1", "no_longer_waiting", "not_done"), ("D2", "no_longer_waiting", "cancelled"),
+                          ("D3", "no_longer_waiting", "unknown")])
 
     def test_only_the_first_page_carries_entered_and_without_a_task_nothing_is_remembered(self):
         api.documents("CO-1", "2026-10", task=self.task)
         self.written_directly("D1", "RR1")
-        self.assertNotIn("entered", api.documents("CO-1", "2026-10", offset=1, task=self.task))
-        self.assertNotIn("entered", api.documents("CO-1", "2026-10"))
+        self.assertNotIn("gone", api.documents("CO-1", "2026-10", offset=1, task=self.task))
+        self.assertNotIn("gone", api.documents("CO-1", "2026-10"))
         doc = frappe.get_doc("Pearnly Express Operator Task", self.task)
         self.assertEqual(json.loads(doc.get("listed")), {"D1": "purchase", "D2": "purchase", "D3": "purchase"})
 
@@ -1100,14 +1111,14 @@ class ListedDocumentsStayListedTests(Base):
         self.written_directly("D6", "RR6")
         page = api.documents("CO-1", "2026-10", limit=3, task=self.task)
         self.assertEqual(asked, [["D6"]])
-        self.assertEqual([row["doc_id"] for row in page["entered"]], ["D6"])
+        self.assertEqual([row["doc_id"] for row in page["gone"]], ["D6"])
 
     def test_changing_the_month_or_company_clears_what_was_listed(self):
         api.documents("CO-1", "2026-10", task=self.task)
         tasks.update(self.task, period="2026-11")
         self.assertFalse(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed"))
         self.written_directly("D1", "RR1")   # 十月那张被写掉：十一月的清单里不算「列出过」
-        self.assertEqual(api.documents("CO-1", "2026-11", task=self.task).get("entered"), [])
+        self.assertEqual(api.documents("CO-1", "2026-11", task=self.task).get("gone"), [])
 
     def test_a_started_task_no_longer_records_what_it_lists(self):
         api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])

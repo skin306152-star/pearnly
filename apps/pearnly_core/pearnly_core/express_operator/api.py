@@ -34,8 +34,8 @@ def _require(company):
 
 @frappe.whitelist(methods=["POST"])
 def documents(company, period, offset=0, limit=50, task=""):
-    """资料清单（服务端分页）。``task``：这次代录任务（准备中）——现查到的单记进任务的快照，第一页另补快照里已被直写写进账本的单
-    （``entered`` 带单号、不能拖，`listed`）：列出过的单不凭空消失（主会话 11-24）。"""
+    """资料清单（服务端分页）。``task``：这次代录任务（准备中）——现查到的单记进任务的快照，第一页另补快照里已不在清单里的单
+    （``gone``：按现状 ``state``，已入账的带 ``docnum``，不能拖，`listed`）：列出过的单不凭空消失（主会话 11-24）。"""
     _require(company)
     limit = max(1, min(int(limit or 50), PAGE_MAX))
     offset = max(0, int(offset or 0))
@@ -48,9 +48,9 @@ def documents(company, period, offset=0, limit=50, task=""):
         rows = [row for row in found.get("documents") or [] if isinstance(row, dict)]
         snapshot = listed.remember(str(task), company, rows)
         if not offset and snapshot:
-            found["entered"] = [{**row, "entered": row["docnum"], "moves": []}
-                                for row in listed.entered(company, snapshot, [row.get("doc_id") for row in rows],
-                                                          period=str(period or ""))]
+            # 列出过、已不在待录清单里的：一律按现状给（已入账带单号 / 未完成 / 已取消 / 在队列 / 读不到），不能拖
+            found["gone"] = [{**row, "moves": []}
+                             for row in listed.gone(company, snapshot, [row.get("doc_id") for row in rows], period=str(period or ""))]
     return found
 
 
@@ -195,8 +195,9 @@ def waiting(company, period, again, task="") -> tuple[list, dict, list]:
     if task:
         # 这次代录列出过、之后被直写写进账本的：照「同一张票已写进账本」跳过，带单号（不凭空消失，主会话 11-24）
         snapshot = listed.remember(str(task), company, rows)
-        skipped += [{"doc_id": row["doc_id"], "reason": listed.ENTERED, "docnum": row["docnum"]}
-                    for row in listed.entered(company, snapshot, [row["doc_id"] for row in rows])]
+        for row in listed.gone(company, snapshot, [row["doc_id"] for row in rows]):
+            skipped.append({"doc_id": row["doc_id"], "reason": listed.ENTERED, "docnum": row["docnum"]} if row["state"] == "saved"
+                           else {"doc_id": row["doc_id"], "reason": listed.LEFT, "state": row["state"]})
     held = set()
     for start_at in range(0, len(candidates), BATCH_MAX):
         for doc in products.precheck(company, candidates[start_at:start_at + BATCH_MAX]).get("documents") or []:

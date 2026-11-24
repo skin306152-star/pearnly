@@ -69,8 +69,9 @@ def _preparing(view: dict) -> dict:
     waiting = [{key: row[key] for key in DOC_KEYS if row.get(key) not in (None, "")} for row in rows if row.get("group") != "skip"]
     # 这次列出过、之后被直写写进账本的单：照实给出（已入账 · 单号），开始时跳过；不说成「没有了」（主会话 11-24）
     snapshot = listed.remember(view["name"], view["company"], rows)
-    entered = [{key: row[key] for key in ("doc_id", "ref", "party", "docnum") if row.get(key)}
-               for row in listed.entered(view["company"], snapshot, [row["doc_id"] for row in rows], period=view.get("period") or "")]
+    gone = listed.gone(view["company"], snapshot, [row["doc_id"] for row in rows], period=view.get("period") or "")
+    entered = [{key: row[key] for key in ("doc_id", "ref", "party", "docnum") if row.get(key)} for row in gone if row["state"] == "saved"]
+    left = [{key: row[key] for key in ("doc_id", "ref", "party", "state") if row.get(key)} for row in gone if row["state"] != "saved"]
     sent = [{"filename": row.get("filename") or "", "state": row.get("state") or "",
              "documents": [{key: doc[key] for key in ("doc_id", "ref", "party", "date") if doc.get(key)}
                            for doc in row.get("documents") or [] if isinstance(doc, dict)]}
@@ -78,6 +79,8 @@ def _preparing(view: dict) -> dict:
     out = {"waiting": waiting, "waiting_total": int(found.get("total") or len(waiting)), "uploads": sent}
     if entered:
         out["entered"] = entered
+    if left:
+        out["left"] = left
     return out
 
 
@@ -88,7 +91,9 @@ NEXT_PREPARING = ("Nothing has been entered yet. waiting lists the documents thi
                   "make the write plan (pearnly_write_plan), say it back in one sentence and start it (pearnly_write_start) "
                   "only after the user agrees in a new message. entered lists documents from this task's list that were "
                   "entered in Express another way in the meantime (docnum is the Express number): they are already entered "
-                  "and the task skips them; say so with the number, never that they disappeared.")
+                  "and the task skips them; say so with the number, never that they disappeared. left lists documents from this "
+                  "task's list that are no longer waiting for another reason (state: not_done, cancelled, queued elsewhere, "
+                  "or unknown): say what state each is in; the task does not enter them.")
 NEXT_ATTENTION = ("Some documents need the user: the cards in this conversation ask what is missing (one question covers "
                   "every document that needs the same answer). Point the user to them; do not ask the same thing again.")
 

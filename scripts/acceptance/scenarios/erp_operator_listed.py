@@ -54,8 +54,8 @@ def run(ctx):
         ctx.check("写成它的是直写件，不是代录件", False, str(job.get("request_key") or "").startswith(OPERATOR_KEY))
         docnum = state.get("ledger_docnum") or ""
         ctx.check("资料清单里不再当成待录", False, doc_id in (out.get("after_listed") or []))
-        ctx.check("资料清单第一页里是「已入账 · 单号」一行", [[doc_id, docnum, docnum, []]],
-                  [[row.get("doc_id"), row.get("docnum"), row.get("entered"), row.get("moves")] for row in out.get("after_entered") or []])
+        ctx.check("资料清单第一页里是「已入账 · 单号」一行", [[doc_id, "saved", docnum, []]],
+                  [[row.get("doc_id"), row.get("state"), row.get("docnum"), row.get("moves")] for row in out.get("after_gone") or []])
         ctx.check("给模型的准备中清单：不在 waiting、在 entered 带单号", [False, [[doc_id, docnum]]],
                   [doc_id in (out.get("model_waiting") or []), [[row.get("doc_id"), row.get("docnum")] for row in out.get("model_entered") or []]])
         ctx.check("写入计划取单跳过它（already_entered + 单号）", [{"doc_id": doc_id, "reason": "already_entered", "docnum": docnum}],

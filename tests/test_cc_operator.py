@@ -262,7 +262,7 @@ ACTIONS = r"""
 import "cc-test-setup";
 import "cc-dom-setup";
 import assert from "node:assert/strict";
-import { answersFor, operatorActions, questionsOf, setOperatorSite } from "@/components/tool-uis/operator-shared";
+import { answersFor, goneLabel, operatorActions, questionsOf, setOperatorSite } from "@/components/tool-uis/operator-shared";
 import { docsToStart, groupsToStart, mergeDocs, uploadsDoneKey, writeLine } from "@/components/tool-uis/operator-start";
 import { resumeQuestion } from "@/components/tool-uis/operator-resume";
 import { createBridgeWatch, progressOf } from "@/components/operator/bridge";
@@ -277,7 +277,7 @@ const g = globalThis as any;
   const gets: Array<[string, any]> = [];
   setOperatorSite({
     post: async (method: string, args: any) => (posts.push([method, args]), method.endsWith(".documents")
-      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, entered: [{ doc_id: 2, entered: "RR1", group: "purchase" }] }
+      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, gone: [{ doc_id: 2, state: "saved", docnum: "RR1", group: "purchase" }] }
       : { ok: true }) as any,
     get: async (method: string, args: any) => (gets.push([method, args]), { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null }) as any,
   });
@@ -287,7 +287,12 @@ const g = globalThis as any;
   // 带任务号、走 POST（服务端把列出的单记进任务）；第一页另带列出后已被直写写进账本的（entered，不能拖）
   assert.deepEqual(posts.at(-1), [API + "documents", { company: "CO-1", period: "2026-10", offset: 0, limit: 50, task: "TASK-1" }]);
   assert.equal(page.documents[0]!.doc_id, "1");
-  assert.deepEqual(page.entered, [{ doc_id: "2", entered: "RR1", group: "purchase", moves: [] }]);
+  assert.deepEqual(page.gone, [{ doc_id: "2", state: "saved", docnum: "RR1", group: "purchase", moves: [], gone: true }]);
+  // 列出过、已不在清单里的按现状用已有状态词：已入账带单号；没录成、已取消照词；读不到给中性的「等待」
+  assert.equal(goneLabel({ state: "saved", docnum: "RR1" }), `${op.doc.saved} · RR1`);
+  assert.equal(goneLabel({ state: "not_done" }), op.doc.notDone);
+  assert.equal(goneLabel({ state: "cancelled" }), op.doc.skipped);
+  assert.equal(goneLabel({ state: "unknown", docnum: "X" }), op.doc.waiting);
   await operatorActions.documents("CO-1", "2026-10", 50);
   assert.deepEqual(posts.at(-1), [API + "documents", { company: "CO-1", period: "2026-10", offset: 50, limit: 50 }]);
   const prechecks = [
@@ -325,7 +330,7 @@ const g = globalThis as any;
   assert.deepEqual((await operatorActions.precheck("CO-1", ["1"])).targets.map((t: any) => t.account_set), ["S1"]);
   setOperatorSite({
     post: async (method: string, args: any) => (posts.push([method, args]), method.endsWith(".documents")
-      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, entered: [{ doc_id: 2, entered: "RR1", group: "purchase" }] }
+      ? { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null, gone: [{ doc_id: 2, state: "saved", docnum: "RR1", group: "purchase" }] }
       : { ok: true }) as any,
     get: async (method: string, args: any) => (gets.push([method, args]), { documents: [{ doc_id: 1, ref: "INV-1", group: "purchase" }], next_offset: null }) as any,
   });

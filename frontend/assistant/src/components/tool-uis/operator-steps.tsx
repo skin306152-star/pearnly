@@ -28,6 +28,7 @@ import {
   type DocumentInput,
   type DocumentResult,
   docTitle,
+  goneLabel,
   groupOf,
   operatorActions,
   reasonText,
@@ -130,7 +131,7 @@ const docTexts = (): DragTexts => ({
   droppedIn: (name, group) => `${name} · ${group}`,
 });
 
-type Listed = { docs: DocRef[]; next: number | null; total: number; entered: DocRef[] };
+type Listed = { docs: DocRef[]; next: number | null; total: number; gone: DocRef[] };
 
 const movesOf = (docs: readonly DocRef[], id: string): readonly string[] => docs.find((d) => d.doc_id === id)?.moves ?? [];
 
@@ -146,7 +147,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
     try {
       const page = await operatorActions.documents(input.company, input.period, offset, input.task);
       setListed((before) => ({ docs: [...(offset ? (before?.docs ?? []) : []), ...page.documents], next: page.next, total: page.total ?? page.documents.length,
-        entered: offset ? (before?.entered ?? []) : page.entered }));
+        gone: offset ? (before?.gone ?? []) : page.gone }));
     } catch (caughtError) {
       reportCaught(caughtError, "operator-sources");
     }
@@ -165,9 +166,10 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
       setListed(before);
     });
   };
+  // 总数与各组张数同一口径：清单里显示几行就算几张（列出过、已不在待录清单里的按现状显示，也算在内；主会话 11-24）
   const counts: Partial<Record<string, number>> = done?.groups
-    ?? Object.fromEntries(groupDocs(listed?.docs ?? []).map(([g, rows]) => [g, rows.length]));
-  const total = done?.total ?? listed?.total ?? 0;
+    ?? Object.fromEntries(groupDocs([...(listed?.docs ?? []), ...(listed?.gone ?? [])]).map(([g, rows]) => [g, rows.length]));
+  const total = done?.total ?? (listed ? listed.total + listed.gone.length : 0);
   const line = done || listed ? sourcesLine(total, counts) : op.steps.operator_sources![1];
   return (
     <div className="aui-step" data-slot="cc-op-sources">
@@ -175,7 +177,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
         <Marquee className="min-w-0 flex-1 truncate">{line}</Marquee>
         {!done && <ChevronRightIcon aria-hidden />}
       </button>
-      {open && !done && listed && listed.docs.length + listed.entered.length > 0 && (
+      {open && !done && listed && listed.docs.length + listed.gone.length > 0 && (
         <div className="cc-step-detail cc-step-text" data-slot="cc-op-sources-list">
           <DragArea
             texts={texts}
@@ -185,7 +187,7 @@ export const OperatorSourcesStep: ToolCallMessagePartComponent = ({ args, result
               if (target.list && target.list !== active.list) regroup(String(active.id), target.list as DocGroup);
             }}
           >
-            {groupDocs([...listed.docs, ...listed.entered], dragging).map(([group, rows]) => (
+            {groupDocs([...listed.docs, ...listed.gone], dragging).map(([group, rows]) => (
               <DocGroupList key={group} group={group} rows={rows} />
             ))}
           </DragArea>
@@ -222,11 +224,11 @@ const DocItem: FC<{ doc: DocRef; group: DocGroup }> = ({ doc, group }) => {
   const data: DragData = { id: doc.doc_id, kind: "doc", label: title, list: group };
   const sortable = useSortableItem(data, { disabled: !doc.moves?.length });
   return (
-    <div {...sortable.node} className="cc-op-doc" data-slot={doc.entered !== undefined ? "cc-op-doc-entered" : "cc-op-doc"}>
+    <div {...sortable.node} className="cc-op-doc" data-slot={doc.gone ? "cc-op-doc-gone" : "cc-op-doc"} data-state={doc.gone ? doc.state : undefined}>
       <span {...sortable.handle} className="cc-op-doc-handle">
         <Marquee className="min-w-0 flex-1 truncate">{title}</Marquee>
-        {doc.entered !== undefined
-          ? <span className="cc-op-count">{[op.doc.saved, doc.entered].filter(Boolean).join(" · ")}</span>
+        {doc.gone
+          ? <span className="cc-op-count">{goneLabel(doc)}</span>
           : doc.total && <span className="cc-op-count">{formatAmount(doc.total)}</span>}
       </span>
     </div>
