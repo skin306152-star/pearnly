@@ -257,18 +257,20 @@ def test_main_pair_flag_exits_with_the_pairing_code_and_skips_the_instance_lock(
     monkeypatch.delenv(runtime_mode.CLOUD_ENV, raising=False)
     monkeypatch.setattr(main, "setup_logging", lambda *a: None)
     seen = []
-    monkeypatch.setattr(cloud_side, "run_pair", lambda token: seen.append(token) or 6)
+    monkeypatch.setattr(cloud_side, "run_pair", lambda token, root=None: seen.append((token, root)) or 6)
     from src.companion import single_instance
 
     monkeypatch.setattr(single_instance, "acquire", lambda *a: pytest.fail("pairing must not take the lock"))
-    monkeypatch.setattr("sys.argv", ["companion", "--cloud", "--pair", "ABCD-EFGH"])
+    monkeypatch.setattr("sys.argv", ["companion", "--cloud", "--pair", "ABCD-EFGH", "--tunnel", "\\\\tsclient\\Z"])
     try:
+        assert main.main() == 6
+        monkeypatch.setattr("sys.argv", ["companion", "--cloud", "--pair", "ABCD-EFGH"])
         assert main.main() == 6
     finally:
         os.environ.pop(runtime_mode.CLOUD_ENV, None)
-    assert seen == ["ABCD-EFGH"]
+    assert seen == [("ABCD-EFGH", "\\\\tsclient\\Z"), ("ABCD-EFGH", None)]
     monkeypatch.setattr("sys.argv", ["companion", "--pair", "ABCD-EFGH"])   # 本地模式不认
-    assert main.main() == 2 and seen == ["ABCD-EFGH"]
+    assert main.main() == 2 and len(seen) == 2
 
 
 # ── 会话 ──────────────────────────────────────────────────────────────────────
@@ -505,7 +507,8 @@ def test_the_install_script_keeps_the_token_out_of_files_and_the_shortcut():
         if "Token" in line:   # 令牌只出现在参数、校验、交给配对子进程与清空这几处
             assert not any(word in line for word in ("Out-File", "Set-Content", "Add-Content", "Write-Host",
                                                      "Arguments", "Start-Transcript")), line
-    assert "-ArgumentList @('--cloud', '--pair', $cleanToken)" in body
+    assert "-ArgumentList @('--cloud', '--pair', $cleanToken, '--tunnel', $tunnelRoot)" in body
+    assert "$tunnelRoot = Split-Path -Parent $here" in body
     assert "Get-FileHash" in body and "$manifest.sha256" in body
 
 
@@ -565,3 +568,22 @@ def test_every_result_line_of_the_install_script_has_four_languages():
     exits = set(re.findall(r"^\s*\d+ = '(\w+)'", body, re.M)) | set(re.findall(r"else \{ '(\w+)' \}", body))
     assert used and exits and (used | exits) <= set(entries)
     assert "(Get-UICulture).TwoLetterISOLanguageName" in body
+
+
+def test_pairing_uses_the_root_the_install_script_hands_over_and_falls_back_to_probing(tmp_path):
+    root = _tunnel(tmp_path, "Z")
+    seen = []
+
+    def pair(ctl, token, host, timeout):
+        seen.append(ctl)
+        return "ok"
+
+    probes = []
+    code = cloud_side.run_pair("T", root=str(root), find=lambda: probes.append(1) or None, host_of=lambda r: "h",
+                               pair=pair)
+    assert code == cloud_side.EXIT_OK and seen == [root / "ctl"] and probes == []
+    # 交来的不是隧道根（缺 ctl）：不用它，改按盘符探
+    (tmp_path / "bad").mkdir()
+    code = cloud_side.run_pair("T", root=str(tmp_path / "bad"), find=lambda: probes.append(1) or None,
+                               host_of=lambda r: "h", pair=pair)
+    assert code == cloud_side.EXIT_NO_TUNNEL and probes == [1]

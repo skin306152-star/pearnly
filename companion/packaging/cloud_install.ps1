@@ -92,7 +92,9 @@ $startup = [Environment]::GetFolderPath('Startup')
 $linkPath = Join-Path $startup 'CC.lnk'
 
 # 配对：令牌只在这个子进程的参数里出现一次；结果看退出码（cloud_link/cloud_side.py 的 EXIT_*）
-$pairing = Start-Process -FilePath $exe -ArgumentList @('--cloud', '--pair', $cleanToken) -WorkingDirectory $dest -PassThru
+# 隧道根 = 本脚本所在的 cc\ 的上一级（\\tsclient\<盘>）：直接交给配对，不靠枚举（会话里 \\tsclient 这一级列不出来）
+$tunnelRoot = Split-Path -Parent $here
+$pairing = Start-Process -FilePath $exe -ArgumentList @('--cloud', '--pair', $cleanToken, '--tunnel', $tunnelRoot) -WorkingDirectory $dest -PassThru
 $Token = ''
 $cleanToken = ''
 if ($pairing.WaitForExit(150000)) {

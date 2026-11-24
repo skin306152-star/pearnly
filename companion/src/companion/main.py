@@ -211,14 +211,14 @@ def _run_dbf(store, args) -> int:
     return TrayApp(configs, open_tomo=not args.background).run()
 
 
-def _pair(token: str, cloud: bool) -> int:
+def _pair(token: str, cloud: bool, tunnel: str = "") -> int:
     """``--cloud --pair <令牌>``:只配对、不跑直写,配完以退出码报结果。不占单实例锁(云端 CC 可能已在跑)。令牌不进日志。"""
     if not cloud:
         return 2
     setup_logging()
     from .cloud_link import cloud_side
 
-    return cloud_side.run_pair(token)
+    return cloud_side.run_pair(token, root=tunnel or None)
 
 
 # ── 入口 ─────────────────────────────────────────────────────
@@ -244,6 +244,8 @@ def main() -> int:
     parser.add_argument("--cloud-via", default=None, help=argparse.SUPPRESS)
     # 云端设备配对的一次性令牌(只在云端安装命令里带一次;配完即退出,退出码见 cloud_link.cloud_side.run_pair)
     parser.add_argument("--pair", default=None, help=argparse.SUPPRESS)
+    # 安装脚本交来的隧道根(它自己所在的 \\tsclient\<盘>\cc 的上一级);只配对时用,合规才用
+    parser.add_argument("--tunnel", default="", help=argparse.SUPPRESS)
     parser.add_argument("--window", action="store_true", help=argparse.SUPPRESS)  # CC 窗口进程(托盘拉起)
     # MR.ERP 代录的网页窗口进程(ADR-026:每批由代录宿主拉起、录完退出;网页内核只在这里,托盘不加载)
     parser.add_argument("--mrerp-desk", action="store_true", help=argparse.SUPPRESS)
@@ -252,7 +254,7 @@ def main() -> int:
         runtime_mode.enable(args.cloud_via)   # 进入云端模式：之后各处只问 runtime_mode.cloud()
     cloud = runtime_mode.cloud()
     if args.pair is not None:
-        return _pair(args.pair, cloud)
+        return _pair(args.pair, cloud, args.tunnel)
     if args.mrerp_desk:
         from .mrerp_operator.web_driver import child_main
 

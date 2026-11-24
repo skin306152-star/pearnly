@@ -87,6 +87,17 @@ def find_tunnel_root(*, base: str = CLIENT_SHARE, letters: str = TUNNEL_LETTERS,
     return Path(found[0]) if len(found) == 1 else None
 
 
+def given_root(path) -> Optional[Path]:
+    r"""安装脚本交来的隧道根（它自己所在的 ``\\tsclient\<盘>\cc`` 的上一级）：根下 ``in`` / ``out`` / ``ctl`` 都在才用，否则 None。"""
+    text = str(path or "").strip()
+    if not text:
+        return None
+    try:
+        return Path(text) if all(os.path.isdir(os.path.join(text, sub)) for sub in TUNNEL_DIRS) else None
+    except OSError:
+        return None
+
+
 def read_host(root: Path) -> Optional[str]:
     r"""桥放进隧道盘的 ``cc\cloud.json`` 里的 ``host``（规范化同 ``rdp.host``）；没有、读不了、不合规回 None。"""
     from . import rdp
@@ -127,11 +138,12 @@ def _exit_code(code: str) -> int:
     return EXIT_REFUSED
 
 
-def run_pair(token: str, *, find: Callable[[], Optional[Path]] = find_tunnel_root,
+def run_pair(token: str, *, root=None, find: Callable[[], Optional[Path]] = find_tunnel_root,
              host_of: Callable[[Path], Optional[str]] = read_host, pair=None,
              timeout: float = PAIR_TIMEOUT) -> int:
-    """``--cloud --pair <令牌>``：用一次性令牌向桥要设备密钥，存进本用户凭据管理器。回退出码（0 成功）。只记原因码。"""
-    root = find()
+    """``--cloud --pair <令牌> [--tunnel <根>]``：用一次性令牌向桥要设备密钥，存进本用户凭据管理器。回退出码（0 成功）。只记原因码。
+    ``root``：安装脚本交来的隧道根，合规就用；没给或不合规再按盘符探（:func:`find_tunnel_root`）。"""
+    root = (given_root(root) if root else None) or find()
     if root is None:
         log.error("云端配对 · 结果=%s 退出码=%d", NO_TUNNEL, EXIT_NO_TUNNEL)
         return EXIT_NO_TUNNEL
@@ -402,5 +414,5 @@ def ensure_express_login(connection: str = CONNECTION, *, link: Optional[CloudLi
 
 
 __all__ = ["CloudLink", "CtlWatch", "ReloadingTransport", "Running", "check_ctl", "connect", "current",
-           "ensure_express_login", "find_tunnel_root", "install", "paired_host", "read_host", "run_pair", "start",
+           "ensure_express_login", "find_tunnel_root", "given_root", "install", "paired_host", "read_host", "run_pair", "start",
            "take_session"]
