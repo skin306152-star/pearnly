@@ -276,6 +276,10 @@ def write_sale(
             False, error_code=ERR_POS_INVALID if v.error_code == ERR_POS_INVALID else ERR_VALIDATION,
             error=f"{v.error_code}: {v.detail}"
         )
+    if payload.get("opening_stock"):
+        # 补期初已删（11-24：原生期初不写库存卡，OB 行会挡财务原生录单）。旧服务端万一还带来，不悄悄丢掉期初照写，整单转人工
+        return DbfWriteResult(False, error_code=ERR_VALIDATION,
+                              error="opening_stock: CC Desktop no longer writes opening stock rows")
     entry = build_sales_entry(payload)
 
     account_dir = Path(account_dir)

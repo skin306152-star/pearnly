@@ -432,7 +432,7 @@ def move_stmas(account_dir: Path, stkcod: str, qty, value, *, fields: Optional[D
       两者不等的品（S 盘 95 本 18%）一写就把总结存改错（TEST 500603：45 → 4）。
     - ``UNITPR``：总结存为正时 = TOTVAL / TOTBAL（4 位小数，Express 维护的移动均价，S 盘 94% 的有货品如此）；不为正时不动（同原生）。
     - ``MREMBAL / MREMVAL``（先进先出批次链）维持既有做法：同样增减；``lots`` 给了就直接设成这两个值（分仓计价抄仓链）。批次链与成本方案另定。
-    - ``fields``：同时要写的其他栏（盘点的 LASUPD / MLOTNUM、期初的 OPNBAL / OPNVAL）。
+    - ``fields``：同时要写的其他栏（盘点的 LASUPD / MLOTNUM）。
     只改还算数的行（软删的同码旧档不碰）；老表没有的栏不写。找不到这件品返回 False。
     """
     qty, value = Decimal(str(qty)), Decimal(str(value))

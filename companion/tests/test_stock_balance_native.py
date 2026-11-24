@@ -144,3 +144,12 @@ def test_the_whole_book_negative_stock_check_reads_the_total(apart):
     assert [(row["need"], row["have"]) for row in short] == [("6", "5")]
 
 
+
+
+def test_a_sale_that_still_carries_opening_stock_is_refused_untouched(apart):
+    """补期初已删（11-24）：旧服务端万一还带来 opening_stock，整单转人工、账套一字节不动，不悄悄丢掉期初照写。"""
+    before = {p.name: p.read_bytes() for p in apart.iterdir() if p.is_file()}
+    res = _sell(apart, _sale([_item("ICE01", 2, 60.0, "stock_sale")],
+                             opening_stock=[{"key": "น้ำแข็งหลอด", "qty": "10", "unit_cost": "4"}]))
+    assert not res.ok and res.error_code == "PAYLOAD_INVALID" and "opening_stock" in res.error
+    assert {p.name: p.read_bytes() for p in apart.iterdir() if p.is_file()} == before
