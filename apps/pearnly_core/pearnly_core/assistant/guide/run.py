@@ -742,8 +742,10 @@ def _confirm_documents(guide: Mapping[str, Any], doc, consent: str, seen) -> Dic
     except Exception as exc:  # noqa: BLE001 — 放行 / 产品函数拒了、出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
         doc = _locked(name)
-        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log
+        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log。
+        # 那句已经写进结果卡：清掉消息队列，接口回包不再带一条服务端弹窗
         code, text = reasons.failure(exc)
+        frappe.clear_messages()
         result = {"status": "failed", "reason": code, **({"reason_text": text} if text else {})}
         doc.status = FAILED
         frappe.log_error(title="Assistant guide confirm failed")
@@ -800,8 +802,10 @@ def confirm(name: str, version: int, seen: str | None = None) -> Dict[str, Any]:
     except Exception as exc:  # noqa: BLE001 — 业务函数拒了 / 出错：记失败与原因码，交回页面（结果卡说明）
         frappe.db.rollback()
         doc = _locked(name)
-        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log
+        # 结果卡带原因（`reasons.failure`：产品 frappe.throw 的正式文案 → 原因码表 → 通用一句）；错误编号只进 Error Log。
+        # 那句已经写进结果卡：清掉消息队列，接口回包不再带一条服务端弹窗
         code, text = reasons.failure(exc)
+        frappe.clear_messages()
         result = {"status": "failed", "reason": code, **({"reason_text": text} if text else {})}
         doc.status = FAILED
         frappe.log_error(title="Assistant guide confirm failed")

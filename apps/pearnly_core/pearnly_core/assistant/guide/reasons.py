@@ -10,6 +10,7 @@
 """
 from __future__ import annotations
 
+import html
 import re
 from typing import Tuple
 
@@ -38,7 +39,7 @@ def _formal(exc: BaseException) -> str:
                   if isinstance(kind, type))
     if not kinds or not isinstance(exc, kinds):
         return ""
-    message = _TAG.sub("", str(exc or "")).strip()
+    message = html.unescape(_TAG.sub("", str(exc or ""))).strip()
     return message[:MAX]
 
 

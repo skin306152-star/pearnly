@@ -42,6 +42,7 @@ frappe.throw = _throw
 frappe.db = types.SimpleNamespace(commit=lambda: None, rollback=lambda: None)
 frappe.utils = types.SimpleNamespace(get_datetime=lambda value: value, now_datetime=lambda: NOW[0])
 NOW = [datetime.datetime(2026, 11, 14, 10, 30)]
+frappe.clear_messages = lambda: None
 frappe.publish_realtime = lambda event, message, user=None, after_commit=False: SENT.append(message["event"])
 sys.modules["frappe"] = frappe
 _contracts = types.ModuleType("pearnly_core.assistant.contracts")
@@ -327,7 +328,7 @@ class ConfirmTests(Base):
         frappe.ValidationError = type("ValidationError", (Exception,), {})
         self.addCleanup(setattr, frappe, "_", lambda text: text)
         self.addCleanup(delattr, frappe, "ValidationError")
-        cases = [(frappe.ValidationError("<b>Supplier</b> is required"), "ValidationError", "Supplier is required"),
+        cases = [(frappe.ValidationError("<b>Supplier</b> &amp; branch are required"), "ValidationError", "Supplier & branch are required"),
                  (type("Coded", (Exception,), {"code": "not_permitted"})(), "not_permitted", "没有权限"),
                  (KeyError("qty"), "KeyError", "处理出错")]
         for error, code, text in cases:
