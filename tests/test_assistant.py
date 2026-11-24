@@ -3145,9 +3145,10 @@ class PageTests(unittest.TestCase):
         # 一份附件最多多大（11-10）：服务端给的数，过 int 只能渲染成数字
         self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*int\s*\}\}", html), ["upload_max_bytes"])
         # 附件收哪些类型（11-12）：服务端给的清单，过 tojson 只能渲染成 JSON
-        self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*tojson\s*\}\}", html), ["upload_extensions"])
+        # 附件类型清单、云端 Express 入口显不显示（11-24，cc_desktop.cloud_entry）：过 tojson 只能渲染成 JSON
+        self.assertEqual(re.findall(r"\{\{\s*(\w+)\s*\|\s*tojson\s*\}\}", html), ["upload_extensions", "cloud_express"])
         # 还有一处是报错回传脚本的带指纹地址（hooks.jinja 的 versioned_asset，2026-10-25）
-        self.assertEqual(html.count("{{"), 5)
+        self.assertEqual(html.count("{{"), 6)
         self.assertIn("{{ versioned_asset('pearnly_core', 'desk/errors.js') }}", html)
         self.assertNotIn("{%", html)
         # 注释用 Jinja 的 {# #}，渲染时去掉；HTML 注释会原样发给浏览器（查看源代码就能看到）
