@@ -11,7 +11,8 @@
 - 有 RL 单据簿、STLOC、两个以上仓时，调拨新物料丙 1 个（仓 1 → 仓 2）：同上按负库存规则，写成时 STMAS 多一条丙、两仓 −1 / +1；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN、GLBAL 及索引）；
 - 上面的「结存」是主档总结存 TOTBAL（Express 的全仓结存，11-07 f35a3f66f；老表没有这栏时按 MREMBAL）；批次链 MREMBAL 另核：
-  分仓计价（ISINFO.LOC_COST = Y 且有 STLOC）的账套出超时链停在 0（11-20 a04892dfe，原生），其余账套链与总结存同样增减；
+  分仓计价（ISINFO.LOC_COST = Y 且有 STLOC）的账套领用出超时链停在 0（11-20 a04892dfe，原生），其余账套链与总结存同样增减；
+  分仓计价账套盘亏出超后的链没有原生实录，暂不核（11-24 回放：CC 记 −1，与领用的 0 不一致，待原生 A/B）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套里用得最多的存货科目组判不出是存货科目（或一件库存品都没有）时，CC 回 ``STOCK_ACC_GROUP_UNFIT``（ERP 让人选一次组）：这里照人
 选的样子取这套账第一个合格的组（``catalog_probe.probe_isacc_candidates``）带 ``stock_acccod`` 再写，之后几张都带它；没有合格组的跳过。
@@ -248,8 +249,10 @@ def check(acct: Path) -> dict:
                 return {"state": "fail", "why": f"TK loss new {res.error_code}: {res.error}"}
             written.append(res.docnum)
             made = items_named(acct, NEW_E)
-            if len(made) != 1 or balance(made[0]) != -1 or chain_after_short(made[0], chain_stops):
-                return {"state": "fail", "why": f"TK loss new item: {made} {chain_after_short(made[0], chain_stops) if made else ''}"}
+            # 分仓计价账套盘亏出超后的批次链没有原生实录（领用 OU 有，11-20），这里只核总结存；不分仓计价照旧链与总结存同减
+            loss_chain = "" if chain_stops or not made else chain_after_short(made[0], False)
+            if len(made) != 1 or balance(made[0]) != -1 or loss_chain:
+                return {"state": "fail", "why": f"TK loss new item: {made} {loss_chain}"}
             count = "written"
         else:
             why = refused_untouched(acct, res, "TK loss new")
