@@ -2,6 +2,58 @@
 # check-acceptance.py 自动把它算成「过期」。原始证据在本机 ~/pearnly-devtools/acceptance-runs/<run>/（保留 30 天）。
 
 [[pass]]
+scenario = "acc.cowork.cc.direct.purchase"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
+env = "B"
+run = "20261124-130046-d6bc8459d"
+retried = false
+covers = "cc332b8f51198da0"
+session = "sesn_01LRZwnL5nNhzoWNE7ed6r7b"
+site = "cowork.maclab.localhost"
+docnums = ["RR691113-002"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.cowork.intake.express"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
+env = "B"
+run = "20261124-124426-d6bc8459d"
+retried = false
+covers = "235792bf2badc8fc"
+docnums = ["RR691124-001"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "CWH-55d482be92a504b6fb380ad5da79994a4fa577d688d6496c"
+
+[[pass]]
+scenario = "acc.cowork.operator.purchase.express"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
+env = "B"
+run = "20261124-124426-d6bc8459d"
+retried = false
+covers = "8ba4e1742ae6f0d2"
+docnums = ["RR0000101"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "CWH-15f994af079f27fb54619fd8e473696ab8d38823eeb0901c"
+task = "1tunhpg4u3"
+
+[[pass]]
+scenario = "acc.erp.cc.collection"
+sha = "025490335dd0378476621bba3a62424a268c807c"
+date = "2026-11-24"
+env = "B"
+run = "20261124-122604-025490335"
+retried = false
+covers = "73f78d2fa98e6346"
+docnums = ["IV0000030", "RE0000001"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00775"
+session = "sesn_01M1jfzNTKy4BP22wYfffePM"
+site = "erp.maclab.localhost"
+
+[[pass]]
 scenario = "acc.erp.collection.line.edit"
 sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
 date = "2026-11-19"
@@ -10,7 +62,7 @@ run = "20261119-140338-8dd13d5f1"
 retried = false
 covers = "7afb9cc15e73194b"
 docnums = ["IV691119-001", "RE0000001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-02980"
 
 [[pass]]
@@ -22,7 +74,7 @@ run = "20261119-140711-8dd13d5f1"
 retried = false
 covers = "7afb9cc15e73194b"
 docnums = ["IV691119-001", "RE0000001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-02982"
 
 [[pass]]
@@ -34,7 +86,7 @@ run = "20261119-135652-8dd13d5f1"
 retried = false
 covers = "7afb9cc15e73194b"
 docnums = ["IV691119-001", "RE0000001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-02976"
 
 [[pass]]
@@ -46,20 +98,20 @@ run = "20261119-141039-8dd13d5f1"
 retried = false
 covers = "bbd6c776fc9309e1"
 docnums = ["IV691119-001", "RE0000001", "RE0000002", "RE0000003"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-02984"
 
 [[pass]]
 scenario = "acc.erp.collection.three"
-sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
-date = "2026-11-19"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
 env = "B"
-run = "20261119-135129-8dd13d5f1"
+run = "20261124-124426-d6bc8459d"
 retried = false
-covers = "7afb9cc15e73194b"
-docnums = ["IV691119-001", "RE0000001", "RE0000002", "RE0000003"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "SD-02975"
+covers = "fc5d7a7e5d7d01c8"
+docnums = ["IV0000030", "RE0000001", "RE0000002", "RE0000003"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00779"
 
 [[pass]]
 scenario = "acc.erp.collection.web.twice"
@@ -70,7 +122,7 @@ run = "20261119-140008-8dd13d5f1"
 retried = false
 covers = "7afb9cc15e73194b"
 docnums = ["IV691119-001", "RE0000001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-02978"
 
 [[pass]]
@@ -88,12 +140,12 @@ receipt_types = 20
 
 [[pass]]
 scenario = "acc.erp.company.connect.fresh"
-sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
-date = "2026-11-16"
+sha = "343846bde561d5d3fd04140a914b23873016040a"
+date = "2026-11-24"
 env = "B"
-run = "20261116-170820-a1cf24198"
+run = "20261124-105735-343846bde"
 retried = false
-covers = "d50b557f44474d38"
+covers = "1f9ee4a1fec7f206"
 add_branch = "adopted"
 company = "CO-00001"
 nbsp_customers = 1
@@ -325,22 +377,22 @@ retried = false
 covers = "fdfe021ec08a85a4"
 intake = "LI-01080"
 docnums = ["HP0000090"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-01081"
 task = "v43jaaitvn"
 
 [[pass]]
 scenario = "acc.erp.operator.purchase.express"
-sha = "a1cf241984e95a8b59c73cec766733a32d9ae3df"
-date = "2026-11-16"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
 env = "B"
-run = "20261116-180626-a1cf24198"
+run = "20261124-124426-d6bc8459d"
 retried = false
-covers = "20dbcad78fe64cee"
+covers = "4474e7a4d2fb03df"
 docnums = ["HP0000090"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "PUR-2026-00816"
-task = "pinj38jie5"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00780"
+task = "0lhqp9c22u"
 
 [[pass]]
 scenario = "acc.erp.pos.day.express"
@@ -351,7 +403,7 @@ run = "20261116-181210-cea84e06b"
 retried = false
 covers = "a2ae4f683e0cf539"
 docnums = ["HS691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PDS-2026-00832"
 
 [[pass]]
@@ -363,7 +415,7 @@ run = "20261116-180947-cea84e06b"
 retried = false
 covers = "a2ae4f683e0cf539"
 docnums = ["HS691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PDS-2026-00822"
 
 [[pass]]
@@ -375,7 +427,7 @@ run = "20261116-180036-a1cf24198"
 retried = false
 covers = "d3500ebe4305b20c"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00811"
 
 [[pass]]
@@ -387,7 +439,7 @@ run = "20261116-171538-a1cf24198"
 retried = false
 covers = "3e7064d070aba147"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00749"
 
 [[pass]]
@@ -399,8 +451,20 @@ run = "20261116-171743-a1cf24198"
 retried = false
 covers = "3e7064d070aba147"
 docnums = ["HP691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "PUR-2026-00751"
+
+[[pass]]
+scenario = "acc.erp.purchase.express.ui"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
+env = "B"
+run = "20261124-124426-d6bc8459d"
+retried = false
+covers = "e659e3850ac06c58"
+docnums = ["RR691124-001"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "PUR-2026-00782"
 
 [[pass]]
 scenario = "acc.erp.sales.cancel.express"
@@ -411,20 +475,20 @@ run = "20261116-180336-a1cf24198"
 retried = false
 covers = "ec842463c8007a6d"
 docnums = ["IV691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 erp_doc = "SD-00815"
 
 [[pass]]
 scenario = "acc.erp.sales.credit.express"
-sha = "8dd13d5f1d92da88d2394911b3596eddf0fa70d9"
-date = "2026-11-19"
+sha = "d6bc8459da03c0ea9a9f97eff8421610504fe903"
+date = "2026-11-24"
 env = "B"
-run = "20261119-134925-8dd13d5f1"
+run = "20261124-124426-d6bc8459d"
 retried = false
-covers = "a16d9496782c8204"
-docnums = ["IV691119-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
-erp_doc = "SD-02973"
+covers = "2d4111a1e019aece"
+docnums = ["IV0000030"]
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+erp_doc = "SD-00777"
 
 [[pass]]
 scenario = "acc.erp.stock.adjust.express"
@@ -435,7 +499,7 @@ run = "20261116-174649-a1cf24198"
 retried = false
 covers = "e1473b3751730077"
 docnums = ["TK691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.count.express"
@@ -446,7 +510,7 @@ run = "20261116-175332-a1cf24198"
 retried = false
 covers = "d2f5c17797e54114"
 docnums = ["TK691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.in.express"
@@ -457,7 +521,7 @@ run = "20261116-174216-a1cf24198"
 retried = false
 covers = "e1473b3751730077"
 docnums = ["JU691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.out.express"
@@ -468,7 +532,7 @@ run = "20261116-174417-a1cf24198"
 retried = false
 covers = "e1473b3751730077"
 docnums = ["JU691116-001", "OU691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.transfer.express"
@@ -479,7 +543,7 @@ run = "20261116-174845-a1cf24198"
 retried = false
 covers = "0c5661fcf8f07ee9"
 docnums = ["JU691116-001", "RL691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
 
 [[pass]]
 scenario = "acc.erp.stock.void.express"
@@ -490,4 +554,4 @@ run = "20261116-175121-a1cf24198"
 retried = false
 covers = "47a17df54ef185b3"
 docnums = ["JU691116-001"]
-ledger = "\\\\accserver\\ACCOUNT\\69EXP\\TEST2"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"

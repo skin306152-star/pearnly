@@ -86,3 +86,36 @@
   断言推送写成、单号 = 账本读回、本进程开了 60 秒 loading、记下等结果的键、全程没有推送（站点按天计数 push_* 不变、本进程无 push）、
   55 秒内有结果时回复恰好一次（站点计数，LINE 拒收假令牌记 reply_rejected）且本进程没回兜底；55 秒还没结果时记「走了兜底」。
   只在接着 LINE 测试频道的测试环境 testcowork 跑（Mac 栈没有 LINE 频道 → 核心集在 Mac 栈跑时这条记没测到）；回执文字留三星真机记录。
+
+## 5. 首跑（11-24，窗口 accept-l3-1124，分支 `pearnly/acceptance-l3-first-run-64fc3d`）
+
+环境：本机 Mac 栈 `pearnly-acccore`（ERP 18995 / Cowork 18996，镜像 054aa603… + main d8510e61a 实时源码，`maclab_model.py on` 接真模型）+ 测试机2（aksar，CC 1.12.24）
++ 账套 `69EXP\TEST2`（基线 TEST2@2026-11-16）。测试机1 当天给上线后验收，主会话改排测试机2。真模型合计 2.15 美元（上限 3）。
+证据目录 `~/pearnly-devtools/acceptance-runs/20261124-*`；上机 / 还原脚本 `~/pearnly-devtools/acc-l3-1124/`。
+
+| # | 场景 | 第 1 遍（含复跑） | 第 2 遍 | 结论 |
+|---|---|---|---|---|
+| 0 | acc.erp.company.connect.fresh | 通过 | —（只在刚建的站点跑） | 通过 |
+| 1 | acc.erp.purchase.express.ui | 通过（环境类重跑 1 次） | 通过 | 通过 |
+| 2 | acc.erp.sales.credit.express | 通过 | 通过 | 通过 |
+| 3 | acc.erp.collection.three | 通过 | 通过 | 通过 |
+| 4 | acc.erp.cc.collection | 不通过 ×3（用例）→ 通过 | 没测到：花费到顶 | 通过 1 次 |
+| 5 | acc.erp.operator.purchase.express | 通过 | 通过 | 通过 |
+| 6 | acc.erp.operator.talk.sales | 不通过 | 没测到：花费到顶 | 不通过（问题 1） |
+| 7、8 | acc.erp.mrerp.* | 没测到 | 没测到 | 新栈没授权 MR.ERP |
+| 10 | acc.cowork.intake.express | 没测到 / 不通过（用例）→ 通过 | 通过 | 通过 |
+| 11 | acc.cowork.cc.direct.purchase | 不通过 / 没测到（用例）→ 通过 | 通过 | 通过 |
+| 12 | acc.cowork.operator.purchase.express | 不通过（用例 + 工具）→ 通过 | 通过 | 通过 |
+| 14 | acc.cowork.line.receipt | 没测到 | 没测到 | 今天不切 testcowork |
+| 15 | acc.dms.line.booking | 没测到 | 没测到 | 写好（离线单测过），等测试环境排期 |
+
+首跑红的都是用例 / 工具问题（已在本分支修）：`maclab_model.py` 只配密钥不配引擎；新站点 / 新账套要先答写前卡（付款方式、科目、往来方），
+卡上科目只给搜索；同号发票（每格还原账套）把前几格的收款算进来、查找不等本格那笔；引导式收款点写入后 CC 不另说话（改核卡上单号）；
+代录回执不带落点（改按冻结的账套核）；对话驱动不会答 `pearnly_guide` 卡；`pair_profile` 没从原本就暂停的同通道档案借 Express 程序；
+测试机 cp874 控制台印不出中文结果；真模型驱动只认一组站点。
+
+产品侧（报主会话，未改）：
+1. ERP 代录准备中列出的待录单会被 `express.push.poll` 每分钟直写抢走（实测 8–22 秒），代录对话时有时无——口径待定，定了再改第 6 条场景。
+2. Cowork 代录遇到没有明细行的票（直写能写）停在 Express 空明细的 RR 上、OPERATOR_UNKNOWN_SCREEN。场景已改带样票明细，不再触发。
+
+何时改「拦」：问题 1 定案、第 6 条改好后，再连续两次完整核心集全过（含两条 ERP 对话），由主会话定接进 `deploy.sh`。
