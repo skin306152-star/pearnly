@@ -3516,6 +3516,7 @@ erp.target_projection_value_too_long,A value in the ERP data report exceeds the 
 excel,excel
 failed,Failed
 guide.business.company,Company Details
+guide.business.documents,Documents
 guide.business.folder_task,Scheduled tasks
 guide.business.pending,Pending
 guide.business.pos,POS Daily Sales
@@ -3527,6 +3528,7 @@ guide.business.wht,Withholding Tax
 guide.business.work,Task Management
 guide.consent.company.note_delete,Delete the note?
 guide.consent.company.rule_delete,Delete the rule?
+guide.consent.documents.delete,Delete the documents?
 guide.consent.folder_task.delete,Delete the scheduled tasks?
 guide.consent.folder_task.run,Run the scheduled task now?
 guide.consent.pending.delete,Delete the documents?
@@ -3558,6 +3560,9 @@ guide.option.work.update,Edit card
 guide.step.company.action,Action
 guide.step.company.note,Item
 guide.step.company.text,Text
+guide.step.documents.action,Action
+guide.step.documents.item,Document
+guide.step.documents.items,Documents
 guide.step.folder_task.account,Account
 guide.step.folder_task.action,Action
 guide.step.folder_task.book,Account Set

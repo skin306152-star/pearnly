@@ -245,14 +245,24 @@ basis = "ERP 声明 stocktake（form 源，本对话公司下：按仓库新建�
 id = "resolve"
 name = "结果不明核对、待处理"
 guide = "pending"
-cowork_direct = ["half:p2", "half:p2", "wait:cloud"]
-cowork_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
+cowork_direct = ["done", "half:p2", "wait:cloud"]
+cowork_operator = ["done", "half:p2", "wait:cloud"]
 erp_direct = ["half:p2", "half:p2", "wait:cloud"]
 erp_operator = ["todo:p2", "wait:mrerp", "wait:cloud"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 pending（form 源，选本对话公司待处理清单里的一项 → 确定后交给采购 / 销售的按单据引导 run.start(doc_ids)，判定卡与复核卡都在那里；删除走允许卡；没有结果步骤；d920db310、bba22e8c7）；只有离线单测 test_cowork_pending_guide，页面流程归第 2 步。ERP 的待处理 11-23 随 ERP 直写采购 / 销售一起带进来（另见 erp_direct 两格）"
+basis = "Cowork 声明 pending（form 源，选本对话公司待处理清单里的一项 → 确定后交给采购 / 销售的按单据引导 run.start(doc_ids)，判定卡与复核卡都在那里；删除走允许卡；d920db310、bba22e8c7；11-24 补结果步骤：交出的写单号 · 对方、导出的放文件、删除的说删了几张跳过几张）；真页面点菜单 → 删除 → 选单 → 复核 → 允许 → 结果卡已删除 1 条（11-24 本机实验栈电脑 / 手机两格）；离线单测 test_cowork_pending_guide。ERP 的待处理 11-23 随 ERP 直写采购 / 销售一起带进来（另见 erp_direct 两格）"
+page_flows = ["cowork.cc.guide.pending"]
+
+[[row.link]]
+cell = "cowork_operator.express_local"
+basis = "pending 声明 11-24 加 operator：代录对话里待处理清单只列对话月份（按发票日期）的单，同代录交单的清单；真页面同一条删除走到结果卡（11-24 本机实验栈电脑 / 手机两格）"
+page_flows = ["cowork.cc.guide.pending-operator"]
+
+[[row.link]]
+cell = "cowork_operator.mrerp"
+basis = "同代录 · 本地那格的声明（面向 MR.ERP）；没有 MR.ERP 公司上的流程"
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
@@ -348,10 +358,21 @@ page_flows = ["cowork.cc.guide.readback"]
 [[row]]
 id = "documents"
 name = "单据维护：改识别结果、录不录、删除、导出复核表"
-cowork_direct = ["todo:p2"]
-cowork_operator = ["todo:p2"]
+guide = "documents"
+cowork_direct = ["done"]
+cowork_operator = ["done"]
 erp_direct = ["todo:p2"]
 erp_operator = ["todo:p2"]
+
+[[row.link]]
+cell = "cowork_direct"
+basis = "Cowork 声明 documents（form 源，与待处理同一组函数 assistant/guided/pending.py，清单换成对话选择器选的公司与月份里的全部单据，服务端搜索翻页转调 tools.list_documents）：处理 / 改票面交采购、销售的按单据引导（改票面从复核卡就地改），导出复核工作簿放进对话，删除走允许卡、同录入列表「删除」（history.removal.delete，正在推送的跳过）；结果卡写单号 · 对方、文件或删了几张（11-24 评估 docs/work/2026-11-24-cc-guided-documents-评估.md）；录不录在采购 / 销售判定卡上问；真页面点菜单 → 删除 → 选单 → 复核 → 允许 → 结果卡已删除 1 条（11-24 本机实验栈电脑 / 手机两格）；离线单测 test_cowork_pending_guide"
+page_flows = ["cowork.cc.guide.documents"]
+
+[[row.link]]
+cell = "cowork_operator"
+basis = "同直写那格的声明（modes 含 operator），代录对话里清单只列对话月份的单；真页面同一条删除走到结果卡（11-24 本机实验栈电脑 / 手机两格）"
+page_flows = ["cowork.cc.guide.documents-operator"]
 
 [[row]]
 id = "company_info"

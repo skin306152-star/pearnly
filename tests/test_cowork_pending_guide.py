@@ -79,6 +79,18 @@ ITEMS = [{"document": "D1", "invoice_no": "IV1", "counterparty": "Seller A", "re
           "date": "2026-11-03", "company": "CO-1"}]
 
 
+DOCS = [{"name": f"H{i}", "invoice_no": f"INV{i}", "invoice_date": "2026-11-05", "seller_name": "Seller", "buyer_name": "Me",
+         "total_amount": "107.00", "filename": f"f{i}.jpg", "direction": "purchase"} for i in range(1, 8)]
+
+
+def _listed(payload):
+    """`tools.list_documents` 的替身：按页切、给 next_offset 与 total（同真实工具的形状）。"""
+    rows = [row for row in DOCS if not payload.get("search") or payload["search"] in row["invoice_no"]]
+    start, size = int(payload.get("offset") or 0), int(payload.get("limit") or 20)
+    page = rows[start:start + size]
+    return {"documents": page, "total": len(rows), "offset": start, "next_offset": start + len(page)}
+
+
 def _pending(company=None, limit=None, search=None):
     STATE["asked"].append((company, search))
     rows = [dict(row) for row in ITEMS if (not company or row["company"] == company)
@@ -95,7 +107,9 @@ _module("pearnly_core.assistant.files", resolve=lambda path: path.split("/")[-2]
 _module("pearnly_cowork.assistant.tools",
         export_review_workbook=lambda payload: STATE["exported"].append(payload["documents"]) or json.dumps(
             {"status": "exported", "documents": 2, "file": "/mnt/session/uploads/F3/review.xlsx"}),
-        delete_documents=lambda payload: STATE["deleted"].append(payload["documents"]) or json.dumps({"deleted": 1, "skipped": 1}))
+        delete_documents=lambda payload: STATE["deleted"].append(payload["documents"]) or json.dumps(
+            STATE.get("delete_result") or {"deleted": 1, "skipped": 1}),
+        list_documents=lambda payload: STATE["listed"].append(dict(payload)) or json.dumps(_listed(payload)))
 
 from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_cowork.assistant.guided import pending as guide  # noqa: E402
@@ -118,11 +132,16 @@ class Doc(dict):
 class Base(unittest.TestCase):
     def setUp(self):
         STATE.clear()
-        STATE.update(intake=True, asked=[], exported=[], deleted=[], started=[], rollbacks=[])
+        STATE.update(intake=True, asked=[], exported=[], deleted=[], started=[], rollbacks=[], listed=[], got=[])
+        frappe.get_list = lambda doctype, filters=None, fields=None, limit_page_length=0, **k: STATE["got"].append(filters) or [
+            dict(row) for row in DOCS if row["name"] in filters["name"][1]]
         HOOKS["pearnly_guides"] = ["pearnly_cowork.assistant.guided.pending.GUIDES"]
         self.docs, self.clock = {}, [0]
         self.now = {"session_id": SESSION, "mode": "chat", "company": "CO-1", "ledger": "BOOK", "period": "2026-11",
                     "stopped_at": None}
+        # 代录对话里清单按对话月份筛（`pending._operator` 读会话的模式）
+        frappe.db.get_value = lambda doctype, filters, field=None, *a, **k: (
+            "TASK1" if field == "operator_task" and self.now.get("mode") == "operator" else None)
         run._insert, run._locked, run._save, run._open_runs, run._conversation, run._announce = (
             self.insert, self.locked, self.save, self.open_runs, lambda session_id: dict(self.now), lambda doc: None)
         self.real_start = run.start
@@ -175,7 +194,11 @@ class Pending(Base):
             self.assertTrue(callable(_get_attr(step["options"])), step["options"])
         for key in ("allowed", "draft", "review", "confirm"):
             self.assertTrue(callable(_get_attr(found[key])), found[key])
-        self.assertEqual(registry.offered()["chat"], ["pending"])
+        # 待处理与单据（单据维护，总表第 14 行）两份声明，直写与代录都开（11-24 主会话）
+        self.assertEqual(registry.offered()["chat"], ["pending", "documents"])
+        self.assertEqual(registry.offered()["operator"], ["pending", "documents"])
+        for found in guide.GUIDES:
+            self.assertTrue(callable(_get_attr(found["result"])), found["id"])
         STATE["intake"] = False
         self.assertEqual(registry.offered()["chat"], [])
 
@@ -218,6 +241,60 @@ class Pending(Base):
         name, found = self.walk({"action": "delete"}, {"items": ["D1"]})
         done = run.confirm(name, found["version"])
         self.assertEqual((STATE["deleted"], done["result"]["deleted"]), ([["D1"]], 1))
+
+
+class OperatorMonth(Base):
+    def test_in_an_operator_conversation_pending_lists_only_the_conversation_month(self):
+        ITEMS.append({"document": "D3", "invoice_no": "IV3", "counterparty": "Old", "reason_label": "", "amount": "1.00",
+                      "date": "2026-10-30", "company": "CO-1"})
+        self.addCleanup(ITEMS.pop)
+        ctx = {"company": "CO-1", "session": SESSION, "period": "2026-11", "business": "pending"}
+        self.assertEqual([row["code"] for row in guide.item_options(ctx)["options"]], ["D1", "D2", "D3"])   # 直写不按月
+        self.now["mode"] = "operator"
+        self.assertEqual([row["code"] for row in guide.item_options(ctx)["options"]], ["D1", "D2"])
+
+
+class Documents(Base):
+    CTX = {"company": "CO-1", "session": SESSION, "period": "2026-11", "business": "documents"}
+
+    def test_the_list_is_every_document_of_the_conversation_month_paged_on_the_server(self):
+        found = guide.item_options(self.CTX, txt="", start=0, page_length=5)
+        self.assertEqual([row["code"] for row in found["options"]], ["H1", "H2", "H3", "H4", "H5"])
+        self.assertTrue(found["more"])
+        self.assertEqual(STATE["listed"][-1], {"invoice_date_from": "2026-11-01", "invoice_date_to": "2026-11-30",
+                                               "search": "", "limit": 5, "offset": 0})
+        self.assertEqual(found["options"][0], {"code": "H1", "name": "INV1 · Seller", "note": "107.00 · 2026-11-05"})
+        rest = guide.item_options(self.CTX, txt="", start=5, page_length=5)
+        self.assertEqual(([row["code"] for row in rest["options"]], rest["more"]), (["H6", "H7"], False))
+        self.assertEqual([row["code"] for row in guide.item_options(self.CTX, txt="INV3")["options"]], ["H3"])
+
+    def test_chosen_documents_are_read_back_by_name_within_the_conversation_month(self):
+        found = guide.item_options(self.CTX, codes=["H2", "H9"])
+        self.assertEqual([row["code"] for row in found["options"]], ["H2"])
+        self.assertEqual(STATE["got"][-1], {"name": ["in", ["H2", "H9"]], "invoice_date": ["between", ["2026-11-01", "2026-11-30"]]})
+
+    def test_the_result_says_what_was_done(self):
+        result = guide.result
+        handed = result({**self.CTX, "done": {"status": "entered", "docnum": "H1", "next": {"run": "R2", "business": "purchase"}}}, "")
+        self.assertEqual((handed["status"], handed["docnum"]), ("ready", "INV1 · Seller"))   # 单号 · 对方，不出内部编号
+        files = result({**self.CTX, "done": {"status": "entered", "files": [{"file": "F", "name": "r.xlsx"}]}}, "")
+        self.assertEqual(files["status"], "ready")
+        self.assertEqual(result({**self.CTX, "done": {"status": "entered", "deleted": 2, "skipped": 0}}, "")["reason_text"],
+                         "intake.delete.done")
+        part = result({**self.CTX, "done": {"status": "entered", "deleted": 1, "skipped": 1}}, "")
+        self.assertEqual((part["status"], part["reason_text"]), ("ready", "intake.delete.partial"))
+        none = result({**self.CTX, "done": {"status": "entered", "deleted": 0, "skipped": 2}}, "")
+        self.assertEqual((none["status"], none["reason_text"]), ("held", "intake.delete.none"))
+
+    def test_the_documents_guide_runs_end_to_end_with_the_same_functions(self):
+        name = run.start(SESSION, "documents")["run"]
+        found = run.answer(name, {"action": "delete"})
+        self.assertEqual(found["consent"], "allow")
+        found = run.answer(name, {"items": ["H1", "H2"]})
+        STATE["delete_result"] = {"deleted": 2, "skipped": 0}
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["deleted"], [["H1", "H2"]])
+        self.assertEqual(done["result"]["reason_text"], "intake.delete.done")
 
 
 if __name__ == "__main__":

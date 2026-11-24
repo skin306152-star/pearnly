@@ -2512,6 +2512,11 @@ Handle	处理	ดำเนินการ	処理	guide.option.pending.handle
 Edit document	修改票面	แก้ไขเอกสาร	書類を修正	guide.option.pending.review
 Export review workbook	导出复核工作簿	ส่งออกสมุดงานตรวจทาน	確認用ブックを書き出し	guide.option.pending.export
 Delete the documents?	要删除单据吗？	ลบเอกสารหรือไม่	書類を削除しますか？	guide.consent.pending.delete
+Documents	单据	เอกสาร	書類	guide.business.documents
+Action	操作	การดำเนินการ	操作	guide.step.documents.action
+Document	单据	เอกสาร	書類	guide.step.documents.item
+Documents	单据	เอกสาร	書類	guide.step.documents.items
+Delete the documents?	要删除单据吗？	ลบเอกสารหรือไม่	書類を削除しますか？	guide.consent.documents.delete
 Task Management	任务管理	จัดการงาน	タスク管理	guide.business.work
 Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.work
 Action	操作	การดำเนินการ	操作	guide.step.work.action
