@@ -464,8 +464,8 @@ class Walk(Base):
         self.assertEqual({key: made[0][key] for key in ("direction", "posting_date", "warehouse", "purpose", "reason", "submit")},
                          {"direction": "out", "posting_date": "2026-11-19", "warehouse": "WH1", "purpose": "damage",
                           "reason": "broken", "submit": 1})
-        self.assertEqual(made[0]["lines"], [{"product": "P1", "qty": "2", "warehouse": "WH1"},
-                                            {"product": "P1", "qty": "1", "warehouse": "WH2"}])
+        self.assertEqual(made[0]["lines"], [{"product": "P1", "qty": 2.0, "warehouse": "WH1"},
+                                            {"product": "P1", "qty": 1.0, "warehouse": "WH2"}])
         self.assertEqual(made[0]["dedupe_key"], f"cc:guide:{name}:{found['version']}")
         self.assertEqual(made[0]["attachments"], [])
         # 结果卡：ERP 单号；排队写 Express 时页面过一会儿再取
@@ -559,7 +559,7 @@ class Units(Base):
         self.assertEqual(found["status"], "reviewing")
         self.assertEqual(found["review"]["tables"][0]["rows"][0]["note"], "U1, U2")
         run.confirm(name, found["version"])
-        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P2", "qty": "2", "warehouse": "WH1",
+        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P2", "qty": 2.0, "warehouse": "WH1",
                                                          "serials": [{"serial": "U1"}, {"serial": "U2"}]}])
 
     def test_in_registers_new_units_and_a_return_takes_back_sold_ones(self):
@@ -595,9 +595,9 @@ class Units(Base):
         self.assertEqual(found["status"], "reviewing")
         run.confirm(name, found["version"])
         self.assertEqual(STATE["created"][0]["lines"], [
-            {"product": "P2", "qty": "1", "warehouse": "WH1", "unit_cost": "900", "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001", "secondary_no": "", "color": ""}]},
-            {"product": "P2", "qty": "-1", "warehouse": "WH1", "serials": [{"serial": "U2"}]},
-            {"product": "P1", "qty": "-3", "warehouse": "WH1"}])
+            {"product": "P2", "qty": 1.0, "warehouse": "WH1", "unit_cost": 900.0, "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001", "secondary_no": "", "color": ""}]},
+            {"product": "P2", "qty": -1.0, "warehouse": "WH1", "serials": [{"serial": "U2"}]},
+            {"product": "P1", "qty": -3.0, "warehouse": "WH1"}])
 
 
 class Adjust(Base):
@@ -608,7 +608,7 @@ class Adjust(Base):
         found = run.answer(name, {"minus": [{"code": P1_WH1, "amount": "4"}]})
         self.assertEqual(found["status"], "reviewing")
         run.confirm(name, found["version"])
-        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": "-4", "warehouse": "WH1"}])
+        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": -4.0, "warehouse": "WH1"}])
 
     def test_prices_only_for_increases_and_recommended_only_to_people_who_see_costs(self):
         name, found = self.walk("stock_adjust", {"warehouse": "WH1", "plus": [{"code": P1_WH2, "amount": "2"}]})
@@ -631,7 +631,7 @@ class Files(Base):
         self.assertEqual(TABLES["File"], [])                       # 确定之前不存
         run.confirm(name, found["version"])
         self.assertEqual(STATE["created"][0]["attachments"], ["FILE-1", "FILE-2"])
-        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": "1", "warehouse": "WH1", "unit_cost": "10",
+        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": 1.0, "warehouse": "WH1", "unit_cost": 10.0,
                                                          "unit_cost_manual": 1}])
         self.assertTrue(all(row["file_name"].startswith("ERO-") and row["owner"] == "a@x" for row in TABLES["File"]))
         # 原件 id 走网页上传同一个公开入口（方向 stock_in，幂等键由这次引导 + 对话文件编号算出）

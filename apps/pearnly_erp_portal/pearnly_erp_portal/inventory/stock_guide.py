@@ -471,7 +471,8 @@ def _serials(values, step_key, rows, mode) -> list:
 def _lines(ctx, values) -> list:
     """答案 → `create_entry` 的 ``lines``：``{product, qty, warehouse, unit_cost?, serials?}``（调整的减少行数量为负）。"""
     direction = _direction(ctx)
-    prices = {str(row["code"]): str(row["amount"]) for row in values.get("prices") or ()}
+    # 数量、单价交数字（同网页提交的 JSON）：交文字时单据校验 `line.qty <= 0` 撞 TypeError（train-1124 流程实测）
+    prices = {str(row["code"]): frappe.utils.flt(row["amount"]) for row in values.get("prices") or ()}
     groups = [("plus", 1, "plus_units"), ("minus", -1, "minus_units")] if direction == "adjust" else [("rows", 1, "units")]
     lines = []
     for source, sign, units_key in groups:
@@ -483,7 +484,7 @@ def _lines(ctx, values) -> list:
         for row in rows:
             _flag, warehouse, product = parse(row["code"])
             qty = frappe.utils.flt(row["amount"]) * sign
-            line = {"product": product, "qty": _qty_text(qty), "warehouse": warehouse}
+            line = {"product": product, "qty": qty, "warehouse": warehouse}
             if row["code"] in prices and (direction == "in" or sign > 0):
                 line.update(unit_cost=prices[row["code"]], unit_cost_manual=1)
             if row["code"] in picked:
