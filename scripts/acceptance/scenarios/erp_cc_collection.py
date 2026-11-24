@@ -18,6 +18,8 @@
 """
 import importlib.util
 import sys
+import json
+import re
 import time
 from pathlib import Path
 
@@ -109,14 +111,20 @@ def run(ctx):
         ctx.require("点头之前账套逐文件没有变化", [], untouched.get("stray"))
 
     with ctx.step("点写入", "卡上点「写入」，CC 桌面版写进验收账套并回执"):
+        earlier = {item["name"] for item in chain.site(ctx, "erp_collection_lookup.py", {"invoice": invoice, "source": "cc", "wait": 0},
+                                                       timeout=120, save="erp_collection_lookup-before.json")["records"]}
         done = talk.guide_confirm(run, view["version"])
         ctx.save("confirmed.json", done)
         ctx.require("卡上点了写入", True, done.get("status") in ("confirmed", "done"))
         clicked = time.time()
         talk.wait_idle(300)
         ctx.spend(talk.cost() - ctx.spent, "写入")
-        found = chain.site(ctx, "erp_collection_lookup.py", {"invoice": invoice, "source": "cc"}, timeout=420)
-        mine = [item for item in found["records"] if item["source"] == "cc"]
+        target = str(((done or {}).get("result") or {}).get("name") or "")   # 复核时就以草稿存在的那张：点写入后就是它
+        earlier.discard(target)
+        found = chain.site(ctx, "erp_collection_lookup.py", {"invoice": invoice, "source": "cc", "exclude": sorted(earlier)}, timeout=420)
+        # 只认点写入之后新出的：每格前账套都还原到基线，新开的发票号会和前几格的一样，站点上同号发票已有前几格的收款
+        # （11-24 首跑：前面 collection.three 在同号 IV0000030 上的 CC 收款被算进来，判成「两笔」）
+        mine = [item for item in found["records"] if item["source"] == "cc" and item["name"] not in earlier]
         ctx.require("这张发票上 CC 建的收款恰好一笔", 1, len(mine))
         receipt = mine[0]
         # 11-15：编码里的不换行空格被换成普通空格，CC 桌面版拒收（CUSTOMER_NOT_IN_ARMAS）
@@ -147,7 +155,16 @@ def run(ctx):
         ctx.check("没点头不写账", [], lines.b1_consent_before_write(record))
         ctx.check("没有重复写、停了不再写", [], lines.b6_stop_and_duplicates(record))
         # 只按收款单号核（回复里照例会提到被收的发票号，那不是这次写成的单）
-        ctx.check("最后说的收款单号与账本一致", [], lines.b7_final_matches_ledger(record, r"\bRE\d{7}\b"))
+        # 引导式（11-14 起为主）：点了「写入」之后结果显示在卡上，CC 不另说一句——那时「最后说的」就是卡上的结果，核卡上的单号
+        confirmed_at = max([card.get("answered_at") or 0 for card in record.cards if card["kind"] == "plan" and card.get("guide")] or [0])
+        said_after = [turn for turn in record.turns if turn["role"] == "assistant" and (turn.get("at") or 0) > confirmed_at]
+        if said_after:
+            ctx.check("最后说的收款单号与账本一致", [], lines.b7_final_matches_ledger(record, r"\bRE\d{7}\b"))
+        else:
+            final = talk.guide("collection") or {}
+            ctx.save("card-final.json", final)
+            shown = sorted(set(re.findall(r"\bRE\d{7}\b", json.dumps(final, ensure_ascii=False))))
+            ctx.check("点写入后 CC 没另说话：卡上最后显示的收款单号与账本一致", [receipt["docnum"]], shown)
         said = " ".join(turn["text"] for turn in record.turns if turn["role"] != "user")
         ctx.check("没有叫用户去 Express 里建客户", False, "Express 里建" in said or "สร้างลูกค้า" in said, soft=True)
         ctx.check("回复语言跟用户这句话", [], lines.b8_language(record), soft=True)

@@ -170,6 +170,19 @@ class ProfileTransform(unittest.TestCase):
             doc["profiles"][1]["express_exe"] = os.path.join(folder, "missing.exe")
             self.assertEqual(pair_profile.express_program(doc, "mac", undo["paused"]), "")
 
+    def test_the_program_also_comes_from_a_same_channel_profile_that_was_already_paused(self):
+        # 11-24 测试机2：Cowork 线上档案启用前就是暂停的（这次没有让出谁），代录仍要拿到它的程序
+        import tempfile
+        with tempfile.TemporaryDirectory() as folder:
+            program = os.path.join(folder, "ExpressI.exe")
+            open(program, "w").close()
+            doc = {"profiles": [{"profile_id": "online", "channel": "cowork", "paused": True, "express_exe": program},
+                                {"profile_id": "other", "channel": "core", "paused": False, "express_exe": os.path.join(folder, "missing.exe")},
+                                {"profile_id": "mac", "channel": "cowork", "paused": False}]}
+            self.assertEqual(pair_profile.express_program(doc, "mac", []), program)
+            doc["profiles"][0]["channel"] = "core"   # 别的通道、也没让出：不借
+            self.assertEqual(pair_profile.express_program(doc, "mac", []), "")
+
     def test_resume_after_pause_is_the_same_activation(self):
         first, undo = pair_profile.activate(_config(), "mac", "core", ACC)
         paused = pair_profile.deactivate(first, "mac", "core", ACC, undo)

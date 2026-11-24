@@ -103,6 +103,14 @@ def reach_plan(talk, seconds: int = PLAN_WAIT, limit: int = ASK_LIMIT, sleep=tim
         record = talk.record()
         if any(card["kind"] == "plan" and card.get("status") == "awaiting" for card in record.cards):
             return record, asked
+        # 写前引导卡（新账套还没记过的选择）照页面作答：它在记录里显示成等「允许」的 pearnly_guide 卡（不是写操作的把关）
+        guide_open = [card for card in record.cards if card["kind"] == "allow" and card.get("topic") == "pearnly_guide"
+                      and card.get("answered_at") is None]
+        if guide_open and len(asked) < limit and hasattr(talk, "answer_guide_card"):
+            done = talk.answer_guide_card()
+            if done:
+                asked.append({"topic": "pearnly_guide", "answered": done["answers"]})
+                continue
         waiting = [card for card in record.cards if card["kind"] == "ask" and card.get("answered_at") is None]
         if waiting and len(asked) < limit and talk.click("ask", []):
             asked.append({"topic": waiting[-1].get("topic"), "headers": waiting[-1].get("headers"), "answered": "每题第一个选项"})
@@ -122,9 +130,9 @@ def run(ctx):
     expect, period = sample["expect"], sample["date"][:7]
     party = sample["customer"] if kind == "sales" else sample["supplier"]
     target, site = site_target(chain)
-    user = os.environ.get("PEARNLY_ACC_REAL_USER", "")
+    user = _lib("cc_driver").real_env("USER", "cowork")
     if not user:
-        raise Unmet("没配：PEARNLY_ACC_REAL_USER（对话里登录的 Cowork 员工；见场景文件头）")
+        raise Unmet("没配：PEARNLY_ACC_REAL_USER（或 _USER_COWORK；对话里登录的 Cowork 员工；见场景文件头）")
     book = ctx.targets.ledger(chain.HOST, chain.LEDGER)
 
     def state(params: dict, timeout=180, save=""):
@@ -148,7 +156,7 @@ def run(ctx):
         ctx.on_failure("conversation", talk.evidence)
         ctx.facts.update(session=talk.session_id, site=getattr(talk, "site", ""))
         if getattr(talk, "site", "") and talk.site != site:
-            raise Unmet(f"对话站点 {talk.site} 与站点脚本的 Cowork 站点 {site} 不是同一个（PEARNLY_ACC_REAL_SITE / PEARNLY_ACC_COWORK_SITE）")
+            raise Unmet(f"对话站点 {talk.site} 与站点脚本的 Cowork 站点 {site} 不是同一个（PEARNLY_ACC_REAL_SITE[_COWORK] / PEARNLY_ACC_COWORK_SITE）")
 
     with ctx.step("放票并说一句", f"识别出这张{'采购' if kind == 'purchase' else '销售'}票，复述后出写入计划；这时账本里还没有新单"):
         talk.attach([conf["sample"]])

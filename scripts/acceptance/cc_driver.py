@@ -85,6 +85,7 @@ RECORD_NOW = {"en": "Write", "zh": "写入", "th": "บันทึก", "ja": "
 TOOL_USES = ("agent.custom_tool_use", "agent.tool_use", "agent.mcp_tool_use")
 RAN = ("running", "done", "error")
 ASK_TOOL = "ask_user"
+GUIDE_TOOL = "pearnly_guide"                    # 写前引导卡（`assistant.guide_tool`）：新账套还没记过的选择，开始前一张卡问完
 # 卡片挂着时用户直接打字（sessions.send）：站点先发 user.interrupt 再发这句，同一个请求里；这不是用户喊停
 TYPED_GAP = 2.0
 # frontend/assistant/src/lib/managed-agents/events.ts 的 splitAttachmentNote
@@ -623,6 +624,37 @@ class LabConversation(Conversation):
     def guide_confirm(self, run: str, version: int) -> dict:
         return self._post("guide_confirm", {"run_name": run, "version": version})
 
+    def answer_guide_card(self) -> dict | None:
+        """此刻挂着的写前引导卡（pearnly_guide）照页面作答：取卡（`guide_card`）→ 每题有预选照预选、有选项取第一个不是「新建」的、
+        只给搜索的（科目等）像在搜索框里搜指定的那个科目，搜不到就不答 → 随确认交回（同页面 `confirm`）。
+        没挂着回 None；回 {tool_use_id, answers: [{kind, value}]}。"""
+        run = self.poll()
+        found = [(use_id, call) for use_id, call in self._open_cards(run).items() if call.get("name") == GUIDE_TOOL]
+        if not found:
+            return None
+        use_id, call = found[-1]
+        card = (self._call("GET", "guide_card", {"session_id": self.session_id, "tool_use_id": use_id}) or {}).get("card") or {}
+        tool_input = call.get("input") or {}
+        company, doc_ids = str(tool_input.get("company") or ""), list(tool_input.get("doc_ids") or ())
+        answers, shown = [], []
+        for question in card.get("questions") or ():
+            codes = [str(option.get("code") or "") for option in question.get("options") or ()]
+            value = str(question.get("value") or "") or next((code for code in codes if code and code != "__new__"), "")
+            if not value and question.get("search") and doc_ids:
+                # 只给搜索的题（科目等）：像用户在搜索框里搜指定的那个（PEARNLY_ACC_GUIDE_ACCOUNT，默认 TEST2 的服务费用科目），搜不到就不答
+                wanted = os.environ.get("PEARNLY_ACC_GUIDE_ACCOUNT", "53-05-07-00")
+                url = (f"{self.base}/api/method/pearnly_core.write_precheck.api.search?"
+                       + urllib.parse.urlencode({"company": company, "doc_id": question.get("doc_id") or doc_ids[0],
+                                                 "search": question["search"], "txt": wanted, "page_length": 20}))
+                rows = (self._http("GET", url, headers=self._headers()).get("message") or {}).get("options") or []
+                value = next((str(row.get("code")) for row in rows if str(row.get("code") or "") == wanted), "")
+            if value:
+                answers.append({"key": question["key"], "value": value})
+                shown.append({"kind": question.get("kind"), "value": value})
+        item = {"tool_use_id": use_id, "result": "allow", "answers": answers}
+        self._post("confirm", {"session_id": self.session_id, "confirmations": json.dumps([item], ensure_ascii=False)})
+        return {"tool_use_id": use_id, "answers": shown}
+
     def record(self):
         self.poll()
         return record_from_events(self.events)
@@ -656,6 +688,11 @@ class LabConversation(Conversation):
 
 
 # ── 真模型（测试机实验栈 / 本机实验栈上接了真模型的站点）────────────────────────
+def real_env(name: str, product: str) -> str:
+    """`PEARNLY_ACC_REAL_<名>_<产品>` 优先，没有就用不分产品的 `PEARNLY_ACC_REAL_<名>`。"""
+    return os.environ.get(f"PEARNLY_ACC_REAL_{name}_{product.upper()}") or os.environ.get(f"PEARNLY_ACC_REAL_{name}", "")
+
+
 class RealConversation(LabConversation):
     """真模型的一段直写（或代录）对话。与 lab-fake 走同一套站点接口与同一套「照页面做」的规矩，只换三样：连哪个站点、Desk 会话怎么建、
     费用怎么算。环境变量（都不是密钥；没配齐就是「没测到」）：
@@ -663,6 +700,8 @@ class RealConversation(LabConversation):
       PEARNLY_ACC_REAL_SITE     站点名（Host；默认取地址里的主机名）
       PEARNLY_ACC_REAL_USER     登录的账号（测试租户的员工；CC 桌面版写账场景要与电脑上登录的是同一人）
       PEARNLY_ACC_REAL_TARGET   local（本机实验栈）/ lab（测试机实验栈，默认）；生产不连
+    每个都可按产品另配（`PEARNLY_ACC_REAL_BASE_ERP`、`PEARNLY_ACC_REAL_USER_COWORK`……，有就优先）：核心集一次跑里 ERP 与 Cowork 的对话
+    连的是两个站点（11-24 首跑发现只有一组时总有一个产品连错站点）。
     占用（测试机、账套、实验栈）由场景登记的 resources 管，这里不查锁。"""
 
     target = "real"
@@ -679,15 +718,15 @@ class RealConversation(LabConversation):
             self.session["mode"] = "operator"
         if mode not in ("direct", "operator"):
             raise Unmet(f"真模型驱动只接直写与代录对话，不认 {mode}")
-        self.base = (base or os.environ.get("PEARNLY_ACC_REAL_BASE", "")).rstrip("/")
-        self.user = user or os.environ.get("PEARNLY_ACC_REAL_USER", "")
-        self.where = where or os.environ.get("PEARNLY_ACC_REAL_TARGET", "lab")
+        self.base = (base or real_env("BASE", product)).rstrip("/")
+        self.user = user or real_env("USER", product)
+        self.where = where or real_env("TARGET", product) or "lab"
         missing = [name for name, value in (("PEARNLY_ACC_REAL_BASE", self.base), ("PEARNLY_ACC_REAL_USER", self.user)) if not value]
         if missing:
             raise Unmet("CC 真模型驱动没配：" + "、".join(missing) + "（见 cc_driver.RealConversation）")
         if self.where not in REAL_TARGETS:
             raise Unmet(f"CC 真模型驱动只连实验栈（{' / '.join(REAL_TARGETS)}），不连 {self.where}")
-        self.site = site or os.environ.get("PEARNLY_ACC_REAL_SITE") or (urllib.parse.urlsplit(self.base).hostname or "")
+        self.site = site or real_env("SITE", product) or (urllib.parse.urlsplit(self.base).hostname or "")
         self.keep = keep
         self.events, self._ids, self._anchor, self._files = [], set(), None, []
         self._lang, self._reminded, self._csrf = "zh", set(), ""

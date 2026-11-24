@@ -408,7 +408,8 @@ class World:
                 if collecting:
                     plan = {**plan, "id": "RUN1", "topic": "guide:collection", "guide": True,
                             "status": "done" if Talk.clicked else "asking"}
-                return record(turns=users + [{"role": "assistant", "text": reply, "at": 4.0}], tools=tools, cards=[plan], writes=[], stops=[])
+                said = [] if world.break_at.startswith("silent") and Talk.clicked else [{"role": "assistant", "text": reply, "at": 6.0 if Talk.clicked else 4.0}]
+                return record(turns=users + said, tools=tools, cards=[plan], writes=[], stops=[])
 
             def guide(self, business, seconds=120):
                 if world.break_at == "no-open":
@@ -422,6 +423,9 @@ class World:
                     return {"run": "RUN1", "status": "asking", "version": 2, "card": {"questions": [
                         {"key": "invoices", "input": "amounts", "options": [{"code": world.invoice, "amount": "1070"}]},
                         {"key": "methods", "input": "split", "options": [{"code": "cash"}]}], "answers": {"customer": world.customer}}}
+                if Talk.clicked:   # 写入后的结果卡（引导式：结果显示在卡上）
+                    return {"run": "RUN1", "status": "done", "version": 4,
+                            "result": {"status": "written", "docnum": "RE0000009" if world.break_at == "silent-wrong" else "RE0000001"}}
                 return {"run": "RUN1", "status": "reviewing", "version": 3, "review": {"total": "400.00"}}
 
             def guide_search(self, run, key, txt):
@@ -732,6 +736,14 @@ class ChainScenarioTest(unittest.TestCase):
             result, world = self.go(scenario_id)
             self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""), scenario_id)
             self.assertEqual((result["facts"]["add_branch"], world.calls.count("restore")), ("adopted", 0))
+
+    def test_a_guided_collection_without_a_later_reply_is_checked_on_the_final_card(self):
+        # 引导式：点写入后 CC 不另说话，结果在卡上——核卡上的单号（11-24 首跑按旧口径判了不通过）
+        result, _ = self.go("acc.erp.cc.collection", "silent")
+        self.assertEqual((result["outcome"], result["detail"]), (self.runner.PASS, ""))
+        result, _ = self.go("acc.erp.cc.collection", "silent-wrong")   # 卡上的单号与账本对不上
+        self.assertEqual(result["outcome"], self.runner.FAIL)
+        self.assertIn("卡上最后显示的收款单号", result["detail"])
 
     def test_line_receipt_that_falls_back_after_55_seconds_still_passes_and_says_so(self):
         result, world = self.go("acc.cowork.line.receipt", "slow")

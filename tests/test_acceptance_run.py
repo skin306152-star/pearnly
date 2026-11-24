@@ -203,6 +203,21 @@ class RunTest(unittest.TestCase):
         runner.record_evidence([{"scenario": "acc.a", "outcome": runner.PASS, "env": "A", "facts": {}}], "def5678", "run-2", path)
         self.assertEqual([item["scenario"] for item in tomllib.loads(path.read_text(encoding="utf-8"))["pass"]], ["acc.a", "acc.b"])
 
+    def test_evidence_never_carries_a_server_name(self):
+        # 仓库公开：UNC 路径的服务器名换成「…」，已登记的旧条目重写时也一并换掉（11-24 公开扫描按字典拦了内部主机名）
+        path = self.dir / "evidence.toml"
+        path.write_text('[[pass]]\nscenario = "acc.old"\nledger = "\\\\\\\\host9\\\\ACCOUNT\\\\T"\n', encoding="utf-8")
+        runner.record_evidence([{"scenario": "acc.b", "outcome": runner.PASS, "env": "B",
+                                 "facts": {"ledger": "\\\\host9\\ACCOUNT\\69EXP\\TEST2", "paths": ["\\\\host9\\x", "C:\\y"]}}],
+                               "abc1234", "run-1", path)
+        text = path.read_text(encoding="utf-8")
+        self.assertNotIn("host9", text)
+        import tomllib
+        recorded = {item["scenario"]: item for item in tomllib.loads(text)["pass"]}
+        self.assertEqual(recorded["acc.b"]["ledger"], "\\\\…\\ACCOUNT\\69EXP\\TEST2")
+        self.assertEqual(recorded["acc.b"]["paths"], ["\\\\…\\x", "C:\\y"])
+        self.assertEqual(recorded["acc.old"]["ledger"], "\\\\…\\ACCOUNT\\T")
+
     def test_unstable_after_two_infra_retries_in_last_ten(self):
         home = self.dir / "home"
         home.mkdir()

@@ -3,7 +3,7 @@
 
     env/bin/python /tmp/acc-erp_collection_lookup.py <站点> '<JSON 参数>'
 
-参数：invoice（发票单号）、source（只等这个入口的：cc / line / web）、wait（最多等几秒，默认 300；0 = 只看一眼）。
+参数：invoice（发票单号）、source（只等这个入口的：cc / line / web）、wait（最多等几秒，默认 300；0 = 只看一眼）、exclude（不算的记录名：点写入前已在的）。
 给 CC 对话收款的场景用：对话里点了「写入」之后，收款记录是 CC 建的，场景靠它拿记录号、单号去账本读回。只在测试租户跑。
 """
 import base64
@@ -45,7 +45,8 @@ try:
     deadline = time.monotonic() + int(params.get("wait", 300))
     while True:
         records = found()
-        mine = [item for item in records if item["source"] == params.get("source", "cc")]
+        skip = set(params.get("exclude") or ())   # 场景点写入前已在的记录（同号发票上前几格留下的）：不算，接着等本格这一笔
+        mine = [item for item in records if item["source"] == params.get("source", "cc") and item["name"] not in skip]
         if any(item["status"] in ("written", "failed", "withdrawn") or item.get("returned") for item in mine) or time.monotonic() > deadline:
             break
         time.sleep(3)

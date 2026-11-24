@@ -352,9 +352,11 @@ def main(argv=None) -> int:
                 out["stray"] = untouched(result, [name for name in args.allow.split(",") if name])
                 out["ok"] = not out["stray"]
     except Refused as error:
-        print(json.dumps({"ok": False, "refused": str(error)}, ensure_ascii=False))
+        # 输出一律 ASCII 转义：测试机上以桌面用户跑时标准输出是 cp874，中文原因（如「有程序开着」）印不出来，
+        # 整条结果丢掉、运行器只看到 UnicodeEncodeError（11-24 首跑收尾还原被误报成环境错误）
+        print(json.dumps({"ok": False, "refused": str(error)}, ensure_ascii=True))
         return 1
-    print(json.dumps(out, ensure_ascii=False))
+    print(json.dumps(out, ensure_ascii=True))
     return 0 if out["ok"] else 1
 
 

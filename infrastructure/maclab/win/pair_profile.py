@@ -147,9 +147,12 @@ def express_program(doc: dict, profile_id: str, paused: list) -> str:
     mine = _profile(doc, profile_id)
     if Path(str(mine.get("express_exe") or "")).is_file():
         return ""
-    for item in doc.get("profiles") or []:
+    profiles = [item for item in doc.get("profiles") or [] if item.get("profile_id") != profile_id]
+    # 先找这次让出来的；没有就找同通道里原本就暂停着的（11-24 测试机2：Cowork 线上档案启用前就是暂停的，代录报找不到程序）
+    channel = str(mine.get("channel") or "")
+    for item in sorted(profiles, key=lambda row: (row.get("profile_id") not in set(paused), str(row.get("channel") or "") != channel)):
         program = str(item.get("express_exe") or "")
-        if item.get("profile_id") in set(paused) and program and Path(program).is_file():
+        if program and Path(program).is_file() and (item.get("profile_id") in set(paused) or str(item.get("channel") or "") == channel):
             return program
     return ""
 

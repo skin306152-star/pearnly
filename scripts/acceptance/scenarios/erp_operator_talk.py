@@ -56,7 +56,7 @@ def run(ctx):
 
     period = time.strftime("%Y-%m")
     with ctx.step("核本月待录", "这家公司这个月待录的单只有本格刚造的这一张（代录的写入计划按这一份出）"):
-        user = os.environ.get("PEARNLY_ACC_REAL_USER") or conf["user"]
+        user = driver.real_env("USER", "erp") or conf["user"]
         found = chain.site(ctx, "erp_operator_sources.py", {"user": user, "company": held["company"], "period": period}, timeout=180)
         others = [row for row in found["documents"] if row.get("doc_id") != held["doc_id"]]
         if others:
@@ -87,7 +87,7 @@ def run(ctx):
         talk.wait_idle(300)
         ctx.spend(talk.cost() - ctx.spent, "代录与回执")
         record = talk.record()
-        stuck = [card for card in record.cards if card["kind"] == "allow"]
+        stuck = [card for card in record.cards if card["kind"] == "allow" and card.get("topic") != "pearnly_guide"]   # 写前引导卡是开始前答的选择，不是被打断
         ctx.check("正常主线里没有要人处理的卡片（弹框带回、被打断）", [], [card.get("topic") for card in stuck])
         if state.get("ledger_state") == "held":
             raise Unmet(f"代录停在等人处理：{state.get('ledger_reason') or job.get('reason')}")

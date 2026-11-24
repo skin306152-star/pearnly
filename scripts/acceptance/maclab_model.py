@@ -25,6 +25,8 @@ ROOT = Path(__file__).resolve().parents[2]
 KEY_FILE = Path(os.environ.get("PEARNLY_ACC_MODEL_KEYS", Path.home() / ".config" / "pearnly-claude-ocr" / "runtime.env"))
 KEY_NAME = "PEARNLY_ANTHROPIC_API_KEY"
 SITE_KEY = "pearnly_assistant_api_key"
+# 对话引擎（`pearnly_core.assistant.engines.ENGINES` 的代码）：只配密钥不配引擎时站点回「本站点尚未设置 CC」（11-24 首跑三条对话场景就是这样红的）
+SITE_ENGINE, ENGINE = "pearnly_assistant_engine", "anthropic-managed-agents"
 MARK = "# maclab_model.py on（跑完 off 删掉）"
 
 
@@ -121,13 +123,14 @@ def main(argv=None) -> int:
         key = read_key()
         write_env(where["env"], key)
         up(app)
-        values = {**ocr[app], "pearnly_ocr_engine": "claude", "pearnly_ocr_budget_redis": redis_of(where), SITE_KEY: key}
+        values = {**ocr[app], "pearnly_ocr_engine": "claude", "pearnly_ocr_budget_redis": redis_of(where), SITE_KEY: key,
+                  SITE_ENGINE: ENGINE}
         conf = site_config(where, values, [])
         ok = conf["has_key"] and conf["tail"] == tail(key) and container_has_key(where) == tail(key) and conf["engine"] == "claude"
     elif action == "off":
         write_env(where["env"], None)
         up(app)
-        conf = site_config(where, {}, [SITE_KEY, *ocr[app], *shared])
+        conf = site_config(where, {}, [SITE_KEY, SITE_ENGINE, *ocr[app], *shared])
         ok = not conf["has_key"] and not container_has_key(where) and not conf["engine"]
     else:
         conf = site_config(where, {}, [])

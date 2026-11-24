@@ -40,11 +40,13 @@ def run(ctx):
     with ctx.step("交给代录并等录成", "票交进代录任务，推送载荷是代录载荷；CC 桌面版在 Express 界面录成并回执"):
         out = chain.site(ctx, "cowork_operator_post.py",
                          {**conf, "run": chain.tag(ctx), "seller_tax": ticket["supplier"]["tax_id"], "seller_name": ticket["supplier"]["name"],
-                          "amount": ticket["expect"]["amount"], "vat": ticket["expect"]["vat"]},
+                          "amount": ticket["expect"]["amount"], "vat": ticket["expect"]["vat"], "lines": ticket.get("lines") or []},
                          timeout=1200, product="cowork", name=intake.SITE, target=intake.SITE_TARGET)
         record = out.get("record") or {}
         if record.get("status") == "manual":
             raise Unmet(f"代录停在等人处理：{record.get('reason')}")
+        ctx.require("交单后没有停在要选的项上", [], [row.get("reason") for row in (out.get("started") or {}).get("results") or []
+                                                if row.get("status") == "needs_choice"])
         ctx.require("推送状态", "success", record.get("status"))
         ctx.check("回显了 Express 单号", True, bool(record.get("docnum")))
         ctx.check("推送载荷是代录载荷（entry_mode=operator）", True, record.get("operator"))
@@ -53,7 +55,7 @@ def run(ctx):
         rows = [row for row in (out.get("task_view") or {}).get("documents") or [] if row.get("doc_id") == out.get("history")]
         ctx.require("代录任务里有这张票", 1, len(rows))
         ctx.check("代录任务里这张是已录入、带同一个单号", ["saved", record.get("docnum")], [rows[0].get("state"), rows[0].get("docnum")])
-        chain.only_ledger(ctx, [record.get("written_to")])
+        chain.only_ledger(ctx, [record.get("written_to") or record.get("frozen_book")])   # 代录回执不带落点：按交给代录时冻结的那本
         ctx.facts.update(docnums=[record["docnum"]], ledger=chain.LEDGER, erp_doc=out.get("history"), task=out.get("task"))
 
     with ctx.step("账本读回", "账套里按单号读得到这张单，表头与票面一致；预期以外的表逐字节不变"):

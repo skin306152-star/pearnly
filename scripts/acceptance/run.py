@@ -26,6 +26,7 @@ import threading
 import fnmatch
 import importlib.util
 import json
+import re
 import os
 import subprocess
 import sys
@@ -325,6 +326,18 @@ def select(registry, args) -> list[dict]:
     return sorted(chosen, key=lambda item: item["id"])
 
 
+UNC_HOST = re.compile(r"^\\\\[^\\/]+")
+
+
+def public_value(value):
+    """证据登记进仓库（仓库公开）：UNC 路径里的服务器名换成「…」，只留共享名之后的部分（11-24：公开扫描按字典拦内部主机名）。"""
+    if isinstance(value, str):
+        return UNC_HOST.sub(lambda _match: "\\\\…", value)
+    if isinstance(value, list):
+        return [public_value(item) for item in value]
+    return value
+
+
 def record_evidence(results: list[dict], sha: str, run_id: str, path: Path, digests: dict | None = None) -> list[str]:
     """通过且没靠重跑的结果写进证据登记：一条场景一段，按 id 排序（改动小、好合并）。``digests``：{场景 id: covers 内容指纹}，
     有就一起记（证据按它判新鲜，变基换了提交号不影响）。"""
@@ -347,7 +360,7 @@ def record_evidence(results: list[dict], sha: str, run_id: str, path: Path, dige
     for scenario_id in sorted(current):
         lines = ["[[pass]]"]
         for key, value in current[scenario_id].items():
-            lines.append(f"{key} = {json.dumps(value, ensure_ascii=False)}")
+            lines.append(f"{key} = {json.dumps(public_value(value), ensure_ascii=False)}")
         body.append("\n".join(lines))
     path.write_text(head + "\n" + "\n\n".join(body) + ("\n" if body else ""), encoding="utf-8")
     return written

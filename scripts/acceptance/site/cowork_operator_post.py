@@ -4,7 +4,7 @@
     env/bin/python /tmp/acc-cowork_operator_post.py <站点> '<JSON 参数>'
 
 参数：user（那台电脑的 CC 桌面版上登录的 Cowork 员工；代录用他存在电脑上的 Express 登录）、connection（Express 连接）、
-ledger（验收账套路径，只认它）、run、seller_tax / seller_name / amount / vat（票面，取自验收样票库）、posting_kind（默认 service）、
+ledger（验收账套路径，只认它）、run、seller_tax / seller_name / amount / vat / lines（票面与明细行，取自验收样票库）、posting_kind（默认 service）、
 wait（最多等几秒，默认 900：界面录入比直写慢）。
 
 走的是代录背后的同一组服务端函数：票用 `history.storage.create_recognized(source="manual")` 造（同 cowork_intake_post），
@@ -30,6 +30,64 @@ PUSH, CONNECTION, HISTORY = "Cowork Push Record", "Cowork ERP Connection", "Cowo
 
 def norm(text) -> str:
     return str(text or "").strip().replace("/", "\\").rstrip("\\").casefold()
+
+
+def answer_card(company, name, period, account_set, detail="", card_wait=240, account="") -> dict:
+    """像用户在引导卡上那样把这张票的卡一次答完（新建的站点 / 账套还没记过付款方式、科目、往来方时，产品先问卡，不答不写——
+    11-24 首跑在刚建的 Mac 栈上两条 Cowork 场景就停在这里）：明细按 ``detail``；有预选的照预选；其余取第一个不是「新建」的选项。
+    回 {asked, kinds, answers, saved}；卡上什么都不问时 asked = False、什么都不记。"""
+    from pearnly_core.assistant import ledger as conversation_ledger
+    from pearnly_core.assistant import sessions
+    from pearnly_core.write_precheck import api as precheck
+
+    made = sessions.create(project=company, period=period, mode="chat")
+    frappe.db.commit()
+    out = {"asked": False}
+    try:
+        frappe.local.pearnly_assistant = {"session_id": made["id"]}
+        try:
+            conversation_ledger.choose(made["id"], account_set, by="page")
+            frappe.db.commit()
+        except Exception as error:  # noqa: BLE001 —— 已定了也行
+            frappe.db.rollback()
+            out["ledger_choose"] = str(error)[:200]
+        deadline = time.monotonic() + card_wait
+        while True:   # 新接的公司先要电脑读一次科目表（waiting「正在读科目表」）：等它读完再判
+            frappe.db.rollback()
+            card = precheck.card(company, [name])
+            if not card.get("waiting") or time.monotonic() > deadline:
+                break
+            time.sleep(10)
+        items = [item for group in card.get("groups") or [] for item in group.get("items") or []] or list(card.get("items") or [])
+        out["kinds"] = [item.get("kind") for item in items]
+        answers = []
+        for item in items:
+            if item.get("kind") == "detail":
+                value = detail
+            else:
+                codes = [str(option.get("code")) for option in item.get("options") or []]
+                value = item.get("value") or next((code for code in codes if code != "__new__"), codes[0] if codes else "")
+                if not value and item.get("search"):
+                    # 可选范围太大、卡上只给搜索（科目表）：像用户在搜索框里搜指定的那个科目（默认 TEST2 的服务费用科目 53-05-07-00）；
+                    # 搜不到就不答、让场景停在「要选」上，不乱挑（11-24 首跑退回第一个，挑成了现金科目 11-01-01-00）
+                    wanted = str(account or "53-05-07-00")
+                    found = precheck.search(company, name, item["search"], wanted, 0, 20).get("options") or []
+                    value = next((str(row.get("code")) for row in found if str(row.get("code")) == wanted), "")
+            if value:
+                answers.append({"key": item["key"], "value": value, "kind": item.get("kind")})
+        out["answers"] = [{"kind": answer["kind"], "value": answer["value"]} for answer in answers]
+        if answers:
+            saved = precheck.record(company, [name], [{"key": a["key"], "value": a["value"]} for a in answers], guided=True)
+            frappe.db.commit()
+            out.update(asked=True, saved={k: saved.get(k) for k in ("ok", "saved", "refused")} if isinstance(saved, dict) else saved)
+    finally:
+        frappe.local.pearnly_assistant = None
+        try:
+            sessions.delete(made["id"])
+            frappe.db.commit()
+        except Exception:  # noqa: BLE001
+            frappe.db.rollback()
+    return out
 
 
 site, params = sys.argv[1], json.loads(sys.argv[2])
@@ -84,6 +142,10 @@ try:
               "buyer_name": attributes.get("company") or attributes.get("name") or "", "buyer_tax": attributes.get("tax_id") or "",
               "subtotal": str(amount), "vat": str(vat), "total_amount": str(amount + vat), "date": invoice_date,
               "document_type": "tax_invoice", "invoice_number": f"ACC-{params['run']}"}
+    if params.get("lines"):
+        # 照样票的明细行造（识别出来的票一般带明细）：代录要在 Express 里一行一行录（11-24 首跑：不带明细时代录停在空明细的 RR 上）
+        fields["items"] = [{"name": row["description"], "qty": str(row.get("qty") or "1"), "price": str(row["price"]),
+                            "subtotal": str(Decimal(str(row["price"])) * Decimal(str(row.get("qty") or "1")))} for row in params["lines"]]
     pages = [{"page_index": 1, "fields": fields}]
     posting_kind = params.get("posting_kind", "service")
     history = storage.create_recognized(conn.workspace, pages, f"acc-{secrets.token_hex(6)}", source="manual", confidence="high",
@@ -104,9 +166,13 @@ try:
 
     task = tasks.create(company, invoice_date[:7])
     frappe.db.commit()
+    result["card"] = answer_card(company, name, invoice_date[:7], account_set, account=params.get("account", ""))   # 新站点先问的卡照用户那样答一次；不问就什么都不记
     started = operator_api.start(company, [name], task=task["name"])
     frappe.db.commit()
     result.update(task=task["name"], started=started)
+    stuck = [row for row in (started or {}).get("results") or [] if row.get("status") == "needs_choice"]
+    if stuck:   # 还停在要选的项上：不进写账队列，不必空等 wait 秒（11-24 首跑空等了 16 分钟）
+        params["wait"] = 0
 
     deadline, record = time.monotonic() + int(params.get("wait", 900)), {}
     while time.monotonic() < deadline:
@@ -120,6 +186,10 @@ try:
             record = {"name": push, "status": row.get("status"), "docnum": row.get("external_docnum"), "reason": row.get("reason"),
                       "verify": row.get("verify_state"), "unknown": row.get("result_unknown"), "written_to": meta.get("account_dir"),
                       "written": bool(meta.get("written")), "operator": operator_contracts.is_operator(payload),
+                      # 代录回执不带 meta.account_dir（那是直写回执才有的）：落点按载荷里冻结的那本（交给代录时核过是这家公司的这本），
+                      # 写没写进去由场景按单号读回账本证明（11-24 首跑：代录录成 RR0000101，这一栏读出空）
+                      "frozen_book": "\\".join(part.rstrip("\\") for part in (payload.get("account_root") or "", str(payload.get("account_set") or "").strip("\\")) if part)
+                      if not (":" in str(payload.get("account_set") or "") or str(payload.get("account_set") or "").startswith("\\\\")) else str(payload.get("account_set")),
                       "operator_batch": str(((payload.get("operator") or {}).get("batch") or {}).get("id") or "")}
             if record["status"] in ("success", "failed", "manual") or record["unknown"]:
                 break

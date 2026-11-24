@@ -30,6 +30,69 @@ def norm(text) -> str:
     return str(text or "").strip().replace("/", "\\").rstrip("\\").casefold()
 
 
+def answer_card(company, name, period, account_set, detail="", card_wait=240, account="") -> dict:
+    """像用户在引导卡上那样把这张票的卡一次答完（新建的站点 / 账套还没记过付款方式、科目、往来方时，产品先问卡，不答不写——
+    11-24 首跑在刚建的 Mac 栈上两条 Cowork 场景就停在这里）：明细按 ``detail``；有预选的照预选；其余取第一个不是「新建」的选项。
+    回 {asked, kinds, answers, saved}；卡上什么都不问时 asked = False、什么都不记。"""
+    from pearnly_core.assistant import ledger as conversation_ledger
+    from pearnly_core.assistant import sessions
+    from pearnly_core.write_precheck import api as precheck
+
+    made = sessions.create(project=company, period=period, mode="chat")
+    frappe.db.commit()
+    out = {"asked": False}
+    try:
+        frappe.local.pearnly_assistant = {"session_id": made["id"]}
+        try:
+            conversation_ledger.choose(made["id"], account_set, by="page")
+            frappe.db.commit()
+        except Exception as error:  # noqa: BLE001 —— 已定了也行
+            frappe.db.rollback()
+            out["ledger_choose"] = str(error)[:200]
+        deadline = time.monotonic() + card_wait
+        while True:   # 新接的公司先要电脑读一次科目表（waiting「正在读科目表」）：等它读完再判
+            frappe.db.rollback()
+            card = precheck.card(company, [name])
+            if not card.get("waiting") or time.monotonic() > deadline:
+                break
+            time.sleep(10)
+        items = [item for group in card.get("groups") or [] for item in group.get("items") or []] or list(card.get("items") or [])
+        out["kinds"] = [item.get("kind") for item in items]
+        answers = []
+        for item in items:
+            if item.get("kind") == "detail":
+                value = detail
+            else:
+                codes = [str(option.get("code")) for option in item.get("options") or []]
+                value = item.get("value") or next((code for code in codes if code != "__new__"), codes[0] if codes else "")
+                if not value and item.get("search"):
+                    # 可选范围太大、卡上只给搜索（科目表）：像用户在搜索框里搜指定的那个科目（默认 TEST2 的服务费用科目 53-05-07-00）；
+                    # 搜不到就不答、让场景停在「要选」上，不乱挑（11-24 首跑退回第一个，挑成了现金科目 11-01-01-00）
+                    wanted = str(account or "53-05-07-00")
+                    found = precheck.search(company, name, item["search"], wanted, 0, 20).get("options") or []
+                    value = next((str(row.get("code")) for row in found if str(row.get("code")) == wanted), "")
+            if value:
+                answers.append({"key": item["key"], "value": value, "kind": item.get("kind")})
+        out["answers"] = [{"kind": answer["kind"], "value": answer["value"]} for answer in answers]
+        if answers:
+            saved = precheck.record(company, [name], [{"key": a["key"], "value": a["value"]} for a in answers], guided=True)
+            frappe.db.commit()
+            out.update(asked=True, saved={k: saved.get(k) for k in ("ok", "saved", "refused")} if isinstance(saved, dict) else saved)
+    finally:
+        frappe.local.pearnly_assistant = None
+        try:
+            sessions.delete(made["id"])
+            frappe.db.commit()
+        except Exception:  # noqa: BLE001
+            frappe.db.rollback()
+    return out
+
+
+def cowork_companies_service():
+    from pearnly_cowork.companies import service
+    return service
+
+
 site, params = sys.argv[1], json.loads(sys.argv[2])
 frappe.init(site=site, sites_path="/home/frappe/frappe-bench/sites")
 frappe.connect()
@@ -157,6 +220,20 @@ try:
                 frappe.db.rollback()
     view = application_service.choices_view(name, conn.name, account_set, posting_kind)
     frappe.db.rollback()
+    if (view or {}).get("needed") and not detail:
+        # 新站点 / 新账套还没记过这几项：照用户在引导卡上答一次（这张票记上对话账套、这本账套的 Cowork 公司，同 detail 那段）
+        frappe.db.set_value("Cowork OCR History", name, {"push_connection": conn.name, "push_account_set": account_set},
+                            update_modified=False)
+        frappe.db.commit()
+        seed = {"seed_connection": conn.name, "seed_account_set": account_set}
+        company = frappe.db.get_value("Cowork Company", seed, "name")
+        if not company:
+            made_company = cowork_companies_service().create(conn.name, account_set) or {}
+            frappe.db.commit()
+            company = frappe.db.get_value("Cowork Company", seed, "name") or made_company.get("id") or made_company.get("name")
+        result["card"] = answer_card(company, name, invoice_date[:7], account_set, account=params.get("account", ""))
+        view = application_service.choices_view(name, conn.name, account_set, posting_kind)
+        frappe.db.rollback()
     if (view or {}).get("needed") and not detail:
         raise SystemExit(f"choices needed in this book: {[item.get('kind') for item in view['needed']]}")
 
