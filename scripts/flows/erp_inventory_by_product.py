@@ -68,8 +68,12 @@ def steps(params, camera_code=None):
     return [
         {"name": "按位置", "js": IDLE + ROWS + CAPTURE_EXPORTS + "await idle();"
          "for(let k=0;k<80&&!field('search');k++) await new Promise(r=>setTimeout(r,250));"
+         # 刚进页面（列表画好之后）：新会话不该带着上一格留下的搜索、筛选、看法（列表记忆按人存，见 `scripts/smoke/session.py`）
+         "for(let k=0;k<80&&!document.querySelector('.result .list-row-container, .result .no-result');k++) await new Promise(r=>setTimeout(r,250));"
+         "await idle(); const entry={search: field('search').get_value()||'', view: field('view').get_value(),"
+         " filters: (document.querySelector('.filter-selector .filter-label')?.innerText||'').trim()};"
          f"await field('search').set_value({name!r}); await new Promise(r=>setTimeout(r,800)); await idle();"
-         "await wait_rows(2); return {rows: rows()};"},
+         "await wait_rows(2); return {rows: rows(), entry};"},
         {"name": "按物料", "js": IDLE + ROWS + "await idle();"
          "const options=(field('view').df.options||[]).map(o=>o.label||o);"
          "await field('view').set_value('product'); await new Promise(r=>setTimeout(r,800)); await idle();"
@@ -85,6 +89,14 @@ def steps(params, camera_code=None):
          "for(let k=0;k<80&&field('view').get_value()!=='position';k++) await new Promise(r=>setTimeout(r,250));"
          "await new Promise(r=>setTimeout(r,800)); await idle(); await wait_rows(2);"
          "return {view: field('view').get_value(), rows: rows(), filters: (document.querySelector('.filter-selector .filter-label, .filter-button')?.innerText||'').trim()};"},
+        # 去别页再点回来：还是刚才那样（按位置、只看这件物料的两行、搜索框还在）——列表记忆（用户 11-13「应该跳转到上次界面」）
+        {"name": "离开再回来", "shot": True, "js": IDLE + ROWS + "await idle();"
+         "frappe.set_route('pearnly-stock-card'); for(let k=0;k<80&&frappe.get_route()[0]!=='pearnly-stock-card';k++) await new Promise(r=>setTimeout(r,250));"
+         "await new Promise(r=>setTimeout(r,800)); await idle();"
+         "frappe.set_route('pearnly-inventory'); for(let k=0;k<80&&!(frappe.get_route()[0]==='pearnly-inventory'&&field('view'));k++) await new Promise(r=>setTimeout(r,250));"
+         "await new Promise(r=>setTimeout(r,800)); await idle(); await wait_rows(2);"
+         "return {view: field('view').get_value(), search: field('search').get_value()||'', rows: rows(),"
+         " filters: (document.querySelector('.filter-selector .filter-label')?.innerText||'').trim()};"},
     ]
 
 
@@ -94,9 +106,14 @@ def _value(results, step):
 
 def judge(params, results, camera_code=None):
     name = params["name"]
-    position, product, export, opened = (_value(results, step) for step in ("按位置", "按物料", "导出按物料", "点开看各仓"))
+    position, product, export, opened, back = (_value(results, step)
+                                               for step in ("按位置", "按物料", "导出按物料", "点开看各仓", "离开再回来"))
     places, merged = position.get("rows") or [], product.get("rows") or []
+    entry = position.get("entry") or {}
     checks = [
+        # 11-24：上一格点开物料留下的「物料 = …」被下一格取回，叠上新搜索成空表（手机那格在桌面那格之后跑）
+        {"case": "a new session opens the list without the previous run's search, view or conditions", "seen": entry,
+         "ok": entry == {"search": "", "view": "position", "filters": ""}},
         {"case": "by location shows the product in both warehouses", "seen": places,
          "ok": len(places) == 2 and all(name in row.get("product_name", "") for row in places)
          and sorted(row.get("warehouse_name") for row in places) == sorted(params["warehouses"])},
@@ -117,6 +134,11 @@ def judge(params, results, camera_code=None):
     ]
     checks.append({"case": "opening the product row goes back to its locations", "seen": opened,
                    "ok": opened.get("view") == "position" and len(opened.get("rows") or []) == 2})
+    back_rows = back.get("rows") or []
+    checks.append({"case": "leaving and coming back keeps the view, the search and the product's two rows", "seen": back,
+                   "ok": back.get("view") == "position" and back.get("search") == name and back.get("filters") == "1"
+                   and len(back_rows) == 2 and all(name in row.get("product_name", "") for row in back_rows)
+                   and sorted(row.get("warehouse_name") for row in back_rows) == sorted(params["warehouses"])})
     # 导出按表头的列位置取格子（`inventory.api.EXPORT_COLUMNS`），不在整行文字里找
     try:
         import csv
