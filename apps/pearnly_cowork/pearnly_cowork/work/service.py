@@ -228,7 +228,7 @@ def sort_list(name, key):
     _lock(CARD)
     rows = frappe.db.get_values(CARD, {"board_list": name, "archived": 0},  # bounded: 一个列表的卡
                                 ["name", "title", "due_date", "creation"], as_dict=True, for_update=True,
-                                order_by="creation asc")
+                                order_by="creation desc")  # 同 DocType 默认排序：标题 / 日期相同的卡保持原来的先后
     if field == "due_date":
         rows.sort(key=lambda item: (item.due_date is None, item.due_date or getdate("1900-01-01")))
     elif field == "title":

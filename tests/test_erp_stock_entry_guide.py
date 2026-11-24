@@ -595,7 +595,7 @@ class Units(Base):
         self.assertEqual(found["status"], "reviewing")
         run.confirm(name, found["version"])
         self.assertEqual(STATE["created"][0]["lines"], [
-            {"product": "P2", "qty": 1.0, "warehouse": "WH1", "unit_cost": 900.0, "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001", "secondary_no": "", "color": ""}]},
+            {"product": "P2", "qty": 1.0, "warehouse": "WH1", "unit_cost": "900", "unit_cost_manual": 1, "serials": [{"serial_no": "VIN2001", "secondary_no": "", "color": ""}]},
             {"product": "P2", "qty": -1.0, "warehouse": "WH1", "serials": [{"serial": "U2"}]},
             {"product": "P1", "qty": -3.0, "warehouse": "WH1"}])
 
@@ -631,7 +631,7 @@ class Files(Base):
         self.assertEqual(TABLES["File"], [])                       # 确定之前不存
         run.confirm(name, found["version"])
         self.assertEqual(STATE["created"][0]["attachments"], ["FILE-1", "FILE-2"])
-        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": 1.0, "warehouse": "WH1", "unit_cost": 10.0,
+        self.assertEqual(STATE["created"][0]["lines"], [{"product": "P1", "qty": 1.0, "warehouse": "WH1", "unit_cost": "10",
                                                          "unit_cost_manual": 1}])
         self.assertTrue(all(row["file_name"].startswith("ERO-") and row["owner"] == "a@x" for row in TABLES["File"]))
         # 原件 id 走网页上传同一个公开入口（方向 stock_in，幂等键由这次引导 + 对话文件编号算出）
