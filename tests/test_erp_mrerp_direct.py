@@ -916,6 +916,10 @@ class PureRules(unittest.TestCase):
         self.assertEqual(contracts.payload({}, own_tax_id="", menus={}, defaults={}, products=found)["mappings"]["products"], found)
         self.assertNotIn("products", contracts.payload({}, own_tax_id="", menus={}, defaults={})["mappings"])
         self.assertEqual(contracts.products({"items": [{"name": "ของใหม่"}]}), [])
+        # 只认账本是 MR.ERP 的物料代码（从 Express 同步来的旧档代码不放，照旧按品名新建）；同名不同码的认不准，不放
+        self.assertEqual(contracts.products(body, {"หล่อลื่น021"}), [{"item_name": "MOBILUX EP", "erp_code": "หล่อลื่น021"}])
+        twins = {"items": [{"name": "น้ำมัน", "code": "A"}, {"name": "น้ำมัน", "code": "B"}, {"name": "X", "code": "C"}]}
+        self.assertEqual(contracts.products(twins), [{"item_name": "X", "erp_code": "C"}])
 
     def test_the_mrerp_number_is_stable_per_document_and_hex(self):
         self.assertEqual(contracts.history_id("PUR-1@1"), contracts.history_id("PUR-1@1"))

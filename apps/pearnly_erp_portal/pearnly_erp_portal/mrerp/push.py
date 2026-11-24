@@ -144,8 +144,18 @@ def prepare(doctype, name, document) -> dict:
                              payment_method=found.get("payment_method") or "", party_id=found.get(party_field) or "")
     menus, defaults = choices.chosen(row, book)
     return {"payload": contracts.payload(flat, own_tax_id=body["company"]["tax_id"], menus=menus, defaults=defaults,
-                                         products=contracts.products(body)),
+                                         products=contracts.products(body, _ledger_codes(row.name, body))),
             "company": row, "direction": body["direction"], "book": book}
+
+
+def _ledger_codes(company, body) -> set:
+    """这张单明细里的代码中，属于这家公司账本是 MR.ERP 的物料（从 MR.ERP 读来的档）的那些；从 Express 同步来的旧档不算。"""
+    codes = sorted({str(item.get("code") or "").strip() for item in body.get("items") or ()} - {""})
+    if not codes:
+        return set()
+    return set(frappe.get_all("ERP Product", filters={"express_company": company, "ledger": contracts.LEDGER_MRERP,
+                                                      "express_code": ["in", codes]},
+                              pluck="express_code", limit_page_length=len(codes) * 4))
 
 
 def picked(doctype, name) -> dict:

@@ -64,18 +64,21 @@ def history(body: dict, *, company_name: str, doc_kind: str = "", payment_method
     return out
 
 
-def products(body: dict) -> list:
+def products(body: dict, ledger_codes=None) -> list:
     """明细里带着账本商品代码的行（ERP 物料从 MR.ERP 读来、记着它的代码）→ 共用层商品查找表 ``[{item_name, erp_code}]``
     （`pearnly_core.mrerp.push.xlsx.lookups._build_product_lookup`）：导入先按它认出已有商品，认不出的才按品名新建
     （`autocreate.provision_products`）。原来不带，从 MR.ERP 读来的物料也按品名新建，撞上同名的已有商品建不出，导入报
-    「รหัสสินค้าเป็นค่าว่าง」（11-24 MR.ERP 专属测试账套真写）。"""
-    out, seen = [], set()
+    「รหัสสินค้าเป็นค่าว่าง」（11-24 MR.ERP 专属测试账套真写）。
+
+    ``ledger_codes``：这家公司账本是 MR.ERP 的物料代码（调用方查好）；不在里面的代码（从 Express 同步来的旧档）不放，照旧按品名新建。
+    查找表按品名认：同一品名对着几个不同代码的不放（认不准，交给按品名新建）。"""
+    allowed = None if ledger_codes is None else {str(code) for code in ledger_codes}
+    codes = {}
     for item in body.get("items") or ():
         name, code = str(item.get("name") or "").strip(), str(item.get("code") or "").strip()
-        if name and code and (name, code) not in seen:
-            seen.add((name, code))
-            out.append({"item_name": name, "erp_code": code})
-    return out
+        if name and code and (allowed is None or code in allowed):
+            codes.setdefault(name, set()).add(code)
+    return [{"item_name": name, "erp_code": next(iter(found))} for name, found in codes.items() if len(found) == 1]
 
 
 def payload(flat: dict, *, own_tax_id: str, menus: dict, defaults: dict, products: list = ()) -> dict:
