@@ -53,3 +53,10 @@
   `nonscriptable.apply` 开 CredSSP 并只映射临时 `subst` 的 Y:，`read_back` 读回 CredSSP 开、盘 C / S 未映射、Y 映射。`RedirectDrives` 读回为 True（单个盘开了映射，控件总开关随之显示开；逐盘读回只有隧道盘）。
   关闭后控件销毁；临时目录、计划任务、subst 收尾回读 0。11-16 的 QAxWidget 阻塞已解。真连云端仍待用户到场。
 - 发版口径（11-24 主会话）：合入 main 不等于发 1.12.25。先从 main 打测试版装测试机1，用户到场把云端首测走通，再发正式版。
+- 11-24 合入前代码审查（medium，6 条）核实结果：
+  - 安装脚本结果行只有中文（真问题，已修）：`cloud_install.ps1` 按云端主机界面语言输出泰 / 中 / 日，其余英文；中文与原来逐字相同；`test_cloud_side.py` 加四语齐全的检查。
+  - 发版顺序（真问题，流程）：发布流水线现在总在安装包后面接云端包，生产上旧的 `receive-companion.py` 会以「Installer longer than its manifest」拒收（什么都不发布）。部署会从镜像同步这个脚本，所以合入后**先部署服务端、再打 CC 发布**（含 target=staging）；测试版走 `companion-build.yml` 的 artifact，不经过它。
+  - 中转只发 `https://<站点>`、不用存下的 backend_url（误报）：`tunnel_relay.normalize_site` 只放行 https 主机，是有意的；backend_url 只给吊销令牌用，正式租户两者相同。
+  - 云端会话注销再登录后 CC 能否靠「启动」文件夹自己回来（未验证）：11-14 实测 .rdp 的「登录即运行」不生效，启动文件夹没测过，已写进真机步骤与到场清单。
+  - 升级后旧版云端 CC 继续跑到下次登录（属实，不改）：新版被单实例锁挡住退出；为免中途杀掉正在写账的进程，不强停，下次登录由快捷方式起新版。
+  - 连接窗口在托盘进程里，控件自己的提示可能落在 CC 后面（待真机确认，倾向不会出现）：AuthenticationLevel=0 不弹证书、CredSSP 已带密码不弹凭据框；首测时看一眼。

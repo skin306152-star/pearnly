@@ -508,7 +508,7 @@ def _first(lines, needle):
 
 def test_a_checksum_mismatch_exits_before_unpacking_or_starting_anything():
     lines = _install_script_lines()
-    mismatch = _first(lines, "Stop-With '校验值不符，未安装' 11")
+    mismatch = _first(lines, "Stop-With 'checksum' 11")
     assert _first(lines, "if ($actual -ne $expected)") < mismatch
     for later in ("ExtractToDirectory", "Expand-Archive", "Start-Process", "CreateShortcut"):
         found = [i for i, line in enumerate(lines) if later in line]
@@ -535,3 +535,19 @@ def test_a_failed_pairing_removes_the_shortcut_this_install_made():
     assert "StartsWith($base" in branch   # 只删指向本安装目录的那个
     timeout = _first(lines, "$code = 6")
     assert timeout < failed               # 配对超时也走同一个失败分支
+
+
+def test_every_result_line_of_the_install_script_has_four_languages():
+    """云端主机上打命令的人看到的结果行按云端主机界面语言出（泰 / 中 / 日，其余英文）：每个结果都有四语。"""
+    import re
+
+    lines = _install_script_lines()
+    body = "\n".join(lines)
+    table = body[body.index("$messages = @{"):body.index("$lang = ")]
+    entries = dict(re.findall(r"^\s*(\w+)\s*=\s*@\{(.*)\}\s*$", table, re.M))
+    for key, row in entries.items():
+        assert sorted(re.findall(r"\b(zh|th|en|ja) = '[^']+'", row)) == ["en", "ja", "th", "zh"], key
+    used = set(re.findall(r"Stop-With '(\w+)'", body))
+    exits = set(re.findall(r"^\s*\d+ = '(\w+)'", body, re.M)) | set(re.findall(r"else \{ '(\w+)' \}", body))
+    assert used and exits and (used | exits) <= set(entries)
+    assert "(Get-UICulture).TwoLetterISOLanguageName" in body

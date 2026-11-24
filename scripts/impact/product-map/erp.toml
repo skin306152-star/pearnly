@@ -1838,7 +1838,7 @@ anchor = "ccaction:erp:cloud-express"
 where = "CC 桌面版 设置 → 连接：「Express 位置」下面「云端 Express」一行（主机 + 状态、「连接」弹窗收地址与账号、密码在 CC 原生小窗、「···」重新查找 / 云端安装命令 / 断开连接；连接成功后行下面一块：云端安装命令（框内换行、复制）+ 剩余时间，过期「重新生成」，配对完成收起）；只在 CC 桌面版里，旧版桌面端不出"
 note = "11-16 步 E 起离线验源码与桥动作；连接窗口已接（ATL 宿主，11-24 测试机1 只读预检通过：控件建出、CredSSP 开、只映射隧道盘、不连接）。真连云端未测：从 main 打的测试版装测试机后由用户到场首测，通过后才发正式版"
 device_only = "要 Windows 真机连客户的 Express Cloud 主机：远程桌面控件、隧道盘、云端主机上的安装与配对，实验栈和 CI 都没有"
-device = "测试机装从 main 打的 CC 测试版：设置 → 连接 →「云端 Express」→「连接」（地址、账号预填，密码在 CC 原生小窗由用户输）→ 连接窗口出现（默认最小化）、状态到「在线」→ 行下面出云端安装命令与剩余时间 → 用户同意后在云端会话 PowerShell 粘贴命令 → 配对完成、命令块收起 → 云端 CC 心跳带 link（网页电脑列表有云端标记）→ 在 Z1 写一张测试单、Express 里读回；关掉连接窗口 = 断开，状态回「未连接」"
+device = "测试机装从 main 打的 CC 测试版：设置 → 连接 →「云端 Express」→「连接」（地址、账号预填，密码在 CC 原生小窗由用户输）→ 连接窗口出现（默认最小化）、状态到「在线」→ 行下面出云端安装命令与剩余时间 → 用户同意后在云端会话 PowerShell 粘贴命令 → 配对完成、命令块收起 → 云端 CC 心跳带 link（网页电脑列表有云端标记）→ 在 Z1 写一张测试单、Express 里读回 → 云端会话注销再登录，云端 CC 自动回来（心跳恢复）；首连期间控件自己的提示（如有）要在最前面；关掉连接窗口 = 断开，状态回「未连接」"
 tests = ["unit:tests/test_cc_cloud_express.py::CloudExpressRow", "unit:tests/test_cc_cloud_express.py::CloudPairingBlock"]
 group = "cc.action.cloud-express"
 

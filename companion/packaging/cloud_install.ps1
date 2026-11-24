@@ -18,8 +18,24 @@ param([Parameter(Mandatory = $true)][string]$Token)
 
 $ErrorActionPreference = 'Stop'
 
-function Stop-With([string]$Line, [int]$Code) {
-    Write-Host $Line
+# 结果行按云端主机的界面语言（泰 / 中 / 日，其余英文）；中文与原来相同
+$messages = @{
+    missing   = @{ zh = '缺少安装文件'; th = 'ไม่มีไฟล์ติดตั้ง'; en = 'Installation files missing'; ja = 'インストールファイルがありません' }
+    invalid   = @{ zh = '安装文件无效'; th = 'ไฟล์ติดตั้งไม่ถูกต้อง'; en = 'Invalid installation files'; ja = 'インストールファイルが無効です' }
+    token     = @{ zh = '令牌有误'; th = 'โทเค็นไม่ถูกต้อง'; en = 'Invalid token'; ja = 'トークンが正しくありません' }
+    checksum  = @{ zh = '校验值不符，未安装'; th = 'ค่าตรวจสอบไม่ตรงกัน ไม่ได้ติดตั้ง'; en = 'Checksum mismatch, not installed'; ja = 'チェックサムが一致しないため、インストールしていません' }
+    paired    = @{ zh = '配对完成'; th = 'จับคู่เสร็จแล้ว'; en = 'Pairing complete'; ja = 'ペアリングが完了しました' }
+    no_drive  = @{ zh = '未找到隧道盘'; th = 'ไม่พบไดรฟ์อุโมงค์'; en = 'Tunnel drive not found'; ja = 'トンネルドライブが見つかりません' }
+    no_host   = @{ zh = '缺少主机信息'; th = 'ไม่มีข้อมูลโฮสต์'; en = 'Host information missing'; ja = 'ホスト情報がありません' }
+    timed_out = @{ zh = '配对超时'; th = 'จับคู่หมดเวลา'; en = 'Pairing timed out'; ja = 'ペアリングがタイムアウトしました' }
+    rejected  = @{ zh = '配对被拒绝'; th = 'การจับคู่ถูกปฏิเสธ'; en = 'Pairing rejected'; ja = 'ペアリングが拒否されました' }
+    failed    = @{ zh = '配对失败'; th = 'จับคู่ไม่สำเร็จ'; en = 'Pairing failed'; ja = 'ペアリングに失敗しました' }
+}
+$lang = (Get-UICulture).TwoLetterISOLanguageName
+if (@('zh', 'th', 'ja') -notcontains $lang) { $lang = 'en' }
+
+function Stop-With([string]$Key, [int]$Code) {
+    Write-Host $messages[$Key][$lang]
     exit $Code
 }
 
@@ -27,19 +43,19 @@ $here = $PSScriptRoot
 $zipSource = Join-Path $here 'CC-Cloud.zip'
 $manifestPath = Join-Path $here 'cloud.json'
 if (-not (Test-Path -LiteralPath $zipSource) -or -not (Test-Path -LiteralPath $manifestPath)) {
-    Stop-With '缺少安装文件' 10
+    Stop-With 'missing' 10
 }
 
 $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
 $version = [string]$manifest.version
 $expected = ([string]$manifest.sha256).ToLowerInvariant()
 if ($version -notmatch '^\d+(\.\d+){2,3}$' -or $expected -notmatch '^[0-9a-f]{64}$') {
-    Stop-With '安装文件无效' 10
+    Stop-With 'invalid' 10
 }
 
 $cleanToken = ($Token -replace '[\s]', '')
 if ($cleanToken -notmatch '^[0-9A-Za-z\-]{20,60}$') {
-    Stop-With '令牌有误' 5
+    Stop-With 'token' 5
 }
 
 $base = Join-Path $env:LOCALAPPDATA 'Pearnly\CC-Cloud'
@@ -55,13 +71,13 @@ try {
     $actual = (Get-FileHash -LiteralPath $localZip -Algorithm SHA256).Hash.ToLowerInvariant()
     if ($actual -ne $expected) {
         Remove-Item -LiteralPath $localZip -Force
-        Stop-With '校验值不符，未安装' 11
+        Stop-With 'checksum' 11
     }
     if (-not (Test-Path -LiteralPath $exe)) {
         Add-Type -AssemblyName System.IO.Compression.FileSystem
         [System.IO.Compression.ZipFile]::ExtractToDirectory($localZip, $staging)
         if (-not (Test-Path -LiteralPath (Join-Path $staging 'companion.exe'))) {
-            Stop-With '安装文件无效' 10
+            Stop-With 'invalid' 10
         }
         if (Test-Path -LiteralPath $dest) { Remove-Item -LiteralPath $dest -Recurse -Force }
         Move-Item -LiteralPath $staging -Destination $dest
@@ -87,14 +103,14 @@ else {
     $code = 6
 }
 $lines = @{
-    0 = '配对完成'
-    3 = '未找到隧道盘'
-    4 = '缺少主机信息'
-    5 = '令牌有误'
-    6 = '配对超时'
-    7 = '配对被拒绝'
+    0 = 'paired'
+    3 = 'no_drive'
+    4 = 'no_host'
+    5 = 'token'
+    6 = 'timed_out'
+    7 = 'rejected'
 }
-$line = if ($lines.ContainsKey($code)) { $lines[$code] } else { '配对失败' }
+$line = if ($lines.ContainsKey($code)) { $lines[$code] } else { 'failed' }
 if ($code -ne 0) {
     # 配对失败：不留快捷方式；之前安装建的（指向 %LOCALAPPDATA%\Pearnly\CC-Cloud 下）删掉，别人的不碰
     if (Test-Path -LiteralPath $linkPath) {
