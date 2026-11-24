@@ -292,6 +292,40 @@ PLANNED = {"payment": "cash", "payment_from": "remembered", "account": "5100",
            "document_payment": {"payment": "credit", "from": "document_type"}}
 
 
+class MrerpSetup(unittest.TestCase):
+    """推送目标是 MR.ERP 账套：推之前要选的导入菜单 / 主档默认值进判定卡（`guided.push_setup`，11-24；原来不出题、每张停在要选），
+    答了按这份账套记一次（同一账套的几张单只记一次），交给 push_setup.remember（只收此刻问的、值在选项里）。"""
+
+    MENU = {"kind": "mrerp_menu", "subject": "purchase", "label": "Purchase", "value": "", "source": "",
+            "options": [{"code": "68", "name": "68 · ซื้อ"}, {"code": "454", "name": "454 · ซื้อ-ค่าใช้จ่าย"}]}
+
+    def setUp(self):
+        self.module, self.calls, patcher = load()
+        self.addCleanup(patcher.stop)
+        connections = sys.modules["pearnly_cowork.connections.service"]
+        connections.read_for_push = lambda *a, **k: ns(endpoint={"adapter": "mrerp"}, doc=ns(name="C1"))
+        self.remembered = []
+        setup = ns(items=lambda connection, account_set, direction: {"known": True, "items": [dict(self.MENU)]},
+                   remember=lambda connection, account_set, direction, rows: self.remembered.append(
+                       (connection, account_set, direction, rows)) or len(rows))
+        guided = ns(push_setup=setup)
+        patch = mock.patch.dict(sys.modules, {"pearnly_cowork.assistant.guided": guided,
+                                              "pearnly_cowork.assistant.guided.push_setup": setup})
+        patch.start()
+        self.addCleanup(patch.stop)
+        sys.modules["pearnly_cowork.assistant"].guided = guided
+
+    def test_the_menu_still_to_choose_is_on_the_card(self):
+        found = self.module.document("h1")
+        self.assertEqual(found["state"], "check")
+        self.assertEqual([(item["kind"], item["subject"]) for item in found["items"]], [("mrerp_menu", "purchase")])
+
+    def test_answers_are_remembered_once_per_account_set(self):
+        answer = [{"kind": "mrerp_menu", "subject": "purchase", "value": "68", "label": "ซื้อ"}]
+        self.assertEqual(self.module.remember("CO1", {"h1": answer, "h2": answer}), {"saved": 1})
+        self.assertEqual(self.remembered, [("C1", BOOK, "purchase", [{"kind": "mrerp_menu", "subject": "purchase", "value": "68"}])])
+
+
 class StockGroupAndLine(unittest.TestCase):
     """新建库存品挂哪个存货科目组（11-19 真机：账套已有库存品时电脑照抄挂得最多的组，不合格写账才停）：推送试算判出没定的
     （共用层 `stock_acc_group.new_item_group` / 零主档那一档）——几个合格的出一题（只列合格的、推荐挂得最多的），一个都没有列成写不了。"""

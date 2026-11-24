@@ -43,6 +43,8 @@ ACCOUNT_SET = "account_set"  # 写进哪本账套（LINE 里归不上公司主�
 TICKET = "ticket:"  # LINE 里归不上公司主档的票交给共用出题器的「公司」：``ticket:<单号>``，判定与记答时换回认出的公司（:func:`_company`）
 STOCK_GROUP = "stock_group"  # 新建库存品挂哪个存货科目组（每份账套选一次，用户 09-28；记在连接上，`connections.choose_stock_acc_group`）
 OPERATOR_DIALOG = "operator_dialog"  # 代录停在 Express 中途配方外的业务选择框（CC 桌面版 1.12.23）：这份账套这个框（指纹）点哪个钮
+MRERP = "mrerp"
+MRERP_KINDS = ("mrerp_menu", "mrerp_default")  # = `guided.push_setup.MENU / DEFAULT`：MR.ERP 账套推之前要选的导入菜单、主档默认值
 OPERATOR_FORM = "operator_form"  # 代录停在定制菜单的子菜单（原因 menu_choice）：这家这本账套这种单走哪个命令（评估 2026-11-05 修法 D）
 # 写账规则记下的来源（`push.express.decide` 的 ``decided_by``）→ 卡片的来源
 DECIDED_BY = {"remembered": card.REMEMBERED, "company_rule": card.COMPANY_RULE,
@@ -137,10 +139,15 @@ def document(history, posting_kind=None, hint=None, conversation=False) -> dict:
         original_history(doc)
         loaded = connections.read_for_push(doc.push_connection, doc.workspace, doc.client, lock=True)
         if loaded.endpoint.get("adapter") != "express":
-            # MR.ERP 的导入菜单与默认值按 MR.ERP 自己的准备问（本批不进卡片，评估 B5 随 MR.ERP 代录那批）：直写照写，
-            # 代录预检照旧停下（代录只录 Express）
+            # 代录预检照旧停下（代录只录 Express）。MR.ERP 账套：推之前这个方向还要人选的导入菜单与主档默认值进卡片
+            # （`guided.push_setup`，与推送同一判据 `pearnly_core.mrerp.needs.needed`：卡上不问的推送也不会停在要选，11-24；
+            # 原来这里不出题，账套有几个已关联菜单时每张都停在「先选导入菜单」，CC 里没处选）
             frappe.db.rollback()
             legacy = legacy or {"state": "blocked", "message": str(_("push.adapter_not_connected"))[:300]}
+            if loaded.endpoint.get("adapter") == MRERP:
+                from pearnly_cowork.assistant.guided import push_setup
+
+                items.extend(push_setup.items(doc.push_connection, doc.push_account_set, fields.get("direction") or None)["items"])
             return {**base, "state": card.CHECK, "items": items, "legacy": legacy}
         found = service._express_context(doc, loaded, doc.push_account_set or None)
         target = service._operator_target(doc, loaded, found)
@@ -631,7 +638,7 @@ def remember(company, answers) -> dict:
     from pearnly_cowork.push.application import service
 
     scope.require("intake")
-    done, saved = set(), 0
+    done, saved, setup = set(), 0, {}
     if str(company or "").startswith(TICKET):
         for name, rows in (answers or {}).items():
             for row in rows or ():
@@ -681,6 +688,13 @@ def remember(company, answers) -> dict:
                     done.add(key)
                     choices.append({key_: row.get(key_) for key_ in ("kind", "subject", "value", "label")})
                 continue
+            if kind in MRERP_KINDS:
+                key = (*once, doc.push_connection, doc.push_account_set)
+                if key not in done:
+                    done.add(key)
+                    setup.setdefault((doc.push_connection, doc.push_account_set, str(_fields(doc).get("direction") or "")),
+                                     []).append({key_: row.get(key_) for key_ in ("kind", "subject", "value")})
+                continue
             if kind == STOCK_GROUP:
                 key = (kind, doc.push_connection, doc.push_account_set)
                 if key not in done:
@@ -709,7 +723,19 @@ def remember(company, answers) -> dict:
         if choices:
             saved += int(service.save_choices(name, doc.push_connection, doc.push_account_set or None,
                                               json.dumps(choices, ensure_ascii=False)).get("saved") or 0)
+    if setup:
+        # MR.ERP 的导入菜单 / 主档默认值：按这份账套记一次、大家共用（同待处理页当场选、网页推送前的弹窗）；只收此刻问的、值在选项里
+        from pearnly_cowork.assistant.guided import push_setup
+
+        for (connection, account_set, direction), rows in setup.items():
+            saved += push_setup.remember(connection, account_set, direction or None, rows)  # loop-query: 一张卡涉及的账套，通常一份
     return {"saved": saved}
+
+
+def _fields(doc) -> dict:
+    from pearnly_core.express_rules.contracts.history import primary_page_fields
+
+    return primary_page_fields(json.loads(doc.pages or "[]"))
 
 
 def _company_of(doc) -> str:
