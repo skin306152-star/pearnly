@@ -11,7 +11,8 @@
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STLOC、ISRUN 及索引；GLJNL 必须不变）；STMAS 不分仓计价逐字节不变，
   分仓计价只许批次链三栏 MLOTNUM / MREMBAL / MREMVAL 改成调入仓 STLOC 写后的链（11-19 f1f5f504a，原生「主档抄这个仓的链」）、
   UNITPR 只许等于 TOTVAL / TOTBAL（4 位），其余栏与其他行逐字节不变；
-- 再作废：单头 C、NXTSEQ 空、那一对不在（删除标记）、两仓回到写前；STMAS 与作废前逐栏相同（作废调拨不动主档）；
+- 再作废：单头 C、NXTSEQ 空、那一对不在（删除标记）、两仓回到写前；分仓计价两仓的链与 LOCVAL 回写前（空链批号 B/F）、主档总结存不变、
+  主档链抄调入仓回写前的链（11-24 回链，照库存单原生作废实录；调拨作废本身没有原生实录）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套没有 RL 单据簿、只有一个仓、没有 STLOC、没有库存品（或要垫货却没有可记账的 JU）时跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
@@ -122,7 +123,7 @@ def master_rows(acct):
         t.close()
 
 
-def master_problems(before, after, code, chain):
+def master_problems(before, after, code, chain, void=False):
     """分仓计价：只许这件品的批次链三栏改成调入仓的链、UNITPR 只许等于 TOTVAL / TOTBAL；其余一律不变。不符回原因。"""
     if set(before) != set(after):
         return f"STMAS rows {sorted(set(before) ^ set(after))[:3]}"
@@ -143,13 +144,26 @@ def master_problems(before, after, code, chain):
             want = (num(new.get("TOTVAL")) / total).quantize(Decimal("0.0001")) if total > 0 else None
             if want is None or num(new["UNITPR"]).quantize(Decimal("0.0001")) != want:
                 return f"STMAS {code} UNITPR {new['UNITPR']} != TOTVAL / TOTBAL {want}"
-        if any(f in moved for f in CHAIN_FIELDS) and chain is not None and \
-                (text(new["MLOTNUM"]), num(new["MREMBAL"]), num(new["MREMVAL"])) != chain:
+        mine = (text(new["MLOTNUM"]) or ("B/F" if void else ""), num(new["MREMBAL"]), round(num(new["MREMVAL"]), 2) if void else num(new["MREMVAL"]))
+        if any(f in moved for f in CHAIN_FIELDS) and chain is not None and mine != chain:
             return f"STMAS {code} lot chain {(new['MLOTNUM'], new['MREMBAL'], new['MREMVAL'])} != receiving warehouse chain {chain}"
     return ""
 
 
 def place_chain(acct, code, loccod):
+    """这个仓记着链（有批号，或还没有结存）时 (LOCVAL, MREMBAL, MREMVAL, 批号；空链记 B/F)，没记着链 None。"""
+    found = [r for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL", "LOCVAL") + CHAIN_FIELDS)
+             if text(r["STKCOD"]) == code and text(r["LOCCOD"]) == loccod]
+    if not found:
+        return ("0.00", "0", "0.00", "B/F")
+    r = found[0]
+    if not text(r["MLOTNUM"]) and num(r["LOCBAL"]) != 0:
+        return None
+    return (str(round(num(r["LOCVAL"]), 2)), str(num(r["MREMBAL"])), str(round(num(r["MREMVAL"]), 2)), text(r["MLOTNUM"]) or "B/F")
+
+
+def written_chain(acct, code, loccod):
+    """写后核主档抄链用：(批号, MREMBAL, MREMVAL)。"""
     found = [r for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD") + CHAIN_FIELDS)
              if text(r["STKCOD"]) == code and text(r["LOCCOD"]) == loccod]
     return (text(found[0]["MLOTNUM"]), num(found[0]["MREMBAL"]), num(found[0]["MREMVAL"])) if found else None
@@ -206,6 +220,7 @@ def check(acct: Path) -> dict:
     skip = WRITE_SET | {"STMAS"} if loc_cost else WRITE_SET
     files_before = digests(acct, skip)
     stmas_before = master_rows(acct) if loc_cost else {}
+    chains_before = {loc: place_chain(acct, code, loc) for loc in (source, target)} if loc_cost else {}
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     payload = {"payload_version": 14, "direction": "stock", "doctype": "RL", "docdate_be": docdate, "ref_no": "REG-RL",
                "remark": "reg transfer", "loccod": source, "to_loccod": target,
@@ -250,7 +265,7 @@ def check(acct: Path) -> dict:
         return {"state": "fail", "why": f"tables outside the write set changed (STMAS / GLJNL must not): {changed}"}
     if loc_cost:
         stmas_written = master_rows(acct)
-        why = master_problems(stmas_before, stmas_written, code, place_chain(acct, code, target))
+        why = master_problems(stmas_before, stmas_written, code, written_chain(acct, code, target))
         if why:
             return {"state": "fail", "why": why}
     else:
@@ -278,8 +293,19 @@ def check(acct: Path) -> dict:
     changed = sorted(name for name, digest in digests(acct, skip).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed after void: {changed}"}
-    if loc_cost and master_rows(acct) != stmas_written:
-        return {"state": "fail", "why": "STMAS changed by the void (voiding a transfer leaves the item master alone)"}
+    if loc_cost:
+        # 作废回链（11-24，同库存单原生作废实录；调拨作废本身没有原生实录）：两仓链回写前（空链批号 B/F），主档总结存不变、
+        # 主档链抄调入仓回写前的链；没记着链的仓（老账套链在主档上）不核链
+        chains_now = {loc: place_chain(acct, code, loc) for loc in (source, target)}
+        for loc, was in chains_before.items():
+            if was is not None and chains_now[loc] != was:
+                return {"state": "fail", "why": f"void: STLOC {loc} chain {chains_now[loc]} != {was}"}
+        why = master_problems(stmas_before, master_rows(acct), code,
+                              chains_before[target] and (chains_before[target][3] if chains_before[target][3] != "B/F" else "B/F",
+                                                         Decimal(chains_before[target][1]), Decimal(chains_before[target][2])),
+                              void=True)
+        if why:
+            return {"state": "fail", "why": "void: " + why}
     return {"state": "ok", "loc_cost": loc_cost, "doc": docnum, "item": code, "from": source, "to": target, "new_target_row": target not in before,
             "topped_up_with_ju": bool(topped), "cdx_checked": sorted(index_before)}
 

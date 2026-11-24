@@ -282,3 +282,25 @@ def test_voiding_a_costed_transfer_rolls_the_period_values_of_both_locations_bac
     assert all(source[name] == before[name] for name in source if name.startswith(("VAL", "QTY")))
     assert all(target[name] == 0.0 for name in target if name.startswith(("VAL", "QTY")))
     assert source["LMOVDAT"] == before["LMOVDAT"]
+
+
+def test_voiding_a_transfer_in_a_book_costed_by_warehouse_puts_both_lot_chains_back(rl_book):
+    """作废回链（11-24，照库存单原生作废实录；调拨作废本身没有原生实录）：调出仓链按调出行记的写前值回，LOCVAL 回；
+    调入仓没有之前的批时回空链 B/F；主档总结存不变、批次栏抄调入仓回写前的链。"""
+    from account_rules_fixture import isinfo
+    from test_dbf_stock import _chain
+    from test_stock_location import _stloc
+    isinfo(rl_book, MAINLOC="01", ISPERPETUA="Y", LOC_COST="Y")
+    head = "202509010RR0000001     1"
+    _chain(rl_book, "ICE01", "01", MLOTNUM=head, MREMBAL=5.0, MREMVAL=50.0, LOCVAL=50.0)
+    res = _write(rl_book, _transfer([_line("ICE01", 2)]))
+    assert res.ok, res.error
+    payload = {"payload_version": 14, "direction": "stock", "action": "void", "doctype": "RL", "docnum": res.docnum,
+               "items": [{"seq": 1, "code": "ICE01", "loccod": "01", "qty": "2"}]}
+    out = dbf_void.void_stock_entry(payload, rl_book, selected_dir=str(rl_book), make_backup=False)
+    assert out.ok, out.error
+    source, target = _stloc(rl_book, "ICE01", "01"), _stloc(rl_book, "ICE01", "02")
+    assert (source["MLOTNUM"].strip(), source["MREMBAL"], source["MREMVAL"], source["LOCVAL"]) == (head, 5.0, 50.0, 50.0)
+    assert (target["LOCBAL"], target["MLOTNUM"].strip(), target["MREMBAL"], target["MREMVAL"], target["LOCVAL"]) == (0.0, "B/F", 0.0, 0.0, 0.0)
+    master = _rows(rl_book, "STMAS", STKCOD="ICE01")[0]
+    assert (master["TOTBAL"], master["MLOTNUM"].strip(), master["MREMBAL"], master["MREMVAL"]) == (5.0, "B/F", 0.0, 0.0)
