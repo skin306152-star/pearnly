@@ -74,7 +74,8 @@ class Engine:
     # ── 一张 ────────────────────────────────────────────────────────────
     def run(self, draft: Draft) -> Dict:
         """录一张。回 ``{"outcome": saved / need_human / blocked / crash, "reason", "docnum", "readback", ...}``。
-        ``Stopped`` 原样往上抛（还没点存档的已离开表单，什么都没写）。"""
+        ``Stopped`` 与没接住的异常原样往上抛（往上抛之前：还没点存档的已离开表单，什么都没写；点了存档的记「待查」）。
+        出口都在下面这一个 try 里收尾（``tests/test_mrerp_operator_clean_exit.py`` 守着）。"""
         self._t0 = time.monotonic()
         self._saving = False
         self.rec = {"doc_id": draft.doc_id, "doc_type": draft.doc_type, "events": [], "reports": [], "voided": [],
@@ -132,6 +133,12 @@ class Engine:
             if self._saving:
                 self.book.mark_unsure(draft.doc_id)
             else:
+                self.abandon(draft)
+            raise
+        except Exception:  # 兜底（11-24 主会话）：没接住的异常也照其它出口先收尾，再原样交批次（批次整批停、等人）
+            if self._saving:  # 点了存档以后：存没存不知道，本机记下，续录前先查、不重录
+                self.book.mark_unsure(draft.doc_id)
+            else:  # 存档前：服务器上什么都没写，离开表单（回列表），不把半填的页面留着
                 self.abandon(draft)
             raise
         return self._done()
