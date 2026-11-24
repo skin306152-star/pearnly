@@ -564,3 +564,15 @@ retried = false
 covers = "47a17df54ef185b3"
 docnums = ["JU691116-001"]
 ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+
+[[pass]]
+scenario = "acc.erp.operator.listed.direct"
+sha = "a93d8cde8210b22b47914cd20222d6fd48733e22"
+date = "2026-11-24"
+env = "B"
+run = "20261124-143527-a93d8cde8"
+retried = false
+covers = "84d3be4b69f2c8df"
+erp_doc = "SD-00757"
+ledger = "\\\\…\\ACCOUNT\\69EXP\\TEST2"
+docnums = ["IV0000030"]
