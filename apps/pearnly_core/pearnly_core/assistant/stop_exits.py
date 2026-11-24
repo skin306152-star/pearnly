@@ -122,6 +122,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     # ── 写入计划跳过的原因（assistant.write_plan）──────────────────────────────────────────────────────────────
     "moved_to_not_entered": ask("fixed", SERVER, "p2"),
     "already_entered": ask("fixed", SERVER, "p2"),                      # 再办一次 / 跳过，不预选
+    "no_longer_waiting": ask("fixed", SERVER, "p2"),                    # 代录列出过、已不在待录清单里（没录成 / 已取消 / 读不到）：照现状说，跳过
     "last_write_result_unknown": ask("fixed", SERVER, live=True),       # 没有入账 / 已入账
     "undecided_items": ask("precheck:any", SERVER, live=True),
     "waiting_for_computer": wait("computer_online"),
