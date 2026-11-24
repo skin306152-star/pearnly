@@ -170,6 +170,12 @@ class Cells(unittest.TestCase):
 
 
 class Summary(unittest.TestCase):
+    def test_browser_proxy_only_when_the_variable_is_set(self):
+        self.assertEqual(e2e.launch_options({}), {"headless": True})
+        self.assertEqual(e2e.launch_options({"PEARNLY_E2E_PROXY": "  "}), {"headless": True})
+        self.assertEqual(e2e.launch_options({"PEARNLY_E2E_PROXY": "http://127.0.0.1:18888"}),
+                         {"headless": True, "proxy": {"server": "http://127.0.0.1:18888"}})
+
     def test_exit_codes(self):
         r = e2e.Result
         self.assertEqual(e2e.exit_code([r("a", "desktop", e2e.PASSED)]), 0)

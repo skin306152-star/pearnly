@@ -14,6 +14,9 @@
 - 没测到：前置自检不过（测试租户此刻不在生产、账号还没建、Playwright 版本与产品镜像不同），或场景步骤还没写。没测到不算通过。
 失败时截图（先清空密码框），存 ~/pearnly-devtools/e2e-runs/<时间>/，每次跑顺手删 14 天前的；不开 trace / HAR（会记下密码与 Cookie）。
 
+办公室出口连不上生产时（11-23、11-24 两次）：设 PEARNLY_E2E_PROXY=http://127.0.0.1:18888（本机
+到外部节点代理的 SSH 转发，与部署时 HTTPS_PROXY 用同一条隧道），浏览器经它出网；不设时与原来完全一样。
+
 凭据只从本机 ~/.config/pearnly-e2e/accounts.env 读（权限必须是 600）：E2E_ERP_USER、E2E_ERP_PASSWORD、E2E_COWORK_USER、E2E_COWORK_PASSWORD。
 不打印、不写日志、不放命令行参数。
 
@@ -55,6 +58,7 @@ ENTRY = "https://fatcc.com"
 ACCOUNT_KEYS = ("E2E_ERP_USER", "E2E_ERP_PASSWORD", "E2E_COWORK_USER", "E2E_COWORK_PASSWORD")
 VIEWPORTS = {"desktop": {"width": 1280, "height": 800}, "mobile": {"width": 390, "height": 844}}
 PASSED, FAILED, NOT_TESTED = "通过", "不通过", "没测到"
+PROXY_ENV = "PEARNLY_E2E_PROXY"
 
 
 @dataclass
@@ -276,6 +280,12 @@ def report(results: list[Result]) -> str:
     return "\n".join(lines)
 
 
+def launch_options(environ=None) -> dict:
+    """浏览器启动参数：设了 ``PEARNLY_E2E_PROXY`` 就让浏览器经这个代理出网（Playwright 不读 HTTPS_PROXY），不设与原来一样。"""
+    server = str((os.environ if environ is None else environ).get(PROXY_ENV) or "").strip()
+    return {"headless": True, **({"proxy": {"server": server}} if server else {})}
+
+
 def playwright_pages():  # pragma: no cover - 真浏览器，B2 块对着测试租户调
     from playwright.sync_api import sync_playwright
 
@@ -285,7 +295,7 @@ def playwright_pages():  # pragma: no cover - 真浏览器，B2 块对着测试�
     def open_page(run_name):
         engine = "webkit" if run_name == "iphone" else "chromium"
         if engine not in browsers:
-            browsers[engine] = getattr(driver, engine).launch(headless=True)
+            browsers[engine] = getattr(driver, engine).launch(**launch_options())
         if run_name == "iphone":
             options = dict(driver.devices["iPhone 13"])
         elif run_name == "mobile":   # 安卓手机标识与触屏，宽度同流程用例的手机宽度
