@@ -32,3 +32,19 @@
   `(语言, 标题词条, 预填用户名)`；本分支桥里已有同名参数 `ask_login`（云端账号密码窗 `_ask_cloud_login`，签名 `(语言, 预填用户名)`），
   合入时会撞在同一个构造参数上。按类收成一套：云端账号密码窗也走那条（标题词条用云端的，`_ask_cloud_login` 改成经注入的
   `ask_login` 由窗口进程弹），删掉本分支自己的同名参数，守护测试 `companion/tests/test_native_dialogs_front.py` 会拦住托盘里直接弹的小窗。
+
+## 11-24 变基到 main `d8510e61a`（CC 桌面版 1.12.24 已发出）
+- 35 个提交逐个变基到 `d8510e61a`，冲突只在 `scripts/impact/shared-parts.toml`（各共用件的 `not_entries` 取 main 一行、补本提交新增项）、
+  `companion/src/companion/tomo_bridge.py`（构造参数）与 `frontend/assistant/src/i18n.ts`（设置页词条：main 已删 `mrerpAuthorize`、改成
+  `username` / `password`，本分支只补 `cloudExpress` / `address` / `account`）。
+- 接缝按上一节收成一套：桥只有 main 的 `ask_login(语言, 标题词条, 预填用户名)`，托盘里由 `WindowHost.login` 在 CC 窗口进程弹。云端账号窗
+  用标题 `cloud_login_title`；云端代录的 Express 登录（`cloud_operator_authorize`）原来另有一个 `ask_express_login` 参数、在托盘里直接弹
+  `login_dialog.ask`，同样改走 `ask_login`（标题 `op_login_title`，同本地代录「授权登录」）。删掉 `_ask_cloud_login`、`_ask_express_login`
+  与两个同名构造参数；云端测试注入三参数的 `ask_login`；`companion/tests/test_native_dialogs_front.py` 通过（桥里直接弹小窗的只剩单进程兜底）。
+- 服务端 ↔ CC 的两条约定补进 `tests/test_companion_contract.py` 的 `CloudExpressWire`：云端 CC 心跳的 `link` 正是站点
+  `link_contracts.stored` 收的形状、本地 CC 不带这个键（电脑行不动）；`receive-companion.py` 写进 `latest.json` 的 `cloud` 项正是桥
+  `cloud_package.parse_entry` 读的形状，没有这一项桥不下载。
+- 对没用云端的现有电脑：心跳、`state()`、联网客户端关键字都与 main 相同（契约 `OneNetworkExit`、`test_cloud_settings_link` 的逐字节比较、
+  `test_cloud_lazy_import` 子进程守住启动 / 托盘 / 空闲 / 对话页不导入 comtypes 与云端窗口模块）；CC 启动不自动连云端。可见的变化只有一处：
+  1.12.25 起「设置 → 连接」多一行「云端 Express（未连接）」，不点「连接」就什么都不做。服务端两个电脑表各加三个隐藏只读字段
+  （`link_kind` / `link_via` / `link_host`，原生迁移），本地电脑永远为空。安装包多带 comtypes（只在连云端时导入）。
