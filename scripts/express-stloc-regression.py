@@ -7,6 +7,7 @@
 - 新写的明细照 Express 原生记法：SEQNUM 右对齐、TQUCOD 不空、TFACTOR > 0（同账套原生明细的行号写法一并统计）；
 - STLOC 其他行一行不变；没被写的表逐字节不变（写入集合 = 进货 / 销货备份表 + STLOC，另有索引文件）；
 - 写前这件品 STMAS.TOTBAL（总结存）等于各仓 LOCBAL 合计的，写后仍相等（Express 的「STMAS = Σ STLOC」；11-07 前误核 MREMBAL）；
+- 物料组的存货科目不在科目表（``ITEM_GROUP_ACCOUNT_MISSING``，原生 1155 拒存）时进货整单不写、账套逐字节不变，记跳过；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写过的表 CDX 与 DBF 一致（``express_cdx_check``）。
 源账套只读（只 copytree 出来）；工作副本用完删掉。不连网络、不碰服务器。
 
@@ -182,6 +183,12 @@ def check(acct: Path) -> dict:
     purchase = payload("HP" if CASH else "RR", be(day), "PO-STLOC", accounts, name, code, 5, Decimal("50.00"), supplier=suppliers[0])
     res = W.write_purchase(purchase, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)
     if not res.ok:
+        # 物料组的存货 / 购货科目不在这套账的科目表里：原生 Express 存单报 1155 拒存，CC 同样整单不写（11-08 ERR_GROUP_ACCOUNT），
+        # 是账套数据的事，记跳过；但拒写必须一字节不动
+        if res.error_code == W.ERR_GROUP_ACCOUNT:
+            if digests(acct) != files_before:
+                return {"state": "fail", "why": f"purchase refused {res.error_code} but the book changed"}
+            return {"state": "skip", "why": f"purchase {res.error_code}: {res.error}"[:300]}
         return {"state": "fail", "why": f"purchase {res.error_code}: {res.error}"}
     sale = payload("HS" if CASH else "IV", be(day), "IV-STLOC", accounts, name, code, 2, Decimal("40.00"), customer=customers[0])
     res2 = WS.write_sale(sale, acct, allowed_sets=("DATAT",), selected_dir=str(acct), make_backup=False)

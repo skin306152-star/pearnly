@@ -3,11 +3,15 @@
 
 对每本账套：整本复制到工作目录 → 用这份源码的 CC 写入代码，挑一件在某个仓有正结存的库存品（没有，或照负库存规则核不过，就先用调整 JU
 在副本里垫 1 个，10-31），从那个仓调 1 个到这套账的另一个仓（ISTAB 21）→ 核原生 RL 记法（实录 RL0000001–0000003，4.6 / 4.6b）：
-- 单头 STTRN 一行：POSOPR 4、LOCCOD 调出、PEOPLE 调入、TRNVAL 0、NXTSEQ「  1」、DOCSTAT N；
-- 明细 STCRD 一对：调出 4 / 调入 3、同行号、PEOPLE 互指、数量相等、单价金额 0、REIMBURSE \\x00；
-- 两仓 STLOC：调出 −1、调入 +1（调入仓原来没有这件就新建一行）；STMAS 这件品的结存与货值不变；没有凭证；ISRUN 的 RL 号 +1；
-- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STLOC、ISRUN 及索引；STMAS、GLJNL 也必须不变）；
-- 再作废：单头 C、NXTSEQ 空、那一对不在（删除标记）、两仓回到写前；
+- 单头 STTRN 一行：POSOPR 4、LOCCOD 调出、PEOPLE 调入、NXTSEQ「  1」、DOCSTAT N；TRNVAL 不分仓计价为 0，
+  分仓计价（ISINFO.LOC_COST = Y）= 两行货值之和（11-18 ae4d41674 / 11-20 eb386d7a4，原生 RL2300610：2 × 712.8 = 1,425.6）；
+- 明细 STCRD 一对：调出 4 / 调入 3、同行号、PEOPLE 互指、数量相等、REIMBURSE \\x00；单价金额不分仓计价为 0，
+  分仓计价两行按同一出库成本计价（单价、货值两行相等，同上实录）；
+- 两仓 STLOC：调出 −1、调入 +1（调入仓原来没有这件就新建一行）；STMAS 这件品的总结存 TOTBAL / TOTVAL 不变；没有凭证；ISRUN 的 RL 号 +1；
+- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STLOC、ISRUN 及索引；GLJNL 必须不变）；STMAS 不分仓计价逐字节不变，
+  分仓计价只许批次链三栏 MLOTNUM / MREMBAL / MREMVAL 改成调入仓 STLOC 写后的链（11-19 f1f5f504a，原生「主档抄这个仓的链」）、
+  UNITPR 只许等于 TOTVAL / TOTBAL（4 位），其余栏与其他行逐字节不变；
+- 再作废：单头 C、NXTSEQ 空、那一对不在（删除标记）、两仓回到写前；STMAS 与作废前逐栏相同（作废调拨不动主档）；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套没有 RL 单据簿、只有一个仓、没有 STLOC、没有库存品（或要垫货却没有可记账的 JU）时跳过并记原因。源账套只读（只 copytree 出来），工作副本用完删掉。
 
@@ -29,6 +33,7 @@ from decimal import Decimal
 from pathlib import Path
 
 WRITE_SET = {"STTRN", "STCRD", "STLOC", "ISRUN"}
+CHAIN_FIELDS = ("MLOTNUM", "MREMBAL", "MREMVAL")
 
 
 def main(argv=None) -> int:
@@ -100,9 +105,54 @@ def num(value):
     return Decimal(repr(float(value or 0)))
 
 
-def digests(acct):
+def digests(acct, skip=WRITE_SET):
     return {p.name.upper(): hashlib.sha256(p.read_bytes()).hexdigest() for p in Path(acct).iterdir()
-            if p.is_file() and p.stem.upper() not in WRITE_SET}
+            if p.is_file() and p.stem.upper() not in skip}
+
+
+def master_rows(acct):
+    """STMAS 全部还算数的行（全部栏，按存货码）：分仓计价账套 STMAS 进写入集合后逐栏核。"""
+    path = Path(acct) / "STMAS.DBF"
+    t = dbf.Table(str(path), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    t.open(dbf.READ_ONLY)
+    try:
+        names = [name.upper() for name in t.field_names]
+        return {text(r.STKCOD): {f: getattr(r, f) for f in names} for r in S.live_rows(t)}
+    finally:
+        t.close()
+
+
+def master_problems(before, after, code, chain):
+    """分仓计价：只许这件品的批次链三栏改成调入仓的链、UNITPR 只许等于 TOTVAL / TOTBAL；其余一律不变。不符回原因。"""
+    if set(before) != set(after):
+        return f"STMAS rows {sorted(set(before) ^ set(after))[:3]}"
+    for stkcod, row in before.items():
+        new = after[stkcod]
+        moved = sorted(f for f in row if row[f] != new[f])
+        if stkcod != code:
+            if moved:
+                return f"STMAS {stkcod} changed {moved}"
+            continue
+        if num(new.get("TOTBAL")) != num(row.get("TOTBAL")) or num(new.get("TOTVAL")) != num(row.get("TOTVAL")):
+            return f"STMAS {code} TOTBAL / TOTVAL {row.get('TOTBAL')} / {row.get('TOTVAL')} -> {new.get('TOTBAL')} / {new.get('TOTVAL')}"
+        extra = [f for f in moved if f not in CHAIN_FIELDS + ("UNITPR",)]
+        if extra:
+            return f"STMAS {code} fields outside the lot chain changed {extra}"
+        if "UNITPR" in moved:
+            total = num(new.get("TOTBAL"))
+            want = (num(new.get("TOTVAL")) / total).quantize(Decimal("0.0001")) if total > 0 else None
+            if want is None or num(new["UNITPR"]).quantize(Decimal("0.0001")) != want:
+                return f"STMAS {code} UNITPR {new['UNITPR']} != TOTVAL / TOTBAL {want}"
+        if any(f in moved for f in CHAIN_FIELDS) and chain is not None and \
+                (text(new["MLOTNUM"]), num(new["MREMBAL"]), num(new["MREMVAL"])) != chain:
+            return f"STMAS {code} lot chain {(new['MLOTNUM'], new['MREMBAL'], new['MREMVAL'])} != receiving warehouse chain {chain}"
+    return ""
+
+
+def place_chain(acct, code, loccod):
+    found = [r for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD") + CHAIN_FIELDS)
+             if text(r["STKCOD"]) == code and text(r["LOCCOD"]) == loccod]
+    return (text(found[0]["MLOTNUM"]), num(found[0]["MREMBAL"]), num(found[0]["MREMVAL"])) if found else None
 
 
 def places(acct, code):
@@ -152,7 +202,10 @@ def check(acct: Path) -> dict:
     master_before = [(num(r["MREMBAL"]), num(r["MREMVAL"])) for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL"))
                      if text(r["STKCOD"]) == code]
     run_before = counter(acct)
-    files_before = digests(acct)
+    loc_cost = text((account_rules._first(acct, "ISINFO") or {}).get("LOC_COST")).upper() == "Y"
+    skip = WRITE_SET | {"STMAS"} if loc_cost else WRITE_SET
+    files_before = digests(acct, skip)
+    stmas_before = master_rows(acct) if loc_cost else {}
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
     payload = {"payload_version": 14, "direction": "stock", "doctype": "RL", "docdate_be": docdate, "ref_no": "REG-RL",
                "remark": "reg transfer", "loccod": source, "to_loccod": target,
@@ -164,7 +217,7 @@ def check(acct: Path) -> dict:
     heads = [r for r in rows(acct, "STTRN", ("DOCNUM", "POSOPR", "LOCCOD", "PEOPLE", "TRNVAL", "NXTSEQ", "DOCSTAT"))
              if text(r["DOCNUM"]) == docnum]
     if len(heads) != 1 or (text(heads[0]["POSOPR"]), text(heads[0]["LOCCOD"]), text(heads[0]["PEOPLE"]), text(heads[0]["DOCSTAT"])) \
-            != ("4", source, target, "N") or num(heads[0]["TRNVAL"]) != 0 or str(heads[0]["NXTSEQ"]) != "  1":
+            != ("4", source, target, "N") or str(heads[0]["NXTSEQ"]) != "  1":
         return {"state": "fail", "why": f"STTRN {heads}"}
     lines = sorted(([text(r["POSOPR"]), text(r["LOCCOD"]), text(r["PEOPLE"]), str(r["SEQNUM"]), num(r["XTRNQTY"]), num(r["XTRNVAL"]),
                      num(r["UNITPR"]), r["REIMBURSE"]]
@@ -172,9 +225,18 @@ def check(acct: Path) -> dict:
                                                   "REIMBURSE"))
                     if text(r["DOCNUM"]) == docnum), reverse=True)
     want = [["4", source, target, "  1"], ["3", target, source, "  1"]]
-    if [line[:4] for line in lines] != want or any(line[5] or line[6] for line in lines) or lines[0][4] != lines[1][4] \
-            or any(line[7] not in (None, "\x00") for line in lines):
+    if [line[:4] for line in lines] != want or lines[0][4] != lines[1][4] or any(line[7] not in (None, "\x00") for line in lines):
         return {"state": "fail", "why": f"STCRD {lines}"}
+    if loc_cost:  # 两行按同一出库成本计价（单价、货值相等），单头 = 两行货值之和
+        if lines[0][5:7] != lines[1][5:7] or lines[0][5] < 0:
+            return {"state": "fail", "why": f"STCRD priced pair {lines}"}
+        head_value = lines[0][5] + lines[1][5]
+    else:  # 不分仓计价：单价金额全空、单头 0
+        if any(line[5] or line[6] for line in lines):
+            return {"state": "fail", "why": f"STCRD {lines}"}
+        head_value = Decimal(0)
+    if num(heads[0]["TRNVAL"]) != head_value:
+        return {"state": "fail", "why": f"STTRN TRNVAL {heads[0]['TRNVAL']} != {head_value} (LOC_COST {'Y' if loc_cost else 'N'})"}
     after = places(acct, code)
     if after.get(source) != before.get(source) - 1 or after.get(target) != before.get(target, Decimal(0)) + 1:
         return {"state": "fail", "why": f"STLOC {before} -> {after}"}
@@ -183,13 +245,19 @@ def check(acct: Path) -> dict:
     run_after = counter(acct)
     if run_before and run_after and int(run_after[0]) != int(run_before[0]) + 1:
         return {"state": "fail", "why": f"ISRUN RL {run_before} -> {run_after}"}
-    changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
+    changed = sorted(name for name, digest in digests(acct, skip).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed (STMAS / GLJNL must not): {changed}"}
-    master_after = [(num(r["MREMBAL"]), num(r["MREMVAL"])) for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL"))
-                    if text(r["STKCOD"]) == code]
-    if master_after != master_before:
-        return {"state": "fail", "why": f"STMAS {master_before} -> {master_after}"}
+    if loc_cost:
+        stmas_written = master_rows(acct)
+        why = master_problems(stmas_before, stmas_written, code, place_chain(acct, code, target))
+        if why:
+            return {"state": "fail", "why": why}
+    else:
+        master_after = [(num(r["MREMBAL"]), num(r["MREMVAL"])) for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL"))
+                        if text(r["STKCOD"]) == code]
+        if master_after != master_before:
+            return {"state": "fail", "why": f"STMAS {master_before} -> {master_after}"}
     void = {"payload_version": 14, "direction": "stock", "action": "void", "doctype": "RL", "docnum": docnum,
             "items": [{"seq": 1, "code": code, "loccod": source, "qty": "1"}]}
     out = V.void_stock_entry(void, acct, selected_dir=str(acct), make_backup=False)
@@ -207,10 +275,12 @@ def check(acct: Path) -> dict:
     index_problems = cdx_check.problems(cdx_reindex, dbf, S, acct, index_before, [docnum]) if with_runner else []
     if index_problems:
         return {"state": "fail", "why": "; ".join(index_problems)}
-    changed = sorted(name for name, digest in digests(acct).items() if files_before.get(name) != digest)
+    changed = sorted(name for name, digest in digests(acct, skip).items() if files_before.get(name) != digest)
     if changed:
         return {"state": "fail", "why": f"tables outside the write set changed after void: {changed}"}
-    return {"state": "ok", "doc": docnum, "item": code, "from": source, "to": target, "new_target_row": target not in before,
+    if loc_cost and master_rows(acct) != stmas_written:
+        return {"state": "fail", "why": "STMAS changed by the void (voiding a transfer leaves the item master alone)"}
+    return {"state": "ok", "loc_cost": loc_cost, "doc": docnum, "item": code, "from": source, "to": target, "new_target_row": target not in before,
             "topped_up_with_ju": bool(topped), "cdx_checked": sorted(index_before)}
 
 

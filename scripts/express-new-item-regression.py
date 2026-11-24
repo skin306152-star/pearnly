@@ -9,7 +9,9 @@
 - 有能记账的 TK 单据簿时，盘点调整 TK：盘盈新物料丁 2 个 → 建丁、结存 2（Express 原生盘盈不取载荷单价，挂不上批次记 0 或均价）；
   盘亏新物料戊 1 个按负库存规则（同领用）；再用 CC 作废代码作废盘盈那张 → DOCSTAT C、丁结存回 0、档留着；
 - 有 RL 单据簿、STLOC、两个以上仓时，调拨新物料丙 1 个（仓 1 → 仓 2）：同上按负库存规则，写成时 STMAS 多一条丙、两仓 −1 / +1；
-- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
+- 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN、GLBAL 及索引）；
+- 上面的「结存」是主档总结存 TOTBAL（Express 的全仓结存，11-07 f35a3f66f；老表没有这栏时按 MREMBAL）；批次链 MREMBAL 另核：
+  分仓计价（ISINFO.LOC_COST = Y 且有 STLOC）的账套出超时链停在 0（11-20 a04892dfe，原生），其余账套链与总结存同样增减；
 - 给了 ``--runner``：照正式 CC 重建索引，并核写入集合的 CDX 与 DBF 一致（``express_cdx_check``）。
 账套里用得最多的存货科目组判不出是存货科目（或一件库存品都没有）时，CC 回 ``STOCK_ACC_GROUP_UNFIT``（ERP 让人选一次组）：这里照人
 选的样子取这套账第一个合格的组（``catalog_probe.probe_isacc_candidates``）带 ``stock_acccod`` 再写，之后几张都带它；没有合格组的跳过。
@@ -33,7 +35,8 @@ import traceback
 from decimal import Decimal
 from pathlib import Path
 
-WRITE_SET = {"STTRN", "STCRD", "STMAS", "STLOC", "GLJNL", "GLJNLIT", "ISRUN"}
+# GLBAL：有凭证时科目余额对应格标待重算（glbal_mark，照 Express 原生，11-12 c9aaa04dd；库存单回归 54f41a5d5 已同样加入）
+WRITE_SET = {"STTRN", "STCRD", "STMAS", "STLOC", "GLJNL", "GLJNLIT", "ISRUN", "GLBAL"}
 NEW_A, NEW_B, NEW_C, NEW_D, NEW_E = "REG ของใหม่ ก", "REG ของใหม่ ข", "REG ของใหม่ ค", "REG ของใหม่ ง", "REG ของใหม่ จ"
 
 
@@ -113,7 +116,18 @@ def digests(acct, skip=WRITE_SET):
 
 
 def items_named(acct, name):
-    return [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "MREMBAL", "CREDAT")) if text(r["STKDES"]) == name]
+    return [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "TOTBAL", "MREMBAL", "CREDAT")) if text(r["STKDES"]) == name]
+
+
+def balance(row):
+    """主档总结存 TOTBAL（老表没有这栏时按批次链 MREMBAL，同 ``express_masters``）。"""
+    return num(row["TOTBAL"] if row["TOTBAL"] is not None else row["MREMBAL"])
+
+
+def chain_after_short(row, chain_stops):
+    """出超后的批次链：分仓计价链停在 0，其余与总结存相同。不符回原因。"""
+    want = Decimal(0) if chain_stops else balance(row)
+    return "" if num(row["MREMBAL"]) == want else f"lot chain MREMBAL {row['MREMBAL']} != {want}"
 
 
 def places(acct, code):
@@ -156,6 +170,7 @@ def check(acct: Path) -> dict:
     day = first.beg + dt.timedelta(days=min(14, (first.end - first.beg).days))
     docdate = f"{(day.year + 543) % 100:02d}{day.month:02d}{day.day:02d}"
     negative = stock_guard.negative_allowed(acct)
+    chain_stops = text((account_rules._first(acct, "ISINFO") or {}).get("LOC_COST")).upper() == "Y" and (acct / "STLOC.DBF").is_file()
     perpetual = text((account_rules._first(acct, "ISINFO") or {}).get("ISPERPETUA") or "Y").upper() != "N"
     files_before = digests(acct)
     index_before = cdx_check.snapshot(cdx_reindex, acct, WRITE_SET) if with_runner else {}
@@ -177,7 +192,7 @@ def check(acct: Path) -> dict:
         return {"state": "fail", "why": f"JU new {res.error_code}: {res.error}"}
     written.append(res.docnum)
     made = items_named(acct, NEW_A)
-    if len(made) != 1 or text(made[0]["STKTYP"]) != "0" or num(made[0]["MREMBAL"]) != 2 or made[0]["CREDAT"] != dt.date.today():
+    if len(made) != 1 or text(made[0]["STKTYP"]) != "0" or balance(made[0]) != 2 or made[0]["CREDAT"] != dt.date.today():
         return {"state": "fail", "why": f"STMAS for the new item: {made}"}
     code = text(made[0]["STKCOD"])
     if [text(r["STKCOD"]) for r in rows(acct, "STCRD", ("DOCNUM", "STKCOD")) if text(r["DOCNUM"]) == res.docnum] != [code]:
@@ -193,7 +208,7 @@ def check(acct: Path) -> dict:
         return {"state": "fail", "why": f"JU again {res.error_code}: {res.error}"}
     written.append(res.docnum)
     made = items_named(acct, NEW_A)
-    if len(made) != 1 or num(made[0]["MREMBAL"]) != 3:
+    if len(made) != 1 or balance(made[0]) != 3:
         return {"state": "fail", "why": f"the same name made another item or the balance is off: {made}"}
 
     ou = D.book_row(acct, "OU")
@@ -206,8 +221,8 @@ def check(acct: Path) -> dict:
                 return {"state": "fail", "why": f"OU new {res.error_code}: {res.error}"}
             written.append(res.docnum)
             made = items_named(acct, NEW_B)
-            if len(made) != 1 or num(made[0]["MREMBAL"]) != -1:
-                return {"state": "fail", "why": f"OU new item: {made}"}
+            if len(made) != 1 or balance(made[0]) != -1 or chain_after_short(made[0], chain_stops):
+                return {"state": "fail", "why": f"OU new item: {made} {chain_after_short(made[0], chain_stops) if made else ''}"}
             issue = "written"
         else:
             why = refused_untouched(acct, res, "OU new")
@@ -223,7 +238,7 @@ def check(acct: Path) -> dict:
             return {"state": "fail", "why": f"TK gain new {res.error_code}: {res.error}"}
         written.append(res.docnum)
         made = items_named(acct, NEW_D)
-        if len(made) != 1 or text(made[0]["STKTYP"]) != "0" or num(made[0]["MREMBAL"]) != 2:
+        if len(made) != 1 or text(made[0]["STKTYP"]) != "0" or balance(made[0]) != 2:
             return {"state": "fail", "why": f"TK gain new item: {made}"}
         gain, code_d = res.docnum, text(made[0]["STKCOD"])
         snapshot = digests(acct, skip=set())
@@ -233,8 +248,8 @@ def check(acct: Path) -> dict:
                 return {"state": "fail", "why": f"TK loss new {res.error_code}: {res.error}"}
             written.append(res.docnum)
             made = items_named(acct, NEW_E)
-            if len(made) != 1 or num(made[0]["MREMBAL"]) != -1:
-                return {"state": "fail", "why": f"TK loss new item: {made}"}
+            if len(made) != 1 or balance(made[0]) != -1 or chain_after_short(made[0], chain_stops):
+                return {"state": "fail", "why": f"TK loss new item: {made} {chain_after_short(made[0], chain_stops) if made else ''}"}
             count = "written"
         else:
             why = refused_untouched(acct, res, "TK loss new")
@@ -247,7 +262,7 @@ def check(acct: Path) -> dict:
             return {"state": "fail", "why": f"void TK {gain} {res.error_code}: {res.error}"}
         state = [text(r["DOCSTAT"]) for r in rows(acct, "STTRN", ("DOCNUM", "DOCSTAT")) if text(r["DOCNUM"]) == gain]
         made = items_named(acct, NEW_D)
-        if state != [V.VOIDED] or len(made) != 1 or num(made[0]["MREMBAL"]) != 0:
+        if state != [V.VOIDED] or len(made) != 1 or balance(made[0]) != 0:
             return {"state": "fail", "why": f"void TK {gain}: DOCSTAT {state}, item {made}"}
         voided = gain
 

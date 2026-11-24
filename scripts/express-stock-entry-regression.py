@@ -6,7 +6,11 @@
 - 盘点 TK 照 Express 原生（实录第 9 条）：POSOPR ':'、FLAG 5、单头货值 0；盘盈单价取主仓最近一次进货那一批的成本并挂上
   （RDOCNUM / MLOTNUM），挂不上的先进先出账套记 0；
 - 四张单都写成，单头 STTRN 一行、明细 STCRD 行数与单据一致；
-- 写前 STMAS 结存等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0）；
+- 写前 STMAS 总结存 TOTBAL 等于各仓 LOCBAL 合计的品，写后仍相等（数量对得上 +2 −1 −1 = 0；11-07 f35a3f66f 起总结存是 TOTBAL，
+  批次链 MREMBAL 在分仓计价账套抄这个仓的链，11-19 f1f5f504a，不再拿来对各仓合计）；
+- 四张单的顺序（+2 −1 −1）要求起始结存不小于 0：第一件库存品要照负库存规则核（stock_guard：账套不许负库存或品标了 N，品标 Y 不核）
+  且 Express 核的那个结存（按仓核 = 主仓 LOCBAL，按全仓核 = 总结存 TOTBAL）为负时，顺次取第一件核得过的（都没有就跳过并记原因）
+  ——那样的品原生同样领不出，写入器拒写是对的（11-23 T9GIS 盘亏 −1 被拒）；
 - 凭证：永续盘存账套每张有金额的单一张 JNLTYP 00 凭证、借贷平衡；定期盘存账套（ISPERPETUA = N）一张凭证都没有；
 - 写入集合以外的表逐字节不变（写入集合 = STTRN、STCRD、STMAS、STLOC、GLJNL、GLJNLIT、ISRUN 及索引）；
 - 再倒着逐张作废（载荷 8，dbf_void）：单头标 C、明细不在，商品结存与各仓结存回到写前；
@@ -46,9 +50,9 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     sys.path.insert(0, args.companion)
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    global dbf, S, D, V, account_rules, cdx_reindex, fiscal_period
+    global dbf, S, D, V, account_rules, cdx_reindex, fiscal_period, stock_guard
     import dbf  # noqa: F401
-    from companion import account_rules, cdx_reindex, fiscal_period  # noqa: F401
+    from companion import account_rules, cdx_reindex, fiscal_period, stock_guard  # noqa: F401
     from companion import dbf_schema as S  # noqa: F401
     from companion import dbf_stock as D  # noqa: F401
     from companion import dbf_void as V  # noqa: F401
@@ -106,8 +110,29 @@ def digests(acct):
             if p.is_file() and p.stem.upper() not in WRITE_SET}
 
 
+def total(r):
+    """主档总结存 TOTBAL（老表没有这栏时按批次链 MREMBAL，同 ``express_masters``）。"""
+    return Decimal(repr(float((r["TOTBAL"] if r.get("TOTBAL") is not None else r["MREMBAL"]) or 0)))
+
+
+def startable(acct, row):
+    """这件品从现有结存起做 +2 −1 −1 不会被负库存规则拦（照 stock_guard：品 NEGALLOW Y 不核、N 必核、空跟账套；
+    按仓核看主仓 LOCBAL，按全仓核看总结存）。"""
+    flag = text(row.get("NEGALLOW")).upper()
+    if flag == "Y" or (flag != "N" and stock_guard.negative_allowed(acct)):
+        return True
+    code = text(row["STKCOD"])
+    if stock_guard.by_warehouse(acct) and (acct / "STLOC.DBF").is_file():
+        main = account_rules.main_location(acct)
+        start = sum((Decimal(repr(float(r["LOCBAL"] or 0))) for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL"))
+                     if text(r["STKCOD"]) == code and (text(r["LOCCOD"]) or main) == main), Decimal(0))
+    else:
+        start = total(row)
+    return start >= 0
+
+
 def balanced(acct, codes):
-    master = {text(r["STKCOD"]): Decimal(repr(float(r["MREMBAL"] or 0))) for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL"))}
+    master = {text(r["STKCOD"]): total(r) for r in rows(acct, "STMAS", ("STKCOD", "TOTBAL", "MREMBAL"))}
     loc = {}
     for r in rows(acct, "STLOC", ("STKCOD", "LOCBAL")):
         loc[text(r["STKCOD"])] = loc.get(text(r["STKCOD"]), Decimal(0)) + Decimal(repr(float(r["LOCBAL"] or 0)))
@@ -156,8 +181,11 @@ def located(acct, code):
 
 
 def master_balance(acct, code):
-    return [(Decimal(repr(float(r["MREMBAL"] or 0))), Decimal(repr(float(r["MREMVAL"] or 0))))
-            for r in rows(acct, "STMAS", ("STKCOD", "MREMBAL", "MREMVAL")) if text(r["STKCOD"]) == code]
+    """[(总结存 TOTBAL, 总货值 TOTVAL, 批次链 MREMBAL, MREMVAL)]：包装单位核总结存的增量；作废后四栏都要回到写前。"""
+    def dec(value):
+        return Decimal(repr(float(value or 0)))
+    return [(total(r), dec(r["TOTVAL"] if r["TOTVAL"] is not None else r["MREMVAL"]), dec(r["MREMBAL"]), dec(r["MREMVAL"]))
+            for r in rows(acct, "STMAS", ("STKCOD", "TOTBAL", "TOTVAL", "MREMBAL", "MREMVAL")) if text(r["STKCOD"]) == code]
 
 
 def location_balances(acct, code):
@@ -213,9 +241,14 @@ def check(acct: Path) -> dict:
     calendar = fiscal_period.load(acct)
     if not calendar:
         return {"state": "skip", "why": "no ISPRD"}
-    stock = [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP")) if text(r["STKTYP"]) == "0" and text(r["STKCOD"])]
+    stock = [r for r in rows(acct, "STMAS", ("STKCOD", "STKDES", "STKTYP", "TOTBAL", "MREMBAL", "NEGALLOW"))
+             if text(r["STKTYP"]) == "0" and text(r["STKCOD"])]
     if not stock:
         return {"state": "skip", "why": "no stock item"}
+    if not startable(acct, stock[0]):
+        stock = [r for r in stock if startable(acct, r)]
+        if not stock:
+            return {"state": "skip", "why": "every stock item would be refused by the negative stock rule (balance below zero)"}
     has_stloc = (acct / "STLOC.DBF").is_file()
     code = text(stock[0]["STKCOD"])
     before_balanced = balanced(acct, [code])[code] if has_stloc else None
