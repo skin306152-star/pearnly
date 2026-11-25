@@ -52,7 +52,8 @@ def sync(members: Iterable[dict], *, load: Optional[Callable] = None, detect: Op
     from ..profile_store import ProfileStore
 
     load = load or ProfileStore.load
-    detect = detect or express_machine.detect_roots
+    if detect is None:
+        from .cloud_books import detect
     probe_sets = probe_sets or probe_account_sets
     probe_defaults = probe_defaults or probe_default_accounts
     wanted = {profile_id(entry["site"]): entry for entry in members}

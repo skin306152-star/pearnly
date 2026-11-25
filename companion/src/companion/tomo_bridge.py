@@ -282,6 +282,8 @@ class TomoBridge(QObject):
             return self._cloud_operator(method, args, lang)
         if method in ("cloud_pair_begin", "cloud_pair_status"):
             return self._cloud_pair(method, lang)
+        if method in ("cloud_rescan", "cloud_add_place"):
+            return self._cloud_command(method, args)
         if method == "window":
             # 对话页画的标题栏（同 Claude 桌面端）：最小化 / 最大化 / 关闭 / 拖动 / 缩放（gui_tomo.TomoWindow.window_action）
             window = self._window()
@@ -422,6 +424,25 @@ class TomoBridge(QObject):
                 log.exception("下发云端成员失败（下次换会话时补发）")
         return {"ok": True}
 
+    def _cloud_command(self, method: str, args: dict) -> dict:
+        """「重新查找」「添加文件夹」（D4）：交云端那份 CC 去做（经 ctl，宿主 ``request``），回编号；结果随下一份 ``cloud_status``
+        的 ``places`` / ``cloud.scan`` / ``cloud.add``（编号对上）回来。宿主没起回 ``not_running``；手填路径太长回 ``invalid``。"""
+        host = self._cloud_host
+        if host is None or not getattr(host, "running", False):
+            return {"ok": False, "code": "not_running"}
+        payload = {}
+        if method == "cloud_add_place":
+            path = str(args.get("path") or "").strip()
+            if not path or len(path) > 260:
+                return {"ok": False, "code": "invalid"}
+            payload = {"path": path}
+        try:
+            item_id = host.request("rescan" if method == "cloud_rescan" else "add_place", payload)
+        except Exception as exc:
+            log.info("发云端命令失败：%s", type(exc).__name__)
+            return {"ok": False, "code": "not_running"}
+        return {"ok": True, "id": item_id}
+
     def _cloud_operator(self, method: str, args: dict, lang: str) -> dict:
         """云端代录的 Express 登录：授权 = 原生小窗收用户名和密码、只存桥本机；取消授权 = 删本机这条并请云端删。
         args 里只看 ``connection``（用户名、密码一概不看）；回包从不含密码。"""
@@ -541,7 +562,9 @@ class TomoBridge(QObject):
         if method == "cloud_prefill":
             return settings_link.prefill(self._cloud_links(), self._session_rdp())
         if method == "cloud_status":
-            result = settings_link.status(self._cloud_links(), self._cloud_session())
+            host = self._cloud_host
+            result = settings_link.status(self._cloud_links(), self._cloud_session(),
+                                          getattr(host, "cloud_state", None) if host is not None else None)
             if self._cloud_package_code:
                 result["package"] = self._cloud_package_code
             return result

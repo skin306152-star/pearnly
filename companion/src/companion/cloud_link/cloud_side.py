@@ -211,6 +211,15 @@ class CloudLink:
         self.generation = 0
         self.members_code = ""
         self.check_lock = threading.Lock()
+        # D4：最近一次下发的站点（重新查找 / 添加后没有成员时按它再建）、查找与添加结果、状态文件（内容没变不重写）、已做过的命令编号
+        self.last_members: list = []
+        self.scan_code = ""
+        self.scanned_at = 0
+        self.add_result: dict = {}
+        self.status_key = None
+        self.next_status = 0.0
+        self.commands_seen: set = set()
+        self.command_lock = threading.Lock()
 
     def __repr__(self) -> str:
         return f"CloudLink(root={str(self.root)!r})"
@@ -309,6 +318,78 @@ class ReloadingTransport(httpx.BaseTransport):
 
 # ── ctl 变化 ──────────────────────────────────────────────────────────────────
 
+def open_ctl(link: CloudLink, data: bytes, kind: str) -> tuple:
+    """用当前会话解开 ``ctl`` 里桥写的文件；会话号对不上时先看有没有新会话（桥在我们换上会话之后又换了一次，新 session.json 与
+    这份文件都已写好），换上再解一次，别把它丢掉。解不开抛 ``ctl_files.CtlError``。"""
+    from . import ctl_files
+
+    try:
+        return ctl_files.open_(data, link.session, kind)
+    except ctl_files.CtlError as error:
+        if error.code != ctl_files.WRONG_EPOCH or link.refresh() is None:
+            raise
+        return ctl_files.open_(data, link.session, kind)
+
+
+def take_commands(link: CloudLink, *, run=None) -> list:
+    r"""``ctl\rescan.json`` / ``ctl\add-place.json`` 在就读（读后删除）、解开、核编号没做过，交 ``run(kind, payload, 编号)``。
+    回交出去的种类。默认在一条后台线程里一件一件做（找账套可能要几十秒，不挡监视线程换会话），做完写状态文件。"""
+    from . import cred_handoff as handoff
+    from . import ctl_files
+
+    taken = []
+    for kind in ("rescan", "add_place"):
+        data = handoff.take(link.ctl_dir / ctl_files.KINDS[kind], 16 * 1024)
+        if data is None:
+            continue
+        try:
+            item_id, payload = open_ctl(link, data, kind)
+        except ctl_files.CtlError as error:
+            log.warning("云端命令文件不对 · 种类=%s 原因=%s", kind, error.code)
+            continue
+        if item_id in link.commands_seen:
+            log.info("云端命令已做过 · 种类=%s", kind)
+            continue
+        link.commands_seen.add(item_id)
+        taken.append(kind)
+        (run or _run_command)(link, kind, payload, item_id)
+    return taken
+
+
+def _run_command(link: CloudLink, kind: str, payload: dict, item_id: str) -> None:
+    def work() -> None:
+        from . import cloud_books
+
+        with link.command_lock:
+            try:
+                if kind == "rescan":
+                    cloud_books.rescan(link)
+                else:
+                    cloud_books.add_place(link, payload.get("path"), item_id)
+            except Exception:
+                log.exception("云端命令失败 · 种类=%s", kind)
+            report_status(link, force=True)
+
+    threading.Thread(target=work, name="cloud-command", daemon=True).start()
+
+
+def report_status(link: CloudLink, *, force: bool = False, write=None, clock=time.monotonic) -> bool:
+    """写状态文件（``cloud_books.write_status``）：``force`` 立刻写；否则到 5 分钟才看一次、内容变了才写。从不抛。"""
+    now = clock()
+    if not force and now < link.next_status:
+        return False
+    from .cloud_books import STATUS_EVERY
+
+    if write is None:
+        from .cloud_books import write_status as write
+    link.next_status = now + STATUS_EVERY
+    try:
+        return bool(write(link, force=force))
+    except Exception as exc:  # noqa: BLE001 - 写不进隧道盘：下次再写
+        log.warning("云端状态写入失败 · 原因=%s", type(exc).__name__)
+        return False
+
+
 def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
     r"""``ctl\members.json`` 在就读（读后删除）、用当前会话解开、交 ``cloud_members.sync`` 改本机成员；改了就 :meth:`CloudLink.bump`。
     回结果码（``ready`` / ``no_books`` / ``none``；文件不对回 ``ctl_files`` 的原因码）；没有文件回 None。"""
@@ -319,13 +400,7 @@ def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
     if data is None:
         return None
     try:
-        try:
-            _id, payload = ctl_files.open_(data, link.session, "members")
-        except ctl_files.CtlError as error:
-            # 桥在我们换上会话之后又换了一次（新 session.json 与成员文件都已写好）：换上再解一次，别把它丢掉
-            if error.code != ctl_files.WRONG_EPOCH or link.refresh() is None:
-                raise
-            _id, payload = ctl_files.open_(data, link.session, "members")
+        _id, payload = open_ctl(link, data, "members")
         members = ctl_files.members_of(payload)
     except ctl_files.CtlError as error:
         log.warning("云端成员文件不对 · 原因=%s", error.code)
@@ -338,6 +413,7 @@ def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
         log.warning("云端成员更新失败 · 原因=%s", type(exc).__name__)
         return "error"
     link.members_code = code
+    link.last_members = members
     log.info("云端成员 · 结果=%s 站点数=%d 有改动=%s", code, len(members), changed)
     if changed:
         link.bump()
@@ -345,14 +421,17 @@ def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
 
 
 def check_ctl(link: CloudLink, *, host: Optional[Callable[[], str]] = None, handle_forget=None,
-              members=take_members) -> Optional[str]:
+              members=take_members, commands=take_commands, status=report_status) -> Optional[str]:
     """看一遍 ``ctl``：有新会话就换上；有成员下发就改本机成员；有撤销就交 ``cred_cloud.handle_forget``（回它的原因码，没有撤销回 None）。
     监视线程与直写循环启动时都会调，同一时刻只一个在看。"""
     from . import cred_handoff as handoff
 
     with link.check_lock:
-        link.refresh()
-        members(link)
+        fresh = link.refresh()
+        code = members(link)
+        commands(link)
+        # 换了会话（桥那边是新的一次连接，旧状态解不开）或成员刚处理过：马上报；平时 5 分钟看一次、变了才写
+        status(link, force=fresh is not None or code is not None)
         if not (link.ctl_dir / handoff.FORGET_FILE).exists():
             return None
         return _forget(link, host, handle_forget)

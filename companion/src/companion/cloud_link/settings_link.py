@@ -18,7 +18,9 @@
   （``CloudSession.user_close``，不重连），再 ``LinkStore.remove``（吊销令牌、删配置与两条凭据）。
 - ``status``：连接（主机、端口、用户名、云端电脑名）与状态词；状态来自宿主窗口的 ``session.CloudSession``，宿主没起（没点过
   「连接」、窗口已关）时是「未连接」。
-  ``places`` 是云端那份 CC 报上来的 Express 位置——现在还没有这条数据来源，回空列表（不造数据）。
+  ``places`` 是云端那份 CC 报上来的数据目录与账套数（``ctl\\status.json``，D4，宿主 ``cloud_state``；还没报过就是空列表）；
+  报过时另带 ``cloud``：云端 CC 版本、成员结果码（``ready`` / ``no_books`` / ``none``）、最近一次查找与「添加文件夹」的结果。
+  「重新查找」「添加文件夹」（手填云端主机上的路径）由 ``tomo_bridge`` 的 ``cloud_rescan`` / ``cloud_add_place`` 经 ctl 交云端去做。
 
 状态词只有五个：``idle`` 未连接 / ``connecting`` 正在连接 / ``connected`` 已连接 / ``login_failed`` 登录失败 /
 ``replaced`` 账号在别处使用。登录失败、被挤都停住不自动重连（``session``），这里照实回。等重连（普通断线退避中）算「未连接」：
@@ -164,13 +166,41 @@ def disconnect(store, session=None) -> dict:
     return {"ok": True}
 
 
-def status(store, session=None) -> dict:
+def cloud_summary(state) -> Optional[dict]:
+    """云端那份 CC 最近报的状态（``host.CloudHost.cloud_state``）里给页面的几项；没有回 None。"""
+    if not isinstance(state, dict):
+        return None
+    add = state.get("add") if isinstance(state.get("add"), dict) else {}
+    return {"version": str(state.get("version") or ""), "members": str(state.get("members") or ""),
+            "scan": str(state.get("scan") or ""), "scanned_at": int(state.get("scanned_at") or 0),
+            "add": {"id": str(add.get("id") or ""), "code": str(add.get("code") or "")} if add else {}}
+
+
+def places_of(state) -> list:
+    """云端报的数据目录：``[{path, ledgers}]``（路径是云端主机上的，只显示）。"""
+    items = state.get("places") if isinstance(state, dict) else None
+    found = []
+    for item in items if isinstance(items, list) else []:
+        if isinstance(item, dict) and isinstance(item.get("path"), str) and item["path"]:
+            try:
+                ledgers = int(item.get("ledgers"))
+            except (TypeError, ValueError):
+                ledgers = -1
+            found.append({"path": item["path"][:260], "ledgers": ledgers})
+    return found[:32]
+
+
+def status(store, session=None, cloud=None) -> dict:
     link = _first(store)
     if link is None:
         return {"ok": True, "link": None, "state": IDLE, "places": []}
     snapshot = session.snapshot() if session is not None else None
-    return {"ok": True, "state": status_of(snapshot), "places": [],
-            "link": {"host": link.host, "port": link.port, "user": link.user, "name": link.host_name}}
+    result = {"ok": True, "state": status_of(snapshot), "places": places_of(cloud),
+              "link": {"host": link.host, "port": link.port, "user": link.user, "name": link.host_name}}
+    summary = cloud_summary(cloud)
+    if summary is not None:
+        result["cloud"] = summary
+    return result
 
 
 __all__ = ["CONNECTED", "CONNECTING", "IDLE", "LOGIN_FAILED", "REPLACED", "STATES", "check_address", "connect", "disconnect", "prefill",

@@ -272,6 +272,8 @@ class CloudHost:
         self._cred_lock = threading.Lock()
         # 设备密钥的一次性配对（device_pairing）；窗口标题怎么改（默认排进界面线程，测试注入）
         self._pairing: Optional[pairing.BridgePairing] = None
+        # 云端那份 CC 报的状态（ctl\\status.json，D4）：最近一份，只在内存
+        self.cloud_state: Optional[dict] = None
         self._set_title = set_title or _queued_title
         self._title_lang = ""
 
@@ -372,6 +374,7 @@ class CloudHost:
         self._fresh = False
         _step("remove session file", self._remove_ctl)
         self._session = None
+        self.cloud_state = None
         _step("remove credential handoff files", lambda: handoff.sweep(self.root / "ctl"))
         current, self._pairing = self._pairing, None
         if current is not None:
@@ -510,6 +513,42 @@ class CloudHost:
         self._poke()
         return True
 
+    def pump_state(self) -> bool:
+        r"""``ctl\\status.json`` 在就读（读后删）、用当前会话解开，存成 :attr:`cloud_state` 并通知界面。回有没有新状态。"""
+        from . import ctl_files
+
+        session = self._session
+        if session is None:
+            return False
+        data = handoff.take(self.ctl_dir / ctl_files.STATUS_FILE, 256 * 1024)
+        if data is None:
+            return False
+        try:
+            _id, payload = ctl_files.open_(data, session, "status")
+        except ctl_files.CtlError as error:
+            log.info("云端状态文件不对 · 原因=%s", error.code)
+            return False
+        self.cloud_state = payload
+        try:
+            self._on_change(None, "")
+        except Exception:
+            log.exception("云端连接状态通知失败")
+        return True
+
+    def request(self, kind: str, payload: Optional[dict] = None) -> str:
+        r"""请云端那份 CC 做一件事（``rescan`` 重新查找 / ``add_place`` 添加数据目录）：加密写进 ``ctl``，回编号（结果在下一份状态里，
+        ``add`` 带同一编号）。没在跑、没有会话抛 :class:`HostError`。"""
+        from . import ctl_files
+
+        session = self._session
+        if session is None or not self._running:
+            raise HostError("cloud link is not running")
+        item_id = ctl_files.new_id()
+        handoff.write_atomic(self.ctl_dir / ctl_files.KINDS[kind],
+                             ctl_files.seal(session, kind, dict(payload or {}), item_id=item_id))
+        log.info("云端命令已发 · 种类=%s", kind)
+        return item_id
+
     def _remove_ctl(self) -> None:
         _remove(self.ctl_file)
         _remove(self.ctl_file.with_name(self.ctl_file.name + ".part"))
@@ -605,6 +644,10 @@ class CloudHost:
             self.pump_credentials()
         except Exception:
             log.exception("凭据交接处理失败")
+        try:
+            self.pump_state()
+        except Exception:
+            log.exception("读云端状态失败")
         handed = 0
         for path in relay.pending():
             with self._inflight_lock:
