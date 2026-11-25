@@ -178,8 +178,9 @@ def confirm(ctx, values, draft, consent) -> dict:
             return {"returned": {step: {"reason": "company_refused", "text": str(error)[:300]}}}
     if found.get("status") not in ("saved", "removed"):
         return {"returned": {step: {"reason": "company_refused", "text": str(found.get("reason") or "")[:300]}}}
-    # 结果卡给人看的名字（`guide.form_result` 的 label）：选的那条备注 / 规则的名字，加的备注用正文；删除类写删了几条
-    label = shown.get("name") or " ".join(str(values.get("text") or "").split())[:80]
+    # 结果卡给人看的名字（`guide.form_result` 的 label）：加 / 改备注用新正文，删除与规则用选的那条的名字（一样截到 80 字）；删除类写删了几条
+    text = values.get("text") if action in (NOTE_ADD, NOTE_EDIT) else shown.get("name")
+    label = " ".join(str(text or "").split())[:80]
     out = {"status": "entered", "label": label, **{key: found[key] for key in ("note", "removed") if key in found}}
     return {**out, "deleted": 1} if action in (NOTE_DELETE, RULE_DELETE) else out
 

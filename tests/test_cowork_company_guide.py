@@ -190,8 +190,9 @@ class Notes(Base):
         name, found = self.walk({"action": "note_edit"}, {"note": "N2"})
         self.assertEqual(self.questions(found)["text"]["preselected"], "Pays by transfer")
         found = run.answer(name, {"text": "Pays by cheque"})
-        run.confirm(name, found["version"])
+        done = run.confirm(name, found["version"])
         self.assertEqual(STATE["calls"][0][:2], ("note_save", {"text": "Pays by cheque", "note": "N2"}))
+        self.assertEqual(done["result"]["docnum"], "Pays by cheque")   # 结果卡写改后的正文，不是改前的
 
     def test_deleting_lists_the_note_on_the_review(self):
         name, found = self.walk({"action": "note_delete"}, {"note": "N1"})

@@ -333,7 +333,7 @@ def confirm(ctx, values, draft, consent) -> dict:
     card = str(values.get("card") or "")
     try:
         if action == CREATE:
-            made = api.create(values["title"], values["list"])
+            api.create(values["title"], values["list"])
             return {"status": "entered", "label": str(values.get("title") or "")}
         if action == UPDATE:
             modified = draft.rsplit(DRAFT_SEP, 1)[-1]
