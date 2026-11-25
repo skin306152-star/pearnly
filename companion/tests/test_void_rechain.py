@@ -13,7 +13,7 @@ from __future__ import annotations
 from account_rules_fixture import isinfo
 from test_dbf_stock import _chain, _entry, _line, _set_master, _write, book  # noqa: F401
 from test_dbf_void import _void
-from test_stock_location import _rows, _stloc, acct  # noqa: F401
+from test_stock_location import _buy, _item, _purchase, _rows, _stloc, acct  # noqa: F401
 
 TK_LOT = "20261026:TK0000001     1"
 STALE = "202208113RL002200034   1"
@@ -158,3 +158,13 @@ def test_an_increase_on_a_master_chain_left_negative_on_an_earlier_day_records_i
     assert _master(book) == {"MLOTNUM": f"202603201{res.docnum:<12}  1", "MREMBAL": 13.0, "MREMVAL": 0.0, "TOTBAL": 13.0, "TOTVAL": 0.0}
     assert _void(book, res.docnum, "JU", [{"code": "ICE01", "qty": "15"}]).ok
     assert _master(book) == before
+
+
+def test_a_purchase_on_a_master_chain_left_negative_keeps_recording_zero_and_the_plain_lot(acct):
+    """进货 RR 行没有跨日负链的原生实录：照旧记 0、批号去标记（11-25 只按调增 JU 的实录改）。"""
+    isinfo(acct, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _set_master(acct, MLOTNUM="-/F", MREMBAL=-2.0, MREMVAL=0.0, TOTBAL=-2.0, TOTVAL=0.0)
+    res = _buy(acct, _purchase([_item("ICE01", 5, 100.0, "stock_item")]))
+    assert res.ok, res.error
+    line = [r for r in _rows(acct, "STCRD", STKCOD="ICE01") if r["POSOPR"] == "0"][-1]
+    assert (line["MREMBAL"], line["MLOTNUM"].rstrip()) == (0.0, "B/F")

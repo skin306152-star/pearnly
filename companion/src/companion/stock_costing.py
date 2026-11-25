@@ -365,10 +365,11 @@ class Book:
         now = self.now(stkcod)
         self.totals[stkcod] = (now["totbal"] + signed, _q2(now["totval"] + signed_value))
         increase = signed > 0
-        # 主档链上的增加行、这件存货当天还没有别的明细时，照记写前原值：结存为负照记、主档批号带「负」标记就原样带上（11-25 70EXP\\test
+        # 主档链上的调增行（JU / PI，POSOPR 1；进货、退货、盘盈没有这种实录，照旧）、这件存货当天还没有别的明细时，照记写前原值：结存为负照记、主档批号带「负」标记就原样带上（11-25 70EXP\\test
         # 原生 JU 实录：000004 主档 -/F、-2（10-26 起）→ 行记 -2 / -/F，原生作废按行原样回写）。当天已有出库把链扣负时照旧为负记 0、
         # 指针去标记（11-18 实录 JU0000001：原生记的是开日状态）；分仓链上的增加行没有跨日为负的实录，照旧
-        master_raw = increase and not early and not here and (bal < 0 or stkcod in self.marked) \
+        adjust_in = increase and str(posopr) == S.STCRD_POSOPR_RECEIVE
+        master_raw = adjust_in and not early and not here and (bal < 0 or stkcod in self.marked) \
             and not self._moved_today(stkcod)
         fields: Dict[str, Any] = {
             # 批次链结存记写前（减少行照记，11-22 实录 IV0000051），指针指当前那一批
@@ -403,7 +404,8 @@ class Book:
             self.marked.add(stkcod)
         if increase:
             self.heads[stkcod] = master["MLOTNUM"] = new_head
-            self.marked.discard(stkcod)  # 主档批号换成新批、不再带「负」标记
+            if adjust_in:  # 主档批号换成新批、不再带「负」标记（同单后面的调增行不再按带标记记；其余写法照旧）
+                self.marked.discard(stkcod)
         stock_sale.move_stmas(self.account_dir, stkcod, signed, signed_value, fields=master)
         return Line(unit_cost, value, fields)
 
