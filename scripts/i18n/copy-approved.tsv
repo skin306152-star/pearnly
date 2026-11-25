@@ -269,3 +269,9 @@ pearnly_dms:dms.card.report.HEAD_OTHER	zh	{my} 车辆	2026-11-26	docs/work/2026-
 pearnly_erp_portal:Choose a type first	zh	请先选择类型	2026-11-25	docs/work/2026-11-25-erp-line-choose-type.md
 pearnly_dms:dms.card.report.HEAD_AVAILABLE	zh	空车	2026-11-28	docs/work/2026-11-28-dms-stock-no-model-year.md（用户 11-27 晚原话：表头 26 MY 取消不写）
 pearnly_dms:dms.card.report.HEAD_OTHER	zh	车辆	2026-11-28	docs/work/2026-11-28-dms-stock-no-model-year.md（用户 11-27 晚原话：表头 26 MY 取消不写）
+assistant:OPERATOR.doc.entering	zh	录入中	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+assistant:OPERATOR.doc.notDone	zh	失败	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+assistant:OPERATOR.doc.saved	zh	成功	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+pearnly_core:operator.end.not_done	zh	失败 {0} 张：{1}	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+pearnly_core:operator.report.state.notDone	zh	失败	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）
+pearnly_core:operator.report.state.saved	zh	成功	2026-11-24	docs/work/2026-11-25-cc-status-words.md「文案改动」节（用户 11-24 同意，主会话转达「可以」）

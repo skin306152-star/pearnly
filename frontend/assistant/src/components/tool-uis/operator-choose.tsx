@@ -88,7 +88,7 @@ export const OperatorChooseCard: ToolCallMessagePartComponent = (props) => {
   const buttons: CardButton[] = unknown
     ? [
         { slot: "cc-op-not-entered", label: op.notEntered, onClick: () => resolve(false) },
-        { slot: "cc-op-entered", label: op.doc.saved!, primary: true, onClick: () => resolve(true) },
+        { slot: "cc-op-entered", label: op.entered, primary: true, onClick: () => resolve(true) },
       ]
     : [{
         // 被人在 Express 里打断（CC 桌面版 1.12.23）：这张已按放弃收拾，「继续」= 交回接着录（先读账套、不重复）；停止用对话里的停止

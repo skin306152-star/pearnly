@@ -79,7 +79,7 @@ class OperatorListedScenarioTest(unittest.TestCase):
         self.assertEqual(world.calls, ["erp_push_held.py", "erp_operator_listed.py"])
 
     def test_each_broken_world_fails(self):
-        cases = [(self.broken("after_gone", []), "已入账 · 单号"),
+        cases = [(self.broken("after_gone", []), "成功 · 单号"),
                  (self.broken("after_listed", ["S:SD-1"]), "不再当成待录"),
                  (self.broken("model_entered", []), "给模型"),
                  (self.broken("skipped", []), "跳过它"),

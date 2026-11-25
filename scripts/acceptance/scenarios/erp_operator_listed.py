@@ -1,5 +1,5 @@
 """验收场景：代录列出的单被直写抢先（主会话 11-24 口径；L3 首跑问题 1）——列出阶段不锁；列出过的单被每分钟那一轮直写写进账本后，
-代录这边如实显示「已入账 · 单号」、开始时跳过，不凭空消失，账本里只有一张（不重复入账）。
+代录这边如实显示「成功 · 单号」、开始时跳过，不凭空消失，账本里只有一张（不重复入账）。
 
   acc.erp.operator.listed.direct   一张已提交、还没交进写账队列的赊销单（新建「ร้าน…」客户、只记账的一行）
 
@@ -42,7 +42,7 @@ def run(ctx):
         ctx.facts.update(erp_doc=held["doc"], ledger=chain.LEDGER)
 
     with ctx.step("代录列出 → 被直写写掉 → 代录这边怎么说",
-                  "列出时在清单里；直写写成后清单里是「已入账 · 单号」一行、模型看到 entered、写入计划跳过、交单不交；只有一件写账"):
+                  "列出时在清单里；直写写成后清单里是「成功 · 单号」一行、模型看到 entered、写入计划跳过、交单不交；只有一件写账"):
         out = chain.site(ctx, "erp_operator_listed.py", {"user": conf["user"], "company": held["company"], "doc_id": held["doc_id"],
                                                           "doctype": held["doctype"], "doc": held["doc"], "wait": POLL_WAIT},
                          timeout=POLL_WAIT + 300)
@@ -54,7 +54,7 @@ def run(ctx):
         ctx.check("写成它的是直写件，不是代录件", False, str(job.get("request_key") or "").startswith(OPERATOR_KEY))
         docnum = state.get("ledger_docnum") or ""
         ctx.check("资料清单里不再当成待录", False, doc_id in (out.get("after_listed") or []))
-        ctx.check("资料清单第一页里是「已入账 · 单号」一行", [[doc_id, "saved", docnum, []]],
+        ctx.check("资料清单第一页里是「成功 · 单号」一行", [[doc_id, "saved", docnum, []]],
                   [[row.get("doc_id"), row.get("state"), row.get("docnum"), row.get("moves")] for row in out.get("after_gone") or []])
         ctx.check("给模型的准备中清单：不在 waiting、在 entered 带单号", [False, [[doc_id, docnum]]],
                   [doc_id in (out.get("model_waiting") or []), [[row.get("doc_id"), row.get("docnum")] for row in out.get("model_entered") or []]])

@@ -976,8 +976,8 @@ Status	状态	สถานะ	状態	operator.report.column.status
 Express no.	Express 单号	เลขที่ใน Express	Express 番号	operator.report.column.number
 Reason	原因	สาเหตุ	理由	operator.report.column.reason
 Time	用时	ใช้เวลา	所要時間	operator.report.column.time
-Posted	已入账	บันทึกบัญชีแล้ว	記帳済み	operator.report.state.saved
-Not done	未完成	ยังไม่เสร็จ	未完了	operator.report.state.notDone
+Succeeded	成功	สำเร็จ	成功	operator.report.state.saved
+Failed	失败	ไม่สำเร็จ	失敗	operator.report.state.notDone
 Waiting	等待	รอคิว	待機中	operator.report.state.waiting
 Skipped	已跳过	ข้ามแล้ว	スキップ	operator.report.state.skipped
 Amount and VAT match	金额和税一致	ยอดเงินและภาษีตรงกัน	金額と税が一致	operator.report.match
@@ -1022,7 +1022,7 @@ Waiting for the server	正在等待服务器	กำลังรอเซิร�
 Account set in use	账套正在使用	ชุดบัญชีกำลังถูกใช้งาน	会計データは使用中です	operator.report.reason.account_busy
 Waiting for start time	等待开始时刻	รอเวลาเริ่ม	開始時刻を待っています	operator.report.reason.waiting_start
 Stopped	已停止	หยุดแล้ว	停止しました	operator.end.stopped
-{0} not done: {1}	未完成 {0} 张：{1}	ยังไม่เสร็จ {0} ใบ: {1}	未完了 {0} 件：{1}	operator.end.not_done
+{0} failed: {1}	失败 {0} 张：{1}	ไม่สำเร็จ {0} ใบ: {1}	失敗 {0} 件：{1}	operator.end.not_done
 Asked questions	已提问	ถามคำถามแล้ว	質問しました	
 Waiting for answers	等待作答	รอคำตอบ	回答待ち	
 Filed the conversation under a company	已将对话归入公司	ผูกบทสนทนากับบริษัทแล้ว	会話を会社に紐付けました	
