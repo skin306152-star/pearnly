@@ -419,9 +419,12 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
     values: Dict = {}
     master_from: Dict[str, Any] = {}
     remaining = _chain_rows(account_dir, list(before))
-    for key, now in before.items():
+    # 主档链只回没记着仓链的那些行（记着仓链的行写入时是把主档设成仓链、不按差额动主档）；先回主档、再让仓链抄主档，
+    # 同一件存货既有记链的仓又有没记链的仓（老账套部分存货）时，主档最后跟仓链走，与写入时一致
+    for key, now in sorted(before.items(), key=lambda item: item[0][1] is not None):
         rows = [row for row in chain_rows if row["STKCOD"] == key[0]
-                and (key[1] is None or (row["LOCCOD"] or main) == key[1])]
+                and ((row["STKCOD"], row["LOCCOD"] or main) not in before if key[1] is None
+                     else (row["LOCCOD"] or main) == key[1])]
         if not rows:
             continue
         rows.sort(key=lambda row: (row["DOCDAT"] or _dt.date.min, stock_chain.order_of(row["POSOPR"], docnum, row["SEQNUM"])))

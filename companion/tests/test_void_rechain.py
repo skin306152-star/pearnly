@@ -116,3 +116,29 @@ def test_a_row_that_does_not_lead_to_the_current_chain_falls_back_to_taking_the_
     assert _void(acct, res.docnum, "JU", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(acct) == {"MLOTNUM": TK_LOT, "MREMBAL": 25.0, "MREMVAL": 1200.0, "TOTBAL": 25.0, "TOTVAL": 1200.0}
 
+
+
+def _add_place(acct, code, loc, **fields):
+    """STLOC 加一行（老账套那样：有结存、没批号 → 这个仓不记链，链在主档上）。"""
+    import dbf
+    from companion import dbf_schema
+    table = dbf.Table(str(acct / "STLOC.DBF"), codepage=dbf_schema.CODEPAGE)
+    table.open(dbf.READ_WRITE)
+    try:
+        names = {name.upper() for name in table.field_names}
+        table.append({k: v for k, v in {"STKCOD": code, "LOCCOD": loc, **fields}.items() if k in names})
+    finally:
+        table.close()
+
+
+def test_a_document_on_a_warehouse_with_its_chain_and_one_without_leaves_the_master_on_the_warehouse_chain(book):
+    """同一件存货 01 仓记着链、02 仓没记（老账套部分存货，链在主档上）：主档链只回 02 那行，最后照写入时一样抄 01 仓回写前的链，
+    不把 01 仓那行重复算进主档的差额（审查 11-25）。"""
+    acct = _by_place(book)
+    _add_place(acct, "ICE01", "02", LOCBAL=5.0, LOCVAL=50.0)
+    res = _write(acct, _entry("JU", [_line("ICE01", 2, unit_cost="15"), _line("ICE01", 3, loccod="02", unit_cost="10")]))
+    assert res.ok, res.error
+    assert _void(acct, res.docnum, "JU", [{"code": "ICE01", "qty": "2"}, {"code": "ICE01", "qty": "3"}]).ok
+    assert _place(acct) == (0.0, 0.0, 0.0, 0.0, "B/F")
+    assert _master(acct) == {"MLOTNUM": "B/F", "MREMBAL": 0.0, "MREMVAL": 0.0, "TOTBAL": 5.0, "TOTVAL": 50.0}
+    assert _stloc(acct, "ICE01", "02")["LOCBAL"] == 5.0
