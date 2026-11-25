@@ -596,6 +596,8 @@ class TomoBridge(QObject):
                     self._cloud_package_code = ""
                 finally:
                     held["store"], held["session"] = self._cloud_links(), self._cloud_session()
+                if host is None:
+                    self._cloud_release_stale(held["store"])   # 没连着就断开：上次强行结束留下的隧道盘也撤掉
 
             def work() -> dict:
                 if held.get("replaced"):
@@ -682,9 +684,11 @@ class TomoBridge(QObject):
 
         if not settings_link.remembered(link.host):
             log.info("云端连接没存密码，启动时不自动连")
+            self._cloud_release_stale(store)
             return False
         if link.halted == "replaced":
             log.info("云端上次被别处登录挤下线，启动时不自动连（等人点重新登录）")
+            self._cloud_release_stale(store)
             return False
         log.info("启动时自动连云端")
         self._after_cloud_connect(settings_link, {"ok": True, "host": link.host})
@@ -715,6 +719,16 @@ class TomoBridge(QObject):
                 store.set_halted(host.host, halted)
         except Exception:
             log.exception("记云端停住原因失败")
+
+    def _cloud_release_stale(self, store) -> None:
+        """（界面线程）这次不起宿主时撤掉上次 CC 被强行结束留下的隧道盘（``cloud_link.host.release_stale_drive``）。"""
+        try:
+            from .cloud_link import host as cloud_host
+
+            for link in list(getattr(store, "links", None) or ()):
+                cloud_host.release_stale_drive(link.host, link.tunnel_drive)
+        except Exception:
+            log.exception("撤残留隧道盘失败")
 
     def _stop_cloud_host(self) -> None:
         host, self._cloud_host = self._cloud_host, None

@@ -191,3 +191,35 @@ def test_operator_login_from_the_dialog_is_stored_only_on_the_bridge(tmp_path, v
     assert "asked" not in holder
     assert json.loads(bridge.call("cloud_operator_authorize", json.dumps(
         {"connection": "default", "inline": True, "username": "x"}))) == {"ok": False, "code": "invalid"}
+
+
+def test_a_leftover_tunnel_drive_is_released_when_we_do_not_connect(tmp_path, vault, monkeypatch):
+    # 11-25 测试机1 真机：CC 被强行结束后 Z: 一直留着，重启后被挤下线标记不自动连，盘还在
+    from companion.cloud_link import host as host_mod
+
+    released = []
+    monkeypatch.setattr(host_mod, "release_stale_drive", lambda host, letter: released.append((host, letter)) or True)
+    _connect(tmp_path)
+    store = _store(tmp_path)
+    store.set_tunnel_drive(HOST, "Z")
+    store.set_halted(HOST, "replaced")
+    bridge, made = _auto_bridge(tmp_path, {"store": _store(tmp_path)})
+    assert bridge.cloud_autoconnect() is False and made == []
+    assert released == [(HOST, "Z")]
+    _store(tmp_path).set_halted(HOST, "")
+    bridge, made = _auto_bridge(tmp_path, {"store": _store(tmp_path)})
+    assert bridge.cloud_autoconnect() is True and released == [(HOST, "Z")]   # 要连：交给宿主接着用，不撤
+
+
+def test_release_stale_drive_only_removes_our_own_mapping(tmp_path):
+    from companion.cloud_link import host as host_mod
+    from test_cloud_host import FakeDrives
+
+    root = host_mod.tunnel_root(HOST, tmp_path)
+    drives = FakeDrives(maps={"Z": "\\??\\" + str(root), "Y": "\\??\\C:\\elsewhere"})
+    assert host_mod.release_stale_drive(HOST, "Y", drives=drives, base=tmp_path) is False
+    assert host_mod.release_stale_drive(HOST, "", drives=drives, base=tmp_path) is False
+    assert host_mod.release_stale_drive(HOST, "C:", drives=drives, base=tmp_path) is False
+    assert host_mod.release_stale_drive(HOST, "z", drives=drives, base=tmp_path) is True
+    assert ("unsubst", "Z") in drives.events and ("unsubst", "Y") not in drives.events
+    assert host_mod.release_stale_drive(HOST, "Z", drives=None, base=tmp_path) in (False, True)   # 非 Windows：不抛

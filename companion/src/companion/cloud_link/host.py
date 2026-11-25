@@ -96,6 +96,24 @@ def tunnel_root(host: str, base: Optional[Path] = None) -> Path:
     return Path(base) / rdp.host(host)
 
 
+def release_stale_drive(host: str, letter: str, *, drives=None, base: Optional[Path] = None) -> bool:
+    """CC 上次被强行结束（任务管理器、崩溃、安装覆盖）时 subst 盘没撤、一直留到注销：这次启动不连（没存密码 / 被挤下线）或
+    没连着就断开时撤掉。只撤指向这条连接隧道根目录的那个盘符；不是 Windows、读不到、指向别处都不碰。回撤没撤。"""
+    letter = str(letter or "").strip().upper()
+    if len(letter) != 1 or letter not in LETTERS:
+        return False
+    try:
+        drives = drives if drives is not None else WindowsDrives()
+        if not same_path(drives.target(letter), tunnel_root(host, base)):
+            return False
+        drives.remove(letter)
+    except Exception as exc:  # noqa: BLE001 - 撤不掉只是盘符留到注销
+        log.info("撤残留隧道盘失败 · %s: %s", letter, type(exc).__name__)
+        return False
+    log.info("撤掉上次残留的隧道盘 · 主机=%s 隧道盘=%s:", host, letter)
+    return True
+
+
 def same_path(a, b) -> bool:
     """Windows 路径比对（不分大小写、``/`` 当 ``\\``、去掉 ``\\\\?\\`` 前缀与末尾分隔符）。"""
     def norm(value) -> str:
@@ -896,4 +914,4 @@ def _remove(path: Path) -> None:
 
 
 __all__ = ["CLEANUP_SECONDS", "UNINSTALL_SECONDS", "CloudHost", "HostError", "HostUnavailable", "FALLBACK_SECONDS", "LETTERS", "TunnelDriveError",
-           "WindowsDrives", "candidates", "channel_of_path", "run_subst", "same_path", "tunnel_root"]
+           "WindowsDrives", "candidates", "channel_of_path", "release_stale_drive", "run_subst", "same_path", "tunnel_root"]
