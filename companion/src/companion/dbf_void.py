@@ -294,7 +294,7 @@ def _void_lines(account_dir: Path, docnum: str, kind: str) -> Tuple[List[stock_l
                 chain_rows.append({"STKCOD": _text(rec, "STKCOD"), "LOCCOD": _text(rec, "LOCCOD"), "POSOPR": _text(rec, "POSOPR"),
                                    "SEQNUM": _text(rec, "SEQNUM"), "DOCDAT": row["DOCDAT"],
                                    "MREMBAL": _dec(rec["MREMBAL"]), "MREMVAL": _dec(rec["MREMVAL"]),
-                                   "MLOTNUM": str(rec["MLOTNUM"] or "").rstrip()})
+                                   "MLOTNUM": str(rec["MLOTNUM"] or "").rstrip(), "RECNO": dbf.recno(rec)})
             if kind == TRANSFER:
                 sign = -1 if _text(rec, "POSOPR") == S.STCRD_POSOPR_TRANSFER_OUT else 1
                 # 分仓计价账套的调拨带金额：作废时期桶金额一并回滚（不动日期栏，同作废其他单）
@@ -373,13 +373,15 @@ def _chain_rows(account_dir: Path, keys) -> Dict:
     out: Dict = {key: [] for key in keys}
     table = _open(account_dir, "STCRD", dbf.READ_ONLY)
     try:
+        fields_present = {name.upper() for name in table.field_names}
         for rec in S.live_rows(table):
             code = _text(rec, "STKCOD")
             if code not in codes or not rec["DOCDAT"]:
                 continue
             loc = _text(rec, "LOCCOD") or main
             entry = ((rec["DOCDAT"], stock_chain.order_of(rec["POSOPR"], rec["DOCNUM"], rec["SEQNUM"])), _text(rec, "POSOPR"),
-                     _text(rec, "DOCNUM"), str(rec["SEQNUM"] or "").strip(), rec["DOCDAT"], _dec(rec["XTRNQTY"]))
+                     _text(rec, "DOCNUM"), str(rec["SEQNUM"] or "").strip(), rec["DOCDAT"], _dec(rec["XTRNQTY"]),
+                     dbf.recno(rec), str(rec["MLOTNUM"] or "").strip() if "MLOTNUM" in fields_present else "")
             for key in ((code, loc), (code, None)):
                 if key in out:
                     out[key].append(entry)
@@ -394,19 +396,24 @@ def _later_rows(remaining: list, first: dict, docnum: str) -> bool:
     return any(entry[0] > mine for entry in remaining)
 
 
-def _previous_lot(remaining: list) -> str:
-    """这条链上剩下的批里排序最后的一批（进货类的正数行；批号 = 日期 + 动作 + 单号 + 行号，``stock_costing.lot_number``）。
-    调入行记的是自己这一新批、不记写前批号（原生 RL2300610），作废时批号要回到写前那一批：CC 写入时不论单据日新批都成为链头，
-    所以写前的链头就是剩下的批里排最后的那一批（本单倒填日期时它比本单晚）。一批都没有回空。"""
-    lots = [entry for entry in remaining if entry[1] in stock_chain.RECEIPT_POSOPR and entry[5] > 0]
-    if not lots:
-        return ""
-    _order, posopr, docnum, seq, day, _qty = max(lots, key=lambda entry: entry[0])
-    try:
-        seq_text = S.seqnum_text(int(seq))
-    except ValueError:
-        seq_text = f"{seq:>3}"
-    return f"{day:%Y%m%d}{posopr}{docnum:<12}{seq_text}"
+def _previous_lot(remaining: list, before_recno: int) -> str:
+    """写这张单之前这条链的链头：库存卡上排在本单第一行之前（按写入顺序，记录号）最后一条说得清链头的行——进货类的正数行就是它
+    自己的新批（批号 = 日期 + 动作 + 单号 + 行号，``stock_costing.lot_number``；CC 与原生写入时新批都成为链头，不论单据日），
+    其余记了批号的行记的是它写前的链头（减少不换链头），没记批号的行（盘点的减少行、老版本 CC 的行）跳过。都没有回空。
+    用于行上记的批号不是写前指针的作废（调入行记自己的新批，原生 RL2300610；盘盈行记挂靠的进货批）。"""
+    for entry in sorted((e for e in remaining if e[6] < before_recno), key=lambda e: e[6], reverse=True):
+        _order, posopr, docnum, seq, day, qty, _recno, recorded = entry
+        if posopr in stock_chain.RECEIPT_POSOPR and qty > 0 and day:
+            try:
+                seq_text = S.seqnum_text(int(seq))
+            except ValueError:
+                seq_text = f"{seq:>3}"
+            return f"{day:%Y%m%d}{posopr}{docnum:<12}{seq_text}"
+        if recorded and recorded != stock_chain.EMPTY_HEAD:
+            return stock_chain.unmark(recorded)[0]
+        if recorded == stock_chain.EMPTY_HEAD:
+            return stock_chain.EMPTY_HEAD
+    return ""
 
 
 def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[dict], before: Dict) -> Dict:
@@ -422,9 +429,10 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
     # 主档链只回没记着仓链的那些行（记着仓链的行写入时是把主档设成仓链、不按差额动主档）；先回主档、再让仓链抄主档，
     # 同一件存货既有记链的仓又有没记链的仓（老账套部分存货）时，主档最后跟仓链走，与写入时一致
     for key, now in sorted(before.items(), key=lambda item: item[0][1] is not None):
+        # 盘点的行写入时不动仓链（只动仓结存与主档），作废也不回仓链：分仓链只回非盘点的行，盘点行的主档由 _restore_masters 按差额回
         rows = [row for row in chain_rows if row["STKCOD"] == key[0]
                 and ((row["STKCOD"], row["LOCCOD"] or main) not in before if key[1] is None
-                     else (row["LOCCOD"] or main) == key[1])]
+                     else (row["LOCCOD"] or main) == key[1] and row["POSOPR"] != S.STCRD_POSOPR_COUNT)]
         if not rows:
             continue
         rows.sort(key=lambda row: (row["DOCDAT"] or _dt.date.min, stock_chain.order_of(row["POSOPR"], docnum, row["SEQNUM"])))
@@ -445,15 +453,16 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
         linked = (first["POSOPR"] == S.STCRD_POSOPR_COUNT and first["qty"] > 0) or _own_lot(head, docnum)
         if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
-            if linked:
-                new = replace(new, head=_previous_lot(remaining[key]) or stock_chain.EMPTY_HEAD, marked=False)
+            if linked:  # 写入时链头没换成本单的批（先进先出账套指着仍有剩余的最早一批）就不动；换了才回之前那一批
+                new = replace(new, head=now.head, marked=now.marked) if not _own_lot(now.head, docnum) else \
+                    replace(new, head=_previous_lot(remaining[key], min(row["RECNO"] for row in rows)) or stock_chain.EMPTY_HEAD, marked=False)
             elif not head:  # 行上没记批号（盘点的减少行、老版本 CC 的行）：写入时没动批号，作废也不动，留着现在的
                 new = replace(new, head=now.head, marked=now.marked)
         else:
             back = now.head
             if _own_lot(now.head, docnum):  # 批号指着本单的批：回行上记的写前批号；行上记的不是写前指针就找之前最近的一批
                 back = head if head and not linked else \
-                    (_previous_lot(remaining[key]) or stock_chain.EMPTY_HEAD)
+                    (_previous_lot(remaining[key], min(row["RECNO"] for row in rows)) or stock_chain.EMPTY_HEAD)
             new = replace(now, bal=now.bal - qty, val=now.val - value, head=back, marked=False if back != now.head else now.marked)
         if key[1] is not None:
             after[key] = new

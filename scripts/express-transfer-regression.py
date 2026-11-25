@@ -155,11 +155,12 @@ def place_chain(acct, code, loccod):
     found = [r for r in rows(acct, "STLOC", ("STKCOD", "LOCCOD", "LOCBAL", "LOCVAL") + CHAIN_FIELDS)
              if text(r["STKCOD"]) == code and text(r["LOCCOD"]) == loccod]
     if not found:
-        return ("0.00", "0", "0.00", "B/F")
+        return ("0.00", "0.0000", "0.00", "B/F")
     r = found[0]
     if not text(r["MLOTNUM"]) and num(r["LOCBAL"]) != 0:
         return None
-    return (str(round(num(r["LOCVAL"]), 2)), str(num(r["MREMBAL"])), str(round(num(r["MREMVAL"]), 2)), text(r["MLOTNUM"]) or "B/F")
+    # 数值统一成定长小数再比：没有这一行时与建出来全 0 的行一样（以前 "0" 对 "0.0" 判成不等）
+    return (f"{num(r['LOCVAL']):.2f}", f"{num(r['MREMBAL']):.4f}", f"{num(r['MREMVAL']):.2f}", text(r["MLOTNUM"]) or "B/F")
 
 
 def written_chain(acct, code, loccod):

@@ -35,7 +35,8 @@ from decimal import Decimal
 from pathlib import Path
 
 ALWAYS = {("STMAS", "TOTBAL"), ("STMAS", "TOTVAL"), ("STMAS", "UNITPR"), ("APMAS", "BALANCE"), ("APMAS", "LASRCV"),
-          ("ARMAS", "BALANCE")}
+          ("ARMAS", "BALANCE"),
+          ("GLJNLIT", "CHGTIM")}  # 凭证行的录入时刻 HHMM（11-16 起照原生写）：新旧两次写入时刻不同，必然不同
 COST = {("STCRD", "XUNITPR"), ("STCRD", "XTRNVAL"), ("STCRD", "MREMVAL"), ("STCRD", "UNITPR"), ("STCRD", "TRNVAL"),
         ("STCRD", "NETVAL"), ("STCRD", "LUNITPR"), ("STMAS", "MREMVAL"), ("GLJNLIT", "AMOUNT"), ("STTRN", "TRNVAL")}
 STEPS = (("RR", 5, "50.00"), ("HP", 1, "10.00"), ("IV", 2, "40.00"), ("HS", 1, "20.00"), ("OU", 1, ""))
