@@ -41,7 +41,13 @@ class QueueTests(unittest.TestCase):
         busy = ack_rules.acknowledgement(branch="legacy", attempt=2, success=False, outcome="waiting_lock",
                                          error="[ACCOUNT_BUSY_LOCKED] the account set is open in Express")
         self.assertEqual((busy.status, busy.attempt, busy.retry, busy.reason), ("pending", 2, True, ack_rules.EXPRESS_OPEN))
-        for error in (None, "[ACCOUNT_WRITER_BUSY] another computer", "[ACCOUNT_SET_UNREACHABLE] x", "[ACCOUNT_UID_MISMATCH] y"):
+        # 11-25：别的电脑在写这本 / 暂时够不到同属「这本账套此刻写不了」，留原因、同一套歇法；文件号对不上与代录的等待不在其列
+        for error, kept in (("[ACCOUNT_WRITER_BUSY] another computer", ack_rules.WRITER_BUSY),
+                            ("[ACCOUNT_SET_UNREACHABLE] x", ack_rules.UNREACHABLE)):
+            self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=2, success=False, outcome="waiting_lock",
+                                                       error=error).reason, kept)
+            self.assertFalse(ack_rules.express_open("pending", kept))      # 只有 Express 开着才说在等 Express 关闭
+        for error in (None, "[ERR_ACCOUNT_UID_MISMATCH] y", "[ACCOUNT_UID_MISMATCH] y", "[OPERATOR_USER_ACTIVE] z"):
             self.assertEqual(ack_rules.acknowledgement(branch="legacy", attempt=2, success=False, outcome="waiting_lock",
                                                        error=error).reason, "")
         self.assertTrue(ack_rules.express_open("pending", ack_rules.EXPRESS_OPEN))
@@ -55,6 +61,9 @@ class QueueTests(unittest.TestCase):
         self.assertFalse(ack_rules.resting(ack_rules.EXPRESS_OPEN, at, at + timedelta(seconds=rest)))
         self.assertFalse(ack_rules.resting("", at, at + timedelta(seconds=1)))
         self.assertFalse(ack_rules.resting(ack_rules.EXPRESS_OPEN, None, at))
+        for code in (ack_rules.WRITER_BUSY, ack_rules.UNREACHABLE):
+            self.assertTrue(ack_rules.resting(code, at, at + timedelta(seconds=rest - 1)))
+            self.assertFalse(ack_rules.resting(code, at, at + timedelta(seconds=rest)))
 
     def test_zero_attempt_legacy_normalizes_only_on_failure(self):
         for outcome in ("success", "waiting_lock", "needs_review"):

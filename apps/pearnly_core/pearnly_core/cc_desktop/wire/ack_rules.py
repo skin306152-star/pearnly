@@ -15,6 +15,15 @@ MAX_ATTEMPTS = 3
 # 以前原因清空、放回即可再领：电脑一直连着领同一张，别的账套的单领不到，界面上也看不出在等什么（11-12）。
 EXPRESS_OPEN = "ACCOUNT_BUSY_LOCKED"
 EXPRESS_OPEN_REST_SECONDS = 30
+# 同一类「这本账套此刻写不了、一个字节没动」的等账套（11-25 两台电脑实测）：另一台电脑的 CC 桌面版正锁着这本写
+# （`[ACCOUNT_WRITER_BUSY]`，账套目录里的 PEARNLY.LCK）、这台暂时够不到这本（`[ACCOUNT_SET_UNREACHABLE]`）。以前原因清空、
+# 放回即可再领：CC 桌面版处理过一件就立刻再领，同一件约 1.5 秒派一次（45 秒 31 次领单 + 回执）。现在与 Express 开着同一套歇法：
+# 原因留在记录上，这本账套歇 :data:`EXPRESS_OPEN_REST_SECONDS` 再派。只有 Express 开着这一种显示「在等 Express 关闭」
+# （:func:`express_open`）。写前核文件号对不上（`ERR_ACCOUNT_UID_MISMATCH`）不在这里：那台电脑的可达行标 stale、单子马上交给
+# 别的电脑；代录回报的 `OPERATOR_*` 等待也不在这里（代录自己的节奏）。
+WRITER_BUSY = "ACCOUNT_WRITER_BUSY"
+UNREACHABLE = "ACCOUNT_SET_UNREACHABLE"
+REST_CODES = frozenset({EXPRESS_OPEN, WRITER_BUSY, UNREACHABLE})
 # 给人看的「在等 Express 关闭」算到上次回报之后多久：三个间隔。过了还没有新的回报（电脑关机、CC 掉线、Express 已关还没轮到）
 # 就不再说在等 Express，回到普通的排队中——这个标志只在读的时候算，不另存，所以不会留成陈旧状态。
 EXPRESS_OPEN_SHOWN_SECONDS = 90
@@ -112,9 +121,14 @@ def waiting_for_express(status, reason, since, moment) -> bool:
     return 0 <= (moment - since).total_seconds() < EXPRESS_OPEN_SHOWN_SECONDS
 
 
+def rests(reason) -> bool:
+    """这条排队中的记录的原因是不是「这本账套歇一会儿再派」那一类（:data:`REST_CODES`）。"""
+    return reason in REST_CODES
+
+
 def resting(reason, since, moment) -> bool:
-    """等 Express 关闭的记录这会儿该不该先不派：上次回报（``since``）到现在不满 :data:`EXPRESS_OPEN_REST_SECONDS`。"""
-    if reason != EXPRESS_OPEN or since is None or moment is None:
+    """等账套（:data:`REST_CODES`）的记录这会儿该不该先不派：上次回报（``since``）到现在不满 :data:`EXPRESS_OPEN_REST_SECONDS`。"""
+    if not rests(reason) or since is None or moment is None:
         return False
     return 0 <= (moment - since).total_seconds() < EXPRESS_OPEN_REST_SECONDS
 
@@ -133,7 +147,8 @@ def acknowledgement(*, branch, attempt, success, outcome=None, error=None):
     if stage == common.STAGE_SUCCESS:
         return Transition("success", attempt, stage)
     if stage == common.STAGE_WAITING_LOCK:
-        return Transition("pending", attempt, stage, EXPRESS_OPEN if error_code(error) == EXPRESS_OPEN else "", retry=True)
+        code = error_code(error)
+        return Transition("pending", attempt, stage, code if rests(code) else "", retry=True)
     if stage in {common.STAGE_NEEDS_MAPPING, common.STAGE_NEEDS_REVIEW}:
         return Transition("manual", attempt, stage, reason_text(error) or stage)
     if stage == common.STAGE_FAILED and error_code(error) in NEEDS_PERSON_CODES:

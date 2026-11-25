@@ -343,9 +343,9 @@ def _heads(keys, device, peer, moment=None, since=None):
                 since is not None and not row.route_device and _open(row.creation)):
             continue
         seen.add(row.book_key)
-        if (row.reason == ack_rules.EXPRESS_OPEN and moment is not None and row.lease_expires_at
+        if (ack_rules.rests(row.reason) and moment is not None and row.lease_expires_at
                 and row.lease_expires_at > moment):
-            continue  # 这本账套的排头在等 Express 关闭、还没歇够：整本先不派（后面的单也等它），看别的账套
+            continue  # 这本账套的排头在等账套（Express 开着 / 别的电脑在写 / 暂时够不到）、还没歇够：整本先不派（后面的单也等它），看别的账套
         heads.append(row)
         if len(heads) >= route_contracts.MAX_HEADS:
             break
@@ -546,8 +546,9 @@ def acknowledge(context, body) -> dict:
     elif transition.status == "pending":
         # 等账套 / 普通失败重试：没写进去（CC 桌面版失败整单回滚），谁的电脑能写都行
         values.update(status="queued", attempt=transition.attempt, reason=transition.reason or "", route_device=None)
-        if transition.reason == ack_rules.EXPRESS_OPEN:
-            # Express 开着这本账套：歇一会儿再派（排队中的记录借租约到期栏记「这之前不派」，同一个时钟；`_heads` 据此跳过整本）
+        if ack_rules.rests(transition.reason):
+            # 这本账套此刻写不了（Express 开着 / 别的电脑在写 / 暂时够不到，`ack_rules.REST_CODES`）：歇一会儿再派（排队中的记录借
+            # 租约到期栏记「这之前不派」，同一个时钟；`_heads` 据此跳过整本）。不歇的话 CC 桌面版处理过一件就立刻再领，约 1.5 秒一次
             values["lease_expires_at"] = _now() + timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)
     else:
         values.update(status="manual", attempt=transition.attempt, reason=transition.reason or transition.stage,

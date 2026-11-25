@@ -355,6 +355,7 @@ class Queue(Base):
                            error="[ACCOUNT_WRITER_BUSY] busy", outcome="waiting_lock")
         self.assertEqual(waiting["status"], "pending")
         self.assertEqual(jobs.find_by_name(job["job"])["attempt"], 0)  # 等账套不计次数
+        fake.STATE.db.table(documents.JOB)[job["job"]]["lease_expires_at"] = devices.now() - timedelta(seconds=1)  # 歇够了
         for _ in range(3):
             self.lease(self.office)
             reply = self.ack(self.office, job["job"], result="failed", express_docnum=None, error="boom")
@@ -413,6 +414,40 @@ class Queue(Base):
         self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")          # 写成后原因清掉
         self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [later["job"]])
 
+    def test_another_computer_writing_or_book_unreachable_rests_the_book_like_express_open(self):
+        # 11-25 两台电脑实测：别的电脑锁着这本（PEARNLY.LCK）时，回「等账套」后不歇，CC 处理过一件就立刻再领，45 秒派 31 次、
+        # fence 白涨。现在与 Express 开着同一套歇法；只有 Express 开着才显示「在等 Express 关闭」
+        for code in (ack_rules.WRITER_BUSY, ack_rules.UNREACHABLE):
+            with self.subTest(code=code):
+                job = self.enqueue(name=f"SD-{code}")
+                self.lease(self.office)
+                self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock",
+                         error=f"[{code}] retry later")
+                found = jobs.find_by_name(job["job"])
+                self.assertEqual((found["status"], found["reason"], found["attempt"]), ("queued", code, 0))
+                fence = fake.STATE.db.table(documents.JOB)[job["job"]]["fence"]
+                for _ in range(30):                                            # 歇着时来领多少次都不派、fence 不涨
+                    self.assertEqual(self.lease(self.office)["jobs"], [])
+                self.assertEqual(fake.STATE.db.table(documents.JOB)[job["job"]]["fence"], fence)
+                self.assertFalse(jobs.express_wait(job["job"])["waiting"])      # 不说成 Express 开着
+                fake.STATE.db.table(documents.JOB)[job["job"]]["lease_expires_at"] = devices.now() - timedelta(seconds=1)
+                self.assertEqual([row["log_id"] for row in self.lease(self.office)["jobs"]], [job["job"]])  # 歇够了马上接上
+                self.assertEqual(fake.STATE.db.table(documents.JOB)[job["job"]]["fence"], fence + 1)
+                self.ack(self.office, job["job"])
+                self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")
+
+    def test_waiting_codes_outside_the_rest_list_go_back_at_once(self):
+        # 文件号对不上：那台电脑的可达行另行处理、单子马上交给别的电脑；代录的等待按代录自己的节奏——都不歇整本
+        for error in ("[ERR_ACCOUNT_UID_MISMATCH] the account set on this computer is not the registered one",
+                      "[OPERATOR_USER_ACTIVE] someone is using this computer"):
+            with self.subTest(error=error):
+                job = self.enqueue(name=f"SD-{error[1:8]}")
+                self.lease(self.office)
+                self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock", error=error)
+                self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")
+                self.assertIsNone(fake.STATE.db.table(documents.JOB)[job["job"]]["lease_expires_at"])
+                fake.STATE.db.table(documents.JOB)[job["job"]]["status"] = "cancelled"
+
     def test_waiting_for_express_is_readable_per_job_and_per_book_and_expires(self):
         # 给各产品显示「Express 正在使用此账套…」：读的时候算，不另存；电脑不再回报 90 秒后不再说在等 Express
         key = contracts.book_key(contracts.book_identity(PATH, "vsn:1234/5"))
@@ -442,10 +477,11 @@ class Queue(Base):
         self.assertEqual(jobs.book_express_wait(""), {"waiting": False, "since": None})
 
     def test_other_waits_keep_no_reason_and_are_handed_out_again_at_once(self):
+        # 不在歇的那一类里的等待（代录自己的等待）：不留原因、马上再派（别的电脑在写 / 够不到见上面那条，11-25 起歇）
         job = self.enqueue()
         self.lease(self.office)
         self.ack(self.office, job["job"], result="failed", express_docnum=None, outcome="waiting_lock",
-                 error="[ACCOUNT_WRITER_BUSY] another computer is writing this account set")
+                 error="[OPERATOR_USER_ACTIVE] someone is using this computer")
         self.assertEqual(jobs.find_by_name(job["job"])["reason"], "")
         self.assertEqual(len(self.lease(self.office)["jobs"]), 1)
 

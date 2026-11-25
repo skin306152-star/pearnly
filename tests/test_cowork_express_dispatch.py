@@ -583,6 +583,21 @@ class Transport(unittest.TestCase):
         self.assertEqual(len(self.run_lease()["jobs"]), 1)           # 歇够了照常派
         self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-1"])
 
+    def test_a_book_another_computer_is_writing_or_out_of_reach_rests_the_same_way(self):
+        # 11-25 两台电脑实测：别的电脑锁着这本 / 暂时够不到，与 Express 开着同一套歇法（以前马上再派，约 1.5 秒一次）
+        from pearnly_core.cc_desktop.wire import ack_rules
+        for code in (ack_rules.WRITER_BUSY, ack_rules.UNREACHABLE):
+            with self.subTest(code=code):
+                self.calls.clear()
+                self.pending = [_row("CWP-1", "s1")]
+                self.records["CWP-1"] = {"status": "pending", "reason": code,
+                                         "updated_at": NOW - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS - 1)}
+                self.assertEqual(self.run_lease()["jobs"], [])
+                self.records["CWP-1"]["updated_at"] = NOW - timedelta(seconds=ack_rules.EXPRESS_OPEN_REST_SECONDS)
+                self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], [])
+                self.assertEqual(len(self.run_lease()["jobs"]), 1)
+                self.assertEqual([call[1] for call in self.calls if call[0] == "lease"], ["CWP-1"])
+
     def test_a_colleagues_job_is_written_here_while_his_own_computer_is_off(self):
         # 用户 11-17 定稿：这台上我能替同事写、同事自己够得到这本的电脑都关着 → 这台替他写（route stand_in，记下替写的我）；
         # 他自己的电脑在线 → 不替，等它写；单上的录入人不变（推送记录的 actor / entered_by 不改）
