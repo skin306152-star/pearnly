@@ -65,6 +65,9 @@ def _outcome(name):
         return {"type": "text", "text": " · ".join(part for part in (_("Succeeded"), found["docnum"]) if part)}
     if found["status"] == "failed":
         return _stopped(name, " · ".join(part for part in (_("Failed"), found["reason"]) if part))
+    if found["status"] == "unknown":
+        # 结果不明：沿用已有词，只给【查看结果】，不给【编辑】（改了再存会重推、可能重复入账）；核对在录入列表 / CC 待处理
+        return {"type": "text", "text": _("Result unknown"), "quickReply": {"items": [_view(name)]}}
     if found["status"] == "pending":
         return None
     return False
