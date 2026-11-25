@@ -2517,6 +2517,7 @@ Action	操作	การดำเนินการ	操作	guide.step.documents.a
 Document	单据	เอกสาร	書類	guide.step.documents.item
 Documents	单据	เอกสาร	書類	guide.step.documents.items
 Delete the documents?	要删除单据吗？	ลบเอกสารหรือไม่	書類を削除しますか？	guide.consent.documents.delete
+Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.documents
 Task Management	任务管理	จัดการงาน	タスク管理	guide.business.work
 Choose an action.	选择操作。	เลือกการดำเนินการ	操作を選択してください。	guide.open.work
 Action	操作	การดำเนินการ	操作	guide.step.work.action

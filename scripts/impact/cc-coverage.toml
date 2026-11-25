@@ -369,8 +369,8 @@ name = "单据维护：改识别结果、录不录、删除、导出复核表"
 guide = "documents"
 cowork_direct = ["done"]
 cowork_operator = ["done"]
-erp_direct = ["todo:p2"]
-erp_operator = ["todo:p2"]
+erp_direct = ["half:p2"]
+erp_operator = ["half:p2"]
 
 [[row.link]]
 cell = "cowork_direct"
@@ -381,6 +381,15 @@ page_flows = ["cowork.cc.guide.documents"]
 cell = "cowork_operator"
 basis = "同直写那格的声明（modes 含 operator），代录对话里清单只列对话月份的单；真页面同一条删除走到结果卡（11-24 本机实验栈电脑 / 手机两格）"
 page_flows = ["cowork.cc.guide.documents-operator"]
+
+[[row.link]]
+cell = "erp_direct"
+basis = "ERP 声明 documents（form 源，与待处理同一组函数 express/guide_pending.py；11-25）：先选操作（处理 / 导出 / 删除）与方向（采购 / 销售），清单是对话选择器选的公司与月份里这个方向的全部单据（purchasing / sales.records.rows，网页列表同一个查询与权限，在本对话公司下执行 masters.company.acting，服务端搜索翻页；销售不列收银小票）；处理交采购 / 销售的按单据引导，导出是网页导出同一个工作簿（这家这个月这个方向整张列表）放进对话，删除走允许卡、网页同一个删草稿函数（非草稿跳过，结果卡带网页原句）；离线单测 test_erp_pending_guide；真页面导出、删除（已提交的跳过）两条流程（电脑 / 手机）。差 ERP 改票面进 CC（主会话 11-24 定第二批），所以 ◐"
+flows = ["erp.cc.guide.documents", "erp.cc.guide.documents-delete"]
+
+[[row.link]]
+cell = "erp_operator"
+basis = "同直写那格的声明（modes 含 operator，清单本来就是对话月份）；差改票面，同直写那格 ◐"
 
 [[row]]
 id = "company_info"

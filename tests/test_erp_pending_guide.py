@@ -79,11 +79,92 @@ def _pending(company=None, limit=None, search=None):
     return {"items": rows, "count": len(rows)}
 
 
-_module("pearnly_erp_portal.access.guard", has=lambda capability, user=None: STATE["write"])
+_module("pearnly_erp_portal.access.guard", has=lambda capability, user=None: STATE["write"],
+        require=lambda capability: STATE["required"].append(capability))
 _module("pearnly_erp_portal.integrations.intake", DIRECTION_CAPABILITY={"purchase": "purchase.write", "sales": "sales.write"})
 _module("pearnly_erp_portal.express.pending", pending=_pending)
 _module("pearnly_erp_portal.express.guide_documents",
         direction_of=lambda doc: {"P": "purchase", "S": "sales"}.get(str(doc).partition(":")[0]))
+
+
+# ── 单据维护（documents）用到的网页函数：列表查询、导出工作簿、删草稿、对话文件、本对话公司 ──
+import contextlib  # noqa: E402
+
+DOCS = {"purchase": [{"name": "PD-1", "doc_no": "IV1", "supplier_name": "Seller A", "doc_date": "2026-11-02", "grand_total": 1070,
+                      "status": "draft", "company": "CO-1"},
+                     {"name": "PD-4", "doc_no": "IV4", "supplier_name": "Seller D", "doc_date": "2026-11-20", "grand_total": 30,
+                      "status": "submitted", "company": "CO-1"},
+                     {"name": "PD-5", "doc_no": "IV5", "supplier_name": "Seller E", "doc_date": "2026-10-20", "grand_total": 9,
+                      "status": "draft", "company": "CO-1"},
+                     {"name": "PD-6", "doc_no": "IV6", "supplier_name": "Other Co", "doc_date": "2026-11-21", "grand_total": 9,
+                      "status": "draft", "company": "CO-2"}],
+        "sales": [{"name": "SD-2", "doc_no": "", "system_no": "SI-2", "buyer_name": "Buyer B", "doc_date": "2026-11-03",
+                   "grand_total": 500, "status": "draft", "company": "CO-1", "source": "ocr"}]}
+ACTING = []
+
+
+@contextlib.contextmanager
+def _acting(company):
+    if company and company not in ("CO-1", "CO-2"):
+        raise PermissionError("Not permitted")
+    ACTING.append(company)
+    try:
+        yield company
+    finally:
+        ACTING.pop()
+
+
+def _scope(params, direction):
+    company = ACTING[-1] if ACTING else "CO-1"
+    month = (params or {}).get("month") or ""
+    return [row for row in DOCS[direction] if row["company"] == company and str(row["doc_date"]).startswith(month)]
+
+
+def _records(direction):
+    def query(params=None):
+        STATE["queries"].append((direction, dict(params or {})))
+        return ([["scope", "=", (ACTING[-1] if ACTING else "CO-1"), (params or {}).get("month"), direction]], None, "doc_date")
+
+    def rows(params=None, *, start=0, limit=20, **kwargs):
+        STATE["queries"].append((direction, dict(params or {})))
+        text = str((params or {}).get("q") or "").casefold()
+        found = [dict(row) for row in _scope(params, direction)
+                 if not text or text in f"{row.get('doc_no')} {row.get('supplier_name') or row.get('buyer_name')}".casefold()]
+        return found[start:start + limit] if limit else found[start:]
+    return _module(f"pearnly_erp_portal.{'sales' if direction == 'sales' else 'purchasing'}.records", query=query, rows=rows,
+                   FIELDS=("name", "status"), DOCTYPE="ERP Sales Document")
+
+
+def _get_list(doctype, filters=None, **kwargs):
+    direction = "sales" if doctype == "ERP Sales Document" else "purchase"
+    scope = next(item for item in filters if item[0] == "scope")
+    names = next(item[2] for item in filters if item[0] == "name")
+    return [dict(row) for row in _scope({"month": scope[3]}, direction) if row["name"] in names]
+
+
+frappe.get_list = _get_list
+_module("pearnly_erp_portal.masters.company", acting=_acting)
+_records("purchase")
+_records("sales")
+_module("pearnly_erp_portal.sales.contracts", SOURCES=("pos", "ocr", "manual"), SOURCE_POS="pos")
+
+
+def _deleter(direction):
+    def delete_drafts(names):
+        STATE["deleted"].append((direction, ACTING[-1], sorted(names)))
+        return {"deleted": len(names)}
+    return delete_drafts
+
+
+_module("pearnly_erp_portal.purchasing.entry", delete_drafts=_deleter("purchase"))
+_module("pearnly_erp_portal.sales.entry", delete_drafts=_deleter("sales"))
+_module("pearnly_erp_portal.purchasing.output",
+        workbook=lambda params=None: STATE["exported"].append(("purchase", ACTING[-1], dict(params))) or b"xlsx")
+_module("pearnly_erp_portal.sales.output",
+        workbook=lambda params=None: STATE["exported"].append(("sales", ACTING[-1], dict(params))) or b"xlsx")
+_module("pearnly_core.assistant.files",
+        add_to_conversation=lambda name, content, mime, origin="tool": STATE["files"].append(name) or f"/mnt/session/outputs/{name}",
+        resolve=lambda path: "F1")
 
 from pearnly_core.assistant.guide import registry, run  # noqa: E402
 from pearnly_erp_portal.express import guide_pending as guide  # noqa: E402
@@ -101,7 +182,7 @@ class Doc(dict):
 class Base(unittest.TestCase):
     def setUp(self):
         STATE.clear()
-        STATE.update(write=True, asked=[], started=[], rollbacks=[])
+        STATE.update(write=True, asked=[], started=[], rollbacks=[], required=[], queries=[], deleted=[], exported=[], files=[])
         HOOKS["pearnly_guides"] = ["pearnly_erp_portal.express.cc_guide_pending.GUIDES"]
         self.docs, self.clock = {}, [0]
         self.now = {"session_id": SESSION, "mode": "chat", "company": "CO-1", "ledger": "BOOK", "period": "2026-11",
@@ -142,7 +223,8 @@ class Base(unittest.TestCase):
 
 class Pending(Base):
     def test_menu_follows_purchase_or_sales_writing(self):
-        self.assertEqual(registry.offered()["chat"], ["pending"])
+        self.assertEqual(registry.offered()["chat"], ["pending", "documents"])
+        self.assertEqual(registry.offered()["operator"], ["documents"])
         STATE["write"] = False
         self.assertEqual(registry.offered()["chat"], [])
 
@@ -171,6 +253,74 @@ class Pending(Base):
     def test_a_stock_entry_is_not_accepted(self):
         name = run.start(SESSION, "pending")["run"]
         self.assertEqual({key: value["code"] for key, value in run.answer(name, {"item": "M:SE-3"})["refused"].items()}, {"item": "not offered"})  # 拒收照引擎形状 {格: {code, text}}，只比码
+
+
+class Documents(Base):
+    """单据维护（总表第 14 行）：对话公司 + 对话月份里一个方向的全部单据；处理交单据引导、导出整月列表、删除只删草稿。"""
+
+    def opened(self, action, direction):
+        name = run.start(SESSION, "documents")["run"]
+        found = run.answer(name, {"action": action})
+        found = run.answer(name, {"direction": direction})
+        return name, found
+
+    def test_list_is_this_company_this_month_this_direction_searched_on_the_server(self):
+        options = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}})["options"]
+        self.assertEqual([row["code"] for row in options], ["P:PD-1", "P:PD-4"])   # 10 月的、别家公司的不列
+        self.assertEqual(options[0]["name"], "IV1 · Seller A")
+        found = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}}, txt="seller d")
+        self.assertEqual([row["code"] for row in found["options"]], ["P:PD-4"])
+        self.assertEqual(STATE["queries"][-1], ("purchase", {"month": "2026-11", "q": "seller d"}))
+        sales = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "sales"}})
+        self.assertEqual(STATE["queries"][-1][1]["source"], ["ocr", "manual"])   # 收银小票不是 S: 单
+        self.assertEqual([row["name"] for row in sales["options"]], ["SI-2 · Buyer B"])
+        page = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}}, page_length=1)
+        self.assertTrue(page["more"])
+
+    def test_chosen_codes_outside_the_company_or_month_are_not_returned(self):
+        ctx = {"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}}
+        self.assertEqual([row["code"] for row in guide.document_options(ctx, codes=["P:PD-5", "P:PD-6", "S:SD-2", "P:PD-1"])["options"]],
+                         ["P:PD-1"])
+
+    def test_another_users_company_is_refused(self):
+        with self.assertRaises(PermissionError):
+            guide.document_options({"company": "CO-9", "period": "2026-11", "answers": {"direction": "purchase"}})
+
+    def test_handle_hands_the_document_to_its_documents_guide(self):
+        name, found = self.opened("handle", "sales")
+        found = run.answer(name, {"item": "S:SD-2"})
+        self.assertEqual(found["review"]["tables"][0]["rows"][0]["name"], "SI-2 · Buyer B")
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["started"], [(SESSION, "sales", ["S:SD-2"], "asking")])
+        self.assertEqual(done["result"]["docnum"], "SI-2 · Buyer B")
+
+    def test_export_is_the_whole_month_list_of_the_web_export_into_the_conversation(self):
+        name, found = self.opened("export", "purchase")
+        self.assertEqual(found["review"]["tables"], [])
+        self.assertEqual(found["consent"], "confirm")
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["exported"], [("purchase", "CO-1", {"month": "2026-11"})])
+        self.assertEqual(STATE["files"], ["purchase-2026-11.xlsx"])
+        self.assertEqual(done["result"]["status"], "ready")
+        self.assertEqual(done["result"]["files"][0]["file"], "F1")
+
+    def test_delete_asks_consent_and_deletes_only_drafts_like_the_web(self):
+        name, found = self.opened("delete", "purchase")
+        found = run.answer(name, {"items": ["P:PD-1", "P:PD-4"]})
+        self.assertTrue(found["review"]["tables"][0]["rows"])
+        self.assertEqual(found["consent"], "allow")    # 删除走允许卡（只有「允许」）
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["deleted"], [("purchase", "CO-1", ["PD-1"])])
+        self.assertEqual(done["result"]["status"], "ready")
+        self.assertEqual(done["result"]["reason_text"], "intake.delete.done · Only Draft documents can be deleted")
+
+    def test_nothing_deleted_when_none_is_a_draft(self):
+        name, found = self.opened("delete", "purchase")
+        found = run.answer(name, {"items": ["P:PD-4"]})
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["deleted"], [])
+        self.assertEqual(done["result"]["status"], "held")
+        self.assertEqual(done["result"]["reason_text"], "Only Draft documents can be deleted")
 
 
 if __name__ == "__main__":

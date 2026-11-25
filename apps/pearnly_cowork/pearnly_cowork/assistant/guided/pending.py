@@ -276,7 +276,7 @@ GUIDES = [
     {"id": "documents", "label_key": "guide.business.documents", "icon": "file-spreadsheet", "order": 101,
      "modes": ["chat", "operator"], "ledgers": ["express_local", "express_cloud", "mrerp"],
      "allowed": "pearnly_cowork.assistant.guided.pending.allowed",
-     "opening_key": "guide.open.pending", "source": "form", "writes": True,
+     "opening_key": "guide.open.documents", "source": "form", "writes": True,
      "consent": {"key": "action", "value": "delete"},
      "steps": [
          {"key": "action", "input": "choice", "rule": "always", "options": "pearnly_cowork.assistant.guided.pending.action_options"},

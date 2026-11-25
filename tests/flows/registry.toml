@@ -2848,6 +2848,34 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.guide.documents"
+title = "ERP 版 CC「单据」引导（直写）真页面：选导出 → 选销售 → 复核 → 确定 → 结果卡带本月销售列表工作簿；运行 done"
+module = "scripts/flows/erp_cc_guide_documents.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_guide_pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_pending.py",
+]
+
+[[flow]]
+id = "erp.cc.guide.documents-delete"
+title = "ERP 版 CC「单据」引导（直写）真页面：选删除 → 选销售 → 选已提交的单 → 复核 → 允许 → 结果卡已跳过、只能删除草稿单据；单子还在"
+module = "scripts/flows/erp_cc_guide_documents_delete.py"
+product = "erp"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_guide_pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/guide_pending.py",
+]
+
+[[flow]]
 id = "erp.cc.guide.pending"
 title = "ERP 版 CC 直写待处理引导真页面：菜单点「待处理」→ 选停下的销售单 → 确定交给销售引导 → 题卡 → 复核（票面只读）→ 确定 → 结果；两次运行 done、同意来自页面、单子重新排上写账"
 module = "scripts/flows/erp_cc_guide_pending.py"

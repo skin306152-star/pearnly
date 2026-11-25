@@ -542,7 +542,7 @@ desktop_version: 1.12.21
 | 14 | 增值税 ภ.พ.30 草稿 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 15 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ✅ | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 16 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
-| 17 | 单据维护：改识别结果、录不录、删除、导出复核表 | ✅ | ✅ | ○ P2 | ○ P2 |
+| 17 | 单据维护：改识别结果、录不录、删除、导出复核表 | ✅ | ✅ | ◐ P2 | ◐ P2 |
 | 18 | 公司资料、记住的选择、知识库 | ◐ P4 | —（只做直写） | ◐ P4 | —（只做直写） |
 | 19 | 任务看板 | ◐ P4 | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
 | 20 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
@@ -550,9 +550,9 @@ desktop_version: 1.12.21
 | 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **90 格**：✅ 23、◐ 22、○ 4、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
+范围内共 **90 格**：✅ 23、◐ 24、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
 
-按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 39** · **没做 8**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
+按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 41** · **没做 6**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
 ### 按格依据
 
@@ -638,8 +638,8 @@ desktop_version: 1.12.21
 | readback | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 readback（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | documents | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 documents（form 源，与待处理同一组函数 assistant/guided/pending.py，清单换成对话选择器选的公司与月份里的全部单据，服务端搜索翻页转调 tools.list_documents）：处理 / 改票面交采购、销售的按单据引导（改票面从复核卡就地改），导出复核工作簿放进对话，删除走允许卡、同录入列表「删除」（history.removal.delete，正在推送的跳过）；结果卡写单号 · 对方、文件或删了几张（11-24 评估 docs/work/2026-11-24-cc-guided-documents-评估.md）；录不录在采购 / 销售判定卡上问；真页面点菜单 → 删除 → 选单 → 复核 → 允许 → 结果卡已删除 1 条（11-24 本机实验栈电脑 / 手机两格）；离线单测 test_cowork_pending_guide；页面流程 `cowork.cc.guide.documents` |
 | documents | Cowork 代录 | ✅ | 只有服务端 | 同直写那格的声明（modes 含 operator），代录对话里清单只列对话月份的单；真页面同一条删除走到结果卡（11-24 本机实验栈电脑 / 手机两格）；页面流程 `cowork.cc.guide.documents-operator` |
-| documents | ERP 直写 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 documents（chat）；打字路径能办，没有引导卡 |
-| documents | ERP 代录 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 documents（operator）；打字路径能办，没有引导卡 |
+| documents | ERP 直写 | ◐ P2 | 只有服务端 | ERP 声明 documents（form 源，与待处理同一组函数 express/guide_pending.py；11-25）：先选操作（处理 / 导出 / 删除）与方向（采购 / 销售），清单是对话选择器选的公司与月份里这个方向的全部单据（purchasing / sales.records.rows，网页列表同一个查询与权限，在本对话公司下执行 masters.company.acting，服务端搜索翻页；销售不列收银小票）；处理交采购 / 销售的按单据引导，导出是网页导出同一个工作簿（这家这个月这个方向整张列表）放进对话，删除走允许卡、网页同一个删草稿函数（非草稿跳过，结果卡带网页原句）；离线单测 test_erp_pending_guide；真页面导出、删除（已提交的跳过）两条流程（电脑 / 手机）。差 ERP 改票面进 CC（主会话 11-24 定第二批），所以 ◐；流程 `erp.cc.guide.documents`、`erp.cc.guide.documents-delete` |
+| documents | ERP 代录 | ◐ P2 | 只有服务端 | 同直写那格的声明（modes 含 operator，清单本来就是对话月份）；差改票面，同直写那格 ◐ |
 | company_info | Cowork 直写 | ◐ P4 | 只有服务端 | Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；没有结果步骤；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步 |
 | company_info | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；没有结果步骤；3bc89a2dc、dd298be7e）；只有离线单测 test_erp_company_guide，页面流程归第 2 步 |
 | board | Cowork 直写 | ◐ P4 | 只有服务端 | Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；没有结果步骤；cc-guided-work 75e9cf2e7、76b646bcf）；只有离线单测 test_cowork_work_guide，页面流程归第 2 步 |
