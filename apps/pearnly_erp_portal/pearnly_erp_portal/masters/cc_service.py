@@ -475,8 +475,11 @@ LEDGER_TABS = ("express", "express_cloud", "mrerp")
 
 
 def source_adapter(item) -> str:
-    """一组账套的标签：云端 Express 那份 CC 报的归「云端 Express」（``express.companies.catalog`` 的 ``source``），其余「Express」。"""
-    return "express_cloud" if (item or {}).get("source") == "cloud" else "express"
+    """一组账套的标签：云端 Express 那份 CC 报的归「云端 Express」（``express.companies.catalog`` 的 ``source``，规则在共用
+    ``link_contracts.source_of``），其余「本地 Express」。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    return link_contracts.adapter_of((item or {}).get("source"))
 
 
 def _adapter(row) -> str:

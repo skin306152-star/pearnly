@@ -289,6 +289,10 @@ class Connections(types.ModuleType):
         self.catalogs, self.adapters, self.users, self.reads, self.written = {}, {}, {}, [], {}
         self.entered = {}
         self.written_asked = []
+        self.sources = {}   # {连接: {规范键: "cloud" | "local"}}（云端 Express 第二阶段 4.8）
+
+    def account_sources(self, connection):
+        return dict(self.sources.get(connection, {}))
 
     def account_sets_written(self, connection, account_keys):
         self.written_asked.append((connection, tuple(account_keys)))
@@ -782,6 +786,23 @@ class CompanyTests(unittest.TestCase):
         made = make()
         fresh_request()
         self.assertEqual({i["identity"]: i["company"] for i in service._catalog()}[f"tax:{TAX}"], made["id"])
+
+    def test_books_reported_only_by_a_cloud_computer_go_under_the_cloud_express_tab(self):
+        # 云端 Express 第二阶段 4.8（同 ERP，规则在 link_contracts.source_of）：报一组账套的电脑全是云端那份 CC 才进「云端 Express」
+        key = service.normalize_express_account_key("S:\\69EXP\\XYZ")
+        connections.sources = {"C1": {key: "cloud"}}
+        found = {item["identity"]: item["adapter"] for item in service._catalog()}
+        self.assertEqual(found[f"tax:{OTHER_TAX}"], "express_cloud")
+        self.assertEqual(found[f"tax:{TAX}"], "express")   # ABC 那几本没报云端
+        out = service.choices(adapter="express_cloud")
+        self.assertEqual([row["identity"] for row in out["rows"]], [f"tax:{OTHER_TAX}"])
+        self.assertIn("express_cloud", out["adapters"])
+        # 同一组也有本地电脑报的：留「本地 Express」
+        connections.sources = {"C1": {key: "cloud"}, "C2": {}}
+        abc = service.normalize_express_account_key("S:\\69EXP\\ABC")
+        connections.sources["C1"][abc] = "cloud"
+        self.assertEqual({item["identity"]: item["adapter"] for item in service._catalog()}[f"tax:{TAX}"], "express")
+        connections.sources = {}
 
     def test_choices_merge_built_companies_with_the_catalog_and_page_on_the_server(self):
         # 主会话 11-07 定案：对话里选公司的弹窗——已建的与目录里还没建的合成一张表，按身份合并、服务端分页、按标签筛；

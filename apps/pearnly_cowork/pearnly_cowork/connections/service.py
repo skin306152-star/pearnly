@@ -300,6 +300,12 @@ def account_sets_written(connection, account_keys):
             if row.last_written_at}
 
 
+def account_sources(connection):
+    """这条连接上每份 Express 账套的来源 ``{规范键: "cloud" | "local"}``（云端 Express 第二阶段 4.8：报它的电脑全是云端那份 CC
+    才算云端，`pool.sources`，规则在共用 ``link_contracts.source_of``）。一次查询；只读、不核权限（调用方已按连接授权读目录）。"""
+    return pool.sources(connection)
+
+
 def account_sets_entered(connection, account_keys):
     """这条连接上这几份 Express 账套最近一次报来的录入标记（CC 桌面版 1.9.1 起账套目录每行另报 ``GLJNL.DBF`` 表头的最后更新
     日期与记录数，存在池登记上、不进目录，`pool.entered_of`）：``{规范键: 原样的标记}``，没报过的不在里面。一次主键查询；只读、

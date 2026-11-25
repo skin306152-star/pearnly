@@ -149,15 +149,16 @@ def catalog() -> dict:
     rows = frappe.get_all(BOOK, filters={"device": ["in", found]},
                           fields=["company", "label", "tax_id", "branch", "period_start", "period_end", "root", "device"],
                           limit_page_length=BOOKS_MAX)
+    from pearnly_core.cc_desktop.wire import link_contracts
+
     cloud = set(cloud_devices(found))
-    years, folders, local = {}, {}, set()
+    years, folders, kinds = {}, {}, {}
     for row in rows:
         tax = contracts.tax13(row.get("tax_id"))
         if not tax:
             continue
         key = (tax, contracts.branch5(row.get("branch")))
-        if row.get("device") not in cloud:
-            local.add(key)
+        kinds.setdefault(key, []).append(link_contracts.CLOUD if row.get("device") in cloud else "")
         year = str(row.get("period_start") or "")[:4]
         if year:
             years.setdefault(key, set()).add(year)
@@ -165,7 +166,7 @@ def catalog() -> dict:
         if folder:
             folders.setdefault(key, set()).add(folder)
     return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True),
-                  "folders": sorted(folders.get(key, ())), "source": "local" if key in local else "cloud"}
+                  "folders": sorted(folders.get(key, ())), "source": link_contracts.source_of(kinds.get(key))}
             for key, name in groups(rows).items()}
 
 

@@ -751,6 +751,23 @@ def device_connections(device):
                                                    (device,)) if row[0]})
 
 
+# 账本来源（云端 Express 第二阶段 4.8）：报这条连接各账套的电脑是不是云端那份（电脑行的 link_kind）
+DEVICE_TABLE = "Cowork CC Desktop Device"
+Q_REACH_KINDS = (f"SELECT r.account_key, COALESCE(d.link_kind, '') FROM `tab{REACH}` r "
+                 f"LEFT JOIN `tab{DEVICE_TABLE}` d ON d.name = r.device WHERE r.connection=%s AND r.state='ok'")
+
+
+def sources(connection):
+    """这条连接上每份账套的来源 ``{账套键: "cloud" | "local"}``（``link_contracts.source_of``：报它的电脑全是云端那份才算云端）。
+    只读、不加锁；一条连接一次查询。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    kinds = {}
+    for key, kind in frappe.db.sql(Q_REACH_KINDS, (connection,)) if connection else ():
+        kinds.setdefault(identity(key) or key, []).append(kind)
+    return {key: link_contracts.source_of(found) for key, found in kinds.items()}
+
+
 def reporting(devices):
     """其中在池里有可达行（报过账本）的电脑（不加锁、只读）：「电脑」列表判死记录用。"""
     names = tuple(name for name in dict.fromkeys(devices or ()) if name)

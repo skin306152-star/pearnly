@@ -34,7 +34,7 @@ TITLE_MAX = 140
 REQUEST_KEY = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 FIELDS = ["name", "identity", "adapter", "title", "legal_name", "tax_id", "branch", "name_key", "seed_connection",
           "seed_account_set", "mrerp_company", "combined_vat", "created_by", "creation", "request_key"]
-ADAPTERS = ("express", "mrerp")
+ADAPTERS = ("express", "express_cloud", "mrerp")
 ANNOUNCE_ROLES = ("Cowork Intake", "Cowork Admin")
 SAVEPOINT = "cowork_company_create"
 TASKS_MAX = 50
@@ -333,6 +333,7 @@ def _catalog(search=None) -> list:
     named = {key: (group["books"][0][0]["connection"], group["identity"]["name_key"]) for key, group in groups.items()
              if not group["identity"]["tax_id"] and group["identity"]["name_key"] and key.startswith("name:")}
     built = _built(list(groups), named)
+    sources = _sources(groups)
     needle = str(search or "").strip().casefold()
     out = []
     for key, group in groups.items():
@@ -341,13 +342,34 @@ def _catalog(search=None) -> list:
         found = group["identity"]
         item = {"identity": key, "title": found["name"] or newest["label"], "legal_name": found["name"], "tax_id": found["tax_id"],
                 "branch": newest["branch"], "branches": [b["branch"] for b in identity.branches(sets)],
-                "adapter": newest["adapter"], "years": _years(sets), "connection": newest["connection"],
+                "adapter": sources.get(key) or newest["adapter"], "years": _years(sets), "connection": newest["connection"],
                 "account_set_key": newest["key"], "company": built.get(key)}
         text = " ".join([item["title"], item["legal_name"], item["tax_id"], *item["years"]]).casefold()
         if needle and needle not in text:
             continue
         out.append(item)
     out.sort(key=lambda item: (item["company"] is not None, item["title"].casefold()))
+    return out
+
+
+def _sources(groups) -> dict:
+    """Express 身份组里账套全由云端 Express 那份 CC 报的：``{身份: "express_cloud"}``（同 ERP，规则在
+    ``link_contracts.source_of``；每条连接只查一次可达行）。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    express = {key: group for key, group in groups.items()
+               if any(book["adapter"] == "express" for book, _row in group["books"])}
+    if not express:
+        return {}
+    by_connection = {}
+    for connection in sorted({book["connection"] for group in express.values() for book, _row in group["books"]}):
+        by_connection[connection] = connections.account_sources(connection)  # loop-query: 本人能用的连接（有界），每条一次
+    out = {}
+    for key, group in express.items():
+        found = [by_connection.get(book["connection"], {}).get(book["key"]) for book, _row in group["books"]]
+        kinds = [link_contracts.CLOUD if source == link_contracts.SOURCE_CLOUD else "" for source in found]
+        if link_contracts.source_of(kinds) == link_contracts.SOURCE_CLOUD:
+            out[key] = link_contracts.ADAPTER_CLOUD
     return out
 
 
@@ -380,7 +402,12 @@ def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
                      "years": _years(sets), "connection": newest.get("connection") or row.seed_connection or "",
                      "account_set_key": newest.get("key") or row.seed_account_set or "", "company": row.name})
     if scope.allowed("intake"):
-        rows += [item for item in _catalog() if item["company"] is None]
+        catalog = _catalog()
+        cloud = {item["company"] for item in catalog if item["company"] and item["adapter"] == "express_cloud"}
+        for row in rows:   # 已建、账套只由云端 Express 报的公司也放进「云端 Express」标签
+            if row["company"] in cloud:
+                row["adapter"] = "express_cloud"
+        rows += [item for item in catalog if item["company"] is None]
     adapters = sorted({row["adapter"] for row in rows if row["adapter"]})
     rows = [row for row in rows if (not wanted or row["adapter"] == wanted)
             and _matches(needle, row["title"], row["legal_name"], row["tax_id"], *row["years"])]

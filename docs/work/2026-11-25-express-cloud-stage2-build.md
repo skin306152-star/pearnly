@@ -100,5 +100,9 @@
 
 ## 剩余（本窗口没做，原因见交接）
 - 段 ③ 自动安装与自升级（V1 前置，夜间）；断开时连带删云端安装目录与启动项（与段 ③ 一起）。
-- Cowork「云端 Express」标签取数（目录要先带报告电脑）；Cowork 登记时顺带退役死记录（锁序）。
+- Cowork 登记时顺带退役死记录：**不做，只做显示侧**（死记录不列、离线的「···」可移除，主会话 11-25 定）。锁顺序风险：Cowork 移除一台电脑（`credentials.remove_device`）要按「连接 → 密钥 → 电脑」逐条加锁后吊销它每把密钥、删可达行、冻结的推送转人工；登记新电脑（`credentials` 的登记路径）此时已锁着新电脑所在连接与密钥行，若在同一事务里再去锁死记录所在的别的连接，加锁顺序就与并发的「移除电脑」「心跳改可达行」相反，可能死锁，而且登记失败会让真人连不上。要做得单独起一个不在登记事务里的清理（例如管理员在「电脑」列表手动移除，或登记提交后另排一次只读找、逐台按 remove_device 的锁序做），先不做。
 - 受影响流程没跑；真机全部没测到。
+
+## 段 ⑤ 补：Cowork「云端 Express」标签取数（11-25 主会话要求）
+- 共用约定 `cc_desktop.wire.link_contracts.source_of / adapter_of`：报一本账（或同身份一组）的电脑全是云端那份（电脑行 `link_kind = cloud`）才算 `cloud` → 标签 `express_cloud`；有一台本地的或不知道都算本地。ERP 目录与 Cowork 都走它，`tests/test_companion_contract.py` 钉住「CC 心跳 link → 电脑行 link_kind → source_of → 页面标签」这一条线。
+- Cowork：`connections.pool.sources(连接)` 一次查询可达行 join 电脑行得每份账套的来源（`connections.service.account_sources` 对外）；`companies.service._catalog` 按身份组判，全云端的组标签 `express_cloud`；选公司里已建、账套只由云端报的公司也归云端标签。离线测 `tests/test_cowork_companies.py`。

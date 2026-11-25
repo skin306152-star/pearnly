@@ -2343,6 +2343,19 @@ class CloudExpressWire(unittest.TestCase):
         self.assertIn("link = runtime_mode.link()", heartbeat)
         machine = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/machine.py").read_text(encoding="utf-8")
         self.assertIn('link=body.get("link")', machine)
+        # 账本来源（第二阶段 4.8）：这台云端电脑报的账本归「云端 Express」——ERP 与 Cowork 都只按存下的 link_kind 经同一条
+        # source_of 判（报一本账的电脑全是云端那份才算云端），标签名同页面（express_cloud）
+        stored_kind = link_contracts.stored(sent)["link_kind"]
+        self.assertEqual(link_contracts.source_of([stored_kind]), link_contracts.SOURCE_CLOUD)
+        self.assertEqual(link_contracts.source_of([stored_kind, ""]), link_contracts.SOURCE_LOCAL)
+        self.assertEqual(link_contracts.source_of([]), link_contracts.SOURCE_LOCAL)
+        self.assertEqual(link_contracts.adapter_of(link_contracts.SOURCE_CLOUD), "express_cloud")
+        erp = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/express/companies.py").read_text(encoding="utf-8")
+        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/connections/pool.py").read_text(encoding="utf-8")
+        self.assertIn('"source": link_contracts.source_of(kinds.get(key))', erp)
+        self.assertIn("return {key: link_contracts.source_of(found) for key, found in kinds.items()}", cowork)
+        page = (ROOT / "frontend/assistant/src/components/company-picker.tsx").read_text(encoding="utf-8")
+        self.assertIn('const CLOUD = "express_cloud";', page)
 
     def test_the_release_cloud_entry_is_what_the_bridge_reads(self):
         import hashlib
