@@ -290,15 +290,15 @@ basis = "同本地 Express 那格的声明（面向 MR.ERP，开关 11-22 打开
 id = "folder_task"
 name = "文件夹定时任务"
 guide = "folder_task"
-cowork_direct = ["half:p4", "half:p4", "wait:cloud"]
+cowork_direct = ["done", "half:p4", "wait:cloud"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:11-12 先不做"]
 erp_operator = ["out:11-12 先不做"]
 
 [[row.link]]
 cell = "cowork_direct.express_local"
-basis = "Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；没有结果步骤；cc-guided-folder-task 92053429d，原作者窗口已归档，主会话 11-22 交本窗口）；只有离线单测 test_cowork_folder_task_guide，页面流程归第 2 步"
-flows = ["cowork.cc.guide.folder-task"]  # 结果步骤已接共用 form_result；本流程 11-25 本机未通过（看板卡在作答 / 定时任务备数报错），修好前该格仍 ◐
+basis = "Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；cc-guided-folder-task 92053429d）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是任务名，删除写条数）；真页面删除 → 选任务 → 复核 → 允许 → 结果卡成功「已删除 1 条」、任务表里真没了（电脑 / 手机）；离线单测 test_cowork_folder_task_guide；「立即运行」实验栈只能验到已排上"
+page_flows = ["cowork.cc.guide.folder-task"]
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
@@ -415,15 +415,15 @@ basis = "ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删
 id = "board"
 name = "任务看板"
 guide = "work"
-cowork_direct = ["half:p4"]
+cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["out:ERP 看板工具未做（随 ADR-027 段 3）"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "cowork_direct"
-basis = "Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；没有结果步骤；cc-guided-work 75e9cf2e7、76b646bcf）；只有离线单测 test_cowork_work_guide，页面流程归第 2 步"
-flows = ["cowork.cc.guide.work"]  # 结果步骤已接共用 form_result；本流程 11-25 本机未通过（看板卡在作答 / 定时任务备数报错），修好前该格仍 ◐
+basis = "Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；cc-guided-work 75e9cf2e7、76b646bcf）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是卡片标题）；后台定下的默认看板也用于列表 / 卡片选项（11-25 修：原先列表题零选项卡死）；真页面添加卡片 → 复核 → 确定 → 结果卡成功带标题、看板上真有这张卡（电脑 / 手机）；离线单测 test_cowork_work_guide"
+page_flows = ["cowork.cc.guide.work"]
 
 [[row]]
 id = "ledger_setup"

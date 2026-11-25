@@ -537,20 +537,20 @@ desktop_version: 1.12.21
 | 9 | 入库 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 · ⇢MR · ⇢云 | —（11-12 先不做） |
 | 10 | 盘点 | ✅ | —（只做直写） | ◐ P4 | —（只做直写） |
 | 11 | 结果不明核对、待处理 | ✅ · ◐ P2 · ⇢云 | ✅ · ◐ P2 · ⇢云 | ◐ P2 · ◐ P2 · ⇢云 | ○ P2 · ⇢MR · ⇢云 |
-| 12 | 文件夹定时任务 | ◐ P4 · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
+| 12 | 文件夹定时任务 | ✅ · ◐ P4 · ⇢云 | —（只做直写） | —（11-12 先不做） | —（11-12 先不做） |
 | 13 | 银行对账、收入对账、增值税对账 | ✅ · ✅ · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 14 | 增值税 ภ.พ.30 草稿 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 15 | 预扣税 ภ.ง.ด.3 / 53 草稿 | ✅ | —（只做直写） | —（ERP 无此业务） | —（ERP 无此业务） |
 | 16 | Express 读回 | ✅ · —（MR.ERP 无读回） · ⇢云 | —（只做直写） | —（ERP 无此工具） | —（ERP 无此工具） |
 | 17 | 单据维护：改识别结果、录不录、删除、导出复核表 | ✅ | ✅ | ◐ P2 | ◐ P2 |
 | 18 | 公司资料、记住的选择、知识库 | ✅ | —（只做直写） | ◐ P4 | —（只做直写） |
-| 19 | 任务看板 | ◐ P4 | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
+| 19 | 任务看板 | ✅ | —（只做直写） | —（ERP 看板工具未做（随 ADR-027 段 3）） | —（只做直写） |
 | 20 | MR.ERP 导入设置、库存科目组、重读账套 | ○ P4 | —（只做直写） | —（ERP 无此设置） | —（只做直写） |
 | 21 | 收发存报表导出 | —（Cowork 无库存业务） | —（Cowork 无库存业务） | ◐ P4 | —（只做直写） |
 | 22 | 添加公司（从连接里的账本添加） | —（现有公司选择窗的页面功能（没核）） | —（现有公司选择窗的页面功能（没核）） | ◐ P4 · ⇢公 · ⇢云 | —（只做直写） |
 | 23 | 付款、退货 / 贷项；作废 / 改已进账本的单；ERP 定时 / 文件夹；代录做库存与 POS | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） | —（11-12、11-14 定先不做） |
 
-范围内共 **90 格**：✅ 25、◐ 22、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
+范围内共 **90 格**：✅ 27、◐ 20、○ 2、✗ 4、等 MR.ERP 9、等云端 27、等公司接入 1。
 
 按证据：**真机通过 5** · **真模型通过 1** · **只有服务端 41** · **没做 6**；另 等 MR.ERP 9 · 等云端 27 · 等公司接入 1 · 范围外 56。
 
@@ -625,7 +625,7 @@ desktop_version: 1.12.21
 | resolve | ERP 代录 · 本地 | ○ P2 | 没做 | pearnly_erp_portal 没有声明 pending（operator）；打字路径能办，没有引导卡 |
 | resolve | ERP 代录 · MR.ERP | ⇢MR | 等 MR.ERP | pearnly_erp_portal 没有声明 pending（operator）；等 MR.ERP（开着） |
 | resolve | ERP 代录 · 云端 | ⇢云 | 等云端 | pearnly_erp_portal 没有声明 pending（operator）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
-| folder_task | Cowork 直写 · 本地 | ◐ P4 | 只有服务端 | Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；没有结果步骤；cc-guided-folder-task 92053429d，原作者窗口已归档，主会话 11-22 交本窗口）；只有离线单测 test_cowork_folder_task_guide，页面流程归第 2 步；流程 `cowork.cc.guide.folder-task` |
+| folder_task | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；cc-guided-folder-task 92053429d）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是任务名，删除写条数）；真页面删除 → 选任务 → 复核 → 允许 → 结果卡成功「已删除 1 条」、任务表里真没了（电脑 / 手机）；离线单测 test_cowork_folder_task_guide；「立即运行」实验栈只能验到已排上；页面流程 `cowork.cc.guide.folder-task` |
 | folder_task | Cowork 直写 · MR.ERP | ◐ P4 | 只有服务端 | 同本地 Express 那格的声明（面向 MR.ERP：MR.ERP 账套问现购 / 赊购、不问默认处理，单测 test_mrerp_book_asks_cash_or_credit_and_no_default_handling）；没有 MR.ERP 公司上的流程 |
 | folder_task | Cowork 直写 · 云端 | ⇢云 | 等云端 | pearnly_cowork 声明了 folder_task（chat）；等云端（11-24 真机首测端到端没通：云端那份 CC 没有成员（D3）、受限权限下找不到账套（D4）；入口在正式部署不显示（cloud_entry）） |
 | recon | Cowork 直写 · 本地 | ✅ | 只有服务端 | Cowork 声明 recon（form 源，确定 + 结果 + 追问，9f35ba9d6 / 295e2d2bc）；交两份 xlsx、卡上答到可确定 → 页面上确定卡（没有复核步骤的表单答完）点「确定」→ 结果卡就绪、带追问，页面上点追问选项「提交」后追问消失、记成预设（11-23 实验栈电脑 / 手机两格；作答一段走页面同一组接口）；页面流程 `cowork.cc.guide.recon-follow` |
@@ -642,7 +642,7 @@ desktop_version: 1.12.21
 | documents | ERP 代录 | ◐ P2 | 只有服务端 | 同直写那格的声明（modes 含 operator，清单本来就是对话月份）；差改票面，同直写那格 ◐ |
 | company_info | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；结果步骤 = 共用 guide.form_result（11-25 C1，名字是备注正文 / 规则名，删除写条数）；真页面加备注 → 结果卡成功带正文、公司备注里真有（电脑 / 手机）；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步；页面流程 `cowork.cc.guide.company` |
 | company_info | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 company（form 源，本对话公司的备注加 / 改 / 删，走公司页备注函数；删除走允许卡；没有结果步骤；3bc89a2dc、dd298be7e）；只有离线单测 test_erp_company_guide，页面流程归第 2 步 |
-| board | Cowork 直写 | ◐ P4 | 只有服务端 | Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；没有结果步骤；cc-guided-work 75e9cf2e7、76b646bcf）；只有离线单测 test_cowork_work_guide，页面流程归第 2 步；流程 `cowork.cc.guide.work` |
+| board | Cowork 直写 | ✅ | 只有服务端 | Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；cc-guided-work 75e9cf2e7、76b646bcf）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是卡片标题）；后台定下的默认看板也用于列表 / 卡片选项（11-25 修：原先列表题零选项卡死）；真页面添加卡片 → 复核 → 确定 → 结果卡成功带标题、看板上真有这张卡（电脑 / 手机）；离线单测 test_cowork_work_guide；页面流程 `cowork.cc.guide.work` |
 | ledger_setup | Cowork 直写 | ○ P4 | 没做 | pearnly_cowork 没有声明这项业务的引导（chat）；打字路径能办，没有引导卡 |
 | stock_report | ERP 直写 | ◐ P4 | 只有服务端 | ERP 声明 stock_card（form 源，同导出对话框的题：报表、格式定为 Excel、日期按对话月份建议、物料范围可选、仓库范围；只读不写、确定出表放进对话；没有复核与结果步骤；cc-guided-stock-card 29625d9d6）；只有离线单测 test_erp_stock_card_guide，页面流程归第 2 步 |
 | add_company | ERP 直写 · 本地 | ◐ P4 | 只有服务端 | ERP 声明 company_add（form 源，勾连接里还没接进 ERP 的公司 → 复核 → 确定；选项与建公司走公司页「从连接添加」同一份目录 cc_service._catalog 与 create_many，不分标签；没有结果步骤；3bc89a2dc、84db98ec6）；只有离线单测 test_erp_company_guide，页面流程归第 2 步 |
