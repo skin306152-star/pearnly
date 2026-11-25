@@ -191,7 +191,7 @@ export const OperatorStartCard: ToolCallMessagePartComponent = (props) => {
         <DocLine key={d.doc_id} slot="cc-op-unknown" title={titleOf(d.doc_id)} detail={reasonText(d.reason, d.message)}>
           <div className="cc-card-actions">
             <button type="button" className="cc-card-btn" data-slot="cc-op-entered" disabled={action.busy} onClick={() => resolve(d.doc_id, true)}>
-              {op.doc.saved}
+              {op.entered}
             </button>
             <button type="button" className="cc-card-btn" data-slot="cc-op-not-entered" disabled={action.busy} onClick={() => resolve(d.doc_id, false)}>
               {op.notEntered}
