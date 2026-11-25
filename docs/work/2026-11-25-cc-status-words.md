@@ -33,3 +33,8 @@
 - `guide.q.operator_again`（问题标题「已入账」，选项 不入账 / 再写一次）、`guide.option.operator_resolve.entered`、
   `guide.reason.already_entered`（已跳过的原因）：描述的是「账本里已有这张」，保持原文。
 - 任务 / 对话状态（`state.running`、`chatRunning` 等「进行中」）是整件任务的状态（照 Code 任务），不是单据状态，不改。
+
+## 闸门规则收窄（一处）
+
+`tests/test_cc_operator.py` 的旧词表（代录页面不许出现「录入」等旧模式叫法）会拦新状态词「录入中」。按用户 11-24 口径，旧词照拦，
+只放行「录入中」这一个状态词（`录入(?!中)`）；「正在录入」「已录入」等仍拦。

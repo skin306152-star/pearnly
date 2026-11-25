@@ -101,7 +101,9 @@ assert.equal(only(".drop_upload").length, 2);
 console.log("HARNESS OK");
 """
 
-OLD_WORDS = re.compile(r"代录|录入|已录入|再录一次|不录了|录入前确认|录入后处理|等开始|正在录入|批次|照录|挂起|转人工|读回")
+# 「录入中」是单据状态词（用户 11-24 批：进行中 → 录入中，与 LINE 回执、录入口同一套，docs/work/2026-11-25-cc-status-words.md），
+# 不是旧的模式叫法；旧词照拦，只放行这一个状态词
+OLD_WORDS = re.compile(r"代录|录入(?!中)|已录入|再录一次|不录了|录入前确认|录入后处理|等开始|正在录入|批次|照录|挂起|转人工|读回")
 
 WORDS = r"""
 import "cc-test-setup";
