@@ -232,3 +232,29 @@ def test_the_head_before_a_document_follows_write_order_and_skips_count_rows_on_
     assert dbf_void._previous_lot(rows, 6) == "20260301:TK0000002     1"  # 主档链：盘盈成新批
     assert dbf_void._previous_lot(rows, 6, place=True) == "202603010RR0000009     1"  # 仓链：盘点行跳过
     assert dbf_void._previous_lot(rows, 1) == ""
+
+
+def test_voiding_a_count_gain_with_no_earlier_rows_goes_back_to_the_purchase_lot_it_links(book):
+    """库存卡上没有更早的行（清过卡的账套，101 本回放 T 副本 39 本）：盘盈作废退回行上挂靠的进货批，不回 B/F。"""
+    import datetime as dt
+    from test_dbf_stock import _receipt
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 21), 10, 400)  # 在盘盈单之后写入的行不算「之前」
+    lot = "202603210RR0000009     1"
+    _set_master(book, MLOTNUM=lot, MREMBAL=0.0, MREMVAL=0.0, TOTBAL=0.0, TOTVAL=0.0)
+    before = _master(book)
+    res = _write(book, _entry("TK", [_line("ICE01", 2)], docdate_be="690322"))
+    assert res.ok, res.error
+    row = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert row["MLOTNUM"].strip() == lot
+    import dbf
+    from companion import dbf_schema
+    t = dbf.Table(str(book / "STCRD.DBF"), codepage=dbf_schema.CODEPAGE); t.open(dbf.READ_WRITE)
+    try:  # 模拟清过卡：把那张进货行删掉，只留主档上的批号
+        for rec in dbf_schema.live_rows(t):
+            if (rec.DOCNUM or "").strip() == "RR0000009":
+                dbf.delete(rec)
+    finally:
+        t.close()
+    assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
+    assert _master(book)["MLOTNUM"] == lot

@@ -459,8 +459,10 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
         if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
             if linked:  # 写入时链头没换成本单的批（先进先出账套指着仍有剩余的最早一批）就不动；换了才回之前那一批
+                # 库存卡上往前找不到（清过卡的账套）时，退回盘盈行挂靠的那一批（多是写前的链头），再没有才 B/F
                 new = replace(new, head=now.head, marked=now.marked) if not _own_lot(now.head, docnum) else \
-                    replace(new, head=_previous_lot(remaining[key], min(row["RECNO"] for row in rows), key[1] is not None) or stock_chain.EMPTY_HEAD, marked=False)
+                    replace(new, head=_previous_lot(remaining[key], min(row["RECNO"] for row in rows), key[1] is not None)
+                            or (head if head and not _own_lot(head, docnum) else stock_chain.EMPTY_HEAD), marked=False)
             elif not head:  # 行上没记批号（盘点的减少行、老版本 CC 的行）：写入时没动批号，作废也不动，留着现在的
                 new = replace(new, head=now.head, marked=now.marked)
         else:
