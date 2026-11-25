@@ -604,6 +604,12 @@ const SETTINGS = {
     cloudExpress: "Cloud Express", address: "Address", account: "Account",
     installCommand: "Cloud install command", expired: "Expired", regenerate: "Regenerate",
     cloudPackageFailed: "Could not prepare the cloud install files",
+    groupSite: "Site", groupLedgers: "Ledgers", localExpress: "Local Express",
+    folderCount: (n: number) => (n === 1 ? "1 folder" : `${n} folders`),
+    ledgerCount: (n: number) => (n === 1 ? "1 account set" : `${n} account sets`),
+    through: (name: string) => `via ${name}`, relogin: "Sign in again", operatorLogin: "Operator sign-in", path: "Path",
+    expressNotFound: "Express not found", pathNotUsable: "Path not available",
+    loginReason: { password: "Incorrect username or password", password_change: "Password expired", account: "Account unavailable" }, // scan: fake
   },
   zh: {
     settings: "设置", general: "常规", thisComputer: "此电脑", connections: "连接", system: "系统",
@@ -637,6 +643,12 @@ const SETTINGS = {
     cloudExpress: "云端 Express", address: "地址", account: "账号",
     installCommand: "云端安装命令", expired: "已过期", regenerate: "重新生成",
     cloudPackageFailed: "无法准备云端安装文件",
+    groupSite: "站点", groupLedgers: "账本", localExpress: "本地 Express",
+    folderCount: (n: number) => `${n} 个文件夹`,
+    ledgerCount: (n: number) => `${n} 个账套`,
+    through: (name: string) => `经 ${name}`, relogin: "重新登录", operatorLogin: "代录登录", path: "路径",
+    expressNotFound: "未找到 Express", pathNotUsable: "路径不可用",
+    loginReason: { password: "用户名或密码不正确", password_change: "密码已过期", account: "账号不可用" }, // scan: fake
   },
   th: {
     settings: "การตั้งค่า", general: "ทั่วไป", thisComputer: "คอมพิวเตอร์เครื่องนี้", connections: "การเชื่อมต่อ", system: "ระบบ",
@@ -670,6 +682,12 @@ const SETTINGS = {
     cloudExpress: "Express บนคลาวด์", address: "ที่อยู่", account: "บัญชี",
     installCommand: "คำสั่งติดตั้งบนคลาวด์", expired: "หมดอายุแล้ว", regenerate: "สร้างใหม่",
     cloudPackageFailed: "เตรียมไฟล์ติดตั้งบนคลาวด์ไม่สำเร็จ",
+    groupSite: "ไซต์", groupLedgers: "สมุดบัญชี", localExpress: "Express ในเครื่อง",
+    folderCount: (n: number) => `${n} โฟลเดอร์`,
+    ledgerCount: (n: number) => `${n} ชุดบัญชี`,
+    through: (name: string) => `ผ่าน ${name}`, relogin: "เข้าสู่ระบบอีกครั้ง", operatorLogin: "เข้าสู่ระบบสำหรับบันทึกแทน", path: "พาธ",
+    expressNotFound: "ไม่พบ Express", pathNotUsable: "ใช้พาธนี้ไม่ได้",
+    loginReason: { password: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง", password_change: "รหัสผ่านหมดอายุ", account: "บัญชีใช้งานไม่ได้" }, // scan: fake
   },
   ja: {
     settings: "設定", general: "一般", thisComputer: "このパソコン", connections: "接続", system: "システム",
@@ -703,6 +721,12 @@ const SETTINGS = {
     cloudExpress: "クラウド Express", address: "アドレス", account: "アカウント",
     installCommand: "クラウドのインストールコマンド", expired: "期限切れ", regenerate: "再生成",
     cloudPackageFailed: "クラウドのインストールファイルを準備できませんでした",
+    groupSite: "サイト", groupLedgers: "帳簿", localExpress: "ローカル Express",
+    folderCount: (n: number) => `${n} 個のフォルダー`,
+    ledgerCount: (n: number) => `${n} 件の会計データ`,
+    through: (name: string) => `${name} 経由`, relogin: "再サインイン", operatorLogin: "代行入力のサインイン", path: "パス",
+    expressNotFound: "Express が見つかりません", pathNotUsable: "このパスは使用できません",
+    loginReason: { password: "ユーザー名またはパスワードが正しくありません", password_change: "パスワードの期限切れ", account: "アカウントは使用できません" }, // scan: fake
   },
 };
 
@@ -712,7 +736,7 @@ export const st = (SETTINGS as Record<string, (typeof SETTINGS)["en"]>)[lang] ??
 // 日文与服务端词条在 apps/pearnly_cowork/pearnly_cowork/i18n/messages.tsv。
 const COMPANY = {
   en: {
-    cloudExpress: "Cloud Express", companies: "Companies", refreshSets: "Refresh account sets",
+    cloudExpress: "Cloud Express", localExpress: "Local Express", companies: "Companies", refreshSets: "Refresh account sets",
     deleteCompany: "Delete company", deleteCompanyAsk: "Delete company?", allSets: "All account sets", notes: "Notes", add: "Add", docFolder: "Documents folder",
     monthFolder: (name: string) => `This month: ${name}`, accountSets: "Account sets", taxDrafts: "Tax drafts", remembered: "Saved choices",
     period: "Month", noPeriod: "No month", branch: "Branch", noBranch: "No branch", headOffice: "Head office", branchShort: "Branch",
@@ -798,7 +822,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   zh: {
-    cloudExpress: "云端 Express", companies: "公司", refreshSets: "刷新账套",
+    cloudExpress: "云端 Express", localExpress: "本地 Express", companies: "公司", refreshSets: "刷新账套",
     deleteCompany: "删除公司", deleteCompanyAsk: "删除公司？", allSets: "全部账套", notes: "知识库", add: "添加", docFolder: "单据文件夹",
     monthFolder: (name: string) => `本月：${name}`, accountSets: "账套", taxDrafts: "申报草稿", remembered: "记住的选择",
     period: "处理月份", noPeriod: "不指定", branch: "分店", noBranch: "不指定分店", headOffice: "总公司", branchShort: "分店",
@@ -883,7 +907,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   th: {
-    cloudExpress: "Express บนคลาวด์", companies: "บริษัท", refreshSets: "รีเฟรชชุดบัญชี",
+    cloudExpress: "Express บนคลาวด์", localExpress: "Express ในเครื่อง", companies: "บริษัท", refreshSets: "รีเฟรชชุดบัญชี",
     deleteCompany: "ลบบริษัท", deleteCompanyAsk: "ลบบริษัท?", allSets: "ชุดบัญชีทั้งหมด", notes: "บันทึก", add: "เพิ่ม", docFolder: "โฟลเดอร์เอกสาร",
     monthFolder: (name: string) => `เดือนนี้: ${name}`, accountSets: "ชุดบัญชี", taxDrafts: "ร่างแบบภาษี", remembered: "ตัวเลือกที่จำไว้",
     period: "เดือนที่ทำ", noPeriod: "ไม่ระบุเดือน", branch: "สาขา", noBranch: "ไม่ระบุสาขา", headOffice: "สำนักงานใหญ่", branchShort: "สาขา",
@@ -968,7 +992,7 @@ const COMPANY = {
     } as Record<string, string>,
   },
   ja: {
-    cloudExpress: "クラウド Express", companies: "会社", refreshSets: "会計データを更新",
+    cloudExpress: "クラウド Express", localExpress: "ローカル Express", companies: "会社", refreshSets: "会計データを更新",
     deleteCompany: "会社を削除", deleteCompanyAsk: "会社を削除しますか？", allSets: "すべての会計データ", notes: "ノート", add: "追加", docFolder: "書類フォルダー",
     monthFolder: (name: string) => `今月：${name}`, accountSets: "会計データ", taxDrafts: "申告の下書き", remembered: "保存した選択",
     period: "処理月", noPeriod: "指定なし", branch: "支店", noBranch: "支店を指定しない", headOffice: "本店", branchShort: "支店",

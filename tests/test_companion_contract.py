@@ -1676,6 +1676,20 @@ class CompanyFolders(unittest.TestCase):
         self.assertIn('typed = args.get("inline") is True', self.bridge)
         self.assertIn('(args.get("username"), args.get("password")) if typed else (None, None)', self.bridge)
         self.assertIn('if method in ("cloud_rescan", "cloud_add_place"):', self.bridge)
+        desktop = (ROOT / "frontend/assistant/src/lib/desktop.ts").read_text(encoding="utf-8")
+        row = (ROOT / "frontend/assistant/src/components/cloud-express.tsx").read_text(encoding="utf-8")
+        self.assertIn('export const CONNECT_DIALOG = "connect_dialog";', desktop)
+        self.assertIn('"connect_dialog")', self.bridge)
+        self.assertIn('api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })', row)
+        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })', row)
+        self.assertIn('api.call("cloud_add_place", { path: path.trim() })', row)
+        self.assertIn('payload = {"path": path}', self.bridge)
+        # 桥回的 cloud_status 键（settings_link.status / cloud_summary）与页面读的一致
+        status = (COMPANION / "cloud_link/settings_link.py").read_text(encoding="utf-8")
+        for key in ('"remembered"', '"reason"', '"places"', '"cloud"', '"scanned_at"', '"add"'):
+            self.assertIn(key, status)
+        for key in ("remembered?: unknown", "reason?: unknown", "places?: unknown", "cloud?: Partial<CloudSummary>"):
+            self.assertIn(key, row)
 
     def test_the_mrerp_connect_dialog_and_the_bridge_agree_on_the_typed_login(self):
         # 11-23（用户「第一个弹窗不行吗」）：「连接 MR.ERP」弹窗里输的用户名、密码随票经桥交给 CC 本机；页面按能力 mrerp_login_inline

@@ -17,7 +17,7 @@
 //
 // 桌面端托盘「连接与设置」直接打开「连接」一栏（window.tomo.settings）。
 
-import { CheckIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
+import { CheckIcon, ChevronRightIcon, FolderIcon, MonitorIcon, MoonIcon, MoreHorizontalIcon, PlugIcon, Settings2Icon, SunIcon, XIcon } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { DropdownMenu, menuOffset } from "@/components/ui/menu";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
@@ -40,6 +40,7 @@ import {
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
 import { CloudExpressRow } from "@/components/cloud-express";
+import { Button } from "@/components/ui/button";
 import { MrerpRow } from "@/components/mrerp-connect";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
@@ -396,6 +397,7 @@ function Connections({ api }: { api: Desktop }) {
   const { busy, error, setError, run } = useAction(api, refresh);
   const linkState = useLink();
   const [scanned, setScanned] = useState(false);
+  const [localOpen, setLocalOpen] = useState(false);
 
   useEffect(() => {
     // 还没连也没找到 Express：后台找一次（读共享盘较慢）
@@ -419,7 +421,6 @@ function Connections({ api }: { api: Desktop }) {
         : roots.length > 1
           ? st.years(roots[0], roots.length)
           : roots[0];
-  const kinds = [...new Set(members.map((m) => (m.kind === "folder" ? "MR.ERP" : "Express")))].join(" · ");
   const relink = !!main && (!!main.device_state || linkState.kind === "removed");
   // 文件夹随公司选（1.6.0 起）：设置里只剩以前授权、现在没人用的那几个可移除
   const companyFolders = !!state.features?.includes(COMPANY_FOLDERS);
@@ -455,12 +456,11 @@ function Connections({ api }: { api: Desktop }) {
 
   return (
     <>
-      {/* MR.ERP 一行在最上面（用户 11-07，产品声明了 connect.mrerp 才出）；下面 Express 部分照旧 */}
-      <MrerpRow />
-      <div data-marquee-host="" className="cc-settings-row">
+      {/* 三组，顺序固定（云端 Express 第二阶段，用户 11-24 审定）：站点 → 账本（MR.ERP → 本地 Express → 云端 Express）→ 电脑 */}
+      <Heading>{st.groupSite}</Heading>
+      <div data-marquee-host="" className="cc-settings-row" data-slot="cc-site-row">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">{elsewhere || location.host}</Marquee>
-          {kinds && <div className="text-muted-foreground text-caption">{kinds}</div>}
         </div>
         {/* 成员的密钥被服务端说不再用（device_state，多台电脑 ADR-021）：对话页已自动重新登记过一次；没成的在这里看到原因
             （被另一台电脑认领 = 现有「已在另一台电脑连接」）、点「重试」再登记。这台电脑被「电脑」列表移除过（登记回 removed）：
@@ -528,7 +528,34 @@ function Connections({ api }: { api: Desktop }) {
         </div>
       )}
 
-      {(roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
+      <Heading>{st.groupLedgers}</Heading>
+      {/* MR.ERP（产品声明了 connect.mrerp 才出）→ 本地 Express → 云端 Express */}
+      <MrerpRow />
+      <div data-marquee-host="" className="cc-settings-row" data-slot="cc-local-express-row">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="cc-ledger-caret cc-tap"
+          aria-expanded={localOpen}
+          aria-label={st.localExpress}
+          onClick={() => setLocalOpen((v) => !v)}
+          data-slot="cc-local-express-toggle"
+        >
+          <ChevronRightIcon />
+        </Button>
+        <div className="min-w-0 flex-1">
+          <Marquee as="div" className="truncate text-body">{st.localExpress}</Marquee>
+          <div className="text-muted-foreground text-caption" data-slot="cc-local-express-count">
+            {st.folderCount(placesFeature ? places.length : roots.length)}
+          </div>
+        </div>
+        <span className="cc-status-line text-body" data-status={roots.length ? "online" : "attention"}>
+          <span className="cc-status-dot" />
+          {roots.length ? st.status.online : st.expressNotFound}
+        </span>
+      </div>
+      {/* 文件夹默认收起（用户 11-24），点行展开；还没找到 Express 时直接展开（要在这里选文件夹） */}
+      {(localOpen || !roots.length) && (roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
           <Marquee className={cn("max-w-(--cc-settings-value-max) truncate text-body", roots.length ? "text-muted-foreground" : "text-danger")} title={express}>
             {express}
@@ -543,7 +570,7 @@ function Connections({ api }: { api: Desktop }) {
       )}
 
       {/* 「Express 位置」：只读这些盘 / 文件夹下的 Express 年度和账套（Cowork 与 ERP 共用）；有 Express 成员时至少留一个 */}
-      {placesFeature &&
+      {placesFeature && (localOpen || !roots.length) &&
         places.map((path) => {
           const removable = !(expressMembers && places.length <= 1);
           const remove = () => void run("roots", "remove_place", { path });
@@ -592,7 +619,7 @@ function Connections({ api }: { api: Desktop }) {
           );
         })}
 
-      {/* 「云端 Express」（步 E，用户 11-16）：Express 那一组下面一行；旧版桌面端没有这几个桥动作，不出 */}
+      {/* 「云端 Express」：账本组最后一行；旧版桌面端没有这几个桥动作，不出 */}
       {window.pearnly_cloud_express === true && <CloudExpressRow api={api} />}
 
       {companyFolders && legacy.length > 0 && (
@@ -754,7 +781,19 @@ function LinkAction({ link, deviceState = "", onConnect, onDownload, disabled }:
 
 // update_blocked：这台电脑的 CC 桌面版自动更新被 Windows 拦下（被拦的版本 + 时刻，UTC；服务端 connections/desktop_update.py）
 // 第 6 批（ADR-021）：id = 电脑编号（「···」移除用）、can_remove = 本人是登记人或管理员（10-16 起没有「常驻」，第 56 条）
+/** 电脑名下的小字：连着哪几种账本（本地 Express · MR.ERP）；云端那台写「云端 Express · 经 <桥电脑名>」；同名两条时补版本
+ *  （第二阶段评估 4.10：不猜是不是同一台，让人分得清）。 */
+export function computerKinds(row: Computer, twin = false): string {
+  const parts = row.link?.kind === "cloud"
+    ? [st.cloudExpress, ...(row.link.via ? [st.through(row.link.via)] : [])]
+    : (row.adapters?.length ? row.adapters : [row.adapter]).map((name) => (name === "mrerp" ? "MR.ERP" : st.localExpress));
+  return [...parts, ...(twin && row.version ? [row.version] : [])].join(" · ");
+}
+
 export type Computer = {
+  adapters?: string[];
+  link?: { kind: string; via?: string; host?: string } | null;
+  last_seen?: string;
   adapter: string;
   device: string;
   online: boolean;
@@ -805,6 +844,8 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   const [error, setError] = useState("");
   // 电脑列表的接口按产品声明（connect.computers：Cowork 是 folder_intake.api.computers，ERP 是 masters.cc_companies.computers）
   const computers = useProjects((s) => s.connect.computers ?? "");
+  // 移除接口也按产品声明（ERP 是 masters.cc_companies.remove_computer）；没声明的是 Cowork 的
+  const removeApi = useProjects((s) => s.connect.remove_computer ?? REMOVE_COMPUTER);
   const load = useCallback(() => void (computers ? getJson<Computer[]>(computers).then((r) => setRows(r ?? [])) : setRows([])), [computers]);
   useEffect(() => {
     load();
@@ -816,7 +857,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
     setBusy(row.id);
     setError("");
     try {
-      await postMethod(REMOVE_COMPUTER, { device: row.id });
+      await postMethod(removeApi, { device: row.id });
       setRows((before) => (before ?? []).filter((item) => item.id !== row.id));
       load();
     } catch (e) { reportCaught(e, "settings");
@@ -853,6 +894,7 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
           <ComputerRow
             key={`${row.adapter}-${row.id ?? row.device}-${i}`}
             row={row}
+            twin={rows.some((other) => other !== row && other.device === row.device)}
             busy={!!row.id && busy === row.id}
             onRemove={row.can_remove && row.id ? () => void remove(row) : undefined}
           />
@@ -866,15 +908,15 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
 
 /** 一台电脑：名字、ERP、在不在线；自动更新被 Windows 拦下时多一句（版本 + 时刻）。文件夹按公司在主档页看，这里不列。
  *  能移除时行尾「···」→「移除」（同侧栏行菜单，不另加确认）。一台一行（.cc-settings-row），行间只有细线、不另加空。 */
-export function ComputerRow({ row, onRemove, busy = false }: { row: Computer; onRemove?: () => void; busy?: boolean }) {
+export function ComputerRow({ row, onRemove, busy = false, twin = false }: {
+  row: Computer; onRemove?: () => void; busy?: boolean; twin?: boolean;
+}) {
   const status = row.online ? "online" : "offline";
   return (
     <div data-marquee-host="" className="cc-settings-row">
       <div className="min-w-0 flex-1">
         <Marquee as="div" className="truncate text-body">{row.device}</Marquee>
-        <div className="text-muted-foreground text-caption">
-          {row.adapter === "mrerp" ? "MR.ERP" : "Express"}
-        </div>
+        <div className="text-muted-foreground text-caption" data-slot="cc-computer-kinds">{computerKinds(row, twin)}</div>
         {row.update_blocked && (
           <div className="text-muted-foreground text-caption">{blockedLine(row.update_blocked.version, row.update_blocked.at)}</div>
         )}

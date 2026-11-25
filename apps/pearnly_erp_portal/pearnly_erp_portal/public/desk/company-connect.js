@@ -21,11 +21,11 @@
 	const p = frappe.pearnly;
 	const api = "pearnly_erp_portal.masters.api.";
 	const PAGE = 50;
-	// 标签顺序同 CC「选择公司」：MR.ERP 在前、云端 Express 最后；产品名不翻译，「云端 Express」走词条
+	// 标签顺序同 CC「选择公司」：MR.ERP 在前、云端 Express 最后；「本地 Express」「云端 Express」走词条，云端那份 CC 报的账套
+	// 服务端归到 express_cloud（第二阶段评估 4.8）
 	// 「云端 Express」标签只在服务端说显示时才摆（正式部署里先不显示，端到端没走通；见 pearnly_core/cc_desktop/cloud_entry.py）
 	const TABS = ["mrerp", "express"].concat(frappe.boot && frappe.boot.pearnly_cloud_express ? ["express_cloud"] : []);
-	const CLOUD = "express_cloud";
-	const tab_label = value => ({express: "Express", mrerp: "MR.ERP"})[value] || __("company.connect.expressCloud");
+	const tab_label = value => ({express: __("company.connect.expressLocal"), mrerp: "MR.ERP"})[value] || __("company.connect.expressCloud");
 	const HEAD_OFFICE = "00000";
 	const RESCAN_WAIT_MS = 60000;   // 刷新后等电脑整份重报的上限（办公室共享盘走 SMB1 / 无线，整份重扫超过十几秒是常态）
 	const RESCAN_POLL_MS = 2000;
@@ -177,12 +177,6 @@
 			remember();
 			const ticket = ++loading;
 			const start = reset ? 0 : rows.length;
-			if (adapter === CLOUD) {    // 占位：还没有云端 Express 的来源，不取数，显示空状态
-				rows = [];
-				total = 0;
-				paint_tabs();
-				return paint();
-			}
 			const page = await p.call(api + "api_connection_choices", {search, adapter, start, limit: PAGE});
 			if (!dialog || ticket !== loading) return;    // 换了标签 / 搜索：旧的那页不画
 			rows = reset ? page.rows || [] : [...rows, ...(page.rows || [])];

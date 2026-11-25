@@ -43,7 +43,8 @@ def connect() -> dict:
     from pearnly_erp_portal.mrerp import connection
 
     # 浏览器里「连接」那一栏的电脑列表（只读，欠账 B50）：能看公司的人都有，按声明出、不按产品名写死
-    found = {"computers": API + "computers"}
+    # 「···」移除一台不在线的电脑（云端 Express 第二阶段 4.10；能管公司的人，服务端判）
+    found = {"computers": API + "computers", "remove_computer": API + "remove_computer"}
     if mrerp.enabled() and connection.is_admin():
         found["mrerp"] = "pearnly_erp_portal.mrerp.api."
     return found

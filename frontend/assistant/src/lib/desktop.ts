@@ -213,7 +213,7 @@ export type DesktopState = {
 };
 /** 以前在设置里授权、现在没有公司和任务在用的根目录（设置里「以前授权的文件夹」一行清理用）。 */
 export type LegacyRoot = { member: string; id: string; path: string };
-export type DesktopResult = { ok: boolean; message?: string; cancelled?: boolean; roots?: string[]; other_site?: string };
+export type DesktopResult = { ok: boolean; message?: string; cancelled?: boolean; roots?: string[]; other_site?: string; code?: string; id?: string };
 
 type Signal<A extends unknown[]> = { connect(cb: (...args: A) => void): void; disconnect(cb: (...args: A) => void): void };
 type Channel = {
@@ -306,6 +306,10 @@ export const MRERP_LOGIN = "mrerp_login";
 /** mrerp_authorize 另收「连接 MR.ERP」弹窗里输的用户名、密码（11-23 用户「第一个弹窗不行吗」），不再弹原生小窗；没有这一项的
  *  桌面版提示更新。 */
 export const MRERP_LOGIN_INLINE = "mrerp_login_inline";
+/** 共用连接弹窗收密码（云端 Express 第二阶段 D5）：cloud_connect / cloud_operator_authorize 带 inline: true 时收弹窗里填的密码，
+ *  cloud_connect 不带密码就用本机存的（没存回 password_required）；cloud_status 带 remembered / reason / places / cloud；
+ *  cloud_rescan / cloud_add_place。没有这一项的桌面版照旧弹原生小窗。 */
+export const CONNECT_DIALOG = "connect_dialog";
 
 /** 这个产品的站点在桌面端里是哪种通道：ERP 走共用机器通道（core），其余是 Cowork。 */
 export function channelOf(product: string | undefined): string {
@@ -403,7 +407,10 @@ export async function authorizeMrErp(ticket: string, username: string, password:
 
 /** 在不在 CC 桌面版里；这个桌面版能不能随公司选文件夹（state().features）；这台电脑的电脑名（1.7.0，同绑定里带的 device，
  *  主档页认「本机这一行」：同一条连接上几台电脑各有一行时，连接相同还要电脑名相同）。 */
-export type DesktopFeatures = { app: boolean; companyFolders: boolean; deviceName?: string; operator?: boolean; mrerpLogin?: boolean; mrerpLoginInline?: boolean };
+export type DesktopFeatures = {
+  app: boolean; companyFolders: boolean; deviceName?: string; operator?: boolean; mrerpLogin?: boolean; mrerpLoginInline?: boolean;
+  connectDialog?: boolean;
+};
 
 let features: DesktopFeatures | null = null;
 let readingFeatures: Promise<DesktopFeatures> | null = null;
@@ -420,6 +427,7 @@ export function loadDesktopFeatures(): Promise<DesktopFeatures> {
       ...(state?.features?.includes(OPERATOR) ? { operator: true } : {}),
       ...(state?.features?.includes(MRERP_LOGIN) ? { mrerpLogin: true } : {}),
       ...(state?.features?.includes(MRERP_LOGIN_INLINE) ? { mrerpLoginInline: true } : {}),
+      ...(state?.features?.includes(CONNECT_DIALOG) ? { connectDialog: true } : {}),
       ...(state?.features?.includes(DEVICES) ? { deviceName: String(state.device?.name ?? "") } : {}),
     }))
     .catch(withReport(() => ({ app: true, companyFolders: false }), "desktop"))

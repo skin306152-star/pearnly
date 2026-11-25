@@ -29,10 +29,11 @@ def block(text, start, end):
 
 
 class CcPage(unittest.TestCase):
-    def test_the_only_password_input_in_the_cc_page_is_the_mrerp_connect_dialog(self):
+    def test_password_inputs_in_the_cc_page_are_only_in_the_connect_dialogs(self):
+        # MR.ERP 连接弹窗；云端 Express 第二阶段起同一种连接弹窗与「代录登录」弹窗（cloud-express.tsx，密码只经本机桥交出）
         found = {path.name: len(re.findall(r'type=["{]?["\']?password', path.read_text(encoding="utf-8")))
                  for path in SPA.rglob("*.tsx")}
-        self.assertEqual({name: n for name, n in found.items() if n}, {"mrerp-connect.tsx": 1})
+        self.assertEqual({name: n for name, n in found.items() if n}, {"mrerp-connect.tsx": 1, "cloud-express.tsx": 2})
 
     def test_the_mrerp_connect_dialog_takes_the_login_and_authorizes_in_one_step(self):
         text = CONNECT.read_text(encoding="utf-8")

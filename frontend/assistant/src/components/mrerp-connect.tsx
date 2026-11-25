@@ -11,7 +11,10 @@
 // 不提供断开 / 删除连接（产品本来就不允许删连接）。
 
 import { Dialog, DialogClose, DialogHeading, DialogOverlay, DialogPortal, DialogSurface } from "@/components/ui/dialog";
-import { XIcon } from "lucide-react";
+import { MoreHorizontalIcon, XIcon } from "lucide-react";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { type FC, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -61,16 +64,44 @@ export const MrerpRow: FC = () => {
   }, [api]);
   useEffect(reload, [reload]);
   if (!api || row === undefined) return null;
+  // 账本组里同一种样子（第二阶段，用户 11-24 审定）：授权过 = 名下只写授权人、右边「● 已连接 + ···」（重新连接、授权详情）；
+  // 没授权 = 名下写状态、右边「连接」
+  const authorized = !!row?.credential?.username;
   return (
     <>
       <div data-marquee-host="" className="cc-settings-row" data-slot="cc-mrerp-row">
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">MR.ERP</Marquee>
-          <Marquee as="div" className="truncate text-muted-foreground text-caption" data-slot="cc-mrerp-status">{mrerpStatus(row)}</Marquee>
+          <Marquee as="div" className="truncate text-muted-foreground text-caption" data-slot="cc-mrerp-status">
+            {authorized ? row?.credential?.username : mrerpStatus(row)}
+          </Marquee>
         </div>
-        <button type="button" className="cc-btn" data-slot="cc-mrerp-connect" onClick={() => setOpen(true)}>
-          {st.connect}
-        </button>
+        {authorized ? (
+          <>
+            <span className="cc-status-line text-body" data-status="online">
+              <span className="cc-status-dot" />
+              {st.status.online}
+            </span>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon-sm" aria-label={t("more")} className="cc-tap" data-slot="cc-mrerp-more">
+                  <MoreHorizontalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
+                <DropdownMenuItem onSelect={() => setOpen(true)} data-slot="cc-mrerp-connect">{st.relogin}</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel className="font-normal text-muted-foreground text-caption" data-slot="cc-mrerp-detail">
+                  {authorizedDetail(row?.credential)}
+                </DropdownMenuLabel>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : (
+          <button type="button" className="cc-btn" data-slot="cc-mrerp-connect" onClick={() => setOpen(true)}>
+            {st.connect}
+          </button>
+        )}
       </div>
       {open && (
         <MrerpConnect

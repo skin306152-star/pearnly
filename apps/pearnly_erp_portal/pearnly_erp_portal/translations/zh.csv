@@ -878,6 +878,7 @@ Listing documents,正在查看单据
 Listing open invoices,正在查看未收清的发票
 Listing stock counts,正在查看盘点列表
 Loading...,加载中…
+Local Express,本地 Express
 Location,仓位
 Location code,仓位编码
 Locations,仓位清单
@@ -2045,6 +2046,7 @@ company.col.warehouseCode,仓库编号
 company.connect.add,从连接添加
 company.connect.added,已添加
 company.connect.expressCloud,云端 Express
+company.connect.expressLocal,本地 Express
 company.connect.title,选择要用的公司
 company.disable,停用
 company.docPrefixHint,先存着：单号仍按编号定义自动发

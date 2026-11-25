@@ -878,6 +878,7 @@ Listing documents,Listing documents
 Listing open invoices,Listing open invoices
 Listing stock counts,Listing stock counts
 Loading...,Loading...
+Local Express,Local Express
 Location,Location
 Location code,Location code
 Locations,Locations
@@ -2045,6 +2046,7 @@ company.col.warehouseCode,Warehouse code
 company.connect.add,Add from connections
 company.connect.added,Added
 company.connect.expressCloud,Cloud Express
+company.connect.expressLocal,Local Express
 company.connect.title,Select companies
 company.disable,Disable
 company.docPrefixHint,Stored here for now; document numbers still come from the numbering rules

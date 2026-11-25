@@ -72,3 +72,26 @@
 | 被挤标记记下与清掉 | ✅ | — | — | 没测到（真机要另一处登录同账号，只在夜间、主会话批） |
 | 代录登录只存桥本机 | ✅ | — | 没测到 | 没测到 |
 | 页面（弹窗、「···」、原因文案） | — | — | — | 段 ⑤ 前端做 |
+
+## 段 ⑤：服务端（账本来源、电脑组规则）与连接页前端
+
+服务端（评估 4.8、4.10）：
+- ERP 账本目录（`express.companies.catalog`）每组带 `source`：报这组的电脑全是云端那份（`link_kind = cloud`）才算 `cloud`，有本地的就算 `local`。`cc_service._catalog` 把 `cloud` 那组放进 `express_cloud` 标签；已建的、账套只由云端报的公司在 CC 选公司里也归「云端 Express」。「从连接添加」与待建清单的标签加 `express_cloud`。原来两处的云端标签是占位（不取数），现在取数。
+- Cowork：账本目录目前没有按电脑区分的字段（可达行在池里），本段只做 ERP；Cowork 的「云端 Express」标签仍要等它的目录带上报告电脑——**未做，记为剩余项**。
+- 电脑组：死记录规则放在共用契约 `cc_desktop.contracts.dead`（从没报过账本、不在线满 7 天）。ERP 电脑列表不列死记录、带 `last_seen` 与云端 `link`、不在线的能管公司的人可移除（`masters.cc_companies.remove_computer`，在线的拒，产品声明 `connect.remove_computer`）；共用机器通道登记新电脑时顺带退役死记录（`cc_desktop.devices.retire_dead`，`retired_by = auto`，回来走现有 rejoin）。Cowork 电脑列表不列 Express 上的死记录、同一台挂 Express 与 MR.ERP 两条连接的合成一行（`adapters`）。**Cowork 登记时顺带退役死记录未做**：Cowork 的移除要按「连接 → 密钥 → 电脑」顺序加锁吊销各把密钥（`credentials.remove_device`），放进登记事务里有锁序风险，单列剩余项。
+
+前端（按用户 11-24 审定的草图）：
+- 设置 → 连接：三组「站点 → 账本 → 电脑」；站点行去掉下面的「Express」小字。账本组：MR.ERP（授权过：名下授权人、「● 已连接 + ···」重新登录 / 授权详情；没授权：「连接」）→ 本地 Express（名下「N 个文件夹」，文件夹默认收起、点行展开；没找到 Express 时直接展开）→ 云端 Express（名下云端主机名，「● 状态 + ···」；展开：云端报的数据文件夹与账套数、「重新查找」「添加文件夹…」手填路径弹窗；「···」：重新登录、代录登录、云端安装命令兜底、主机 · 账号与云端 CC 版本、断开）。
+- 连接弹窗：新桌面版（`connect_dialog`）地址、用户名、密码一个弹窗，点一次「连接」，弹窗里显示「正在连接…」、连上即关、登录失败写原因、被挤写「账号已在别处登录」；记住了的密码框显示圆点占位、留空即用存的。旧桌面版照旧弹原生小窗。
+- 电脑组：名下写连着哪几种（本地 Express · MR.ERP），云端那台写「云端 Express · 经 <桥电脑名>」，同名两条补版本；移除接口按产品声明。
+- 「Express」改名「本地 Express」：CC 设置、CC 选公司标签、ERP「从连接添加」标签（用户 11-24 当面同意）。原来这三处是写死的产品名、不是词条，改成新词条后 check-copy 记为新增（不触发 R-CHG），所以 `copy-approved.tsv` 不需要登记；同意依据记在这里。
+- 草图没覆盖、这次也没加的：自动安装的「正在安装」（段 ③，等 V1）。
+
+文案（`check-copy --report` 新增 18 条，拦截 0）：站点 / 账本 / 本地 Express / N 个文件夹 / N 个账套 / 重新登录 / 代录登录 / 路径 / 未找到 Express / 路径不可用 / 用户名或密码不正确 / 密码已过期 / 账号不可用 / 经 <电脑名>，四语齐。
+
+证据：
+| 项 | 离线 | 假环境 | 测试机1 | 真机 |
+| --- | --- | --- | --- | --- |
+| ERP 账本来源与云端标签、电脑列表规则、移除、登记退役死记录 | ✅ `tests/test_erp_cc_companies.py`、`tests/test_cc_desktop_channel.py`（仿 frappe） | 候选离线（生产镜像）见提交说明 | 没测到 | 没测到 |
+| Cowork 电脑合一行、死记录 | 要真 frappe：`tests/test_cowork_folder_computers.py` 在候选离线里跑 | 同左 | 没测到 | 没测到 |
+| 连接页三组、改名、收起、弹窗、电脑行小字 | ✅ `tests/test_cc_cloud_express.py`、`tests/test_assistant_ui.py`（node 渲染）、`tests/test_mrerp_login_pages.py`、前端闸门、构建 | 受影响流程 cc.settings / cc.companies / erp.company.connect 等**没跑**（本机实验栈） | 没测到 | 没测到 |

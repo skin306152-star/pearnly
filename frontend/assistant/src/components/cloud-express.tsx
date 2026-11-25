@@ -1,18 +1,18 @@
-// 「云端 Express」（用户 11-16 同意的示意；施工短版步 E）：CC 桌面版「设置 → 连接」里 Express 那一组下面一行。
+// 「云端 Express」（第二阶段，用户 11-24 审定草图 express-cloud-连接页草图.html）：CC 桌面版「设置 → 连接 → 账本」里第三行。
 //
-//   CloudExpressRow     — 「云端 Express」+ 主机，下面一行状态（未连接 / 正在连接 / 已连接 / Express 登录失败 / 账号已在别处登录），
-//                         右边「连接」，有连接时行尾「···」：重新查找、断开连接。连上后云端那份 CC 报上来的位置是只读行（没有「添加文件夹」）；
-//                         桥现在还没有这条数据（places 恒为空），只留结构。状态只读桥的 cloud_status，失败不自动重试。
-//   CloudExpressConnect — 点「连接」的弹窗（同 MR.ERP 连接弹窗）：地址、账号 +「取消 / 连接」。地址、账号由桥预填
-//                         （cloud_prefill：已存的连接，或本机 TSplus 的 Session.rdp），看得见、能改，读不到就空着。
-// 密码不在网页上收（ADR-026 第 7 条，同 MR.ERP / Express 授权；tests/test_mrerp_login_pages.py 守着「对话页没有密码框」）：
-// 点「连接」后桥（cloud_connect）弹 CC 桌面版原生小窗收账号和密码（账号预填这里的），只存这台电脑的凭据管理器；
-// 页面只拿到成没成。旧版 CC 桌面版没有这几个桥动作（cloud_status 回 ok: false），不出这一行。
-//   CloudPairing        — 连接成功后（或「···」→ 云端安装命令）行下面一块：桥 cloud_pair_begin 回的那一行命令（等宽、整行可选、框内换行）、
-//                         复制、剩余时间（按 expires 倒计时）；到 0 或配对被拒显示「已过期」+「重新生成」（再调 cloud_pair_begin）；
-//                         cloud_pair_status 报 paired 即收起。命令（含一次性令牌）只在这块的 state 里，不存、不记日志、不发服务端，卸载即丢。
+//   CloudExpressRow     — 「云端 Express」，名下小字是云端主机名；右边「● 状态 + ···」（还没连过时是「连接」）。点行展开：云端那份
+//                         CC 报上来的数据文件夹（一行一个，下面小字账套数）+「重新查找」「添加文件夹…」——同本地 Express 展开后的样子，
+//                         区别只在「添加文件夹」是弹窗里手填云端主机上的路径（这台电脑选不到那里的文件夹）。「···」：重新登录、代录登录、
+//                         云端安装命令（自动安装做好前的兜底）、主机 · 账号与云端 CC 版本（只读两行）、断开。
+//   CloudExpressConnect — 连接弹窗，同 MR.ERP 一样一个弹窗里填地址、用户名、密码，点一次「连接」，正在连接 / 已连接 / 失败原因都写在弹窗里；
+//                         输过一次就记住（桥存本机凭据管理器），以后开机自动连。桌面版没有 connect_dialog（旧版）时不出密码框，
+//                         桥照旧弹原生小窗收。
+//   CloudOperatorLogin  — 「代录登录」：云端那本 Express 的用户名、密码，同一种弹窗，只存这台电脑（桥本机凭据管理器）。
+//   CloudAddPlace       — 「添加文件夹…」：手填云端主机上的路径，云端那份 CC 去核（在不在、是不是 Express），结果写在弹窗里。
+//   CloudPairing        — 云端安装命令块（兜底）：桥 cloud_pair_begin 回的一行命令、复制、剩余时间；过期「重新生成」；配好收起。
+// 密码只经本机桥交出，不存页面状态以外的地方、不进地址栏、不发服务端；关弹窗即丢。
 
-import { CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";
+import { ChevronRightIcon, CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,33 +20,48 @@ import {
 } from "@/components/ui/code-block";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Field, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Marquee } from "@/components/ui/marquee";
 import { Spinner } from "@/components/ui/spinner";
 import { op, st, t } from "@/i18n";
-import type { Desktop } from "@/lib/desktop";
+import { type Desktop, useDesktopFeatures } from "@/lib/desktop";
 
 export type CloudState = "idle" | "connecting" | "connected" | "login_failed" | "replaced";
+export type CloudPlace = { path: string; ledgers: number };
+export type CloudSummary = { version: string; members: string; scan: string; add: { id?: string; code?: string } };
 export type CloudStatus = {
   state: CloudState;
   link: { host: string; port: number; user: string; name?: string } | null;
-  places: string[];
+  places: CloudPlace[];
+  remembered: boolean;
+  reason: string;
+  cloud: CloudSummary | null;
 };
 
 const DEFAULT_PORT = 3389;
 
 /** 桥的 cloud_status 回包 → 这一行要的状态；旧版桥（没有这个动作）回 null，不出这一行。 */
 export function cloudStatus(raw: unknown): CloudStatus | null {
-  const value = (raw ?? {}) as { ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown };
+  const value = (raw ?? {}) as {
+    ok?: boolean; state?: string; link?: CloudStatus["link"]; places?: unknown; remembered?: unknown; reason?: unknown;
+    cloud?: Partial<CloudSummary> | null;
+  };
   if (!value.ok) return null;
   const states: CloudState[] = ["idle", "connecting", "connected", "login_failed", "replaced"];
+  const places = (Array.isArray(value.places) ? value.places : [])
+    .map((item) => (typeof item === "string" ? { path: item, ledgers: -1 } : (item as CloudPlace)))
+    .filter((item): item is CloudPlace => !!item && typeof item.path === "string" && !!item.path);
+  const cloud = value.cloud && typeof value.cloud === "object"
+    ? { version: String(value.cloud.version ?? ""), members: String(value.cloud.members ?? ""), scan: String(value.cloud.scan ?? ""),
+        add: value.cloud.add && typeof value.cloud.add === "object" ? value.cloud.add : {} }
+    : null;
   return {
     state: states.includes(value.state as CloudState) ? (value.state as CloudState) : "idle",
     link: value.link && typeof value.link.host === "string" ? value.link : null,
-    places: Array.isArray(value.places) ? value.places.filter((p): p is string => typeof p === "string") : [],
+    places, remembered: value.remembered === true, reason: typeof value.reason === "string" ? value.reason : "", cloud,
   };
 }
 
@@ -58,6 +73,14 @@ export function cloudStatusLine(state: CloudState): { text: string; tone: string
   if (state === "replaced") return { text: op.reason.account_in_use, tone: "attention" };
   return { text: st.notConnected, tone: "offline" };
 }
+
+/** 登录失败的原因（桥的 reason）：账号或密码不对 / 密码过期 / 账号不可用；认不出写「Express 登录失败」。 */
+export const loginReason = (reason: string) =>
+  (st.loginReason as Record<string, string>)[reason] ?? op.reason.login_failed;
+
+/** 「添加文件夹」的结果（云端 CC 回的 code）→ 弹窗里一行；ok 回空串。 */
+export const addPlaceFailure = (code: string) =>
+  code === "ok" ? "" : code === "not_found" ? st.expressNotFound : st.pathNotUsable;
 
 /** 地址框：主机，端口不是 3389 时写成「主机:端口」。 */
 export const addressOf = (host: string, port?: number) => (host && port && port !== DEFAULT_PORT ? `${host}:${port}` : host);
@@ -94,21 +117,28 @@ export const secondsLeft = (expires: number, now: number) => Math.max(0, Math.ce
 /** 「1:05」。 */
 export const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
-// map: cloud-express
-/** 设置 → 连接里 Express 那一组下面的「云端 Express」一行（只在 CC 桌面版里）。 */
-export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
+/** 跟着桥的 cloud_status：挂上取一次、桥说变了再取。 */
+export function useCloudStatus(api: Desktop): [CloudStatus | null, () => void] {
   const [status, setStatus] = useState<CloudStatus | null>(null);
-  const [open, setOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  // 配对块：null = 不显示；数字变了 = 重新挂一块（重新生成命令）
-  const [pairing, setPairing] = useState<number | null>(null);
   const reload = useCallback(() => void api.call("cloud_status").then((raw) => setStatus(cloudStatus(raw))), [api]);
   useEffect(() => {
     reload();
     return api.onChanged(reload);
   }, [api, reload]);
+  return [status, reload];
+}
+
+// map: cloud-express
+/** 设置 → 连接 → 账本里的「云端 Express」一行（只在 CC 桌面版里）。 */
+export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
+  const [status, reload] = useCloudStatus(api);
+  const [dialog, setDialog] = useState<"" | "connect" | "operator" | "place">("");
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // 配对块：null = 不显示；数字变了 = 重新挂一块（重新生成命令）
+  const [pairing, setPairing] = useState<number | null>(null);
   if (!status) return null;
-  const { link, state, places } = status;
+  const { link, state, places, cloud } = status;
   const line = cloudStatusLine(state);
   const pair = () => setPairing((n) => (n ?? 0) + 1);
   const disconnect = () => {
@@ -119,25 +149,42 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
       reload();
     });
   };
+  const rescan = () => void api.call("cloud_rescan").then(reload);
   return (
     <>
       <div data-marquee-host="" className="cc-settings-row" data-slot="cc-cloud-express-row">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          className="cc-ledger-caret cc-tap"
+          aria-expanded={open}
+          aria-label={st.cloudExpress}
+          disabled={!link}
+          onClick={() => setOpen((v) => !v)}
+          data-slot="cc-cloud-express-toggle"
+        >
+          <ChevronRightIcon />
+        </Button>
         <CloudIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
-          <Marquee as="div" className="truncate text-body">
-            {link ? `${st.cloudExpress} · ${link.name || link.host}` : st.cloudExpress}
-          </Marquee>
-          <span className="cc-status-line text-caption" data-status={line.tone} data-slot="cc-cloud-express-status">
+          <Marquee as="div" className="truncate text-body">{st.cloudExpress}</Marquee>
+          {link && (
+            <Marquee as="div" className="truncate text-muted-foreground text-caption" data-slot="cc-cloud-express-host">
+              {link.name || link.host}
+            </Marquee>
+          )}
+        </div>
+        {link && (
+          <span className="cc-status-line text-body" data-status={line.tone} data-slot="cc-cloud-express-status">
             <span className="cc-status-dot" />
             {line.text}
           </span>
-        </div>
-        {state !== "connected" && state !== "connecting" && (
-          <Button variant="outline" disabled={busy} onClick={() => setOpen(true)} data-slot="cc-cloud-express-connect">
+        )}
+        {!link ? (
+          <Button variant="outline" disabled={busy} onClick={() => setDialog("connect")} data-slot="cc-cloud-express-connect">
             {st.connect}
           </Button>
-        )}
-        {link && (
+        ) : (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon-sm" disabled={busy} aria-label={t("more")} className="cc-tap">
@@ -146,12 +193,22 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
             </DropdownMenuTrigger>
             {/* 同设置里其他菜单：盖在设置弹窗（z 71）上面 */}
             <DropdownMenuContent align="end" className="z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
-              <DropdownMenuItem onSelect={reload}>{st.findAgain}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("connect")} data-slot="cc-cloud-express-relogin">
+                {st.relogin}
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("operator")} data-slot="cc-cloud-express-operator">
+                {st.operatorLogin}
+              </DropdownMenuItem>
               {state === "connected" && (
                 <DropdownMenuItem onSelect={pair} data-slot="cc-cloud-express-pair">
                   {st.installCommand}
                 </DropdownMenuItem>
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="font-normal text-muted-foreground text-caption" data-slot="cc-cloud-express-detail">
+                {`${link.name || link.host} · ${link.user}`}
+                {cloud?.version && <div>{`CC ${cloud.version}`}</div>}
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={disconnect}>
                 {st.disconnect}
@@ -161,26 +218,47 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
         )}
       </div>
       {pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}
-      {/* 云端那份 CC 报上来的 Express 位置：只读（位置在云端那台电脑上改） */}
-      {state === "connected" &&
-        places.map((path) => (
-          <div data-marquee-host="" key={path} className="cc-settings-row text-body" data-slot="cc-cloud-express-place">
-            <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
-            <Marquee className="min-w-0 flex-1 truncate" title={path}>
-              {path}
-            </Marquee>
+      {/* 展开：云端那份 CC 报上来的数据文件夹（小字账套数）+「重新查找」「添加文件夹…」，同本地 Express 展开后的样子 */}
+      {open && link && (
+        <div data-slot="cc-cloud-express-places">
+          {places.map((place) => (
+            <div data-marquee-host="" key={place.path} className="cc-settings-row text-body" data-slot="cc-cloud-express-place">
+              <FolderIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
+              <div className="min-w-0 flex-1">
+                <Marquee as="div" className="truncate" title={place.path}>
+                  {place.path}
+                </Marquee>
+                {place.ledgers >= 0 && <div className="text-muted-foreground text-caption">{st.ledgerCount(place.ledgers)}</div>}
+              </div>
+            </div>
+          ))}
+          {!places.length && cloud?.members === "no_books" && (
+            <p className="py-(--cc-space-12) text-muted-foreground text-body">{st.expressNotFound}</p>
+          )}
+          <div className="cc-settings-row justify-end">
+            <Button variant="outline" disabled={state !== "connected"} onClick={rescan} data-slot="cc-cloud-express-rescan">
+              {st.findAgain}
+            </Button>
+            <Button variant="outline" disabled={state !== "connected"} onClick={() => setDialog("place")}
+              data-slot="cc-cloud-express-add-place">
+              {st.addFolder}
+            </Button>
           </div>
-        ))}
-      {open && (
+        </div>
+      )}
+      {dialog === "connect" && (
         <CloudExpressConnect
           api={api}
           onClose={(connected) => {
-            setOpen(false);
-            if (connected) pair();
+            setDialog("");
+            // 云端那份 CC 还没报过状态（没装好）：给出安装命令（自动安装做好前的兜底）
+            if (connected && !cloud) pair();
             reload();
           }}
         />
       )}
+      {dialog === "operator" && <CloudOperatorLogin api={api} onClose={() => setDialog("")} />}
+      {dialog === "place" && <CloudAddPlace api={api} onClose={() => { setDialog(""); reload(); }} />}
     </>
   );
 };
@@ -270,11 +348,16 @@ export const CloudPairing: FC<{ api: Desktop; onDone: () => void }> = ({ api, on
   );
 };
 
-/** 「连接 云端 Express」弹窗：地址、账号由桥预填；密码由桥弹的原生小窗收，页面不经手。 */
+/** 连接弹窗：地址、用户名由桥预填（已存的连接，或本机 TSplus 的 Session.rdp），密码在这里填；新桌面版（connect_dialog）一个弹窗点一次
+ *  「连接」，结果写在弹窗里；记住了的密码不用再填（桥用存的）。旧桌面版不出密码框，桥弹原生小窗收。 */
 export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolean) => void }> = ({ api, onClose }) => {
+  const inline = !!useDesktopFeatures().connectDialog;
+  const [status] = useCloudStatus(api);
   const [address, setAddress] = useState("");
   const [user, setUser] = useState("");
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
     let alive = true;
@@ -289,17 +372,36 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
       alive = false;
     };
   }, [api]);
+  // 点了「连接」之后跟着会话：连上就关；登录失败 / 被别处登录挤下就把原因写在弹窗里
+  const state = status?.state;
+  useEffect(() => {
+    if (!waiting || !status) return;
+    if (state === "connected") return onClose(true);
+    if (state === "login_failed") {
+      setWaiting(false);
+      setPassword("");
+      setError(loginReason(status.reason));
+    } else if (state === "replaced") {
+      setWaiting(false);
+      setError(op.reason.account_in_use);
+    }
+  }, [waiting, state, status, onClose]);
   const submit = async () => {
     setBusy(true);
     setError("");
     const { host, port } = splitAddress(address);
-    const result = await api.call("cloud_connect", { host, port, user: user.trim() });
+    const result = inline
+      ? await api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })
+      : await api.call("cloud_connect", { host, port, user: user.trim() });
     setBusy(false);
     // 原生小窗里点了取消：留在弹窗，不报错
     if (result.cancelled) return;
-    if (!result.ok) return setError(st.linkFailed);
-    onClose(true);
+    if (!result.ok) return setError(result.code === "password_required" ? "" : st.linkFailed);
+    if (!inline) return onClose(true);
+    setPassword("");
+    setWaiting(true);
   };
+  const progress = waiting || busy;
   return (
     <Dialog open onOpenChange={(v) => !v && onClose(false)}>
       <DialogContent
@@ -308,7 +410,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
         className="z-(--cc-z-confirm) max-w-(--cc-dialog-w-sm)"
       >
         <DialogHeader>
-          <DialogTitle>{`${st.connect} ${st.cloudExpress}`}</DialogTitle>
+          <DialogTitle>{st.cloudExpress}</DialogTitle>
         </DialogHeader>
         <Field>
           <FieldLabel htmlFor="cc-cloud-express-address">{st.address}</FieldLabel>
@@ -321,7 +423,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
           />
         </Field>
         <Field>
-          <FieldLabel htmlFor="cc-cloud-express-user">{st.account}</FieldLabel>
+          <FieldLabel htmlFor="cc-cloud-express-user">{st.username}</FieldLabel>
           <Input
             id="cc-cloud-express-user"
             value={user}
@@ -330,13 +432,132 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
             data-slot="cc-cloud-express-user"
           />
         </Field>
+        {inline && (
+          <Field>
+            <FieldLabel htmlFor="cc-cloud-express-password">{st.password}</FieldLabel>
+            <Input
+              id="cc-cloud-express-password"
+              type="password"
+              value={password}
+              autoComplete="off"
+              placeholder={status?.remembered ? "••••••••" : undefined}
+              onChange={(e) => setPassword(e.target.value)}
+              data-slot="cc-cloud-express-password"
+            />
+          </Field>
+        )}
         <DialogFooter>
+          {progress && !error && (
+            <span className="me-auto text-muted-foreground text-body" data-slot="cc-cloud-express-progress">
+              {st.connecting}
+            </span>
+          )}
           {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
           <Button variant="outline" onClick={() => onClose(false)}>
             {t("cancel")}
           </Button>
-          <Button disabled={busy || !address.trim()} onClick={() => void submit()}>
+          <Button disabled={progress || !address.trim() || !user.trim()} onClick={() => void submit()}>
             {st.connect}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/** 「代录登录」：云端那本 Express 的用户名、密码，只存这台电脑（桥本机凭据管理器），云端代录要登录时经隧道交过去。 */
+export const CloudOperatorLogin: FC<{ api: Desktop; onClose: () => void }> = ({ api, onClose }) => {
+  const inline = !!useDesktopFeatures().connectDialog;
+  const [user, setUser] = useState("");
+  const [password, setPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const submit = async () => {
+    setBusy(true);
+    setError("");
+    const result = inline
+      ? await api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })
+      : await api.call("cloud_operator_authorize", { connection: "default" });
+    setBusy(false);
+    setPassword("");
+    if (result.cancelled) return;
+    if (!result.ok) return setError(st.mrerpAuthorizeFailed);
+    onClose();
+  };
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent aria-describedby={undefined} data-slot="cc-cloud-operator-dialog"
+        className="z-(--cc-z-confirm) max-w-(--cc-dialog-w-sm)">
+        <DialogHeader>
+          <DialogTitle>{st.operatorLogin}</DialogTitle>
+        </DialogHeader>
+        {inline && (
+          <>
+            <Field>
+              <FieldLabel htmlFor="cc-cloud-operator-user">{st.username}</FieldLabel>
+              <Input id="cc-cloud-operator-user" value={user} autoComplete="off" onChange={(e) => setUser(e.target.value)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="cc-cloud-operator-password">{st.password}</FieldLabel>
+              <Input id="cc-cloud-operator-password" type="password" value={password} autoComplete="off"
+                onChange={(e) => setPassword(e.target.value)} />
+            </Field>
+          </>
+        )}
+        <DialogFooter>
+          {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
+          <Button variant="outline" onClick={onClose}>
+            {t("cancel")}
+          </Button>
+          <Button disabled={busy || (inline && (!user.trim() || !password))} onClick={() => void submit()}>
+            {st.connect}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
+/** 「添加文件夹…」：手填云端主机上的数据文件夹，云端那份 CC 去核；按编号等它回的结果（随 cloud_status），不对就写在弹窗里。 */
+export const CloudAddPlace: FC<{ api: Desktop; onClose: () => void }> = ({ api, onClose }) => {
+  const [status] = useCloudStatus(api);
+  const [path, setPath] = useState("");
+  const [asked, setAsked] = useState("");
+  const [error, setError] = useState("");
+  const answer = status?.cloud?.add;
+  useEffect(() => {
+    if (!asked || answer?.id !== asked) return;
+    const failure = addPlaceFailure(String(answer.code ?? ""));
+    if (!failure) return onClose();
+    setAsked("");
+    setError(failure);
+  }, [asked, answer, onClose]);
+  const submit = async () => {
+    setError("");
+    const result = await api.call("cloud_add_place", { path: path.trim() });
+    if (!result.ok || typeof result.id !== "string") return setError(st.pathNotUsable);
+    setAsked(result.id);
+  };
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent aria-describedby={undefined} data-slot="cc-cloud-add-place-dialog"
+        className="z-(--cc-z-confirm) max-w-(--cc-dialog-w-sm)">
+        <DialogHeader>
+          <DialogTitle>{st.addFolder}</DialogTitle>
+        </DialogHeader>
+        <Field>
+          <FieldLabel htmlFor="cc-cloud-add-place-path">{st.path}</FieldLabel>
+          <Input id="cc-cloud-add-place-path" value={path} autoComplete="off" onChange={(e) => setPath(e.target.value)}
+            data-slot="cc-cloud-add-place-path" />
+        </Field>
+        <DialogFooter>
+          {asked && !error && <Spinner className="me-auto" />}
+          {error && <span role="alert" className="me-auto text-danger text-body">{error}</span>}
+          <Button variant="outline" onClick={onClose}>
+            {t("cancel")}
+          </Button>
+          <Button disabled={!!asked || !path.trim()} onClick={() => void submit()}>
+            {st.addFolder}
           </Button>
         </DialogFooter>
       </DialogContent>

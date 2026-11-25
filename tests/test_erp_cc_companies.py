@@ -362,14 +362,14 @@ class ProviderTests(unittest.TestCase):
         # 欠账 B50）总是声明，浏览器里「连接」那一栏按它出
         mrerp = importlib.import_module("pearnly_erp_portal.mrerp")
         with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", False):
-            self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
+            self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers", "remove_computer": "pearnly_erp_portal.masters.cc_companies.remove_computer"})
         roles = lambda user=None: ["ERP Admin"] if (user or frappe.session.user) == "boss@x" else []  # noqa: E731
         with mock.patch.object(mrerp, "MRERP_LEDGER_ENABLED", True), mock.patch.object(frappe, "get_roles", roles, create=True):
-            self.assertEqual(cc_projects.connect(), {**{"computers": "pearnly_erp_portal.masters.cc_companies.computers"}, "mrerp": "pearnly_erp_portal.mrerp.api."})
+            self.assertEqual(cc_projects.connect(), {**{"computers": "pearnly_erp_portal.masters.cc_companies.computers", "remove_computer": "pearnly_erp_portal.masters.cc_companies.remove_computer"}, "mrerp": "pearnly_erp_portal.mrerp.api."})
             # 开着也只给 ERP 管理员：这一行调的接口只限管理员，别人不出这一行
             frappe.session.user = "staff@x"
             try:
-                self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers"})
+                self.assertEqual(cc_projects.connect(), {"computers": "pearnly_erp_portal.masters.cc_companies.computers", "remove_computer": "pearnly_erp_portal.masters.cc_companies.remove_computer"})
             finally:
                 frappe.session.user = "boss@x"
         hooks = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/hooks.py").read_text(encoding="utf-8")

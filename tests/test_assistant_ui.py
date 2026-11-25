@@ -1534,13 +1534,13 @@ const computer = { adapter: "express", device: "NOTEBOOK-REC", online: true, ver
 const hhmm = new Intl.DateTimeFormat("en", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Bangkok" }).format(at);
 // 文件夹按公司在主档页看（ADR-020，2026-10-15）：网页「连接」每台电脑下不再列文件夹
 assert.deepEqual(text(html(ComputerRow, { row: computer })),
-  ["NOTEBOOK-REC", "Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected"]);
+  ["NOTEBOOK-REC", "Local Express", `Windows blocked the automatic update to v1.5.2 · Yesterday ${hhmm}`, "Connected"]);
 // 服务端存的是 UTC：11:18 UTC = 曼谷 18:18（英文页面是 12 小时制，同对话里的时间）
 assert.match(blockedLine("1.5.2", "2026-10-13T11:18:00+00:00"), / 06:18 PM$/);
 // 没被拦、旧版 CC 桌面版不报：没有这一句
 for (const blocked of [null, undefined]) {
   assert.deepEqual(text(html(ComputerRow, { row: { ...computer, update_blocked: blocked } })).slice(0, 3),
-    ["NOTEBOOK-REC", "Express", "Connected"]);
+    ["NOTEBOOK-REC", "Local Express", "Connected"]);
 }
 """, lang="en")
 
@@ -1550,10 +1550,16 @@ for (const blocked of [null, undefined]) {
 const computer = { adapter: "express", device: "ACC-02", online: false, version: "1.7.0", folders: [] as string[], id: "CCD-2",
   connection: "CWEC-1", can_remove: true };
 const shown = html(ComputerRow, { row: computer, onRemove: () => {} });
-assert.deepEqual(text(shown), ["ACC-02", "Express", "Disconnected"]);
+assert.deepEqual(text(shown), ["ACC-02", "Local Express", "Disconnected"]);
 assert.match(shown, /aria-label="More"/);
 const plain = html(ComputerRow, { row: { ...computer, can_remove: false } });
-assert.deepEqual(text(plain), ["ACC-02", "Express", "Disconnected"]);
+assert.deepEqual(text(plain), ["ACC-02", "Local Express", "Disconnected"]);
+// 云端 Express 第二阶段 4.10：同一台连着 Express 与 MR.ERP 一行写两种；云端那台写「经 <桥电脑名>」；同名两条补版本
+assert.deepEqual(text(html(ComputerRow, { row: { ...computer, adapters: ["express", "mrerp"] } })).slice(0, 2),
+  ["ACC-02", "Local Express · MR.ERP"]);
+assert.deepEqual(text(html(ComputerRow, { row: { ...computer, device: "CLOUD-HOST", link: { kind: "cloud", via: "ACC-01" } } })).slice(0, 2),
+  ["CLOUD-HOST", "Cloud Express · via ACC-01"]);
+assert.deepEqual(text(html(ComputerRow, { row: computer, twin: true })).slice(0, 2), ["ACC-02", "Local Express · 1.7.0"]);
 assert.doesNotMatch(plain, /aria-label="More"/);
 """, lang="en")
 

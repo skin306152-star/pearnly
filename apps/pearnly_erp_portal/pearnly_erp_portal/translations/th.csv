@@ -878,6 +878,7 @@ Listing documents,กำลังดูรายการเอกสาร
 Listing open invoices,กำลังดูใบแจ้งหนี้ค้างชำระ
 Listing stock counts,กำลังดูรายการตรวจนับสต็อก
 Loading...,กำลังโหลด…
+Local Express,Express ในเครื่อง
 Location,ตำแหน่ง
 Location code,รหัสตำแหน่ง
 Locations,รายการตำแหน่ง
@@ -2045,6 +2046,7 @@ company.col.warehouseCode,รหัสคลัง
 company.connect.add,เพิ่มจากการเชื่อมต่อ
 company.connect.added,เพิ่มแล้ว
 company.connect.expressCloud,Express บนคลาวด์
+company.connect.expressLocal,Express ในเครื่อง
 company.connect.title,เลือกบริษัทที่จะใช้
 company.disable,ปิดใช้งาน
 company.docPrefixHint,บันทึกไว้ก่อน เลขที่เอกสารยังออกตามกติกาการออกเลข

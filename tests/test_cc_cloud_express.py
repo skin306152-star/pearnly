@@ -25,35 +25,47 @@ def read(path):
 
 
 class CloudExpressRow(unittest.TestCase):
-    def test_the_row_sits_under_the_express_places_in_the_desktop_connections(self):
+    def test_the_connections_page_has_three_groups_in_a_fixed_order(self):
+        # 用户 11-24 审定：站点 → 账本（MR.ERP → 本地 Express → 云端 Express）→ 电脑；站点行下不再写「Express」小字
         settings = read(SETTINGS)
         connections = settings.split("function Connections(", 1)[1].split("\nfunction ", 1)[0]
         self.assertEqual(settings.count("<CloudExpressRow api={api} />"), 1)
-        self.assertIn("<CloudExpressRow api={api} />", connections)
-        # 在「Express 位置」各行之后、以前授权的文件夹之前
-        self.assertLess(connections.index('"remove_place", { path }'), connections.index("<CloudExpressRow"))
-        self.assertLess(connections.index("<CloudExpressRow"), connections.index("companyFolders && legacy.length > 0"))
+        order = ["<Heading>{st.groupSite}</Heading>", 'data-slot="cc-site-row"', "<Heading>{st.groupLedgers}</Heading>",
+                 "<MrerpRow />", 'data-slot="cc-local-express-row"', "<CloudExpressRow api={api} />",
+                 "<PoolComputers inDesktop />"]
+        places = [connections.index(item) for item in order]
+        self.assertEqual(places, sorted(places), order)
+        self.assertNotIn("const kinds =", connections)
         self.assertIn('import { CloudExpressRow } from "@/components/cloud-express";', settings)
+
+    def test_local_express_is_renamed_and_its_folders_start_collapsed(self):
+        settings = read(SETTINGS)
+        connections = settings.split("function Connections(", 1)[1].split("\nfunction ", 1)[0]
+        self.assertIn("const [localOpen, setLocalOpen] = useState(false);", connections)
+        self.assertIn("{st.localExpress}", connections)
+        self.assertIn("{(localOpen || !roots.length) && (roots.length > 0", connections)
+        self.assertIn("{placesFeature && (localOpen || !roots.length) &&", connections)
+        self.assertIn("st.folderCount(", connections)
 
     def test_each_state_shows_an_existing_status_word(self):
         text = read(ROW)
-        line = text.split("export function cloudStatusLine(", 1)[1].split("\n}\n", 1)[0]
-        for state, word, tone in (
-            ('"connecting"', "st.status.connecting", '"connecting"'),
-            ('"connected"', "st.status.online", '"online"'),
-            ('"login_failed"', "op.reason.login_failed", '"attention"'),
-            ('"replaced"', "op.reason.account_in_use", '"attention"'),
-        ):
+        line = text.split("export function cloudStatusLine", 1)[1].split("\n}\n", 1)[0]
+        for state, word, tone in (('"connecting"', "st.status.connecting", '"connecting"'),
+                                  ('"connected"', "st.status.online", '"online"'),
+                                  ('"login_failed"', "op.reason.login_failed", '"attention"'),
+                                  ('"replaced"', "op.reason.account_in_use", '"attention"')):
             self.assertIn(f"if (state === {state}) return {{ text: {word}, tone: {tone} }};", line)
         self.assertIn('return { text: st.notConnected, tone: "offline" };', line)
-        self.assertIn('className="cc-status-line text-caption" data-status={line.tone}', text)
+        self.assertIn('className="cc-status-line text-body" data-status={line.tone}', text)
         self.assertIn('<span className="cc-status-dot" />', text)
-        # 已连接 / 正在连接时不出「连接」；有连接才有「···」（重新查找、断开连接）
-        self.assertIn('{state !== "connected" && state !== "connecting" && (', text)
+
+    def test_the_more_menu_has_relogin_operator_login_detail_and_disconnect(self):
+        text = read(ROW)
         menu = text.split("<DropdownMenuContent", 1)[1].split("</DropdownMenuContent>", 1)[0]
-        self.assertIn("<DropdownMenuItem onSelect={reload}>{st.findAgain}</DropdownMenuItem>", menu)
+        order = ["{st.relogin}", "{st.operatorLogin}", "{st.installCommand}", "`${link.name || link.host} · ${link.user}`",
+                 "`CC ${cloud.version}`", "{st.disconnect}"]
+        self.assertEqual([menu.index(item) for item in order], sorted(menu.index(item) for item in order))
         self.assertIn('<DropdownMenuItem variant="destructive" onSelect={disconnect}>', menu)
-        self.assertIn("{st.disconnect}", menu)
 
     def test_old_desktops_without_the_actions_get_no_row(self):
         text = read(ROW)
@@ -64,19 +76,25 @@ class CloudExpressRow(unittest.TestCase):
         text = read(ROW)
         self.assertIn('api.call("cloud_status")', text)
         self.assertIn('api.call("cloud_prefill")', text)
+        # 新桌面版（connect_dialog）：一个弹窗交地址、用户名、密码（只在填了时带），带 inline；旧版不带密码、桥弹原生小窗
+        self.assertIn('api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })', text)
         self.assertIn('api.call("cloud_connect", { host, port, user: user.trim() })', text)
+        self.assertIn('api.call("cloud_operator_authorize", { connection: "default", inline: true, username: user.trim(), password })', text)
+        self.assertIn('api.call("cloud_rescan")', text)
+        self.assertIn('api.call("cloud_add_place", { path: path.trim() })', text)
         self.assertIn('api.call("cloud_disconnect")', text)
-        self.assertEqual(set(re.findall(r'api\.call\("(\w+)"', text)),
-                         {"cloud_status", "cloud_prefill", "cloud_connect", "cloud_disconnect",
-                          "cloud_pair_begin", "cloud_pair_status"})
-        # 失败照实写在弹窗里，不排重试；原生小窗取消不报错
+        self.assertIn("const inline = !!useDesktopFeatures().connectDialog;", text)
         self.assertIn("if (result.cancelled) return;", text)
-        self.assertIn("if (!result.ok) return setError(st.linkFailed);", text)
-        # 唯一的计时器是配对块的倒计时（每秒一次、只在命令就绪时）；没有延时重试
         self.assertNotIn("setTimeout", text)
-        self.assertEqual(text.count("setInterval("), 1)
-        self.assertIn("const tick = setInterval(() => setNow(Date.now()), 1000);", text)
-        self.assertIn('if (pair.phase !== "ready") return;', text)
+
+    def test_the_dialog_shows_progress_and_the_login_failure_reason(self):
+        text = read(ROW)
+        dialog = text.split("export const CloudExpressConnect: FC", 1)[1].split("\n};\n", 1)[0]
+        self.assertIn('if (state === "connected") return onClose(true);', dialog)
+        self.assertIn("setError(loginReason(status.reason));", dialog)
+        self.assertIn("setError(op.reason.account_in_use);", dialog)
+        self.assertIn("{st.connecting}", dialog)
+        self.assertIn('placeholder={status?.remembered ? "••••••••" : undefined}', dialog)
 
     def test_prefill_is_shown_and_editable(self):
         text = read(ROW)
@@ -86,25 +104,26 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn("onChange={(e) => setAddress(e.target.value)}", dialog)
         self.assertIn("onChange={(e) => setUser(e.target.value)}", dialog)
         self.assertIn("{st.address}", dialog)
-        self.assertIn("{st.account}", dialog)
+        self.assertIn("{st.username}", dialog)
         self.assertIn('{t("cancel")}', dialog)
-        self.assertIn("{st.connect}", dialog)
 
-    def test_no_password_in_the_page_or_in_any_persisted_state(self):
+    def test_passwords_stay_in_the_dialog_and_are_never_persisted(self):
         text = read(ROW)
-        self.assertNotRegex(text, r'type=["{]?["\']?password')
         code = re.sub(r"//[^\n]*", "", text)
-        self.assertNotRegex(code.lower(), r"password")
         for persisted in ("localStorage", "sessionStorage", "setPref", "prefs-sync", "managed-agents", "zustand", "indexedDB"):
             self.assertNotIn(persisted, code)
+        # 只有连接弹窗与代录登录弹窗有密码框，提交后清空
+        self.assertEqual(len(re.findall(r'type="password"', text)), 2)
+        self.assertGreaterEqual(code.count('setPassword("")'), 2)
 
-    def test_cloud_places_are_read_only(self):
+    def test_cloud_places_show_ledger_counts_with_rescan_and_add_folder(self):
         text = read(ROW)
-        places = text.split("places.map((path) => (", 1)[1].split("))}", 1)[0]
-        self.assertNotIn("addFolder", text)
+        places = text.split("places.map((place) => (", 1)[1].split("))}", 1)[0]
+        self.assertIn("st.ledgerCount(place.ledgers)", places)
         self.assertNotIn("remove", places)
-        self.assertNotIn("Button", places)
-        self.assertIn('{state === "connected" &&', text)
+        self.assertIn('data-slot="cc-cloud-express-rescan"', text)
+        self.assertIn('data-slot="cc-cloud-express-add-place"', text)
+        self.assertIn("{open && link && (", text)
 
     def test_address_helpers(self):
         text = read(ROW)
@@ -120,7 +139,7 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn('from "@/components/ui/dropdown-menu"', text)
         self.assertIn('from "@/components/ui/input"', text)
         self.assertNotRegex(text, r"<(button|input)(?=[\s>/])")
-        self.assertIn('import { CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";', text)
+        self.assertIn('import { ChevronRightIcon, CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";', text)
 
     def test_new_words_have_four_languages(self):
         text = read(I18N)
@@ -129,7 +148,10 @@ class CloudExpressRow(unittest.TestCase):
                     'cloudExpress: "Express บนคลาวด์", address: "ที่อยู่", account: "บัญชี",',
                     'cloudExpress: "クラウド Express", address: "アドレス", account: "アカウント",'):
             self.assertEqual(text.count(row), 1, row)
-
+        self.assertEqual(text.count("localExpress:"), 8)   # 设置与公司两组词条各四语
+        for key in ("groupSite:", "groupLedgers:", "folderCount:", "ledgerCount:", "relogin:",
+                    "operatorLogin:", "expressNotFound:", "pathNotUsable:", "loginReason:", "through:"):
+            self.assertEqual(text.count(key), 4, key)
 
 
 def pairing_block(text):
@@ -139,7 +161,7 @@ def pairing_block(text):
 class CloudPairingBlock(unittest.TestCase):
     def test_shown_after_connect_and_from_the_menu(self):
         text = read(ROW)
-        self.assertIn("if (connected) pair();", text)
+        self.assertIn("if (connected && !cloud) pair();", text)   # 云端那份 CC 还没报过状态（没装好）才给命令
         self.assertIn("onClose(true);", text)
         self.assertIn('<Dialog open onOpenChange={(v) => !v && onClose(false)}>', text)
         self.assertIn("{pairing !== null && <CloudPairing key={pairing} api={api} onDone={() => setPairing(null)} />}", text)
@@ -216,8 +238,8 @@ class CloudPairingBlock(unittest.TestCase):
         text = read(ROW)
         code = re.sub(r"//[^\n]*", "", text)
         self.assertNotRegex(code, r"console\.|fetch\(|localStorage|sessionStorage|navigator\.sendBeacon|reportCaught|withReport")
-        self.assertNotRegex(code.lower(), r"password")
-        self.assertNotRegex(code, r'type=["{]?["\']?password')
+        # 配对块里没有密码（密码框只在连接 / 代录登录弹窗，见 CloudExpressRow 的守护）
+        self.assertNotRegex(pairing_block(code).lower(), r"password")
         # 卸载即丢：命令只在 CloudPairing 的 state 里
         self.assertIn('const [pair, setPair] = useState<Pair>({ phase: "preparing" });', text)
         self.assertEqual(code.count("pair.command"), 2)
