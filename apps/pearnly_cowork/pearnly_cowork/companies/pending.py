@@ -73,7 +73,9 @@ def classify(row, cutoff, unknown=frozenset()) -> str | None:
         # 状态不变（空，或上一次的失败）——都是要人选，不能当成「失败、请重新提交」（2026-10-15 验收 F12）
         return "choice_needed"
     if status == "manual":
-        if row.get("last_push_record") in unknown or "RESULT_UNKNOWN" in reason.upper():
+        from pearnly_cowork.push import unknown as push_unknown
+
+        if push_unknown.is_unknown(row, unknown):   # 同录入列表「结果不明」的判据（11-25）
             return "result_unknown"
         return "manual"
     if reason:
@@ -490,11 +492,9 @@ def _candidates(*, permitted=True, limit=PENDING_MAX, search="") -> list:
 
 
 def _unknown(rows) -> frozenset:
-    names = [row.last_push_record for row in rows if row.get("last_push_status") == "manual" and row.get("last_push_record")]
-    if not names:
-        return frozenset()
-    return frozenset(frappe.get_all(PUSH_RECORD, filters={"name": ["in", names], "result_unknown": 1}, pluck="name",
-                                    limit_page_length=0))
+    from pearnly_cowork.push import unknown as push_unknown
+
+    return push_unknown.records([row.last_push_record for row in rows if row.get("last_push_status") == "manual"])
 
 
 def _reason_label(code, reason, row=None):

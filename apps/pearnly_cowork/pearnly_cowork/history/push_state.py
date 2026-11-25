@@ -14,6 +14,7 @@ EVENT = 'cowork_intake_changed'
 HOOK = 'cowork_push_state_changed'
 # 票的行在读的时候补上推送账本此刻才知道的只读标记（hooks.py；现在只有「在等 Express 关闭」→ ``push_waiting``）。
 MARKS = 'cowork_history_push_marks'
+FILTERS = 'cowork_history_push_filters'  # 列表「推送状态」筛选里要推送域判的那几档（结果不明）
 # 票上记的推送原因最多多长：同写账回执规则 `ack_rules.OPERATOR_REASON_MAX`（代录回执带 AI 接手的完整结论，
 # 测试守住两边一致）；history 域不导入回执规则
 REASON_MAX = 2100
@@ -36,6 +37,14 @@ def marked(rows):
     for path in frappe.get_hooks(MARKS) or []:
         frappe.get_attr(path)(rows)
     return rows
+
+
+def state_filters(state):
+    """录入列表「推送状态」筛选里要推送域判的那几档（``failed`` / ``unknown``）→ (且条件, 或条件)：交给登记了
+    ``cowork_history_push_filters`` 的入口（推送域按推送记录判结果不明）；没有登记回两个空表。"""
+    for path in frappe.get_hooks(FILTERS) or []:
+        return frappe.get_attr(path)(state)
+    return [], []
 
 
 def _announce(history):

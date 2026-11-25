@@ -76,8 +76,10 @@ def records(workspace, staged=0, start=0, limit=50):
 
 
 # 列表「推送状态」筛选（2026-10-07）：与状态列同一口径 —— 失败 = 转人工，或还没进推送账本就停下（只有原因、没有状态）。
+# 结果不明（11-25）单列一档：从失败里去掉、按推送域的判据筛（`push_state.state_filters`，同状态列的 ``push_unknown``）
 PUSH_STATES = {"failed": [["last_push_status", "=", "manual"], ["last_push_reason", "is", "set"]],
-               "pending": [["last_push_status", "=", "pending"]], "success": [["last_push_status", "=", "success"]]}
+               "pending": [["last_push_status", "=", "pending"]], "success": [["last_push_status", "=", "success"]],
+               "unknown": []}
 
 
 @frappe.whitelist()
@@ -105,7 +107,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     筛选与排序都在这条 SQL 上做（列表是服务端分页的）：`sort_by` 只认白名单里的
     字段，认不出的退回默认排序，不把前端传来的字符串直接拼进 SQL。
     """
-    from pearnly_cowork.history.push_state import marked  # 本函数有同名参数 push_state（筛选值），只取这一个函数
+    from pearnly_cowork.history.push_state import marked, state_filters  # 本函数有同名参数 push_state（筛选值），只取这两个函数
     from pearnly_core.express_rules.contracts.history import normalize_posting_kind
 
     scope.require_read()
@@ -125,6 +127,9 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     if or_filters and len(or_filters) == 1:
         filters[or_filters[0][0]] = or_filters[0][2]
         or_filters = None
+    # 失败去掉结果不明、结果不明单筛（且条件并进下面的条件表，或条件替换 / 沿用）
+    unknown_and, unknown_or = state_filters(str(push_state or "")) if str(push_state or "") in ("failed", "unknown") else ([], [])
+    or_filters = unknown_or or or_filters
     order_by = "modified desc, name desc"
     if source_file:
         filters["source_file"] = str(source_file)
@@ -136,7 +141,7 @@ def workbench(staged=None, quality_status=None, posting_kind=None,
     # 与上面的排序无关：排序照旧（验收 10-25：这里曾截走排序那一支，有条件时列头排序失效）
     from pearnly_core.desk import list_filters
 
-    extra = list_filters.conditions(conditions, {"posting_kind": "posting_kind", "invoice_date": "invoice_date"})
+    extra = list_filters.conditions(conditions, {"posting_kind": "posting_kind", "invoice_date": "invoice_date"}) + unknown_and
     if extra:
         filters = [[key, *value] if isinstance(value, list) else [key, "=", value] for key, value in filters.items()] + extra
     fields = ["name", "client", "source", "staged", "record_version", "invoice_no",

@@ -38,7 +38,9 @@
 		// 还没进推送账本就失败（目标不可用等）的票没有推送状态、只有原因：显示「失败」（用户 2026-09-26）。
 		// 「仅识别」的票（`intake_target` 为 `none`，识别后导出、不推送）：蓝色「已识别」，表示识别完成、可以导出；
 		// 导出不另记状态。识别后的需复核原因不在列表显示（用户 2026-10-02），服务端照样算、作内部质量信号。
-		const push_status = (status, row) => (status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
+		// 结果不明（写没写进去不知道，服务端按推送记录判的 `push_unknown`）不并进失败：黄色「结果不明」（主会话 11-25）
+		const push_status = (status, row) => (row?.push_unknown ? ["orange", () => __("Result unknown")]
+			: status ? PUSH_STATUS[status] || ["red", () => __("connect.records.failed")]
 			: /^document_policy_skip_/.test(String(row?.last_push_reason || "")) ? ["gray", () => __("cowork.policy.skipped")]
 			: row?.last_push_reason ? ["red", () => __("connect.records.failed")]
 			: row?.intake_target === p.intake_targets?.RECOGNIZE_ONLY ? ["blue", () => t("intake.status.recognized")]
@@ -81,6 +83,7 @@
 			frappe.route_options = null;
 			const push_filter = page.add_field({fieldtype: "Select", fieldname: "push_state", label: t("intake.col.status"),
 				options: [{value: "", label: __("All")}, {value: "failed", label: __("connect.records.failed")},
+					{value: "unknown", label: __("Result unknown")},
 					{value: "pending", label: t("intake.push.pending")}, {value: "success", label: __("connect.records.success")}],
 				default: preset, change: () => void list?.reload()});
 			if (preset) push_filter.set_value(preset);

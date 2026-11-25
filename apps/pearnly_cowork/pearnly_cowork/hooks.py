@@ -496,7 +496,8 @@ cowork_push_account_history = ["pearnly_cowork.readback.history.for_push"]
 # 代录事件源（共用层，统一对话框架 14.2）：这张票属于哪个还在跑的代录任务，就提交后以任务主人身份收尾一次并推事件（只读产品）
 # 录入列表 / 详情读票时补的只读标记（`history.push_state.marked`；history 不导入 push）：推送此刻在等 Express 关闭的
 # 多带 ``push_waiting``，网页据此显示现成那句 ``intake.error.ACCOUNT_BUSY_LOCKED``（11-12；读的时候算，不写票）
-cowork_history_push_marks = ["pearnly_cowork.push.express_wait.mark"]
+cowork_history_push_marks = ["pearnly_cowork.push.express_wait.mark", "pearnly_cowork.push.unknown.mark"]
+cowork_history_push_filters = ["pearnly_cowork.push.unknown.list_filters"]
 cowork_push_state_changed = ["pearnly_cowork.folder_intake.events.pushed", "pearnly_core.express_operator.feed.receipt",
                              "pearnly_cowork.line.save.pushed"]
 pearnly_ocr_failure_handlers = {"cowork.invoice": "pearnly_cowork.line.intake.ocr_failed"}

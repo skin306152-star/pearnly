@@ -627,9 +627,11 @@
 			} else if (waiting) $("<div class='form-message blue'>").text(waiting).appendTo(wrapper);
 			if ((record?.last_push_reason && (pushed === "manual" || !pushed)) || many) {
 				const reason = String(record.last_push_reason || ACCOUNT_SET_AMBIGUOUS);
-				const row = $(`<div class='form-message ${POLICY_SKIPPED.test(reason) ? "blue" : "red"}'>`).appendTo(wrapper);
-				$("<span>").text(p.intake_push_reason(reason)).appendTo(row);
-				if (RESULT_UNKNOWN.test(String(record.last_push_reason)) && record.last_push_record) {
+				// 结果不明（服务端按推送记录判的 `push_unknown`，同录入列表；旧码照旧认）：黄条、先写「结果不明」，给「核对」（11-25）
+				const unknown = Boolean(record.push_unknown) || RESULT_UNKNOWN.test(String(record.last_push_reason));
+				const row = $(`<div class='form-message ${POLICY_SKIPPED.test(reason) ? "blue" : unknown ? "yellow" : "red"}'>`).appendTo(wrapper);
+				$("<span>").text([unknown ? __("Result unknown") : "", p.intake_push_reason(reason)].filter(Boolean).join(" · ")).appendTo(row);
+				if (unknown && record.last_push_record) {
 					$("<button type='button' class='btn btn-xs btn-default ml-2'>").text(__("cowork.unknown.check"))
 						.on("click", () => void resolve_unknown(record)).appendTo(row);
 				}
