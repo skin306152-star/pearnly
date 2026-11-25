@@ -47,6 +47,7 @@ def judge(params, results, camera_code=None):
         {"case": "允许卡点「允许」→ 结果卡「成功」、已删除 1 条", "seen": done,
          "ok": bool(done.get("enabled")) and done.get("status") == "done" and done.get("result") == "entered"
          and "已删除 1 条" in (done.get("text") or "")},
+        lib.no_internal_case(done),
     ]
 
 

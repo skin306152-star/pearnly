@@ -57,6 +57,8 @@ def _pending_confirm(ctx, values, draft, consent) -> dict:
     from pearnly_erp_portal.express import guide_documents
 
     document = str(values["item"])
+    # 结果卡写「单号 · 对方」（交出前清单里那一行的名字；交出后多半已不在待处理里），不写内部编号（主会话 11-25）
+    shown = next(iter(item_options(ctx, codes=[document])["options"]), None)
     business = guide_documents.direction_of(document)
     if not business:
         return {"returned": {"item": {"reason": "not offered"}}}
@@ -66,7 +68,7 @@ def _pending_confirm(ctx, values, draft, consent) -> dict:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"returned": {"item": {"reason": "pending_refused", "text": _(str(error))[:300]}}}
-    return {"status": "entered", "docnum": document, "next": {"run": started.get("run"), "business": business}}
+    return {"status": "entered", "docnum": (shown or {}).get("name") or "", "next": {"run": started.get("run"), "business": business}}
 
 
 # ── 单据（总表第 14 行单据维护，评估 docs/work/2026-11-24-cc-guided-documents-评估.md，主会话 11-24 审定）──────────────────

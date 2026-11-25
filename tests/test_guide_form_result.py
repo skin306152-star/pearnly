@@ -49,6 +49,11 @@ class FormResult(unittest.TestCase):
         self.assertEqual(result({"status": "failed", "reason": "not_permitted"})["reason_text"], "Not permitted")
         self.assertEqual(result({"status": "failed"})["reason_text"], "Processing error")   # 不露错误编号
 
+    def test_internal_ids_never_reach_the_card(self):
+        for internal in ("S:SD-00122", "I:LI-00110", "CWH-ab12", "a" * 32):
+            self.assertNotIn("docnum", result({"status": "entered", "docnum": internal}), internal)
+        self.assertEqual(result({"status": "entered", "docnum": "IV-9 · Seller"})["docnum"], "IV-9 · Seller")
+
     def test_a_fact_state_after_success_is_shown(self):
         out = result({"status": "entered", "label": "ACME", "state_text": "Syncing"})
         self.assertEqual((out["docnum"], out["reason_text"]), ("ACME", "Syncing"))

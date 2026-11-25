@@ -27,6 +27,7 @@ def judge(params, results, camera_code=None):
         {"case": "确定 → 结果卡「成功」、名字是这条备注的正文（不出内部编号）", "seen": done,
          "ok": done.get("status") == "done" and done.get("result") == "entered" and "成功" in (done.get("text") or "")
          and params["text"] in (done.get("text") or "")},
+        lib.no_internal_case(done),
     ]
 
 

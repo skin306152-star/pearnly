@@ -236,7 +236,7 @@ basis = "ERP 声明 stock_in（form 源，本对话公司下、只限本地 / �
 id = "stocktake"
 name = "盘点"
 guide = "stocktake"
-cowork_direct = ["half:p3"]
+cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["half:p4"]
 erp_operator = ["out:只做直写"]
@@ -395,14 +395,15 @@ basis = "同直写那格的声明（modes 含 operator，清单本来就是对�
 id = "company_info"
 name = "公司资料、记住的选择、知识库"
 guide = "company"
-cowork_direct = ["half:p4"]
+cowork_direct = ["done"]
 cowork_operator = ["out:只做直写"]
 erp_direct = ["half:p4"]
 erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "cowork_direct"
-basis = "Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；没有结果步骤；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步"
+basis = "Cowork 声明 company（form 源，本对话公司：加 / 改 / 删备注、设整个公司记住的选择、删公司规则，走公司页同一组函数；删除走允许卡；结果步骤 = 共用 guide.form_result（11-25 C1，名字是备注正文 / 规则名，删除写条数）；真页面加备注 → 结果卡成功带正文、公司备注里真有（电脑 / 手机）；e827c1d07、46522199a、dd298be7e）；只有离线单测 test_cowork_company_guide，页面流程归第 2 步"
+page_flows = ["cowork.cc.guide.company"]
 
 [[row.link]]
 cell = "erp_direct"

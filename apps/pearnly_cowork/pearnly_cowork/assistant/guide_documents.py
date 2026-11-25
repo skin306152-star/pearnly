@@ -244,7 +244,8 @@ def result(ctx, doc_ids) -> dict:
 
     names = _ids(doc_ids)
     found = {row.name: row for row in frappe.get_all(
-        HISTORY, filters={"name": ["in", names or [""]]}, fields=["name", "last_push_status", "last_push_reason", "last_push_record"],
+        HISTORY, filters={"name": ["in", names or [""]]},
+        fields=["name", "invoice_no", "last_push_status", "last_push_reason", "last_push_record"],
         limit_page_length=len(names) or 1)}
     pushed = [row.last_push_record for row in found.values() if row.last_push_status == "success" and row.last_push_record]
     numbers = {row.name: row.external_docnum for row in frappe.get_all(
@@ -263,7 +264,7 @@ def result(ctx, doc_ids) -> dict:
         if lifecycle.result_unknown(row.last_push_status, row.last_push_reason):
             status = UNCONFIRMED
         wait = wait or status == QUEUED
-        out = {"doc_id": doc_id, "status": status}
+        out = {"doc_id": doc_id, "status": status, **({"doc_no": str(row.invoice_no)} if row.get("invoice_no") else {})}
         if status == ENTERED and numbers.get(row.last_push_record):
             out["docnum"] = str(numbers[row.last_push_record])
         reason = tools._reason(row.last_push_reason) if row.last_push_reason and status != ENTERED else ""

@@ -16,6 +16,7 @@
 """
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Mapping, Optional
 
 import frappe
@@ -24,6 +25,8 @@ from pearnly_core.assistant.guide import reasons
 
 ENTERED, HELD, FAILED = "entered", "held", "failed"
 CARRY = ("files", "next", "marks", "questions", "wait", "total")
+# 站点内部编号（Cowork 识别单 CWH-…、ERP 的 P: / S: / I:、哈希）不上卡（同前端 `isInternalId`，主会话 11-25）
+INTERNAL = re.compile(r"^(CWH-|[PSI]:)|^[0-9a-f]{24,}$", re.IGNORECASE)
 
 
 def _count(value) -> int:
@@ -50,7 +53,8 @@ def result(ctx: Mapping[str, Any], draft: str = "") -> Optional[Dict[str, Any]]:
         if out.get(key) in (None, "", []):
             out.pop(key, None)
     label = str(done.get("label") or done.get("docnum") or "").strip()
-    if label:
+    out.pop("docnum", None)
+    if label and not INTERNAL.search(label):
         out["docnum"] = label
     lines = []
     if "deleted" in done:

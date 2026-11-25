@@ -24,6 +24,7 @@ def judge(params, results, camera_code=None):
         {"case": "确定 → 结果卡「成功」、一份文件", "seen": done,
          "ok": done.get("status") == "done" and done.get("result") == "entered" and "成功" in (done.get("text") or "")
          and done.get("files") == ["stocktake-template.xlsx"]},
+        lib.no_internal_case(done),
     ]
 
 

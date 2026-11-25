@@ -91,7 +91,7 @@ class Base(unittest.TestCase):
         for calls in CALLS.values():
             calls.clear()
         self.docs = {"H1": {"name": "H1", "record_version": 3, "pages": [{"fields": json.loads(json.dumps(FIELDS))}]}}
-        self.history = {"H1": Row(name="H1", last_push_status="success", last_push_reason="", last_push_record="PR1"),
+        self.history = {"H1": Row(name="H1", invoice_no="IV-1", last_push_status="success", last_push_reason="", last_push_record="PR1"),
                         "H2": Row(name="H2", last_push_status="failed", last_push_reason="choice_needed", last_push_record=""),
                         "H4": Row(name="H4", last_push_status="manual", last_push_reason="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
                                   last_push_record="PR4")}
@@ -179,6 +179,7 @@ class Walk(Base):
         found = G.result(CTX, ["H1", "H2", "H3"])
         rows = {row["doc_id"]: row for row in found["rows"]}
         self.assertEqual((rows["H1"]["status"], rows["H1"]["docnum"]), ("entered", "RR0009"))
+        self.assertEqual(rows["H1"]["doc_no"], "IV-1")   # 结果行写票面号，不写内部编号（主会话 11-25）
         self.assertEqual((rows["H2"]["status"], rows["H2"]["reason_text"]), ("failed", "why:choice_needed"))
         self.assertEqual(rows["H3"]["status"], "failed")
         self.assertFalse(found["wait"])

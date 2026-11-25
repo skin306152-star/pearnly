@@ -381,10 +381,10 @@ def result(ctx, doc_ids) -> dict:
         bare = prefix not in DOCUMENT_PREFIXES and _ledgerless(record.company, ledgerless)  # loop-query: 按公司只判一次
         if bare:
             # 这家公司没接任何账本：提交进 ERP 就办完了（同 LINE，主会话 11-24 定），不排写账；原来按写账状态判成「未完成」
-            row = frappe.db.get_value(_DOCTYPES[record.direction], document, ["ledger_state", "system_no"],  # loop-query: 逐张读单号，最多 DOCS_MAX 张
+            row = frappe.db.get_value(NUMBERED[record.direction][0], document, ["ledger_state", "system_no"],  # loop-query: 逐张读单号，最多 DOCS_MAX 张
                                       as_dict=True) or {}
             if not row.get("ledger_state"):
-                rows.append({"doc_id": doc_id, "status": ENTERED, "document": document,
+                rows.append({"doc_id": doc_id, "status": ENTERED, "document": document, "doctype": NUMBERED[record.direction][0],
                              **({"docnum": row["system_no"]} if row.get("system_no") else {})})
                 continue
         # 每张单的写账状态同对话推送结果逐张判（`cc_tools._outcome`）
@@ -392,13 +392,11 @@ def result(ctx, doc_ids) -> dict:
         status = {"entered": ENTERED, "queued": QUEUED, "unconfirmed": UNCONFIRMED}.get(
             outcome.get("status"), FAILED if outcome.get("status") == "failed" else HELD)
         wait = wait or status == QUEUED
-        rows.append({"doc_id": doc_id, "status": status, "document": document,
+        rows.append({"doc_id": doc_id, "status": status, "document": document, "doctype": NUMBERED[record.direction][0],
                      **({"docnum": outcome["docnum"]} if outcome.get("docnum") else {}),
                      **({"reason_text": outcome["reason"]} if outcome.get("reason") else {})})
+    _numbers(rows)
     return {"rows": rows, "wait": wait}
-
-
-_DOCTYPES = {"purchase": "Purchase Document", "sales": "ERP Sales Document"}
 
 
 def _ledgerless(company, seen) -> bool:
@@ -409,6 +407,27 @@ def _ledgerless(company, seen) -> bool:
 
         seen[company] = not push.enabled(company) and not mrerp_push.handles(company)
     return seen[company]
+
+
+# 结果行的单号取哪几列：采购有票面号 doc_no（没有用系统号），销售用系统号
+NUMBERED = {"purchase": ("Purchase Document", ("doc_no",)), "sales": ("ERP Sales Document", ())}
+
+
+def _numbers(rows) -> None:
+    """结果行写用户认得的单号（票面号，没有用网页上的系统号），按单据类型一次取回；内部编号（I: / P: / S:）不上卡（主会话 11-25）。"""
+    by_type: dict = {}
+    for row in rows:
+        if row.get("document") and row.get("doctype"):
+            by_type.setdefault(row["doctype"], []).append(row["document"])
+    shown = {}
+    for doctype, names in by_type.items():
+        fields = ["name", "system_no", *dict(NUMBERED.values())[doctype]]
+        for found in frappe.get_all(doctype, filters={"name": ["in", names]}, fields=fields, limit_page_length=len(names)):
+            shown[(doctype, found.name)] = found.get("doc_no") or found.get("system_no") or ""
+    for row in rows:
+        number = shown.get((row.pop("doctype", ""), row.get("document")))
+        if number:
+            row["doc_no"] = number
 
 
 __all__ = ["DOCUMENT_PREFIXES", "direction_of", "COMPUTED", "ENTERED", "FAILED", "HELD", "NOT_AVAILABLE", "PAYMENT_UNDECIDED", "QUEUED", "UNDECIDED_LINES",

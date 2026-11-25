@@ -27,6 +27,7 @@ import {
 import { ChangeList } from "./approval-bar";
 import { CardFrame, type FrameButton } from "./card-frame";
 import { operatorTitle } from "./guide-operator";
+import { isInternalId } from "./operator-words";
 import { SubQuestionsField } from "./guide-inputs";
 
 /** 卡外框上给流程脚本认的属性（同运行卡）。 */
@@ -371,7 +372,7 @@ const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (
     {result.rows.map((row) => (
       <div key={row.doc_id} className="cc-op-line" data-doc={row.doc_id} data-status={row.status}>
         <span className="min-w-0 flex-1 wrap-break-word">
-          {row.doc_no || row.doc_id}
+          {row.doc_no || (isInternalId(row.doc_id) ? op.untitled : row.doc_id)}
           {row.reason_text || row.reason_code
             ? <span className="block text-(--cc-ink-3)">{row.reason_text || markWord({ code: row.reason_code ?? "" })}</span> : null}
         </span>
@@ -417,7 +418,7 @@ export const GuideResultCard: FC<Props & { head?: ReactNode }> = (props) => {
             ))}
           </span>
           {form.wait ? <Spinner /> : null}
-          <span className="tabular-nums">{[form.docnum, form.total].filter(Boolean).join(" · ")}</span>
+          <span className="tabular-nums">{[form.docnum && !isInternalId(form.docnum) ? form.docnum : "", form.total].filter(Boolean).join(" · ")}</span>
         </div>
         {sessionId && (form.files ?? []).map((file) => (
           <div key={file.file} className="cc-op-line" data-slot="cc-guide-result-file" data-file-name={file.name}>

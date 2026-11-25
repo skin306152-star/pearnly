@@ -8,10 +8,20 @@
 from __future__ import annotations
 
 import json
+import re
 
 import cowork_cc_guide_form_lib as form
 
 USER = form.USER
+
+
+INTERNAL = re.compile(r"(^|[\s·])(CWH-|[PSI]:)\S|[0-9a-f]{24,}", re.IGNORECASE)
+
+
+def no_internal_case(done) -> dict:
+    """结果卡上不出站点内部编号（CWH-…、P: / S: / I:、哈希；主会话 11-25 防回退）。"""
+    text = str((done or {}).get("text") or "")
+    return {"case": "结果卡不出内部编号", "seen": text, "ok": not INTERNAL.search(text)}
 
 
 def run_row(lab, manifest, params, business) -> list:
