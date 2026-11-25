@@ -491,6 +491,51 @@ class OperatorStart(Base):
         self.assertEqual((found["period"], found["stage"]), ("2026-08", documents.ASKING))  # 按新月份重开的那次
         self.assertEqual(self.docs["RUN1"].status, run.EXPIRED)
 
+    def traced(self):
+        # 写与只读判定之间的提交（11-25 实验栈复现：Cowork 判定开头 `require_clean`，答「已入账」/ 改月份重开卡都被 PendingWrites 拒）
+        trail, saved = [], frappe.db
+        frappe.db = types.SimpleNamespace(commit=lambda: trail.append("commit"), rollback=lambda: trail.append("rollback"),
+                                          get_value=saved.get_value)
+        self.addCleanup(setattr, frappe, "db", saved)
+        products = sys.modules["pearnly_core.express_operator"].products
+        check = products.precheck
+        products.precheck = lambda company, ids: trail.append("judge") or check(company, ids)
+        self.addCleanup(setattr, products, "precheck", check)
+        return trail
+
+    def test_a_resolved_ticket_is_committed_before_the_card_is_judged_again(self):
+        self.pre["I:2"] = {"state": "blocked", "reason": "push.result_unknown", "ref": "IV2"}
+        found = self.guide_start.start("TK1")
+        unknown = found["card"]["questions"][0]
+        trail = self.traced()
+        api = sys.modules["pearnly_core.express_operator.api"]
+        api.resolve = lambda company, doc_id, entered: trail.append("resolve")
+        record = documents.record
+        documents.record = lambda *args, **kwargs: trail.append("record") or record(*args, **kwargs)
+        self.addCleanup(setattr, documents, "record", record)
+        self.answer_card(found["run"], [{"key": unknown["key"], "value": "entered"}])
+        self.assertIn("record", trail, trail)
+        self.assertIn("commit", trail[trail.index("resolve"):trail.index("record")], trail)
+
+    def test_a_new_month_is_committed_before_the_card_reopens_and_judges(self):
+        self.sources, self.months = [], [{"month": "2026-08", "count": 25}]
+        found = self.guide_start.start("TK1")
+        [month] = found["card"]["questions"]
+        self.sources = ["I:1"]
+        trail = self.traced()
+        sessions = sys.modules["pearnly_core.assistant.sessions"]
+        move = sessions.move
+        sessions.move = lambda *args, **kwargs: trail.append("move") or move(*args, **kwargs)
+        self.addCleanup(setattr, sessions, "move", move)
+        end = run._end
+        run._end = lambda *args, **kwargs: trail.append("end") or end(*args, **kwargs)
+        self.addCleanup(setattr, run, "_end", end)
+        self.answer_card(found["run"], [{"key": month["key"], "value": "2026-08"}])
+        self.assertIn("judge", trail, trail)
+        first_judge = trail.index("judge")
+        self.assertIn("commit", trail[trail.index("move"):trail.index("end")], trail)
+        self.assertIn("commit", trail[trail.index("end"):first_judge], trail)
+
 
 class LedgerAnswerKept(unittest.TestCase):
     """11-19 回滚审计 P1：卡上选的本对话账套（``ledger.choose``）当场提交，再交产品记其余答案。产品判卡片「只是看」要回滚，

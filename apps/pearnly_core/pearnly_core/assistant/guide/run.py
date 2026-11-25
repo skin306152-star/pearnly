@@ -666,6 +666,8 @@ def _answer_documents(guide: Mapping[str, Any], doc, given: Mapping[str, Any]) -
 
         operator = _docs().state(doc).get("operator") or {}
         _end(doc, EXPIRED, "period")
+        # 这次失效落定再重开（11-25）：重开的卡要按新月份进只读判定（`check_handed`），没提交的失效与月份会让 Cowork 判定拒绝
+        frappe.db.commit()
         return guide_start.start(operator.get("task") or "")
     if found.get("refused"):
         return {**_shown(doc), "outcome": REFUSED, "refused": found["refused"],

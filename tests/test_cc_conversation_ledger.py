@@ -354,6 +354,32 @@ class LedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.of_task("task0009")["id"], T8)
         self.assertIsNone(self.ledger.of_task("task0404"))
 
+    def test_looking_up_the_ledger_never_writes(self):
+        # 11-25：of_session / of_task 是写账判定、写入计划、工具里「此刻写哪本」的查找，调用方随后进只读判定（Cowork 判定开头结束读
+        # 快照，没提交的写就拒：写入计划开始被拒、逐张判时漏到下一张）。补算（旧写法映射、存的失效按默认）只算不存，存留给发消息那条路
+        self.provider.canonical_ledger = lambda ref, value: {"OLD|t8": T8}.get(value, value)
+        frappe.local.pearnly_assistant = {"session_id": "sesn_abc001"}
+        try:
+            for stored in ("OLD|t8", "EXP1|gone", ""):
+                self.row["project_ledger"] = stored
+                writes = len(self.db.writes)
+                self.assertEqual(self.ledger.of_session()["id"], T8)
+                self.assertEqual(len(self.db.writes), writes)
+                self.assertEqual(self.row["project_ledger"], stored)
+        finally:
+            frappe.local.pearnly_assistant = None
+        self.db.rows.append(_Row({"name": "r9", "session_id": "op_task0009", "user": self.OWNER,
+                                  "engine_code": base.CLAUDE, "archived": 0, "project": "co_abc1",
+                                  "period": "2026-09", "project_ledger": "OLD|t8", "operator_task": "task0009",
+                                  "modified": datetime.datetime(2026, 10, 15, 9, 0)}))
+        writes = len(self.db.writes)
+        self.assertEqual(self.ledger.of_task("task0009")["id"], T8)
+        self.assertEqual(len(self.db.writes), writes)
+        # 发消息那条写路径照旧补算存下（`current` 默认 store）
+        self.row["project_ledger"] = "OLD|t8"
+        self.ledger.current(self.row)
+        self.assertEqual(self._ledger_writes()[-1], ("r2", T8, False))
+
 
 if __name__ == "__main__":
     unittest.main()

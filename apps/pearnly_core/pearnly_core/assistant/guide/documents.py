@@ -435,6 +435,10 @@ def answer(guide_decl: Mapping[str, Any], doc, ctx: Dict[str, Any], given: Mappi
         mine = [row for row in rows if guide_start.own(row["key"])]
         rows = [row for row in rows if not guide_start.own(row["key"])]
         extra = guide_start.apply(ctx, mine, st["operator"])
+        # 卡上这次代录自己的题到此落定（已入账 / 没有入账走产品核对、改月份），提交后再进写账判定（11-25）：这几笔是人对 Express 现状的
+        # 回答，独立成立；下面 `record` 的判定是只读的，Cowork 判定开头结束读快照（`transaction.snapshot.require_clean`），没提交就拒
+        # （PendingWrites，答「已入账」整张卡失败），改了月份的也接着按新月份重开卡进判定（`run._answer_documents`）
+        frappe.db.commit()
         if extra.get("month"):
             return {"restart": True}  # 改了月份：按新月份重开这张卡（引擎重开）
     elif any(row["key"].startswith("operator-") for row in rows):

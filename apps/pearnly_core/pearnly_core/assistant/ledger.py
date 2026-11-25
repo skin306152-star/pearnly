@@ -189,8 +189,13 @@ def _session() -> str:
 
 
 def of_session(session_id=None) -> dict | None:
-    """本人这段对话的账套（:func:`current` 的样子，补算的存下）；没给编号取 CC 此刻执行工具的那段对话。不在对话里、不是本人的、
-    产品没声明、没挂公司回 None。"""
+    """本人这段对话的账套（:func:`current` 的样子，**只读不存**）；没给编号取 CC 此刻执行工具的那段对话。不在对话里、不是本人的、
+    产品没声明、没挂公司回 None。
+
+    只读（11-25）：它是写账判定、写入计划、工具里「此刻写哪本」的查找，调用方随后多半进只读判定（Cowork 判定开头结束读快照，
+    `transaction.snapshot.require_clean`）；这里顺手记存补算的编号（旧写法映射、存的失效按默认）会留下一笔没提交的写，让判定拒绝
+    （PendingWrites：写入计划开始、逐张判时漏到下一张），或被判定里的回滚冲掉。补算的结果只在发消息那条写路径上存
+    （`projects` 拼公司说明时 :func:`current`），读的人不写。"""
     sid = str(session_id or _session())
     if not sid:
         return None
@@ -198,17 +203,17 @@ def of_session(session_id=None) -> dict | None:
         row = _row(sid)
     except contracts.ContractError:
         return None
-    return current(row) if row else None
+    return current(row, store=False) if row else None
 
 
 def of_task(task) -> dict | None:
-    """代录任务的会话（``operator_task``）的账套；任务没有会话回 None。代录交单在任务主人的请求里执行。"""
+    """代录任务的会话（``operator_task``）的账套，只读不存（同 :func:`of_session`）；任务没有会话回 None。代录交单在任务主人的请求里执行。"""
     if not task:
         return None
     row = frappe.db.get_value(SESSION, {"operator_task": str(task)},
                               ["name", "session_id", "user", "project", "period", "project_scope", FIELD,
                                "operator_task"], as_dict=True)
-    return current(row) if row else None
+    return current(row, store=False) if row else None
 
 
 def view(session_id) -> dict:
