@@ -5,7 +5,7 @@ writers 报 ok，页面只写「录入中」，看不出在等那台）。
 实验栈里没有真的 CC 桌面版：按 CC 桌面版的样子登记一台电脑（`cc_desktop.devices.register`），开一张采购单（正式入账函数），
 它的写账件照「领走后那台失联、收回时钉回它」的样子落库（排队中、``route_device`` = 那台、原因结果不明），那台最后报到推到在线时限之前；
 单据的原因按每分钟那一轮同一个函数写（`push._queued_note` → `push._set`，实验栈不跑定时任务）。
-页面：列表里这张的 Express 一栏仍是「录入中」（共用列表不渲染悬浮文字，11-25 报主会话）、单据页点「Express」看原因栏；CC 对话按推送结论工具同一个函数（`cc_tools._outcome`）核。
+页面：列表里这张的 Express 一栏是「录入中」、悬浮提示（共用列表交给 Bootstrap 原生提示）是这句；单据页点「Express」看原因栏；CC 对话按推送结论工具同一个函数（`cc_tools._outcome`）核。
 cleanup：撤写账件、移除那台电脑、作废单据。
 """
 from __future__ import annotations
@@ -15,7 +15,7 @@ import uuid
 from desk_list import ACTION, IDLE, READ_LIST
 from erp_lib import void_documents
 
-TITLE = "ERP 排队中的单钉在一台不在线的电脑上：单据页 Express 弹窗与 CC 对话写「等待电脑 · 名称」，列表状态词仍是录入中（11-25）"
+TITLE = "ERP 排队中的单钉在一台不在线的电脑上：列表悬浮、单据页 Express 弹窗、CC 对话写「等待电脑 · 名称」，状态词仍是录入中（11-25）"
 USER = "purchase@erp.regression"
 
 
@@ -84,9 +84,17 @@ def steps(params, camera_code=None):
     # 先在列表（起始页）看 Express 一栏，再按单据页的路由打开这张点「Express」
     return [
         {"name": "列表", "js": IDLE + "await idle();" + READ_LIST +
-         "const row=[...document.querySelectorAll('.result .list-row-container')].find(r=>!r.querySelector('.list-row-head'));"
-         "const texts=row?[...row.querySelectorAll('*')].filter(e=>!e.children.length).map(e=>e.textContent.trim()).filter(Boolean):[];"
-         "return {list, texts:texts.slice(0,20), want_text:__('Entering')};"},
+         f"const want={params['label']!r};"
+         # 共用列表画完后把格子的 title 交给 Bootstrap 原生提示（`list.js`）：文字在 data-original-title、悬浮时显示
+         "const tip=e=>e.getAttribute('data-original-title')||e.getAttribute('title')||'';"
+         "let cell=null; for(let k=0;k<60&&!cell;k++){"
+         "cell=[...document.querySelectorAll('.result [data-original-title], .result [title]')].find(e=>tip(e).endsWith(' · '+want));"
+         "if(!cell) await new Promise(r=>setTimeout(r,250)); }"
+         "let popped='';"
+         "if(cell){ $(cell).trigger('mouseenter'); for(let k=0;k<20&&!popped;k++){ await new Promise(r=>setTimeout(r,200));"
+         "  popped=(document.querySelector('.tooltip.show .tooltip-inner')||{}).textContent||''; } $(cell).trigger('mouseleave'); }"
+         "return {list, tip:cell?tip(cell):null, text:cell?cell.textContent.trim():null, shown:popped.trim(),"
+         "want_tip:__('Waiting for computer')+' · '+want, want_text:__('Entering')};"},
         {"name": "Express 弹窗", "js": IDLE + ACTION + "await idle();"
          f"frappe.set_route('pearnly-purchase', {params['doc']!r}); await idle();"
          "for(let k=0;k<80&&!document.querySelector('.page-head .page-title');k++) await new Promise(r=>setTimeout(r,250));"
@@ -108,8 +116,9 @@ def judge(params, results, camera_code=None):
          "seen": dialog,
          "ok": dialog.get("button") is True and bool(dialog.get("want_reason"))
          and dialog.get("reason") == dialog.get("want_reason") and dialog.get("state") == dialog.get("want_state")},
-        {"case": "the list's Express cell keeps the status word entering (the shared list renders no hover text, reported 11-25)",
-         "seen": listed, "ok": (listed.get("list") or {}).get("rows", 0) >= 1 and listed.get("want_text") in (listed.get("texts") or [])},
+        {"case": "the list's Express cell shows entering and its hover tooltip names the computer",
+         "seen": listed, "ok": bool(listed.get("tip")) and listed.get("tip") == listed.get("want_tip")
+         and listed.get("text") == listed.get("want_text") and listed.get("shown") == listed.get("want_tip")},
     ]
 
 

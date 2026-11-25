@@ -12,7 +12,7 @@
   的那个；那台没有名称回空串，页面只写「等待电脑」）；没钉、那台在线、已移除、查不到 → None（不在等哪一台）。原因栏只认第一个冒号前的前缀，名称里有冒号等照存。定时任务钉在读文件夹的那台、那台关着时同样适用。
 - ERP `push._queued_note`：先看它，是就写 `express.waiting_computer:<电脑名>`（`contracts.waiting_computer`），否则照旧按 writers。
 - 显示（同一句「等待电脑 · 名称」）：
-  - 单据页 Express 弹窗原因栏（列表 Express 一栏的悬浮同一个函数，但共用列表目前不渲染悬浮文字，见下）：`transactions.js` 的 `p.waiting_computer`（状态词照旧 `p.ledger_word` →「录入中」）；
+  - 单据页 Express 弹窗原因栏、列表 Express 一栏的悬浮提示：`transactions.js` 的 `p.waiting_computer`（状态词照旧 `p.ledger_word` →「录入中」）；
   - 服务端 `pending.reason_label`（CC 对话推送结论 `cc_tools._outcome` 的 `note`、LINE 回执）；
   - CC 对话推送结论另带 `waiting_computer`（电脑名）与 `cc_desktop_online: false`；
   - LINE 回执：「录入中」不变，另起一行写这句（`line_cards.entering(doc, why)`）。
@@ -26,7 +26,7 @@
 ## 测试
 - 离线：`tests/test_cc_desktop_channel.py`（钉住 / 在线 / 已移除 / 写成后）、`tests/test_erp_express_direct.py`（排队原因、原因写法与解析、
   单据页文案、状态词不变、LINE 接着等、四语同代录、单据页 JS）、`tests/test_erp_cc_chat_push.py`（CC 推送结论）、`tests/test_line_receipt.py`（LINE 另起一行）。
-- 实验栈流程：`erp.express.waiting-computer`（单据页 Express 弹窗原因栏、列表状态词、CC 对话推送结论各一条断言），结果见下。
+- 实验栈流程：`erp.express.waiting-computer`（列表悬浮、单据页 Express 弹窗原因栏、CC 对话推送结论各一条断言），结果见下。
 
 ## 真机记录
 11-25 合并上机（实验栈 testerp = 本地组合 17bf1fd3e：本分支 3f614958e + writer-busy-rest 09de6ce87 + cc-line-result-unknown 21fb47a04；
@@ -40,13 +40,13 @@
 `{status: queued, cc_desktop_online: false, waiting_computer: 测试机1, note: 等待电脑 · 测试机1}`；解冻后迟到回执照收，写成 RR691114-001、只一次。
 
 ## 实验栈流程
-`erp.express.waiting-computer` 本机实验栈（pearnly-twpc-lab，本分支源码）通过：单据页 Express 弹窗原因栏与状态词、CC 推送结论、列表里这张的 Express 一栏仍是「录入中」。
-原有问题（不是本分支引入，已报主会话）：电脑宽度的共用列表把 Express 一栏的悬浮文字渲染成空，11-12 的「在等 Express 关闭」悬浮在列表上同样不出来；
-手机宽度列表不显示 Express 一栏。所以列表上看不到「等待电脑 · 名称」，点开单据看 Express 弹窗。
+`erp.express.waiting-computer` 本机实验栈（pearnly-twpc-lab，本分支源码）：列表里这张的 Express 一栏是「录入中」、悬浮提示是这句；单据页 Express 弹窗原因栏与状态词；CC 推送结论。
+更正（11-25）：一度以为共用列表把悬浮渲染成空——实为共用列表画完后把格子的 `title` 交给 Bootstrap 原生提示（`pearnly_core/public/desk/list.js`），
+文字挪到 `data-original-title`、`title` 清空，悬浮照样显示；流程按它读、并实际触发悬浮读提示框。手机宽度列表不显示 Express 一栏，点开单据看 Express 弹窗。
 
 ## 共用件连带回归（`scripts/check-impact.py`）
 | 入口 | 结果 |
 |---|---|
 | erp.cc.write、erp.cc.chat-push、erp.collection.server、erp.mrerp.direct、cc.operator.page（离线） | 通过：受影响离线测试全过 |
-| erp-transactions 的 [auto] 页面入口（采购 / 销售 / 出入库 / 收银等页与详情） | 采购页与详情：流程 erp.express.waiting-computer 通过；其余页本分支只多一个只在排队中且原因是等待电脑时才返回文字的函数，交合入前的 Flows 跑 |
+| erp-transactions 的 [auto] 页面入口（采购 / 销售 / 出入库 / 收银等页与详情） | 采购列表与详情：流程 erp.express.waiting-computer（结果见上）；其余页本分支只多一个只在排队中且原因是等待电脑时才返回文字的函数，交合入前的 Flows 跑 |
 | 其余 [manual]（连接、主档、作废、MR.ERP 登录、桥、云端、Cowork 推送等） | 没测到：本改动只在排队中且钉在离线电脑时多一句原因，不碰这些入口的逻辑；随批验收 |

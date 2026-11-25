@@ -1173,7 +1173,7 @@ covers = [
 
 [[flow]]
 id = "erp.express.waiting-computer"
-title = "ERP 排队中的单钉在一台不在线的电脑上：单据页 Express 弹窗与 CC 对话推送结论写「等待电脑 · 名称」，列表状态词仍是录入中（11-25）"
+title = "ERP 排队中的单钉在一台不在线的电脑上：列表悬浮、单据页 Express 弹窗、CC 对话推送结论写「等待电脑 · 名称」，状态词仍是录入中（11-25）"
 module = "scripts/flows/erp_waiting_computer.py"
 start = "/desk/pearnly-purchase"
 user = "purchase"
