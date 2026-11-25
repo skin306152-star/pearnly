@@ -53,7 +53,7 @@ export function mrerpStatus(row: Pick<MrerpConnection, "credential"> | null): st
 
 // map: mrerp-connect@cowork
 /** 设置 → 连接最上面一行「MR.ERP」。 */
-export const MrerpRow: FC = () => {
+export const MrerpRow: FC<{ indent?: boolean }> = ({ indent = false }) => {
   const api = useMrerpApi();
   const [row, setRow] = useState<MrerpConnection | null | undefined>(undefined);
   const [open, setOpen] = useState(false);
@@ -70,6 +70,8 @@ export const MrerpRow: FC = () => {
   return (
     <>
       <div data-marquee-host="" className="cc-settings-row" data-slot="cc-mrerp-row">
+        {/* 账本组里与下面可展开的两行左侧对齐：留与展开箭头同宽的空位（用户 11-25） */}
+        {indent && <span aria-hidden className="cc-ledger-pad" />}
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">MR.ERP</Marquee>
           <Marquee as="div" className="truncate text-muted-foreground text-caption" data-slot="cc-mrerp-status">

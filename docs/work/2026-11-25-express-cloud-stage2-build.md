@@ -106,3 +106,9 @@
 ## 段 ⑤ 补：Cowork「云端 Express」标签取数（11-25 主会话要求）
 - 共用约定 `cc_desktop.wire.link_contracts.source_of / adapter_of`：报一本账（或同身份一组）的电脑全是云端那份（电脑行 `link_kind = cloud`）才算 `cloud` → 标签 `express_cloud`；有一台本地的或不知道都算本地。ERP 目录与 Cowork 都走它，`tests/test_companion_contract.py` 钉住「CC 心跳 link → 电脑行 link_kind → source_of → 页面标签」这一条线。
 - Cowork：`connections.pool.sources(连接)` 一次查询可达行 join 电脑行得每份账套的来源（`connections.service.account_sources` 对外）；`companies.service._catalog` 按身份组判，全云端的组标签 `express_cloud`；选公司里已建、账套只由云端报的公司也归云端标签。离线测 `tests/test_cowork_companies.py`。
+
+## 连接页用户审定（11-25）
+- 截图（`~/pearnly-devtools/handoff-1125/cloud-connect-shots/`，cc-visual 假服务端 + 桌面版桥桩拍的真构建页面）经主会话转用户：**「可以」**（云端行展开、「···」菜单、一体化弹窗与各状态、电脑组定稿）。用户追问「云端前面加个图标干啥」→ 去掉云端行前的图标（没经审的装饰图标一律不加）。
+- 同批按主会话意见改：「代录登录」→ 界面术语「实操登录」（zh 实操登录 / en Hands-on sign-in / ja 代行入力のサインイン / th 沿用 บันทึกแทน 一系）；账本组三行左侧对齐（MR.ERP 留与展开箭头同宽的空位）；云端行登录失败时右侧状态写桥给的同一个原因（与弹窗同源 `reason`），不再只写泛泛的「Express 登录失败」。
+- 在线的电脑行没有「···」是有意的：服务端只对不在线的记录给移除（评估 4.10，在线的先在那台电脑上断开）。
+- **待办（段 ③）**：「云端安装命令」是自动安装做好前的兜底；自动安装完成后从「···」去掉，或只在自动安装失败时出现，不留常驻入口。

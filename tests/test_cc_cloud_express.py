@@ -31,7 +31,7 @@ class CloudExpressRow(unittest.TestCase):
         connections = settings.split("function Connections(", 1)[1].split("\nfunction ", 1)[0]
         self.assertEqual(settings.count("<CloudExpressRow api={api} />"), 1)
         order = ["<Heading>{st.groupSite}</Heading>", 'data-slot="cc-site-row"', "<Heading>{st.groupLedgers}</Heading>",
-                 "<MrerpRow />", 'data-slot="cc-local-express-row"', "<CloudExpressRow api={api} />",
+                 "<MrerpRow indent />", 'data-slot="cc-local-express-row"', "<CloudExpressRow api={api} />",
                  "<PoolComputers inDesktop />"]
         places = [connections.index(item) for item in order]
         self.assertEqual(places, sorted(places), order)
@@ -52,7 +52,7 @@ class CloudExpressRow(unittest.TestCase):
         line = text.split("export function cloudStatusLine", 1)[1].split("\n}\n", 1)[0]
         for state, word, tone in (('"connecting"', "st.status.connecting", '"connecting"'),
                                   ('"connected"', "st.status.online", '"online"'),
-                                  ('"login_failed"', "op.reason.login_failed", '"attention"'),
+                                  ('"login_failed"', "loginReason(reason)", '"attention"'),
                                   ('"replaced"', "op.reason.account_in_use", '"attention"')):
             self.assertIn(f"if (state === {state}) return {{ text: {word}, tone: {tone} }};", line)
         self.assertIn('return { text: st.notConnected, tone: "offline" };', line)
@@ -139,7 +139,8 @@ class CloudExpressRow(unittest.TestCase):
         self.assertIn('from "@/components/ui/dropdown-menu"', text)
         self.assertIn('from "@/components/ui/input"', text)
         self.assertNotRegex(text, r"<(button|input)(?=[\s>/])")
-        self.assertIn('import { ChevronRightIcon, CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";', text)
+        self.assertIn('import { ChevronRightIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";', text)
+        self.assertNotIn("CloudIcon", text)   # 用户 11-25：云端行前不加图标（没经审的装饰图标一律不加）
 
     def test_new_words_have_four_languages(self):
         text = read(I18N)

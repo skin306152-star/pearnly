@@ -2,17 +2,17 @@
 //
 //   CloudExpressRow     — 「云端 Express」，名下小字是云端主机名；右边「● 状态 + ···」（还没连过时是「连接」）。点行展开：云端那份
 //                         CC 报上来的数据文件夹（一行一个，下面小字账套数）+「重新查找」「添加文件夹…」——同本地 Express 展开后的样子，
-//                         区别只在「添加文件夹」是弹窗里手填云端主机上的路径（这台电脑选不到那里的文件夹）。「···」：重新登录、代录登录、
+//                         区别只在「添加文件夹」是弹窗里手填云端主机上的路径（这台电脑选不到那里的文件夹）。「···」：重新登录、实操登录、
 //                         云端安装命令（自动安装做好前的兜底）、主机 · 账号与云端 CC 版本（只读两行）、断开。
 //   CloudExpressConnect — 连接弹窗，同 MR.ERP 一样一个弹窗里填地址、用户名、密码，点一次「连接」，正在连接 / 已连接 / 失败原因都写在弹窗里；
 //                         输过一次就记住（桥存本机凭据管理器），以后开机自动连。桌面版没有 connect_dialog（旧版）时不出密码框，
 //                         桥照旧弹原生小窗收。
-//   CloudOperatorLogin  — 「代录登录」：云端那本 Express 的用户名、密码，同一种弹窗，只存这台电脑（桥本机凭据管理器）。
+//   CloudOperatorLogin  — 「实操登录」（界面术语同左上角「实操」；内部仍叫代录）：云端那本 Express 的用户名、密码，同一种弹窗，只存这台电脑（桥本机凭据管理器）。
 //   CloudAddPlace       — 「添加文件夹…」：手填云端主机上的路径，云端那份 CC 去核（在不在、是不是 Express），结果写在弹窗里。
 //   CloudPairing        — 云端安装命令块（兜底）：桥 cloud_pair_begin 回的一行命令、复制、剩余时间；过期「重新生成」；配好收起。
 // 密码只经本机桥交出，不存页面状态以外的地方、不进地址栏、不发服务端；关弹窗即丢。
 
-import { ChevronRightIcon, CloudIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";
+import { ChevronRightIcon, FolderIcon, MoreHorizontalIcon } from "lucide-react";
 import { type FC, useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -65,11 +65,11 @@ export function cloudStatus(raw: unknown): CloudStatus | null {
   };
 }
 
-/** 状态行：字 + 圆点颜色（同电脑列表的 cc-status-line）。 */
-export function cloudStatusLine(state: CloudState): { text: string; tone: string } {
+/** 状态行：字 + 圆点颜色（同电脑列表的 cc-status-line）。登录失败写桥给的同一个原因（同连接弹窗，``loginReason``）。 */
+export function cloudStatusLine(state: CloudState, reason = ""): { text: string; tone: string } {
   if (state === "connecting") return { text: st.status.connecting, tone: "connecting" };
   if (state === "connected") return { text: st.status.online, tone: "online" };
-  if (state === "login_failed") return { text: op.reason.login_failed, tone: "attention" };
+  if (state === "login_failed") return { text: loginReason(reason), tone: "attention" };
   if (state === "replaced") return { text: op.reason.account_in_use, tone: "attention" };
   return { text: st.notConnected, tone: "offline" };
 }
@@ -139,7 +139,7 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
   const [pairing, setPairing] = useState<number | null>(null);
   if (!status) return null;
   const { link, state, places, cloud } = status;
-  const line = cloudStatusLine(state);
+  const line = cloudStatusLine(state, status.reason);
   const pair = () => setPairing((n) => (n ?? 0) + 1);
   const disconnect = () => {
     setPairing(null);
@@ -165,7 +165,6 @@ export const CloudExpressRow: FC<{ api: Desktop }> = ({ api }) => {
         >
           <ChevronRightIcon />
         </Button>
-        <CloudIcon className="size-(--cc-icon-sm) shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">{st.cloudExpress}</Marquee>
           {link && (
@@ -468,7 +467,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
   );
 };
 
-/** 「代录登录」：云端那本 Express 的用户名、密码，只存这台电脑（桥本机凭据管理器），云端代录要登录时经隧道交过去。 */
+/** 「实操登录」：云端那本 Express 的用户名、密码，只存这台电脑（桥本机凭据管理器），云端代录要登录时经隧道交过去。 */
 export const CloudOperatorLogin: FC<{ api: Desktop; onClose: () => void }> = ({ api, onClose }) => {
   const inline = !!useDesktopFeatures().connectDialog;
   const [user, setUser] = useState("");

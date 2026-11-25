@@ -1453,6 +1453,7 @@
     display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
     width: var(--cc-row-ctl); height: var(--cc-row-ctl); border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3); outline: none;
   }
+  .cc-ledger-pad { flex-shrink: 0; width: var(--cc-row-ctl); }
   .cc-ledger-toggle:hover { background: var(--cc-bg-hover); color: var(--cc-ink); }
   .cc-ledger-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
   .cc-ledger-toggle svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }

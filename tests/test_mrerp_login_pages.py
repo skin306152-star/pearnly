@@ -85,7 +85,8 @@ class CcPage(unittest.TestCase):
     def test_only_one_entry_settings_connections(self):
         # 设置 → 连接最上面一行（桌面版「此电脑 → 连接」与浏览器的「连接」）；定时任务不再有自己的 MR.ERP 弹窗
         settings = SETTINGS.read_text(encoding="utf-8")
-        self.assertEqual(settings.count("<MrerpRow />"), 2)
+        # 桌面版的那一行在账本组里、与可展开的两行左侧对齐（indent，云端 Express 第二阶段）
+        self.assertEqual(settings.count("<MrerpRow />") + settings.count("<MrerpRow indent />"), 2)
         self.assertIn("<MrerpRow />\n      <PoolComputers />", settings)
         self.assertIn('const wanted = new URL(location.href).searchParams.get("settings");', settings)
         tasks = TASKS.read_text(encoding="utf-8")

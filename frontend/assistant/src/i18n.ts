@@ -607,7 +607,7 @@ const SETTINGS = {
     groupSite: "Site", groupLedgers: "Ledgers", localExpress: "Local Express",
     folderCount: (n: number) => (n === 1 ? "1 folder" : `${n} folders`),
     ledgerCount: (n: number) => (n === 1 ? "1 account set" : `${n} account sets`),
-    through: (name: string) => `via ${name}`, relogin: "Sign in again", operatorLogin: "Operator sign-in", path: "Path",
+    through: (name: string) => `via ${name}`, relogin: "Sign in again", operatorLogin: "Hands-on sign-in", path: "Path",
     expressNotFound: "Express not found", pathNotUsable: "Path not available",
     loginReason: { password: "Incorrect username or password", password_change: "Password expired", account: "Account unavailable" }, // scan: fake
   },
@@ -646,7 +646,7 @@ const SETTINGS = {
     groupSite: "站点", groupLedgers: "账本", localExpress: "本地 Express",
     folderCount: (n: number) => `${n} 个文件夹`,
     ledgerCount: (n: number) => `${n} 个账套`,
-    through: (name: string) => `经 ${name}`, relogin: "重新登录", operatorLogin: "代录登录", path: "路径",
+    through: (name: string) => `经 ${name}`, relogin: "重新登录", operatorLogin: "实操登录", path: "路径",
     expressNotFound: "未找到 Express", pathNotUsable: "路径不可用",
     loginReason: { password: "用户名或密码不正确", password_change: "密码已过期", account: "账号不可用" }, // scan: fake
   },

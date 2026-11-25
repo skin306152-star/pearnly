@@ -530,7 +530,7 @@ function Connections({ api }: { api: Desktop }) {
 
       <Heading>{st.groupLedgers}</Heading>
       {/* MR.ERP（产品声明了 connect.mrerp 才出）→ 本地 Express → 云端 Express */}
-      <MrerpRow />
+      <MrerpRow indent />
       <Collapsible open={localOpen} onOpenChange={setLocalOpen}>
       <div data-marquee-host="" className="cc-settings-row" data-slot="cc-local-express-row">
         <CollapsibleTrigger className="cc-ledger-toggle cc-tap" aria-label={st.localExpress} data-slot="cc-local-express-toggle">
