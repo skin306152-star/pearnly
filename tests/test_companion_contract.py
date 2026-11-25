@@ -1666,7 +1666,16 @@ class CompanyFolders(unittest.TestCase):
     def test_the_page_uses_the_company_folder_bridge(self):
         # 由前端包（frontend/assistant）接上：pick_folder、features 里的 company_folders、legacy_roots
         self.assertIn('FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",\n'
-                      '            "mrerp_login_inline")', self.bridge)
+                      '            "mrerp_login_inline", "connect_dialog")', self.bridge)
+
+    def test_the_shared_connect_dialog_keys_on_the_bridge(self):
+        # 云端 Express 第二阶段 D5：共用连接弹窗（能力 connect_dialog）带 inline: true 才交密码，键名两边一个字不能差（页面一侧
+        # 随连接页改版接上时在这里补上 frontend 的断言）
+        self.assertIn('inline = args.get("inline") is True', self.bridge)
+        self.assertIn('password = args.get("password") if inline else None', self.bridge)
+        self.assertIn('typed = args.get("inline") is True', self.bridge)
+        self.assertIn('(args.get("username"), args.get("password")) if typed else (None, None)', self.bridge)
+        self.assertIn('if method in ("cloud_rescan", "cloud_add_place"):', self.bridge)
 
     def test_the_mrerp_connect_dialog_and_the_bridge_agree_on_the_typed_login(self):
         # 11-23（用户「第一个弹窗不行吗」）：「连接 MR.ERP」弹窗里输的用户名、密码随票经桥交给 CC 本机；页面按能力 mrerp_login_inline
@@ -1675,7 +1684,7 @@ class CompanyFolders(unittest.TestCase):
         self.assertIn('api.call("mrerp_authorize", { ticket, username, password })', desktop)
         self.assertIn('MRERP_LOGIN_INLINE = "mrerp_login_inline"', desktop)
         self.assertIn('username, password = args.get("username"), args.get("password")', self.bridge)
-        self.assertIn('"mrerp_login_inline")', self.bridge)
+        self.assertIn('"mrerp_login_inline", "connect_dialog")', self.bridge)
         self.assertIn('"legacy_roots"', (COMPANION / "desktop_settings.py").read_text(encoding="utf-8"))
         for name in ("pick_folder", "company_folders", "legacy_roots"):
             self.assertTrue(quoted(self.page, name) or re.search(r"\b%s\b" % name, self.page), name)
