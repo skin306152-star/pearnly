@@ -508,6 +508,8 @@ covers = [
   "frontend/assistant/src/lib/managed-agents/attachments.ts",
   "scripts/flows/cc_lib.py",
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/operator.py",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]
@@ -2420,6 +2422,8 @@ covers = [
   "apps/pearnly_erp_portal/pearnly_erp_portal/express/prepare.py",
   "apps/pearnly_core/pearnly_core/assistant/guided.py",
   "frontend/assistant/src/components/tool-uis/ask-shared.ts",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]
@@ -2441,6 +2445,8 @@ covers = [
   "apps/pearnly_core/pearnly_core/express_operator/api.py",
   "frontend/assistant/src/components/tool-uis/operator-start.tsx",
   "frontend/assistant/src/components/tool-uis/ask-shared.ts",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]
@@ -2697,6 +2703,9 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]
@@ -2713,6 +2722,28 @@ covers = [
   "apps/pearnly_cowork/pearnly_cowork/assistant/guide_documents.py",
   "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-run-card.tsx",
+  "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.operator-new-after-list"
+title = "Cowork 版 CC 代录引导：资料清单开着时又进来一张新票、页面不刷新就点确定 → 结果卡交进代录；新票确定时记进列出快照并落库，站点不报「Snapshot reset with pending writes」（11-25 回归）"
+module = "scripts/flows/cowork_cc_guide_operator_new_after_list.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
+  "apps/pearnly_core/pearnly_core/transaction/snapshot.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py",
+  "apps/pearnly_cowork/pearnly_cowork/assistant/operator_source.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
 ]
 
@@ -2731,6 +2762,9 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-operator.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]
@@ -2748,6 +2782,9 @@ covers = [
   "apps/pearnly_core/pearnly_core/assistant/guide/documents.py",
   "frontend/assistant/src/components/tool-uis/guide-operator.tsx",
   "frontend/assistant/src/components/tool-uis/guide-review.tsx",
+  # 交单 / 写入计划按完整待录清单定、列出快照（`api.waiting` / `listed.remember`，11-25 回归：改它们时 GitHub 没选上这条）
+  "apps/pearnly_core/pearnly_core/express_operator/api.py",
+  "apps/pearnly_core/pearnly_core/express_operator/listed.py",
 ]
 
 [[flow]]

@@ -134,13 +134,21 @@ def fake_frappe(state):
     frappe.publish_realtime = lambda event, message, user=None, after_commit=False: state["pushed"].append(
         (event, message, user, after_commit))
     def set_value(doctype, name, field, value=None, update_modified=True):
+        frappe.db.transaction_writes += 1  # 同 Frappe 自己数的未提交写（`transaction.snapshot.pending`）
         for row in state["tasks"]:
             if row["name"] == name:
                 row[field] = value
 
-    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all, set_value=set_value,
-                                      commit=lambda: state.setdefault("commits", []).append(1),
-                                      rollback=lambda: state.setdefault("rollbacks", []).append(1))
+    def commit():
+        frappe.db.transaction_writes = 0
+        state.setdefault("commits", []).append(1)
+
+    def rollback():
+        frappe.db.transaction_writes = 0
+        state.setdefault("rollbacks", []).append(1)
+
+    frappe.db = types.SimpleNamespace(get_value=get_value, get_all=get_all, set_value=set_value, commit=commit,
+                                      rollback=rollback, transaction_writes=0)
     frappe.local = types.SimpleNamespace(site="test.site", lang="th")
     frappe.log_error = lambda **kwargs: state.setdefault("errors", []).append(kwargs.get("title"))
 
@@ -235,6 +243,7 @@ def upload(company, key, task="", name="bill.pdf", content=b"%PDF-12pages"):
 class Base(unittest.TestCase):
     def setUp(self):
         STATE.update(tasks=[], seq=0, saves=0, pushed=[], queries=[], tables={})
+        frappe.db.transaction_writes = 0
         frappe.session.user = "a@example.com"
         frappe.conf["pearnly_product"] = "cowork"
         self.product = Product()
@@ -1119,6 +1128,62 @@ class ListedDocumentsStayListedTests(Base):
         self.assertFalse(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed"))
         self.written_directly("D1", "RR1")   # 十月那张被写掉：十一月的清单里不算「列出过」
         self.assertEqual(api.documents("CO-1", "2026-11", task=self.task).get("gone"), [])
+
+    def cowork_like_precheck(self):
+        # Cowork 判定开头结束读快照（`precheck_source.document` → `transaction.snapshot.require_clean`）：调用方有没提交的写就拒
+        from pearnly_core.transaction import snapshot
+
+        def precheck(company, ids):
+            snapshot.require_clean("precheck_source.document")
+            return {"documents": [{"doc_id": i, "state": "ready"} for i in ids]}
+
+        STATE["attrs"]["p.precheck"] = precheck
+
+    def test_a_document_that_came_in_after_the_list_was_opened_is_handed_in_on_confirm(self):
+        # 11-25 回归（main 4eb0b2499）：资料清单开着时又进来一张新票、不刷新就点确定 → 交单（`waiting`）第一次把它记进快照，
+        # 没提交的这一笔让 Cowork 判定拒绝（PendingWrites），结果卡「未完成」。记完快照提交后再判
+        self.cowork_like_precheck()
+        api.documents("CO-1", "2026-10", task=self.task)   # 页面先列出 D1–D3（POST 请求收尾提交）
+        frappe.db.commit()
+        self.rows.append({"doc_id": "D4", "group": "purchase"})  # 之后进来一张，页面没刷新
+        api.hand_in("CO-1", self.task, ["D1", "D2", "D3", "D4"])
+        self.assertEqual(self.submitted[-1], ["D1", "D2", "D3", "D4"])
+        self.assertEqual(json.loads(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed"))["D4"], "purchase")
+
+    def test_the_write_plan_records_a_new_document_and_commits_before_the_check(self):
+        # 写入计划（`make` → `waiting`）第一次见到这张，同上
+        self.cowork_like_precheck()
+        self.rows.append({"doc_id": "D5", "group": "purchase"})
+        planned, _groups, _skipped = api.waiting("CO-1", "2026-10", [], task=self.task)
+        self.assertEqual(planned, ["D1", "D2", "D3", "D5"])
+
+    def test_an_unreadable_listed_document_logs_and_still_reaches_the_check(self):
+        # 记快照之后读不到现状的单记一条错误日志（`listed.gone`，Error Log 也是一笔写）：同样在判定前提交（审计 11-25 A3）
+        self.cowork_like_precheck()
+        api.documents("CO-1", "2026-10", task=self.task)
+        frappe.db.commit()
+        self.rows = [row for row in self.rows if row["doc_id"] != "D3"]
+        self.state["D3"] = {"state": "unknown"}
+        log = frappe.log_error
+
+        def logged(**kwargs):
+            frappe.db.transaction_writes += 1
+            return log(**kwargs)
+
+        with mock.patch.object(frappe, "log_error", logged):
+            planned, _groups, skipped = api.waiting("CO-1", "2026-10", [], task=self.task)
+        self.assertEqual(planned, ["D1", "D2"])
+        self.assertEqual([(row["doc_id"], row.get("state")) for row in skipped], [("D3", "unknown")])
+
+    def test_the_list_and_the_model_list_leave_committing_to_their_request(self):
+        # 资料清单（POST）与给模型的准备中清单（工具）记完就结束：由请求 / 工具收尾提交，记快照本身不提交
+        tools = importlib.import_module("pearnly_core.express_operator.tools")
+        commits = len(STATE.get("commits", []))
+        api.documents("CO-1", "2026-10", task=self.task)
+        tools._preparing(tasks.read(self.task))
+        self.assertEqual(len(STATE.get("commits", [])), commits)
+        self.assertEqual(json.loads(frappe.get_doc("Pearnly Express Operator Task", self.task).get("listed")),
+                         {"D1": "purchase", "D2": "purchase", "D3": "purchase"})
 
     def test_a_started_task_no_longer_records_what_it_lists(self):
         api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])

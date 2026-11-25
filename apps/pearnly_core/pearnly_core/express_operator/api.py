@@ -198,6 +198,13 @@ def waiting(company, period, again, task="") -> tuple[list, dict, list]:
         for row in listed.gone(company, snapshot, [row["doc_id"] for row in rows]):
             skipped.append({"doc_id": row["doc_id"], "reason": listed.ENTERED, "docnum": row["docnum"]} if row["state"] == "saved"
                            else {"doc_id": row["doc_id"], "reason": listed.LEFT, "state": row["state"]})
+        # 记账到此为止，提交后再判（11-25 回归，main 4eb0b2499：Cowork 代录确定「未完成」）。上面这段会写：快照第一次记进某张单
+        # （`listed.remember`）、读不到现状时记一条错误日志（`listed.gone`）；下面的判定是只读的，Cowork 判定开头要结束读快照
+        # （`precheck_source.document` → `transaction.snapshot.require_clean`），见到没提交的写就拒（PendingWrites）。
+        # 边界放在这里而不是 `remember`：三个记快照的调用方里只有这里记完在同一事务里接着判（资料清单 POST、CC 工具
+        # `tools._preparing` 记完就结束，由请求 / 工具收尾提交）。调用方（写入计划 make / 交单 start）进来时没有别的半截写：
+        # 交单前写入计划已提交；make 之前至多有对话账套的记存（`ledger.current`，幂等），一起落库无妨。
+        frappe.db.commit()
     held = set()
     for start_at in range(0, len(candidates), BATCH_MAX):
         for doc in products.precheck(company, candidates[start_at:start_at + BATCH_MAX]).get("documents") or []:
