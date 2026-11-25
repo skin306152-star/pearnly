@@ -380,7 +380,10 @@ class Book:
                                             else self.heads.get(stkcod, ""), bal),
             "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP)) if unit_cost else 0.0,
         }
-        if master_raw and stkcod in self.marked and fields["MLOTNUM"]:
+        # 主档批号带「负」标记时，行上照记带标记的批号：主档链上的调增行（见上）与减少行（领用 OU、调整减少、盘亏、销货 IV / HS，
+        # 11-25 70EXP\\test 原生 OU0000002 / IV0000051 实录：000004 主档 -/F → 行记 -/F，原生作废按行原样回写）。把链扣负的那一行
+        # 写前还没有标记，照记原样（11-18 R1）；分仓链上的行照旧
+        if (master_raw or (not increase and not early and not here)) and stkcod in self.marked and fields["MLOTNUM"]:
             fields["MLOTNUM"] = stock_chain.mark(fields["MLOTNUM"])
         if increase:
             fields.update({"LOTBAL": float(signed), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})

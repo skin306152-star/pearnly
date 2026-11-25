@@ -328,3 +328,43 @@ def test_voiding_an_older_cc_count_gain_with_no_lot_on_the_row_does_not_leave_th
         assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(book) == before
     assert any("旧版盘盈行" in record.getMessage() and res.docnum in record.getMessage() for record in caplog.records)
+
+
+def _marked_master(book, bal):
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _set_master(book, MLOTNUM="-/F", MREMBAL=float(bal), MREMVAL=0.0, TOTBAL=float(bal), TOTVAL=0.0, UNITPR=0.0)
+    return _master(book)
+
+
+def test_an_issue_on_a_master_chain_with_the_negative_mark_records_the_marked_lot_and_a_void_puts_it_back(book):
+    """11-25 原生实录（70EXP\\test 000004，主档 -2 / 0、-/F）：原生 OU0000002 出 1 → 明细记 -2 / 0、批号 -/F；原生作废 → 主档原样回。"""
+    before = _marked_master(book, -2)
+    res = _write(book, _entry("OU", [_line("ICE01", 1)]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["POSOPR"], line["MREMBAL"], line["MREMVAL"], line["MLOTNUM"].rstrip()) == ("6", -2.0, 0.0, "-/F")
+    assert _master(book)["MLOTNUM"] == "-/F" and _master(book)["TOTBAL"] == -3.0
+    assert _void(book, res.docnum, "OU", [{"code": "ICE01", "qty": "1"}]).ok
+    assert _master(book) == before
+
+
+def test_a_count_loss_on_a_master_chain_with_the_negative_mark_keeps_the_mark_through_a_void(book):
+    """盘点不走这条写法：盘亏行照旧不记批号（原生实录第 9 条没有盘亏行的批号，按原写法），作废后主档批号带标记原样留着。"""
+    before = _marked_master(book, 5)
+    res = _write(book, _entry("TK", [_line("ICE01", -2)]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == ""
+    assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "-2"}]).ok
+    assert _master(book) == before
+
+
+def test_a_sale_on_a_master_chain_with_the_negative_mark_records_the_marked_lot(acct):
+    """11-25 原生实录（70EXP\\test 000004，主档 -2 / -/F）：原生 IV0000051 销 1 → 明细记 -2 / 0、批号 -/F，原生作废按行原样回写主档。
+    CC 不作废销货单（作废由财务在 Express 里做），所以这里只核行上记的写前状态与原生一致。"""
+    from test_stock_location import _sale, _sell
+    isinfo(acct, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _set_master(acct, MLOTNUM="-/F", MREMBAL=-2.0, MREMVAL=0.0, TOTBAL=-2.0, TOTVAL=0.0)
+    res = _sell(acct, _sale([_item("ICE01", 1, 10.0, "stock_sale")]))
+    assert res.ok, res.error
+    line = [r for r in _rows(acct, "STCRD", STKCOD="ICE01") if r["POSOPR"] == "9"][-1]
+    assert (line["MREMBAL"], line["MREMVAL"], line["MLOTNUM"].rstrip()) == (-2.0, 0.0, "-/F")
