@@ -200,3 +200,17 @@ def test_voiding_a_count_gain_puts_the_lot_back_to_the_last_lot_left_not_the_pur
     assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].startswith("202603010RR0000009")
     assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
     assert _master(book) == before
+
+
+def test_voiding_a_count_in_a_book_costed_by_warehouse_leaves_the_warehouse_chain_alone(book):
+    """盘点的行写入时不动仓链（只动仓结存与主档）：作废也不回仓链、不动 LOCVAL，主档按差额回写前（101 本回放 T7HENG15：以前倒扣成 -84）。"""
+    acct = _by_place(book)
+    first = _write(acct, _entry("JU", [_line("ICE01", 2, unit_cost="15")]))
+    assert first.ok, first.error
+    place_before, master_before = _place(acct), _master(acct)
+    for qty in ("-1", "1"):
+        res = _write(acct, _entry("TK", [_line("ICE01", int(qty), unit_cost="99")]))
+        assert res.ok, res.error
+        assert _void(acct, res.docnum, "TK", [{"code": "ICE01", "qty": qty}]).ok
+        assert _place(acct) == place_before
+        assert _master(acct) == master_before

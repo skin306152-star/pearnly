@@ -434,6 +434,8 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
                 and ((row["STKCOD"], row["LOCCOD"] or main) not in before if key[1] is None
                      else (row["LOCCOD"] or main) == key[1] and row["POSOPR"] != S.STCRD_POSOPR_COUNT)]
         if not rows:
+            if key[1] is not None and any(row["STKCOD"] == key[0] and (row["LOCCOD"] or main) == key[1] for row in chain_rows):
+                master_from[key[0]] = now  # 只有盘点行：仓链没动，主档重抄它（盘盈写入时把主档批号换成了本单的批）
             continue
         rows.sort(key=lambda row: (row["DOCDAT"] or _dt.date.min, stock_chain.order_of(row["POSOPR"], docnum, row["SEQNUM"])))
         first = rows[0]
