@@ -89,7 +89,8 @@ _module("pearnly_core.assistant.files", attachment=lambda file_id: (STATE["files
 _module("pearnly_cowork.work.access", allowed=lambda user=None: STATE["work"])
 _module("pearnly_cowork.work.api",
         boards_list=lambda: [{"name": "B1", "title": "Team board", "is_default": 1}, {"name": "B2", "title": "Payroll", "is_default": 0}],
-        board_lists=lambda board: [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done"}],
+        # 只给真有的看板（实站点 `boards.lists` 先 open_board）：后台定下的默认看板没传过来就一项都没有（11-25 流程卡死）
+        board_lists=lambda board: [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done"}] if board in ("B1", "B2") else [],
         board=lambda board=None: {"lists": [{"name": "L1", "title": "To do"}, {"name": "L2", "title": "Done"}],
                                   "cards": [dict(card) for card in CARDS.values()],
                                   "members": [{"user": "a@x", "name": "Aom"}, {"user": "b@x", "name": "Bee"}],
@@ -177,9 +178,12 @@ class Work(Base):
         name, found = self.walk({"action": "create"})
         self.assertEqual({item["key"]: item["value"] for item in found["card"]["decided"]}, {"board": "B1"})
         self.assertEqual(list(self.questions(found)), ["list"])
+        self.assertEqual([row["code"] for row in self.questions(found)["list"]["options"]], ["L1", "L2"])  # 默认看板的列表
         found = run.answer(name, {"list": "L1"})
         self.assertEqual(list(self.questions(found)), ["title"])
         found = run.answer(name, {"title": "Close October"})
+        lines = {line["key"]: line["value"] for line in found["review"]["lines"]}
+        self.assertEqual(lines["list"], "To do")
         run.confirm(name, found["version"])
         self.assertEqual(STATE["calls"], [("create", ("Close October", "L1"))])
 

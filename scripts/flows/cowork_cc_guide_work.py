@@ -28,11 +28,11 @@ def steps(params, camera_code=None):
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    opened, done = by.get("点菜单") or {}, by.get("确定") or {}
+    opened, answered, done = (by.get(k) or {} for k in ("点菜单", "作答", "确定"))
     return [
         {"case": "业务菜单有「任务看板」，点了出引导卡、先问操作", "seen": opened,
          "ok": bool(opened.get("clicked")) and opened.get("business") == "work" and opened.get("keys") == ["action"]},
-        {"case": "确定 → 结果卡「成功」、名字是卡片标题（不出内部编号）", "seen": done,
+        {"case": "确定 → 结果卡「成功」、名字是卡片标题（不出内部编号）", "seen": {**done, "answered": answered},
          "ok": done.get("status") == "done" and done.get("result") == "entered" and "成功" in (done.get("text") or "")
          and params["title"] in (done.get("text") or "")},
         lib.no_internal_case(done),
@@ -49,12 +49,13 @@ print(json.dumps(frappe.get_all("Cowork Work Card", filters={{"title": {params['
 
 
 def cleanup(lab, manifest, params):
-    """看板表只经看板服务写（on_trash 拒原生删除）：实验栈里按表直接删掉本流程建的卡、列表、看板与成员。"""
+    """看板表只经看板服务写（on_trash 拒原生删除）：实验栈里按表直接删掉本流程建的卡、列表、标签、看板与成员。"""
     if params.get("board"):
         lab.python(manifest["site"], f"""
 for card in frappe.get_all("Cowork Work Card", filters={{"title": {params['title']!r}}}, pluck="name", limit_page_length=5):
     frappe.db.delete("Cowork Work Card", {{"name": card}})
 frappe.db.delete("Cowork Work Column", {{"board": {params['board']!r}}})
+frappe.db.delete("Cowork Work Label", {{"board": {params['board']!r}}})
 frappe.db.delete("Cowork Work Board Member", {{"parent": {params['board']!r}}})
 frappe.db.delete("Cowork Work Board", {{"name": {params['board']!r}}})
 frappe.db.commit()

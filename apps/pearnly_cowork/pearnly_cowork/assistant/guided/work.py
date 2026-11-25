@@ -95,14 +95,19 @@ def board_default(ctx):
     return {"value": found["code"], "value_label": found["name"], "source": "default"} if found else None
 
 
+def _board(ctx) -> str:
+    """这次的看板：答过的，否则后台定下的默认看板（引擎的 ``answers`` 只有答过的，同定时任务 ``_book``）。"""
+    return str(_answer(ctx, "board") or (board_default(ctx) or {}).get("value") or "")
+
+
 def list_options(ctx, txt="", start=0, page_length=20, codes=None):
-    board = str(_answer(ctx, "board"))
+    board = _board(ctx)
     rows = [{"code": row["name"], "name": row.get("title") or row["name"]} for row in _api().board_lists(board) or ()]
     return _only(rows, codes) if codes is not None else _page(rows, txt, start, page_length)
 
 
 def _cards(ctx):
-    data = _api().board(str(_answer(ctx, "board")) or None)
+    data = _api().board(_board(ctx) or None)
     lists = {row.get("name"): row.get("title") for row in data.get("lists") or ()}
     return [{"code": card["name"], "name": card.get("title") or card["name"],
              **({"note": lists[card["board_list"]]} if lists.get(card.get("board_list")) else {})}
@@ -163,7 +168,7 @@ def recurrence_default(ctx):
 
 
 def _board_data(ctx) -> dict:
-    return _api().board(str(_answer(ctx, "board")) or None)
+    return _api().board(_board(ctx) or None)
 
 
 def member_options(ctx, txt="", start=0, page_length=20, codes=None):

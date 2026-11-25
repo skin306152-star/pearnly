@@ -53,8 +53,9 @@ def judge(params, results, camera_code=None):
 
 def verify(lab, manifest, params, camera_code=None):
     runs = lib.run_row(lab, manifest, params, "folder_task")
-    left = lab.python(manifest["site"], f'print(json.dumps(bool(frappe.db.exists({RULE!r}, {params["rule"]!r}))))')
-    return [lib.done_case(runs), {"case": "任务表里这条真删了（删了 1 条，与结果卡一致）", "seen": left, "ok": left is False}]
+    # lab.python 只认最后一行 JSON 对象 / 数组（裸 false 会被当成没有输出）
+    left = lab.python(manifest["site"], f'print(json.dumps({{"left": bool(frappe.db.exists({RULE!r}, {params["rule"]!r}))}}))')
+    return [lib.done_case(runs), {"case": "任务表里这条真删了（删了 1 条，与结果卡一致）", "seen": left, "ok": left == {"left": False}}]
 
 
 def cleanup(lab, manifest, params):

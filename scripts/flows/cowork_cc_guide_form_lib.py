@@ -91,14 +91,16 @@ def open_business(business):
 
 
 def answer(want: dict, name: str = "作答"):
-    """一页一题答到卡离开问题页（复核卡 / 确定卡 / 结果）；回每页 {key, input, did}。"""
+    """一页一题答到卡离开问题页（复核卡 / 确定卡 / 结果）；回每页 {key, input, did}。要选的项在「显示更多」后面时先点开再选。"""
     return {"name": name, "js": JS + HELP + f"const WANT={json.dumps(want, ensure_ascii=False)}; " +
             "const pages=[]; for(let k=0;k<12;k++){ const c=card(); const qn=c?.querySelector('[data-slot=\"cc-guide-question\"]'); "
             " if(!qn) break; const key=qn.dataset.key, input=qn.dataset.input; let did=''; "
             " const opts=[...qn.querySelectorAll('[data-slot=\"cc-guide-option\"]')]; "
             " if(key in WANT){ const w=WANT[key]; "
             "  if(input==='file'){ for(const n of [].concat(w)){ const row=opts.find(o=>o.dataset.fileName===n); if(row&&!row.hasAttribute('data-checked')) row.click(); await sleep(150);} did='file'; } "
-            "  else if(opts.length){ const hit=opts.find(o=>o.dataset.code===w)||opts.find(o=>o.innerText.includes(w)); hit?.click(); did='pick:'+(hit?.dataset.code||''); } "
+            "  else if(opts.length){ const find=()=>{const os=[...qn.querySelectorAll('[data-slot=\"cc-guide-option\"]')]; return os.find(o=>o.dataset.code===w)||os.find(o=>o.innerText.includes(w));}; "
+            "   let hit=find(); for(let m=0;!hit&&m<5;m++){ const more=qn.querySelector('[data-slot=\"cc-guide-more\"]')||c.querySelector('[data-slot=\"cc-guide-more\"]'); if(!more) break; more.click(); await sleep(400); hit=find(); } "
+            "   hit?.click(); did='pick:'+(hit?.dataset.code||''); } "
             "  else { const inp=qn.querySelector('[data-slot=\"cc-guide-value\"]')||qn.querySelector('input'); if(inp) setVal(inp,String(w)); did='value'; } } "
             " else { const skip=c.querySelector('[data-slot=\"cc-askq-skip\"]'); "
             "  if(skip&&!skip.disabled&&!opts.some(o=>o.hasAttribute('data-checked'))&&!(qn.querySelector('[data-slot=\"cc-guide-value\"]')?.value)){ "
