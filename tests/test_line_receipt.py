@@ -395,6 +395,24 @@ class StatusWordTables(unittest.TestCase):
         self.assertTrue(contracts.ledger_settled("written", ""))
         self.assertTrue(contracts.ledger_settled("mismatch", ""))
 
+    def test_result_unknown_is_its_own_word_on_the_web_and_in_line(self):
+        """结果不明（写没写进去不知道）不并进失败（主会话 11-25）：CC 桌面版写到一半断了、MR.ERP 发出后查不到，网页与 LINE 同一档。"""
+        from pearnly_erp_portal.express import contracts
+        from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
+
+        jobs = (ROOT / "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py").read_text(encoding="utf-8")  # 运行框架模块，按源码读常量
+        lost = re.search(r'^LOST = "([^"]+)"', jobs, re.M).group(1)
+        self.assertEqual(set(contracts.UNKNOWN_REASONS), {lost, mrerp_contracts.UNKNOWN})
+        page = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        web = re.findall(r'"([^"]+)"', page.split("const UNKNOWN_REASONS = [", 1)[1].split("];", 1)[0])
+        self.assertEqual(set(web), set(contracts.UNKNOWN_REASONS))
+        self.assertIn('__("Result unknown")', page)
+        for reason in (lost, mrerp_contracts.UNKNOWN + ": ERR_TECHNICAL"):
+            with self.subTest(reason=reason):
+                self.assertEqual(contracts.ledger_word("held", reason), "Result unknown")
+                self.assertTrue(contracts.ledger_settled("held", reason))  # 有结论（LINE 不再等），只是不说失败
+        self.assertEqual(contracts.ledger_word("failed", lost), "Failed")  # 只看停下（held）的原因
+
     def test_collections_use_the_same_words_on_the_web_and_in_line(self):
         from pearnly_erp_portal.collection import contracts
 

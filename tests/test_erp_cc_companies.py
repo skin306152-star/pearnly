@@ -1104,7 +1104,10 @@ class PendingTests(unittest.TestCase):
         for code in ("cancelled", "replaced", "voided"):
             self.assertEqual(pending.reason_label(E.FAILED, code), "Cancelled")
         self.assertEqual(pending.reason_label(E.FAILED, "disconnected"), "express.state.detached")
-        for code in ("cc_desktop.result_unknown", "payload_version_outdated", "some_new_code"):
+        # 结果不明不说失败 / 待处理（主会话 11-25：会让人重录、重复入账），给核对那句（同 MR.ERP 的结果不明）
+        for state in (E.FAILED, E.HELD):
+            self.assertEqual(pending.reason_label(state, "cc_desktop.result_unknown"), "express.reason.resultUnknown")
+        for code in ("payload_version_outdated", "some_new_code"):
             self.assertEqual(pending.reason_label(E.FAILED, code), "Failed", code)
             self.assertEqual(pending.reason_label(E.HELD, code), "Pending", code)
         self.assertIn("/^[a-z][a-z0-9_]*(\\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason)", page)  # 单据页同一规则

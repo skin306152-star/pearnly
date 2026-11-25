@@ -1897,6 +1897,7 @@ The เงินสด supplier in MR.ERP is not on a cash or bank account.	MR.E
 Could not create the cash supplier in MR.ERP.	未能在 MR.ERP 中建立现金供应商。	สร้างผู้จำหน่ายเงินสดใน MR.ERP ไม่สำเร็จ	MR.ERP に現金仕入先を作成できませんでした。	mrerp.error.ERR_MRERP_CASH_SUPPLIER_NOT_CREATED
 This MR.ERP account is in an operator entry	此 MR.ERP 账号正在代录	บัญชี MR.ERP นี้กำลังบันทึกแทนอยู่	この MR.ERP アカウントは代行入力中です	mrerp.reason.accountBusy
 Importing into MR.ERP	正在导入 MR.ERP	กำลังนำเข้า MR.ERP	MR.ERP に取込中	mrerp.reason.importing
+The result is not confirmed. Check in Express before sending again	结果未确认，请先在 Express 中核对，再决定是否重新推送	ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่	結果が確認できません。Express で確認してから再送信してください	express.reason.resultUnknown
 The result is not confirmed. Check in MR.ERP before sending again	结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送	ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่	結果は未確認です。再送信する前に MR.ERP で確認してください	mrerp.reason.resultUnknown
 An account used is not in the MR.ERP chart of accounts. Check the account settings	所用科目不在 MR.ERP 科目表中，请检查科目设置	รหัสบัญชีที่ใช้ไม่มีในผังบัญชี MR.ERP กรุณาตรวจสอบการตั้งค่าบัญชี	使用する勘定科目が MR.ERP の勘定科目表にありません。科目設定を確認してください	mrerp.error.ERR_ACCOUNT_NEEDS_REVIEW
 The amounts do not add up. Correct them and submit again	金额合计不一致，请更正后重新提交	ยอดรวมไม่ตรงกัน กรุณาแก้ไขแล้วส่งใหม่	金額が合いません。直して再送信してください	mrerp.error.ERR_AMOUNTS_NOT_CLOSED

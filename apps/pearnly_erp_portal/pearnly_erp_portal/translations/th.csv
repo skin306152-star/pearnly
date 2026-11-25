@@ -1655,6 +1655,7 @@ The quantity on line {0} is invalid,จำนวนในบรรทัดท�
 The recognition queue is busy. Please send the document again shortly.,ระบบอ่านเอกสารมีคิวหนาแน่น กรุณาส่งเอกสารใหม่อีกครั้งในภายหลัง
 The recognition result needs checking. Please do not resend this document yet.,ผลการอ่านอยู่ระหว่างรอตรวจสอบ กรุณาอย่าส่งเอกสารนี้ซ้ำ
 The recognition service did not answer in time. Please try again.,ระบบอ่านเอกสารไม่ตอบสนองภายในเวลาที่กำหนด กรุณาลองอีกครั้ง
+The result is not confirmed. Check in Express before sending again,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
 The result is not confirmed. Check in MR.ERP before sending again,ยังไม่ยืนยันผล กรุณาตรวจสอบใน MR.ERP ก่อนตัดสินใจส่งใหม่
 The return is not in the expected form,ข้อมูลใบรับคืนอยู่ในรูปแบบที่ไม่ถูกต้อง
 The returned quantity is more than the quantity sold,จำนวนที่รับคืนมากกว่าจำนวนที่ขาย
@@ -2581,6 +2582,7 @@ express.reason.refundCrossYear,ใบต้นฉบับและการค�
 express.reason.refundItems,รายการรับคืนต้องเป็นสินค้าคงคลังใน Express
 express.reason.refundOriginalManual,สรุปยอดรายวันต้นฉบับจัดการด้วยมือใน Express แล้ว
 express.reason.refundWaiting,รอบันทึกสรุปยอดขายรายวันต้นทาง
+express.reason.resultUnknown,ยังไม่ยืนยันผลการส่ง กรุณาตรวจสอบใน Express ก่อนตัดสินใจส่งใหม่
 express.reason.stockInsufficient,สินค้าคงเหลือใน Express ไม่พอ
 express.reason.stockShort,{0} · คลัง {1}: ต้องการ {2} มี {3}
 express.reason.taxMissing,บริษัทไม่มีเลขประจำตัวผู้เสียภาษี 13 หลัก

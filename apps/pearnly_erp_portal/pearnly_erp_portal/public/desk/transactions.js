@@ -115,11 +115,15 @@
 	const LEDGER_WORDS = {queued: "Entering", written: "Succeeded", handled: "Succeeded", held: "Failed", failed: "Failed",
 		mismatch: "Failed", detached: "Failed"};
 	const AUTO_RETRY = ["express.account_set_missing", "express.no_writer", "express.masters_reading", "express.pos_refund_waiting"];
+	// 结果不明（写没写进去不知道）单列，不并进失败（主会话 11-25，同服务端 `RESULT_UNKNOWN` / `UNKNOWN_REASONS`）
+	const UNKNOWN_REASONS = ["cc_desktop.result_unknown", "mrerp.result_unknown"];
+	p.result_unknown = (state, reason) => state === "held" && UNKNOWN_REASONS.some(code => String(reason || "").startsWith(code));
 	p.ledger_word = (state, reason) => (!state ? "" : state === "held" && AUTO_RETRY.includes(reason || "") ? __("Entering")
-		: __(LEDGER_WORDS[state] || state));
+		: p.result_unknown(state, reason) ? __("Result unknown") : __(LEDGER_WORDS[state] || state));
 	const EXPRESS_REASONS = {
 		"express.company_tax_missing": "express.reason.taxMissing", "express.account_set_missing": "express.reason.noBook",
 		"express.no_writer": "express.reason.noWriter", "express.masters_reading": "express.reason.reading",
+		"cc_desktop.result_unknown": "express.reason.resultUnknown",
 		"express.account_period_mismatch": "express.reason.periodOutside",
 		"express.stock_book_missing": "express.reason.noStockBook", "express.pos_net_negative": "express.reason.posNetNegative",
 		"express.pos_refund_waiting": "express.reason.refundWaiting", "pos_refund_items_invalid": "express.reason.refundItems",

@@ -25,6 +25,11 @@ def _cell(record, key):
     value = record.get(key)
     if key in ENUM_FIELDS and value in ENUM_LABELS:
         value = _(ENUM_LABELS[value])
+    elif key == "ledger_state" and value:
+        # 账本状态同列表 Express 列的状态词（录入中 / 成功 / 失败 / 结果不明，`express.contracts.ledger_word`），不出原码
+        from pearnly_erp_portal.express import contracts
+
+        value = _(contracts.ledger_word(value, record.get("ledger_reason")))
     return _value(value)
 
 

@@ -1655,6 +1655,7 @@ The quantity on line {0} is invalid,第 {0} 行数量无效
 The recognition queue is busy. Please send the document again shortly.,识别队列繁忙，请稍后重新发送
 The recognition result needs checking. Please do not resend this document yet.,识别结果待核对，请勿重复发送
 The recognition service did not answer in time. Please try again.,识别服务响应超时，请重试。
+The result is not confirmed. Check in Express before sending again,结果未确认，请先在 Express 中核对，再决定是否重新推送
 The result is not confirmed. Check in MR.ERP before sending again,结果未确认，请先在 MR.ERP 中核对，再决定是否重新推送
 The return is not in the expected form,退货单数据格式不对
 The returned quantity is more than the quantity sold,退货数量超过原单销售数量
@@ -2581,6 +2582,7 @@ express.reason.refundCrossYear,原单与退货在不同年度账套
 express.reason.refundItems,退货明细须为 Express 库存商品
 express.reason.refundOriginalManual,原日汇总已在 Express 手工处理
 express.reason.refundWaiting,等待原日汇总写入
+express.reason.resultUnknown,结果未确认，请先在 Express 中核对，再决定是否重新推送
 express.reason.stockInsufficient,Express 库存不足
 express.reason.stockShort,{0} · 仓 {1}：需要 {2}，现有 {3}
 express.reason.taxMissing,公司没有 13 位税号

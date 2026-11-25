@@ -1655,6 +1655,7 @@ The quantity on line {0} is invalid,{0} 行目の数量が無効です
 The recognition queue is busy. Please send the document again shortly.,読み取りが混み合っています。しばらくしてからもう一度送ってください
 The recognition result needs checking. Please do not resend this document yet.,読み取り結果の確認が必要です。まだ再送しないでください
 The recognition service did not answer in time. Please try again.,読み取りサービスが時間内に応答しませんでした。もう一度お試しください。
+The result is not confirmed. Check in Express before sending again,結果が確認できません。Express で確認してから再送信してください
 The result is not confirmed. Check in MR.ERP before sending again,結果は未確認です。再送信する前に MR.ERP で確認してください
 The return is not in the expected form,返品伝票のデータ形式が正しくありません
 The returned quantity is more than the quantity sold,返品数量が販売数量を超えています
@@ -2581,6 +2582,7 @@ express.reason.refundCrossYear,元伝票と返品が別年度の会計データ�
 express.reason.refundItems,返品明細は Express の在庫品である必要があります
 express.reason.refundOriginalManual,元の日次集計は Express で手動処理済みです
 express.reason.refundWaiting,元の日次集計の書き込み待ち
+express.reason.resultUnknown,結果が確認できません。Express で確認してから再送信してください
 express.reason.stockInsufficient,Express の在庫が足りません
 express.reason.stockShort,{0} · 倉庫 {1}：必要 {2}、在庫 {3}
 express.reason.taxMissing,会社に 13 桁の納税者番号がありません

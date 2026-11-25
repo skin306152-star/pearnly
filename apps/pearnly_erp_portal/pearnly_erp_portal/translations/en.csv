@@ -1655,6 +1655,7 @@ The quantity on line {0} is invalid,The quantity on line {0} is invalid
 The recognition queue is busy. Please send the document again shortly.,The recognition queue is busy. Please send the document again shortly.
 The recognition result needs checking. Please do not resend this document yet.,The recognition result needs checking. Please do not resend this document yet.
 The recognition service did not answer in time. Please try again.,The recognition service did not answer in time. Please try again.
+The result is not confirmed. Check in Express before sending again,The result is not confirmed. Check in Express before sending again
 The result is not confirmed. Check in MR.ERP before sending again,The result is not confirmed. Check in MR.ERP before sending again
 The return is not in the expected form,The return is not in the expected form
 The returned quantity is more than the quantity sold,The returned quantity is more than the quantity sold
@@ -2581,6 +2582,7 @@ express.reason.refundCrossYear,Original and refund are in different account set 
 express.reason.refundItems,Each returned line must be an Express stock item
 express.reason.refundOriginalManual,The original day summary was handled manually in Express
 express.reason.refundWaiting,Waiting for the original day summary to be written
+express.reason.resultUnknown,The result is not confirmed. Check in Express before sending again
 express.reason.stockInsufficient,Not enough stock in Express
 express.reason.stockShort,"{0} · Warehouse {1}: need {2}, have {3}"
 express.reason.taxMissing,The company has no 13-digit tax ID

@@ -121,15 +121,26 @@ def printed_hold(recognized, printed_total, grand_total, net_payable=None):
 ENTERING, SUCCEEDED, NOT_DONE = "Entering", "Succeeded", "Failed"
 LEDGER_WORDS = {QUEUED: ENTERING, WRITTEN: SUCCEEDED, HANDLED: SUCCEEDED, HELD: NOT_DONE, FAILED: NOT_DONE,
                 MISMATCH: NOT_DONE, DETACHED: NOT_DONE}
+# 结果不明（写没写进去不知道）单列「结果不明」，不并进失败（主会话 11-25：写成失败会让人重录、重复入账）：停下的原因是
+# CC 桌面版写到一半断了（`cc_desktop.jobs.LOST`）或 MR.ERP 导入发出后查不到 / 出错（`mrerp.contracts.UNKNOWN` 前缀）
+RESULT_UNKNOWN = "Result unknown"
+UNKNOWN_REASONS = ("cc_desktop.result_unknown", "mrerp.result_unknown")
 MISMATCH_REASON = "express.reason.mismatch"
 # 每分钟自己再试的停下原因（= :data:`POLL_REASONS`：没有账套、没有能写的电脑、主档在读、退货单的原 HS 还没写成）：算录入中
 AUTO_RETRY_REASONS = POLL_REASONS
+
+
+def result_unknown(state, reason="") -> bool:
+    """停下的原因是结果不明（:data:`UNKNOWN_REASONS`，MR.ERP 的带 ``: <码>`` 后缀）。"""
+    return state == HELD and str(reason or "").startswith(UNKNOWN_REASONS)
 
 
 def ledger_word(state, reason="") -> str:
     """单据账本状态（与停下的原因）→ 状态词词条（没在表里的原样）。"""
     if state == HELD and str(reason or "") in AUTO_RETRY_REASONS:
         return ENTERING
+    if result_unknown(state, reason):
+        return RESULT_UNKNOWN
     return LEDGER_WORDS.get(state or "", state or "")
 
 
@@ -440,7 +451,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "ledger_settled", "ledger_word", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "OFFLINE", "WAITING_COMPUTER", "waiting_computer", "waiting_computer_of", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]
