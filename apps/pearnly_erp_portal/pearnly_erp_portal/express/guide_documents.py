@@ -422,7 +422,8 @@ def _numbers(rows) -> None:
     shown = {}
     for doctype, names in by_type.items():
         fields = ["name", "system_no", *dict(NUMBERED.values())[doctype]]
-        for found in frappe.get_all(doctype, filters={"name": ["in", names]}, fields=fields, limit_page_length=len(names)):
+        for found in frappe.get_all(doctype, filters={"name": ["in", names]}, fields=fields,  # loop-query: 最多两类（采购、销售），每类一次按名单取
+                                    limit_page_length=len(names)):
             shown[(doctype, found.name)] = found.get("doc_no") or found.get("system_no") or ""
     for row in rows:
         number = shown.get((row.pop("doctype", ""), row.get("document")))
