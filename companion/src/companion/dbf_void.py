@@ -396,13 +396,16 @@ def _later_rows(remaining: list, first: dict, docnum: str) -> bool:
     return any(entry[0] > mine for entry in remaining)
 
 
-def _previous_lot(remaining: list, before_recno: int) -> str:
+def _previous_lot(remaining: list, before_recno: int, place: bool = False) -> str:
     """写这张单之前这条链的链头：库存卡上排在本单第一行之前（按写入顺序，记录号）最后一条说得清链头的行——进货类的正数行就是它
     自己的新批（批号 = 日期 + 动作 + 单号 + 行号，``stock_costing.lot_number``；CC 与原生写入时新批都成为链头，不论单据日），
     其余记了批号的行记的是它写前的链头（减少不换链头），没记批号的行（盘点的减少行、老版本 CC 的行）跳过。都没有回空。
-    用于行上记的批号不是写前指针的作废（调入行记自己的新批，原生 RL2300610；盘盈行记挂靠的进货批）。"""
+    用于行上记的批号不是写前指针的作废（调入行记自己的新批，原生 RL2300610；盘盈行记挂靠的进货批）。``place``：找的是仓链，
+    盘点的行写入时不动仓链，跳过。"""
     for entry in sorted((e for e in remaining if e[6] < before_recno), key=lambda e: e[6], reverse=True):
         _order, posopr, docnum, seq, day, qty, _recno, recorded = entry
+        if place and posopr == S.STCRD_POSOPR_COUNT:
+            continue
         if posopr in stock_chain.RECEIPT_POSOPR and qty > 0 and day:
             try:
                 seq_text = S.seqnum_text(int(seq))
@@ -450,21 +453,21 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
             else:
                 replay = replace(replay, bal=replay.bal + row["qty"], val=replay.val + row["value"])
         fits = abs(replay.bal - now.bal) <= Decimal("0.0001") and abs(replay.val - now.val) <= Decimal("0.01")
-        # 行上记的批号不是写前指针的两种：盘盈行记的是挂靠的进货批（原生实录第 9 条），调入行记的是本单自己的新批。写入时新批成了链头，
-        # 写前的链头就是这条链剩下的批里排最后的那一批（原生盘盈作废没有实录，照调入同法推定）
+        # 行上记的批号不是写前指针的两种：盘盈行记的是挂靠的进货批（原生实录第 9 条），调入行记的是本单自己的新批。写入时链头没换成
+        # 本单的批就不动；换了就按库存卡写入顺序找本单之前的链头（_previous_lot；原生盘盈作废没有实录，照调入同法推定）
         linked = (first["POSOPR"] == S.STCRD_POSOPR_COUNT and first["qty"] > 0) or _own_lot(head, docnum)
         if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
             if linked:  # 写入时链头没换成本单的批（先进先出账套指着仍有剩余的最早一批）就不动；换了才回之前那一批
                 new = replace(new, head=now.head, marked=now.marked) if not _own_lot(now.head, docnum) else \
-                    replace(new, head=_previous_lot(remaining[key], min(row["RECNO"] for row in rows)) or stock_chain.EMPTY_HEAD, marked=False)
+                    replace(new, head=_previous_lot(remaining[key], min(row["RECNO"] for row in rows), key[1] is not None) or stock_chain.EMPTY_HEAD, marked=False)
             elif not head:  # 行上没记批号（盘点的减少行、老版本 CC 的行）：写入时没动批号，作废也不动，留着现在的
                 new = replace(new, head=now.head, marked=now.marked)
         else:
             back = now.head
             if _own_lot(now.head, docnum):  # 批号指着本单的批：回行上记的写前批号；行上记的不是写前指针就找之前最近的一批
                 back = head if head and not linked else \
-                    (_previous_lot(remaining[key], min(row["RECNO"] for row in rows)) or stock_chain.EMPTY_HEAD)
+                    (_previous_lot(remaining[key], min(row["RECNO"] for row in rows), key[1] is not None) or stock_chain.EMPTY_HEAD)
             new = replace(now, bal=now.bal - qty, val=now.val - value, head=back, marked=False if back != now.head else now.marked)
         if key[1] is not None:
             after[key] = new

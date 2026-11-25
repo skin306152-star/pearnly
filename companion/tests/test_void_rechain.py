@@ -214,3 +214,21 @@ def test_voiding_a_count_in_a_book_costed_by_warehouse_leaves_the_warehouse_chai
         assert _void(acct, res.docnum, "TK", [{"code": "ICE01", "qty": qty}]).ok
         assert _place(acct) == place_before
         assert _master(acct) == master_before
+
+
+def test_the_head_before_a_document_follows_write_order_and_skips_count_rows_on_a_warehouse_chain():
+    """``_previous_lot``：按记录号往前找；进货类正数行是它自己的新批，其余记了批号的行是它记的批号，没记的跳过；找仓链时跳过盘点行。"""
+    import datetime as dt
+    from decimal import Decimal as Dc
+    from companion import dbf_void
+    day = dt.date(2026, 3, 1)
+    rr = ((day, ("0", "RR0000009", 1)), "0", "RR0000009", "1", day, Dc(10), 1, "")
+    later_by_date = ((dt.date(2026, 4, 1), ("0", "RR0000010", 1)), "0", "RR0000010", "1", dt.date(2026, 4, 1), Dc(5), 2, "")
+    issue = ((day, ("6", "OU0000001", 1)), "6", "OU0000001", "1", day, Dc(-1), 3, "202603010RR0000009     1")
+    loss = ((day, (":", "TK0000001", 1)), ":", "TK0000001", "1", day, Dc(-1), 4, "")
+    gain = ((day, (":", "TK0000002", 1)), ":", "TK0000002", "1", day, Dc(1), 5, "")
+    rows = [rr, later_by_date, issue, loss, gain]
+    assert dbf_void._previous_lot(rows, 4) == "202603010RR0000009     1"  # 出库记的批号，不是日期更晚的 RR0000010
+    assert dbf_void._previous_lot(rows, 6) == "20260301:TK0000002     1"  # 主档链：盘盈成新批
+    assert dbf_void._previous_lot(rows, 6, place=True) == "202603010RR0000009     1"  # 仓链：盘点行跳过
+    assert dbf_void._previous_lot(rows, 1) == ""
