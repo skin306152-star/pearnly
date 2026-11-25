@@ -74,6 +74,9 @@ class CloudLink:
     via: str = ""
     members: tuple = ()
     tunnel_drive: str = ""   # 上次用的隧道盘符（``host`` 下次优先用它）；旧文件没有这一项，读成空串
+    # 上次停住的原因（D5）：``replaced`` 被别处登录挤下线——CC 重启时不自动连（否则开机就把正在用的人挤掉），人点「连接 /
+    # 重新登录」连上后清掉；旧文件没有这一项
+    halted: str = ""
 
     @property
     def device_name(self) -> str:
@@ -90,6 +93,8 @@ class CloudLink:
                "members": [{"site": m.site, "backend_url": m.backend_url, "token": m.token_cipher} for m in self.members]}
         if self.tunnel_drive:
             raw["tunnel_drive"] = self.tunnel_drive
+        if self.halted:
+            raw["halted"] = self.halted
         return raw
 
     @classmethod
@@ -114,7 +119,8 @@ class CloudLink:
             members.append(Member(_site(item["site"]), item["backend_url"], item["token"]))
         return cls(host=host, port=port, user=user, domain=domain, device_cipher=cipher,
                    host_name=_label(raw.get("host_name")), via=_label(raw.get("via")), members=tuple(members),
-                   tunnel_drive=_drive(raw.get("tunnel_drive")))
+                   tunnel_drive=_drive(raw.get("tunnel_drive")),
+                   halted="replaced" if raw.get("halted") == "replaced" else "")
 
 
 def _account(user, domain) -> str:
@@ -226,6 +232,14 @@ class LinkStore:
             link = self._need(host)
             if link.tunnel_drive != letter:
                 self._put(replace(link, tunnel_drive=letter))
+
+    def set_halted(self, host: str, halted: str) -> None:
+        """记下 / 清掉「被挤下线」（只认 ``replaced``，其余当清掉）；没变不写。"""
+        value = "replaced" if halted == "replaced" else ""
+        with self._lock:
+            link = self.get(host)
+            if link is not None and link.halted != value:
+                self._put(replace(link, halted=value))
 
     def device_key(self, host: str) -> str:
         """云端那台电脑的设备密钥明文（只交给本站自己的对话页登记用，同 ``device_link.identity``）。"""

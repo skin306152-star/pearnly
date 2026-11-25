@@ -272,6 +272,8 @@ class TrayApp(QObject):
         self._watchdog.start(15000)
         if open_tomo:
             QTimer.singleShot(0, self.open_tomo)
+        # 云端 Express：存着连接与密码就开机 / 重启 / 升级后自动连（D5）；没连过云端的电脑不导入 cloud_link
+        QTimer.singleShot(5000, self._cloud_autoconnect)
 
     def _spawn_worker(self) -> PollWorker:
         """建 poll worker、接好信号并启动(首次启动与自愈重启共用,避免两处接线漂移)。"""
@@ -763,6 +765,16 @@ class TrayApp(QObject):
         """点了窗口转来的通知：窗口进程还在就交回去执行（点开那段对话等）；已经退了就打开窗口。"""
         if not self._window.send("click", id=click):
             self.open_tomo()
+
+    def _cloud_autoconnect(self) -> None:
+        from .config import CLOUD_LINK_FILE
+
+        if self._quitting or not CLOUD_LINK_FILE.exists():
+            return
+        try:
+            (self._bridge or self._make_bridge()).cloud_autoconnect()
+        except Exception:
+            log.exception("启动时自动连云端失败")
 
     def _make_bridge(self):
         from . import tomo_links

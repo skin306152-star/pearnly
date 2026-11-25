@@ -13,7 +13,8 @@
   换了另一台主机：先删旧的那条（吊销令牌、删两条本机凭据），一个桥只有一条。本函数只存、回「未连接」；存好后由
   ``tomo_bridge`` 在界面线程起这条连接的宿主（``host.CloudHost.start``：隧道盘、会话交接、中转、连接窗口），回包里的状态
   换成宿主会话的实况。起不来（不是 Windows、没有 PySide6 或 comtypes、映射不上隧道盘）照样存着、回「未连接」。
-  CC 启动时就算存有云端连接也不自动连，等人再点「连接」。
+  密码可由页面的连接弹窗交来（``cloud_login_inline``，同 MR.ERP inline）；页面不带密码时，同一账号、本机已存过就用存的
+  （D5：输一次记住），否则回 ``password_required``。CC 启动时存有云端连接与密码就自动连（``tomo_bridge.cloud_autoconnect``）。
 - ``disconnect``：``tomo_bridge`` 先停宿主（关窗即断开、停中转、删会话交接、撤隧道盘）；这里有会话再按人断开一次
   （``CloudSession.user_close``，不重连），再 ``LinkStore.remove``（吊销令牌、删配置与两条凭据）。
 - ``status``：连接（主机、端口、用户名、云端电脑名）与状态词；状态来自宿主窗口的 ``session.CloudSession``，宿主没起（没点过
@@ -98,9 +99,35 @@ def check_address(host, port) -> Optional[dict]:
     return None
 
 
+def remembered(host: str, *, has=None) -> bool:
+    """本机凭据管理器里存着这台主机的云端密码（D5：输一次记住）。不是 Windows、读不了都当没有。"""
+    try:
+        return bool((has or links.has_password)(host))
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def login_reason(snapshot) -> str:
+    """登录失败时给页面的原因（D5：只有登录失败才再要密码，并说明原因）：``password`` 账号或密码不对 /
+    ``password_change`` 密码过期或要改 / ``account`` 账号被停用、锁定、过期或受限 / ``""`` 其它。只看原因名，不含账号。"""
+    name = str(getattr(snapshot, "last_reason", "") or "").upper()
+    if any(key in name for key in ("PASSWORD_EXPIRED", "PASSWORD_MUST_CHANGE", "UPDATE_PASSWORD")):
+        return "password_change"
+    if any(key in name for key in ("ACCOUNT_DISABLED", "ACCOUNT_LOCKED", "ACCOUNT_EXPIRED", "ACCOUNT_RESTRICTION",
+                                   "INSUFFICIENTPRIVILEGES", "ACCESS_DENIED")):
+        return "account"
+    if any(key in name for key in ("LOGON_FAILURE", "NO_SUCH_USER", "BAD_PASSWORD", "INVALIDCREDENTIALS",
+                                   "LOGON_FAILED")):
+        return "password"
+    return ""
+
+
 def connect(store, *, new_store: Callable[[], object], session_rdp: Optional[Path], host, port, user, password,
-            via: str = "") -> dict:
-    """存一条云端连接与它的密码。回 ``{ok, state, host}`` 或 ``{ok: false, code[, field]}``，从不回密码。"""
+            via: str = "", has=None) -> dict:
+    """存一条云端连接与它的密码。回 ``{ok, state, host}`` 或 ``{ok: false, code[, field]}``，从不回密码。
+
+    ``password`` 为 None（D5，页面没要密码）：同一台主机、同一个账号、本机已存密码时直接用存的（连接 / 重新登录）；
+    否则回 ``password_required``，页面在弹窗里显示密码框。"""
     try:
         host = rdp.host(host)
     except rdp.RdpValueError:
@@ -120,19 +147,25 @@ def connect(store, *, new_store: Callable[[], object], session_rdp: Optional[Pat
         name, domain = rdp.split_account(str(user or ""), default_domain)
     except rdp.RdpValueError:
         return _invalid("user")
-    if not isinstance(password, str) or not password:
+    if password is None:
+        same = current is not None and (current.user, current.domain) == (name, domain or current.domain)
+        if not (same and remembered(host, has=has)):
+            return {"ok": False, "code": "password_required"}
+        domain = current.domain
+    elif not isinstance(password, str) or not password:
         return _invalid("password")
-    try:
-        links.store_password(host, name, domain, password)
-        rdp_credentials.store(host, name, domain, password)
-    except rdp_credentials.NotWindows:
-        return {"ok": False, "code": "unsupported"}
-    except (OSError, ValueError, links.LinkStoreError) as exc:
-        log.warning("存云端连接的本机凭据失败 · 主机=%s: %s", host, type(exc).__name__)
-        _forget(host)
-        return {"ok": False, "code": "credential_failed"}
-    finally:
-        password = None
+    else:
+        try:
+            links.store_password(host, name, domain, password)
+            rdp_credentials.store(host, name, domain, password)
+        except rdp_credentials.NotWindows:
+            return {"ok": False, "code": "unsupported"}
+        except (OSError, ValueError, links.LinkStoreError) as exc:
+            log.warning("存云端连接的本机凭据失败 · 主机=%s: %s", host, type(exc).__name__)
+            _forget(host)
+            return {"ok": False, "code": "credential_failed"}
+        finally:
+            password = None
     target_store = store if store is not None else new_store()
     try:
         for old in [link for link in target_store.links if link.host != host]:
@@ -195,13 +228,16 @@ def status(store, session=None, cloud=None) -> dict:
     if link is None:
         return {"ok": True, "link": None, "state": IDLE, "places": []}
     snapshot = session.snapshot() if session is not None else None
-    result = {"ok": True, "state": status_of(snapshot), "places": places_of(cloud),
+    state = status_of(snapshot)
+    result = {"ok": True, "state": state, "places": places_of(cloud), "remembered": remembered(link.host),
               "link": {"host": link.host, "port": link.port, "user": link.user, "name": link.host_name}}
+    if state == LOGIN_FAILED:
+        result["reason"] = login_reason(snapshot)
     summary = cloud_summary(cloud)
     if summary is not None:
         result["cloud"] = summary
     return result
 
 
-__all__ = ["CONNECTED", "CONNECTING", "IDLE", "LOGIN_FAILED", "REPLACED", "STATES", "check_address", "connect", "disconnect", "prefill",
-           "status", "status_of"]
+__all__ = ["CONNECTED", "CONNECTING", "IDLE", "LOGIN_FAILED", "REPLACED", "STATES", "check_address", "connect", "disconnect",
+           "login_reason", "prefill", "remembered", "status", "status_of"]

@@ -189,7 +189,7 @@ def test_status_without_a_link_and_with_one(tmp_path, vault):
     _connect(tmp_path)
     session = types.SimpleNamespace(snapshot=lambda: Snapshot(State.HALTED, Outcome.REPLACED, Outcome.REPLACED, "x", 0, None))
     found = settings_link.status(_store(tmp_path), session)
-    assert found == {"ok": True, "state": "replaced", "places": [],
+    assert found == {"ok": True, "state": "replaced", "places": [], "remembered": True,
                      "link": {"host": HOST, "port": 3390, "user": "CLOUDUSER-01", "name": ""}}
     assert PASSWORD not in json.dumps(found)
 

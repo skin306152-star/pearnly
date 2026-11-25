@@ -2,8 +2,7 @@
 """云端连接宿主（桥这一侧，评估第 4.2–4.3 节）：桥进程里每条云端连接一个，把连接窗口、隧道盘、会话交接、中转线程串起来。
 
 ``tomo_bridge`` 在人点「设置 → 连接 → 云端 Express → 连接」并存好连接后 :meth:`CloudHost.start`；「断开连接」先
-:meth:`CloudHost.stop` 再删连接；人把连接窗口关掉 = 断开，宿主随之 stop。**CC 启动时就算已存有云端连接也不自动连**，
-等人在设置里点「连接」（存着的只是连接配置，连不连由人定）。
+:meth:`CloudHost.stop` 再删连接；人把连接窗口关掉 = 断开，宿主随之 stop。CC 启动时存有连接与密码就由 ``tomo_bridge.cloud_autoconnect`` 自动起（D5）。
 
 - 隧道根目录 ``config.CLOUD_TUNNEL_DIR\\<主机>\\``（``%LOCALAPPDATA%\\Pearnly\\cloud-tunnel\\<主机>``），下有 ``in``、``out``、
   ``ctl``；只在 start 时建。

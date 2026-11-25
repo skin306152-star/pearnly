@@ -467,7 +467,7 @@ def test_the_bridge_never_takes_a_path_from_the_page(tmp_path, monkeypatch):
                                     page_url=lambda: url[0])
     state = json.loads(bridge.state())
     assert state["features"] == ["company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",
-                                 "mrerp_login_inline"] and state["legacy_roots"][0]["id"] == "r"
+                                 "mrerp_login_inline", "connect_dialog"] and state["legacy_roots"][0]["id"] == "r"
 
     done = []
     bridge.done.connect(lambda job, result: done.append((job, json.loads(result))))

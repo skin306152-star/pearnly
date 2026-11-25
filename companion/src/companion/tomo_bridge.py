@@ -32,7 +32,7 @@ MR.ERP 登录（ADR-026 第 7 条，11-02；11-23 用户「第一个弹窗不行
 存连接配置、生成云端设备密钥；存好后在界面线程起这条连接的宿主 ``cloud_link/host.py``——隧道盘、会话交接、中转、可见的连接
 窗口（默认最小化），回包的状态换成会话实况；一个桥一个宿主，再点「连接」先停旧的再起）、``cloud_disconnect``（先停宿主——关窗即
 断开、停中转、撤隧道盘——再 ``LinkStore.remove``）、``cloud_status``（连接与状态词，状态来自宿主的会话）。人把连接窗口关掉
-= 断开，宿主随之停。**CC 启动时就算存有云端连接也不自动连**，等人在设置里点「连接」。
+= 断开，宿主随之停。CC 启动时存有云端连接、本机存着密码、上次不是被别处登录挤下线，就自动连（D5，``cloud_autoconnect``）。
 旧版桥没有这几个动作（回 ``{ok: false}``），页面据此不出这一行；``state()`` 与 FEATURES 不变。
 
 云端代录的 Express 登录（做法页 11-16 第二版，``cloud_link/cred_handoff.py``）：``cloud_operator_authorize {connection}`` 经 ``ask_login`` 弹 CC
@@ -89,8 +89,12 @@ REFUSED = json.dumps({"ok": False, "refused": True})
 # mrerp_login_inline = mrerp_authorize 另收页面「连接 MR.ERP」弹窗里输的 username / password（11-23），不再弹原生小窗；没有这项的
 # 旧桌面版页面提示更新。
 # place_channels = 每个位置给哪几种成员读（11-07 共用电脑隔离）：state() 带 ``place_channels``，``place_channels`` 动作改一个位置的勾。
+# connect_dialog = 共用连接弹窗（第二阶段 D5，MR.ERP 与云端 Express 同一个弹窗外壳）收密码：带 ``inline: true`` 的 cloud_connect 用
+# 弹窗里填的 password，没填就用本机存的（没存回 password_required），不再弹原生小窗；带 ``inline: true`` 的
+# cloud_operator_authorize（「代录登录」）收 username / password；cloud_status 带 remembered / reason；cloud_rescan /
+# cloud_add_place（D4）。不带 inline 的旧页面照旧弹原生小窗、页面交的密码一概不看。
 FEATURES = ("company_folders", "devices", "sites", "express_places", "operator", "mrerp_login", "place_channels",
-            "mrerp_login_inline")
+            "mrerp_login_inline", "connect_dialog")
 
 
 def _local_login(parent, lang: str, title_key: str, user: str) -> Optional[Tuple[str, str]]:
@@ -444,8 +448,8 @@ class TomoBridge(QObject):
         return {"ok": True, "id": item_id}
 
     def _cloud_operator(self, method: str, args: dict, lang: str) -> dict:
-        """云端代录的 Express 登录：授权 = 原生小窗收用户名和密码、只存桥本机；取消授权 = 删本机这条并请云端删。
-        args 里只看 ``connection``（用户名、密码一概不看）；回包从不含密码。"""
+        """云端代录的 Express 登录：授权 = 收用户名和密码（页面「代录登录」弹窗交来，旧页面弹原生小窗）、只存桥本机；取消授权 =
+        删本机这条并请云端删。回包从不含密码、不写日志。"""
         from .cloud_link import cred_handoff
 
         try:
@@ -458,7 +462,14 @@ class TomoBridge(QObject):
             return {"ok": False, "code": "not_found"}
         target = cred_handoff.bridge_target(link.host, connection)
         if method == "cloud_operator_authorize":
-            found = self._ask_login(normalize(lang), "op_login_title", "")
+            typed = args.get("inline") is True
+            username, password = (args.get("username"), args.get("password")) if typed else (None, None)
+            args = None   # 不再留着页面交来的密码
+            if typed and not (isinstance(username, str) and username.strip() and isinstance(password, str) and password):
+                return {"ok": False, "code": "invalid"}
+            # 「代录登录」（D5）：页面弹窗里填的就用；旧页面弹原生小窗
+            found = (username.strip(), password) if typed else self._ask_login(normalize(lang), "op_login_title", "")
+            username = password = None
             if not found:
                 return {"ok": False, "cancelled": True}
             user, password = found
@@ -578,15 +589,27 @@ class TomoBridge(QObject):
         return {"ok": False}
 
     def _cloud_connect(self, settings_link, args: dict, lang: str) -> dict:
+        """连接 / 重新登录。新页面（``inline``）：密码在弹窗里填，带了就用，没带就用本机存的（没存回 ``password_required``）；
+        旧页面：弹原生小窗收账号和密码。"""
         host, port = str(args.get("host") or ""), args.get("port")
         failed = settings_link.check_address(host, port)
         if failed is not None:
             return failed
-        found = self._ask_login(normalize(lang), "cloud_login_title", str(args.get("user") or ""))
-        if not found:
-            return {"ok": False, "cancelled": True}
-        user, password = found
-        found = None
+        inline = args.get("inline") is True
+        password = args.get("password") if inline else None
+        user = str(args.get("user") or "")
+        args = None   # 不再留着页面交来的密码
+        if inline:
+            if password is not None and not (isinstance(password, str) and password):
+                return {"ok": False, "code": "invalid", "field": "password"}
+            if not user.strip():
+                return {"ok": False, "code": "invalid", "field": "user"}
+        else:
+            found = self._ask_login(normalize(lang), "cloud_login_title", user)
+            if not found:
+                return {"ok": False, "cancelled": True}
+            user, password = found
+            found = None
         store, session_rdp, via = self._cloud_links(), self._session_rdp(), self._device_name()
 
         def work() -> dict:
@@ -621,13 +644,55 @@ class TomoBridge(QObject):
         session = self._cloud_session()
         return {**result, "state": settings_link.status_of(session.snapshot() if session is not None else None)}
 
+    def cloud_autoconnect(self) -> bool:
+        """（界面线程）CC 启动 / 重启 / 升级后：存有云端连接且本机存着密码就自动连（D5，同 MR.ERP 记住）；已在连、没存就不做。"""
+        if self._cloud_host is not None:
+            return False
+        try:
+            store = self._cloud_links()
+        except Exception:
+            log.exception("读本机的云端连接失败")
+            return False
+        link = store.links[0] if store is not None and store.links else None
+        if link is None:
+            return False
+        from .cloud_link import settings_link
+
+        if not settings_link.remembered(link.host):
+            log.info("云端连接没存密码，启动时不自动连")
+            return False
+        if link.halted == "replaced":
+            log.info("云端上次被别处登录挤下线，启动时不自动连（等人点重新登录）")
+            return False
+        log.info("启动时自动连云端")
+        self._after_cloud_connect(settings_link, {"ok": True, "host": link.host})
+        self.changed.emit()
+        return True
+
     def _host_session(self):
         host = self._cloud_host
         return host.session if host is not None else None
 
     def _cloud_changed(self, snapshot=None, description: str = "") -> None:
-        """（界面线程）连接窗口状态变了：对话页重取状态。"""
+        """（界面线程）连接窗口状态变了：对话页重取状态；被挤下线记下来（重启不自动连），连上了清掉。"""
+        self._remember_halt(snapshot)
         self.changed.emit()
+
+    def _remember_halt(self, snapshot) -> None:
+        from .cloud_link.reasons import Outcome
+        from .cloud_link.session import State
+
+        state = getattr(snapshot, "state", None)
+        if state not in (State.HALTED, State.CONNECTED):
+            return
+        halted = "replaced" if state is State.HALTED and getattr(snapshot, "halt", None) is Outcome.REPLACED else ""
+        host = self._cloud_host
+        try:
+            store = self._cloud_links()
+            if store is not None and host is not None and store.get(host.host) is not None:
+                store.set_halted(host.host, halted)
+        except Exception:
+            log.exception("记云端停住原因失败")
 
     def _stop_cloud_host(self) -> None:
         host, self._cloud_host = self._cloud_host, None
