@@ -118,7 +118,7 @@
 
 | 件 | 依赖 V1 | 通道 | 做法 | 离线可测 |
 | --- | --- | --- | --- | --- |
-| a 首次安装 | **是** | 桥 → 远程桌面键盘 | 隧道盘 `cc\` 照旧由 `cloud_package.prepare` 备好；连接成功、隧道根 `ctl\session.json` 在、却 60 秒内没有云端配对回执（`ctl` 里没有该会话的 `paired`）时，桥对控件发「Ctrl+Esc → 打 powershell → 回车 → 打 `install_command(盘符, 令牌)` → 回车」；按 V1 结果二选一：V1 过 → 用 Unicode 逐字发（键盘布局无关）；V1 不过 → 不自动，保留现兜底（「···」→「云端安装命令」+ 弹窗写原因）。令牌一次性、只在内存里拼进按键序列。 | 状态机（等回执 → 发键 → 等回执 → 超时转兜底）和按键序列生成可离线测；发键本身只能真机 |
+| a 首次安装 | **是** | 桥 → 远程桌面键盘 | 隧道盘 `cc\` 照旧由 `cloud_package.prepare` 备好；连接成功、桥已写 `ctl\session.json`，却 60 秒内既没有云端 `ctl\status.json`（已装的云端 CC 会报）也没有配对请求 `ctl\pair-req.json`（`device_pairing`）时，桥对控件发「Ctrl+Esc → 打 powershell → 回车 → 打 `install_command(盘符, 令牌)` → 回车」；按 V1 结果二选一：V1 过 → 用 Unicode 逐字发（键盘布局无关）；V1 不过 → 不自动，保留现兜底（「···」→「云端安装命令」+ 弹窗写原因）。令牌一次性、只在内存里拼进按键序列。 | 状态机（等 status / 配对请求 → 发键 → 等配对确认 `pair-ack.json` → 超时转兜底）和按键序列生成可离线测；发键本身只能真机 |
 | b 自升级 | 否 | 隧道盘 `cc\`（已有） | 桥每次起宿主已跑 `cloud_package.refresh`（版本变了才重放 `cc\`）。云端那份 CC 启动时与每次 `ctl` 目录通知时读 `cc\cloud.json` 版本，比自己新就：拷 zip 到本地、核 sha256、解压到 `CC-Cloud\<新版本>`、改启动项指向新目录、起新进程后自己退出；旧版本目录留一个（回退用），更旧的删。逻辑与 `cloud_install.ps1` 第 1、2、4 步同一套，改成 Python 在云端 CC 里做（不再起 PowerShell，避免执行策略问题）。 | 全部可离线测（假隧道目录 + 假包） |
 | c 断开连带删 | 否 | `ctl\` 控制文件（已有加密信封） | 主会话 11-24 定「删」。桥「断开」时先写 `ctl\uninstall.json`（同 members.json 的会话密钥信封），云端 CC 收到后删启动项 `CC.lnk`、删设备凭据 `Pearnly CC/cloud-device/<主机>`、写回执 `ctl\uninstalled.json`、退出，并留一个自删（退出后删 `%LOCALAPPDATA%\Pearnly\CC-Cloud`）；桥等回执最多 15 秒再停宿主，超时照常断开、行上写「云端未清理」并在下次连上时补发。 | 信封、云端处理、桥等待与超时都可离线测；自删目录只能真机 |
 
