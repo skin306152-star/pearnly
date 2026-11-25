@@ -62,6 +62,8 @@ $base = Join-Path $env:LOCALAPPDATA 'Pearnly\CC-Cloud'
 $dest = Join-Path $base $version
 $exe = Join-Path $dest 'companion.exe'
 New-Item -ItemType Directory -Path $base -Force | Out-Null
+# 我们的标记文件（断开时云端那份 CC 只删带这个标记的目录：cloud_link/cloud_self.py 的 MARKER / MARKER_TEXT）
+[System.IO.File]::WriteAllText((Join-Path $base '.pearnly-cc-cloud'), "pearnly-cc-cloud v1`n")
 
 # 每次都先拷到本机再校验：校验不对立刻退出（不解压、不运行、不建快捷方式）；解压用同一份文件
 $localZip = Join-Path $base ('CC-Cloud-' + [guid]::NewGuid().ToString('N') + '.zip')

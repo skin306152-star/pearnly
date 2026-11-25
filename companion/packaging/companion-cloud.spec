@@ -26,7 +26,7 @@ _OPERATOR_MODULES = (
 _hidden = ["httpx", "dbf"] + [f"src.companion.express_operator.{name}" for name in _OPERATOR_MODULES]
 # 云端成员、找账套与 ctl 状态文件（D3 / D4，cloud_side 里按需导入）
 _hidden += ["src.companion.cloud_link.cloud_members", "src.companion.cloud_link.ctl_files",
-            "src.companion.cloud_link.cloud_books"]
+            "src.companion.cloud_link.cloud_books", "src.companion.cloud_link.cloud_self"]
 # 只留代录 Express 的配方;MR.ERP 代录在云端不起(runtime_mode / payload_contract.mrerp_operator_enabled),配方不带
 _datas = [("../src/companion/express_operator/recipes/*.json", "src/companion/express_operator/recipes")]
 

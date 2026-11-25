@@ -5,6 +5,8 @@ r"""桥与云端那份 CC 之间 ``ctl\`` 里的状态 / 命令文件（第二�
     status.json      云端 → 桥  云端 CC 的版本、成员是否就绪、找到的数据目录与账套数
     rescan.json      桥 → 云端  「重新查找」
     add-place.json   桥 → 云端  手填一个数据目录
+    uninstall.json   桥 → 云端  「断开」时请云端删我们装的东西（段 ③，``cloud_self.handle_uninstall``）
+    uninstalled.json 云端 → 桥  上一条的回执（同一编号：``{code, dir, link}``）
 
 全部用**当前隧道会话的密钥**（``tunnel_protocol.Session.key``，桥每次起会话生成、经 ``session.json`` 交给云端、只在内存）加密：
 AES-256-GCM，密钥由会话密钥经 HKDF-SHA256 按文件种类分别派生，96 位随机 nonce，附加数据是「标签 | 种类 | 会话号 | 编号」。
@@ -34,7 +36,10 @@ MEMBERS_FILE = "members.json"
 STATUS_FILE = "status.json"
 RESCAN_FILE = "rescan.json"
 ADD_PLACE_FILE = "add-place.json"
-KINDS = {"members": MEMBERS_FILE, "status": STATUS_FILE, "rescan": RESCAN_FILE, "add_place": ADD_PLACE_FILE}
+UNINSTALL_FILE = "uninstall.json"
+UNINSTALLED_FILE = "uninstalled.json"
+KINDS = {"members": MEMBERS_FILE, "status": STATUS_FILE, "rescan": RESCAN_FILE, "add_place": ADD_PLACE_FILE,
+         "uninstall": UNINSTALL_FILE, "uninstalled": UNINSTALLED_FILE}
 FILES = tuple(KINDS.values())
 
 # 原因码
@@ -160,4 +165,4 @@ def members_of(payload: Any) -> list:
 
 
 __all__ = ["ADD_PLACE_FILE", "CHANNELS", "CtlError", "FILES", "KINDS", "MALFORMED", "MEMBERS_FILE", "RESCAN_FILE",
-           "STATUS_FILE", "TAMPERED", "WRONG_EPOCH", "endpoint_of", "member_entry", "members_of", "new_id", "open_", "seal"]
+           "STATUS_FILE", "TAMPERED", "UNINSTALLED_FILE", "UNINSTALL_FILE", "WRONG_EPOCH", "endpoint_of", "member_entry", "members_of", "new_id", "open_", "seal"]

@@ -221,6 +221,9 @@ class CloudLink:
         self.commands_seen: set = set()
         self.command_lock = threading.Lock()
         self.status_lock = threading.Lock()   # 监视线程与命令线程都会写状态文件：同一时刻只一个写（共用 .part 名）
+        # 段 ③：自升级备好了 / 断开要删我们装的东西 → 本进程退出（main.step_cloud_loop 的 stop 看它）；试过失败的版本不再试
+        self.quit = threading.Event()
+        self.upgrade_failed: set = set()
 
     def __repr__(self) -> str:
         return f"CloudLink(root={str(self.root)!r})"
@@ -426,16 +429,39 @@ def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
     return code
 
 
+def _uninstall(link: CloudLink) -> Optional[str]:
+    from .cloud_self import handle_uninstall
+
+    return handle_uninstall(link)
+
+
+def _upgrade(link: CloudLink) -> str:
+    from .cloud_self import upgrade
+
+    return upgrade(link)
+
+
 def check_ctl(link: CloudLink, *, host: Optional[Callable[[], str]] = None, handle_forget=None,
-              members=take_members, commands=take_commands, status=report_status) -> Optional[str]:
-    """看一遍 ``ctl``：有新会话就换上；有成员下发就改本机成员；有撤销就交 ``cred_cloud.handle_forget``（回它的原因码，没有撤销回 None）。
+              members=take_members, commands=take_commands, status=report_status,
+              uninstall=_uninstall, upgrade=_upgrade) -> Optional[str]:
+    r"""看一遍 ``ctl``：有新会话就换上；有成员下发就改本机成员；桥请删安装就删（段 ③，删了就不再往下看）；隧道盘 ``cc\`` 有更新的
+    云端包就自升级；有撤销就交 ``cred_cloud.handle_forget``（回它的原因码，没有撤销回 None）。
     监视线程与直写循环启动时都会调，同一时刻只一个在看。"""
     from . import cred_handoff as handoff
 
     with link.check_lock:
         fresh = link.refresh()
+        if link.quit.is_set():
+            return None
         code = members(link)
         commands(link)
+        if uninstall(link) is not None and link.quit.is_set():
+            return None
+        if not link.quit.is_set():
+            try:
+                upgrade(link)
+            except Exception:
+                log.exception("云端自升级检查失败")
         # 换了会话（桥那边是新的一次连接，旧状态解不开）或成员刚处理过：马上报；平时 5 分钟看一次、变了才写
         status(link, force=fresh is not None or code is not None)
         if not (link.ctl_dir / handoff.FORGET_FILE).exists():

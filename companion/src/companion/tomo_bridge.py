@@ -580,10 +580,32 @@ class TomoBridge(QObject):
                 result["package"] = self._cloud_package_code
             return result
         if method == "cloud_disconnect":
-            self._stop_cloud_host()   # 界面线程：关窗即断开、停中转、撤隧道盘
-            self._cloud_package_code = ""
-            store, session = self._cloud_links(), self._cloud_session()
-            return self._job(lambda: settings_link.disconnect(store, session))
+            # 段 ③：还连着时先在后台请云端删我们装的东西、等回执（最多 20 秒，cloud_host.uninstall_cloud），
+            # 再回界面线程关窗即断开、停中转、撤隧道盘，最后后台删连接
+            # 桥没连着时（连接窗口已关、没连上）没有通道请云端删，云端的安装留着（已知限制，见施工记录段 ③）
+            held: dict = {}
+            host = self._cloud_host
+
+            def stop_here() -> None:
+                held["store"], held["session"] = None, None   # 下面任一步出错，后台照样按「没有连接」收尾而不是 KeyError
+                if self._cloud_host is not host:
+                    held["replaced"] = True   # 等回执的 20 秒里人又点了「连接」：以后点的为准，新起的不停、连接不删
+                    return
+                try:
+                    self._stop_cloud_host()
+                    self._cloud_package_code = ""
+                finally:
+                    held["store"], held["session"] = self._cloud_links(), self._cloud_session()
+
+            def work() -> dict:
+                if held.get("replaced"):
+                    return {"ok": True}
+                return settings_link.disconnect(held["store"], held["session"])
+
+            if host is not None and getattr(host, "running", False) and hasattr(host, "uninstall_cloud"):
+                return self._job(work, prelude=host.uninstall_cloud, between=stop_here)
+            stop_here()
+            return self._job(work)
         if method == "cloud_connect":
             return self._cloud_connect(settings_link, args, lang)
         return {"ok": False}
@@ -728,7 +750,10 @@ class TomoBridge(QObject):
         self.changed.emit()
         return result
 
-    def _job(self, work, after: Optional[Callable[[dict], dict]] = None) -> dict:
+    def _job(self, work, after: Optional[Callable[[dict], dict]] = None, *, prelude: Optional[Callable[[], object]] = None,
+             between: Optional[Callable[[], None]] = None) -> dict:
+        """后台做 ``work``，做完回界面线程 ``after`` 并发 ``done``。给了 ``prelude`` 就先后台做它（结果不用、失败也接着），
+        再回界面线程做 ``between``，然后才后台做 ``work``——页面只等同一个 job。"""
         job = uuid.uuid4().hex
 
         def finished(result) -> None:   # 回到界面线程
@@ -750,7 +775,19 @@ class TomoBridge(QObject):
             log.error("本机设置后台任务失败：%r", exc)
             self.done.emit(job, json.dumps({"ok": False}))
 
-        self._probes.spawn(job, work, finished, failed)
+        if prelude is None:
+            self._probes.spawn(job, work, finished, failed)
+            return {"job": job}
+
+        def then(_result=None) -> None:   # 回到界面线程
+            if between is not None:
+                try:
+                    between()
+                except Exception:
+                    log.exception("本机设置后台任务的中间一步失败")
+            self._probes.spawn(job, work, finished, failed)
+
+        self._probes.spawn(job, prelude, then, then)
         return {"job": job}
 
     def shutdown(self) -> None:

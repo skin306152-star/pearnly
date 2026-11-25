@@ -65,6 +65,7 @@ log = get_logger(__name__)
 LETTERS = "ZYXWVUTSRQPONMLKJIHGFED"
 FALLBACK_SECONDS = 60.0   # 兜底扫描（防漏通知）的间隔
 CLEANUP_SECONDS = 60.0
+UNINSTALL_SECONDS = 20.0   # 「断开」时等云端删安装的回执（云端靠目录通知看到，兜底 60 秒；超了照常断开）
 WORKERS = 4
 SUBST_TIMEOUT = 15
 _NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW
@@ -548,6 +549,45 @@ class CloudHost:
         log.info("云端命令已发 · 种类=%s", kind)
         return item_id
 
+    def uninstall_cloud(self, *, timeout: float = UNINSTALL_SECONDS, poll: float = 0.5,
+                        sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic) -> str:
+        r"""「断开」前请云端那份 CC 删掉我们装的东西（段 ③，``cloud_self.handle_uninstall``）：加密写 ``ctl\uninstall.json``，等同一编号的
+        回执 ``ctl\uninstalled.json`` 最多 ``timeout`` 秒；回回执的结果码（``scheduled`` / ``not_ours`` / ``failed``），没回执回
+        ``timeout``，没在跑回 ``not_running``。在后台线程调（不挡界面）；之后照常 :meth:`stop`。从不抛。"""
+        from . import ctl_files
+
+        session = self._session
+        if session is None or not self._running:
+            return "not_running"
+        item_id = ctl_files.new_id()
+        try:
+            handoff.write_atomic(self.ctl_dir / ctl_files.UNINSTALL_FILE,
+                                 ctl_files.seal(session, "uninstall", {}, item_id=item_id))
+        except OSError as exc:
+            log.warning("云端卸载请求写入失败 · 原因=%s", type(exc).__name__)
+            return "failed"
+        log.info("云端卸载请求已发 · 主机=%s", self.host)
+        deadline = clock() + timeout
+        while True:
+            data = handoff.take(self.ctl_dir / ctl_files.UNINSTALLED_FILE, 16 * 1024)
+            if data is not None:
+                try:
+                    got, payload = ctl_files.open_(data, session, "uninstalled")
+                except ctl_files.CtlError as error:
+                    log.warning("云端卸载回执不对 · 原因=%s", error.code)
+                    got, payload = "", {}
+                if got == item_id:
+                    code = str(payload.get("code") or "failed")
+                    log.info("云端卸载回执 · 主机=%s 结果=%s 目录在=%s 快捷方式=%s", self.host, code, payload.get("dir"),
+                             payload.get("link"))
+                    return code
+            if clock() >= deadline:
+                break
+            sleep(poll)
+        _step("remove uninstall request", lambda: handoff.sweep(self.ctl_dir, (ctl_files.UNINSTALL_FILE,)))
+        log.info("云端卸载没有回执（云端没在跑或没看到） · 主机=%s 等了=%.0f 秒", self.host, timeout)
+        return "timeout"
+
     def _remove_ctl(self) -> None:
         _remove(self.ctl_file)
         _remove(self.ctl_file.with_name(self.ctl_file.name + ".part"))
@@ -855,5 +895,5 @@ def _remove(path: Path) -> None:
         pass
 
 
-__all__ = ["CLEANUP_SECONDS", "CloudHost", "HostError", "HostUnavailable", "FALLBACK_SECONDS", "LETTERS", "TunnelDriveError",
+__all__ = ["CLEANUP_SECONDS", "UNINSTALL_SECONDS", "CloudHost", "HostError", "HostUnavailable", "FALLBACK_SECONDS", "LETTERS", "TunnelDriveError",
            "WindowsDrives", "candidates", "channel_of_path", "run_subst", "same_path", "tunnel_root"]

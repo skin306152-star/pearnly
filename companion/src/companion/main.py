@@ -176,6 +176,14 @@ def step_cloud_loop() -> None:
     if tunnel is None:
         return
     link = tunnel.link
+    # 段 ③：自升级备好了新版本、或桥「断开」请删安装时 link.quit 置位，本进程退出（小进程等它退出再接着做）
+    stop = lambda: _STOP or link.quit.is_set()  # noqa: E731
+    try:
+        from .cloud_link import cloud_self
+
+        cloud_self.ensure_marker(cloud_self.install_base())   # 11-25 之前装的没有标记：装在我们目录里的那份补上
+    except Exception:
+        log.exception("云端安装标记检查失败")
     try:
         cloud_side.check_ctl(link)   # 桥在会话之后紧跟着写的成员文件：不等监视线程，先看一眼
     except Exception:

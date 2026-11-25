@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import sys
+import threading
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
@@ -151,6 +152,7 @@ class _Link:
         self.generation = 0
         self.members_code = ""
         self.waits = []
+        self.quit = threading.Event()   # 段 ③：自升级 / 断开删安装时置位，循环退出
 
     def wait_change(self, generation, stop):
         self.waits.append(generation)
