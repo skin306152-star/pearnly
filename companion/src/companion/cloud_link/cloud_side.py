@@ -220,6 +220,7 @@ class CloudLink:
         self.next_status = 0.0
         self.commands_seen: set = set()
         self.command_lock = threading.Lock()
+        self.status_lock = threading.Lock()   # 监视线程与命令线程都会写状态文件：同一时刻只一个写（共用 .part 名）
 
     def __repr__(self) -> str:
         return f"CloudLink(root={str(self.root)!r})"
@@ -375,6 +376,11 @@ def _run_command(link: CloudLink, kind: str, payload: dict, item_id: str) -> Non
 
 def report_status(link: CloudLink, *, force: bool = False, write=None, clock=time.monotonic) -> bool:
     """写状态文件（``cloud_books.write_status``）：``force`` 立刻写；否则到 5 分钟才看一次、内容变了才写。从不抛。"""
+    with link.status_lock:
+        return _report_status(link, force, write, clock)
+
+
+def _report_status(link: CloudLink, force: bool, write, clock) -> bool:
     now = clock()
     if not force and now < link.next_status:
         return False
