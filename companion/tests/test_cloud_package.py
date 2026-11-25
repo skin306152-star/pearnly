@@ -107,6 +107,10 @@ for name in modules:
 from src.companion import single_instance
 _acquire = single_instance.acquire
 single_instance.acquire = lambda name=lock_name: _acquire(lock_name)   # 不和这台电脑上正在跑的 CC 抢同一把锁
+from src.companion.cloud_link import cloud_side
+def _stop_waiting(seconds, stop, sleep):   # 云端没有成员 / 隧道时等着不退出（D3）：第一次等就请它停，证明它在等
+    sys.modules["src.companion.main"]._STOP = True
+cloud_side._sleep_until = _stop_waiting
 sys.argv = [launcher]
 try:
     runpy.run_path(launcher, run_name="__main__")
@@ -143,9 +147,9 @@ def test_the_cloud_package_runs_without_qt_or_notifications(clean_home):
     line = next((x for x in done.stdout.splitlines() if x.startswith("RESULT ")), None)
     assert line, done.stdout + done.stderr
     result = json.loads(line[len("RESULT "):])
-    assert result["code"] == 2, done.stdout + done.stderr   # 没有成员：同 --headless 以 2 退出
+    assert result["code"] == 0, done.stdout + done.stderr   # 没有成员 / 隧道：等着（D3），请它停才正常退出
     assert result["hits"] == [] and result["loaded"] == []
-    assert "云端模式" in _log_text(home)
+    assert "云端模式" in _log_text(home) and "云端等待隧道" in _log_text(home)
 
 
 @pytest.mark.parametrize("flag", ["--window", "--mrerp-desk"])

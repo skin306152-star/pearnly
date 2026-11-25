@@ -111,8 +111,8 @@ def _register_app_user_model_id() -> None:
 
 
 # ── 步骤 ─────────────────────────────────────────────────────
-def step_poll_loop(configs) -> None:
-    """console 直写循环(headless / 测试):拉任务 → DBF 直写 → ack。"""
+def step_poll_loop(configs, stop=None) -> None:
+    """console 直写循环(headless / 测试):拉任务 → DBF 直写 → ack。``stop``：要停时回真（默认看 SIGTERM / Ctrl+C）。"""
     from .multi_profile_worker import MultiProfileWorker
 
     if isinstance(configs, CompanionConfig):
@@ -148,26 +148,55 @@ def step_poll_loop(configs) -> None:
     )
     log.info("multi-profile poll loop started · profiles=%d", len(configs))
     try:
-        worker.run_forever(lambda: _STOP)
+        worker.run_forever(stop or (lambda: _STOP))
     finally:
         worker.close(signal_offline=True)
 
 
-def step_cloud_loop(configs) -> None:
+def _cloud_configs() -> list:
+    """云端本机现在的成员（只 Express 成员，``runtime_mode.serves``）；缺账套的不起。"""
+    from .profile_store import ProfileStore
+
+    configs = [cfg for cfg in ProfileStore.load().runtime_configs(include_paused=True) if runtime_mode.serves(cfg)]
+    return [cfg for cfg in configs if cfg.paused or (cfg.account_dir and (cfg.account_set or "").strip())]
+
+
+def step_cloud_loop() -> None:
     """云端那份 CC（``--cloud``，runtime_mode）：取任务直写（代录单照常交代录宿主，在云端会话里开 Express）+ 按需请求。
-    托盘、窗口、通知、自动更新、开机自启、防睡眠、文件夹自动录入一样都不起；MR.ERP 成员调用前已去掉（runtime_mode.serves）。"""
+    托盘、窗口、通知、自动更新、开机自启、防睡眠、文件夹自动录入一样都不起；MR.ERP 成员调用前已去掉（runtime_mode.serves）。
+
+    成员由桥下发（``ctl\\members.json``，D3，``cloud_side.take_members``）：没有成员时等着、不退出（它是登录时从启动文件夹起来的，
+    一退出就要等到下次登录）；成员变了（新站点登记、站点被删）停下直写循环、重读成员再起。"""
     from .cloud_link import cloud_side
     from .request_worker import RequestWorker
 
-    configs = list(configs)
+    stop = lambda: _STOP  # noqa: E731
     # 先等隧道盘与桥交来的会话（没有就退避等，最多 15 分钟看一次，不退出），装上隧道 transport：之后所有联网请求都走隧道
-    tunnel = cloud_side.start(lambda: _STOP)
+    tunnel = cloud_side.start(stop)
     if tunnel is None:
         return
-    requests = RequestWorker(lambda: configs)
-    requests.start()
+    link = tunnel.link
     try:
-        step_poll_loop(configs)
+        cloud_side.check_ctl(link)   # 桥在会话之后紧跟着写的成员文件：不等监视线程，先看一眼
+    except Exception:
+        log.exception("云端 ctl 检查失败")
+    current: list = []
+    requests = RequestWorker(lambda: current)
+    requests.start()
+    said = None
+    try:
+        while not stop():
+            generation = link.generation
+            current[:] = _cloud_configs()
+            if not current:
+                if said != 0:
+                    log.info("云端没有成员，等桥下发 · 结果=%s", link.members_code or "-")
+                    said = 0
+                link.wait_change(generation, stop)
+                continue
+            said = len(current)
+            log.info("云端成员就绪 · profiles=%d", len(current))
+            step_poll_loop(list(current), stop=lambda: stop() or link.generation != generation)
     finally:
         requests.stop()
         tunnel.stop()
@@ -181,6 +210,14 @@ def _run_dbf(store, args) -> int:
     if cloud:
         configs = [cfg for cfg in configs if runtime_mode.serves(cfg)]
         log.info("云端模式 · method=dbf · profiles=%d", len(configs))
+    if cloud:
+        # 云端那份：成员由桥下发，没有就等（step_cloud_loop），不以 2 退出；缺账套的成员不起
+        try:
+            step_cloud_loop()
+        except KeyboardInterrupt:
+            pass
+        log.info("companion exited")
+        return 0
     if not configs and console:
         log.error("dbf 需要至少一个已配对 Profile")
         return 2
@@ -199,7 +236,7 @@ def _run_dbf(store, args) -> int:
 
     if console:
         try:
-            (step_cloud_loop if cloud else step_poll_loop)(configs)
+            step_poll_loop(configs)
         except KeyboardInterrupt:
             pass
         log.info("companion exited")

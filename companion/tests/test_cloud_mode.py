@@ -100,33 +100,64 @@ def _no_tray(monkeypatch):
     return launched
 
 
-def test_cloud_runs_the_console_loop_with_express_members_only_and_never_the_tray(cloud):
+def test_cloud_runs_the_cloud_loop_and_never_the_tray(cloud):
     launched = _no_tray(cloud)
     ran = []
-    cloud.setattr(main, "step_cloud_loop", lambda configs: ran.append([c.profile_id for c in configs]))
+    cloud.setattr(main, "step_cloud_loop", lambda: ran.append("cloud"))
     express, mrerp = _member("p-express"), _member("p-mrerp", kind="folder")
 
     assert main._run_dbf(_Store([express, mrerp]), SimpleNamespace(background=False, headless=False)) == 0
-    assert ran == [["p-express"]]
+    assert ran == ["cloud"]
     assert launched == []
 
 
-def test_cloud_without_a_paired_member_exits_like_headless(cloud):
+def test_cloud_without_a_member_waits_instead_of_exiting(cloud):
+    """D3（11-24 首测）：云端那份从启动文件夹起来、还没有成员时不以 2 退出（一退出就要等到下次登录），进云端循环等桥下发。"""
     launched = _no_tray(cloud)
+    ran = []
+    cloud.setattr(main, "step_cloud_loop", lambda: ran.append("cloud"))
     assert main._run_dbf(_Store([_member("p-mrerp", kind="folder")]),
-                         SimpleNamespace(background=False, headless=False)) == 2
+                         SimpleNamespace(background=False, headless=False)) == 0
+    assert main._run_dbf(_Store([]), SimpleNamespace(background=False, headless=False)) == 0
+    assert ran == ["cloud", "cloud"]
+    assert launched == []
+
+
+def test_headless_without_a_member_still_exits(local):
+    launched = _no_tray(local)
+    assert main._run_dbf(_Store([]), SimpleNamespace(background=False, headless=True)) == 2
     assert launched == []
 
 
 def test_local_mode_still_starts_the_tray(local):
     launched = _no_tray(local)
-    local.setattr(main, "step_cloud_loop", lambda configs: pytest.fail("cloud loop in local mode"))
+    local.setattr(main, "step_cloud_loop", lambda: pytest.fail("cloud loop in local mode"))
     assert main._run_dbf(_Store([_member("p-express"), _member("p-mrerp", kind="folder")]),
                          SimpleNamespace(background=False, headless=False)) == 17
     assert [[c.profile_id for c in configs] for configs in launched] == [["p-express", "p-mrerp"]]
 
 
-def test_the_cloud_loop_runs_the_write_loop_and_on_demand_requests(cloud):
+def test_cloud_configs_keep_express_members_with_a_book_only(cloud):
+    from src.companion import profile_store
+
+    members = [_member("p-express"), _member("p-mrerp", kind="folder"),
+               SimpleNamespace(profile_id="p-nobook", kind="express", paused=False, account_dir="", account_set="")]
+    cloud.setattr(profile_store.ProfileStore, "load", classmethod(lambda cls: _Store(members)))
+    assert [c.profile_id for c in main._cloud_configs()] == ["p-express"]
+
+
+class _Link:
+    def __init__(self):
+        self.generation = 0
+        self.members_code = ""
+        self.waits = []
+
+    def wait_change(self, generation, stop):
+        self.waits.append(generation)
+        self.generation += 1   # 等的时候桥下发了成员
+
+
+def _cloud_loop(cloud, link, configs_seq, poll):
     events = []
 
     class FakeRequests:
@@ -134,23 +165,56 @@ def test_the_cloud_loop_runs_the_write_loop_and_on_demand_requests(cloud):
             self.configs = configs
 
         def start(self):
-            events.append(("requests", [c.profile_id for c in self.configs()]))
+            events.append(("requests",))
 
         def stop(self):
             events.append(("requests-stopped",))
 
     from src.companion import request_worker
-
-    cloud.setattr(request_worker, "RequestWorker", FakeRequests)
-    cloud.setattr(main, "step_poll_loop", lambda configs: events.append(("poll", [c.profile_id for c in configs])))
     from src.companion.cloud_link import cloud_side
 
+    cloud.setattr(request_worker, "RequestWorker", FakeRequests)
     cloud.setattr(cloud_side, "start", lambda stop: (events.append(("tunnel",)) or
-                                                    SimpleNamespace(stop=lambda: events.append(("tunnel-stopped",)))))
+                                                    SimpleNamespace(link=link,
+                                                                    stop=lambda: events.append(("tunnel-stopped",)))))
+    cloud.setattr(cloud_side, "check_ctl", lambda got: events.append(("ctl",)))
+    seq = iter(configs_seq)
+    cloud.setattr(main, "_cloud_configs", lambda: next(seq))
+    cloud.setattr(main, "step_poll_loop", lambda configs, stop=None: poll(events, configs, stop))
+    cloud.setattr(main, "_STOP", False)
+    main.step_cloud_loop()
+    return events
 
-    main.step_cloud_loop([_member("p-express")])
-    assert events == [("tunnel",), ("requests", ["p-express"]), ("poll", ["p-express"]), ("requests-stopped",),
+
+def test_the_cloud_loop_waits_for_members_then_runs_the_write_loop(cloud):
+    link = _Link()
+
+    def poll(events, configs, stop):
+        events.append(("poll", [c.profile_id for c in configs]))
+        cloud.setattr(main, "_STOP", True)
+
+    events = _cloud_loop(cloud, link, [[], [_member("p-express")]], poll)
+    assert link.waits == [0]
+    assert events == [("tunnel",), ("ctl",), ("requests",), ("poll", ["p-express"]), ("requests-stopped",),
                       ("tunnel-stopped",)]
+
+
+def test_the_cloud_loop_reloads_when_the_members_change(cloud):
+    link = _Link()
+    stops = []
+
+    def poll(events, configs, stop):
+        events.append(("poll", [c.profile_id for c in configs]))
+        stops.append(stop())
+        if len(stops) == 1:
+            link.generation += 1   # 桥下发了新站点：直写循环该停
+            stops.append(stop())
+        else:
+            cloud.setattr(main, "_STOP", True)
+
+    events = _cloud_loop(cloud, link, [[_member("p-a")], [_member("p-a"), _member("p-b")]], poll)
+    assert stops[:2] == [False, True]
+    assert [e for e in events if e[0] == "poll"] == [("poll", ["p-a"]), ("poll", ["p-a", "p-b"])]
 
 
 def test_the_cloud_loop_stopped_while_waiting_for_the_tunnel_starts_nothing(cloud):
@@ -159,8 +223,8 @@ def test_the_cloud_loop_stopped_while_waiting_for_the_tunnel_starts_nothing(clou
 
     cloud.setattr(cloud_side, "start", lambda stop: None)
     cloud.setattr(request_worker, "RequestWorker", lambda *_a: pytest.fail("requests started without a tunnel"))
-    cloud.setattr(main, "step_poll_loop", lambda configs: pytest.fail("poll started without a tunnel"))
-    main.step_cloud_loop([_member("p-express")])
+    cloud.setattr(main, "step_poll_loop", lambda configs, stop=None: pytest.fail("poll started without a tunnel"))
+    main.step_cloud_loop()
 
 
 def _stub_main_entry(monkeypatch, store):

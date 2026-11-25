@@ -452,12 +452,12 @@ def remove_confirmed(path: Path) -> bool:
     return not path.exists()
 
 
-def take(path: Path) -> Optional[bytes]:
-    """读一份交接文件，读后删除并回读确认（删不掉仍回内容，由兜底再删）；没有回 None。"""
+def take(path: Path, limit: int = _MAX_FILE) -> Optional[bytes]:
+    """读一份交接文件，读后删除并回读确认（删不掉仍回内容，由兜底再删）；没有回 None。最多读 ``limit`` + 1 字节。"""
     path = Path(path)
     try:
         with open(path, "rb") as handle:
-            data = handle.read(_MAX_FILE + 1)
+            data = handle.read(limit + 1)
     except FileNotFoundError:
         return None
     if not remove_confirmed(path):

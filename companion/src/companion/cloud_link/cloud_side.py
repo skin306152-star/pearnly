@@ -17,6 +17,9 @@ r"""云端那份 CC 自己的接线（``companion.exe --cloud``，runtime_mode�
   ``net.client(...)`` 建的客户端都走隧道。遇到网络错误（会话旧了桥回的拒绝核不过签名、桥没取走、回复超时）先看 ``ctl`` 有没有
   新会话文件：有就换上；桥没取走或核不过签名的请求桥没代发，换完重发一次；回复超时的不重发（桥可能已代发，免得发两次）。
   ``Authorization`` 照 ``TunnelTransport`` 的约定由桥换真令牌。
+- 成员（D3，:func:`take_members`）：桥下发的 ``ctl\members.json`` 用当前会话解开，交 ``cloud_members.sync`` 建 / 改 / 删
+  ``cloud-<站点>`` 成员；改了就 :meth:`CloudLink.bump`，``main.step_cloud_loop`` 停下直写循环重读成员。没有成员时等着、不退出。
+  认电脑用配对存下的设备密钥（:func:`paired_device_key`，``device_link.device_key`` 在云端模式下取它）。
 - ``ctl`` 变化（:class:`CtlWatch`，``dir_watch`` 监视 ``ctl``，另 60 秒兜底看一次）：有新会话就换上；桥发来撤销就
   ``cred_cloud.handle_forget``。
 - 代录凭据（:func:`ensure_express_login`）：代录宿主要 Express 登录时，本用户凭据管理器（``credentials.target(连接)``）里有就用，
@@ -110,6 +113,17 @@ def read_host(root: Path) -> Optional[str]:
         return None
 
 
+def paired_device_key(*, host: Optional[Callable[[], str]] = None, load=None) -> str:
+    """配对存下的设备密钥（同桥 ``LinkStore.device_key``，对话页登记这台云端电脑用的就是它）；没配对回空串。
+    云端那份 CC 认电脑（``device_link.device_key``）用它，不另生成一把。"""
+    paired = (host or paired_host)()
+    if not paired:
+        return ""
+    if load is None:
+        from .device_pairing import load_device_key as load
+    return load(paired) or ""
+
+
 def paired_host(*, entries: Optional[Callable[[str], list]] = None) -> str:
     """本用户凭据管理器里配对存下的设备密钥那一条（``Pearnly CC/cloud-device/<主机>``）的主机；没有或不止一条回空串。"""
     from .device_pairing import DEVICE_PREFIX
@@ -192,6 +206,11 @@ class CloudLink:
         self._lock = threading.Lock()
         self._listeners: list = []
         self.forget_seen: set = set()
+        # 成员（D3）：桥下发的 members.json 改了本机成员就 +1，直写循环据此重载；结果码给状态文件
+        self._changed = threading.Condition()
+        self.generation = 0
+        self.members_code = ""
+        self.check_lock = threading.Lock()
 
     def __repr__(self) -> str:
         return f"CloudLink(root={str(self.root)!r})"
@@ -206,6 +225,18 @@ class CloudLink:
 
     def on_session(self, listener: Callable[[protocol.Session], None]) -> None:
         self._listeners.append(listener)
+
+    def bump(self) -> None:
+        """本机成员变了：直写循环停下重载。"""
+        with self._changed:
+            self.generation += 1
+            self._changed.notify_all()
+
+    def wait_change(self, generation: int, stop: Callable[[], bool], step: float = 1.0) -> None:
+        """等到 ``generation`` 变了或 ``stop()`` 为真（每秒看一次要不要停）。"""
+        with self._changed:
+            while self.generation == generation and not stop():
+                self._changed.wait(step)
 
     def refresh(self) -> Optional[protocol.Session]:
         """``ctl`` 里有新会话文件就换上并回它；没有回 None。"""
@@ -278,13 +309,50 @@ class ReloadingTransport(httpx.BaseTransport):
 
 # ── ctl 变化 ──────────────────────────────────────────────────────────────────
 
-def check_ctl(link: CloudLink, *, host: Optional[Callable[[], str]] = None, handle_forget=None) -> Optional[str]:
-    """看一遍 ``ctl``：有新会话就换上；有撤销就交 ``cred_cloud.handle_forget``（回它的原因码，没有撤销回 None）。"""
+def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
+    r"""``ctl\members.json`` 在就读（读后删除）、用当前会话解开、交 ``cloud_members.sync`` 改本机成员；改了就 :meth:`CloudLink.bump`。
+    回结果码（``ready`` / ``no_books`` / ``none``；文件不对回 ``ctl_files`` 的原因码）；没有文件回 None。"""
+    from . import cred_handoff as handoff
+    from . import ctl_files
+
+    data = handoff.take(link.ctl_dir / ctl_files.MEMBERS_FILE, 64 * 1024)
+    if data is None:
+        return None
+    try:
+        _id, payload = ctl_files.open_(data, link.session, "members")
+        members = ctl_files.members_of(payload)
+    except ctl_files.CtlError as error:
+        log.warning("云端成员文件不对 · 原因=%s", error.code)
+        return error.code
+    if sync is None:
+        from .cloud_members import sync
+    try:
+        code, changed = sync(members)
+    except Exception as exc:  # noqa: BLE001 - 本机配置写不进：下次桥再下发时重试
+        log.warning("云端成员更新失败 · 原因=%s", type(exc).__name__)
+        return "error"
+    link.members_code = code
+    log.info("云端成员 · 结果=%s 站点数=%d 有改动=%s", code, len(members), changed)
+    if changed:
+        link.bump()
+    return code
+
+
+def check_ctl(link: CloudLink, *, host: Optional[Callable[[], str]] = None, handle_forget=None,
+              members=take_members) -> Optional[str]:
+    """看一遍 ``ctl``：有新会话就换上；有成员下发就改本机成员；有撤销就交 ``cred_cloud.handle_forget``（回它的原因码，没有撤销回 None）。
+    监视线程与直写循环启动时都会调，同一时刻只一个在看。"""
     from . import cred_handoff as handoff
 
-    link.refresh()
-    if not (link.ctl_dir / handoff.FORGET_FILE).exists():
-        return None
+    with link.check_lock:
+        link.refresh()
+        members(link)
+        if not (link.ctl_dir / handoff.FORGET_FILE).exists():
+            return None
+        return _forget(link, host, handle_forget)
+
+
+def _forget(link: CloudLink, host, handle_forget) -> Optional[str]:
     if handle_forget is None:
         from .cred_cloud import handle_forget
     code = handle_forget(link.ctl_dir, epoch=link.session.epoch, seen_ids=link.forget_seen,
@@ -414,5 +482,5 @@ def ensure_express_login(connection: str = CONNECTION, *, link: Optional[CloudLi
 
 
 __all__ = ["CloudLink", "CtlWatch", "ReloadingTransport", "Running", "check_ctl", "connect", "current",
-           "ensure_express_login", "find_tunnel_root", "given_root", "install", "paired_host", "read_host", "run_pair", "start",
-           "take_session"]
+           "ensure_express_login", "find_tunnel_root", "given_root", "install", "paired_device_key", "paired_host", "read_host", "run_pair", "start",
+           "take_members", "take_session"]

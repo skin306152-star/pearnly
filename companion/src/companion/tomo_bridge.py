@@ -414,6 +414,12 @@ class TomoBridge(QObject):
         if store is None or store.get(host) is None:
             return {"ok": False, "code": "not_found"}
         store.set_token(host, site, backend_url, token)
+        running = self._cloud_host
+        if running is not None and running.host == store.get(host).host:
+            try:
+                running.publish_members()   # 云端那份 CC 马上为这个站点建成员（D3）
+            except Exception:
+                log.exception("下发云端成员失败（下次换会话时补发）")
         return {"ok": True}
 
     def _cloud_operator(self, method: str, args: dict, lang: str) -> dict:

@@ -147,6 +147,14 @@ def device_key(load_store: Optional[Callable] = None) -> str:
             return _key_cache
         try:
             if load_store is None:
+                from . import runtime_mode
+
+                if runtime_mode.cloud():
+                    # 云端那份 CC：用配对存下的那把（同桥 LinkStore.device_key，对话页登记的就是它），不另生成；没配对不缓存
+                    from .cloud_link.cloud_side import paired_device_key
+
+                    _key_cache = paired_device_key() or None
+                    return _key_cache or ""
                 from .profile_store import ProfileStore
 
                 load_store = ProfileStore.load

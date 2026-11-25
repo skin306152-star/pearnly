@@ -28,6 +28,8 @@
   ``LinkStore.device_key`` 校验，本机存有 ``Pearnly CC/cloud-express/<主机>/<连接>`` 才加密写 ``cred-resp.json``，10 秒后兜底再删；
   ``request_forget`` 写 ``cred-forget.json``，收到云端回执才算完，没收到的在下次换会话时按新会话号补发（只在内存，桥重启即丢）。
   已见的请求编号放内存。
+- 成员下发（D3，``ctl_files``）：每次换会话后、对话页交回新站点令牌后（``tomo_bridge._cloud_token``），把这台云端电脑登记了的
+  站点、通道、端点号（不含令牌）用当前会话密钥加密写 ``ctl\\members.json``（:meth:`CloudHost.publish_members`）；云端据此建成员。
 - 设备密钥的一次性配对（``device_pairing``）：人在设置里点「配对」→ :meth:`CloudHost.begin_pairing` 生成一次性令牌，只回给可见
   界面显示（不进日志）；配对进行中连接窗口标题改成「窗口标题常量 · 配对」（``i18n`` 已有词条 ``btn_pair``），结束（成功、失败、
   过期）改回。中转循环每一遍顺带看 ``ctl\\pair-req.json`` / ``pair-ack.json``；回应写 ``pair-resp.json``，10 秒后兜底再删。
@@ -375,6 +377,7 @@ class CloudHost:
         if current is not None:
             _step("cancel pairing", current.cancel)
         _step("remove pairing files", lambda: handoff.sweep(self.root / "ctl", pairing.FILES))
+        _step("remove state files", lambda: handoff.sweep(self.root / "ctl", _ctl_files()))
         drive, self.drive = self.drive, ""
         if drive:
             _step("remove tunnel drive", lambda: self._unmount(drive))
@@ -465,11 +468,48 @@ class CloudHost:
         self._relay = relay
         self._session = session
         log.info("云端连接换了新会话 · 主机=%s", self.host)
+        _step("publish members", self.publish_members)
         with self._cred_lock:
             # 换了会话号：没收到回执的撤销按新会话补发（云端会话不在时，下次连上先补发）
             for connection in list(self._forgets):
                 self._forgets[connection] = None
         _step("resend credential forget", self._send_forgets)
+
+    def members(self) -> list:
+        """这台云端电脑现在登记了的站点（``ctl_files.member_entry``）：站点、通道（按令牌前缀）、端点号；不含令牌。"""
+        from . import ctl_files
+
+        store = self._links()
+        link = store.get(self.host) if store is not None else None
+        if link is None:
+            return []
+        found = []
+        for member in link.members:
+            token = store.token(self.host, member.site)
+            if not token:
+                continue
+            parts = token.split("_", 2)
+            try:
+                found.append(ctl_files.member_entry(member.site, channels.of_token(token),
+                                                    parts[1] if len(parts) == 3 else ""))
+            except ctl_files.CtlError:
+                log.info("云端成员不合规，不下发 · 站点=%s", member.site)
+        return found
+
+    def publish_members(self) -> bool:
+        r"""把 :meth:`members` 用当前会话加密写进 ``ctl\members.json``（整份当前状态，后写的盖前写的）。
+        换会话后、对话页交回新站点令牌后调；没在跑、没有会话时不写，回 False。云端读后删除。"""
+        from . import ctl_files
+
+        session = self._session
+        if session is None or not self._running:
+            return False
+        members = self.members()
+        handoff.write_atomic(self.ctl_dir / ctl_files.MEMBERS_FILE,
+                             ctl_files.seal(session, "members", {"members": members}))
+        log.info("云端成员已下发 · 主机=%s 站点数=%d", self.host, len(members))
+        self._poke()
+        return True
 
     def _remove_ctl(self) -> None:
         _remove(self.ctl_file)
@@ -752,6 +792,12 @@ def _link_password_provider(host: str) -> Callable[[], str]:
     from .link_store import password_provider
 
     return password_provider(host)
+
+
+def _ctl_files() -> tuple:
+    from . import ctl_files
+
+    return ctl_files.FILES
 
 
 def _step(name: str, action: Callable[[], Any]) -> None:
