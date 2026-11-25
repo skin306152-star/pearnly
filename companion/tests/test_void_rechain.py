@@ -142,3 +142,19 @@ def test_a_document_on_a_warehouse_with_its_chain_and_one_without_leaves_the_mas
     assert _place(acct) == (0.0, 0.0, 0.0, 0.0, "B/F")
     assert _master(acct) == {"MLOTNUM": "B/F", "MREMBAL": 0.0, "MREMVAL": 0.0, "TOTBAL": 5.0, "TOTVAL": 50.0}
     assert _stloc(acct, "ICE01", "02")["LOCBAL"] == 5.0
+
+
+def test_an_increase_on_a_master_chain_left_negative_on_an_earlier_day_records_it_as_stored_and_a_void_puts_it_back(book):
+    """11-25 原生实录（70EXP\\test 物料 000004，平均成本、不分仓）：主档链 -2 / 0、批号 -/F（10-26 起，当天没有别的明细）→ 原生 JU +15
+    明细记写前原值 -2 / 0、批号 -/F（带标记原样），主档 13、批号换成本单的批；原生作废 → 主档原样回 (-2, 0, -2, 0, -/F)。
+    以前 CC 行上记 0 / B/F，作废后回成 0 / B/F、标记丢了（101 本回放里 8 本）。"""
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _set_master(book, MLOTNUM="-/F", MREMBAL=-2.0, MREMVAL=0.0, TOTBAL=-2.0, TOTVAL=0.0, UNITPR=0.0)
+    before = _master(book)
+    res = _write(book, _entry("JU", [_line("ICE01", 15, unit_cost="0")]))
+    assert res.ok, res.error
+    line = _rows(book, "STCRD", DOCNUM=res.docnum)[0]
+    assert (line["POSOPR"], line["MREMBAL"], line["MREMVAL"], line["MLOTNUM"].rstrip()) == ("1", -2.0, 0.0, "-/F")
+    assert _master(book) == {"MLOTNUM": f"202603201{res.docnum:<12}  1", "MREMBAL": 13.0, "MREMVAL": 0.0, "TOTBAL": 13.0, "TOTVAL": 0.0}
+    assert _void(book, res.docnum, "JU", [{"code": "ICE01", "qty": "15"}]).ok
+    assert _master(book) == before

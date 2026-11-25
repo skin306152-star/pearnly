@@ -197,6 +197,19 @@ def day_firsts(account_dir, keys: Iterable[Key], docdat) -> Dict[Key, DayFirst]:
     return out
 
 
+def moved_that_day(account_dir, code: str, docdat, docnum: str = "") -> bool:
+    """这件存货这一天已有别的单的明细（任何仓、未删除；``docnum`` 本单自己的行不算）。"""
+    if docdat is None:
+        return False
+    table = dbf.Table(str(_stcrd(account_dir)), codepage=S.CODEPAGE, unicode_errors=S.UNICODE_ERRORS)
+    table.open(dbf.READ_ONLY)
+    try:
+        return any(rec.DOCDAT == docdat and (rec.STKCOD or "").strip() == code and (rec.DOCNUM or "").strip() != docnum
+                   for rec in S.live_rows(table))
+    finally:
+        table.close()
+
+
 def opening(first: DayFirst) -> Chain:
     """当天开日的链（取排最前那一行记的写前值）。"""
     head, marked = unmark(first.head)
@@ -296,4 +309,4 @@ def verify(account_dir, expected: Dict[Key, dict]) -> List[str]:
     return problems
 
 
-__all__ = ["Chain", "DayFirst", "EMPTY_HEAD", "RECEIPT_POSOPR", "row_head", "ahead", "applies", "day_firsts", "fifo_lots", "opening", "order_of", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]
+__all__ = ["Chain", "DayFirst", "EMPTY_HEAD", "RECEIPT_POSOPR", "row_head", "ahead", "applies", "day_firsts", "fifo_lots", "moved_that_day", "opening", "order_of", "mark", "moved", "read", "stored_head", "unmark", "verify", "write"]

@@ -229,6 +229,7 @@ class Book:
         self.by_place = stock_chain.applies(account_dir)
         self.masters: Dict[str, Dict[str, Any]] = {}
         self.marked: set = set()
+        self.today: Dict[str, bool] = {}
         self.heads: Dict[str, str] = {}
         self.code_lots: Dict[str, List[Tuple[Decimal, Decimal]]] = {}
         self.chains: Dict[Tuple[str, str], stock_chain.Chain] = {}
@@ -287,6 +288,12 @@ class Book:
         self.early_lots[place] = stock_chain.fifo_lots(self.account_dir, {place: start}, before=self.docdat)[place]
         self.early_state[place] = (self.firsts[place].head, start.bal, start.val)
         return True
+
+    def _moved_today(self, stkcod: str) -> bool:
+        """这件存货在写这张单之前、单据当天已有明细（只在主档链调增遇到负结存或「负」标记时才查，查一次记住）。"""
+        if stkcod not in self.today:
+            self.today[stkcod] = stock_chain.moved_that_day(self.account_dir, stkcod, self.docdat, self.docnum)
+        return self.today[stkcod]
 
     def _before(self, stkcod, place, early) -> Tuple[Decimal, Decimal]:
         if early:
@@ -358,15 +365,22 @@ class Book:
         now = self.now(stkcod)
         self.totals[stkcod] = (now["totbal"] + signed, _q2(now["totval"] + signed_value))
         increase = signed > 0
+        # 主档链上的增加行、这件存货当天还没有别的明细时，照记写前原值：结存为负照记、主档批号带「负」标记就原样带上（11-25 70EXP\\test
+        # 原生 JU 实录：000004 主档 -/F、-2（10-26 起）→ 行记 -2 / -/F，原生作废按行原样回写）。当天已有出库把链扣负时照旧为负记 0、
+        # 指针去标记（11-18 实录 JU0000001：原生记的是开日状态）；分仓链上的增加行没有跨日为负的实录，照旧
+        master_raw = increase and not early and not here and (bal < 0 or stkcod in self.marked) \
+            and not self._moved_today(stkcod)
         fields: Dict[str, Any] = {
-            # 批次链结存记写前（增加行写前为负记 0，11-18 实录 JU0000001；减少行照记，11-22 实录 IV0000051），指针指当前那一批
-            "MREMBAL": float(bal if early else max(bal, Decimal(0)) if increase else bal),
+            # 批次链结存记写前（减少行照记，11-22 实录 IV0000051），指针指当前那一批
+            "MREMBAL": float(bal if early or master_raw or not increase else max(bal, Decimal(0))),
             "MREMVAL": float(val),
             # 链上还没有批时原生记 B/F（11-24 NLTTEST 原生 JU 实录）
             "MLOTNUM": stock_chain.row_head(self.early_state[place][0] if early else self.chains[place].head if here
                                             else self.heads.get(stkcod, ""), bal),
             "XUNITPR": float(unit_cost.quantize(Decimal("0.0001"), ROUND_HALF_UP)) if unit_cost else 0.0,
         }
+        if master_raw and stkcod in self.marked and fields["MLOTNUM"]:
+            fields["MLOTNUM"] = stock_chain.mark(fields["MLOTNUM"])
         if increase:
             fields.update({"LOTBAL": float(signed), "LOTVAL": float(value), "LUNITPR": float(_q2(unit_cost))})
         master = dict(self.master_fields)
@@ -389,6 +403,7 @@ class Book:
             self.marked.add(stkcod)
         if increase:
             self.heads[stkcod] = master["MLOTNUM"] = new_head
+            self.marked.discard(stkcod)  # 主档批号换成新批、不再带「负」标记
         stock_sale.move_stmas(self.account_dir, stkcod, signed, signed_value, fields=master)
         return Line(unit_cost, value, fields)
 
