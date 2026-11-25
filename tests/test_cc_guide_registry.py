@@ -242,7 +242,8 @@ class RepositoryTests(unittest.TestCase):
             # 两产品同一业务：模式、账本、出题源、图标、顺序一样（只产品函数各自的）
             self.assertEqual({k: erp[business][k] for k in ("modes", "ledgers", "source", "icon", "order", "steps", "expires")},
                              {k: cowork[business][k] for k in ("modes", "ledgers", "source", "icon", "order", "steps", "expires")})
-        self.assertEqual(menus["pearnly_erp_portal"]["operator"], ["purchase", "sales"])
+        # 代录对话的菜单：采购 / 销售，加单据维护（总表第 14 行，11-25 ERP 段，同 Cowork 直写与代录都开）
+        self.assertEqual(menus["pearnly_erp_portal"]["operator"], ["documents", "purchase", "sales"])
         self.assertTrue({"purchase", "sales"} <= set(menus["pearnly_cowork"]["chat"]))
 
     def test_collection_is_only_in_erp_direct_write_and_asks_for_the_collection_function(self):
