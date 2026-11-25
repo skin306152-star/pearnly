@@ -218,6 +218,23 @@ WRITER_STATES = {route_contracts.WRITER_CONNECTED: "ok", route_contracts.WRITER_
                  route_contracts.WRITER_NEEDS_UPDATE: "ok"}
 
 
+def waiting_computer(name, moment=None) -> str:
+    """这件写账此刻在等哪一台电脑（只读，给各产品显示「等待电脑 · 名称」）：排队中、钉在一台电脑上（领走后那台失联、收回时
+    钉回它，:func:`_recover`；定时任务钉在读文件夹的那台），而那台此刻不在线 → 回那台的名称（连接页上显示的那个，
+    ``device_label``）；没钉、那台在线、那台已移除、查不到 → 空串。11-25 两台电脑实测：钉在关着的原电脑上时，同公司另一台在线，
+    `writers` 报 ok，页面只写「录入中」，看不出在等那台。"""
+    row = frappe.db.get_value(JOB, name, ["status", "route_device"], as_dict=True) if name else None
+    if not row or row.status != "queued" or not row.route_device:
+        return ""
+    device = frappe.db.get_value(documents.DEVICE, row.route_device,
+                                 ["device_label", "last_seen_at", "token_digest", "retired_at"], as_dict=True)
+    if not device or device.retired_at:
+        return ""
+    if device.token_digest and contracts.online(device.last_seen_at, moment or _now()):
+        return ""
+    return device.device_label or row.route_device
+
+
 def waiting_on(actor, book_keys) -> list:
     """``actor`` 的活此刻在等的电脑名称：他自己登录过 CC、够得到这几本里任一本、此刻不在线的电脑（同事的不算，谁的活谁的电脑做）；
     他有在线的就回空（不在等）。代录排队时页面写「等待电脑 · 名称」（A 线 11-12）。"""

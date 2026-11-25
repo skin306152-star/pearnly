@@ -214,8 +214,13 @@
 	$(document).on("app_ready", listen_needed);  // 实时连接在桌面起好后才有
 	/** 「排队中」的单此刻在等 Express 关闭（有人开着这本账套；服务端读的时候算的只读字段 `ledger_waiting`，
 	 * `express/waiting.py`）→ 现成那句；不在等的回空串。采购 / 销售 / 出入库 / 收银小票列表 Express 一栏的悬浮说明同用（11-12）。 */
-	p.express_waiting = row => (row?.ledger_state === "queued" && row?.ledger_waiting === "express_open"
-		? __("express.error.ACCOUNT_BUSY_LOCKED") : "");
+	// 排队中的单钉在一台此刻不在线的电脑上（服务端原因栏「express.waiting_computer:<电脑名>」，`express.contracts.waiting_computer`）：
+	// 「等待电脑 · 名称」，状态词照旧是「录入中」（11-25 两台电脑实测）
+	const WAITING_COMPUTER = "express.waiting_computer:";
+	p.waiting_computer = reason => ((reason || "").startsWith(WAITING_COMPUTER) && reason.length > WAITING_COMPUTER.length
+		? `${__("Waiting for computer")} · ${reason.slice(WAITING_COMPUTER.length)}` : "");  // 纯文本：列表悬浮与弹窗只读栏各自转义
+	p.express_waiting = row => (row?.ledger_state !== "queued" ? ""
+		: row?.ledger_waiting === "express_open" ? __("express.error.ACCOUNT_BUSY_LOCKED") : p.waiting_computer(row?.ledger_reason));
 	p.express = async (doctype, name, reload) => {
 		const api = "pearnly_erp_portal.express.api.";
 		const info = await p.call(api + "document_express", {doctype, name}, "POST");
@@ -241,7 +246,8 @@
 		const waiting = info.waiting === "express_open"
 			? p.express_waiting({ledger_state: "queued", ledger_waiting: info.waiting}) : "";
 		// 「没有账套」：服务端按单据日期说出已连接各本的期间（`reason_text`，用户 11-14）
-		const reason = waiting ? waiting : info.reason_text ? info.reason_text
+		const computer = info.state === "queued" ? p.waiting_computer(info.reason) : "";
+		const reason = waiting ? waiting : computer ? computer : info.reason_text ? info.reason_text
 			: info.reason && !info.reason.startsWith("choice_needed") && info.state !== "detached"
 			? [__(EXPRESS_REASONS[info.reason] || EXPRESS_CODES[code] || coded || mrerp
 				|| (/^[a-z][a-z0-9_]*(\.[a-z0-9_]+)*(:[a-z0-9_,.:]*)?$/.test(info.reason) ? "" : info.reason)), ...shortages].filter(Boolean).join("\n")

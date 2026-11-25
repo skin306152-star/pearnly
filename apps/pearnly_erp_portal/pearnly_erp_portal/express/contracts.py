@@ -47,6 +47,21 @@ READING = "express.masters_reading"
 MASTERS_REQUEST = "erp_masters:"
 NOT_CONNECTED = "express.cc_desktop_not_connected"
 OFFLINE = "express.cc_desktop_offline"
+# 排队中的单钉在一台此刻不在线的电脑上（`cc_desktop.jobs.waiting_computer`：领走后那台失联、收回时钉回它；定时任务钉在读文件夹
+# 的那台）：别的电脑不写，等那台。原因栏存「这个码:电脑名」，页面写「等待电脑 · 名称」（11-25 两台电脑实测）
+WAITING_COMPUTER = "express.waiting_computer"
+
+
+def waiting_computer(label) -> str:
+    """原因栏的写法：``express.waiting_computer:<电脑名>``（名称截到 140 字、去掉换行）。"""
+    name = " ".join(str(label or "").split())[:140]
+    return f"{WAITING_COMPUTER}:{name}" if name else ""
+
+
+def waiting_computer_of(reason) -> str:
+    """原因栏是「等那台电脑」时回电脑名，否则空串。"""
+    text = str(reason or "")
+    return text[len(WAITING_COMPUTER) + 1:] if text.startswith(WAITING_COMPUTER + ":") else ""
 # 写账判定 / 代录预检里编号种类本产品不认（契约缺口，11-16 H3）：回这个原因、记错误日志（标题 UNKNOWN_DOCUMENT_LOG），
 # 与「不是本人的单」（不回、不报存在与否）分开；只给模型与日志，不是界面文案
 UNKNOWN_DOCUMENT = "unknown_document"
@@ -423,6 +438,6 @@ def pages(doc: dict) -> list:
 
 
 __all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "SUCCEEDED", "ledger_settled", "ledger_word", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
-           "OFFLINE", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
+           "OFFLINE", "WAITING_COMPUTER", "waiting_computer", "waiting_computer_of", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

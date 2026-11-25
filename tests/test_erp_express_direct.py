@@ -2844,6 +2844,43 @@ class WriterAtClaim(PushModule):
         with self.patched(peers, {"BK": ["PC-OFFICE"]}, lambda user: []):  # 没有人对这家公司有权限：一台都不算
             self.assertEqual(self.push.writers_of("b@x", "CO-1", "BK")["state"], "missing")
 
+    def test_a_job_pinned_to_a_computer_that_is_off_says_which_computer_it_waits_for(self):
+        """11-25 两台电脑实测：领走后那台失联、收回时钉回它；同公司另一台在线时 writers 报 ok，页面只写「录入中」。现在排队原因先看
+        钉住的那台（`jobs.waiting_computer`）：原因栏「express.waiting_computer:<电脑名>」，单据页 / 列表 / CC 对话 / LINE 写
+        「等待电脑 · 名称」；没钉照旧按 writers。"""
+        import types
+        from unittest import mock
+        from pearnly_erp_portal.express import contracts as E, pending
+        row = types.SimpleNamespace(name="SD-1", owner="b@x", ledger_book="BK", ledger_job="J1", get=lambda key: "J1")
+        peers = self.peers(**{"PC-OFFICE": (["a@x"], True)})
+        with self.patched(peers, {"BK": ["PC-OFFICE"]}, lambda user: ["CO-1"]), \
+                mock.patch.object(self.push, "company_of", lambda doctype, name: "CO-1"):
+            with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: "DESKTOP-TEST02"):
+                note = self.push._queued_note(self.push.SALES, row)
+            self.assertEqual(note, "express.waiting_computer:DESKTOP-TEST02")
+            with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: ""):
+                self.assertEqual(self.push._queued_note(self.push.SALES, row), "")  # 没钉：办公室那台在线，照旧不写原因
+        self.assertEqual(E.waiting_computer_of(note), "DESKTOP-TEST02")
+        self.assertEqual(E.waiting_computer("  PC  of\nA "), "express.waiting_computer:PC of A")
+        self.assertEqual(E.waiting_computer(""), "")
+        self.assertEqual(E.waiting_computer_of(E.OFFLINE), "")
+        self.assertEqual(pending.reason_label(E.QUEUED, note), "Waiting for computer · DESKTOP-TEST02")
+        self.assertEqual(E.ledger_word(E.QUEUED, note), "Entering")              # 状态词不变
+        self.assertFalse(E.ledger_settled(E.QUEUED, note))                       # LINE 接着等
+        glossary = (pathlib.Path(__file__).resolve().parents[1]
+                    / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
+        page = (pathlib.Path(__file__).resolve().parents[1] / "frontend/assistant/src/i18n.ts").read_text(encoding="utf-8")
+        words = [line.split("\t")[:4] for line in glossary.splitlines() if line.startswith("Waiting for computer\t")]
+        self.assertEqual(len(words), 1)
+        for word in words[0]:                                                     # 四语逐字同代录那一条（CC 网页 folderWaiting）
+            self.assertIn(f'folderWaiting: "{word}"', page)
+        desk = (pathlib.Path(__file__).resolve().parents[1]
+                / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
+        self.assertIn('const WAITING_COMPUTER = "express.waiting_computer:";', desk)
+        self.assertIn('__("Waiting for computer")', desk)
+        self.assertIn("p.waiting_computer(row?.ledger_reason)", desk)          # 列表悬浮
+        self.assertIn('info.state === "queued" ? p.waiting_computer(info.reason)', desk)  # 单据页 Express 弹窗原因栏
+
     def test_a_collectors_job_is_written_by_the_office_computer_while_hers_is_off(self):
         # 11-13 的 not_yours（收款员自己的电脑关着就只等她的）按 11-17 定稿作废：办公室同事那台在线就由它写
         peers = self.peers(**{"PC-COL": (["col@x"], False), "PC-OFFICE": (["office@x"], True)})

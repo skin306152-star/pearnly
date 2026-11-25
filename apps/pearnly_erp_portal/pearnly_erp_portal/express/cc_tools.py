@@ -232,6 +232,10 @@ def _outcome(kind, name) -> dict:
         out = {"status": direct_push.QUEUED}
         if reason in OFFLINE:
             out["cc_desktop_online"] = False
+        computer = contracts.waiting_computer_of(reason)
+        if computer:
+            # 钉在一台此刻不在线的电脑上（领走后失联）：别的电脑不写，等那台开机；给模型那台的名称与单据页同一句
+            out.update(cc_desktop_online=False, waiting_computer=computer, note=pending.reason_label(state, reason))
         waiting = _waiting([row.ledger_job]).get(row.ledger_job)
         if waiting:
             out["waiting"] = waiting  # 有人开着这本账套的 Express：关了自动写（11-12）

@@ -766,6 +766,16 @@ class PushTests(unittest.TestCase):
             self.assertEqual(tools._outcome(tools.KINDS["sales"], "SD-5"),
                              {"status": "entered", "docnum": "HS6910-001"})
 
+    def test_a_queued_job_waiting_for_a_computer_that_is_off_names_that_computer(self):
+        # 11-25 两台电脑实测：钉在关着的原电脑上时页面只写「录入中」。CC 对话里的推送结论照单据页同一句说出在等哪台
+        doc(SALES, "SD-7", state="queued", ledger_job="J7")
+        STATE.db.table(SALES)["SD-7"].update(ledger_reason="express.waiting_computer:DESKTOP-TEST02")
+        with translated():
+            out = tools._outcome(tools.KINDS["sales"], "SD-7")
+        self.assertEqual(out["status"], "queued")
+        self.assertEqual((out["cc_desktop_online"], out["waiting_computer"]), (False, "DESKTOP-TEST02"))
+        self.assertTrue(out["note"].endswith(" · DESKTOP-TEST02"))
+
     def test_the_model_is_told_what_waiting_means_in_one_sentence(self):
         by_name = {tool["name"]: tool for tool in tools.TOOLS}
         for name in ("erp_push_documents", "erp_push_results", "erp_list_documents"):

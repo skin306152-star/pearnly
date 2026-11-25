@@ -334,11 +334,13 @@ def recorded(doc, name="") -> tuple:
     return doctype, doc.get(link) or name or ""
 
 
-def entering(doc) -> dict:
-    """「录入中」+【查看结果】（等写账回执的兜底，同网页列表的状态词）。"""
+def entering(doc, why="") -> dict:
+    """「录入中」+【查看结果】（等写账回执的兜底，同网页列表的状态词）。``why``：排队中此刻在等什么（钉在一台不在线的电脑上时
+    「等待电脑 · 名称」，同单据页），另起一行，状态词不变。"""
     label = _("View result")[:20]
     data = urlencode({"a": "erp_result", "n": doc.name})  # = RESULT_ACTION（字面量：产品地图按它认入口）
-    return {"type": "text", "text": _("Entering"), "quickReply": {"items": [
+    text = "\n".join(part for part in (_("Entering"), why) if part)
+    return {"type": "text", "text": text, "quickReply": {"items": [
         {"type": "action", "action": {"type": "postback", "label": label, "data": data, "displayText": label}}]}}
 
 
@@ -356,7 +358,9 @@ def result(doc, created=None, *, final=False, name=""):
     if not state:
         return saved(doc, {"name": row.name, "system_no": row.system_no, **(created or {})})
     if not express_contracts.ledger_settled(state, reason):
-        return entering(doc) if final else None
+        # 排队中钉在一台不在线的电脑上：原因行写「等待电脑 · 名称」（同单据页，`pending.reason_label`）
+        why = pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) else ""
+        return entering(doc, why) if final else None
     word = express_contracts.ledger_word(state, reason)
     if word == express_contracts.SUCCEEDED:
         number = row.get("ledger_docnum") or row.get("system_no") or row.name

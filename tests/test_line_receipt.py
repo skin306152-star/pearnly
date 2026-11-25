@@ -403,6 +403,13 @@ class StatusWordTables(unittest.TestCase):
         self.assertEqual([contracts.status_word(status) for status in ("queued", "writing", "written", "failed", "withdrawn")],
                          ["Entering", "Entering", "Succeeded", "Failed", "Cancelled"])
 
+    def test_line_entering_names_the_computer_it_waits_for_on_its_own_line(self):
+        """11-25：排队中钉在一台不在线的电脑上，LINE 回执「录入中」不变，另起一行写单据页同一句「等待电脑 · 名称」。"""
+        text = (ROOT / (ERP + "line_cards.py")).read_text(encoding="utf-8")
+        self.assertIn('text = "\\n".join(part for part in (_("Entering"), why) if part)', text)
+        self.assertIn("pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) else", text)
+        self.assertIn("return entering(doc, why) if final else None", text)
+
     def test_the_line_cards_use_the_web_words(self):
         """ERP 采购 / 销售列表的 Express 列、收银记录、出入库都走 `p.ledger_word`，不再各写一张。"""
         for name in ("purchase-fields.js", "sales-fields.js", "pos-receipts.js", "stock-entry.js"):

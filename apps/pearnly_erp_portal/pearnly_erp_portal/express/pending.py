@@ -134,6 +134,9 @@ def _error_code(reason) -> str:
 def reason_label(state, reason) -> str:
     """给人看的一句（按当前语言）：认得的原因码给译文；要人选一次的、没有原因的写状态；电脑回报的码有译文给译文，没有原样。"""
     reason = str(reason or "")
+    computer = contracts.waiting_computer_of(reason)
+    if computer:
+        return f"{_('Waiting for computer')} · {computer}"  # 排队中钉在一台不在线的电脑上（单据页同一句）
     if not reason or reason.startswith(contracts.CHOICE):
         return _(STATES.get(state, "Pending"))
     if reason in REASONS:

@@ -509,6 +509,32 @@ class Queue(Base):
         self.lease(pc2)
         self.assertEqual(self.ack(self.office, job["job"])["status"], "success")
 
+    def test_a_job_pinned_to_a_computer_that_is_off_names_that_computer(self):
+        """11-25 两台电脑实测：钉在关着的原电脑上时，同公司另一台在线，页面只写「录入中」。`waiting_computer` 说出在等哪台
+        （连接页上的名称），那台在线、没钉、已移除、写成后都回空。"""
+        other = self.register("staff@x", KEY_B)
+        pc2 = self.context(other["device"], "staff@x")
+        self.report(pc2)
+        job = self.enqueue()
+        self.assertEqual(jobs.waiting_computer(job["job"]), "")            # 排队中、没钉
+        self.lease(self.office)
+        self.assertEqual(jobs.waiting_computer(job["job"]), "")            # 领取中
+        row = fake.STATE.db.table(documents.JOB)[job["job"]]
+        row["lease_expires_at"] = devices.now() - timedelta(seconds=1)
+        self.offline(self.office)
+        self.lease(pc2)                                                     # 收回：钉回原来那台
+        device = fake.STATE.db.table(documents.DEVICE)[self.office.device]
+        self.assertEqual(jobs.waiting_computer(job["job"]), device["device_label"])
+        self.assertTrue(device["device_label"])
+        self.assertEqual(jobs.waiting_computer("NOPE"), "")
+        device["retired_at"] = devices.now()                                # 已移除的电脑：不说在等它
+        self.assertEqual(jobs.waiting_computer(job["job"]), "")
+        device["retired_at"] = None
+        device["last_seen_at"] = devices.now()                              # 回来了（在线）：不再说在等
+        self.assertEqual(jobs.waiting_computer(job["job"]), "")
+        self.ack(self.office, job["job"])
+        self.assertEqual(jobs.waiting_computer(job["job"]), "")
+
     def test_a_long_job_on_a_computer_still_online_is_not_taken_back(self):
         """代录一张单暂停超过租约（人在用 Express）：写账线这期间不来报到，但这台电脑的按需请求线程还在报到（在线）——别的电脑
         领单时续租约，不收回、不计次数（ADR-021 11-02 修订）。"""

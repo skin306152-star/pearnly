@@ -106,6 +106,7 @@ EXITS: Dict[str, Dict[str, Any]] = {
     "express.pos_refund_waiting": wait("original_written"),
     "express.cc_desktop_not_connected": act("computer_online", "p2"),
     "express.cc_desktop_offline": act("computer_online", "p2"),
+    "express.waiting_computer": wait("computer_online"),  # 钉在一台不在线的电脑上：等那台开机（原因栏带电脑名）
     "express.warehouse_unmapped": ask("precheck:location", SERVER, live=True),
     "express.item_unmapped": ask("precheck:new_item", DESKTOP, "p4"),
     "express.printed_total_missing": ask("review", SERVER, "p2"),

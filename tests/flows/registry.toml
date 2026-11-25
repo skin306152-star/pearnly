@@ -1172,6 +1172,22 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.express.waiting-computer"
+title = "ERP 排队中的单钉在一台不在线的电脑上：单据页 Express 弹窗、列表悬浮、CC 对话推送结论写「等待电脑 · 名称」，状态词仍是录入中（11-25）"
+module = "scripts/flows/erp_waiting_computer.py"
+start = "/desk/pearnly-purchase/{doc}"
+user = "purchase"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_core/pearnly_core/cc_desktop/jobs.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/push.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/pending.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js",
+]
+
+[[flow]]
 id = "erp.team.full-name"
 title = "ERP 员工姓名：团队页新建 / 编辑带名姓，名单显示姓名，我的资料名姓可改、用户名只读（岳父 10-28 第 1 条）"
 module = "scripts/flows/team_full_name.py"
