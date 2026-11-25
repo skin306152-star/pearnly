@@ -440,12 +440,19 @@ def _rechain(account_dir: Path, docnum: str, transfer: bool, chain_rows: List[di
             else:
                 replay = replace(replay, bal=replay.bal + row["qty"], val=replay.val + row["value"])
         fits = abs(replay.bal - now.bal) <= Decimal("0.0001") and abs(replay.val - now.val) <= Decimal("0.01")
+        # 行上记的批号不是写前指针的两种：盘盈行记的是挂靠的进货批（原生实录第 9 条），调入行记的是本单自己的新批。写入时新批成了链头，
+        # 写前的链头就是这条链剩下的批里排最后的那一批（原生盘盈作废没有实录，照调入同法推定）
+        linked = (first["POSOPR"] == S.STCRD_POSOPR_COUNT and first["qty"] > 0) or _own_lot(head, docnum)
         if fits and first["DOCDAT"] and not _later_rows(remaining[key], first, docnum):
             new = replace(start, head=head)  # 原样回到写前：空链时原生记 B/F（11-24 NLTTEST 实录），照行上记的写回
+            if linked:
+                new = replace(new, head=_previous_lot(remaining[key]) or stock_chain.EMPTY_HEAD, marked=False)
+            elif not head:  # 行上没记批号（盘点的减少行、老版本 CC 的行）：写入时没动批号，作废也不动，留着现在的
+                new = replace(new, head=now.head, marked=now.marked)
         else:
             back = now.head
-            if _own_lot(now.head, docnum):  # 批号指着本单的批：回行上记的写前批号；行上记的也是本单的批（调入行）就找之前最近的一批
-                back = head if head and not _own_lot(head, docnum) else \
+            if _own_lot(now.head, docnum):  # 批号指着本单的批：回行上记的写前批号；行上记的不是写前指针就找之前最近的一批
+                back = head if head and not linked else \
                     (_previous_lot(remaining[key]) or stock_chain.EMPTY_HEAD)
             new = replace(now, bal=now.bal - qty, val=now.val - value, head=back, marked=False if back != now.head else now.marked)
         if key[1] is not None:

@@ -168,3 +168,35 @@ def test_a_purchase_on_a_master_chain_left_negative_keeps_recording_zero_and_the
     assert res.ok, res.error
     line = [r for r in _rows(acct, "STCRD", STKCOD="ICE01") if r["POSOPR"] == "0"][-1]
     assert (line["MREMBAL"], line["MLOTNUM"].rstrip()) == (0.0, "B/F")
+
+
+def test_voiding_a_count_loss_keeps_the_master_lot_since_count_rows_record_none(book):
+    """盘点的减少行不记批号（行上 MLOTNUM 空）：作废时主档批号留着现在的，不回成空（审查 11-25：以前按行回写把主档批号清空）。"""
+    for head in (TK_LOT, "-/F"):
+        isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+        _set_master(book, MLOTNUM=head, MREMBAL=5.0, MREMVAL=50.0, TOTBAL=5.0, TOTVAL=50.0, UNITPR=10.0)
+        before = _master(book)
+        res = _write(book, _entry("TK", [_line("ICE01", -2)]))
+        assert res.ok, res.error
+        assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].strip() == ""
+        assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "-2"}]).ok
+        assert _master(book) == before
+
+
+def test_voiding_a_count_gain_puts_the_lot_back_to_the_last_lot_left_not_the_purchase_it_links(book):
+    """盘盈行记的是挂靠的进货批（原生实录第 9 条），不是写前指针：作废时批号回到这条链剩下排最后的一批（同调入行；原生盘盈作废
+    没有实录，照调入同法推定）。以前按行回写把主档批号改成那张进货的批（审查 11-25）。"""
+    import datetime as dt
+    from test_dbf_stock import _receipt
+    isinfo(book, MAINLOC="01", ISPERPETUA="Y", COSMTD="A", NEGALLOW="Y")
+    _receipt(book, "RR0000009", dt.date(2026, 3, 1), 10, 400)
+    first = _write(book, _entry("JU", [_line("ICE01", 1, unit_cost="40")], docdate_be="690310"))
+    assert first.ok, first.error
+    ju_lot = f"202603101{first.docnum:<12}  1"
+    before = _master(book)
+    assert before["MLOTNUM"] == ju_lot
+    res = _write(book, _entry("TK", [_line("ICE01", 2)]))
+    assert res.ok, res.error
+    assert _rows(book, "STCRD", DOCNUM=res.docnum)[0]["MLOTNUM"].startswith("202603010RR0000009")
+    assert _void(book, res.docnum, "TK", [{"code": "ICE01", "qty": "2"}]).ok
+    assert _master(book) == before
