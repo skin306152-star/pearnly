@@ -6,11 +6,11 @@
    从目录建一家公司，再把连接停用——这家公司就没有可用账套，「新建任务」走不带公司种子的表单，MR.ERP 卡片出「连接」；
    另建一条 Express 连接并给一台合成电脑发密钥（发票要认得出电脑，同 CC 桌面版登记）。
 2. CC 对话页 `/assistant?view=tasks&company=<公司>`：点「新建任务」→ MR.ERP 卡片的「连接」→ 打开设置 → 连接（11-07 起 MR.ERP 连接只在
-   这里），最上面「MR.ERP」一行写「已授权：flow-old」→ 点这一行的「连接」→ 弹窗里有用户名、密码两格（整页只有这一个密码框），
+   这里），账本组第一行「MR.ERP」名下写授权人 flow-old、右边「● 已连接 + ···」→「···」→「重新登录」→ 弹窗里有用户名、密码两格（整页只有这一个密码框），
    在浏览器里（没有 CC 本机桥）两格都不可用；改系统地址、点「连接」→ 弹窗关上。
 3. 页面会话向站点要一次性票（CC 窗口里点授权时同一条接口，带合成电脑的设备密钥）：拿得到、形状对。
 4. Cowork Desk：录入、自动录入规则两处共用的 `intake_targets.connect_dialog` 不再自己弹窗，新开一页 `/assistant?settings=connections`；
-   打开这个地址就是设置 → 连接，最上面是 MR.ERP 一行。
+   打开这个地址就是设置 → 连接，有 MR.ERP 一行。
 落库核对：网址改了、连接启用、**密码仍是老连接存的那个**（页面没有收、也没有改密码）、没有授权记录；最后把造的数据全部删掉。
 机器通道交密码那一半（CC 桌面版经机器令牌交给站点）回归实验室没有 CC 桌面版，由 scripts/cowork-mrerp-login-lab-verify.py 在真实站点
 走 WSGI 验，离线由 tests/test_mrerp_cc_login.py、tests/test_cowork_mrerp_cc_login.py 守住。
@@ -30,7 +30,11 @@ NEW_URL = "https://www.mrerp4sme.com/flow"
 WAIT = ("const until=async(f,n=120)=>{for(let k=0;k<n;k++){try{if(f())return true;}catch(e){} await new Promise(r=>setTimeout(r,250));} return false;};"
         "const q=s=>document.querySelector(s); const qa=s=>[...document.querySelectorAll(s)];"
         "const shown=e=>!!(e&&e.getClientRects().length);"
-        "const passwords=()=>qa('input[type=password]').filter(shown).length;")
+        "const passwords=()=>qa('input[type=password]').filter(shown).length;"
+        # Radix 下拉只认指针按下：按真实点按的事件序列发（同 cc_settings.py）
+        "const press=e=>{const o={bubbles:true,cancelable:true,pointerType:'mouse',isPrimary:true,button:0}; "
+        "e.dispatchEvent(new PointerEvent('pointerdown',o)); e.dispatchEvent(new MouseEvent('mousedown',o)); "
+        "e.dispatchEvent(new PointerEvent('pointerup',o)); e.dispatchEvent(new MouseEvent('mouseup',o)); e.click();};")
 
 CLEANUP = f'''
 from pearnly_cowork.companies import service as companies
@@ -108,16 +112,21 @@ def steps(params, camera_code=None):
          "const card=()=>qa('.cc-card').filter(shown).find(c=>c.innerText.includes('MR.ERP')); "
          "const ok=await until(()=>card()&&card().querySelector('button.cc-btn'),80); if(!ok) return {error:'no MR.ERP connect button'}; "
          "card().querySelector('button.cc-btn').click(); "
-         # 打开设置 → 连接（定时任务的新建表单留在后面），最上面 MR.ERP 一行
-         "const row=()=>q('[data-slot=\"cc-mrerp-row\"]'); const settled=await until(()=>row()&&/已授权|未授权/.test(row().innerText),80); "
-         "const status=row()?row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText||'':''; "
-         "const first=!!row()&&row().closest('[role=\"dialog\"]')?.querySelector('.cc-settings-row')===row(); "
-         "row()?.querySelector('[data-slot=\"cc-mrerp-connect\"]')?.click(); "
+         # 打开设置 → 连接（定时任务的新建表单留在后面）；账本组第一行是 MR.ERP（站点 → 账本 → 电脑，用户 11-25 审定）：
+         # 授权过的名下只写授权人、右边「● 已连接 + ···」，「···」里「重新登录」打开连接弹窗
+         "const row=()=>q('[data-slot=\"cc-mrerp-row\"]'); "
+         "const settled=await until(()=>row()&&row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText.trim(),80); "
+         "const status=row()?row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText.trim()||'':''; "
+         "const online=row()?row().querySelector('.cc-status-line[data-status=\"online\"]')?.innerText.trim()||'':''; "
+         "const prev=row()?.previousElementSibling; const first=!!prev&&prev.tagName==='H3'; const group=prev?prev.innerText.trim():''; "
+         "const more=row()?.querySelector('[data-slot=\"cc-mrerp-more\"]'); if(more){press(more); "
+         "await until(()=>qa('[role=menuitem][data-slot=\"cc-mrerp-connect\"]').some(shown),40); "
+         "const item=qa('[role=menuitem][data-slot=\"cc-mrerp-connect\"]').find(shown); if(item) press(item);} "
          "const opened=await until(()=>q('[data-slot=\"cc-mrerp-connect-dialog\"] [data-slot=\"cc-mrerp-login\"]'),60); "
          "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const user=box?.querySelector('[data-slot=\"cc-mrerp-username\"]'); "
          "const secret=box?.querySelector('[data-slot=\"cc-mrerp-password\"]'); "
          "const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); "
-         "return {settled, first, status, opened, passwords: passwords(), login: box?.querySelector('[data-slot=\"cc-mrerp-login\"]')?.innerText||'', "
+         "return {settled, first, group, status, online, more: !!more, opened, passwords: passwords(), login: box?.querySelector('[data-slot=\"cc-mrerp-login\"]')?.innerText||'', "
          "login_disabled: !!(user&&user.disabled&&secret&&secret.disabled&&secret.type==='password'), url: url?url.value:''};"},
         {"name": "改网址、点连接", "js": WAIT +
          "const box=q('[data-slot=\"cc-mrerp-connect-dialog\"]'); const url=box?.querySelector('[data-slot=\"cc-mrerp-url\"]'); if(!url) return {error:'no url input'}; "
@@ -150,9 +159,10 @@ def judge(params, results, camera_code=None):
     dialog, saved, ticket, desk, settings = (by.get(k) or {} for k in ("新建任务、点 MR.ERP 的连接", "改网址、点连接", "页面要一次性票",
                                                                       "Desk 的连接", "设置的连接一节"))
     return [
-        {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，最上面一行 MR.ERP 写「已授权：flow-old」", "seen": dialog,
-         "ok": bool(dialog.get("settled")) and bool(dialog.get("first")) and "已授权：" + OLD_USER in str(dialog.get("status"))},
-        {"case": "这一行的「连接」弹窗打开、用户名与密码两格在浏览器里不可用（整页只有这一个密码框）", "seen": dialog,
+        {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，账本组第一行 MR.ERP 名下写授权人 flow-old、右边「● 已连接 + ···」",
+         "seen": dialog, "ok": bool(dialog.get("settled")) and bool(dialog.get("first")) and dialog.get("group") == "账本"
+         and dialog.get("status") == OLD_USER and dialog.get("online") == "已连接" and dialog.get("more") is True},
+        {"case": "这一行「···」→「重新登录」弹窗打开、用户名与密码两格在浏览器里不可用（整页只有这一个密码框）", "seen": dialog,
          "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 1 and dialog.get("login_disabled") is True},
         {"case": "改网址点连接后弹窗关上，设置里那一行还在", "seen": saved, "ok": bool(saved.get("closed")) and bool(saved.get("row"))},
         {"case": "页面会话拿得到一次性票", "seen": ticket,
