@@ -546,6 +546,21 @@ function Connections({ api }: { api: Desktop }) {
           <span className="cc-status-dot" />
           {roots.length ? st.status.online : st.expressNotFound}
         </span>
+        {/* 账本组每行右边同一种「● 状态 + ···」（用户 11-24 审定）：本地 Express 的「···」是重新查找、添加文件夹 */}
+        <DropdownMenu.Root onOpenChange={(o) => o && setError("")}>
+          <DropdownMenu.Trigger disabled={!!busy} aria-label={t("more")} className="cc-ledger-toggle cc-tap"
+            data-slot="cc-local-express-more">
+            <MoreHorizontalIcon />
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Portal>
+            <DropdownMenu.Content align="end" sideOffset={menuOffset()} className="cc-menu z-(--cc-z-confirm) min-w-(--cc-menu-w-md)">
+              <DropdownMenu.Item className="cc-menu-item" onSelect={() => void run("scan", "rescan")}>{st.findAgain}</DropdownMenu.Item>
+              <DropdownMenu.Item className="cc-menu-item" onSelect={() => void pickRoots()}>
+                {placesFeature ? st.addFolder : st.change}
+              </DropdownMenu.Item>
+            </DropdownMenu.Content>
+          </DropdownMenu.Portal>
+        </DropdownMenu.Root>
       </div>
       </Collapsible>
       {/* 文件夹默认收起（用户 11-24），点行展开；还没找到 Express 时直接展开（要在这里选文件夹） */}
