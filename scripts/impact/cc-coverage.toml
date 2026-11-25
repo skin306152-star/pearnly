@@ -243,7 +243,8 @@ erp_operator = ["out:只做直写"]
 
 [[row.link]]
 cell = "cowork_direct"
-basis = "Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；没有结果步骤；cdb104b3d、c0c936631、80c1c2770）；只有离线单测 test_cowork_stocktake_guide，页面流程归第 2 步"
+basis = "Cowork 声明 stocktake（form 源，一个「盘点」入口先选操作：模板、按表新建、计数（可记 0）、结束、导出、删除；结束与删除走允许卡；cdb104b3d、c0c936631、80c1c2770）；结果步骤 = 共用 guide.form_result（11-25 C1，名字是盘点名、不出内部编号）；真页面下载模板 → 结果卡成功带 stocktake-template.xlsx、对话里服务端同名（电脑 / 手机）；离线单测 test_cowork_stocktake_guide"
+page_flows = ["cowork.cc.guide.stocktake"]
 
 [[row.link]]
 cell = "erp_direct"
@@ -297,6 +298,7 @@ erp_operator = ["out:11-12 先不做"]
 [[row.link]]
 cell = "cowork_direct.express_local"
 basis = "Cowork 声明 folder_task（form 源，一个入口先选操作：新建、修改、开 / 关、提醒、立即运行（允许卡写明会识别扣费）、删除；表单各步照任务表单（电脑、根目录、文件夹、去向……），都转调 CC 现有的文件夹任务工具；没有结果步骤；cc-guided-folder-task 92053429d，原作者窗口已归档，主会话 11-22 交本窗口）；只有离线单测 test_cowork_folder_task_guide，页面流程归第 2 步"
+flows = ["cowork.cc.guide.folder-task"]  # 结果步骤已接共用 form_result；本流程 11-25 本机未通过（看板卡在作答 / 定时任务备数报错），修好前该格仍 ◐
 
 [[row.link]]
 cell = "cowork_direct.mrerp"
@@ -421,6 +423,7 @@ erp_operator = ["out:只做直写"]
 [[row.link]]
 cell = "cowork_direct"
 basis = "Cowork 声明 work（form 源，看板：在列表里建卡、改卡（当前值预选、只发改了的字段、带复核时的 modified）、成员 / 标签 / 清单、放对话附件；没有结果步骤；cc-guided-work 75e9cf2e7、76b646bcf）；只有离线单测 test_cowork_work_guide，页面流程归第 2 步"
+flows = ["cowork.cc.guide.work"]  # 结果步骤已接共用 form_result；本流程 11-25 本机未通过（看板卡在作答 / 定时任务备数报错），修好前该格仍 ◐
 
 [[row]]
 id = "ledger_setup"
