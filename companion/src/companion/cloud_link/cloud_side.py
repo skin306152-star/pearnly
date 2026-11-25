@@ -319,7 +319,13 @@ def take_members(link: CloudLink, *, sync=None) -> Optional[str]:
     if data is None:
         return None
     try:
-        _id, payload = ctl_files.open_(data, link.session, "members")
+        try:
+            _id, payload = ctl_files.open_(data, link.session, "members")
+        except ctl_files.CtlError as error:
+            # 桥在我们换上会话之后又换了一次（新 session.json 与成员文件都已写好）：换上再解一次，别把它丢掉
+            if error.code != ctl_files.WRONG_EPOCH or link.refresh() is None:
+                raise
+            _id, payload = ctl_files.open_(data, link.session, "members")
         members = ctl_files.members_of(payload)
     except ctl_files.CtlError as error:
         log.warning("云端成员文件不对 · 原因=%s", error.code)

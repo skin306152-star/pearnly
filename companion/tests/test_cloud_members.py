@@ -52,7 +52,8 @@ def test_sealed_file_opens_only_with_the_same_session_and_kind():
         ctl_files.open_(data, session, "status")   # 种类对不上
 
     head = json.loads(data)
-    head["ct"] = base64.b64encode(b"\0" + base64.b64decode(head["ct"])[1:]).decode()
+    raw = base64.b64decode(head["ct"])
+    head["ct"] = base64.b64encode(bytes([raw[0] ^ 0xFF]) + raw[1:]).decode()
     with pytest.raises(ctl_files.CtlError) as changed:
         ctl_files.open_(json.dumps(head).encode(), session, "members")
     assert changed.value.code == ctl_files.TAMPERED
@@ -108,13 +109,23 @@ def test_the_bridge_publishes_registered_sites_without_tokens(tmp_path):
 
 def test_each_new_session_publishes_again_with_its_own_key(tmp_path):
     _saved(tmp_path).set_token(HOST, SITE_ERP, "https://" + SITE_ERP, CORE_TOKEN)
-    host, _drives, windows, *_ = _host(tmp_path)
+    host, *_ = _host(tmp_path)
     host.start()
     first = host._session
     (host.root / "ctl" / ctl_files.MEMBERS_FILE).unlink()   # 云端读走了
     host._rotate()
     assert host._session is not first
     assert _take_members(host)[0]["site"] == SITE_ERP
+    with pytest.raises(ctl_files.CtlError) as old:
+        ctl_files.open_((host.root / "ctl" / ctl_files.MEMBERS_FILE).read_bytes(), first, "members")
+    assert old.value.code == ctl_files.WRONG_EPOCH
+
+
+def test_an_unusual_endpoint_id_still_publishes_the_site(tmp_path):
+    _saved(tmp_path).set_token(HOST, SITE_ERP, "https://" + SITE_ERP, "pcc_odd.name.x_secretvalue")
+    host, *_ = _host(tmp_path)
+    host.start()
+    assert _take_members(host) == [{"site": SITE_ERP, "channel": "core", "endpoint": ""}]
 
 
 def test_a_new_site_token_is_published_at_once(tmp_path):
@@ -201,6 +212,16 @@ def test_a_changed_endpoint_updates_the_member_and_keeps_its_book(tmp_path):
     assert cfg.bearer_token == "pcc_EFGH_cloud-relay" and cfg.account_dir == BOOK.path
 
 
+def test_a_republished_site_clears_the_rejected_mark(tmp_path):
+    """云端 401 记下的「密钥不能再用」：桥再下发这个站点（它现在有可用令牌）就清掉，否则端点号不变时成员永远停着。"""
+    _sync(tmp_path, [ctl_files.member_entry(SITE_ERP, "core", "ABCD")])
+    store = ProfileStore.load(tmp_path / "companion.json", protector=_Protector())
+    store.set_device_state("cloud-" + SITE_ERP, device_link.STALE_KEY)
+    (code, changed), load = _sync(tmp_path, [ctl_files.member_entry(SITE_ERP, "core", "ABCD")], roots=())
+    assert (code, changed) == (cloud_members.READY, True)
+    assert load().runtime_config("cloud-" + SITE_ERP).device_state == ""
+
+
 def test_the_second_site_reuses_the_roots_the_first_one_found(tmp_path):
     _sync(tmp_path, [ctl_files.member_entry(SITE_ERP, "core")])
     (code, _), load = _sync(tmp_path, [ctl_files.member_entry(SITE_ERP, "core"),
@@ -238,6 +259,18 @@ def test_take_members_ignores_an_old_session_file(tmp_path):
     path.write_bytes(ctl_files.seal(protocol.new_session(), "members", {"members": []}))
     assert cloud_side.take_members(link, sync=lambda m: pytest.fail("old session")) == ctl_files.WRONG_EPOCH
     assert not path.exists() and link.generation == 0
+
+
+def test_members_sealed_with_a_session_the_bridge_just_rotated_to_are_not_lost(tmp_path):
+    for name in ("in", "out", "ctl"):
+        (tmp_path / name).mkdir()
+    old, new = protocol.new_session(), protocol.new_session()
+    (tmp_path / "ctl" / protocol.SESSION_FILE).write_bytes(protocol.encode_session(new))
+    (tmp_path / "ctl" / ctl_files.MEMBERS_FILE).write_bytes(
+        ctl_files.seal(new, "members", {"members": [{"site": SITE_ERP, "channel": "core"}]}))
+    link = cloud_side.CloudLink(tmp_path, old)   # 还拿着旧会话（换会话的那次 check 之后桥又换了一次）
+    assert cloud_side.take_members(link, sync=lambda m: (cloud_members.READY, True)) == "ready"
+    assert link.session == new and link.generation == 1
 
 
 def test_check_ctl_takes_the_new_session_before_the_members(tmp_path):

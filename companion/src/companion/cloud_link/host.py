@@ -488,10 +488,9 @@ class CloudHost:
             token = store.token(self.host, member.site)
             if not token:
                 continue
-            parts = token.split("_", 2)
             try:
                 found.append(ctl_files.member_entry(member.site, channels.of_token(token),
-                                                    parts[1] if len(parts) == 3 else ""))
+                                                    ctl_files.endpoint_of(token)))
             except ctl_files.CtlError:
                 log.info("云端成员不合规，不下发 · 站点=%s", member.site)
         return found

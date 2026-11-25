@@ -73,8 +73,10 @@ def sync(members: Iterable[dict], *, load: Optional[Callable] = None, detect: Op
             continue
         cfg = store.runtime_config(pid)
         url, token = "https://" + entry["site"], placeholder_token(entry)  # scan: fake
-        if str(cfg.backend_url or "") != url or str(cfg.bearer_token or "") != token:
-            cfg.update(backend_url=url, bearer_token=token)
+        # 真令牌只在桥上：桥再下发这个站点就说明它现在有可用令牌，云端因 401 记下的「密钥不能再用」一并清掉，否则成员永远停着
+        if (str(cfg.backend_url or "") != url or str(cfg.bearer_token or "") != token
+                or getattr(record, "device_state", "")):
+            cfg.update(backend_url=url, bearer_token=token, device_state="")
             store.save_profile(cfg, paused=record.paused)
             changed = True
             log.info("云端成员已改 · 成员=%s", pid)

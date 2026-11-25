@@ -135,6 +135,14 @@ def member_entry(site: str, channel: str, endpoint: str = "") -> dict:
     return {"site": site, "channel": channel, "endpoint": str(endpoint or "")}
 
 
+def endpoint_of(token: str) -> str:
+    """令牌 ``<前缀><端点号>_<秘密>`` 里的端点号；形状不认识（含别的字符、太长）回空串——端点号只为保持占位令牌的形状，
+    缺了不影响路由，不能因此把整个站点漏下发。"""
+    parts = str(token or "").split("_", 2)
+    endpoint = parts[1] if len(parts) == 3 else ""
+    return endpoint if _ENDPOINT.match(endpoint) else ""
+
+
 def members_of(payload: Any) -> list:
     """``members.json`` 的 payload → 规范化的成员列表（同一站点只留第一条）；不合规抛 ``malformed``。"""
     items = payload.get("members") if isinstance(payload, dict) else None
@@ -152,4 +160,4 @@ def members_of(payload: Any) -> list:
 
 
 __all__ = ["ADD_PLACE_FILE", "CHANNELS", "CtlError", "FILES", "KINDS", "MALFORMED", "MEMBERS_FILE", "RESCAN_FILE",
-           "STATUS_FILE", "TAMPERED", "WRONG_EPOCH", "member_entry", "members_of", "new_id", "open_", "seal"]
+           "STATUS_FILE", "TAMPERED", "WRONG_EPOCH", "endpoint_of", "member_entry", "members_of", "new_id", "open_", "seal"]
