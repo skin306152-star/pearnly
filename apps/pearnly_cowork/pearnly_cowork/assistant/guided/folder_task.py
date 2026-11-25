@@ -698,6 +698,6 @@ GUIDES = [
      ],
      "draft": "pearnly_cowork.assistant.guided.folder_task.draft",
      "review": "pearnly_cowork.assistant.guided.folder_task.review",
-     "confirm": "pearnly_cowork.assistant.guided.folder_task.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.folder_task.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "cowork_save_folder_task", "expires": ["ledger", "company"]},
 ]

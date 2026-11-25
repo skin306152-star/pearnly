@@ -329,7 +329,7 @@ def confirm(ctx, values, draft, consent) -> dict:
     try:
         if action == CREATE:
             made = api.create(values["title"], values["list"])
-            return {"status": "entered", "docnum": (made or {}).get("name") or ""}
+            return {"status": "entered", "label": str(values.get("title") or "")}
         if action == UPDATE:
             modified = draft.rsplit(DRAFT_SEP, 1)[-1]
             changes = {("title" if key == "rename" else key): values[key] for key in FIELDS if key in values}
@@ -358,7 +358,8 @@ def confirm(ctx, values, draft, consent) -> dict:
         frappe.db.rollback()
         frappe.clear_messages()
         return {"returned": {"card" if action != CREATE else "list": {"reason": "work_refused", "text": str(error)[:300]}}}
-    return {"status": "entered", "docnum": card}
+    shown = next(iter(card_options(ctx, codes=[card])["options"]), {}) if card else {}
+    return {"status": "entered", "label": shown.get("name") or ""}   # 卡片标题（结果卡不出内部编号）
 
 
 GUIDES = [
@@ -409,6 +410,6 @@ GUIDES = [
          {"key": "content", "input": "text", "rule": "always", "after": ["action"], "when": {"key": "action", "value": "comment"}},
      ],
      "draft": "pearnly_cowork.assistant.guided.work.draft", "review": "pearnly_cowork.assistant.guided.work.review",
-     "confirm": "pearnly_cowork.assistant.guided.work.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.work.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "cowork_work_update_card"},
 ]

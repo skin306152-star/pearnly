@@ -167,6 +167,8 @@ def confirm(ctx, values, draft, consent) -> dict:
              RULE_PROMOTE: ("choice_save", {"key": values.get("note")}),
              RULE_DELETE: ("choice_remove", {"key": values.get("note")})}
     name, payload = calls[action]
+    # 结果卡上的名字先取（删掉之后就查不到了）
+    shown = next((row for row in TARGETS[action](ctx) if row["code"] == values.get("note")), {}) if action in TARGETS else {}
     with _conversation(ctx):
         try:
             found = json.loads(getattr(company_tools, name)(payload))
@@ -176,7 +178,10 @@ def confirm(ctx, values, draft, consent) -> dict:
             return {"returned": {step: {"reason": "company_refused", "text": str(error)[:300]}}}
     if found.get("status") not in ("saved", "removed"):
         return {"returned": {step: {"reason": "company_refused", "text": str(found.get("reason") or "")[:300]}}}
-    return {"status": "entered", **{key: found[key] for key in ("note", "removed") if key in found}}
+    # 结果卡给人看的名字（`guide.form_result` 的 label）：选的那条备注 / 规则的名字，加的备注用正文；删除类写删了几条
+    label = shown.get("name") or " ".join(str(values.get("text") or "").split())[:80]
+    out = {"status": "entered", "label": label, **{key: found[key] for key in ("note", "removed") if key in found}}
+    return {**out, "deleted": 1} if action in (NOTE_DELETE, RULE_DELETE) else out
 
 
 GUIDES = [
@@ -195,6 +200,6 @@ GUIDES = [
           "default": "pearnly_cowork.assistant.guided.company.text_default", "check": "pearnly_cowork.assistant.guided.company.text_check"},
      ],
      "draft": "pearnly_cowork.assistant.guided.company.draft", "review": "pearnly_cowork.assistant.guided.company.review",
-     "confirm": "pearnly_cowork.assistant.guided.company.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.company.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "cowork_company_note_save", "expires": ["company"]},
 ]

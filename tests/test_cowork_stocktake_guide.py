@@ -332,7 +332,8 @@ class New(Base):
         self.assertEqual(found["status"], run.REVIEWING)
         done = run.confirm(name, found["version"])
         self.assertEqual(STATE["created"], [{"file": "F1", "title": "Shelf C"}])
-        self.assertEqual((done["result"]["status"], done["result"]["docnum"], done["result"]["imported"]), ("entered", "T3", 3))
+        # 结果卡写盘点名，不出内部编号（`guide.form_result`）
+        self.assertEqual((done["result"]["status"], done["result"]["docnum"], done["result"]["imported"]), ("entered", "Shelf C", 3))
 
     def test_a_sheet_the_tool_refuses_goes_back_to_the_file(self):
         STATE["create_result"] = {"status": "not_saved", "reason": "The import columns do not match the stock count template."}

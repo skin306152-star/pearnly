@@ -298,6 +298,15 @@ def _record(ctx, count, rows, mode):
     return done
 
 
+def _label(ctx, count) -> str:
+    """结果卡上这次盘点给人看的名字（盘点选项里的名字；查不到不写，不出内部编号）。"""
+    if not count:
+        return ""
+    from pearnly_cowork.stocktake import upload
+
+    return str((upload.summaries([str(count)]).get(str(count)) or {}).get("title") or "")
+
+
 def confirm(ctx, values, draft, consent) -> dict:
     from pearnly_cowork.stocktake import desk_api, upload
 
@@ -309,12 +318,12 @@ def confirm(ctx, values, draft, consent) -> dict:
             made = _tool("stocktake_create", {"file": values["file"][0], "title": values.get("title") or ""})
             if made.get("status") == "not_saved":
                 return {"returned": {"file": {"reason": "stocktake_refused", "text": str(made.get("reason") or "")}}}
-            return {"status": "entered", "docnum": made.get("id") or "", "imported": made.get("imported"),
+            return {"status": "entered", "label": _label(ctx, made.get("id")) or str(values.get("title") or ""), "imported": made.get("imported"),
                     "counted": made.get("counted"), "problems": made.get("problems") or []}
         count = str(values.get("count") or "")
         try:
             if action == COUNT:
-                return {"status": "entered", "docnum": count,
+                return {"status": "entered", "label": _label(ctx, count),
                         "recorded": _record(ctx, count, values["rows"], values.get("mode") or ADD)}
             if action == CLOSE:
                 desk_api.api_stock_count_close(count)
@@ -326,8 +335,8 @@ def confirm(ctx, values, draft, consent) -> dict:
         # 结束、导出：差异工作簿放进对话（同 CC 工具 cowork_stocktake_export 的文件名）
         found = _tool("stocktake_export", {"count": count})
         if found.get("status") != "exported":
-            return {"status": "failed", "docnum": count, "reason_text": str(found.get("reason") or "")}
-        return {"status": "entered", "docnum": count, "files": _files(found)}
+            return {"status": "failed", "label": _label(ctx, count), "reason_text": str(found.get("reason") or "")}
+        return {"status": "entered", "label": _label(ctx, count), "files": _files(found)}
 
 
 # ── 声明 ─────────────────────────────────────────────────────────────────────
@@ -356,6 +365,6 @@ GUIDES = [
           "default": "pearnly_cowork.assistant.guided.stocktake.mode_default"},
      ],
      "draft": "pearnly_cowork.assistant.guided.stocktake.draft", "review": "pearnly_cowork.assistant.guided.stocktake.review",
-     "confirm": "pearnly_cowork.assistant.guided.stocktake.confirm",
+     "confirm": "pearnly_cowork.assistant.guided.stocktake.confirm", "result": "pearnly_core.assistant.guide.form_result.result",
      "tool": "cowork_stocktake_count"},
 ]

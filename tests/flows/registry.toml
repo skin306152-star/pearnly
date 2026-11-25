@@ -2678,6 +2678,62 @@ covers = [
 ]
 
 [[flow]]
+id = "cowork.cc.guide.stocktake"
+title = "Cowork 版 CC 盘点引导（直写）真页面：选下载模板 → 确定 → 结果卡成功带模板文件；对话里真有这份文件"
+module = "scripts/flows/cowork_cc_guide_stocktake.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/stocktake.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.company"
+title = "Cowork 版 CC 公司资料引导（直写）真页面：添加备注 → 复核 → 确定 → 结果卡成功带正文；公司备注里真有这一条"
+module = "scripts/flows/cowork_cc_guide_company.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/company.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.work"
+title = "Cowork 版 CC 任务看板引导（直写）真页面：添加卡片 → 复核 → 确定 → 结果卡成功带标题；看板上真有这张卡"
+module = "scripts/flows/cowork_cc_guide_work.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/work.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
+id = "cowork.cc.guide.folder-task"
+title = "Cowork 版 CC 定时任务引导（直写）真页面：删除 → 选任务 → 复核 → 允许 → 结果卡已删除 1 条；任务表里这条真没了"
+module = "scripts/flows/cowork_cc_guide_folder_task.py"
+product = "cowork"
+start = "/assistant"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop", "mobile"]
+covers = [
+  "apps/pearnly_cowork/pearnly_cowork/assistant/guided/folder_task.py",
+  "apps/pearnly_core/pearnly_core/assistant/guide/form_result.py",
+]
+
+[[flow]]
 id = "cowork.cc.guide.documents"
 title = "Cowork 版 CC「单据」引导（直写，对话公司与月份的全部单据）真页面：选删除 → 选单 → 复核 → 允许 → 结果卡已删除 1 条；票真删了"
 module = "scripts/flows/cowork_cc_guide_documents.py"
