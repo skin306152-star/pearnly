@@ -43,3 +43,15 @@ waiting_lock），45 秒内重领 31 次（fence 0→31，最后 49），每次�
 |---|---|
 | erp.cc.write、erp.cc.chat-push、erp.collection.server、erp.line.collection、erp.mrerp.direct、cc.operator.page（离线） | 通过：受影响离线测试全过（test_cc_desktop_channel、test_erp_express_direct、test_cowork_* 回执与派单、test_companion_contract） |
 | erp.cc.connect、erp.cc.masters、erp.cc.stock-void、cowork.cc.channel、erp.cc.companies、cc.mrerp-login、cc.desktop.bridge、cowork.cc-chat.push、cc.desktop.cloud-express（人工） | 没测到：主会话 11-25 定本次不上测试机；改动只在「等账套」回执之后是否歇，不碰连接、主档、作废、MR.ERP 登录、桥与云端；实机待合入后随批验收 |
+
+## 真机复验（11-25 合并上机，主会话要求）
+实验栈 testerp = 本地组合 17bf1fd3e（本分支 09de6ce87 + pinned-waiting-computer + cc-line-result-unknown），测试机1 / 测试机2 真 CC 1.12.24，写 69EXP\TEST（测完整本还原）。
+测试机2 领到一张后冻结它的 CC（写账中途、锁着 `PEARNLY.LCK`），给测试机1 推同一本的一张：
+
+| 断言 | 结果 |
+|---|---|
+| 锁着期间不重领、请求有上限 | 通过：测试机2 那件被收回后，测试机1 约 2 分 15 秒只领了 4 次（fence 1→5，约 30 秒一次；修前同样场景 45 秒 31 次），日志 5 行「另一台电脑正在写」，attempt 不涨 |
+| 锁放开后 30 秒内接上 | 通过：15:44:55 解冻测试机2，它 15:45:07 写成 HP691125-001；测试机1 15:45:19 写成 HP691125-002（锁放开后 12 秒） |
+| 各写一次 | 通过：账本 APTRN / GLJNL / ISVAT / STCRD 各 +2，单号连续不重复；实验栈 Error Log 0 |
+
+共用件人工入口：除上面这条外仍记没测到（原因同上）。
