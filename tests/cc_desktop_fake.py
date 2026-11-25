@@ -195,9 +195,17 @@ class _Row(dict):
         return self.get(key)
 
 
-def get_all(doctype, filters=None, fields=None, pluck=None, limit=None, order_by=None, limit_page_length=None):
+def get_all(doctype, filters=None, fields=None, pluck=None, limit=None, order_by=None, limit_page_length=None,
+            group_by=None):
     rows = [row for row in STATE.db.table(doctype).values() if _match(row, filters)]
     rows.sort(key=lambda row: (row.get("creation") or datetime.min, row.get("name")))
+    if group_by:   # 同 SQL GROUP BY：每个值只留第一行
+        seen, kept = set(), []
+        for row in rows:
+            if row.get(group_by) not in seen:
+                seen.add(row.get(group_by))
+                kept.append(row)
+        rows = kept
     count = limit or limit_page_length
     if count:
         rows = rows[:count]

@@ -295,8 +295,9 @@ def computers() -> list:
                           fields=["name", "device_label", "companion_version", "last_seen_at", "issued_at", "link_kind",
                                   "link_via", "link_host"],
                           order_by="device_label asc", limit_page_length=express_companies.DEVICES_MAX)
+    # 报过账本的电脑：按电脑分组取（一台几百份账套也只一行，不被行数上限截掉而误判成「从没报过」）
     reported = set(frappe.get_all(express_companies.BOOK, filters={"device": ["in", names]}, pluck="device",
-                                  limit_page_length=express_companies.BOOKS_MAX))
+                                  group_by="device", limit_page_length=express_companies.DEVICES_MAX))
     manage = guard.has("company.manage", user=user)
     out = []
     for row in rows:

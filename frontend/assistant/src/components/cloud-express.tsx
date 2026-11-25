@@ -359,6 +359,8 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
   const [busy, setBusy] = useState(false);
   const [waiting, setWaiting] = useState(false);
   const [error, setError] = useState("");
+  // 点「连接」那一刻的状态：重新登录时它还是「已连接」，要等桥换新连接后报来的新状态，不拿旧的当结果
+  const before = useRef<CloudStatus | null>(null);
   useEffect(() => {
     let alive = true;
     void api.call("cloud_prefill").then((raw) => {
@@ -375,7 +377,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
   // 点了「连接」之后跟着会话：连上就关；登录失败 / 被别处登录挤下就把原因写在弹窗里
   const state = status?.state;
   useEffect(() => {
-    if (!waiting || !status) return;
+    if (!waiting || !status || status === before.current) return;
     if (state === "connected") return onClose(true);
     if (state === "login_failed") {
       setWaiting(false);
@@ -389,6 +391,7 @@ export const CloudExpressConnect: FC<{ api: Desktop; onClose: (connected: boolea
   const submit = async () => {
     setBusy(true);
     setError("");
+    before.current = status;
     const { host, port } = splitAddress(address);
     const result = inline
       ? await api.call("cloud_connect", { host, port, user: user.trim(), inline: true, ...(password ? { password } : {}) })

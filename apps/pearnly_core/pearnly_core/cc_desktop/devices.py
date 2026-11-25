@@ -108,7 +108,7 @@ def dead_devices(moment) -> list:
     if not rows:
         return []
     reported = set(frappe.get_all(documents.BOOK, filters={"device": ["in", [row.name for row in rows]]}, pluck="device",
-                                  limit_page_length=contracts.MAX_BOOKS * len(rows)))
+                                  group_by="device", limit_page_length=DEAD_SCAN_MAX))
     return [row.name for row in rows
             if contracts.dead(row.last_seen_at or row.issued_at, moment, row.name in reported)]
 
