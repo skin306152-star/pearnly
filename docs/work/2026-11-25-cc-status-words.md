@@ -62,6 +62,7 @@
 - 代录对话里每张单的步骤行：「结果不明」（不标「失败」）；资料清单里列出过、已离开待录清单的单同样（`listed.gone` 带 `result_unknown`）。
   核对入口照旧：代录里那张的「已入账 / 没有入账」卡、CC 待处理。
 - 引导结果卡：Cowork / ERP 单据源结果行新状态 `unconfirmed`，页面显示「结果不明」（原来 ERP 落到「已跳过」）。
-- LINE 保存回执：Cowork（`card_save.outcome` → unknown）、ERP（`line_cards._unconfirmed`）都回「结果不明」+【查看结果】，不说失败、不给【编辑】。
+- LINE 保存回执（Cowork / ERP 都把结果不明说成「失败 · 结果不明」+【编辑】）：改动拆到分支 `pearnly/cc-line-result-unknown`——
+  改到的 LINE postback 入口按产品地图要真机记录，走拼车窗口安排真机后再进 main，不挡本分支。
 - 没改（记已知问题）：ERP 网页采购 / 销售列表的 Express 列对「停下」一律显示「失败」（原因在悬浮），结果不明也在其中；网页列表不在本件范围。
-- 测试：test_express_operator_feed（收尾句与报告）、test_cowork_guide_documents（unconfirmed）、test_line_receipt（两产品 LINE 回执）。
+- 测试：test_express_operator_feed（收尾句与报告）、test_cowork_guide_documents（unconfirmed）、test_express_operator_code_cc（快照带 result_unknown）。

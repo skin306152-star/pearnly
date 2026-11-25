@@ -344,28 +344,6 @@ def entering(doc, why="") -> dict:
         {"type": "action", "action": {"type": "postback", "label": label, "data": data, "displayText": label}}]}}
 
 
-def _unconfirmed(doctype, name, state, reason) -> bool:
-    """写账结果不明（同 CC 推送结果 `cc_tools._outcome` 的 unconfirmed 两种：MR.ERP 停在结果不明；Express 写账件领出去后失联）。
-    只读单据上的状态与写账件，不走单据权限（LINE 回执在后台按 LINE 用户跑）。"""
-    from pearnly_erp_portal.express import cc_tools, contracts as express_contracts
-    from pearnly_erp_portal.mrerp import contracts as mrerp_contracts
-
-    if state != express_contracts.HELD:
-        return False
-    if str(reason or "").startswith(mrerp_contracts.UNKNOWN):
-        return True
-    job = frappe.db.get_value(doctype, name, "ledger_job")
-    return cc_tools._unknown(cc_tools.jobs.find_by_name(job) if job else None)
-
-
-def result_unknown(doc) -> dict:
-    """「结果不明」+【查看结果】（同 :func:`entering` 的按钮）。"""
-    label = _("View result")[:20]
-    data = urlencode({"a": "erp_result", "n": doc.name})
-    return {"type": "text", "text": _("Result unknown"), "quickReply": {"items": [
-        {"type": "action", "action": {"type": "postback", "label": label, "data": data, "displayText": label}}]}}
-
-
 def result(doc, created=None, *, final=False, name=""):
     """这张此刻的结果（状态词与网页同一张表，`express.contracts.ledger_word`）：没接 Express 的「成功 · 单号」；写进去了
     「成功 · Express 单号」；没写成「失败 · 原因」+【编辑】。还在录入回 None（``final`` 时回「录入中」+【查看结果】）。"""
@@ -383,9 +361,6 @@ def result(doc, created=None, *, final=False, name=""):
         # 排队中钉在一台不在线的电脑上：原因行写「等待电脑 · 名称」（同单据页，`pending.reason_label`）
         why = pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) is not None else ""
         return entering(doc, why) if final else None
-    if _unconfirmed(doctype, row.name, state, reason):
-        # 写账结果不明（账本里可能有、还没核对）：单独一类、沿用已有词，只给【查看结果】，不给【编辑】（主会话 11-25）
-        return result_unknown(doc)
     word = express_contracts.ledger_word(state, reason)
     if word == express_contracts.SUCCEEDED:
         number = row.get("ledger_docnum") or row.get("system_no") or row.name

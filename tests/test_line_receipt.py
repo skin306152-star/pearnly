@@ -410,20 +410,6 @@ class StatusWordTables(unittest.TestCase):
         self.assertIn("pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) is not None else", text)
         self.assertIn("return entering(doc, why) if final else None", text)
 
-    def test_a_result_unknown_save_is_not_called_failed_on_line(self):
-        """主会话 11-25：结果不明（账本里可能有、还没核对）回「结果不明」+【查看结果】，不说失败、不给【编辑】（改了再存会重推）。"""
-        cowork = (ROOT / "apps/pearnly_cowork/pearnly_cowork/push/application/card_save.py").read_text(encoding="utf-8")
-        outcome = cowork.split("def outcome(", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(outcome.index("lifecycle.result_unknown("), outcome.index('"status": "failed"'))
-        save = (ROOT / "apps/pearnly_cowork/pearnly_cowork/line/save.py").read_text(encoding="utf-8")
-        unknown = save.split('found["status"] == "unknown"', 1)[1].split("\n    if ", 1)[0]
-        self.assertIn('_("Result unknown")', unknown)
-        self.assertNotIn("_stopped", unknown)
-        erp = (ROOT / "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/line_cards.py").read_text(encoding="utf-8")
-        result = erp.split("def result(doc", 1)[1].split("\ndef ", 1)[0]
-        self.assertLess(result.index("_unconfirmed("), result.index("ledger_word("))
-        self.assertNotIn("stopped(", erp.split("def result_unknown(doc", 1)[1].split("\ndef ", 1)[0])
-
     def test_the_line_cards_use_the_web_words(self):
         """ERP 采购 / 销售列表的 Express 列、收银记录、出入库都走 `p.ledger_word`，不再各写一张。"""
         for name in ("purchase-fields.js", "sales-fields.js", "pos-receipts.js", "stock-entry.js"):

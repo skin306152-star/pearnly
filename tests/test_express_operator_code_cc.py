@@ -1069,7 +1069,7 @@ class ListedDocumentsStayListedTests(Base):
         page = api.documents("CO-1", "2026-10", task=self.task)
         self.assertEqual([row["doc_id"] for row in page["documents"]], ["D1", "D3"])
         self.assertEqual(page["gone"], [{"doc_id": "D2", "group": "purchase", "ref": "PO-D2", "party": "T001",
-                                         "state": "saved", "docnum": "RR0000101", "moves": []}])
+                                         "state": "saved", "docnum": "RR0000101", "result_unknown": False, "moves": []}])
         api.hand_in("CO-1", self.task, ["D1", "D2", "D3"])
         self.assertEqual(self.submitted[-1], ["D1", "D3"])  # 已被直写的不再交代录
 
