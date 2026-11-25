@@ -7,8 +7,8 @@
 2. **再不带参数启动一次**（同双击桌面图标）：这一份要很快自己退出（把「打开窗口」交给已在跑的那份，不弹「已在运行」框），
    已在跑的那份要记「打开 CC 窗口（窗口进程）」；
 3. 结束全部 CC，**不带参数直接启动**：要起来（「托盘常驻」）并且自己打开窗口（「打开 CC 窗口（窗口进程）」）；
-4. 结束全部 CC，**云端模式** ``--cloud``（云端主机上那份，runtime_mode.py）：日志有「云端模式」、不起托盘，没有成员时同
-   ``--headless`` 以 2 退出。
+4. 结束全部 CC，**云端模式** ``--cloud``（云端主机上那份，runtime_mode.py）：日志有「云端模式」、不起托盘；没有隧道与成员时
+   **不退出**，记「云端等待隧道」后一直等（云端 Express 第二阶段 D3：它从启动文件夹起来，退出就要等到下次登录），由冒烟结束它。
 
 只在 Windows 上跑（打包后的 exe；GitHub 的 windows-latest），macOS / Linux 开发机不跑这个脚本。
 
@@ -29,6 +29,7 @@ from pathlib import Path
 
 STARTED = "托盘常驻"
 CLOUD_STARTED = "云端模式"
+CLOUD_WAITING = "云端等待隧道"
 OPENED = "打开 CC 窗口（窗口进程）"
 
 
@@ -131,21 +132,26 @@ class Smoke:
             self.kill_all()
 
     def cloud_step(self) -> int:
-        """云端模式：不起托盘；全新目录没有成员 → 同 --headless 以 2 退出。"""
+        """云端模式：不起托盘；全新目录没有隧道、没有成员 → 记「云端等待隧道」并一直等着（D3：不再以 2 退出）。"""
         started_before, cloud_before = self.count(STARTED), self.count(CLOUD_STARTED)
+        waiting_before = self.count(CLOUD_WAITING)
         cloud = subprocess.Popen([str(self.exe), "--cloud"], env=self.env, cwd=str(self.exe.parent))
         try:
-            code = cloud.wait(60)
-        except subprocess.TimeoutExpired:
-            subprocess.run(["taskkill", "/F", "/T", "/PID", str(cloud.pid)], capture_output=True, check=False)
-            return self.fail("--cloud with no member did not exit within 60 s")
-        if code != 2:
-            return self.fail(f"--cloud with no member exited with {code}, expected 2")
+            if not self.wait_for(CLOUD_WAITING, waiting_before + 1, 60):
+                code = cloud.poll()
+                return self.fail("--cloud did not wait for the tunnel within 60 s"
+                                 + (f" (exited with {code})" if code is not None else ""))
+            time.sleep(3.0)
+            if cloud.poll() is not None:
+                return self.fail(f"--cloud with no member exited with {cloud.returncode}; it must keep waiting")
+        finally:
+            if cloud.poll() is None:
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(cloud.pid)], capture_output=True, check=False)
         if self.count(CLOUD_STARTED) != cloud_before + 1:
             return self.fail("--cloud did not log the cloud mode line")
         if self.count(STARTED) != started_before:
             return self.fail("--cloud started the tray")
-        print("ok: --cloud ran without the tray and exited with 2 when nothing is paired")
+        print("ok: --cloud ran without the tray and kept waiting for the tunnel when nothing is paired")
         return 0
 
 
