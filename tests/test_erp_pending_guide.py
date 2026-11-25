@@ -272,7 +272,7 @@ class Documents(Base):
         self.assertEqual([row["code"] for row in found["options"]], ["P:PD-4"])
         self.assertEqual(STATE["queries"][-1], ("purchase", {"month": "2026-11", "q": "seller d"}))
         sales = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "sales"}})
-        self.assertEqual(STATE["queries"][-1][1]["source"], ["ocr", "manual"])   # 收银小票不是 S: 单
+        self.assertEqual(STATE["queries"][-1][1]["conditions"], [["source", "!=", "pos"]])   # 收银小票不是 S: 单，其余来源都列
         self.assertEqual([row["name"] for row in sales["options"]], ["SI-2 · Buyer B"])
         page = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}}, page_length=1)
         self.assertTrue(page["more"])

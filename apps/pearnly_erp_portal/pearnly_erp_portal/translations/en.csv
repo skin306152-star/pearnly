@@ -500,6 +500,7 @@ Default withholding for service documents,Default withholding for service docume
 Delete,Delete
 Delete note,Delete note
 Delete selected ({0}),Delete selected ({0})
+Delete the documents?,Delete the documents?
 Delete the note?,Delete the note?
 Delete the stock count?,Delete the stock count?
 Delete this card permanently? This cannot be undone.,Delete this card permanently? This cannot be undone.
@@ -734,6 +735,7 @@ Grand Total  {0}  products,Grand Total  {0}  products
 Gray,Gray
 Green,Green
 Gross,Gross
+Handle,Handle
 Handled manually in Express,Handled manually in Express
 Has taxed sales,Has taxed sales
 Head Office,Head Office
@@ -2592,6 +2594,7 @@ express.void,Cancel in Express
 goods,goods
 guide.business.company,Company Details
 guide.business.company_add,Add Company
+guide.business.documents,Documents
 guide.business.pending,Pending
 guide.business.stock_adjust,Product Adjustment
 guide.business.stock_card,Stock Card Report
@@ -2600,17 +2603,20 @@ guide.business.stock_out,Stock Out
 guide.business.stock_transfer,Stock Transfer
 guide.business.stocktake,Stock Count
 guide.consent.company.note_delete,Delete the note?
+guide.consent.documents.delete,Delete the documents?
 guide.consent.stocktake.close,Close the stock count?
 guide.consent.stocktake.delete,Delete the stock count?
 guide.fact.company.none,No company selected
 guide.open.company,Choose an action.
 guide.open.company_add,Choose the companies to add.
+guide.open.documents,Choose an action.
 guide.open.pending,Choose a document.
 guide.open.stock_card,Choose the report and dates.
 guide.open.stocktake,Choose an action.
 guide.option.company.note_add,Add note
 guide.option.company.note_delete,Delete note
 guide.option.company.note_edit,Edit note
+guide.option.pending.handle,Handle
 guide.refused.stock_day_period,Not in the selected month
 guide.refused.stock_files_limit,Too many items
 guide.refused.stock_units_mismatch,The number of units does not match the quantity
@@ -2627,7 +2633,13 @@ guide.step.company.action,Action
 guide.step.company.note,Note
 guide.step.company.text,Text
 guide.step.company_add.companies,Companies
+guide.step.documents.action,Action
+guide.step.documents.direction,Type
+guide.step.documents.item,Document
+guide.step.documents.items,Documents
+guide.step.pending.action,Action
 guide.step.pending.item,Document
+guide.step.pending.items,Documents
 guide.step.stock_adjust.book,Account Set
 guide.step.stock_adjust.day,Date
 guide.step.stock_adjust.file,Attachments

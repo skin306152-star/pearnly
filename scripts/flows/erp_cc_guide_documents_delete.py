@@ -13,18 +13,21 @@ def prepare(lab, manifest):
 
 def steps(params, camera_code=None):
     return [lib.open_conversation(params), lib.open_business("documents"),
-            lib.answer({"action": "delete", "direction": "sales", "items": params["doc"]}), lib.confirm(shot="1-result")]
+            lib.answer({"action": "delete", "direction": "sales"}), lib.pick(params["doc"]), lib.confirm(shot="1-result")]
 
 
 def judge(params, results, camera_code=None):
     by = {r.get("step"): r.get("value") or {} for r in results}
-    opened, answered, done = (by.get(k) or {} for k in ("点菜单", "作答", "确定"))
+    opened, answered, chose, done = (by.get(k) or {} for k in ("点菜单", "作答", "选单", "确定"))
     picked = [page.get("did") for page in answered.get("pages") or ()]
+    # 清单取得快时通用作答片段已点了唯一那张（first:<码>），否则「选单」那一步等清单取回再点
+    took = picked[2:3] == ["first:" + params["doc"]] or (bool(chose.get("picked")) and chose.get("status") == "reviewing")
     return [
         {"case": "业务菜单有「单据」，点了出引导卡、先问操作", "seen": opened,
          "ok": bool(opened.get("clicked")) and opened.get("business") == "documents" and opened.get("keys") == ["action"]},
-        {"case": "选「删除」「销售」、清单里有这张（本公司本月）、选上后到复核卡", "seen": answered,
-         "ok": picked[:3] == ["pick:delete", "pick:sales", "pick:" + params["doc"]] and answered.get("status") == "reviewing"},
+        {"case": "选「删除」「销售」、清单里有这张（本公司本月）、选上后到复核卡", "seen": {"answered": answered, "pick": chose},
+         "ok": picked[:2] == ["pick:delete", "pick:sales"] and took
+         and (chose.get("status") or answered.get("status")) == "reviewing"},
         {"case": "允许卡点「允许」→ 结果卡已跳过，带「只能删除草稿单据」", "seen": done,
          "ok": bool(done.get("enabled")) and done.get("status") == "done" and done.get("result") == "held"
          and "只能删除草稿单据" in (done.get("text") or "")},

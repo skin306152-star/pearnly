@@ -21,7 +21,7 @@
 ## 新增文案（四语，ERP 术语表）
 
 guide.business.documents 单据 · guide.open.documents 选择操作。 · guide.step.pending.action 操作 · guide.step.pending.items 单据 ·
-guide.option.pending.handle 处理 · guide.consent.documents.delete 要删除单据吗？（均沿用 Cowork 同键原文）；Cowork 加 guide.open.documents。
+guide.option.pending.handle 处理 · guide.consent.documents.delete 要删除单据吗？ · guide.step.documents.action / direction / item / items（操作 / 业务类型 / 单据 / 单据）（均沿用 Cowork 与共用层已有原文）；Cowork 加 guide.open.documents。
 
 ## 验证
 
@@ -30,6 +30,14 @@ guide.option.pending.handle 处理 · guide.consent.documents.delete 要删除�
 - 页面流程（本机实验栈 pearnly-cov3-lab，电脑 / 手机）：`erp.cc.guide.documents`（导出）、`erp.cc.guide.documents-delete`（删已提交的单 → 已跳过）。结果见下。
 - 共用件：`check-impact` 没有改到登记的共用件。
 
-## 页面流程结果
+## 页面流程结果（本机实验栈 pearnly-cov3-lab，11-25）
 
-（跑完补）
+| 流程 | 电脑 | 手机 |
+|---|---|---|
+| erp.cc.guide.documents（导出 → 结果卡带 sales-<月>.xlsx） | 通过 | 通过 |
+| erp.cc.guide.documents-delete（删已提交的单 → 已跳过 · 只能删除草稿单据，单子还在） | 通过 | 通过 |
+
+施工中查出并修的：
+- 销售清单起初按来源筛「识别 / 手工」，CC / LINE 收单（来源 cc）被筛掉；改成网页筛选同一写法「来源 ≠ 收银」。
+- ERP 术语表补「单据」各步标题（guide.step.documents.*）并重新生成翻译包（卡片标题原来显示成键）。
+- 流程脚本：ERP 实验栈取清单比 Cowork 慢，单独一步等选项取回再点（`erp_cc_guide_documents_lib.pick`）。

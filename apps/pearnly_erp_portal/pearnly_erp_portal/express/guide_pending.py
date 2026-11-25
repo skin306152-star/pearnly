@@ -141,7 +141,9 @@ def _params(ctx, direction, search="") -> dict:
     if direction == SALES:
         from pearnly_erp_portal.sales import contracts
 
-        params["source"] = [source for source in contracts.SOURCES if source != contracts.SOURCE_POS]
+        # 网页筛选同一写法（`list_filters.conditions`）：来源不是收银；收银侧按同一条件判出不取（`records._pos_applies`），
+        # 销售记录的其余来源（识别、手工、CC / LINE 收单）都留着
+        params["conditions"] = [["source", "!=", contracts.SOURCE_POS]]
     if search:
         params["q"] = search
     return params

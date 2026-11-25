@@ -2282,3 +2282,7 @@ Action	操作	การดำเนินการ	操作	guide.step.pending.act
 Documents	单据	เอกสาร	書類	guide.step.pending.items
 Handle	处理	ดำเนินการ	処理	guide.option.pending.handle
 Delete the documents?	要删除单据吗？	ลบเอกสารหรือไม่	書類を削除しますか？	guide.consent.documents.delete
+Action	操作	การดำเนินการ	操作	guide.step.documents.action
+Type	业务类型	ประเภท	種類	guide.step.documents.direction
+Document	单据	เอกสาร	書類	guide.step.documents.item
+Documents	单据	เอกสาร	書類	guide.step.documents.items

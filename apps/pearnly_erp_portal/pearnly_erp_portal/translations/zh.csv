@@ -500,6 +500,7 @@ Default withholding for service documents,服务类单据默认的预扣税
 Delete,删除
 Delete note,删除笔记
 Delete selected ({0}),删除所选（{0}）
+Delete the documents?,要删除单据吗？
 Delete the note?,要删除笔记吗？
 Delete the stock count?,要删除盘点吗？
 Delete this card permanently? This cannot be undone.,确定要永久删除此卡片吗？删除后无法恢复。
@@ -734,6 +735,7 @@ Grand Total  {0}  products,总计  {0}  个物料
 Gray,灰
 Green,绿
 Gross,毛额
+Handle,处理
 Handled manually in Express,已在 Express 手工处理
 Has taxed sales,有含税销售
 Head Office,总部
@@ -2592,6 +2594,7 @@ express.void,Express 作废
 goods,货物
 guide.business.company,公司资料
 guide.business.company_add,添加公司
+guide.business.documents,单据
 guide.business.pending,待处理
 guide.business.stock_adjust,物料调整
 guide.business.stock_card,收发存报表
@@ -2600,17 +2603,20 @@ guide.business.stock_out,出库
 guide.business.stock_transfer,调拨
 guide.business.stocktake,盘点
 guide.consent.company.note_delete,要删除笔记吗？
+guide.consent.documents.delete,要删除单据吗？
 guide.consent.stocktake.close,要结束盘点吗？
 guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.open.company,选择操作。
 guide.open.company_add,选择要添加的公司。
+guide.open.documents,选择操作。
 guide.open.pending,选择单据。
 guide.open.stock_card,选择报表和日期。
 guide.open.stocktake,选择操作。
 guide.option.company.note_add,添加笔记
 guide.option.company.note_delete,删除笔记
 guide.option.company.note_edit,编辑笔记
+guide.option.pending.handle,处理
 guide.refused.stock_day_period,不在所选月份
 guide.refused.stock_files_limit,项目过多
 guide.refused.stock_units_mismatch,台数与数量不符
@@ -2627,7 +2633,13 @@ guide.step.company.action,操作
 guide.step.company.note,笔记
 guide.step.company.text,内容
 guide.step.company_add.companies,公司
+guide.step.documents.action,操作
+guide.step.documents.direction,业务类型
+guide.step.documents.item,单据
+guide.step.documents.items,单据
+guide.step.pending.action,操作
 guide.step.pending.item,单据
+guide.step.pending.items,单据
 guide.step.stock_adjust.book,账套
 guide.step.stock_adjust.day,日期
 guide.step.stock_adjust.file,附件

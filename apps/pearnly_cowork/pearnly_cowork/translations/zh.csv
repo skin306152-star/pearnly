@@ -3537,6 +3537,7 @@ guide.consent.stocktake.delete,要删除盘点吗？
 guide.fact.company.none,未选公司
 guide.fact.work.nothing,没有要改的项
 guide.open.company,选择操作。
+guide.open.documents,选择操作。
 guide.open.folder_task,选择操作。
 guide.open.pending,选择操作。
 guide.open.pos,请上传 POS 导出。

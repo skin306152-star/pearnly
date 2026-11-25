@@ -3537,6 +3537,7 @@ guide.consent.stocktake.delete,Delete the stock counts?
 guide.fact.company.none,No company selected
 guide.fact.work.nothing,Nothing to change
 guide.open.company,Choose an action.
+guide.open.documents,Choose an action.
 guide.open.folder_task,Choose an action.
 guide.open.pending,Choose an action.
 guide.open.pos,Upload the POS export.

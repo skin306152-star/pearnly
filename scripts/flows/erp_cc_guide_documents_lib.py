@@ -64,4 +64,16 @@ print("{{}}")
     direct_lib.cleanup(lab, manifest, params)
 
 
+def pick(code: str, key: str = "items"):
+    """停在选单那一页时：等清单从服务端取回、点这一张、下一步（ERP 实验栈取清单比 Cowork 慢，通用作答片段可能先于选项读页）。"""
+    return {"name": "选单", "js": form.JS + form.HELP + f"const W={json.dumps(code)}, K={json.dumps(key)}; "
+            "const qn=()=>card()?.querySelector('[data-slot=\"cc-guide-question\"]'); "
+            "if(!qn()||qn().dataset.key!==K) return {skipped: true, status: card()?.dataset.status||''}; "
+            "const opt=()=>qn()?.querySelector('[data-slot=\"cc-guide-option\"][data-code=\"'+W+'\"]'); "
+            "await until(()=>opt(),160); const o=opt(); if(o&&!o.hasAttribute('data-checked')) o.click(); await sleep(300); "
+            "const next=card()?.querySelector('[data-slot=\"cc-askq-next\"]'); const before=card()?.innerText||''; "
+            "const enabled=!!next&&!next.disabled; next?.click(); await until(()=>card()&&card().innerText!==before,120); await sleep(600); "
+            "return {picked: !!o, enabled, status: card()?.dataset.status||''};"}
+
+
 open_conversation, open_business, answer, confirm = form.open_conversation, form.open_business, form.answer, form.confirm

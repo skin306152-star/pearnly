@@ -500,6 +500,7 @@ Default withholding for service documents,ภาษีหัก ณ ที่จ
 Delete,ลบ
 Delete note,ลบบันทึก
 Delete selected ({0}),ลบที่เลือก ({0})
+Delete the documents?,ลบเอกสารหรือไม่
 Delete the note?,ลบบันทึกหรือไม่
 Delete the stock count?,ลบการตรวจนับหรือไม่
 Delete this card permanently? This cannot be undone.,ต้องการลบการ์ดนี้ถาวรใช่หรือไม่ เมื่อลบแล้วจะไม่สามารถกู้คืนได้
@@ -734,6 +735,7 @@ Grand Total  {0}  products,รวมทั้งสิ้น  {0}  สินค�
 Gray,เทา
 Green,เขียว
 Gross,ยอดขายรวม
+Handle,ดำเนินการ
 Handled manually in Express,จัดการด้วยมือใน Express แล้ว
 Has taxed sales,มียอดขายที่มีภาษี
 Head Office,สำนักงานใหญ่
@@ -2592,6 +2594,7 @@ express.void,ยกเลิกใน Express
 goods,สินค้า
 guide.business.company,ข้อมูลบริษัท
 guide.business.company_add,เพิ่มบริษัท
+guide.business.documents,เอกสาร
 guide.business.pending,รอดำเนินการ
 guide.business.stock_adjust,ปรับปรุงสินค้า
 guide.business.stock_card,รายงานรับ-จ่าย-คงเหลือ
@@ -2600,17 +2603,20 @@ guide.business.stock_out,จ่ายออก
 guide.business.stock_transfer,โอนย้ายระหว่างคลัง
 guide.business.stocktake,ตรวจนับสินค้า
 guide.consent.company.note_delete,ลบบันทึกหรือไม่
+guide.consent.documents.delete,ลบเอกสารหรือไม่
 guide.consent.stocktake.close,ปิดการตรวจนับหรือไม่
 guide.consent.stocktake.delete,ลบการตรวจนับหรือไม่
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.open.company,เลือกการดำเนินการ
 guide.open.company_add,เลือกบริษัทที่จะเพิ่ม
+guide.open.documents,เลือกการดำเนินการ
 guide.open.pending,เลือกเอกสาร
 guide.open.stock_card,เลือกรายงานและวันที่
 guide.open.stocktake,เลือกการดำเนินการ
 guide.option.company.note_add,เพิ่มบันทึก
 guide.option.company.note_delete,ลบบันทึก
 guide.option.company.note_edit,แก้ไขบันทึก
+guide.option.pending.handle,ดำเนินการ
 guide.refused.stock_day_period,ไม่อยู่ในเดือนที่เลือก
 guide.refused.stock_files_limit,รายการมากเกินไป
 guide.refused.stock_units_mismatch,จำนวนรายชิ้นไม่ตรงกับจำนวน
@@ -2627,7 +2633,13 @@ guide.step.company.action,การดำเนินการ
 guide.step.company.note,บันทึก
 guide.step.company.text,ข้อความ
 guide.step.company_add.companies,บริษัท
+guide.step.documents.action,การดำเนินการ
+guide.step.documents.direction,ประเภท
+guide.step.documents.item,เอกสาร
+guide.step.documents.items,เอกสาร
+guide.step.pending.action,การดำเนินการ
 guide.step.pending.item,เอกสาร
+guide.step.pending.items,เอกสาร
 guide.step.stock_adjust.book,ชุดบัญชี
 guide.step.stock_adjust.day,วันที่
 guide.step.stock_adjust.file,ไฟล์แนบ

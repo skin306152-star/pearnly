@@ -3537,6 +3537,7 @@ guide.consent.stocktake.delete,ลบการตรวจนับหรือ�
 guide.fact.company.none,ยังไม่ได้เลือกบริษัท
 guide.fact.work.nothing,ไม่มีรายการที่จะแก้ไข
 guide.open.company,เลือกการดำเนินการ
+guide.open.documents,เลือกการดำเนินการ
 guide.open.folder_task,เลือกการดำเนินการ
 guide.open.pending,เลือกการดำเนินการ
 guide.open.pos,กรุณาอัปโหลดไฟล์ส่งออก POS
