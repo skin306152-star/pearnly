@@ -95,3 +95,10 @@
 | ERP 账本来源与云端标签、电脑列表规则、移除、登记退役死记录 | ✅ `tests/test_erp_cc_companies.py`、`tests/test_cc_desktop_channel.py`（仿 frappe） | 候选离线（生产镜像）见提交说明 | 没测到 | 没测到 |
 | Cowork 电脑合一行、死记录 | 要真 frappe：`tests/test_cowork_folder_computers.py` 在候选离线里跑 | 同左 | 没测到 | 没测到 |
 | 连接页三组、改名、收起、弹窗、电脑行小字 | ✅ `tests/test_cc_cloud_express.py`、`tests/test_assistant_ui.py`（node 渲染）、`tests/test_mrerp_login_pages.py`、前端闸门、构建 | 受影响流程 cc.settings / cc.companies / erp.company.connect 等**没跑**（本机实验栈） | 没测到 | 没测到 |
+
+审查（段 ⑤ 自审，medium 做法）：真问题 2 条已修——「报过账本」改为按电脑分组查询（账套多时不被行数上限截断而误判死记录）；连接弹窗重新登录时不被提交前的旧「已连接」状态立刻关掉。
+
+## 剩余（本窗口没做，原因见交接）
+- 段 ③ 自动安装与自升级（V1 前置，夜间）；断开时连带删云端安装目录与启动项（与段 ③ 一起）。
+- Cowork「云端 Express」标签取数（目录要先带报告电脑）；Cowork 登记时顺带退役死记录（锁序）。
+- 受影响流程没跑；真机全部没测到。
