@@ -99,7 +99,9 @@ DOCS = {"purchase": [{"name": "PD-1", "doc_no": "IV1", "supplier_name": "Seller 
                      {"name": "PD-6", "doc_no": "IV6", "supplier_name": "Other Co", "doc_date": "2026-11-21", "grand_total": 9,
                       "status": "draft", "company": "CO-2"}],
         "sales": [{"name": "SD-2", "doc_no": "", "system_no": "SI-2", "buyer_name": "Buyer B", "doc_date": "2026-11-03",
-                   "grand_total": 500, "status": "draft", "company": "CO-1", "source": "ocr"}]}
+                   "grand_total": 500, "status": "draft", "company": "CO-1", "source": "cc"},
+                  {"name": "POS-7", "doc_no": "", "system_no": "SI-7", "buyer_name": "", "doc_date": "2026-11-04",
+                   "grand_total": 50, "status": "submitted", "company": "CO-1", "source": "pos"}]}
 ACTING = []
 
 
@@ -117,13 +119,17 @@ def _acting(company):
 def _scope(params, direction):
     company = ACTING[-1] if ACTING else "CO-1"
     month = (params or {}).get("month") or ""
-    return [row for row in DOCS[direction] if row["company"] == company and str(row["doc_date"]).startswith(month)]
+    # 网页筛选条件（只认本测试用到的「字段 != 值」）
+    rules = [(field, value) for field, op, value in (params or {}).get("conditions") or () if op == "!="]
+    return [row for row in DOCS[direction] if row["company"] == company and str(row["doc_date"]).startswith(month)
+            and all(row.get(field) != value for field, value in rules)]
 
 
 def _records(direction):
     def query(params=None):
         STATE["queries"].append((direction, dict(params or {})))
-        return ([["scope", "=", (ACTING[-1] if ACTING else "CO-1"), (params or {}).get("month"), direction]], None, "doc_date")
+        return ([["scope", "=", (ACTING[-1] if ACTING else "CO-1"), (params or {}).get("month"), direction,
+                  (params or {}).get("conditions") or []]], None, "doc_date")
 
     def rows(params=None, *, start=0, limit=20, **kwargs):
         STATE["queries"].append((direction, dict(params or {})))
@@ -139,7 +145,7 @@ def _get_list(doctype, filters=None, **kwargs):
     direction = "sales" if doctype == "ERP Sales Document" else "purchase"
     scope = next(item for item in filters if item[0] == "scope")
     names = next(item[2] for item in filters if item[0] == "name")
-    return [dict(row) for row in _scope({"month": scope[3]}, direction) if row["name"] in names]
+    return [dict(row) for row in _scope({"month": scope[3], "conditions": scope[5]}, direction) if row["name"] in names]
 
 
 frappe.get_list = _get_list
@@ -273,7 +279,7 @@ class Documents(Base):
         self.assertEqual(STATE["queries"][-1], ("purchase", {"month": "2026-11", "q": "seller d"}))
         sales = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "sales"}})
         self.assertEqual(STATE["queries"][-1][1]["conditions"], [["source", "!=", "pos"]])   # 收银小票不是 S: 单，其余来源都列
-        self.assertEqual([row["name"] for row in sales["options"]], ["SI-2 · Buyer B"])
+        self.assertEqual([row["name"] for row in sales["options"]], ["SI-2 · Buyer B"])   # CC 收单列、收银小票不列
         page = guide.document_options({"company": "CO-1", "period": "2026-11", "answers": {"direction": "purchase"}}, page_length=1)
         self.assertTrue(page["more"])
 
@@ -313,6 +319,15 @@ class Documents(Base):
         self.assertEqual(STATE["deleted"], [("purchase", "CO-1", ["PD-1"])])
         self.assertEqual(done["result"]["status"], "ready")
         self.assertEqual(done["result"]["reason_text"], "intake.delete.done · Only Draft documents can be deleted")
+
+    def test_skipped_documents_say_why_each_was_skipped(self):
+        name, found = self.opened("delete", "purchase")
+        found = run.answer(name, {"items": ["P:PD-1", "P:PD-4"]})
+        DOCS["purchase"][0]["doc_date"] = "2026-10-01"     # 确定前那张被改到别的月份：查不到
+        self.addCleanup(DOCS["purchase"][0].__setitem__, "doc_date", "2026-11-02")
+        done = run.confirm(name, found["version"])
+        self.assertEqual(STATE["deleted"], [])
+        self.assertEqual(done["result"]["reason_text"], "Only Draft documents can be deleted · Not found")
 
     def test_nothing_deleted_when_none_is_a_draft(self):
         name, found = self.opened("delete", "purchase")

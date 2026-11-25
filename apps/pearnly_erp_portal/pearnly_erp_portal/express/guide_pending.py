@@ -154,8 +154,7 @@ def _row(direction, row) -> dict:
     number = row.get("doc_no") or row.get("system_no") or row.get("name")
     return {"code": f"{'S' if direction == SALES else 'P'}:{row['name']}",
             "name": " · ".join(str(part) for part in (number, party) if part) or row["name"],
-            "note": " · ".join(str(part) for part in (row.get("grand_total"), str(row.get("doc_date") or "")[:10]) if part),
-            "status": str(row.get("status") or "")}
+            "note": " · ".join(str(part) for part in (row.get("grand_total"), str(row.get("doc_date") or "")[:10]) if part)}
 
 
 def _named(records, ctx, direction, codes) -> list:
@@ -251,7 +250,8 @@ def _export(ctx, direction) -> dict:
 
 def _delete(ctx, direction, codes) -> dict:
     """网页同一个删草稿函数（`purchasing.entry.delete_drafts` / `sales.entry.delete_drafts`：本人范围、整批行锁、全是草稿才删）。网页那个
-    函数一批里有非草稿就整批拒；这里先按同一份列表查询筛出草稿交给它，其余跳过（结果卡说跳过几张、为什么）。"""
+    函数一批里有非草稿就整批拒；这里先按同一份列表查询筛出草稿交给它，其余跳过：不是草稿的用网页原句，已查不到的（不在这家这个月、
+    已被删掉）用「未找到」，结果卡分开说。"""
     if direction == SALES:
         from pearnly_erp_portal.sales import entry
     else:
@@ -259,16 +259,18 @@ def _delete(ctx, direction, codes) -> dict:
     with _acting(ctx):
         rows = _named(_records(direction), ctx, direction, codes)
         drafts = [row["name"] for row in rows if str(row.get("status") or "") == DRAFT]
-        skipped = len(codes) - len(drafts)
+        locked, missing = len(rows) - len(drafts), len(codes) - len(rows)
+        why = " · ".join(text for text, count in ((_("Only Draft documents can be deleted"), locked),
+                                                   (_("Not found"), missing)) if count)
         if not drafts:
-            return {"status": "entered", "deleted": 0, "skipped": skipped}
+            return {"status": "entered", "deleted": 0, "skipped": locked + missing, "skip_reason_text": why}
         try:
             done = entry.delete_drafts(drafts)
         except (frappe.ValidationError, frappe.PermissionError, frappe.DoesNotExistError) as error:
             frappe.db.rollback()
             frappe.clear_messages()
             return {"returned": {"items": {"reason": "pending_refused", "text": _(str(error))[:300]}}}
-    return {"status": "entered", "deleted": int(done.get("deleted") or 0), "skipped": skipped}
+    return {"status": "entered", "deleted": int(done.get("deleted") or 0), "skipped": locked + missing, "skip_reason_text": why}
 
 
 def confirm(ctx, values, draft, consent) -> dict:
@@ -299,9 +301,9 @@ def result(ctx, draft):
         return {**done, "status": "ready"}
     if "deleted" in done:
         deleted, skipped = int(done.get("deleted") or 0), int(done.get("skipped") or 0)
-        why = _("Only Draft documents can be deleted")
+        why = str(done.get("skip_reason_text") or "")
         if not deleted:
             return {**done, "status": "held", "reason_text": why}
         text = _("intake.delete.done").format(deleted)
-        return {**done, "status": "ready", "reason_text": f"{text} · {why}" if skipped else text}
+        return {**done, "status": "ready", "reason_text": f"{text} · {why}" if skipped and why else text}
     return None
