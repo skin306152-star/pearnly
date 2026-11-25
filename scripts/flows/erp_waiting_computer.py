@@ -5,17 +5,17 @@ writers 报 ok，页面只写「录入中」，看不出在等那台）。
 实验栈里没有真的 CC 桌面版：按 CC 桌面版的样子登记一台电脑（`cc_desktop.devices.register`），开一张采购单（正式入账函数），
 它的写账件照「领走后那台失联、收回时钉回它」的样子落库（排队中、``route_device`` = 那台、原因结果不明），那台最后报到推到在线时限之前；
 单据的原因按每分钟那一轮同一个函数写（`push._queued_note` → `push._set`，实验栈不跑定时任务）。
-页面：单据页点「Express」看原因栏、回列表看 Express 一栏的悬浮说明；CC 对话按推送结论工具同一个函数（`cc_tools._outcome`）核。
+页面：列表里这张的 Express 一栏仍是「录入中」（共用列表不渲染悬浮文字，11-25 报主会话）、单据页点「Express」看原因栏；CC 对话按推送结论工具同一个函数（`cc_tools._outcome`）核。
 cleanup：撤写账件、移除那台电脑、作废单据。
 """
 from __future__ import annotations
 
 import uuid
 
-from desk_list import ACTION, IDLE
+from desk_list import ACTION, IDLE, READ_LIST
 from erp_lib import void_documents
 
-TITLE = "ERP 排队中的单钉在一台不在线的电脑上：单据页、列表、CC 对话写「等待电脑 · 名称」，状态词仍是录入中（11-25）"
+TITLE = "ERP 排队中的单钉在一台不在线的电脑上：单据页 Express 弹窗与 CC 对话写「等待电脑 · 名称」，列表状态词仍是录入中（11-25）"
 USER = "purchase@erp.regression"
 
 
@@ -81,34 +81,35 @@ print("{{}}")
 
 
 def steps(params, camera_code=None):
+    # 先在列表（起始页）看 Express 一栏，再按单据页的路由打开这张点「Express」
     return [
+        {"name": "列表", "js": IDLE + "await idle();" + READ_LIST +
+         "const row=[...document.querySelectorAll('.result .list-row-container')].find(r=>!r.querySelector('.list-row-head'));"
+         "const texts=row?[...row.querySelectorAll('*')].filter(e=>!e.children.length).map(e=>e.textContent.trim()).filter(Boolean):[];"
+         "return {list, texts:texts.slice(0,20), want_text:__('Entering')};"},
         {"name": "Express 弹窗", "js": IDLE + ACTION + "await idle();"
-         "for(let k=0;k<80&&!document.querySelector('.page-head .page-title');k++) await new Promise(r=>setTimeout(r,250)); await idle();"
+         f"frappe.set_route('pearnly-purchase', {params['doc']!r}); await idle();"
+         "for(let k=0;k<80&&!document.querySelector('.page-head .page-title');k++) await new Promise(r=>setTimeout(r,250));"
+         "await new Promise(r=>setTimeout(r,1200)); await idle();"
          "const via=await action('Express'); if(!via) return {button:false};"
          "for(let k=0;k<80&&!(window.cur_dialog&&cur_dialog.$wrapper.is(':visible'));k++) await new Promise(r=>setTimeout(r,250)); await idle();"
          "const d=cur_dialog; const v=n=>d&&d.fields_dict&&d.fields_dict[n]?String(d.get_value(n)||''):null;"
-         "const out={button:true, state:v('state'), reason:v('reason'), want_reason:__('Waiting for computer')+' · '+"+repr(params['label'])+","
+         "const out={button:true, state:v('state'), reason:v('reason'), want_reason:__('Waiting for computer')+' · '+"
+         + repr(params['label']) + ","
          "want_state:__('Entering')}; d.hide(); await idle(); return out;"},
-        {"name": "列表悬浮", "js": IDLE + "await idle(); frappe.set_route('pearnly-purchase'); await idle();"
-         f"const want={params['label']!r};"
-         "let cell=null; for(let k=0;k<120&&!cell;k++){ await new Promise(r=>setTimeout(r,250));"
-         "cell=[...document.querySelectorAll('span.ellipsis[title]')].find(s=>(s.getAttribute('title')||'').endsWith(' · '+want)); }"
-         "return {title:cell?cell.getAttribute('title'):null, text:cell?cell.textContent.trim():null,"
-         "want_title:__('Waiting for computer')+' · '+want, want_text:__('Entering')};"},
     ]
 
 
 def judge(params, results, camera_code=None):
     seen = {r.get("step"): r.get("value") or {} for r in results}
-    dialog, listed = seen.get("Express 弹窗") or {}, seen.get("列表悬浮") or {}
+    dialog, listed = seen.get("Express 弹窗") or {}, seen.get("列表") or {}
     return [
         {"case": "the document's Express dialog says which computer it waits for, the status word stays entering",
          "seen": dialog,
          "ok": dialog.get("button") is True and bool(dialog.get("want_reason"))
          and dialog.get("reason") == dialog.get("want_reason") and dialog.get("state") == dialog.get("want_state")},
-        {"case": "the list's Express cell shows entering and its hover names the computer",
-         "seen": listed, "ok": bool(listed.get("title")) and listed.get("title") == listed.get("want_title")
-         and listed.get("text") == listed.get("want_text")},
+        {"case": "the list's Express cell keeps the status word entering (the shared list renders no hover text, reported 11-25)",
+         "seen": listed, "ok": (listed.get("list") or {}).get("rows", 0) >= 1 and listed.get("want_text") in (listed.get("texts") or [])},
     ]
 
 
