@@ -54,7 +54,7 @@ def _receive_document(user_id: str, bound: str, message: dict, reply_token: str)
     """收到图片/PDF：必须先选好方向与各项；按这组选择留底并排队识别。"""
     choices = line_flow.choices(user_id)
     if not line_flow.ready(choices):
-        line_out.reply(reply_token, [{"type": "text", "text": _("Choose purchase or sales first")}])
+        line_flow.not_ready(user_id, bound, choices, reply_token)
         return
     if not guard.has(intake.DIRECTION_CAPABILITY[choices["direction"]], user=bound):
         line_out.reply(reply_token, [{"type": "text", "text": _("This account cannot send documents")}])

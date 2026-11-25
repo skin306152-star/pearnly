@@ -1237,7 +1237,7 @@ Bound at	绑定时间	เวลาที่ผูกบัญชี	連携日時
 Unbind LINE	解绑 LINE	ยกเลิกการเชื่อมต่อ LINE	LINE 連携を解除	erp.line.unbind
 Unbind Pearnly ERP LINE?	确定要解绑 Pearnly ERP LINE 吗？	ต้องการยกเลิกการเชื่อมต่อ Pearnly ERP LINE ใช่หรือไม่	Pearnly ERP LINE の連携を解除しますか？	erp.line.unbindConfirm
 LINE is not enabled for this account	该账号未开通 LINE	บัญชีนี้ยังไม่ได้เปิดใช้ LINE	このアカウントは LINE が有効になっていません
-Choose purchase or sales first	请先选择采购或销售	กรุณาเลือก ซื้อ หรือ ขาย ก่อน	先に仕入か売上を選んでください
+Choose a type first	请先选择类型	กรุณาเลือกประเภทก่อน	先に種類を選んでください
 Choose the company	选择公司	เลือกบริษัท	会社を選んでください
 Choose the customer	请选择客户	กรุณาเลือกลูกค้า	顧客を選んでください
 Choose the payment method	请选择付款方式	กรุณาเลือกวิธีชำระเงิน	支払方法を選んでください

@@ -93,6 +93,41 @@ class Flow(Base):
         self.assertTrue(line_flow.ready(payload))
         self.assertIn("Please upload a PDF or image", self.last_text())
 
+    def send_image(self):
+        handlers.handle({"type": "message", "source": {"userId": "U1"}, "replyToken": "r",
+                         "message": {"type": "image", "id": "M1"}})
+
+    def test_a_document_sent_before_the_questions_are_answered_asks_the_current_one_again(self):
+        # 用户 11-25 批：方向已选、后面的题没答完就发文件 → 不回「请先选择类型」，把当前那一题连按钮重新问一遍
+        self.companies = ["CO-1", "CO-2"]
+        receive = self.enterContext(patch.object(intake, "receive"))
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.tap({"data": "a=erp&s=entry&v=upload"})
+            asked = self.replies[-1]
+            self.send_image()
+        receive.assert_not_called()
+        self.assertEqual(self.replies[-1], asked)  # 同一题（选公司）、同一组按钮
+        self.assertEqual([b["data"] for b in self.buttons()][:2], ["a=erp&s=company&v=CO-1", "a=erp&s=company&v=CO-2"])
+        self.assertNotIn("Choose a type first", self.last_text())
+
+    def test_a_type_no_longer_permitted_offers_the_types_this_account_has(self):
+        self.roles["buyer"] |= {"sales.write"}
+        receive = self.enterContext(patch.object(intake, "receive"))
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=mode:purchase"})
+            self.roles["buyer"].discard("purchase.write")   # 答题中被取消了采购权限
+            self.send_image()
+        receive.assert_not_called()
+        self.assertEqual(self.last_text(), "Choose a type first")
+        self.assertEqual([b["data"] for b in self.buttons()], ["a=mode:sales", "a=erp&s=cancel"])
+
+    def test_a_stale_button_after_the_type_expired_offers_the_types_again(self):
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            self.tap({"data": "a=erp&s=paid&v=0"})  # 会话已过期（没有方向）时点了旧按钮
+        self.assertEqual(self.last_text(), "Choose a type first")
+        self.assertEqual([b["data"] for b in self.buttons()], ["a=mode:purchase", "a=erp&s=cancel"])
+
     def test_several_companies_are_offered_as_numbered_buttons(self):
         self.companies = ["CO-1", "CO-2"]
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
@@ -218,8 +253,18 @@ class Documents(Base):
         download = self.enterContext(patch("pearnly_core.line.download_message_content"))
         with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
             handlers.handle(self.event())
-        self.assertEqual(self.last_text(), "Choose purchase or sales first")
+        # 用户 11-25 批：「请先选择类型」带与菜单同一组原生按钮（按这个账号的权限：这里只有采购），不再只回一句字
+        self.assertEqual(self.last_text(), "Choose a type first")
+        self.assertEqual([b["data"] for b in self.buttons()], ["a=mode:purchase", "a=erp&s=cancel"])
         download.assert_not_called()
+
+    def test_the_type_buttons_follow_the_accounts_permissions(self):
+        self.roles["buyer"] |= {"sales.write", "collection.write"}
+        with patch("pearnly_core.line_binding.user_of", return_value="buyer"):
+            handlers.handle(self.event())
+        self.assertEqual(self.last_text(), "Choose a type first")
+        self.assertEqual([b["data"] for b in self.buttons()],
+                         ["a=mode:purchase", "a=mode:sales", "a=col&s=start", "a=erp&s=cancel"])
 
     def test_ready_document_is_received_as_the_bound_user_and_guest_restored(self):
         self.sessions["U1"] = {"state": line_flow.STATE, "payload": {"direction": "purchase", "entry": "upload", "company": "CO-1",

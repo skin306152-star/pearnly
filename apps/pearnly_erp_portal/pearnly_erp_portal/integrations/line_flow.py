@@ -106,8 +106,9 @@ def _text(reply_token, text):
     line_out.reply(reply_token, [{"type": "text", "text": text}])
 
 
-def menu(user, reply_token):
-    """手打「เมนู」：按岗位给 ซื้อ / ขาย / 收款几个原生按钮（与富菜单同一口径）。"""
+def menu(user, reply_token, prompt=""):
+    """手打「เมนู」：按岗位给 ซื้อ / ขาย / 收款几个原生按钮（与富菜单同一口径）。``prompt``：问话换成别的一句（还没选类型就发文件、
+    点了方向已失效的旧按钮时回「请先选择类型」，按钮同这一组，用户 11-25 批）。"""
     items = [_button(_(DIRECTION_LABELS[direction]), "a=mode:" + direction)
              for direction in DIRECTIONS
              if guard.has(direction + ".write", user=user)]
@@ -115,7 +116,16 @@ def menu(user, reply_token):
         items.append(_button(_("Collections"), "a=col&s=start"))  # 收款（同富菜单第 4 格，`line_collection`）
     if not items:
         return _text(reply_token, _("This account cannot send documents"))
-    _ask(reply_token, _("Choose what to record"), items)
+    _ask(reply_token, prompt or _("Choose what to record"), items)
+
+
+def not_ready(line_user_id, user, payload, reply_token):
+    """选择没做完就发了文件：还没选类型 → 「请先选择类型」带类型按钮（:func:`menu`）；已选了方向、后面的题没答完 → 把当前那一题
+    连按钮重新问一遍（:func:`_next`，同点按钮那一步），不回别的话（用户 11-25 批）。"""
+    direction = payload.get("direction")
+    if direction in DIRECTIONS and guard.has(direction + ".write", user=user):  # 选过的方向此刻已没权限：同没选类型，按权限给按钮
+        return _next(line_user_id, user, payload, reply_token)
+    return menu(user, reply_token, _("Choose a type first"))
 
 
 # ── 各步 ────────────────────────────────────────────────────────────────────
@@ -143,7 +153,7 @@ def answer(line_user_id, user, data, reply_token):
         return cancel(line_user_id, reply_token)
     payload = choices(line_user_id)
     if not payload.get("direction"):
-        return _text(reply_token, _("Choose purchase or sales first"))
+        return menu(user, reply_token, _("Choose a type first"))  # 方向已失效（会话过期）的旧按钮：同没选类型
     if step != _pending(payload):
         return _text(reply_token, _("This option is no longer current"))
     options = {key for key, _label in _options(step, payload, user)}

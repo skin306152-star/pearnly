@@ -46,7 +46,7 @@ def receive(*, line_user_id, sent_by, choices, media_type, content, filename,
     """留底并排队识别。调用方已把会话用户切成绑定的这个账号。"""
     direction = choices.get("direction")
     if direction not in DIRECTION_CAPABILITY or not line_flow.ready(choices):
-        frappe.throw(_("Choose purchase or sales first"))
+        frappe.throw(_("Choose a type first"))
     if sent_by != frappe.session.user or line_binding.user_of(line_user_id) != sent_by:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     guard.require(DIRECTION_CAPABILITY[direction])
@@ -621,7 +621,7 @@ def receive_chat(*, company, direction, filename, content, request_key, session_
             frappe.throw(_("Not permitted"), frappe.PermissionError)
         direction, guessed = allowed[0], len(allowed) > 1
     if direction not in DIRECTION_CAPABILITY:
-        frappe.throw(_("Choose purchase or sales first"))
+        frappe.throw(_("Choose a type first"))
     guard.require(DIRECTION_CAPABILITY[direction])
     from pearnly_erp_portal.masters import company as companies
 
