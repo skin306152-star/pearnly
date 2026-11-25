@@ -40,7 +40,7 @@ import {
 } from "@/lib/desktop";
 import { useInstallGuide } from "@/components/install-prompt";
 import { CloudExpressRow } from "@/components/cloud-express";
-import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { MrerpRow } from "@/components/mrerp-connect";
 import { Shortcut } from "@/components/shortcut";
 import { type ChatFont, type ChatWidth, type Motion, pref, setPref, type Theme } from "@/lib/appearance";
@@ -531,18 +531,11 @@ function Connections({ api }: { api: Desktop }) {
       <Heading>{st.groupLedgers}</Heading>
       {/* MR.ERP（产品声明了 connect.mrerp 才出）→ 本地 Express → 云端 Express */}
       <MrerpRow />
+      <Collapsible open={localOpen} onOpenChange={setLocalOpen}>
       <div data-marquee-host="" className="cc-settings-row" data-slot="cc-local-express-row">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          className="cc-ledger-caret cc-tap"
-          aria-expanded={localOpen}
-          aria-label={st.localExpress}
-          onClick={() => setLocalOpen((v) => !v)}
-          data-slot="cc-local-express-toggle"
-        >
+        <CollapsibleTrigger className="cc-ledger-toggle cc-tap" aria-label={st.localExpress} data-slot="cc-local-express-toggle">
           <ChevronRightIcon />
-        </Button>
+        </CollapsibleTrigger>
         <div className="min-w-0 flex-1">
           <Marquee as="div" className="truncate text-body">{st.localExpress}</Marquee>
           <div className="text-muted-foreground text-caption" data-slot="cc-local-express-count">
@@ -554,6 +547,7 @@ function Connections({ api }: { api: Desktop }) {
           {roots.length ? st.status.online : st.expressNotFound}
         </span>
       </div>
+      </Collapsible>
       {/* 文件夹默认收起（用户 11-24），点行展开；还没找到 Express 时直接展开（要在这里选文件夹） */}
       {(localOpen || !roots.length) && (roots.length > 0 || !members.length || members.some((m) => m.kind !== "folder")) && (
         <Row label={st.expressFolder}>
@@ -844,14 +838,14 @@ export function PoolComputers({ inDesktop = false }: { inDesktop?: boolean }) {
   const [error, setError] = useState("");
   // 电脑列表的接口按产品声明（connect.computers：Cowork 是 folder_intake.api.computers，ERP 是 masters.cc_companies.computers）
   const computers = useProjects((s) => s.connect.computers ?? "");
-  // 移除接口也按产品声明（ERP 是 masters.cc_companies.remove_computer）；没声明的是 Cowork 的
-  const removeApi = useProjects((s) => s.connect.remove_computer ?? REMOVE_COMPUTER);
   const load = useCallback(() => void (computers ? getJson<Computer[]>(computers).then((r) => setRows(r ?? [])) : setRows([])), [computers]);
   useEffect(() => {
     load();
     const timer = setInterval(load, 10000);
     return () => clearInterval(timer);
   }, [load]);
+  // 移除接口也按产品声明（ERP 是 masters.cc_companies.remove_computer）；没声明的是 Cowork 的
+  const removeApi = useProjects((s) => s.connect.remove_computer ?? REMOVE_COMPUTER);
   const remove = async (row: Computer) => {
     if (!row.id) return;
     setBusy(row.id);

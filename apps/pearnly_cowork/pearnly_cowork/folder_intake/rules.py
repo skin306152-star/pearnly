@@ -289,12 +289,14 @@ def merge_computers(rows):
             continue
         if row["adapter"] not in found["adapters"]:
             found["adapters"].append(row["adapter"])
-        found["folders"] = found["folders"] + [item for item in row["folders"] if item not in found["folders"]]
+        first = order.get(row["adapter"], 9) < order.get(found["adapter"], 9)   # Express 那条在前（adapter / connection / 文件夹先列它的）
+        head, tail = (row["folders"], found["folders"]) if first else (found["folders"], row["folders"])
+        found["folders"] = head + [item for item in tail if item not in head]
         found["online"] = found["online"] or row["online"]
         found["can_remove"] = found["can_remove"] or row["can_remove"]
         found["version"] = found["version"] or row["version"]
         found["link"] = found.get("link") or row.get("link")
-        if order.get(row["adapter"], 9) < order.get(found["adapter"], 9):   # Express 那条在前（adapter / connection 取它）
+        if first:
             found.update(adapter=row["adapter"], connection=row["connection"])
             found["adapters"].sort(key=lambda name: order.get(name, 9))
     return list(merged.values())

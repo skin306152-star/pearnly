@@ -1448,8 +1448,16 @@
   /* 「云端 Express」行下面的配对块（cloud-express.tsx 的 CloudPairing）：命令框占满行宽、框内换行（长命令不撑破设置窗，375 宽也不横向滚动），
      下边细线同一行 */
   /* 账本组里可展开的一行（本地 Express / 云端 Express，第二阶段）：行首箭头，展开时转向下 */
-  .cc-ledger-caret svg { transition: transform var(--cc-dur-fast) var(--cc-ease); }
-  .cc-ledger-caret[aria-expanded="true"] svg { transform: rotate(90deg); }
+  /* 本地 Express 一行行首的展开箭头（CollapsibleTrigger），外观同行内小按钮 .cc-row-btn */
+  .cc-ledger-toggle {
+    display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+    width: var(--cc-row-ctl); height: var(--cc-row-ctl); border-radius: var(--cc-radius-row-ctl); color: var(--cc-ink-3); outline: none;
+  }
+  .cc-ledger-toggle:hover { background: var(--cc-bg-hover); color: var(--cc-ink); }
+  .cc-ledger-toggle:focus-visible { box-shadow: var(--cc-shadow-focus); }
+  .cc-ledger-toggle svg { width: var(--cc-icon-sm); height: var(--cc-icon-sm); }
+  .cc-ledger-caret svg, .cc-ledger-toggle svg { transition: transform var(--cc-dur-fast) var(--cc-ease); }
+  .cc-ledger-caret[aria-expanded="true"] svg, .cc-ledger-toggle[data-state="open"] svg { transform: rotate(90deg); }
   .cc-cloud-pair {
     display: flex; flex-direction: column; gap: var(--cc-space-8); min-width: 0; max-width: 100%; padding-block: var(--cc-space-12);
     border-bottom: var(--cc-hairline) solid var(--cc-line);

@@ -129,7 +129,7 @@ def retire_dead(moment) -> list:
     done = []
     try:
         for name in dead_devices(moment):
-            if retire(name, "auto", moment):
+            if retire(name, "auto", moment):  # loop-query: 死记录逐台退役（DEAD_SCAN_MAX 内、只在登记新电脑时）
                 done.append(name)
     except Exception:  # noqa: BLE001 - 清理死记录不能挡住新电脑登记
         frappe.log_error(title="cc_desktop retire dead devices")
