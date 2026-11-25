@@ -6,7 +6,7 @@
    从目录建一家公司，再把连接停用——这家公司就没有可用账套，「新建任务」走不带公司种子的表单，MR.ERP 卡片出「连接」；
    另建一条 Express 连接并给一台合成电脑发密钥（发票要认得出电脑，同 CC 桌面版登记）。
 2. CC 对话页 `/assistant?view=tasks&company=<公司>`：点「新建任务」→ MR.ERP 卡片的「连接」→ 打开设置 → 连接（11-07 起 MR.ERP 连接只在
-   这里），账本组第一行「MR.ERP」名下写授权人 flow-old、右边「● 已连接 + ···」→「···」→「重新登录」→ 弹窗里有用户名、密码两格（整页只有这一个密码框），
+   这里），「连接」第一行「MR.ERP」名下写授权人 flow-old、右边「● 已连接 + ···」→「···」→「重新登录」→ 弹窗里有用户名、密码两格（整页只有这一个密码框），
    在浏览器里（没有 CC 本机桥）两格都不可用；改系统地址、点「连接」→ 弹窗关上。
 3. 页面会话向站点要一次性票（CC 窗口里点授权时同一条接口，带合成电脑的设备密钥）：拿得到、形状对。
 4. Cowork Desk：录入、自动录入规则两处共用的 `intake_targets.connect_dialog` 不再自己弹窗，新开一页 `/assistant?settings=connections`；
@@ -112,13 +112,15 @@ def steps(params, camera_code=None):
          "const card=()=>qa('.cc-card').filter(shown).find(c=>c.innerText.includes('MR.ERP')); "
          "const ok=await until(()=>card()&&card().querySelector('button.cc-btn'),80); if(!ok) return {error:'no MR.ERP connect button'}; "
          "card().querySelector('button.cc-btn').click(); "
-         # 打开设置 → 连接（定时任务的新建表单留在后面）；账本组第一行是 MR.ERP（站点 → 账本 → 电脑，用户 11-25 审定）：
+         # 打开设置 → 连接（定时任务的新建表单留在后面）；MR.ERP 是浏览器「连接」第一行 / 桌面版账本组第一行（用户 11-25 审定）：
          # 授权过的名下只写授权人、右边「● 已连接 + ···」，「···」里「重新登录」打开连接弹窗
          "const row=()=>q('[data-slot=\"cc-mrerp-row\"]'); "
          "const settled=await until(()=>row()&&row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText.trim(),80); "
          "const status=row()?row().querySelector('[data-slot=\"cc-mrerp-status\"]')?.innerText.trim()||'':''; "
          "const online=row()?row().querySelector('.cc-status-line[data-status=\"online\"]')?.innerText.trim()||'':''; "
-         "const prev=row()?.previousElementSibling; const first=!!prev&&prev.tagName==='H3'; const group=prev?prev.innerText.trim():''; "
+         # 浏览器里「连接」一节第一行就是它（同原来）；桌面版里是「账本」组第一行（前一个是组标题）
+         "const prev=row()?.previousElementSibling; const group=prev&&prev.tagName==='H3'?prev.innerText.trim():''; "
+         "const first=!!row()&&(row().closest('[role=\"dialog\"]')?.querySelector('.cc-settings-row')===row()||group==='账本'); "
          "const more=row()?.querySelector('[data-slot=\"cc-mrerp-more\"]'); if(more){press(more); "
          "await until(()=>qa('[role=menuitem][data-slot=\"cc-mrerp-connect\"]').some(shown),40); "
          "const item=qa('[role=menuitem][data-slot=\"cc-mrerp-connect\"]').find(shown); if(item) press(item);} "
@@ -159,8 +161,8 @@ def judge(params, results, camera_code=None):
     dialog, saved, ticket, desk, settings = (by.get(k) or {} for k in ("新建任务、点 MR.ERP 的连接", "改网址、点连接", "页面要一次性票",
                                                                       "Desk 的连接", "设置的连接一节"))
     return [
-        {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，账本组第一行 MR.ERP 名下写授权人 flow-old、右边「● 已连接 + ···」",
-         "seen": dialog, "ok": bool(dialog.get("settled")) and bool(dialog.get("first")) and dialog.get("group") == "账本"
+        {"case": "定时任务的 MR.ERP「连接」打开设置 → 连接，第一行 MR.ERP 名下写授权人 flow-old、右边「● 已连接 + ···」",
+         "seen": dialog, "ok": bool(dialog.get("settled")) and bool(dialog.get("first"))
          and dialog.get("status") == OLD_USER and dialog.get("online") == "已连接" and dialog.get("more") is True},
         {"case": "这一行「···」→「重新登录」弹窗打开、用户名与密码两格在浏览器里不可用（整页只有这一个密码框）", "seen": dialog,
          "ok": bool(dialog.get("opened")) and dialog.get("passwords") == 1 and dialog.get("login_disabled") is True},
