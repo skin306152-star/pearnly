@@ -49,13 +49,14 @@ print(json.dumps(frappe.get_all("Cowork Work Card", filters={{"title": {params['
 
 
 def cleanup(lab, manifest, params):
+    """看板表只经看板服务写（on_trash 拒原生删除）：实验栈里按表直接删掉本流程建的卡、列表、看板与成员。"""
     if params.get("board"):
         lab.python(manifest["site"], f"""
 for card in frappe.get_all("Cowork Work Card", filters={{"title": {params['title']!r}}}, pluck="name", limit_page_length=5):
-    frappe.delete_doc("Cowork Work Card", card, ignore_permissions=True, force=True)
-for column in frappe.get_all("Cowork Work Column", filters={{"board": {params['board']!r}}}, pluck="name", limit_page_length=50):
-    frappe.delete_doc("Cowork Work Column", column, ignore_permissions=True, force=True)
-frappe.delete_doc("Cowork Work Board", {params['board']!r}, ignore_permissions=True, force=True)
+    frappe.db.delete("Cowork Work Card", {{"name": card}})
+frappe.db.delete("Cowork Work Column", {{"board": {params['board']!r}}})
+frappe.db.delete("Cowork Work Board Member", {{"parent": {params['board']!r}}})
+frappe.db.delete("Cowork Work Board", {{"name": {params['board']!r}}})
 frappe.db.commit()
 print("{{}}")
 """)
