@@ -45,8 +45,11 @@ def _module(name, **attrs):
 
 
 CALLS = {"intake": [], "push": [], "record": [], "update": []}
-for package in ("pearnly_cowork", "pearnly_cowork.assistant", "pearnly_cowork.history"):
+for package in ("pearnly_cowork", "pearnly_cowork.assistant", "pearnly_cowork.history", "pearnly_cowork.push"):
     _module(package)
+# 推送结果不明的判法（同 `push.lifecycle.result_unknown`：manual + 结果不明原因）
+_module("pearnly_cowork.push.lifecycle", result_unknown=lambda status, reason: status == "manual" and "UNKNOWN" in str(reason))
+sys.modules["pearnly_cowork.push"].lifecycle = sys.modules["pearnly_cowork.push.lifecycle"]
 operator_source = _module("pearnly_cowork.assistant.operator_source")
 tools = _module("pearnly_cowork.assistant.tools", _primary=lambda pages: 0, _reason=lambda code: f"why:{code}")
 document_checks = _module("pearnly_cowork.assistant.document_checks",
@@ -89,7 +92,9 @@ class Base(unittest.TestCase):
             calls.clear()
         self.docs = {"H1": {"name": "H1", "record_version": 3, "pages": [{"fields": json.loads(json.dumps(FIELDS))}]}}
         self.history = {"H1": Row(name="H1", last_push_status="success", last_push_reason="", last_push_record="PR1"),
-                        "H2": Row(name="H2", last_push_status="failed", last_push_reason="choice_needed", last_push_record="")}
+                        "H2": Row(name="H2", last_push_status="failed", last_push_reason="choice_needed", last_push_record=""),
+                        "H4": Row(name="H4", last_push_status="manual", last_push_reason="ERP_CONFIRMED_PUSH_RESULT_UNKNOWN",
+                                  last_push_record="PR4")}
         storage.read = lambda name, for_update=False: self.docs[name] if name in self.docs else (_ for _ in ()).throw(LookupError())
         storage.project = lambda doc: doc
         storage.update_pages = self.update_pages
@@ -177,6 +182,11 @@ class Walk(Base):
         self.assertEqual((rows["H2"]["status"], rows["H2"]["reason_text"]), ("failed", "why:choice_needed"))
         self.assertEqual(rows["H3"]["status"], "failed")
         self.assertFalse(found["wait"])
+
+    def test_a_result_unknown_push_is_its_own_kind_not_failed(self):
+        # 结果不明（账本里可能有）单独一类：不算失败、也不算跳过（主会话 11-25，算失败会让人重录）
+        rows = {row["doc_id"]: row for row in G.result(CTX, ["H4"])["rows"]}
+        self.assertEqual(rows["H4"]["status"], "unconfirmed")
 
 
 if __name__ == "__main__":

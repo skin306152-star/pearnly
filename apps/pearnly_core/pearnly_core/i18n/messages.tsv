@@ -1023,6 +1023,7 @@ Account set in use	账套正在使用	ชุดบัญชีกำลังถ
 Waiting for start time	等待开始时刻	รอเวลาเริ่ม	開始時刻を待っています	operator.report.reason.waiting_start
 Stopped	已停止	หยุดแล้ว	停止しました	operator.end.stopped
 {0} failed: {1}	失败 {0} 张：{1}	ไม่สำเร็จ {0} ใบ: {1}	失敗 {0} 件：{1}	operator.end.not_done
+{0} with result unknown	结果不明 {0} 张	ไม่ทราบผล {0} ใบ	結果不明 {0} 件	operator.end.result_unknown
 Asked questions	已提问	ถามคำถามแล้ว	質問しました	
 Waiting for answers	等待作答	รอคำตอบ	回答待ち	
 Filed the conversation under a company	已将对话归入公司	ผูกบทสนทนากับบริษัทแล้ว	会話を会社に紐付けました	

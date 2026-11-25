@@ -32,6 +32,7 @@ LINE_FIELDS = {"description": "name", "qty": "qty", "unit_price": "price", "amou
 BASIS = "CC review card"        # 改动记录的依据（复核卡上本人改的，同 CC 改单据要写依据）
 NOT_AVAILABLE = "not_available"
 ENTERED, QUEUED, HELD, FAILED = "entered", "queued", "held", "failed"
+UNCONFIRMED = "unconfirmed"   # 推送结果不明：账本里可能有、还没核对（页面显示「结果不明」，不算失败也不算跳过）
 
 
 @contextlib.contextmanager
@@ -257,6 +258,10 @@ def result(ctx, doc_ids) -> dict:
             continue
         status = {"success": ENTERED, "pending": QUEUED}.get(str(row.last_push_status or ""),
                                                               FAILED if row.last_push_status == "failed" else HELD)
+        from pearnly_cowork.push import lifecycle
+
+        if lifecycle.result_unknown(row.last_push_status, row.last_push_reason):
+            status = UNCONFIRMED
         wait = wait or status == QUEUED
         out = {"doc_id": doc_id, "status": status}
         if status == ENTERED and numbers.get(row.last_push_record):

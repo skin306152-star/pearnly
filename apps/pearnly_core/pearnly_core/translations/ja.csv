@@ -1455,6 +1455,7 @@ nav.team,チーム
 nav.warehouses,倉庫
 nav.work,コラボレーション
 operator.end.not_done,失敗 {0} 件：{1}
+operator.end.result_unknown,結果不明 {0} 件
 operator.end.stopped,停止しました
 operator.report.column.number,Express 番号
 operator.report.column.party,取引先
@@ -1653,6 +1654,7 @@ username / password are required,username / password は必須です
 {0} seconds so far,経過 {0} 秒
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} は {1} 個の引数を取りますが、キューには {2} 個渡されました
 {0} top-up request(s) pending review.,チャージ申請{0}件が審査待ちです。
+{0} with result unknown,結果不明 {0} 件
 {0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}: エントリ接頭辞は / で始まる必要があります: {1}
 {0}: missing field {1},{0}: フィールド {1} がありません

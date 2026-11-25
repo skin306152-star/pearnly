@@ -41,6 +41,7 @@ COMPUTED = "computed"
 NOT_AVAILABLE = "not_available"
 # 结果行状态（引擎约定 entered / queued / held / failed）
 ENTERED, QUEUED, HELD, FAILED = "entered", "queued", "held", "failed"
+UNCONFIRMED = "unconfirmed"   # 写账结果不明：账本里可能有、还没核对（页面显示「结果不明」，不算失败也不算跳过）
 
 
 @contextlib.contextmanager
@@ -388,8 +389,8 @@ def result(ctx, doc_ids) -> dict:
                 continue
         # 每张单的写账状态同对话推送结果逐张判（`cc_tools._outcome`）
         outcome = cc_tools._outcome(cc_tools.KINDS[record.direction], document)  # loop-query: 逐张判写账状态，最多 DOCS_MAX 张
-        status = {"entered": ENTERED, "queued": QUEUED}.get(outcome.get("status"),
-                                                            FAILED if outcome.get("status") == "failed" else HELD)
+        status = {"entered": ENTERED, "queued": QUEUED, "unconfirmed": UNCONFIRMED}.get(
+            outcome.get("status"), FAILED if outcome.get("status") == "failed" else HELD)
         wait = wait or status == QUEUED
         rows.append({"doc_id": doc_id, "status": status, "document": document,
                      **({"docnum": outcome["docnum"]} if outcome.get("docnum") else {}),

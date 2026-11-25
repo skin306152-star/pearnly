@@ -101,7 +101,7 @@ def save(name) -> dict:
 
 
 def outcome(name) -> dict:
-    """这张票此刻的推送结果（同录入列表，票上的推送状态）：``{"status": "" | pending | success | failed, "docnum", "reason"}``；
+    """这张票此刻的推送结果（同录入列表，票上的推送状态）：``{"status": "" | pending | success | failed | unknown, "docnum", "reason"}``；
     ``reason`` 是给人看的那句（同列表悬浮，`export_facts.reason_text`）。没推过 / 已删回空状态。LINE 卡片「保存」后的回执用（`line.save`）。"""
     row = frappe.db.get_value(HISTORY, name, ["last_push_status", "last_push_reason", "last_push_record"], as_dict=True) or {}
     status = row.get("last_push_status") or ""
@@ -111,6 +111,11 @@ def outcome(name) -> dict:
         return {"status": "success", "docnum": docnum or "", "reason": ""}
     if status == "pending":
         return {"status": "pending", "docnum": "", "reason": ""}
+    from pearnly_cowork.push import lifecycle
+
+    if lifecycle.result_unknown(status, row.get("last_push_reason")):
+        # 推送结果不明（账本里可能有、还没核对）：单独一类，不说失败（主会话 11-25：说失败会让人重录、重复入账）
+        return {"status": "unknown", "docnum": "", "reason": ""}
     if status:
         return {"status": "failed", "docnum": "", "reason": export_facts.reason_text(row.get("last_push_reason") or status)}
     return {"status": "", "docnum": "", "reason": ""}

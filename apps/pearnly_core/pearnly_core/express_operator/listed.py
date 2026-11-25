@@ -97,7 +97,9 @@ def gone(company: str, snapshot: dict, current, period: str = "") -> list:
             unread.append(doc_id)
         out.append({"doc_id": doc_id, "group": snapshot.get(doc_id) or "", "ref": str(row.get("ref") or ""),
                     "party": str(row.get("party") or ""), "state": state,
-                    "docnum": str(row.get("docnum") or "") if state == "saved" else ""})
+                    "docnum": str(row.get("docnum") or "") if state == "saved" else "",
+                    # 没写成里的「结果不明」（账本里可能有）：页面单独显示「结果不明」，不显示「失败」
+                    "result_unknown": state == "not_done" and str(row.get("reason") or "") == tasks.RESULT_UNKNOWN})
     if unread:
         frappe.log_error(title="Operator listed document state unknown",
                          message=f"company={company} docs={unread[:20]}")

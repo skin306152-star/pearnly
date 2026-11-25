@@ -1453,6 +1453,7 @@ nav.team,Team
 nav.warehouses,Warehouses
 nav.work,Work together
 operator.end.not_done,{0} failed: {1}
+operator.end.result_unknown,{0} with result unknown
 operator.end.stopped,Stopped
 operator.report.column.number,Express no.
 operator.report.column.party,Party
@@ -1651,6 +1652,7 @@ username / password are required,username / password are required
 {0} seconds so far,{0} seconds so far
 "{0} takes {1} arguments, but {2} were passed to the queue","{0} takes {1} arguments, but {2} were passed to the queue"
 {0} top-up request(s) pending review.,{0} top-up request(s) pending review.
+{0} with result unknown,{0} with result unknown
 {0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}: entry prefixes must start with /: {1}
 {0}: missing field {1},{0}: missing field {1}

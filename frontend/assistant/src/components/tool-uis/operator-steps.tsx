@@ -32,6 +32,7 @@ import {
   groupOf,
   operatorActions,
   reasonText,
+  RESULT_UNKNOWN,
   resultOf,
   type SourcesInput,
   type SourcesResult,
@@ -72,12 +73,14 @@ export const OperatorUploadStep: ToolCallMessagePartComponent = (props) => {
 // ---------------------------------------------------------------- 单据
 /** 一张单那一行的样子：进度比结果新（排着、被挡着）→ 排着；没结果 → 在做；有结论按 state。 */
 export function documentRow(result: unknown, isError: boolean, progress: ProgressEvent | null):
-  { tone: "queued" | "running" | "done" | "skipped" | "failed"; detail: string } {
+  { tone: "queued" | "running" | "done" | "skipped" | "failed" | "unknown"; detail: string } {
   if (progress) return { tone: "queued", detail: progressText(progress) };
   const read = resultOf<DocumentResult>(result);
   if (!read) return { tone: "running", detail: "" };
-  if (isError || read.state === "not_done" || read.result_unknown) {
-    const reason = read.result_unknown ? reasonText("push.result_unknown") : reasonText(read.reason ?? read.code);
+  // 结果不明（账本里可能有、还没核对）单独一类：显示「结果不明」，不标「失败」（主会话 11-25：标失败会让人重录、重复入账）
+  if (read.result_unknown || read.reason === RESULT_UNKNOWN) return { tone: "unknown", detail: co.ledger.code.result_unknown ?? "" };
+  if (isError || read.state === "not_done") {
+    const reason = reasonText(read.reason ?? read.code);
     return { tone: "failed", detail: [reason, read.voided_docnum ? op.voidedNo(read.voided_docnum) : ""].filter(Boolean).join(" · ") };
   }
   if (read.state === "skipped" || read.state === "cancelled") return { tone: "skipped", detail: op.doc.skipped! };
@@ -97,7 +100,7 @@ export const OperatorDocumentStep: ToolCallMessagePartComponent = (props) => {
         </Marquee>
         {row.tone === "queued" && <span className="cc-step-target">{row.detail}</span>}
         {row.tone === "running" && <TypingDots size="sm" className="shrink-0" />}
-        {row.tone === "skipped" && <span className="cc-step-target">{row.detail}</span>}
+        {(row.tone === "skipped" || row.tone === "unknown") && <span className="cc-step-target">{row.detail}</span>}
         {row.tone === "failed" && <span className="cc-step-failed">{steps.failed}</span>}
       </div>
       {row.tone === "failed" && row.detail && <div className="cc-step-detail cc-step-text px-(--cc-space-8) text-danger">{row.detail}</div>}

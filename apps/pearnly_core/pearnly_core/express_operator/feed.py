@@ -355,14 +355,23 @@ def end_text(docs, status, translate) -> str:
     停了的先说已停止。只有跳过 / 作废的没有可说的，留空（页面照张数写一句）。同一份记录同一句，事件编号不变，页面按编号只出一次。"""
     numbers = [str(_get(item["row"], "docnum") or "") for item in docs if item["state"] == "saved"]
     numbers = [number for number in numbers if number]
-    failed = [item["row"] for item in docs if item["state"] == "not_done"]
+    # 结果不明（可能已写进账本、还没核对）单独数，不算失败（主会话 11-25：算成失败会让人重录、重复入账）
+    unknown = [item["row"] for item in docs if item["state"] == "not_done" and result_unknown(item["row"])]
+    failed = [item["row"] for item in docs if item["state"] == "not_done" and not result_unknown(item["row"])]
     parts = [translate("operator.end.stopped")] if status == "stopped" else []
     if numbers:
         parts.append(translate("intake.notice.created").format(", ".join(numbers)))
+    if unknown:
+        parts.append(translate("operator.end.result_unknown").format(len(unknown)))
     if failed:
         reasons = [_reason_text(reason_code(_get(row, "reason")) or "unknown", translate) for row in failed]
         parts.append(translate("operator.end.not_done").format(len(failed), ", ".join(dict.fromkeys(reasons))))
     return " · ".join(parts)
+
+
+def result_unknown(row) -> bool:
+    """这张没写成的单是不是「结果不明」（推送结果不明，账本里可能有）：单独一类，不算失败。"""
+    return reason_code(_get(row, "reason")) == tasks.RESULT_UNKNOWN
 
 
 def _status(out, p, kind, stop, last) -> None:
@@ -584,8 +593,12 @@ def report_rows(task, translate) -> list[list[str]]:
             if _get(row, "voided_docnum"):
                 parts.append(translate("operator.report.voided").format(_get(row, "voided_docnum")))
             reason = " · ".join(part for part in parts if part)
+        unknown = state == "not_done" and result_unknown(row)
+        if unknown:
+            reason = ""   # 状态栏就是「结果不明」，原因栏不重复
         rows.append([str(_get(row, "ref") or _get(row, "doc_id") or ""), str(_get(row, "party") or ""), "",
-                     translate(f"operator.report.state.{STATE_KEY.get(state, 'waiting')}"),
+                     translate("operator.report.reason.result_unknown") if unknown
+                     else translate(f"operator.report.state.{STATE_KEY.get(state, 'waiting')}"),
                      str(_get(row, "docnum") or ""), reason, ""])
     return rows
 

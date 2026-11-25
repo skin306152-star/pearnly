@@ -54,3 +54,14 @@
 - 候选离线（生产镜像）：LANE EXIT 0。
 - 页面流程（本机实验栈 pearnly-cov3-lab，--migrate）：erp.cc.guide.purchase 电脑 / 手机通过，结果卡行显示「录入中」（截图）；
   erp.cc.guide.pending 手机通过、电脑第一次交接下一张卡超时（同时在跑别的闸门、CPU 满），单独重跑通过。
+
+## 结果不明单独一类（主会话 11-25 定）
+
+「结果不明」是账本里可能已有、还没核对出来；算成失败会让人重录、重复入账。沿用已有词「结果不明」（不新造状态词），不并进失败：
+- 代录报告（CSV）：状态栏「结果不明」、原因栏不重复；收尾那句单独数「结果不明 N 张」（新增词条 `operator.end.result_unknown`），失败只数真失败。
+- 代录对话里每张单的步骤行：「结果不明」（不标「失败」）；资料清单里列出过、已离开待录清单的单同样（`listed.gone` 带 `result_unknown`）。
+  核对入口照旧：代录里那张的「已入账 / 没有入账」卡、CC 待处理。
+- 引导结果卡：Cowork / ERP 单据源结果行新状态 `unconfirmed`，页面显示「结果不明」（原来 ERP 落到「已跳过」）。
+- LINE 保存回执：Cowork（`card_save.outcome` → unknown）、ERP（`line_cards._unconfirmed`）都回「结果不明」+【查看结果】，不说失败、不给【编辑】。
+- 没改（记已知问题）：ERP 网页采购 / 销售列表的 Express 列对「停下」一律显示「失败」（原因在悬浮），结果不明也在其中；网页列表不在本件范围。
+- 测试：test_express_operator_feed（收尾句与报告）、test_cowork_guide_documents（unconfirmed）、test_line_receipt（两产品 LINE 回执）。

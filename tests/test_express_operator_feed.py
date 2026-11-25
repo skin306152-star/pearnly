@@ -450,6 +450,13 @@ class ProjectionTests(unittest.TestCase):
         self.assertEqual(said("stopped", [_doc(1, "saved", docnum="HP0000090"), _doc(2, "skipped", REASONS["stopped"])]),
                          "已停止 · 已录入：HP0000090")
         self.assertEqual(said("finished", [_doc(1, "skipped")]), "")  # 只有跳过的：页面照张数写一句
+        # 结果不明单独数，不算进失败（主会话 11-25：账本里可能有，算失败会让人重录）
+        self.feed._ = lambda text, lang=None: {**words, "operator.end.result_unknown": "结果不明 {0} 张"}.get(text, text)
+        self.assertEqual(said("attention", [_doc(1, "not_done", REASONS["unknown"]), _doc(2, "not_done", REASONS["human"])]),
+                         "结果不明 1 张 · 未完成 1 张：Express 中没有此对方")
+        rows = self.feed.report_rows(_task("attention", [_doc(1, "not_done", REASONS["unknown"])]), lambda text: text)
+        self.assertEqual((rows[1][3], rows[1][5]), ("operator.report.reason.result_unknown", ""))
+        self.feed._ = lambda text, lang=None: words.get(text, text)
         # 一张单只出一次：同一份记录（回执重放、重交后没变）投影出同一编号、同一句
         task = _task("finished", [_doc(1, "saved", docnum="HP0000090")])
         first = [e for e in self.project(task) if e["type"] == "agent.message"]

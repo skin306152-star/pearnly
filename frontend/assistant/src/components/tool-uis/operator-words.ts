@@ -37,7 +37,9 @@ export function docTitle(doc: { ref?: string | undefined; party?: string | undef
 /** 列出过、已不在待录清单里的单此刻的样子（服务端 `listed.gone` 的 state → 已有状态词，同代录报告 `feed.STATE_KEY`）：
  *  已入账带 Express 单号；读不到的（unknown）给中性的「等待」。 */
 const GONE_STATE: Record<string, string> = { saved: "saved", not_done: "notDone", cancelled: "skipped", queued: "waiting", unknown: "waiting" };
-export function goneLabel(doc: { state?: string | undefined; docnum?: string | undefined }): string {
+export function goneLabel(doc: { state?: string | undefined; docnum?: string | undefined; result_unknown?: boolean | undefined }): string {
+  // 结果不明（账本里可能有、还没核对）单独一类，不显示「失败」（主会话 11-25）
+  if (doc.result_unknown) return co.ledger.code.result_unknown ?? "";
   const word = op.doc[GONE_STATE[doc.state ?? ""] ?? "waiting"] ?? op.doc.waiting;
   return [word, doc.state === "saved" ? doc.docnum : ""].filter(Boolean).join(" · ");
 }

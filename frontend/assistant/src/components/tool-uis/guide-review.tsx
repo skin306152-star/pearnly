@@ -361,6 +361,8 @@ const markWord = (mark: { code: string; count?: number }) =>
 const STATUS_WORD: Record<string, () => string> = {
   entered: () => op.doc.saved, queued: () => op.doc.entering, confirmed: () => op.doc.entering, held: () => op.doc.skipped,
   failed: () => op.doc.notDone, withdrawn: () => op.doc.skipped,
+  // 结果不明（账本里可能有、还没核对）单独一类，沿用已有词，不算失败（主会话 11-25）
+  unconfirmed: () => co.ledger.code.result_unknown ?? "",
 };
 
 const DocResultRows: FC<{ result: GuideDocResult }> = ({ result }) => (

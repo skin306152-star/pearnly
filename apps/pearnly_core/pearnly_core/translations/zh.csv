@@ -1455,6 +1455,7 @@ nav.team,团队管理
 nav.warehouses,仓库
 nav.work,工作协作
 operator.end.not_done,失败 {0} 张：{1}
+operator.end.result_unknown,结果不明 {0} 张
 operator.end.stopped,已停止
 operator.report.column.number,Express 单号
 operator.report.column.party,对方
@@ -1653,6 +1654,7 @@ username / password are required,username / password 必填
 {0} seconds so far,已用 {0} 秒
 "{0} takes {1} arguments, but {2} were passed to the queue",{0} 需要 {1} 个参数，入队时传入了 {2} 个
 {0} top-up request(s) pending review.,{0} 笔充值申请待审核。
+{0} with result unknown,结果不明 {0} 张
 {0} → {1},{0} → {1}
 {0}: entry prefixes must start with /: {1},{0}：入口前缀必须以 / 开头：{1}
 {0}: missing field {1},{0}：缺少字段 {1}
