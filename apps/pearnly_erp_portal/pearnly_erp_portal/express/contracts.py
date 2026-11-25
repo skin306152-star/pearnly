@@ -53,15 +53,18 @@ WAITING_COMPUTER = "express.waiting_computer"
 
 
 def waiting_computer(label) -> str:
-    """原因栏的写法：``express.waiting_computer:<电脑名>``（名称截到 140 字、去掉换行）。"""
+    """原因栏的写法：``express.waiting_computer:<电脑名>``（名称去掉换行等空白、截到 140 字；名称里有冒号、竖线等照存，解析只认
+    第一个冒号之前的前缀）；没有名称时只存码 ``express.waiting_computer``（页面只写「等待电脑」）。"""
     name = " ".join(str(label or "").split())[:140]
-    return f"{WAITING_COMPUTER}:{name}" if name else ""
+    return f"{WAITING_COMPUTER}:{name}" if name else WAITING_COMPUTER
 
 
-def waiting_computer_of(reason) -> str:
-    """原因栏是「等那台电脑」时回电脑名，否则空串。"""
+def waiting_computer_of(reason):
+    """原因栏是「等那台电脑」时回电脑名（没有名称回空串），不是回 ``None``。"""
     text = str(reason or "")
-    return text[len(WAITING_COMPUTER) + 1:] if text.startswith(WAITING_COMPUTER + ":") else ""
+    if text == WAITING_COMPUTER:
+        return ""
+    return text[len(WAITING_COMPUTER) + 1:] if text.startswith(WAITING_COMPUTER + ":") else None
 # 写账判定 / 代录预检里编号种类本产品不认（契约缺口，11-16 H3）：回这个原因、记错误日志（标题 UNKNOWN_DOCUMENT_LOG），
 # 与「不是本人的单」（不回、不报存在与否）分开；只给模型与日志，不是界面文案
 UNKNOWN_DOCUMENT = "unknown_document"

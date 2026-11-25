@@ -892,8 +892,8 @@ def _queued_note(doctype, row):
     他的与能替他写的电脑都关着 → 离线；都够不到这份账套 → 没有电脑能写。"""
     # 这件钉在一台此刻不在线的电脑上（领走后失联、收回时钉回它）：别的电脑不写，就是在等那台——先说它（11-25 两台电脑实测：
     # 同公司另一台在线时 writers 报 ok，页面只写「录入中」）
-    pinned = jobs.waiting_computer(row.ledger_job) if row.get("ledger_job") else ""
-    if pinned:
+    pinned = jobs.waiting_computer(row.ledger_job) if row.get("ledger_job") else None
+    if pinned is not None:
         return contracts.waiting_computer(pinned)
     found = writers_of(actor_of(doctype, row, row.ledger_book), company_of(doctype, row.name), row.ledger_book) \
         if row.ledger_book else {"state": "ok"}

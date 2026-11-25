@@ -216,9 +216,14 @@
 	 * `express/waiting.py`）→ 现成那句；不在等的回空串。采购 / 销售 / 出入库 / 收银小票列表 Express 一栏的悬浮说明同用（11-12）。 */
 	// 排队中的单钉在一台此刻不在线的电脑上（服务端原因栏「express.waiting_computer:<电脑名>」，`express.contracts.waiting_computer`）：
 	// 「等待电脑 · 名称」，状态词照旧是「录入中」（11-25 两台电脑实测）
-	const WAITING_COMPUTER = "express.waiting_computer:";
-	p.waiting_computer = reason => ((reason || "").startsWith(WAITING_COMPUTER) && reason.length > WAITING_COMPUTER.length
-		? `${__("Waiting for computer")} · ${reason.slice(WAITING_COMPUTER.length)}` : "");  // 纯文本：列表悬浮与弹窗只读栏各自转义
+	// 名称里有冒号等照样只认第一个冒号前的前缀；取不到名称（只存了码）只写「等待电脑」。纯文本：列表悬浮与弹窗只读栏各自转义
+	const WAITING_COMPUTER = "express.waiting_computer";
+	p.waiting_computer = reason => {
+		const text = reason || "";
+		if (text === WAITING_COMPUTER) return __("Waiting for computer");
+		return text.startsWith(WAITING_COMPUTER + ":")
+			? [__("Waiting for computer"), text.slice(WAITING_COMPUTER.length + 1)].filter(Boolean).join(" · ") : "";
+	};
 	p.express_waiting = row => (row?.ledger_state !== "queued" ? ""
 		: row?.ledger_waiting === "express_open" ? __("express.error.ACCOUNT_BUSY_LOCKED") : p.waiting_computer(row?.ledger_reason));
 	p.express = async (doctype, name, reload) => {

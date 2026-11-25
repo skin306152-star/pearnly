@@ -359,7 +359,7 @@ def result(doc, created=None, *, final=False, name=""):
         return saved(doc, {"name": row.name, "system_no": row.system_no, **(created or {})})
     if not express_contracts.ledger_settled(state, reason):
         # 排队中钉在一台不在线的电脑上：原因行写「等待电脑 · 名称」（同单据页，`pending.reason_label`）
-        why = pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) else ""
+        why = pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) is not None else ""
         return entering(doc, why) if final else None
     word = express_contracts.ledger_word(state, reason)
     if word == express_contracts.SUCCEEDED:

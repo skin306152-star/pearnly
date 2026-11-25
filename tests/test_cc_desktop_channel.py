@@ -516,9 +516,9 @@ class Queue(Base):
         pc2 = self.context(other["device"], "staff@x")
         self.report(pc2)
         job = self.enqueue()
-        self.assertEqual(jobs.waiting_computer(job["job"]), "")            # 排队中、没钉
+        self.assertIsNone(jobs.waiting_computer(job["job"]))               # 排队中、没钉
         self.lease(self.office)
-        self.assertEqual(jobs.waiting_computer(job["job"]), "")            # 领取中
+        self.assertIsNone(jobs.waiting_computer(job["job"]))               # 领取中
         row = fake.STATE.db.table(documents.JOB)[job["job"]]
         row["lease_expires_at"] = devices.now() - timedelta(seconds=1)
         self.offline(self.office)
@@ -526,14 +526,17 @@ class Queue(Base):
         device = fake.STATE.db.table(documents.DEVICE)[self.office.device]
         self.assertEqual(jobs.waiting_computer(job["job"]), device["device_label"])
         self.assertTrue(device["device_label"])
-        self.assertEqual(jobs.waiting_computer("NOPE"), "")
-        device["retired_at"] = devices.now()                                # 已移除的电脑：不说在等它
+        self.assertIsNone(jobs.waiting_computer("NOPE"))
+        label, device["device_label"] = device["device_label"], ""         # 取不到名称：仍在等它，名称空（页面只写「等待电脑」）
         self.assertEqual(jobs.waiting_computer(job["job"]), "")
+        device["device_label"] = label
+        device["retired_at"] = devices.now()                                # 已移除的电脑：不说在等它
+        self.assertIsNone(jobs.waiting_computer(job["job"]))
         device["retired_at"] = None
         device["last_seen_at"] = devices.now()                              # 回来了（在线）：不再说在等
-        self.assertEqual(jobs.waiting_computer(job["job"]), "")
+        self.assertIsNone(jobs.waiting_computer(job["job"]))
         self.ack(self.office, job["job"])
-        self.assertEqual(jobs.waiting_computer(job["job"]), "")
+        self.assertIsNone(jobs.waiting_computer(job["job"]))
 
     def test_a_long_job_on_a_computer_still_online_is_not_taken_back(self):
         """代录一张单暂停超过租约（人在用 Express）：写账线这期间不来报到，但这台电脑的按需请求线程还在报到（在线）——别的电脑

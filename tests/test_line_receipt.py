@@ -407,7 +407,7 @@ class StatusWordTables(unittest.TestCase):
         """11-25：排队中钉在一台不在线的电脑上，LINE 回执「录入中」不变，另起一行写单据页同一句「等待电脑 · 名称」。"""
         text = (ROOT / (ERP + "line_cards.py")).read_text(encoding="utf-8")
         self.assertIn('text = "\\n".join(part for part in (_("Entering"), why) if part)', text)
-        self.assertIn("pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) else", text)
+        self.assertIn("pending.reason_label(state, reason) if express_contracts.waiting_computer_of(reason) is not None else", text)
         self.assertIn("return entering(doc, why) if final else None", text)
 
     def test_the_line_cards_use_the_web_words(self):

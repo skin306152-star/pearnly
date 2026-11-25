@@ -775,6 +775,11 @@ class PushTests(unittest.TestCase):
         self.assertEqual(out["status"], "queued")
         self.assertEqual((out["cc_desktop_online"], out["waiting_computer"]), (False, "DESKTOP-TEST02"))
         self.assertTrue(out["note"].endswith(" · DESKTOP-TEST02"))
+        STATE.db.table(SALES)["SD-7"].update(ledger_reason="express.waiting_computer")   # 名称取不到：只说等待电脑
+        with translated():
+            bare = tools._outcome(tools.KINDS["sales"], "SD-7")
+        self.assertEqual((bare["cc_desktop_online"], bare["waiting_computer"]), (False, ""))
+        self.assertNotIn(" · ", bare["note"])
 
     def test_the_model_is_told_what_waiting_means_in_one_sentence(self):
         by_name = {tool["name"]: tool for tool in tools.TOOLS}

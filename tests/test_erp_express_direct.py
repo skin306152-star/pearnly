@@ -2858,28 +2858,51 @@ class WriterAtClaim(PushModule):
             with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: "DESKTOP-TEST02"):
                 note = self.push._queued_note(self.push.SALES, row)
             self.assertEqual(note, "express.waiting_computer:DESKTOP-TEST02")
-            with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: ""):
+            with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: None):
                 self.assertEqual(self.push._queued_note(self.push.SALES, row), "")  # 没钉：办公室那台在线，照旧不写原因
+            with mock.patch.object(self.push.jobs, "waiting_computer", lambda name: ""):
+                self.assertEqual(self.push._queued_note(self.push.SALES, row), E.WAITING_COMPUTER)  # 钉着、名称取不到
         self.assertEqual(E.waiting_computer_of(note), "DESKTOP-TEST02")
         self.assertEqual(E.waiting_computer("  PC  of\nA "), "express.waiting_computer:PC of A")
-        self.assertEqual(E.waiting_computer(""), "")
-        self.assertEqual(E.waiting_computer_of(E.OFFLINE), "")
+        self.assertEqual(E.waiting_computer(""), E.WAITING_COMPUTER)
+        self.assertEqual(E.waiting_computer_of(E.WAITING_COMPUTER), "")
+        self.assertIsNone(E.waiting_computer_of(E.OFFLINE))
+        self.assertIsNone(E.waiting_computer_of(""))
+        odd = E.waiting_computer("PC:ห้องบัญชี | <b>&")                       # 名称里有冒号、竖线、尖括号：照存，只认前缀
+        self.assertEqual(E.waiting_computer_of(odd), "PC:ห้องบัญชี | <b>&")
+        self.assertEqual(pending.reason_label(E.QUEUED, odd), "Waiting for computer · PC:ห้องบัญชี | <b>&")
+        self.assertEqual(pending.reason_label(E.QUEUED, E.WAITING_COMPUTER), "Waiting for computer")
         self.assertEqual(pending.reason_label(E.QUEUED, note), "Waiting for computer · DESKTOP-TEST02")
         self.assertEqual(E.ledger_word(E.QUEUED, note), "Entering")              # 状态词不变
         self.assertFalse(E.ledger_settled(E.QUEUED, note))                       # LINE 接着等
-        glossary = (pathlib.Path(__file__).resolve().parents[1]
-                    / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
-        page = (pathlib.Path(__file__).resolve().parents[1] / "frontend/assistant/src/i18n.ts").read_text(encoding="utf-8")
-        words = [line.split("\t")[:4] for line in glossary.splitlines() if line.startswith("Waiting for computer\t")]
-        self.assertEqual(len(words), 1)
-        for word in words[0]:                                                     # 四语逐字同代录那一条（CC 网页 folderWaiting）
-            self.assertIn(f'folderWaiting: "{word}"', page)
         desk = (pathlib.Path(__file__).resolve().parents[1]
                 / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk/transactions.js").read_text(encoding="utf-8")
-        self.assertIn('const WAITING_COMPUTER = "express.waiting_computer:";', desk)
+        self.assertIn('const WAITING_COMPUTER = "express.waiting_computer";', desk)
+        self.assertIn('if (text === WAITING_COMPUTER) return __("Waiting for computer");', desk)
         self.assertIn('__("Waiting for computer")', desk)
         self.assertIn("p.waiting_computer(row?.ledger_reason)", desk)          # 列表悬浮
         self.assertIn('info.state === "queued" ? p.waiting_computer(info.reason)', desk)  # 单据页 Express 弹窗原因栏
+
+    def test_waiting_for_computer_is_worded_exactly_as_the_cc_page_in_four_languages(self):
+        """守门（主会话 11-25）：单据页 / 列表 / CC 对话 / LINE 的「等待电脑」是 ERP 服务端词条，CC 网页代录进度的是前端
+        ``folderWaiting``——两套词条系统各一份，四语必须逐字相同，一边改了另一边要跟着改。"""
+        import re
+        root = pathlib.Path(__file__).resolve().parents[1]
+        glossary = (root / "apps/pearnly_erp_portal/pearnly_erp_portal/i18n/messages.tsv").read_text(encoding="utf-8")
+        header = glossary.splitlines()[0].split("\t")[:4]
+        self.assertEqual(header, ["en", "zh", "th", "ja"])
+        rows = [line.split("\t")[:4] for line in glossary.splitlines() if line.startswith("Waiting for computer\t")]
+        self.assertEqual(len(rows), 1)
+        server = dict(zip(header, rows[0]))
+        page = (root / "frontend/assistant/src/i18n.ts").read_text(encoding="utf-8")
+        # 前端四个语言块的顺序：en、zh、th、ja（每块各一句 folderWaiting）
+        front = re.findall(r'folderWaiting: "([^"]*)"', page)
+        self.assertEqual(len(front), 4)
+        self.assertEqual(dict(zip(["en", "zh", "th", "ja"], front)), server)
+        for lang, word in server.items():
+            csv = (root / f"apps/pearnly_erp_portal/pearnly_erp_portal/translations/{lang}.csv").read_text(encoding="utf-8")
+            with self.subTest(lang=lang):
+                self.assertIn(f"Waiting for computer,{word}", csv)                 # 翻译包按术语表生成过
 
     def test_a_collectors_job_is_written_by_the_office_computer_while_hers_is_off(self):
         # 11-13 的 not_yours（收款员自己的电脑关着就只等她的）按 11-17 定稿作废：办公室同事那台在线就由它写
