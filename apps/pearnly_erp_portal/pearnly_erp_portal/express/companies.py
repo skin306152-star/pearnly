@@ -140,19 +140,24 @@ def folder_of(root) -> str:
 
 def catalog() -> dict:
     """在用电脑报的账套按「税号 + 分店」分组（同 :func:`ensure` 的口径）：``{(税号, 分店): {"name": 公司名, "years": [年度],
-    "folders": [文件夹]}}``，年度新的在前。CC 里「添加公司」与 ERP「从连接添加」的候选从这里来。"""
+    "folders": [文件夹], "source": "local" | "cloud"}}``，年度新的在前。CC 里「添加公司」与 ERP「从连接添加」的候选从这里来。
+    ``source``：报这组账套的电脑都是云端 Express 那份（心跳 ``link.kind = cloud``，存在电脑行的 ``link_kind``）才是 ``cloud``，
+    有一台本地的就算 ``local``（同一组身份只一行，本地优先）。"""
     found = devices()
     if not found:
         return {}
     rows = frappe.get_all(BOOK, filters={"device": ["in", found]},
-                          fields=["company", "label", "tax_id", "branch", "period_start", "period_end", "root"],
+                          fields=["company", "label", "tax_id", "branch", "period_start", "period_end", "root", "device"],
                           limit_page_length=BOOKS_MAX)
-    years, folders = {}, {}
+    cloud = set(cloud_devices(found))
+    years, folders, local = {}, {}, set()
     for row in rows:
         tax = contracts.tax13(row.get("tax_id"))
         if not tax:
             continue
         key = (tax, contracts.branch5(row.get("branch")))
+        if row.get("device") not in cloud:
+            local.add(key)
         year = str(row.get("period_start") or "")[:4]
         if year:
             years.setdefault(key, set()).add(year)
@@ -160,4 +165,16 @@ def catalog() -> dict:
         if folder:
             folders.setdefault(key, set()).add(folder)
     return {key: {"name": name, "years": sorted(years.get(key, ()), reverse=True),
-                  "folders": sorted(folders.get(key, ()))} for key, name in groups(rows).items()}
+                  "folders": sorted(folders.get(key, ())), "source": "local" if key in local else "cloud"}
+            for key, name in groups(rows).items()}
+
+
+def cloud_devices(names) -> list:
+    """其中经云端 Express 连上来的电脑（``link_kind = cloud``）。只读。"""
+    from pearnly_core.cc_desktop.wire import link_contracts
+
+    names = [name for name in dict.fromkeys(names or ()) if name]
+    if not names:
+        return []
+    return frappe.get_all(DEVICE, filters={"name": ["in", names], "link_kind": link_contracts.CLOUD}, pluck="name",
+                          limit_page_length=DEVICES_MAX)

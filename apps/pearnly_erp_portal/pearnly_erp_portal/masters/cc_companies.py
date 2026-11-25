@@ -50,6 +50,14 @@ def computers():
 
 
 @frappe.whitelist(methods=["POST"])
+def remove_computer(device):
+    """「电脑」组「···」移除一台不在线的电脑（云端 Express 第二阶段 4.10，同 Cowork 的 remove_device）。"""
+    found = service.remove_computer(device)
+    frappe.db.commit()
+    return found
+
+
+@frappe.whitelist(methods=["POST"])
 def choice_forget(company, key):
     """公司页「记住的选择」删一条（欠账 B51，同 Cowork 的 choice_forget）。"""
     found = service.choice_forget(company, key)

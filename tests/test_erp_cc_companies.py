@@ -544,7 +544,7 @@ class CompanyApiTests(unittest.TestCase):
         self.assertEqual(deleted, ["EXC-2"])
 
     def test_settings_connections_lists_the_computers_read_only(self):
-        # 欠账 B50：ERP 浏览器里也有只读「连接」，电脑一台一行（形状同 Cowork），不在网页上移除；看不了公司的人不给
+        # 欠账 B50：ERP 浏览器里也有「连接」，电脑一台一行（形状同 Cowork）；第二阶段 4.10 起不在线的能管公司的人可移除；看不了公司的人不给
         import datetime as dt
         from unittest import mock
         from pearnly_erp_portal.express import companies as express_companies
@@ -556,14 +556,47 @@ class CompanyApiTests(unittest.TestCase):
         with mock.patch.object(express_companies, "devices", lambda: ["DEV-1", "DEV-2"]):
             rows = cc_companies.computers()
             self.assertEqual(sorted((row["device"], row["online"], row["version"], row["can_remove"]) for row in rows),
-                             [("DEV-2", False, "1.12.20", False), ("OFFICE-PC", True, "1.12.21", False)])
-            self.assertTrue(all(row["adapter"] == "express" and row["folders"] == [] for row in rows))
+                             [("DEV-2", False, "1.12.20", True), ("OFFICE-PC", True, "1.12.21", False)])
+            self.assertTrue(all(row["adapter"] == "express" and row["folders"] == [] and row["link"] is None for row in rows))
             frappe.session.user = "nobody@x"
             with self.assertRaises(PermissionError_):
                 cc_companies.computers()
         with mock.patch.object(express_companies, "devices", lambda: []):
             frappe.session.user = "boss@x"
             self.assertEqual(cc_companies.computers(), [])
+
+    def test_dead_computer_records_are_hidden_cloud_rows_say_where_they_come_from_and_offline_ones_can_be_removed(self):
+        # 云端 Express 第二阶段 4.10：从没报过账本、不在线满 7 天的不列；云端那台带 link；不在线的能管公司的人可移除，在线的不行
+        import datetime as dt
+        from unittest import mock
+        from pearnly_erp_portal.express import companies as express_companies
+        retired = []
+        desktop_devices = types.SimpleNamespace(retire=lambda name, actor, moment: retired.append((name, actor)) or True)
+        now = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
+        table = STATE.db.table(express_companies.DEVICE)
+        table["DEAD"] = {"name": "DEAD", "device_label": "OFFICE-PC", "companion_version": "1.12.21",
+                         "last_seen_at": now - dt.timedelta(days=10)}
+        table["OLD"] = {"name": "OLD", "device_label": "OFFICE-PC", "companion_version": "1.12.24",
+                        "last_seen_at": now - dt.timedelta(days=10)}
+        table["CLOUD"] = {"name": "CLOUD", "device_label": "CLOUD-HOST", "companion_version": "1.12.26", "last_seen_at": now,
+                          "link_kind": "cloud", "link_via": "OFFICE-PC", "link_host": "CLOUD-HOST"}
+        STATE.db.table(express_companies.BOOK)["ob"] = Row(name="ob", device="OLD")
+        with mock.patch.object(express_companies, "devices", lambda: ["DEAD", "OLD", "CLOUD"]), \
+                mock.patch.dict(sys.modules, {"pearnly_core.cc_desktop.devices": desktop_devices}):
+            rows = {row["id"]: row for row in cc_companies.computers()}
+            self.assertEqual(sorted(rows), ["CLOUD", "OLD"])
+            self.assertEqual(rows["CLOUD"]["link"], {"kind": "cloud", "via": "OFFICE-PC", "host": "CLOUD-HOST"})
+            self.assertEqual((rows["OLD"]["can_remove"], rows["CLOUD"]["can_remove"]), (True, False))
+            self.assertEqual(cc_companies.remove_computer("OLD"), {"status": "removed", "device": "OLD", "replayed": False})
+            with self.assertRaises(PermissionError_):
+                cc_companies.remove_computer("CLOUD")     # 在线的不移除
+            with self.assertRaises(PermissionError_):
+                cc_companies.remove_computer("NOPE")
+            frappe.session.user = "staff@x"
+            with self.assertRaises(PermissionError_):
+                cc_companies.remove_computer("OLD")       # 不能管公司的人不行
+            frappe.session.user = "boss@x"
+        self.assertEqual(retired, [("OLD", "boss@x")])
 
     def test_company_changes_reach_the_people_who_can_see_it(self):
         self.assertEqual(cc_service.viewers("CO-00001"), ["boss@x", "staff@x"])
@@ -698,6 +731,24 @@ class AddCompanyTests(unittest.TestCase):
         STATE.db.table("ERP Company")["CO-00001"]["is_active"] = 0
         self.assertEqual([(row["title"], row["state"]) for row in cc_service._catalog()],
                          [("Chiang Mai Rice", "new"), ("Siam Trading", "inactive")])
+
+    def test_books_reported_only_by_a_cloud_computer_go_under_the_cloud_express_tab(self):
+        # 云端 Express 第二阶段 4.8：账本按报它的电脑分——云端那份 CC（link_kind = cloud）报的进「云端 Express」标签，
+        # 同一组也有本地电脑报的就留「Express」
+        devices = STATE.db.table("Pearnly CC Device")
+        devices["CLOUD1"] = Row(name="CLOUD1", token_digest="t", retired_at=None, companion_version="1.12.26",
+                                link_kind="cloud")
+        books_table = STATE.db.table("Pearnly CC Book")
+        books_table["c1"] = Row(name="c1", device="CLOUD1", company="Cloud Rice", label="Cloud Rice", tax_id="0105590000005",
+                                branch="00000", period_start="2026-01-01", period_end="2026-12-31")
+        books_table["c2"] = Row(name="c2", device="CLOUD1", company="Siam Trading", label="Siam Trading", tax_id=TAX_A,
+                                branch="00000", period_start="2026-01-01", period_end="2026-12-31")
+        rows = {row["title"]: row["adapter"] for row in cc_service._catalog()}
+        self.assertEqual(rows, {"Chiang Mai Rice": "express", "Cloud Rice": "express_cloud", "Siam Trading": "express"})
+        listed = cc_service.connection_list(adapter="express_cloud")
+        self.assertEqual([row["title"] for row in listed["rows"]], ["Cloud Rice"])
+        self.assertEqual(listed["adapters"], ["express", "express_cloud"])
+        self.assertEqual(cc_service.source_adapter(None), "express")
 
     def test_only_people_who_can_build_list_or_create(self):
         # 11-07 定案 #1：能管公司的人，或有开单权限、看得到全部公司的人（clerk@x）能选中即建；被限定公司的员工、只读、

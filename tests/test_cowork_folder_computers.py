@@ -25,7 +25,7 @@ VIEWS = {
 
 class Computers(unittest.TestCase):
     def run_computers(self, records, online=(), denied=(), members=None, owners=None, user="me@example.com",
-                      manager=False, links=None):
+                      manager=False, links=None, reporting=()):
         """``members``：各条连接上的电脑（ADR-021 第 4 批：一台电脑一行）；不给就每条连接一台，在线按 ``online``。"""
         docs = {r["name"]: doc(r["name"], r["adapter"]) for r in records}
         members = members if members is not None else {
@@ -49,7 +49,8 @@ class Computers(unittest.TestCase):
                 mock.patch.object(rules.frappe, "session", SimpleNamespace(user=user)), \
                 mock.patch.object(rules, "_reader_view",
                                   side_effect=lambda d, device="", peer=None: VIEWS.get(f"{device}|{d.name}", VIEWS[d.name])), \
-                mock.patch.object(rules.frappe, "clear_messages"):
+                mock.patch.object(rules.frappe, "clear_messages"), \
+                mock.patch("pearnly_cowork.connections.pool.reporting", side_effect=lambda names: set(reporting)):
             result = rules.computers()
         require.assert_called_once_with()   # 与定时任务页同一判据：录入权限
         return result
@@ -59,9 +60,30 @@ class Computers(unittest.TestCase):
                                      {"name": "C-OLD", "adapter": "mrerp", "enabled": 1}], online={"C-E"})
         self.assertEqual(result, [
             {"adapter": "express", "device": "OFFICE-PC", "online": True, "version": "1.4.0", "folders": [r"D:\\Invoices"],
-             "id": "PC-C-E", "connection": "C-E", "can_remove": False, "link": None},
+             "id": "PC-C-E", "connection": "C-E", "can_remove": False, "link": None, "last_seen": "",
+             "adapters": ["express"]},
             {"adapter": "mrerp", "device": "OLD-PC", "online": False, "version": "1.3.20", "folders": [],
-             "id": "PC-C-OLD", "connection": "C-OLD", "can_remove": False, "link": None}])
+             "id": "PC-C-OLD", "connection": "C-OLD", "can_remove": False, "link": None, "last_seen": "",
+             "adapters": ["mrerp"]}])
+
+    def test_one_computer_on_express_and_mrerp_is_one_row_and_dead_records_are_hidden(self):
+        """云端 Express 第二阶段 4.10：同一台电脑挂在 Express 与 MR.ERP 两条连接上合成一行（adapters 两种、文件夹并起来）；
+        Express 上从没报过账本、不在线满 7 天的死记录不列，报过账本的照列。"""
+        import datetime as dt
+
+        old = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None) - dt.timedelta(days=8)
+        records = [{"name": "C-M", "adapter": "mrerp", "enabled": 1}, {"name": "C-E", "adapter": "express", "enabled": 1}]
+        members = {"C-E": {"PC1": {"online": True}, "DEAD": {"online": False, "last_seen": old},
+                           "KEPT": {"online": False, "last_seen": old}},
+                   "C-M": {"PC1": {"online": False}}}
+        views = {**VIEWS, "PC1|C-M": {**VIEWS["C-M"], "label": "OFFICE-PC", "fresh": True, "roots": [{"label": "E:\\Scan"}]},
+                 "DEAD|C-E": {**VIEWS["C-E"], "label": "OFFICE-PC"}, "KEPT|C-E": {**VIEWS["C-E"], "label": "ACC-02"}}
+        with mock.patch.dict(VIEWS, views):
+            result = self.run_computers(records, members=members, reporting={"KEPT"})
+        self.assertEqual([(row["id"], row["adapter"], row["adapters"]) for row in result],
+                         [("PC1", "express", ["express", "mrerp"]), ("KEPT", "express", ["express"])])
+        self.assertEqual(result[0]["folders"], [r"D:\\Invoices", "E:\\Scan"])
+        self.assertEqual(result[1]["last_seen"], old.strftime("%Y-%m-%dT%H:%M:%SZ"))
 
     def test_a_cloud_computer_says_which_computer_it_came_through(self):
         """云端 Express（11-15 评估第 6 节）：经桥连上来的电脑这一行带 ``link``（云端 ``{kind, via, host}``），其余 None。"""

@@ -241,16 +241,63 @@ def computers():
                 manager = credentials.manages(actor)
             row = {"adapter": doc.adapter, "device": view["label"], "online": online, "version": view["version"],
                    "folders": [str(item.get("label") or "") for item in view["roots"] if isinstance(item, dict)],
-                   "id": device, "connection": doc.name,
+                   "id": device, "connection": doc.name, "last_seen": peers[device].get("last_seen"),
                    "can_remove": device in owners and (owners[device] == actor or bool(manager))}
             if view.get("update_blocked"):
                 row["update_blocked"] = view["update_blocked"]   # {version, at}：网页如实显示一句
             result.append(row)
+    result = _without_dead(result)
     # 经哪台电脑连上来（云端 Express 的来源标记）：云端 ``{kind, via, host}``，其余 None；全部电脑循环外一次取回
     linked = devices.links([row["id"] for row in result])
     for row in result:
         row["link"] = linked.get(row["id"])
-    return result
+    return merge_computers(result)
+
+
+def _without_dead(rows):
+    """去掉 Express 连接上的死记录（第二阶段评估 4.10，``cc_desktop.contracts.dead``）：从没报过账本（池里没有它的可达行）、
+    不在线满 7 天。MR.ERP 连接上的电脑只读文件夹、本来不报账本，不按这条去掉。``last_seen`` 换成文字给页面。"""
+    from datetime import datetime, timezone
+
+    from pearnly_core.cc_desktop import contracts as device_contracts
+    from pearnly_cowork.connections import pool
+
+    moment = datetime.now(timezone.utc).replace(tzinfo=None)
+    candidates = [row["id"] for row in rows if row["adapter"] == "express" and not row["online"]]
+    reporting = pool.reporting(candidates) if candidates else set()
+    kept = []
+    for row in rows:
+        seen = row.get("last_seen")
+        if (row["adapter"] == "express" and not row["online"]
+                and device_contracts.dead(seen, moment, row["id"] in reporting)):
+            continue
+        row["last_seen"] = device_contracts.utc_text(seen)
+        kept.append(row)
+    return kept
+
+
+def merge_computers(rows):
+    """同一台电脑（同一个 ``id``）挂在 Express 与 MR.ERP 两条连接上：合成一行（第二阶段评估 4.10），``adapters`` 列出它连着的
+    几种（Express 在前），文件夹并起来，任一条在线就算在线，任一条能移除就能移除（移除按电脑编号，一次吊销它所有密钥）。
+    ``adapter`` / ``connection`` 取第一条（旧页面照旧读得懂）。"""
+    order = {"express": 0, "mrerp": 1}
+    merged = {}
+    for row in rows:   # 顺序照原来（先出现的那一行的位置）
+        found = merged.get(row["id"])
+        if found is None:
+            merged[row["id"]] = {**row, "adapters": [row["adapter"]]}
+            continue
+        if row["adapter"] not in found["adapters"]:
+            found["adapters"].append(row["adapter"])
+        found["folders"] = found["folders"] + [item for item in row["folders"] if item not in found["folders"]]
+        found["online"] = found["online"] or row["online"]
+        found["can_remove"] = found["can_remove"] or row["can_remove"]
+        found["version"] = found["version"] or row["version"]
+        found["link"] = found.get("link") or row.get("link")
+        if order.get(row["adapter"], 9) < order.get(found["adapter"], 9):   # Express 那条在前（adapter / connection 取它）
+            found.update(adapter=row["adapter"], connection=row["connection"])
+            found["adapters"].sort(key=lambda name: order.get(name, 9))
+    return list(merged.values())
 
 
 def options(connection, account_set_key=None):

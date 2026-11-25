@@ -276,23 +276,62 @@ def choice_forget(company, key) -> dict:
 
 
 def computers() -> list:
-    """给本站报账套的电脑，一台一行（形状同 Cowork `folder_intake.rules.computers`）：名字、在不在线、CC 桌面版版本；
-    ERP 不读文件夹（``folders`` 空），网页上不移除电脑（``can_remove`` 假）。能看公司的人可看。"""
+    """给本站报账套的电脑，一台一行（形状同 Cowork `folder_intake.rules.computers`）：名字、在不在线、CC 桌面版版本、最后在线、
+    经哪台电脑连上来（云端 Express 的 ``link {kind, via, host}``，其余 None）；ERP 不读文件夹（``folders`` 空）。
+    第二阶段评估 4.10：死记录（从没报过账本、不在线满 7 天）不列；不在线的能管公司的人可在「···」移除（``can_remove``，
+    服务端 :func:`remove_computer` 再核一次）。能看公司的人可看。"""
     from datetime import datetime, timezone
 
     from pearnly_core.cc_desktop import contracts as desktop_contracts
+    from pearnly_core.cc_desktop.wire import link_contracts
     from pearnly_erp_portal.express import companies as express_companies
 
-    require_read()
+    user = require_read()
     names = express_companies.devices()
     if not names:
         return []
     moment = datetime.now(timezone.utc).replace(tzinfo=None)  # 表里的时间存 UTC（同 `express.companies.online_devices`）
     rows = frappe.get_all(express_companies.DEVICE, filters={"name": ["in", names]},
-                          fields=["name", "device_label", "companion_version", "last_seen_at"],
+                          fields=["name", "device_label", "companion_version", "last_seen_at", "issued_at", "link_kind",
+                                  "link_via", "link_host"],
                           order_by="device_label asc", limit_page_length=express_companies.DEVICES_MAX)
-    return [{"adapter": "express", "device": row.device_label or row.name, "online": bool(desktop_contracts.online(row.last_seen_at, moment)),
-             "version": row.companion_version or "", "folders": [], "id": row.name, "can_remove": False} for row in rows]
+    reported = set(frappe.get_all(express_companies.BOOK, filters={"device": ["in", names]}, pluck="device",
+                                  limit_page_length=express_companies.BOOKS_MAX))
+    manage = guard.has("company.manage", user=user)
+    out = []
+    for row in rows:
+        online = bool(desktop_contracts.online(row.last_seen_at, moment))
+        if not online and desktop_contracts.dead(row.last_seen_at or row.issued_at, moment, row.name in reported):
+            continue
+        out.append({"adapter": "express", "device": row.device_label or row.name, "online": online,
+                    "version": row.companion_version or "", "folders": [], "id": row.name,
+                    "last_seen": desktop_contracts.utc_text(row.last_seen_at), "link": link_contracts.view(row.link_kind, row.link_via, row.link_host),
+                    "can_remove": bool(manage and not online)})
+    return out
+
+
+def remove_computer(device) -> dict:
+    """「电脑」组「···」移除一台不在线的电脑（第二阶段评估 4.10）：能管公司的人；在线的不移除（先在那台电脑上断开）。
+    退役 = 令牌作废，它报的账套不再算候选；那台电脑回来要人在它的设置里亲手点「连接」，作为新电脑加入。"""
+    from datetime import datetime, timezone
+
+    from pearnly_core.cc_desktop import contracts as desktop_contracts
+    from pearnly_core.cc_desktop import devices as desktop_devices
+    from pearnly_erp_portal.express import companies as express_companies
+
+    user = require_manage()
+    name = str(device or "").strip()
+    row = frappe.db.get_value(express_companies.DEVICE, name, ["name", "last_seen_at", "retired_at"], as_dict=True,
+                              for_update=True) if name and len(name) <= 140 else None
+    if not row:
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    if row.retired_at:
+        return {"status": "removed", "device": name, "replayed": True}
+    moment = datetime.now(timezone.utc).replace(tzinfo=None)
+    if desktop_contracts.online(row.last_seen_at, moment):
+        frappe.throw(_("Not Permitted"), frappe.PermissionError)
+    desktop_devices.retire(name, user, moment)
+    return {"status": "removed", "device": name, "replayed": False}
 
 
 # ---------------- 添加公司（从账套建，同 Cowork 的弹窗） ----------------
@@ -402,7 +441,7 @@ def _catalog(search=None, check_admin=True) -> list:
         # 已有同税号同分店、但没接账本的启用公司（ERP 里手工建的）：选中就是把它接上，不另建一家（`create`）
         linkable = bool(found and found.is_active and not found.express_enabled and not found.mrerp_connection)
         out.append({"identity": f"express:{tax}:{branch}", "title": item["name"], "legal_name": item["name"], "tax_id": tax,
-                    "branch": branch, "branches": [branch], "adapter": "express", "years": item["years"],
+                    "branch": branch, "branches": [branch], "adapter": source_adapter(item), "years": item["years"],
                     "folders": item.get("folders") or [], "connection": "",
                     "account_set_key": f"{tax}:{branch}", "company": found.name if found else None,
                     "linkable": linkable, "state": _state(found, linkable)})
@@ -429,7 +468,14 @@ def _catalog(search=None, check_admin=True) -> list:
     return out
 
 
-ADAPTERS = ("express", "mrerp", "erp")
+ADAPTERS = ("express", "express_cloud", "mrerp", "erp")
+# 账本标签的先后（「从连接添加」、待建清单）：云端 Express 报的账套单列一个标签（第二阶段评估 4.8）
+LEDGER_TABS = ("express", "express_cloud", "mrerp")
+
+
+def source_adapter(item) -> str:
+    """一组账套的标签：云端 Express 那份 CC 报的归「云端 Express」（``express.companies.catalog`` 的 ``source``），其余「Express」。"""
+    return "express_cloud" if (item or {}).get("source") == "cloud" else "express"
 
 
 def _adapter(row) -> str:
@@ -439,6 +485,19 @@ def _adapter(row) -> str:
     if row.get("mrerp_connection"):
         return "mrerp"
     return "erp"
+
+
+def _express_sources(built) -> dict:
+    """已建、接 Express 的公司里账套只由云端 Express 报的那几家：``{公司: "express_cloud"}``（选公司弹窗放进「云端 Express」标签）。"""
+    from pearnly_erp_portal.express import companies as express_companies
+    from pearnly_erp_portal.express import contracts
+
+    wanted = [row for row in built if row.get("express_enabled") and contracts.tax13(row.get("tax_id"))]
+    if not wanted:
+        return {}
+    found = express_companies.catalog()
+    return {row.name: "express_cloud" for row in wanted
+            if source_adapter(found.get((contracts.tax13(row.tax_id), contracts.branch5(row.branch)))) == "express_cloud"}
 
 
 def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
@@ -457,9 +516,10 @@ def choices(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     built = frappe.get_all(COMPANY, filters={"name": ["in", names], "is_active": 1},
                            fields=[*FIELDS, "mrerp_connection", "mrerp_account_set"],
                            order_by="company_name asc, name asc", limit_page_length=COMPANY_MAX) if names else []
+    sources = _express_sources(built)
     rows = [{"identity": row.name, "title": row.company_name or row.name, "legal_name": row.company_name or "",
              "tax_id": row.tax_id or "", "branch": row.branch or "", "branches": [row.branch] if row.branch else [],
-             "adapter": _adapter(row), "years": [], "connection": row.mrerp_connection or "",
+             "adapter": sources.get(row.name) or _adapter(row), "years": [], "connection": row.mrerp_connection or "",
              "account_set_key": row.mrerp_account_set or "", "company": row.name} for row in built]
     if can_build(user):
         rows += [item for item in _catalog() if item["state"] == NEW and item["company"] is None]
@@ -495,7 +555,7 @@ def pending(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     except (TypeError, ValueError):
         start, limit = 0, PAGE_MAX
     rows = [row for row in _catalog(search) if waiting(row)]
-    adapters = [name for name in ("express", "mrerp") if any(row["adapter"] == name for row in rows)]
+    adapters = [name for name in LEDGER_TABS if any(row["adapter"] == name for row in rows)]
     wanted = str(adapter or "").strip()
     if wanted in adapters:
         rows = [row for row in rows if row["adapter"] == wanted]
@@ -515,7 +575,7 @@ def connection_list(search=None, adapter=None, start=0, limit=PAGE_MAX) -> dict:
     except (TypeError, ValueError):
         start, limit = 0, PAGE_MAX
     every = _catalog()
-    adapters = [name for name in ("express", "mrerp") if any(row["adapter"] == name for row in every)]
+    adapters = [name for name in LEDGER_TABS if any(row["adapter"] == name for row in every)]
     wanted = str(adapter or "").strip()
     # 点了某个标签就只给这一种（没有这一种就是空的，页面显示空状态；11-20 标签一律显示）；不带标签（第一次打开）给全部
     rows = [row for row in every if row["adapter"] == wanted] if wanted else every

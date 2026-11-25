@@ -131,6 +131,23 @@ def online(last_seen: Optional[datetime], now: datetime) -> bool:
     return last_seen is not None and abs((now - last_seen).total_seconds()) <= ONLINE_SECONDS
 
 
+def utc_text(value) -> str:
+    """表里存的 UTC 裸时间 → RFC3339（页面按设备时区显示）；空的回空串。"""
+    return value.strftime("%Y-%m-%dT%H:%M:%SZ") if isinstance(value, datetime) else ""
+
+
+# 「死记录」（云端 Express 第二阶段评估 4.10，主会话 11-24 认可）：不在线满这么久、且从没报过账本的电脑记录
+DEAD_SECONDS = 7 * 24 * 3600
+
+
+def dead(last_seen: Optional[datetime], now: datetime, reported: bool) -> bool:
+    """这条电脑记录是不是死记录：从没报过账本，且不在线满 :data:`DEAD_SECONDS`（从没报到过的按签发 / 最后在线时刻算，调用方传）。
+    电脑列表不显示它；本站下一次有电脑登记时顺带退役（不加定时任务）。报过账本的照常显示、离线时「···」可移除。"""
+    if reported or last_seen is None:
+        return False
+    return (now - last_seen).total_seconds() >= DEAD_SECONDS
+
+
 # ── 账套行 ────────────────────────────────────────────────────────────────────
 
 

@@ -103,6 +103,27 @@ class Contracts(unittest.TestCase):
 
 
 class Register(Base):
+    def test_a_new_computer_registering_retires_dead_records_only(self):
+        # 云端 Express 第二阶段 4.10：从没报过账本、不在线满 7 天的记录在下一次有电脑登记时顺带退役（令牌作废）；报过账本的、
+        # 刚登记的不动
+        import datetime as dt
+
+        dead = self.register("boss@x", KEY_A)
+        kept = self.register("boss@x", "c" * 43)
+        self.report(self.context(kept["device"], "boss@x"))
+        old = devices.now() - dt.timedelta(days=8)
+        for name in (dead["device"], kept["device"]):
+            frappe.db.set_value(devices.DEVICE, name, {"issued_at": old, "last_seen_at": old})
+        self.assertEqual(devices.dead_devices(devices.now()), [dead["device"]])
+        self.register("other@x", KEY_B)
+        self.assertTrue(frappe.db.get_value(devices.DEVICE, dead["device"], "retired_at"))
+        self.assertEqual(frappe.db.get_value(devices.DEVICE, dead["device"], "retired_by"), "auto")
+        self.assertIsNone(frappe.db.get_value(devices.DEVICE, kept["device"], "retired_at"))
+        with self.assertRaises(Exception):
+            devices.authenticate(dead["token"])
+        self.assertEqual(self.register("boss@x", KEY_A)["status"], "removed")   # 回来要人亲手点「连接」（rejoin）
+        self.assertEqual(self.register("boss@x", KEY_A, rejoin=True)["status"], "created")
+
     def test_new_computer_then_exists_then_rekey(self):
         made = self.register("boss@x", KEY_A)
         self.assertEqual(made["status"], "created")

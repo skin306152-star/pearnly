@@ -90,11 +90,50 @@ def register(request_key=None, device_key=None, device_name=None, rekey=False, r
         return {"status": "created", "device": doc.name, "token": token}
     name = contracts.new_device_name()
     token = contracts.new_token(name)
+    retire_dead(moment)   # 本来就写库的登记里顺带退役死记录（第二阶段 4.10：不加定时任务）
     documents.new(DEVICE, name, {
         "device_label": label, "device_digest": digest, "token_digest": contracts.token_digest(token),
         "token_last4": token[-4:], "issued_by": user, "issued_at": moment, "signed_in_user": user,
         "signed_in_users": contracts.with_user(None, user), "full_report_due": 1})
     return {"status": "created", "device": name, "token": token}
+
+
+DEAD_SCAN_MAX = 500
+
+
+def dead_devices(moment) -> list:
+    """站点上没退役、从没报过账本、不在线满 7 天（``contracts.dead``，从没报到过的按签发时刻算）的电脑。只读。"""
+    rows = frappe.get_all(DEVICE, filters={"retired_at": ["is", "not set"]},
+                          fields=["name", "last_seen_at", "issued_at"], limit_page_length=DEAD_SCAN_MAX)
+    if not rows:
+        return []
+    reported = set(frappe.get_all(documents.BOOK, filters={"device": ["in", [row.name for row in rows]]}, pluck="device",
+                                  limit_page_length=contracts.MAX_BOOKS * len(rows)))
+    return [row.name for row in rows
+            if contracts.dead(row.last_seen_at or row.issued_at, moment, row.name in reported)]
+
+
+def retire(name, actor, moment) -> bool:
+    """让一台电脑退役：令牌作废、记退役时刻与谁（``auto`` = 死记录自动退役）。已退役的不动，回 False。它若回来，走
+    ``register`` 的 ``rejoin``（人亲手点「连接」）作为新电脑。"""
+    doc = frappe.get_doc(DEVICE, name)
+    if doc.retired_at:
+        return False
+    doc.update({"retired_at": moment, "retired_by": actor, "token_digest": None})
+    documents.persist(doc)
+    return True
+
+
+def retire_dead(moment) -> list:
+    """死记录一并退役；回退役了哪几台。失败不拦登记。"""
+    done = []
+    try:
+        for name in dead_devices(moment):
+            if retire(name, "auto", moment):
+                done.append(name)
+    except Exception:  # noqa: BLE001 - 清理死记录不能挡住新电脑登记
+        frappe.log_error(title="cc_desktop retire dead devices")
+    return done
 
 
 def authenticate(token) -> Context:

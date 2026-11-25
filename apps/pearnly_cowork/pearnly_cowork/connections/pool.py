@@ -751,6 +751,14 @@ def device_connections(device):
                                                    (device,)) if row[0]})
 
 
+def reporting(devices):
+    """其中在池里有可达行（报过账本）的电脑（不加锁、只读）：「电脑」列表判死记录用。"""
+    names = tuple(name for name in dict.fromkeys(devices or ()) if name)
+    if not names:
+        return set()
+    return {row[0] for row in frappe.db.sql(f"SELECT DISTINCT device FROM `tab{REACH}` WHERE device IN %s", (names,))}
+
+
 def forget_device(device, *, connection=None):
     """电脑被移除 / 退役（``connection`` 给了：它在这条连接上一把有效密钥都不剩）：删它的可达行（登记留着，别的电脑或
     历史还在用），读请求的分派、待认定的等待与下次发布的目录都不再算它够得到。"""

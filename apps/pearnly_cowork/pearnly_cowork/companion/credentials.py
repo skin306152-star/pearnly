@@ -197,6 +197,8 @@ def pool_peers(connection, now=None):
             'index_pending': devices.index_pending(row.index_pending_uids), 'issuers': set(),
             'label': str(row.label or ''), 'targets': route_contracts.targets_of(row.operator_targets)})
         peer['online'] = peer['online'] or _fresh(row.last_seen_at, row.last_seen_generation, row.token_generation, now)
+        if row.last_seen_at and (peer.get('last_seen') is None or row.last_seen_at > peer['last_seen']):
+            peer['last_seen'] = row.last_seen_at   # 任一把密钥最近一次报到（「电脑」列表判死记录、显示最后在线）
         peer['issuers'].add(row.issuer)
     return peers
 
