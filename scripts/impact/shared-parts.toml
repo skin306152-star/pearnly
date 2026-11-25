@@ -437,7 +437,7 @@ name = "CC 位置、成员记录与心跳"
 paths = ["companion/src/companion/express_places.py", "companion/src/companion/express_machine.py", "companion/src/companion/profile_store.py", "companion/src/companion/master_refresh.py", "companion/src/companion/ledger_watch.py"]
 markers = ["express_places", "express_machine", "profile_store", "master_refresh"]
 search = ["companion/src/**"]
-entries = ["cc.desktop.places", "cc.desktop.requests"]
+entries = ["cc.desktop.places", "cc.desktop.requests", "cc.desktop.cloud-express"]
 
 [[part]]
 id = "cc-request-worker"
@@ -1977,7 +1977,7 @@ where = "桌面版 设置 → 连接 →「Express 位置」下面「云端 Expr
 steps = "离线：tests/test_cc_cloud_express.py（行的各状态、预填可改、页面没有密码框、按钮调的桥动作、配对块：命令 / 复制 / 倒计时 / 过期重新生成 / 失败码 / 配好收起 / 长命令框内换行）、companion/tests/test_cloud_settings_link.py（预填不含密码、connect 存好两条本机凭据与连接、断开清干净、没有云端连接时 state() 逐字节不变）、companion/tests/test_cloud_host.py（连接后起宿主：隧道盘 subst、ctl 会话交接、中转按通道选站点、关窗 / 断开即停并撤盘）；Windows 真机 CC：设置 → 连接看到「云端 Express」→ 点「连接」，地址 / 账号由本机 TSplus 的 Session.rdp 预填、可改 → 点「连接」弹 CC 原生小窗输账号密码 → 任务栏出现最小化的连接窗口 → 行下面出现云端安装命令与剩余时间，点复制、到云端 PowerShell 粘贴运行；另生成一次等到 0 点「重新生成」；窗口缩到 375 宽看命令框 → 「···」重新查找、断开连接；再连一次后直接关掉连接窗口"
 expect = "行显示主机与「未连接」；凭据管理器多 Pearnly CC/cloud/<主机> 与 TERMSRV/<主机> 两条、%APPDATA%\\Pearnly\\cloud_link.json 有这条连接且没有密码；原生小窗取消不报错；连接后行显示「正在连接」/「已连接」，多一个 subst 盘（Z 往 D 第一个空的）指向 %LOCALAPPDATA%\\Pearnly\\cloud-tunnel\\<主机>，云端只看到这一个盘；命令框里是整行命令、复制得到同一行、倒计时到 0 换成「已过期」+「重新生成」，云端配对完成后这块收起；375 宽时命令在框内换行、整页不横向滚动；准备失败只一行事实；断开或关窗后 subst 盘撤掉、ctl\\session.json 删掉、行回「未连接」；断开后两条凭据与文件都没了；旧版桌面端不出这一行；CC 重启不自动连"
 check = "manual"
-files = ["frontend/assistant/src/components/cloud-express.tsx", "companion/src/companion/cloud_link/settings_link.py", "companion/src/companion/cloud_link/host.py"]
+files = ["frontend/assistant/src/components/cloud-express.tsx", "companion/src/companion/cloud_link/settings_link.py", "companion/src/companion/cloud_link/host.py", "companion/src/companion/cloud_link/cloud_members.py"]
 
 [[entry]]
 id = "cc.desktop.places"
