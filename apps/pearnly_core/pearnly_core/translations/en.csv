@@ -1452,7 +1452,7 @@ nav.suppliers,Suppliers
 nav.team,Team
 nav.warehouses,Warehouses
 nav.work,Work together
-operator.end.not_done,{0} not done: {1}
+operator.end.not_done,{0} failed: {1}
 operator.end.stopped,Stopped
 operator.report.column.number,Express no.
 operator.report.column.party,Party
@@ -1501,8 +1501,8 @@ operator.report.reason.unsupported,Document type not supported yet
 operator.report.reason.user_active,Computer in use
 operator.report.reason.voided,Voided
 operator.report.reason.waiting_start,Waiting for start time
-operator.report.state.notDone,Not done
-operator.report.state.saved,Posted
+operator.report.state.notDone,Failed
+operator.report.state.saved,Succeeded
 operator.report.state.skipped,Skipped
 operator.report.state.waiting,Waiting
 operator.report.voided,Voided {0}
@@ -1637,6 +1637,7 @@ upload.fileEmpty,File is empty
 upload.tooLarge,File is larger than {0} MB
 upload.typeUnsupported,File type not supported
 username / password are required,username / password are required
+{0} failed: {1},{0} failed: {1}
 {0} is entered in {1},{0} is entered in {1}
 {0} is entered in {1}: {2},{0} is entered in {1}: {2}
 {0} is not entered in {1},{0} is not entered in {1}

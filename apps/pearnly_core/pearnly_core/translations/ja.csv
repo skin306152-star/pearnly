@@ -1454,7 +1454,7 @@ nav.suppliers,仕入先
 nav.team,チーム
 nav.warehouses,倉庫
 nav.work,コラボレーション
-operator.end.not_done,未完了 {0} 件：{1}
+operator.end.not_done,失敗 {0} 件：{1}
 operator.end.stopped,停止しました
 operator.report.column.number,Express 番号
 operator.report.column.party,取引先
@@ -1503,8 +1503,8 @@ operator.report.reason.unsupported,この種類の伝票はまだ対応してい
 operator.report.reason.user_active,パソコンは使用中です
 operator.report.reason.voided,取消済み
 operator.report.reason.waiting_start,開始時刻を待っています
-operator.report.state.notDone,未完了
-operator.report.state.saved,記帳済み
+operator.report.state.notDone,失敗
+operator.report.state.saved,成功
 operator.report.state.skipped,スキップ
 operator.report.state.waiting,待機中
 operator.report.voided,取消済み {0}
@@ -1639,6 +1639,7 @@ upload.fileEmpty,ファイルが空です
 upload.tooLarge,ファイルが {0} MB を超えています
 upload.typeUnsupported,このファイル形式には対応していません
 username / password are required,username / password は必須です
+{0} failed: {1},失敗 {0} 件：{1}
 {0} is entered in {1},{0} は {1} に入力済み
 {0} is entered in {1}: {2},{0} は {1} に入力済み：{2}
 {0} is not entered in {1},{0} は {1} に未入力

@@ -1454,7 +1454,7 @@ nav.suppliers,供应商
 nav.team,团队管理
 nav.warehouses,仓库
 nav.work,工作协作
-operator.end.not_done,未完成 {0} 张：{1}
+operator.end.not_done,失败 {0} 张：{1}
 operator.end.stopped,已停止
 operator.report.column.number,Express 单号
 operator.report.column.party,对方
@@ -1503,8 +1503,8 @@ operator.report.reason.unsupported,此类单据暂不支持
 operator.report.reason.user_active,电脑正在使用
 operator.report.reason.voided,已作废
 operator.report.reason.waiting_start,等待开始时刻
-operator.report.state.notDone,未完成
-operator.report.state.saved,已入账
+operator.report.state.notDone,失败
+operator.report.state.saved,成功
 operator.report.state.skipped,已跳过
 operator.report.state.waiting,等待
 operator.report.voided,已作废 {0}
@@ -1639,6 +1639,7 @@ upload.fileEmpty,文件为空
 upload.tooLarge,文件超过 {0} MB
 upload.typeUnsupported,不支持此文件类型
 username / password are required,username / password 必填
+{0} failed: {1},失败 {0} 张：{1}
 {0} is entered in {1},{0} 已写入 {1}
 {0} is entered in {1}: {2},{0} 已写入 {1}：{2}
 {0} is not entered in {1},{0} 未写入 {1}

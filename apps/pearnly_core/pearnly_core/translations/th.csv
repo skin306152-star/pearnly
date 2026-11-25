@@ -1454,7 +1454,7 @@ nav.suppliers,ผู้จำหน่าย
 nav.team,จัดการทีมงาน
 nav.warehouses,คลังสินค้า
 nav.work,ทำงานร่วมกัน
-operator.end.not_done,ยังไม่เสร็จ {0} ใบ: {1}
+operator.end.not_done,ไม่สำเร็จ {0} ใบ: {1}
 operator.end.stopped,หยุดแล้ว
 operator.report.column.number,เลขที่ใน Express
 operator.report.column.party,คู่ค้า
@@ -1503,8 +1503,8 @@ operator.report.reason.unsupported,ยังไม่รองรับเอก
 operator.report.reason.user_active,มีผู้ใช้คอมพิวเตอร์อยู่
 operator.report.reason.voided,ยกเลิกแล้ว
 operator.report.reason.waiting_start,รอเวลาเริ่ม
-operator.report.state.notDone,ยังไม่เสร็จ
-operator.report.state.saved,บันทึกบัญชีแล้ว
+operator.report.state.notDone,ไม่สำเร็จ
+operator.report.state.saved,สำเร็จ
 operator.report.state.skipped,ข้ามแล้ว
 operator.report.state.waiting,รอคิว
 operator.report.voided,ยกเลิก {0} แล้ว
@@ -1639,6 +1639,7 @@ upload.fileEmpty,ไฟล์ว่างเปล่า
 upload.tooLarge,ไฟล์มีขนาดเกิน {0} MB
 upload.typeUnsupported,ไม่รองรับไฟล์ประเภทนี้
 username / password are required,ต้องระบุ username / password
+{0} failed: {1},ไม่สำเร็จ {0} ใบ: {1}
 {0} is entered in {1},{0} บันทึกลง {1} แล้ว
 {0} is entered in {1}: {2},{0} บันทึกลง {1} แล้ว: {2}
 {0} is not entered in {1},{0} ยังไม่ได้บันทึกลง {1}
