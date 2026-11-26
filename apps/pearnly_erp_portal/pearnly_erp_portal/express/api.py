@@ -233,7 +233,9 @@ def _view(doctype, row):
             "reason_text": target.company_no_book_text(row.company, row.day)
             if row.ledger_reason == contracts.NO_BOOK and row.get("day") else "",
             "needed": needed, "can_answer": bool(needed) and guard.has(CAPABILITIES[doctype][1]),
-            "can_retry": bool((job and job["status"] == "manual" and not blocked)
+            # 代录交的那件不给「再写一次」（`retry` 拒：代录的单由代录再录；被拦那一项答过后不再列，按钮出来也只会报错）
+            "can_retry": bool((job and job["status"] == "manual" and not blocked
+                               and not str(job.get("request_key") or "").startswith(push.OPERATOR_KEY))
                               or (stuck and not needed and (not job or job["status"] in ("manual", "cancelled"))))
             and guard.has(CAPABILITIES[doctype][1]),
             # 收银日汇总 / 退货单停住（定不了、跨年、原单是手工处理的…）的出口：人标记「已在 Express 手工处理」（主会话 10-26）
