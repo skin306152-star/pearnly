@@ -18,9 +18,9 @@ STOPPED = datetime.datetime(2026, 11, 19, 18, 7)
 AFTER, BEFORE = STOPPED + datetime.timedelta(days=7), STOPPED - datetime.timedelta(days=1)
 GROUP = {"kind": "stock_group", "subject": "BOOK-1", "label": "9.Pearnly",
          "options": [{"code": "DM", "name": "วัตถุดิบ"}, {"code": "P002", "name": "นมพาสฯ"}], "current": ""}
-PARTY = {"kind": "party", "subject": "purchase|0105535001847|00000", "label": "วิศวภัณฑ์",
+PARTY = {"kind": "party", "subject": "purchase|0105561116001|00000", "label": "วิศวภัณฑ์",
          "options": [{"code": "V001", "name": "วิศวภัณฑ์", "branch": "00000"}], "current": ""}
-SERVICE_VAT = {"kind": "service_vat", "subject": "purchase|0105535001847|BOOK-1", "label": "วิศวภัณฑ์",
+SERVICE_VAT = {"kind": "service_vat", "subject": "purchase|0105561116001|BOOK-1", "label": "วิศวภัณฑ์",
                "options": [{"code": "accrual"}, {"code": "cash"}], "current": ""}
 CASES = (("STOCK_ACC_GROUP_UNFIT", "group_needed", GROUP, "DM"),
          ("SUPPLIER_DUP_SUSPECTED", "party_needed", PARTY, "V001"),
