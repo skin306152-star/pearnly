@@ -82,12 +82,10 @@ def main():
 
     # ── 4. 问法卡的结构 ────────────────────────────────────────────
     t = qc.query_type_message()
-    # 菜单 5 **只有一个功能按钮**：按类查记录。老产品当年摆过三个（后两个是占位），
-    # 后来加的「读取／刷新本次查询」「查看结果／状态」两个机械按钮也一并去掉
-    # （用户 2026-09-25 口径）。
-    ck("菜单 5 入口只有一个按钮：按类查记录",
+    # 菜单 5「报表查询」（用户 2026-11-26）：1 库存停放报表、2 销售记录。
+    ck("菜单 5 入口两个按钮：库存停放报表、销售记录",
        [i["action"]["data"] for i in t["quickReply"]["items"]]
-       == ["action=query_type&kind=sales"], t["quickReply"]["items"])
+       == ["action=query_type&kind=stock", "action=query_type&kind=sales"], t["quickReply"]["items"])
     d = qc.sales_dimension_message()
     dims = [i["action"]["data"] for i in d["quickReply"]["items"]]
     ck("维度卡 13 项，且顺序照旧（改顺序就是改产品）",

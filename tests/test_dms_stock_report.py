@@ -214,11 +214,40 @@ class Entries(unittest.TestCase):
     def test_scope_buttons_queue_one_background_read_with_the_reading_fallback(self):
         binding = {"user_id": "op@example.invalid", "line_user_id": "U1"}
         with patch.object(stock_flow.query_access, "can_query", return_value=True), \
+                patch("pearnly_core.line_session.set_session") as state, \
                 patch("pearnly_dms.line.out.enqueue") as enqueue, lang("th"):
             stock_flow.handle_postback(binding, "U1", "tok", stock_flow.ACT_STOCK_SCOPE, {"scope": "available"})
         args, kwargs = enqueue.call_args
         self.assertEqual(args[:5], ("stock_report", stock_flow.run, binding, "U1", "available"))
         self.assertEqual(kwargs["waiting_text"], i18n.t("dms.card.query.MANUAL_RUNNING", lang="th"))
+        state.assert_called_once_with("U1", stock_flow.WAITING_STATE, {"scope": "available"})
+
+    def test_text_typed_while_waiting_replays_the_loading_animation(self):
+        with patch("pearnly_dms.line.out.start_loading") as loading:
+            self.assertTrue(query_flow.handle_text({}, "U1", "tok", {"state": stock_flow.WAITING_STATE}, "นานจัง"))
+        loading.assert_called_once_with("U1", 60)
+        self.assertFalse(stock_flow.handle_text("U1", {"state": "menu"}))
+
+    def test_files_that_cannot_be_saved_answer_with_the_failure_sentence(self):
+        binding = {"user_id": "op@example.invalid", "line_user_id": "U1"}
+        sent = []
+        summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
+        ok = {"ok": True, "summary": summary, "rendered": {"pdf": b"%PDF", "images": [b"j"], "omitted": 0},
+              "originals": {}}
+        with patch.object(stock_flow.query_access, "can_query", return_value=True), \
+                patch.object(stock_flow, "_endpoint", return_value={"name": "EP-1"}), \
+                patch.object(stock_flow, "_car_catalogue", return_value={}), \
+                patch("pearnly_dms.adapter.operations.run_logged_in", return_value=ok), \
+                patch("pearnly_dms.line.identity.matches", return_value=True), \
+                patch("pearnly_dms.line.out.send", side_effect=lambda user, msg, *a: sent.append(msg)), \
+                patch("pearnly_core.line_session.get_session", return_value={"state": stock_flow.WAITING_STATE}), \
+                patch("pearnly_core.line_session.set_session") as state, \
+                patch("frappe.db", MagicMock()), patch("frappe.log_error"), \
+                patch("frappe.utils.now_datetime", return_value=datetime(2026, 11, 26, 11, 20)), lang("zh"):
+            result = stock_flow.run(binding, "U1", "available")
+        self.assertEqual(result["error_code"], "ERR_DMS_TECHNICAL")
+        self.assertEqual([msg["type"] for msg in sent], ["text"])
+        state.assert_called_once_with("U1", "query_menu", {})
 
 
 class Messages(unittest.TestCase):
@@ -287,6 +316,16 @@ class Links(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.get_data(), b"PK-content")
         self.assertIn("filename*=UTF-8''", response.headers["Content-Disposition"])
+
+    def test_a_very_long_display_name_is_left_out_of_the_link(self):
+        doc = MagicMock(name="File")
+        doc.name = "abc123"
+        with patch("frappe.get_doc", return_value=doc):
+            url = stock_files.save(b"PK", "xlsx", "รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ" * 4 + ".xlsx", "b1")
+        self.assertLessEqual(len(url) + len("&openExternalBrowser=1"), 1000)
+        query = {key: values[0] for key, values in parse_qs(urlparse(url).query).items()}
+        self.assertNotIn("d", query)
+        self.assertEqual(self.download(query).status_code, 200)
 
     def test_tampered_or_expired_links_are_not_found(self):
         query = self.link()

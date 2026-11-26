@@ -127,6 +127,8 @@ def handle_text(
 ) -> bool:
     """接管两个"等用户打字"的态，以及"查询还在读"时打的字；其它态返 False 交上层。"""
     state = (sess or {}).get("state")
+    if stock_flow.handle_text(line_user_id, sess):
+        return True
     if state == "query_results":
         return _still_reading(binding, line_user_id, reply_token, sess)
     if state not in {"query_sales_input", "query_top_custom"}:

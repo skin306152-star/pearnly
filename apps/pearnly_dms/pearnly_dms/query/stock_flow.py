@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 
 ACT_STOCK_SCOPE = "report_stock_scope"
 STOCK_ACTIONS = frozenset({ACT_STOCK_SCOPE})
+WAITING_STATE = "query_stock"
 
 
 def _t(key: str, **kw) -> str:
@@ -72,8 +73,11 @@ def handle_postback(binding: dict, line_user_id: str, reply_token: str, action: 
     if scope not in report.SCOPES:
         _reply_text(line_user_id, i18n.t("dms.card.query.TXT_EXPIRED", lang=i18n.line_lang()), reply_token)
         return
+    from pearnly_core import line_session
     from pearnly_dms.line import out
 
+    # 在等结果：这时打的字回加载动画，不掉进建档等流程（同销售记录的 `query_results`）；任务结束时退回 `query_menu`
+    line_session.set_session(line_user_id, WAITING_STATE, {"scope": scope})
     out.enqueue("stock_report", run, binding, line_user_id, scope, reply_token,
                 waiting_text=i18n.t("dms.card.query.MANUAL_RUNNING", lang=i18n.line_lang()))
 
@@ -196,6 +200,33 @@ def _failure_text(result: Dict) -> str:
 
 def run(binding, line_user_id, scope, reply_token=""):
     """后台任务（`line/out.run_guarded` 里跑：绑定变了就不跑；发给本人的消息攒到最后用这次的令牌回）。"""
+    try:
+        return _run(binding, line_user_id, scope)
+    finally:
+        _end_wait(line_user_id)
+
+
+def _end_wait(line_user_id: str) -> None:
+    from pearnly_core import line_session
+
+    try:
+        if (line_session.get_session(line_user_id) or {}).get("state") == WAITING_STATE:
+            line_session.set_session(line_user_id, "query_menu", {})
+    except Exception:
+        logger.warning("[dms stock report] waiting state not cleared", exc_info=True)
+
+
+def handle_text(line_user_id: str, sess) -> bool:
+    """报表还在出时打的字：放 LINE 原生加载动画，不交给别的流程。"""
+    if (sess or {}).get("state") != WAITING_STATE:
+        return False
+    from pearnly_dms.line.out import start_loading
+
+    start_loading(line_user_id, 60)
+    return True
+
+
+def _run(binding, line_user_id, scope):
     from pearnly_dms.adapter.operations import run_logged_in
     from pearnly_dms.contracts.endpoint import endpoint_name
     from pearnly_dms.line import out
@@ -232,11 +263,18 @@ def run(binding, line_user_id, scope, reply_token=""):
     if not result.get("ok"):
         out.send(line_user_id, {"type": "text", "text": _failure_text(result)})
         return {"ok": False, "error_code": result.get("error_code")}
-    for message in messages(result, scope, as_of, moment):
+    try:
+        replies = messages(result, scope, as_of, moment)
+        frappe.db.commit()  # LINE 取图前文件要已落库
+    except Exception:
+        frappe.db.rollback()
+        frappe.log_error(title="DMS stock report files failed")
+        out.send(line_user_id, {"type": "text", "text": _failure_text({"error_code": "ERR_DMS_TECHNICAL"})})
+        return {"ok": False, "error_code": "ERR_DMS_TECHNICAL"}
+    for message in replies:
         out.send(line_user_id, message)
-    frappe.db.commit()
     return {"ok": True, "total": result["summary"]["total"]}
 
 
-__all__ = ["ACT_STOCK_SCOPE", "STOCK_ACTIONS", "capture", "handle_postback", "messages", "open_report", "run",
+__all__ = ["ACT_STOCK_SCOPE", "STOCK_ACTIONS", "WAITING_STATE", "capture", "handle_postback", "handle_text", "messages", "open_report", "run",
            "scope_message"]

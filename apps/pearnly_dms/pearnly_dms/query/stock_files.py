@@ -17,6 +17,8 @@ from urllib.parse import quote, urlencode
 import frappe
 
 LINK_SECONDS = 24 * 3600
+# Flex 按钮 URI 上限 1000 字符，按钮还要加 `&openExternalBrowser=1`；留余量
+MAX_URL = 900
 _PREFIX = "dms-stock-"
 _TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "pdf": "application/pdf", "jpg": "image/jpeg"}
@@ -39,9 +41,11 @@ def save(content: bytes, extension: str, filename: str, batch: str) -> str:
                           "is_private": 1, "content": content})
     doc.insert(ignore_permissions=True)
     expires = int(time.time()) + LINK_SECONDS
-    query = {"f": doc.name, "e": expires, "d": filename, "s": _signature(doc.name, expires, filename)}
-    return (frappe.utils.get_url().rstrip("/") + "/api/method/pearnly_dms.query.stock_files.download?"
-            + urlencode(query))
+    base = frappe.utils.get_url().rstrip("/") + "/api/method/pearnly_dms.query.stock_files.download?"
+    url = base + urlencode({"f": doc.name, "e": expires, "d": filename, "s": _signature(doc.name, expires, filename)})
+    if len(url) > MAX_URL:  # 泰文文件名编码后很长：超了就不带下载文件名（下载时用通用名），不让整条回复被 LINE 拒收
+        url = base + urlencode({"f": doc.name, "e": expires, "s": _signature(doc.name, expires, "")})
+    return url
 
 
 def new_batch() -> str:
