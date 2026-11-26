@@ -16,6 +16,7 @@ import time
 import frappe
 
 from pearnly_core.execution import work as core_work
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.ocr.remote import contract, tasks
 
 HEADER = "X-Pearnly-Callback"
@@ -121,8 +122,10 @@ def _record(work, key, state, value, attempts):
             with core_work.context(work):
                 core_work.checkpoint(key, state, value)
             return True
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
+        except Exception as error:
+            if not conflicts.is_conflict(error):
+                raise
+            frappe.db.rollback()  # 1020 / 死锁 / 关隔离后的保存前比对（B ①）：回滚重来
     return False
 
 

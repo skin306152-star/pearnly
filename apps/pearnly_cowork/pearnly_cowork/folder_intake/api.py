@@ -1,6 +1,7 @@
 """网页「自动录入规则」页的接口（浏览器会话；小助手的机器接口在 `machine.py`）。"""
 import frappe
 
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.folder_intake import rules
 
 
@@ -19,13 +20,7 @@ def _retried(call, *args):
     """与电脑心跳、刷新目录、同步任务并发时会死锁（都锁连接行 / 任务行）：回滚后整次重来，最多 3 次。这几个接口只动库
     （删除后清网页直传暂存挂在提交之后，回滚时一起撤掉），重来不会重复做库外的事。第 7 批 B7 收尾（10-18 lab）：删除任务
     第一次回 500 QueryDeadlockError，再点才删掉。"""
-    for attempt in range(3):
-        try:
-            return call(*args)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(call, *args)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist()

@@ -70,6 +70,9 @@ def _modules():
         # 共用层的网址码判断（纯函数，11-03）：用真的那份
         "pearnly_core.desk": types.SimpleNamespace(scan_codes=_scan_codes()),
         "pearnly_core.shell": types.SimpleNamespace(entitlements=lambda: ["stocktake"]),
+        # 入口层冲突重来（B ① 11-26）：只要能导入，这里的用例不撞冲突
+        "pearnly_core.transaction": types.SimpleNamespace(conflicts=types.SimpleNamespace(
+            attempt=lambda function, *args, **kwargs: function(*args, **kwargs))),
         "pearnly_cowork": package, "pearnly_cowork.access": types.SimpleNamespace(scope=scope),
     }
     try:

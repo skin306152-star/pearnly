@@ -60,7 +60,7 @@ def _row(line_user_id: str, *, for_update=False) -> Optional[dict]:
                 return None
             return {"state": row.state, "payload": payload}
         name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: CAS 的加锁读本身，输家不写；先加锁后读的根函数随 B ③ / ④ 改
         # MariaDB can report 1020 when this transaction observed an older snapshot
         # before the locking read. This contender lost; never authorize or replay it.
         frappe.db.rollback()
@@ -140,7 +140,7 @@ def _comparison_row(line_user_id):
     """A losing CAS contender is rejected; it never proceeds to a write."""
     try:
         return _row(line_user_id, for_update=True)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: CAS 的加锁读本身，输家不写；先加锁后读的根函数随 B ③ / ④ 改
         return None  # _row already rolled back the stale MariaDB snapshot.
 
 

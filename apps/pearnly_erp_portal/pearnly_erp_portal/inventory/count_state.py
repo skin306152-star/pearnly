@@ -32,7 +32,7 @@ def stock_token(product, *, for_update=False):
             (product,))
         units = frappe.db.sql("select base_unit, unit from `tabERP Product` where name=%s" + suffix,
                               (product,))
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 只读的加锁读（盘点比对库存），冲突转成「库存变了、请重盘」的业务提示
         # Snapshot isolation may reject the changed row instead of returning it.
         # The request rolls back, preserving both the observation and the receipt.
         frappe.throw(_("Stock changed during counting. Recount the affected products."))

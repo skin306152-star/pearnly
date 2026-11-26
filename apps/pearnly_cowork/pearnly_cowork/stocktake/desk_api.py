@@ -19,6 +19,7 @@ from uuid import uuid4
 import frappe
 from frappe.core.doctype.access_log.access_log import make_access_log
 
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.access import scope
 from pearnly_cowork.stocktake import access, counting, service, upload
 
@@ -36,13 +37,7 @@ def _status(value):
 
 
 def _transaction(function, *args, **kwargs):
-    for attempt in range(3):
-        try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(function, *args, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 # ── 列表 / 新建 / 删除 ────────────────────────────────────────────────────────

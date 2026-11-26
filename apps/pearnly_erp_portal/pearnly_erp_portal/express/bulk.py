@@ -40,7 +40,7 @@ def reserve(doctype, count) -> list:
         frappe.db.commit()
         try:
             start = _take(count)  # loop-query: 撞上 1020 才重来，最多 RESERVE_TRIES 次
-        except frappe.QueryDeadlockError:
+        except frappe.QueryDeadlockError:  # conflict-ok: 取号只是 FOR UPDATE + UPDATE 计数器，没有保存前比对；内部函数，用尽原样抛给调用方
             frappe.db.rollback()
             if attempt == RESERVE_TRIES - 1:
                 raise

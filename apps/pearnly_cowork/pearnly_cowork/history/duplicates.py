@@ -8,6 +8,7 @@ import frappe
 from frappe import _
 from frappe.defaults import set_user_default
 
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts import duplicates as rules
 
@@ -116,9 +117,11 @@ def check(workspace, client, summary):
         if not enabled():
             return {"duplicate_check_status": "disabled"}
         return _find(workspace, client, summary)
-    except (frappe.PermissionError, frappe.QueryDeadlockError):
+    except frappe.PermissionError:
         raise
     except Exception as exc:
+        if conflicts.is_conflict(exc):
+            raise  # 数据库冲突交外层整笔重来，不记成查重不可用（B ①）
         # Advisory infrastructure failures must not discard an already-paid OCR
         # result. Do not misreport a failed check as "clear", or log invoice data.
         frappe.logger("cowork").warning("Duplicate check unavailable: %s", type(exc).__name__)

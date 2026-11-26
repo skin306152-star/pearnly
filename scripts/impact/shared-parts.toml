@@ -501,7 +501,8 @@ search = ["apps/**/*.py", "apps/**/*.html", "infrastructure/**/*.py", "infrastru
 # CC 对话的本站写（改名、星标、移月份、归档、删除）撞上快照冲突整笔重来（11-05 删对话 500，`assistant.sessions._write`）
 # CC 侧栏标题写回撞上快照冲突整笔重来（11-09 部署后 e2e 两条 1020，`assistant.titles._finish`）
 # ERP 采购凭证挂附件撞上死锁整笔重来（11-08 两张单同时出凭证 QueryDeadlockError，`purchasing.output.voucher`）
-entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher"]
+# 各处自己接冲突的写法统一经共用层（B ①，11-26：入口层 conflicts.attempt、保存点与后台 conflicts.is_conflict，检查 check-conflict-catch.py）
+entries = ["shared.transaction", "cowork.transaction", "cc.mrerp-login", "cc.assistant", "erp.purchase.voucher", "shared.conflict-catch"]
 # 结束读快照前核对调用方没有没提交的写（`transaction.snapshot`，11-19 回滚审计）：作废允许卡、抢占、挂着等的结论、判卡片「只是看」都先经它
 not_entries = { "apps/pearnly_core/pearnly_core/assistant/toolrun.py" = "CC 工具调用里产品校验 / 准备 / 引导结果 / 允许卡读取碰到快照冲突（1020）或死锁时整段重做（conflicts.retried，都是只读或幂等）；执行、抢占、作废允许卡开头结束读快照经 snapshot.fresh。用户看到的入口是 cc.assistant 对话页的工具卡，由 test_assistant 的冲突用例与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/relay.py" = "推送线程每步结束读快照经 snapshot.fresh（线程里每步都已提交）；入口是 cc.assistant 对话页，由 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/waits.py" = "挂着等后台结论的调用交回、作废、巡检开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页（识别挂着时发话），由 test_assistant 与 test_snapshot_reset 守住", "apps/pearnly_core/pearnly_core/assistant/files.py" = "对话附件上传开头结束读快照经 snapshot.fresh；入口是 cc.assistant 对话页的附件，由 test_snapshot_reset 守住", "apps/pearnly_cowork/pearnly_cowork/assistant/precheck_source.py" = "Cowork 写账前置判定「只是看」的回滚之前经 snapshot.require_clean 核对调用方；入口是 Cowork CC 开始前卡片与直写计划，由流程 cowork.cc.remembered-group-direct 与 test_snapshot_reset 守住" }
 
@@ -537,6 +538,15 @@ paths = ["apps/pearnly_core/pearnly_core/desk/scan_codes.py"]
 markers = ["scan_codes"]
 search = ["apps/**/*.py"]
 entries = ["shared.scan-codes.web-address", "erp.stock-count.code", "erp.line.stocktake", "erp.stock-count.entry.camera", "cowork.stocktake.entry.camera", "erp.scan.pick-product"]
+
+[[entry]]
+id = "shared.conflict-catch"
+product = "共用"
+where = "各产品接数据库冲突的入口（入口层重试、保存点、后台下一轮）"
+steps = "回归实验室清卷全量（并发类流程：采购凭证并发、30 张同时取号、并发删用户、两台电脑同时领单、盘点并发、推送并发）；离线 tests/test_conflict_catch_sites.py 逐处让那一步抛关隔离后的保存前比对冲突"
+expect = "冲突整笔重来或下一轮再来；入口层用尽回「请稍后重试」，不是 500 + 数据库原文；保存点与后台不把冲突吞成「排读取出错」「引用没记上」「反馈失败」「记忆暂不可用」「查重不可用」「这一行出错」、不记错误日志、不延后 10 分钟；业务自己的错误照旧"
+check = "manual"
+files = ["apps/pearnly_core/pearnly_core/line_binding.py", "apps/pearnly_core/pearnly_core/write_precheck/api.py", "apps/pearnly_cowork/pearnly_cowork/connections/api.py", "apps/pearnly_cowork/pearnly_cowork/files/api.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/api.py", "apps/pearnly_cowork/pearnly_cowork/folder_intake/pump.py", "apps/pearnly_cowork/pearnly_cowork/history/api.py", "apps/pearnly_cowork/pearnly_cowork/history/categories.py", "apps/pearnly_cowork/pearnly_cowork/history/category_api.py", "apps/pearnly_cowork/pearnly_cowork/history/certificates.py", "apps/pearnly_cowork/pearnly_cowork/history/duplicates.py", "apps/pearnly_cowork/pearnly_cowork/history/names.py", "apps/pearnly_cowork/pearnly_cowork/masters/workspace_api.py", "apps/pearnly_cowork/pearnly_cowork/masters/workspace_import.py", "apps/pearnly_cowork/pearnly_cowork/ocr/api.py", "apps/pearnly_cowork/pearnly_cowork/ocr/execution/workflow.py", "apps/pearnly_cowork/pearnly_cowork/ocr/feedback/service.py", "apps/pearnly_cowork/pearnly_cowork/ocr/remote/callback.py", "apps/pearnly_cowork/pearnly_cowork/recon_center/api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/bank_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/reconciliation/income_recon_api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/api.py", "apps/pearnly_cowork/pearnly_cowork/stocktake/desk_api.py", "apps/pearnly_cowork/pearnly_cowork/work/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/inventory/api.py", "apps/pearnly_erp_portal/pearnly_erp_portal/work/api.py"]
 
 [[entry]]
 id = "shared.scan-codes.web-address"

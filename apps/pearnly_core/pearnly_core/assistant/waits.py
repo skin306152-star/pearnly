@@ -134,7 +134,7 @@ def _settle(name: str, final: str | None = None) -> bool:
                           ("error" if is_error else "done", text[:60000], frappe.utils.now(), name))
             claimed = frappe.db._cursor.rowcount == 1
             frappe.db.commit()
-        except frappe.QueryDeadlockError:
+        except frappe.QueryDeadlockError:  # conflict-ok: 带条件的 UPDATE 抢占（rowcount 判输赢），没有保存前比对
             frappe.db.rollback()
             return False
         if not claimed:
@@ -220,7 +220,7 @@ def cancel(conversation: str) -> int:
                           "WHERE name=%s AND status='running' AND wait_until IS NOT NULL", (frappe.utils.now(), name))
             hit = frappe.db._cursor.rowcount == 1
             frappe.db.commit()
-        except frappe.QueryDeadlockError:
+        except frappe.QueryDeadlockError:  # conflict-ok: 带条件的 UPDATE 抢占（rowcount 判输赢），没有保存前比对
             frappe.db.rollback()
             continue
         if hit:

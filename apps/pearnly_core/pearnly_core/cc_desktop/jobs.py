@@ -394,7 +394,7 @@ def _claim(context, request, moment):
             continue
         try:
             doc = frappe.get_doc(JOB, head.name, for_update=True)
-        except frappe.QueryDeadlockError:
+        except frappe.QueryDeadlockError:  # conflict-ok: 领单加锁读本身的 1020，输了空手回去、下一轮再领；这一段不保存，关隔离后读到最新
             # 两台电脑同时来领同一件（替写后同一件有几台能领）：排头是旧快照读到的，另一台刚领走并提交，这里加锁读撞「记录已变」
             # （MariaDB 1020）。库已把这次领单的整个事务回滚（保存点也不在了，流程 erp.writer-at-claim 实测）：这件归那台，
             # 这次空手回去、不报错，电脑下一轮再来领（报到时刻随下一轮再记）

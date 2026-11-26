@@ -16,6 +16,7 @@ from pearnly_core.execution import pages as core_pages
 from pearnly_core.execution import pool as core_pool
 from pearnly_core.execution import work as core_work
 from pearnly_core.execution.errors import Deferred
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.files.service import (read_bytes, edge_original, freeze_doc_manifest, preview_record, preview_spec,
                                           stored_original)
 from pearnly_cowork.files.access import reference_count, reference_kind
@@ -331,9 +332,12 @@ def run(batch_name):
                     doc = _persist(doc)
                 # 结果已入库（已提交）：先告诉等候页去读，扣费放在后面做（扣费按参考号幂等，不受影响）
                 core_work.notify_result()
-            except frappe.QueryDeadlockError as exc:
+            except Exception as exc:
+                if not conflicts.is_conflict(exc):
+                    raise
                 # Only the local transaction is retried. The immutable result
                 # and independently committed provider checkpoints survive.
+                # 关隔离后同一种冲突改报保存前比对，同样稍后再来（B ①）。
                 frappe.db.rollback()
                 raise Deferred("database_busy", 5) from exc
         if doc.phase == "saved":

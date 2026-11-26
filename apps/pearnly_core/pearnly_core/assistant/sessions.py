@@ -1037,7 +1037,7 @@ def _remember_context(row, events_of_current) -> None:
         caught = context.caught_up(row, events_of_current)
         if noted or caught:
             frappe.db.commit()  # GET 请求不自动提交
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 附带记录只用 set_value（无保存前比对）；冲突这次不记、下一轮再记
         frappe.db.rollback()  # 推送线程正在写同一行（常见、无害）：这次不记，下一轮再记
     except Exception:
         frappe.db.rollback()

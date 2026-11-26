@@ -207,6 +207,8 @@ jobs:
         run: python3 scripts/check-unbounded-queries.py && python3 tests/test_check_unbounded_queries.py && python3 tests/test_list_filters.py && python3 tests/test_cowork_workbench_sort.py
       - name: Block unlocked reads written back to the same table (MariaDB snapshot isolation is off) and keep it off in every MariaDB
         run: python3 scripts/check-unlocked-overwrite.py && python3 tests/test_check_unlocked_overwrite.py && python3 tests/test_mariadb_snapshot_isolation.py && python3 tests/test_transaction_conflicts_stale_save.py
+      - name: Database conflicts are caught only through the shared conflicts layer (attempt / retried / is_conflict), so the save-time check after snapshot isolation is off is retried, not swallowed
+        run: python3 scripts/check-conflict-catch.py && python3 tests/test_check_conflict_catch.py && python3 tests/test_conflict_catch_sites.py
       - name: Block new database queries inside loops (N+1; baseline may only shrink)
         run: python3 scripts/check-loop-queries.py && python3 tests/test_check_loop_queries.py
       - name: Every Express field CC desktop writes is registered (auto / guide card / review), and no new silent defaults on the write path (baseline may only shrink)

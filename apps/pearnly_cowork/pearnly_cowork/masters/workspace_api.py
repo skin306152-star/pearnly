@@ -3,6 +3,7 @@ import frappe
 from frappe import _
 
 from . import client_import, workspace_import, workspaces
+from pearnly_core.transaction import conflicts
 
 
 @frappe.whitelist(methods=["POST"])
@@ -28,10 +29,4 @@ def parse_workspace_import():
 @frappe.whitelist(methods=["POST"])
 def commit_workspace_import(rows, request_key):
     # Standalone local transaction only: internal callers use the service.
-    for attempt in range(3):
-        try:
-            return workspace_import.commit(rows, request_key)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(workspace_import.commit, rows, request_key)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）

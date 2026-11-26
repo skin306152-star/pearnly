@@ -1,19 +1,14 @@
 """Invoice category management; no display-only labels, statistics or memory listing."""
 import frappe
 from . import categories
+from pearnly_core.transaction import conflicts
 
 
 def _call(function, *args, **kwargs):
     # Only these standalone local RPCs own their whole transaction. Internal
     # recognition/review callers use categories directly and propagate conflicts
     # to their enclosing workflow, without rolling back another caller's work here.
-    for attempt in range(3):
-        try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(function, *args, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist()

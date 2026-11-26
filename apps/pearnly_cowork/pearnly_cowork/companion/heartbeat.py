@@ -88,7 +88,7 @@ def _attempt(context, body):
     frappe.db.savepoint(point)
     try:
         return _receive(context, body)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：只把三种业务错误转成提示，其余异常（含保存前比对）往外抛，外层 retried 接得到
         # No external output has happened; `conflicts.retried` rolls the entire local unit back and retries it.
         raise
     except (ReportError, model.ConnectionError, ProjectionContractError) as error:

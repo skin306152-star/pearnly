@@ -38,7 +38,7 @@ def _attempt(context, found, username, password):
     frappe.db.savepoint(point)
     try:
         return _store(context, found, username, password)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：所有异常都往外抛（死锁不回保存点），外层 retried 接得到
         raise
     except Exception:
         frappe.db.rollback(save_point=point)

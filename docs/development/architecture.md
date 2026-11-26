@@ -114,6 +114,7 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 - 登记的债：Cowork 仍用自己的 `companion` 通道，迁到共用通道的条件见 ADR-025「后果与验证」。
 - `pearnly_core.transaction.conflicts`（本地事务撞 1020 / 1213 整笔重来）同批由 Cowork 搬来，两边共用。
 - **关快照隔离后的并发写法（11-26，[记录](../work/2026-11-26-isolation-save-conflict-retry.md)）**：同一事务里先普通读过之后，加锁读拿最新值、普通读仍是读视图里的旧副本，两者混用会对不上（保存前比对、链接校验报错）。写事务要么在新事务里**先加锁、后做任何普通读**，要么经 `conflicts.retried`（1020 / 1213 与 Frappe 保存前比对抛的 `TimestampMismatchError` 整笔回滚、换新读视图重来；1205 等锁超时、业务自己抛的「记录变了、请刷新」照原样报给用户）。不要在旧读视图里改用 `get_doc(..., for_update=True)` 补救（11-26 实验室实测更差：链接校验报错、子表锁更多死锁）。
+- **接数据库冲突只经共用层（11-26 B ①，[记录](../work/2026-11-26-conflict-retry-common.md)）**：白名单入口用 `conflicts.attempt`（用尽回「请稍后重试」）或 `retried`；保存点里接异常、后台「这次不记、下一轮再来」用 `conflicts.is_conflict(error)` 判断，冲突交外层或下一轮，不当普通错误吞掉。不新写只认 `QueryDeadlockError` 的 `except`——关隔离后同一种冲突还会报保存前比对；确实只该认死锁的（带条件的 UPDATE 抢占、只读、插入抢占、本来就全部往外抛）在那一行标 `# conflict-ok: 原因`，`scripts/check-conflict-catch.py` 拦。
 
 ### MR.ERP 规则（共用层，2026-11-02）
 

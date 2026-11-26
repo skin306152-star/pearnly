@@ -1,0 +1,2 @@
+# 只认 QueryDeadlockError 的 except，确认只该认死锁、又不在源码里标注的（改那个文件会连带要真机记录），按「文件<TAB>函数<TAB>原因」登记；只许减少。
+apps/pearnly_core/pearnly_core/write_precheck/api.py	check	只读判定，没有保存前比对；用尽已回「请稍后重试」（B ① 11-26 核过）

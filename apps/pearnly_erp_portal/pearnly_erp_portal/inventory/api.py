@@ -4,6 +4,7 @@ import frappe
 from frappe import _
 from frappe.utils import flt
 
+from pearnly_core.transaction import conflicts
 from pearnly_erp_portal.inventory import (
     attachments,
     count as counts,
@@ -853,15 +854,9 @@ def _opening_transaction(operation, **kwargs):
     they own their surrounding transaction and are never silently restarted.
     """
     retry_safe = getattr(frappe.db, "transaction_writes", None) == 0
-    for attempt in range(3):
-        try:
-            return operation(**kwargs)
-        except frappe.QueryDeadlockError:
-            if not retry_safe:
-                raise
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    if not retry_safe:
+        return operation(**kwargs)
+    return conflicts.attempt(operation, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist(methods=["POST"])

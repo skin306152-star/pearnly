@@ -64,7 +64,7 @@ def _locked(name: str):
         return None
     try:
         doc = frappe.get_doc(DOCTYPE, name, for_update=True)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 加锁读本身的 1020，回滚再锁一次；这一段不保存，关隔离后读到最新、不再抛
         # 等锁的时候对方提交了：数据库（快照隔离）不让这个旧快照的事务锁改过的行。这里还没写过任何东西，丢掉旧快照重读一次，
         # 读到的就是对方提交后的那一行，后面照常判「卡变了 / 已经确定过」（11-14 实验栈两连接同时点查出）
         frappe.db.rollback()

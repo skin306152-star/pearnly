@@ -280,7 +280,7 @@ def _current(change):
     按当前状态再做一次（11-17 验收：电脑领单那一刻 CC 查进度报出错）。``change`` 每次自己加锁重读，结果按当前状态重算。"""
     try:
         return change()
-    except (frappe.QueryDeadlockError, frappe.TimestampMismatchError):
+    except (frappe.QueryDeadlockError, frappe.TimestampMismatchError):  # conflict-ok: 已一并接 TimestampMismatchError，按当前状态再做一次；_own 根函数随 B ③ 改
         frappe.db.rollback()
         frappe.clear_messages()
         return change()

@@ -7,6 +7,7 @@ from frappe import _
 from frappe.model.document import Document
 
 from . import client_import, workspace_fields, workspaces
+from pearnly_core.transaction import conflicts
 
 DOCTYPE = "Cowork Workspace Import"
 _WRITE = object()
@@ -91,9 +92,11 @@ def _judge(row, *, dry_run):
     frappe.db.savepoint("cowork_workspace_import_row")
     try:
         created = workspaces.create(**clean)
-    except (frappe.PermissionError, frappe.QueryDeadlockError):
+    except frappe.PermissionError:
         raise
     except frappe.ValidationError as error:
+        if conflicts.is_conflict(error):
+            raise  # 关隔离后的保存前比对是 ValidationError 的子类：交外层整笔重来，不记成这一行出错（B ①）
         frappe.db.rollback(save_point="cowork_workspace_import_row")
         duplicate = isinstance(error, workspaces.DuplicateWorkspaceTax)
         return {**base, "status": "skip" if duplicate else "error",

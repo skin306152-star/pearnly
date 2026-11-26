@@ -45,7 +45,7 @@ def _atomic():
     frappe.db.savepoint(point)
     try:
         yield
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：所有异常都往外抛（死锁不回保存点），外层 retried 接得到
         # Native ledger may already have rolled back a deadlocked transaction.
         # The transport does not retry or commit any part of the caller's unit.
         raise

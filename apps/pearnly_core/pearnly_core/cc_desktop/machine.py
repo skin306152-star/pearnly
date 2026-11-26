@@ -40,9 +40,9 @@ def _changes(context, body):
         frappe.db.savepoint("pcc_ledger_changed")
         try:
             products.ledger_changed(context.device, changes)
-        except frappe.QueryDeadlockError:
-            raise  # 1020 / 1213 整笔重来（`conflicts.retried`）
-        except Exception:  # noqa: BLE001 — 排读取出错不挡心跳（10 分钟标记检查照样兜底）
+        except Exception as error:  # noqa: BLE001 — 排读取出错不挡心跳（10 分钟标记检查照样兜底）
+            if conflicts.is_conflict(error):
+                raise  # 1020 / 1213 / 关隔离后的保存前比对：整笔重来（`conflicts.retried`），不当成排读取出错吞掉（B ①）
             frappe.db.rollback(save_point="pcc_ledger_changed")
             frappe.log_error(title="CC ledger change not queued", message=frappe.get_traceback()[-3000:])
 
