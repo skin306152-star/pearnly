@@ -141,6 +141,31 @@ class Pages(unittest.TestCase):
             self.assertEqual(page[0]["kind"], "head")
 
 
+class Colours(unittest.TestCase):
+    """配色照岳父样表（用户 11-26）：表头 / 段头绿底黑字加粗、隔行浅灰蓝、台数红色加粗居中、底部蓝色加粗且合计数字红色。"""
+
+    def test_workbook_and_picture_use_the_sample_colours(self):
+        from openpyxl import load_workbook
+
+        with lang("th"):
+            summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", CARS)
+            book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", "26/11/2569 11:20")), rich_text=True)
+            page = stock_render.document(stock_render._lines(summary, "all"), summary, "26/11/2569 11:20")
+        sheet = book.active
+        head, first, second = sheet[2], sheet[3], sheet[4]
+        self.assertEqual(head[0].fill.fgColor.rgb[-6:], stock_render.HEAD_FILL)
+        self.assertTrue(head[0].font.bold)
+        self.assertEqual(first[2].font.color.rgb[-6:], stock_render.COUNT_COLOR)
+        self.assertTrue(first[2].font.bold)
+        self.assertEqual(first[2].alignment.horizontal, "center")
+        self.assertEqual({first[0].fill.fill_type, second[0].fill.fgColor.rgb[-6:]}, {None, stock_render.STRIPE_FILL})
+        total = [row[0].value for row in sheet.iter_rows() if row[0].value is not None][-2]
+        self.assertEqual([block.font.color.rgb[-6:] for block in total if hasattr(block, "font")],
+                         [stock_render.FOOT_COLOR, stock_render.COUNT_COLOR, stock_render.FOOT_COLOR])
+        self.assertIn("<b>9</b>", page)
+        self.assertIn("class=s", page)
+
+
 class Copy(unittest.TestCase):
     """两处菜单入口（关键词菜单卡、六宫格富菜单）名称四语一致，按钮标签不超 20 字。"""
 
