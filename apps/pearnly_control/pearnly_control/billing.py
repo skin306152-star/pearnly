@@ -425,7 +425,7 @@ def gate(tenant: str, *, kind: str, units: int, tier: str = "B") -> dict:
         ym = _bkk_year_month()
         used = _payg_pages_used(tenant, wallet, ym, lock=False) if kind == "pdf" else 0
         est = estimate_cost_thb(used, kind, units, tier)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 只读查余额，没有保存；死锁交外层重试
         raise  # The complete DB-only service transaction owns bounded retries.
     except Exception as exc:  # noqa: BLE001
         frappe.log_error(str(exc)[:400], "billing.gate 查余额失败")

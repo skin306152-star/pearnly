@@ -30,6 +30,7 @@ from pearnly_cowork.folder_intake.access import FILE, RULE, RUN, read, write
 from pearnly_cowork.folder_intake.machine import owner_ready, request_key
 from pearnly_cowork.folder_intake.push import push_one
 from pearnly_core.express_rules.targets.identity import normalize_express_account_key
+from pearnly_core.transaction import conflicts
 
 BATCH = "Cowork OCR Batch"
 WORK = "Pearnly OCR Work"
@@ -156,10 +157,10 @@ def _each(names, deadline, handle):
             continue
         try:
             handle(entry)
-        except frappe.QueryDeadlockError:
+        except Exception as error:
             frappe.db.rollback()
-        except Exception:
-            frappe.db.rollback()
+            if conflicts.is_conflict(error):
+                continue  # 数据库冲突（含关隔离后的保存前比对，B ①）：这次不记，下一轮再来，不记错误、不延后
             frappe.clear_messages()
             frappe.log_error(title="Cowork folder intake step failed", message=frappe.get_traceback()[-1500:])
             entry = read(FILE, name, for_update=True)
@@ -438,10 +439,10 @@ def _push_step(cfg, deadline):
                 write(entry)
                 frappe.db.commit()
             _push(entry, cfg, deadline)
-        except frappe.QueryDeadlockError:
+        except Exception as error:
             frappe.db.rollback()
-        except Exception:
-            frappe.db.rollback()
+            if conflicts.is_conflict(error):
+                continue  # 同上（B ①）
             frappe.clear_messages()
             frappe.log_error(title="Cowork folder intake push failed", message=frappe.get_traceback()[-1500:])
             _later(read(FILE, name, for_update=True), 600, "cowork.folder.step_error")

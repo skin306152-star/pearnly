@@ -24,7 +24,7 @@ def retry_service(function):
             frappe.db.after_commit.add(mark_committed)
             try:
                 return function(*args, **kwargs)
-            except frappe.QueryDeadlockError:
+            except frappe.QueryDeadlockError:  # conflict-ok: 计费服务的重试 retry_service；扣费撞 1213 重试不生效的原有问题按主会话定随 B ③ 修
                 if committed or attempt == 11:
                     raise
                 frappe.db.rollback()

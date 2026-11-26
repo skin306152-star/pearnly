@@ -73,6 +73,33 @@ def retried(function, *args, **kwargs):
     raise Exhausted()
 
 
+BUSY = "Please try again later"
+
+
+def attempt(function, *args, **kwargs):
+    """白名单入口用的 :func:`retried`：用尽、回滚失败时整笔回滚，回一句已上线的「请稍后重试」（`frappe.throw`），不再是 500 + 数据库原文。
+    11-26（B ①）起替换各入口自写的「只接 ``QueryDeadlockError`` 的三次循环」：关隔离后同一种冲突改报保存前比对，那些循环接不住。
+    被包的函数自己另抛的业务错误原样抛出，各入口照旧接。等锁超时（``QueryTimeoutError``）同 :func:`retried` 不在这里重来、原样抛出。"""
+    try:
+        return retried(function, *args, **kwargs)
+    except (Exhausted, RollbackFailed):
+        try:
+            frappe.db.rollback()
+        except Exception:  # noqa: BLE001 — 回滚失败也只给用户同一句话，不带数据库原文
+            pass
+        frappe.throw(frappe._(BUSY))
+
+
+def is_conflict(error) -> bool:
+    """这个异常是不是「换一笔新事务重来就可能过」的数据库冲突：1020 / 1213（``QueryDeadlockError``），或关隔离后 Frappe 保存前比对的
+    ``TimestampMismatchError``（:func:`_stale_save`，不含业务自己抛的「请刷新」）。给保存点里接异常、后台「这次不记、下一轮再来」的地方
+    判断用：是冲突就交给外层整笔重来或下一轮，不当成普通错误吞掉（11-26 B ①，检查 ``scripts/check-conflict-catch.py``）。"""
+    deadlock = getattr(frappe, "QueryDeadlockError", None)
+    if isinstance(deadlock, type) and isinstance(error, deadlock):
+        return True
+    return _stale_save(error)
+
+
 class _Conflict(Exception):
     """内部：保存前比对撞上并发修改（见模块说明），与 1020 / 1213 同样处理。"""
 

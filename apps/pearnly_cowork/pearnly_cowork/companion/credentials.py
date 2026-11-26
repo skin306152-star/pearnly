@@ -60,7 +60,7 @@ def _atomic():
     frappe.db.savepoint(point)
     try:
         yield
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：所有异常都往外抛（死锁不回保存点），外层 retried 接得到
         # A deadlock may invalidate the entire transaction/savepoint. Only the
         # top-level local RPC may roll back and retry its complete unit.
         raise

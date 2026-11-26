@@ -7,6 +7,7 @@ returns the review workbook of one stored task as a private download.
 import frappe
 from frappe.core.doctype.access_log.access_log import make_access_log
 
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.reconciliation import bank_recon_contracts, bank_recon_service
 from pearnly_cowork.reconciliation.bank_recon_access import TASK
 
@@ -15,13 +16,7 @@ def _transaction(function, *args, **kwargs):
 	# MariaDB can report snapshot conflict 1020 even after waiting for a task
 	# lock. An RPC owns only this local transaction and can restart it, keeping
 	# the caller's request id. Internal callers use the service directly.
-	for attempt in range(3):
-		try:
-			return function(*args, **kwargs)
-		except frappe.QueryDeadlockError:
-			frappe.db.rollback()
-			if attempt == 2:
-				raise
+	return conflicts.attempt(function, *args, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist(methods=["POST"])

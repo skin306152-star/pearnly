@@ -4,6 +4,7 @@
 （docs/work/2026-11-05-drop-dead-endpoints.md）；页面与 CC 都走 ``desk_api`` / ``service``。
 """
 import frappe
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.stocktake import service
 
 
@@ -12,13 +13,7 @@ def _transaction(function, *args, **kwargs):
     # lock. An RPC owns only this local transaction and can restart it, retaining
     # the caller's request/operation ID. Internal workflows call service directly
     # and remain responsible for their larger transaction boundary.
-    for attempt in range(3):
-        try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(function, *args, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist()

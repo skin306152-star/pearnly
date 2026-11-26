@@ -9,6 +9,7 @@ from uuid import uuid4
 
 import frappe
 from frappe import _
+from pearnly_core.transaction import conflicts
 
 from pearnly_cowork.ocr.feedback import access, model
 
@@ -65,12 +66,13 @@ def capture_saved_edit(doc):
             access.insert({**row, "occurred_at": _now()})
             written += 1
         return {"status": "recorded" if written else "replayed", "count": written}
-    except frappe.QueryDeadlockError as error:
-        # InnoDB may already have rolled back History.save(), so pretending the
-        # feedback failure was harmless would report a lost invoice as saved.
-        _diagnostic("transaction_retry", doc, error)
-        raise
     except Exception as error:
+        if conflicts.is_conflict(error):
+            # InnoDB may already have rolled back History.save(), so pretending the
+            # feedback failure was harmless would report a lost invoice as saved.
+            # 关隔离后同一种冲突改报保存前比对，同样交外层重来（B ①）。
+            _diagnostic("transaction_retry", doc, error)
+            raise
         # If rollback itself fails, propagate: the caller must not claim its
         # enclosing invoice transaction remains usable.
         frappe.db.rollback(save_point=point)

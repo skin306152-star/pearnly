@@ -26,6 +26,16 @@ def _load(name, path):
     return module
 
 
+def _conflicts_modules(frappe):
+    """真 `pearnly_core.transaction.conflicts`（按这个替身 Frappe 载入），给装了它的模块用（B ① 11-26）。"""
+    with mock.patch.dict(sys.modules, {"frappe": frappe}):
+        conflicts = _load("pearnly_core.transaction.conflicts", ROOT / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
+    conflicts.time = types.SimpleNamespace(sleep=lambda seconds: None)
+    return {"pearnly_core": types.ModuleType("pearnly_core"),
+            "pearnly_core.transaction": types.SimpleNamespace(conflicts=conflicts),
+            "pearnly_core.transaction.conflicts": conflicts}
+
+
 contracts = _load("folder_contracts", APP / "folder_intake/contracts.py")
 identity = _load("folder_targets_identity", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/express_rules/targets/identity.py")
 folder_plan = _load("companion_folder_plan", ROOT / "companion/src/companion/folder_plan.py")
@@ -1052,7 +1062,7 @@ class StockOrderPump(unittest.TestCase):
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="R", RUN="U", read=None, write=None),
                    "pearnly_cowork.folder_intake.machine": stub(owner_ready=None, request_key=None),
                    "pearnly_cowork.folder_intake.push": stub(push_one=None),
-                   "pearnly_core.express_rules.targets.identity": identity}
+                   "pearnly_core.express_rules.targets.identity": identity, **_conflicts_modules(frappe)}
         with mock.patch.dict(sys.modules, modules):
             pump = _load("folder_pump_under_test", APP / "folder_intake/pump.py")
         entry = Row(name="S1", rule="RS", connection="C1", registered_at=self.NOW - timedelta(minutes=55),
@@ -1148,7 +1158,7 @@ class PushRefreshesTheFile(unittest.TestCase):
                    "pearnly_cowork.folder_intake.access": stub(FILE="F", RULE="R", RUN="U", read=None, write=None),
                    "pearnly_cowork.folder_intake.machine": stub(owner_ready=None, request_key=None),
                    "pearnly_cowork.folder_intake.push": stub(push_one=None),
-                   "pearnly_core.express_rules.targets.identity": identity}
+                   "pearnly_core.express_rules.targets.identity": identity, **_conflicts_modules(frappe)}
         with mock.patch.dict(sys.modules, modules):
             pump = _load("folder_pump_refresh_under_test", APP / "folder_intake/pump.py")
         pump.read = lambda doctype, name, for_update=False: entries[name]
@@ -1747,12 +1757,19 @@ class TaskSources(unittest.TestCase):
 
     def test_web_writes_retry_a_deadlock_with_the_heartbeat(self):
         """第 7 批 B7 收尾（10-18 lab）：删除定时任务第一次回 500 QueryDeadlockError（与电脑心跳 / 同步并发），再点才删掉。
-        保存、启停、删除与读选项一样：回滚后整次重来，最多 3 次，第 3 次仍死锁才报出去。"""
+        保存、启停、删除与读选项一样：回滚后整次重来（11-26 B ① 起经 conflicts.attempt：一共 4 次，用尽回「请稍后重试」）。"""
         class Deadlock(Exception):
             pass
 
         rollbacks = []
-        frappe = types.SimpleNamespace(QueryDeadlockError=Deadlock, whitelist=lambda **kw: (lambda f: f),
+
+        class Refused(Exception):
+            pass
+
+        def throw(message):
+            raise Refused(message)
+        frappe = types.SimpleNamespace(QueryDeadlockError=Deadlock, whitelist=lambda **kw: (lambda f: f), _=lambda text: text,
+                                       throw=throw, local=types.SimpleNamespace(message_log=[]), flags={},
                                        db=types.SimpleNamespace(rollback=lambda: rollbacks.append(1)))
         calls = {"n": 0}
 
@@ -1765,17 +1782,17 @@ class TaskSources(unittest.TestCase):
         rules = types.SimpleNamespace(delete=flaky, save=None, set_enabled=None, options=None)
         package = types.SimpleNamespace(rules=rules)
         with mock.patch.dict(sys.modules, {"frappe": frappe, "pearnly_cowork.folder_intake": package,
-                                           "pearnly_cowork.folder_intake.rules": rules}):
+                                           "pearnly_cowork.folder_intake.rules": rules, **_conflicts_modules(frappe)}):
             spec = importlib.util.spec_from_file_location("folder_api_under_test", APP / "folder_intake/api.py")
             api = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(api)
             self.assertEqual(api.delete('["R1"]'), {"deleted": 1})
             self.assertEqual((calls["n"], len(rollbacks)), (2, 1))
             calls["n"] = 0
-            rules.delete = lambda names: flaky(names, fail=3)
-            with self.assertRaises(Deadlock):
+            rules.delete = lambda names: flaky(names, fail=99)
+            with self.assertRaises(Refused) as caught:  # B ①：经 conflicts.attempt，用尽回「请稍后重试」，不再 500 + 数据库原文
                 api.delete('["R1"]')
-            self.assertEqual(calls["n"], 3)
+            self.assertEqual((calls["n"], str(caught.exception)), (4, "Please try again later"))
 
     def test_the_desk_page_refreshes_itself_and_shows_progress(self):
         source = (APP / "public/desk/intake-folders.js").read_text()

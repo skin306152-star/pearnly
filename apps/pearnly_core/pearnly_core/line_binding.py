@@ -21,6 +21,7 @@ import frappe
 from frappe import _
 from frappe.utils import add_to_date, now
 from pearnly_core.execution import state as pearnly_state
+from pearnly_core.transaction import conflicts
 
 BINDING = "Pearnly LINE Binding"
 BIND_CODE = "Pearnly LINE Bind Code"
@@ -38,13 +39,7 @@ def generate_bind_code(user: str, ttl_minutes: int = DEFAULT_TTL_MINUTES) -> dic
     # Allocation and revocation share one short site-scoped critical section.
     # This also avoids InnoDB next-key lock cycles between fresh user ranges.
     with pearnly_state.store().lock(pearnly_state.store().make_key("pearnly_bind_allocation"), timeout=30, blocking_timeout=10):
-        for attempt in range(3):
-            try:
-                return _generate_bind_code(user, ttl_minutes)
-            except frappe.QueryDeadlockError:
-                frappe.db.rollback()
-                if attempt == 2:
-                    raise
+        return conflicts.attempt(_generate_bind_code, user, ttl_minutes)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 def _generate_bind_code(user, ttl_minutes):

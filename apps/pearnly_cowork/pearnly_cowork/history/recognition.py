@@ -90,7 +90,7 @@ def persist_batch(source_file, groups, request_key, *, anchor_year=None, preview
             source.flags.cowork_original_write = guard.WRITE_CAPABILITY
             with step("persist_bind"):
                 source.save(ignore_permissions=True)
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：死锁整笔回滚后往外抛，其余异常（含关隔离后的保存前比对）回到保存点后同样往外抛，外层 retried 接得到
         frappe.db.rollback()
         raise
     except Exception:

@@ -2,20 +2,16 @@
 import frappe
 from frappe import _
 from . import model, mrerp_collector, mrerp_menu_reader, service
+from pearnly_core.transaction import conflicts
 
 
 def _call(method, *args, **kwargs):
     # This RPC owns only its local transaction. Internal callers use service
     # directly; rolling back their larger transaction here would be incorrect.
-    for attempt in range(3):
-        try:
-            return method(*args, **kwargs)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
-        except model.ConnectionError as error:
-            frappe.throw(_(error.code))
+    try:
+        return conflicts.attempt(method, *args, **kwargs)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
+    except model.ConnectionError as error:
+        frappe.throw(_(error.code))
 
 
 @frappe.whitelist(methods=["POST"])

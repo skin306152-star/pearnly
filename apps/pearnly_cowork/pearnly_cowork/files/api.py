@@ -3,6 +3,7 @@ import frappe
 from frappe import _
 from frappe.core.doctype.access_log.access_log import make_access_log
 from frappe.core.api.file import zip_files as native_zip_files
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.access import scope
 from pearnly_cowork.files import access, service
 from pearnly_core.execution.errors import Deferred
@@ -27,14 +28,16 @@ def upload(workspace=None, request_key=None, client=None):
     for attempt in range(3):
         try:
             return service.create(workspace, incoming.filename, content, request_key, client)
-        except (frappe.QueryDeadlockError, frappe.DuplicateEntryError):
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
         except Deferred:
             # 原件存放处一时连不上（甲骨文 / 桶）：回一句可重试的话（同代录上传），不回 500
             frappe.db.rollback()
             frappe.throw(_("upload.deferred"))
+        except Exception as error:  # 两种冲突（`conflicts.is_conflict`，B ①）与同号并发插入都整笔重来，第 3 次原样抛出
+            if not (conflicts.is_conflict(error) or isinstance(error, frappe.DuplicateEntryError)):
+                raise
+            frappe.db.rollback()
+            if attempt == 2:
+                raise
 
 
 @frappe.whitelist(methods=["POST"])
@@ -54,7 +57,9 @@ def finish_upload(filename=None, byte_size=None, request_key=None, workspace=Non
     for attempt in range(3):
         try:
             return service.finish_direct(workspace, filename, byte_size, request_key, client)
-        except (frappe.QueryDeadlockError, frappe.DuplicateEntryError):
+        except Exception as error:  # 两种冲突（`conflicts.is_conflict`，B ①）与同号并发插入都整笔重来，第 3 次原样抛出
+            if not (conflicts.is_conflict(error) or isinstance(error, frappe.DuplicateEntryError)):
+                raise
             frappe.db.rollback()
             if attempt == 2:
                 raise

@@ -16,6 +16,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts import recognized_names as rules
 from pearnly_core.express_rules.contracts.history import primary_page
@@ -70,9 +71,11 @@ def _optional(function, fallback, label):
     frappe.db.savepoint(point)
     try:
         return function()
-    except (frappe.PermissionError, frappe.QueryDeadlockError):
+    except frappe.PermissionError:
         raise
     except Exception as error:
+        if conflicts.is_conflict(error):
+            raise  # 数据库冲突（含关隔离后的保存前比对）交外层整笔重来，不降级成「记忆暂不可用」（B ①）
         frappe.db.rollback(save_point=point)
         frappe.logger("pearnly_cowork").warning("name memory %s unavailable: %s", label, type(error).__name__)
         return fallback

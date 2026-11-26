@@ -17,6 +17,7 @@ import frappe
 from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
+from pearnly_core.transaction import conflicts
 
 from pearnly_cowork.access import scope
 from pearnly_cowork.contracts import document_policy as policy_rules
@@ -90,9 +91,9 @@ def keep_skipped(batch, raw_pages, policy) -> int:
             doc.insert(ignore_permissions=True)
             written += 1
         return written
-    except frappe.QueryDeadlockError:
-        raise
-    except Exception:
+    except Exception as error:
+        if conflicts.is_conflict(error):
+            raise  # 数据库冲突交外层整笔重来，不当成「引用没记上」吞掉（B ①）
         frappe.db.rollback(save_point=SAVEPOINT)
         frappe.log_error(title="Cowork WHT certificate reference not kept", message=frappe.get_traceback()[-1500:])
         return 0

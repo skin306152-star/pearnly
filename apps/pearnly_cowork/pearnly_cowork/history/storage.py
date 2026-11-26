@@ -407,7 +407,7 @@ def complete(records):
                 doc.save()
             by_name[doc.name] = {"name": doc.name, "staged": False, "already_completed": not was_draft,
                                  "record_version": doc.record_version}
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 保存点：死锁整笔回滚后往外抛，其余异常（含关隔离后的保存前比对）回到保存点后同样往外抛，外层 retried 接得到
         # InnoDB can remove every savepoint when rolling back a deadlock.
         # A database conflict requires a fresh transaction, not a savepoint retry.
         frappe.db.rollback()

@@ -164,7 +164,7 @@ def execute(conversation: str, remote: str, call: dict) -> str:
                               "tool_input": json.dumps(tool_input, ensure_ascii=False, default=str)})
         run.insert(ignore_permissions=True)
         frappe.db.commit()
-    except (frappe.DuplicateEntryError, frappe.UniqueValidationError, frappe.QueryDeadlockError):
+    except (frappe.DuplicateEntryError, frappe.UniqueValidationError, frappe.QueryDeadlockError):  # conflict-ok: 插入抢占：同号并发插入只会撞唯一键或死锁，插入没有保存前比对
         # 推送线程与页面兜底同时到：唯一字段冲突在 Frappe 里以 UniqueValidationError 抛出并顺手 msgprint，
         # 那条提示要清掉，否则会跟着页面的请求弹到对话页顶上（2026-10-10 测试：「Tool Use ID必须是唯一的」）。
         frappe.db.rollback()
@@ -267,7 +267,7 @@ def decide(conversation: str, remote: str, use_id: str, allow: bool, answers=Non
                       ("running" if allow else "denied", frappe.utils.now(), name))
         claimed = frappe.db._cursor.rowcount == 1
         frappe.db.commit()
-    except frappe.QueryDeadlockError:
+    except frappe.QueryDeadlockError:  # conflict-ok: 带条件的 UPDATE 抢占（rowcount 判输赢），没有保存前比对
         # 读到之后、改之前别处刚改过它（作废、别的页面点了）：算没抢到，调用方回此刻的状态
         frappe.db.rollback()
         return "not_waiting"
@@ -348,7 +348,7 @@ def cancel_waiting(conversation: str) -> int:
                               "WHERE name=%s AND status='awaiting_approval'", (now, run.name))
                 hit = frappe.db._cursor.rowcount == 1
             frappe.db.commit()
-        except frappe.QueryDeadlockError:
+        except frappe.QueryDeadlockError:  # conflict-ok: 带条件的 UPDATE 抢占（rowcount 判输赢），没有保存前比对
             frappe.db.rollback()
             continue
         if hit:

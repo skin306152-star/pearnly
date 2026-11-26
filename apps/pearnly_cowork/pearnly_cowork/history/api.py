@@ -5,6 +5,7 @@ import hashlib
 import json
 
 import frappe
+from pearnly_core.transaction import conflicts
 from pearnly_cowork.access import scope
 from pearnly_cowork.history import document_policy, duplicates, removal, storage
 
@@ -35,13 +36,7 @@ def create(workspace, pages, request_key, client=None):
     # snapshot conflict 1020 instead of duplicate key for concurrent INSERT
     # RETURNING. Restart this read/insert-only request at most twice.
     # Internal workflows use storage directly and own their transaction retry.
-    for attempt in range(3):
-        try:
-            return storage.create_manual(workspace, pages, request_key, client)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(storage.create_manual, workspace, pages, request_key, client)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist()
@@ -54,13 +49,7 @@ def detail(name):
 
 @frappe.whitelist(methods=["POST"])
 def save(name, pages, expected_version):
-    for attempt in range(3):
-        try:
-            return storage.update_pages(name, pages, expected_version)
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    return conflicts.attempt(storage.update_pages, name, pages, expected_version)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
 
 
 @frappe.whitelist(methods=["POST"])

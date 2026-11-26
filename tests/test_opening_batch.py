@@ -383,7 +383,14 @@ class OpeningBatch(unittest.TestCase):
     def transaction_rpc(self):
         tree = ast.parse((DOMAIN / "api.py").read_text())
         node = next(item for item in tree.body if isinstance(item, ast.FunctionDef) and item.name == "_opening_transaction")
-        namespace = {"frappe": self.service.frappe}
+        # 入口层冲突重来经共用层（B ① 11-26）：真 `conflicts`，按这个替身 Frappe 载入，退避不睡
+        spec = importlib.util.spec_from_file_location(
+            "opening_test_conflicts", Path(__file__).resolve().parents[1] / "apps/pearnly_core/pearnly_core/transaction/conflicts.py")
+        conflicts = importlib.util.module_from_spec(spec)
+        with patch.dict(sys.modules, {"frappe": self.service.frappe}):
+            spec.loader.exec_module(conflicts)
+        conflicts.time = SimpleNamespace(sleep=lambda seconds: None)
+        namespace = {"frappe": self.service.frappe, "conflicts": conflicts}
         exec(compile(ast.Module(body=[node], type_ignores=[]), str(DOMAIN / "api.py"), "exec"), namespace)
         return namespace["_opening_transaction"]
 
@@ -413,9 +420,10 @@ class OpeningBatch(unittest.TestCase):
         self.service.frappe.db.rollback = lambda: retries.append(True)
         def conflict():
             raise error_type("snapshot conflict")
-        with self.assertRaises(error_type):
+        with self.assertRaises(ValueError) as caught:  # 用尽回「请稍后重试」（`conflicts.attempt`），不再带数据库原文
             self.transaction_rpc()(conflict)
-        self.assertEqual(len(retries), 3)
+        self.assertEqual(str(caught.exception), "Please try again later")
+        self.assertEqual(len(retries), 5)  # 4 次各回滚一次，用尽再整笔回滚一次
         self.service.frappe.db.rollback = self.rollback
         self.service.stock.apply_movement = lambda **kwargs: conflict()
         with self.assertRaises(error_type):

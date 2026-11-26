@@ -7,22 +7,18 @@ import json
 import frappe
 from frappe import _
 
+from pearnly_core.transaction import conflicts
 from pearnly_erp_portal.work import boards, service
 from pearnly_erp_portal.work.contracts import Invalid
 
 
 def _run(function, *args):
     # 输入错误按术语键翻成当前语言报给页面；并发死锁在本事务内有限重试（同盘点接口）。
-    for attempt in range(3):
-        try:
-            return function(*args)
-        except Invalid as error:
-            # 抛出后框架会回滚本次请求。
-            frappe.throw(_(error.args[0]))
-        except frappe.QueryDeadlockError:
-            frappe.db.rollback()
-            if attempt == 2:
-                raise
+    try:
+        return conflicts.attempt(function, *args)  # 两种冲突都整笔重来，用尽回「请稍后重试」（B ①）
+    except Invalid as error:
+        # 抛出后框架会回滚本次请求。
+        frappe.throw(_(error.args[0]))
 
 
 def _json(value, default):
@@ -138,7 +134,14 @@ def delete_comment(activity):
 @frappe.whitelist(methods=["POST"])
 def attach(name):
     files = frappe.request.files if frappe.request else None
-    return _run(service.attach, name, files.get("file") if files else None)
+    upload = files.get("file") if files else None
+
+    def attach_once(name, upload):
+        # 冲突整笔重来时同一个上传要从头再读（`service.attach` 读 ``upload.stream``），否则第二次读到空内容（B ① 审查）
+        if upload is not None and hasattr(upload.stream, "seek"):
+            upload.stream.seek(0)
+        return service.attach(name, upload)
+    return _run(attach_once, name, upload)
 
 
 @frappe.whitelist(methods=["POST"])
