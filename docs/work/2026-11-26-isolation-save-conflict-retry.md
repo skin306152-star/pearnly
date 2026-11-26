@@ -73,3 +73,25 @@ CC 桌面版机器方法（`cc_desktop/machine._run` / `_guarded`、`api.registe
 ## 验证
 
 （见下方追加）
+
+## 真机（11-26 15:10–16:25，测试机1 + 测试环境，库存报表窗口执行）
+
+环境：测试机1 WSL 测试环境挂本分支 9425cb702 源码，镜像为线上 `frappe@sha256:fdf20d98…`；testerp 与 testcowork 依次 `lab-start`，不同时开。
+两套库的 `@@innodb_snapshot_isolation` 回读都是 **0（OFF）**，版本 11.8.9-MariaDB。测试机1 的 CC 用线上正式 1.12.24（以 skin3 普通权限运行）。
+写账只写办公室服务器上的 69EXP\TEST 测试账套（测试公司 CO-140489「บริษัท Pearnly จำกัด」现用账套；不涉及第 15 条那 3 家真客户公司）：
+写前整本快照（167 个文件），测后整本还原，MD5 回读差异 0。
+
+| # | 入口 | 结果 | 证据 |
+|---|---|---|---|
+| 1 | ERP 网页提交 → CC 写账回执（erp.cc.write） | **通过** | testerp 网页手动录入采购单 PE2569-000041（PUR-2026-212656）并提交 → CC 领单写成 HP691126-001（写账 8.48 s），Pearnly CC Job 状态 success、只写一次（written_by_device = 测试机1）；69EXP\TEST 的 APTRN / GLJNL / GLJNLIT / ISVAT / STCRD 能读到单号；Error Log 0；CC 日志除心跳外没有 401 / 冲突 |
+| 2 | ERP 版 CC 对话（erp.cc.chat-push、cc.assistant） | **部分通过**：发消息、工具执行、改标题通过；**直写没测到** | 同一段对话发了 4 句，11 次工具调用全部 done；改标题「隔离冒烟 直写」后回读 title_source = user；Error Log 0。直写没走到的原因：① 测试环境没接付费识别，对话里新上传的票不会被识别（pearnly_guide 返回 unknown_document）；② 已识别的待处理单 PE2569-000021 / 000019 在「存货科目组」上反复追问，属于原有缺陷，见下文；CO-140489 没有不涉及存货的 ERP 待处理单 |
+| 3 | Cowork 推送 + 按需请求（cowork.cc-chat.push、cowork.cc.channel） | **通过** | testcowork 的 CC 对话把已识别的 AL-6906-11131227（清洁服务费 107.00）写进 9.บริษัท Pearnly จำกัด（69EXP\TEST）→ 单号 RR690615-001，Cowork Push Attempt outcome = success；按需请求 account_history 状态 done（2754 字节）；对话「回读」2026-06 的 Cowork Express Readback 状态 ready；69EXP\TEST 读回到 RR690615-001；Error Log 0 |
+| 4 | CC 桌面版登记 / 连接（erp.cc.connect） | **通过** | CC 重启后 `cc_desktop.api.register` 返回 200；测试机1 在 Pearnly CC Device 里仍只有一条记录（PCD-41bd…，令牌尾号不变）；之后心跳、领单都正常 |
+| 5 | 代录开始 / 停止（cc.operator.page） | **部分通过**：开始到完成、回执、结算通过；**停止 / 继续没测到** | ERP：代录 PE2569-000031 / 000029 → 写成 RR0000318 / RR0000319，machine.acknowledge 2 次（各 200），task_settle 1 次，任务 finished，Error Log 0。Cowork：代录 AL-6906-11121627 / 11121620 → 写成 HP0000160 / HP0000161，任务 finished，Error Log 0。停止 / 继续：两次都是一批两张约 70 秒写完，远程截图点「停止」时任务已经结束，服务端没有收到停止请求；两边都没有别的不涉及存货的已识别单可以再起一批 |
+| 6 | MR.ERP 连接登录授权（cc.mrerp-login） | **没测到（需人工输密码）** | 授权弹窗要输 MR.ERP 专属测试账号的密码，规则上不能代输。界面上没有不用输密码的重新授权入口：Cowork「定时任务 → 新建」里的 MR.ERP 标签只有公司列表；`mrerp_login` 是 ERP 站点的机器通道。用户回来后补测（约 2 分钟）：先 `lab-start erp`（挂本分支）→ 测试机1 CC 切到 testerp 账号 → 定时任务（或设置 → 连接）→ 连接 MR.ERP → 弹窗输该测试账号的密码 →「连接」；之后由我们回读界面显示「已授权：测试账号 · 测试机1 · 时间」、Pearnly CC Device 的 mrerp_logins 连接号不变（现为 lsnr7mj310）、只有一条连接、frontend 日志里 `machine.mrerp_login` 返回 200、Error Log 0 |
+
+收尾：testerp 15:3x–16:0x、testcowork 16:0x–16:2x 先后 `lab-stop`，三个域名回读都指回线上，两站定时任务 resumed / enabled；
+69EXP\TEST 已整本还原（diff 0）；CC 在 16:22 以 skin3 普通权限重启，两个账号心跳正常。测试环境里建的对话、单据和代录任务只留在测试环境的库里，线上没有写入。
+
+另外发现（**不是本分支带出来的**：本分支只改了 `conflicts.py`，过程中没有任何异常）：ERP 的待处理单 PE2569-000021 选「存货科目组」= วัตถุดิบ（DM）后，
+ERP Express Choice 已经存下（kind = stock_group、subject = 账套 be4d2124…、value = DM），但下一次 `pearnly_precheck` 读回的 value 仍为空，`pearnly_write_plan` 报 `undecided_items`，CC 反复追问。直写、代录两种模式都一样。归因另查，结论记在共享笔记。
