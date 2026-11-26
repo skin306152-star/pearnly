@@ -153,7 +153,7 @@ Customer data	客户资料	จัดทำข้อมูลลูกค้า	�
 Car booking	订车	จัดทำใบจอง	車の予約	dms.card.TXT_MENU_ITEM2
 Open DMS	进入 DMS	เข้าสู่ระบบ DMS	DMS を開く	dms.card.TXT_MENU_ITEM3
 Account & password	修改账号密码	บัญชีและรหัสผ่าน	アカウントとパスワード	dms.card.TXT_MENU_ITEM4
-Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.card.TXT_MENU_ITEM5
+Reports	报表查询	รายงาน	レポート	dms.card.TXT_MENU_ITEM5
 Manual	使用手册	คู่มือ	マニュアル	dms.card.TXT_MENU_ITEM6
 Please choose a menu	请选择需要的菜单	กรุณาเลือกเมนูที่ต้องการ	メニューを選んでください	dms.card.TXT_MENU_PICK
 Choose an item to continue	选择一项继续	เลือกรายการเพื่อดำเนินการต่อ	項目を選んで続けます	dms.card.TXT_MENU_PICK_SUB
@@ -370,9 +370,9 @@ This item has expired. Type menu to search again	此项已过期，请输入「�
 Reading the latest data from DMS	正在从 DMS 读取最新资料	กำลังอ่านข้อมูลล่าสุดจาก DMS	DMS から最新データを読み取っています	dms.card.query.TXT_LOADING
 No active DMS account found. Ask the owner to check the operator data.	未找到可用的 DMS 账号，请联系管理员检查操作员资料。	ไม่พบบัญชี DMS ที่ใช้งานได้ กรุณาติดต่อผู้ดูแลระบบเพื่อตรวจสอบข้อมูลพนักงาน	有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。	dms.card.query.TXT_NO_ENDPOINT
 Choose one main condition; the search runs right away.	请选择一个主要条件，系统将立即查询。	กรุณาเลือกเงื่อนไขหลักหนึ่งข้อ ระบบจะค้นหาทันที	主な条件を 1 つ選択してください。すぐに検索します。	dms.card.query.TXT_PICK_SALES
-Please choose the type of data to search	请选择要查询的资料类型	กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา	検索するデータの種類を選んでください	dms.card.query.TXT_PICK_TYPE
+Please choose a report	请选择报表	กรุณาเลือกรายงาน	レポートを選んでください	dms.card.query.TXT_PICK_TYPE
 Could not read data from DMS. Please try again.	从 DMS 读取资料失败，请重试。	อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง	DMS からデータを読み取れませんでした。もう一度お試しください。	dms.card.query.TXT_QUERY_FAILED
-1 Sales records	1 销售记录	1 บันทึกการขาย	1 販売記録	dms.card.query.TYPE_SALES
+2 Sales records	2 销售记录	2 บันทึกการขาย	2 販売記録	dms.card.query.TYPE_SALES
 THB	泰铢	บาท	バーツ	dms.card.query.UNIT_AMOUNT
 cars	台	คัน	台	dms.card.query.UNIT_QTY
 Address	地址	ที่อยู่	住所	dms.card.sum.address
@@ -389,8 +389,8 @@ Open DMS	进入 DMS	เข้าสู่ระบบ DMS	DMS を開く	dms.card
 Use the back office	使用后台系统	เข้าใช้งานระบบหลังบ้าน	管理画面を使う	dms.card.rich.portal.sub
 Account & password	修改账号密码	เปลี่ยนบัญชีและรหัสผ่าน	アカウントとパスワード	dms.card.rich.credentials.title
 Update your DMS sign-in	更新 DMS 登录资料	อัปเดตข้อมูลเข้าสู่ระบบ DMS	DMS のログイン情報を更新	dms.card.rich.credentials.sub
-Search data	查询资料	ค้นหาข้อมูล	データ検索	dms.card.rich.query.title
-Latest sales from DMS	DMS 最新销售	ยอดขายล่าสุดจาก DMS	DMS の最新販売	dms.card.rich.query.sub
+Reports	报表查询	รายงาน	レポート	dms.card.rich.query.title
+Stock and sales	库存与销售	สต๊อกและยอดขาย	在庫と販売	dms.card.rich.query.sub
 Manual	使用手册	คู่มือ	マニュアル	dms.card.rich.manual.title
 Video guides	教程视频	วิดีโอสอนการใช้งาน	動画ガイド	dms.card.rich.manual.sub
 The check could not start. Please try again.	无法开始检查，请重试。	ไม่สามารถเริ่มการตรวจสอบได้ กรุณาลองใหม่อีกครั้ง	確認を開始できませんでした。もう一度お試しください。
@@ -437,3 +437,23 @@ Requested Query	请求的查询	เงื่อนไขการสอบถา
 Source Read Started	源读取开始时间	เวลาเริ่มดึงข้อมูลจากต้นทาง	ソース読み取り開始日時	
 Verified Write Results	已核实的写入结果	ผลการบันทึกที่ตรวจสอบแล้ว	検証済みの書き込み結果	
 ID card recognition (tier A)	身份证识别	อ่านบัตรประชาชน	身分証の読み取り	
+1 Stock by location	1 库存停放报表	1 สต๊อกตามที่จอดรถ	1 在庫・保管場所	dms.card.query.TYPE_STOCK
+Choose a scope	请选择范围	กรุณาเลือกขอบเขต	範囲を選んでください	dms.card.report.TXT_PICK_SCOPE
+Available	空车	รถว่าง	空き車	dms.card.report.SCOPE_AVAILABLE
+All	全部	ทั้งหมด	全部	dms.card.report.SCOPE_ALL
+No team yet	未分配团队	ยังไม่จัดสรรทีม	チーム未割当	dms.card.report.SCOPE_UNALLOCATED
+Stock by location	库存停放报表	สต๊อกตามที่จอดรถ	在庫・保管場所	dms.card.report.TITLE
+Models {my} available	车型 {my} 空车	รถรุ่น {my} ว่าง	車種 {my} 空き車	dms.card.report.SECTION_AVAILABLE
+Models {my}	车型 {my}	รถรุ่น {my}	車種 {my}	dms.card.report.SECTION_ALL
+Models {my} no team yet	车型 {my} 未分配团队	รถรุ่น {my} ยังไม่จัดสรรทีม	車種 {my} チーム未割当	dms.card.report.SECTION_UNALLOCATED
+Model/Color	车型/颜色	Model/Color	車種/色	dms.card.report.COL_CODE
+Qty	台数	จำนวน	台数	dms.card.report.COL_COUNT
+Location	停放位置	สถานที่จอดรถ	保管場所	dms.card.report.COL_PLACE
+Total {count}	合计 {count} 台	รวม {count} คัน	合計 {count} 台	dms.card.report.TOTAL
+As of {time}	更新时间 {time}	ข้อมูล ณ {time}	更新日時 {time}	dms.card.report.AS_OF
+{count} more rows are in the files	另有 {count} 行见文件	อีก {count} รายการอยู่ในไฟล์	残り {count} 行はファイルにあります	dms.card.report.MORE_ROWS
+No vehicles to show.	没有可显示的车辆。	ไม่มีรถที่จะแสดง	表示する車両はありません。	dms.card.report.TXT_EMPTY
+Original Excel	原件 Excel	ต้นฉบับ Excel	原本 Excel	dms.card.report.BTN_ORIGINAL_XLSX
+Original PDF	原件 PDF	ต้นฉบับ PDF	原本 PDF	dms.card.report.BTN_ORIGINAL_PDF
+Summary Excel	汇总 Excel	สรุป Excel	集計 Excel	dms.card.report.BTN_SUMMARY_XLSX
+Summary PDF	汇总 PDF	สรุป PDF	集計 PDF	dms.card.report.BTN_SUMMARY_PDF

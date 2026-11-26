@@ -1,0 +1,15 @@
+# 产品地图（DMS）：DMS 整体是第二期（scripts/impact/product_map.py 的 SCAN_PRODUCTS）；11-26 起先登记新做的 LINE 入口。
+# 字段与规则同 erp.toml 文件头。
+
+[[row]]
+id = "dms.line.stock-report"
+product = "DMS"
+channel = "line"
+ends = ["mobile"]
+kind = "line-postback"
+anchor = "line:dms:postback:report_stock_scope"
+where = "LINE 菜单「报表查询」（关键词菜单卡第 5 项 / 六宫格富菜单 / 菜单态打 5）→ 1 库存停放报表 → 范围（空车 / 全部 / 未分配团队）→ 用操作员自己的 MR.ERP 账号导出 → 回 1–3 张汇总图 + 四个下载按钮（原件 Excel / 原件 PDF / 汇总 Excel / 汇总 PDF）；0 行回一句、不出卡片；权限 = 「允许在 LINE 使用查询功能」（评估 docs/work/2026-11-26-dms-line-stock-report-assessment.md）"
+parts = ["line"]
+tests = ["unit:tests/test_dms_stock_report.py::test_every_entry_opens_the_same_report_picker", "unit:tests/test_dms_stock_report.py::test_no_query_permission_means_no_report_menu_and_no_report", "unit:tests/test_dms_stock_report.py::test_scope_buttons_queue_one_background_read_with_the_reading_fallback", "unit:tests/test_dms_stock_report.py::test_images_then_one_card_with_four_download_buttons", "unit:tests/test_dms_stock_report.py::test_zero_rows_is_one_sentence_and_no_card", "unit:tests/test_dms_stock_report.py::test_render_hundreds_of_cars"]
+device_only = "要真 LINE 官方号的快捷回复、加载动画、图片消息与 Flex 下载按钮（手机下载 xlsx / PDF），以及真 MR.ERP 登录导出；实验栈没有 LINE 频道"
+device = "三星 SM-A146P · DMS 测试官方号 · testdms 专用测试操作员"

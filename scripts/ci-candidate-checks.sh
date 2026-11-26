@@ -81,7 +81,7 @@ offline() {
                 tests/test_cowork_billing_wait.py tests/test_cowork_recon_view_store.py tests/test_cowork_bank_warnings.py tests/test_cowork_recon_failure_text.py \
                 tests/test_cowork_recognized_names.py tests/test_cowork_document_manifest.py tests/test_cowork_pdf_text_cache.py \
                 tests/test_cowork_history_indexes.py tests/test_cowork_provider_runtime.py tests/test_cowork_intake_pages.py tests/test_cowork_history_total.py \
-                tests/test_dms_query_push.py tests/test_erp_recognise_background.py tests/test_cowork_ocr_replay.py tests/test_heic_uploads.py tests/test_dms_account_check_background.py tests/test_exports.py tests/test_cowork_bank_day_month.py \
+                tests/test_dms_query_push.py tests/test_dms_stock_report.py tests/test_erp_recognise_background.py tests/test_cowork_ocr_replay.py tests/test_heic_uploads.py tests/test_dms_account_check_background.py tests/test_exports.py tests/test_cowork_bank_day_month.py \
                 tests/test_cowork_report_writes.py tests/test_cowork_companion_liveness.py tests/test_cowork_companion_reports.py tests/test_cowork_companion_register.py tests/test_cowork_folder_computers.py \
                 tests/test_cowork_roundtrip_language.py tests/test_cowork_bank_net_settlement.py tests/test_assistant_push.py tests/test_cowork_push_account.py \
                 tests/test_cowork_readback_workbooks.py tests/test_cowork_tax_workbook.py tests/test_cowork_pos_xlsx.py \

@@ -157,7 +157,7 @@ def download_content(message_id: str) -> Optional[bytes]:
         return None
 
 
-def enqueue(job: str, fn, *args) -> None:
+def enqueue(job: str, fn, *args, waiting_text=None) -> None:
     """识别/写入进后台；纯快照查重保留身份守卫并直接完成。
 
     webhook 必须立刻返回，否则 LINE 会超时重发 —— 而重发会让同一个按钮被点两次。
@@ -193,7 +193,8 @@ def enqueue(job: str, fn, *args) -> None:
         begin(arguments["line_user_id"], arguments.get("reply_token") or "")  # 查重也先给三个点（11-23 补）
         return run_guarded(f"{fn.__module__}.{fn.__name__}", arguments)
     # LINE 自带的三个点开满、记下在等；worker 开跑时续上（`run_guarded`），结果用这次的令牌回。
-    key = begin(arguments["line_user_id"], arguments.get("reply_token") or "")
+    # ``waiting_text``：第 55 秒还没结果时那句兜底（缺省「录入中」；读取类如库存停放报表用查询那句「正在读取」）。
+    key = begin(arguments["line_user_id"], arguments.get("reply_token") or "", text=waiting_text)
     if job == "image":
         from pearnly_core.execution.work import submit
         from pearnly_core.execution.errors import QueueFull, Deferred

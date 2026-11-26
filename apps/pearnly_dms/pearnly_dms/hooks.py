@@ -44,7 +44,9 @@ scheduler_events = {"cron": {
     # 白天每分钟看一次 DMS 使用记录（ADR-014）；窗口、间隔与开关在 `adapter/live_sync`。
     "* * * * *": ["pearnly_dms.adapter.live_sync.tick"],
     "*/10 * * * *": [schedule_menu_reconciliation],
+    # 库存停放报表的文件 24 小时后真删（`query/stock_files`，并在已有的 */5 上，不新增定时项）
     "*/5 * * * *": ["pearnly_dms.query.snapshot_sync.sweep_stale",
+                      "pearnly_dms.query.stock_files.purge_expired",
                       "pearnly_dms.booking.recovery.reconcile_due",
                       "pearnly_dms.booking.delivery.schedule_due",
                       "pearnly_dms.booking.claim_recovery.schedule_due"],

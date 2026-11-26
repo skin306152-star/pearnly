@@ -102,12 +102,14 @@ def encode_form(data: Dict[str, Any], files: Optional[Dict[str, Any]] = None):
 class Resp:
     """业务客户端只需要这三个字段（老产品 `_Resp` 的同名同形）。"""
 
-    __slots__ = ("status_code", "text", "content")
+    __slots__ = ("status_code", "text", "content", "headers")
 
-    def __init__(self, status_code: int, text: str, content: bytes):
+    def __init__(self, status_code: int, text: str, content: bytes, headers: Optional[Dict[str, str]] = None):
         self.status_code = status_code
         self.text = text
         self.content = content
+        # 响应头（只给要原文件名的导出用，如库存停放报表的 Content-Disposition）；别的调用方不看它。
+        self.headers = dict(headers or {})
 
 
 class PlaywrightTransport:
@@ -121,7 +123,7 @@ class PlaywrightTransport:
         # 从**原始字节**宽松解码：二进制响应（比如 xlsx 模板）会让
         # Playwright 的 r.text() 抛 UnicodeDecodeError，整条链路就断了。
         body = r.body()
-        return Resp(r.status, body.decode("utf-8", "replace"), body)
+        return Resp(r.status, body.decode("utf-8", "replace"), body, getattr(r, "headers", None))
 
     def get(self, url: str, timeout_ms: Optional[int] = None) -> Resp:
         return _retry_read_once(

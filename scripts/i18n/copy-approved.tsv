@@ -259,3 +259,8 @@ companion:notif_failed_body	zh	本批 {fail} 张录入失败。	2026-11-17	docs/
 companion:notif_partial_body	zh	本批 {ok} 张已录入，{fail} 张录入失败。	2026-11-17	docs/work/2026-11-17-cc-desktop-1123-operator.md「文案改动」节（用户 11-16 同意，主会话转达「文案同意」）
 pearnly_dms:dms.card.TXT_NOT_READY	zh	录入中	2026-11-23	docs/work/2026-11-23-dms-line-receipt-评估.md 第 10 栏（用户 11-23「文案可以」，主会话转达）
 pearnly_dms:dms.card.TXT_STILL_WORKING	zh	录入中	2026-11-23	docs/work/2026-11-23-dms-line-receipt-评估.md 第 10 栏（用户 11-23「文案可以」，主会话转达）
+pearnly_dms:dms.card.TXT_MENU_ITEM5	zh	报表查询	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
+pearnly_dms:dms.card.query.TXT_PICK_TYPE	zh	请选择报表	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
+pearnly_dms:dms.card.query.TYPE_SALES	zh	2 销售记录	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
+pearnly_dms:dms.card.rich.query.sub	zh	库存与销售	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
+pearnly_dms:dms.card.rich.query.title	zh	报表查询	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）

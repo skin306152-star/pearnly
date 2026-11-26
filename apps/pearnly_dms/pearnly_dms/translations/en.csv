@@ -1,4 +1,6 @@
 1 Sales records,1 Sales records
+1 Stock by location,1 Stock by location
+2 Sales records,2 Sales records
 "A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.","A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary."
 Account & password,Account & password
 Account busy — click Read later to continue,Account busy — click Read later to continue
@@ -20,6 +22,7 @@ Address directory,Address directory
 Address sync is delayed; showing address data as of {time},Address sync is delayed; showing address data as of {time}
 Advisor,Advisor
 Advisor: {name},Advisor: {name}
+All,All
 Allocated,Allocated
 Allocation,Allocation
 Amount,Amount
@@ -30,7 +33,9 @@ Apply,Apply
 Approve,Approve
 As confirmed,As confirmed
 As in DMS,As in DMS
+As of {time},As of {time}
 Attached,Attached
+Available,Available
 Awaiting manager,Awaiting manager
 Back to chat,Back to chat
 Bank transfer,Bank transfer
@@ -80,6 +85,7 @@ Choose a car model ({n} found),Choose a car model ({n} found)
 Choose a colour for {car},Choose a colour for {car}
 Choose a menu,Choose a menu
 Choose a period and number of items (all branches/teams this account can see),Choose a period and number of items (all branches/teams this account can see)
+Choose a scope,Choose a scope
 Choose a status,Choose a status
 Choose a topic to play its video,Choose a topic to play its video
 Choose an item to continue,Choose an item to continue
@@ -201,6 +207,7 @@ Last successful record count,Last successful record count
 Latest 10,Latest 10
 Latest error code,Latest error code
 Latest sales from DMS,Latest sales from DMS
+Location,Location
 Manage system accounts,Manage system accounts
 Manual,Manual
 Manual Read Request,Manual Read Request
@@ -208,7 +215,11 @@ Manual Read Request,Manual Read Request
 Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
 Model year,Model year
+Model/Color,Model/Color
 Model/colour,Model/colour
+Models {my},Models {my}
+Models {my} available,Models {my} available
+Models {my} no team yet,Models {my} no team yet
 Moo,Moo
 Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
 Multiple primary DMS connections exist; ask an administrator to check the configuration,Multiple primary DMS connections exist; ask an administrator to check the configuration
@@ -224,6 +235,8 @@ No active DMS account found. Ask the owner to check the operator data.,No active
 No matching model. Please try typing again.,No matching model. Please try typing again.
 No records for this condition · Last read from DMS at,No records for this condition · Last read from DMS at
 No sales in this period,No sales in this period
+No team yet,No team yet
+No vehicles to show.,No vehicles to show.
 None (the connection's own account is used),None (the connection's own account is used)
 Not all files were attached. Please add them in DMS.,Not all files were attached. Please add them in DMS.
 Not allocated yet,Not allocated yet
@@ -243,6 +256,8 @@ Older data: {0},Older data: {0}
 "Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.","Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched."
 Open DMS,Open DMS
 Open Pearnly DMS without typing your password again,Open Pearnly DMS without typing your password again
+Original Excel,Original Excel
+Original PDF,Original PDF
 Other,Other
 Page,Page
 Pearnly DMS,Pearnly DMS
@@ -250,6 +265,7 @@ Phone,Phone
 Phone number received. Please take a photo of the customer's ID card.,Phone number received. Please take a photo of the customer's ID card.
 Pick a date,Pick a date
 Please choose a menu,Please choose a menu
+Please choose a report,Please choose a report
 "Please choose from the card above, or type restart to begin a new item","Please choose from the card above, or type restart to begin a new item"
 Please choose the type of data to search,Please choose the type of data to search
 Please correct it in DMS.,Please correct it in DMS.
@@ -267,6 +283,7 @@ Price in DMS,Price in DMS
 Private Synchronization Progress,Private Synchronization Progress
 Progress {processed}/{total},Progress {processed}/{total}
 Province,Province
+Qty,Qty
 Quantity,Quantity
 Query Requested,Query Requested
 Queued,Queued
@@ -303,6 +320,7 @@ Remove,Remove
 "Remove slip, go on","Remove slip, go on"
 Remove the account and add it again to change its name,Remove the account and add it again to change its name
 Removed {0},Removed {0}
+Reports,Reports
 Requested Query,Requested Query
 Resumed {0},Resumed {0}
 Retry,Retry
@@ -343,12 +361,16 @@ Start over,Start over
 Started over. Take a photo of the ID card to start a customer record.,Started over. Take a photo of the ID card to start a customer record.
 Status not given,Status not given
 "Still working on it. When it is done, tap View result.","Still working on it. When it is done, tap View result."
+Stock and sales,Stock and sales
+Stock by location,Stock by location
 Stop / resume,Stop / resume
 Stopped {0},Stopped {0}
 Subdistrict,Subdistrict
 Submission Evidence,Submission Evidence
 Submission Nonce,Submission Nonce
 Subtype,Subtype
+Summary Excel,Summary Excel
+Summary PDF,Summary PDF
 Sync is delayed; showing data as of {time},Sync is delayed; showing data as of {time}
 System accounts,System accounts
 THB,THB
@@ -432,6 +454,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,Top sales
 Top sales from DMS,Top sales from DMS
 Total deposit,Total deposit
+Total {count},Total {count}
 Trigger type. The business line is on Reference DocType.,Trigger type. The business line is on Reference DocType.
 Try again,Try again
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)","Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)"
@@ -553,7 +576,7 @@ dms.card.TXT_MENU_ITEM1,Customer data
 dms.card.TXT_MENU_ITEM2,Car booking
 dms.card.TXT_MENU_ITEM3,Open DMS
 dms.card.TXT_MENU_ITEM4,Account & password
-dms.card.TXT_MENU_ITEM5,Search data
+dms.card.TXT_MENU_ITEM5,Reports
 dms.card.TXT_MENU_ITEM6,Manual
 dms.card.TXT_MENU_PICK,Please choose a menu
 dms.card.TXT_MENU_PICK_SUB,Choose an item to continue
@@ -777,11 +800,31 @@ dms.card.query.TXT_EXPIRED,This item has expired. Type menu to search again
 dms.card.query.TXT_LOADING,Reading the latest data from DMS
 dms.card.query.TXT_NO_ENDPOINT,No active DMS account found. Ask the owner to check the operator data.
 dms.card.query.TXT_PICK_SALES,Choose one main condition; the search runs right away.
-dms.card.query.TXT_PICK_TYPE,Please choose the type of data to search
+dms.card.query.TXT_PICK_TYPE,Please choose a report
 dms.card.query.TXT_QUERY_FAILED,Could not read data from DMS. Please try again.
-dms.card.query.TYPE_SALES,1 Sales records
+dms.card.query.TYPE_SALES,2 Sales records
+dms.card.query.TYPE_STOCK,1 Stock by location
 dms.card.query.UNIT_AMOUNT,THB
 dms.card.query.UNIT_QTY,cars
+dms.card.report.AS_OF,As of {time}
+dms.card.report.BTN_ORIGINAL_PDF,Original PDF
+dms.card.report.BTN_ORIGINAL_XLSX,Original Excel
+dms.card.report.BTN_SUMMARY_PDF,Summary PDF
+dms.card.report.BTN_SUMMARY_XLSX,Summary Excel
+dms.card.report.COL_CODE,Model/Color
+dms.card.report.COL_COUNT,Qty
+dms.card.report.COL_PLACE,Location
+dms.card.report.MORE_ROWS,{count} more rows are in the files
+dms.card.report.SCOPE_ALL,All
+dms.card.report.SCOPE_AVAILABLE,Available
+dms.card.report.SCOPE_UNALLOCATED,No team yet
+dms.card.report.SECTION_ALL,Models {my}
+dms.card.report.SECTION_AVAILABLE,Models {my} available
+dms.card.report.SECTION_UNALLOCATED,Models {my} no team yet
+dms.card.report.TITLE,Stock by location
+dms.card.report.TOTAL,Total {count}
+dms.card.report.TXT_EMPTY,No vehicles to show.
+dms.card.report.TXT_PICK_SCOPE,Choose a scope
 dms.card.rich.booking.sub,Create and track bookings
 dms.card.rich.booking.title,Car booking
 dms.card.rich.credentials.sub,Update your DMS sign-in
@@ -792,8 +835,8 @@ dms.card.rich.manual.sub,Video guides
 dms.card.rich.manual.title,Manual
 dms.card.rich.portal.sub,Use the back office
 dms.card.rich.portal.title,Open DMS
-dms.card.rich.query.sub,Latest sales from DMS
-dms.card.rich.query.title,Search data
+dms.card.rich.query.sub,Stock and sales
+dms.card.rich.query.title,Reports
 dms.card.sum.address,Address
 dms.card.sum.birthday_be,Date of birth
 dms.card.sum.name,Name
@@ -1049,6 +1092,7 @@ usage log,usage log
 {0} records,{0} records
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
+{count} more rows are in the files,{count} more rows are in the files
 {n} latest sales records from DMS,{n} latest sales records from DMS
 {n} more,{n} more
 {text} ({fields}),{text} ({fields})

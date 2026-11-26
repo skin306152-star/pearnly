@@ -1,4 +1,6 @@
 1 Sales records,1 販売記録
+1 Stock by location,1 在庫・保管場所
+2 Sales records,2 販売記録
 "A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.",振込明細が添付されていますが、振込の支払いがありません。振込を追加するか明細を削除してから概要を見てください。
 Account & password,アカウントとパスワード
 Account busy — click Read later to continue,アカウントが使用中です。後で読み取りを押して続行してください
@@ -20,6 +22,7 @@ Address directory,住所一覧
 Address sync is delayed; showing address data as of {time},住所の同期が遅延しています。{time} 時点の住所データを表示中です。
 Advisor,担当
 Advisor: {name},担当：{name}
+All,全部
 Allocated,割当済み
 Allocation,割当
 Amount,金額
@@ -30,7 +33,9 @@ Apply,実行
 Approve,承認
 As confirmed,確認時の値
 As in DMS,DMS の値
+As of {time},更新日時 {time}
 Attached,添付済み
+Available,空き車
 Awaiting manager,営業マネージャー待ち
 Back to chat,チャットに戻る
 Bank transfer,振込
@@ -80,6 +85,7 @@ Choose a car model ({n} found),車種を選択（{n} 件）
 Choose a colour for {car},{car} の色を選択
 Choose a menu,メニューを選択してください
 Choose a period and number of items (all branches/teams this account can see),期間と件数を選んでください（このアカウントで見えるすべての支店/チーム）
+Choose a scope,範囲を選んでください
 Choose a status,ステータスを選択
 Choose a topic to play its video,トピックを選ぶと動画を再生します
 Choose an item to continue,項目を選んで続けます
@@ -201,6 +207,7 @@ Last successful record count,前回成功時の件数
 Latest 10,最新 10 件
 Latest error code,最新のエラーコード
 Latest sales from DMS,DMS の最新販売
+Location,保管場所
 Manage system accounts,システムアカウントを管理
 Manual,マニュアル
 Manual Read Request,手動読み取り要求
@@ -208,7 +215,11 @@ Manual Read Request,手動読み取り要求
 Master data and all vehicle colors,マスターデータと全車種の色
 Menu,メニュー
 Model year,年式
+Model/Color,車種/色
 Model/colour,車種/色
+Models {my},車種 {my}
+Models {my} available,車種 {my} 空き車
+Models {my} no team yet,車種 {my} チーム未割当
 Moo,ムー
 Multiple DMS connections exist for this operator,この担当者には複数の DMS 接続があります
 Multiple primary DMS connections exist; ask an administrator to check the configuration,DMS の主接続が複数あります。管理者に設定の確認を依頼してください
@@ -224,6 +235,8 @@ No active DMS account found. Ask the owner to check the operator data.,有効な
 No matching model. Please try typing again.,該当する車種が見つかりません。もう一度入力してください。
 No records for this condition · Last read from DMS at,この条件の記録はありません · DMS から最後に読み取った時刻
 No sales in this period,この期間の販売はありません
+No team yet,チーム未割当
+No vehicles to show.,表示する車両はありません。
 None (the connection's own account is used),未設定（接続自身のアカウントのみ使用）
 Not all files were attached. Please add them in DMS.,添付ファイルがすべて付いていません。DMS で追加してください。
 Not allocated yet,未割当
@@ -243,6 +256,8 @@ Older data: {0},古いデータ：{0}
 "Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.",日付は1日ずつ入力してください。例：15/09/2569（仏暦）。期間では検索できません。
 Open DMS,DMS を開く
 Open Pearnly DMS without typing your password again,パスワードを再入力せずに Pearnly DMS を開く
+Original Excel,原本 Excel
+Original PDF,原本 PDF
 Other,その他
 Page,ページ
 Pearnly DMS,Pearnly DMS
@@ -250,6 +265,7 @@ Phone,電話番号
 Phone number received. Please take a photo of the customer's ID card.,電話番号を受け取りました。お客様の身分証明書を撮影してください。
 Pick a date,日付を選ぶ
 Please choose a menu,メニューを選んでください
+Please choose a report,レポートを選んでください
 "Please choose from the card above, or type restart to begin a new item",上のカードから選ぶか、やり直し と入力して新しく始めてください
 Please choose the type of data to search,検索するデータの種類を選んでください
 Please correct it in DMS.,DMS で修正してください。
@@ -267,6 +283,7 @@ Price in DMS,DMS の価格
 Private Synchronization Progress,内部同期の進捗
 Progress {processed}/{total},進捗 {processed}/{total}
 Province,県
+Qty,台数
 Quantity,数量
 Query Requested,照会要求日時
 Queued,待機中
@@ -303,6 +320,7 @@ Remove,削除
 "Remove slip, go on",明細を削除して続ける
 Remove the account and add it again to change its name,アカウント名を変えるには行を削除して追加し直してください
 Removed {0},{0} を削除しました
+Reports,レポート
 Requested Query,要求された照会
 Resumed {0},{0} を再開しました
 Retry,再試行
@@ -343,12 +361,16 @@ Start over,やり直し
 Started over. Take a photo of the ID card to start a customer record.,やり直しました。身分証明書を撮影して顧客登録を始めてください。
 Status not given,ステータス未設定
 "Still working on it. When it is done, tap View result.",処理中です。終わったら「結果を見る」を押してください。
+Stock and sales,在庫と販売
+Stock by location,在庫・保管場所
 Stop / resume,停止 / 再開
 Stopped {0},{0} を停止しました
 Subdistrict,町
 Submission Evidence,送信エビデンス
 Submission Nonce,送信ノンス
 Subtype,サブタイプ
+Summary Excel,集計 Excel
+Summary PDF,集計 PDF
 Sync is delayed; showing data as of {time},同期が遅延しています。{time} 時点のデータを表示中です。
 System accounts,システムアカウント
 THB,バーツ
@@ -432,6 +454,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,販売ランキング
 Top sales from DMS,DMS の販売ランキング
 Total deposit,予約金合計
+Total {count},合計 {count} 台
 Trigger type. The business line is on Reference DocType.,トリガー種別。業務ラインは参照DocTypeに記録します。
 Try again,もう一度
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",期間と件数を入力してください（例：01/08/2569-31/08/2569 15、仏暦）
@@ -553,7 +576,7 @@ dms.card.TXT_MENU_ITEM1,顧客データ
 dms.card.TXT_MENU_ITEM2,車の予約
 dms.card.TXT_MENU_ITEM3,DMS を開く
 dms.card.TXT_MENU_ITEM4,アカウントとパスワード
-dms.card.TXT_MENU_ITEM5,データ検索
+dms.card.TXT_MENU_ITEM5,レポート
 dms.card.TXT_MENU_ITEM6,マニュアル
 dms.card.TXT_MENU_PICK,メニューを選んでください
 dms.card.TXT_MENU_PICK_SUB,項目を選んで続けます
@@ -777,11 +800,31 @@ dms.card.query.TXT_EXPIRED,有効期限が切れました。メニュー と入�
 dms.card.query.TXT_LOADING,DMS から最新データを読み取っています
 dms.card.query.TXT_NO_ENDPOINT,有効な DMS アカウントが見つかりません。オーナーに担当者データを確認してもらってください。
 dms.card.query.TXT_PICK_SALES,主な条件を 1 つ選択してください。すぐに検索します。
-dms.card.query.TXT_PICK_TYPE,検索するデータの種類を選んでください
+dms.card.query.TXT_PICK_TYPE,レポートを選んでください
 dms.card.query.TXT_QUERY_FAILED,DMS からデータを読み取れませんでした。もう一度お試しください。
-dms.card.query.TYPE_SALES,1 販売記録
+dms.card.query.TYPE_SALES,2 販売記録
+dms.card.query.TYPE_STOCK,1 在庫・保管場所
 dms.card.query.UNIT_AMOUNT,バーツ
 dms.card.query.UNIT_QTY,台
+dms.card.report.AS_OF,更新日時 {time}
+dms.card.report.BTN_ORIGINAL_PDF,原本 PDF
+dms.card.report.BTN_ORIGINAL_XLSX,原本 Excel
+dms.card.report.BTN_SUMMARY_PDF,集計 PDF
+dms.card.report.BTN_SUMMARY_XLSX,集計 Excel
+dms.card.report.COL_CODE,車種/色
+dms.card.report.COL_COUNT,台数
+dms.card.report.COL_PLACE,保管場所
+dms.card.report.MORE_ROWS,残り {count} 行はファイルにあります
+dms.card.report.SCOPE_ALL,全部
+dms.card.report.SCOPE_AVAILABLE,空き車
+dms.card.report.SCOPE_UNALLOCATED,チーム未割当
+dms.card.report.SECTION_ALL,車種 {my}
+dms.card.report.SECTION_AVAILABLE,車種 {my} 空き車
+dms.card.report.SECTION_UNALLOCATED,車種 {my} チーム未割当
+dms.card.report.TITLE,在庫・保管場所
+dms.card.report.TOTAL,合計 {count} 台
+dms.card.report.TXT_EMPTY,表示する車両はありません。
+dms.card.report.TXT_PICK_SCOPE,範囲を選んでください
 dms.card.rich.booking.sub,予約の作成と確認
 dms.card.rich.booking.title,車の予約
 dms.card.rich.credentials.sub,DMS のログイン情報を更新
@@ -792,8 +835,8 @@ dms.card.rich.manual.sub,動画ガイド
 dms.card.rich.manual.title,マニュアル
 dms.card.rich.portal.sub,管理画面を使う
 dms.card.rich.portal.title,DMS を開く
-dms.card.rich.query.sub,DMS の最新販売
-dms.card.rich.query.title,データ検索
+dms.card.rich.query.sub,在庫と販売
+dms.card.rich.query.title,レポート
 dms.card.sum.address,住所
 dms.card.sum.birthday_be,生年月日
 dms.card.sum.name,氏名
@@ -1049,6 +1092,7 @@ usage log,利用履歴
 {0} records,{0} 件
 "{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件
 {0}/{1} groups,{0}/{1} グループ
+{count} more rows are in the files,残り {count} 行はファイルにあります
 {n} latest sales records from DMS,DMS の最新販売記録 {n} 件
 {n} more,他 {n} 件
 {text} ({fields}),{text}（{fields}）

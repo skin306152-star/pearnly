@@ -111,6 +111,19 @@ class Directory:
                         "unit_id": str(fields.get("unitsval") or ""), "price": str(fields.get("txtprice") or "")})
         return out
 
+    def car_catalogue(self):
+        """车型代码 → ``{"name": ชื่อรถ, "model_name": ชื่อรุ่นรถ, "year": ปีที่ผลิต}``（车型主档表单；库存停放报表按代码对上导出）。"""
+        catalogues = self._load("vehicles")["data"].get("catalogues") or {}
+        out = {}
+        for record in (catalogues.get("car") or {}).values():
+            fields = record.get("fields") or {}
+            code = str(fields.get("txtmodelcode") or "").strip()
+            if code:
+                out[code] = {"name": str(fields.get("txtdescmodelname") or "").strip(),
+                             "model_name": str(fields.get("txtmodelname") or "").strip(),
+                             "year": str(fields.get("txtmanuyear") or "").strip()}
+        return out
+
     def car_names(self):
         """车型 id → ชื่อรถ（车型主档表单的 `txtdescmodelname`；下拉行里没有这一列）。"""
         catalogues = self._load("vehicles")["data"].get("catalogues") or {}

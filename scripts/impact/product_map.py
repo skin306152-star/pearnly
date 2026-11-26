@@ -27,6 +27,7 @@ E2E = ROOT / "tests" / "e2e" / "registry.toml"
 # 一期范围：ERP 与 Cowork（DMS、控制面第二期）
 APPS = {"pearnly_erp_portal": "ERP", "pearnly_cowork": "Cowork"}
 CODE = {"ERP": "erp", "Cowork": "cowork"}
+LINE_CODE = {**CODE, "DMS": "dms"}  # 只给 LINE 扫描用（DMS 其余入口第二期）
 PRODUCTS = {"ERP", "Cowork", "DMS", "控制面", "共用"}
 CHANNELS = {"desk", "line", "cc-chat", "cc-operator", "cc-desktop"}
 ENDS = ("desktop", "mobile")
@@ -188,6 +189,8 @@ LINE_FILES = {
             "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/handlers.py",
             "apps/pearnly_erp_portal/pearnly_erp_portal/integrations/intake.py"],
     "Cowork": ["apps/pearnly_cowork/pearnly_cowork/line/*.py"],
+    # DMS 整体是第二期（SCAN_PRODUCTS）；先扫 11-26 新加的「报表查询 → 库存停放报表」（主会话：LINE 入口要有地图行，真机记录必备）
+    "DMS": ["apps/pearnly_dms/pearnly_dms/query/stock_flow.py"],
 }
 MESSAGE_TYPES = ("text", "image", "file", "video", "audio", "sticker", "location")
 
@@ -212,7 +215,7 @@ def discover_line(repo: Repo) -> list[Found]:
             item.files.append(path)
 
     for product, patterns in LINE_FILES.items():
-        code = CODE[product]
+        code = LINE_CODE[product]
         paths = sorted({p for pattern in patterns for p in repo.glob(pattern) if not is_test(p)})
         for path in paths:
             tree = repo.tree(path)
@@ -253,6 +256,8 @@ def discover_line(repo: Repo) -> list[Found]:
                             if isinstance(value, ast.Constant) and value.value in MESSAGE_TYPES:
                                 add(f"line:{code}:message:{value.value}", "line-message", product, path,
                                     f"LINE 里发{value.value}")
+        if product not in APPS.values():
+            continue  # DMS 的 LIFF 网页随 DMS 第二期一起登记
         for path in repo.glob(f"apps/{_app_of(product)}/{_app_of(product)}/www/**/*.html"):
             route = "/" + path.split("/www/", 1)[1][:-len(".html")]
             add(f"liff:{code}:{route}", "liff-page", product, path, f"LINE 里的网页 {route}")

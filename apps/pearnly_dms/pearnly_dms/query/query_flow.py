@@ -39,7 +39,9 @@ from pearnly_dms import i18n
 
 logger = logging.getLogger(__name__)
 
-QUERY_ACTIONS = frozenset({cards.ACT_MENU_QUERY, *query_cards.QUERY_ACTION_NAMES})
+from pearnly_dms.query import stock_flow as stock_flow
+
+QUERY_ACTIONS = frozenset({cards.ACT_MENU_QUERY, *query_cards.QUERY_ACTION_NAMES, *stock_flow.STOCK_ACTIONS})
 
 # 需要用户**打一段字**的维度（其余维度是用按钮选的）
 _TEXT_FIELDS = frozenset(
@@ -70,7 +72,7 @@ def _denied(reply_token: str) -> None:
 
 # ── 入口 ─────────────────────────────────────────────────────────────────────
 def open_query(binding: dict, line_user_id: str, reply_token: str) -> None:
-    """进查询：先过权限门 → 落 `query_menu` 态 → 发"选类别"卡。"""
+    """进「报表查询」：先过权限门（「允许在 LINE 使用查询功能」，两个报表同一个勾）→ 落 `query_menu` 态 → 发"选报表"。"""
     if not _can_query(binding):
         _denied(reply_token)
         return
@@ -88,6 +90,13 @@ def handle_postback(
 ) -> None:
     if action == cards.ACT_MENU_QUERY:
         open_query(binding, line_user_id, reply_token)
+        return
+    # 库存停放报表（权限门同一个勾，`stock_flow` 每一步自己再判）
+    if action in stock_flow.STOCK_ACTIONS:
+        stock_flow.handle_postback(binding, line_user_id, reply_token, action, values)
+        return
+    if action == query_cards.ACT_QUERY_TYPE and values.get("kind") == "stock":
+        stock_flow.open_report(binding, line_user_id, reply_token)
         return
     # 除"进菜单"之外，每个动作都要再过一次权限门
     if not _can_query(binding):

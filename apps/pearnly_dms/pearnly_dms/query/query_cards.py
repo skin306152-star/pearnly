@@ -91,14 +91,11 @@ def _text(text: str) -> Dict[str, Any]:
 
 # ── 选类别 / 选维度 / 选状态 / 看板条件 ─────────────────────────────────────
 def query_type_message() -> Dict[str, Any]:
-    """菜单 5 的入口：**只有一个按钮** —— 按类查记录。
-
-    线上基准（`services/line_dms/query_cards.py`）当年摆过三个（销售记录 / 库存 /
-    其它），后两个是占位；用户口径是"只要按钮 1，占位的取消了"。这里就只留 1。
-    """
+    """菜单 5「报表查询」的入口（用户 11-26）：1 = 库存停放报表，2 = 销售记录（同一个查询权限）。"""
     return _quick(
         _t("TXT_PICK_TYPE"),
-        [_item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales")],
+        [_item(_t("TYPE_STOCK"), ACT_QUERY_TYPE, kind="stock"),
+         _item(_t("TYPE_SALES"), ACT_QUERY_TYPE, kind="sales")],
     )
 
 

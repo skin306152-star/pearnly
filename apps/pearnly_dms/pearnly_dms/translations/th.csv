@@ -1,4 +1,6 @@
 1 Sales records,1 บันทึกการขาย
+1 Stock by location,1 สต๊อกตามที่จอดรถ
+2 Sales records,2 บันทึกการขาย
 "A transfer slip is attached, but there is no transfer payment. Add a transfer or remove the slip before viewing the summary.",พบสลิปโอนเงินแนบอยู่ แต่ยังไม่ได้เพิ่มการชำระด้วยเงินโอน กรุณาเพิ่มเงินโอนหรือลบสลิปก่อนดูสรุป
 Account & password,เปลี่ยนบัญชีและรหัสผ่าน
 Account busy — click Read later to continue,บัญชีไม่ว่าง กดอ่านอีกครั้งภายหลังเพื่อทำต่อ
@@ -20,6 +22,7 @@ Address directory,รายการที่อยู่
 Address sync is delayed; showing address data as of {time},การซิงก์ที่อยู่ล่าช้า กำลังแสดงข้อมูลที่อยู่ ณ {time}
 Advisor,ที่ปรึกษา
 Advisor: {name},ที่ปรึกษาการขาย: {name}
+All,ทั้งหมด
 Allocated,จัดสรรแล้ว
 Allocation,จัดสรร
 Amount,ยอดเงิน
@@ -30,7 +33,9 @@ Apply,ดำเนินการ
 Approve,อนุมัติ
 As confirmed,ตามที่ยืนยัน
 As in DMS,ตามข้อมูลใน DMS
+As of {time},ข้อมูล ณ {time}
 Attached,แนบแล้ว
+Available,รถว่าง
 Awaiting manager,รอผจก.ฝ่ายขายอนุมัติ
 Back to chat,กลับไปที่แชท
 Bank transfer,เงินโอน
@@ -80,6 +85,7 @@ Choose a car model ({n} found),เลือกรุ่นรถ (พบ {n} ร
 Choose a colour for {car},เลือกสีของ {car}
 Choose a menu,กรุณาเลือกเมนู
 Choose a period and number of items (all branches/teams this account can see),เลือกช่วงเวลาและจำนวนรายการ (ทุกสาขา/ทีมที่บัญชีนี้มองเห็น)
+Choose a scope,กรุณาเลือกขอบเขต
 Choose a status,เลือกสถานะที่ต้องการ
 Choose a topic to play its video,เลือกหัวข้อเพื่อเปิดดูคลิป
 Choose an item to continue,เลือกรายการเพื่อดำเนินการต่อ
@@ -201,6 +207,7 @@ Last successful record count,จำนวนรายการที่อ่า
 Latest 10,ล่าสุด 10 รายการ
 Latest error code,รหัสข้อผิดพลาดล่าสุด
 Latest sales from DMS,ยอดขายล่าสุดจาก DMS
+Location,สถานที่จอดรถ
 Manage system accounts,จัดการบัญชีระบบ
 Manual,คู่มือ
 Manual Read Request,คำขอดึงข้อมูลด้วยตนเอง
@@ -208,7 +215,11 @@ Manual Read Request,คำขอดึงข้อมูลด้วยตนเ
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
 Menu,เมนู
 Model year,ปีผลิต
+Model/Color,Model/Color
 Model/colour,รุ่น/สี
+Models {my},รถรุ่น {my}
+Models {my} available,รถรุ่น {my} ว่าง
+Models {my} no team yet,รถรุ่น {my} ยังไม่จัดสรรทีม
 Moo,หมู่
 Multiple DMS connections exist for this operator,พนักงานรายนี้มีการเชื่อมต่อ DMS หลายรายการ
 Multiple primary DMS connections exist; ask an administrator to check the configuration,มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลระบบตรวจสอบการตั้งค่า
@@ -224,6 +235,8 @@ No active DMS account found. Ask the owner to check the operator data.,ไม่
 No matching model. Please try typing again.,ไม่พบรุ่นรถที่ตรงกัน กรุณาพิมพ์ใหม่อีกครั้ง
 No records for this condition · Last read from DMS at,ไม่พบรายการตามเงื่อนไขนี้ · อ่านจาก DMS ล่าสุดเมื่อ
 No sales in this period,ไม่พบยอดขายในช่วงเวลานี้
+No team yet,ยังไม่จัดสรรทีม
+No vehicles to show.,ไม่มีรถที่จะแสดง
 None (the connection's own account is used),ยังไม่ได้ตั้งค่า (ใช้บัญชีของการเชื่อมต่อเท่านั้น)
 Not all files were attached. Please add them in DMS.,แนบไฟล์บางรายการไม่สำเร็จ กรุณาแนบเพิ่มในระบบ DMS
 Not allocated yet,ยังไม่จัดสรรรถ
@@ -243,6 +256,8 @@ Older data: {0},ข้อมูลเก่า ณ {0}
 "Only one date at a time, e.g. 15/09/2569 (Buddhist year). A range cannot be searched.",ระบุได้ครั้งละหนึ่งวันที่เท่านั้น เช่น 15/09/2569 (พ.ศ.) ไม่สามารถค้นหาเป็นช่วงวันที่ได้
 Open DMS,เข้าสู่ระบบ DMS
 Open Pearnly DMS without typing your password again,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
+Original Excel,ต้นฉบับ Excel
+Original PDF,ต้นฉบับ PDF
 Other,อื่นๆ
 Page,หน้า
 Pearnly DMS,Pearnly DMS
@@ -250,6 +265,7 @@ Phone,เบอร์โทรศัพท์
 Phone number received. Please take a photo of the customer's ID card.,ได้รับเบอร์โทรศัพท์แล้ว กรุณาถ่ายรูปบัตรประชาชนของลูกค้า
 Pick a date,เลือกวันที่
 Please choose a menu,กรุณาเลือกเมนูที่ต้องการ
+Please choose a report,กรุณาเลือกรายงาน
 "Please choose from the card above, or type restart to begin a new item",กรุณาเลือกรายการจากการ์ดด้านบน หรือพิมพ์ เริ่มใหม่ เพื่อเริ่มรายการใหม่
 Please choose the type of data to search,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
 Please correct it in DMS.,กรุณาแก้ไขใน DMS
@@ -267,6 +283,7 @@ Price in DMS,ราคาตาม DMS
 Private Synchronization Progress,ความคืบหน้าการซิงค์ภายใน
 Progress {processed}/{total},ความคืบหน้า {processed}/{total}
 Province,จังหวัด
+Qty,จำนวน
 Quantity,จำนวน
 Query Requested,เวลาที่ขอสอบถาม
 Queued,อยู่ในคิว
@@ -303,6 +320,7 @@ Remove,ลบ
 "Remove slip, go on",ลบสลิปแล้วทำต่อ
 Remove the account and add it again to change its name,หากต้องการเปลี่ยนชื่อบัญชี ให้ลบแถวนี้แล้วเพิ่มใหม่
 Removed {0},ลบ {0} แล้ว
+Reports,รายงาน
 Requested Query,เงื่อนไขการสอบถามที่ขอ
 Resumed {0},ใช้งาน {0} แล้ว
 Retry,ลองใหม่
@@ -343,12 +361,16 @@ Start over,เริ่มใหม่
 Started over. Take a photo of the ID card to start a customer record.,เริ่มใหม่แล้ว กรุณาถ่ายรูปบัตรประชาชนเพื่อลงทะเบียนลูกค้า
 Status not given,ไม่ระบุสถานะ
 "Still working on it. When it is done, tap View result.",กำลังดำเนินการ เมื่อเสร็จแล้วกรุณากด «ดูผล»
+Stock and sales,สต๊อกและยอดขาย
+Stock by location,สต๊อกตามที่จอดรถ
 Stop / resume,หยุดใช้ / ใช้งาน
 Stopped {0},หยุดใช้ {0} แล้ว
 Subdistrict,ตำบล
 Submission Evidence,หลักฐานการส่ง
 Submission Nonce,รหัสสุ่มการส่ง
 Subtype,ประเภทย่อย
+Summary Excel,สรุป Excel
+Summary PDF,สรุป PDF
 Sync is delayed; showing data as of {time},การซิงก์ล่าช้า กำลังแสดงข้อมูล ณ {time}
 System accounts,บัญชีระบบ
 THB,บาท
@@ -432,6 +454,7 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,อันดับยอดขาย
 Top sales from DMS,อันดับยอดขายจาก DMS
 Total deposit,ยอดเงินจองรวม
+Total {count},รวม {count} คัน
 Trigger type. The business line is on Reference DocType.,รูปแบบการทริกเกอร์ สายงานธุรกิจดูที่ประเภทเอกสารอ้างอิง
 Try again,ลองอีกครั้ง
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",กรุณาพิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
@@ -553,7 +576,7 @@ dms.card.TXT_MENU_ITEM1,จัดทำข้อมูลลูกค้า
 dms.card.TXT_MENU_ITEM2,จัดทำใบจอง
 dms.card.TXT_MENU_ITEM3,เข้าสู่ระบบ DMS
 dms.card.TXT_MENU_ITEM4,บัญชีและรหัสผ่าน
-dms.card.TXT_MENU_ITEM5,ค้นหาข้อมูล
+dms.card.TXT_MENU_ITEM5,รายงาน
 dms.card.TXT_MENU_ITEM6,คู่มือ
 dms.card.TXT_MENU_PICK,กรุณาเลือกเมนูที่ต้องการ
 dms.card.TXT_MENU_PICK_SUB,เลือกรายการเพื่อดำเนินการต่อ
@@ -777,11 +800,31 @@ dms.card.query.TXT_EXPIRED,รายการนี้หมดอายุแ�
 dms.card.query.TXT_LOADING,กำลังอ่านข้อมูลล่าสุดจาก DMS
 dms.card.query.TXT_NO_ENDPOINT,ไม่พบบัญชี DMS ที่ใช้งานได้ กรุณาติดต่อผู้ดูแลระบบเพื่อตรวจสอบข้อมูลพนักงาน
 dms.card.query.TXT_PICK_SALES,กรุณาเลือกเงื่อนไขหลักหนึ่งข้อ ระบบจะค้นหาทันที
-dms.card.query.TXT_PICK_TYPE,กรุณาเลือกประเภทข้อมูลที่ต้องการค้นหา
+dms.card.query.TXT_PICK_TYPE,กรุณาเลือกรายงาน
 dms.card.query.TXT_QUERY_FAILED,อ่านข้อมูลจาก DMS ไม่สำเร็จ กรุณาลองใหม่อีกครั้ง
-dms.card.query.TYPE_SALES,1 บันทึกการขาย
+dms.card.query.TYPE_SALES,2 บันทึกการขาย
+dms.card.query.TYPE_STOCK,1 สต๊อกตามที่จอดรถ
 dms.card.query.UNIT_AMOUNT,บาท
 dms.card.query.UNIT_QTY,คัน
+dms.card.report.AS_OF,ข้อมูล ณ {time}
+dms.card.report.BTN_ORIGINAL_PDF,ต้นฉบับ PDF
+dms.card.report.BTN_ORIGINAL_XLSX,ต้นฉบับ Excel
+dms.card.report.BTN_SUMMARY_PDF,สรุป PDF
+dms.card.report.BTN_SUMMARY_XLSX,สรุป Excel
+dms.card.report.COL_CODE,Model/Color
+dms.card.report.COL_COUNT,จำนวน
+dms.card.report.COL_PLACE,สถานที่จอดรถ
+dms.card.report.MORE_ROWS,อีก {count} รายการอยู่ในไฟล์
+dms.card.report.SCOPE_ALL,ทั้งหมด
+dms.card.report.SCOPE_AVAILABLE,รถว่าง
+dms.card.report.SCOPE_UNALLOCATED,ยังไม่จัดสรรทีม
+dms.card.report.SECTION_ALL,รถรุ่น {my}
+dms.card.report.SECTION_AVAILABLE,รถรุ่น {my} ว่าง
+dms.card.report.SECTION_UNALLOCATED,รถรุ่น {my} ยังไม่จัดสรรทีม
+dms.card.report.TITLE,สต๊อกตามที่จอดรถ
+dms.card.report.TOTAL,รวม {count} คัน
+dms.card.report.TXT_EMPTY,ไม่มีรถที่จะแสดง
+dms.card.report.TXT_PICK_SCOPE,กรุณาเลือกขอบเขต
 dms.card.rich.booking.sub,สร้างและติดตามใบจอง
 dms.card.rich.booking.title,จัดทำใบจองรถยนต์
 dms.card.rich.credentials.sub,อัปเดตข้อมูลเข้าสู่ระบบ DMS
@@ -792,8 +835,8 @@ dms.card.rich.manual.sub,วิดีโอสอนการใช้งาน
 dms.card.rich.manual.title,คู่มือ
 dms.card.rich.portal.sub,เข้าใช้งานระบบหลังบ้าน
 dms.card.rich.portal.title,เข้าสู่ระบบ DMS
-dms.card.rich.query.sub,ยอดขายล่าสุดจาก DMS
-dms.card.rich.query.title,ค้นหาข้อมูล
+dms.card.rich.query.sub,สต๊อกและยอดขาย
+dms.card.rich.query.title,รายงาน
 dms.card.sum.address,ที่อยู่
 dms.card.sum.birthday_be,วันเกิด
 dms.card.sum.name,ชื่อ
@@ -1049,6 +1092,7 @@ usage log,บันทึกการใช้งาน
 {0} records,{0} รายการ
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
+{count} more rows are in the files,อีก {count} รายการอยู่ในไฟล์
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 {n} more,อีก {n} รายการ
 {text} ({fields}),{text} ({fields})
