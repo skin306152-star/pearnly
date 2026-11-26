@@ -128,6 +128,17 @@ class BlockedQuestion(base.PushModule):
             for doctype in (self.api.push.STOCK, self.api.push.COUNT):
                 self.assertEqual(self.api._party_blocked(doctype, self.row(), self.job("STOCK_ACC_GROUP_UNFIT")), [])
 
+    def test_an_operator_sent_job_does_not_offer_write_again_once_answered(self):
+        """代录交的那件：答过不再出题，但单据页不给「再写一次」（`retry` 拒：代录的单由代录再录），由代录再录。"""
+        self.answers = {("stock_group", "BOOK-1"): ("DM", AFTER)}
+        job = {**self.job("STOCK_ACC_GROUP_UNFIT"), "request_key": self.api.push.OPERATOR_KEY + "b1:PUR-1@x"}
+        with mock.patch.object(self.prepare, "group_needed", lambda *args: [dict(GROUP)]), \
+                mock.patch.object(self.api.jobs, "find_by_name", lambda name: job), \
+                mock.patch.object(self.api, "_pos_stuck", lambda *args: False), \
+                mock.patch.object(self.api.waiting, "of_job", lambda *args: ""):
+            view = self.api._view("Purchase Document", self.row())
+        self.assertEqual((view["needed"], view["can_answer"], view["can_retry"]), ([], False, False))
+
 
 class BlockedCardItem(BlockedQuestion):
     test_a_question_answered_after_the_stop_is_not_asked_again_and_the_document_can_be_written_again = None
@@ -136,6 +147,7 @@ class BlockedCardItem(BlockedQuestion):
     test_an_answer_that_is_no_longer_a_choice_still_asks = None
     test_other_stops_and_a_job_without_a_time_are_unchanged = None
     test_stock_documents_ask_the_book_group_the_same_way = None
+    test_an_operator_sent_job_does_not_offer_write_again_once_answered = None
 
     def test_the_blocked_question_on_the_card_has_no_value_filled_in_but_keeps_the_recommendation_first(self):
         """被拦的题不带当前值：带了，对话里的写入计划会照预选放行，可这张单要人点一次记下才会再写（实验室流程查出）。"""
