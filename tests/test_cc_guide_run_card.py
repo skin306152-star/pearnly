@@ -47,6 +47,9 @@ class GuideRunCardTests(unittest.TestCase):
         reducer = read("lib/managed-agents/reducer.ts")
         self.assertIn('case "pearnly.guide": {', reducer)
         self.assertIn("if (was && was.version >= event.version) return state;", reducer)
+        # 开始先后按服务端给的建起来时刻（不随每一步变）；旧事件没有才回落到第一次收到的那条（11-26 待处理 → 销售引导顺序颠倒）
+        self.assertIn("startedAt: event.started_at || was?.startedAt || event.processed_at", reducer)
+        self.assertIn("started_at?: string;", read("lib/managed-agents/events.ts"))
 
     def test_the_card_sends_only_chosen_values_and_confirms_with_the_shown_version(self):
         card = read("components/tool-uis/guide-run-card.tsx")

@@ -946,11 +946,16 @@ def search(name: str, key: str, txt: str = "", start: int = 0, page_length: int 
 
 # ── 事件 ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def event(doc) -> Dict[str, Any]:
-    """一次引导 → 本站事件（编号带版本：同一次引导每走一步是新的一条，页面按编号去重；卡的内容页面按 ``run`` 另取）。"""
+    """一次引导 → 本站事件（编号带版本：同一次引导每走一步是新的一条，页面按编号去重；卡的内容页面按 ``run`` 另取）。
+
+    ``started_at`` 是这次引导建起来的时刻（不随每一步变）：对话页按它排引导卡、定卡在哪条消息前面。11-26 回归：原来页面拿「第一次收到这次
+    引导的事件」的修改时间当开始时间，待处理确定的同一笔里先开销售引导、再把待处理标完成，页面确定前没补拉到待处理时，待处理的开始时间
+    成了完成那刻、晚于它开出来的销售引导，销售复核卡排到了待处理结果卡上面。"""
     moment = frappe.utils.get_datetime(doc.modified) if doc.get("modified") else None
+    created = frappe.utils.get_datetime(doc.creation) if doc.get("creation") else None
     return {"id": f"pgd_{doc.name}_{int(doc.version or 0)}", "type": TYPE, "run": doc.name, "business": doc.business,
             "status": doc.status, "version": int(doc.version or 0),
-            "processed_at": _iso(moment) if moment else ""}
+            "processed_at": _iso(moment) if moment else "", "started_at": _iso(created) if created else ""}
 
 
 def _iso(moment) -> str:
@@ -975,7 +980,7 @@ def feed(session_id: str, since=None) -> List[Dict[str, Any]]:
         filters = {"session_id": session_id, "user": frappe.session.user}
         if since is not None:
             filters["modified"] = [">=", since]
-        rows = frappe.get_all(DOCTYPE, filters=filters, fields=["name", "business", "status", "version", "modified"],
+        rows = frappe.get_all(DOCTYPE, filters=filters, fields=["name", "business", "status", "version", "modified", "creation"],
                               order_by="modified asc", limit_page_length=50)
         return [event(row) for row in rows]
     except Exception:  # noqa: BLE001

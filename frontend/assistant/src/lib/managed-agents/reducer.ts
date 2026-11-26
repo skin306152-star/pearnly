@@ -927,7 +927,8 @@ function applyEventInner(state: Projection, event: FeedEvent): Projection {
       const was = state.guides.get(event.run);
       if (was && was.version >= event.version) return state;
       const next: GuideRun = { run: event.run, business: event.business, status: event.status, version: event.version,
-        startedAt: was?.startedAt ?? event.processed_at };
+        // 按引导建起来的时刻排（服务端给的 started_at，不随每一步变）；旧事件没有才回落到第一次收到的那条的时刻
+        startedAt: event.started_at || was?.startedAt || event.processed_at };
       return { ...state, guides: new Map(state.guides).set(event.run, next) };
     }
 

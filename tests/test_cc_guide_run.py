@@ -117,7 +117,8 @@ class Base(unittest.TestCase):
         return datetime.datetime(2026, 11, 14, 10, 0, self.clock[0])
 
     def insert(self, values):
-        doc = Doc(values, name=f"RUN{len(self.docs) + 1}", modified=self.tick())
+        moment = self.tick()
+        doc = Doc(values, name=f"RUN{len(self.docs) + 1}", modified=moment, creation=moment)
         self.docs[doc.name] = doc
         return doc
 
@@ -345,6 +346,9 @@ class EndTests(Base):
         self.assertEqual(SENT[-1]["status"], "reviewing")
         self.assertEqual(run.event(self.docs[name]), run.event(self.docs[name]))
         self.assertEqual(run.event(self.docs[name])["type"], "pearnly.guide")
+        # 每一步的事件都带同一个开始时刻（建起来那一刻，不随修改时间走）：对话页按它排卡（11-26 待处理 → 销售引导顺序颠倒）
+        self.assertEqual(len({e["started_at"] for e in SENT}), 1)
+        self.assertTrue(SENT[0]["started_at"] and SENT[-1]["processed_at"] > SENT[-1]["started_at"])
 
     def test_search_pages_one_step_options_and_refuses_other_steps(self):
         name = run.start("S1", "collection")["run"]

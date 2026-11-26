@@ -121,6 +121,8 @@ export type GuideEvent = {
   status: GuideRunStatus;
   version: number;
   processed_at: string;
+  /** 这次引导建起来的时刻（不随每一步变，11-26 起）；旧事件没有，页面回落到第一次收到的 processed_at。 */
+  started_at?: string;
 };
 
 export type FeedEvent = StreamEvent | NoticeEvent | AnswerEvent | ToolRunEvent | ProgressEvent | StoppedEvent | WritePlanEvent | GuideEvent;
