@@ -238,3 +238,4 @@ apps/pearnly_core/pearnly_core/mrerp/push/xlsx/receipt.py	*	数据：MR.ERP 收�
 apps/pearnly_core/pearnly_core/mrerp/push/xlsx/stock.py	*	数据：MR.ERP 库存入库 / 出库导入模板（impstktranrec / impstktraniss）的泰文表头，按原字面写入外部系统，不进界面
 apps/pearnly_core/pearnly_core/mrerp/push/stock_form.py	*	数据：MR.ERP 库存网页表单页上的泰文固定字（未关联日记账提示、未登录 / 被挤下线提示），按原字面比对页面，不进界面
 apps/pearnly_core/pearnly_core/mrerp/masters.py	ส่วนลดจ่าย	数据：MR.ERP 科目表里折扣科目的名称前缀（参考科目 18），按原字面比对，不进界面
+apps/pearnly_dms/pearnly_dms/query/stock_report.py	*	对方格式：MR.ERP 导出 / 车辆状态的泰文原文（表头、「รถว่าง」状态、合计行），按它认列与判空车，翻了就认不出
