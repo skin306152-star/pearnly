@@ -97,3 +97,11 @@ A（`f7fd77bcf`）只让 `conflicts.retried` 认了后一种。仓库里其余�
   - `test_cowork_upload_deferred`：没改测试，修的是代码里的分支顺序。
 - 产品地图：第 1 类改到的 Cowork 7 个、ERP 2 个入口文件，命中 LINE 富菜单盘点相机的两行 `cowork.scan.line.stocktake.liff-camera`、`erp.scan.line.stocktake.liff-camera`，这两行只能真机验，要附真机记录才能进 main。
 - 全闸门、候选离线、逐提交扫描、清卷全量、code-review：结果见下方（施工中补）。
+
+## 真机（11-26 晚，三星 SM-A146P + 测试机1 testenv，源码挂 a1a0ed9e2，底座线上镜像 e695b76f）
+
+真机记录 | erp.scan.line.stocktake.liff-camera | 2026-11-26 | a1a0ed9e2 | 三星 SM-A146P + 测试机1 testenv（屏幕码图 code-erp-qr-ice.png） | 通过 | ERP-TEST 富菜单「盘点」→ LIFF 打开 testerp 盘点列表 → live-1115-test → 开始盘点 → 连续盘点弹窗点扫码图标 → LINE 原生「是否允许此网站访问您的相机？」→ 仅允许本次 → 真相机对测试机屏幕读码 → 认出「น้ำแข็งหลอด」、账面仓库「คลังสำนักงานใหญ่ · 10,774 กิโลกรัม」、实际仓库预填 → 关闭不保存
+真机记录 | cowork.scan.line.stocktake.liff-camera | 2026-11-26 | a1a0ed9e2 | 三星 SM-A146P + 测试机1 testenv（屏幕码图 EAN-13 8851932100014） | 通过 | Cowork-test 富菜单「库存盘点」→ LIFF 打开 testcowork 盘点列表 → 123 → 开始盘点 → 扫码图标 → LINE 原生相机授权 → 仅允许本次 → 真相机读 EAN-13 → 认出「สบู่ก้อนลักส์ 70 กรัม」、账面「คลังสาขาบางนา / S-02-02 · 150 ก้อน」→ 关闭不保存；盘点查找请求 `api_stock_count_lookup`（本分支换成 `conflicts.attempt` 的入口）回 200
+
+- 过程中一次：测试机屏幕还停在 ERP 的冰块二维码时，Cowork 查找回「找不到盘点记录。」——这是 Cowork 这次盘点里没有该编码时的原有提示（`counting.lookup` → `stocktake.not_found`），与本分支无关；换成 Cowork 码后同一入口认出物料。
+- 两次都没保存实盘数量，两站测试数据未改。做完 testerp、testcowork 已 lab-stop，三个测试域名回读到线上地址，两站定时任务 enabled。
