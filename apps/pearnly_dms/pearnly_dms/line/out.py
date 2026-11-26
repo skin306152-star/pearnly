@@ -194,7 +194,8 @@ def enqueue(job: str, fn, *args, waiting_text=None) -> None:
         return run_guarded(f"{fn.__module__}.{fn.__name__}", arguments)
     # LINE 自带的三个点开满、记下在等；worker 开跑时续上（`run_guarded`），结果用这次的令牌回。
     # ``waiting_text``：第 55 秒还没结果时那句兜底（缺省「录入中」；读取类如库存停放报表用查询那句「正在读取」）。
-    key = begin(arguments["line_user_id"], arguments.get("reply_token") or "", text=waiting_text)
+    key = (begin(arguments["line_user_id"], arguments.get("reply_token") or "") if waiting_text is None
+           else begin(arguments["line_user_id"], arguments.get("reply_token") or "", text=waiting_text))
     if job == "image":
         from pearnly_core.execution.work import submit
         from pearnly_core.execution.errors import QueueFull, Deferred
