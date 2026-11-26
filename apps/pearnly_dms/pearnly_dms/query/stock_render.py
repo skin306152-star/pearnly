@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """库存停放报表的转换件：汇总 Excel（openpyxl）、汇总 PDF 与 LINE 图片（同一份 HTML，DMS 已有的 Playwright Chromium 出）。
 
-版式照岳父的样表 1:1（用户 11-26），每一列表头与数据同一种对齐（车名 / 代码 / 位置靠左、台数居中）：没有表格上方的标题；最上面一行亮绿表头三格——第一格「รถรุ่น 26 MY ว่าง Model/Color」横跨车名与
-代码两列，后面「จำนวน」「สถานที่จอดรถ」；数据四列（车名 / 代码 颜色 / 台数 / 位置），没有网格线、隔行浅灰底；台数红色加粗；
+版式照岳父的样表 1:1（用户 11-26），每一列表头与数据同一种对齐（车名 / 代码 / 位置靠左、台数居中）：没有表格上方的标题；最上面一行亮绿表头（看起来是样表那样的一整格「รถรุ่น 26 MY ว่าง Model/Color」，实际两格：前半句对齐车名列、
+「Model/Color」对齐代码颜色列），后面「จำนวน」「สถานที่จอดรถ」；数据四列（车名 / 代码 颜色 / 台数 / 位置），没有网格线、隔行浅灰底；台数红色加粗；
 最底一行蓝色加粗「อัพเดต 日期 เวลา 时间 Total」，合计数字在台数那一列正下方、红色加粗。不按年款分段（用户「做法一」），全表车型
 主档年款一致时表头写年款。手工的青色格与蓝字备注不做。图片、PDF、Excel 同一版式。
 
@@ -42,10 +42,11 @@ def as_of_label(moment) -> Dict[str, str]:
             "time": f"{moment.hour:02d}{'.' if thai else ':'}{moment.minute:02d}"}
 
 
-def header_text(scope: str, year: str) -> str:
-    """表头第一格：空车档「รถรุ่น 26 MY ว่าง Model/Color」，全部 / 未分配团队档不写「ว่าง」；年款不一致或没填时不写年款。"""
+def header_text(scope: str, year: str) -> tuple:
+    """表头前两格（用户 11-26：表头两部分各自对齐各自的列）：前半句对齐车名列——空车档「รถรุ่น 26 MY ว่าง」，全部 / 未分配团队档
+    不写「ว่าง」，年款不一致或没填时不写年款，四种组合都不为空；后半句「Model/Color」对齐代码颜色列。"""
     key = "HEAD_AVAILABLE" if scope == "available" else "HEAD_OTHER"
-    return " ".join(_t(key, my=f"{year} MY" if year else "").split())
+    return " ".join(_t(key, my=f"{year} MY" if year else "").split()), _t("HEAD_CODE")
 
 
 def footer_text(as_of: Dict[str, str]) -> str:
@@ -63,8 +64,7 @@ def workbook(summary: Dict, scope: str, as_of: Dict[str, str]) -> bytes:
     # 每一列表头与数据同一种对齐（用户 11-26「表头和内容要对齐」）：车名 / 代码 / 位置靠左，台数居中
     center = Alignment(horizontal="center", vertical="center")
     left = Alignment(horizontal="left", vertical="center", wrap_text=True)
-    sheet.append([header_text(scope, summary["year"]), None, _t("COL_COUNT"), _t("COL_PLACE")])
-    sheet.merge_cells("A1:B1")
+    sheet.append([*header_text(scope, summary["year"]), _t("COL_COUNT"), _t("COL_PLACE")])  # A1、B1 各一半，同绿底无边框
     for cell in sheet[1]:
         cell.font = Font(bold=True, size=size, color="000000")
         cell.fill = PatternFill("solid", fgColor=HEAD_FILL)
@@ -119,8 +119,8 @@ def document(rows: List[Dict], summary: Dict, scope: str, as_of: Dict[str, str],
              more: int = 0, first_index: int = 0) -> str:
     """一页（图片）或全表（PDF）：表头在 <thead>，PDF 跨页时每页顶上重复；``first_index``：本页第一行在全表里的序号（隔行底色接得上）。"""
     parts = ["<table><colgroup><col class=a><col class=b><col class=n><col></colgroup><thead><tr>"
-             "<th colspan=2>%s</th><th class=n>%s</th><th>%s</th></tr></thead><tbody>" % (
-                 html.escape(header_text(scope, summary["year"])), html.escape(_t("COL_COUNT")),
+             "<th>%s</th><th>%s</th><th class=n>%s</th><th>%s</th></tr></thead><tbody>" % (
+                 *(html.escape(part) for part in header_text(scope, summary["year"])), html.escape(_t("COL_COUNT")),
                  html.escape(_t("COL_PLACE")))]
     for offset, line in enumerate(rows):
         parts.append("<tr%s><td>%s</td><td class=c>%s</td><td class=n>%d</td><td class=p>%s</td></tr>" % (

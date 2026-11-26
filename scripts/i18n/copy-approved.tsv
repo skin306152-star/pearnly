@@ -264,5 +264,5 @@ pearnly_dms:dms.card.query.TXT_PICK_TYPE	zh	请选择报表	2026-11-26	docs/work
 pearnly_dms:dms.card.query.TYPE_SALES	zh	2 销售记录	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
 pearnly_dms:dms.card.rich.query.sub	zh	库存与销售	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
 pearnly_dms:dms.card.rich.query.title	zh	报表查询	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「审定与施工记录」节（用户 11-26「可以」，主会话转达）
-pearnly_dms:dms.card.report.HEAD_AVAILABLE	zh	{my} 空车 车型/颜色	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「版式照样表 1:1」节（用户 11-26 要求表头照样表、四语写法由本窗口定，主会话转达；本功能尚未上线）
-pearnly_dms:dms.card.report.HEAD_OTHER	zh	{my} 车型/颜色	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「版式照样表 1:1」节（用户 11-26 要求表头照样表、四语写法由本窗口定，主会话转达；本功能尚未上线）
+pearnly_dms:dms.card.report.HEAD_AVAILABLE	zh	{my} 空车	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「版式照样表 1:1」节（用户 11-26 要求表头两部分各自对齐，四语写法由本窗口定，主会话转达；本功能尚未上线）
+pearnly_dms:dms.card.report.HEAD_OTHER	zh	{my} 车辆	2026-11-26	docs/work/2026-11-26-dms-line-stock-report-assessment.md「版式照样表 1:1」节（用户 11-26 要求表头两部分各自对齐，四语写法由本窗口定，主会话转达；本功能尚未上线）

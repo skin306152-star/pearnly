@@ -450,6 +450,7 @@ Original Excel	原件 Excel	ต้นฉบับ Excel	原本 Excel	dms.card.re
 Original PDF	原件 PDF	ต้นฉบับ PDF	原本 PDF	dms.card.report.BTN_ORIGINAL_PDF
 Summary Excel	汇总 Excel	สรุป Excel	集計 Excel	dms.card.report.BTN_SUMMARY_XLSX
 Summary PDF	汇总 PDF	สรุป PDF	集計 PDF	dms.card.report.BTN_SUMMARY_PDF
-{my} Available Model/Color	{my} 空车 车型/颜色	รถรุ่น {my} ว่าง Model/Color	{my} 空き車 車種/色	dms.card.report.HEAD_AVAILABLE
-{my} Model/Color	{my} 车型/颜色	รถรุ่น {my} Model/Color	{my} 車種/色	dms.card.report.HEAD_OTHER
+{my} Available	{my} 空车	รถรุ่น {my} ว่าง	{my} 空き車	dms.card.report.HEAD_AVAILABLE
+{my} Vehicles	{my} 车辆	รถรุ่น {my}	{my} 車両	dms.card.report.HEAD_OTHER
 Updated {date} {time} Total	更新 {date} {time} 合计	อัพเดต {date} เวลา {time} Total	更新 {date} {time} 合計	dms.card.report.FOOT
+Model/Color	车型/颜色	Model/Color	車種/色	dms.card.report.HEAD_CODE

@@ -214,6 +214,7 @@ Manual Read Request,Manual Read Request
 Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
 Model year,Model year
+Model/Color,Model/Color
 Model/colour,Model/colour
 Moo,Moo
 Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
@@ -806,8 +807,9 @@ dms.card.report.BTN_SUMMARY_XLSX,Summary Excel
 dms.card.report.COL_COUNT,Qty
 dms.card.report.COL_PLACE,Location
 dms.card.report.FOOT,Updated {date} {time} Total
-dms.card.report.HEAD_AVAILABLE,{my} Available Model/Color
-dms.card.report.HEAD_OTHER,{my} Model/Color
+dms.card.report.HEAD_AVAILABLE,{my} Available
+dms.card.report.HEAD_CODE,Model/Color
+dms.card.report.HEAD_OTHER,{my} Vehicles
 dms.card.report.MORE_ROWS,{count} more rows are in the files
 dms.card.report.SCOPE_ALL,All
 dms.card.report.SCOPE_AVAILABLE,Available
@@ -1083,8 +1085,8 @@ usage log,usage log
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {count} more rows are in the files,{count} more rows are in the files
-{my} Available Model/Color,{my} Available Model/Color
-{my} Model/Color,{my} Model/Color
+{my} Available,{my} Available
+{my} Vehicles,{my} Vehicles
 {n} latest sales records from DMS,{n} latest sales records from DMS
 {n} more,{n} more
 {text} ({fields}),{text} ({fields})

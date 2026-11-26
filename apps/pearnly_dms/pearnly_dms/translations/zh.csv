@@ -214,6 +214,7 @@ Manual Read Request,手动读取请求
 Master data and all vehicle colors,主档与全部车型颜色
 Menu,菜单
 Model year,生产年份
+Model/Color,车型/颜色
 Model/colour,车型/颜色
 Moo,村组（Moo）
 Multiple DMS connections exist for this operator,该操作员有多条 DMS 连接
@@ -806,8 +807,9 @@ dms.card.report.BTN_SUMMARY_XLSX,汇总 Excel
 dms.card.report.COL_COUNT,台数
 dms.card.report.COL_PLACE,停放位置
 dms.card.report.FOOT,更新 {date} {time} 合计
-dms.card.report.HEAD_AVAILABLE,{my} 空车 车型/颜色
-dms.card.report.HEAD_OTHER,{my} 车型/颜色
+dms.card.report.HEAD_AVAILABLE,{my} 空车
+dms.card.report.HEAD_CODE,车型/颜色
+dms.card.report.HEAD_OTHER,{my} 车辆
 dms.card.report.MORE_ROWS,另有 {count} 行见文件
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空车
@@ -1083,8 +1085,8 @@ usage log,使用记录
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组
 {count} more rows are in the files,另有 {count} 行见文件
-{my} Available Model/Color,{my} 空车 车型/颜色
-{my} Model/Color,{my} 车型/颜色
+{my} Available,{my} 空车
+{my} Vehicles,{my} 车辆
 {n} latest sales records from DMS,DMS 最新销售记录 {n} 条
 {n} more,另 {n} 项
 {text} ({fields}),{text}（{fields}）

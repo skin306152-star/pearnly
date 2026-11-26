@@ -148,8 +148,8 @@ class Layout(unittest.TestCase):
         same = {code: {"name": code, "year": "2026"} for code in ("DM-2D19", "DM-4D19", "DM-4D30", "Test", "TS-01")}
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", same)
         page = self.page(summary)
-        self.assertEqual(page.count("</th>"), 3)
-        self.assertIn("<th colspan=2>รถรุ่น 26 MY ว่าง Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
+        self.assertEqual(page.count("</th>"), 4)
+        self.assertIn("<th>รถรุ่น 26 MY ว่าง</th><th>Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
         self.assertNotIn("<h1", page)
         self.assertIn("border:0", page)
         self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>5</td>", page)
@@ -157,17 +157,19 @@ class Layout(unittest.TestCase):
     def test_header_wording_for_year_and_scope(self):
         rows = report.parse_export(export(TEST_LIBRARY))
         with lang("th"):
-            self.assertEqual(stock_render.header_text("available", ""), "รถรุ่น ว่าง Model/Color")
-            self.assertEqual(stock_render.header_text("all", "26"), "รถรุ่น 26 MY Model/Color")
-            self.assertEqual(stock_render.header_text("unallocated", ""), "รถรุ่น Model/Color")
+            self.assertEqual(stock_render.header_text("available", ""), ("รถรุ่น ว่าง", "Model/Color"))
+            self.assertEqual(stock_render.header_text("all", "26"), ("รถรุ่น 26 MY", "Model/Color"))
+            self.assertEqual(stock_render.header_text("unallocated", ""), ("รถรุ่น", "Model/Color"))
         with lang("zh"):
-            self.assertEqual(stock_render.header_text("available", "26"), "26 MY 空车 车型/颜色")
-            self.assertEqual(stock_render.header_text("available", ""), "空车 车型/颜色")
+            self.assertEqual(stock_render.header_text("available", "26"), ("26 MY 空车", "车型/颜色"))
+            self.assertEqual(stock_render.header_text("available", ""), ("空车", "车型/颜色"))
+            self.assertEqual(stock_render.header_text("all", ""), ("车辆", "车型/颜色"))
         with lang("en"):
-            self.assertEqual(stock_render.header_text("all", ""), "Model/Color")
+            self.assertEqual(stock_render.header_text("all", ""), ("Vehicles", "Model/Color"))
         with lang("ja"):
-            self.assertEqual(stock_render.header_text("available", "26"), "26 MY 空き車 車種/色")
-        self.assertIn("<th colspan=2>รถรุ่น ว่าง Model/Color</th>", self.page(report.summarize(rows, "available", CARS)))
+            self.assertEqual(stock_render.header_text("available", "26"), ("26 MY 空き車", "車種/色"))
+            self.assertEqual(stock_render.header_text("all", ""), ("車両", "車種/色"))
+        self.assertIn("<th>รถรุ่น ว่าง</th><th>Model/Color</th>", self.page(report.summarize(rows, "available", CARS)))
 
     def test_pages_repeat_the_header_and_only_the_last_has_the_footer(self):
         summary = report.summarize(report.parse_export(export(big_library())), "available", {})
@@ -202,10 +204,14 @@ class Alignment(unittest.TestCase):
         self.assertIn("<tr class=f><td colspan=2>", page)  # 底部蓝字从车名列起，合计在台数列（td.n）
         self.assertIn("overflow-wrap:anywhere", page)  # 长车名在本列内换行，不压到代码列
         self.assertIn("table-layout:fixed", page)
-        self.assertEqual([sheet["A1"].alignment.horizontal, sheet["C1"].alignment.horizontal,
-                          sheet["D1"].alignment.horizontal], ["left", "center", "left"])
-        self.assertEqual([sheet["A2"].alignment.horizontal, sheet["C2"].alignment.horizontal,
-                          sheet["D2"].alignment.horizontal], ["left", "center", "left"])
+        # 表头「Model/Color」与代码颜色列数据同列（第 2 格 / B 列）、同为靠左；其余各列同理
+        self.assertIn("<th>รถรุ่น 26 MY ว่าง</th><th>Model/Color</th><th class=n>", page)
+        self.assertIn("<td class=c>USR30 DWP</td>", page)
+        heads = [sheet.cell(1, column).alignment.horizontal for column in range(1, 5)]
+        data = [sheet.cell(2, column).alignment.horizontal for column in range(1, 5)]
+        self.assertEqual(heads, ["left", "left", "center", "left"])
+        self.assertEqual(heads, data)
+        self.assertEqual([sheet["B1"].value, sheet["B2"].value], ["Model/Color", "USR30 DWP"])
         self.assertEqual(sheet["D2"].value, "ปลวกแดง 1 / ระยอง โชว์รูม 1")
 
 
@@ -219,9 +225,10 @@ class Colours(unittest.TestCase):
             summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", CARS)
             as_of = stock_render.as_of_label(datetime(2026, 11, 20, 16, 53))
             sheet = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of))).active
-        self.assertIn("A1:B1", [str(cell_range) for cell_range in sheet.merged_cells.ranges])
-        self.assertEqual([sheet["A1"].value, sheet["C1"].value, sheet["D1"].value],
-                         ["รถรุ่น Model/Color", "จำนวน", "สถานที่จอดรถ"])
+        self.assertNotIn("A1:B1", [str(cell_range) for cell_range in sheet.merged_cells.ranges])  # 两半各一格
+        self.assertEqual([sheet["A1"].value, sheet["B1"].value, sheet["C1"].value, sheet["D1"].value],
+                         ["รถรุ่น", "Model/Color", "จำนวน", "สถานที่จอดรถ"])
+        self.assertEqual(sheet["B1"].fill.fgColor.rgb[-6:], stock_render.HEAD_FILL)
         self.assertEqual(sheet["A1"].fill.fgColor.rgb[-6:], stock_render.HEAD_FILL)
         self.assertTrue(sheet["A1"].font.bold)
         first, second = sheet[2], sheet[3]

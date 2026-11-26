@@ -254,8 +254,11 @@ DMS 网页没有这个入口；没有可直接打字进入查询的关键词。�
   - 词条原文（`{my}` = 「26 MY」或空）：
     | 键 | zh | th | en | ja |
     | --- | --- | --- | --- | --- |
-    | dms.card.report.HEAD_AVAILABLE | {my} 空车 车型/颜色 | รถรุ่น {my} ว่าง Model/Color | {my} Available Model/Color | {my} 空き車 車種/色 |
-    | dms.card.report.HEAD_OTHER | {my} 车型/颜色 | รถรุ่น {my} Model/Color | {my} Model/Color | {my} 車種/色 |
+    | dms.card.report.HEAD_AVAILABLE | {my} 空车 | รถรุ่น {my} ว่าง | {my} Available | {my} 空き車 |
+    | dms.card.report.HEAD_OTHER | {my} 车辆 | รถรุ่น {my} | {my} Vehicles | {my} 車両 |
+    | dms.card.report.HEAD_CODE | 车型/颜色 | Model/Color | Model/Color | 車種/色 |
+  - 表头两部分各自对齐各自的列（用户 11-26「车型和颜色对齐内容了？」）：前半句（上两行）对齐车名列起点，「Model/Color」（HEAD_CODE）对齐代码颜色列起点；
+    图片 / PDF 用两个表头格、Excel 写 A1 与 B1（不合并），同绿底无边框，看起来仍是一整格。四种组合前半句都不为空（全部档无年款时 th「รถรุ่น」、zh「车辆」）。
     | dms.card.report.FOOT | 更新 {date} {time} 合计 | อัพเดต {date} เวลา {time} Total | Updated {date} {time} Total | 更新 {date} {time} 合計 |
   - 日期：四语都用公历，照样表「อัพเดต 20/11/2026 …」（用户 11-26 定）；泰文时间照样表用点（16.53），其它用冒号；汇总文件名日期戳同样用公历，原件两份保留 MR.ERP 原文件名（佛历）。
   - 行距照样表收紧（约 1.3 倍字高），每张图 36 行。

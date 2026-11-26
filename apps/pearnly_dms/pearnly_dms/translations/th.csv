@@ -214,6 +214,7 @@ Manual Read Request,คำขอดึงข้อมูลด้วยตนเ
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
 Menu,เมนู
 Model year,ปีผลิต
+Model/Color,Model/Color
 Model/colour,รุ่น/สี
 Moo,หมู่
 Multiple DMS connections exist for this operator,พนักงานรายนี้มีการเชื่อมต่อ DMS หลายรายการ
@@ -806,8 +807,9 @@ dms.card.report.BTN_SUMMARY_XLSX,สรุป Excel
 dms.card.report.COL_COUNT,จำนวน
 dms.card.report.COL_PLACE,สถานที่จอดรถ
 dms.card.report.FOOT,อัพเดต {date} เวลา {time} Total
-dms.card.report.HEAD_AVAILABLE,รถรุ่น {my} ว่าง Model/Color
-dms.card.report.HEAD_OTHER,รถรุ่น {my} Model/Color
+dms.card.report.HEAD_AVAILABLE,รถรุ่น {my} ว่าง
+dms.card.report.HEAD_CODE,Model/Color
+dms.card.report.HEAD_OTHER,รถรุ่น {my}
 dms.card.report.MORE_ROWS,อีก {count} รายการอยู่ในไฟล์
 dms.card.report.SCOPE_ALL,ทั้งหมด
 dms.card.report.SCOPE_AVAILABLE,รถว่าง
@@ -1083,8 +1085,8 @@ usage log,บันทึกการใช้งาน
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
 {count} more rows are in the files,อีก {count} รายการอยู่ในไฟล์
-{my} Available Model/Color,รถรุ่น {my} ว่าง Model/Color
-{my} Model/Color,รถรุ่น {my} Model/Color
+{my} Available,รถรุ่น {my} ว่าง
+{my} Vehicles,รถรุ่น {my}
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 {n} more,อีก {n} รายการ
 {text} ({fields}),{text} ({fields})
