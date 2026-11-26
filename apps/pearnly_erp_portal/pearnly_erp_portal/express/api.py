@@ -165,22 +165,43 @@ def _party_blocked(doctype, row, job):
     回要人选的那一项；其余情形回 []（只能「重试」）。"""
     code = ack_rules.error_code(job["reason"]) if job and job["status"] == "manual" else ""
     if code in prepare.PARTY_CODES:
-        return prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
-    if code in prepare.GROUP_CODES:
+        needed = prepare.party_needed(push.document(doctype, row.name), push._company(row.company))
+    elif code in prepare.GROUP_CODES:
         if doctype in (push.STOCK, push.COUNT):
             # 库存单里新建的存货判不出存货科目（多仓闭环 P3x）：按这张单的日期用的那份账套问存货科目组
-            return prepare.book_group_needed(push._company(row.company), push.document(doctype, row.name)["date"])
-        return prepare.group_needed(push.document(doctype, row.name), push._company(row.company))
-    if code in prepare.SERVICE_VAT_CODES:
-        return prepare.service_vat_needed(push.document(doctype, row.name), push._company(row.company))
-    return []
+            needed = prepare.book_group_needed(push._company(row.company), push.document(doctype, row.name)["date"])
+        else:
+            needed = prepare.group_needed(push.document(doctype, row.name), push._company(row.company))
+    elif code in prepare.SERVICE_VAT_CODES:
+        needed = prepare.service_vat_needed(push.document(doctype, row.name), push._company(row.company))
+    else:
+        return []
+    return _unanswered(row, job, needed)
+
+
+def _unanswered(row, job, needed) -> list:
+    """被拦那几项里还要人答的（问一次记住，11-26）：这张单停下**之后**已经答过、答的仍是这一项能选的值的不再出题——单据照
+    「再写一次」（:func:`retry`，CC 直写 `cc_tools._route` 同一个出口）按记住的值重新准备一件，由新的写账结果说话；原来那件的
+    停下原因照旧留着，被新的一件替换（``replaced``）时才不算数，不靠清原因放行。答在停下之前的（带着它写过、仍被拦）照旧问，
+    当前值不预填：预填了写入计划会照它放行，这里却仍判要答，直写就停在原地（11-26 真机 PE2569-000021 选了存货科目组反复追问）。"""
+    stopped = frappe.db.get_value(jobs.JOB, job["job"], "modified") if needed and job else None
+    if not stopped:
+        return needed
+    data = facts.load(row.get("ledger_book")) if row.get("ledger_book") else None
+    still = []
+    for item in needed:  # loop-query: 被拦的只有一两项（对方档 / 存货组 / 服务口径），有界
+        value, at = choices.answered(row.company, item["kind"], item["subject"])
+        if value and at and at > stopped and value in {option["code"] for option in _options(item, data)}:
+            continue
+        still.append(item)
+    return still
 
 
 def blocked_needed(doctype, name) -> list:
     """这张单上次被电脑拦下、要在 ERP 里选一次才能再写的那一项（:func:`_party_blocked`：对方档、新建库存品的存货科目组、服务品进项
     税口径）；不是这种停法回 []。单据页、开始前确认卡片（`precheck.collect_document`）、代录中途那张卡同一个出口（11-16 真机 H5：
     代录对话里只给「重试」）。只读。"""
-    row = frappe.db.get_value(doctype, name, ["name", "company", "ledger_job"], as_dict=True)
+    row = frappe.db.get_value(doctype, name, ["name", "company", "ledger_job", "ledger_book"], as_dict=True)
     job = jobs.find_by_name(row.ledger_job) if row and row.get("ledger_job") else None
     return _party_blocked(doctype, row, job) if job else []
 

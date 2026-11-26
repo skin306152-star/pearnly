@@ -544,6 +544,21 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.cc.blocked-answered-once"
+title = "被电脑以要人选的码拦下的单（STOCK_ACC_GROUP_UNFIT）答过一次就不再问（11-26 真机 PE2569-000021）：直写开始前确认与代录预检答前问、答后不问，写入计划放行，直写出口照再写一次重新准备（原件 replaced、新件带 DM），代录会话那张卡不再是提问卡"
+module = "scripts/flows/erp_cc_blocked_answered_once.py"
+start = "/assistant?c={session}"
+user = "admin"
+datasets = ["new"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/api.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/choices.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/precheck.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/express/cc_tools.py",
+]
+
+[[flow]]
 id = "cc.operator.dialog-choice"
 title = "代录中途配方外的业务选择框带回对话（CC 桌面版 1.12.23）：判定出一题（选项是框上的按钮）、页面出提问卡、答了按公司 + 指纹记住并只给 1.12.23 起的电脑排一条「点这个钮」"
 module = "scripts/flows/cc_operator_dialog_choice.py"
