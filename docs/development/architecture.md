@@ -113,6 +113,7 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 - 跨站点（Cowork 与 ERP 写同一份账套）的写者互斥在电脑那一侧：CC 桌面版写期间锁住账套目录里的 ``PEARNLY.LCK``。
 - 登记的债：Cowork 仍用自己的 `companion` 通道，迁到共用通道的条件见 ADR-025「后果与验证」。
 - `pearnly_core.transaction.conflicts`（本地事务撞 1020 / 1213 整笔重来）同批由 Cowork 搬来，两边共用。
+- **关快照隔离后的并发写法（11-26，[记录](../work/2026-11-26-isolation-save-conflict-retry.md)）**：同一事务里先普通读过之后，加锁读拿最新值、普通读仍是读视图里的旧副本，两者混用会对不上（保存前比对、链接校验报错）。写事务要么在新事务里**先加锁、后做任何普通读**，要么经 `conflicts.retried`（1020 / 1213 与 Frappe 保存前比对抛的 `TimestampMismatchError` 整笔回滚、换新读视图重来；1205 等锁超时、业务自己抛的「记录变了、请刷新」照原样报给用户）。不要在旧读视图里改用 `get_doc(..., for_update=True)` 补救（11-26 实验室实测更差：链接校验报错、子表锁更多死锁）。
 
 ### MR.ERP 规则（共用层，2026-11-02）
 
