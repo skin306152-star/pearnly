@@ -257,7 +257,9 @@ DMS 网页没有这个入口；没有可直接打字进入查询的关键词。�
     | dms.card.report.HEAD_AVAILABLE | {my} 空车 车型/颜色 | รถรุ่น {my} ว่าง Model/Color | {my} Available Model/Color | {my} 空き車 車種/色 |
     | dms.card.report.HEAD_OTHER | {my} 车型/颜色 | รถรุ่น {my} Model/Color | {my} Model/Color | {my} 車種/色 |
     | dms.card.report.FOOT | 更新 {date} {time} 合计 | อัพเดต {date} เวลา {time} Total | Updated {date} {time} Total | 更新 {date} {time} 合計 |
-  - 日期：泰文佛历（2569）、时间用点（16.53）；其它语言公历、时间用冒号。注意：样表底部写的是公历「20/11/2026」，主会话口径泰文用佛历，故与样表这一处不同。
+  - 日期：四语都用公历，照样表「อัพเดต 20/11/2026 …」（用户 11-26 定）；泰文时间照样表用点（16.53），其它用冒号；汇总文件名日期戳同样用公历，原件两份保留 MR.ERP 原文件名（佛历）。
+  - 行距照样表收紧（约 1.3 倍字高），每张图 36 行。
+  - 对齐（用户 11-26「表头和内容要对齐……我感觉歪歪扭扭的」）：每一列表头与数据同一种对齐——车名 / 代码 / 位置靠左、台数表头 / 数字 / 合计居中；底部蓝字从车名列起；长车名在本列内换行，不压邻列（测试 Alignment 用长车名与多位置样例）。
 - 卡片收紧：真机 d6b 标题与按钮之间空一大块，原因是标题放在 body、按钮放在 footer，两块各有默认内边距。改为标题与四个按钮同在一个 body（spacing sm），没有 footer / spacer / separator / margin；测试断言 JSON 结构。
 - 样张：`~/pearnly-devtools/stock-report-out/stock-{th,zh}-{9,600}-*.jpg / .pdf / .xlsx`、四语 `lang/`，与样表并排 `对照-样表-新图.png`。
 

@@ -174,8 +174,8 @@ def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any
     if not summary["total"]:
         return [{"type": "text", "text": _t("TXT_EMPTY")}]
     batch = stock_files.new_batch()
-    year = moment.year + (543 if i18n.line_lang() == "th" else 0)  # 同「更新时间」：泰文佛历，其它语言公历
-    stamp = f"{moment.day:02d}{moment.month:02d}{year}_{moment.hour:02d}{moment.minute:02d}"
+    # 同底部一行：四语都用公历（照样表，用户 11-26）；原件两份是 MR.ERP 的原文件名（佛历），不动
+    stamp = f"{moment.day:02d}{moment.month:02d}{moment.year}_{moment.hour:02d}{moment.minute:02d}"
     summary_name = f"{_t('TITLE')} [{stamp}]"
     links = {
         "original_xlsx": stock_files.save(result["originals"]["xlsx"]["content"], "xlsx",

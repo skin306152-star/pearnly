@@ -149,10 +149,10 @@ class Layout(unittest.TestCase):
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", same)
         page = self.page(summary)
         self.assertEqual(page.count("</th>"), 3)
-        self.assertIn("<th colspan=2>รถรุ่น 26 MY ว่าง Model/Color</th><th>จำนวน</th><th>สถานที่จอดรถ</th>", page)
+        self.assertIn("<th colspan=2>รถรุ่น 26 MY ว่าง Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
         self.assertNotIn("<h1", page)
         self.assertIn("border:0", page)
-        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2569 เวลา 16.53 Total</td><td class=n>5</td>", page)
+        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>5</td>", page)
 
     def test_header_wording_for_year_and_scope(self):
         rows = report.parse_export(export(TEST_LIBRARY))
@@ -181,6 +181,34 @@ class Layout(unittest.TestCase):
         self.assertIn("class=f", last)
 
 
+class Alignment(unittest.TestCase):
+    """每一列表头与数据同一种对齐（用户 11-26「表头和内容要对齐……歪歪扭扭的」）：车名 / 代码 / 位置靠左，台数表头、数字、合计居中。"""
+
+    LONG = [("USR30", "DWP", "E1", "C1", "รถว่าง", "ปลวกแดง", None, None, "T"),
+            ("USR30", "DWP", "E2", "C2", "รถว่าง", "ระยอง โชว์รูม", None, None, "T")]
+
+    def test_header_and_data_share_one_alignment_per_column(self):
+        from openpyxl import load_workbook
+
+        cars = {"USR30": {"name": "V-Cross Max 4Drs 3.0Ddi M AT", "year": "2026"}}
+        with lang("th"):
+            summary = report.summarize(report.parse_export(export(self.LONG)), "available", cars)
+            as_of = stock_render.as_of_label(datetime(2026, 11, 20, 16, 53))
+            page = stock_render.document(summary["rows"], summary, "available", as_of)
+            sheet = load_workbook(io.BytesIO(stock_render.workbook(summary, "available", as_of))).active
+        self.assertIn("th{background:#00FF00;color:#000;font-weight:700;text-align:left}th.n{text-align:center}", page)
+        self.assertIn("td.n{text-align:center", page)
+        self.assertIn("<th class=n>จำนวน</th>", page)
+        self.assertIn("<tr class=f><td colspan=2>", page)  # 底部蓝字从车名列起，合计在台数列（td.n）
+        self.assertIn("overflow-wrap:anywhere", page)  # 长车名在本列内换行，不压到代码列
+        self.assertIn("table-layout:fixed", page)
+        self.assertEqual([sheet["A1"].alignment.horizontal, sheet["C1"].alignment.horizontal,
+                          sheet["D1"].alignment.horizontal], ["left", "center", "left"])
+        self.assertEqual([sheet["A2"].alignment.horizontal, sheet["C2"].alignment.horizontal,
+                          sheet["D2"].alignment.horizontal], ["left", "center", "left"])
+        self.assertEqual(sheet["D2"].value, "ปลวกแดง 1 / ระยอง โชว์รูม 1")
+
+
 class Colours(unittest.TestCase):
     """配色照岳父样表（用户 11-26）：表头绿底黑字加粗、隔行浅灰、台数红色加粗居中、底部蓝色加粗且合计数字红色。"""
 
@@ -202,7 +230,7 @@ class Colours(unittest.TestCase):
         self.assertEqual(first[2].alignment.horizontal, "center")
         self.assertEqual({first[0].fill.fill_type, second[0].fill.fgColor.rgb[-6:]}, {None, stock_render.STRIPE_FILL})
         footer = sheet.max_row
-        self.assertEqual(sheet.cell(footer, 1).value, "อัพเดต 20/11/2569 เวลา 16.53 Total")
+        self.assertEqual(sheet.cell(footer, 1).value, "อัพเดต 20/11/2026 เวลา 16.53 Total")
         self.assertEqual(sheet.cell(footer, 1).font.color.rgb[-6:], stock_render.FOOT_COLOR)
         self.assertEqual(sheet.cell(footer, 3).value, 9)
         self.assertEqual(sheet.cell(footer, 3).font.color.rgb[-6:], stock_render.COUNT_COLOR)
@@ -211,9 +239,9 @@ class Colours(unittest.TestCase):
 
 class Languages(unittest.TestCase):
     """报表文字跟发起人的 LINE 语言（`i18n.line_lang()`，后台任务里由 `line/out.run_guarded` 的 `i18n.line_language(user)` 设好），
-    不写死某一种；四语各自的表头、底部一行（日期：泰文佛历、其它公历；时间：泰文用点）、文件名都对（用户 11-26：「不要写死中文」）。"""
+    不写死某一种；四语各自的表头、底部一行（日期四语都用公历、照样表；时间：泰文用点）、文件名都对（用户 11-26：「不要写死中文」）。"""
 
-    EXPECT = {"th": ("จำนวน", "อัพเดต 26/11/2569 เวลา 11.20 Total", "สต๊อกตามที่จอดรถ [26112569_1120]"),
+    EXPECT = {"th": ("จำนวน", "อัพเดต 26/11/2026 เวลา 11.20 Total", "สต๊อกตามที่จอดรถ [26112026_1120]"),
               "zh": ("台数", "更新 26/11/2026 11:20 合计", "库存停放报表 [26112026_1120]"),
               "en": ("Qty", "Updated 26/11/2026 11:20 Total", "Stock by location [26112026_1120]"),
               "ja": ("台数", "更新 26/11/2026 11:20 合計", "在庫・保管場所 [26112026_1120]")}
