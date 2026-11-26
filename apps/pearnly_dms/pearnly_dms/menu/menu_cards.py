@@ -19,6 +19,7 @@ from __future__ import annotations
 from typing import Any, Dict
 from pearnly_dms.menu.links import account_action
 
+from pearnly_dms import i18n
 from pearnly_dms.line import cards
 from pearnly_dms.line.cards import (
     ACT_MENU_BOOKING,
@@ -204,7 +205,8 @@ def menu_card(
                 "menu-5",
                 THEME_ORANGE,
                 cards.TXT_MENU_ITEM5,
-                cards.TXT_MENU_D5,
+                # 说明小字与六宫格那一格同一个词条（用户 11-26：「小字可以简短点」，两处不放两份近似文案）
+                i18n.t("dms.card.rich.query.sub", lang=i18n.line_lang()),
                 {"type": "postback", "data": _data(ACT_MENU_QUERY)},
             )
         )

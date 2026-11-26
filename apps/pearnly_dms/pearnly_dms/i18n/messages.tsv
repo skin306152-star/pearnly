@@ -145,7 +145,6 @@ Create a new customer from an ID card, or update an existing customer	用身份�
 Create a car booking: choose the model and colour, then save	建立订车单：选择车型、颜色并保存	สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง	車の予約を作成：車種と色を選んで保存	dms.card.TXT_MENU_D2
 Open Pearnly DMS without typing your password again	无需重新输入密码，直接打开 Pearnly DMS	เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง	パスワードを再入力せずに Pearnly DMS を開く	dms.card.TXT_MENU_D3
 Update the DMS username and password saved in Pearnly	更新保存在 Pearnly 里的 DMS 用户名和密码	อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly	Pearnly に保存した DMS のユーザー名とパスワードを更新	dms.card.TXT_MENU_D4
-View the latest sales data from DMS within your permissions	按权限查看 DMS 最新销售资料	ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ	権限の範囲で DMS の最新の販売データを見る	dms.card.TXT_MENU_D5
 Watch step-by-step video guides	观看分步骤的教程视频	ดูคลิปสอนการใช้งานทีละขั้นตอน	手順ごとの動画ガイドを見る	dms.card.TXT_MENU_D6
 Hello 🙏\nWelcome to Pearnly DMS\nPlease choose a menu below to get started	你好 🙏\n欢迎使用 Pearnly DMS\n请选择下方菜单开始使用	สวัสดี 🙏\nยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS\nกรุณาเลือกเมนูด้านล่างเพื่อเริ่มต้นใช้งาน	こんにちは 🙏\nPearnly DMS へようこそ\n下のメニューから始めてください	dms.card.TXT_MENU_GREETING
 Type menu to bring up this menu any time	随时输入 菜单 即可调出此菜单	พิมพ์ เมนู เพื่อเรียกเมนูนี้ได้ตลอดเวลา	いつでも メニュー と入力するとこのメニューを表示します	dms.card.TXT_MENU_HINT

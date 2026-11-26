@@ -155,6 +155,9 @@ class Copy(unittest.TestCase):
         for code in ("en", "zh", "th", "ja"):
             self.assertEqual(card[code], rich[code], code)
         self.assertEqual(card["zh"], "报表查询")
+        self.assertNotIn("dms.card.TXT_MENU_D5", words)  # 菜单卡说明小字直接用六宫格那条（同一个词条）
+        source = (ROOT / "apps/pearnly_dms/pearnly_dms/menu/menu_cards.py").read_text(encoding="utf-8")
+        self.assertIn('"dms.card.rich.query.sub"', source)
 
     def test_button_labels_fit_line(self):
         words = self.glossary()

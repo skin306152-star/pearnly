@@ -490,7 +490,6 @@ Verified Write Results,検証済みの書き込み結果
 Video guides,動画ガイド
 View result,結果を見る
 View result / status,結果／状態を見る
-View the latest sales data from DMS within your permissions,権限の範囲で DMS の最新の販売データを見る
 Village,村
 Watch step-by-step video guides,手順ごとの動画ガイドを見る
 Write accounts,書き込みアカウント
@@ -566,7 +565,6 @@ dms.card.TXT_MENU_D1,身分証明書から新規顧客を作成、または既�
 dms.card.TXT_MENU_D2,車の予約を作成：車種と色を選んで保存
 dms.card.TXT_MENU_D3,パスワードを再入力せずに Pearnly DMS を開く
 dms.card.TXT_MENU_D4,Pearnly に保存した DMS のユーザー名とパスワードを更新
-dms.card.TXT_MENU_D5,権限の範囲で DMS の最新の販売データを見る
 dms.card.TXT_MENU_D6,手順ごとの動画ガイドを見る
 dms.card.TXT_MENU_GREETING,"こんにちは 🙏
 Pearnly DMS へようこそ

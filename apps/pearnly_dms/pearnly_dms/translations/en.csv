@@ -490,7 +490,6 @@ Verified Write Results,Verified Write Results
 Video guides,Video guides
 View result,View result
 View result / status,View result / status
-View the latest sales data from DMS within your permissions,View the latest sales data from DMS within your permissions
 Village,Village
 Watch step-by-step video guides,Watch step-by-step video guides
 Write accounts,Write accounts
@@ -566,7 +565,6 @@ dms.card.TXT_MENU_D1,"Create a new customer from an ID card, or update an existi
 dms.card.TXT_MENU_D2,"Create a car booking: choose the model and colour, then save"
 dms.card.TXT_MENU_D3,Open Pearnly DMS without typing your password again
 dms.card.TXT_MENU_D4,Update the DMS username and password saved in Pearnly
-dms.card.TXT_MENU_D5,View the latest sales data from DMS within your permissions
 dms.card.TXT_MENU_D6,Watch step-by-step video guides
 dms.card.TXT_MENU_GREETING,"Hello 🙏
 Welcome to Pearnly DMS

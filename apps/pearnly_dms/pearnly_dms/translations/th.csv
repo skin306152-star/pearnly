@@ -490,7 +490,6 @@ Verified Write Results,ผลการบันทึกที่ตรวจส
 Video guides,วิดีโอสอนการใช้งาน
 View result,ดูผลลัพธ์
 View result / status,ดูผล / สถานะการอ่าน
-View the latest sales data from DMS within your permissions,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 Village,หมู่บ้าน
 Watch step-by-step video guides,ดูคลิปสอนการใช้งานทีละขั้นตอน
 Write accounts,บัญชีสิทธิ์แก้ไข
@@ -566,7 +565,6 @@ dms.card.TXT_MENU_D1,จัดทำข้อมูลลูกค้าให�
 dms.card.TXT_MENU_D2,สร้างใบจองรถยนต์ เลือกรุ่น สี และบันทึกการจอง
 dms.card.TXT_MENU_D3,เปิด Pearnly DMS ได้สะดวก โดยไม่ต้องพิมพ์รหัสผ่านอีกครั้ง
 dms.card.TXT_MENU_D4,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
-dms.card.TXT_MENU_D5,ดูข้อมูลการขายล่าสุดจาก DMS ตามสิทธิ์ที่ได้รับ
 dms.card.TXT_MENU_D6,ดูคลิปสอนการใช้งานทีละขั้นตอน
 dms.card.TXT_MENU_GREETING,"สวัสดี 🙏
 ยินดีต้อนรับเข้าสู่ระบบ Pearnly DMS
