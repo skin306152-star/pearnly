@@ -72,7 +72,27 @@ CC 桌面版机器方法（`cc_desktop/machine._run` / `_guarded`、`api.registe
 
 ## 验证
 
-（见下方追加）
+本机（分支 9425cb702，代码 = f7fd77bcf + 说明）：
+
+- 全闸门 `gate.sh` 292 项过；候选离线（生产镜像 `fdf20d98`，在第一次部署合并头上跑）LANE EXIT 0；GitHub 9425cb702：architecture-and-offline / candidate / flows 全绿；逐提交公开扫描拦截 0。
+- 离线 `tests/test_transaction_conflicts_stale_save.py` 5 项过；去掉修法 2 项失败。相关老测试（push conflicts、companion lock retry、assistant、cowork tools、devices、requests、operator tasks、snapshot isolation）全过。
+- 回归实验室（隔离 OFF，回读 `--innodb-snapshot-isolation=OFF`）：
+  - `erp.purchase.voucher-concurrent`：f7fd77bcf 20 轮 40/40 过；9425cb702 5 轮 10/10 过（main 同条件 3/10）。
+  - 取号并发 conc30（30 张 LINE 卡片同一瞬间保存，11-23 关隔离要解决的原问题）：回归实验室 5 轮 + 本机另一套实验栈补跑到 20 轮，回归实验室 5 轮 + 自己的栈第 6–18 轮全部 confirmed 30、errors_3min 0（共 18 轮；补到 20 轮的最后几轮结果写在 ~/pearnly-devtools/handoff-1126/合入列车-train-1126.md）（每轮 confirmed 30、errors_3min 0）。主会话 11-26 定：回归实验室只跑 5 轮（每轮约 11 分钟、A 没碰取号路径），余下在自己的栈上补，不挡合入。
+  - 条件批量改（并发删 12 个用户，User.on_trash 按条件改 ToDo 等）：3 轮，每轮 12/12、errors 0、清理后残留 0。
+  - 两台电脑同时领同一件（`erp.writer-at-claim`，经机器通道 `retried`）：回归实验室 9 轮 9/9 过（每轮约 4 分钟，为让出实验室跑总合并头全量在第 10 轮停下；余下在自己的栈上补到 20 轮，结果写在交接）。
+
+### 共用件影响清单（`check-impact.py --files …/transaction/conflicts.py`）
+
+| 入口 | 结果 |
+|---|---|
+| `erp.purchase.voucher`（采购单补开收据 / 预扣税凭证，几张单同时点、同一张点两次） | 通过：实验室流程 erp.purchase.voucher-concurrent（见上）；第一次部署合并头清卷全量另跑 |
+| `cc.assistant`（CC 对话页：新建、发消息、附件、切会话） | 通过：真机第 2 项（发消息、工具执行、改标题）；对话页流程在第一次部署合并头清卷全量里跑。**直写没测到**（测试环境没接付费识别、可用的待处理单卡在原有的存货科目组追问缺陷，见下节） |
+| `shared.transaction`（CC 登记电脑、回执，并发时自动重试） | 通过：真机第 1 项（写账回执只写一次）、第 4 项（重新登记不多建）；实验室领单并发（见上） |
+| `cowork.transaction`（Cowork CC 推送回执、心跳并发） | 通过：真机第 3 项（推送、按需请求、回读）；心跳并发没单独压测（经同一 `retried`，离线 test_cowork_companion_lock_retry 覆盖） |
+| `cc.mrerp-login`（MR.ERP 连接登录授权） | **没测到**：授权弹窗要输 MR.ERP 测试账号密码，规则上不代输；用户回来后补测（步骤见真机第 6 项）。本分支只改重试范围，正常路径与 main 相同 |
+
+代录停止 / 继续（真机第 5 项）**没测到**：一批两张约 70 秒写完，点停止时任务已结束；开始到完成、回执、结算通过。
 
 ## 真机（11-26 15:10–16:25，测试机1 + 测试环境，库存报表窗口执行）
 
