@@ -74,6 +74,13 @@ def chosen(company, kind, subject) -> str:
     return assumed(company, kind, subject) or frappe.db.get_value(CHOICE, _name(company, kind, subject), "value") or ""
 
 
+def answered(company, kind, subject) -> tuple:
+    """库里记着的这一项 ``(值, 最后一次答的时刻)``（不含判定范围里临时当作选过的）；没答过回 ``("", None)``。同一项再答同一个值
+    也刷新时刻（:func:`remember` 照存一遍）：被拦后人重答一次就算新答案（`api._unanswered`）。"""
+    row = frappe.db.get_value(CHOICE, _name(company, kind, subject), ["value", "modified"], as_dict=True)
+    return (str(row.get("value") or ""), row.get("modified")) if row else ("", None)
+
+
 def remember(company, kind, subject, value, label=""):
     """记下一项（同一项再选就改这一行）。调用方已核过权限与值在账套里。"""
     name = _name(company, kind, subject)
