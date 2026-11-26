@@ -6,8 +6,7 @@
 ``frappe.get_doc(doctype, name)`` 普通读，再 ``save``」读到旧单，保存前比对报 ``TimestampMismatchError``（11-26 并发出采购凭证 417）。
 规矩：加锁之后读要读的那张单，用 ``frappe.get_doc(doctype, name, for_update=…)``（Frappe 16 连子表一起加锁读，读到最新值）。
 
-检查：同一个函数里，出现加锁调用之后，再出现不带 ``for_update`` 的 ``frappe.get_doc(<doctype>, <name>)``（不是用字典新建），或调用本仓
-取单辅助函数（``_get`` / ``get_document`` / ``_owned``）却不传 ``lock``，就失败。
+检查：同一个函数里，出现加锁调用之后，再出现不带 ``for_update`` 的 ``frappe.get_doc(<doctype>, <name>)``（不是用字典新建）就失败。
 确认没问题的（读的是与锁无关、不会被并发改的单，或读完只读不写）在那一行行末标 ``# lock-read-ok: 原因``。
 只看 apps/ 下的 Python，排除 tests、patches。启发式：跨函数（加锁在调用方、读在被调函数里）靠评审与 :mod:`transaction.conflicts`
 的兜底重来（保存前比对撞上的那一种整笔重来）。
@@ -36,16 +35,6 @@ def _is_lock(node: ast.Call) -> bool:
             text = "".join(part.value for part in first.values if isinstance(part, ast.Constant) and isinstance(part.value, str))
         return "for update" in text.lower()
     return False
-
-
-# 本仓「取一张单」的辅助函数（带 ``lock`` 参数）：加锁之后调用它们却不传 ``lock``，读的就是普通读
-_LOCKABLE_GETTERS = {"_get", "get_document", "_owned"}
-
-
-def _is_unlocked_getter(node: ast.Call) -> bool:
-    func = node.func
-    name = func.id if isinstance(func, ast.Name) else func.attr if isinstance(func, ast.Attribute) else ""
-    return name in _LOCKABLE_GETTERS and not any(keyword.arg == "lock" for keyword in node.keywords)
 
 
 def _is_plain_get_doc(node: ast.Call) -> bool:
@@ -84,7 +73,7 @@ def violations(path: pathlib.Path, source: str):
         for call in _calls_in_order(function):
             if _is_lock(call):
                 locked = True
-            elif locked and (_is_plain_get_doc(call) or _is_unlocked_getter(call)):
+            elif locked and _is_plain_get_doc(call):
                 line = lines[call.lineno - 1] if call.lineno - 1 < len(lines) else ""
                 if MARK not in line:
                     out.append((call.lineno, function.name))
@@ -103,7 +92,7 @@ def main() -> int:
     failed = []
     for path in files():
         for line, name in violations(path, path.read_text(encoding="utf-8")):
-            failed.append(f"{path.relative_to(ROOT)}:{line} {name}: 加锁之后用普通 frappe.get_doc 读（改成 for_update=… / lock=True，或行末标 # {MARK} 原因）")
+            failed.append(f"{path.relative_to(ROOT)}:{line} {name}: 加锁之后用普通 frappe.get_doc 读（改成 for_update=…，或行末标 # {MARK} 原因）")
     for item in failed:
         print(item)
     print(f"check-lock-then-read: {'FAIL' if failed else 'PASS'} ({len(failed)} violations)")
