@@ -74,7 +74,7 @@ def _row(line_user_id: str, *, for_update=False) -> Optional[dict]:
         return None
     if not name:
         return None
-    doc = frappe.get_doc(DT, name, for_update=for_update)  # 加锁读时读最新值（关快照隔离）
+    doc = frappe.get_doc(DT, name)
     payload = doc.payload
     if isinstance(payload, str):
         try:
@@ -116,7 +116,7 @@ def set_session(
             raise RuntimeError("A submitted booking must be reconciled before replacing its session")
         name = frappe.db.get_value(DT, {"line_user_id": line_user_id}, "name")
         if name:
-            doc = frappe.get_doc(DT, name, for_update=True)  # 上面已锁这一行：读最新值（关快照隔离）
+            doc = frappe.get_doc(DT, name)
         else:
             doc = frappe.new_doc(DT)
             doc.line_user_id = line_user_id

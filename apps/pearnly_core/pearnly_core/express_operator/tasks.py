@@ -67,7 +67,7 @@ def _own(name, *, for_update: bool = False):
                               for_update=for_update)
     if not row:
         frappe.throw(_("Not found"), frappe.DoesNotExistError)
-    return frappe.get_doc(DOCTYPE, row, for_update=for_update)  # 加锁后的读要读最新值（关快照隔离后普通读是读视图里的旧副本）
+    return frappe.get_doc(DOCTYPE, row)
 
 
 def _period(value) -> str:

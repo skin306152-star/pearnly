@@ -199,7 +199,7 @@ def complete(context, body):
     context = devices.revalidate(context)
     moment = _now()
     found = frappe.db.sql(f"SELECT name FROM `tab{REQUEST}` WHERE name = %s FOR UPDATE", (data["request"],))
-    doc = frappe.get_doc(REQUEST, found[0][0], for_update=True) if found else None  # 已锁：读最新值（关快照隔离）
+    doc = frappe.get_doc(REQUEST, found[0][0]) if found else None
     if (doc is None or doc.status != "leased" or doc.lease_handle != data["handle"]
             or doc.lease_device != context.device or not doc.lease_expires_at or doc.lease_expires_at <= moment):
         raise contracts.ContractError("companion.on_demand_stale")

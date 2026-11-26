@@ -230,7 +230,7 @@ class Harness(unittest.TestCase):
     def _stubs(self):
         test, db = self, self.db
 
-        def get_doc(arg, name=None, for_update=False):
+        def get_doc(arg, name=None):
             if isinstance(arg, dict):
                 return Doc(db, arg["doctype"], {k: v for k, v in arg.items() if k != "doctype"})
             return Doc(db, arg, {**db.tables[arg][name], "name": name})

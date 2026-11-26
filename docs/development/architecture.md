@@ -113,7 +113,6 @@ Pearnly ERP 的 `express` 域：采购 / 销售单在唯一提交点（`sales.en
 - 跨站点（Cowork 与 ERP 写同一份账套）的写者互斥在电脑那一侧：CC 桌面版写期间锁住账套目录里的 ``PEARNLY.LCK``。
 - 登记的债：Cowork 仍用自己的 `companion` 通道，迁到共用通道的条件见 ADR-025「后果与验证」。
 - `pearnly_core.transaction.conflicts`（本地事务撞 1020 / 1213 整笔重来）同批由 Cowork 搬来，两边共用。
-- **关快照隔离后的并发写法（11-26，[记录](../work/2026-11-26-lock-then-read.md)）**：MariaDB 关了快照隔离，同一事务里先普通读过之后，加锁读拿最新值、普通读仍是读视图里的旧副本。所以加锁之后要读的那张单一律 `frappe.get_doc(doctype, name, for_update=…)`（Frappe 16 连子表一起加锁读），不再「SQL 加锁 + 普通 `get_doc`」；`scripts/check-lock-then-read.py` 拦同一函数里的这种写法（确认无关的行末标 `# lock-read-ok: 原因`），跨函数的靠评审。冲突统一由 `conflicts.retried` 处理：1020 / 1213 与 Frappe 保存前比对抛的 `TimestampMismatchError` 整笔回滚重来；1205 等锁超时、业务自己抛的「记录变了、请刷新」照原样报给用户。
 
 ### MR.ERP 规则（共用层，2026-11-02）
 

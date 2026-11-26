@@ -444,7 +444,7 @@ def _owned(name, *, lock=False):
         frappe.throw(_("This document is no longer available"), frappe.DoesNotExistError)
     if lock:
         frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", name)
-    doc = frappe.get_doc(DOCTYPE, name, for_update=lock)  # 加锁后的读要读最新值（关快照隔离）
+    doc = frappe.get_doc(DOCTYPE, name)
     if doc.sent_by != frappe.session.user:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     guard.require(DIRECTION_CAPABILITY[doc.direction])

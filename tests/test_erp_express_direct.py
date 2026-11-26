@@ -1468,7 +1468,7 @@ class StockVoid(PushModule):
         for count_state, blocked in (("written", True), ("queued", True), (None, False)):
             with mock.patch.object(documents.guard, "require", lambda *a, **k: None), \
                     mock.patch.object(documents.frappe.db, "sql", lambda *a, **k: None, create=True), \
-                    mock.patch.object(documents, "_get", lambda name, lock=False: entry), \
+                    mock.patch.object(documents, "_get", lambda name: entry), \
                     mock.patch.object(documents.frappe.db, "get_value", lambda doctype, name, field: count_state, create=True), \
                     mock.patch.object(documents.stock, "reverse_movements", lambda **kw: reversed_.append(kw["ref_id"])), \
                     mock.patch.object(documents.warehouses, "company_of", lambda w: "CO-1"), \

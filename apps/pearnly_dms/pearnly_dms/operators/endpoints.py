@@ -30,8 +30,7 @@ def sync_operator(operator, method=None):
                            pluck="name", limit_page_length=2)
     if len(names) > 1:
         frappe.throw(_("Multiple DMS connections exist for this operator"))
-    # 上面锁的是操作员行（同一身份串行）；连接本身也加锁读最新值（关快照隔离后普通读是读视图里的旧副本）
-    endpoint = frappe.get_doc(ENDPOINT, names[0], for_update=True) if names else frappe.new_doc(ENDPOINT)
+    endpoint = frappe.get_doc(ENDPOINT, names[0]) if names else frappe.new_doc(ENDPOINT)
     endpoint.adapter = "mrerp_dms"
     endpoint.owner_user = operator.user
     endpoint.label = operator.display_name

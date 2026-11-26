@@ -521,7 +521,7 @@ def acknowledge(context, body) -> dict:
     found = frappe.db.sql(f"SELECT name FROM `tab{JOB}` WHERE name = %s FOR UPDATE", (request["log_id"],))
     if not found:
         raise frappe.AuthenticationError
-    doc = frappe.get_doc(JOB, found[0][0], for_update=True)  # 已锁：读最新值（关快照隔离）
+    doc = frappe.get_doc(JOB, found[0][0])
     success = request["result"] == "success"
     if doc.status == "success":
         # 同一件已经记成功（回执重发）：照原样回，不再改

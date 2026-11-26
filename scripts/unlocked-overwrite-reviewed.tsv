@@ -1,6 +1,7 @@
 # check-unlocked-overwrite.py 逐处确认过的「同一张表没加锁读出、再写回」：后写的为准是本意（11-23）。
 # 每行：文件<TAB>函数<TAB>写的表（检查输出里 -> 后面那个）<TAB>原因。只许删不许无理由加；代码改了对不上的条目检查会报「登记过期」。
 apps/pearnly_control/pearnly_control/account/member_service.py	move_members	Pearnly Member Identity	写的是身份服务新建 / 找回的号，不由读出的值推算；整段在租户锁里
+apps/pearnly_control/pearnly_control/onboarding/welcome.py	queue_for_request	Pearnly Issue	写的是刚建的邮件队列名，不由读出的值推算
 apps/pearnly_control/pearnly_control/payments/usage.py	execute	Pearnly Credit Transaction	迁移：按不可变的流水分类，只在 billing_mode 为空时写
 apps/pearnly_core/pearnly_core/account/line_login.py	sync_user	Pearnly LINE Binding	按此刻绑定对账的结果，幂等，后写的为准；对账每小时再跑
 apps/pearnly_core/pearnly_core/ai_usage/ledger.py	write_session	Pearnly AI Usage	按远端会话累计用量整行覆盖今天那一行，后写的累计更新
