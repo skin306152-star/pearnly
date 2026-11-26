@@ -15,6 +15,12 @@
 先等 0.1–0.4 秒让对面那笔提交、错开同一台电脑「回执 → 紧接着领下一张」的连续两次改动，合计最多约 1 秒，短于 CC 桌面版 3 秒一次
 的取单间隔。原先 3 次、不等，压测里 register 有过三连撞。用尽抛 :class:`Exhausted`，不带数据库原文，各入口按自己原有的失败形状接住。
 等锁超时（1205，``QueryTimeoutError``）不在这里重来：已经等了整个锁等待时间。
+
+关掉快照隔离之后（11-23，``--innodb-snapshot-isolation=OFF``，`docs/work/2026-11-23-snapshot-isolation-off.md`）：同一种冲突不再报 1020，
+而是先普通读过（建立读视图）、再加锁、再 ``frappe.get_doc`` 普通读出旧副本，``doc.save()`` 时 Frappe 的 ``check_if_latest`` 加锁读到最新的
+修改时间对不上，报 ``frappe.TimestampMismatchError``（11-26 回归实验室：并发出采购凭证 18 个请求里有一个 417）。开着隔离时这一处是前面那次
+加锁读报 1020、在这里重来；所以这一种也同样整笔回滚重来（:func:`_stale_save`）。只认 Frappe 保存前比对抛的那一种：业务自己用
+``TimestampMismatchError`` 表示「记录变了、请刷新」（Cowork 推送的版本号核对等）照原样抛出，不重来。
 """
 import random
 import time
@@ -36,14 +42,21 @@ class RollbackFailed(Exception):
 
 
 def retried(function, *args, **kwargs):
-    """调 ``function``；撞上 1020 / 1213 时整笔回滚、退避后重来，最多 :data:`ATTEMPTS` 次，用尽抛 :class:`Exhausted`；
+    """调 ``function``；撞上 1020 / 1213（或关隔离后 Frappe 保存前比对的那一种 ``TimestampMismatchError``）时整笔回滚、退避后重来，最多 :data:`ATTEMPTS` 次，用尽抛 :class:`Exhausted`；
     回滚本身失败抛 :class:`RollbackFailed`、不再重来。别的错误原样抛出、不重来。"""
     messages = len(getattr(frappe.local, "message_log", None) or [])
     flagged = _error_message()
     for attempt in range(ATTEMPTS):
         try:
-            return function(*args, **kwargs)
-        except frappe.QueryDeadlockError:
+            try:
+                return function(*args, **kwargs)
+            except frappe.QueryDeadlockError:
+                raise
+            except Exception as error:
+                if not _stale_save(error):
+                    raise
+                raise _Conflict() from None  # 不把 Frappe 的提示原文挂在异常链上
+        except (frappe.QueryDeadlockError, _Conflict):
             try:
                 frappe.db.rollback()
                 rolled_back = True
@@ -56,6 +69,29 @@ def retried(function, *args, **kwargs):
             time.sleep(BACKOFF[attempt] * random.uniform(*JITTER))
     # 在 except 外抛：不把数据库原文挂在异常链上
     raise Exhausted()
+
+
+class _Conflict(Exception):
+    """内部：保存前比对撞上并发修改（见模块说明），与 1020 / 1213 同样处理。"""
+
+
+# Frappe 保存前比对的位置（锁定版本 `frappe/model/document.py` 的 ``Document.check_if_latest``，回归实验室镜像核过）
+_CHECK_FILE = ("frappe", "model", "document.py")
+_CHECK_FUNCTION = "check_if_latest"
+
+
+def _stale_save(error) -> bool:
+    """是不是 Frappe 保存前比对修改时间抛的 ``TimestampMismatchError``（不是业务自己抛的「请刷新」）。"""
+    mismatch = getattr(frappe, "TimestampMismatchError", None)
+    if not (isinstance(mismatch, type) and isinstance(error, mismatch)):
+        return False
+    frame = error.__traceback__
+    while frame is not None:
+        code = frame.tb_frame.f_code
+        if code.co_name == _CHECK_FUNCTION and tuple(code.co_filename.replace("\\", "/").split("/")[-3:]) == _CHECK_FILE:
+            return True
+        frame = frame.tb_next
+    return False
 
 
 _UNSET = object()

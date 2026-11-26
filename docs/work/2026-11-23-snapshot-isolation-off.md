@@ -78,3 +78,16 @@ ON / OFF 实测（独立临时 MariaDB 11.8.9，两个连接，A 先读一次）
 | Cowork CC 补页并单（`cowork.cc.troubleshooting`） | 离线：`test_cowork_into_document` 带加锁断言；没测到真引擎（实验栈假智能体不调工具） |
 | Cowork 自动推撤回（`withdraw_automation`） | 离线：`test_cowork_da_tiers` 带加锁断言 |
 | 生产 MariaDB | 没测到：生产不做 `SET GLOBAL`，下次部署重建 mariadb 容器生效；上线后用 `~/pearnly-devtools/snapiso-1123/snapiso-ro.sh` 回读 |
+
+## 11-26 补：保存前比对的冲突同样重来（`transaction.conflicts.retried`）
+
+- 现象：train-1125 清卷全量里 `erp.purchase.voucher-concurrent`（18 个凭证请求同时发）偶发一个 417 `TimestampMismatchError`。同一回归实验室各 5 轮 × 2 格：
+  线上版 `d8510e61a`（实验室按它的定义隔离 ON）10/10 过；main `f18fa1ec8`（OFF）7/10 不过；`f18fa1ec8` 代码配 ON 全过 → 是关隔离带出的，不是代码改动。
+- 机制：`purchasing.output._attach_voucher` 在 `conflicts.retried` 里，`access.get_document(lock=True)` 先 `guard.require`（读了角色，建立读视图）、再
+  `select … for update`、再 `frappe.get_doc` 普通读。ON 时那次加锁读报 1020，被 `retried` 整笔重来；OFF 时加锁读通过，`get_doc` 读到读视图里的旧副本，
+  `doc.save()` 里 Frappe `check_if_latest` 加锁读到最新修改时间对不上，报 `TimestampMismatchError`，不在重来范围里，直接报给用户。数据没有丢（比对挡住了），是报错。
+- 修法（按类）：`retried` 把 **Frappe 保存前比对抛的** `TimestampMismatchError`（抛出位置是锁定版 `frappe/model/document.py` 的 `check_if_latest`）与 1020 / 1213
+  同样处理：整笔回滚、退避重来、次数与提示清理相同，用尽抛 `Exhausted`。业务自己用 `TimestampMismatchError` 表示「记录变了、请刷新」（Cowork 推送的版本号核对、
+  `history.storage.conflict`）不认、原样抛出——那种重来也没用，且入口靠它给原来的提示。离线 `tests/test_transaction_conflicts_stale_save.py`（去掉修法 2 项失败）。
+- 范围：所有经 `conflicts.retried` 的入口（ERP 出凭证、CC 对话与执行记录、CC 桌面版机器方法、Cowork 推送与 companion 接口）在 OFF 下撞上同一种冲突时，
+  与 ON 时同样重来；没包在 `retried` 里的「先读 → 加锁 → get_doc → save」在 ON 时撞的是 1020、OFF 时撞的是 TimestampMismatch，都是报错，没有变差。
