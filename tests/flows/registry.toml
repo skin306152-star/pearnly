@@ -295,6 +295,20 @@ covers = [
 ]
 
 [[flow]]
+id = "erp.purchase.same-doc-concurrent"
+title = "ERP 同一张采购单同时付款 / 作废 / 出凭证：不报冲突、不丢付款（11-26 关快照隔离后加锁读最新值）"
+module = "scripts/flows/erp_purchase_same_doc_concurrent.py"
+start = "/desk/pearnly-purchase"
+user = "purchase"
+datasets = ["new", "old"]
+viewports = ["desktop"]
+covers = [
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/access.py",
+  "apps/pearnly_erp_portal/pearnly_erp_portal/purchasing/entry.py",
+  "apps/pearnly_core/pearnly_core/transaction/conflicts.py",
+]
+
+[[flow]]
 id = "erp.trade.line-stock"
 title = "ERP 采购：明细按行勾入库、批量编辑设整张，只有入库行动库存、随单新建的物料记来源单据（11-06 按行选物料与库存）"
 module = "scripts/flows/erp_trade_line_stock.py"

@@ -66,10 +66,10 @@ ADDED, NEW, REACTIVATED = "added", "new", "reactivated"
 # ── 取数 ────────────────────────────────────────────────────────────────────
 
 
-def _get(name) -> "frappe.Document":
+def _get(name, *, lock=False) -> "frappe.Document":
     if not name or not frappe.db.exists(COUNT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    doc = frappe.get_doc(COUNT, name)
+    doc = frappe.get_doc(COUNT, name, for_update=lock)
     company_access.require_warehouse(doc.warehouse)
     return doc
 
@@ -1088,7 +1088,7 @@ def _move_counted_units(count, entries):
 def delete_count(name: str) -> dict:
     guard.require("count.write")
     frappe.db.sql("select name from `tabERP Stock Count` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)  # 已锁：按最新状态判（关快照隔离后普通读可能还是「进行中」）
     if doc.status != "Active":
         frappe.throw(_(CLOSED))
     frappe.db.delete(ENTRY, {"count": doc.name})

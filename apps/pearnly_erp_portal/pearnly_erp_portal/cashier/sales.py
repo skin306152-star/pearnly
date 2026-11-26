@@ -387,9 +387,9 @@ def refund(name, *, lines=None, payments=None, reason=None, client_uuid=None) ->
     if client_uuid:
         existing = frappe.db.get_value(DT, {"client_uuid": client_uuid}, "name")
         if existing:
-            _get(existing)
+            _get(existing)  # lock-read-ok: 查重命中只核权限，不写
             return {"name": existing, "deduped": True}
-    original = _get(name)
+    original = _get(name, lock=True)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
             and original.cashier != frappe.session.user):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)

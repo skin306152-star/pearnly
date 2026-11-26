@@ -21,6 +21,8 @@
 修改时间对不上，报 ``frappe.TimestampMismatchError``（11-26 回归实验室：并发出采购凭证 18 个请求里有一个 417）。开着隔离时这一处是前面那次
 加锁读报 1020、在这里重来；所以这一种也同样整笔回滚重来（:func:`_stale_save`）。只认 Frappe 保存前比对抛的那一种：业务自己用
 ``TimestampMismatchError`` 表示「记录变了、请刷新」（Cowork 推送的版本号核对等）照原样抛出，不重来。
+约定：被包的函数按名字自己读单据（参数是名字、版本号、请求体），不收外面已经读好的 ``Document`` 去 ``save``——那样的旧副本重来几次
+都一样旧（11-26 核过现有调用方都按名字读）。加锁之后读单据一律 ``get_doc(..., for_update=…)``（`scripts/check-lock-then-read.py`）。
 """
 import random
 import time

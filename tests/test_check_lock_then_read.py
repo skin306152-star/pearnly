@@ -34,6 +34,18 @@ class LockThenReadTest(unittest.TestCase):
                 return frappe.get_doc(DT, name)
         '''), ["a", "b"])
 
+    def test_lock_then_getter_without_lock_fails(self):
+        self.assertEqual(found('''
+            def void(name):
+                frappe.db.sql("select name from `tabX` where name=%s for update", (name,))
+                doc = _get(name)
+                return doc
+
+            def ok(name):
+                frappe.db.sql("select name from `tabX` where name=%s for update", (name,))
+                return access.get_document(name, lock=True)
+        '''), ["void"])
+
     def test_locked_reads_new_docs_and_marked_lines_pass(self):
         self.assertEqual(found('''
             def a(name):
