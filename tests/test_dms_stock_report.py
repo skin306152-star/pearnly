@@ -166,6 +166,43 @@ class Colours(unittest.TestCase):
         self.assertIn("class=s", page)
 
 
+class Languages(unittest.TestCase):
+    """报表文字跟发起人的 LINE 语言（`i18n.line_lang()`，后台任务里由 `line/out.run_guarded` 的 `i18n.line_language(user)` 设好），
+    不写死某一种；四语各自的表头、合计、更新时间、文件名都对（用户 11-26：「不要写死中文」）。"""
+
+    EXPECT = {"th": ("จำนวน", "รวม 9 คัน", "ข้อมูล ณ 26/11/2569 11:20", "สต๊อกตามที่จอดรถ [26112569_1120]"),
+              "zh": ("台数", "合计 9 台", "更新时间 26/11/2026 11:20", "库存停放报表 [26112026_1120]"),
+              "en": ("Qty", "Total 9", "As of 26/11/2026 11:20", "Stock by location [26112026_1120]"),
+              "ja": ("台数", "合計 9 台", "更新日時 26/11/2026 11:20", "在庫・保管場所 [26112026_1120]")}
+
+    def test_each_language_has_its_own_headers_total_time_and_file_names(self):
+        from openpyxl import load_workbook
+
+        moment = datetime(2026, 11, 26, 11, 20)
+        out_dir = os.environ.get("STOCK_REPORT_LANG_OUT")
+        for code, (count, total, as_of_text, name) in self.EXPECT.items():
+            with self.subTest(code), lang(code):
+                summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", CARS)
+                as_of = stock_render.as_of_label(moment)
+                book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of)), rich_text=True).active
+                page = stock_render.document(stock_render._lines(summary, "all"), summary, as_of)
+                saved = []
+                with patch.object(stock_files, "save", side_effect=lambda c, e, f, b: saved.append(f) or "https://x.test/d?f=1"):
+                    stock_flow.messages({"summary": summary, "originals": {"xlsx": {"content": b"PK", "name": "o.xlsx"},
+                                                                         "pdf": {"content": b"%PDF", "name": "o.pdf"}},
+                                         "rendered": {"pdf": b"%PDF", "images": [b"j"], "omitted": 0}}, "all", as_of, moment)
+                self.assertEqual(book["C2"].value, count)
+                self.assertEqual(str(book.cell(book.max_row - 1, 1).value), total)
+                self.assertEqual(book.cell(book.max_row, 1).value, as_of_text)
+                self.assertIn(count, page)
+                self.assertIn(as_of_text, page)
+                self.assertIn(name + ".xlsx", saved)
+                self.assertIn(name + ".pdf", saved)
+                if out_dir:
+                    Path(out_dir, f"lang-{code}.xlsx").write_bytes(stock_render.workbook(summary, "all", as_of))
+                    Path(out_dir, f"lang-{code}.html").write_text(page, encoding="utf-8")
+
+
 class Copy(unittest.TestCase):
     """两处菜单入口（关键词菜单卡、六宫格富菜单）名称四语一致，按钮标签不超 20 字。"""
 

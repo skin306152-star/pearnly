@@ -173,7 +173,8 @@ def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any
     if not summary["total"]:
         return [{"type": "text", "text": _t("TXT_EMPTY")}]
     batch = stock_files.new_batch()
-    stamp = f"{moment.day:02d}{moment.month:02d}{moment.year + 543}_{moment.hour:02d}{moment.minute:02d}"
+    year = moment.year + (543 if i18n.line_lang() == "th" else 0)  # 同「更新时间」：泰文佛历，其它语言公历
+    stamp = f"{moment.day:02d}{moment.month:02d}{year}_{moment.hour:02d}{moment.minute:02d}"
     summary_name = f"{_t('TITLE')} [{stamp}]"
     links = {
         "original_xlsx": stock_files.save(result["originals"]["xlsx"]["content"], "xlsx",
