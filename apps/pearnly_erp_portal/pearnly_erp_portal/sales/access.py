@@ -12,7 +12,7 @@ def get_document(name, *, write=False, lock=False):
     guard.require("sales.write" if write else "sales.read")
     if lock:
         frappe.db.sql(f"select name from `tab{DOCTYPE}` where name=%s for update", (name,))
-    doc = frappe.get_doc(DOCTYPE, name)
+    doc = frappe.get_doc(DOCTYPE, name, for_update=lock)  # 加锁后的读要读最新值（关快照隔离后普通读是读视图里的旧副本）
     if document_permission(doc, "write" if write else "read", frappe.session.user) is False:
         frappe.throw(_("Not permitted"), frappe.PermissionError)
     doc.check_permission("write" if write else "read")

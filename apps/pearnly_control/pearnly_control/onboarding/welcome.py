@@ -79,7 +79,7 @@ def ready_products(issue, request):
 def queue_for_request(request):
     # Lock the durable issue receipt: concurrent completion/retry creates one queue row.
     frappe.db.sql("SELECT name FROM `tabPearnly Issue` WHERE name=%s FOR UPDATE", (request.issue,))
-    issue = frappe.get_doc(ISSUE, request.issue)
+    issue = frappe.get_doc(ISSUE, request.issue, for_update=True)  # 已锁：读最新值（关快照隔离后普通读是读视图里的旧副本）
     if issue.get("welcome_email_queue"):
         return issue.welcome_email_queue
     require_cloud_target(issue.target, use_default=False)
@@ -87,7 +87,7 @@ def queue_for_request(request):
     account_name = frappe.conf.get("pearnly_welcome_email_account")
     if not account_name:
         raise ValueError("Official email account is not configured")
-    account = frappe.get_doc("Email Account", account_name)
+    account = frappe.get_doc("Email Account", account_name)  # lock-read-ok: 发信账户只读核对，与上面锁的开户单无关
     if not account.enable_outgoing or account.email_id != SENDER or account.always_bcc:
         raise ValueError("Official email account must have no BCC")
     password = issue.get_password("account_password", raise_exception=False)

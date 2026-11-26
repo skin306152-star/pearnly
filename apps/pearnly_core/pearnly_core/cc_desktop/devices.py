@@ -70,7 +70,7 @@ def register(request_key=None, device_key=None, device_name=None, rekey=False, r
     digest = contracts.device_digest(_site(), key)
     moment = now()
     found = frappe.db.sql(f"SELECT name FROM `tab{DEVICE}` WHERE device_digest = %s FOR UPDATE", (digest,))
-    doc = frappe.get_doc(DEVICE, found[0][0]) if found else None
+    doc = frappe.get_doc(DEVICE, found[0][0], for_update=True) if found else None  # 已锁：读最新值（关快照隔离）
     if doc is not None and doc.retired_at:
         if not rejoin:
             return {"status": "removed", "device": doc.name}

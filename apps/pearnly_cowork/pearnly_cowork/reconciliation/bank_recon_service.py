@@ -102,7 +102,7 @@ def create(workspace, title, request_id, statement_rows, gl_rows, header=None,
 	request_digest = bank_recon_contracts.digest(header_values, *rows)
 	replayed = TASKS.replay(name, request_digest)
 	if replayed:
-		existing = frappe.get_doc(TASK, name)
+		existing = frappe.get_doc(TASK, name)  # lock-read-ok: 重放只读回状态，不写
 		bank_recon_access.require(existing.workspace)
 		if existing.workspace != workspace:
 			frappe.throw(_("reconciliation.request_conflict"))

@@ -840,7 +840,7 @@ def release(name, version, consent) -> dict:
     from pearnly_erp_portal.collection import push
 
     push.send(doc.name)
-    return {"status": "released", "card": _view(frappe.get_doc(DOCTYPE, doc.name))}
+    return {"status": "released", "card": _view(frappe.get_doc(DOCTYPE, doc.name))}  # lock-read-ok: 本事务刚存的那张，只读出卡
 
 
 def withdraw(name) -> dict:

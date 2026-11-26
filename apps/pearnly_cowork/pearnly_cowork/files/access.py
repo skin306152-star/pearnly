@@ -242,7 +242,7 @@ def protected_sources(file_doc, *, include_hash=False):
         # 2026-10-01：直传登记 12 次等满 50 秒报 1205。
         frappe.db.sql("SELECT name FROM `tabCowork Source File` WHERE name IN %(names)s FOR UPDATE",
                       {"names": tuple(sorted(found))})
-    return [frappe.get_doc(SOURCE, name) for name in sorted(found)]
+    return [frappe.get_doc(SOURCE, name, for_update=bool(include_hash)) for name in sorted(found)]  # 锁住了就读最新值（关快照隔离）
 
 
 def is_protected(file_doc, *, include_hash=False):

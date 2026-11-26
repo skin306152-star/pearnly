@@ -61,7 +61,7 @@ def delete(records):
         if not frappe.db.get_value(storage.DOCTYPE, name, "name", for_update=True):
             skipped += 1
             continue
-        doc = frappe.get_doc(storage.DOCTYPE, name)
+        doc = frappe.get_doc(storage.DOCTYPE, name, for_update=True)  # 已锁：读最新值（关快照隔离）
         scope.require_scope(doc.workspace, doc.client)
         if _pushing(doc):
             skipped += 1

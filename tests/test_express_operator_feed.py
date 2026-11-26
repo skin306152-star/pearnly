@@ -146,7 +146,7 @@ def _env(test, tasks_path=CORE / "express_operator/tasks.py"):
         doc.set("uploads", copy.deepcopy(stored.get("uploads") or []))
         return doc
 
-    def get_doc(arg, name=None):
+    def get_doc(arg, name=None, for_update=False):
         return Doc(arg) if isinstance(arg, dict) else _load_doc(name)
 
     def get_value(doctype, filters, field, for_update=False, as_dict=False):

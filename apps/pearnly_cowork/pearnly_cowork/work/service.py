@@ -89,7 +89,7 @@ def _card(name, right, *, lock=False, archived=False):
     access.require_right(row.board, right)
     if archived is not None and bool(row.archived) != archived:
         raise Invalid("cowork.work.error.not_found")
-    return frappe.get_doc(CARD, row.name)
+    return frappe.get_doc(CARD, row.name, for_update=lock)  # 加锁后的读要读最新值（关快照隔离）
 
 
 # ── 列表 ──────────────────────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ def update_list(name, values):
     if not isinstance(values, dict):
         raise Invalid("cowork.work.error.request")
     row = _list_for(name, "edit", lock=True)
-    doc = frappe.get_doc(COLUMN, row.name)
+    doc = frappe.get_doc(COLUMN, row.name, for_update=True)  # 加锁后的读要读最新值（关快照隔离）
     if "title" in values:
         doc.title = contracts.text(values["title"], contracts.LIST_TITLE_MAX, required=True)
     if "color" in values:
@@ -183,7 +183,7 @@ def archive_list(name):
     row = _list_for(name, "edit", lock=True)
     if frappe.db.count(COLUMN, {"board": row.board, "archived": 0}) <= 1:
         raise Invalid("cowork.work.error.last_list")
-    doc = frappe.get_doc(COLUMN, name)
+    doc = frappe.get_doc(COLUMN, name, for_update=True)
     doc.archived, doc.archived_at = 1, _now()
     persist(doc)
     _changed(row.board, None, "list")
@@ -192,7 +192,7 @@ def archive_list(name):
 
 def restore_list(name):
     row = _list_for(name, "edit", archived=True, lock=True)
-    doc = frappe.get_doc(COLUMN, name)
+    doc = frappe.get_doc(COLUMN, name, for_update=True)
     doc.archived, doc.archived_at = 0, None
     doc.position = contracts.position_between(_list_tail(row.board), None)
     persist(doc)

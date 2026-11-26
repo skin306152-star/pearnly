@@ -35,12 +35,12 @@ def _q2(value) -> Decimal:
     return contracts.q2(value)
 
 
-def _get(name):
+def _get(name, *, lock=False):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     from pearnly_erp_portal.purchasing.access import get_document
 
-    return get_document(name)
+    return get_document(name, lock=lock)
 
 
 def _dedupe_check(dedupe_key, dedupe_ref, exclude=None):
@@ -304,7 +304,7 @@ def set_status(name, target, reason=None, receive_stock=None):
     """流转：草稿→提交、草稿/提交→作废。非法流转一律拒绝。"""
     guard.require("purchase.write")
     frappe.db.sql("select name from `tabPurchase Document` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)
     if (doc.calculation_version or 0) >= 2 and target == contracts.VOID:
         from pearnly_erp_portal.purchasing import entry
 

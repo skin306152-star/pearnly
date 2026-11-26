@@ -52,10 +52,10 @@ def require_kind(direction, ref_type=None, stock_count=None) -> None:
     guard.require("stock." + kind)
 
 
-def _get(name):
+def _get(name, *, lock=False):
     if not name or not frappe.db.exists(DOCTYPE, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
-    doc = frappe.get_doc(DOCTYPE, name)
+    doc = frappe.get_doc(DOCTYPE, name, for_update=lock)
     doc.check_permission("read")
     return doc
 
@@ -456,7 +456,7 @@ def _posted(doc, result) -> dict:
 def delete_draft(name):
     """删一张草稿（真删，号不回收，同 MR.ERP 先占号）。盘点生成的调整单草稿删了，盘点回到可以再生成。"""
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)
     require_kind(doc.direction, doc.get("ref_type"), doc.get("stock_count"))
     if doc.status != "draft":
         frappe.throw(_(BAD_TRANSITION))
@@ -473,7 +473,7 @@ def delete_draft(name):
 def submit_entry(name):
     """提交一张**已存在的草稿**（老数据、列表里留下的草稿、盘点生成的物料调整单）。"""
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)
     require_kind(doc.direction, doc.get("ref_type"), doc.get("stock_count"))
     if doc.status != "draft":
         frappe.throw(_(BAD_TRANSITION))
@@ -485,7 +485,7 @@ def submit_entry(name):
 def void_entry(name):
     """作废：追加反向流水把数量还回去。流水不动、不删，历史看得见。盘点生成的调整单作废后，盘点回到「已结束」，可以再生成。"""
     frappe.db.sql("select name from `tabERP Stock Entry` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)
     require_kind(doc.direction, doc.get("ref_type"), doc.get("stock_count"))
     if doc.status != "submitted":
         frappe.throw(_(BAD_TRANSITION))

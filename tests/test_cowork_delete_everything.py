@@ -107,7 +107,7 @@ class HistoryRemoval(unittest.TestCase):
             self.assertTrue(kwargs.get("delete_permanently"))  # 不留「Deleted Document」备份
             db.delete(doctype, {"name": name})
 
-        frappe = _frappe(db, get_doc=lambda doctype, name: db.rows(doctype, {"name": name})[0], delete_doc=delete_doc)
+        frappe = _frappe(db, get_doc=lambda doctype, name, for_update=False: db.rows(doctype, {"name": name})[0], delete_doc=delete_doc)
         scope = types.SimpleNamespace(require=lambda *a: None, require_scope=lambda *a: None)
         package = types.ModuleType("pearnly_cowork.history")
         package.__path__ = [str(APP / "history")]

@@ -76,12 +76,12 @@ def _customer_names(names) -> dict:
         fields=["name", "customer_name"], limit_page_length=0)}
 
 
-def _get(name):
+def _get(name, *, lock=False):
     if not name or not frappe.db.exists(DT, name):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)
     from pearnly_erp_portal.cashier.access import require_record
 
-    doc = frappe.get_doc(DT, name)
+    doc = frappe.get_doc(DT, name, for_update=lock)
     require_record(doc)
     return doc
 
@@ -486,7 +486,7 @@ def void_sale(name, *, reason=None) -> dict:
     """作废：把库存还回去，单据留痕。已退过的单不允许作废。"""
     guard.require("cashier.write" if guard.has("cashier.write") else "receipts.write")
     frappe.db.sql("select name from `tabERP Sale` where name=%s for update", (name,))
-    doc = _get(name)
+    doc = _get(name, lock=True)
     if (rules.record_scope(guard.current_roles()) != rules.ALL_RECORDS
             and doc.cashier != frappe.session.user):
         frappe.throw(_(NOT_FOUND), frappe.DoesNotExistError)

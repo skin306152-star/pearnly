@@ -93,7 +93,7 @@ def _fake_frappe(state):
             state["seq"] += 1
             self["modified"] = state["now"] + datetime.timedelta(seconds=state["seq"])
 
-    def get_doc(arg, name=None):
+    def get_doc(arg, name=None, for_update=False):
         if isinstance(arg, dict):
             return Doc(arg)
         return next(row for row in state["rows"] if row["name"] == name)
