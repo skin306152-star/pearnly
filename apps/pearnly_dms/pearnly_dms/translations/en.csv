@@ -33,7 +33,6 @@ Apply,Apply
 Approve,Approve
 As confirmed,As confirmed
 As in DMS,As in DMS
-As of {time},As of {time}
 Attached,Attached
 Available,Available
 Awaiting manager,Awaiting manager
@@ -215,11 +214,7 @@ Manual Read Request,Manual Read Request
 Master data and all vehicle colors,Master data and all vehicle colors
 Menu,Menu
 Model year,Model year
-Model/Color,Model/Color
 Model/colour,Model/colour
-Models {my},Models {my}
-Models {my} available,Models {my} available
-Models {my} no team yet,Models {my} no team yet
 Moo,Moo
 Multiple DMS connections exist for this operator,Multiple DMS connections exist for this operator
 Multiple primary DMS connections exist; ask an administrator to check the configuration,Multiple primary DMS connections exist; ask an administrator to check the configuration
@@ -454,7 +449,6 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,Top sales
 Top sales from DMS,Top sales from DMS
 Total deposit,Total deposit
-Total {count},Total {count}
 Trigger type. The business line is on Reference DocType.,Trigger type. The business line is on Reference DocType.
 Try again,Try again
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)","Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)"
@@ -478,6 +472,7 @@ Update failed — click Update data to retry,Update failed — click Update data
 Update failed. Please ask the admin to check the admin password in Pearnly.,Update failed. Please ask the admin to check the admin password in Pearnly.
 Update the DMS username and password saved in Pearnly,Update the DMS username and password saved in Pearnly
 Update your DMS sign-in,Update your DMS sign-in
+Updated {date} {time} Total,Updated {date} {time} Total
 Updating data…,Updating data…
 Use name on card,Use name on card
 Use the back office,Use the back office
@@ -804,23 +799,20 @@ dms.card.query.TYPE_SALES,2 Sales records
 dms.card.query.TYPE_STOCK,1 Stock by location
 dms.card.query.UNIT_AMOUNT,THB
 dms.card.query.UNIT_QTY,cars
-dms.card.report.AS_OF,As of {time}
 dms.card.report.BTN_ORIGINAL_PDF,Original PDF
 dms.card.report.BTN_ORIGINAL_XLSX,Original Excel
 dms.card.report.BTN_SUMMARY_PDF,Summary PDF
 dms.card.report.BTN_SUMMARY_XLSX,Summary Excel
-dms.card.report.COL_CODE,Model/Color
 dms.card.report.COL_COUNT,Qty
 dms.card.report.COL_PLACE,Location
+dms.card.report.FOOT,Updated {date} {time} Total
+dms.card.report.HEAD_AVAILABLE,{my} Available Model/Color
+dms.card.report.HEAD_OTHER,{my} Model/Color
 dms.card.report.MORE_ROWS,{count} more rows are in the files
 dms.card.report.SCOPE_ALL,All
 dms.card.report.SCOPE_AVAILABLE,Available
 dms.card.report.SCOPE_UNALLOCATED,No team yet
-dms.card.report.SECTION_ALL,Models {my}
-dms.card.report.SECTION_AVAILABLE,Models {my} available
-dms.card.report.SECTION_UNALLOCATED,Models {my} no team yet
 dms.card.report.TITLE,Stock by location
-dms.card.report.TOTAL,Total {count}
 dms.card.report.TXT_EMPTY,No vehicles to show.
 dms.card.report.TXT_PICK_SCOPE,Choose a scope
 dms.card.rich.booking.sub,Create and track bookings
@@ -1091,6 +1083,8 @@ usage log,usage log
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {count} more rows are in the files,{count} more rows are in the files
+{my} Available Model/Color,{my} Available Model/Color
+{my} Model/Color,{my} Model/Color
 {n} latest sales records from DMS,{n} latest sales records from DMS
 {n} more,{n} more
 {text} ({fields}),{text} ({fields})

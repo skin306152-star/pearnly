@@ -33,7 +33,6 @@ Apply,执行
 Approve,批准
 As confirmed,确认时的值
 As in DMS,DMS 中的值
-As of {time},更新时间 {time}
 Attached,已附上
 Available,空车
 Awaiting manager,待销售经理审批
@@ -215,11 +214,7 @@ Manual Read Request,手动读取请求
 Master data and all vehicle colors,主档与全部车型颜色
 Menu,菜单
 Model year,生产年份
-Model/Color,车型/颜色
 Model/colour,车型/颜色
-Models {my},车型 {my}
-Models {my} available,车型 {my} 空车
-Models {my} no team yet,车型 {my} 未分配团队
 Moo,村组（Moo）
 Multiple DMS connections exist for this operator,该操作员有多条 DMS 连接
 Multiple primary DMS connections exist; ask an administrator to check the configuration,存在多条 DMS 主连接，请管理员检查配置
@@ -454,7 +449,6 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,销售排行
 Top sales from DMS,DMS 销售排行
 Total deposit,订金合计
-Total {count},合计 {count} 台
 Trigger type. The business line is on Reference DocType.,触发方式。业务线见关联单据类型。
 Try again,重试
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",请输入日期范围和条数，例如 01/08/2569-31/08/2569 15（佛历）
@@ -478,6 +472,7 @@ Update failed — click Update data to retry,更新失败，点击更新数据�
 Update failed. Please ask the admin to check the admin password in Pearnly.,更新失败，请通知管理员检查 Pearnly 中的管理员密码。
 Update the DMS username and password saved in Pearnly,更新保存在 Pearnly 里的 DMS 用户名和密码
 Update your DMS sign-in,更新 DMS 登录资料
+Updated {date} {time} Total,更新 {date} {time} 合计
 Updating data…,数据更新中...
 Use name on card,使用证件上的姓名
 Use the back office,使用后台系统
@@ -804,23 +799,20 @@ dms.card.query.TYPE_SALES,2 销售记录
 dms.card.query.TYPE_STOCK,1 库存停放报表
 dms.card.query.UNIT_AMOUNT,泰铢
 dms.card.query.UNIT_QTY,台
-dms.card.report.AS_OF,更新时间 {time}
 dms.card.report.BTN_ORIGINAL_PDF,原件 PDF
 dms.card.report.BTN_ORIGINAL_XLSX,原件 Excel
 dms.card.report.BTN_SUMMARY_PDF,汇总 PDF
 dms.card.report.BTN_SUMMARY_XLSX,汇总 Excel
-dms.card.report.COL_CODE,车型/颜色
 dms.card.report.COL_COUNT,台数
 dms.card.report.COL_PLACE,停放位置
+dms.card.report.FOOT,更新 {date} {time} 合计
+dms.card.report.HEAD_AVAILABLE,{my} 空车 车型/颜色
+dms.card.report.HEAD_OTHER,{my} 车型/颜色
 dms.card.report.MORE_ROWS,另有 {count} 行见文件
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空车
 dms.card.report.SCOPE_UNALLOCATED,未分配团队
-dms.card.report.SECTION_ALL,车型 {my}
-dms.card.report.SECTION_AVAILABLE,车型 {my} 空车
-dms.card.report.SECTION_UNALLOCATED,车型 {my} 未分配团队
 dms.card.report.TITLE,库存停放报表
-dms.card.report.TOTAL,合计 {count} 台
 dms.card.report.TXT_EMPTY,没有可显示的车辆。
 dms.card.report.TXT_PICK_SCOPE,请选择范围
 dms.card.rich.booking.sub,建立和跟进订车单
@@ -1091,6 +1083,8 @@ usage log,使用记录
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组
 {count} more rows are in the files,另有 {count} 行见文件
+{my} Available Model/Color,{my} 空车 车型/颜色
+{my} Model/Color,{my} 车型/颜色
 {n} latest sales records from DMS,DMS 最新销售记录 {n} 条
 {n} more,另 {n} 项
 {text} ({fields}),{text}（{fields}）

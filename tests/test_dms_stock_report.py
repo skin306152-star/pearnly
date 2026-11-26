@@ -105,21 +105,26 @@ class Summary(unittest.TestCase):
         self.assertFalse(report.is_available("รถทีมสาขาจอง"))
         self.assertFalse(report.is_available("รถแต่งเสร็จ"))
 
-    def test_available_scope_groups_by_model_colour_and_year(self):
+    def test_one_table_sorted_by_model_and_colour_without_year_sections(self):
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
         self.assertEqual(summary["total"], 5)
-        self.assertEqual([section["year"] for section in summary["sections"]], ["26", "25", ""])
-        first = summary["sections"][0]["rows"]
-        self.assertEqual([(row["name"], row["code"], row["count"]) for row in first],
-                         [("D-MAX SPARK", "DM-2D19 ONX", 1), ("D-MAX SPARK", "DM-2D19 PWH", 1)])
+        self.assertNotIn("sections", summary)
+        self.assertEqual([(row["name"], row["code"], row["count"]) for row in summary["rows"]],
+                         [("D-MAX SPARK", "DM-2D19 ONX", 1), ("D-MAX SPARK", "DM-2D19 PWH", 1),
+                          ("DM 4D", "DM-4D19 MGY", 1), ("DM 4D", "DM-4D19 PWH", 1), ("Test", "Test RED", 1)])
         # 车名回落：没有 ชื่อรถ 用 ชื่อรุ่นรถ，再没有用代码
-        self.assertEqual(summary["sections"][1]["rows"][0]["name"], "DM 4D")
-        self.assertEqual(summary["sections"][2]["rows"][0]["name"], "Test")
+
+    def test_year_only_when_every_model_has_the_same_year(self):
+        rows = report.parse_export(export(TEST_LIBRARY))
+        self.assertEqual(report.summarize(rows, "available", CARS)["year"], "")  # 2026 / 2025 / 没填
+        same = {code: {"name": code, "year": "2026"} for code in ("DM-2D19", "DM-4D19", "DM-4D30", "Test", "TS-01")}
+        self.assertEqual(report.summarize(rows, "all", same)["year"], "26")
+        self.assertEqual(report.summarize(rows, "all", {**same, "Test": {"name": "Test", "year": ""}})["year"], "")
 
     def test_locations_are_counted_and_joined_like_the_sample(self):
         rows = [{"model": "UNT20", "color": "ELG", "status": "รถว่าง", "location": place}
                 for place in ("ระยอง", "ปลวกแดง", "ปลวกแดง")]
-        row = report.summarize(rows, "available", {})["sections"][0]["rows"][0]
+        row = report.summarize(rows, "available", {})["rows"][0]
         self.assertEqual((row["code"], row["count"]), ("UNT20 ELG", 3))
         self.assertEqual(report.locations_text(row["locations"]), "ปลวกแดง 2 / ระยอง 1")
 
@@ -130,77 +135,113 @@ class Summary(unittest.TestCase):
         self.assertEqual([spec["allocate"] for spec in report.SCOPES.values()], ["1", "1", "2"])
 
 
-class Pages(unittest.TestCase):
-    def test_hundreds_of_cars_page_at_forty_rows_with_the_year_heading_repeated(self):
-        with lang():
-            summary = report.summarize(report.parse_export(export(big_library())), "available", {})
-            pages = stock_render.image_pages(summary, "available")
+class Layout(unittest.TestCase):
+    """版式照岳父样表 1:1（用户 11-26）：一行三格绿表头（第一格横跨车名与代码两列）、没有标题行、没有网格线、底部一行
+    「อัพเดต 日期 เวลา 时间 Total」且合计在台数列下；多张图时每张顶上同一行表头，底部那行只在最后一张。"""
+
+    def page(self, summary, scope="available", **kw):
+        with lang("th"):
+            return stock_render.document(summary["rows"], summary, scope,
+                                         stock_render.as_of_label(datetime(2026, 11, 20, 16, 53)), **kw)
+
+    def test_single_three_cell_header_and_sample_footer(self):
+        same = {code: {"name": code, "year": "2026"} for code in ("DM-2D19", "DM-4D19", "DM-4D30", "Test", "TS-01")}
+        summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", same)
+        page = self.page(summary)
+        self.assertEqual(page.count("</th>"), 3)
+        self.assertIn("<th colspan=2>รถรุ่น 26 MY ว่าง Model/Color</th><th>จำนวน</th><th>สถานที่จอดรถ</th>", page)
+        self.assertNotIn("<h1", page)
+        self.assertIn("border:0", page)
+        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2569 เวลา 16.53 Total</td><td class=n>5</td>", page)
+
+    def test_header_wording_for_year_and_scope(self):
+        rows = report.parse_export(export(TEST_LIBRARY))
+        with lang("th"):
+            self.assertEqual(stock_render.header_text("available", ""), "รถรุ่น ว่าง Model/Color")
+            self.assertEqual(stock_render.header_text("all", "26"), "รถรุ่น 26 MY Model/Color")
+            self.assertEqual(stock_render.header_text("unallocated", ""), "รถรุ่น Model/Color")
+        with lang("zh"):
+            self.assertEqual(stock_render.header_text("available", "26"), "26 MY 空车 车型/颜色")
+            self.assertEqual(stock_render.header_text("available", ""), "空车 车型/颜色")
+        with lang("en"):
+            self.assertEqual(stock_render.header_text("all", ""), "Model/Color")
+        with lang("ja"):
+            self.assertEqual(stock_render.header_text("available", "26"), "26 MY 空き車 車種/色")
+        self.assertIn("<th colspan=2>รถรุ่น ว่าง Model/Color</th>", self.page(report.summarize(rows, "available", CARS)))
+
+    def test_pages_repeat_the_header_and_only_the_last_has_the_footer(self):
+        summary = report.summarize(report.parse_export(export(big_library())), "available", {})
+        pages = stock_render.image_pages(summary)
         self.assertGreater(len(pages), stock_render.MAX_IMAGES)
-        for page in pages:
-            self.assertLessEqual(len(page), stock_render.ROWS_PER_IMAGE)
-            self.assertEqual(page[0]["kind"], "head")
+        self.assertTrue(all(len(page) <= stock_render.ROWS_PER_IMAGE for page in pages))
+        first = self.page({**summary, "rows": pages[0]}, footer=False)
+        last = self.page({**summary, "rows": pages[1]}, first_index=stock_render.ROWS_PER_IMAGE)
+        self.assertEqual((first.count("<thead>"), last.count("<thead>")), (1, 1))
+        self.assertNotIn("class=f", first)
+        self.assertIn("class=f", last)
 
 
 class Colours(unittest.TestCase):
-    """配色照岳父样表（用户 11-26）：表头 / 段头绿底黑字加粗、隔行浅灰蓝、台数红色加粗居中、底部蓝色加粗且合计数字红色。"""
+    """配色照岳父样表（用户 11-26）：表头绿底黑字加粗、隔行浅灰、台数红色加粗居中、底部蓝色加粗且合计数字红色。"""
 
-    def test_workbook_and_picture_use_the_sample_colours(self):
+    def test_workbook_uses_the_sample_layout_and_colours(self):
         from openpyxl import load_workbook
 
         with lang("th"):
             summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", CARS)
-            book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", "26/11/2569 11:20")), rich_text=True)
-            page = stock_render.document(stock_render._lines(summary, "all"), summary, "26/11/2569 11:20")
-        sheet = book.active
-        head, first, second = sheet[2], sheet[3], sheet[4]
-        self.assertEqual(head[0].fill.fgColor.rgb[-6:], stock_render.HEAD_FILL)
-        self.assertTrue(head[0].font.bold)
+            as_of = stock_render.as_of_label(datetime(2026, 11, 20, 16, 53))
+            sheet = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of))).active
+        self.assertIn("A1:B1", [str(cell_range) for cell_range in sheet.merged_cells.ranges])
+        self.assertEqual([sheet["A1"].value, sheet["C1"].value, sheet["D1"].value],
+                         ["รถรุ่น Model/Color", "จำนวน", "สถานที่จอดรถ"])
+        self.assertEqual(sheet["A1"].fill.fgColor.rgb[-6:], stock_render.HEAD_FILL)
+        self.assertTrue(sheet["A1"].font.bold)
+        first, second = sheet[2], sheet[3]
         self.assertEqual(first[2].font.color.rgb[-6:], stock_render.COUNT_COLOR)
         self.assertTrue(first[2].font.bold)
         self.assertEqual(first[2].alignment.horizontal, "center")
         self.assertEqual({first[0].fill.fill_type, second[0].fill.fgColor.rgb[-6:]}, {None, stock_render.STRIPE_FILL})
-        total = [row[0].value for row in sheet.iter_rows() if row[0].value is not None][-2]
-        self.assertEqual([block.font.color.rgb[-6:] for block in total if hasattr(block, "font")],
-                         [stock_render.FOOT_COLOR, stock_render.COUNT_COLOR, stock_render.FOOT_COLOR])
-        self.assertIn("<b>9</b>", page)
-        self.assertIn("class=s", page)
+        footer = sheet.max_row
+        self.assertEqual(sheet.cell(footer, 1).value, "อัพเดต 20/11/2569 เวลา 16.53 Total")
+        self.assertEqual(sheet.cell(footer, 1).font.color.rgb[-6:], stock_render.FOOT_COLOR)
+        self.assertEqual(sheet.cell(footer, 3).value, 9)
+        self.assertEqual(sheet.cell(footer, 3).font.color.rgb[-6:], stock_render.COUNT_COLOR)
+        self.assertEqual(sheet.max_row, 1 + 8 + 1)  # 表头 + 8 个车型颜色 + 底部一行，没有标题行
 
 
 class Languages(unittest.TestCase):
     """报表文字跟发起人的 LINE 语言（`i18n.line_lang()`，后台任务里由 `line/out.run_guarded` 的 `i18n.line_language(user)` 设好），
-    不写死某一种；四语各自的表头、合计、更新时间、文件名都对（用户 11-26：「不要写死中文」）。"""
+    不写死某一种；四语各自的表头、底部一行（日期：泰文佛历、其它公历；时间：泰文用点）、文件名都对（用户 11-26：「不要写死中文」）。"""
 
-    EXPECT = {"th": ("จำนวน", "รวม 9 คัน", "ข้อมูล ณ 26/11/2569 11:20", "สต๊อกตามที่จอดรถ [26112569_1120]"),
-              "zh": ("台数", "合计 9 台", "更新时间 26/11/2026 11:20", "库存停放报表 [26112026_1120]"),
-              "en": ("Qty", "Total 9", "As of 26/11/2026 11:20", "Stock by location [26112026_1120]"),
-              "ja": ("台数", "合計 9 台", "更新日時 26/11/2026 11:20", "在庫・保管場所 [26112026_1120]")}
+    EXPECT = {"th": ("จำนวน", "อัพเดต 26/11/2569 เวลา 11.20 Total", "สต๊อกตามที่จอดรถ [26112569_1120]"),
+              "zh": ("台数", "更新 26/11/2026 11:20 合计", "库存停放报表 [26112026_1120]"),
+              "en": ("Qty", "Updated 26/11/2026 11:20 Total", "Stock by location [26112026_1120]"),
+              "ja": ("台数", "更新 26/11/2026 11:20 合計", "在庫・保管場所 [26112026_1120]")}
 
-    def test_each_language_has_its_own_headers_total_time_and_file_names(self):
+    def test_each_language_has_its_own_headers_footer_dates_and_file_names(self):
         from openpyxl import load_workbook
 
         moment = datetime(2026, 11, 26, 11, 20)
         out_dir = os.environ.get("STOCK_REPORT_LANG_OUT")
-        for code, (count, total, as_of_text, name) in self.EXPECT.items():
+        for code, (count, foot, name) in self.EXPECT.items():
             with self.subTest(code), lang(code):
                 summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "all", CARS)
                 as_of = stock_render.as_of_label(moment)
-                book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of)), rich_text=True).active
-                page = stock_render.document(stock_render._lines(summary, "all"), summary, as_of)
+                book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of))).active
+                page = stock_render.document(summary["rows"], summary, "all", as_of)
                 saved = []
                 with patch.object(stock_files, "save", side_effect=lambda c, e, f, b: saved.append(f) or "https://x.test/d?f=1"):
                     stock_flow.messages({"summary": summary, "originals": {"xlsx": {"content": b"PK", "name": "o.xlsx"},
                                                                          "pdf": {"content": b"%PDF", "name": "o.pdf"}},
                                          "rendered": {"pdf": b"%PDF", "images": [b"j"], "omitted": 0}}, "all", as_of, moment)
-                self.assertEqual(book["C2"].value, count)
-                self.assertEqual(str(book.cell(book.max_row - 1, 1).value), total)
-                self.assertEqual(book.cell(book.max_row, 1).value, as_of_text)
+                self.assertEqual(book["C1"].value, count)
+                self.assertEqual(book.cell(book.max_row, 1).value, foot)
                 self.assertIn(count, page)
-                self.assertIn(as_of_text, page)
+                self.assertIn(foot, page)
                 self.assertIn(name + ".xlsx", saved)
                 self.assertIn(name + ".pdf", saved)
                 if out_dir:
                     Path(out_dir, f"lang-{code}.xlsx").write_bytes(stock_render.workbook(summary, "all", as_of))
-                    Path(out_dir, f"lang-{code}.html").write_text(page, encoding="utf-8")
 
 
 class Copy(unittest.TestCase):
@@ -334,11 +375,17 @@ class Messages(unittest.TestCase):
     def test_images_then_one_card_with_four_download_buttons(self):
         with lang("zh"):
             summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
-            out = stock_flow.messages(self.result(summary, images=3), "available", "26/11/2026 11:20",
-                                      datetime(2026, 11, 26, 11, 20))
+            out = stock_flow.messages(self.result(summary, images=3), "available",
+                                      {"date": "26/11/2026", "time": "11:20"}, datetime(2026, 11, 26, 11, 20))
         self.assertLessEqual(len(out), 5)
         self.assertEqual([message["type"] for message in out], ["image", "image", "image", "flex"])
-        buttons = out[-1]["contents"]["footer"]["contents"]
+        # 卡片收紧（主会话 11-26，真机 d6b 标题下空一大块）：标题与四个按钮同在 body，没有 footer / spacer / separator / margin
+        bubble = out[-1]["contents"]
+        self.assertEqual(set(bubble), {"type", "size", "body"})
+        body = bubble["body"]["contents"]
+        self.assertEqual([part["type"] for part in body], ["text", "button", "button", "button", "button"])
+        self.assertFalse(any("margin" in part or "offsetTop" in part for part in body))
+        buttons = body[1:]
         self.assertEqual([button["action"]["label"] for button in buttons],
                          ["原件 Excel", "原件 PDF", "汇总 Excel", "汇总 PDF"])
         self.assertTrue(all("openExternalBrowser=1" in button["action"]["uri"] for button in buttons))
@@ -347,8 +394,8 @@ class Messages(unittest.TestCase):
 
     def test_zero_rows_is_one_sentence_and_no_card(self):
         with lang("zh"):
-            out = stock_flow.messages(self.result({"sections": [], "total": 0}), "available", "x",
-                                      datetime(2026, 11, 26))
+            out = stock_flow.messages(self.result({"rows": [], "total": 0, "year": ""}), "available",
+                                      {"date": "x", "time": "x"}, datetime(2026, 11, 26))
         self.assertEqual(out, [{"type": "text", "text": "没有可显示的车辆。"}])
         self.assertEqual(self.saved, [])
 
@@ -415,13 +462,14 @@ class Render(unittest.TestCase):
                 for count, scope in ((9, "available"), (600, "available"), (600, "all")):
                     rows = TEST_LIBRARY if count == 9 else big_library(count)
                     summary = report.summarize(report.parse_export(export(rows)), scope, CARS)
+                    as_of = stock_render.as_of_label(datetime(2026, 11, 26, 11, 20))
                     started = time.monotonic()
-                    result = stock_render.render(browser.new_context(), summary, scope, "26/11/2569 11:20")
-                    workbook = stock_render.workbook(summary, scope, "26/11/2569 11:20")
+                    result = stock_render.render(browser.new_context(), summary, scope, as_of)
+                    workbook = stock_render.workbook(summary, scope, as_of)
                     seconds = time.monotonic() - started
                     sizes = [len(image) for image in result["images"]]
                     print(f"\n{count} cars / {scope}: {summary['total']} vehicles, "
-                          f"{sum(len(s['rows']) for s in summary['sections'])} model-colour rows, "
+                          f"{len(summary['rows'])} model-colour rows, "
                           f"{len(sizes)} images {sizes} bytes, omitted {result['omitted']} rows, "
                           f"pdf {len(result['pdf'])} bytes, xlsx {len(workbook)} bytes, {seconds:.1f}s")
                     self.assertTrue(result["pdf"].startswith(b"%PDF"))

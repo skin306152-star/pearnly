@@ -109,20 +109,22 @@ def _year_label(value) -> str:
 
 
 def summarize(rows: Iterable[Dict[str, str]], scope: str, cars: Dict[str, Dict[str, str]]) -> Dict:
-    """按「车型 + 颜色」汇总，按车型主档的年款分段。
+    """按「车型 + 颜色」汇总成一张表（用户 11-26「做法一」：不按年款分段，只留最上面一行表头，同样表）。
 
     ``cars``：车型代码 → ``{"name": ชื่อรถ, "model_name": ชื่อรุ่นรถ, "year": ปีที่ผลิต}``（本地快照；缺了就回落）。
-    返回 ``{"sections": [{"year": "26", "rows": [...]}], "total": n}``，每行
-    ``{"name", "code", "count", "locations": [(地点, 台数)]}``；段与行都按代码排序，地点按台数多到少。"""
+    返回 ``{"rows": [...], "total": n, "year": "26" 或 ""}``：行按车型代码、颜色代码排序，每行
+    ``{"name", "code", "count", "locations": [(地点, 台数)]}``，地点按台数多到少；``year`` 只在表里所有车的车型主档都填了
+    ปีที่ผลิต 且一致时给出（表头写「26 MY」），否则空（表头不写年款）。"""
     spec = SCOPES[scope]
     groups: Dict[tuple, Dict] = {}
+    years = set()
     for row in rows:
         if spec["available_only"] and not is_available(row.get("status")):
             continue
         model, color = row.get("model") or "", row.get("color") or ""
         car = cars.get(model) or {}
-        year = _year_label(car.get("year"))
-        group = groups.setdefault((year, model, color), {
+        years.add(_year_label(car.get("year")))
+        group = groups.setdefault((model, color), {
             "name": car.get("name") or car.get("model_name") or model,
             "code": " ".join(part for part in (model, color) if part),
             "count": 0,
@@ -131,12 +133,12 @@ def summarize(rows: Iterable[Dict[str, str]], scope: str, cars: Dict[str, Dict[s
         group["count"] += 1
         place = row.get("location") or "-"
         group["places"][place] = group["places"].get(place, 0) + 1
-    sections: Dict[str, List[Dict]] = {}
-    for (year, _model, _color), group in sorted(groups.items(), key=lambda item: (-int(item[0][0] or -1), item[0][1:])):
+    out = []
+    for _key, group in sorted(groups.items()):
         places = sorted(group.pop("places").items(), key=lambda item: (-item[1], item[0]))
-        sections.setdefault(year, []).append({**group, "locations": places})
-    return {"sections": [{"year": year, "rows": section} for year, section in sections.items()],
-            "total": sum(group["count"] for group in groups.values())}
+        out.append({**group, "locations": places})
+    year = years.pop() if len(years) == 1 else ""
+    return {"rows": out, "total": sum(row["count"] for row in out), "year": year}
 
 
 def locations_text(locations) -> str:

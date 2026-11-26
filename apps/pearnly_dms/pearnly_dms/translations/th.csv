@@ -33,7 +33,6 @@ Apply,ดำเนินการ
 Approve,อนุมัติ
 As confirmed,ตามที่ยืนยัน
 As in DMS,ตามข้อมูลใน DMS
-As of {time},ข้อมูล ณ {time}
 Attached,แนบแล้ว
 Available,รถว่าง
 Awaiting manager,รอผจก.ฝ่ายขายอนุมัติ
@@ -215,11 +214,7 @@ Manual Read Request,คำขอดึงข้อมูลด้วยตนเ
 Master data and all vehicle colors,ข้อมูลหลักและสีรถทุกรุ่น
 Menu,เมนู
 Model year,ปีผลิต
-Model/Color,Model/Color
 Model/colour,รุ่น/สี
-Models {my},รถรุ่น {my}
-Models {my} available,รถรุ่น {my} ว่าง
-Models {my} no team yet,รถรุ่น {my} ยังไม่จัดสรรทีม
 Moo,หมู่
 Multiple DMS connections exist for this operator,พนักงานรายนี้มีการเชื่อมต่อ DMS หลายรายการ
 Multiple primary DMS connections exist; ask an administrator to check the configuration,มีการเชื่อมต่อ DMS หลักหลายรายการ กรุณาให้ผู้ดูแลระบบตรวจสอบการตั้งค่า
@@ -454,7 +449,6 @@ Too many query conditions are registered. Please retry the same conditions later
 Top sales,อันดับยอดขาย
 Top sales from DMS,อันดับยอดขายจาก DMS
 Total deposit,ยอดเงินจองรวม
-Total {count},รวม {count} คัน
 Trigger type. The business line is on Reference DocType.,รูปแบบการทริกเกอร์ สายงานธุรกิจดูที่ประเภทเอกสารอ้างอิง
 Try again,ลองอีกครั้ง
 "Type a date range and the number of items, e.g. 01/08/2569-31/08/2569 15 (Buddhist year)",กรุณาพิมพ์ช่วงวันที่และจำนวนรายการ เช่น 01/08/2569-31/08/2569 15
@@ -478,6 +472,7 @@ Update failed — click Update data to retry,อัปเดตไม่สำ�
 Update failed. Please ask the admin to check the admin password in Pearnly.,อัปเดตไม่สำเร็จ กรุณาแจ้งผู้ดูแลระบบให้ตรวจสอบรหัสผ่านผู้ดูแลระบบใน Pearnly
 Update the DMS username and password saved in Pearnly,อัปเดตชื่อผู้ใช้และรหัสผ่าน DMS ที่บันทึกไว้ใน Pearnly
 Update your DMS sign-in,อัปเดตข้อมูลเข้าสู่ระบบ DMS
+Updated {date} {time} Total,อัพเดต {date} เวลา {time} Total
 Updating data…,กำลังอัปเดตข้อมูล…
 Use name on card,ใช้ชื่อตามบัตร
 Use the back office,เข้าใช้งานระบบหลังบ้าน
@@ -804,23 +799,20 @@ dms.card.query.TYPE_SALES,2 บันทึกการขาย
 dms.card.query.TYPE_STOCK,1 สต๊อกตามที่จอดรถ
 dms.card.query.UNIT_AMOUNT,บาท
 dms.card.query.UNIT_QTY,คัน
-dms.card.report.AS_OF,ข้อมูล ณ {time}
 dms.card.report.BTN_ORIGINAL_PDF,ต้นฉบับ PDF
 dms.card.report.BTN_ORIGINAL_XLSX,ต้นฉบับ Excel
 dms.card.report.BTN_SUMMARY_PDF,สรุป PDF
 dms.card.report.BTN_SUMMARY_XLSX,สรุป Excel
-dms.card.report.COL_CODE,Model/Color
 dms.card.report.COL_COUNT,จำนวน
 dms.card.report.COL_PLACE,สถานที่จอดรถ
+dms.card.report.FOOT,อัพเดต {date} เวลา {time} Total
+dms.card.report.HEAD_AVAILABLE,รถรุ่น {my} ว่าง Model/Color
+dms.card.report.HEAD_OTHER,รถรุ่น {my} Model/Color
 dms.card.report.MORE_ROWS,อีก {count} รายการอยู่ในไฟล์
 dms.card.report.SCOPE_ALL,ทั้งหมด
 dms.card.report.SCOPE_AVAILABLE,รถว่าง
 dms.card.report.SCOPE_UNALLOCATED,ยังไม่จัดสรรทีม
-dms.card.report.SECTION_ALL,รถรุ่น {my}
-dms.card.report.SECTION_AVAILABLE,รถรุ่น {my} ว่าง
-dms.card.report.SECTION_UNALLOCATED,รถรุ่น {my} ยังไม่จัดสรรทีม
 dms.card.report.TITLE,สต๊อกตามที่จอดรถ
-dms.card.report.TOTAL,รวม {count} คัน
 dms.card.report.TXT_EMPTY,ไม่มีรถที่จะแสดง
 dms.card.report.TXT_PICK_SCOPE,กรุณาเลือกขอบเขต
 dms.card.rich.booking.sub,สร้างและติดตามใบจอง
@@ -1091,6 +1083,8 @@ usage log,บันทึกการใช้งาน
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
 {count} more rows are in the files,อีก {count} รายการอยู่ในไฟล์
+{my} Available Model/Color,รถรุ่น {my} ว่าง Model/Color
+{my} Model/Color,รถรุ่น {my} Model/Color
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
 {n} more,อีก {n} รายการ
 {text} ({fields}),{text} ({fields})

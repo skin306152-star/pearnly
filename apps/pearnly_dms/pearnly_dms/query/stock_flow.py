@@ -153,18 +153,19 @@ def capture(client, adapter, scope: str, catalogue: Dict, as_of: str) -> Dict:
 
 
 def _card(links: Dict[str, str]) -> Dict[str, Any]:
-    """一张卡片四个下载按钮（URI 动作；`openExternalBrowser=1` 让手机用系统浏览器下载）。"""
+    """一张卡片：标题 + 四个下载按钮（URI 动作；`openExternalBrowser=1` 让手机用系统浏览器下载）。"""
     buttons = []
     for kind, label in (("original_xlsx", "BTN_ORIGINAL_XLSX"), ("original_pdf", "BTN_ORIGINAL_PDF"),
                         ("summary_xlsx", "BTN_SUMMARY_XLSX"), ("summary_pdf", "BTN_SUMMARY_PDF")):
         buttons.append({"type": "button", "style": "link", "height": "sm",
                         "action": {"type": "uri", "label": _t(label), "uri": links[kind] + "&openExternalBrowser=1"}})
     title = _t("TITLE")
+    # 标题与按钮同在一个 body 里（没有 footer、没有 spacer / separator）：两块分开时 LINE 给各自的默认内边距，
+    # 标题下面空出一大块（真机截图 d6b，主会话 11-26 要收紧）
     return {"type": "flex", "altText": title, "contents": {
         "type": "bubble", "size": "kilo",
-        "body": {"type": "box", "layout": "vertical", "contents": [
-            {"type": "text", "text": title, "weight": "bold", "wrap": True}]},
-        "footer": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": buttons}}}
+        "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": [
+            {"type": "text", "text": title, "weight": "bold", "wrap": True}, *buttons]}}}
 
 
 def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any]]:

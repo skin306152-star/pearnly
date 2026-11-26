@@ -442,17 +442,14 @@ Available	空车	รถว่าง	空き車	dms.card.report.SCOPE_AVAILABLE
 All	全部	ทั้งหมด	全部	dms.card.report.SCOPE_ALL
 No team yet	未分配团队	ยังไม่จัดสรรทีม	チーム未割当	dms.card.report.SCOPE_UNALLOCATED
 Stock by location	库存停放报表	สต๊อกตามที่จอดรถ	在庫・保管場所	dms.card.report.TITLE
-Models {my} available	车型 {my} 空车	รถรุ่น {my} ว่าง	車種 {my} 空き車	dms.card.report.SECTION_AVAILABLE
-Models {my}	车型 {my}	รถรุ่น {my}	車種 {my}	dms.card.report.SECTION_ALL
-Models {my} no team yet	车型 {my} 未分配团队	รถรุ่น {my} ยังไม่จัดสรรทีม	車種 {my} チーム未割当	dms.card.report.SECTION_UNALLOCATED
-Model/Color	车型/颜色	Model/Color	車種/色	dms.card.report.COL_CODE
 Qty	台数	จำนวน	台数	dms.card.report.COL_COUNT
 Location	停放位置	สถานที่จอดรถ	保管場所	dms.card.report.COL_PLACE
-Total {count}	合计 {count} 台	รวม {count} คัน	合計 {count} 台	dms.card.report.TOTAL
-As of {time}	更新时间 {time}	ข้อมูล ณ {time}	更新日時 {time}	dms.card.report.AS_OF
 {count} more rows are in the files	另有 {count} 行见文件	อีก {count} รายการอยู่ในไฟล์	残り {count} 行はファイルにあります	dms.card.report.MORE_ROWS
 No vehicles to show.	没有可显示的车辆。	ไม่มีรถที่จะแสดง	表示する車両はありません。	dms.card.report.TXT_EMPTY
 Original Excel	原件 Excel	ต้นฉบับ Excel	原本 Excel	dms.card.report.BTN_ORIGINAL_XLSX
 Original PDF	原件 PDF	ต้นฉบับ PDF	原本 PDF	dms.card.report.BTN_ORIGINAL_PDF
 Summary Excel	汇总 Excel	สรุป Excel	集計 Excel	dms.card.report.BTN_SUMMARY_XLSX
 Summary PDF	汇总 PDF	สรุป PDF	集計 PDF	dms.card.report.BTN_SUMMARY_PDF
+{my} Available Model/Color	{my} 空车 车型/颜色	รถรุ่น {my} ว่าง Model/Color	{my} 空き車 車種/色	dms.card.report.HEAD_AVAILABLE
+{my} Model/Color	{my} 车型/颜色	รถรุ่น {my} Model/Color	{my} 車種/色	dms.card.report.HEAD_OTHER
+Updated {date} {time} Total	更新 {date} {time} 合计	อัพเดต {date} เวลา {time} Total	更新 {date} {time} 合計	dms.card.report.FOOT
