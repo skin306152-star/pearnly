@@ -291,3 +291,7 @@ reason = "引导运行卡展示页与前端测试用的替身引擎（形状照�
 [[file]]
 file = "frontend/assistant/src/components/cloud-express.tsx"
 reason = "CC 设置 → 连接里「云端 Express」一行：只在 CC 桌面版窗口里出现（靠桌面版桥动作 cloud_prefill / cloud_connect / cloud_status），回归实验室的浏览器里没有桌面版桥，这一行不渲染；行的各状态、预填可改、页面没有密码框、按钮调的桥动作由 tests/test_cc_cloud_express.py 离线守住，真机见产品地图 cc.desktop.cloud-express"
+
+[[file]]
+file = "apps/pearnly_dms/pearnly_dms/query/stock_files.py"
+reason = "DMS 库存停放报表的下载口：只给 LINE 图片与卡片按钮用的签名地址（allow_guest），要真 LINE 官方号、真 MR.ERP 导出才有文件，回归实验室没有 LINE 频道、不登 MR.ERP；签名、过期、篡改、超长文件名由 tests/test_dms_stock_report.py 候选检查守住，整条由产品地图 dms.line.stock-report 的真机记录验收"

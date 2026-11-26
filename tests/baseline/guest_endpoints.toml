@@ -190,3 +190,8 @@ guard = "编辑票据"
 method = "pearnly_dms.editor.browser_api.browser_text"
 reason = "LINE 编辑页开局取四语文案"
 guard = "只读公开文案"
+
+[[guest]]
+method = "pearnly_dms.query.stock_files.download"
+reason = "LINE 服务器取库存停放报表的图片、操作员在手机上点卡片下载文件，都没有本站登录态"
+guard = "本站密钥派生的 HMAC 签名（覆盖 File 名、过期时间、下载文件名），24 小时过期；只认文件名前缀 dms-stock- 的私有 File，其余一律 404"
