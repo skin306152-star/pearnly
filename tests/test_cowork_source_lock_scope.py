@@ -134,6 +134,8 @@ class SourceLockScopeTest(unittest.TestCase):
 
 class ReconStartRetryTest(unittest.TestCase):
     def test_start_retries_a_snapshot_conflict_like_the_upload(self):
+        """11-26 B ① 起经 `conflicts.attempt`：冲突整笔重来（一共 4 次、退避），用尽回「请稍后重试」，不再 500 + 数据库原文。"""
+        from pearnly_core.transaction import conflicts
         from pearnly_cowork.recon_center import api
 
         attempts = []
@@ -144,19 +146,26 @@ class ReconStartRetryTest(unittest.TestCase):
                 raise frappe.QueryDeadlockError("1020")
             return {"job": "J"}
 
+        def throw(message, *args, **kwargs):
+            raise frappe.ValidationError(message)
+
         rollbacks = []
         fake_db = type("Db", (), {"rollback": lambda self: rollbacks.append(1)})()
-        with patch.object(api.jobs, "start", side_effect=start), \
-                patch.object(frappe, "db", fake_db, create=True), \
-                patch.object(frappe.local, "request", None, create=True):
+        quiet = (patch.object(frappe, "db", fake_db, create=True), patch.object(frappe, "flags", {}, create=True),
+                 patch.object(frappe, "throw", throw), patch.object(frappe, "_", lambda text, *args, **kwargs: text),
+                 patch.object(frappe.local, "request", None, create=True),
+                 patch.object(conflicts.time, "sleep", lambda seconds: None))
+        for item in quiet:
+            item.start()
+        self.addCleanup(lambda: [item.stop() for item in quiet])
+        with patch.object(api.jobs, "start", side_effect=start):
             self.assertEqual(api.start("bank"), {"job": "J"})
         self.assertEqual((len(attempts), len(rollbacks)), (3, 2))
         attempts.clear()
-        with patch.object(api.jobs, "start", side_effect=frappe.QueryDeadlockError("1020")), \
-                patch.object(frappe, "db", fake_db, create=True), \
-                patch.object(frappe.local, "request", None, create=True):
-            with self.assertRaises(frappe.QueryDeadlockError):
+        with patch.object(api.jobs, "start", side_effect=frappe.QueryDeadlockError("1020")):
+            with self.assertRaises(frappe.ValidationError) as caught:
                 api.start("bank")
+        self.assertEqual(str(caught.exception), "Please try again later")
 
 
 if __name__ == "__main__":
