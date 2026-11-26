@@ -211,9 +211,16 @@ def _with_blocked(doctype, name, company, found) -> dict:
     data = found.get("data") or (facts.load(book["key"]) if book.get("key") else None)
     body = push.document(doctype, name)
     company_row = push._company(company)
-    items = [_item(raw, data, company_row, body, doctype, name)  # loop-query: 电脑拦下的只有一项（对方档 / 存货组 / 服务口径），有界
+    items = [_unset(_item(raw, data, company_row, body, doctype, name))  # loop-query: 电脑拦下的只有一项（对方档 / 存货组 / 服务口径），有界
              for raw in blocked]
     return {**found, "data": data, "items": items}
+
+
+def _unset(item) -> dict:
+    """被拦的题不带当前值（推荐项照旧排第一、带依据）：带了，对话里的写入计划按「预选项没答也照预选写」放行，可这张单要人点一次
+    记下（`api._unanswered` 认停下之后答的）才会再写，直写出口照旧不交、又卡住（11-26 实验室流程 erp.cc.blocked-answered-once）。
+    人点了就记下，下一遍不再出这道题。"""
+    return {**{key: value for key, value in item.items() if key != "value_label"}, "value": "", "source": ""}
 
 
 def collect_form(doctype, payload, company, given=None) -> dict:

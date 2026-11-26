@@ -189,8 +189,8 @@ def _unanswered(row, job, needed) -> list:
         return needed
     data = facts.load(row.get("ledger_book")) if row.get("ledger_book") else None
     still = []
-    for item in needed:  # loop-query: 被拦的只有一两项（对方档 / 存货组 / 服务口径），有界
-        value, at = choices.answered(row.company, item["kind"], item["subject"])
+    for item in needed:
+        value, at = choices.answered(row.company, item["kind"], item["subject"])  # loop-query: 被拦的只有一两项（对方档 / 存货组 / 服务口径），有界
         if value and at and at > stopped and value in {option["code"] for option in _options(item, data)}:
             continue
         still.append(item)

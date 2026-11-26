@@ -129,6 +129,34 @@ class BlockedQuestion(base.PushModule):
                 self.assertEqual(self.api._party_blocked(doctype, self.row(), self.job("STOCK_ACC_GROUP_UNFIT")), [])
 
 
+class BlockedCardItem(BlockedQuestion):
+    test_a_question_answered_after_the_stop_is_not_asked_again_and_the_document_can_be_written_again = None
+    test_not_answered_yet_still_asks_with_no_value_filled_in = None
+    test_an_answer_older_than_the_stop_still_asks = None
+    test_an_answer_that_is_no_longer_a_choice_still_asks = None
+    test_other_stops_and_a_job_without_a_time_are_unchanged = None
+    test_stock_documents_ask_the_book_group_the_same_way = None
+
+    def test_the_blocked_question_on_the_card_has_no_value_filled_in_but_keeps_the_recommendation_first(self):
+        """被拦的题不带当前值：带了，对话里的写入计划会照预选放行，可这张单要人点一次记下才会再写（实验室流程查出）。"""
+        sys.modules.pop("pearnly_erp_portal.express.precheck", None)
+        self.addCleanup(sys.modules.pop, "pearnly_erp_portal.express.precheck", None)
+        from pearnly_erp_portal.express import precheck
+        api = self.api
+        proposed = {"kind": "stock_group", "subject": "BOOK-1", "label": "9.Pearnly", "value": "DM", "source": "history",
+                    "value_label": "วัตถุดิบ", "options": [{"code": "DM", "note": "most used"}, {"code": "P002"}]}
+        with mock.patch.object(api, "blocked_needed", lambda doctype, name: [dict(GROUP)]), \
+                mock.patch.object(precheck, "_item", lambda *args: dict(proposed)), \
+                mock.patch.object(precheck.push, "document", lambda doctype, name: {}), \
+                mock.patch.object(precheck.push, "_company", lambda name: {"name": name}):
+            found = precheck._with_blocked("Purchase Document", "PUR-1", "CO-1", {"result": {"payload": {}}, "items": [],
+                                                                                 "data": {}})
+        item, = found["items"]
+        self.assertEqual((item["value"], item["source"], "value_label" in item), ("", "", False))
+        self.assertEqual([option["code"] for option in item["options"]], ["DM", "P002"])
+        self.assertEqual(item["options"][0]["note"], "most used")
+
+
 class Answered(unittest.TestCase):
     def test_answered_reads_the_stored_value_and_its_time_not_the_assumed_one(self):
         from pearnly_erp_portal.express import choices
