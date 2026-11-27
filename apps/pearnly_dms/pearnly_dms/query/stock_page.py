@@ -63,6 +63,7 @@ share.addEventListener('click',function(){
   var what=one?{files:one}:{title:data.title,text:data.title+'\\n'+data.subtitle,url:data.page+'&k='+list.join(',')+'&openExternalBrowser=1'};
   navigator.share(what).catch(function(){})});
 if(navigator.canShare&&window.File){files.forEach(function(f,i){
+  if(!f.url)return;
   fetch(f.url).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){
     blobs[i]=new File([b],f.name,{type:f.type});refresh()}).catch(function(){})})}
 refresh();
@@ -82,8 +83,10 @@ def html_page(manifest: Dict, stylesheet: str = "", page_url: str = "", only=Non
         rows.append('<label><span>%s<small>%s</small></span><input type="checkbox" data-i="%d" checked></label>' % (
             escape(str(entry.get("label") or "")), escape(_size(entry.get("size"))), index))
     data = {"page": page_url, "title": manifest.get("title"), "subtitle": manifest.get("subtitle"),
+            # 没列出的文件不带地址（分享给别人的只是勾选的那几个）；位置留空对象，序号不变
             "files": [{"url": entry.get("url"), "name": entry.get("name"), "type": entry.get("type")}
-                      for entry in manifest.get("files") or []]}
+                      if only is None or index in only else {}
+                      for index, entry in enumerate(manifest.get("files") or [])]}
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")
     return ("<!doctype html><html lang=%s><head><meta charset=utf-8>"
             "<meta name=viewport content=\"width=device-width,initial-scale=1\"><meta name=robots content=noindex>"

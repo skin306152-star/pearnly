@@ -633,6 +633,8 @@ class DownloadPage(unittest.TestCase):
         self.assertEqual(page.count('type="checkbox" data-i='), 1)
         self.assertIn('data-i="1" checked', page)  # 序号仍是清单里的原序号（打包下载按它取文件）
         self.assertNotIn("สรุป PDF<small>", page)
+        self.assertNotIn("d?f=F1", page)  # 没勾的文件连地址也不给
+        self.assertIn("d?f=F2", page)
         for bad in ("5", "x", "-1"):
             self.assertEqual(self.call(stock_files.page, {**query, "k": bad}).status_code, 404, bad)
 
