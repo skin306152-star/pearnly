@@ -20,7 +20,10 @@ from typing import Dict, List
 from pearnly_dms import i18n
 from pearnly_dms.query.stock_report import locations_text
 
-ROWS_PER_IMAGE = 36  # 大字（手机气泡里不点开也看得清）、行距照样表（约 1.3 倍字高）下一张图最多 36 行
+# 一张图最多 60 行：真实经销商约 50 个车型颜色组合，要落在一张图里——拆成两张时合计只在最后一张，看图的人会拿它和
+# 那一张上的行对，以为算错（用户 11-27）。超过 60 行才分页。
+ROWS_PER_IMAGE = 60
+PREVIEW_LIMIT = 1000 * 1000  # LINE 预览图上限 1 MB（原图与预览共用一份）
 MAX_IMAGES = 3  # 一次回复最多 5 条：3 张图 + 1 张卡片，留一条余量
 IMAGE_WIDTH = 1080
 FONTS = '"Loma", "Sarabun", "WenQuanYi Zen Hei", "IPAPGothic", "Noto Sans", sans-serif'
@@ -144,7 +147,7 @@ def _places_html(locations) -> str:
 
 
 def image_pages(summary: Dict) -> List[List[Dict]]:
-    """出图分页：每页 ≤36 行，每页顶上各有同一行表头（分页不是分段），底部那行只在最后一张。"""
+    """出图分页：每页 ≤60 行，每页顶上各有同一行表头（分页不是分段），底部那行只在最后一张。"""
     rows = summary["rows"]
     return [rows[start:start + ROWS_PER_IMAGE] for start in range(0, len(rows), ROWS_PER_IMAGE)] or [[]]
 
@@ -165,7 +168,10 @@ def render(context, summary: Dict, scope: str, as_of: Dict[str, str]) -> Dict:
             last = index == len(shown) - 1
             page.set_content(document(rows, summary, scope, as_of, footer=last, more=omitted if last else 0,
                                       first_index=index * ROWS_PER_IMAGE), wait_until="load")
-            images.append(page.screenshot(full_page=True, type="jpeg", quality=85))
+            shot = page.screenshot(full_page=True, type="jpeg", quality=85)
+            if len(shot) > PREVIEW_LIMIT:  # 60 行都是多地点的长行时会超 LINE 预览图上限：降一档画质再出
+                shot = page.screenshot(full_page=True, type="jpeg", quality=60)
+            images.append(shot)
         return {"pdf": pdf, "images": images, "omitted": omitted}
     finally:
         page.close()
