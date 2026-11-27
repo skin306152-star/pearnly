@@ -5,6 +5,7 @@ MR.ERP 的导出用 openpyxl 按 11-26 测试库实查的样子造（标题、�
 """
 import csv
 import io
+import json
 import os
 import sys
 import time
@@ -24,7 +25,7 @@ import frappe  # noqa: E402
 from openpyxl import Workbook  # noqa: E402
 
 from pearnly_dms import i18n  # noqa: E402
-from pearnly_dms.query import query_cards, query_flow, stock_files, stock_flow, stock_render  # noqa: E402
+from pearnly_dms.query import query_cards, query_flow, stock_files, stock_flow, stock_page, stock_render  # noqa: E402
 from pearnly_dms.query import stock_report as report  # noqa: E402
 
 assert Path(report.__file__).is_relative_to(ROOT), report.__file__
@@ -328,7 +329,10 @@ class Languages(unittest.TestCase):
                 book = load_workbook(io.BytesIO(stock_render.workbook(summary, "all", as_of))).active
                 page = stock_render.document(summary["rows"], summary, "all", as_of)
                 saved = []
-                with patch.object(stock_files, "save", side_effect=lambda c, e, f, b: saved.append(f) or "https://x.test/d?f=1"):
+                named = lambda c, e, f, b: saved.append(f) or {"file": "F", "url": "https://x.test/d?f=1", "size": 1}  # noqa: E731
+                with patch.object(stock_files, "save", return_value="https://x.test/d?f=1"), \
+                        patch.object(stock_files, "save_named", side_effect=named), \
+                        patch.object(stock_files, "save_page", return_value="https://x.test/p?f=1"):
                     stock_flow.messages({"summary": summary, "originals": {"xlsx": {"content": b"PK", "name": "o.xlsx"},
                                                                          "pdf": {"content": b"%PDF", "name": "o.pdf"}},
                                          "rendered": {"pdf": b"%PDF", "images": [b"j"], "omitted": 0}}, "all", as_of, moment)
@@ -456,37 +460,52 @@ class Entries(unittest.TestCase):
 
 class Messages(unittest.TestCase):
     def setUp(self):
-        self.saved = []
-        patcher = patch.object(stock_files, "save", side_effect=self.save)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+        self.saved, self.pages = [], []
+        for name, fake in (("save", self.save), ("save_named", self.save_named), ("save_page", self.save_page)):
+            patcher = patch.object(stock_files, name, side_effect=fake)
+            patcher.start()
+            self.addCleanup(patcher.stop)
 
     def save(self, content, extension, filename, batch):
+        return self.save_named(content, extension, filename, batch)["url"]
+
+    def save_named(self, content, extension, filename, batch):
         self.saved.append((extension, filename))
-        return f"https://dms.example.test/api/method/pearnly_dms.query.stock_files.download?f={len(self.saved)}"
+        return {"file": f"F{len(self.saved)}", "size": len(content),
+                "url": f"https://dms.example.test/api/method/pearnly_dms.query.stock_files.download?f={len(self.saved)}"}
+
+    def save_page(self, manifest, batch):
+        self.pages.append(manifest)
+        return "https://dms.example.test/api/method/pearnly_dms.query.stock_files.page?f=P1"
 
     def result(self, summary, images=1):
         return {"summary": summary, "rendered": {"pdf": b"%PDF", "images": [b"jpg"] * images, "omitted": 0},
                 "originals": {"xlsx": {"content": b"PK", "name": "รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด [26112569_112012].xlsx"},
                               "pdf": {"content": b"%PDF", "name": "รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด [26112569_112012].pdf"}}}
 
-    def test_images_then_one_card_with_four_download_buttons(self):
+    def test_images_then_one_card_with_one_download_button(self):
         with lang("zh"):
             summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
             out = stock_flow.messages(self.result(summary, images=3), "available",
                                       {"date": "26/11/2026", "time": "11:20"}, datetime(2026, 11, 26, 11, 20))
         self.assertLessEqual(len(out), 5)
         self.assertEqual([message["type"] for message in out], ["image", "image", "image", "flex"])
-        # 卡片收紧（主会话 11-26，真机 d6b 标题下空一大块）：标题与四个按钮同在 body，没有 footer / spacer / separator / margin
+        # 卡片：标题、台数与时间、一个按钮，同在 body（没有 footer / spacer / separator / margin）
         bubble = out[-1]["contents"]
         self.assertEqual(set(bubble), {"type", "size", "body"})
         body = bubble["body"]["contents"]
-        self.assertEqual([part["type"] for part in body], ["text", "button", "button", "button", "button"])
+        self.assertEqual([part["type"] for part in body], ["text", "text", "button"])
         self.assertFalse(any("margin" in part or "offsetTop" in part for part in body))
-        buttons = body[1:]
-        self.assertEqual([button["action"]["label"] for button in buttons],
-                         ["原件 Excel", "原件 PDF", "汇总 Excel", "汇总 PDF"])
-        self.assertTrue(all("openExternalBrowser=1" in button["action"]["uri"] for button in buttons))
+        self.assertEqual(body[1]["text"], "5 台 · 26/11/2026 11:20")
+        self.assertEqual(body[2]["action"]["label"], "下载文件")
+        self.assertTrue(body[2]["action"]["uri"].endswith("stock_files.page?f=P1&openExternalBrowser=1"))
+        # 下载页清单：四个文件（汇总在前），文字全部按发起人的语言取好
+        manifest, = self.pages
+        self.assertEqual([entry["label"] for entry in manifest["files"]], ["汇总 PDF", "汇总 Excel", "原件 PDF", "原件 Excel"])
+        self.assertEqual((manifest["lang"], manifest["select_all"], manifest["share"], manifest["download"]),
+                         ("zh", "全选", "分享", "下载"))
+        self.assertEqual(manifest["archive_name"], "库存停放报表 [26112026_1120].zip")
+        self.assertTrue(all(entry["file"] and entry["url"] and entry["size"] for entry in manifest["files"]))
         # 原件保留 MR.ERP 原文件名（含「-ทั้งหมด」），不另加说明
         self.assertIn(("xlsx", "รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด [26112569_112012].xlsx"), self.saved)
 
@@ -543,6 +562,86 @@ class Links(unittest.TestCase):
         self.assertEqual(self.download({**query, "f": "other"}).status_code, 404)
         with patch.object(stock_files.time, "time", return_value=time.time() + stock_files.LINK_SECONDS + 5):
             self.assertEqual(self.download(query).status_code, 404)
+
+
+MANIFEST = {"lang": "th", "title": "สต๊อกตามที่จอดรถ", "subtitle": "92 คัน · 26/11/2026 21.08", "select_all": "เลือกทั้งหมด",
+            "share": "แชร์", "download": "ดาวน์โหลด", "archive_name": "สต๊อกตามที่จอดรถ [26112026_2108].zip",
+            "files": [{"label": "สรุป PDF", "name": "สรุป <1>.pdf", "type": "application/pdf", "file": "F1",
+                       "url": "https://dms.example.test/d?f=F1", "size": 47273},
+                      {"label": "ต้นฉบับ Excel", "name": "ต้นฉบับ.xlsx", "type": "x", "file": "F2",
+                       "url": "https://dms.example.test/d?f=F2", "size": 2 * 1024 * 1024}]}
+
+
+class DownloadPage(unittest.TestCase):
+    """卡片「下载文件」打开的页面与多选打包（用户 11-27：四个按钮一个一个点太麻烦）。"""
+
+    def setUp(self):
+        for target, kwargs in (("frappe.utils.password.get_encryption_key", {"return_value": "site-key"}),
+                               ("frappe.utils.get_url", {"return_value": "https://dms.example.test"})):
+            patcher = patch(target, **kwargs)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.contents = {"P1": json.dumps(MANIFEST).encode(), "F1": b"%PDF-one", "F2": b"PK-two"}
+        self.names = {"P1": "dms-stock-b1-page.json", "F1": "dms-stock-b1-aaaa.pdf", "F2": "dms-stock-b1-bbbb.xlsx"}
+
+    def link(self):
+        doc = MagicMock(name="File")
+        doc.name = "P1"
+        with patch("frappe.get_doc", return_value=doc) as made:
+            url = stock_files.save_page(MANIFEST, "b1")
+        self.assertEqual(made.call_args[0][0]["file_name"], "dms-stock-b1-page.json")
+        self.assertIn("stock_files.page?", url)
+        return {key: values[0] for key, values in parse_qs(urlparse(url).query).items()}
+
+    def call(self, method, query):
+        def row(_doctype, name, _fields, as_dict=True):
+            return frappe._dict(file_name=self.names[name], is_private=1) if name in self.names else None
+
+        def doc(_doctype, name):
+            return MagicMock(get_content=MagicMock(return_value=self.contents[name]))
+
+        with patch("frappe.db", MagicMock(get_value=MagicMock(side_effect=row))), patch("frappe.get_doc", side_effect=doc):
+            return method(**query)
+
+    def test_page_lists_every_file_ticked_with_share_and_download(self):
+        response = self.call(stock_files.page, self.link())
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.mimetype.startswith("text/html"))
+        page = response.get_data(as_text=True)
+        self.assertIn("<html lang=th>", page)
+        self.assertEqual(page.count('type="checkbox" data-i='), 2)
+        self.assertEqual(page.count(" checked>"), 3)  # 两个文件 + 全选，默认全勾
+        for text in ("สต๊อกตามที่จอดรถ", "92 คัน · 26/11/2026 21.08", "เลือกทั้งหมด", "แชร์ <span>", "ดาวน์โหลด <span>",
+                     "สรุป PDF<small>46 KB</small>", "ต้นฉบับ Excel<small>2.0 MB</small>"):
+            self.assertIn(text, page)
+        self.assertIn("<button id=share class=primary hidden>", page)  # 浏览器说能分享这些文件才露出
+        self.assertIn("stock_files.archive?", page)
+        self.assertNotIn("</script><1>", page)
+        self.assertIn("\\u003c1>" if "\\u003c1>" in page else "สรุป <1>.pdf", page)  # 文件名在 JSON 数据块里，不进标签
+
+    def test_page_and_file_signatures_are_not_interchangeable(self):
+        query = self.link()
+        self.assertEqual(self.call(stock_files.download, {**query, "f": "P1"}).status_code, 404)  # 页面地址下不了清单
+        self.assertEqual(self.call(stock_files.page, {**query, "f": "F1"}).status_code, 404)
+        self.assertEqual(self.call(stock_files.page, {**query, "s": "0" * 40}).status_code, 404)
+        with patch.object(stock_files.time, "time", return_value=time.time() + stock_files.LINK_SECONDS + 5):
+            self.assertEqual(self.call(stock_files.page, query).status_code, 404)
+            self.assertEqual(self.call(stock_files.archive, {**query, "k": "0"}).status_code, 404)
+
+    def test_archive_holds_only_the_ticked_files_under_their_display_names(self):
+        import zipfile
+
+        query = self.link()
+        response = self.call(stock_files.archive, {**query, "k": "0,1"})
+        self.assertEqual((response.status_code, response.mimetype), (200, "application/zip"))
+        self.assertIn("filename*=UTF-8''", response.headers["Content-Disposition"])
+        bundle = zipfile.ZipFile(io.BytesIO(response.get_data()))
+        self.assertEqual(bundle.namelist(), ["สรุป <1>.pdf", "ต้นฉบับ.xlsx"])
+        self.assertEqual(bundle.read("ต้นฉบับ.xlsx"), b"PK-two")
+        one = zipfile.ZipFile(io.BytesIO(self.call(stock_files.archive, {**query, "k": "1"}).get_data()))
+        self.assertEqual(one.namelist(), ["ต้นฉบับ.xlsx"])
+        for bad in ("", "2", "-1", "x", "0,9"):
+            self.assertEqual(self.call(stock_files.archive, {**query, "k": bad}).status_code, 404, bad)
 
 
 @unittest.skipUnless(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or Path("/opt/ms-playwright").is_dir(),

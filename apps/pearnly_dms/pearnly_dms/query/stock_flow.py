@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""LINE「报表查询 → 1 库存停放报表」：选范围 → 后台用操作员自己的 MR.ERP 账号导出 → 回图片 + 四个下载按钮。
+"""LINE「报表查询 → 1 库存停放报表」：选范围 → 后台用操作员自己的 MR.ERP 账号导出 → 回图片 + 一张卡片（「下载文件」打开下载页，勾选后分享或下载）。
 
 评估 `docs/work/2026-11-26-dms-line-stock-report-assessment.md`，主会话 11-26 批准：
 
@@ -152,20 +152,21 @@ def capture(client, adapter, scope: str, catalogue: Dict, as_of: str) -> Dict:
     return {"ok": True, "originals": files, "summary": summary, "rendered": rendered}
 
 
-def _card(links: Dict[str, str]) -> Dict[str, Any]:
-    """一张卡片：标题 + 四个下载按钮（URI 动作；`openExternalBrowser=1` 让手机用系统浏览器下载）。"""
-    buttons = []
-    for kind, label in (("original_xlsx", "BTN_ORIGINAL_XLSX"), ("original_pdf", "BTN_ORIGINAL_PDF"),
-                        ("summary_xlsx", "BTN_SUMMARY_XLSX"), ("summary_pdf", "BTN_SUMMARY_PDF")):
-        buttons.append({"type": "button", "style": "link", "height": "sm",
-                        "action": {"type": "uri", "label": _t(label), "uri": links[kind] + "&openExternalBrowser=1"}})
+_FILE_TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "pdf": "application/pdf"}
+
+
+def _card(page_url: str, subtitle: str) -> Dict[str, Any]:
+    """一张卡片：标题、台数与时间、一个「下载文件」按钮（URI 动作；`openExternalBrowser=1` 让手机用系统浏览器打开下载页——
+    LINE 内置浏览器下载和分享文件都不可靠）。用户 11-27：四个按钮要一个一个点，改成一个入口，在下载页里勾选。"""
     title = _t("TITLE")
-    # 标题与按钮同在一个 body 里（没有 footer、没有 spacer / separator）：两块分开时 LINE 给各自的默认内边距，
-    # 标题下面空出一大块（真机截图 d6b，主会话 11-26 要收紧）
+    # 标题、副标题与按钮同在一个 body 里（没有 footer / spacer / separator）：分开时 LINE 给各自的默认内边距，空出一大块（真机 d6b）
     return {"type": "flex", "altText": title, "contents": {
         "type": "bubble", "size": "kilo",
         "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": [
-            {"type": "text", "text": title, "weight": "bold", "wrap": True}, *buttons]}}}
+            {"type": "text", "text": title, "weight": "bold", "wrap": True},
+            {"type": "text", "text": subtitle, "size": "sm", "color": "#666666", "wrap": True},
+            {"type": "button", "style": "primary", "height": "sm",
+             "action": {"type": "uri", "label": _t("BTN_FILES"), "uri": page_url + "&openExternalBrowser=1"}}]}}}
 
 
 def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any]]:
@@ -177,20 +178,28 @@ def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any
     # 同底部一行：四语都用公历（照样表，用户 11-26）；原件两份是 MR.ERP 的原文件名（佛历），不动
     stamp = f"{moment.day:02d}{moment.month:02d}{moment.year}_{moment.hour:02d}{moment.minute:02d}"
     summary_name = f"{_t('TITLE')} [{stamp}]"
-    links = {
-        "original_xlsx": stock_files.save(result["originals"]["xlsx"]["content"], "xlsx",
-                                          result["originals"]["xlsx"]["name"], batch),
-        "original_pdf": stock_files.save(result["originals"]["pdf"]["content"], "pdf",
-                                         result["originals"]["pdf"]["name"], batch),
-        "summary_xlsx": stock_files.save(stock_render.workbook(summary, scope, as_of), "xlsx",
-                                         summary_name + ".xlsx", batch),
-        "summary_pdf": stock_files.save(result["rendered"]["pdf"], "pdf", summary_name + ".pdf", batch),
-    }
+    # 下载页里的顺序：汇总在前（常用），原件在后
+    wanted = (
+        ("BTN_SUMMARY_PDF", "pdf", result["rendered"]["pdf"], summary_name + ".pdf"),
+        ("BTN_SUMMARY_XLSX", "xlsx", stock_render.workbook(summary, scope, as_of), summary_name + ".xlsx"),
+        ("BTN_ORIGINAL_PDF", "pdf", result["originals"]["pdf"]["content"], result["originals"]["pdf"]["name"]),
+        ("BTN_ORIGINAL_XLSX", "xlsx", result["originals"]["xlsx"]["content"], result["originals"]["xlsx"]["name"]),
+    )
+    files = []
+    for label, kind, content, name in wanted:
+        saved = stock_files.save_named(content, kind, name, batch)
+        files.append({"label": _t(label), "name": name, "type": _FILE_TYPES[kind], "file": saved["file"],
+                      "url": saved["url"], "size": saved["size"]})
+    subtitle = _t("SUBTITLE", count=summary["total"], date=as_of["date"], time=as_of["time"])
+    page_url = stock_files.save_page({
+        "lang": i18n.line_lang(), "title": _t("TITLE"), "subtitle": subtitle, "select_all": _t("SELECT_ALL"),
+        "share": _t("BTN_SHARE"), "download": _t("BTN_DOWNLOAD"), "archive_name": summary_name + ".zip",
+        "files": files}, batch)
     out = []
     for index, image in enumerate(result["rendered"]["images"], 1):
         url = stock_files.save(image, "jpg", f"{summary_name} {index}.jpg", batch)
         out.append({"type": "image", "originalContentUrl": url, "previewImageUrl": url})
-    out.append(_card(links))
+    out.append(_card(page_url, subtitle))
     return out
 
 

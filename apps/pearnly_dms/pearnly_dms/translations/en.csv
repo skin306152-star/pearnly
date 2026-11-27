@@ -152,6 +152,8 @@ Discard,Discard
 Discarded. Nothing was saved · Type menu to start again,Discarded. Nothing was saved · Type menu to start again
 District,District
 Docs/engine,Docs/engine
+Download,Download
+Download files,Download files
 Draft,Draft
 Edit,Edit
 Enable the DMS connection before reading data,Enable the DMS connection before reading data
@@ -341,6 +343,7 @@ Name: {name}"
 Saved. The result will be sent to LINE.,Saved. The result will be sent to LINE.
 Scan ID card,Scan ID card
 Search data,Search data
+Select all,Select all
 Select at least one data group.,Select at least one data group.
 Select one or more DMS data groups to read,Select one or more DMS data groups to read
 "Select the data to update, then wait for the read to finish.","Select the data to update, then wait for the read to finish."
@@ -348,6 +351,7 @@ Select one or more DMS data groups to read,Select one or more DMS data groups to
 Sending…,Sending…
 Sent. You can go back to the chat.,Sent. You can go back to the chat.
 "Separate fields with | , / or ·","Separate fields with | , / or ·"
+Share,Share
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.
 Similar customers found. Choose the one that matches.,Similar customers found. Choose the one that matches.
 Soi,Soi
@@ -800,8 +804,11 @@ dms.card.query.TYPE_SALES,2 Sales records
 dms.card.query.TYPE_STOCK,1 Stock by location
 dms.card.query.UNIT_AMOUNT,THB
 dms.card.query.UNIT_QTY,cars
+dms.card.report.BTN_DOWNLOAD,Download
+dms.card.report.BTN_FILES,Download files
 dms.card.report.BTN_ORIGINAL_PDF,Original PDF
 dms.card.report.BTN_ORIGINAL_XLSX,Original Excel
+dms.card.report.BTN_SHARE,Share
 dms.card.report.BTN_SUMMARY_PDF,Summary PDF
 dms.card.report.BTN_SUMMARY_XLSX,Summary Excel
 dms.card.report.COL_COUNT,Qty
@@ -814,6 +821,8 @@ dms.card.report.MORE_ROWS,{count} more rows are in the files
 dms.card.report.SCOPE_ALL,All
 dms.card.report.SCOPE_AVAILABLE,Available
 dms.card.report.SCOPE_UNALLOCATED,No team yet
+dms.card.report.SELECT_ALL,Select all
+dms.card.report.SUBTITLE,{count} vehicles · {date} {time}
 dms.card.report.TITLE,Stock by location
 dms.card.report.TXT_EMPTY,No vehicles to show.
 dms.card.report.TXT_PICK_SCOPE,Choose a scope
@@ -1085,6 +1094,7 @@ usage log,usage log
 "{0} registered, {1} in use","{0} registered, {1} in use"
 {0}/{1} groups,{0}/{1} groups
 {count} more rows are in the files,{count} more rows are in the files
+{count} vehicles · {date} {time},{count} vehicles · {date} {time}
 {my} Available,{my} Available
 {my} Vehicles,{my} Vehicles
 {n} latest sales records from DMS,{n} latest sales records from DMS

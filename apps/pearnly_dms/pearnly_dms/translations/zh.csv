@@ -152,6 +152,8 @@ Discard,放弃
 Discarded. Nothing was saved · Type menu to start again,已放弃，没有保存任何资料 · 输入 菜单 重新开始
 District,区（县）
 Docs/engine,单据/发动机
+Download,下载
+Download files,下载文件
 Draft,草稿
 Edit,编辑
 Enable the DMS connection before reading data,请先启用 DMS 连接，再读取资料
@@ -341,6 +343,7 @@ Name: {name}","保存成功 · {action}
 Saved. The result will be sent to LINE.,已保存，结果会发到 LINE。
 Scan ID card,扫描身份证
 Search data,查询资料
+Select all,全选
 Select at least one data group.,请至少选择一组资料。
 Select one or more DMS data groups to read,请选择至少一组需要读取的 DMS 资料
 "Select the data to update, then wait for the read to finish.",选择需要更新的资料，点击后请等待读取完成。
@@ -348,6 +351,7 @@ Select one or more DMS data groups to read,请选择至少一组需要读取的 
 Sending…,正在发送…
 Sent. You can go back to the chat.,已发送，请返回聊天。
 "Separate fields with | , / or ·","栏位之间用 | , / 或 · 分隔"
+Share,分享
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,人多时分担排队。在 DMS 后台另建，权限同连接账号；不要用它们登录 DMS 网页。
 Similar customers found. Choose the one that matches.,找到相似的客户，请选择对应的一位。
 Soi,巷（Soi）
@@ -800,8 +804,11 @@ dms.card.query.TYPE_SALES,2 销售记录
 dms.card.query.TYPE_STOCK,1 库存停放报表
 dms.card.query.UNIT_AMOUNT,泰铢
 dms.card.query.UNIT_QTY,台
+dms.card.report.BTN_DOWNLOAD,下载
+dms.card.report.BTN_FILES,下载文件
 dms.card.report.BTN_ORIGINAL_PDF,原件 PDF
 dms.card.report.BTN_ORIGINAL_XLSX,原件 Excel
+dms.card.report.BTN_SHARE,分享
 dms.card.report.BTN_SUMMARY_PDF,汇总 PDF
 dms.card.report.BTN_SUMMARY_XLSX,汇总 Excel
 dms.card.report.COL_COUNT,台数
@@ -814,6 +821,8 @@ dms.card.report.MORE_ROWS,另有 {count} 行见文件
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空车
 dms.card.report.SCOPE_UNALLOCATED,未分配团队
+dms.card.report.SELECT_ALL,全选
+dms.card.report.SUBTITLE,{count} 台 · {date} {time}
 dms.card.report.TITLE,库存停放报表
 dms.card.report.TXT_EMPTY,没有可显示的车辆。
 dms.card.report.TXT_PICK_SCOPE,请选择范围
@@ -1085,6 +1094,7 @@ usage log,使用记录
 "{0} registered, {1} in use",已登记 {0} 个，可用 {1} 个
 {0}/{1} groups,{0}/{1} 组
 {count} more rows are in the files,另有 {count} 行见文件
+{count} vehicles · {date} {time},{count} 台 · {date} {time}
 {my} Available,{my} 空车
 {my} Vehicles,{my} 车辆
 {n} latest sales records from DMS,DMS 最新销售记录 {n} 条

@@ -152,6 +152,8 @@ Discard,破棄
 Discarded. Nothing was saved · Type menu to start again,破棄しました。何も保存されていません · メニュー と入力してやり直してください
 District,郡
 Docs/engine,伝票/エンジン
+Download,ダウンロード
+Download files,ファイルをダウンロード
 Draft,下書き
 Edit,編集
 Enable the DMS connection before reading data,データを読み取る前に DMS 接続を有効にしてください
@@ -341,6 +343,7 @@ Name: {name}","保存しました · {action}
 Saved. The result will be sent to LINE.,保存しました。結果は LINE に送信されます。
 Scan ID card,身分証をスキャン
 Search data,データ検索
+Select all,すべて選択
 Select at least one data group.,データを1種類以上選択してください。
 Select one or more DMS data groups to read,読み取る DMS データを1種類以上選択してください
 "Select the data to update, then wait for the read to finish.",更新するデータを選択し、読み取りが完了するまでお待ちください。
@@ -348,6 +351,7 @@ Select one or more DMS data groups to read,読み取る DMS データを1種類�
 Sending…,送信中…
 Sent. You can go back to the chat.,送信しました。チャットに戻れます。
 "Separate fields with | , / or ·","項目は | , / または · で区切ってください"
+Share,共有
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,同時利用が多いときの待ちを分散します。DMS で接続アカウントと同じ権限で作成し、DMS の Web では使わないでください。
 Similar customers found. Choose the one that matches.,似た顧客が見つかりました。該当する顧客を選んでください。
 Soi,ソイ
@@ -800,8 +804,11 @@ dms.card.query.TYPE_SALES,2 販売記録
 dms.card.query.TYPE_STOCK,1 在庫・保管場所
 dms.card.query.UNIT_AMOUNT,バーツ
 dms.card.query.UNIT_QTY,台
+dms.card.report.BTN_DOWNLOAD,ダウンロード
+dms.card.report.BTN_FILES,ファイルをダウンロード
 dms.card.report.BTN_ORIGINAL_PDF,原本 PDF
 dms.card.report.BTN_ORIGINAL_XLSX,原本 Excel
+dms.card.report.BTN_SHARE,共有
 dms.card.report.BTN_SUMMARY_PDF,集計 PDF
 dms.card.report.BTN_SUMMARY_XLSX,集計 Excel
 dms.card.report.COL_COUNT,台数
@@ -814,6 +821,8 @@ dms.card.report.MORE_ROWS,残り {count} 行はファイルにあります
 dms.card.report.SCOPE_ALL,全部
 dms.card.report.SCOPE_AVAILABLE,空き車
 dms.card.report.SCOPE_UNALLOCATED,チーム未割当
+dms.card.report.SELECT_ALL,すべて選択
+dms.card.report.SUBTITLE,{count} 台 · {date} {time}
 dms.card.report.TITLE,在庫・保管場所
 dms.card.report.TXT_EMPTY,表示する車両はありません。
 dms.card.report.TXT_PICK_SCOPE,範囲を選んでください
@@ -1085,6 +1094,7 @@ usage log,利用履歴
 "{0} registered, {1} in use",登録 {0} 件、利用可能 {1} 件
 {0}/{1} groups,{0}/{1} グループ
 {count} more rows are in the files,残り {count} 行はファイルにあります
+{count} vehicles · {date} {time},{count} 台 · {date} {time}
 {my} Available,{my} 空き車
 {my} Vehicles,{my} 車両
 {n} latest sales records from DMS,DMS の最新販売記録 {n} 件

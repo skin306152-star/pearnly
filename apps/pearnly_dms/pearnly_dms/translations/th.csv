@@ -152,6 +152,8 @@ Discard,ยกเลิก
 Discarded. Nothing was saved · Type menu to start again,ยกเลิกรายการแล้ว ไม่มีการบันทึกข้อมูลใด ๆ · พิมพ์ เมนู เพื่อเริ่มใหม่
 District,อำเภอ
 Docs/engine,เอกสาร/เครื่อง
+Download,ดาวน์โหลด
+Download files,ดาวน์โหลดไฟล์
 Draft,แบบร่าง
 Edit,แก้ไข
 Enable the DMS connection before reading data,กรุณาเปิดใช้งานการเชื่อมต่อ DMS ก่อนอ่านข้อมูล
@@ -341,6 +343,7 @@ Name: {name}","บันทึกสำเร็จ · {action}
 Saved. The result will be sent to LINE.,บันทึกแล้ว ระบบจะส่งผลไปที่ LINE
 Scan ID card,สแกนบัตรประชาชน
 Search data,ค้นหาข้อมูล
+Select all,เลือกทั้งหมด
 Select at least one data group.,กรุณาเลือกข้อมูลอย่างน้อยหนึ่งกลุ่ม
 Select one or more DMS data groups to read,กรุณาเลือกข้อมูล DMS ที่จะอ่านอย่างน้อยหนึ่งกลุ่ม
 "Select the data to update, then wait for the read to finish.",เลือกข้อมูลที่ต้องการอัปเดต แล้วรอจนอ่านเสร็จ
@@ -348,6 +351,7 @@ Select one or more DMS data groups to read,กรุณาเลือกข้�
 Sending…,กำลังส่ง…
 Sent. You can go back to the chat.,ส่งแล้ว กรุณากลับไปที่แชท
 "Separate fields with | , / or ·","คั่นช่องด้วย | , / หรือ ·"
+Share,แชร์
 Shares the queue when many people work at once. Create them in DMS with the connection account's rights; don't use them on the DMS website.,ช่วยแบ่งคิวเมื่อใช้งานพร้อมกันหลายคน สร้างใน DMS ให้สิทธิ์เท่าบัญชีที่เชื่อมต่อ และห้ามใช้ล็อกอินเว็บ DMS
 Similar customers found. Choose the one that matches.,พบลูกค้าที่ใกล้เคียง เลือกรายการที่ตรงกัน
 Soi,ซอย
@@ -800,8 +804,11 @@ dms.card.query.TYPE_SALES,2 บันทึกการขาย
 dms.card.query.TYPE_STOCK,1 สต๊อกตามที่จอดรถ
 dms.card.query.UNIT_AMOUNT,บาท
 dms.card.query.UNIT_QTY,คัน
+dms.card.report.BTN_DOWNLOAD,ดาวน์โหลด
+dms.card.report.BTN_FILES,ดาวน์โหลดไฟล์
 dms.card.report.BTN_ORIGINAL_PDF,ต้นฉบับ PDF
 dms.card.report.BTN_ORIGINAL_XLSX,ต้นฉบับ Excel
+dms.card.report.BTN_SHARE,แชร์
 dms.card.report.BTN_SUMMARY_PDF,สรุป PDF
 dms.card.report.BTN_SUMMARY_XLSX,สรุป Excel
 dms.card.report.COL_COUNT,จำนวน
@@ -814,6 +821,8 @@ dms.card.report.MORE_ROWS,อีก {count} รายการอยู่ใน
 dms.card.report.SCOPE_ALL,ทั้งหมด
 dms.card.report.SCOPE_AVAILABLE,รถว่าง
 dms.card.report.SCOPE_UNALLOCATED,ยังไม่จัดสรรทีม
+dms.card.report.SELECT_ALL,เลือกทั้งหมด
+dms.card.report.SUBTITLE,{count} คัน · {date} {time}
 dms.card.report.TITLE,สต๊อกตามที่จอดรถ
 dms.card.report.TXT_EMPTY,ไม่มีรถที่จะแสดง
 dms.card.report.TXT_PICK_SCOPE,กรุณาเลือกขอบเขต
@@ -1085,6 +1094,7 @@ usage log,บันทึกการใช้งาน
 "{0} registered, {1} in use",ลงทะเบียน {0} บัญชี ใช้งานได้ {1} บัญชี
 {0}/{1} groups,{0}/{1} กลุ่ม
 {count} more rows are in the files,อีก {count} รายการอยู่ในไฟล์
+{count} vehicles · {date} {time},{count} คัน · {date} {time}
 {my} Available,รถรุ่น {my} ว่าง
 {my} Vehicles,รถรุ่น {my}
 {n} latest sales records from DMS,บันทึกการขายล่าสุดจาก DMS {n} รายการ
