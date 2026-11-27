@@ -200,8 +200,3 @@ guard = "本站密钥派生的 HMAC 签名（覆盖 File 名、过期时间、�
 method = "pearnly_dms.query.stock_files.page"
 reason = "操作员在手机系统浏览器里打开库存停放报表的下载页（卡片「下载文件」），没有本站登录态"
 guard = "本站密钥派生的 HMAC 签名（覆盖清单 File 名、过期时间、页面标记，与文件下载的签名不通用），24 小时过期；只认 dms-stock-…-page.json 的私有 File，其余一律 404；页面只读"
-
-[[guest]]
-method = "pearnly_dms.query.stock_files.archive"
-reason = "下载页勾了多个文件时打成一个压缩包下载，没有本站登录态"
-guard = "与下载页同一个签名与过期时间；只打清单里登记的、文件名前缀 dms-stock- 的私有 File，序号越界一律 404"

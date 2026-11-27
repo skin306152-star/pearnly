@@ -2,8 +2,11 @@
 """库存停放报表的下载页（卡片「下载文件」在手机系统浏览器里打开）：勾选文件 → 分享或下载。
 
 用户 11-27：卡片上四个按钮要一个一个点，改成一个入口，可单选、多选、全选。LINE 官方号发不了文件消息，文件只能走地址；
-这一页用手机系统的分享面板（Web Share，文件先取到页面里，点「分享」时直接交给系统）把选中的文件一次发到 LINE 聊天 / 群 / 邮件，
-浏览器不支持分享这些文件时不出「分享」按钮。下载：选一个直接下，选多个打成一个压缩包（`stock_files.archive`）。
+「分享」走手机系统的分享面板（Web Share），按钮上的数字始终等于勾选数：
+只勾一个、浏览器又肯分享这个文件时分享文件本身；其余情况分享一条带地址的文字（标题 + 这一页的地址，地址里带着勾选的那几个，
+对方打开只看到这几个文件）。三星真机 11-27 实测的两条限制决定了这个分法：安卓 Chrome 只放行 PDF（Excel / 压缩包 `canShare`
+说可以、`share` 却拒绝），LINE 一次只收一个文件（两个以上文件时分享面板里没有 LINE）。浏览器没有分享功能时不出按钮。
+下载：勾几个就连续下几个文件（每个文件一个隐藏框架去取签名地址，不打压缩包——用户 11-27：不要打包）。
 
 不是产品 Web 的一页：没有登录态、不进 Desk，只凭 24 小时签名地址打开，所以是一份静态页：样式直接引 Frappe 官方网站样式表
 （按钮 `btn btn-primary` / `btn btn-default`、原生复选框），自己只写排版；文字全部来自清单（生成报表时按发起人的 LINE 语言取好），页面本身不带文案。
@@ -38,22 +41,27 @@ var data=JSON.parse(document.getElementById('data').textContent),files=data.file
 var boxes=[].slice.call(document.querySelectorAll('input[data-i]')),all=document.getElementById('all');
 var share=document.getElementById('share'),down=document.getElementById('down'),blobs=[];
 function picked(){return boxes.filter(function(b){return b.checked}).map(function(b){return +b.getAttribute('data-i')})}
-function shareable(list){
-  if(!navigator.canShare||!list.length)return false;
-  var out=[];for(var n=0;n<list.length;n++){if(!blobs[list[n]])return false;out.push(blobs[list[n]])}
-  try{return navigator.canShare({files:out})?out:false}catch(err){return false}}
+var shown=boxes.length;
+var pdfOnly=/Chrome\\//.test(navigator.userAgent)&&!/CriOS/.test(navigator.userAgent);
+function asFile(list){
+  if(list.length!==1||!navigator.canShare)return false;
+  var i=list[0];if(!blobs[i]||(pdfOnly&&files[i].type!=='application/pdf'))return false;
+  try{return navigator.canShare({files:[blobs[i]]})?[blobs[i]]:false}catch(err){return false}}
 function refresh(){
-  var list=picked();all.checked=list.length===files.length;
+  var list=picked();all.checked=list.length===shown;
   down.disabled=!list.length;down.querySelector('span').textContent=list.length;
-  var ok=shareable(list);share.hidden=!ok&&!share.dataset.seen;share.disabled=!ok;
-  if(ok)share.dataset.seen='1';share.querySelector('span').textContent=list.length}
+  share.hidden=!navigator.share;share.disabled=!list.length;share.querySelector('span').textContent=list.length}
 boxes.forEach(function(b){b.addEventListener('change',refresh)});
 all.addEventListener('change',function(){boxes.forEach(function(b){b.checked=all.checked});refresh()});
 down.addEventListener('click',function(){
-  var list=picked();if(!list.length)return;
-  location.href=list.length===1?files[list[0]].url:data.archive+'&k='+list.join(',')});
+  var list=picked();
+  list.forEach(function(i,n){setTimeout(function(){
+    var frame=document.createElement('iframe');frame.hidden=true;frame.src=files[i].url;document.body.appendChild(frame)},n*800)})});
 share.addEventListener('click',function(){
-  var out=shareable(picked());if(out)navigator.share({files:out}).catch(function(){})});
+  var list=picked();if(!list.length)return;
+  var one=asFile(list);
+  var what=one?{files:one}:{title:data.title,text:data.title+'\\n'+data.subtitle,url:data.page+'&k='+list.join(',')+'&openExternalBrowser=1'};
+  navigator.share(what).catch(function(){})});
 if(navigator.canShare&&window.File){files.forEach(function(f,i){
   fetch(f.url).then(function(r){if(!r.ok)throw 0;return r.blob()}).then(function(b){
     blobs[i]=new File([b],f.name,{type:f.type});refresh()}).catch(function(){})})}
@@ -62,15 +70,18 @@ refresh();
 """
 
 
-def html_page(manifest: Dict, archive_url: str, stylesheet: str = "") -> str:
+def html_page(manifest: Dict, stylesheet: str = "", page_url: str = "", only=None) -> str:
+    """``only``：只列这些序号的文件（别人分享过来的地址带着当时勾选的那几个）；序号始终是清单里的原序号。"""
     def text(key: str) -> str:
         return escape(str(manifest.get(key) or ""))
 
     rows = []
     for index, entry in enumerate(manifest.get("files") or []):
+        if only is not None and index not in only:
+            continue
         rows.append('<label><span>%s<small>%s</small></span><input type="checkbox" data-i="%d" checked></label>' % (
             escape(str(entry.get("label") or "")), escape(_size(entry.get("size"))), index))
-    data = {"archive": archive_url,
+    data = {"page": page_url, "title": manifest.get("title"), "subtitle": manifest.get("subtitle"),
             "files": [{"url": entry.get("url"), "name": entry.get("name"), "type": entry.get("type")}
                       for entry in manifest.get("files") or []]}
     payload = json.dumps(data, ensure_ascii=False).replace("</", "<\\/")

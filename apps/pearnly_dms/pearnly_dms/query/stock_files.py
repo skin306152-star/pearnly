@@ -2,7 +2,7 @@
 """库存停放报表的文件：本站私有 File、24 小时签名下载地址、到期真删。
 
 生成物不是原件（ADR-024 第 6 条「生成的单据 PDF」不进原件层），一次约 0.2–0.6 MB、24 小时后删，存本站私有目录。
-LINE 服务器取图片、手机打开下载页与下载文件都没有登录态，所以下载口、下载页、打包下载都是 ``allow_guest``，凭签名放行：签名覆盖 File 名、过期时间与
+LINE 服务器取图片、手机打开下载页与下载文件都没有登录态，所以下载口、下载页都是 ``allow_guest``，凭签名放行：签名覆盖 File 名、过期时间与
 下载文件名，用本站加密密钥派生的 HMAC，跨站无效；过期、被改、文件已删一律 404。评估第 D 节。
 """
 
@@ -21,7 +21,6 @@ LINK_SECONDS = 24 * 3600
 # Flex 按钮 URI 上限 1000 字符，按钮还要加 `&openExternalBrowser=1`；留余量
 MAX_URL = 900
 _PREFIX = "dms-stock-"
-MAX_ARCHIVE = 8  # 一次报表的文件数上限（现在 4 个）
 _MANIFEST = "-page.json"  # 下载页清单的文件名后缀
 _PAGE = "\x00page"  # 下载页签名里的标记：与文件下载的签名互不通用
 _TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -104,7 +103,7 @@ def download(f: str = "", e: str = "", d: str = "", s: str = ""):
 
 
 def _manifest(f: str, e: str, s: str):
-    """下载页 / 打包下载共用：签名有效、未过期、是本模块存的清单 → (清单, 过期时间)，否则 None。"""
+    """下载页：签名有效、未过期、是本模块存的清单 → (清单, 过期时间)，否则 None。"""
     try:
         expires = int(e)
     except (TypeError, ValueError):
@@ -122,60 +121,41 @@ def _manifest(f: str, e: str, s: str):
         return None
 
 
+def _picked(k: str, count: int):
+    """``k``：清单序号（逗号分隔）→ 排好序的序号；空 / 越界 / 不是数字 → None。"""
+    try:
+        picked = sorted({int(part) for part in str(k).split(",") if part.strip()})
+    except ValueError:
+        return None
+    if not picked or picked[0] < 0 or picked[-1] >= count:
+        return None
+    return picked
+
+
 @frappe.whitelist(allow_guest=True, methods=["GET"])
-def page(f: str = "", e: str = "", s: str = ""):
-    """卡片「下载文件」打开的页面：勾选文件后分享（手机系统分享面板）或下载；只认本模块签过、未过期的地址。"""
+def page(f: str = "", e: str = "", s: str = "", k: str = ""):
+    """卡片「下载文件」打开的页面：勾选文件后分享（手机系统分享面板）或下载；只认本模块签过、未过期的地址。
+    ``k``：只列这几个序号的文件（页面里「分享」出去的地址带着当时勾选的那几个）；不带就是全部。"""
+    from frappe.utils.jinja_globals import bundled_asset
     from werkzeug.wrappers import Response
 
-    from pearnly_dms.query import stock_page
+    from pearnly_dms.query.stock_page import html_page
 
     found = _manifest(f, e, s)
     if not found:
         return _not_found()
     manifest, _expires = found
-    archive = (frappe.utils.get_url().rstrip("/") + "/api/method/pearnly_dms.query.stock_files.archive?"
-               + urlencode({"f": f, "e": e, "s": s}))
-    from frappe.utils.jinja_globals import bundled_asset
-
-    return Response(stock_page.html_page(manifest, archive, bundled_asset("website.bundle.css")), mimetype="text/html",
+    only = None
+    if str(k or "").strip():
+        only = _picked(k, len(manifest.get("files") or []))
+        if only is None:
+            return _not_found()
+    base = frappe.utils.get_url().rstrip("/") + "/api/method/pearnly_dms.query.stock_files."
+    signed = urlencode({"f": f, "e": e, "s": s})
+    html = html_page(manifest, bundled_asset("website.bundle.css"), base + "page?" + signed, only)
+    return Response(html, mimetype="text/html",
                     headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
                              "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex"})
-
-
-@frappe.whitelist(allow_guest=True, methods=["GET"])
-def archive(f: str = "", e: str = "", s: str = "", k: str = ""):
-    """下载页勾了多个文件：打成一个压缩包下载。``k``：清单里的序号（逗号分隔）；只打清单里登记的文件。"""
-    import io
-    import zipfile
-
-    from werkzeug.wrappers import Response
-
-    found = _manifest(f, e, s)
-    if not found:
-        return _not_found()
-    files = found[0].get("files") or []
-    try:
-        picked = sorted({int(part) for part in str(k).split(",") if part.strip()})
-    except ValueError:
-        return _not_found()
-    if not picked or picked[0] < 0 or picked[-1] >= len(files):
-        return _not_found()
-    wanted = [str(files[index].get("file") or "") for index in picked]
-    known = {row.name: row.file_name for row in frappe.get_all(
-        "File", filters={"name": ["in", wanted], "is_private": 1, "file_name": ["like", _PREFIX + "%"]},
-        fields=["name", "file_name"], limit=len(wanted))}
-    if len(wanted) > MAX_ARCHIVE or any(name not in known for name in wanted):
-        return _not_found()
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as bundle:
-        for index in picked:
-            entry = files[index]
-            content = frappe.get_doc("File", str(entry["file"])).get_content()  # loop-query: 一次报表至多 MAX_ARCHIVE 个文件
-            bundle.writestr(str(entry.get("name") or known[str(entry["file"])]), content)
-    name = str(found[0].get("archive_name") or "files.zip")
-    headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name, safe='')}",
-               "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"}
-    return Response(buffer.getvalue(), mimetype="application/zip", headers=headers)
 
 
 def purge_expired() -> int:
@@ -190,4 +170,4 @@ def purge_expired() -> int:
     return len(names)
 
 
-__all__ = ["LINK_SECONDS", "archive", "download", "new_batch", "page", "purge_expired", "save", "save_named", "save_page"]
+__all__ = ["LINK_SECONDS", "download", "new_batch", "page", "purge_expired", "save", "save_named", "save_page"]

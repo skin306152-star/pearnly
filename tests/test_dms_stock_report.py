@@ -504,7 +504,6 @@ class Messages(unittest.TestCase):
         self.assertEqual([entry["label"] for entry in manifest["files"]], ["汇总 PDF", "汇总 Excel", "原件 PDF", "原件 Excel"])
         self.assertEqual((manifest["lang"], manifest["select_all"], manifest["share"], manifest["download"]),
                          ("zh", "全选", "分享", "下载"))
-        self.assertEqual(manifest["archive_name"], "库存停放报表 [26112026_1120].zip")
         self.assertTrue(all(entry["file"] and entry["url"] and entry["size"] for entry in manifest["files"]))
         # 原件保留 MR.ERP 原文件名（含「-ทั้งหมด」），不另加说明
         self.assertIn(("xlsx", "รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด [26112569_112012].xlsx"), self.saved)
@@ -565,7 +564,7 @@ class Links(unittest.TestCase):
 
 
 MANIFEST = {"lang": "th", "title": "สต๊อกตามที่จอดรถ", "subtitle": "92 คัน · 26/11/2026 21.08", "select_all": "เลือกทั้งหมด",
-            "share": "แชร์", "download": "ดาวน์โหลด", "archive_name": "สต๊อกตามที่จอดรถ [26112026_2108].zip",
+            "share": "แชร์", "download": "ดาวน์โหลด",
             "files": [{"label": "สรุป PDF", "name": "สรุป <1>.pdf", "type": "application/pdf", "file": "F1",
                        "url": "https://dms.example.test/d?f=F1", "size": 47273},
                       {"label": "ต้นฉบับ Excel", "name": "ต้นฉบับ.xlsx", "type": "x", "file": "F2",
@@ -573,7 +572,7 @@ MANIFEST = {"lang": "th", "title": "สต๊อกตามที่จอด�
 
 
 class DownloadPage(unittest.TestCase):
-    """卡片「下载文件」打开的页面与多选打包（用户 11-27：四个按钮一个一个点太麻烦）。"""
+    """卡片「下载文件」打开的页面（用户 11-27：四个按钮一个一个点太麻烦；不打压缩包）。"""
 
     def setUp(self):
         for target, kwargs in (("frappe.utils.password.get_encryption_key", {"return_value": "site-key"}),
@@ -600,11 +599,7 @@ class DownloadPage(unittest.TestCase):
         def doc(_doctype, name):
             return MagicMock(get_content=MagicMock(return_value=self.contents[name]))
 
-        def listed(_doctype, filters=None, **_kw):
-            return [frappe._dict(name=name, file_name=self.names[name]) for name in filters["name"][1] if name in self.names]
-
         with patch("frappe.db", MagicMock(get_value=MagicMock(side_effect=row))), patch("frappe.get_doc", side_effect=doc), \
-                patch("frappe.get_all", side_effect=listed), \
                 patch("frappe.utils.jinja_globals.bundled_asset", return_value="/assets/frappe/dist/css/website.bundle.TEST.css"):
             return method(**query)
 
@@ -621,12 +616,25 @@ class DownloadPage(unittest.TestCase):
             self.assertIn(text, page)
         # 按钮用 Frappe 官方原生样式类、引官方样式表，不自己定颜色尺寸；「分享」要浏览器说能分享这些文件才露出
         self.assertIn('<button id=share class="btn btn-primary btn-md" hidden>', page)
+        # 分享出去的地址 = 这一页的地址 + 勾选的序号；数字始终等于勾选数
+        self.assertIn('"page": "https://dms.example.test/api/method/pearnly_dms.query.stock_files.page?f=P1', page)
+        self.assertIn("url:data.page+'&k='+list.join(',')+'&openExternalBrowser=1'", page)  # LINE 里点开也用系统浏览器
         self.assertIn('<button id=down class="btn btn-default btn-md">', page)
         self.assertIn('<link rel=stylesheet href="/assets/frappe/dist/css/website.bundle.TEST.css">', page)
         self.assertNotIn("#7c4dff", page)
-        self.assertIn("stock_files.archive?", page)
+        self.assertNotIn("archive", page)  # 不打压缩包：勾几个连续下几个
+        self.assertIn("frame.src=files[i].url", page)
         self.assertNotIn("</script><1>", page)
         self.assertIn("\\u003c1>" if "\\u003c1>" in page else "สรุป <1>.pdf", page)  # 文件名在 JSON 数据块里，不进标签
+
+    def test_a_shared_address_lists_only_the_files_ticked_then(self):
+        query = self.link()
+        page = self.call(stock_files.page, {**query, "k": "1"}).get_data(as_text=True)
+        self.assertEqual(page.count('type="checkbox" data-i='), 1)
+        self.assertIn('data-i="1" checked', page)  # 序号仍是清单里的原序号（打包下载按它取文件）
+        self.assertNotIn("สรุป PDF<small>", page)
+        for bad in ("5", "x", "-1"):
+            self.assertEqual(self.call(stock_files.page, {**query, "k": bad}).status_code, 404, bad)
 
     def test_page_and_file_signatures_are_not_interchangeable(self):
         query = self.link()
@@ -635,23 +643,6 @@ class DownloadPage(unittest.TestCase):
         self.assertEqual(self.call(stock_files.page, {**query, "s": "0" * 40}).status_code, 404)
         with patch.object(stock_files.time, "time", return_value=time.time() + stock_files.LINK_SECONDS + 5):
             self.assertEqual(self.call(stock_files.page, query).status_code, 404)
-            self.assertEqual(self.call(stock_files.archive, {**query, "k": "0"}).status_code, 404)
-
-    def test_archive_holds_only_the_ticked_files_under_their_display_names(self):
-        import zipfile
-
-        query = self.link()
-        response = self.call(stock_files.archive, {**query, "k": "0,1"})
-        self.assertEqual((response.status_code, response.mimetype), (200, "application/zip"))
-        self.assertIn("filename*=UTF-8''", response.headers["Content-Disposition"])
-        bundle = zipfile.ZipFile(io.BytesIO(response.get_data()))
-        self.assertEqual(bundle.namelist(), ["สรุป <1>.pdf", "ต้นฉบับ.xlsx"])
-        self.assertEqual(bundle.read("ต้นฉบับ.xlsx"), b"PK-two")
-        one = zipfile.ZipFile(io.BytesIO(self.call(stock_files.archive, {**query, "k": "1"}).get_data()))
-        self.assertEqual(one.namelist(), ["ต้นฉบับ.xlsx"])
-        for bad in ("", "2", "-1", "x", "0,9"):
-            self.assertEqual(self.call(stock_files.archive, {**query, "k": bad}).status_code, 404, bad)
-
 
 @unittest.skipUnless(os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or Path("/opt/ms-playwright").is_dir(),
                      "Chromium is only in the production image")

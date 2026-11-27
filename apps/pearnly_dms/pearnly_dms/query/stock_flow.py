@@ -193,7 +193,7 @@ def messages(result: Dict, scope: str, as_of: str, moment) -> List[Dict[str, Any
     subtitle = _t("SUBTITLE", count=summary["total"], date=as_of["date"], time=as_of["time"])
     page_url = stock_files.save_page({
         "lang": i18n.line_lang(), "title": _t("TITLE"), "subtitle": subtitle, "select_all": _t("SELECT_ALL"),
-        "share": _t("BTN_SHARE"), "download": _t("BTN_DOWNLOAD"), "archive_name": summary_name + ".zip",
+        "share": _t("BTN_SHARE"), "download": _t("BTN_DOWNLOAD"),
         "files": files}, batch)
     out = []
     for index, image in enumerate(result["rendered"]["images"], 1):
