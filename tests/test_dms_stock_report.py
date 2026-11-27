@@ -139,15 +139,23 @@ class Parse(unittest.TestCase):
 
 
 class Summary(unittest.TestCase):
-    def test_available_means_not_booked_whatever_the_status_is_called(self):
+    def test_available_means_no_booking_number_whatever_the_status_is_called(self):
         def car(status, booking=""):
             return {"status": status, "booking": booking}
 
-        for status in ("รถลงแล้ว", "รถว่าง", "รถว่าง-โชว์", "รถแต่งเสร็จ", "", "สถานะที่ยังไม่เคยเห็น"):
+        for status in ("รถลงแล้ว", "รถว่าง", "รถว่าง-โชว์", "รถแต่งเสร็จ", "รถทีมสาขาจอง", "", "สถานะที่ยังไม่เคยเห็น"):
             self.assertTrue(report.is_available(car(status)), status)
-        self.assertFalse(report.is_available(car("รถทีมสาขาจอง")))
-        self.assertFalse(report.is_available(car("รถลงแล้ว", "BK000002610000015")))
-        self.assertFalse(report.is_available(car("รถว่าง-โชว์", "BK000002602000002")))
+            self.assertFalse(report.is_available(car(status, "BK000002610000015")), status)
+
+    def test_available_matches_mrerp_own_free_stock_report(self):
+        """测试库 11-27 同一时刻两份 MR.ERP 报表：本报表 9 台，与「รายงานคาดการณ์รับรถเทียบสต๊อกว่าง-สรุป」的
+        「สต๊อกว่างคงค้างยังไม่จับคู่」逐个车型颜色一致（合计 6）。"""
+        mrerp_free = {("DM-2D19", "ONX"): 1, ("DM-2D19", "PWH"): 1, ("DM-4D19", "MGY"): 1, ("DM-4D19", "PWH"): 1,
+                      ("DM-4D30", "MGY"): 1, ("TS-01", "RED"): 1}
+        summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", {})
+        ours = {tuple(row["code"].split(" ")): row["count"] for row in summary["rows"]}
+        self.assertEqual(ours, mrerp_free)
+        self.assertEqual(summary["total"], 6)
 
     def test_dealer_stock_whose_status_is_received_is_all_available(self):
         """11-26 上线当晚的真实形状：公司名一行在最上、几乎全部「รถลงแล้ว」、没有团队、没有订车单号 → 空车档不能只剩 1 台。"""
@@ -163,11 +171,12 @@ class Summary(unittest.TestCase):
 
     def test_one_table_sorted_by_model_and_colour_without_year_sections(self):
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
-        self.assertEqual(summary["total"], 5)  # 9 台里 2 台团队预订、2 台有订车单号
+        self.assertEqual(summary["total"], 6)  # 9 台里 3 台有订车单号
         self.assertNotIn("sections", summary)
         self.assertEqual([(row["name"], row["code"], row["count"]) for row in summary["rows"]],
                          [("D-MAX SPARK", "DM-2D19 ONX", 1), ("D-MAX SPARK", "DM-2D19 PWH", 1),
-                          ("DM 4D", "DM-4D19 MGY", 1), ("DM 4D", "DM-4D19 PWH", 1), ("TS-01", "TS-01 RED", 1)])
+                          ("DM 4D", "DM-4D19 MGY", 1), ("DM 4D", "DM-4D19 PWH", 1), ("DM-4D30", "DM-4D30 MGY", 1),
+                          ("TS-01", "TS-01 RED", 1)])
         # 车名回落：没有 ชื่อรถ 用 ชื่อรุ่นรถ，再没有用代码
 
     def test_year_only_when_every_model_has_the_same_year(self):
@@ -216,7 +225,7 @@ class Layout(unittest.TestCase):
         self.assertIn("<th>รถรุ่น 26 MY ว่าง</th><th>Model/Color</th><th class=n>จำนวน</th><th>สถานที่จอดรถ</th>", page)
         self.assertNotIn("<h1", page)
         self.assertIn("border:0", page)
-        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>5</td>", page)
+        self.assertIn("<tr class=f><td colspan=2>อัพเดต 20/11/2026 เวลา 16.53 Total</td><td class=n>6</td>", page)
 
     def test_header_wording_for_year_and_scope(self):
         rows = report.parse_export(export(TEST_LIBRARY))
@@ -496,7 +505,7 @@ class Messages(unittest.TestCase):
         body = bubble["body"]["contents"]
         self.assertEqual([part["type"] for part in body], ["text", "text", "button"])
         self.assertFalse(any("margin" in part or "offsetTop" in part for part in body))
-        self.assertEqual(body[1]["text"], "5 台 · 26/11/2026 11:20")
+        self.assertEqual(body[1]["text"], "6 台 · 26/11/2026 11:20")
         self.assertEqual(body[2]["action"]["label"], "下载文件")
         self.assertTrue(body[2]["action"]["uri"].endswith("stock_files.page?f=P1&openExternalBrowser=1"))
         # 下载页清单：四个文件（汇总在前），文字全部按发起人的语言取好

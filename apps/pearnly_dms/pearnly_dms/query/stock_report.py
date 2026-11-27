@@ -8,7 +8,7 @@
 - 「ออกรายงาน」= 同一表单 POST `component/report/1.php`（xlsx）或 `2.php`（PDF）。
 - 导出一台车一行、9 列：รุ่นรถ（代码）/ สีรถ（代码）/ หมายเลขเครื่อง / หมายเลขตัวถัง / สถานะรถ / สถานที่จอดรถ (คลัง) /
   เลขที่ใบจอง / ชื่อที่ปรึกษาการขาย / ทีมสาขา；前两行是标题与日期，末行「รวม n รายการ」。
-- 「ว่าง」= 没被订走（没有订车单号、状态不是「…จอง」，见 `is_available`），与 `selallocate`（是否分给团队）无关。
+- 「ว่าง」= 订车单号为空（MR.ERP 自己「สต๊อกว่าง」的口径，见 `is_available`），与 `selallocate`（是否分给团队）无关。
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ EXPORT_PATHS = {"xlsx": "rpcarallocate/component/report/1.php", "pdf": "rpcarall
 READ_PATHS = frozenset({FORM_PATH, *EXPORT_PATHS.values()})
 
 # 三个范围（快捷按钮顺序 = 这里的顺序）。`allocate` = MR.ERP 表单的 selallocate：1 ทั้งหมด / 2 ยังไม่จัดสรรทีมสาขา。
-# 「空车」MR.ERP 不能筛，原件两份是它的「全部」，转换表再取没被订走的车（`is_available`）。
+# 「空车」MR.ERP 不能筛，原件两份是它的「全部」，转换表再取订车单号为空的车（`is_available`）。
 SCOPES = OrderedDict((
     ("available", {"allocate": "1", "available_only": True}),
     ("all", {"allocate": "1", "available_only": False}),
@@ -51,14 +51,14 @@ class ExportChanged(ValueError):
 
 
 def is_available(row: Dict[str, str]) -> bool:
-    """「空车」= 没被订走的车：没有订车单号，且 MR.ERP 车辆状态不是「…จอง」（团队 / 客户预订）。
+    """「空车」= 还没配给任何订车单的车：订车单号为空。车辆状态不参与判断。
 
-    不按「状态叫 รถว่าง」认：11-26 上线当晚真实经销商 92 台里 91 台状态是「รถลงแล้ว」（到店入库）、没有订车单号，
-    岳父样表「ว่าง」列的正是这些车，旧判据只剩 1 台（`docs/work/2026-11-27-dms-stock-available-fix.md`）。
-    状态名各经销商用法不一，只把明确的「已预订」排除，没见过的状态算在库可卖，不让车从表里无声消失。"""
-    if str(row.get("booking") or "").strip():
-        return False
-    return "จอง" not in str(row.get("status") or "")
+    依据是 MR.ERP 自己的口径：它的「รายงานคาดการณ์รับรถเทียบสต๊อกว่าง-สรุป」里「สต๊อกว่างคงค้างยังไม่จับคู่」一列，
+    与同一时刻本报表「เลขที่ใบจอง 为空」的车逐个车型颜色对得上（测试库 11-27 实查 9 台：空闲 6 台，含一台状态
+    「รถทีมสาขาจอง」但没有订车单号的；两台有订车单号的「รถว่าง-โชว์」「รถทีมสาขาจอง」不算）。状态名不是判据：
+    11-26 上线时按「状态叫 รถว่าง」认，真实经销商 92 台里 91 台是「รถลงแล้ว」，只出了 1 台
+    （`docs/work/2026-11-27-dms-stock-available-fix.md`）。"""
+    return not str(row.get("booking") or "").strip()
 
 
 def _clean(value) -> str:
