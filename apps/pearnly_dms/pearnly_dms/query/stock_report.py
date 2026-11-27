@@ -8,7 +8,7 @@
 - 「ออกรายงาน」= 同一表单 POST `component/report/1.php`（xlsx）或 `2.php`（PDF）。
 - 导出一台车一行、9 列：รุ่นรถ（代码）/ สีรถ（代码）/ หมายเลขเครื่อง / หมายเลขตัวถัง / สถานะรถ / สถานที่จอดรถ (คลัง) /
   เลขที่ใบจอง / ชื่อที่ปรึกษาการขาย / ทีมสาขา；前两行是标题与日期，末行「รวม n รายการ」。
-- 「ว่าง」取自 สถานะรถ（MR.ERP 自己的车辆状态），与 `selallocate`（是否分给团队）无关。
+- 「ว่าง」= 没被订走（没有订车单号、状态不是「…จอง」，见 `is_available`），与 `selallocate`（是否分给团队）无关。
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ EXPORT_PATHS = {"xlsx": "rpcarallocate/component/report/1.php", "pdf": "rpcarall
 READ_PATHS = frozenset({FORM_PATH, *EXPORT_PATHS.values()})
 
 # 三个范围（快捷按钮顺序 = 这里的顺序）。`allocate` = MR.ERP 表单的 selallocate：1 ทั้งหมด / 2 ยังไม่จัดสรรทีมสาขา。
-# 「空车」MR.ERP 不能按状态筛，原件两份是它的「全部」，转换表再按状态取空车（主会话 11-26 定）。
+# 「空车」MR.ERP 不能筛，原件两份是它的「全部」，转换表再取没被订走的车（`is_available`）。
 SCOPES = OrderedDict((
     ("available", {"allocate": "1", "available_only": True}),
     ("all", {"allocate": "1", "available_only": False}),
@@ -50,10 +50,15 @@ class ExportChanged(ValueError):
     """导出的格式和实查时不一样（缺列、合计对不上）：宁可报失败，不出一张错表。"""
 
 
-def is_available(status: str) -> bool:
-    """「空车」的唯一判据：MR.ERP 车辆状态以 รถว่าง 开头（含 รถว่าง-โชว์ 展示车；用户 11-26 经主会话定）。
-    岳父若说展示车不算，只改这一处。"""
-    return str(status or "").strip().startswith("รถว่าง")
+def is_available(row: Dict[str, str]) -> bool:
+    """「空车」= 没被订走的车：没有订车单号，且 MR.ERP 车辆状态不是「…จอง」（团队 / 客户预订）。
+
+    不按「状态叫 รถว่าง」认：11-26 上线当晚真实经销商 92 台里 91 台状态是「รถลงแล้ว」（到店入库）、没有订车单号，
+    岳父样表「ว่าง」列的正是这些车，旧判据只剩 1 台（`docs/work/2026-11-27-dms-stock-available-fix.md`）。
+    状态名各经销商用法不一，只把明确的「已预订」排除，没见过的状态算在库可卖，不让车从表里无声消失。"""
+    if str(row.get("booking") or "").strip():
+        return False
+    return "จอง" not in str(row.get("status") or "")
 
 
 def _clean(value) -> str:
@@ -119,7 +124,7 @@ def summarize(rows: Iterable[Dict[str, str]], scope: str, cars: Dict[str, Dict[s
     groups: Dict[tuple, Dict] = {}
     years = set()
     for row in rows:
-        if spec["available_only"] and not is_available(row.get("status")):
+        if spec["available_only"] and not is_available(row):
             continue
         model, color = row.get("model") or "", row.get("color") or ""
         car = cars.get(model) or {}

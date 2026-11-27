@@ -100,13 +100,13 @@ _CSS = """
 *{box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 body{margin:0;background:#fff;color:#%(name)s;font-family:%(fonts)s;font-size:34px}
 table{border-collapse:collapse;width:100%%;table-layout:fixed}
-col.a{width:34%%}col.b{width:25%%}col.n{width:11%%}
+col.a{width:30%%}col.b{width:19%%}col.n{width:11%%}
 th,td{border:0;padding:4px 14px;line-height:1.25;vertical-align:middle}
 th{background:#%(head)s;color:#000;font-weight:700;text-align:left}th.n{text-align:center}
 td{overflow-wrap:anywhere}
 tr.s td{background:#%(stripe)s}
 td.n{text-align:center;color:#%(count)s;font-weight:700;font-size:38px;line-height:1.1}
-td.c{white-space:nowrap}td.p{color:#000}
+td.c{white-space:nowrap}td.p{color:#000}td.p span{white-space:nowrap}
 tr.f td{color:#%(foot)s;font-weight:700;background:#fff}tr.f td.n{color:#%(count)s}
 .more{padding:8px 14px;color:#555;font-size:26px}
 @page{size:A4;margin:12mm 10mm}
@@ -125,7 +125,7 @@ def document(rows: List[Dict], summary: Dict, scope: str, as_of: Dict[str, str],
     for offset, line in enumerate(rows):
         parts.append("<tr%s><td>%s</td><td class=c>%s</td><td class=n>%d</td><td class=p>%s</td></tr>" % (
             " class=s" if (first_index + offset) % 2 else "", html.escape(line["name"]), html.escape(line["code"]),
-            line["count"], html.escape(locations_text(line["locations"]))))
+            line["count"], _places_html(line["locations"])))
     if footer:
         parts.append("<tr class=f><td colspan=2>%s</td><td class=n>%d</td><td></td></tr>" % (
             html.escape(footer_text(as_of)), summary["total"]))
@@ -134,6 +134,12 @@ def document(rows: List[Dict], summary: Dict, scope: str, as_of: Dict[str, str],
         parts.append("<div class=more>%s</div>" % html.escape(_t("MORE_ROWS", count=more)))
     return ("<!doctype html><html lang=%s><head><meta charset=utf-8><style>%s</style></head><body>%s</body></html>"
             % (i18n.line_lang(), _CSS, "".join(parts)))
+
+
+def _places_html(locations) -> str:
+    """地点列：一个地点（名 + 台数）不在中间断行，只在「/」处换行——真实地点名很长（「ระยอง-สำนักงานใหญ่」），
+    任意断行会把一格挤成三行、名字和台数拆开（11-27 用线上原件出图发现）。"""
+    return " / ".join("<span>%s</span>" % html.escape(f"{place} {count}") for place, count in locations)
 
 
 def image_pages(summary: Dict) -> List[List[Dict]]:

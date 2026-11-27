@@ -47,16 +47,55 @@ CARS = {"DM-2D19": {"name": "D-MAX SPARK", "model_name": "DM 2D", "year": "2026"
         "Test": {"name": "", "model_name": "", "year": ""}}
 
 
-def export(rows, title="รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด", total=None):
+def _dealer_library():
+    """真实经销商库存的形状（11-26 上线当晚线上那份原件：车型 / 颜色 / 状态 / 地点的分布照原样，机号车架号为造的）：
+    92 台、49 个车型颜色组合、状态几乎全是「รถลงแล้ว」、团队列全空、只有一台被订走。"""
+    hq, pd, show_ry, show_pd = "ระยอง-สำนักงานใหญ่", "ปลวกแดง", "โชว์บนโชว์รูม(RY)", "โชว์บนโชว์รูม(PD)"
+    groups = (
+        ("UNL10", "SBW", ((show_ry, 1), (hq, 1))), ("UNN10", "SBW", ((hq, 1),)), ("UNT20", "ELG", ((hq, 1),)),
+        ("UPL10", "SBW", ((pd, 1),)), ("UPL20", "ELG", ((pd, 2),)), ("UQK20", "ELG", ((hq, 1),)),
+        ("URA20", "BOS", ((hq, 1),)), ("URB10", "SBW", ((hq, 1), (pd, 1))), ("USF20", "BAB", ((hq, 1),)),
+        ("USK20", "ELG", ((hq, 1),)), ("USM30", "DWP", ((hq, 1),)), ("USR30", "DWP", ((pd, 1), (hq, 1))),
+        ("UUD20", "BAB", ((show_pd, 1),)), ("UUH20", "BAB", ((show_ry, 1),)), ("UUK60", "DWB", ((hq, 1),)),
+        ("VNK10", "SBW", ((hq, 1),)), ("VNK20", "ELG", ((pd, 1),)), ("VPA10", "SBW", ((pd, 1),)),
+        ("VPA20", "ELG", ((pd, 1),)), ("VPE20", "ELG", ((hq, 2),)), ("VPG10", "SBW", ((pd, 1),)),
+        ("VPG20", "ELG", ((pd, 1), (hq, 1))), ("VQA20", "ELG", ((pd, 1), (hq, 1))),
+        ("VQC20", "BOS", ((hq, 1), (pd, 1))), ("VRA10", "SBW", ((pd, 2),)), ("VRC20", "BOS", ((hq, 1), (pd, 1))),
+        ("VRC20", "ELG", ((pd, 3),)), ("VRD20", "BOS", ((hq, 1),)), ("VRF20", "BOS", ((pd, 1),)),
+        ("VRG20", "BOS", ((hq, 1),)), ("VSA20", "BOS", ((pd, 2), (hq, 1))), ("VSA20", "ELG", ((pd, 2), (hq, 2))),
+        ("VSB20", "BOS", ((show_ry, 1), (hq, 4), (pd, 1))), ("VSB20", "ELG", ((hq, 3), (pd, 2))),
+        ("VSB30", "DWP", ((hq, 4), (pd, 5))), ("VSC20", "BOS", ((pd, 1),)), ("VSC20", "ELG", ((pd, 1),)),
+        ("VSC30", "DWP", ((hq, 2), (pd, 2))), ("VSE20", "BOS", ((hq, 2), (pd, 1))), ("VSE20", "ELG", ((hq, 1),)),
+        ("VSF30", "DWP", ((pd, 1),)), ("VSG20", "ELG", ((hq, 1),)), ("VSG30", "DWP", ((pd, 1),)),
+        ("VSH20", "BOS", ((hq, 1),)), ("VUB20", "HVG", ((hq, 1),)), ("VUB30", "DWP", ((pd, 1), (hq, 1))),
+        ("VUC30", "DWP", ((show_ry, 1),)), ("VUD50", "HGB", ((pd, 1),)), ("VUD60", "DWB", ((pd, 2), (hq, 2))),
+    )
+    rows = []
+    for model, color, places in groups:
+        for place, count in places:
+            for _ in range(count):
+                number = len(rows) + 1
+                rows.append([model, color, f"E{number:05d}", f"C{number:05d}", "รถลงแล้ว", place, None, None, None])
+    rows[-1][4] = "รถว่าง"  # 原件里唯一一台叫「รถว่าง」的
+    rows[-2][6:8] = ["BK000002611000001", "sale01"]  # 一台被订走
+    return [tuple(row) for row in rows]
+
+
+DEALER_LIBRARY = _dealer_library()
+
+
+def export(rows, title="รายงานสต๊อกคงค้างแสดงสถานที่จอดรถ-ทั้งหมด", total=None, company=None):
     book = Workbook()
     sheet = book.active
+    if company:  # 线上的原件在标题上面还有一行公司名（测试库那行是空的）
+        sheet.append([company])
     sheet.append([title])
     sheet.append(["วันที่ 26/11/2569"])
     sheet.append(list(HEADER))
     for row in rows:
         sheet.append(list(row))
     sheet.append([f"รวม  {len(rows) if total is None else total}  รายการ"])
-    for line in (1, 2, sheet.max_row):
+    for line in (*range(1, 4 if company else 3), sheet.max_row):
         sheet.merge_cells(f"A{line}:I{line}")
     buffer = io.BytesIO()
     book.save(buffer)
@@ -99,19 +138,35 @@ class Parse(unittest.TestCase):
 
 
 class Summary(unittest.TestCase):
-    def test_available_means_status_starting_with_rot_wang_including_show_cars(self):
-        self.assertTrue(report.is_available("รถว่าง"))
-        self.assertTrue(report.is_available("รถว่าง-โชว์"))
-        self.assertFalse(report.is_available("รถทีมสาขาจอง"))
-        self.assertFalse(report.is_available("รถแต่งเสร็จ"))
+    def test_available_means_not_booked_whatever_the_status_is_called(self):
+        def car(status, booking=""):
+            return {"status": status, "booking": booking}
+
+        for status in ("รถลงแล้ว", "รถว่าง", "รถว่าง-โชว์", "รถแต่งเสร็จ", "", "สถานะที่ยังไม่เคยเห็น"):
+            self.assertTrue(report.is_available(car(status)), status)
+        self.assertFalse(report.is_available(car("รถทีมสาขาจอง")))
+        self.assertFalse(report.is_available(car("รถลงแล้ว", "BK000002610000015")))
+        self.assertFalse(report.is_available(car("รถว่าง-โชว์", "BK000002602000002")))
+
+    def test_dealer_stock_whose_status_is_received_is_all_available(self):
+        """11-26 上线当晚的真实形状：公司名一行在最上、几乎全部「รถลงแล้ว」、没有团队、没有订车单号 → 空车档不能只剩 1 台。"""
+        rows = report.parse_export(export(DEALER_LIBRARY, company="บริษัท ตัวอย่าง จำกัด"))
+        self.assertEqual(len(rows), 92)
+        available = report.summarize(rows, "available", {})
+        everything = report.summarize(rows, "all", {})
+        self.assertEqual((available["total"], everything["total"]), (91, 92))  # 只少被订走的那一台
+        self.assertEqual(len(available["rows"]), len(everything["rows"]))
+        first = available["rows"][0]
+        self.assertEqual((first["code"], first["count"]), ("UNL10 SBW", 2))
+        self.assertEqual(report.locations_text(first["locations"]), "ระยอง-สำนักงานใหญ่ 1 / โชว์บนโชว์รูม(RY) 1")
 
     def test_one_table_sorted_by_model_and_colour_without_year_sections(self):
         summary = report.summarize(report.parse_export(export(TEST_LIBRARY)), "available", CARS)
-        self.assertEqual(summary["total"], 5)
+        self.assertEqual(summary["total"], 5)  # 9 台里 2 台团队预订、2 台有订车单号
         self.assertNotIn("sections", summary)
         self.assertEqual([(row["name"], row["code"], row["count"]) for row in summary["rows"]],
                          [("D-MAX SPARK", "DM-2D19 ONX", 1), ("D-MAX SPARK", "DM-2D19 PWH", 1),
-                          ("DM 4D", "DM-4D19 MGY", 1), ("DM 4D", "DM-4D19 PWH", 1), ("Test", "Test RED", 1)])
+                          ("DM 4D", "DM-4D19 MGY", 1), ("DM 4D", "DM-4D19 PWH", 1), ("TS-01", "TS-01 RED", 1)])
         # 车名回落：没有 ชื่อรถ 用 ชื่อรุ่นรถ，再没有用代码
 
     def test_year_only_when_every_model_has_the_same_year(self):
