@@ -600,7 +600,11 @@ class DownloadPage(unittest.TestCase):
         def doc(_doctype, name):
             return MagicMock(get_content=MagicMock(return_value=self.contents[name]))
 
-        with patch("frappe.db", MagicMock(get_value=MagicMock(side_effect=row))), patch("frappe.get_doc", side_effect=doc):
+        def listed(_doctype, filters=None, **_kw):
+            return [frappe._dict(name=name, file_name=self.names[name]) for name in filters["name"][1] if name in self.names]
+
+        with patch("frappe.db", MagicMock(get_value=MagicMock(side_effect=row))), patch("frappe.get_doc", side_effect=doc), \
+                patch("frappe.get_all", side_effect=listed):
             return method(**query)
 
     def test_page_lists_every_file_ticked_with_share_and_download(self):

@@ -21,6 +21,7 @@ LINK_SECONDS = 24 * 3600
 # Flex 按钮 URI 上限 1000 字符，按钮还要加 `&openExternalBrowser=1`；留余量
 MAX_URL = 900
 _PREFIX = "dms-stock-"
+MAX_ARCHIVE = 8  # 一次报表的文件数上限（现在 4 个）
 _MANIFEST = "-page.json"  # 下载页清单的文件名后缀
 _PAGE = "\x00page"  # 下载页签名里的标记：与文件下载的签名互不通用
 _TYPES = {"xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -157,15 +158,18 @@ def archive(f: str = "", e: str = "", s: str = "", k: str = ""):
         return _not_found()
     if not picked or picked[0] < 0 or picked[-1] >= len(files):
         return _not_found()
+    wanted = [str(files[index].get("file") or "") for index in picked]
+    known = {row.name: row.file_name for row in frappe.get_all(
+        "File", filters={"name": ["in", wanted], "is_private": 1, "file_name": ["like", _PREFIX + "%"]},
+        fields=["name", "file_name"], limit=len(wanted))}
+    if len(wanted) > MAX_ARCHIVE or any(name not in known for name in wanted):
+        return _not_found()
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as bundle:
         for index in picked:
             entry = files[index]
-            row = frappe.db.get_value("File", str(entry.get("file")), ["file_name", "is_private"], as_dict=True)
-            if not row or not row.is_private or not str(row.file_name or "").startswith(_PREFIX):
-                return _not_found()
-            content = frappe.get_doc("File", str(entry["file"])).get_content()
-            bundle.writestr(str(entry.get("name") or row.file_name), content)
+            content = frappe.get_doc("File", str(entry["file"])).get_content()  # loop-query: 一次报表至多 MAX_ARCHIVE 个文件
+            bundle.writestr(str(entry.get("name") or known[str(entry["file"])]), content)
     name = str(found[0].get("archive_name") or "files.zip")
     headers = {"Content-Disposition": f"attachment; filename*=UTF-8''{quote(name, safe='')}",
                "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff"}
