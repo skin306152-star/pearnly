@@ -183,6 +183,14 @@ class Summary(unittest.TestCase):
         self.assertEqual((row["code"], row["count"]), ("UNT20 ELG", 3))
         self.assertEqual(report.locations_text(row["locations"]), "ปลวกแดง 2 / ระยอง 1")
 
+    def test_a_place_and_its_count_stay_together_in_the_picture(self):
+        summary = report.summarize([{"model": "VSB20", "color": "BOS", "status": "รถลงแล้ว", "location": place}
+                                    for place in ("ระยอง-สำนักงานใหญ่", "ปลวกแดง")], "available", {})
+        with lang("th"):
+            page = stock_render.document(summary["rows"], summary, "available", {"date": "26/11/2026", "time": "21.08"})
+        self.assertIn("<span>ปลวกแดง\u00a01</span> / <span>ระยอง-สำนักงานใหญ่\u00a01</span>", page)
+        self.assertIn("td.p span{display:inline-block}", page)  # 整块换行；不用 nowrap（超长地点名会被截掉）
+
     def test_all_and_unallocated_keep_every_status(self):
         rows = report.parse_export(export(TEST_LIBRARY))
         self.assertEqual(report.summarize(rows, "all", CARS)["total"], 9)
