@@ -604,7 +604,8 @@ class DownloadPage(unittest.TestCase):
             return [frappe._dict(name=name, file_name=self.names[name]) for name in filters["name"][1] if name in self.names]
 
         with patch("frappe.db", MagicMock(get_value=MagicMock(side_effect=row))), patch("frappe.get_doc", side_effect=doc), \
-                patch("frappe.get_all", side_effect=listed):
+                patch("frappe.get_all", side_effect=listed), \
+                patch("frappe.utils.jinja_globals.bundled_asset", return_value="/assets/frappe/dist/css/website.bundle.TEST.css"):
             return method(**query)
 
     def test_page_lists_every_file_ticked_with_share_and_download(self):
@@ -618,7 +619,11 @@ class DownloadPage(unittest.TestCase):
         for text in ("สต๊อกตามที่จอดรถ", "92 คัน · 26/11/2026 21.08", "เลือกทั้งหมด", "แชร์ <span>", "ดาวน์โหลด <span>",
                      "สรุป PDF<small>46 KB</small>", "ต้นฉบับ Excel<small>2.0 MB</small>"):
             self.assertIn(text, page)
-        self.assertIn("<button id=share class=primary hidden>", page)  # 浏览器说能分享这些文件才露出
+        # 按钮用 Frappe 官方原生样式类、引官方样式表，不自己定颜色尺寸；「分享」要浏览器说能分享这些文件才露出
+        self.assertIn('<button id=share class="btn btn-primary btn-md" hidden>', page)
+        self.assertIn('<button id=down class="btn btn-default btn-md">', page)
+        self.assertIn('<link rel=stylesheet href="/assets/frappe/dist/css/website.bundle.TEST.css">', page)
+        self.assertNotIn("#7c4dff", page)
         self.assertIn("stock_files.archive?", page)
         self.assertNotIn("</script><1>", page)
         self.assertIn("\\u003c1>" if "\\u003c1>" in page else "สรุป <1>.pdf", page)  # 文件名在 JSON 数据块里，不进标签

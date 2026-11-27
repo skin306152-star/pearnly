@@ -135,7 +135,9 @@ def page(f: str = "", e: str = "", s: str = ""):
     manifest, _expires = found
     archive = (frappe.utils.get_url().rstrip("/") + "/api/method/pearnly_dms.query.stock_files.archive?"
                + urlencode({"f": f, "e": e, "s": s}))
-    return Response(stock_page.html_page(manifest, archive), mimetype="text/html",
+    from frappe.utils.jinja_globals import bundled_asset
+
+    return Response(stock_page.html_page(manifest, archive, bundled_asset("website.bundle.css")), mimetype="text/html",
                     headers={"Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff",
                              "Referrer-Policy": "no-referrer", "X-Robots-Tag": "noindex"})
 
