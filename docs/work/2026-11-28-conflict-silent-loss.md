@@ -225,3 +225,41 @@
 | 5 | 5（1 条要紧、3 条小、1 条原有） | 4（索引、`_save_card` 顺序单测、登记与改动同一提交、保存点回滚不删缩略图）；原有的「失效判断里新任务列表仍是普通读」记录不改（不错账） | 约 15 分钟 |
 
 全闸门、候选离线（c34722e4e：LANE EXIT 0）见交接。
+
+## ④ 带外部读写的入口
+
+分支 pearnly/conflict-b4-external（起点 24e3f1e3f）。逐条：现象、改法、修前 / 修后格结果。
+
+### C1 应收快照同一张发票两行 + A2 #7 写后回执按旧 net 算（`collection/snapshot.py`）
+
+- **现象（C1）**：同一件读好的 `express_ar_open`，网页 / LINE / CC 当场落（`snapshot.request`）与每分钟落（`snapshot.advance`）同时拿到「读好了」，各落一遍；同一本账套两份读回（先后两次按客户读、整本读 × 按客户读、MR.ERP 读回）同时 `replace`，两路的普通读都看不到对方刚插的行，各插一行。表上没有（book_key, docnum）唯一。两行时 `rows` 列两次，放行判余额的 `lock` 回 `{docnum: 行}` 只留其中一行：按哪一行判不确定（管钱）。另：`land` 当场删结果文件，所在事务之后回滚时请求行回来了、文件没了，下一次读到空内容记「结果坏了」。
+- **现象（A2 #7）**：`apply_balances` 由写账回执调（CC 的事务里，读视图早就建了），普通读出行名与 `net`，按旧 `net` 算「已收」写回。
+- **改法**：
+  1. 唯一兜底：DocType 控制器 `on_doctype_update` 里 `frappe.db.add_unique(["book_key", "docnum"])`；补丁 `v1_35_receivable_snapshot_unique`（`[pre_model_sync]`）先合并已有重复——同一组（按库的排序规则，与唯一索引同口径）留读取时刻最新的一行、其余删，记一条错误日志带删了几行，再建索引；可重复执行。快照只是 Express 读回的缓存，收款记录不引用快照行。`replace` 插入撞唯一键时退回保存点、按单号加锁读出那一行照「旧的不盖新的」更新，Frappe 弹的「必须唯一」从 message_log 去掉。
+  2. 排他取走：共用层 `cc_desktop.requests` **新增** `take(name)`（`drop` 不改）：加锁读请求行、仍是 done 才归本路，行在本事务里删、结果文件 `after_commit` 才删；后到的那路在这一行的锁上等前一路提交，读到已删回 None。`land` 用它；取不到时 `request` 回「正在读取」（另一路落的行这笔事务的普通读看不到，不能说「读好了」列成没有发票）。发起记录（缓存 `PENDING`）也改成提交后才清。
+  3. 按账套串行到提交：`snapshot._hold`，不淘汰 Redis 锁（`pearnly_state.store().lock`），拿到后在 `after_commit` / `after_rollback` 放，同一笔事务再改同一本不再拿；`land`（取走之前）、`replace`、`apply_balances` 都拿。只在函数里拿、返回就放不够：锁放了事务还没提交，后到的那路看不到刚插的行。写快照的几处都拿，是为了避免「一笔事务先改了几行再去等锁、拿锁的那路又在等这几行」这种数据库看不出的互等（写后回执先 `apply_balances`、再 `_refresh` 按客户重读落库）。等 30 秒拿不到抛 `snapshot.Busy`：`request` 当成「正在读取」，`advance` 这一件下一分钟再来。`replace` 的现有行改加锁读；按客户读到、这位客户名下没有的单号，再按单号加锁读一次（同一张在别的客户名下：Express 改了客户或只差空白），改那一行而不是再插。
+  4. `apply_balances`：先 `_hold`，再 `lock(book_key, docnums)` 一次加锁读出 name / net / read_at，按最新值改 / 删。`lock` 改用 `frappe.qb.get_query(..., for_update=True)`，按单号顺序走唯一索引；② 的 `release` 照旧调它锁行（返回值多了几列，调用方不用）。
+  5. `advance` 每件包 `conflicts.retried`（每件自己提交；重来时请求行与文件都还在），用尽 / `Busy` 时这一件下一分钟再来，不挡后面几件。
+- **基线**：`unlocked-overwrite-baseline.tsv` 删 `snapshot.replace`、`snapshot.apply_balances` 两行；`unlocked-overwrite-reviewed.tsv` 删 `apply_balances` 一行（原「net 不随并发改」的判断不成立）。`--extended` 新增 0。
+- **离线**：test_erp_collection（新增 `SnapshotConcurrency` 7 条：同一件两路取只落一次、被别路取走时回正在读取、发起记录提交后才清、账套锁拿到提交 / 回滚才放且一笔事务只拿一次、别的客户名下的同一张改不插、撞唯一键改更新且旧的不盖新的、写后余额按加锁读的 net；`SnapshotUniquePatch` 1 条：每组留最新、第二次不改）、test_erp_collection_cc / _guide / _line、test_erp_mrerp_collection、test_cc_desktop_channel（新增 `take`：只取一次、回滚时文件还在、提交后才删）及其余 10 个用通道替身的测试文件全过；check-architecture、check-unbounded-queries、check-conflict-catch 通过。
+
+| 格 | 修前（b4-before = 24e3f1e3f） | 修后 |
+|---|---|---|
+| `erp.snapshot_double_land`（(a) 同一件读回 `request` × `advance`；(b) 同一位客户两次读回同时 `replace`；两种各半） | 2/10（8 轮两行，两种都出现） | 待跑（主窗口占用实验栈，见下） |
+| `erp.snapshot_balances_stale`（写后回执前另一路把 net 1000 → 1200 并提交） | 0/10（已收按旧 net 算成 300） | 待跑 |
+
+#### 共用件影响清单（`check-impact.py --base 24e3f1e3f`）
+
+命中 cc-desktop（新增 `requests.take`，已有函数没改），15 个入口。只有 `erp.collection.server`、`erp.line.collection` 走到新函数；其余 13 个只因同一共用件命中，没走到改动的代码。新调用方 `collection/snapshot.py` 登记进 execution、transaction 两件的入口（`erp.collection.server`）。
+
+| 入口 | 结果 | 依据 / 没测到的原因 |
+|---|---|---|
+| erp.collection.server | 离线通过；实验栈修后待跑 | test_erp_collection 91 条；实验栈两格 |
+| erp.line.collection | 离线通过 | test_erp_collection_line 70 条；LINE 真机没测到（要排队） |
+| erp.cc.connect、erp.cc.write、erp.cc.masters、erp.cc.stock-void、cowork.cc.channel、cc.operator.page、erp.cc.companies、erp.cc.chat-push、cc.mrerp-login、erp.mrerp.direct、cc.desktop.bridge、cowork.cc-chat.push、cc.desktop.cloud-express | 没测到 | 只新增 `take`，这些入口不调它；`drop` / `result` 等原函数没改。test_cc_desktop_channel 与其余用通道替身的离线测试全过 |
+
+#### 已知 / 没做
+
+- `express/masters.py`、`express/ledger_check.py` 也是 `requests.result` + `requests.drop`（当场删文件），同样有「回滚后文件没了」的问题，不在本条范围，没改；要改直接换成 `take`。
+- 唯一索引按库的排序规则比单号（只差大小写算同一张）；Express 单号实际是大写，没核过线上有没有只差大小写的两张。
+- 线上各 ERP 站有没有重复行没查（生产只读要主窗口排）；补丁会合并，日志里有删了几行。
