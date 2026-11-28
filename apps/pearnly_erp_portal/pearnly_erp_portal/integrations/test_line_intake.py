@@ -2027,6 +2027,18 @@ class SaveConflict(Base):
         self.assertEqual(self.deleted, [("File", "ERO-F1.bin")])
         self.assertEqual((card.source_file_name, self.recognised, self.charges), (None, [], []))
 
+    def test_a_failed_file_record_deletes_the_uploaded_registration_and_raises(self):
+        """④ code-review 6：记原件那一段抛的不是冲突（校验失败、等锁超时）：File 已先提交，登记删掉再原样抛（不留孤儿）。"""
+        card = self.fetching(0)
+
+        def broken(**kwargs):
+            raise frappe.ValidationError("bad value")
+
+        card.save = broken
+        with self.assertRaises(frappe.ValidationError):
+            intake._fetch(card, "line-M1.jpg")
+        self.assertEqual(self.deleted, [("File", "ERO-F1.bin")])
+
 
 class Products(Base):
     def test_purchase_created_items_take_our_running_code_not_the_printed_one(self):

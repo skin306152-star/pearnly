@@ -147,6 +147,11 @@ def _fetch(doc, filename):
         # 按队列稍后再来（还没付费；LINE 的内容还能再取）
         _forget(file.name)
         raise Deferred("conflict") from None
+    except Exception:
+        # 别的错（校验失败、等锁超时 1205 等）：File 上面已单独提交，原样抛之前同样删掉这份登记，不留没人认的原件（11-28 ④ code-review）
+        frappe.db.rollback()
+        _forget(file.name)
+        raise
     if not kept:
         _forget(file.name)  # 取件这段时间里这张已不在排队（取消 / 失败落定）：这份没人要了
         return NOT_QUEUED
