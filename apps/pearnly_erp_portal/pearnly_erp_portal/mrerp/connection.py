@@ -90,6 +90,19 @@ def main_name():
     return rows[0].name if rows else None
 
 
+def _when(value) -> str:
+    """授权时刻（站点时区的裸时间）→ RFC3339 UTC，页面按设备时区显示到时分（同 Cowork `mrerp_login._when`）；空的回空。
+    原先给 ``str()`` 原样，CC 设置 → 连接显示成「2026-11-28 11:08:35.095638」（11-28）。"""
+    from pearnly_core.assistant import contracts as shared
+
+    if not value:
+        return ""
+    try:
+        return shared.utc_iso(value, frappe.utils.get_system_timezone())
+    except (TypeError, ValueError):
+        return ""
+
+
 def record(name, main=None) -> dict:
     """CC 设置 → 连接的 MR.ERP 一行要的形状（同 Cowork `connections.records` 的那几项：name / adapter / enabled / main /
     config.system_url / credential）；从不含密码。"""
@@ -101,7 +114,7 @@ def record(name, main=None) -> dict:
            "config": {"system_url": row.system_url or DEFAULT_URL}}
     if row.credential_username:
         out["credential"] = {"username": row.credential_username, "device": row.credential_device or "",
-                             "at": str(row.credential_authorized_at or "")}
+                             "at": _when(row.credential_authorized_at)}
     return out
 
 
@@ -140,7 +153,7 @@ def view(name) -> dict:
     out = {"connection": row.name, "system_url": row.system_url or "", "enabled": bool(row.enabled)}
     if row.credential_username:
         out["credential"] = {"username": row.credential_username, "device": row.credential_device or "",
-                             "at": str(row.credential_authorized_at or "")}
+                             "at": _when(row.credential_authorized_at)}
     return out
 
 
@@ -166,7 +179,7 @@ def login_store(connection, username, password, *, user, device_label, scope) ->
                 "credential_authorized_at": at})
     doc.save(ignore_permissions=True)
     return {"connection": doc.name, "system_url": doc.system_url or DEFAULT_URL, "username": doc.credential_username,
-            "device": doc.credential_device or "", "at": str(at), "written": True}
+            "device": doc.credential_device or "", "at": _when(at), "written": True}
 
 
 # ---------------- 后台任务取凭据 ----------------

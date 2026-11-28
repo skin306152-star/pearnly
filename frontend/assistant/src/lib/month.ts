@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { getMethod, shownError } from "@/lib/frappe";
 import { lang } from "@/i18n";
+import { LOCALE, serverTime } from "@/lib/when";
 import { isPeriod, PENDING_EVENTS, type PendingChoice, type PendingItem } from "@/lib/companies";
 import { useLiveRefresh } from "@/lib/live";
 import { onProjectChange } from "@/lib/managed-agents/realtime";
@@ -161,24 +162,22 @@ export function exceptionSubject(item: MonthException, branchLabel: (branch: str
   return "";
 }
 
-const LOCALE: Record<string, string> = { th: "th-TH-u-ca-buddhist", zh: "zh-CN", en: "en-US", ja: "ja-JP" };
-
-/** 「15 ต.ค.」「10月15日」「Oct 15」：只有日期的（YYYY-MM-DD）按日期，带时间的按这台设备的时区；认不出原样。 */
+/** 「15 ต.ค.」「10月15日」「Oct 15」：只有日期的（YYYY-MM-DD）按日期，带时区的按这台设备的时区，不带时区的照钟点（lib/when serverTime）；认不出原样。 */
 export function dayShort(value: string | null | undefined): string {
   if (!value) return "";
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  const date = day ? new Date(Date.UTC(Number(day[1]), Number(day[2]) - 1, Number(day[3]))) : new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", ...(day ? { timeZone: "UTC" } : {}) }).format(date);
+  const at = serverTime(value);
+  if (!at) return value;
+  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", ...(at.timeZone ? { timeZone: at.timeZone } : {}) }).format(at.date);
 }
 
 /** 「10月15日 21:08」「Oct 15, 21:08」「15 ต.ค. 21:08」：带时间的按这台设备的时区写到时分（核对一段的回读时刻）；
  *  只有日期的同 dayShort；认不出原样。 */
 export function dayTime(value: string | null | undefined): string {
   if (!value || /^\d{4}-\d{2}-\d{2}$/.test(value)) return dayShort(value);
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(date);
+  const at = serverTime(value);
+  if (!at) return value;
+  return new Intl.DateTimeFormat(LOCALE[lang] ?? "en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    ...(at.timeZone ? { timeZone: at.timeZone } : {}) }).format(at.date);
 }
 
 /** 有没有账套还在回读（最新那份或比完成的那份更新的一份）。 */

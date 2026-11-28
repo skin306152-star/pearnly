@@ -228,6 +228,9 @@ assert.equal(taxDue(tax, "2026-10-24"), "");
 // 核对一段的回读时刻写到时分（这台设备的时区），只有日期的照旧
 process.env.TZ = "Asia/Bangkok";
 assert.equal(dayTime("2026-10-02T03:01:00Z"), "Oct 2, 10:01");
+// Frappe 的裸时间（站点时区）照钟点到时分，不带秒和小数（11-28，同 lib/when serverTime）
+assert.equal(dayTime("2026-11-28 11:08:35.095638"), "Nov 28, 11:08");
+assert.equal(dayShort("2026-11-28 11:08:35"), "Nov 28");
 assert.equal(dayTime("2026-10-02T15:30:00Z"), "Oct 2, 22:30");
 assert.equal(dayTime("2026-10-23"), "Oct 23");
 assert.equal(dayTime(""), "");

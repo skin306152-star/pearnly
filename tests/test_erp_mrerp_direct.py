@@ -769,6 +769,15 @@ class ConnectRow(_SiteFakes):
         self.assertEqual([(row["name"], row["main"]) for row in rows], [("C0", False)])  # 停用的不是主连接
         self.assertEqual([row["name"] for row in self.api.records(start=1, limit=500)], ["C1"])
 
+    def test_the_authorized_time_is_utc_with_a_zone_not_the_raw_site_time(self):
+        """11-28：原先 ``str()`` 原样给，设置 → 连接显示「2026-11-28 11:08:35.095638」。站点时区的裸时间 → RFC3339 UTC，页面写到时分。"""
+        DB.table("ERP MRERP Connection")["C1"]["credential_authorized_at"] = datetime.datetime(2026, 11, 28, 11, 8, 35, 95638)
+        with patch.object(frappe.utils, "get_system_timezone", lambda: "Asia/Bangkok", create=True):
+            rows = self.api.records(limit=100)
+            self.assertEqual(rows[0]["credential"]["at"], "2026-11-28T04:08:35.095638Z")
+            DB.table("ERP MRERP Connection")["C1"]["credential_authorized_at"] = "2026-11-28 11:08:35.095638"  # 读成字符串也一样
+            self.assertEqual(self.api.records(limit=100)[0]["credential"]["at"], "2026-11-28T04:08:35.095638Z")
+
     def test_only_erp_admins_get_any_of_the_three(self):
         frappe.session.user = "staff@x"
         for call in (lambda: self.api.records(), lambda: self.api.request_refresh("C1", "k1"),

@@ -4973,13 +4973,47 @@ assert.deepEqual(text(opened), ["Department", "D001", "บัญชี", "BOOK-A
 assert.ok(opened.includes("cc-spinner"));
 assert.ok(!opened.includes("cc-choice-forget") && !opened.includes("cc-choice-promote"));
 assert.equal(setChoiceShown([menu], "m1", "454", "ซื้อ2")[0].value_label, "ซื้อ2");
-// 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜、原样（原先补 Z，晚 7 小时）
+// 服务端给带时区的 UTC：按这台设备的时区显示；不带时区的不猜时区（原先补 Z，晚 7 小时）、照钟点写到时分，不带秒和小数（11-28）
 assert.equal(formatWhen("2026-10-15T02:00:00Z"),
   new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(Date.UTC(2026, 9, 15, 2))));
-assert.equal(formatWhen("2026-10-15 09:00:00"), "2026-10-15 09:00:00");
+assert.equal(formatWhen("2026-10-15 09:00:00").replace(/\u202f/g, " "), "Oct 15, 2026, 9:00 AM");
+assert.equal(formatWhen("2026-11-28 11:08:35.095638").replace(/\u202f/g, " "), "Nov 28, 2026, 11:08 AM");
+assert.equal(formatWhen("not a time"), "not a time");
 assert.equal(formatWhen(""), "");
 """)
 
+
+
+@unittest.skipUnless(NODE and ESBUILD.is_file(), "要 node 与前端依赖（npm ci --prefix frontend/assistant）")
+class ServerTimeTests(unittest.TestCase):
+    """服务端时间在页面上一律「日期 + 时:分」，四语同一套（泰文佛历），不出秒和小数（11-28 设置 → 连接的 MR.ERP 授权时间
+    显示成「…11:08:35.095638」）：Frappe 的裸时间照钟点、带时区的按设备时区（月结卡 dayShort / dayTime 同一个解析，见 test_cc_month_ledger）。"""
+
+    EXPECT = {"en": "Nov 28, 2026, 11:08 AM", "zh": "2026年11月28日 11:08", "th": "28 พ.ย. 2569 11:08", "ja": "2026/11/28 11:08"}
+
+    def test_no_page_prints_a_server_time_with_the_browser_default_format(self):
+        # 定时任务的运行记录原先 new Date(...).toLocaleString()：带秒、按浏览器语言而不是页面语言；服务端时间一律经 lib/when
+        found = [f"{path.relative_to(SRC).as_posix()}:{n}" for path in sorted(SRC.rglob("*.ts*")) if ".test." not in path.name
+                 for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+                 if re.search(r"\.toLocale(String|DateString|TimeString)\(", line)]
+        self.assertEqual(found, [])
+        self.assertIn("{formatWhen(run.started_at)}", read("components/scheduled-tasks.tsx"))
+        self.assertIn('return [credential.username, credential.device, formatWhen(credential.at)]', read("components/mrerp-login.tsx"))
+
+    def test_naive_frappe_times_show_date_and_minutes_in_every_language(self):
+        for lang, when in self.EXPECT.items():
+            with self.subTest(lang=lang):
+                run_ts(r"""
+import "cc-test-setup";
+import assert from "node:assert/strict";
+import { formatWhen } from "@/lib/when";
+const norm = (s: string) => s.replace(/\u202f|\u00a0/g, " ");
+for (const raw of ["2026-11-28 11:08:35.095638", "2026-11-28 11:08:35", "2026-11-28T11:08", "2026-11-28 11:08"]) {
+  assert.equal(norm(formatWhen(raw)), %s, raw);
+  assert.doesNotMatch(formatWhen(raw), /:35|095638/);
+}
+(globalThis as any).done();
+""" % json.dumps(when, ensure_ascii=False), lang=lang)
 
 
 class ShownErrorTests(unittest.TestCase):

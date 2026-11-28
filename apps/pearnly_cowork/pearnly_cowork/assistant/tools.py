@@ -3808,7 +3808,7 @@ def folder_task_runs(tool_input) -> str:
     if data.get("pos_layout_needed"):
         # POS 导出停着等人认列（这家公司第一次见这种导出）：用 cowork_pos_layout 的 folder_file 回答
         out["pos_layout_needed"] = data["pos_layout_needed"]
-    return _json(out)
+    return _json(out, utc=("started_at", "scanned_at"))  # rules.runs 给的是 RFC3339 UTC（页面用），交给模型换回当地时间
 
 
 FOLDERS_SHOWN = 50

@@ -62,6 +62,7 @@ import {
 import { knownReaders, openSettings, useDesktopFeatures } from "@/lib/desktop";
 import { getMethod, postMethod, shownError } from "@/lib/frappe";
 import { useLiveRefresh } from "@/lib/live";
+import { formatWhen } from "@/lib/when";
 import { useProjects } from "@/lib/managed-agents/projects";
 import { co, t } from "@/i18n";
 import { cn } from "@/lib/utils";
@@ -642,7 +643,7 @@ function RunsDialog({ tr, rule, onClose }: { tr: Tr; rule: Rule; onClose: () => 
             return (
               <div key={i} className="py-(--cc-run-row-py) text-body">
                 <div className="text-ink">
-                  {new Date(run.started_at.replace(" ", "T")).toLocaleString()} · {tr(`cowork.folder.trigger.${run.trigger || "schedule"}`)}
+                  {formatWhen(run.started_at)} · {tr(`cowork.folder.trigger.${run.trigger || "schedule"}`)}
                   {missing}
                 </div>
                 <div className="text-ink-3 text-caption">
