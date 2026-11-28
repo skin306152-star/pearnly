@@ -4550,3 +4550,71 @@ class ExpressWaiting(PushModule):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _holds(condition, row) -> bool:
+    """按 Frappe 16.33 查询引擎的口径解释一条（嵌套）条件：``!=`` / ``not in`` / ``not like`` 对空值按 ``IFNULL(列, '')``。"""
+    if condition and isinstance(condition[0], (list, tuple)):
+        result = _holds(condition[0], row)
+        for index in range(1, len(condition), 2):
+            right = _holds(condition[index + 1], row)
+            result = (result and right) if condition[index] == "and" else (result or right)
+        return result
+    field, operator, value = condition
+    text = row.get(field) or ""
+
+    def like(pattern):
+        expression = "".join(".*" if char == "%" else "." if char == "_" else re.escape(char)
+                             for char in pattern.replace("\\_", "\0")).replace("\0", "_")
+        return re.fullmatch(expression, text, flags=re.DOTALL) is not None
+
+    return {"=": lambda: text == value, "!=": lambda: text != value, "in": lambda: text in value,
+            "not in": lambda: text not in value, "like": lambda: like(value), "not like": lambda: not like(value),
+            "is": lambda: (text != "") == (value == "set")}[operator]()
+
+
+class LedgerWordFilter(unittest.TestCase):
+    """单据列表「Express 状态」筛选（11-28：结果不明单列成状态）：每一档换成的原生嵌套条件与格子上的状态词（`ledger_word`）
+    逐个账本状态 × 停下原因同一口径；没接 Express 的单不属于任何一档、「不等于」把它算进去；认不得的档丢掉。"""
+
+    REASONS = ("", *E.AUTO_RETRY_REASONS, E.LOST, E.MOVED_DURING_WRITE, "mrerp.result_unknown: ERR_IMPORT_INTERRUPTED",
+               "mrerp.result_unknown: ERR_MOVED_DURING_IMPORT", E.VOIDED_AFTER_WRITE, "choice_needed:party",
+               "ccXdesktop.result_unknown", "[PERIOD_LOCKED] closed", "express.reason.mismatch")
+
+    def rows(self):
+        for state in ("", *E.STATES, E.HANDLED):
+            for reason in self.REASONS:
+                yield {"ledger_state": state, "ledger_reason": reason}
+
+    def test_each_word_selects_exactly_the_documents_showing_it(self):
+        for word in E.FILTER_WORDS:
+            group, blank = E.ledger_word_filter(word)
+            self.assertFalse(blank)
+            for row in self.rows():
+                shown = E.ledger_word(row["ledger_state"], row["ledger_reason"]) if row["ledger_state"] else ""
+                self.assertEqual(_holds(group, row), shown == word, (word, row))
+
+    def test_not_equal_and_lists_follow_native_semantics(self):
+        group, blank = E.ledger_word_filter(conditions=[["Purchase Document", E.LEDGER_WORD_FIELD, "!=", E.SUCCEEDED]])
+        self.assertTrue(blank)
+        for row in self.rows():
+            shown = E.ledger_word(row["ledger_state"], row["ledger_reason"]) if row["ledger_state"] else ""
+            self.assertEqual(_holds(group, row), shown != E.SUCCEEDED, row)
+        group, blank = E.ledger_word_filter(conditions=json.dumps(
+            [["Purchase Document", E.LEDGER_WORD_FIELD, "in", [E.RESULT_UNKNOWN, E.NOT_DONE]]]))
+        self.assertFalse(blank)
+        for row in self.rows():
+            shown = E.ledger_word(row["ledger_state"], row["ledger_reason"]) if row["ledger_state"] else ""
+            self.assertEqual(_holds(group, row), shown in (E.RESULT_UNKNOWN, E.NOT_DONE), row)
+        self.assertEqual(E.ledger_word_filter("Nope", [["x", E.LEDGER_WORD_FIELD, "like", "%a%"]]), (None, True))
+        self.assertEqual(E.ledger_word_filter(conditions=[["Purchase Document", "status", "=", "draft"]]), (None, True))
+
+    def test_the_group_joins_the_list_filters_as_native_nested_filters(self):
+        group, _blank = E.ledger_word_filter(E.RESULT_UNKNOWN)
+        base = [["company", "=", "CO-1"], ["Purchase Line", "category", "in", ["A"]]]
+        joined = E.with_ledger_words(base, group)
+        self.assertEqual(joined[:4], [base[0], "and", base[1], "and"])
+        self.assertIs(joined[4], group)
+        self.assertEqual(E.with_ledger_words(base, None), base)
+        self.assertEqual(E.with_ledger_words([], group), [group])
+        self.assertTrue(all(like.endswith("%") and "\\_" in like for like in E._UNKNOWN_LIKE))

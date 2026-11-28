@@ -12,6 +12,13 @@ from pearnly_erp_portal.purchasing import contracts
 
 
 class PurchaseDocument(Document):
+    @property
+    def ledger_word(self):
+        """虚字段：Express 状态词（不落库，只给列表「Express 状态」筛选的下拉用；`express.contracts.ledger_word`）。"""
+        from pearnly_erp_portal.express import contracts as express_contracts
+
+        return express_contracts.ledger_word(self.ledger_state, self.ledger_reason) if self.ledger_state else ""
+
     def validate(self):
         ledger_guard.keep_current(self)  # 账本栏只由写账链路写：旧副本保存不盖回（11-28 B ③）
         previous = self.get_doc_before_save()

@@ -26,6 +26,7 @@
 					doc_kind: picked.doc_kind || undefined,
 					payment_status: picked.payment_status || undefined,
 					source: picked.source || undefined,
+					ledger_word: picked.ledger_word || undefined,
 					conditions: p.filter_conditions(list)};
 			};
 			const primary = () => {
@@ -51,6 +52,9 @@
 					{fieldname: "doc_kind", label: __("Document Type"), fieldtype: "Select", labels: u.label},
 					{fieldname: "payment_status", label: __("Collection Status"), fieldtype: "Select", labels: u.label},
 					{fieldname: "source", label: __("Source"), fieldtype: "Select", labels: u.label},
+					// Express 状态按状态词筛（结果不明单列一档；服务端 `express.contracts.ledger_word_filter`），没接 Express 不列
+					...(p.express_used() ? [{fieldname: "ledger_word", label: __("Express Status"), fieldtype: "Select",
+						labels: value => __(value)}] : []),
 				],
 				// 收银小票（来源=POS）在收银那张单上，不能当销售单打开去看编辑页 ——
 				// 点它开小票查看器（与收银页同一个），其余照旧进详情页。

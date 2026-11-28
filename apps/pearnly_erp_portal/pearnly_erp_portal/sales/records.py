@@ -18,6 +18,7 @@ import frappe
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing, rules
+from pearnly_erp_portal.express import contracts as express_contracts
 from pearnly_erp_portal.inventory import warehouses
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.sales import access, contracts
@@ -77,6 +78,9 @@ def query(params=None):
     filters.extend(list_filters.conditions(params.get("conditions"), {
         **{field: field for field in CONDITION_FIELDS}, "doc_date": datefield}))
     text = str(params.get("q") or "").strip()
+    # 「Express 状态」按状态词筛（结果不明单列一档；同格子的 `express.contracts.ledger_word`，服务端换成原生嵌套条件）
+    filters = express_contracts.with_ledger_words(filters, express_contracts.ledger_word_filter(
+        params.get(express_contracts.LEDGER_WORD_FIELD), params.get("conditions"))[0])
     or_filters = [[field, "like", "%" + text + "%"] for field in SEARCH_FIELDS] if text else None
     return filters, or_filters, datefield
 
@@ -123,6 +127,8 @@ def _pos_applies(params) -> bool:
         return False
     if params.get("group") == "unpaid":
         return False
+    if not express_contracts.ledger_word_filter(params.get(express_contracts.LEDGER_WORD_FIELD), params.get("conditions"))[1]:
+        return False  # 收银小票不单独写 Express（账本状态空着）：按「Express 状态」筛了某几档就不列它
     for column, operator, value in list_filters.conditions(params.get("conditions"), {
             field: field for field in CONDITION_FIELDS}):
         if not list_filters.matches(POS_CONSTANTS[column], operator, value):

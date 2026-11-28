@@ -160,6 +160,98 @@ def ledger_word(state, reason="") -> str:
     return LEDGER_WORDS.get(state or "", state or "")
 
 
+# 单据列表「Express 状态」筛选（11-28：结果不明单列成状态）：选项是状态词（虚字段 ``ledger_word``，不落库，DocType 里只给筛选
+# 下拉用），服务端按 :func:`ledger_word` 同一口径换成 Frappe 原生的嵌套条件（``[条件, "or", 条件]``，16.33 查询引擎执行、参数化）。
+# 没接 Express 的单（账本状态空着）不属于任何一档；「不等于 / 不在…之中」把它算进去（同原生对空值的口径）
+LEDGER_WORD_FIELD = "ledger_word"
+FILTER_WORDS = (ENTERING, SUCCEEDED, NOT_DONE, RESULT_UNKNOWN)
+_BLANK = ""
+_UNKNOWN_LIKE = tuple(prefix.replace("_", "\\_") + "%" for prefix in UNKNOWN_REASONS)  # LIKE 里 ``_`` 是通配，按字面比
+
+
+def _joined(word, conditions):
+    conditions = [item for item in conditions if item]
+    if len(conditions) == 1:
+        return conditions[0]
+    out = []
+    for index, item in enumerate(conditions):
+        out += [word, item] if index else [item]
+    return out
+
+
+def _all(*conditions):
+    return _joined("and", conditions)
+
+
+def _any(*conditions):
+    return _joined("or", conditions)
+
+
+def _word_condition(word):
+    held = ["ledger_state", "=", HELD]
+    retry = list(AUTO_RETRY_REASONS)
+    if word == ENTERING:
+        return _any(["ledger_state", "=", QUEUED], _all(held, ["ledger_reason", "in", retry]))
+    if word == SUCCEEDED:
+        return ["ledger_state", "in", [WRITTEN, HANDLED]]
+    if word == RESULT_UNKNOWN:
+        return _all(held, ["ledger_reason", "!=", MOVED_DURING_WRITE],
+                    _any(*[["ledger_reason", "like", like] for like in _UNKNOWN_LIKE]))
+    if word == NOT_DONE:
+        known = _any(["ledger_reason", "=", MOVED_DURING_WRITE],
+                     _all(*[["ledger_reason", "not like", like] for like in _UNKNOWN_LIKE]))
+        return _any(["ledger_state", "in", [FAILED, MISMATCH, DETACHED]],
+                    _all(held, ["ledger_reason", "not in", retry], known))
+    if word == _BLANK:
+        return ["ledger_state", "is", "not set"]
+    return None
+
+
+def _words(words):
+    return _any(*[_word_condition(word) for word in dict.fromkeys(words)])
+
+
+def ledger_word_filter(value=None, conditions=None):
+    """页面交上来的「Express 状态」（``value``：等于那一档的值或几档；``conditions``：原生条件 ``[字段, 运算符, 值]`` 里
+    ``ledger_word`` 那几条，其余字段不看）→ ``(嵌套条件或 None, 没接 Express 的单算不算在内)``。认不得的档、运算符丢掉（同
+    `pearnly_core.desk.list_filters`）。纯判断：单据列表、合计、导出共用一份（`with_ledger_words`）。"""
+    import json
+
+    if isinstance(conditions, str):
+        try:
+            conditions = json.loads(conditions or "[]")
+        except ValueError:
+            conditions = []
+    picked = []  # [(这一条认的档, 空白算不算)]
+    if value:
+        values = value if isinstance(value, (list, tuple)) else [value]
+        picked.append([str(item) for item in values])
+    for row in conditions if isinstance(conditions, list) else []:
+        if not isinstance(row, (list, tuple)) or len(row) < 3 or row[-3] != LEDGER_WORD_FIELD:
+            continue
+        operator, wanted = str(row[-2] or "").strip().lower(), row[-1]
+        values = [str(item) for item in wanted] if isinstance(wanted, (list, tuple)) else [
+            item.strip() for item in str(wanted or "").split(",") if item.strip()]
+        if operator in ("=", "in"):
+            picked.append(values)
+        elif operator in ("!=", "not in"):
+            picked.append([word for word in (*FILTER_WORDS, _BLANK) if word not in values])
+        elif operator == "is":
+            picked.append(list(FILTER_WORDS) if str(wanted) == "set" else [_BLANK])
+    picked = [[word for word in words if word in (*FILTER_WORDS, _BLANK)] for words in picked]
+    picked = [words for words in picked if words]
+    if not picked:
+        return None, True
+    return _all(*[_words(words) for words in picked]), all(_BLANK in words for words in picked)
+
+
+def with_ledger_words(filters, group):
+    """``filters``（原生 ``[字段, 运算符, 值]`` 的表，隐含「且」）再且上 :func:`ledger_word_filter` 的嵌套条件。"""
+    if not group:
+        return filters
+    return _all(*filters, group) if filters else [group]
+
+
 def ledger_settled(state, reason) -> bool:
     """LINE 上等结果的这一单有没有结论：状态词是「录入中」的（排队中、停在自己会再试的原因上）还没有，等到超时回兜底。"""
     return bool(state) and ledger_word(state, reason) != ENTERING
@@ -467,7 +559,7 @@ def pages(doc: dict) -> list:
     return [page]
 
 
-__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "LOST", "MOVED_DURING_WRITE", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "ledger_settled", "ledger_word", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
+__all__ = ["ATTENTION_STATES", "AUTO_RETRY_REASONS", "LOST", "MOVED_DURING_WRITE", "CHOICE", "ENTERING", "LEDGER_WORDS", "MISMATCH_REASON", "NOT_DONE", "RESULT_UNKNOWN", "SUCCEEDED", "UNKNOWN_REASONS", "FILTER_WORDS", "LEDGER_WORD_FIELD", "ledger_settled", "ledger_word", "ledger_word_filter", "with_ledger_words", "result_unknown", "DocumentError", "FAILED", "HELD", "MISMATCH", "NOT_CONNECTED", "NO_BOOK", "NO_TAX", "NO_WRITER", "PERIOD_OUTSIDE",
            "OFFLINE", "WAITING_COMPUTER", "waiting_computer", "waiting_computer_of", "OPEN_STATES", "VOIDED_AFTER_WRITE", "PRINTED_TOTAL_MISMATCH", "PRINTED_TOTAL_MISSING", "printed_hold", "WAREHOUSE_UNMAPPED", "ITEM_UNMAPPED", "unmapped", "POLL_REASONS", "PURCHASE_KINDS", "QUEUED", "READING", "RETRY_REASONS", "SALES_KINDS", "needs_person",
            "SEVERAL_BOOKS", "STATES", "VERSION", "WRITTEN", "branch5", "checked", "d", "document", "money", "pages",
            "party", "product", "spread", "state", "stock_targets", "rows", "tax13", "unit_names", "unit_remarks"]

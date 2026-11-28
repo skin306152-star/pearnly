@@ -25,6 +25,7 @@
 					payment_status: picked.payment_status || undefined,
 					supplier: picked.supplier || undefined,
 					status: picked.status || undefined,
+					ledger_word: picked.ledger_word || undefined,
 					conditions: p.filter_conditions(list)};
 			};
 			const primary = () => {
@@ -50,6 +51,9 @@
 					{fieldname: "payment_status", label: __("Payment Status"), fieldtype: "Select", labels: u.label},
 					{fieldname: "supplier", label: __("Supplier"), fieldtype: "Link"},
 					{fieldname: "status", label: __("Status"), fieldtype: "Select", labels: u.label},
+					// Express 状态按状态词筛（结果不明单列一档；服务端 `express.contracts.ledger_word_filter`），没接 Express 不列
+					...(p.express_used() ? [{fieldname: "ledger_word", label: __("Express Status"), fieldtype: "Select",
+						labels: value => __(value)}] : []),
 				],
 				on_open: row => go(row.name),
 				columns: [

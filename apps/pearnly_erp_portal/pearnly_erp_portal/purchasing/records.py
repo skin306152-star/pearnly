@@ -6,6 +6,7 @@ from frappe import _
 
 from pearnly_core.desk import list_filters
 from pearnly_erp_portal.access import guard, listing
+from pearnly_erp_portal.express import contracts as express_contracts
 from pearnly_erp_portal.masters import company as companies
 from pearnly_erp_portal.purchasing import access, amounts
 
@@ -48,6 +49,9 @@ def query(params=None):
         "supplier": {"column": "supplier", "link": ("ERP Supplier", "supplier_name")},
         "doc_date": datefield}))
     text = str(params.get("q") or "").strip()
+    # 「Express 状态」按状态词筛（结果不明单列一档；同格子的 `express.contracts.ledger_word`，服务端换成原生嵌套条件）
+    filters = express_contracts.with_ledger_words(filters, express_contracts.ledger_word_filter(
+        params.get(express_contracts.LEDGER_WORD_FIELD), params.get("conditions"))[0])
     or_filters = [[field, "like", "%" + text + "%"] for field in
                   ("supplier_name", "doc_no", "system_no", "summary")] if text else None
     return filters, or_filters, datefield
