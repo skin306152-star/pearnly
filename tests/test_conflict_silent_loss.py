@@ -359,9 +359,9 @@ class VoidEntries(unittest.TestCase):
             self.assertLess(source.index("for update"), source.index("guard.require"), name)
 
     def test_void_cancels_every_unwritten_job_of_the_source(self):
-        source = ast.unparse(self.function("express/push.py", "_cancel_unwritten"))
+        source = " ".join(ast.unparse(self.function("express/push.py", "_cancel_unwritten")).lower().split())
         self.assertIn("for update", source)
-        self.assertIn("source_doctype=%s and source_name=%s", source)
+        self.assertIn("source_doctype = %s and source_name = %s", source)
         self.assertIn("_cancel_unwritten(doctype, name)", ast.unparse(self.function("express/push.py", "void")))
 
     def test_claim_time_check_and_send_recheck_see_a_fresh_void(self):
