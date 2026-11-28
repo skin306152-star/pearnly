@@ -504,7 +504,10 @@ const BusinessMenu: FC = () => {
   // 这一排此刻摆没摆出来（回复中、录音中、已选中一项时不摆）：摆出来那一刻要重量一次，不然沿用没量过的「前 4 项」，
   // 一排塞不下把对话区撑宽、整页能左滑（11-28 Flows：回复后、删对话后 434 / 451 > 388）
   const shown = !(record || running || !list.length) && !chosen;
-  const fit = useMenuFit(row, measure, list, MENU_FIRST, shown);
+  // 手机宽度「更多」只留图标（描边方形图标钮、读屏名「更多」）：四语里中文 / 泰文 / 日文一排多摆一颗（收款回到一排，11-28 测量）；
+  // 电脑宽度不变。量宽度那一排用同一颗，换形状时重量
+  const phone = useIsMobile();
+  const fit = useMenuFit(row, measure, list, MENU_FIRST, shown, phone);
   if (record || running || !list.length) return null;
   if (chosen) {
     const clear = open
@@ -527,7 +530,11 @@ const BusinessMenu: FC = () => {
       {businessName(business)}
     </Button>
   );
-  const more = (
+  const more = phone ? (
+    <Button variant="outline" size="icon" data-slot="cc-business-more" aria-label={t("more")}>
+      <EllipsisIcon />
+    </Button>
+  ) : (
     <Button variant="outline" data-slot="cc-business-more">
       <EllipsisIcon />
       {t("more")}
@@ -567,7 +574,7 @@ const BusinessMenu: FC = () => {
 
 /** 业务菜单这一行摆几项：最多 first 项；放不下就少摆（剩下的进「更多」，「更多」自己也要放得下）。量的是看不见的那一排里每颗的宽度。 */
 function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HTMLDivElement | null>, list: readonly string[], first: number,
-  shown: boolean): number {
+  shown: boolean, phone: boolean | undefined): number {
   const [fit, setFit] = useState(Math.min(first, list.length));
   const key = list.join("\n");
   useLayoutEffect(() => {
@@ -593,7 +600,7 @@ function useMenuFit(row: RefObject<HTMLDivElement | null>, measure: RefObject<HT
     for (const el of ruler.children) watch.observe(el);
     return () => watch.disconnect();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, first, shown]);
+  }, [key, first, shown, phone]);
   return fit;
 }
 
