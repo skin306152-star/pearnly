@@ -25,3 +25,12 @@
 真机记录 | cowork.line.postback.cowork_result | 2026-11-25 | 21fb47a04 | 三星 SM-A146P | 没测到：要另切 testcowork 的测试环境，测试副本里 Cowork 识别服务地址已失效，今天没切；主会话 11-25 准许记没测到 |
 
 解冻测试机1 后它补的迟到回执照收，这件写成 RR691114-001、只一次（69EXP\TEST 测完已整本还原）。
+
+## 11-28 变基与统一（cc-coverage-5）
+
+- 基线改为 `pearnly/web-result-unknown`（网页结果不明，共用状态表以它为准）。
+- ERP `line_cards.result()`：去掉本分支自己的 `_unconfirmed`（读写账件判），改用网页同一判据 `express.contracts.result_unknown`
+  （单据上停下的原因 = 写账件原因，CC 桌面版失联时都是 `cc_desktop.result_unknown`）；回执文字带原因行，与网页记录里的真机断言一致：
+  「结果不明 · 结果未确认，请先在 Express 中核对，再决定是否重新推送」+【查看结果】，不给【编辑】。MR.ERP 的原因行是 MR.ERP 核对句。
+- Cowork `card_save.outcome`：改用录入列表 / 复核页同一判据 `push.unknown.is_unknown`（含推送记录标了结果不明、原因是 ERR_TECHNICAL 的）。
+- 真机：ERP 三条（11-25）的文字多了原因行，要在三星上复看一次；Cowork 入口仍没测到。
