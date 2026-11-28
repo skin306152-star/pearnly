@@ -402,10 +402,12 @@ class AmendOnlyThroughFreshEntry(unittest.TestCase):
                 if "amended_from" not in names:
                     continue
                 target = ast.unparse(node.func)
+                if target.rsplit(".", 1)[-1] in ("_post", "_cancel"):
+                    continue  # 入口函数内部那一层（只由 post 调）
                 args = [ast.unparse(arg) for arg in node.args]
-                if target.endswith("entry.post") or (target == "_fresh" and args and args[0].endswith("entry.post")):
-                    found.append((path.relative_to(APPS).as_posix(), target, "fresh" in names,
-                                  target == "_fresh"))
+                # 任何传 amended_from 的调用（不论模块别名叫什么）都必须是 `_fresh(<…>.post, …, fresh=True)`
+                found.append((path.relative_to(APPS).as_posix(), target, "fresh" in names,
+                              target == "_fresh" and bool(args) and args[0].endswith(".post")))
         self.assertTrue(found, "no amend call found: the guard would be vacuous")
         for path, target, fresh, wrapped in found:
             self.assertTrue(fresh and wrapped, f"{path}: {target}(... amended_from=...) must go through _fresh(entry.post, ..., fresh=True)")
