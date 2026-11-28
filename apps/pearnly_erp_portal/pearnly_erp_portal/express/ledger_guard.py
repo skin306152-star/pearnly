@@ -15,8 +15,9 @@ SUBMITTED_ONLY = ("printed_total",)
 
 
 def keep_current(doc) -> None:
-    """控制器 ``validate`` 第一句调。新建的单不管（账本栏由提交后的 `push.queue` 写）。"""
-    if doc.is_new():
+    """控制器 ``validate`` 第一句调。新建的单不管（账本栏由提交后的 `push.queue` 写）。真要经保存改账本栏的写法（现在没有）显式
+    置 ``doc.flags.ledger_write = True``。"""
+    if doc.is_new() or doc.flags.get("ledger_write"):
         return
     fields = [df.fieldname for df in doc.meta.fields
               if df.fieldname.startswith("ledger_") and df.fieldtype not in ("Section Break", "Column Break", "Tab Break")]
