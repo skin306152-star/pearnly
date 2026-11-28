@@ -174,11 +174,32 @@ class RegisteredFile:
     def on_trash(self):
         found = entry(self) if NAME.fullmatch(self.file_name or "") else None
         shared = found and frappe.db.count("File", {"content_hash": self.content_hash, "name": ["!=", self.name]})
-        result = super().on_trash()
+        self.flags.disk_after_commit = True
+        try:
+            result = super().on_trash()
+        finally:
+            self.flags.pop("disk_after_commit", None)
         if found and not shared:
             frappe.enqueue("pearnly_core.originals.registered.purge", queue="short", enqueue_after_commit=True,
                            refs=[found["ref"]])
         return result
+
+    def delete_file_from_filesystem(self, only_thumbnail=False):
+        """删除时盘上那份等删除真提交了才删（11-28 B ②）：Frappe 在 ``on_trash`` 里当场删盘，事务随后被回滚（整笔重来、
+        用尽回「请稍后重试」）时 File 记录回来了、盘上已没有——附件打不开；登记文件还带着原件引用，重来那次读不到，存放处那份
+        再也删不掉。回滚会清掉提交后回调，盘上原样不动；提交那一刻还有别的 File 指着同一路径就留着。"""
+        remove = super().delete_file_from_filesystem
+        if not self.flags.get("disk_after_commit"):
+            return remove(only_thumbnail=only_thumbnail)
+        url, name = self.file_url, self.name
+
+        def after_commit():
+            if frappe.db.exists("File", name):
+                return  # 删除被回滚到保存点、又整笔提交了：这条还在，什么都不删
+            keep = only_thumbnail or (url and frappe.db.exists("File", {"file_url": url}))
+            remove(only_thumbnail=bool(keep))
+
+        frappe.db.after_commit.add(after_commit)
 
 
 def purge(refs):

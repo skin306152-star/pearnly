@@ -154,6 +154,7 @@ class Delete(unittest.TestCase):
 
         file = File()
         file.__dict__.update(vars(doc))
+        file.flags = frappe._dict()
         db = mock.MagicMock()
         db.count.return_value = others
         with mock.patch.object(registered.frappe, "db", db), \
@@ -170,6 +171,63 @@ class Delete(unittest.TestCase):
     def test_a_shared_registration_or_a_local_file_keeps_the_original(self):
         self.assertEqual(self.trash(stub(), others=1), ["frappe"])
         self.assertEqual(self.trash(types.SimpleNamespace(file_name="a.pdf", content_hash="h", name="F2")), ["frappe"])
+
+
+class DiskAfterCommit(unittest.TestCase):
+    """删除时盘上那份提交后才删（11-28 B ②）：被回滚（整笔重来）时盘上原样不动，重来那次还读得到登记。"""
+
+    def trash(self, others_at_commit=False, restored=False):
+        removed, callbacks = [], []
+
+        class Base:
+            def on_trash(self):
+                self.delete_file_from_filesystem()  # Frappe 的 on_trash 当场删盘
+
+            def delete_file_from_filesystem(self, only_thumbnail=False):
+                removed.append(only_thumbnail)
+
+        class File(registered.RegisteredFile, Base):
+            pass
+
+        file = File()
+        file.__dict__.update(vars(stub()))
+        file.file_url = "/private/files/" + ID + ".bin"
+        file.flags = frappe._dict()
+        db = mock.MagicMock()
+        db.count.return_value = 0
+        db.exists.side_effect = lambda doctype, filters: restored if isinstance(filters, str) else others_at_commit
+        db.after_commit.add.side_effect = callbacks.append
+        with mock.patch.object(registered.frappe, "db", db), mock.patch.object(registered.frappe, "enqueue"):
+            file.on_trash()
+            self.assertEqual(removed, [])  # 删除那一刻盘上不动
+            self.assertNotIn("disk_after_commit", file.flags)
+            for callback in callbacks:
+                callback()
+        return removed
+
+    def test_the_disk_copy_goes_only_after_the_delete_commits(self):
+        self.assertEqual(self.trash(), [False])
+
+    def test_a_file_another_record_points_at_by_commit_time_keeps_its_bytes(self):
+        self.assertEqual(self.trash(others_at_commit=True), [True])  # 只删缩略图
+
+    def test_a_delete_rolled_back_to_a_savepoint_keeps_everything(self):
+        self.assertEqual(self.trash(restored=True), [])
+
+    def test_outside_a_delete_the_disk_goes_at_once(self):
+        removed = []
+
+        class Base:
+            def delete_file_from_filesystem(self, only_thumbnail=False):
+                removed.append(only_thumbnail)
+
+        class File(registered.RegisteredFile, Base):
+            pass
+
+        file = File()
+        file.flags = frappe._dict()
+        file.delete_file_from_filesystem()
+        self.assertEqual(removed, [False])  # 插入被回滚时 Frappe 清掉刚写的那份，照旧当场删
 
 
 class ErpUpload(unittest.TestCase):
