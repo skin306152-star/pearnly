@@ -124,5 +124,90 @@ class ErpBeginSerialized(unittest.TestCase):
         self.assertEqual(events, [("enter", USER), "read", "write", ("exit", USER)])
 
 
+class RecognitionDoneVersusLineEvent(unittest.TestCase):
+    """识别完成（后台出题 `begin`）与同一个人的 LINE 事件（道里）同时改会话：都在 `line_session.serialized` 里，不互盖；
+    几张票按识别完成的先后排进待出队列，出卡顺序稳定（到达序处理、完成序出卡）。这条是不另加「识别完成内部事件」的依据。"""
+
+    def setUp(self):
+        import threading
+        import time
+
+        from pearnly_core import line_session
+
+        self.threading, self.time, self.line_session = threading, time, line_session
+        self.payload = {"direction": "purchase", "entry": "upload"}
+        locks, guard = {}, threading.Lock()
+
+        class Lock:
+            def __init__(self, key, blocking_timeout):
+                with guard:
+                    self.inner = locks.setdefault(key, threading.Lock())
+                self.wait = blocking_timeout
+
+            def acquire(self):
+                return self.inner.acquire(timeout=self.wait)
+
+            def release(self):
+                self.inner.release()
+
+        store = type("Store", (), {"make_key": staticmethod(lambda key: key),
+                                   "lock": staticmethod(lambda key, timeout, blocking_timeout: Lock(key, blocking_timeout))})
+        patches = [
+            patch.object(line_session.pearnly_state, "store", lambda: store),
+            patch.object(line_session, "_local", lambda name: None),  # 离线线程没有站点上下文：不可重入的锁照样互斥
+            patch.object(line_questions.line_flow, "choices", side_effect=self.read),
+            patch.object(line_questions.line_flow, "keep", side_effect=self.write),
+            patch.object(line_questions, "_drive", side_effect=lambda payload, messages=(): (
+                self.time.sleep(0.05), ["card:" + payload[line_questions.WAITING][-1]])[1]),
+        ]
+        for item in patches:
+            item.start()
+            self.addCleanup(item.stop)
+
+    def read(self, user):
+        return json_copy(self.payload)  # 读到的是一份拷贝（同库里读出一行）
+
+    def write(self, user, payload):
+        self.payload = json_copy(payload)
+
+    def line_event(self, key):
+        """道里的一条 LINE 事件（webhook 处理器）：块里读会话 → 改自己那一键 → 写回。"""
+        with self.line_session.serialized(USER):
+            payload = self.read(USER)
+            self.time.sleep(0.05)
+            payload[key] = True
+            self.write(USER, payload)
+
+    def run_together(self, *jobs):
+        threads = [self.threading.Thread(target=job) for job in jobs]
+        for thread in threads:
+            thread.start()
+            self.time.sleep(0.01)  # 按这个先后「识别完成 / 到达」
+        for thread in threads:
+            thread.join(5)
+
+    def test_recognition_done_and_a_line_event_of_the_same_person_do_not_overwrite_each_other(self):
+        self.run_together(lambda: line_questions.begin(USER, ["LI-1"]), lambda: self.line_event("answered"),
+                          lambda: line_questions.begin(USER, ["LI-2"]))
+        self.assertTrue(self.payload.get("answered"), "the LINE event's change survives the recognition writer")
+        self.assertEqual(self.payload[line_questions.WAITING], ["LI-1", "LI-2"], "cards queue in recognition-done order")
+
+    def test_without_the_serial_block_the_same_race_loses_a_write(self):
+        """反证：同样的时序去掉串行块就会丢一边（说明上一格测的是锁，不是时序碰巧）。"""
+        from contextlib import nullcontext
+
+        with patch.object(self.line_session, "serialized", lambda user, **kw: nullcontext()):
+            self.run_together(lambda: line_questions.begin(USER, ["LI-1"]), lambda: self.line_event("answered"),
+                              lambda: line_questions.begin(USER, ["LI-2"]))
+        lost = not self.payload.get("answered") or self.payload.get(line_questions.WAITING) != ["LI-1", "LI-2"]
+        self.assertTrue(lost)
+
+
+def json_copy(value):
+    import json
+
+    return json.loads(json.dumps(value))
+
+
 if __name__ == "__main__":
     unittest.main()
