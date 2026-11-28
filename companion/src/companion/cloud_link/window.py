@@ -40,11 +40,15 @@ WINDOW_TITLE = "CC · 云端 Express 连接"
 ADVANCED_SETTINGS = ("AdvancedSettings9", "AdvancedSettings8", "AdvancedSettings7", "AdvancedSettings6")
 
 try:
+    from PySide6.QtCore import QEvent as _QEvent
     from PySide6.QtCore import QTimer as _QTimer
     from PySide6.QtWidgets import QWidget as _QWidget
+    # 屏幕缩放变了（拖到另一块屏；Qt 6.6 起有 DevicePixelRatioChange，旧版用 ScreenChangeInternal）
+    _SCREEN_CHANGE = getattr(_QEvent.Type, "DevicePixelRatioChange", None) or getattr(_QEvent.Type, "ScreenChangeInternal")
 except Exception:  # noqa: BLE001 - 没装 PySide6（云端精简包）：只是不能用
     _QTimer = None
     _QWidget = object  # type: ignore[assignment,misc]
+    _SCREEN_CHANGE = None
 
 
 class WindowUnavailable(RuntimeError):
@@ -189,6 +193,14 @@ class EventRouter:
         self._changed()
 
 
+def fitted_size(width: int, height: int, ratio: float) -> tuple:
+    """远程画面 ``width × height`` 物理像素在缩放 ``ratio`` 的屏幕上要多大的逻辑窗口（向上取整，至多多出 1 个物理像素）。"""
+    import math
+
+    ratio = ratio if ratio and ratio > 0 else 1.0
+    return max(1, math.ceil(int(width) / ratio)), max(1, math.ceil(int(height) / ratio))
+
+
 class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
     """云端 Express 连接窗口。构造后调 :meth:`start` 以最小化显示并开始连接。
 
@@ -216,7 +228,7 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
             from ..gui_icon import pearnly_icon
             icon = pearnly_icon()
         self.setWindowIcon(icon)
-        self.resize(params.width, params.height)
+        self._fit()
         self.session = CloudSession(self._open, self._close, clock)
         self.events = EventRouter(self.session,
                                   read_extended=lambda: self._control().property("ExtendedDisconnectReason"),
@@ -273,8 +285,15 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
         return control
 
     def _pixels(self) -> tuple:
-        ratio = float(self.devicePixelRatioF() or 1.0)
-        return max(1, round(self.width() * ratio)), max(1, round(self.height() * ratio))
+        """远程画面的物理像素：始终是远程桌面分辨率本身（一比一，不缩放：代录按坐标点，点击要准）。"""
+        return max(1, int(self._params.width)), max(1, int(self._params.height))
+
+    def _fit(self) -> None:
+        """窗口大小贴合远程画面（11-28 用户：去掉四周灰边、不像画中画，点击准优先、不缩放）：逻辑尺寸 = 远程分辨率 ÷ 屏幕缩放，
+        固定大小（不能拉大、不能最大化，拉大只会多出灰边）。以前按逻辑像素开 1280×800，150% 缩放的屏幕上窗口是 1920×1200
+        物理像素、画面只有 1280×800。"""
+        width, height = fitted_size(self._params.width, self._params.height, float(self.devicePixelRatioF() or 1.0))
+        self.setFixedSize(width, height)
 
     def _error_description(self, disc_reason: int, extended: int) -> str:
         return str(self._control().call("GetErrorDescription", disc_reason, extended) or "")
@@ -307,6 +326,13 @@ class CloudWindow(_QWidget):  # type: ignore[misc,valid-type]
         host = getattr(self, "_host", None)   # 构造中途（宿主还没建好）的尺寸事件不管
         if host is not None:
             host.resize(*self._pixels())
+
+    def changeEvent(self, event: Any) -> None:  # noqa: N802 - Qt 命名
+        """拖到缩放不同的另一块屏上：按新屏的缩放重新贴合。"""
+        super().changeEvent(event)
+        if getattr(self, "_params", None) is not None and event is not None and \
+                getattr(event, "type", lambda: None)() == _SCREEN_CHANGE:
+            self._fit()
 
     def closeEvent(self, event: Any) -> None:  # noqa: N802 - Qt 命名
         """关窗 = 断开，不重连；随后退订控件事件、销毁控件。"""

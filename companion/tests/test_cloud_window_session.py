@@ -563,13 +563,23 @@ def test_closing_the_window_disconnects_then_closes_the_host(qt_app, monkeypatch
     assert ("call", "Connect") not in log[log.index(("host-close",)):]
 
 
-def test_window_resize_moves_the_control(qt_app, monkeypatch):
+def test_the_window_fits_the_remote_screen_one_to_one_and_cannot_grow(qt_app, monkeypatch):
+    # 11-28 用户：云端窗口去掉四周灰边、不像画中画，点击准优先（画面一比一、不缩放）
     w, host, _ = _fake_window(monkeypatch)
     w.show()
-    w.resize(900, 700)
+    w.resize(1900, 1200)   # 拉不大：固定大小
     qt_app.processEvents()
-    assert host.sizes and host.sizes[-1][0] >= 900
+    ratio = float(w.devicePixelRatioF() or 1.0)
+    assert (w.width(), w.height()) == window.fitted_size(PARAMS.width, PARAMS.height, ratio)
+    assert w.minimumSize() == w.maximumSize()
+    assert all(size == (PARAMS.width, PARAMS.height) for size in host.sizes)   # 控件始终是远程分辨率本身
     w.close()
+
+
+@pytest.mark.parametrize("ratio,expected", [(1.0, (1280, 800)), (1.5, (854, 534)), (1.25, (1024, 640)),
+                                            (2.0, (640, 400)), (0, (1280, 800))])
+def test_the_logical_size_is_the_remote_resolution_divided_by_the_screen_scale(ratio, expected):
+    assert window.fitted_size(1280, 800, ratio) == expected
 
 
 def test_host_failure_is_window_unavailable(qt_app, monkeypatch):
