@@ -98,7 +98,8 @@ class Lab:
         self.product, self.site, self.user, self.company = product, site, user, company
         self.rec = Recorder()
         self.ocr_slots = threading.BoundedSemaphore(2)
-        self.ocr_threads, self.events_sent, self.reply_tokens = [], {}, {}
+        self.ocr_threads, self.events_sent, self.reply_tokens, self.accounts = [], {}, {}, {}
+        self.jobs, self.people = set(), {}
 
     # ── 替身 ────────────────────────────────────────────────────────────────
     def patches(self, stack):
@@ -131,6 +132,11 @@ class Lab:
             def enqueue(method, **kwargs):
                 if method != "pearnly_cowork.line.intake.store":
                     return real_enqueue(method, **kwargs)
+                job = kwargs.get("job_id")
+                with self.rec.lock:  # 同 RQ 的 deduplicate：同一个任务号只排一次
+                    if job in self.jobs:
+                        return None
+                    self.jobs.add(job)
                 for key in ("queue", "enqueue_after_commit", "deduplicate", "job_id"):
                     kwargs.pop(key, None)
                 self.background(lambda: cw_intake.store(**kwargs), "Guest")
@@ -216,13 +222,19 @@ class Lab:
 
         connect(self.site)
         try:
-            line_binding.bind(line_user, self.user, "lane lab")
+            # 一个本地账号只绑一个 LINE 号（绑新的会收回旧的）：每个测试 LINE 号一个临时账号，角色同基准账号，跑完删掉
+            account = "lanelab-" + line_user[-8:].lower() + "@maclab.test"
+            roles = [r for r in frappe.get_roles(self.user) if r not in ("All", "Guest", "Administrator")]
+            frappe.get_doc({"doctype": "User", "email": account, "first_name": "lanelab", "send_welcome_email": 0,
+                            "user_type": "System User", "language": "th",
+                            "roles": [{"role": role} for role in roles]}).insert(ignore_permissions=True)
+            self.accounts[line_user] = account
+            line_binding.bind(line_user, account, "lane lab")
             if self.product == "erp":
                 from pearnly_erp_portal.integrations import line_flow
 
-                payload = {"direction": "purchase", "company": self.company, "party": "@doc", "is_paid": 1,
+                payload = {"direction": "purchase", "entry": "upload", "company": self.company, "party": "@doc", "is_paid": 1,
                            "payment_method": "cash", "item_kind": "service"}
-                frappe.set_user(self.user)
                 if not line_flow.ready(payload):
                     raise SystemExit("ERP choices not ready, next step: " + str(line_flow._pending(payload)))
                 line_session.set_session(line_user, line_flow.STATE, payload, ttl_minutes=30)
@@ -249,6 +261,14 @@ class Lab:
                 if frappe.db.table_exists("Pearnly LINE Lane"):
                     frappe.db.delete("Pearnly LINE Lane", {"line_user_id": line_user})
             frappe.db.commit()
+            for account in self.accounts.values():
+                try:
+                    frappe.delete_doc("User", account, force=True, ignore_permissions=True)
+                    frappe.db.commit()
+                except Exception:  # noqa: BLE001 —— 删不掉（被别的记录引用）就停用
+                    frappe.db.rollback()
+                    frappe.db.set_value("User", account, "enabled", 0)
+                    frappe.db.commit()
         finally:
             frappe.destroy()
 
@@ -282,7 +302,9 @@ class Lab:
             frappe.destroy()
 
     def image(self, line_user, index, ts):
-        mid = "%d%06d" % (int(ts), index)
+        # LINE 的消息号全局唯一：同一时刻两个人的第 i 张也不同号（按人加一段）
+        who = self.people.setdefault(line_user, len(self.people))
+        mid = "%d%02d%06d" % (int(ts), who, index)
         event = {"type": "message", "mode": "active", "timestamp": int(ts * 1000) + index,
                  "webhookEventId": "lanelab-" + secrets.token_hex(8), "replyToken": "rt-" + secrets.token_hex(8),
                  "source": {"type": "user", "userId": line_user},
@@ -331,6 +353,8 @@ class Lab:
             events = frappe.db.sql("select event_id, status, detail from `tabPearnly LINE Event` where event_id in %s",
                                    (tuple(e for e, (u, _m) in self.events_sent.items() if u == line_user) or ("-",),),
                                    as_dict=True)
+            frappe.local.lang = "th"
+            lost_text = frappe._("Could not store this document")
         finally:
             frappe.destroy()
         texts, cards, pushes = [], 0, 0
@@ -359,7 +383,7 @@ class Lab:
             "intakes": len(intakes), "billing": len(billing), "billing_unique": len(set(billing)), "cards": cards,
             "pushes": pushes, "order_by_send": order == sorted(order),
             "failed_events": [e["event_id"] for e in events if e["status"] in ("failed", "expired")],
-            "could_not_store": sum("Could not store" in (t or "") or "ไม่สามารถ" in (t or "") for t in texts),
+            "could_not_store": sum(t in (lost_text, "Could not store this document") for t in texts),
             "errors": [o.get("error") for o in self.rec.out if o["kind"].endswith("error")][:2],
             "texts": sorted(set(t for t in texts if t))[:6],
         }
@@ -370,6 +394,16 @@ class Lab:
 
     def tokens_of(self, line_user):
         return {self.reply_tokens[e] for e, (u, _m) in self.events_sent.items() if u == line_user}
+
+
+def connections(site) -> int:
+    """这个站点的库此刻有几个连接（不算查它这一个）。"""
+    connect(site)
+    try:
+        return int(frappe.db.sql("select count(*) from information_schema.processlist where db=%s",
+                                 (frappe.conf.db_name,))[0][0]) - 1
+    finally:
+        frappe.destroy()
 
 
 def _card_cancel(lab, line_user):
@@ -512,11 +546,15 @@ def run(argv) -> dict:
             for line_user in users:
                 lab.prepare(line_user)
             # 格 1：同一个人同时发 count 张，途中点第一张卡上的「取消」
+            before = connections(site)
             tap = burst_with_tap(lab, users[0], count) if product == "erp" else None
             if tap is None:
                 lab.burst([users[0]], count)
             lab.settle()
             one = lab.outcome(users[0], count)
+            # 道的排空线程、模拟请求、识别线程都自建自关连接：跑完回到跑之前的数
+            one["connections"] = {"before": before, "after": connections(site)}
+            one["ok"] = one["ok"] and one["connections"]["after"] <= one["connections"]["before"]
             if tap is not None:
                 answered = [m.get("text") for o in lab.rec.out if o.get("kind") == "reply"
                             and o.get("token") == tap["tap_token"] for m in o["messages"]]
