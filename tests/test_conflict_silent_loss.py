@@ -376,6 +376,9 @@ class VoidEntries(unittest.TestCase):
             tree = ast.parse(path.read_text(encoding="utf-8"))
             validate = next(node for node in ast.walk(tree) if isinstance(node, ast.FunctionDef) and node.name == "validate")
             self.assertEqual(ast.unparse(validate.body[0]), "ledger_guard.keep_current(self)", doctype)
+        guard = (APPS / "pearnly_erp_portal/pearnly_erp_portal/express/ledger_guard.py").read_text(encoding="utf-8")
+        self.assertIn('SUBMITTED_ONLY = ("printed_total",)', guard)
+        self.assertIn("for_update=True", guard)
 
 
 if __name__ == "__main__":

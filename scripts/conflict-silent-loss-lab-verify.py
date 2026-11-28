@@ -295,7 +295,10 @@ def stale_save_keeps_ledger(site, rounds, results):
         docnum = f"{TAG}-RR{secrets.token_hex(3)}"
         read_view("Purchase Document")
         frappe.get_doc("Purchase Document", name)  # 本连接先读过这张单
-        elsewhere(site, user, lambda: push._set(push.PURCHASE, name, {"ledger_state": "written", "ledger_docnum": docnum}))
+        def receipt():  # 写账回执记下单号；同时有人改了票面合计（`express.printed.set_total` 同样不改修改时间）
+            push._set(push.PURCHASE, name, {"ledger_state": "written", "ledger_docnum": docnum})
+            frappe.db.set_value("Purchase Document", name, "printed_total", 123.45, update_modified=False)
+        elsewhere(site, user, receipt)
         try:
             entry.payment(name, amount=100, method="cash")
             frappe.db.commit()
@@ -303,8 +306,10 @@ def stale_save_keeps_ledger(site, rounds, results):
         except Exception as error:  # noqa: BLE001
             frappe.db.rollback()
             outcome = repr(error)[:200]
-        row = frappe.db.get_value("Purchase Document", name, ["ledger_state", "ledger_docnum", "paid_amount"], as_dict=True)
-        tally(results, "erp.stale_save_keeps_ledger", row.ledger_docnum == docnum and row.ledger_state == "written",
+        row = frappe.db.get_value("Purchase Document", name, ["ledger_state", "ledger_docnum", "paid_amount", "printed_total"],
+                                  as_dict=True)
+        tally(results, "erp.stale_save_keeps_ledger", row.ledger_docnum == docnum and row.ledger_state == "written"
+              and float(row.printed_total or 0) == 123.45,
               {"outcome": outcome, "row": dict(row)})
         frappe.db.set_value("Purchase Document", name, {"ledger_state": None, "ledger_docnum": None}, update_modified=False)
         frappe.db.commit()

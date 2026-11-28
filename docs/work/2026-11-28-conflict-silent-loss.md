@@ -100,3 +100,51 @@
 | 发现 | 真问题 | 修了 | 耗时 |
 |---|---|---|---|
 | 6 | 3（闸门缓存按 id 跨扫描不清、回读钩子往外抛冲突会让引导式回读失败、重复请求路径少了角色权限检查） | 3 修；另 3 条不改：用尽日志在「已提交后冲突」时误记（扣费里提交是最后一句，现无此路径）；镜像卡拖动同空隙重号（原有问题，记已知）；拖卡先锁列表再锁卡的锁序（死锁由 conflicts.attempt 重来） | 约 15 分钟 |
+
+## 第二段：作废入口（分支 pearnly/conflict-b3-void-entries，基于第一段；主会话 11-28 选 A）
+
+起因：第一段给 `express.push.void` 改了加锁读，主会话要一条流程级并发测试。流程 `erp.express.void-while-sending` 在只有第一段的源码上 9/9 红：后台 `push.send` 锁着单据排写账件，作废等锁，拿到锁后用读视图里的旧副本 `doc.save()`。后台写 `ledger_job` 用的是不改修改时间的 `set_value`，保存前比对拦不住，保存把它盖回空；撤件时读到的是自己刚盖回的空值，留下一件排队中的写账件。电脑领走就把已作废的单写进 Express。
+
+### 三层改法
+
+| 层 | 改了什么 | 管哪些路径 |
+|---|---|---|
+| 撤件不变式 | `push.void` → `_cancel_unwritten`：按（来源 DocType、单号）在写账件表里加锁找出全部排队中 / 转人工的件，一律撤掉（「照 Express 原生作废原单」那件除外），不只认单据上的 `ledger_job` | 所有调作废的路径：页面、旧接口、采购「修改」作废原单、内部调用 |
+| 入口先结束读视图 | `api_cancel_purchase`、`api_void_purchase`、`api_cancel_sale`、`api_void_stock_entry` 先 `frappe.db.commit()` 再 `conflicts.attempt`；`purchasing.access.get_document`、`sales.access.get_document`、`purchasing.service.set_status` 改成先 `FOR UPDATE` 再 `guard` / `get_doc`（出入库 `void_entry` 原本就先锁） | 页面上的四个作废入口 |
+| 保存不盖回账本栏 | 新模块 `express.ledger_guard.keep_current`：采购 / 销售 / 出入库 / 盘点 / 收银日汇总五种单据的 `validate` 第一句，用加锁读把库里 `ledger_*` 现值放回文档对象；已提交的单的 `printed_total` 同理（只经 `printed.set_total` 改）。核过没有代码经文档对象改账本栏 | 所有整份保存这五种单据的路径（付款、附件、作废、修改、内部） |
+
+另：领件兜底 `push.still_wanted` 改加锁读（领单那笔事务前面已有普通读）；`_send` 锁内复核的栏加上 `status`。
+
+### 主会话问的几点
+
+- **反向时序**（作废先完成、push.send 随后才排件）：
+  - `_send` 开头就加锁读单据行，等作废提交后读到已作废，回 not_ready、不排件。
+  - 准备途中提交过（主档落地）、放了锁时：写回前锁内复核（`_ledger_seen`）。作废会清账本栏，现在又加上了 `status`，不一致就放弃。
+  - 领件那一刻（`cc_desktop.jobs._claim` → 产品 `still_wanted`）：单据已作废就把件转「已撤销」、不交电脑。原来是普通读，关隔离后看不到读视图之后提交的作废，现在改加锁读，是最后一道闸。
+  - Cowork 推送：领件 `push.native.service.lease` 对推送记录加锁读、必须是待推；撤回、删票都锁这条记录，不变式成立。
+- **LINE / CC 调作废的路径**：逐个核过，没有「先锁卡片再调单据作废」的入口。LINE 卡片的「取消」只取消卡片本身，不作废单据。别的事务里调作废的只有采购「修改」（提交事务里作废原单），入口层的 commit 管不到它，由撤件不变式和保存守卫兜住；流程有 `amend` 一格。
+- **11-26 第一版的两个坑**在作废入口上专门验（实验栈格 `erp.void_with_children`：4 张单同时到作废 + 补开收据 + 付款）：作废那一路 10 + 3 轮不出 LinkValidationError，也不漏出死锁或保存前比对。另两路的结果只作记录：付款入口还会漏出 1213（属 ② 的 E1）；补开收据在实验栈出过一次 PDF 样式解析错（`xml.dom.SyntaxErr`），待查是不是实验栈环境问题。
+
+### 同类排查：静默写（不改修改时间）× 旧副本整份保存
+
+| 表 | 静默写的栏 | 整份保存的路径 | 判 | 处置 |
+|---|---|---|---|---|
+| 采购 / 销售 / 出入库 / 盘点 / 收银日汇总 | `ledger_*`（写账件、Express 单号、状态、原因、要问的项） | 付款、附件、作废、修改、过账等 | 真，管钱（盖空单号会重复写进 Express、盖掉件号会留下没撤的件） | 本段修：`ledger_guard` |
+| 采购 / 销售 | `printed_total`（`printed.set_total`） | 同上（已提交的单） | 真，管钱 | 本段修：`ledger_guard` 对已提交的单 |
+| ERP 物料 | `express_code` / `express_company`（写账回执认领码） | `serials.turn_on / turn_off`；主档同步 `masters._upsert` 正当地经保存改码 | 真（码被盖回会让下一张单按旧码或新建档写），不能一刀拦（有正当的保存路径改它） | 归 ④（写账回执与主档同步一起改） |
+| ERP 公司 | `vat_registered`、`express_sync_state / note` | `cc_service._reactivate / _rename`；公司表单 | 真（增值税登记户被盖回会按错的税写），表单正当地改它 | 随各自改动；改到公司保存时一并核 |
+| 充值申请 | 远端同步整行（`billing_remote`） | 审批 `approve_local / reject_local` 是加锁整份读再存 | 不涉及：审批读的是最新值；远端同步只镜像另一控制面的申请，不与本站审批并发 | — |
+| 其余（Cowork 原件 `binding_records`、DMS 端点 `last_status`、推送日志删除标记、User `default_workspace`、MR.ERP 连接目录缓存） | — | — | 不管钱 | 进存量清单，随各自改动 |
+
+### 验证（本机实验栈 maclab `pearnly-b3`）
+
+| 格 | 修前（只有第一段的源码） | 修后 |
+|---|---|---|
+| 流程 `erp.express.void-while-sending`：采购、销售、修改作废原单 | 9/9 红（每张都留一件排队中的写账件） | 18/18（起始状态改成「停在要人选」之后连跑 3 遍） |
+| 同上加库存单一格（入库单作废，`api_void_stock_entry`） | 12/12 红（四类每张都留一件没撤销的件） | 25/25 × 3 遍（含仓库前置判定） |
+| `erp.stale_save_keeps_ledger`（回执记下单号、改了票面合计后，旧副本付款保存） | 0/3（单号被盖空、状态清掉） | 10/10 + 10/10（第二轮含票面合计） |
+| `erp.void_with_children`（两个旧坑） | — | 23/23（10 + 3 + 10 轮） |
+
+流程首跑碰到的环境坑，已在流程里处理：
+- 实验站报的账套过期会显示「已断开」，后台不排件。流程有「竞争是否真实发生」的前置判定，这种情况判不通过。
+- 每分钟的写账巡检会抢先把「排队中、还没有件」的单排上件。起始状态改成「停在已答过的人选」，巡检不碰。
