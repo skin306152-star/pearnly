@@ -300,6 +300,28 @@ class Flow(Base):
         self.assertIn("Please try again later", json.dumps(pushed, ensure_ascii=False))
         self.assertEqual((self.record(made["name"]).status, self.jobs.rows), ("draft", {}))
 
+    def test_a_deadlock_while_changing_the_draft_or_attaching_a_slip_is_retried_whole(self):
+        # 11-28 并发窗口实测：别笔草稿正在改时放行，改草稿那路被回滚（1213）；CC 改草稿 / 补凭证同样整笔重来
+        made = self.make("600", cash="0", methods=[{"prefix": "BB", "amount": "600"}])
+        self.attached["slip.jpg"] = b"jpeg"
+        real = T.service._own
+        left = [1]
+
+        def own(name, for_update=False):
+            if for_update and left[0]:
+                left[0] -= 1
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            return real(name, for_update=for_update)
+        with mock.patch.object(T.service, "_own", side_effect=own), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            attached = self.call(cc_tools.voucher, collection=made["name"], version=1, prefix="BB", file="slip.jpg")
+            self.assertEqual((attached["ready"], attached["document"]), (True, plan.doc_id(made["name"], 2)))
+            left[0] = 1
+            changed = self.call(cc_tools.draft, collection=made["name"], version=2, cash="0",
+                                invoices=[{"docnum": "IV1", "amount": "500"}], methods=[{"prefix": "BB", "amount": "500",
+                                                                                         "file": "slip.jpg"}])
+        self.assertEqual(changed["document"], plan.doc_id(made["name"], 3))
+        self.assertEqual(self.record(made["name"]).draft_version, 3)
+
     def test_written_and_failed_results(self):
         made = self.make("600")
         self.agreed(made["document"])

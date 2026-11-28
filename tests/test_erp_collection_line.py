@@ -571,6 +571,28 @@ class Amounts(Base):
         self.assertIn("Save", [item["label"] for item in self.flex_buttons()])
 
 
+    def test_a_deadlock_while_the_slip_goes_into_the_draft_is_retried_whole(self):
+        # 11-28 并发窗口实测：别笔草稿正在改时放行，改草稿那路被回滚（1213）；LINE 补凭证同样整笔重来，凭证文件先提交
+        frappe.session.user = "a@x"
+        made = service.create_draft("CO-1", C1, [{"docnum": "IV2", "amount": "500"}], methods=[{"prefix": "BB", "amount": "500"}])
+        frappe.session.user = "Guest"
+        flow._show_card("U1", {}, made, "r-x")
+        flow.receive_voucher("U1", "a@x", {"type": "image", "id": "M2"}, "r-img")
+        _path, kwargs = self.enqueued[-1]
+        real, left = T.service._own, [1]
+
+        def own(name, for_update=False):
+            if for_update and left[0]:
+                left[0] -= 1
+                raise frappe.QueryDeadlockError("1213 Deadlock found when trying to get lock")
+            return real(name, for_update=for_update)
+        replies = len(LINE.replies)
+        with mock.patch.object(T.service, "_own", side_effect=own), mock.patch("pearnly_core.transaction.conflicts.time.sleep"):
+            flow.store_voucher(**{key: value for key, value in kwargs.items() if key not in ("queue", "enqueue_after_commit")})
+        self.assertEqual((left[0], self.step(), self.payload()["version"]), (0, "card", 2))
+        self.assertIn("Save", [item["label"] for item in self.flex_buttons()])
+        self.assertEqual(len(LINE.replies) - replies, 1)
+
 class Wording(Base):
     def test_the_discount_prompt_and_the_next_button_read_naturally(self):
         # 11-12 三星实测：「输入折扣金额的金额」重复，「下一个」应为「下一步」

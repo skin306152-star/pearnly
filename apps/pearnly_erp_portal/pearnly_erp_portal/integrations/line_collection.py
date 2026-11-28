@@ -911,7 +911,10 @@ def store_voucher(line_user_id, user, message_id, filename, prefix, reply_token=
         with background(line_user_id, reply_token), _guarded(reply_token):
             if payload.get("name"):  # 卡片上缺凭证：补进草稿
                 found = _service().card(payload["name"])
-                card = _service().set_voucher(payload["name"], found["version"], prefix, stored["file"])
+                frappe.db.commit()  # 凭证文件已存：先提交，补进草稿撞冲突整笔重来时不把它一起回滚
+                card = _service().set_voucher_retried(payload["name"], found["version"], prefix, stored["file"], busy_result=True)
+                if card.get("status") == _service().BUSY:
+                    return _text(reply_token, _("Please try again later"))
                 return _show_card(line_user_id, payload, card, reply_token)
             for row in payload["methods"]:
                 if row["prefix"] == prefix and not row.get("voucher"):

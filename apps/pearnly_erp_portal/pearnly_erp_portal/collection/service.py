@@ -869,16 +869,16 @@ def release(name, version, consent) -> dict:
 BUSY = "busy"
 
 
-def release_retried(name, version, consent, busy_result=False) -> dict:
-    """LINE【确认】、CC「写入」、CC 对话引导「确定」放行用的 :func:`release`：撞上数据库冲突（1213 / 1020 / 保存前比对，
-    同一位客户两笔同时放行等）整笔回滚、退避重来（`transaction.conflicts.retried`，同网页入口 `api._fresh`）。被回滚的那次什么都
+def _retried(function, *args, busy_result=False, **kwargs):
+    """LINE、CC、CC 对话引导改动收款（放行、改草稿、补凭证）用：撞上数据库冲突（1213 / 1020 / 保存前比对；同一位客户两笔同时放行、
+    别笔草稿正在改时放行等）整笔回滚、退避重来（`transaction.conflicts.retried`，同网页入口 `api._fresh`）。被回滚的那次什么都
     没留下（写账件、导入任务、页面刷新通知都排在提交后），重来不重复。调用方保证此前这笔事务里没有没提交的写（重来会一起回滚）。
-    用尽：``busy_result`` 为真回 ``{"status": "busy"}``（LINE 重出确认卡），否则抛「请稍后重试」（`conflicts.attempt` 同一句）。"""
+    用尽：``busy_result`` 为真回 ``{"status": "busy"}``（LINE 自己回话），否则抛「请稍后重试」（`conflicts.attempt` 同一句）。"""
     from pearnly_core.transaction import conflicts
 
     def once():
         frappe.flags.pop("pearnly_collection_live", None)  # 被回滚那次记下的「已通知刷新」不算（`push._live`）
-        return release(name, version, consent)
+        return function(*args, **kwargs)
 
     try:
         return conflicts.retried(once)
@@ -890,6 +890,21 @@ def release_retried(name, version, consent, busy_result=False) -> dict:
         if busy_result:
             return {"status": BUSY}
         frappe.throw(_(conflicts.BUSY))
+
+
+def release_retried(name, version, consent, busy_result=False) -> dict:
+    """:func:`release` 经 :func:`_retried`（LINE【确认】、CC「写入」、CC 对话引导「确定」）。"""
+    return _retried(release, name, version, consent, busy_result=busy_result)
+
+
+def update_draft_retried(*args, **kwargs) -> dict:
+    """:func:`update_draft` 经 :func:`_retried`（CC 改草稿）。"""
+    return _retried(update_draft, *args, **kwargs)
+
+
+def set_voucher_retried(name, version, prefix, voucher, busy_result=False) -> dict:
+    """:func:`set_voucher` 经 :func:`_retried`（LINE 补凭证）。"""
+    return _retried(set_voucher, name, version, prefix, voucher, busy_result=busy_result)
 
 
 def withdraw(name) -> dict:

@@ -353,8 +353,10 @@ def draft(tool_input) -> str:
 
     def make(company):
         if name:
-            return service.update_draft(name, tool_input.get("version"), rows, cash=tool_input.get("cash") or 0,
-                                        methods=_methods(tool_input.get("methods")), amount=tool_input.get("amount"),
+            methods = _methods(tool_input.get("methods"))
+            frappe.db.commit()  # 凭证文件已存：先提交，改草稿撞冲突整笔重来时不把它一起回滚（`service.update_draft_retried`）
+            return service.update_draft_retried(name, tool_input.get("version"), rows, cash=tool_input.get("cash") or 0,
+                                        methods=methods, amount=tool_input.get("amount"),
                                         salesman=tool_input.get("salesman"), department=tool_input.get("department"),
                                         doc_date=tool_input.get("date") or None)
         return service.create_draft(company, str(tool_input.get("customer") or ""), rows, cash=tool_input.get("cash") or 0,
@@ -389,8 +391,10 @@ def draft(tool_input) -> str:
 
 def voucher(tool_input) -> str:
     def attach():
-        return service.set_voucher(str(tool_input.get("collection") or ""), tool_input.get("version"),
-                                   str(tool_input.get("prefix") or ""), _voucher(tool_input.get("file")))
+        file = _voucher(tool_input.get("file"))
+        frappe.db.commit()  # 凭证文件已存：先提交，补进草稿撞冲突整笔重来时不把它一起回滚（`service.set_voucher_retried`）
+        return service.set_voucher_retried(str(tool_input.get("collection") or ""), tool_input.get("version"),
+                                           str(tool_input.get("prefix") or ""), file)
 
     found = _call(attach)
     return _json(_card(found["result"]) if "result" in found else found)
