@@ -110,7 +110,7 @@
 			f("printed_total", "Printed Total", "Currency", {hidden: !(state.doc.ocr_review || state.intake), onchange: () => !state.editable && state.ready
 				&& p.save_printed_total("ERP Sales Document", state.doc, state.form?.get_value("printed_total"))}),
 			u.section(""), f("note", "Remarks", "Small Text"),
-			...(doc.void_reason ? [f("void_reason", "Reason for Cancellation", "Small Text", {read_only: 1})] : []),
+			...(doc.void_reason ? [f("void_reason", "trade.voidReason", "Small Text", {read_only: 1})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "HTML", "Tab Break", "Section Break", "Column Break"].includes(field.fieldtype)
 				|| field.fieldname === "attachment_kind" ? field.read_only

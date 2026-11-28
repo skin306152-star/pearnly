@@ -151,7 +151,7 @@
 			f("override_vat", "VAT", "Currency", {depends_on: "eval:doc.amount_override"}),
 			f("override_grand", "Grand Total", "Currency", {depends_on: "eval:doc.amount_override"}),
 			u.section(""), f("notes", "Remarks", "Small Text"),
-			...(doc.void_reason ? [f("void_reason", "Reason for Cancellation", "Small Text", {read_only: 1})] : []),
+			...(doc.void_reason ? [f("void_reason", "trade.voidReason", "Small Text", {read_only: 1})] : []),
 		].map(field => ({...field,
 			read_only: ["Button", "HTML", "Tab Break", "Section Break", "Column Break"].includes(field.fieldtype)
 				|| field.fieldname === "attachment_kind" ? field.read_only

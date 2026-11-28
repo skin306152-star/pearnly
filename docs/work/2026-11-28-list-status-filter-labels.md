@@ -83,6 +83,15 @@ Cowork 识别记录 posting_kind 已一致；DMS 推送记录页头自己的 Sel
 | 作废确认框的原因栏（主会话 11-28 补定） | 「Reason for Cancellation」取消原因 | 新词条 `trade.voidReason`：zh「作废原因」、en「Void Reason」；th「เหตุผลในการยกเลิก」、ja「取消理由」与原来相同 |
 
 确认框里关掉对话框的那颗按钮是框架自己的（放弃这次操作），主按钮「Confirm 确认」，都不动。
-原因栏不复用已有的「Void Reason」：那条是 POS 收据（ERP Sale）的字段标签，中文是「撤销原因」，改它会动到 POS；POS 这一处的「撤销 / 作废」不一致留给主会话定。
+原因栏不复用已有的「Void Reason」：那条是 POS 收据（ERP Sale）的字段标签，中文是「撤销原因」。
+
+作废原因一词（主会话 11-28 再定，依据同一句「统一已作废」）：
+
+| 位置 | 改前 | 改后 |
+|---|---|---|
+| POS 收据作废原因（ERP Sale 字段标签 msgid「Void Reason」） | zh 撤销原因、th เหตุผลการยกเลิก | zh 作废原因、th เหตุผลในการยกเลิก（同 trade.voidReason）；en Void Reason、ja 取消理由 本来一致不动 |
+| 销售 / 采购详情页的作废原因栏（`sales-fields.js` / `purchase-fields.js`） | 「Reason for Cancellation」取消原因 | `trade.voidReason` 作废原因 / Void Reason |
+
+POS 收据列表、详情（小票查看器）、打印、导出里没有显示作废原因（只记在单据上），核过不用改。销售 / 采购 DocType 元数据里 void_reason 的标签仍是「Reason for Cancellation」：产品页不读它（详情页自己给标签、导出不含这一列），只在原生 Desk 表单里可见，不动。
 
 改的都是代码里引用哪条已有词条（Cancelled → Voided、Cancel → trade.void），词条本身一字没改，`check-copy.py` 记为新增 1（trade.voidReason）、代码引用新增 6、改动 0、拦截 0；打印章是模板里的固定字。

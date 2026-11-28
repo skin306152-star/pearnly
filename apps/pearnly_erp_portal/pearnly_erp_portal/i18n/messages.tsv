@@ -1016,7 +1016,7 @@ Unbound	未绑定	ยังไม่ผูก	未連携
 Unit Cost (net of VAT)	单位成本（不含 VAT）	ต้นทุนต่อหน่วย (ไม่รวม VAT)	単価（VAT除く）
 Used when a new purchase line does not say otherwise	新建采购明细未单独指定时使用	ใช้เมื่อรายการจัดซื้อใหม่ไม่ได้ระบุไว้เป็นอย่างอื่น	新しい仕入明細で別途指定がない場合に使います
 VAT Applicable	含 VAT	คิด VAT	VAT 対象
-Void Reason	撤销原因	เหตุผลการยกเลิก	取消理由
+Void Reason	作废原因	เหตุผลในการยกเลิก	取消理由
 Voided	已作废	ยกเลิกแล้ว	取消済み
 Who bought this receipt; empty means a walk-in customer	购买此小票的客户；留空表示散客	ลูกค้าของใบเสร็จนี้ หากเว้นว่างไว้หมายถึงลูกค้าทั่วไป	このレシートの購入者。空欄は一般客（通りがかり）です
 Year, year-month or ALL, per the reset policy	年、年月或 ALL，按重置策略	ปี ปี-เดือน หรือ ALL ตามนโยบายการเริ่มเลขใหม่	年・年月・ALL のいずれか（リセット方針に従う）
