@@ -4673,6 +4673,16 @@ class LedgerWordFilter(unittest.TestCase):
         self.assertEqual(E.with_ledger_words([], group), [group])
         self.assertTrue(all(like.endswith("%") and "\\_" in like for like in E._UNKNOWN_LIKE))
 
+    def test_the_shared_list_filter_lets_a_declared_virtual_field_take_a_value(self):
+        # 官方控件见 ``is_virtual`` 就把输入框置灰（11-28 实验站浏览器实测：「Express 状态」选了字段、值框点不动）：
+        # 共用 list.js 只对页面在 filter_fields 里声明的字段，交给筛选的副本去掉这个标记
+        root = pathlib.Path(__file__).resolve().parents[1]
+        source = (root / "apps/pearnly_core/pearnly_core/public/desk/list.js").read_text(encoding="utf-8")
+        self.assertIn(".map(df => (df.is_virtual ? {...df, is_virtual: 0} : df))", source)
+        for page in ("purchase.js", "sales.js", "stock-entry.js"):
+            text = (root / "apps/pearnly_erp_portal/pearnly_erp_portal/public/desk" / page).read_text(encoding="utf-8")
+            self.assertIn('fieldname: "ledger_word", label: __("Express Status"), fieldtype: "Select"', text, page)
+
 
 class LedgerGuardSkipsVirtualFields(unittest.TestCase):
     """保存时把账本栏按加锁读回填（`ledger_guard.keep_current`）不读不落库的虚字段：``ledger_word`` 没有列，读了整次保存报

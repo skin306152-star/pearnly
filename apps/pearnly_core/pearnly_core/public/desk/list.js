@@ -29,8 +29,11 @@
 				// 会加出一堆空选项、下拉里什么都没有（实测踩到）。这里从 DocType 的元数据取。
 				const names = options?.filter_list?.filter_fields;
 				const labels = options?.filter_list?.filter_labels || {};
+				// 不落库的虚字段（ERP 单据的「Express 状态」`ledger_word`，只给筛选用、服务端按白名单翻成条件）：官方控件见 `is_virtual`
+				// 就把输入框置灰（`base_control.js`），筛选里这份副本去掉这个标记，页面上声明了才这样
 				const fields = names?.length
-					? names.map(name => labelled(frappe.meta.get_docfield(options.doctype, name), labels[name])).filter(Boolean)
+					? names.map(name => labelled(frappe.meta.get_docfield(options.doctype, name), labels[name]))
+						.filter(Boolean).map(df => (df.is_virtual ? {...df, is_virtual: 0} : df))
 					: null;
 				super(fields ? {...options, filter_fields: fields, pearnly_conditions: true} : options);
 			}
